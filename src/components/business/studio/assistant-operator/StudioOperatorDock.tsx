@@ -36,6 +36,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useMemo,
   useState,
   useSyncExternalStore,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -51,6 +52,10 @@ import {
   STUDIO_OPERATOR_PANEL_RESIZE as RESIZE,
   STUDIO_OPERATOR_SHELL,
 } from '@/constants/studio-assistant-operator'
+import {
+  getReferenceImageAttachmentId,
+  removeReferenceMentions,
+} from '@/lib/studio-reference-mentions'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAssistantOperator } from '@/hooks/use-assistant-operator'
@@ -59,6 +64,7 @@ import { useStudioOperatorCritique } from '@/hooks/use-studio-operator-critique'
 import { useStudioOperatorHistory } from '@/hooks/use-studio-operator-history'
 import {
   setOperatorPlanMode,
+  removeOperatorMention,
   subscribeOperatorAttachment,
   takeOperatorAttachment,
   useStudioOperatorState,
@@ -136,6 +142,7 @@ function writeWidth(next: number): void {
 
 export function StudioOperatorDock() {
   const t = useTranslations('StudioOperator')
+  const tReference = useTranslations('StudioPromptArea.referenceMention')
   /**
    * ⭐ **表单、开合、参考位上限全从宿主拿**（P4-C）：这颗外壳因此**页面无关** ——
    * 同一个 Dock 既挂在工作台（`StudioWorkspaceUI`）也挂在 LoRA 装配台
@@ -146,10 +153,12 @@ export function StudioOperatorDock() {
     open,
     setOpen,
     referenceLimit,
+    referenceImages,
+    apply,
     domain: hostDomain,
   } = useStudioOperatorHost()
   const isMobile = useIsMobile()
-  const { status, primed, stepsDone, plannedSteps, domain } =
+  const { status, primed, stepsDone, plannedSteps, domain, mentions } =
     useStudioOperatorState()
   /**
    * ⭐ 驱动 hook 在**外壳**这一层调用，不在面板里：收起面板时面板会被卸载，
@@ -202,77 +211,132 @@ export function StudioOperatorDock() {
     getServerWidthSnapshot,
   )
   /**
-   * ⭐ 草稿与附件也住在外壳（与驱动 hook 同理，但更贵）：收起会卸载面板，
+   * ⭐ 草稿与非图片附件住在外壳；图片来自宿主参考图列表：收起会卸载面板，
    * 而「点错工作台一下，刚写的话和刚挂好的素材一起消失」是让位法则最容易踩到的
    * 那一脚。2026-08-30 真机实测过 —— 收起再展开后附件 chip 归零。
    */
   const [draft, setDraft] = useState('')
-  const [attachments, setAttachments] = useState<
+  const [localAttachments, setLocalAttachments] = useState<
     readonly StudioOperatorAttachment[]
   >([])
-  /**
-   * ⭐ 上传队列也住在外壳（P3-A）：一次视频直传能跑几分钟，而收起（拍板 7）
-   * 会把面板整颗卸载。放在面板里的下场是「点一下工作台，正在传的东西全没了」，
-   * 而且是在文件已经上路之后 —— 比草稿丢失更糟。
-   *
-   * ⚠ 成功的上传落进的是**同一个 `attachments` 数组**（素材库挑的那个）：
-   * 从这一行往后，「传上来的」和「库里挑的」在代码里再也分不出来 —— 这就是
-   * 「同一条 attachment 链」的字面含义。
-   */
-  const handleUploaded = useCallback((attachment: StudioOperatorAttachment) => {
-    setAttachments((current) =>
-      current.some((item) => item.id === attachment.id)
-        ? current
-        : [...current, attachment],
-    )
-  }, [])
-  const upload = useStudioOperatorUpload({ onUploaded: handleUploaded })
-  /**
-   * 「把这张图给助手看」（P4-C）—— 结果列上那颗 🤖 投过来的东西。
-   *
-   * ⭐ 落进的是**同一个 `attachments` 数组**：传上来的、库里挑的、联网选用的、
-   * 结果列投过来的，从这一行往后在代码里分不出来。
-   * ⚠ 顺手把面板打开：投递方按那颗按钮的意思就是「现在就聊这张」，而面板此刻
-   * 很可能是收起的（点结果列 = 点工作台 = 收面板，拍板 7）。
-   */
-  useEffect(() => {
-    const consume = () => {
-      const attachment = takeOperatorAttachment()
-      if (!attachment) return
-      setAttachments((current) =>
-        current.some((item) => item.id === attachment.id)
-          ? current
-          : [...current, attachment],
-      )
-      setOpen(true)
-    }
-    // ⚠ 挂载时先取一次：投递可能发生在这颗组件还没挂上的时候（收起态下点结果列）。
-    consume()
-    return subscribeOperatorAttachment(consume)
-  }, [setOpen])
-  /**
-   * ⭐ 联网候选的「选用」（P3-B / 拍板 21）也走**同一个 `attachments` 数组** ——
-   * 搜来的、传上来的、库里挑的，从这一行往后在代码里分不出来。
-   */
-  const handleWebImported = useCallback(
+  const attachments = useMemo<readonly StudioOperatorAttachment[]>(
+    () => [
+      ...referenceImages.map(
+        (entry, index): StudioOperatorAttachment => ({
+          id: getReferenceImageAttachmentId(entry.url),
+          url: entry.url,
+          thumbnailUrl: entry.url,
+          kind: 'image',
+          label: `${tReference('image', { index: index + 1 })}${entry.disabledReason ? ` · ${tReference('unavailable')}` : ''}`,
+        }),
+      ),
+      ...localAttachments.filter((item) => item.kind !== 'image'),
+    ],
+    [referenceImages, localAttachments, tReference],
+  )
+  const handleUploaded = useCallback(
     (attachment: StudioOperatorAttachment) => {
-      setAttachments((current) =>
+      if (attachment.kind === 'image') {
+        apply.addReference(attachment.url)
+        return
+      }
+      setLocalAttachments((current) =>
         current.some((item) => item.id === attachment.id)
           ? current
           : [...current, attachment],
       )
     },
-    [],
+    [apply],
   )
-  /**
-   * 取消选用 / 被换下来：把那条附件从消息上摘掉。
-   * ⚠ 素材本身由 hook 走既有删除路径清掉（拍板 21 的「零残留」）—— 这里只管消息。
-   */
-  const handleWebRemoved = useCallback((attachmentId: string) => {
-    setAttachments((current) =>
-      current.filter((item) => item.id !== attachmentId),
-    )
-  }, [])
+  const handleAttachmentsChange = useCallback(
+    (next: readonly StudioOperatorAttachment[]) => {
+      const images = next.filter((item) => item.kind === 'image')
+      for (const entry of [...referenceImages].reverse()) {
+        if (!images.some((item) => item.url === entry.url)) {
+          apply.removeReference(entry.url)
+        }
+      }
+      for (const image of images) {
+        if (!referenceImages.some((entry) => entry.url === image.url)) {
+          apply.addReference(image.url)
+        }
+      }
+      setLocalAttachments(next.filter((item) => item.kind !== 'image'))
+    },
+    [apply, referenceImages],
+  )
+  const upload = useStudioOperatorUpload({ onUploaded: handleUploaded })
+
+  useEffect(() => {
+    for (const mention of mentions) {
+      if (mention.kind !== 'image') continue
+      apply.addReference(mention.url)
+      removeOperatorMention(mention.id)
+    }
+  }, [apply, mentions])
+
+  const [previousReferences, setPreviousReferences] = useState({
+    domain: hostDomain,
+    images: referenceImages,
+  })
+  if (
+    previousReferences.domain !== hostDomain ||
+    previousReferences.images !== referenceImages
+  ) {
+    setPreviousReferences({ domain: hostDomain, images: referenceImages })
+    if (previousReferences.domain !== hostDomain) {
+      setDraft((current) => removeReferenceMentions(current))
+    } else if (referenceImages.length < previousReferences.images.length) {
+      const removed = previousReferences.images
+        .flatMap((entry, index) =>
+          referenceImages.some((current) => current.url === entry.url)
+            ? []
+            : [index],
+        )
+        .reverse()
+      if (removed.length) {
+        setDraft((current) =>
+          removed.reduce(
+            (text, index) => removeReferenceMentions(text, index),
+            current,
+          ),
+        )
+      }
+    }
+  }
+
+  useEffect(() => {
+    const consume = () => {
+      const attachment = takeOperatorAttachment()
+      if (!attachment) return
+      handleUploaded(attachment)
+      setOpen(true)
+    }
+    consume()
+    return subscribeOperatorAttachment(consume)
+  }, [handleUploaded, setOpen])
+
+  const webImportedUrls = useRef(new Map<string, string>())
+  const handleWebImported = useCallback(
+    (attachment: StudioOperatorAttachment) => {
+      webImportedUrls.current.set(attachment.id, attachment.url)
+      handleUploaded(attachment)
+    },
+    [handleUploaded],
+  )
+  const handleWebRemoved = useCallback(
+    (attachmentId: string) => {
+      const url = webImportedUrls.current.get(attachmentId)
+      if (url) {
+        apply.removeReference(url)
+        webImportedUrls.current.delete(attachmentId)
+      }
+      setLocalAttachments((current) =>
+        current.filter((item) => item.id !== attachmentId),
+      )
+    },
+    [apply],
+  )
   const webImport = useStudioOperatorWebImport({
     onImported: handleWebImported,
     onRemoved: handleWebRemoved,
@@ -382,7 +446,7 @@ export function StudioOperatorDock() {
       draft={draft}
       onDraftChange={setDraft}
       attachments={attachments}
-      onAttachmentsChange={setAttachments}
+      onAttachmentsChange={handleAttachmentsChange}
       upload={upload}
       webImport={webImport}
       history={history}

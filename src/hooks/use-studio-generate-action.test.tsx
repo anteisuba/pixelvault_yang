@@ -157,6 +157,22 @@ beforeEach(() => {
 })
 
 describe('useStudioGenerateAction', () => {
+  it('blocks a missing image mention without submitting a generation', async () => {
+    setState({
+      prompt: 'Use @Image2',
+      selectedOptionId: IMAGE_OPTION.optionId,
+    } as Partial<StudioFormState>)
+    const { result } = renderHook(() => useStudioGenerateAction())
+    expect(result.current.canGenerate).toBe(false)
+    expect(result.current.blockedReason?.message).toBe(
+      'referenceMention.invalid',
+    )
+    await act(async () => {
+      await result.current.handleGenerate()
+    })
+    expect(mockGenerate).not.toHaveBeenCalled()
+  })
+
   it('blocks with modelRequired when no model is selected', () => {
     mockUseImageModelOptions.mockReturnValue({
       selectedModel: null,

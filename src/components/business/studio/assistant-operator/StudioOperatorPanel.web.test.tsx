@@ -1,7 +1,9 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
+import { useState } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
 import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
@@ -65,9 +67,17 @@ const HOST_RESULTS = [
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
     domain: 'image' as const,
-    buildSnapshot: () => ({ prompt: '', availableModels: [] }),
+    buildSnapshot: () => ({
+      prompt: '',
+      availableModels: [],
+      references: { items: HOST_RESULTS.map(({ url }) => ({ url })), limit: 4 },
+    }),
     results: HOST_RESULTS,
     referenceLimit: 4,
+    referenceImages: [
+      ...HOST_RESULTS.map(({ url }) => ({ url })),
+      { url: 'https://cdn.test/disabled.png', disabledReason: 'over_limit' },
+    ],
     open: true,
     setOpen: vi.fn(),
     apply: {},
@@ -92,6 +102,7 @@ const answerChoice = vi.fn()
 beforeEach(async () => {
   vi.resetModules()
   vi.clearAllMocks()
+  initialAttachments = []
   store = await import('@/hooks/use-studio-operator-store')
   Panel = (await import('./StudioOperatorPanel')).StudioOperatorPanel
 })
@@ -120,14 +131,19 @@ const WEB_IMPORT = {
 const onOpenProjectRules = vi.fn()
 const onOpenAssistantSettings = vi.fn()
 
-function renderPanel() {
-  render(
+const send = vi.fn()
+const changeAttachments = vi.fn()
+let initialAttachments: readonly StudioOperatorAttachment[] = []
+
+function PanelHarness() {
+  const [draft, setDraft] = useState('')
+  return (
     <Panel
       operator={
         {
           domain: 'image',
           routeModelId: undefined,
-          send: vi.fn(),
+          send,
           stop: vi.fn(),
           cancelQueued: vi.fn(),
           answerConfirm: vi.fn(),
@@ -140,21 +156,96 @@ function renderPanel() {
           newThread: vi.fn(),
         } as unknown as Parameters<typeof Panel>[0]['operator']
       }
-      draft=""
-      onDraftChange={vi.fn()}
-      attachments={[]}
-      onAttachmentsChange={vi.fn()}
+      draft={draft}
+      onDraftChange={setDraft}
+      attachments={initialAttachments}
+      onAttachmentsChange={changeAttachments}
       upload={UPLOAD}
       webImport={WEB_IMPORT}
       history={HISTORY}
       onOpenAssistantSettings={onOpenAssistantSettings}
       onOpenProjectRules={onOpenProjectRules}
       onCollapse={vi.fn()}
-    />,
+    />
   )
 }
 
+function renderPanel() {
+  render(<PanelHarness />)
+}
+
 describe('StudioOperatorPanel 接线（切片 3a）', () => {
+  it('助手正文选择缩略图引用后，发送实际图片并保留对应编号', () => {
+    renderPanel()
+    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+    editor.focus()
+    editor.textContent = '采用@'
+    const range = document.createRange()
+    range.selectNodeContents(editor)
+    if (editor.firstChild) range.setStart(editor.firstChild, 3)
+    range.collapse(true)
+    document.getSelection()?.removeAllRanges()
+    document.getSelection()?.addRange(range)
+    fireEvent.input(editor)
+    expect(screen.getAllByRole('option')).toHaveLength(2)
+    expect(screen.getByTestId('operator-input-area')).toContainElement(
+      screen.getByRole('listbox'),
+    )
+    fireEvent.keyDown(editor, { key: 'ArrowDown' })
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    expect(send).not.toHaveBeenCalled()
+    expect(editor.querySelector('img')).toHaveAttribute(
+      'src',
+      HOST_RESULTS[1].url,
+    )
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    expect(send).toHaveBeenCalledWith('采用reference image 2', [
+      expect.objectContaining({
+        url: HOST_RESULTS[1].url,
+        kind: 'image',
+        label: 'reference image 2',
+      }),
+    ])
+    expect(editor.textContent).toBe('')
+  })
+
+  it('sends shared enabled references and keeps all reference images after sending', () => {
+    initialAttachments = [
+      ...HOST_RESULTS.map((item) => ({ ...item, kind: 'image' as const })),
+      {
+        id: 'disabled',
+        kind: 'image',
+        url: 'https://cdn.test/disabled.png',
+        label: 'disabled',
+      },
+      {
+        id: 'audio',
+        kind: 'audio',
+        url: 'https://cdn.test/audio.mp3',
+        label: 'audio',
+      },
+    ]
+    renderPanel()
+    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+    editor.textContent = '一起参考'
+    fireEvent.input(editor)
+    fireEvent.click(screen.getByRole('button', { name: 'send' }))
+    expect(send).toHaveBeenCalledWith('一起参考', [
+      expect.objectContaining({
+        url: HOST_RESULTS[0].url,
+        label: 'reference image 1',
+      }),
+      expect.objectContaining({
+        url: HOST_RESULTS[1].url,
+        label: 'reference image 2',
+      }),
+      expect.objectContaining({ kind: 'audio' }),
+    ])
+    expect(changeAttachments).toHaveBeenCalledWith(
+      initialAttachments.slice(0, 3),
+    )
+  })
+
   it('历史调查默认折叠，最终结论与失败仍直接显示', () => {
     store.loadOperatorThread({
       sessionId: null,
@@ -245,7 +336,16 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(screen.getByTestId('operator-plan-fold')).toBeTruthy()
   })
 
-  it('⭐ 连续的切域行只留最后一条（第 5 件）', () => {
+  it('不显示实时或历史工作台切换提示', () => {
+    store.loadOperatorThread({
+      sessionId: null,
+      sessionSurface: null,
+      history: [
+        { kind: 'domainMark', id: 'old-mark', domain: 'video' },
+        { kind: 'message', id: 'old-message', text: '保留的对话' },
+        { kind: 'domainMark', id: 'old-mark-2', domain: 'image' },
+      ],
+    })
     for (const [index, domain] of ['image', 'video', 'image'].entries()) {
       store.appendOperatorEntry({
         kind: 'domainMark',
@@ -255,10 +355,9 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     }
     renderPanel()
 
-    const marks = screen.getAllByTestId('operator-domain-mark')
-    expect(marks).toHaveLength(1)
-    // 留的是**最后一条**：用户要知道的只有「现在在哪」。
-    expect(marks[0]?.dataset.domain).toBe('image')
+    expect(screen.queryByTestId('operator-domain-mark')).toBeNull()
+    expect(screen.queryByTestId('operator-history-domain-mark')).toBeNull()
+    expect(screen.getByText('保留的对话')).toBeTruthy()
   })
 
   it('⭐ 历史只摊开最近两轮，更早的折成一行（第 5 件）', () => {

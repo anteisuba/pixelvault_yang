@@ -25,7 +25,7 @@ import {
 } from '@/constants/node-studio'
 import { collectConversationMediaReferences } from '@/lib/assistant-media-selection'
 import { buildReferenceHandles } from '@/lib/assistant-reference-handles'
-import { MentionInput, type MentionToken } from './composer/MentionInput'
+import { MentionInput, type MentionToken } from '@/components/ui/mention-input'
 import { cn } from '@/lib/utils'
 import type { NodeAssistantMediaReference } from '@/types/node-assistant'
 
@@ -577,6 +577,7 @@ export function AssistantConversation({
               `MentionInput`（cast-redesign §6），不另造一个富文本输入。
               value 仍是纯文本（`@名字` 内联），所以发送链路一个字节没变。 */}
           <MentionInput
+            variant="canvas"
             value={draft}
             onValueChange={handleDraftChange}
             tokens={mentionTokens}

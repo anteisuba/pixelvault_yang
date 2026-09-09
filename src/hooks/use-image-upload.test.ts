@@ -51,6 +51,41 @@ describe('useImageUpload', () => {
   })
 
   describe('add + remove (multi-image mode)', () => {
+    it('notifies the prompt binding on removal and clear, but preserves it for in-place edits', () => {
+      const onReferencesRemoved = vi.fn()
+      const { result } = renderHook(() =>
+        useImageUpload({ onReferencesRemoved }),
+      )
+      act(() => result.current.addReferenceImage('a'))
+      act(() => result.current.addReferenceImage('b'))
+      act(() => result.current.replaceReferenceImage(1, 'edited-b'))
+      expect(onReferencesRemoved).not.toHaveBeenCalled()
+      act(() => result.current.removeReferenceImage(8))
+      expect(onReferencesRemoved).not.toHaveBeenCalled()
+      act(() => result.current.removeReferenceImage(0))
+      expect(onReferencesRemoved).toHaveBeenLastCalledWith(0)
+      expect(result.current.referenceImages).toEqual(['edited-b'])
+      act(() => result.current.clearAllImages())
+      expect(onReferencesRemoved).toHaveBeenLastCalledWith()
+    })
+
+    it('deduplicates shared inputs and retains excess images as disabled instead of dropping them', () => {
+      const { result } = renderHook(() => useImageUpload())
+      act(() => result.current.setMaxImages(1))
+      act(() => {
+        result.current.addReferenceImage('a')
+        result.current.addReferenceImage('a')
+        result.current.addReferenceImage('b')
+      })
+      expect(result.current.referenceEntries).toEqual([
+        { url: 'a', disabledReason: null },
+        { url: 'b', disabledReason: 'over_limit' },
+      ])
+      expect(result.current.referenceImages).toEqual(['a'])
+      act(() => result.current.setMaxImages(2))
+      expect(result.current.referenceImages).toEqual(['a', 'b'])
+    })
+
     it('appends entries up to the configured max', () => {
       const { result } = renderHook(() => useImageUpload())
       act(() => result.current.setMaxImages(3))
@@ -100,14 +135,17 @@ describe('useImageUpload', () => {
       expect(result.current.referenceEntries).toBe(before)
     })
 
-    it('refuses new entries once the configured max is full', () => {
+    it('keeps new entries disabled once the configured max is full', () => {
       const { result } = renderHook(() => useImageUpload())
       act(() => result.current.setMaxImages(2))
       act(() => result.current.addReferenceImage('a'))
       act(() => result.current.addReferenceImage('b'))
       act(() => result.current.addReferenceImage('c'))
       expect(result.current.referenceImages).toEqual(['a', 'b'])
-      expect(result.current.referenceEntries).toHaveLength(2)
+      expect(result.current.referenceEntries).toHaveLength(3)
+      expect(result.current.referenceEntries[2].disabledReason).toBe(
+        'over_limit',
+      )
     })
 
     it('removeReferenceImage uses the entries index and shifts disabled flags', () => {
@@ -130,13 +168,16 @@ describe('useImageUpload', () => {
   })
 
   describe('single-image mode (max=1)', () => {
-    it('requires removing the existing entry before another can be added', () => {
+    it('retains another reference without replacing the active single image', () => {
       const { result } = renderHook(() => useImageUpload())
       act(() => result.current.setMaxImages(1))
       act(() => result.current.addReferenceImage('a'))
       act(() => result.current.addReferenceImage('b'))
       expect(result.current.referenceImages).toEqual(['a'])
-      expect(result.current.referenceEntries).toHaveLength(1)
+      expect(result.current.referenceEntries).toHaveLength(2)
+      expect(result.current.referenceEntries[1].disabledReason).toBe(
+        'over_limit',
+      )
     })
   })
 

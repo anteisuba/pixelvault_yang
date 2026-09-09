@@ -24,7 +24,7 @@ import type { NodeV4, NodeV4TextData } from '@/types/node-workflow'
 import {
   MentionInput,
   type MentionInputHandle,
-} from '../../composer/MentionInput'
+} from '@/components/ui/mention-input'
 import { NODE_TEXT_DERIVE_ACTIONS, useNodeV4Canvas } from './NodeV4Context'
 import { buildMentionCandidates, buildMentionTokens } from './NodeV4Mentions'
 import { NodeV4SelectionToolbar } from './NodeV4SelectionToolbar'
@@ -137,6 +137,7 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
                 }}
               >
                 <MentionInput
+                  variant="canvas"
                   ref={ref}
                   value={draft}
                   onValueChange={setDraft}

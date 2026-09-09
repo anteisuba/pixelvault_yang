@@ -77,6 +77,7 @@ export interface StudioOperatorHost {
    * ⚠ 宿主自己兜底 `Infinity`：工作台那边是 `StudioDockPanelArea` 的 effect 跑到
    * 之前的中间态，装配台那边是「这个底模不吃参考图」（0）。
    */
+  referenceImages: readonly { url: string; disabledReason?: string | null }[]
   referenceLimit: number
   /**
    * 面板开合。

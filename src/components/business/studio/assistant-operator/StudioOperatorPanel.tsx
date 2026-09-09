@@ -36,7 +36,6 @@ import {
   X,
 } from 'lucide-react'
 import {
-  foldOperatorDomainMarks,
   groupOperatorResearch,
   groupOperatorResearchRuns,
   hasOperatorResearchFindings,
@@ -45,6 +44,7 @@ import {
   splitOperatorHistoryRounds,
 } from '@/lib/studio-operator-timeline'
 import Image from 'next/image'
+import { toast } from 'sonner'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import {
@@ -55,7 +55,6 @@ import {
 import {
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
   STUDIO_OPERATOR_MENTION,
-  STUDIO_OPERATOR_MENTION_SEARCH_TYPES,
   STUDIO_OPERATOR_SUGGESTIONS,
   STUDIO_OPERATOR_TIMELINE,
 } from '@/constants/studio-assistant-operator'
@@ -78,7 +77,16 @@ import { StudioOperatorHistoryItem } from '@/components/business/studio/assistan
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import { ContextCardChip } from '@/components/business/studio/assistant-operator/ContextCardChip'
-import { StudioOperatorMentionPicker } from '@/components/business/studio/assistant-operator/StudioOperatorMentionPicker'
+import {
+  MentionInput,
+  type MentionInputHandle,
+  type MentionToken,
+} from '@/components/ui/mention-input'
+import {
+  getReferenceMentionIndices,
+  getReferenceImageAttachmentId,
+  compileReferenceMentions,
+} from '@/lib/studio-reference-mentions'
 import { StudioOperatorMessageBody } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import { StudioOperatorResearchCard } from '@/components/business/studio/assistant-operator/StudioOperatorResearchCard'
 import { StudioOperatorQuestionCard } from '@/components/business/studio/assistant-operator/StudioOperatorQuestionCard'
@@ -214,11 +222,12 @@ export function StudioOperatorPanel({
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
   const tPrompt = useTranslations('PromptAssistant')
+  const tReference = useTranslations('StudioPromptArea.referenceMention')
   const {
-    entries,
+    entries: allEntries,
     status,
     errorText,
-    history: historyEntries,
+    history: allHistoryEntries,
     stepsDone,
     plannedSteps,
     queue,
@@ -232,6 +241,15 @@ export function StudioOperatorPanel({
     costDetails,
     resume,
   } = useStudioOperatorState()
+  const entries = useMemo(
+    () => allEntries.filter((entry): boolean => entry.kind !== 'domainMark'),
+    [allEntries],
+  )
+  const historyEntries = useMemo(
+    () =>
+      allHistoryEntries.filter((entry): boolean => entry.kind !== 'domainMark'),
+    [allHistoryEntries],
+  )
   const {
     domain,
     send,
@@ -318,7 +336,8 @@ export function StudioOperatorPanel({
   }, [])
   // 「问助手」/「按这张继续」按完要把焦点还给输入框（§3.1 ⑲「chip 插入并聚焦」）
   // —— 不还的话用户得再点一次输入框才能接着说，而他刚刚明明就在说话。
-  const inputRef = useRef<HTMLTextAreaElement>(null)
+  const inputRef = useRef<MentionInputHandle>(null)
+  const inputAreaRef = useRef<HTMLDivElement>(null)
   const [dragOver, setDragOver] = useState(false)
 
   /**
@@ -377,46 +396,26 @@ export function StudioOperatorPanel({
     [t],
   )
 
-  /**
-   * `@` 的候选名单（选择器上半段 + 正文名字解析共用同一份，切片 N1）。
-   *
-   * ⛔ 两处各算一份的下场是「选择器里列着 `图_012`，正文里打 `@图_012` 却挂不上」
-   * —— 同一个名字在同一个输入框里两种行为。
-   */
-  /**
-   * 这一轮用户**看见过**的素材（选择器那一跳列出来的那些）。
-   *
-   * ⭐ 正文里的 `@图_012` 只能在这份名单里解析 —— 名字里的序号是 id 的派生，
-   * ⛔ 反查不回来（没有、也不打算有一张名字表）。「看得见的才 @ 得到」既是实现
-   * 约束也是正确的语义：用户指认的本来就是他刚看过的那几张。
-   * ⚠ 按 id 合并、⛔ 不清空：选择器关掉之后那句话还在输入框里没发出去。
-   */
-  const [seenAssets, setSeenAssets] = useState<
-    readonly StudioOperatorAttachment[]
-  >([])
-  const handleSeenAssets = useCallback(
-    (assets: readonly StudioOperatorAttachment[]) => {
-      setSeenAssets((current) => {
-        const known = new Set(current.map((item) => item.id))
-        const fresh = assets.filter((item) => !known.has(item.id))
-        return fresh.length === 0 ? current : [...current, ...fresh]
-      })
-    },
-    [],
+  const referenceImages = operatorHost.referenceImages
+  const referenceTokens: MentionToken[] = referenceImages.map(
+    (entry, index) => ({
+      name: `Image${index + 1}`,
+      kind: 'reference',
+      thumbnailUrl: entry.url,
+      slotLabel: `@${tReference('image', { index: index + 1 })}`,
+    }),
   )
-
-  const recentChips = useMemo(
-    () => resultItems.map((item, index) => toResultChip(item, index)),
-    [resultItems, toResultChip],
-  )
-
-  /**
-   * 正文名字解析的候选：**在飞那一批在前**（撞号时取第一条 = 最近那一张，
-   * 见 `matchGenerationMention` 的头注），素材库里看过的在后。
-   */
-  const mentionCandidates = useMemo(
-    () => [...recentChips, ...seenAssets],
-    [recentChips, seenAssets],
+  const referenceCandidates = referenceTokens.flatMap((token, index) =>
+    referenceImages[index].disabledReason
+      ? []
+      : [
+          {
+            id: token.name,
+            name: token.slotLabel!.slice(1),
+            tokenName: token.name,
+            thumbnailUrl: token.thumbnailUrl,
+          },
+        ],
   )
 
   const working = status === 'working'
@@ -476,18 +475,65 @@ export function StudioOperatorPanel({
        * 服务端一个新字段都没有，`buildMessages` 那条 `[attached: …]` 原样带上它们。
        * ⚠ 去重按 id：同一张图既被 📎 挂过又被 @ 提过时，助手会收到两份同样的地址。
        */
-      const merged = [...attachments]
+      const merged = attachments
+        .filter(
+          (attachment) =>
+            attachment.kind !== 'image' ||
+            !referenceImages.find((entry) => entry.url === attachment.url)
+              ?.disabledReason,
+        )
+        .map((attachment) => {
+          const index = referenceImages.findIndex(
+            (entry) => entry.url === attachment.url,
+          )
+          return attachment.kind === 'image' && index >= 0
+            ? { ...attachment, label: `reference image ${index + 1}` }
+            : attachment
+        })
       for (const chip of mention.chips) {
         if (!merged.some((item) => item.id === chip.id)) merged.push(chip)
       }
-      send(value, merged)
+      const currentReferences = operatorHost.referenceImages
+      const indices = getReferenceMentionIndices(value)
+      if (
+        indices.some(
+          (index) =>
+            !currentReferences[index] ||
+            currentReferences[index].disabledReason,
+        )
+      ) {
+        toast.info(tReference('invalid'))
+        return
+      }
+      for (const index of indices) {
+        const url = currentReferences[index].url
+        const reference: StudioOperatorAttachment = {
+          id: getReferenceImageAttachmentId(url),
+          url,
+          thumbnailUrl: url,
+          kind: 'image',
+          label: `reference image ${index + 1}`,
+        }
+        if (!merged.some((item) => item.url === url)) merged.push(reference)
+      }
+      send(compileReferenceMentions(value), merged)
       onDraftChange('')
-      onAttachmentsChange([])
+      onAttachmentsChange(attachments.filter((item) => item.kind === 'image'))
       mention.clearChips()
       mention.closePicker()
       setAttachOpen(false)
     },
-    [attachments, mention, onAttachmentsChange, onDraftChange, send, uploading],
+    [
+      attachments,
+      mention,
+      onAttachmentsChange,
+      onDraftChange,
+      operatorHost,
+      referenceImages,
+      send,
+      uploading,
+      tReference,
+    ],
   )
 
   /**
@@ -498,11 +544,15 @@ export function StudioOperatorPanel({
    */
   const attachChip = useCallback(
     (chip: StudioOperatorAttachment, prefill?: string) => {
-      mention.addChip(chip)
+      onAttachmentsChange(
+        attachments.some((item) => item.url === chip.url)
+          ? attachments
+          : [...attachments, chip],
+      )
       if (prefill && !draft.trim()) onDraftChange(prefill)
       inputRef.current?.focus()
     },
-    [draft, mention, onDraftChange],
+    [attachments, draft, onAttachmentsChange, onDraftChange],
   )
 
   /**
@@ -655,24 +705,6 @@ export function StudioOperatorPanel({
     }
     return map
   }, [blocks])
-
-  /**
-   * 连续的**切域行**收成最后一条（第 5 件）。
-   *
-   * ⭐ 切工作台会一次落好几条「切到 X 工作台」（图 → 视频 → 图 是三条），说的是
-   * 同一件事的三个瞬间 —— 用户要知道的只有「现在在哪」。
-   * ⚠ 藏的是**下标**不是重排数组：下标同时是 React key 与研究分组的锚。
-   */
-  const hiddenBlocks = useMemo(
-    () =>
-      foldOperatorDomainMarks(
-        blocks.map((block) =>
-          block.kind === 'entry' ? block.entry.kind : 'tools',
-        ),
-        'domainMark',
-      ),
-    [blocks],
-  )
 
   /**
    * 载回来的历史按**轮**切开，只摊开最近几轮（第 5 件）。
@@ -1010,29 +1042,8 @@ export function StudioOperatorPanel({
             />
           </StudioOperatorTimelineRow>
         )
-      /**
-       * 切域标记（拍板 8：切域换工具，会话不断）。
-       *
-       * ⚠ `entry.domain` 存的是**域 id**，印之前必须过词表 —— 直接塞进
-       * 文案会在中文界面上印出一个英文的 `video`。
-       */
       case 'domainMark':
-        return (
-          <StudioOperatorTimelineRow
-            key={entry.id}
-            node={STUDIO_OPERATOR_NODE_KINDS.system}
-          >
-            <p
-              data-testid="operator-domain-mark"
-              data-domain={entry.domain}
-              className="text-2sm leading-relaxed text-muted-foreground"
-            >
-              {t('domainMark', {
-                domain: t(`domainName.${entry.domain}`),
-              })}
-            </p>
-          </StudioOperatorTimelineRow>
-        )
+        return null
     }
   }
 
@@ -1149,9 +1160,7 @@ export function StudioOperatorPanel({
             </p>
           ) : null}
 
-          {renderGroups(liveGroups, (index) =>
-            hiddenBlocks.has(index) ? null : renderBlock(blocks[index]!),
-          )}
+          {renderGroups(liveGroups, (index) => renderBlock(blocks[index]!))}
 
           {/* ── 三张「等你定」的卡（§4.1「钉在流末尾」）──────────────────
               ⚠ 顺序是**计划 → 反问 → 花钱**，与它们在一轮里出现的先后一致：
@@ -1497,6 +1506,7 @@ export function StudioOperatorPanel({
       {/* ── 输入区：上行工具条 + 下行输入（拍板 12）──────────────── */}
       <div
         data-testid="operator-input-area"
+        ref={inputAreaRef}
         data-drag-over={dragOver}
         /**
          * 拖图进输入框（§3.3 第 3 行）—— 四入口之三。
@@ -1588,35 +1598,25 @@ export function StudioOperatorPanel({
           ) : null}
         </div>
         <div className="flex items-end gap-2">
-          <textarea
+          <MentionInput
             ref={inputRef}
-            data-testid="operator-input"
+            portalContainerRef={inputAreaRef}
             value={draft}
-            rows={1}
-            /**
-             * ⚠ 每次变化都把草稿与**光标位置**喂给 `@` 解析（§3.3 第 1 行）：
-             * 只传文本的话，在一句话中间回头补一个 `@` 时会去匹配句尾那个 ——
-             * 表现是「选择器弹了，但选完插到了别的地方」。
-             */
-            onChange={(event) => {
-              onDraftChange(event.target.value)
-              mention.syncDraft(
-                event.target.value,
-                event.target.selectionStart ?? event.target.value.length,
+            aria-label={t('placeholderIdle')}
+            onValueChange={onDraftChange}
+            tokens={referenceTokens}
+            mentionCandidates={referenceCandidates}
+            onMentionSelect={(candidate) =>
+              inputRef.current?.insertToken(
+                candidate.tokenName ?? candidate.name,
               )
-              /**
-               * 正文里直接写的产物名（`@图_012`）当场成 chip（切片 N1）。
-               * ⚠ 与 `syncDraft` 是两件事：那个管「弹不弹选择器」，这个管「这句话
-               * 里点了哪几张的名」，⛔ 不合并 —— 选择器只看光标前那一个 token。
-               */
-              mention.syncNameMentions(event.target.value, mentionCandidates)
-            }}
+            }
+            emptyLabel={
+              referenceCandidates.length
+                ? tReference('noMatches')
+                : tReference('empty')
+            }
             onKeyDown={(event) => {
-              /**
-               * ⚠ 选择器开着时上下键 / 回车 / Esc **不归这里管**：它们由选择器挂在
-               * window 上的捕获监听吃掉（焦点必须留在输入框里，见那颗组件的头注）。
-               * 这里只处理「没开选择器时的回车 = 发送」。
-               */
               if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()
                 submit(draft)
@@ -1673,29 +1673,6 @@ export function StudioOperatorPanel({
             )}
           </button>
         </div>
-
-        {/* ── `@` 选择器（§3.3 第 1 行）—— 就地弹在输入区上方 ────────
-            ⚠ 定位锚是输入区自己（`relative`），⛔ 不用 portal：面板是 `fixed`
-              的覆盖层，portal 出去之后它会跟着页面滚而不是跟着面板。 */}
-        {mention.trigger ? (
-          <StudioOperatorMentionPicker
-            query={mention.trigger.query}
-            recent={recentChips}
-            onSeen={handleSeenAssets}
-            searchTypes={STUDIO_OPERATOR_MENTION_SEARCH_TYPES[domain]}
-            onPick={(attachment) => {
-              onDraftChange(mention.pick(draft, attachment))
-              inputRef.current?.focus()
-            }}
-            /* ⭐ 卡这一路把 `@token` 换成卡名（⛔ 不剪掉）——助手要靠句子里那串
-               名字去 `read_context_card`，chip 只是可见的凭据。 */
-            onPickCard={(card) => {
-              onDraftChange(mention.pickCard(draft, card))
-              inputRef.current?.focus()
-            }}
-            onDismiss={mention.closePicker}
-          />
-        ) : null}
       </div>
 
       {attachOpen ? (

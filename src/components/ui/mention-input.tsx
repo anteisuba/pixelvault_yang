@@ -5,6 +5,7 @@ import {
   useEffect,
   useImperativeHandle,
   useMemo,
+  useId,
   useRef,
   useState,
   type KeyboardEventHandler,
@@ -22,7 +23,14 @@ export interface MentionToken {
    * 退役 —— `@` 菜单里点一个文本节点是把它的**内容原文粘进正文**（走
    * `insertText`），粘完就是普通文字，没有 token、没有前缀、没有可渲染的 chip。
    */
-  kind: 'character' | 'background' | 'shot' | 'closeup' | 'voice' | 'video'
+  kind:
+    | 'character'
+    | 'background'
+    | 'shot'
+    | 'closeup'
+    | 'voice'
+    | 'video'
+    | 'reference'
   /** 16px thumbnail embedded in the chip — the node's image / videoThumbnail,
    *  or the voice cover. Falls back to a flat port-color chip when absent. */
   thumbnailUrl?: string
@@ -85,7 +93,11 @@ export function parseMentions(
   while (i < value.length) {
     if (value[i] === MENTION_PREFIX) {
       const match = names.find(
-        (name) => value.slice(i + 1, i + 1 + name.length) === name,
+        (name) =>
+          value.slice(i + 1, i + 1 + name.length) === name &&
+          (!/^Image\d+$/.test(name) ||
+            (!/[\w.%+-]/.test(value[i - 1] ?? '') &&
+              !/[\w]/.test(value[i + 1 + name.length] ?? ''))),
       )
       if (match) {
         if (text) {
@@ -105,6 +117,7 @@ export function parseMentions(
 }
 
 const CHIP_FILL: Record<MentionToken['kind'], string> = {
+  reference: 'bg-muted text-foreground',
   character: 'bg-node-port-character/25',
   background: 'bg-node-port-background/25',
   shot: 'bg-node-port-image/25',
@@ -116,6 +129,7 @@ const CHIP_FILL: Record<MentionToken['kind'], string> = {
 // circle = 角色/配音 (identity), square = 图/镜头/场景/视频. Placeholder tint uses
 // the port color at higher opacity so a thumbless reference still reads as its kind.
 const THUMB_SHAPE: Record<MentionToken['kind'], string> = {
+  reference: 'rounded-sm',
   character: 'rounded-full',
   background: 'rounded-sm',
   shot: 'rounded-sm',
@@ -124,6 +138,7 @@ const THUMB_SHAPE: Record<MentionToken['kind'], string> = {
   video: 'rounded-sm',
 }
 const THUMB_FILL: Record<MentionToken['kind'], string> = {
+  reference: 'bg-muted',
   character: 'bg-node-port-character/70',
   background: 'bg-node-port-background/70',
   shot: 'bg-node-port-image/70',
@@ -436,6 +451,8 @@ export interface MentionCandidate {
    * 倒一段字。给了才渲染，所以素材那几族不受影响。
    */
   preview?: string
+  thumbnailUrl?: string
+  tokenName?: string
 }
 
 /** 光标前的 `@查询` —— 没在写 @ 时为 null。 */
@@ -446,6 +463,13 @@ interface MentionQuery {
 }
 
 export interface MentionInputProps {
+  portalContainerRef?: React.RefObject<HTMLElement | null>
+  id?: string
+  disabled?: boolean
+  variant?: 'default' | 'canvas'
+  emptyLabel?: string
+  onPaste?: React.ClipboardEventHandler<HTMLDivElement>
+  onFocus?: React.FocusEventHandler<HTMLDivElement>
   value: string
   onValueChange(value: string): void
   tokens: readonly MentionToken[]
@@ -532,21 +556,37 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       onKeyUpCapture,
       mentionCandidates,
       onMentionSelect,
+      id,
+      disabled = false,
+      variant = 'default',
+      emptyLabel,
+      onPaste,
+      onFocus,
       ...rest
     },
     ref,
   ) {
     const editorRef = useRef<HTMLDivElement>(null)
+    const listId = useId()
+    const composingRef = useRef(false)
+    const tokenSignature = JSON.stringify(tokens)
+    const renderedTokensRef = useRef('')
     const [isComposing, setIsComposing] = useState(false)
     // 浮层的 portal 宿主。挂在 state 上而不是直接读 `document.body`，是因为这个
     // 组件也走 SSR —— 首帧没有 document，effect 之后才有。
     const [portalHost, setPortalHost] = useState<HTMLElement | null>(null)
-    useEffect(() => setPortalHost(document.body), [])
+    useEffect(() => {
+      setPortalHost(
+        rest.portalContainerRef?.current ??
+          editorRef.current?.closest<HTMLElement>('[role="dialog"]') ??
+          document.body,
+      )
+    }, [rest.portalContainerRef])
     // @ 下拉：查询串 + 光标处的屏幕坐标（浮层用 fixed 定位，画布有 transform，
     // 只能用视口坐标）。null = 没在写 @。
     const [mention, setMention] = useState<{
       query: MentionQuery
-      rect: { left: number; bottom: number }
+      rect: { left: number; top: number; bottom: number }
     } | null>(null)
     const [activeIndex, setActiveIndex] = useState(0)
     // Last value we rendered OR emitted — lets us skip re-rendering the DOM
@@ -606,18 +646,23 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
        * `insertToken` 那条路不受影响 —— 它直接改 DOM 再 `emit`，从不经过这里。
        */
       const active = el.ownerDocument.activeElement
-      if (active === el || el.contains(active)) {
+      if (variant === 'canvas' && (active === el || el.contains(active))) {
         lastValueRef.current = value
         return
       }
 
-      if (value === lastValueRef.current) return
+      if (
+        value === lastValueRef.current &&
+        tokenSignature === renderedTokensRef.current
+      )
+        return
       // 失焦重建也要保住光标：外部改写完用户点回来时，位置不该回到开头。
       const caret = getCaretOffset(el)
       renderInto(el, value, knownNames, tokenByName)
       if (caret !== null) setCaretOffset(el, caret)
       lastValueRef.current = value
-    }, [value, isComposing, knownNames, tokenByName])
+      renderedTokensRef.current = tokenSignature
+    }, [value, isComposing, knownNames, tokenByName, variant, tokenSignature])
 
     /**
      * 候选按当前查询过滤（大小写不敏感，子串匹配即可），再**按族分名额**截断。
@@ -636,7 +681,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       const hit = q
         ? mentionCandidates.filter((c) => c.name.toLowerCase().includes(q))
         : [...mentionCandidates]
-      if (hit.length <= MENTION_MAX_VISIBLE) return hit
+      if (variant !== 'canvas' || hit.length <= MENTION_MAX_VISIBLE) return hit
 
       // 按族收拢，保持族的首次出现顺序。
       const byGroup = new Map<string, MentionCandidate[]>()
@@ -664,12 +709,17 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         if (left === before) break // 所有族都发完了
       }
       return buckets.flatMap((bucket, i) => bucket.slice(0, quota[i]))
-    }, [mention, mentionCandidates])
+    }, [mention, mentionCandidates, variant])
 
     /** 光标动了就重算查询 —— 输入、点击、方向键都要走这里。 */
     const syncMention = () => {
       const el = editorRef.current
-      if (!el || !mentionCandidates?.length) {
+      if (
+        !el ||
+        disabled ||
+        !mentionCandidates ||
+        (variant === 'canvas' && !mentionCandidates.length)
+      ) {
         setMention(null)
         return
       }
@@ -680,7 +730,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       }
       const selection = el.ownerDocument.getSelection()
       const range = selection?.rangeCount ? selection.getRangeAt(0) : null
-      const rect = range?.getBoundingClientRect()
+      const rect = range?.getBoundingClientRect?.()
       // 空 range 在某些位置量到全 0；退回编辑器自身的盒子，浮层至少不会飞到左上角。
       const anchor =
         rect && (rect.left || rect.bottom) ? rect : el.getBoundingClientRect()
@@ -688,7 +738,10 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         // ⚠ 查询串没变就别重置高亮：ArrowDown 的 keyup 同样会走到这里，每次都归零
         // 的话方向键就永远停在第一条。
         if (prev?.query.text !== query.text) setActiveIndex(0)
-        return { query, rect: { left: anchor.left, bottom: anchor.bottom } }
+        return {
+          query,
+          rect: { left: anchor.left, top: anchor.top, bottom: anchor.bottom },
+        }
       })
     }
 
@@ -700,6 +753,45 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       onValueChange(next)
     }
 
+    useEffect(() => {
+      if (variant !== 'canvas' && mention) {
+        document
+          .getElementById(`${listId}-${activeIndex}`)
+          ?.scrollIntoView?.({ block: 'nearest' })
+      }
+    }, [activeIndex, mention, listId, variant])
+
+    useEffect(() => {
+      if (variant === 'canvas' || !mention) return
+      const dismiss = () => setMention(null)
+      const onScroll = (event: Event) => {
+        if (
+          event.target instanceof Node &&
+          document.getElementById(listId)?.contains(event.target)
+        )
+          return
+        dismiss()
+      }
+      window.addEventListener('resize', dismiss)
+      window.addEventListener('scroll', onScroll, true)
+      window.visualViewport?.addEventListener('resize', dismiss)
+      return () => {
+        window.removeEventListener('resize', dismiss)
+        window.removeEventListener('scroll', onScroll, true)
+        window.visualViewport?.removeEventListener('resize', dismiss)
+      }
+    }, [mention, listId, variant])
+
+    const pickerHeight = Math.min(264, Math.max(60, matches.length * 52 + 8))
+    const viewportBottom = portalHost
+      ? (window.visualViewport?.height ?? window.innerHeight) +
+        (window.visualViewport?.offsetTop ?? 0)
+      : 0
+    const pickerTop =
+      mention && mention.rect.bottom + pickerHeight + 6 > viewportBottom - 8
+        ? Math.max(8, mention.rect.top - pickerHeight - 6)
+        : (mention?.rect.bottom ?? 0) + 6
+
     /**
      * 选中一个候选：先把用户打出来的 `@查询` 从正文里删掉，再交给父级去连线 + 插胶囊。
      *
@@ -710,7 +802,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       const el = editorRef.current
       const current = mention
       setMention(null)
-      if (!el || !current) return
+      if (!el || !current || disabled) return
       const selection = el.ownerDocument.getSelection()
       const node = selection?.anchorNode
       if (selection && node && node.nodeType === Node.TEXT_NODE) {
@@ -768,10 +860,20 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       <>
         <div
           ref={editorRef}
+          id={id}
           role="textbox"
           aria-multiline="true"
           aria-label={rest['aria-label']}
-          contentEditable
+          aria-disabled={disabled}
+          aria-autocomplete={mentionCandidates ? 'list' : undefined}
+          aria-haspopup={mentionCandidates ? 'listbox' : undefined}
+          aria-controls={mention ? listId : undefined}
+          aria-activedescendant={
+            mention && matches.length
+              ? `${listId}-${Math.min(activeIndex, matches.length - 1)}`
+              : undefined
+          }
+          contentEditable={!disabled}
           suppressContentEditableWarning
           data-placeholder={placeholder}
           onInput={() => {
@@ -783,15 +885,32 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
               syncMention()
             }
           }}
-          onCompositionStart={() => setIsComposing(true)}
+          onCompositionStart={() => {
+            composingRef.current = true
+            setIsComposing(true)
+            setMention(null)
+          }}
           onCompositionEnd={() => {
+            composingRef.current = false
             setIsComposing(false)
             emit()
             syncMention()
           }}
           onClick={syncMention}
+          onFocus={onFocus}
           onBlur={() => setMention(null)}
+          onCopy={(event) => {
+            if (variant === 'canvas') return
+            const selection = editorRef.current?.ownerDocument.getSelection()
+            if (!selection?.rangeCount || selection.isCollapsed) return
+            const fragment = document.createElement('div')
+            fragment.appendChild(selection.getRangeAt(0).cloneContents())
+            event.clipboardData.setData('text/plain', serializeEditor(fragment))
+            event.preventDefault()
+          }}
           onPaste={(event) => {
+            onPaste?.(event)
+            if (event.defaultPrevented) return
             // Chips only come from the ＋/click flow; pasted content is always
             // flattened to plain text so no foreign markup enters the editor.
             event.preventDefault()
@@ -799,15 +918,28 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
             const el = editorRef.current
             if (!el) return
             insertNodeAtCaret(el, el.ownerDocument.createTextNode(text))
+            if (variant !== 'canvas') {
+              const caret = getCaretOffset(el)
+              renderInto(el, serializeEditor(el), knownNames, tokenByName)
+              if (caret !== null) setCaretOffset(el, caret)
+            }
             emit()
           }}
           onKeyDown={(event) => {
+            if (
+              composingRef.current ||
+              event.nativeEvent.isComposing ||
+              event.keyCode === 229
+            )
+              return
             // 下拉开着时，方向键/回车/Tab 归下拉，不能漏给编辑器（回车会插换行、
             // 方向键会移光标把下拉关掉）。Escape 只关下拉，**并且要 stopPropagation**
             // —— 否则它会一路冒泡把外层的节点面板一起关掉。
-            if (mention && matches.length > 0) {
+            if (mention) {
               if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
                 event.preventDefault()
+                event.stopPropagation()
+                if (!matches.length) return
                 setActiveIndex((i) => {
                   const step = event.key === 'ArrowDown' ? 1 : -1
                   return (i + step + matches.length) % matches.length
@@ -816,7 +948,9 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
               }
               if (event.key === 'Enter' || event.key === 'Tab') {
                 event.preventDefault()
-                commitMention(matches[activeIndex] ?? matches[0])
+                event.stopPropagation()
+                const chosen = matches[activeIndex] ?? matches[0]
+                if (chosen) commitMention(chosen)
                 return
               }
               if (event.key === 'Escape') {
@@ -829,6 +963,14 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
             onKeyDown?.(event)
           }}
           onKeyUp={(event) => {
+            if (
+              composingRef.current ||
+              event.nativeEvent.isComposing ||
+              ['Escape', 'Enter', 'Tab', 'ArrowDown', 'ArrowUp'].includes(
+                event.key,
+              )
+            )
+              return
             // 方向键/退格之后光标位置变了，查询要跟着重算。
             syncMention()
             onKeyUp?.(event)
@@ -837,7 +979,10 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           onKeyUpCapture={onKeyUpCapture}
           className={cn(
             'mention-input whitespace-pre-wrap break-words outline-none',
-            'empty:before:pointer-events-none empty:before:text-node-subtle empty:before:content-[attr(data-placeholder)]',
+            'empty:before:pointer-events-none empty:before:content-[attr(data-placeholder)]',
+            variant === 'canvas'
+              ? 'empty:before:text-node-subtle'
+              : 'empty:before:text-muted-foreground text-foreground',
             className,
           )}
         />
@@ -849,12 +994,17 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           原注释「fixed + 视口坐标，所以不会被父级带跑」正是这条错判，就地改掉。
           ⚠ `onMouseDown` 必须 preventDefault —— 否则点击先让编辑器失焦，onBlur 把
           浮层关掉，click 永远等不到。 */}
-        {portalHost && mention && matches.length > 0
+        {portalHost && mention && (matches.length > 0 || emptyLabel)
           ? createPortal(
               <div
                 role="listbox"
+                id={listId}
                 aria-label={rest['aria-label']}
-                className="canvas-mention-popover"
+                className={
+                  variant === 'canvas'
+                    ? 'canvas-mention-popover'
+                    : 'fixed z-50 flex w-70 max-w-full flex-col gap-1 overflow-y-auto overscroll-contain rounded-lg border border-border bg-popover p-1 text-popover-foreground shadow-md'
+                }
                 style={{
                   /**
                    * ⚠ 靠视口右缘夹紧。光标打到行尾时 `rect.left` 会让整张浮层
@@ -870,20 +1020,47 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
                         MENTION_POPOVER_EDGE_GAP,
                     ),
                   ),
-                  top: mention.rect.bottom + 6,
+                  top:
+                    variant === 'canvas' ? mention.rect.bottom + 6 : pickerTop,
+                  maxHeight:
+                    variant === 'canvas' ? undefined : 'min(16.5rem, 45dvh)',
                 }}
                 onMouseDown={(event) => event.preventDefault()}
               >
+                {!matches.length ? (
+                  <p className="px-3 py-3 text-sm text-muted-foreground">
+                    {emptyLabel}
+                  </p>
+                ) : null}
                 {matches.map((candidate, index) => (
                   <button
                     key={candidate.id}
                     type="button"
                     role="option"
+                    id={`${listId}-${index}`}
+                    className={
+                      variant === 'canvas'
+                        ? undefined
+                        : cn(
+                            'flex min-h-12 w-full shrink-0 items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm hover:bg-accent',
+                            index === activeIndex &&
+                              'bg-accent text-accent-foreground',
+                          )
+                    }
                     aria-selected={index === activeIndex}
                     data-active={index === activeIndex ? 'true' : undefined}
                     onMouseEnter={() => setActiveIndex(index)}
                     onClick={() => commitMention(candidate)}
                   >
+                    {candidate.thumbnailUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={candidate.thumbnailUrl}
+                        alt=""
+                        className="size-9 shrink-0 rounded object-cover"
+                        draggable={false}
+                      />
+                    ) : null}
                     <span className="flex min-w-0 items-center justify-between gap-2">
                       <span className="truncate">{candidate.name}</span>
                       {candidate.groupLabel ? (

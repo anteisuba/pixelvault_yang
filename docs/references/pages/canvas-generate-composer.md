@@ -253,7 +253,7 @@ owner 用 `×4` 实发一次，结果：**只出 2 张**、**提示词与参考�
 
 | 要的东西                                  | 已有实现                                                          | 位置                                  |
 | ----------------------------------------- | ----------------------------------------------------------------- | ------------------------------------- |
-| 指令输入（含 `@` 提及）                   | `MentionInput`                                                    | `node/composer/MentionInput.tsx`      |
+| 指令输入（含 `@` 提及）                   | `MentionInput`                                                    | `ui/mention-input.tsx`                |
 | 比例可视化块（按真实比例画的小矩形）      | `aspectBoxStyle(ratio)`                                           | `node/composer/VideoComposer.tsx:108` |
 | 模型/比例/清晰度摘要行（**24px** 紧凑档） | 同上文件                                                          | `VideoComposer.tsx:172` 起            |
 | 参考图槽与 token chip                     | **`CanvasSlotRack`** · `ReferenceTokenChip`                       | `node/composer/`                      |

@@ -73,6 +73,7 @@ import { useProjects } from '@/hooks/use-projects'
 import { useCivitaiToken } from '@/hooks/use-civitai-token'
 import { usePromptEnhance } from '@/hooks/kernel/use-prompt-enhance'
 import { useImageUpload } from '@/hooks/use-image-upload'
+import { removeReferenceMentions } from '@/lib/studio-reference-mentions'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { useUsageSummary } from '@/hooks/use-usage-summary'
 import type { UseCharacterCardsReturn } from '@/hooks/cards/use-character-cards'
@@ -305,6 +306,7 @@ export type StudioAction =
    */
   | { type: 'AUTO_SELECT_OPTION_ID'; payload: string }
   | { type: 'SET_PROMPT'; payload: string }
+  | { type: 'REMOVE_PROMPT_REFERENCE'; payload?: number }
   | { type: 'SET_RECIPE_USAGE'; payload: RecipeUsage | null }
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
   | { type: 'SET_ADVANCED_PARAMS'; payload: AdvancedParams }
@@ -610,6 +612,11 @@ export function studioFormReducer(
       return { ...state, selectedOptionId: action.payload }
     case 'SET_PROMPT':
       return { ...state, prompt: action.payload }
+    case 'REMOVE_PROMPT_REFERENCE':
+      return {
+        ...state,
+        prompt: removeReferenceMentions(state.prompt, action.payload),
+      }
     case 'SET_RECIPE_USAGE':
       return { ...state, recipeUsage: action.payload }
     case 'SET_ASPECT_RATIO':
@@ -825,7 +832,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const characters = useCharacterCards()
   const backgrounds = useBackgroundCards(projects.activeProjectId)
   const styles = useStyleCards(projects.activeProjectId)
-  const imageUpload = useImageUpload()
+  const onReferencesRemoved = useCallback((index?: number) => {
+    dispatch({ type: 'REMOVE_PROMPT_REFERENCE', payload: index })
+  }, [])
+  const imageUpload = useImageUpload({ onReferencesRemoved })
   const promptEnhance = usePromptEnhance()
   const civitai = useCivitaiToken()
   const usageSummary = useUsageSummary()

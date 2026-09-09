@@ -4278,6 +4278,13 @@
     "removeFailed": "Token削除に失敗しました"
   },
   "StudioPromptArea": {
+    "referenceMention": {
+      "image": "画像{index}",
+      "unavailable": "使用不可",
+      "empty": "使用可能な参照画像を追加し、@ を入力して選択してください。",
+      "noMatches": "一致する参照画像がありません",
+      "invalid": "参照画像を使用できません。画像を確認するか、対応する @ 参照を削除してください。"
+    },
     "negativePromptLabel": "ネガティブ",
     "negativePromptPlaceholder": "避けたい要素（例：blurry, extra fingers）",
     "samplePrompt": "朝の柔らかい光の中の映画的なポートレート、浅い被写界深度、フィルムグレイン",
@@ -6805,7 +6812,6 @@
     "resize": "ドラッグで幅を変更",
     "empty": "やりたいことを一言どうぞ。無料の操作はそのまま実行し、クレジットを使うものは「押すだけ」の生成ボタンで止めます。",
     "planFold": "計画 · {count} ステップ",
-    "domainMark": "{domain}に切り替え —— 道具は変わっても会話は続きます",
     "placeholderIdle": "続けてどうぞ。素材を添付しても構いません…",
     "placeholderWorking": "どうぞ、聞いています —— 入力は次の区切りまで順番待ちに入ります",
     "send": "送信",

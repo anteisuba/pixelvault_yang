@@ -79,6 +79,7 @@ import type {
   RecipeRecord,
 } from '@/types'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
+import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 
 /**
@@ -387,7 +388,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   }, [dispatch, hasOpenToolPanel])
 
   const handlePromptPaste = useCallback(
-    (event: ClipboardEvent<HTMLTextAreaElement>) => {
+    (event: ClipboardEvent<HTMLElement>) => {
       const imageFile = getImageFileFromDataTransfer(event.clipboardData)
       if (!imageFile) return
       event.preventDefault()
@@ -548,15 +549,25 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               variant="composer"
               dragType={STUDIO_REFERENCE_DRAG_TYPE}
             />
-            <PromptInputTextarea
-              id={STUDIO_PROMPT_TEXTAREA_ID}
-              aria-label={tForm('promptLabel')}
-              placeholder={placeholder}
-              onPaste={handlePromptPaste}
-              // ⚠ `text-base` 在 <768 是硬要求：iOS Safari 对小于 16px 的可聚焦
-              //    输入框会自动放大整页。桌面照旧 14px。
-              className="min-h-20 px-1 py-1 font-sans text-base leading-5 disabled:opacity-100 md:text-sm"
-            />
+            {isImageMode ? (
+              <StudioReferencePromptInput
+                placeholder={placeholder}
+                disabled={isGenerating}
+                onPaste={handlePromptPaste}
+                onSubmit={handleGenerate}
+                className="min-h-20 max-h-56 overflow-y-auto px-1 py-1 font-sans text-base leading-6 md:text-sm"
+              />
+            ) : (
+              <PromptInputTextarea
+                id={STUDIO_PROMPT_TEXTAREA_ID}
+                aria-label={tForm('promptLabel')}
+                placeholder={placeholder}
+                onPaste={handlePromptPaste}
+                // ⚠ `text-base` 在 <768 是硬要求：iOS Safari 对小于 16px 的可聚焦
+                //    输入框会自动放大整页。桌面照旧 14px。
+                className="min-h-20 px-1 py-1 font-sans text-base leading-5 disabled:opacity-100 md:text-sm"
+              />
+            )}
           </div>
           {/* 音频的字数 / 分钟数 / 上限 —— 从 dock 搬进来（切片 A）。音效那一档
               的提示词是「音效描述」，没有朗读时长可估，所以不印。 */}

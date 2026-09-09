@@ -441,27 +441,6 @@ export const STUDIO_OPERATOR_MENTION = {
 } as const
 
 /**
- * `@` 选择器搜素材库时搜哪几类 —— **按域**（第二期最后一环）。
- *
- * ⭐ 视频档必须能搜到视频：视频域 `critique_result` 吃的是客户端从被 `@` 的那段
- * 片子抽出来的三帧，而那段片子只能从这个选择器里挑。此前这里写死 `['image']`，
- * 表现是「@ 一段片子让助手看看」整条路不可达 —— 用户搜自己的片子，选择器回
- * 一句「没找到」。
- * ⛔ 图片域与装配台照旧只搜图：那两处的视觉线吃的是一张静态图，让一条 mp4 进得来
- * 只会让用户挂上一个助手看不了的东西。
- * ⚠ 引用必须稳定（`as const` 的字面量数组）：它是选择器那条搜索 effect 的依赖，
- * 每次 render 新建一个数组会让每一帧都重搜一次库。
- */
-export const STUDIO_OPERATOR_MENTION_SEARCH_TYPES: Record<
-  AssistantOperatorDomain,
-  readonly ('image' | 'video')[]
-> = {
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.image]: ['image'],
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: ['image', 'video'],
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: ['image'],
-} as const
-
-/**
  * 结果行卡的入场 stagger（§11.5：30ms，最多前 12 项）。
  *
  * ⚠ 单位是**秒**（motion 的 `delay` 收秒），与 `STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS`

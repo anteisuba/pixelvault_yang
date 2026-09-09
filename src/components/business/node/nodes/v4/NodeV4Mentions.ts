@@ -9,7 +9,7 @@
 import type {
   MentionCandidate,
   MentionToken,
-} from '@/components/business/node/composer/MentionInput'
+} from '@/components/ui/mention-input'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { formatShotDisplayName } from '@/lib/node-display-name'
 import type { NodeV4 } from '@/types/node-workflow'

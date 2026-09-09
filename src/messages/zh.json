@@ -4278,6 +4278,13 @@
     "removeFailed": "删除 Token 失败"
   },
   "StudioPromptArea": {
+    "referenceMention": {
+      "image": "图{index}",
+      "unavailable": "不可用",
+      "empty": "先添加可用的参考图，再输入 @ 选择。",
+      "noMatches": "没有匹配的参考图",
+      "invalid": "引用的图片不可用，请检查参考图或移除对应的 @ 引用。"
+    },
     "negativePromptLabel": "负面提示词",
     "negativePromptPlaceholder": "不想要的元素，例如 blurry, extra fingers",
     "samplePrompt": "晨光中的电影感人像，浅景深，胶片颗粒感",
@@ -6805,7 +6812,6 @@
     "resize": "拖动调整助手宽度",
     "empty": "说一句你想要什么。不花积分的它直接做，花钱的停在预填好的生成键上，等你来点。",
     "planFold": "计划 · {count} 步",
-    "domainMark": "切到{domain} —— 工具已换，会话不断",
     "placeholderIdle": "继续说，或把素材挂进来…",
     "placeholderWorking": "说，我在听 —— 你打的这句会排队，下一个停顿点处理",
     "send": "发送",

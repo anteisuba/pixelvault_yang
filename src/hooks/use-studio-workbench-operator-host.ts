@@ -356,9 +356,19 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       apply,
       results,
       referenceLimit,
+      referenceImages: imageUpload.referenceEntries,
       open,
       setOpen,
     }),
-    [apply, buildSnapshot, domain, open, referenceLimit, results, setOpen],
+    [
+      apply,
+      buildSnapshot,
+      domain,
+      open,
+      referenceLimit,
+      imageUpload.referenceEntries,
+      results,
+      setOpen,
+    ],
   )
 }

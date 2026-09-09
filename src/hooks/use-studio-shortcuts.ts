@@ -6,6 +6,7 @@ import { ROUTES } from '@/constants/routes'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useRouter } from '@/i18n/navigation'
+import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 
 interface UseStudioShortcutsOptions {
   enabled?: boolean
@@ -58,7 +59,7 @@ export function useStudioShortcuts({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       // Skip during IME composition (CJK input methods use Enter/Escape internally)
-      if (event.isComposing) return
+      if (event.isComposing || event.defaultPrevented) return
 
       const key = typeof event.key === 'string' ? event.key.toLowerCase() : ''
 
@@ -99,14 +100,11 @@ export function useStudioShortcuts({
         key === '/' &&
         !hasModifier &&
         !(event.target instanceof HTMLInputElement) &&
-        !(event.target instanceof HTMLTextAreaElement)
+        !(event.target instanceof HTMLTextAreaElement) &&
+        !(event.target instanceof HTMLElement && event.target.isContentEditable)
       ) {
         event.preventDefault()
-        const promptField = document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)
-        if (promptField instanceof HTMLTextAreaElement) {
-          promptField.focus()
-          promptField.select()
-        }
+        focusStudioPrompt({ select: true })
         return
       }
 

@@ -16,5 +16,18 @@ import { focusUnlessTouch } from '@/lib/touch'
 export function focusStudioPrompt(options?: { select?: boolean }): void {
   if (typeof document === 'undefined') return
   const field = document.getElementById(STUDIO_PROMPT_TEXTAREA_ID)
-  if (field instanceof HTMLTextAreaElement) focusUnlessTouch(field, options)
+  if (field instanceof HTMLTextAreaElement || field?.isContentEditable) {
+    focusUnlessTouch(field, options)
+    if (
+      options?.select &&
+      field.isContentEditable &&
+      document.activeElement === field
+    ) {
+      const range = document.createRange()
+      range.selectNodeContents(field)
+      const selection = document.getSelection()
+      selection?.removeAllRanges()
+      selection?.addRange(range)
+    }
+  }
 }

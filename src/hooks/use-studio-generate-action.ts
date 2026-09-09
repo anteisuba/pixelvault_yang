@@ -45,6 +45,7 @@ import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
 import { takeOperatorGenerationLabel } from '@/lib/studio-operator-label'
+import { getReferenceMentionIndices } from '@/lib/studio-reference-mentions'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import type { CostPreviewBasis } from '@/components/business/studio/StudioCostPreview'
 
@@ -211,6 +212,13 @@ export function useStudioGenerateAction() {
       : 1
   const modelRejectsRefImages =
     hasRefImage && !isAudioMode && currentMaxReferenceImages === 0
+  const hasUnavailableMention =
+    isImageMode &&
+    getReferenceMentionIndices(state.prompt).some(
+      (index) =>
+        !imageUpload.referenceImages[index] ||
+        index >= currentMaxReferenceImages,
+    )
   const isAudioReferenceIncomplete =
     isAudioMode &&
     Boolean(state.audioReferenceUrl) &&
@@ -237,6 +245,7 @@ export function useStudioGenerateAction() {
         (isAudioMode || isVideoMode ? !!trimmedPrompt : hasPromptForImage)) &&
     (!modelRequiresRef || hasRefImage) &&
     !modelRejectsRefImages &&
+    !hasUnavailableMention &&
     !isAudioPromptOverLimit &&
     !isImagePromptOverLimit &&
     !isAudioReferenceIncomplete &&
@@ -864,6 +873,12 @@ export function useStudioGenerateAction() {
       }
     }
     if (canGenerate) return null
+    if (hasUnavailableMention) {
+      return {
+        message: tPromptArea('referenceMention.invalid'),
+        focusPrompt: 'now',
+      }
+    }
     if (usesStyleCardForModel && !styles.activeCardId) {
       return { message: tPromptArea('blocked.styleCardRequired') }
     }
@@ -923,6 +938,7 @@ export function useStudioGenerateAction() {
     modelRequiresRef,
     hasRefImage,
     modelRejectsRefImages,
+    hasUnavailableMention,
     videoAudioNeedsVisual,
     isAudioPromptOverLimit,
     audioTextLimit.enforced,

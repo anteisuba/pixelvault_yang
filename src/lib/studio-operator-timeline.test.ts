@@ -3,7 +3,6 @@ import { ASSISTANT_OPERATOR_TOOL_IDS as TOOLS } from '@/constants/assistant-oper
 import {
   countOperatorTextLines,
   firstOperatorSentence,
-  foldOperatorDomainMarks,
   groupOperatorResearch,
   groupOperatorResearchRuns,
   hasOperatorResearchFindings,
@@ -183,25 +182,6 @@ describe('groupOperatorResearchRuns', () => {
     for (const tool of [TOOLS.searchWeb, TOOLS.readState, 'set_prompt']) {
       expect(isOperatorResearchCardTool(tool)).toBe(false)
     }
-  })
-})
-
-describe('foldOperatorDomainMarks', () => {
-  it('连续的切域只留最后一条', () => {
-    expect([
-      ...foldOperatorDomainMarks(
-        ['user', 'domainMark', 'domainMark', 'domainMark', 'message'],
-        'domainMark',
-      ),
-    ]).toEqual([1, 2])
-  })
-  it('中间隔了一句话的两条切域各自留着', () => {
-    expect([
-      ...foldOperatorDomainMarks(
-        ['domainMark', 'message', 'domainMark'],
-        'domainMark',
-      ),
-    ]).toEqual([])
   })
 })
 

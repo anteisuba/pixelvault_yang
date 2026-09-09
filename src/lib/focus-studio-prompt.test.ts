@@ -63,4 +63,17 @@ describe('focusStudioPrompt', () => {
     stubHoverNone(false)
     expect(() => focusStudioPrompt()).not.toThrow()
   })
+
+  it('focuses and selects the rich prompt editor on desktop', () => {
+    stubHoverNone(false)
+    const el = document.createElement('div')
+    el.id = STUDIO_PROMPT_TEXTAREA_ID
+    el.setAttribute('contenteditable', 'true')
+    Object.defineProperty(el, 'isContentEditable', { value: true })
+    el.textContent = '参考图'
+    document.body.appendChild(el)
+    focusStudioPrompt({ select: true })
+    expect(document.activeElement).toBe(el)
+    expect(document.getSelection()?.toString()).toBe('参考图')
+  })
 })

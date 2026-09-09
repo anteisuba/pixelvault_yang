@@ -1,6 +1,14 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useImageUpload } from '@/hooks/use-image-upload'
+import {
+  addOperatorMention,
+  resetOperatorThread,
+} from '@/hooks/use-studio-operator-store'
+import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
+import type { StudioOperatorPanel } from './StudioOperatorPanel'
+type StudioOperatorPanelProps = Parameters<typeof StudioOperatorPanel>[0]
 
 import {
   STUDIO_OPERATOR_PANEL_RESIZE,
@@ -34,17 +42,31 @@ const setOpen = vi.hoisted(() => vi.fn())
 let hostOpen = true
 let hostDomain = 'image'
 let mobile = false
+let references: ReturnType<typeof useImageUpload>
+let panelProps: StudioOperatorPanelProps
+let onUploaded: (attachment: StudioOperatorAttachment) => void
 
 vi.mock('@/contexts/studio-operator-host', () => ({
-  useStudioOperatorHost: () => ({
-    open: hostOpen,
-    setOpen,
-    domain: hostDomain,
-    referenceLimit: 4,
-    apply: {},
-    // 结果行卡的数据源（切片 3a 起是宿主契约的一格）。
-    results: [],
-  }),
+  useStudioOperatorHost: () => {
+    references = useImageUpload()
+    return {
+      open: hostOpen,
+      setOpen,
+      domain: hostDomain,
+      referenceLimit: 4,
+      referenceImages: references.referenceEntries,
+      apply: {
+        addReference: references.addReferenceImage,
+        removeReference: (url: string) => {
+          const index = references.referenceEntries.findIndex(
+            (entry) => entry.url === url,
+          )
+          if (index >= 0) references.removeReferenceImage(index)
+        },
+      },
+      results: [],
+    }
+  },
 }))
 
 vi.mock('@/hooks/use-mobile', () => ({ useIsMobile: () => mobile }))
@@ -99,12 +121,15 @@ vi.mock('@/hooks/use-studio-operator-history', () => ({
   }),
 }))
 vi.mock('@/hooks/use-studio-operator-upload', () => ({
-  useStudioOperatorUpload: () => ({
-    uploads: [],
-    uploadFiles: vi.fn(),
-    retryUpload: vi.fn(),
-    dismissUpload: vi.fn(),
-  }),
+  useStudioOperatorUpload: (options: { onUploaded: typeof onUploaded }) => {
+    onUploaded = options.onUploaded
+    return {
+      uploads: [],
+      uploadFiles: vi.fn(),
+      retryUpload: vi.fn(),
+      dismissUpload: vi.fn(),
+    }
+  },
 }))
 vi.mock('@/hooks/use-studio-operator-web-import', () => ({
   useStudioOperatorWebImport: () => ({
@@ -116,7 +141,10 @@ vi.mock('@/hooks/use-studio-operator-web-import', () => ({
 vi.mock(
   '@/components/business/studio/assistant-operator/StudioOperatorPanel',
   () => ({
-    StudioOperatorPanel: () => <div data-testid="operator-panel-content" />,
+    StudioOperatorPanel: (props: StudioOperatorPanelProps) => {
+      panelProps = props
+      return <div data-testid="operator-panel-content" />
+    },
   }),
 )
 vi.mock(
@@ -131,9 +159,46 @@ beforeEach(() => {
   hostDomain = 'image'
   mobile = false
   setOpen.mockClear()
+  resetOperatorThread()
 })
 
 describe('StudioOperatorDock', () => {
+  it('uploads and workspace reference changes share one list, including removals and draft renumbering', () => {
+    render(<StudioOperatorDock />)
+    const first: StudioOperatorAttachment = {
+      id: 'uploaded',
+      kind: 'image',
+      url: 'https://cdn.test/first.png',
+      label: 'uploaded',
+    }
+    act(() => onUploaded(first))
+    expect(references.referenceImages).toEqual([first.url])
+    expect(panelProps.attachments.map((item) => item.url)).toEqual([first.url])
+    act(() => references.addReferenceImage('https://cdn.test/second.png'))
+    expect(panelProps.attachments).toHaveLength(2)
+    act(() => panelProps.onDraftChange('参考@Image2'))
+    act(() => panelProps.onAttachmentsChange(panelProps.attachments.slice(1)))
+    expect(references.referenceImages).toEqual(['https://cdn.test/second.png'])
+    expect(panelProps.draft).toBe('参考@Image1')
+    act(() => references.clearAllImages())
+    expect(panelProps.attachments).toEqual([])
+    expect(panelProps.draft).toBe('参考')
+  })
+
+  it('library selections and dragged mention images enter the shared references without duplicates', () => {
+    render(<StudioOperatorDock />)
+    const image: StudioOperatorAttachment = {
+      id: 'library',
+      kind: 'image',
+      url: 'https://cdn.test/library.png',
+      label: 'library',
+    }
+    act(() => panelProps.onAttachmentsChange([image]))
+    act(() => addOperatorMention({ ...image, id: 'dragged' }))
+    expect(references.referenceImages).toEqual([image.url])
+    expect(panelProps.attachments).toHaveLength(1)
+  })
+
   it('展开态：宽 560、fixed 四边 inset 24', () => {
     render(<StudioOperatorDock />)
     const panel = screen.getByTestId('operator-panel')

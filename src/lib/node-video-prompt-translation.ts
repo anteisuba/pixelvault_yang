@@ -1,4 +1,4 @@
-import { parseMentions } from '@/components/business/node/composer/MentionInput'
+import { parseMentions } from '@/components/ui/mention-input'
 
 import type {
   VideoLegendImageKind,

@@ -393,9 +393,18 @@ export function useLoraOperatorHost(
       apply,
       results,
       referenceLimit,
+      referenceImages: input.imageUpload.referenceEntries,
       open: input.open,
       setOpen: input.setOpen,
     }),
-    [apply, buildSnapshot, input.open, input.setOpen, referenceLimit, results],
+    [
+      apply,
+      buildSnapshot,
+      input.open,
+      input.setOpen,
+      input.imageUpload.referenceEntries,
+      referenceLimit,
+      results,
+    ],
   )
 }

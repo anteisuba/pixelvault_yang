@@ -48,6 +48,67 @@ beforeEach(() => {
 })
 
 describe('compileAndGenerate prompt limits', () => {
+  it('resolves uploaded image mentions in the same order as the request images', async () => {
+    await compileAndGenerate('clerk-1', {
+      ...QUICK_INPUT,
+      freePrompt: 'Use @Image2 for style and @Image1 for identity',
+      referenceImages: [
+        'https://example.com/identity.png',
+        'https://example.com/style.png',
+      ],
+    })
+    expect(submitImageGeneration).toHaveBeenCalledWith(
+      'clerk-1',
+      expect.objectContaining({
+        prompt:
+          'Use reference image 2 for style and reference image 1 for identity',
+        referenceImages: [
+          'https://example.com/identity.png',
+          'https://example.com/style.png',
+        ],
+      }),
+      {},
+      expect.any(Object),
+    )
+  })
+
+  it('rejects mentions whose uploaded reference is missing before submitting a job', async () => {
+    await expect(
+      compileAndGenerate('clerk-1', {
+        ...QUICK_INPUT,
+        freePrompt: 'Use @Image2',
+        referenceImages: ['https://example.com/one.png'],
+      }),
+    ).rejects.toBeInstanceOf(GenerationValidationError)
+    expect(submitImageGeneration).not.toHaveBeenCalled()
+  })
+
+  it('offsets uploaded reference mentions after images contributed by cards', async () => {
+    vi.mocked(compileRecipe).mockResolvedValue({
+      compiledPrompt: 'Card style',
+      modelId: AI_MODELS.FLUX_2_FLASH,
+      referenceImages: ['https://example.com/card.png'],
+    } as never)
+    await compileAndGenerate('clerk-1', {
+      styleCardId: 'style-1',
+      aspectRatio: '1:1',
+      freePrompt: 'Use @Image1 for the pose',
+      referenceImages: ['https://example.com/upload.png'],
+    })
+    expect(submitImageGeneration).toHaveBeenCalledWith(
+      'clerk-1',
+      expect.objectContaining({
+        prompt: 'Card style\n\nUse reference image 2 for the pose',
+        referenceImages: [
+          'https://example.com/card.png',
+          'https://example.com/upload.png',
+        ],
+      }),
+      {},
+      expect.any(Object),
+    )
+  })
+
   it('rejects quick-mode freePrompt over the resolved model maxPromptChars', async () => {
     const promise = compileAndGenerate('clerk-1', {
       ...QUICK_INPUT,

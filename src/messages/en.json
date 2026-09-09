@@ -4278,6 +4278,13 @@
     "removeFailed": "Failed to remove token"
   },
   "StudioPromptArea": {
+    "referenceMention": {
+      "image": "Image {index}",
+      "unavailable": "Unavailable",
+      "empty": "Add a supported reference image, then type @ to select it.",
+      "noMatches": "No matching reference images",
+      "invalid": "A referenced image is unavailable. Check your references or remove its @ mention."
+    },
     "negativePromptLabel": "Negative prompt",
     "negativePromptPlaceholder": "Unwanted elements, e.g. blurry, extra fingers",
     "samplePrompt": "A cinematic portrait in soft morning light, shallow depth of field, film grain",
@@ -6805,7 +6812,6 @@
     "resize": "Drag to resize the assistant",
     "empty": "Say what you want. Anything free it just does; anything that costs credits stops at a pre-filled generate button for you to press.",
     "planFold": "Plan · {count} steps",
-    "domainMark": "Switched to {domain} — new tools, same conversation",
     "placeholderIdle": "Keep talking, or attach something…",
     "placeholderWorking": "Go ahead, I am listening — what you type gets queued for the next pause point",
     "send": "Send",

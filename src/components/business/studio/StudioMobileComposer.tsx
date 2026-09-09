@@ -26,6 +26,7 @@ import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
+import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
@@ -288,23 +289,32 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
         {/* ⚠ 纵向内边距归 `PromptInputTextarea` 自己（它带 `min-h-[44px] py-2`）——
             外框再补一层 py 会让这一行变成 58px，composer 高度直接破 120。 */}
         <div className="flex min-h-11 min-w-0 flex-1 items-center rounded-xl border border-border/60 px-3">
-          <PromptInputTextarea
-            id={STUDIO_PROMPT_TEXTAREA_ID}
-            aria-label={tForm('promptLabel')}
-            placeholder={
-              isVideo ? t('promptPlaceholderVideo') : t('promptPlaceholder')
-            }
-            // ⚠ 纵向内边距必须是 0，`min-h` 也要清掉：`react-textarea-autosize`
-            //   在 `box-sizing: border-box` 下把内边距算进两遍（一行的空输入框
-            //   量到 60px 而不是 40px），再叠上组件自带的 `min-h-[44px]`，
-            //   这一行会顶到 62px，composer 直接破 120。44px 的命中区由外框的
-            //   `min-h-11` 给，输入框只负责按行数自增高（最多 3 行后内部滚动）。
-            // ⚠ `text-base`（16px）在 <768 是硬要求，不是排版偏好：iOS Safari 对
-            //    小于 16px 的可聚焦输入框会**自动放大整页**，聚焦一次版式就散了。
-            //    修法是把字号抬到 16 而不是 `maximum-scale`（那会连带禁掉用户
-            //    自己的缩放）。桌面照旧 14px。
-            className="min-h-0 p-0 font-sans text-base leading-5 md:text-sm"
-          />
+          {!isVideo ? (
+            <StudioReferencePromptInput
+              placeholder={t('promptPlaceholder')}
+              disabled={isGenerating}
+              onSubmit={handleGenerate}
+              className="max-h-24 min-h-6 w-full overflow-y-auto py-1 font-sans text-base leading-6 md:text-sm"
+            />
+          ) : (
+            <PromptInputTextarea
+              id={STUDIO_PROMPT_TEXTAREA_ID}
+              aria-label={tForm('promptLabel')}
+              placeholder={
+                isVideo ? t('promptPlaceholderVideo') : t('promptPlaceholder')
+              }
+              // ⚠ 纵向内边距必须是 0，`min-h` 也要清掉：`react-textarea-autosize`
+              //   在 `box-sizing: border-box` 下把内边距算进两遍（一行的空输入框
+              //   量到 60px 而不是 40px），再叠上组件自带的 `min-h-[44px]`，
+              //   这一行会顶到 62px，composer 直接破 120。44px 的命中区由外框的
+              //   `min-h-11` 给，输入框只负责按行数自增高（最多 3 行后内部滚动）。
+              // ⚠ `text-base`（16px）在 <768 是硬要求，不是排版偏好：iOS Safari 对
+              //    小于 16px 的可聚焦输入框会**自动放大整页**，聚焦一次版式就散了。
+              //    修法是把字号抬到 16 而不是 `maximum-scale`（那会连带禁掉用户
+              //    自己的缩放）。桌面照旧 14px。
+              className="min-h-0 p-0 font-sans text-base leading-5 md:text-sm"
+            />
+          )}
         </div>
         <button
           type="button"

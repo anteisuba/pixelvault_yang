@@ -7,6 +7,10 @@ import { submitImageGeneration } from '@/services/image/submit-image.service'
 import { ensureUser } from '@/services/user.service'
 import { GenerationValidationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
+import {
+  compileReferenceMentions,
+  getReferenceMentionIndices,
+} from '@/lib/studio-reference-mentions'
 
 /**
  * Studio generation — two paths:
@@ -22,6 +26,17 @@ export async function compileAndGenerate(
   input: StudioGenerateRequest,
 ): Promise<ImageSubmitResponseData> {
   const dbUser = await ensureUser(clerkId)
+  const mentionIndices = getReferenceMentionIndices(input.freePrompt ?? '')
+  const unavailableMention = mentionIndices.some(
+    (index) => !input.referenceImages?.[index],
+  )
+  if (unavailableMention) {
+    const message = 'Referenced image is no longer available'
+    throw new GenerationValidationError(
+      [{ field: 'freePrompt', message }],
+      message,
+    )
+  }
 
   // ── Quick mode: modelId direct path ─────────────────────────
   if (input.modelId) {
@@ -37,7 +52,7 @@ export async function compileAndGenerate(
      * `resolveAudioTextLimit` 的两层同构：不给未知模型编一个上限。
      */
     const promptLimit = getModelById(input.modelId)?.maxPromptChars
-    const freePrompt = input.freePrompt ?? ''
+    const freePrompt = compileReferenceMentions(input.freePrompt ?? '')
     if (promptLimit !== undefined && freePrompt.length > promptLimit) {
       const message = `提示词超过该模型上限 ${promptLimit} 字符`
       throw new GenerationValidationError(
@@ -104,7 +119,7 @@ export async function compileAndGenerate(
     characterCardId: input.characterCardId,
     backgroundCardId: input.backgroundCardId,
     styleCardId: input.styleCardId,
-    freePrompt: input.freePrompt,
+    freePrompt: mentionIndices.length ? undefined : input.freePrompt,
   })
 
   logger.info('[StudioGenerate] Recipe compiled, starting generation', {
@@ -132,7 +147,17 @@ export async function compileAndGenerate(
   return submitImageGeneration(
     clerkId,
     {
-      prompt: compiled.compiledPrompt,
+      prompt: mentionIndices.length
+        ? [
+            compiled.compiledPrompt,
+            compileReferenceMentions(
+              input.freePrompt ?? '',
+              compiled.referenceImages.length,
+            ),
+          ]
+            .filter(Boolean)
+            .join('\n\n')
+        : compiled.compiledPrompt,
       modelId: compiled.modelId,
       aspectRatio: input.aspectRatio ?? '1:1',
       referenceImages:

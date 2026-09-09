@@ -128,15 +128,7 @@ export function StudioOperatorHistoryItem({
         </p>
       )
     case 'domainMark':
-      return (
-        <p
-          data-testid="operator-history-domain-mark"
-          data-domain={entry.domain}
-          className="mx-auto rounded-full border border-dashed border-border px-3 py-1 text-2sm text-muted-foreground"
-        >
-          {t('domainMark', { domain: t(`domainName.${entry.domain}`) })}
-        </p>
-      )
+      return null
   }
 }
 

@@ -39,7 +39,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorToolGroup (「5 个操作 · 4 成功 1 失败」折叠行)
         │       ├── StudioOperatorCheckpointCard (每轮 checkpoint 薄卡，就地二选撤销)
         │       ├── StudioOperatorQueueBar (排队条，浮在输入框上方)
-        │       ├── StudioOperatorMentionPicker (@ 选择器：最近生成 + 素材库搜索)
+        │       ├── MentionInput（共享输入框：@ 当前参考图，正文缩略图标签）
         │       ├── StudioOperatorResultRow (结果行卡 2/4 列，@ 闭环入口)
         │       ├── StudioOperatorLogItem (时间线一行：工具步 / 动作 / 系统行 / 证据卡)
         │       ├── StudioOperatorWebCandidateGrid (联网候选网格：来源三字段 + 「挂上 N 张」)

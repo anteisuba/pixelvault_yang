@@ -129,33 +129,6 @@ export function shouldStickOperatorScroll(metrics: {
 }
 
 /**
- * 连续的**切域标记**收成最后一条（2026-09-06 面板轮，第 5 件）。
- *
- * ⭐ 由来：切工作台会一次落好几条「切到 X 工作台」（图 → 视频 → 图 是三条），
- * 而它们说的是同一件事的三个瞬间 —— 用户要知道的只有「现在在哪」。
- * ⚠ 只折**连续的**：中间隔了一句话的两条切域是两次真的切换，合起来会让那句话
- * 看上去发生在它没发生的那台工作台上。
- *
- * 返回的是**要藏起来的下标**（`Set`）——⛔ 不返回过滤后的数组：调用方那边下标
- * 同时是 React key 与历史分组的锚，重排一次就全错位。
- */
-export function foldOperatorDomainMarks(
-  kinds: readonly string[],
-  domainMarkKind: string,
-): Set<number> {
-  const hidden = new Set<number>()
-  for (let index = 0; index < kinds.length - 1; index++) {
-    if (
-      kinds[index] === domainMarkKind &&
-      kinds[index + 1] === domainMarkKind
-    ) {
-      hidden.add(index)
-    }
-  }
-  return hidden
-}
-
-/**
  * 历史按**轮**切开（2026-09-06 面板轮，第 5 件）。
  *
  * ⭐ 一轮 = 从一条用户发言起，到下一条用户发言前。第一条用户发言之前的那些

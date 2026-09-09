@@ -105,7 +105,10 @@ function computeDisabledReason(
  * legacy `referenceImages: string[]` getter still exists for downstream
  * generation code — it's now derived (enabled entries only).
  */
-export function useImageUpload(): UseImageUploadReturn {
+export function useImageUpload(options?: {
+  onReferencesRemoved?: (index?: number) => void
+}): UseImageUploadReturn {
+  const onReferencesRemoved = options?.onReferencesRemoved
   const [referenceEntries, setReferenceEntries] = useState<
     ReferenceImageEntry[]
   >([])
@@ -171,10 +174,7 @@ export function useImageUpload(): UseImageUploadReturn {
   const addReferenceImage = useCallback((image: string) => {
     setReferenceEntries((prev) => {
       const max = maxImagesRef.current
-      if (Number.isFinite(max) && max > 0 && prev.length >= max) return prev
-      if (max === 1) {
-        return [{ url: image, disabledReason: null }]
-      }
+      if (prev.some((entry) => entry.url === image)) return prev
       const newIdx = prev.length
       return [
         ...prev,
@@ -186,21 +186,26 @@ export function useImageUpload(): UseImageUploadReturn {
     })
   }, [])
 
-  const removeReferenceImage = useCallback((index: number) => {
-    setReferenceEntries((prev) => {
-      if (index < 0 || index >= prev.length) return prev
-      const next = prev.filter((_, i) => i !== index)
-      // Indexes shift after removal — recompute so a previously over_limit
-      // entry can graduate to enabled.
-      const max = maxImagesRef.current
-      return next.map((entry, idx) => {
-        const reason = computeDisabledReason(idx, max)
-        return entry.disabledReason === reason
-          ? entry
-          : { ...entry, disabledReason: reason }
+  const removeReferenceImage = useCallback(
+    (index: number) => {
+      if (index < 0 || index >= referenceEntries.length) return
+      onReferencesRemoved?.(index)
+      setReferenceEntries((prev) => {
+        if (index < 0 || index >= prev.length) return prev
+        const next = prev.filter((_, i) => i !== index)
+        // Indexes shift after removal — recompute so a previously over_limit
+        // entry can graduate to enabled.
+        const max = maxImagesRef.current
+        return next.map((entry, idx) => {
+          const reason = computeDisabledReason(idx, max)
+          return entry.disabledReason === reason
+            ? entry
+            : { ...entry, disabledReason: reason }
+        })
       })
-    })
-  }, [])
+    },
+    [onReferencesRemoved, referenceEntries.length],
+  )
 
   const replaceReferenceImage = useCallback((index: number, image: string) => {
     setReferenceEntries((prev) => {
@@ -232,25 +237,30 @@ export function useImageUpload(): UseImageUploadReturn {
   )
 
   const clearAllImages = useCallback(() => {
+    onReferencesRemoved?.()
     setReferenceEntries([])
     if (fileInputRef.current) {
       fileInputRef.current.value = ''
     }
-  }, [])
+  }, [onReferencesRemoved])
 
   // Legacy setter — replaces all entries with a single one (or clears).
-  const setReferenceImage = useCallback((image: string | undefined) => {
-    if (!image) {
-      setReferenceEntries([])
-      return
-    }
-    setReferenceEntries([
-      {
-        url: image,
-        disabledReason: computeDisabledReason(0, maxImagesRef.current),
-      },
-    ])
-  }, [])
+  const setReferenceImage = useCallback(
+    (image: string | undefined) => {
+      onReferencesRemoved?.()
+      if (!image) {
+        setReferenceEntries([])
+        return
+      }
+      setReferenceEntries([
+        {
+          url: image,
+          disabledReason: computeDisabledReason(0, maxImagesRef.current),
+        },
+      ])
+    },
+    [onReferencesRemoved],
+  )
 
   // Local files upload via multipart/form-data (raw bytes, no base64) and come
   // back as an http(s) R2 URL — never inlined as a multi-MB data URL in a

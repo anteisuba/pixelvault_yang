@@ -6893,7 +6893,11 @@
       "urlUnreadable": "そのページを読み込めませんでした",
       "aspectLockedByFirstFrame": "最初のフレームがあるため、このモデルはアスペクト比「自動（adaptive）」しか受け付けません",
       "videoFramesMissing": "この動画からフレームを取り出せませんでした",
-      "blockedSource": "不採用にした素材なので、開始フレームにも終了フレームにも使えません"
+      "blockedSource": "不採用にした素材なので、開始フレームにも終了フレームにも使えません",
+      "referenceAnalysisRequired": "現在の参照画像を先に分析してください",
+      "referenceImageUnavailable": "参照画像を読み込めません。該当する画像を再アップロードするか差し替えてください。",
+      "referenceAnalysisFailed": "参照画像の分析が不完全なため、結果は採用されていません。",
+      "promptConflict": "プロンプトが参照画像の役割や要件と矛盾しています"
     },
     "cost": {
       "title": "アシスタントの作業量",
@@ -7274,6 +7278,24 @@
       "continue": "ステップ {step} から続行",
       "failed": "失敗：{reason}",
       "band": "未完了の計画 · ステップ {step} から続行"
+    },
+    "referenceAnalysis": {
+      "title": "参照画像の役割",
+      "identity": "キャラクター",
+      "pose": "ポーズ",
+      "style": "画風",
+      "content": "背景と内容",
+      "keep": "維持",
+      "exclude": "除外",
+      "details": "視覚的な根拠を見る",
+      "uncertain": "要確認",
+      "requirements": "今回の要件",
+      "proportions": "プロポーション",
+      "contours": "輪郭",
+      "shading": "陰影",
+      "materials": "質感",
+      "palette": "配色",
+      "lighting": "照明"
     }
   },
   "GenerationCancel": {

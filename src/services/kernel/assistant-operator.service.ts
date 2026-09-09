@@ -1,4 +1,14 @@
 import 'server-only'
+import {
+  analyzeOperatorReferences,
+  reviewOperatorReferencePrompt,
+} from '@/services/kernel/assistant-reference-analysis.service'
+import type { ReferenceAnalysis } from '@/types/assistant-reference-analysis'
+
+import {
+  getReferenceMentionIndices,
+  normalizeReferenceMentions,
+} from '@/lib/studio-reference-mentions'
 
 import {
   ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION,
@@ -278,6 +288,7 @@ interface OperatorWorkingState {
   count: number | null
   hasCountControl: boolean
   referenceCount: number
+  referenceUrls: (string | null)[]
   referenceLimit: number
   hasReferenceControl: boolean
   // ── 视频档专属（P4-A）───────────────────────────────────────────
@@ -349,6 +360,7 @@ function toWorkingState(
     count: snapshot.count?.value ?? null,
     hasCountControl: snapshot.count !== undefined,
     referenceCount: snapshot.references?.items.length ?? 0,
+    referenceUrls: (snapshot.references?.items ?? []).map((item) => item.url),
     referenceLimit: snapshot.references?.limit ?? 0,
     hasReferenceControl: snapshot.references !== undefined,
     videoDurationSeconds: snapshot.videoSpecs?.durationSeconds ?? null,
@@ -380,6 +392,9 @@ function toWorkingState(
 }
 
 interface OperatorRun {
+  referenceAnalysis: ReferenceAnalysis | null
+  promptReviewFailures: number
+  referencePromptWritten: boolean
   request: AssistantOperatorRequest
   state: OperatorWorkingState
   /**
@@ -801,6 +816,17 @@ function renderState(run: OperatorRun): string {
       ? `- Reference images mounted: ${state.referenceCount}/${state.referenceLimit}`
       : '- Reference images: this workbench takes no reference images.',
   )
+
+  if (request.domain === 'image' && state.referenceUrls.length) {
+    lines.push(
+      'CURRENT REFERENCE ORDER — use these exact @ImageN tokens; historical numbering may be stale:',
+    )
+    state.referenceUrls.forEach((url, index) => {
+      lines.push(
+        `  @Image${index + 1}: ${url ?? '(import pending; wait for the actual image in the next snapshot)'}`,
+      )
+    })
+  }
 
   /**
    * 具名帧槽（第二期）。⚠ **有槽才印** —— 印一句「这个档没有首尾帧」在多图参考档
@@ -1702,6 +1728,7 @@ function planImportUserUrl(run: OperatorRun, args: { url: string }): ToolPlan {
     }). It is already on the form — do not ask them to download, upload, or attach anything.`,
     apply: () => {
       run.state.referenceCount += 1
+      run.state.referenceUrls.push(null)
     },
   }
 }
@@ -1897,6 +1924,7 @@ async function planMountReference(
     }/${run.state.referenceLimit}).`,
     apply: () => {
       run.state.referenceCount += 1
+      run.state.referenceUrls.push(asset.url)
     },
   }
 }
@@ -1934,18 +1962,171 @@ function planSetModel(run: OperatorRun, args: { modelId: string }): ToolPlan {
  * 助手还没写过它、用户也还没就这个字段表过态 → 返回 `confirm`，流就停在这儿。
  * 「助手自己刚写的」不再问 —— 覆盖自己的草稿不需要用户点三次头。
  */
-function planSetText(
+function referenceCreatorContext(run: OperatorRun): string {
+  return `CURRENT PROMPT:\n${run.state.prompt}\nCONVERSATION (latest explicit user instruction wins):\n${buildAssistantConversation(run.request.messages)}`
+}
+
+async function completeReferenceAnalysisText(
+  run: OperatorRun,
+  system: string,
+  prompt: string,
+  images?: string[],
+  route = run.route,
+  modelId = run.modelId,
+): Promise<string> {
+  const result = await completeAssistantTextWithContextRetry({
+    systemPrompt: system,
+    buildUserPrompt: () => prompt,
+    contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
+    route,
+    modelId,
+    ...(images?.length ? { imageData: images } : {}),
+    responseFormat: 'json_object',
+  })
+  tickCost(run, images?.length ? COST.vision : COST.llm, images?.length || 1)
+  return result
+}
+
+async function planAnalyzeReferences(
+  run: OperatorRun,
+  userId: string,
+): Promise<ToolPlan> {
+  const urls = run.state.referenceUrls
+  if (!urls.length || urls.some((url) => !url || !/^https?:\/\//.test(url))) {
+    return reject(
+      REJECT.unknownAsset,
+      'Mount the intended reference images and wait for uploads before analyze_references.',
+    )
+  }
+  const cached =
+    run.referenceAnalysis?.profiles ?? run.request.referenceProfiles ?? []
+  const needsVision = urls.some(
+    (url) => !cached.some((profile) => profile.url === url),
+  )
+  const seesImages = assistantAdapterSupportsImage(
+    run.route.adapterType,
+    run.modelId,
+  )
+  const visionRoute =
+    needsVision && !seesImages
+      ? await findVisionCapableRoute(userId)
+      : run.route
+  if (!visionRoute)
+    return reject(
+      REJECT.visionUnavailable,
+      'No available model can inspect these references. Do not invent visual evidence.',
+    )
+  let analysis: ReferenceAnalysis | null
+  try {
+    analysis = await analyzeOperatorReferences({
+      urls: urls as string[],
+      cached,
+      context: referenceCreatorContext(run),
+      language:
+        RESPONSE_LANGUAGE_LABELS[
+          resolveResponseLanguage(run.request, run.persona)
+        ],
+      complete: (system, prompt, images) =>
+        completeReferenceAnalysisText(
+          run,
+          system,
+          prompt,
+          images,
+          images ? visionRoute : run.route,
+          images && !seesImages
+            ? resolveAssistantModelId(visionRoute.adapterType)
+            : run.modelId,
+        ),
+    })
+  } catch (error) {
+    const failedImage =
+      error instanceof Error
+        ? /^Failed to fetch image \((\d{3})\): (.+)$/.exec(error.message)
+        : null
+    const index = failedImage ? urls.indexOf(failedImage[2]) : -1
+    if (index < 0) throw error
+    return reject(
+      REJECT.referenceImageUnavailable,
+      `@Image${index + 1} · HTTP ${failedImage![1]}`,
+    )
+  }
+  if (!analysis)
+    return reject(
+      REJECT.referenceAnalysisFailed,
+      'Reference analysis was incomplete or malformed. No visual facts or assignments were accepted.',
+    )
+  return {
+    kind: 'read',
+    payload: {},
+    run: async () => {
+      run.referenceAnalysis = analysis
+      return {
+        result: analysis,
+        observation: `REFERENCE ANALYSIS (current @ImageN order; URLs identify the actual sources):\n${JSON.stringify(analysis)}\nUse this brief for one coherent prompt. Ask only its unresolved uncertainties. Do not critique source references as failed generations.`,
+      }
+    },
+  }
+}
+
+async function planSetText(
   run: OperatorRun,
   field: AssistantOperatorConfirmField,
   args: { value: string; mode?: string },
-): ToolPlan {
+): Promise<ToolPlan> {
   const isPrompt = field === ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt
   if (!isPrompt && !run.state.hasNegativeControl) {
     return reject(REJECT.noSuchControl)
   }
   if (!args.value.trim()) return reject(REJECT.emptyValue)
 
+  const value =
+    isPrompt && run.request.domain === 'image'
+      ? normalizeReferenceMentions(args.value)
+      : args.value
+  if (isPrompt && run.request.domain === 'image') {
+    const missing = getReferenceMentionIndices(value).find(
+      (index) => !run.state.referenceUrls[index],
+    )
+    if (missing !== undefined) {
+      return reject(
+        REJECT.unknownAsset,
+        `@Image${missing + 1} is not mounted or its import is still pending. Check CURRENT REFERENCE ORDER before writing the prompt; do not guess a replacement image.`,
+      )
+    }
+  }
+
   const current = isPrompt ? run.state.prompt : (run.state.negativePrompt ?? '')
+  const needsReferenceReview =
+    isPrompt &&
+    run.request.domain === 'image' &&
+    run.state.referenceUrls.length > 0
+  if (needsReferenceReview && run.referencePromptWritten) {
+    return reject(
+      REJECT.repeatedStep,
+      'A checked reference prompt was already written in this run. Finish now; wait for new creator instructions before changing it again.',
+    )
+  }
+  if (needsReferenceReview) {
+    const analysis = run.referenceAnalysis
+    if (
+      !analysis ||
+      run.state.referenceUrls.length !== analysis.profiles.length ||
+      run.state.referenceUrls.some(
+        (url, index) => analysis.profiles[index]?.url !== url,
+      )
+    ) {
+      return reject(
+        REJECT.referenceAnalysisRequired,
+        'Call analyze_references before writing this prompt. It uses the current mounted image order and reuses unchanged visual evidence.',
+      )
+    }
+    if (analysis.brief.uncertainties.length) {
+      return reject(
+        REJECT.promptConflict,
+        `Resolve these source-role questions with the creator before writing: ${analysis.brief.uncertainties.join('; ')}`,
+      )
+    }
+  }
   const decision = run.request.confirmations?.find(
     (entry) => entry.field === field,
   )?.choice
@@ -1955,8 +2136,8 @@ function planSetText(
       return {
         kind: 'confirm',
         field,
-        have: clamp(current, LIMITS.maxConfirmHaveChars),
-        proposed: clamp(args.value, LIMITS.maxConfirmHaveChars),
+        have: clamp(current, LIMITS.maxPromptChars),
+        proposed: clamp(value, LIMITS.maxPromptChars),
       }
     }
     if (decision === ASSISTANT_OPERATOR_CONFIRM_CHOICES.keep) {
@@ -1978,12 +2159,54 @@ function planSetText(
 
   const next =
     mode === ASSISTANT_OPERATOR_WRITE_MODES.append
-      ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${args.value}`
-      : args.value
+      ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${value}`
+      : value
+
+  if (isPrompt && run.request.domain === 'image') {
+    const missing = getReferenceMentionIndices(next).find(
+      (index) => !run.state.referenceUrls[index],
+    )
+    if (missing !== undefined) {
+      return reject(
+        REJECT.unknownAsset,
+        `The complete prompt still references unmounted @Image${missing + 1}. Correct that reference before writing.`,
+      )
+    }
+  }
+
+  if (needsReferenceReview && run.referenceAnalysis) {
+    if (run.promptReviewFailures >= 2) {
+      return reject(
+        REJECT.promptConflict,
+        'Two prompt checks failed. Stop rewriting; explain the unresolved conflict to the creator.',
+      )
+    }
+    const issues = await reviewOperatorReferencePrompt({
+      analysis: run.referenceAnalysis,
+      prompt: next,
+      context: referenceCreatorContext(run),
+      modelHint:
+        getModelEnhanceHint(
+          run.state.modelId ?? '',
+          resolveAdapterType(run.state.modelId ?? '') ?? undefined,
+        ) ?? '',
+      complete: (system, prompt) =>
+        completeReferenceAnalysisText(run, system, prompt),
+    })
+    if (!issues || issues.length) {
+      run.promptReviewFailures += 1
+      return reject(
+        REJECT.promptConflict,
+        issues
+          ? `Correct only these conflicts once, then retry set_prompt: ${issues.join('; ')}`
+          : 'Prompt review could not be read. Do not claim the prompt passed.',
+      )
+    }
+  }
 
   return {
     kind: 'mutate',
-    payload: { value: args.value, mode },
+    payload: { value, mode },
     // ⚠ 逆操作永远是改前的完整原文，两种 mode 撤法因此完全一样。
     inverse: { value: current },
     observation: `${isPrompt ? 'Positive' : 'Negative'} prompt (${mode}) is now: "${clamp(
@@ -1993,6 +2216,7 @@ function planSetText(
     apply: () => {
       if (isPrompt) run.state.prompt = next
       else run.state.negativePrompt = next
+      if (needsReferenceReview) run.referencePromptWritten = true
       run.assistantWrittenFields.add(field)
     },
   }
@@ -3177,6 +3401,17 @@ async function planCritiqueResult(
   }
   const result = target.result
 
+  if (
+    run.request.domain === 'image' &&
+    run.state.referenceUrls.includes(result.url) &&
+    run.request.result?.url !== result.url
+  ) {
+    return reject(
+      REJECT.referenceAnalysisRequired,
+      'This is a mounted source reference, not the new result. Use analyze_references to extract its features and role; do not grade it against the intended new picture.',
+    )
+  }
+
   const goal =
     args.goal?.trim() ||
     result.prompt?.trim() ||
@@ -3220,7 +3455,14 @@ async function planCritiqueResult(
     contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
     ...(visionModelId ? { modelId: visionModelId } : {}),
     // ⭐ 唯一真的「看」的那一下。地址来自 `result`，模型碰不到它。
-    imageData: result.url,
+    imageData: run.state.referenceUrls.some(Boolean)
+      ? [
+          result.url,
+          ...run.state.referenceUrls.filter((url): url is string =>
+            Boolean(url),
+          ),
+        ]
+      : result.url,
     responseFormat: 'json_object',
   })
   // ⚠ 唯一真的「看」的那一下（切片 X）。
@@ -3575,6 +3817,8 @@ async function planTool(
   switch (tool) {
     case TOOL.readState:
       return planReadState(run)
+    case TOOL.analyzeReferences:
+      return planAnalyzeReferences(run, userId)
     case TOOL.searchAssets:
       return planSearchAssets(
         run,
@@ -4036,6 +4280,14 @@ function buildOperatorSystemPrompt(
    * 而这个域也没有那条工具。一条说不通的规矩会让模型去找一条不存在的路。
    */
   const domainRules = [
+    request.domain === 'image'
+      ? `- REFERENCE ANALYSIS: Before set_prompt with mounted references, call analyze_references. It inspects multiple images together, reuses unchanged visual facts, and builds a current role/keep/exclude brief. Do not use critique_result on source references. Use the brief to make ONE coherent revision; unresolved role questions must be answered before writing. set_prompt checks the complete resulting prompt for semantic conflicts; correct named issues once, and stop if it still fails.
+- REFERENCE IDENTITY: CURRENT REFERENCE ORDER is authoritative. Match the image URLs to the creator's latest message before assigning roles; old Image numbers may refer to different pictures after a removal, replacement or undo. Never guess from old numbering. In set_prompt use @Image1, @Image2, etc. so the creator sees each referenced thumbnail inline.
+- STYLE REFERENCE: Use analyze_references to distinguish the style source from character identity, costume, pose and background sources. Use one primary style source unless they explicitly requested a blend. If visual inspection is unavailable, say so rather than infer appearance from filenames or generation prompts.
+- Describe the chosen style's observable proportions, outlines, shading, hair volumes and material response. A stylized 3D game character is not a photorealistic person: do not replace the requested aesthetic with generic UE5/PBR/AAA vocabulary. If an identity sheet is illustrated, use it only for identity and costume, not as a competing rendering-style instruction. Pose-only references must not supply colours, lighting, characters or background.
+- Before set_prompt, check that every numbered reference exists and that the style instructions agree. Preserve clear user assignments; ask one focused question only if the intended style source remains ambiguous or conflicts with the request. State the role mapping briefly in the creator's language. Make one coherent prompt revision from the evidence; do not repeatedly rewrite synonyms without new evidence.
+- Style matching here is a natural-language request, not a hard lock or per-image weight. Never claim the style is locked or the result is guaranteed. A bad result requires checking image identity/order and comparing visible features against the style source before adding more prompt words.`
+      : null,
     isAssistantOperatorToolInDomain(TOOL.setSpecs, request.domain)
       ? '- set_specs always carries aspectRatio AND resolution together.'
       : null,
@@ -4269,6 +4521,8 @@ function buildCritiqueSystemPrompt(
 
   return `You are looking at a picture that PixelVault just produced for its creator, and judging it against what they were going for.
 
+The FIRST attached image is the result to assess. Any remaining images are source references in the supplied CURRENT REFERENCE ORDER. Compare the result with their assigned identity, pose and style features. Source references are evidence, never failed results. Do not require a source character sheet to depict the requested new pose or background.
+
 Be the kind of second pair of eyes a working art director is: concrete, specific to THIS picture, and willing to say the uncomfortable thing. Name what you actually see — a hand with six fingers, a horizon that tilts, a face that lost the reference's jawline. Vague praise is worse than silence.
 
 RULES:
@@ -4297,6 +4551,18 @@ function buildCritiquePrompt(
       : 'WHAT THIS PICTURE WAS SUPPOSED TO BE: the creator never wrote it down — judge it on its own craft instead.',
   ]
   if (modelLabel) sections.push(`MADE BY: ${modelLabel}`)
+  if (run.request.domain === 'image') {
+    sections.push(
+      `CURRENT REFERENCE ORDER (after the first/result image):\n${run.state.referenceUrls
+        .filter(Boolean)
+        .map((url, index) => `@Image${index + 1}: ${url}`)
+        .join('\n')}`,
+    )
+    if (run.referenceAnalysis)
+      sections.push(
+        `REFERENCE BRIEF:\n${JSON.stringify(run.referenceAnalysis.brief)}`,
+      )
+  }
 
   const prefix = `${sections.join('\n\n')}\n\nCONVERSATION THAT LED HERE:\n`
   const suffix = '\n\nReply with ONE JSON object.'
@@ -4568,6 +4834,9 @@ export async function* runAssistantOperator(
   ])
 
   const run: OperatorRun = {
+    referenceAnalysis: null,
+    promptReviewFailures: 0,
+    referencePromptWritten: false,
     request,
     persona,
     // 进了系统提示的那几条一开始就在索引里 —— 引用它们不必先调一次工具。
@@ -4943,6 +5212,15 @@ export async function* runAssistantOperator(
       }
 
       // ⚠ `await`：`critique_result` 的视觉那一跳跑在**规划期**（见它的头注）。
+      if (name === TOOL.analyzeReferences) {
+        yield toStepEvent({
+          ...base,
+          tool: name,
+          payload: {},
+          result: null,
+          status: STATUS.running,
+        })
+      }
       const plan = await planTool(run, name, args, user.id)
       // ⚠ 规划期就可能看过图（`critique_result`）—— 那几帧现在就该出去。
       yield* drainCostTicks()

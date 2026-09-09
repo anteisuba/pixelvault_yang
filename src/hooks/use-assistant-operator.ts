@@ -109,6 +109,7 @@ import {
 import {
   historyToOperatorMessages,
   historyToPriorSteps,
+  readOperatorReferenceProfiles,
 } from '@/lib/studio-operator-history'
 import { shouldShowPlanCard } from '@/lib/studio-operator-plan'
 import {
@@ -777,6 +778,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           messages,
           domain,
           snapshot: buildSnapshot(),
+          referenceProfiles: readOperatorReferenceProfiles(entries, history),
           /**
            * ⚠ 历史里的步也算「刚才做过什么」，⛔ 别只给本次会话的：刷新之后
            * 助手会把用户上次撤销掉的改动原样再做一遍（拍板 18 的反面）。

@@ -70,6 +70,7 @@ import type { StudioOperatorWebImportState } from '@/hooks/use-studio-operator-w
  * 而抄一份图标表就是「同一步在历史里换了个图标」这种没人会去查的不一致。
  */
 export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
+  [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]: ScanEye,
   [ASSISTANT_OPERATOR_TOOL_IDS.readState]: Eye,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchAssets]: Search,
   [ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders]: FolderSearch,

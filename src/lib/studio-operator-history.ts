@@ -14,6 +14,7 @@
  * inverse、`running` 不落库、撤销痕迹留而按钮不留）都要能在单测里逐条钉住。
  */
 
+import type { ReferenceVisualProfile } from '@/types/assistant-reference-analysis'
 import {
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
@@ -200,6 +201,8 @@ export function describeOperatorStepDetail(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
       return null
+    case ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences:
+      return step.result?.brief.summary ?? null
     /** 详情写**源地址**：那是用户自己粘的那一串，他一眼认得出接的是不是这条。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl:
       return step.payload.url
@@ -461,7 +464,31 @@ function toOperatorHistoryStep(
     status: 'done',
     ...(detail ? { detail: truncate(detail, LIMITS.maxPromptChars) } : {}),
     ...(critique ? { critique } : {}),
+    ...(step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
+    step.result
+      ? { referenceAnalysis: step.result }
+      : {}),
   }
+}
+
+export function readOperatorReferenceProfiles(
+  entries: readonly StudioOperatorThreadEntry[],
+  history: readonly StudioOperatorHistoryEntry[],
+): ReferenceVisualProfile[] {
+  const profiles = new Map<string, ReferenceVisualProfile>()
+  for (const entry of [...history, ...toOperatorHistory(entries)]) {
+    if (
+      entry.kind !== 'step' ||
+      entry.status !== 'done' ||
+      !entry.referenceAnalysis
+    )
+      continue
+    for (const profile of entry.referenceAnalysis.profiles) {
+      profiles.delete(profile.url)
+      profiles.set(profile.url, profile)
+    }
+  }
+  return [...profiles.values()].slice(-LIMITS.maxSnapshotReferences)
 }
 
 export function toOperatorHistory(

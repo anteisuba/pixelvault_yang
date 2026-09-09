@@ -37,6 +37,8 @@ const FOLDER_VISION_SOURCE = readFileSync(FOLDER_VISION_SERVICE_PATH, 'utf8')
  * 调 provider 出图？会就不该出现在这个文件里 —— 助手的活是填表单，不是出图。
  */
 const ALLOWED_SERVICE_IMPORTS = new Set([
+  // Structured reference analysis and prompt checks only; no generation or storage writes.
+  '@/services/kernel/assistant-reference-analysis.service',
   // 认人：clerkId → 库里的 user.id，检索要按它收敛。
   '@/services/user.service',
   // 只读分页查询（`search_assets`）。⚠ 同一个模块里有 `createGeneration`，

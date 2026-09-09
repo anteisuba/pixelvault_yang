@@ -5,9 +5,22 @@ import {
   getReferenceMentionIndices,
   getReferenceImageAttachmentId,
   removeReferenceMentions,
+  normalizeReferenceMentions,
 } from './studio-reference-mentions'
 
 describe('Studio reference mentions', () => {
+  it('turns assistant-written image numbers into thumbnail mentions', () => {
+    expect(
+      normalizeReferenceMentions(
+        'Image 1 角色，参考图2衣服，图 3动作，reference image 4画风，@Image4面部',
+      ),
+    ).toBe('@Image1 角色，@Image2衣服，@Image3动作，@Image4画风，@Image4面部')
+  })
+
+  it('does not rewrite URLs, email addresses or partial identifiers', () => {
+    const text = 'https://cdn.test/Image1.png user@Image3.com Image2abc'
+    expect(normalizeReferenceMentions(text)).toBe(text)
+  })
   it('keeps attachment identity tied to the image URL instead of its current slot', () => {
     const first = getReferenceImageAttachmentId('https://cdn.test/a.png')
     expect(first).toBe(getReferenceImageAttachmentId('https://cdn.test/a.png'))

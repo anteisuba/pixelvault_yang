@@ -345,6 +345,7 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * 可撤销、照旧进登记簿）。把评价和改动合成一条工具，撤销就没有粒度了。
    */
   critiqueResult: 'critique_result',
+  analyzeReferences: 'analyze_references',
   /**
    * 把**用户亲手递过来的**一条 URL 取图、入库并挂上（P3-D，拍板 22）。
    *
@@ -492,6 +493,7 @@ export const GENERATION_REVIEW_STATES = [
 export type GenerationReviewState = (typeof GENERATION_REVIEW_STATES)[number]
 
 export const ASSISTANT_OPERATOR_TOOLS = [
+  ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
   ASSISTANT_OPERATOR_TOOL_IDS.readState,
   ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
   ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
@@ -534,6 +536,7 @@ export type AssistantOperatorTool = (typeof ASSISTANT_OPERATOR_TOOLS)[number]
  * （它有自己的界面反馈与失败态），所以这一步照样没有东西可撤。
  */
 export const ASSISTANT_OPERATOR_READ_TOOLS = [
+  ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
   ASSISTANT_OPERATOR_TOOL_IDS.readState,
   ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
   ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
@@ -1026,6 +1029,7 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
   readonly AssistantOperatorTool[]
 > = {
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.image]: [
+    ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
     ...COMMON_DOMAIN_TOOLS,
     ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
     ASSISTANT_OPERATOR_TOOL_IDS.setCount,
@@ -1399,6 +1403,10 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
   unknownModel: 'unknownModel',
   /** 档位值不在快照给的那张表里。⛔ 不做就近匹配。 */
   unknownValue: 'unknownValue',
+  referenceAnalysisRequired: 'referenceAnalysisRequired',
+  referenceImageUnavailable: 'referenceImageUnavailable',
+  referenceAnalysisFailed: 'referenceAnalysisFailed',
+  promptConflict: 'promptConflict',
   /**
    * `mount_reference` 引的 asset 本轮 `search_assets` 从没返回过。
    * ⛔ 不去补查一次：那等于承认模型可以凭空说出一个 id。
@@ -1705,6 +1713,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]:
     'actually LOOK at a picture and say what worked and what did not. Two ways to get one: pass "targetIds" with the id or the exact address of a picture the creator attached to THIS message (that is them pointing at it), or call it with no target when a run you armed has just come back. You may never invent an address — anything the creator did not reference this turn is refused. If they said "that one" and more than one picture is in play, call it with no target and the app will ask them which. Call it first when a picture is waiting, then fix the form with set_* based on what you saw. On the video bench the target is a CLIP and you are shown three stills from it (first / middle / last) instead of one picture — same tool, same rules.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]:
+    'Analyze all currently mounted image references together and build a role/keep/exclude brief for the latest creator request. Call before set_prompt when references are present. Also call when the creator asks to update the reference brief or its requirements; do not claim the brief was updated without a successful call. Unchanged images reuse their visual facts; source roles are reconsidered for the current request. Read uncertainties and ask only unresolved questions. Use this for source images, never critique_result. Mount the intended references first; no URLs or targetIds are needed. On referenceImageUnavailable, identify the exact failed image and ask the creator to re-upload or replace it. Do not remove it, substitute another source, infer its contents, or retry unchanged. A failed analysis has not verified any new visual facts.',
   /**
    * ⚠ 2026-09-06 放宽了**准入名单**（⛔ 不是放宽了闸）：除了「用户逐字写过的
    * 地址」，本轮 `search_web_images` 真的展示过的候选也算数 —— 用户说「都挂上」

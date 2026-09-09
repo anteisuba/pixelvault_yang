@@ -320,6 +320,8 @@ export function applyOperatorStep(
   ctx: StudioOperatorApplyContext,
 ): StudioOperatorField | null {
   switch (step.tool) {
+    case ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences:
+      return null
     case ASSISTANT_OPERATOR_TOOL_IDS.readState:
     case ASSISTANT_OPERATOR_TOOL_IDS.searchAssets:
     case ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders:

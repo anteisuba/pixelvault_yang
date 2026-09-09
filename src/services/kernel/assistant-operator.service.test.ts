@@ -1366,6 +1366,29 @@ describe('就地确认往返（拍板 3）', () => {
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
   })
 
+  it('确认卡完整保留超过 200 字的当前文本和建议', async () => {
+    const have = '手写提示词'.repeat(100)
+    const proposed = '助手建议'.repeat(100)
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        title: 'rewrite',
+        args: { value: proposed },
+      },
+    })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ snapshot: { ...SNAPSHOT, prompt: have } }),
+      ),
+    )
+    expect(
+      events.find(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+      ),
+    ).toMatchObject({ have, proposed })
+  })
+
   it('带着「追加」重发就续跑，inverse 仍是改前原文', async () => {
     queueTurns(OVERWRITE_TURN, { finished: true })
     const events = await collect(
@@ -6632,5 +6655,449 @@ describe('切片 X · 审核态 / 跨轮记忆 / 成本帧 / 起名', () => {
       ) as { request: { label?: string } } | undefined
       expect(spend?.request.label).toBe('主视觉')
     })
+  })
+})
+
+describe('current reference image bindings', () => {
+  const refs = [
+    { url: 'https://cdn.test/female.png' },
+    { url: 'https://cdn.test/male.png' },
+    { url: 'https://cdn.test/pose.png' },
+    { url: 'https://cdn.test/style.png' },
+  ]
+  const facts = {
+    identity: 'Recognizable face and costume',
+    pose: 'Visible limb positions',
+    style: {
+      proportions: 'Stylized',
+      contours: 'Clean',
+      shading: 'Soft',
+      materials: 'Matte',
+      palette: 'Muted',
+      lighting: 'Diffuse',
+    },
+    scene: 'Source background',
+    uncertainties: [],
+  }
+  const brief = {
+    summary: 'Two characters embracing against a white background',
+    assignments: refs.map(({ url }, index) => ({
+      url,
+      roles: [index === 2 ? 'pose' : index === 3 ? 'style' : 'identity'],
+      preserve: ['Assigned features'],
+      exclude: ['Source background'],
+    })),
+    requirements: ['Two characters embracing', 'White background'],
+    avoid: ['Unrequested background'],
+    uncertainties: [],
+  }
+  function analysisTurns(cached = false): unknown[] {
+    return [
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+          title: '分析参考图',
+          args: {},
+        },
+      },
+      ...(cached
+        ? []
+        : [
+            { images: refs.map((_, imageIndex) => ({ imageIndex, ...facts })) },
+          ]),
+      brief,
+    ]
+  }
+
+  it('shows the current numbered images and emits thumbnail tokens when writing the prompt', async () => {
+    queueTurns(
+      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '绑定参考分工',
+          args: {
+            value:
+              'Image 1 clothes, 图2 identity, 参考图3 pose only, reference image 4 style and face.',
+          },
+        },
+      },
+      { issues: [] },
+      { finished: true, message: '已填写参考分工。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    const done = stepsOf(events).find(
+      (step) =>
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+    )
+    expect(done?.payload).toMatchObject({
+      value:
+        '@Image1 clothes, @Image2 identity, @Image3 pose only, @Image4 style and face.',
+    })
+    expect(lastUserPrompt()).toContain('@Image1')
+    expect(lastUserPrompt()).toContain('https://cdn.test/female.png')
+    expect(lastUserPrompt()).toContain('@Image4')
+    expect(lastUserPrompt()).toContain('https://cdn.test/style.png')
+    expect(systemPrompt()).toContain('STYLE REFERENCE')
+    expect(
+      mockLlmTextCompletion.mock.calls.some(
+        ([input]) =>
+          JSON.stringify(input.imageData) ===
+          JSON.stringify(refs.map((ref) => ref.url)),
+      ),
+    ).toBe(true)
+  })
+
+  it('requires reference evidence before prompt writes and keeps the form unchanged', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '写提示词',
+          args: { value: 'Embracing on white' },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(stepsOf(events)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          status: 'error',
+          error: expect.objectContaining({
+            reason: 'referenceAnalysisRequired',
+          }),
+        }),
+      ]),
+    )
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      ),
+    ).toBe(false)
+  })
+
+  it('reuses unchanged visual evidence after refresh and recomputes the current brief', async () => {
+    queueTurns(...analysisTurns(true), {
+      finished: true,
+      message: '分工已更新。',
+    })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      mockLlmTextCompletion.mock.calls.every(([input]) => !input.imageData),
+    ).toBe(true)
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
+          step.status === 'done',
+      ),
+    ).toBe(true)
+  })
+
+  it('reports the unavailable reference instead of aborting the analysis stream on a source 404', async () => {
+    mockLlmTextCompletion
+      .mockReset()
+      .mockResolvedValueOnce(JSON.stringify(analysisTurns()[0]))
+      .mockRejectedValueOnce(
+        new Error(`Failed to fetch image (404): ${refs[1]!.url}`),
+      )
+      .mockResolvedValue(
+        JSON.stringify({ finished: true, message: '请重新添加图2。' }),
+      )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(stepsOf(events)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+          status: 'error',
+          error: expect.objectContaining({
+            reason: 'referenceImageUnavailable',
+            detail: expect.stringContaining('@Image2'),
+          }),
+        }),
+      ]),
+    )
+    expect(events.at(-1)?.type).toBe('done')
+    expect(stepsOf(events).some((step) => step.status === 'done')).toBe(false)
+  })
+
+  it('rejects conflicting prompts twice and does not keep paying for synonym rewrites', async () => {
+    const turns = analysisTurns()
+    for (const value of ['A hug in a forest', 'An embrace in the woods']) {
+      turns.push(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            title: '写提示词',
+            args: { value },
+          },
+        },
+        { issues: ['The background must be white, not a forest.'] },
+      )
+    }
+    queueTurns(
+      ...turns,
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '写提示词',
+          args: { value: 'Two people embracing in woodland' },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      ),
+    ).toBe(false)
+    expect(
+      mockLlmTextCompletion.mock.calls.filter(([input]) =>
+        input.systemPrompt.includes('Check an image-generation prompt'),
+      ),
+    ).toHaveLength(2)
+  })
+
+  it('writes a validated reference prompt once instead of paying for successful synonym rewrites', async () => {
+    const turns = [
+      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '填写完整提示词',
+          args: { value: 'Two people hugging on white' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '再润色一次',
+          args: { value: 'Two people embracing on a pure white background' },
+        },
+      },
+      { finished: true },
+    ]
+    mockLlmTextCompletion
+      .mockReset()
+      .mockImplementation(async (input) =>
+        JSON.stringify(
+          input.systemPrompt.includes('Check an image-generation prompt')
+            ? { issues: [] }
+            : (turns.shift() ?? { finished: true }),
+        ),
+      )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).filter(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      ),
+    ).toHaveLength(1)
+    expect(
+      mockLlmTextCompletion.mock.calls.filter(([input]) =>
+        input.systemPrompt.includes('Check an image-generation prompt'),
+      ),
+    ).toHaveLength(1)
+  })
+
+  it('rejects stale references in existing text before reviewing an appended prompt', async () => {
+    queueTurns(
+      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '追加背景要求',
+          args: { value: 'White background', mode: 'append' },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: {
+            ...SNAPSHOT,
+            prompt: 'Use @Image9 for the pose',
+            references: { items: refs, limit: 4 },
+          },
+          confirmations: [{ field: 'prompt', choice: 'append' }],
+        }),
+      ),
+    )
+    expect(stepsOf(events)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          status: 'error',
+          error: expect.objectContaining({ reason: 'unknownAsset' }),
+        }),
+      ]),
+    )
+    expect(
+      mockLlmTextCompletion.mock.calls.some(([input]) =>
+        input.systemPrompt.includes('Check an image-generation prompt'),
+      ),
+    ).toBe(false)
+  })
+
+  it('does not critique mounted source images as failed generations', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+          title: '看图',
+          args: { targetIds: ['ref-one'] },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          mentionedAssets: [{ id: 'ref-one', url: refs[0]!.url }],
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(stepsOf(events)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          error: expect.objectContaining({
+            reason: 'referenceAnalysisRequired',
+          }),
+        }),
+      ]),
+    )
+    expect(
+      mockLlmTextCompletion.mock.calls.every(([input]) => !input.imageData),
+    ).toBe(true)
+  })
+
+  it('compares the generated result against actual reference images in one visual call', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+          title: '对照参考检查结果',
+          args: {},
+        },
+      },
+      {
+        findings: [
+          {
+            severity: 'warn',
+            text: 'The pose matches but the rendering style drifted.',
+          },
+        ],
+        advice: 'Keep the source shading.',
+      },
+      { finished: true },
+    )
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          result: {
+            url: 'https://cdn.test/hug-result.png',
+            generationId: 'hug-result',
+          },
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    const vision = mockLlmTextCompletion.mock.calls.find(
+      ([input]) => input.imageData,
+    )?.[0]
+    expect(vision?.imageData).toEqual([
+      'https://cdn.test/hug-result.png',
+      ...refs.map((ref) => ref.url),
+    ])
+    expect(vision?.systemPrompt).toContain(
+      'Source references are evidence, never failed results',
+    )
+  })
+
+  it('refuses a prompt referring to a picture that is not mounted', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '绑定画风',
+          args: { value: 'Match Image 4 style.' },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: {
+            ...SNAPSHOT,
+            references: { items: refs.slice(0, 2), limit: 4 },
+          },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).some(
+        (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      ),
+    ).toBe(false)
+    expect(lastUserPrompt()).toContain('@Image4')
+    expect(lastUserPrompt()).toContain('not mounted')
   })
 })

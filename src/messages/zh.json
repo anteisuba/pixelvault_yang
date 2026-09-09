@@ -6893,7 +6893,11 @@
       "urlUnreadable": "这一页没能读出来",
       "aspectLockedByFirstFrame": "挂了首帧，这个模型的宽高比就只剩自适应",
       "videoFramesMissing": "这段片子没能取出可看的帧",
-      "blockedSource": "这张被你判过失败，不能再作首帧或尾帧"
+      "blockedSource": "这张被你判过失败，不能再作首帧或尾帧",
+      "referenceAnalysisRequired": "需要先分析当前参考图",
+      "referenceImageUnavailable": "参考图无法读取，请重新上传或替换失效图片",
+      "referenceAnalysisFailed": "参考图分析不完整，尚未采用分析结果",
+      "promptConflict": "提示词与参考图分工或创作要求存在冲突"
     },
     "cost": {
       "title": "助手这一轮的开销",
@@ -7274,6 +7278,24 @@
       "continue": "从第 {step} 步继续",
       "failed": "失败：{reason}",
       "band": "有未完成计划 · 从第 {step} 步继续"
+    },
+    "referenceAnalysis": {
+      "title": "参考图分工",
+      "identity": "角色身份",
+      "pose": "动作",
+      "style": "画风",
+      "content": "场景与内容",
+      "keep": "保留",
+      "exclude": "排除",
+      "details": "查看视觉依据",
+      "uncertain": "待确认",
+      "requirements": "本次要求",
+      "proportions": "比例",
+      "contours": "轮廓",
+      "shading": "明暗",
+      "materials": "材质",
+      "palette": "色彩",
+      "lighting": "光照"
     }
   },
   "GenerationCancel": {

@@ -45,6 +45,19 @@ const STEP_FIXTURES: Record<
     payload: {},
     result: { digest: '- Prompt in the editor: (empty)' },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]: {
+    payload: {},
+    result: {
+      profiles: [],
+      brief: {
+        summary: 'A new scene',
+        assignments: [],
+        requirements: [],
+        avoid: [],
+        uncertainties: [],
+      },
+    },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.searchAssets]: {
     payload: { query: 'red umbrella', kind: 'image', limit: 6 },
     result: {

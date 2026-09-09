@@ -1,6 +1,6 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { useState } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
@@ -522,6 +522,38 @@ describe('StudioOperatorPanel · 流式正文与加载态', () => {
  * 但面板不用它的话屏幕上一点没变。
  */
 describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
+  it('keeps reference roles visible outside the collapsed tool log', () => {
+    pushStep('run-reference', {
+      id: 'reference-analysis',
+      title: '分析参考图',
+      tool: 'analyze_references',
+      status: 'done',
+      payload: {},
+      result: {
+        profiles: [],
+        brief: {
+          summary: '双人拥抱，保留指定画风',
+          assignments: [
+            {
+              url: 'https://cdn.test/style.png',
+              roles: ['style'],
+              preserve: ['柔和明暗与块状发束'],
+              exclude: ['原图背景'],
+            },
+          ],
+          requirements: ['纯白背景'],
+          avoid: [],
+          uncertainties: [],
+        },
+      },
+    })
+    renderPanel()
+    const card = screen.getByTestId('operator-reference-analysis')
+    expect(card.closest('[data-testid="operator-tool-group"]')).toBeNull()
+    expect(within(card).getByText('双人拥抱，保留指定画风')).toBeInTheDocument()
+    expect(within(card).getByText(/柔和明暗与块状发束/)).toBeInTheDocument()
+    expect(within(card).getByText(/纯白背景/)).toBeInTheDocument()
+  })
   /** 一条跑完的步 —— `upsertOperatorStep` 收的形状。 */
   function pushStep(runKey: string, step: Record<string, unknown>): void {
     store.upsertOperatorStep(

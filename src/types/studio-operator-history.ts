@@ -23,6 +23,7 @@
  */
 
 import { z } from 'zod'
+import { ReferenceAnalysisSchema } from '@/types/assistant-reference-analysis'
 
 import {
   ASSISTANT_OPERATOR_DOMAINS,
@@ -111,6 +112,7 @@ export const StudioOperatorHistoryStepSchema = z.object({
   /** 被拒那一支的理由 id（`StudioOperator.reject.*`）。 */
   rejectReason: z.string().trim().max(LIMITS.maxIdChars).optional(),
   critique: StudioOperatorHistoryCritiqueSchema.optional(),
+  referenceAnalysis: ReferenceAnalysisSchema.optional(),
 })
 
 export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [

@@ -6893,7 +6893,11 @@
       "urlUnreadable": "That page could not be read",
       "aspectLockedByFirstFrame": "A first frame is set, so this model only accepts the adaptive aspect ratio",
       "videoFramesMissing": "Could not read frames from this clip",
-      "blockedSource": "You marked this one as failed, so it can't open or close a clip"
+      "blockedSource": "You marked this one as failed, so it can't open or close a clip",
+      "referenceAnalysisRequired": "Analyze the current references first",
+      "referenceImageUnavailable": "A reference image could not be read. Re-upload or replace the unavailable image.",
+      "referenceAnalysisFailed": "Reference analysis was incomplete; no analysis was accepted.",
+      "promptConflict": "The prompt conflicts with reference roles or requirements"
     },
     "cost": {
       "title": "Assistant work",
@@ -7274,6 +7278,24 @@
       "continue": "Continue from step {step}",
       "failed": "Failed: {reason}",
       "band": "Unfinished plan · continue from step {step}"
+    },
+    "referenceAnalysis": {
+      "title": "Reference roles",
+      "identity": "Character identity",
+      "pose": "Pose",
+      "style": "Style",
+      "content": "Scene and content",
+      "keep": "Keep",
+      "exclude": "Exclude",
+      "details": "View visual evidence",
+      "uncertain": "Uncertain",
+      "requirements": "Requirements",
+      "proportions": "Proportions",
+      "contours": "Contours",
+      "shading": "Shading",
+      "materials": "Materials",
+      "palette": "Palette",
+      "lighting": "Lighting"
     }
   },
   "GenerationCancel": {

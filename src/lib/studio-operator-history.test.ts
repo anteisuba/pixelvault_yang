@@ -5,6 +5,7 @@ import {
   fromStoredOperatorMessages,
   historyToOperatorMessages,
   historyToPriorSteps,
+  readOperatorReferenceProfiles,
   toOperatorHistory,
   toStoredOperatorMessages,
 } from '@/lib/studio-operator-history'
@@ -29,6 +30,63 @@ import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history
 function step(overrides: Record<string, unknown>): AssistantOperatorStep {
   return overrides as unknown as AssistantOperatorStep
 }
+
+it('persists reference evidence and roles across history round trips without restoring operations', () => {
+  const profile = {
+    url: 'https://cdn.test/style.png',
+    identity: 'A character',
+    pose: 'Standing',
+    style: {
+      proportions: 'Stylized',
+      contours: 'Clean',
+      shading: 'Soft',
+      materials: 'Matte',
+      palette: 'Muted',
+      lighting: 'Diffuse',
+    },
+    scene: 'White',
+    uncertainties: [],
+  }
+  const analysis = {
+    profiles: [profile],
+    brief: {
+      summary: 'Keep the rendering style',
+      assignments: [
+        {
+          url: profile.url,
+          roles: ['style'],
+          preserve: ['Rendering style'],
+          exclude: ['Character'],
+        },
+      ],
+      requirements: ['White background'],
+      avoid: [],
+      uncertainties: [],
+    },
+  }
+  const entries: StudioOperatorThreadEntry[] = [
+    {
+      kind: 'step',
+      id: 'analysis-entry',
+      runKey: 'analysis-run',
+      undone: false,
+      step: step({
+        id: 'analysis-step',
+        tool: 'analyze_references',
+        title: 'Analyze sources',
+        status: 'done',
+        payload: {},
+        result: analysis,
+      }),
+    },
+  ]
+  const history = fromStoredOperatorMessages(
+    toStoredOperatorMessages(toOperatorHistory(entries)),
+  )
+  expect(history[0]).toMatchObject({ referenceAnalysis: analysis })
+  expect(readOperatorReferenceProfiles([], history)).toEqual([profile])
+  expect(JSON.stringify(history)).not.toContain('inverse')
+})
 
 const SET_PROMPT_STEP = step({
   id: 'step-1',

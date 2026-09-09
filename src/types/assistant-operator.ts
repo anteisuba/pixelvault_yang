@@ -21,6 +21,11 @@
 import { z } from 'zod'
 
 import {
+  ReferenceAnalysisSchema,
+  ReferenceProfilesSchema,
+} from '@/types/assistant-reference-analysis'
+
+import {
   ASSISTANT_CHOICE_REQUEST_LIMITS as CHOICE_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
@@ -849,6 +854,7 @@ export type AssistantOperatorResumeFrom = z.infer<
 >
 
 export const AssistantOperatorRequestSchema = z.object({
+  referenceProfiles: ReferenceProfilesSchema.optional(),
   messages: z.array(AssistantOperatorMessageSchema).min(1),
   domain: AssistantOperatorDomainSchema,
   snapshot: AssistantOperatorSnapshotSchema,
@@ -1184,6 +1190,7 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
       .max(LIMITS.maxSnapshotReferences)
       .optional(),
   }),
+  [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]: z.object({}),
   /**
    * 用户亲手递来的那条地址（P3-D，拍板 22）。
    *
@@ -1634,6 +1641,11 @@ export type AssistantOperatorLoraCandidate = z.infer<
 >
 
 export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+    z.object({}),
+    ReferenceAnalysisSchema,
+  ),
   readStep(
     ASSISTANT_OPERATOR_TOOL_IDS.readState,
     z.object({}),
@@ -2227,10 +2239,10 @@ export const AssistantOperatorConfirmRequestEventSchema = z.object({
    */
   tier: z.literal(ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.overwrite),
   field: AssistantOperatorConfirmFieldSchema,
-  /** 用户已经写在那儿的东西（截断）—— 小条上要让人认出「哦是我写的那段」。 */
-  have: z.string().max(LIMITS.maxConfirmHaveChars),
-  /** 助手想写进去的东西（截断同上）。 */
-  proposed: z.string().max(LIMITS.maxConfirmHaveChars),
+  /** 用户当前文本，供助手确认卡完整展示。 */
+  have: z.string().max(LIMITS.maxPromptChars),
+  /** 助手建议的完整文本。 */
+  proposed: z.string().max(LIMITS.maxPromptChars),
 })
 
 /**

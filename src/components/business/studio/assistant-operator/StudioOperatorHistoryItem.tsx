@@ -1,4 +1,5 @@
 'use client'
+import { StudioOperatorReferenceAnalysisCard } from './StudioOperatorReferenceAnalysisCard'
 
 /**
  * 一条**只读历史**（P4-B）。
@@ -103,7 +104,11 @@ export function StudioOperatorHistoryItem({
         </details>
       )
     case 'step':
-      return entry.critique ? (
+      return entry.referenceAnalysis ? (
+        <StudioOperatorReferenceAnalysisCard
+          analysis={entry.referenceAnalysis}
+        />
+      ) : entry.critique ? (
         <HistoryCritiqueCard entry={entry} />
       ) : (
         <HistoryStepRow entry={entry} />

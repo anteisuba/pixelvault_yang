@@ -1,4 +1,14 @@
 const IMAGE_MENTION = /(?<![\w.%+-])@Image([1-9]\d*)(?![\w])/g
+const WRITTEN_IMAGE_REFERENCE =
+  /(?<![\w@/.:?%+-])(?:@?Image\s*([1-9]\d*)|reference\s+image\s*([1-9]\d*)|参考图\s*([1-9]\d*)|图\s*([1-9]\d*))(?![\w])/gi
+
+export function normalizeReferenceMentions(prompt: string): string {
+  return prompt.replace(
+    WRITTEN_IMAGE_REFERENCE,
+    (_token, english, reference, chinese, short) =>
+      `@Image${english ?? reference ?? chinese ?? short}`,
+  )
+}
 
 export function getReferenceImageAttachmentId(url: string): string {
   let hash = BigInt('14695981039346656037')

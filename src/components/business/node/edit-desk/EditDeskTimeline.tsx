@@ -35,6 +35,9 @@ import {
   EDIT_DESK_LIBRARY_DRAG_MIME,
   EDIT_DESK_NODE_DRAG_MIME,
   EDIT_DESK_TRANSITION_DRAG_MIME,
+  EDIT_TEXT_CLIP_HEIGHT_PX,
+  EDIT_TEXT_CLIP_MIN_DURATION_SEC,
+  EDIT_TEXT_LANE_HEIGHT_PX,
   EDIT_TIMELINE_TICK_SECONDS,
   EDIT_TOOLS,
   EDIT_TOOL_IDS,
@@ -58,7 +61,7 @@ import {
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
-import type { EditClip } from '@/types/node-workflow'
+import type { EditClip, EditTextClip } from '@/types/node-workflow'
 
 import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
 import {
@@ -245,6 +248,12 @@ export function EditDeskTimeline({
           </div>
 
           <div className="mt-2 flex flex-col gap-2">
+            {/*
+              T 轨在 V 之上（spec §6「文字段」）。⚠ 它**不参与磁吸主轨**，所以段是
+              绝对定位（left = 起点秒）而不是首尾相接的一排 —— 字幕钉在画面的某一刻，
+              画面换了序它不该跟着挪。
+            */}
+            <TextLane desk={desk} secondsFromEvent={secondsFromEvent} />
             {EDIT_TRACKS.map((track) => (
               <TrackLane
                 key={track}
@@ -292,6 +301,186 @@ export function EditDeskTimeline({
         >
           {overlay}
         </div>
+      ) : null}
+    </div>
+  )
+}
+
+/** T 轨（S8d · 画板 `EditDeskText.dc.html` 的 `.lane` + `.tclip`）。 */
+function TextLane({
+  desk,
+  secondsFromEvent,
+}: {
+  readonly desk: EditDesk
+  secondsFromEvent(clientX: number): number
+}) {
+  const t = useTranslations('StudioNode.editDesk')
+
+  return (
+    <div
+      className="flex items-center gap-2"
+      style={{ height: EDIT_TEXT_LANE_HEIGHT_PX }}
+    >
+      <span
+        className="shrink-0 text-right text-3xs uppercase text-muted-foreground"
+        style={{ width: EDIT_DESK_LAYOUT.trackLabelWidthPx }}
+      >
+        {t('tracks.text')}
+      </span>
+      <div
+        data-testid="edit-desk-track-text"
+        onPointerDown={(event) => desk.setPlayhead(secondsFromEvent(event.clientX))}
+        className="relative min-w-0 flex-1"
+        style={{ height: EDIT_TEXT_CLIP_HEIGHT_PX }}
+      >
+        {desk.project.tracks.text.length === 0 ? (
+          <span className="absolute inset-y-0 left-2 flex items-center text-3xs text-muted-foreground">
+            {t('tracks.textEmpty')}
+          </span>
+        ) : null}
+        {desk.project.tracks.text.map((clip) => (
+          <TextClipView
+            key={clip.id}
+            clip={clip}
+            desk={desk}
+            secondsFromEvent={secondsFromEvent}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/**
+ * 一段字幕。四种手势与 V 段同源：点 = 选中 · 拖体 = 挪位置 · 拖两端 = 改入出点 ·
+ * ⌫ / S 在台面上（键盘不归时间线管）。
+ *
+ * ⚠ 与 V 段一样**落地时才发 op**（`pointerup`）：拖的过程只动本地预览，⛔ 不把
+ * 撤销栈冲成 60 步。
+ */
+function TextClipView({
+  clip,
+  desk,
+  secondsFromEvent,
+}: {
+  readonly clip: EditTextClip
+  readonly desk: EditDesk
+  secondsFromEvent(clientX: number): number
+}) {
+  const selected = desk.textSelectionId === clip.id
+  const [preview, setPreview] = useState<{
+    startSec: number
+    durationSec: number
+  } | null>(null)
+  const shown = preview ?? {
+    startSec: clip.startSec,
+    durationSec: clip.durationSec,
+  }
+
+  const startDrag =
+    (mode: 'move' | 'in' | 'out') =>
+    (event: React.PointerEvent<HTMLElement>) => {
+      event.stopPropagation()
+      event.preventDefault()
+      desk.selectText(clip.id)
+      const originSec = secondsFromEvent(event.clientX)
+      const origin = {
+        startSec: clip.startSec,
+        durationSec: clip.durationSec,
+      }
+      const target: HTMLElement = event.currentTarget
+      target.setPointerCapture(event.pointerId)
+
+      const nextOf = (
+        clientX: number,
+      ): { startSec: number; durationSec: number } => {
+        const delta = secondsFromEvent(clientX) - originSec
+        if (mode === 'move') {
+          return {
+            startSec: Math.max(0, origin.startSec + delta),
+            durationSec: origin.durationSec,
+          }
+        }
+        if (mode === 'in') {
+          // 拖左端 = 起点动、尾巴不动（所以长度反向变）。
+          const startSec = Math.max(
+            0,
+            Math.min(
+              origin.startSec + delta,
+              origin.startSec + origin.durationSec -
+                EDIT_TEXT_CLIP_MIN_DURATION_SEC,
+            ),
+          )
+          return {
+            startSec,
+            durationSec: origin.startSec + origin.durationSec - startSec,
+          }
+        }
+        return {
+          startSec: origin.startSec,
+          durationSec: Math.max(
+            EDIT_TEXT_CLIP_MIN_DURATION_SEC,
+            origin.durationSec + delta,
+          ),
+        }
+      }
+
+      const move = (moveEvent: PointerEvent) => {
+        setPreview(nextOf(moveEvent.clientX))
+      }
+      const up = (upEvent: PointerEvent) => {
+        target.removeEventListener('pointermove', move)
+        target.removeEventListener('pointerup', up)
+        const next = nextOf(upEvent.clientX)
+        setPreview(null)
+        desk.updateTextClip(clip.id, next)
+      }
+      target.addEventListener('pointermove', move)
+      target.addEventListener('pointerup', up)
+    }
+
+  const firstLine = clip.text.split('\n')[0] ?? ''
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-pressed={selected}
+      data-testid={`edit-desk-text-clip-${clip.id}`}
+      onPointerDown={startDrag('move')}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter') desk.selectText(clip.id)
+      }}
+      style={{
+        left: secondsToPx(shown.startSec),
+        width: Math.max(
+          secondsToPx(shown.durationSec),
+          EDIT_DESK_LAYOUT.handleWidthPx * 4,
+        ),
+        height: EDIT_TEXT_CLIP_HEIGHT_PX,
+      }}
+      className={cn(
+        'absolute top-0 flex items-center gap-1.5 overflow-hidden rounded-lg border-[1.5px] border-foreground bg-card px-2.5 text-2xs text-foreground',
+        selected && 'outline outline-[1.5px] outline-primary',
+      )}
+    >
+      <span className="shrink-0 font-semibold">T</span>
+      <span className="truncate">{firstLine}</span>
+      {selected ? (
+        <>
+          <span
+            data-testid={`edit-desk-text-handle-in-${clip.id}`}
+            onPointerDown={startDrag('in')}
+            style={{ width: EDIT_DESK_LAYOUT.handleWidthPx }}
+            className="absolute bottom-0 left-0 top-0 cursor-ew-resize bg-primary"
+          />
+          <span
+            data-testid={`edit-desk-text-handle-out-${clip.id}`}
+            onPointerDown={startDrag('out')}
+            style={{ width: EDIT_DESK_LAYOUT.handleWidthPx }}
+            className="absolute bottom-0 right-0 top-0 cursor-ew-resize bg-primary"
+          />
+        </>
       ) : null}
     </div>
   )

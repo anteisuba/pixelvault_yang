@@ -187,6 +187,28 @@ export interface RenderAudioSegment {
   readonly sourceNodeId: string
 }
 
+/**
+ * 一段字幕（S8d · spec §6「文字段」→ 渲染层 `drawtext`）。
+ *
+ * ⚠ 字号与边距在这里已经是**像素**：换算（画面高 × 比例）在浏览器的 `toRenderPlan`
+ * 里做完 —— 与「时间线不在服务端算」同一条纪律，worker 只把它翻成一句 `drawtext`。
+ * ⛔ 不传比例让 worker 再乘一次：那会让同一条时间线的字幕大小有两处真理。
+ */
+export interface RenderTextSegment {
+  readonly id: string
+  readonly text: string
+  /** 成片时间轴上的入 / 出（已按导出范围裁过）。 */
+  readonly startSec: number
+  readonly durationSec: number
+  readonly anchor: string
+  readonly fontSizePx: number
+  readonly marginPx: number
+  /** `light` = 白字黑描边，`dark` = 黑字白描边。 */
+  readonly tone: 'light' | 'dark'
+  /** 入出各淡多久（0 = 不淡）。 */
+  readonly fadeSec: number
+}
+
 export interface RenderPlan {
   readonly version: typeof RENDER_PLAN_VERSION
   /** 成片名 → `Generation` 的 `displayLabel`。 */
@@ -196,6 +218,8 @@ export interface RenderPlan {
   readonly video: readonly RenderVideoSegment[]
   readonly audio: readonly RenderAudioSegment[]
   readonly music: readonly RenderAudioSegment[]
+  /** 字幕（S8d）。⚠ 空数组 = 这条片子没有字幕，⛔ 不缺席（少一个 key 会让 worker 的读法分叉）。 */
+  readonly texts: readonly RenderTextSegment[]
   /** 成片总时长（**已扣**所有叠化重叠）。 */
   readonly totalDurationSec: number
 }

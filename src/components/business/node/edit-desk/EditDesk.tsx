@@ -9,7 +9,9 @@
  *
  * ── 键盘（spec §6）─────────────────────────────────────────────────────
  * 空格播放 · S 分割 · ⌫ 删段 · I / O 入出点 · ⌘Z 撤销 · Esc 回画布。
- * ⚠ 在输入框里打字时全部让开（成片名、一句话排片栏都是输入框）。
+ * ⚠ 在输入框里打字时全部让开（成片名、字幕内容、一句话排片栏都是输入框）。
+ * ⚠ PR / FCP 预设**只加一颗分割键**（⌘K / ⌘B，查 `EDIT_SHORTCUT_SPLIT_CODE`）——
+ * 上面那一排是本台自己的键，⛔ 不被预设换掉（spec §6 两条都写着）。
  *
  * ⚠ 导出（S9）走 `useEditDeskRender`：建计划 → 入队 → 顶栏进度 → 完成落卡 / 下载。
  * ⛔ 一句话排片仍然只画栏（S10）。
@@ -32,6 +34,7 @@ import { toast } from 'sonner'
 import {
   EDIT_AUDIO_FILTER_IDS,
   EDIT_PANEL_IDS,
+  EDIT_SHORTCUT_SPLIT_CODE,
   EDIT_TOOL_IDS,
   EDIT_TRACK_IDS,
   type EditAudioFilterId,
@@ -54,6 +57,7 @@ import {
   takeTimelineProposal,
 } from '@/lib/timeline-plan-request'
 import { useEditDesk } from '@/hooks/node/use-edit-desk'
+import { useEditShortcutPreset } from '@/hooks/node/use-edit-shortcut-preset'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4Data, NodeWorkflowStateV4 } from '@/types/node-workflow'
 import type { NodeV4MediaPatch } from '../nodes/v4/NodeV4Context'
@@ -141,7 +145,10 @@ export function EditDesk({
     dispatchBatch,
     mintId,
     defaultTimelineName: t('untitled'),
+    defaultTextBody: t('text.placeholder'),
   })
+  const { preset: shortcutPreset, setPreset: setShortcutPreset } =
+    useEditShortcutPreset()
 
   const [activePanel, setActivePanel] = useState<EditPanelId>(
     EDIT_PANEL_IDS.canvas,
@@ -227,6 +234,16 @@ export function EditDesk({
         onUndo()
         return
       }
+      // 预设的分割键（PR ⌘K / FCP ⌘B）——查表，⛔ 不在这里写死两条分支。
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        !event.altKey &&
+        event.code === EDIT_SHORTCUT_SPLIT_CODE[shortcutPreset]
+      ) {
+        event.preventDefault()
+        splitAtPlayhead()
+        return
+      }
       if (event.metaKey || event.ctrlKey || event.altKey) return
 
       if (event.code === 'Space') {
@@ -274,9 +291,22 @@ export function EditDesk({
     removeSelected,
     splitAtPlayhead,
     setPlayhead,
+    shortcutPreset,
     onExit,
     onUndo,
   ])
+
+  /**
+   * 「最新值 ref」——每渲染一次刷一遍（⛔ 不在渲染期直接写 `.current`）。
+   *
+   * ⚠ 回填 / 连线 / 落段必须用**那一帧**的 `setMedia` / `connect` / `desk`：它们
+   * 闭包着调用时的那份图，隔帧之后再拿旧的那一份写回去，等于把刚建出来的卡抹掉
+   * （与 `VideoNodeV4.backfillMedia` 同一条实测结论）。
+   */
+  const latest = useRef({ state, desk, setMedia, connect })
+  useEffect(() => {
+    latest.current = { state, desk, setMedia, connect }
+  })
 
   /**
    * 完成 → 画布上落一张成片卡，并把每个来源段连回去。
@@ -284,6 +314,13 @@ export function EditDesk({
    * ⚠ 连的是 `video.shot` 的 `reference` 槽 —— **端口表上唯一收视频的口**
    * （`NODE_V4_PORTS`）。⛔ 不复活 `video.merge`（S8 已经把它迁成时间线，新建一张
    * 反而会被下一次加载的迁移吃掉）。
+   *
+   * ── 为什么这里也是「隔帧 + 最新值 ref」（S8d 修 S8/S9 遗留）─────────────
+   * S9 那一版把 `addNode` / `setMedia` / N 条 `connect` 全塞在**同一 tick**：三者
+   * 各自闭包着调用时的那份图，后一条会把前一条写的东西整份抹掉 —— 表现是「成片
+   * 渲完了，画布上什么都没有」（与素材库落卡那次一模一样的形状）。所以按帧推进：
+   * 卡出现了才回填，url 到位了才连边，**每帧只连一条**（两条 connect 挤在一帧里，
+   * 第二条会把第一条那条边吃掉）。
    */
   const onRenderLanded = useCallback(
     (
@@ -295,33 +332,91 @@ export function EditDesk({
       },
       sourceNodeIds: readonly string[],
     ) => {
-      if (!job.url) return
+      const url = job.url
+      if (!url) return
       const nodeId = addNode(
         NODE_MEDIA_KIND_IDS.video,
         NODE_V4_VIDEO_SUBTYPE_IDS.shot,
         { name: job.name },
       )
       if (!nodeId) return
-      setMedia(nodeId, {
-        url: job.url,
-        imageSource: 'generated',
-        ...(job.thumbnailUrl ? { videoThumbnailUrl: job.thumbnailUrl } : {}),
-        ...(job.generationId ? { generationId: job.generationId } : {}),
-        // ⚠ 这一版**不是这张卡自己生成的**：它是剪辑台把 N 段接起来的成片，卡上
-        // 没有提示词也没有模型。⋯ 菜单那一行只读的「来源」是唯一能回答「这是哪
-        // 来的」的地方，所以落卡时就写死（`node-canvas-v2.md` §6「导出」）。
-        source: {
-          kind: AUDIO_CLIP_SOURCE.render,
-          label: t('render.sourceLabel', { name: job.name }),
-        },
-      })
-      for (const sourceNodeId of sourceNodeIds) {
-        connect(sourceNodeId, nodeId, NODE_SLOT_IDS.reference)
+      // ⚠ 去重：两段来自同一张卡时只连一条边（端口表上 `reference` 是一条槽，
+      // 连两次的第二条只会被判成重复）。
+      const pending = [...new Set(sourceNodeIds)]
+      /** 回填只发一次 —— 发过还没到位就只等，⛔ 不每帧再写一遍（那会把空转计数
+       * 一直归零，等成一个永不结束的循环）。 */
+      let filled = false
+      /** 上一条边连的是谁 —— 它没落到图上之前不连下一条。 */
+      let connecting: string | null = null
+
+      /**
+       * ⚠ 数的是**空转的帧**而不是总帧数：这条链一共要走「建卡 + 回填 + 每段一条
+       * 边」那么多帧，段多的时候正常路径本来就长。总帧数当上限会在段一多时误报
+       * 「没落上」——安全带该拦的是「连着 30 帧什么都没发生」。
+       */
+      const step = (idle: number): void => {
+        if (idle > LIBRARY_LAND_MAX_FRAMES) {
+          toast.error(t('render.landFailed'))
+          return
+        }
+        const node = latest.current.state.nodes.find(
+          (candidate) => candidate.id === nodeId,
+        )
+        if (!node) {
+          requestAnimationFrame(() => step(idle + 1))
+          return
+        }
+        if (!currentUrlOf(node)) {
+          if (filled) {
+            requestAnimationFrame(() => step(idle + 1))
+            return
+          }
+          filled = true
+          latest.current.setMedia(nodeId, {
+            url,
+            imageSource: 'generated',
+            ...(job.thumbnailUrl
+              ? { videoThumbnailUrl: job.thumbnailUrl }
+              : {}),
+            ...(job.generationId ? { generationId: job.generationId } : {}),
+            // ⚠ 这一版**不是这张卡自己生成的**：它是剪辑台把 N 段接起来的成片，
+            // 卡上没有提示词也没有模型。⋯ 菜单那一行只读的「来源」是唯一能回答
+            // 「这是哪来的」的地方，所以落卡时就写死（spec §6「导出」）。
+            source: {
+              kind: AUDIO_CLIP_SOURCE.render,
+              label: t('render.sourceLabel', { name: job.name }),
+            },
+          })
+          // 刚写了东西 = 有进展，空转计数归零。
+          requestAnimationFrame(() => step(0))
+          return
+        }
+        // ⚠ **上一条边落到图上了才连下一条**：只隔一帧不够 —— 一帧可能比 React 的
+        // 一次提交还快，那时 `latest.current.connect` 仍是上一份闭包，第二条会把
+        // 第一条那条边吃掉（测试里就抓到过「只剩 v2」）。
+        if (
+          connecting &&
+          !latest.current.state.edges.some(
+            (edge) => edge.source === connecting && edge.target === nodeId,
+          )
+        ) {
+          requestAnimationFrame(() => step(idle + 1))
+          return
+        }
+        connecting = null
+        const next = pending.shift()
+        if (next) {
+          connecting = next
+          latest.current.connect(next, nodeId, NODE_SLOT_IDS.reference)
+          requestAnimationFrame(() => step(0))
+          return
+        }
+        toast.success(t('render.landed', { name: job.name }))
+        onExit()
       }
-      toast.success(t('render.landed', { name: job.name }))
-      onExit()
+      step(0)
     },
-    [addNode, setMedia, connect, onExit, t],
+    [addNode, onExit, t],
   )
 
   /**
@@ -332,19 +427,9 @@ export function EditDesk({
    * 一帧里连着调，后一条会把前一条写的东西抹掉（2026-09-10 真机实测过：素材库落卡
    * 后节点凭空消失，见 `VideoNodeV4.backfillMedia` 的同一条论据）。所以这里按帧
    * 推进：卡出现了才回填，url 到位了才落段。
+   * ⚠ 安全带数的是**空转的帧**（S8d）：机器忙的时候一次 React 提交可能跨掉好几帧，
+   * 按总帧数算会在正常路径上误报「没落上」。
    */
-  /**
-   * 「最新值 ref」——每渲染一次刷一遍（⛔ 不在渲染期直接写 `.current`）。
-   *
-   * ⚠ 回填与落段必须用**那一帧**的 `setMedia` / `desk`：它们闭包着调用时的那份图，
-   * 隔帧之后再拿落段之前那一份写回去，等于把刚建出来的卡抹掉（与
-   * `VideoNodeV4.backfillMedia` 同一条实测结论）。
-   */
-  const latest = useRef({ state, desk, setMedia })
-  useEffect(() => {
-    latest.current = { state, desk, setMedia }
-  })
-
   const onDropLibraryAsset = useCallback(
     (asset: EditDeskLibraryAsset, track: EditTrackId, index: number) => {
       const nodeId = addNode(asset.kind, asset.subtype, { name: asset.name })
@@ -353,8 +438,10 @@ export function EditDesk({
         return
       }
       setHighlightTrack(null)
-      const step = (attempt: number): void => {
-        if (attempt > LIBRARY_LAND_MAX_FRAMES) {
+      /** 回填只发一次（与成片落卡同一条论据，见上面那段注释）。 */
+      let filled = false
+      const step = (idle: number): void => {
+        if (idle > LIBRARY_LAND_MAX_FRAMES) {
           toast.error(t('library.landFailed'))
           return
         }
@@ -362,10 +449,15 @@ export function EditDesk({
           (candidate) => candidate.id === nodeId,
         )
         if (!node) {
-          requestAnimationFrame(() => step(attempt + 1))
+          requestAnimationFrame(() => step(idle + 1))
           return
         }
         if (!currentUrlOf(node)) {
+          if (filled) {
+            requestAnimationFrame(() => step(idle + 1))
+            return
+          }
+          filled = true
           latest.current.setMedia(nodeId, {
             url: asset.url,
             imageSource: 'existing',
@@ -378,7 +470,8 @@ export function EditDesk({
               label: t('library.sourceLabel', { name: asset.name }),
             },
           })
-          requestAnimationFrame(() => step(attempt + 1))
+          // 刚写了东西 = 有进展，空转计数归零。
+          requestAnimationFrame(() => step(0))
           return
         }
         latest.current.desk.dropNode(nodeId, track, index, {
@@ -394,7 +487,7 @@ export function EditDesk({
    * 时间线自己答不了的那几颗工具。
    *
    * 「语音」/「配乐」= **切到左栏音频页 + 筛 + 点亮对应轨**（spec §6 工具条）；
-   * 「文字」还没有落点（`EditClip` 没有文本段），照实说一句。
+   * 「文字」= 在播放头处落一段字幕（S8d）。
    */
   const onTool = useCallback(
     (tool: EditToolId) => {
@@ -407,6 +500,11 @@ export function EditDesk({
         setHighlightTrack(
           voice ? EDIT_TRACK_IDS.audio : EDIT_TRACK_IDS.music,
         )
+        return
+      }
+      if (tool === EDIT_TOOL_IDS.text) {
+        // 「文字」= 在播放头处落一段 3s 字幕（spec §6「文字段」）。
+        latest.current.desk.addTextAtPlayhead()
         return
       }
       toast.info(t('tools.pending', { tool: t(`tools.${tool}`) }))
@@ -516,6 +614,8 @@ export function EditDesk({
           setExportOpen(true)
         }}
         exportDisabled={Boolean(desk.proposal)}
+        shortcutPreset={shortcutPreset}
+        onShortcutPresetChange={setShortcutPreset}
       />
 
       {render.job ? (
@@ -561,6 +661,7 @@ export function EditDesk({
               playing={playing}
               onPlayingChange={setPlaying}
               onPlayheadChange={setPlayhead}
+              textClips={desk.activeTextClips}
             />
             {desk.proposal && desk.proposalClipIndex !== null ? (
               <EditDeskProposalInspector desk={desk} />

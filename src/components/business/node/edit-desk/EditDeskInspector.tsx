@@ -10,12 +10,19 @@
  * 回画布并选中来源卡，改画面的事在那张卡上做。
  */
 
+import { useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
   EDIT_CLIP_SPEEDS,
   EDIT_DESK_LAYOUT,
+  EDIT_TEXT_ANCHORS,
+  EDIT_TEXT_ANCHOR_CELL,
+  EDIT_TEXT_FADES,
+  EDIT_TEXT_MAX_LENGTH,
+  EDIT_TEXT_SIZES,
+  EDIT_TEXT_TONES,
   EDIT_TRANSITIONS,
   EDIT_TRANSITION_IDS,
 } from '@/constants/edit-desk'
@@ -24,6 +31,7 @@ import { currentUrlOf, formatEditClock } from '@/lib/edit-project'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
+import type { EditTextClip } from '@/types/node-workflow'
 
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
@@ -41,6 +49,7 @@ export function EditDeskInspector({
   onBackToNode,
 }: EditDeskInspectorProps) {
   const t = useTranslations('StudioNode.editDesk.inspector')
+  const textClip = desk.selectedTextClip
   const row = desk.selectedRow
   const clip = desk.selectedClip
   const selection = desk.selection
@@ -51,7 +60,11 @@ export function EditDeskInspector({
       style={{ width: EDIT_DESK_LAYOUT.inspectorWidthPx }}
       className="flex shrink-0 flex-col gap-2.5 overflow-y-auto rounded-xl border border-border bg-card p-3.5"
     >
-      {!row || !clip || !selection ? (
+      {textClip ? (
+        // ⚠ `key` = 段 id：换一段就重挂，内容草稿跟着归零 —— ⛔ 不用 ref 在渲染期
+        // 比对上一段（那正是 `react-hooks/refs` 拦的那条）。
+        <TextClipFields key={textClip.id} clip={textClip} desk={desk} />
+      ) : !row || !clip || !selection ? (
         <p className="text-2xs text-muted-foreground">{t('empty')}</p>
       ) : (
         <>
@@ -284,4 +297,135 @@ function sourceName(row: EditTimelineRow): string {
   if (!data) return row.clip.sourceNodeId
   if (data.kind === NODE_MEDIA_KIND_IDS.video) return data.label ?? data.name
   return data.name
+}
+
+/**
+ * 选中一段字幕时右栏的样子（S8d · 画板 `EditDeskText.dc.html` 右卡）：
+ * **内容 / 位置九宫 / 字号 / 颜色 / 入出点 / 淡入淡出**。
+ *
+ * ⚠ 内容框是**受控 textarea 直落**：每敲一个字发一条 op 会把撤销栈冲成一字一步，
+ * 所以本地存草稿，`blur` 才落 —— 与顶栏改成片名同一条手法。
+ * ⚠ 入出点是**读数**不是输入框（画板上那两颗是 `.kbd`）：改时间用轨道上的手柄，
+ * ⛔ 不给两个能互相打架的入口。
+ */
+function TextClipFields({
+  clip,
+  desk,
+}: {
+  readonly clip: EditTextClip
+  readonly desk: EditDesk
+}) {
+  const t = useTranslations('StudioNode.editDesk.text')
+  const [draft, setDraft] = useState(clip.text)
+
+  const commit = () => {
+    const next = draft.trim()
+    if (!next || next === clip.text) {
+      setDraft(clip.text)
+      return
+    }
+    desk.updateTextClip(clip.id, { text: next })
+  }
+
+  return (
+    <>
+      <span className="text-3xs uppercase text-muted-foreground">
+        {t('title')}
+      </span>
+
+      <label className="flex flex-col gap-1.5">
+        <span className="text-3xs text-muted-foreground">{t('content')}</span>
+        <textarea
+          data-testid="edit-desk-text-content"
+          value={draft}
+          rows={2}
+          maxLength={EDIT_TEXT_MAX_LENGTH}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setDraft(clip.text)
+            event.stopPropagation()
+          }}
+          className="min-h-11 resize-none rounded-lg border border-input bg-background px-2.5 py-2 text-xs text-foreground outline-none"
+        />
+      </label>
+
+      <div className="flex flex-col gap-1.5">
+        <span className="text-3xs text-muted-foreground">{t('anchor')}</span>
+        <div
+          role="radiogroup"
+          aria-label={t('anchor')}
+          style={{ gap: EDIT_TEXT_ANCHOR_CELL.gapPx }}
+          className="grid w-fit grid-cols-3"
+        >
+          {EDIT_TEXT_ANCHORS.map((anchor) => (
+            <button
+              key={anchor}
+              type="button"
+              role="radio"
+              aria-checked={clip.anchor === anchor}
+              aria-label={t(`anchors.${anchor}`)}
+              data-testid={`edit-desk-text-anchor-${anchor}`}
+              onClick={() => desk.updateTextClip(clip.id, { anchor })}
+              style={{
+                width: EDIT_TEXT_ANCHOR_CELL.widthPx,
+                height: EDIT_TEXT_ANCHOR_CELL.heightPx,
+                borderRadius: EDIT_TEXT_ANCHOR_CELL.radiusPx,
+              }}
+              className={cn(
+                'transition-colors duration-fast',
+                clip.anchor === anchor ? 'bg-primary' : 'bg-surface-fill',
+              )}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between text-xs">
+        <span>{t('size')}</span>
+        <Segmented
+          testId="edit-desk-text-size"
+          options={EDIT_TEXT_SIZES.map((size) => ({
+            id: size,
+            label: t(`sizes.${size}`),
+            active: clip.size === size,
+            onSelect: () => desk.updateTextClip(clip.id, { size }),
+          }))}
+        />
+      </div>
+
+      <div className="flex items-center justify-between text-xs">
+        <span>{t('tone')}</span>
+        <Segmented
+          testId="edit-desk-text-tone"
+          options={EDIT_TEXT_TONES.map((tone) => ({
+            id: tone,
+            label: t(`tones.${tone}`),
+            active: clip.tone === tone,
+            onSelect: () => desk.updateTextClip(clip.id, { tone }),
+          }))}
+        />
+      </div>
+
+      <Row label={t('inPoint')} value={formatEditClock(clip.startSec, true)} />
+      <Row
+        label={t('outPoint')}
+        value={formatEditClock(clip.startSec + clip.durationSec, true)}
+      />
+
+      <div className="flex items-center justify-between text-xs">
+        <span>{t('fade')}</span>
+        <Segmented
+          testId="edit-desk-text-fade"
+          options={EDIT_TEXT_FADES.map((fadeSec) => ({
+            id: String(fadeSec),
+            label: fadeSec === 0 ? t('fadeNone') : t('fadeSeconds', { fadeSec }),
+            active: clip.fadeSec === fadeSec,
+            onSelect: () => desk.updateTextClip(clip.id, { fadeSec }),
+          }))}
+        />
+      </div>
+
+    </>
+  )
 }

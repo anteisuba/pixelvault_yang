@@ -5,8 +5,11 @@ import {
   buildFilterGraph,
   FG_BLACK_FADE_SEC,
   FG_CROSSFADE_SEC,
+  escapeDrawtext,
+  FG_FONT_FILE,
   type FgAudioSegment,
   type FgPlan,
+  type FgTextSegment,
   type FgVideoSegment,
 } from './filtergraph'
 import {
@@ -311,5 +314,109 @@ describe('overallProgress', () => {
     expect(overallProgress('download', 1)).toBeCloseTo(1 / 6, 2)
     expect(overallProgress('encode', 0.5)).toBeCloseTo(3.5 / 6, 2)
     expect(overallProgress('upload', 1)).toBe(1)
+  })
+})
+
+/* ─── 字幕 · drawtext（S8d · spec §6「文字段」）────────────────────────── */
+
+function textSegment(
+  id: string,
+  patch: Partial<FgTextSegment> = {},
+): FgTextSegment {
+  return {
+    id,
+    text: '她转身走向站台尽头',
+    startSec: 1,
+    durationSec: 3,
+    anchor: 'bc',
+    fontSizePx: 65,
+    marginPx: 65,
+    tone: 'light',
+    fadeSec: 0,
+    ...patch,
+  }
+}
+
+describe('drawtext', () => {
+  it('叠在**折叠之后**的那一路画面上，并接手 videoLabel', () => {
+    const result = buildFilterGraph({
+      video: [videoSegment('a'), videoSegment('b')],
+      audio: [],
+      music: [],
+      texts: [textSegment('t1')],
+    })
+    expect(result.videoLabel).toBe('[vtext]')
+    // 折叠出来的那一路进 drawtext，⛔ 不是 [v0]（那只是第一段）
+    expect(result.filter).toContain('[vx1]drawtext=')
+    expect(result.filter).toContain(`fontfile=${FG_FONT_FILE}`)
+    // 时长不因字幕而变
+    expect(result.totalDurationSec).toBe(8)
+  })
+
+  it('显示窗口 = enable between；下中 = 居中 + 底部留边', () => {
+    const result = buildFilterGraph({
+      video: [videoSegment('a', { durationSec: 10 })],
+      audio: [],
+      music: [],
+      texts: [textSegment('t1')],
+    })
+    expect(result.filter).toContain("enable='between(t,1,4)'")
+    expect(result.filter).toContain('x=(w-text_w)/2')
+    expect(result.filter).toContain('y=h-text_h-65')
+    expect(result.filter).toContain('fontcolor=white')
+    expect(result.filter).toContain('bordercolor=black')
+    // 不淡入淡出时**没有** alpha 那一项（⛔ 不写一句恒等于 1 的表达式）
+    expect(result.filter).not.toContain('alpha=')
+  })
+
+  it('淡入淡出 = alpha 表达式的两头斜坡', () => {
+    const result = buildFilterGraph({
+      video: [videoSegment('a', { durationSec: 10 })],
+      audio: [],
+      music: [],
+      texts: [textSegment('t1', { fadeSec: 0.3 })],
+    })
+    expect(result.filter).toContain(
+      "alpha='if(lt(t,1.3),(t-1)/0.3,if(gt(t,3.7),(4-t)/0.3,1))'",
+    )
+  })
+
+  it('黑字白边 / 九宫的另外几格', () => {
+    const result = buildFilterGraph({
+      video: [videoSegment('a', { durationSec: 10 })],
+      audio: [],
+      music: [],
+      texts: [
+        textSegment('t1', { anchor: 'tl', tone: 'dark' }),
+        textSegment('t2', { anchor: 'mr' }),
+        // 认不出来的九宫退回下中，⛔ 不整段丢掉
+        textSegment('t3', { anchor: 'nope' }),
+      ],
+    })
+    expect(result.filter).toContain('x=65:y=65')
+    expect(result.filter).toContain('fontcolor=black')
+    expect(result.filter).toContain('bordercolor=white')
+    expect(result.filter).toContain('x=w-text_w-65:y=(h-text_h)/2')
+    // 三句 drawtext 串在同一条链上（`,` 连接，⛔ 不各占一路）
+    expect(result.filter.match(/drawtext=/g)).toHaveLength(3)
+  })
+
+  it('转义：撇号 / 冒号 / 百分号 / 反斜杠 / 换行都活得到 drawtext', () => {
+    expect(escapeDrawtext("it's 10:30")).toBe("it\\'s 10\\:30")
+    expect(escapeDrawtext('100%')).toBe('100\\\\%')
+    expect(escapeDrawtext('a\nb')).toBe('a\\\\nb')
+    expect(escapeDrawtext('a\\b')).toBe('a\\\\\\\\b')
+    // 逗号不能把滤镜图断成两句
+    expect(escapeDrawtext('a,b')).toBe('a\\,b')
+  })
+
+  it('没有字幕时图与从前逐字相同（⛔ 不给一句空 drawtext）', () => {
+    const plan: FgPlan = {
+      video: [videoSegment('a')],
+      audio: [],
+      music: [],
+    }
+    expect(buildFilterGraph(plan).filter).not.toContain('drawtext')
+    expect(buildFilterGraph({ ...plan, texts: [] }).videoLabel).toBe('[v0]')
   })
 })

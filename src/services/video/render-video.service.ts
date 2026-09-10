@@ -2,7 +2,14 @@ import 'server-only'
 
 import { z } from 'zod'
 
-import { EDIT_ASPECTS, EDIT_RESOLUTIONS } from '@/constants/edit-desk'
+import {
+  EDIT_ASPECTS,
+  EDIT_RESOLUTIONS,
+  EDIT_TEXT_ANCHORS_TUPLE,
+  EDIT_TEXT_FADE_MAX_SEC,
+  EDIT_TEXT_MAX_LENGTH,
+  EDIT_TEXT_TONES_TUPLE,
+} from '@/constants/edit-desk'
 import {
   RENDER_MAX_DURATION_SEC,
   RENDER_MAX_SEGMENTS,
@@ -80,6 +87,22 @@ const RenderAudioSegmentSchema = z.object({
   sourceNodeId: z.string().trim().min(1).max(160),
 })
 
+/**
+ * 一段字幕（S8d）。⚠ 与画面 / 声音段不同，它**没有 `src`** —— 内容就在载荷里，
+ * 所以这里守的是长度与区间，⛔ 不必过 `AssetUrlSchema`。
+ */
+const RenderTextSegmentSchema = z.object({
+  id: z.string().trim().min(1).max(160),
+  text: z.string().min(1).max(EDIT_TEXT_MAX_LENGTH),
+  startSec: z.number().min(0).max(RENDER_MAX_DURATION_SEC),
+  durationSec: z.number().min(0).max(RENDER_MAX_DURATION_SEC),
+  anchor: z.enum(EDIT_TEXT_ANCHORS_TUPLE),
+  fontSizePx: z.number().int().min(1).max(2048),
+  marginPx: z.number().int().min(0).max(2048),
+  tone: z.enum(EDIT_TEXT_TONES_TUPLE),
+  fadeSec: z.number().min(0).max(EDIT_TEXT_FADE_MAX_SEC),
+})
+
 export const RenderPlanSchema = z.object({
   version: z.literal(RENDER_PLAN_VERSION),
   name: z.string().trim().min(1).max(160),
@@ -94,6 +117,11 @@ export const RenderPlanSchema = z.object({
   video: z.array(RenderVideoSegmentSchema).min(1).max(RENDER_MAX_SEGMENTS),
   audio: z.array(RenderAudioSegmentSchema).max(RENDER_MAX_SEGMENTS),
   music: z.array(RenderAudioSegmentSchema).max(RENDER_MAX_SEGMENTS),
+  /**
+   * 字幕（S8d）。⚠ `.default([])`：S8d 之前的客户端发不出这一项，而一条**在飞**的
+   * 断点续传会把当时那份载荷原样再交一次 —— 少了默认值它会在服务端被判成脏载荷。
+   */
+  texts: z.array(RenderTextSegmentSchema).max(RENDER_MAX_SEGMENTS).default([]),
   totalDurationSec: z.number().min(0.1).max(RENDER_MAX_DURATION_SEC),
 })
 

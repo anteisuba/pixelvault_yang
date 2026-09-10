@@ -717,7 +717,7 @@ export function migrateRetireVideoMergeV4(
       ? {
           edit: {
             name: options.timelineName,
-            tracks: { video: seeded, audio: [], music: [] },
+            tracks: { video: seeded, audio: [], music: [], text: [] },
             settings: {
               aspect: EDIT_ASPECT_DEFAULT,
               resolution: EDIT_RESOLUTION_DEFAULT,

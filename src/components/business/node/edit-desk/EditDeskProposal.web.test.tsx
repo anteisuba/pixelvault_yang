@@ -74,6 +74,7 @@ function proposalOf(): TimelineProposal {
         ],
         audio: [],
         music: [],
+        text: [],
       },
       settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
     },

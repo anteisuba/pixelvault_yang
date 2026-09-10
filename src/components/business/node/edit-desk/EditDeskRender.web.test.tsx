@@ -82,39 +82,124 @@ function stateWithTimeline(): NodeWorkflowStateV4 {
         ],
         audio: [],
         music: [],
+        text: [],
       },
       settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
     },
   } as NodeWorkflowStateV4
 }
 
+/**
+ * 一台**真的会落图**的台面：`addNode` / `setMedia` / `connect` 各自闭包着**调用
+ * 时那一帧**的图 —— 与 `use-node-graph-v4.ts` 里三个动作的真实形状一致。
+ *
+ * ⚠ 这份「会漂的闭包」是本文件最重要的一件道具：S9 那一版把三者塞在同一 tick，
+ * 于是成片卡刚建出来就被 `setMedia` 那一份旧图抹掉（owner 真机撞见「渲完了画布上
+ * 什么都没有」）。桩成一个不会漂的 mock 就永远测不出这条 —— ⛔ 别改回 `vi.fn()`。
+ */
 function renderDesk(
-  state: NodeWorkflowStateV4,
+  initial: NodeWorkflowStateV4,
   overrides: Partial<React.ComponentProps<typeof EditDesk>> = {},
 ) {
-  const addNode = vi.fn(() => 'n_cut')
+  let state = initial
+  let counter = 0
+  const addNode = vi.fn()
   const setMedia = vi.fn()
-  const connect = vi.fn(() => true)
+  const connect = vi.fn()
   const onExit = vi.fn()
-  render(
-    <NextIntlClientProvider locale="zh" messages={messages}>
-      <EditDesk
-        state={state}
-        projectId="proj_1"
-        dispatchBatch={() => ({ applied: 1 })}
-        mintId={(prefix) => `${prefix}_1`}
-        addNode={addNode}
-        setMedia={setMedia}
-        connect={connect}
-        canUndo={false}
-        onUndo={vi.fn()}
-        onExit={onExit}
-        onBackToNode={vi.fn()}
-        {...overrides}
-      />
-    </NextIntlClientProvider>,
-  )
-  return { addNode, setMedia, connect, onExit }
+
+  function Host() {
+    const [current, setCurrent] = React.useState(state)
+
+    const addNodeReal = (
+      kind: NodeV4['data']['kind'],
+      subtype: NodeV4['data']['subtype'],
+      options?: { readonly name?: string },
+    ): string => {
+      const id = `n_${(counter += 1)}`
+      const next: NodeWorkflowStateV4 = {
+        ...current,
+        nodes: [
+          ...current.nodes,
+          {
+            id,
+            position: { x: 0, y: 0 },
+            data: {
+              kind,
+              subtype,
+              name: options?.name ?? id,
+              status: 'idle',
+              createdAt: NOW,
+            },
+          } as NodeV4,
+        ],
+      }
+      state = next
+      setCurrent(next)
+      addNode(kind, subtype, options)
+      return id
+    }
+
+    const setMediaReal = (nodeId: string, patch: Record<string, unknown>) => {
+      const next: NodeWorkflowStateV4 = {
+        ...current,
+        nodes: current.nodes.map((node) =>
+          node.id === nodeId
+            ? ({ ...node, data: { ...node.data, ...patch } } as NodeV4)
+            : node,
+        ),
+      }
+      state = next
+      setCurrent(next)
+      setMedia(nodeId, patch)
+    }
+
+    const connectReal = (
+      source: string,
+      target: string,
+      slot: 'reference',
+    ): boolean => {
+      const next: NodeWorkflowStateV4 = {
+        ...current,
+        edges: [
+          ...current.edges,
+          {
+            id: `e_${(counter += 1)}`,
+            source,
+            sourceHandle: 'out' as const,
+            target,
+            slot,
+          },
+        ],
+      }
+      state = next
+      setCurrent(next)
+      connect(source, target, slot)
+      return true
+    }
+
+    return (
+      <NextIntlClientProvider locale="zh" messages={messages}>
+        <EditDesk
+          state={current}
+          projectId="proj_1"
+          dispatchBatch={() => ({ applied: 1 })}
+          mintId={(prefix) => `${prefix}_1`}
+          addNode={addNodeReal}
+          setMedia={setMediaReal}
+          connect={connectReal}
+          canUndo={false}
+          onUndo={vi.fn()}
+          onExit={onExit}
+          onBackToNode={vi.fn()}
+          {...overrides}
+        />
+      </NextIntlClientProvider>
+    )
+  }
+
+  render(<Host />)
+  return { addNode, setMedia, connect, onExit, read: () => state }
 }
 
 function confirmExport(): void {
@@ -227,7 +312,7 @@ describe('顶栏进度', () => {
     )
   })
 
-  it('完成 + 导出到画布 → 落一张成片卡并连回每个来源段', async () => {
+  it('完成 + 导出到画布 → 成片卡**留在图上**并连回每个来源段（S8d 修同 tick 回填）', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true })
     mockSubmit.mockResolvedValue({
       success: true,
@@ -245,7 +330,7 @@ describe('顶栏进度', () => {
         generationId: 'gen_1',
       },
     })
-    const { addNode, setMedia, connect } = renderDesk(stateWithTimeline())
+    const { addNode, read } = renderDesk(stateWithTimeline())
     confirmExport()
     await waitFor(() => expect(mockSubmit).toHaveBeenCalled())
     await act(async () => {
@@ -254,19 +339,28 @@ describe('顶栏进度', () => {
 
     await waitFor(() => expect(addNode).toHaveBeenCalled())
     expect(addNode).toHaveBeenCalledWith('video', 'shot', { name: '我的成片' })
-    expect(setMedia).toHaveBeenCalledWith(
-      'n_cut',
-      expect.objectContaining({
-        url: 'https://cdn.test/renders/proj_1/job_1.mp4',
-        videoThumbnailUrl: 'https://cdn.test/renders/proj_1/job_1.jpg',
-        generationId: 'gen_1',
-      }),
-    )
-    // 两段来自两个不同的节点 → 两条边，都落在端口表允许的 `reference` 口上。
-    expect(connect.mock.calls).toEqual([
-      ['v1', 'n_cut', 'reference'],
-      ['v2', 'n_cut', 'reference'],
-    ])
+
+    // ⚠ 断的是**图上还剩下什么**而不是「谁被调用过」：S9 那一版三条调用一条不少，
+    // 结果是最后一条把前面写的全抹了。
+    // ⚠ 超时放宽：落卡链是**逐帧**推进的（三步 + 每条边一帧），机器忙的时候
+    // 默认那 1s 不够 —— ⛔ 不因为它慢就把断言改回「谁被调用过」。
+    await waitFor(() => {
+      const landed = read().nodes.find((node) => node.data.name === '我的成片')
+      expect(landed).toBeDefined()
+      const data = landed?.data as {
+        url?: string
+        source?: { kind?: string }
+      }
+      expect(data.url).toBe('https://cdn.test/renders/proj_1/job_1.mp4')
+      expect(data.source?.kind).toBe('render')
+    }, { timeout: 5_000 })
+
+    await waitFor(() => {
+      const landed = read().nodes.find((node) => node.data.name === '我的成片')
+      const edges = read().edges.filter((edge) => edge.target === landed?.id)
+      expect(edges.map((edge) => edge.source).sort()).toEqual(['v1', 'v2'])
+      expect(edges.every((edge) => edge.slot === 'reference')).toBe(true)
+    }, { timeout: 5_000 })
   })
 })
 

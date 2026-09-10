@@ -400,6 +400,7 @@ describe('剪辑台 · 台面', () => {
           ],
           audio: [],
           music: [],
+          text: [],
         },
         settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
       },
@@ -556,5 +557,116 @@ describe('剪辑台 · 素材与段的长相', () => {
     const row = screen.getByTestId('edit-desk-text-t1')
     expect(within(row).getByText('外景 · 车站')).toBeInTheDocument()
     expect(within(row).queryByText('第二行不该出现')).toBeNull()
+  })
+})
+
+/* ─── 文字段与快捷键预设（S8d · spec §6，画板 `EditDeskText.dc.html`）───── */
+
+describe('剪辑台 · 文字段', () => {
+  it('工具条「文字」= 在播放头处落一段，段上写内容首行，右栏出属性', () => {
+    const { read } = renderDesk(emptyState)
+    fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
+
+    const text = read().edit?.tracks.text ?? []
+    expect(text).toHaveLength(1)
+    expect(text[0]).toMatchObject({ startSec: 0, durationSec: 3, anchor: 'bc' })
+
+    const clipId = text[0]!.id
+    const onTrack = screen.getByTestId(`edit-desk-text-clip-${clipId}`)
+    expect(onTrack.textContent).toContain(text[0]!.text)
+    // 落下即选中 —— 右栏直接可以改内容
+    expect(screen.getByTestId('edit-desk-text-content')).toHaveValue(
+      text[0]!.text,
+    )
+  })
+
+  it('改内容 / 位置 / 字号 → 落 op；预览按九宫叠字', () => {
+    const { read } = renderDesk(emptyState)
+    fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
+    const clipId = (read().edit?.tracks.text ?? [])[0]!.id
+
+    const box = screen.getByTestId('edit-desk-text-content')
+    fireEvent.change(box, { target: { value: '她转身走向站台尽头' } })
+    fireEvent.blur(box)
+    fireEvent.click(screen.getByTestId('edit-desk-text-anchor-tc'))
+    fireEvent.click(screen.getByTestId('edit-desk-text-size-l'))
+    fireEvent.click(screen.getByTestId('edit-desk-text-fade-0.3'))
+
+    expect((read().edit?.tracks.text ?? [])[0]).toMatchObject({
+      text: '她转身走向站台尽头',
+      anchor: 'tc',
+      size: 'l',
+      fadeSec: 0.3,
+    })
+
+    // 播放头在 0，段是 0–3 → 预览上叠着这一句
+    const overlay = screen.getByTestId(`edit-desk-preview-text-${clipId}`)
+    expect(overlay.textContent).toBe('她转身走向站台尽头')
+  })
+
+  it('播放头走出段外就不显示（⛔ 不留一句一直挂着的字幕）', () => {
+    const { read } = renderDesk(emptyState)
+    fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
+    const clipId = (read().edit?.tracks.text ?? [])[0]!.id
+    expect(
+      screen.queryByTestId(`edit-desk-preview-text-${clipId}`),
+    ).toBeInTheDocument()
+
+    // 时间线只有这一段字幕（总长 3s）—— 把播放头拖到末尾之后
+    fireEvent.pointerDown(screen.getByTestId('edit-desk-track-text'), {
+      clientX: 10_000,
+    })
+    expect(
+      screen.queryByTestId(`edit-desk-preview-text-${clipId}`),
+    ).toBeNull()
+  })
+
+  it('⌫ 删的是选中的那一段字幕（⛔ 不误伤 V 轨）', () => {
+    const { read } = renderDesk(emptyState)
+    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
+    fireEvent.click(screen.getByTestId('edit-desk-tool-text'))
+    expect(read().edit?.tracks.text).toHaveLength(1)
+
+    fireEvent.keyDown(window, { key: 'Backspace' })
+    expect(read().edit?.tracks.text).toHaveLength(0)
+    expect(read().edit?.tracks.video).toHaveLength(1)
+  })
+})
+
+describe('剪辑台 · 快捷键预设', () => {
+  it('弹层给二选一 + 当前预设的只读键位表', () => {
+    renderDesk(emptyState)
+    fireEvent.click(screen.getByTestId('edit-desk-shortcuts'))
+    expect(screen.getByTestId('edit-desk-preset-premiere')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByTestId('edit-desk-shortcut-split').textContent).toBe(
+      '⌘K',
+    )
+  })
+
+  it('切到 Final Cut：⌘B 分割，选择记进 localStorage（⛔ 不进时间线）', () => {
+    window.localStorage.clear()
+    const { read } = renderDesk(emptyState)
+    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
+    fireEvent.click(screen.getByTestId('edit-desk-shortcuts'))
+    fireEvent.click(screen.getByTestId('edit-desk-preset-finalCut'))
+    expect(
+      window.localStorage.getItem('pixelvault:edit-shortcut-preset'),
+    ).toBe('finalCut')
+    expect(screen.getByTestId('edit-desk-shortcut-split').textContent).toBe(
+      '⌘B',
+    )
+    fireEvent.keyDown(window, { key: 'Escape' })
+
+    // 播放头挪到段中间再切
+    fireEvent.pointerDown(screen.getByTestId('edit-desk-track-video'), {
+      clientX: 120,
+    })
+    fireEvent.keyDown(window, { key: 'b', code: 'KeyB', metaKey: true })
+    expect(read().edit?.tracks.video.length).toBeGreaterThan(1)
+    // 时间线数据里没有预设这回事
+    expect(JSON.stringify(read().edit)).not.toContain('finalCut')
   })
 })

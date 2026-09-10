@@ -18,7 +18,8 @@ describe('v4 op 表（spec §5）', () => {
     // 那一排小点（⚠ 与入口槽的 `set_slot_version` 是两件事），`set_subtype` 是
     // 「设为角色卡」（⚠ 不并进 `set_field`：换子型会换一套槽位与工具条）。
     // +5 = 剪辑台五条（S8）：整表替换 + 四条单段手势。
-    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(28)
+    // +3 = 字幕三条（S8d）：T 轨上的段是另一种形状，⛔ 不并进上面那五条。
+    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(31)
     expect(Object.keys(NODE_ASSISTANT_OP_V4_SPECS).sort()).toEqual(
       [...NODE_ASSISTANT_OPS_V4].sort(),
     )

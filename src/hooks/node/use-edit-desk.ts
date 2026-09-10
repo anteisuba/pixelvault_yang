@@ -30,6 +30,7 @@ import {
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import {
   buildClipFromNode,
+  buildTextClip,
   buildTimelineRows,
   clipIndexAt,
   clipStartSec,
@@ -39,6 +40,8 @@ import {
   projectDurationSec,
   readClipSource,
   splitClipAt,
+  splitTextClipAt,
+  textClipsAt,
   toRenderPlan,
   type EditTimelineRow,
   type RenderPlanRange,
@@ -49,6 +52,7 @@ import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   EditClip,
   EditProject,
+  EditTextClip,
   NodeV4,
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
@@ -61,6 +65,8 @@ export interface UseEditDeskOptions {
   mintId(prefix: string): string
   /** 时间线第一次落表时的成片名（i18n 由调用方给）。 */
   readonly defaultTimelineName: string
+  /** 工具条「文字」落下的那一段写什么（i18n 由调用方给）。 */
+  readonly defaultTextBody: string
 }
 
 /** 选中的那一段（右栏属性读它）。 */
@@ -81,6 +87,23 @@ export interface EditDesk {
 
   readonly selection: EditDeskSelection | null
   select(selection: EditDeskSelection | null): void
+
+  /* ── 字幕（S8d · spec §6「文字段」）──────────────────────────────── */
+  /**
+   * 选中的那一段字幕。
+   *
+   * ⚠ 与 `selection` **互斥**：右栏一次只回答一个「选中的是什么」，两边同时亮着
+   * 的话 ⌫ 与 S 就说不清自己该动哪一段。选中一边即清空另一边。
+   */
+  readonly textSelectionId: string | null
+  selectText(clipId: string | null): void
+  readonly selectedTextClip: EditTextClip | null
+  /** 播放头这一刻要叠哪几句（预览读它）。 */
+  readonly activeTextClips: readonly EditTextClip[]
+  /** 工具条「文字」：在播放头处落一段 3s 字幕，并选中它。 */
+  addTextAtPlayhead(): boolean
+  updateTextClip(clipId: string, patch: EditTextClipPatch): boolean
+  removeTextClip(clipId: string): boolean
   readonly selectedClip: EditClip | null
   readonly selectedRow: EditTimelineRow | null
 
@@ -174,6 +197,16 @@ export interface EditExportOptions {
   readonly resolution?: EditResolution
 }
 
+export interface EditTextClipPatch {
+  readonly text?: string
+  readonly startSec?: number
+  readonly durationSec?: number
+  readonly anchor?: EditTextClip['anchor']
+  readonly size?: EditTextClip['size']
+  readonly tone?: EditTextClip['tone']
+  readonly fadeSec?: number
+}
+
 export interface EditClipPatch {
   readonly in?: number
   readonly out?: number
@@ -185,9 +218,18 @@ export interface EditClipPatch {
 }
 
 export function useEditDesk(options: UseEditDeskOptions): EditDesk {
-  const { state, dispatchBatch, mintId, defaultTimelineName } = options
+  const {
+    state,
+    dispatchBatch,
+    mintId,
+    defaultTimelineName,
+    defaultTextBody,
+  } = options
 
-  const [selection, setSelection] = useState<EditDeskSelection | null>(null)
+  const [selection, setSelectionState] = useState<EditDeskSelection | null>(
+    null,
+  )
+  const [textSelectionId, setTextSelectionId] = useState<string | null>(null)
   const [playheadSec, setPlayheadSec] = useState(0)
   const [inPointSec, setInPointSec] = useState<number | null>(null)
   const [outPointSec, setOutPointSec] = useState<number | null>(null)
@@ -198,6 +240,17 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
   const [proposalAccepted, setProposalAccepted] = useState<readonly string[]>(
     [],
   )
+
+  /** 选段 = 取消选字幕（互斥，见 `textSelectionId` 头注）。 */
+  const setSelection = useCallback((next: EditDeskSelection | null) => {
+    setSelectionState(next)
+    if (next) setTextSelectionId(null)
+  }, [])
+
+  const selectText = useCallback((clipId: string | null) => {
+    setTextSelectionId(clipId)
+    if (clipId) setSelectionState(null)
+  }, [])
 
   const stored = state.edit
   const project = useMemo(
@@ -310,6 +363,37 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     [state.nodes, mintId, run],
   )
 
+  /* ── 字幕（S8d）────────────────────────────────────────────────────── */
+
+  const addTextAtPlayhead = useCallback((): boolean => {
+    const clip = buildTextClip(mintId, playheadSec, defaultTextBody)
+    const ok = run([
+      { op: NODE_ASSISTANT_OP_V4_IDS.editAddText, clip },
+    ])
+    // 落下就选中：用户按「文字」是为了写字，下一步一定是去右栏改内容。
+    if (ok) selectText(clip.id)
+    return ok
+  }, [mintId, playheadSec, defaultTextBody, run, selectText])
+
+  const updateTextClip = useCallback(
+    (clipId: string, patch: EditTextClipPatch): boolean =>
+      run([
+        { op: NODE_ASSISTANT_OP_V4_IDS.editUpdateText, clipId, patch },
+      ]),
+    [run],
+  )
+
+  const removeTextClip = useCallback(
+    (clipId: string): boolean => {
+      const ok = run([
+        { op: NODE_ASSISTANT_OP_V4_IDS.editRemoveText, clipId },
+      ])
+      if (ok && textSelectionId === clipId) setTextSelectionId(null)
+      return ok
+    },
+    [run, textSelectionId],
+  )
+
   const updateClip = useCallback(
     (track: EditTrackId, clipId: string, patch: EditClipPatch): boolean =>
       run([
@@ -339,18 +423,33 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
       if (ok && selection?.clipId === clipId) setSelection(null)
       return ok
     },
-    [run, selection],
+    [run, selection, setSelection],
   )
 
   const removeSelected = useCallback((): boolean => {
+    if (textSelectionId) return removeTextClip(textSelectionId)
     if (!selection) return false
     return removeClip(selection.track, selection.clipId)
-  }, [selection, removeClip])
+  }, [selection, textSelectionId, removeClip, removeTextClip])
 
   const splitAtPlayhead = useCallback(
     (
       track: EditTrackId = selection?.track ?? EDIT_TRACK_IDS.video,
     ): boolean => {
+      // 选中的是字幕就切字幕（T 轨不参与磁吸主轨，切法也是另一套：改起点与长度）。
+      if (textSelectionId) {
+        const next = splitTextClipAt(
+          project.tracks.text,
+          textSelectionId,
+          playheadSec,
+          mintId,
+        )
+        if (!next) return false
+        return setTimeline({
+          ...project,
+          tracks: { ...project.tracks, text: [...next] },
+        })
+      }
       const clips = project.tracks[track]
       const next = splitClipAt(clips, playheadSec, mintId)
       if (!next) return false
@@ -361,7 +460,7 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
         tracks: { ...project.tracks, [track]: [...next] },
       })
     },
-    [selection, project, playheadSec, mintId, setTimeline],
+    [selection, textSelectionId, project, playheadSec, mintId, setTimeline],
   )
 
   const refreshClipSource = useCallback(
@@ -512,6 +611,20 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     )
   }, [selection, project])
 
+  const selectedTextClip = useMemo(
+    () =>
+      textSelectionId
+        ? (project.tracks.text.find((clip) => clip.id === textSelectionId) ??
+          null)
+        : null,
+    [textSelectionId, project],
+  )
+
+  const activeTextClips = useMemo(
+    () => textClipsAt(project.tracks.text, playheadSec),
+    [project, playheadSec],
+  )
+
   const selectedRow = useMemo(() => {
     if (!selection) return null
     return (
@@ -550,6 +663,13 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     assets,
     selection,
     select: setSelection,
+    textSelectionId,
+    selectText,
+    selectedTextClip,
+    activeTextClips,
+    addTextAtPlayhead,
+    updateTextClip,
+    removeTextClip,
     selectedClip,
     selectedRow,
     playheadSec,

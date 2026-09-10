@@ -35,6 +35,47 @@ export const ATEMPO_MAX = 2
 
 export type FgTransition = 'none' | 'crossfade' | 'black'
 
+/**
+ * 字幕字体（S8d）。**容器里的系统字体**，`container/Dockerfile` 装 `fonts-noto-cjk`
+ * 并给 ffmpeg 开 `--enable-libfreetype`（没有它 `drawtext` 这个滤镜根本不存在）。
+ * ⛔ 不下载字体：渲染时去网上取一份字体等于给每条片子加一个能失败的外部依赖。
+ */
+export const FG_FONT_FILE =
+  '/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc'
+
+/** 描边宽 —— 白字黑边 / 黑字白边，画面亮暗都读得清。 */
+export const FG_TEXT_BORDER_PX = 2
+
+export type FgTextTone = 'light' | 'dark'
+
+/** 九宫（`tl`…`br`）→ drawtext 的 `x` / `y` 表达式。⚠ 与 `EDIT_TEXT_ANCHORS_TUPLE` 同源。 */
+export const FG_TEXT_ANCHOR_EXPR: Readonly<
+  Record<string, { readonly x: string; readonly y: string }>
+> = {
+  tl: { x: 'M', y: 'M' },
+  tc: { x: '(w-text_w)/2', y: 'M' },
+  tr: { x: 'w-text_w-M', y: 'M' },
+  ml: { x: 'M', y: '(h-text_h)/2' },
+  mc: { x: '(w-text_w)/2', y: '(h-text_h)/2' },
+  mr: { x: 'w-text_w-M', y: '(h-text_h)/2' },
+  bl: { x: 'M', y: 'h-text_h-M' },
+  bc: { x: '(w-text_w)/2', y: 'h-text_h-M' },
+  br: { x: 'w-text_w-M', y: 'h-text_h-M' },
+}
+
+export interface FgTextSegment {
+  readonly id: string
+  readonly text: string
+  readonly startSec: number
+  readonly durationSec: number
+  /** 九宫 id。⚠ 认不出来的一律当 `bc`（字幕的位置），⛔ 不整段丢掉。 */
+  readonly anchor: string
+  readonly fontSizePx: number
+  readonly marginPx: number
+  readonly tone: FgTextTone
+  readonly fadeSec: number
+}
+
 export interface FgVideoSegment {
   readonly id: string
   /** 规格化产物在成片时间轴上占多久（**已含变速**）。 */
@@ -56,6 +97,8 @@ export interface FgPlan {
   readonly video: readonly FgVideoSegment[]
   readonly audio: readonly FgAudioSegment[]
   readonly music: readonly FgAudioSegment[]
+  /** 字幕（S8d）。缺席 = 这条片子没有字幕。 */
+  readonly texts?: readonly FgTextSegment[]
 }
 
 export interface FgResult {
@@ -98,6 +141,60 @@ export function atempoChain(speed: number): readonly string[] {
 /** 一条链的写法：`a,b,c`（空链返回 `null`，调用方用 `anull` 之类占位）。 */
 function chain(parts: readonly string[]): string | null {
   return parts.length > 0 ? parts.join(',') : null
+}
+
+/**
+ * 字幕文本 → `drawtext` 的 `text=` 值。
+ *
+ * ⚠ **两层转义**：先是滤镜图解析器（它按 `,;[]` 断句、`=` 分选项、`\\` 转义下一个
+ * 字符），再是 drawtext 自己（它认 `\n` 换行、把 `%{...}` 当表达式展开）。所以一个
+ * 反斜杠要写成四个才能活到最后，而一个真的换行必须写成 `\\n`（图层看到 `\n`，
+ * drawtext 看到换行）。⛔ 不用引号包起来：单引号在图层里没有「引号内的引号」的写法，
+ * 一句带撇号的台词就能把整张图拆散。
+ */
+export function escapeDrawtext(text: string): string {
+  return text
+    .replace(/\\/g, '\\\\\\\\')
+    .replace(/\r\n?/g, '\n')
+    .replace(/\n/g, '\\\\n')
+    .replace(/%/g, '\\\\%')
+    .replace(/([':,;[\]=])/g, '\\$1')
+}
+
+/**
+ * 一段字幕 → 一句 `drawtext`。
+ *
+ * ⚠ 显示窗口用 `enable='between(t,a,b)'`，淡入淡出用 `alpha` 表达式 —— 两者缺一
+ * 不可：只有 alpha 的话字幕在窗口外仍然被画（alpha 0 的一层合成），只有 enable 的话
+ * 它是硬切进硬切出。
+ */
+function drawtextOf(segment: FgTextSegment): string {
+  const start = Math.max(0, segment.startSec)
+  const end = start + Math.max(0, segment.durationSec)
+  const anchor =
+    FG_TEXT_ANCHOR_EXPR[segment.anchor] ?? FG_TEXT_ANCHOR_EXPR.bc!
+  const margin = sec(Math.max(0, segment.marginPx))
+  const light = segment.tone === 'light'
+  const parts = [
+    `drawtext=fontfile=${FG_FONT_FILE}`,
+    `text=${escapeDrawtext(segment.text)}`,
+    `fontsize=${sec(segment.fontSizePx)}`,
+    `fontcolor=${light ? 'white' : 'black'}`,
+    `borderw=${FG_TEXT_BORDER_PX}`,
+    `bordercolor=${light ? 'black' : 'white'}`,
+    `x=${anchor.x.replace(/M/g, margin)}`,
+    `y=${anchor.y.replace(/M/g, margin)}`,
+    `line_spacing=${Math.round(segment.fontSizePx * 0.25)}`,
+    `enable='between(t,${sec(start)},${sec(end)})'`,
+  ]
+  const fade = Math.max(0, Math.min(segment.fadeSec, (end - start) / 2))
+  if (fade > 0) {
+    // ⚠ `t` 是整条成片的时刻，所以两头都要减去这一段自己的起点 / 终点。
+    parts.push(
+      `alpha='if(lt(t,${sec(start + fade)}),(t-${sec(start)})/${sec(fade)},if(gt(t,${sec(end - fade)}),(${sec(end)}-t)/${sec(fade)},1))'`,
+    )
+  }
+  return parts.join(':')
 }
 
 /**
@@ -176,6 +273,18 @@ export function buildFilterGraph(plan: FgPlan): FgResult {
     }
     videoLabel = nextVideo
     audioLabel = nextAudio
+  }
+
+  /* ── 2.5 字幕（S8d）──────────────────────────────────────────────────
+     ⚠ 叠在**折叠之后**的那一路画面上：叠在每段自己身上的话，一段字幕横跨两段
+     画面时要拆成两句 drawtext，而叠化那 0.5s 里两路都画着它，重叠处会明显加深。 */
+  const texts = plan.texts ?? []
+  if (texts.length > 0) {
+    const drawn = '[vtext]'
+    lines.push(
+      `${videoLabel}${texts.map(drawtextOf).join(',')}${drawn}`,
+    )
+    videoLabel = drawn
   }
 
   /* ── 3. 语音 / 配乐层 ──────────────────────────────────────────────── */

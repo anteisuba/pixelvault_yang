@@ -6095,7 +6095,9 @@
         "video": "V",
         "audio": "A",
         "music": "M",
-        "empty": "把素材拖到这里"
+        "empty": "把素材拖到这里",
+        "text": "T",
+        "textEmpty": "按「文字」在播放头处落一段"
       },
       "tools": {
         "split": "分割",
@@ -6185,7 +6187,8 @@
           "zeroDuration": "导出的长度是 0 秒。",
           "tooManySegments": "段太多了，先删掉一些再导出。",
           "tooLong": "成片太长了，超过一次渲染的上限。"
-        }
+        },
+        "landFailed": "成片没能落到画布上，再试一次。"
       },
       "plan": {
         "ask": "按这句话排片：{prompt}",
@@ -6231,6 +6234,55 @@
       "library": {
         "sourceLabel": "来自素材库 · {name}",
         "landFailed": "这条素材没能落到画布上，再试一次。"
+      },
+      "text": {
+        "title": "文字段",
+        "placeholder": "双击改文字",
+        "content": "内容",
+        "anchor": "位置",
+        "anchors": {
+          "tl": "左上",
+          "tc": "上中",
+          "tr": "右上",
+          "ml": "左中",
+          "mc": "正中",
+          "mr": "右中",
+          "bl": "左下",
+          "bc": "下中",
+          "br": "右下"
+        },
+        "size": "字号",
+        "sizes": {
+          "s": "小",
+          "m": "中",
+          "l": "大"
+        },
+        "tone": "颜色",
+        "tones": {
+          "light": "白",
+          "dark": "黑"
+        },
+        "inPoint": "入点",
+        "outPoint": "出点",
+        "fade": "淡入淡出",
+        "fadeNone": "无",
+        "fadeSeconds": "{fadeSec}s"
+      },
+      "shortcuts": {
+        "title": "快捷键预设",
+        "presets": {
+          "premiere": "Premiere",
+          "finalCut": "Final Cut"
+        },
+        "actions": {
+          "play": "播放 / 暂停",
+          "split": "分割",
+          "inOut": "入点 / 出点",
+          "remove": "删段",
+          "undo": "撤销",
+          "back": "回画布"
+        },
+        "finalCutHint": "Final Cut 预设：分割 ⌘B · 其余相同。S 一直有效。"
       }
     }
   },

@@ -24,6 +24,12 @@ FROM debian:bookworm-slim
 ARG FFMPEG_VERSION=7.1
 ARG OPENH264_VERSION=2.4.1
 
+# ⚠ `fonts-noto-cjk` + freetype / fontconfig 是**字幕**（S8d 的 `drawtext`）的全部
+# 依赖：没有 `--enable-libfreetype` 时 ffmpeg 里根本没有 drawtext 这个滤镜，整条
+# 编码命令会以 "No such filter" 失败；装了库没装字体则是一片豆腐块。
+# ⛔ 渲染时不下载字体（见 `filtergraph.ts` 的 `FG_FONT_FILE`）。
+# 许可：FreeType 走 FTL（BSD 式），fontconfig 是 MIT，Noto 是 OFL —— 都不动本文件
+# 顶上那条 LGPL-clean 的边界。
 RUN apt-get update && apt-get install -y --no-install-recommends \
       build-essential \
       ca-certificates \
@@ -32,6 +38,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       pkg-config \
       xz-utils \
       nodejs \
+      fonts-noto-cjk \
+      libfreetype6-dev \
+      libfontconfig1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # libopenh264（BSD-2-Clause）。
@@ -53,6 +62,8 @@ RUN curl -fsSL "https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.xz" \
          --disable-static \
          --enable-version3 \
          --enable-libopenh264 \
+         --enable-libfreetype \
+         --enable-libfontconfig \
          --disable-debug \
          --disable-doc \
          --disable-ffplay \

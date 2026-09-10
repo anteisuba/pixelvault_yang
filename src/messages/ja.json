@@ -6095,7 +6095,9 @@
         "video": "V",
         "audio": "A",
         "music": "M",
-        "empty": "ここに素材をドロップ"
+        "empty": "ここに素材をドロップ",
+        "text": "T",
+        "textEmpty": "「テキスト」で再生ヘッド位置に字幕を置く"
       },
       "tools": {
         "split": "分割",
@@ -6185,7 +6187,8 @@
           "zeroDuration": "書き出しの長さが 0 秒です。",
           "tooManySegments": "クリップが多すぎます。いくつか減らしてから書き出してください。",
           "tooLong": "一度のレンダリングの上限より長いカットです。"
-        }
+        },
+        "landFailed": "完成尺をキャンバスに置けませんでした。もう一度お試しください。"
       },
       "plan": {
         "ask": "タイムラインを組んで：{prompt}",
@@ -6231,6 +6234,55 @@
       "library": {
         "sourceLabel": "素材ライブラリより · {name}",
         "landFailed": "この素材をキャンバスに配置できませんでした。もう一度お試しください。"
+      },
+      "text": {
+        "title": "字幕",
+        "placeholder": "ダブルクリックで編集",
+        "content": "内容",
+        "anchor": "位置",
+        "anchors": {
+          "tl": "左上",
+          "tc": "上中央",
+          "tr": "右上",
+          "ml": "左中央",
+          "mc": "中央",
+          "mr": "右中央",
+          "bl": "左下",
+          "bc": "下中央",
+          "br": "右下"
+        },
+        "size": "サイズ",
+        "sizes": {
+          "s": "小",
+          "m": "中",
+          "l": "大"
+        },
+        "tone": "色",
+        "tones": {
+          "light": "白",
+          "dark": "黒"
+        },
+        "inPoint": "イン点",
+        "outPoint": "アウト点",
+        "fade": "フェード",
+        "fadeNone": "なし",
+        "fadeSeconds": "{fadeSec}s"
+      },
+      "shortcuts": {
+        "title": "ショートカットのプリセット",
+        "presets": {
+          "premiere": "Premiere",
+          "finalCut": "Final Cut"
+        },
+        "actions": {
+          "play": "再生 / 一時停止",
+          "split": "分割",
+          "inOut": "イン / アウト",
+          "remove": "クリップ削除",
+          "undo": "取り消し",
+          "back": "キャンバスへ戻る"
+        },
+        "finalCutHint": "Final Cut プリセット：分割 ⌘B · その他は同じ。S は常に有効。"
       }
     }
   },

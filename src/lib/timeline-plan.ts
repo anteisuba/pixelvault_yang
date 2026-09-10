@@ -206,6 +206,9 @@ export function buildTimelineProposal(
       video: videoClips,
       audio: audioClips,
       music: musicClips,
+      // ⚠ 排片**不碰字幕**（S8d）：一句话排片摆的是画面与声音，用户自己写的那几句
+      // 字幕不该被一次排片抹掉 —— 原样带过来。
+      text: base.tracks.text,
     },
   }
 

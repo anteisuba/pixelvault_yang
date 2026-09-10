@@ -10,6 +10,7 @@ import {
 } from '@/lib/node-assistant-op-apply-v4'
 import {
   buildClipFromNode,
+  buildTextClip,
   buildTimelineRows,
   clampTrim,
   clipDurationSec,
@@ -22,11 +23,14 @@ import {
   projectDurationSec,
   readClipSource,
   splitClipAt,
+  splitTextClipAt,
+  textClipsAt,
 } from '@/lib/edit-project'
 import { migrateRetireVideoMergeV4 } from '@/lib/node-workflow-migrate-v4'
 import { EditProjectSchema } from '@/types/node-workflow'
 import type {
   EditClip,
+  EditTextClip,
   NodeV4,
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
@@ -116,6 +120,7 @@ describe('EditProject schema', () => {
         video: [{ id: 'c1', sourceNodeId: 'v1', in: 0, out: 3 }],
         audio: [],
         music: [],
+        text: [],
       },
       settings: {},
     })
@@ -134,6 +139,7 @@ describe('EditProject schema', () => {
         ],
         audio: [],
         music: [],
+        text: [],
       },
       settings: {},
     })
@@ -152,6 +158,7 @@ describe('时间线算术', () => {
         audio: [],
         // 配乐比画面长是常态 —— 读数要按它报
         music: [clip({ id: 'm', out: 30 })],
+        text: [],
       },
     }
     expect(projectDurationSec(withTracks)).toBe(30)
@@ -353,6 +360,7 @@ describe('剪辑台 op（tier / inverse）', () => {
         video: [clip({ id: 'a' }), clip({ id: 'b' }), clip({ id: 'c' })],
         audio: [],
         music: [],
+        text: [],
       },
     }
     const removed = applyNodeAssistantOpV4(
@@ -377,6 +385,7 @@ describe('剪辑台 op（tier / inverse）', () => {
         video: [clip({ id: 'a', out: 6, speed: 1, muted: false })],
         audio: [],
         music: [],
+        text: [],
       },
     }
     const updated = applyNodeAssistantOpV4(
@@ -407,6 +416,7 @@ describe('剪辑台 op（tier / inverse）', () => {
         video: [clip({ id: 'a', in: 0, out: 6 })],
         audio: [],
         music: [],
+        text: [],
       },
     }
     const updated = applyNodeAssistantOpV4(
@@ -432,6 +442,7 @@ describe('剪辑台 op（tier / inverse）', () => {
         video: [clip({ id: 'a' }), clip({ id: 'b' })],
         audio: [],
         music: [],
+        text: [],
       },
     }
     const moved = applyNodeAssistantOpV4(
@@ -457,7 +468,7 @@ describe('剪辑台 op（tier / inverse）', () => {
   it('未知段 / 重复段 id 都是失败可见', () => {
     const project = {
       ...createEmptyEditProject('成片'),
-      tracks: { video: [clip({ id: 'a' })], audio: [], music: [] },
+      tracks: { video: [clip({ id: 'a' })], audio: [], music: [], text: [] },
     }
     expect(
       applyNodeAssistantOpV4(
@@ -591,5 +602,151 @@ describe('video.merge 退役（spec §8.6）', () => {
     expect(
       migrateRetireVideoMergeV4(state, { mintId, timelineName: '成片' }).state,
     ).toBe(state)
+  })
+})
+
+/* ─── 字幕（S8d · spec §6「文字段」）───────────────────────────────────── */
+
+describe('字幕段', () => {
+  const ids = NODE_ASSISTANT_OP_V4_IDS
+
+  function textClip(
+    patch: Partial<EditTextClip> = {},
+  ): EditTextClip {
+    return {
+      id: 't1',
+      text: '她转身走向站台尽头',
+      startSec: 1,
+      durationSec: 3,
+      anchor: 'bc',
+      size: 'm',
+      tone: 'light',
+      fadeSec: 0,
+      ...patch,
+    }
+  }
+
+  it('存量时间线没有 text 轨也读得出来（`.default([])`）', () => {
+    const parsed = EditProjectSchema.parse({
+      name: '成片',
+      tracks: { video: [], audio: [], music: [] },
+      settings: {},
+    })
+    expect(parsed.tracks.text).toEqual([])
+  })
+
+  it('工具条落的那一段：3s、下中、中号、白字、不淡', () => {
+    const clip = buildTextClip(mintId, 2.5, '写点什么')
+    expect(clip).toMatchObject({
+      startSec: 2.5,
+      durationSec: 3,
+      anchor: 'bc',
+      size: 'm',
+      tone: 'light',
+      fadeSec: 0,
+    })
+  })
+
+  it('总时长把字幕算进来（⛔ 不让人摆下一段自己再也点不中的字幕）', () => {
+    const project = {
+      ...createEmptyEditProject('成片'),
+      tracks: {
+        video: [clip({ id: 'a', out: 4 })],
+        audio: [],
+        music: [],
+        text: [textClip({ startSec: 8, durationSec: 3 })],
+      },
+    }
+    expect(projectDurationSec(project)).toBe(11)
+  })
+
+  it('播放头不在段内就不显示', () => {
+    const clips = [textClip({ startSec: 1, durationSec: 3 })]
+    expect(textClipsAt(clips, 0.5)).toHaveLength(0)
+    expect(textClipsAt(clips, 1)).toHaveLength(1)
+    expect(textClipsAt(clips, 4)).toHaveLength(0)
+  })
+
+  it('分割：两半同内容、首尾相接；太短则不切', () => {
+    const clips = [textClip({ startSec: 1, durationSec: 3 })]
+    const next = splitTextClipAt(clips, 't1', 2, mintId)
+    expect(next).toHaveLength(2)
+    expect(next?.[0]).toMatchObject({ startSec: 1, durationSec: 1 })
+    expect(next?.[1]).toMatchObject({ startSec: 2, durationSec: 2 })
+    expect(next?.[1]?.text).toBe(next?.[0]?.text)
+    expect(splitTextClipAt(clips, 't1', 1.05, mintId)).toBeNull()
+  })
+
+  it('op：加 / 改 / 删各自一步撤销回到位', () => {
+    const base = stateWith(createEmptyEditProject('成片'))
+    const added = applyNodeAssistantOpV4(
+      base,
+      { op: ids.editAddText, clip: textClip() },
+      makeContext(),
+    )
+    expect(added.ok).toBe(true)
+    if (!added.ok) return
+    expect(added.state.edit?.tracks.text).toHaveLength(1)
+    expect(
+      applyInverseV4(added.state, added.inverse, makeContext()).edit?.tracks
+        .text,
+    ).toHaveLength(0)
+
+    const updated = applyNodeAssistantOpV4(
+      added.state,
+      {
+        op: ids.editUpdateText,
+        clipId: 't1',
+        patch: { anchor: 'tc', text: '改过的字' },
+      },
+      makeContext(),
+    )
+    expect(updated.ok).toBe(true)
+    if (!updated.ok) return
+    expect(updated.state.edit?.tracks.text[0]).toMatchObject({
+      anchor: 'tc',
+      text: '改过的字',
+    })
+    // inverse 只回这次动过的两项 —— 其余原样
+    const backPatched = applyInverseV4(
+      updated.state,
+      updated.inverse,
+      makeContext(),
+    )
+    expect(backPatched.edit?.tracks.text[0]).toMatchObject({
+      anchor: 'bc',
+      text: '她转身走向站台尽头',
+      startSec: 1,
+    })
+
+    const removed = applyNodeAssistantOpV4(
+      added.state,
+      { op: ids.editRemoveText, clipId: 't1' },
+      makeContext(),
+    )
+    expect(removed.ok).toBe(true)
+    if (!removed.ok) return
+    expect(removed.state.edit?.tracks.text).toHaveLength(0)
+    expect(
+      applyInverseV4(removed.state, removed.inverse, makeContext()).edit?.tracks
+        .text[0],
+    ).toMatchObject({ id: 't1', startSec: 1 })
+  })
+
+  it('op：守卫落在执行器里（起点不为负、段不短于最短）', () => {
+    const base = stateWith(createEmptyEditProject('成片'))
+    const added = applyNodeAssistantOpV4(
+      base,
+      { op: ids.editAddText, clip: textClip({ startSec: 0, durationSec: 3 }) },
+      makeContext(),
+    )
+    if (!added.ok) throw new Error('add failed')
+    const moved = applyNodeAssistantOpV4(
+      added.state,
+      { op: ids.editUpdateText, clipId: 't1', patch: { durationSec: 0 } },
+      makeContext(),
+    )
+    if (!moved.ok) throw new Error('update failed')
+    expect(moved.state.edit?.tracks.text[0]?.durationSec).toBeGreaterThan(0)
   })
 })

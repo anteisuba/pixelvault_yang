@@ -107,6 +107,18 @@ export interface RenderRunContext {
       sourceNodeId: string
     }[]
     music: RenderRunContext['plan']['audio']
+    /** 字幕（S8d）。⚠ 可缺席：断点续传会把 S8d 之前的载荷原样再交一次。 */
+    texts?: readonly {
+      id: string
+      text: string
+      startSec: number
+      durationSec: number
+      anchor: string
+      fontSizePx: number
+      marginPx: number
+      tone: 'light' | 'dark'
+      fadeSec: number
+    }[]
     totalDurationSec: number
   }
 }
@@ -245,6 +257,7 @@ export class RenderVideoWorkflow extends WorkflowEntrypoint<
           })),
           audio: plan.audio.map(toGraphAudio),
           music: plan.music.map(toGraphAudio),
+          texts: plan.texts ?? [],
         }
         const inputs = [
           ...normalized,

@@ -53,6 +53,15 @@ import {
   EDIT_PROJECT_NAME_MAX_LENGTH,
   EDIT_RESOLUTIONS,
   EDIT_RESOLUTION_DEFAULT,
+  EDIT_TEXT_ANCHORS_TUPLE,
+  EDIT_TEXT_ANCHOR_DEFAULT,
+  EDIT_TEXT_FADE_DEFAULT,
+  EDIT_TEXT_FADE_MAX_SEC,
+  EDIT_TEXT_MAX_LENGTH,
+  EDIT_TEXT_SIZES_TUPLE,
+  EDIT_TEXT_SIZE_DEFAULT,
+  EDIT_TEXT_TONES_TUPLE,
+  EDIT_TEXT_TONE_DEFAULT,
   EDIT_TRACK_MAX_CLIPS,
   EDIT_TRANSITIONS,
   EDIT_TRANSITION_IDS,
@@ -1247,10 +1256,40 @@ export const EditClipSchema = z.object({
   gain: z.number().min(0).max(2).optional(),
 })
 
+/**
+ * T 轨上的一段字幕（S8d · spec §6「文字段」）。
+ *
+ * ⚠ 与 `EditClip` 是**两种形状**，理由写在 `EDIT_TEXT_TRACK_ID` 上：这一段不指向
+ * 任何一张卡（内容就在它自己身上），也不参与磁吸 —— 所以它存的是**时间线秒的绝对
+ * 起点**（`startSec`）而不是「排在前面那些段之后」。V 轨那条「位置由前面的段决定」
+ * 的纪律在这里反过来：字幕必须钉在画面的某一刻，画面换了序它也不该跟着挪。
+ */
+export const EditTextClipSchema = z.object({
+  id: z.string().trim().min(1).max(160),
+  text: z.string().min(1).max(EDIT_TEXT_MAX_LENGTH),
+  /** 时间线秒（⛔ 不是素材本地秒：字幕没有素材）。 */
+  startSec: z.number().min(0).max(36_000),
+  durationSec: z.number().min(0).max(36_000),
+  anchor: z.enum(EDIT_TEXT_ANCHORS_TUPLE).default(EDIT_TEXT_ANCHOR_DEFAULT),
+  size: z.enum(EDIT_TEXT_SIZES_TUPLE).default(EDIT_TEXT_SIZE_DEFAULT),
+  tone: z.enum(EDIT_TEXT_TONES_TUPLE).default(EDIT_TEXT_TONE_DEFAULT),
+  /** 入出各淡多久。档位词表是 `EDIT_TEXT_FADES`，这里只守区间。 */
+  fadeSec: z
+    .number()
+    .min(0)
+    .max(EDIT_TEXT_FADE_MAX_SEC)
+    .default(EDIT_TEXT_FADE_DEFAULT),
+})
+
 export const EditProjectTracksSchema = z.object({
   video: z.array(EditClipSchema).max(EDIT_TRACK_MAX_CLIPS),
   audio: z.array(EditClipSchema).max(EDIT_TRACK_MAX_CLIPS),
   music: z.array(EditClipSchema).max(EDIT_TRACK_MAX_CLIPS),
+  /**
+   * 字幕轨（S8d）。⚠ `.default([])` 是**存量**的门：S8d 之前落的时间线里没有这一
+   * 项，少了默认值它们会整份 parse 失败 —— 那等于一次发版让所有人的时间线打不开。
+   */
+  text: z.array(EditTextClipSchema).max(EDIT_TRACK_MAX_CLIPS).default([]),
 })
 
 export const EditProjectSettingsSchema = z.object({
@@ -1274,6 +1313,7 @@ export const EditProjectSchema = z.object({
 })
 
 export type EditClip = z.infer<typeof EditClipSchema>
+export type EditTextClip = z.infer<typeof EditTextClipSchema>
 export type EditProjectTracks = z.infer<typeof EditProjectTracksSchema>
 export type EditProjectSettings = z.infer<typeof EditProjectSettingsSchema>
 export type EditProject = z.infer<typeof EditProjectSchema>

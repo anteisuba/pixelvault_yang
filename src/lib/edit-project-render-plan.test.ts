@@ -57,7 +57,7 @@ function clip(patch: Partial<EditClip> & { id: string }): EditClip {
 function project(patch: Partial<EditProject> = {}): EditProject {
   return {
     name: '成片',
-    tracks: { video: [], audio: [], music: [] },
+    tracks: { video: [], audio: [], music: [], text: [] },
     settings: { aspect: '16:9', resolution: '1080p', magnetic: true },
     ...patch,
   } as EditProject
@@ -74,6 +74,7 @@ function threeClipProject(): EditProject {
       ],
       audio: [],
       music: [],
+      text: [],
     },
   })
 }
@@ -198,6 +199,7 @@ describe('toRenderPlan · 三范围', () => {
         video: [clip({ id: 'c1', sourceNodeId: 'v1', out: 6, speed: 1.5 })],
         audio: [],
         music: [],
+        text: [],
       },
     })
     // 段在成片上占 4s（6 / 1.5）。取成片 1–3s → 本地 1.5–4.5。
@@ -255,6 +257,7 @@ describe('toRenderPlan · 转场重叠扣时', () => {
         ],
         audio: [],
         music: [],
+        text: [],
       },
     })
     const plan = toRenderPlan(
@@ -279,6 +282,7 @@ describe('toRenderPlan · 转场重叠扣时', () => {
         ],
         audio: [],
         music: [],
+        text: [],
       },
     })
     const plan = toRenderPlan(
@@ -302,6 +306,7 @@ describe('toRenderPlan · 转场重叠扣时', () => {
         ],
         audio: [],
         music: [],
+        text: [],
       },
     })
     const plan = toRenderPlan(
@@ -327,6 +332,7 @@ describe('toRenderPlan · 转场重叠扣时', () => {
         ],
         audio: [],
         music: [],
+        text: [],
       },
     })
     const plan = toRenderPlan(
@@ -355,6 +361,7 @@ describe('toRenderPlan · 语音与配乐层', () => {
           clip({ id: 'a2', sourceNodeId: 'a1', out: 3, gain: 0.5 }),
         ],
         music: [clip({ id: 'm1', sourceNodeId: 'a1', out: 10 })],
+        text: [],
       },
     })
     const plan = toRenderPlan(
@@ -440,6 +447,7 @@ describe('toRenderPlan · 失败可见', () => {
         video: [clip({ id: 'c1', sourceNodeId: 'v1', out: 1_000 })],
         audio: [],
         music: [],
+        text: [],
       },
     })
     expect(() =>
@@ -449,5 +457,131 @@ describe('toRenderPlan · 失败可见', () => {
         code: RENDER_PLAN_ERROR_CODES.tooLong,
       }) as Error,
     )
+  })
+})
+
+/* ─── 字幕 → `texts[]`（S8d）──────────────────────────────────────────── */
+
+describe('渲染计划 · 字幕', () => {
+  function withText(): EditProject {
+    return project({
+      tracks: {
+        video: [
+          clip({ id: 'c1', sourceNodeId: 'v1' }),
+          clip({ id: 'c2', sourceNodeId: 'v2' }),
+        ],
+        audio: [],
+        music: [],
+        text: [
+          {
+            id: 't1',
+            text: '她转身走向站台尽头',
+            startSec: 1,
+            durationSec: 3,
+            anchor: 'bc',
+            size: 'm',
+            tone: 'light',
+            fadeSec: 0.3,
+          },
+          {
+            id: 't2',
+            text: '第二天',
+            startSec: 5,
+            durationSec: 2,
+            anchor: 'tc',
+            size: 'l',
+            tone: 'dark',
+            fadeSec: 0,
+          },
+        ],
+      },
+    })
+  }
+
+  it('整条：字号 / 边距按成片画面高换算成像素', () => {
+    const plan = toRenderPlan(
+      withText(),
+      NODES,
+      { range: EDIT_EXPORT_RANGE_IDS.all },
+      SETTINGS,
+    )
+    expect(plan.texts.map((segment) => segment.id)).toEqual(['t1', 't2'])
+    // 1080 高：中号 6% = 65，大号 8% = 86，边距 6% = 65
+    expect(plan.texts[0]).toMatchObject({
+      startSec: 1,
+      durationSec: 3,
+      fontSizePx: 65,
+      marginPx: 65,
+      tone: 'light',
+      fadeSec: 0.3,
+    })
+    expect(plan.texts[1]?.fontSizePx).toBe(86)
+  })
+
+  it('720p 导出时字幕跟着缩（比例存的是画面高的百分比）', () => {
+    const plan = toRenderPlan(
+      withText(),
+      NODES,
+      { range: EDIT_EXPORT_RANGE_IDS.all },
+      { ...SETTINGS, resolution: '720p' },
+    )
+    expect(plan.texts[0]?.fontSizePx).toBe(43)
+  })
+
+  it('I·O 区间：两端各自往窗口里收，起点换算成成片秒', () => {
+    const plan = toRenderPlan(
+      withText(),
+      NODES,
+      {
+        range: EDIT_EXPORT_RANGE_IDS.inOut,
+        inPointSec: 2,
+        outPointSec: 6,
+      },
+      SETTINGS,
+    )
+    expect(plan.texts.map((segment) => segment.id)).toEqual(['t1', 't2'])
+    // t1 原本 1–4，窗口从 2 起 → 成片里的 0–2
+    expect(plan.texts[0]).toMatchObject({ startSec: 0, durationSec: 2 })
+    // t2 原本 5–7，窗口到 6 止 → 成片里的 3–4
+    expect(plan.texts[1]).toMatchObject({ startSec: 3, durationSec: 1 })
+  })
+
+  it('淡入淡出不长过段的一半（⛔ 不让两头的淡在中间撞上）', () => {
+    const long = project({
+      tracks: {
+        video: [clip({ id: 'c1', sourceNodeId: 'v1' })],
+        audio: [],
+        music: [],
+        text: [
+          {
+            id: 't1',
+            text: '一闪而过',
+            startSec: 0,
+            durationSec: 0.4,
+            anchor: 'bc',
+            size: 's',
+            tone: 'light',
+            fadeSec: 0.6,
+          },
+        ],
+      },
+    })
+    const plan = toRenderPlan(
+      long,
+      NODES,
+      { range: EDIT_EXPORT_RANGE_IDS.all },
+      SETTINGS,
+    )
+    expect(plan.texts[0]?.fadeSec).toBeCloseTo(0.2)
+  })
+
+  it('没有字幕时是空数组（⛔ 不缺席）', () => {
+    const plan = toRenderPlan(
+      threeClipProject(),
+      NODES,
+      { range: EDIT_EXPORT_RANGE_IDS.all },
+      SETTINGS,
+    )
+    expect(plan.texts).toEqual([])
   })
 })

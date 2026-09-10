@@ -118,8 +118,15 @@ export const EDIT_DESK_LAYOUT = {
   panelWidthPx: 236,
   /** 右侧属性栏宽（画板 width:240）。 */
   inspectorWidthPx: 240,
-  /** 时间线区总高（画板 height:300）。 */
-  timelineHeightPx: 300,
+  /**
+   * 时间线区总高（画板 `EditDesk.dc.html` height:300 + S8d 的 T 轨那一行 80）。
+   *
+   * ⚠ 300 是**三轨**时代的数：`EditDeskText.dc.html` 在 V 之上又加了一条 44 高的
+   * T 轨，仍按 300 算的话 A / M 会被挤出这块（本块 `overflow-y` 是 hidden）——
+   * 真机上就是「配乐轨不见了」。⛔ 不改成可竖向滚动：一条要滚才看得全的时间线
+   * 读不出「这条片子长什么样」。
+   */
+  timelineHeightPx: 380,
   /** 段高（画板 `.clip { height:52 }`，与 spec §6「段高 52」同一个数）。 */
   clipHeightPx: 52,
   /** 音轨波形条高（画板 `.wave { height:26 }`）。 */
@@ -377,3 +384,186 @@ export const TIMELINE_PLAN_CARD = {
 
 /** 幽灵段的虚线宽（画板 `.clip.ghost { border:1.5px dashed }`）。 */
 export const TIMELINE_PLAN_GHOST_BORDER_PX = 1.5
+
+/* ─── 文字段（S8d · spec §6「文字段」，画板 `EditDeskText.dc.html`）──────── */
+
+/**
+ * T 轨的 id。
+ *
+ * ⚠ **不进 `EDIT_TRACK_IDS`**：那三条轨上住的是 `EditClip`（指向一张卡的一截素材），
+ * T 轨上住的是 `EditTextClip`（自带内容、自带绝对起点）。混进同一张表的代价是每个
+ * 读 `project.tracks[track]` 的地方都要先分辨自己拿到的是哪一种段 —— 而那正是
+ * 「一条轨道是一排 `EditClip`」这条纪律现在还成立的原因。
+ */
+export const EDIT_TEXT_TRACK_ID = 'text'
+
+/**
+ * 九宫位置。⚠ 顺序即画板 `.grid9` 从左上到右下的读法。
+ * `t/m/b` = 上 / 中 / 下，`l/c/r` = 左 / 中 / 右。
+ */
+export const EDIT_TEXT_ANCHORS_TUPLE = [
+  'tl',
+  'tc',
+  'tr',
+  'ml',
+  'mc',
+  'mr',
+  'bl',
+  'bc',
+  'br',
+] as const
+
+export type EditTextAnchor = (typeof EDIT_TEXT_ANCHORS_TUPLE)[number]
+
+export const EDIT_TEXT_ANCHORS: readonly EditTextAnchor[] =
+  EDIT_TEXT_ANCHORS_TUPLE
+
+/** 默认下中 —— 字幕的位置（画板右栏九宫点亮的那一格）。 */
+export const EDIT_TEXT_ANCHOR_DEFAULT: EditTextAnchor = 'bc'
+
+/** 字号三档（画板右栏「小 / 中 / 大」）。 */
+export const EDIT_TEXT_SIZES_TUPLE = ['s', 'm', 'l'] as const
+export type EditTextSize = (typeof EDIT_TEXT_SIZES_TUPLE)[number]
+export const EDIT_TEXT_SIZES: readonly EditTextSize[] = EDIT_TEXT_SIZES_TUPLE
+export const EDIT_TEXT_SIZE_DEFAULT: EditTextSize = 'm'
+
+/**
+ * 字号 = 成片**画面高**的百分之几。
+ *
+ * ⚠ 存的是比例而不是像素：同一条时间线导 720p 与 4k 时字幕必须一样大（相对画面），
+ * 存像素的表现是「1080p 上刚好，4k 上小得看不见」。
+ */
+export const EDIT_TEXT_SIZE_SCALE: Readonly<Record<EditTextSize, number>> = {
+  s: 0.045,
+  m: 0.06,
+  l: 0.08,
+}
+
+/** 字幕离画面边多远（同样是画面高的比例）。 */
+export const EDIT_TEXT_MARGIN_SCALE = 0.06
+
+/** 黑 / 白两色（画板右栏「白 / 黑」）。⛔ 不开调色板：字幕只要读得清。 */
+export const EDIT_TEXT_TONES_TUPLE = ['light', 'dark'] as const
+export type EditTextTone = (typeof EDIT_TEXT_TONES_TUPLE)[number]
+export const EDIT_TEXT_TONES: readonly EditTextTone[] = EDIT_TEXT_TONES_TUPLE
+export const EDIT_TEXT_TONE_DEFAULT: EditTextTone = 'light'
+
+/** 淡入淡出三档（画板右栏「无 / 0.3s / 0.6s」）。 */
+export const EDIT_TEXT_FADES = [0, 0.3, 0.6] as const
+export type EditTextFade = (typeof EDIT_TEXT_FADES)[number]
+export const EDIT_TEXT_FADE_DEFAULT: EditTextFade = 0
+/** schema 只守区间（与 `speed` 同一条论据：档位会长，落库形状不跟着改）。 */
+export const EDIT_TEXT_FADE_MAX_SEC = 5
+
+/** 工具条「文字」落一段多长（spec §6：播放头处 3s）。 */
+export const EDIT_TEXT_CLIP_DEFAULT_DURATION_SEC = 3
+
+/** 一段字幕最短 / 内容多长。 */
+export const EDIT_TEXT_CLIP_MIN_DURATION_SEC = EDIT_CLIP_MIN_DURATION_SEC
+export const EDIT_TEXT_MAX_LENGTH = 500
+
+/** T 段高 / T 轨行高（画板 `.tclip { height:32 }` / `.lane { height:44 }`）。 */
+export const EDIT_TEXT_CLIP_HEIGHT_PX = 32
+export const EDIT_TEXT_LANE_HEIGHT_PX = 44
+
+/* ─── 快捷键预设（S8d · spec §6「快捷键」）─────────────────────────────── */
+
+export const EDIT_SHORTCUT_PRESET_IDS = {
+  premiere: 'premiere',
+  finalCut: 'finalCut',
+} as const
+
+export type EditShortcutPresetId =
+  (typeof EDIT_SHORTCUT_PRESET_IDS)[keyof typeof EDIT_SHORTCUT_PRESET_IDS]
+
+export const EDIT_SHORTCUT_PRESETS: readonly EditShortcutPresetId[] = [
+  EDIT_SHORTCUT_PRESET_IDS.premiere,
+  EDIT_SHORTCUT_PRESET_IDS.finalCut,
+]
+
+export const EDIT_SHORTCUT_PRESET_DEFAULT: EditShortcutPresetId =
+  EDIT_SHORTCUT_PRESET_IDS.premiere
+
+/**
+ * 预设记在哪。
+ *
+ * ⚠ **不进 `EditProject`**（spec §6）：键位是这台机器上这个人的手感，时间线是项目
+ * 内容 —— 把它写进时间线等于让「我习惯 FCP」跟着项目同步给别人，还会进撤销栈。
+ */
+export const EDIT_SHORTCUT_PRESET_STORAGE_KEY =
+  'pixelvault:edit-shortcut-preset'
+
+/** 弹层那张只读键位表的行（顺序即画板 `.pop` 里从上到下）。 */
+export const EDIT_SHORTCUT_ACTION_IDS = {
+  play: 'play',
+  split: 'split',
+  inOut: 'inOut',
+  remove: 'remove',
+  undo: 'undo',
+  back: 'back',
+} as const
+
+export type EditShortcutActionId =
+  (typeof EDIT_SHORTCUT_ACTION_IDS)[keyof typeof EDIT_SHORTCUT_ACTION_IDS]
+
+export const EDIT_SHORTCUT_ACTIONS: readonly EditShortcutActionId[] = [
+  EDIT_SHORTCUT_ACTION_IDS.play,
+  EDIT_SHORTCUT_ACTION_IDS.split,
+  EDIT_SHORTCUT_ACTION_IDS.inOut,
+  EDIT_SHORTCUT_ACTION_IDS.remove,
+  EDIT_SHORTCUT_ACTION_IDS.undo,
+  EDIT_SHORTCUT_ACTION_IDS.back,
+]
+
+/**
+ * 每个预设的**分割键**（`KeyboardEvent.code` + ⌘/Ctrl）。
+ *
+ * ⚠ 用 `code` 不用 `key`：⌘ 组合在 macOS 的非英文输入法下 `key` 会变，而 `code` 是
+ * 物理键（与 §7 那条 alt 的教训同源）。
+ * ⚠ spec §6 的 `S` **一直有效**，与预设无关 —— 预设加的是 PR / FCP 用户的肌肉记忆，
+ * ⛔ 不是把本来那颗键换掉。
+ */
+export const EDIT_SHORTCUT_SPLIT_CODE: Readonly<
+  Record<EditShortcutPresetId, string>
+> = {
+  [EDIT_SHORTCUT_PRESET_IDS.premiere]: 'KeyK',
+  [EDIT_SHORTCUT_PRESET_IDS.finalCut]: 'KeyB',
+}
+
+/**
+ * 只读键位表的**显示值**（画板 `.pop` 里那一列 `.kbd`）。
+ *
+ * ⚠ 是**字面量**不是 i18n：`Space` / `⌘K` / `⌫` 在三种语言里长得一模一样，翻译它们
+ * 只会让某一版翻出一个键盘上找不到的字。
+ */
+export const EDIT_SHORTCUT_PRESET_KEYS: Readonly<
+  Record<EditShortcutPresetId, Readonly<Record<EditShortcutActionId, string>>>
+> = {
+  [EDIT_SHORTCUT_PRESET_IDS.premiere]: {
+    play: 'Space',
+    split: '⌘K',
+    inOut: 'I / O',
+    remove: '⌫',
+    undo: '⌘Z',
+    back: 'Esc',
+  },
+  [EDIT_SHORTCUT_PRESET_IDS.finalCut]: {
+    play: 'Space',
+    split: '⌘B',
+    inOut: 'I / O',
+    remove: '⌫',
+    undo: '⌘Z',
+    back: 'Esc',
+  },
+}
+
+/** 九宫那一格（画板 `.grid9 div { width:22; height:16; border-radius:4 }`，格间 3）。 */
+export const EDIT_TEXT_ANCHOR_CELL = {
+  widthPx: 22,
+  heightPx: 16,
+  radiusPx: 4,
+  gapPx: 3,
+} as const
+
+/** 快捷键弹层宽（画板 `.pop { width:300 }`）。 */
+export const EDIT_SHORTCUT_POPOVER_WIDTH_PX = 300

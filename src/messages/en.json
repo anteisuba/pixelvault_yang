@@ -6095,7 +6095,9 @@
         "video": "V",
         "audio": "A",
         "music": "M",
-        "empty": "Drop media here"
+        "empty": "Drop media here",
+        "text": "T",
+        "textEmpty": "Press “Text” to drop a caption at the playhead"
       },
       "tools": {
         "split": "Split",
@@ -6185,7 +6187,8 @@
           "zeroDuration": "The export would be zero seconds long.",
           "tooManySegments": "Too many clips to render — remove a few and try again.",
           "tooLong": "The cut is longer than a single render allows."
-        }
+        },
+        "landFailed": "The cut could not land on the canvas. Try again."
       },
       "plan": {
         "ask": "Arrange the timeline: {prompt}",
@@ -6231,6 +6234,55 @@
       "library": {
         "sourceLabel": "From library · {name}",
         "landFailed": "That asset could not land on the canvas. Try again."
+      },
+      "text": {
+        "title": "Caption",
+        "placeholder": "Double-click to edit",
+        "content": "Content",
+        "anchor": "Position",
+        "anchors": {
+          "tl": "Top left",
+          "tc": "Top center",
+          "tr": "Top right",
+          "ml": "Middle left",
+          "mc": "Center",
+          "mr": "Middle right",
+          "bl": "Bottom left",
+          "bc": "Bottom center",
+          "br": "Bottom right"
+        },
+        "size": "Size",
+        "sizes": {
+          "s": "S",
+          "m": "M",
+          "l": "L"
+        },
+        "tone": "Color",
+        "tones": {
+          "light": "White",
+          "dark": "Black"
+        },
+        "inPoint": "In",
+        "outPoint": "Out",
+        "fade": "Fade",
+        "fadeNone": "None",
+        "fadeSeconds": "{fadeSec}s"
+      },
+      "shortcuts": {
+        "title": "Shortcut preset",
+        "presets": {
+          "premiere": "Premiere",
+          "finalCut": "Final Cut"
+        },
+        "actions": {
+          "play": "Play / pause",
+          "split": "Split",
+          "inOut": "In / out",
+          "remove": "Delete clip",
+          "undo": "Undo",
+          "back": "Back to canvas"
+        },
+        "finalCutHint": "Final Cut preset: split ⌘B · everything else the same. S always works."
       }
     }
   },

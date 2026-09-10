@@ -58,8 +58,13 @@ import {
   markVersionBlocked,
   setSlotVersion,
 } from '@/lib/node-slot-binding'
-import { EDIT_TRANSITION_IDS, type EditTrackId } from '@/constants/edit-desk'
 import {
+  EDIT_TRACK_MAX_CLIPS,
+  EDIT_TRANSITION_IDS,
+  type EditTrackId,
+} from '@/constants/edit-desk'
+import {
+  clampTextClip,
   clampTrim,
   insertClip,
   moveClip as moveClipInTrack,
@@ -72,6 +77,7 @@ import {
   type NodeWorkflowModelSelection as NodeV4Model,
   type EditClip,
   type EditProject,
+  type EditTextClip,
   type NodeV4Data,
   type NodeWorkflowEdgeV4,
   type NodeWorkflowStateV4,
@@ -303,6 +309,16 @@ function withEditProject(
     return next as NodeWorkflowStateV4
   }
   return { ...state, edit: project }
+}
+
+function withTextTrack(
+  project: EditProject,
+  clips: readonly EditTextClip[],
+): EditProject {
+  return {
+    ...project,
+    tracks: { ...project.tracks, text: [...clips] },
+  }
 }
 
 function withTrack(
@@ -1176,6 +1192,118 @@ export function applyNodeAssistantOpV4(
           },
         },
         changedNodeIds: [moved.sourceNodeId],
+        changedEdgeIds: [],
+      }
+    }
+
+    /* ── 字幕三条（S8d · spec §6「文字段」）─────────────────────────── */
+
+    case ids.editAddText: {
+      const project = state.edit
+      if (!project) return { ok: false, reason: 'editMissing' }
+      const clips = project.tracks.text
+      if (clips.some((clip) => clip.id === op.clip.id)) {
+        return { ok: false, reason: 'duplicateClip' }
+      }
+      if (clips.length >= EDIT_TRACK_MAX_CLIPS) {
+        return { ok: false, reason: 'trackFull' }
+      }
+      return {
+        ok: true,
+        state: withEditProject(state, withTextTrack(project, [
+          ...clips,
+          clampTextClip(op.clip),
+        ])),
+        inverse: {
+          kind: 'op',
+          op: { op: ids.editRemoveText, clipId: op.clip.id },
+        },
+        // ⚠ 字幕不指向任何一张卡 —— 没有「哪张卡变了」可报。
+        changedNodeIds: [],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.editRemoveText: {
+      const project = state.edit
+      if (!project) return { ok: false, reason: 'editMissing' }
+      const clips = project.tracks.text
+      const removed = clips.find((clip) => clip.id === op.clipId)
+      if (!removed) return { ok: false, reason: 'unknownClip' }
+      return {
+        ok: true,
+        state: withEditProject(
+          state,
+          withTextTrack(
+            project,
+            clips.filter((clip) => clip.id !== op.clipId),
+          ),
+        ),
+        // ⚠ T 轨的位置是段自己的 `startSec`，所以 inverse 不必带下标（与 V 轨
+        // 那条「删中间一段要记位置」是两种形状，见 `EDIT_TEXT_TRACK_ID` 头注）。
+        inverse: { kind: 'op', op: { op: ids.editAddText, clip: removed } },
+        changedNodeIds: [],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.editUpdateText: {
+      const project = state.edit
+      if (!project) return { ok: false, reason: 'editMissing' }
+      const clips = project.tracks.text
+      const current = clips.find((clip) => clip.id === op.clipId)
+      if (!current) return { ok: false, reason: 'unknownClip' }
+
+      const next = clampTextClip({
+        ...current,
+        ...(op.patch.text === undefined ? {} : { text: op.patch.text }),
+        ...(op.patch.startSec === undefined
+          ? {}
+          : { startSec: op.patch.startSec }),
+        ...(op.patch.durationSec === undefined
+          ? {}
+          : { durationSec: op.patch.durationSec }),
+        ...(op.patch.anchor === undefined ? {} : { anchor: op.patch.anchor }),
+        ...(op.patch.size === undefined ? {} : { size: op.patch.size }),
+        ...(op.patch.tone === undefined ? {} : { tone: op.patch.tone }),
+        ...(op.patch.fadeSec === undefined
+          ? {}
+          : { fadeSec: op.patch.fadeSec }),
+      })
+
+      // inverse 只回**这次动过的那几项**（与 `edit_update_clip` 同一条论据）。
+      const inversePatch = {
+        ...(op.patch.text === undefined ? {} : { text: current.text }),
+        ...(op.patch.startSec === undefined
+          ? {}
+          : { startSec: current.startSec }),
+        ...(op.patch.durationSec === undefined
+          ? {}
+          : { durationSec: current.durationSec }),
+        ...(op.patch.anchor === undefined ? {} : { anchor: current.anchor }),
+        ...(op.patch.size === undefined ? {} : { size: current.size }),
+        ...(op.patch.tone === undefined ? {} : { tone: current.tone }),
+        ...(op.patch.fadeSec === undefined ? {} : { fadeSec: current.fadeSec }),
+      }
+
+      return {
+        ok: true,
+        state: withEditProject(
+          state,
+          withTextTrack(
+            project,
+            clips.map((clip) => (clip.id === op.clipId ? next : clip)),
+          ),
+        ),
+        inverse: {
+          kind: 'op',
+          op: {
+            op: ids.editUpdateText,
+            clipId: op.clipId,
+            patch: inversePatch,
+          },
+        },
+        changedNodeIds: [],
         changedEdgeIds: [],
       }
     }

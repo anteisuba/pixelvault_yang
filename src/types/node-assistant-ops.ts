@@ -24,11 +24,20 @@ import { NODE_V4_OUTPUT_VERSION } from '@/constants/node-studio'
 import {
   EDIT_CLIP_SPEED_MAX,
   EDIT_CLIP_SPEED_MIN,
+  EDIT_TEXT_ANCHORS_TUPLE,
+  EDIT_TEXT_FADE_MAX_SEC,
+  EDIT_TEXT_MAX_LENGTH,
+  EDIT_TEXT_SIZES_TUPLE,
+  EDIT_TEXT_TONES_TUPLE,
   EDIT_TRACKS_TUPLE,
   EDIT_TRACK_MAX_CLIPS,
   EDIT_TRANSITIONS_TUPLE,
 } from '@/constants/edit-desk'
-import { EditClipSchema, EditProjectSchema } from '@/types/node-workflow'
+import {
+  EditClipSchema,
+  EditProjectSchema,
+  EditTextClipSchema,
+} from '@/types/node-workflow'
 
 /**
  * 一个节点引用：要么是画布上已有节点的 id（助手在 `[[node:id]]` 里读到的那个），
@@ -691,6 +700,38 @@ export const NodeAssistantEditMoveClipOpSchema = z.object({
   toIndex: z.number().int().min(0).max(EDIT_TRACK_MAX_CLIPS),
 })
 
+/* ─── 字幕三条（S8d · spec §6「文字段」）──────────────────────────────── */
+
+export const NodeAssistantEditAddTextOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.editAddText),
+  clip: EditTextClipSchema,
+})
+
+export const NodeAssistantEditRemoveTextOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.editRemoveText),
+  clipId: z.string().trim().min(1).max(160),
+})
+
+/**
+ * 改一段字幕（内容 / 位置 / 字号 / 颜色 / 入出点 / 淡入淡出）。
+ *
+ * ⚠ 与 `edit_update_clip` 同一条纪律：是 **patch** 不是整段替换，inverse 只回这次
+ * 动过的那几项。⛔ `id` 不在 patch 里。
+ */
+export const NodeAssistantEditUpdateTextOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.editUpdateText),
+  clipId: z.string().trim().min(1).max(160),
+  patch: z.object({
+    text: z.string().min(1).max(EDIT_TEXT_MAX_LENGTH).optional(),
+    startSec: z.number().min(0).max(36_000).optional(),
+    durationSec: z.number().min(0).max(36_000).optional(),
+    anchor: z.enum(EDIT_TEXT_ANCHORS_TUPLE).optional(),
+    size: z.enum(EDIT_TEXT_SIZES_TUPLE).optional(),
+    tone: z.enum(EDIT_TEXT_TONES_TUPLE).optional(),
+    fadeSec: z.number().min(0).max(EDIT_TEXT_FADE_MAX_SEC).optional(),
+  }),
+})
+
 /** ⚠ 唯一扣 credit 的 op。硬确认，执行留客户端——这道结构性钱闸不能动。 */
 export const NodeAssistantGenerateV4OpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_V4_IDS.generate),
@@ -725,6 +766,9 @@ export const NodeAssistantOpV4Schema = z.discriminatedUnion('op', [
   NodeAssistantEditRemoveClipOpSchema,
   NodeAssistantEditUpdateClipOpSchema,
   NodeAssistantEditMoveClipOpSchema,
+  NodeAssistantEditAddTextOpSchema,
+  NodeAssistantEditRemoveTextOpSchema,
+  NodeAssistantEditUpdateTextOpSchema,
   NodeAssistantGenerateV4OpSchema,
 ])
 

@@ -97,6 +97,10 @@ const OP_ICONS: Record<NodeAssistantOpV4Id, LucideIcon> = {
   [NODE_ASSISTANT_OP_V4_IDS.editRemoveClip]: Trash2,
   [NODE_ASSISTANT_OP_V4_IDS.editUpdateClip]: SlidersHorizontal,
   [NODE_ASSISTANT_OP_V4_IDS.editMoveClip]: ArrowRightLeft,
+  // 字幕三条（S8d）：加 / 删跟着上面两颗，改属性跟着 `edit_update_clip`。
+  [NODE_ASSISTANT_OP_V4_IDS.editAddText]: Type,
+  [NODE_ASSISTANT_OP_V4_IDS.editRemoveText]: Trash2,
+  [NODE_ASSISTANT_OP_V4_IDS.editUpdateText]: Type,
   [NODE_ASSISTANT_OP_V4_IDS.generate]: Sparkles,
 }
 

@@ -22,6 +22,15 @@ import {
   EDIT_PROJECT_FALLBACK_NAME,
   EDIT_RESOLUTION_DEFAULT,
   EDIT_TIMELINE_PX_PER_SECOND,
+  EDIT_TEXT_ANCHOR_DEFAULT,
+  EDIT_TEXT_CLIP_DEFAULT_DURATION_SEC,
+  EDIT_TEXT_CLIP_MIN_DURATION_SEC,
+  EDIT_TEXT_FADE_DEFAULT,
+  EDIT_TEXT_MARGIN_SCALE,
+  EDIT_TEXT_MAX_LENGTH,
+  EDIT_TEXT_SIZE_DEFAULT,
+  EDIT_TEXT_SIZE_SCALE,
+  EDIT_TEXT_TONE_DEFAULT,
   EDIT_TRACKS,
   EDIT_TRACK_IDS,
   EDIT_TRACK_MAX_CLIPS,
@@ -44,6 +53,7 @@ import {
   RENDER_SHORT_SIDE_BY_RESOLUTION,
   type RenderAudioSegment,
   type RenderPlan,
+  type RenderTextSegment,
   type RenderPlanErrorCode,
   type RenderVideoSegment,
 } from '@/constants/render-video'
@@ -52,6 +62,7 @@ import { readOutputVersions, readOutputIndex } from '@/lib/node-output-versions'
 import type {
   EditClip,
   EditProject,
+  EditTextClip,
   NodeV4,
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
@@ -60,7 +71,7 @@ import type {
 export function createEmptyEditProject(name: string): EditProject {
   return {
     name,
-    tracks: { video: [], audio: [], music: [] },
+    tracks: { video: [], audio: [], music: [], text: [] },
     settings: {
       aspect: EDIT_ASPECT_DEFAULT,
       resolution: EDIT_RESOLUTION_DEFAULT,
@@ -90,8 +101,102 @@ export function trackDurationSec(clips: readonly EditClip[]): number {
 export function projectDurationSec(project: EditProject): number {
   return Math.max(
     ...EDIT_TRACKS.map((track) => trackDurationSec(project.tracks[track])),
+    // ⚠ 字幕也算进总长：T 段是**绝对定位**的，一段摆在画面尾巴之后时不算进来，
+    // 播放头就永远走不到它 —— 用户于是有一段自己摆下、却再也点不中的字幕。
+    textTrackDurationSec(project.tracks.text),
     0,
   )
+}
+
+/* ─── 字幕段（S8d · spec §6「文字段」）─────────────────────────────────── */
+
+/** T 轨占到第几秒（最靠后那一段的尾）。 */
+export function textTrackDurationSec(
+  clips: readonly EditTextClip[],
+): number {
+  return clips.reduce(
+    (end, clip) => Math.max(end, clip.startSec + clip.durationSec),
+    0,
+  )
+}
+
+/**
+ * 落库前的守卫：起点不为负、段不短于最短、内容不超长。
+ *
+ * ⚠ 与 `clampTrim` 是同一层的东西（op 执行器落之前过一遍），⛔ 不放进组件：一条
+ * 从助手来的 op 不会路过任何组件。
+ */
+export function clampTextClip(clip: EditTextClip): EditTextClip {
+  const startSec = Math.max(0, clip.startSec)
+  const durationSec = Math.max(EDIT_TEXT_CLIP_MIN_DURATION_SEC, clip.durationSec)
+  const text = clip.text.slice(0, EDIT_TEXT_MAX_LENGTH)
+  return { ...clip, startSec, durationSec, text }
+}
+
+/**
+ * 工具条「文字」在播放头处落的那一段（spec §6：3s、下中、中号、白字、不淡）。
+ *
+ * ⚠ 内容由调用方给（i18n 的「双击改文字」占位），⛔ 这里不编中文 —— 与
+ * `createEmptyEditProject` 同一条纪律。
+ */
+export function buildTextClip(
+  mintId: (prefix: string) => string,
+  atSec: number,
+  text: string,
+): EditTextClip {
+  return clampTextClip({
+    id: mintId('text'),
+    text,
+    startSec: Math.max(0, atSec),
+    durationSec: EDIT_TEXT_CLIP_DEFAULT_DURATION_SEC,
+    anchor: EDIT_TEXT_ANCHOR_DEFAULT,
+    size: EDIT_TEXT_SIZE_DEFAULT,
+    tone: EDIT_TEXT_TONE_DEFAULT,
+    fadeSec: EDIT_TEXT_FADE_DEFAULT,
+  })
+}
+
+/** 播放头落在哪几段字幕里（预览叠字读它；空数组 = 这一刻不显示字幕）。 */
+export function textClipsAt(
+  clips: readonly EditTextClip[],
+  timeSec: number,
+): readonly EditTextClip[] {
+  return clips.filter(
+    (clip) =>
+      timeSec >= clip.startSec &&
+      timeSec < clip.startSec + clip.durationSec,
+  )
+}
+
+/**
+ * 在 `atSec` 把一段字幕切成两段（S 键）。
+ *
+ * `null` = 切点不在段内、或切出来的任一半太短。两半**同内容**：分割是「这句话前
+ * 半段这样、后半段那样」的起手，⛔ 不清空后一半的文字（那等于替用户删了一句话）。
+ */
+export function splitTextClipAt(
+  clips: readonly EditTextClip[],
+  clipId: string,
+  atSec: number,
+  mintId: (prefix: string) => string,
+): readonly EditTextClip[] | null {
+  const index = clips.findIndex((clip) => clip.id === clipId)
+  const clip = index < 0 ? undefined : clips[index]
+  if (!clip) return null
+  const head = atSec - clip.startSec
+  const tail = clip.startSec + clip.durationSec - atSec
+  if (
+    head < EDIT_TEXT_CLIP_MIN_DURATION_SEC ||
+    tail < EDIT_TEXT_CLIP_MIN_DURATION_SEC
+  ) {
+    return null
+  }
+  return [
+    ...clips.slice(0, index),
+    { ...clip, durationSec: head },
+    { ...clip, id: mintId('text'), startSec: atSec, durationSec: tail },
+    ...clips.slice(index + 1),
+  ]
 }
 
 /** 段在轨道上的起点（前面所有段之和）。 */
@@ -690,6 +795,8 @@ export function toRenderPlan(
     resolution,
   )
 
+  const texts = sliceTextTrack(project.tracks.text, fromSec, toSec, height)
+
   return {
     version: RENDER_PLAN_VERSION,
     name: project.name.trim() || EDIT_PROJECT_FALLBACK_NAME,
@@ -704,6 +811,46 @@ export function toRenderPlan(
     video,
     audio,
     music,
+    texts,
     totalDurationSec,
   }
+}
+
+/**
+ * 字幕按导出窗口裁一刀 → 渲染层的 `texts[]`。
+ *
+ * ⚠ 与画面轨的 `sliceTrack` 是**两件事**：字幕没有素材，裁的只是「什么时候显示」，
+ * 所以两端各自往窗口里收，内容一个字都不动。
+ * ⚠ 字号 / 边距在这里换算成像素（`height` 是成片画面高）—— 见 `RenderTextSegment`。
+ */
+function sliceTextTrack(
+  clips: readonly EditTextClip[],
+  fromSec: number,
+  toSec: number,
+  heightPx: number,
+): readonly RenderTextSegment[] {
+  const segments: RenderTextSegment[] = []
+  for (const clip of clips) {
+    const start = Math.max(clip.startSec, fromSec)
+    const end = Math.min(clip.startSec + clip.durationSec, toSec)
+    if (end - start < RENDER_MIN_SEGMENT_SEC) continue
+    const text = clip.text.trim()
+    if (!text) continue
+    segments.push({
+      id: clip.id,
+      text,
+      startSec: start - fromSec,
+      durationSec: end - start,
+      anchor: clip.anchor,
+      fontSizePx: Math.max(
+        1,
+        Math.round(heightPx * EDIT_TEXT_SIZE_SCALE[clip.size]),
+      ),
+      marginPx: Math.max(0, Math.round(heightPx * EDIT_TEXT_MARGIN_SCALE)),
+      tone: clip.tone,
+      // 淡入淡出不能长过段本身的一半 —— 否则两头的淡在中间撞上，字幕永远不满亮。
+      fadeSec: Math.min(clip.fadeSec, (end - start) / 2),
+    })
+  }
+  return segments
 }

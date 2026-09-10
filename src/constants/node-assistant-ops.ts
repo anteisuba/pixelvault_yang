@@ -488,6 +488,18 @@ export const NODE_ASSISTANT_OP_V4_IDS = {
   editRemoveClip: 'edit_remove_clip',
   editUpdateClip: 'edit_update_clip',
   editMoveClip: 'edit_move_clip',
+  /**
+   * 字幕三条（S8d · spec §6「文字段」）。
+   *
+   * ⚠ 另开三条而不是让上面五条多认一条轨：T 轨上的段是 `EditTextClip`（自带内容与
+   * 绝对起点），`edit_add_clip` 的载荷是 `EditClip`。硬塞成一条要么让 `clip` 变成
+   * 联合类型（每个读它的地方先分辨形状），要么给 `EditClip` 加一堆只有字幕用得上的
+   * 可选字段 —— 两条都是把「一条轨道是一排 `EditClip`」这句话拆掉。
+   * ⛔ 没有 `edit_move_text`：字幕的位置就是 `startSec`，挪它 = 改一个字段。
+   */
+  editAddText: 'edit_add_text',
+  editRemoveText: 'edit_remove_text',
+  editUpdateText: 'edit_update_text',
   /** ⚠ 唯一扣 credit 的 op。 */
   generate: 'generate',
 } as const
@@ -520,6 +532,9 @@ export const NODE_ASSISTANT_OPS_V4 = [
   NODE_ASSISTANT_OP_V4_IDS.editRemoveClip,
   NODE_ASSISTANT_OP_V4_IDS.editUpdateClip,
   NODE_ASSISTANT_OP_V4_IDS.editMoveClip,
+  NODE_ASSISTANT_OP_V4_IDS.editAddText,
+  NODE_ASSISTANT_OP_V4_IDS.editRemoveText,
+  NODE_ASSISTANT_OP_V4_IDS.editUpdateText,
   NODE_ASSISTANT_OP_V4_IDS.generate,
 ] as const
 
@@ -734,6 +749,24 @@ export const NODE_ASSISTANT_OP_V4_SPECS = {
     group: content,
     tier: free,
     inverse: NODE_ASSISTANT_OP_V4_IDS.editMoveClip,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.editAddText]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.editRemoveText,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.editRemoveText]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.editAddText,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.editUpdateText]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.editUpdateText,
     autoApply: true,
   },
   [NODE_ASSISTANT_OP_V4_IDS.generate]: {

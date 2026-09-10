@@ -27,7 +27,12 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { EDIT_ASPECTS } from '@/constants/edit-desk'
+import {
+  EDIT_ASPECTS,
+  EDIT_TEXT_MARGIN_SCALE,
+  EDIT_TEXT_SIZE_SCALE,
+  type EditTextAnchor,
+} from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
   clipLocalTimeSec,
@@ -35,8 +40,9 @@ import {
   formatEditClock,
 } from '@/lib/edit-project'
 import { useVideoPoster } from '@/hooks/node/use-video-poster'
+import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
-import type { EditProject } from '@/types/node-workflow'
+import type { EditProject, EditTextClip } from '@/types/node-workflow'
 
 import { VideoPlayer } from '../nodes/v4/video/VideoPlayer'
 
@@ -51,6 +57,26 @@ export interface EditDeskPreviewProps {
   onPlayingChange(playing: boolean): void
   /** 预览走到哪儿了 —— 推回整条时间线的秒数。 */
   onPlayheadChange(seconds: number): void
+  /**
+   * 这一刻要叠的字幕（S8d）。
+   *
+   * ⚠ 传的是**已经按播放头筛过**的那几段（`textClipsAt`）：播放头不在段内就是空
+   * 数组，于是「不在段内不显示」这条规则只有一处实现（纯函数那一处）。
+   */
+  readonly textClips: readonly EditTextClip[]
+}
+
+/** 九宫 → 画面里的定位（与渲染层的 `drawtext` 表达式一一对应）。 */
+const TEXT_ANCHOR_CLASS: Readonly<Record<EditTextAnchor, string>> = {
+  tl: 'top-0 left-0 text-left',
+  tc: 'top-0 left-0 right-0 text-center',
+  tr: 'top-0 right-0 text-right',
+  ml: 'top-1/2 left-0 -translate-y-1/2 text-left',
+  mc: 'top-1/2 left-0 right-0 -translate-y-1/2 text-center',
+  mr: 'top-1/2 right-0 -translate-y-1/2 text-right',
+  bl: 'bottom-0 left-0 text-left',
+  bc: 'bottom-0 left-0 right-0 text-center',
+  br: 'bottom-0 right-0 text-right',
 }
 
 /** 比例 → CSS `aspect-ratio`。⛔ 不在组件里手写 `16/9`。 */
@@ -74,6 +100,7 @@ export function EditDeskPreview({
   playing,
   onPlayingChange,
   onPlayheadChange,
+  textClips,
 }: EditDeskPreviewProps) {
   const t = useTranslations('StudioNode.editDesk')
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -180,7 +207,12 @@ export function EditDeskPreview({
     >
       <div
         className="relative w-full max-w-[640px] overflow-hidden rounded-xl bg-muted"
-        style={{ aspectRatio: ASPECT_CSS[project.settings.aspect] }}
+        // ⚠ `container-type: size` 是字幕那几行 `cqh` 的锚：字号必须跟着**画面高**
+        // 走（与渲染层同一套比例），跟着视口走的话窗口一窄字就跳。
+        style={{
+          aspectRatio: ASPECT_CSS[project.settings.aspect],
+          containerType: 'size',
+        }}
       >
         {url ? (
           <VideoPlayer
@@ -196,6 +228,40 @@ export function EditDeskPreview({
             <p className="text-xs text-muted-foreground">{t('previewEmpty')}</p>
           </div>
         )}
+        {/*
+          字幕叠字（S8d · 画板左上那块预览）。⚠ 用**画面高的百分比**排字号与边距，
+          与渲染层同一套比例（`EDIT_TEXT_SIZE_SCALE`）—— 预览与成片不一致的字幕比
+          没有预览更糟：用户会照着预览摆，导出才发现字压在别处。
+          ⚠ `pointer-events-none`：字幕是画面的一部分，⛔ 不抢播放器的点击。
+        */}
+        {textClips.map((clip) => (
+          <span
+            key={clip.id}
+            data-testid={`edit-desk-preview-text-${clip.id}`}
+            style={{
+              fontSize: `${EDIT_TEXT_SIZE_SCALE[clip.size] * 100}cqh`,
+              padding: `0 ${EDIT_TEXT_MARGIN_SCALE * 100}cqh`,
+              marginBottom: clip.anchor.startsWith('b')
+                ? `${EDIT_TEXT_MARGIN_SCALE * 100}cqh`
+                : undefined,
+              marginTop: clip.anchor.startsWith('t')
+                ? `${EDIT_TEXT_MARGIN_SCALE * 100}cqh`
+                : undefined,
+              // 描边的浅色版：⛔ 不写进 class（Tailwind 4 没有 text-shadow 档）。
+              textShadow:
+                clip.tone === 'light'
+                  ? '0 1px 3px rgb(0 0 0 / 0.75)'
+                  : '0 1px 3px rgb(255 255 255 / 0.75)',
+            }}
+            className={cn(
+              'pointer-events-none absolute whitespace-pre-wrap font-semibold leading-tight',
+              TEXT_ANCHOR_CLASS[clip.anchor],
+              clip.tone === 'light' ? 'text-white' : 'text-black',
+            )}
+          >
+            {clip.text}
+          </span>
+        ))}
         {/*
           两个读数**分开放**（S9 修 S8 遗留）：
           - 右上 = **整条时间线**的位置（播放头 / 成片总长）；

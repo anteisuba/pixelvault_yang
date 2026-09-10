@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 
 import { getAvailableImageModels } from '@/constants/models'
+import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
@@ -27,7 +28,7 @@ export interface UseImageModelOptionsReturn {
  * Used by StudioLeftPanel (ModelSelector display) and StudioGenerateBar (canGenerate + generate).
  */
 export function useImageModelOptions(): UseImageModelOptionsReturn {
-  const { state } = useStudioForm()
+  const { state, dispatch } = useStudioForm()
   const { keys, healthMap } = useApiKeysContext()
 
   const imageModels = useMemo(
@@ -69,6 +70,22 @@ export function useImageModelOptions(): UseImageModelOptionsReturn {
         : undefined,
     [modelOptions, state.selectedOptionId],
   )
+
+  useEffect(() => {
+    if (!selectedModel || selectedModel.adapterType !== AI_ADAPTER_TYPES.OPENAI)
+      return
+    const quality = state.advancedParams.quality
+    const config = getCapabilityConfig(
+      selectedModel.adapterType,
+      selectedModel.modelId,
+    )
+    if (quality && !config.qualityOptions?.includes(quality)) {
+      dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: { ...state.advancedParams, quality: 'auto' },
+      })
+    }
+  }, [selectedModel, state.advancedParams, dispatch])
 
   return { modelOptions, selectedModel }
 }

@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import {
   IMAGE_BATCH_COUNTS,
@@ -69,10 +70,14 @@ export function StudioSpecFields({ touch }: StudioSpecFieldsProps) {
   const t = useTranslations('StudioV2')
 
   const resolution = state.advancedParams.resolution ?? 'auto'
+  const config = selectedModel
+    ? getCapabilityConfig(selectedModel.adapterType, selectedModel.modelId)
+    : null
   const resolutionOptions = selectedModel
     ? (getCapabilityConfig(selectedModel.adapterType, selectedModel.modelId)
         ?.resolutionOptions ?? [])
     : []
+  const tAdvanced = useTranslations('AdvancedSettings')
   const chipClass = cn(segButtonClass, touch && segTouchClass)
 
   return (
@@ -81,7 +86,7 @@ export function StudioSpecFields({ touch }: StudioSpecFieldsProps) {
         <span className="text-2xs font-medium text-muted-foreground/70">
           {t('aspectRatioLabel')}
         </span>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="grid grid-cols-3 gap-1.5">
           {STUDIO_IMAGE_ASPECT_RATIOS.map((ratio) => (
             <button
               key={ratio}
@@ -138,6 +143,47 @@ export function StudioSpecFields({ touch }: StudioSpecFieldsProps) {
         </div>
       )}
 
+      {(['quality', 'background'] as const).map((cap) => {
+        const options =
+          cap === 'quality' ? config?.qualityOptions : config?.backgroundOptions
+        if (!config?.capabilities.includes(cap) || !options?.length) return null
+        return (
+          <div key={cap} className="flex flex-col gap-1.5">
+            <span className="text-2xs font-medium text-muted-foreground/70">
+              {tAdvanced(cap)}
+            </span>
+            <div
+              className="grid grid-cols-3 gap-1.5"
+              role="radiogroup"
+              aria-label={tAdvanced(cap)}
+            >
+              {options.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  role="radio"
+                  aria-checked={(state.advancedParams[cap] ?? 'auto') === value}
+                  className={cn(
+                    chipClass,
+                    (state.advancedParams[cap] ?? 'auto') === value
+                      ? studioChipActiveClass
+                      : segInactiveClass,
+                  )}
+                  onClick={() =>
+                    dispatch({
+                      type: 'SET_ADVANCED_PARAMS',
+                      payload: { ...state.advancedParams, [cap]: value },
+                    })
+                  }
+                >
+                  {tAdvanced(`${cap}Option.${value}`)}
+                </button>
+              ))}
+            </div>
+          </div>
+        )
+      })}
+
       <div className="flex flex-col gap-1.5">
         <span className="text-2xs font-medium text-muted-foreground/70">
           {t('batchCountLabel')}
@@ -165,6 +211,30 @@ export function StudioSpecFields({ touch }: StudioSpecFieldsProps) {
         </div>
         <p className="text-2xs text-muted-foreground">{t('batchCountHint')}</p>
       </div>
+      {selectedModel?.adapterType === AI_ADAPTER_TYPES.OPENAI && (
+        <label
+          className={cn(
+            'flex items-center justify-between gap-2 text-xs text-muted-foreground',
+            touch && 'min-h-11 text-sm',
+          )}
+        >
+          {tAdvanced('preview')}
+          <input
+            type="checkbox"
+            className="size-4 accent-primary"
+            checked={state.advancedParams.preview ?? false}
+            onChange={(event) =>
+              dispatch({
+                type: 'SET_ADVANCED_PARAMS',
+                payload: {
+                  ...state.advancedParams,
+                  preview: event.target.checked,
+                },
+              })
+            }
+          />
+        </label>
+      )}
     </div>
   )
 }

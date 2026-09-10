@@ -122,12 +122,15 @@ vi.mock(
 
 const mockUseStudioForm = vi.hoisted(() => vi.fn())
 const mockUseStudioGen = vi.hoisted(() => vi.fn())
+const referenceState = vi.hoisted(() => ({
+  entries: [] as { url: string; disabledReason: null }[],
+}))
 
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: mockUseStudioForm,
   useStudioData: () => ({
     imageUpload: {
-      referenceEntries: [],
+      referenceEntries: referenceState.entries,
       referenceImages: [],
       addFromUrl: vi.fn(),
       removeReferenceImage: vi.fn(),
@@ -200,7 +203,35 @@ function makeSingleAudioActiveRun(generation: GenerationRecord): ActiveRun {
 }
 
 describe('StudioCanvas — 单张生成完成后的反馈条', () => {
+  it.each([false, true])(
+    '有参考图时根据生成状态选择舞台（生成中=%s）',
+    (isGenerating) => {
+      referenceState.entries = [
+        { url: 'https://cdn.example.com/reference.png', disabledReason: null },
+      ]
+      mockUseStudioGen.mockReturnValue({
+        lastGeneration: null,
+        activeRun: null,
+        error: null,
+        isGenerating,
+        elapsedSeconds: 12,
+        setLastEvaluation: vi.fn(),
+      })
+      render(<StudioCanvas />)
+      expect(screen.getByTestId('reference-rail')).toBeInTheDocument()
+      if (isGenerating) {
+        expect(screen.getByTestId('generation-preview')).toBeInTheDocument()
+        expect(screen.queryByAltText('sourceAlt')).not.toBeInTheDocument()
+      } else {
+        expect(screen.getByAltText('sourceAlt')).toBeInTheDocument()
+        expect(
+          screen.queryByTestId('generation-preview'),
+        ).not.toBeInTheDocument()
+      }
+    },
+  )
   beforeEach(() => {
+    referenceState.entries = []
     mockUseStudioForm.mockReturnValue({
       state: {
         outputType: 'image',

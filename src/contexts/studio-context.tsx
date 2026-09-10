@@ -23,6 +23,7 @@ import {
   type ReactNode,
 } from 'react'
 
+import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import type { AdvancedParams, GenerationEvaluation, RecipeUsage } from '@/types'
 import {
   DEFAULT_WORKFLOW_ID,
@@ -292,6 +293,10 @@ export interface StudioFormState {
 
 export type StudioAction =
   | {
+      type: 'RESTORE_OPERATOR_CHECKPOINT'
+      payload: StudioOperatorCheckpoint['form']
+    }
+  | {
       type: 'SET_SELECTED_WORKFLOW_ID'
       payload: WorkflowId
       openDefaultPanel?: boolean
@@ -499,6 +504,13 @@ export function studioFormReducer(
   action: StudioAction,
 ): StudioFormState {
   switch (action.type) {
+    case 'RESTORE_OPERATOR_CHECKPOINT':
+      return {
+        ...state,
+        ...action.payload,
+        modelSelectionTouched: true,
+        workflowMode: 'quick',
+      }
     case 'SET_SELECTED_WORKFLOW_ID': {
       const defaults = getWorkflowStudioDefaults(action.payload)
       const isChangingMediaGroup = state.outputType !== defaults.outputType

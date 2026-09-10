@@ -48,7 +48,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
   const [panelBoundary, setPanelBoundary] = useState<Element | null>(null)
   const bindTrigger = useCallback((element: HTMLButtonElement | null) => {
-    setPanelBoundary(element?.closest('.studio-param-panel') ?? null)
+    if (element) setPanelBoundary(element.closest('.studio-param-panel'))
   }, [])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const popoverOpen = state.panels.refImage

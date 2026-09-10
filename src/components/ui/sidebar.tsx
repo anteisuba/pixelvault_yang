@@ -27,8 +27,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 
-const SIDEBAR_COOKIE_NAME = 'sidebar_state'
-const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7
 /**
  * 轨宽（app-shell.md §3）。**这两个值含 10px 的左右外沟** —— 浮岛的轨不贴边，
  * 容器用 `p-2` 把内容推进来，所以 `可见轨宽 = 常量 − 16`：
@@ -64,7 +62,7 @@ function useSidebar() {
 }
 
 function SidebarProvider({
-  defaultOpen = true,
+  defaultOpen = false,
   open: openProp,
   onOpenChange: setOpenProp,
   className,
@@ -91,9 +89,6 @@ function SidebarProvider({
       } else {
         _setOpen(openState)
       }
-
-      // This sets the cookie to keep the sidebar state.
-      document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
     },
     [setOpenProp, open],
   )

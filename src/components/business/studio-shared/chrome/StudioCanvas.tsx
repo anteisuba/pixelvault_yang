@@ -475,7 +475,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
               onCancelAll={cancelAllRunItems}
             />
           )
-        ) : !lastGeneration && stageReference ? (
+        ) : !isGenerating && !lastGeneration && stageReference ? (
           /* 还没有结果时，当前参考图占住舞台。位置与编辑入口都归参考轨管，
              这里只负责把那一张放大 —— 计数与「编辑这张」不再重复一遍。 */
           <div className="m-auto flex w-full flex-col items-center gap-3">

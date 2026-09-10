@@ -120,6 +120,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tForm = useTranslations('StudioForm')
   const tPromptArea = useTranslations('StudioPromptArea')
   const tImageChip = useTranslations('ImageChip')
+  const tImageUpload = useTranslations('ImageUpload')
   const tModels = useTranslations('Models')
   // 模态专属那几颗丸的文案 —— 命名空间沿用 dock 时期的，文案一个字没改
   const tBar = useTranslations('StudioToolbar')
@@ -549,6 +550,18 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               variant="composer"
               dragType={STUDIO_REFERENCE_DRAG_TYPE}
             />
+            {imageUpload.isUploading && (
+              <div
+                role="status"
+                className="flex items-center gap-2 px-1 py-2 text-sm text-muted-foreground"
+              >
+                <Loader2
+                  aria-hidden="true"
+                  className="size-4 shrink-0 animate-spin motion-reduce:animate-none"
+                />
+                {tImageUpload('uploading')}
+              </div>
+            )}
             {isImageMode ? (
               <StudioReferencePromptInput
                 placeholder={placeholder}
@@ -1015,7 +1028,14 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           {isImageMode ? (
             <StudioCostPreview
               models={runModels}
-              basis={{ kind: 'image', perModelCount: state.imageBatchCount }}
+              basis={{
+                kind: 'image',
+                perModelCount: state.imageBatchCount,
+                aspectRatio: state.aspectRatio,
+                resolution: state.advancedParams.resolution,
+                quality: state.advancedParams.quality,
+                preview: state.advancedParams.preview,
+              }}
             />
           ) : null}
           {isVideoMode && selectedModel && videoCostBasis ? (

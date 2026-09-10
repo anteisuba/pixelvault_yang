@@ -201,6 +201,11 @@ export const GenerationPreview = memo(function GenerationPreview({
   }
 
   // ── Generating (no image yet) ─────────────────────────────────────
+  const previewItem = activeRun?.items.find(
+    (item) => item.status === 'generating' && item.previewUrl,
+  )
+  const previewUrl =
+    previewItem?.status === 'generating' ? previewItem.previewUrl : undefined
   if (isGenerating && !generation) {
     // Height-driven sizing keeps the placeholder visually proportional to the
     // requested aspect ratio without ever growing past the viewport. height is
@@ -237,7 +242,16 @@ export const GenerationPreview = memo(function GenerationPreview({
           className="studio-reveal-canvas relative h-full overflow-hidden rounded-xl"
           style={{ aspectRatio: aspectRatioValue, maxWidth: '100%' }}
         >
-          <div className="studio-reveal-shimmer absolute inset-0" />
+          {previewUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={previewUrl}
+              alt={generatingStageLabel}
+              className="absolute inset-0 size-full object-contain"
+            />
+          ) : (
+            <div className="studio-reveal-shimmer absolute inset-0" />
+          )}
           <StudioGeneratingProgress
             elapsedSeconds={elapsedSeconds}
             stageLabel={generatingStageLabel}
@@ -362,7 +376,7 @@ export const GenerationPreview = memo(function GenerationPreview({
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             key={generation.id}
-            src={generation.url}
+            src={isGenerating && previewUrl ? previewUrl : generation.url}
             alt={generation.prompt ?? ''}
             draggable={false}
             className={cn(

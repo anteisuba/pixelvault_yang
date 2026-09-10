@@ -3,6 +3,17 @@ import { describe, it, expect } from 'vitest'
 import { AdvancedParamsSchema } from '@/types'
 
 describe('AdvancedParamsSchema', () => {
+  it.each(['xhigh', 'max'])('accepts GPT Image 2.5 quality %s', (quality) => {
+    const result = AdvancedParamsSchema.safeParse({ quality })
+    expect(result.success && result.data.quality).toBe(quality)
+  })
+
+  it('rejects unknown quality levels', () => {
+    expect(AdvancedParamsSchema.safeParse({ quality: 'ultra' }).success).toBe(
+      false,
+    )
+  })
+
   it('accepts empty object', () => {
     const result = AdvancedParamsSchema.safeParse({})
     expect(result.success).toBe(true)

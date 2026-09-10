@@ -4,10 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { ReferenceImageEntry } from '@/hooks/use-image-upload'
 import { serializeEditor } from '@/components/ui/mention-input'
+import { normalizeReferenceMentions } from '@/lib/studio-reference-mentions'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 
 const fixture = vi.hoisted(() => ({
   entries: [] as ReferenceImageEntry[],
+  initialPrompt: '',
   upload: vi.fn(),
   submit: vi.fn(),
 }))
@@ -18,7 +20,7 @@ vi.mock('next-intl', () => ({
 }))
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => {
-    const [prompt, setPrompt] = useState('')
+    const [prompt, setPrompt] = useState(fixture.initialPrompt)
     return {
       state: { prompt },
       dispatch: (action: { payload: string }) => setPrompt(action.payload),
@@ -50,6 +52,7 @@ function typePrompt(value: string) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  fixture.initialPrompt = ''
   fixture.entries = [
     { url: 'https://example.com/one.png', disabledReason: null },
     { url: 'https://example.com/two.png', disabledReason: null },
@@ -58,6 +61,19 @@ beforeEach(() => {
 })
 
 describe('StudioReferencePromptInput', () => {
+  it('renders assistant-written references as matching inline thumbnails', () => {
+    fixture.initialPrompt =
+      normalizeReferenceMentions('Image1 服装，参考图2 画风')
+    render(<StudioReferencePromptInput onSubmit={fixture.submit} />)
+    const editor = screen.getByRole('textbox')
+    expect(serializeEditor(editor)).toBe('@Image1 服装，@Image2 画风')
+    for (const [index, entry] of fixture.entries.slice(0, 2).entries()) {
+      expect(
+        editor.querySelector(`[data-mention="@Image${index + 1}"] img`),
+      ).toHaveAttribute('src', entry.url)
+    }
+  })
+
   it('lists only enabled attached images with thumbnails and inserts the selected atomic reference', () => {
     render(<StudioReferencePromptInput onSubmit={fixture.submit} />)
     const editor = typePrompt('采用@')

@@ -74,7 +74,11 @@ export function StudioSpecPopover({ disabled }: StudioSpecPopoverProps) {
       </StudioToolSurfaceTrigger>
       <StudioToolPopoverContent
         size="small"
-        className="w-64"
+        className="w-72 overflow-y-auto overscroll-contain"
+        style={{
+          maxHeight:
+            'min(32rem, var(--radix-popover-content-available-height))',
+        }}
         side="bottom"
         align="start"
         label={t('specLabel')}

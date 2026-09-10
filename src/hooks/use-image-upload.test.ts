@@ -299,6 +299,36 @@ describe('useImageUpload', () => {
 
     const imageFile = () => new File(['x'], 'photo.png', { type: 'image/png' })
 
+    it.each([true, false])(
+      'keeps feedback active until upload settles (success=%s)',
+      async (success) => {
+        let finish!: () => void
+        mockUpload.mockImplementation(
+          () =>
+            new Promise((resolve) => {
+              finish = () =>
+                resolve(
+                  success
+                    ? { success: true, data: { generation: FAKE_GENERATION } }
+                    : { success: false, error: 'boom' },
+                )
+            }),
+        )
+        const { result } = renderHook(() => useImageUpload())
+        let pending!: Promise<void>
+        await act(async () => {
+          pending = result.current.handleFileChange(imageFile())
+        })
+        expect(result.current.isUploading).toBe(true)
+        expect(result.current.referenceImages).toEqual([])
+        await act(async () => {
+          finish()
+          await pending
+        })
+        expect(result.current.isUploading).toBe(false)
+      },
+    )
+
     it('compresses, uploads to R2, and stores the url — never inline base64', async () => {
       mockUpload.mockResolvedValue({
         success: true,

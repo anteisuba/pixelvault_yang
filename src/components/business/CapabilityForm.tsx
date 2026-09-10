@@ -49,7 +49,9 @@ function isQualityValue(
     value === 'auto' ||
     value === 'low' ||
     value === 'medium' ||
-    value === 'high'
+    value === 'high' ||
+    value === 'xhigh' ||
+    value === 'max'
   )
 }
 

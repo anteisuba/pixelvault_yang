@@ -57,7 +57,7 @@ export const StudioVideoModeToggle = memo(function StudioVideoModeToggle({
             disabled={disabled}
             onClick={() => switchTo(option)}
             className={cn(
-              'h-8 rounded-md px-2.5 text-sm font-medium transition-colors',
+              'h-8 min-w-0 flex-1 whitespace-nowrap rounded-md px-2 text-sm font-medium transition-colors',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
               'disabled:cursor-not-allowed disabled:opacity-50',
               active

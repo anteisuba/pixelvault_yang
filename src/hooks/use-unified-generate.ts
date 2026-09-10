@@ -683,6 +683,17 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           if (!statusResponse.success || !statusResponse.data) continue
 
           const statusData = statusResponse.data
+          if (
+            (statusData.status === 'IN_PROGRESS' ||
+              statusData.status === 'IN_QUEUE') &&
+            statusData.previewUrl
+          ) {
+            updateActiveRunItem(itemId, (item) =>
+              item.status === 'generating'
+                ? { ...item, previewUrl: statusData.previewUrl }
+                : item,
+            )
+          }
 
           if (statusData.status === 'COMPLETED') {
             const generation = statusData.generation
@@ -715,6 +726,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
     },
     [
       tStudio,
+      updateActiveRunItem,
       markActiveRunItemCompleted,
       markActiveRunItemFailed,
       markActiveRunItemCancelled,

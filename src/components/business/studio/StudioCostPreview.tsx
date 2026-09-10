@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 
 import {
   formatUnitPriceAmount,
+  getOpenAIImageOutputPrice,
   getModelUnitPriceByStringId,
   getModelUnitPriceRangeByStringId,
   getVideoUnitPricePerSecond,
@@ -28,7 +29,14 @@ interface CostPreviewModel {
  * 时长」这种表示得出来却没意义的状态。
  */
 export type CostPreviewBasis =
-  | { kind: 'image'; perModelCount: number }
+  | {
+      kind: 'image'
+      perModelCount: number
+      aspectRatio?: string
+      resolution?: string
+      quality?: string
+      preview?: boolean
+    }
   | { kind: 'video'; durationSeconds: number; resolution: VideoResolution }
 
 interface StudioCostPreviewProps {
@@ -97,6 +105,23 @@ export const StudioCostPreview = memo(function StudioCostPreview({
       let perSecondForLine: number | null = null
       for (const model of models) {
         if (basis.kind === 'image') {
+          const outputPrice = basis.aspectRatio
+            ? getOpenAIImageOutputPrice(model.modelId, {
+                ...basis,
+                aspectRatio: basis.aspectRatio,
+              })
+            : null
+          if (outputPrice) {
+            if (outputPrice.min === outputPrice.max) {
+              sum += outputPrice.min * basis.perModelCount
+              priced += 1
+            } else {
+              rangeMin += outputPrice.min * basis.perModelCount
+              rangeMax += outputPrice.max * basis.perModelCount
+              rangedCount += 1
+            }
+            continue
+          }
           const price = getModelUnitPriceByStringId(model.modelId)
           if (!price || price.unit !== 'image') {
             const range = getModelUnitPriceRangeByStringId(model.modelId)
@@ -190,6 +215,22 @@ export const StudioCostPreview = memo(function StudioCostPreview({
             min: formatUnitPriceAmount(rangeBounds.min),
             max: formatUnitPriceAmount(rangeBounds.max),
           })}
+        </span>
+      ) : null}
+      {basis.kind === 'image' &&
+      basis.aspectRatio &&
+      models.some((model) =>
+        getOpenAIImageOutputPrice(model.modelId, {
+          ...basis,
+          aspectRatio: basis.aspectRatio!,
+        }),
+      ) ? (
+        <span className="text-2xs text-muted-foreground">
+          {t('costImageOutputOnly')}
+        </span>
+      ) : rangeBounds && basis.kind === 'image' ? (
+        <span className="text-2xs text-muted-foreground">
+          {t('costRangeBasis')}
         </span>
       ) : null}
       {/* 缺价的单独说 —— 不并进上面那个数，也不省略。省略了用户会以为合计是全的。 */}

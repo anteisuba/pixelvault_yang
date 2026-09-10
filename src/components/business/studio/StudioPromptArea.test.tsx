@@ -66,6 +66,7 @@ const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
 const mockUseAudioModelOptions = vi.hoisted(() => vi.fn())
 const mockUseVoiceCards = vi.hoisted(() => vi.fn())
 const mockImageUploadHandleDrop = vi.hoisted(() => vi.fn())
+const mockImageUploadState = vi.hoisted(() => ({ isUploading: false }))
 import { SAMPLE_PROMPT_STORAGE_KEY } from '@/constants/sample-prompts'
 const SAMPLE_PROMPT_FLAG_KEY = SAMPLE_PROMPT_STORAGE_KEY
 
@@ -145,6 +146,7 @@ vi.mock('@/contexts/studio-context', () => ({
       activeCardId: null,
     },
     imageUpload: {
+      isUploading: mockImageUploadState.isUploading,
       referenceEntries: [],
       referenceImages: [],
       handleFileChange: vi.fn(),
@@ -425,6 +427,16 @@ function getSetPromptActions(): SetPromptAction[] {
 }
 
 describe('StudioPromptArea', () => {
+  it('shows upload feedback before a pasted reference image is ready', () => {
+    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, { outputType: 'image' })
+    mockImageUploadState.isUploading = true
+    const view = renderPromptArea()
+    expect(screen.getByRole('status')).toHaveTextContent('uploading')
+    view.unmount()
+    mockImageUploadState.isUploading = false
+    renderPromptArea()
+    expect(screen.queryByText('uploading')).not.toBeInTheDocument()
+  })
   // 2026-08-22 owner：「我没看到有负面提示词的地方」。查证结论 —— 输入框当时只长在
   // `panels.advanced` 对话框里，而那条链图片模态整条不挂载，于是命令面板的
   // 「切换高级设置」是个空开关；而生成管线一直在读 `advancedParams.negativePrompt`。
@@ -558,6 +570,7 @@ describe('StudioPromptArea', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockImageUploadState.isUploading = false
     mockGenerate.mockResolvedValue(null)
     mockImageUploadHandleDrop.mockResolvedValue(undefined)
     mockUseAudioModelOptions.mockReturnValue({

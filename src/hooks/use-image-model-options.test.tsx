@@ -3,7 +3,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
-vi.mock('@/constants/models', () => ({
+vi.mock('@/constants/models', async () => ({
+  AI_MODELS: (await import('@/constants/models/enum')).AI_MODELS,
   getAvailableImageModels: vi.fn(() => [
     {
       id: 'runner-only-model',
@@ -47,10 +48,34 @@ vi.mock('@/lib/model-options', () => ({
   withProviderKeyCoverage: vi.fn((options) => options),
 }))
 
+import { useStudioForm } from '@/contexts/studio-context'
+import { findSelectedModel } from '@/lib/model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 
 describe('useImageModelOptions', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it('resets unsupported 2.5 quality when switching back to GPT Image 2', () => {
+    const dispatch = vi.fn()
+    vi.mocked(useStudioForm).mockReturnValueOnce({
+      state: {
+        selectedOptionId: 'workspace:gpt-image-2',
+        outputType: 'image',
+        advancedParams: { resolution: '2K', quality: 'max', seed: 42 },
+      },
+      dispatch,
+    } as unknown as ReturnType<typeof useStudioForm>)
+    vi.mocked(findSelectedModel).mockReturnValueOnce({
+      optionId: 'workspace:gpt-image-2',
+      modelId: 'gpt-image-2',
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+    } as ReturnType<typeof findSelectedModel>)
+    renderHook(() => useImageModelOptions())
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'SET_ADVANCED_PARAMS',
+      payload: { resolution: '2K', quality: 'auto', seed: 42 },
+    })
+  })
 
   it('excludes LoRA-only Runner checkpoints from Image Studio', () => {
     const { result } = renderHook(() => useImageModelOptions())

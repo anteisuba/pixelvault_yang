@@ -247,6 +247,7 @@ describe('StudioCostPreview', () => {
         ),
       ).toBeInTheDocument()
       expect(screen.queryByText(/costUnpriced/)).not.toBeInTheDocument()
+      expect(screen.getByText('costRangeBasis')).toBeInTheDocument()
     })
 
     it('⭐ 区间**不折进合计** —— 累加上界会报一个用户几乎不会付的数', () => {

@@ -1,4 +1,3 @@
-import { cookies, headers } from 'next/headers'
 import { NextIntlClientProvider } from 'next-intl'
 import { getMessages, getTranslations } from 'next-intl/server'
 
@@ -31,14 +30,6 @@ export default async function MainLayout({
     await getMessages({ locale }),
     OUTSIDE_APP_NAMESPACES,
   )
-  const sidebarState = (await cookies()).get('sidebar_state')?.value
-  const userAgent = (await headers()).get('user-agent') ?? ''
-  const isMobileUA = /Mobile|iP(hone|ad|od)|Android/i.test(userAgent)
-  const defaultSidebarOpen = isMobileUA
-    ? false
-    : sidebarState === undefined
-      ? true
-      : sidebarState === 'true'
 
   return (
     <div className="min-h-svh overflow-x-hidden bg-background">
@@ -50,7 +41,7 @@ export default async function MainLayout({
       </a>
       <NextIntlClientProvider locale={locale} messages={appMessages}>
         <MainProviders>
-          <SidebarProvider defaultOpen={defaultSidebarOpen}>
+          <SidebarProvider defaultOpen={false}>
             <AppSidebar />
             {/* <1024 走方向 M2「顶栏当切换器」：没有竖轨，导航收进顶栏中间那颗
                 按钮（app-shell.md §6）。所以下面只给顶栏让位 44px，

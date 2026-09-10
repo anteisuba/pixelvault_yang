@@ -1,6 +1,8 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useAuth } from '@clerk/nextjs'
+import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
@@ -29,6 +31,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
 import { useRouter } from '@/i18n/navigation'
 import { useStudioReplayFromUrl } from '@/hooks/use-studio-replay-from-url'
+import { useStudioDraft, type StudioDraft } from '@/hooks/use-studio-draft'
 import {
   clearStudioNodeHandoff,
   readStudioNodeHandoff,
@@ -106,6 +109,42 @@ export function StudioWorkspaceUI() {
   const isMobile = useIsMobile()
   const useMobileComposer =
     isMobile && (state.outputType === 'image' || state.outputType === 'video')
+
+  const { isLoaded, userId } = useAuth()
+  const pathname = usePathname()
+  const draft = useMemo<StudioDraft>(
+    () => ({
+      prompt: state.prompt,
+      negativePrompt: state.advancedParams.negativePrompt ?? '',
+      referenceImages: imageUpload.referenceEntries.map((entry) => entry.url),
+    }),
+    [
+      state.prompt,
+      state.advancedParams.negativePrompt,
+      imageUpload.referenceEntries,
+    ],
+  )
+  const restoreDraft = useCallback(
+    (saved: StudioDraft) => {
+      imageUpload.clearAllImages()
+      saved.referenceImages.forEach((url) => imageUpload.addReferenceImage(url))
+      dispatch({ type: 'SET_PROMPT', payload: saved.prompt })
+      dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: {
+          ...state.advancedParams,
+          negativePrompt: saved.negativePrompt,
+        },
+      })
+    },
+    [imageUpload, dispatch, state.advancedParams],
+  )
+  useStudioDraft({
+    userId: isLoaded ? userId : null,
+    enabled: pathname.endsWith('/studio/image') && state.outputType === 'image',
+    draft,
+    onRestore: restoreDraft,
+  })
 
   // Phase 1C: hydrate prompt / seed / negativePrompt / aspectRatio from
   // the URL on mount when the user arrived via "Use this image" replay.

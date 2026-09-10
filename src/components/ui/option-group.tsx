@@ -41,6 +41,7 @@ export function OptionGroup({
             key={opt.value}
             type="button"
             disabled={disabled}
+            aria-pressed={isSelected}
             onClick={() => {
               if (allowDeselect && isSelected) {
                 onChange('')

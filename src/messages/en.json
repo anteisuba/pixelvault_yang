@@ -5810,40 +5810,34 @@
           "transcribe": "To text",
           "transcribeFailed": "Transcription failed",
           "shot": "New shot",
-          "more": "More"
+          "more": "More",
+          "transcribing": "Transcribing…"
         },
         "add": {
-          "upload": "Upload",
-          "mention": "@ Text / character card"
+          "upload": "Upload audio",
+          "mention": "@ Text / character card",
+          "library": "From asset library…",
+          "voiceLibrary": "Voice library…",
+          "uploadShortcut": "⌘U"
         },
-        "emptyHint": "Upload · or write a line to generate",
+        "emptyHint": "Upload · pick one that exists · or write a line",
         "promptPlaceholder": "Write a line, or upload audio…",
         "promptPlaceholderMusic": "Describe this music…",
         "promptPlaceholderSfx": "Describe this sound effect…",
         "promptLabel": "Line",
         "play": "Play",
         "pause": "Pause",
-        "readout": "{clock} / {total}",
         "voice": {
           "title": "Voice",
-          "searchLabel": "Search voices",
-          "searchPlaceholder": "Search voices…",
           "mine": "My voices",
           "cloned": "Cloned",
-          "favorite": "Saved",
           "preview": "Preview",
           "clone": "Clone my voice…",
-          "platform": "Platform voice library…",
           "speed": "Speed",
           "volume": "Volume",
           "loading": "Loading…",
           "empty": "No voices yet — pick one from the platform library",
-          "favorites": "Favorites",
-          "platformSection": "Platform",
-          "platformTag": "Platform voice",
-          "more": "More…",
-          "emptyFavorites": "No favorites yet",
-          "emptyPlatform": "No matching platform voices"
+          "more": "More…"
         },
         "model": {
           "title": "Model",
@@ -5873,7 +5867,40 @@
           "title": "Assign character…",
           "none": "Narrator"
         },
-        "durationUnknown": "--:--"
+        "durationUnknown": "--:--",
+        "more": {
+          "splitVersion": "Split out this version",
+          "source": "Source"
+        },
+        "source": {
+          "platformSample": "From voice library · platform sample",
+          "history": "From voice library · my history",
+          "voiceRoom": "From voice library · voice room",
+          "library": "From asset library",
+          "upload": "Uploaded",
+          "generated": "Generated here"
+        },
+        "library": {
+          "title": "Voice library",
+          "searchLabel": "Search voices",
+          "searchPlaceholder": "Search voices, characters, lines…",
+          "tabsLabel": "Filter by source",
+          "tabs": {
+            "platformSample": "Platform samples",
+            "history": "My history",
+            "voiceRoom": "Voice room",
+            "library": "Assets",
+            "favorites": "Favorites"
+          },
+          "loading": "Loading…",
+          "empty": "Nothing here yet",
+          "durationUnknown": "--:--",
+          "preview": "Preview",
+          "use": "Use this",
+          "setVoice": "Set as voice",
+          "footerHint": "“Use this” drops the original clip onto this card — no generation, no credits. “Set as voice” makes future lines speak in it.",
+          "clone": "Clone my voice…"
+        }
       },
       "video": {
         "toolbar": {
@@ -5946,7 +5973,6 @@
         "duplicateSuffix": "{name} copy"
       },
       "editDesk": "Edit desk",
-      "editDeskComingSoon": "The edit desk is coming (S8)",
       "assistant": "Assistant",
       "panels": {
         "nodes": "Nodes",
@@ -6016,6 +6042,82 @@
       "minimap": {
         "collapse": "Collapse minimap",
         "expand": "Expand minimap"
+      }
+    },
+    "editDesk": {
+      "title": "Edit desk",
+      "back": "Back to canvas",
+      "readout": "{duration} · {aspect} · {resolution}",
+      "undo": "Undo",
+      "export": "Export",
+      "untitled": "Untitled cut",
+      "panels": {
+        "canvas": "Canvas media",
+        "library": "Library",
+        "audio": "Audio",
+        "text": "Text",
+        "transition": "Transitions",
+        "dragHint": "Drag onto the timeline",
+        "empty": "No usable clips in this project yet",
+        "todo": "Not wired up yet (S9 / S10)"
+      },
+      "tracks": {
+        "video": "V",
+        "audio": "A",
+        "music": "M",
+        "empty": "Drop media here"
+      },
+      "tools": {
+        "split": "Split",
+        "transition": "Transition",
+        "text": "Text",
+        "voice": "Voice",
+        "music": "Music",
+        "remove": "Delete",
+        "pending": "“{tool}” is still on the way"
+      },
+      "magnetic": "Snap main track",
+      "staleBadge": "Source updated",
+      "clipTag": "{name} · {duration}",
+      "previewTitle": "Preview · {name}",
+      "previewEmpty": "No clip under the playhead",
+      "clock": "{at} / {total}",
+      "planPlaceholder": "Describe the cut: follow the script order, 5s from the middle of each shot, crossfade…",
+      "planAria": "Describe the cut",
+      "planModel": "Writing model",
+      "planPending": "Cut-from-a-sentence is still on the way (S10)",
+      "inspector": {
+        "empty": "Select a clip to see its settings",
+        "selected": "Selected · {name}",
+        "source": "Source: {name}",
+        "sourceLive": "From the canvas",
+        "sourceGone": "Source card deleted",
+        "inPoint": "In",
+        "outPoint": "Out",
+        "speed": "Speed",
+        "speedOption": "{speed}×",
+        "sound": "Original audio",
+        "transition": "Transition →",
+        "transitions": {
+          "none": "None",
+          "crossfade": "Crossfade",
+          "black": "To black"
+        },
+        "backToNode": "Regenerate this shot on its node"
+      },
+      "exportDialog": {
+        "title": "Export the cut",
+        "description": "Pick a range and a resolution. Rendering runs server-side, you can leave this page.",
+        "range": "Range",
+        "ranges": {
+          "all": "Whole timeline",
+          "inOut": "In/Out range",
+          "clip": "Selected clip"
+        },
+        "toCanvas": "Export to canvas (the cut lands as a video card)",
+        "resolution": "Resolution",
+        "confirm": "Start export",
+        "pending": "The render layer is still on the way (S9) — “{range}” will be exportable soon"
       }
     }
   },

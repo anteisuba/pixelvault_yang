@@ -912,6 +912,17 @@ export const NodeV4OutputVersionSchema = z.object({
   /** 出这一版时用的提示词与模型 —— 切回旧版时「当时写的是什么」才答得上来。 */
   prompt: z.string().max(20_000).optional(),
   model: NodeWorkflowModelSelectionSchema.optional(),
+  /**
+   * 这一版**从哪来**（S5c，spec §4）。⚠ 只有「不是本卡生成出来的」那几条路会写
+   * 它：声音库直接落进来的原声、素材库选的、上传的。`label` 是给人读的一行字
+   * （画板 ⋯ 菜单「来自声音库 · 平台样本 · 莫宁」），⛔ 不做任何分支逻辑。
+   */
+  source: z
+    .object({
+      kind: z.enum(AUDIO_CLIP_SOURCE_KINDS),
+      label: z.string().trim().min(1).max(200),
+    })
+    .optional(),
 })
 
 /**
@@ -1063,6 +1074,13 @@ export const NodeV4AudioDataSchema = z.object({
     .object({
       provider: z.string().trim().min(1).max(80).optional(),
       voiceId: z.string().trim().min(1).max(160).optional(),
+      /**
+       * 这副嗓子叫什么（S5c）。⚠ **显示用的快照**，不是外键：`voiceId` 是一串
+       * 哈希，而 chip 上必须读得出名字（画板写的是「莫宁」）。声音库整库有几万
+       * 条，收起的 chip 不可能为了一个名字去拉一次库 —— 真机 2026-09-10 实拍到
+       * chip 上显示 `2a1f238d…`。⛔ 不拿它当选中判据，判据永远是 `voiceId`。
+       */
+      voiceName: z.string().trim().min(1).max(200).optional(),
       style: z.string().trim().min(1).max(160).optional(),
       emotion: z.string().trim().min(1).max(160).optional(),
       speed: z.number().min(0.5).max(2).optional(),

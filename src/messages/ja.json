@@ -5810,40 +5810,34 @@
           "transcribe": "文字起こし",
           "transcribeFailed": "文字起こしに失敗しました",
           "shot": "カット生成",
-          "more": "その他"
+          "more": "その他",
+          "transcribing": "文字起こし中…"
         },
         "add": {
-          "upload": "アップロード",
-          "mention": "@ テキスト / キャラカード"
+          "upload": "音声をアップロード",
+          "mention": "@ テキスト / キャラカード",
+          "library": "素材ライブラリから選ぶ…",
+          "voiceLibrary": "ボイスライブラリ…",
+          "uploadShortcut": "⌘U"
         },
-        "emptyHint": "アップロード · またはセリフを書いて生成",
+        "emptyHint": "アップロード · 既存から選ぶ · またはセリフを書いて生成",
         "promptPlaceholder": "セリフを書く、または音声をアップロード…",
         "promptPlaceholderMusic": "この劇伴を説明…",
         "promptPlaceholderSfx": "この効果音を説明…",
         "promptLabel": "セリフ",
         "play": "再生",
         "pause": "一時停止",
-        "readout": "{clock} / {total}",
         "voice": {
           "title": "声",
-          "searchLabel": "声を検索",
-          "searchPlaceholder": "声を検索…",
           "mine": "マイボイス",
           "cloned": "クローン",
-          "favorite": "お気に入り",
           "preview": "試聴",
           "clone": "自分の声をクローン…",
-          "platform": "公式ボイスライブラリ…",
           "speed": "速度",
           "volume": "音量",
           "loading": "読み込み中…",
           "empty": "まだ声がありません。ライブラリから選んでください",
-          "favorites": "お気に入り",
-          "platformSection": "プラットフォーム",
-          "platformTag": "プラットフォーム音声",
-          "more": "もっと見る…",
-          "emptyFavorites": "お気に入りはまだありません",
-          "emptyPlatform": "一致する音声がありません"
+          "more": "もっと見る…"
         },
         "model": {
           "title": "モデル",
@@ -5873,7 +5867,40 @@
           "title": "キャラクターを割り当て…",
           "none": "ナレーション"
         },
-        "durationUnknown": "--:--"
+        "durationUnknown": "--:--",
+        "more": {
+          "splitVersion": "このバージョンを切り出す",
+          "source": "出どころ"
+        },
+        "source": {
+          "platformSample": "ボイスライブラリ · プラットフォーム見本",
+          "history": "ボイスライブラリ · 自分の履歴",
+          "voiceRoom": "ボイスライブラリ · アフレコ室",
+          "library": "素材ライブラリ",
+          "upload": "アップロード",
+          "generated": "このカードで生成"
+        },
+        "library": {
+          "title": "ボイスライブラリ",
+          "searchLabel": "声を検索",
+          "searchPlaceholder": "声・キャラ・セリフを検索…",
+          "tabsLabel": "出どころで絞り込む",
+          "tabs": {
+            "platformSample": "プラットフォーム見本",
+            "history": "自分の履歴",
+            "voiceRoom": "アフレコ室",
+            "library": "素材",
+            "favorites": "お気に入り"
+          },
+          "loading": "読み込み中…",
+          "empty": "まだ何もありません",
+          "durationUnknown": "--:--",
+          "preview": "試聴",
+          "use": "これを使う",
+          "setVoice": "声に設定",
+          "footerHint": "「これを使う」＝ 原音をそのままこのカードに置く（生成しない・クレジット消費なし）。「声に設定」＝ 以後のセリフをこの声で読む。",
+          "clone": "自分の声をクローン…"
+        }
       },
       "video": {
         "toolbar": {
@@ -5946,7 +5973,6 @@
         "duplicateSuffix": "{name} のコピー"
       },
       "editDesk": "編集台",
-      "editDeskComingSoon": "編集台は準備中です（S8）",
       "assistant": "アシスタント",
       "panels": {
         "nodes": "ノード一覧",
@@ -6016,6 +6042,82 @@
       "minimap": {
         "collapse": "ミニマップを閉じる",
         "expand": "ミニマップを開く"
+      }
+    },
+    "editDesk": {
+      "title": "編集デスク",
+      "back": "キャンバスに戻る",
+      "readout": "{duration} · {aspect} · {resolution}",
+      "undo": "取り消す",
+      "export": "書き出し",
+      "untitled": "無題のカット",
+      "panels": {
+        "canvas": "キャンバス素材",
+        "library": "ライブラリ",
+        "audio": "オーディオ",
+        "text": "テキスト",
+        "transition": "トランジション",
+        "dragHint": "タイムラインへドラッグ",
+        "empty": "このプロジェクトにはまだ使えるクリップがありません",
+        "todo": "まだ接続されていません（S9 / S10）"
+      },
+      "tracks": {
+        "video": "V",
+        "audio": "A",
+        "music": "M",
+        "empty": "ここに素材をドロップ"
+      },
+      "tools": {
+        "split": "分割",
+        "transition": "トランジション",
+        "text": "テキスト",
+        "voice": "音声",
+        "music": "BGM",
+        "remove": "削除",
+        "pending": "「{tool}」は準備中です"
+      },
+      "magnetic": "メイントラックにスナップ",
+      "staleBadge": "元素材が更新",
+      "clipTag": "{name} · {duration}",
+      "previewTitle": "プレビュー · {name}",
+      "previewEmpty": "再生ヘッドの位置にクリップがありません",
+      "clock": "{at} / {total}",
+      "planPlaceholder": "一文で構成：脚本順に並べて各カット中央 5 秒、クロスフェード……",
+      "planAria": "一文で構成",
+      "planModel": "執筆モデル",
+      "planPending": "一文で構成は準備中です（S10）",
+      "inspector": {
+        "empty": "クリップを選ぶと設定が出ます",
+        "selected": "選択中 · {name}",
+        "source": "ソース：{name}",
+        "sourceLive": "キャンバスから",
+        "sourceGone": "ソースカードは削除済み",
+        "inPoint": "イン点",
+        "outPoint": "アウト点",
+        "speed": "速度",
+        "speedOption": "{speed}×",
+        "sound": "元の音声",
+        "transition": "トランジション →",
+        "transitions": {
+          "none": "なし",
+          "crossfade": "クロスフェード",
+          "black": "暗転"
+        },
+        "backToNode": "このカットをノードで再生成"
+      },
+      "exportDialog": {
+        "title": "カットを書き出す",
+        "description": "範囲と解像度を選びます。レンダリングはサーバー側で走るのでページを離れても大丈夫です。",
+        "range": "範囲",
+        "ranges": {
+          "all": "全体",
+          "inOut": "イン/アウト区間",
+          "clip": "選択中のクリップ"
+        },
+        "toCanvas": "キャンバスへ書き出す（カットが動画カードになります）",
+        "resolution": "解像度",
+        "confirm": "書き出し開始",
+        "pending": "レンダリング層は準備中です（S9）——「{range}」の書き出しはもうすぐです"
       }
     }
   },

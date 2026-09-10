@@ -5810,40 +5810,34 @@
           "transcribe": "转文字",
           "transcribeFailed": "转写失败",
           "shot": "生镜头",
-          "more": "更多"
+          "more": "更多",
+          "transcribing": "转写中…"
         },
         "add": {
-          "upload": "上传",
-          "mention": "@ 文本 / 角色卡"
+          "upload": "上传音频",
+          "mention": "@ 文本 / 角色卡",
+          "library": "从素材库选…",
+          "voiceLibrary": "声音库…",
+          "uploadShortcut": "⌘U"
         },
-        "emptyHint": "上传 · 或写台词生成",
+        "emptyHint": "上传 · 选一段现成的 · 或写台词生成",
         "promptPlaceholder": "写台词，或上传一段声音……",
         "promptPlaceholderMusic": "描述这段配乐……",
         "promptPlaceholderSfx": "描述这个音效……",
         "promptLabel": "台词",
         "play": "播放",
         "pause": "暂停",
-        "readout": "{clock} / {total}",
         "voice": {
           "title": "音色",
-          "searchLabel": "搜索音色",
-          "searchPlaceholder": "搜声音…",
           "mine": "我的音色",
           "cloned": "我克隆的",
-          "favorite": "已收藏",
           "preview": "试听",
           "clone": "克隆我的声音…",
-          "platform": "平台音色库…",
           "speed": "语速",
           "volume": "音量",
           "loading": "加载中…",
           "empty": "还没有音色，去平台音色库挑一个",
-          "favorites": "收藏",
-          "platformSection": "平台",
-          "platformTag": "平台音色",
-          "more": "更多…",
-          "emptyFavorites": "还没有收藏",
-          "emptyPlatform": "没有匹配的平台音色"
+          "more": "更多…"
         },
         "model": {
           "title": "模型",
@@ -5873,7 +5867,40 @@
           "title": "归属角色…",
           "none": "旁白"
         },
-        "durationUnknown": "--:--"
+        "durationUnknown": "--:--",
+        "more": {
+          "splitVersion": "拆出当前版本",
+          "source": "来源"
+        },
+        "source": {
+          "platformSample": "来自声音库 · 平台样本",
+          "history": "来自声音库 · 我的历史",
+          "voiceRoom": "来自声音库 · 配音间",
+          "library": "来自素材库",
+          "upload": "上传",
+          "generated": "本卡生成"
+        },
+        "library": {
+          "title": "声音库",
+          "searchLabel": "搜索声音",
+          "searchPlaceholder": "搜声音、角色、台词…",
+          "tabsLabel": "按来源筛选",
+          "tabs": {
+            "platformSample": "平台样本",
+            "history": "我的历史",
+            "voiceRoom": "配音间",
+            "library": "素材库",
+            "favorites": "收藏"
+          },
+          "loading": "加载中…",
+          "empty": "这一栏还没有声音",
+          "durationUnknown": "--:--",
+          "preview": "试听",
+          "use": "用这段",
+          "setVoice": "设为音色",
+          "footerHint": "「用这段」= 原声直接落进这张卡，不生成、不扣积分；「设为音色」= 之后写台词用它的声",
+          "clone": "克隆我的声音…"
+        }
       },
       "video": {
         "toolbar": {
@@ -5946,7 +5973,6 @@
         "duplicateSuffix": "{name} 副本"
       },
       "editDesk": "剪辑台",
-      "editDeskComingSoon": "剪辑台还在路上（S8）",
       "assistant": "助手",
       "panels": {
         "nodes": "节点一览",
@@ -6016,6 +6042,82 @@
       "minimap": {
         "collapse": "收起小地图",
         "expand": "展开小地图"
+      }
+    },
+    "editDesk": {
+      "title": "剪辑台",
+      "back": "回画布",
+      "readout": "{duration} · {aspect} · {resolution}",
+      "undo": "撤销",
+      "export": "导出",
+      "untitled": "未命名成片",
+      "panels": {
+        "canvas": "画布素材",
+        "library": "素材库",
+        "audio": "音频",
+        "text": "文字",
+        "transition": "转场",
+        "dragHint": "拖进时间线",
+        "empty": "这个项目还没有可用的片段",
+        "todo": "这一栏还没接上（S9 / S10）"
+      },
+      "tracks": {
+        "video": "V",
+        "audio": "A",
+        "music": "M",
+        "empty": "把素材拖到这里"
+      },
+      "tools": {
+        "split": "分割",
+        "transition": "转场",
+        "text": "文字",
+        "voice": "语音",
+        "music": "配乐",
+        "remove": "删除",
+        "pending": "「{tool}」还在路上"
+      },
+      "magnetic": "主轨道磁吸",
+      "staleBadge": "上游已更新",
+      "clipTag": "{name} · {duration}",
+      "previewTitle": "预览 · {name}",
+      "previewEmpty": "播放头下没有片段",
+      "clock": "{at} / {total}",
+      "planPlaceholder": "一句话排片：按剧本顺序拼，每段取中间 5 秒，叠化……",
+      "planAria": "一句话排片",
+      "planModel": "写作模型",
+      "planPending": "一句话排片还在路上（S10）",
+      "inspector": {
+        "empty": "选中一段看它的属性",
+        "selected": "选中 · {name}",
+        "source": "来源：{name}",
+        "sourceLive": "来自画布",
+        "sourceGone": "来源卡已删除",
+        "inPoint": "入点",
+        "outPoint": "出点",
+        "speed": "速度",
+        "speedOption": "{speed}×",
+        "sound": "原声",
+        "transition": "转场 →",
+        "transitions": {
+          "none": "无",
+          "crossfade": "叠化",
+          "black": "黑场"
+        },
+        "backToNode": "回节点重生成这段"
+      },
+      "exportDialog": {
+        "title": "导出成片",
+        "description": "选范围与清晰度；渲染在服务端跑，可以离开这个页面。",
+        "range": "范围",
+        "ranges": {
+          "all": "整条",
+          "inOut": "I·O 区间",
+          "clip": "选中的这一段"
+        },
+        "toCanvas": "导出到画布（成片落成一张视频卡）",
+        "resolution": "清晰度",
+        "confirm": "开始导出",
+        "pending": "渲染层还在路上（S9）——「{range}」的导出很快就能按下去"
       }
     }
   },

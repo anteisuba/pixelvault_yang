@@ -47,6 +47,8 @@ export interface OutputVersionInput {
   readonly imageSource?: 'generated' | 'existing' | undefined
   readonly prompt?: string | undefined
   readonly model?: NodeV4OutputVersion['model']
+  /** 这一版从哪来（S5c）——只有「不是本卡生成」的路会带。 */
+  readonly source?: NodeV4OutputVersion['source']
 }
 
 function factsOf(input: OutputVersionInput): NodeV4OutputVersion['meta'] {
@@ -175,6 +177,9 @@ export function appendOutputVersion<T extends NodeV4MediaData>(
     ...((input.model ?? data.model)
       ? { model: input.model ?? data.model }
       : {}),
+    // ⚠ **只读补丁自己的** `source`：来源是「这一版怎么来的」，不是节点级属性，
+    // ⛔ 不从 data 上兜底（那会把上一版的来源盖到新生成的这一版头上）。
+    ...(input.source ? { source: input.source } : {}),
   }
   const versions = [...existing, version].slice(
     -NODE_V4_OUTPUT_VERSION.maxVersions,

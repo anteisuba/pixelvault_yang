@@ -3,10 +3,14 @@
 /**
  * 音频节点（v3 spec §4，画板 `AudioStates` / `AudioSelected` / `AudioQuickListen`）。
  *
- * 四态：**空卡**（72 高、虚线、「上传 · 或写台词生成」）· **有声收起**（卡即波形，
- * 右侧时长；悬停自动播、播放头走波形、左出播放钮）· **选中**（工具条五键 + 版本点
- * + 提示词栏：台词 · 音色 chip · 模型 chip）· **生成中**（矮卡例外：波形位走一条
- * 进度线，spec §1.9）。双击 = 快速听。**无画中框**（spec §4）。
+ * 四态：**空卡**（72 高、虚线、「上传 · 选一段现成的 · 或写台词生成」）· **有声
+ * 收起**（左侧常驻播放钮 + 波形逐根走进度 + 右侧读数）· **选中**（工具条五键 +
+ * 版本点 + 提示词栏：台词 · 音色 chip · 模型 chip）· **生成中**（矮卡例外：波形位
+ * 走一条进度线，spec §1.9）。
+ *
+ * ⛔ **不悬停自动播、不双击**（spec §4 v2，owner 2026-09-10 重定）：矮卡挤在画布上，
+ * 鼠标扫过一排音频卡就是一排声音同时炸开；快速听那一层也随之删（`QuickLook` 不再
+ * 挂在这张卡上），要听就点那颗钮。
  *
  * ── 四条纪律 ────────────────────────────────────────────────────────────
  * ① **壳全部来自 `chrome/`**（卡骨架 / 工具条 / 提示词栏 / chip 弹层 / 版本点 /
@@ -39,11 +43,8 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import {
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from '@/components/ui/dropdown-menu'
-import { AUDIO_KIND } from '@/constants/audio-options'
+import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
+import { AUDIO_CLIP_SOURCE, AUDIO_KIND } from '@/constants/audio-options'
 import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
 import {
   NODE_ASSISTANT_OP_V4_IDS,
@@ -61,7 +62,8 @@ import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation
 import { useNodeUploadV4 } from '@/hooks/node/use-node-upload-v4'
 import { getGeneratingStageKey } from '@/lib/generation-progress'
 import { renameStableNodeName } from '@/lib/node-display-name'
-import { readOutputIndex } from '@/lib/node-output-versions'
+import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
+import { cn } from '@/lib/utils'
 import {
   insertVoiceMarkup,
   voiceMarkupDeletionRangeAt,
@@ -75,7 +77,6 @@ import {
   NodePromptBar,
   NodeToolbar,
   PORT_CLASS,
-  QuickLook,
   VersionDots,
   mentionDeletionRangeAt,
   renderVoicePromptValue,
@@ -89,11 +90,15 @@ import {
   resolveAudioNodeKind,
   showsVoiceChip,
 } from './audio/audio-node-model'
-import { AudioLineChips } from './audio/AudioLineChips'
+import { AudioAddMenuItems, AudioMoreMenuItems } from './audio/AudioNodeMenus'
 import { AudioOwnerMenuItem } from './audio/AudioOwnerMenuItem'
 import { AudioTonePopover, TONE_POPOVER_WIDTH } from './audio/AudioTonePopover'
 import { AudioVoiceChip } from './audio/AudioVoiceChip'
 import { AudioWaveform } from './audio/AudioWaveform'
+import {
+  VoiceLibraryPanel,
+  type VoiceLibraryClip,
+} from '../../voice-library/VoiceLibraryPanel'
 import { transcribeAudioUrl } from './audio/audio-transcribe'
 // ⚠ `toStudioModelOption` 是**两类卡共用**的那一份映射（`apiKeyId → keyId` 等），
 // 住在 image 那侧；⛔ 不在音频这边再抄一份，两处对不上选中的模型就会漂。
@@ -161,7 +166,11 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const audioData = data as unknown as NodeV4AudioData
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
-  const [quickListen, setQuickListen] = useState(false)
+  const [renameRequest, setRenameRequest] = useState(0)
+  /** 素材库对话框（`+` 菜单「从素材库选…」）。 */
+  const [assetPicker, setAssetPicker] = useState(false)
+  /** 声音库面板（`+` 菜单「声音库…」与音色 chip 的「更多…」都到这里）。 */
+  const [voiceLibrary, setVoiceLibrary] = useState(false)
   const [draft, setDraft] = useState(audioData.prompt ?? '')
   const [syncedPrompt, setSyncedPrompt] = useState(audioData.prompt ?? '')
   const [startedAt, setStartedAt] = useState<number | null>(null)
@@ -170,6 +179,10 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const [progress, setProgress] = useState(0)
   const [duration, setDuration] = useState(audioData.durationSec ?? 0)
   const [transcribing, setTranscribing] = useState(false)
+  const [transcribeStartedAt, setTranscribeStartedAt] = useState<number | null>(
+    null,
+  )
+  const [transcribeElapsed, setTranscribeElapsed] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
   /** 提示词栏那只 textarea —— 插标记与退格删 chip 都要问它光标在哪
@@ -194,6 +207,15 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   }
 
   const generating = Boolean(audioData.mediaJobId) || startedAt !== null
+
+  useEffect(() => {
+    if (transcribeStartedAt === null) return
+    const tick = () =>
+      setTranscribeElapsed((Date.now() - transcribeStartedAt) / 1000)
+    tick()
+    const timer = window.setInterval(tick, PROGRESS_TICK_MS)
+    return () => window.clearInterval(timer)
+  }, [transcribeStartedAt])
 
   useEffect(() => {
     if (!generating) return
@@ -223,6 +245,9 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const speech = showsVoiceChip(audioKind)
   const versions = audioVersions(audioData)
   const versionIndex = readOutputIndex(audioData)
+  /** ⋯ 菜单里那一行只读的「来源」——当前这一版的，⛔ 不是节点级属性。 */
+  const currentSourceLabel =
+    readOutputVersions(audioData)[versionIndex]?.source?.label
   const selectVersion = (index: number) =>
     void canvas.onApplyOp({
       op: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
@@ -310,8 +335,10 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const runTranscribe = async () => {
     if (!audioData.url || transcribing) return
     setTranscribing(true)
+    setTranscribeStartedAt(Date.now())
     const result = await transcribeAudioUrl(audioData.url, audioData.name)
     setTranscribing(false)
+    setTranscribeStartedAt(null)
     if (!result.ok || !result.text) {
       toast.error(tAudio('toolbar.transcribeFailed'))
       return
@@ -319,7 +346,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     // 一批两条：建一张文本卡 + 把它连成这张卡的**台词来源**（`text` 槽）。
     // ⚠ 方向是 text → audio：文本卡是叶子（端口表 `TEXT_PORTS`），音频卡才有
     // `text` 入口槽。⛔ 不反着连——那条边根本不合法。
-    void canvas.onApplyBatch([
+    const outcome = await canvas.onApplyBatch([
       {
         op: NODE_ASSISTANT_OP_V4_IDS.addNode,
         kind: NODE_MEDIA_KIND_IDS.text,
@@ -339,6 +366,10 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         slot: NODE_SLOT_IDS.text,
       },
     ])
+    // 「转完自动选中新卡」（画板）。⚠ 新卡的 id 只有批执行器知道 ——
+    // `onApplyBatch` 的回执正是为这个缺口存在的（`NodeV4BatchOutcome`）。
+    const created = outcome?.createdNodeIds?.[0]
+    if (created) canvas.onFocusNode(created)
   }
 
   const insertMarkup = (next: { text: string; caret: number }) => {
@@ -426,51 +457,48 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         icon: MoreHorizontal,
         onSelect: () => {},
         menu: (
-          <>
-            <DropdownMenuItem
-              data-audio-more="upload"
-              onSelect={() => fileRef.current?.click()}
-            >
-              {tAudio('add.upload')}
-            </DropdownMenuItem>
-            <AudioOwnerMenuItem
-              value={audioData.ownerName}
-              candidates={characterNames}
-              onChange={(next) =>
-                void canvas.onApplyOp({
-                  op: NODE_ASSISTANT_OP_V4_IDS.setField,
-                  target: id,
-                  field: 'ownerName',
-                  value: next ?? '',
-                })
-              }
-            />
-            <DropdownMenuItem
-              data-audio-more="duplicate"
-              onSelect={() =>
-                void canvas.onApplyOp({
-                  op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-                  kind: NODE_MEDIA_KIND_IDS.audio,
-                  subtype: audioData.subtype,
-                })
-              }
-            >
-              {t('toolbar.clone')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              variant="destructive"
-              data-audio-more="delete"
-              onSelect={() =>
-                void canvas.onApplyOp({
-                  op: NODE_ASSISTANT_OP_V4_IDS.delete,
-                  target: id,
-                })
-              }
-            >
-              {t('toolbar.delete')}
-            </DropdownMenuItem>
-          </>
+          <AudioMoreMenuItems
+            onRename={() => setRenameRequest((n) => n + 1)}
+            onDuplicate={() =>
+              void canvas.onApplyOp({
+                op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+                kind: NODE_MEDIA_KIND_IDS.audio,
+                subtype: audioData.subtype,
+              })
+            }
+            onSplitVersion={
+              // 只有一版时拆无可拆 —— ⛔ 不摆一个按了什么都不变的项。
+              versions.length > 1
+                ? () =>
+                    void canvas.onApplyOp({
+                      op: NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion,
+                      target: id,
+                      index: versionIndex,
+                    })
+                : undefined
+            }
+            ownerItem={
+              <AudioOwnerMenuItem
+                value={audioData.ownerName}
+                candidates={characterNames}
+                onChange={(next) =>
+                  void canvas.onApplyOp({
+                    op: NODE_ASSISTANT_OP_V4_IDS.setField,
+                    target: id,
+                    field: 'ownerName',
+                    value: next ?? '',
+                  })
+                }
+              />
+            }
+            {...(currentSourceLabel ? { sourceLabel: currentSourceLabel } : {})}
+            onDelete={() =>
+              void canvas.onApplyOp({
+                op: NODE_ASSISTANT_OP_V4_IDS.delete,
+                target: id,
+              })
+            }
+          />
         ),
       },
     ],
@@ -501,9 +529,6 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         event.stopPropagation()
         runUpload(file)
       }}
-      onDoubleClick={() => {
-        if (audioData.url) setQuickListen(true)
-      }}
     >
       <FlowNodeToolbar isVisible={showChrome} position={Position.Top}>
         <NodeToolbar
@@ -520,6 +545,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         width={NODE_V4_CARD.collapsedWidth}
         emptyHint={tAudio('emptyHint')}
         emptyAddAriaLabel={tAudio('add.upload')}
+        renameRequest={renameRequest}
         emptyHeight={AUDIO_CARD.height}
         onEmptyAdd={() => fileRef.current?.click()}
         changed={canvas.changedNodeIds.includes(id)}
@@ -528,34 +554,31 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         {audioData.url || generating ? (
           <div
             data-audio-surface={audioData.url ? 'ready' : 'pending'}
-            className="group relative flex items-center gap-3 px-4"
+            className="relative flex items-center gap-3 px-4"
             style={{ height: AUDIO_CARD.contentHeight }}
-            // 悬停自动播（spec §4）。⚠ 只有有声且没在生成时才响。
-            onMouseEnter={() => {
-              if (!audioData.url || generating) return
-              const el = audioRef.current
-              if (el?.paused) void el.play().catch(() => setPlaying(false))
-            }}
-            onMouseLeave={() => {
-              const el = audioRef.current
-              if (!el || el.paused) return
-              el.pause()
-              el.currentTime = 0
-              setProgress(0)
-            }}
           >
             {audioData.url && !generating ? (
               <>
-                {/* 播放钮只在悬停/播放时出现（画板：左出一颗玻璃圆钮）。 */}
+                {/* 播放钮**常驻**（画板 v2：30px 圆钮，未播 = 浅底深字，播放中 =
+                    实心深底白字）。⛔ 不再随悬停淡入 —— 悬停自动播删掉之后，
+                    「点哪儿能听」必须一眼看得见，否则这张卡看起来不能播。 */}
                 <button
                   type="button"
                   data-audio-play
+                  data-playing={playing ? 'true' : 'false'}
                   aria-label={playing ? tAudio('pause') : tAudio('play')}
                   onClick={(event) => {
                     event.stopPropagation()
                     togglePlay()
                   }}
-                  className="nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full opacity-0 transition-opacity duration-fast surface-glass shadow-node-chrome group-hover:opacity-100 hover:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  className={cn(
+                    'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full',
+                    'transition-colors duration-fast ease-standard',
+                    'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                    playing
+                      ? 'bg-primary text-primary-foreground'
+                      : 'bg-surface-fill text-foreground hover:bg-surface-fill-hover',
+                  )}
                 >
                   {playing ? (
                     <Pause aria-hidden className="size-3.5" />
@@ -594,6 +617,20 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                 )}
               />
             )}
+            {/* 转写中也走同一条进度线（画板：「转写中卡上走一条进度线」）。
+                ⚠ 与生成互斥：转写要有声才点得动，而生成中这张卡还没有声。 */}
+            {transcribing && !generating ? (
+              <div
+                data-audio-transcribing
+                className="absolute inset-x-4 inset-y-0"
+              >
+                <NodeFrameProgress
+                  variant="line"
+                  elapsedSeconds={transcribeElapsed}
+                  stageLabel={tAudio('toolbar.transcribing')}
+                />
+              </div>
+            ) : null}
           </div>
         ) : undefined}
       </NodeCardShell>
@@ -672,20 +709,12 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                 })
               }
               addMenu={
-                <>
-                  <DropdownMenuItem
-                    data-audio-add="upload"
-                    onSelect={() => fileRef.current?.click()}
-                  >
-                    {tAudio('add.upload')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    data-audio-add="mention"
-                    onSelect={() => setDraft(`${draft}@`)}
-                  >
-                    {tAudio('add.mention')}
-                  </DropdownMenuItem>
-                </>
+                <AudioAddMenuItems
+                  onUpload={() => fileRef.current?.click()}
+                  onAssetLibrary={() => setAssetPicker(true)}
+                  onVoiceLibrary={() => setVoiceLibrary(true)}
+                  onMention={() => setDraft(`${draft}@`)}
+                />
               }
               textareaProps={{
                 onKeyDown: (event) => {
@@ -723,11 +752,15 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                   <AudioVoiceChip
                     key="voice"
                     voiceId={audioData.voiceProfile?.voiceId}
+                    voiceName={audioData.voiceProfile?.voiceName}
                     speed={audioData.voiceProfile?.speed}
                     volume={audioData.voiceProfile?.volume}
                     disabled={generating}
                     onSelectVoice={(voice) => {
-                      patchProfile({ voiceId: voice.voiceId })
+                      patchProfile({
+                        voiceId: voice.voiceId,
+                        voiceName: voice.name,
+                      })
                       // 库里自带的试听样本**就是**这条音色的产物 —— 有就落进 `url`。
                       if (voice.sampleUrl && !audioData.url) {
                         canvas.onSetMedia(id, { url: voice.sampleUrl })
@@ -735,6 +768,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                     }}
                     onSpeedChange={(speed) => patchProfile({ speed })}
                     onVolumeChange={(volume) => patchProfile({ volume })}
+                    onOpenLibrary={() => setVoiceLibrary(true)}
                   />
                 ) : null,
                 modelOptions.length > 0 ? (
@@ -783,60 +817,50 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         }}
       />
 
-      {quickListen && audioData.url ? (
-        <QuickLook
+      {assetPicker ? (
+        <AssetSelectorDialog
           open
-          onClose={() => setQuickListen(false)}
-          ariaLabel={audioData.name}
-          {...(versions.length > 1
+          onOpenChange={setAssetPicker}
+          mediaType="audio"
+          title={tAudio('add.library')}
+          description={tAudio('add.library')}
+          onSelect={(record) => {
+            // 素材库选的是**现成的一段声音**：直接落成一版，⛔ 不生成、不扣积分。
+            canvas.onSetMedia(id, {
+              url: record.url,
+              source: {
+                kind: AUDIO_CLIP_SOURCE.library,
+                label: tAudio('source.library'),
+              },
+            })
+            setAssetPicker(false)
+          }}
+        />
+      ) : null}
+
+      {voiceLibrary ? (
+        <VoiceLibraryPanel
+          open
+          onClose={() => setVoiceLibrary(false)}
+          onUseClip={(clip) => {
+            canvas.onSetMedia(id, {
+              url: clip.url,
+              source: { kind: clip.sourceKind, label: clip.sourceLabel },
+            })
+            setVoiceLibrary(false)
+          }}
+          {...(speech
             ? {
-                versionCount: versions.length,
-                versionIndex,
-                onVersionChange: selectVersion,
+                onSetVoice: (clip: VoiceLibraryClip) => {
+                  if (!clip.voiceId) return
+                  // 名字一起记（`voiceName`）：收起的 chip 拉不动整库，没有它
+                  // 就只能显示那串哈希（真机 2026-09-10 实拍）。
+                  patchProfile({ voiceId: clip.voiceId, voiceName: clip.name })
+                  setVoiceLibrary(false)
+                },
               }
             : {})}
-          readout={
-            seconds > 0
-              ? tAudio('readout', {
-                  clock: formatAudioClock(progress * seconds),
-                  total: formatAudioSeconds(seconds),
-                })
-              : undefined
-          }
-          onDownload={() => triggerNodeV4Download(audioData.url as string)}
-        >
-          <div
-            data-audio-quick-listen
-            className="flex w-160 max-w-full flex-col gap-4"
-          >
-            <div className="flex items-center gap-3.5">
-              <button
-                type="button"
-                data-audio-quick-play
-                aria-label={playing ? tAudio('pause') : tAudio('play')}
-                onClick={togglePlay}
-                className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-              >
-                {playing ? (
-                  <Pause aria-hidden className="size-4" />
-                ) : (
-                  <Play aria-hidden className="size-4" />
-                )}
-              </button>
-              <AudioWaveform
-                seed={audioData.url}
-                progress={progress}
-                barCount={AUDIO_CARD.quickListenBarCount}
-                height={AUDIO_CARD.quickListenHeight}
-                className="min-w-0 flex-1"
-              />
-            </div>
-            {/* 台词只读（画板：一行正文，⛔ 无参数）。 */}
-            {currentPrompt ? (
-              <AudioLineChips text={currentPrompt} variant="plain" />
-            ) : null}
-          </div>
-        </QuickLook>
+        />
       ) : null}
 
       {menu ? (

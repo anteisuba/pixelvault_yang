@@ -324,3 +324,57 @@ export function normalizeSpeakerVoiceIds(voiceIds: string[]): string[] {
 
   return next
 }
+
+/* ── 声音库（S5c，spec §4「三条来路」）────────────────────────────────── */
+
+/**
+ * 一版音频**是从哪来的**（`NodeV4OutputVersion.source.kind`）。
+ *
+ * ⚠ 存在理由是 ⋯ 菜单里那一行只读的「来源」：直接落进卡里的现成声音没有提示词、
+ * 没有模型，卡面上除了波形什么都读不出来，「这段声音是哪来的」就只剩这一个字段
+ * 能回答。⛔ 不用它做任何分支逻辑——它是给人读的一行字，不是状态机。
+ */
+export const AUDIO_CLIP_SOURCE_KINDS = [
+  'platformSample',
+  'history',
+  'voiceRoom',
+  'library',
+  'upload',
+  'generated',
+] as const
+
+export type AudioClipSourceKind = (typeof AUDIO_CLIP_SOURCE_KINDS)[number]
+
+/** 按名取值（⛔ 别在调用点写 `AUDIO_CLIP_SOURCE_KINDS[3]` 那种下标）。 */
+export const AUDIO_CLIP_SOURCE = {
+  platformSample: 'platformSample',
+  history: 'history',
+  voiceRoom: 'voiceRoom',
+  library: 'library',
+  upload: 'upload',
+  generated: 'generated',
+} as const satisfies Record<AudioClipSourceKind, AudioClipSourceKind>
+
+/**
+ * 声音库面板的五个页签（画板 `AudioLibrary.dc.html`）—— 顺序即画板顺序。
+ * ⚠ 与 `AUDIO_CLIP_SOURCE_KINDS` **不是**同一个值域：`upload` / `generated` 是
+ * 这张卡自己的来路，不是库里的一栏。
+ */
+export const VOICE_LIBRARY_TAB_IDS = [
+  'platformSample',
+  'history',
+  'voiceRoom',
+  'library',
+  'favorites',
+] as const
+
+export type VoiceLibraryTabId = (typeof VOICE_LIBRARY_TAB_IDS)[number]
+
+/** 面板宽（画板 640，与文本画中框同一档）。 */
+export const VOICE_LIBRARY_PANEL_WIDTH = 640
+
+/** 每个页签一次最多列几条（⛔ 面板不做分页，画板只有一条滚动列表）。 */
+export const VOICE_LIBRARY_TAB_LIMIT = 40
+
+/** 「配音间」页签最多翻几个房间的台词（房间是少数，⛔ 不无界并发）。 */
+export const VOICE_LIBRARY_ROOM_LIMIT = 8

@@ -584,6 +584,8 @@ export const NodeAssistantSetVoiceProfileOpSchema = z.object({
   profile: z.object({
     provider: z.string().trim().min(1).max(80).optional(),
     voiceId: z.string().trim().min(1).max(160).optional(),
+    /** 显示用的音色名快照（S5c）—— 见 `NodeV4AudioDataSchema.voiceProfile`。 */
+    voiceName: z.string().trim().min(1).max(200).optional(),
     style: z.string().trim().min(1).max(160).optional(),
     emotion: z.string().trim().min(1).max(160).optional(),
     speed: z.number().optional(),

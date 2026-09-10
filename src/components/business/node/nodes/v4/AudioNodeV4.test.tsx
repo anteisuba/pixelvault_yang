@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
@@ -34,6 +34,11 @@ vi.mock('@/hooks/node/use-node-upload-v4', () => ({
 }))
 
 const generateNode = vi.fn(async () => ({ success: false as const }))
+/** 转写本体在服务端（`/api/voices/transcribe`）；这里只关心卡上那一批 op。 */
+const transcribeSpy = vi.hoisted(() => vi.fn())
+vi.mock('./audio/audio-transcribe', () => ({
+  transcribeAudioUrl: transcribeSpy,
+}))
 vi.mock('@/hooks/node/use-node-media-generation-v4', () => ({
   useNodeMediaGenerationV4: () => ({ generateNode, isLoading: false }),
 }))
@@ -72,6 +77,7 @@ vi.mock('@/hooks/use-voice-library', () => ({
       },
     ],
     setSearch: setSearchSpy,
+    setTab: vi.fn(),
     isLoading: false,
   }),
   isClonedVoiceCard: (card: { referenceAudioUrl: string | null }) =>
@@ -196,7 +202,7 @@ function harness(
     onSetParams: vi.fn(),
     onSetMedia: vi.fn(),
     onApplyOp: vi.fn(),
-    onApplyBatch: vi.fn(),
+    onApplyBatch: vi.fn(() => ({ createdNodeIds: ['t_1'] })),
     onTidyLayout: vi.fn(),
     canUndo: false,
     canRedo: false,
@@ -221,7 +227,7 @@ function renderAudio(
 }
 
 describe('空卡 / 有声两态', () => {
-  it('空卡是 72 高的虚线矮卡 + 一句「上传 · 或写台词生成」', () => {
+  it('空卡是 72 高的虚线矮卡 + 一句「上传 · 选一段现成的 · 或写台词生成」', () => {
     renderAudio(harness([audioNode('a_1')]))
     const card = document.querySelector('[data-node-chrome="card"]')!
     expect(card.getAttribute('data-empty')).toBe('true')
@@ -472,7 +478,7 @@ describe('版本与快速听', () => {
     })
   })
 
-  it('双击 = 快速听：大波形 + 只读台词，⛔ 无参数', () => {
+  it('⛔ 双击不再有快速听（spec §4 v2）', () => {
     const context = harness([
       audioNode('a_1', {
         url: 'https://cdn.test/v.mp3',
@@ -482,13 +488,38 @@ describe('版本与快速听', () => {
     ])
     const { container } = renderAudio(context)
     fireEvent.doubleClick(container.firstElementChild!)
-    const quick = document.querySelector('[data-audio-quick-listen]')!
-    expect(quick).not.toBeNull()
-    expect(quick.querySelector('[data-audio-waveform]')).not.toBeNull()
-    expect(
-      quick.querySelector('[data-audio-line-chips="plain"]'),
-    ).not.toBeNull()
-    expect(quick.querySelector('[data-audio-voice-chip]')).toBeNull()
+    expect(document.querySelector('[data-audio-quick-listen]')).toBeNull()
+    expect(document.querySelector('[data-node-chrome="quick-look"]')).toBeNull()
+  })
+
+  it('⛔ 悬停不自动播：`<audio>` 保持 paused', () => {
+    renderAudio(
+      harness([
+        audioNode('a_1', { url: 'https://cdn.test/v.mp3', durationSec: 7 }),
+      ]),
+    )
+    const surface = document.querySelector('[data-audio-surface="ready"]')!
+    const el = document.querySelector('audio') as HTMLAudioElement
+    const play = vi.spyOn(el, 'play')
+    fireEvent.mouseEnter(surface)
+    expect(play).not.toHaveBeenCalled()
+  })
+
+  it('播放钮常驻（⛔ 不再靠悬停淡入），点一下调 play', () => {
+    renderAudio(
+      harness([
+        audioNode('a_1', { url: 'https://cdn.test/v.mp3', durationSec: 7 }),
+      ]),
+    )
+    const button = document.querySelector('[data-audio-play]')!
+    expect(button.className).not.toContain('opacity-0')
+    expect(button.getAttribute('data-playing')).toBe('false')
+    const el = document.querySelector('audio') as HTMLAudioElement
+    const play = vi
+      .spyOn(el, 'play')
+      .mockImplementation(() => Promise.resolve())
+    fireEvent.click(button)
+    expect(play).toHaveBeenCalled()
   })
 })
 
@@ -498,11 +529,13 @@ describe('音色弹层', () => {
     render(
       <AudioVoiceChip
         voiceId={undefined}
+        voiceName={undefined}
         speed={undefined}
         volume={undefined}
         onSelectVoice={onSelectVoice}
         onSpeedChange={vi.fn()}
         onVolumeChange={vi.fn()}
+        onOpenLibrary={vi.fn()}
       />,
     )
     fireEvent.click(document.querySelector('[data-audio-voice-chip]')!)
@@ -522,15 +555,18 @@ describe('音色弹层', () => {
     })
   })
 
-  it('四段：我的 / 收藏 / 平台 / 克隆我的声音…，平台段末尾进「更多…」', () => {
+  it('缩短成一段「我的音色」+「更多…」（⛔ 平台整库进 640 面板）', () => {
+    const onOpenLibrary = vi.fn()
     render(
       <AudioVoiceChip
         voiceId={undefined}
+        voiceName={undefined}
         speed={undefined}
         volume={undefined}
         onSelectVoice={vi.fn()}
         onSpeedChange={vi.fn()}
         onVolumeChange={vi.fn()}
+        onOpenLibrary={onOpenLibrary}
       />,
     )
     fireEvent.click(document.querySelector('[data-audio-voice-chip]')!)
@@ -538,41 +574,32 @@ describe('音色弹层', () => {
       Array.from(document.querySelectorAll('[data-audio-voice-section]')).map(
         (item) => item.getAttribute('data-audio-voice-section'),
       ),
-    ).toEqual(['mine', 'favorites', 'platform'])
-    // 平台段的行来自公开库，每条都能试听。
+    ).toEqual(['mine'])
+    // 平台整库那一段与它的搜索框都不在弹层里了。
     expect(
       document.querySelector('[data-audio-voice-row="fish_public"]'),
-    ).not.toBeNull()
-    expect(
-      document.querySelector('[data-audio-voice-preview="fish_public"]'),
-    ).not.toBeNull()
-    expect(document.querySelector('[data-audio-voice-library]')).not.toBeNull()
-    expect(document.querySelector('[data-audio-voice-clone]')).not.toBeNull()
+    ).toBeNull()
+    expect(document.querySelector('[data-audio-voice-search]')).toBeNull()
+    fireEvent.click(document.querySelector('[data-audio-voice-library]')!)
+    expect(onOpenLibrary).toHaveBeenCalled()
   })
 
-  it('一个搜索框覆盖四段：本地过我的与收藏，平台把词递给公开库', () => {
+  it('收起时读名字快照（⛔ 不显示 voiceId 哈希）', () => {
     render(
       <AudioVoiceChip
-        voiceId={undefined}
+        voiceId="fish_unknown_hash"
+        voiceName="Super Smash Bros. 4/Ultimate Announcer"
         speed={undefined}
         volume={undefined}
         onSelectVoice={vi.fn()}
         onSpeedChange={vi.fn()}
         onVolumeChange={vi.fn()}
+        onOpenLibrary={vi.fn()}
       />,
     )
-    fireEvent.click(document.querySelector('[data-audio-voice-chip]')!)
-    fireEvent.change(document.querySelector('[data-audio-voice-search]')!, {
-      target: { value: '莫宁' },
-    })
-    expect(setSearchSpy).toHaveBeenCalledWith('莫宁')
-    expect(
-      document.querySelector('[data-audio-voice-row="fish_morning"]'),
-    ).not.toBeNull()
-    // 收藏段被本地过滤空掉。
-    expect(
-      document.querySelector('[data-audio-voice-empty="favorites"]'),
-    ).not.toBeNull()
+    expect(document.querySelector('[data-audio-voice-chip]')!.textContent).toBe(
+      'Super Smash Bros. 4/Ultimate Announcer',
+    )
   })
 
   it('弹层底部是语速三档 + 音量滑杆（prosody，⛔ 不是标记）', () => {
@@ -580,11 +607,13 @@ describe('音色弹层', () => {
     render(
       <AudioVoiceChip
         voiceId="fish_morning"
+        voiceName="莫宁"
         speed={1}
         volume={0}
         onSelectVoice={vi.fn()}
         onSpeedChange={onSpeedChange}
         onVolumeChange={vi.fn()}
+        onOpenLibrary={vi.fn()}
       />,
     )
     fireEvent.click(document.querySelector('[data-audio-voice-chip]')!)
@@ -593,6 +622,135 @@ describe('音色弹层', () => {
       Array.from(steps).map((s) => s.getAttribute('data-audio-voice-speed')),
     ).toEqual(['0.8', '1', '1.2'])
     expect(screen.getByText('volume')).toBeInTheDocument()
+  })
+})
+
+/** Radix 的 DropdownMenu 认 `pointerdown`，⛔ 不是 click。 */
+function openMenu(selector: string) {
+  fireEvent.pointerDown(document.querySelector(selector)!, {
+    button: 0,
+    ctrlKey: false,
+  })
+}
+
+describe('S5c v2：+ 菜单 / ⋯ 菜单 / 转文字', () => {
+  const clip = (patch: Record<string, unknown> = {}) =>
+    harness(
+      [
+        audioNode('a_1', {
+          url: 'https://cdn.test/v.mp3',
+          durationSec: 7,
+          ...patch,
+        }),
+      ],
+      { selectedNodeIds: ['a_1'] },
+    )
+
+  it('+ 菜单四项：上传 ⌘U · 从素材库选… · 声音库… · @', () => {
+    renderAudio(clip(), 'a_1', true)
+    openMenu('[data-prompt-bar-add]')
+    expect(
+      Array.from(document.querySelectorAll('[data-audio-add]')).map((item) =>
+        item.getAttribute('data-audio-add'),
+      ),
+    ).toEqual(['upload', 'library', 'voices', 'mention'])
+  })
+
+  it('「声音库…」开 640 面板；面板的「用这段」落成一版并记来源，⛔ 不生成', () => {
+    generateNode.mockClear()
+    const context = clip()
+    renderAudio(context, 'a_1', true)
+    openMenu('[data-prompt-bar-add]')
+    fireEvent.click(document.querySelector('[data-audio-add="voices"]')!)
+    const use = document.querySelector('[data-voice-library-use]')
+    expect(document.querySelector('[data-node-chrome="frame"]')).not.toBeNull()
+    expect(use).not.toBeNull()
+    fireEvent.click(use!)
+    expect(context.onSetMedia).toHaveBeenCalledWith(
+      'a_1',
+      expect.objectContaining({
+        url: 'https://cdn.test/public.mp3',
+        source: expect.objectContaining({ kind: 'platformSample' }),
+      }),
+    )
+    expect(generateNode).not.toHaveBeenCalled()
+  })
+
+  it('面板的「设为音色」写 voiceProfile，⛔ 不落产物', () => {
+    const context = clip()
+    renderAudio(context, 'a_1', true)
+    openMenu('[data-prompt-bar-add]')
+    fireEvent.click(document.querySelector('[data-audio-add="voices"]')!)
+    fireEvent.click(document.querySelector('[data-voice-library-set-voice]')!)
+    expect(context.onApplyOp).toHaveBeenCalledWith({
+      op: NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
+      target: 'a_1',
+      profile: { voiceId: 'fish_public', voiceName: '西格莉卡' },
+    })
+  })
+
+  it('⋯ 菜单：改名 · 复制 · 拆出当前版本 · 归属角色 · 来源（只读）· 删除', () => {
+    const context = clip({
+      outputs: {
+        cur: 1,
+        versions: [
+          { id: 'ov_1', url: 'https://cdn.test/v0.mp3', createdAt: NOW },
+          {
+            id: 'ov_2',
+            url: 'https://cdn.test/v.mp3',
+            createdAt: NOW,
+            source: { kind: 'platformSample', label: '来自声音库 · 莫宁' },
+          },
+        ],
+      },
+    })
+    renderAudio(context, 'a_1', true)
+    openMenu('[data-toolbar-action="more"]')
+    expect(
+      Array.from(document.querySelectorAll('[data-audio-more]')).map((item) =>
+        item.getAttribute('data-audio-more'),
+      ),
+    ).toEqual(['rename', 'duplicate', 'split', 'owner', 'source', 'delete'])
+    // 来源是**这一版**的那一行只读小字。
+    expect(
+      document.querySelector('[data-audio-more="source"]')!.textContent,
+    ).toContain('来自声音库 · 莫宁')
+  })
+
+  it('只有一版时⛔ 不摆「拆出当前版本」', () => {
+    renderAudio(clip(), 'a_1', true)
+    openMenu('[data-toolbar-action="more"]')
+    expect(document.querySelector('[data-audio-more="split"]')).toBeNull()
+  })
+
+  it('转文字 = 派生一张文本卡并连线指回；转写中卡上走进度线', async () => {
+    transcribeSpy.mockResolvedValueOnce({ ok: true, text: '真正的告别' })
+    const context = clip()
+    renderAudio(context, 'a_1', true)
+    fireEvent.click(
+      document.querySelector('[data-toolbar-action="transcribe"]')!,
+    )
+    // 转写中：矮卡例外那条进度线（与生成中同一件）。
+    expect(document.querySelector('[data-audio-transcribing]')).not.toBeNull()
+    await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalled())
+    const ops = (context.onApplyBatch as ReturnType<typeof vi.fn>).mock
+      .calls[0]![0] as readonly Record<string, unknown>[]
+    expect(ops[0]).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+      kind: 'text',
+      subtype: 'script',
+    })
+    expect(ops[1]).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.setText,
+      body: '真正的告别',
+    })
+    expect(ops[2]).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.connect,
+      target: 'a_1',
+      slot: 'text',
+    })
+    // 转完自动选中新卡。
+    await waitFor(() => expect(context.onFocusNode).toHaveBeenCalledWith('t_1'))
   })
 })
 

@@ -214,3 +214,34 @@ describe('buildOutputsFromLegacy：迁移回填', () => {
     expect(buildOutputsFromLegacy(imageData())).toBeUndefined()
   })
 })
+
+describe('source：这一版从哪来（S5c，spec §4「用这段」）', () => {
+  it('带 source 的补丁把来源记在**这一版**上', () => {
+    const next = applyMediaPatchOutputs(
+      imageData(),
+      {
+        url: 'https://cdn/clip.mp3',
+        source: { kind: 'platformSample', label: '莫宁' },
+      },
+      mint,
+    )
+    expect(next.outputs?.versions[0]?.source).toEqual({
+      kind: 'platformSample',
+      label: '莫宁',
+    })
+  })
+
+  it('⛔ 不从上一版兜底：下一版没带 source 就是没有来源（它是生成出来的）', () => {
+    const one = appendOutputVersion(
+      imageData(),
+      {
+        url: 'https://cdn/clip.mp3',
+        source: { kind: 'library', label: '素材库 · 旁白' },
+      },
+      mint,
+    )
+    const two = appendOutputVersion(one, { url: 'https://cdn/gen.mp3' }, mint)
+    expect(two.outputs?.versions[0]?.source?.kind).toBe('library')
+    expect(two.outputs?.versions[1]?.source).toBeUndefined()
+  })
+})

@@ -3,7 +3,11 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 
 import type { GalleryResponse, GenerationRecord } from '@/types'
-import { clearGalleryCache } from '@/lib/gallery-cache'
+import {
+  clearGalleryCache,
+  makeGalleryCacheKey,
+  writeGalleryCache,
+} from '@/lib/gallery-cache'
 import { fetchGalleryImages } from '@/lib/api-client'
 
 import { useGallery, type GalleryFilters } from './use-gallery'
@@ -89,6 +93,53 @@ function deferred<T>() {
 }
 
 describe('useGallery', () => {
+  it('does not restore another account’s picker images', () => {
+    mockFetchGalleryImages.mockReturnValue(new Promise(() => {}))
+    writeGalleryCache(
+      makeGalleryCacheKey(DEFAULT_FILTERS, true, 2, 'picker:a'),
+      {
+        generations: [generation('private-a')],
+        total: 1,
+        hasMore: false,
+        nextCursor: null,
+      },
+    )
+    const { result } = renderHook(
+      () => useGallery({ mine: true, limit: 2, cacheScope: 'picker:b' }),
+      { wrapper },
+    )
+    expect(result.current.generations).toEqual([])
+    expect(result.current.hasLoaded).toBe(false)
+  })
+
+  it('reopening a picker immediately shows cached images and refreshes them in place', async () => {
+    const pending = deferred<GalleryResponse>()
+    mockFetchGalleryImages.mockReturnValue(pending.promise)
+    writeGalleryCache(makeGalleryCacheKey(DEFAULT_FILTERS, true, 2), {
+      generations: [generation('cached')],
+      total: 1,
+      hasMore: false,
+      nextCursor: null,
+    })
+    const { result } = renderHook(() => useGallery({ mine: true, limit: 2 }), {
+      wrapper,
+    })
+    expect(result.current.generations.map((item) => item.id)).toEqual([
+      'cached',
+    ])
+    act(() => result.current.setFilters(DEFAULT_FILTERS))
+    expect(result.current.generations.map((item) => item.id)).toEqual([
+      'cached',
+    ])
+    expect(result.current.isLoading).toBe(false)
+    await act(async () => pending.resolve(response([generation('new')], 1)))
+    await waitFor(() =>
+      expect(result.current.generations.map((item) => item.id)).toEqual([
+        'new',
+      ]),
+    )
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     clearGalleryCache()

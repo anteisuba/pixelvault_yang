@@ -22,6 +22,7 @@ export async function fetchGalleryImages(
     liked?: boolean
     published?: boolean
     mine?: boolean
+    includeTotal?: boolean
     /**
      * Project scope: a project UUID, the literal "none" for unassigned
      * generations only, or omit/empty for all projects.
@@ -48,6 +49,7 @@ export async function fetchGalleryImages(
     if (filters?.liked) params.set('liked', '1')
     if (filters?.published) params.set('published', '1')
     if (filters?.mine) params.set('mine', '1')
+    if (filters?.includeTotal === false) params.set('includeTotal', '0')
     if (filters?.projectId) params.set('projectId', filters.projectId)
     if (filters?.provider) params.set('provider', filters.provider)
 

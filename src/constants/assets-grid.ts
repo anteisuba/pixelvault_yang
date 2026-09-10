@@ -126,6 +126,7 @@ export const BULK_MOVE_UNDO_DURATION_MS = 6000
  * justified 的，一屏张数随密度与视口变；这个值只决定一次请求的粒度。
  */
 export const ASSET_BROWSER_PAGE_SIZE = 24
+export const ASSET_PICKER_CACHE_TTL_MS = 30_000
 
 /**
  * 视频瓦片提前多远挂 `<video>`（`IntersectionObserver` 的 `rootMargin`）。

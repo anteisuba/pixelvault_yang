@@ -58,6 +58,8 @@ interface UseGalleryOptions {
   limit?: number
   /** When true, fetches current user's own generations (including private) */
   mine?: boolean
+  cacheScope?: string
+  includeTotal?: boolean
   /**
    * When true, `setFilters` will keep the previous list / total visible
    * until the new fetch resolves, instead of clearing them to 0 / [].
@@ -71,6 +73,7 @@ export interface UseGalleryReturn {
   generations: GenerationRecord[]
   total: number
   isLoading: boolean
+  hasLoaded: boolean
   hasMore: boolean
   /** 首屏/换筛选失败 —— 整页错误态。 */
   error: string | null
@@ -128,15 +131,42 @@ export function useGallery({
   initialFilters,
   limit = PAGINATION.DEFAULT_LIMIT,
   mine = false,
+  cacheScope,
+  includeTotal = true,
   keepPreviousOnFilterChange = false,
 }: UseGalleryOptions = {}): UseGalleryReturn {
   const tErrors = useTranslations('Errors')
-  const [generations, setGenerations] =
-    useState<GenerationRecord[]>(initialGenerations)
-  const [total, setTotal] = useState(initialTotal)
+  const [initialSnapshot] = useState(() => {
+    const cached =
+      initialGenerations.length === 0 && initialPage === 1
+        ? readGalleryCache(
+            makeGalleryCacheKey(
+              { ...DEFAULT_FILTERS, ...initialFilters },
+              mine,
+              limit,
+              cacheScope,
+            ),
+          )
+        : undefined
+    return (
+      cached ?? {
+        generations: initialGenerations,
+        total: initialTotal,
+        hasMore: initialHasMore,
+        nextCursor: initialNextCursor,
+      }
+    )
+  })
+  const [hasLoaded, setHasLoaded] = useState(
+    initialSnapshot.generations.length > 0 || initialSnapshot.total > 0,
+  )
+  const [generations, setGenerations] = useState(initialSnapshot.generations)
+  const [total, setTotal] = useState(initialSnapshot.total)
   const [page, setPage] = useState(initialPage)
-  const [hasMore, setHasMore] = useState(initialHasMore)
-  const [nextCursor, setNextCursor] = useState<string | null>(initialNextCursor)
+  const [hasMore, setHasMore] = useState(initialSnapshot.hasMore)
+  const [nextCursor, setNextCursor] = useState<string | null>(
+    initialSnapshot.nextCursor,
+  )
   const [error, setError] = useState<string | null>(null)
   const [appendError, setAppendError] = useState<string | null>(null)
   const [isFetching, setIsFetching] = useState(false)
@@ -147,13 +177,13 @@ export function useGallery({
   })
   const sentinelRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef(initialPage)
-  const totalRef = useRef(initialTotal)
-  const hasMoreRef = useRef(initialHasMore)
-  const nextCursorRef = useRef(initialNextCursor)
+  const totalRef = useRef(initialSnapshot.total)
+  const hasMoreRef = useRef(initialSnapshot.hasMore)
+  const nextCursorRef = useRef(initialSnapshot.nextCursor)
   const isFetchingRef = useRef(false)
   const requestIdRef = useRef(0)
   const filtersRef = useRef(filters)
-  const generationsRef = useRef(initialGenerations)
+  const generationsRef = useRef(initialSnapshot.generations)
   // Seed the module-level gallery cache once with the SSR snapshot so
   // flipping away from the initial filter and back lands on a cache hit
   // instead of refetching the data the page already shipped with. Lazy
@@ -173,7 +203,7 @@ export function useGallery({
     seedRef.current = true
     if (initialGenerations.length > 0 || initialTotal > 0) {
       const initial = { ...DEFAULT_FILTERS, ...initialFilters }
-      writeGalleryCache(makeGalleryCacheKey(initial, mine, limit), {
+      writeGalleryCache(makeGalleryCacheKey(initial, mine, limit, cacheScope), {
         generations: initialGenerations,
         total: initialTotal,
         hasMore: initialHasMore,
@@ -209,10 +239,8 @@ export function useGallery({
   const fetchPage = useCallback(
     /**
      * @param silent When true, the fetch runs entirely in the background:
-     *               it doesn't toggle `isFetching` and doesn't replace the
-     *               currently-visible list. The cache is still updated so
-     *               the next switch back gets the latest data. Used for
-     *               stale-while-revalidate after a cache hit.
+     *               it keeps cached images visible until fresh data arrives.
+     *               A list that has already paginated is not replaced.
      */
     async (
       targetPage: number,
@@ -238,6 +266,7 @@ export function useGallery({
           liked: f.liked || undefined,
           published: f.published || undefined,
           mine,
+          ...(includeTotal ? {} : { includeTotal: false }),
           projectId: f.projectId || undefined,
           provider: f.provider || undefined,
         }
@@ -251,6 +280,7 @@ export function useGallery({
         if (requestId !== requestIdRef.current) return
 
         if (response.success && response.data) {
+          setHasLoaded(true)
           const fresh = response.data.generations ?? []
           const freshTotal = response.data.total ?? totalRef.current
           const freshHasMore = response.data.hasMore ?? false
@@ -261,7 +291,7 @@ export function useGallery({
           // doesn't replace what the cache holds for instant switch-back.
           if (targetPage === 1) {
             writeGalleryCache(
-              makeGalleryCacheKey(filtersRef.current, mine, limit),
+              makeGalleryCacheKey(filtersRef.current, mine, limit, cacheScope),
               {
                 generations: fresh,
                 total: freshTotal,
@@ -272,12 +302,7 @@ export function useGallery({
           }
 
           if (append) setAppendError(null)
-          if (opts?.silent) {
-            // Silent revalidate: keep React state untouched so we don't
-            // interrupt scrolling / load-more in progress. Cache is the
-            // source of truth for the next visit.
-            setError(null)
-          } else {
+          if (!opts?.silent || pageRef.current === 1) {
             pageRef.current = response.data?.page ?? targetPage
             totalRef.current = freshTotal
             hasMoreRef.current = freshHasMore
@@ -330,9 +355,12 @@ export function useGallery({
     [
       limit,
       mine,
+      cacheScope,
+      includeTotal,
       startTransition,
       tErrors,
       setIsFetching,
+      setHasLoaded,
       setError,
       setAppendError,
       setGenerations,
@@ -364,7 +392,7 @@ export function useGallery({
       pageRef.current = 1
       setPage(1)
 
-      const key = makeGalleryCacheKey(newFilters, mine, limit)
+      const key = makeGalleryCacheKey(newFilters, mine, limit, cacheScope)
       const cached = readGalleryCache(key)
 
       if (cached) {
@@ -408,6 +436,7 @@ export function useGallery({
     [
       fetchPage,
       keepPreviousOnFilterChange,
+      cacheScope,
       limit,
       mine,
       startTransition,
@@ -492,14 +521,17 @@ export function useGallery({
       totalRef.current = nextTotal
       setGenerations(next)
       setTotal(nextTotal)
-      writeGalleryCache(makeGalleryCacheKey(filtersRef.current, mine, limit), {
-        generations: next.slice(0, limit),
-        total: nextTotal,
-        hasMore: hasMoreRef.current,
-        nextCursor: nextCursorRef.current,
-      })
+      writeGalleryCache(
+        makeGalleryCacheKey(filtersRef.current, mine, limit, cacheScope),
+        {
+          generations: next.slice(0, limit),
+          total: nextTotal,
+          hasMore: hasMoreRef.current,
+          nextCursor: nextCursorRef.current,
+        },
+      )
     },
-    [limit, mine, setGenerations, setTotal],
+    [limit, mine, cacheScope, setGenerations, setTotal],
   )
 
   const updateGeneration = useCallback(
@@ -517,6 +549,7 @@ export function useGallery({
     generations,
     total,
     isLoading: isFetching || isPending,
+    hasLoaded,
     hasMore,
     error,
     appendError,

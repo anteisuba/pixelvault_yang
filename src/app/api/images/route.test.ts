@@ -36,6 +36,7 @@ const mockEnsureUser = vi.mocked(ensureUser)
 describe('GET /api/images', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockUnauthenticated()
     mockGetPublicPage.mockResolvedValue({
       generations: [FAKE_GENERATION as never],
       total: 1,
@@ -48,6 +49,16 @@ describe('GET /api/images', () => {
       hasMore: false,
       nextCursor: null,
     })
+  })
+
+  it('passes the picker count opt-out without weakening owner scoping', async () => {
+    mockAuthenticated()
+    mockEnsureUser.mockResolvedValue(FAKE_DB_USER as never)
+    const res = await GET(createGET('/api/images?mine=1&includeTotal=0'))
+    expect(res.status).toBe(200)
+    expect(mockGetPublicPage).toHaveBeenCalledWith(
+      expect.objectContaining({ userId: FAKE_DB_USER.id, includeTotal: false }),
+    )
   })
 
   it('returns public generations with default pagination', async () => {

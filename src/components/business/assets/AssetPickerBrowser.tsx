@@ -8,6 +8,7 @@ import {
   Search,
   UploadCloud,
 } from 'lucide-react'
+import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
 
 import { AssetTile } from '@/components/business/assets/AssetTile'
@@ -38,17 +39,12 @@ import {
   useAssetGridViewport,
   useJustifiedGrid,
 } from '@/hooks/use-justified-grid'
-import { useProjects } from '@/hooks/use-projects'
-import { fetchAssetSectionCounts } from '@/lib/api-client/gallery'
+import { useAssetPickerNavigation } from '@/hooks/use-asset-picker-navigation'
 import { uploadImageFileAPI } from '@/lib/api-client/generation'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import { prepareImageUpload } from '@/lib/prepare-image-upload'
 import { toLayoutAspectRatio } from '@/lib/justified-layout'
-import type {
-  AssetSectionCounts,
-  GenerationRecord,
-  OutputTypeValue,
-} from '@/types'
+import type { GenerationRecord, OutputTypeValue } from '@/types'
 
 /**
  * picker 的**任务型 shell** —— `docs/references/pages/assets.md` §8。
@@ -103,8 +99,20 @@ function readRecentFolders(): string[] {
   }
 }
 
-export function AssetPickerBrowser({
+export function AssetPickerBrowser(props: AssetPickerBrowserProps) {
+  const { userId } = useAuth()
+  return (
+    <AssetPickerBrowserContent
+      key={userId ?? 'anonymous'}
+      {...props}
+      cacheScope={`picker:${userId ?? 'anonymous'}`}
+    />
+  )
+}
+
+function AssetPickerBrowserContent({
   mode,
+  cacheScope,
   mediaType,
   maxSelection,
   initialGenerations = [],
@@ -115,7 +123,7 @@ export function AssetPickerBrowser({
   onConfirmMany,
   onCancel,
   title,
-}: AssetPickerBrowserProps) {
+}: AssetPickerBrowserProps & { cacheScope: string }) {
   const t = useTranslations('AssetsPage')
   const tErrors = useTranslations('Errors')
   const viewport = useAssetGridViewport()
@@ -138,13 +146,11 @@ export function AssetPickerBrowser({
   const [recentFolders, setRecentFolders] = useState<string[]>(() =>
     readRecentFolders(),
   )
-  const [counts, setCounts] = useState<AssetSectionCounts | null>(null)
-
-  const { projects } = useProjects({ loadHistoryOnMount: false })
 
   const {
     generations,
     isLoading,
+    hasLoaded,
     hasMore,
     sentinelRef,
     filters,
@@ -157,8 +163,16 @@ export function AssetPickerBrowser({
     initialNextCursor,
     initialFilters: { types: mediaType ? [mediaType] : [] },
     mine: true,
+    includeTotal: false,
+    cacheScope,
     limit: ASSET_BROWSER_PAGE_SIZE,
   })
+
+  const { projects, counts, refreshCounts } = useAssetPickerNavigation(
+    cacheScope,
+    mediaType,
+    hasLoaded,
+  )
 
   const toggleNav = useCallback(() => {
     setNavOpen((prev) => {
@@ -173,14 +187,6 @@ export function AssetPickerBrowser({
       return !prev
     })
   }, [])
-
-  useEffect(() => {
-    void fetchAssetSectionCounts(mediaType ? [mediaType] : []).then(
-      (response) => {
-        if (response.success) setCounts(response.data)
-      },
-    )
-  }, [mediaType])
 
   // 没有 SSR 数据，挂载后主动取第一页。
   useEffect(() => {
@@ -279,9 +285,19 @@ export function AssetPickerBrowser({
         }
       } finally {
         setIsUploading(false)
+        void refreshCounts()
       }
     },
-    [mode, onSelect, prependGeneration, scope, t, tErrors, toggleSelection],
+    [
+      mode,
+      onSelect,
+      prependGeneration,
+      refreshCounts,
+      scope,
+      t,
+      tErrors,
+      toggleSelection,
+    ],
   )
 
   // mediaType 锁：**不进候选**（不是灰掉）。引擎已按类型过滤，这里再兜一层，

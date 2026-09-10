@@ -44,6 +44,7 @@ export function makeGalleryCacheKey(
   filters: GalleryFilterShape,
   mine: boolean,
   limit: number,
+  scope?: string,
 ): string {
   // Explicit field order so JSON.stringify is stable across callers.
   // 多选分面先排序再入键 —— 勾选顺序不同但集合相同的两次筛选，必须命中
@@ -57,9 +58,10 @@ export function makeGalleryCacheKey(
     l: filters.liked,
     published: filters.published,
     p: filters.projectId,
-    provider: filters.provider,
+    provider: filters.provider || '',
     mine,
     limit,
+    scope,
   })
 }
 

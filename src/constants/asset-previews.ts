@@ -20,7 +20,10 @@ export function getAudioAssetPreviewImage(
     const voicePreview = AUDIO_ASSET_PREVIEW_IMAGES_BY_VOICE_ID[voiceId]
     if (voicePreview) return voicePreview
 
-    if (modelId === AI_MODELS.FISH_AUDIO_S2_PRO) {
+    if (
+      modelId === AI_MODELS.FISH_AUDIO_S2_PRO ||
+      modelId === AI_MODELS.FISH_AUDIO_S2_PRO_FREE
+    ) {
       return `${AI_PROVIDER_ENDPOINTS.FISH_AUDIO_ASSETS}/coverimage/${voiceId}`
     }
   }

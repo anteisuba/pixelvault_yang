@@ -99,6 +99,7 @@ function mockGalleryState(
     generations: [],
     total: 0,
     isLoading: false,
+    hasLoaded: true,
     hasMore: false,
     error: null,
     appendError: null,

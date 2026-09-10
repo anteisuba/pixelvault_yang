@@ -12,6 +12,7 @@ import { ensureUser } from '@/services/user.service'
 
 const GalleryRequestSchema = GallerySearchSchema.extend({
   mine: z.enum(['1']).optional(),
+  includeTotal: z.enum(['0', '1']).optional(),
 })
 
 export const GET = createApiGetRoute<
@@ -62,7 +63,8 @@ export const GET = createApiGetRoute<
         }
       }
 
-      const canUseAnonymousCache = !userId && !likedByUserId && !viewerUserId
+      const canUseAnonymousCache =
+        !userId && !likedByUserId && !viewerUserId && data.includeTotal !== '0'
 
       const page = canUseAnonymousCache
         ? await getAnonymousPublicGalleryPage({
@@ -92,6 +94,7 @@ export const GET = createApiGetRoute<
             viewerUserId,
             projectId: data.projectId,
             provider: data.provider,
+            includeTotal: data.includeTotal !== '0',
           })
 
       return {

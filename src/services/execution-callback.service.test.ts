@@ -215,6 +215,42 @@ describe('execution-callback.service', () => {
     expect(mockCompleteGenerationJob).not.toHaveBeenCalled()
   })
 
+  it('stores image previews without losing metadata or allowing a terminal overwrite', async () => {
+    const metadata = { outputType: 'IMAGE', futureField: { keep: true } }
+    const externalRequestId = JSON.stringify(metadata)
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      externalRequestId,
+    })
+    await handleExecutionCallback({
+      ...buildPayload('status'),
+      data: { previewUrl: 'https://cdn.example.com/partial.png' },
+    })
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'job-1',
+        status: { in: ['QUEUED', 'RUNNING'] },
+        externalRequestId,
+      },
+      data: {
+        externalRequestId: JSON.stringify({
+          ...metadata,
+          previewUrl: 'https://cdn.example.com/partial.png',
+        }),
+      },
+    })
+    mockUpdateMany.mockClear()
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('COMPLETED'),
+      externalRequestId,
+    })
+    await handleExecutionCallback({
+      ...buildPayload('status'),
+      data: { previewUrl: 'https://cdn.example.com/late.png' },
+    })
+    expect(mockUpdateMany).not.toHaveBeenCalled()
+  })
+
   it('persists providerJobId from a status callback for a non-terminal job', async () => {
     mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
 

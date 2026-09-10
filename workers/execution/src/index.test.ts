@@ -3,6 +3,9 @@ import { deflateRawSync } from 'node:zlib'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  CinematicShortVideoWorkflow,
+  submitGeminiVideoQueue,
+  pollGeminiVideoQueue,
   buildFalImageInput,
   bytesToBase64,
   cancelProviderJob,
@@ -12,6 +15,7 @@ import {
   decryptStateString,
   encryptStateString,
   generateNovelAiImage,
+  generateOpenAIImage,
   hexToBytes,
   isCallbackKind,
   isImageResolutionTier,
@@ -47,6 +51,199 @@ afterEach(() => {
 })
 
 type EncryptEnv = Parameters<typeof encryptStateString>[1]
+
+describe('Gemini Omni video execution', () => {
+  const fileUrl =
+    'https://generativelanguage.googleapis.com/v1beta/files/video-1'
+  function context() {
+    return parseWorkerRunContext(
+      makeVideoInput({
+        providerId: 'gemini',
+        providerInput: {
+          externalModelId: 'gemini-omni-1.1-flash',
+          referenceImages: ['data:image/png;base64,cmVm'],
+          outputStorageKey: 'video/test.mp4',
+          duration: 8,
+        },
+      }),
+    )!
+  }
+  function interaction(uri = `${fileUrl}:download?alt=media`) {
+    return {
+      id: 'interaction-1',
+      status: 'completed',
+      steps: [{ type: 'model_output', content: [{ type: 'video', uri }] }],
+    }
+  }
+  it('submits image references through Interactions and persists only file metadata', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(Response.json(interaction()))
+    vi.stubGlobal('fetch', fetchMock)
+    const queue = await submitGeminiVideoQueue(
+      context(),
+      'test-key',
+      {} as Parameters<typeof submitGeminiVideoQueue>[2],
+    )
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body).toMatchObject({
+      model: 'gemini-omni-1.1-flash',
+      background: false,
+      store: false,
+      input: [
+        { type: 'image', mime_type: 'image/png', data: 'cmVm' },
+        { type: 'text', text: 'a cat' },
+      ],
+      response_format: {
+        type: 'video',
+        delivery: 'uri',
+        aspect_ratio: '16:9',
+        resolution: '720p',
+      },
+    })
+    expect(body).not.toHaveProperty('video_config')
+    expect(queue).toEqual({
+      requestId: 'interaction-1',
+      statusUrl: fileUrl,
+      responseUrl: `${fileUrl}:download?alt=media`,
+    })
+    expect(JSON.stringify(queue)).not.toContain('test-key')
+  })
+  it('rejects a foreign file URI before any authenticated download', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json(interaction('https://example.com/v1beta/files/evil')),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(
+      submitGeminiVideoQueue(
+        context(),
+        'test-key',
+        {} as Parameters<typeof submitGeminiVideoQueue>[2],
+      ),
+    ).rejects.toThrow('invalid video file URI')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+  it('does not treat a response with no video as a successful generation', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi
+        .fn()
+        .mockResolvedValue(
+          Response.json({ id: 'blocked', status: 'completed', steps: [] }),
+        ),
+    )
+    await expect(
+      submitGeminiVideoQueue(
+        context(),
+        'test-key',
+        {} as Parameters<typeof submitGeminiVideoQueue>[2],
+      ),
+    ).rejects.toMatchObject({ errorCode: 'provider_no_output' })
+  })
+  it.each([
+    ['PROCESSING', 'IN_PROGRESS'],
+    ['FAILED', 'FAILED'],
+    ['ACTIVE', 'COMPLETED'],
+  ])('maps file state %s to %s', async (state, status) => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ state })))
+    expect(
+      await pollGeminiVideoQueue(
+        {
+          requestId: 'id',
+          statusUrl: fileUrl,
+          responseUrl: `${fileUrl}:download?alt=media`,
+        },
+        'test-key',
+      ),
+    ).toMatchObject({ status })
+  })
+  it.each([false, true])(
+    'runs generation through R2 without persisting keys or forwarding them to media redirects (redirect: %s)',
+    async (redirect) => {
+      const put = vi.fn().mockResolvedValue(undefined)
+      const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+        if (url === 'https://resolve.example.com')
+          return Response.json({ success: true, data: { apiKey: 'test-key' } })
+        if (url === 'https://cb.example.com')
+          return Response.json({ success: true })
+        if (url.endsWith('/interactions')) return Response.json(interaction())
+        if (url === fileUrl) return Response.json({ state: 'ACTIVE' })
+        if (url === `${fileUrl}:download?alt=media`) {
+          expect(init?.headers).toMatchObject({ 'x-goog-api-key': 'test-key' })
+          expect(init?.redirect).toBe('manual')
+          if (redirect)
+            return new Response(null, {
+              status: 302,
+              headers: { location: 'https://media.example.com/signed-video' },
+            })
+          return new Response(new Uint8Array([1, 2, 3]), {
+            headers: { 'content-type': 'video/mp4' },
+          })
+        }
+        if (url === 'https://media.example.com/signed-video') {
+          expect(init?.headers).toBeUndefined()
+          return new Response(new Uint8Array([1, 2, 3]), {
+            headers: { 'content-type': 'video/mp4' },
+          })
+        }
+        throw new Error(`Unexpected fetch: ${url}`)
+      })
+      vi.stubGlobal('fetch', fetchMock)
+      class TestWorkflow extends CinematicShortVideoWorkflow {
+        setEnv(env: Parameters<typeof submitGeminiVideoQueue>[2]) {
+          this.env = env
+        }
+      }
+      const workflow = new TestWorkflow()
+      workflow.setEnv({
+        INTERNAL_CALLBACK_SECRET: 'test-secret',
+        STATE_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+        R2_PUBLIC_URL: 'https://cdn.example.com',
+        GENERATION_BUCKET: { put },
+      } as unknown as Parameters<typeof submitGeminiVideoQueue>[2])
+      const stepResults: unknown[] = []
+      const doStep = vi.fn(async (_name: string, ...args: unknown[]) => {
+        const callback = args[args.length - 1] as () => Promise<unknown>
+        const result = await callback()
+        stepResults.push(result)
+        return result
+      })
+      const result = await workflow.run(
+        { payload: context(), instanceId: 'instance-1' } as Parameters<
+          typeof workflow.run
+        >[0],
+        { do: doStep, sleep: vi.fn() } as unknown as Parameters<
+          typeof workflow.run
+        >[1],
+      )
+      expect(result).toMatchObject({ status: 'COMPLETED' })
+      expect(put).toHaveBeenCalledWith(
+        'video/test.mp4',
+        expect.any(ArrayBuffer),
+        { httpMetadata: { contentType: 'video/mp4' } },
+      )
+      const callbackBodies = fetchMock.mock.calls
+        .filter(([url]) => url === 'https://cb.example.com')
+        .map(([, init]) => JSON.parse(init!.body as string))
+      expect(callbackBodies).toContainEqual(
+        expect.objectContaining({
+          kind: 'result',
+          data: expect.objectContaining({
+            videoR2Key: 'video/test.mp4',
+            artifactUrl: 'https://cdn.example.com/video/test.mp4',
+          }),
+        }),
+      )
+      expect(
+        callbackBodies.find((entry) => entry.kind === 'result').data,
+      ).not.toHaveProperty('duration')
+      expect(JSON.stringify(stepResults)).not.toContain('test-key')
+      expect(
+        doStep.mock.calls.find(([name]) => name === 'submit-provider')?.[1],
+      ).toMatchObject({ retries: { limit: 0 } })
+    },
+  )
+})
 
 function makeVideoInput(overrides: Record<string, unknown> = {}) {
   return {
@@ -1959,5 +2156,85 @@ describe('provider submit reports providerJobId', () => {
       ),
     ).toBe(false)
     expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('OpenAI image streaming execution', () => {
+  it('sends 2.5 settings, reports partials and persists only the final image as the result', async () => {
+    const put = vi.fn().mockResolvedValue(undefined)
+    const env = {
+      GENERATION_BUCKET: { put },
+      R2_PUBLIC_URL: 'https://cdn.example.com',
+      INTERNAL_CALLBACK_SECRET: 'test-secret',
+    } as unknown as Parameters<typeof generateOpenAIImage>[0]
+    const context = {
+      workflowId: 'IMAGE_QUEUE',
+      outputType: 'IMAGE',
+      providerId: 'openai',
+      resolveKeyUrl: 'https://app.example.com/key',
+      timeoutMs: 300000,
+      maxAttempts: 1,
+      pollIntervalMs: 1000,
+      runId: 'image-test',
+      callbackUrl: 'https://app.example.com/callback',
+      providerInput: {
+        modelId: 'gpt-image-2.5-flare',
+        externalModelId: 'gpt-image-2.5-flare',
+        prompt: 'a cat',
+        aspectRatio: '1:1',
+        advancedParams: {
+          quality: 'max',
+          background: 'transparent',
+          resolution: '2K',
+          preview: true,
+        },
+      },
+    } as Parameters<typeof generateOpenAIImage>[1]
+    const frames = [
+      {
+        type: 'image_generation.partial_image',
+        b64_json: 'cHJldmlldw==',
+        partial_image_index: 0,
+      },
+      { type: 'image_generation.completed', b64_json: 'ZmluYWw=' },
+    ]
+      .map((event) => `data: ${JSON.stringify(event)}\n\n`)
+      .join('')
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(frames, {
+          headers: { 'Content-Type': 'text/event-stream' },
+        }),
+      )
+      .mockResolvedValue(new Response('{}'))
+    vi.stubGlobal('fetch', fetchMock)
+    const result = await generateOpenAIImage(env, context, 'test-key')
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body).toMatchObject({
+      stream: true,
+      partial_images: 2,
+      quality: 'max',
+      background: 'transparent',
+      size: '2048x2048',
+      output_format: 'png',
+    })
+    expect(put).toHaveBeenNthCalledWith(
+      1,
+      'image/previews/image-test/0.png',
+      expect.any(Uint8Array),
+      expect.any(Object),
+    )
+    expect(result.artifactUrl).toBe(
+      'https://cdn.example.com/image/image-test.png',
+    )
+    expect(new TextDecoder().decode(put.mock.calls[1][1])).toBe('final')
+    const callback = JSON.parse(fetchMock.mock.calls[1][1].body)
+    expect(callback).toMatchObject({
+      kind: 'status',
+      data: {
+        previewUrl: 'https://cdn.example.com/image/previews/image-test/0.png',
+      },
+    })
   })
 })

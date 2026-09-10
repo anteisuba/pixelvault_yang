@@ -1,9 +1,8 @@
 /**
  * Minimal stand-in for the `cloudflare:workers` runtime module so plain
  * Node/vitest can resolve `index.ts`'s `WorkflowEntrypoint` import without a
- * miniflare/workerd runtime. Only the pure helper functions in index.ts are
- * under test here — the workflow classes that actually extend this are not
- * exercised, so the stub only needs to be a valid base class.
+ * miniflare/workerd runtime. Workflow tests supply in-memory env and step doubles; this stub only
+ * supplies the base class, not durable execution semantics.
  */
 export class WorkflowEntrypoint<Env = unknown, Params = unknown> {
   env!: Env

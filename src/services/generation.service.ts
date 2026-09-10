@@ -121,6 +121,7 @@ export interface ListGenerationsOptions {
 }
 
 export interface GalleryQueryOptions {
+  includeTotal?: boolean
   page?: number
   limit?: number
   cursor?: string
@@ -824,7 +825,8 @@ export async function getPublicGenerations(
 export async function getPublicGenerationPage(
   options: GalleryQueryOptions = {},
 ): Promise<GalleryGenerationPage> {
-  const shouldFetchTotal = !decodeGalleryCursor(options.cursor)
+  const shouldFetchTotal =
+    options.includeTotal !== false && !decodeGalleryCursor(options.cursor)
   const [page, total] = await Promise.all([
     getPublicGenerationSlice(options),
     shouldFetchTotal
@@ -1290,9 +1292,8 @@ export async function countUserGenerationsByType(
 }
 
 /**
- * Aggregate counts powering the /assets right-sidebar. One round-trip per
- * dimension (type, project, favorites) instead of one count per sidebar
- * item — keeps the sidebar honest at any scale.
+ * Aggregate counts powering the /assets right-sidebar with one grouped
+ * dimension query and one favorites count.
  *
  * `byProject` is keyed by project UUID; `unassigned` is the projectId=null
  * bucket pulled out of the same groupBy.
@@ -1310,37 +1311,21 @@ export async function getAssetSectionCounts(
     ? { outputType: { in: outputTypes } }
     : {}
 
-  const [byType, byProject, byModel, favorites, published] = await Promise.all([
+  const [groups, favorites] = await Promise.all([
     db.generation.groupBy({
-      by: ['outputType'],
+      by: ['outputType', 'projectId', 'model', 'isPublic'],
       where: { userId },
-      _count: { _all: true },
-    }),
-    db.generation.groupBy({
-      by: ['projectId'],
-      where: { userId, ...typeScope },
-      _count: { _all: true },
-    }),
-    // 「模型」分面的选项表 —— 只有库存聚合知道用户实际用过哪些模型
-    // （模型目录里有几十个，库里实测只出现 23 种）。跟着类型口径走，
-    // 这样切到「只看视频」时模型下拉里不会还挂着一堆图像模型。
-    db.generation.groupBy({
-      by: ['model'],
-      where: { userId, ...typeScope },
       _count: { _all: true },
     }),
     db.generation.count({
       where: { userId, likes: { some: { userId } }, ...typeScope },
-    }),
-    db.generation.count({
-      where: { userId, isPublic: true, ...typeScope },
     }),
   ])
 
   const counts: AssetSectionCounts = {
     all: 0,
     favorites,
-    published,
+    published: 0,
     image: 0,
     video: 0,
     audio: 0,
@@ -1350,30 +1335,23 @@ export async function getAssetSectionCounts(
     byModel: {},
   }
 
-  for (const row of byType) {
+  for (const row of groups) {
     const n = row._count._all
-    if (row.outputType === 'IMAGE') counts.image = n
-    else if (row.outputType === 'VIDEO') counts.video = n
-    else if (row.outputType === 'AUDIO') counts.audio = n
-    else if (row.outputType === 'MODEL_3D') counts.model_3d = n
-  }
+    if (row.outputType === 'IMAGE') counts.image += n
+    else if (row.outputType === 'VIDEO') counts.video += n
+    else if (row.outputType === 'AUDIO') counts.audio += n
+    else if (row.outputType === 'MODEL_3D')
+      counts.model_3d = (counts.model_3d ?? 0) + n
 
-  // "All" reflects the active type scope: the selected types' total, or the
-  // grand total across every type when unscoped.
-  counts.all = outputTypes.length
-    ? byType
-        .filter((row) => outputTypes.includes(row.outputType))
-        .reduce((sum, row) => sum + row._count._all, 0)
-    : counts.image + counts.video + counts.audio + (counts.model_3d ?? 0)
-
-  for (const row of byProject) {
-    const n = row._count._all
-    if (row.projectId === null) counts.unassigned = n
-    else counts.byProject[row.projectId] = n
-  }
-
-  for (const row of byModel) {
-    if (row.model) counts.byModel[row.model] = row._count._all
+    if (outputTypes.length && !outputTypes.includes(row.outputType)) continue
+    counts.all += n
+    if (row.isPublic) counts.published += n
+    if (row.projectId === null) counts.unassigned += n
+    else
+      counts.byProject[row.projectId] =
+        (counts.byProject[row.projectId] ?? 0) + n
+    if (row.model)
+      counts.byModel[row.model] = (counts.byModel[row.model] ?? 0) + n
   }
 
   return counts

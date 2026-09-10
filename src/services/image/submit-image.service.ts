@@ -468,7 +468,12 @@ export async function checkImageGenerationStatus(
     return { jobId: job.id, status: 'CANCELLED' }
   }
 
-  return { jobId: job.id, status: 'IN_PROGRESS' }
+  const metadata = parseWorkerJobMetadata(job.externalRequestId)
+  return {
+    jobId: job.id,
+    status: 'IN_PROGRESS',
+    ...(metadata?.previewUrl ? { previewUrl: metadata.previewUrl } : {}),
+  }
 }
 
 export async function waitForImageGenerationResult(

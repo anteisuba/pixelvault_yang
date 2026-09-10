@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { getCapabilityConfig } from '@/constants/provider-capabilities'
+
 import { API_USAGE, FREE_TIER } from '@/constants/config'
 import { getModelById, type ModelOption } from '@/constants/models'
 import {
@@ -431,6 +433,25 @@ export async function resolveImageRouteAndValidate(
     modelId: effectiveModelId,
   })
 
+  if (resolvedRoute.adapterType === AI_ADAPTER_TYPES.OPENAI) {
+    const config = getCapabilityConfig(
+      resolvedRoute.adapterType,
+      effectiveModelId,
+    )
+    for (const [field, options] of [
+      ['quality', config.qualityOptions],
+      ['background', config.backgroundOptions],
+    ] as const) {
+      const value = input.advancedParams?.[field]
+      if (value !== undefined && !options?.includes(value)) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          `Unsupported ${field} for the selected model`,
+          400,
+        )
+      }
+    }
+  }
   const builtInModel = getModelByIdFn(effectiveModelId)
   const refCount =
     input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)

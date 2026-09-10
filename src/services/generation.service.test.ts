@@ -511,6 +511,21 @@ describe('generation.service', () => {
       )
     })
 
+    it('returns picker images without waiting for a total count', async () => {
+      mockGenerationFindMany.mockResolvedValue([
+        { ...BASE_GENERATION, id: 'picker-image' },
+      ])
+      mockGenerationCount.mockImplementation(() => new Promise(() => {}))
+      const result = await getPublicGenerationPage({
+        userId: 'user-1',
+        includeTotal: false,
+        limit: 24,
+      })
+      expect(result.generations[0]?.id).toBe('picker-image')
+      expect(result.total).toBeNull()
+      expect(mockGenerationCount).not.toHaveBeenCalled()
+    })
+
     it('returns cursor page metadata without counting on cursor requests', async () => {
       const cursor = Buffer.from(
         JSON.stringify({
@@ -994,29 +1009,48 @@ describe('generation.service', () => {
   })
 
   describe('getAssetSectionCounts', () => {
-    it('aggregates type, project, and favorites counts in one round-trip', async () => {
-      mockGenerationGroupBy
-        .mockResolvedValueOnce([
-          { outputType: 'IMAGE', _count: { _all: 7 } },
-          { outputType: 'VIDEO', _count: { _all: 3 } },
-          { outputType: 'AUDIO', _count: { _all: 2 } },
-        ])
-        .mockResolvedValueOnce([
-          { projectId: null, _count: { _all: 4 } },
-          { projectId: 'proj-a', _count: { _all: 5 } },
-          { projectId: 'proj-b', _count: { _all: 3 } },
-        ])
-        // byModel —— 「模型」分面的选项表
-        .mockResolvedValueOnce([
-          { model: 'sdxl', _count: { _all: 9 } },
-          { model: 'seedream-4', _count: { _all: 3 } },
-        ])
+    const groups = [
+      {
+        outputType: 'IMAGE',
+        projectId: null,
+        model: 'sdxl',
+        isPublic: false,
+        _count: { _all: 2 },
+      },
+      {
+        outputType: 'IMAGE',
+        projectId: 'proj-a',
+        model: 'sdxl',
+        isPublic: true,
+        _count: { _all: 3 },
+      },
+      {
+        outputType: 'IMAGE',
+        projectId: 'proj-a',
+        model: 'sdxl',
+        isPublic: false,
+        _count: { _all: 2 },
+      },
+      {
+        outputType: 'VIDEO',
+        projectId: 'proj-b',
+        model: 'video-model',
+        isPublic: true,
+        _count: { _all: 3 },
+      },
+      {
+        outputType: 'AUDIO',
+        projectId: null,
+        model: 'audio-model',
+        isPublic: true,
+        _count: { _all: 2 },
+      },
+    ]
+
+    it('aggregates all dimensions with one grouped query and one favorites query', async () => {
+      mockGenerationGroupBy.mockResolvedValueOnce(groups)
       mockGenerationCount.mockResolvedValueOnce(6)
-      mockGenerationCount.mockResolvedValueOnce(8)
-
-      const counts = await getAssetSectionCounts('user-1')
-
-      expect(counts).toEqual({
+      await expect(getAssetSectionCounts('user-1')).resolves.toEqual({
         all: 12,
         favorites: 6,
         published: 8,
@@ -1025,41 +1059,22 @@ describe('generation.service', () => {
         audio: 2,
         model_3d: 0,
         unassigned: 4,
-        byProject: {
-          'proj-a': 5,
-          'proj-b': 3,
-        },
-        byModel: {
-          sdxl: 9,
-          'seedream-4': 3,
-        },
+        byProject: { 'proj-a': 5, 'proj-b': 3 },
+        byModel: { sdxl: 7, 'video-model': 3, 'audio-model': 2 },
       })
-      expect(mockGenerationGroupBy).toHaveBeenNthCalledWith(1, {
-        by: ['outputType'],
+      expect(mockGenerationGroupBy).toHaveBeenCalledExactlyOnceWith({
+        by: ['outputType', 'projectId', 'model', 'isPublic'],
         where: { userId: 'user-1' },
         _count: { _all: true },
       })
-      expect(mockGenerationGroupBy).toHaveBeenNthCalledWith(2, {
-        by: ['projectId'],
-        where: { userId: 'user-1' },
-        _count: { _all: true },
-      })
-      expect(mockGenerationCount).toHaveBeenCalledWith({
+      expect(mockGenerationCount).toHaveBeenCalledExactlyOnceWith({
         where: { userId: 'user-1', likes: { some: { userId: 'user-1' } } },
-      })
-      expect(mockGenerationCount).toHaveBeenCalledWith({
-        where: { userId: 'user-1', isPublic: true },
       })
     })
 
     it('returns zeroed buckets when the user has no generations', async () => {
-      mockGenerationGroupBy
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
-        .mockResolvedValueOnce([])
+      mockGenerationGroupBy.mockResolvedValueOnce([])
       mockGenerationCount.mockResolvedValueOnce(0)
-      mockGenerationCount.mockResolvedValueOnce(0)
-
       await expect(getAssetSectionCounts('user-1')).resolves.toEqual({
         all: 0,
         favorites: 0,
@@ -1074,63 +1089,66 @@ describe('generation.service', () => {
       })
     })
 
-    it('scopes view + folder counts to the active type tab', async () => {
-      mockGenerationGroupBy
-        // byType stays unscoped — powers the type toggle's per-type counts
-        .mockResolvedValueOnce([
-          { outputType: 'IMAGE', _count: { _all: 7 } },
-          { outputType: 'VIDEO', _count: { _all: 3 } },
-        ])
-        // byProject is image-scoped
-        .mockResolvedValueOnce([
-          { projectId: null, _count: { _all: 2 } },
-          { projectId: 'proj-a', _count: { _all: 5 } },
-        ])
-        // byModel 同样跟着类型口径走
-        .mockResolvedValueOnce([{ model: 'sdxl', _count: { _all: 7 } }])
-      mockGenerationCount.mockResolvedValueOnce(2) // favorites ∩ image
-      mockGenerationCount.mockResolvedValueOnce(3) // published ∩ image
-
-      const counts = await getAssetSectionCounts('user-1', ['image'])
-
-      expect(counts).toEqual({
-        all: 7, // image total, not the grand total across types
-        favorites: 2,
+    it.each([
+      {
+        types: ['image'],
+        all: 7,
         published: 3,
-        image: 7,
-        video: 3,
-        audio: 0,
-        model_3d: 0,
         unassigned: 2,
         byProject: { 'proj-a': 5 },
         byModel: { sdxl: 7 },
-      })
-      // byProject / byModel / favorites / published carry the type scope
-      expect(mockGenerationGroupBy).toHaveBeenNthCalledWith(2, {
-        by: ['projectId'],
-        where: { userId: 'user-1', outputType: { in: ['IMAGE'] } },
-        _count: { _all: true },
-      })
-      expect(mockGenerationGroupBy).toHaveBeenNthCalledWith(3, {
-        by: ['model'],
-        where: { userId: 'user-1', outputType: { in: ['IMAGE'] } },
-        _count: { _all: true },
-      })
-      expect(mockGenerationCount).toHaveBeenCalledWith({
-        where: {
-          userId: 'user-1',
-          likes: { some: { userId: 'user-1' } },
-          outputType: { in: ['IMAGE'] },
-        },
-      })
-      expect(mockGenerationCount).toHaveBeenCalledWith({
-        where: {
-          userId: 'user-1',
-          isPublic: true,
-          outputType: { in: ['IMAGE'] },
-        },
-      })
-    })
+        enums: ['IMAGE'],
+      },
+      {
+        types: ['image', 'video'],
+        all: 10,
+        published: 6,
+        unassigned: 2,
+        byProject: { 'proj-a': 5, 'proj-b': 3 },
+        byModel: { sdxl: 7, 'video-model': 3 },
+        enums: ['IMAGE', 'VIDEO'],
+      },
+    ] as const)(
+      'scopes navigation counts to $types while keeping type totals',
+      async ({
+        types,
+        all,
+        published,
+        unassigned,
+        byProject,
+        byModel,
+        enums,
+      }) => {
+        mockGenerationGroupBy.mockResolvedValueOnce(groups)
+        mockGenerationCount.mockResolvedValueOnce(2)
+        await expect(
+          getAssetSectionCounts('user-1', [...types]),
+        ).resolves.toEqual({
+          all,
+          favorites: 2,
+          published,
+          image: 7,
+          video: 3,
+          audio: 2,
+          model_3d: 0,
+          unassigned,
+          byProject,
+          byModel,
+        })
+        expect(mockGenerationGroupBy).toHaveBeenCalledExactlyOnceWith({
+          by: ['outputType', 'projectId', 'model', 'isPublic'],
+          where: { userId: 'user-1' },
+          _count: { _all: true },
+        })
+        expect(mockGenerationCount).toHaveBeenCalledExactlyOnceWith({
+          where: {
+            userId: 'user-1',
+            likes: { some: { userId: 'user-1' } },
+            outputType: { in: [...enums] },
+          },
+        })
+      },
+    )
   })
 
   describe('deleteGeneration', () => {

@@ -662,6 +662,24 @@ describe('checkImageGenerationStatus', () => {
     expect(result).toEqual({ jobId: 'job-1', status: 'IN_PROGRESS' })
   })
 
+  it('returns the latest preview while the owned image job is running', async () => {
+    vi.mocked(db.generationJob.findUnique).mockResolvedValue({
+      id: 'job-1',
+      userId: 'user-1',
+      status: 'RUNNING',
+      generationId: null,
+      externalRequestId: JSON.stringify({
+        outputType: 'IMAGE',
+        previewUrl: 'https://cdn.example.com/partial.png',
+      }),
+    } as never)
+    expect(await checkImageGenerationStatus('clerk-1', 'job-1')).toEqual({
+      jobId: 'job-1',
+      status: 'IN_PROGRESS',
+      previewUrl: 'https://cdn.example.com/partial.png',
+    })
+  })
+
   it('lazily returns FAILED for a stale running job', async () => {
     vi.mocked(db.generationJob.findUnique).mockResolvedValue({
       id: 'job-1',

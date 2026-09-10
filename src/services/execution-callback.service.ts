@@ -95,6 +95,7 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
   .partial()
   .extend({
     outputType: z.enum(['VIDEO', 'AUDIO', 'MODEL_3D', 'IMAGE']).optional(),
+    previewUrl: z.string().url().optional(),
     referenceImageUrl: z.string().url().optional(),
     referenceImages: z.array(z.string().url()).optional(),
     characterCardIds: z.array(z.string().min(1)).optional(),
@@ -311,6 +312,27 @@ export async function handleExecutionCallback(
         ts: payload.ts,
       })
       await persistProviderJobIdFromStatusCallback(job.id, payload.data)
+      const statusData = executionCallbackStatusDataSchema.safeParse(
+        payload.data,
+      )
+      if (statusData.success && statusData.data.previewUrl) {
+        const metadata = parseWorkerJobMetadata(job.externalRequestId)
+        if (metadata?.outputType === 'IMAGE') {
+          await db.generationJob.updateMany({
+            where: {
+              id: job.id,
+              status: { in: ['QUEUED', 'RUNNING'] },
+              externalRequestId: job.externalRequestId,
+            },
+            data: {
+              externalRequestId: JSON.stringify({
+                ...JSON.parse(job.externalRequestId ?? '{}'),
+                previewUrl: statusData.data.previewUrl,
+              }),
+            },
+          })
+        }
+      }
       break
     case 'result':
       return finalizeExecutionResult(payload, job, jobStatus)

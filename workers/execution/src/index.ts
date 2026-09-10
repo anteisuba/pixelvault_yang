@@ -1,4 +1,18 @@
+import {
+  aspectRatioToOpenAISize,
+  computeTieredDimensions,
+  IMAGE_ASPECT_RATIO_PARTS,
+  isImageResolutionTier,
+  tieredOpenAISize,
+  type ImageResolutionTier,
+} from '../../../src/lib/image-output-size'
+export {
+  computeTieredDimensions,
+  isImageResolutionTier,
+  tieredOpenAISize,
+} from '../../../src/lib/image-output-size'
 import { WorkflowEntrypoint } from 'cloudflare:workers'
+import { readOpenAIImageStream } from '../../../src/lib/openai-image-stream'
 import type {
   Workflow,
   WorkflowEvent,
@@ -81,6 +95,7 @@ const RESOLVE_KEY_PATH = '/api/internal/execution/resolve-key'
 const OPENAI_BASE_URL = 'https://api.openai.com'
 const GEMINI_IMAGE_BASE_URL =
   'https://generativelanguage.googleapis.com/v1beta/models'
+const GEMINI_VIDEO_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta'
 const HUGGINGFACE_IMAGE_BASE_URL =
   'https://router.huggingface.co/hf-inference/models'
 const REPLICATE_BASE_URL = 'https://api.replicate.com/v1'
@@ -2490,11 +2505,145 @@ async function pollVolcEngineQueue(
 // One seam for both call sites in CinematicShortVideoWorkflow. fal remains the
 // fallthrough so existing routes are untouched by adding providers here.
 
+export async function submitGeminiVideoQueue(
+  context: WorkerRunContext,
+  apiKey: string,
+  env: ExecutionEnv,
+): Promise<FalQueueSubmitResult> {
+  if (context.outputType !== 'VIDEO')
+    throw new Error('Gemini requires video input.')
+  const input = context.providerInput
+  if (input.audioUrls?.length || input.videoUrls?.length) {
+    throw new Error(
+      'Gemini video execution supports text and image references only.',
+    )
+  }
+  if (!['16:9', '9:16'].includes(input.aspectRatio)) {
+    throw new Error('Gemini video requires a 16:9 or 9:16 aspect ratio.')
+  }
+  const references = [
+    ...new Set([
+      ...(input.referenceImage ? [input.referenceImage] : []),
+      ...(input.referenceImages ?? []),
+    ]),
+  ]
+  const parts: Record<string, unknown>[] = []
+  for (const reference of references) {
+    const part = await readReferenceImageAsInlinePart(reference)
+    const image = part.inlineData as { mimeType: string; data: string }
+    parts.push({ type: 'image', mime_type: image.mimeType, data: image.data })
+  }
+  parts.push({ type: 'text', text: input.prompt })
+  // URI delivery keeps video bytes out of durable workflow state. Unary
+  // generation avoids GET /interactions returning inline video despite URI delivery.
+  const response = await fetch(`${GEMINI_VIDEO_BASE_URL}/interactions`, {
+    method: 'POST',
+    headers: { 'x-goog-api-key': apiKey, 'Content-Type': JSON_CONTENT_TYPE },
+    body: JSON.stringify({
+      model: input.externalModelId,
+      input: parts,
+      background: false,
+      store: false,
+      stream: false,
+      response_format: {
+        type: 'video',
+        delivery: 'uri',
+        aspect_ratio: input.aspectRatio,
+        resolution: input.resolution ?? '720p',
+      },
+    }),
+    signal: AbortSignal.timeout(context.timeoutMs),
+  })
+  if (!response.ok) {
+    throw await createProviderResponseError(response, {
+      provider: 'gemini',
+      phase: 'queue_submit',
+      fallbackMessage: 'Gemini video generation failed.',
+    })
+  }
+  const data: unknown = await response.json()
+  if (!isRecord(data)) throw new Error('Invalid Gemini interaction response.')
+  const failure = createProviderPayloadError(data, {
+    provider: 'gemini',
+    phase: 'queue_submit',
+    fallbackMessage: 'Gemini video generation failed.',
+  })
+  if (failure) throw failure
+  const steps = Array.isArray(data.steps) ? data.steps : []
+  const video = steps
+    .flatMap((step) =>
+      isRecord(step) &&
+      step.type === 'model_output' &&
+      Array.isArray(step.content)
+        ? step.content
+        : [],
+    )
+    .find((part: unknown) => isRecord(part) && part.type === 'video')
+  const uri = isRecord(video) ? readStringField(video, 'uri') : null
+  const requestId = readStringField(data, 'id')
+  if (!uri || !requestId || data.status !== 'completed') {
+    throw createProviderNoOutputError({
+      provider: 'gemini',
+      phase: 'queue_submit',
+      message: 'Gemini did not return a completed video file.',
+    })
+  }
+  // Reconstruct both URLs from a validated file name; never attach BYOK to
+  // an arbitrary URI or persist provider query parameters in workflow state.
+  const fileUrl = new URL(uri)
+  const match = fileUrl.pathname.match(
+    /^\/v1beta\/files\/([A-Za-z0-9_-]+)(?::download)?$/,
+  )
+  if (fileUrl.origin !== new URL(GEMINI_VIDEO_BASE_URL).origin || !match) {
+    throw new Error('Gemini returned an invalid video file URI.')
+  }
+  const statusUrl = `${GEMINI_VIDEO_BASE_URL}/files/${match[1]}`
+  await reportProviderJobId(env, context, requestId)
+  return {
+    requestId,
+    statusUrl,
+    responseUrl: `${statusUrl}:download?alt=media`,
+  }
+}
+
+export async function pollGeminiVideoQueue(
+  queue: FalQueueSubmitResult,
+  apiKey: string,
+): Promise<FalQueueStatusResult> {
+  const response = await fetch(queue.statusUrl, {
+    headers: { 'x-goog-api-key': apiKey },
+  })
+  if (!response.ok) {
+    throw await createProviderResponseError(response, {
+      provider: 'gemini',
+      phase: 'provider_poll',
+      fallbackMessage: 'Gemini video file polling failed.',
+    })
+  }
+  const data: unknown = await response.json()
+  if (!isRecord(data)) throw new Error('Invalid Gemini file response.')
+  if (data.state === 'FAILED') {
+    return { status: 'FAILED', error: 'Gemini video file processing failed.' }
+  }
+  if (data.state === 'PROCESSING') return { status: 'IN_PROGRESS' }
+  if (data.state !== 'ACTIVE')
+    throw new Error('Unknown Gemini video file state.')
+  return {
+    status: 'COMPLETED',
+    artifactUrl: queue.responseUrl,
+    mimeType: 'video/mp4',
+    providerMetadata: { requestId: queue.requestId },
+  }
+}
+
 async function submitProviderQueue(
   context: WorkerRunContext,
   apiKey: string,
   env: ExecutionEnv,
 ): Promise<FalQueueSubmitResult> {
+  if (context.providerId === 'gemini') {
+    return submitGeminiVideoQueue(context, apiKey, env)
+  }
   if (isMiniMaxProviderId(context.providerId)) {
     return submitMiniMaxQueue(context, apiKey, env)
   }
@@ -2509,6 +2658,9 @@ async function pollProviderQueue(
   apiKey: string,
   context: WorkerRunContext,
 ): Promise<FalQueueStatusResult> {
+  if (context.providerId === 'gemini') {
+    return pollGeminiVideoQueue(queue, apiKey)
+  }
   if (isMiniMaxProviderId(context.providerId)) {
     return pollMiniMaxQueue(queue, apiKey, context.providerId)
   }
@@ -3004,6 +3156,7 @@ async function downloadAndUploadVideoArtifact(
   context: WorkerVideoRunContext,
   artifactUrl: string,
   mimeType: string,
+  fetchHeaders?: Record<string, string>,
 ): Promise<{ artifactUrl: string; videoR2Key: string }> {
   return downloadAndUploadVideoArtifactToKey(
     env,
@@ -3011,6 +3164,7 @@ async function downloadAndUploadVideoArtifact(
     mimeType,
     context.providerInput.outputStorageKey ??
       `generations/worker/video/${context.runId}/output.mp4`,
+    fetchHeaders,
   )
 }
 
@@ -3019,8 +3173,24 @@ async function downloadAndUploadVideoArtifactToKey(
   artifactUrl: string,
   mimeType: string,
   videoR2Key: string,
+  fetchHeaders?: Record<string, string>,
 ): Promise<{ artifactUrl: string; videoR2Key: string }> {
-  const response = await fetch(artifactUrl)
+  let response = await fetch(artifactUrl, {
+    headers: fetchHeaders,
+    ...(fetchHeaders ? { redirect: 'manual' as const } : {}),
+  })
+  if (fetchHeaders && response.status >= 300 && response.status < 400) {
+    const location = response.headers.get('location')
+    if (!location) throw new Error('Video download redirect has no location.')
+    const target = new URL(location, artifactUrl)
+    if (target.protocol !== 'https:') {
+      throw new Error('Video download redirect requires HTTPS.')
+    }
+    await response.body?.cancel()
+    // Google may redirect to a signed media URL. It needs no API key; custom
+    // x-goog-api-key headers are otherwise forwarded by fetch across origins.
+    response = await fetch(target.toString())
+  }
   if (!response.ok) {
     throw new Error(
       `Video artifact download failed with status ${response.status}`,
@@ -3338,7 +3508,11 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
       const queue = await step.do(
         'submit-provider',
         {
-          retries: { limit: 2, delay: '5 seconds', backoff: 'exponential' },
+          retries: {
+            limit: context.providerId === 'gemini' ? 0 : 2,
+            delay: '5 seconds',
+            backoff: 'exponential',
+          },
           timeout: Math.min(context.timeoutMs, 1_800_000),
         },
         async () => {
@@ -3412,12 +3586,20 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
                 },
                 timeout: '120 seconds',
               },
-              () =>
+              async () =>
                 downloadAndUploadVideoArtifact(
                   this.env,
                   context,
                   artifactUrl,
                   pollResult.mimeType ?? 'video/mp4',
+                  context.providerId === 'gemini'
+                    ? {
+                        'x-goog-api-key': await decryptStateString(
+                          encryptedApiKey,
+                          this.env,
+                        ),
+                      }
+                    : undefined,
                 ),
             )
             workerArtifactUrl = uploaded.artifactUrl
@@ -3445,6 +3627,7 @@ export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
               // in future iterations).
               duration:
                 context.outputType === 'VIDEO' &&
+                context.providerId !== 'gemini' &&
                 typeof context.providerInput.duration === 'number'
                   ? context.providerInput.duration
                   : undefined,
@@ -4342,143 +4525,6 @@ async function emitImageCallback(
   if (!callbackResponse.ok) {
     throw new Error(`Callback failed with status ${callbackResponse.status}`)
   }
-}
-
-/** Map the wire aspect ratio to a gpt-image supported size. */
-function aspectRatioToOpenAISize(aspectRatio: string): {
-  size: string
-  width: number
-  height: number
-} {
-  switch (aspectRatio) {
-    case '16:9':
-    case '4:3':
-      return { size: '1536x1024', width: 1536, height: 1024 }
-    case '9:16':
-    case '3:4':
-      return { size: '1024x1536', width: 1024, height: 1536 }
-    default:
-      return { size: '1024x1024', width: 1024, height: 1024 }
-  }
-}
-
-/** width:height ratio parts for the five wire aspect ratios. */
-const IMAGE_ASPECT_RATIO_PARTS: Record<string, [number, number]> = {
-  '1:1': [1, 1],
-  '16:9': [16, 9],
-  '9:16': [9, 16],
-  '4:3': [4, 3],
-  '3:4': [3, 4],
-}
-
-type ImageResolutionTier = '1K' | '2K' | '4K'
-
-export function isImageResolutionTier(
-  value: string,
-): value is ImageResolutionTier {
-  return value === '1K' || value === '2K' || value === '4K'
-}
-
-interface TieredDimensionConstraints {
-  /** Target total pixel count for this tier (before rounding/clamping). */
-  targetPixels: number
-  /** Round both edges to a multiple of this (default: 1, i.e. no rounding). */
-  edgeStep?: number
-  minEdge?: number
-  maxEdge?: number
-  minTotalPixels?: number
-  maxTotalPixels?: number
-}
-
-/**
- * Derives width/height for a (aspectRatio, resolution tier) pair from a
- * target pixel budget rather than a hand-typed size table — the providers
- * below each impose different edge/total-pixel constraints (see call
- * sites), so the numbers are computed to satisfy them instead of guessed.
- */
-export function computeTieredDimensions(
-  aspectRatio: string,
-  {
-    targetPixels,
-    edgeStep = 1,
-    minEdge = 0,
-    maxEdge = Infinity,
-    minTotalPixels = 0,
-    maxTotalPixels = Infinity,
-  }: TieredDimensionConstraints,
-): { width: number; height: number } {
-  const [rw, rh] = IMAGE_ASPECT_RATIO_PARTS[aspectRatio] ?? [1, 1]
-  const roundToStep = (value: number) =>
-    Math.max(edgeStep, Math.round(value / edgeStep) * edgeStep)
-
-  let rawWidth = Math.sqrt((targetPixels * rw) / rh)
-  let rawHeight = targetPixels / rawWidth
-
-  // Scale both edges together when either is outside [minEdge, maxEdge] so
-  // the requested aspect ratio survives the clamp. Clamping width and
-  // height independently could cap only the overflowing edge and leave the
-  // other alone — e.g. a 16:9 request whose ideal width exceeded maxEdge
-  // came out looking like ~4:3 once width alone got capped.
-  const longEdge = Math.max(rawWidth, rawHeight)
-  const shortEdge = Math.min(rawWidth, rawHeight)
-  if (longEdge > maxEdge) {
-    const scale = maxEdge / longEdge
-    rawWidth *= scale
-    rawHeight *= scale
-  } else if (shortEdge < minEdge) {
-    const scale = minEdge / shortEdge
-    rawWidth *= scale
-    rawHeight *= scale
-  }
-
-  let width = roundToStep(rawWidth)
-  let height = roundToStep(rawHeight)
-
-  // Safety net in case edge-step rounding pushed a value just past its
-  // bound (only reachable if maxEdge/minEdge isn't an exact multiple of
-  // edgeStep).
-  width = Math.min(Math.max(width, minEdge), maxEdge)
-  height = Math.min(Math.max(height, minEdge), maxEdge)
-
-  while (width * height > maxTotalPixels && height > edgeStep) {
-    height -= edgeStep
-  }
-  while (width * height < minTotalPixels) {
-    height += edgeStep
-  }
-
-  return { width, height }
-}
-
-const OPENAI_SIZE_EDGE_STEP = 16
-const OPENAI_SIZE_MAX_EDGE = 3840
-const OPENAI_SIZE_MIN_TOTAL_PIXELS = 655_360
-const OPENAI_SIZE_MAX_TOTAL_PIXELS = 8_294_400
-// gpt-image-2 accepts any size satisfying: edges are multiples of 16, long
-// edge <= 3840, and total pixels within [655_360, 8_294_400] — there is no
-// fixed enum, so tiers are pixel budgets rather than literal size strings.
-const OPENAI_RESOLUTION_TARGET_PIXELS: Record<ImageResolutionTier, number> = {
-  '1K': 1024 * 1024,
-  '2K': 2048 * 2048,
-  // True 4K (3840x3840-class) exceeds the API's total-pixel ceiling for
-  // near-square ratios, so the tier targets the ceiling itself — this still
-  // yields the exact standard 3840x2160 for 16:9.
-  '4K': OPENAI_SIZE_MAX_TOTAL_PIXELS,
-}
-
-/** Resolution-tier-aware gpt-image size, only used once the user picks a tier. */
-export function tieredOpenAISize(
-  aspectRatio: string,
-  tier: ImageResolutionTier,
-): { size: string; width: number; height: number } {
-  const { width, height } = computeTieredDimensions(aspectRatio, {
-    targetPixels: OPENAI_RESOLUTION_TARGET_PIXELS[tier],
-    edgeStep: OPENAI_SIZE_EDGE_STEP,
-    maxEdge: OPENAI_SIZE_MAX_EDGE,
-    minTotalPixels: OPENAI_SIZE_MIN_TOTAL_PIXELS,
-    maxTotalPixels: OPENAI_SIZE_MAX_TOTAL_PIXELS,
-  })
-  return { size: `${width}x${height}`, width, height }
 }
 
 const GEMINI_RESOLUTION_TARGET_PIXELS: Record<ImageResolutionTier, number> = {
@@ -6496,7 +6542,7 @@ export async function generateNovelAiImage(
  * base64 (no hosted URL), so the worker persists the bytes to R2 and returns a
  * public URL for the Vercel callback to finalize.
  */
-async function generateOpenAIImage(
+export async function generateOpenAIImage(
   env: ExecutionEnv,
   context: WorkerImageRunContext,
   apiKey: string,
@@ -6536,6 +6582,13 @@ async function generateOpenAIImage(
   const background = readStringField(advancedParams, 'background')
   if (background) body.background = background
 
+  const streaming = advancedParams.preview === true
+  if (streaming) {
+    body.stream = true
+    body.partial_images = 2
+  }
+  body.output_format = 'png'
+
   const response = await fetch(
     `${OPENAI_BASE_URL}/v1/images/${
       referenceImages.length > 0 ? 'edits' : 'generations'
@@ -6558,10 +6611,44 @@ async function generateOpenAIImage(
     })
   }
 
-  const payload = (await response.json()) as {
-    data?: Array<{ b64_json?: unknown }>
+  let b64: unknown
+  if (streaming) {
+    if (!response.body)
+      throw new Error('OpenAI returned an empty image stream.')
+    const result = await readOpenAIImageStream(
+      response.body,
+      async (base64, index) => {
+        try {
+          const previewKey = `image/previews/${context.runId}/${index}.png`
+          await env.GENERATION_BUCKET.put(previewKey, base64ToBytes(base64), {
+            httpMetadata: { contentType: 'image/png' },
+          })
+          if (env.INTERNAL_CALLBACK_SECRET) {
+            await postSignedJson(
+              context.callbackUrl,
+              env.INTERNAL_CALLBACK_SECRET,
+              {
+                runId: context.runId,
+                kind: 'status',
+                ts: new Date().toISOString(),
+                data: { previewUrl: `${env.R2_PUBLIC_URL}/${previewKey}` },
+              },
+            )
+          }
+        } catch {
+          console.warn('Image preview could not be delivered', {
+            runId: context.runId,
+          })
+        }
+      },
+    )
+    b64 = result.base64
+  } else {
+    const payload = (await response.json()) as {
+      data?: Array<{ b64_json?: unknown }>
+    }
+    b64 = payload.data?.[0]?.b64_json
   }
-  const b64 = payload.data?.[0]?.b64_json
   if (typeof b64 !== 'string') {
     throw new Error('OpenAI response did not include base64 image data.')
   }

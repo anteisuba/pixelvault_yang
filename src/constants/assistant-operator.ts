@@ -1688,7 +1688,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.setNegative]:
     'write the negative prompt. Only exists on workbenches that actually have that field.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setSpecs]:
-    'set aspect ratio AND resolution together — one without the other does not produce a real aspect ratio in this app.',
+    'set aspectRatio AND resolution together. Optionally include quality and background from the available model options. Quality (low/medium/high/xhigh/max) is independent of resolution (1K/2K/4K). For OpenAI images, preview is an optional boolean: up to two partial images, adding up to $0.006 per output. Enable only when requested.',
   /**
    * ⚠ 参数名**逐字写出来**（真机 2026-08-31：模型第一次写的是 `duration` /
    * `aspect_ratio`，一条都没认出来，白烧一步换回一条 `emptyValue`）。
@@ -1715,7 +1715,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]:
     'actually LOOK at a picture and say what worked and what did not. Two ways to get one: pass "targetIds" with the id or the exact address of a picture the creator attached to THIS message (that is them pointing at it), or call it with no target when a run you armed has just come back. You may never invent an address — anything the creator did not reference this turn is refused. If they said "that one" and more than one picture is in play, call it with no target and the app will ask them which. Call it first when a picture is waiting, then fix the form with set_* based on what you saw. On the video bench the target is a CLIP and you are shown three stills from it (first / middle / last) instead of one picture — same tool, same rules.',
   [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]:
-    'Inspect mounted source images and return verified visual facts, without assigning creative roles or changing the prompt. For a specific reference pass zero-based imageIndices (e.g. @Image3 -> [2]); omit to inspect all mounted references. Unchanged images reuse visual facts. Call before set_prompt with references; set_prompt separately builds and validates source roles. Answer visual/style questions directly from the facts. Do not use critique_result on sources. On referenceImageUnavailable, identify the exact failed image. On referenceAnalysisFailed, report the supplied failure stage; invalid model output is not evidence that an image is unreadable. Do not ask for re-upload unless image transport actually failed. Do not invent visual facts or retry unchanged.',
+    'Inspect mounted source images and return verified visual facts, without assigning creative roles or changing the prompt. For a specific reference pass zero-based imageIndices (e.g. @Image3 -> [2]); omit to inspect all mounted references. Unchanged images reuse visual facts. Call before set_prompt with references; set_prompt separately builds and validates source roles. Answer visual/style questions directly from the facts. Do not use critique_result on sources. On referenceImageUnavailable, identify the exact failed image. On referenceAnalysisFailed, report the supplied failure stage; invalid model output is not evidence that an image is unreadable. Do not ask for re-upload unless image transport actually failed. Do not invent visual facts or retry unchanged within the same turn. A new user request may recheck an earlier failure.',
   /**
    * ⚠ 2026-09-06 放宽了**准入名单**（⛔ 不是放宽了闸）：除了「用户逐字写过的
    * 地址」，本轮 `search_web_images` 真的展示过的候选也算数 —— 用户说「都挂上」

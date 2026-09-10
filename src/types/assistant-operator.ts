@@ -19,7 +19,9 @@
  */
 
 import { z } from 'zod'
+import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 
+import { AdvancedParamsSchema } from '@/types'
 import {
   ReferenceAnalysisSchema,
   ReferenceProfilesSchema,
@@ -159,6 +161,17 @@ export const AssistantOperatorSnapshotModelSchema = z.object({
 })
 
 export const AssistantOperatorSnapshotSpecsSchema = z.object({
+  quality: AdvancedParamsSchema.shape.quality.nullable(),
+  preview: AdvancedParamsSchema.shape.preview.nullable(),
+  background: AdvancedParamsSchema.shape.background.nullable(),
+  qualityOptions: z
+    .array(ParamValueSchema)
+    .max(LIMITS.maxSpecOptions)
+    .optional(),
+  backgroundOptions: z
+    .array(ParamValueSchema)
+    .max(LIMITS.maxSpecOptions)
+    .optional(),
   /** 现值。`null` = 控件在但还没选。 */
   aspectRatio: ParamValueSchema.nullable(),
   resolution: ParamValueSchema.nullable(),
@@ -564,6 +577,9 @@ export type AssistantOperatorPlanEstimate = z.infer<
 
 /** 这一枪的规格。⚠ 三格**永远带齐**（没有的那格是 `null`，论据同 `set_video_specs`）。 */
 export const AssistantOperatorGenerationSpecsSchema = z.object({
+  quality: AdvancedParamsSchema.shape.quality,
+  background: AdvancedParamsSchema.shape.background,
+  preview: AdvancedParamsSchema.shape.preview,
   aspectRatio: ParamValueSchema.nullable(),
   resolution: ParamValueSchema.nullable(),
   durationSeconds: z.number().int().positive().nullable(),
@@ -856,6 +872,16 @@ export type AssistantOperatorResumeFrom = z.infer<
 export const AssistantOperatorRequestSchema = z.object({
   referenceProfiles: ReferenceProfilesSchema.optional(),
   messages: z.array(AssistantOperatorMessageSchema).min(1),
+  mediaAttachments: z
+    .array(
+      z.object({
+        kind: z.enum(['video', 'audio']),
+        url: z.string().url().max(ASSISTANT_MEDIA_LIMITS.maxUrlLength),
+        label: z.string().max(ASSISTANT_MEDIA_LIMITS.maxLabelLength),
+      }),
+    )
+    .max(LIMITS.maxSnapshotReferences)
+    .optional(),
   domain: AssistantOperatorDomainSchema,
   snapshot: AssistantOperatorSnapshotSchema,
   priorSteps: z
@@ -1110,6 +1136,9 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   }),
   /** ⚠ 台账 AE/BG/BS：两个字段一起下，缺一个就不是真比例。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.setSpecs]: z.object({
+    quality: ParamValueSchema.optional(),
+    preview: z.boolean().optional(),
+    background: ParamValueSchema.optional(),
     aspectRatio: ParamValueSchema,
     resolution: ParamValueSchema,
   }),
@@ -1836,10 +1865,19 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
   mutatingStep(
     ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
     /** ⚠ 台账 AE/BG/BS：两个字段必须同时下发。 */
-    z.object({ aspectRatio: ParamValueSchema, resolution: ParamValueSchema }),
+    z.object({
+      aspectRatio: ParamValueSchema,
+      resolution: ParamValueSchema,
+      quality: AdvancedParamsSchema.shape.quality,
+      preview: AdvancedParamsSchema.shape.preview,
+      background: AdvancedParamsSchema.shape.background,
+    }),
     z.object({
       aspectRatio: ParamValueSchema.nullable(),
       resolution: ParamValueSchema.nullable(),
+      quality: AdvancedParamsSchema.shape.quality.nullable(),
+      preview: AdvancedParamsSchema.shape.preview.nullable(),
+      background: AdvancedParamsSchema.shape.background.nullable(),
     }),
   ),
   /**

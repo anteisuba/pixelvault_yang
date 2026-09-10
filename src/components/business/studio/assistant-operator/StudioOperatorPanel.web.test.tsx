@@ -59,6 +59,8 @@ vi.mock('@/hooks/use-my-profile', () => ({
   useMyProfile: () => ({ profile: null }),
 }))
 
+const applyDispatch = vi.hoisted(() => vi.fn())
+
 const HOST_RESULTS = [
   { id: 'gen-1', url: 'https://cdn.test/a.png', label: '第一张' },
   { id: 'gen-2', url: 'https://cdn.test/b.png', label: '第二张' },
@@ -80,7 +82,10 @@ vi.mock('@/contexts/studio-operator-host', () => ({
     ],
     open: true,
     setOpen: vi.fn(),
-    apply: {},
+    apply: {
+      getState: () => ({ prompt: '原始提示词' }),
+      dispatch: applyDispatch,
+    },
   }),
 }))
 
@@ -90,6 +95,7 @@ type PanelModule = typeof import('./StudioOperatorPanel')
 let store: Store
 let Panel: PanelModule['StudioOperatorPanel']
 
+const answerConfirm = vi.fn()
 const answerQuestions = vi.fn()
 const revisePlan = vi.fn()
 const answerSpend = vi.fn()
@@ -146,7 +152,7 @@ function PanelHarness() {
           send,
           stop: vi.fn(),
           cancelQueued: vi.fn(),
-          answerConfirm: vi.fn(),
+          answerConfirm,
           answerQuestions,
           revisePlan,
           answerSpend,
@@ -175,6 +181,94 @@ function renderPanel() {
 }
 
 describe('StudioOperatorPanel 接线（切片 3a）', () => {
+  it('点击评价建议会实际更新宿主提示词并显示成功状态', () => {
+    store.upsertOperatorStep(
+      {
+        id: 'advice-step',
+        title: '看图',
+        tool: 'critique_result',
+        status: 'done',
+        payload: { imageUrl: 'https://cdn.test/result.png', goal: '3D渲染' },
+        result: {
+          findings: [{ severity: 'warn', text: '质感偏插画' }],
+          advice: '强化3D材质',
+          borrowedVisionRoute: false,
+        },
+      },
+      'advice-run',
+    )
+    renderPanel()
+    fireEvent.click(screen.getByTestId('operator-critique-apply-advice'))
+    expect(applyDispatch).toHaveBeenCalledWith({
+      type: 'SET_PROMPT',
+      payload: '原始提示词, 强化3D材质',
+    })
+    expect(
+      screen.getByTestId('operator-critique-apply-advice'),
+    ).toHaveTextContent('critique.adviceApplied')
+  })
+
+  it.each(['live', 'history'] as const)(
+    '提问附件在 %s 显示图片缩略图，不将音频当成图片',
+    (mode) => {
+      const entry = {
+        kind: 'user' as const,
+        id: 'question-with-images',
+        text: '画风参考reference image 2，再看reference image 2，reference image 4。',
+        attachments: [
+          {
+            id: 'ref',
+            kind: 'image' as const,
+            label: 'reference image 1',
+            url: 'https://cdn.test/ref.png',
+            thumbnailUrl: 'https://cdn.test/thumb.png',
+          },
+          {
+            id: 'ref2',
+            kind: 'image' as const,
+            label: 'reference image 2',
+            url: 'https://cdn.test/ref2.png',
+          },
+          {
+            id: 'audio',
+            kind: 'audio' as const,
+            label: 'voice sample',
+            url: 'https://cdn.test/voice.mp3',
+          },
+        ],
+      }
+      if (mode === 'history') {
+        store.loadOperatorThread({
+          sessionId: null,
+          sessionSurface: null,
+          history: [entry],
+        })
+      } else {
+        store.appendOperatorEntry(entry)
+      }
+      renderPanel()
+      expect(
+        screen.queryByRole('img', { name: 'reference image 1' }),
+      ).toBeNull()
+      expect(
+        screen.getAllByRole('img', { name: 'reference image 2' })[0],
+      ).toHaveAttribute('src', 'https://cdn.test/ref2.png')
+      expect(screen.queryByRole('img', { name: 'voice sample' })).toBeNull()
+      expect(screen.getByText('voice sample')).toBeTruthy()
+      const body = within(screen.getByTestId('operator-user-text'))
+      expect(
+        body.getAllByRole('img', { name: 'reference image 2' }),
+      ).toHaveLength(2)
+      expect(
+        body.getAllByRole('img', { name: 'reference image 2' })[0],
+      ).toHaveAttribute('src', 'https://cdn.test/ref2.png')
+      expect(body.queryByRole('img', { name: 'reference image 4' })).toBeNull()
+      expect(screen.getByTestId('operator-user-text')).toHaveTextContent(
+        'reference image 4',
+      )
+    },
+  )
+
   it('助手正文选择缩略图引用后，发送实际图片并保留对应编号', () => {
     renderPanel()
     const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
@@ -209,42 +303,103 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(editor.textContent).toBe('')
   })
 
-  it('sends shared enabled references and keeps all reference images after sending', () => {
-    initialAttachments = [
-      ...HOST_RESULTS.map((item) => ({ ...item, kind: 'image' as const })),
-      {
-        id: 'disabled',
-        kind: 'image',
-        url: 'https://cdn.test/disabled.png',
-        label: 'disabled',
-      },
-      {
-        id: 'audio',
-        kind: 'audio',
-        url: 'https://cdn.test/audio.mp3',
-        label: 'audio',
-      },
-    ]
+  it('已有消息中的媒体地址显示为简短引用名称', () => {
+    const attachment: StudioOperatorAttachment = {
+      id: 'clip',
+      kind: 'video',
+      label: '视频',
+      url: 'https://cdn.test/long-source.mp4',
+    }
+    store.appendOperatorEntry({
+      kind: 'user',
+      id: 'media-message',
+      text: '视频 (video) https://cdn.test/long-source.mp4 分析画风',
+      attachments: [attachment],
+    })
     renderPanel()
-    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
-    editor.textContent = '一起参考'
-    fireEvent.input(editor)
-    fireEvent.click(screen.getByRole('button', { name: 'send' }))
-    expect(send).toHaveBeenCalledWith('一起参考', [
-      expect.objectContaining({
-        url: HOST_RESULTS[0].url,
-        label: 'reference image 1',
-      }),
-      expect.objectContaining({
-        url: HOST_RESULTS[1].url,
-        label: 'reference image 2',
-      }),
-      expect.objectContaining({ kind: 'audio' }),
-    ])
-    expect(changeAttachments).toHaveBeenCalledWith(
-      initialAttachments.slice(0, 3),
+    expect(screen.getByTestId('operator-user-text')).toHaveTextContent(
+      '@视频 分析画风',
+    )
+    expect(screen.getByTestId('operator-user-text')).not.toHaveTextContent(
+      'https://',
     )
   })
+
+  it.each(['video', 'audio'] as const)(
+    '@ 候选包含上传的 %s，选择后发送对应文件且不将媒体 URL 当缩略图',
+    (kind) => {
+      const attachment: StudioOperatorAttachment = {
+        id: `${kind}-upload`,
+        kind,
+        url: `https://cdn.test/sample.${kind === 'audio' ? 'mp3' : 'mp4'}`,
+        label: `${kind} sample`,
+      }
+      initialAttachments = [attachment]
+      renderPanel()
+      const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+      editor.focus()
+      editor.textContent = '参考@'
+      const range = document.createRange()
+      range.selectNodeContents(editor)
+      if (editor.firstChild) range.setStart(editor.firstChild, 3)
+      range.collapse(true)
+      document.getSelection()?.removeAllRanges()
+      document.getSelection()?.addRange(range)
+      fireEvent.input(editor)
+      expect(screen.getAllByRole('option')).toHaveLength(3)
+      fireEvent.click(screen.getByRole('option', { name: attachment.label }))
+      expect(send).not.toHaveBeenCalled()
+      expect(editor.textContent).toContain(attachment.label)
+      expect(editor.querySelector('img')).toBeNull()
+      fireEvent.keyDown(editor, { key: 'Enter' })
+      expect(send).toHaveBeenCalledWith(`参考@${attachment.label}`, [
+        attachment,
+      ])
+    },
+  )
+
+  it.each([false, true])(
+    '只发送正文 @ 的图片，保留共享参考图（有引用：%s）',
+    (hasMention) => {
+      initialAttachments = [
+        ...HOST_RESULTS.map((item) => ({ ...item, kind: 'image' as const })),
+        {
+          id: 'disabled',
+          kind: 'image',
+          url: 'https://cdn.test/disabled.png',
+          label: 'disabled',
+        },
+        {
+          id: 'audio',
+          kind: 'audio',
+          url: 'https://cdn.test/audio.mp3',
+          label: 'audio',
+        },
+      ]
+      renderPanel()
+      const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+      editor.textContent = hasMention ? '一起参考@Image2' : '一起参考'
+      fireEvent.input(editor)
+      fireEvent.click(screen.getByRole('button', { name: 'send' }))
+      expect(send).toHaveBeenCalledWith(
+        hasMention ? '一起参考reference image 2' : '一起参考',
+        [
+          expect.objectContaining({ kind: 'audio' }),
+          ...(hasMention
+            ? [
+                expect.objectContaining({
+                  url: HOST_RESULTS[1].url,
+                  label: 'reference image 2',
+                }),
+              ]
+            : []),
+        ],
+      )
+      expect(changeAttachments).toHaveBeenCalledWith(
+        initialAttachments.slice(0, 3),
+      )
+    },
+  )
 
   it('历史调查默认折叠，最终结论与失败仍直接显示', () => {
     store.loadOperatorThread({
@@ -465,12 +620,10 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(onOpenAssistantSettings).toHaveBeenCalledTimes(1)
   })
 
-  it('⑤ 结果行卡读的是**宿主的 results**（⛔ 不是 useStudioGen）', () => {
+  it('会话不再重复显示工作台生成结果大卡', () => {
     renderPanel()
-    expect(screen.getByTestId('operator-result-row')).toBeTruthy()
-    expect(screen.getAllByTestId('operator-result-tile')).toHaveLength(
-      HOST_RESULTS.length,
-    )
+    expect(screen.queryByTestId('operator-result-row')).toBeNull()
+    expect(screen.queryByTestId('operator-result-expand')).toBeNull()
   })
 })
 
@@ -629,3 +782,21 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     expect(screen.getAllByTestId('operator-checkpoint')).toHaveLength(1)
   })
 })
+
+it.each(['append', 'overwrite', 'keep'] as const)(
+  '提示词 %s 在助手时间线中确认，展示完整建议',
+  (choice) => {
+    const proposed = '完整提示词'.repeat(100)
+    store.setOperatorConfirm({
+      tier: 'overwrite',
+      field: 'prompt',
+      have: '手写提示词',
+      proposed,
+    })
+    renderPanel()
+    const thread = screen.getByTestId('operator-thread')
+    expect(within(thread).getByText(proposed)).toBeInTheDocument()
+    fireEvent.click(within(thread).getByTestId(`operator-confirm-${choice}`))
+    expect(answerConfirm).toHaveBeenCalledExactlyOnceWith(choice)
+  },
+)

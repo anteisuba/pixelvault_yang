@@ -20,6 +20,11 @@ import { StudioOperatorReferenceAnalysisCard } from './StudioOperatorReferenceAn
  *  · 三张「等你定」的卡钉在流末尾：计划 / 花钱硬确认 / 歧义反问单选（§4.1）
  */
 
+import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
+import { StudioOperatorRestoreButton } from './StudioOperatorRestoreButton'
+import { isRevertibleAssistantOperatorTool } from '@/constants/assistant-operator'
+import { toOperatorHistory } from '@/lib/studio-operator-history'
+import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import {
   useCallback,
   useEffect,
@@ -75,7 +80,6 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorCheckpointCard'
 import { StudioOperatorCritiqueCard } from '@/components/business/studio/assistant-operator/StudioOperatorCritiqueCard'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
-import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import { ContextCardChip } from '@/components/business/studio/assistant-operator/ContextCardChip'
 import {
@@ -88,14 +92,13 @@ import {
   getReferenceImageAttachmentId,
   compileReferenceMentions,
 } from '@/lib/studio-reference-mentions'
-import { StudioOperatorMessageBody } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
+import {
+  StudioOperatorMessageBody,
+  StudioOperatorUserText,
+} from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import { StudioOperatorResearchCard } from '@/components/business/studio/assistant-operator/StudioOperatorResearchCard'
 import { StudioOperatorQuestionCard } from '@/components/business/studio/assistant-operator/StudioOperatorQuestionCard'
 import { StudioOperatorQueueBar } from '@/components/business/studio/assistant-operator/StudioOperatorQueueBar'
-import {
-  StudioOperatorResultRow,
-  resultOrdinal,
-} from '@/components/business/studio/assistant-operator/StudioOperatorResultRow'
 import {
   STUDIO_OPERATOR_BAND_STEP_STATES,
   StudioOperatorProgressBand,
@@ -114,15 +117,15 @@ import type { UseAssistantOperatorResult } from '@/hooks/use-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
 import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
-import { useOperatorReview } from '@/hooks/use-operator-review'
 import { useStudioOperatorMention } from '@/hooks/use-studio-operator-mention'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
   hydrateOperatorResume,
+  getOperatorState,
+  restoreOperatorThreadCheckpoint,
   setOperatorAskFirst,
   setOperatorResumeScope,
-  setOperatorSelectedResult,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import {
@@ -134,7 +137,6 @@ import type { AssistantPersona } from '@/types/assistant-persona'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
 import type {
   StudioOperatorAttachment,
-  StudioOperatorResultItem,
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
@@ -232,11 +234,11 @@ export function StudioOperatorPanel({
     stepsDone,
     plannedSteps,
     queue,
-    selectedResultId,
     askFirst,
     plan,
     spend,
     choice,
+    confirm,
     capturingFrames,
     costs,
     costDetails,
@@ -257,6 +259,7 @@ export function StudioOperatorPanel({
     stop,
     cancelQueued,
     newThread,
+    answerConfirm,
     answerQuestions,
     revisePlan,
     answerSpend,
@@ -306,7 +309,6 @@ export function StudioOperatorPanel({
    * 结果格上那两颗 ✓/✕（切片 Y）—— 乐观更新 + PATCH 在 hook 里，
    * ⛔ 面板不自己打请求（Hard Rule 3）。
    */
-  const review = useOperatorReview()
   const {
     undoStep,
     revertRound,
@@ -351,7 +353,23 @@ export function StudioOperatorPanel({
    * ⛔ 面板从此不认识 `useStudioGen`：它挂在哪台工作台上不该由它自己去猜。
    */
   const operatorHost = useStudioOperatorHost()
-  const resultItems = operatorHost.results
+  const restoreCheckpoint = useCallback(
+    (checkpoint: StudioOperatorCheckpoint) => {
+      if (getOperatorState().status === 'working') return
+      if (!operatorHost.checkpoints?.restore(checkpoint)) {
+        toast.error(t('checkpoint.restoreFailed'))
+        return
+      }
+      const current = getOperatorState()
+      stop()
+      restoreOperatorThreadCheckpoint(
+        [...current.history, ...toOperatorHistory(current.entries)],
+        t('checkpoint.restoreStep'),
+      )
+      toast.success(t('checkpoint.restored'))
+    },
+    [operatorHost.checkpoints, stop, t],
+  )
 
   /**
    * 「按这条建议改提示词」（第二期 · 视频域评审卡）。
@@ -375,28 +393,6 @@ export function StudioOperatorPanel({
     [operatorHost],
   )
 
-  /**
-   * 结果格 → chip。
-   *
-   * ⚠ `label` 兜底成序号（「结果②」）而不是空串：chip 上什么都不写的话，挂了三张
-   * 之后用户分不出哪一枚是哪一张。⚠ `kind` 恒 `image`：结果行卡只画得下静态图，
-   * 视频域的结果行是第二期。
-   */
-  const toResultChip = useCallback(
-    (
-      item: StudioOperatorResultItem,
-      index: number,
-    ): StudioOperatorAttachment => ({
-      id: item.id,
-      url: item.url,
-      label:
-        item.label ?? t('result.chipLabel', { ordinal: resultOrdinal(index) }),
-      kind: 'image',
-      ...(item.thumbnailUrl ? { thumbnailUrl: item.thumbnailUrl } : {}),
-    }),
-    [t],
-  )
-
   const referenceImages = operatorHost.referenceImages
   const referenceTokens: MentionToken[] = referenceImages.map(
     (entry, index) => ({
@@ -418,6 +414,23 @@ export function StudioOperatorPanel({
           },
         ],
   )
+
+  for (const attachment of attachments) {
+    if (attachment.kind !== 'video' && attachment.kind !== 'audio') continue
+    const name = `Attachment[${encodeURIComponent(attachment.id)}]`
+    referenceTokens.push({
+      name,
+      kind: attachment.kind === 'audio' ? 'voice' : 'video',
+      thumbnailUrl: attachment.thumbnailUrl,
+      slotLabel: `@${attachment.label}`,
+    })
+    referenceCandidates.push({
+      id: name,
+      name: attachment.label,
+      tokenName: name,
+      thumbnailUrl: attachment.thumbnailUrl,
+    })
+  }
 
   const working = status === 'working'
   /**
@@ -458,6 +471,7 @@ export function StudioOperatorPanel({
   }, [
     entries,
     historyEntries,
+    confirm,
     plan?.id,
     plan?.resolved,
     spend?.id,
@@ -476,23 +490,15 @@ export function StudioOperatorPanel({
        * 服务端一个新字段都没有，`buildMessages` 那条 `[attached: …]` 原样带上它们。
        * ⚠ 去重按 id：同一张图既被 📎 挂过又被 @ 提过时，助手会收到两份同样的地址。
        */
-      const merged = attachments
-        .filter(
-          (attachment) =>
-            attachment.kind !== 'image' ||
-            !referenceImages.find((entry) => entry.url === attachment.url)
-              ?.disabledReason,
-        )
-        .map((attachment) => {
-          const index = referenceImages.findIndex(
-            (entry) => entry.url === attachment.url,
-          )
-          return attachment.kind === 'image' && index >= 0
-            ? { ...attachment, label: `reference image ${index + 1}` }
-            : attachment
-        })
+      const merged = attachments.filter(
+        (attachment) => attachment.kind !== 'image',
+      )
       for (const chip of mention.chips) {
-        if (!merged.some((item) => item.id === chip.id)) merged.push(chip)
+        if (
+          chip.kind !== 'image' &&
+          !merged.some((item) => item.id === chip.id)
+        )
+          merged.push(chip)
       }
       const currentReferences = operatorHost.referenceImages
       const indices = getReferenceMentionIndices(value)
@@ -517,7 +523,25 @@ export function StudioOperatorPanel({
         }
         if (!merged.some((item) => item.url === url)) merged.push(reference)
       }
-      send(compileReferenceMentions(value), merged)
+      let missingAttachment = false
+      const compiled = compileReferenceMentions(value).replace(
+        /@Attachment\[([^\]]+)\]/g,
+        (token, encodedId: string) => {
+          const attachment = merged.find(
+            (item) => encodeURIComponent(item.id) === encodedId,
+          )
+          if (!attachment) {
+            missingAttachment = true
+            return token
+          }
+          return `@${attachment.label}`
+        },
+      )
+      if (missingAttachment) {
+        toast.info(tReference('invalid'))
+        return
+      }
+      send(compiled, merged)
       onDraftChange('')
       onAttachmentsChange(attachments.filter((item) => item.kind === 'image'))
       mention.clearChips()
@@ -530,30 +554,10 @@ export function StudioOperatorPanel({
       onAttachmentsChange,
       onDraftChange,
       operatorHost,
-      referenceImages,
       send,
       uploading,
       tReference,
     ],
-  )
-
-  /**
-   * 四入口共用的那一步：插 chip、（可选）预填一句、把焦点还给输入框。
-   *
-   * ⛔ 不在四个调用点各写一遍：那正是「结果卡插进来的 chip 与 @ 选出来的 chip
-   * 行为不一样」这类不对称的来源。
-   */
-  const attachChip = useCallback(
-    (chip: StudioOperatorAttachment, prefill?: string) => {
-      onAttachmentsChange(
-        attachments.some((item) => item.url === chip.url)
-          ? attachments
-          : [...attachments, chip],
-      )
-      if (prefill && !draft.trim()) onDraftChange(prefill)
-      inputRef.current?.focus()
-    },
-    [attachments, draft, onAttachmentsChange, onDraftChange],
   )
 
   /**
@@ -829,19 +833,30 @@ export function StudioOperatorPanel({
        * ⛔ 不能再画一份（2026-09-07 真机：16 个格子 / 8 张唯一候选）。
        */
       const logItems = block.steps.map((item) => (
-        <StudioOperatorLogItem
-          key={item.id}
-          entryId={item.id}
-          step={item.step}
-          undone={item.undone}
-          onUndo={undoStep}
-          // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
-          //    传一个每次 render 都换引用的对象等于把 memo 关掉。
-          webImport={webImport.states[item.id]}
-          webImportLimit={webImport.limit}
-          onToggleWebImage={webImport.toggleCandidate}
-          renderWebCandidates={!showResearchCard}
-        />
+        <div key={item.id}>
+          <StudioOperatorLogItem
+            entryId={item.id}
+            step={item.step}
+            undone={item.undone}
+            onUndo={undoStep}
+            // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
+            //    传一个每次 render 都换引用的对象等于把 memo 关掉。
+            webImport={webImport.states[item.id]}
+            webImportLimit={webImport.limit}
+            onToggleWebImage={webImport.toggleCandidate}
+            renderWebCandidates={!showResearchCard}
+          />
+          {operatorHost.checkpoints &&
+          item.step.status === 'done' &&
+          (isRevertibleAssistantOperatorTool(item.step.tool) ||
+            item.checkpoint) ? (
+            <StudioOperatorRestoreButton
+              checkpoint={item.checkpoint}
+              disabled={working}
+              onRestore={restoreCheckpoint}
+            />
+          ) : null}
+        </div>
       ))
       return (
         <div key={`tools:${block.runKey}:${block.steps[0]?.id}`}>
@@ -916,19 +931,36 @@ export function StudioOperatorPanel({
             key={entry.id}
             node={STUDIO_OPERATOR_NODE_KINDS.user}
           >
-            <p className="whitespace-pre-wrap text-md font-medium leading-relaxed text-foreground">
-              {entry.text}
-            </p>
-            {entry.attachments.length > 0 ? (
+            <StudioOperatorUserText
+              text={entry.text}
+              attachments={entry.attachments}
+            />
+            {entry.attachments.some(
+              (attachment) => attachment.kind !== 'image',
+            ) ? (
               <div className="mt-1 flex flex-wrap gap-1">
-                {entry.attachments.map((attachment) => (
-                  <span
-                    key={attachment.id}
-                    className="rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-2sm text-primary"
-                  >
-                    {attachment.label}
-                  </span>
-                ))}
+                {entry.attachments
+                  .filter((attachment) => attachment.kind !== 'image')
+                  .map((attachment) => (
+                    <span
+                      key={attachment.id}
+                      className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-2sm text-primary"
+                    >
+                      {attachment.thumbnailUrl && (
+                        <Image
+                          src={attachment.thumbnailUrl || attachment.url}
+                          alt={attachment.label}
+                          width={48}
+                          height={48}
+                          unoptimized
+                          className="size-12 shrink-0 rounded object-cover"
+                        />
+                      )}
+                      <span className="min-w-0 break-words">
+                        {attachment.label}
+                      </span>
+                    </span>
+                  ))}
               </div>
             ) : null}
           </StudioOperatorTimelineRow>
@@ -1086,31 +1118,51 @@ export function StudioOperatorPanel({
             })}
       />
 
-      {/* ── 时间线沟（§11.3）──────────────────────────────────────
+      {history.loadingSessionId ? (
+        <div
+          role="status"
+          className="flex items-center justify-center gap-2 py-4 text-sm text-muted-foreground"
+        >
+          <Spinner size="sm" />
+          {t('history.switching')}
+        </div>
+      ) : null}
+      {history.error ? (
+        <p role="alert" className="px-3 py-2 text-sm text-destructive">
+          {history.error}
+        </p>
+      ) : null}
+      <div
+        className="flex min-h-0 flex-1 flex-col"
+        inert={Boolean(history.loadingSessionId)}
+        aria-busy={Boolean(history.loadingSessionId)}
+        style={{ opacity: history.loadingSessionId ? 0.45 : 1 }}
+      >
+        {/* ── 时间线沟（§11.3）──────────────────────────────────────
           ⚠ 滚的是外面这一层，贯穿竖线画在里面那一层：线要跟着内容一起滚，
             画在滚动容器上会得到一条钉在视口里、内容从它旁边流过去的假线。 */}
-      <StudioOperatorTimelineList
-        ref={threadRef}
-        data-testid="operator-thread"
-        onScroll={handleThreadScroll}
-        className="min-h-0 flex-1 overflow-y-auto"
-      >
-        <div className="relative px-3.5 pb-5 pt-3.5">
-          {/* 贯穿的 1px border 色线 —— 节点与头像都压在它上面（同轴）。 */}
-          <span
-            aria-hidden
-            data-testid="operator-timeline-line"
-            style={{ left: `${STUDIO_OPERATOR_TIMELINE.linePx}px` }}
-            className="pointer-events-none absolute bottom-2 top-4 w-px bg-border"
-          />
+        <StudioOperatorTimelineList
+          ref={threadRef}
+          data-testid="operator-thread"
+          onScroll={handleThreadScroll}
+          className="min-h-0 flex-1 overflow-y-auto"
+        >
+          <div className="relative px-3.5 pb-5 pt-3.5">
+            {/* 贯穿的 1px border 色线 —— 节点与头像都压在它上面（同轴）。 */}
+            <span
+              aria-hidden
+              data-testid="operator-timeline-line"
+              style={{ left: `${STUDIO_OPERATOR_TIMELINE.linePx}px` }}
+              className="pointer-events-none absolute bottom-2 top-4 w-px bg-border"
+            />
 
-          {entries.length === 0 && historyEntries.length === 0 ? (
-            <p className="px-1 py-6 text-center text-md leading-relaxed text-muted-foreground">
-              {t('empty')}
-            </p>
-          ) : null}
+            {entries.length === 0 && historyEntries.length === 0 ? (
+              <p className="px-1 py-6 text-center text-md leading-relaxed text-muted-foreground">
+                {t('empty')}
+              </p>
+            ) : null}
 
-          {/* ── 载回来的只读历史（P4-B）───────────────────────────────
+            {/* ── 载回来的只读历史（P4-B）───────────────────────────────
               ⚠ 条目 id 是**本次页面加载现编的序号**（`user-3`），刷新之后从头再编
                 一遍，所以它会在两条轴上撞车：
                 ① 历史 ↔ 新线程 —— `h:` 前缀挡住这一条；
@@ -1121,576 +1173,573 @@ export function StudioOperatorPanel({
               ⭐ 所以 key 里带上**位置**：历史是只读、只追加、按顺序渲染的数组，
                 位置在这里是稳定的身份。
               ⚠ 历史行**不画时间戳**：库里那份没有逐条时刻，拿「现在」去填是编数据。 */}
-          {(() => {
-            const renderHistoryEntry = (index: number) => {
-              const entry = historyEntries[index]!
-              return (
-                <StudioOperatorTimelineRow
-                  key={`h:${index}:${entry.id}`}
-                  node={historyNodeKind(entry.kind)}
-                  {...(persona ? { persona } : {})}
-                >
-                  <StudioOperatorHistoryItem entry={entry} />
-                </StudioOperatorTimelineRow>
-              )
-            }
-            /* ⚠ 跨切点的那一组算「最近」——⛔ 不从一组研究步中间切一刀，
-               那会把「查了什么」折进去、「查出什么」留在外面。 */
-            const older = historyGroups.filter((group) =>
-              group.indexes.every((index) => index < historyCutoff),
-            )
-            const recent = historyGroups.filter((group) =>
-              group.indexes.some((index) => index >= historyCutoff),
-            )
-            return (
-              <>
-                {older.length > 0 ? (
-                  <details
-                    data-testid="operator-history-older"
-                    className="min-w-0"
+            {(() => {
+              const renderHistoryEntry = (index: number) => {
+                const entry = historyEntries[index]!
+                return (
+                  <StudioOperatorTimelineRow
+                    key={`h:${index}:${entry.id}`}
+                    node={historyNodeKind(entry.kind)}
+                    {...(persona ? { persona } : {})}
                   >
-                    <summary className="cursor-pointer list-none py-1 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-                      {t('history.earlierRounds', { count: historyCutoff })}
-                    </summary>
-                    {renderGroups(older, renderHistoryEntry)}
-                  </details>
-                ) : null}
-                {renderGroups(recent, renderHistoryEntry)}
-              </>
-            )
-          })()}
+                    <StudioOperatorHistoryItem entry={entry} />
+                    {operatorHost.checkpoints &&
+                    entry.kind === 'step' &&
+                    entry.status === 'done' &&
+                    (entry.checkpoint ||
+                      entry.tool.startsWith('set_') ||
+                      entry.tool === 'prime_generate' ||
+                      entry.tool === 'mount_reference' ||
+                      entry.tool === 'import_user_url') ? (
+                      <StudioOperatorRestoreButton
+                        checkpoint={entry.checkpoint}
+                        disabled={working}
+                        onRestore={restoreCheckpoint}
+                      />
+                    ) : null}
+                  </StudioOperatorTimelineRow>
+                )
+              }
+              /* ⚠ 跨切点的那一组算「最近」——⛔ 不从一组研究步中间切一刀，
+               那会把「查了什么」折进去、「查出什么」留在外面。 */
+              const older = historyGroups.filter((group) =>
+                group.indexes.every((index) => index < historyCutoff),
+              )
+              const recent = historyGroups.filter((group) =>
+                group.indexes.some((index) => index >= historyCutoff),
+              )
+              return (
+                <>
+                  {older.length > 0 ? (
+                    <details
+                      data-testid="operator-history-older"
+                      className="min-w-0"
+                    >
+                      <summary className="cursor-pointer list-none py-1 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                        {t('history.earlierRounds', { count: historyCutoff })}
+                      </summary>
+                      {renderGroups(older, renderHistoryEntry)}
+                    </details>
+                  ) : null}
+                  {renderGroups(recent, renderHistoryEntry)}
+                </>
+              )
+            })()}
 
-          {/* 分隔线只在**两边都有东西**时出现：只有历史时它是一条没有下文的线。 */}
-          {historyEntries.length > 0 ? (
-            <p
-              data-testid="operator-history-divider"
-              className="my-2 flex items-center gap-2 font-mono text-xs tracking-nav text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
-            >
-              {/* ⚠ 日期取的是**这条会话的 `updatedAt`**（库里那一份没有逐条时刻，
+            {/* 分隔线只在**两边都有东西**时出现：只有历史时它是一条没有下文的线。 */}
+            {historyEntries.length > 0 ? (
+              <p
+                data-testid="operator-history-divider"
+                className="my-2 flex items-center gap-2 font-mono text-xs tracking-nav text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+              >
+                {/* ⚠ 日期取的是**这条会话的 `updatedAt`**（库里那一份没有逐条时刻，
                   见 `types/studio-operator-history.ts`）——⛔ 不拿「现在」去填每一
                   条，那是编数据。整条历史一个日期，说的正是「这些是那天的事」。 */}
-              {historySessionDate
-                ? t('history.readonlyNoteAt', { date: historySessionDate })
-                : t('history.readonlyNote')}
-            </p>
-          ) : null}
+                {historySessionDate
+                  ? t('history.readonlyNoteAt', { date: historySessionDate })
+                  : t('history.readonlyNote')}
+              </p>
+            ) : null}
 
-          {renderGroups(liveGroups, (index) => renderBlock(blocks[index]!))}
+            {renderGroups(liveGroups, (index) => renderBlock(blocks[index]!))}
 
-          {/* ── 三张「等你定」的卡（§4.1「钉在流末尾」）──────────────────
+            {/* ── 三张「等你定」的卡（§4.1「钉在流末尾」）──────────────────
               ⚠ 顺序是**计划 → 反问 → 花钱**，与它们在一轮里出现的先后一致：
                 计划卡在任何一步之前，反问在中途，花钱在最后一步。三张同时在场
                 在协议上不可能（每一帧之后流都停了），顺序只是为了「万一」时读起来
                 仍然像一条时间线。 */}
-          {plan ? (
-            <StudioOperatorTimelineRow
-              node={STUDIO_OPERATOR_NODE_KINDS.big}
-              {...(persona ? { persona } : {})}
-            >
-              {/* ⭐ **一轮只有一张**待确认卡（2026-09-06 面板轮，第 2 件）：阶段
+            {plan ? (
+              <StudioOperatorTimelineRow
+                node={STUDIO_OPERATOR_NODE_KINDS.big}
+                {...(persona ? { persona } : {})}
+              >
+                {/* ⭐ **一轮只有一张**待确认卡（2026-09-06 面板轮，第 2 件）：阶段
                   清单折在它头上，题在中间。⛔ 旧的计划卡已整块删掉 —— 两张卡列
                   同一份阶段、各带一颗「开始」，用户要答两遍。 */}
-              <StudioOperatorQuestionCard
-                steps={plan.steps}
-                estimate={plan.estimate}
-                questions={plan.questions}
-                answers={plan.answers}
-                resolved={plan.resolved}
-                onSubmit={answerQuestions}
-                /* 「修改」= 预填「修改计划：」并聚焦（§3.1 ⑤）——⛔ 不发请求，
+                <StudioOperatorQuestionCard
+                  steps={plan.steps}
+                  estimate={plan.estimate}
+                  questions={plan.questions}
+                  answers={plan.answers}
+                  resolved={plan.resolved}
+                  onSubmit={answerQuestions}
+                  /* 「修改」= 预填「修改计划：」并聚焦（§3.1 ⑤）——⛔ 不发请求，
                    下一条消息才带 `planApproved: false`（hook 那一侧记着）。 */
-                onRevise={revisePrompt}
-              />
-            </StudioOperatorTimelineRow>
-          ) : null}
+                  onRevise={revisePrompt}
+                />
+              </StudioOperatorTimelineRow>
+            ) : null}
 
-          {choice ? (
-            <StudioOperatorTimelineRow
-              node={STUDIO_OPERATOR_NODE_KINDS.big}
-              {...(persona ? { persona } : {})}
-            >
-              <StudioOperatorAssetChoiceCard
-                question={choice.question}
-                options={choice.options}
-                chosenId={choice.chosenId}
-                onChoose={(option) =>
-                  answerChoice(
-                    option,
-                    t('choice.answer', {
-                      label: option.label,
-                    }),
-                  )
-                }
-              />
-            </StudioOperatorTimelineRow>
-          ) : null}
-
-          {spend ? (
-            <StudioOperatorTimelineRow
-              node={STUDIO_OPERATOR_NODE_KINDS.big}
-              {...(persona ? { persona } : {})}
-            >
-              <StudioOperatorSpendConfirmCard
-                request={spend.request}
-                resolved={spend.resolved}
-                onConfirm={answerSpend}
-                onCancel={cancelSpend}
-              />
-            </StudioOperatorTimelineRow>
-          ) : null}
-
-          {/* ── 结果行卡（§3.1 ⑱）────────────────────────────────────
-              ⚠ 钉在流末尾而不是插进 `blocks`：那一批结果不是线程条目（它来自
-                工作台的在飞回流，不落线程、不进上下文）。真正把它变成对话的是
-                用户点「问助手」之后插的那枚 @chip —— 那一条才进消息。
-              ⚠ LoRA 装配台上 `resultItems` 恒空 → 整块不渲染（⛔ 不做空占位）。 */}
-          {resultItems.length > 0 ? (
-            <StudioOperatorTimelineRow
-              node={STUDIO_OPERATOR_NODE_KINDS.assistant}
-              {...(persona ? { persona } : {})}
-            >
-              <StudioOperatorResultRow
-                items={resultItems}
-                selectedId={selectedResultId}
-                reviewStateOf={review.stateOf}
-                onReview={(item, next) => review.toggle(item.id, next)}
-                onSelect={setOperatorSelectedResult}
-                onAsk={(item, index) => attachChip(toResultChip(item, index))}
-                onZoom={(item, index) =>
-                  openOperatorLightbox(
-                    item.url,
-                    item.label ??
-                      t('result.chipLabel', { ordinal: resultOrdinal(index) }),
-                  )
-                }
-                onContinue={(item, index) =>
-                  attachChip(
-                    toResultChip(item, index),
-                    t('result.continuePrefill'),
-                  )
-                }
-              />
-            </StudioOperatorTimelineRow>
-          ) : null}
-
-          {status === 'error' ? (
-            <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.system}>
-              <p
-                data-testid="operator-error"
-                className="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5 text-2sm text-destructive"
+            {choice ? (
+              <StudioOperatorTimelineRow
+                node={STUDIO_OPERATOR_NODE_KINDS.big}
+                {...(persona ? { persona } : {})}
               >
-                {errorText ?? t('error.generic')}
-              </p>
-            </StudioOperatorTimelineRow>
-          ) : null}
-        </div>
-      </StudioOperatorTimelineList>
+                <StudioOperatorAssetChoiceCard
+                  question={choice.question}
+                  options={choice.options}
+                  chosenId={choice.chosenId}
+                  onChoose={(option) =>
+                    answerChoice(
+                      option,
+                      t('choice.answer', {
+                        label: option.label,
+                      }),
+                    )
+                  }
+                />
+              </StudioOperatorTimelineRow>
+            ) : null}
 
-      {/* ── 建议药丸：语境化，点即发送（拍板 15）────────────────── */}
-      {suggestions.length > 0 ? (
-        <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2">
-          {suggestions.map((suggestion) => (
-            <button
-              key={suggestion.id}
-              type="button"
-              data-testid="operator-suggestion"
-              onClick={() => submit(t(`suggestion.${suggestion.id}`))}
-              className="rounded-full border border-primary/30 bg-card px-2.5 py-1 text-2sm text-primary transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/10"
-            >
-              {t(`suggestion.${suggestion.id}`)}
-            </button>
-          ))}
-        </div>
-      ) : null}
+            {confirm ? (
+              <StudioOperatorTimelineRow
+                node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+              >
+                <StudioOperatorConfirmCard
+                  confirm={confirm}
+                  onAnswer={answerConfirm}
+                />
+              </StudioOperatorTimelineRow>
+            ) : null}
 
-      {/* ── 排队条（§3.1 ㉒–㉔）────────────────────────────────────
+            {spend ? (
+              <StudioOperatorTimelineRow
+                node={STUDIO_OPERATOR_NODE_KINDS.big}
+                {...(persona ? { persona } : {})}
+              >
+                <StudioOperatorSpendConfirmCard
+                  request={spend.request}
+                  resolved={spend.resolved}
+                  onConfirm={answerSpend}
+                  onCancel={cancelSpend}
+                />
+              </StudioOperatorTimelineRow>
+            ) : null}
+
+            {status === 'error' ? (
+              <StudioOperatorTimelineRow
+                node={STUDIO_OPERATOR_NODE_KINDS.system}
+              >
+                <p
+                  data-testid="operator-error"
+                  className="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5 text-2sm text-destructive"
+                >
+                  {errorText ?? t('error.generic')}
+                </p>
+              </StudioOperatorTimelineRow>
+            ) : null}
+          </div>
+        </StudioOperatorTimelineList>
+
+        {/* ── 建议药丸：语境化，点即发送（拍板 15）────────────────── */}
+        {suggestions.length > 0 ? (
+          <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2">
+            {suggestions.map((suggestion) => (
+              <button
+                key={suggestion.id}
+                type="button"
+                data-testid="operator-suggestion"
+                onClick={() => submit(t(`suggestion.${suggestion.id}`))}
+                className="rounded-full border border-primary/30 bg-card px-2.5 py-1 text-2sm text-primary transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/10"
+              >
+                {t(`suggestion.${suggestion.id}`)}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {/* ── 排队条（§3.1 ㉒–㉔）────────────────────────────────────
           ⚠ 长在输入框**上方**（不是线程末尾）：它说的是「你刚打的这句还在手上」，
             而线程里的一切都是「已经发生的事」。 */}
-      <StudioOperatorQueueBar items={queue} onCancel={cancelQueued} />
+        <StudioOperatorQueueBar items={queue} onCancel={cancelQueued} />
 
-      {/* ── 上传中 / 上传失败的 chip（P3-A）──────────────────────
+        {/* ── 上传中 / 上传失败的 chip（P3-A）──────────────────────
           ⭐ 与下面「已挂上的附件」是同一排、同一种形状：对用户来说这就是
           「我加进来的东西」的那一行，只是有的还在路上。
           ⛔ 但它们在**代码里**是两个类型（见 `types/studio-assistant-operator.ts`
           的 `StudioOperatorUpload` 头注）：没有 https URL 的东西进不了附件数组，
           于是 `blob:` 地址在结构上不可能被发出去。 */}
-      {upload.uploads.length > 0 ? (
-        <div
-          data-testid="operator-upload-row"
-          className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-1.5"
-        >
-          {upload.uploads.map((item) => {
-            const failed = item.status === 'error'
-            return (
-              <span
-                key={item.id}
-                data-testid={
-                  failed ? 'operator-upload-error' : 'operator-upload-pending'
-                }
-                data-progress={item.progress}
-                title={item.error ?? item.fileName}
-                className={cn(
-                  'flex items-center gap-1 rounded-lg border py-0.5 pl-0.5 pr-1.5 text-2sm',
-                  failed
-                    ? 'border-destructive/40 bg-destructive/5 text-destructive'
-                    : 'border-border bg-muted/50 text-muted-foreground',
-                )}
-              >
-                <span className="relative grid size-5 place-items-center overflow-hidden rounded bg-muted">
-                  {/* 本地预览（只有图片有）—— 还没上传完就已经看得见自己加了什么。 */}
-                  {item.previewUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={item.previewUrl}
-                      alt=""
-                      className={cn(
-                        'size-full object-cover',
-                        !failed && 'opacity-50',
+        {upload.uploads.length > 0 ? (
+          <div
+            data-testid="operator-upload-row"
+            className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-1.5"
+          >
+            {upload.uploads.map((item) => {
+              const failed = item.status === 'error'
+              return (
+                <span
+                  key={item.id}
+                  data-testid={
+                    failed ? 'operator-upload-error' : 'operator-upload-pending'
+                  }
+                  data-progress={item.progress}
+                  title={item.error ?? item.fileName}
+                  className={cn(
+                    'flex items-center gap-1 rounded-lg border py-0.5 pl-0.5 pr-1.5 text-2sm',
+                    failed
+                      ? 'border-destructive/40 bg-destructive/5 text-destructive'
+                      : 'border-border bg-muted/50 text-muted-foreground',
+                  )}
+                >
+                  <span className="relative grid size-5 place-items-center overflow-hidden rounded bg-muted">
+                    {/* 本地预览（只有图片有）—— 还没上传完就已经看得见自己加了什么。 */}
+                    {item.previewUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.previewUrl}
+                        alt=""
+                        className={cn(
+                          'size-full object-cover',
+                          !failed && 'opacity-50',
+                        )}
+                      />
+                    ) : null}
+                    <span className="absolute inset-0 grid place-items-center">
+                      {failed ? (
+                        <TriangleAlert className="size-3" aria-hidden />
+                      ) : (
+                        <Spinner size="sm" className="size-3" />
                       )}
-                    />
+                    </span>
+                  </span>
+                  <span className="max-w-24 truncate">{item.fileName}</span>
+                  {/* 真进度（R2 直传的 XHR 事件），不是假动画。 */}
+                  {failed ? null : (
+                    <span className="font-mono tabular-nums">
+                      {`${item.progress}%`}
+                    </span>
+                  )}
+                  {failed ? (
+                    <button
+                      type="button"
+                      data-testid="operator-upload-retry"
+                      aria-label={t('attach.upload.retry')}
+                      title={item.error ?? t('attach.upload.retry')}
+                      onClick={() => upload.retryUpload(item.id)}
+                      className="hover:text-foreground"
+                    >
+                      <RotateCw className="size-2.5" aria-hidden />
+                    </button>
                   ) : null}
-                  <span className="absolute inset-0 grid place-items-center">
-                    {failed ? (
-                      <TriangleAlert className="size-3" aria-hidden />
-                    ) : (
-                      <Spinner size="sm" className="size-3" />
-                    )}
-                  </span>
-                </span>
-                <span className="max-w-24 truncate">{item.fileName}</span>
-                {/* 真进度（R2 直传的 XHR 事件），不是假动画。 */}
-                {failed ? null : (
-                  <span className="font-mono tabular-nums">
-                    {`${item.progress}%`}
-                  </span>
-                )}
-                {failed ? (
                   <button
                     type="button"
-                    data-testid="operator-upload-retry"
-                    aria-label={t('attach.upload.retry')}
-                    title={item.error ?? t('attach.upload.retry')}
-                    onClick={() => upload.retryUpload(item.id)}
+                    data-testid="operator-upload-dismiss"
+                    aria-label={t('attach.remove')}
+                    onClick={() => upload.dismissUpload(item.id)}
                     className="hover:text-foreground"
                   >
-                    <RotateCw className="size-2.5" aria-hidden />
+                    <X className="size-2.5" aria-hidden />
                   </button>
-                ) : null}
+                </span>
+              )
+            })}
+          </div>
+        ) : null}
+
+        {/* ── 已挂上的附件 chip（可摘）──────────────────────────── */}
+        {attachments.length > 0 ? (
+          <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-1.5">
+            {attachments.map((attachment) => (
+              <span
+                key={attachment.id}
+                data-testid="operator-attachment-chip"
+                className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2sm text-primary"
+              >
+                {/* ⚠ 预览走 `thumbnailUrl`，**不是 `url`** —— 视频 / 音频的 url
+                  是媒体文件本身，喂给 `next/image` 得到的是一个碎图标。 */}
+                {attachment.thumbnailUrl ? (
+                  <Image
+                    src={attachment.thumbnailUrl}
+                    alt={attachment.label}
+                    width={40}
+                    height={40}
+                    className="size-5 rounded object-cover"
+                  />
+                ) : (
+                  <span className="grid size-5 place-items-center rounded bg-primary/15">
+                    <AttachKindGlyph kind={attachment.kind} />
+                  </span>
+                )}
+                <span className="max-w-24 truncate">{attachment.label}</span>
                 <button
                   type="button"
-                  data-testid="operator-upload-dismiss"
                   aria-label={t('attach.remove')}
-                  onClick={() => upload.dismissUpload(item.id)}
-                  className="hover:text-foreground"
+                  onClick={() =>
+                    onAttachmentsChange(
+                      attachments.filter((item) => item.id !== attachment.id),
+                    )
+                  }
+                  className="text-muted-foreground hover:text-foreground"
                 >
                   <X className="size-2.5" aria-hidden />
                 </button>
               </span>
-            )
-          })}
-        </div>
-      ) : null}
+            ))}
+          </div>
+        ) : null}
 
-      {/* ── 已挂上的附件 chip（可摘）──────────────────────────── */}
-      {attachments.length > 0 ? (
-        <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-1.5">
-          {attachments.map((attachment) => (
-            <span
-              key={attachment.id}
-              data-testid="operator-attachment-chip"
-              className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2sm text-primary"
-            >
-              {/* ⚠ 预览走 `thumbnailUrl`，**不是 `url`** —— 视频 / 音频的 url
-                  是媒体文件本身，喂给 `next/image` 得到的是一个碎图标。 */}
-              {attachment.thumbnailUrl ? (
-                <Image
-                  src={attachment.thumbnailUrl}
-                  alt={attachment.label}
-                  width={40}
-                  height={40}
-                  className="size-5 rounded object-cover"
-                />
-              ) : (
-                <span className="grid size-5 place-items-center rounded bg-primary/15">
-                  <AttachKindGlyph kind={attachment.kind} />
-                </span>
-              )}
-              <span className="max-w-24 truncate">{attachment.label}</span>
-              <button
-                type="button"
-                aria-label={t('attach.remove')}
-                onClick={() =>
-                  onAttachmentsChange(
-                    attachments.filter((item) => item.id !== attachment.id),
-                  )
-                }
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <X className="size-2.5" aria-hidden />
-              </button>
-            </span>
-          ))}
-        </div>
-      ) : null}
-
-      {/* ── @chip 区（§11.4「@chip」/ §7）──────────────────────────
+        {/* ── @chip 区（§11.4「@chip」/ §7）──────────────────────────
           ⚠ 与 📎 附件分成两排是有意的：📎 是「我给你一份材料」，@ 是「看这几张」。
             右端那个计数是这一片的承诺（「将看 N 张」），⛔ 不合并进附件排 ——
             合并之后计数会把材料也算进去，而助手并不会去看一段音频。 */}
-      {/* ── 上下文卡 chip（切片 Y）──────────────────────────────
+        {/* ── 上下文卡 chip（切片 Y）──────────────────────────────
           ⚠ 与图 chip **分成两排**：「看这几张」和「照这张卡干活」不是同一件事，
             合成一排之后右端那个「将看 N 张」的计数会把卡也数进去。 */}
-      {mention.cardChips.length > 0 ? (
-        <div
-          data-testid="operator-card-chip-row"
-          className="flex shrink-0 flex-wrap items-center gap-1.5 px-3 pb-1.5"
-        >
-          {mention.cardChips.map((card) => (
-            <ContextCardChip
-              key={card.cardId}
-              cardId={card.cardId}
-              name={card.name}
-              kind={card.kind}
-              images={card.images}
-              active
-              onRemove={mention.removeCardChip}
-              removeLabel={t('mention.remove')}
-            />
-          ))}
-        </div>
-      ) : null}
+        {mention.cardChips.length > 0 ? (
+          <div
+            data-testid="operator-card-chip-row"
+            className="flex shrink-0 flex-wrap items-center gap-1.5 px-3 pb-1.5"
+          >
+            {mention.cardChips.map((card) => (
+              <ContextCardChip
+                key={card.cardId}
+                cardId={card.cardId}
+                name={card.name}
+                kind={card.kind}
+                images={card.images}
+                active
+                onRemove={mention.removeCardChip}
+                removeLabel={t('mention.remove')}
+              />
+            ))}
+          </div>
+        ) : null}
 
-      {mention.chips.length > 0 ? (
-        <div
-          data-testid="operator-mention-row"
-          className="flex shrink-0 flex-wrap items-center gap-1.5 px-3 pb-1.5"
-        >
-          {mention.chips.map((chip) => (
-            <span
-              key={chip.id}
-              data-testid="operator-mention-chip"
-              className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2sm text-primary"
-            >
-              {chip.thumbnailUrl ? (
-                <Image
-                  src={chip.thumbnailUrl}
-                  alt={chip.label}
-                  width={40}
-                  height={40}
-                  unoptimized
-                  className="size-5 rounded object-cover"
-                />
-              ) : (
-                <span className="grid size-5 place-items-center rounded bg-primary/15">
-                  <AttachKindGlyph kind={chip.kind} />
-                </span>
-              )}
-              <span className="max-w-24 truncate">{chip.label}</span>
-              <button
-                type="button"
-                data-testid="operator-mention-remove"
-                aria-label={t('mention.remove')}
-                onClick={() => mention.removeChip(chip.id)}
-                className="text-primary/70 hover:text-primary"
+        {mention.chips.length > 0 ? (
+          <div
+            data-testid="operator-mention-row"
+            className="flex shrink-0 flex-wrap items-center gap-1.5 px-3 pb-1.5"
+          >
+            {mention.chips.map((chip) => (
+              <span
+                key={chip.id}
+                data-testid="operator-mention-chip"
+                className="flex items-center gap-1 rounded-lg border border-primary/30 bg-primary/10 py-0.5 pl-0.5 pr-1.5 text-2sm text-primary"
               >
-                <X className="size-2.5" aria-hidden />
-              </button>
+                {chip.thumbnailUrl ? (
+                  <Image
+                    src={chip.thumbnailUrl}
+                    alt={chip.label}
+                    width={40}
+                    height={40}
+                    unoptimized
+                    className="size-5 rounded object-cover"
+                  />
+                ) : (
+                  <span className="grid size-5 place-items-center rounded bg-primary/15">
+                    <AttachKindGlyph kind={chip.kind} />
+                  </span>
+                )}
+                <span className="max-w-24 truncate">{chip.label}</span>
+                <button
+                  type="button"
+                  data-testid="operator-mention-remove"
+                  aria-label={t('mention.remove')}
+                  onClick={() => mention.removeChip(chip.id)}
+                  className="text-primary/70 hover:text-primary"
+                >
+                  <X className="size-2.5" aria-hidden />
+                </button>
+              </span>
+            ))}
+            {/* ⚠ 超过 8 张只**转色 + 加一句**，⛔ 不拦截、⛔ 不截断（owner 2026-09-06）。 */}
+            <span
+              data-testid="operator-mention-count"
+              data-over-limit={mention.overLimit}
+              className={cn(
+                'ml-auto font-mono text-xs tracking-nav tabular-nums',
+                mention.overLimit
+                  ? 'text-status-warning'
+                  : 'text-muted-foreground',
+              )}
+            >
+              {mention.overLimit
+                ? t('mention.countWarn', {
+                    count: mention.count,
+                    limit: STUDIO_OPERATOR_MENTION.warnAboveCount,
+                  })
+                : t('mention.count', { count: mention.count })}
             </span>
-          ))}
-          {/* ⚠ 超过 8 张只**转色 + 加一句**，⛔ 不拦截、⛔ 不截断（owner 2026-09-06）。 */}
-          <span
-            data-testid="operator-mention-count"
-            data-over-limit={mention.overLimit}
-            className={cn(
-              'ml-auto font-mono text-xs tracking-nav tabular-nums',
-              mention.overLimit
-                ? 'text-status-warning'
-                : 'text-muted-foreground',
-            )}
-          >
-            {mention.overLimit
-              ? t('mention.countWarn', {
-                  count: mention.count,
-                  limit: STUDIO_OPERATOR_MENTION.warnAboveCount,
-                })
-              : t('mention.count', { count: mention.count })}
-          </span>
-        </div>
-      ) : null}
+          </div>
+        ) : null}
 
-      {/* ── 输入区：上行工具条 + 下行输入（拍板 12）──────────────── */}
-      <div
-        data-testid="operator-input-area"
-        ref={inputAreaRef}
-        data-drag-over={dragOver}
-        /**
-         * 拖图进输入框（§3.3 第 3 行）—— 四入口之三。
-         *
-         * ⭐ 库内资产（`ASSET_DND_MIME`）成 @chip，其余原样交回上传三通道那一个
-         * 出口（拍板 16）。判据在 `use-studio-operator-mention.ts` 里，⛔ 这里
-         * 不再判一次。
-         * ⚠ `onDragOver` 必须 `preventDefault`，否则浏览器根本不会触发 `drop`
-         * （「拖上去光标是禁止号，松手什么都没发生」的经典成因）。
-         */
-        onDragOver={(event) => {
-          event.preventDefault()
-          setDragOver(true)
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(event) => {
-          event.preventDefault()
-          setDragOver(false)
-          const files = mention.acceptDrop(event.dataTransfer)
-          if (files.length > 0) upload.uploadFiles(files)
-        }}
-        className={cn(
-          'relative flex shrink-0 flex-col gap-1.5 border-t bg-card px-3 py-2.5 transition-colors duration-(--duration-fast) ease-standard',
-          dragOver
-            ? 'border-primary ring-2 ring-inset ring-primary'
-            : 'border-border',
-        )}
-      >
-        <div data-testid="operator-toolbar" className="flex items-center gap-2">
-          <button
-            ref={attachTriggerRef}
-            type="button"
-            data-testid="operator-attach-toggle"
-            aria-label={t('attach.label')}
-            aria-expanded={attachOpen}
-            aria-controls={
-              attachOpen ? STUDIO_OPERATOR_ATTACH_MENU_ID : undefined
-            }
-            data-operator-attach-trigger
-            onClick={() => setAttachOpen((open) => !open)}
-            className={cn(
-              'grid size-7 place-items-center rounded-lg border border-border/70 text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground',
-              attachOpen && 'border-primary/40 bg-primary/10 text-primary',
-            )}
+        {/* ── 输入区：上行工具条 + 下行输入（拍板 12）──────────────── */}
+        <div
+          data-testid="operator-input-area"
+          ref={inputAreaRef}
+          data-drag-over={dragOver}
+          /**
+           * 拖图进输入框（§3.3 第 3 行）—— 四入口之三。
+           *
+           * ⭐ 库内资产（`ASSET_DND_MIME`）成 @chip，其余原样交回上传三通道那一个
+           * 出口（拍板 16）。判据在 `use-studio-operator-mention.ts` 里，⛔ 这里
+           * 不再判一次。
+           * ⚠ `onDragOver` 必须 `preventDefault`，否则浏览器根本不会触发 `drop`
+           * （「拖上去光标是禁止号，松手什么都没发生」的经典成因）。
+           */
+          onDragOver={(event) => {
+            event.preventDefault()
+            setDragOver(true)
+          }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(event) => {
+            event.preventDefault()
+            setDragOver(false)
+            const files = mention.acceptDrop(event.dataTransfer)
+            if (files.length > 0) upload.uploadFiles(files)
+          }}
+          className={cn(
+            'relative flex shrink-0 flex-col gap-1.5 border-t bg-card px-3 py-2.5 transition-colors duration-(--duration-fast) ease-standard',
+            dragOver
+              ? 'border-primary ring-2 ring-inset ring-primary'
+              : 'border-border',
+          )}
+        >
+          <div
+            data-testid="operator-toolbar"
+            className="flex items-center gap-2"
           >
-            <Paperclip className="size-3.5" aria-hidden />
-          </button>
-          {/* ⭐ 模型 chip = 现有「自动路由」组件（拍板 11），不另行设计。
+            <button
+              ref={attachTriggerRef}
+              type="button"
+              data-testid="operator-attach-toggle"
+              aria-label={t('attach.label')}
+              aria-expanded={attachOpen}
+              aria-controls={
+                attachOpen ? STUDIO_OPERATOR_ATTACH_MENU_ID : undefined
+              }
+              data-operator-attach-trigger
+              onClick={() => setAttachOpen((open) => !open)}
+              className={cn(
+                'grid size-7 place-items-center rounded-lg border border-border/70 text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground',
+                attachOpen && 'border-primary/40 bg-primary/10 text-primary',
+              )}
+            >
+              <Paperclip className="size-3.5" aria-hidden />
+            </button>
+            {/* ⭐ 模型 chip = 现有「自动路由」组件（拍板 11），不另行设计。
               `emptyRouteLabel` 必须由调用方给：studio 没有 gateway 分支，
               写死任何一个具体型号都是在说谎（2026-08-19 生产事故）。 */}
-          <span data-testid="operator-model-chip">
-            <CanvasAssistantRouteSelector
-              value={route}
-              onChange={setRoute}
-              emptyRouteLabel={tPrompt('routeAuto')}
-            />
-          </span>
-          {/* ── 「先问我」（§3.3 后两行）────────────────────────────
+            <span data-testid="operator-model-chip">
+              <CanvasAssistantRouteSelector
+                value={route}
+                onChange={setRoute}
+                emptyRouteLabel={tPrompt('routeAuto')}
+              />
+            </span>
+            {/* ── 「先问我」（§3.3 后两行）────────────────────────────
               ⚠ 本片**只做开关与状态**：开着时占位语加一句「本轮先出计划卡」，
                 真正强制出卡的那一半由计划卡片那一片接（§5 的客户端硬判）。
                 ⛔ 但它不是假开关 —— 值真的存进 store，接线那片读它即可。 */}
-          <button
-            type="button"
-            data-testid="operator-ask-first"
-            aria-pressed={askFirst}
-            title={t('askFirst.hint')}
-            onClick={() => setOperatorAskFirst(!askFirst)}
-            className={cn(
-              'rounded-lg border px-2 py-1 text-2sm transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              askFirst
-                ? 'border-primary bg-primary text-primary-foreground'
-                : 'border-border/70 text-muted-foreground hover:text-foreground',
-            )}
-          >
-            {t('askFirst.label')}
-          </button>
-          <span className="flex-1" />
-          {working ? (
             <button
               type="button"
-              data-testid="operator-stop"
-              aria-label={t('stop')}
-              title={t('stop')}
-              onClick={stop}
-              className="grid size-7 place-items-center rounded-lg border border-destructive/40 bg-destructive/5 text-destructive transition-colors duration-(--duration-fast) ease-standard hover:bg-destructive/10"
+              data-testid="operator-ask-first"
+              aria-pressed={askFirst}
+              title={t('askFirst.hint')}
+              onClick={() => setOperatorAskFirst(!askFirst)}
+              className={cn(
+                'rounded-lg border px-2 py-1 text-2sm transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                askFirst
+                  ? 'border-primary bg-primary text-primary-foreground'
+                  : 'border-border/70 text-muted-foreground hover:text-foreground',
+              )}
             >
-              <Square className="size-3" aria-hidden />
+              {t('askFirst.label')}
             </button>
-          ) : null}
-        </div>
-        <div className="flex items-end gap-2">
-          <MentionInput
-            ref={inputRef}
-            portalContainerRef={inputAreaRef}
-            value={draft}
-            aria-label={t('placeholderIdle')}
-            onValueChange={onDraftChange}
-            tokens={referenceTokens}
-            mentionCandidates={referenceCandidates}
-            onMentionSelect={(candidate) =>
-              inputRef.current?.insertToken(
-                candidate.tokenName ?? candidate.name,
-              )
-            }
-            emptyLabel={
-              referenceCandidates.length
-                ? tReference('noMatches')
-                : tReference('empty')
-            }
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' && !event.shiftKey) {
-                event.preventDefault()
-                submit(draft)
+            <span className="flex-1" />
+            {working ? (
+              <button
+                type="button"
+                data-testid="operator-stop"
+                aria-label={t('stop')}
+                title={t('stop')}
+                onClick={stop}
+                className="grid size-7 place-items-center rounded-lg border border-destructive/40 bg-destructive/5 text-destructive transition-colors duration-(--duration-fast) ease-standard hover:bg-destructive/10"
+              >
+                <Square className="size-3" aria-hidden />
+              </button>
+            ) : null}
+          </div>
+          <div className="flex items-end gap-2">
+            <MentionInput
+              ref={inputRef}
+              portalContainerRef={inputAreaRef}
+              value={draft}
+              aria-label={t('placeholderIdle')}
+              onValueChange={onDraftChange}
+              tokens={referenceTokens}
+              mentionCandidates={referenceCandidates}
+              onMentionSelect={(candidate) =>
+                inputRef.current?.insertToken(
+                  candidate.tokenName ?? candidate.name,
+                )
               }
-            }}
-            /**
-             * 粘贴成附件（拍板 16 的第三个手势）。
-             *
-             * ⚠ 只在剪贴板**没有文本**时 `preventDefault`：从网页上复制一段
-             * 图文再粘进来，用户要的是那段文字**和**那张图，吞掉文字是错的。
-             * ⚠ 走 `clipboardData.files` 而不是 `items` —— `files` 已经是
-             * `File`，`items` 还要 `getAsFile()` 一层且在部分浏览器里会给出
-             * 一堆 `string` 类型的空条目。
-             */
-            onPaste={(event) => {
-              const files = [...(event.clipboardData?.files ?? [])]
-              if (files.length === 0) return
-              if (!event.clipboardData?.getData('text/plain')) {
-                event.preventDefault()
+              emptyLabel={
+                referenceCandidates.length
+                  ? tReference('noMatches')
+                  : tReference('empty')
               }
-              upload.uploadFiles(files)
-            }}
-            placeholder={
-              askFirst
-                ? t('placeholderAskFirst')
-                : working
-                  ? t('placeholderWorking')
-                  : t('placeholderIdle')
-            }
-            className="max-h-24 min-h-9 flex-1 resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-md outline-none transition-colors duration-(--duration-fast) ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-          />
-          <button
-            type="button"
-            data-testid="operator-send"
-            /**
-             * ⚠ 工作态下发送 = **排队**（§3.1 ㉒，拍板 13 改口）：`send()` 把这一句
-             * 放进队列，到下一个工具步跑完才接住。⛔ 「发送即插话」那条分支已删
-             * （§14「删掉什么」）—— 它此前的实现是 abort + 重发，代价是用户想补
-             * 一句「顺便把比例改成 3:4」会把已经付过钱的三步整个掐掉重跑一遍。
-             * 真要掐掉走 ⏹（`operator-stop`）。
-             * 等上传是**说出来的**等待：停用 + 一句「还有文件在传」，
-             * ⛔ 不做「点了没反应」。
-             */
-            disabled={uploading}
-            title={sendLabel}
-            aria-label={sendLabel}
-            onClick={() => submit(draft)}
-            className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {uploading ? (
-              <Spinner size="sm" className="text-primary-foreground" />
-            ) : (
-              <Send className="size-4" aria-hidden />
-            )}
-          </button>
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && !event.shiftKey) {
+                  event.preventDefault()
+                  submit(draft)
+                }
+              }}
+              /**
+               * 粘贴成附件（拍板 16 的第三个手势）。
+               *
+               * ⚠ 只在剪贴板**没有文本**时 `preventDefault`：从网页上复制一段
+               * 图文再粘进来，用户要的是那段文字**和**那张图，吞掉文字是错的。
+               * ⚠ 走 `clipboardData.files` 而不是 `items` —— `files` 已经是
+               * `File`，`items` 还要 `getAsFile()` 一层且在部分浏览器里会给出
+               * 一堆 `string` 类型的空条目。
+               */
+              onPaste={(event) => {
+                const files = [...(event.clipboardData?.files ?? [])]
+                if (files.length === 0) return
+                if (!event.clipboardData?.getData('text/plain')) {
+                  event.preventDefault()
+                }
+                upload.uploadFiles(files)
+              }}
+              placeholder={
+                askFirst
+                  ? t('placeholderAskFirst')
+                  : working
+                    ? t('placeholderWorking')
+                    : t('placeholderIdle')
+              }
+              className="max-h-24 min-h-9 flex-1 resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-md outline-none transition-colors duration-(--duration-fast) ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+            />
+            <button
+              type="button"
+              data-testid="operator-send"
+              /**
+               * ⚠ 工作态下发送 = **排队**（§3.1 ㉒，拍板 13 改口）：`send()` 把这一句
+               * 放进队列，到下一个工具步跑完才接住。⛔ 「发送即插话」那条分支已删
+               * （§14「删掉什么」）—— 它此前的实现是 abort + 重发，代价是用户想补
+               * 一句「顺便把比例改成 3:4」会把已经付过钱的三步整个掐掉重跑一遍。
+               * 真要掐掉走 ⏹（`operator-stop`）。
+               * 等上传是**说出来的**等待：停用 + 一句「还有文件在传」，
+               * ⛔ 不做「点了没反应」。
+               */
+              disabled={uploading}
+              title={sendLabel}
+              aria-label={sendLabel}
+              onClick={() => submit(draft)}
+              className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {uploading ? (
+                <Spinner size="sm" className="text-primary-foreground" />
+              ) : (
+                <Send className="size-4" aria-hidden />
+              )}
+            </button>
+          </div>
         </div>
       </div>
 
-      {attachOpen ? (
+      {attachOpen && !history.loadingSessionId ? (
         <StudioOperatorAttachMenu
           triggerRef={attachTriggerRef}
           onUploadFiles={handleUploadFiles}

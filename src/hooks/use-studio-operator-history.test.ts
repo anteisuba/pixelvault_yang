@@ -15,11 +15,17 @@ import type { UpsertAssistantConversationRequest } from '@/types/assistant-conve
  *    永远只有一行，而那要读库才发现得了。
  */
 
+const translate = (key: string) => key
+vi.mock('next-intl', () => ({ useTranslations: () => translate }))
+const renameMock = vi.fn()
+const deleteMock = vi.fn()
 const listMock = vi.fn()
 const getMock = vi.fn()
 const upsertMock = vi.fn()
 
 vi.mock('@/lib/api-client', () => ({
+  renameAssistantConversationAPI: (...args: unknown[]) => renameMock(...args),
+  deleteAssistantConversationAPI: (...args: unknown[]) => deleteMock(...args),
   listAssistantConversationsAPI: (...args: unknown[]) => listMock(...args),
   getAssistantConversationAPI: (...args: unknown[]) => getMock(...args),
   upsertAssistantConversationAPI: (...args: unknown[]) => upsertMock(...args),
@@ -34,6 +40,10 @@ let historyHook: HistoryHook
 beforeEach(async () => {
   vi.useFakeTimers()
   vi.resetModules()
+  renameMock
+    .mockReset()
+    .mockResolvedValue({ success: true, data: { title: 'New title' } })
+  deleteMock.mockReset().mockResolvedValue({ success: true, data: null })
   listMock.mockReset().mockResolvedValue({ success: true, data: [] })
   getMock.mockReset().mockResolvedValue({ success: true, data: null })
   upsertMock
@@ -160,4 +170,169 @@ describe('会话历史落库', () => {
       ['上次说的', '这次说的'],
     )
   })
+})
+
+const session = {
+  id: 'conv-delete',
+  surface: 'IMAGE_STUDIO' as const,
+  projectId: null,
+  title: 'Delete me',
+  updatedAt: '2026-09-09T00:00:00Z',
+  messageCount: 1,
+  operatorThread: true,
+}
+
+it('deletes the active conversation and does not autosave it back', async () => {
+  const hook = await mount()
+  act(() => {
+    store.setOperatorSession(session.id, session.surface)
+    say('u1', 'Draft')
+  })
+  await act(async () => {
+    expect(await hook.result.current.deleteSession(session)).toBe(true)
+  })
+  expect(deleteMock).toHaveBeenCalledWith(session.id)
+  expect(store.getOperatorState().sessionId).toBeNull()
+  expect(store.getOperatorState().entries).toHaveLength(0)
+  await settleDebounce()
+  expect(upsertMock).not.toHaveBeenCalled()
+})
+
+it('preserves the current conversation when deletion fails', async () => {
+  deleteMock.mockResolvedValue({ success: false, error: 'Offline' })
+  const hook = await mount()
+  act(() => {
+    store.setOperatorSession(session.id, session.surface)
+    say('u1', 'Keep me')
+  })
+  await act(async () => {
+    expect(await hook.result.current.deleteSession(session)).toBe(false)
+  })
+  expect(store.getOperatorState().sessionId).toBe(session.id)
+  expect(store.getOperatorState().entries).toHaveLength(1)
+  expect(hook.result.current.error).toBe('deleteFailed')
+})
+
+it('ignores a late save response after deleting the current conversation', async () => {
+  let finishSave!: (value: unknown) => void
+  upsertMock.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finishSave = resolve
+      }),
+  )
+  const hook = await mount()
+  act(() => {
+    store.setOperatorSession(session.id, session.surface)
+    say('u1', 'Saved')
+  })
+  await settleDebounce()
+  expect(upsertMock).toHaveBeenCalledOnce()
+  await act(async () => {
+    await hook.result.current.deleteSession(session)
+  })
+  await act(async () => {
+    finishSave({ success: true, data: { id: session.id } })
+  })
+  expect(store.getOperatorState().sessionId).toBeNull()
+  await settleDebounce()
+  expect(upsertMock).toHaveBeenCalledOnce()
+})
+
+it('deletes another conversation without resetting the active one', async () => {
+  const hook = await mount()
+  act(() => {
+    store.setOperatorSession('keep', session.surface)
+    say('u1', 'Keep me')
+  })
+  await act(async () => {
+    await hook.result.current.deleteSession(session)
+  })
+  expect(store.getOperatorState().sessionId).toBe('keep')
+  expect(store.getOperatorState().entries).toHaveLength(1)
+})
+
+it('shows pending state and keeps the old conversation on load failure', async () => {
+  const hook = await mount()
+  act(() => store.setOperatorSession('old', session.surface))
+  let finish!: (value: unknown) => void
+  getMock.mockImplementation(
+    () =>
+      new Promise((resolve) => {
+        finish = resolve
+      }),
+  )
+  act(() => hook.result.current.selectSession(session))
+  expect(hook.result.current.loadingSessionId).toBe(session.id)
+  expect(store.getOperatorState().sessionId).toBe('old')
+  await act(async () => finish({ success: false, error: 'Offline' }))
+  expect(hook.result.current.loadingSessionId).toBeNull()
+  expect(hook.result.current.error).toBe('loadFailed')
+  expect(store.getOperatorState().sessionId).toBe('old')
+})
+it('ignores an older selection when requests finish out of order', async () => {
+  const hook = await mount()
+  const finishes: ((value: unknown) => void)[] = []
+  getMock.mockImplementation(
+    () => new Promise((resolve) => finishes.push(resolve)),
+  )
+  act(() => hook.result.current.selectSession(session))
+  act(() => hook.result.current.selectSession({ ...session, id: 'newer' }))
+  await act(async () =>
+    finishes[1]({
+      success: true,
+      data: { id: 'newer', surface: session.surface, messages: [] },
+    }),
+  )
+  await act(async () =>
+    finishes[0]({
+      success: true,
+      data: { id: session.id, surface: session.surface, messages: [] },
+    }),
+  )
+  expect(store.getOperatorState().sessionId).toBe('newer')
+  expect(hook.result.current.loadingSessionId).toBeNull()
+})
+it('updates a renamed title only after a successful save', async () => {
+  const hook = await mount()
+  listMock.mockResolvedValue({ success: true, data: [session] })
+  await act(async () => hook.result.current.refreshSessions(true))
+  await act(async () => {
+    expect(
+      await hook.result.current.renameSession(session, ' New title '),
+    ).toBe(true)
+  })
+  expect(renameMock).toHaveBeenCalledWith(session.id, 'New title')
+  expect(hook.result.current.sessions[0].title).toBe('New title')
+  renameMock.mockResolvedValue({ success: false, error: 'Offline' })
+  await act(async () => {
+    expect(await hook.result.current.renameSession(session, 'Lost')).toBe(false)
+  })
+  expect(hook.result.current.sessions[0].title).toBe('New title')
+})
+
+it('coalesces menu refreshes while the initial list is still loading', async () => {
+  listMock.mockImplementation(() => new Promise(() => {}))
+  const hook = renderHook(() => historyHook.useStudioOperatorHistory())
+  const initialCalls = listMock.mock.calls.length
+  act(() => {
+    hook.result.current.refreshSessions()
+    hook.result.current.refreshSessions()
+  })
+  expect(listMock).toHaveBeenCalledTimes(initialCalls)
+})
+
+it('loads the combined list once and reuses it for repeated menu opens', async () => {
+  const hook = await mount()
+  expect(listMock).toHaveBeenCalledTimes(1)
+  expect(listMock).toHaveBeenCalledWith(
+    expect.objectContaining({ operatorOnly: true }),
+  )
+  act(() => hook.result.current.refreshSessions())
+  expect(listMock).toHaveBeenCalledTimes(1)
+  await act(async () =>
+    vi.advanceTimersByTimeAsync(STUDIO_OPERATOR_HISTORY.listFreshMs),
+  )
+  await act(async () => hook.result.current.refreshSessions())
+  expect(listMock).toHaveBeenCalledTimes(2)
 })

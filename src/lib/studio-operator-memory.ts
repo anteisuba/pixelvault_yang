@@ -16,7 +16,10 @@
  * 从它身上取只会得到一轮空记忆。
  */
 
-import { ASSISTANT_OPERATOR_TOOL_IDS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_OPERATOR_TOOL_IDS,
+} from '@/constants/assistant-operator'
 import { ASSISTANT_OPERATOR_STEP_STATUS_IDS } from '@/constants/assistant-operator'
 import type { AssistantOperatorStep } from '@/types/assistant-operator'
 import type {
@@ -25,9 +28,15 @@ import type {
 } from '@/types/studio-assistant-operator'
 
 /** 名字空着时退回一段可读的兜底 —— ⛔ 不写一个空串（那在提示里是一行空白）。 */
-function fallbackName(value: string | undefined, id: string): string {
+export function operatorMemoryName(
+  value: string | undefined,
+  id: string,
+): string {
   const trimmed = value?.trim()
-  return trimmed && trimmed.length > 0 ? trimmed : id
+  return (trimmed && trimmed.length > 0 ? trimmed : id).slice(
+    0,
+    ASSISTANT_OPERATOR_LIMITS.maxLabelChars,
+  )
 }
 
 /**
@@ -52,7 +61,7 @@ export function collectStepArtifacts(
     case ASSISTANT_OPERATOR_TOOL_IDS.searchAssets:
       return (step.result?.assets ?? []).map((asset) => ({
         id: asset.assetId,
-        displayName: fallbackName(asset.displayName, asset.assetId),
+        displayName: operatorMemoryName(asset.displayName, asset.assetId),
         kind: 'asset' as const,
         ...(asset.url ? { url: asset.url } : {}),
       }))
@@ -61,7 +70,7 @@ export function collectStepArtifacts(
       //   转存之后那一张会以 assetId 的身份再进来一次，两条不冲突。
       return (step.result?.images ?? []).map((image) => ({
         id: image.imageUrl,
-        displayName: fallbackName(
+        displayName: operatorMemoryName(
           image.publisher ?? image.domain,
           image.imageUrl,
         ),
@@ -71,7 +80,7 @@ export function collectStepArtifacts(
     case ASSISTANT_OPERATOR_TOOL_IDS.research:
       return (step.result?.evidence ?? []).map((item) => ({
         id: item.url ?? item.title,
-        displayName: fallbackName(item.title, item.publisher),
+        displayName: operatorMemoryName(item.title, item.publisher),
         kind: 'evidence' as const,
         ...(item.url ? { url: item.url } : {}),
       }))
@@ -80,7 +89,10 @@ export function collectStepArtifacts(
         ? [
             {
               id: step.result.url,
-              displayName: fallbackName(step.result.title, step.result.url),
+              displayName: operatorMemoryName(
+                step.result.title,
+                step.result.url,
+              ),
               kind: 'evidence' as const,
               url: step.result.url,
             },
@@ -102,7 +114,7 @@ export function attachmentArtifacts(
 ): readonly StudioOperatorMemoryArtifact[] {
   return attachments.map((attachment) => ({
     id: attachment.id,
-    displayName: fallbackName(attachment.label, attachment.id),
+    displayName: operatorMemoryName(attachment.label, attachment.id),
     kind: 'asset' as const,
     url: attachment.url,
   }))
@@ -119,7 +131,7 @@ export function resultArtifacts(
 ): readonly StudioOperatorMemoryArtifact[] {
   return items.map((item) => ({
     id: item.id,
-    displayName: fallbackName(item.label, item.id),
+    displayName: operatorMemoryName(item.label, item.id),
     kind: 'result' as const,
     url: item.url,
   }))

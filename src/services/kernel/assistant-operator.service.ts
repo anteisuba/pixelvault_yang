@@ -86,6 +86,11 @@ import {
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
 import { getModelById, resolveAdapterType } from '@/constants/models'
+import { getCapabilityConfig } from '@/constants/provider-capabilities'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { ASSISTANT_MEDIA_UNSUPPORTED_ERRORS } from '@/constants/assistant'
+import { ApiRequestError } from '@/lib/errors'
+import { AdvancedParamsSchema, type AdvancedParams } from '@/types'
 import {
   buildAssistantPlanVisualCatalog,
   getAssistantPlanVisual,
@@ -286,6 +291,9 @@ interface OperatorWorkingState {
   hasModelControl: boolean
   aspectRatio: string | null
   resolution: string | null
+  quality: AdvancedParams['quality']
+  preview: boolean | undefined
+  background: AdvancedParams['background']
   hasSpecsControl: boolean
   count: number | null
   hasCountControl: boolean
@@ -358,6 +366,9 @@ function toWorkingState(
     hasModelControl: snapshot.model !== undefined,
     aspectRatio: snapshot.specs?.aspectRatio ?? null,
     resolution: snapshot.specs?.resolution ?? null,
+    quality: snapshot.specs?.quality ?? undefined,
+    preview: snapshot.specs?.preview ?? undefined,
+    background: snapshot.specs?.background ?? undefined,
     hasSpecsControl: snapshot.specs !== undefined,
     count: snapshot.count?.value ?? null,
     hasCountControl: snapshot.count !== undefined,
@@ -793,7 +804,9 @@ function renderState(run: OperatorRun): string {
       }`,
     )
     lines.push(
-      '  (set_specs always carries BOTH of these — one without the other is not a real aspect ratio in this app.)',
+      '  (set_specs always carries aspectRatio and resolution. Optional quality and background are independent of resolution.)',
+      `- Quality: ${state.quality ?? 'auto'} — options: ${specs?.qualityOptions?.join(', ') || '(none)'}`,
+      `- Background: ${state.background ?? 'auto'} — options: ${specs?.backgroundOptions?.join(', ') || '(none)'}`,
     )
   }
 
@@ -1949,10 +1962,20 @@ function planSetModel(run: OperatorRun, args: { modelId: string }): ToolPlan {
     kind: 'mutate',
     payload: { modelId: match.id, modelLabel: match.label },
     inverse: { modelId: previousId },
-    observation: `Model is now ${match.label} (${match.id}).`,
+    observation: `Model is now ${match.label} (${match.id}). ${getModelEnhanceHint(match.id, resolveAdapterType(match.id) ?? undefined) ?? ''}${resolveAdapterType(match.id) === AI_ADAPTER_TYPES.OPENAI ? ` Quality options: ${getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, match.id).qualityOptions?.join(', ')}. Background: auto, opaque, transparent. Preview: optional, up to $0.006 extra per image.` : ''}`,
     apply: () => {
       run.state.modelId = match.id
       run.state.modelLabel = match.label
+      if (
+        resolveAdapterType(match.id) === AI_ADAPTER_TYPES.OPENAI &&
+        run.state.quality &&
+        !getCapabilityConfig(
+          AI_ADAPTER_TYPES.OPENAI,
+          match.id,
+        ).qualityOptions?.includes(run.state.quality)
+      ) {
+        run.state.quality = 'auto'
+      }
     },
   }
 }
@@ -2013,7 +2036,11 @@ async function planAnalyzeReferences(
       'Select only current mounted reference indices; @Image3 means imageIndices: [2].',
     )
   const needsVision = indices.some(
-    (index) => !cached.some((profile) => profile.url === urls[index]),
+    (index) =>
+      !cached.some(
+        (profile) =>
+          profile.url === urls[index] && profile.style.rendering?.trim(),
+      ),
   )
   const seesImages = assistantAdapterSupportsImage(
     run.route.adapterType,
@@ -2086,7 +2113,7 @@ async function planAnalyzeReferences(
       run.referenceAnalysis = analysis
       return {
         result: analysis,
-        observation: `VERIFIED REFERENCE VISUAL FACTS (match URLs to CURRENT REFERENCE ORDER):\n${JSON.stringify(analysis.profiles)}\nAnswer the creator's current visual question directly. These facts do not assign source roles or change the prompt. A role brief is built only when set_prompt is requested. Do not critique source references as failed generations.`,
+        observation: `VERIFIED REFERENCE VISUAL FACTS (match URLs to CURRENT REFERENCE ORDER):\n${JSON.stringify(analysis.profiles)}\nThese facts do not assign source roles or change the prompt. If the creator requested a prompt edit, proceed to set_prompt in this same turn; a previous referenceAnalysisRequired refusal is now recoverable when all current images have evidence. Do not repeat this analysis or ask the creator to confirm the same edit again. If the creator only asked a visual question, answer it directly. A role brief is built when set_prompt is requested. Do not critique source references as failed generations.`,
       }
     },
   }
@@ -2131,17 +2158,33 @@ async function planSetText(
     )
   }
   if (needsReferenceReview) {
+    if (!run.referenceAnalysis) {
+      const cached = new Map(
+        (run.request.referenceProfiles ?? []).map((profile) => [
+          profile.url,
+          profile,
+        ]),
+      )
+      const profiles = run.state.referenceUrls.flatMap((url) => {
+        const profile = url ? cached.get(url) : undefined
+        return profile?.style.rendering?.trim() ? [profile] : []
+      })
+      if (profiles.length === run.state.referenceUrls.length)
+        run.referenceAnalysis = { profiles, brief: null }
+    }
     const analysis = run.referenceAnalysis
     if (
       !analysis ||
       run.state.referenceUrls.length !== analysis.profiles.length ||
       run.state.referenceUrls.some(
-        (url, index) => analysis.profiles[index]?.url !== url,
+        (url, index) =>
+          analysis.profiles[index]?.url !== url ||
+          !analysis.profiles[index]?.style.rendering?.trim(),
       )
     ) {
       return reject(
         REJECT.referenceAnalysisRequired,
-        'Call analyze_references before writing this prompt. It uses the current mounted image order and reuses unchanged visual evidence.',
+        'Call analyze_references for the current mounted images, then retry set_prompt with the intended value in this same turn. The write has not executed. This prerequisite does not require another creator confirmation.',
       )
     }
     if (!analysis.brief) {
@@ -2310,7 +2353,13 @@ function planSpecsPrecondition(run: OperatorRun): ToolPlan | null {
 /** ⚠ 只从 `planTool` 来，且 `planSpecsPrecondition` 已经放行 —— 档位表非空。 */
 function planSetSpecs(
   run: OperatorRun,
-  args: { aspectRatio: string; resolution: string },
+  args: {
+    aspectRatio: string
+    resolution: string
+    quality?: string
+    background?: string
+    preview?: boolean
+  },
 ): ToolPlan {
   const specs = run.request.snapshot.specs
   if (!specs?.aspectRatioOptions.includes(args.aspectRatio)) {
@@ -2320,19 +2369,71 @@ function planSetSpecs(
     return reject(REJECT.unknownValue, `resolution "${args.resolution}"`)
   }
 
+  const adapter = run.state.modelId
+    ? resolveAdapterType(run.state.modelId)
+    : undefined
+  const config = adapter
+    ? getCapabilityConfig(adapter, run.state.modelId ?? undefined)
+    : null
+  if (
+    args.quality !== undefined &&
+    !config?.qualityOptions?.includes(args.quality)
+  ) {
+    return reject(REJECT.unknownValue, `quality "${args.quality}"`)
+  }
+  if (
+    args.background !== undefined &&
+    !config?.backgroundOptions?.includes(args.background)
+  ) {
+    return reject(REJECT.unknownValue, `background "${args.background}"`)
+  }
+  const parsedParams = AdvancedParamsSchema.safeParse({
+    quality: args.quality,
+    background: args.background,
+  })
+  if (!parsedParams.success) return reject(REJECT.unknownValue)
+  if (args.preview !== undefined && adapter !== AI_ADAPTER_TYPES.OPENAI)
+    return reject(REJECT.noSuchControl)
+  const patch = {
+    ...(args.preview !== undefined ? { preview: args.preview } : {}),
+    ...(args.quality !== undefined
+      ? { quality: parsedParams.data.quality }
+      : {}),
+    ...(args.background !== undefined
+      ? { background: parsedParams.data.background }
+      : {}),
+  }
   const previous = {
+    ...(args.preview !== undefined
+      ? { preview: run.state.preview ?? null }
+      : {}),
+    ...(args.quality !== undefined
+      ? { quality: run.state.quality ?? null }
+      : {}),
+    ...(args.background !== undefined
+      ? { background: run.state.background ?? null }
+      : {}),
     aspectRatio: run.state.aspectRatio,
     resolution: run.state.resolution,
   }
   return {
     kind: 'mutate',
     // ⚠ 台账 AE/BG/BS：两个字段必须同时下发，缺一个就不是真比例。
-    payload: { aspectRatio: args.aspectRatio, resolution: args.resolution },
+    payload: {
+      aspectRatio: args.aspectRatio,
+      resolution: args.resolution,
+      ...patch,
+    },
     inverse: previous,
     observation: `Specs are now ${args.aspectRatio} · ${args.resolution}.`,
     apply: () => {
       run.state.aspectRatio = args.aspectRatio
       run.state.resolution = args.resolution
+      if (args.preview !== undefined) run.state.preview = args.preview
+      if (args.quality !== undefined)
+        run.state.quality = parsedParams.data.quality
+      if (args.background !== undefined)
+        run.state.background = parsedParams.data.background
     },
   }
 }
@@ -3025,6 +3126,13 @@ function buildGenerationRequestPayload(
         ? run.state.videoResolution
         : run.state.resolution,
       durationSeconds: run.state.videoDurationSeconds,
+      ...(run.state.hasSpecsControl
+        ? {
+            quality: run.state.quality,
+            background: run.state.background,
+            preview: run.state.preview,
+          }
+        : {}),
     },
     estimate,
     /** ⚠ 只透传（切片 X）：服务端不写库，见 `planPrimeGenerate` 的头注。 */
@@ -4339,9 +4447,10 @@ function buildOperatorSystemPrompt(
    */
   const domainRules = [
     request.domain === 'image'
-      ? `- REFERENCE ANALYSIS: Before set_prompt with mounted references, call analyze_references. It inspects the requested images and reuses unchanged visual facts. For a question about @Image3 alone, pass imageIndices: [2]. Answer visual questions from these facts without editing the prompt. set_prompt separately builds the current role/keep/exclude brief. Do not use critique_result on source references. Use the brief to make ONE coherent revision; unresolved role questions must be answered before writing. set_prompt checks the complete resulting prompt for semantic conflicts; correct named issues once, and stop if it still fails.
+      ? `- REFERENCE ANALYSIS: set_prompt requires complete visual evidence for the current mounted references. Verified cached facts are accepted by image URL across turns and reordered to the current image order; do not repeat analysis for unchanged images with complete evidence. Call analyze_references only for missing evidence, then proceed to set_prompt in the same turn. A referenceAnalysisRequired refusal means the write has not run and can be retried after analysis; it does not require another creator confirmation. For a question about @Image3 alone, pass imageIndices: [2]. Answer visual questions from these facts without editing the prompt. set_prompt separately builds the current role/keep/exclude brief. Do not use critique_result on source references. Use the brief to make ONE coherent revision; unresolved role questions must be answered before writing. set_prompt checks the complete resulting prompt for semantic conflicts; correct named issues once, and stop if it still fails.
 - REFERENCE IDENTITY: CURRENT REFERENCE ORDER is authoritative. Match the image URLs to the creator's latest message before assigning roles; old Image numbers may refer to different pictures after a removal, replacement or undo. Never guess from old numbering. In set_prompt use @Image1, @Image2, etc. so the creator sees each referenced thumbnail inline.
-- STYLE REFERENCE: Use analyze_references to distinguish the style source from character identity, costume, pose and background sources. Use one primary style source unless they explicitly requested a blend. If visual inspection is unavailable, say so rather than infer appearance from filenames or generation prompts.
+- STYLE REFERENCE: For visual questions about images attached to this model request, inspect the pixels and answer directly. Do not require a separate analyze_references call just to answer. Use analyze_references when structured reference evidence is needed for prompt editing. Distinguish rendering style from character identity, costume, pose and background. Use one primary style source unless they explicitly requested a blend. If visual inspection is unavailable, say so rather than infer appearance from filenames or generation prompts.
+- STYLE IDENTIFICATION: When asked what art style an image has, lead with a concrete rendering-style name and whether its appearance is flat 2D, volumetric stylized 3D, or a hybrid. The goal is faithful style reproduction, not a list of labels. Explain the discriminating volume, geometry, material-response and lighting features to preserve, and identify draft instructions that would destroy them. Give reusable style wording only after these constraints. The current workbench prompt is an editable draft, not evidence of the source image's appearance. Respect creator-provided provenance such as a confirmed 3D render. Character-sheet layout, gothic costume, subject identity and palette are separate dimensions, not substitutes for a rendering-style answer. Cel shading can be drawn or rendered; do not infer the actual production pipeline, software, artist or franchise from appearance alone. If the pipeline is uncertain, still name the supported visual style and state only that specific uncertainty.
 - Describe the chosen style's observable proportions, outlines, shading, hair volumes and material response. A stylized 3D game character is not a photorealistic person: do not replace the requested aesthetic with generic UE5/PBR/AAA vocabulary. If an identity sheet is illustrated, use it only for identity and costume, not as a competing rendering-style instruction. Pose-only references must not supply colours, lighting, characters or background.
 - Before set_prompt, check that every numbered reference exists and that the style instructions agree. Preserve clear user assignments; ask one focused question only if the intended style source remains ambiguous or conflicts with the request. State the role mapping briefly in the creator's language. Make one coherent prompt revision from the evidence; do not repeatedly rewrite synonyms without new evidence.
 - Style matching here is a natural-language request, not a hard lock or per-image weight. Never claim the style is locked or the result is guaranteed. A bad result requires checking image identity/order and comparing visible features against the style source before adding more prompt words.`
@@ -4461,14 +4570,63 @@ ${
 - After each tool you will be told what actually happened. If a call was refused, read the reason and adapt — do not repeat the same call.`
 }
 
+function currentConversationReferences(
+  run: OperatorRun,
+): { imageIndex: number; url: string }[] {
+  if (run.request.domain !== 'image') return []
+  const latest =
+    run.request.messages.findLast((message) => message.role === 'user')
+      ?.content ?? ''
+  const explicit = getReferenceMentionIndices(
+    normalizeReferenceMentions(latest),
+  )
+  const indices = explicit.length
+    ? explicit
+    : run.state.referenceUrls.flatMap((url, imageIndex) =>
+        run.request.mentionedAssets?.some((asset) => asset.url === url)
+          ? [imageIndex]
+          : [],
+      )
+  return indices.flatMap((imageIndex) => {
+    const url = run.state.referenceUrls[imageIndex]
+    return url && /^https?:\/\//.test(url) ? [{ imageIndex, url }] : []
+  })
+}
+
 function buildOperatorUserPrompt(run: OperatorRun, maxLength?: number): string {
   const sections: string[] = []
 
   sections.push(`CURRENT WORKBENCH STATE (the creator is looking at this right now):
 ${renderState(run)}`)
 
+  if (run.request.mediaAttachments?.length) {
+    sections.push(
+      `ACTUAL MEDIA INPUTS FOR THIS TURN:\n${JSON.stringify(run.request.mediaAttachments)}\nThe video/audio content is attached to this request. Analyze it directly, identifying files by their labels. Do not claim you only received URLs. Answer analysis questions without modifying the workbench or requesting permission again.`,
+    )
+  }
+
+  const knownProfiles =
+    run.referenceAnalysis?.profiles ?? run.request.referenceProfiles ?? []
+  const currentEvidence = run.state.referenceUrls.flatMap((url, imageIndex) => {
+    const profile = knownProfiles.find((profile) => profile.url === url)
+    return profile ? [{ imageIndex, ...profile }] : []
+  })
+  if (currentEvidence.length)
+    sections.push(
+      `CURRENT VERIFIED REFERENCE EVIDENCE (server-matched to the current URL order):\n${JSON.stringify(currentEvidence)}\nUse these visual facts when answering. Older assistant claims of an unreadable image do not override verified evidence. Missing evidence means not yet inspected, not a permanent failure.`,
+    )
+
+  const currentImages = currentConversationReferences(run)
+  if (
+    currentImages.length &&
+    assistantAdapterSupportsImage(run.route.adapterType, run.modelId)
+  )
+    sections.push(
+      `IMAGES ATTACHED TO THIS MODEL REQUEST (in attachment order):\n${JSON.stringify(currentImages)}\nThese actual image inputs are for the latest user question. Inspect them directly, regardless of failed reads described in older conversation. Do not repeat an old failure as a new observation. Answer visual questions directly; analyze_references is only needed to record structured evidence for prompt editing. Current pixels override stale descriptions; uncertain appearance is not a transport failure.`,
+    )
+
   if (run.request.priorSteps?.length) {
-    sections.push(`WHAT YOU ALREADY DID EARLIER IN THIS THREAD:
+    sections.push(`HISTORICAL TOOL ATTEMPTS (not current image availability; failed reads may be tried again when the creator asks in a new turn):
 ${run.request.priorSteps
   .map((step) => `- [${step.status}] ${step.tool}: ${step.summary}`)
   .join('\n')}`)
@@ -4867,6 +5025,25 @@ export async function* runAssistantOperator(
     request.apiKeyId,
   )
   const modelId = resolveAssistantModelId(route.adapterType, request.llmModelId)
+  const mediaAttachments = request.mediaAttachments ?? []
+  if (
+    mediaAttachments.length &&
+    route.adapterType !== AI_ADAPTER_TYPES.GEMINI
+  ) {
+    const spec = ASSISTANT_MEDIA_UNSUPPORTED_ERRORS[mediaAttachments[0].kind]
+    throw new ApiRequestError(
+      spec.code,
+      spec.httpStatus,
+      spec.i18nKey,
+      spec.message,
+    )
+  }
+  const videoData = mediaAttachments
+    .filter((item) => item.kind === 'video')
+    .map((item) => item.url)
+  const audioData = mediaAttachments
+    .filter((item) => item.kind === 'audio')
+    .map((item) => item.url)
 
   /**
    * persona 与规则**在开跑前一次性读出来**（§8.5 / §10）。
@@ -4972,6 +5149,84 @@ export async function* runAssistantOperator(
   }
 
   try {
+    const pointedReferences = currentConversationReferences(run)
+    if (
+      !options.signal?.aborted &&
+      pointedReferences.length &&
+      !assistantAdapterSupportsImage(route.adapterType, modelId)
+    ) {
+      const cached = request.referenceProfiles ?? []
+      const missing = pointedReferences.filter(
+        (ref) =>
+          !cached.some(
+            (profile) =>
+              profile.url === ref.url && profile.style.rendering?.trim(),
+          ),
+      )
+      if (missing.length) {
+        run.stepSeq += 1
+        const step = {
+          id: `step-${run.stepSeq}`,
+          tool: TOOL.analyzeReferences,
+          title: TOOL.analyzeReferences,
+        }
+        yield toStepEvent({
+          ...step,
+          status: STATUS.running,
+          payload: {},
+          result: null,
+        })
+        let plan: ToolPlan
+        try {
+          plan = await planAnalyzeReferences(run, user.id, {
+            imageIndices: missing.map((ref) => ref.imageIndex),
+          })
+        } catch (error) {
+          yield toStepEvent({
+            ...step,
+            status: STATUS.error,
+            error: { reason: REJECT.referenceAnalysisFailed },
+          })
+          throw error
+        }
+        yield* drainCostTicks()
+        if (options.signal?.aborted) {
+          yield {
+            type: ASSISTANT_OPERATOR_EVENTS.stopped,
+            reason: ASSISTANT_OPERATOR_STOP_REASONS.aborted,
+          }
+          completed = true
+          return
+        }
+        if (plan.kind === 'read') {
+          const { result, observation } = await plan.run()
+          yield toStepEvent({
+            ...step,
+            status: STATUS.done,
+            payload: plan.payload,
+            result,
+          })
+          run.observations.push(observation)
+          run.executedStepKeys.add(
+            operatorStepKey(TOOL.analyzeReferences, {
+              imageIndices: missing.map((ref) => ref.imageIndex),
+            }),
+          )
+        } else if (plan.kind === 'rejected') {
+          yield toStepEvent({
+            ...step,
+            status: STATUS.error,
+            error: {
+              reason: plan.reason,
+              ...(plan.detail ? { detail: plan.detail } : {}),
+            },
+          })
+          run.observations.push(
+            `CURRENT REFERENCE INSPECTION FAILED (${plan.reason}): ${plan.detail ?? ''}. Report this current result accurately. Do not infer image contents or repeat this request within this turn.`,
+          )
+        }
+      }
+    }
     for (let index = 0; index < LIMITS.maxSteps; index += 1) {
       if (options.signal?.aborted) {
         yield {
@@ -4999,6 +5254,12 @@ export async function* runAssistantOperator(
        */
       let streamedThisStep = false
       let raw = ''
+      const conversationImages = assistantAdapterSupportsImage(
+        route.adapterType,
+        modelId,
+      )
+        ? currentConversationReferences(run).map((ref) => ref.url)
+        : []
       for await (const chunk of streamAssistantTextWithContextRetry({
         systemPrompt,
         buildUserPrompt: (maxLength) => buildOperatorUserPrompt(run, maxLength),
@@ -5006,6 +5267,9 @@ export async function* runAssistantOperator(
         contextCompactionTargetLength:
           OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
         modelId,
+        ...(conversationImages.length ? { imageData: conversationImages } : {}),
+        ...(videoData.length ? { videoData } : {}),
+        ...(audioData.length ? { audioData } : {}),
         responseFormat: 'json_object',
       })) {
         raw += chunk
@@ -5023,6 +5287,8 @@ export async function* runAssistantOperator(
        * 工具上：一轮里最贵的那部分正是这几次往返，而它们不属于任何一步。
        */
       tickCost(run, COST.llm, 1)
+      if (conversationImages.length)
+        tickCost(run, COST.vision, conversationImages.length)
       yield* drainCostTicks()
 
       // ⚠ abort 可能发生在这次 await 期间：结果已经拿到但客户端早就走了。
@@ -5380,7 +5646,7 @@ export async function* runAssistantOperator(
         run.observations.push(
           `${name} was REFUSED (${plan.reason})${
             plan.detail ? `: ${plan.detail}` : ''
-          }. Do not retry it unchanged.`,
+          }.${plan.reason === REJECT.referenceAnalysisRequired ? '' : ' Do not retry it unchanged.'}`,
         )
         continue
       }

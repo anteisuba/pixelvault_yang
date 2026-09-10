@@ -9,8 +9,6 @@
  * 「长任务里还剩几步」是耐心的唯一来源 —— 过程折叠（方向 C 的前提）之后，
  * 没有这条带就等于进度完全不可见。
  *
- * ⚠ 会话 / 历史 / 新对话**全收进 ⋯**（拍板 10 改口）：头部只剩一行的宽度，
- * 再摆一颗独立的「会话」按钮就把标题挤没了。
  * ⚠ 清单的数据是**从线程现算的**（`steps` prop），⛔ store 里不另存一份
  * 「进度清单」：两份会分叉，而分叉的表现是带上写着 4/6、点开只有 5 行。
  */
@@ -18,8 +16,10 @@
 import { useState } from 'react'
 import {
   Check,
+  Pencil,
   MessageSquarePlus,
-  MoreHorizontal,
+  ChevronDown,
+  Trash2,
   PanelRightClose,
   Settings2,
 } from 'lucide-react'
@@ -44,11 +44,24 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
+import { Input } from '@/components/ui/input'
+import { ASSISTANT_CONVERSATION_LIMITS } from '@/types/assistant-conversation'
 import { cn } from '@/lib/utils'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog'
 import type { StudioOperatorCostTick } from '@/types/studio-assistant-operator'
 import {
   ASSISTANT_SURFACE_IDS,
   type AssistantSurfaceId,
+  type AssistantConversationSummary,
 } from '@/types/assistant-conversation'
 
 /**
@@ -165,6 +178,12 @@ export function StudioOperatorProgressBand({
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
   const [open, setOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] =
+    useState<AssistantConversationSummary | null>(null)
+
+  const [renameTarget, setRenameTarget] =
+    useState<AssistantConversationSummary | null>(null)
+  const [renameTitle, setRenameTitle] = useState('')
 
   const hasProgress = working && plannedSteps > 0
   const ratio = hasProgress ? Math.min(stepsDone / plannedSteps, 1) : 0
@@ -275,25 +294,138 @@ export function StudioOperatorProgressBand({
             ) : null}
           </>
         ) : (
-          <span
-            data-testid="operator-domain-chip"
-            className="shrink-0 rounded-full border border-border bg-muted px-2 py-0.5 text-2sm font-medium text-muted-foreground"
-          >
+          <span data-testid="operator-domain-chip" className="sr-only">
             {t(`domainName.${domain}`)}
           </span>
         )}
 
-        {/* 标题即展开钮：运行中点开是清单，空闲时清单是空的，按钮自己停用。 */}
-        <button
-          type="button"
-          data-testid="operator-band-toggle"
-          aria-expanded={open}
-          disabled={steps.length === 0}
-          onClick={() => setOpen((value) => !value)}
-          className="min-w-0 flex-1 truncate text-left text-md font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground disabled:cursor-default"
+        <DropdownMenu
+          modal={false}
+          onOpenChange={(next) => {
+            if (next) history.refreshSessions()
+          }}
         >
-          {bandTitle}
-        </button>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              data-testid="operator-session-menu"
+              aria-label={t('history.heading')}
+              title={sessionTitle}
+              className="flex min-w-0 flex-1 items-center gap-1 rounded-md py-1 text-left text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="min-w-0 truncate">{sessionTitle}</span>
+              <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className="max-h-[60svh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto"
+          >
+            <DropdownMenuItem
+              disabled={working || Boolean(history.loadingSessionId)}
+              onSelect={() => onNewThread()}
+            >
+              <MessageSquarePlus className="size-4" aria-hidden />
+              {t('newThread')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-2sm font-normal text-muted-foreground">
+              {t('history.heading')}
+            </DropdownMenuLabel>
+            {history.isHydrating ? (
+              <DropdownMenuItem disabled className="text-2sm">
+                {t('history.loading')}
+              </DropdownMenuItem>
+            ) : null}
+            {!history.isHydrating && history.sessions.length === 0 ? (
+              <DropdownMenuItem disabled className="text-2sm">
+                {t('history.empty')}
+              </DropdownMenuItem>
+            ) : null}
+            {history.sessions.map((session) => {
+              /* ⚠ 域标签读的是 `surface`（线程**起始**域）—— 一条线程后来切去
+                 哪儿只在它自己的域标记里，列表这一层看不到，也不该猜。
+                 ⚠ 先取出来再判：直接把索引表达式塞进模板串，`null` 会一起进
+                 `t()` 的键类型里（编译期就红）。 */
+              const sessionDomain = SESSION_DOMAIN_BY_SURFACE[session.surface]
+              return (
+                <div key={session.id} className="flex items-center gap-1">
+                  <DropdownMenuItem
+                    className="min-w-0 flex-1"
+                    disabled={
+                      working ||
+                      Boolean(history.loadingSessionId) ||
+                      history.deletingSessionId === session.id
+                    }
+                    data-testid="operator-session-item"
+                    data-session-id={session.id}
+                    data-surface={session.surface}
+                    data-current={
+                      session.id === history.currentSessionId ? 'true' : 'false'
+                    }
+                    onSelect={() => history.selectSession(session)}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate">
+                        {session.title ?? t('history.untitled')}
+                      </span>
+                      <span className="mt-0.5 flex items-center gap-2 text-2sm text-muted-foreground">
+                        {sessionDomain ? (
+                          <span>{t(`domainName.${sessionDomain}`)}</span>
+                        ) : null}
+                        <span className="font-mono tabular-nums">
+                          {format.dateTime(new Date(session.updatedAt), {
+                            month: 'numeric',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </span>
+                    </span>
+                    {session.id === history.currentSessionId ? (
+                      <Check className="size-3.5 shrink-0" aria-hidden />
+                    ) : null}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="shrink-0 p-2 text-muted-foreground"
+                    aria-label={t('history.renameLabel', {
+                      title: session.title ?? t('history.untitled'),
+                    })}
+                    disabled={
+                      Boolean(history.renamingSessionId) ||
+                      Boolean(history.deletingSessionId)
+                    }
+                    onSelect={() => {
+                      setRenameTarget(session)
+                      setRenameTitle(session.title ?? '')
+                    }}
+                  >
+                    <Pencil className="size-4" aria-hidden />
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    className="shrink-0 p-2 text-muted-foreground focus:text-destructive"
+                    aria-label={t('history.deleteLabel', {
+                      title: session.title ?? t('history.untitled'),
+                    })}
+                    disabled={
+                      Boolean(history.deletingSessionId) ||
+                      (working && session.id === history.currentSessionId)
+                    }
+                    onSelect={() => setDeleteTarget(session)}
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                  </DropdownMenuItem>
+                </div>
+              )
+            })}
+            {history.error ? (
+              <DropdownMenuItem disabled className="text-2sm text-destructive">
+                {history.error}
+              </DropdownMenuItem>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         {/* ── 有未完成计划（第三期 · 断点续跑）───────────────────────
             ⚠ 长在标题右边、成本计数左边：它是一个**动作**，而右边那两样是注脚
@@ -341,92 +473,6 @@ export function StudioOperatorProgressBand({
           <Settings2 className="size-4" aria-hidden />
         </button>
 
-        <DropdownMenu modal={false}>
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              data-testid="operator-session-menu"
-              aria-label={t('more')}
-              className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground"
-            >
-              <MoreHorizontal className="size-3.5" aria-hidden />
-            </button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="max-h-96 min-w-72 overflow-y-auto"
-          >
-            <DropdownMenuItem onSelect={() => onNewThread()}>
-              <MessageSquarePlus className="size-4" aria-hidden />
-              {t('newThread')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-2sm font-normal text-muted-foreground">
-              {t('history.heading')}
-            </DropdownMenuLabel>
-            {history.isHydrating ? (
-              <DropdownMenuItem disabled className="text-2sm">
-                {t('history.loading')}
-              </DropdownMenuItem>
-            ) : null}
-            {!history.isHydrating && history.sessions.length === 0 ? (
-              <DropdownMenuItem disabled className="text-2sm">
-                {t('history.empty')}
-              </DropdownMenuItem>
-            ) : null}
-            {history.sessions.map((session) => {
-              /* ⚠ 域标签读的是 `surface`（线程**起始**域）—— 一条线程后来切去
-                 哪儿只在它自己的域标记里，列表这一层看不到，也不该猜。
-                 ⚠ 先取出来再判：直接把索引表达式塞进模板串，`null` 会一起进
-                 `t()` 的键类型里（编译期就红）。 */
-              const sessionDomain = SESSION_DOMAIN_BY_SURFACE[session.surface]
-              return (
-                <DropdownMenuItem
-                  key={session.id}
-                  data-testid="operator-session-item"
-                  data-session-id={session.id}
-                  data-surface={session.surface}
-                  data-current={
-                    session.id === history.currentSessionId ? 'true' : 'false'
-                  }
-                  onSelect={() => history.selectSession(session)}
-                >
-                  {sessionDomain ? (
-                    <span className="shrink-0 rounded-full border border-border bg-muted px-1.5 py-0.5 text-2sm text-muted-foreground">
-                      {t(`domainName.${sessionDomain}`)}
-                    </span>
-                  ) : null}
-                  <span className="min-w-0 flex-1 truncate">
-                    {session.title ?? t('history.untitled')}
-                  </span>
-                  <span className="ml-auto shrink-0 font-mono text-2sm tabular-nums text-muted-foreground">
-                    {format.dateTime(new Date(session.updatedAt), {
-                      month: 'numeric',
-                      day: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                  {session.id === history.currentSessionId ? (
-                    <Check className="size-3.5 shrink-0" aria-hidden />
-                  ) : null}
-                </DropdownMenuItem>
-              )
-            })}
-            {history.error ? (
-              <DropdownMenuItem disabled className="text-2sm text-destructive">
-                {history.error}
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuSeparator />
-            {/* ⛔ 这里**没有**「助手设置」：它已经是进度带上那颗常驻齿轮
-                （owner 2026-09-07）。两个入口 = 两处要同步的接线。 */}
-            {/* 分享要有一条落了库的会话才有东西可分享 —— 现在诚实地停用。 */}
-            <DropdownMenuItem disabled>{t('share')}</DropdownMenuItem>
-            <DropdownMenuItem disabled>{t('feedback')}</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
         <button
           type="button"
           data-testid="operator-collapse"
@@ -437,6 +483,116 @@ export function StudioOperatorProgressBand({
           <PanelRightClose className="size-3.5" aria-hidden />
         </button>
       </div>
+
+      {(busy || steps.length > 0) && (
+        <button
+          type="button"
+          data-testid="operator-band-toggle"
+          aria-expanded={open}
+          disabled={steps.length === 0}
+          onClick={() => setOpen((value) => !value)}
+          className="flex w-full items-center justify-between gap-2 px-3 pb-2 text-left text-xs text-muted-foreground"
+        >
+          <span className="truncate">{bandTitle}</span>
+          <ChevronDown
+            className={cn('size-3 shrink-0', open && 'rotate-180')}
+          />
+        </button>
+      )}
+      <AlertDialog
+        open={deleteTarget !== null}
+        onOpenChange={(next) => {
+          if (!next && !history.deletingSessionId) setDeleteTarget(null)
+        }}
+      >
+        <AlertDialogContent {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('history.deleteTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('history.deleteDescription', {
+                title: deleteTarget?.title ?? t('history.untitled'),
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {history.error && (
+            <p role="alert" className="text-sm text-destructive">
+              {history.error}
+            </p>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(history.deletingSessionId)}>
+              {t('history.deleteCancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              disabled={Boolean(history.deletingSessionId)}
+              onClick={(event) => {
+                event.preventDefault()
+                if (deleteTarget)
+                  void history.deleteSession(deleteTarget).then((deleted) => {
+                    if (deleted) setDeleteTarget(null)
+                  })
+              }}
+            >
+              {history.deletingSessionId
+                ? t('history.deleting')
+                : t('history.deleteConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={Boolean(renameTarget)}
+        onOpenChange={(next) => {
+          if (!next && !history.renamingSessionId) setRenameTarget(null)
+        }}
+      >
+        <AlertDialogContent {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('history.renameTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('history.renameDescription')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <Input
+            autoFocus
+            aria-label={t('history.renameTitle')}
+            value={renameTitle}
+            maxLength={ASSISTANT_CONVERSATION_LIMITS.titleMaxLength}
+            disabled={Boolean(history.renamingSessionId)}
+            onChange={(event) => setRenameTitle(event.target.value)}
+          />
+          {history.error ? (
+            <p role="alert" className="text-sm text-destructive">
+              {history.error}
+            </p>
+          ) : null}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={Boolean(history.renamingSessionId)}>
+              {t('history.deleteCancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={
+                !renameTitle.trim() || Boolean(history.renamingSessionId)
+              }
+              onClick={(event) => {
+                event.preventDefault()
+                if (renameTarget)
+                  void history
+                    .renameSession(renameTarget, renameTitle)
+                    .then((saved) => {
+                      if (saved) setRenameTarget(null)
+                    })
+              }}
+            >
+              {history.renamingSessionId
+                ? t('history.renaming')
+                : t('history.renameConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* 完整清单：`grid-template-rows` 0fr↔1fr 配方（`ui-defaults.md §4`）。 */}
       <div

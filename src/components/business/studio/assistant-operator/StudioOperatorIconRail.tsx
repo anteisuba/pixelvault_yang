@@ -1,44 +1,15 @@
 'use client'
 
-/**
- * 收起态的 **48px 图标轨**（拍板 7 改口：胶囊 → 图标轨）。
- *
- * ⭐ 收放法则**一字未改**：点工作台收、点提示词框/面板不收、点这条轨展开、
- * 没有定时器（实现仍在 `StudioOperatorDock.tsx`）。变的只有形态 —— 胶囊横向占位
- * 不可预期，而这条轨宽度恒定 48，收起前后主区永远不重排（§2.3）。
- *
- * ⭐ 胶囊那四档状态文案（`STUDIO_OPERATOR_PILL_TONES`）**整体迁到状态点 + 一行
- * 竖排读数**上，⛔ 不留 fallback：面板让位之后这一列是助手唯一还看得见的东西，
- * 一颗光秃秃的图标等于什么都没说。
- *
- * ⚠ 整条轨**就是那颗展开按钮**（44px 以上的命中区，`ui-defaults.md §5`），
- * ⛔ 不在轨里再画一颗小箭头按钮：那会让「点轨展开」这条最常用的手势变成
- * 「点对地方才展开」。
- */
-
-import { Blocks, Image as ImageIcon, PanelRightOpen, Video } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import type { LucideIcon } from 'lucide-react'
 
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import {
   STUDIO_OPERATOR_RAIL_TONES,
-  STUDIO_OPERATOR_SHELL,
   type StudioOperatorRailTone,
 } from '@/constants/studio-assistant-operator'
 import { cn } from '@/lib/utils'
 import type { StudioOperatorStatus } from '@/types/studio-assistant-operator'
-
-/**
- * ⚠ `Record<域, …>`：域表加一档而图标没跟上，编译期就红 —— 漏掉的表现是收起态
- * 上一个空洞。
- */
-const RAIL_DOMAIN_ICONS: Record<AssistantOperatorDomain, LucideIcon> = {
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.image]: ImageIcon,
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: Video,
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: Blocks,
-}
 
 /**
  * 状态点的四档配色 —— **只用脊柱的状态四 token + `--primary`**（§11.2）。
@@ -98,7 +69,6 @@ export function StudioOperatorIconRail({
   onExpand,
 }: StudioOperatorIconRailProps) {
   const t = useTranslations('StudioOperator')
-  const DomainIcon = RAIL_DOMAIN_ICONS[domain]
   const tone = studioOperatorRailTone(status)
   const hasProgress = plannedSteps > 0 && status === 'working'
   const ratio = hasProgress ? Math.min(stepsDone / plannedSteps, 1) : 0
@@ -122,24 +92,25 @@ export function StudioOperatorIconRail({
       aria-label={t('expand')}
       title={readout}
       onClick={onExpand}
-      style={{ width: `${STUDIO_OPERATOR_SHELL.railWidthPx}px` }}
+      data-domain={domain}
       className={cn(
-        'absolute inset-y-0 left-0 z-10 flex flex-col items-center gap-2.5 py-2.5 text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'flex min-h-11 items-center justify-center gap-2 rounded-xl border border-border bg-background/80 px-3 text-sm text-foreground shadow-sm backdrop-blur-xl transition-colors hover:bg-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         primed && 'text-foreground',
       )}
     >
-      <span className="grid size-7 place-items-center rounded-md">
-        <PanelRightOpen className="size-3.5" aria-hidden />
-      </span>
-      <span
+      <Sparkles
         data-testid="operator-rail-domain"
-        className="grid size-7 place-items-center rounded-md"
-      >
-        <DomainIcon className="size-3.5" aria-hidden />
-      </span>
+        className="size-4"
+        aria-hidden
+      />
+      <span>{t('title')}</span>
       <span
         data-testid="operator-rail-dot"
-        className={cn('size-2 rounded-full', RAIL_TONE_CLASS[tone])}
+        className={cn(
+          'size-2 rounded-full',
+          RAIL_TONE_CLASS[tone],
+          status === 'idle' && !primed && 'hidden',
+        )}
         aria-hidden
       />
       {hasProgress ? (
@@ -173,11 +144,12 @@ export function StudioOperatorIconRail({
           />
         </svg>
       ) : null}
-      {/* 竖排：48px 宽里横着写「3/6 · 待你定」是写不下的。 */}
       <span
         data-testid="operator-rail-readout"
-        style={{ writingMode: 'vertical-rl' }}
-        className="font-mono text-xs tracking-nav tabular-nums"
+        className={cn(
+          'text-xs tabular-nums',
+          status === 'idle' && !primed && 'sr-only',
+        )}
       >
         {readout}
       </span>

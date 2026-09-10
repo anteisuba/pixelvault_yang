@@ -34,7 +34,10 @@ import {
 } from '@/constants/assistant-operator'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { OPERATOR_TOOL_ICONS } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
-import { StudioOperatorCollapsibleText } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
+import {
+  StudioOperatorCollapsibleText,
+  StudioOperatorUserText,
+} from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import { cn } from '@/lib/utils'
 import type {
   StudioOperatorHistoryEntry,
@@ -54,19 +57,36 @@ export function StudioOperatorHistoryItem({
     case 'user':
       return (
         <div className="flex flex-col gap-1">
-          <p className="whitespace-pre-wrap text-md font-medium leading-relaxed text-foreground">
-            {entry.text}
-          </p>
-          {entry.attachments.length > 0 ? (
+          <StudioOperatorUserText
+            text={entry.text}
+            attachments={entry.attachments}
+          />
+          {entry.attachments.some(
+            (attachment) => attachment.kind !== 'image',
+          ) ? (
             <div className="flex flex-wrap gap-1">
-              {entry.attachments.map((attachment) => (
-                <span
-                  key={attachment.id}
-                  className="rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-2sm text-muted-foreground"
-                >
-                  {attachment.label}
-                </span>
-              ))}
+              {entry.attachments
+                .filter((attachment) => attachment.kind !== 'image')
+                .map((attachment) => (
+                  <span
+                    key={attachment.id}
+                    className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-border bg-muted/50 px-1.5 py-0.5 text-2sm text-muted-foreground"
+                  >
+                    {attachment.thumbnailUrl && (
+                      <Image
+                        src={attachment.thumbnailUrl || attachment.url}
+                        alt={attachment.label}
+                        width={48}
+                        height={48}
+                        unoptimized
+                        className="size-12 shrink-0 rounded object-cover"
+                      />
+                    )}
+                    <span className="min-w-0 break-words">
+                      {attachment.label}
+                    </span>
+                  </span>
+                ))}
             </div>
           ) : null}
         </div>

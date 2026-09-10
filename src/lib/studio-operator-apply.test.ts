@@ -166,6 +166,40 @@ describe('applyOperatorStep', () => {
     expect(state.advancedParams).toEqual({ seed: 1234, resolution: '2K' })
   })
 
+  it('applies and restores GPT image quality, transparency and preview without clearing unrelated settings', () => {
+    const { ctx, state } = makeContext()
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+      payload: {
+        aspectRatio: '1:1',
+        resolution: '2K',
+        quality: 'max',
+        background: 'transparent',
+        preview: true,
+      },
+      inverse: {
+        aspectRatio: '1:1',
+        resolution: 'auto',
+        quality: null,
+        background: null,
+        preview: null,
+      },
+    } satisfies AssistantOperatorAppliedStep
+    applyOperatorStep(step, ctx)
+    expect(state.advancedParams).toMatchObject({
+      seed: 1234,
+      quality: 'max',
+      background: 'transparent',
+      preview: true,
+    })
+    revertOperatorStep(step, ctx)
+    expect(state.advancedParams.quality).toBeUndefined()
+    expect(state.advancedParams.background).toBeUndefined()
+    expect(state.advancedParams.preview).toBeUndefined()
+    expect(state.advancedParams.seed).toBe(1234)
+  })
+
   it('set_specs 的值不在收窄表里就整条不落，绝不 as 过去', () => {
     const { ctx, dispatched } = makeContext()
     const step = {

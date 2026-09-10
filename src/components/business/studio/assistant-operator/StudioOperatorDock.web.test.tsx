@@ -207,7 +207,8 @@ describe('StudioOperatorDock', () => {
     )
     // Tailwind 的 6 档 = 1.5rem = 24px = `STUDIO_OPERATOR_SHELL.insetPx`。
     expect(STUDIO_OPERATOR_SHELL.insetPx).toBe(24)
-    expect(panel.className).toContain('fixed bottom-6 right-6 top-6')
+    expect(panel).toHaveClass('fixed', 'right-6', 'top-6')
+    expect(panel.style.height).toBe('calc(100dvh - 3rem)')
     expect(screen.getByTestId('operator-panel-content')).toBeTruthy()
     expect(screen.queryByTestId('operator-rail')).toBeNull()
   })
@@ -226,7 +227,8 @@ describe('StudioOperatorDock', () => {
     render(<StudioOperatorDock />)
     const panel = screen.getByTestId('operator-panel')
     expect(panel.dataset.open).toBe('false')
-    expect(panel.style.width).toBe(`${STUDIO_OPERATOR_SHELL.railWidthPx}px`)
+    expect(panel.style.width).toBe('auto')
+    expect(panel).not.toHaveClass('bottom-6')
     expect(screen.getByTestId('operator-rail')).toBeTruthy()
     expect(screen.queryByTestId('operator-panel-content')).toBeNull()
   })
@@ -279,4 +281,30 @@ describe('StudioOperatorDock · 手机档', () => {
     expect(screen.queryByTestId('operator-mobile-sheet')).toBeNull()
     expect(screen.queryByTestId('operator-mobile-fab')).toBeNull()
   })
+})
+
+it('disables closing content immediately, removes it after the animation, and cancels cleanup on reopen', () => {
+  vi.useFakeTimers()
+  try {
+    const view = render(<StudioOperatorDock />)
+    hostOpen = false
+    view.rerender(<StudioOperatorDock />)
+    expect(
+      screen.getByTestId('operator-panel-content').closest('[inert]'),
+    ).not.toBeNull()
+    act(() => vi.advanceTimersByTime(100))
+    hostOpen = true
+    view.rerender(<StudioOperatorDock />)
+    act(() => vi.advanceTimersByTime(240))
+    expect(
+      screen.getByTestId('operator-panel-content').closest('[inert]'),
+    ).toBeNull()
+    hostOpen = false
+    view.rerender(<StudioOperatorDock />)
+    act(() => vi.advanceTimersByTime(240))
+    expect(screen.queryByTestId('operator-panel-content')).toBeNull()
+    expect(screen.getByTestId('operator-rail')).toBeInTheDocument()
+  } finally {
+    vi.useRealTimers()
+  }
 })

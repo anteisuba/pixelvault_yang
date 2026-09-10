@@ -84,6 +84,7 @@ export interface LlmTextInput {
    * of those it is; see `toGeminiVideoPart`.
    */
   videoData?: string | string[]
+  audioData?: string[]
   /**
    * Per-call cost lever for video input (§4.3.1). Omit for v1 default =
    * whole video at the provider's default frame rate.
@@ -110,11 +111,13 @@ const GeminiTextResponseSchema = z.object({
       z.object({
         content: z
           .object({
-            parts: z.array(
-              z.object({
-                text: z.string().optional(),
-              }),
-            ),
+            parts: z
+              .array(
+                z.object({
+                  text: z.string().optional(),
+                }),
+              )
+              .optional(),
           })
           .optional(),
         /**
@@ -441,6 +444,102 @@ function getOpenAiChatText(
   )
 }
 
+function textResponseError(
+  modelId: string,
+  truncated = false,
+): ApiRequestError {
+  return new ApiRequestError(
+    truncated ? 'ASSISTANT_OUTPUT_TRUNCATED' : 'ASSISTANT_NO_TEXT_RESPONSE',
+    502,
+    truncated
+      ? 'errors.assistant.outputTruncated'
+      : 'errors.assistant.noTextResponse',
+    `The model returned ${truncated ? 'an incomplete response' : 'no text'} (model=${modelId}).`,
+  )
+}
+
+function checkTextFinishReason(
+  reason: string | null | undefined,
+  modelId: string,
+  refusal?: string | null,
+): void {
+  if (refusal || reason === 'content_filter' || reason === 'refusal') {
+    throw toLlmTextRefusalError({ modelId })
+  }
+  if (reason === 'length' || reason === 'max_tokens') {
+    throw textResponseError(modelId, true)
+  }
+  if (reason === 'insufficient_system_resource') {
+    throw new ApiRequestError(
+      LLM_TEXT_PROVIDER_ERROR_CODES.temporarilyUnavailable,
+      LLM_TEXT_PROVIDER_HTTP_STATUS.temporarilyUnavailable,
+      LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.temporarilyUnavailable,
+      LLM_TEXT_PROVIDER_ERROR_MESSAGES.temporarilyUnavailable,
+    )
+  }
+  if (reason && !['stop', 'end_turn', 'stop_sequence'].includes(reason)) {
+    throw textResponseError(modelId, true)
+  }
+}
+
+const LlmStreamEnvelopeSchema = z
+  .object({
+    error: z
+      .object({
+        code: z.union([z.string(), z.number()]).nullable().optional(),
+        type: z.string().optional(),
+        message: z.string().optional(),
+      })
+      .optional(),
+  })
+  .passthrough()
+
+function parseLlmStreamEvent(
+  data: string,
+  context: {
+    adapterType: AI_ADAPTER_TYPES
+    modelId: string
+    hasLinkedVideo?: boolean
+  },
+): Record<string, unknown> {
+  let value: unknown
+  try {
+    value = JSON.parse(data)
+  } catch {
+    throw textResponseError(context.modelId, true)
+  }
+  const parsed = LlmStreamEnvelopeSchema.safeParse(value)
+  if (!parsed.success) throw textResponseError(context.modelId, true)
+  if (parsed.data.error) {
+    const error = parsed.data.error
+    const kind = error.type ?? error.code
+    const status =
+      typeof error.code === 'number'
+        ? error.code === 529
+          ? 503
+          : error.code
+        : kind === 'overloaded_error'
+          ? 503
+          : kind === 'rate_limit_error'
+            ? 429
+            : 502
+    throw toLlmTextProviderError(status, JSON.stringify(error), context)
+  }
+  return parsed.data
+}
+
+async function* readLlmSseData(
+  body: ReadableStream<Uint8Array>,
+  modelId: string,
+): AsyncIterable<string> {
+  try {
+    yield* readSseData(body)
+  } catch (error) {
+    if (error instanceof ApiRequestError) throw error
+    throw textResponseError(modelId, true)
+  }
+}
+
 function throwNoOpenAiTextResponse(
   data: z.infer<typeof OpenAiChatResponseSchema>,
   modelId: string,
@@ -476,12 +575,8 @@ function throwNoOpenAiTextResponse(
     )
   }
 
-  throw new ApiRequestError(
-    LLM_TEXT_PROVIDER_ERROR_CODES.failed,
-    LLM_TEXT_PROVIDER_HTTP_STATUS.upstreamFailure,
-    LLM_TEXT_PROVIDER_ERROR_I18N_KEYS.failed,
-    LLM_TEXT_PROVIDER_ERROR_MESSAGES.failed,
-  )
+  checkTextFinishReason(finishReason, modelId, choice?.message.refusal)
+  throw textResponseError(modelId)
 }
 
 function toLlmTextProviderError(
@@ -1051,6 +1146,21 @@ async function buildGeminiRequest(input: LlmTextInput): Promise<{
     )
   }
 
+  if (input.audioData?.length) {
+    const audioParts = await Promise.all(
+      input.audioData.map(async (url) => {
+        const { buffer, mimeType } = await fetchAsBuffer(url, {
+          maxBytes: ASSISTANT_MEDIA_LIMITS.geminiInlineMaxBytes,
+        })
+        if (!mimeType.startsWith('audio/')) {
+          throw new Error('Assistant audio reference did not resolve to audio.')
+        }
+        return { inlineData: { mimeType, data: buffer.toString('base64') } }
+      }),
+    )
+    parts.push(...audioParts)
+  }
+
   parts.push({ text: input.userPrompt })
 
   const maxOutputTokens = resolveGeminiMaxOutputTokens(input, hasVideoPart)
@@ -1161,10 +1271,17 @@ async function geminiTextCompletion(input: LlmTextInput): Promise<string> {
     })
   }
 
-  const data = GeminiTextResponseSchema.parse(await response.json())
+  const parsed = GeminiTextResponseSchema.safeParse(await response.json())
+  if (!parsed.success) throw parsed.error
+  const data = parsed.data
   const textPart = data.candidates?.[0]?.content?.parts?.find((p) => p.text)
 
-  if (!textPart?.text) {
+  if (
+    !textPart?.text?.trim() ||
+    data.promptFeedback?.blockReason ||
+    (data.candidates?.[0]?.finishReason &&
+      data.candidates[0].finishReason !== 'STOP')
+  ) {
     throw buildGeminiNoTextError(data, modelId)
   }
 
@@ -1258,6 +1375,11 @@ async function openAiTextCompletion(input: LlmTextInput): Promise<string> {
     throwNoOpenAiTextResponse(data, requestModelId)
   }
 
+  checkTextFinishReason(
+    data.choices[0]?.finish_reason,
+    requestModelId,
+    data.choices[0]?.message.refusal,
+  )
   return content
 }
 
@@ -1351,9 +1473,12 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
   const data = OpenAiChatResponseSchema.parse(await response.json())
   const content = getOpenAiChatText(data)
 
-  if (!content) {
-    throw new Error('No text response from DeepSeek')
-  }
+  checkTextFinishReason(
+    data.choices[0]?.finish_reason,
+    modelId,
+    data.choices[0]?.message.refusal,
+  )
+  if (!content) throw textResponseError(modelId)
 
   return content
 }
@@ -1458,9 +1583,12 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
   const data = OpenAiChatResponseSchema.parse(await response.json())
   const content = getOpenAiChatText(data)
 
-  if (!content) {
-    throw new Error('No text response from Qwen')
-  }
+  checkTextFinishReason(
+    data.choices[0]?.finish_reason,
+    modelId,
+    data.choices[0]?.message.refusal,
+  )
+  if (!content) throw textResponseError(modelId)
 
   return content
 }
@@ -1563,9 +1691,12 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
   const data = OpenAiChatResponseSchema.parse(await response.json())
   const content = getOpenAiChatText(data)
 
-  if (!content) {
-    throw new Error('No text response from Grok')
-  }
+  checkTextFinishReason(
+    data.choices[0]?.finish_reason,
+    modelId,
+    data.choices[0]?.message.refusal,
+  )
+  if (!content) throw textResponseError(modelId)
 
   return content
 }
@@ -1747,10 +1878,11 @@ async function anthropicTextCompletion(input: LlmTextInput): Promise<string> {
       category: data.stop_details?.category,
     })
   }
+  checkTextFinishReason(data.stop_reason, modelId)
   const textBlock = data.content.find((block) => block.type === 'text')
 
-  if (!textBlock?.text) {
-    throw new Error('No text response from Claude')
+  if (!textBlock?.text?.trim()) {
+    throw textResponseError(modelId)
   }
 
   return textBlock.text.trim()
@@ -1807,25 +1939,34 @@ async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
         hasLinkedVideo,
       })
     }
-    if (!response.body) {
-      throw new Error('No text response from Gemini')
-    }
-
-    for await (const data of readSseData(response.body)) {
-      if (!data || data === '[DONE]') continue
-      let parsed: unknown
-      try {
-        parsed = JSON.parse(data)
-      } catch {
-        // 半个事件不该炸掉整条流；下一个事件照常处理。
-        continue
-      }
+    if (!response.body) throw textResponseError(modelId)
+    let hasText = false
+    let finished = false
+    for await (const data of readLlmSseData(response.body, modelId)) {
+      if (!data) continue
+      const parsed = parseLlmStreamEvent(data, {
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        modelId,
+        hasLinkedVideo,
+      })
       const chunk = GeminiTextResponseSchema.safeParse(parsed)
-      if (!chunk.success) continue
+      if (!chunk.success) throw textResponseError(modelId, true)
+      const reason = chunk.data.candidates?.[0]?.finishReason
+      if (
+        chunk.data.promptFeedback?.blockReason ||
+        (reason && reason !== 'STOP')
+      ) {
+        throw buildGeminiNoTextError(chunk.data, modelId)
+      }
+      if (reason === 'STOP') finished = true
       for (const part of chunk.data.candidates?.[0]?.content?.parts ?? []) {
-        if (part.text) yield part.text
+        if (part.text) {
+          hasText ||= part.text.trim().length > 0
+          yield part.text
+        }
       }
     }
+    if (!hasText || !finished) throw textResponseError(modelId, hasText)
   } finally {
     // 删上传的视频文件必须等流真读完 —— `fetch` resolve 时只到了响应头，
     // 这时候删会把还没读完的那条流打断。
@@ -1846,6 +1987,22 @@ async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
  * 特殊要求），由各自的 `build*ChatRequest` 负责——这条边界的意义是：接第五家
  * OpenAI 兼容 provider 时只用写它的 request builder。
  */
+const OpenAiChatStreamSchema = z.object({
+  choices: z
+    .array(
+      z.object({
+        delta: z
+          .object({
+            content: z.string().nullable().optional(),
+            refusal: z.string().nullable().optional(),
+          })
+          .optional(),
+        finish_reason: z.string().nullable().optional(),
+      }),
+    )
+    .optional(),
+})
+
 async function* streamOpenAiCompatibleChat(options: {
   endpoint: string
   body: string
@@ -1874,29 +2031,31 @@ async function* streamOpenAiCompatibleChat(options: {
       modelId: options.modelId,
     })
   }
-  if (!response.body) {
-    // 流式没有可诊断的响应体可交给 `throwNoOpenAiTextResponse` —— 那个函数是用来
-    // 从解析好的 completion 里挖 refusal / finish_reason 的，这里根本没有。
-    throw new Error(`No text stream from ${options.label} (${options.modelId})`)
-  }
-
-  for await (const data of readSseData(response.body)) {
-    // OpenAI 兼容的流以字面量 `[DONE]` 收尾，它不是 JSON。
-    if (!data || data === '[DONE]') continue
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(data)
-    } catch {
-      // 半个事件不该炸掉整条流；下一个事件照常处理。
-      continue
+  if (!response.body) throw textResponseError(options.modelId)
+  let hasText = false
+  let finished = false
+  for await (const data of readLlmSseData(response.body, options.modelId)) {
+    if (!data) continue
+    if (data === '[DONE]') {
+      finished = true
+      break
     }
-    const delta = (
-      parsed as {
-        choices?: { delta?: { content?: string | null } }[]
-      }
-    ).choices?.[0]?.delta?.content
-    if (delta) yield delta
+    const parsed = parseLlmStreamEvent(data, options)
+    const chunk = OpenAiChatStreamSchema.safeParse(parsed)
+    if (!chunk.success) throw textResponseError(options.modelId, true)
+    const choice = chunk.data.choices?.[0]
+    checkTextFinishReason(
+      choice?.finish_reason,
+      options.modelId,
+      choice?.delta?.refusal,
+    )
+    const delta = choice?.delta?.content
+    if (delta) {
+      hasText ||= delta.trim().length > 0
+      yield delta
+    }
   }
+  if (!hasText || !finished) throw textResponseError(options.modelId, hasText)
 }
 
 export async function* openAiTextStream(
@@ -1963,6 +2122,17 @@ async function* dashscopeTextStream(
  * yield 出去，就是把模型的思考过程念给用户听。Fable 5.1 的 thinking 恒开（关不掉），
  * 默认 `display: "omitted"` 时 `thinking_delta` 为空串，但这道判据不能靠那个默认兜着。
  */
+const AnthropicTextStreamSchema = z.object({
+  type: z.string(),
+  delta: z
+    .object({
+      type: z.string().optional(),
+      text: z.string().nullable().optional(),
+      stop_reason: z.string().nullable().optional(),
+    })
+    .optional(),
+})
+
 async function* anthropicTextStream(
   input: LlmTextInput,
 ): AsyncIterable<string> {
@@ -1987,37 +2157,35 @@ async function* anthropicTextStream(
       modelId,
     })
   }
-  if (!response.body) {
-    throw new Error(`No text stream from Claude (${modelId})`)
-  }
-
-  for await (const data of readSseData(response.body)) {
-    let parsed: unknown
-    try {
-      parsed = JSON.parse(data)
-    } catch {
-      continue
+  if (!response.body) throw textResponseError(modelId)
+  let hasText = false
+  let finished = false
+  for await (const data of readLlmSseData(response.body, modelId)) {
+    if (!data) continue
+    const parsed = parseLlmStreamEvent(data, {
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      modelId,
+    })
+    const event = AnthropicTextStreamSchema.safeParse(parsed)
+    if (!event.success) throw textResponseError(modelId, true)
+    if (event.data.type === 'message_stop') {
+      finished = true
+      break
     }
-    const event = parsed as {
-      type?: string
-      delta?: {
-        type?: string
-        text?: string | null
-        stop_reason?: string | null
-      }
+    if (event.data.type === 'message_delta') {
+      checkTextFinishReason(event.data.delta?.stop_reason, modelId)
     }
-    // A refusal can land mid-stream after partial text: `message_delta`
-    // carries `stop_reason: 'refusal'`. Throw so the caller discards the
-    // partial output instead of showing it as a finished reply.
+    const delta = event.data.delta
     if (
-      event.type === 'message_delta' &&
-      event.delta?.stop_reason === ANTHROPIC_API.REFUSAL_STOP_REASON
+      event.data.type === 'content_block_delta' &&
+      delta?.type === 'text_delta' &&
+      delta.text
     ) {
-      throw toLlmTextRefusalError({ modelId })
+      hasText ||= delta.text.trim().length > 0
+      yield delta.text
     }
-    const delta = event.delta
-    if (delta?.type === 'text_delta' && delta.text) yield delta.text
   }
+  if (!hasText || !finished) throw textResponseError(modelId, hasText)
 }
 
 async function* xaiTextStream(input: LlmTextInput): AsyncIterable<string> {
@@ -2074,6 +2242,14 @@ export async function* llmTextStream(
     )
   }
 
+  if (
+    input.audioData?.length &&
+    input.adapterType !== AI_ADAPTER_TYPES.GEMINI
+  ) {
+    throw new Error(
+      'The selected assistant route does not support audio input. Select Gemini.',
+    )
+  }
   guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
   yield* LLM_TEXT_STREAMS[input.adapterType](input)
 }
@@ -2083,6 +2259,14 @@ export async function* llmTextStream(
  * Supports pure text and multimodal (image + text) input.
  */
 export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
+  if (
+    input.audioData?.length &&
+    input.adapterType !== AI_ADAPTER_TYPES.GEMINI
+  ) {
+    throw new Error(
+      'The selected assistant route does not support audio input. Select Gemini.',
+    )
+  }
   guardUserPrompt(input.userPrompt, input.promptGuardMaxLength)
   switch (input.adapterType) {
     case AI_ADAPTER_TYPES.GEMINI:

@@ -1,12 +1,8 @@
 'use client'
 
 /**
- * 操作员面板的**外壳**：两态（展开 ↔ 48px 图标轨）、注意力收放法则、左缘拖拽与
+ * 操作员面板的**外壳**：两态（展开 ↔ 右上角助手按钮）、注意力收放法则、左缘拖拽与
  * 宽度记忆。
- *
- * ⭐ **胶囊已删**（拍板 7 改口 · `pages/assistant-shell.md` §2.3）：收起态是同一个
- * `<aside>` 收到 48px，不再是另一颗 fixed 在别处的按钮。收放规则一字未改，变的只有
- * 形态 —— 胶囊横向占位不可预期，而这条轨宽度恒定，收起前后主区永远不重排。
  *
  * ## 注意力收放法则（拍板 7 —— 唯一的收放规则）
  * 点工作台任意处 → 收成图标轨；点**提示词框**或**助手面板**→ 不收；点轨 → 展开。
@@ -42,6 +38,7 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from 'react'
+import styles from './StudioOperatorDock.module.css'
 import { GripVertical } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -50,7 +47,6 @@ import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import {
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
   STUDIO_OPERATOR_PANEL_RESIZE as RESIZE,
-  STUDIO_OPERATOR_SHELL,
 } from '@/constants/studio-assistant-operator'
 import {
   getReferenceImageAttachmentId,
@@ -195,6 +191,21 @@ export function StudioOperatorDock() {
    * ⚠ `null` = 关着；非 null 时同时说明**开在哪一页**（规则薄卡的「查看规则」
    *   直接落到规则那一页，§10）。
    */
+  const [panelPresence, setPanelPresence] = useState({ open, present: open })
+  if (panelPresence.open !== open) {
+    setPanelPresence({ open, present: open || panelPresence.present })
+  }
+  useEffect(() => {
+    if (open) return
+    const reducedMotion = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)',
+    ).matches
+    const timeout = window.setTimeout(
+      () => setPanelPresence((current) => ({ ...current, present: false })),
+      reducedMotion ? 0 : 240,
+    )
+    return () => window.clearTimeout(timeout)
+  }, [open])
   const [settingsSection, setSettingsSection] =
     useState<AssistantSettingsSection | null>(null)
   /**
@@ -507,7 +518,6 @@ export function StudioOperatorDock() {
           onOpenChange={(next) => {
             if (!next) setSettingsSection(null)
           }}
-          fallbackInitial={t(`domainName.${domain}`)}
           // ⭐「常挂在这台工作台」认的就是当前域（切片 Y）。
           scope={domain}
         />
@@ -525,9 +535,7 @@ export function StudioOperatorDock() {
           却仍然占着右半屏并吃掉点击的幽灵面板（灯箱那颗更糟：全屏）。
           2026-08-30 真机实测撞到，判据是 `document.visibilityState === 'hidden'`
           时元素停在退场的终态却不消失。
-          ⭐ 收起之后这颗 `<aside>` **不卸载**，它收到 48px 变成图标轨 —— 一个元素
-          两态，宽度过渡就是收放动画本身（§11.5：width 走 slow），⛔ 不需要
-          第二个 fixed 元素在别处淡入淡出。 */}
+ */}
       <aside
         role="complementary"
         aria-label={t('title')}
@@ -535,17 +543,26 @@ export function StudioOperatorDock() {
         data-testid="operator-panel"
         data-open={open ? 'true' : 'false'}
         style={{
-          width: `${open ? width : STUDIO_OPERATOR_SHELL.railWidthPx}px`,
+          width: open ? `${width}px` : 'auto',
+          height: open ? 'calc(100dvh - 3rem)' : '44px',
         }}
         // ⚠ 拖拽中关掉过渡：320ms 的 width 过渡会让把手「跟不上手」。
         className={cn(
-          'fixed bottom-6 right-6 top-6 z-40 hidden flex-col overflow-hidden rounded-xl border border-border bg-card shadow-lg lg:flex',
-          !isResizing &&
-            'transition-[width] duration-(--duration-slow) ease-standard motion-reduce:transition-none',
+          'fixed right-6 top-6 z-40 hidden flex-col lg:flex',
+          styles.shell,
+          open
+            ? 'overflow-hidden rounded-xl border border-border bg-card shadow-lg'
+            : 'h-11',
+          isResizing && styles.resizing,
         )}
       >
-        {open ? (
-          <>
+        {open || panelPresence.present ? (
+          <div
+            className={styles.content}
+            data-visible={open}
+            inert={!open}
+            aria-hidden={!open}
+          >
             <div
               role="separator"
               aria-orientation="vertical"
@@ -583,16 +600,19 @@ export function StudioOperatorDock() {
             ) : null}
 
             {panel}
-          </>
-        ) : (
-          <StudioOperatorIconRail
-            domain={domain}
-            status={status}
-            primed={primed}
-            stepsDone={stepsDone}
-            plannedSteps={plannedSteps}
-            onExpand={() => setOpen(true)}
-          />
+          </div>
+        ) : null}
+        {!open && (
+          <div className={styles.trigger}>
+            <StudioOperatorIconRail
+              domain={domain}
+              status={status}
+              primed={primed}
+              stepsDone={stepsDone}
+              plannedSteps={plannedSteps}
+              onExpand={() => setOpen(true)}
+            />
+          </div>
         )}
       </aside>
 
@@ -605,7 +625,6 @@ export function StudioOperatorDock() {
         onOpenChange={(next) => {
           if (!next) setSettingsSection(null)
         }}
-        fallbackInitial={t(`domainName.${domain}`)}
         scope={domain}
       />
 

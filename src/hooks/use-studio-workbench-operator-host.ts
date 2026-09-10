@@ -1,17 +1,7 @@
 'use client'
 
-/**
- * 操作员面板在**工作台**（`/studio/image|video`）这个宿主上的实现（P4-C 抽出）。
- *
- * ── 这个文件是搬家不是新写 ─────────────────────────────────────────
- * 里面每一段都来自 P1–P4-B 已经跑通的代码：快照分派原本在
- * `use-assistant-operator.ts` 里，落笔的那几只手原本在 `use-studio-operator-revert.ts`
- * 里，开合原本在 `StudioOperatorDock.tsx` 里。P4-C 把它们收进一个「宿主」对象，
- * 是因为装配台（`/studio/lora`）要提供**另一份同形状的东西**，而那条路由故意不挂
- * `<StudioProvider>`（见 `contexts/studio-operator-host.tsx` 头注）。
- * ⛔ 搬家过程中没有改任何判据 —— 改了就不是搬家，是重写。
- */
-
+import { flushSync } from 'react-dom'
+import { StudioOperatorCheckpointSchema } from '@/types/studio-operator-checkpoint'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
@@ -106,6 +96,9 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       negativePrompt: current.advancedParams.negativePrompt,
       aspectRatio: current.aspectRatio,
       imageResolution: current.advancedParams.resolution ?? null,
+      imageQuality: current.advancedParams.quality,
+      imagePreview: current.advancedParams.preview,
+      imageBackground: current.advancedParams.background,
       imageBatchCount: current.imageBatchCount,
       videoDurationSeconds: current.videoDuration,
       videoResolution: current.videoResolution,
@@ -133,6 +126,54 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       references,
     })
   }, [domain])
+
+  const checkpoints = useMemo<NonNullable<StudioOperatorHost['checkpoints']>>(
+    () => ({
+      capture: async () => {
+        if (!(await userUrl.settle())) return null
+        const current = latest.current.state
+        if (current.workflowMode !== 'quick') return null
+        const snapshot = StudioOperatorCheckpointSchema.safeParse({
+          version: 1,
+          domain: current.outputType,
+          form: current,
+          referenceImages: latest.current.imageUpload.referenceEntries.map(
+            (entry) => entry.url,
+          ),
+        })
+        return snapshot.success ? snapshot.data : null
+      },
+      restore: (checkpoint) => {
+        const parsed = StudioOperatorCheckpointSchema.safeParse(checkpoint)
+        if (
+          !parsed.success ||
+          parsed.data.domain !== latest.current.state.outputType
+        )
+          return false
+        const saved = parsed.data
+        const options =
+          saved.domain === 'image'
+            ? latest.current.imageModels.modelOptions
+            : latest.current.videoModels.modelOptions
+        const ids = [
+          saved.form.selectedOptionId,
+          ...saved.form.extraModelOptionIds,
+        ].filter((id) => id !== null)
+        if (ids.some((id) => !options.some((option) => option.optionId === id)))
+          return false
+        userUrl.cancelPending()
+        flushSync(() => {
+          latest.current.imageUpload.setReferenceImage(undefined)
+          saved.referenceImages.forEach((url) =>
+            latest.current.imageUpload.addReferenceImage(url),
+          )
+          dispatch({ type: 'RESTORE_OPERATOR_CHECKPOINT', payload: saved.form })
+        })
+        return true
+      },
+    }),
+    [dispatch, userUrl],
+  )
 
   const apply = useMemo<StudioOperatorApplyContext>(
     () => ({
@@ -353,6 +394,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
     () => ({
       domain,
       buildSnapshot,
+      checkpoints,
       apply,
       results,
       referenceLimit,
@@ -362,6 +404,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
     }),
     [
       apply,
+      checkpoints,
       buildSnapshot,
       domain,
       open,

@@ -684,3 +684,46 @@ describe('resume（断点续跑）', () => {
     expect(result.current.resume).toBeNull()
   })
 })
+
+it('恢复配置保留历史并清掉旧撤销、确认、待生成及未完成计划', async () => {
+  const { toOperatorHistory, historyToPriorSteps, historyToOperatorMessages } =
+    await import('@/lib/studio-operator-history')
+  store.upsertOperatorStep(DONE, RUN)
+  store.setOperatorConfirm({
+    tier: 'overwrite',
+    field: 'prompt',
+    have: 'old',
+    proposed: 'new',
+  })
+  store.setOperatorPrimed(true)
+  store.setOperatorResumeScope('checkpoint-test')
+  store.startOperatorResumePlan({ planId: 'p', labels: ['change prompt'] })
+  const history = toOperatorHistory(store.getOperatorState().entries)
+  store.restoreOperatorThreadCheckpoint(history, 'restore')
+  const state = store.getOperatorState()
+  expect(state.history).toEqual(history)
+  expect(state.entries).toHaveLength(1)
+  expect(state.entries[0]).toMatchObject({
+    kind: 'system',
+    code: 'checkpointRestored',
+  })
+  expect(state).toMatchObject({
+    status: 'idle',
+    confirm: null,
+    primed: false,
+    changes: {},
+    plan: null,
+    spend: null,
+    choice: null,
+    resume: null,
+    queue: [],
+  })
+  const restoredHistory = [
+    ...state.history,
+    ...toOperatorHistory(state.entries),
+  ]
+  expect(historyToPriorSteps(restoredHistory)).toEqual([])
+  expect(historyToOperatorMessages(restoredHistory).at(-1)?.content).toContain(
+    'restored a configuration checkpoint',
+  )
+})

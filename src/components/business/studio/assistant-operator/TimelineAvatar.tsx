@@ -64,8 +64,8 @@ export function TimelineAvatar({
     const avatarUrl = persona?.avatarUrl ?? null
     /**
      * ⚠ `alt` / `aria-label` 不是空串（2026-09-06 真机：读屏走到助手回合只念得
-     * 出一个「图片」）。有名字就念名字，没名字念「助手」—— 这一行是读屏用户
-     * **唯一**能分辨「谁在说这句话」的地方（时间线不显示时间也不写发言人）。
+     * 出一个「图片」）。有名字就念名字，没名字念默认 ID—— 这一行是读屏用户
+     * 能分辨「谁在说这句话」的地方，与首行发言人名称一致。
      */
     const label = t('avatarAssistant', {
       name: persona?.name?.trim() || t('assistantFallback'),
@@ -92,7 +92,7 @@ export function TimelineAvatar({
               presetId={
                 persona?.avatarPreset ?? ASSISTANT_PERSONA_DEFAULTS.avatarPreset
               }
-              name={persona?.name ?? ''}
+              name={persona?.name?.trim() || t('assistantFallback')}
               className="size-full"
             />
           </span>

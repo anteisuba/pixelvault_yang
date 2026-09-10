@@ -16,6 +16,7 @@
  * 变量，改动一律「造一个新对象整体替换」，读永远读那一个。
  */
 
+import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import { useSyncExternalStore } from 'react'
 
 import {
@@ -647,6 +648,20 @@ export function operatorStepEntryId(runKey: string, stepId: string): string {
  * 而这正是这份契约在注释里点名警告过的那个错。
  * `runKey` 由驱动 hook 每轮现给（见 `operatorStepEntryId`）。
  */
+export function setOperatorStepCheckpoint(
+  entryId: string,
+  checkpoint: StudioOperatorCheckpoint,
+): void {
+  emit({
+    ...state,
+    entries: state.entries.map((entry) =>
+      entry.kind === 'step' && entry.id === entryId
+        ? { ...entry, checkpoint }
+        : entry,
+    ),
+  })
+}
+
 export function upsertOperatorStep(
   step: AssistantOperatorStep,
   runKey: string,
@@ -663,6 +678,7 @@ export function upsertOperatorStep(
     step,
     runKey,
     undone: existing?.undone ?? false,
+    ...(existing?.checkpoint ? { checkpoint: existing.checkpoint } : {}),
   }
   const entries =
     index >= 0
@@ -1057,6 +1073,38 @@ export function clearOperatorChanges(): void {
   // ⚠ 只清**当前域**：拍板 14 那颗按钮长在参数栏上，它说的是「这个工作台上助手
   //   改的那些」。顺手把别的域一起清掉，用户会发现自己切回去之后 ✦ 全没了。
   emitSlice({ changes: {}, primed: false })
+}
+
+export function restoreOperatorThreadCheckpoint(
+  history: readonly StudioOperatorHistoryEntry[],
+  subject: string,
+): void {
+  clearOperatorResumePlan()
+  for (const slice of Object.values(slices)) {
+    slice.changes = {}
+  }
+  emitSlice({ changes: {}, primed: false, confirm: null })
+  emit({
+    ...state,
+    history,
+    entries: [
+      {
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'checkpointRestored',
+        subject,
+      },
+    ],
+    status: 'idle',
+    workingMemory: EMPTY_MEMORY,
+    queue: [],
+    plan: null,
+    spend: null,
+    choice: null,
+    stepsDone: 0,
+    plannedSteps: 0,
+    errorText: null,
+  })
 }
 
 /**

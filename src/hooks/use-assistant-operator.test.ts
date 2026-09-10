@@ -214,6 +214,95 @@ function render() {
 }
 
 describe('useAssistantOperator 的四条收尾路径', () => {
+  it('请求被拒绝后清除等待圆点，再次发送可以正常收到回复', async () => {
+    streamAssistantOperatorAPI.mockResolvedValueOnce({
+      success: false,
+      error: 'Invalid request body',
+      errorCode: 'VALIDATION_ERROR',
+    })
+    const { result } = render()
+    act(() => result.current.send('调整画风'))
+    await settle()
+    expect(store.getOperatorState().errorText).toBe('i18n:invalidRequest')
+    expect(
+      store
+        .getOperatorState()
+        .entries.filter(
+          (entry) => entry.kind === 'message' && entry.text === '',
+        ),
+    ).toHaveLength(0)
+    act(() => result.current.send('再次调整画风'))
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '收到画风要求',
+    })
+    streams[0].close()
+    await settle()
+    expect(store.getOperatorState().status).toBe('idle')
+    expect(
+      store
+        .getOperatorState()
+        .entries.filter(
+          (entry) => entry.kind === 'message' && entry.text === '',
+        ),
+    ).toHaveLength(0)
+    expect(
+      store
+        .getOperatorState()
+        .entries.some(
+          (entry) => entry.kind === 'message' && entry.text === '收到画风要求',
+        ),
+    ).toBe(true)
+  })
+
+  it('长结果名称写入记忆后符合服务端请求契约', async () => {
+    const { resultArtifacts } = await import('@/lib/studio-operator-memory')
+    const { AssistantOperatorWorkingMemorySchema } =
+      await import('@/types/assistant-operator')
+    const artifacts = resultArtifacts([
+      {
+        id: 'result-long',
+        url: 'https://cdn.test/result.png',
+        label: '长提示词'.repeat(100),
+      },
+    ])
+    expect(
+      AssistantOperatorWorkingMemorySchema.safeParse({
+        rounds: [
+          { runKey: 'previous', at: new Date().toISOString(), artifacts },
+        ],
+      }).success,
+    ).toBe(true)
+    expect(artifacts[0]?.url).toBe('https://cdn.test/result.png')
+  })
+
+  it('已有会话的超长记忆名称在发送前规范化，保留图片身份与地址', async () => {
+    const { AssistantOperatorWorkingMemorySchema } =
+      await import('@/types/assistant-operator')
+    store.recordOperatorArtifacts('previous', [
+      {
+        id: 'result-long',
+        kind: 'result',
+        url: 'https://cdn.test/result.png',
+        displayName: '长提示词'.repeat(100),
+      },
+    ])
+    const { result } = render()
+    act(() => result.current.send('请调整画风'))
+    await settle()
+    const memory = streamAssistantOperatorAPI.mock.calls[0]?.[0].workingMemory
+    expect(AssistantOperatorWorkingMemorySchema.safeParse(memory).success).toBe(
+      true,
+    )
+    expect(memory.rounds[0].artifacts[0]).toMatchObject({
+      id: 'result-long',
+      url: 'https://cdn.test/result.png',
+    })
+    streams[0].close()
+    await settle()
+  })
+
   it('a) 正常跑完 → idle，不留错误文案', async () => {
     const { result } = render()
 

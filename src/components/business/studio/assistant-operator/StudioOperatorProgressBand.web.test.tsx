@@ -1,5 +1,5 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
@@ -37,8 +37,16 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
   DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
   ),
-  DropdownMenuItem: ({ children }: { children: React.ReactNode }) => (
-    <div>{children}</div>
+  DropdownMenuItem: ({
+    children,
+    onSelect,
+    ...props
+  }: React.ButtonHTMLAttributes<HTMLButtonElement> & {
+    onSelect?: () => void
+  }) => (
+    <button {...props} onClick={onSelect}>
+      {children}
+    </button>
   ),
   DropdownMenuLabel: ({ children }: { children: React.ReactNode }) => (
     <div>{children}</div>
@@ -50,9 +58,15 @@ const HISTORY: UseStudioOperatorHistoryResult = {
   sessions: [],
   currentSessionId: null,
   isHydrating: false,
+  loadingSessionId: null,
+  renamingSessionId: null,
+  renameSession: vi.fn().mockResolvedValue(true),
   error: null,
   selectSession: vi.fn(),
-} as unknown as UseStudioOperatorHistoryResult
+  refreshSessions: vi.fn(),
+  deletingSessionId: null,
+  deleteSession: vi.fn().mockResolvedValue(true),
+}
 
 function renderBand(
   overrides: Partial<Parameters<typeof StudioOperatorProgressBand>[0]> = {},
@@ -294,4 +308,39 @@ describe('续跑入口', () => {
     })
     expect(screen.queryByTestId('operator-band-resume')).toBeNull()
   })
+})
+
+it('uses the conversation title as the history trigger and confirms deletion without selecting the row', async () => {
+  const session = {
+    id: 'history-1',
+    surface: 'IMAGE_STUDIO' as const,
+    projectId: null,
+    title: 'Saved conversation',
+    updatedAt: '2026-09-09T00:00:00Z',
+    messageCount: 2,
+    operatorThread: true,
+  }
+  const selectSession = vi.fn()
+  const deleteSession = vi.fn().mockResolvedValue(true)
+  renderBand({
+    history: {
+      ...HISTORY,
+      currentSessionId: session.id,
+      sessions: [session],
+      selectSession,
+      deleteSession,
+    },
+  })
+  expect(screen.getByTestId('operator-session-menu')).toHaveTextContent(
+    'Saved conversation',
+  )
+  fireEvent.click(screen.getByRole('button', { name: 'history.deleteLabel' }))
+  expect(deleteSession).not.toHaveBeenCalled()
+  expect(selectSession).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'history.deleteCancel' }))
+  expect(deleteSession).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'history.deleteLabel' }))
+  fireEvent.click(screen.getByRole('button', { name: 'history.deleteConfirm' }))
+  await waitFor(() => expect(deleteSession).toHaveBeenCalledWith(session))
+  await waitFor(() => expect(screen.queryByRole('alertdialog')).toBeNull())
 })

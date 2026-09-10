@@ -19,6 +19,7 @@
  */
 
 import { useState } from 'react'
+import Image from 'next/image'
 import { ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
@@ -27,7 +28,10 @@ import {
   shouldCollapseOperatorText,
 } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
-import type { StudioOperatorMessageEntry } from '@/types/studio-assistant-operator'
+import type {
+  StudioOperatorAttachment,
+  StudioOperatorMessageEntry,
+} from '@/types/studio-assistant-operator'
 
 import { StudioOperatorStreamingText } from './StudioOperatorStreamingText'
 
@@ -149,5 +153,61 @@ export function StudioOperatorMessageBody({
         </details>
       ) : null}
     </div>
+  )
+}
+
+export function StudioOperatorUserText({
+  text,
+  attachments,
+}: {
+  text: string
+  attachments: readonly StudioOperatorAttachment[]
+}) {
+  const displayText = attachments.reduce(
+    (value, attachment) =>
+      attachment.kind === 'video' || attachment.kind === 'audio'
+        ? value.replaceAll(
+            `${attachment.label} (${attachment.kind}) ${attachment.url}`,
+            `@${attachment.label}`,
+          )
+        : value,
+    text,
+  )
+  const images = new Map(
+    attachments
+      .filter((item) => item.kind === 'image')
+      .map((item) => [item.label.toLowerCase(), item]),
+  )
+  return (
+    <p
+      data-testid="operator-user-text"
+      className="whitespace-pre-wrap text-md font-medium leading-relaxed text-foreground"
+    >
+      {displayText
+        .split(/(\breference image [1-9]\d*\b)/gi)
+        .map((part, index) => {
+          const attachment = /^reference image [1-9]\d*$/i.test(part)
+            ? images.get(part.toLowerCase())
+            : undefined
+          return attachment ? (
+            <span
+              key={index}
+              className="mx-0.5 inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/50 px-1 py-0.5 align-middle text-2sm font-normal"
+            >
+              <Image
+                src={attachment.thumbnailUrl || attachment.url}
+                alt={attachment.label}
+                width={24}
+                height={24}
+                unoptimized
+                className="size-6 shrink-0 rounded object-cover"
+              />
+              <span>{part}</span>
+            </span>
+          ) : (
+            part
+          )
+        })}
+    </p>
   )
 }

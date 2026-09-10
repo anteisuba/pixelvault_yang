@@ -172,6 +172,27 @@ describe('视频域评审：请求发出去之前先抽三帧', () => {
     expect(requests[0]?.mentionedAssets ?? []).toHaveLength(0)
   })
 
+  it('图片域将视频与 MP3 作为独立媒体输入传给服务端，不加入评审准入名单', async () => {
+    hostDomain.current = 'image'
+    const audio = {
+      id: 'mp3',
+      kind: 'audio' as const,
+      label: 'sample audio',
+      url: 'https://cdn.test/sample.mp3',
+    }
+    const { result } = render()
+    act(() => {
+      result.current.send('分析画风和声音', [VIDEO_CHIP, audio])
+    })
+    await settle()
+    expect(requests[0]?.mediaAttachments).toEqual([
+      { kind: 'video', label: VIDEO_CHIP.label, url: VIDEO_CHIP.url },
+      { kind: 'audio', label: audio.label, url: audio.url },
+    ])
+    expect(requests[0]?.mentionedAssets ?? []).toHaveLength(0)
+    expect(captureVideoEndpointFrames).not.toHaveBeenCalled()
+  })
+
   it('抽帧失败 → 照常发出去，但线程里留一行带原因码的系统行（⛔ 不静默）', async () => {
     captureVideoEndpointFrames.mockResolvedValue({
       ok: false,

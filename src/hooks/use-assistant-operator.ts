@@ -33,6 +33,7 @@
  * 而助手下一轮会把它原样再做一遍。
  */
 
+import { flushSync } from 'react-dom'
 import { useCallback, useEffect, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 
@@ -92,12 +93,14 @@ import {
   switchOperatorDomain,
   takeOperatorQueue,
   upsertOperatorStep,
+  setOperatorStepCheckpoint,
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { readOperatorCostTick } from '@/lib/studio-operator-cost'
 import {
   attachmentArtifacts,
   collectStepArtifacts,
+  operatorMemoryName,
   resultArtifacts,
 } from '@/lib/studio-operator-memory'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
@@ -192,6 +195,12 @@ function buildMessages(
       messages.push({ role: 'user', content: `${entry.text}${attachmentNote}` })
     } else if (entry.kind === 'message') {
       messages.push({ role: 'assistant', content: entry.text })
+    } else if (entry.kind === 'system' && entry.code === 'checkpointRestored') {
+      messages.push({
+        role: 'assistant',
+        content:
+          '[Workspace event: the creator restored a configuration checkpoint. Use the current form snapshot; earlier tool settings are historical.]',
+      })
     }
   }
   return messages
@@ -211,6 +220,8 @@ function buildPriorSteps(
 ): AssistantOperatorPriorStep[] {
   const steps: AssistantOperatorPriorStep[] = [...fromHistory]
   for (const entry of entries) {
+    if (entry.kind === 'system' && entry.code === 'checkpointRestored')
+      steps.length = 0
     if (entry.kind !== 'step') continue
     if (entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running) {
       continue
@@ -404,7 +415,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 而 `/studio/lora` 故意不挂 `<StudioProvider>` —— 那条路上这个 hook 会直接抛。
    */
   const host = useStudioOperatorHost()
-  const { domain, buildSnapshot } = host
+  const { domain, buildSnapshot, checkpoints, setOpen } = host
   const applyContext = host.apply
   const { route } = useStudioAssistantControls()
   const locale = useLocale()
@@ -776,6 +787,17 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       const result = await streamAssistantOperatorAPI(
         {
           messages,
+          mediaAttachments: lastUserAttachments(entries)
+            .filter(
+              (attachment) =>
+                attachment.kind === 'video' || attachment.kind === 'audio',
+            )
+            .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences)
+            .map(({ kind, url, label }) => ({
+              kind: kind as 'video' | 'audio',
+              url,
+              label,
+            })),
           domain,
           snapshot: buildSnapshot(),
           referenceProfiles: readOperatorReferenceProfiles(entries, history),
@@ -811,9 +833,20 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            *   的 `.max()` 会把超出的那一份整个拒掉。
            */
           ...(workingMemory.length
-            ? // ⚠ 复制一份可变数组：契约那边的 `rounds` 是 `z.infer` 出来的可变
-              //   数组，而 store 里那份是只读的（快照不可被下游改）。
-              { workingMemory: { rounds: [...workingMemory] } }
+            ? {
+                workingMemory: {
+                  rounds: workingMemory.map((round) => ({
+                    ...round,
+                    artifacts: round.artifacts.map((artifact) => ({
+                      ...artifact,
+                      displayName: operatorMemoryName(
+                        artifact.displayName,
+                        artifact.id,
+                      ),
+                    })),
+                  })),
+                },
+              }
             : {}),
           ...(videoFrames ? { videoFrames } : {}),
           ...(confirmations?.length ? { confirmations } : {}),
@@ -854,6 +887,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       }
 
       if (!result.success) {
+        cancelPendingAfterStep()
+        dropOperatorPending(messageEntryId())
+        if (controller.signal.aborted) return
         // abort 是用户按的，不是故障 —— 状态回 idle，线程里不插红字。
         if (result.errorCode === 'ABORTED') {
           setOperatorStatus('idle')
@@ -1070,7 +1106,22 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                     ...(credits === undefined ? {} : { count: credits }),
                   })
                 }
-                const field = applyOperatorStep(step, applyContext)
+                const field = flushSync(() =>
+                  applyOperatorStep(step, applyContext),
+                )
+                if (
+                  checkpoints &&
+                  (field ||
+                    step.tool === ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate)
+                ) {
+                  const checkpoint = await checkpoints.capture()
+                  if (controller.signal.aborted) return
+                  if (checkpoint)
+                    setOperatorStepCheckpoint(
+                      operatorStepEntryId(runKey, step.id),
+                      checkpoint,
+                    )
+                }
                 if (field) {
                   recordOperatorChange({
                     field,
@@ -1114,6 +1165,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               break
             }
             case ASSISTANT_OPERATOR_EVENTS.confirmRequest:
+              setOpen(true)
               setOperatorConfirm({
                 // §6 第二档 —— 服务端恒发 `overwrite`（事件 schema 已收成必填）。
                 tier: event.tier,
@@ -1235,6 +1287,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     },
     [
       applyContext,
+      checkpoints,
+      setOpen,
       buildSnapshot,
       describeError,
       domain,

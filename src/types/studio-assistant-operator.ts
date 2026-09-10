@@ -12,6 +12,7 @@
  * 按 id 覆盖；漏了 id 就变成追加，表现是每一步在日志流里出现两遍。
  */
 
+import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import type { ContextCardKindId } from '@/constants/context-cards'
 import type { ContextCardImage } from '@/types/context-cards'
 import type { ProjectRuleSourceId } from '@/constants/assistant-operator'
@@ -79,6 +80,7 @@ export interface StudioOperatorPlanEntry {
  * 之间最容易漂的地方，而 `tool` 的判别联合已经把每一支该有什么字段说清楚了。
  */
 export interface StudioOperatorStepEntry {
+  checkpoint?: StudioOperatorCheckpoint
   kind: 'step'
   id: string
   step: AssistantOperatorStep

@@ -52,6 +52,9 @@ export interface StudioOperatorSnapshotForm {
   aspectRatio: string
   /** 图片档的清晰度（`advancedParams.resolution`）。 */
   imageResolution: string | null
+  imageQuality?: import('@/types').AdvancedParams['quality']
+  imagePreview?: boolean
+  imageBackground?: import('@/types').AdvancedParams['background']
   imageBatchCount: number
   videoDurationSeconds: number
   videoResolution: string | null
@@ -159,6 +162,25 @@ export function buildImageOperatorSnapshot({
     specs: {
       aspectRatio: form.aspectRatio,
       resolution: form.imageResolution,
+      quality: form.imageQuality,
+      preview: form.imagePreview,
+      background: form.imageBackground,
+      qualityOptions: selectedModel
+        ? [
+            ...(getCapabilityConfig(
+              selectedModel.adapterType,
+              selectedModel.modelId,
+            ).qualityOptions ?? []),
+          ]
+        : [],
+      backgroundOptions: selectedModel
+        ? [
+            ...(getCapabilityConfig(
+              selectedModel.adapterType,
+              selectedModel.modelId,
+            ).backgroundOptions ?? []),
+          ]
+        : [],
       aspectRatioOptions: [...STUDIO_IMAGE_ASPECT_RATIOS],
       resolutionOptions,
     },

@@ -21,6 +21,7 @@ interface CompleteAssistantTextOptions {
   modelId?: string
   imageData?: LlmTextInput['imageData']
   videoData?: LlmTextInput['videoData']
+  audioData?: LlmTextInput['audioData']
   /**
    * 视频分析窗口（裁剪/降帧）。⚠ **必须一路转发到 provider**：它是长视频的成本
    * 闸（§4.3.1 实测：裁 0–60s 只要全片 5% 的 token，fps 0.2 要 42%）。这里漏一
@@ -129,6 +130,7 @@ export async function completeAssistantTextWithContextRetry({
   modelId,
   imageData,
   videoData,
+  audioData,
   videoAnalysis,
   useGrounding,
   responseFormat,
@@ -140,6 +142,7 @@ export async function completeAssistantTextWithContextRetry({
       modelId,
       imageData,
       videoData,
+      audioData,
       videoAnalysis,
       adapterType: route.adapterType,
       providerConfig: route.providerConfig,
@@ -178,6 +181,7 @@ export async function* streamAssistantTextWithContextRetry({
   modelId,
   imageData,
   videoData,
+  audioData,
   videoAnalysis,
   useGrounding,
   responseFormat,
@@ -189,6 +193,7 @@ export async function* streamAssistantTextWithContextRetry({
       modelId,
       imageData,
       videoData,
+      audioData,
       videoAnalysis,
       adapterType: route.adapterType,
       providerConfig: route.providerConfig,

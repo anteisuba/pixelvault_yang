@@ -53,12 +53,20 @@ export function StudioOperatorSpendConfirmCard({
   onCancel,
 }: StudioOperatorSpendConfirmCardProps) {
   const t = useTranslations('StudioOperator')
+  const tAdvanced = useTranslations('AdvancedSettings')
   const [remember, setRemember] = useState(false)
 
   const credits = request.estimate.credits
   const specs = [
     request.specs.aspectRatio,
     request.specs.resolution,
+    request.specs.quality
+      ? tAdvanced(`qualityOption.${request.specs.quality}`)
+      : null,
+    request.specs.background
+      ? tAdvanced(`backgroundOption.${request.specs.background}`)
+      : null,
+    request.specs.preview ? tAdvanced('preview') : null,
     request.specs.durationSeconds === null
       ? null
       : t('spend.seconds', { seconds: request.specs.durationSeconds }),

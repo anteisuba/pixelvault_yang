@@ -50,6 +50,7 @@ async function parseJsonResult<T>(
 export async function listAssistantConversationsAPI(args: {
   surface: AssistantSurfaceId
   projectId?: string
+  operatorOnly?: boolean
   limit?: number
 }): Promise<ApiResult<AssistantConversationSummary[]>> {
   try {
@@ -58,6 +59,7 @@ export async function listAssistantConversationsAPI(args: {
       list: '1',
     })
     if (args.projectId) params.set('projectId', args.projectId)
+    if (args.operatorOnly) params.set('operatorOnly', '1')
     if (args.limit) params.set('limit', String(args.limit))
 
     const response = await fetch(
@@ -117,6 +119,26 @@ export async function upsertAssistantConversationAPI(
   }
 }
 
+export async function deleteAssistantConversationAPI(
+  id: string,
+): Promise<ApiResult<null>> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.ASSISTANT_CONVERSATION}/${encodeURIComponent(id)}`,
+      { method: 'DELETE' },
+    )
+    return parseJsonResult(response, 'Failed to delete conversation')
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : 'Failed to delete conversation',
+    }
+  }
+}
+
 export async function createAssistantConversationShareAPI(
   conversationId: string,
 ): Promise<ApiResult<AssistantConversationShare>> {
@@ -159,5 +181,24 @@ export async function getSharedAssistantConversationAPI(
           ? error.message
           : 'Failed to load assistant share',
     }
+  }
+}
+
+export async function renameAssistantConversationAPI(
+  id: string,
+  title: string,
+): Promise<ApiResult<{ title: string }>> {
+  try {
+    const response = await fetch(
+      `${API_ENDPOINTS.ASSISTANT_CONVERSATION}/${encodeURIComponent(id)}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title }),
+      },
+    )
+    return parseJsonResult(response, 'Failed to rename conversation')
+  } catch {
+    return { success: false, error: 'Failed to rename conversation' }
   }
 }

@@ -16,6 +16,8 @@ const profiles: ReferenceVisualProfile[] = urls.map((url, index) => ({
   pose: 'Standing',
   scene: 'White backdrop',
   style: {
+    rendering:
+      'Stylized 3D NPR with volumetric hair and material-specific reflections',
     proportions: 'Stylized',
     contours: 'Clean',
     shading: 'Soft',
@@ -45,6 +47,44 @@ const input = {
 }
 
 describe('reference analysis', () => {
+  it('refreshes old evidence missing rendering while preserving complete cached evidence', async () => {
+    const old = {
+      ...profiles[0]!,
+      style: { ...profiles[0]!.style, rendering: undefined },
+    }
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        images: [{ ...profiles[0], imageIndex: 0 }],
+      }),
+    )
+    const result = await analyzeOperatorReferences({
+      ...input,
+      cached: [old, profiles[1]!],
+      complete,
+    })
+    expect(complete).toHaveBeenCalledTimes(1)
+    expect(complete.mock.calls[0]?.[2]).toEqual([urls[0]])
+    expect(result?.profiles).toEqual(profiles)
+  })
+
+  it('rejects fresh visual evidence that omits rendering instead of accepting incomplete style facts', async () => {
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        images: profiles.map((profile, imageIndex) => ({
+          ...profile,
+          imageIndex,
+          style: { ...profile.style, rendering: undefined },
+        })),
+      }),
+    )
+    await expect(
+      analyzeOperatorReferences({ ...input, complete }),
+    ).rejects.toMatchObject({
+      stage: 'vision',
+      reason: 'schema',
+    })
+  })
+
   it('returns verified visual evidence without requiring a creative brief', async () => {
     const complete = vi.fn().mockResolvedValueOnce(
       JSON.stringify({

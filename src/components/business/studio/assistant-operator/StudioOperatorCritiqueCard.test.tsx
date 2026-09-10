@@ -269,6 +269,12 @@ describe('评价卡 · 视频形态', () => {
     renderCard({ step: VIDEO_STEP, onApplyAdvice })
     fireEvent.click(screen.getByTestId('operator-critique-apply-advice'))
     expect(onApplyAdvice).toHaveBeenCalledWith('把雨的方向写进提示词')
+    expect(screen.getByTestId('operator-critique-apply-advice')).toBeDisabled()
+    expect(
+      screen.getByTestId('operator-critique-apply-advice'),
+    ).toHaveTextContent('critique.adviceApplied')
+    fireEvent.click(screen.getByTestId('operator-critique-apply-advice'))
+    expect(onApplyAdvice).toHaveBeenCalledTimes(1)
   })
 
   it('宿主没有写提示词那只手时，那颗按钮不渲染（⛔ 不摆点了没反应的钮）', () => {

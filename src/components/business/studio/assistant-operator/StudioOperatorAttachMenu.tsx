@@ -29,7 +29,7 @@ import {
   type DragEvent,
   type RefObject,
 } from 'react'
-import { Box, ClipboardPaste, Music, Play, Upload } from 'lucide-react'
+import { Box, ClipboardPaste, Images, Music, Play, Upload } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
@@ -42,6 +42,7 @@ import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
 import { fetchGalleryImages } from '@/lib/api-client/gallery'
 import { Spinner } from '@/components/ui/spinner'
+import { Button } from '@/components/ui/button'
 import { motionTransition } from '@/constants/motion'
 import { cn } from '@/lib/utils'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
@@ -252,14 +253,15 @@ export function StudioOperatorAttachMenu({
           {t('attach.libraryLabel')}
         </span>
         {/* 拍板 20：就地开弹层，不跳页。 */}
-        <button
+        <Button
           type="button"
           data-testid="operator-attach-open-library"
           onClick={() => setLibraryOpen(true)}
-          className="ml-auto text-2sm text-primary hover:underline"
+          className="ml-auto min-h-11 rounded-lg px-3 text-sm font-semibold shadow-sm"
         >
+          <Images className="size-4" aria-hidden />
           {t('attach.openLibrary')}
-        </button>
+        </Button>
       </div>
 
       {tiles === null ? (

@@ -18,6 +18,7 @@ import { useTranslations } from 'next-intl'
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
 import { TimelineAvatar } from '@/components/business/studio/assistant-operator/TimelineAvatar'
 import type { AssistantPersona } from '@/types/assistant-persona'
+import { useMyProfile } from '@/hooks/use-my-profile'
 import { cn } from '@/lib/utils'
 
 /**
@@ -105,6 +106,34 @@ interface StudioOperatorTimelineRowProps {
   children: ReactNode
 }
 
+function TimelineSpeakerName({
+  node,
+  assistantName,
+}: {
+  node: StudioOperatorNodeKind
+  assistantName: string
+}) {
+  const { profile } = useMyProfile()
+  const t = useTranslations('StudioOperator.timeline')
+  const name =
+    node === STUDIO_OPERATOR_NODE_KINDS.assistant
+      ? assistantName
+      : profile?.displayName?.trim() ||
+        profile?.username?.trim() ||
+        t('rowUser')
+
+  return (
+    <div className="flex min-h-8 min-w-0 items-center">
+      <span
+        data-testid="operator-speaker-name"
+        className="min-w-0 break-words text-sm font-semibold text-foreground"
+      >
+        {name}
+      </span>
+    </div>
+  )
+}
+
 export function StudioOperatorTimelineRow({
   node,
   persona,
@@ -112,13 +141,14 @@ export function StudioOperatorTimelineRow({
 }: StudioOperatorTimelineRowProps) {
   const t = useTranslations('StudioOperator.timeline')
   const avatar = isAvatarNode(node)
+  const assistantName = persona?.name?.trim() || t('assistantFallback')
   /**
    * ⚠ `role="article"` 是为了让 `aria-label` 真的被念出来：裸 `div` 上的
    * `aria-label` 大多数读屏直接忽略（无角色元素不参与名称计算）。
-   * ⚠ 助手行念的是**用户给助手起的名字**（§8.2），没起名就念「助手」。
+   * ⚠ 助手行念的是**用户给助手起的名字**（§8.2），没起名就念默认 ID。
    */
   const rowLabel = t(NODE_LABEL_KEYS[node], {
-    name: persona?.name?.trim() || t('assistantFallback'),
+    name: assistantName,
   })
 
   return (
@@ -179,7 +209,16 @@ export function StudioOperatorTimelineRow({
         </span>
       </div>
 
-      <div className="flex min-w-0 items-start gap-2">
+      {avatar ? (
+        <TimelineSpeakerName node={node} assistantName={assistantName} />
+      ) : null}
+      <div
+        data-testid="operator-timeline-content"
+        className={cn(
+          'flex min-w-0 items-start gap-2',
+          avatar && 'col-start-2 mt-1.5',
+        )}
+      >
         <div className="min-w-0 flex-1">{children}</div>
       </div>
     </div>

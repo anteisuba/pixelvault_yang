@@ -1,29 +1,6 @@
-/**
- * 操作员线程的**可读历史**（P4-B）—— 落库的那一份。
- *
- * ── 这份类型存在的全部理由：可读 ≠ 可操作 ────────────────────────
- * 画布那边的原话（`use-assistant-conversation.ts` 的 `ops` 头注）：入库的是剥
- * 干净的正文，因为「一条几分钟前针对另一张图的提案，重新加载后再点应用只会做
- * 错事」。工作台这边的对应物更硬 —— 线程里那些条目背着 `inverse`（撤销的本钱）、
- * `payload`（还没应用的 op）、primed 态、就地确认条。它们全都是**对当前表单的
- * 控制权**，而表单在刷新之后早就不是当时那张了。
- *
- * ⭐ 所以这不是「`StudioOperatorThreadEntry` 的可选字段版」，而是**另一个类型**：
- * 它在结构上没有任何字段能装下 `inverse` / `payload` / `primed`。序列化那一跳
- * 只能往下丢信息，不可能漏出去一个可以点的按钮 —— 这条约束因此不靠自觉，
- * 靠的是编译器（同一条论据见 `StudioOperatorUpload` 与 `StudioOperatorAttachment`
- * 分家的那段头注）。
- *
- * ⚠ 「已撤销」的划线**是历史事实，留着**；能再点一次的那颗撤销钮不留。两者的
- * 区别就是 `undone: boolean` 与 `firstInverse` 的区别。
- *
- * ── 为什么这里有 zod 而 `studio-assistant-operator.ts` 里没有 ──────
- * 那份不过任何边界（客户端自己攒的视图模型）；这一份要写进 `AssistantConversation.messages`
- * 的 JSON 再读回来 —— 跨进程、跨版本，必须运行时校验。
- */
-
 import { z } from 'zod'
 import { ReferenceAnalysisSchema } from '@/types/assistant-reference-analysis'
+import { StudioOperatorCheckpointSchema } from '@/types/studio-operator-checkpoint'
 
 import {
   ASSISTANT_OPERATOR_DOMAINS,
@@ -112,6 +89,7 @@ export const StudioOperatorHistoryStepSchema = z.object({
   /** 被拒那一支的理由 id（`StudioOperator.reject.*`）。 */
   rejectReason: z.string().trim().max(LIMITS.maxIdChars).optional(),
   critique: StudioOperatorHistoryCritiqueSchema.optional(),
+  checkpoint: StudioOperatorCheckpointSchema.optional().catch(undefined),
   referenceAnalysis: ReferenceAnalysisSchema.optional(),
 })
 

@@ -22,6 +22,7 @@ export const GET = createApiGetRoute({
     id: z.string().uuid().optional(),
     /** When "1", return a list of conversation summaries instead of one body. */
     list: z.enum(['0', '1']).optional(),
+    operatorOnly: z.enum(['0', '1']).optional(),
     limit: z.coerce.number().int().min(1).max(50).optional(),
   }),
   routeName: 'GET /api/assistant/conversation',
@@ -33,6 +34,7 @@ export const GET = createApiGetRoute({
         surface: data.surface,
         projectId: data.projectId,
         limit: data.limit,
+        operatorOnly: data.operatorOnly === '1',
       })
     }
 

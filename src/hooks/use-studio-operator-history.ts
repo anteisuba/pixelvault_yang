@@ -12,8 +12,7 @@
  * ── 跨域线程 × 单值 surface ───────────────────────────────────────
  * 一条线程可以跨图片 / 视频（拍板 8），而 `surface` 只有一格。方案：
  * **`surface` 记线程起始域，域切换以 domainMark 条目存在 messages 里**。
- * 代价是会话菜单要同时列两个 surface 再合并 —— 两次 GET，换来的是「切个域，
- * 刚才那条线程从历史里消失了」不会发生。
+ * 会话菜单通过一次摘要查询合并图片、视频和 LoRA 的操作员线程。
  *
  * ── 存什么 / 不存什么 ─────────────────────────────────────────────
  * 只存**可读历史**。撤销的 inverse、primed、就地确认条、改动登记簿、联网候选的
@@ -24,9 +23,12 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
 import {
+  renameAssistantConversationAPI,
+  deleteAssistantConversationAPI,
   getAssistantConversationAPI,
   listAssistantConversationsAPI,
   upsertAssistantConversationAPI,
@@ -40,6 +42,7 @@ import {
 import {
   getOperatorState,
   loadOperatorThread,
+  resetOperatorThread,
   setOperatorSession,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
@@ -49,22 +52,6 @@ import {
   type AssistantConversationSummary,
   type AssistantSurfaceId,
 } from '@/types/assistant-conversation'
-
-/**
- * 操作员住在哪三个槽里。
- *
- * ⚠ **不是所有 surface**：画布是另一套（还按 projectId 分槽）。多列一个槽的下场
- * 是菜单里冒出一堆点开是别的界面的对话。
- * ⚠ `LORA` 从 P4-C 起进来 —— 那个槽**此前有别人在写**（`/studio/lora` 的旧助手，
- * 走 `use-prompt-assistant` 那条线）。会话菜单靠 summary 的 `operatorThread` 过滤，
- * 判据是「第一条消息有没有 `operator` 格」，所以旧线程不会混进来（与 P4-B 处理
- * 音频档旧助手写进 `IMAGE_STUDIO` 那一堆是同一条闸）。
- */
-const OPERATOR_SURFACES = [
-  ASSISTANT_SURFACE_IDS.imageStudio,
-  ASSISTANT_SURFACE_IDS.videoStudio,
-  ASSISTANT_SURFACE_IDS.lora,
-] as const
 
 /**
  * 这次页面加载水化过了没有。
@@ -80,44 +67,50 @@ export function resetOperatorHistoryHydrationForTests(): void {
   hydratedThisPageLoad = false
 }
 
-/**
- * 三个域各列一遍，合并按时间倒序。
- *
- * ⚠ 只留 `operatorThread`：音频工作台的旧助手写的也是 `IMAGE_STUDIO`（它的域
- * 回落到 image），`/studio/lora` 的旧助手写的是 `LORA` —— 混进来就是一串点开只有
- * 白文本的对话，而「点不动的历史比没有历史更糟」这句话，P2 那颗壳的注释里已经
- * 写过一次。
- */
 async function listOperatorSessions(): Promise<AssistantConversationSummary[]> {
-  const results = await Promise.all(
-    OPERATOR_SURFACES.map((surface) =>
-      listAssistantConversationsAPI({
-        surface,
-        limit: STUDIO_OPERATOR_HISTORY.listLimit,
-      }),
-    ),
-  )
-  return results
-    .flatMap((result) => (result.success ? result.data : []))
-    .filter((summary) => summary.operatorThread)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, STUDIO_OPERATOR_HISTORY.listLimit)
+  const result = await listAssistantConversationsAPI({
+    surface: ASSISTANT_SURFACE_IDS.imageStudio,
+    operatorOnly: true,
+    limit: STUDIO_OPERATOR_HISTORY.listLimit,
+  })
+  if (!result.success) throw new Error(result.error)
+  return result.data
 }
 
 export interface UseStudioOperatorHistoryResult {
-  /** 会话列表（两个域合并，按 `updatedAt` 倒序）。 */
+  /** 会话列表（三个域合并，按 `updatedAt` 倒序）。 */
   sessions: readonly AssistantConversationSummary[]
   /** 当前这条线程在库里的行；`null` = 还没落过库。 */
   currentSessionId: string | null
+  loadingSessionId: string | null
+  renamingSessionId: string | null
+  renameSession(
+    session: AssistantConversationSummary,
+    title: string,
+  ): Promise<boolean>
   isHydrating: boolean
   /** 载入历史失败时说了什么 —— ⛔ 不静默。 */
   error: string | null
   selectSession(session: AssistantConversationSummary): void
-  refreshSessions(): void
+  refreshSessions(force?: boolean): void
+  deletingSessionId: string | null
+  deleteSession(session: AssistantConversationSummary): Promise<boolean>
 }
 
 export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
+  const t = useTranslations('StudioOperator.history')
+  const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null)
+  const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
+    null,
+  )
+  const loadIntent = useRef(0)
+  const renamePending = useRef(false)
   const { entries, sessionId } = useStudioOperatorState()
+  const [deletingSessionId, setDeletingSessionId] = useState<string | null>(
+    null,
+  )
+  const removedIds = useRef(new Set<string>())
+  const deletingRef = useRef(false)
   const [sessions, setSessions] = useState<
     readonly AssistantConversationSummary[]
   >([])
@@ -130,32 +123,113 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
    * **先发后到的那个会用更短的 messages 覆盖更长的那个**（服务端是整份替换）。
    * 表现是「最后一条日志偶尔会丢」。
    */
+  const listPending = useRef<Promise<AssistantConversationSummary[]> | null>(
+    null,
+  )
+  const lastListedAt = useRef<number | null>(null)
+  const fetchSessions = useCallback(() => {
+    if (listPending.current) return listPending.current
+    const pending = listOperatorSessions()
+      .then((items) => {
+        lastListedAt.current = Date.now()
+        return items
+      })
+      .finally(() => {
+        listPending.current = null
+      })
+    listPending.current = pending
+    return pending
+  }, [])
   const savingRef = useRef(false)
   const dirtyRef = useRef(false)
 
-  const refreshSessions = useCallback(() => {
-    void (async () => {
-      setSessions(await listOperatorSessions())
-    })()
-  }, [])
+  const refreshSessions = useCallback(
+    (force = false) => {
+      if (
+        !force &&
+        lastListedAt.current !== null &&
+        Date.now() - lastListedAt.current < STUDIO_OPERATOR_HISTORY.listFreshMs
+      )
+        return
+      setIsHydrating(true)
+      void fetchSessions()
+        .then((items) => {
+          setSessions(items.filter((item) => !removedIds.current.has(item.id)))
+          setError(null)
+        })
+        .catch(() => setError(t('loadFailed')))
+        .finally(() => setIsHydrating(false))
+    },
+    [fetchSessions, t],
+  )
+
+  const deleteSession = useCallback(
+    async (session: AssistantConversationSummary) => {
+      if (deletingRef.current) return false
+      const current = getOperatorState()
+      if (current.sessionId === session.id && current.status === 'working') {
+        setError(t('deleteBusy'))
+        return false
+      }
+      deletingRef.current = true
+      removedIds.current.add(session.id)
+      setDeletingSessionId(session.id)
+      setError(null)
+      try {
+        const result = await deleteAssistantConversationAPI(session.id)
+        if (!result.success && result.errorCode !== 'NOT_FOUND') {
+          removedIds.current.delete(session.id)
+          setError(t('deleteFailed'))
+          return false
+        }
+        setSessions((items) => items.filter((item) => item.id !== session.id))
+        if (getOperatorState().sessionId === session.id) resetOperatorThread()
+        return true
+      } catch {
+        removedIds.current.delete(session.id)
+        setError(t('deleteFailed'))
+        return false
+      } finally {
+        deletingRef.current = false
+        setDeletingSessionId(null)
+      }
+    },
+    [t],
+  )
 
   const applyConversation = useCallback(
     async (id: string, surface: AssistantSurfaceId): Promise<boolean> => {
-      const result = await getAssistantConversationAPI({ surface, id })
-      if (!result.success) {
-        setError(result.error)
-        return false
-      }
-      if (!result.data) return false
-      loadOperatorThread({
-        history: fromStoredOperatorMessages(result.data.messages),
-        sessionId: result.data.id,
-        sessionSurface: result.data.surface,
-      })
+      const intent = ++loadIntent.current
+      const before = getOperatorState()
+      setLoadingSessionId(id)
       setError(null)
-      return true
+      try {
+        const result = await getAssistantConversationAPI({ surface, id })
+        if (
+          intent !== loadIntent.current ||
+          removedIds.current.has(id) ||
+          getOperatorState().entries !== before.entries ||
+          getOperatorState().sessionId !== before.sessionId
+        )
+          return false
+        if (!result.success || !result.data) {
+          setError(t('loadFailed'))
+          return false
+        }
+        loadOperatorThread({
+          history: fromStoredOperatorMessages(result.data.messages),
+          sessionId: result.data.id,
+          sessionSurface: result.data.surface,
+        })
+        return true
+      } catch {
+        if (intent === loadIntent.current) setError(t('loadFailed'))
+        return false
+      } finally {
+        if (intent === loadIntent.current) setLoadingSessionId(null)
+      }
     },
-    [],
+    [t],
   )
 
   /**
@@ -167,23 +241,31 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
    * ⚠ 请求飞在半空时用户已经开口了就放弃 —— 覆盖掉他刚说的话比不载回历史坏得多。
    */
   useEffect(() => {
-    if (hydratedThisPageLoad) return
+    const restoreLatest = !hydratedThisPageLoad
     hydratedThisPageLoad = true
 
     void (async () => {
       try {
-        const merged = await listOperatorSessions()
-        setSessions(merged)
+        const merged = await fetchSessions()
+        setSessions(merged.filter((item) => !removedIds.current.has(item.id)))
 
         const latest = merged[0]
         const current = getOperatorState()
-        if (!latest || current.entries.length > 0 || current.sessionId) return
+        if (
+          !restoreLatest ||
+          !latest ||
+          current.entries.length > 0 ||
+          current.sessionId
+        )
+          return
         await applyConversation(latest.id, latest.surface)
+      } catch {
+        setError(t('loadFailed'))
       } finally {
         setIsHydrating(false)
       }
     })()
-  }, [applyConversation])
+  }, [applyConversation, fetchSessions, t])
 
   const save = useCallback(async () => {
     if (savingRef.current) {
@@ -195,6 +277,7 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
      * **此刻**的线程（同一条论据见 `getOperatorState` 的头注）。
      */
     const current = getOperatorState()
+    if (current.sessionId && removedIds.current.has(current.sessionId)) return
     const history = [...current.history, ...toOperatorHistory(current.entries)]
     if (history.length === 0) return
 
@@ -209,6 +292,11 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
         surface,
         messages: toStoredOperatorMessages(history),
       })
+      if (
+        (current.sessionId && removedIds.current.has(current.sessionId)) ||
+        getOperatorState().sessionId !== current.sessionId
+      )
+        return
       if (!result.success) {
         logger.warn('[studio-operator-history] persist failed', {
           error: result.error,
@@ -224,7 +312,7 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
         return
       }
       setOperatorSession(result.data.id, surface)
-      refreshSessions()
+      refreshSessions(true)
     } finally {
       savingRef.current = false
       if (dirtyRef.current) {
@@ -251,6 +339,40 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
     return () => clearTimeout(timer)
   }, [entries, save])
 
+  const renameSession = useCallback(
+    async (session: AssistantConversationSummary, title: string) => {
+      if (renamePending.current) return false
+      renamePending.current = true
+      setRenamingSessionId(session.id)
+      setError(null)
+      try {
+        const result = await renameAssistantConversationAPI(
+          session.id,
+          title.trim(),
+        )
+        if (!result.success) {
+          setError(t('renameFailed'))
+          return false
+        }
+        setSessions((items) =>
+          items.map((item) =>
+            item.id === session.id
+              ? { ...item, title: result.data.title }
+              : item,
+          ),
+        )
+        return true
+      } catch {
+        setError(t('renameFailed'))
+        return false
+      } finally {
+        renamePending.current = false
+        setRenamingSessionId(null)
+      }
+    },
+    [t],
+  )
+
   const selectSession = useCallback(
     (session: AssistantConversationSummary) => {
       if (session.id === getOperatorState().sessionId) return
@@ -263,8 +385,13 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
     sessions,
     currentSessionId: sessionId,
     isHydrating,
+    loadingSessionId,
+    renamingSessionId,
+    renameSession,
     error,
     selectSession,
     refreshSessions,
+    deletingSessionId,
+    deleteSession,
   }
 }

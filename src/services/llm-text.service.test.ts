@@ -26,6 +26,7 @@ import {
   llmTextStream,
   LLM_TEXT_ADAPTERS,
   LLM_TEXT_STREAMS,
+  type LlmTextInput,
 } from '@/services/llm-text.service'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -243,6 +244,47 @@ describe('llmTextCompletion - Gemini', () => {
     })
     expect(payload.contents[0]?.parts[1]).toEqual({
       text: 'Analyze this image.',
+    })
+  })
+
+  it('sends MP3 content as native audio to Gemini', async () => {
+    const bytes = new Uint8Array([73, 68, 51])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response(bytes, {
+          status: 200,
+          headers: { 'content-type': 'audio/mpeg', 'content-length': '3' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            candidates: [{ content: { parts: [{ text: 'audio analyzed' }] } }],
+          }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    await llmTextCompletion({
+      systemPrompt: 'Analyze audio.',
+      userPrompt: 'Describe the sound.',
+      audioData: ['https://cdn.example.com/source.mp3'],
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: {
+        label: 'Gemini',
+        baseUrl: 'https://generativelanguage.googleapis.com',
+      },
+      apiKey: 'test-key',
+    })
+    const payload = readFetchJson(fetchMock, 1) as {
+      contents: Array<{ parts: unknown[] }>
+    }
+    expect(payload.contents[0].parts).toContainEqual({
+      inlineData: {
+        mimeType: 'audio/mpeg',
+        data: Buffer.from(bytes).toString('base64'),
+      },
     })
   })
 
@@ -1610,6 +1652,8 @@ describe('llmTextStream', () => {
     })
   }
 
+  const GEMINI_STOP_FRAME = 'data: {"candidates":[{"finishReason":"STOP"}]}\n\n'
+
   function geminiEvent(text: string): string {
     return `data: ${JSON.stringify({
       candidates: [{ content: { parts: [{ text }] } }],
@@ -1658,7 +1702,11 @@ describe('llmTextStream', () => {
       vi
         .fn()
         .mockResolvedValue(
-          sseResponse([geminiEvent('你好'), geminiEvent('，世界')]),
+          sseResponse([
+            geminiEvent('你好'),
+            geminiEvent('，世界'),
+            GEMINI_STOP_FRAME,
+          ]),
         ),
     )
 
@@ -1676,7 +1724,7 @@ describe('llmTextStream', () => {
   it('Gemini：走的是 streamGenerateContent 且带 alt=sse', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(sseResponse([geminiEvent('ok')]))
+      .mockResolvedValue(sseResponse([geminiEvent('ok'), GEMINI_STOP_FRAME]))
     vi.stubGlobal('fetch', fetchMock)
 
     await collect(
@@ -1699,7 +1747,11 @@ describe('llmTextStream', () => {
       vi
         .fn()
         .mockResolvedValue(
-          sseResponse([whole.slice(0, cut), whole.slice(cut)]),
+          sseResponse([
+            whole.slice(0, cut),
+            whole.slice(cut),
+            GEMINI_STOP_FRAME,
+          ]),
         ),
     )
 
@@ -1714,7 +1766,7 @@ describe('llmTextStream', () => {
     expect(chunks.join('')).toBe('半截字')
   })
 
-  it('单个事件 JSON 坏了只跳过它，不炸掉整条流', async () => {
+  it('损坏的 SSE 事件不能被跳过并伪装成完整回复', async () => {
     vi.stubGlobal(
       'fetch',
       vi
@@ -1724,19 +1776,19 @@ describe('llmTextStream', () => {
             geminiEvent('前'),
             'data: {不是 JSON}\n\n',
             geminiEvent('后'),
+            GEMINI_STOP_FRAME,
           ]),
         ),
     )
-
-    const chunks = await collect(
-      llmTextStream({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        ...GEMINI_ROUTE,
-      }),
-    )
-
-    expect(chunks.join('')).toBe('前后')
+    await expect(
+      collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          ...GEMINI_ROUTE,
+        }),
+      ),
+    ).rejects.toMatchObject({ errorCode: 'ASSISTANT_OUTPUT_TRUNCATED' })
   })
 
   it('HTTP 失败按 provider 错误抛，不产出空流', async () => {
@@ -1787,7 +1839,12 @@ describe('llmTextStream', () => {
   it('OpenAI：请求体带 stream:true', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(sseResponse(['data: [DONE]\n\n']))
+      .mockResolvedValue(
+        sseResponse([
+          'data: {"choices":[{"delta":{"content":"ok"}}]}\n\n',
+          'data: [DONE]\n\n',
+        ]),
+      )
     vi.stubGlobal('fetch', fetchMock)
 
     await collect(
@@ -1851,7 +1908,12 @@ describe('llmTextStream', () => {
   it('Claude：请求体带 stream:true', async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValue(sseResponse([CLAUDE_MESSAGE_STOP_FRAME]))
+      .mockResolvedValue(
+        sseResponse([
+          'data: {"type":"content_block_delta","delta":{"type":"text_delta","text":"ok"}}\n\n',
+          CLAUDE_MESSAGE_STOP_FRAME,
+        ]),
+      )
     vi.stubGlobal('fetch', fetchMock)
 
     await collect(
@@ -2152,6 +2214,19 @@ describe('Gemini 空回复的归因', () => {
     })
   })
 
+  it.each([
+    ['SAFETY', 'ASSISTANT_CONTENT_BLOCKED'],
+    ['MAX_TOKENS', 'ASSISTANT_OUTPUT_TRUNCATED'],
+    ['RECITATION', 'ASSISTANT_NO_TEXT_RESPONSE'],
+    [undefined, 'ASSISTANT_NO_TEXT_RESPONSE'],
+  ])(
+    'preserves the failure reason when parts is omitted (%s)',
+    async (finishReason, errorCode) => {
+      respond({ candidates: [{ content: { role: 'model' }, finishReason }] })
+      await expect(ask()).rejects.toMatchObject({ errorCode })
+    },
+  )
+
   it('finishReason=MAX_TOKENS → 输出被截断（thinking 也吃这份预算）', async () => {
     respond({
       candidates: [{ finishReason: 'MAX_TOKENS', content: { parts: [] } }],
@@ -2170,6 +2245,393 @@ describe('Gemini 空回复的归因', () => {
       // 认不出的 finishReason 也要原样带出来 —— 否则下次线上撞到又是一句
       // 「没有回复」，还是查不动。
       message: expect.stringContaining('RECITATION'),
+    })
+  })
+})
+
+describe('LLM provider response regressions', () => {
+  const adapters = [
+    AI_ADAPTER_TYPES.OPENAI,
+    AI_ADAPTER_TYPES.DEEPSEEK,
+    AI_ADAPTER_TYPES.DASHSCOPE,
+    AI_ADAPTER_TYPES.XAI,
+    AI_ADAPTER_TYPES.GEMINI,
+    AI_ADAPTER_TYPES.ANTHROPIC,
+  ]
+  const answer = '{"finished":true,"message":"ok"}'
+  function input(adapterType: AI_ADAPTER_TYPES): LlmTextInput {
+    return {
+      adapterType,
+      providerConfig: { label: 'regression', baseUrl: '' },
+      apiKey: 'test-only',
+      systemPrompt: 'Return JSON only.',
+      userPrompt: 'Return JSON with a message.',
+      responseFormat: 'json_object',
+      providerManagedOutput: true,
+    }
+  }
+  function respond(payload: unknown, stream = false) {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        async () =>
+          new Response(stream ? (payload as string) : JSON.stringify(payload), {
+            status: 200,
+            headers: {
+              'content-type': stream ? 'text/event-stream' : 'application/json',
+            },
+          }),
+      ),
+    )
+  }
+  function sse(...frames: unknown[]) {
+    return frames
+      .map((frame) => 'data: ' + JSON.stringify(frame) + '\n\n')
+      .join('')
+  }
+  async function consume(adapter: AI_ADAPTER_TYPES) {
+    let text = ''
+    for await (const part of llmTextStream(input(adapter))) text += part
+    return text
+  }
+  afterEach(() => vi.unstubAllGlobals())
+  describe('compatibility audit: protocol success', () => {
+    it.each(adapters)('%s buffered JSON', async (adapter) => {
+      respond(
+        adapter === AI_ADAPTER_TYPES.GEMINI
+          ? {
+              candidates: [
+                {
+                  content: { parts: [{ text: answer }] },
+                  finishReason: 'STOP',
+                },
+              ],
+            }
+          : adapter === AI_ADAPTER_TYPES.ANTHROPIC
+            ? {
+                content: [{ type: 'text', text: answer }],
+                stop_reason: 'end_turn',
+              }
+            : {
+                choices: [
+                  { message: { content: answer }, finish_reason: 'stop' },
+                ],
+              },
+      )
+      await expect(llmTextCompletion(input(adapter))).resolves.toBe(answer)
+    })
+    it.each(adapters)('%s streamed JSON', async (adapter) => {
+      respond(
+        adapter === AI_ADAPTER_TYPES.GEMINI
+          ? sse({
+              candidates: [
+                {
+                  content: { parts: [{ text: answer }] },
+                  finishReason: 'STOP',
+                },
+              ],
+            })
+          : adapter === AI_ADAPTER_TYPES.ANTHROPIC
+            ? sse(
+                {
+                  type: 'content_block_delta',
+                  delta: { type: 'text_delta', text: answer },
+                },
+                { type: 'message_delta', delta: { stop_reason: 'end_turn' } },
+                { type: 'message_stop' },
+              )
+            : sse(
+                {
+                  choices: [
+                    { delta: { content: answer }, finish_reason: null },
+                  ],
+                },
+                { choices: [{ delta: {}, finish_reason: 'stop' }] },
+              ) + 'data: [DONE]\n\n',
+        true,
+      )
+      await expect(consume(adapter)).resolves.toBe(answer)
+    })
+  })
+  describe('compatibility audit: required failure handling', () => {
+    it.each([
+      AI_ADAPTER_TYPES.OPENAI,
+      AI_ADAPTER_TYPES.DEEPSEEK,
+      AI_ADAPTER_TYPES.DASHSCOPE,
+      AI_ADAPTER_TYPES.XAI,
+    ])('%s must report stream output limit', async (adapter) => {
+      respond(
+        sse({ choices: [{ delta: {}, finish_reason: 'length' }] }) +
+          'data: [DONE]\n\n',
+        true,
+      )
+      await expect(consume(adapter)).rejects.toMatchObject({
+        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
+      })
+    })
+    it('OpenAI must report streamed refusal', async () => {
+      respond(
+        sse({
+          choices: [
+            {
+              delta: { refusal: 'Request declined' },
+              finish_reason: 'content_filter',
+            },
+          ],
+        }) + 'data: [DONE]\n\n',
+        true,
+      )
+      await expect(consume(AI_ADAPTER_TYPES.OPENAI)).rejects.toMatchObject({
+        errorCode: 'PROVIDER_REFUSED',
+      })
+    })
+    it('Gemini must report streamed MAX_TOKENS without parts', async () => {
+      respond(
+        sse({
+          candidates: [
+            { content: { role: 'model' }, finishReason: 'MAX_TOKENS' },
+          ],
+        }),
+        true,
+      )
+      await expect(consume(AI_ADAPTER_TYPES.GEMINI)).rejects.toMatchObject({
+        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
+      })
+    })
+    it('Claude must report SSE overloaded_error', async () => {
+      respond(
+        sse({
+          type: 'error',
+          error: { type: 'overloaded_error', message: 'Overloaded' },
+        }),
+        true,
+      )
+      await expect(consume(AI_ADAPTER_TYPES.ANTHROPIC)).rejects.toMatchObject({
+        errorCode: 'PROVIDER_TRANSIENT',
+      })
+    })
+    it.each([
+      AI_ADAPTER_TYPES.DEEPSEEK,
+      AI_ADAPTER_TYPES.DASHSCOPE,
+      AI_ADAPTER_TYPES.XAI,
+    ])(
+      '%s empty completion must preserve a structured error',
+      async (adapter) => {
+        respond({
+          choices: [{ message: { content: null }, finish_reason: 'length' }],
+        })
+        const error = await llmTextCompletion(input(adapter)).catch((e) => e)
+        expect(error).toMatchObject({ errorCode: 'ASSISTANT_OUTPUT_TRUNCATED' })
+      },
+    )
+    it('OpenAI nullable content must not throw schema error', async () => {
+      respond({
+        choices: [{ message: { content: null }, finish_reason: 'length' }],
+        usage: { completion_tokens_details: { reasoning_tokens: 100 } },
+      })
+      await expect(
+        llmTextCompletion(input(AI_ADAPTER_TYPES.OPENAI)),
+      ).rejects.toMatchObject({ errorCode: 'PROVIDER_OUTPUT_BUDGET_EXHAUSTED' })
+    })
+  })
+
+  function textFrame(adapter: AI_ADAPTER_TYPES, text: string) {
+    return adapter === AI_ADAPTER_TYPES.GEMINI
+      ? { candidates: [{ content: { parts: [{ text }] } }] }
+      : adapter === AI_ADAPTER_TYPES.ANTHROPIC
+        ? { type: 'content_block_delta', delta: { type: 'text_delta', text } }
+        : { choices: [{ delta: { content: text } }] }
+  }
+  function stopFrame(adapter: AI_ADAPTER_TYPES) {
+    return adapter === AI_ADAPTER_TYPES.GEMINI
+      ? sse({ candidates: [{ finishReason: 'STOP' }] })
+      : adapter === AI_ADAPTER_TYPES.ANTHROPIC
+        ? sse({ type: 'message_stop' })
+        : 'data: [DONE]\n\n'
+  }
+  it.each(adapters)('%s empty stream is classified', async (adapter) => {
+    respond(stopFrame(adapter), true)
+    await expect(consume(adapter)).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_NO_TEXT_RESPONSE',
+    })
+  })
+  it.each(adapters)('%s whitespace is not a response', async (adapter) => {
+    respond(sse(textFrame(adapter, '  \n')) + stopFrame(adapter), true)
+    await expect(consume(adapter)).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_NO_TEXT_RESPONSE',
+    })
+  })
+  it.each(adapters)(
+    '%s EOF without terminal event rejects even valid JSON',
+    async (adapter) => {
+      respond(sse(textFrame(adapter, answer)), true)
+      await expect(consume(adapter)).rejects.toMatchObject({
+        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
+      })
+    },
+  )
+  it.each(adapters)(
+    '%s partial text followed by output limit rejects',
+    async (adapter) => {
+      const terminal =
+        adapter === AI_ADAPTER_TYPES.GEMINI
+          ? { candidates: [{ finishReason: 'MAX_TOKENS' }] }
+          : adapter === AI_ADAPTER_TYPES.ANTHROPIC
+            ? { type: 'message_delta', delta: { stop_reason: 'max_tokens' } }
+            : { choices: [{ delta: {}, finish_reason: 'length' }] }
+      respond(
+        sse(textFrame(adapter, answer), terminal) + stopFrame(adapter),
+        true,
+      )
+      await expect(consume(adapter)).rejects.toMatchObject({
+        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
+      })
+    },
+  )
+  it.each(adapters)(
+    '%s SSE error after partial text rejects',
+    async (adapter) => {
+      respond(
+        sse(textFrame(adapter, answer), {
+          error: { code: 503, message: 'Service unavailable' },
+        }),
+        true,
+      )
+      await expect(consume(adapter)).rejects.toMatchObject({
+        errorCode: 'PROVIDER_TRANSIENT',
+      })
+    },
+  )
+  it.each(adapters)(
+    '%s malformed event cannot turn into successful JSON',
+    async (adapter) => {
+      respond(
+        sse(textFrame(adapter, answer)) + 'data: null\n\n' + stopFrame(adapter),
+        true,
+      )
+      await expect(consume(adapter)).rejects.toMatchObject({
+        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
+      })
+    },
+  )
+  it('DeepSeek resource exhaustion is transient', async () => {
+    respond(
+      sse({
+        choices: [{ delta: {}, finish_reason: 'insufficient_system_resource' }],
+      }),
+      true,
+    )
+    await expect(consume(AI_ADAPTER_TYPES.DEEPSEEK)).rejects.toMatchObject({
+      errorCode: 'PROVIDER_TRANSIENT',
+    })
+  })
+  it('Gemini prompt block is preserved in streams', async () => {
+    respond(sse({ promptFeedback: { blockReason: 'SAFETY' } }), true)
+    await expect(consume(AI_ADAPTER_TYPES.GEMINI)).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_CONTENT_BLOCKED',
+    })
+  })
+  it.each(adapters)(
+    '%s buffered partial output is not accepted as complete',
+    async (adapter) => {
+      respond(
+        adapter === AI_ADAPTER_TYPES.GEMINI
+          ? {
+              candidates: [
+                {
+                  content: { parts: [{ text: answer }] },
+                  finishReason: 'MAX_TOKENS',
+                },
+              ],
+            }
+          : adapter === AI_ADAPTER_TYPES.ANTHROPIC
+            ? {
+                content: [{ type: 'text', text: answer }],
+                stop_reason: 'max_tokens',
+              }
+            : {
+                choices: [
+                  { message: { content: answer }, finish_reason: 'length' },
+                ],
+              },
+      )
+      await expect(llmTextCompletion(input(adapter))).rejects.toMatchObject({
+        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
+      })
+    },
+  )
+  it.each(adapters)(
+    '%s transport failure retains a classified stream error',
+    async (adapter) => {
+      let sent = false
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation(
+          async () =>
+            new Response(
+              new ReadableStream({
+                pull(controller) {
+                  if (!sent) {
+                    sent = true
+                    controller.enqueue(
+                      new TextEncoder().encode(sse(textFrame(adapter, answer))),
+                    )
+                  } else controller.error(new TypeError('terminated'))
+                },
+              }),
+            ),
+        ),
+      )
+      await expect(consume(adapter)).rejects.toMatchObject({
+        errorCode: 'ASSISTANT_OUTPUT_TRUNCATED',
+      })
+    },
+  )
+  it.each([
+    AI_ADAPTER_TYPES.OPENAI,
+    AI_ADAPTER_TYPES.DEEPSEEK,
+    AI_ADAPTER_TYPES.DASHSCOPE,
+    AI_ADAPTER_TYPES.XAI,
+  ])('%s refusal after partial JSON is preserved', async (adapter) => {
+    respond(
+      sse(textFrame(adapter, answer), {
+        choices: [
+          { delta: { refusal: 'Declined' }, finish_reason: 'content_filter' },
+        ],
+      }) + stopFrame(adapter),
+      true,
+    )
+    await expect(consume(adapter)).rejects.toMatchObject({
+      errorCode: 'PROVIDER_REFUSED',
+    })
+  })
+  it.each(adapters)('%s buffered empty text is classified', async (adapter) => {
+    respond(
+      adapter === AI_ADAPTER_TYPES.GEMINI
+        ? { candidates: [{ content: { parts: [] }, finishReason: 'STOP' }] }
+        : adapter === AI_ADAPTER_TYPES.ANTHROPIC
+          ? { content: [], stop_reason: 'end_turn' }
+          : {
+              choices: [{ message: { content: null }, finish_reason: 'stop' }],
+            },
+    )
+    await expect(llmTextCompletion(input(adapter))).rejects.toMatchObject({
+      errorCode: 'ASSISTANT_NO_TEXT_RESPONSE',
+    })
+  })
+  it('nullable SSE error code preserves the provider failure', async () => {
+    respond(
+      sse({
+        error: {
+          type: 'server_error',
+          code: null,
+          message: 'Internal server error',
+        },
+      }),
+      true,
+    )
+    await expect(consume(AI_ADAPTER_TYPES.OPENAI)).rejects.toMatchObject({
+      errorCode: 'PROVIDER_ERROR',
     })
   })
 })

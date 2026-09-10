@@ -13,6 +13,7 @@ export const ReferenceVisualFactsSchema = z.object({
   identity: NoteSchema,
   pose: NoteSchema,
   style: z.object({
+    rendering: NoteSchema.optional(),
     proportions: NoteSchema,
     contours: NoteSchema,
     shading: NoteSchema,
@@ -68,6 +69,9 @@ export const ReferenceVisionOutputSchema = z.object({
   images: z
     .array(
       ReferenceVisualFactsSchema.extend({
+        style: ReferenceVisualFactsSchema.shape.style.extend({
+          rendering: NoteSchema.min(1),
+        }),
         imageIndex: z.number().int().nonnegative(),
       }),
     )

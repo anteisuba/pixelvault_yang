@@ -186,6 +186,7 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'revertField',
   'revertAll',
   'revertRound',
+  'checkpointRestored',
   'resultArrived',
   'stopped',
   'interrupted',
@@ -246,7 +247,8 @@ export type StudioOperatorSystemCode =
  */
 export const STUDIO_OPERATOR_HISTORY = {
   saveDebounceMs: 1200,
-  /** 会话菜单里列几条（两个域各取这么多，合并后再截这么多）。 */
+  listFreshMs: 30_000,
+  /** 会话菜单合并三个域后最多显示的条数。 */
   listLimit: 20,
   /**
    * 载回的历史里，有多少条**对白**会重新进请求上下文。
@@ -307,8 +309,6 @@ export const STUDIO_OPERATOR_STREAMING = {
  * 写在这里是为了测试与组件读同一个数，⛔ 不是为了让组件去算 style。
  */
 export const STUDIO_OPERATOR_SHELL = {
-  /** 收起态图标轨的宽（拍板 7：胶囊 → 48px 竖轨）。 */
-  railWidthPx: 48,
   /** 顶部进度带的高（§2.4：~40px，钉住不滚）。 */
   progressBandHeightPx: 40,
   /** 面板 fixed 的 top/right/bottom（§11.1）。 */

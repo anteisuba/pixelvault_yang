@@ -3,22 +3,9 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import {
-  STUDIO_OPERATOR_RAIL_TONES,
-  STUDIO_OPERATOR_SHELL,
-} from '@/constants/studio-assistant-operator'
+import { STUDIO_OPERATOR_RAIL_TONES } from '@/constants/studio-assistant-operator'
 
 import { StudioOperatorIconRail } from './StudioOperatorIconRail'
-
-/**
- * 收起态图标轨的回归闸（拍板 7 改口：胶囊 → 48px 竖轨）。
- *
- * 钉四件事：
- *  ① 轨宽就是 `STUDIO_OPERATOR_SHELL.railWidthPx`（真机目检读的也是这个数）；
- *  ② 胶囊那四档状态**真的迁到了状态点**（`data-tone`），不是只换了个形状；
- *  ③ 运行中有进度环与「3/6」读数 —— 收起之后这是唯一还看得见的进度；
- *  ④ 点整条轨就展开（⛔ 不是「点对那颗小箭头才展开」）。
- */
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -43,10 +30,11 @@ function renderRail(
 }
 
 describe('StudioOperatorIconRail', () => {
-  it('渲染成 48px 宽的竖轨，并把域图标画出来', () => {
+  it('渲染紧凑助手按钮与图标', () => {
     renderRail()
     const rail = screen.getByTestId('operator-rail')
-    expect(rail.style.width).toBe(`${STUDIO_OPERATOR_SHELL.railWidthPx}px`)
+    expect(rail).toHaveTextContent('title')
+    expect(rail).not.toHaveClass('inset-y-0')
     expect(screen.getByTestId('operator-rail-domain')).toBeTruthy()
   })
 

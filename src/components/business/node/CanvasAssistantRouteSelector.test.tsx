@@ -119,13 +119,13 @@ describe('CanvasAssistantRouteSelector', () => {
           optionId: 'x',
           apiKeyId: 'k1',
           adapterType: AI_ADAPTER_TYPES.GEMINI,
-          modelId: 'gemini-3.7-flash',
+          modelId: 'gemini-3.8-flash',
         }}
         onChange={vi.fn()}
       />,
     )
     expect(pickerProps?.value).toBe(
-      'llm-route:assistant:key:k1:gemini-3.7-flash',
+      'llm-route:assistant:key:k1:gemini-3.8-flash',
     )
   })
 

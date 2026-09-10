@@ -1,9 +1,9 @@
-import { StudioOperatorReferenceAnalysisCard } from './StudioOperatorReferenceAnalysisCard'
-
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
+import zhMessages from '@/messages/zh.json'
+import { StudioOperatorReferenceAnalysisCard } from './StudioOperatorReferenceAnalysisCard'
 
 import {
   STUDIO_OPERATOR_NODE_KINDS,
@@ -23,11 +23,19 @@ import {
 // 词表桩回键名 + 参数，行标签那几条断言按键名读。
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, string>) =>
-    values?.name ? `${key}:${values.name}` : key,
+    key === 'assistantFallback'
+      ? zhMessages.StudioOperator.timeline.assistantFallback
+      : values?.name
+        ? `${key}:${values.name}`
+        : key,
 }))
 
 vi.mock('@/hooks/use-my-profile', () => ({
-  useMyProfile: () => ({ profile: null, isLoading: false, refresh: vi.fn() }),
+  useMyProfile: () => ({
+    profile: { username: 'fulina', displayName: 'Fl', avatarUrl: null },
+    isLoading: false,
+    refresh: vi.fn(),
+  }),
 }))
 
 describe('StudioOperatorTimelineRow', () => {
@@ -64,6 +72,31 @@ describe('StudioOperatorTimelineRow', () => {
     )
     expect(screen.queryByText('requirements')).not.toBeInTheDocument()
   })
+  it('uses ANTI as the default assistant ID', () => {
+    render(
+      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.assistant}>
+        <p>已更新分工。</p>
+      </StudioOperatorTimelineRow>,
+    )
+    expect(screen.getByTestId('operator-speaker-name')).toHaveTextContent(
+      'ANTI',
+    )
+  })
+  it('shows the account ID before the message body on its own row', () => {
+    render(
+      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.user}>
+        <p>保留三图分工，只修改背景。</p>
+      </StudioOperatorTimelineRow>,
+    )
+    expect(screen.getByTestId('operator-speaker-name')).toHaveTextContent('Fl')
+    expect(screen.getByTestId('operator-timeline-content')).toHaveClass(
+      'col-start-2',
+    )
+    expect(
+      screen.getByTestId('operator-timeline-content'),
+    ).not.toContainElement(screen.getByTestId('operator-speaker-name'))
+  })
+
   it('沟宽 24px，五档 data-node 都落在行上', () => {
     render(
       <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.tool}>
@@ -142,7 +175,7 @@ describe('StudioOperatorTimelineRow', () => {
     )
     expect(screen.getByTestId('operator-timeline-row')).toHaveAttribute(
       'aria-label',
-      'rowUser:assistantFallback',
+      'rowUser:ANTI',
     )
 
     rerender(
@@ -152,7 +185,7 @@ describe('StudioOperatorTimelineRow', () => {
     )
     expect(screen.getByTestId('operator-timeline-row')).toHaveAttribute(
       'aria-label',
-      'rowTool:assistantFallback',
+      'rowTool:ANTI',
     )
 
     rerender(
@@ -175,6 +208,9 @@ describe('StudioOperatorTimelineRow', () => {
     expect(screen.getByTestId('operator-timeline-row')).toHaveAttribute(
       'aria-label',
       'rowAssistant:小满',
+    )
+    expect(screen.getByTestId('operator-speaker-name')).toHaveTextContent(
+      '小满',
     )
   })
 

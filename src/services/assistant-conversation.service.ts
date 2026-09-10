@@ -2,7 +2,7 @@ import 'server-only'
 
 import { createHash, randomBytes } from 'node:crypto'
 
-import type { AssistantSurface, Prisma } from '@/lib/generated/prisma/client'
+import { Prisma, type AssistantSurface } from '@/lib/generated/prisma/client'
 
 import { db } from '@/lib/db'
 import { ensureUser } from '@/services/user.service'
@@ -54,24 +54,6 @@ function sanitizeMessages(
     .slice(-ASSISTANT_CONVERSATION_LIMITS.maxMessages)
 }
 
-/**
- * 这条消息带着操作员线程的可读痕迹吗（P4-B）。
- *
- * ⚠ 只判**在场**，不判形状：形状交给读取那一侧的 zod（那边 `.catch(undefined)`
- * 会把读不出来的载荷退化成纯文本）。这里判形状只会让一条能读的历史因为一个装饰
- * 字段过期而从列表里消失。
- */
-function hasOperatorPayload(message: Prisma.JsonValue | undefined): boolean {
-  return (
-    typeof message === 'object' &&
-    message !== null &&
-    !Array.isArray(message) &&
-    'operator' in message &&
-    message.operator !== null &&
-    message.operator !== undefined
-  )
-}
-
 function toRecord(row: {
   id: string
   surface: AssistantSurface
@@ -120,7 +102,6 @@ export async function upsertAssistantConversation(
       where: { id: existing.id },
       data: {
         messages: messages as unknown as Prisma.InputJsonValue,
-        title,
         projectId,
         surface: input.surface,
       },
@@ -145,51 +126,47 @@ export async function listAssistantConversations(
   args: {
     surface: AssistantSurfaceId
     projectId?: string
+    operatorOnly?: boolean
     limit?: number
   },
 ): Promise<AssistantConversationSummary[]> {
   const user = await ensureUser(clerkId)
   const limit = args.limit ?? 20
 
-  const rows = await db.assistantConversation.findMany({
-    where: {
-      userId: user.id,
-      surface: args.surface,
-      ...(args.surface === ASSISTANT_SURFACE_IDS.nodeCanvas && args.projectId
-        ? { projectId: args.projectId }
-        : {}),
-    },
-    orderBy: { updatedAt: 'desc' },
-    take: limit,
-    select: {
-      id: true,
-      surface: true,
-      projectId: true,
-      title: true,
-      updatedAt: true,
-      messages: true,
-    },
-  })
+  const surfaces = args.operatorOnly
+    ? [
+        ASSISTANT_SURFACE_IDS.imageStudio,
+        ASSISTANT_SURFACE_IDS.videoStudio,
+        ASSISTANT_SURFACE_IDS.lora,
+      ]
+    : [args.surface]
+  const operatorPayload = Prisma.sql`COALESCE("messages"->0->'operator' <> 'null'::jsonb, false)`
+  const rows = await db.$queryRaw<
+    (Omit<AssistantConversationSummary, 'updatedAt'> & { updatedAt: Date })[]
+  >(Prisma.sql`
+    SELECT "id", "surface", "projectId", "title", "updatedAt",
+      CASE WHEN jsonb_typeof("messages") = 'array' THEN jsonb_array_length("messages") ELSE 0 END AS "messageCount",
+      ${operatorPayload} AS "operatorThread"
+    FROM "AssistantConversation"
+    WHERE "userId" = ${user.id}
+      AND "surface" IN (${Prisma.join(surfaces.map((surface) => Prisma.sql`${surface}::"AssistantSurface"`))})
+      ${!args.operatorOnly && args.surface === ASSISTANT_SURFACE_IDS.nodeCanvas && args.projectId ? Prisma.sql`AND "projectId" = ${args.projectId}` : Prisma.empty}
+      ${args.operatorOnly ? Prisma.sql`AND ${operatorPayload}` : Prisma.empty}
+    ORDER BY "updatedAt" DESC
+    LIMIT ${limit}
+  `)
+  return rows.map((row) => ({ ...row, updatedAt: row.updatedAt.toISOString() }))
+}
 
-  return rows.map((row) => {
-    const messages = Array.isArray(row.messages) ? row.messages : []
-    return {
-      id: row.id,
-      surface: row.surface as AssistantSurfaceId,
-      projectId: row.projectId,
-      title: row.title,
-      updatedAt: row.updatedAt.toISOString(),
-      messageCount: messages.length,
-      /**
-       * 操作员线程认的是**消息上那格 `operator` 载荷**（P4-B）。
-       *
-       * ⚠ 判据放在服务端而不是客户端，是因为客户端拿不到 `messages` —— 这个
-       * 查询已经把它读出来了（`messageCount` 就是数它），所以这一行零额外代价。
-       * ⚠ 只看第一条：操作员线程的每一条都带这格，旧助手的一条都没有。
-       */
-      operatorThread: hasOperatorPayload(messages[0]),
-    }
+export async function deleteAssistantConversation(
+  clerkId: string,
+  id: string,
+): Promise<boolean> {
+  const user = await ensureUser(clerkId)
+  const result = await db.assistantConversation.deleteMany({
+    where: { id, userId: user.id },
   })
+  return result.count > 0
 }
 
 export async function getAssistantConversation(
@@ -278,4 +255,17 @@ export async function getSharedAssistantConversation(
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   }
+}
+
+export async function renameAssistantConversation(
+  clerkId: string,
+  id: string,
+  input: { title: string },
+): Promise<{ title: string } | null> {
+  const user = await ensureUser(clerkId)
+  const result = await db.assistantConversation.updateMany({
+    where: { id, userId: user.id },
+    data: { title: input.title },
+  })
+  return result.count > 0 ? { title: input.title } : null
 }

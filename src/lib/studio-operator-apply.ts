@@ -419,7 +419,19 @@ export function applyOperatorStep(
       })
       ctx.dispatch({
         type: 'SET_ADVANCED_PARAMS',
-        payload: { ...ctx.getState().advancedParams, resolution },
+        payload: {
+          ...ctx.getState().advancedParams,
+          resolution,
+          ...(step.payload.quality !== undefined
+            ? { quality: step.payload.quality }
+            : {}),
+          ...(step.payload.preview !== undefined
+            ? { preview: step.payload.preview }
+            : {}),
+          ...(step.payload.background !== undefined
+            ? { background: step.payload.background }
+            : {}),
+        },
       })
       return STUDIO_OPERATOR_FIELD_IDS.specs
     }
@@ -634,7 +646,8 @@ export function revertOperatorStep(
     }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setSpecs: {
-      const { aspectRatio, resolution } = step.inverse
+      const { aspectRatio, resolution, quality, background, preview } =
+        step.inverse
       if (aspectRatio && isAspectRatio(aspectRatio)) {
         ctx.dispatch({ type: 'SET_ASPECT_RATIO', payload: aspectRatio })
       }
@@ -642,6 +655,11 @@ export function revertOperatorStep(
         type: 'SET_ADVANCED_PARAMS',
         payload: {
           ...ctx.getState().advancedParams,
+          ...(quality !== undefined ? { quality: quality ?? undefined } : {}),
+          ...(preview !== undefined ? { preview: preview ?? undefined } : {}),
+          ...(background !== undefined
+            ? { background: background ?? undefined }
+            : {}),
           resolution: resolution
             ? (toResolution(resolution) ?? undefined)
             : undefined,

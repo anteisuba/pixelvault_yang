@@ -30,6 +30,7 @@
  * 缩略图与参考图**共用同一个灯箱**（拍板 17 的后半句）。
  */
 
+import { useState } from 'react'
 import { AlertTriangle, Check, Undo2, Wand2, X } from 'lucide-react'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'motion/react'
@@ -130,6 +131,7 @@ export function StudioOperatorCritiqueCard({
   const isVideo = isVideoCritiqueResult(result)
   const frames = isVideo ? result.frames : []
   const advice = result.advice ?? null
+  const [appliedAdvice, setAppliedAdvice] = useState<string | null>(null)
   const verdicts = isVideo ? result.verdicts : result.findings
   /**
    * 三段的**顺序固定**：否定 → 异常 → 达成。坏消息先说 —— 这张卡存在的理由是
@@ -287,11 +289,19 @@ export function StudioOperatorCritiqueCard({
             <button
               type="button"
               data-testid="operator-critique-apply-advice"
-              onClick={() => onApplyAdvice(advice)}
-              className="flex items-center gap-1 rounded-md text-2sm text-primary transition-colors duration-fast ease-standard hover:text-primary/80"
+              disabled={appliedAdvice === advice}
+              onClick={() => {
+                onApplyAdvice(advice)
+                setAppliedAdvice(advice)
+              }}
+              className="flex items-center gap-1 rounded-md text-2sm text-primary transition-colors duration-fast ease-standard hover:text-primary/80 disabled:cursor-default disabled:text-muted-foreground"
             >
               <Wand2 className="size-3" aria-hidden />
-              {t('critique.applyAdvice')}
+              {t(
+                appliedAdvice === advice
+                  ? 'critique.adviceApplied'
+                  : 'critique.applyAdvice',
+              )}
             </button>
           ) : null}
           {roundChangeCount > 0 ? (

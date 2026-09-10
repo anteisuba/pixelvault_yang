@@ -97,13 +97,7 @@ import {
 } from './AssistantSettingsDialog'
 
 function renderDialog() {
-  return render(
-    <AssistantSettingsDialog
-      open
-      onOpenChange={vi.fn()}
-      fallbackInitial="图"
-    />,
-  )
+  return render(<AssistantSettingsDialog open onOpenChange={vi.fn()} />)
 }
 
 /** 分段控件的每一格都是一颗按钮，文案 = i18n 键（上面的 mock 直接回键名）。 */
@@ -239,13 +233,7 @@ describe('AssistantSettingsDialog', () => {
   it('保存失败时就地报错、⛔ 不关弹层', async () => {
     mockSave.mockResolvedValue(false)
     const onOpenChange = vi.fn()
-    render(
-      <AssistantSettingsDialog
-        open
-        onOpenChange={onOpenChange}
-        fallbackInitial="图"
-      />,
-    )
+    render(<AssistantSettingsDialog open onOpenChange={onOpenChange} />)
 
     fireEvent.click(screen.getByText('save'))
 
@@ -300,7 +288,6 @@ describe('助手设置 · 上下文卡页（切片 Y）', () => {
         onOpenChange={vi.fn()}
         section={ASSISTANT_SETTINGS_SECTIONS.cards}
         scope="image"
-        fallbackInitial="图"
       />,
     )
     expect(screen.getAllByTestId('assistant-context-card-item')).toHaveLength(1)
@@ -319,7 +306,6 @@ describe('助手设置 · 上下文卡页（切片 Y）', () => {
         open
         onOpenChange={vi.fn()}
         section={ASSISTANT_SETTINGS_SECTIONS.cards}
-        fallbackInitial="图"
       />,
     )
     expect(screen.queryByTestId('assistant-context-card-pin')).toBeNull()

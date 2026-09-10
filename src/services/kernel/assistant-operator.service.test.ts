@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ApiRequestError } from '@/lib/errors'
+
 import { CINEMATIC_SHOT_GRAMMAR } from '@/constants/cinematic-grammar'
 import {
   SEEDANCE_20_CONTROL_RULES,
@@ -24,9 +26,9 @@ const mockResolveLlmTextRoute = vi.fn()
  * ⚠ 想验分块行为的用例自己覆盖 `mockLlmTextStreamChunks` —— 它按块吐，
  * 增量帧的条数由它决定。
  */
-const mockLlmTextStreamChunks = vi.fn<
-  (raw: string) => readonly string[] | null
->(() => null)
+const mockLlmTextStreamChunks = vi.fn<(raw: string) => Iterable<string> | null>(
+  () => null,
+)
 vi.mock('@/services/llm-text.service', () => ({
   llmTextCompletion: (...args: unknown[]) => mockLlmTextCompletion(...args),
   llmTextStream: async function* (...args: unknown[]) {
@@ -607,6 +609,51 @@ describe('工具环 · 逐事件顺序', () => {
     ).toEqual(['写好了。'])
   })
 
+  it.each([
+    ['ASSISTANT_NO_TEXT_RESPONSE', 'errors.assistant.noTextResponse'],
+    ['ASSISTANT_OUTPUT_TRUNCATED', 'errors.assistant.outputTruncated'],
+    ['PROVIDER_REFUSED', 'errors.provider.refused'],
+    ['PROVIDER_TRANSIENT', 'errors.provider.temporarilyUnavailable'],
+  ])('preserves %s without a second planning call', async (code, key) => {
+    const failure = new ApiRequestError(code!, 502, key!, 'Provider failure')
+    mockLlmTextCompletion.mockRejectedValueOnce(failure)
+    await expect(
+      collect(runAssistantOperator('clerk-1', buildRequest())),
+    ).rejects.toBe(failure)
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not execute a complete tool JSON when its stream subsequently fails', async () => {
+    const failure = new ApiRequestError(
+      'ASSISTANT_OUTPUT_TRUNCATED',
+      502,
+      'errors.assistant.outputTruncated',
+      'Incomplete stream',
+    )
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        title: 'set prompt',
+        args: { value: 'night city' },
+      },
+      message: 'done',
+    })
+    mockLlmTextStreamChunks.mockImplementation((raw) => ({
+      *[Symbol.iterator]() {
+        yield raw
+        throw failure
+      },
+    }))
+    const events: AssistantOperatorEvent[] = []
+    const consume = async () => {
+      for await (const event of runAssistantOperator('clerk-1', buildRequest()))
+        events.push(event)
+    }
+    await expect(consume()).rejects.toBe(failure)
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+    expect(stepsOf(events)).toHaveLength(0)
+  })
+
   it('连着两轮读不出 JSON 就大声失败，而不是把步数烧完', async () => {
     mockLlmTextCompletion.mockResolvedValue('抱歉，我说点别的。')
     await expect(
@@ -1060,6 +1107,62 @@ describe('规划器的拒绝', () => {
     // 没写 slot 就落默认档（第二期）—— 图片域永远是这一档。
     expect(mounted?.payload).toMatchObject({ slot: 'reference' })
     expect(mounted?.inverse).toEqual({ assetId: 'gen-1', slot: 'reference' })
+  })
+
+  it('sets GPT 2.5 quality and background independently from resolution and preserves undo values', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+          title: 'Set image quality',
+          args: {
+            aspectRatio: '16:9',
+            resolution: '2K',
+            quality: 'max',
+            background: 'transparent',
+            preview: true,
+          },
+        },
+      },
+      { finished: true },
+    )
+    const request = buildRequest()
+    request.snapshot = {
+      ...request.snapshot,
+      model: { id: 'gpt-image-2.5-sunburst' },
+    }
+    const events = await collect(runAssistantOperator('clerk-1', request))
+    const step = stepsOf(events).find((step) => step.status === 'done')
+    expect(step?.payload).toMatchObject({
+      resolution: '2K',
+      quality: 'max',
+      background: 'transparent',
+      preview: true,
+    })
+    expect(step?.inverse).toMatchObject({
+      quality: null,
+      background: null,
+      preview: null,
+    })
+  })
+
+  it('rejects 2.5-only quality on GPT Image 2 without changing specs', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+          title: 'Invalid quality',
+          args: { aspectRatio: '16:9', resolution: '2K', quality: 'max' },
+        },
+      },
+      { finished: true },
+    )
+    const request = buildRequest()
+    request.snapshot = { ...request.snapshot, model: { id: 'gpt-image-2' } }
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', request)),
+    )
+    expect(steps[0].status).toBe('error')
   })
 
   it('set_specs 的值不在选项里就拒；合法时两个字段一起下（台账 AE/BG/BS）', async () => {
@@ -6669,6 +6772,8 @@ describe('current reference image bindings', () => {
     identity: 'Recognizable face and costume',
     pose: 'Visible limb positions',
     style: {
+      rendering:
+        'Stylized 3D NPR with volumetric hair and material-specific reflections',
       proportions: 'Stylized',
       contours: 'Clean',
       shading: 'Soft',
@@ -6707,6 +6812,180 @@ describe('current reference image bindings', () => {
           ]),
     ]
   }
+
+  it('gives the answering model current verified evidence despite historical failure messages', async () => {
+    queueTurns({
+      finished: true,
+      message: '根据已验证的图3，这是风格化角色渲染。',
+    })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [
+            { role: 'user', content: '分析 reference image 3 的画风' },
+            { role: 'assistant', content: '图3读取连续失败，请重新上传。' },
+            { role: 'user', content: '告诉我 reference image 3 的画风是什么' },
+          ],
+          referenceProfiles: [{ url: refs[2]!.url, ...facts }],
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(lastUserPrompt()).toContain('Recognizable face and costume')
+    expect(lastUserPrompt()).toContain('CURRENT VERIFIED REFERENCE EVIDENCE')
+  })
+
+  it.each([AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.OPENAI])(
+    'sends image 3 directly to the answering model on %s even after old failures',
+    async (adapterType) => {
+      mockResolveLlmTextRoute.mockResolvedValue({
+        adapterType,
+        providerConfig: { label: adapterType, baseUrl: 'https://example.test' },
+        apiKey: 'test-key',
+      })
+      queueTurns({
+        finished: true,
+        message: '图3呈现风格化三维角色的视觉观感。',
+      })
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            messages: [
+              { role: 'assistant', content: '图3连续读取失败，请重新上传。' },
+              {
+                role: 'user',
+                content: '告诉我 reference image 3 的画风是什么',
+              },
+            ],
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+      expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
+        imageData: [refs[2]!.url],
+        adapterType,
+      })
+      expect(lastUserPrompt()).toContain(
+        'IMAGES ATTACHED TO THIS MODEL REQUEST',
+      )
+      expect(lastUserPrompt()).toContain('"imageIndex":2')
+      expect(stepsOf(events)).toHaveLength(0)
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'cost_tick',
+          kind: 'vision',
+          units: 1,
+        }),
+      )
+    },
+  )
+
+  it('does not attach references mentioned only in older conversation', async () => {
+    queueTurns({ finished: true, message: '欢迎回来。' })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [
+            { role: 'user', content: '分析 reference image 3' },
+            { role: 'user', content: '你好' },
+          ],
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0].imageData).toBeUndefined()
+  })
+
+  it('uses only mounted URLs from current attachment metadata for an unnumbered question', async () => {
+    queueTurns({ finished: true, message: '这张图是日系插画风格。' })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [{ role: 'user', content: '这张图是什么画风' }],
+          mentionedAssets: [
+            { id: 'third', url: refs[2]!.url },
+            { id: 'unmounted', url: 'https://elsewhere.test/not-mounted.png' },
+          ],
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0].imageData).toEqual([
+      refs[2]!.url,
+    ])
+  })
+
+  it('automatically obtains evidence for a text-only model before it can repeat an old failure', async () => {
+    mockResolveLlmTextRoute.mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
+      apiKey: 'text-key',
+    })
+    mockFindVisionCapableRoute.mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
+      apiKey: 'vision-key',
+    })
+    queueTurns(
+      { images: [{ imageIndex: 2, ...facts }] },
+      { finished: true, message: '根据这次视觉检查，图3是风格化角色渲染。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [
+            { role: 'assistant', content: '图3无法读取。' },
+            { role: 'user', content: '再分析图3的画风' },
+          ],
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
+      adapterType: AI_ADAPTER_TYPES.GEMINI,
+      imageData: [refs[2]!.url],
+    })
+    expect(mockLlmTextCompletion.mock.calls[1]?.[0]).toMatchObject({
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      userPrompt: expect.stringContaining('Recognizable face and costume'),
+    })
+    expect(mockLlmTextCompletion.mock.calls[1]?.[0].imageData).toBeUndefined()
+    expect(
+      stepsOf(events).some(
+        (step) => step.tool === 'analyze_references' && step.status === 'done',
+      ),
+    ).toBe(true)
+  })
+
+  it('reuses complete visual evidence for a text-only answer without another paid inspection', async () => {
+    mockResolveLlmTextRoute.mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
+      apiKey: 'text-key',
+    })
+    queueTurns({ finished: true, message: '图3是风格化三维渲染。' })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [{ role: 'user', content: '图3是什么画风' }],
+          referenceProfiles: [{ url: refs[2]!.url, ...facts }],
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(mockFindVisionCapableRoute).not.toHaveBeenCalled()
+    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+    expect(lastUserPrompt()).toContain('Stylized 3D NPR')
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0].imageData).toBeUndefined()
+  })
 
   it('answers a question about image 3 without invoking source-role planning', async () => {
     queueTurns(
@@ -6910,6 +7189,155 @@ describe('current reference image bindings', () => {
         }),
       ]),
     )
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      ),
+    ).toBe(false)
+  })
+
+  it('continues a confirmed prompt edit from cached visual facts without another analysis tool call', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Two people hugging in stylized 3D' },
+        },
+      },
+      brief,
+      { issues: [] },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [{ role: 'user', content: '没问题，继续写入提示词' }],
+          referenceProfiles: refs
+            .map(({ url }) => ({ url, ...facts }))
+            .reverse(),
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      ),
+    ).toBe(true)
+    expect(
+      mockLlmTextCompletion.mock.calls.some(([input]) =>
+        input.systemPrompt.startsWith('Analyze reference images'),
+      ),
+    ).toBe(false)
+  })
+
+  it('allows the same prompt write to resume after satisfying its analysis prerequisite', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Two people hugging in stylized 3D' },
+        },
+      },
+      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Two people hugging in stylized 3D' },
+        },
+      },
+      brief,
+      { issues: [] },
+      { finished: true, message: '已写入。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).filter(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      ),
+    ).toHaveLength(1)
+    expect(lastUserPrompt()).toContain('then retry set_prompt')
+    expect(lastUserPrompt()).not.toContain('Do not retry it unchanged')
+  })
+
+  it.each(['missing', 'outdated-rendering'])(
+    'does not accept %s cached evidence for prompt writes',
+    async (kind) => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            args: { value: 'A stylized 3D embrace' },
+          },
+        },
+        { finished: true, message: '需要补齐依据。' },
+      )
+      const cached = refs.map(({ url }) => ({ url, ...facts }))
+      if (kind === 'missing')
+        cached[0] = { ...cached[0]!, url: 'https://cdn.test/removed.png' }
+      else
+        cached[0] = { ...cached[0]!, style: { ...facts.style, rendering: '' } }
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            referenceProfiles: cached,
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      expect(
+        stepsOf(events).find(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+            step.status === 'error',
+        )?.error,
+      ).toMatchObject({ reason: 'referenceAnalysisRequired' })
+    },
+  )
+
+  it('still requires overwrite approval when cached evidence is complete', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'A stylized 3D embrace' },
+        },
+      },
+      brief,
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+          snapshot: {
+            ...SNAPSHOT,
+            prompt: 'My existing draft',
+            references: { items: refs, limit: 4 },
+          },
+        }),
+      ),
+    )
+    expect(
+      events.some(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+      ),
+    ).toBe(true)
     expect(
       stepsOf(events).some(
         (step) =>
@@ -7176,7 +7604,12 @@ describe('current reference image bindings', () => {
       ]),
     )
     expect(
-      mockLlmTextCompletion.mock.calls.every(([input]) => !input.imageData),
+      mockLlmTextCompletion.mock.calls.every(
+        ([input]) =>
+          !input.systemPrompt.includes(
+            'You are looking at a picture that PixelVault just produced',
+          ),
+      ),
     ).toBe(true)
   })
 
@@ -7254,4 +7687,45 @@ describe('current reference image bindings', () => {
     expect(lastUserPrompt()).toContain('@Image4')
     expect(lastUserPrompt()).toContain('not mounted')
   })
+})
+
+describe('operator native media inputs', () => {
+  it.each(['video', 'audio'] as const)(
+    'passes %s bytes input through the completion wrapper',
+    async (kind) => {
+      const url = `https://cdn.test/source.${kind === 'video' ? 'mp4' : 'mp3'}`
+      const request = buildRequest({
+        mediaAttachments: [{ kind, url, label: 'source' }],
+      })
+      mockLlmTextCompletion.mockResolvedValue(
+        JSON.stringify({ finished: true, message: 'Analyzed.' }),
+      )
+      await collect(runAssistantOperator('clerk-1', request))
+      expect(mockLlmTextCompletion).toHaveBeenCalledWith(
+        expect.objectContaining({
+          [kind === 'video' ? 'videoData' : 'audioData']: [url],
+        }),
+      )
+    },
+  )
+
+  it.each(['video', 'audio'] as const)(
+    'rejects unsupported %s before an LLM call',
+    async (kind) => {
+      mockResolveLlmTextRoute.mockResolvedValue({
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        providerConfig: { label: 'OpenAI', baseUrl: 'https://example.test' },
+        apiKey: 'test-key',
+      })
+      const request = buildRequest({
+        mediaAttachments: [
+          { kind, url: 'https://cdn.test/source', label: 'source' },
+        ],
+      })
+      await expect(
+        collect(runAssistantOperator('clerk-1', request)),
+      ).rejects.toBeInstanceOf(ApiRequestError)
+      expect(mockLlmTextCompletion).not.toHaveBeenCalled()
+    },
+  )
 })

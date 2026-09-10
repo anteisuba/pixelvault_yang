@@ -267,6 +267,13 @@ export function assistantAdapterAcceptsReferenceKind(
  * Hard Rule 8 由前端据 `errorCode` 路由到 `QuickSetupDialog`。
  */
 export const ASSISTANT_MEDIA_UNSUPPORTED_ERRORS = {
+  audio: {
+    code: 'ASSISTANT_AUDIO_UNSUPPORTED',
+    httpStatus: 400,
+    i18nKey: 'errors.assistant.audioUnsupported',
+    message:
+      'The selected assistant model cannot analyze audio. Select Gemini.',
+  },
   image: {
     code: 'ASSISTANT_IMAGE_UNSUPPORTED',
     httpStatus: 400,

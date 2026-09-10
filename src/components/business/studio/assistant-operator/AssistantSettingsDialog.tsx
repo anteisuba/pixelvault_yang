@@ -113,11 +113,6 @@ interface AssistantSettingsDialogProps {
    * ⚠ 缺席时**不画那颗开关**（没有「这里」可挂），⛔ 不摆一颗点了没反应的。
    */
   scope?: string
-  /**
-   * 名字留空时字母款头像画哪个字（§8.2：空 = 用域名）。
-   * ⚠ 由调用方给 —— 这颗组件不知道自己开在哪台工作台上。
-   */
-  fallbackInitial?: string
 }
 
 type PersonaDraft = UpdateAssistantPersonaRequest
@@ -186,9 +181,9 @@ export function AssistantSettingsDialog({
   onOpenChange,
   section = ASSISTANT_SETTINGS_SECTIONS.persona,
   scope,
-  fallbackInitial,
 }: AssistantSettingsDialogProps) {
   const t = useTranslations('StudioOperator.persona')
+  const tTimeline = useTranslations('StudioOperator.timeline')
   const tRule = useTranslations('StudioOperator.rule')
   /** 卡的档名（角色 / 风格 / 品牌）与编辑器共用一份词表，⛔ 不抄第二份。 */
   const tCards = useTranslations('ContextCards')
@@ -425,7 +420,9 @@ export function AssistantSettingsDialog({
                       ) : (
                         <AssistantAvatarGlyph
                           presetId={draft.avatarPreset}
-                          name={draft.name ?? fallbackInitial}
+                          name={
+                            draft.name?.trim() || tTimeline('assistantFallback')
+                          }
                           className="size-full"
                         />
                       )}
@@ -488,7 +485,10 @@ export function AssistantSettingsDialog({
                         >
                           <AssistantAvatarGlyph
                             presetId={presetId}
-                            name={draft.name ?? fallbackInitial}
+                            name={
+                              draft.name?.trim() ||
+                              tTimeline('assistantFallback')
+                            }
                             className="size-7"
                           />
                         </button>

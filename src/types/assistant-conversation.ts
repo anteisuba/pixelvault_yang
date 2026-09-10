@@ -227,3 +227,11 @@ export interface SharedAssistantConversationRecord {
   createdAt: string
   updatedAt: string
 }
+
+export const RenameAssistantConversationRequestSchema = z.object({
+  title: z
+    .string()
+    .trim()
+    .min(1)
+    .max(ASSISTANT_CONVERSATION_LIMITS.titleMaxLength),
+})

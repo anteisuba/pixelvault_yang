@@ -355,6 +355,11 @@ describe('buildImageOperatorSnapshot', () => {
       resolution: 'auto',
       aspectRatioOptions: expect.arrayContaining(['1:1', '16:9']),
       resolutionOptions: ['auto', '2K'],
+      quality: undefined,
+      background: undefined,
+      preview: undefined,
+      qualityOptions: [],
+      backgroundOptions: [],
     })
     expect(snapshot.count).toEqual({ value: 1, options: [1, 2, 4] })
     expect(snapshot.videoSpecs).toBeUndefined()

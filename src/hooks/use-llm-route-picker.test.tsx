@@ -105,7 +105,7 @@ describe('useLLMRoutePicker', () => {
           'OpenAI GPT-5.6 Sol',
           'OpenAI GPT-6 Astra',
           'Gemini 3.5 Flash Lite',
-          'Gemini 3.7 Flash',
+          'Gemini 3.8 Flash',
           'Qwen Flash',
           'Grok 4.6',
         ].sort(),

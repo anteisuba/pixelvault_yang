@@ -6078,6 +6078,7 @@
         "todo": "这一栏还没接上（S9 / S10）"
       },
       "tracks": {
+        "textEmpty": "画布上还没有文本卡",
         "video": "V",
         "audio": "A",
         "music": "M",
@@ -6110,6 +6111,7 @@
         "sourceGone": "来源卡已删除",
         "inPoint": "入点",
         "outPoint": "出点",
+        "sourceVersion": "版本 {index}/{total}",
         "speed": "速度",
         "speedOption": "{speed}×",
         "sound": "原声",

@@ -56,6 +56,37 @@ function videoNode(
   } as NodeV4
 }
 
+function audioNode(id: string): NodeV4 {
+  return {
+    id,
+    position: { x: 0, y: 0 },
+    data: {
+      kind: 'audio',
+      subtype: 'voice',
+      name: id,
+      status: 'idle',
+      createdAt: NOW,
+      url: 'https://example.test/a.mp3',
+      durationSec: 4,
+    },
+  } as NodeV4
+}
+
+function textNode(id: string, body: string): NodeV4 {
+  return {
+    id,
+    position: { x: 0, y: 0 },
+    data: {
+      kind: 'text',
+      subtype: 'script',
+      name: id,
+      status: 'idle',
+      createdAt: NOW,
+      body,
+    },
+  } as NodeV4
+}
+
 /** 一台**真的会落状态**的台面：dispatchBatch 走的就是 op 执行器。 */
 function renderDesk(
   initial: NodeWorkflowStateV4,
@@ -307,5 +338,66 @@ describe('剪辑台 · 台面', () => {
     expect(ops).toHaveLength(1)
     expect(ops[0]?.[0]?.op).toBe(NODE_ASSISTANT_OP_V4_IDS.editSetTimeline)
     expect(ops[0]?.[1]?.op).toBe(NODE_ASSISTANT_OP_V4_IDS.editAddClip)
+  })
+})
+
+/**
+ * 每一格都看得见内容（S8b · owner 真机 2026-09-10「左栏没有预览图」）。
+ *
+ * ⚠ 断的是**有没有东西可看**，⛔ 不断哪一条地址 —— 封面三级来路（卡自带缩略 /
+ * 边缘抽帧 / 客户端抓首帧）里只有第一级在 jsdom 里跑得动，另两级要网络与解码。
+ */
+describe('剪辑台 · 素材与段的长相', () => {
+  const posterState: NodeWorkflowStateV4 = {
+    version: 4,
+    nodes: [
+      {
+        ...videoNode('v1'),
+        data: {
+          ...videoNode('v1').data,
+          videoThumbnailUrl: 'https://example.test/poster.jpg',
+        },
+      } as NodeV4,
+      audioNode('a1'),
+      textNode('t1', '外景 · 车站\n第二行不该出现'),
+    ],
+    edges: [],
+  }
+
+  it('视频素材格出封面图，音频素材格出波形', () => {
+    renderDesk(posterState)
+    const videoTile = screen.getByTestId('edit-desk-asset-v1')
+    expect(videoTile.querySelector('img')).toHaveAttribute(
+      'src',
+      'https://example.test/poster.jpg',
+    )
+    const audioTile = screen.getByTestId('edit-desk-asset-a1')
+    expect(audioTile.querySelector('[data-audio-waveform]')).not.toBeNull()
+  })
+
+  it('时间线上的段带缩略帧条，右栏来源也出图', () => {
+    renderDesk(posterState)
+    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
+    // ⚠ 按 `data-clip-index` 找，⛔ 不按 testid 前缀 —— `edit-desk-clip-clock`
+    // （预览左上那个段读数）会一起命中。
+    const clip = document.querySelector('[data-clip-index="0"]')
+    expect(clip).not.toBeNull()
+    if (!clip) throw new Error('no clip')
+    expect(clip.querySelector('[style*="poster.jpg"]')).not.toBeNull()
+
+    fireEvent.pointerDown(clip)
+    const thumb = screen.getByTestId('edit-desk-source-thumb')
+    expect(thumb.querySelector('img')).toHaveAttribute(
+      'src',
+      'https://example.test/poster.jpg',
+    )
+  })
+
+  it('「文字」页列文本卡的首行', () => {
+    renderDesk(posterState)
+    fireEvent.click(screen.getByTestId('edit-desk-panel-text'))
+    const row = screen.getByTestId('edit-desk-text-t1')
+    expect(within(row).getByText('外景 · 车站')).toBeInTheDocument()
+    expect(within(row).queryByText('第二行不该出现')).toBeNull()
   })
 })

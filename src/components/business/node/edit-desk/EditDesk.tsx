@@ -24,7 +24,7 @@
  * 对话框就被自己盖住了（真机上就这么栽过一次）。
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -137,6 +137,8 @@ export function EditDesk({
   const [planPrompt, setPlanPrompt] = useState('')
   /** 便条投出去了、提案还没回来 —— 栏上那颗按钮该转，⛔ 不让人连点五次。 */
   const [planPending, setPlanPending] = useState(false)
+  /** 预览在不在播 —— 空格与播放器那颗钮共用这一份（spec §6「空格播放」）。 */
+  const [playing, setPlaying] = useState(false)
 
   /**
    * 进模式时把「进剪辑台」带来的那几张卡追加进去 —— **只落一次**。
@@ -205,11 +207,15 @@ export function EditDesk({
 
       if (event.code === 'Space') {
         event.preventDefault()
-        // 「播放」在本片 = 把播放头挪到下一段的段首（预览只播当前段，S9 接真播放）。
-        const clips = desk.project.tracks[EDIT_TRACK_IDS.video]
-        const index = clipIndexAt(clips, playheadSec)
-        const next = desk.rows[EDIT_TRACK_IDS.video][index + 1]
-        setPlayhead(next ? next.startSec : 0)
+        // 播到片尾按空格 = 从头再放一遍（⛔ 不给一颗按了没反应的键）。
+        if (
+          !playing &&
+          clipIndexAt(desk.project.tracks[EDIT_TRACK_IDS.video], playheadSec) <
+            0
+        ) {
+          setPlayhead(0)
+        }
+        setPlaying((current) => !current)
         return
       }
       const key = event.key.toLowerCase()
@@ -237,8 +243,8 @@ export function EditDesk({
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [
     desk.project,
-    desk.rows,
     playheadSec,
+    playing,
     markIn,
     markOut,
     removeSelected,
@@ -360,6 +366,13 @@ export function EditDesk({
     window.open(url, '_blank', 'noopener,noreferrer')
   }, [])
 
+  /** 「文字」页读的那一批（画布上的文本卡，只读 —— 见 `EditDeskAssetRail` 头注）。 */
+  const textNodes = useMemo(
+    () =>
+      state.nodes.filter((node) => node.data.kind === NODE_MEDIA_KIND_IDS.text),
+    [state.nodes],
+  )
+
   const previewRow =
     desk.rows[EDIT_TRACK_IDS.video][
       clipIndexAt(desk.project.tracks[EDIT_TRACK_IDS.video], desk.playheadSec)
@@ -411,6 +424,7 @@ export function EditDesk({
           activePanel={activePanel}
           onActivePanelChange={setActivePanel}
           assets={desk.assets}
+          textNodes={textNodes}
           onAppend={(nodeId) => desk.addClips([nodeId])}
         />
 
@@ -421,6 +435,9 @@ export function EditDesk({
               row={previewRow}
               playheadSec={desk.playheadSec}
               durationSec={desk.durationSec}
+              playing={playing}
+              onPlayingChange={setPlaying}
+              onPlayheadChange={setPlayhead}
             />
             {desk.proposal && desk.proposalClipIndex !== null ? (
               <EditDeskProposalInspector desk={desk} />

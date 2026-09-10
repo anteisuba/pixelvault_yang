@@ -3,9 +3,17 @@
 /**
  * 左侧 **图标栏 + 236 面板**（画板 `EditDesk.dc.html` 左半）。
  *
- * 图标栏五项：画布素材 / 素材库 / 音频 / 文字 / 转场。本片只做**画布素材**——
- * 它是唯一一条与时间线数据相通的路（拖进去就是一段）；其余四项在 S9 / S10 接上
- * 各自的来源，现在给一句「还没接上」而不是四个点了没反应的图标。
+ * 图标栏五项：画布素材 / 素材库 / 音频 / 文字 / 转场。
+ * - **画布素材** 是唯一一条与时间线数据相通的路（拖进去就是一段）；
+ * - **音频** 是画布素材的音频子集（同一批卡，只是省掉在视频里找的那一步）；
+ * - **文字** 列画布上的文本卡首行 —— 写「一句话排片」时要照着剧本说话，
+ *   ⛔ 它不进时间线（`EditClip` 没有文本段），所以那一格不可拖也不可双击；
+ * - **素材库 / 转场** 还没有来源，给一句「还没接上」而不是一个点了没反应的图标。
+ *
+ * ── 每一格都必须**看得见内容**（owner 真机 2026-09-10）───────────────────
+ * 一格纯灰底加一个图标，用户在六张卡里认不出哪张是哪张。所以：
+ * 视频 = 封面帧（有 `videoThumbnailUrl` 用它，没有就客户端抓首帧一次并缓存）·
+ * 音频 = 一小条波形（复用音频卡那一只，⛔ 不另画）· 文本 = 首行。
  *
  * ⚠ 拖投载荷带的是**节点 id**（`EDIT_DESK_NODE_DRAG_MIME`），不是 url：段永远
  * 指向一张卡。理由写在那个常量上。
@@ -27,13 +35,16 @@ import {
   EDIT_DESK_NODE_DRAG_MIME,
   EDIT_PANELS,
   EDIT_PANEL_IDS,
+  EDIT_DESK_ASSET_WAVE_BARS,
   type EditPanelId,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { formatEditDurationShort } from '@/lib/edit-project'
+import { currentUrlOf, formatEditDurationShort } from '@/lib/edit-project'
 import { cn } from '@/lib/utils'
+import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import type { NodeV4 } from '@/types/node-workflow'
 
+import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
 import { ShellIconButton } from '../workbench-v4/shell/ShellIconButton'
 
 const PANEL_ICONS: Record<EditPanelId, LucideIcon> = {
@@ -48,6 +59,8 @@ export interface EditDeskAssetRailProps {
   readonly activePanel: EditPanelId
   onActivePanelChange(panel: EditPanelId): void
   readonly assets: readonly NodeV4[]
+  /** 画布上的文本卡（「文字」页读它 —— 只读，⛔ 不进时间线）。 */
+  readonly textNodes: readonly NodeV4[]
   /** 双击素材 = 追加到对应轨（不想拖的人也有一条路）。 */
   onAppend(nodeId: string): void
 }
@@ -56,9 +69,20 @@ export function EditDeskAssetRail({
   activePanel,
   onActivePanelChange,
   assets,
+  textNodes,
   onAppend,
 }: EditDeskAssetRailProps) {
   const t = useTranslations('StudioNode.editDesk')
+
+  const audioAssets = assets.filter(
+    (node) => node.data.kind === NODE_MEDIA_KIND_IDS.audio,
+  )
+  const tiles =
+    activePanel === EDIT_PANEL_IDS.canvas
+      ? assets
+      : activePanel === EDIT_PANEL_IDS.audio
+        ? audioAssets
+        : null
 
   return (
     <>
@@ -88,22 +112,34 @@ export function EditDeskAssetRail({
           <span className="text-xs font-semibold text-foreground">
             {t(`panels.${activePanel}`)}
           </span>
-          {activePanel === EDIT_PANEL_IDS.canvas ? (
+          {tiles ? (
             <span className="text-2xs text-muted-foreground">
               {t('panels.dragHint')}
             </span>
           ) : null}
         </div>
 
-        {activePanel === EDIT_PANEL_IDS.canvas ? (
-          assets.length === 0 ? (
+        {tiles ? (
+          tiles.length === 0 ? (
             <p className="text-2xs text-muted-foreground">
               {t('panels.empty')}
             </p>
           ) : (
             <div className="grid grid-cols-2 gap-2">
-              {assets.map((node) => (
+              {tiles.map((node) => (
                 <AssetTile key={node.id} node={node} onAppend={onAppend} />
+              ))}
+            </div>
+          )
+        ) : activePanel === EDIT_PANEL_IDS.text ? (
+          textNodes.length === 0 ? (
+            <p className="text-2xs text-muted-foreground">
+              {t('panels.textEmpty')}
+            </p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {textNodes.map((node) => (
+                <TextRow key={node.id} node={node} />
               ))}
             </div>
           )
@@ -120,6 +156,34 @@ export function EditDeskAssetRail({
   )
 }
 
+/** 文本卡一行：名字 + **首行**（画布上写了什么，一眼能对上）。 */
+function TextRow({ node }: { readonly node: NodeV4 }) {
+  const data = node.data
+  const body = data.kind === NODE_MEDIA_KIND_IDS.text ? data.body : ''
+  return (
+    <div
+      data-testid={`edit-desk-text-${node.id}`}
+      className="flex flex-col gap-0.5 rounded-lg bg-muted px-2 py-1.5"
+    >
+      <span className="truncate text-2xs font-medium text-foreground">
+        {data.name}
+      </span>
+      <span className="truncate text-3xs text-muted-foreground">
+        {firstLineOf(body)}
+      </span>
+    </div>
+  )
+}
+
+/** 正文首行（空正文给一条 em dash，⛔ 不留一格空白让人以为渲染坏了）。 */
+function firstLineOf(body: string): string {
+  const line = body
+    .split('\n')
+    .map((candidate) => candidate.trim())
+    .find((candidate) => candidate.length > 0)
+  return line ?? '—'
+}
+
 function AssetTile({
   node,
   onAppend,
@@ -129,8 +193,13 @@ function AssetTile({
 }) {
   const data = node.data
   const isAudio = data.kind === NODE_MEDIA_KIND_IDS.audio
-  const poster =
-    data.kind === NODE_MEDIA_KIND_IDS.video ? data.videoThumbnailUrl : undefined
+  const url = currentUrlOf(node)
+  const poster = useVideoPoster(
+    isAudio ? undefined : url,
+    data.kind === NODE_MEDIA_KIND_IDS.video
+      ? data.videoThumbnailUrl
+      : undefined,
+  )
   const duration =
     'durationSec' in data && data.durationSec ? data.durationSec : 0
   const name =
@@ -162,8 +231,18 @@ function AssetTile({
           'cursor-grab transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none',
         )}
       >
-        {poster ? (
-          // eslint-disable-next-line @next/next/no-img-element -- R2 缩略，⛔ 不进 next/image 优化管线
+        {isAudio ? (
+          // 音频没有画面 —— 一小条波形就是它的「长相」（复用音频卡那一只）。
+          <div className="flex size-full items-center justify-center px-2">
+            <AudioWaveform
+              seed={url ?? node.id}
+              barCount={EDIT_DESK_ASSET_WAVE_BARS}
+              height={EDIT_DESK_LAYOUT.waveHeightPx}
+              className="w-full justify-center"
+            />
+          </div>
+        ) : poster ? (
+          // eslint-disable-next-line @next/next/no-img-element -- R2 缩略 / data URL，⛔ 不进 next/image 优化管线
           <img
             src={poster}
             alt=""
@@ -172,11 +251,7 @@ function AssetTile({
           />
         ) : (
           <div className="flex size-full items-center justify-center text-muted-foreground">
-            {isAudio ? (
-              <Music className="size-4" aria-hidden />
-            ) : (
-              <FileVideo className="size-4" aria-hidden />
-            )}
+            <FileVideo className="size-4" aria-hidden />
           </div>
         )}
         {duration > 0 ? (

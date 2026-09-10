@@ -930,6 +930,16 @@ function NodeWorkbenchV4Inner() {
     [writeEditModeParam],
   )
 
+  /**
+   * 顶栏「剪辑台」/ ⌘K 开台时**带上当前选中的卡**（spec §6「多选视频卡后进剪辑台」）。
+   *
+   * ⚠ 不在这里挑种类：`addClips` 自己按卡的种类落 V / A 轨，落不进去的（文本 /
+   * 图片 / 还没产物的空卡）它直接跳过。⛔ 这里再筛一遍就是把同一条规则写两处。
+   */
+  const openEditDeskWithSelection = useCallback(() => {
+    openEditDesk(graph.selectedNodeIds)
+  }, [openEditDesk, graph.selectedNodeIds])
+
   const exitEditDesk = useCallback(() => {
     setEditMode(false)
     setEditDeskSeed([])
@@ -1054,7 +1064,7 @@ function NodeWorkbenchV4Inner() {
                   onRenameProject={() => setProjectDialogMode('rename')}
                   onDuplicateProject={() => setProjectDialogMode('duplicate')}
                   onDeleteProject={() => setDeleteConfirmOpen(true)}
-                  onOpenEditDesk={() => openEditDesk()}
+                  onOpenEditDesk={openEditDeskWithSelection}
                   assistantOpen={assistantOpen}
                   // 右上那颗是**开关**：再点一次收起（收起后右缘留一条，画板
                   // `ChromeAssistant.dc.html`）。
@@ -1120,7 +1130,7 @@ function NodeWorkbenchV4Inner() {
                     setAssistantOpen(true)
                     setAssistantEverOpened(true)
                   }}
-                  onOpenEditDesk={() => openEditDesk()}
+                  onOpenEditDesk={openEditDeskWithSelection}
                   onSwitchProject={store.switchProject}
                   onManageChannels={openApiKeys}
                 />

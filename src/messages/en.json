@@ -6078,6 +6078,7 @@
         "todo": "Not wired up yet (S9 / S10)"
       },
       "tracks": {
+        "textEmpty": "No text cards on the canvas yet",
         "video": "V",
         "audio": "A",
         "music": "M",
@@ -6110,6 +6111,7 @@
         "sourceGone": "Source card deleted",
         "inPoint": "In",
         "outPoint": "Out",
+        "sourceVersion": "Version {index}/{total}",
         "speed": "Speed",
         "speedOption": "{speed}×",
         "sound": "Original audio",

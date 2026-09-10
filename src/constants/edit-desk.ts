@@ -139,7 +139,27 @@ export const EDIT_DESK_LAYOUT = {
   handleWidthPx: 7,
   /** 转场菱形边长（画板 12）。 */
   transitionMarkPx: 12,
+  /**
+   * 波形一根柱占多宽（柱 3 + 缝 2，见 `AudioWaveform` 的 `w-0.75 gap-0.5`）。
+   * 段有多宽就画几根，⛔ 不固定根数 —— 固定根数的短段会挤成一团。
+   */
+  waveBarPitchPx: 5,
+  /** 右栏来源缩略（画板 `.ptile { width:56; height:36 }`）。 */
+  sourceThumbWidthPx: 56,
+  sourceThumbHeightPx: 36,
 } as const
+
+/** 左栏音频素材格里那条波形画几根柱（236 面板两列，一格约 106px 宽）。 */
+export const EDIT_DESK_ASSET_WAVE_BARS = 28
+
+/**
+ * 时间线上一段画几条缩略帧（画板 `.clip` 里那排 `.fr`）。
+ *
+ * ⚠ 是**上限**不是定值：段有多宽就按 `clipHeightPx` 的 16:9 宽度铺满，短段少铺
+ * 几条。⛔ 不按秒抽真帧 —— 一段一张封面已经能回答「这是哪一镜」，逐帧抽要 N 次
+ * seek，拖手柄时页面直接停住。
+ */
+export const EDIT_DESK_CLIP_FRAME_MAX = 12
 
 /**
  * 时间线缩放：一秒画多少像素。

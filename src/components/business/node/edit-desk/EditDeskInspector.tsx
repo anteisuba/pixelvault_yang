@@ -20,11 +20,15 @@ import {
   EDIT_TRANSITION_IDS,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
-import { formatEditClock } from '@/lib/edit-project'
+import { currentUrlOf, formatEditClock } from '@/lib/edit-project'
+import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
 
+import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
+
+import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
 
 export interface EditDeskInspectorProps {
   readonly desk: EditDesk
@@ -56,13 +60,13 @@ export function EditDeskInspector({
           </span>
 
           <div className="flex items-center gap-2">
-            <div className="h-9 w-14 shrink-0 overflow-hidden rounded-md bg-muted" />
+            <SourceThumb row={row} />
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="truncate text-xs text-foreground">
                 {t('source', { name: sourceName(row) })}
               </span>
               <span className="truncate text-3xs text-muted-foreground">
-                {row.source.exists ? t('sourceLive') : t('sourceGone')}
+                {row.source.exists ? sourceMeta(row, t) : t('sourceGone')}
               </span>
             </div>
           </div>
@@ -148,6 +152,53 @@ export function EditDeskInspector({
   )
 }
 
+/**
+ * 来源缩略（画板 `.ptile` 56×36）。
+ *
+ * ⚠ S8 那一版是**一块空灰块** —— 右栏于是回答不了「我选中的到底是哪一段」，
+ * 而这正是右栏存在的理由（owner 真机 2026-09-10）。视频给封面帧，音频给波形，
+ * 都抓不到才退回空块。
+ */
+function SourceThumb({ row }: { readonly row: EditTimelineRow }) {
+  const node = row.source.node
+  const data = node?.data
+  const isAudio = data?.kind === NODE_MEDIA_KIND_IDS.audio
+  const url = node ? currentUrlOf(node) : undefined
+  const poster = useVideoPoster(
+    isAudio ? undefined : url,
+    data && data.kind === NODE_MEDIA_KIND_IDS.video
+      ? data.videoThumbnailUrl
+      : undefined,
+  )
+
+  return (
+    <div
+      data-testid="edit-desk-source-thumb"
+      style={{
+        width: EDIT_DESK_LAYOUT.sourceThumbWidthPx,
+        height: EDIT_DESK_LAYOUT.sourceThumbHeightPx,
+      }}
+      className="flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-muted"
+    >
+      {isAudio ? (
+        <AudioWaveform
+          seed={url ?? row.clip.sourceNodeId}
+          barCount={EDIT_DESK_SOURCE_THUMB_WAVE_BARS}
+          height={EDIT_DESK_LAYOUT.waveHeightPx - 6}
+        />
+      ) : poster ? (
+        // eslint-disable-next-line @next/next/no-img-element -- R2 缩略 / data URL，⛔ 不进 next/image 优化管线
+        <img src={poster} alt="" className="size-full object-cover" />
+      ) : null}
+    </div>
+  )
+}
+
+/** 56px 宽的缩略里放几根柱（`waveBarPitchPx` 除得下的根数）。 */
+const EDIT_DESK_SOURCE_THUMB_WAVE_BARS = Math.floor(
+  (EDIT_DESK_LAYOUT.sourceThumbWidthPx - 8) / EDIT_DESK_LAYOUT.waveBarPitchPx,
+)
+
 function Row({
   label,
   value,
@@ -197,6 +248,33 @@ function Segmented({
       ))}
     </div>
   )
+}
+
+/**
+ * 来源那一行的第二句（画板 `EditDesk.dc.html` 右栏「Seedance 2.0 · 版本 2/3」）。
+ *
+ * 卡上没记模型（上传进来的、或从素材库直接落进来的）时只报版本；两样都没有就
+ * 退回一句「来自画布」—— ⛔ 不留空行。
+ */
+function sourceMeta(
+  row: EditTimelineRow,
+  t: (key: string, values?: Record<string, string | number>) => string,
+): string {
+  const data = row.source.node?.data
+  if (!data) return t('sourceLive')
+  const model = 'model' in data ? data.model?.modelId : undefined
+  const versions = readOutputVersions(data)
+  const parts: string[] = []
+  if (model) parts.push(model)
+  if (versions.length > 0) {
+    parts.push(
+      t('sourceVersion', {
+        index: readOutputIndex(data) + 1,
+        total: versions.length,
+      }),
+    )
+  }
+  return parts.length > 0 ? parts.join(' · ') : t('sourceLive')
 }
 
 function sourceName(row: EditTimelineRow): string {

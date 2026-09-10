@@ -6078,6 +6078,7 @@
         "todo": "まだ接続されていません（S9 / S10）"
       },
       "tracks": {
+        "textEmpty": "キャンバスにテキストカードがまだありません",
         "video": "V",
         "audio": "A",
         "music": "M",
@@ -6110,6 +6111,7 @@
         "sourceGone": "ソースカードは削除済み",
         "inPoint": "イン点",
         "outPoint": "アウト点",
+        "sourceVersion": "バージョン {index}/{total}",
         "speed": "速度",
         "speedOption": "{speed}×",
         "sound": "元の音声",

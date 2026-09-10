@@ -30,6 +30,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import {
+  EDIT_DESK_CLIP_FRAME_MAX,
   EDIT_DESK_LAYOUT,
   EDIT_DESK_NODE_DRAG_MIME,
   EDIT_TIMELINE_TICK_SECONDS,
@@ -45,14 +46,17 @@ import {
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
+  currentUrlOf,
   formatEditDurationShort,
   pxToSeconds,
   secondsToPx,
 } from '@/lib/edit-project'
+import { useVideoPoster } from '@/hooks/node/use-video-poster'
 import { cn } from '@/lib/utils'
 import type { EditTimelineRow } from '@/lib/edit-project'
 import type { EditClip } from '@/types/node-workflow'
 
+import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
 import { ShellIconButton } from '../workbench-v4/shell/ShellIconButton'
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
 
@@ -546,6 +550,8 @@ function ClipView({
           dimmed && 'opacity-40',
         )}
       >
+        <ClipCanvas row={row} isVideo={isVideo} widthPx={widthPx} />
+
         {selected && isVideo ? (
           <>
             <span
@@ -621,6 +627,73 @@ function ClipView({
         />
       ) : null}
     </>
+  )
+}
+
+/**
+ * 段里的**内容**（画板 `.clip` 里那排 `.fr` / A 轨的 `.wave`）。
+ *
+ * 视频段 = 一排等宽缩略帧：**同一张封面帧铺满**，条与条之间一根白缝 —— 这就是
+ * 剪辑软件里「一段胶片」的读法。⛔ 不逐条抽真帧：那要 N 次 seek，拖手柄时页面
+ * 直接停住，而「这是哪一镜」一张封面已经答完了（`EDIT_DESK_CLIP_FRAME_MAX` 头注）。
+ * 音频段 = 一条波形（复用音频卡那一只）。
+ */
+function ClipCanvas({
+  row,
+  isVideo,
+  widthPx,
+}: {
+  readonly row: EditTimelineRow
+  readonly isVideo: boolean
+  readonly widthPx: number
+}) {
+  const node = row.source.node
+  const data = node?.data
+  const url = node ? currentUrlOf(node) : undefined
+  const poster = useVideoPoster(
+    isVideo ? url : undefined,
+    data && data.kind === NODE_MEDIA_KIND_IDS.video
+      ? data.videoThumbnailUrl
+      : undefined,
+  )
+
+  if (!isVideo) {
+    return (
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 flex items-center px-2"
+      >
+        <AudioWaveform
+          seed={url ?? row.clip.sourceNodeId}
+          barCount={Math.max(
+            4,
+            Math.floor(widthPx / EDIT_DESK_LAYOUT.waveBarPitchPx),
+          )}
+          height={EDIT_DESK_LAYOUT.waveHeightPx - 8}
+          className="w-full"
+        />
+      </div>
+    )
+  }
+
+  if (!poster) return null
+
+  const frameWidthPx = Math.round((EDIT_DESK_LAYOUT.clipHeightPx * 16) / 9)
+  const count = Math.min(
+    EDIT_DESK_CLIP_FRAME_MAX,
+    Math.max(1, Math.round(widthPx / frameWidthPx)),
+  )
+
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 flex">
+      {Array.from({ length: count }).map((_, index) => (
+        <span
+          key={index}
+          className="min-w-0 flex-1 border-r border-background/35 bg-cover bg-center last:border-r-0"
+          style={{ backgroundImage: `url(${poster})` }}
+        />
+      ))}
+    </div>
   )
 }
 

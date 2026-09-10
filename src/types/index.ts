@@ -246,7 +246,8 @@ export const AdvancedParamsSchema = z.object({
   /** Runner-only post-decode super-resolution model. */
   runnerUpscaler: z.enum(['4x-AnimeSharp']).optional(),
   referenceStrength: z.number().min(0.01).max(0.99).optional(),
-  quality: z.enum(['auto', 'low', 'medium', 'high']).optional(),
+  quality: z.enum(['auto', 'low', 'medium', 'high', 'xhigh', 'max']).optional(),
+  preview: z.boolean().optional(),
   resolution: z.enum(['auto', '1K', '2K', '4K']).optional(),
   background: z.string().optional(),
   style: z.string().optional(),
@@ -388,6 +389,7 @@ interface RunItemBase {
 }
 
 export type PendingRunItem = RunItemBase & {
+  previewUrl?: string
   status: 'pending' | 'generating'
   generation: GenerationRecord | null
   error: null
@@ -824,6 +826,7 @@ export type ImageStatusResponseData =
   | {
       jobId: string
       status: 'IN_QUEUE' | 'IN_PROGRESS'
+      previewUrl?: string
       generation?: never
       error?: never
     }
@@ -898,7 +901,16 @@ export const ImageEditSchema = z.object({
 
 export type ImageEditRequest = z.infer<typeof ImageEditSchema>
 
+export const ImageEditOptionsSchema = AdvancedParamsSchema.pick({
+  quality: true,
+  preview: true,
+}).extend({
+  background: z.enum(['auto', 'opaque', 'transparent']).optional(),
+})
+export type ImageEditOptions = z.infer<typeof ImageEditOptionsSchema>
+
 export const InpaintRequestSchema = z.object({
+  options: ImageEditOptionsSchema.optional(),
   imageUrl: z.string().url(),
   maskImageUrl: z.string().trim().min(1),
   prompt: z.string().trim().min(1).max(1000),
@@ -936,6 +948,7 @@ export const ObjectReplaceAnnotationSchema = z.object({
 })
 
 export const ObjectReplaceRequestSchema = z.object({
+  options: ImageEditOptionsSchema.optional(),
   imageUrl: z.string().url(),
   annotations: z.array(ObjectReplaceAnnotationSchema).min(1).max(20),
   apiKeyId: z.string().trim().min(1).optional(),
@@ -947,6 +960,14 @@ export type ObjectReplaceAnnotation = z.infer<
   typeof ObjectReplaceAnnotationSchema
 >
 export type ObjectReplaceRequest = z.infer<typeof ObjectReplaceRequestSchema>
+
+export const ImageEditStreamRequestSchema = z.discriminatedUnion('action', [
+  InpaintRequestSchema.extend({ action: z.literal('inpaint') }),
+  ObjectReplaceRequestSchema.extend({ action: z.literal('object-replace') }),
+])
+export type ImageEditStreamRequest = z.infer<
+  typeof ImageEditStreamRequestSchema
+>
 
 // ─── Element Extraction (text-guided cutout) ────────────────────
 
@@ -1644,6 +1665,7 @@ export type ExecutionCallbackErrorData = z.infer<
  * (`GenerationJob.providerJobId`) for a later cancel to target.
  */
 export const executionCallbackStatusDataSchema = z.object({
+  previewUrl: z.string().url().optional(),
   providerJobId: z.string().trim().min(1).optional(),
 })
 
@@ -4975,7 +4997,7 @@ export type RecipeRecord = {
   createdAt: string
   updatedAt: string
   /**
-   * canvas-generate-composer.md §5.5「最近用/用得最多」轻筛选读的两个字段 —
+   * /prompts「最近用 / 用得最多」轻筛选读的两个字段 —
    * schema 里一直都有（Recipe.usageCount/lastUsedAt），运行时的 API 响应也一
    * 直带着（listRecipes 直接展开 Prisma Recipe），只是这个 wire 类型历史上没
    * 声明。⚠ 实读代码库：`lastUsedAt` 目前全项目零写入点，永远是 null；

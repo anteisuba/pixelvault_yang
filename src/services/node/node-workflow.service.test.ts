@@ -197,7 +197,7 @@ describe('updateNodeWorkflowProject — empty-state overwrite guard', () => {
   })
 })
 
-// ─── 读端判据（C3c-③a · node-canvas-v2 §9.2 第 4 条的反转）─────────────────
+// ─── 读端判据（C3c-③a · node-canvas-v2 §14.2 的反转）─────────────────
 //
 // 旧行为：读写共用 v3 schema，parse 失败兜成空图。v4 节点没有 v3 必填的 `type`，
 // 所以客户端一写 v4、服务端没切，下一次读取每个项目都被兜成空——备份门救不了，

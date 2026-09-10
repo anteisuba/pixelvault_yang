@@ -155,7 +155,7 @@ export const NODE_MEDIA_KINDS = [
 export type NodeWorkflowMediaKind = (typeof NODE_MEDIA_KINDS)[number]
 
 /* ─────────────────────────────────────────────────────────────────────────
- * v4 分类法（第三期 · 画布 C1，`docs/references/pages/node-canvas-v2.md` §1.2）
+ * v4 分类法（第三期 · 画布 C1，`docs/references/pages/node-canvas-v2.md` §9.1）
  *
  * 顶层沿用上面的 `NODE_MEDIA_KIND_IDS`（新旧共用同一份 kind），新增的只有**子型**
  * ——「这张图是什么」从节点 type 降为 kind 下的 subtype。

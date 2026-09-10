@@ -59,7 +59,7 @@ export class NodeWorkflowProjectNotFoundError extends Error {
 
 /**
  * 读端坏数据。⛔ 故意不兜空：兜空 = 用户下一次打开就看见空画布，而防抖写入紧接着
- * 把那份空图存回去。报错可见比静默清空好一万倍（node-canvas-v2 §9.2 第 4 条）。
+ * 把那份空图存回去。报错可见比静默清空好一万倍（node-canvas-v2 §14.2）。
  */
 export class NodeWorkflowStateCorruptError extends Error {
   readonly projectId: string

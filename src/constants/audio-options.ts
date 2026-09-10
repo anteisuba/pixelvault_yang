@@ -328,11 +328,15 @@ export function normalizeSpeakerVoiceIds(voiceIds: string[]): string[] {
 /* ── 声音库（S5c，spec §4「三条来路」）────────────────────────────────── */
 
 /**
- * 一版音频**是从哪来的**（`NodeV4OutputVersion.source.kind`）。
+ * 一版产物**是从哪来的**（`NodeV4OutputVersion.source.kind`）。
  *
- * ⚠ 存在理由是 ⋯ 菜单里那一行只读的「来源」：直接落进卡里的现成声音没有提示词、
- * 没有模型，卡面上除了波形什么都读不出来，「这段声音是哪来的」就只剩这一个字段
- * 能回答。⛔ 不用它做任何分支逻辑——它是给人读的一行字，不是状态机。
+ * ⚠ 存在理由是 ⋯ 菜单里那一行只读的「来源」：直接落进卡里的现成产物没有提示词、
+ * 没有模型，卡面上除了波形 / 封面什么都读不出来，「这一版是哪来的」就只剩这一个
+ * 字段能回答。⛔ 不用它做任何分支逻辑——它是给人读的一行字，不是状态机。
+ *
+ * ⚠ **不只是音频**：`trim` / `upload` / `generated` 从一开始就不是声音库的栏目，
+ * `render`（剪辑台成片）落在视频卡上。名字留着是因为它诞生于 S5c 的声音库，
+ * ⛔ 别据此以为视频卡不该写这个字段。
  */
 export const AUDIO_CLIP_SOURCE_KINDS = [
   'platformSample',
@@ -343,6 +347,8 @@ export const AUDIO_CLIP_SOURCE_KINDS = [
   'generated',
   /** 客户端裁剪出来的那一版（S5d，spec §4「原音留作上一版」）。 */
   'trim',
+  /** 剪辑台导出的成片（S11b，spec §6「导出到画布」）。 */
+  'render',
 ] as const
 
 export type AudioClipSourceKind = (typeof AUDIO_CLIP_SOURCE_KINDS)[number]
@@ -356,6 +362,7 @@ export const AUDIO_CLIP_SOURCE = {
   upload: 'upload',
   generated: 'generated',
   trim: 'trim',
+  render: 'render',
 } as const satisfies Record<AudioClipSourceKind, AudioClipSourceKind>
 
 /**

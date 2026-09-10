@@ -148,8 +148,8 @@ export function isIdentityCardNode(node: {
  * 与 `node-assistant-op-plan.ts` 的 `generate` op 此前各自手写过这条判据——
  * 两处的注释都自称「与对方同源」，现在真的同源了。调用方仍各自负责再收窄到
  * 自己认的媒体种类子集，这条差异不收进本函数：
- * - `inferComposerHost` 只认 image/audio（视频留在组装台，
- *   canvas-generate-composer.md §3「视频生成 ❌ 走组装台」）
+ * - `inferComposerHost` 只认 image/audio（视频有自己的提示词栏，见
+ *   `node-canvas-v2.md` §5）
  * - 助手的 `generate` op 额外放行 video——本函数不排除 video，
  *   与改前行为一致（`node-assistant-op-plan.test.ts` 锁了这条）
  */

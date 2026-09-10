@@ -37,6 +37,7 @@ import {
   type EditResolution,
   type EditToolId,
 } from '@/constants/edit-desk'
+import { AUDIO_CLIP_SOURCE } from '@/constants/audio-options'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
@@ -276,6 +277,13 @@ export function EditDesk({
         imageSource: 'generated',
         ...(job.thumbnailUrl ? { videoThumbnailUrl: job.thumbnailUrl } : {}),
         ...(job.generationId ? { generationId: job.generationId } : {}),
+        // ⚠ 这一版**不是这张卡自己生成的**：它是剪辑台把 N 段接起来的成片，卡上
+        // 没有提示词也没有模型。⋯ 菜单那一行只读的「来源」是唯一能回答「这是哪
+        // 来的」的地方，所以落卡时就写死（`node-canvas-v2.md` §6「导出」）。
+        source: {
+          kind: AUDIO_CLIP_SOURCE.render,
+          label: t('render.sourceLabel', { name: job.name }),
+        },
       })
       for (const sourceNodeId of sourceNodeIds) {
         connect(sourceNodeId, nodeId, NODE_SLOT_IDS.reference)

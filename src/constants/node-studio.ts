@@ -774,7 +774,7 @@ export const NODE_STUDIO_DISPLAY_NAME = {
 } as const
 
 /**
- * v4 稳定命名的格式常量（第三期 · 画布 C1，node-canvas-v2 §4.2）。
+ * v4 稳定命名的格式常量（第三期 · 画布 C1，node-canvas-v2 §10）。
  * 格式：`S<两位镜号><分隔符><子型标签>[<序号>]`，例 `S02·首帧` / `S02·镜头图3`。
  * 名字**创建即持久化**，所以这几个字面量一旦发布就不能再改——改了等于让存量
  * 项目里的 `@` 提及与画布上的名字对不上。
@@ -817,7 +817,7 @@ export const NODE_V4_SUBTYPE_LABELS: Record<string, string> = {
 }
 
 /**
- * v4 快照序列化的字面量与预算（node-canvas-v2 §4.4）。
+ * v4 快照序列化的字面量与预算（node-canvas-v2 §10）。
  *
  * ⚠ **分层取代节点数硬上限**：24 镜 × 平均 4 个节点 ≈ 96，任何固定数字要么盖不全
  * 要么爆上下文。完整档 = 当前镜 + 相邻两镜 + 选中 + 最近改动；其余每镜一行标题。
@@ -1206,8 +1206,8 @@ export const NODE_STUDIO_NODE_SIDECAR_OFFSET = {
 } as const
 
 /**
- * 生成提示词框（docs/references/pages/canvas-generate-composer.md）——画布级
- * 共享组件，不属于任何单一节点族。这里只收「没别处可放」的具名数值，避免裸
+ * 提示词栏（`docs/references/pages/node-canvas-v2.md` §1.5）——画布级共享组件，
+ * 不属于任何单一节点族。这里只收「没别处可放」的具名数值，避免裸
  * 字面量散在组件里（Hard Rule 1）。
  */
 export const NODE_STUDIO_GENERATE_COMPOSER = {
@@ -1313,7 +1313,7 @@ export const NODE_STUDIO_EDGE_VISUALS = {
 } as const
 
 /* ═════════════════════════════════════════════════════════════════════════
- * v4 渲染层常量（第三期 · 画布 C2）。node-canvas-v2 §1.4 / §2 / §6。
+ * v4 渲染层常量（第三期 · 画布 C2）。node-canvas-v2 §9.2 / §1 / §11。
  * ═════════════════════════════════════════════════════════════════════════ */
 
 /**
@@ -1415,10 +1415,11 @@ export const NODE_V4_CHROME = {
   /** @ chip 里的缩略图边长（spec §1.7）。 */
   mentionThumbSize: 16,
   /**
-   * 提示词栏**栏内首行**的高度（画板 `VideoSelected.dc.html`：已挂的首帧 / 尾帧 /
-   * 语音那排 26 高小 chip 连同行间距）。⚠ 有内容才占这一行。
+   * 提示词栏**栏内首行**的**最小**高度（画板 `VideoRefs.dc.html`：参考轨那排 48
+   * 缩略）。⚠ 有内容才占这一行；⛔ 不是写死的高度 —— 轨在栏宽不够时会换行，
+   * 写死会把第二排连同序号角标一起裁掉。
    */
-  promptLeadingRowHeight: 30,
+  promptLeadingRowMinHeight: 48,
 } as const
 
 /**

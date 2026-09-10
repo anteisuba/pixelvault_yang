@@ -3,7 +3,7 @@ import { getModelFamily, getModelVariant } from '@/constants/models'
 import { getProviderLabel } from '@/constants/providers'
 
 /**
- * 方案 A 的列表形状：**系列 → 型号 → 渠道[]**（`node-canvas-v3-spec.md` §1.6）。
+ * 方案 A 的列表形状：**系列 → 型号 → 渠道[]**（`node-canvas-v2.md` §1.6）。
  *
  * 与三层钻取（`BaseModelPickerPanel`）的区别不在数据，而在呈现：那边一次看一层，
  * 这边一屏摊平 —— 系列退成分组标题，型号是行，渠道收进行尾的「N 渠道」。

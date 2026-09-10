@@ -1,7 +1,7 @@
 /**
  * 模型选择器（方案 A）的常量。
  *
- * 设计见 `docs/references/pages/node-canvas-v3-spec.md` §1.6：列表只有型号，
+ * 设计见 `docs/references/pages/node-canvas-v2.md` §1.6：列表只有型号，
  * 渠道由 `resolveModelChannel` 自动选，用户手改过的渠道**按型号记住**；顶部
  * 「最近」由使用记录来。两样都是纯前端偏好，落 localStorage。
  */

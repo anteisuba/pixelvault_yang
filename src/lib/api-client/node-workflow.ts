@@ -200,7 +200,7 @@ export async function uploadReferenceVideoAPI(
 }
 
 /**
- * v3→v4 惰性升级前的 R2 备份（node-canvas-v2 §9.2 · 「画-3」）。
+ * v3→v4 惰性升级前的 R2 备份（node-canvas-v2 §14.2 · 「画-3」）。
  * ⚠ 调用方**成功才允许写 v4**：失败时不升级、不写、把错误交给用户看得见的地方。
  */
 export async function backupNodeWorkflowV3StateAPI(

@@ -1,13 +1,13 @@
 /**
  * v4 具名槽 · 端口表 · 连线矩阵（第三期 · 画布 C1）。
- * 依据 `docs/references/pages/node-canvas-v2.md` §3.2 端口表 / §3.3 合法矩阵。
+ * 依据 `docs/references/pages/node-canvas-v2.md` §9.3 端口表 / §9.4 合法矩阵。
  *
  * ── 为什么槽要单独成表 ────────────────────────────────────────────────
  * v3 的每个节点**恒定一进一出、不分槽**（卡壳左右各一个 `Handle`），
  * 于是「这条边是首帧还是参考」只能靠下游收割逻辑猜。v4 把它写在边上（`edge.slot`）
  * 并在这里给出**唯一**的合法性判据：谁有哪些入口、每个入口收什么 kind、收几条。
  *
- * ── 一条贯穿的判断（§1.1）────────────────────────────────────────────
+ * ── 一条贯穿的判断（§9.1）────────────────────────────────────────────
  * **子型 = 节点的身份，槽 = 它在某条边里的用途，两者不合并。** 同一张关键帧既可
  * 以是 S02 的 `firstFrame`，也可以是 S03 的 `reference`——把「首帧」写成节点子型，
  * 复用就退化成复制。所以这张表是「(源 kind) × (目标节点, 槽)」，不是「源类型 ×
@@ -179,7 +179,7 @@ const LEAF: readonly NodeSlotSpec[] = []
 
 export interface NodeV4PortSpec {
   /**
-   * 入口槽，**自上而下就是这个数组的顺序**。⚠ §6 的自动排布要求「画布上左边那一摞
+   * 入口槽，**自上而下就是这个数组的顺序**。⚠ §9.1 的自动排布要求「画布上左边那一摞
    * 源节点的顺序」= 「槽的顺序」，两处不许各排各的——所以顺序是这张表的一部分。
    */
   readonly inputs: readonly NodeSlotSpec[]
@@ -196,7 +196,7 @@ const TEXT_PORTS: NodeV4PortSpec = {
   outputs: [NODE_SLOT_OUTPUT_IDS.out],
 }
 
-/** 每个 `kind.subtype` 的具名入口 / 出口（§3.2）。 */
+/** 每个 `kind.subtype` 的具名入口 / 出口（§9.3）。 */
 export const NODE_V4_PORTS = {
   [`${NODE_MEDIA_KIND_IDS.text}.${NODE_V4_TEXT_SUBTYPE_IDS.script}`]:
     TEXT_PORTS,
@@ -258,7 +258,7 @@ export const NODE_V4_PORTS = {
   },
 
   [`${NODE_MEDIA_KIND_IDS.video}.${NODE_V4_VIDEO_SUBTYPE_IDS.shot}`]: {
-    // 顺序 = §6 版式里源节点自上而下的顺序：首帧 → 尾帧 → 参考 → 语音 → 文本。
+    // 顺序 = §9.3 版式里源节点自上而下的顺序：首帧 → 尾帧 → 参考 → 语音 → 文本。
     inputs: [
       {
         slot: NODE_SLOT_IDS.firstFrame,
@@ -335,7 +335,7 @@ export function getNodeV4Slot(
 }
 
 /**
- * 这个槽走不走版本轮播（§1.4）。判据是**容量恰为 1**：`0..N` 的槽本来就是多值并列，
+ * 这个槽走不走版本轮播（§9.2）。判据是**容量恰为 1**：`0..N` 的槽本来就是多值并列，
  * 轮播只对「只能有一个当前版、但历史版要留着」的槽有意义。
  */
 export function slotSupportsVersions(spec: NodeSlotSpec): boolean {

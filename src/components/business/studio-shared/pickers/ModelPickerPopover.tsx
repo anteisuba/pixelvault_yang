@@ -54,7 +54,7 @@ import { cn } from '@/lib/utils'
 import { ModelChip } from './ModelChip'
 
 /**
- * 模型选择器 · 方案 A（`node-canvas-v3-spec.md` §1.6，画板 `ModelPicker.dc.html`）。
+ * 模型选择器 · 方案 A（`node-canvas-v2.md` §1.6，画板 `ModelPicker.dc.html`）。
  *
  * **列表里只有型号**：系列退成分组标题，渠道收进行尾的「N 渠道」。行的第二行写
  * 的是**自动选中的那条渠道**（规则见 `resolveModelChannel`）+ 单价 + 能力标；

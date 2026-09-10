@@ -6,7 +6,7 @@
 > 数值唯一来源：[`canvas-skin.md`](canvas-skin.md)。**本文不新造任何色值。**
 > 关键切片 owner 已确认（2026-08-01）。确认原型：[三方向](https://claude.ai/code/artifact/fad3576b-de79-409a-b6ff-8cfe73ba43ff) · [B 关键切片](https://claude.ai/code/artifact/c356abbe-ccff-48c5-8d76-e92f212627ad)
 > ⚠ **page 文档不等于实现授权**：按 `scenes/ui-page.md` 阶段 7，仍需 owner 另行明确授权才能动 `src/**`。
-> 相关：[生成提示词框](canvas-generate-composer.md)（审核动作今天的所在地） · [节点定位器](canvas-node-locator.md)（另一个「只找不改」的面）
+> 相关：[节点定位器](canvas-node-locator.md)（另一个「只找不改」的面）
 
 ## 0 · 它是什么
 

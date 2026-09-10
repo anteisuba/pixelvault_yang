@@ -1,7 +1,7 @@
 /**
- * v4 op 执行器（node-canvas-v2 §5 / §7）。一条 op → 新 state + inverse + 变更集。
+ * v4 op 执行器（node-canvas-v2 §11.2 / §13.2）。一条 op → 新 state + inverse + 变更集。
  *
- * ── 三条纪律（§5）在代码里的落点 ────────────────────────────────────────
+ * ── 三条纪律（§13.2）在代码里的落点 ────────────────────────────────────────
  * 1. `connect` / `attach_asset` 的载荷里**只有节点引用没有 URL** —— 这里也只按 id
  *    找节点，⛔ 不接受任何外来 URL。
  * 2. **每条 op 必须能算出 inverse**，否则不进自动落集合。算不出来的（`generate`、
@@ -79,7 +79,7 @@ import {
 
 /**
  * 撤销载荷。多数 op 的 inverse 就是另一条 op；`delete` 例外，它要整份快照。
- * 助手的**一轮 = 一个 undo 条目**（§7），所以调用方收集的是一个 `NodeV4Inverse[]`，
+ * 助手的**一轮 = 一个 undo 条目**（§11.3），所以调用方收集的是一个 `NodeV4Inverse[]`，
  * 撤销时**逆序**回放。
  */
 export type NodeV4Inverse =
@@ -133,7 +133,7 @@ export type ApplyOpV4Result =
       readonly ok: true
       readonly state: NodeWorkflowStateV4
       readonly inverse: NodeV4Inverse
-      /** 这条 op 改到了哪些节点（§7 变更高亮的输入）。 */
+      /** 这条 op 改到了哪些节点（§11.3 变更高亮的输入）。 */
       readonly changedNodeIds: readonly string[]
       /** 新建 / 改动的边（边脉冲的输入）。 */
       readonly changedEdgeIds: readonly string[]
@@ -190,7 +190,7 @@ function applyWriteMode(
  * ── 为什么落在 op 执行器里而不是 hook 里 ──────────────────────────────
  * 「正文里写了 `@首帧 S02`」与「S02 进了首帧槽」是**同一步意图**，两处落地就会
  * 漂：助手发 `set_text` 走执行器、用户敲字走 hook，一边同步一边不同步。放在这里
- * 则两条路共用同一次同步、同一份 inverse，撤销自然是**一个条目**（§7）。
+ * 则两条路共用同一次同步、同一份 inverse，撤销自然是**一个条目**（§11.3）。
  *
  * ⛔ 不另写一套槽写入：连 / 断仍然是 `connectIntoSlot` / `disconnectEdge` ——
  * 与拖入（`planV4IngestDrop` → `connect` op）、连线（`connect` op）汇到同一处，
@@ -523,7 +523,7 @@ export function applyNodeAssistantOpV4(
         nodes: next.nodes.filter((item) => item.id !== node.id),
       }
       // inverse 要整份 data 快照 + 边列表 + 各槽 versions/cur —— 够贵，所以
-      // `delete` 不自动落（§5 纪律 2）。
+      // `delete` 不自动落（§13.3 就地确认档）。
       return {
         ok: true,
         state: next,
@@ -555,7 +555,7 @@ export function applyNodeAssistantOpV4(
       return {
         ok: true,
         state: next,
-        // 整次换序是**一步**（§6）：inverse 也是一条反向 reorder。
+        // 整次换序是**一步**（§11.2）：inverse 也是一条反向 reorder。
         inverse: {
           kind: 'op',
           op: { op: ids.reorderShot, from: op.to, to: op.from },
@@ -820,7 +820,7 @@ export function applyNodeAssistantOpV4(
       if (!node) return { ok: false, reason: 'unknownNode' }
       const field = op.field
       // `shotNo` 走 move_to_shot 的路径 —— 名字里的 `S<nn>` 段必须跟着走，
-      // 直接写字段会让名字和镜号对不上（§4.2 末条）。
+      // 直接写字段会让名字和镜号对不上（§10 末条）。
       if (field === 'shotNo') {
         const shotNo = typeof op.value === 'number' ? op.value : null
         const previous = node.data.shotNo ?? null
@@ -1186,7 +1186,7 @@ export function applyNodeAssistantOpV4(
 }
 
 /**
- * 撤销一条 op（§7）。助手的一轮 = 一个 undo 条目，所以调用方拿到 `NodeV4Inverse[]`
+ * 撤销一条 op（§11.3）。助手的一轮 = 一个 undo 条目，所以调用方拿到 `NodeV4Inverse[]`
  * 之后**逆序**回放。
  */
 export function applyInverseV4(

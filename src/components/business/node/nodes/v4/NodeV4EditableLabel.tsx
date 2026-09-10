@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * v4 卡头的**原地改名**（node-canvas-v2 §4.2 · legacy `EditableNodeLabel` 的移植）。
+ * v4 卡头的**原地改名**（node-canvas-v2 §10 · legacy `EditableNodeLabel` 的移植）。
  *
  * legacy 那一版住在 `nodes/NodeShell.tsx` 里，皮肤挂在 `canvas-label-*` 那套画布
  * 私有令牌上——那套令牌世界随第三期整体删除，所以这里**只保交互、重画皮肤**：

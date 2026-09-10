@@ -206,8 +206,6 @@ describe('IRON RULE — no private LLM adapter sets outside the source of truth'
     'src/hooks/use-studio-assistant-panel-inputs.ts',
     'src/components/business/prompts/PromptAssistantPanel.tsx',
     'src/components/business/node/CanvasAssistantRouteSelector.tsx',
-    'src/components/business/node/WorkflowModelPicker.tsx',
-    'src/components/business/studio-shared/pickers/CanvasRoutePicker.tsx',
     'src/components/business/studio-shared/pickers/MainModelPicker.tsx',
     'src/components/business/studio-shared/pickers/BaseModelPickerPanel.tsx',
   ]
@@ -237,7 +235,6 @@ describe('IRON RULE — no private LLM adapter sets outside the source of truth'
       // (2026-07-07 assistant dock refactor) — the hook is now the entry point.
       'src/hooks/use-studio-assistant-panel-inputs.ts',
       'src/components/business/node/CanvasAssistantRouteSelector.tsx',
-      'src/components/business/studio-shared/pickers/CanvasRoutePicker.tsx',
       'src/components/business/studio-shared/pickers/MainModelPicker.tsx',
     ]
     /*
@@ -245,20 +242,19 @@ describe('IRON RULE — no private LLM adapter sets outside the source of truth'
      *   - Direct hook / helper:   useLLMRoutePicker, adapterHasCapability,
      *                             getLLMCapabilityScope
      *   - Shared components that internally route through the hook:
-     *                             CanvasRoutePicker (variant planner / assistant
-     *                             both call useLLMRoutePicker), MainModelPicker
-     *                             (modality llm_assist calls useLLMRoutePicker)
-     * Wrappers like CanvasAssistantRouteSelector use CanvasRoutePicker — that
+     *                             MainModelPicker (modality llm_assist calls
+     *                             useLLMRoutePicker)
+     * Wrappers like CanvasAssistantRouteSelector use MainModelPicker — that
      * still satisfies the contract because the actual LLM list resolution
      * happens via the sanctioned component.
      */
     const sanctionedApiPattern =
-      /useLLMRoutePicker|adapterHasCapability|getLLMCapabilityScope|CanvasRoutePicker|MainModelPicker/
+      /useLLMRoutePicker|adapterHasCapability|getLLMCapabilityScope|MainModelPicker/
     for (const relPath of ENTRY_POINTS_USING_LLM) {
       const contents = readFileSync(join(repoRoot, relPath), 'utf-8')
       expect(
         sanctionedApiPattern.test(contents),
-        `${relPath} is an LLM entry point but does not import any sanctioned API (useLLMRoutePicker / adapterHasCapability / getLLMCapabilityScope / CanvasRoutePicker / MainModelPicker). Did a refactor bypass the source of truth?`,
+        `${relPath} is an LLM entry point but does not import any sanctioned API (useLLMRoutePicker / adapterHasCapability / getLLMCapabilityScope / MainModelPicker). Did a refactor bypass the source of truth?`,
       ).toBe(true)
     }
   })

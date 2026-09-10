@@ -1,12 +1,12 @@
 /**
- * 镜头带布局 · 换序 · 整理（node-canvas-v2 §6）。
+ * 镜头带布局 · 换序 · 整理（node-canvas-v2 §9.1 / §11.3）。
  *
  * ── 为什么镜头带不是节点 ────────────────────────────────────────────────
- * §1.3 选了「视频节点即镜头 + lane 布局」而不是容器节点：ReactFlow 的子节点坐标
+ * §9.1 选了「视频节点即镜头 + lane 布局」而不是容器节点：ReactFlow 的子节点坐标
  * 相对父节点，落地 `parentId` 等于把画布上所有绝对坐标逻辑推翻一遍。所以镜头带
  * 是**布局层按 `data.shotNo` 派生的分组**——纯渲染，无 schema、无坐标系变更。
  *
- * ⛔ 一条写死的边界（§6 末条）：**整理只动位置**。绝不顺手改 `shotNo`、绝不删边
+ * ⛔ 一条写死的边界（§11.3 末条）：**整理只动位置**。绝不顺手改 `shotNo`、绝不删边
  * ——否则用户不敢按它。改 `shotNo` 的只有 `moveNodeToShot` / `reorderShots`。
  *
  * ⛔ 换序 / 归镜 **只写 `shotNo`，一个字都不碰名字**（C1 契约修正 1）。在这之前
@@ -51,7 +51,7 @@ export function listShotNos(nodes: readonly NodeV4[]): number[] {
   ].sort((a, b) => a - b)
 }
 
-/** 新建镜头插在末尾（§6）。 */
+/** 新建镜头插在末尾（§9.1）。 */
 export function nextShotNo(nodes: readonly NodeV4[]): number {
   const shots = listShotNos(nodes)
   return (shots[shots.length - 1] ?? 0) + 1
@@ -66,7 +66,7 @@ function isTextNode(data: NodeV4Data): boolean {
 }
 
 /**
- * 带内下行「左边那一摞」的顺序 = **槽的顺序**（§6：两处不许各排各的）。
+ * 带内下行「左边那一摞」的顺序 = **槽的顺序**（§9.3：两处不许各排各的）。
  * 顺序取自端口表 `inputs` 的数组顺序，不在这里重写一份。
  */
 export function orderSourcesBySlot(
@@ -225,7 +225,7 @@ export function tidyShotLanes(state: NodeWorkflowStateV4): NodeWorkflowStateV4 {
   }
 }
 
-/** 散节点自由区的落点（时间轴下方，§6）。助手 `add_node` 不带 `shotNo` 时用它。 */
+/** 散节点自由区的落点（时间轴下方，§9.1）。助手 `add_node` 不带 `shotNo` 时用它。 */
 export function looseAreaSpawn(index: number): { x: number; y: number } {
   const column = index % NODE_V4_LAYOUT.looseColumns
   const row = Math.floor(index / NODE_V4_LAYOUT.looseColumns)

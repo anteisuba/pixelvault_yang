@@ -5,7 +5,7 @@
 
 > 五族卡内改造的**第二族**。owner 2026-07-27 确认关键切片。
 > 数值唯一来源：[`canvas-skin.md`](canvas-skin.md)。
-> 相关：[图片卡](canvas-image-card.md) · [生成提示词框](canvas-generate-composer.md)
+> 相关：[图片卡](canvas-image-card.md)
 > 现状实现：`src/components/business/node/nodes/VoiceNode.tsx`（294 行）
 
 ## 0 · 它在画布上的角色

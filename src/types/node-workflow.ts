@@ -330,7 +330,7 @@ export const NodeWorkflowNodeDataSchema = z
       .enum(Object.keys(IMAGE_SIZES) as [string, ...string[]])
       .optional(),
     /**
-     * canvas-generate-composer.md §5「比例+清晰度」的清晰度档——image-kind
+     * 图片卡「画面」chip 的清晰度档（`node-canvas-v2.md` §3）——image-kind
      * 节点专用，与 `resolution`（VIDEO_RESOLUTIONS：480p/720p/…）是两个不同的
      * 值域，不能共用同一字段。与 `AdvancedParams.resolution`
      * （types/index.ts）同枚举，`handleGenerateMediaNode` 把它折进
@@ -779,7 +779,7 @@ export type NodeWorkflowNode = Node<NodeWorkflowNodeData, NodeWorkflowNodeType>
 export type NodeWorkflowEdge = Edge<Record<string, unknown>>
 
 /* ═════════════════════════════════════════════════════════════════════════
- * v4 数据模型（第三期 · 画布 C1，`docs/references/pages/node-canvas-v2.md` §9.1）
+ * v4 数据模型（第三期 · 画布 C1，`docs/references/pages/node-canvas-v2.md` §14.1）
  *
  * ── 与上面 v3 的关系：并行存在，不是兼容层 ──────────────────────────────
  * v3 的 `NodeWorkflowNodeDataSchema` 是一个扁平 `passthrough()` 大对象，80+ 字段
@@ -1366,7 +1366,7 @@ export const NodeWorkflowReadStateSchema = z.union([
 ])
 
 /**
- * **写端**持久化 state 的判据（node-canvas-v2 §9.2 第 4 条）。
+ * **写端**持久化 state 的判据（node-canvas-v2 §14.2）。
  *
  * ⛔ C3c-③c 起只收 v4：客户端已经全量写 v4，再留一条 v3 写入分支就是给「版本
  * 判据被静默抹平」留后门。v3 payload 在路由层直接 400。
@@ -1433,7 +1433,7 @@ export type UpdateNodeWorkflowProjectRequest = z.infer<
 >
 
 /**
- * v3 备份（node-canvas-v2 §9.2 · owner 拍板「画-3」）。
+ * v3 备份（node-canvas-v2 §14.2 · owner 拍板「画-3」）。
  *
  * 逐项目惰性升级的顺序纪律：**备份成功才允许写 v4**。备份失败 → 不升级、不写、
  * 报错可见。⛔ 没有「先写了再补备份」这条路。

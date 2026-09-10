@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * 文本节点（`node-canvas-v3-spec.md` §2，画板 `Main.dc.html` / `Expanded.dc.html` /
+ * 文本节点（`node-canvas-v2.md` §2，画板 `Main.dc.html` / `Expanded.dc.html` /
  * `TextBarModel.dc.html`）。
  *
  * 三态都摆在这里，卡内件在 `./text/`：

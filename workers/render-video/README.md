@@ -1,7 +1,7 @@
 # `render-video` worker（剪辑台渲染层 · S9）
 
 时间线 JSON → 一条 mp4 成片。换掉 fal `ffmpeg-api/compose`（只能尾裁，没有转场 /
-变速 / 混音）。规格见 `docs/references/pages/node-canvas-v3-spec.md` §6，选型证据见
+变速 / 混音）。规格见 `docs/references/pages/node-canvas-v2.md` §6，选型证据见
 scratchpad `video-edit-models.md`。
 
 ## 形状

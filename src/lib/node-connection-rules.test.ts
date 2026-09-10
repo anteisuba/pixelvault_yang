@@ -87,7 +87,7 @@ describe('canConnectNodeTypes', () => {
     ).toBe(true)
   })
 
-  describe('生成提示词框结果落点 (canvas-generate-composer.md §7)', () => {
+  describe('提示词栏结果落点 (node-canvas-v2.md §9.4)', () => {
     // A populated image card's generate composer spawns a NEW loose
     // (role-less) result card and wires source→result as a real edge — every
     // image family is a valid "改前" host.
@@ -327,6 +327,41 @@ describe('canConnect · 合法矩阵（源 kind × 目标槽）', () => {
       })
     }
   }
+})
+
+describe('剪辑台成片卡（S11b）', () => {
+  /*
+   * 成片落成的是一张普通的 `video.shot`（⛔ 不复活 `video.merge`，S8 已把它迁成
+   * 时间线）。所以「成片能不能当参考接进下一个镜头」这件事，就是端口表里
+   * `video.shot.reference` 收不收 video —— 钉住它，免得下次收窄 sourceKinds 时
+   * 把剪辑台 → 画布这条回路无声掐断。
+   */
+  const FINAL_CUT: NodeConnectionEndpoint = {
+    id: 'cut',
+    kind: NODE_MEDIA_KIND_IDS.video,
+    subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+  }
+
+  it('成片（video.shot）可以作 reference 连进别的镜头', () => {
+    expect(
+      canConnect(FINAL_CUT, VIDEO_SHOT, { slot: NODE_SLOT_IDS.reference }).ok,
+    ).toBe(true)
+  })
+
+  it('端口表上 video.shot 的 reference 明写收 video', () => {
+    const spec = getNodeV4Ports(
+      NODE_MEDIA_KIND_IDS.video,
+      NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+    )?.inputs.find((input) => input.slot === NODE_SLOT_IDS.reference)
+    expect(spec?.sourceKinds).toContain(NODE_MEDIA_KIND_IDS.video)
+  })
+
+  it('成片仍然有 out 出口（不然连不出去）', () => {
+    expect(
+      getNodeV4Ports(NODE_MEDIA_KIND_IDS.video, NODE_V4_VIDEO_SUBTYPE_IDS.shot)
+        ?.outputs,
+    ).toContain(NODE_SLOT_OUTPUT_IDS.out)
+  })
 })
 
 describe('canConnect · 子型门 / 语义门 / 容量 / 自环', () => {

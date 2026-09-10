@@ -37,6 +37,7 @@ import {
   updateNodeWorkflowProjectAPI,
 } from '@/lib/api-client'
 import { logger } from '@/lib/logger'
+import { mergeAdoptedProjects } from '@/lib/node-workflow-adopt-merge'
 import { migrateRetireFusedNodes } from '@/lib/node-workflow-migrate-fused-nodes'
 import { migrateRetirePlanner } from '@/lib/node-workflow-migrate-planner'
 import { migrateImageRoles } from '@/lib/node-workflow-migrate-image-roles'
@@ -733,6 +734,12 @@ export function useNodeWorkflowStore({
   const warnedUnconfirmedProjectIds = useRef<Set<string>>(new Set())
   /** 「这个项目的空，是用户自己删空的」。服务端的空覆盖闸靠它放行。 */
   const locallyClearedProjectIds = useRef<Set<string>>(new Set())
+  /**
+   * **服务端水化之前**在本地被改过的项目 id（首屏那一小段窗口）。
+   * 服务端列表回来时靠它决定「本地这份要不要顶掉服务端那份」——⛔ 不用时间戳去赌
+   * 那一秒钟，见 `mergeAdoptedProjects` 头注。
+   */
+  const editedBeforeServerHydration = useRef<Set<string>>(new Set())
 
   const setWorkflowStorage = useCallback(
     (
@@ -764,6 +771,12 @@ export function useNodeWorkflowStore({
         }
       }
 
+      // 首屏窗口里的改动记名：服务端列表一回来，`adoptServerProjects` 靠这份名单
+      // 保住它们（⛔ 否则整份替换会把刚建的节点无声抹掉）。
+      if (!hasServerHydrated.current) {
+        editedBeforeServerHydration.current.add(trackedProjectId)
+      }
+
       storageRef.current = nextStorage
       setStorageState(nextStorage)
       return nextStorage
@@ -787,6 +800,7 @@ export function useNodeWorkflowStore({
     serverConfirmedProjectIds.current = new Set()
     warnedUnconfirmedProjectIds.current = new Set()
     locallyClearedProjectIds.current = new Set()
+    editedBeforeServerHydration.current = new Set()
     originV3Ref.current = new Map()
     if (clerkId === null) {
       loadedForClerkId.current = null
@@ -892,12 +906,15 @@ export function useNodeWorkflowStore({
         }
         serverConfirmedProjectIds.current.add(record.id)
       }
-      const nextStorage: NodeWorkflowStorageV4Snapshot = {
-        version: NODE_STUDIO_WORKFLOW_STORAGE.version,
+      // ⚠ **合并，不是替换**：首屏那一小段窗口里建的节点、以及上一次会话写了盘
+      // 但没 PUT 上去的改动，都要活下来；当前项目也不许跳（`mergeAdoptedProjects`）。
+      const nextStorage = mergeAdoptedProjects({
+        local: storageRef.current,
+        server: projects,
         ownerClerkId: clerkId,
-        currentProjectId: projects[0].id,
-        projects,
-      }
+        editedBeforeHydration: editedBeforeServerHydration.current,
+        readOnlyIds: new Set(Object.keys(readOnly)),
+      })
       storageRef.current = nextStorage
       setStorageState(nextStorage)
       markReadOnly(readOnly)

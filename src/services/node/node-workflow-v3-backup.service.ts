@@ -7,7 +7,7 @@ import { uploadToR2 } from '@/services/storage/r2'
 import type { NodeWorkflowV3BackupResult } from '@/types/node-workflow'
 
 /**
- * 把一个项目的 v3 `state` 原样传上 R2（node-canvas-v2 §9.2 · owner 拍板「画-3」）。
+ * 把一个项目的 v3 `state` 原样传上 R2（node-canvas-v2 §14.2 · owner 拍板「画-3」）。
  *
  * ⚠ **读原始 JSON，不过 v3 schema**：`getNodeWorkflowProject` 会把 state 过一遍
  * `NodeWorkflowStateDataSchema`，而备份要的正是「schema 看不见的那些坏形状」——

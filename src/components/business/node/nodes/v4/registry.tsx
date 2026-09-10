@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * v4 节点注册表（node-canvas-v2 §1.1 顶层四类）。
+ * v4 节点注册表（node-canvas-v2 §9.1 顶层四类）。
  *
  * ⚠ 只注册**四类** + 一个 legacy 空壳。legacy 空壳的存在理由是顺序纪律：
  * `NODE_TYPES` 的 12 个 enum 值要等 C3 的批量回填跑完并验证之后才删，在那之前

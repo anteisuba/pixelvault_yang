@@ -5,7 +5,7 @@ import { ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 /**
- * 提示词栏上的**模型 chip**（`node-canvas-v3-spec.md` §1.5 / §1.6）。
+ * 提示词栏上的**模型 chip**（`node-canvas-v2.md` §1.5 / §1.6）。
  *
  * 只显示**型号名**；渠道是自动选的，所以平时不写 —— 只有用户**手改过渠道**时
  * 才附「· fal」，让「我改过」这件事有回执。它本身不认识模型清单，是

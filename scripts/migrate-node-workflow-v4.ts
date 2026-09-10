@@ -1,5 +1,5 @@
 /**
- * 一次性回填 CLI：`NodeWorkflowProject.state` v3 → v4（node-canvas-v2 §9.2）。
+ * 一次性回填 CLI：`NodeWorkflowProject.state` v3 → v4（node-canvas-v2 §14.2）。
  *
  * Usage:
  *   npx tsx --conditions=react-server --tsconfig tsconfig.json \

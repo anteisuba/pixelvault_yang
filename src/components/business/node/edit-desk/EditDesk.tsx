@@ -43,6 +43,11 @@ import {
 } from '@/constants/node-types'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { clipIndexAt, RenderPlanError } from '@/lib/edit-project'
+import {
+  requestTimelinePlan,
+  subscribeTimelineProposal,
+  takeTimelineProposal,
+} from '@/lib/timeline-plan-request'
 import { useEditDesk } from '@/hooks/node/use-edit-desk'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeWorkflowStateV4 } from '@/types/node-workflow'
@@ -53,6 +58,10 @@ import { EditDeskAssetRail } from './EditDeskAssetRail'
 import { EditDeskExportDialog } from './EditDeskExportDialog'
 import { EditDeskInspector } from './EditDeskInspector'
 import { EditDeskPreview } from './EditDeskPreview'
+import {
+  EditDeskProposalCard,
+  EditDeskProposalInspector,
+} from './EditDeskProposalCard'
 import { EditDeskRenderBar, EditDeskResumeBar } from './EditDeskRenderBar'
 import { EditDeskTimeline } from './EditDeskTimeline'
 import { EditDeskTopBar } from './EditDeskTopBar'
@@ -112,6 +121,7 @@ export function EditDesk({
   onInitialConsumed,
 }: EditDeskProps) {
   const t = useTranslations('StudioNode.editDesk')
+  const tPlan = useTranslations('StudioNode.editDesk.plan')
   const desk = useEditDesk({
     state,
     dispatchBatch,
@@ -124,6 +134,8 @@ export function EditDesk({
   )
   const [exportOpen, setExportOpen] = useState(false)
   const [planPrompt, setPlanPrompt] = useState('')
+  /** 便条投出去了、提案还没回来 —— 栏上那颗按钮该转，⛔ 不让人连点五次。 */
+  const [planPending, setPlanPending] = useState(false)
 
   /**
    * 进模式时把「进剪辑台」带来的那几张卡追加进去 —— **只落一次**。
@@ -142,6 +154,24 @@ export function EditDesk({
     addClips(initialNodeIds)
     onInitialConsumed?.()
   }, [initialNodeIds, addClips, onInitialConsumed])
+
+  /**
+   * 排片提案的回程（S10）：dock 收到 `timeline` 帧就往这里投一张便条。
+   *
+   * ⚠ 与画布那两条便条同一条纪律：**取走即消费**，挂载时先取一次 —— 提案可能在
+   * 台面这一帧还没挂好的时候就到了。
+   */
+  const { setProposal } = desk
+  useEffect(() => {
+    const consume = () => {
+      const proposal = takeTimelineProposal()
+      if (!proposal) return
+      setPlanPending(false)
+      setProposal(proposal)
+    }
+    consume()
+    return subscribeTimelineProposal(consume)
+  }, [setProposal])
 
   /* ── 快捷键 ───────────────────────────────────────────────────────── */
   const { markIn, markOut, removeSelected, splitAtPlayhead, setPlayhead } = desk
@@ -297,6 +327,27 @@ export function EditDesk({
     ],
   )
 
+  /**
+   * 一句话排片（S10）：把便条投给助手 dock，产出一份提案回到这条时间线。
+   *
+   * ⚠ 只**投便条**，⛔ 不在台面上发请求：请求要会话与画布上下文，那两样只有
+   * dock 有（`timeline-plan-request.ts` 头注）。
+   * ⚠ 提案期间不再受理第二句：两份提案并排摆着没有人读得懂哪份是这一次的。
+   */
+  const onPlanSubmit = useCallback(() => {
+    const prompt = planPrompt.trim()
+    if (!prompt || planPending) return
+    if (desk.proposal) {
+      toast.info(tPlan('alreadyProposed'))
+      return
+    }
+    setPlanPending(true)
+    setPlanPrompt('')
+    // ⚠ 未落库的那份空表也要带上：成片名住在它里面，不带过去提案会用服务端那个
+    //   英文兜底名，用户会看到自己刚改的名字被一次排片改掉（真机上撞见过）。
+    requestTimelinePlan({ prompt, project: desk.project })
+  }, [planPrompt, planPending, desk.proposal, desk.project, tPlan])
+
   const onDownload = useCallback((url: string) => {
     window.open(url, '_blank', 'noopener,noreferrer')
   }, [])
@@ -320,7 +371,16 @@ export function EditDesk({
         onUndo={onUndo}
         onBack={onExit}
         onRename={desk.rename}
-        onExport={() => setExportOpen(true)}
+        onExport={() => {
+          // ⚠ 提案还摆在轨道上时导出是**歧义的**：导的是现在这条，还是那份还没
+          //   采用的？说清楚而不是悄悄导旧的（spec §6「提案期间导出禁用并提示」）。
+          if (desk.proposal) {
+            toast.info(tPlan('exportBlocked'))
+            return
+          }
+          setExportOpen(true)
+        }}
+        exportDisabled={Boolean(desk.proposal)}
       />
 
       {render.job ? (
@@ -354,7 +414,11 @@ export function EditDesk({
               playheadSec={desk.playheadSec}
               durationSec={desk.durationSec}
             />
-            <EditDeskInspector desk={desk} onBackToNode={onBackToNode} />
+            {desk.proposal && desk.proposalClipIndex !== null ? (
+              <EditDeskProposalInspector desk={desk} />
+            ) : (
+              <EditDeskInspector desk={desk} onBackToNode={onBackToNode} />
+            )}
           </div>
 
           {/*
@@ -367,11 +431,26 @@ export function EditDesk({
             onToolTodo={(tool: EditToolId) =>
               toast.info(t('tools.pending', { tool: t(`tools.${tool}`) }))
             }
+            overlay={
+              desk.proposal ? (
+                <EditDeskProposalCard
+                  proposal={desk.proposal}
+                  reviewing={desk.proposalClipIndex !== null}
+                  onAdopt={() => {
+                    desk.applyProposal()
+                    toast.success(tPlan('adopted'))
+                  }}
+                  onReview={desk.enterProposalReview}
+                  onDiscard={desk.discardProposal}
+                />
+              ) : undefined
+            }
             footer={
               <NodePromptBar
                 value={planPrompt}
                 onValueChange={setPlanPrompt}
-                onSubmit={() => toast.info(t('planPending'))}
+                onSubmit={onPlanSubmit}
+                generating={planPending}
                 placeholder={t('planPlaceholder')}
                 ariaLabel={t('planAria')}
                 chips={[

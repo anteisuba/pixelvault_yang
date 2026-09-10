@@ -1097,3 +1097,19 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
     max-width: calc(100vw - 2rem);
   }
 }
+
+/* ── 剪辑台 · 排片提案的幽灵段（S10 · 画板 `EditDeskAI.dc.html` `.clip.ghost`）──
+   斜纹 + 虚线边 = 「这段还不存在」。虚线边与圆角由组件的 Tailwind 类给，这里只补
+   斜纹（任意值写不出 `repeating-linear-gradient`）。
+   ⚠ ⛔ 不放进 `.domain-canvas` 作用域：剪辑台整块 portal 到 `body`，作用域选择器
+   在那里一个元素都选不中。
+   对比度（`contrast-check` 实算，2026-09-10）：斜纹本身是**纯装饰**，对卡背只有
+   1.14 —— 它不承载任何信息，「这段还不存在」由虚线边说（浅 17.37 / 深 13.57）。
+   落在斜纹上的来源 chip 文字 19.46 / 15.61，都远过 4.5。 */
+.canvas-ghost-clip {
+  background-image: repeating-linear-gradient(
+    135deg,
+    color-mix(in oklab, var(--foreground) 6%, transparent) 0 6px,
+    transparent 6px 12px
+  );
+}

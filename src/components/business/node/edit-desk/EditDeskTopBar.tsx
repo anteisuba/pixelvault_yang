@@ -17,6 +17,7 @@ import {
   EDIT_PROJECT_NAME_MAX_LENGTH,
 } from '@/constants/edit-desk'
 import { formatEditDurationShort } from '@/lib/edit-project'
+import { cn } from '@/lib/utils'
 import type { EditProject } from '@/types/node-workflow'
 
 import { ShellIconButton } from '../workbench-v4/shell/ShellIconButton'
@@ -29,6 +30,8 @@ export interface EditDeskTopBarProps {
   onBack(): void
   onRename(name: string): void
   onExport(): void
+  /** 提案还摆在轨道上时导出是歧义的（S10）——灰掉，点了给一句话。 */
+  readonly exportDisabled?: boolean
 }
 
 export function EditDeskTopBar({
@@ -39,6 +42,7 @@ export function EditDeskTopBar({
   onBack,
   onRename,
   onExport,
+  exportDisabled = false,
 }: EditDeskTopBarProps) {
   const t = useTranslations('StudioNode.editDesk')
   const [editing, setEditing] = useState(false)
@@ -126,7 +130,11 @@ export function EditDeskTopBar({
           type="button"
           data-testid="edit-desk-export"
           onClick={onExport}
-          className="inline-flex h-8 items-center rounded-lg bg-primary px-3.5 text-xs font-medium text-primary-foreground transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none"
+          aria-disabled={exportDisabled}
+          className={cn(
+            'inline-flex h-8 items-center rounded-lg bg-primary px-3.5 text-xs font-medium text-primary-foreground transition-transform duration-fast active:scale-[.98] motion-reduce:transition-none',
+            exportDisabled && 'opacity-50',
+          )}
         >
           {t('export')}
         </button>

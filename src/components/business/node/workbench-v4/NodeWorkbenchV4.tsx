@@ -113,6 +113,7 @@ import {
   type NodeCanvasActions,
 } from '../nodes/v4/NodeV4ActionsBridge'
 import { subscribeCanvasTextAssist } from '../nodes/v4/text/text-assist-request'
+import { subscribeTimelinePlanRequest } from '@/lib/timeline-plan-request'
 import type { NodeTextDeriveAction } from '../nodes/v4/NodeV4Context'
 import { NodeV4Provider } from '../nodes/v4/NodeV4Provider'
 import { CanvasV4 } from './CanvasV4'
@@ -570,6 +571,21 @@ function NodeWorkbenchV4Inner() {
   useEffect(
     () =>
       subscribeCanvasTextAssist(() => {
+        setAssistantOpen(true)
+        setAssistantEverOpened(true)
+      }),
+    [],
+  )
+
+  /**
+   * 剪辑台的排片栏投便条时同样**把助手挂起来**（S10）。
+   *
+   * ⚠ 与上面逐字同源，只是这一次用户看不到那次打开 —— 剪辑台是盖在外壳上的
+   * 全屏面。挂不起来的后果一样：点了发送什么也没发生。
+   */
+  useEffect(
+    () =>
+      subscribeTimelinePlanRequest(() => {
         setAssistantOpen(true)
         setAssistantEverOpened(true)
       }),

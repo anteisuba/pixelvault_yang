@@ -47,6 +47,11 @@ import {
   subscribeCanvasRerunDownstream,
   takeCanvasRerunDownstream,
 } from '@/lib/canvas-rerun-request'
+import {
+  deliverTimelineProposal,
+  subscribeTimelinePlanRequest,
+  takeTimelinePlanRequest,
+} from '@/lib/timeline-plan-request'
 import { resolveV4NodeReadableName } from '@/lib/node-assistant-context'
 import {
   planNodeAssistantOpsV4,
@@ -56,7 +61,11 @@ import { buildRerunDownstreamPlan } from '@/lib/node-rerun-downstream'
 import type { AppLocale } from '@/i18n/routing'
 import type { NodeAssistantMediaReference } from '@/types/node-assistant'
 import type { NodeAssistantOpV4Batch } from '@/types/node-assistant-ops'
-import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
+import type {
+  EditProject,
+  NodeV4,
+  NodeWorkflowEdgeV4,
+} from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
 import { AssistantConversation } from './AssistantConversation'
@@ -182,10 +191,16 @@ export function StudioNodeAssistantDock({
   const tCanvasOps = useTranslations('StudioNode.canvasOps')
   const tRerun = useTranslations('StudioNode.rerunDownstream')
   const tTextAssist = useTranslations('StudioNode.textAssist')
+  const tDeskPlan = useTranslations('StudioNode.editDesk.plan')
   const selection = useNodeSelection()
   const { placeDerivedImages, focusNode, runAssistantOps, undo } =
     useNodeCanvasActions()
-  const conversation = useAssistantConversation({ projectId, persist: true })
+  const conversation = useAssistantConversation({
+    projectId,
+    persist: true,
+    // 提案不进对话，直接投回剪辑台（见 `timeline-plan-request.ts` 的回程）。
+    onTimelineProposal: deliverTimelineProposal,
+  })
   /** 助手栏那颗写作模型 chip 与 dock 顶上的 route 选择器读的是同一张表。 */
   const { allRoutes: assistantRoutes } = useLLMRoutePicker('assistant')
   const [assistantRoute, setAssistantRoute] =
@@ -295,6 +310,9 @@ export function StudioNodeAssistantDock({
         readonly references?: NodeAssistantMediaReference[]
         readonly apiKeyId?: string
         readonly llmModelId?: string
+        /** 一句话排片轮（S10）：产出提案而不是回答。 */
+        readonly deskPlan?: boolean
+        readonly edit?: EditProject
       } = {},
     ) => {
       const references = options.references ?? []
@@ -303,6 +321,8 @@ export function StudioNodeAssistantDock({
         ...buildConversationContext(),
         ...(options.apiKeyId ? { apiKeyId: options.apiKeyId } : {}),
         ...(options.llmModelId ? { llmModelId: options.llmModelId } : {}),
+        ...(options.deskPlan ? { deskPlan: true } : {}),
+        ...(options.edit ? { edit: options.edit } : {}),
         references,
       })
     },
@@ -396,6 +416,35 @@ export function StudioNodeAssistantDock({
     consume()
     return subscribeCanvasTextAssist(consume)
   }, [assistantRoutes, nodes, onOpenChange, sendMessage, tTextAssist])
+
+  /**
+   * 剪辑台底部那条「一句话排片」栏投来的便条（S10）。
+   *
+   * ⭐ 与上面两条**同一条纪律**：拼一句带 `[[desk]]` 标记的普通消息走
+   * `sendMessage`，⛔ 不为排片开一条专用请求 —— 那条消息不进对话历史，助手下一轮
+   * 就不记得刚才排的是哪条片子。
+   * ⚠ 这一轮带 `deskPlan` 与当前 `EditProject`：服务端于是走只读的 `plan_timeline`
+   *   而不是聊天，产出一份提案（`timeline` 帧）投回剪辑台。**不花积分**。
+   * ⚠ 仍然 `onOpenChange(true)`：dock 收起时**根本没挂**，没挂就听不见便条 ——
+   *   剪辑台盖在它上面，用户看不到这次打开。
+   * ⚠ 取走即消费（见 `takeTimelinePlanRequest` 头注）。
+   */
+  useEffect(() => {
+    const consume = () => {
+      const request = takeTimelinePlanRequest()
+      if (!request) return
+      onOpenChange(true)
+      void sendMessage(
+        `${tDeskPlan('ask', { prompt: request.prompt })} [[desk]]`,
+        {
+          deskPlan: true,
+          ...(request.project ? { edit: request.project } : {}),
+        },
+      )
+    }
+    consume()
+    return subscribeTimelinePlanRequest(consume)
+  }, [onOpenChange, sendMessage, tDeskPlan])
 
   const handleRetry = useCallback(async () => {
     await conversation.retry(buildConversationContext())

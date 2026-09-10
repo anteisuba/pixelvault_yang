@@ -17,9 +17,11 @@ import {
   AssistantStreamLoraFrameSchema,
   AssistantStreamResearchFrameSchema,
   AssistantStreamTextFrameSchema,
+  AssistantStreamTimelineFrameSchema,
 } from '@/types/assistant-stream'
 import type { LoraCandidateSearchResult } from '@/types/lora-candidate'
 import type { ResearchReceipt } from '@/types/research'
+import type { TimelineProposal } from '@/types/edit-desk-plan'
 import { parseSseStream } from '@/lib/sse'
 
 /**
@@ -32,6 +34,7 @@ export type AssistantStreamMessage =
   | { type: 'text'; delta: string }
   | { type: 'research'; receipt: ResearchReceipt }
   | { type: 'lora'; candidates: LoraCandidateSearchResult }
+  | { type: 'timeline'; proposal: TimelineProposal }
   | { type: 'error'; error: string; errorCode?: string; i18nKey?: string }
 
 function parseFrame(
@@ -57,6 +60,10 @@ function parseFrame(
     case ASSISTANT_STREAM_EVENTS.lora: {
       const parsed = AssistantStreamLoraFrameSchema.safeParse(payload)
       return parsed.success ? { type: 'lora', candidates: parsed.data } : null
+    }
+    case ASSISTANT_STREAM_EVENTS.timeline: {
+      const parsed = AssistantStreamTimelineFrameSchema.safeParse(payload)
+      return parsed.success ? { type: 'timeline', proposal: parsed.data } : null
     }
     case ASSISTANT_STREAM_EVENTS.error: {
       const parsed = AssistantStreamErrorFrameSchema.safeParse(payload)

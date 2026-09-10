@@ -204,3 +204,105 @@ export const EDIT_DESK_NODE_DRAG_MIME =
  */
 export const EDIT_DESK_MODE_PARAM = 'mode'
 export const EDIT_DESK_MODE_VALUE = 'edit'
+
+/* ─── 一句话排片（S10 · spec §6，画板 `EditDeskAI.dc.html`）───────────────── */
+
+/**
+ * 只读工具的名字。⚠ 名字里**没有 `generate`**：money-gate 认的就是这个词根，
+ * 而这条路一分钱都不花（只摆时间线）。
+ */
+export const TIMELINE_PLAN_TOOL_ID = 'plan_timeline'
+
+/** 提案的开销档 —— 只有一档，因为排片**永远**不花积分。 */
+export const TIMELINE_PLAN_COST_FREE = 'free'
+
+/**
+ * 顺序从哪儿来。模型只在这三者里选一个，**排序本身由服务端算**
+ * （⛔ 不让它自己吐一份排好的 id 表：漏一镜 / 多一镜没人查得出来）。
+ */
+export const TIMELINE_PLAN_ORDER_IDS = {
+  /** 按剧本文本节点的先后。 */
+  script: 'script',
+  /** 按镜号。 */
+  shot: 'shot',
+  /** 按用户点名的那个顺序（模型转述）。 */
+  asIs: 'asIs',
+} as const
+
+export type TimelinePlanOrderId =
+  (typeof TIMELINE_PLAN_ORDER_IDS)[keyof typeof TIMELINE_PLAN_ORDER_IDS]
+
+export const TIMELINE_PLAN_ORDERS_TUPLE = [
+  TIMELINE_PLAN_ORDER_IDS.script,
+  TIMELINE_PLAN_ORDER_IDS.shot,
+  TIMELINE_PLAN_ORDER_IDS.asIs,
+] as const
+
+/**
+ * 每段取哪一截。
+ *
+ * ⚠ 一期**全是算术**：中点 ± n/2、掐头、留尾、整段。⛔ 不调视频理解模型
+ * （调研 `video-edit-models.md` §2：二期才上 scdet / blurdetect 粗排 + Flash 精排）。
+ * 「画面最稳的 5 秒」这句话在一期的真实含义就是「中间的 5 秒」—— 文案照实说。
+ */
+export const TIMELINE_PLAN_TAKE_IDS = {
+  middle: 'middle',
+  head: 'head',
+  tail: 'tail',
+  full: 'full',
+} as const
+
+export type TimelinePlanTakeId =
+  (typeof TIMELINE_PLAN_TAKE_IDS)[keyof typeof TIMELINE_PLAN_TAKE_IDS]
+
+export const TIMELINE_PLAN_TAKES_TUPLE = [
+  TIMELINE_PLAN_TAKE_IDS.middle,
+  TIMELINE_PLAN_TAKE_IDS.head,
+  TIMELINE_PLAN_TAKE_IDS.tail,
+  TIMELINE_PLAN_TAKE_IDS.full,
+] as const
+
+/** 没说取几秒时取多少。 */
+export const TIMELINE_PLAN_TAKE_DEFAULT_SEC = 5
+
+/** 取多少秒的合法区间（守的是模型的输出，不是 UI）。 */
+export const TIMELINE_PLAN_TAKE_MIN_SEC = EDIT_CLIP_MIN_DURATION_SEC
+export const TIMELINE_PLAN_TAKE_MAX_SEC = 600
+
+/** 配乐尾部淡出默认几秒。 */
+export const TIMELINE_PLAN_MUSIC_FADE_OUT_SEC = 2
+export const TIMELINE_PLAN_MUSIC_FADE_OUT_MAX_SEC = 30
+
+/**
+ * 淡出尾段的响度。
+ *
+ * ⚠ 这是**近似**：`EditClip` 眼下只有一个恒定 `gain`，渲染层也还没有 `fade`
+ * 字段，于是「尾部淡出」在一期落成「最后 N 秒降到 35%」——一段真的会变轻的尾巴，
+ * ⛔ 而不是一句只写在摘要里、时间线上根本不存在的承诺。等渲染层长出 `fade`
+ * 再把这两段合回一段。
+ */
+export const TIMELINE_PLAN_MUSIC_TAIL_GAIN = 0.35
+
+/** 一份提案最多摆几段 / 收几条理由（DoS 闸，与轨道上限同源）。 */
+export const TIMELINE_PLAN_LIMITS = {
+  maxClips: EDIT_TRACK_MAX_CLIPS,
+  maxSummaryLength: 400,
+  maxReasonLength: 200,
+  /** 进提示词的素材 / 剧本行上限。 */
+  maxAssets: 60,
+  maxScriptLines: 60,
+  maxScriptLineLength: 400,
+} as const
+
+/** 提案卡（画板右上 `.glass`：width 300 / radius 14 / padding 12）。 */
+export const TIMELINE_PLAN_CARD = {
+  widthPx: 300,
+  radiusPx: 14,
+  paddingPx: 12,
+  /** 距时间线块右上角（画板 right:16 / top:12）。 */
+  rightPx: 16,
+  topPx: 12,
+} as const
+
+/** 幽灵段的虚线宽（画板 `.clip.ghost { border:1.5px dashed }`）。 */
+export const TIMELINE_PLAN_GHOST_BORDER_PX = 1.5

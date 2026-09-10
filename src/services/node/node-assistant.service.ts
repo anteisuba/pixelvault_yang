@@ -14,6 +14,10 @@ import {
   type NodeAssistantOpV4Tier,
 } from '@/constants/node-assistant-ops'
 import {
+  EDIT_PROJECT_FALLBACK_NAME,
+  EDIT_TRANSITION_IDS,
+} from '@/constants/edit-desk'
+import {
   NODE_MEDIA_KINDS,
   NODE_V4_SUBTYPES_BY_KIND,
 } from '@/constants/node-types'
@@ -66,6 +70,17 @@ import {
   resolveV4NodeReadableName,
 } from '@/lib/node-assistant-context'
 import { ApiRequestError } from '@/lib/errors'
+import { logger } from '@/lib/logger'
+import { validateLlmStructuredOutput } from '@/lib/llm-output-validator'
+import {
+  buildTimelineProposal,
+  collectTimelinePlanFacts,
+} from '@/lib/timeline-plan'
+import {
+  TimelinePlanIntentSchema,
+  type TimelinePlanIntent,
+  type TimelineProposal,
+} from '@/types/edit-desk-plan'
 import type {
   NodeAssistantMessage,
   NodeAssistantMediaReference,
@@ -569,4 +584,184 @@ export async function createNodeAssistantStream(
   })
 
   return streamFromText(text)
+}
+
+/* ─── 一句话排片 · 只读工具 `plan_timeline`（S10 · spec §6）──────────────── */
+
+/**
+ * **只摆时间线，不花积分。**
+ *
+ * ⚠ 与画布助手那条聊天路分开一条函数，不共用 `createNodeAssistantStream`：那条
+ * 路的产出是**正文**（里面可能夹 op 块），这条路的产出是一份**结构化提案**。混在
+ * 一起就得让模型在同一次回答里既写人话又写 JSON，而排片的每一个数字都要被
+ * `timeline-plan.ts` 重算一遍才敢摆上轨道。
+ *
+ * ⚠ 模型只吐**意图**（`TimelinePlanIntentSchema`）：顺序来源、每段取哪一截、转场、
+ * 语音对齐哪一段、配乐。⛔ 它不吐入点出点、不吐时长、不吐段 id —— 那些是算术
+ * （与 `plan_rerun_downstream` 的「名单由客户端算、不让模型编积分」同一条纪律）。
+ *
+ * ⚠ **解析失败失败可见**：读不出 JSON、或者一段都摆不出来，都抛 `ApiRequestError`，
+ * ⛔ 不静默回一份空提案让用户对着没动静的轨道猜。
+ */
+export async function planNodeAssistantTimeline(
+  clerkId: string,
+  request: NodeAssistantRequest,
+): Promise<TimelineProposal> {
+  const facts = collectTimelinePlanFacts(request.nodes, request.edit)
+  if (facts.assets.every((asset) => asset.kind !== 'video')) {
+    throw new ApiRequestError(
+      'TIMELINE_PLAN_NO_ASSETS',
+      422,
+      'Errors.assistant.timelinePlanEmpty',
+      'The canvas has no finished video card to arrange.',
+    )
+  }
+
+  const systemPrompt = buildTimelinePlanSystemPrompt(request)
+  const buildUserPrompt = (maxLength?: number) =>
+    buildTimelinePlanUserPrompt(request, facts, maxLength)
+
+  const dbUser = await ensureUser(clerkId)
+  const route = await resolveLlmTextRoute(dbUser.id, request.apiKeyId)
+  const raw = await completeAssistantTextWithContextRetry({
+    systemPrompt,
+    buildUserPrompt,
+    route,
+    contextCompactionTargetLength:
+      NODE_STUDIO_ASSISTANT_LIMITS.contextCompactionTargetLength,
+    modelId: resolveAssistantModelId(route.adapterType, request.llmModelId),
+    responseFormat: 'json_object',
+  })
+
+  const intent = parseTimelinePlanIntent(raw)
+  const proposal = buildTimelineProposal(intent, facts, {
+    mintId: mintTimelinePlanClipId,
+    defaultName: request.edit?.name ?? EDIT_PROJECT_FALLBACK_NAME,
+  })
+  if (!proposal) {
+    throw new ApiRequestError(
+      'TIMELINE_PLAN_EMPTY',
+      422,
+      'Errors.assistant.timelinePlanEmpty',
+      'The plan produced no usable clips.',
+    )
+  }
+  return proposal
+}
+
+/**
+ * 段 id 是**服务端现铸**的（模型不知道也不该知道）。
+ *
+ * ⚠ 前缀与 `useEditDesk` 手工落段那一份一致（`clip`），于是撤销栈里两种来路的段
+ * 长得一样 —— ⛔ 不给 AI 摆的段一个特殊前缀，那会让「这段是谁摆的」渗进数据。
+ */
+let timelinePlanClipSeq = 0
+function mintTimelinePlanClipId(prefix: string): string {
+  timelinePlanClipSeq += 1
+  return `${prefix}-${Date.now().toString(36)}-${timelinePlanClipSeq.toString(36)}`
+}
+
+function parseTimelinePlanIntent(raw: string): TimelinePlanIntent {
+  let payload: unknown
+  try {
+    payload = JSON.parse(stripJsonFence(raw))
+  } catch {
+    throw new ApiRequestError(
+      'TIMELINE_PLAN_UNPARSABLE',
+      502,
+      'Errors.assistant.timelinePlanFailed',
+      'The plan model did not return JSON.',
+    )
+  }
+  const validated = validateLlmStructuredOutput(
+    payload,
+    TimelinePlanIntentSchema,
+  )
+  if (!validated.usable || !validated.data) {
+    logger.warn('plan_timeline intent rejected', { reason: validated.reason })
+    throw new ApiRequestError(
+      'TIMELINE_PLAN_INVALID',
+      502,
+      'Errors.assistant.timelinePlanFailed',
+      'The plan model returned a shape we cannot use.',
+    )
+  }
+  return validated.data
+}
+
+/** ```json 围栏 —— 明说了只要 JSON 也照样有模型给你裹一层。 */
+function stripJsonFence(raw: string): string {
+  const trimmed = raw.trim()
+  if (!trimmed.startsWith('```')) return trimmed
+  return trimmed
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/```\s*$/, '')
+    .trim()
+}
+
+function buildTimelinePlanSystemPrompt(request: NodeAssistantRequest): string {
+  const language = NODE_ASSISTANT_LANGUAGE_LABELS[request.locale]
+  return `You are the edit-desk planner. You arrange an existing timeline; you never create media and you never spend credits.
+
+Return ONE JSON object and nothing else. Shape:
+{
+  "order": "script" | "shot" | "asIs",
+  "videoNodeIds": ["<node id>", ...],
+  "take": "middle" | "head" | "tail" | "full",
+  "takeSeconds": <number, optional>,
+  "transition": "${EDIT_TRANSITION_IDS.none}" | "${EDIT_TRANSITION_IDS.crossfade}" | "${EDIT_TRANSITION_IDS.black}",
+  "voice": { "nodeId": "<audio node id>", "alignToIndex": <0-based clip index> },
+  "music": { "nodeId": "<audio node id>", "fadeOutSec": <number> },
+  "summary": "<one sentence in ${language}>",
+  "reasons": [{ "nodeId": "<node id>", "reason": "<short ${language} sentence>" }]
+}
+
+Rules:
+- Use ONLY node ids listed under AVAILABLE CARDS. Never invent an id.
+- "videoNodeIds" carries the shots the creator asked for, in the order they said them. Leave it empty to mean "every finished video card".
+- "order" says where the ORDER comes from; the server does the sorting. "script" = follow the script text nodes, "shot" = follow shot numbers, "asIs" = the order in videoNodeIds.
+- You do NOT decide in/out points, durations, clip ids or the total length. The server computes all arithmetic from "take" + "takeSeconds".
+- Omit "voice" / "music" unless the creator asked for them.
+- "summary" is what the proposal card shows. State the order, the take, the transition, and whether voice/music were added. Never promise anything you did not put in the JSON.
+- Write "summary" and every "reason" in ${language}.`
+}
+
+function buildTimelinePlanUserPrompt(
+  request: NodeAssistantRequest,
+  facts: ReturnType<typeof collectTimelinePlanFacts>,
+  maxLength?: number,
+): string {
+  const cards = facts.assets
+    .map(
+      (asset) =>
+        `- [[node:${asset.id}]] ${asset.name} · ${asset.kind} · ${asset.durationSec}s${
+          asset.shotNo === undefined ? '' : ` · shot ${asset.shotNo}`
+        }`,
+    )
+    .join('\n')
+  const script = facts.script
+    .map(
+      (line) =>
+        `- ${line.shotNo === undefined ? 'unassigned' : `shot ${line.shotNo}`}: ${line.text}`,
+    )
+    .join('\n')
+  const current = request.edit
+    ? `${request.edit.tracks.video.length} video / ${request.edit.tracks.audio.length} audio / ${request.edit.tracks.music.length} music clips`
+    : 'empty'
+
+  const prefix = `AVAILABLE CARDS:
+${cards || '(none)'}
+
+SCRIPT (in order):
+${script || '(none)'}
+
+CURRENT TIMELINE: ${current}
+
+REQUEST:\n`
+  const suffix = '\n\nReturn the JSON object.'
+  const budget =
+    maxLength === undefined
+      ? undefined
+      : Math.max(1, maxLength - prefix.length - suffix.length)
+  return `${prefix}${buildConversation(request.messages, budget)}${suffix}`
 }

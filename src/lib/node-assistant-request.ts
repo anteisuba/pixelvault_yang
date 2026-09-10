@@ -137,6 +137,8 @@ export function sanitizeNodeAssistantRequest(
     ...(apiKeyId ? { apiKeyId } : {}),
     ...(llmModelId ? { llmModelId } : {}),
     ...(request.research ? { research: true } : {}),
+    ...(request.deskPlan ? { deskPlan: true } : {}),
+    ...(request.edit ? { edit: request.edit } : {}),
   }
 }
 

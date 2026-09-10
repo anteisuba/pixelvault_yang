@@ -27,6 +27,7 @@ import type {
   NodeAssistantMediaReference,
   NodeAssistantRequest,
 } from '@/types/node-assistant'
+import type { TimelineProposal } from '@/types/edit-desk-plan'
 import type { AppLocale } from '@/i18n/routing'
 
 export interface AssistantNodeReference {
@@ -70,6 +71,10 @@ export interface AssistantConversationContext {
   llmModelId?: string
   /** Reference-research turn (study a film/anime/short → original suggestions). */
   research?: boolean
+  /** 一句话排片轮（S10）：产出一份时间线提案，只读、免费。 */
+  deskPlan?: boolean
+  /** 当前时间线 —— 排片轮才带。 */
+  edit?: NodeAssistantRequest['edit']
 }
 
 export interface UseAssistantConversationOptions {
@@ -77,6 +82,14 @@ export interface UseAssistantConversationOptions {
   projectId?: string | null
   /** When false, skip network persistence (tests / offline). Default true. */
   persist?: boolean
+  /**
+   * 收到一份排片提案（S10 · `timeline` 帧）。
+   *
+   * ⚠ 提案**不进 messages**：它要落到剪辑台的轨道上，而 messages 会被剥文案、
+   * 会入库、会被历史恢复 —— 一份几分钟前针对另一批素材的提案重新加载后再点
+   * 「采用」只会做错事（与 `ops` 不跨刷新存活同一条纪律）。
+   */
+  onTimelineProposal?(proposal: TimelineProposal): void
 }
 
 interface UseAssistantConversationValue {
@@ -325,6 +338,7 @@ function toStreamErrorMessage(
 async function readAssistantText(
   events: AsyncIterable<AssistantStreamMessage>,
   onChunk: (nextText: string) => void,
+  onTimelineProposal?: (proposal: TimelineProposal) => void,
 ): Promise<string> {
   let output = ''
 
@@ -332,6 +346,10 @@ async function readAssistantText(
     if (message.type === 'text') {
       output += message.delta
       onChunk(output)
+      continue
+    }
+    if (message.type === 'timeline') {
+      onTimelineProposal?.(message.proposal)
       continue
     }
     if (message.type === 'error') {
@@ -349,7 +367,13 @@ async function readAssistantText(
 export function useAssistantConversation(
   options: UseAssistantConversationOptions = {},
 ): UseAssistantConversationValue {
-  const { projectId = null, persist = true } = options
+  const { projectId = null, persist = true, onTimelineProposal } = options
+  // ⚠ ref 而不是依赖：`send` 已经是一条长依赖链，再挂一个每渲染都换身份的回调
+  //   会让整条链每帧重建。⛔ 渲染期不写 ref（`react-hooks/refs`）——effect 里写。
+  const onTimelineProposalRef = useRef(onTimelineProposal)
+  useEffect(() => {
+    onTimelineProposalRef.current = onTimelineProposal
+  }, [onTimelineProposal])
   const t = useTranslations('StudioNode')
   const tErrors = useTranslations('Errors')
   const [messages, setMessages] = useState<AssistantConversationMessage[]>([])
@@ -519,6 +543,8 @@ export function useAssistantConversation(
         apiKeyId: context.apiKeyId,
         llmModelId: context.llmModelId,
         research: context.research,
+        ...(context.deskPlan ? { deskPlan: true } : {}),
+        ...(context.edit ? { edit: context.edit } : {}),
       })
 
       if (request.messages.length === 0) {
@@ -552,6 +578,7 @@ export function useAssistantConversation(
             )
             setMessages([...nextMessages, streamState.message])
           },
+          (proposal) => onTimelineProposalRef.current?.(proposal),
         )
         setIsLoading(false)
 
@@ -640,6 +667,8 @@ export function useAssistantConversation(
         apiKeyId: context.apiKeyId,
         llmModelId: context.llmModelId,
         research: context.research,
+        ...(context.deskPlan ? { deskPlan: true } : {}),
+        ...(context.edit ? { edit: context.edit } : {}),
       })
 
       if (request.messages.length === 0) {
@@ -672,6 +701,7 @@ export function useAssistantConversation(
             )
             setMessages([...withoutTrailingAssistant, streamState.message])
           },
+          (proposal) => onTimelineProposalRef.current?.(proposal),
         )
         setIsLoading(false)
         // 同 send：结束后再构造一次，让抽取能对没闭合的载荷下判断。

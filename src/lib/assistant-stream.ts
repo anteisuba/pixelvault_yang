@@ -17,6 +17,7 @@ import {
 } from '@/constants/assistant-stream'
 import type { AssistantStreamErrorFrame } from '@/types/assistant-stream'
 import type { LoraCandidateSearchResult } from '@/types/lora-candidate'
+import type { TimelineProposal } from '@/types/edit-desk-plan'
 import type { ResearchReceipt } from '@/types/research'
 import { isGenerationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
@@ -46,6 +47,8 @@ export interface AssistantSseResponseOptions {
   research?: ResearchReceipt | null
   /** 本轮 LoRA 候选；`null`/省略 = 没搜。 */
   loraCandidates?: LoraCandidateSearchResult | null
+  /** 一句话排片的提案（S10）；`null`/省略 = 这一轮没排片。 */
+  timelineProposal?: TimelineProposal | null
   /** 出现在日志里的路由名，出错时用来定位是哪条流。 */
   routeName: string
 }
@@ -68,6 +71,11 @@ export function toAssistantSseResponse(
       }
       if (options.loraCandidates?.candidates.length) {
         send(ASSISTANT_STREAM_EVENTS.lora, options.loraCandidates)
+      }
+      // ⚠ 与上面两帧同一条理由：提案必须在正文落地之前到，剪辑台才能在助手开口
+      //   的同时就把幽灵段摆上轨道。
+      if (options.timelineProposal) {
+        send(ASSISTANT_STREAM_EVENTS.timeline, options.timelineProposal)
       }
 
       try {

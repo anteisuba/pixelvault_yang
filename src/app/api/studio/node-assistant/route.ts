@@ -3,7 +3,10 @@ import { auth } from '@clerk/nextjs/server'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { NodeAssistantRequestSchema } from '@/types/node-assistant'
-import { createNodeAssistantStream } from '@/services/node/node-assistant.service'
+import {
+  createNodeAssistantStream,
+  planNodeAssistantTimeline,
+} from '@/services/node/node-assistant.service'
 import { logger } from '@/lib/logger'
 import { isGenerationError } from '@/lib/errors'
 import { toAssistantSseResponse } from '@/lib/assistant-stream'
@@ -68,6 +71,29 @@ export async function POST(request: NextRequest): Promise<Response> {
   }
 
   try {
+    /*
+     * 一句话排片（S10）：这一轮的产出是**一份提案**，不是一段回答。
+     *
+     * ⚠ 仍然只发一条流：正文就是提案的摘要（提案卡与对话里读到的是同一句话），
+     * 提案本体走 `timeline` 帧。⛔ 不为它单开一条路由 —— 它用的是同一份画布上下
+     * 文、同一个 LLM 档位、同一条限流。
+     */
+    if (parsed.data.deskPlan) {
+      const proposal = await planNodeAssistantTimeline(clerkId, parsed.data)
+      logger.info(`${routeName} plan_timeline`, {
+        userId: clerkId,
+        clips: proposal.counts.clipsChanged,
+        durationMs: Date.now() - startedAt,
+      })
+      return toAssistantSseResponse({
+        text: (async function* () {
+          yield proposal.summary
+        })(),
+        timelineProposal: proposal,
+        routeName,
+      })
+    }
+
     const text = await createNodeAssistantStream(clerkId, parsed.data)
 
     logger.info(routeName, {

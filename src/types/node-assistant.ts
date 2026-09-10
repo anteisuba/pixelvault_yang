@@ -4,7 +4,11 @@ import {
   NODE_STUDIO_ASSISTANT_LIMITS,
   NODE_STUDIO_ASSISTANT_MESSAGE_ROLES,
 } from '@/constants/node-studio'
-import { NodeV4Schema, NodeWorkflowEdgeV4Schema } from '@/types/node-workflow'
+import {
+  EditProjectSchema,
+  NodeV4Schema,
+  NodeWorkflowEdgeV4Schema,
+} from '@/types/node-workflow'
 import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
 import { LOCALES } from '@/i18n/routing'
 
@@ -70,6 +74,15 @@ export const NodeAssistantRequestSchema = z.object({
    * otherwise degrades to the model's own knowledge.
    */
   research: z.boolean().optional(),
+  /**
+   * 一句话排片（S10）：这一轮走 `plan_timeline` 而不是聊天。
+   *
+   * ⚠ 只读、免费 —— 它一个生成都不发。⛔ 服务端不因为这一格跳过任何校验，它只是
+   * 换一条产出（结构化提案）而不是换一套权限。
+   */
+  deskPlan: z.boolean().optional(),
+  /** 当前时间线。排片是在它的基础上改，缺席 = 这个项目还没进过剪辑台。 */
+  edit: EditProjectSchema.optional(),
 })
 
 export type NodeAssistantMessageRole = z.infer<

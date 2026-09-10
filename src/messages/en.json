@@ -6213,6 +6213,33 @@
           "tooManySegments": "Too many clips to render — remove a few and try again.",
           "tooLong": "The cut is longer than a single render allows."
         }
+      },
+      "plan": {
+        "ask": "Arrange the timeline: {prompt}",
+        "cardTitle": "Cut proposal",
+        "notApplied": "not applied",
+        "counts": "{clips} clips changed · {tracks} tracks added · no credits",
+        "adopt": "Adopt",
+        "review": "Clip by clip",
+        "discard": "Discard",
+        "adopted": "The proposal landed on the timeline",
+        "alreadyProposed": "A proposal is already on the timeline — adopt or discard it first.",
+        "exportBlocked": "Adopt or discard the proposal before exporting.",
+        "clipHeading": "Proposal · clip {index} / {total}",
+        "prev": "Previous clip",
+        "next": "Next clip",
+        "take": {
+          "middle": "Take {in}–{out} (the middle {seconds}s of {total}s)",
+          "head": "Take {in}–{out} (the first {seconds}s of {total}s)",
+          "tail": "Take {in}–{out} (the last {seconds}s of {total}s)",
+          "full": "Take the whole clip ({total}s)"
+        },
+        "why": "Why: {reason}",
+        "inPoint": "In",
+        "outPoint": "Out",
+        "acceptClip": "Take this one",
+        "skipClip": "Skip",
+        "acceptedSoFar": "{count} taken so far"
       }
     }
   },
@@ -6755,7 +6782,9 @@
       "outputTruncated": "The model stopped before writing an answer (output budget exhausted). Try a shorter conversation or retry.",
       "noTextResponse": "The model returned an empty answer. Retry, or switch the assistant route.",
       "phantomCitation": "The assistant cited evidence that does not exist, so the answer was withheld. Retry, or turn web research off for this turn.",
-      "videoUnreachable": "This video could not be fetched (it may be deleted, private, or blocked from external access). Try a public link, or download the clip and drop it in."
+      "videoUnreachable": "This video could not be fetched (it may be deleted, private, or blocked from external access). Try a public link, or download the clip and drop it in.",
+      "timelinePlanFailed": "The planner did not return a usable timeline. Retry, or say it more plainly.",
+      "timelinePlanEmpty": "There is no finished video card to arrange yet — generate or upload one first."
     },
     "provider": {
       "failed": "AI provider error. Please try again.",

@@ -38,6 +38,8 @@ import {
   EDIT_TRACKS,
   EDIT_TRACK_IDS,
   EDIT_TRANSITION_IDS,
+  TIMELINE_PLAN_CARD,
+  TIMELINE_PLAN_GHOST_BORDER_PX,
   type EditToolId,
   type EditTrackId,
 } from '@/constants/edit-desk'
@@ -75,12 +77,20 @@ export interface EditDeskTimelineProps {
    * 直接压住 M 轨）。
    */
   readonly footer?: ReactNode
+  /**
+   * 浮在时间线块右上角的东西 —— 眼下只有排片提案卡（S10）。
+   *
+   * ⚠ 它必须浮在**这个块**里（画板 `right:16 / top:12` 就是相对它量的）：摆到块外
+   * 就与轨道脱开，用户读不出「这张卡说的是下面这几段」。
+   */
+  readonly overlay?: ReactNode
 }
 
 export function EditDeskTimeline({
   desk,
   onToolTodo,
   footer,
+  overlay,
 }: EditDeskTimelineProps) {
   const t = useTranslations('StudioNode.editDesk')
   const laneRef = useRef<HTMLDivElement | null>(null)
@@ -127,7 +137,7 @@ export function EditDeskTimeline({
     <div
       data-testid="edit-desk-timeline"
       style={{ height: EDIT_DESK_LAYOUT.timelineHeightPx }}
-      className="flex shrink-0 flex-col border-t border-border bg-card"
+      className="relative flex shrink-0 flex-col border-t border-border bg-card"
     >
       {/* 工具条 + 磁吸开关 */}
       <div className="flex items-center gap-2 px-3 pt-2">
@@ -210,6 +220,7 @@ export function EditDeskTimeline({
                 key={track}
                 track={track}
                 rows={desk.rows[track]}
+                ghostRows={desk.proposalRows?.[track] ?? null}
                 desk={desk}
                 laneRef={track === EDIT_TRACK_IDS.video ? laneRef : undefined}
                 secondsFromEvent={secondsFromEvent}
@@ -238,6 +249,18 @@ export function EditDeskTimeline({
           {footer}
         </div>
       ) : null}
+
+      {overlay ? (
+        <div
+          className="absolute z-20"
+          style={{
+            right: TIMELINE_PLAN_CARD.rightPx,
+            top: TIMELINE_PLAN_CARD.topPx,
+          }}
+        >
+          {overlay}
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -245,12 +268,15 @@ export function EditDeskTimeline({
 function TrackLane({
   track,
   rows,
+  ghostRows,
   desk,
   laneRef,
   secondsFromEvent,
 }: {
   readonly track: EditTrackId
   readonly rows: readonly EditTimelineRow[]
+  /** 提案的幽灵段（S10）。`null` = 没有提案。 */
+  readonly ghostRows: readonly EditTimelineRow[] | null
   readonly desk: EditDesk
   readonly laneRef?: React.RefObject<HTMLDivElement | null>
   secondsFromEvent(clientX: number): number
@@ -318,11 +344,94 @@ function TrackLane({
             track={track}
             desk={desk}
             isVideo={isVideo}
+            dimmed={Boolean(ghostRows)}
             showTransitionAfter={isVideo && index < rows.length - 1}
+          />
+        ))}
+        {/*
+          幽灵段（S10 · 画板 `.clip.ghost`）：虚线 + 斜纹，摆在现有段之后。
+          ⚠ 它们**不可点、不可拖**：还没采用的东西不该能被裁 —— 一旦能改，
+          「采用 / 撤销」这对按钮就说不清自己在采用什么。
+        */}
+        {(ghostRows ?? []).map((row, index) => (
+          <GhostClipView
+            key={`ghost-${row.clip.id}`}
+            row={row}
+            isVideo={isVideo}
+            focused={isVideo && desk.proposalClipIndex === index}
+            showTransitionAfter={
+              isVideo && index < (ghostRows?.length ?? 0) - 1
+            }
           />
         ))}
       </div>
     </div>
+  )
+}
+
+/** 提案里的一段。⛔ 无手柄、无来源徽标、无事件 —— 它还不存在。 */
+function GhostClipView({
+  row,
+  isVideo,
+  focused,
+  showTransitionAfter,
+}: {
+  readonly row: EditTimelineRow
+  readonly isVideo: boolean
+  readonly focused: boolean
+  readonly showTransitionAfter: boolean
+}) {
+  const t = useTranslations('StudioNode.editDesk')
+  const clip = row.clip
+  const widthPx = Math.max(
+    secondsToPx(row.durationSec),
+    EDIT_DESK_LAYOUT.handleWidthPx * 3,
+  )
+  const sourceName = readSourceName(row)
+
+  return (
+    <>
+      <div
+        aria-hidden
+        data-testid={`edit-desk-ghost-${clip.id}`}
+        style={{
+          width: widthPx,
+          height: isVideo
+            ? EDIT_DESK_LAYOUT.clipHeightPx
+            : EDIT_DESK_LAYOUT.waveHeightPx,
+          borderWidth: TIMELINE_PLAN_GHOST_BORDER_PX,
+        }}
+        className={cn(
+          'canvas-ghost-clip relative shrink-0 overflow-hidden rounded-md border-dashed border-foreground',
+          focused && 'outline outline-[1.5px] outline-primary',
+        )}
+      >
+        <span className="canvas-glass absolute bottom-1 left-1.5 inline-flex max-w-[calc(100%-12px)] items-center gap-1 truncate rounded-full py-px pl-1 pr-1.5 text-3xs leading-[13px]">
+          <span className="truncate">
+            {t('clipTag', {
+              name: sourceName,
+              duration: formatEditDurationShort(row.durationSec),
+            })}
+          </span>
+        </span>
+      </div>
+      {showTransitionAfter ? (
+        <span
+          aria-hidden
+          style={{
+            width: EDIT_DESK_LAYOUT.transitionMarkPx,
+            height: EDIT_DESK_LAYOUT.transitionMarkPx,
+          }}
+          className={cn(
+            '-mx-0.5 shrink-0 rotate-45 rounded-[2px]',
+            (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) ===
+              EDIT_TRANSITION_IDS.none
+              ? 'border-[1.5px] border-foreground'
+              : 'bg-foreground',
+          )}
+        />
+      ) : null}
+    </>
   )
 }
 
@@ -331,12 +440,15 @@ function ClipView({
   track,
   desk,
   isVideo,
+  dimmed,
   showTransitionAfter,
 }: {
   readonly row: EditTimelineRow
   readonly track: EditTrackId
   readonly desk: EditDesk
   readonly isVideo: boolean
+  /** 提案期间现有段变灰（画板：幽灵段是主角，现有段退到背景）。 */
+  readonly dimmed: boolean
   readonly showTransitionAfter: boolean
 }) {
   const t = useTranslations('StudioNode.editDesk')
@@ -431,6 +543,7 @@ function ClipView({
           'relative shrink-0 overflow-hidden rounded-md',
           isVideo ? 'bg-surface-fill-track' : 'bg-surface-fill',
           selected && 'outline outline-[1.5px] outline-primary',
+          dimmed && 'opacity-40',
         )}
       >
         {selected && isVideo ? (

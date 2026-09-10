@@ -6213,6 +6213,33 @@
           "tooManySegments": "段太多了，先删掉一些再导出。",
           "tooLong": "成片太长了，超过一次渲染的上限。"
         }
+      },
+      "plan": {
+        "ask": "按这句话排片：{prompt}",
+        "cardTitle": "排片提案",
+        "notApplied": "未落地",
+        "counts": "改了 {clips} 段 · 加 {tracks} 轨 · 不花积分",
+        "adopt": "采用",
+        "review": "逐段看",
+        "discard": "撤销",
+        "adopted": "提案已落到时间线",
+        "alreadyProposed": "轨道上还摆着一份提案，先采用或撤销它。",
+        "exportBlocked": "先采用或撤销提案再导出。",
+        "clipHeading": "提案 · 第 {index} / {total} 段",
+        "prev": "上一段",
+        "next": "下一段",
+        "take": {
+          "middle": "取 {in}–{out}（{total}s 里最中间的 {seconds} 秒）",
+          "head": "取 {in}–{out}（{total}s 的开头 {seconds} 秒）",
+          "tail": "取 {in}–{out}（{total}s 的结尾 {seconds} 秒）",
+          "full": "整段用完（{total}s）"
+        },
+        "why": "为什么：{reason}",
+        "inPoint": "入点",
+        "outPoint": "出点",
+        "acceptClip": "采用这段",
+        "skipClip": "跳过",
+        "acceptedSoFar": "已采用 {count} 段"
       }
     }
   },
@@ -6755,7 +6782,9 @@
       "outputTruncated": "模型还没写出正文就停了（输出预算用尽）。可以缩短对话后重试。",
       "noTextResponse": "模型返回了空回复。重试，或切换助手路由。",
       "phantomCitation": "助手引用了不存在的证据，这条回答已被拦下。重试，或把这一轮的联网检索关掉。",
-      "videoUnreachable": "这个视频取不到（可能已删除、设为私享，或不允许外部访问）。换一条公开链接，或把片段下载后拖进来。"
+      "videoUnreachable": "这个视频取不到（可能已删除、设为私享，或不允许外部访问）。换一条公开链接，或把片段下载后拖进来。",
+      "timelinePlanFailed": "排片没有返回一份能用的时间线。重试，或把话说得更直白一点。",
+      "timelinePlanEmpty": "画布上还没有出片的视频卡可排，先生成或上传一张。"
     },
     "provider": {
       "failed": "AI 提供商错误，请重试。",

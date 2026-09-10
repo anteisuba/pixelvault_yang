@@ -44,6 +44,7 @@ import {
   type RenderPlanRange,
 } from '@/lib/edit-project'
 import type { RenderPlan } from '@/constants/render-video'
+import type { TimelineProposal } from '@/types/edit-desk-plan'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   EditClip,
@@ -116,6 +117,34 @@ export interface EditDesk {
   /** 落点像素 → 插入下标。磁吸开着时吸到最近的段边界。 */
   insertIndexAt(track: EditTrackId, seconds: number): number
 
+  /* ── 一句话排片的提案态（S10 · spec §6）────────────────────────────── */
+  /**
+   * 当前提案。`null` = 没有提案（绝大多数时候）。
+   *
+   * ⚠ 它**不落库**：提案只活在这一次会话里。⛔ 不写进 `state.edit` —— 那等于
+   * 「还没采用就已经改了时间线」，撤销键也就找不到回到提案前的那一步。
+   */
+  readonly proposal: TimelineProposal | null
+  /** 提案的三轨（幽灵段读它）。`null` = 没有提案。 */
+  readonly proposalRows: Readonly<
+    Record<EditTrackId, readonly EditTimelineRow[]>
+  > | null
+  setProposal(proposal: TimelineProposal | null): void
+  /** 「撤销」= 丢掉提案，时间线一个字都没动过。 */
+  discardProposal(): void
+  /** 「采用」= 整批落表，**一个撤销条目**。 */
+  applyProposal(): boolean
+  /** 「逐段看」当前看到第几段。`null` = 不在逐段模式。 */
+  readonly proposalClipIndex: number | null
+  /** 进入逐段模式（从第一段起）。 */
+  enterProposalReview(): void
+  /** ← → 换段。越界即停在两端（⛔ 不绕回去：绕一圈会让人以为看完了）。 */
+  stepProposalReview(delta: number): void
+  /** 「采用这段」/「跳过」——都只是记一笔，最后一段决定完才整批落表。 */
+  decideProposalClip(accept: boolean): void
+  /** 逐段模式里已经点过「采用这段」的那几段。 */
+  readonly proposalAcceptedClipIds: readonly string[]
+
   /**
    * 导出确认 → **渲染计划**（S9）。
    *
@@ -152,6 +181,13 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
   const [playheadSec, setPlayheadSec] = useState(0)
   const [inPointSec, setInPointSec] = useState<number | null>(null)
   const [outPointSec, setOutPointSec] = useState<number | null>(null)
+  const [proposal, setProposalState] = useState<TimelineProposal | null>(null)
+  const [proposalClipIndex, setProposalClipIndex] = useState<number | null>(
+    null,
+  )
+  const [proposalAccepted, setProposalAccepted] = useState<readonly string[]>(
+    [],
+  )
 
   const stored = state.edit
   const project = useMemo(
@@ -348,6 +384,93 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     [project, setTimeline],
   )
 
+  /* ── 提案态（S10）─────────────────────────────────────────────────── */
+
+  const proposalRows = useMemo(() => {
+    if (!proposal) return null
+    const built = {} as Record<EditTrackId, readonly EditTimelineRow[]>
+    for (const track of EDIT_TRACKS) {
+      built[track] = buildTimelineRows(
+        proposal.project.tracks[track],
+        state.nodes,
+      )
+    }
+    return built
+  }, [proposal, state.nodes])
+
+  const setProposal = useCallback((next: TimelineProposal | null) => {
+    setProposalState(next)
+    // ⚠ 新提案一律从「整份看」起步，旧的逐段进度清零：留着上一份的下标会让
+    //   「采用这段」落到另一份提案的段上。
+    setProposalClipIndex(null)
+    setProposalAccepted([])
+  }, [])
+
+  const discardProposal = useCallback(() => {
+    setProposal(null)
+  }, [setProposal])
+
+  const applyProposal = useCallback((): boolean => {
+    if (!proposal) return false
+    const ok = setTimeline(proposal.project)
+    if (ok) setProposal(null)
+    return ok
+  }, [proposal, setTimeline, setProposal])
+
+  const enterProposalReview = useCallback(() => {
+    if (!proposal) return
+    setProposalClipIndex(0)
+    setProposalAccepted([])
+  }, [proposal])
+
+  const stepProposalReview = useCallback(
+    (delta: number) => {
+      if (!proposal) return
+      const last = proposal.rationale.length - 1
+      setProposalClipIndex((current) =>
+        current === null ? 0 : Math.max(0, Math.min(last, current + delta)),
+      )
+    },
+    [proposal],
+  )
+
+  /**
+   * 「采用这段」/「跳过」。
+   *
+   * ⚠ **最后一段决定完才落表**，而且是**一批**：逐段各发一条 op 的版本会让
+   * ⌘Z 变成「一段一段往回退」，而用户心里那一步是「回到提案之前」。
+   */
+  const decideProposalClip = useCallback(
+    (accept: boolean) => {
+      if (!proposal || proposalClipIndex === null) return
+      const entry = proposal.rationale[proposalClipIndex]
+      if (!entry) return
+      const accepted = accept
+        ? [...proposalAccepted, entry.clipId]
+        : proposalAccepted
+      if (proposalClipIndex < proposal.rationale.length - 1) {
+        setProposalAccepted(accepted)
+        setProposalClipIndex(proposalClipIndex + 1)
+        return
+      }
+      // 最后一段：一段都没采用就等于撤销（⛔ 不落一条空时间线）。
+      if (accepted.length === 0) {
+        setProposal(null)
+        return
+      }
+      const keep = new Set(accepted)
+      const video = proposal.project.tracks.video.filter((clip) =>
+        keep.has(clip.id),
+      )
+      const ok = setTimeline({
+        ...proposal.project,
+        tracks: { ...proposal.project.tracks, video },
+      })
+      if (ok) setProposal(null)
+    },
+    [proposal, proposalClipIndex, proposalAccepted, setTimeline, setProposal],
+  )
+
   const exportTimeline = useCallback(
     (options: EditExportOptions): RenderPlan => {
       const range: RenderPlanRange = {
@@ -432,5 +555,15 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     setSettings,
     insertIndexAt,
     exportTimeline,
+    proposal,
+    proposalRows,
+    setProposal,
+    discardProposal,
+    applyProposal,
+    proposalClipIndex,
+    enterProposalReview,
+    stepProposalReview,
+    decideProposalClip,
+    proposalAcceptedClipIds: proposalAccepted,
   }
 }

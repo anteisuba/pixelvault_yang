@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { LoraCandidateSearchResultSchema } from '@/types/lora-candidate'
+import { TimelineProposalSchema } from '@/types/edit-desk-plan'
 import { ResearchReceiptSchema } from '@/types/research'
 
 /**
@@ -35,3 +36,6 @@ export type AssistantStreamErrorFrame = z.infer<
 /** 回执与候选整个原样进流——没有响应头上限，因此没有降级档位。 */
 export const AssistantStreamResearchFrameSchema = ResearchReceiptSchema
 export const AssistantStreamLoraFrameSchema = LoraCandidateSearchResultSchema
+
+/** 一句话排片的提案（S10）。整份原样进流 —— 它就是要落到轨道上的那份表。 */
+export const AssistantStreamTimelineFrameSchema = TimelineProposalSchema

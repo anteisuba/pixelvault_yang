@@ -200,3 +200,35 @@ describe('PromptTemplateList', () => {
     expect(screen.getByText('Keep me')).toBeInTheDocument()
   })
 })
+
+it('combines body search with type filters and can clear an empty result', () => {
+  render(
+    <PromptTemplateList
+      locale="en"
+      recipes={[
+        makeItem({
+          id: 'a',
+          name: 'Portrait',
+          compiledPrompt: 'Soft window light',
+          outputType: 'IMAGE',
+        }),
+        makeItem({
+          id: 'b',
+          name: 'Motion',
+          compiledPrompt: 'Soft camera movement',
+          outputType: 'VIDEO',
+        }),
+      ]}
+    />,
+  )
+  fireEvent.change(screen.getByRole('textbox', { name: 'searchTemplates' }), {
+    target: { value: 'WINDOW' },
+  })
+  expect(screen.getByText('Portrait')).toBeInTheDocument()
+  expect(screen.queryByText('Motion')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'outputTypeVideo' }))
+  expect(screen.getByText('typeFilterEmpty')).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'clearFilters' }))
+  expect(screen.getByText('Portrait')).toBeInTheDocument()
+  expect(screen.getByText('Motion')).toBeInTheDocument()
+})

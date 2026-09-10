@@ -30,7 +30,7 @@ export function PromptLibraryTabs({ currentTab }: PromptLibraryTabsProps) {
   return (
     <nav
       aria-label={t('title')}
-      className="flex flex-wrap items-center gap-1 border-b border-border/60 pb-1"
+      className="flex flex-wrap items-center gap-5 border-b border-border pb-0"
     >
       {tabs.map((tab) => {
         const active = tab.key === currentTab
@@ -40,10 +40,10 @@ export function PromptLibraryTabs({ currentTab }: PromptLibraryTabsProps) {
             href={tab.href}
             aria-current={active ? 'page' : undefined}
             className={cn(
-              'relative inline-flex h-10 items-center rounded-full px-4 text-sm font-medium transition-colors',
+              'relative inline-flex min-h-11 items-center border-b-2 px-1 text-sm font-medium transition-colors duration-fast',
               active
-                ? 'bg-foreground/90 text-background'
-                : 'text-muted-foreground hover:bg-muted/60 hover:text-foreground',
+                ? 'border-foreground text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
             {tab.label}

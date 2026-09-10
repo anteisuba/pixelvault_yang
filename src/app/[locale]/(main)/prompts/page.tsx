@@ -73,19 +73,31 @@ export default async function PromptsPage({
     query?.tab === 'inspiration' ? 'inspiration' : 'mine'
 
   return (
-    <main className="editorial-page">
-      <div className="editorial-container editorial-container--wide editorial-container--tight">
-        <PromptLibraryTabs currentTab={currentTab} />
+    <main className="min-h-full bg-background p-4 lg:p-6">
+      <h1 className="sr-only">{t('title')}</h1>
+      <div className="mx-auto max-w-gallery space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <PromptLibraryTabs currentTab={currentTab} />
+          {clerkId && currentTab === 'mine' && (
+            <PromptTemplateCreatePanel
+              initialOpen={query?.create === '1'}
+              initialValues={{
+                name: query?.name,
+                compiledPrompt: query?.prompt,
+                negativePrompt: query?.negativePrompt,
+                modelId: query?.model,
+                provider: query?.provider,
+                outputType: query?.outputType,
+                parentGenerationId: query?.generationId,
+              }}
+            />
+          )}
+        </div>
 
         {currentTab === 'inspiration' ? (
           <InspirationGrid />
         ) : (
-          <MineTab
-            clerkId={clerkId}
-            createQuery={query}
-            locale={locale}
-            t={t}
-          />
+          <MineTab clerkId={clerkId} locale={locale} t={t} />
         )}
       </div>
     </main>
@@ -94,23 +106,11 @@ export default async function PromptsPage({
 
 type MineTabProps = {
   clerkId: string | null
-  createQuery:
-    | {
-        create?: '1'
-        name?: string
-        prompt?: string
-        negativePrompt?: string
-        model?: string
-        provider?: string
-        outputType?: 'IMAGE' | 'VIDEO' | 'AUDIO' | 'MODEL_3D'
-        generationId?: string
-      }
-    | undefined
   locale: AppLocale
   t: Awaited<ReturnType<typeof getTranslations>>
 }
 
-async function MineTab({ clerkId, createQuery, locale, t }: MineTabProps) {
+async function MineTab({ clerkId, locale, t }: MineTabProps) {
   const getOutputTypeLabel = (outputType: string) => {
     if (outputType === 'VIDEO') return t('outputTypeVideo')
     if (outputType === 'AUDIO') return t('outputTypeAudio')
@@ -140,19 +140,6 @@ async function MineTab({ clerkId, createQuery, locale, t }: MineTabProps) {
 
   return (
     <>
-      <PromptTemplateCreatePanel
-        initialOpen={createQuery?.create === '1'}
-        initialValues={{
-          name: createQuery?.name,
-          compiledPrompt: createQuery?.prompt,
-          negativePrompt: createQuery?.negativePrompt,
-          modelId: createQuery?.model,
-          provider: createQuery?.provider,
-          outputType: createQuery?.outputType,
-          parentGenerationId: createQuery?.generationId,
-        }}
-      />
-
       {recipes.length === 0 ? (
         <section className="editorial-panel">
           <div className="mx-auto max-w-xl space-y-4 text-center">

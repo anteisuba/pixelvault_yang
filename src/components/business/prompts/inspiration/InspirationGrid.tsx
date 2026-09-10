@@ -28,7 +28,7 @@ export function InspirationGrid() {
   } = useInspirations()
 
   return (
-    <section className="space-y-4">
+    <section className="@container space-y-4">
       <InspirationFilters
         category={filters.category}
         query={filters.query}
@@ -51,7 +51,7 @@ export function InspirationGrid() {
           <div className="text-xs text-muted-foreground">
             {t('inspirationResultCount', { count: total })}
           </div>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="columns-1 gap-4 @xl:columns-2 @4xl:columns-3">
             {items.map((inspiration) => (
               <InspirationCard
                 key={inspiration.id}
@@ -85,13 +85,13 @@ export function InspirationGrid() {
 
 function GridSkeleton() {
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+    <div className="columns-1 gap-4 @xl:columns-2 @4xl:columns-3">
       {Array.from({ length: 8 }).map((_, i) => (
         <div
           key={i}
-          className="overflow-hidden rounded-2xl border border-border/60 bg-card/60"
+          className="mb-4 break-inside-avoid overflow-hidden rounded-2xl border border-border/60 bg-card/60"
         >
-          <div className="aspect-4/5 animate-pulse bg-muted/50" />
+          <div className="aspect-video animate-pulse bg-muted/50" />
           <div className="flex items-center justify-between p-4">
             <div className="h-3 w-1/3 animate-pulse rounded bg-muted/50" />
             <div className="h-3 w-1/4 animate-pulse rounded bg-muted/50" />

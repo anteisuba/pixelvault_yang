@@ -1,9 +1,8 @@
 'use client'
 /* eslint-disable @next/next/no-img-element -- stored generation thumbnails are already optimized R2 derivatives */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
-  Copy,
   Globe,
   ImageOff,
   Lock,
@@ -37,6 +36,8 @@ import {
 } from '@/lib/api-client/recipes'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import { cn } from '@/lib/utils'
+import { CopyPromptButton } from './CopyPromptButton'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -90,6 +91,7 @@ interface PromptTemplateDetailDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   onDeleted: (id: string) => void
+  initialMode?: 'view' | 'edit' | 'use'
 }
 
 const MODEL_CHOICES = MODEL_OPTIONS.filter((option) => option.available)
@@ -110,6 +112,7 @@ export function PromptTemplateDetailDialog({
   open,
   onOpenChange,
   onDeleted,
+  initialMode = 'view',
 }: PromptTemplateDetailDialogProps) {
   const t = useTranslations('PromptLibrary')
   const tModels = useTranslations('Models')
@@ -122,6 +125,10 @@ export function PromptTemplateDetailDialog({
   const [enlargedIndex, setEnlargedIndex] = useState(-1)
 
   const [isEditing, setIsEditing] = useState(false)
+  const [confirmUse, setConfirmUse] = useState(false)
+  const [formError, setFormError] = useState<string | null>(null)
+  const [detailError, setDetailError] = useState(false)
+  const [loadAttempt, setLoadAttempt] = useState(0)
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
@@ -139,6 +146,14 @@ export function PromptTemplateDetailDialog({
   const [parentGenerationId, setParentGenerationId] = useState<string | null>(
     null,
   )
+  const saved = useRef({
+    name: recipe.name,
+    compiledPrompt: recipe.compiledPrompt,
+    negativePrompt: '',
+    modelId: recipe.modelId,
+    provider: '',
+    outputType: recipe.outputType,
+  })
 
   const title = name || recipe.modelId
   const formattedDate = new Intl.DateTimeFormat(locale, {
@@ -156,40 +171,64 @@ export function PromptTemplateDetailDialog({
     }
 
     let cancelled = false
+    setIsEditing(initialMode === 'edit')
+    setConfirmUse(initialMode === 'use')
+    setFormError(null)
+    setDetailError(false)
     setIsLoadingAssets(true)
     void (async () => {
-      const [assetsResult, detailResult] = await Promise.all([
-        listRecipeGenerationsAPI(recipe.id),
-        getRecipeAPI(recipe.id),
-      ])
-      if (cancelled) return
+      try {
+        const [assetsResult, detailResult] = await Promise.all([
+          listRecipeGenerationsAPI(recipe.id),
+          getRecipeAPI(recipe.id),
+        ])
+        if (cancelled) return
 
-      if (assetsResult.success && assetsResult.data) {
-        setGenerations(assetsResult.data)
+        if (assetsResult.success && assetsResult.data) {
+          setGenerations(assetsResult.data)
+        }
+        if (detailResult.success && detailResult.data) {
+          const detail = detailResult.data
+          setName(detail.name)
+          setCompiledPrompt(detail.compiledPrompt)
+          setNegativePrompt(detail.negativePrompt ?? '')
+          setModelId(detail.modelId)
+          setProvider(detail.provider)
+          setOutputType(detail.outputType)
+          setVersion(detail.version)
+          setParentGenerationId(detail.parentGenerationId)
+          if (detail.visibility) setVisibility(detail.visibility)
+          saved.current = {
+            name: detail.name,
+            compiledPrompt: detail.compiledPrompt,
+            negativePrompt: detail.negativePrompt ?? '',
+            modelId: detail.modelId,
+            provider: detail.provider,
+            outputType: detail.outputType,
+          }
+        } else {
+          setDetailError(true)
+        }
+      } catch {
+        if (!cancelled) setDetailError(true)
+      } finally {
+        if (!cancelled) setIsLoadingAssets(false)
       }
-      if (detailResult.success && detailResult.data) {
-        const detail = detailResult.data
-        setName(detail.name)
-        setCompiledPrompt(detail.compiledPrompt)
-        setNegativePrompt(detail.negativePrompt ?? '')
-        setModelId(detail.modelId)
-        setProvider(detail.provider)
-        setOutputType(detail.outputType)
-        setVersion(detail.version)
-        setParentGenerationId(detail.parentGenerationId)
-        if (detail.visibility) setVisibility(detail.visibility)
-      }
-      setIsLoadingAssets(false)
     })()
 
     return () => {
       cancelled = true
     }
-  }, [open, recipe.id])
+  }, [open, recipe.id, initialMode, loadAttempt])
 
   const resetForm = () => {
-    setName(recipe.name)
-    setCompiledPrompt(recipe.compiledPrompt)
+    setName(saved.current.name)
+    setCompiledPrompt(saved.current.compiledPrompt)
+    setNegativePrompt(saved.current.negativePrompt)
+    setModelId(saved.current.modelId)
+    setProvider(saved.current.provider)
+    setOutputType(saved.current.outputType)
+    setFormError(null)
   }
 
   const selectModel = (nextModelId: string) => {
@@ -198,34 +237,34 @@ export function PromptTemplateDetailDialog({
     if (option) setProvider(getDefaultProviderConfig(option.adapterType).label)
   }
 
-  const copyPrompt = async () => {
-    try {
-      await navigator.clipboard.writeText(compiledPrompt)
-      toast.success(t('promptCopied'))
-    } catch {
-      toast.error(t('inspirationCloneFailed'))
-    }
-  }
-
   const useInStudio = () => {
     const prompt = compiledPrompt.trim()
     if (!prompt) {
       toast.error(t('createPromptRequired'))
       return
     }
-    window.sessionStorage.setItem(STUDIO_PREFILL_PROMPT_STORAGE_KEY, prompt)
-    router.push(getStudioRoute(outputType))
+    try {
+      window.sessionStorage.setItem(STUDIO_PREFILL_PROMPT_STORAGE_KEY, prompt)
+      router.push(getStudioRoute(outputType))
+    } catch {
+      setFormError(t('useFailed'))
+    }
   }
 
   const saveChanges = async () => {
+    setFormError(null)
+    if (!name.trim()) {
+      setFormError(t('createNameRequired'))
+      return
+    }
     const prompt = compiledPrompt.trim()
     if (!prompt) {
-      toast.error(t('createPromptRequired'))
+      setFormError(t('createPromptRequired'))
       return
     }
     const nextProvider = provider.trim()
     if (!nextProvider) {
-      toast.error(t('providerRequired'))
+      setFormError(t('providerRequired'))
       return
     }
 
@@ -245,11 +284,22 @@ export function PromptTemplateDetailDialog({
       if (response.success && response.data) {
         toast.success(t('updateTemplateSuccess'))
         setVersion(response.data.version)
+        saved.current = {
+          name: payload.name,
+          compiledPrompt: payload.compiledPrompt,
+          negativePrompt: payload.negativePrompt ?? '',
+          modelId: payload.modelId,
+          provider: payload.provider,
+          outputType: payload.outputType,
+        }
+        resetForm()
         setIsEditing(false)
         router.refresh()
         return
       }
-      toast.error(response.error ?? t('updateTemplateFailed'))
+      setFormError(response.error ?? t('updateTemplateFailed'))
+    } catch {
+      setFormError(t('updateTemplateFailed'))
     } finally {
       setIsSaving(false)
     }
@@ -456,6 +506,7 @@ export function PromptTemplateDetailDialog({
     <ResponsiveDialog
       open={open}
       onOpenChange={(next) => {
+        if (isSaving) return
         // While an image is enlarged, close the enlargement first instead of
         // dismissing the whole dialog (Esc / backdrop).
         if (!next && enlargedIndex >= 0) {
@@ -466,19 +517,27 @@ export function PromptTemplateDetailDialog({
       }}
     >
       <ResponsiveDialogContent
-        className="flex max-h-[88svh] flex-col gap-0 overflow-hidden p-0 sm:max-w-6xl lg:min-h-[70svh]"
+        className={cn(
+          'flex max-h-[88svh] flex-col gap-0 overflow-hidden p-0',
+          generations.length ? 'sm:max-w-5xl' : 'sm:max-w-2xl',
+        )}
         mobileBodyClassName="px-0 pt-0"
       >
         <ResponsiveDialogHeader className="shrink-0 space-y-2 border-b border-border/60 px-5 py-4 text-left sm:px-6">
           {isEditing ? (
-            <Input
-              aria-label={t('createNameLabel')}
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-              placeholder={t('createNamePlaceholder')}
-              maxLength={200}
-              className="h-auto rounded-xl px-3 py-2 text-xl font-medium tracking-tight"
-            />
+            <>
+              <ResponsiveDialogTitle className="sr-only">
+                {t('editAction')}
+              </ResponsiveDialogTitle>
+              <Input
+                aria-label={t('createNameLabel')}
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder={t('createNamePlaceholder')}
+                maxLength={200}
+                className="h-auto rounded-xl px-3 py-2 text-xl font-medium tracking-tight"
+              />
+            </>
           ) : (
             <ResponsiveDialogTitle className="text-xl font-medium tracking-tight">
               {title}
@@ -498,136 +557,181 @@ export function PromptTemplateDetailDialog({
         </ResponsiveDialogHeader>
 
         <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
-          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
-            {galleryPanel}
-            {contentPanel}
+          <div
+            className={cn(
+              'grid gap-6',
+              generations.length > 0 && 'lg:grid-cols-2 lg:items-start',
+            )}
+          >
+            {generations.length > 0 && galleryPanel}
+            {isLoadingAssets ? (
+              <div
+                className="flex items-center justify-center gap-2 py-10"
+                role="status"
+              >
+                <Spinner size="md" />
+                {t('loadingAssets')}
+              </div>
+            ) : detailError ? (
+              <div role="alert" className="space-y-3">
+                <p>{t('detailLoadFailed')}</p>
+                <Button
+                  variant="outline"
+                  onClick={() => setLoadAttempt((value) => value + 1)}
+                >
+                  {t('retryAction')}
+                </Button>
+              </div>
+            ) : (
+              contentPanel
+            )}
           </div>
-        </div>
-
-        <ResponsiveDialogFooter className="shrink-0 gap-2 border-t border-border/60 px-5 py-3 sm:px-6">
-          {isEditing ? (
-            <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <Button
-                type="button"
-                variant="ghost"
-                className="rounded-full"
-                disabled={isSaving}
-                onClick={() => {
-                  resetForm()
-                  setIsEditing(false)
-                }}
-              >
-                <X className="size-4" />
-                {t('editCancel')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full"
-                disabled={isSaving}
-                onClick={resetForm}
-              >
-                <RotateCcw className="size-4" />
-                {t('editReset')}
-              </Button>
-              <Button
-                type="button"
-                className="rounded-full"
-                disabled={isSaving}
-                onClick={() => void saveChanges()}
-              >
-                {isSaving ? <Spinner size="md" /> : <Save className="size-4" />}
-                {isSaving ? t('createSaving') : t('editSubmit')}
-              </Button>
-            </div>
-          ) : (
-            <div className="flex w-full flex-wrap items-center gap-2">
-              <Button
-                type="button"
-                className="rounded-full"
-                onClick={useInStudio}
-              >
-                <Sparkles className="size-4" />
-                {t('useInStudio')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full"
-                onClick={() => void copyPrompt()}
-              >
-                <Copy className="size-4" />
-                {t('copyPrompt')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full"
-                onClick={() => setIsEditing(true)}
-              >
-                <Pencil className="size-4" />
-                {t('editAction')}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="rounded-full"
-                disabled={isPublishing}
-                onClick={() => void togglePublish()}
-                title={t('publishHint')}
-              >
-                {isPublishing ? (
-                  <Spinner size="md" />
-                ) : visibility === RECIPE_VISIBILITY.PUBLIC ? (
-                  <Lock className="size-4" />
-                ) : (
-                  <Globe className="size-4" />
-                )}
-                {visibility === RECIPE_VISIBILITY.PUBLIC
-                  ? isPublishing
-                    ? t('unpublishing')
-                    : t('unpublishAction')
-                  : isPublishing
-                    ? t('publishing')
-                    : t('publishAction')}
-              </Button>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    className="ml-auto rounded-full text-muted-foreground hover:text-destructive"
-                  >
-                    <Trash2 className="size-4" />
-                    {t('deleteAction')}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {t('deleteConfirmTitle')}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t('deleteConfirmDescription')}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel disabled={isDeleting}>
-                      {t('deleteCancel')}
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      variant="destructive"
-                      disabled={isDeleting}
-                      onClick={() => void handleDelete()}
-                    >
-                      {t('deleteConfirmAction')}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+          {formError && (
+            <p role="alert" className="mt-4 text-sm text-destructive">
+              {formError}
+            </p>
+          )}
+          {confirmUse && !isLoadingAssets && !detailError && (
+            <div className="mt-4 space-y-3 rounded-xl border border-border bg-muted p-4">
+              <h3 className="text-sm font-medium">{t('useConfirmTitle')}</h3>
+              <p className="text-sm text-muted-foreground">
+                {t('useConfirmDescription')}
+              </p>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button variant="ghost" onClick={() => setConfirmUse(false)}>
+                  {t('editCancel')}
+                </Button>
+                <Button onClick={useInStudio}>{t('useConfirmAction')}</Button>
+              </div>
             </div>
           )}
-        </ResponsiveDialogFooter>
+        </div>
+
+        {!isLoadingAssets && !detailError && (
+          <ResponsiveDialogFooter className="shrink-0 gap-2 border-t border-border/60 px-5 py-3 sm:px-6">
+            {isEditing ? (
+              <div className="flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="rounded-full"
+                  disabled={isSaving}
+                  onClick={() => {
+                    resetForm()
+                    setIsEditing(false)
+                  }}
+                >
+                  <X className="size-4" />
+                  {t('editCancel')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  disabled={isSaving}
+                  onClick={resetForm}
+                >
+                  <RotateCcw className="size-4" />
+                  {t('editReset')}
+                </Button>
+                <Button
+                  type="button"
+                  className="rounded-full"
+                  disabled={isSaving}
+                  onClick={() => void saveChanges()}
+                >
+                  {isSaving ? (
+                    <Spinner size="md" />
+                  ) : (
+                    <Save className="size-4" />
+                  )}
+                  {isSaving ? t('createSaving') : t('editSubmit')}
+                </Button>
+              </div>
+            ) : (
+              <div className="flex w-full flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  className="rounded-full"
+                  onClick={() => setConfirmUse(true)}
+                >
+                  <Sparkles className="size-4" />
+                  {t('useInStudio')}
+                </Button>
+                <CopyPromptButton prompt={compiledPrompt} />
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  onClick={() => {
+                    setConfirmUse(false)
+                    setIsEditing(true)
+                  }}
+                >
+                  <Pencil className="size-4" />
+                  {t('editAction')}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-full"
+                  disabled={isPublishing}
+                  onClick={() => void togglePublish()}
+                  title={t('publishHint')}
+                >
+                  {isPublishing ? (
+                    <Spinner size="md" />
+                  ) : visibility === RECIPE_VISIBILITY.PUBLIC ? (
+                    <Lock className="size-4" />
+                  ) : (
+                    <Globe className="size-4" />
+                  )}
+                  {visibility === RECIPE_VISIBILITY.PUBLIC
+                    ? isPublishing
+                      ? t('unpublishing')
+                      : t('unpublishAction')
+                    : isPublishing
+                      ? t('publishing')
+                      : t('publishAction')}
+                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      className="ml-auto rounded-full text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="size-4" />
+                      {t('deleteAction')}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        {t('deleteConfirmTitle')}
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        {t('deleteConfirmDescription')}
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel disabled={isDeleting}>
+                        {t('deleteCancel')}
+                      </AlertDialogCancel>
+                      <AlertDialogAction
+                        variant="destructive"
+                        disabled={isDeleting}
+                        onClick={() => void handleDelete()}
+                      >
+                        {t('deleteConfirmAction')}
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            )}
+          </ResponsiveDialogFooter>
+        )}
 
         {enlarged ? (
           <div

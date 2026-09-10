@@ -51,7 +51,7 @@ function makeInspiration(
 }
 
 describe('InspirationCard', () => {
-  it('keeps the prompt off the card preview — only the detail viewer gets it', () => {
+  it('shows the prompt on the card and in the detail viewer', () => {
     render(
       <InspirationCard
         inspiration={makeInspiration()}
@@ -61,10 +61,9 @@ describe('InspirationCard', () => {
 
     const article = document.querySelector('article')
     expect(article).not.toBeNull()
-    expect(article?.textContent).not.toContain(
+    expect(article?.textContent).toContain(
       'a hyper detailed cathedral made of glass',
     )
-    // Prompt lives in the detail viewer (dialog), not the card itself.
     expect(screen.getByTestId('detail-viewer')).toHaveTextContent(
       'a hyper detailed cathedral made of glass',
     )

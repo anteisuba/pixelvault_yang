@@ -1,7 +1,7 @@
 'use client'
 /* eslint-disable @next/next/no-img-element -- inspiration images are external */
 
-import { Copy, ExternalLink, Heart, Sparkles } from 'lucide-react'
+import { ExternalLink, Heart, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -9,6 +9,16 @@ import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Spinner } from '@/components/ui/spinner'
+import { CopyPromptButton } from '../CopyPromptButton'
+import { cn } from '@/lib/utils'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+  ResponsiveDialogFooter,
+} from '@/components/ui/responsive-dialog'
 import {
   MediaDetailViewer,
   toMediaTransitionOrigin,
@@ -59,19 +69,9 @@ export function InspirationCard({
     }
   }
 
-  async function handleCopyPrompt() {
-    try {
-      await navigator.clipboard.writeText(inspiration.prompt)
-      toast.success(t('promptCopied'))
-    } catch {
-      toast.error(t('inspirationCloneFailed'))
-    }
-  }
-
   return (
     <>
-      <article className="group flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/80 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-md">
-        {/* 卡面只放作品图 —— 提示词全文只在详情弹窗展示（2026-07-05 拍板）。 */}
+      <article className="group mb-4 flex break-inside-avoid flex-col overflow-hidden rounded-2xl border border-border bg-card transition-colors duration-fast hover:border-foreground/30">
         <button
           type="button"
           aria-label={t('viewDetail')}
@@ -83,7 +83,10 @@ export function InspirationCard({
             )
             setDetailOpen(true)
           }}
-          className="relative aspect-4/5 overflow-hidden bg-muted/30 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          className={cn(
+            'relative overflow-hidden text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+            hasImage && 'aspect-video bg-muted',
+          )}
         >
           {hasImage ? (
             <img
@@ -91,11 +94,11 @@ export function InspirationCard({
               alt={inspiration.authorName}
               loading="lazy"
               onError={() => setImageFailed(true)}
-              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+              className="size-full object-cover"
             />
           ) : (
-            <div className="flex size-full flex-col justify-end bg-muted/20 p-4">
-              <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-6 text-muted-foreground/85">
+            <div className="p-5">
+              <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
                 {inspiration.prompt}
               </p>
             </div>
@@ -116,6 +119,11 @@ export function InspirationCard({
         </button>
 
         <div className="flex flex-1 flex-col gap-2.5 p-4">
+          {hasImage && (
+            <p className="line-clamp-3 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
+              {inspiration.prompt}
+            </p>
+          )}
           {inspiration.categories.length > 0 && (
             <div className="flex flex-wrap items-center gap-1.5">
               {inspiration.categories.map((cat) => (
@@ -157,110 +165,133 @@ export function InspirationCard({
             </Button>
           </div>
         </div>
+        <div className="border-t border-border px-4 py-3">
+          <CopyPromptButton prompt={inspiration.prompt} />
+        </div>
       </article>
 
-      <MediaDetailViewer
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-        title={t('inspirationTitle')}
-        description={inspiration.prompt}
-        closeLabel={tCommon('close')}
-        media={
-          hasImage ? (
-            <img
-              src={inspiration.imageUrl}
-              alt={inspiration.authorName}
-              className="relative z-10 h-auto max-h-[calc(48dvh-4rem)] max-w-full rounded-2xl object-contain shadow-sm lg:max-h-[calc(100dvh-8rem)]"
-            />
-          ) : (
-            <div className="relative z-10 flex max-h-[calc(48dvh-4rem)] w-full max-w-md items-end rounded-2xl bg-muted/20 p-6 lg:max-h-[calc(100dvh-8rem)]">
-              <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-7 text-muted-foreground/90">
-                {inspiration.prompt}
-              </p>
-            </div>
-          )
-        }
-        sideHeader={
-          <div className="space-y-3">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">
-                  @{inspiration.authorName}
-                </p>
-                <a
-                  href={inspiration.sourceUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
-                >
-                  {inspiration.author}
-                  <ExternalLink className="size-3" />
-                </a>
-              </div>
-              {inspiration.modelHint ? (
-                <Badge variant="outline" className="shrink-0 rounded-full">
-                  {inspiration.modelHint}
-                </Badge>
-              ) : null}
-            </div>
-            {inspiration.likes > 0 ? (
-              <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground">
-                <Heart className="size-3" />
-                {formatCount(inspiration.likes)}
-              </span>
-            ) : null}
-          </div>
-        }
-        sideContent={
-          <div className="space-y-4">
-            <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">
+      {!hasImage ? (
+        <ResponsiveDialog open={detailOpen} onOpenChange={setDetailOpen}>
+          <ResponsiveDialogContent className="sm:max-w-2xl">
+            <ResponsiveDialogHeader>
+              <ResponsiveDialogTitle>
+                {t('inspirationTitle')}
+              </ResponsiveDialogTitle>
+              <ResponsiveDialogDescription>
+                @{inspiration.authorName}
+              </ResponsiveDialogDescription>
+            </ResponsiveDialogHeader>
+            <p className="max-h-96 overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed">
               {inspiration.prompt}
             </p>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {inspiration.categories.map((cat) => (
-                <Badge
-                  key={cat}
-                  variant="outline"
-                  className="rounded-full text-3xs"
-                >
-                  {cat}
-                </Badge>
-              ))}
+            <ResponsiveDialogFooter>
+              <CopyPromptButton prompt={inspiration.prompt} />
+              <Button disabled={isCloning} onClick={() => void handleClone()}>
+                {isCloning ? (
+                  <Spinner size="sm" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                {t('inspirationClone')}
+              </Button>
+            </ResponsiveDialogFooter>
+          </ResponsiveDialogContent>
+        </ResponsiveDialog>
+      ) : (
+        <MediaDetailViewer
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+          title={t('inspirationTitle')}
+          description={inspiration.prompt}
+          closeLabel={tCommon('close')}
+          media={
+            hasImage ? (
+              <img
+                src={inspiration.imageUrl}
+                alt={inspiration.authorName}
+                className="relative z-10 h-auto max-h-[calc(48dvh-4rem)] max-w-full rounded-2xl object-contain shadow-sm lg:max-h-[calc(100dvh-8rem)]"
+              />
+            ) : (
+              <div className="relative z-10 flex max-h-[calc(48dvh-4rem)] w-full max-w-md items-end rounded-2xl bg-muted/20 p-6 lg:max-h-[calc(100dvh-8rem)]">
+                <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-7 text-muted-foreground/90">
+                  {inspiration.prompt}
+                </p>
+              </div>
+            )
+          }
+          sideHeader={
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    @{inspiration.authorName}
+                  </p>
+                  <a
+                    href={inspiration.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
+                  >
+                    {inspiration.author}
+                    <ExternalLink className="size-3" />
+                  </a>
+                </div>
+                {inspiration.modelHint ? (
+                  <Badge variant="outline" className="shrink-0 rounded-full">
+                    {inspiration.modelHint}
+                  </Badge>
+                ) : null}
+              </div>
+              {inspiration.likes > 0 ? (
+                <span className="inline-flex items-center gap-1 rounded-full border border-border/70 bg-muted/30 px-2.5 py-1 text-xs text-muted-foreground">
+                  <Heart className="size-3" />
+                  {formatCount(inspiration.likes)}
+                </span>
+              ) : null}
             </div>
-          </div>
-        }
-        footerActions={
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Button
-              type="button"
-              size="sm"
-              disabled={isCloning}
-              onClick={() => void handleClone()}
-              className="h-10 rounded-full"
-            >
-              {isCloning ? (
-                <Spinner size="md" />
-              ) : (
-                <Sparkles className="size-4" />
-              )}
-              {isCloning ? t('inspirationCloning') : t('inspirationClone')}
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => void handleCopyPrompt()}
-              className="h-10 rounded-full"
-            >
-              <Copy className="size-4" />
-              {t('copyPrompt')}
-            </Button>
-          </div>
-        }
-        transitionOrigin={transitionOrigin}
-        transitionImageSrc={hasImage ? inspiration.imageUrl : undefined}
-        transitionImageAlt={inspiration.authorName}
-      />
+          }
+          sideContent={
+            <div className="space-y-4">
+              <p className="whitespace-pre-wrap text-sm leading-7 text-foreground">
+                {inspiration.prompt}
+              </p>
+              <div className="flex flex-wrap items-center gap-1.5">
+                {inspiration.categories.map((cat) => (
+                  <Badge
+                    key={cat}
+                    variant="outline"
+                    className="rounded-full text-3xs"
+                  >
+                    {cat}
+                  </Badge>
+                ))}
+              </div>
+            </div>
+          }
+          footerActions={
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Button
+                type="button"
+                size="sm"
+                disabled={isCloning}
+                onClick={() => void handleClone()}
+                className="h-10 rounded-full"
+              >
+                {isCloning ? (
+                  <Spinner size="md" />
+                ) : (
+                  <Sparkles className="size-4" />
+                )}
+                {isCloning ? t('inspirationCloning') : t('inspirationClone')}
+              </Button>
+              <CopyPromptButton prompt={inspiration.prompt} className="h-10" />
+            </div>
+          }
+          transitionOrigin={transitionOrigin}
+          transitionImageSrc={hasImage ? inspiration.imageUrl : undefined}
+          transitionImageAlt={inspiration.authorName}
+        />
+      )}
     </>
   )
 }

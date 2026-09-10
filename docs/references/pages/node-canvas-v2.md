@@ -119,7 +119,8 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 - **导出**：范围 整条 / I·O 区间 / 单段；「导出到画布」开关，成片落成一张视频卡并连线指回各段；断点续传（最近一条 jobId 按项目分键存 `localStorage`，⛔ 不进时间线数据）。
   - 落成的成片是一张普通的 `video.shot`（⛔ 不复活 `video.merge`），连回各段走 `reference` 槽——**端口表上唯一收视频的口**。成片自己也能作 `reference` 接进下一个镜头（`video.shot.reference` 的 `sourceKinds` 含 video，§9.4）。
   - 成片那一版带 `source.kind = 'render'`，卡上 ⋯ 的「来源」显示它（§5 / §8.3）。
-- **快捷键**：空格播放 · S 分割 · ⌫ 删段 · I / O 入出点 · ⌘Z · Esc 回画布；PR / FCP 预设二选一。
+- **文字段**（2026-09-10 owner 定，画板 `EditDeskText.dc.html`）：时间线加 **T 轨**（V 之上）；工具条「文字」= 在播放头处落一段 3s 字幕段，段上写内容首行；右栏改 内容 / 位置（九宫，默认下中）/ 字号三档 / 颜色黑白 / 入出点 / 淡入淡出（无 · 0.3 · 0.6s）；预览实时叠字，播放头不在段内不显示。数据 `tracks.text[]`：`EditTextClip{ id, text, startSec, durationSec, anchor, size: s|m|l, tone: light|dark, fadeSec }`；渲染层 `drawtext` + `alpha`，字体用系统 Noto Sans SC（⛔ 不下载字体）。T 段可拖 / 裁两端 / ⌫ / S 分割，不参与磁吸主轨。
+- **快捷键**：空格播放 · S 分割 · ⌫ 删段 · I / O 入出点 · ⌘Z · Esc 回画布；**PR / FCP 预设**放顶栏撤销键旁的键盘图标里（弹层二选一 + 当前预设键位表只读），选择记 `localStorage`，⛔ 不进时间线数据。
 - **渲染层**：自建 ffmpeg 跑在 Cloudflare Container，CF Workflows 编排，R2 收发；xfade 前的规格化（同分辨率 / 帧率 / 像素格式 / timebase）是单独一步。**时间线不在服务端算**：`RenderPlan` 由浏览器 `toRenderPlan()` 算好交上来，服务层只 Zod 校验 + 入队——但**校验不能省**，那是不可信输入（素材地址必须 http(s)）。
   - **渲染不扣积分**（owner 定，成本 ≈ $0.007 / 2 分钟成片）。护栏改用 **时长上限 + 段数上限 + 每用户在飞任务数**（`RENDER_MAX_ACTIVE_JOBS_PER_USER`）。
   - 回调 `status` 帧只更新进度，`result` 帧建 `Generation` 并收尾；**已终态的 job 一律忽略**（取消之后迟到的完成帧不能把它复活）。

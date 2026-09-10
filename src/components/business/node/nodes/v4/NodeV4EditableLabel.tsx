@@ -36,6 +36,16 @@ export interface NodeV4EditableLabelProps {
   readonly ariaLabel: string
   /** 返回 `false` = 被拒（重名/空名），输入框留在编辑态让用户改。 */
   onCommit(next: string): boolean
+  /**
+   * 什么手势进编辑态。v3 卡（`NodeCardShell`）走 `doubleClick`（spec §2：名字**单击
+   * 不进编辑**，否则选卡时蹭到名字就掉进输入框）；旧卡头保持 `click`。
+   */
+  readonly activateOn?: 'click' | 'doubleClick'
+  /**
+   * 受控入口：这个数每变一次就进一次编辑态，给 ⋯ 菜单的「改名」用。
+   * ⛔ 不要再去 `querySelector('[data-node-rename-trigger]').click()`——那是 S2 的绕路。
+   */
+  readonly renameRequest?: number
   readonly className?: string
 }
 
@@ -44,6 +54,8 @@ export function NodeV4EditableLabel({
   editValue,
   ariaLabel,
   onCommit,
+  activateOn = 'click',
+  renameRequest,
   className,
 }: NodeV4EditableLabelProps) {
   const editable = editValue ?? value
@@ -51,6 +63,14 @@ export function NodeV4EditableLabel({
   const [draft, setDraft] = useState(editable)
   const inputRef = useRef<HTMLInputElement>(null)
   const suppressBlurRef = useRef(false)
+
+  // 受控入口：渲染期同步（React 官方的「派生 state」写法），⛔ 不放 effect 里。
+  const [servedRequest, setServedRequest] = useState(renameRequest)
+  if (renameRequest !== servedRequest) {
+    setServedRequest(renameRequest)
+    setDraft(editable)
+    setEditing(true)
+  }
 
   useEffect(() => {
     if (!editing) return
@@ -120,6 +140,13 @@ export function NodeV4EditableLabel({
       onClick={(event) => {
         // ⚠ 卡头整条是展开切换按钮，改名要吃掉这一次冒泡，否则点名字会顺带
         // 把卡收起来。
+        event.stopPropagation()
+        if (activateOn !== 'click') return
+        setDraft(editable)
+        setEditing(true)
+      }}
+      onDoubleClick={(event) => {
+        if (activateOn !== 'doubleClick') return
         event.stopPropagation()
         setDraft(editable)
         setEditing(true)

@@ -50,18 +50,38 @@ describe('NodeFrame', () => {
   })
 
   it('点框外收起，点框内不收', () => {
-    const { onClose, container } = setup()
+    const { onClose } = setup()
     fireEvent.pointerDown(screen.getByText('正文'))
     expect(onClose).not.toHaveBeenCalled()
     fireEvent.pointerDown(
-      container.querySelector('[data-node-chrome="frame-scrim"]')!,
+      document.body.querySelector('[data-node-chrome="frame-scrim"]')!,
     )
     expect(onClose).toHaveBeenCalled()
   })
 
+  // ⚠ 调用方是 ReactFlow 的节点元素（`transform` 定位祖先）：不 portal 出去，
+  // 压暗层就只有一张卡那么大（真机 2026-09-10 实拍）。
+  it('自己 portal 到 document.body，压暗层是 fixed 铺满视口', () => {
+    const { container } = setup()
+    expect(container.querySelector('[data-node-chrome="frame"]')).toBeNull()
+    const scrim = document.body.querySelector<HTMLElement>(
+      '[data-node-chrome="frame-scrim"]',
+    )!
+    expect(scrim.parentElement).toBe(document.body)
+    expect(scrim.className).toContain('fixed')
+    expect(scrim.className).not.toContain('absolute')
+  })
+
+  it('顶栏名字是 13px（text-2sm）+ semibold，⛔ 不是画板那版 14', () => {
+    setup()
+    const heading = screen.getByRole('heading', { name: 'S02 · 站台独白' })
+    expect(heading.className).toContain('text-2sm')
+    expect(heading.className).toContain('font-semibold')
+  })
+
   it('宽度由调用方给（文本 640 / 视频 720），走 spring-expand', () => {
-    const { container } = setup({ width: NODE_V4_CHROME.frameWidth.video })
-    const frame = container.querySelector<HTMLElement>(
+    setup({ width: NODE_V4_CHROME.frameWidth.video })
+    const frame = document.body.querySelector<HTMLElement>(
       '[data-node-chrome="frame"]',
     )!
     expect(frame.style.width).toBe('720px')

@@ -42,20 +42,9 @@ import { listLiveConnectableSlots } from '@/lib/node-slot-binding'
 import { cn } from '@/lib/utils'
 import type { NodeV4, NodeV4Data } from '@/types/node-workflow'
 
+import { PORT_CLASS } from './chrome/NodePorts'
 import { NodeV4EditableLabel } from './NodeV4EditableLabel'
 import { useNodeV4Canvas } from './NodeV4Context'
-
-/**
- * 端口点（脊柱以外唯一的画布专属视觉：四族色）。
- *
- * ⚠ **对比度实测**（`contrast-check`，非文本图形对象门槛 3:1，2026-09-07）：
- * 浅色卡 `#fff` 上 600 档 —— sky 4.10 · emerald 3.77 · amber 3.19 · violet 5.70；
- * 暗色卡 `oklch(20.5% 0 0)`（`#171717`）上 400 档 —— sky 8.37 · emerald 9.33 ·
- * amber 10.74 · violet 6.59。⛔ 原先的 `600/70` 半透明档四色全部落在 2.1–3.4，
- * amber/violet 在其中一档不达标，已整档换掉，不要改回半透明。
- */
-const PORT_CLASS =
-  '!size-2.5 !border !border-background !bg-muted-foreground data-[family=text]:!bg-sky-600 dark:data-[family=text]:!bg-sky-400 data-[family=image]:!bg-emerald-600 dark:data-[family=image]:!bg-emerald-400 data-[family=audio]:!bg-amber-600 dark:data-[family=audio]:!bg-amber-400 data-[family=video]:!bg-violet-600 dark:data-[family=video]:!bg-violet-400'
 
 const STATUS_DOT: Record<string, string> = {
   idle: 'bg-muted-foreground/50',

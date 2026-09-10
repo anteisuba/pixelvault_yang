@@ -64,17 +64,25 @@ export interface NodeToolbarProps {
 const ToolbarCell = forwardRef<
   HTMLButtonElement,
   { action: NodeToolbarAction } & ComponentPropsWithoutRef<'button'>
->(function ToolbarCell({ action, className, ...rest }, ref) {
+>(function ToolbarCell({ action, className, onClick, ...rest }, ref) {
   const Icon = action.icon
   return (
     <button
+      // ⚠ `{...rest}` 必须在自己的 props **之前**：Radix 的 `asChild` 把
+      // `Tooltip.Trigger` / `DropdownMenuTrigger` 的 `onClick` 合并进来，展开在后面
+      // 会整个盖掉动作——真机 2026-09-10 抓到「工具条每个键都点不动」就是这条。
+      // 触发器的 onClick 与动作**都要跑**，所以在这里手动串起来。
+      {...rest}
       ref={ref}
       type="button"
       aria-label={action.label}
       data-toolbar-action={action.id}
       data-active={action.active ? 'true' : undefined}
       disabled={action.disabled}
-      onClick={action.onSelect}
+      onClick={(event) => {
+        onClick?.(event)
+        action.onSelect()
+      }}
       className={cn(
         // 34px 格（`NODE_V4_CHROME.toolbarCellSize`）= size-8.5；圆角 10px = rounded-lg。
         'nodrag nopan flex size-8.5 items-center justify-center rounded-lg transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-95',
@@ -86,7 +94,6 @@ const ToolbarCell = forwardRef<
         action.active && 'bg-surface-fill-hover',
         className,
       )}
-      {...rest}
     >
       <Icon aria-hidden className="size-4" />
     </button>

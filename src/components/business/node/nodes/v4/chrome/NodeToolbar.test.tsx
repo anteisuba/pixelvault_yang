@@ -30,7 +30,32 @@ describe('NodeToolbar', () => {
     render(<NodeToolbar ariaLabel="工具条" groups={[[action('download')]]} />)
     const button = screen.getByRole('button', { name: 'download' })
     expect(button.textContent).toBe('')
-    fireEvent.click(button)
+  })
+
+  // ⚠ 回归闸：`ToolbarCell` 曾把 `{...rest}` 展开在 `onClick` **之后**，
+  // Radix `Tooltip.Trigger` 自带的 onClick 把动作整个盖掉——真机上工具条每个键
+  // 都点不动（2026-09-10）。这一条必须用**真的** Tooltip 壳跑，桩掉就测不到。
+  it('点一下就调 onSelect（tooltip trigger 的 onClick ⛔ 不能盖掉动作）', () => {
+    const download = action('download')
+    render(<NodeToolbar ariaLabel="工具条" groups={[[download]]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'download' }))
+    expect(download.onSelect).toHaveBeenCalledTimes(1)
+  })
+
+  it('带 menu 的项点一下同样调 onSelect（菜单与动作各跑各的）', () => {
+    const edit = action('edit', {
+      menu: <DropdownMenuItem>局部重绘</DropdownMenuItem>,
+    })
+    render(<NodeToolbar ariaLabel="工具条" groups={[[edit]]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'edit' }))
+    expect(edit.onSelect).toHaveBeenCalledTimes(1)
+  })
+
+  it('禁用项点不动', () => {
+    const off = action('off', { disabled: true })
+    render(<NodeToolbar ariaLabel="工具条" groups={[[off]]} />)
+    fireEvent.click(screen.getByRole('button', { name: 'off' }))
+    expect(off.onSelect).not.toHaveBeenCalled()
   })
 
   it('危险项走 destructive 皮肤，禁用项不可点', () => {

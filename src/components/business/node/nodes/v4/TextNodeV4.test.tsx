@@ -31,11 +31,10 @@ vi.mock(
 )
 
 /**
- * ⚠ S0 的 `chrome/NodeToolbar` 目前**吞掉普通按钮的点击**：`ToolbarCell` 把
- * `{...rest}` 展开在 `onClick={action.onSelect}` **之后**，而 Radix
- * `Tooltip.Trigger` 自己带一个 `onClick`（关 tooltip），于是动作那一半被覆盖。
- * 本组测试断言的是**本片的接线**（哪一键接哪个回调），所以把那层壳桩掉；
- * 那条 bug 记在交付报告里，由 S0 修（⛔ 本片不改 `chrome/**`）。
+ * 本组测试断言的是**本片的接线**（哪一键接哪个回调），所以把工具条那层壳桩掉：
+ * 玻璃胶囊 / tooltip / 子菜单是 `chrome/NodeToolbar` 自己的事，回归闸在
+ * `chrome/NodeToolbar.test.tsx`（其中就有「点一下必须真的调 onSelect」那条——
+ * 那个覆盖 bug 已于 2026-09-10 修）。
  */
 vi.mock('./chrome/NodeToolbar', () => ({
   NodeToolbar: ({
@@ -143,6 +142,7 @@ function harness(
     onSetParams: vi.fn(),
     onSetMedia: vi.fn(),
     onApplyOp: vi.fn(),
+    onApplyBatch: vi.fn(),
     onTidyLayout: vi.fn(),
     canUndo: false,
     canRedo: false,

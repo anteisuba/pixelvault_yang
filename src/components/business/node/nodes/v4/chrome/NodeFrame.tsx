@@ -12,9 +12,15 @@
  * 原地长大」，线性缓动会读成面板切换）。
  *
  * 宽度由调用方给：文本 640 / 视频 720（`NODE_V4_CHROME.frameWidth`）。
+ *
+ * ⚠ **自己 portal 到 `document.body`**：调用方是 ReactFlow 的节点元素（`transform`
+ * 定位祖先），留在原地的话 `fixed` 压暗层会被那层 transform 关进卡里——真机
+ * 2026-09-10 实拍到「压暗层只有一张卡那么大」。⛔ 不把这件事推回四类节点各自
+ * `createPortal` 一次（S2 曾这么绕过，已删）。
  */
 
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { X } from 'lucide-react'
 
@@ -62,15 +68,15 @@ export function NodeFrame({
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [open, onClose])
 
-  if (!open) return null
+  if (!open || typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div
       data-node-chrome="frame-scrim"
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
-      className="absolute inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/55 p-10"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/55 p-10"
     >
       <div
         role="dialog"
@@ -105,6 +111,7 @@ export function NodeFrame({
           <div className="shrink-0 px-3 pb-3">{assistantBar}</div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

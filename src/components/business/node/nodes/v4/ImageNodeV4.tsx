@@ -16,13 +16,13 @@
  *    （上传与生成都是用户的动作，⛔ 助手不许塞 URL —— op 表 §5 纪律 1）。
  * ③ **参数与模型走 `onSetParams` / `onSetModel`**，⛔ 不在组件里存一份影子状态。
  *
- * ── 本片留下的三个缺口（都在报告里点名，⛔ 不用假控件糊上）────────────────
- * · **产出版本**在数据层还没有落点（`slots[].versions` 是入口槽的版本），所以版本
- *   点今天只有一颗、`VersionDots` 自己不渲染；读侧收在 `imageVersions()`。
- * · **⋯ 的「改名」**需要 `NodeCardShell` 给一个「进入改名态」的入口（今天只有双击
- *   名字）；「设为角色卡」需要 op 表允许写 `subtype`。两者都不在本片的所有权里。
- * · **「生镜头」**只能建出视频节点：把它连成首帧要在**同一批**里解 `ref`，而卡片
- *   契约上只有单条 `onApplyOp`。
+ * ── S3b 补上的三处（原来的缺口）────────────────────────────────────────
+ * · **产出版本**有了数据层落点（`outputs.versions`）：小点读 `imageVersions()`、
+ *   切版本发 `set_output_version`。⛔ 组件里不再存一份影子 `versionIndex`——
+ *   那会与卡上真正显示的那一版漂开。
+ * · **「设为角色卡」**走 `set_subtype`（撤销回原来的子型，不是一个恰好同名的字段值）。
+ * · **「生镜头」**是**一批**：`[add_node video.shot(ref), connect this→ref.firstFrame]`
+ *   —— 批内别名表让第二条认得出刚建的那张，且两条合成一个撤销条目。
  */
 
 import { Handle, NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
@@ -33,6 +33,7 @@ import { Clapperboard, Download, MoreHorizontal, Pencil } from 'lucide-react'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
 import { getNodeV4Ports } from '@/constants/node-slots'
 import {
@@ -41,6 +42,7 @@ import {
 } from '@/constants/node-studio'
 import {
   NODE_MEDIA_KIND_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
@@ -70,6 +72,8 @@ import {
   ImageEditMenuItems,
   ImageMoreMenuItems,
 } from './image/ImageNodeMenus'
+import { readOutputIndex } from '@/lib/node-output-versions'
+
 import {
   collapsedImageHeight,
   collapsedImageWidth,
@@ -83,6 +87,9 @@ import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 
 export { collapsedImageWidth, formatSizeBytes }
+
+/** 「生镜头」那一批里指代新建镜头的别名（只在这一批之内有效）。 */
+const SHOT_BATCH_REF = 'shot'
 
 /** 空卡高：16:9（画板 280×200 那张的同一档比例）。 */
 function emptyCardHeight(width: number): number {
@@ -150,7 +157,6 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const [assetPicker, setAssetPicker] = useState(false)
   const [editTask, setEditTask] =
     useState<ReadyCanvasImageEditCapabilityId | null>(null)
-  const [versionIndex, setVersionIndex] = useState(0)
   const [draft, setDraft] = useState(imageData.prompt ?? '')
   const [syncedPrompt, setSyncedPrompt] = useState(imageData.prompt ?? '')
   const [startedAt, setStartedAt] = useState<number | null>(null)
@@ -227,6 +233,15 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   if (!node) return null
 
   const versions = imageVersions(imageData)
+  // ⚠ 当前版**从数据读**（`outputs.cur`），⛔ 不在组件里存一份 useState：
+  // 助手发 `set_output_version` 时组件那份不会跟，卡上显示的图与小点会对不上。
+  const versionIndex = readOutputIndex(imageData)
+  const selectVersion = (index: number) =>
+    void canvas.onApplyOp({
+      op: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
+      target: id,
+      index,
+    })
   const width = imageData.url
     ? collapsedImageWidth(imageData)
     : NODE_V4_CARD.collapsedWidth
@@ -263,17 +278,22 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           prompt: draft,
           // 落 job id = 持久化「有一单在飞」：刷新之后由回填 hook 取回结果。
           onJobCreated: (jobId) => canvas.onSetMedia(id, { mediaJobId: jobId }),
+          // ⚠ 回填写在 `onEach` 里而不是 `.then`：张数 > 1 时是顺序发的 N 枪，
+          // `.then` 只拿得到最后一枪 —— 前面几张会一张都不落。每一枪各追加一个
+          // 产出版本（S3b §1.8），卡下那排小点因此长出来。
+          onEach: (result) => {
+            if (!result.success) return
+            canvas.onSetMedia(id, {
+              url: result.mediaUrl,
+              generationId: result.generation.id,
+              mediaJobId: undefined,
+              imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
+            })
+          },
         },
       )
-      .then((result) => {
+      .then(() => {
         setStartedAt(null)
-        if (!result.success) return
-        canvas.onSetMedia(id, {
-          url: result.mediaUrl,
-          generationId: result.generation.id,
-          mediaJobId: undefined,
-          imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.generated,
-        })
       })
   }
 
@@ -283,15 +303,27 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         id: 'shot',
         label: tImage('toolbar.shot'),
         icon: Clapperboard,
+        // ⚠ **一批两条**：建镜头 + 把这张图连成它的首帧。批内别名（`ref`）让第二
+        // 条认得出刚建的那张，⛔ 循环发两条 `onApplyOp` 做不到（第二条时那个
+        // 节点还不在闭包里的 state 上），且撤销会碎成两步。
         onSelect: () =>
-          void canvas.onApplyOp({
-            op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-            kind: NODE_MEDIA_KIND_IDS.video,
-            subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
-            ...(imageData.shotNo === undefined
-              ? {}
-              : { shotNo: imageData.shotNo }),
-          }),
+          void canvas.onApplyBatch([
+            {
+              op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+              kind: NODE_MEDIA_KIND_IDS.video,
+              subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+              ref: SHOT_BATCH_REF,
+              ...(imageData.shotNo === undefined
+                ? {}
+                : { shotNo: imageData.shotNo }),
+            },
+            {
+              op: NODE_ASSISTANT_OP_V4_IDS.connect,
+              source: id,
+              target: SHOT_BATCH_REF,
+              slot: NODE_SLOT_IDS.firstFrame,
+            },
+          ]),
       },
       {
         id: 'edit',
@@ -317,6 +349,16 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         onSelect: () => {},
         menu: (
           <ImageMoreMenuItems
+            onSetCharacter={
+              imageData.subtype === NODE_V4_IMAGE_SUBTYPE_IDS.character
+                ? undefined
+                : () =>
+                    void canvas.onApplyOp({
+                      op: NODE_ASSISTANT_OP_V4_IDS.setSubtype,
+                      target: id,
+                      subtype: NODE_V4_IMAGE_SUBTYPE_IDS.character,
+                    })
+            }
             onDuplicate={() =>
               void canvas.onApplyOp({
                 op: NODE_ASSISTANT_OP_V4_IDS.addNode,
@@ -386,6 +428,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         emptyHeight={emptyCardHeight(width)}
         onEmptyAdd={() => fileRef.current?.click()}
         surfaceClassName="overflow-hidden"
+        changed={canvas.changedNodeIds.includes(id)}
         ports={<ImagePorts node={node} />}
       >
         {imageData.url ? (
@@ -432,7 +475,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             <VersionDots
               count={versions.length}
               current={Math.min(versionIndex, versions.length - 1)}
-              onSelect={setVersionIndex}
+              onSelect={selectVersion}
               ariaLabel={t('chrome.versions')}
               labelOf={(index) =>
                 t('chrome.versionOf', {
@@ -462,9 +505,22 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                   key="frame"
                   aspectRatio={imageData.params?.aspectRatio}
                   modelId={imageData.model?.modelId}
+                  model={imageData.model}
+                  quality={imageData.params?.quality}
+                  resolution={imageData.params?.resolution}
+                  count={imageData.params?.count}
                   disabled={generating}
                   onAspectRatioChange={(aspectRatio) =>
                     canvas.onSetParams(id, { ...imageData.params, aspectRatio })
+                  }
+                  onQualityChange={(quality) =>
+                    canvas.onSetParams(id, { ...imageData.params, quality })
+                  }
+                  onResolutionChange={(resolution) =>
+                    canvas.onSetParams(id, { ...imageData.params, resolution })
+                  }
+                  onCountChange={(count) =>
+                    canvas.onSetParams(id, { ...imageData.params, count })
                   }
                 />,
                 modelOptions.length > 0 ? (
@@ -518,7 +574,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
             ? {
                 versionCount: versions.length,
                 versionIndex,
-                onVersionChange: setVersionIndex,
+                onVersionChange: selectVersion,
               }
             : {})}
           readout={

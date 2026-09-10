@@ -671,3 +671,212 @@ describe('审核态 op（C3c-③b）', () => {
     expect(back?.kind === 'image' ? back.mediaReview : null).toBeUndefined()
   })
 })
+
+/* ── S3b：产出版本 + 子型 ───────────────────────────────────────────── */
+
+/** 带两版产出的图片卡。 */
+function versionedImageNode(id: string): NodeV4 {
+  return {
+    id,
+    position: { x: 10, y: 20 },
+    data: {
+      kind: 'image',
+      subtype: 'result',
+      name: id,
+      status: 'idle',
+      createdAt: NOW,
+      url: 'https://cdn/b.png',
+      outputs: {
+        versions: [
+          {
+            id: 'ov_1',
+            url: 'https://cdn/a.png',
+            createdAt: NOW,
+            meta: { mediaWidth: 100, mediaHeight: 50 },
+          },
+          { id: 'ov_2', url: 'https://cdn/b.png', createdAt: NOW },
+        ],
+        cur: 1,
+      },
+    },
+  }
+}
+
+describe('set_output_version：卡下那排小点', () => {
+  const state = (): NodeWorkflowStateV4 => ({
+    version: 4,
+    nodes: [versionedImageNode('i_v')],
+    edges: [],
+  })
+
+  it('切到第 0 版：顶层 url 与尺寸都跟着回去', () => {
+    const result = applyNodeAssistantOpV4(
+      state(),
+      { op: 'set_output_version', target: 'i_v', index: 0 },
+      makeContext(),
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const data = result.state.nodes[0]!.data as {
+      url?: string
+      mediaWidth?: number
+    }
+    expect(data.url).toBe('https://cdn/a.png')
+    expect(data.mediaWidth).toBe(100)
+    expect(result.changedNodeIds).toEqual(['i_v'])
+  })
+
+  it('inverse 是**原来那个下标**，撤销回得去', () => {
+    const before = state()
+    const result = applyNodeAssistantOpV4(
+      before,
+      { op: 'set_output_version', target: 'i_v', index: 0 },
+      makeContext(),
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(result.inverse).toEqual({
+      kind: 'op',
+      op: { op: 'set_output_version', target: 'i_v', index: 1 },
+    })
+    const back = applyInverseV4(result.state, result.inverse, makeContext())
+    expect((back.nodes[0]!.data as { url?: string }).url).toBe(
+      'https://cdn/b.png',
+    )
+  })
+
+  it('越界**失败可见**，⛔ 不静默钳到最后一版', () => {
+    const result = applyNodeAssistantOpV4(
+      state(),
+      { op: 'set_output_version', target: 'i_v', index: 7 },
+      makeContext(),
+    )
+    expect(result).toMatchObject({ ok: false, reason: 'unknownOutputVersion' })
+  })
+
+  it('文本卡没有产出可切', () => {
+    const result = applyNodeAssistantOpV4(
+      baseState(),
+      { op: 'set_output_version', target: 't_02', index: 0 },
+      makeContext(),
+    )
+    expect(result).toMatchObject({ ok: false, reason: 'notAGeneratedNode' })
+  })
+})
+
+describe('split_output_version：拆出当前版本', () => {
+  const state = (): NodeWorkflowStateV4 => ({
+    version: 4,
+    nodes: [versionedImageNode('i_v')],
+    edges: [],
+  })
+
+  it('非破坏：原卡版本表一个字不动，新卡只带那一版', () => {
+    const before = state()
+    const result = applyNodeAssistantOpV4(
+      before,
+      { op: 'split_output_version', target: 'i_v', index: 0 },
+      makeContext(),
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const origin = result.state.nodes.find((node) => node.id === 'i_v')!
+    expect(
+      (origin.data as { outputs?: { versions: unknown[] } }).outputs?.versions,
+    ).toHaveLength(2)
+
+    const spawned = result.state.nodes.find((node) => node.id !== 'i_v')!
+    const data = spawned.data as {
+      url?: string
+      mediaWidth?: number
+      outputs?: { versions: unknown[]; cur: number }
+    }
+    expect(data.url).toBe('https://cdn/a.png')
+    expect(data.mediaWidth).toBe(100)
+    expect(data.outputs?.versions).toHaveLength(1)
+    // ⛔ 不与原卡重叠。
+    expect(spawned.position).not.toEqual(origin.position)
+  })
+
+  it('缺省 index = 当前版；inverse 是删掉刚拆出来的那张', () => {
+    const result = applyNodeAssistantOpV4(
+      state(),
+      { op: 'split_output_version', target: 'i_v' },
+      makeContext(),
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    const spawned = result.state.nodes.find((node) => node.id !== 'i_v')!
+    expect((spawned.data as { url?: string }).url).toBe('https://cdn/b.png')
+    expect(result.inverse).toEqual({ kind: 'removeNode', nodeId: spawned.id })
+    const back = applyInverseV4(result.state, result.inverse, makeContext())
+    expect(back.nodes).toHaveLength(1)
+  })
+})
+
+describe('set_subtype：设为角色卡', () => {
+  it('image 子型可换，inverse 回原来的子型', () => {
+    const before = baseState()
+    const result = applyNodeAssistantOpV4(
+      before,
+      { op: 'set_subtype', target: 'i_a', subtype: 'character' },
+      makeContext(),
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect((result.state.nodes[0]!.data as { subtype: string }).subtype).toBe(
+      'character',
+    )
+    expect(result.inverse).toEqual({
+      kind: 'op',
+      op: { op: 'set_subtype', target: 'i_a', subtype: 'shot' },
+    })
+    const back = applyInverseV4(result.state, result.inverse, makeContext())
+    expect((back.nodes[0]!.data as { subtype: string }).subtype).toBe('shot')
+  })
+
+  it('同一个子型不算一步（⛔ 不给撤销栈塞一条什么都没变的条目）', () => {
+    const result = applyNodeAssistantOpV4(
+      baseState(),
+      { op: 'set_subtype', target: 'i_a', subtype: 'shot' },
+      makeContext(),
+    )
+    expect(result).toMatchObject({ ok: false, reason: 'noChange' })
+  })
+
+  it('⛔ 只有 image 有子型可换：视频卡拒绝', () => {
+    const result = applyNodeAssistantOpV4(
+      baseState(),
+      { op: 'set_subtype', target: 'v_02', subtype: 'character' },
+      makeContext(),
+    )
+    expect(result).toMatchObject({ ok: false, reason: 'notAnImageNode' })
+  })
+})
+
+describe('批操作：refs 别名（「生镜头」那一批）', () => {
+  it('第二条 connect 认得出第一条刚建的那张', () => {
+    const run = runBatch(baseState(), [
+      {
+        op: 'add_node',
+        kind: 'video',
+        subtype: 'shot',
+        ref: 'shot',
+      },
+      {
+        op: 'connect',
+        source: 'i_a',
+        target: 'shot',
+        slot: NODE_SLOT_IDS.firstFrame,
+      },
+    ])
+    const created = run.state.nodes.find(
+      (node) => !baseState().nodes.some((old) => old.id === node.id),
+    )!
+    expect(run.state.edges).toHaveLength(1)
+    expect(run.state.edges[0]).toMatchObject({
+      source: 'i_a',
+      target: created.id,
+    })
+  })
+})

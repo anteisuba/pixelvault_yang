@@ -98,6 +98,16 @@ export function NodeV4Provider({
     [dispatch],
   )
 
+  // ⚠ 直接把引擎那颗 `dispatchBatch` 递出去：别名表（`add_node.ref`）与「一批 =
+  // 一个撤销条目」都长在它身上，⛔ 不在这一层循环调 `dispatch` 重造一个。
+  const dispatchBatch = engine.dispatchBatch
+  const onApplyBatch = useCallback(
+    (ops: readonly NodeAssistantOpV4[]) => {
+      dispatchBatch(ops)
+    },
+    [dispatchBatch],
+  )
+
   const onToggleExpanded = engine.toggleExpanded
 
   const onSelectSlotVersion = useCallback(
@@ -191,6 +201,7 @@ export function NodeV4Provider({
       onSetParams,
       onSetMedia,
       onApplyOp,
+      onApplyBatch,
       onTidyLayout,
       canUndo: engine.canUndo,
       canRedo: engine.canRedo,
@@ -219,6 +230,7 @@ export function NodeV4Provider({
       onSetParams,
       onSetMedia,
       onApplyOp,
+      onApplyBatch,
       onTidyLayout,
       onUndo,
       onRedo,

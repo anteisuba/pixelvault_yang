@@ -7,7 +7,16 @@
 
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { IMAGE_SIZES, type AspectRatio } from '@/constants/config'
-import { NODE_V4_CARD } from '@/constants/node-studio'
+import {
+  ADAPTER_CAPABILITIES,
+  getCapabilityConfig,
+} from '@/constants/provider-capabilities'
+import { IMAGE_BATCH_COUNTS } from '@/constants/studio'
+import {
+  NODE_V4_CARD,
+  NODE_V4_IMAGE_QUALITY_COST,
+} from '@/constants/node-studio'
+import { readOutputVersions } from '@/lib/node-output-versions'
 import {
   formatUnitPriceAmount,
   getModelUnitPriceByStringId,
@@ -59,15 +68,108 @@ export function formatSizeBytes(bytes: number): string {
 }
 
 /**
- * 这张卡当前有几版、看的是第几版（spec §1.8）。
+ * 这张卡交付过的每一版的地址（spec §1.8）—— 版本点唯一的读侧。
  *
- * ⚠ **今天只有一版**：v4 的图片节点身上只有一个 `url`，「一张卡 N 个产出版本」
- * 在数据层还没有落点（`slots[].versions` 是**入口槽**的版本，不是产出）。所以
- * 这个函数是版本点唯一的读侧：数据层补上产出版本表之后只改这里，⛔ 组件里不再
- * 各自拼一份列表。少于两版时 `VersionDots` 自己不渲染。
+ * ⚠ S3b 起数据层有了产出版本表（`outputs.versions`），所以这里不再是「永远一
+ * 条」。读的是 `readOutputVersions`，⛔ 组件里不再各自拼一份列表：存量卡（只有
+ * 裸 `url`）在那一层就已经被当成一版了。少于两版时 `VersionDots` 自己不渲染。
  */
 export function imageVersions(data: NodeV4ImageData): readonly string[] {
-  return data.url ? [data.url] : []
+  return readOutputVersions(data).map((version) => version.url)
+}
+
+/**
+ * 画面弹层里的**质量 / 分辨率 / 张数**三段（spec §3）。
+ *
+ * ⚠ 三段都返回 `{ value, disabled }` 而不是「过滤后的可选项」：Hard Rule 8 那条
+ * 「不支持的档**禁用不隐藏**」—— 换一个模型时档位数目不变、只是灰掉几个，用户
+ * 因此看得见「这个模型少了 4K」，而不是弹层莫名其妙变矮了一截。
+ *
+ * ⚠ 值域来自**能力表**（`getCapabilityConfig`），⛔ 不在这里另列一份：模型加一
+ * 档质量时这里自动跟上。能力表没声明 = 这个模型这一整段不可用（返回空数组，
+ * 渲染层整段不画 —— 那是组级不可用，与「某一档灰掉」是两件事）。
+ */
+export interface ImageSpecOption {
+  readonly value: string
+  readonly disabled: boolean
+}
+
+function optionsFrom(
+  all: readonly string[],
+  supported: readonly string[] | undefined,
+): readonly ImageSpecOption[] {
+  if (!supported || supported.length === 0) return []
+  return all.map((value) => ({ value, disabled: !supported.includes(value) }))
+}
+
+/** 全仓出现过的质量档之并集 —— 灰掉哪几档由每个模型的能力表决定。 */
+export const IMAGE_QUALITY_TIERS = Object.keys(
+  NODE_V4_IMAGE_QUALITY_COST,
+) as readonly string[]
+
+/** 全仓出现过的分辨率档之并集。 */
+export const IMAGE_RESOLUTION_TIERS = [
+  'auto',
+  '1K',
+  '2K',
+  '4K',
+] as const satisfies readonly string[]
+
+/**
+ * 能力表查询。⚠ 先问 adapter 在不在表里：`getCapabilityConfig` 直接下标一个
+ * `Record`，认不出来的 adapter 会返回 `undefined` 而它的签名说不会 —— 弹层因此
+ * 整张卡白屏。⛔ 不给不认识的 adapter 编一份能力。
+ */
+function capabilityOf(
+  model: Pick<NodeWorkflowModelOption, 'adapterType' | 'modelId'>,
+) {
+  if (!(model.adapterType in ADAPTER_CAPABILITIES)) return undefined
+  return getCapabilityConfig(model.adapterType, model.modelId)
+}
+
+export function imageQualityOptions(
+  model: Pick<NodeWorkflowModelOption, 'adapterType' | 'modelId'> | undefined,
+): readonly ImageSpecOption[] {
+  if (!model) return []
+  return optionsFrom(IMAGE_QUALITY_TIERS, capabilityOf(model)?.qualityOptions)
+}
+
+export function imageResolutionOptions(
+  model: Pick<NodeWorkflowModelOption, 'adapterType' | 'modelId'> | undefined,
+): readonly ImageSpecOption[] {
+  if (!model) return []
+  return optionsFrom(
+    IMAGE_RESOLUTION_TIERS,
+    capabilityOf(model)?.resolutionOptions,
+  )
+}
+
+/**
+ * 张数档。⚠ 本仓 **1 请求 = 1 张**，所以档位直接是 `IMAGE_BATCH_COUNTS`，
+ * ⛔ 不在这里抄一份 `[1,2,4]`。张数与模型无关 —— 一档都不灰。
+ */
+export const IMAGE_COUNT_OPTIONS: readonly ImageSpecOption[] =
+  IMAGE_BATCH_COUNTS.map((count) => ({ value: String(count), disabled: false }))
+
+/**
+ * 这一次大概花多少：**单价 × 张数 × 质量系数**。
+ *
+ * ⚠ 系数是**估价**不是账单：真正扣多少由服务端按实际用量算（`generate` 那条 op
+ * 仍是唯一扣 credit 的地方）。所以这里给的是一个让用户「点之前心里有数」的数，
+ * ⛔ 不拿它去做任何闸。缺单价时返回 `null` —— ⛔ 不写「$0」。
+ */
+export function imageCostEstimate(
+  modelId: string | undefined,
+  params: { readonly quality?: string; readonly count?: number } = {},
+): number | null {
+  const price = modelId ? getModelUnitPriceByStringId(modelId) : null
+  if (!price || price.unit !== 'image') return null
+  const count = params.count ?? 1
+  const multiplier =
+    NODE_V4_IMAGE_QUALITY_COST[
+      (params.quality ?? '') as keyof typeof NODE_V4_IMAGE_QUALITY_COST
+    ] ?? 1
+  return price.amount * count * multiplier
 }
 
 /**
@@ -81,12 +183,14 @@ export function imageVersions(data: NodeV4ImageData): readonly string[] {
 export function imageFrameReadout(
   aspectRatio: string | undefined,
   modelId: string | undefined,
+  params: { readonly quality?: string; readonly count?: number } = {},
 ): string {
   const size = IMAGE_SIZES[(aspectRatio ?? '') as AspectRatio]
   const dimension = size ? `${size.width}×${size.height}` : null
-  const price = modelId ? getModelUnitPriceByStringId(modelId) : null
-  const priceText =
-    price && price.unit === 'image' ? formatUnitPriceAmount(price.amount) : null
+  const estimate = imageCostEstimate(modelId, params)
+  // ⚠ USD 的格式化沿用 `formatUnitPriceAmount`，⛔ 不在这里自己拼 `$`：
+  // 单价那一层已经决定了小数位与币种。
+  const priceText = estimate === null ? null : formatUnitPriceAmount(estimate)
   return [dimension, priceText].filter(Boolean).join(' · ')
 }
 

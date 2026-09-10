@@ -52,6 +52,10 @@ import {
   resolveNodeDisplayName,
 } from '@/lib/node-display-name'
 import {
+  buildOutputsFromLegacy,
+  isMediaNodeData,
+} from '@/lib/node-output-versions'
+import {
   composeShotTextBody,
   getNodeWorkflowFieldValue,
 } from '@/lib/node-workflow-prompt'
@@ -473,6 +477,19 @@ function buildNodeData(
   }
 }
 
+/**
+ * 存量的单 `url` → `outputs.versions[0]`（S3b §1.8）。
+ *
+ * ⚠ 迁移里回填不是为了「能读出来」—— 读侧 `readOutputVersions` 本来就把裸 `url`
+ * 当一版。⭐ 是为了让**下一次生成**追加时有一张表可追加：没有表的话
+ * `appendOutputVersion` 只能从 legacy 那一版重建，而那一版没有铸过 id。
+ */
+function withLegacyOutputs(data: NodeV4Data): NodeV4Data {
+  if (!isMediaNodeData(data)) return data
+  const outputs = buildOutputsFromLegacy(data)
+  return outputs ? ({ ...data, outputs } as NodeV4Data) : data
+}
+
 export interface MigrationResult {
   state: NodeWorkflowStateV4
   stats: MigrationStats
@@ -546,7 +563,9 @@ export function migrateNodeWorkflowStateToV4(
     nodes.push({
       id: node.id,
       position: node.position,
-      data: buildNodeData(node, identity, name, shotNo, createdAt, label),
+      data: withLegacyOutputs(
+        buildNodeData(node, identity, name, shotNo, createdAt, label),
+      ),
     })
     const key = `${identity.kind}.${identity.subtype}`
     stats.byTarget[key] = (stats.byTarget[key] ?? 0) + 1

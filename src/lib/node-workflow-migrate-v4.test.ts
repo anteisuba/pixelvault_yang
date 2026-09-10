@@ -416,3 +416,25 @@ describe('buildV3BackupKey', () => {
     expect(a).not.toBe(b)
   })
 })
+
+describe('S3b：存量的单 url 收进 outputs.versions[0]', () => {
+  it('有 url 的节点回填出一版；空卡不造空表', () => {
+    const { state } = migrateNodeWorkflowStateToV4(fullFixture())
+    const shot = state.nodes.find((node) => node.id === 'n_shot')!
+    const outputs = (
+      shot.data as { outputs?: { versions: { url: string }[]; cur: number } }
+    ).outputs
+    expect(outputs?.versions).toHaveLength(1)
+    expect(outputs?.versions[0]?.url).toBe('https://x/1.png')
+    expect(outputs?.cur).toBe(0)
+
+    const empty = state.nodes.find((node) => node.id === 'n_bg')!
+    expect((empty.data as { outputs?: unknown }).outputs).toBeUndefined()
+  })
+
+  it('文本节点没有产出版本可言', () => {
+    const { state } = migrateNodeWorkflowStateToV4(fullFixture())
+    const text = state.nodes.find((node) => node.id === 'n_text')!
+    expect((text.data as { outputs?: unknown }).outputs).toBeUndefined()
+  })
+})

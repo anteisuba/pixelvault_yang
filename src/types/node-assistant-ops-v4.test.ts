@@ -14,7 +14,10 @@ describe('v4 op 表（spec §5）', () => {
     // C3c-②Q 新增两条：`set_voice_profile` / `set_merge_clips`（嵌套载荷，
     // 不并进 `set_field`，理由见 `NODE_ASSISTANT_OP_V4_IDS` 上的注释）。
     // 第三期加一条只读的 `plan_rerun_downstream`（只列名单，不改图不花钱）。
-    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(21)
+    // S3b 再加三条：`set_output_version` / `split_output_version` 是**产出**版本
+    // 那一排小点（⚠ 与入口槽的 `set_slot_version` 是两件事），`set_subtype` 是
+    // 「设为角色卡」（⚠ 不并进 `set_field`：换子型会换一套槽位与工具条）。
+    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(24)
     expect(Object.keys(NODE_ASSISTANT_OP_V4_SPECS).sort()).toEqual(
       [...NODE_ASSISTANT_OPS_V4].sort(),
     )

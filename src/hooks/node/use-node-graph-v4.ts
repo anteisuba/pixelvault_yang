@@ -35,7 +35,7 @@ import { useCallback, useMemo, useRef, useState } from 'react'
 import { applyNodeChanges, type NodeChange } from '@xyflow/react'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
-import { NODE_V4_CARD } from '@/constants/node-studio'
+import { NODE_V4_CARD, NODE_V4_OUTPUT_VERSION } from '@/constants/node-studio'
 import type { NodeSlotId } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
@@ -48,6 +48,7 @@ import {
   removeMentionsForSource,
   type MentionCastCardRef,
 } from '@/lib/node-mentions-to-slots'
+import { applyMediaPatchOutputs } from '@/lib/node-output-versions'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import { tidyShotLanes } from '@/lib/node-shot-layout'
 import { projectScriptDocToGraphV4 } from '@/lib/node-workflow-script-doc-v4'
@@ -726,11 +727,22 @@ export function useNodeGraphV4({
 
   const setMedia = useCallback(
     (nodeId: string, patch: NodeV4MediaPatch) => {
+      // ⚠ 补丁**不再直接摊进 data**：产出版本表要在这里长出来（S3b §1.8）。
+      // 顶层 `url` / 尺寸 / 封面从此是 `outputs.versions[cur]` 的派生镜像，
+      // 由 `applyMediaPatchOutputs` 一处写 —— 全仓十几个读 `data.url` 的地方
+      // 因此一个字都不用改。
+      const now = new Date().toISOString()
       commitWithoutHistory({
         ...state,
         nodes: state.nodes.map((node) =>
           node.id === nodeId && node.data.kind !== NODE_MEDIA_KIND_IDS.text
-            ? { ...node, data: { ...node.data, ...patch } }
+            ? {
+                ...node,
+                data: applyMediaPatchOutputs(node.data, patch, {
+                  now,
+                  mintId: () => mintId(NODE_V4_OUTPUT_VERSION.idPrefix),
+                }),
+              }
             : node,
         ),
       })

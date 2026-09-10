@@ -94,6 +94,17 @@ export interface NodeV4CanvasContextValue {
    */
   onApplyOp(op: NodeAssistantOpV4): Promise<void> | void
   /**
+   * **一批** op 一次落（`dispatchBatch`）。
+   *
+   * ⚠ 与「循环调 `onApplyOp`」不是一回事，这是它存在的全部理由：
+   *   ① 批内 `add_node.ref` → 真 id 的**别名表**只在一批之内有效 ——「生镜头」
+   *      要发 `[add_node video.shot(ref:'shot'), connect this→shot.firstFrame]`，
+   *      循环发时第二条根本认不出那个刚建的节点。
+   *   ② 一批 = **一个**撤销条目（§7）：循环发出去的是两条，用户要按两次撤销才
+   *      能退回点之前的样子。
+   */
+  onApplyBatch(ops: readonly NodeAssistantOpV4[]): Promise<void> | void
+  /**
    * 按镜头带重排（`tidyShotLanes`）。⚠ 不是 op —— 它只动坐标、不动图的语义，
    * 走 op 表会给每次「整理」产生一条与内容无关的撤销记录。
    */

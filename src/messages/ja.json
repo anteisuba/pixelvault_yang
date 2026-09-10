@@ -5856,6 +5856,11 @@
       "menu": "下流を再実行",
       "ask": "「{name}」を変更しました。その下流だけを再実行したいので、まず一覧を出してください。"
     },
+    "textAssist": {
+      "continue": "「{name}」の本文の続きを書いてください：{prompt}",
+      "rewrite": "「{name}」の本文を書き直してください：{prompt}",
+      "plain": "「{name}」の本文について：{prompt}"
+    },
     "shell": {
       "project": {
         "saved": "保存済み",

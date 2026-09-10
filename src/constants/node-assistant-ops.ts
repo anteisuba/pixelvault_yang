@@ -445,9 +445,34 @@ export const NODE_ASSISTANT_OP_V4_IDS = {
   setText: 'set_text',
   setPrompt: 'set_prompt',
   setField: 'set_field',
+  /**
+   * 改**图片子型**（普通图 / 角色卡 / 场景卡……，S3b，spec §3「设为角色卡」）。
+   *
+   * ⚠ 不并进 `set_field`：子型换了之后这张卡的槽位与工具条跟着换一套，是结构性
+   * 改动而不是「改一个字段的值」；单开一条 op 才能让撤销回到**原来的子型**而不是
+   * 一个恰好同名的字段值。
+   */
+  setSubtype: 'set_subtype',
   attachAsset: 'attach_asset',
   /** 槽内版本轮播：把某个版本设为当前（§1.4）。指向 blocked 版本时拒绝并给理由。 */
   setSlotVersion: 'set_slot_version',
+  /**
+   * **产出**版本轮播：把这张卡的第 N 版设为当前（S3b，spec §1.8）。
+   *
+   * ⚠ 与 `set_slot_version` 是两条 op，别合：那条切的是「这个**入口槽**当前用哪条
+   * 边」（认 versionId，因为绑定要能从边表幂等重算），这条切的是「这张卡自己交付
+   * 的第几版」（认**下标**，因为它就是卡下那一排小点的第几颗）。合成一条就要给
+   * 载荷加一个「到底切哪种版本」的开关，那正是模型最容易选错的那类字段。
+   */
+  setOutputVersion: 'set_output_version',
+  /**
+   * 把当前产出版本**拆成一张独立同类卡**（spec §3 的 ⋯「拆出当前版本」）。
+   *
+   * ⚠ **非破坏**：原卡的版本表一个字不动，只是把那一版复制成新节点 —— 所以
+   * inverse 就是一条 `delete`（删掉刚拆出来的那张）。⛔ 不做成「移出去」：那要
+   * 同时改两张卡，inverse 得存整份版本表快照，代价与 `delete` 一样贵。
+   */
+  splitOutputVersion: 'split_output_version',
   markVersionBlocked: 'mark_version_blocked',
   setModel: 'set_model',
   setParams: 'set_params',
@@ -487,6 +512,9 @@ export const NODE_ASSISTANT_OPS_V4 = [
   NODE_ASSISTANT_OP_V4_IDS.attachAsset,
   NODE_ASSISTANT_OP_V4_IDS.setSlotVersion,
   NODE_ASSISTANT_OP_V4_IDS.markVersionBlocked,
+  NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
+  NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion,
+  NODE_ASSISTANT_OP_V4_IDS.setSubtype,
   NODE_ASSISTANT_OP_V4_IDS.setModel,
   NODE_ASSISTANT_OP_V4_IDS.setParams,
   NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
@@ -602,6 +630,25 @@ export const NODE_ASSISTANT_OP_V4_SPECS = {
     group: structure,
     tier: free,
     inverse: NODE_ASSISTANT_OP_V4_IDS.markVersionBlocked,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setOutputVersion]: {
+    group: structure,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
+    autoApply: true,
+  },
+  /** ⚠ 非破坏地多出一张卡 —— 与 `add_node` 同一档，inverse 就是删掉那一张。 */
+  [NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.delete,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.setSubtype]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.setSubtype,
     autoApply: true,
   },
   [NODE_ASSISTANT_OP_V4_IDS.setText]: {

@@ -31,7 +31,16 @@ import {
   type NodeV4Subtype,
   type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
-import { NODE_V4_SUBTYPE_LABELS } from '@/constants/node-studio'
+import {
+  NODE_V4_OUTPUT_VERSION,
+  NODE_V4_SUBTYPE_LABELS,
+} from '@/constants/node-studio'
+import {
+  isMediaNodeData,
+  readOutputIndex,
+  readOutputVersions,
+  selectOutputVersion,
+} from '@/lib/node-output-versions'
 import { buildShotLabel, buildStableNodeName } from '@/lib/node-display-name'
 import {
   looseAreaSpawn,
@@ -569,6 +578,122 @@ export function applyNodeAssistantOpV4(
               ? { reason: version.blockedReason }
               : {}),
           },
+        },
+        changedNodeIds: [node.id],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.setOutputVersion: {
+      const node = resolveTarget(state, op.target, context.refs)
+      if (!node) return { ok: false, reason: 'unknownNode' }
+      if (!isMediaNodeData(node.data)) {
+        return { ok: false, reason: 'notAGeneratedNode' }
+      }
+      const previous = readOutputIndex(node.data)
+      const nextData = selectOutputVersion(node.data, op.index)
+      // ⚠ 越界**失败可见**：静默钳到最后一版会让「点了第 5 颗小点」看起来成功。
+      if (!nextData) return { ok: false, reason: 'unknownOutputVersion' }
+      return {
+        ok: true,
+        state: replaceNodeData(state, node.id, () => nextData),
+        inverse: {
+          kind: 'op',
+          op: { op: ids.setOutputVersion, target: node.id, index: previous },
+        },
+        changedNodeIds: [node.id],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.splitOutputVersion: {
+      const node = resolveTarget(state, op.target, context.refs)
+      if (!node) return { ok: false, reason: 'unknownNode' }
+      if (!isMediaNodeData(node.data)) {
+        return { ok: false, reason: 'notAGeneratedNode' }
+      }
+      const versions = readOutputVersions(node.data)
+      const index = op.index ?? readOutputIndex(node.data)
+      const version = versions[index]
+      if (!version) return { ok: false, reason: 'unknownOutputVersion' }
+
+      const id = context.mintId(node.data.kind)
+      const taken = new Set(state.nodes.map((item) => item.data.name))
+      let name: string
+      try {
+        name = buildStableNodeName(
+          {
+            kind: node.data.kind,
+            subtype: node.data.subtype,
+            ...(node.data.shotNo === undefined
+              ? {}
+              : { shotNo: node.data.shotNo }),
+          },
+          {
+            labelOf: (k, sub) => NODE_V4_SUBTYPE_LABELS[`${k}.${sub}`] ?? sub,
+            taken,
+          },
+        )
+      } catch {
+        return { ok: false, reason: 'nameExhausted' }
+      }
+
+      // ⚠ **非破坏**：原卡的版本表一个字不动。新卡只带这一版，所以它自己的版本
+      // 表就是那一条 —— ⛔ 不复制整份，否则拆出来的卡还能切回没拆的那些版本。
+      const parsed = NodeV4DataSchema.safeParse({
+        kind: node.data.kind,
+        subtype: node.data.subtype,
+        name,
+        status: node.data.status,
+        createdAt: now,
+        url: version.url,
+        ...(node.data.shotNo === undefined ? {} : { shotNo: node.data.shotNo }),
+        ...(version.generationId ? { generationId: version.generationId } : {}),
+        ...(version.prompt ? { prompt: version.prompt } : {}),
+        ...(version.model ? { model: version.model } : {}),
+        ...(version.meta ?? {}),
+        outputs: { versions: [version], cur: 0 },
+      })
+      if (!parsed.success) return { ok: false, reason: 'invalidSubtype' }
+
+      const spawned: NodeV4 = {
+        id,
+        position: {
+          x: node.position.x + NODE_V4_OUTPUT_VERSION.splitOffset,
+          y: node.position.y + NODE_V4_OUTPUT_VERSION.splitOffset,
+        },
+        data: parsed.data,
+      }
+      return {
+        ok: true,
+        state: { ...state, nodes: [...state.nodes, spawned] },
+        inverse: { kind: 'removeNode', nodeId: id },
+        changedNodeIds: [id],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.setSubtype: {
+      const node = resolveTarget(state, op.target, context.refs)
+      if (!node) return { ok: false, reason: 'unknownNode' }
+      // ⛔ 只有 image kind 有子型可换：video 的子型决定的是完全不同的槽位形状，
+      // 换它等于换一张卡，那是 delete + add_node 而不是这条。
+      if (node.data.kind !== NODE_MEDIA_KIND_IDS.image) {
+        return { ok: false, reason: 'notAnImageNode' }
+      }
+      const previous = node.data.subtype
+      if (previous === op.subtype) return { ok: false, reason: 'noChange' }
+      const parsed = NodeV4DataSchema.safeParse({
+        ...node.data,
+        subtype: op.subtype,
+      })
+      if (!parsed.success) return { ok: false, reason: 'invalidSubtype' }
+      return {
+        ok: true,
+        state: replaceNodeData(state, node.id, () => parsed.data),
+        inverse: {
+          kind: 'op',
+          op: { op: ids.setSubtype, target: node.id, subtype: previous },
         },
         changedNodeIds: [node.id],
         changedEdgeIds: [],

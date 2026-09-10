@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi, type Mock } from 'vitest'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
@@ -125,6 +125,7 @@ function harness(
     onSetParams: vi.fn(),
     onSetMedia: vi.fn(),
     onApplyOp: vi.fn(),
+    onApplyBatch: vi.fn(),
     onTidyLayout: vi.fn(),
     canUndo: false,
     canRedo: false,
@@ -262,22 +263,33 @@ describe('选中态：工具条 + 提示词栏', () => {
    * ⚠ **阻塞在 S0**：`chrome/NodeToolbar` 的 `ToolbarCell` 把 `{...rest}` 展开在
    * `onClick={action.onSelect}` **之后**，而 Radix Tooltip 的触发器会经由 `rest`
    * 递一个自己的 `onClick` 下来 —— 于是每一格的点击都被覆盖掉，四个键一个都不响应。
-   * 修法是一行（`{...rest}` 挪到 `onClick` 之前），但 `chrome/**` 不在本片的所有权
-   * 里。这条用 `it.fails` 钉住现状：S0 修好的那一刻它会转红，提醒把它改回 `it`。
+   * 修法是一行（`{...rest}` 挪到 `onClick` 之前）—— S0 已经修掉，所以这条从
+   * `it.fails` 转回正的断言。
    */
-  it.fails('生镜头发 add_node（视频镜头）', () => {
+  it('生镜头是**一批**：建镜头 + 把这张图连成它的首帧', () => {
     const context = selectedContext()
     renderImage(context, 'i_1', true)
     fireEvent.click(
       document.querySelector('[data-toolbar-action="shot"]') as HTMLElement,
     )
-    expect(context.onApplyOp).toHaveBeenCalledWith(
-      expect.objectContaining({
-        op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-        kind: 'video',
-        subtype: 'shot',
-      }),
-    )
+    // ⚠ 断言的是 `onApplyBatch` 而不是两次 `onApplyOp`：两条必须同批才解得开
+    // `ref`，也才收成一个撤销条目。
+    expect(context.onApplyBatch).toHaveBeenCalledTimes(1)
+    const [ops] = (context.onApplyBatch as Mock).mock.calls[0] as [
+      readonly { op: string; ref?: string; target?: string; slot?: string }[],
+    ]
+    expect(ops[0]).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+      kind: 'video',
+      subtype: 'shot',
+    })
+    expect(ops[1]).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.connect,
+      source: 'i_1',
+      slot: 'firstFrame',
+    })
+    // 第二条指的就是第一条建出来的那张（批内别名）。
+    expect(ops[1]?.target).toBe(ops[0]?.ref)
   })
 })
 

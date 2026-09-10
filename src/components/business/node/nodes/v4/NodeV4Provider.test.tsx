@@ -264,6 +264,37 @@ describe('NodeV4Provider · NodeV4Context 的回调实现', () => {
     })
   })
 
+  it('onApplyBatch：一批里的别名（`ref`）解得开，且只记**一个**撤销条目', () => {
+    const harness = mount(scene())
+    const edgesBefore = harness.state().edges.length
+    const idsBefore = new Set(harness.state().nodes.map((n) => n.id))
+    act(() =>
+      harness.ctx().onApplyBatch([
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+          kind: 'video',
+          subtype: 'shot',
+          ref: 'shot',
+        },
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.connect,
+          source: 'i_a',
+          target: 'shot',
+          slot: 'firstFrame',
+        },
+      ]),
+    )
+    const created = harness.state().nodes.find((n) => !idsBefore.has(n.id))!
+    expect(harness.state().edges).toHaveLength(edgesBefore + 1)
+    expect(
+      harness.state().edges.some((edge) => edge.target === created.id),
+    ).toBe(true)
+    // 一批 = 一步：撤销一次两条都退回去。
+    act(() => harness.ctx().onUndo())
+    expect(harness.state().edges).toHaveLength(edgesBefore)
+    expect(harness.state().nodes.some((n) => n.id === created.id)).toBe(false)
+  })
+
   it('onApplyOp：任意一条 op 走同一条路径（这里用 delete）', () => {
     const harness = mount(scene())
     act(

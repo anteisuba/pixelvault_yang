@@ -78,18 +78,34 @@ export function ImageEditMenuItems({
 
 export function ImageMoreMenuItems({
   onDuplicate,
+  onSetCharacter,
   onDelete,
 }: {
   onDuplicate(): void
+  /**
+   * 「设为角色卡」。⚠ 已经是角色卡的那张不给这一项 —— 调用方传 `undefined`，
+   * ⛔ 不摆一个按了什么都不变的灰项。
+   */
+  onSetCharacter?: (() => void) | undefined
   onDelete(): void
 }) {
   const t = useTranslations('StudioNode.v4')
+  const tImage = useTranslations('StudioNode.v4.image')
   return (
     <>
       <DropdownMenuItem data-image-more="duplicate" onSelect={onDuplicate}>
         <Copy aria-hidden className="size-4" />
         {t('toolbar.clone')}
       </DropdownMenuItem>
+      {onSetCharacter ? (
+        <DropdownMenuItem
+          data-image-more="set-character"
+          onSelect={onSetCharacter}
+        >
+          <UserRound aria-hidden className="size-4" />
+          {tImage('more.setCharacter')}
+        </DropdownMenuItem>
+      ) : null}
       <DropdownMenuSeparator />
       <DropdownMenuItem
         data-image-more="delete"

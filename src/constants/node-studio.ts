@@ -1410,3 +1410,35 @@ export const NODE_V4_CHROME = {
   /** @ chip 里的缩略图边长（spec §1.7）。 */
   mentionThumbSize: 16,
 } as const
+
+/**
+ * 产出版本表（S3b，spec §1.8「版本 = 卡下一排小点」）。
+ *
+ * ⚠ 与 `NODE_V4_SLOT_VERSION` 是两件事：那个是**入口槽**的版本轮播（版本 id 从
+ * 边 id 派生，因为绑定必须能从边表幂等重算），这个是**卡自己交付过的产物**
+ * （没有边可派生，所以 id 由铸造器给，切版本认下标）。
+ */
+export const NODE_V4_OUTPUT_VERSION = {
+  idPrefix: 'ov_',
+  /** 一张卡最多留几版（与 `NodeV4OutputsSchema.versions.max()` 同一个数）。 */
+  maxVersions: 64,
+  /** 「拆出当前版本」落点相对原卡的偏移（px）—— 不与原卡重叠即可。 */
+  splitOffset: 48,
+} as const
+
+/**
+ * 图片**估价**的质量系数（S3b，spec §3 画面弹层底部那一行）。
+ *
+ * ⚠ 是给用户「点之前心里有数」的估算，⛔ 不是账单也不是闸：真扣多少由服务端按
+ * 实际用量算。⛔ 也不新造档位词表 —— 键就是能力表 `qualityOptions` 里出现过的
+ * 那几档（OpenAI 家 `auto|low|medium|high|xhigh|max`），能力表加一档时这里补一个
+ * 系数即可。
+ */
+export const NODE_V4_IMAGE_QUALITY_COST = {
+  auto: 1,
+  low: 0.5,
+  medium: 1,
+  high: 2,
+  xhigh: 3,
+  max: 4,
+} as const

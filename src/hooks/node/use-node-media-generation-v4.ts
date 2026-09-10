@@ -27,6 +27,7 @@ import {
   validateV4Slots,
   type V4SlotIssue,
 } from '@/lib/node-slot-payload'
+import { AdvancedParamsSchema } from '@/types'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 
 export interface V4GenerateGraph {
@@ -46,6 +47,16 @@ export interface V4GenerationPlan {
   readonly duration?: number | 'auto'
   readonly seed?: number
   readonly generateAudio?: boolean
+  /** 图片画质档 —— 走 `advancedParams.quality`（服务端 `AdvancedParamsSchema`）。 */
+  readonly quality?: string
+  /** 图片分辨率档 —— 同上，走 `advancedParams.resolution`。 */
+  readonly imageResolution?: string
+  /**
+   * 发几张。⚠ 本仓 **1 请求 = 1 张**，所以它是**请求数**：`generateNode` 顺序发
+   * 这么多枪，每一枪回来各追加一个产出版本。⛔ 不塞进单次请求的载荷 ——
+   * `StudioGenerateSchema` 里没有这个字段，塞了服务端也读不到。
+   */
+  readonly count?: number
   readonly referenceImages?: readonly string[]
   readonly audioUrls?: readonly string[]
   readonly audioBindings?: readonly { url: string; characterName?: string }[]
@@ -152,6 +163,11 @@ export function planV4Generation(
     ...(data.params?.aspectRatio
       ? { aspectRatio: data.params.aspectRatio as AspectRatio }
       : {}),
+    ...(data.params?.quality ? { quality: data.params.quality } : {}),
+    ...(data.params?.resolution
+      ? { imageResolution: data.params.resolution }
+      : {}),
+    ...(data.params?.count === undefined ? {} : { count: data.params.count }),
     referenceImages: payload.referenceUrls,
   }
 }
@@ -167,41 +183,80 @@ export function useNodeMediaGenerationV4() {
       options: {
         readonly prompt?: string
         onJobCreated?(jobId: string): void
+        /**
+         * 每一枪回来叫一次（张数 > 1 时会叫多次）。
+         * ⚠ 调用方**要把回填写在这里**而不是 `.then` 里：`.then` 只拿得到最后
+         * 一枪，前面几张会一张都不落。
+         */
+        onEach?(result: Awaited<ReturnType<typeof inner.generate>>): void
       } = {},
     ) => {
       const plan = planV4Generation(nodeId, graph, {
         ...(options.prompt ? { prompt: options.prompt } : {}),
       })
       if (!plan) return { success: false as const, error: 'noPlan' }
-      return inner.generate(
-        {
-          kind: plan.kind,
-          modelId: plan.modelId,
-          prompt: plan.prompt,
-          ...(plan.apiKeyId ? { apiKeyId: plan.apiKeyId } : {}),
-          ...(plan.aspectRatio ? { aspectRatio: plan.aspectRatio } : {}),
-          ...(plan.resolution ? { resolution: plan.resolution } : {}),
-          ...(plan.duration === undefined ? {} : { duration: plan.duration }),
-          ...(plan.seed === undefined ? {} : { seed: plan.seed }),
-          ...(plan.generateAudio === undefined
-            ? {}
-            : { generateAudio: plan.generateAudio }),
-          ...(plan.negativePrompt
-            ? { negativePrompt: plan.negativePrompt }
-            : {}),
-          ...(plan.referenceImages?.length
-            ? { referenceImages: [...plan.referenceImages] }
-            : {}),
-          ...(plan.audioUrls?.length ? { audioUrls: [...plan.audioUrls] } : {}),
-          ...(plan.audioBindings?.length
-            ? { audioBindings: [...plan.audioBindings] }
-            : {}),
-          ...(plan.videoUrls?.length ? { videoUrls: [...plan.videoUrls] } : {}),
-        },
-        options.onJobCreated
-          ? { onJobCreated: options.onJobCreated }
-          : undefined,
+      // ⚠ 档位在**服务端 schema 上收窄**（`AdvancedParamsSchema`），⛔ 不在这里
+      // 抄一份档位表：节点上的 `quality` 是自由串（值域跟着模型能力表走），而
+      // 发出去的那一份必须落在服务端认的枚举里。收不进去的档**整个不发** ——
+      // 半个不认识的档比不发更糟（服务端只会回一句泛泛的 400）。
+      const quality = AdvancedParamsSchema.shape.quality.safeParse(plan.quality)
+      const imageResolution = AdvancedParamsSchema.shape.resolution.safeParse(
+        plan.imageResolution,
       )
+      const advancedParams = {
+        ...(quality.success && quality.data ? { quality: quality.data } : {}),
+        ...(imageResolution.success && imageResolution.data
+          ? { resolution: imageResolution.data }
+          : {}),
+      }
+      const runOnce = () =>
+        inner.generate(
+          {
+            kind: plan.kind,
+            modelId: plan.modelId,
+            prompt: plan.prompt,
+            ...(plan.apiKeyId ? { apiKeyId: plan.apiKeyId } : {}),
+            ...(plan.aspectRatio ? { aspectRatio: plan.aspectRatio } : {}),
+            ...(plan.resolution ? { resolution: plan.resolution } : {}),
+            ...(plan.duration === undefined ? {} : { duration: plan.duration }),
+            ...(plan.seed === undefined ? {} : { seed: plan.seed }),
+            ...(plan.generateAudio === undefined
+              ? {}
+              : { generateAudio: plan.generateAudio }),
+            ...(plan.negativePrompt
+              ? { negativePrompt: plan.negativePrompt }
+              : {}),
+            ...(plan.referenceImages?.length
+              ? { referenceImages: [...plan.referenceImages] }
+              : {}),
+            ...(plan.audioUrls?.length
+              ? { audioUrls: [...plan.audioUrls] }
+              : {}),
+            ...(plan.audioBindings?.length
+              ? { audioBindings: [...plan.audioBindings] }
+              : {}),
+            ...(plan.videoUrls?.length
+              ? { videoUrls: [...plan.videoUrls] }
+              : {}),
+            ...(Object.keys(advancedParams).length > 0
+              ? { advancedParams }
+              : {}),
+          },
+          options.onJobCreated
+            ? { onJobCreated: options.onJobCreated }
+            : undefined,
+        )
+
+      // ⚠ **顺序**发，⛔ 不并发：并发时 N 个 `onJobCreated` 会互相盖掉节点身上
+      // 那一个 `mediaJobId`，刷新之后只剩最后一单能被回填 hook 找回来。
+      const times = plan.kind === 'image' ? Math.max(plan.count ?? 1, 1) : 1
+      let last = await runOnce()
+      options.onEach?.(last)
+      for (let i = 1; i < times; i += 1) {
+        last = await runOnce()
+        options.onEach?.(last)
+      }
+      return last
     },
     [inner],
   )

@@ -16,6 +16,7 @@ import {
   NODE_STUDIO_VOICE_CLIP_SOURCES,
   NODE_STUDIO_VOICE_PROFILE_SOURCES,
   NODE_STUDIO_WORKFLOW_STORAGE,
+  NODE_V4_OUTPUT_VERSION,
 } from '@/constants/node-studio'
 import { IMAGE_SIZES } from '@/constants/config'
 import {
@@ -842,28 +843,14 @@ export const NodeV4SlotBindingSchema = z.object({
 })
 
 /** 生成档位。与 v3 散在 data 顶层的那五个字段同值域，只是收进一个对象。 */
-export const NodeV4GenerationParamsSchema = z.object({
-  aspectRatio: z.string().trim().min(1).max(20).optional(),
-  resolution: z.string().trim().min(1).max(20).optional(),
-  duration: z.string().trim().min(1).max(20).optional(),
-  generateAudio: z.boolean().optional(),
-  seed: z.number().int().optional(),
-})
-
 /**
- * 媒体元数据（上传 / 生成回填链，C3c-① A）。
+ * 「这份素材本身长什么样」——尺寸 / 体积 / 封面 / 来源角标。
  *
- * ⚠ **一处定义、三类共用**（image / audio / video）。上传路由回填的是**一份
- * patch**（`/api/node-workflow/upload-reference-video` 返回 url + 尺寸 + 大小 +
- * poster），按 kind 各写一份形状就等于让同一份 patch 分裂成三种写法，
- * 而 `videoThumbnailUrl` 只对视频有值、`mediaWidth/Height` 只对有画面的素材有值
- * 这件事由**有没有值**表达，⛔ 不由「schema 里有没有这个字段」表达。
- *
- * ⚠ 全部 `.catch(undefined)`：与 v3 的 `mediaWidth` 同一条安全带 —— 一条坏掉的
- * 元数据不该让整份 state 读不出来（v4 的读路径不再兜空状态，parse 失败=整个项目
- * 打不开）。
+ * ⚠ 从 `NodeV4MediaMetaShape` 里**拆出来**（S3b）只为一件事：产出版本要记住
+ * 自己那一版的这四项，而它不该顺带记「在飞 job」与「整张卡的版本表」。
+ * ⛔ 两处各列一遍就是两份会漂的清单。
  */
-const NodeV4MediaMetaShape = {
+const NodeV4MediaFactsShape = {
   /** 视频 poster。AI 视频取 `Generation.thumbnailUrl`，手传参考视频取客户端抓帧。 */
   videoThumbnailUrl: z
     .string()
@@ -882,6 +869,89 @@ const NodeV4MediaMetaShape = {
    * `NodeWorkflowImageOutputSourceSchema`（`existing` / `generated`）。
    */
   imageSource: NodeWorkflowImageOutputSourceSchema.optional().catch(undefined),
+}
+
+export const NodeV4GenerationParamsSchema = z.object({
+  aspectRatio: z.string().trim().min(1).max(20).optional(),
+  resolution: z.string().trim().min(1).max(20).optional(),
+  duration: z.string().trim().min(1).max(20).optional(),
+  generateAudio: z.boolean().optional(),
+  seed: z.number().int().optional(),
+  /**
+   * 图片画质档（S3b）。值域是**模型能力表**的 `qualityOptions`（OpenAI 家
+   * `auto|low|medium|high[|xhigh|max]`），⛔ 这里不 `z.enum` —— 档位跟着模型走，
+   * 写死在 schema 上等于每加一个模型就要改一次落库形状。收窄在
+   * `imageQualityOptions()`（弹层禁用不支持的档）与服务端的 `AdvancedParamsSchema`。
+   */
+  quality: z.string().trim().min(1).max(20).optional(),
+  /**
+   * 一次发几张（S3b）。本仓 **1 请求 = 1 张**，所以它同时是请求数 ——
+   * 档位查 `IMAGE_BATCH_COUNTS`，⛔ 不在这里抄一份 `[1,2,4]`。
+   */
+  count: z.number().int().min(1).max(8).optional(),
+})
+
+/**
+ * 一个**产出版本**（S3b，spec §1.8「版本 = 卡下一排小点」）。
+ *
+ * ⚠ 与 `NodeV4SlotVersion` 是两件事，别混：那个是**入口槽**的版本（「这个槽当前
+ * 用哪条边」），这个是**这张卡自己交付过的产物**（「这张卡生成过几张图」）。
+ * 在这之前节点身上只有一个 `url`，于是重新生成一次就把上一版**原地覆盖**掉了 ——
+ * 版本点唯一的读侧 `imageVersions()` 因此永远只能返回一条。
+ */
+export const NodeV4OutputVersionSchema = z.object({
+  /** 稳定 id。⚠ 切版本靠**下标**（`cur`），这个 id 只用来去重与拆版本。 */
+  id: z.string().trim().min(1).max(160),
+  url: z.string().trim().min(1).max(4000),
+  generationId: z.string().trim().min(1).max(200).optional(),
+  /** 落这一版时的在飞 job（终态后仍留着，用于反查这一版是哪一单跑出来的）。 */
+  mediaJobId: z.string().trim().min(1).max(200).optional(),
+  createdAt: z.string().trim().min(1).max(40),
+  /** 这一版自己的尺寸 / 体积 / 封面（`NodeV4MediaMetaShape` 的子集）。 */
+  meta: z.object(NodeV4MediaFactsShape).optional(),
+  /** 出这一版时用的提示词与模型 —— 切回旧版时「当时写的是什么」才答得上来。 */
+  prompt: z.string().max(20_000).optional(),
+  model: NodeWorkflowModelSelectionSchema.optional(),
+})
+
+/**
+ * 一张卡的产出版本表。形状与 `NodeV4SlotBinding` 对齐（`{ versions, cur }`），
+ * **差别只在 `cur` 是下标不是 id**：产出版本是有序的一排小点，←→ 切的就是下标，
+ * 而槽版本要跨改名 / 换序稳定，所以那边认 id。
+ *
+ * ⛔ 顶层 `url` 不删：它是**派生镜像**，由 `applyOutputSelection` 一处写。全仓已有
+ * 十几个读 `data.url` 的地方（载荷装配、迁移、缩略图），让它们各自改读 outputs
+ * 等于把一条读路径复制十几份。
+ */
+export const NodeV4OutputsSchema = z.object({
+  versions: z
+    .array(NodeV4OutputVersionSchema)
+    .max(NODE_V4_OUTPUT_VERSION.maxVersions),
+  /** 当前版下标。⚠ 越界的值由 `readOutputIndex` 钳回来，⛔ 不在这里 refine。 */
+  cur: z.number().int().min(0),
+})
+
+/**
+ * 媒体元数据（上传 / 生成回填链，C3c-① A）。
+ *
+ * ⚠ **一处定义、三类共用**（image / audio / video）。上传路由回填的是**一份
+ * patch**（`/api/node-workflow/upload-reference-video` 返回 url + 尺寸 + 大小 +
+ * poster），按 kind 各写一份形状就等于让同一份 patch 分裂成三种写法，
+ * 而 `videoThumbnailUrl` 只对视频有值、`mediaWidth/Height` 只对有画面的素材有值
+ * 这件事由**有没有值**表达，⛔ 不由「schema 里有没有这个字段」表达。
+ *
+ * ⚠ 全部 `.catch(undefined)`：与 v3 的 `mediaWidth` 同一条安全带 —— 一条坏掉的
+ * 元数据不该让整份 state 读不出来（v4 的读路径不再兜空状态，parse 失败=整个项目
+ * 打不开）。
+ */
+const NodeV4MediaMetaShape = {
+  ...NodeV4MediaFactsShape,
+  /**
+   * 这张卡交付过的**产出版本表**（S3b，spec §1.8）。缺席 = 还没有版本表，读侧
+   * （`readOutputVersions`）把顶层 `url` 当作 versions[0] —— 存量项目因此不必回填
+   * 就能显示一颗版本点。
+   */
+  outputs: NodeV4OutputsSchema.optional().catch(undefined),
   /**
    * 在飞生成的 job id（③e 生成回填）。
    *
@@ -1128,6 +1198,8 @@ export type NodeV4SlotBinding = z.infer<typeof NodeV4SlotBindingSchema>
 export type NodeV4GenerationParams = z.infer<
   typeof NodeV4GenerationParamsSchema
 >
+export type NodeV4OutputVersion = z.infer<typeof NodeV4OutputVersionSchema>
+export type NodeV4Outputs = z.infer<typeof NodeV4OutputsSchema>
 export type NodeV4TextData = z.infer<typeof NodeV4TextDataSchema>
 export type NodeV4ImageData = z.infer<typeof NodeV4ImageDataSchema>
 export type NodeV4AudioData = z.infer<typeof NodeV4AudioDataSchema>

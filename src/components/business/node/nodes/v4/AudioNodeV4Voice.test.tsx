@@ -91,6 +91,7 @@ function harness(
     onSetParams: vi.fn(),
     onSetMedia: vi.fn(),
     onApplyOp: vi.fn(),
+    onApplyBatch: vi.fn(),
     onTidyLayout: vi.fn(),
     canUndo: false,
     canRedo: false,

@@ -15,7 +15,12 @@ import {
   NODE_SLOT_TEXT_ROLES,
   NODE_SLOTS,
 } from '@/constants/node-slots'
-import { NODE_MEDIA_KINDS, NODE_REVIEW_STATES } from '@/constants/node-types'
+import {
+  NODE_MEDIA_KINDS,
+  NODE_REVIEW_STATES,
+  NODE_V4_IMAGE_SUBTYPES,
+} from '@/constants/node-types'
+import { NODE_V4_OUTPUT_VERSION } from '@/constants/node-studio'
 
 /**
  * 一个节点引用：要么是画布上已有节点的 id（助手在 `[[node:id]]` 里读到的那个），
@@ -428,6 +433,44 @@ export const NodeAssistantMarkVersionBlockedOpSchema = z.object({
     .optional(),
 })
 
+/**
+ * 产出版本轮播（S3b，spec §1.8）。⚠ 认**下标**不认 id —— 它就是卡下那一排小点
+ * 的第几颗；`set_slot_version` 认 id 是因为那边要能从边表幂等重算。
+ */
+export const NodeAssistantSetOutputVersionOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setOutputVersion),
+  target: NodeAssistantOpTargetSchema,
+  index: z
+    .number()
+    .int()
+    .min(0)
+    .max(NODE_V4_OUTPUT_VERSION.maxVersions - 1),
+})
+
+/**
+ * 把当前产出版本拆成一张独立同类卡。⛔ 载荷里**没有 url** —— 同 `connect` /
+ * `attach_asset` 那条纪律：让模型写地址等于让它编地址，那一版的 url 由执行层从
+ * 版本表里取。
+ */
+export const NodeAssistantSplitOutputVersionOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion),
+  target: NodeAssistantOpTargetSchema,
+  /** 缺省 = 当前版。 */
+  index: z
+    .number()
+    .int()
+    .min(0)
+    .max(NODE_V4_OUTPUT_VERSION.maxVersions - 1)
+    .optional(),
+})
+
+/** 改图片子型（「设为角色卡」）。⛔ 只有 image kind 有子型词表可换。 */
+export const NodeAssistantSetSubtypeOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setSubtype),
+  target: NodeAssistantOpTargetSchema,
+  subtype: z.enum(NODE_V4_IMAGE_SUBTYPES),
+})
+
 export const NodeAssistantSetTextOpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setText),
   target: NodeAssistantOpTargetSchema,
@@ -512,6 +555,18 @@ export const NodeAssistantSetParamsV4OpSchema = z.object({
       .optional(),
     generateAudio: z.boolean().optional(),
     seed: z.number().int().optional(),
+    /**
+     * 图片画质档（S3b）。⛔ 不 `z.enum`：档位跟着模型能力表走，写死在 op 形状上
+     * 等于每加一个模型就要改一次协议。收窄在执行层（不支持的档拒绝）。
+     */
+    quality: z
+      .string()
+      .trim()
+      .min(1)
+      .max(NODE_ASSISTANT_OP_LIMITS.maxParamValueLength)
+      .optional(),
+    /** 一次发几张。上限与 `NodeV4GenerationParamsSchema.count` 同一个数。 */
+    count: z.number().int().min(1).max(8).optional(),
   }),
 })
 
@@ -603,6 +658,9 @@ export const NodeAssistantOpV4Schema = z.discriminatedUnion('op', [
   NodeAssistantReorderShotOpSchema,
   NodeAssistantSetSlotVersionOpSchema,
   NodeAssistantMarkVersionBlockedOpSchema,
+  NodeAssistantSetOutputVersionOpSchema,
+  NodeAssistantSplitOutputVersionOpSchema,
+  NodeAssistantSetSubtypeOpSchema,
   NodeAssistantSetTextOpSchema,
   NodeAssistantSetPromptV4OpSchema,
   NodeAssistantSetFieldOpSchema,

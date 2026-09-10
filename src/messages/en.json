@@ -5856,6 +5856,11 @@
       "menu": "Rerun downstream",
       "ask": "I changed \"{name}\". Rerun only what is downstream of it — list them first."
     },
+    "textAssist": {
+      "continue": "Continue the body of “{name}”: {prompt}",
+      "rewrite": "Rewrite the body of “{name}”: {prompt}",
+      "plain": "About the body of “{name}”: {prompt}"
+    },
     "shell": {
       "project": {
         "saved": "Saved",

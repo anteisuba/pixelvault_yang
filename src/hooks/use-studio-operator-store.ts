@@ -27,15 +27,10 @@ import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import {
-  ASSISTANT_COST_TICK_KIND_IDS,
   ASSISTANT_WORKING_MEMORY,
   GENERATION_REVIEW_STATE_IDS,
 } from '@/constants/assistant-operator'
-import type {
-  AssistantCostTickKind,
-  GenerationReviewState,
-} from '@/constants/assistant-operator'
-import { STUDIO_OPERATOR_COST_DETAIL_LIMIT } from '@/constants/studio-assistant-operator'
+import type { GenerationReviewState } from '@/constants/assistant-operator'
 import type { StudioOperatorField } from '@/constants/studio-assistant-operator'
 import {
   createOperatorClaim,
@@ -56,7 +51,6 @@ import type {
   StudioOperatorAttachment,
   StudioOperatorCardMention,
   StudioOperatorChange,
-  StudioOperatorCostTick,
   StudioOperatorMemoryArtifact,
   StudioOperatorMemoryRound,
   StudioOperatorChoicePrompt,
@@ -71,10 +65,7 @@ import type {
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
 import type { AssistantOperatorConfirmChoice } from '@/constants/assistant-operator'
-import type {
-  AssistantOperatorAutoApprove,
-  AssistantOperatorStep,
-} from '@/types/assistant-operator'
+import type { AssistantOperatorStep } from '@/types/assistant-operator'
 import type { AssistantSurfaceId } from '@/types/assistant-conversation'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
 
@@ -198,16 +189,6 @@ export interface StudioOperatorState {
   spend: StudioOperatorSpendPrompt | null
   choice: StudioOperatorChoicePrompt | null
   /**
-   * 「本会话此类不再问」的条子（§6 拍板 24）—— **会话级**。
-   *
-   * ⭐ 作用域三要素里的「同会话」由这里负责：换一条线程（`resetOperatorThread`）
-   * 它就没了，于是下一次生成重新硬确认。另外两条（同模型 / 不超上次金额）由服务端
-   * 逐条核 —— 客户端只是把条子原样带上去。
-   * ⛔ **不落 localStorage**：跨刷新还记着「不再问」，等于用一次点击买断了以后
-   * 每一次花钱的确认，而用户当时同意的是「本会话」。
-   */
-  autoApprove: AssistantOperatorAutoApprove | null
-  /**
    * 视频域评审的**抽帧那一段**正在跑（第二期最后一环）。
    *
    * ⭐ 它与 `status: 'working'` **不是同一件事**：抽帧发生在请求发出去**之前**
@@ -236,14 +217,6 @@ export interface StudioOperatorState {
    */
   workingMemory: readonly StudioOperatorMemoryRound[]
   /**
-   * 这条会话到此为止的**成本计数**（切片 Y）—— 按档累计的次数。
-   *
-   * ⚠ 计数**不是闸**：⛔ 面板不拦、不弹窗，只如实显示。切会话归零。
-   */
-  costs: Readonly<Record<AssistantCostTickKind, number>>
-  /** hover 展开的那一列明细（最近 `STUDIO_OPERATOR_COST_DETAIL_LIMIT` 条）。 */
-  costDetails: readonly StudioOperatorCostTick[]
-  /**
    * **上一份还没跑完的计划**（第三期 · 断点续跑）。
    *
    * ⭐ 与那三张「等你定」的卡不同，它**活得比这一次挂载长**：真正的记录在
@@ -254,12 +227,6 @@ export interface StudioOperatorState {
    *   （不露续跑入口），⛔ 不为此加第三档。
    */
   resume: StudioOperatorResumePlan | null
-}
-
-const EMPTY_COSTS: Readonly<Record<AssistantCostTickKind, number>> = {
-  [ASSISTANT_COST_TICK_KIND_IDS.vision]: 0,
-  [ASSISTANT_COST_TICK_KIND_IDS.research]: 0,
-  [ASSISTANT_COST_TICK_KIND_IDS.llm]: 0,
 }
 
 const EMPTY_MEMORY: readonly StudioOperatorMemoryRound[] = []
@@ -295,12 +262,9 @@ const INITIAL_STATE: StudioOperatorState = {
   plan: null,
   spend: null,
   choice: null,
-  autoApprove: null,
   capturingFrames: false,
   reviewStates: {},
   workingMemory: EMPTY_MEMORY,
-  costs: EMPTY_COSTS,
-  costDetails: [],
   resume: null,
 }
 
@@ -806,33 +770,6 @@ export function clearOperatorWorkingMemory(): void {
   emit({ ...state, workingMemory: EMPTY_MEMORY })
 }
 
-/**
- * 收一记成本计数（`cost_tick`）。
- *
- * ⚠ `units` 累加而不是覆盖：服务端每看一张图发一记，覆盖的表现是计数永远是 1。
- * ⚠ 明细只留最近几条 —— 一条会无限长的流水账没人读得完，而 hover 那一列只有
- *   几行的高度。
- */
-export function addOperatorCostTick(tick: StudioOperatorCostTick): void {
-  const costs = {
-    ...state.costs,
-    [tick.kind]: (state.costs[tick.kind] ?? 0) + tick.units,
-  }
-  emit({
-    ...state,
-    costs,
-    costDetails: [...state.costDetails, tick].slice(
-      -STUDIO_OPERATOR_COST_DETAIL_LIMIT,
-    ),
-  })
-}
-
-/** 切会话归零（见 `costs` 的头注）。 */
-export function clearOperatorCosts(): void {
-  if (state.costDetails.length === 0) return
-  emit({ ...state, costs: EMPTY_COSTS, costDetails: [] })
-}
-
 // ─── @ chip（§3.3 / §7）──────────────────────────────────────────
 
 /**
@@ -959,23 +896,7 @@ export function resolveOperatorChoice(optionId: string): void {
 }
 
 /**
- * 「本会话此类不再问」（§6 拍板 24）。
- *
- * ⚠ 传 `null` = 「改回每次确认」。⛔ 不做 merge：条子只有一张，第二次确认的
- * 模型 / 金额整体顶掉第一张 —— 两张条子并存就得回答「哪张先匹配」，而那正是
- * 「明明换了模型却没再问我」的来源。
- */
-export function setOperatorAutoApprove(
-  autoApprove: AssistantOperatorAutoApprove | null,
-): void {
-  emit({ ...state, autoApprove })
-}
-
-/**
  * 三张卡一起清 —— 切域（拍板 8）与 ⏹ Stop 用。
- *
- * ⚠ `autoApprove` **不在这里清**：它的作用域是「本会话」，切一下域不该让用户
- * 刚点过的「不再问」失效（那颗勾选说的是这条会话，不是这台工作台）。
  */
 export function clearOperatorPrompts(): void {
   if (!state.plan && !state.spend && !state.choice) return
@@ -1074,10 +995,8 @@ export function loadOperatorThread(args: {
     stepsDone: 0,
     plannedSteps: 0,
     errorText: null,
-    // ⚠ 换一条线程 = 换一份工作记忆与一份账（同 `resetOperatorThread`）。
+    // ⚠ 换一条线程 = 换一份工作记忆（同 `resetOperatorThread`）。
     workingMemory: EMPTY_MEMORY,
-    costs: EMPTY_COSTS,
-    costDetails: [],
   })
 }
 
@@ -1237,16 +1156,12 @@ export function resetOperatorThread(): void {
      * ⛔ 留着它的表现是：用户为上一个话题批过一次 4 credits，新话题里助手直接
      * 又发了一枪，而他这一次根本没看见过任何确认卡。
      */
-    autoApprove: null,
     /**
-     * ⭐ 工作记忆与成本计数**跟着会话走**（切片 Y）：新话题里带着上一条线程的
-     * 产物索引，助手会去指认一件用户已经翻篇的东西；计数不归零则是「这条新
-     * 对话一上来就写着往返 37」。
+     * ⭐ 工作记忆**跟着会话走**（切片 Y）：新话题里带着上一条线程的产物索引，
+     * 助手会去指认一件用户已经翻篇的东西。
      * ⛔ `reviewStates` **不在这里清**：那是用户对产物的判断，与聊哪条线程无关。
      */
     workingMemory: EMPTY_MEMORY,
-    costs: EMPTY_COSTS,
-    costDetails: [],
     /**
      * ⭐ 续跑记录也跟着会话走：那份没跑完的计划是**上一个话题**的事，留在新话题
      * 里的表现是一颗「从第 4 步继续」按钮，点下去助手接着做用户已经翻篇的活。

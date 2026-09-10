@@ -28,10 +28,9 @@ import {
 } from '@/types/assistant-reference-analysis'
 
 import {
-  ASSISTANT_CHOICE_REQUEST_LIMITS as CHOICE_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
-  ASSISTANT_OPERATOR_CONFIRM_TIER_IDS,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
@@ -47,14 +46,12 @@ import {
   ASSISTANT_OPERATOR_VERDICT_SEVERITIES,
   ASSISTANT_OPERATOR_WRITE_MODES,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
-  ASSISTANT_PLAN_REQUEST_REASONS,
   ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
   ASSISTANT_RESEARCH_CONFIDENCES,
   ASSISTANT_RESEARCH_EVIDENCE_KINDS,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   ASSISTANT_RESEARCH_SCOPES,
   ASSISTANT_RESEARCH_SOURCES,
-  ASSISTANT_COST_TICK_KINDS,
   ASSISTANT_WORKING_MEMORY as MEMORY_LIMITS,
   GENERATION_REVIEW_STATES,
   type AssistantOperatorTool,
@@ -555,26 +552,6 @@ export type AssistantOperatorVideoCritique = z.infer<
  */
 export const AssistantPlanVisualSchema = z.enum(ASSISTANT_PLAN_VISUAL_IDS)
 
-/**
- * 「这一枪大概花多少」。
- *
- * ⚠ `credits` **可选，而且今天基本都缺席** —— 本仓至今没有任何一处能在客户端或
- * 助手侧算出准确 credit 数（`AI_MODELS[].cost` 是每次请求的基数，真正的扣费口径
- * 在服务端 credit policy）。缺席时卡上那一行**不画**，⛔ 不画一个「约 0」——
- * 一个错的数比没有数更糟（论据与 `StudioCostPreview` 的「缺价不折进合计」同源）。
- * ⚠ 缺席同时意味着「本会话不再问」**匹配不上**（见 `autoApprove`），于是退回每次
- * 硬确认 —— 这正是安全的那个方向。
- */
-export const AssistantOperatorPlanEstimateSchema = z.object({
-  credits: z.number().int().nonnegative().optional(),
-  model: LabelSchema.optional(),
-  count: z.number().int().positive().optional(),
-})
-
-export type AssistantOperatorPlanEstimate = z.infer<
-  typeof AssistantOperatorPlanEstimateSchema
->
-
 /** 这一枪的规格。⚠ 三格**永远带齐**（没有的那格是 `null`，论据同 `set_video_specs`）。 */
 export const AssistantOperatorGenerationSpecsSchema = z.object({
   quality: AdvancedParamsSchema.shape.quality,
@@ -586,9 +563,9 @@ export const AssistantOperatorGenerationSpecsSchema = z.object({
 })
 
 /**
- * 花钱档的那一份载荷（§6）—— **一份形状，两处用**：
+ * 生成那一份载荷（§5）—— **一份形状，两处用**：
  *  · `request_generation` 这一步的 `payload`（客户端据它调 `triggerGeneration`）；
- *  · `spend_request` 事件（硬确认卡据它画模型 / 张数 / 规格 / 预估）。
+ *  · `confirm` 帧的 `generate` 支（确认卡据它画模型 / 张数 / 规格）。
  * ⛔ 别抄成两份：卡上写的和真的发出去的必须是同一个对象，否则「确认了 4 张、
  * 发出去 1 张」这种事没有任何东西拦得住。
  */
@@ -596,7 +573,6 @@ export const AssistantOperatorGenerationRequestSchema = z.object({
   model: z.object({ id: IdSchema, label: LabelSchema }),
   count: z.number().int().positive(),
   specs: AssistantOperatorGenerationSpecsSchema,
-  estimate: AssistantOperatorPlanEstimateSchema,
   /**
    * 助手给这一枪起的名（切片 X）——**透传字段**：服务端只是把模型给的那个字
    * 抄进来，客户端提交时把它交给 `createGeneration({ displayLabel })`。
@@ -690,27 +666,6 @@ export const AssistantOperatorPlanAnswerSchema = z.object({
 
 export type AssistantOperatorPlanAnswer = z.infer<
   typeof AssistantOperatorPlanAnswerSchema
->
-
-/**
- * 「本会话此类不再问」（§6 拍板 24）**在客户端**的那一半。
- *
- * ⭐ 服务端**不存任何记忆** —— 它只在每次请求里收到这张条子，然后逐条核：
- * 同模型？金额 ≤ 上次确认过的？两条都成立才跳过硬确认。作用域的第三要素
- * 「同会话」由客户端负责（换一条会话它就不再带上来），因为会话本来就只活在客户端。
- * ⚠ `estimate.credits` 缺席时**匹配不上**（`undefined <= n` 恒假的那条判据写在
- * 服务端），于是回到每次确认 —— 安全的那个方向。
- */
-export const AssistantOperatorAutoApproveSchema = z.object({
-  tier: z.literal(ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.spend),
-  /** 上次确认的那个模型 id。换个模型 = 换一笔账，重新问。 */
-  model: IdSchema,
-  /** 上次确认过的金额，本次不许超。 */
-  maxCredits: z.number().int().nonnegative(),
-})
-
-export type AssistantOperatorAutoApprove = z.infer<
-  typeof AssistantOperatorAutoApproveSchema
 >
 
 /**
@@ -829,7 +784,7 @@ export type AssistantOperatorWorkingMemoryArtifact = z.infer<
  * 待办清单往下跑，跑的是一个不存在的现场。
  * ⚠ 每一步只带 `label` 与产物 id：⛔ 不搬产物内容（那是 `workingMemory` 的活，
  * 两处都搬等于同一段 token 付两遍钱）。
- * ⛔ **续跑不是花钱的免检通道**：`resumeFrom` 一个字都不影响 `spend_request` ——
+ * ⛔ **续跑不是花钱的免检通道**：`resumeFrom` 一个字都不影响 `confirm` 帧 ——
  * 剩下的步里但凡有一步要花钱，硬确认卡照出（owner 2026-09-07 定）。判据写在
  * `assistant-operator.money-gate.test.ts` 里。
  */
@@ -934,7 +889,6 @@ export const AssistantOperatorRequestSchema = z.object({
    */
   resumeFrom: AssistantOperatorResumeFromSchema.optional(),
   /** 「本会话此类不再问」的条子（§6 拍板 24）。见 schema 头注。 */
-  autoApprove: AssistantOperatorAutoApproveSchema.optional(),
   /**
    * 用户这一轮 `@` 引用的那几张图（§7 四入口共用的 chip 管线，切片 3a）。
    *
@@ -2211,25 +2165,17 @@ export const AssistantOperatorOpenEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.open),
 })
 
+/**
+ * **这一轮打算分几步**（v2 §3.1：`plan` 与计划请求帧合并）。
+ *
+ * ⚠ 只剩阶段列表：待定项整体搬去了 `ask`（问题卡），预估随决策 8 删掉，
+ * 服务端观察到的「出卡理由」也一起没了（判定改在服务端，见
+ * `ASSISTANT_PLAN_CARD_MIN_STEPS`）。
+ * ⚠ 步骤带 `id` 而不是裸字符串：多步确认卡与续跑记录都要按格指认某一步，
+ * 而序号会随重规划变。
+ */
 export const AssistantOperatorPlanEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.plan),
-  steps: z
-    .array(z.string().trim().min(1).max(LIMITS.maxPlanItemChars))
-    .min(1)
-    .max(LIMITS.maxPlanItems),
-})
-
-/**
- * **计划卡的素材**（§2.6 / §5，切片 2a）—— 紧跟 `plan` 之后，第一个 `step` 之前。
- *
- * ⛔ 收到它**不等于**要出卡：出不出由 `lib/studio-operator-plan.ts` 的
- * `shouldShowPlanCard` 判（owner 2026-09-06「客户端硬判」）。这一帧只是把判据要
- * 用的三样东西摆出来 —— 阶段、反问题、预估。
- * ⚠ `questions` 允许为空数组：多数轮次没什么可问的，卡上就只有阶段列表 +「开始」。
- */
-export const AssistantOperatorPlanRequestEventSchema = z.object({
-  type: z.literal(ASSISTANT_OPERATOR_EVENTS.planRequest),
-  /** ⚠ 带 `id` 而不是裸字符串：待定项要挂在阶段旁边，而序号会随重规划变。 */
   steps: z
     .array(
       z.object({
@@ -2239,54 +2185,11 @@ export const AssistantOperatorPlanRequestEventSchema = z.object({
     )
     .min(1)
     .max(LIMITS.maxPlanItems),
-  questions: z
-    .array(AssistantOperatorPlanQuestionSchema)
-    .max(PLAN_LIMITS.maxQuestions),
-  estimate: AssistantOperatorPlanEstimateSchema,
-  /** 服务端**观察到**的理由 —— 证据不是判定，见常量头注。 */
-  reason: z.enum(ASSISTANT_PLAN_REQUEST_REASONS),
-})
-
-/**
- * 花钱硬确认（§6 第三档）。它之后这条流结束（`awaiting_confirm`）。
- *
- * ⚠ 用户点「生成」**不是续跑这条流**：客户端带 `autoApprove` 重发一轮，服务端这
- * 次放行并吐 `request_generation` 那一步，扳机仍然在客户端扣（§5 流程图 H → G）。
- */
-export const AssistantOperatorSpendRequestEventSchema = z.object({
-  type: z.literal(ASSISTANT_OPERATOR_EVENTS.spendRequest),
-  tier: z.literal(ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.spend),
-  request: AssistantOperatorGenerationRequestSchema,
 })
 
 export const AssistantOperatorStepEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.step),
   step: AssistantOperatorStepSchema,
-})
-
-/**
- * 就地确认（拍板 3）。
- *
- * ⚠ 它之后这条流**就结束了**（`stopped` / `awaiting_confirm`）—— 服务端没有会话
- * 态可以挂起，续跑靠客户端带 `confirmations` 重发，与打断复用同一条机制。
- */
-export const AssistantOperatorConfirmRequestEventSchema = z.object({
-  type: z.literal(ASSISTANT_OPERATOR_EVENTS.confirmRequest),
-  /**
-   * 三档里的哪一档（§6）—— **恒 `overwrite`**（切片 3a 收成必填）。
-   *
-   * ⛔ 不是 `z.enum(三档)`：花钱档有自己的帧（`spend_request`），免费档压根不发帧。
-   * 写成三选一等于允许一个「这张覆盖三选卡其实说的是花钱」的载荷存在，而那张卡
-   * 的三颗按钮（追加 / 覆盖 / 保留）对花钱一件都答不上。
-   * ⚠ 从可选收成必填是有意的（切片 2a 的注释里写着到这一片收）：可选意味着客户端
-   * 得回答「缺席算哪一档」，而那正是兼容层的形状。
-   */
-  tier: z.literal(ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.overwrite),
-  field: AssistantOperatorConfirmFieldSchema,
-  /** 用户当前文本，供助手确认卡完整展示。 */
-  have: z.string().max(LIMITS.maxPromptChars),
-  /** 助手建议的完整文本。 */
-  proposed: z.string().max(LIMITS.maxPromptChars),
 })
 
 /**
@@ -2320,51 +2223,58 @@ export const AssistantOperatorRuleHitEventSchema = z.object({
 })
 
 /**
- * **歧义反问单选**（§3.3 第 5 行 / §7，切片 3a）—— `StudioOperatorAssetChoiceCard`
- * 收的就是它。它之后这条流结束（`awaiting_confirm`）。
+ * **列几个选项等用户点一个**（v2 §3.1：覆盖三选 + 候选单选并帧）。
  *
- * ⚠ `options[].assetUrl` **必填**：这张卡的每一格就是一张缩略图（§11.4「反问单选
- * 卡」的 `grid-cols-4` + `aspect-3/4`），没有图的选项在这张卡上画不出来 ——
- * 那种问题该走计划卡的待定项，不是这里。
- * ⚠ `id` 是**客户端要拿去插 @chip 的那个身份**：素材库里的 assetId，或没有 id 时
- * 服务端拿 URL 兜的一个稳定串。
+ * ⚠ 一帧**只问一道题**（§3.4「一次只问一个」）：模型想问两件事就分两轮。
+ * ⚠ 题的形状复用 `AssistantOperatorPlanQuestion` —— 计划里的待定项搬进这一帧
+ * 之后，两处问的本来就是同一种东西（一句问句 + 2–4 个带说明的选项，选项可以
+ * 带 `assetUrl` 当缩略图，那就是旧的候选单选卡）。⛔ 别为「图片选项」
+ * 另立一帧：那正是 v1 里覆盖三选与候选单选分家的老路。
+ * ⚠ `overwrite` 是**覆盖手写那一支的回执路由**：三选（追加在后 / 覆盖 / 保留）
+ * 答完之后要按 `field` 原样带回服务端（`confirmations`），而问句本身说不出
+ * 「改的是哪一格」。缺席 = 这道题不是覆盖三选。
+ * ⚠ 它之后这条流结束（`awaiting_confirm`）——服务端没有挂起态，续跑靠客户端
+ * 带答复重发，与打断复用同一条机制。
  */
-export const AssistantOperatorChoiceRequestEventSchema = z.object({
-  type: z.literal(ASSISTANT_OPERATOR_EVENTS.choiceRequest),
-  /** 助手问的那句原话。 */
-  question: z.string().trim().min(1).max(CHOICE_LIMITS.maxQuestionChars),
-  options: z
-    .array(
-      z.object({
-        id: IdSchema,
-        label: LabelSchema,
-        assetUrl: z.string().url(),
-      }),
-    )
-    .min(CHOICE_LIMITS.minOptions)
-    .max(CHOICE_LIMITS.maxOptions),
+export const AssistantOperatorAskEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.ask),
+  question: AssistantOperatorPlanQuestionSchema,
+  /** 「为什么问这一句」—— 一行小字，缺席就不画。 */
+  why: z.string().trim().min(1).max(LIMITS.maxMessageChars).optional(),
+  overwrite: z
+    .object({
+      field: AssistantOperatorConfirmFieldSchema,
+      /** 用户当前文本。 */
+      have: z.string().max(LIMITS.maxPromptChars),
+      /** 助手建议的完整文本。 */
+      proposed: z.string().max(LIMITS.maxPromptChars),
+    })
+    .optional(),
 })
 
 /**
- * **成本计数帧**（切片 X）—— 词表 `ASSISTANT_OPERATOR_EVENTS.costTick` 的头注写着
- * 它为什么不是一步、也不是账单。
+ * **等你拍板才往下走**（v2 §3.3）—— 两种来源，一帧两支。
  *
- * ⚠ `label` 是 **i18n key**（`ASSISTANT_COST_TICK_LABEL_KEYS`），⛔ 不是人话：
- * 服务端不知道用户此刻的界面语言（`responseLanguage` 说的是助手说话用哪种语言，
- * 那是另一件事）。
- * ⚠ `units` 是**这一帧数了几次**，不是累计值：累计在客户端做。⛔ 别改成累计 ——
- * 那样每一帧都得知道前面所有帧，而这条流本来就允许客户端中途接进来。
+ * ⚠ 支放在 `confirm` 这一格里（按 `kind` 判别）而不是摊平到帧上：两支的必填字段
+ * 互不相容（多步要 `steps`，生成要 `request`），摊平就得把两边都改成可选，
+ * 而那等于让确认卡去处理「既没有步也没有载荷的确认」。
+ * ⛔ **没有第三种**：花费确认删除（决策 8），覆盖手写降级成 `ask`。
+ * ⚠ 生成那一支之后这条流结束（`awaiting_confirm`），扳机由客户端扣（§5）——
+ * 服务端到这里为止一行库都没写，钱闸不动。
  */
-export const AssistantOperatorCostTickEventSchema = z.object({
-  type: z.literal(ASSISTANT_OPERATOR_EVENTS.costTick),
-  kind: z.enum(ASSISTANT_COST_TICK_KINDS),
-  units: z.number().int().positive(),
-  label: z.string().trim().min(1).max(LIMITS.maxIdChars),
+export const AssistantOperatorConfirmEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.confirm),
+  confirm: z.discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep),
+      steps: AssistantOperatorPlanEventSchema.shape.steps,
+    }),
+    z.object({
+      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate),
+      request: AssistantOperatorGenerationRequestSchema,
+    }),
+  ]),
 })
-
-export type AssistantOperatorCostTickEvent = z.infer<
-  typeof AssistantOperatorCostTickEventSchema
->
 
 export const AssistantOperatorDoneEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.done),
@@ -2386,14 +2296,11 @@ export const AssistantOperatorErrorEventSchema = z.object({
 export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorOpenEventSchema,
   AssistantOperatorPlanEventSchema,
-  AssistantOperatorPlanRequestEventSchema,
   AssistantOperatorStepEventSchema,
-  AssistantOperatorConfirmRequestEventSchema,
-  AssistantOperatorSpendRequestEventSchema,
+  AssistantOperatorAskEventSchema,
+  AssistantOperatorConfirmEventSchema,
   AssistantOperatorMessageEventSchema,
   AssistantOperatorRuleHitEventSchema,
-  AssistantOperatorChoiceRequestEventSchema,
-  AssistantOperatorCostTickEventSchema,
   AssistantOperatorDoneEventSchema,
   AssistantOperatorStoppedEventSchema,
   AssistantOperatorErrorEventSchema,
@@ -2407,24 +2314,21 @@ export type AssistantOperatorEvent = z.infer<
 export type AssistantOperatorStepEvent = z.infer<
   typeof AssistantOperatorStepEventSchema
 >
-/** 计划卡（§2.6）收的那一帧。 */
-export type AssistantOperatorPlanRequestEvent = z.infer<
-  typeof AssistantOperatorPlanRequestEventSchema
+/** 计划帧（§3.1）—— 多步确认卡与续跑记录读的是同一份阶段列表。 */
+export type AssistantOperatorPlanEvent = z.infer<
+  typeof AssistantOperatorPlanEventSchema
 >
-/** 花钱硬确认卡（§11.4）收的那一帧。 */
-export type AssistantOperatorSpendRequestEvent = z.infer<
-  typeof AssistantOperatorSpendRequestEventSchema
+/** 问题卡（§3.2）收的那一帧。 */
+export type AssistantOperatorAskEvent = z.infer<
+  typeof AssistantOperatorAskEventSchema
 >
-export type AssistantOperatorConfirmRequestEvent = z.infer<
-  typeof AssistantOperatorConfirmRequestEventSchema
+/** 确认卡（§3.3 两种来源）收的那一帧。 */
+export type AssistantOperatorConfirmEvent = z.infer<
+  typeof AssistantOperatorConfirmEventSchema
 >
 /** 规则薄卡（§2.21 / §4.2）收的那一帧。 */
 export type AssistantOperatorRuleHitEvent = z.infer<
   typeof AssistantOperatorRuleHitEventSchema
->
-/** 歧义反问单选卡（§11.4「反问单选卡」）收的那一帧。 */
-export type AssistantOperatorChoiceRequestEvent = z.infer<
-  typeof AssistantOperatorChoiceRequestEventSchema
 >
 export type AssistantOperatorPriorStep = z.infer<
   typeof AssistantOperatorPriorStepSchema

@@ -51,7 +51,10 @@ describe('readAssistantOperatorStream', () => {
         }),
         encodeSseEvent(ASSISTANT_OPERATOR_EVENTS.plan, {
           type: ASSISTANT_OPERATOR_EVENTS.plan,
-          steps: ['读工作台', '搜素材'],
+          steps: [
+            { id: 'plan-1', label: '读工作台' },
+            { id: 'plan-2', label: '搜素材' },
+          ],
         }),
         encodeSseEvent(ASSISTANT_OPERATOR_EVENTS.done, {
           type: ASSISTANT_OPERATOR_EVENTS.done,

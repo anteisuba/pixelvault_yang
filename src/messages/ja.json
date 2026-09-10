@@ -7519,12 +7519,6 @@
       "videoFramesMissing": "この動画からフレームを取り出せませんでした",
       "blockedSource": "不採用にした素材なので、開始フレームにも終了フレームにも使えません"
     },
-    "cost": {
-      "title": "アシスタントの作業量",
-      "vision": "画像を見た回数",
-      "research": "検索・本文読み取り",
-      "llm": "モデル往復"
-    },
     "field": {
       "prompt": "プロンプト",
       "negative": "ネガティブプロンプト",
@@ -7569,7 +7563,6 @@
       "queueDropped": "並んでいたメッセージを取り消しました：{subject}",
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
       "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）",
-      "autoApproved": "設定に従いそのまま送信 · {count} クレジット",
       "videoFramesFailed": "このクリップからフレームを取り出せませんでした —— 今回アシスタントは見られません（{subject}）",
       "checkpointRestored": "選択したステップの設定を復元しました。以後は現在のフォームに従って操作してください。"
     },
@@ -7765,7 +7758,6 @@
     },
     "plan": {
       "title": "プラン · 確認待ち",
-      "estimate": "約 {credits} クレジット",
       "revisePrefill": "計画を変更："
     },
     "spend": {
@@ -7773,10 +7765,7 @@
       "model": "モデル",
       "count": "枚数",
       "specs": "仕様",
-      "estimate": "概算",
-      "credits": "約 {credits} クレジット",
       "seconds": "{seconds}秒",
-      "remember": "このセッションでは同じ内容の送信を今後確認しない",
       "cancel": "キャンセル",
       "confirm": "送信",
       "resolved": "送信済み · クレジットを消費しました"

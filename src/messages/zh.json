@@ -7519,12 +7519,6 @@
       "videoFramesMissing": "这段片子没能取出可看的帧",
       "blockedSource": "这张被你判过失败，不能再作首帧或尾帧"
     },
-    "cost": {
-      "title": "助手这一轮的开销",
-      "vision": "看图",
-      "research": "检索与读正文",
-      "llm": "模型往返"
-    },
     "field": {
       "prompt": "提示词",
       "negative": "负面提示词",
@@ -7569,7 +7563,6 @@
       "queueDropped": "你撤回了排着的那句：{subject}",
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
       "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
-      "autoApproved": "按你的设置直接生成 · {count} credits",
       "videoFramesFailed": "这段片子没能抽出帧 —— 助手这一轮看不了它（{subject}）",
       "checkpointRestored": "已恢复到所选步骤的配置，后续操作以当前表单为准。"
     },
@@ -7765,7 +7758,6 @@
     },
     "plan": {
       "title": "计划 · 待确认",
-      "estimate": "预估 {credits} credits",
       "revisePrefill": "修改计划："
     },
     "spend": {
@@ -7773,10 +7765,7 @@
       "model": "模型",
       "count": "张数",
       "specs": "规格",
-      "estimate": "预估",
-      "credits": "约 {credits} credits",
       "seconds": "{seconds} 秒",
-      "remember": "本会话此类不再问",
       "cancel": "取消",
       "confirm": "生成",
       "resolved": "已生成 · 已扣 credits"

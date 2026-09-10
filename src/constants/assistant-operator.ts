@@ -38,21 +38,14 @@ import { ASSISTANT_STREAM_EVENTS } from '@/constants/assistant-stream'
 export const ASSISTANT_OPERATOR_EVENTS = {
   /** 开流握手，载荷为空。由成帧器发，service 不产。 */
   open: ASSISTANT_STREAM_EVENTS.open,
-  /** 计划条，最多一次，排在第一个 `step` 之前。载荷 `{ steps: string[] }`。 */
-  plan: 'plan',
   /**
-   * **计划卡的素材**（§2.6 / §5，切片 2a）—— 紧跟在 `plan` 之后、第一个 `step`
-   * 之前吐一次，载荷是阶段列表 + 至多三个待定项 + 预估 + 服务端观察到的理由。
+   * **这一轮打算分几步**（v2 §3.1：`plan` 与计划请求帧合成这一帧）。
    *
-   * ⛔ **它不是「出卡」的命令**：出不出卡由**客户端硬判**（owner 2026-09-06），
-   * 判据写在 `lib/studio-operator-plan.ts` 的 `shouldShowPlanCard` 里。服务端只
-   * 负责把「这一轮打算分几步、还有什么没定、大概花多少」摆出来 —— 让模型自己
-   * 决定要不要出卡既不稳定，也与「服务端零会话态」相冲。
-   * ⚠ 它与 `plan` **分两帧**而不是往 `plan` 上加字段：`plan` 是一行给人看的字，
-   * 早就有客户端在读；计划卡要的是结构化的待定项。合帧的代价是让一条已经在跑
-   * 的帧变形。
+   * ⚠ 合帧的判据：两帧分开的理由曾经是「一行给人看的字 vs 结构化的待定项」，
+   * 而 v2 把待定项整体搬去了 `ask`（问题卡）、把预估删了（决策 8）——`plan`
+   * 只剩阶段列表，第二帧就没有存在的理由了。
    */
-  planRequest: 'plan_request',
+  plan: 'plan',
   /**
    * 一步。同一个 `id` 会出现两次：`running` 一次、`done` / `error` 一次。
    *
@@ -60,23 +53,24 @@ export const ASSISTANT_OPERATOR_EVENTS = {
    */
   step: 'step',
   /**
-   * 就地确认请求（拍板 3）。它之后这条流即结束，
-   * 见 `ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm`。
-   */
-  confirmRequest: 'confirm_request',
-  /**
-   * **花钱硬确认**（§6 第三档，拍板 2 的新形态）。它之后这条流同样结束
-   * （`awaitingConfirm`），用户点「生成」= 客户端带 `autoApprove` 重发。
+   * **列几个选项等用户点一个**（v2 §3.1：覆盖三选与候选单选一起并进这一帧）。
    *
-   * ── 为什么不是 `confirm_request` 上的一个 `tier` 分支 ────────────────
-   * `confirm_request` 的三个字段（`field` / `have` / `proposed`）是**覆盖档专属**
-   * 的，而花钱档一个都没有：它要说的是模型 / 张数 / 规格 / 预估。塞进同一帧就得把
-   * 那三个字段改成可选，而客户端那张确认条（`StudioOperatorConfirm`）正是
-   * `Omit<ConfirmRequestEvent,'type'>` —— 改成可选等于让覆盖三选卡去处理
-   * 「没有 field 的确认」。两张卡（§11.4「覆盖三选」/「花钱确认」）本来就是两帧。
-   * ⚠ 两帧都带 `tier`，第 3 轮接线时按它分派到两张卡上。
+   * ⚠ 三个来源，一种形状：① 计划里的待定项；② 「你说的是哪一张」（选项带
+   * `assetUrl`）；③ 覆盖手写三选（追加在后 / 覆盖 / 保留，载荷多一块
+   * `overwrite` 用来把回执路由回原字段）。
+   * ⚠ 它之后这条流即结束（`ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm`）：
+   * 服务端没有会话态，续跑靠客户端带答复重发。
    */
-  spendRequest: 'spend_request',
+  ask: 'ask',
+  /**
+   * **等你拍板才往下走**（v2 §3.3）—— 只剩两种来源，见 `confirm.kind`：
+   *  · `multistep`：这一轮要连做好几步，「开始」= 带 `planApproved` 重发；
+   *  · `generate`：`request_generation` 摆出模型 / 比例 / 张数 / 分辨率，
+   *    扳机仍然由**客户端**扣（钱闸不动）。
+   *
+   * ⛔ **没有第三种**：花费确认已删（决策 8），覆盖手写降级成 `ask`。
+   */
+  confirm: 'confirm',
   /**
    * 普通对白 —— **正文的唯一来源**（v2 §3.1 / §13.1）。
    *
@@ -96,34 +90,6 @@ export const ASSISTANT_OPERATOR_EVENTS = {
    * 转述出来的那句话就不再是用户写下的那句了。
    */
   ruleHit: 'rule_hit',
-  /**
-   * **歧义反问单选**（§3.3 第 5 行 / §7 四入口之四，切片 3a）。
-   *
-   * 用户说「把那张改一下」而候选不止一张时，助手就地列出缩略图让他点一张。
-   * 它之后这条流同样结束（`awaitingConfirm`），点中 = 客户端插一枚 @chip 并带
-   * 上下文重发 —— 与拍板 3 的就地确认逐字同构。
-   *
-   * ── 为什么不是 `confirm_request` 的第四个 tier ────────────────────
-   * `confirm_request` 的三个字段（`field` / `have` / `proposed`）说的是「你手写的
-   * 那段字要怎么办」；这一帧要说的是「这几张图里是哪一张」。塞进同一帧就得把那三
-   * 个字段全改成可选，而客户端那张确认条正是 `Omit<ConfirmRequestEvent,'type'>`
-   * —— 覆盖三选卡从此要处理「没有 field 的确认」。三档确认（§6）里也没有它的位置：
-   * 它一分钱都不花，也不覆盖任何东西，它只是在问路。
-   */
-  choiceRequest: 'choice_request',
-  /**
-   * **这一轮又看了 / 又查了 / 又问了一次模型**（切片 X）。
-   *
-   * ⭐ 它是一条**计数帧**，不是账单：本仓这条链花的是用户自己那把 key 的额度，
-   * 服务端一分钱都扣不掉（钱闸不变）。做它的理由是「看不见的开销」——一轮里
-   * 看三张图、检索两轮、来回八次 LLM，用户在日志上只看得见八条 step，
-   * 而真正贵的是那三张图。客户端把这些帧累加成一行小字。
-   * ⚠ 它**不是一步**（没有 step id、没有 payload / inverse）：一次视觉往返可能
-   * 发生在某一步的规划期（`critique_result` 的那一跳），绑在 step 上就得挑一步
-   * 来绑，而挑哪一步没有判据 —— 与 `rule_hit` 逐字同源。
-   * ⛔ 它也**不是闸**：读到 `cost_tick` 不会拦住任何东西，拦是三档确认的事。
-   */
-  costTick: 'cost_tick',
   /** 正常收尾。 */
   done: 'done',
   /** 未跑完就停了 —— 载荷带 `reason`，与 `done` 分开是为了让 UI 说得出为什么。 */
@@ -660,56 +626,35 @@ export function isRevertibleAssistantOperatorTool(tool: string): boolean {
 }
 
 /**
- * **确认三档**（§6，切片 2a 明确成常量）。
+ * **确认卡只剩两种来源**（v2 §3.3，决策 8）。
  *
- * | 档          | 触发                          | 载体                                        |
- * | ----------- | ----------------------------- | ------------------------------------------- |
- * | `free`      | 改提示词 / 参数 / 挂 LoRA     | **没有事件** —— 直落，留 checkpoint 薄卡     |
- * | `overwrite` | 目标字段已有用户手写内容      | `confirm_request`（追加 / 覆盖 / 保留三选） |
- * | `spend`     | 请求生成                      | `spend_request` + 硬确认卡，客户端扣扳机    |
+ * | kind        | 触发                              | 卡上摆什么                                |
+ * | ----------- | --------------------------------- | ----------------------------------------- |
+ * | `multistep` | 本轮计划步数多                    | 一行动作串 + 「开始 / 一步一步来」        |
+ * | `generate`  | `request_generation`              | 模型 / 比例 / 张数 / 分辨率 + 「确认生成」 |
  *
- * ⚠ `free` 在表里**不是凑数**：它是「什么时候什么都不问」这条判据的名字，没有它
- * 就只能靠「另外两档都不匹配」来表达 —— 而那是一句读不出意图的话。
+ * ⛔ **没有第三种**：花费确认删除（决策 8），覆盖手写降级成 `ask` 帧（§3.1）。
+ * ⛔ 也没有「本会话此类不再问」那张条子了 —— 它是花费确认的配件，一起走。
  */
-export const ASSISTANT_OPERATOR_CONFIRM_TIER_IDS = {
-  free: 'free',
-  overwrite: 'overwrite',
-  spend: 'spend',
+export const ASSISTANT_OPERATOR_CONFIRM_KIND_IDS = {
+  multistep: 'multistep',
+  generate: 'generate',
 } as const
 
-export const ASSISTANT_OPERATOR_CONFIRM_TIERS = [
-  ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.free,
-  ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.overwrite,
-  ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.spend,
+export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
 ] as const
 
-export type AssistantOperatorConfirmTier =
-  (typeof ASSISTANT_OPERATOR_CONFIRM_TIERS)[number]
+export type AssistantOperatorConfirmKind =
+  (typeof ASSISTANT_OPERATOR_CONFIRM_KINDS)[number]
 
 /**
- * 服务端**观察到**的出卡理由（`plan_request.reason`）。
+ * 步数到几就值得先出一张多步确认卡（v2 §3.3）。
  *
- * ⛔ 它不是判定 —— 判定在客户端（`shouldShowPlanCard`）。它是证据：这一轮的工具
- * 是花钱档（`spend`）/ 这一轮分了好几步（`multiStep`）/ 用户开了「先问我」
- * （`userRequested`）。⚠ 三者不是互斥的优先级链，服务端按这个顺序取第一条命中的。
- */
-export const ASSISTANT_PLAN_REQUEST_REASON_IDS = {
-  spend: 'spend',
-  multiStep: 'multi-step',
-  userRequested: 'user-requested',
-} as const
-
-export const ASSISTANT_PLAN_REQUEST_REASONS = [
-  ASSISTANT_PLAN_REQUEST_REASON_IDS.spend,
-  ASSISTANT_PLAN_REQUEST_REASON_IDS.multiStep,
-  ASSISTANT_PLAN_REQUEST_REASON_IDS.userRequested,
-] as const
-
-export type AssistantPlanRequestReason =
-  (typeof ASSISTANT_PLAN_REQUEST_REASONS)[number]
-
-/**
- * 步数到几就值得先出一张计划卡（§5 客户端硬判的第二条判据）。
+ * ⚠ 判在**服务端**（`confirm` 帧就是它摆出来的）—— v1 那条「客户端硬判」的
+ * 判据随计划请求帧一起没了：判据要用的三样东西（理由 / 待定项 / 预估）
+ * 有两样在 v2 里不存在了。
  *
  * ⚠ 3 不是随手拍的：一步（改个提示词）和两步（改提示词 + 换模型）出卡是纯打扰 ——
  * 用户看着一张卡上写着一句他刚说过的话。三步起才是「它要替我做一串事」，那时
@@ -748,19 +693,6 @@ export const ASSISTANT_PLAN_CARD_LIMITS = {
   maxOptionDescriptionChars: 80,
   /** 「其他」里用户自己写的那一句。 */
   maxOtherTextChars: 200,
-} as const
-
-/**
- * 歧义反问单选卡（`choice_request`）的护栏。
- *
- * ⚠ `maxOptions` 是 8 而不是「不设上限」：卡是 `grid-cols-4`（§11.4），两行封顶。
- * 候选比这还多说明问题问错了 —— 该先缩小范围，而不是铺一屏缩略图。
- * ⚠ `minOptions` 2：一个候选的「单选」不是问题，是通知（同计划卡待定项那条）。
- */
-export const ASSISTANT_CHOICE_REQUEST_LIMITS = {
-  minOptions: 2,
-  maxOptions: 8,
-  maxQuestionChars: 160,
 } as const
 
 /**
@@ -1333,46 +1265,6 @@ export const ASSISTANT_OPERATOR_RESUME_STEP_STATES = [
 
 export type AssistantOperatorResumeStepState =
   (typeof ASSISTANT_OPERATOR_RESUME_STEP_STATES)[number]
-
-/**
- * `cost_tick` 的三档（切片 X）—— **按「贵在哪」分，不按工具名分**。
- *
- * ⚠ 一条工具可能同时属于两档（`critique_result` 借一条视觉线看图 = `vision`，
- * 而它自己那次 JSON 往返 = `llm`），所以这张表分的是**这一帧在数什么**。
- */
-export const ASSISTANT_COST_TICK_KIND_IDS = {
-  /** 看了一次图（含视频抽出来的帧）—— `units` = 这一次真的送进模型的图片张数。 */
-  vision: 'vision',
-  /** 打了一次外部源（检索 / 搜网 / 读正文）—— `units` = 这一次真的打出去的次数。 */
-  research: 'research',
-  /** 一次完整的 LLM 往返 —— `units` 恒 1。 */
-  llm: 'llm',
-} as const
-
-export const ASSISTANT_COST_TICK_KINDS = [
-  ASSISTANT_COST_TICK_KIND_IDS.vision,
-  ASSISTANT_COST_TICK_KIND_IDS.research,
-  ASSISTANT_COST_TICK_KIND_IDS.llm,
-] as const
-
-export type AssistantCostTickKind = (typeof ASSISTANT_COST_TICK_KINDS)[number]
-
-/**
- * 每一档在界面上怎么念 —— **服务端只发 i18n key**，⛔ 不发人话。
- *
- * ⚠ 判据与 `error.i18nKey` 那条同源：服务端不知道用户此刻的界面语言（
- * `responseLanguage` 说的是**助手说话**用哪种语言，与界面语言不是一回事），
- * 发一句中文过去的表现是英文界面上蹦出一行中文。
- * ⚠ 写成 `Record<档, …>`：加一档而这里没跟上，编译期就红。
- */
-export const ASSISTANT_COST_TICK_LABEL_KEYS: Record<
-  AssistantCostTickKind,
-  string
-> = {
-  [ASSISTANT_COST_TICK_KIND_IDS.vision]: 'StudioOperator.cost.vision',
-  [ASSISTANT_COST_TICK_KIND_IDS.research]: 'StudioOperator.cost.research',
-  [ASSISTANT_COST_TICK_KIND_IDS.llm]: 'StudioOperator.cost.llm',
-}
 
 /**
  * 工具被规划器拒绝的理由。

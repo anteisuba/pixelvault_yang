@@ -35,7 +35,7 @@ describe('操作员流成帧器', () => {
       events: async function* () {
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.plan,
-          steps: ['a'],
+          steps: [{ id: 'plan-1', label: 'a' }],
         } as AssistantOperatorEvent
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.done,

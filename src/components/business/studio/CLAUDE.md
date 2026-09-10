@@ -56,7 +56,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 ```
 
 ⚠ **operator 系对外只有两颗入口**（`assistant-operator/index.ts`）：`StudioOperatorDock`（`StudioWorkspaceUI` 挂）与 `StudioOperatorChangeRail`（`StudioPromptArea.tsx:711` 挂，改动标记长在被改的那一栏）。其余是面板内部件，不从 index 导出。LoRA 工作台也挂这两颗（`studio/lora/LoraWorkbench.tsx:176-177`）。
-⚠ **已接线，别再按「接线中」找**：`StudioOperatorAssetChoiceCard`（歧义单选卡，`choice_request` 事件，面板已渲染）· `StudioOperatorQuestionCard`（2026-09-06 起是**唯一**那张钉在流末尾的待确认卡，`StudioOperatorPlanCard` 已删）+ `PlanOptionVisual` · `StudioOperatorSpendConfirmCard` · `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（**进度带上那颗常驻齿轮** → `onOpenAssistantSettings`，开合 state 在 Dock；2026-09-07 起 ⋯ 菜单里不再有第二个入口）· `StudioOperatorTimelineList`（2026-09-06 起就是面板那颗 `threadRef` 容器）。
+⚠ **已接线，别再按「接线中」找**：`StudioOperatorAssetChoiceCard`（歧义单选卡，`ask` 帧里选项全带 `assetUrl` 的那一支，面板已渲染）· `StudioOperatorQuestionCard`（`ask` 的文字选项支与 `confirm` 的 `multistep` 支都落在它上面，`StudioOperatorPlanCard` 已删）+ `PlanOptionVisual` · `StudioOperatorSpendConfirmCard`（`confirm` 的 `generate` 支；确认即客户端扣扳机）· `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（**进度带上那颗常驻齿轮** → `onOpenAssistantSettings`，开合 state 在 Dock；2026-09-07 起 ⋯ 菜单里不再有第二个入口）· `StudioOperatorTimelineList`（2026-09-06 起就是面板那颗 `threadRef` 容器）。
 ⚠ **逐字淡入已删（v2 §13.1 / 拍板 13）**：`StudioOperatorStreamingText` 整文件删除，正文整段出现，占位脉冲并进 `StudioOperatorMessageBody`。
 ⚠ **视频档具名槽（2026-09-07 `48d6fecb`）**：视频参考区是 `StudioVideoReferenceSlots`（首帧 / 尾帧 / 参考视频），三条落法（拖入 / 素材库 / 助手 `mount_reference slot`）**汇到同一个 dispatch**（`use-video-reference-slots.ts`），⛔ 组件里没有第二条写入。⛔ 关键帧档下**不再渲染** `ReferenceImageChip`——那一档里图片是帧，留着它写进的参考图列表发送口根本不读（静默失效）。首帧在场且线路带图锁比例时，`StudioVideoSpecFields` 把比例组**禁用而不是移除**并说清怎么解除。
 

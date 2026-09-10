@@ -350,7 +350,7 @@ export const ASSISTANT_PLAN_VISUAL_IDS = ASSISTANT_PLAN_VISUALS.map(
  *
  * ⚠ 分成两个类型是因为**表自己要先过 `satisfies`**：`AssistantPlanVisual.id` 写成
  * 字面量联合会绕回表本身（循环引用）。所以基类型收 `string`，查询出口收窄。
- * 收窄的意义很具体：服务端把它写进 `plan_request.visual`，而那一格是 `z.enum`。
+ * 收窄的意义很具体：服务端把它写进 `ask` 帧选项的 `visual`，而那一格是 `z.enum`。
  */
 export type AssistantPlanVisualEntry = Omit<AssistantPlanVisual, 'id'> & {
   id: AssistantPlanVisualId

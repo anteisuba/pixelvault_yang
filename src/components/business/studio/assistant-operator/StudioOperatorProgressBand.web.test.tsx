@@ -74,8 +74,6 @@ function renderBand(
   render(
     <StudioOperatorProgressBand
       domain={ASSISTANT_PROTOCOL_DOMAIN_IDS.image}
-      costs={{ vision: 0, research: 0, llm: 0 }}
-      costDetails={[]}
       working={false}
       awaitingPlan={false}
       stepsDone={0}
@@ -239,38 +237,6 @@ describe('StudioOperatorProgressBand', () => {
     ]) {
       expect(gear.className).toContain(state)
     }
-  })
-})
-
-/**
- * 成本计数（切片 Y）—— 钉三件：一档都没有时**整块不渲染**（⛔ 不摆一份写着
- * 三个 0 的账单）、有计数时只写非零的那几档、hover 明细逐条列出来。
- */
-describe('StudioOperatorProgressBand · 成本计数', () => {
-  it('一档都没有时不画那一行', () => {
-    renderBand()
-    expect(screen.queryByTestId('operator-cost-counter')).toBeNull()
-  })
-
-  it('只写非零的那几档', () => {
-    renderBand({ costs: { vision: 3, research: 0, llm: 7 } })
-    const counter = screen.getByTestId('operator-cost-counter')
-    expect(counter.textContent).toBe('cost.vision 3 · cost.llm 7')
-    // ⛔ 零的那一档不出现 —— 一个恒等于 0 的计数只是噪音。
-    expect(counter.textContent).not.toContain('cost.research')
-  })
-
-  it('hover 明细逐条列出来（含服务端给的那句标签）', () => {
-    renderBand({
-      costs: { vision: 2, research: 0, llm: 0 },
-      costDetails: [
-        { kind: 'vision', units: 1, label: '结果②' },
-        { kind: 'vision', units: 1 },
-      ],
-    })
-    expect(screen.getByTestId('operator-cost-counter').title).toBe(
-      'cost.vision ×1 · 结果②\ncost.vision ×1',
-    )
   })
 })
 

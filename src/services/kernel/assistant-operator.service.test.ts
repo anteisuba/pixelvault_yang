@@ -197,6 +197,7 @@ vi.mock('@/services/context-cards.service', () => ({
 
 import {
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
@@ -214,7 +215,7 @@ import {
 } from '@/constants/assistant-persona'
 import { TAG_BASED_GENERATION_PROMPT_RULE } from '@/constants/model-strengths'
 import { ASSISTANT_PLAN_VISUALS } from '@/constants/assistant-plan-visuals'
-import { AI_MODELS, getModelById } from '@/constants/models'
+import { AI_MODELS } from '@/constants/models'
 import { getAppOrigin } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { logger } from '@/lib/logger'
@@ -278,22 +279,9 @@ async function collect(
   return out
 }
 
-/**
- * 事件类型序列，**剥掉 `cost_tick`**（切片 X）。
- *
- * ⚠ 这些断言验的是**步骤协议**的形状（plan → plan_request → step… → done），
- * 而 `cost_tick` 是一条与步骤无关的计数帧：它按「这一跳花了什么」吐，
- * 出现在哪两步之间取决于模型这一轮看了几张图 —— 把它编进这里等于让
- * 「多看一张图」去红一条讲顺序的用例。⭐ 它自己的位置由切片 X 那一组用例验。
- */
-function withoutTicks(events: AssistantOperatorEvent[]) {
-  return events.filter(
-    (event) => event.type !== ASSISTANT_OPERATOR_EVENTS.costTick,
-  )
-}
-
+/** 事件类型序列 —— 断言验的是**步骤协议**的形状（plan → step… → done）。 */
 function typesOf(events: AssistantOperatorEvent[]) {
-  return withoutTicks(events).map((event) => event.type)
+  return events.map((event) => event.type)
 }
 
 function stepsOf(events: AssistantOperatorEvent[]) {
@@ -435,8 +423,6 @@ describe('工具环 · 逐事件顺序', () => {
      */
     expect(typesOf(events)).toEqual([
       ASSISTANT_OPERATOR_EVENTS.plan,
-      // 切片 2a：计划条之后紧跟一帧计划卡素材（§2.6），排在第一个 step 之前。
-      ASSISTANT_OPERATOR_EVENTS.planRequest,
       ASSISTANT_OPERATOR_EVENTS.step,
       ASSISTANT_OPERATOR_EVENTS.step,
       // 收尾那一轮的正文**整段一帧**（v2 §13.1）。
@@ -671,8 +657,8 @@ describe('工具环 · 逐事件顺序', () => {
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
     expect(events).toContainEqual(
       expect.objectContaining({
-        type: ASSISTANT_OPERATOR_EVENTS.planRequest,
-        questions: [expect.objectContaining({ question: '要哪种画风？' })],
+        type: ASSISTANT_OPERATOR_EVENTS.ask,
+        question: expect.objectContaining({ question: '要哪种画风？' }),
       }),
     )
     expect(stepsOf(events)).toHaveLength(0)
@@ -1437,15 +1423,23 @@ describe('就地确认往返（拍板 3）', () => {
     )
 
     expect(typesOf(events)).toEqual([
-      ASSISTANT_OPERATOR_EVENTS.confirmRequest,
+      ASSISTANT_OPERATOR_EVENTS.ask,
       ASSISTANT_OPERATOR_EVENTS.stopped,
     ])
-    const [ask, halt] = withoutTicks(events)
+    const [ask, halt] = events
+    // v2 §3.1：覆盖三选降级成一张问题卡，三个选项 id 就是回执要带回来的那三个值。
     expect(ask).toMatchObject({
-      field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
-      have: '我自己写的一段提示词',
-      proposed: '助手写的新提示词',
+      overwrite: {
+        field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
+        have: '我自己写的一段提示词',
+        proposed: '助手写的新提示词',
+      },
     })
+    expect(
+      (
+        ask as Extract<AssistantOperatorEvent, { type: 'ask' }>
+      ).question.options.map((option) => option.id),
+    ).toEqual(Object.values(ASSISTANT_OPERATOR_CONFIRM_CHOICES))
     expect(halt).toMatchObject({
       reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
     })
@@ -1470,10 +1464,8 @@ describe('就地确认往返（拍板 3）', () => {
       ),
     )
     expect(
-      events.find(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirmRequest,
-      ),
-    ).toMatchObject({ have, proposed })
+      events.find((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
+    ).toMatchObject({ overwrite: { have, proposed } })
   })
 
   it('带着「追加」重发就续跑，inverse 仍是改前原文', async () => {
@@ -1568,9 +1560,7 @@ describe('就地确认往返（拍板 3）', () => {
       runAssistantOperator('clerk-1', buildRequest()),
     )
     expect(
-      events.some(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirmRequest,
-      ),
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
     ).toBe(false)
     expect(stepsOf(events)).toHaveLength(4)
   })
@@ -1615,7 +1605,7 @@ describe('打断（拍板 13）', () => {
       }),
     )
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
-    expect(withoutTicks(events)).toEqual([
+    expect(events).toEqual([
       {
         type: ASSISTANT_OPERATOR_EVENTS.stopped,
         reason: ASSISTANT_OPERATOR_STOP_REASONS.aborted,
@@ -2028,7 +2018,7 @@ describe('看图闭环 · critique_result', () => {
    * 时候（§3.3 第 5 行 / §7）。⛔ 别在这里挑一张「最可能的」：挑错了用户看到的是
    * 一份煞有介事、对着另一张图写的评价。
    */
-  it('来源都缺、但候选 ≥2 → 吐 choice_request 并停流（⛔ 不猜一张）', async () => {
+  it('来源都缺、但候选 ≥2 → 吐 ask 并停流（⛔ 不猜一张）', async () => {
     queueCritiqueRound()
 
     const events = await collect(
@@ -2049,13 +2039,13 @@ describe('看图闭环 · critique_result', () => {
       ),
     )
     const choice = events.find(
-      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.choiceRequest,
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
     )
     expect(choice).toBeDefined()
     expect(
-      (choice as { options: { assetUrl: string }[] }).options.map(
-        (option) => option.assetUrl,
-      ),
+      (
+        choice as Extract<AssistantOperatorEvent, { type: 'ask' }>
+      ).question.options.map((option) => option.assetUrl),
     ).toEqual([
       'https://cdn.example.com/ref-a.png',
       'https://cdn.example.com/ref-b.png',
@@ -4570,13 +4560,13 @@ describe('项目规则（§10，拍板 23）', () => {
 })
 
 /**
- * 计划卡协议与花钱档（切片 2a，§2.6 / §5 / §6）。
+ * 计划 → 多步确认 / 问题卡（v2 §3.1 / §3.3 / §3.4）。
  *
- * ⚠ 这一族用例守的是**协议**，不是 UI：出不出卡由客户端 `shouldShowPlanCard` 判
- * （它有自己那份测试），这里只钉「服务端把该摆的事实摆全了没有」。
+ * ⚠ 判**在服务端**（v1 那条客户端 `shouldShowPlanCard` 随计划请求帧一起删了）：
+ * 有题就问一题，没题而步数够多就出多步确认卡，两条路都当场停流。
  */
-describe('计划卡协议 · plan_request', () => {
-  it('⭐ plan 帧之后紧跟一帧 plan_request，且排在第一个 step 之前', async () => {
+describe('计划协议 · plan / ask / confirm', () => {
+  it('⭐ 多步计划：plan 之后紧跟 confirm(multistep) 并停流，⛔ 一步都不落', async () => {
     queueTurns(
       {
         plan: ['看一眼表单', '写提示词', '备好生成键'],
@@ -4591,16 +4581,47 @@ describe('计划卡协议 · plan_request', () => {
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest()),
     )
-    const order = typesOf(events)
-    expect(order[0]).toBe(ASSISTANT_OPERATOR_EVENTS.plan)
-    expect(order[1]).toBe(ASSISTANT_OPERATOR_EVENTS.planRequest)
-    // ⭐ 客户端要在**任何一步落地之前**就能决定「先问一句」。
-    expect(order.indexOf(ASSISTANT_OPERATOR_EVENTS.planRequest)).toBeLessThan(
-      order.indexOf(ASSISTANT_OPERATOR_EVENTS.step),
-    )
+    // ⭐ 用户要在**任何一步落地之前**拍板：那一步落下去之后再问就是事后通知。
+    expect(typesOf(events)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.plan,
+      ASSISTANT_OPERATOR_EVENTS.confirm,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
+    ])
+    expect(events[1]).toMatchObject({
+      confirm: {
+        kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep,
+        steps: [
+          { id: 'plan-1', label: '看一眼表单' },
+          { id: 'plan-2', label: '写提示词' },
+          { id: 'plan-3', label: '备好生成键' },
+        ],
+      },
+    })
   })
 
-  it('反问题带 id、图示与预估；词表外的 visual 被剥掉而整轮照跑', async () => {
+  it('两步计划、无题 —— ⛔ 不拦，直接开跑（改一句提示词还先弹卡是纯打扰）', async () => {
+    queueTurns(
+      {
+        plan: ['写提示词', '换模型'],
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'a girl under a red umbrella' },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(typesOf(events)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.plan,
+      ASSISTANT_OPERATOR_EVENTS.step,
+      ASSISTANT_OPERATOR_EVENTS.step,
+      ASSISTANT_OPERATOR_EVENTS.done,
+    ])
+  })
+
+  it('反问题带 id 与图示；词表外的 visual 被剥掉而整轮照跑', async () => {
     queueTurns(
       {
         plan: ['定构图', '写提示词'],
@@ -4634,37 +4655,33 @@ describe('计划卡协议 · plan_request', () => {
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest()),
     )
-    const planRequest = events.find(
-      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
-    )
-    expect(planRequest).toBeDefined()
-    const frame = planRequest as Extract<
-      AssistantOperatorEvent,
-      { type: 'plan_request' }
-    >
-    expect(frame.steps).toEqual([
-      { id: 'plan-1', label: '定构图' },
-      { id: 'plan-2', label: '写提示词' },
+    // ⚠ 计划帧照旧发（进度带要用），问题卡紧跟其后并停流。
+    expect(typesOf(events)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.plan,
+      ASSISTANT_OPERATOR_EVENTS.ask,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
     ])
-    expect(frame.questions).toHaveLength(1)
-    expect(frame.questions[0]?.id).toBe('question-1')
-    expect(frame.questions[0]?.header).toBe('取景')
-    expect(frame.questions[0]?.question).toBe('取多少身？')
+    expect(events[0]).toMatchObject({
+      steps: [
+        { id: 'plan-1', label: '定构图' },
+        { id: 'plan-2', label: '写提示词' },
+      ],
+    })
+    const { question } = events[1] as Extract<
+      AssistantOperatorEvent,
+      { type: 'ask' }
+    >
+    expect(question.id).toBe('question-1')
+    expect(question.header).toBe('取景')
+    expect(question.question).toBe('取多少身？')
     // ⚠ 两个开关都**显式**落地：⛔ 客户端不许靠选项个数猜。
-    expect(frame.questions[0]?.multiSelect).toBe(false)
+    expect(question.multiSelect).toBe(false)
     // ⚠ `allowOther` 缺省 true —— 留一句「都不是」的出口是常态。
-    expect(frame.questions[0]?.allowOther).toBe(true)
-    expect(frame.questions[0]?.options[0]?.visual).toBe('comp.halfBody')
-    expect(frame.questions[0]?.options[0]?.description).toBe(
-      '腰以上，脸看得清。',
-    )
+    expect(question.allowOther).toBe(true)
+    expect(question.options[0]?.visual).toBe('comp.halfBody')
+    expect(question.options[0]?.description).toBe('腰以上，脸看得清。')
     // 剥掉的那个：选项还在（文字选得动），只是没有图示。
-    expect(frame.questions[0]?.options[1]?.visual).toBeUndefined()
-    // 预估从快照现算 —— 模型给不出，也不许它给。
-    expect(frame.estimate.model).toBe('Seedream 4')
-    expect(frame.estimate.count).toBe(1)
-    // ⚠ 这一轮不花钱，理由是「多步」。
-    expect(frame.reason).toBe('multi-step')
+    expect(question.options[1]?.visual).toBeUndefined()
   })
 
   it('⭐ 没有 description 的选项整条丢掉（只有名字的 chip 正是这轮要消灭的形状）', async () => {
@@ -4690,9 +4707,9 @@ describe('计划卡协议 · plan_request', () => {
       runAssistantOperator('clerk-1', buildRequest()),
     )
     const frame = events.find(
-      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
-    ) as Extract<AssistantOperatorEvent, { type: 'plan_request' }>
-    expect(frame.questions[0]?.options.map((option) => option.label)).toEqual([
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+    ) as Extract<AssistantOperatorEvent, { type: 'ask' }>
+    expect(frame.question.options.map((option) => option.label)).toEqual([
       '3D 游戏渲染',
       '厚涂',
     ])
@@ -4732,9 +4749,9 @@ describe('计划卡协议 · plan_request', () => {
     )
     const question = (
       events.find(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
-      ) as Extract<AssistantOperatorEvent, { type: 'plan_request' }>
-    ).questions[0]
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+      ) as Extract<AssistantOperatorEvent, { type: 'ask' }>
+    ).question
     expect(question?.multiSelect).toBe(true)
     expect(question?.allowOther).toBe(false)
     expect(question?.options[0]?.label).toBe('3D 游戏渲染')
@@ -4761,10 +4778,10 @@ describe('计划卡协议 · plan_request', () => {
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest()),
     )
-    const frame = events.find(
-      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
-    ) as Extract<AssistantOperatorEvent, { type: 'plan_request' }>
-    expect(frame.questions).toEqual([])
+    // ⚠ 一道题都不剩 = 这一轮没什么可问的：⛔ 不摆空的问题卡。
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
+    ).toBe(false)
   })
 
   it('⭐ header 漏了就从问句头上截，⛔ 不留空', async () => {
@@ -4787,45 +4804,22 @@ describe('计划卡协议 · plan_request', () => {
       runAssistantOperator('clerk-1', buildRequest()),
     )
     const frame = events.find(
-      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
-    ) as Extract<AssistantOperatorEvent, { type: 'plan_request' }>
-    expect(frame.questions[0]?.header).toBe('要不要把背景换成雨夜的…')
-    expect(frame.questions[0]?.header.length).toBeLessThanOrEqual(12)
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+    ) as Extract<AssistantOperatorEvent, { type: 'ask' }>
+    expect(frame.question.header).toBe('要不要把背景换成雨夜的…')
+    expect(frame.question.header.length).toBeLessThanOrEqual(12)
   })
 
-  it('「先问我」开着时理由是 user-requested；备生成键那一轮是 spend', async () => {
+  it('⭐ 「先问我」开着时，哪怕只有一步也出多步确认卡', async () => {
     queueTurns({ plan: ['写提示词'] }, { finished: true })
     const forced = await collect(
       runAssistantOperator('clerk-1', buildRequest({ forcePlan: true })),
     )
-    expect(
-      (
-        forced.find(
-          (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
-        ) as Extract<AssistantOperatorEvent, { type: 'plan_request' }>
-      ).reason,
-    ).toBe('user-requested')
-
-    queueTurns(
-      {
-        plan: ['备好生成键'],
-        tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate, args: {} },
-      },
-      { finished: true },
-    )
-    const spending = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildRequest({ snapshot: { ...SNAPSHOT, prompt: '已经写好了' } }),
-      ),
-    )
-    expect(
-      (
-        spending.find(
-          (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
-        ) as Extract<AssistantOperatorEvent, { type: 'plan_request' }>
-      ).reason,
-    ).toBe('spend')
+    expect(typesOf(forced)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.plan,
+      ASSISTANT_OPERATOR_EVENTS.confirm,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
+    ])
   })
 
   it('⭐ planApproved=false 时把答复并进上下文并要求重新规划一次', async () => {
@@ -4871,7 +4865,7 @@ describe('计划卡协议 · plan_request', () => {
     expect(prompt).toContain('other: "再暗一点"')
   })
 
-  it('⭐ planApproved=true 那一轮⛔ 不再摆 plan_request（plan 帧照旧）', async () => {
+  it('⭐ planApproved=true 那一轮⛔ 不再拦一次（plan 帧照旧）', async () => {
     queueTurns(
       {
         plan: ['照计划走', '写提示词'],
@@ -4893,11 +4887,9 @@ describe('计划卡协议 · plan_request', () => {
         }),
       ),
     )
-    // ⛔ 白跑一次规划、白花一份 token 的那一帧没有了。
+    // ⛔ 白拦一次、白花一份 token 的那张卡没有了。
     expect(
-      events.some(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
-      ),
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
     ).toBe(false)
     // ⚠ `plan` 帧照旧 —— 进度带要用。
     expect(typesOf(events)[0]).toBe(ASSISTANT_OPERATOR_EVENTS.plan)
@@ -4907,7 +4899,7 @@ describe('计划卡协议 · plan_request', () => {
 
   /**
    * **断点续跑**（第三期）—— 三条判据：已完成的步进提示、产物按名字念、
-   * ⛔ 不再摆 plan_request。
+   * ⛔ 不再拦一次。
    */
   it('⭐ resumeFrom 把已完成的步当既成事实喂回去，并要求接着跑', async () => {
     queueTurns({ plan: ['接着跑'] }, { finished: true })
@@ -4975,7 +4967,7 @@ describe('计划卡协议 · plan_request', () => {
     expect(prompt).toContain('gen-unknown')
   })
 
-  it('⭐ 续跑那一轮⛔ 不再摆 plan_request（用户已经批过一次了）', async () => {
+  it('⭐ 续跑那一轮⛔ 不再拦一次（用户已经批过一次了）', async () => {
     queueTurns({ plan: ['接着跑', '再写一遍', '第三步'] }, { finished: true })
     const events = await collect(
       runAssistantOperator(
@@ -4989,9 +4981,7 @@ describe('计划卡协议 · plan_request', () => {
       ),
     )
     expect(
-      events.some(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
-      ),
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
     ).toBe(false)
   })
 
@@ -5001,15 +4991,16 @@ describe('计划卡协议 · plan_request', () => {
     expect(lastUserPrompt()).not.toContain('RESUMING AN APPROVED PLAN')
   })
 
-  it('planApproved=false 那一支照旧摆 plan_request（那就是要重新规划）', async () => {
-    queueTurns({ plan: ['重新来一版', '再写一遍提示词'] }, { finished: true })
+  it('planApproved=false 那一支照旧拦一次（那就是要重新规划）', async () => {
+    queueTurns(
+      { plan: ['重新来一版', '再写一遍提示词', '第三步'] },
+      { finished: true },
+    )
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest({ planApproved: false })),
     )
     expect(
-      events.some(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
-      ),
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
     ).toBe(true)
   })
 
@@ -5035,9 +5026,7 @@ describe('计划卡协议 · plan_request', () => {
       runAssistantOperator('clerk-1', buildRequest({ planApproved: true })),
     )
     expect(
-      events.some(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.planRequest,
-      ),
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
     ).toBe(false)
     expect(warn).toHaveBeenCalledWith(
       'assistant operator asked new plan questions after approval',
@@ -5076,14 +5065,9 @@ describe('计划卡协议 · plan_request', () => {
   })
 })
 
-describe('确认三档 · 花钱档（§6）', () => {
-  /**
-   * ⚠ 这一族用**目录里真的有**的模型 id：预估金额取的是 `AI_MODELS[].cost`，
-   * 编一个 id 的话金额永远算不出来，而「算不出来就重新硬确认」正好会让
-   * 放行那条用例假绿。
-   */
+describe('生成确认（v2 §3.3 第二种来源）', () => {
+  /** ⚠ 用目录里真的有的模型 id：卡上那几行全部从快照现取，编一个 id 走不到底。 */
   const SPEND_MODEL_ID = AI_MODELS.FLUX_2_PRO
-  const SPEND_MODEL_COST = getModelById(SPEND_MODEL_ID)?.cost as number
   const PRIMED_SNAPSHOT = {
     ...SNAPSHOT,
     prompt: '一只在雨里的猫',
@@ -5091,7 +5075,11 @@ describe('确认三档 · 花钱档（§6）', () => {
     availableModels: [{ id: SPEND_MODEL_ID, label: 'FLUX.2 Pro' }],
   }
 
-  it('⭐ 没有「不再问」条子时先出硬确认卡，流停在 awaiting_confirm', async () => {
+  /**
+   * ⭐ **一律先出确认卡**（决策 8）：v1 那条「本会话此类不再问」的免检通道随
+   * 花费确认一起删了 —— 服务端因此没有任何一条「这一枪不用问」的路。
+   */
+  it('⭐ request_generation 一律出 confirm(generate)，流停在 awaiting_confirm', async () => {
     queueTurns({
       tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration, args: {} },
     })
@@ -5102,100 +5090,34 @@ describe('确认三档 · 花钱档（§6）', () => {
       ),
     )
     expect(typesOf(events)).toEqual([
-      ASSISTANT_OPERATOR_EVENTS.spendRequest,
+      ASSISTANT_OPERATOR_EVENTS.confirm,
       ASSISTANT_OPERATOR_EVENTS.stopped,
     ])
-    const spend = withoutTicks(events)[0] as Extract<
+    const confirm = events[0] as Extract<
       AssistantOperatorEvent,
-      { type: 'spend_request' }
+      { type: 'confirm' }
     >
-    expect(spend.tier).toBe('spend')
-    expect(spend.request.model).toEqual({
-      id: SPEND_MODEL_ID,
-      label: 'FLUX.2 Pro',
-    })
-    expect(spend.request.count).toBe(1)
-    expect(spend.request.specs).toEqual({
+    expect(confirm.confirm.kind).toBe(
+      ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+    )
+    const request = (
+      confirm.confirm as Extract<
+        (typeof confirm)['confirm'],
+        { kind: 'generate' }
+      >
+    ).request
+    expect(request.model).toEqual({ id: SPEND_MODEL_ID, label: 'FLUX.2 Pro' })
+    expect(request.count).toBe(1)
+    expect(request.specs).toEqual({
       aspectRatio: '1:1',
       resolution: 'auto',
       durationSeconds: null,
     })
-    // 金额从模型目录现算（cost × 张数）。
-    expect(SPEND_MODEL_COST).toBeGreaterThan(0)
-    expect(spend.request.estimate.credits).toBe(SPEND_MODEL_COST)
-    expect(
-      (
-        withoutTicks(events)[1] as Extract<
-          AssistantOperatorEvent,
-          { type: 'stopped' }
-        >
-      ).reason,
-    ).toBe(ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm)
-  })
-
-  it('⭐ 同模型且金额不超上次时放行，只吐一步载荷（服务端什么都没做）', async () => {
-    queueTurns(
-      {
-        tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration, args: {} },
-      },
-      { finished: true },
-    )
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildRequest({
-          snapshot: PRIMED_SNAPSHOT,
-          autoApprove: {
-            tier: 'spend',
-            model: SPEND_MODEL_ID,
-            maxCredits: SPEND_MODEL_COST,
-          },
-        }),
-      ),
-    )
-    expect(
-      events.some(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.spendRequest,
-      ),
-    ).toBe(false)
-    const [running, done] = stepsOf(events)
-    expect(running.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.running)
-    expect(done.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
-    expect(done.tool).toBe(ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration)
-    // ⛔ 撤不掉 —— 契约里就没有 `inverse` 这一格。
-    expect(done).not.toHaveProperty('inverse')
-  })
-
-  it('⛔ 换了模型 / 金额超了 / 条子的档不对，一律重新硬确认', async () => {
-    for (const autoApprove of [
-      // 换了模型 —— 换一笔账，重新问。
-      { tier: 'spend' as const, model: AI_MODELS.IDEOGRAM_3, maxCredits: 99 },
-      // 金额超了上次确认过的那个数。
-      {
-        tier: 'spend' as const,
-        model: SPEND_MODEL_ID,
-        maxCredits: SPEND_MODEL_COST - 1,
-      },
-    ]) {
-      queueTurns({
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
-          args: {},
-        },
-      })
-      const events = await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildRequest({ snapshot: PRIMED_SNAPSHOT, autoApprove }),
-        ),
-      )
-      expect(
-        events.some(
-          (event) => event.type === ASSISTANT_OPERATOR_EVENTS.spendRequest,
-        ),
-        `${autoApprove.model}/${autoApprove.maxCredits} 应该重新确认`,
-      ).toBe(true)
-    }
+    // ⛔ 载荷里没有花费读数那一格（决策 8）。
+    expect(request).not.toHaveProperty('estimate')
+    expect(events[1]).toMatchObject({
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+    })
   })
 
   it('提示词还空着时按 emptyPrompt 拒 —— 与 prime_generate 逐字同闸', async () => {
@@ -5209,9 +5131,7 @@ describe('确认三档 · 花钱档（§6）', () => {
       runAssistantOperator('clerk-1', buildRequest()),
     )
     expect(
-      events.some(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.spendRequest,
-      ),
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
     ).toBe(false)
     const [rejected] = stepsOf(events)
     expect(rejected.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.error)
@@ -5239,7 +5159,7 @@ describe('确认三档 · 花钱档（§6）', () => {
     )
   })
 
-  it('覆盖档的 confirm_request 显式带 tier=overwrite（⛔ 服务端不发空的档）', async () => {
+  it('覆盖手写走 ask 帧，且带着回执路由那一块（⛔ 不是确认卡）', async () => {
     queueTurns({
       tool: {
         name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -5252,10 +5172,13 @@ describe('确认三档 · 花钱档（§6）', () => {
         buildRequest({ snapshot: { ...SNAPSHOT, prompt: '我自己写的那句' } }),
       ),
     )
-    const confirm = events.find(
-      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirmRequest,
-    ) as Extract<AssistantOperatorEvent, { type: 'confirm_request' }>
-    expect(confirm.tier).toBe('overwrite')
+    const ask = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+    ) as Extract<AssistantOperatorEvent, { type: 'ask' }>
+    expect(ask.overwrite?.field).toBe(ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt)
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
+    ).toBe(false)
   })
 })
 
@@ -5494,7 +5417,7 @@ describe('收尾闸 · 半句话不算收尾', () => {
     expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
   })
 
-  it('⛔ 这一轮吐了计划卡时不判：卡本身就是收尾', async () => {
+  it('⛔ 这一轮吐了问题卡时不判：卡本身就是收尾', async () => {
     queueTurns({
       plan: ['先定画风'],
       questions: [
@@ -5513,8 +5436,12 @@ describe('收尾闸 · 半句话不算收尾', () => {
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest({ forcePlan: true })),
     )
+    // ⛔ 没有把这一轮退回去再要一次结论（那会是第二次 LLM 往返）。
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
-    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+    expect(events.at(-1)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+    })
   })
 })
 
@@ -6266,12 +6193,15 @@ describe('上下文卡（第三期 K1）', () => {
 })
 
 /**
- * 切片 X 的四件（reviewState / 跨轮记忆 / 成本帧 / label）。
+ * 切片 X 剩下的三件（reviewState / 跨轮记忆 / label）。
+ *
+ * ⚠ 成本计数那一族随 v2 决策 8 整条删掉：面板上不再有花费读数，那条计数帧也
+ * 跟着从事件联合里没了。
  *
  * ⚠ 这一组验的都是**结构性**的东西：闸拦在哪、名单认不认、帧吐不吐 ——
  * ⛔ 不验模型说了什么（那是提示词的事，这一层管不着）。
  */
-describe('切片 X · 审核态 / 跨轮记忆 / 成本帧 / 起名', () => {
+describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
   const ASSET_ROW = {
     id: 'gen-1',
     url: 'https://cdn.example.test/1.png',
@@ -6590,103 +6520,6 @@ describe('切片 X · 审核态 / 跨轮记忆 / 成本帧 / 起名', () => {
     })
   })
 
-  describe('成本帧', () => {
-    function ticks(events: AssistantOperatorEvent[]) {
-      return events.filter(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.costTick,
-      ) as { kind: string; units: number; label: string }[]
-    }
-
-    it('每次 LLM 往返吐一帧 llm，label 是 i18n key ⛔ 不是人话', async () => {
-      queueTurns({ finished: true, message: '好的' })
-      const events = await collect(
-        runAssistantOperator('clerk-1', buildRequest()),
-      )
-      const llm = ticks(events).filter((tick) => tick.kind === 'llm')
-      expect(llm).toHaveLength(1)
-      expect(llm[0]).toMatchObject({
-        units: 1,
-        label: 'StudioOperator.cost.llm',
-      })
-    })
-
-    /** ⚠ 数的是**真的送进模型的张数**，⛔ 不是文件夹里有多少张。 */
-    it('看图那一跳按真的送进模型的张数计', async () => {
-      mockListAssistantAssetFolders.mockResolvedValue([
-        {
-          folderId: 'hero-folder',
-          name: 'Hero',
-          path: 'Characters / Hero',
-          imageCount: 30,
-        },
-      ])
-      queueTurns(
-        {
-          tool: {
-            name: ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
-            title: 'find',
-            args: { query: 'hero' },
-          },
-        },
-        {
-          tool: {
-            name: ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
-            title: 'look',
-            args: { folderId: 'hero-folder' },
-          },
-        },
-        { finished: true },
-      )
-      const events = await collect(
-        runAssistantOperator('clerk-1', buildRequest()),
-      )
-      expect(ticks(events).filter((tick) => tick.kind === 'vision')).toEqual([
-        {
-          type: ASSISTANT_OPERATOR_EVENTS.costTick,
-          kind: 'vision',
-          // 默认桩：文件夹里 30 张，真的看了 2 张。
-          units: 2,
-          label: 'StudioOperator.cost.vision',
-        },
-      ])
-    })
-
-    it('检索那一跳按**真的打出去的源数**计，⛔ 不是「一次 research」', async () => {
-      mockRunAssistantResearch.mockResolvedValue({
-        queries: ['appearance'],
-        sources: ['wiki', 'web', 'danbooru'],
-        evidence: [],
-        receipts: [
-          { sourceId: 'wiki', status: 'ok', count: 0, tookMs: 4 },
-          { sourceId: 'web', status: 'empty', count: 0, tookMs: 5 },
-          { sourceId: 'danbooru', status: 'failed', count: 0, tookMs: 6 },
-        ],
-      })
-      queueTurns(
-        {
-          tool: {
-            name: ASSISTANT_OPERATOR_TOOL_IDS.research,
-            title: 'research',
-            args: { goal: 'appearance' },
-          },
-        },
-        { finished: true },
-      )
-      const events = await collect(
-        runAssistantOperator('clerk-1', buildRequest()),
-      )
-      const research = ticks(events).filter((tick) => tick.kind === 'research')
-      expect(research).toEqual([
-        {
-          type: ASSISTANT_OPERATOR_EVENTS.costTick,
-          kind: 'research',
-          units: 3,
-          label: 'StudioOperator.cost.research',
-        },
-      ])
-    })
-  })
-
   describe('起名（label）', () => {
     it('prime_generate 把 label 透传进载荷，⛔ 服务端一行库都不写', async () => {
       queueTurns(
@@ -6716,7 +6549,7 @@ describe('切片 X · 审核态 / 跨轮记忆 / 成本帧 / 起名', () => {
       expect(mockSetGenerationReviewState).not.toHaveBeenCalled()
     })
 
-    it('request_generation 的载荷（= 硬确认卡那几行）也带着它', async () => {
+    it('request_generation 的载荷（= 生成确认卡那几行）也带着它', async () => {
       queueTurns(
         {
           tool: {
@@ -6737,10 +6570,10 @@ describe('切片 X · 审核态 / 跨轮记忆 / 成本帧 / 起名', () => {
       const events = await collect(
         runAssistantOperator('clerk-1', buildRequest()),
       )
-      const spend = events.find(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.spendRequest,
-      ) as { request: { label?: string } } | undefined
-      expect(spend?.request.label).toBe('主视觉')
+      const confirm = events.find(
+        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+      ) as { confirm: { request?: { label?: string } } } | undefined
+      expect(confirm?.confirm.request?.label).toBe('主视觉')
     })
   })
 })
@@ -6857,13 +6690,6 @@ describe('current reference image bindings', () => {
       )
       expect(lastUserPrompt()).toContain('"imageIndex":2')
       expect(stepsOf(events)).toHaveLength(0)
-      expect(events).toContainEqual(
-        expect.objectContaining({
-          type: 'cost_tick',
-          kind: 'vision',
-          units: 1,
-        }),
-      )
     },
   )
 
@@ -7318,9 +7144,7 @@ describe('current reference image bindings', () => {
       ),
     )
     expect(
-      events.some(
-        (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirmRequest,
-      ),
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
     ).toBe(true)
     expect(
       stepsOf(events).some(

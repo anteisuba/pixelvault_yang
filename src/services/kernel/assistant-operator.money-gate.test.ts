@@ -285,17 +285,17 @@ describe('⛔ 助手工具环的钱闸', () => {
   })
 
   /**
-   * 「本会话不再问」（拍板 24）**的记忆不在服务端**。
+   * **生成一律先出确认卡**（v2 §3.3，决策 8）。
    *
-   * ⭐ 服务端存一份「这个用户说过不用问了」的记忆，就等于把「花不花钱」这件事的
-   * 状态挪到了客户端够不着的地方 —— 而本仓这条链的全部安全感来自「服务端零会话
-   * 态」。这里锁的是：作用域三要素靠请求里那张条子（`autoApprove`）逐次核，
-   * ⛔ 不查库、⛔ 不进 persona、⛔ 不进项目规则。
+   * ⭐ 「本会话此类不再问」那条免检通道随花费确认一起删了 —— 服务端因此**没有
+   * 任何一条**「这一枪不用问」的路。这里锁的是：那条通道的三个名字一个都不许
+   * 回来，⛔ 不查库、⛔ 不进 persona、⛔ 不进项目规则。
    */
-  it('⛔ 「不再问」不在服务端留任何记忆', () => {
-    expect(SOURCE).toContain('isSpendAutoApproved')
-    expect(SOURCE).toContain('request.autoApprove')
+  it('⛔ 服务端没有任何「这一枪不用问」的免检通道', () => {
+    expect(SOURCE).toContain("kind: 'confirmGenerate'")
     for (const identifier of [
+      'isSpendAutoApproved',
+      'autoApprove',
       'saveAutoApprove',
       'rememberAutoApprove',
       'autoApproveStore',

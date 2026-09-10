@@ -77,7 +77,6 @@ function renderCard(
   render(
     <StudioOperatorQuestionCard
       steps={[{ id: 's1', label: '写提示词' }]}
-      estimate={{ credits: 4 }}
       questions={[SINGLE]}
       answers={[]}
       resolved={false}

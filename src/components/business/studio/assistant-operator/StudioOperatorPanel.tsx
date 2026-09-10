@@ -240,8 +240,6 @@ export function StudioOperatorPanel({
     choice,
     confirm,
     capturingFrames,
-    costs,
-    costDetails,
     resume,
   } = useStudioOperatorState()
   const entries = useMemo(
@@ -1099,8 +1097,6 @@ export function StudioOperatorPanel({
       {/* ── 顶部进度带（拍板 10 改口 · §2.4）──────────────────────── */}
       <StudioOperatorProgressBand
         domain={domain}
-        costs={costs}
-        costDetails={costDetails}
         working={working}
         awaitingPlan={status === 'awaitingPlan'}
         stepsDone={stepsDone}
@@ -1258,7 +1254,6 @@ export function StudioOperatorPanel({
                   同一份阶段、各带一颗「开始」，用户要答两遍。 */}
                 <StudioOperatorQuestionCard
                   steps={plan.steps}
-                  estimate={plan.estimate}
                   questions={plan.questions}
                   answers={plan.answers}
                   resolved={plan.resolved}

@@ -447,7 +447,6 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       ],
       questions: [],
       answers: [],
-      estimate: { credits: 4 },
       resolved: false,
     })
     store.setOperatorStatus('awaitingPlan')
@@ -479,7 +478,6 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
         },
       ],
       answers: [],
-      estimate: { credits: 4 },
       resolved: false,
     })
     store.setOperatorStatus('awaitingPlan')
@@ -537,14 +535,13 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(older).not.toContainElement(screen.getByText('第三轮'))
   })
 
-  it('② 花钱硬确认卡出现，四要素齐；点「生成」把「不再问」一起交出去', () => {
+  it('② 生成确认卡出现，三要素齐；点「确认生成」走 `answerSpend`', () => {
     store.setOperatorSpend({
       id: 'spend-1',
       request: {
         model: { id: 'seedream-4', label: 'Seedream 4' },
         count: 2,
         specs: { aspectRatio: '3:4', resolution: '2K', durationSeconds: null },
-        estimate: { credits: 8 },
       },
       resolved: false,
     })
@@ -554,9 +551,8 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       'Seedream 4',
     )
     expect(screen.getByTestId('operator-spend-count').textContent).toBe('2')
-    fireEvent.click(screen.getByTestId('operator-spend-remember'))
     fireEvent.click(screen.getByTestId('operator-spend-confirm'))
-    expect(answerSpend).toHaveBeenCalledWith({ rememberForSession: true })
+    expect(answerSpend).toHaveBeenCalledWith()
   })
 
   it('③ 歧义反问单选卡出现，点一张走 `answerChoice`', () => {
@@ -805,7 +801,6 @@ it.each(['append', 'overwrite', 'keep'] as const)(
   (choice) => {
     const proposed = '完整提示词'.repeat(100)
     store.setOperatorConfirm({
-      tier: 'overwrite',
       field: 'prompt',
       have: '手写提示词',
       proposed,

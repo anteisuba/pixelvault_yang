@@ -7519,12 +7519,6 @@
       "videoFramesMissing": "Could not read frames from this clip",
       "blockedSource": "You marked this one as failed, so it can't open or close a clip"
     },
-    "cost": {
-      "title": "Assistant work",
-      "vision": "Looked at pictures",
-      "research": "Searched and read sources",
-      "llm": "Model round trips"
-    },
     "field": {
       "prompt": "Prompt",
       "negative": "Negative prompt",
@@ -7569,7 +7563,6 @@
       "queueDropped": "You pulled back the queued message: {subject}",
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
       "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
-      "autoApproved": "Sent straight away per your setting · {count} credits",
       "videoFramesFailed": "No frames could be taken from this clip — the assistant cannot look at it this turn ({subject})",
       "checkpointRestored": "Restored the selected step’s configuration. Use the current form for subsequent actions."
     },
@@ -7765,7 +7758,6 @@
     },
     "plan": {
       "title": "Plan · needs your say",
-      "estimate": "≈ {credits} credits",
       "revisePrefill": "Change the plan: "
     },
     "spend": {
@@ -7773,10 +7765,7 @@
       "model": "Model",
       "count": "Images",
       "specs": "Specs",
-      "estimate": "Estimate",
-      "credits": "≈ {credits} credits",
       "seconds": "{seconds}s",
-      "remember": "Don't ask again for sends like this in this session",
       "cancel": "Cancel",
       "confirm": "Send",
       "resolved": "Sent · it spent credits"

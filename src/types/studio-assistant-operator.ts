@@ -16,18 +16,16 @@ import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoin
 import type { ContextCardKindId } from '@/constants/context-cards'
 import type { ContextCardImage } from '@/types/context-cards'
 import type { ProjectRuleSourceId } from '@/constants/assistant-operator'
-import type { AssistantCostTickKind } from '@/constants/assistant-operator'
 import type {
   StudioOperatorField,
   StudioOperatorSystemCode,
 } from '@/constants/studio-assistant-operator'
 import type {
   AssistantOperatorAppliedStep,
+  AssistantOperatorAskEvent,
   AssistantOperatorCritiqueStep,
-  AssistantOperatorConfirmRequestEvent,
   AssistantOperatorGenerationRequest,
   AssistantOperatorPlanAnswer,
-  AssistantOperatorPlanEstimate,
   AssistantOperatorPlanOption,
   AssistantOperatorPlanQuestion,
   AssistantOperatorStep,
@@ -280,9 +278,14 @@ export interface StudioOperatorResultItem {
 }
 
 /** 就地确认条（拍板 3）—— 直接复用事件载荷，不另立形状。 */
-export type StudioOperatorConfirm = Omit<
-  AssistantOperatorConfirmRequestEvent,
-  'type'
+/**
+ * 参数栏上那条**就地确认**（覆盖手写三选）—— `ask` 帧 `overwrite` 那一块。
+ *
+ * ⚠ 取的是帧上那一块而不是整帧：问句与选项文案由卡自己按 i18n 写，条子要的
+ * 只是「改哪一格、原文是什么、建议是什么」这三样。
+ */
+export type StudioOperatorConfirm = NonNullable<
+  AssistantOperatorAskEvent['overwrite']
 >
 
 /**
@@ -316,7 +319,6 @@ export interface StudioOperatorPlanPrompt {
    * 问的是「哪个图标好看」，⛔ 不留兼容分支。
    */
   questions: readonly StudioOperatorQuestion[]
-  estimate: AssistantOperatorPlanEstimate
   /** 已经点过「开始」——卡收成一行摘要（§3.1 ④）。 */
   resolved: boolean
   /** 点过「开始」时提交的那份答复 —— 收起态那一行摘要按它写。 */
@@ -385,22 +387,6 @@ export function isVideoCritiquePayload(
   { videoUrl: string }
 > {
   return 'videoUrl' in payload
-}
-
-/**
- * 一记**成本计数**（`cost_tick` 那一帧解出来的那份，切片 Y）。
- *
- * ⚠ 档位类型来自契约（`AssistantCostTickKind`），⛔ 客户端不另立一份枚举。
- * `labelKey` 是服务端发的 **i18n 键**而不是人话（见 `ASSISTANT_COST_TICK_LABEL_KEYS`
- * 头注）：服务端不知道用户此刻的界面语言。
- * ⛔ 不在这里塞金额：金额那条链在 §6 的花钱卡上，两处各说一个数就是「界面上
- * 两个价钱」。
- */
-export interface StudioOperatorCostTick {
-  kind: AssistantCostTickKind
-  units: number
-  /** 明细行上写的那一句（服务端给的 i18n 键或一段原文标签）。 */
-  label?: string
 }
 
 /**

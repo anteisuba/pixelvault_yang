@@ -16,7 +16,7 @@
  * 兜住 —— 那条工具压根不在工具表里。
  *
  * ── 打断 / 就地确认走同一条机制（拍板 3 / 13）────────────────────
- * 服务端没有会话态：`confirm_request` 之后流就结束，续跑 = 带 `confirmations`
+ * 服务端没有会话态：`ask` / `confirm` 之后流就结束，续跑 = 带 `confirmations`
  * 重发；插话 = abort + 带新消息重发。所以这里只需要一个 `AbortController` 和一份
  * 「刚才做过什么」（从线程条目现算，见 `buildPriorSteps`）。
  *
@@ -38,7 +38,7 @@ import { useCallback, useEffect, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import {
-  ASSISTANT_OPERATOR_CONFIRM_TIER_IDS,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
@@ -55,7 +55,6 @@ import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
-  addOperatorCostTick,
   addOperatorMention,
   appendOperatorEntry,
   appendOperatorPending,
@@ -77,7 +76,6 @@ import {
   resolveOperatorPlan,
   resolveOperatorSpend,
   setOperatorAskFirst,
-  setOperatorAutoApprove,
   setOperatorCapturingFrames,
   setOperatorChoice,
   setOperatorConfirm,
@@ -94,7 +92,6 @@ import {
   setOperatorStepCheckpoint,
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
-import { readOperatorCostTick } from '@/lib/studio-operator-cost'
 import {
   attachmentArtifacts,
   collectStepArtifacts,
@@ -112,7 +109,6 @@ import {
   historyToPriorSteps,
   readOperatorReferenceProfiles,
 } from '@/lib/studio-operator-history'
-import { shouldShowPlanCard } from '@/lib/studio-operator-plan'
 import {
   firstUnfinishedStepId,
   hasUnfinishedSteps,
@@ -380,14 +376,14 @@ export interface UseAssistantOperatorResult {
    * **从断点接着跑**（第三期）—— 检查点卡 / 进度带上那颗「从第 N 步继续」。
    *
    * ⚠ ⛔ **不重新弹计划卡**：那份计划当初就是用户批过的（`planApproved: true`
-   * 沿用）。但**花钱步照常走 `spend_request` 硬确认** —— 续跑不是免检通道
+   * 沿用）。但**生成那一步照常走 `confirm` 确认** —— 续跑不是免检通道
    * （owner 2026-09-07 定）。
    * ⚠ 没有未完成的计划时是 no-op：那颗按钮本来就不该在。
    */
   resumePlan(): void
-  /** 花钱硬确认卡「生成」（§3.1 ⑰）—— 勾了「不再问」就顺手记条子。 */
-  answerSpend(input: { rememberForSession: boolean }): void
-  /** 花钱硬确认卡「取消」—— 流已经停了，只把卡收掉。 */
+  /** 生成确认卡「确认生成」（§5）—— **客户端扣扳机**，⛔ 不重发一轮。 */
+  answerSpend(): void
+  /** 生成确认卡「先不要」—— 流已经停了，只把卡收掉。 */
   cancelSpend(): void
   /** 歧义反问单选卡点中一格（§7）—— 插 @chip 并带上下文重发。 */
   answerChoice(option: StudioOperatorAttachment, text: string): void
@@ -574,8 +570,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
 
       /**
        * 攒着的那份计划（第 2 件）—— `plan` 帧到达时只存不落，由紧跟的
-       * `plan_request` 判定去向。⚠ 判定之外还有两条出口：流以别的方式收尾
-       * （模型压根没吐 `plan_request`）时也要把它落下去，⛔ 不能凭空吞掉一份计划。
+       * 多步确认帧判定去向。⚠ 判定之外还有两条出口：流以别的方式收尾
+       * （服务端压根没摆确认卡）时也要把它落下去，⛔ 不能凭空吞掉一份计划。
        */
       let pendingPlanSteps: readonly string[] | null = null
       const flushPlanEntry = () => {
@@ -658,7 +654,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * （`shouldShowPlanCard` 与服务端收到的 `forcePlan` 必须是同一个值）。
        */
       const forcePlan = options.forcePlan ?? getOperatorState().askFirst
-      const autoApprove = getOperatorState().autoApprove
       /**
        * ⭐ 用户这一轮 `@` / 📎 上来的那几件先记进**这一轮**的工作记忆，再读整份
        * 带走：顺序反过来的话，助手在下一轮才「记得」用户刚才指的是哪张。
@@ -796,16 +791,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           ...(forcePlan ? { forcePlan: true } : {}),
           /**
            * ⭐ **断点续跑**（第三期）：前几步的既成事实。⛔ 它不放宽钱闸 ——
-           * 剩下的步里但凡有一步花钱，`spend_request` 照出（owner 定）。
+           * 剩下的步里但凡有一步要生成，`confirm` 照出（owner 定）。
            */
           ...(resumeFrom ? { resumeFrom } : {}),
-          /**
-           * 「本会话此类不再问」的条子（§6 拍板 24）。⚠ 服务端**逐条核**（同模型 +
-           * 金额不超上次），核不过就照旧吐 `spend_request` —— 客户端这一侧不做任何
-           * 判断，⛔ 别在这里先比一次：两处判据迟早说两句不一样的话，而说错的那
-           * 一次是真的花了钱。
-           */
-          ...(autoApprove ? { autoApprove } : {}),
           ...(route.apiKeyId ? { apiKeyId: route.apiKeyId } : {}),
           ...(route.modelId ? { llmModelId: route.modelId } : {}),
           responseLanguage: toResponseLanguage(locale),
@@ -850,20 +838,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            */
           cancelPendingAfterStep()
           /**
-           * ⭐ **成本计数帧**（切片 Y）—— 它不是一步，也不打断任何东西：读出来
-           * 累加到 store，进度带右侧那行小字随之长一位。
-           * ⚠ 在占位行让位那一段**之前**处理并 `continue`：`cost_tick` 与 `open`
-           * 同理 —— 它到达时模型可能一个字都还没写（一次视觉往返发生在某一步的
-           * 规划期），把它算成「它开口了」会让占位行闪一下就没了。
-           * ⚠ 走纯函数读取（`readOperatorCostTick`）而不是 `switch` 的一支：
-           *   见那颗函数的头注。
-           */
-          const costTick = readOperatorCostTick(event)
-          if (costTick) {
-            addOperatorCostTick(costTick)
-            continue
-          }
-          /**
            * 占位行让位（§4.1）：**除了正文自己**，任何一帧到达都意味着「它已经
            * 开口了」，那一行空脉冲该消失。
            * ⚠ 只扔**还空着**的那条（`dropOperatorPending` 自己把关）：助手先说
@@ -883,14 +857,16 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             dropOperatorPending(messageEntryId())
           }
           /**
-           * 攒着的计划**最多只等一帧**（第 2 件）：`plan_request` 是紧挨着 `plan`
-           * 发的，所以别的帧一到就说明这一轮不会有卡了 —— 立刻落成折叠行。
+           * 攒着的计划**最多只等一帧**（第 2 件）：多步确认帧紧挨着 `plan` 发，
+           * 所以别的帧一到就说明这一轮不会有卡了 —— 立刻落成折叠行。
            * ⛔ 不拖到流末尾再落：那样它会排在这一轮所有工具步的后面，读起来像
            * 「干完之后才想起来规划」。
+           * ⚠ `confirm` 不在这里落：多步那一支要把这份清单收进卡里（见下面），
+           *   生成那一支自己会补一次 `flushPlanEntry()`。
            */
           if (
             event.type !== ASSISTANT_OPERATOR_EVENTS.plan &&
-            event.type !== ASSISTANT_OPERATOR_EVENTS.planRequest
+            event.type !== ASSISTANT_OPERATOR_EVENTS.confirm
           ) {
             flushPlanEntry()
           }
@@ -901,48 +877,86 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              * 由来：一轮里同一份计划会出现两次 —— 一条 `kind:'plan'` 的清单卡，
              * 外加钉在流末尾那张待确认的计划卡。两张卡列的是同一串阶段，用户读到
              * 的是「它规划了两遍」。
-             * ⚠ 所以这里只**攒着**：`plan_request` 紧跟在下一帧（服务端那一侧写死
-             * 的顺序，见 `assistant-operator.service.ts` 的「顺序是硬要求」），
-             * 由它来判 —— 出卡 = 这份清单归卡，条目不落；不出卡 = 落成一行折叠。
+             * ⚠ 所以这里只**攒着**：多步确认帧紧跟在下一帧（服务端那一侧写死的
+             * 顺序，见 `assistant-operator.service.ts`），由它来收 —— 出卡 = 这份
+             * 清单归卡，条目不落；不出卡 = 落成一行折叠。
              */
             case ASSISTANT_OPERATOR_EVENTS.plan:
               setOperatorPlannedSteps(event.steps.length)
-              pendingPlanSteps = event.steps
+              pendingPlanSteps = event.steps.map((step) => step.label)
               break
             /**
-             * **计划卡**（§2.6 / §5，切片 3a）—— 出不出由客户端硬判。
-             *
-             * ⭐ 三件事必须在**这一帧**做完：判定 → 摆卡 → 掐流。掐流是关键的
-             * 那一条：服务端并不知道客户端要不要出卡，它会接着往下跑；不掐掉的
-             * 表现是「计划卡钉在流末尾等你确认，而它要问的那几步已经落到表单上
-             * 了」——那张卡就成了一句事后通知。
-             * ⚠ `return` 而不是 `break`：本函数就此结束，旧流的 `AbortError` 由
-             *   下面那个 catch 的 `aborted` 判据吞掉。
+             * **问题卡**（v2 §3.2 / §3.4）—— 三个来源一帧到齐，按载荷分派到
+             * 今天已经在跑的那两张卡上（卡本身的收敛是下一片的事）：
+             *  · 带 `overwrite` = 覆盖手写三选 → 参数栏上那条就地确认；
+             *  · 选项全带 `assetUrl` = 「你说的是哪一张」→ 缩略图单选卡；
+             *  · 其余 = 计划里的待定项 → 反问卡（一次一道题）。
+             * ⚠ ⛔ 不用像 v1 那样掐流：停流已经由服务端那一帧 `stopped` 说了。
              */
-            case ASSISTANT_OPERATOR_EVENTS.planRequest: {
-              // ⛔ 不出卡的那一支：攒着的那份计划落成**一行折叠**（第 2 件）。
-              if (
-                !shouldShowPlanCard(event, {
-                  forcePlan,
-                  ...(planApproved === undefined ? {} : { planApproved }),
-                })
-              ) {
-                flushPlanEntry()
+            case ASSISTANT_OPERATOR_EVENTS.ask: {
+              const { question } = event
+              if (event.overwrite) {
+                setOpen(true)
+                setOperatorConfirm(event.overwrite)
                 break
               }
-              // 出卡 = 这份清单归卡 —— ⛔ 别再落一条 `kind:'plan'`。
-              pendingPlanSteps = null
+              const assetOptions = question.options.filter(
+                (option) => option.assetUrl,
+              )
+              if (assetOptions.length === question.options.length) {
+                setOperatorChoice({
+                  id: nextOperatorEntryId('choice'),
+                  question: question.question,
+                  options: assetOptions.map((option) => ({
+                    id: option.id,
+                    url: option.assetUrl as string,
+                    label: option.label,
+                    kind: 'image' as const,
+                    thumbnailUrl: option.assetUrl as string,
+                  })),
+                  chosenId: null,
+                })
+                break
+              }
               setOperatorPlan({
                 id: nextOperatorEntryId('plancard'),
-                steps: event.steps,
-                questions: event.questions,
-                estimate: event.estimate,
+                steps: [],
+                questions: [question],
                 resolved: false,
                 answers: [],
               })
               setOperatorStatus('awaitingPlan')
-              controller.abort()
-              return
+              break
+            }
+            /**
+             * **确认卡**（v2 §3.3）—— 两种来源，按 `kind` 分派到今天那两张卡：
+             *  · `multistep` → 反问卡（这一轮攒着的那份计划归它，⛔ 别再落一条
+             *    `kind:'plan'` 条目）；
+             *  · `generate`  → 生成确认卡，⚠ 点「确认生成」由客户端扣扳机（§5）。
+             */
+            case ASSISTANT_OPERATOR_EVENTS.confirm: {
+              if (
+                event.confirm.kind ===
+                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+              ) {
+                pendingPlanSteps = null
+                setOperatorPlan({
+                  id: nextOperatorEntryId('plancard'),
+                  steps: event.confirm.steps,
+                  questions: [],
+                  resolved: false,
+                  answers: [],
+                })
+                setOperatorStatus('awaitingPlan')
+                break
+              }
+              flushPlanEntry()
+              setOperatorSpend({
+                id: nextOperatorEntryId('spend'),
+                request: event.confirm.request,
+                resolved: false,
+              })
+              break
             }
             /**
              * 正文的**唯一来源**（v2 §3.1 / §13.1）—— 整段一次到齐，按条目 id
@@ -1021,28 +1035,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               // ⚠ `status === 'done'` 同时把类型收窄成「应用过的那一支」——
               //    被拒的那支是 `status: 'error'`，它没有 payload / inverse。
               if (step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) {
-                /**
-                 * 「按你的设置直接生成」那一行（§6 拍板 24 / §5 流程图 TH）。
-                 *
-                 * ⭐ **命中自动通过时不静默过**：这一枪真的花了钱，而用户这一轮
-                 * 一张卡都没看见。少了这一行，界面上就是「它自己发了一枪」——
-                 * 而那正是钱闸这条链最不能给人的手感。
-                 * ⚠ 判据是「条子在场」而不是「服务端说它命中了」：服务端那一侧
-                 *   没有会话态，也就没有第二个可信来源；条子本来就是客户端发上去
-                 *   的那一张，命中与否由这一步吐没吐出来说了算。
-                 */
-                if (
-                  step.tool === ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration &&
-                  getOperatorState().autoApprove
-                ) {
-                  const credits = step.payload.estimate.credits
-                  appendOperatorEntry({
-                    kind: 'system',
-                    id: nextOperatorEntryId('sys'),
-                    code: 'autoApproved',
-                    ...(credits === undefined ? {} : { count: credits }),
-                  })
-                }
                 const field = flushSync(() =>
                   applyOperatorStep(step, applyContext),
                 )
@@ -1101,51 +1093,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               }
               break
             }
-            case ASSISTANT_OPERATOR_EVENTS.confirmRequest:
-              setOpen(true)
-              setOperatorConfirm({
-                // §6 第二档 —— 服务端恒发 `overwrite`（事件 schema 已收成必填）。
-                tier: event.tier,
-                field: event.field,
-                have: event.have,
-                proposed: event.proposed,
-              })
-              break
-            /**
-             * **花钱硬确认卡**（§6 第三档 / §3.1 ⑮–⑰）。
-             *
-             * ⚠ 服务端在这一帧之后自己就 `stopped/awaitingConfirm` 了 —— 这里只
-             * 摆卡，⛔ 不用像计划卡那样掐流（那一帧是客户端单方面决定不往下走）。
-             */
-            case ASSISTANT_OPERATOR_EVENTS.spendRequest:
-              setOperatorSpend({
-                id: nextOperatorEntryId('spend'),
-                request: event.request,
-                resolved: false,
-              })
-              break
-            /**
-             * **歧义反问单选卡**（§3.3 第 5 行 / §7 四入口之四）。
-             *
-             * ⚠ 候选原样转成 chip 形状（`StudioOperatorAttachment`）：点中那一格
-             * 直接进 `mentions`，与另外三个入口**同一条管线**。⛔ 别为这张卡另立
-             * 一种「被选中的候选」——那正是「反问选出来的图与 @ 选出来的行为不
-             * 一样」这类不对称的来源。
-             */
-            case ASSISTANT_OPERATOR_EVENTS.choiceRequest:
-              setOperatorChoice({
-                id: nextOperatorEntryId('choice'),
-                question: event.question,
-                options: event.options.map((option) => ({
-                  id: option.id,
-                  url: option.assetUrl,
-                  label: option.label,
-                  kind: 'image' as const,
-                  thumbnailUrl: option.assetUrl,
-                })),
-                chosenId: null,
-              })
-              break
             /**
              * **规则薄卡**（§2.21 / §10，拍板 23）—— 时间线里插一条，⛔ 不是一步。
              * 原文与日期是服务端从规则表里查出来的原话（见事件 schema 头注）。
@@ -1160,13 +1107,21 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 createdAt: event.createdAt,
               })
               break
-            case ASSISTANT_OPERATOR_EVENTS.stopped:
+            /**
+             * ⚠ **`awaitingPlan` 不被这一帧降级**：计划卡 / 问题卡那两支自己已经
+             * 把状态说清楚了，而服务端只会笼统地说一句 `awaiting_confirm` ——
+             * 盖过去的表现是图标轨上「待你定」变成「待确认」，而两者的下一步动作
+             * 完全不同（见 `StudioOperatorStatus` 的头注）。
+             */
+            case ASSISTANT_OPERATOR_EVENTS.stopped: {
+              if (getOperatorState().status === 'awaitingPlan') break
               setOperatorStatus(
                 event.reason === ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm
                   ? 'awaitingConfirm'
                   : 'idle',
               )
               break
+            }
             case ASSISTANT_OPERATOR_EVENTS.error:
               setOperatorStatus('error', describeError(event))
               break
@@ -1373,7 +1328,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    *  ② `planApproved: true` —— ⛔ 不再弹一次计划卡（那份计划批过了）；
    *  ③ `forcePlan: false` —— 同一条论据：「先问我」在续跑这一轮里会把卡叫回来。
    *
-   * ⛔ **钱闸一个字都不动**：剩下的步里有生成，`spend_request` 照出、硬确认卡
+   * ⛔ **钱闸一个字都不动**：剩下的步里有生成，`confirm` 照出、确认卡
    * 照钉。判据不在这里，在服务端的工具表 —— 这里连「这一步要不要花钱」都不知道。
    */
   const resumePlan = useCallback(() => {
@@ -1399,35 +1354,24 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   }, [])
 
   /**
-   * 花钱硬确认卡「生成」（§3.1 ⑰）。
+   * 生成确认卡「确认生成」（v2 §3.3 / §5）。
    *
-   * 两步，顺序有意义：
-   *  ① 勾了「不再问」就先把条子记进 store（会话级，§6 拍板 24）——
-   *    ⚠ 必须在重发**之前**，否则这一轮自己带不上它，用户会看到「我明明勾了，
-   *    它还是问了我一次」；
-   *  ② 带条子重发 —— 服务端这次放行并吐 `request_generation`，`applyOperatorStep`
-   *    把它交给宿主那只手（`host.triggerGeneration`）。扳机仍然是客户端扣的。
-   * ⚠ 算不出金额（`credits === undefined`）时**不记条子**：作用域第三条要素是
-   *   「不超上次金额」，没有金额就没有可比的上限，记一张永远匹配不上的条子只会
-   *   让用户以为自己已经关掉了确认。
+   * ⭐ **客户端扣扳机，⛔ 不再重发一轮**：v1 走的是「带 `autoApprove` 重发 →
+   * 服务端吐 `request_generation` 那一步 → `applyOperatorStep` 交给宿主」，
+   * 而那条免检通道随花费确认一起删了（决策 8）。留着重发的表现是用户点一次
+   * 「确认生成」、服务端再问一次同一张卡 —— 一个自己喂自己的环。
+   * ⚠ 名字先落、再扣扳机：扳机那一跳是同步 dispatch，落在它后面的话这一枪带的
+   *   还是上一次的名字（判据与 `applyOperatorStep` 里那一处逐字同源）。
    */
-  const answerSpend = useCallback(
-    (input: { rememberForSession: boolean }) => {
-      const spend = getOperatorState().spend
-      if (!spend || spend.resolved) return
-      const credits = spend.request.estimate.credits
-      if (input.rememberForSession && credits !== undefined) {
-        setOperatorAutoApprove({
-          tier: ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.spend,
-          model: spend.request.model.id,
-          maxCredits: credits,
-        })
-      }
-      resolveOperatorSpend()
-      void run({ forcePlan: false })
-    },
-    [run],
-  )
+  const answerSpend = useCallback(() => {
+    const spend = getOperatorState().spend
+    if (!spend || spend.resolved) return
+    resolveOperatorSpend()
+    setOperatorStatus('idle')
+    if (spend.request.label)
+      applyContext.setGenerationLabel?.(spend.request.label)
+    applyContext.triggerGeneration?.(spend.request)
+  }, [applyContext])
 
   /** 花钱卡「取消」—— 流已经停了，什么都不用发；把卡收掉即可。 */
   const cancelSpend = useCallback(() => {

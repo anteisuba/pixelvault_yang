@@ -6,14 +6,13 @@ import type { AssistantOperatorGenerationRequest } from '@/types/assistant-opera
 import { StudioOperatorSpendConfirmCard } from './StudioOperatorSpendConfirmCard'
 
 /**
- * 花钱硬确认卡的回归闸（§6 / §11.4 / §3.1 ⑮–⑰）。
+ * 生成确认卡的回归闸（v2 §3.3 / §5）。
  *
- * 钉四件事：
- *  ① 四要素（模型 / 张数 / 规格 / 预估）都在卡上 —— 少一样用户就是在盲按；
- *  ② 「生成」把「本会话不再问」的勾选原样交出去（拍板 24 的作用域靠它成立）；
- *  ③ 默认**不勾** —— ⛔ 默认勾上等于替用户放弃了每次确认；
- *  ④ 算不出金额时既不画金额也不给勾选：没有金额就没有可比的上限，那颗勾选
- *     在服务端永远命中不了，摆出来只会骗人。
+ * 钉三件事：
+ *  ① 三要素（模型 / 张数 / 规格）都在卡上 —— 少一样用户就是在盲按；
+ *  ② 「确认生成」不带任何载荷：扳机在宿主那颗生成键上，⛔ 不重发一轮；
+ *  ③ ⛔ **卡上没有花费读数、也没有「本会话不再问」**（决策 8）—— 花费确认整条
+ *     删掉，那颗勾选是它的配件，一起走。
  */
 
 vi.mock('next-intl', () => ({
@@ -24,7 +23,6 @@ const REQUEST: AssistantOperatorGenerationRequest = {
   model: { id: 'seedream-4', label: 'Seedream 4' },
   count: 2,
   specs: { aspectRatio: '1:1', resolution: '2K', durationSeconds: null },
-  estimate: { credits: 6, model: 'Seedream 4', count: 2 },
 }
 
 function renderCard(request = REQUEST) {
@@ -41,7 +39,7 @@ function renderCard(request = REQUEST) {
 }
 
 describe('StudioOperatorSpendConfirmCard', () => {
-  it('四要素都在卡上', () => {
+  it('三要素都在卡上', () => {
     renderCard()
     expect(screen.getByTestId('operator-spend-model').textContent).toBe(
       'Seedream 4',
@@ -50,24 +48,12 @@ describe('StudioOperatorSpendConfirmCard', () => {
     expect(screen.getByTestId('operator-spend-specs').textContent).toBe(
       '1:1 · 2K',
     )
-    expect(screen.getByTestId('operator-spend-credits')).toBeTruthy()
   })
 
-  it('默认不勾「不再问」，「生成」交出 false', () => {
+  it('「确认生成」不带载荷 —— 扳机在宿主那颗生成键上', () => {
     const { onConfirm } = renderCard()
-    expect(
-      (screen.getByTestId('operator-spend-remember') as HTMLInputElement)
-        .checked,
-    ).toBe(false)
     fireEvent.click(screen.getByTestId('operator-spend-confirm'))
-    expect(onConfirm).toHaveBeenCalledWith({ rememberForSession: false })
-  })
-
-  it('勾上之后「生成」交出 true', () => {
-    const { onConfirm } = renderCard()
-    fireEvent.click(screen.getByTestId('operator-spend-remember'))
-    fireEvent.click(screen.getByTestId('operator-spend-confirm'))
-    expect(onConfirm).toHaveBeenCalledWith({ rememberForSession: true })
+    expect(onConfirm).toHaveBeenCalledWith()
   })
 
   it('「取消」不带任何载荷', () => {
@@ -77,8 +63,8 @@ describe('StudioOperatorSpendConfirmCard', () => {
     expect(onConfirm).not.toHaveBeenCalled()
   })
 
-  it('⭐ 算不出金额时既不画金额，也不摆那颗永远无效的勾选', () => {
-    renderCard({ ...REQUEST, estimate: { model: 'Seedream 4', count: 2 } })
+  it('⛔ 卡上没有花费读数，也没有「本会话不再问」（决策 8）', () => {
+    renderCard()
     expect(screen.queryByTestId('operator-spend-credits')).toBeNull()
     expect(screen.queryByTestId('operator-spend-remember')).toBeNull()
   })

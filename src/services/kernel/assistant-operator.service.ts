@@ -16,6 +16,7 @@ import {
   ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION,
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_DEFAULT_SEARCH_KINDS,
   ASSISTANT_OPERATOR_EVENTS,
@@ -28,28 +29,24 @@ import {
   ASSISTANT_OPERATOR_TOOL_HINTS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN,
-  ASSISTANT_OPERATOR_CONFIRM_TIER_IDS,
   ASSISTANT_OPERATOR_VERDICT_SEVERITIES,
   ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS as SEVERITY,
   ASSISTANT_OPERATOR_WRITE_MODES,
   type AssistantOperatorVerdictSeverity,
-  ASSISTANT_CHOICE_REQUEST_LIMITS as CHOICE_LIMITS,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
-  ASSISTANT_PLAN_REQUEST_REASON_IDS as PLAN_REASON,
+  ASSISTANT_PLAN_CARD_MIN_STEPS,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   ASSISTANT_RESEARCH_SCOPE_IDS,
-  ASSISTANT_COST_TICK_KIND_IDS as COST,
-  ASSISTANT_COST_TICK_LABEL_KEYS as COST_LABELS,
   ASSISTANT_WORKING_MEMORY as MEMORY_LIMITS,
   GENERATION_REVIEW_STATE_IDS as REVIEW,
   isAssistantOperatorToolInDomain,
   isUnfinishedClosingMessage,
+  type AssistantOperatorConfirmChoice,
   type AssistantOperatorConfirmField,
   type AssistantOperatorDomain,
   type AssistantOperatorReferenceSlot,
   type AssistantOperatorRejectReason,
   type AssistantOperatorSearchKind,
-  type AssistantCostTickKind,
   type AssistantOperatorTool,
   type AssistantResearchSource,
   type GenerationReviewState,
@@ -85,7 +82,7 @@ import {
   TAG_BASED_GENERATION_PROMPT_RULE,
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
-import { getModelById, resolveAdapterType } from '@/constants/models'
+import { resolveAdapterType } from '@/constants/models'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ASSISTANT_MEDIA_UNSUPPORTED_ERRORS } from '@/constants/assistant'
@@ -231,7 +228,6 @@ import {
   type AssistantOperatorVideoCritique,
   type AssistantOperatorEvent,
   type AssistantOperatorGenerationRequest,
-  type AssistantOperatorPlanEstimate,
   type AssistantOperatorPlanQuestion,
   type AssistantOperatorRequest,
   type AssistantOperatorResult,
@@ -267,7 +263,7 @@ import type { LoraCandidate } from '@/types/lora-candidate'
  * 服务端就不能有会话态 —— 断在半路的一轮不能留下任何痕迹。于是：
  *   · `set_*` / `mount_reference` **不落库**，只吐 op，写入发生在客户端；
  *   · 「刚才做过什么」由客户端在下一次请求里用 `priorSteps` 带回来；
- *   · 就地确认（拍板 3）复用同一条通道：吐 `confirm_request` → 这条流结束 →
+ *   · 就地确认（拍板 3）复用同一条通道：吐一帧问题卡 → 这条流结束 →
  *     客户端带 `confirmations` 重发。**多一条挂起通道就多一份会话态**，
  *     那正是打断语义要躲开的东西。
  */
@@ -507,25 +503,6 @@ interface OperatorRun {
    * ⚠ 整份记忆由客户端在请求里带上来，读完就丢 —— ⛔ 服务端不存。
    */
   workingMemoryIndex: Map<string, AssistantOperatorWorkingMemoryArtifact>
-  /**
-   * 这一步产生的**成本计数帧**（切片 X），等着被主循环吐出去。
-   *
-   * ⚠ 为什么是一个队列而不是直接 yield：真正花钱的那几跳（看图、检索、LLM 往返）
-   * 发生在 `plan.run()` 这类**普通 async 函数**里，它们不是生成器，吐不出事件。
-   * 主循环在每一步前后把这个队列排空 —— ⛔ 别为了「能 yield」把整条规划链改写成
-   * 生成器，那是为一条计数帧重做整个控制流。
-   */
-  costTicks: { kind: AssistantCostTickKind; units: number }[]
-}
-
-/** 记一帧「又花了一次」。⚠ `units` 是**这一次数了几**，累计在客户端做。 */
-function tickCost(
-  run: OperatorRun,
-  kind: AssistantCostTickKind,
-  units = 1,
-): void {
-  if (units <= 0) return
-  run.costTicks.push({ kind, units })
 }
 
 /**
@@ -578,25 +555,20 @@ type ToolPlan =
       apply(): void
     }
   /**
-   * 花钱档放行（§6）—— 只吐载荷，⛔ 没有 `inverse`、没有 `apply`：服务端在这一步
-   * 什么都不做，扣扳机在客户端（见词表 `requestGeneration` 头注）。
+   * 生成要先问一句（v2 §3.3 第二种来源）—— 流停在生成确认卡上，与 `confirm`
+   * 同一条机制。⛔ 服务端在这一步一分钱都花不掉：它只是把一份载荷交出去，
+   * 扳机由客户端扣。
    */
   | {
-      kind: 'spend'
-      payload: AssistantOperatorGenerationRequest
-      observation: string
-    }
-  /** 花钱档要先问一句 —— 流停在硬确认卡上，与 `confirm` 同一条机制。 */
-  | {
-      kind: 'confirmSpend'
+      kind: 'confirmGenerate'
       request: AssistantOperatorGenerationRequest
     }
   /**
    * **歧义反问**（§3.3 第 5 行 / §7，切片 3a）—— 「你说的是哪一张？」
    *
-   * ⚠ 与 `confirm` / `confirmSpend` 同一条机制（吐一帧、停流、客户端带上下文重发），
-   * 但它既不覆盖什么也不花钱：它只是在问路。⛔ 所以它不是三档确认里的一档，
-   * 见 `ASSISTANT_OPERATOR_EVENTS.choiceRequest` 的头注。
+   * ⚠ 与 `confirm` / `confirmGenerate` 同一条机制（吐一帧、停流、客户端带上下文
+   * 重发），但它既不覆盖什么也不花钱：它只是在问路 —— v2 里它与覆盖三选一起
+   * 并进 `ask` 帧（§3.1）。
    */
   | {
       kind: 'choice'
@@ -618,7 +590,7 @@ function reject(
  * 个字符，而这些值紧接着就要过 schema 的 `.max(max)` —— 于是
  *   · `search_assets` 命中任何一条提示词超过 200 字的素材 → `toStepEvent` 当场抛，
  *     整轮以一句笼统的「run failed midway」结束（日志停在 `running` 那一半）；
- *   · `confirm_request` 遇到超过 200 字的手写提示词 → 客户端 `safeParse` 丢帧，
+ *   · 覆盖三选那一帧遇到超过 200 字的手写提示词 → 客户端 `safeParse` 丢帧，
  *     表现是「流停了但确认条从没出现」。
  * 两处都是「用户内容越长越容易炸」，而短内容一路绿灯 —— 最难自查的一类。
  * ⛔ 别改 schema 的上限去将就它：上限是协议，截断是实现。
@@ -1158,9 +1130,6 @@ function planInspectAssetFolder(
         instruction,
         ...(run.request.apiKeyId ? { apiKeyId: run.request.apiKeyId } : {}),
       })
-      // ⚠ 数的是**真的送进模型的张数**（不是文件夹里有多少张）——切片 X。
-      tickCost(run, COST.vision, result.inspectedImages)
-
       const observation =
         result.inspectedImages === 0
           ? `inspect_asset_folder("${result.folder.path}") found 0 viewable images. Do not describe this folder as if you saw anything.`
@@ -1263,8 +1232,6 @@ function planSearchWebImages(
     },
     run: async () => {
       const found = await webImageSearchMulti(queries, { num: limit })
-      // ⚠ 一条变体查询就是一次外部往返（也是一个 Serper credit）——切片 X。
-      tickCost(run, COST.research, queries.length)
       /**
        * ⭐ **官方 / wiki 来源排前**（2026-09-06）。
        *
@@ -1381,7 +1348,6 @@ function planSearchWeb(
     payload: { query: args.query, limit },
     run: async () => {
       const found = await webSearch(args.query, { num: limit })
-      tickCost(run, COST.research, 1)
       const results = found.slice(0, limit).map((entry) => {
         // 出处**现算**（⛔ 不让模型写、也不编）—— 界面上那行小字与模型引用时说的
         // 是同一个词。上游的 organic 结果没有站名字段，域名是这里唯一的真值。
@@ -1476,12 +1442,6 @@ async function planResearch(
    * 问题」开了无限重试，而 `maxSteps` 只有 8，代价是整轮步数全烧光、表单没动。
    */
   run.researchRounds = round
-  /**
-   * ⚠ 数的是**真的打出去的源数**（回执一条一个源），不是「一次 research」——
-   * 一轮扇出打五个源与打一个源，贵的程度差五倍（切片 X）。
-   */
-  tickCost(run, COST.research, Math.max(1, outcome.receipts.length))
-
   const roundsLeft = RESEARCH_LIMITS.maxRoundsPerTurn - round
   /**
    * ⚠ 回执逐源列出来（`ok` / `empty` / `failed` / `circuit_open`）：「打了但没料」
@@ -1617,8 +1577,6 @@ async function planReadUrl(
 
   const focus = args.focus?.trim()
   const page = await readUrl(args.url)
-  // ⚠ 打了就算，读不出来也算：那一次外部往返照样发生了（切片 X）。
-  tickCost(run, COST.research, 1)
   if (!page) {
     return reject(
       REJECT.urlUnreadable,
@@ -2007,7 +1965,6 @@ async function completeReferenceAnalysisText(
     ...(images?.length ? { imageData: images } : {}),
     responseFormat: 'json_object',
   })
-  tickCost(run, images?.length ? COST.vision : COST.llm, images?.length || 1)
   return result
 }
 
@@ -3068,26 +3025,6 @@ function planPrimeGenerate(
   }
 }
 
-/**
- * 这一枪**大概几个 credit**。
- *
- * ⭐ 口径只有一条：模型目录里那个 `cost`（`AI_MODELS[].cost` —— 出图那条链拿去当
- * 扣费基数的同一个数）× 张数。
- * ⚠ 它是**估算不是账单**：真正的扣费口径在服务端 credit policy（自带 key /
- * 免费额度那几条支线在这里一概看不见）。所以卡上永远带「约」。
- * ⚠ 目录里查不到就返回 `null`，⛔ 不回落成 1 —— 缺价的模型宁可不写那一行，
- * 论据与 `StudioCostPreview`「缺价不折进合计」逐字同源。
- * ⛔ 这条路径**一分钱都花不掉**：读的是常量目录，不碰任何服务。
- */
-function estimateGenerationCredits(
-  modelId: string,
-  count: number,
-): number | null {
-  const cost = getModelById(modelId)?.cost
-  if (typeof cost !== 'number' || !Number.isFinite(cost)) return null
-  return Math.max(0, Math.round(cost * count))
-}
-
 /** 这一枪的张数 —— 没有张数控件的域（视频 / 装配台）恒 1。 */
 function currentGenerationCount(run: OperatorRun): number {
   if (!run.state.hasCountControl) return 1
@@ -3095,7 +3032,10 @@ function currentGenerationCount(run: OperatorRun): number {
 }
 
 /**
- * 硬确认卡上那几行 = `request_generation` 的载荷（**一份形状两处用**）。
+ * 生成确认卡上那几行 = `request_generation` 的载荷（**一份形状两处用**）。
+ *
+ * ⚠ **没有预估 credits**（决策 8）：面板上不再有花费读数 —— 本仓从来算不出准确
+ * 的扣费口径（`AI_MODELS[].cost` 是每次请求的基数），一个错的数比没有数更糟。
  *
  * ⚠ 全部取自**快照**，一个字段都不让模型写（工具入参是空对象）：卡上写 4 张而
  * 表单里是 1 张，是花钱档最不能出的那种错。
@@ -3106,13 +3046,7 @@ function buildGenerationRequestPayload(
   runLabel?: string,
 ): AssistantOperatorGenerationRequest {
   const count = currentGenerationCount(run)
-  const credits = estimateGenerationCredits(modelId, count)
   const label = run.state.modelLabel ?? modelId
-  const estimate: AssistantOperatorPlanEstimate = {
-    model: label,
-    count,
-    ...(credits === null ? {} : { credits }),
-  }
   return {
     model: { id: modelId, label },
     count,
@@ -3133,7 +3067,6 @@ function buildGenerationRequestPayload(
           }
         : {}),
     },
-    estimate,
     /** ⚠ 只透传（切片 X）：服务端不写库，见 `planPrimeGenerate` 的头注。 */
     ...(runLabel?.trim()
       ? { label: clamp(runLabel.trim(), LIMITS.maxGenerationLabelChars) }
@@ -3142,35 +3075,15 @@ function buildGenerationRequestPayload(
 }
 
 /**
- * 「本会话此类不再问」命中了吗（§6 拍板 24）。
- *
- * ⭐ **服务端不存任何记忆** —— 三要素里的「同会话」由客户端负责（换条会话它就
- * 不再带这张条子上来），服务端只核另外两条：同模型、金额不超上次。
- * ⚠ `estimate.credits` 缺席时**一律不命中**：拿一个算不出来的数去跟上限比，
- * 只能得到「反正没超」这种最不该有的结论。缺价 = 重新硬确认，安全的那个方向。
- */
-function isSpendAutoApproved(
-  run: OperatorRun,
-  payload: AssistantOperatorGenerationRequest,
-): boolean {
-  const auto = run.request.autoApprove
-  if (!auto) return false
-  if (auto.tier !== ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.spend) return false
-  if (auto.model !== payload.model.id) return false
-  const credits = payload.estimate.credits
-  if (credits === undefined) return false
-  return credits <= auto.maxCredits
-}
-
-/**
- * 请求发送（§6 花钱档，切片 2a）。
+ * 请求发送（v2 §3.3 生成确认，§5）。
  *
  * ── 三件事按顺序发生 ───────────────────────────────────────────────
  *  ① 前置闸与 `prime_generate` **逐字相同**（没选模型 / 提示词还空着就拒）——
  *     两条工具备的是同一颗按钮，闸不一样才是怪事。
  *  ② 载荷全部从快照现取（`buildGenerationRequestPayload`）。
- *  ③ 「不再问」核不过就 `confirmSpend`：流停在硬确认卡上，⛔ 服务端没有挂起态，
- *     续跑靠客户端带 `autoApprove` 重发（与拍板 3 的就地确认同一条机制）。
+ *  ③ **一律出确认卡**：`request_generation` 就是确认卡的第二种来源（§3.3），
+ *     ⛔ 没有「本会话此类不再问」那条免检通道了（决策 8 把花费确认整条删掉，
+ *     连带那张条子）。流停在卡上，扳机由客户端扣（§5）。
  *
  * ⛔ **这个函数一分钱都花不掉**：它不建 generation、不扣 credit、不调 provider ——
  * 它只是把一份载荷交出去。扣扳机那一跳在客户端（`studio-operator-apply.ts`）。
@@ -3191,15 +3104,9 @@ function planRequestGeneration(
   const modelId = run.state.modelId
   if (!modelId) return reject(REJECT.noModelSelected)
 
-  const payload = buildGenerationRequestPayload(run, modelId, args.label)
-  if (!isSpendAutoApproved(run, payload)) {
-    return { kind: 'confirmSpend', request: payload }
-  }
   return {
-    kind: 'spend',
-    payload,
-    observation:
-      'The creator had already approved sends like this one for this session, so the app is sending the current form now. You did not spend anything yourself and you cannot undo this — do not offer to.',
+    kind: 'confirmGenerate',
+    request: buildGenerationRequestPayload(run, modelId, args.label),
   }
 }
 
@@ -3212,6 +3119,117 @@ function planRequestGeneration(
  * 挂在一张有缩略图的卡上，图本身已经把问题说清楚了。
  */
 const CRITIQUE_CHOICE_QUESTION = 'Which one do you mean?'
+
+/**
+ * **覆盖手写三选**那一道题的字（v2 §3.1：覆盖确认降级成一张问题卡）。
+ *
+ * ⚠ 三语写死在服务端，与 `OPERATOR_STUCK_MESSAGES` 同一条判据：这句话是**助手
+ * 在问**，而助手按 `responseLanguage` 说话。⛔ 不发 i18n key —— 问句与三个选项
+ * 的说明是一段话，拆成六个键之后没人改得动它。
+ */
+const OVERWRITE_ASK_TEXTS: Record<
+  PromptAssistantResponseLanguage,
+  {
+    field: Record<AssistantOperatorConfirmField, string>
+    header: string
+    question: (field: string) => string
+    options: Record<
+      AssistantOperatorConfirmChoice,
+      { label: string; description: string }
+    >
+  }
+> = {
+  english: {
+    field: { prompt: 'prompt', negative: 'negative prompt' },
+    header: 'Your text',
+    question: (field) =>
+      `You already wrote a ${field}. What should I do with it?`,
+    options: {
+      append: {
+        label: 'Add mine after yours',
+        description: 'Your text stays, mine goes on the end.',
+      },
+      overwrite: {
+        label: 'Replace it',
+        description: 'Your text is replaced by mine.',
+      },
+      keep: {
+        label: 'Keep yours',
+        description: 'Nothing changes; I move on.',
+      },
+    },
+  },
+  japanese: {
+    field: { prompt: 'プロンプト', negative: 'ネガティブプロンプト' },
+    header: '書いた文',
+    question: (field) => `${field}はすでに書かれています。どうしますか。`,
+    options: {
+      append: {
+        label: '後ろに足す',
+        description: '今の文は残し、続けて書き足します。',
+      },
+      overwrite: {
+        label: '書き換える',
+        description: '今の文を私の文に置き換えます。',
+      },
+      keep: {
+        label: 'そのまま',
+        description: '何も変えずに次へ進みます。',
+      },
+    },
+  },
+  chinese: {
+    field: { prompt: '提示词', negative: '负面提示词' },
+    header: '你写的字',
+    question: (field) => `${field}你已经自己写过了，这一段怎么办？`,
+    options: {
+      append: {
+        label: '追加在后',
+        description: '你写的留着，我的接在后面。',
+      },
+      overwrite: {
+        label: '覆盖',
+        description: '把你写的换成我这一段。',
+      },
+      keep: {
+        label: '保留',
+        description: '什么都不动，我接着往下做。',
+      },
+    },
+  },
+}
+
+/** 覆盖三选 → `ask` 帧那道题。⚠ 选项 id 就是 `confirmations` 要带回来的那三个值。 */
+function buildOverwriteQuestion(
+  field: AssistantOperatorConfirmField,
+  language: PromptAssistantResponseLanguage,
+): AssistantOperatorPlanQuestion {
+  const texts = OVERWRITE_ASK_TEXTS[language]
+  return {
+    id: `overwrite-${field}`,
+    header: clamp(texts.header, PLAN_LIMITS.maxHeaderChars),
+    question: clamp(
+      texts.question(texts.field[field]),
+      PLAN_LIMITS.maxQuestionChars,
+    ),
+    multiSelect: false,
+    // ⛔ 关掉「其他」：这道题的三条路就是全部，第四条不存在。
+    allowOther: false,
+    options: Object.values(ASSISTANT_OPERATOR_CONFIRM_CHOICES).map(
+      (choice) => ({
+        id: choice,
+        label: clamp(
+          texts.options[choice].label,
+          PLAN_LIMITS.maxOptionLabelChars,
+        ),
+        description: clamp(
+          texts.options[choice].description,
+          PLAN_LIMITS.maxOptionDescriptionChars,
+        ),
+      }),
+    ),
+  }
+}
 
 /**
  * **看哪一张**（拍板 4 推翻，§7，切片 3a）—— 三条来源，按序：
@@ -3332,9 +3350,9 @@ function resolveCritiqueTarget(
       (option, index, all) =>
         all.findIndex((other) => other.assetUrl === option.assetUrl) === index,
     )
-    .slice(0, CHOICE_LIMITS.maxOptions)
+    .slice(0, PLAN_LIMITS.maxOptions)
 
-  if (candidates.length >= CHOICE_LIMITS.minOptions) {
+  if (candidates.length >= PLAN_LIMITS.minOptions) {
     return { kind: 'ambiguous', options: candidates }
   }
   return { kind: 'none' }
@@ -3468,10 +3486,6 @@ async function planVideoCritique(
       }),
     ),
   )
-
-  // ⚠ 三帧 = 三次真的看图（切片 X）。归总那一次是纯文本，算 `llm` 不算 `vision`。
-  tickCost(run, COST.vision, frames.length)
-  tickCost(run, COST.llm, 1)
 
   const raw = await completeAssistantTextWithContextRetry({
     systemPrompt: buildVideoCritiqueSystemPrompt(run.request, run.persona),
@@ -3627,7 +3641,6 @@ async function planCritiqueResult(
     responseFormat: 'json_object',
   })
   // ⚠ 唯一真的「看」的那一下（切片 X）。
-  tickCost(run, COST.vision, 1)
 
   const critique = parseCritiqueJson(raw)
   if (!critique) {
@@ -4641,7 +4654,7 @@ ${run.request.priorSteps
    * ⛔ 不念 id：名字是用户和它共用的那套称呼（切片 N1），id 两边都核对不了。
    *   水合不到就退回 id 原文 —— 显示一个 id，永远好过显示一行空白。
    * ⛔ **续跑不放宽钱闸**：这一段一个字都没提「可以直接生成」。剩下的步里但凡
-   *   有一步花钱，`spend_request` 照出（owner 2026-09-07 定）。
+   *   有一步要生成，`confirm` 照出（owner 2026-09-07 定）。
    */
   if (run.request.resumeFrom) {
     const done = run.request.resumeFrom.completedSteps.map((step, index) => {
@@ -5108,7 +5121,6 @@ export async function* runAssistantOperator(
             ]),
         ),
     ),
-    costTicks: [],
   }
 
   const systemPrompt = buildOperatorSystemPrompt(
@@ -5126,26 +5138,6 @@ export async function* runAssistantOperator(
   /** 收尾那句话已经被退回去要过一次结论了。⛔ 只退一次，不做开放循环。 */
   let conclusionRetried = false
   let completed = false
-
-  /**
-   * 把这一步攒下的成本计数帧排空（切片 X）。
-   *
-   * ⚠ 它是个**局部生成器**而不是 `run` 上的方法：只有主循环能 yield，而攒帧的
-   * 那几处（看图 / 检索 / LLM 往返）都在普通 async 函数里 —— 这就是队列存在的
-   * 全部理由（见 `OperatorRun.costTicks` 头注）。
-   */
-  function* drainCostTicks(): Generator<AssistantOperatorEvent> {
-    while (run.costTicks.length > 0) {
-      const tick = run.costTicks.shift()
-      if (!tick) break
-      yield {
-        type: ASSISTANT_OPERATOR_EVENTS.costTick,
-        kind: tick.kind,
-        units: tick.units,
-        label: COST_LABELS[tick.kind],
-      }
-    }
-  }
 
   try {
     const pointedReferences = currentConversationReferences(run)
@@ -5188,7 +5180,6 @@ export async function* runAssistantOperator(
           })
           throw error
         }
-        yield* drainCostTicks()
         if (options.signal?.aborted) {
           yield {
             type: ASSISTANT_OPERATOR_EVENTS.stopped,
@@ -5265,15 +5256,6 @@ export async function* runAssistantOperator(
         if (options.signal?.aborted) break
       }
 
-      /**
-       * ⚠ 一次完整的规划往返 = 一帧 `llm`（切片 X）。记在**这里**而不是记在每个
-       * 工具上：一轮里最贵的那部分正是这几次往返，而它们不属于任何一步。
-       */
-      tickCost(run, COST.llm, 1)
-      if (conversationImages.length)
-        tickCost(run, COST.vision, conversationImages.length)
-      yield* drainCostTicks()
-
       // ⚠ abort 可能发生在这次 await 期间：结果已经拿到但客户端早就走了。
       //    这里再查一次，免得往一条没人读的流里继续吐事件。
       if (options.signal?.aborted) {
@@ -5316,35 +5298,23 @@ export async function* runAssistantOperator(
       if (turn.plan?.length) {
         if (!planEmitted) {
           planEmitted = true
-          yield { type: ASSISTANT_OPERATOR_EVENTS.plan, steps: turn.plan }
+          const steps = turn.plan.map((label, index) => ({
+            id: `plan-${index + 1}`,
+            label,
+          }))
+          yield { type: ASSISTANT_OPERATOR_EVENTS.plan, steps }
           /**
-           * **计划卡的素材**（§2.6 / §5）—— 紧跟在 `plan` 之后、第一个 `step`
-           * 之前，一轮一帧。
-           *
-           * ⛔ 它不决定出不出卡：那条判据在客户端（`lib/studio-operator-plan.ts`
-           * 的 `shouldShowPlanCard`，owner 2026-09-06「客户端硬判」）。这里只把
-           * 判据要用的三样东西摆出来 —— 阶段、反问题、预估。
-           * ⚠ 顺序是硬要求：`plan` → `plan_request` → 第一个 `step`。客户端要在
-           *   任何一步落地之前就能决定「先问一句」，晚一帧那一步已经落到表单上了。
-           *
-           * ⭐ **已批准的那一轮不摆这一帧**（2026-09-07）：客户端点「开始」重发时带
-           * `planApproved: true`，`shouldShowPlanCard` 见到它直接返 false —— 服务端
-           * 再摆一帧就是白算一份规划、白花一份 token。
+           * ⭐ **已批准的那一轮不再拦一次**（2026-09-07）：客户端点「开始」重发
+           * 时带 `planApproved: true`，续跑（`resumeFrom`）同理 —— 那份计划当初
+           * 就是用户点过「开始」的那一份，中途断了不会重新变成待批。
            * ⚠ 只认 `=== true`：「修改」那一支带的是 `planApproved: false`，它要的
-           * 正是**重新规划**，照旧出卡。
-           * ⚠ `plan` 帧照旧发 —— 进度带要用。
-           */
-          /**
-           * ⚠ **续跑等同已批准**（第三期）：那份计划当初就是用户点过「开始」的
-           * 那一份，中途断了不会让它重新变成待批。客户端确实也会带
-           * `planApproved: true`（`resumePlan()`），这里再认一次 `resumeFrom` 是
-           * 因为「续跑却弹出一张计划卡」这条失败太贵 —— 用户会以为前几步白跑了。
+           * 正是**重新规划**，照旧拦。
            */
           const planApproved =
             request.planApproved === true || request.resumeFrom !== undefined
           if (planApproved) {
             /**
-             * ⛔ 用户已经批过了，⛔ 不要再拦一次：模型这一轮又给出的反问题一律丢掉，
+             * ⛔ 用户已经批过了，⛔ 不要再问一次：模型这一轮又给出的反问题一律丢掉，
              * 只留一条 warn —— 它意味着提示词那一侧没把「答复是既定事实」说到位。
              */
             if (turn.questions?.length) {
@@ -5357,19 +5327,53 @@ export async function* runAssistantOperator(
               )
             }
           } else {
-            const modelId = run.state.modelId
-            const estimate: AssistantOperatorPlanEstimate = modelId
-              ? buildGenerationRequestPayload(run, modelId).estimate
-              : {}
-            yield {
-              type: ASSISTANT_OPERATOR_EVENTS.planRequest,
-              steps: turn.plan.map((label, index) => ({
-                id: `plan-${index + 1}`,
-                label,
-              })),
-              questions: normalizePlanQuestions(turn, clerkId),
-              estimate,
-              reason: planRequestReason(turn, request),
+            /**
+             * **问题优先于多步确认**（v2 §3.1 / §3.4）：待定项整体搬进了 `ask`，
+             * 而 `ask` 一帧**只问一道题** —— 模型想问两件事就分两轮。
+             * ⚠ 多出来的题丢掉并 warn，⛔ 不连发两帧：两张问题卡同屏正是
+             * 「一次只问一个」要消灭的形状。
+             */
+            const questions = normalizePlanQuestions(turn, clerkId)
+            const [question, ...extraQuestions] = questions
+            if (question) {
+              if (extraQuestions.length) {
+                logger.warn('assistant operator asked more than one question', {
+                  userId: clerkId,
+                  questionCount: questions.length,
+                })
+              }
+              yield { type: ASSISTANT_OPERATOR_EVENTS.ask, question }
+              yield {
+                type: ASSISTANT_OPERATOR_EVENTS.stopped,
+                reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+              }
+              completed = true
+              return
+            }
+            /**
+             * **多步确认**（§3.3 第一种来源）—— 判在服务端。
+             *
+             * ⚠ v1 这一判在客户端（`shouldShowPlanCard`），判据里的三样东西
+             * （出卡理由 / 待定项 / 预估）v2 只剩下一样，判据没有留在客户端的
+             * 理由了。⚠ 「先问我」（`forcePlan`）照旧无条件拦。
+             */
+            if (
+              request.forcePlan === true ||
+              steps.length >= ASSISTANT_PLAN_CARD_MIN_STEPS
+            ) {
+              yield {
+                type: ASSISTANT_OPERATOR_EVENTS.confirm,
+                confirm: {
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep,
+                  steps,
+                },
+              }
+              yield {
+                type: ASSISTANT_OPERATOR_EVENTS.stopped,
+                reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+              }
+              completed = true
+              return
             }
           }
         } else if (!turn.message?.trim()) {
@@ -5541,18 +5545,26 @@ export async function* runAssistantOperator(
         throw error
       }
       // ⚠ 规划期就可能看过图（`critique_result`）—— 那几帧现在就该出去。
-      yield* drainCostTicks()
 
       if (plan.kind === 'confirm') {
-        // 拍板 3：就地确认。流停在这里，客户端带 `confirmations` 重发续跑 ——
-        // 与打断复用同一条机制，服务端因此不需要任何挂起态。
+        /**
+         * 覆盖手写 → **一张问题卡**（v2 §3.1）。流停在这里，客户端带
+         * `confirmations` 重发续跑 —— 与打断复用同一条机制，服务端因此不需要
+         * 任何挂起态。
+         * ⚠ `overwrite` 那一块是**回执路由**：问句说不出「改的是哪一格」，而
+         * 三选答完之后要按 `field` 原样带回来。
+         */
         yield {
-          type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
-          // §6 三档里的第二档 —— ⛔ 服务端从不发空的 `tier`（见事件 schema 头注）。
-          tier: ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.overwrite,
-          field: plan.field,
-          have: plan.have,
-          proposed: plan.proposed,
+          type: ASSISTANT_OPERATOR_EVENTS.ask,
+          question: buildOverwriteQuestion(
+            plan.field,
+            resolveResponseLanguage(request, persona),
+          ),
+          overwrite: {
+            field: plan.field,
+            have: plan.have,
+            proposed: plan.proposed,
+          },
         }
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
@@ -5564,14 +5576,31 @@ export async function* runAssistantOperator(
 
       if (plan.kind === 'choice') {
         /**
-         * **歧义反问**（§3.3 第 5 行 / §7）—— 与拍板 3 的就地确认逐字同构：
-         * 吐一帧、停流、客户端点一张之后插 @chip 带上下文重发。
-         * ⛔ 服务端照旧一个挂起态都没有。
+         * **歧义反问**（§7）—— 与覆盖三选并进同一帧（v2 §3.1）：吐一帧、停流、
+         * 客户端点一张之后插 @chip 带上下文重发。⛔ 服务端照旧一个挂起态都没有。
+         * ⚠ 选项的 `description` 就是那张图的名字：题的形状要求每个选项有一句
+         * 说明，而这道题的差别本来就写在缩略图上。
          */
         yield {
-          type: ASSISTANT_OPERATOR_EVENTS.choiceRequest,
-          question: plan.question,
-          options: plan.options,
+          type: ASSISTANT_OPERATOR_EVENTS.ask,
+          question: {
+            id: 'which-asset',
+            header: clamp(plan.question, PLAN_LIMITS.maxHeaderChars),
+            question: clamp(plan.question, PLAN_LIMITS.maxQuestionChars),
+            multiSelect: false,
+            allowOther: false,
+            options: plan.options
+              .slice(0, PLAN_LIMITS.maxOptions)
+              .map((option) => ({
+                id: option.id,
+                label: clamp(option.label, PLAN_LIMITS.maxOptionLabelChars),
+                description: clamp(
+                  option.label,
+                  PLAN_LIMITS.maxOptionDescriptionChars,
+                ),
+                assetUrl: option.assetUrl,
+              })),
+          },
         }
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
@@ -5581,16 +5610,18 @@ export async function* runAssistantOperator(
         return
       }
 
-      if (plan.kind === 'confirmSpend') {
+      if (plan.kind === 'confirmGenerate') {
         /**
-         * 花钱硬确认（§6 第三档）。形态与拍板 3 的就地确认**逐字同构**：吐一帧、
-         * 停流、客户端带上下文重发 —— 只是重发时带的不是 `confirmations` 而是
-         * `autoApprove`。⛔ 服务端照旧一个挂起态都没有。
+         * 生成确认（v2 §3.3 第二种来源）。形态与覆盖三选**逐字同构**：吐一帧、
+         * 停流。⚠ 与 v1 不同的是用户点「确认生成」**不再重发一轮**：扳机就在
+         * 客户端那颗生成键上（§5），服务端这一侧到此为止。
          */
         yield {
-          type: ASSISTANT_OPERATOR_EVENTS.spendRequest,
-          tier: ASSISTANT_OPERATOR_CONFIRM_TIER_IDS.spend,
-          request: plan.request,
+          type: ASSISTANT_OPERATOR_EVENTS.confirm,
+          confirm: {
+            kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+            request: plan.request,
+          },
         }
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
@@ -5598,20 +5629,6 @@ export async function* runAssistantOperator(
         }
         completed = true
         return
-      }
-
-      if (plan.kind === 'spend') {
-        /**
-         * 「不再问」命中，直接吐那一步。⚠ 没有 `apply()` 也没有 `inverse`：
-         * 服务端在这一步什么都不做，客户端拿着载荷去按宿主那颗生成键。
-         */
-        const spend = { ...base, tool: name, payload: plan.payload }
-        yield toStepEvent({ ...spend, status: STATUS.running })
-        yield toStepEvent({ ...spend, status: STATUS.done })
-        run.observations.push(plan.observation)
-        run.executedStepKeys.add(stepKey)
-        repeatedStepStrikes = 0
-        continue
       }
 
       if (plan.kind === 'rejected') {
@@ -5642,7 +5659,6 @@ export async function* runAssistantOperator(
         })
         const { result, observation } = await plan.run()
         // 读类工具真正打外部源是在 `run()` 里（检索 / 读正文 / 文件夹视觉）。
-        yield* drainCostTicks()
         yield toStepEvent({
           ...base,
           tool: name,
@@ -5766,25 +5782,6 @@ function normalizePlanQuestions(
     })
   }
   return out.slice(0, PLAN_LIMITS.maxQuestions)
-}
-
-/**
- * 服务端**观察到**的出卡理由（`plan_request.reason`）。
- *
- * ⛔ 它不是判定 —— 出不出卡由客户端 `shouldShowPlanCard` 说了算（owner 2026-09-06）。
- * ⚠ `multi-step` 是兜底档：客户端那一侧还要过一道「步数 ≥
- *   `ASSISTANT_PLAN_CARD_MIN_STEPS`」的闸，所以短计划上这个值根本不会被读到。
- */
-function planRequestReason(
-  turn: AssistantOperatorTurn,
-  request: AssistantOperatorRequest,
-) {
-  if (request.forcePlan) return PLAN_REASON.userRequested
-  const tool = turn.tool?.name
-  if (tool === TOOL.requestGeneration || tool === TOOL.primeGenerate) {
-    return PLAN_REASON.spend
-  }
-  return PLAN_REASON.multiStep
 }
 
 /**

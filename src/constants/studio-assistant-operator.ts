@@ -201,15 +201,6 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'queuePicked',
   /** 排队条上点了「撤回」（§3.1 ㉔）—— 那句话丢了，得说一声。 */
   'queueDropped',
-  /**
-   * 「按你的设置直接生成 · N credits」（§6 拍板 24 / §5 流程图 TH，切片 3a）。
-   *
-   * ⭐ **命中「本会话此类不再问」时不静默过**：这一枪真的花了钱，而用户这一轮
-   * 一张确认卡都没看见。少了这一行，界面上就是助手自己发了一枪 —— 而那正是钱闸
-   * 这条链最不能给人的手感（拍板 2「点的人永远是用户」的可见面）。
-   * ⚠ `count` 是 credits 数；算不出金额时缺席（⛔ 不写「约 0」，同计划卡那条）。
-   */
-  'autoApproved',
   'urlImportFailed',
   /**
    * 挂 LoRA 那一跳没成（P4-C）：作者关掉了下载、导入报错、或挂载栈拒了。
@@ -531,18 +522,6 @@ export const STUDIO_VIDEO_FRAME_SLOT_ORDER = [
 
 /** 空槽虚线框的边长（px）—— 缩略图与空态同尺寸，切换时不跳版。 */
 export const STUDIO_VIDEO_SLOT_SIZE_PX = 72
-
-/**
- * 成本明细最多记几条（切片 Y）—— hover 展开那一列，⛔ 不是无限长的流水账。
- *
- * ⚠ 档位（`vision` / `research` / `llm`）与事件名**不在这里**：那是跨进程契约，
- * 家在 `constants/assistant-operator.ts`（`ASSISTANT_COST_TICK_KIND_IDS` /
- * `ASSISTANT_OPERATOR_EVENTS.costTick`）。⛔ 客户端不抄第二份词表 —— 抄一份的
- * 表现是服务端加了一档而进度带上那一档永远显示 0。
- * 同理审核态读 `GENERATION_REVIEW_STATE_IDS`、工作记忆上限读
- * `ASSISTANT_WORKING_MEMORY`。
- */
-export const STUDIO_OPERATOR_COST_DETAIL_LIMIT = 12
 
 /**
  * **断点续跑**（第三期，owner 2026-09-07 定「失败断点续跑 / 只重跑下游」）。

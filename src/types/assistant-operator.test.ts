@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_MUTATING_TOOLS,
@@ -668,29 +669,65 @@ describe('step 契约 · inverse 完备性', () => {
 })
 
 describe('事件契约', () => {
+  /** `ask` 帧那道题的最小合法形状 —— 下面几个用例共用。 */
+  const askQuestion = {
+    id: 'q-1',
+    header: '风格',
+    question: '要哪一路画风？',
+    multiSelect: false,
+    allowOther: true,
+    options: [
+      { id: 'a', label: '写实', description: '照片那一路' },
+      { id: 'b', label: '插画', description: '手绘那一路' },
+    ],
+  }
+
   it('每一种事件都能解析', () => {
     const events: unknown[] = [
       { type: ASSISTANT_OPERATOR_EVENTS.open },
-      { type: ASSISTANT_OPERATOR_EVENTS.plan, steps: ['查素材', '填表单'] },
+      {
+        type: ASSISTANT_OPERATOR_EVENTS.plan,
+        steps: [
+          { id: 'plan-1', label: '查素材' },
+          { id: 'plan-2', label: '填表单' },
+        ],
+      },
       {
         type: ASSISTANT_OPERATOR_EVENTS.step,
         step: buildStep(ASSISTANT_OPERATOR_TOOL_IDS.setPrompt),
       },
+      { type: ASSISTANT_OPERATOR_EVENTS.ask, question: askQuestion },
       {
-        type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
-        // §6 第二档 —— 切片 3a 起 `tier` 必填（花钱档有自己那一帧）。
-        tier: 'overwrite',
-        field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
-        have: '我自己写的一段',
-        proposed: '助手想写的一段',
+        type: ASSISTANT_OPERATOR_EVENTS.ask,
+        question: askQuestion,
+        why: '两种做法差得远',
+        overwrite: {
+          field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
+          have: '我自己写的一段',
+          proposed: '助手想写的一段',
+        },
       },
       {
-        type: ASSISTANT_OPERATOR_EVENTS.choiceRequest,
-        question: 'Which one do you mean?',
-        options: [
-          { id: 'gen-1', label: '结果①', assetUrl: 'https://cdn.test/a.png' },
-          { id: 'gen-2', label: '结果②', assetUrl: 'https://cdn.test/b.png' },
-        ],
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: {
+          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep,
+          steps: [{ id: 'plan-1', label: '查素材' }],
+        },
+      },
+      {
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: {
+          kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+          request: {
+            model: { id: 'gpt-image-1', label: 'GPT Image' },
+            count: 2,
+            specs: {
+              aspectRatio: '1:1',
+              resolution: null,
+              durationSeconds: null,
+            },
+          },
+        },
       },
       { type: ASSISTANT_OPERATOR_EVENTS.message, text: '好的' },
       { type: ASSISTANT_OPERATOR_EVENTS.done },
@@ -715,69 +752,89 @@ describe('事件契约', () => {
   })
 
   /**
-   * ⭐ **`message_delta` 已从联合里删除**（v2 §3.1 / §13.1，拍板 13）——
-   * 逐字淡入改整段出现，正文只剩 `message` 一个来源。
+   * ⭐ **事件联合恰好是这十个名字**（v2 §3.1，commit #3）。
+   *
+   * ⚠ 断的是**集合相等**而不是「这十个都在」：后者放得过一条偷偷留下来的旧帧，
+   * 而收敛这件事的全部意义就是「没有第十一个」。
    */
-  it('⛔ message_delta 已不在事件联合里', () => {
-    expect(
-      AssistantOperatorEventSchema.safeParse({
-        type: 'message_delta',
-        text: '夜',
-      }).success,
-    ).toBe(false)
-  })
-
-  it('confirm_request 只认那两个字段', () => {
-    expect(
-      AssistantOperatorEventSchema.safeParse({
-        type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
-        tier: 'overwrite',
-        field: 'aspectRatio',
-        have: 'x',
-        proposed: 'y',
-      }).success,
-    ).toBe(false)
+  it('⭐ 事件联合恰好十帧，一个不多一个不少', () => {
+    const names = AssistantOperatorEventSchema.options
+      .map((option) => option.shape.type.value)
+      .sort()
+    expect(names).toEqual(
+      [
+        'open',
+        'plan',
+        'step',
+        'ask',
+        'confirm',
+        'message',
+        'rule_hit',
+        'done',
+        'stopped',
+        'error',
+      ].sort(),
+    )
+    expect(Object.values(ASSISTANT_OPERATOR_EVENTS).sort()).toEqual(names)
   })
 
   /**
-   * ⭐ `tier` 从可选收成必填（切片 3a）：可选意味着客户端得回答「缺席算哪一档」，
-   * 而那正是兼容层的形状。⛔ 也不许发 `spend` —— 花钱有自己那一帧。
+   * ⭐ **v1 的五个帧名一个都不认**（v2 §3.1）：`message_delta` 随逐字淡入删掉
+   * （拍板 13），另外四个并进 `plan` / `ask` / `confirm` 或整条删掉（决策 8）。
    */
-  it('confirm_request 的 tier 是必填的 overwrite，⛔ 不收缺席也不收 spend', () => {
-    const base = {
-      type: ASSISTANT_OPERATOR_EVENTS.confirmRequest,
-      field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
-      have: 'x',
-      proposed: 'y',
+  it('⛔ v1 那五个帧名全部不在联合里', () => {
+    const gone = [
+      { type: 'message_delta', text: '夜' },
+      { type: 'plan_request', steps: [], questions: [], estimate: {} },
+      { type: 'spend_request', tier: 'spend', request: {} },
+      { type: 'confirm_request', tier: 'overwrite', field: 'prompt' },
+      { type: 'choice_request', question: '哪一张？', options: [] },
+      { type: 'cost_tick', kind: 'vision', units: 1, label: 'x' },
+    ]
+    for (const event of gone) {
+      expect(
+        AssistantOperatorEventSchema.safeParse(event).success,
+        JSON.stringify(event),
+      ).toBe(false)
     }
-    expect(AssistantOperatorEventSchema.safeParse(base).success).toBe(false)
-    expect(
-      AssistantOperatorEventSchema.safeParse({ ...base, tier: 'spend' })
-        .success,
-    ).toBe(false)
-    expect(
-      AssistantOperatorEventSchema.safeParse({ ...base, tier: 'overwrite' })
-        .success,
-    ).toBe(true)
   })
 
-  /** 歧义反问单选卡（§7）：每一格都得有图，少于两个不是「问题」是「通知」。 */
-  it('choice_request 的每个选项都必须带 assetUrl，且至少两个', () => {
-    const one = {
-      type: ASSISTANT_OPERATOR_EVENTS.choiceRequest,
-      question: '哪一张？',
-      options: [
-        { id: 'a', label: '结果①', assetUrl: 'https://cdn.test/a.png' },
-      ],
-    }
-    expect(AssistantOperatorEventSchema.safeParse(one).success).toBe(false)
+  /** ⚠ 一帧只问一道题，且题的形状照旧收紧：少于两个选项的「单选」是通知不是问题。 */
+  it('ask 的选项至少两个，且每个都得有一句说明', () => {
     expect(
       AssistantOperatorEventSchema.safeParse({
-        ...one,
-        options: [
-          { id: 'a', label: '结果①', assetUrl: 'https://cdn.test/a.png' },
-          { id: 'b', label: '结果②' },
-        ],
+        type: ASSISTANT_OPERATOR_EVENTS.ask,
+        question: { ...askQuestion, options: [askQuestion.options[0]] },
+      }).success,
+    ).toBe(false)
+    expect(
+      AssistantOperatorEventSchema.safeParse({
+        type: ASSISTANT_OPERATOR_EVENTS.ask,
+        question: {
+          ...askQuestion,
+          options: [askQuestion.options[0], { id: 'b', label: '插画' }],
+        },
+      }).success,
+    ).toBe(false)
+  })
+
+  /** ⛔ 确认卡只剩两种来源（决策 8）：第三种 `kind` 一律不收。 */
+  it('confirm 的 kind 只认 multistep / generate', () => {
+    expect(
+      AssistantOperatorEventSchema.safeParse({
+        type: ASSISTANT_OPERATOR_EVENTS.confirm,
+        confirm: { kind: 'spend', request: {} },
+      }).success,
+    ).toBe(false)
+  })
+
+  /** ⚠ 覆盖那一块只认那两格字段：`aspectRatio` 不是「你手写的字」。 */
+  it('ask.overwrite 的 field 是封闭枚举', () => {
+    expect(
+      AssistantOperatorEventSchema.safeParse({
+        type: ASSISTANT_OPERATOR_EVENTS.ask,
+        question: askQuestion,
+        overwrite: { field: 'aspectRatio', have: 'x', proposed: 'y' },
       }).success,
     ).toBe(false)
   })

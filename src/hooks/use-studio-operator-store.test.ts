@@ -281,8 +281,6 @@ describe('切域', () => {
     const result = readState()
     act(() =>
       store.setOperatorConfirm({
-        // §6 第二档 —— 切片 3a 起 `tier` 是必填（花钱档走自己那一帧）。
-        tier: 'overwrite',
         field: 'prompt',
         have: '用户手写的原文',
         proposed: '助手想写的',
@@ -444,7 +442,7 @@ describe('正文与占位行', () => {
   })
 })
 
-// ── 切片 Y：审核态 / 跨轮工作记忆 / 成本计数 ─────────────────────────
+// ── 切片 Y：审核态 / 跨轮工作记忆 ───────────────────────────────────
 
 describe('审核态', () => {
   it('pending 不落键（没有键 = 没人看过），再标一次同一档才是 no-op', async () => {
@@ -555,39 +553,6 @@ describe('跨轮工作记忆', () => {
   })
 })
 
-describe('成本计数', () => {
-  it('同一档累加而不是覆盖，明细留最近几条', async () => {
-    const { STUDIO_OPERATOR_COST_DETAIL_LIMIT } =
-      await import('@/constants/studio-assistant-operator')
-    const result = readState()
-    act(() => store.addOperatorCostTick({ kind: 'vision', units: 2 }))
-    act(() => store.addOperatorCostTick({ kind: 'vision', units: 1 }))
-    act(() => store.addOperatorCostTick({ kind: 'llm', units: 3 }))
-    expect(result.current.costs.vision).toBe(3)
-    expect(result.current.costs.llm).toBe(3)
-    expect(result.current.costs.research).toBe(0)
-
-    for (
-      let index = 0;
-      index < STUDIO_OPERATOR_COST_DETAIL_LIMIT + 4;
-      index += 1
-    ) {
-      act(() => store.addOperatorCostTick({ kind: 'research', units: 1 }))
-    }
-    expect(result.current.costDetails).toHaveLength(
-      STUDIO_OPERATOR_COST_DETAIL_LIMIT,
-    )
-  })
-
-  it('新对话归零 —— ⛔ 一条新对话不该一上来就写着往返 37', () => {
-    const result = readState()
-    act(() => store.addOperatorCostTick({ kind: 'llm', units: 7 }))
-    act(() => store.resetOperatorThread())
-    expect(result.current.costs.llm).toBe(0)
-    expect(result.current.costDetails).toHaveLength(0)
-  })
-})
-
 /**
  * 断点续跑（第三期）——「刷新之后还在」是这一组唯一要钉的事。
  *
@@ -689,7 +654,6 @@ it('恢复配置保留历史并清掉旧撤销、确认、待生成及未完成�
     await import('@/lib/studio-operator-history')
   store.upsertOperatorStep(DONE, RUN)
   store.setOperatorConfirm({
-    tier: 'overwrite',
     field: 'prompt',
     have: 'old',
     proposed: 'new',

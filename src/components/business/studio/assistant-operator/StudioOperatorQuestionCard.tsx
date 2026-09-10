@@ -22,7 +22,7 @@
  *
  * ── 它同时**就是那张计划卡** ─────────────────────────────────────
  * 一轮里只有**一张**钉在流末尾的待确认卡（2026-09-06 面板轮，第 2 件）：阶段清单
- * 折成头一行「计划 · N 步」，题在中间，预估与「开始 / 修改」在脚。⛔ 计划卡与
+ * 折成头一行「计划 · N 步」，题在中间，「开始 / 修改」在脚。⛔ 计划卡与
  * 反问卡不并存 —— 两张卡列同一份阶段、各带一颗「开始」，用户要答两遍。
  * ⚠ 没有题时（`questions` 为空）阶段清单**默认展开**：那时这张卡就只讲计划，
  * 把唯一的内容折起来等于给一张空卡。
@@ -39,7 +39,6 @@ import { useTranslations } from 'next-intl'
 import { getAssistantPlanVisual } from '@/constants/assistant-plan-visuals'
 import { STUDIO_OPERATOR_QUESTION_OTHER_ID } from '@/constants/studio-assistant-operator'
 import { cn } from '@/lib/utils'
-import type { AssistantOperatorPlanEstimate } from '@/types/assistant-operator'
 import type {
   StudioOperatorQuestion,
   StudioOperatorQuestionAnswer,
@@ -76,7 +75,6 @@ function isAnswered(
 interface StudioOperatorQuestionCardProps {
   /** 这一轮打算做的几件事 —— 折成头一行「计划 · N 步」。 */
   steps: readonly { id: string; label: string }[]
-  estimate: AssistantOperatorPlanEstimate
   questions: readonly StudioOperatorQuestion[]
   /**
    * 已提交的那份答复 —— **收起态那一行摘要按它写**。
@@ -93,7 +91,6 @@ interface StudioOperatorQuestionCardProps {
 
 export function StudioOperatorQuestionCard({
   steps,
-  estimate,
   questions,
   answers,
   resolved,
@@ -451,13 +448,10 @@ export function StudioOperatorQuestionCard({
               : 'font-mono text-xs tracking-nav text-muted-foreground',
           )}
         >
-          {/* ⚠ 算不出金额就**不写那一行**（⛔ 不写「约 0 credits」）—— 一个错的数
-              比没有数更糟，论据与 `StudioCostPreview` 的「缺价不折进合计」同源。 */}
+          {/* ⚠ 预估那一行随决策 8 删掉：面板上不再有花费读数。 */}
           {showMissing && missing.length > 0
             ? t('question.missing', { count: missing.length })
-            : estimate.credits === undefined
-              ? ''
-              : t('plan.estimate', { credits: estimate.credits })}
+            : ''}
         </span>
         <button
           type="button"

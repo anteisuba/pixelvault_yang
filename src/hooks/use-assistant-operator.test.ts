@@ -8,8 +8,9 @@ import {
 } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
 import type {
+  AssistantOperatorAskEvent,
   AssistantOperatorEvent,
-  AssistantOperatorPlanRequestEvent,
+  AssistantOperatorGenerationRequest,
 } from '@/types/assistant-operator'
 
 /**
@@ -454,7 +455,7 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     await settle()
     streams[0].emit({
       type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: ['选模型', '写提示词', '备好生成键'],
+      steps: planSteps(3),
     })
     await settle()
     expect(store.getOperatorState().plannedSteps).toBe(3)
@@ -536,7 +537,7 @@ describe('useAssistantOperator 的四条收尾路径', () => {
 
 // ─── 切片 3a：三张「等你定」的卡 + 规则薄卡 + 「不再问」──────────────
 
-const QUESTIONS: AssistantOperatorPlanRequestEvent['questions'] = [
+const QUESTIONS: AssistantOperatorAskEvent['question'][] = [
   {
     id: 'q1',
     header: '取景',
@@ -550,77 +551,89 @@ const QUESTIONS: AssistantOperatorPlanRequestEvent['questions'] = [
   },
 ]
 
-/**
- * 计划帧的最小载荷。
- * ⚠ 阶段数决定 `shouldShowPlanCard` 的最后一条判据（≥3）；⚠ **有题也一定出卡**
- * （`questions` 非空是第三条判据），所以「不该出卡」那一条用例必须显式传空题。
- */
-function planRequestEvent(
-  steps: number,
-  reason: 'spend' | 'multi-step' | 'user-requested' = 'multi-step',
-  questions: AssistantOperatorPlanRequestEvent['questions'] = QUESTIONS,
-): AssistantOperatorEvent {
+/** 一份 N 步的计划（`plan` 帧与多步确认帧共用同一张阶段表）。 */
+function planSteps(steps: number) {
+  return Array.from({ length: steps }, (_, index) => ({
+    id: `plan-${index + 1}`,
+    label: `第 ${index + 1} 步`,
+  }))
+}
+
+/** 多步确认帧（v2 §3.3 第一种来源）—— 判在服务端，客户端只管摆卡。 */
+function multistepConfirmEvent(steps = 3): AssistantOperatorEvent {
   return {
-    type: ASSISTANT_OPERATOR_EVENTS.planRequest,
-    steps: Array.from({ length: steps }, (_, index) => ({
-      id: `plan-${index + 1}`,
-      label: `第 ${index + 1} 步`,
-    })),
-    questions,
-    estimate: { credits: 4, model: 'Seedream 4', count: 1 },
-    reason,
+    type: ASSISTANT_OPERATOR_EVENTS.confirm,
+    confirm: { kind: 'multistep', steps: planSteps(steps) },
   }
+}
+
+/** 问题帧（v2 §3.4）—— 一帧只问一道题。 */
+function askEvent(
+  question: AssistantOperatorAskEvent['question'] = QUESTIONS[0]!,
+): AssistantOperatorEvent {
+  return { type: ASSISTANT_OPERATOR_EVENTS.ask, question }
 }
 
 const SPEND_REQUEST = {
   model: { id: 'seedream-4', label: 'Seedream 4' },
   count: 1,
   specs: { aspectRatio: '3:4', resolution: '2K', durationSeconds: null },
-  estimate: { credits: 4, model: 'Seedream 4', count: 1 },
 } as const
 
-describe('计划卡（§2.6 / §5 客户端硬判）', () => {
-  it('步数 ≥ 3 → 出卡、进 awaitingPlan，并**掐掉这条流**（⛔ 不让后面的步偷偷落地）', async () => {
+/** 生成确认帧（v2 §3.3 第二种来源）。 */
+function generateConfirmEvent(
+  request: AssistantOperatorGenerationRequest = SPEND_REQUEST,
+): AssistantOperatorEvent {
+  return {
+    type: ASSISTANT_OPERATOR_EVENTS.confirm,
+    confirm: { kind: 'generate', request },
+  }
+}
+
+describe('计划卡（v2 §3.3 多步确认）', () => {
+  it('confirm(multistep) → 出卡、进 awaitingPlan，⛔ 随后的 stopped 不把它降级', async () => {
     const { result } = render()
     act(() => {
       result.current.send('把这张改成三步')
     })
     await settle()
 
-    streams[0].emit(planRequestEvent(3))
+    streams[0].emit(multistepConfirmEvent(3))
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: 'awaiting_confirm',
+    })
     await settle()
 
     const state = store.getOperatorState()
+    /**
+     * ⚠ 服务端只会笼统地说一句 `awaiting_confirm`，而这一档要说的是「一整轮还
+     * 没开始跑」——被盖过去的表现是图标轨上「待你定」变成「待确认」。
+     */
     expect(state.status).toBe('awaitingPlan')
     expect(state.plan?.steps).toHaveLength(3)
     expect(state.plan?.resolved).toBe(false)
-    /**
-     * ⭐ 掐流是这一条最要紧的断言：不掐的话卡钉在流末尾等你确认，而它要问的那
-     * 几步已经落到表单上了 —— 那张卡就成了一句事后通知。
-     */
-    streams[0].emit(doneStepEvent('step-1'))
-    await settle()
-    expect(
-      store.getOperatorState().entries.some((entry) => entry.kind === 'step'),
-    ).toBe(false)
   })
 
-  it('步数不够、也不花钱、也没开「先问我」→ ⛔ 不出卡，直接接着跑', async () => {
+  it('没有确认帧的那一轮 ⛔ 不出卡，直接接着跑', async () => {
     const { result } = render()
     act(() => {
       result.current.send('把提示词改一下')
     })
     await settle()
 
-    // ⚠ 显式空题：有题就一定出卡，那一条判据会盖过「步数不够」。
-    streams[0].emit(planRequestEvent(2, 'multi-step', []))
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.plan,
+      steps: planSteps(2),
+    })
+    streams[0].emit(doneStepEvent('step-1'))
     await settle()
 
     expect(store.getOperatorState().plan).toBeNull()
     expect(store.getOperatorState().status).toBe('working')
   })
 
-  it('「先问我」开着 → 一步也出卡；请求带 forcePlan，且发完自动复位', async () => {
+  it('「先问我」开着 → 请求带 forcePlan，且发完自动复位', async () => {
     const { result } = render()
     act(() => store.setOperatorAskFirst(true))
     act(() => {
@@ -632,7 +645,7 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
     // ⚠ 复位发生在**请求发出去之后**，⛔ 不是在计划帧到达之后。
     expect(store.getOperatorState().askFirst).toBe(false)
 
-    streams[0].emit(planRequestEvent(1))
+    streams[0].emit(multistepConfirmEvent(1))
     await settle()
     expect(store.getOperatorState().status).toBe('awaitingPlan')
   })
@@ -658,9 +671,9 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
     await settle()
     streams[0].emit({
       type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: ['选模型', '写提示词', '备好生成键'],
+      steps: planSteps(3),
     })
-    streams[0].emit(planRequestEvent(3))
+    streams[0].emit(multistepConfirmEvent(3))
     await settle()
 
     const state = store.getOperatorState()
@@ -679,9 +692,9 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
     await settle()
     streams[0].emit({
       type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: ['写提示词', '存一下'],
+      steps: planSteps(2),
     })
-    streams[0].emit(planRequestEvent(2, 'multi-step', []))
+    streams[0].emit(doneStepEvent('step-1'))
     await settle()
 
     const state = store.getOperatorState()
@@ -697,7 +710,7 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
       result.current.send('分三步做')
     })
     await settle()
-    streams[0].emit(planRequestEvent(3))
+    streams[0].emit(multistepConfirmEvent(3))
     await settle()
 
     act(() => {
@@ -729,7 +742,7 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
       result.current.send('分三步做')
     })
     await settle()
-    streams[0].emit(planRequestEvent(3))
+    streams[0].emit(multistepConfirmEvent(3))
     await settle()
 
     act(() => {
@@ -752,7 +765,7 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
       result.current.send('分三步做')
     })
     await settle()
-    streams[0].emit(planRequestEvent(3))
+    streams[0].emit(multistepConfirmEvent(3))
     await settle()
 
     act(() => {
@@ -765,9 +778,9 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
     // 续跑那条流里服务端又摆了一遍同样的计划 —— 这一轮**已经批过了**。
     streams[1].emit({
       type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: ['选模型', '写提示词', '备好生成键'],
+      steps: planSteps(3),
     })
-    streams[1].emit(planRequestEvent(3))
+    streams[1].emit(doneStepEvent('step-2'))
     await settle()
 
     const state = store.getOperatorState()
@@ -792,7 +805,7 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
       result.current.send('分三步做')
     })
     await settle()
-    streams[0].emit(planRequestEvent(3))
+    streams[0].emit(multistepConfirmEvent(3))
     await settle()
 
     act(() => {
@@ -822,102 +835,65 @@ describe('计划卡（§2.6 / §5 客户端硬判）', () => {
   })
 })
 
-describe('花钱硬确认卡（§6 第三档 / 拍板 24）', () => {
-  it('spend_request → 摆卡；点「生成」带 autoApprove 重发并交给宿主扣扳机', async () => {
+describe('生成确认卡（v2 §3.3 / §5）', () => {
+  it('confirm(generate) → 摆卡；点「确认生成」当场扣扳机，⛔ 不重发一轮', async () => {
     const { result } = render()
     act(() => {
       result.current.send('帮我发一枪')
     })
     await settle()
 
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.spendRequest,
-      tier: 'spend',
-      request: SPEND_REQUEST,
-    })
+    streams[0].emit(generateConfirmEvent())
     await settle()
     expect(store.getOperatorState().spend?.request.model.label).toBe(
       'Seedream 4',
     )
 
     act(() => {
-      result.current.answerSpend({ rememberForSession: true })
+      result.current.answerSpend()
     })
     await settle()
 
-    // ⚠ 条子必须**在重发之前**记进 store，否则这一轮自己带不上它。
-    expect(streamAssistantOperatorAPI.mock.calls[1]?.[0].autoApprove).toEqual({
-      tier: 'spend',
-      model: 'seedream-4',
-      maxCredits: 4,
-    })
-    expect(store.getOperatorState().spend?.resolved).toBe(true)
-
-    // 服务端放行 → `request_generation` 那一步 → 客户端扣扳机。
-    streams[1].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.step,
-      step: {
-        id: 'step-1',
-        title: '请求发送',
-        tool: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
-        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
-        payload: SPEND_REQUEST,
-      },
-    })
-    await settle()
+    /**
+     * ⭐ 扳机就在宿主那颗生成键上（§5）。v1 走的是「带 `autoApprove` 重发 →
+     * 服务端吐 `request_generation` 那一步」，而那条免检通道随决策 8 删了 ——
+     * 留着重发的表现是用户点一次「确认生成」、服务端再问一次同一张卡。
+     */
     expect(triggerGeneration).toHaveBeenCalledWith(SPEND_REQUEST)
-    // ⭐ 命中自动通过时插一行系统行 —— ⛔ 不静默过（这一枪真的花了钱）。
-    expect(
-      store
-        .getOperatorState()
-        .entries.some(
-          (entry) => entry.kind === 'system' && entry.code === 'autoApproved',
-        ),
-    ).toBe(true)
+    expect(streams).toHaveLength(1)
+    expect(store.getOperatorState().spend?.resolved).toBe(true)
   })
 
-  it('算不出金额时⛔ 不记条子 —— 一张永远匹配不上的条子比没有更糟', async () => {
+  it('⭐ 连点两次「确认生成」只扣一次扳机', async () => {
     const { result } = render()
     act(() => {
       result.current.send('帮我发一枪')
     })
     await settle()
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.spendRequest,
-      tier: 'spend',
-      request: { ...SPEND_REQUEST, estimate: { model: 'Seedream 4' } },
-    })
+    streams[0].emit(generateConfirmEvent())
     await settle()
 
     act(() => {
-      result.current.answerSpend({ rememberForSession: true })
+      result.current.answerSpend()
+      result.current.answerSpend()
     })
     await settle()
-    expect(store.getOperatorState().autoApprove).toBeNull()
+    expect(triggerGeneration).toHaveBeenCalledTimes(1)
   })
 
-  it('「＋新对话」把条子清掉 —— 作用域第一条要素是「同会话」', async () => {
+  it('「＋新对话」把还钉着的那张卡清掉', async () => {
     const { result } = render()
     act(() => {
       result.current.send('帮我发一枪')
     })
     await settle()
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.spendRequest,
-      tier: 'spend',
-      request: SPEND_REQUEST,
-    })
+    streams[0].emit(generateConfirmEvent())
     await settle()
-    act(() => {
-      result.current.answerSpend({ rememberForSession: true })
-    })
-    await settle()
-    expect(store.getOperatorState().autoApprove).not.toBeNull()
+    expect(store.getOperatorState().spend).not.toBeNull()
 
     act(() => {
       result.current.newThread()
     })
-    expect(store.getOperatorState().autoApprove).toBeNull()
     expect(store.getOperatorState().spend).toBeNull()
   })
 })
@@ -949,21 +925,36 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     })
   })
 
-  it('choice_request → 摆卡；点一张 = 插 @chip + 带 mentionedAssets 重发', async () => {
+  it('ask（选项全带 assetUrl）→ 摆卡；点一张 = 插 @chip + 带 mentionedAssets 重发', async () => {
     const { result } = render()
     act(() => {
       result.current.send('把那张改一下')
     })
     await settle()
 
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.choiceRequest,
-      question: '你说的是哪一张？',
-      options: [
-        { id: 'gen-1', label: '结果①', assetUrl: 'https://cdn.test/a.png' },
-        { id: 'gen-2', label: '结果②', assetUrl: 'https://cdn.test/b.png' },
-      ],
-    })
+    streams[0].emit(
+      askEvent({
+        id: 'which-asset',
+        header: '哪一张',
+        question: '你说的是哪一张？',
+        multiSelect: false,
+        allowOther: false,
+        options: [
+          {
+            id: 'gen-1',
+            label: '结果①',
+            description: '结果①',
+            assetUrl: 'https://cdn.test/a.png',
+          },
+          {
+            id: 'gen-2',
+            label: '结果②',
+            description: '结果②',
+            assetUrl: 'https://cdn.test/b.png',
+          },
+        ],
+      }),
+    )
     await settle()
     expect(store.getOperatorState().choice?.options).toHaveLength(2)
 
@@ -989,11 +980,7 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
       result.current.send('帮我发一枪')
     })
     await settle()
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.spendRequest,
-      tier: 'spend',
-      request: SPEND_REQUEST,
-    })
+    streams[0].emit(generateConfirmEvent())
     await settle()
     streams[0].emit({
       type: ASSISTANT_OPERATOR_EVENTS.stopped,
@@ -1058,7 +1045,7 @@ describe('正文流式累积与占位行', () => {
 
     streams[0].emit({
       type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: ['读参考', '改提示词'],
+      steps: planSteps(2),
     })
     await settle()
 
@@ -1232,7 +1219,7 @@ describe('正文流式累积与占位行', () => {
       text: '当前提示词是空的',
     })
     await settle()
-    streams[0].emit(planRequestEvent(3))
+    streams[0].emit(multistepConfirmEvent(3))
     await settle()
 
     expect(store.getOperatorState().status).toBe('awaitingPlan')
@@ -1360,8 +1347,8 @@ describe('断点续跑', () => {
   function startPlan(steps: number): void {
     streams[0].emit({
       type: ASSISTANT_OPERATOR_EVENTS.plan,
-      steps: Array.from({ length: steps }, (_, index) => `第 ${index + 1} 步`),
-    } as AssistantOperatorEvent)
+      steps: planSteps(steps),
+    })
   }
 
   it('⭐ 计划一开跑就落一份续跑记录（每步 pending）', async () => {

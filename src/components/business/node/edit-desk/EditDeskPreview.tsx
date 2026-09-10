@@ -206,11 +206,16 @@ export function EditDeskPreview({
       className="flex min-h-0 flex-1 items-center justify-center"
     >
       <div
-        className="relative w-full max-w-[640px] overflow-hidden rounded-xl bg-muted"
+        className="relative max-h-full max-w-full overflow-hidden rounded-xl bg-muted"
         // ⚠ `container-type: size` 是字幕那几行 `cqh` 的锚：字号必须跟着**画面高**
         // 走（与渲染层同一套比例），跟着视口走的话窗口一窄字就跳。
+        // ⚠ 盒子按**容器高**定尺寸（`height: 100%` + 比例推宽），再用 `max-w-full`
+        // 兜窄窗：按宽度撑 16:9 会在时间线加高后把预览顶穿顶栏（owner 2026-09-11
+        // 真机）。宽被夹住时盒子不再严格 16:9，画面靠 `object-contain` 自己留边。
         style={{
           aspectRatio: ASPECT_CSS[project.settings.aspect],
+          height: '100%',
+          width: 'auto',
           containerType: 'size',
         }}
       >

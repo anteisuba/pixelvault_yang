@@ -442,7 +442,6 @@ function useEditDeskLibrary(filter: EditDeskLibraryFilterId) {
       void fetchGalleryImages(page, EDIT_DESK_LIBRARY_PAGE_SIZE, {
         mine: true,
         type: typeKey.split(',') as OutputTypeValue[],
-        includeTotal: false,
       }).then((response) => {
         if (!alive) return
         setLoading(false)

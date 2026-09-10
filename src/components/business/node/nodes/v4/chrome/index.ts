@@ -8,7 +8,7 @@
 export { NodeCardShell, type NodeCardShellProps } from './NodeCardShell'
 export {
   NodePorts,
-  PORT_CLASS,
+  portSpecOf,
   type NodePortsProps,
   type NodePortSpec,
 } from './NodePorts'

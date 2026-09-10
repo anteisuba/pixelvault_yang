@@ -18,6 +18,7 @@ import { routeToStudioOption } from '@/components/business/studio-shared/pickers
 import { useLLMRoutePicker } from '@/hooks/use-llm-route-picker'
 import { cn } from '@/lib/utils'
 
+import { useOpenApiKeys } from '../../../workbench-v4/shell/ShellApiKeys'
 import { NodePromptBar } from '../chrome'
 import {
   TEXT_ASSIST_ACTIONS,
@@ -47,6 +48,8 @@ export function TextAssistantBar({ nodeId, className }: TextAssistantBarProps) {
   const [action, setAction] = useState<TextAssistAction | null>(null)
   const modelOptionId = useWritingModel()
   const { allRoutes } = useLLMRoutePicker('assistant')
+  // 外壳没挂（测试 / `dev/ui-states`）时是 `null` —— 那一行就不渲染，⛔ 不抛。
+  const openApiKeys = useOpenApiKeys()
   const options = allRoutes.map(routeToStudioOption)
 
   const actionChips = TEXT_ASSIST_ACTIONS.map((id) => (
@@ -80,6 +83,7 @@ export function TextAssistantBar({ nodeId, className }: TextAssistantBarProps) {
       side="top"
       triggerEmptyLabel={t('assist.model')}
       className="shrink-0"
+      {...(openApiKeys ? { onManageChannels: openApiKeys } : {})}
     />
   )
 

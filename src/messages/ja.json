@@ -5089,7 +5089,6 @@
     },
     "topbar": {
       "addNode": "ノードを追加",
-      "arrange": "キャンバスを整列",
       "save": "保存",
       "startReview": "未確認 {count} 枚 · 確認を始める",
       "collapse": "トップバーを閉じてキャンバスを広げる",
@@ -5117,26 +5116,6 @@
       "renameSubmit": "保存",
       "deleteTitle": "プロジェクトを削除",
       "deleteConfirm": "削除"
-    },
-    "bottomDock": {
-      "pointer": "選択",
-      "hand": "キャンバス移動",
-      "connect": "接続",
-      "cut": "カット",
-      "modeLabel": "ツール",
-      "modeStatus": {
-        "pointer": "選択と移動",
-        "hand": "キャンバスを移動",
-        "connect": "ポートからドラッグ",
-        "cut": "エッジをクリック"
-      },
-      "zoomLevel": "{percent}%",
-      "zoomIn": "拡大",
-      "zoomOut": "縮小",
-      "fitView": "全体を表示",
-      "relationsCollapse": "関係線を折りたたむ",
-      "undo": "元に戻す",
-      "redo": "やり直す"
     },
     "assistant": {
       "toggle": "アシスタント",
@@ -5390,7 +5369,6 @@
       "onStageToggleOff": "登場を解除"
     },
     "toasts": {
-      "notImplemented": "まだ実装されていません。",
       "projectCreated": "プロジェクト「{name}」を作成しました。",
       "projectDeleted": "プロジェクト「{name}」を削除しました。",
       "videoMergeComposed": "{count}本の動画を合成ビンにまとめました。",
@@ -5846,6 +5824,66 @@
         },
         "promptPlaceholder": "この画像を説明…",
         "promptLabel": "画像プロンプト"
+      },
+      "audio": {
+        "toolbar": {
+          "label": "音声操作",
+          "tone": "語気を足す",
+          "transcribe": "文字起こし",
+          "transcribeFailed": "文字起こしに失敗しました",
+          "shot": "カット生成",
+          "more": "その他"
+        },
+        "add": {
+          "upload": "アップロード",
+          "mention": "@ テキスト / キャラカード"
+        },
+        "emptyHint": "アップロード · またはセリフを書いて生成",
+        "promptPlaceholder": "セリフを書く、または音声をアップロード…",
+        "promptPlaceholderMusic": "この劇伴を説明…",
+        "promptPlaceholderSfx": "この効果音を説明…",
+        "promptLabel": "セリフ",
+        "play": "再生",
+        "pause": "一時停止",
+        "readout": "{clock} / {total}",
+        "voice": {
+          "title": "声",
+          "searchLabel": "声を検索",
+          "searchPlaceholder": "声を検索…",
+          "mine": "マイボイス",
+          "cloned": "クローン",
+          "favorite": "お気に入り",
+          "preview": "試聴",
+          "clone": "自分の声をクローン…",
+          "platform": "公式ボイスライブラリ…",
+          "speed": "速度",
+          "volume": "音量",
+          "loading": "読み込み中…",
+          "empty": "まだ声がありません。ライブラリから選んでください"
+        },
+        "model": {
+          "title": "モデル",
+          "kinds": {
+            "speech": "音声",
+            "music": "劇伴",
+            "sfx": "効果音"
+          }
+        },
+        "tone": {
+          "title": "このセリフに語気を足す",
+          "hint": "文頭に挿入、2 つまで",
+          "emotionLabel": "感情",
+          "toneLabel": "語気",
+          "intensityLabel": "強さ",
+          "intensities": {
+            "light": "弱",
+            "medium": "中",
+            "strong": "強"
+          },
+          "customLabel": "カスタム語気",
+          "customPlaceholder": "カスタム：例「笑いをこらえて」…",
+          "apply": "挿入"
+        }
       }
     },
     "rerunDownstream": {

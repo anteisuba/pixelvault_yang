@@ -3,23 +3,26 @@
 import { useState } from 'react'
 import { Map, ChevronDown } from 'lucide-react'
 
-import { MiniMap, useNodes } from '@xyflow/react'
+import { MiniMap } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 
+/**
+ * 画布右下的小地图（S7 §7：**常显可收**）。
+ *
+ * ⛔ 不再按「图上没有节点」隐藏：空项目里它一样在那儿，收放是用户自己的开关。
+ * 藏起来的那一版让「小地图去哪了」变成一个要靠猜的问题 —— 一个会自己消失的
+ * 控件，用户第二次找不到它时不会想到是因为画布空了。
+ */
 export function CanvasMiniMap() {
   const t = useTranslations('StudioNode')
-  const nodes = useNodes()
+  const tShell = useTranslations('StudioNode.shell.minimap')
   const [expanded, setExpanded] = useState(true)
-
-  if (nodes.length === 0) {
-    return null
-  }
 
   return (
     <div className="pointer-events-auto absolute bottom-4 right-4">
       <button
         type="button"
-        aria-label={t('minimapTitle')}
+        aria-label={expanded ? tShell('collapse') : tShell('expand')}
         aria-expanded={expanded}
         onClick={() => setExpanded((value) => !value)}
         className={

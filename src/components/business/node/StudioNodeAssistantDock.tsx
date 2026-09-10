@@ -39,6 +39,7 @@ import {
 } from '@/hooks/use-assistant-conversation'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useCanvasAssistantDrag } from '@/hooks/node/use-canvas-assistant-drag'
+import { useLLMRoutePicker } from '@/hooks/use-llm-route-picker'
 import { useNodeSelection } from '@/hooks/node/use-node-selection'
 import { useNodeCanvasActions } from './nodes/v4/NodeV4ActionsBridge'
 import { canvasCapabilityRuntime } from '@/lib/canvas-capability-runtime'
@@ -65,9 +66,14 @@ import {
 } from './CanvasAssistantHistory'
 import {
   CanvasAssistantRouteSelector,
+  getAssistantRouteKeyOptionId,
   type NodeAssistantRouteSelection,
 } from './CanvasAssistantRouteSelector'
 import { ScriptDocWorkspace } from './ScriptDocWorkspace'
+import {
+  subscribeCanvasTextAssist,
+  takeCanvasTextAssist,
+} from './nodes/v4/text/text-assist-request'
 import {
   AssistantShell,
   AssistantShellHeader,
@@ -175,10 +181,13 @@ export function StudioNodeAssistantDock({
   const tConversation = useTranslations('StudioNode.conversation')
   const tCanvasOps = useTranslations('StudioNode.canvasOps')
   const tRerun = useTranslations('StudioNode.rerunDownstream')
+  const tTextAssist = useTranslations('StudioNode.textAssist')
   const selection = useNodeSelection()
   const { placeDerivedImages, focusNode, runAssistantOps, undo } =
     useNodeCanvasActions()
   const conversation = useAssistantConversation({ projectId, persist: true })
+  /** 助手栏那颗写作模型 chip 与 dock 顶上的 route 选择器读的是同一张表。 */
+  const { allRoutes: assistantRoutes } = useLLMRoutePicker('assistant')
   const [assistantRoute, setAssistantRoute] =
     useState<NodeAssistantRouteSelection>({
       optionId: NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS.auto,
@@ -272,15 +281,41 @@ export function StudioNodeAssistantDock({
     ],
   )
 
-  const handleSend = useCallback(
-    async (content: string, references?: NodeAssistantMediaReference[]) => {
-      setLastReferences(references ?? [])
+  /**
+   * dock 里**唯一**那条发送出口（用户自己打字 / 重跑下游 / 文本助手栏都走它）。
+   *
+   * `apiKeyId` / `llmModelId` 只有画布投来的便条自带模型选择时才给：
+   * `assistantRoute` 是 state，投便条的那一 tick 里它还是旧的那一份，光
+   * `setAssistantRoute` 救不了这一次发送。
+   */
+  const sendMessage = useCallback(
+    async (
+      content: string,
+      options: {
+        readonly references?: NodeAssistantMediaReference[]
+        readonly apiKeyId?: string
+        readonly llmModelId?: string
+      } = {},
+    ) => {
+      const references = options.references ?? []
+      setLastReferences(references)
       await conversation.send(content, {
         ...buildConversationContext(),
-        references: references ?? [],
+        ...(options.apiKeyId ? { apiKeyId: options.apiKeyId } : {}),
+        ...(options.llmModelId ? { llmModelId: options.llmModelId } : {}),
+        references,
       })
     },
     [buildConversationContext, conversation],
+  )
+
+  const handleSend = useCallback(
+    async (content: string, references?: NodeAssistantMediaReference[]) => {
+      await sendMessage(content, {
+        ...(references ? { references } : {}),
+      })
+    },
+    [sendMessage],
   )
 
   /**
@@ -311,6 +346,56 @@ export function StudioNodeAssistantDock({
       }),
     [handleSend, nodes, onOpenChange, tRerun],
   )
+
+  /**
+   * 文本卡助手栏投来的写作请求（S2 起卡上就在投，本片起 dock 才接得住）。
+   *
+   * ⭐ 与「重跑下游」**同一条纪律**：拼一句带 `[[node:id]]` 的普通消息走
+   * `handleSend`，⛔ 不为写作开一条专用请求 —— 专用路径的那条消息不进对话历史，
+   * 助手下一轮就不记得刚才在写哪张卡。结果由助手以 `set_text` 提案落回正文
+   * （内容 op 走三选、结构 op 自动落，见 `handleApplyAssistantOps`）。
+   * ⚠ 助手栏上那颗写作模型 chip 选的是**同一张路由表**（`useLLMRoutePicker
+   * ('assistant')`），所以这里把它翻成 dock 顶上那个 route 选择器的选择：一次
+   * `setAssistantRoute` 让 chip 与选择器对上，同一次发送直接带上解析出来的
+   * key / model（`assistantRoute` 是 state，这一 tick 里它还是旧的）。
+   * ⚠ 取走即消费（见 `takeCanvasTextAssist` 头注）。
+   */
+  useEffect(() => {
+    const consume = () => {
+      const request = takeCanvasTextAssist()
+      if (!request) return
+      const node = nodes.find((candidate) => candidate.id === request.nodeId)
+      if (!node) return
+      const route = request.modelOptionId
+        ? assistantRoutes.find(
+            (candidate) => candidate.optionId === request.modelOptionId,
+          )
+        : undefined
+      if (route?.apiKeyId) {
+        setAssistantRoute({
+          optionId: getAssistantRouteKeyOptionId(route.apiKeyId, route.modelId),
+          apiKeyId: route.apiKeyId,
+          adapterType: route.adapterType,
+          ...(route.modelId ? { modelId: route.modelId } : {}),
+        })
+      }
+      onOpenChange(true)
+      const ask = tTextAssist(request.action ?? 'plain', {
+        name: resolveV4NodeReadableName(node.data),
+        prompt: request.prompt,
+      })
+      void sendMessage(`${ask} [[node:${request.nodeId}]]`, {
+        ...(route?.apiKeyId ? { apiKeyId: route.apiKeyId } : {}),
+        ...(route?.modelId ? { llmModelId: route.modelId } : {}),
+      })
+    }
+    // ⚠ 挂载时先取一次：dock 在助手从没开过时**根本没挂**（`ShellAssistantFrame`
+    // 收起态返回 null），那一刻投的便条没有任何订阅者听得见。工作台听到便条会把
+    // 助手打开，dock 于是**在通知之后**才挂上来 —— 只订阅不排空，那张便条会一直
+    // 躺在那儿，用户看到的是「点了发送什么也没发生」。
+    consume()
+    return subscribeCanvasTextAssist(consume)
+  }, [assistantRoutes, nodes, onOpenChange, sendMessage, tTextAssist])
 
   const handleRetry = useCallback(async () => {
     await conversation.retry(buildConversationContext())

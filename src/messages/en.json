@@ -5089,7 +5089,6 @@
     },
     "topbar": {
       "addNode": "Add node",
-      "arrange": "Arrange canvas",
       "save": "Save",
       "startReview": "{count} awaiting review · start reviewing",
       "collapse": "Collapse topbar to show the full canvas",
@@ -5117,26 +5116,6 @@
       "renameSubmit": "Save",
       "deleteTitle": "Delete project",
       "deleteConfirm": "Delete"
-    },
-    "bottomDock": {
-      "pointer": "Pointer",
-      "hand": "Hand",
-      "connect": "Connect",
-      "cut": "Cut",
-      "modeLabel": "Tool",
-      "modeStatus": {
-        "pointer": "Select and move",
-        "hand": "Pan canvas",
-        "connect": "Drag from ports",
-        "cut": "Click an edge"
-      },
-      "zoomLevel": "{percent}%",
-      "zoomIn": "Zoom in",
-      "zoomOut": "Zoom out",
-      "fitView": "Fit canvas",
-      "relationsCollapse": "Collapse relations",
-      "undo": "Undo",
-      "redo": "Redo"
     },
     "assistant": {
       "toggle": "Assistant",
@@ -5390,7 +5369,6 @@
       "onStageToggleOff": "Remove from stage"
     },
     "toasts": {
-      "notImplemented": "Not implemented yet.",
       "projectCreated": "Project \"{name}\" created.",
       "projectDeleted": "Project \"{name}\" deleted.",
       "videoMergeComposed": "{count, plural, one {Composed # clip} other {Composed # clips}} into a merge bin.",
@@ -5846,6 +5824,66 @@
         },
         "promptPlaceholder": "Describe this image…",
         "promptLabel": "Image prompt"
+      },
+      "audio": {
+        "toolbar": {
+          "label": "Audio actions",
+          "tone": "Add tone",
+          "transcribe": "To text",
+          "transcribeFailed": "Transcription failed",
+          "shot": "New shot",
+          "more": "More"
+        },
+        "add": {
+          "upload": "Upload",
+          "mention": "@ Text / character card"
+        },
+        "emptyHint": "Upload · or write a line to generate",
+        "promptPlaceholder": "Write a line, or upload audio…",
+        "promptPlaceholderMusic": "Describe this music…",
+        "promptPlaceholderSfx": "Describe this sound effect…",
+        "promptLabel": "Line",
+        "play": "Play",
+        "pause": "Pause",
+        "readout": "{clock} / {total}",
+        "voice": {
+          "title": "Voice",
+          "searchLabel": "Search voices",
+          "searchPlaceholder": "Search voices…",
+          "mine": "My voices",
+          "cloned": "Cloned",
+          "favorite": "Saved",
+          "preview": "Preview",
+          "clone": "Clone my voice…",
+          "platform": "Platform voice library…",
+          "speed": "Speed",
+          "volume": "Volume",
+          "loading": "Loading…",
+          "empty": "No voices yet — pick one from the platform library"
+        },
+        "model": {
+          "title": "Model",
+          "kinds": {
+            "speech": "Speech",
+            "music": "Music",
+            "sfx": "Sound effects"
+          }
+        },
+        "tone": {
+          "title": "Add tone to this line",
+          "hint": "Inserted at the sentence head, up to two",
+          "emotionLabel": "Emotion",
+          "toneLabel": "Delivery",
+          "intensityLabel": "Intensity",
+          "intensities": {
+            "light": "Light",
+            "medium": "Medium",
+            "strong": "Strong"
+          },
+          "customLabel": "Custom tone description",
+          "customPlaceholder": "Custom: e.g. “holding back a laugh”…",
+          "apply": "Insert"
+        }
       }
     },
     "rerunDownstream": {

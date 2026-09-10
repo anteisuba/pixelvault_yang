@@ -27,6 +27,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -59,9 +60,12 @@ import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
   NODE_TYPE_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
+  type NodeV4Subtype,
   type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
+import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS, getNodeV4Slot } from '@/constants/node-slots'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -78,6 +82,7 @@ import { useNodeReviewMode } from '@/hooks/node/use-node-review-mode'
 import { useNodeWorkflowStore } from '@/hooks/node/use-node-workflow-store'
 import { prefersReducedMotion } from '@/hooks/node/node-ingest-dom'
 import { readCanvasImageEditHandoff } from '@/lib/canvas-image-edit-handoff'
+import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
@@ -102,6 +107,8 @@ import {
   NodeCanvasActionsProvider,
   type NodeCanvasActions,
 } from '../nodes/v4/NodeV4ActionsBridge'
+import { subscribeCanvasTextAssist } from '../nodes/v4/text/text-assist-request'
+import type { NodeTextDeriveAction } from '../nodes/v4/NodeV4Context'
 import { NodeV4Provider } from '../nodes/v4/NodeV4Provider'
 import { CanvasV4 } from './CanvasV4'
 import { WorkbenchAssistantDockV4, WorkbenchDocksV4 } from './WorkbenchDocksV4'
@@ -126,6 +133,68 @@ const VIDEO_MERGE_MIN_CLIPS =
     NODE_V4_VIDEO_SUBTYPE_IDS.merge,
     NODE_SLOT_IDS.clip,
   )?.min ?? 0
+
+/**
+ * 文本卡的两个派生动作各建哪一类卡（§8）。
+ *
+ * ⚠ 只有工具条上真的有入口的那两个（生图 / 生镜头）在这里；`character` /
+ * `background` / `askAssistant` 三个动作**画布上还没有入口**，⛔ 不先给它们
+ * 编一条落点 —— 那会是一段没人走过、也没法验的路。
+ */
+const TEXT_DERIVE_TARGETS: Partial<
+  Record<
+    NodeTextDeriveAction,
+    {
+      readonly kind: NodeWorkflowMediaKind
+      readonly subtype: NodeV4Subtype
+    }
+  >
+> = {
+  shotImage: {
+    kind: NODE_MEDIA_KIND_IDS.image,
+    subtype: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
+  },
+  video: {
+    kind: NODE_MEDIA_KIND_IDS.video,
+    subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+  },
+}
+
+/** 批内别名（`add_node.ref`）：这一批只建一张卡，一个名字够用。 */
+const TEXT_DERIVE_REF = 'derived'
+
+/**
+ * 「从这段文本派生一张生成卡」的那一批 op（建卡 + 连线）。
+ *
+ * 抽成纯函数是为了能单测「一批两条、连线指向本批新卡」这条约定 —— 落图与撤销
+ * 由 `dispatchBatch` 负责，这里只管形状。`null` = 这个动作画布上还没有入口。
+ */
+export function buildTextDeriveOps(
+  source: NodeV4,
+  action: NodeTextDeriveAction,
+): NodeAssistantOpV4[] | null {
+  const target = TEXT_DERIVE_TARGETS[action]
+  if (!target) return null
+  return [
+    {
+      op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+      kind: target.kind,
+      subtype: target.subtype,
+      ref: TEXT_DERIVE_REF,
+      position: {
+        // 产物落在来源右边 —— 与图像派生 / 一键成盒同一条约定，⛔ 不另编偏移。
+        x: source.position.x + NODE_STUDIO_NODE_PLACEMENT.derivedImage.offsetX,
+        y: source.position.y,
+      },
+    },
+    {
+      op: NODE_ASSISTANT_OP_V4_IDS.connect,
+      source: source.id,
+      target: TEXT_DERIVE_REF,
+      slot: NODE_SLOT_IDS.text,
+    },
+  ]
+}
 
 const OP_FAILURE_KEYS: Readonly<Record<string, string>> = {
   unknownNode: 'connectRejected.unknownNode',
@@ -447,6 +516,48 @@ function NodeWorkbenchV4Inner() {
     toast.success(t('toasts.videoMergeComposed', { count: ordered.length }))
     focusNode(newNodeId)
   }, [composeSelectionNodeIds, graph, focusNode, t])
+
+  /**
+   * 文本卡工具条的「生图 / 生镜头」与画中框的 ⌘↵（§8）。
+   *
+   * 在文本卡**右侧**落一张空的生成卡，并把这段文本连进它的 `text` 槽 —— 落点
+   * 用的就是「产物落在来源右边」那条既有约定（`derivedImage.offsetX`），⛔ 不
+   * 为这条路径另编一个偏移。
+   *
+   * ⚠ 两条 op 走 `dispatchBatch` 而不是 `addNode` + `connect`：后者是**两个**
+   * 撤销条目，用户按一次 ⌘Z 只撤掉连线、留下一张孤零零的空卡。批内 `connect`
+   * 认得 `add_node` 的别名（`refs`），所以「建卡 + 连线」是一步意图、一次撤销。
+   */
+  const deriveFromText = useCallback(
+    (nodeId: string, action: NodeTextDeriveAction) => {
+      const source = graph.nodes.find((node) => node.id === nodeId)
+      if (!source) return
+      const ops = buildTextDeriveOps(source, action)
+      if (!ops) return
+
+      const created = graph.dispatchBatch(ops).createdNodeIds[0]
+      if (created) focusNode(created)
+    },
+    [graph, focusNode],
+  )
+
+  /**
+   * 文本卡助手栏投便条时**把助手打开**。
+   *
+   * ⚠ 助手从没开过时 dock 根本没挂（`ShellAssistantFrame` 收起态返回 null），
+   * 而「打开助手」这个开关只有工作台拿得到 —— dock 自己没挂，它救不了自己。
+   * ⛔ 这里**不取走**那张便条：取走要拼消息、要会话，那是 dock 的事；两处都取
+   * 会变成一场赛跑，谁先跑到谁把便条吃掉。dock 挂上来时自己排空（见那边的
+   * `consume()`）。
+   */
+  useEffect(
+    () =>
+      subscribeCanvasTextAssist(() => {
+        setAssistantOpen(true)
+        setAssistantEverOpened(true)
+      }),
+    [],
+  )
 
   /* ── 快捷键（**唯一**一份，Provider 那份因为收到 graph 自动让位）───── */
   const onEscape = useCallback((): boolean => {
@@ -885,6 +996,7 @@ function NodeWorkbenchV4Inner() {
             graph={graph}
             modelOptionsByKind={modelOptionsByKind}
             onFocusNode={focusNode}
+            onDeriveFromText={deriveFromText}
           >
             <div className="node-workbench-v4 contents">
               <CanvasV4

@@ -91,13 +91,17 @@ vi.mock('@/components/ui/audio-player', () => ({
 }))
 
 import { CANVAS_ADD_CATALOG } from '@/constants/canvas-add-catalog'
-import { NODE_STUDIO_TOOL_MODE_IDS } from '@/constants/node-studio'
+import {
+  NODE_STUDIO_NODE_PLACEMENT,
+  NODE_STUDIO_TOOL_MODE_IDS,
+} from '@/constants/node-studio'
 import { useNodeGraphV4 } from '@/hooks/node/use-node-graph-v4'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
 import { IngestDragProviderV4 } from '../IngestDragLayerV4'
 import { NodeV4Provider } from '../nodes/v4/NodeV4Provider'
 import { CanvasV4 } from './CanvasV4'
+import { buildTextDeriveOps } from './NodeWorkbenchV4'
 import { useWorkbenchShortcutsV4 } from './WorkbenchShortcutsV4'
 
 const NOW = '2026-09-08T00:00:00.000Z'
@@ -259,5 +263,81 @@ describe('useWorkbenchShortcutsV4 · 键位真的接上了', () => {
     })
     expect(view.result.current.nodes).toHaveLength(1)
     input.remove()
+  })
+})
+
+describe('文本卡派生（生图 / 生镜头）', () => {
+  const textNode = node('t1', {
+    kind: 'text',
+    subtype: 'script',
+    body: '她回头',
+  })
+
+  it('两个动作各建自己那一类卡，落在文本卡右侧并连进 text 槽', () => {
+    for (const [action, kind, subtype] of [
+      ['shotImage', 'image', 'shot'],
+      ['video', 'video', 'shot'],
+    ] as const) {
+      const ops = buildTextDeriveOps(textNode, action)
+      expect(ops).toHaveLength(2)
+      expect(ops?.[0]).toMatchObject({ op: 'add_node', kind, subtype })
+      // 落点严格在来源右边（同一行）。
+      expect(ops?.[0]).toMatchObject({
+        position: {
+          x:
+            textNode.position.x +
+            NODE_STUDIO_NODE_PLACEMENT.derivedImage.offsetX,
+          y: textNode.position.y,
+        },
+      })
+      // 连线的 target 是**本批别名**，不是某个已有 id。
+      expect(ops?.[1]).toMatchObject({
+        op: 'connect',
+        source: 't1',
+        slot: 'text',
+      })
+      expect((ops?.[1] as { target: string }).target).toBe(
+        (ops?.[0] as { ref: string }).ref,
+      )
+    }
+  })
+
+  it('画布上还没有入口的三个动作不落任何 op', () => {
+    for (const action of ['character', 'background', 'askAssistant'] as const) {
+      expect(buildTextDeriveOps(textNode, action)).toBeNull()
+    }
+  })
+
+  it('落图后新卡与连线都在，⌘Z 一次把两者一起撤回去', () => {
+    const view = renderHook(
+      ({ state }: { state: NodeWorkflowStateV4 }) =>
+        useNodeGraphV4({
+          state,
+          onStateChange: (next) => view.rerender({ state: next }),
+        }),
+      {
+        initialProps: {
+          state: { version: 4, nodes: [textNode], edges: [] },
+        },
+      },
+    )
+
+    act(() => {
+      view.result.current.dispatchBatch(
+        buildTextDeriveOps(textNode, 'shotImage') ?? [],
+      )
+    })
+    expect(view.result.current.nodes).toHaveLength(2)
+    expect(view.result.current.edges).toHaveLength(1)
+    expect(view.result.current.edges[0]).toMatchObject({
+      source: 't1',
+      slot: 'text',
+    })
+
+    act(() => {
+      view.result.current.undo()
+    })
+    expect(view.result.current.nodes).toHaveLength(1)
+    expect(view.result.current.edges).toHaveLength(0)
   })
 })

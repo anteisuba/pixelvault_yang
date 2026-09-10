@@ -5089,7 +5089,6 @@
     },
     "topbar": {
       "addNode": "添加节点",
-      "arrange": "整理画布",
       "save": "保存",
       "startReview": "{count} 张待审 · 开始审阅",
       "collapse": "收起顶栏，展开画布",
@@ -5117,26 +5116,6 @@
       "renameSubmit": "保存",
       "deleteTitle": "删除项目",
       "deleteConfirm": "删除"
-    },
-    "bottomDock": {
-      "pointer": "选择",
-      "hand": "拖动画布",
-      "connect": "连接",
-      "cut": "剪切",
-      "modeLabel": "工具",
-      "modeStatus": {
-        "pointer": "选择和移动",
-        "hand": "平移画布",
-        "connect": "从端口拖拽",
-        "cut": "点击连线"
-      },
-      "zoomLevel": "{percent}%",
-      "zoomIn": "放大",
-      "zoomOut": "缩小",
-      "fitView": "适应画布",
-      "relationsCollapse": "收起关系线",
-      "undo": "撤销",
-      "redo": "重做"
     },
     "assistant": {
       "toggle": "助手",
@@ -5390,7 +5369,6 @@
       "onStageToggleOff": "取消出场"
     },
     "toasts": {
-      "notImplemented": "暂未实现。",
       "projectCreated": "项目「{name}」已创建。",
       "projectDeleted": "项目「{name}」已删除。",
       "videoMergeComposed": "已把 {count} 段视频合成到片盒。",
@@ -5846,6 +5824,66 @@
         },
         "promptPlaceholder": "描述这张图……",
         "promptLabel": "图片提示词"
+      },
+      "audio": {
+        "toolbar": {
+          "label": "音频操作",
+          "tone": "加语气",
+          "transcribe": "转文字",
+          "transcribeFailed": "转写失败",
+          "shot": "生镜头",
+          "more": "更多"
+        },
+        "add": {
+          "upload": "上传",
+          "mention": "@ 文本 / 角色卡"
+        },
+        "emptyHint": "上传 · 或写台词生成",
+        "promptPlaceholder": "写台词，或上传一段声音……",
+        "promptPlaceholderMusic": "描述这段配乐……",
+        "promptPlaceholderSfx": "描述这个音效……",
+        "promptLabel": "台词",
+        "play": "播放",
+        "pause": "暂停",
+        "readout": "{clock} / {total}",
+        "voice": {
+          "title": "音色",
+          "searchLabel": "搜索音色",
+          "searchPlaceholder": "搜声音…",
+          "mine": "我的音色",
+          "cloned": "我克隆的",
+          "favorite": "已收藏",
+          "preview": "试听",
+          "clone": "克隆我的声音…",
+          "platform": "平台音色库…",
+          "speed": "语速",
+          "volume": "音量",
+          "loading": "加载中…",
+          "empty": "还没有音色，去平台音色库挑一个"
+        },
+        "model": {
+          "title": "模型",
+          "kinds": {
+            "speech": "语音",
+            "music": "配乐",
+            "sfx": "音效"
+          }
+        },
+        "tone": {
+          "title": "给这句加语气",
+          "hint": "插在句首，可叠两个",
+          "emotionLabel": "情绪",
+          "toneLabel": "语气",
+          "intensityLabel": "强度",
+          "intensities": {
+            "light": "轻",
+            "medium": "中",
+            "strong": "强"
+          },
+          "customLabel": "自定义语气描述",
+          "customPlaceholder": "自定义：例如「像在憋着笑」…",
+          "apply": "插入"
+        }
       }
     },
     "rerunDownstream": {

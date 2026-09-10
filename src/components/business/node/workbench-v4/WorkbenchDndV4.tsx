@@ -18,6 +18,7 @@ import { useReactFlow } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
+import { CANVAS_SHELL_MEDIA_DRAG_MIME } from '@/constants/canvas-shell'
 import { NODE_STUDIO_NODE_PLACEMENT } from '@/constants/node-studio'
 import {
   NODE_MEDIA_KIND_IDS,
@@ -60,6 +61,46 @@ function resolveDropKind(file: File): {
     }
   }
   return null
+}
+
+/**
+ * 左侧面板（角色卡 / 素材库 / 历史）拖进画布的那一份载荷。媒体已经在 R2 上，
+ * 落法因此是「建节点 + `setMedia`」，⛔ 不再走一次上传。
+ */
+interface ShellMediaDragPayload {
+  readonly kind: NodeV4Data['kind']
+  readonly subtype: NodeV4Data['subtype']
+  readonly url: string
+  readonly name?: string
+}
+
+/** 读拖投载荷。形状不对就当没有 —— ⛔ 不为一条坏 JSON 建一张空卡。 */
+function readShellMediaPayload(
+  event: React.DragEvent,
+): ShellMediaDragPayload | null {
+  const raw = event.dataTransfer?.getData(CANVAS_SHELL_MEDIA_DRAG_MIME)
+  if (!raw) return null
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    if (typeof parsed !== 'object' || parsed === null) return null
+    const candidate = parsed as Record<string, unknown>
+    if (
+      typeof candidate.kind !== 'string' ||
+      typeof candidate.subtype !== 'string' ||
+      typeof candidate.url !== 'string' ||
+      candidate.url.length === 0
+    ) {
+      return null
+    }
+    return {
+      kind: candidate.kind as NodeV4Data['kind'],
+      subtype: candidate.subtype as NodeV4Data['subtype'],
+      url: candidate.url,
+      ...(typeof candidate.name === 'string' ? { name: candidate.name } : {}),
+    }
+  } catch {
+    return null
+  }
 }
 
 export interface WorkbenchDndV4Value {
@@ -150,6 +191,21 @@ export function useWorkbenchDndV4({
 
   const onDrop = useCallback(
     (event: React.DragEvent) => {
+      const payload = readShellMediaPayload(event)
+      if (payload) {
+        event.preventDefault()
+        const position = latest.current.screenToFlowPosition({
+          x: event.clientX,
+          y: event.clientY,
+        })
+        const nodeId = latest.current.graph.addNode(
+          payload.kind,
+          payload.subtype,
+          { position },
+        )
+        if (nodeId) latest.current.graph.setMedia(nodeId, { url: payload.url })
+        return
+      }
       const files = Array.from(event.dataTransfer?.files ?? [])
       if (files.length === 0) return
       event.preventDefault()

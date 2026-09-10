@@ -5834,9 +5834,15 @@
           "mention": "@ Character / style",
           "library": "From library"
         },
+        "more": {
+          "setCharacter": "Set as character card"
+        },
         "frame": {
           "title": "Frame",
-          "aspectRatio": "Aspect ratio"
+          "aspectRatio": "Aspect ratio",
+          "quality": "Quality",
+          "resolution": "Resolution",
+          "count": "Count"
         },
         "promptPlaceholder": "Describe this image…",
         "promptLabel": "Image prompt"
@@ -5897,7 +5903,9 @@
         "paste": "Paste",
         "tidy": "Tidy layout",
         "fit": "Fit view",
-        "menu": "Canvas menu"
+        "menu": "Canvas menu",
+        "upload": "Upload",
+        "uploadMenu": "Upload…"
       },
       "palette": {
         "title": "Command palette",
@@ -5912,7 +5920,8 @@
         "askEmpty": "Ask the assistant",
         "openEditDesk": "Open the edit desk",
         "switchTo": "Switch to “{name}”",
-        "empty": "No matches"
+        "empty": "No matches",
+        "upload": "Upload media…"
       },
       "bottom": {
         "select": "Select",

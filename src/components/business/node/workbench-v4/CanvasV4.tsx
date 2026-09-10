@@ -96,6 +96,14 @@ export interface CanvasV4Props {
   ): boolean
   onPaneClick?(event: React.MouseEvent): void
   onPaneContextMenu?(event: React.MouseEvent | MouseEvent): void
+  /**
+   * 双击空白（S7：就地弹四颗小图标）。
+   *
+   * ⚠ ReactFlow 没有 `onPaneDoubleClick`，所以挂在宿主上并**自己判靶子**是不是
+   * pane —— ⛔ 不能只看 `event.target === currentTarget`：双击落在背景点阵上时
+   * 靶子是 `.react-flow__pane` 的子元素。
+   */
+  onPaneDoubleClick?(event: React.MouseEvent): void
   onDrop?(event: React.DragEvent): void
   onDragOver?(event: React.DragEvent): void
   readonly children?: React.ReactNode
@@ -113,6 +121,7 @@ export function CanvasV4({
   onNodeDragStopIntercept,
   onPaneClick,
   onPaneContextMenu,
+  onPaneDoubleClick,
   onDrop,
   onDragOver,
   children,
@@ -278,6 +287,17 @@ export function CanvasV4({
     [quickThrowSource, exitQuickThrow, onPaneClick],
   )
 
+  const handleDoubleClick = useCallback(
+    (event: React.MouseEvent) => {
+      if (!onPaneDoubleClick) return
+      const target = event.target
+      if (!(target instanceof Element)) return
+      if (!target.closest('.react-flow__pane')) return
+      onPaneDoubleClick(event)
+    },
+    [onPaneDoubleClick],
+  )
+
   /**
    * 端口拖拽的合法性。⚠ 走的是 `canConnect` —— 与助手的 `planV4Connect`、与拖投
    * 的 `planV4IngestDrop` **同一张端口表**，⛔ 不在这里另判一遍。
@@ -391,6 +411,7 @@ export function CanvasV4({
         onNodeClick={handleNodeClick}
         onPaneClick={handlePaneClick}
         onPaneContextMenu={onPaneContextMenu}
+        onDoubleClick={handleDoubleClick}
         onNodesDelete={onNodesDelete}
         onEdgesDelete={onEdgesDelete}
         onNodeDragStart={
@@ -439,6 +460,8 @@ export function CanvasV4({
         />
         {children}
       </ReactFlow>
+      {/* 小地图常显、可收成右下一颗 —— 收放是它自己的状态（`CanvasMiniMap` 的
+          `expanded`），⛔ 外壳不再存第二份。 */}
       <CanvasMiniMap />
     </>
   )

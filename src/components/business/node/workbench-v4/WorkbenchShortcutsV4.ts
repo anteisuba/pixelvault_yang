@@ -17,6 +17,8 @@
 
 import { useEffect, useRef } from 'react'
 
+import { CANVAS_SHELL_QUICK_ADD } from '@/constants/canvas-shell'
+import type { CanvasAddIntentId } from '@/constants/canvas-add-catalog'
 import {
   NODE_ALIGN_EDGE_IDS,
   NODE_DISTRIBUTE_AXIS_IDS,
@@ -87,6 +89,19 @@ export interface WorkbenchShortcutsV4Options {
   /** shift+A：按镜头带整理排布。 */
   onTidyLayout(): void
   /**
+   * T / I / A / V：就地新建四类空卡（S7 §6）。身份读
+   * `CANVAS_SHELL_QUICK_ADD`，与双击 / 右键 / ⌘K **同一张表**。
+   */
+  onQuickAdd?(intentId: CanvasAddIntentId): void
+  /** ⇧1：适配视图。 */
+  onFitView?(): void
+  /** ⌘K：命令面板。 */
+  onOpenCommandPalette?(): void
+  /** ⌘N：新建项目。 */
+  onCreateProject?(): void
+  /** ⌘U：系统选文件上传，落在视口中心（S7 §7 owner 追加的第三条上传入口）。 */
+  onOpenUpload?(): void
+  /**
    * Esc 链的**上一层**（重浮层 / 添加菜单 / 审阅模式）。返回 `true` = 这一次
    * 按键已经被上层消化，本 hook 不再取消选中。
    *
@@ -103,16 +118,51 @@ export function useWorkbenchShortcutsV4({
   onGenerateSelected,
   onTidyLayout,
   onEscape,
+  onQuickAdd,
+  onFitView,
+  onOpenCommandPalette,
+  onCreateProject,
+  onOpenUpload,
   enabled = true,
 }: WorkbenchShortcutsV4Options): void {
   /**
    * 回调从 ref 读：监听器只注册一次，而 `graph` 每次图变都是新对象 —— 直接进
    * 依赖数组会让 window 监听器每敲一个字重装一次。
    */
-  const latest = useRef({ graph, onGenerateSelected, onTidyLayout, onEscape })
+  const latest = useRef({
+    graph,
+    onGenerateSelected,
+    onTidyLayout,
+    onEscape,
+    onQuickAdd,
+    onFitView,
+    onOpenCommandPalette,
+    onCreateProject,
+    onOpenUpload,
+  })
   useEffect(() => {
-    latest.current = { graph, onGenerateSelected, onTidyLayout, onEscape }
-  }, [graph, onGenerateSelected, onTidyLayout, onEscape])
+    latest.current = {
+      graph,
+      onGenerateSelected,
+      onTidyLayout,
+      onEscape,
+      onQuickAdd,
+      onFitView,
+      onOpenCommandPalette,
+      onCreateProject,
+      onOpenUpload,
+    }
+  }, [
+    graph,
+    onGenerateSelected,
+    onTidyLayout,
+    onEscape,
+    onQuickAdd,
+    onFitView,
+    onOpenCommandPalette,
+    onCreateProject,
+    onOpenUpload,
+  ])
 
   useEffect(() => {
     if (!enabled) return
@@ -140,6 +190,13 @@ export function useWorkbenchShortcutsV4({
       }
 
       if (event.shiftKey && !event.metaKey && !event.ctrlKey) {
+        // ⇧1 = 适配视图（S7 §6）。⚠ 认 `event.code`：shift+1 的 `key` 是 `!`。
+        if (event.code === 'Digit1') {
+          if (isTypingTarget(event.target)) return
+          event.preventDefault()
+          latest.current.onFitView?.()
+          return
+        }
         const letter = pressedLetter(event)
         // shift+A = 自动排列（星流那套的同一个键位）。
         if (letter === 'a') {
@@ -158,7 +215,18 @@ export function useWorkbenchShortcutsV4({
         return
       }
 
-      if (!(event.metaKey || event.ctrlKey)) return
+      if (!(event.metaKey || event.ctrlKey)) {
+        // 光秃秃的 T / I / A / V = 新建四类空卡。⚠ 排在 meta 闸**之前**返回：
+        // 它们不带修饰键，走到下面那道闸就被吞了。
+        const quickAdd = CANVAS_SHELL_QUICK_ADD.find(
+          (entry) => entry.letter === pressedLetter(event),
+        )
+        if (!quickAdd || event.altKey || event.shiftKey) return
+        if (isTypingTarget(event.target)) return
+        event.preventDefault()
+        latest.current.onQuickAdd?.(quickAdd.intentId)
+        return
+      }
       if (isTypingTarget(event.target)) return
 
       if (event.key === 'Enter') {
@@ -168,6 +236,21 @@ export function useWorkbenchShortcutsV4({
       }
 
       const key = event.key.toLowerCase()
+      if (key === 'k') {
+        event.preventDefault()
+        latest.current.onOpenCommandPalette?.()
+        return
+      }
+      if (key === 'n') {
+        event.preventDefault()
+        latest.current.onCreateProject?.()
+        return
+      }
+      if (key === 'u') {
+        event.preventDefault()
+        latest.current.onOpenUpload?.()
+        return
+      }
       if (key === 'c') {
         if (g.copySelection()) event.preventDefault()
         return

@@ -585,6 +585,13 @@ export interface NodeWorkflowStoreValue {
     updater: (currentState: NodeWorkflowStateV4) => NodeWorkflowStateV4,
   ): NodeWorkflowStateV4
   createProject(name: string): string
+  /**
+   * 复制一个项目（S7 项目胶囊的 ⋯）。返回新项目 id；源项目不存在时回 `null`。
+   *
+   * ⚠ 与 `createProject` 走**同一条**建行路径（本地先建 → `createProjectOnServer`
+   * 登记 id），差别只在初始 state 是源项目那一份的深拷贝，⛔ 不新造第二条建行。
+   */
+  duplicateProject(id: string, name: string): string | null
   switchProject(id: string): void
   renameCurrentProject(name: string): void
   deleteProject(id: string): NodeWorkflowProjectSummary | null
@@ -1110,6 +1117,34 @@ export function useNodeWorkflowStore({
     ],
   )
 
+  const duplicateProject = useCallback(
+    (id: string, name: string): string | null => {
+      const source = storageRef.current.projects.find(
+        (project) => project.id === id,
+      )
+      if (!source) return null
+      // 结构化克隆：新项目与源项目**不共享**任何数组/对象，⛔ 不浅拷一层了事
+      // （浅拷之后在新项目里挪一张卡会连源项目一起挪）。
+      const project = createWorkflowProject(
+        normalizeProjectName(name, source.name),
+        structuredClone(source.state),
+      )
+
+      setWorkflowStorage((currentStorage) => ({
+        ...currentStorage,
+        currentProjectId: project.id,
+        projects: [...currentStorage.projects, project],
+      }))
+
+      if (canCallServerNow()) {
+        createProjectOnServer(project)
+      }
+
+      return project.id
+    },
+    [canCallServerNow, createProjectOnServer, setWorkflowStorage],
+  )
+
   /**
    * 补做一个 `pendingUpgrade` 项目的 v3 备份 —— 「打开它」就是升级的触发点。
    * 备份成功 → 解闸，这个项目从此按 v4 正常读写；失败 → 升级成 `backupFailed`
@@ -1323,6 +1358,7 @@ export function useNodeWorkflowStore({
       originV3Ref,
       commitCurrentProjectState,
       createProject,
+      duplicateProject,
       switchProject,
       renameCurrentProject,
       deleteProject,
@@ -1333,6 +1369,7 @@ export function useNodeWorkflowStore({
       createProject,
       currentProject,
       deleteProject,
+      duplicateProject,
       isHydrated,
       projects,
       readOnlyProjectIds,

@@ -5834,9 +5834,15 @@
           "mention": "@ キャラ / スタイル",
           "library": "素材ライブラリから"
         },
+        "more": {
+          "setCharacter": "キャラクターカードにする"
+        },
         "frame": {
           "title": "画面",
-          "aspectRatio": "比率"
+          "aspectRatio": "比率",
+          "quality": "品質",
+          "resolution": "解像度",
+          "count": "枚数"
         },
         "promptPlaceholder": "この画像を説明…",
         "promptLabel": "画像プロンプト"
@@ -5897,7 +5903,9 @@
         "paste": "貼り付け",
         "tidy": "レイアウト整理",
         "fit": "全体表示",
-        "menu": "キャンバスメニュー"
+        "menu": "キャンバスメニュー",
+        "upload": "アップロード",
+        "uploadMenu": "アップロード…"
       },
       "palette": {
         "title": "コマンドパレット",
@@ -5912,7 +5920,8 @@
         "askEmpty": "アシスタントに質問",
         "openEditDesk": "編集台を開く",
         "switchTo": "「{name}」に切り替え",
-        "empty": "該当なし"
+        "empty": "該当なし",
+        "upload": "素材をアップロード…"
       },
       "bottom": {
         "select": "選択",

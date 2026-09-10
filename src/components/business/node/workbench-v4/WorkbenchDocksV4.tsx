@@ -26,9 +26,7 @@ import type {
 } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
-import { CanvasLeftPanel, type CanvasLeftPanelView } from '../CanvasLeftPanel'
 import { CanvasMobileView } from '../CanvasMobileView'
-import { CanvasRosterRail } from '../CanvasRosterRail'
 import { ReviewModeBar } from '../ReviewModeBar'
 import { StudioNodeAssistantDock } from '../StudioNodeAssistantDock'
 
@@ -41,13 +39,6 @@ export interface WorkbenchDocksV4Props {
   readonly locale: AppLocale
   readonly nodes: readonly NodeV4[]
   readonly edges: readonly NodeWorkflowEdgeV4[]
-
-  readonly leftPanelExpanded: boolean
-  onLeftPanelExpandedChange(expanded: boolean): void
-  readonly leftPanelView: CanvasLeftPanelView
-  onLeftPanelViewChange(view: CanvasLeftPanelView): void
-  readonly nodeCount: number
-  onAddClick(event: React.MouseEvent<HTMLButtonElement>): void
 
   readonly assistantOpen: boolean
   readonly assistantExpanded: boolean
@@ -110,14 +101,13 @@ export function WorkbenchAssistantDockV4({
   )
 }
 
+/**
+ * ⚠ S7 起桌面档的左栏不在这里 —— 44px 图标栏 + 264 浮起面板由
+ * `shell/ShellSidePanels` 直接挂在 workbench 上（画板 `ChromePanels.dc.html`）。
+ * 本文件只剩「审阅条 + 手机形态」这两件与外壳无关的摆放。
+ */
 export function WorkbenchDocksV4({
   projectPanel,
-  leftPanelExpanded,
-  onLeftPanelExpandedChange,
-  leftPanelView,
-  onLeftPanelViewChange,
-  nodeCount,
-  onAddClick,
   setAssistantHistoryHost,
   isMobile,
   canvasPeek,
@@ -129,23 +119,6 @@ export function WorkbenchDocksV4({
     <>
       {/* 审阅模式条：组件自己判「在不在模式里」，不在就整个不渲染。 */}
       <ReviewModeBar />
-      <CanvasLeftPanel
-        expanded={leftPanelExpanded}
-        onExpandedChange={onLeftPanelExpandedChange}
-        view={leftPanelView}
-        onViewChange={onLeftPanelViewChange}
-        nodeCount={nodeCount}
-        onAddClick={onAddClick}
-        projectPanel={projectPanel}
-        assistantHistoryPanel={
-          <div
-            ref={isMobile ? undefined : setAssistantHistoryHost}
-            className="h-full"
-          />
-        }
-      >
-        <CanvasRosterRail />
-      </CanvasLeftPanel>
       {isMobile ? (
         <CanvasMobileView
           // 切项目要整块重挂：手机形态里它是**唯一**的内容视图，留着旧项目的

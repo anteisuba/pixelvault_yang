@@ -5834,9 +5834,15 @@
           "mention": "@ 角色 / 风格",
           "library": "从素材库"
         },
+        "more": {
+          "setCharacter": "设为角色卡"
+        },
         "frame": {
           "title": "画面",
-          "aspectRatio": "比例"
+          "aspectRatio": "比例",
+          "quality": "质量",
+          "resolution": "分辨率",
+          "count": "张数"
         },
         "promptPlaceholder": "描述这张图……",
         "promptLabel": "图片提示词"
@@ -5897,7 +5903,9 @@
         "paste": "粘贴",
         "tidy": "整理布局",
         "fit": "适配视图",
-        "menu": "画布菜单"
+        "menu": "画布菜单",
+        "upload": "上传",
+        "uploadMenu": "上传…"
       },
       "palette": {
         "title": "命令面板",
@@ -5912,7 +5920,8 @@
         "askEmpty": "问助手",
         "openEditDesk": "打开剪辑台",
         "switchTo": "切到「{name}」",
-        "empty": "没有匹配项"
+        "empty": "没有匹配项",
+        "upload": "上传素材…"
       },
       "bottom": {
         "select": "选择",

@@ -19,13 +19,13 @@ AVOID / PREFER 成对出现。P0 级违反（★）= checklist 直接打回。UI
 
 ## 前端代码
 
-| AVOID                           | PREFER                                            |
-| ------------------------------- | ------------------------------------------------- |
-| ★ `any` / 裸 JSON 类型          | Zod schema + `z.infer<typeof schema>`             |
-| ★ 魔法字符串 / 数字             | `src/constants/`                                  |
-| ★ 组件里 fetch                  | `src/lib/api-client.ts`                           |
-| 新功能自由发挥开发顺序          | constants → types → services → hooks → components |
-| 偷偷换范式（class↔hooks、换库） | 匹配代码库既有约定；要换先暴露冲突                |
+| AVOID                           | PREFER                                |
+| ------------------------------- | ------------------------------------- |
+| ★ `any` / 裸 JSON 类型          | Zod schema + `z.infer<typeof schema>` |
+| ★ 重复或有业务语义的魔法值      | `src/constants/`                      |
+| ★ 组件里 fetch                  | `src/lib/api-client.ts`               |
+| 新功能无视现有分层边界          | 沿依赖关系打通最小切片，只改需要的层  |
+| 偷偷换范式（class↔hooks、换库） | 匹配代码库既有约定；要换先暴露冲突    |
 
 ## 后端与架构
 
@@ -46,7 +46,7 @@ AVOID / PREFER 成对出现。P0 级违反（★）= checklist 直接打回。UI
 | ----------------------------- | ---------------------------------------------------------------------- |
 | ★ 不看影响面就改高引用模块    | 先搜索 import/调用方，在同一个改动里把所有调用方一起改完（不加兼容层） |
 | ★ credit 扣减逻辑进客户端     | 只跑服务端                                                             |
-| schema 改完不管迁移与存量数据 | 迁移纪律 + 回滚评估 + 回填路径                                         |
+| schema 改完不管迁移与存量数据 | 按 db-migration 场景确认数据保留、操作授权与恢复方案                   |
 | 信任客户端传的 ownership      | 服务端校验 userId/资源归属                                             |
 
 ## CI/CD 与环境

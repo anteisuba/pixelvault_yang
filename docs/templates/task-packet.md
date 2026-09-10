@@ -2,8 +2,7 @@
 
 Last updated: 2026-07-08
 
-Use this template for non-trivial implementation, UI, architecture, provider,
-debugging, QA, and documentation tasks. Keep the packet short enough to execute.
+Use this template in chat when handing work to another session or when the user requests a task packet. A single-session implementation does not require one. Reuse confirmed context; do not create a new plan directory or duplicate approval steps.
 
 ## Source of Truth
 
@@ -75,7 +74,7 @@ debugging, QA, and documentation tasks. Keep the packet short enough to execute.
 
 ## Five Intake Questions
 
-Ask or answer these before implementation when the task packet is incomplete:
+Answer these from the request and repository first; ask only about material gaps:
 
 1. What is the exact user or developer outcome?
 2. Which route, module, provider, data model, or document owns the behavior?
@@ -87,6 +86,6 @@ Ask or answer these before implementation when the task packet is incomplete:
 
 - The changed slice matches the allowed file scope.
 - Source-of-truth files were inspected before editing.
-- Stop-worthy uncertainty was surfaced before implementation.
+- Unresolved decisions were isolated; independent authorized work continued.
 - Validation evidence is recorded, or skipped validation is explained.
 - Documentation was updated only where it owns the changed fact.

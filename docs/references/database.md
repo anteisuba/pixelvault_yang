@@ -28,13 +28,12 @@
 
 ## 迁移纪律
 
-1. **改完 `schema.prisma` 必须**：`npx prisma migrate dev --create-only --name <description>`（**只生成**）→ 读 `migration.sql` → 约束型的先验再登记 → `npx prisma migrate dev`（应用）→ `npx prisma generate`（完整规矩见 `prisma/CLAUDE.md` 就地规则）。
-   ⛔ **禁止裸跑 `migrate dev`**：`.env.local` 指向的就是 Vercel 用的生产库（2026-08-22 构建日志确认，见 `cicd.md`），裸跑 = 迁移直接打到生产上。**本仓没有 dev 数据库**，「先在 dev 试一遍」这条退路不存在。
+1. 操作流程与授权统一见 `docs/scenes/db-migration.md`；不在生产或未确认隔离的连接运行 `migrate dev`（含 create-only）。已有环境记录不是本轮连接核验；不自动生成迁移或套用兼容期方案。
 2. 迁移历史 50 个（2026-08-23 点数；此前写的 41 已过期）；迁移文件是事实源，**不许手改数据库结构**。曾缺失的 `20260531090000_prompt_core_recipe_assets` 已恢复进 Git；CI 必须同时做 migration drift 检查和从空库执行 `prisma migrate deploy`，避免“当前 schema 对齐但历史不可重建”。
 3. WHERE / ORDER BY 用到的字段必须加 `@@index()`。
 4. 用户生成内容字段（prompt / 错误信息）用 `@db.Text`。
 5. 删除关系：ownership 关系 `onDelete: Cascade`；软引用 `onDelete: SetNull`——选哪个必须说得出理由（checklist P1）。
-6. 存量数据迁移路径（默认值 / 回填 / 兼容读）在动 schema 前想清并写进报告（checklist P0）。
+6. 存量数据保留、约束验证和恢复方案在变更前明确；涉及 migration/兼容层例外依数据库场景取得授权。
 
 ## 命名约定
 
@@ -42,9 +41,9 @@ Model = PascalCase（`UserApiKey`）· 字段 = camelCase（`createdAt`）· 枚
 
 ## 高风险提示
 
-- `Generation` 与 `User` 是被 service 层引用最广的模型——改字段先 grep 影响面：**代码侧的调用方在同一个改动里一起改完**，不留旧字段读法的垫片（CLAUDE.md Engineering Principle 1）；**数据库列本身走 expand-contract**——加列可以直接来，改列义 / 删列 / 改类型要过兼容期。⚠ 兼容期不是「引用多所以保守」，而是部署顺序决定的：`vercel.json` 的 buildCommand 走 `scripts/vercel-build.sh`，生产构建里迁移先于 `next build`、也就先于新代码上线，旧 serverless 实例还在跑旧查询，中间那段时间新旧 schema 必须同时可服务。（脚本按 `VERCEL_ENV` 分支，迁移**只在 production 跑**——Preview 是「新代码 + 旧 schema」。）
+- `Generation` 与 `User` 引用面广，改字段先搜索全部调用方并同步修改。数据库变更须核对当前构建脚本和新旧部署并存的影响；不因历史文档建议 expand-contract 就覆盖 AGENTS 的 owner 原则。
 - `Generation` 承载全模态（图/视频/音频/3D）+ 卡片/配方/runGroup 元数据，往里加字段前先确认不是该拆去 `GenerationJob` / 专属表的东西（长期建模优先）。
-- 视频三套系统（Story / VideoPipeline / VideoScript 族）是收敛中的并存现状——新视频功能先看 `plans/` 在飞任务包再选挂靠点，别随手再开第四套。
+- 视频三套系统（Story / VideoPipeline / VideoScript 族）是收敛中的并存现状——新视频功能先看 对话中的已确认范围再选挂靠点，别随手再开第四套。
 
 ## Source of Truth
 

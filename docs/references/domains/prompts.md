@@ -4,6 +4,8 @@
 
 ## 路由面与双 Tab
 
+2026-09-09 owner 确认页面优化，现行布局与交互见 `../pages/prompts.md`：正文卡、搜索、紧凑新建与详情；保留双 Tab。本次不包含下文登记的公共发现迁移。
+
 - `/prompts`（`robots: noindex`）：`mine`（用户模板，数据=`Recipe`）+ `inspiration`（平台策展灵感，数据=`InspirationPrompt`）双 tab；signed-out 的 mine 渲染引导空态。
 - `/prompts/[id]`：单个 recipe 详情编辑器 + 该模板的作品血缘。
 
@@ -69,5 +71,7 @@ owner 已确认共享提示词库及其专用数据可以删除。后续独立 t
 
 ## Last Verified
 
+- 2026-09-09 · 提示词页已按确认稿实装；375 / 820 / 1440px 页面核对，搜索、取消与使用确认已验证；保存失败与复制降级由组件测试覆盖。
+
 - 2026-09-03 · 新增「移动端等级」节（owner 拍板，配方见 ui-defaults.md §6）。
-2026-07-19 · 代码现状仍是双 Tab/共享库路线 A；owner 已拍板后续删除共享发现面与 `InspirationPrompt` 专用链路，公共配方发现合并进 Gallery，尚未实施。
+  2026-07-19 · 代码现状仍是双 Tab/共享库路线 A；owner 已拍板后续删除共享发现面与 `InspirationPrompt` 专用链路，公共配方发现合并进 Gallery，尚未实施。

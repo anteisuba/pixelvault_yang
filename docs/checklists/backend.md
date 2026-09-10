@@ -1,6 +1,6 @@
 # Backend Checklist — P0 不过打回
 
-Service / API route / provider 改动完成后逐项过，报告里逐条给结论。
+按本次修改范围检查适用项；不适用项不扩张任务，报告重要结果与缺口。
 
 ## P0（必须全过）
 
@@ -9,10 +9,10 @@ Service / API route / provider 改动完成后逐项过，报告里逐条给结�
 - [ ] 全程无 `.parse()`、无 `any`；schema 在 `src/types/`
 - [ ] 所有外部调用 `withRetry()` 包裹
 - [ ] 日志走 `src/lib/logger.ts`，无 `console.log`
-- [ ] 对应 `.test.ts` 五段齐全：401 → 400 → service mock → success → 500
+- [ ] 新增 API route 测试覆盖其适用鉴权、校验、成功与失败路径；service 测业务边界
 - [ ] credit 扣减只在服务端
 - [ ] 无机密进 `NEXT_PUBLIC_`
-- [ ] `npx vitest run` 相关文件绿；**声称完成前全量 vitest 绿**
+- [ ] 相关测试通过；跨模块/高风险与发布按 WORKFLOW 执行全量，不以定向结果声称全绿
 
 ## P1（应过）
 

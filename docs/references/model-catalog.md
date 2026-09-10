@@ -25,20 +25,22 @@
 
 ### 图像（13 + 5 runner）
 
-| enum                        | externalModelId                                   | 通道               |
-| --------------------------- | ------------------------------------------------- | ------------------ |
-| OPENAI_GPT_IMAGE_2          | （同 id）                                         | OpenAI 直连        |
-| GEMINI_PRO_IMAGE            | gemini-3-pro-image                                | Gemini 直连        |
-| GEMINI_FLASH_IMAGE          | gemini-3.1-flash-image                            | Gemini 直连        |
-| **GEMINI_FLASH_LITE_IMAGE** | gemini-3.1-flash-lite-image                       | Gemini 直连        |
-| FLUX_2_PRO / FLUX_2_FLASH   | fal-ai/flux-2-pro · fal-ai/flux-2/flash           | fal                |
-| FLUX_KONTEXT_MAX            | fal-ai/flux-pro/kontext/max/multi                 | fal                |
-| FLUX_LORA                   | fal-ai/flux-lora                                  | fal                |
-| **SEEDREAM_50_PRO**         | bytedance/seedream/v5/pro/text-to-image（无前缀） | fal                |
-| **SEEDREAM_50_LITE**        | fal-ai/bytedance/seedream/v5/lite/text-to-image   | fal                |
-| **SEEDREAM_50_VOLCENGINE**  | doubao-seedream-5-0-260128                        | 火山方舟直连（cn） |
-| RECRAFT_V4_PRO              | fal-ai/recraft/v4.1/pro/text-to-image             | fal                |
-| ILLUSTRIOUS_XL              | delta-lock/noobai-xl                              | replicate          |
+| enum                         | externalModelId                                   | 通道                |
+| ---------------------------- | ------------------------------------------------- | ------------------- |
+| OPENAI_GPT_IMAGE_2           | （同 id）                                         | OpenAI 直连         |
+| OPENAI_GPT_IMAGE_25_FLARE    | gpt-image-2.5-flare                               | OpenAI 直连（BYOK） |
+| OPENAI_GPT_IMAGE_25_SUNBURST | gpt-image-2.5-sunburst                            | OpenAI 直连（BYOK） |
+| GEMINI_PRO_IMAGE             | gemini-3-pro-image                                | Gemini 直连         |
+| GEMINI_FLASH_IMAGE           | gemini-3.1-flash-image                            | Gemini 直连         |
+| **GEMINI_FLASH_LITE_IMAGE**  | gemini-3.1-flash-lite-image                       | Gemini 直连         |
+| FLUX_2_PRO / FLUX_2_FLASH    | fal-ai/flux-2-pro · fal-ai/flux-2/flash           | fal                 |
+| FLUX_KONTEXT_MAX             | fal-ai/flux-pro/kontext/max/multi                 | fal                 |
+| FLUX_LORA                    | fal-ai/flux-lora                                  | fal                 |
+| **SEEDREAM_50_PRO**          | bytedance/seedream/v5/pro/text-to-image（无前缀） | fal                 |
+| **SEEDREAM_50_LITE**         | fal-ai/bytedance/seedream/v5/lite/text-to-image   | fal                 |
+| **SEEDREAM_50_VOLCENGINE**   | doubao-seedream-5-0-260128                        | 火山方舟直连（cn）  |
+| RECRAFT_V4_PRO               | fal-ai/recraft/v4.1/pro/text-to-image             | fal                 |
+| ILLUSTRIOUS_XL               | delta-lock/noobai-xl                              | replicate           |
 
 ⚠ **`bytedance/seedream/v5/pro/...` 没有 `fal-ai/` 前缀**（同 `ideogram/v4` 的模式）——fal 上第三方 owner 的模型按 owner/model 直接寻址，照 4.5 的写法抄会 404。
 
@@ -67,6 +69,15 @@ FISH_AUDIO_S2_PRO / FISH_AUDIO_S2_PRO_FREE（s2.1-pro / s2.1-pro-free，Fish 直
 ### 3D（5）
 
 RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全 fal 系）；HUNYUAN3D_2_1 已 false（被 v3.1 上位替代）。
+
+## 本月发现（2026-09-09 · GPT Image 2.5）
+
+- 新增 [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare) 与 [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst)，分别面向快速日常生成与精细创作/编辑。沿用 OpenAI BYOK 和 Worker 的 `images/generations`、JSON `images/edits` 路径；16 张参考图、32,000 字符提示词，新增 `xhigh/max` 画质。GPT Image 2 保留。
+- [官方费率](https://developers.openai.com/api/docs/pricing#image-generation)：两款图片输入/缓存输入/输出分别为 $8/$2/$30 每百万 token；文字输入/缓存输入为 $5/$1.25。实际账单按响应 `usage`，不能从站内 `cost` 用量单位换算。
+- [官方计算器](https://developers.openai.com/api/docs/guides/image-generation#gpt-image-25-and-gpt-image-2-output-tokens)及该页加载的 `GptImageTokenCalculator.react.yz8GdjDh.js` 于 2026-09-09 核验：1024×1024 的 low/medium/high/xhigh/max 输出估算分别为 $0.00588/$0.01317/$0.05268/$0.09366/$0.21072；两款共用估算模型。输入费用另计，`auto` 无固定价格；2K 方图的最高档输出为 $0.42816。参考价表记录 1024² 区间，界面明确尺寸与输入费用口径；未进行付费生成实测。
+- 工作台规格提供独立的分辨率与生成画质，Flare/Sunburst 支持 auto/low/medium/high/xhigh/max，并提供背景与预览开关。助手 `setSpecs` 与生成请求同步传递这些字段；切换回 GPT Image 2 时，不支持的画质恢复 auto。
+- 图片编辑共用界面显示使用型号，局部重绘、物体替换与提取元素允许两款 2.5。OpenAI 遮罩按 alpha 通道转换；整图修改使用全透明遮罩，结果作为下一轮输入，沿用编辑历史回退。此流程未接入 Responses API 的 `previous_response_id` 对话上下文。
+- 预览默认关闭，开启后请求两张中间图，最多增加 $0.006/张输出。生成由 Worker 状态回调更新预览；局部重绘/物体替换通过 `/api/image/edit-stream` SSE 展示中间图，最终结果照常归档。
 
 ## 本月发现（2026-08-24 · NovelAI V5）
 

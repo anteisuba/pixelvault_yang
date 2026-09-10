@@ -11,7 +11,7 @@
 | **pre-push（husky）**             | `tsc --noEmit` → `npm run lint` → `npx vitest run --reporter=verbose`——**三关全过才能推**（本机实测 2026-07-10：tsc 185s + lint 350s + vitest 412s ≈ **合计 15.8 分钟**，比旧口径"约 8–9 分钟"慢近一倍；不许 --no-verify 跳过） |
 | CI `ci.yml`                       | push/PR 跑 tsc + lint、应用 unit、Execution Worker unit、依赖审计、Prisma drift + fresh-database replay 和生产 build（见 cicd.md）                                                                                              |
 
-- **全量纪律**：声称"绿"之前必须全量 vitest（本机实测 ~412s / 6.9min，旧口径 ~4.5min 已过时）——定向子集抓不住跨文件漂移；全量 tsc（本机实测 ~185s / 3.1min，旧口径 ~4min）后台跑 + 显式捕获 exit code（管道会吃退出码），禁止因超时跳过。lint 本机实测 ~350s / 5.8min，此前文档未记录该项耗时。
+- **验证范围**：按 `docs/WORKFLOW.md` 的影响面分级。局部定向通过只报告定向通过；高风险共享改动和发布跑全量。长命令保留日志与真实退出码，不过滤错误来判绿，不无依据重复跑套件。
 
 ## 单元 / 组件测试（Vitest + @testing-library/react）
 

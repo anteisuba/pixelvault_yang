@@ -2,7 +2,7 @@
 
 > 覆盖：新增模型、升级模型版本（如 Seedream 4.5→5.0）、接入新 provider、调整模型配置。**本场景全程受联网核验义务约束**——endpoint / model id / payload / 参数 / 限制不允许凭记忆。对应 checklist：`checklists/backend.md`。
 
-## 专属 5 问（开工硬门）
+## 场景自查（先从上下文和代码回答，仅询问实质缺口）
 
 1. **模型身份与官方依据？**——官方模型页 + API reference 链接（先查 `references/model-catalog.md` 本月发现）；`externalModelId` 精确值；payload 字段逐个从官方文档核。
 2. **走哪个通道？**——直连官方优先，FAL 只在无直连或 FAL 唯一/更优时；国内模型按 additive 双版本原则（火山直连与 fal 并存，不互替）。已有 adapter 只加配置；新 provider 才写新 adapter。
@@ -12,8 +12,8 @@
 
 ## 本场景工作流
 
-1. 问 5 问。
-2. **联网核官方**（优先级：官方 API 文档 > SDK/changelog > model card > 公告）；官方与代码现状冲突 → 停下问 owner。
+1. 根据请求、已有授权和代码完成场景自查。
+2. **联网核官方**（优先级：官方 API 文档 > SDK/changelog > model card > 公告）；官方与代码冲突 → 核对版本与已授权目标；仍涉及未决产品/计费/权限选择时询问 owner。
 3. 读规矩：`references/providers.md`（Hard rules + 错误机制 + 逐 provider 表）→ `references/model-catalog.md` → `references/backend.md` → `src/constants/CLAUDE.md`。
 4. **四件套一次到位**：`AI_MODELS` enum → 模型配置（externalModelId / capability / cost / officialUrl 指向精确 API 文档页）→ i18n ×3（label/description）→ adapter（仅新 provider）。
 5. Worker handler 确认或补齐；错误映射补齐（raw 错误不直达用户）。

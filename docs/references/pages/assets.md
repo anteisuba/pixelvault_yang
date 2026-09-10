@@ -345,6 +345,7 @@
 - 对话框宽度从 `max-w-3xl`(768) 改到 `max-w-4xl`(896)：176px 导航栏在 768 上是 22.9%，超了「≤20%」这条验收判据；896 上是 **19.6%**，也正好回到设计假定的 880 量级。
 - 「最近」这一档**没有单独实现**：智能视图里它与「全部素材」在 `sort=newest` 下是**同一条查询**，做两行等于摆一个假承诺。现为 全部 / 收藏 / 未分类 三档，「最近用过」那一组给的是**文件夹**（localStorage，契约本来就这么写）。
 - picker 的 localStorage 偏好用**懒初始化**读，不走「先默认值再 effect 纠正」：它挂在 Radix portal 里、服务端从不渲染，因此没有 hydration mismatch，也就不必触发 `setState-in-effect`。
+- picker 首帧读取按账号和筛选隔离的图片缓存，后台刷新当前第一页；图片请求使用 `includeTotal=0`，通过游标与 `hasMore` 翻页。分类计数在图片就绪后加载，文件夹及计数复用 30 秒缓存并合并在途请求，上传后强制刷新计数。分类统计由一次多维分组与一次收藏计数组成；类型总数不受所选类型影响，其余导航计数遵循类型筛选。
 - **6c 复核结果**（判据 = 消费端替换还是追加）：改成多选的三个 —— `ReferenceImageChip`、`LoraReferenceImageCards`（都是 `imageUpload.addFromUrl` 追加 + `useImageUpload.maxImages` 容量，为此给 hook 补了可渲染的 `maxImages`）、`storyboard`（`[...prev, gen]` 追加、无上限）。保持单选的四个 —— `Studio3DWorkspace`（源图/已有 3D 都是填槽）、`AssetDetailSheet`（音频封面填槽）、`ReverseEngineerPanel`（反推一张）、`LoraTrainingDialog`（**本来就是多选**）。`AssistantReferencePicker` 的消费端全在 `node/**`，按 Non-goals 留给画布会话（6d）。
 
 **⚠ 按域分工，17 个调用文件对半开**（本包只动非画布那 8 个）：

@@ -2,22 +2,22 @@
 
 > 覆盖：`src/services/**` 的业务逻辑新增与修改。route 层走 `api-endpoint.md`；schema 变更走 `db-migration.md`；接模型走 `new-model.md`。对应 checklist：`checklists/backend.md`。
 
-## 专属 5 问（开工硬门）
+## 场景自查（先从上下文和代码回答，仅询问实质缺口）
 
 1. **扩现有 service 还是新建？**——先 `grep` exports 和调用方，确认没有已有 80% 的现成引擎（复用大于重造）；新建按 `<name>.service.ts` + 首行 `server-only` + named functions。
-2. **影响面多大？**——对照高风险模块表（`references/backend.md`：types/index 333 · user.service 141 · generate-image orchestrator · models.ts 99 · r2.ts 55）；grep 出**全部调用方，在同一个改动里一起改完**——不留旧签名垫片、不加兼容层、不写 fallback（CLAUDE.md Engineering Principle 1「不保留向后兼容」）。引用面大只意味着这次 diff 会大，不意味着降级成「兼容式」改法。
-3. **数据边界在哪？**——碰 Prisma 的哪些模型？ownership（userId）校验在本函数落还是上游已保证（写清楚，不默认）？需要改 schema → 停，走 `db-migration.md`。
+2. **影响面多大？**——对照高风险模块表（见 CLAUDE.md；引用数以本次搜索为准，不依赖历史统计）；grep 出**全部调用方，在同一个改动里一起改完**——不留旧签名垫片、不加兼容层、不写 fallback（AGENTS.md 工程原则「不保留向后兼容」）。引用面大只意味着这次 diff 会大，不意味着降级成「兼容式」改法。
+3. **数据边界在哪？**——碰 Prisma 的哪些模型？ownership（userId）校验在本函数落还是上游已保证（写清楚，不默认）？需要改 schema → 加读 `db-migration.md`，未授权的数据操作才暂停。
 4. **外部调用与韧性怎么配？**——有外部 API → `withRetry()` + per-provider breaker；有 LLM → 入口过 `prompt-guard`、出口过 `llm-output-validator`；logger 记什么上下文（可诊断性）。
 5. **测试边界 case 清单？**——空输入 / 越权 / 不存在 / 失败路径 / 幂等，逐个列出再写测试（测边界不是测 happy path）。
 
 ## 本场景工作流
 
-1. 问 5 问。
+1. 根据请求、已有授权和代码完成场景自查。
 2. 读规矩：`references/backend.md`（分层 + service 纪律）→ `forbidden.md` 后端/数据库节 → `references/domains/<域>.md` → `src/services/CLAUDE.md`；碰 DB 加 `references/database.md`。
 3. **先读再写**：grep exports / 调用方 / 相似实现，把复用结论写进报告。
 4. 起点：`templates/service.md` 骨架（未落地前抄同 service 目录里最规范的邻居）。
 5. 实现：typed in/out（Zod in `@/types`）· logger · withRetry · credit 只在服务端 · 失败大声暴露（不吞错不静默降级）。
-6. 自检：`checklists/backend.md` 逐项 + 同目录 `.test.ts` 覆盖第 5 问列出的边界。
+6. 自检：`checklists/backend.md` 逐项 + 同目录 `.test.ts` 覆盖自查中确定的适用边界。
 7. 交付报告：改动清单 + 复用/影响面结论 + 测试结果 + 手动验证步骤。
 
 ## 必读清单
@@ -28,6 +28,6 @@
 
 不动 `prisma/schema.prisma`（走 db-migration）· 不动 route 鉴权语义（走 api-endpoint）· 不绕过 adapter 直调 provider · 不把「属性」建模成「类型」（长期建模优先，拿不准先问）。
 
-## 验证命令
+## 验证
 
-`npx vitest run <相关目录>` 迭代 → **全量 vitest 才算绿** → 全量 tsc（后台 + exit code）→ 涉及生成链路时端到端生成一次实测。
+先运行受影响模块和调用方测试；跨模块或高风险修改按 WORKFLOW 跑全量 Vitest 与 typecheck。真实 API/生成验证仅在相应环境与费用已授权时执行；否则列出缺口，不能宣称端到端通过。

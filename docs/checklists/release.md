@@ -1,13 +1,13 @@
 # Release Checklist — P0 不过打回
 
-Ship / push / 部署前逐项过。
+发布前执行本地 P0；推送后核对该次 CI，部署后核对 Production 冒烟。发布后的证据不是发布前的循环前置条件。
 
 ## P0（必须全过）
 
 - [ ] 全量 vitest 绿（pre-push 钩子 ~4.5min，不跳过、不 --no-verify）
 - [ ] 全量 tsc 绿（后台跑 + 显式捕获 exit code，~4 分钟）
 - [ ] `npm run lint && npm run build` 绿（dev server 跑着时不 build）
-- [ ] GitHub CI 绿：`ci.yml`（type check + lint + unit tests）
+- [ ] 推送后 GitHub CI 绿：`ci.yml`（type check + lint + unit tests）
 - [ ] `npx playwright test e2e/mobile.spec.ts --project=mobile` 绿
 - [ ] 公开体验上线前，在正确的 Clerk **Production instance** 启用 Restricted 或 Waitlist、注册 Smart Bot Protection，并验证邮箱校验与一次真实注册；仓库使用 Clerk 预构建 `<SignIn />` / `<SignUp />`，无需自建 CAPTCHA DOM
 - [ ] 生产已配置 Upstash Redis、`INTERNAL_CALLBACK_SECRET` 和 `EXECUTION_WORKER_BASE_URL`；内部签名防重放在生产缺 Redis 时会 fail closed
@@ -19,7 +19,7 @@ Ship / push / 部署前逐项过。
 
 - [ ] 视觉回归 `e2e/visual.spec.ts` 绿；基线按 OS 分套（-win32/-darwin）
 - [ ] Vercel 部署后 `deploy-check.yml`（Production smoke）通过
-- [ ] `docs/status.md` 已更新；完成的 plans/ 任务包已删（结论沉淀进 references/）
+- [ ] `docs/status.md` 已更新；稳定结论已沉淀进现有 references/
 
 ## P2（加分）
 

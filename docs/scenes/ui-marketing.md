@@ -2,7 +2,7 @@
 
 > 覆盖：首页、Landing 和营销 section。产品内页走 `ui-page.md`；对应验收为 `checklists/ui.md`。
 
-## 专属 5 问（开工硬门）
+## 场景自查（先从上下文和代码回答，仅询问实质缺口）
 
 1. **页面要证明什么？** 只展示已经可用的真实能力，不用营销包装替代产品成熟度。
 2. **目标受众与主动作是什么？** 新访客、回访创作者或已登录用户的首要路径必须明确。
@@ -13,7 +13,7 @@
 ## 本场景工作流
 
 1. 对齐 `references/product.md` 与已落地能力，先确定首页当前能承诺什么。
-2. 读取 `brand-dna.md`、`forbidden.md`、`references/frontend.md` 和 active plan；旧首页、archive 与 UI inspiration 只作证据。
+2. 读取 `brand-dna.md`、`forbidden.md`、`references/frontend.md` 和 对话中的已确认范围；旧首页、archive 与 UI inspiration 只作证据。
 3. 完整改版先提出三个结构方向，并与真实产品页和能力截图并排核对；owner 选择后只做 hero 或一个核心 capability 切片。
 4. 关键切片确认后写页级文档，再实现页面局部 token/组件；不得把 homepage 皮肤扩散为全站默认。
 5. 验证内容真实性、SEO、LCP、CLS、reduced-motion、键盘、移动端和 CTA 路径。

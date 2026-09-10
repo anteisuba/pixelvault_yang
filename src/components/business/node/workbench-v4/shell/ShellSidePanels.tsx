@@ -132,7 +132,6 @@ function useRecentGenerations(options: {
       setIsLoading(true)
       void fetchGalleryImages(1, CANVAS_SHELL_LIST_PAGE_SIZE, {
         mine: true,
-        includeTotal: false,
         ...(typeKey ? { type: typeKey.split(',') as OutputTypeValue[] } : {}),
         ...(uploadsOnly ? { provider: 'user-upload' } : {}),
       }).then((response) => {

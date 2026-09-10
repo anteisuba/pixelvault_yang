@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Globe, Pencil, Search, Trash2 } from 'lucide-react'
+import { Globe, Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -23,14 +23,12 @@ import {
   type PromptTemplateOutputType,
 } from '@/constants/prompt-library'
 import { deleteRecipeAPI } from '@/lib/api-client/recipes'
+import { cn } from '@/lib/utils'
 import type { AppLocale } from '@/i18n/routing'
 import type { OutputType } from '@/types'
-import { OutputTypeChip } from './OutputTypeChip'
+import { OutputTypeChip, OUTPUT_TYPE_ICONS } from './OutputTypeChip'
 import { PromptFilterChip } from './PromptFilterChip'
 import { PromptTemplateDetailDialog } from '@/components/business/prompts/PromptTemplateDetailDialog'
-import { CopyPromptButton } from './CopyPromptButton'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 
 export interface PromptTemplateListItem {
   id: string
@@ -61,7 +59,6 @@ export function PromptTemplateList({
   const t = useTranslations('PromptLibrary')
   const [items, setItems] = useState(recipes)
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('ALL')
-  const [query, setQuery] = useState('')
 
   useEffect(() => {
     setItems(recipes)
@@ -73,71 +70,36 @@ export function PromptTemplateList({
 
   const visibleItems = useMemo(
     () =>
-      items.filter(
-        (recipe) =>
-          (typeFilter === 'ALL' || recipe.outputType === typeFilter) &&
-          `${recipe.name} ${recipe.compiledPrompt}`
-            .toLocaleLowerCase(locale)
-            .includes(query.trim().toLocaleLowerCase(locale)),
-      ),
-    [items, typeFilter, query, locale],
+      typeFilter === 'ALL'
+        ? items
+        : items.filter((recipe) => recipe.outputType === typeFilter),
+    [items, typeFilter],
   )
 
   return (
-    <section className="@container space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <label className="flex w-full max-w-md items-center gap-2 rounded-xl border border-input bg-background px-3 focus-within:ring-2 focus-within:ring-ring">
-          <Search
-            aria-hidden
-            className="size-4 shrink-0 text-muted-foreground"
-          />
-          <Input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            aria-label={t('searchTemplates')}
-            placeholder={t('searchTemplates')}
-            className="border-0 bg-transparent px-0 shadow-none focus-visible:ring-0"
-          />
-        </label>
-        <nav
-          aria-label={t('typeFilterLabel')}
-          className="flex flex-wrap gap-1.5"
-        >
+    <section className="space-y-4">
+      <nav aria-label={t('typeFilterLabel')} className="flex flex-wrap gap-1.5">
+        <PromptFilterChip
+          label={t('typeFilterAll')}
+          active={typeFilter === 'ALL'}
+          onClick={() => setTypeFilter('ALL')}
+        />
+        {PROMPT_TEMPLATE_OUTPUT_TYPES.map((type) => (
           <PromptFilterChip
-            label={t('typeFilterAll')}
-            active={typeFilter === 'ALL'}
-            onClick={() => setTypeFilter('ALL')}
+            key={type}
+            label={t(PROMPT_OUTPUT_TYPE_LABEL_KEYS[type])}
+            active={typeFilter === type}
+            onClick={() => setTypeFilter(type)}
           />
-          {PROMPT_TEMPLATE_OUTPUT_TYPES.map((type) => (
-            <PromptFilterChip
-              key={type}
-              label={t(PROMPT_OUTPUT_TYPE_LABEL_KEYS[type])}
-              active={typeFilter === type}
-              onClick={() => setTypeFilter(type)}
-            />
-          ))}
-        </nav>
-      </div>
+        ))}
+      </nav>
 
       {visibleItems.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center text-sm leading-6 text-muted-foreground">
+        <p className="rounded-2xl border border-dashed border-border/60 bg-card/50 px-5 py-10 text-center text-sm leading-6 text-muted-foreground">
           {t('typeFilterEmpty')}
-          {(query || typeFilter !== 'ALL') && (
-            <div className="mt-3">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setQuery('')
-                  setTypeFilter('ALL')
-                }}
-              >
-                {t('clearFilters')}
-              </Button>
-            </div>
-          )}
-        </div>
+        </p>
       ) : (
-        <div className="columns-1 gap-4 @xl:columns-2 @4xl:columns-3">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {visibleItems.map((recipe) => (
             <PromptTemplateCard
               key={recipe.id}
@@ -184,10 +146,10 @@ function PromptTemplateCard({
 }: PromptTemplateCardProps) {
   const t = useTranslations('PromptLibrary')
   const [detailOpen, setDetailOpen] = useState(false)
-  const [detailMode, setDetailMode] = useState<'view' | 'edit' | 'use'>('view')
   const [imageFailed, setImageFailed] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const title = recipe.name || recipe.modelId
+  const FallbackIcon = OUTPUT_TYPE_ICONS[recipe.outputType]
   const formattedDate = new Intl.DateTimeFormat(locale, {
     month: 'short',
     day: 'numeric',
@@ -210,13 +172,13 @@ function PromptTemplateCard({
 
   return (
     <>
-      <article className="group relative mb-4 flex break-inside-avoid flex-col overflow-hidden rounded-2xl border border-border bg-card transition-colors duration-fast hover:border-foreground/30">
+      <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-border/60 bg-card/80 transition-all duration-200 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-md">
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <button
               type="button"
               aria-label={t('deleteAction')}
-              className="absolute right-2 top-2 z-10 inline-flex size-9 items-center justify-center rounded-full bg-background/90 text-muted-foreground backdrop-blur-sm transition-colors hover:bg-background hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:size-11"
+              className="absolute right-2 top-2 z-10 inline-flex size-8 items-center justify-center rounded-full bg-background/90 text-muted-foreground opacity-0 backdrop-blur-sm transition hover:bg-background hover:text-destructive focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50 group-hover:opacity-100"
             >
               <Trash2 className="size-4" />
             </button>
@@ -242,49 +204,51 @@ function PromptTemplateCard({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
-        {recipe.coverThumbnailUrl && !imageFailed && (
-          <button
-            type="button"
-            aria-label={`${t('viewDetail')}: ${title}`}
-            onClick={() => {
-              setDetailMode('view')
-              setDetailOpen(true)
-            }}
-            className="aspect-video overflow-hidden bg-muted text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {/* eslint-disable-next-line @next/next/no-img-element -- stored generation thumbnails are already optimized R2 derivatives */}
+        <button
+          type="button"
+          aria-label={`${t('viewDetail')}: ${title}`}
+          onClick={() => setDetailOpen(true)}
+          className="relative aspect-square overflow-hidden bg-muted/30 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          {recipe.coverThumbnailUrl && !imageFailed ? (
+            // eslint-disable-next-line @next/next/no-img-element -- stored generation thumbnails are already optimized R2 derivatives
             <img
               src={recipe.coverThumbnailUrl}
               alt={title}
               loading="lazy"
               onError={() => setImageFailed(true)}
-              className="size-full object-cover"
+              className="size-full object-cover transition-transform duration-300 group-hover:scale-[1.015]"
             />
-          </button>
-        )}
-
-        <div className="flex flex-1 flex-col gap-3 p-5">
+          ) : (
+            <div
+              className={cn(
+                'flex size-full flex-col justify-between p-5 pt-12',
+                FALLBACK_WASH_CLASSES[recipe.outputType],
+              )}
+            >
+              <FallbackIcon
+                aria-hidden
+                className={cn(
+                  'size-6',
+                  FALLBACK_ICON_CLASSES[recipe.outputType],
+                )}
+              />
+              <p className="line-clamp-4 whitespace-pre-wrap text-sm leading-6 text-muted-foreground/85">
+                {recipe.compiledPrompt}
+              </p>
+            </div>
+          )}
           <OutputTypeChip
             outputType={recipe.outputType}
             label={recipe.outputTypeLabel}
-            className="w-fit"
+            className="absolute left-2 top-2"
           />
-          <button
-            type="button"
-            onClick={() => {
-              setDetailMode('view')
-              setDetailOpen(true)
-            }}
-            className="space-y-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            aria-label={`${t('viewDetail')}: ${title}`}
-          >
-            <h2 className="line-clamp-2 pr-5 text-base font-semibold">
-              {title}
-            </h2>
-            <p className="line-clamp-6 whitespace-pre-wrap text-sm leading-relaxed text-muted-foreground">
-              {recipe.compiledPrompt}
-            </p>
-          </button>
+        </button>
+
+        <div className="flex flex-1 flex-col gap-2 p-4">
+          <h2 className="line-clamp-2 text-lg font-medium tracking-tight">
+            {title}
+          </h2>
           <div className="mt-auto flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
             <span>
               {t('templateMeta', {
@@ -302,32 +266,6 @@ function PromptTemplateCard({
             )}
           </div>
         </div>
-        <footer className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t('editAction')}
-            onClick={() => {
-              setDetailMode('edit')
-              setDetailOpen(true)
-            }}
-          >
-            <Pencil className="size-4" />
-          </Button>
-          <CopyPromptButton
-            prompt={recipe.compiledPrompt}
-            className="ml-auto"
-          />
-          <Button
-            variant="secondary"
-            onClick={() => {
-              setDetailMode('use')
-              setDetailOpen(true)
-            }}
-          >
-            {t('useAction')}
-          </Button>
-        </footer>
       </article>
 
       <PromptTemplateDetailDialog
@@ -336,7 +274,6 @@ function PromptTemplateCard({
         open={detailOpen}
         onOpenChange={setDetailOpen}
         onDeleted={onDeleted}
-        initialMode={detailMode}
       />
     </>
   )

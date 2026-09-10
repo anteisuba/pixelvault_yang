@@ -258,12 +258,6 @@ export const MEDIA_MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> =
       enhanceHint: FISH_AUDIO_HINT,
       negativePrompt: 'unsupported',
     },
-    [AI_MODELS.FISH_AUDIO_S2_PRO_FREE]: {
-      bestFor: ['speech', 'voice-clone', 'multi-speaker', 'chinese-speech'],
-      promptStyle: 'natural-language',
-      enhanceHint: FISH_AUDIO_HINT,
-      negativePrompt: 'unsupported',
-    },
     [AI_MODELS.ELEVENLABS_V3]: {
       bestFor: ['speech', 'expressive-delivery', 'dialogue'],
       promptStyle: 'natural-language',

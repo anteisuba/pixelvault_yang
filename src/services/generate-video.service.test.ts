@@ -262,7 +262,7 @@ describe('generate-video.service worker dispatch', () => {
     expect(body).toMatchObject({
       providerId: 'gemini',
       apiKeyId: 'key-1',
-      providerInput: { externalModelId: 'gemini-omni-1.1-flash' },
+      providerInput: { externalModelId: 'gemini-omni-flash-preview' },
     })
     expect(JSON.stringify(body)).not.toContain('plain-key')
   })

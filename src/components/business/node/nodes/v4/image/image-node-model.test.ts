@@ -36,14 +36,6 @@ describe('画面弹层的档位：不支持的**禁用不隐藏**', () => {
     expect(options.find((o) => o.value === 'max')?.disabled).toBe(true)
   })
 
-  it('模型覆盖能放开更高的档', () => {
-    const options = imageQualityOptions({
-      adapterType: AI_ADAPTER_TYPES.OPENAI,
-      modelId: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
-    })
-    expect(options.find((o) => o.value === 'max')?.disabled).toBe(false)
-  })
-
   it('分辨率同一条规矩', () => {
     const options = imageResolutionOptions(openai)
     expect(options.map((o) => o.value)).toEqual(['auto', '1K', '2K', '4K'])

@@ -261,7 +261,6 @@ export function useVoiceLibraryClips({
       const response = await fetchGalleryImages(1, VOICE_LIBRARY_TAB_LIMIT, {
         type: ['audio'],
         mine: true,
-        includeTotal: false,
         ...(upload ? { provider: USER_UPLOAD_PROVIDER } : {}),
       })
       if (!response.success || !response.data) {

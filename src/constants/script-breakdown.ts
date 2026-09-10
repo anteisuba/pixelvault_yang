@@ -42,7 +42,7 @@ export const DEFAULT_SCRIPT_PLANNER_PROVIDER = SCRIPT_PLANNER_PROVIDER_IDS.auto
 
 export const SCRIPT_PLANNER_MODELS = {
   gemini: {
-    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_7_FLASH,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
     adapterType: AI_ADAPTER_TYPES.GEMINI,
     label: 'Gemini 3.7 Flash',
   },

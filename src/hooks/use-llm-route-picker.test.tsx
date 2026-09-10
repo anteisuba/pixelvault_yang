@@ -169,7 +169,7 @@ describe('useLLMRoutePicker', () => {
       mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.GEMINI })])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
-      expect(result.current.savedRoutes[0].label).toBe('Gemini 3.7 Flash')
+      expect(result.current.savedRoutes[0].label).toBe('Gemini 3.8 Flash')
     })
 
     it('offers OpenAI, Gemini, DeepSeek, Claude, and Grok setup rows without Qwen', () => {

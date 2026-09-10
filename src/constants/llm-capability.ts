@@ -34,7 +34,7 @@ export const LLM_ENHANCE_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
-    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_7_FLASH,
+    modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
     label: 'Gemini 3.7 Flash',
   },
   {

@@ -155,10 +155,7 @@ describe('各家模型的关键语法', () => {
   })
 
   it('Fish 用方括号情绪 cue，且多说话人是 S2 独有', () => {
-    for (const modelId of [
-      AI_MODELS.FISH_AUDIO_S2_PRO,
-      AI_MODELS.FISH_AUDIO_S2_PRO_FREE,
-    ]) {
+    for (const modelId of [AI_MODELS.FISH_AUDIO_S2_PRO]) {
       const hint = hintOf(modelId)
       expect(hint).toContain('[')
       expect(hint).toContain('<|speaker:0|>')

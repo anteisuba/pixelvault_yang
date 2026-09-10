@@ -52,6 +52,8 @@ import {
 } from '@/lib/resolve-model-channel'
 import { cn } from '@/lib/utils'
 
+import { QuickSetupDialog } from '../setup/QuickSetupDialog'
+
 import { ModelChip } from './ModelChip'
 
 /**
@@ -193,6 +195,13 @@ export function ModelPickerPopover({
   const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
   const tSetup = useTranslations('QuickSetup')
+  const [quickSetup, setQuickSetup] = useState<{
+    open: boolean
+    modelId: string
+    modelLabel: string
+    adapterType: StudioModelOption['adapterType']
+    optionId: string
+  } | null>(null)
 
   const { healthMap } = useApiKeysContext()
   const memory = useModelPickerMemory(memoryScope)
@@ -328,11 +337,19 @@ export function ModelPickerPopover({
     if (!isRunnableModelOption(option)) {
       // 缺 key 的行**只带去配置**（Hard Rule 8 + owner 2026-09-10 真机反馈第五条）：
       // ⛔ 不选中、⛔ 不写 `set_model`、⛔ 不进「最近」——配好 key 回来这一行自己
-      // 就可选了。宿主给了 `onManageChannels`（画布四类卡）就开那个抽屉，
-      // 没给的（studio 三处）走 `onRequestSetup` 的 `QuickSetupDialog`。
+      // 就可选了。一律走 `QuickSetupDialog`（owner 2026-09-10：「配置模型的这个
+      // 项目有啊，可以直接拿来用」）：宿主给了 `onRequestSetup` 就交给它开，没给的
+      // 选择器自己开。`onManageChannels` 只属于底部「配置渠道与 key…」那一行。
       setOpen(false)
-      if (onManageChannels) onManageChannels()
-      else onRequestSetup?.(option)
+      if (onRequestSetup) onRequestSetup(option)
+      else
+        setQuickSetup({
+          open: true,
+          modelId: option.modelId,
+          modelLabel: getTranslatedModelLabel(tModels, option.modelId),
+          adapterType: option.adapterType,
+          optionId: option.optionId,
+        })
       return
     }
     memory.rememberRecent(modelKey)
@@ -534,29 +551,55 @@ export function ModelPickerPopover({
     </Command>
   )
 
-  if (inline) return <div className={className}>{body}</div>
+  const setupDialog = quickSetup ? (
+    <QuickSetupDialog
+      open={quickSetup.open}
+      onOpenChange={(next) =>
+        setQuickSetup((prev) => (prev ? { ...prev, open: next } : prev))
+      }
+      modelId={quickSetup.modelId}
+      modelLabel={quickSetup.modelLabel}
+      adapterType={quickSetup.adapterType}
+      optionId={quickSetup.optionId}
+    />
+  ) : null
+
+  if (inline)
+    return (
+      <>
+        <div className={className}>{body}</div>
+        {setupDialog}
+      </>
+    )
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <ModelChip
-          modelLabel={
-            selectedRow?.label ?? triggerEmptyLabel ?? tCommon('selectModel')
-          }
-          // 只有手改过渠道才附渠道名 —— 自动选中的渠道不写，chip 上是型号的地盘。
-          channelLabel={
-            selectedRow?.activeIsManual
-              ? selectedRow.active.channel.label
-              : null
-          }
-          active={open}
-          disabled={disabled}
-          className={className}
-        />
-      </PopoverTrigger>
-      <PopoverContent side={side} align={align} className="w-model-picker p-0">
-        {body}
-      </PopoverContent>
-    </Popover>
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <ModelChip
+            modelLabel={
+              selectedRow?.label ?? triggerEmptyLabel ?? tCommon('selectModel')
+            }
+            // 只有手改过渠道才附渠道名 —— 自动选中的渠道不写，chip 上是型号的地盘。
+            channelLabel={
+              selectedRow?.activeIsManual
+                ? selectedRow.active.channel.label
+                : null
+            }
+            active={open}
+            disabled={disabled}
+            className={className}
+          />
+        </PopoverTrigger>
+        <PopoverContent
+          side={side}
+          align={align}
+          className="w-model-picker p-0"
+        >
+          {body}
+        </PopoverContent>
+      </Popover>
+      {setupDialog}
+    </>
   )
 }

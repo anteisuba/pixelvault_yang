@@ -208,13 +208,13 @@ describe('ModelPickerPopover', () => {
    * owner 2026-09-10 真机反馈第五条：缺 key 的行点了应该弹配置，而不是挂上一个
    * 跑不了的模型。宿主给了 `onManageChannels`（画布四类卡）就开那个抽屉。
    */
-  it('routes a needs-key row to the inline channel setup and never selects it', () => {
+  it('routes a needs-key row to QuickSetupDialog and never selects it', () => {
     const onManageChannels = vi.fn()
     const { onChange, onRequestSetup } = openPicker({ onManageChannels })
     fireEvent.click(screen.getByText('GPT Image 2'))
-    expect(onManageChannels).toHaveBeenCalledTimes(1)
+    expect(onRequestSetup).toHaveBeenCalledTimes(1)
+    expect(onManageChannels).not.toHaveBeenCalled()
     expect(onChange).not.toHaveBeenCalled()
-    expect(onRequestSetup).not.toHaveBeenCalled()
     expect(window.localStorage.getItem('pv:model-picker:recent')).toBeNull()
   })
 
@@ -249,7 +249,7 @@ describe('ModelPickerPopover', () => {
         ?.getAttribute('data-channel-runnable'),
     ).toBe('true')
     fireEvent.click(locked as HTMLElement)
-    expect(onManageChannels).toHaveBeenCalledTimes(1)
+    expect(onManageChannels).not.toHaveBeenCalled()
     expect(onChange).not.toHaveBeenCalled()
     // ⛔ 缺 key 的渠道不进记忆。
     expect(window.localStorage.getItem('pv:model-picker:channel')).toBeNull()
@@ -265,6 +265,22 @@ describe('ModelPickerPopover', () => {
     expect(onToggleOption).toHaveBeenCalledTimes(1)
     expect(onChange).not.toHaveBeenCalled()
     expect(screen.getByText('Seedream 5.0 Lite')).toBeInTheDocument()
+  })
+
+  it('opens its own QuickSetupDialog for a needs-key row when the host gives no onRequestSetup', () => {
+    const onChange = vi.fn()
+    render(
+      <ModelPickerPopover
+        options={FIXTURE}
+        value={null}
+        memoryScope="image"
+        onChange={onChange}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(screen.getByText('GPT Image 2'))
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(onChange).not.toHaveBeenCalled()
   })
 
   it('renders the manage-channels footer only when the host handles it', () => {

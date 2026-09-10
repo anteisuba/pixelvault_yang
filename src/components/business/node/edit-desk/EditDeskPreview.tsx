@@ -86,6 +86,13 @@ const ASPECT_CSS: Readonly<Record<(typeof EDIT_ASPECTS)[number], string>> = {
   '1:1': '1 / 1',
 }
 
+/** 宽 / 高 数值 —— 给「占满预览区」那条 `min(100%, 100cqh × 比例)` 用。 */
+const ASPECT_RATIO: Readonly<Record<(typeof EDIT_ASPECTS)[number], number>> = {
+  '16:9': 16 / 9,
+  '9:16': 9 / 16,
+  '1:1': 1,
+}
+
 /** 播放头与画面差多少才值得 seek（见文件头的环路说明）。 */
 const PREVIEW_SEEK_EPSILON_SEC = 0.25
 
@@ -204,18 +211,19 @@ export function EditDeskPreview({
     <div
       data-testid="edit-desk-preview"
       className="flex min-h-0 flex-1 items-center justify-center"
+      // 外层量尺寸：里面那只盒子用 `cqh` 按**预览区高**推宽，占满两个方向里先到顶的那个。
+      style={{ containerType: 'size' }}
     >
       <div
         className="relative max-h-full max-w-full overflow-hidden rounded-xl bg-muted"
         // ⚠ `container-type: size` 是字幕那几行 `cqh` 的锚：字号必须跟着**画面高**
         // 走（与渲染层同一套比例），跟着视口走的话窗口一窄字就跳。
-        // ⚠ 盒子按**容器高**定尺寸（`height: 100%` + 比例推宽），再用 `max-w-full`
-        // 兜窄窗：按宽度撑 16:9 会在时间线加高后把预览顶穿顶栏（owner 2026-09-11
-        // 真机）。宽被夹住时盒子不再严格 16:9，画面靠 `object-contain` 自己留边。
+        // ⚠ 盒子**占满预览区**（owner 2026-09-11：「至少适配，不要浪费空间，最好占满」）：
+        // 宽 = min(区宽, 区高 × 比例)，高由比例推 —— 哪个方向先到顶就贴哪个方向，
+        // 永远不出区（此前按宽撑 16:9 会顶穿顶栏）。
         style={{
           aspectRatio: ASPECT_CSS[project.settings.aspect],
-          height: '100%',
-          width: 'auto',
+          width: `min(100%, calc(100cqh * ${ASPECT_RATIO[project.settings.aspect]}))`,
           containerType: 'size',
         }}
       >

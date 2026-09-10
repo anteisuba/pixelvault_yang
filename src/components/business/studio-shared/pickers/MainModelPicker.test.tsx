@@ -43,7 +43,11 @@ vi.mock('@/contexts/api-keys-context', () => ({
   })),
 }))
 
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { AI_MODELS } from '@/constants/models'
+import {
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+} from '@/constants/providers'
 import {
   MainModelPicker,
   routeToStudioOption,
@@ -103,6 +107,46 @@ describe('MainModelPicker dispatcher', () => {
     render(<MainModelPicker modality="image" value={null} onChange={vi.fn()} />)
     expect(useImageModelOptions).toHaveBeenCalledTimes(1)
     expect(useVideoModelOptions).not.toHaveBeenCalled()
+  })
+
+  it('renders the S1 popover chip for image and keeps the drill panel elsewhere', () => {
+    // studio/image 的入口换成方案 A 的弹层：触发器是 chip（模型名 + ▾），不是
+    // 三栏对话框的按钮。其余模态仍走 BaseModelPickerPanel —— 端点收窄 / 音频三组
+    // 还没搬（S2–S6）。
+    vi.mocked(useImageModelOptions).mockReturnValue({
+      modelOptions: [
+        {
+          optionId: 'key:fal-1',
+          modelId: AI_MODELS.SEEDREAM_50_PRO,
+          displayLabel: 'Seedream 5.0 Pro',
+          adapterType: AI_ADAPTER_TYPES.FAL,
+          providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+          requestCount: 1,
+          isBuiltIn: true,
+          sourceType: 'saved',
+          keyId: 'fal-1',
+        },
+      ],
+      selectedModel: undefined,
+    } as unknown as ReturnType<typeof useImageModelOptions>)
+
+    const { unmount } = render(
+      <MainModelPicker
+        modality="image"
+        layout="columns"
+        value="key:fal-1"
+        onChange={vi.fn()}
+      />,
+    )
+    const chip = screen.getByRole('button')
+    expect(chip).toHaveAttribute('aria-haspopup', 'dialog')
+    expect(chip.textContent).toContain('Seedream 5.0 Pro')
+    unmount()
+
+    vi.mocked(useImageModelOptions).mockReturnValue({
+      modelOptions: [],
+      selectedModel: undefined,
+    } as unknown as ReturnType<typeof useImageModelOptions>)
   })
 
   it('dispatches modality=video to useVideoModelOptions only', () => {

@@ -195,6 +195,7 @@
     "acceptAction": "同意する"
   },
   "ImageUpload": {
+    "uploading": "画像を追加中…",
     "compressing": "大きな画像を最適化しています…",
     "compressed": "圧縮しました {from} MB → {to} MB",
     "gifTooLarge": "GIF が大きすぎて自動圧縮できません。上限 {maxMb} MB、先に圧縮してください。",
@@ -1695,7 +1696,7 @@
     "modelLabel": "3Dモデル",
     "modelPlaceholder": "3Dモデルを選択",
     "advancedSettingsLabel": "詳細設定",
-    "sourceImageLabel": "ソース画像",
+    "sourceImageLabel": "参照画像",
     "sourceImagePlaceholder": "アーカイブから画像を選択",
     "removeSourceImageLabel": "ソース画像を削除",
     "selectFromAssets": "素材から選択",
@@ -1823,7 +1824,7 @@
     "stepTexture": "テクスチャ",
     "stepComplete": "完成",
     "stepperTotalElapsed": "総 {seconds}s",
-    "rodinTierLabel": "品質ティア",
+    "rodinTierLabel": "品質",
     "rodinTierHint": "ティアが高いほどポリゴン密度と細部の精度が向上しますが、生成時間も長くなります。",
     "rodinMeshModeLabel": "ポリゴン数 + トポロジー",
     "rodinMeshModeHint": "ポリゴン予算 × トポロジー。Triangle (Raw) はより密、Quad はリトポされアニメーション向け。",
@@ -1849,12 +1850,12 @@
     "rodinPromptLabel": "プロンプト",
     "rodinPromptPlaceholder": "任意：自然言語でモデルをガイド…",
     "rodinGeometryFileFormatLabel": "エクスポート形式",
-    "rodinAdvancedSectionLabel": "高度な設定",
+    "rodinAdvancedSectionLabel": "詳細設定",
     "rodinQualityOverrideLabel": "ポリゴン数指定",
     "rodinQualityOverrideHint": "特定のポリゴン目標値を設定。空白の場合はティアのデフォルト値を使用。",
     "rodinAdditionalImagesLabel": "追加参照画像",
     "rodinAdditionalImagesHint": "最大4枚の追加ビュー（ソース画像と合わせて最大5枚）。多くのビューを使用すると幾何学的な曖昧さが減少します。",
-    "rodinModeLabel": "モード",
+    "rodinModeLabel": "入力モード",
     "rodinModeImageLabel": "画像から 3D",
     "rodinModeTextLabel": "テキストから 3D",
     "rodinModeMeshFirstLabel": "メッシュプレビュー",
@@ -1874,8 +1875,26 @@
     "rodinApiKeyMissingDescription": "Rodin Gen-2.5にはBusinessサブスクリプション付きのHyper3D APIキーが必要です。設定でキーを追加してください。",
     "rodinEstimatedCost": "推定 {credits} cr",
     "rodinEstimatedTime": "約{minutes}分",
-    "changeModelButton": "変更",
-    "setupApiKeyButton": "API キーを設定"
+    "changeModelButton": "モデルを選択",
+    "setupApiKeyButton": "API キーを設定",
+    "settingsTitle": "モデル設定",
+    "estimatedCost": "推定費用",
+    "estimatedMinutes": "約{minutes}分",
+    "enterPromptToGenerate": "プロンプトを入力してください",
+    "selectImageToGenerate": "画像を選択してください",
+    "previewEmptyTitle": "形づくりを始めましょう",
+    "previewEmptyDescription": "参照画像を選ぶか、モデルを説明してください。ここで結果を確認し、調整できます。",
+    "generationFailedTitle": "生成が完了しませんでした",
+    "draftPreserved": "入力と設定は保持されています。",
+    "retryGeneration": "生成を再試行",
+    "rodinTextPromptPlaceholder": "形状、比率、素材を説明してください…",
+    "modelPreview": "モデルプレビュー",
+    "shapeIllustration": "形状イメージ",
+    "chooseInputShape": "入力を選んで形状を決めましょう",
+    "previewViews": "プレビューの視点",
+    "previewFront": "正面",
+    "previewSide": "側面",
+    "previewReset": "リセット"
   },
   "MultiViewGenerate": {
     "success": "側面ビューの準備ができました。",
@@ -2930,7 +2949,20 @@
     "placeholderPreviewLabel": "プレビュー",
     "placeholderCancel": "キャンセル",
     "placeholderApply": "Studio に適用",
-    "placeholderApplyAsIs": "プレースホルダのまま適用"
+    "placeholderApplyAsIs": "プレースホルダのまま適用",
+    "searchTemplates": "タイトルやプロンプトを検索",
+    "clearFilters": "絞り込みを解除",
+    "useAction": "使用",
+    "manualCopyTitle": "プロンプトを手動でコピー",
+    "manualCopyDescription": "クリップボードにアクセスできません。下のテキストを選択してコピーしてください。",
+    "closeAction": "閉じる",
+    "createNameRequired": "テンプレート名を入力してください。",
+    "detailLoadFailed": "テンプレートを読み込めませんでした。変更は送信されていません。",
+    "retryAction": "再試行",
+    "useConfirmTitle": "Studioで使用",
+    "useConfirmDescription": "Studioの現在のプロンプトをこのテンプレートで置き換えます。モデルと参照画像は変更しません。",
+    "useConfirmAction": "このプロンプトを使用",
+    "useFailed": "プロンプトを転送できませんでした。手動でコピーできます。"
   },
   "Collections": {
     "title": "コレクション",
@@ -3396,6 +3428,8 @@
     "makePrivate": "非公開にする"
   },
   "AdvancedSettings": {
+    "preview": "生成中のプレビュー",
+    "previewHint": "途中の画像を最大2枚表示します。出力1枚あたり最大 $0.006 が追加されます。",
     "title": "詳細設定",
     "description": "生成パラメータの微調整",
     "negativePrompt": "ネガティブプロンプト",
@@ -3410,13 +3444,15 @@
     "seed": "シード",
     "seedHint": "再現性のある結果を得るためにランダムシードを固定します。空欄にすると毎回ランダムになります。",
     "seedRandom": "ランダム",
-    "quality": "品質",
+    "quality": "生成品質",
     "qualityHint": "出力品質レベル。高品質ほど詳細な画像が得られますが、生成に時間がかかる場合があります。",
     "qualityOption": {
       "auto": "自動",
       "low": "低",
       "medium": "中",
-      "high": "高"
+      "high": "高",
+      "xhigh": "超高",
+      "max": "最高"
     },
     "background": "背景",
     "backgroundHint": "生成画像の背景を透明にするか不透明にするかを選択します。",
@@ -3611,6 +3647,7 @@
     "assistantStageForReview": "組み合わせの確認に追加",
     "assistantStageHint": "すぐ生成せず、組み合わせバーで変更を確認してから適用することをおすすめします。",
     "referenceOnlyPrompt": "添付した参考素材を分析し、アイデアを発展させてください。",
+    "audioUnsupported": "このモデルは音声を分析できません。Gemini を選択するか、音声の添付を削除してください。",
     "videoUnsupported": "このモデルは動画を分析できません。Geminiを選ぶか、動画の参考素材を削除してください。",
     "imageUnsupported": "このモデルは画像を分析できません。「画像ビジョン」と表示されたモデルを選ぶか、画像の参考素材を削除してください。",
     "routeAuto": "自動ルート",
@@ -3692,6 +3729,14 @@
     "geminiFlashImage": {
       "label": "Gemini 3.1 Flash Image",
       "description": "Googleの最新世代モデルによる高速な画像探索。"
+    },
+    "openaiGptImage25Flare": {
+      "label": "OpenAI GPT Image 2.5 Flare",
+      "description": "日常の画像制作に適した高速・高品質な画像生成と参照画像を使った編集。"
+    },
+    "openaiGptImage25Sunburst": {
+      "label": "OpenAI GPT Image 2.5 Sunburst",
+      "description": "細部にこだわる制作向けの高精度な画像生成・編集。生成にはより時間がかかります。"
     },
     "openaiGptImage2": {
       "label": "OpenAI GPT Image 2",
@@ -4799,7 +4844,8 @@
         "modeLabel": "動画生成モード",
         "mode": {
           "keyframe": "キーフレーム",
-          "multimodal": "フル参照"
+          "multimodal": "フル参照",
+          "image-reference": "複数画像参照"
         },
         "addReference": "参照素材を追加",
         "promptPlaceholder": "生成したいショット、動き、音を説明…"
@@ -5725,6 +5771,17 @@
       "ingest": {
         "chooseSlot": "どのスロットに？",
         "chooseSlotCancel": "キャンセル"
+      },
+      "chrome": {
+        "add": "追加",
+        "send": "送信",
+        "cancel": "キャンセル",
+        "close": "閉じる",
+        "download": "ダウンロード",
+        "charCount": "{count} 文字",
+        "versions": "バージョン",
+        "versionOf": "{total} 件中 {index} 件目",
+        "emptyHint": "アップロード · 貼り付け · またはプロンプトを入力"
       }
     },
     "rerunDownstream": {
@@ -5759,6 +5816,7 @@
     "actionMore": "その他"
   },
   "StudioV2": {
+    "costImageOutputOnly": "選択したサイズと品質の出力料金目安です。テキスト・参照画像の入力は別料金。自動品質とプレビューは実際の使用量で課金されます。",
     "none": "未選択",
     "noCards": "カードがまだありません。作成して始めましょう。",
     "noCharacterCards": "キャラクターカードがまだありません。作成するとここで選択できます。",
@@ -5807,6 +5865,7 @@
     "costApproxFrom": "約 {amount}〜",
     "costUnpriced": "{count, plural, other {# 件のモデルは価格未掲載}}",
     "costRange": "他にティア変動あり：約 {min} – {max}",
+    "costRangeBasis": "範囲は1024×1024の出力のみの目安です。テキスト・参照画像の入力は別料金。他のサイズと自動畫質は実使用量によります。",
     "batchCountSummary": "{count, plural, other {モデルごと # 枚}}",
     "generateCount": "{count, plural, other {# 枚生成}}",
     "batchCountLabel": "生成枚数",
@@ -5979,6 +6038,8 @@
     "toolSaveRecipe": "レシピとして保存",
     "toolInpaint": "部分修復",
     "inpaintEditor": {
+      "toolWhole": "画像全体を編集",
+      "wholeHint": "範囲を選択せず変更内容を入力します。結果を続けて編集でき、履歴から前の画像に戻せます。",
       "title": "部分修復",
       "canvasLabel": "再生成したい範囲を塗る",
       "brushSize": "ブラシサイズ",
@@ -6004,6 +6065,8 @@
     "takeLabel": "{index} 枚目"
   },
   "StudioImageEdit": {
+    "settingsLabel": "編集設定",
+    "modelLabel": "編集モデル",
     "eyebrow": "Studioツール",
     "title": "画像編集",
     "subtitle": "生成画像または外部ソースから編集し、結果をギャラリーへ保存できます。",
@@ -6262,6 +6325,7 @@
       "timeout": "この画像の取得がタイムアウトしました。時間をおいて再試行するか、より小さいものを選んでください。"
     },
     "assistant": {
+      "audioUnsupported": "このモデルは音声を分析できません。Gemini を選択するか、音声の添付を削除してください。",
       "videoUnsupported": "このモデルは動画を分析できません。Geminiを選ぶか、動画の参考素材を削除してください。",
       "imageUnsupported": "このモデルは画像を分析できません。「画像ビジョン」と表示されたモデルを選ぶか、画像の参考素材を削除してください。",
       "contentBlocked": "プロバイダーが安全ポリシーによりこのリクエストをブロックしました。表現を変えるか、アシスタントのルートを切り替えてください。",
@@ -6787,6 +6851,25 @@
     "deleteRoomHint": "「{name}」とすべてのセリフが削除されます。生成済みの音声は素材ライブラリに残ります。"
   },
   "StudioOperator": {
+    "referenceAnalysis": {
+      "title": "参照画像の役割",
+      "identity": "キャラクター",
+      "pose": "ポーズ",
+      "style": "画風",
+      "content": "背景と内容",
+      "keep": "維持",
+      "exclude": "除外",
+      "details": "視覚的な根拠を見る",
+      "uncertain": "要確認",
+      "requirements": "今回の要件",
+      "rendering": "レンダリング方式と立体感",
+      "proportions": "プロポーション",
+      "contours": "輪郭",
+      "shading": "陰影",
+      "materials": "質感",
+      "palette": "配色",
+      "lighting": "照明"
+    },
     "title": "アシスタント",
     "domainName": {
       "image": "画像ワークベンチ",
@@ -6800,9 +6883,25 @@
       "empty": "ほかの会話はまだありません",
       "loading": "読み込み中…",
       "untitled": "無題の会話",
-      "readonlyNote": "ここまでは履歴 · 読み取り専用",
-      "readonlyNoteAt": "{date} の記録 · 読み取り専用",
-      "earlierRounds": "それ以前の {count} 件"
+      "readonlyNote": "過去の会話",
+      "readonlyNoteAt": "{date} の会話",
+      "earlierRounds": "それ以前の {count} 件",
+      "deleteLabel": "会話を削除：{title}",
+      "deleteTitle": "この会話を削除しますか？",
+      "deleteDescription": "「{title}」とメッセージを完全に削除します。生成済み素材は削除されません。",
+      "deleteCancel": "キャンセル",
+      "deleteConfirm": "会話を削除",
+      "deleting": "削除中…",
+      "deleteFailed": "削除できませんでした。もう一度お試しください。",
+      "deleteBusy": "現在の応答が完了してから、この会話を削除してください。",
+      "loadFailed": "会話一覧を読み込めませんでした。一覧を開き直してください。",
+      "renameLabel": "{title} の名前を変更",
+      "renameTitle": "会話の名前を変更",
+      "renameDescription": "この会話を見つけやすい名前を入力してください。",
+      "renameConfirm": "保存",
+      "renaming": "保存中…",
+      "renameFailed": "名前を変更できませんでした。再試行してください。",
+      "switching": "会話を読み込み中…"
     },
     "more": "その他",
     "share": "この会話を共有",
@@ -6860,12 +6959,22 @@
       "reverted": {
         "params": "取り消し済み · パラメータのみ",
         "thread": "取り消し済み · 会話ごと"
-      }
+      },
+      "restoreStep": "このステップに復元",
+      "restoreDescription": "このステップ完了時のプロンプト、参照画像の順序、モデル、設定を復元します。生成は開始しません。",
+      "unavailable": "このステップには完全な設定が保存されていません",
+      "restoreFailed": "復元できません。作業台が異なるか、元のモデルが利用できません。",
+      "restored": "このステップの設定を復元しました"
     },
     "log": {
       "undo": "取り消す"
     },
     "reject": {
+      "referenceAnalysisRequired": "現在の参照画像を先に分析してください",
+      "referenceImageUnavailable": "参照画像を読み込めません。該当する画像を再アップロードするか差し替えてください。",
+      "referenceAnalysisFailed": "参照画像の分析が不完全なため、結果は採用されていません。",
+      "referenceBriefFailed": "画像の分析は完了しましたが、参照用途の検証に失敗しました。プロンプトは変更していません。",
+      "promptConflict": "プロンプトが参照画像の役割や要件と矛盾しています",
       "noSuchControl": "このワークベンチにその項目はありません",
       "unknownModel": "そのモデルは選べる一覧にありません",
       "unknownValue": "その値は選択肢にありません",
@@ -6893,12 +7002,7 @@
       "urlUnreadable": "そのページを読み込めませんでした",
       "aspectLockedByFirstFrame": "最初のフレームがあるため、このモデルはアスペクト比「自動（adaptive）」しか受け付けません",
       "videoFramesMissing": "この動画からフレームを取り出せませんでした",
-      "blockedSource": "不採用にした素材なので、開始フレームにも終了フレームにも使えません",
-      "referenceAnalysisRequired": "現在の参照画像を先に分析してください",
-      "referenceImageUnavailable": "参照画像を読み込めません。該当する画像を再アップロードするか差し替えてください。",
-      "referenceAnalysisFailed": "参照画像の分析が不完全なため、結果は採用されていません。",
-      "referenceBriefFailed": "画像の分析は完了しましたが、参照用途の検証に失敗しました。プロンプトは変更していません。",
-      "promptConflict": "プロンプトが参照画像の役割や要件と矛盾しています"
+      "blockedSource": "不採用にした素材なので、開始フレームにも終了フレームにも使えません"
     },
     "cost": {
       "title": "アシスタントの作業量",
@@ -6933,7 +7037,10 @@
         "append": "後ろに追記",
         "overwrite": "上書き",
         "keep": "そのまま"
-      }
+      },
+      "title": "提案されたプロンプトをどう適用しますか？",
+      "current": "現在のプロンプト",
+      "proposed": "提案されたプロンプト"
     },
     "system": {
       "undoStep": "取り消しました：{subject}（アシスタントは把握済み、やり直しません）",
@@ -6948,7 +7055,8 @@
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
       "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）",
       "autoApproved": "設定に従いそのまま送信 · {count} クレジット",
-      "videoFramesFailed": "このクリップからフレームを取り出せませんでした —— 今回アシスタントは見られません（{subject}）"
+      "videoFramesFailed": "このクリップからフレームを取り出せませんでした —— 今回アシスタントは見られません（{subject}）",
+      "checkpointRestored": "選択したステップの設定を復元しました。以後は現在のフォームに従って操作してください。"
     },
     "suggestion": {
       "setupShot": "この一枚を組み立てて",
@@ -7014,6 +7122,7 @@
       "revertRound": "このラウンドを元に戻す（{count} 件）",
       "nextRound": "次のラウンドに先入力：",
       "applyAdvice": "この助言をプロンプトに反映",
+      "adviceApplied": "プロンプトに適用済み",
       "frame": {
         "start": "0s",
         "mid": "中間",
@@ -7079,7 +7188,7 @@
       "reset": "初期値に戻す",
       "saveFailed": "保存できませんでした。もう一度お試しください。",
       "nameLabel": "名前",
-      "namePlaceholder": "空欄ならワークベンチ名を使います",
+      "namePlaceholder": "空欄の場合は ANTI を使います",
       "avatarLabel": "アイコン",
       "avatarPreset": {
         "mark": "ブランドマーク",
@@ -7213,7 +7322,7 @@
       "rowSystem": "システム",
       "rowTool": "ツールステップ",
       "rowAction": "確認待ち",
-      "assistantFallback": "アシスタント",
+      "assistantFallback": "ANTI",
       "avatarUser": "あなたのアバター",
       "avatarAssistant": "{name}のアバター"
     },
@@ -7279,24 +7388,6 @@
       "continue": "ステップ {step} から続行",
       "failed": "失敗：{reason}",
       "band": "未完了の計画 · ステップ {step} から続行"
-    },
-    "referenceAnalysis": {
-      "title": "参照画像の役割",
-      "identity": "キャラクター",
-      "pose": "ポーズ",
-      "style": "画風",
-      "content": "背景と内容",
-      "keep": "維持",
-      "exclude": "除外",
-      "details": "視覚的な根拠を見る",
-      "uncertain": "要確認",
-      "requirements": "今回の要件",
-      "proportions": "プロポーション",
-      "contours": "輪郭",
-      "shading": "陰影",
-      "materials": "質感",
-      "palette": "配色",
-      "lighting": "照明"
     }
   },
   "GenerationCancel": {
@@ -7355,5 +7446,18 @@
     "errorNameRequired": "カード名を入力してください。",
     "errorSaveFailed": "カードを保存できませんでした。もう一度お試しください。",
     "errorUploadFailed": "画像を追加できませんでした。もう一度お試しください。"
+  },
+  "ModelPicker": {
+    "recent": "最近",
+    "searchPlaceholder": "モデルを検索…",
+    "channelCount": "{count} チャネル",
+    "autoRule": "自動ルール：自分のキー ＞ プラットフォーム無料枠 ＞ 最安。手動で変えると記憶します",
+    "needsKeyFor": "{provider} の API key が必要",
+    "manageChannels": "チャネルと key を設定…",
+    "capability": {
+      "reference": "参照画像",
+      "multiReference": "複数参照画像",
+      "lora": "LoRA"
+    }
   }
 }

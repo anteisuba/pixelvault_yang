@@ -949,7 +949,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             ))}
             <MainModelPicker
               modality="image"
-              layout="columns"
+              // ⚠ 没有 layout：图片模态走方案 A 的弹层（贴 chip、340 宽），
+              // 三栏对话框只剩视频 / 音频还在用。
               // ⚠ 恒为 null：这里是纯粹的「添加」入口，不是「当前选中什么」的
               // 显示位。传选中值会让触发器和名单第一行写着同一个名字（真机
               // 抓到：名单 `FLUX LoRA` + 触发器 `FLUX LoRA ⌄`，同一条信息两遍）。

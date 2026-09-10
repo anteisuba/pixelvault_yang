@@ -195,6 +195,7 @@
     "acceptAction": "接受"
   },
   "ImageUpload": {
+    "uploading": "正在添加图片…",
     "compressing": "正在优化大图…",
     "compressed": "已压缩 {from} MB → {to} MB",
     "gifTooLarge": "GIF 太大，无法自动压缩。上限 {maxMb} MB，请先自行压缩。",
@@ -1695,7 +1696,7 @@
     "modelLabel": "3D 模型",
     "modelPlaceholder": "选择 3D 模型",
     "advancedSettingsLabel": "高级设置",
-    "sourceImageLabel": "源图",
+    "sourceImageLabel": "参考图片",
     "sourceImagePlaceholder": "从档案选一张图",
     "removeSourceImageLabel": "移除源图",
     "selectFromAssets": "从素材选择",
@@ -1823,7 +1824,7 @@
     "stepTexture": "上色",
     "stepComplete": "完成",
     "stepperTotalElapsed": "总耗时 {seconds}s",
-    "rodinTierLabel": "质量档位",
+    "rodinTierLabel": "质量",
     "rodinTierHint": "档位越高，多边形密度和细节精度越高，但生成时间也越长。",
     "rodinMeshModeLabel": "面数 + 拓扑",
     "rodinMeshModeHint": "多边形预算 × 拓扑结构。Triangle (Raw) 密度更高；Quad 重拓扑后适合动画。",
@@ -1849,12 +1850,12 @@
     "rodinPromptLabel": "提示词",
     "rodinPromptPlaceholder": "可选：用自然语言引导模型……",
     "rodinGeometryFileFormatLabel": "导出格式",
-    "rodinAdvancedSectionLabel": "高级",
+    "rodinAdvancedSectionLabel": "高级设置",
     "rodinQualityOverrideLabel": "多边形数量覆盖",
     "rodinQualityOverrideHint": "设置具体的多边形目标数。留空则使用档位默认值。",
     "rodinAdditionalImagesLabel": "额外参考图",
     "rodinAdditionalImagesHint": "最多 4 张额外视角图（加上主图合计最多 5 张）。更多视角可减少几何歧义。",
-    "rodinModeLabel": "模式",
+    "rodinModeLabel": "输入模式",
     "rodinModeImageLabel": "图生 3D",
     "rodinModeTextLabel": "文生 3D",
     "rodinModeMeshFirstLabel": "Mesh 预览",
@@ -1874,8 +1875,26 @@
     "rodinApiKeyMissingDescription": "Rodin Gen-2.5 需要持有 Business 订阅的 Hyper3D API Key。请在设置中添加。",
     "rodinEstimatedCost": "预计 {credits} 积分",
     "rodinEstimatedTime": "约 {minutes} 分钟",
-    "changeModelButton": "切换",
-    "setupApiKeyButton": "配置 API Key"
+    "changeModelButton": "选择模型",
+    "setupApiKeyButton": "配置 API Key",
+    "settingsTitle": "模型设置",
+    "estimatedCost": "预计费用",
+    "estimatedMinutes": "约 {minutes} 分钟",
+    "enterPromptToGenerate": "请输入提示词后再生成",
+    "selectImageToGenerate": "请选择参考图后再生成",
+    "previewEmptyTitle": "从一个形体开始",
+    "previewEmptyDescription": "选择参考图片，或描述想要的模型。在这里预览并继续调整结果。",
+    "generationFailedTitle": "这次生成未完成",
+    "draftPreserved": "输入与参数已保留。",
+    "retryGeneration": "重新生成",
+    "rodinTextPromptPlaceholder": "描述主体的形体、比例与材质……",
+    "modelPreview": "模型预览",
+    "shapeIllustration": "形体示意",
+    "chooseInputShape": "选择输入，确定主体形体",
+    "previewViews": "预览视角",
+    "previewFront": "正面",
+    "previewSide": "侧面",
+    "previewReset": "复位"
   },
   "MultiViewGenerate": {
     "success": "侧视图已准备好。",
@@ -2930,7 +2949,20 @@
     "placeholderPreviewLabel": "预览",
     "placeholderCancel": "取消",
     "placeholderApply": "应用到 Studio",
-    "placeholderApplyAsIs": "保留占位符并应用"
+    "placeholderApplyAsIs": "保留占位符并应用",
+    "searchTemplates": "搜索标题或提示词正文",
+    "clearFilters": "清空筛选",
+    "useAction": "使用",
+    "manualCopyTitle": "手动复制提示词",
+    "manualCopyDescription": "浏览器未允许访问剪贴板，请选择下方正文并复制。",
+    "closeAction": "关闭",
+    "createNameRequired": "请填写模板名称。",
+    "detailLoadFailed": "无法加载模板，尚未提交任何修改。",
+    "retryAction": "重试",
+    "useConfirmTitle": "带入 Studio",
+    "useConfirmDescription": "将 Studio 的当前提示词替换为此模板；模型和参考图保持不变。",
+    "useConfirmAction": "确认带入",
+    "useFailed": "无法带入提示词，可手动复制正文。"
   },
   "Collections": {
     "title": "合集",
@@ -3396,6 +3428,8 @@
     "makePrivate": "设为私有"
   },
   "AdvancedSettings": {
+    "preview": "生成中预览",
+    "previewHint": "显示最多两张中间图，每张输出最多额外 $0.006。",
     "title": "高级设置",
     "description": "微调生成参数",
     "negativePrompt": "反向提示词",
@@ -3410,13 +3444,15 @@
     "seed": "种子",
     "seedHint": "固定随机种子可获得可重复的结果。留空则每次随机生成。",
     "seedRandom": "随机",
-    "quality": "质量",
+    "quality": "生成画质",
     "qualityHint": "输出质量等级。质量越高，图像越精细，但生成时间可能更长。",
     "qualityOption": {
       "auto": "自动",
       "low": "低",
       "medium": "中",
-      "high": "高"
+      "high": "高",
+      "xhigh": "超高",
+      "max": "最高"
     },
     "background": "背景",
     "backgroundHint": "选择生成图像的背景为透明或不透明。",
@@ -3611,6 +3647,7 @@
     "assistantStageForReview": "加入搭配提醒",
     "assistantStageHint": "建议不直接出图，应用前可在搭配提醒里审阅。",
     "referenceOnlyPrompt": "分析已添加的参考素材，并帮我继续完善这个想法。",
+    "audioUnsupported": "当前模型无法分析音频。请选择 Gemini，或移除音频附件。",
     "videoUnsupported": "当前模型无法分析视频。请选择 Gemini，或移除视频参考。",
     "imageUnsupported": "当前模型无法分析图片。请选择标注为“图片视觉”的模型，或移除图片参考。",
     "routeAuto": "自动路由",
@@ -3692,6 +3729,14 @@
     "geminiFlashImage": {
       "label": "Gemini 3.1 Flash Image",
       "description": "由 Google 最新一代模型驱动的快速图像探索。"
+    },
+    "openaiGptImage25Flare": {
+      "label": "OpenAI GPT Image 2.5 Flare",
+      "description": "快速、高质量的日常图像生成与参考图编辑。"
+    },
+    "openaiGptImage25Sunburst": {
+      "label": "OpenAI GPT Image 2.5 Sunburst",
+      "description": "面向精细创作的高精度图像生成与编辑，生成耗时较长。"
     },
     "openaiGptImage2": {
       "label": "OpenAI GPT Image 2",
@@ -4799,7 +4844,8 @@
         "modeLabel": "视频生成模式",
         "mode": {
           "keyframe": "关键帧",
-          "multimodal": "全能参考"
+          "multimodal": "全能参考",
+          "image-reference": "多图参考"
         },
         "addReference": "添加参考素材",
         "promptPlaceholder": "描述你想生成的镜头、动作与声音…"
@@ -5725,6 +5771,17 @@
       "ingest": {
         "chooseSlot": "落到哪个口？",
         "chooseSlotCancel": "取消"
+      },
+      "chrome": {
+        "add": "添加",
+        "send": "发送",
+        "cancel": "取消",
+        "close": "关闭",
+        "download": "下载",
+        "charCount": "{count} 字",
+        "versions": "版本",
+        "versionOf": "第 {index} 版，共 {total} 版",
+        "emptyHint": "上传 · 粘贴 · 或写提示词"
       }
     },
     "rerunDownstream": {
@@ -5759,6 +5816,7 @@
     "actionMore": "更多"
   },
   "StudioV2": {
+    "costImageOutputOnly": "按当前尺寸与画质估算输出费用；提示词和参考图输入另计，自动画质及预览按实际用量结算。",
     "none": "不选择",
     "noCards": "还没有卡片，创建一张开始吧。",
     "noCharacterCards": "还没有角色卡。创建一张后可在这里选择。",
@@ -5815,6 +5873,7 @@
     "costApproxFrom": "约 {amount} 起",
     "costUnpriced": "{count, plural, other {# 个模型未标价}}",
     "costRange": "另按档位浮动：约 {min} – {max}",
+    "costRangeBasis": "区间按 1024×1024 输出估算；文字与参考图输入另计，其他尺寸及自动画质以实际用量为准。",
     "batchCountSummary": "{count, plural, other {每模型 # 张}}",
     "generateCount": "{count, plural, other {生成 # 张}}",
     "batchCountLabel": "生成数量",
@@ -5979,6 +6038,8 @@
     "toolSaveRecipe": "存为配方",
     "toolInpaint": "局部重绘",
     "inpaintEditor": {
+      "toolWhole": "整图修改",
+      "wholeHint": "无需圈选，描述想改什么。完成后可基于新结果继续修改，并从编辑历史回退。",
       "title": "局部重绘",
       "canvasLabel": "涂抹需要重绘的区域",
       "brushSize": "画笔大小",
@@ -6004,6 +6065,8 @@
     "takeLabel": "第 {index} 张"
   },
   "StudioImageEdit": {
+    "settingsLabel": "编辑设置",
+    "modelLabel": "使用模型",
     "eyebrow": "Studio 工具",
     "title": "图片编辑",
     "subtitle": "从生成图片或远程素材开始编辑，并把结果保存回你的画廊。",
@@ -6262,6 +6325,7 @@
       "timeout": "取这张图超时了。稍后重试或换一张更小的。"
     },
     "assistant": {
+      "audioUnsupported": "当前模型无法分析音频。请选择 Gemini，或移除音频附件。",
       "videoUnsupported": "当前模型无法分析视频。请选择 Gemini，或移除视频参考。",
       "imageUnsupported": "当前模型无法分析图片。请选择标注为“图片视觉”的模型，或移除图片参考。",
       "contentBlocked": "模型的安全策略拦下了这次请求。换个说法，或切换助手路由。",
@@ -6787,6 +6851,25 @@
     "deleteRoomHint": "「{name}」和它的全部台词都会删掉。已经生成的声音不受影响，仍然在素材库里。"
   },
   "StudioOperator": {
+    "referenceAnalysis": {
+      "title": "参考图分工",
+      "identity": "角色身份",
+      "pose": "动作",
+      "style": "画风",
+      "content": "场景与内容",
+      "keep": "保留",
+      "exclude": "排除",
+      "details": "查看视觉依据",
+      "uncertain": "待确认",
+      "requirements": "本次要求",
+      "rendering": "渲染方式与立体特征",
+      "proportions": "比例",
+      "contours": "轮廓",
+      "shading": "明暗",
+      "materials": "材质",
+      "palette": "色彩",
+      "lighting": "光照"
+    },
     "title": "助手",
     "domainName": {
       "image": "图片工作台",
@@ -6800,9 +6883,25 @@
       "empty": "还没有别的会话",
       "loading": "读取中…",
       "untitled": "未命名会话",
-      "readonlyNote": "以上是历史记录 · 只读",
-      "readonlyNoteAt": "{date} 的记录 · 只读",
-      "earlierRounds": "更早的 {count} 条"
+      "readonlyNote": "以上是历史记录",
+      "readonlyNoteAt": "{date} 的记录",
+      "earlierRounds": "更早的 {count} 条",
+      "deleteLabel": "删除对话：{title}",
+      "deleteTitle": "删除这段对话？",
+      "deleteDescription": "将永久删除「{title}」及其对话记录，已生成的素材不会删除。",
+      "deleteCancel": "取消",
+      "deleteConfirm": "删除对话",
+      "deleting": "删除中…",
+      "deleteFailed": "删除失败，请重试。",
+      "deleteBusy": "请等待当前回复结束后再删除这段对话。",
+      "loadFailed": "对话列表加载失败，请重新打开列表重试。",
+      "renameLabel": "重命名 {title}",
+      "renameTitle": "修改对话名称",
+      "renameDescription": "为这段对话输入一个方便辨认的名称。",
+      "renameConfirm": "保存",
+      "renaming": "保存中…",
+      "renameFailed": "修改失败，请重试。",
+      "switching": "正在加载对话…"
     },
     "more": "更多",
     "share": "分享这段会话",
@@ -6860,12 +6959,22 @@
       "reverted": {
         "params": "已撤销 · 只回参数",
         "thread": "已撤销 · 连对话一起回"
-      }
+      },
+      "restoreStep": "恢复到这一步",
+      "restoreDescription": "恢复此步骤完成时的提示词、参考图顺序、模型和规格；不会生成图片。",
+      "unavailable": "此步骤未保存完整配置，无法恢复",
+      "restoreFailed": "无法恢复：当前工作台不匹配或原模型已不可用。",
+      "restored": "已恢复该步骤的配置"
     },
     "log": {
       "undo": "撤销"
     },
     "reject": {
+      "referenceAnalysisRequired": "需要先分析当前参考图",
+      "referenceImageUnavailable": "参考图无法读取，请重新上传或替换失效图片",
+      "referenceAnalysisFailed": "参考图分析不完整，尚未采用分析结果",
+      "referenceBriefFailed": "图片已分析，但参考用途分配未通过校验；提示词未修改",
+      "promptConflict": "提示词与参考图分工或创作要求存在冲突",
       "noSuchControl": "这个工作台上没有这个控件",
       "unknownModel": "这个模型不在你能选的名单里",
       "unknownValue": "这个值不在可选档位里",
@@ -6893,12 +7002,7 @@
       "urlUnreadable": "这一页没能读出来",
       "aspectLockedByFirstFrame": "挂了首帧，这个模型的宽高比就只剩自适应",
       "videoFramesMissing": "这段片子没能取出可看的帧",
-      "blockedSource": "这张被你判过失败，不能再作首帧或尾帧",
-      "referenceAnalysisRequired": "需要先分析当前参考图",
-      "referenceImageUnavailable": "参考图无法读取，请重新上传或替换失效图片",
-      "referenceAnalysisFailed": "参考图分析不完整，尚未采用分析结果",
-      "referenceBriefFailed": "图片已分析，但参考用途分配未通过校验；提示词未修改",
-      "promptConflict": "提示词与参考图分工或创作要求存在冲突"
+      "blockedSource": "这张被你判过失败，不能再作首帧或尾帧"
     },
     "cost": {
       "title": "助手这一轮的开销",
@@ -6933,7 +7037,10 @@
         "append": "追加在后",
         "overwrite": "覆盖",
         "keep": "保留"
-      }
+      },
+      "title": "如何应用助手的提示词？",
+      "current": "当前提示词",
+      "proposed": "助手建议的提示词"
     },
     "system": {
       "undoStep": "你撤销了：{subject}（助手已知晓，下一轮不再重做）",
@@ -6948,7 +7055,8 @@
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
       "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
       "autoApproved": "按你的设置直接生成 · {count} credits",
-      "videoFramesFailed": "这段片子没能抽出帧 —— 助手这一轮看不了它（{subject}）"
+      "videoFramesFailed": "这段片子没能抽出帧 —— 助手这一轮看不了它（{subject}）",
+      "checkpointRestored": "已恢复到所选步骤的配置，后续操作以当前表单为准。"
     },
     "suggestion": {
       "setupShot": "帮我配好这张图",
@@ -7014,6 +7122,7 @@
       "revertRound": "还原这轮（{count} 处）",
       "nextRound": "已预填下一轮：",
       "applyAdvice": "按这条建议改提示词",
+      "adviceApplied": "已应用到提示词",
       "frame": {
         "start": "0s",
         "mid": "中",
@@ -7079,7 +7188,7 @@
       "reset": "恢复默认",
       "saveFailed": "没保存上，再试一次。",
       "nameLabel": "名字",
-      "namePlaceholder": "留空就用工作台的名字",
+      "namePlaceholder": "留空时使用 ANTI",
       "avatarLabel": "头像",
       "avatarPreset": {
         "mark": "品牌标",
@@ -7213,7 +7322,7 @@
       "rowSystem": "系统",
       "rowTool": "工具步",
       "rowAction": "待你定",
-      "assistantFallback": "助手",
+      "assistantFallback": "ANTI",
       "avatarUser": "你的头像",
       "avatarAssistant": "{name}的头像"
     },
@@ -7279,24 +7388,6 @@
       "continue": "从第 {step} 步继续",
       "failed": "失败：{reason}",
       "band": "有未完成计划 · 从第 {step} 步继续"
-    },
-    "referenceAnalysis": {
-      "title": "参考图分工",
-      "identity": "角色身份",
-      "pose": "动作",
-      "style": "画风",
-      "content": "场景与内容",
-      "keep": "保留",
-      "exclude": "排除",
-      "details": "查看视觉依据",
-      "uncertain": "待确认",
-      "requirements": "本次要求",
-      "proportions": "比例",
-      "contours": "轮廓",
-      "shading": "明暗",
-      "materials": "材质",
-      "palette": "色彩",
-      "lighting": "光照"
     }
   },
   "GenerationCancel": {
@@ -7355,5 +7446,18 @@
     "errorNameRequired": "给这张卡起个名字。",
     "errorSaveFailed": "没能保存这张卡，再试一次。",
     "errorUploadFailed": "这张图没加上，再试一次。"
+  },
+  "ModelPicker": {
+    "recent": "最近",
+    "searchPlaceholder": "搜索模型…",
+    "channelCount": "{count} 渠道",
+    "autoRule": "自动规则：自己的 key ＞ 平台免费额度 ＞ 最便宜；改过就记住",
+    "needsKeyFor": "需配置 {provider} key",
+    "manageChannels": "配置渠道与 key…",
+    "capability": {
+      "reference": "参考图",
+      "multiReference": "多图参考",
+      "lora": "LoRA"
+    }
   }
 }

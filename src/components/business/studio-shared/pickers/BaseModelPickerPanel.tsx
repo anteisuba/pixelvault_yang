@@ -312,6 +312,11 @@ export interface BaseModelPickerPanelProps {
 }
 
 /**
+ * ⚠ **S11 删**（`node-canvas-v3-spec.md` §9）。方案 A 的 `ModelPickerPopover` 已经
+ * 接管 studio/image；这里还留着，是因为视频（按模式收窄端点）、音频（三组类型）、
+ * 3D、LLM 路由与配音间仍在用 —— 它们各自的入口在 S2–S6 搬完之后，本文件整体删除。
+ * ⛔ 别给它加新功能，新入口一律走 `ModelPickerPopover`。
+ *
  * 三层钻取的模型选择器：**系列 → 型号 → 渠道**（设计见
  * `docs/references/pages/canvas-video-card.md` §6.3）。
  *

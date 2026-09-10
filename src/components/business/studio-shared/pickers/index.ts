@@ -13,3 +13,8 @@ export {
   type CanvasRouteVariant,
   type CanvasRouteMediaModality,
 } from './CanvasRoutePicker'
+export { ModelChip, type ModelChipProps } from './ModelChip'
+export {
+  ModelPickerPopover,
+  type ModelPickerPopoverProps,
+} from './ModelPickerPopover'

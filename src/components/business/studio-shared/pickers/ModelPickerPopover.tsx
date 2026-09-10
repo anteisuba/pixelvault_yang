@@ -1,0 +1,481 @@
+'use client'
+
+import { useMemo, useState } from 'react'
+import { Check, ChevronDown, Settings2 } from 'lucide-react'
+import { useTranslations } from 'next-intl'
+
+import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'
+import type { StudioModelOption } from '@/components/business/ModelSelector'
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from '@/components/ui/command'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { MODEL_PICKER_DEFAULT_SCOPE } from '@/constants/model-picker'
+import { getModelById } from '@/constants/models'
+import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
+import { getProviderLabel } from '@/constants/providers'
+import {
+  getImageReferenceCapability,
+  getReferenceCapabilityMax,
+} from '@/constants/reference-image-capabilities'
+import { useApiKeysContext } from '@/contexts/api-keys-context'
+import { useModelPickerMemory } from '@/hooks/use-model-picker-memory'
+import { isRunnableModelOption } from '@/hooks/use-split-model-options'
+import {
+  flattenPickerModels,
+  groupModelsForPicker,
+  type PickerChannel,
+  type PickerModel,
+} from '@/lib/group-models-for-picker'
+import { getTranslatedModelLabel } from '@/lib/model-options'
+import {
+  resolveModelChannel,
+  type ModelChannelCandidate,
+} from '@/lib/resolve-model-channel'
+import { cn } from '@/lib/utils'
+
+import { ModelChip } from './ModelChip'
+
+/**
+ * 模型选择器 · 方案 A（`node-canvas-v3-spec.md` §1.6，画板 `ModelPicker.dc.html`）。
+ *
+ * **列表里只有型号**：系列退成分组标题，渠道收进行尾的「N 渠道」。行的第二行写
+ * 的是**自动选中的那条渠道**（规则见 `resolveModelChannel`）+ 单价 + 能力标；
+ * 用户点开行尾展开单选换渠道，换过就按型号记住，chip 上才附「· fal」。
+ *
+ * ⚠ 与 `BaseModelPickerPanel`（三层钻取）的关系：那是**同一份数据的旧呈现**，
+ * S11 收尾时删。新入口一律走本组件。
+ */
+
+interface ChannelView {
+  channel: PickerChannel
+  candidate: ModelChannelCandidate
+  price: string | null
+}
+
+interface ModelRow {
+  modelKey: string
+  label: string
+  seriesKey: string
+  seriesLabel: string
+  channels: ChannelView[]
+  /** 当前生效的那条渠道（手选优先，否则自动规则）。 */
+  active: ChannelView
+  activeIsManual: boolean
+  /** 这一行今天能不能直接跑 —— 不能就灰显、点了进内联配置（Hard Rule 8）。 */
+  runnable: boolean
+  searchText: string
+}
+
+export interface ModelPickerPopoverProps {
+  options: StudioModelOption[]
+  /** 当前选中的 `optionId`；多选时传 null（选中状态由 `selectedOptionIds` 说）。 */
+  value: string | null
+  onChange: (option: StudioModelOption) => void
+  /** 缺 key 的行点了走这里（宿主开 `QuickSetupDialog`）。 */
+  onRequestSetup?: (option: StudioModelOption) => void
+  /**
+   * 记忆作用域 —— 手选渠道与「最近」按它分开存。传模态名（`image` / `video` …），
+   * 同一模态的多个入口共用一份记忆。
+   */
+  memoryScope?: string
+  /** 型号名的来源覆写（目录外的 id 用）；默认走 Models i18n。 */
+  labelForOption?: (option: StudioModelOption) => string
+  /** 空态时 chip 上写什么。 */
+  triggerEmptyLabel?: string
+  searchPlaceholder?: string
+  emptySearchText?: string
+  disabled?: boolean
+  className?: string
+  side?: 'top' | 'bottom'
+  align?: 'start' | 'center' | 'end'
+  /**
+   * 只渲染面板本体，**不渲染 chip、也不自己开浮层**。移动端「chip → 抽屉」的
+   * 宿主用它：抽屉的开合归宿主，面板只是内容。
+   */
+  inline?: boolean
+  /** 多选（两个要一起给才生效）：行变可勾选、选完不关。 */
+  selectedOptionIds?: ReadonlySet<string>
+  onToggleOption?: (option: StudioModelOption) => void
+  /** 底部「配置渠道与 key…」；不给则不渲染那一行。 */
+  onManageChannels?: () => void
+}
+
+/** 能力标 —— 只写目录里查得到的两件事，不猜。 */
+function useCapabilityTags(): (option: StudioModelOption) => string[] {
+  const t = useTranslations('ModelPicker')
+  return (option: StudioModelOption) => {
+    const tags: string[] = []
+    const max = getReferenceCapabilityMax(
+      getImageReferenceCapability(option.adapterType, option.modelId),
+    )
+    if (max > 1) tags.push(t('capability.multiReference'))
+    else if (max === 1) tags.push(t('capability.reference'))
+    if (getModelById(option.modelId)?.supportsLora) {
+      tags.push(t('capability.lora'))
+    }
+    return tags
+  }
+}
+
+export function ModelPickerPopover({
+  options,
+  value,
+  onChange,
+  onRequestSetup,
+  memoryScope = MODEL_PICKER_DEFAULT_SCOPE,
+  labelForOption,
+  triggerEmptyLabel,
+  searchPlaceholder,
+  emptySearchText,
+  disabled,
+  className,
+  side = 'top',
+  align = 'end',
+  inline = false,
+  selectedOptionIds,
+  onToggleOption,
+  onManageChannels,
+}: ModelPickerPopoverProps) {
+  const multi = Boolean(selectedOptionIds && onToggleOption)
+  const [open, setOpen] = useState(false)
+  const [search, setSearch] = useState('')
+  const [expandedModelKey, setExpandedModelKey] = useState<string | null>(null)
+
+  const t = useTranslations('ModelPicker')
+  const tCommon = useTranslations('Common')
+  const tModels = useTranslations('Models')
+  const tSetup = useTranslations('QuickSetup')
+
+  const { healthMap } = useApiKeysContext()
+  const memory = useModelPickerMemory(memoryScope)
+  const capabilityTags = useCapabilityTags()
+
+  const labelOf = (option: StudioModelOption): string =>
+    labelForOption?.(option) ??
+    option.displayLabel ??
+    getTranslatedModelLabel(tModels, option.modelId)
+
+  const rows = useMemo<ModelRow[]>(() => {
+    const toView = (channel: PickerChannel): ChannelView => {
+      const { option } = channel
+      const keyId = option.keyId ?? option.providerKeyId
+      const unitPrice = getModelUnitPriceByStringId(option.modelId)
+      return {
+        channel,
+        candidate: {
+          channelId: channel.channelId,
+          channelLabel: channel.label,
+          hasUserKey:
+            option.sourceType === 'saved' || Boolean(option.providerKeyId),
+          hasFreeQuota: Boolean(option.freeTier),
+          unitPrice: unitPrice?.amount ?? null,
+          health: keyId ? healthMap[keyId] : undefined,
+        },
+        price: unitPrice
+          ? tCommon(`unitPrice.${unitPrice.unit}`, { amount: unitPrice.amount })
+          : null,
+      }
+    }
+
+    const buildRow = (
+      model: PickerModel,
+      seriesKey: string,
+      seriesLabel: string,
+    ): ModelRow | null => {
+      const channels = model.channels.map(toView)
+      const resolved = resolveModelChannel(
+        channels.map((c) => c.candidate),
+        memory.manualChannelOf(model.modelKey),
+      )
+      if (!resolved) return null
+      const active =
+        channels.find(
+          (c) => c.channel.channelId === resolved.channel.channelId,
+        ) ?? channels[0]
+      return {
+        modelKey: model.modelKey,
+        label: model.label,
+        seriesKey,
+        seriesLabel,
+        channels,
+        active,
+        activeIsManual: resolved.reason === 'manual',
+        runnable: isRunnableModelOption(active.channel.option),
+        searchText: [
+          model.label,
+          seriesLabel,
+          ...channels.map((c) => c.channel.label),
+          ...channels.map((c) => c.channel.option.modelId),
+        ]
+          .join(' ')
+          .toLowerCase(),
+      }
+    }
+
+    return flattenPickerModels(groupModelsForPicker(options, labelOf))
+      .map(({ series, model }) =>
+        buildRow(model, series.seriesKey, series.label),
+      )
+      .filter((row): row is ModelRow => row !== null)
+    // labelOf / t* 随语言变，分组本身只跟着 options 与记忆走。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [options, healthMap, memory])
+
+  const query = search.trim().toLowerCase()
+  const visibleRows = query
+    ? rows.filter((row) => row.searchText.includes(query))
+    : rows
+
+  const recentRows = query
+    ? []
+    : memory.recentModelKeys
+        .map((key) => rows.find((row) => row.modelKey === key))
+        .filter((row): row is ModelRow => row !== undefined)
+
+  const seriesOrder = useMemo(() => {
+    const order: { key: string; label: string; rows: ModelRow[] }[] = []
+    for (const row of visibleRows) {
+      const group = order.find((g) => g.key === row.seriesKey)
+      if (group) group.rows.push(row)
+      else
+        order.push({ key: row.seriesKey, label: row.seriesLabel, rows: [row] })
+    }
+    return order
+  }, [visibleRows])
+
+  const selectedRow = useMemo(() => {
+    if (multi || !value) return null
+    return (
+      rows.find((row) =>
+        row.channels.some((c) => c.channel.channelId === value),
+      ) ?? null
+    )
+  }, [multi, rows, value])
+
+  const isRowSelected = (row: ModelRow): boolean =>
+    multi
+      ? row.channels.some((c) => selectedOptionIds?.has(c.channel.channelId))
+      : row.channels.some((c) => c.channel.channelId === value)
+
+  const commit = (option: StudioModelOption, modelKey: string) => {
+    if (!isRunnableModelOption(option)) {
+      onRequestSetup?.(option)
+      if (!multi) setOpen(false)
+      return
+    }
+    memory.rememberRecent(modelKey)
+    if (multi) {
+      onToggleOption?.(option)
+      return
+    }
+    onChange(option)
+    setOpen(false)
+  }
+
+  const handleSelectRow = (row: ModelRow) => {
+    commit(row.active.channel.option, row.modelKey)
+  }
+
+  const handleSelectChannel = (row: ModelRow, view: ChannelView) => {
+    // 手选就是记住 —— 下次这个型号默认走这条，chip 上也才写「· fal」。
+    // ⚠ 只记**能跑的**那条：记住一条缺 key 的渠道，会让这个型号从此显示「需配置」，
+    // 而用户只是点进去看了看配置。缺 key 的照旧走 QuickSetup。
+    if (isRunnableModelOption(view.channel.option)) {
+      memory.rememberChannel(row.modelKey, view.channel.channelId)
+    }
+    commit(view.channel.option, row.modelKey)
+  }
+
+  const renderRow = (row: ModelRow, keyPrefix: string) => {
+    const expanded = expandedModelKey === row.modelKey
+    const selected = isRowSelected(row)
+    const meta = row.runnable
+      ? [
+          row.active.channel.label,
+          row.active.price,
+          ...capabilityTags(row.active.channel.option),
+        ]
+          .filter(Boolean)
+          .join(' · ')
+      : t('needsKeyFor', {
+          provider: getProviderLabel(row.active.channel.option.providerConfig),
+        })
+    const keyId =
+      row.active.channel.option.keyId ?? row.active.channel.option.providerKeyId
+
+    return (
+      <div key={`${keyPrefix}:${row.modelKey}`}>
+        <CommandItem
+          value={`${keyPrefix}:${row.modelKey}`}
+          onSelect={() => handleSelectRow(row)}
+          className={cn(
+            'items-start gap-2 px-2.5 py-1.5',
+            !row.runnable && 'text-muted-foreground',
+          )}
+        >
+          <span className="min-w-0 flex-1">
+            <span className="flex min-w-0 items-center gap-1.5">
+              <span className="truncate text-sm">{row.label}</span>
+              {row.runnable && keyId ? (
+                <ApiKeyHealthDot status={healthMap[keyId]} showLabel={false} />
+              ) : row.runnable && row.active.candidate.hasFreeQuota ? (
+                <span className="size-1.5 shrink-0 rounded-full bg-status-applied" />
+              ) : null}
+            </span>
+            <span className="mt-0.5 block truncate text-2xs text-muted-foreground">
+              {meta}
+            </span>
+          </span>
+          {row.channels.length > 1 ? (
+            <button
+              type="button"
+              aria-expanded={expanded}
+              aria-label={t('channelCount', { count: row.channels.length })}
+              onClick={(event) => {
+                // 行尾这颗只管展开渠道，别把整行的「选中」也一起触发了。
+                event.preventDefault()
+                event.stopPropagation()
+                setExpandedModelKey(expanded ? null : row.modelKey)
+              }}
+              className="flex shrink-0 items-center gap-0.5 rounded-sm px-1 py-0.5 text-2xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            >
+              {t('channelCount', { count: row.channels.length })}
+              <ChevronDown
+                className={cn('size-3', expanded && 'rotate-180')}
+                aria-hidden
+              />
+            </button>
+          ) : null}
+          {selected ? (
+            <Check className="size-3.5 shrink-0 text-foreground" aria-hidden />
+          ) : null}
+        </CommandItem>
+
+        {/* 渠道单选的 inset 底：`muted/60` 铺在 popover 上，
+            `text-muted-foreground` 对它 5.23（浅）/ 6.28（暗）、`text-foreground`
+            18.80 / 15.59，均过 4.5 —— contrast-check 2026-09-10 实算。 */}
+        {expanded ? (
+          <div className="mb-1.5 mt-0.5 rounded-md bg-muted/60 py-1">
+            {row.channels.map((view) => {
+              const picked =
+                view.channel.channelId === row.active.channel.channelId
+              return (
+                <CommandItem
+                  key={view.channel.channelId}
+                  value={`${keyPrefix}:${row.modelKey}:${view.channel.channelId}`}
+                  onSelect={() => handleSelectChannel(row, view)}
+                  className="gap-2.5 py-1 pl-6 pr-2.5 text-xs"
+                >
+                  <span
+                    aria-hidden
+                    className={cn(
+                      'grid size-3 shrink-0 place-items-center rounded-full border',
+                      picked ? 'border-foreground' : 'border-border',
+                    )}
+                  >
+                    {picked ? (
+                      <span className="size-1.5 rounded-full bg-foreground" />
+                    ) : null}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">
+                    {view.channel.label}
+                  </span>
+                  {view.price ? (
+                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                      {view.price}
+                    </span>
+                  ) : (
+                    <span className="shrink-0 text-muted-foreground">
+                      {tSetup('needsKey')}
+                    </span>
+                  )}
+                </CommandItem>
+              )
+            })}
+            <p className="px-6 pb-0.5 pt-1 text-3xs text-muted-foreground">
+              {t('autoRule')}
+            </p>
+          </div>
+        ) : null}
+      </div>
+    )
+  }
+
+  const body = (
+    <Command shouldFilter={false} className="bg-transparent">
+      <CommandInput
+        value={search}
+        onValueChange={setSearch}
+        placeholder={searchPlaceholder ?? t('searchPlaceholder')}
+      />
+      <CommandList className="max-h-80">
+        <CommandEmpty>
+          {emptySearchText ?? tCommon('noModelsFound')}
+        </CommandEmpty>
+        {recentRows.length > 0 ? (
+          <CommandGroup heading={t('recent')}>
+            {recentRows.map((row) => renderRow(row, 'recent'))}
+          </CommandGroup>
+        ) : null}
+        {seriesOrder.map((group) => (
+          <CommandGroup key={group.key} heading={group.label}>
+            {group.rows.map((row) => renderRow(row, 'series'))}
+          </CommandGroup>
+        ))}
+      </CommandList>
+      {onManageChannels ? (
+        <>
+          <CommandSeparator />
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              onManageChannels()
+            }}
+            className="flex w-full items-center gap-2 px-3 py-2 text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+          >
+            <Settings2 className="size-3.5" aria-hidden />
+            {t('manageChannels')}
+          </button>
+        </>
+      ) : null}
+    </Command>
+  )
+
+  if (inline) return <div className={className}>{body}</div>
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <ModelChip
+          modelLabel={
+            selectedRow?.label ?? triggerEmptyLabel ?? tCommon('selectModel')
+          }
+          // 只有手改过渠道才附渠道名 —— 自动选中的渠道不写，chip 上是型号的地盘。
+          channelLabel={
+            selectedRow?.activeIsManual
+              ? selectedRow.active.channel.label
+              : null
+          }
+          active={open}
+          disabled={disabled}
+          className={className}
+        />
+      </PopoverTrigger>
+      <PopoverContent side={side} align={align} className="w-model-picker p-0">
+        {body}
+      </PopoverContent>
+    </Popover>
+  )
+}

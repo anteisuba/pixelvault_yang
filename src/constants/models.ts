@@ -313,8 +313,10 @@ export const MODEL_VARIANTS: Record<string, string> = {
   [AI_MODELS.SEEDREAM_45_VOLCENGINE]: 'seedream-4.5',
   [AI_MODELS.SEEDREAM_50_PRO]: 'seedream-5.0-pro',
   [AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE]: 'seedream-5.0-pro',
+  [AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS]: 'seedream-5.0-pro',
   [AI_MODELS.SEEDREAM_50_LITE]: 'seedream-5.0-lite',
   [AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE]: 'seedream-5.0-lite',
+  [AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS]: 'seedream-5.0-lite',
   [AI_MODELS.SEEDREAM_50_VOLCENGINE]: 'seedream-5.0',
   // 单型号系列 —— 第二层会被跳过
   [AI_MODELS.VEO_31]: 'veo-3.1',

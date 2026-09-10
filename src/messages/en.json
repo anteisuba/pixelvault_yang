@@ -195,6 +195,7 @@
     "acceptAction": "Accept"
   },
   "ImageUpload": {
+    "uploading": "Adding image…",
     "compressing": "Optimizing large image…",
     "compressed": "Compressed {from} MB → {to} MB",
     "gifTooLarge": "GIF too large to auto-compress. Max {maxMb} MB — please optimize it first.",
@@ -1695,7 +1696,7 @@
     "modelLabel": "3D Model",
     "modelPlaceholder": "Select 3D model",
     "advancedSettingsLabel": "Advanced settings",
-    "sourceImageLabel": "Source image",
+    "sourceImageLabel": "Reference image",
     "sourceImagePlaceholder": "Pick an image from the archive",
     "removeSourceImageLabel": "Remove source image",
     "selectFromAssets": "Select from assets",
@@ -1823,7 +1824,7 @@
     "stepTexture": "Texture",
     "stepComplete": "Done",
     "stepperTotalElapsed": "Total {seconds}s",
-    "rodinTierLabel": "Quality Tier",
+    "rodinTierLabel": "Quality",
     "rodinTierHint": "Higher tiers produce denser geometry and finer detail at the cost of longer generation time.",
     "rodinMeshModeLabel": "Geometry Preset",
     "rodinMeshModeHint": "Polygon budget × topology. Triangle (Raw) is denser; Quad is retopologized for animation.",
@@ -1849,12 +1850,12 @@
     "rodinPromptLabel": "Prompt",
     "rodinPromptPlaceholder": "Optional natural-language guidance for the model…",
     "rodinGeometryFileFormatLabel": "Export Format",
-    "rodinAdvancedSectionLabel": "Advanced",
+    "rodinAdvancedSectionLabel": "Advanced settings",
     "rodinQualityOverrideLabel": "Polygon Count Override",
     "rodinQualityOverrideHint": "Set a specific polygon target. Leave empty to use the tier default.",
     "rodinAdditionalImagesLabel": "Additional Reference Images",
     "rodinAdditionalImagesHint": "Up to 4 additional views (combined with the source image = 5 total). More views reduce geometric ambiguity.",
-    "rodinModeLabel": "Mode",
+    "rodinModeLabel": "Input mode",
     "rodinModeImageLabel": "Image-to-3D",
     "rodinModeTextLabel": "Text-to-3D",
     "rodinModeMeshFirstLabel": "Mesh preview",
@@ -1874,8 +1875,26 @@
     "rodinApiKeyMissingDescription": "Rodin Gen-2.5 requires a Hyper3D API key with a Business subscription. Add your key in Settings.",
     "rodinEstimatedCost": "Est. {credits} cr",
     "rodinEstimatedTime": "~{minutes} min",
-    "changeModelButton": "Change",
-    "setupApiKeyButton": "Set up API Key"
+    "changeModelButton": "Select model",
+    "setupApiKeyButton": "Set up API Key",
+    "settingsTitle": "Model settings",
+    "estimatedCost": "Estimated cost",
+    "estimatedMinutes": "About {minutes} min",
+    "enterPromptToGenerate": "Enter a prompt to generate",
+    "selectImageToGenerate": "Select an image to generate",
+    "previewEmptyTitle": "Start with a shape",
+    "previewEmptyDescription": "Choose a reference image or describe a model. Preview and refine the result here.",
+    "generationFailedTitle": "Generation did not complete",
+    "draftPreserved": "Your input and settings have been kept.",
+    "retryGeneration": "Retry generation",
+    "rodinTextPromptPlaceholder": "Describe the shape, proportions and materials…",
+    "modelPreview": "Model preview",
+    "shapeIllustration": "Shape illustration",
+    "chooseInputShape": "Choose an input to define the shape",
+    "previewViews": "Preview views",
+    "previewFront": "Front",
+    "previewSide": "Side",
+    "previewReset": "Reset"
   },
   "MultiViewGenerate": {
     "success": "Side views ready.",
@@ -2930,7 +2949,20 @@
     "placeholderPreviewLabel": "Preview",
     "placeholderCancel": "Cancel",
     "placeholderApply": "Apply to Studio",
-    "placeholderApplyAsIs": "Apply with placeholders"
+    "placeholderApplyAsIs": "Apply with placeholders",
+    "searchTemplates": "Search titles or prompt text",
+    "clearFilters": "Clear filters",
+    "useAction": "Use",
+    "manualCopyTitle": "Copy prompt manually",
+    "manualCopyDescription": "Clipboard access is unavailable. Select the text below and copy it.",
+    "closeAction": "Close",
+    "createNameRequired": "Enter a template name.",
+    "detailLoadFailed": "Could not load this template. Your changes have not been submitted.",
+    "retryAction": "Retry",
+    "useConfirmTitle": "Use in Studio",
+    "useConfirmDescription": "Replace the current Studio prompt with this template. Models and reference images stay unchanged.",
+    "useConfirmAction": "Use this prompt",
+    "useFailed": "Could not transfer the prompt. You can copy it manually."
   },
   "Collections": {
     "title": "Collections",
@@ -3396,6 +3428,8 @@
     "makePrivate": "Make Private"
   },
   "AdvancedSettings": {
+    "preview": "Preview while generating",
+    "previewHint": "Show up to two partial images, adding up to $0.006 per output.",
     "title": "Advanced Settings",
     "description": "Fine-tune generation parameters",
     "negativePrompt": "Negative Prompt",
@@ -3410,13 +3444,15 @@
     "seed": "Seed",
     "seedHint": "Fix the random seed for reproducible results. Leave empty for a random seed each time.",
     "seedRandom": "Random",
-    "quality": "Quality",
+    "quality": "Generation quality",
     "qualityHint": "Output quality level. Higher quality produces more detailed images but may take longer.",
     "qualityOption": {
       "auto": "Auto",
       "low": "Low",
       "medium": "Medium",
-      "high": "High"
+      "high": "High",
+      "xhigh": "Extra high",
+      "max": "Maximum"
     },
     "background": "Background",
     "backgroundHint": "Choose whether the generated image has a transparent or opaque background.",
@@ -3611,6 +3647,7 @@
     "assistantStageForReview": "Add to collocation review",
     "assistantStageHint": "Recommended over generating straight away — review the changes in the collocation bar before applying.",
     "referenceOnlyPrompt": "Analyze the attached reference and help me develop the idea.",
+    "audioUnsupported": "This model cannot analyze audio. Select Gemini or remove the audio attachment.",
     "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
     "imageUnsupported": "This model cannot analyze images. Choose a model labeled for image vision, or remove the image reference.",
     "routeAuto": "Auto route",
@@ -3692,6 +3729,14 @@
     "geminiFlashImage": {
       "label": "Gemini 3.1 Flash Image",
       "description": "Fast image exploration powered by Google's latest generation model."
+    },
+    "openaiGptImage25Flare": {
+      "label": "OpenAI GPT Image 2.5 Flare",
+      "description": "Fast, high-quality everyday image generation and reference-guided editing."
+    },
+    "openaiGptImage25Sunburst": {
+      "label": "OpenAI GPT Image 2.5 Sunburst",
+      "description": "Precise image generation and editing for detailed creative work, with longer generation times."
     },
     "openaiGptImage2": {
       "label": "OpenAI GPT Image 2",
@@ -4799,7 +4844,8 @@
         "modeLabel": "Video generation mode",
         "mode": {
           "keyframe": "Keyframe",
-          "multimodal": "Full reference"
+          "multimodal": "Full reference",
+          "image-reference": "Image refs"
         },
         "addReference": "Add reference asset",
         "promptPlaceholder": "Describe the shot, motion, and sound you want…"
@@ -5725,6 +5771,17 @@
       "ingest": {
         "chooseSlot": "Which slot?",
         "chooseSlotCancel": "Cancel"
+      },
+      "chrome": {
+        "add": "Add",
+        "send": "Send",
+        "cancel": "Cancel",
+        "close": "Close",
+        "download": "Download",
+        "charCount": "{count} chars",
+        "versions": "Versions",
+        "versionOf": "Version {index} of {total}",
+        "emptyHint": "Upload · paste · or write a prompt"
       }
     },
     "rerunDownstream": {
@@ -5759,6 +5816,7 @@
     "actionMore": "More"
   },
   "StudioV2": {
+    "costImageOutputOnly": "Output estimate for the selected size and quality. Text and reference inputs cost extra; auto quality and previews are billed by actual usage.",
     "none": "None",
     "noCards": "No cards yet. Create one to get started.",
     "noCharacterCards": "No character cards yet. Create one, then choose it here.",
@@ -5815,6 +5873,7 @@
     "costApproxFrom": "≈ {amount}+",
     "costUnpriced": "{count, plural, one {# model has no listed price} other {# models have no listed price}}",
     "costRange": "Plus, varying by tier: ~{min} – {max}",
+    "costRangeBasis": "Range estimates 1024×1024 output only. Text and reference inputs cost extra; other sizes and auto quality depend on actual usage.",
     "batchCountSummary": "{count, plural, one {# per model} other {# per model}}",
     "generateCount": "{count, plural, one {Generate # image} other {Generate # images}}",
     "batchCountLabel": "Images per run",
@@ -5979,6 +6038,8 @@
     "toolSaveRecipe": "Save as recipe",
     "toolInpaint": "Inpaint",
     "inpaintEditor": {
+      "toolWhole": "Edit whole image",
+      "wholeHint": "Describe your changes without masking. Continue from each result and return to earlier edits in the history.",
       "title": "Inpaint",
       "canvasLabel": "Paint the area to regenerate",
       "brushSize": "Brush size",
@@ -6004,6 +6065,8 @@
     "takeLabel": "Take {index}"
   },
   "StudioImageEdit": {
+    "settingsLabel": "Edit settings",
+    "modelLabel": "Editing model",
     "eyebrow": "Studio Tool",
     "title": "Image Edit",
     "subtitle": "Work from a generated image or a remote source, then save the edited result back into your gallery.",
@@ -6262,6 +6325,7 @@
       "timeout": "Fetching that image timed out. Retry later, or pick a smaller one."
     },
     "assistant": {
+      "audioUnsupported": "This model cannot analyze audio. Select Gemini or remove the audio attachment.",
       "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
       "imageUnsupported": "This model cannot analyze images. Choose a model labeled for image vision, or remove the image reference.",
       "contentBlocked": "The provider blocked this request under its safety policy. Rephrase, or switch the assistant route.",
@@ -6787,6 +6851,25 @@
     "deleteRoomHint": "“{name}” and all its lines will be removed. Voices you already generated stay in your library."
   },
   "StudioOperator": {
+    "referenceAnalysis": {
+      "title": "Reference roles",
+      "identity": "Character identity",
+      "pose": "Pose",
+      "style": "Style",
+      "content": "Scene and content",
+      "keep": "Keep",
+      "exclude": "Exclude",
+      "details": "View visual evidence",
+      "uncertain": "Uncertain",
+      "requirements": "Requirements",
+      "rendering": "Rendering and dimensionality",
+      "proportions": "Proportions",
+      "contours": "Contours",
+      "shading": "Shading",
+      "materials": "Materials",
+      "palette": "Palette",
+      "lighting": "Lighting"
+    },
     "title": "Assistant",
     "domainName": {
       "image": "the image bench",
@@ -6800,9 +6883,25 @@
       "empty": "No earlier chats yet",
       "loading": "Loading…",
       "untitled": "Untitled chat",
-      "readonlyNote": "Earlier — read only",
-      "readonlyNoteAt": "From {date} — read only",
-      "earlierRounds": "{count} earlier entries"
+      "readonlyNote": "Previous conversation",
+      "readonlyNoteAt": "Conversation from {date}",
+      "earlierRounds": "{count} earlier entries",
+      "deleteLabel": "Delete conversation: {title}",
+      "deleteTitle": "Delete this conversation?",
+      "deleteDescription": "Permanently delete “{title}” and its messages. Generated assets will be kept.",
+      "deleteCancel": "Cancel",
+      "deleteConfirm": "Delete conversation",
+      "deleting": "Deleting…",
+      "deleteFailed": "Could not delete the conversation. Try again.",
+      "deleteBusy": "Wait for the current response to finish before deleting this conversation.",
+      "loadFailed": "Could not load conversations. Reopen the list to try again.",
+      "renameLabel": "Rename {title}",
+      "renameTitle": "Rename conversation",
+      "renameDescription": "Enter a name to help you recognize this conversation.",
+      "renameConfirm": "Save",
+      "renaming": "Saving…",
+      "renameFailed": "Could not rename. Please try again.",
+      "switching": "Loading conversation…"
     },
     "more": "More",
     "share": "Share this chat",
@@ -6860,12 +6959,22 @@
       "reverted": {
         "params": "Undone · params only",
         "thread": "Undone · params + chat"
-      }
+      },
+      "restoreStep": "Restore to this step",
+      "restoreDescription": "Restore the prompt, reference order, models and settings saved after this step. No generation is started.",
+      "unavailable": "No complete configuration was saved for this step",
+      "restoreFailed": "Cannot restore: the workspace differs or the original model is unavailable.",
+      "restored": "Step configuration restored"
     },
     "log": {
       "undo": "Undo"
     },
     "reject": {
+      "referenceAnalysisRequired": "Analyze the current references first",
+      "referenceImageUnavailable": "A reference image could not be read. Re-upload or replace the unavailable image.",
+      "referenceAnalysisFailed": "Reference analysis was incomplete; no analysis was accepted.",
+      "referenceBriefFailed": "Images were analyzed, but reference-role validation failed; the prompt was not changed.",
+      "promptConflict": "The prompt conflicts with reference roles or requirements",
       "noSuchControl": "This bench has no such control",
       "unknownModel": "That model is not in the list you can pick from",
       "unknownValue": "That value is not one of the options",
@@ -6893,12 +7002,7 @@
       "urlUnreadable": "That page could not be read",
       "aspectLockedByFirstFrame": "A first frame is set, so this model only accepts the adaptive aspect ratio",
       "videoFramesMissing": "Could not read frames from this clip",
-      "blockedSource": "You marked this one as failed, so it can't open or close a clip",
-      "referenceAnalysisRequired": "Analyze the current references first",
-      "referenceImageUnavailable": "A reference image could not be read. Re-upload or replace the unavailable image.",
-      "referenceAnalysisFailed": "Reference analysis was incomplete; no analysis was accepted.",
-      "referenceBriefFailed": "Images were analyzed, but reference-role validation failed; the prompt was not changed.",
-      "promptConflict": "The prompt conflicts with reference roles or requirements"
+      "blockedSource": "You marked this one as failed, so it can't open or close a clip"
     },
     "cost": {
       "title": "Assistant work",
@@ -6933,7 +7037,10 @@
         "append": "Append after",
         "overwrite": "Overwrite",
         "keep": "Keep mine"
-      }
+      },
+      "title": "How should the assistant prompt be applied?",
+      "current": "Current prompt",
+      "proposed": "Suggested prompt"
     },
     "system": {
       "undoStep": "You undid: {subject} (the assistant knows and will not redo it)",
@@ -6948,7 +7055,8 @@
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
       "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
       "autoApproved": "Sent straight away per your setting · {count} credits",
-      "videoFramesFailed": "No frames could be taken from this clip — the assistant cannot look at it this turn ({subject})"
+      "videoFramesFailed": "No frames could be taken from this clip — the assistant cannot look at it this turn ({subject})",
+      "checkpointRestored": "Restored the selected step’s configuration. Use the current form for subsequent actions."
     },
     "suggestion": {
       "setupShot": "Set this shot up for me",
@@ -7014,6 +7122,7 @@
       "revertRound": "Undo this round ({count})",
       "nextRound": "Pre-filled for the next round:",
       "applyAdvice": "Apply this to the prompt",
+      "adviceApplied": "Applied to prompt",
       "frame": {
         "start": "0s",
         "mid": "Middle",
@@ -7079,7 +7188,7 @@
       "reset": "Reset to defaults",
       "saveFailed": "Could not save. Try again.",
       "nameLabel": "Name",
-      "namePlaceholder": "Leave empty to use the workbench name",
+      "namePlaceholder": "Leave empty to use ANTI",
       "avatarLabel": "Avatar",
       "avatarPreset": {
         "mark": "Brand mark",
@@ -7213,7 +7322,7 @@
       "rowSystem": "System",
       "rowTool": "Tool step",
       "rowAction": "Needs your call",
-      "assistantFallback": "Assistant",
+      "assistantFallback": "ANTI",
       "avatarUser": "Your avatar",
       "avatarAssistant": "{name}'s avatar"
     },
@@ -7279,24 +7388,6 @@
       "continue": "Continue from step {step}",
       "failed": "Failed: {reason}",
       "band": "Unfinished plan · continue from step {step}"
-    },
-    "referenceAnalysis": {
-      "title": "Reference roles",
-      "identity": "Character identity",
-      "pose": "Pose",
-      "style": "Style",
-      "content": "Scene and content",
-      "keep": "Keep",
-      "exclude": "Exclude",
-      "details": "View visual evidence",
-      "uncertain": "Uncertain",
-      "requirements": "Requirements",
-      "proportions": "Proportions",
-      "contours": "Contours",
-      "shading": "Shading",
-      "materials": "Materials",
-      "palette": "Palette",
-      "lighting": "Lighting"
     }
   },
   "GenerationCancel": {
@@ -7355,5 +7446,18 @@
     "errorNameRequired": "Give the card a name.",
     "errorSaveFailed": "Could not save the card. Try again.",
     "errorUploadFailed": "Could not add that image. Try again."
+  },
+  "ModelPicker": {
+    "recent": "Recent",
+    "searchPlaceholder": "Search models…",
+    "channelCount": "{count} channels",
+    "autoRule": "Auto rule: your own key > platform free quota > cheapest; a manual pick is remembered",
+    "needsKeyFor": "Needs a {provider} key",
+    "manageChannels": "Manage channels and keys…",
+    "capability": {
+      "reference": "Reference image",
+      "multiReference": "Multi-image reference",
+      "lora": "LoRA"
+    }
   }
 }

@@ -17,6 +17,7 @@ import {
   BaseModelPickerPanel,
   type BaseModelPickerPanelProps,
 } from './BaseModelPickerPanel'
+import { ModelPickerPopover } from './ModelPickerPopover'
 
 export type MainModelPickerModality =
   | 'image'
@@ -113,10 +114,37 @@ function useFiltered(
   )
 }
 
-function MainModelPickerImage({ filterOption, ...props }: CommonProps) {
+/**
+ * 图片模态走**方案 A 的弹层**（`ModelPickerPopover`），不再是三栏对话框。
+ *
+ * ⚠ 只有图片换了。视频要按模式收窄端点、音频的三组类型、3D 与 LLM 各有自己的
+ * 列表口径，它们仍走 `BaseModelPickerPanel`，由 S2–S6 各自的节点切片接过去。
+ *
+ * ⚠ 这里**逐个列 prop，不 spread**：三栏专用的那几个（`layout` / `size` /
+ * `detailForOption` / `triggerLabelForOption` / `enableSearch`）新弹层没有，
+ * spread 过去会被静默丢弃 —— 调用方以为传上了，功能就是不生效（D7 台账那个老坑）。
+ */
+function MainModelPickerImage(props: CommonProps) {
   const { modelOptions } = useImageModelOptions()
-  const options = useFiltered(modelOptions, filterOption)
-  return <BaseModelPickerPanel options={options} {...props} />
+  const options = useFiltered(modelOptions, props.filterOption)
+  return (
+    <ModelPickerPopover
+      options={options}
+      memoryScope="image"
+      value={props.value}
+      onChange={props.onChange}
+      onRequestSetup={props.onRequestSetup}
+      triggerEmptyLabel={props.triggerEmptyLabel}
+      searchPlaceholder={props.searchPlaceholder}
+      emptySearchText={props.emptySearchText}
+      side={props.popoverSide}
+      disabled={props.disabled}
+      className={props.className}
+      inline={props.inline}
+      selectedOptionIds={props.selectedOptionIds}
+      onToggleOption={props.onToggleOption}
+    />
+  )
 }
 
 function MainModelPickerVideo({ filterOption, ...props }: CommonProps) {

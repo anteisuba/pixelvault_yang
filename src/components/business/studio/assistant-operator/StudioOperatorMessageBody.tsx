@@ -11,6 +11,11 @@
  *    一颗「展开全文」。⚠ 判据数的是**换行数**不是渲染行数，理由见常量头注。
  *  · **`detail` 折成「为什么」**：正文只写结论 + 下一步，理由点开才看。
  *
+ * ⚠ 正文走 **markdown**（v2 §13.2）：复用仓里的 `ui/markdown.tsx` + 共享排版配方
+ * `.message-md`（globals.css），⛔ 不为助手另写渲染器、⛔ 不另起一份 CSS 配方。
+ * ⚠ 折叠**先按纯文本切，切完再各自渲染**：首句是在原文上取的（`firstOperatorSentence`
+ * 认句号，见其头注），⛔ 不在渲染后的 DOM 上截 —— 那样切到一半的加粗会漏出星号。
+ *
  * ⚠ 正文**整段一次到齐**（v2 拍板 13）：⛔ 没有逐字揭示，也就没有「流着的时候
  * 不折」那条例外——`streaming` 只剩「还没有字」这一种含义（占位行）。
  * ⚠ 折叠开合是**局部 state**：它是一次性的阅读动作，不该占 store 的一格 ——
@@ -23,6 +28,7 @@ import Image from 'next/image'
 import { ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
+import { Markdown } from '@/components/ui/markdown'
 import {
   firstOperatorSentence,
   shouldCollapseOperatorText,
@@ -92,13 +98,15 @@ export function StudioOperatorCollapsibleText({
 
   return (
     <>
-      <p
+      <div
         data-testid="operator-message-text"
         {...(collapsed ? { 'data-collapsed': 'true' } : {})}
-        className="whitespace-pre-wrap text-md leading-relaxed text-foreground"
+        className="min-w-0 text-md leading-relaxed text-foreground"
       >
-        {collapsed ? firstOperatorSentence(text) : text}
-      </p>
+        <Markdown className="message-md">
+          {collapsed ? firstOperatorSentence(text) : text}
+        </Markdown>
+      </div>
 
       {collapsible ? (
         <button

@@ -39,6 +39,7 @@ import {
   MoreHorizontal,
   Pause,
   Play,
+  Scissors,
   Smile,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -60,8 +61,15 @@ import {
 } from '@/constants/node-types'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { useNodeUploadV4 } from '@/hooks/node/use-node-upload-v4'
+import {
+  trimAudioToWav,
+  trimmedFileName,
+  AUDIO_TRIM_WAV_MIME,
+  type AudioTrimRange,
+} from '@/lib/audio-trim'
 import { getGeneratingStageKey } from '@/lib/generation-progress'
 import { renameStableNodeName } from '@/lib/node-display-name'
+import { resolveRelativePlacement } from '@/hooks/node/use-node-graph-v4'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import { cn } from '@/lib/utils'
 import {
@@ -72,16 +80,23 @@ import {
 import type { NodeV4, NodeV4AudioData } from '@/types/node-workflow'
 
 import {
+  ConnectToShotPopover,
   NodeCardShell,
   NodeFrameProgress,
   NodePromptBar,
   NodeToolbar,
   PORT_CLASS,
   VersionDots,
+  flashNodeCard,
   mentionDeletionRangeAt,
   renderVoicePromptValue,
+  useNodeCardFlash,
   type NodeToolbarGroup,
 } from './chrome'
+import {
+  buildConnectToShotOps,
+  buildConnectToShotTargets,
+} from './connect-to-shot-targets'
 import {
   AUDIO_CARD,
   audioVersions,
@@ -93,6 +108,7 @@ import {
 import { AudioAddMenuItems, AudioMoreMenuItems } from './audio/AudioNodeMenus'
 import { AudioOwnerMenuItem } from './audio/AudioOwnerMenuItem'
 import { AudioTonePopover, TONE_POPOVER_WIDTH } from './audio/AudioTonePopover'
+import { AudioTrimPanel } from './audio/AudioTrimPanel'
 import { AudioVoiceChip } from './audio/AudioVoiceChip'
 import { AudioWaveform } from './audio/AudioWaveform'
 import {
@@ -164,6 +180,8 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const generation = useNodeMediaGenerationV4()
   const upload = useNodeUploadV4()
   const audioData = data as unknown as NodeV4AudioData
+  /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
+  const flashed = useNodeCardFlash(id)
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [renameRequest, setRenameRequest] = useState(0)
@@ -183,6 +201,10 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     null,
   )
   const [transcribeElapsed, setTranscribeElapsed] = useState(0)
+  /** 裁剪面板开着？开着时卡下方那条栏换成它（spec §4）。 */
+  const [trimming, setTrimming] = useState(false)
+  const [trimBusy, setTrimBusy] = useState(false)
+
   const fileRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
   /** 提示词栏那只 textarea —— 插标记与退格删 chip 都要问它光标在哪
@@ -204,6 +226,9 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     setPlaybackUrl(audioData.url)
     setPlaying(false)
     setProgress(0)
+    // ⚠ 时长跟着换版本清零：裁完那一版比原来短，留着旧数就是一句假话
+    // （清了之后到 `loadedmetadata` 之间显示 `--:--`，那是「还不知道」）。
+    setDuration(0)
   }
 
   const generating = Boolean(audioData.mediaJobId) || startedAt !== null
@@ -346,12 +371,20 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     // 一批两条：建一张文本卡 + 把它连成这张卡的**台词来源**（`text` 槽）。
     // ⚠ 方向是 text → audio：文本卡是叶子（端口表 `TEXT_PORTS`），音频卡才有
     // `text` 入口槽。⛔ 不反着连——那条边根本不合法。
+    // 派生卡落在**本卡右侧**（S5c 尾项：默认布局把它丢到左下角，用户得自己找）。
+    const placement = resolveRelativePlacement(canvas.nodes, {
+      relativeTo: id,
+      side: 'right',
+      gap: NODE_V4_CARD.derivedGap,
+      size: { width: NODE_V4_CARD.collapsedWidth, height: AUDIO_CARD.height },
+    })
     const outcome = await canvas.onApplyBatch([
       {
         op: NODE_ASSISTANT_OP_V4_IDS.addNode,
         kind: NODE_MEDIA_KIND_IDS.text,
         subtype: NODE_V4_TEXT_SUBTYPE_IDS.script,
         ref: TEXT_BATCH_REF,
+        ...(placement ? { position: placement } : {}),
       },
       {
         op: NODE_ASSISTANT_OP_V4_IDS.setText,
@@ -384,6 +417,65 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     })
   }
 
+  /**
+   * 「裁剪为新版本」：客户端切采样 → 编 WAV → 走**已有的上传管线**落成新一版。
+   * ⛔ 不扣积分、不生成（spec §4）；原音留作上一版（`onSetMedia` 追加一版）。
+   */
+  const runTrim = async (range: AudioTrimRange) => {
+    if (!audioData.url || trimBusy) return
+    setTrimBusy(true)
+    try {
+      const result = await trimAudioToWav(audioData.url, range)
+      const file = new File([result.blob], trimmedFileName(audioData.name), {
+        type: AUDIO_TRIM_WAV_MIME,
+      })
+      const patch = await upload.upload('audio', file, audioData.name)
+      if (!patch) {
+        toast.error(tAudio('trim.failed'))
+        return
+      }
+      // ⚠ 时长不进 patch（`NodeV4MediaPatch` 没有这一格）：换了 url 之后
+      // `<audio>` 的 `loadedmetadata` 会把真实时长报上来，本地读数据此重算。
+      canvas.onSetMedia(id, {
+        ...patch,
+        source: {
+          kind: AUDIO_CLIP_SOURCE.trim,
+          label: tAudio('trim.sourceLabel'),
+        },
+      })
+      setTrimming(false)
+    } catch {
+      toast.error(tAudio('trim.failed'))
+    } finally {
+      setTrimBusy(false)
+    }
+  }
+
+  /** 「连到镜头」列表 = 画布上的视频卡，按镜头带顺序（spec §1.13）。 */
+  const shotTargets = buildConnectToShotTargets({
+    nodes: canvas.nodes,
+    edges: canvas.edges,
+    formatDuration: formatAudioSeconds,
+  })
+
+  /** 顶行「新建镜头」= 原来那颗「生镜头」的一批两条，⛔ 行为不改。 */
+  const createShot = () =>
+    void canvas.onApplyBatch([
+      {
+        op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+        kind: NODE_MEDIA_KIND_IDS.video,
+        subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+        ref: SHOT_BATCH_REF,
+        ...(audioData.shotNo === undefined ? {} : { shotNo: audioData.shotNo }),
+      },
+      {
+        op: NODE_ASSISTANT_OP_V4_IDS.connect,
+        source: id,
+        target: SHOT_BATCH_REF,
+        slot: NODE_SLOT_IDS.voice,
+      },
+    ])
+
   const toolbarGroups: readonly NodeToolbarGroup[] = [
     [
       {
@@ -412,6 +504,17 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         ),
       },
       {
+        id: 'trim',
+        label: tAudio('toolbar.trim'),
+        icon: Scissors,
+        // 没有声就没有可裁的（空卡 / 生成中）。
+        disabled: !audioData.url || generating,
+        active: trimming,
+        // ⚠ 面板不是 popover：它**换掉卡下方那条提示词栏**（spec §4），
+        // 所以这颗键只翻一个开关。
+        onSelect: () => setTrimming((current) => !current),
+      },
+      {
         id: 'transcribe',
         label: tAudio('toolbar.transcribe'),
         icon: FileText,
@@ -419,28 +522,35 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         onSelect: () => void runTranscribe(),
       },
       {
+        // 原「生镜头」（图标不变）——现在先开弹层选目标（spec §1.13）。
         id: 'shot',
-        label: tAudio('toolbar.shot'),
+        label: tAudio('toolbar.connect'),
         icon: Clapperboard,
-        // 一批两条：建镜头 + 把这段声音连成它的**音轨**（`voice` 槽）。
-        onSelect: () =>
-          void canvas.onApplyBatch([
-            {
-              op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-              kind: NODE_MEDIA_KIND_IDS.video,
-              subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
-              ref: SHOT_BATCH_REF,
-              ...(audioData.shotNo === undefined
-                ? {}
-                : { shotNo: audioData.shotNo }),
-            },
-            {
-              op: NODE_ASSISTANT_OP_V4_IDS.connect,
-              source: id,
-              target: SHOT_BATCH_REF,
-              slot: NODE_SLOT_IDS.voice,
-            },
-          ]),
+        onSelect: () => {},
+        panel: (
+          <ConnectToShotPopover
+            sourceNodeId={id}
+            sourceKind={NODE_MEDIA_KIND_IDS.audio}
+            targets={shotTargets}
+            onNew={createShot}
+            onConnect={(targetId, slot) => {
+              void Promise.resolve(
+                canvas.onApplyBatch(
+                  buildConnectToShotOps({
+                    sourceId: id,
+                    targetId,
+                    slot,
+                    edges: canvas.edges,
+                  }),
+                ),
+              ).then(() => {
+                // 连完滚到可见并亮一下（spec §1.13 尾句）。
+                canvas.onFocusNode(targetId)
+                flashNodeCard(targetId)
+              })
+            }}
+          />
+        ),
       },
     ],
     [
@@ -548,7 +658,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         renameRequest={renameRequest}
         emptyHeight={AUDIO_CARD.height}
         onEmptyAdd={() => fileRef.current?.click()}
-        changed={canvas.changedNodeIds.includes(id)}
+        changed={canvas.changedNodeIds.includes(id) || flashed}
         ports={<AudioPorts node={node} />}
       >
         {audioData.url || generating ? (
@@ -675,132 +785,144 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                 })
               }
             />
-            <NodePromptBar
-              value={draft}
-              onValueChange={setDraft}
-              onSubmit={submitPrompt}
-              generating={generating}
-              onCancel={() => setStartedAt(null)}
-              placeholder={
-                speech
-                  ? tAudio('promptPlaceholder')
-                  : audioKind === AUDIO_KIND.MUSIC
-                    ? tAudio('promptPlaceholderMusic')
-                    : tAudio('promptPlaceholderSfx')
-              }
-              ariaLabel={tAudio('promptLabel')}
-              className="w-130"
-              inputRef={inputRef}
-              onSelectionChange={(range) => {
-                caretRef.current = range.start
-              }}
-              // 行内 chip 画在**输入框内部**（画板：`[愤怒]` 与 `@莫宁` 就在台词
-              // 那一行里）。文本仍是唯一真值，这一层只给字符段加底色。
-              renderValue={(text) =>
-                renderVoicePromptValue(text, {
-                  mentions: { names: mentionNames },
-                  titleOf: (label, intensityLabel) =>
-                    intensityLabel
-                      ? tAudio('tone.chipTitle', {
-                          intensity: intensityLabel,
-                          label,
-                        })
-                      : label,
-                })
-              }
-              addMenu={
-                <AudioAddMenuItems
-                  onUpload={() => fileRef.current?.click()}
-                  onAssetLibrary={() => setAssetPicker(true)}
-                  onVoiceLibrary={() => setVoiceLibrary(true)}
-                  onMention={() => setDraft(`${draft}@`)}
-                />
-              }
-              textareaProps={{
-                onKeyDown: (event) => {
-                  const caret = event.currentTarget.selectionStart
-                  caretRef.current = caret
-                  if (
-                    event.key !== 'Backspace' ||
-                    event.currentTarget.selectionEnd !== caret
-                  ) {
-                    return
-                  }
-                  // 退格删**整颗** chip（spec §1.7 的同一条手感）——语气标记与
-                  // `@` 引用同一条判据，谁的尾巴压在光标上就删谁。
-                  const range =
-                    voiceMarkupDeletionRangeAt(draft, caret) ??
-                    mentionDeletionRangeAt(draft, caret, {
-                      names: mentionNames,
-                    })
-                  if (!range) return
-                  event.preventDefault()
-                  const next =
-                    draft.slice(0, range.start) + draft.slice(range.end)
-                  setDraft(next)
+            {trimming && audioData.url ? (
+              // 裁剪时**提示词栏换成裁剪面板**（spec §4），⛔ 不是又弹一层。
+              <AudioTrimPanel
+                url={audioData.url}
+                durationSec={seconds}
+                seed={audioData.url}
+                busy={trimBusy}
+                onCancel={() => setTrimming(false)}
+                onConfirm={(range) => void runTrim(range)}
+              />
+            ) : (
+              <NodePromptBar
+                value={draft}
+                onValueChange={setDraft}
+                onSubmit={submitPrompt}
+                generating={generating}
+                onCancel={() => setStartedAt(null)}
+                placeholder={
+                  speech
+                    ? tAudio('promptPlaceholder')
+                    : audioKind === AUDIO_KIND.MUSIC
+                      ? tAudio('promptPlaceholderMusic')
+                      : tAudio('promptPlaceholderSfx')
+                }
+                ariaLabel={tAudio('promptLabel')}
+                className="w-130"
+                inputRef={inputRef}
+                onSelectionChange={(range) => {
                   caretRef.current = range.start
-                  window.requestAnimationFrame(() =>
-                    inputRef.current?.setSelectionRange(
-                      range.start,
-                      range.start,
-                    ),
-                  )
-                },
-              }}
-              chips={[
-                speech ? (
-                  <AudioVoiceChip
-                    key="voice"
-                    voiceId={audioData.voiceProfile?.voiceId}
-                    voiceName={audioData.voiceProfile?.voiceName}
-                    speed={audioData.voiceProfile?.speed}
-                    volume={audioData.voiceProfile?.volume}
-                    disabled={generating}
-                    onSelectVoice={(voice) => {
-                      patchProfile({
-                        voiceId: voice.voiceId,
-                        voiceName: voice.name,
-                      })
-                      // 库里自带的试听样本**就是**这条音色的产物 —— 有就落进 `url`。
-                      if (voice.sampleUrl && !audioData.url) {
-                        canvas.onSetMedia(id, { url: voice.sampleUrl })
-                      }
-                    }}
-                    onSpeedChange={(speed) => patchProfile({ speed })}
-                    onVolumeChange={(volume) => patchProfile({ volume })}
-                    onOpenLibrary={() => setVoiceLibrary(true)}
+                }}
+                // 行内 chip 画在**输入框内部**（画板：`[愤怒]` 与 `@莫宁` 就在台词
+                // 那一行里）。文本仍是唯一真值，这一层只给字符段加底色。
+                renderValue={(text) =>
+                  renderVoicePromptValue(text, {
+                    mentions: { names: mentionNames },
+                    titleOf: (label, intensityLabel) =>
+                      intensityLabel
+                        ? tAudio('tone.chipTitle', {
+                            intensity: intensityLabel,
+                            label,
+                          })
+                        : label,
+                  })
+                }
+                addMenu={
+                  <AudioAddMenuItems
+                    onUpload={() => fileRef.current?.click()}
+                    onAssetLibrary={() => setAssetPicker(true)}
+                    onVoiceLibrary={() => setVoiceLibrary(true)}
+                    onMention={() => setDraft(`${draft}@`)}
                   />
-                ) : null,
-                modelOptions.length > 0 ? (
-                  // 与图片卡同一份弹层（渠道行 / 健康点 / 缺 key 灰显全都沿用），
-                  // 只是分组维度换成**类型**：语音 / 配乐 / 音效（画板「组就是类型」）。
-                  <ModelPickerPopover
-                    key="model"
-                    options={modelOptions.map(toStudioModelOption)}
-                    value={audioData.model?.optionId ?? null}
-                    groupBy={MODEL_PICKER_GROUP_BY.kind}
-                    memoryScope={NODE_MEDIA_KIND_IDS.audio}
-                    disabled={generating}
-                    triggerEmptyLabel={tAudio('model.title')}
-                    onChange={(option) => {
-                      const picked = modelOptions.find(
-                        (item) => item.optionId === option.optionId,
-                      )
-                      if (!picked) return
-                      canvas.onSetModel(id, {
-                        optionId: picked.optionId,
-                        modelId: picked.modelId,
-                        adapterType: picked.adapterType,
-                        providerConfig: picked.providerConfig,
-                        ...(picked.apiKeyId
-                          ? { apiKeyId: picked.apiKeyId }
-                          : {}),
+                }
+                textareaProps={{
+                  onKeyDown: (event) => {
+                    const caret = event.currentTarget.selectionStart
+                    caretRef.current = caret
+                    if (
+                      event.key !== 'Backspace' ||
+                      event.currentTarget.selectionEnd !== caret
+                    ) {
+                      return
+                    }
+                    // 退格删**整颗** chip（spec §1.7 的同一条手感）——语气标记与
+                    // `@` 引用同一条判据，谁的尾巴压在光标上就删谁。
+                    const range =
+                      voiceMarkupDeletionRangeAt(draft, caret) ??
+                      mentionDeletionRangeAt(draft, caret, {
+                        names: mentionNames,
                       })
-                    }}
-                  />
-                ) : null,
-              ].filter(Boolean)}
-            />
+                    if (!range) return
+                    event.preventDefault()
+                    const next =
+                      draft.slice(0, range.start) + draft.slice(range.end)
+                    setDraft(next)
+                    caretRef.current = range.start
+                    window.requestAnimationFrame(() =>
+                      inputRef.current?.setSelectionRange(
+                        range.start,
+                        range.start,
+                      ),
+                    )
+                  },
+                }}
+                chips={[
+                  speech ? (
+                    <AudioVoiceChip
+                      key="voice"
+                      voiceId={audioData.voiceProfile?.voiceId}
+                      voiceName={audioData.voiceProfile?.voiceName}
+                      speed={audioData.voiceProfile?.speed}
+                      volume={audioData.voiceProfile?.volume}
+                      disabled={generating}
+                      onSelectVoice={(voice) => {
+                        patchProfile({
+                          voiceId: voice.voiceId,
+                          voiceName: voice.name,
+                        })
+                        // 库里自带的试听样本**就是**这条音色的产物 —— 有就落进 `url`。
+                        if (voice.sampleUrl && !audioData.url) {
+                          canvas.onSetMedia(id, { url: voice.sampleUrl })
+                        }
+                      }}
+                      onSpeedChange={(speed) => patchProfile({ speed })}
+                      onVolumeChange={(volume) => patchProfile({ volume })}
+                      onOpenLibrary={() => setVoiceLibrary(true)}
+                    />
+                  ) : null,
+                  modelOptions.length > 0 ? (
+                    // 与图片卡同一份弹层（渠道行 / 健康点 / 缺 key 灰显全都沿用），
+                    // 只是分组维度换成**类型**：语音 / 配乐 / 音效（画板「组就是类型」）。
+                    <ModelPickerPopover
+                      key="model"
+                      options={modelOptions.map(toStudioModelOption)}
+                      value={audioData.model?.optionId ?? null}
+                      groupBy={MODEL_PICKER_GROUP_BY.kind}
+                      memoryScope={NODE_MEDIA_KIND_IDS.audio}
+                      disabled={generating}
+                      triggerEmptyLabel={tAudio('model.title')}
+                      onChange={(option) => {
+                        const picked = modelOptions.find(
+                          (item) => item.optionId === option.optionId,
+                        )
+                        if (!picked) return
+                        canvas.onSetModel(id, {
+                          optionId: picked.optionId,
+                          modelId: picked.modelId,
+                          adapterType: picked.adapterType,
+                          providerConfig: picked.providerConfig,
+                          ...(picked.apiKeyId
+                            ? { apiKeyId: picked.apiKeyId }
+                            : {}),
+                        })
+                      }}
+                    />
+                  ) : null,
+                ].filter(Boolean)}
+              />
+            )}
           </div>
         </FlowNodeToolbar>
       )}

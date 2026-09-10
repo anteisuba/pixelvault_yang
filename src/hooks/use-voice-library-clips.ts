@@ -55,6 +55,71 @@ export interface VoiceLibraryClip {
   readonly sourceKind: AudioClipSourceKind
   /** ⋯ 菜单里那一行只读来源的原文（画板「来自声音库 · 平台样本 · 莫宁」）。 */
   readonly sourceLabel: string
+  /**
+   * 落进库里的时刻（ISO 串）。⚠ 可空：平台样本 / 收藏是**音色**不是录音，它们没有
+   * 「什么时候录的」可言 —— ⛔ 不给它编一个 `now`（那会让整栏都堆在「今天」）。
+   */
+  readonly createdAt: string | null
+}
+
+/**
+ * 「我的历史 / 配音间 / 素材库」按时间分组（S5c 尾项：一条时间轴上百条录音，没有
+ * 分组就只能靠肉眼数）。⚠ 顺序即显示顺序。
+ */
+export const VOICE_LIBRARY_DATE_GROUPS = [
+  'today',
+  'yesterday',
+  'earlier',
+] as const
+
+export type VoiceLibraryDateGroup = (typeof VOICE_LIBRARY_DATE_GROUPS)[number]
+
+export interface VoiceLibraryClipGroup {
+  readonly group: VoiceLibraryDateGroup
+  readonly clips: readonly VoiceLibraryClip[]
+}
+
+/** 两个时刻是不是同一个**本地**日历日（⛔ 不按 UTC 切：那会在晚上八点后错一天）。 */
+function sameLocalDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  )
+}
+
+/**
+ * 分组。**保持原有顺序**（后端已经按新→旧给了），⛔ 不在这里再排一次 —— 再排一次
+ * 就要求每条都有 `createdAt`，而有些栏本来就没有。
+ *
+ * 没有 `createdAt` 的一律落进「更早」：它至少是真的（「今天」会是假话）。
+ * 结果里**不出现空组**。
+ */
+export function groupVoiceLibraryClipsByDate(
+  clips: readonly VoiceLibraryClip[],
+  now: Date = new Date(),
+): readonly VoiceLibraryClipGroup[] {
+  const yesterday = new Date(now)
+  yesterday.setDate(now.getDate() - 1)
+  const buckets = new Map<VoiceLibraryDateGroup, VoiceLibraryClip[]>()
+  for (const clip of clips) {
+    const at = clip.createdAt ? new Date(clip.createdAt) : null
+    const group: VoiceLibraryDateGroup =
+      at && !Number.isNaN(at.getTime())
+        ? sameLocalDay(at, now)
+          ? 'today'
+          : sameLocalDay(at, yesterday)
+            ? 'yesterday'
+            : 'earlier'
+        : 'earlier'
+    const bucket = buckets.get(group)
+    if (bucket) bucket.push(clip)
+    else buckets.set(group, [clip])
+  }
+  return VOICE_LIBRARY_DATE_GROUPS.flatMap((group) => {
+    const bucket = buckets.get(group)
+    return bucket && bucket.length > 0 ? [{ group, clips: bucket }] : []
+  })
 }
 
 export interface VoiceLibraryClipsResult {
@@ -82,6 +147,9 @@ function generationClip(
     record.prompt.trim() ||
     record.storageKey?.split('/').pop()?.trim() ||
     record.model
+  // ⚠ 时刻先当**可能读不出来**处理：这一栏的记录经 JSON 过来，`createdAt` 缺了或
+  // 不是时间时 `toISOString()` 会抛，整栏就空了（⛔ 不让一格分组信息掀翻列表）。
+  const createdAt = new Date(record.createdAt)
   return {
     id: record.id,
     name,
@@ -91,6 +159,9 @@ function generationClip(
     voiceId: null,
     sourceKind: kind,
     sourceLabel: labelOf(kind, name),
+    createdAt: Number.isNaN(createdAt.getTime())
+      ? null
+      : createdAt.toISOString(),
   }
 }
 
@@ -177,6 +248,7 @@ export function useVoiceLibraryClips({
                   AUDIO_CLIP_SOURCE.voiceRoom,
                   name,
                 ),
+                createdAt: line.createdAt,
               } satisfies VoiceLibraryClip,
             ]
           })
@@ -238,6 +310,8 @@ export function useVoiceLibraryClips({
                   AUDIO_CLIP_SOURCE.platformSample,
                   asset.title,
                 ),
+                // 平台样本是**嗓子**不是录音 —— 没有「什么时候录的」。
+                createdAt: null,
               } satisfies VoiceLibraryClip,
             ]
           : [],
@@ -257,6 +331,7 @@ export function useVoiceLibraryClips({
           voiceId: card.voiceId,
           sourceKind: AUDIO_CLIP_SOURCE.platformSample,
           sourceLabel: labelOf(AUDIO_CLIP_SOURCE.platformSample, card.name),
+          createdAt: null,
         } satisfies VoiceLibraryClip,
       ]
     })

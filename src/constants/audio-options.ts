@@ -341,6 +341,8 @@ export const AUDIO_CLIP_SOURCE_KINDS = [
   'library',
   'upload',
   'generated',
+  /** 客户端裁剪出来的那一版（S5d，spec §4「原音留作上一版」）。 */
+  'trim',
 ] as const
 
 export type AudioClipSourceKind = (typeof AUDIO_CLIP_SOURCE_KINDS)[number]
@@ -353,6 +355,7 @@ export const AUDIO_CLIP_SOURCE = {
   library: 'library',
   upload: 'upload',
   generated: 'generated',
+  trim: 'trim',
 } as const satisfies Record<AudioClipSourceKind, AudioClipSourceKind>
 
 /**
@@ -369,6 +372,18 @@ export const VOICE_LIBRARY_TAB_IDS = [
 ] as const
 
 export type VoiceLibraryTabId = (typeof VOICE_LIBRARY_TAB_IDS)[number]
+
+/**
+ * 哪些页签按**时间**分组（今天 / 昨天 / 更早）。
+ *
+ * ⚠ 只有「录下来的东西」才有时间轴：平台样本与收藏是**音色**，它们没有
+ * 「什么时候录的」—— ⛔ 不给它们扣一个「更早」的帽子。
+ */
+export const VOICE_LIBRARY_DATED_TAB_IDS = [
+  'history',
+  'voiceRoom',
+  'library',
+] as const satisfies readonly VoiceLibraryTabId[]
 
 /** 面板宽（画板 640，与文本画中框同一档）。 */
 export const VOICE_LIBRARY_PANEL_WIDTH = 640

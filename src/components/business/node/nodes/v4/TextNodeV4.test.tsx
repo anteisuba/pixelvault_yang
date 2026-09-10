@@ -46,18 +46,24 @@ vi.mock('./chrome/NodeToolbar', () => ({
       label: string
       onSelect: () => void
       menu?: ReactNode
+      panel?: ReactNode
     }[])[]
     ariaLabel: string
   }) => (
     <div role="toolbar" aria-label={ariaLabel}>
       {groups.flat().map((action) => (
-        <button
-          key={action.id}
-          type="button"
-          data-toolbar-action={action.id}
-          data-has-menu={action.menu ? 'true' : undefined}
-          onClick={action.onSelect}
-        />
+        <div key={action.id}>
+          <button
+            type="button"
+            data-toolbar-action={action.id}
+            data-has-menu={action.menu ? 'true' : undefined}
+            data-has-panel={action.panel ? 'true' : undefined}
+            onClick={action.onSelect}
+          />
+          {/* 面板（`panel`）在真壳里是 Popover 的内容——桩里常驻渲染，
+              本组测试要断言的是「哪一键接哪份内容」。 */}
+          {action.panel}
+        </div>
       ))}
     </div>
   ),
@@ -227,7 +233,10 @@ describe('S2 文本节点 · 选中态', () => {
       container.querySelector('[data-toolbar-action="shotImage"]')!,
     )
     expect(context.onDeriveFromText).toHaveBeenCalledWith('t_02', 'shotImage')
+    // 「生镜头」改成「连到镜头」弹层（spec §1.13）：顶行「新建镜头」才是原来
+    // 那条派生。
     fireEvent.click(container.querySelector('[data-toolbar-action="video"]')!)
+    fireEvent.click(document.querySelector('[data-connect-to-shot-new]')!)
     expect(context.onDeriveFromText).toHaveBeenCalledWith('t_02', 'video')
     fireEvent.click(container.querySelector('[data-toolbar-action="mention"]')!)
     expect(context.onToggleExpanded).toHaveBeenCalledWith('t_02')

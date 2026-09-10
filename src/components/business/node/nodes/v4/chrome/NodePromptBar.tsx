@@ -45,6 +45,14 @@ export interface NodePromptBarProps {
   readonly chips?: readonly ReactNode[]
   /** `+` 的菜单项（用 `DropdownMenuItem` 拼）。不给就不渲染 `+`。 */
   readonly addMenu?: ReactNode
+  /**
+   * **栏内首行**（画板 `VideoSelected.dc.html`：已挂的首帧 / 尾帧 / 语音那排小
+   * chip 就在栏里、正文之上，同一片玻璃）。
+   *
+   * ⚠ 有内容才占这一行（`null` / `false` / 空数组都当没有）；有它时整条栏退成
+   * 方角的堆叠形态 —— ⛔ 不在胶囊里硬塞第二行。
+   */
+  readonly leadingRow?: ReactNode
   readonly ariaLabel: string
   readonly className?: string
   readonly textareaProps?: {
@@ -88,6 +96,7 @@ export function NodePromptBar({
   placeholder,
   chips,
   addMenu,
+  leadingRow,
   ariaLabel,
   className,
   textareaProps,
@@ -111,7 +120,19 @@ export function NodePromptBar({
     setLines(Math.max(1, Math.round(el.scrollHeight / LINE_HEIGHT_PX)))
   }, [value])
 
-  const expanded = lines > 1
+  /**
+   * 栏内首行有内容？⚠ `Boolean(节点)` 不够 —— 调用方常传一个「没东西时自己返回
+   * `null`」的组件元素，那颗元素本身是 truthy。所以只认「渲染出来的确实是空」的
+   * 三种字面空值，其余一律当有。
+   */
+  const hasLeadingRow =
+    leadingRow !== undefined &&
+    leadingRow !== null &&
+    leadingRow !== false &&
+    !(Array.isArray(leadingRow) && leadingRow.length === 0)
+  // 首行占位时整条栏必须退成堆叠形态（画板：chip 一行、正文一行、控件一行），
+  // ⛔ 不在 44 高的胶囊里硬塞第二行。
+  const expanded = lines > 1 || hasLeadingRow
   const overflowing = lines > NODE_V4_CHROME.promptMaxLines
   const visibleChips = (chips ?? []).slice(0, NODE_V4_CHROME.promptChipMax)
   const textareaHeight =
@@ -273,9 +294,19 @@ export function NodePromptBar({
         {value}
         {'\u200b'}
       </div>
+      {hasLeadingRow ? (
+        <div
+          data-prompt-bar-leading
+          style={{ height: NODE_V4_CHROME.promptLeadingRowHeight }}
+          className="flex items-center gap-1.5 overflow-hidden"
+        >
+          {leadingRow}
+        </div>
+      ) : null}
       <div
         className={cn(
-          'flex h-full flex-wrap items-center gap-x-2.5',
+          'flex flex-wrap items-center gap-x-2.5',
+          hasLeadingRow ? undefined : 'h-full',
           expanded && 'gap-y-2',
         )}
       >

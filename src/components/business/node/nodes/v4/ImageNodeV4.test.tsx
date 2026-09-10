@@ -266,11 +266,14 @@ describe('选中态：工具条 + 提示词栏', () => {
    * 修法是一行（`{...rest}` 挪到 `onClick` 之前）—— S0 已经修掉，所以这条从
    * `it.fails` 转回正的断言。
    */
-  it('生镜头是**一批**：建镜头 + 把这张图连成它的首帧', () => {
+  it('连到镜头弹层顶行「新建镜头」是**一批**：建镜头 + 把这张图连成它的首帧', () => {
     const context = selectedContext()
     renderImage(context, 'i_1', true)
     fireEvent.click(
       document.querySelector('[data-toolbar-action="shot"]') as HTMLElement,
+    )
+    fireEvent.click(
+      document.querySelector('[data-connect-to-shot-new]') as HTMLElement,
     )
     // ⚠ 断言的是 `onApplyBatch` 而不是两次 `onApplyOp`：两条必须同批才解得开
     // `ref`，也才收成一个撤销条目。

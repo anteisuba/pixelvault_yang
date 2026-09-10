@@ -64,8 +64,15 @@ import {
   NodeToolbar,
   QuickLook,
   VersionDots,
+  ConnectToShotPopover,
+  flashNodeCard,
+  useNodeCardFlash,
   type NodeToolbarGroup,
 } from './chrome'
+import {
+  buildConnectToShotOps,
+  buildConnectToShotTargets,
+} from './connect-to-shot-targets'
 import { ImageFrameChip } from './image/ImageFrameChip'
 import {
   ImageAddMenuItems,
@@ -151,8 +158,12 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const generation = useNodeMediaGenerationV4()
   const upload = useNodeUploadV4()
   const imageData = data as unknown as NodeV4ImageData
+  /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
+  const flashed = useNodeCardFlash(id)
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
+  /** ⋯「重命名这张图」触发卡外那行名字进入编辑（`NodeCardShell.renameRequest`）。 */
+  const [renameRequest, setRenameRequest] = useState(0)
   const [quickLook, setQuickLook] = useState(false)
   const [assetPicker, setAssetPicker] = useState(false)
   const [editTask, setEditTask] =
@@ -297,33 +308,66 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       })
   }
 
+  /** 「连到镜头」列表 = 画布上的视频卡，按镜头带顺序（spec §1.13）。 */
+  const shotTargets = buildConnectToShotTargets({
+    nodes: canvas.nodes,
+    edges: canvas.edges,
+    formatDuration: (seconds) => `${Math.round(seconds)}s`,
+  })
+
   const toolbarGroups: readonly NodeToolbarGroup[] = [
     [
       {
+        // 原「生镜头」（图标不变）——现在先开弹层选目标镜头与 首帧 / 尾帧
+        // （spec §1.13）。顶行「新建镜头」保留原来那一批两条。
         id: 'shot',
-        label: tImage('toolbar.shot'),
+        label: tImage('toolbar.connect'),
         icon: Clapperboard,
-        // ⚠ **一批两条**：建镜头 + 把这张图连成它的首帧。批内别名（`ref`）让第二
-        // 条认得出刚建的那张，⛔ 循环发两条 `onApplyOp` 做不到（第二条时那个
-        // 节点还不在闭包里的 state 上），且撤销会碎成两步。
-        onSelect: () =>
-          void canvas.onApplyBatch([
-            {
-              op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-              kind: NODE_MEDIA_KIND_IDS.video,
-              subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
-              ref: SHOT_BATCH_REF,
-              ...(imageData.shotNo === undefined
-                ? {}
-                : { shotNo: imageData.shotNo }),
-            },
-            {
-              op: NODE_ASSISTANT_OP_V4_IDS.connect,
-              source: id,
-              target: SHOT_BATCH_REF,
-              slot: NODE_SLOT_IDS.firstFrame,
-            },
-          ]),
+        onSelect: () => {},
+        panel: (
+          <ConnectToShotPopover
+            sourceNodeId={id}
+            sourceKind={NODE_MEDIA_KIND_IDS.image}
+            targets={shotTargets}
+            // ⚠ **一批两条**：建镜头 + 把这张图连成它的首帧。批内别名（`ref`）让第二
+            // 条认得出刚建的那张，⛔ 循环发两条 `onApplyOp` 做不到（第二条时那个
+            // 节点还不在闭包里的 state 上），且撤销会碎成两步。
+            onNew={() =>
+              void canvas.onApplyBatch([
+                {
+                  op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+                  kind: NODE_MEDIA_KIND_IDS.video,
+                  subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+                  ref: SHOT_BATCH_REF,
+                  ...(imageData.shotNo === undefined
+                    ? {}
+                    : { shotNo: imageData.shotNo }),
+                },
+                {
+                  op: NODE_ASSISTANT_OP_V4_IDS.connect,
+                  source: id,
+                  target: SHOT_BATCH_REF,
+                  slot: NODE_SLOT_IDS.firstFrame,
+                },
+              ])
+            }
+            onConnect={(targetId, slot) => {
+              void Promise.resolve(
+                canvas.onApplyBatch(
+                  buildConnectToShotOps({
+                    sourceId: id,
+                    targetId,
+                    slot,
+                    edges: canvas.edges,
+                  }),
+                ),
+              ).then(() => {
+                canvas.onFocusNode(targetId)
+                flashNodeCard(targetId)
+              })
+            }}
+          />
+        ),
       },
       {
         id: 'edit',
@@ -349,6 +393,18 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         onSelect: () => {},
         menu: (
           <ImageMoreMenuItems
+            onRename={() => setRenameRequest((count) => count + 1)}
+            onSplitVersion={
+              // 只有一版时拆无可拆 —— ⛔ 不摆一个按了什么都不变的项。
+              versions.length > 1
+                ? () =>
+                    void canvas.onApplyOp({
+                      op: NODE_ASSISTANT_OP_V4_IDS.splitOutputVersion,
+                      target: id,
+                      index: versionIndex,
+                    })
+                : undefined
+            }
             onSetCharacter={
               imageData.subtype === NODE_V4_IMAGE_SUBTYPE_IDS.character
                 ? undefined
@@ -421,6 +477,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         name={imageData.name}
         renameAriaLabel={t('renameNode')}
         onRename={renameNode}
+        renameRequest={renameRequest}
         selected={Boolean(selected)}
         width={width}
         emptyHint={t('chrome.emptyHint')}
@@ -428,7 +485,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         emptyHeight={emptyCardHeight(width)}
         onEmptyAdd={() => fileRef.current?.click()}
         surfaceClassName="overflow-hidden"
-        changed={canvas.changedNodeIds.includes(id)}
+        changed={canvas.changedNodeIds.includes(id) || flashed}
         ports={<ImagePorts node={node} />}
       >
         {imageData.url ? (

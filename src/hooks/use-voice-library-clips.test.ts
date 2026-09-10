@@ -39,7 +39,11 @@ vi.mock('@/lib/api-client/voiceroom', () => ({
   getVoiceRoomAPI: getRoom,
 }))
 
-import { useVoiceLibraryClips } from '@/hooks/use-voice-library-clips'
+import {
+  groupVoiceLibraryClipsByDate,
+  useVoiceLibraryClips,
+  type VoiceLibraryClip,
+} from '@/hooks/use-voice-library-clips'
 
 const labelOf = (kind: string, name: string) => `${kind} · ${name}`
 
@@ -158,5 +162,61 @@ describe('五个页签各自的供数（S5c，画板 AudioLibrary）', () => {
     )
     await waitFor(() => expect(listRooms).toHaveBeenCalled())
     expect(result.current.clips).toHaveLength(0)
+  })
+})
+
+describe('按 今天 / 昨天 / 更早 分组（S5c 尾项）', () => {
+  const NOW = new Date('2026-09-10T20:00:00+08:00')
+  const clip = (id: string, createdAt: string | null): VoiceLibraryClip =>
+    ({
+      id,
+      name: id,
+      subtitle: null,
+      url: `https://cdn.test/${id}.mp3`,
+      durationSec: 3,
+      voiceId: null,
+      sourceKind: 'generated',
+      sourceLabel: id,
+      createdAt,
+    }) as VoiceLibraryClip
+
+  it('按本地日历日切，⛔ 不按 UTC（晚上八点后会错一天）', () => {
+    const groups = groupVoiceLibraryClipsByDate(
+      [
+        clip('a', '2026-09-10T21:30:00+08:00'),
+        clip('b', '2026-09-09T09:00:00+08:00'),
+        clip('c', '2026-09-01T09:00:00+08:00'),
+      ],
+      NOW,
+    )
+    expect(
+      groups.map((section) => [section.group, section.clips.map((x) => x.id)]),
+    ).toEqual([
+      ['today', ['a']],
+      ['yesterday', ['b']],
+      ['earlier', ['c']],
+    ])
+  })
+
+  it('没有时刻（音色）或时刻读不出来的一律落「更早」——它至少是真的', () => {
+    const groups = groupVoiceLibraryClipsByDate(
+      [clip('a', null), clip('b', 'not-a-date')],
+      NOW,
+    )
+    expect(groups).toEqual([
+      { group: 'earlier', clips: [expect.anything(), expect.anything()] },
+    ])
+  })
+
+  it('组内保持原有顺序（后端已按新→旧给），且⛔ 不出现空组', () => {
+    const groups = groupVoiceLibraryClipsByDate(
+      [
+        clip('a', '2026-09-10T10:00:00+08:00'),
+        clip('b', '2026-09-10T09:00:00+08:00'),
+      ],
+      NOW,
+    )
+    expect(groups).toHaveLength(1)
+    expect(groups[0]!.clips.map((x) => x.id)).toEqual(['a', 'b'])
   })
 })

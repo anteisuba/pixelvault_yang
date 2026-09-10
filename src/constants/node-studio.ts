@@ -1347,6 +1347,11 @@ export const NODE_V4_CARD = {
   /** 展开态横轨里一张槽卡的宽与格间距。 */
   slotCardWidth: 100,
   slotCardGap: 8,
+  /**
+   * **派生卡**落在本卡旁边时留的间距（S5d：转文字派生的文本卡落在本卡右侧）。
+   * ⚠ 要大于连线的最小可读长度，否则两张卡之间那条边看起来像贴住的。
+   */
+  derivedGap: 64,
 } as const
 
 /**
@@ -1409,6 +1414,50 @@ export const NODE_V4_CHROME = {
   },
   /** @ chip 里的缩略图边长（spec §1.7）。 */
   mentionThumbSize: 16,
+  /**
+   * 提示词栏**栏内首行**的高度（画板 `VideoSelected.dc.html`：已挂的首帧 / 尾帧 /
+   * 语音那排 26 高小 chip 连同行间距）。⚠ 有内容才占这一行。
+   */
+  promptLeadingRowHeight: 30,
+} as const
+
+/**
+ * 「连到镜头」弹层（spec §1.13，画板 `ConnectToShot.dc.html`）。
+ *
+ * 两个宽度：音频 / 文本卡是 300（只有一行读数），图片卡要多塞一段「首帧 / 尾帧」
+ * 分段，画板上给到 360。
+ */
+export const NODE_V4_CONNECT_TO_SHOT = {
+  width: 300,
+  widthWithFrameChoice: 360,
+  /** 列表里那张缩略（画板 56×32，16:9）。 */
+  thumbWidth: 56,
+  thumbHeight: 32,
+  /** 连完目标卡高亮多久（ms）——与变更高亮同一档。 */
+  highlightMs: 1600,
+} as const
+
+/**
+ * 音频**裁剪面板**（spec §4，画板 `AudioTrim.dc.html`）。
+ *
+ * ⚠ 面板宽度与提示词栏不同（520 > 栏的 130 rem 档）：裁剪要看清波形，栏那条胶囊
+ * 的宽度不够。
+ */
+export const NODE_V4_AUDIO_TRIM = {
+  panelWidth: 520,
+  /** 大波形高度（画板 96）。 */
+  waveformHeight: 96,
+  /** 大波形柱数——比矮卡多一档，够看出句读。 */
+  barCount: 80,
+  /** 两端手柄宽度（画板 10）。 */
+  handleWidth: 10,
+  /** 选区最短时长（秒）：再短就不是一段声音了。 */
+  minSelectionSec: 0.1,
+  /**
+   * 在波形上按下后要挪过几像素才算「拖出选区」——没挪过就只是点一下（放播放头）。
+   * ⚠ 有阈值才分得开这两种手势，⛔ 不让一次误点抹掉已经调好的入出点。
+   */
+  marqueeThresholdPx: 4,
 } as const
 
 /**

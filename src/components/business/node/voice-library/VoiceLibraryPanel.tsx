@@ -17,19 +17,21 @@
  * 它身上），⛔ 这里不再写第二套浮层。
  */
 
-import { useCallback, useRef, useState } from 'react'
+import { Fragment, useCallback, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Mic, Pause, Play, Search } from 'lucide-react'
 
 import { Input } from '@/components/ui/input'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import {
+  VOICE_LIBRARY_DATED_TAB_IDS,
   VOICE_LIBRARY_PANEL_WIDTH,
   VOICE_LIBRARY_TAB_IDS,
   type AudioClipSourceKind,
   type VoiceLibraryTabId,
 } from '@/constants/audio-options'
 import {
+  groupVoiceLibraryClipsByDate,
   useVoiceLibraryClips,
   type VoiceLibraryClip,
 } from '@/hooks/use-voice-library-clips'
@@ -108,6 +110,79 @@ export function VoiceLibraryPanel({
     onClose()
   }
 
+  /**
+   * 这一栏按时间分组吗？音色那两栏（平台样本 / 收藏）没有时间轴，`null` 表示平铺。
+   */
+  const datedGroups = (
+    VOICE_LIBRARY_DATED_TAB_IDS as readonly VoiceLibraryTabId[]
+  ).includes(tab)
+    ? groupVoiceLibraryClipsByDate(clips)
+    : null
+
+  /**
+   * 一行 = 一段声音。⚠ 抽成函数是因为它现在有两个调用点：平铺（音色那两栏）
+   * 与按日分组（录音那三栏）—— ⛔ 不把同一行的写法抄两遍。
+   */
+  const clipRow = (clip: VoiceLibraryClip) => {
+    const duration = formatClipDuration(clip.durationSec)
+    return (
+      <div
+        key={clip.id}
+        data-voice-library-row={clip.id}
+        className="flex min-h-13 items-center gap-2.5 rounded-lg px-2 transition-colors duration-fast hover:bg-surface-fill"
+      >
+        <div className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-2sm text-foreground">{clip.name}</span>
+          {clip.subtitle ? (
+            <span className="truncate text-3xs text-muted-foreground">
+              {clip.subtitle}
+            </span>
+          ) : null}
+        </div>
+        <span className="shrink-0 text-3xs tabular-nums text-muted-foreground">
+          {duration ?? t('durationUnknown')}
+        </span>
+        <button
+          type="button"
+          data-voice-library-preview={clip.id}
+          aria-label={t('preview')}
+          onClick={() => preview(clip)}
+          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-fill text-foreground transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {previewId === clip.id ? (
+            <Pause aria-hidden className="size-3" />
+          ) : (
+            <Play aria-hidden className="size-3" />
+          )}
+        </button>
+        <button
+          type="button"
+          data-voice-library-use={clip.id}
+          onClick={() => onUseClip(clip)}
+          className="flex min-h-7 shrink-0 items-center rounded-full bg-primary px-2.5 text-3xs font-medium text-primary-foreground transition-opacity duration-fast hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          {t('use')}
+        </button>
+        {onSetVoice ? (
+          <button
+            type="button"
+            data-voice-library-set-voice={clip.id}
+            disabled={!clip.voiceId}
+            onClick={() => onSetVoice(clip)}
+            className={cn(
+              'flex min-h-7 shrink-0 items-center rounded-full border border-border px-2.5 text-3xs text-foreground',
+              'transition-colors duration-fast hover:border-foreground/40',
+              'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+              'disabled:pointer-events-none disabled:opacity-40',
+            )}
+          >
+            {t('setVoice')}
+          </button>
+        ) : null}
+      </div>
+    )
+  }
+
   return (
     <>
       <NodeFrame
@@ -182,68 +257,22 @@ export function VoiceLibraryPanel({
               >
                 {isLoading ? t('loading') : (error ?? t('empty'))}
               </p>
-            ) : (
-              clips.map((clip) => {
-                const duration = formatClipDuration(clip.durationSec)
-                return (
-                  <div
-                    key={clip.id}
-                    data-voice-library-row={clip.id}
-                    className="flex min-h-13 items-center gap-2.5 rounded-lg px-2 transition-colors duration-fast hover:bg-surface-fill"
+            ) : datedGroups ? (
+              // 「我的历史 / 配音间 / 素材库」= 一条时间轴，按 今天 / 昨天 / 更早
+              // 分组（S5c 尾项）。⛔ 空组不出现。
+              datedGroups.map((section) => (
+                <Fragment key={section.group}>
+                  <span
+                    data-voice-library-group={section.group}
+                    className="px-2 pt-2 pb-1 text-3xs text-muted-foreground"
                   >
-                    <div className="flex min-w-0 flex-1 flex-col">
-                      <span className="truncate text-2sm text-foreground">
-                        {clip.name}
-                      </span>
-                      {clip.subtitle ? (
-                        <span className="truncate text-3xs text-muted-foreground">
-                          {clip.subtitle}
-                        </span>
-                      ) : null}
-                    </div>
-                    <span className="shrink-0 text-3xs tabular-nums text-muted-foreground">
-                      {duration ?? t('durationUnknown')}
-                    </span>
-                    <button
-                      type="button"
-                      data-voice-library-preview={clip.id}
-                      aria-label={t('preview')}
-                      onClick={() => preview(clip)}
-                      className="flex size-7 shrink-0 items-center justify-center rounded-full bg-surface-fill text-foreground transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                    >
-                      {previewId === clip.id ? (
-                        <Pause aria-hidden className="size-3" />
-                      ) : (
-                        <Play aria-hidden className="size-3" />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      data-voice-library-use={clip.id}
-                      onClick={() => onUseClip(clip)}
-                      className="flex min-h-7 shrink-0 items-center rounded-full bg-primary px-2.5 text-3xs font-medium text-primary-foreground transition-opacity duration-fast hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                    >
-                      {t('use')}
-                    </button>
-                    {onSetVoice ? (
-                      <button
-                        type="button"
-                        data-voice-library-set-voice={clip.id}
-                        disabled={!clip.voiceId}
-                        onClick={() => onSetVoice(clip)}
-                        className={cn(
-                          'flex min-h-7 shrink-0 items-center rounded-full border border-border px-2.5 text-3xs text-foreground',
-                          'transition-colors duration-fast hover:border-foreground/40',
-                          'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                          'disabled:pointer-events-none disabled:opacity-40',
-                        )}
-                      >
-                        {t('setVoice')}
-                      </button>
-                    ) : null}
-                  </div>
-                )
-              })
+                    {t(`dateGroups.${section.group}`)}
+                  </span>
+                  {section.clips.map(clipRow)}
+                </Fragment>
+              ))
+            ) : (
+              clips.map(clipRow)
             )}
           </div>
         </div>

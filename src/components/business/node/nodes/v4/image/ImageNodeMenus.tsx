@@ -22,6 +22,8 @@ import {
   Layers,
   Library,
   Paintbrush,
+  Pencil,
+  Scissors,
   Trash2,
   Upload,
   UserRound,
@@ -77,11 +79,16 @@ export function ImageEditMenuItems({
 }
 
 export function ImageMoreMenuItems({
+  onRename,
   onDuplicate,
+  onSplitVersion,
   onSetCharacter,
   onDelete,
 }: {
+  onRename(): void
   onDuplicate(): void
+  /** 「拆出当前版本」（spec §3）。⚠ 只有一版时调用方传 `undefined`（拆无可拆）。 */
+  onSplitVersion?: (() => void) | undefined
   /**
    * 「设为角色卡」。⚠ 已经是角色卡的那张不给这一项 —— 调用方传 `undefined`，
    * ⛔ 不摆一个按了什么都不变的灰项。
@@ -89,14 +96,24 @@ export function ImageMoreMenuItems({
   onSetCharacter?: (() => void) | undefined
   onDelete(): void
 }) {
-  const t = useTranslations('StudioNode.v4')
   const tImage = useTranslations('StudioNode.v4.image')
   return (
     <>
+      {/* ⋯ 的文案按**这一类卡**写（S5c 尾项）。⛔ 共用键的语义不动。 */}
+      <DropdownMenuItem data-image-more="rename" onSelect={onRename}>
+        <Pencil aria-hidden className="size-4" />
+        {tImage('more.rename')}
+      </DropdownMenuItem>
       <DropdownMenuItem data-image-more="duplicate" onSelect={onDuplicate}>
         <Copy aria-hidden className="size-4" />
-        {t('toolbar.clone')}
+        {tImage('more.duplicate')}
       </DropdownMenuItem>
+      {onSplitVersion ? (
+        <DropdownMenuItem data-image-more="split" onSelect={onSplitVersion}>
+          <Scissors aria-hidden className="size-4" />
+          {tImage('more.splitVersion')}
+        </DropdownMenuItem>
+      ) : null}
       {onSetCharacter ? (
         <DropdownMenuItem
           data-image-more="set-character"
@@ -113,7 +130,7 @@ export function ImageMoreMenuItems({
         onSelect={onDelete}
       >
         <Trash2 aria-hidden className="size-4" />
-        {t('toolbar.delete')}
+        {tImage('more.delete')}
       </DropdownMenuItem>
     </>
   )

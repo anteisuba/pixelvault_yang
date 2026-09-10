@@ -75,6 +75,7 @@ import {
   NodeToolbar,
   QuickLook,
   VersionDots,
+  useNodeCardFlash,
   type NodeToolbarGroup,
 } from './chrome'
 import { useNodeV4Canvas } from './NodeV4Context'
@@ -126,6 +127,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const upload = useNodeUploadV4()
   const frames = useVideoReferenceSlots()
   const videoData = data as unknown as NodeV4VideoData
+  /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
+  const flashed = useNodeCardFlash(id)
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [quickLook, setQuickLook] = useState(false)
@@ -669,7 +672,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         emptyHeight={height}
         onEmptyAdd={() => openFilePicker(null)}
         surfaceClassName="overflow-hidden"
-        changed={canvas.changedNodeIds.includes(id)}
+        changed={canvas.changedNodeIds.includes(id) || flashed}
         portSpec={{
           kind: NODE_MEDIA_KIND_IDS.video,
           left: (ports?.inputs ?? []).map((spec) => ({
@@ -812,19 +815,23 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 })
               }
             />
-            {/* 栏首行：已挂的首帧 / 尾帧 / 语音（画板 57 行）。 */}
-            <VideoSlotChips
-              items={slotChips}
-              onOpen={canvas.onFocusNode}
-              onRemove={(edgeId) =>
-                void canvas.onApplyOp({
-                  op: NODE_ASSISTANT_OP_V4_IDS.disconnect,
-                  edgeId,
-                })
-              }
-              className="w-95 px-3.5"
-            />
             <NodePromptBar
+              // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
+              // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
+              leadingRow={
+                slotChips.length > 0 ? (
+                  <VideoSlotChips
+                    items={slotChips}
+                    onOpen={canvas.onFocusNode}
+                    onRemove={(edgeId) =>
+                      void canvas.onApplyOp({
+                        op: NODE_ASSISTANT_OP_V4_IDS.disconnect,
+                        edgeId,
+                      })
+                    }
+                  />
+                ) : null
+              }
               value={draft}
               onValueChange={setDraft}
               onSubmit={submitPrompt}

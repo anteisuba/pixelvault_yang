@@ -141,7 +141,6 @@ export function VideoMoreMenuItems({
   onSplitVersion,
   onDelete,
 }: VideoMoreMenuItemsProps) {
-  const t = useTranslations('StudioNode.v4')
   const tVideo = useTranslations('StudioNode.v4.video')
   return (
     <>
@@ -149,9 +148,10 @@ export function VideoMoreMenuItems({
         <SquarePen aria-hidden className="size-4" />
         {tVideo('more.rename')}
       </DropdownMenuItem>
+      {/* ⋯ 的文案按**这一类卡**写（S5c 尾项）。⛔ 共用键的语义不动。 */}
       <DropdownMenuItem data-video-more="duplicate" onSelect={onDuplicate}>
         <Copy aria-hidden className="size-4" />
-        {t('toolbar.clone')}
+        {tVideo('more.duplicate')}
       </DropdownMenuItem>
       {onSplitVersion ? (
         <DropdownMenuItem data-video-more="split" onSelect={onSplitVersion}>
@@ -166,7 +166,7 @@ export function VideoMoreMenuItems({
         onSelect={onDelete}
       >
         <Trash2 aria-hidden className="size-4" />
-        {t('toolbar.delete')}
+        {tVideo('more.delete')}
       </DropdownMenuItem>
     </>
   )

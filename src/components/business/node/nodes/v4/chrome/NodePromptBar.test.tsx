@@ -41,6 +41,50 @@ function setup(
 }
 
 describe('NodePromptBar', () => {
+  it('leadingRow 有内容才占栏内首行，并把整条栏推成堆叠形态', () => {
+    const { container, rerender } = setup()
+    expect(container.querySelector('[data-prompt-bar-leading]')).toBeNull()
+    expect(
+      container
+        .querySelector('[data-node-chrome="prompt-bar"]')
+        ?.getAttribute('data-expanded'),
+    ).toBe('false')
+
+    // `null` 与空数组都当没有——调用方常传一个「没东西时返回 null」的元素。
+    rerender(
+      <NodePromptBar
+        value="站台"
+        onValueChange={() => {}}
+        onSubmit={() => {}}
+        placeholder="写点什么"
+        ariaLabel="提示词"
+        leadingRow={null}
+      />,
+    )
+    expect(container.querySelector('[data-prompt-bar-leading]')).toBeNull()
+
+    rerender(
+      <NodePromptBar
+        value="站台"
+        onValueChange={() => {}}
+        onSubmit={() => {}}
+        placeholder="写点什么"
+        ariaLabel="提示词"
+        leadingRow={<span data-testid="slot-chips">首帧</span>}
+      />,
+    )
+    const row = container.querySelector('[data-prompt-bar-leading]')
+    expect(row).not.toBeNull()
+    expect(row?.contains(screen.getByTestId('slot-chips'))).toBe(true)
+    // 首行与正文在**同一片玻璃**里：它是提示词栏自己的子节点。
+    expect(row?.closest('[data-node-chrome="prompt-bar"]')).not.toBeNull()
+    expect(
+      container
+        .querySelector('[data-node-chrome="prompt-bar"]')
+        ?.getAttribute('data-expanded'),
+    ).toBe('true')
+  })
+
   it('Enter 发送、Shift+Enter 换行、IME 组字期间放行', () => {
     const { onSubmit } = setup()
     const input = screen.getByLabelText('提示词')

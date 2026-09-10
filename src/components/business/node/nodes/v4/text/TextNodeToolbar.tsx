@@ -23,7 +23,11 @@ export interface TextNodeToolbarProps {
   readonly visible: boolean
   onMention(): void
   onDeriveShotImage(): void
-  onDeriveVideo(): void
+  /**
+   * 「连到镜头」那颗键的**弹层**（`ConnectToShotPopover`）。图标不变，标签换成
+   * 「连到镜头」——顶行「新建镜头」仍是原来那条 `onDeriveFromText(id,'video')`。
+   */
+  readonly connectPanel: ReactNode
   onRename(): void
   onClone(): void
   /** 「拆成多段」那一项——它要动作总线，所以由调用方在菜单打开时才挂（见 `TextSplitMenuItem`）。 */
@@ -35,7 +39,7 @@ export function TextNodeToolbar({
   visible,
   onMention,
   onDeriveShotImage,
-  onDeriveVideo,
+  connectPanel,
   onRename,
   onClone,
   splitItem,
@@ -50,11 +54,13 @@ export function TextNodeToolbar({
     onSelect: () => {},
     menu: (
       <>
+        {/* ⋯ 的文案按**这一类卡**写（S5c 尾项：共用键写的是「重命名节点 / 克隆
+            空节点」，在一张文本卡上读起来像在说别的东西）。 */}
         <DropdownMenuItem data-menu-action="rename" onSelect={onRename}>
-          {t('toolbar.rename')}
+          {t('toolbar.renameNode')}
         </DropdownMenuItem>
         <DropdownMenuItem data-menu-action="clone" onSelect={onClone}>
-          {t('toolbar.clone')}
+          {t('toolbar.cloneNode')}
         </DropdownMenuItem>
         {splitItem}
         <DropdownMenuItem
@@ -62,7 +68,7 @@ export function TextNodeToolbar({
           variant="destructive"
           onSelect={onDelete}
         >
-          {t('toolbar.delete')}
+          {t('toolbar.deleteNode')}
         </DropdownMenuItem>
       </>
     ),
@@ -93,9 +99,10 @@ export function TextNodeToolbar({
             },
             {
               id: 'video',
-              label: t('toolbar.video'),
+              label: t('toolbar.connect'),
               icon: Film,
-              onSelect: onDeriveVideo,
+              onSelect: () => {},
+              panel: connectPanel,
             },
             more,
           ],

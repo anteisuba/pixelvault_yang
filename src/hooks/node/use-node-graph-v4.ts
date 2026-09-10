@@ -107,10 +107,59 @@ export interface NodeGraphV4Projection {
   readonly kept: readonly string[]
 }
 
+/**
+ * **相对落位**（S5d）：新卡落在某张已有卡的哪一边。
+ *
+ * ⚠ 为什么不进 op 表：`add_node` 认的是绝对坐标，而「右边」只有**当下这张图**知道
+ * 是多少 —— 让 op 认相对位置就等于让助手的重放依赖当时的布局。所以相对位置在这一
+ * 层解析成绝对坐标，op 收到的仍然是 `position`。
+ */
+export interface NodeGraphV4Placement {
+  /** 参照哪张卡。 */
+  readonly relativeTo: string
+  readonly side: 'right' | 'left' | 'below' | 'above'
+  /** 与参照卡之间留多少像素。 */
+  readonly gap: number
+  /** 参照卡的宽 / 高（卡尺寸由渲染层知道，⛔ 图里不存）。 */
+  readonly size?: { readonly width: number; readonly height: number }
+}
+
 export interface NodeGraphV4AddOptions {
   readonly position?: { readonly x: number; readonly y: number }
   readonly shotNo?: number
   readonly name?: string
+  /**
+   * 相对落位。⚠ 与 `position` 同时给时以 `position` 为准（显式坐标最具体）；
+   * 参照卡不在图里就当没给（⛔ 不落到 0,0）。
+   */
+  readonly placement?: NodeGraphV4Placement
+}
+
+/**
+ * 相对落位 → 绝对坐标。参照卡不在名单里返回 `undefined`（调用方据此退回默认布局）。
+ *
+ * 纯函数：`AudioNodeV4` 的「转文字派生卡落在本卡右侧」这类批操作直接调它，把结果
+ * 塞进 `add_node.position` —— ⛔ 不为一条落位在批执行器里另开一条路。
+ */
+export function resolveRelativePlacement(
+  nodes: readonly NodeV4[],
+  placement: NodeGraphV4Placement,
+): { readonly x: number; readonly y: number } | undefined {
+  const anchor = nodes.find((node) => node.id === placement.relativeTo)
+  if (!anchor) return undefined
+  const width = placement.size?.width ?? 0
+  const height = placement.size?.height ?? 0
+  const { x, y } = anchor.position
+  switch (placement.side) {
+    case 'right':
+      return { x: x + width + placement.gap, y }
+    case 'left':
+      return { x: x - width - placement.gap, y }
+    case 'below':
+      return { x, y: y + height + placement.gap }
+    case 'above':
+      return { x, y: y - height - placement.gap }
+  }
 }
 
 export interface UseNodeGraphV4Options {
@@ -493,17 +542,22 @@ export function useNodeGraphV4({
       subtype: NodeV4Data['subtype'],
       options: NodeGraphV4AddOptions = {},
     ): string | null => {
+      const position =
+        options.position ??
+        (options.placement
+          ? resolveRelativePlacement(state.nodes, options.placement)
+          : undefined)
       const ok = dispatch({
         op: NODE_ASSISTANT_OP_V4_IDS.addNode,
         kind,
         subtype,
-        ...(options.position ? { position: options.position } : {}),
+        ...(position ? { position } : {}),
         ...(options.shotNo === undefined ? {} : { shotNo: options.shotNo }),
         ...(options.name ? { name: options.name } : {}),
       })
       return ok ? lastCreatedRef.current : null
     },
-    [dispatch],
+    [dispatch, state.nodes],
   )
 
   const connect = useCallback(

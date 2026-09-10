@@ -33,6 +33,16 @@ vi.mock('@/hooks/node/use-node-upload-v4', () => ({
   }),
 }))
 
+/**
+ * 切采样与编 WAV 的本体在 `src/lib/audio-trim.ts`（那边有逐字段的 WAV 头测试）——
+ * 这一组要看的是**卡上那条路**：面板吐一对入出点 → 走上传 → 落成新一版。
+ */
+const trimSpy = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/audio-trim', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/audio-trim')>()),
+  trimAudioToWav: trimSpy,
+}))
+
 const generateNode = vi.fn(async () => ({ success: false as const }))
 /** 转写本体在服务端（`/api/voices/transcribe`）；这里只关心卡上那一批 op。 */
 const transcribeSpy = vi.hoisted(() => vi.fn())
@@ -277,18 +287,26 @@ describe('选中态：工具条与提示词栏', () => {
       { selectedNodeIds: ['a_1'] },
     )
 
-  it('工具条五键：加语气 · 转文字 · 生镜头 · 下载 · ⋯', () => {
+  it('工具条六键：加语气 · 裁剪 · 转文字 · 连到镜头 · 下载 · ⋯', () => {
     renderAudio(selectedContext(), 'a_1', true)
     const ids = Array.from(
       document.querySelectorAll('[data-toolbar-action]'),
     ).map((item) => item.getAttribute('data-toolbar-action'))
-    expect(ids).toEqual(['tone', 'transcribe', 'shot', 'download', 'more'])
+    expect(ids).toEqual([
+      'tone',
+      'trim',
+      'transcribe',
+      'shot',
+      'download',
+      'more',
+    ])
   })
 
-  it('生镜头 = 一批两条：建镜头 + 把这段声音连成它的音轨', () => {
+  it('连到镜头弹层顶行「新建镜头」= 原来那一批两条（建镜头 + 连成音轨）', () => {
     const context = selectedContext()
     renderAudio(context, 'a_1', true)
     fireEvent.click(document.querySelector('[data-toolbar-action="shot"]')!)
+    fireEvent.click(document.querySelector('[data-connect-to-shot-new]')!)
     const ops = (context.onApplyBatch as ReturnType<typeof vi.fn>).mock
       .calls[0]![0] as readonly Record<string, unknown>[]
     expect(ops[0]).toMatchObject({
@@ -301,6 +319,102 @@ describe('选中态：工具条与提示词栏', () => {
       source: 'a_1',
       slot: 'voice',
     })
+  })
+
+  it('裁剪 = 卡下方那条栏换成裁剪面板，Esc / 取消退回提示词栏', () => {
+    renderAudio(selectedContext(), 'a_1', true)
+    expect(
+      document.querySelector('[data-node-chrome="prompt-bar"]'),
+    ).not.toBeNull()
+    fireEvent.click(document.querySelector('[data-toolbar-action="trim"]')!)
+    expect(document.querySelector('[data-audio-trim-panel]')).not.toBeNull()
+    expect(document.querySelector('[data-node-chrome="prompt-bar"]')).toBeNull()
+    fireEvent.click(document.querySelector('[data-audio-trim-cancel]')!)
+    expect(document.querySelector('[data-audio-trim-panel]')).toBeNull()
+    expect(
+      document.querySelector('[data-node-chrome="prompt-bar"]'),
+    ).not.toBeNull()
+  })
+
+  it('「裁剪为新版本」= 切出来的 WAV 走上传落成新一版，原音留作上一版（⛔ 不生成、不扣积分）', async () => {
+    trimSpy.mockResolvedValueOnce({ blob: new Blob(['wav']) })
+    const context = selectedContext()
+    renderAudio(context, 'a_1', true)
+    fireEvent.click(document.querySelector('[data-toolbar-action="trim"]')!)
+    fireEvent.click(document.querySelector('[data-audio-trim-confirm]')!)
+    await waitFor(() => expect(uploadFn).toHaveBeenCalled())
+    expect(trimSpy).toHaveBeenCalledWith('https://cdn.test/v.mp3', {
+      startSec: 0,
+      endSec: 7,
+    })
+    await waitFor(() =>
+      expect(context.onSetMedia).toHaveBeenCalledWith(
+        'a_1',
+        expect.objectContaining({
+          url: 'https://cdn.test/up.mp3',
+          source: expect.objectContaining({ kind: 'trim' }),
+        }),
+      ),
+    )
+    // ⛔ 这条路上一次生成都不该发。
+    expect(generateNode).not.toHaveBeenCalled()
+    // 裁完面板收起来，栏回到提示词。
+    await waitFor(() =>
+      expect(document.querySelector('[data-audio-trim-panel]')).toBeNull(),
+    )
+  })
+
+  it('连到画布上已有的镜头：占着的 voice 槽先断旧边再连，连完滚到目标卡', async () => {
+    const context = harness(
+      [
+        audioNode('a_1', { url: 'https://cdn.test/v.mp3', durationSec: 7 }),
+        {
+          id: 's_1',
+          position: { x: 400, y: 0 },
+          data: {
+            kind: 'video',
+            subtype: 'shot',
+            name: '车站外',
+            shotNo: 1,
+            status: 'idle',
+            createdAt: NOW,
+          },
+        } as NodeV4,
+      ],
+      {
+        selectedNodeIds: ['a_1'],
+        edges: [
+          {
+            id: 'e_old',
+            source: 'a_0',
+            sourceHandle: 'out',
+            target: 's_1',
+            slot: 'voice',
+          },
+        ],
+      },
+    )
+    renderAudio(context, 'a_1', true)
+    fireEvent.click(document.querySelector('[data-toolbar-action="shot"]')!)
+    // 槽被占着 —— 那一行写「替换」而不是静默覆盖。
+    expect(
+      document.querySelector('[data-connect-to-shot-occupied]'),
+    ).not.toBeNull()
+    fireEvent.click(
+      document.querySelector('[data-connect-to-shot-connect="s_1"]')!,
+    )
+    const ops = (context.onApplyBatch as ReturnType<typeof vi.fn>).mock
+      .calls[0]![0] as readonly Record<string, unknown>[]
+    expect(ops).toEqual([
+      { op: NODE_ASSISTANT_OP_V4_IDS.disconnect, edgeId: 'e_old' },
+      {
+        op: NODE_ASSISTANT_OP_V4_IDS.connect,
+        source: 'a_1',
+        target: 's_1',
+        slot: 'voice',
+      },
+    ])
+    await waitFor(() => expect(context.onFocusNode).toHaveBeenCalledWith('s_1'))
   })
 
   it('栏上只有两颗 chip：音色 · 模型', () => {

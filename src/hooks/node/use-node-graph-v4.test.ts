@@ -10,7 +10,7 @@ import type {
   NodeWorkflowStateV4,
 } from '@/types/node-workflow'
 
-import { useNodeGraphV4 } from './use-node-graph-v4'
+import { resolveRelativePlacement, useNodeGraphV4 } from './use-node-graph-v4'
 
 const NOW = '2026-09-08T00:00:00.000Z'
 
@@ -297,6 +297,62 @@ describe('useNodeGraphV4 · 剪贴板', () => {
     })
     act(() => {
       expect(view.result.current.copySelection()).toBe(false)
+    })
+  })
+})
+
+describe('相对落位（S5d：派生卡落在本卡右侧，⛔ 不丢到默认布局的左下角）', () => {
+  const anchor = node('a_1', { kind: 'audio' }, { x: 100, y: 200 })
+
+  it('四个方向按参照卡的尺寸 + 间距算绝对坐标', () => {
+    const size = { width: 300, height: 80 }
+    const at = (side: 'right' | 'left' | 'below' | 'above') =>
+      resolveRelativePlacement([anchor], {
+        relativeTo: 'a_1',
+        side,
+        gap: 40,
+        size,
+      })
+    expect(at('right')).toEqual({ x: 440, y: 200 })
+    expect(at('left')).toEqual({ x: -240, y: 200 })
+    expect(at('below')).toEqual({ x: 100, y: 320 })
+    expect(at('above')).toEqual({ x: 100, y: 80 })
+  })
+
+  it('参照卡不在图里就返回 undefined（⛔ 不落到 0,0）', () => {
+    expect(
+      resolveRelativePlacement([anchor], {
+        relativeTo: 'gone',
+        side: 'right',
+        gap: 40,
+      }),
+    ).toBeUndefined()
+  })
+
+  it('addNode 的 placement 解析成坐标；显式 position 更具体，它赢', () => {
+    const { view } = renderGraph(stateOf([anchor]))
+    act(() => {
+      view.result.current.addNode('text', 'script', {
+        placement: {
+          relativeTo: 'a_1',
+          side: 'right',
+          gap: 40,
+          size: { width: 300, height: 80 },
+        },
+      })
+    })
+    const created = view.result.current.nodes.at(-1)!
+    expect(created.position).toEqual({ x: 440, y: 200 })
+
+    act(() => {
+      view.result.current.addNode('text', 'script', {
+        position: { x: 7, y: 7 },
+        placement: { relativeTo: 'a_1', side: 'right', gap: 40 },
+      })
+    })
+    expect(view.result.current.nodes.at(-1)!.position).toEqual({
+      x: 7,
+      y: 7,
     })
   })
 })

@@ -26,7 +26,16 @@ import { listLiveConnectableSlots } from '@/lib/node-slot-binding'
 import type { MentionChipMedia } from './chrome'
 import type { NodeV4, NodeV4TextData } from '@/types/node-workflow'
 
-import { NodeCardShell } from './chrome'
+import {
+  ConnectToShotPopover,
+  NodeCardShell,
+  flashNodeCard,
+  useNodeCardFlash,
+} from './chrome'
+import {
+  buildConnectToShotOps,
+  buildConnectToShotTargets,
+} from './connect-to-shot-targets'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { buildMentionCandidates, buildMentionTokens } from './NodeV4Mentions'
 import { TextAssistantBar } from './text/TextAssistantBar'
@@ -42,6 +51,14 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
   const tText = useTranslations('StudioNode.v4.text')
   const canvas = useNodeV4Canvas()
   const textData = data as unknown as NodeV4TextData
+  /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
+  const flashed = useNodeCardFlash(id)
+  /** 「连到镜头」列表 = 画布上的视频卡，按镜头带顺序。 */
+  const shotTargets = buildConnectToShotTargets({
+    nodes: canvas.nodes,
+    edges: canvas.edges,
+    formatDuration: (seconds) => `${Math.round(seconds)}s`,
+  })
   const node = canvas.nodes.find((item) => item.id === id) as NodeV4 | undefined
   const [autoMention, setAutoMention] = useState(false)
   // ⋯ 菜单的「改名」走 `NodeCardShell` 的受控入口（每 +1 进一次编辑态）。
@@ -118,7 +135,30 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
           if (!expanded) canvas.onToggleExpanded(id)
         }}
         onDeriveShotImage={() => canvas.onDeriveFromText(id, 'shotImage')}
-        onDeriveVideo={() => canvas.onDeriveFromText(id, 'video')}
+        connectPanel={
+          <ConnectToShotPopover
+            sourceNodeId={id}
+            sourceKind={NODE_MEDIA_KIND_IDS.text}
+            targets={shotTargets}
+            // 顶行「新建镜头」= 原来那条派生（建镜头 + 连成镜头说明）。
+            onNew={() => canvas.onDeriveFromText(id, 'video')}
+            onConnect={(targetId, slot) => {
+              void Promise.resolve(
+                canvas.onApplyBatch(
+                  buildConnectToShotOps({
+                    sourceId: id,
+                    targetId,
+                    slot,
+                    edges: canvas.edges,
+                  }),
+                ),
+              ).then(() => {
+                canvas.onFocusNode(targetId)
+                flashNodeCard(targetId)
+              })
+            }}
+          />
+        }
         onRename={() => setRenameRequest((count) => count + 1)}
         onClone={() =>
           void canvas.onApplyOp({
@@ -146,6 +186,7 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         renameRequest={renameRequest}
         selected={Boolean(selected)}
         expanded={expanded}
+        changed={canvas.changedNodeIds.includes(id) || flashed}
         width={NODE_V4_CARD.textCollapsedWidth}
         portSpec={{
           kind: node.data.kind,

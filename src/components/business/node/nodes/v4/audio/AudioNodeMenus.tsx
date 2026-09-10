@@ -84,17 +84,19 @@ export function AudioMoreMenuItems({
   sourceLabel?: string | undefined
   onDelete(): void
 }) {
-  const t = useTranslations('StudioNode.v4')
   const tAudio = useTranslations('StudioNode.v4.audio')
   return (
     <>
+      {/* ⋯ 的文案按**这一类卡**写（S5c 尾项：共用键写的是「重命名节点 / 克隆空
+          节点 / 删除节点」，在一张音频卡上读起来像在说别的东西）。⛔ 共用键
+          （`toolbar.clone` 等）的语义不动，只是这里不再用它们。 */}
       <DropdownMenuItem data-audio-more="rename" onSelect={onRename}>
         <UserRound aria-hidden className="size-4" />
-        {t('renameNode')}
+        {tAudio('more.rename')}
       </DropdownMenuItem>
       <DropdownMenuItem data-audio-more="duplicate" onSelect={onDuplicate}>
         <Copy aria-hidden className="size-4" />
-        {t('toolbar.clone')}
+        {tAudio('more.duplicate')}
       </DropdownMenuItem>
       {onSplitVersion ? (
         <DropdownMenuItem data-audio-more="split" onSelect={onSplitVersion}>
@@ -123,7 +125,7 @@ export function AudioMoreMenuItems({
         onSelect={onDelete}
       >
         <Trash2 aria-hidden className="size-4" />
-        {t('toolbar.delete')}
+        {tAudio('more.delete')}
       </DropdownMenuItem>
     </>
   )

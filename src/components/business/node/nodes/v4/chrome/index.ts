@@ -55,3 +55,15 @@ export {
 } from './NodeFrameProgress'
 export { QuickLook, type QuickLookProps } from './QuickLook'
 export { NodeFrame, type NodeFrameProps } from './NodeFrame'
+export {
+  ConnectToShotPopover,
+  CONNECT_TO_SHOT_FRAME_SLOTS,
+  type ConnectToShotPopoverProps,
+  type ConnectToShotSourceKind,
+  type ConnectToShotTarget,
+} from './ConnectToShotPopover'
+export {
+  flashNodeCard,
+  resetNodeCardFlash,
+  useNodeCardFlash,
+} from './node-card-flash'

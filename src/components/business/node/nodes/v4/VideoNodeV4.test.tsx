@@ -87,6 +87,7 @@ import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
 } from './NodeV4Context'
+import { flashNodeCard, resetNodeCardFlash } from './chrome'
 import { VideoNodeV4 } from './VideoNodeV4'
 import { VIDEO_SLOT_PICKERS } from './video/VideoNodeMenus'
 import {
@@ -521,5 +522,22 @@ describe('快速看（spec §1.10）', () => {
     expect(
       document.querySelector('[data-node-chrome="quick-look"]'),
     ).not.toBeNull()
+  })
+})
+
+describe('别人连过来那一下高亮（spec §1.13 尾句）', () => {
+  it('镜头卡是「连到镜头」唯一的目标 —— 它必须认得那一下亮', async () => {
+    // ⚠ 回归闸：S5d 起初只给音频 / 图片 / 文本三张卡接了高亮，而目标**永远**是
+    // 镜头卡，结果真机上连完什么都不亮（2026-09-10 实测）。
+    renderVideo(harness([videoNode('v_1', READY)]), 'v_1')
+    const card = () =>
+      document
+        .querySelector('[data-node-chrome="card"]')
+        ?.getAttribute('data-changed')
+    expect(card()).toBe('false')
+    flashNodeCard('v_1')
+    await waitFor(() => expect(card()).toBe('true'))
+    resetNodeCardFlash()
+    await waitFor(() => expect(card()).toBe('false'))
   })
 })

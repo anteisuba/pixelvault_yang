@@ -2,6 +2,12 @@ import type {
   CanvasImageEditCapability,
   EditTaskKind,
 } from '@/types/canvas-image-edit'
+import { AI_MODELS } from '@/constants/models/enum'
+
+const GPT_IMAGE_25_EDIT_MODELS = [
+  AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+  AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
+] as const
 
 const SINGLE_IMAGE_INPUT = {
   minImages: 1,
@@ -39,7 +45,12 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     interaction: 'mask',
     input: SINGLE_IMAGE_INPUT,
     output: 'single-image',
-    models: ['fal-ai/flux-pro/v1/fill', 'gemini-3-pro-image', 'gpt-image-2'],
+    models: [
+      'fal-ai/flux-pro/v1/fill',
+      'gemini-3-pro-image',
+      'gpt-image-2',
+      ...GPT_IMAGE_25_EDIT_MODELS,
+    ],
     defaultModelId: 'fal-ai/flux-pro/v1/fill',
   },
   {
@@ -50,6 +61,7 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     output: 'single-image',
     models: [
       'gpt-image-2',
+      ...GPT_IMAGE_25_EDIT_MODELS,
       'gemini-3-pro-image',
       'fal-ai/sam-3/image',
       'fal-ai/evf-sam',
@@ -67,7 +79,7 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     interaction: 'annotate',
     input: SINGLE_IMAGE_INPUT,
     output: 'single-image',
-    models: ['gemini-3-pro-image', 'gpt-image-2'],
+    models: ['gemini-3-pro-image', 'gpt-image-2', ...GPT_IMAGE_25_EDIT_MODELS],
     defaultModelId: 'gemini-3-pro-image',
   },
   // ⚠ 仍然零执行路径 —— 别只改这一行就以为它能用（2026-08-18 E0 的教训）。

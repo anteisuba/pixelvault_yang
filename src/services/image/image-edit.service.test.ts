@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { describe, expect, it, vi, beforeEach } from 'vitest'
 
 import { SafetyFilterError } from '@/lib/errors'
@@ -334,4 +335,49 @@ describe('image-edit.service', () => {
       }),
     ).rejects.toBeInstanceOf(SafetyFilterError)
   })
+})
+
+describe('GPT Image 2.5 editing', () => {
+  it.each(['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst'])(
+    'sends %s quality and alpha masks while preserving image shape',
+    async (modelId) => {
+      const source = await sharp({
+        create: { width: 2, height: 1, channels: 3, background: 'red' },
+      })
+        .png()
+        .toBuffer()
+      const mask = await sharp(Buffer.from([0, 255]), {
+        raw: { width: 2, height: 1, channels: 1 },
+      })
+        .png()
+        .toBuffer()
+      const fetchSpy = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [{ b64_json: source.toString('base64') }],
+        }),
+      })
+      global.fetch = fetchSpy
+      const result = await inpaintImage({
+        modelId,
+        apiKey: 'test',
+        imageUrl: `data:image/png;base64,${source.toString('base64')}`,
+        maskImageUrl: `data:image/png;base64,${mask.toString('base64')}`,
+        prompt: 'Change only the sky',
+        options: { quality: 'max', background: 'transparent' },
+      })
+      const form = fetchSpy.mock.calls[0][1].body as FormData
+      expect(form.get('model')).toBe(modelId)
+      expect(form.get('quality')).toBe('max')
+      expect(form.get('background')).toBe('transparent')
+      expect(form.get('size')).toBe('auto')
+      const maskFile = form.get('mask') as Blob
+      const { data } = await sharp(Buffer.from(await maskFile.arrayBuffer()))
+        .raw()
+        .toBuffer({ resolveWithObject: true })
+      expect(data[3]).toBe(255)
+      expect(data[7]).toBe(0)
+      expect(result).toMatchObject({ width: 2, height: 1 })
+    },
+  )
 })

@@ -24,11 +24,14 @@ export const POST = createApiRoute({
       apiKey,
       negativePrompt: data.negativePrompt,
       modelId: data.modelId,
+      options: data.options,
     })
     const generation = await persistEditedImage({
       userId: user.id,
       resultUrl: result.imageUrl,
       sourceGenerationId: data.sourceGenerationId,
+      modelId: data.modelId,
+      prompt: data.prompt,
       action: 'inpaint',
       width: result.width,
       height: result.height,

@@ -5,7 +5,11 @@ import { z } from 'zod'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { ApiKeyError, SafetyFilterError } from '@/lib/errors'
+import { getCapabilityConfig } from '@/constants/provider-capabilities'
+import { readOpenAIImageStream } from '@/lib/openai-image-stream'
+import { encodeSseEvent } from '@/lib/sse'
+import { ensureUser } from '@/services/user.service'
+import { ApiKeyError, SafetyFilterError, isGenerationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { withRetry } from '@/lib/with-retry'
@@ -21,7 +25,12 @@ import {
   uploadToR2,
 } from '@/services/storage/r2'
 import { createGeneration } from '@/services/generation.service'
-import type { GenerationRecord, ObjectReplaceAnnotation } from '@/types'
+import type {
+  GenerationRecord,
+  ObjectReplaceAnnotation,
+  ImageEditOptions,
+  ImageEditStreamRequest,
+} from '@/types'
 
 // ─── fal.ai image editing endpoints ──────────────────────────────
 
@@ -403,7 +412,17 @@ async function editImageWithOpenAI(params: {
   prompt: string
   maskImageUrl?: string
   referenceImages?: string[]
+  options?: ImageEditOptions
+  onPreview?: (url: string) => void
+  signal?: AbortSignal
 }): Promise<ImageEditResult> {
+  const config = getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, params.modelId)
+  if (
+    params.options?.quality &&
+    !config.qualityOptions?.includes(params.options.quality)
+  ) {
+    throw new ProviderError('OpenAI', 400, 'Unsupported image quality')
+  }
   const baseUrl = AI_PROVIDER_ENDPOINTS.OPENAI.replace(/\/$/, '').replace(
     /\/(generations|edits)$/,
     '',
@@ -413,13 +432,22 @@ async function editImageWithOpenAI(params: {
   const formData = new FormData()
   formData.append('model', params.modelId)
   formData.append('prompt', params.prompt)
-  formData.append('size', '1024x1024')
+  formData.append('size', 'auto')
+  formData.append('output_format', 'png')
+  if (params.onPreview) {
+    formData.append('stream', 'true')
+    formData.append('partial_images', '2')
+  }
+  if (params.options?.quality)
+    formData.append('quality', params.options.quality)
+  if (params.options?.background)
+    formData.append('background', params.options.background)
 
   const { buffer: imageBuffer, mimeType: imageMime } = await fetchAsBuffer(
     params.imageUrl,
   )
   formData.append(
-    'image',
+    params.referenceImages?.length ? 'image[]' : 'image',
     new Blob([Uint8Array.from(imageBuffer)], { type: imageMime }),
     `source.${imageMime.split('/')[1] ?? 'png'}`,
   )
@@ -437,9 +465,21 @@ async function editImageWithOpenAI(params: {
 
   if (params.maskImageUrl) {
     const { buffer: maskBuffer } = await fetchAsBuffer(params.maskImageUrl)
+    const { data, info } = await sharp(maskBuffer)
+      .removeAlpha()
+      .greyscale()
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    const rgba = Buffer.alloc(info.width * info.height * 4, 255)
+    for (let i = 0; i < data.length; i++) rgba[i * 4 + 3] = 255 - data[i]
+    const alphaMask = await sharp(rgba, {
+      raw: { width: info.width, height: info.height, channels: 4 },
+    })
+      .png()
+      .toBuffer()
     formData.append(
       'mask',
-      new Blob([Uint8Array.from(maskBuffer)], { type: 'image/png' }),
+      new Blob([Uint8Array.from(alphaMask)], { type: 'image/png' }),
       'mask.png',
     )
   }
@@ -448,6 +488,7 @@ async function editImageWithOpenAI(params: {
     method: 'POST',
     headers: { Authorization: `Bearer ${params.apiKey}` },
     body: formData,
+    signal: params.signal,
   })
 
   if (!response.ok) {
@@ -458,8 +499,19 @@ async function editImageWithOpenAI(params: {
     throw new ProviderError('OpenAI', response.status, errorBody)
   }
 
-  const parsed = OpenAiEditResponseSchema.parse(await response.json())
-  const item = parsed.data[0]
+  const item = params.onPreview
+    ? {
+        b64_json: (
+          await readOpenAIImageStream(
+            response.body ??
+              (() => {
+                throw new ProviderError('OpenAI', 502, 'Empty image stream')
+              })(),
+            (base64) => params.onPreview?.(`data:image/png;base64,${base64}`),
+          )
+        ).base64,
+      }
+    : OpenAiEditResponseSchema.parse(await response.json()).data[0]
 
   if (item?.b64_json) {
     const buffer = Buffer.from(item.b64_json, 'base64')
@@ -486,6 +538,9 @@ async function editImageWithOpenAI(params: {
  * conversational), or OpenAI (`/v1/images/edits` with optional mask).
  */
 export async function inpaintImage(params: {
+  onPreview?: (url: string) => void
+  signal?: AbortSignal
+  options?: ImageEditOptions
   imageUrl: string
   maskImageUrl: string
   prompt: string
@@ -511,6 +566,9 @@ export async function inpaintImage(params: {
       imageUrl: params.imageUrl,
       prompt: params.prompt,
       maskImageUrl: params.maskImageUrl,
+      options: params.options,
+      onPreview: params.onPreview,
+      signal: params.signal,
     })
   }
 
@@ -571,6 +629,9 @@ export function compileAnnotationPrompt(
  * prompt 里 —— 不落像素，所以成品不可能带标注痕。
  */
 export async function replaceObjects(params: {
+  onPreview?: (url: string) => void
+  signal?: AbortSignal
+  options?: ImageEditOptions
   imageUrl: string
   annotations: readonly ObjectReplaceAnnotation[]
   apiKey: string
@@ -594,6 +655,9 @@ export async function replaceObjects(params: {
       apiKey: params.apiKey,
       imageUrl: params.imageUrl,
       prompt,
+      options: params.options,
+      onPreview: params.onPreview,
+      signal: params.signal,
     })
   }
 
@@ -853,6 +917,7 @@ async function extractElementWithGenerativeModel(
     apiKey,
     imageUrl,
     prompt: instruction,
+    options: { background: 'transparent' },
   })
 }
 
@@ -984,6 +1049,8 @@ export async function persistEditedImage(params: {
   resultUrl: string
   sourceGenerationId?: string | null
   action: 'upscale' | 'remove-bg' | 'inpaint' | 'extract' | 'object-replace'
+  modelId?: string
+  prompt?: string
   width: number
   height: number
 }): Promise<GenerationRecord> {
@@ -1011,12 +1078,94 @@ export async function persistEditedImage(params: {
     previewStorageKey: previewAssets.previewStorageKey,
     width: params.width,
     height: params.height,
-    prompt: params.sourceGenerationId
-      ? `[${params.action}] from generation ${params.sourceGenerationId}`
-      : `[${params.action}] from external image`,
-    model: params.action,
-    provider: AI_ADAPTER_TYPES.FAL,
+    prompt:
+      params.prompt ??
+      (params.sourceGenerationId
+        ? `[${params.action}] from generation ${params.sourceGenerationId}`
+        : `[${params.action}] from external image`),
+    model: params.modelId ?? params.action,
+    provider: params.modelId
+      ? PROVIDER_TO_ADAPTER[providerForModel(params.modelId)]
+      : AI_ADAPTER_TYPES.FAL,
     requestCount: 0,
     userId: params.userId,
+  })
+}
+
+export async function streamImageEdit(
+  clerkId: string,
+  request: ImageEditStreamRequest,
+  signal: AbortSignal,
+): Promise<Response> {
+  if (!request.modelId || providerForModel(request.modelId) !== 'openai') {
+    throw new ProviderError(
+      'OpenAI',
+      400,
+      'Streaming requires an OpenAI image model.',
+    )
+  }
+  const user = await ensureUser(clerkId)
+  const apiKey = await resolveEditApiKey(
+    user.id,
+    request.modelId,
+    request.apiKeyId,
+  )
+  const encoder = new TextEncoder()
+  const abort = new AbortController()
+  const linkedSignal = AbortSignal.any([signal, abort.signal])
+  let cancelled = false
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      const emit = (event: string, value: unknown) => {
+        if (!cancelled && !linkedSignal.aborted)
+          controller.enqueue(encoder.encode(encodeSseEvent(event, value)))
+      }
+      emit('open', {})
+      try {
+        const controls = {
+          apiKey,
+          signal: linkedSignal,
+          onPreview: (url: string) => emit('preview', { url }),
+        }
+        const result =
+          request.action === 'inpaint'
+            ? await inpaintImage({ ...request, ...controls })
+            : await replaceObjects({ ...request, ...controls })
+        const generation = await persistEditedImage({
+          userId: user.id,
+          resultUrl: result.imageUrl,
+          sourceGenerationId: request.sourceGenerationId,
+          action: request.action,
+          modelId: request.modelId,
+          prompt:
+            request.action === 'inpaint'
+              ? request.prompt
+              : compileAnnotationPrompt(request.annotations),
+          width: result.width,
+          height: result.height,
+        })
+        emit('completed', { success: true, data: { ...result, generation } })
+      } catch (error) {
+        logger.error('Image edit stream failed', { error })
+        emit(
+          'error',
+          isGenerationError(error)
+            ? error.toJSON()
+            : { success: false, error: 'Image editing failed.' },
+        )
+      } finally {
+        if (!cancelled) controller.close()
+      }
+    },
+    cancel() {
+      cancelled = true
+      abort.abort()
+    },
+  })
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+    },
   })
 }

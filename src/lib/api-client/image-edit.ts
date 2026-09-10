@@ -1,3 +1,4 @@
+import { parseSseStream } from '@/lib/sse'
 import { API_ENDPOINTS } from '@/constants/config'
 import type {
   GenerationRecord,
@@ -22,16 +23,39 @@ export interface ImageEditApiResponse {
   i18nKey?: string
 }
 
+export interface ImageEditStreamOptions {
+  onPreview?: (url: string) => void
+  signal?: AbortSignal
+}
+
 async function postImageEdit(
   endpoint: string,
   params: InpaintRequest | ObjectReplaceRequest,
+  streamOptions?: ImageEditStreamOptions,
 ): Promise<ImageEditApiResponse> {
   try {
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    })
+    const streaming =
+      params.options?.preview === true &&
+      params.modelId?.startsWith('gpt-image-')
+    const response = await fetch(
+      streaming ? API_ENDPOINTS.IMAGE_EDIT_STREAM : endpoint,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(
+          streaming
+            ? {
+                ...params,
+                action:
+                  endpoint === API_ENDPOINTS.IMAGE_INPAINT
+                    ? 'inpaint'
+                    : 'object-replace',
+              }
+            : params,
+        ),
+        signal: streamOptions?.signal,
+      },
+    )
 
     if (!response.ok) {
       const payload = await getErrorPayload(
@@ -46,6 +70,31 @@ async function postImageEdit(
       }
     }
 
+    if (streaming) {
+      if (!response.body)
+        return { success: false, error: 'Empty image edit stream' }
+      for await (const frame of parseSseStream(response.body)) {
+        if (frame.event === 'preview') {
+          const payload: { url?: unknown } = JSON.parse(frame.data)
+          if (
+            typeof payload.url === 'string' &&
+            payload.url.startsWith('data:image/png;base64,')
+          )
+            streamOptions?.onPreview?.(payload.url)
+        } else if (frame.event === 'completed') {
+          return JSON.parse(frame.data) as ImageEditApiResponse
+        } else if (frame.event === 'error') {
+          return {
+            ...(JSON.parse(frame.data) as ImageEditApiResponse),
+            success: false,
+          }
+        }
+      }
+      return {
+        success: false,
+        error: 'Image edit stream ended before completion',
+      }
+    }
     return await response.json()
   } catch (error) {
     return {
@@ -58,12 +107,18 @@ async function postImageEdit(
 
 export async function inpaintImageAPI(
   params: InpaintRequest,
+  streamOptions?: ImageEditStreamOptions,
 ): Promise<ImageEditApiResponse> {
-  return await postImageEdit(API_ENDPOINTS.IMAGE_INPAINT, params)
+  return await postImageEdit(API_ENDPOINTS.IMAGE_INPAINT, params, streamOptions)
 }
 
 export async function objectReplaceAPI(
   params: ObjectReplaceRequest,
+  streamOptions?: ImageEditStreamOptions,
 ): Promise<ImageEditApiResponse> {
-  return await postImageEdit(API_ENDPOINTS.IMAGE_OBJECT_REPLACE, params)
+  return await postImageEdit(
+    API_ENDPOINTS.IMAGE_OBJECT_REPLACE,
+    params,
+    streamOptions,
+  )
 }

@@ -120,6 +120,8 @@ describe('POST /api/image/inpaint', () => {
       resultUrl: EDIT_RESULT.imageUrl,
       sourceGenerationId: VALID_BODY.sourceGenerationId,
       action: 'inpaint',
+      modelId: undefined,
+      prompt: VALID_BODY.prompt,
       width: EDIT_RESULT.width,
       height: EDIT_RESULT.height,
     })

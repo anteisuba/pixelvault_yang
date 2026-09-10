@@ -31,6 +31,8 @@ export const POST = createApiRoute({
       resultUrl: result.imageUrl,
       sourceGenerationId: data.sourceGenerationId,
       action: 'extract',
+      modelId: data.modelId,
+      prompt: data.prompt,
       width: result.width,
       height: result.height,
     })

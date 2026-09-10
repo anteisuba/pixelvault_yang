@@ -11,6 +11,7 @@ import {
 
 import { getCanvasImageEditCapability } from '@/constants/canvas-image-edit-capabilities'
 import type { EditTaskKind } from '@/types/canvas-image-edit'
+import { AI_MODELS } from '@/constants/models/enum'
 
 export type EditTaskProvider = 'fal' | 'gemini' | 'openai'
 
@@ -28,6 +29,16 @@ export interface EditModelOption {
 }
 
 export const EDIT_MODELS: Record<string, EditModelOption> = {
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
+    id: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+    provider: 'openai',
+    displayName: 'GPT Image 2.5 Flare',
+  },
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: {
+    id: AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
+    provider: 'openai',
+    displayName: 'GPT Image 2.5 Sunburst',
+  },
   'fal-ai/aura-sr': {
     id: 'fal-ai/aura-sr',
     provider: 'fal',

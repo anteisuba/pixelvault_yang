@@ -267,7 +267,16 @@ export const CompareGrid = memo(function CompareGrid({
                     >
                       {item.status === 'generating' && (
                         <>
-                          <div className="studio-reveal-shimmer absolute inset-0" />
+                          {item.previewUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={item.previewUrl}
+                              alt={t('generating')}
+                              className="absolute inset-0 size-full object-contain"
+                            />
+                          ) : (
+                            <div className="studio-reveal-shimmer absolute inset-0" />
+                          )}
                           <StudioGeneratingProgress
                             elapsedSeconds={elapsedSeconds}
                             stageLabel={t('generating')}

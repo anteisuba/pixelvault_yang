@@ -280,13 +280,17 @@ describe('CanvasImageEditWorkspace', () => {
     )
 
     await waitFor(() => {
-      expect(mocks.inpaintImageAPI).toHaveBeenCalledWith({
-        imageUrl: SOURCE_DATA.mediaUrl,
-        maskImageUrl: 'data:image/png;base64,mask',
-        prompt: 'repair face',
-        sourceGenerationId: 'source-generation',
-        modelId: 'fal-ai/flux-pro/v1/fill',
-      })
+      expect(mocks.inpaintImageAPI).toHaveBeenCalledWith(
+        {
+          imageUrl: SOURCE_DATA.mediaUrl,
+          maskImageUrl: 'data:image/png;base64,mask',
+          prompt: 'repair face',
+          options: {},
+          sourceGenerationId: 'source-generation',
+          modelId: 'fal-ai/flux-pro/v1/fill',
+        },
+        { onPreview: expect.any(Function), signal: expect.any(AbortSignal) },
+      )
     })
     expect(mocks.placeDerivedImages).toHaveBeenCalledWith(
       'source-node',
@@ -296,6 +300,39 @@ describe('CanvasImageEditWorkspace', () => {
           editCapability: 'inpaint',
         }),
       ]),
+    )
+  })
+
+  it('sends the selected GPT Image 2.5 model, quality, background and preview settings', async () => {
+    mocks.inpaintImageAPI.mockResolvedValue({
+      success: true,
+      data: {
+        imageUrl: 'https://cdn.example.com/result.png',
+        width: 640,
+        height: 480,
+      },
+    })
+    renderWorkspace('inpaint')
+    fireEvent.click(screen.getByRole('button', { name: 'settingsLabel' }))
+    fireEvent.change(screen.getByRole('combobox', { name: 'modelLabel' }), {
+      target: { value: 'gpt-image-2.5-sunburst' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'qualityOption.max' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'backgroundOption.transparent' }),
+    )
+    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'editor.inpaint.apply' }),
+    )
+    await waitFor(() =>
+      expect(mocks.inpaintImageAPI).toHaveBeenCalledWith(
+        expect.objectContaining({
+          modelId: 'gpt-image-2.5-sunburst',
+          options: { quality: 'max', background: 'transparent', preview: true },
+        }),
+        { onPreview: expect.any(Function), signal: expect.any(AbortSignal) },
+      ),
     )
   })
 

@@ -7,6 +7,7 @@ import {
   Paintbrush,
   RotateCcw,
   SquareDashed,
+  Sparkles,
   Trash2,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -24,6 +25,7 @@ interface StudioInpaintEditorProps {
   onApply: (maskDataUrl: string, prompt: string) => void
   onCancel: () => void
   isLoading?: boolean
+  allowWholeImage?: boolean
 }
 
 interface CanvasPoint {
@@ -38,7 +40,7 @@ interface CanvasPoint {
  * 画笔回答「这一块不规则区域重画」，拉框回答「这个位置不好」—— 后者才是 E3
  * 多框编号的基础（涂抹出的一团 mask 编不了号）。
  */
-type MaskTool = 'brush' | 'box'
+type MaskTool = 'brush' | 'box' | 'whole'
 
 interface CanvasRect {
   x: number
@@ -95,6 +97,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
   onApply,
   onCancel,
   isLoading = false,
+  allowWholeImage = false,
 }: StudioInpaintEditorProps) {
   const t = useTranslations('StudioV3.inpaintEditor')
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -243,6 +246,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
 
   const handlePointerDown = useCallback(
     (event: React.PointerEvent<HTMLCanvasElement>) => {
+      if (tool === 'whole') return
       const point = getCanvasPoint(event)
       if (!point) return
 
@@ -362,7 +366,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
 
     const mask = binaryContext.createImageData(canvas.width, canvas.height)
     for (let index = 0; index < source.data.length; index += 4) {
-      const hasPaint = source.data[index + 3] > 0
+      const hasPaint = tool === 'whole' || source.data[index + 3] > 0
       const value = hasPaint ? 255 : 0
       mask.data[index] = value
       mask.data[index + 1] = value
@@ -387,7 +391,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
     exportContext.imageSmoothingEnabled = false
     exportContext.drawImage(binaryCanvas, 0, 0, exportWidth, exportHeight)
     return exportCanvas.toDataURL('image/png')
-  }, [getMaskContext, imageHeight, imageWidth])
+  }, [getMaskContext, imageHeight, imageWidth, tool])
 
   const handleApply = useCallback(() => {
     const trimmedPrompt = prompt.trim()
@@ -426,7 +430,10 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
               width={canvasWidth}
               height={canvasHeight}
               aria-label={t('canvasLabel')}
-              className="absolute inset-0 h-full w-full touch-none cursor-crosshair"
+              className={cn(
+                'absolute inset-0 h-full w-full touch-none cursor-crosshair',
+                tool === 'whole' && 'invisible',
+              )}
               onPointerDown={handlePointerDown}
               onPointerMove={handlePointerMove}
               onPointerUp={stopDrawing}
@@ -458,6 +465,15 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
               [
                 { id: 'brush', label: t('toolBrush'), Icon: Paintbrush },
                 { id: 'box', label: t('toolBox'), Icon: SquareDashed },
+                ...(allowWholeImage
+                  ? [
+                      {
+                        id: 'whole' as const,
+                        label: t('toolWhole'),
+                        Icon: Sparkles,
+                      },
+                    ]
+                  : []),
               ] as const
             ).map(({ id, label, Icon }) => (
               <Button
@@ -495,11 +511,16 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
             </div>
           ) : (
             <p className="rounded-lg border border-border bg-card p-4 text-xs text-muted-foreground">
-              {t('boxHint')}
+              {t(tool === 'whole' ? 'wholeHint' : 'boxHint')}
             </p>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
+          <div
+            className={cn(
+              'grid grid-cols-2 gap-2',
+              tool === 'whole' && 'hidden',
+            )}
+          >
             <Button
               type="button"
               variant={isErasing ? 'default' : 'ghost'}

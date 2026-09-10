@@ -6,12 +6,12 @@
 
 ## 目录分层
 
-| 目录            | 装什么                                                                                                                                                                                                                                                                                                                  |
-| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `workbench-v4/` | 工作台外壳：`NodeWorkbenchV4`（唯一入口）· `CanvasV4`（ReactFlow 宿主）· `WorkbenchToolbarV4` · `WorkbenchDocksV4` · `WorkbenchDndV4` · `WorkbenchRosterDropV4` · `WorkbenchShortcutsV4`                                                                                                                                |
-| `nodes/v4/`     | 四类节点卡与卡内件：`registry.tsx`（`NODE_V4_COMPONENTS`）· `TextNodeV4` / `ImageNodeV4` / `MediaNodeV4` / `VideoNodeV4` · `NodeV4Shell` 与 Slot / Desk / Gallery / Evidence / RelationBand / Toolbar / ContextMenu · `NodeV4Provider` + `NodeV4Context` + `NodeV4ActionsBridge`                                        |
-| `shared/`       | 跨壳共享件：`NodeStatusBadge` · `NodeVideoSurface`                                                                                                                                                                                                                                                                      |
-| 根目录          | 画布外壳：`CanvasTopBar` / `CanvasBottomDock` / `CanvasMiniMap` / `CanvasLeftPanel` / `CanvasSurface` / `CanvasWorkspaceLayout` · `CastDock` / `CastCard` / `CanvasRosterRail` · `ScriptDocWorkspace` · `StudioNodeAssistantDock` + `CanvasOpProposalCard` · `CanvasAddMenu` · `CanvasMobileView` · `IngestDragLayerV4` |
+| 目录            | 装什么                                                                                                                                                                                                                                                                                                                                        |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `workbench-v4/` | 工作台外壳：`NodeWorkbenchV4`（唯一入口）· `CanvasV4`（ReactFlow 宿主）· `WorkbenchToolbarV4` · `WorkbenchDocksV4` · `WorkbenchDndV4` · `WorkbenchRosterDropV4` · `WorkbenchShortcutsV4`                                                                                                                                                      |
+| `nodes/v4/`     | 四类节点卡与卡内件：`registry.tsx`（`NODE_V4_COMPONENTS`）· `TextNodeV4` / `ImageNodeV4` / `AudioNodeV4` / `VideoNodeV4` · `chrome/*` 共用件（`NodeCardShell` / `NodeToolbar` / `NodePromptBar` / `NodeFrame` / `QuickLook` / `VersionDots` / `NodePorts`）· `NodeV4ContextMenu` · `NodeV4Provider` + `NodeV4Context` + `NodeV4ActionsBridge` |
+| `shared/`       | 跨壳共享件：`NodeStatusBadge` · `NodeVideoSurface`                                                                                                                                                                                                                                                                                            |
+| 根目录          | 画布外壳：`CanvasTopBar` / `CanvasBottomDock` / `CanvasMiniMap` / `CanvasLeftPanel` / `CanvasSurface` / `CanvasWorkspaceLayout` · `CastDock` / `CastCard` / `CanvasRosterRail` · `ScriptDocWorkspace` · `StudioNodeAssistantDock` + `CanvasOpProposalCard` · `CanvasAddMenu` · `CanvasMobileView` · `IngestDragLayerV4`                       |
 
 配套 hooks 在 `src/hooks/node/`，纯逻辑在 `src/lib/node-*`，词表在 `src/constants/node-*` 与 `canvas-add-catalog.ts`。
 
@@ -21,7 +21,7 @@
 2. **外壳组件的动作只从 `useNodeCanvasActions()` 取**（`NodeV4ActionsBridge`），⛔ 没有第二条写入路径。
 3. **撤销栈只有一份**（图引擎持有、`NodeV4Provider` 消费）。助手的一轮 = 一个撤销条目。⛔ 不要在 Provider 或组件里再存一份。
 4. **端口 / 容量 / 合法性查表，不现推**：`NODE_V4_PORTS`（`src/constants/node-slots.ts`）+ `canConnect`。`0..N` 的上限跟模型走，由调用方传 `capacity`。
-5. **legacy 已删，勿复活**：v3 的 `StudioNodeWorkbench` / `NodeDetailPanel` / `node-detail` 族 / `use-node-workflow` / v3 投影全部删除，⛔ 不留垫片、不重建第二套详情面板——展开态（`NodeV4Shell`）就是详情。`LegacyMigratedNode` 只是存量项目里未迁移旧 type 的空壳，回填跑完即删。
+5. **legacy 已删，勿复活**：v3 的 `StudioNodeWorkbench` / `NodeDetailPanel` / `node-detail` 族 / `use-node-workflow` / v3 投影，以及 S11 删掉的 `NodeV4Shell` / `NodeV4GenerateDesk` / `NodeV4SlotRail` / `NodeV4SlotCard` 全部删除，⛔ 不留垫片、不重建第二套详情面板——画中框（`chrome/NodeFrame`）就是详情。`LegacyMigratedNode` 只是存量项目里未迁移旧 type 的空壳，回填跑完即删。
 6. **卡面不上 `backdrop-filter`**（画布上可能同时有上百张卡），vibrancy 只给浮层：工具条 / 右键菜单 / 媒体 transport / composer / 移动端浮动条。
 7. **助手提案的自动落「恰好一次」记在消息级**（`autoAppliedRef` 按 `message.id`），⛔ 不记在按消息渲染的卡里——流式期间同一条消息会重渲多次。
 8. **`generate` 是唯一扣 credit 的动作**，服务端只吐 op、执行在客户端。这道结构性钱闸不能动。

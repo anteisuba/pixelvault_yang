@@ -204,31 +204,6 @@
   box-shadow: 0 1px 4px var(--node-shadow);
 }
 
-/* 披露折叠 —— grid-template-rows 0fr↔1fr，不用测高。
-   ⛔ 别把 `transition: grid-template-rows` 加回来：高度补间每帧重排，整棵子树掉出
-   合成层。规矩是「容器高度瞬时，动效只走 transform / opacity」。 */
-.node-collapsible {
-  display: grid;
-  grid-template-rows: 0fr;
-}
-.node-collapsible[data-open] {
-  grid-template-rows: 1fr;
-}
-.node-collapsible > div {
-  min-height: 0;
-  overflow: hidden;
-}
-.node-collapsible[data-open] > div {
-  animation: canvas-disclosure-in var(--canvas-dur-base, 250ms)
-    var(--canvas-ease-in, cubic-bezier(0.22, 1, 0.36, 1));
-}
-@keyframes canvas-disclosure-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-}
-
 /* ══════════════════════════════════════════════════════════════════════════
    画布域皮肤 v0.2 token 地基 —— 施工基准 docs/references/pages/canvas-skin.md
    （v0.2 = 真机取样值）。全部 token 只活在 .domain-canvas 作用域内。
@@ -630,21 +605,6 @@
   min-height: 36px;
 }
 
-/* 底部视图控制胶囊：全圆角浮块，投影比顶栏重一档（它真的浮在画布上方）。 */
-.domain-canvas .canvas-toolbar-capsule {
-  border-radius: 999px;
-  box-shadow:
-    0 4px 6px -2px rgba(0, 0, 0, 0.06),
-    0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  -webkit-backdrop-filter: blur(20px) saturate(1.5);
-  backdrop-filter: blur(20px) saturate(1.5);
-}
-.domain-canvas[data-scheme='dark'] .canvas-toolbar-capsule {
-  box-shadow:
-    0 4px 6px -2px rgba(0, 0, 0, 0.4),
-    0 10px 15px -3px rgba(0, 0, 0, 0.5);
-}
-
 /* 玻璃容器内的前景色重映射（strangler，同 .node-card-paper 的做法）：顶栏/底部
    胶囊里仍在用的 text-node-* / bg-node-panel-inner 那套值是给深色面板配的。 */
 .domain-canvas .canvas-glass {
@@ -732,7 +692,6 @@
    ⚠ transition 必须把颜色一起写上——这条选择器 (0,2,1) 高于 Tailwind 的
    .transition-colors (0,1,0)，只写 transform 会把原有的颜色过渡覆盖没。 */
 .domain-canvas .canvas-topbar button,
-.domain-canvas .canvas-toolbar-capsule button,
 .domain-canvas .canvas-left-panel button {
   transition:
     background-color var(--canvas-dur-fast) var(--canvas-ease-state),
@@ -741,7 +700,6 @@
     transform var(--canvas-dur-fast) var(--canvas-ease-state);
 }
 .domain-canvas .canvas-topbar button:active:not(:disabled),
-.domain-canvas .canvas-toolbar-capsule button:active:not(:disabled),
 .domain-canvas .canvas-left-panel button:active:not(:disabled) {
   transform: scale(0.96);
 }
@@ -750,7 +708,6 @@
   .domain-canvas .canvas-rail-action:active:not(:disabled),
   .domain-canvas .canvas-assistant-action:active:not(:disabled),
   .domain-canvas .canvas-topbar button:active:not(:disabled),
-  .domain-canvas .canvas-toolbar-capsule button:active:not(:disabled),
   .domain-canvas .canvas-left-panel button:active:not(:disabled) {
     transform: none;
   }
@@ -1024,14 +981,6 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
   color: var(--canvas-ink);
 }
 
-/* 底部胶囊行给助手让位——与顶栏 padding、左轨宽度由同一个
-   `--canvas-assistant-width` 驱动，这一层不加过渡就会「啪」地挪一下。
-   ⚠ 动的是 `right` 而不是 transform：这一行是 left/right 拉伸的容器，变的是
-   **宽度**，translate 复现不了。 */
-.domain-canvas .canvas-bottom-row {
-  transition: right var(--duration-slow) var(--ease-standard);
-}
-
 /* 审核动作（通过 / 打回）：同尺寸圆钮而不是丸，让「这一组是对这一版的处置」在
    形状上就跟左边那排选择器丸分开；⛔ 不给墨底——主动作实底这一行只留给发送键。 */
 .domain-canvas .canvas-composer-review-btn {
@@ -1062,16 +1011,6 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
    桌面档全部住在组件的 Tailwind 类里；这里只放**手机才成立**的三条改写。
    ⚠ 断点 1023px 与应用壳的移动断点同源，⛔ 不另起一个数。 */
 @media (max-width: 1023px) {
-  /* 卡头压成两行：第一行 状态点 + 序号 + 名字 + 展开钮，第二行 kind 标 + 读数。 */
-  .node-v4-head {
-    flex-wrap: wrap;
-  }
-  .node-v4-head .node-v4-head-meta {
-    flex-basis: 100%;
-    order: 1;
-    overflow: visible;
-  }
-
   /* 卡内**不再限高**，页面自己滚：手机上「卡内滚 + 页面滚」两层滚动必错。 */
   [data-expanded-stack] {
     max-height: none !important;

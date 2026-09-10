@@ -200,6 +200,47 @@ describe('useNodeGraphV4 · 撤销栈只有一份', () => {
     expect(view.result.current.nodes).toHaveLength(0)
   })
 
+  /**
+   * 云端往返（保存后重新拉取项目 / 助手一轮 op 回执）只换**快照对象**，⛔ 不动
+   * 撤销栈：`state` 是受控 prop，同样的内容换一个新对象回灌进来时，撤销栈必须
+   * 原样活着，⌘Z 也必须能落在新快照上。⚠ 别在引擎里加「state 变了就清栈」那种
+   * 保险——那正是「保存一下撤销就失效」的来源。
+   */
+  it('云端往返换掉快照对象后撤销栈原样活着', () => {
+    const { view } = renderGraph(stateOf([]))
+    act(() => {
+      view.result.current.addNode('image', 'result')
+    })
+    expect(view.result.current.canUndo).toBe(true)
+    act(() => {
+      view.result.current.undo()
+    })
+    expect(view.result.current.canRedo).toBe(true)
+    act(() => {
+      view.result.current.redo()
+    })
+
+    // 服务端回执：内容一样、对象是新的（JSON 往返 = 引用全断）。
+    const roundTripped = JSON.parse(
+      JSON.stringify({
+        version: 4,
+        nodes: view.result.current.nodes,
+        edges: view.result.current.edges,
+      }),
+    ) as NodeWorkflowStateV4
+    act(() => {
+      view.rerender({ state: roundTripped })
+    })
+
+    expect(view.result.current.nodes).toHaveLength(1)
+    expect(view.result.current.canUndo).toBe(true)
+    act(() => {
+      view.result.current.undo()
+    })
+    expect(view.result.current.nodes).toHaveLength(0)
+    expect(view.result.current.canRedo).toBe(true)
+  })
+
   it('新动作清空重做栈', () => {
     const { view } = renderGraph(stateOf([]))
     act(() => {

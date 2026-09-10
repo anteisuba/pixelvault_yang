@@ -209,7 +209,7 @@ describe('buildAssistantAttachAssetPatch', () => {
 })
 
 /**
- * 执行器（`StudioNodeWorkbench.handleRunAssistantCanvasOps`）对同一个节点的多次
+ * 执行器（画布的助手 op 执行器）对同一个节点的多次
  * 写入靠一本本地账（`dataOverrideById`）累积 —— React 的 `setState` 同 tick 读不
  * 回来，所以同一批里后写的补丁必须叠在先写的上面，而不是各写各的。
  *

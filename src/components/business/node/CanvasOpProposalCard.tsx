@@ -15,7 +15,6 @@ import {
   Mic,
   PenLine,
   Plus,
-  Scissors,
   Shapes,
   SlidersHorizontal,
   Sparkles,
@@ -91,7 +90,6 @@ const OP_ICONS: Record<NodeAssistantOpV4Id, LucideIcon> = {
   [NODE_ASSISTANT_OP_V4_IDS.setModel]: Cpu,
   [NODE_ASSISTANT_OP_V4_IDS.setParams]: SlidersHorizontal,
   [NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile]: Mic,
-  [NODE_ASSISTANT_OP_V4_IDS.setMergeClips]: Scissors,
   [NODE_ASSISTANT_OP_V4_IDS.setReviewState]: Undo2,
   // 剪辑台五条（S8）：整表用「时间线」，四条单段手势各按动作取图标。
   [NODE_ASSISTANT_OP_V4_IDS.editSetTimeline]: ListOrdered,
@@ -270,10 +268,6 @@ export function CanvasOpProposalCard({
           })
         case NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile:
           return t('describe.setVoiceProfile', {
-            target: describeTarget(op.target),
-          })
-        case NODE_ASSISTANT_OP_V4_IDS.setMergeClips:
-          return t('describe.setMergeClips', {
             target: describeTarget(op.target),
           })
         case NODE_ASSISTANT_OP_V4_IDS.setReviewState:

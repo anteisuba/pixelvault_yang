@@ -303,12 +303,10 @@ export const NodeWorkflowNodeDataSchema = z
      * 错档、并按不兼容清掉用户的模型。
      */
     videoMode: z.enum(VIDEO_NODE_MODES).optional(),
-    // videoMerge node: per-upstream-clip trim overrides. The Inspector keys
-    // these by upstream URL so reconnection order doesn't lose user edits.
-    // startSec / endSec are seconds within the source clip. When neither
-    // is set the clip plays in full; presence of any override switches the
-    // backend route from `merge-videos` to `compose` (which supports
-    // keyframe timestamp + duration). See video-merge.service.ts.
+    // Retired `video.merge` nodes only: per-upstream-clip trim overrides,
+    // keyed by upstream URL. Read once by `migrateRetireVideoMergeV4` to seed
+    // the edit desk timeline; nothing writes it any more (S11 removed the fal
+    // compose path — multi-clip rendering lives in `workers/render-video`).
     mergeSettings: z
       .object({
         clips: z

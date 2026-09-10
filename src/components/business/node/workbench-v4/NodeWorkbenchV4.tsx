@@ -70,7 +70,7 @@ import {
   EDIT_DESK_MODE_PARAM,
   EDIT_DESK_MODE_VALUE,
 } from '@/constants/edit-desk'
-import { NODE_SLOT_IDS, getNodeV4Slot } from '@/constants/node-slots'
+import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
@@ -105,7 +105,6 @@ import { EditDesk } from '../edit-desk'
 import { CanvasWorkspaceLayout } from '../CanvasWorkspaceLayout'
 import { CanvasProjectPanel } from '../CanvasProjectPanel'
 import { ProjectNameDialog } from '../ProjectNameDialog'
-import { VideoMergeComposeToolbar } from '../VideoMergeComposeToolbar'
 import { NodeCanvasEmptyGuide } from '../NodeCanvasEmptyGuide'
 import { IngestDragProviderV4 } from '../IngestDragLayerV4'
 import {
@@ -128,17 +127,6 @@ import { ShellPaneMenu, ShellQuickAdd } from './shell/ShellCanvasMenus'
 import { ShellCommandPalette } from './shell/ShellCommandPalette'
 import { ShellSidePanels } from './shell/ShellSidePanels'
 import { ShellTopBar } from './shell/ShellTopBar'
-
-/**
- * 一键成盒至少要几段 —— **读端口表**（`video.merge` 的 `clip` 槽 `min`），
- * ⛔ 不在这里另写一个 2：那个下限是连线规则的一部分，两处各写一份就会漂。
- */
-const VIDEO_MERGE_MIN_CLIPS =
-  getNodeV4Slot(
-    NODE_MEDIA_KIND_IDS.video,
-    NODE_V4_VIDEO_SUBTYPE_IDS.merge,
-    NODE_SLOT_IDS.clip,
-  )?.min ?? 0
 
 /**
  * 文本卡的两个派生动作各建哪一类卡（§8）。
@@ -475,65 +463,6 @@ function NodeWorkbenchV4Inner() {
   /* ── 落物 ────────────────────────────────────────────────────────────── */
   const dnd = useWorkbenchDndV4({ graph, pasteEnabled: !heavyOverlayOpen })
   const rosterDrop = useWorkbenchRosterDropV4(graph)
-
-  /* ── 一键成盒（多选视频 → 合并节点）──────────────────────────────────── */
-  /**
-   * 选中的这几张卡能不能一键成盒。⚠ 判据只有一条：**全是视频**。混进任何一个
-   * 非视频节点就整条不渲染（不是置灰）—— 一条点了没反应的按钮比没有更糟。
-   */
-  const composeSelectionNodeIds = useMemo(() => {
-    if (graph.selectedNodeIds.length < VIDEO_MERGE_MIN_CLIPS) {
-      return null
-    }
-    const selected = graph.nodes.filter((node) =>
-      graph.selectedNodeIds.includes(node.id),
-    )
-    if (selected.length !== graph.selectedNodeIds.length) return null
-    return selected.every(
-      (node) => node.data.kind === NODE_MEDIA_KIND_IDS.video,
-    )
-      ? selected.map((node) => node.id)
-      : null
-  }, [graph.nodes, graph.selectedNodeIds])
-
-  const composeVideoMerge = useCallback(() => {
-    if (!composeSelectionNodeIds) return
-    // 点击那一刻**重读**当前图，⛔ 不吃上面那个 memo 的快照（框选可能在渲染与
-    // 点击之间又变了）。
-    const composeIds = new Set(composeSelectionNodeIds)
-    const selected = graph.nodes.filter((node) => composeIds.has(node.id))
-    if (selected.length < VIDEO_MERGE_MIN_CLIPS) return
-
-    // 建边顺序 = 从左到右的空间阅读顺序（y 做次序兜底）。
-    const ordered = [...selected].sort(
-      (a, b) => a.position.x - b.position.x || a.position.y - b.position.y,
-    )
-    const bounds = ordered.reduce(
-      (acc, node) => ({
-        maxX: Math.max(acc.maxX, node.position.x),
-        minY: Math.min(acc.minY, node.position.y),
-      }),
-      { maxX: -Infinity, minY: Infinity },
-    )
-    const newNodeId = graph.addNode(
-      NODE_MEDIA_KIND_IDS.video,
-      NODE_V4_VIDEO_SUBTYPE_IDS.merge,
-      {
-        position: {
-          x: bounds.maxX + NODE_STUDIO_NODE_PLACEMENT.videoMergeCompose.offsetX,
-          y: bounds.minY,
-        },
-      },
-    )
-    if (!newNodeId) return
-    // 每段落进 `clip` 槽 —— 与手拖一条线**同一条** `connect`（同样的闸、同样的
-    // 撤销、同样的墨线签署）。
-    for (const node of ordered) {
-      graph.connect(node.id, newNodeId, NODE_SLOT_IDS.clip)
-    }
-    toast.success(t('toasts.videoMergeComposed', { count: ordered.length }))
-    focusNode(newNodeId)
-  }, [composeSelectionNodeIds, graph, focusNode, t])
 
   /**
    * 文本卡工具条的「生图 / 生镜头」与画中框的 ⌘↵（§8）。
@@ -1102,14 +1031,7 @@ function NodeWorkbenchV4Inner() {
                     event.clientY,
                   )
                 }
-              >
-                {/* 多选包围盒上方的「合成 N 段」条。挂在 `<ReactFlow>` 里当兄弟，
-                    由 `NodeToolbar` 自己做画布→屏幕换算并跟随平移缩放。 */}
-                <VideoMergeComposeToolbar
-                  nodeIds={composeSelectionNodeIds}
-                  onCompose={composeVideoMerge}
-                />
-              </CanvasV4>
+              />
               {graph.nodes.length === 0 ? (
                 <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
                   <NodeCanvasEmptyGuide

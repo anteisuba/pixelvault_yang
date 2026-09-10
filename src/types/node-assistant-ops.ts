@@ -601,27 +601,6 @@ export const NodeAssistantSetVoiceProfileOpSchema = z.object({
   }),
 })
 
-/**
- * 合并节点的逐段裁剪（`NodeV4VideoShape.mergeSettings.clips`）。
- *
- * ⛔ **不新增片段**：段的来源永远是 `clip` 槽上的边，这条 op 只写每段的
- * `startSec` / `endSec`。`url` 必填是为了让裁剪跟着**素材**走而不是跟着下标走 ——
- * 换一次片段顺序，按下标存的裁剪就会落到别的段上。
- */
-export const NodeAssistantSetMergeClipsOpSchema = z.object({
-  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setMergeClips),
-  target: NodeAssistantOpTargetSchema,
-  clips: z
-    .array(
-      z.object({
-        url: z.string().trim().min(1).max(4000),
-        startSec: z.number().optional(),
-        endSec: z.number().optional(),
-      }),
-    )
-    .max(NODE_ASSISTANT_OP_LIMITS.maxMergeClips),
-})
-
 export const NodeAssistantSetReviewStateV4OpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setReviewState),
   target: NodeAssistantOpTargetSchema,
@@ -740,7 +719,6 @@ export const NodeAssistantOpV4Schema = z.discriminatedUnion('op', [
   NodeAssistantSetModelV4OpSchema,
   NodeAssistantSetParamsV4OpSchema,
   NodeAssistantSetVoiceProfileOpSchema,
-  NodeAssistantSetMergeClipsOpSchema,
   NodeAssistantSetReviewStateV4OpSchema,
   NodeAssistantEditSetTimelineOpSchema,
   NodeAssistantEditAddClipOpSchema,

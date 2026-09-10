@@ -9,7 +9,7 @@
  * `useNodeGraphV4().rfNodes`，边由 v4 的 `kind`/`subtype`/`status` 分档
  * （`resolveNodeEdgeTierV4`）并走同一张可见性矩阵（`resolveNodeEdgeVisibility`）。
  *
- * ⚠ 目标 handle 就是**槽 id**：`NodeV4Shell` 按端口表逐槽渲染 `Handle id={slot}`，
+ * ⚠ 目标 handle 就是**槽 id**：`chrome/NodePorts` 按端口表逐槽渲染 `Handle id={slot}`，
  * 所以边的 `targetHandle` 直接写 `edge.slot`，⛔ 不另发明一套 handle 命名。
  */
 

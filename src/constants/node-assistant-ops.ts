@@ -92,9 +92,7 @@ export type NodeAssistantOpId = (typeof NODE_ASSISTANT_OPS)[number]
  *
  * ── 为什么图片的比例 / 清晰度不在这里（切片 5 第二批查证结论）──────────
  * `NodeWorkflowNodeDataSchema.imageResolution` 是**死字段**：schema 里有、全仓零
- * 个写者；图片的比例与清晰度真正住在 `use-generate-composer-v4.ts` 的 React state
- * 里（`useState<AspectRatio>` / `useState<ImageResolutionTier>`，注释写明是
- * 「session-sticky, not reset per host」的**设计**），随 `runGenerateComposer` 的
+ * 个写者；图片的比例与清晰度真正住在图片卡自己的「画面」chip 参数里，随生成
  * 入参直传。`handleGenerateMediaNode` 里读 `data.aspectRatio` / `data.resolution`
  * 的三处全部带着 `isVideoMediaNode` 守卫 —— 写进图片节点的 data 是一条三绿而毫无
  * 效果的路（编译过、测试过、真机上什么都不变）。
@@ -186,7 +184,6 @@ export const NODE_ASSISTANT_ADD_INTENTS = [
   CANVAS_ADD_INTENT_IDS.audioTimbre,
   CANVAS_ADD_INTENT_IDS.videoShot,
   CANVAS_ADD_INTENT_IDS.videoClip,
-  CANVAS_ADD_INTENT_IDS.videoMerge,
 ] as const satisfies readonly CanvasAddIntentId[]
 
 /**
@@ -222,8 +219,6 @@ export const NODE_ASSISTANT_ADD_INTENT_HINTS: Record<
   [CANVAS_ADD_INTENT_IDS.videoShot]:
     'a SHOT — one video generation with its own first/last frame, references, voice and text slots',
   [CANVAS_ADD_INTENT_IDS.videoClip]: 'a reference video clip',
-  [CANVAS_ADD_INTENT_IDS.videoMerge]:
-    'a node that stitches several clips into one sequence',
 }
 
 /**
@@ -295,14 +290,6 @@ export const NODE_ASSISTANT_OP_LIMITS = {
    * 一段字，两者的量级本来就不同。
    */
   maxPromptPatchLength: 2000,
-  /**
-   * `set_merge_clips` 一次能带多少段。
-   *
-   * ⚠ 这个 9 必须与 `NodeV4VideoShape.mergeSettings.clips` 的 `.max(9)`、以及
-   * `NODE_V4_PORTS['video.merge'].clip` 的 `max` 一致 —— 三处说的是同一件事
-   * 「一次合并最多九段」。超了不是截断，是整份 state 落不了库。
-   */
-  maxMergeClips: 9,
   /**
    * `set_image_category` 的自定义分类名。
    *
@@ -485,18 +472,12 @@ export const NODE_ASSISTANT_OP_V4_IDS = {
    * （改一次档位要发六条 op，撤销粒度也跟着碎成六步）。
    */
   setVoiceProfile: 'set_voice_profile',
-  /**
-   * 合并节点的逐段裁剪（`mergeSettings.clips`）。同样是嵌套结构（每段带
-   * `url` / `startSec` / `endSec`），理由同 `set_voice_profile`。
-   * ⚠ 段的**来源**仍然是 `clip` 槽的边 —— 这条 op 只写裁剪区间，⛔ 不新增片段。
-   */
-  setMergeClips: 'set_merge_clips',
   setReviewState: 'set_review_state',
   /* ── 剪辑台（S8 · spec §6 / §8.5）───────────────────────────────────── */
   /**
    * 整表替换时间线（inverse = 原表）。
    *
-   * ⚠ 与 `set_merge_clips` 收整份是同一条论据：时间线是**有序数组**，「只改第 3 段」
+   * ⚠ 时间线是**有序数组**，「只改第 3 段」
    * 在一个数组字段上表达不了增删，而 patch 语义会让「删掉一段」和「没提到这一段」
    * 长得一模一样。四条细粒度 op（add / remove / update / move）是给**单次手势**用的
    * ——它们的 inverse 是一条同族 op，撤销一步回到位；这一条是给「一句话排片整批写入」
@@ -533,7 +514,6 @@ export const NODE_ASSISTANT_OPS_V4 = [
   NODE_ASSISTANT_OP_V4_IDS.setModel,
   NODE_ASSISTANT_OP_V4_IDS.setParams,
   NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
-  NODE_ASSISTANT_OP_V4_IDS.setMergeClips,
   NODE_ASSISTANT_OP_V4_IDS.setReviewState,
   NODE_ASSISTANT_OP_V4_IDS.editSetTimeline,
   NODE_ASSISTANT_OP_V4_IDS.editAddClip,
@@ -713,12 +693,6 @@ export const NODE_ASSISTANT_OP_V4_SPECS = {
     group: content,
     tier: free,
     inverse: NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
-    autoApply: true,
-  },
-  [NODE_ASSISTANT_OP_V4_IDS.setMergeClips]: {
-    group: content,
-    tier: free,
-    inverse: NODE_ASSISTANT_OP_V4_IDS.setMergeClips,
     autoApply: true,
   },
   [NODE_ASSISTANT_OP_V4_IDS.setReviewState]: {

@@ -1,6 +1,6 @@
 /**
- * v4 具名槽 → 生成载荷。生产调用方：`src/hooks/node/*-v4.ts` 四个生成钩子与
- * `NodeV4GenerateDesk`；服务端送出预览（`node-video-send-preview.ts`）读同一份结果。
+ * v4 具名槽 → 生成载荷。生产调用方：`src/hooks/node/*-v4.ts` 四个生成钩子；
+ * 服务端送出预览（`node-video-send-preview.ts`）读同一份结果。
  *
  * ── 为什么装配要单独成一层纯函数 ────────────────────────────────────────
  * v3 的装配散在钩子与组件里（v3 的槽架与 workbench

@@ -218,7 +218,7 @@ function partialReferenceMarkerLength(value: string): number {
   return held
 }
 
-function stripNodeReferenceMarkers(
+export function stripNodeReferenceMarkers(
   content: string,
   /**
    * 流已经结束（不会再有 chunk 了）。没结束前，尾巴上写到一半的标记不外显 ——
@@ -445,10 +445,7 @@ export function useAssistantConversation(
             role: message.role,
             content: message.content,
             mediaReferences: message.mediaReferences ?? [],
-            references:
-              message.role === 'assistant'
-                ? extractNodeReferences(message.content)
-                : [],
+            references: extractNodeReferences(message.content),
             capabilities:
               message.role === 'assistant'
                 ? extractCapabilityReferences(message.content)
@@ -503,7 +500,9 @@ export function useAssistantConversation(
         id: createConversationMessageId('user'),
         role: 'user',
         content: trimmedContent,
-        references: [],
+        // 用户气泡里的 `[[node:id]]` 与助手气泡走**同一条**胶囊：标记留在
+        // `content` 里（送给模型的那份需要它），渲染层剥掉再显示。
+        references: extractNodeReferences(trimmedContent),
         capabilities: [],
         mediaReferences: (context.references ?? []).slice(
           0,
@@ -779,10 +778,7 @@ export function useAssistantConversation(
           role: message.role,
           content: message.content,
           mediaReferences: message.mediaReferences ?? [],
-          references:
-            message.role === 'assistant'
-              ? extractNodeReferences(message.content)
-              : [],
+          references: extractNodeReferences(message.content),
           capabilities:
             message.role === 'assistant'
               ? extractCapabilityReferences(message.content)

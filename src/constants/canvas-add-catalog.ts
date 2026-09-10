@@ -61,7 +61,6 @@ export const CANVAS_ADD_INTENT_IDS = {
   audioTimbre: 'audio.timbre',
   videoShot: 'video.shot',
   videoClip: 'video.clip',
-  videoMerge: 'video.merge',
 } as const
 
 export type CanvasAddIntentId =
@@ -79,7 +78,6 @@ export type CanvasAddLabelKey =
   | 'audioTimbre'
   | 'videoShot'
   | 'videoClip'
-  | 'videoMerge'
 
 export interface CanvasAddCatalogItem {
   id: CanvasAddIntentId
@@ -194,15 +192,6 @@ const CATALOG_ITEMS: readonly CanvasAddCatalogItem[] = [
     v4: {
       kind: NODE_MEDIA_KIND_IDS.video,
       subtype: NODE_V4_VIDEO_SUBTYPE_IDS.clip,
-    },
-  },
-  {
-    id: CANVAS_ADD_INTENT_IDS.videoMerge,
-    group: CANVAS_ADD_GROUP_IDS.video,
-    labelKey: 'videoMerge',
-    v4: {
-      kind: NODE_MEDIA_KIND_IDS.video,
-      subtype: NODE_V4_VIDEO_SUBTYPE_IDS.merge,
     },
   },
 ] as const

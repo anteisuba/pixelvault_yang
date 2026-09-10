@@ -14,7 +14,6 @@ import {
   Film,
   ImagePlus,
   Images,
-  Layers,
   Mic2,
   Mountain,
   ScrollText,
@@ -73,7 +72,6 @@ const ICON_BY_INTENT: Record<
   [CANVAS_ADD_INTENT_IDS.audioTimbre]: AudioLines,
   [CANVAS_ADD_INTENT_IDS.videoShot]: Video,
   [CANVAS_ADD_INTENT_IDS.videoClip]: Film,
-  [CANVAS_ADD_INTENT_IDS.videoMerge]: Layers,
 }
 
 /**

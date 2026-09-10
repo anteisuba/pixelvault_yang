@@ -964,51 +964,6 @@ export function applyNodeAssistantOpV4(
       }
     }
 
-    case ids.setMergeClips: {
-      const node = resolveTarget(state, op.target, context.refs)
-      if (!node) return { ok: false, reason: 'unknownNode' }
-      if (
-        node.data.kind !== NODE_MEDIA_KIND_IDS.video ||
-        node.data.subtype !== NODE_V4_VIDEO_SUBTYPE_IDS.merge
-      ) {
-        return { ok: false, reason: 'notAMergeNode' }
-      }
-      // 区间必须成立：`start >= end` 的段合并出来是零帧，让它落库等于把一次失败
-      // 推迟到后端。⛔ 不静默交换两端 —— 用户看到的数字要和落下去的一致。
-      if (
-        op.clips.some(
-          (clip) =>
-            clip.startSec !== undefined &&
-            clip.endSec !== undefined &&
-            clip.startSec >= clip.endSec,
-        )
-      ) {
-        return { ok: false, reason: 'invalidClipRange' }
-      }
-      const previous = node.data.mergeSettings
-      const parsed = NodeV4DataSchema.safeParse({
-        ...node.data,
-        mergeSettings: { ...previous, clips: op.clips },
-      })
-      if (!parsed.success) return { ok: false, reason: 'invalidMergeClips' }
-      return {
-        ok: true,
-        state: replaceNodeData(state, node.id, () => parsed.data),
-        inverse: previous?.clips
-          ? {
-              kind: 'op',
-              op: {
-                op: ids.setMergeClips,
-                target: node.id,
-                clips: previous.clips,
-              },
-            }
-          : { kind: 'restore', nodes: [node], edges: [] },
-        changedNodeIds: [node.id],
-        changedEdgeIds: [],
-      }
-    }
-
     case ids.setReviewState: {
       const node = resolveTarget(state, op.target, context.refs)
       if (!node) return { ok: false, reason: 'unknownNode' }
@@ -1123,7 +1078,7 @@ export function applyNodeAssistantOpV4(
       const current = clips.find((clip) => clip.id === op.clipId)
       if (!current) return { ok: false, reason: 'unknownClip' }
 
-      // 裁剪两端一起过守卫：`in >= out` 落下去是一段零帧，与 `set_merge_clips`
+      // 裁剪两端一起过守卫：`in >= out` 落下去是一段零帧，与合成节点时代
       // 拒收 `start >= end` 是同一条纪律。
       const trimmed =
         op.patch.in === undefined && op.patch.out === undefined

@@ -2,7 +2,7 @@
  * 助手「写简单字段」的 op → 落进节点 `data` 的补丁（切片 5 第一批）。
  *
  * ── 为什么不写在执行器里 ────────────────────────────────────────────
- * 执行器（`StudioNodeWorkbench.handleRunAssistantCanvasOps`）是个 4900 行组件里的
+ * 执行器（画布的生成路径）是个 4900 行组件里的
  * 回调，没有测试宿主。而这两条 op 里唯一容易错的地方恰恰是**纯逻辑**：
  * `custom` 与 `imageCategoryLabel` 的成对关系（换成别的分类要顺手清掉旧名字，
  * 否则卡上会挂着一个已经不适用的自定义名）。把它抽成纯函数，那条规则就能被断言。
@@ -114,7 +114,7 @@ export function buildAssistantSetImageCategoryPatch(
  * `set_model` 的补丁（切片 5 第二批）。
  *
  * 落的是**选择器给的那一条选项**原样折成 `NodeWorkflowModelSelection` —— 与
- * `DetailModelPicker.onChange` 收到的对象逐字段相同。助手载荷里只有一个模型 id，
+ * `ModelPickerPopover.onChange` 收到的对象逐字段相同。助手载荷里只有一个模型 id，
  * 剩下四个字段（optionId / adapterType / providerConfig / apiKeyId）一律来自查表，
  * ⛔ 一个也不许是模型写的。
  */

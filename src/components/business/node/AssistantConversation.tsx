@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button'
 import { CodeBlock, CodeBlockCode } from '@/components/ui/code-block'
 import { Markdown } from '@/components/ui/markdown'
 import { Spinner } from '@/components/ui/spinner'
+import { stripNodeReferenceMarkers } from '@/hooks/use-assistant-conversation'
 import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
 import type { AssistantCapabilityReference } from '@/hooks/use-assistant-conversation'
 import {
@@ -404,7 +405,7 @@ export function AssistantConversation({
                       <p className="whitespace-pre-wrap">
                         {isCollapsible && !isExpanded
                           ? getAssistantMessagePreview(message.content)
-                          : message.content}
+                          : stripNodeReferenceMarkers(message.content, true)}
                       </p>
                     )
                   ) : (

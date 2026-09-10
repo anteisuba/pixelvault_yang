@@ -47,9 +47,10 @@ describe('CanvasAddMenu', () => {
         screen.getByText(`addCatalog.groups.${groupId}`),
       ).toBeInTheDocument()
     }
-    // 顶部真上传 / 从素材库选择 2 + 文本 3 + 图片 4 + 声音 2 + 视频 3 = 14
-    // （③d-4 按 8e-9 重组词表：分组就是 v4 的四类，`organize` 那一组不存在了）。
-    expect(screen.getAllByRole('menuitem')).toHaveLength(14)
+    // 顶部真上传 / 从素材库选择 2 + 文本 3 + 图片 4 + 声音 2 + 视频 2 = 13
+    // （③d-4 按 8e-9 重组词表：分组就是 v4 的四类，`organize` 那一组不存在了；
+    // S11 删掉合成节点后视频组只剩镜头 / 参考片两项）。
+    expect(screen.getAllByRole('menuitem')).toHaveLength(13)
     expect(screen.getByText('addCatalog.pickFromLibrary')).toBeInTheDocument()
     // 角色 / 背景现在住在**图片**组里 —— 它们本来就是 image 的两个子型。
     expect(

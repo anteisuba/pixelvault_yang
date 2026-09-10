@@ -89,6 +89,7 @@ import {
   toStudioModelOption,
 } from './image/image-node-model'
 import { ModelPickerPopover } from '../../../studio-shared/pickers/ModelPickerPopover'
+import { useOpenApiKeys } from '../../workbench-v4/shell/ShellApiKeys'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
@@ -103,7 +104,7 @@ function emptyCardHeight(width: number): number {
   return Math.round((width * 9) / 16)
 }
 
-/** 端口点样式 —— 与 `NodeV4Shell` 同一份（图片族 = 绿点）。 */
+/** 端口点样式 —— 与 `chrome/NodePorts` 同一份（图片族 = 绿点）。 */
 const PORT_CLASS =
   '!size-2.5 !border !border-background !bg-emerald-600 dark:!bg-emerald-400'
 
@@ -155,6 +156,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const tImage = useTranslations('StudioNode.v4.image')
   const tStage = useTranslations('StudioV3')
   const canvas = useNodeV4Canvas()
+  const openApiKeys = useOpenApiKeys()
   const generation = useNodeMediaGenerationV4()
   const upload = useNodeUploadV4()
   const imageData = data as unknown as NodeV4ImageData
@@ -176,7 +178,6 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   // 助手 `set_prompt` 落下来时草稿跟上 —— 渲染期同步，⛔ 不放 effect 里
-  // （`NodeV4GenerateDesk` 的同一条）。
   const currentPrompt = imageData.prompt ?? ''
   if (syncedPrompt !== currentPrompt) {
     setSyncedPrompt(currentPrompt)
@@ -587,6 +588,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                     value={imageData.model?.optionId ?? null}
                     memoryScope={NODE_MEDIA_KIND_IDS.image}
                     disabled={generating}
+                    {...(openApiKeys ? { onManageChannels: openApiKeys } : {})}
                     onChange={(option) => {
                       const picked = modelOptions.find(
                         (item) => item.optionId === option.optionId,

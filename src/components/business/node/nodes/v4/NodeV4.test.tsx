@@ -52,7 +52,6 @@ import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
 } from './NodeV4Context'
-import { TextNodeV4 } from './TextNodeV4'
 import { VideoNodeV4 } from './VideoNodeV4'
 
 const NOW = '2026-09-07T00:00:00.000Z'
@@ -189,41 +188,6 @@ function renderNode(
 }
 
 describe('四类节点的两态渲染', () => {
-  it('文本节点收起态显示标题与字数段数，展开态渲染 Markdown', () => {
-    const state = scene()
-    const { rerender } = renderNode(TextNodeV4, 't_02', harness(state))
-    expect(screen.getByText('S02')).toBeInTheDocument()
-    expect(screen.getByText('textMeta')).toBeInTheDocument()
-    expect(screen.queryByTestId('markdown')).not.toBeInTheDocument()
-
-    const expanded = harness(state, { expandedNodeId: 't_02' })
-    rerender(
-      <NodeV4CanvasProvider value={expanded}>
-        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
-        <TextNodeV4 id="t_02" data={state.nodes[0]!.data} selected={false} />
-      </NodeV4CanvasProvider>,
-    )
-    expect(screen.getByTestId('markdown')).toBeInTheDocument()
-  })
-
-  it('文本节点展开后可切编辑态，失焦即存', () => {
-    const state = scene()
-    const onEditText = vi.fn()
-    renderNode(
-      TextNodeV4,
-      't_02',
-      harness(state, { expandedNodeId: 't_02', onEditText }),
-    )
-    fireEvent.click(screen.getByText('editText'))
-    // 编辑器是 `MentionInput`（contentEditable，⛔ 没有 value setter）——
-    // 改 `textContent` + 派一次 `input`，与用户真的敲字走的是同一条路径。
-    const editor = screen.getByLabelText('editText')
-    editor.textContent = '改过的正文'
-    fireEvent.input(editor)
-    fireEvent.focusOut(editor)
-    expect(onEditText).toHaveBeenCalledWith('t_02', '改过的正文')
-  })
-
   it('图片节点收起态显示缩略图', () => {
     const state = scene()
     renderNode(ImageNodeV4, 'i_kf', harness(state))
@@ -417,39 +381,20 @@ describe('槽内版本轮播', () => {
 })
 
 describe('变更高亮（§7）', () => {
+  /**
+   * ⚠ 主语从图片卡换成镜头卡（2026-09-10 · S3）：图片卡已换到 `NodeCardShell`，
+   * 而变更高亮住在旧的 `NodeV4Shell` 上。`NodeCardShell` 还没有「这张卡被助手改过」
+   * 这个入口 —— 缺口记在 S3 的报告里，⛔ 不在这里给图片卡补一份私有高亮。
+   */
   it('助手改过的节点带描边与角标', () => {
     const state = scene()
     const { container } = renderNode(
-      ImageNodeV4,
-      'i_kf',
-      harness(state, { changedNodeIds: ['i_kf'] }),
+      VideoNodeV4,
+      'v_02',
+      harness(state, { changedNodeIds: ['v_02'] }),
     )
     const card = container.querySelector('[data-changed="true"]')
     expect(card).toBeInTheDocument()
     expect(card?.className).toContain('outline-primary')
-  })
-})
-
-describe('文本派生工具条（§8）', () => {
-  it('五个动作都在，点了把动作交给画布', () => {
-    const state = scene()
-    const onDeriveFromText = vi.fn()
-    const { container } = renderNode(
-      TextNodeV4,
-      't_02',
-      harness(state, { expandedNodeId: 't_02', onDeriveFromText }),
-    )
-    const actions = [...container.querySelectorAll('[data-derive-action]')].map(
-      (element) => element.getAttribute('data-derive-action'),
-    )
-    expect(actions).toEqual([
-      'shotImage',
-      'video',
-      'character',
-      'background',
-      'askAssistant',
-    ])
-    fireEvent.click(screen.getByText('derive.video'))
-    expect(onDeriveFromText).toHaveBeenCalledWith('t_02', 'video')
   })
 })

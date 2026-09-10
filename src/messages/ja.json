@@ -5782,6 +5782,64 @@
         "versions": "バージョン",
         "versionOf": "{total} 件中 {index} 件目",
         "emptyHint": "アップロード · 貼り付け · またはプロンプトを入力"
+      },
+      "text": {
+        "empty": "続きを書く……",
+        "readout": "{chars} 文字 · {paragraphs} 段落",
+        "editAriaLabel": "本文を編集",
+        "roles": {
+          "script": "脚本",
+          "style": "スタイル",
+          "character": "キャラクター"
+        },
+        "shortcuts": {
+          "edit": "⌘E 編集",
+          "generate": "⌘↵ 画像",
+          "collapse": "Esc 折りたたむ"
+        },
+        "toolbar": {
+          "ariaLabel": "テキストノードの操作",
+          "mention": "@ メンション",
+          "shotImage": "画像を作る",
+          "video": "カットを作る",
+          "more": "その他",
+          "rename": "名前を変更",
+          "clone": "複製",
+          "split": "段落ごとに分割",
+          "delete": "削除"
+        },
+        "assist": {
+          "placeholder": "アシスタントに書いてもらう……",
+          "ariaLabel": "アシスタントに書いてもらう",
+          "continue": "続きを書く",
+          "rewrite": "書き直す",
+          "model": "執筆モデル"
+        }
+      },
+      "image": {
+        "toolbar": {
+          "label": "画像操作",
+          "shot": "カット生成",
+          "edit": "編集",
+          "more": "その他"
+        },
+        "edit": {
+          "inpaint": "部分描き直し",
+          "expand": "拡張",
+          "cutout": "背景除去",
+          "background": "背景差し替え"
+        },
+        "add": {
+          "upload": "アップロード",
+          "mention": "@ キャラ / スタイル",
+          "library": "素材ライブラリから"
+        },
+        "frame": {
+          "title": "画面",
+          "aspectRatio": "比率"
+        },
+        "promptPlaceholder": "この画像を説明…",
+        "promptLabel": "画像プロンプト"
       }
     },
     "rerunDownstream": {
@@ -5791,6 +5849,91 @@
       "noCost": "このバッチはクレジットを使いません",
       "menu": "下流を再実行",
       "ask": "「{name}」を変更しました。その下流だけを再実行したいので、まず一覧を出してください。"
+    },
+    "shell": {
+      "project": {
+        "saved": "保存済み",
+        "saving": "保存中",
+        "open": "プロジェクト",
+        "search": "プロジェクトを検索…",
+        "empty": "該当するプロジェクトがありません",
+        "nodeCount": "{count} ノード",
+        "new": "新規プロジェクト",
+        "more": "その他",
+        "rename": "名前を変更",
+        "duplicate": "複製",
+        "delete": "削除",
+        "duplicateSuffix": "{name} のコピー"
+      },
+      "editDesk": "編集台",
+      "editDeskComingSoon": "編集台は準備中です（S8）",
+      "assistant": "アシスタント",
+      "panels": {
+        "nodes": "ノード一覧",
+        "cards": "キャラ / スタイル",
+        "library": "素材ライブラリ",
+        "history": "履歴",
+        "searchNodes": "ノードを検索…",
+        "refCount": "参照 {count}",
+        "cardsCharacters": "キャラクター",
+        "cardsStyles": "スタイル",
+        "cardsHint": "キャンバスへドラッグ、またはプロンプトで @",
+        "libraryHint": "アップロード · ドラッグ",
+        "libraryAll": "すべて",
+        "libraryImage": "画像",
+        "libraryVideo": "動画",
+        "libraryAudio": "音声",
+        "historyHint": "最近の生成 · ドラッグで戻す",
+        "empty": "まだ何もありません",
+        "loading": "読み込み中…",
+        "close": "パネルを閉じる"
+      },
+      "add": {
+        "text": "テキスト",
+        "image": "画像",
+        "audio": "音声",
+        "video": "動画",
+        "group": "新規",
+        "paste": "貼り付け",
+        "tidy": "レイアウト整理",
+        "fit": "全体表示",
+        "menu": "キャンバスメニュー"
+      },
+      "palette": {
+        "title": "コマンドパレット",
+        "placeholder": "ノード検索 · 新規 · 質問…",
+        "nodes": "ノード",
+        "actions": "アクション",
+        "projects": "プロジェクト",
+        "locate": "移動",
+        "create": "{kind}「{query}」を新規作成",
+        "createEmpty": "{kind}を新規作成",
+        "ask": "アシスタントに質問：{query}",
+        "askEmpty": "アシスタントに質問",
+        "openEditDesk": "編集台を開く",
+        "switchTo": "「{name}」に切り替え",
+        "empty": "該当なし"
+      },
+      "bottom": {
+        "select": "選択",
+        "hand": "ハンド",
+        "zoomOut": "縮小",
+        "zoomIn": "拡大",
+        "fit": "全体表示",
+        "tidy": "レイアウト整理",
+        "undo": "元に戻す",
+        "redo": "やり直す",
+        "zoom": "ズーム {percent}%"
+      },
+      "assistantDock": {
+        "collapse": "アシスタントを閉じる",
+        "expand": "アシスタントを開く",
+        "resize": "ドラッグで幅を調整"
+      },
+      "minimap": {
+        "collapse": "ミニマップを閉じる",
+        "expand": "ミニマップを開く"
+      }
     }
   },
   "StudioMobile": {

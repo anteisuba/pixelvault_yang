@@ -5782,6 +5782,64 @@
         "versions": "Versions",
         "versionOf": "Version {index} of {total}",
         "emptyHint": "Upload · paste · or write a prompt"
+      },
+      "text": {
+        "empty": "Keep writing…",
+        "readout": "{chars} characters · {paragraphs} paragraphs",
+        "editAriaLabel": "Edit body",
+        "roles": {
+          "script": "Script",
+          "style": "Style",
+          "character": "Character"
+        },
+        "shortcuts": {
+          "edit": "⌘E Edit",
+          "generate": "⌘↵ Image",
+          "collapse": "Esc Collapse"
+        },
+        "toolbar": {
+          "ariaLabel": "Text node actions",
+          "mention": "@ Mention",
+          "shotImage": "Make image",
+          "video": "Make shot",
+          "more": "More",
+          "rename": "Rename",
+          "clone": "Duplicate",
+          "split": "Split into paragraphs",
+          "delete": "Delete"
+        },
+        "assist": {
+          "placeholder": "Ask the assistant to write…",
+          "ariaLabel": "Ask the assistant to write",
+          "continue": "Continue",
+          "rewrite": "Rewrite",
+          "model": "Writing model"
+        }
+      },
+      "image": {
+        "toolbar": {
+          "label": "Image actions",
+          "shot": "New shot",
+          "edit": "Edit",
+          "more": "More"
+        },
+        "edit": {
+          "inpaint": "Inpaint",
+          "expand": "Expand",
+          "cutout": "Remove background",
+          "background": "Replace background"
+        },
+        "add": {
+          "upload": "Upload",
+          "mention": "@ Character / style",
+          "library": "From library"
+        },
+        "frame": {
+          "title": "Frame",
+          "aspectRatio": "Aspect ratio"
+        },
+        "promptPlaceholder": "Describe this image…",
+        "promptLabel": "Image prompt"
       }
     },
     "rerunDownstream": {
@@ -5791,6 +5849,91 @@
       "noCost": "None of these spend credits",
       "menu": "Rerun downstream",
       "ask": "I changed \"{name}\". Rerun only what is downstream of it — list them first."
+    },
+    "shell": {
+      "project": {
+        "saved": "Saved",
+        "saving": "Saving",
+        "open": "Project",
+        "search": "Search projects…",
+        "empty": "No matching project",
+        "nodeCount": "{count} nodes",
+        "new": "New project",
+        "more": "More",
+        "rename": "Rename",
+        "duplicate": "Duplicate",
+        "delete": "Delete",
+        "duplicateSuffix": "{name} copy"
+      },
+      "editDesk": "Edit desk",
+      "editDeskComingSoon": "The edit desk is coming (S8)",
+      "assistant": "Assistant",
+      "panels": {
+        "nodes": "Nodes",
+        "cards": "Characters / styles",
+        "library": "Library",
+        "history": "History",
+        "searchNodes": "Search nodes…",
+        "refCount": "{count} refs",
+        "cardsCharacters": "Characters",
+        "cardsStyles": "Styles",
+        "cardsHint": "Drag onto the canvas, or @ it in a prompt",
+        "libraryHint": "Upload · drag in",
+        "libraryAll": "All",
+        "libraryImage": "Images",
+        "libraryVideo": "Video",
+        "libraryAudio": "Audio",
+        "historyHint": "Recent generations · drag back",
+        "empty": "Nothing here yet",
+        "loading": "Loading…",
+        "close": "Collapse panel"
+      },
+      "add": {
+        "text": "Text",
+        "image": "Image",
+        "audio": "Audio",
+        "video": "Video",
+        "group": "New",
+        "paste": "Paste",
+        "tidy": "Tidy layout",
+        "fit": "Fit view",
+        "menu": "Canvas menu"
+      },
+      "palette": {
+        "title": "Command palette",
+        "placeholder": "Find a node · create · ask…",
+        "nodes": "Nodes",
+        "actions": "Actions",
+        "projects": "Projects",
+        "locate": "Locate",
+        "create": "New {kind} “{query}”",
+        "createEmpty": "New {kind}",
+        "ask": "Ask the assistant: {query}",
+        "askEmpty": "Ask the assistant",
+        "openEditDesk": "Open the edit desk",
+        "switchTo": "Switch to “{name}”",
+        "empty": "No matches"
+      },
+      "bottom": {
+        "select": "Select",
+        "hand": "Hand",
+        "zoomOut": "Zoom out",
+        "zoomIn": "Zoom in",
+        "fit": "Fit view",
+        "tidy": "Tidy layout",
+        "undo": "Undo",
+        "redo": "Redo",
+        "zoom": "Zoom {percent}%"
+      },
+      "assistantDock": {
+        "collapse": "Collapse assistant",
+        "expand": "Expand assistant",
+        "resize": "Drag to resize the assistant"
+      },
+      "minimap": {
+        "collapse": "Collapse minimap",
+        "expand": "Expand minimap"
+      }
     }
   },
   "StudioMobile": {

@@ -5782,6 +5782,64 @@
         "versions": "版本",
         "versionOf": "第 {index} 版，共 {total} 版",
         "emptyHint": "上传 · 粘贴 · 或写提示词"
+      },
+      "text": {
+        "empty": "继续写……",
+        "readout": "{chars} 字 · {paragraphs} 段",
+        "editAriaLabel": "编辑正文",
+        "roles": {
+          "script": "剧本",
+          "style": "风格",
+          "character": "角色"
+        },
+        "shortcuts": {
+          "edit": "⌘E 编辑",
+          "generate": "⌘↵ 生图",
+          "collapse": "Esc 收起"
+        },
+        "toolbar": {
+          "ariaLabel": "文本节点动作",
+          "mention": "@ 提及",
+          "shotImage": "生图",
+          "video": "生镜头",
+          "more": "更多",
+          "rename": "改名",
+          "clone": "复制",
+          "split": "拆成多段",
+          "delete": "删除"
+        },
+        "assist": {
+          "placeholder": "让助手写一段……",
+          "ariaLabel": "让助手写一段",
+          "continue": "续写",
+          "rewrite": "改写",
+          "model": "写作模型"
+        }
+      },
+      "image": {
+        "toolbar": {
+          "label": "图片操作",
+          "shot": "生镜头",
+          "edit": "编辑",
+          "more": "更多"
+        },
+        "edit": {
+          "inpaint": "局部重绘",
+          "expand": "扩图",
+          "cutout": "抠图 / 去背景",
+          "background": "换背景"
+        },
+        "add": {
+          "upload": "上传",
+          "mention": "@ 角色 / 风格",
+          "library": "从素材库"
+        },
+        "frame": {
+          "title": "画面",
+          "aspectRatio": "比例"
+        },
+        "promptPlaceholder": "描述这张图……",
+        "promptLabel": "图片提示词"
       }
     },
     "rerunDownstream": {
@@ -5791,6 +5849,91 @@
       "noCost": "这一批都不花积分",
       "menu": "重跑下游",
       "ask": "我把「{name}」改了，只重跑它的下游，先给我名单。"
+    },
+    "shell": {
+      "project": {
+        "saved": "已保存",
+        "saving": "保存中",
+        "open": "项目",
+        "search": "搜项目…",
+        "empty": "没有匹配的项目",
+        "nodeCount": "{count} 节点",
+        "new": "新建项目",
+        "more": "更多",
+        "rename": "重命名",
+        "duplicate": "复制",
+        "delete": "删除",
+        "duplicateSuffix": "{name} 副本"
+      },
+      "editDesk": "剪辑台",
+      "editDeskComingSoon": "剪辑台还在路上（S8）",
+      "assistant": "助手",
+      "panels": {
+        "nodes": "节点一览",
+        "cards": "角色 / 风格卡",
+        "library": "素材库",
+        "history": "历史",
+        "searchNodes": "搜节点…",
+        "refCount": "{count} 引用",
+        "cardsCharacters": "角色",
+        "cardsStyles": "风格",
+        "cardsHint": "拖进画布成卡，或在提示词里 @",
+        "libraryHint": "上传 · 拖入",
+        "libraryAll": "全部",
+        "libraryImage": "图",
+        "libraryVideo": "视频",
+        "libraryAudio": "音频",
+        "historyHint": "最近生成 · 拖回画布",
+        "empty": "这里还什么都没有",
+        "loading": "加载中…",
+        "close": "收起面板"
+      },
+      "add": {
+        "text": "文本",
+        "image": "图片",
+        "audio": "声音",
+        "video": "视频",
+        "group": "新建",
+        "paste": "粘贴",
+        "tidy": "整理布局",
+        "fit": "适配视图",
+        "menu": "画布菜单"
+      },
+      "palette": {
+        "title": "命令面板",
+        "placeholder": "搜节点 · 新建 · 问助手…",
+        "nodes": "节点",
+        "actions": "动作",
+        "projects": "项目",
+        "locate": "定位",
+        "create": "新建{kind}「{query}」",
+        "createEmpty": "新建{kind}",
+        "ask": "问助手：{query}",
+        "askEmpty": "问助手",
+        "openEditDesk": "打开剪辑台",
+        "switchTo": "切到「{name}」",
+        "empty": "没有匹配项"
+      },
+      "bottom": {
+        "select": "选择",
+        "hand": "抓手",
+        "zoomOut": "缩小",
+        "zoomIn": "放大",
+        "fit": "适配视图",
+        "tidy": "整理布局",
+        "undo": "撤销",
+        "redo": "重做",
+        "zoom": "缩放 {percent}%"
+      },
+      "assistantDock": {
+        "collapse": "收起助手",
+        "expand": "展开助手",
+        "resize": "拖动调整助手宽度"
+      },
+      "minimap": {
+        "collapse": "收起小地图",
+        "expand": "展开小地图"
+      }
     }
   },
   "StudioMobile": {

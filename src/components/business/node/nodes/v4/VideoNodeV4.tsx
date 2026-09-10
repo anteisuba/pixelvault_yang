@@ -118,6 +118,7 @@ import {
   videoSendMode,
   videoVersions,
 } from './video/video-node-model'
+import { useNodeCanvasActions } from './NodeV4ActionsBridge'
 import { ModelPickerPopover } from '../../../studio-shared/pickers/ModelPickerPopover'
 import { useOpenApiKeys } from '../../workbench-v4/shell/ShellApiKeys'
 
@@ -170,6 +171,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const upload = useNodeUploadV4()
   const frames = useVideoReferenceSlots()
   const openApiKeys = useOpenApiKeys()
+  /** ⋯「加入剪辑台」的出口（模式不是 op，见 `NodeV4ActionsBridge`）。 */
+  const { openEditDesk } = useNodeCanvasActions()
   const videoData = data as unknown as NodeV4VideoData
   /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
   const flashed = useNodeCardFlash(id)
@@ -891,6 +894,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                   : { shotNo: videoData.shotNo }),
               })
             }
+            onAddToEditDesk={() => openEditDesk([id])}
+            addToEditDeskDisabled={!videoData.url}
             onSplitVersion={
               versions.length > 1
                 ? () =>

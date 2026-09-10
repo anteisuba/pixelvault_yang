@@ -30,12 +30,16 @@ import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
+  EDIT_AUDIO_FILTER_IDS,
   EDIT_PANEL_IDS,
+  EDIT_TOOL_IDS,
   EDIT_TRACK_IDS,
+  type EditAudioFilterId,
   type EditExportRangeId,
   type EditPanelId,
   type EditResolution,
   type EditToolId,
+  type EditTrackId,
 } from '@/constants/edit-desk'
 import { AUDIO_CLIP_SOURCE } from '@/constants/audio-options'
 import {
@@ -43,7 +47,7 @@ import {
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
-import { clipIndexAt, RenderPlanError } from '@/lib/edit-project'
+import { clipIndexAt, currentUrlOf, RenderPlanError } from '@/lib/edit-project'
 import {
   requestTimelinePlan,
   subscribeTimelineProposal,
@@ -51,11 +55,14 @@ import {
 } from '@/lib/timeline-plan-request'
 import { useEditDesk } from '@/hooks/node/use-edit-desk'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
-import type { NodeWorkflowStateV4 } from '@/types/node-workflow'
+import type { NodeV4Data, NodeWorkflowStateV4 } from '@/types/node-workflow'
 import type { NodeV4MediaPatch } from '../nodes/v4/NodeV4Context'
 
 import { NodePromptBar } from '../nodes/v4/chrome/NodePromptBar'
-import { EditDeskAssetRail } from './EditDeskAssetRail'
+import {
+  EditDeskAssetRail,
+  type EditDeskLibraryAsset,
+} from './EditDeskAssetRail'
 import { EditDeskExportDialog } from './EditDeskExportDialog'
 import { EditDeskInspector } from './EditDeskInspector'
 import { EditDeskPreview } from './EditDeskPreview'
@@ -67,6 +74,12 @@ import { EditDeskRenderBar, EditDeskResumeBar } from './EditDeskRenderBar'
 import { EditDeskTimeline } from './EditDeskTimeline'
 import { EditDeskTopBar } from './EditDeskTopBar'
 import { useEditDeskRender } from './use-edit-desk-render'
+
+/**
+ * 素材库落卡最多等几帧。⚠ 是**安全带**不是节流：正常路径上两帧就到位了，等不到
+ * 说明这一路出了别的问题 —— 与其无声地转下去，不如说一句。
+ */
+const LIBRARY_LAND_MAX_FRAMES = 30
 
 export interface EditDeskProps {
   readonly state: NodeWorkflowStateV4
@@ -82,8 +95,8 @@ export interface EditDeskProps {
    * 回填同一条路（不进撤销栈）。⛔ 别为渲染新造一条能写 url 的 op。
    */
   addNode(
-    kind: 'video',
-    subtype: 'shot',
+    kind: NodeV4Data['kind'],
+    subtype: NodeV4Data['subtype'],
     options?: { readonly name?: string },
   ): string | null
   setMedia(nodeId: string, patch: NodeV4MediaPatch): void
@@ -139,6 +152,17 @@ export function EditDesk({
   const [planPending, setPlanPending] = useState(false)
   /** 预览在不在播 —— 空格与播放器那颗钮共用这一份（spec §6「空格播放」）。 */
   const [playing, setPlaying] = useState(false)
+  /** 音频页的三档筛（工具条「语音」/「配乐」切它）。 */
+  const [audioFilter, setAudioFilter] = useState<EditAudioFilterId>(
+    EDIT_AUDIO_FILTER_IDS.all,
+  )
+  /**
+   * 「语音」/「配乐」按下之后点亮的那条轨。
+   *
+   * ⚠ 它是**指路**不是选中：告诉用户「接下来往这条轨上拖」。落下一段就熄灭 ——
+   * ⛔ 不留一条一直亮着的轨，那会被读成「这条轨被选中了」。
+   */
+  const [highlightTrack, setHighlightTrack] = useState<EditTrackId | null>(null)
 
   /**
    * 进模式时把「进剪辑台」带来的那几张卡追加进去 —— **只落一次**。
@@ -300,6 +324,96 @@ export function EditDesk({
     [addNode, setMedia, connect, onExit, t],
   )
 
+  /**
+   * 素材库那一格落进轨 —— **先建卡，再回填，最后才落段**（spec §6「片段永远记得
+   * 来源节点」）。
+   *
+   * ⚠ 三步之间**必须隔帧**：`addNode` / `setMedia` 各自闭包着调用时的那份图，同
+   * 一帧里连着调，后一条会把前一条写的东西抹掉（2026-09-10 真机实测过：素材库落卡
+   * 后节点凭空消失，见 `VideoNodeV4.backfillMedia` 的同一条论据）。所以这里按帧
+   * 推进：卡出现了才回填，url 到位了才落段。
+   */
+  /**
+   * 「最新值 ref」——每渲染一次刷一遍（⛔ 不在渲染期直接写 `.current`）。
+   *
+   * ⚠ 回填与落段必须用**那一帧**的 `setMedia` / `desk`：它们闭包着调用时的那份图，
+   * 隔帧之后再拿落段之前那一份写回去，等于把刚建出来的卡抹掉（与
+   * `VideoNodeV4.backfillMedia` 同一条实测结论）。
+   */
+  const latest = useRef({ state, desk, setMedia })
+  useEffect(() => {
+    latest.current = { state, desk, setMedia }
+  })
+
+  const onDropLibraryAsset = useCallback(
+    (asset: EditDeskLibraryAsset, track: EditTrackId, index: number) => {
+      const nodeId = addNode(asset.kind, asset.subtype, { name: asset.name })
+      if (!nodeId) {
+        toast.error(t('library.landFailed'))
+        return
+      }
+      setHighlightTrack(null)
+      const step = (attempt: number): void => {
+        if (attempt > LIBRARY_LAND_MAX_FRAMES) {
+          toast.error(t('library.landFailed'))
+          return
+        }
+        const node = latest.current.state.nodes.find(
+          (candidate) => candidate.id === nodeId,
+        )
+        if (!node) {
+          requestAnimationFrame(() => step(attempt + 1))
+          return
+        }
+        if (!currentUrlOf(node)) {
+          latest.current.setMedia(nodeId, {
+            url: asset.url,
+            imageSource: 'existing',
+            ...(asset.thumbnailUrl
+              ? { videoThumbnailUrl: asset.thumbnailUrl }
+              : {}),
+            // ⋯ 菜单里那一行只读的「来源」—— 与声音库「用这段」同一条规矩。
+            source: {
+              kind: AUDIO_CLIP_SOURCE.library,
+              label: t('library.sourceLabel', { name: asset.name }),
+            },
+          })
+          requestAnimationFrame(() => step(attempt + 1))
+          return
+        }
+        latest.current.desk.dropNode(nodeId, track, index, {
+          ...(asset.durationSec ? { durationSec: asset.durationSec } : {}),
+        })
+      }
+      step(0)
+    },
+    [addNode, t],
+  )
+
+  /**
+   * 时间线自己答不了的那几颗工具。
+   *
+   * 「语音」/「配乐」= **切到左栏音频页 + 筛 + 点亮对应轨**（spec §6 工具条）；
+   * 「文字」还没有落点（`EditClip` 没有文本段），照实说一句。
+   */
+  const onTool = useCallback(
+    (tool: EditToolId) => {
+      if (tool === EDIT_TOOL_IDS.voice || tool === EDIT_TOOL_IDS.music) {
+        const voice = tool === EDIT_TOOL_IDS.voice
+        setActivePanel(EDIT_PANEL_IDS.audio)
+        setAudioFilter(
+          voice ? EDIT_AUDIO_FILTER_IDS.voice : EDIT_AUDIO_FILTER_IDS.music,
+        )
+        setHighlightTrack(
+          voice ? EDIT_TRACK_IDS.audio : EDIT_TRACK_IDS.music,
+        )
+        return
+      }
+      toast.info(t('tools.pending', { tool: t(`tools.${tool}`) }))
+    },
+    [t],
+  )
+
   const render = useEditDeskRender({
     projectId,
     onLanded: onRenderLanded,
@@ -422,10 +536,19 @@ export function EditDesk({
       <div className="flex min-h-0 flex-1">
         <EditDeskAssetRail
           activePanel={activePanel}
-          onActivePanelChange={setActivePanel}
+          onActivePanelChange={(panel) => {
+            setActivePanel(panel)
+            // 自己去别的页了 = 刚才那条指路已经没意义。
+            if (panel !== EDIT_PANEL_IDS.audio) setHighlightTrack(null)
+          }}
           assets={desk.assets}
           textNodes={textNodes}
-          onAppend={(nodeId) => desk.addClips([nodeId])}
+          onAppend={(nodeId) => {
+            desk.addClips([nodeId])
+            setHighlightTrack(null)
+          }}
+          audioFilter={audioFilter}
+          onAudioFilterChange={setAudioFilter}
         />
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -453,9 +576,9 @@ export function EditDesk({
           */}
           <EditDeskTimeline
             desk={desk}
-            onToolTodo={(tool: EditToolId) =>
-              toast.info(t('tools.pending', { tool: t(`tools.${tool}`) }))
-            }
+            onTool={onTool}
+            onDropLibraryAsset={onDropLibraryAsset}
+            highlightTrack={highlightTrack}
             overlay={
               desk.proposal ? (
                 <EditDeskProposalCard

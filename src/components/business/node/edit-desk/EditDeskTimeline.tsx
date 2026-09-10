@@ -32,17 +32,21 @@ import { useTranslations } from 'next-intl'
 import {
   EDIT_DESK_CLIP_FRAME_MAX,
   EDIT_DESK_LAYOUT,
+  EDIT_DESK_LIBRARY_DRAG_MIME,
   EDIT_DESK_NODE_DRAG_MIME,
+  EDIT_DESK_TRANSITION_DRAG_MIME,
   EDIT_TIMELINE_TICK_SECONDS,
   EDIT_TOOLS,
   EDIT_TOOL_IDS,
   EDIT_TRACKS,
   EDIT_TRACK_IDS,
+  EDIT_TRANSITIONS,
   EDIT_TRANSITION_IDS,
   TIMELINE_PLAN_CARD,
   TIMELINE_PLAN_GHOST_BORDER_PX,
   type EditToolId,
   type EditTrackId,
+  type EditTransitionId,
 } from '@/constants/edit-desk'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import {
@@ -57,6 +61,10 @@ import type { EditTimelineRow } from '@/lib/edit-project'
 import type { EditClip } from '@/types/node-workflow'
 
 import { AudioWaveform } from '../nodes/v4/audio/AudioWaveform'
+import {
+  parseEditDeskLibraryAsset,
+  type EditDeskLibraryAsset,
+} from './EditDeskAssetRail'
 import { ShellIconButton } from '../workbench-v4/shell/ShellIconButton'
 import type { EditDesk } from '@/hooks/node/use-edit-desk'
 
@@ -71,8 +79,24 @@ const TOOL_ICONS: Record<EditToolId, LucideIcon> = {
 
 export interface EditDeskTimelineProps {
   readonly desk: EditDesk
-  /** 工具条上那几颗还没接来源的（文字 / 语音 / 配乐）点了说一句。 */
-  onToolTodo(tool: EditToolId): void
+  /**
+   * 时间线自己答不了的那几颗工具（文字 / 语音 / 配乐）交回台面。
+   *
+   * ⚠ 分割 / 转场 / 删除**就在这里做完**：它们只动时间线；语音 / 配乐要切左栏
+   * 的页并高亮一条轨，那是台面的事（左栏与轨道高亮都住在它那儿）。
+   */
+  onTool(tool: EditToolId): void
+  /**
+   * 素材库那一格落进轨 —— **先建卡再进轨**（`EDIT_DESK_LIBRARY_DRAG_MIME` 头注）。
+   * 所以它不在 `desk` 上：建卡是图的动作，时间线自己碰不到。
+   */
+  onDropLibraryAsset(
+    asset: EditDeskLibraryAsset,
+    track: EditTrackId,
+    index: number,
+  ): void
+  /** 高亮哪条轨（工具条「语音」/「配乐」按下之后）。`null` = 不高亮。 */
+  readonly highlightTrack?: EditTrackId | null
   /**
    * 「一句话排片」栏 —— **收在时间线块内的最底下**（S9 修 S8 遗留）。
    *
@@ -92,7 +116,9 @@ export interface EditDeskTimelineProps {
 
 export function EditDeskTimeline({
   desk,
-  onToolTodo,
+  onTool,
+  onDropLibraryAsset,
+  highlightTrack,
   footer,
   overlay,
 }: EditDeskTimelineProps) {
@@ -134,7 +160,7 @@ export function EditDeskTimeline({
       })
       return
     }
-    onToolTodo(tool)
+    onTool(tool)
   }
 
   return (
@@ -228,6 +254,8 @@ export function EditDeskTimeline({
                 desk={desk}
                 laneRef={track === EDIT_TRACK_IDS.video ? laneRef : undefined}
                 secondsFromEvent={secondsFromEvent}
+                onDropLibraryAsset={onDropLibraryAsset}
+                highlighted={highlightTrack === track}
               />
             ))}
           </div>
@@ -276,6 +304,8 @@ function TrackLane({
   desk,
   laneRef,
   secondsFromEvent,
+  onDropLibraryAsset,
+  highlighted,
 }: {
   readonly track: EditTrackId
   readonly rows: readonly EditTimelineRow[]
@@ -284,6 +314,12 @@ function TrackLane({
   readonly desk: EditDesk
   readonly laneRef?: React.RefObject<HTMLDivElement | null>
   secondsFromEvent(clientX: number): number
+  onDropLibraryAsset(
+    asset: EditDeskLibraryAsset,
+    track: EditTrackId,
+    index: number,
+  ): void
+  readonly highlighted: boolean
 }) {
   const t = useTranslations('StudioNode.editDesk')
   const [dropping, setDropping] = useState(false)
@@ -301,7 +337,11 @@ function TrackLane({
         ref={laneRef}
         data-testid={`edit-desk-track-${track}`}
         onDragOver={(event) => {
-          if (!event.dataTransfer.types.includes(EDIT_DESK_NODE_DRAG_MIME)) {
+          const types = event.dataTransfer.types
+          if (
+            !types.includes(EDIT_DESK_NODE_DRAG_MIME) &&
+            !types.includes(EDIT_DESK_LIBRARY_DRAG_MIME)
+          ) {
             return
           }
           event.preventDefault()
@@ -311,16 +351,25 @@ function TrackLane({
         onDragLeave={() => setDropping(false)}
         onDrop={(event) => {
           setDropping(false)
+          const index = desk.insertIndexAt(
+            track,
+            secondsFromEvent(event.clientX),
+          )
+          // 素材库那一条**还没有卡**：交回台面先建卡（⛔ 段不指向素材库记录）。
+          const asset = parseEditDeskLibraryAsset(
+            event.dataTransfer.getData(EDIT_DESK_LIBRARY_DRAG_MIME),
+          )
+          if (asset) {
+            event.preventDefault()
+            onDropLibraryAsset(asset, track, index)
+            return
+          }
           const nodeId =
             event.dataTransfer.getData(EDIT_DESK_NODE_DRAG_MIME) ||
             event.dataTransfer.getData('text/plain')
           if (!nodeId) return
           event.preventDefault()
-          desk.dropNode(
-            nodeId,
-            track,
-            desk.insertIndexAt(track, secondsFromEvent(event.clientX)),
-          )
+          desk.dropNode(nodeId, track, index)
         }}
         onPointerDown={(event) => {
           // 空白处按下 = 移播放头（点段的那一路 stopPropagation 了）。
@@ -329,6 +378,8 @@ function TrackLane({
         className={cn(
           'flex min-w-0 flex-1 items-center gap-1 rounded-md',
           dropping && 'bg-muted',
+          // 「语音」/「配乐」按下之后这条轨点亮 —— 用户接着要往它上面拖东西。
+          highlighted && 'outline outline-[1.5px] outline-primary',
         )}
         style={{
           minHeight: isVideo
@@ -610,23 +661,76 @@ function ClipView({
       </div>
 
       {showTransitionAfter ? (
-        <span
-          aria-hidden
-          data-testid={`edit-desk-transition-${clip.id}`}
-          style={{
-            width: EDIT_DESK_LAYOUT.transitionMarkPx,
-            height: EDIT_DESK_LAYOUT.transitionMarkPx,
-          }}
-          className={cn(
-            '-mx-0.5 shrink-0 rotate-45 rounded-[2px]',
-            (clip.transitionOut ?? EDIT_TRANSITION_IDS.none) ===
-              EDIT_TRANSITION_IDS.none
-              ? 'border-[1.5px] border-foreground'
-              : 'bg-foreground',
-          )}
+        <TransitionMark
+          clip={clip}
+          onSet={(transition) =>
+            desk.updateClip(track, clip.id, { transitionOut: transition })
+          }
         />
       ) : null}
     </>
+  )
+}
+
+/**
+ * 两段之间那颗菱形 —— 既是**读数**（实心 = 有转场）也是**落点**：从左栏转场页拖
+ * 一个预设过来落在这里 = 设**前一段**的 `transitionOut`。
+ *
+ * ⚠ 命中区靠一层 `-inset-2` 的透明覆盖放大，⛔ 不把菱形本身画大：12px 是画板量
+ * 的数，改它两段之间的缝就跟着变宽。
+ */
+function TransitionMark({
+  clip,
+  onSet,
+}: {
+  readonly clip: EditClip
+  onSet(transition: EditTransitionId): void
+}) {
+  const t = useTranslations('StudioNode.editDesk')
+  const [over, setOver] = useState(false)
+  const current = clip.transitionOut ?? EDIT_TRANSITION_IDS.none
+
+  return (
+    <span
+      data-testid={`edit-desk-transition-${clip.id}`}
+      data-transition={current}
+      aria-label={t('inspector.transition')}
+      onDragOver={(event) => {
+        if (
+          !event.dataTransfer.types.includes(EDIT_DESK_TRANSITION_DRAG_MIME)
+        ) {
+          return
+        }
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+        setOver(true)
+      }}
+      onDragLeave={() => setOver(false)}
+      onDrop={(event) => {
+        setOver(false)
+        const raw = event.dataTransfer.getData(EDIT_DESK_TRANSITION_DRAG_MIME)
+        const transition = EDIT_TRANSITIONS.find(
+          (candidate) => candidate === raw,
+        )
+        if (!transition) return
+        event.preventDefault()
+        event.stopPropagation()
+        onSet(transition)
+      }}
+      onPointerDown={(event) => event.stopPropagation()}
+      style={{
+        width: EDIT_DESK_LAYOUT.transitionMarkPx,
+        height: EDIT_DESK_LAYOUT.transitionMarkPx,
+      }}
+      className={cn(
+        'relative -mx-0.5 shrink-0 rotate-45 rounded-[2px]',
+        'after:absolute after:-inset-2 after:content-[""]',
+        current === EDIT_TRANSITION_IDS.none
+          ? 'border-[1.5px] border-foreground'
+          : 'bg-foreground',
+        over && 'outline outline-[1.5px] outline-offset-2 outline-primary',
+      )}
+    />
   )
 }
 

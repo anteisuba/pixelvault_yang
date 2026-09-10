@@ -5747,6 +5747,7 @@
           "shot": "カット生成",
           "more": "その他",
           "transcribing": "文字起こし中…",
+          "trimming": "トリム中…",
           "trim": "トリム",
           "connect": "ショットに接続"
         },
@@ -5757,7 +5758,6 @@
           "voiceLibrary": "ボイスライブラリ…",
           "uploadShortcut": "⌘U"
         },
-          "trimming": "トリム中…",
         "emptyHint": "アップロード · 既存から選ぶ · またはセリフを書いて生成",
         "promptPlaceholder": "セリフを書く、または音声をアップロード…",
         "promptPlaceholderMusic": "この劇伴を説明…",
@@ -5887,6 +5887,7 @@
           "rename": "名前を変更",
           "quickLook": "クイックルック",
           "splitVersion": "このバージョンを切り出す",
+          "addToEditDesk": "編集台に追加",
           "duplicate": "この動画カードを複製",
           "delete": "このショットを削除",
           "renameNode": "このショットの名前を変更",
@@ -6085,10 +6086,12 @@
         "transition": "トランジション",
         "dragHint": "タイムラインへドラッグ",
         "empty": "このプロジェクトにはまだ使えるクリップがありません",
-        "todo": "まだ接続されていません（S9 / S10）"
+        "textEmpty": "キャンバスにテキストカードがまだありません",
+        "loading": "読み込み中…",
+        "loadMore": "もっと読み込む",
+        "libraryEmpty": "素材ライブラリに動画も音声もまだありません"
       },
       "tracks": {
-        "textEmpty": "キャンバスにテキストカードがまだありません",
         "video": "V",
         "audio": "A",
         "music": "M",
@@ -6118,10 +6121,10 @@
         "selected": "選択中 · {name}",
         "source": "ソース：{name}",
         "sourceLive": "キャンバスから",
+        "sourceVersion": "バージョン {index}/{total}",
         "sourceGone": "ソースカードは削除済み",
         "inPoint": "イン点",
         "outPoint": "アウト点",
-        "sourceVersion": "バージョン {index}/{total}",
         "speed": "速度",
         "speedOption": "{speed}×",
         "sound": "元の音声",
@@ -6210,6 +6213,24 @@
         "acceptClip": "これを採用",
         "skipClip": "スキップ",
         "acceptedSoFar": "採用済み {count} 本"
+      },
+      "audioFilters": {
+        "all": "すべて",
+        "voice": "音声",
+        "music": "BGM"
+      },
+      "libraryFilters": {
+        "all": "すべて",
+        "video": "動画",
+        "audio": "オーディオ"
+      },
+      "transitionPanel": {
+        "hint": "2 つのクリップの継ぎ目にドロップ",
+        "duration": "{seconds}s"
+      },
+      "library": {
+        "sourceLabel": "素材ライブラリより · {name}",
+        "landFailed": "この素材をキャンバスに配置できませんでした。もう一度お試しください。"
       }
     }
   },

@@ -95,8 +95,18 @@ export interface EditDesk {
   /* ── 动作（每个都发一批 op）───────────────────────────────────────── */
   /** 把画布上的几张卡追加进对应轨道。返回真的加进去几段。 */
   addClips(nodeIds: readonly string[], track?: EditTrackId): number
-  /** 拖投落段：`index` 是插入位（`undefined` = 追加）。 */
-  dropNode(nodeId: string, track: EditTrackId, index?: number): boolean
+  /**
+   * 拖投落段：`index` 是插入位（`undefined` = 追加）。
+   *
+   * `options.durationSec` 只在**卡上量不到时长**时用得上（素材库那条记录量过，
+   * 而 `setMedia` 的补丁里没有时长这一项）——⛔ 不覆盖卡上的值。
+   */
+  dropNode(
+    nodeId: string,
+    track: EditTrackId,
+    index?: number,
+    options?: { readonly durationSec?: number },
+  ): boolean
   updateClip(track: EditTrackId, clipId: string, patch: EditClipPatch): boolean
   moveClip(track: EditTrackId, clipId: string, toIndex: number): boolean
   removeClip(track: EditTrackId, clipId: string): boolean
@@ -255,10 +265,15 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
   )
 
   const dropNode = useCallback(
-    (nodeId: string, track: EditTrackId, index?: number): boolean => {
+    (
+      nodeId: string,
+      track: EditTrackId,
+      index?: number,
+      options?: { readonly durationSec?: number },
+    ): boolean => {
       const node = state.nodes.find((candidate) => candidate.id === nodeId)
       if (!node) return false
-      const clip = buildClipFromNode(node, mintId)
+      const clip = buildClipFromNode(node, mintId, options?.durationSec)
       if (!clip) return false
       return run([
         {

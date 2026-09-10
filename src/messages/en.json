@@ -5747,6 +5747,7 @@
           "shot": "New shot",
           "more": "More",
           "transcribing": "Transcribing…",
+          "trimming": "Trimming…",
           "trim": "Trim",
           "connect": "Connect to shot"
         },
@@ -5757,7 +5758,6 @@
           "voiceLibrary": "Voice library…",
           "uploadShortcut": "⌘U"
         },
-          "trimming": "Trimming…",
         "emptyHint": "Upload · pick one that exists · or write a line",
         "promptPlaceholder": "Write a line, or upload audio…",
         "promptPlaceholderMusic": "Describe this music…",
@@ -5887,6 +5887,7 @@
           "rename": "Rename",
           "quickLook": "Quick look",
           "splitVersion": "Split out this version",
+          "addToEditDesk": "Add to edit desk",
           "duplicate": "Duplicate this video card",
           "delete": "Delete this shot",
           "renameNode": "Rename this shot",
@@ -6085,10 +6086,12 @@
         "transition": "Transitions",
         "dragHint": "Drag onto the timeline",
         "empty": "No usable clips in this project yet",
-        "todo": "Not wired up yet (S9 / S10)"
+        "textEmpty": "No text cards on the canvas yet",
+        "loading": "Loading…",
+        "loadMore": "Load more",
+        "libraryEmpty": "No video or audio in your library yet"
       },
       "tracks": {
-        "textEmpty": "No text cards on the canvas yet",
         "video": "V",
         "audio": "A",
         "music": "M",
@@ -6118,10 +6121,10 @@
         "selected": "Selected · {name}",
         "source": "Source: {name}",
         "sourceLive": "From the canvas",
+        "sourceVersion": "Version {index}/{total}",
         "sourceGone": "Source card deleted",
         "inPoint": "In",
         "outPoint": "Out",
-        "sourceVersion": "Version {index}/{total}",
         "speed": "Speed",
         "speedOption": "{speed}×",
         "sound": "Original audio",
@@ -6210,6 +6213,24 @@
         "acceptClip": "Take this one",
         "skipClip": "Skip",
         "acceptedSoFar": "{count} taken so far"
+      },
+      "audioFilters": {
+        "all": "All",
+        "voice": "Voice",
+        "music": "Music"
+      },
+      "libraryFilters": {
+        "all": "All",
+        "video": "Video",
+        "audio": "Audio"
+      },
+      "transitionPanel": {
+        "hint": "Drop it on the seam between two clips",
+        "duration": "{seconds}s"
+      },
+      "library": {
+        "sourceLabel": "From library · {name}",
+        "landFailed": "That asset could not land on the canvas. Try again."
       }
     }
   },

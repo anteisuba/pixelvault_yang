@@ -158,6 +158,13 @@ export interface NodeCanvasActions {
   focusGeneratedNodes(): void
   /** 撤销上一步（走 op inverse）。 */
   undo(): void
+  /**
+   * 开剪辑台的全屏模式，并把这几张卡先追加进轨（S8 / spec §6「入口」）。
+   *
+   * ⚠ 它**不是 op**：模式只是外壳的一个 state + URL 参数，图一个字都没改 ——
+   * 与 `focusNode` 同一档（只动相机 / 只动模式）。⛔ 不进撤销栈。
+   */
+  openEditDesk(nodeIds?: readonly string[]): void
   /** 见 `NodeCanvasRunState` —— 运行态不进 op 表。 */
   setNodeRunState(nodeId: string, runState: NodeCanvasRunState): void
   /**

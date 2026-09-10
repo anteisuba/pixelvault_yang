@@ -7,13 +7,44 @@
  */
 
 import * as React from 'react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import { NextIntlClientProvider } from 'next-intl'
 import { describe, expect, it, vi } from 'vitest'
 
+/** 素材库那一页拉的是用户自己的产物 —— 组件不 fetch，桩掉 api-client 那一条。 */
+const fetchGalleryImages = vi.fn(async () => ({
+  success: true as const,
+  data: {
+    generations: [
+      {
+        id: 'g_video',
+        outputType: 'VIDEO',
+        url: 'https://example.test/lib.mp4',
+        thumbnailUrl: 'https://example.test/lib.jpg',
+        duration: 8,
+        prompt: '素材库里的一段',
+        model: 'test',
+      },
+    ],
+  },
+}))
+vi.mock('@/lib/api-client', () => ({
+  fetchGalleryImages: () => fetchGalleryImages(),
+}))
+
 import messages from '@/messages/zh.json'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
-import { EDIT_DESK_NODE_DRAG_MIME } from '@/constants/edit-desk'
+import {
+  EDIT_DESK_LIBRARY_DRAG_MIME,
+  EDIT_DESK_NODE_DRAG_MIME,
+  EDIT_DESK_TRANSITION_DRAG_MIME,
+} from '@/constants/edit-desk'
 import { applyNodeAssistantOpV4 } from '@/lib/node-assistant-op-apply-v4'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
@@ -97,7 +128,7 @@ function renderDesk(
   const onExit = vi.fn()
   const onBackToNode = vi.fn()
   const onUndo = vi.fn()
-  const addNode = vi.fn(() => 'n_new')
+  const addNode = vi.fn()
   const setMedia = vi.fn()
   const connectNodes = vi.fn(() => true)
 
@@ -120,6 +151,48 @@ function renderDesk(
       setCurrent(next)
       return { applied }
     }
+    /** 真的会落到图上的建卡 / 回填 —— 素材库那条路要三步都走通才看得出来。 */
+    const addNodeReal = (
+      kind: NodeV4['data']['kind'],
+      subtype: NodeV4['data']['subtype'],
+      options?: { readonly name?: string },
+    ): string => {
+      const id = `n_${(counter += 1)}`
+      const next: NodeWorkflowStateV4 = {
+        ...current,
+        nodes: [
+          ...current.nodes,
+          {
+            id,
+            position: { x: 0, y: 0 },
+            data: {
+              kind,
+              subtype,
+              name: options?.name ?? id,
+              status: 'idle',
+              createdAt: NOW,
+            },
+          } as NodeV4,
+        ],
+      }
+      state = next
+      setCurrent(next)
+      addNode(kind, subtype, options)
+      return id
+    }
+    const setMediaReal = (nodeId: string, patch: { readonly url?: string }) => {
+      const next: NodeWorkflowStateV4 = {
+        ...current,
+        nodes: current.nodes.map((node) =>
+          node.id === nodeId
+            ? ({ ...node, data: { ...node.data, ...patch } } as NodeV4)
+            : node,
+        ),
+      }
+      state = next
+      setCurrent(next)
+      setMedia(nodeId, patch)
+    }
     return (
       <NextIntlClientProvider locale="zh" messages={messages}>
         <EditDesk
@@ -127,8 +200,8 @@ function renderDesk(
           projectId="proj_test"
           dispatchBatch={dispatchBatch}
           mintId={(prefix) => `${prefix}_${(counter += 1)}`}
-          addNode={addNode}
-          setMedia={setMedia}
+          addNode={addNodeReal}
+          setMedia={setMediaReal}
           connect={connectNodes}
           canUndo
           onUndo={onUndo}
@@ -212,6 +285,90 @@ describe('剪辑台 · 台面', () => {
     fireEvent.pointerDown(screen.getByTestId(`edit-desk-clip-${clipId}`))
     fireEvent.click(screen.getByTestId('edit-desk-transition-crossfade'))
     expect(read().edit?.tracks.video[0]?.transitionOut).toBe('crossfade')
+  })
+
+  it('素材库页：拖一条产物进 V 轨 —— 先落成画布卡，段指向那张卡', async () => {
+    const { read } = renderDesk(emptyState)
+    fireEvent.click(screen.getByTestId('edit-desk-panel-library'))
+    const tile = await screen.findByTestId('edit-desk-library-tile-g_video')
+    expect(tile).toBeInTheDocument()
+
+    const payload = JSON.stringify({
+      kind: 'video',
+      subtype: 'clip',
+      url: 'https://example.test/lib.mp4',
+      name: '素材库里的一段',
+      durationSec: 8,
+    })
+    fireEvent.drop(screen.getByTestId('edit-desk-track-video'), {
+      dataTransfer: {
+        types: [EDIT_DESK_LIBRARY_DRAG_MIME],
+        getData: (type: string) =>
+          type === EDIT_DESK_LIBRARY_DRAG_MIME ? payload : '',
+      },
+      clientX: 0,
+    })
+
+    await waitFor(() => expect(read().edit?.tracks.video).toHaveLength(1))
+    const clip = read().edit?.tracks.video[0]
+    const landed = read().nodes.find((node) => node.id === clip?.sourceNodeId)
+    // 段指向的是**画布上新建的那张卡**，⛔ 不是素材库记录。
+    expect(landed?.data.kind).toBe('video')
+    expect(
+      landed?.data.kind === 'video' ? landed.data.url : undefined,
+    ).toBe('https://example.test/lib.mp4')
+    expect(clip?.out).toBe(8)
+  })
+
+  it('转场页：拖一个预设到两段之间的缝上 = 设前一段的转场', () => {
+    const { read } = renderDesk(emptyState)
+    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
+    fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v2'))
+    const first = read().edit?.tracks.video[0]
+    expect(first?.transitionOut ?? 'none').toBe('none')
+
+    fireEvent.click(screen.getByTestId('edit-desk-panel-transition'))
+    expect(
+      screen.getByTestId('edit-desk-transition-preset-crossfade'),
+    ).toBeInTheDocument()
+
+    fireEvent.drop(screen.getByTestId(`edit-desk-transition-${first?.id}`), {
+      dataTransfer: {
+        types: [EDIT_DESK_TRANSITION_DRAG_MIME],
+        getData: (type: string) =>
+          type === EDIT_DESK_TRANSITION_DRAG_MIME ? 'crossfade' : '',
+      },
+    })
+    expect(read().edit?.tracks.video[0]?.transitionOut).toBe('crossfade')
+  })
+
+  it('工具「语音」/「配乐」：切到音频页 + 换筛 + 点亮对应轨', () => {
+    renderDesk({
+      version: 4,
+      nodes: [videoNode('v1'), audioNode('a1')],
+      edges: [],
+    })
+
+    fireEvent.click(screen.getByTestId('edit-desk-tool-voice'))
+    expect(screen.getByTestId('edit-desk-audio-filter-voice')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    expect(screen.getByTestId('edit-desk-asset-a1')).toBeInTheDocument()
+    expect(
+      screen.getByTestId('edit-desk-track-audio').className,
+    ).toContain('outline-primary')
+
+    fireEvent.click(screen.getByTestId('edit-desk-tool-music'))
+    expect(screen.getByTestId('edit-desk-audio-filter-music')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    )
+    // 语音卡在「配乐」这一档里筛掉了
+    expect(screen.queryByTestId('edit-desk-asset-a1')).not.toBeInTheDocument()
+    expect(
+      screen.getByTestId('edit-desk-track-music').className,
+    ).toContain('outline-primary')
   })
 
   it('「上游已更新」徽标：出现 → 点一下换新 → 消失', () => {

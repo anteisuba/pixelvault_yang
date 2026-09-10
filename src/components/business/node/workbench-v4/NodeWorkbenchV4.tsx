@@ -631,6 +631,64 @@ function NodeWorkbenchV4Inner() {
   })
 
   /* ── 动作出口（v4 实现，替掉 ③d-4 之前那个 v3 适配器）──────────────── */
+  /* ── 剪辑台 · 全屏模式（S8 · spec §6）────────────────────────────────── */
+  /**
+   * ⚠ 模式是**本地 state + history 改参**，⛔ 不走 `router.push`：Next 的导航会让
+   * 这棵树重挂，画布视口与选中就没了 —— 而「退出即回到刚才那个地方」正是剪辑台
+   * 做成模式而不是新页的全部理由。URL 上仍然有 `?mode=edit`，刷新 / 分享都还在。
+   */
+  const [editMode, setEditMode] = useState(
+    () => searchParams.get(EDIT_DESK_MODE_PARAM) === EDIT_DESK_MODE_VALUE,
+  )
+  /** 「进剪辑台」带进来的那几张卡（台面开起来就先追加进 V 轨）。 */
+  const [editDeskSeed, setEditDeskSeed] = useState<readonly string[]>([])
+
+  const writeEditModeParam = useCallback((on: boolean) => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    if (on) {
+      url.searchParams.set(EDIT_DESK_MODE_PARAM, EDIT_DESK_MODE_VALUE)
+    } else {
+      url.searchParams.delete(EDIT_DESK_MODE_PARAM)
+    }
+    window.history.replaceState(null, '', url.toString())
+  }, [])
+
+  const openEditDesk = useCallback(
+    (nodeIds?: readonly string[]) => {
+      setEditDeskSeed(nodeIds ?? [])
+      setEditMode(true)
+      writeEditModeParam(true)
+    },
+    [writeEditModeParam],
+  )
+
+  /**
+   * 顶栏「剪辑台」/ ⌘K 开台时**带上当前选中的卡**（spec §6「多选视频卡后进剪辑台」）。
+   *
+   * ⚠ 不在这里挑种类：`addClips` 自己按卡的种类落 V / A 轨，落不进去的（文本 /
+   * 图片 / 还没产物的空卡）它直接跳过。⛔ 这里再筛一遍就是把同一条规则写两处。
+   */
+  const openEditDeskWithSelection = useCallback(() => {
+    openEditDesk(graph.selectedNodeIds)
+  }, [openEditDesk, graph.selectedNodeIds])
+
+  const exitEditDesk = useCallback(() => {
+    setEditMode(false)
+    setEditDeskSeed([])
+    writeEditModeParam(false)
+  }, [writeEditModeParam])
+
+  /** 「回节点重生成这段」：关模式 + 定位并选中来源卡。 */
+  const backToNodeFromEditDesk = useCallback(
+    (nodeId: string) => {
+      exitEditDesk()
+      focusNode(nodeId)
+      graph.onRfNodesChange([{ id: nodeId, type: 'select', selected: true }])
+    },
+    [exitEditDesk, focusNode, graph],
+  )
+
   const actions = useMemo<NodeCanvasActions>(
     () => ({
       applyOp: async (op) => {
@@ -639,6 +697,8 @@ function NodeWorkbenchV4Inner() {
       focusNode,
       focusGeneratedNodes,
       undo: graph.undo,
+      // 视频卡 ⋯「加入剪辑台」走这条（spec §6「入口」的第三条）。
+      openEditDesk,
       /**
        * 运行态**不进 op 表**（`NodeV4ActionsBridge` 例外 ①）：进度跳变不是用户的
        * 意图，给每一次跳变记一条撤销会把撤销栈冲垮。
@@ -835,6 +895,7 @@ function NodeWorkbenchV4Inner() {
       graph,
       focusNode,
       focusGeneratedNodes,
+      openEditDesk,
       reviewMode,
       generation,
       store.state,
@@ -896,64 +957,6 @@ function NodeWorkbenchV4Inner() {
       setPaneMenu(readPointerAnchor(event))
     },
     [readPointerAnchor],
-  )
-
-  /* ── 剪辑台 · 全屏模式（S8 · spec §6）────────────────────────────────── */
-  /**
-   * ⚠ 模式是**本地 state + history 改参**，⛔ 不走 `router.push`：Next 的导航会让
-   * 这棵树重挂，画布视口与选中就没了 —— 而「退出即回到刚才那个地方」正是剪辑台
-   * 做成模式而不是新页的全部理由。URL 上仍然有 `?mode=edit`，刷新 / 分享都还在。
-   */
-  const [editMode, setEditMode] = useState(
-    () => searchParams.get(EDIT_DESK_MODE_PARAM) === EDIT_DESK_MODE_VALUE,
-  )
-  /** 「进剪辑台」带进来的那几张卡（台面开起来就先追加进 V 轨）。 */
-  const [editDeskSeed, setEditDeskSeed] = useState<readonly string[]>([])
-
-  const writeEditModeParam = useCallback((on: boolean) => {
-    if (typeof window === 'undefined') return
-    const url = new URL(window.location.href)
-    if (on) {
-      url.searchParams.set(EDIT_DESK_MODE_PARAM, EDIT_DESK_MODE_VALUE)
-    } else {
-      url.searchParams.delete(EDIT_DESK_MODE_PARAM)
-    }
-    window.history.replaceState(null, '', url.toString())
-  }, [])
-
-  const openEditDesk = useCallback(
-    (nodeIds?: readonly string[]) => {
-      setEditDeskSeed(nodeIds ?? [])
-      setEditMode(true)
-      writeEditModeParam(true)
-    },
-    [writeEditModeParam],
-  )
-
-  /**
-   * 顶栏「剪辑台」/ ⌘K 开台时**带上当前选中的卡**（spec §6「多选视频卡后进剪辑台」）。
-   *
-   * ⚠ 不在这里挑种类：`addClips` 自己按卡的种类落 V / A 轨，落不进去的（文本 /
-   * 图片 / 还没产物的空卡）它直接跳过。⛔ 这里再筛一遍就是把同一条规则写两处。
-   */
-  const openEditDeskWithSelection = useCallback(() => {
-    openEditDesk(graph.selectedNodeIds)
-  }, [openEditDesk, graph.selectedNodeIds])
-
-  const exitEditDesk = useCallback(() => {
-    setEditMode(false)
-    setEditDeskSeed([])
-    writeEditModeParam(false)
-  }, [writeEditModeParam])
-
-  /** 「回节点重生成这段」：关模式 + 定位并选中来源卡。 */
-  const backToNodeFromEditDesk = useCallback(
-    (nodeId: string) => {
-      exitEditDesk()
-      focusNode(nodeId)
-      graph.onRfNodesChange([{ id: nodeId, type: 'select', selected: true }])
-    },
-    [exitEditDesk, focusNode, graph],
   )
 
   const projectPanel = (

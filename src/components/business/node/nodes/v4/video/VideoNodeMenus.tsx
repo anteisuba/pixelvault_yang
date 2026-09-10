@@ -28,6 +28,7 @@ import {
   Film,
   GalleryVerticalEnd,
   Library,
+  Clapperboard,
   Eye,
   Mic,
   PictureInPicture2,
@@ -154,6 +155,14 @@ export interface VideoMoreMenuItemsProps {
   /** 「拆出当前版本」—— 只有两版起才给（⛔ 不摆一个按了什么都不变的项）。 */
   onSplitVersion?: (() => void) | undefined
   /**
+   * 「加入剪辑台」（spec §6「入口」第三条）：开全屏模式并把这张卡先落进 V 轨。
+   *
+   * ⚠ 卡上还没有片时这一项**灰掉不藏**（`addToEditDeskDisabled`）：藏起来会让人
+   * 以为这张卡不支持剪辑台，而它只是还没生成出来。
+   */
+  onAddToEditDesk(): void
+  readonly addToEditDeskDisabled?: boolean | undefined
+  /**
    * 「来源」那一行只读小字 —— 当前版的 `source.label`（今天只有剪辑台成片会写，
    * `source.kind === 'render'`）。自己生成的那几版没有来源，整行不出。
    * ⚠ 与音频卡同一条规矩（`AudioMoreMenuItems`）：⛔ 不做成可点的项。
@@ -167,6 +176,8 @@ export function VideoMoreMenuItems({
   onRename,
   onDuplicate,
   onSplitVersion,
+  onAddToEditDesk,
+  addToEditDeskDisabled,
   sourceLabel,
   onDelete,
 }: VideoMoreMenuItemsProps) {
@@ -194,6 +205,14 @@ export function VideoMoreMenuItems({
           {tVideo('more.splitVersion')}
         </DropdownMenuItem>
       ) : null}
+      <DropdownMenuItem
+        data-video-more="edit-desk"
+        disabled={addToEditDeskDisabled ?? false}
+        onSelect={onAddToEditDesk}
+      >
+        <Clapperboard aria-hidden className="size-4" />
+        {tVideo('more.addToEditDesk')}
+      </DropdownMenuItem>
       {sourceLabel ? (
         <>
           <DropdownMenuSeparator />

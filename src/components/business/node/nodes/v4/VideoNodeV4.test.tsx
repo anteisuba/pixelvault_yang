@@ -80,6 +80,13 @@ vi.mock(
   }),
 )
 
+/** ⋯「加入剪辑台」走动作出口（`useNodeCanvasActions`）——本组只看它被调到。 */
+const openEditDesk = vi.fn()
+vi.mock('./NodeV4ActionsBridge', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./NodeV4ActionsBridge')>()),
+  useNodeCanvasActions: () => ({ openEditDesk }),
+}))
+
 vi.mock('@/components/business/AssetSelectorDialog', () => ({
   AssetSelectorDialog: () => <div data-testid="asset-picker" />,
 }))
@@ -793,6 +800,37 @@ describe('双击 = 展开 · 快速看走空格（画板 `VideoRefs.dc.html` 底
     expect(
       document.querySelector('[data-video-more="quick-look"]'),
     ).not.toBeNull()
+  })
+
+  it('⋯「加入剪辑台」：有片时开台并带上这张卡；空卡灰掉不藏', async () => {
+    openEditDesk.mockClear()
+    const { unmount } = renderVideo(
+      harness([videoNode('v_1', READY)]),
+      'v_1',
+      true,
+    )
+    const openMore = () => {
+      const more = document.querySelector(
+        '[data-toolbar-action="more"]',
+      ) as HTMLElement
+      fireEvent.pointerDown(more, { button: 0, ctrlKey: false })
+      fireEvent.click(more)
+    }
+    openMore()
+    const item = await screen.findByText('more.addToEditDesk')
+    fireEvent.click(item)
+    expect(openEditDesk).toHaveBeenCalledWith(['v_1'])
+
+    unmount()
+    // 空卡：项还在，但按不下去（⛔ 不藏 —— 藏了会被读成「这张卡不支持剪辑台」）。
+    renderVideo(harness([videoNode('v_1')]), 'v_1', true)
+    openMore()
+    await screen.findByText('more.addToEditDesk')
+    expect(
+      document
+        .querySelector('[data-video-more="edit-desk"]')
+        ?.getAttribute('data-disabled'),
+    ).toBe('')
   })
 })
 

@@ -236,6 +236,11 @@ export function readClipSource(
 export function buildClipFromNode(
   node: NodeV4,
   mintId: (prefix: string) => string,
+  /**
+   * 卡上量不到时长时**外面知道**的那个秒数（素材库那条记录量过）。
+   * ⚠ 只在卡自己没有 `durationSec` 时用得上，⛔ 不覆盖卡上的值：卡才是来源。
+   */
+  knownDurationSec?: number,
 ): EditClip | null {
   const data = node.data
   if (data.kind === NODE_MEDIA_KIND_IDS.text) return null
@@ -247,12 +252,17 @@ export function buildClipFromNode(
       ? (data.durationSec ?? 0)
       : 0
   const versionId = currentVersionIdOf(node)
+  const known =
+    knownDurationSec !== undefined && knownDurationSec > 0
+      ? knownDurationSec
+      : 0
+  const out = duration > 0 ? duration : known > 0 ? known : undefined
   return {
     id: mintId('clip'),
     sourceNodeId: node.id,
     ...(versionId ? { sourceVersionId: versionId } : {}),
     in: 0,
-    out: duration > 0 ? duration : EDIT_CLIP_FALLBACK_DURATION_SEC,
+    out: out ?? EDIT_CLIP_FALLBACK_DURATION_SEC,
     speed: EDIT_CLIP_SPEED_DEFAULT,
     muted: false,
   }

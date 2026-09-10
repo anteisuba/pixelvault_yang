@@ -214,8 +214,10 @@ function Row({
   )
 }
 
-/** 分段控件（画板 `.seg`）。⚠ 三处共用一颗，⛔ 不各写一份。 */
-function Segmented({
+/**
+ * 分段控件（画板 `.seg`）。⚠ 右栏三处 + 左栏两张筛共用这一颗，⛔ 不各写一份。
+ */
+export function Segmented({
   testId,
   options,
 }: {

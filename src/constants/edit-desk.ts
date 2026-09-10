@@ -216,6 +216,57 @@ export const EDIT_DESK_NODE_DRAG_MIME =
   'application/x-pixelvault-canvas-node-id'
 
 /**
+ * 「把**素材库**里的一条产物拖进时间线」的载荷 MIME（S8c）。
+ *
+ * ⚠ 与上面那条是**两件事**：那条带的是画布上已有的节点 id，这条带的是一条**还没有
+ * 节点**的产物（`{kind, subtype, url, name, durationSec?, thumbnailUrl?}`）。落进轨
+ * 之前必须**先建一张画布卡**，段再指向那张卡 —— 段永远记得来源节点（spec §6），
+ * ⛔ 不让段直接指向一条素材库记录。
+ */
+export const EDIT_DESK_LIBRARY_DRAG_MIME =
+  'application/x-pixelvault-edit-library-asset'
+
+/**
+ * 「把一个转场预设拖到两段之间的缝上」的载荷 MIME（S8c）。
+ *
+ * 带的是 `EditTransitionId`。落点是**前一段** —— 转场是段的属性（接下一段），
+ * 与右栏「转场 →」写的是同一个字段。
+ */
+export const EDIT_DESK_TRANSITION_DRAG_MIME =
+  'application/x-pixelvault-edit-transition'
+
+/** 素材库页一页拉几条 / 一次「加载更多」再拉几条。 */
+export const EDIT_DESK_LIBRARY_PAGE_SIZE = 24
+
+/**
+ * 音频页的三档筛（工具条「语音」/「配乐」按它切）。
+ *
+ * ⚠ 画布上的音频子型只有 `voice` / `ambience`（`NODE_V4_AUDIO_SUBTYPE_IDS`）——
+ * 「配乐 / 音效」在数据上就是 `ambience` 那一档，⛔ 不为这张筛子新造一个子型。
+ */
+export const EDIT_AUDIO_FILTER_IDS = {
+  all: 'all',
+  voice: 'voice',
+  music: 'music',
+} as const
+
+export type EditAudioFilterId =
+  (typeof EDIT_AUDIO_FILTER_IDS)[keyof typeof EDIT_AUDIO_FILTER_IDS]
+
+/**
+ * 素材库页的三档筛。⚠ 与上面那张**不是同一张**：这一张筛的是产物类型
+ * （时间线只收视频与音频），那一张筛的是画布上音频卡的用途。
+ */
+export const EDIT_DESK_LIBRARY_FILTER_IDS = {
+  all: 'all',
+  video: 'video',
+  audio: 'audio',
+} as const
+
+export type EditDeskLibraryFilterId =
+  (typeof EDIT_DESK_LIBRARY_FILTER_IDS)[keyof typeof EDIT_DESK_LIBRARY_FILTER_IDS]
+
+/**
  * 全屏模式的 URL 参数（spec §6「URL 只加 `?mode=edit`」）。
  *
  * ⚠ 只加一个参数，⛔ 不做 `/studio/node/edit` 这样的新路由：新路由 = 新页 = 画布

@@ -5919,6 +5919,11 @@
             "today": "Today",
             "yesterday": "Yesterday",
             "earlier": "Earlier"
+          },
+          "dateGroups": {
+            "today": "Today",
+            "yesterday": "Yesterday",
+            "earlier": "Earlier"
           }
         },
         "trim": {
@@ -6172,6 +6177,42 @@
         "resolution": "Resolution",
         "confirm": "Start export",
         "pending": "The render layer is still on the way (S9) — “{range}” will be exportable soon"
+      },
+      "clipClock": "Clip {at} / {total}",
+      "render": {
+        "step": "{step} · {percent}%",
+        "done": "The cut is ready",
+        "cancel": "Cancel",
+        "dismiss": "Dismiss",
+        "download": "Download",
+        "landed": "“{name}” landed on the canvas",
+        "failed": "The export failed. Try again, or pick a different range.",
+        "resume": "Your last export “{name}” never finished",
+        "resumeContinue": "Continue",
+        "resumeRestart": "Start over",
+        "status": {
+          "queued": "Queued",
+          "running": "Rendering",
+          "completed": "Done",
+          "failed": "Failed",
+          "cancelled": "Cancelled"
+        },
+        "steps": {
+          "download": "Fetching media",
+          "normalize": "Normalizing",
+          "compose": "Composing",
+          "encode": "Encoding",
+          "poster": "Poster frame",
+          "upload": "Uploading"
+        },
+        "planError": {
+          "emptyTimeline": "The timeline has no video yet — drag a video card in first.",
+          "missingSource": "One clip's source is missing — check whether its source node is still there.",
+          "emptyRange": "There is nothing to export in this range.",
+          "zeroDuration": "The export would be zero seconds long.",
+          "tooManySegments": "Too many clips to render — remove a few and try again.",
+          "tooLong": "The cut is longer than a single render allows."
+        }
       }
     }
   },

@@ -18,14 +18,35 @@ import {
   EDIT_ASPECT_DEFAULT,
   EDIT_CLIP_MIN_DURATION_SEC,
   EDIT_CLIP_SPEED_DEFAULT,
+  EDIT_EXPORT_RANGE_IDS,
+  EDIT_PROJECT_FALLBACK_NAME,
   EDIT_RESOLUTION_DEFAULT,
   EDIT_TIMELINE_PX_PER_SECOND,
   EDIT_TRACKS,
   EDIT_TRACK_IDS,
   EDIT_TRACK_MAX_CLIPS,
   EDIT_TRANSITION_IDS,
+  type EditAspect,
+  type EditExportRangeId,
+  type EditResolution,
   type EditTrackId,
+  type EditTransitionId,
 } from '@/constants/edit-desk'
+import {
+  RENDER_ASPECT_RATIO_PARTS,
+  RENDER_CROSSFADE_SEC,
+  RENDER_MAX_DURATION_SEC,
+  RENDER_MAX_SEGMENTS,
+  RENDER_MIN_SEGMENT_SEC,
+  RENDER_OUTPUT_FPS,
+  RENDER_PLAN_ERROR_CODES,
+  RENDER_PLAN_VERSION,
+  RENDER_SHORT_SIDE_BY_RESOLUTION,
+  type RenderAudioSegment,
+  type RenderPlan,
+  type RenderPlanErrorCode,
+  type RenderVideoSegment,
+} from '@/constants/render-video'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { readOutputVersions, readOutputIndex } from '@/lib/node-output-versions'
 import type {
@@ -400,4 +421,279 @@ export function listEditableAssets(
     }
     return Boolean(currentUrlOf(node))
   })
+}
+
+/* ─── 渲染计划（S9 · spec §6「渲染层」）────────────────────────────────── */
+
+/**
+ * 建计划失败。**可见**而不是静默出一条空片 —— 用户按了导出，什么都不说是最坏的
+ * 一种结果（他会以为在渲，回来发现什么都没有）。
+ */
+export class RenderPlanError extends Error {
+  readonly code: RenderPlanErrorCode
+
+  constructor(code: RenderPlanErrorCode, message: string) {
+    super(message)
+    this.name = 'RenderPlanError'
+    this.code = code
+  }
+}
+
+export interface RenderPlanRange {
+  readonly range: EditExportRangeId
+  /** `inOut` 用。⚠ 只标了一头也算 —— 另一头取时间线的端点。 */
+  readonly inPointSec?: number | null
+  readonly outPointSec?: number | null
+  /** `clip` 用：要单独导出的那一段。 */
+  readonly clipId?: string | null
+  readonly track?: EditTrackId
+}
+
+export interface RenderPlanSettings {
+  readonly projectId: string
+  /** 覆盖时间线自己的清晰度（导出对话框上那颗下拉）。 */
+  readonly resolution?: EditResolution
+}
+
+/** 比例 + 清晰度 → 成片像素。⚠ 换算只在这一处。 */
+export function renderOutputDimensions(
+  aspect: EditAspect,
+  resolution: EditResolution,
+): { readonly width: number; readonly height: number } {
+  const short = RENDER_SHORT_SIDE_BY_RESOLUTION[resolution]
+  const parts = RENDER_ASPECT_RATIO_PARTS[aspect]
+  const long = Math.round((short * parts.long) / parts.short)
+  // ⚠ 偶数化：H.264 的 4:2:0 采样要求两边都是偶数，奇数宽在编码那一步才炸。
+  const even = (value: number): number => value - (value % 2)
+  return parts.portrait
+    ? { width: even(short), height: even(long) }
+    : { width: even(long), height: even(short) }
+}
+
+/** 段尾转场的读值（缺席 = `none`）。 */
+function transitionOf(clip: EditClip): EditTransitionId {
+  return clip.transitionOut ?? EDIT_TRANSITION_IDS.none
+}
+
+/** 这一段的转场会从成片里扣掉多少秒。 */
+function overlapSecOf(transition: EditTransitionId): number {
+  return transition === EDIT_TRANSITION_IDS.crossfade ? RENDER_CROSSFADE_SEC : 0
+}
+
+/**
+ * 范围三选 → **时间线秒的一个窗口**。
+ *
+ * ⚠ 三个范围在这里收敛成同一件事，于是下游只有一条裁剪路径：⛔ 不为「单段」另写
+ * 一套（那正是「单段导出的裁剪和整条导出的裁剪对不上」这类 bug 的温床）。
+ */
+export function resolveRenderWindow(
+  project: EditProject,
+  range: RenderPlanRange,
+): { readonly fromSec: number; readonly toSec: number } {
+  const total = projectDurationSec(project)
+  if (range.range === EDIT_EXPORT_RANGE_IDS.inOut) {
+    const from = Math.max(0, range.inPointSec ?? 0)
+    const to = Math.min(total, range.outPointSec ?? total)
+    return { fromSec: from, toSec: to }
+  }
+  if (range.range === EDIT_EXPORT_RANGE_IDS.clip) {
+    const track = range.track ?? EDIT_TRACK_IDS.video
+    const clips = project.tracks[track]
+    const index = clips.findIndex((clip) => clip.id === range.clipId)
+    if (index < 0) {
+      throw new RenderPlanError(
+        RENDER_PLAN_ERROR_CODES.emptyRange,
+        'Selected clip is not on the timeline.',
+      )
+    }
+    const start = clipStartSec(clips, index)
+    const clip = clips[index]
+    return {
+      fromSec: start,
+      toSec: start + (clip ? clipDurationSec(clip) : 0),
+    }
+  }
+  return { fromSec: 0, toSec: total }
+}
+
+interface SlicedClip {
+  readonly clip: EditClip
+  /** 素材本地秒 —— 窗口切完之后的入 / 出点。 */
+  readonly in: number
+  readonly out: number
+  readonly startSec: number
+  readonly durationSec: number
+  /** 尾巴被窗口切掉的段不再接转场（它后面在成片里已经没有东西了）。 */
+  readonly tailIntact: boolean
+}
+
+/** 把一条轨道按时间线窗口裁一刀。**空数组 = 这条轨在窗口里什么都没有**。 */
+function sliceTrack(
+  clips: readonly EditClip[],
+  fromSec: number,
+  toSec: number,
+): readonly SlicedClip[] {
+  const sliced: SlicedClip[] = []
+  let cursor = 0
+  for (const clip of clips) {
+    const duration = clipDurationSec(clip)
+    const start = cursor
+    const end = cursor + duration
+    cursor = end
+    const visibleStart = Math.max(start, fromSec)
+    const visibleEnd = Math.min(end, toSec)
+    if (visibleEnd - visibleStart < RENDER_MIN_SEGMENT_SEC) continue
+    const speed = clip.speed || EDIT_CLIP_SPEED_DEFAULT
+    sliced.push({
+      clip,
+      in: clip.in + (visibleStart - start) * speed,
+      out: clip.in + (visibleEnd - start) * speed,
+      startSec: visibleStart - fromSec,
+      durationSec: visibleEnd - visibleStart,
+      tailIntact: visibleEnd >= end - Number.EPSILON,
+    })
+  }
+  return sliced
+}
+
+/**
+ * 时间线 + 范围 + 输出设置 → **渲染计划**（`workers/render-video` 的输入）。
+ *
+ * ⚠ 纯函数：不读时钟、不发请求、不碰 React。所有「这条片子会长什么样」的算术都在
+ * 这里做完，worker 只负责把它翻译成 ffmpeg 命令 —— 于是「导出的东西和时间线上看到
+ * 的不一样」这类问题永远能在一个单测里复现。
+ */
+export function toRenderPlan(
+  project: EditProject,
+  nodes: readonly NodeV4[],
+  range: RenderPlanRange,
+  settings: RenderPlanSettings,
+): RenderPlan {
+  if (project.tracks.video.length === 0) {
+    throw new RenderPlanError(
+      RENDER_PLAN_ERROR_CODES.emptyTimeline,
+      'The timeline has no video clips.',
+    )
+  }
+
+  const { fromSec, toSec } = resolveRenderWindow(project, range)
+  if (toSec - fromSec < RENDER_MIN_SEGMENT_SEC) {
+    throw new RenderPlanError(
+      RENDER_PLAN_ERROR_CODES.emptyRange,
+      'The selected range is empty.',
+    )
+  }
+
+  const videoSlices = sliceTrack(project.tracks.video, fromSec, toSec)
+  if (videoSlices.length === 0) {
+    throw new RenderPlanError(
+      RENDER_PLAN_ERROR_CODES.emptyRange,
+      'The selected range contains no video.',
+    )
+  }
+
+  const urlOf = (clip: EditClip): string => {
+    const node = nodes.find((candidate) => candidate.id === clip.sourceNodeId)
+    const url = currentUrlOf(node)
+    if (!url) {
+      throw new RenderPlanError(
+        RENDER_PLAN_ERROR_CODES.missingSource,
+        `Clip ${clip.id} has no playable source.`,
+      )
+    }
+    return url
+  }
+
+  const video: RenderVideoSegment[] = videoSlices.map((slice, index) => {
+    const isLast = index === videoSlices.length - 1
+    // 尾巴被切掉的段、以及最后一段，都不接转场 —— 后面没有东西可接。
+    const transition =
+      isLast || !slice.tailIntact
+        ? EDIT_TRANSITION_IDS.none
+        : transitionOf(slice.clip)
+    return {
+      id: slice.clip.id,
+      src: urlOf(slice.clip),
+      in: slice.in,
+      out: slice.out,
+      speed: slice.clip.speed || EDIT_CLIP_SPEED_DEFAULT,
+      muted: slice.clip.muted ?? false,
+      transitionOut: transition,
+      durationSec: slice.durationSec,
+      sourceNodeId: slice.clip.sourceNodeId,
+      ...(slice.clip.sourceVersionId
+        ? { sourceVersionId: slice.clip.sourceVersionId }
+        : {}),
+    }
+  })
+
+  const toAudio = (slices: readonly SlicedClip[]): RenderAudioSegment[] =>
+    slices.map((slice) => ({
+      id: slice.clip.id,
+      src: urlOf(slice.clip),
+      in: slice.in,
+      out: slice.out,
+      speed: slice.clip.speed || EDIT_CLIP_SPEED_DEFAULT,
+      gain: slice.clip.gain ?? 1,
+      startSec: slice.startSec,
+      durationSec: slice.durationSec,
+      sourceNodeId: slice.clip.sourceNodeId,
+    }))
+
+  const audio = toAudio(sliceTrack(project.tracks.audio, fromSec, toSec))
+  const music = toAudio(sliceTrack(project.tracks.music, fromSec, toSec))
+
+  if (video.length + audio.length + music.length > RENDER_MAX_SEGMENTS) {
+    throw new RenderPlanError(
+      RENDER_PLAN_ERROR_CODES.tooManySegments,
+      'The timeline has too many segments to render.',
+    )
+  }
+
+  // ⚠ 叠化**重叠**：两段叠 0.5s，成片就短 0.5s。⛔ 不能拿轨道时长当成片时长。
+  const overlap = video.reduce(
+    (total, segment) => total + overlapSecOf(segment.transitionOut),
+    0,
+  )
+  const videoDuration = video.reduce(
+    (total, segment) => total + segment.durationSec,
+    0,
+  )
+  const totalDurationSec = Math.max(0, videoDuration - overlap)
+
+  if (totalDurationSec < RENDER_MIN_SEGMENT_SEC) {
+    throw new RenderPlanError(
+      RENDER_PLAN_ERROR_CODES.zeroDuration,
+      'The rendered cut would be empty.',
+    )
+  }
+  if (totalDurationSec > RENDER_MAX_DURATION_SEC) {
+    throw new RenderPlanError(
+      RENDER_PLAN_ERROR_CODES.tooLong,
+      'The rendered cut is longer than the render limit.',
+    )
+  }
+
+  const resolution = settings.resolution ?? project.settings.resolution
+  const { width, height } = renderOutputDimensions(
+    project.settings.aspect,
+    resolution,
+  )
+
+  return {
+    version: RENDER_PLAN_VERSION,
+    name: project.name.trim() || EDIT_PROJECT_FALLBACK_NAME,
+    projectId: settings.projectId,
+    output: {
+      aspect: project.settings.aspect,
+      resolution,
+      width,
+      height,
+      fps: RENDER_OUTPUT_FPS,
+    },
+    video,
+    audio,
+    music,
+    totalDurationSec,
+  }
 }

@@ -5919,6 +5919,11 @@
             "today": "今日",
             "yesterday": "昨日",
             "earlier": "それ以前"
+          },
+          "dateGroups": {
+            "today": "今日",
+            "yesterday": "昨日",
+            "earlier": "それ以前"
           }
         },
         "trim": {
@@ -6172,6 +6177,42 @@
         "resolution": "解像度",
         "confirm": "書き出し開始",
         "pending": "レンダリング層は準備中です（S9）——「{range}」の書き出しはもうすぐです"
+      },
+      "clipClock": "クリップ {at} / {total}",
+      "render": {
+        "step": "{step} · {percent}%",
+        "done": "カットができました",
+        "cancel": "キャンセル",
+        "dismiss": "閉じる",
+        "download": "ダウンロード",
+        "landed": "「{name}」をキャンバスに置きました",
+        "failed": "書き出しに失敗しました。もう一度試すか、範囲を変えてみてください。",
+        "resume": "前回の書き出し「{name}」がまだ終わっていません",
+        "resumeContinue": "続ける",
+        "resumeRestart": "やり直す",
+        "status": {
+          "queued": "待機中",
+          "running": "レンダリング中",
+          "completed": "完了",
+          "failed": "失敗",
+          "cancelled": "キャンセル済み"
+        },
+        "steps": {
+          "download": "素材の取得",
+          "normalize": "正規化",
+          "compose": "構成",
+          "encode": "エンコード",
+          "poster": "サムネイル",
+          "upload": "アップロード"
+        },
+        "planError": {
+          "emptyTimeline": "タイムラインにまだ映像がありません。動画カードをドラッグしてください。",
+          "missingSource": "あるクリップの素材が見つかりません。元のノードが残っているか確認してください。",
+          "emptyRange": "この範囲には書き出せるものがありません。",
+          "zeroDuration": "書き出しの長さが 0 秒です。",
+          "tooManySegments": "クリップが多すぎます。いくつか減らしてから書き出してください。",
+          "tooLong": "一度のレンダリングの上限より長いカットです。"
+        }
       }
     }
   },

@@ -17,7 +17,7 @@
  * 手柄发 60 条 op 会把撤销栈冲成 60 步。
  */
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useRef, useState, type ReactNode } from 'react'
 import {
   Music,
   Scissors,
@@ -67,9 +67,21 @@ export interface EditDeskTimelineProps {
   readonly desk: EditDesk
   /** 工具条上那几颗还没接来源的（文字 / 语音 / 配乐）点了说一句。 */
   onToolTodo(tool: EditToolId): void
+  /**
+   * 「一句话排片」栏 —— **收在时间线块内的最底下**（S9 修 S8 遗留）。
+   *
+   * ⚠ 它必须住在这个块里而不是块外：排片改的就是时间线，把它摆成块外的一条会
+   * 让人以为那是整个剪辑台的输入框（S8 那一版用负 margin 往上蹭，在 1440 以下
+   * 直接压住 M 轨）。
+   */
+  readonly footer?: ReactNode
 }
 
-export function EditDeskTimeline({ desk, onToolTodo }: EditDeskTimelineProps) {
+export function EditDeskTimeline({
+  desk,
+  onToolTodo,
+  footer,
+}: EditDeskTimelineProps) {
   const t = useTranslations('StudioNode.editDesk')
   const laneRef = useRef<HTMLDivElement | null>(null)
 
@@ -220,6 +232,12 @@ export function EditDeskTimeline({ desk, onToolTodo }: EditDeskTimelineProps) {
           />
         </div>
       </div>
+
+      {footer ? (
+        <div data-testid="edit-desk-timeline-footer" className="px-3 pb-2">
+          {footer}
+        </div>
+      ) : null}
     </div>
   )
 }

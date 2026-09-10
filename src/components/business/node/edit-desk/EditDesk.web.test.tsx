@@ -66,6 +66,9 @@ function renderDesk(
   const onExit = vi.fn()
   const onBackToNode = vi.fn()
   const onUndo = vi.fn()
+  const addNode = vi.fn(() => 'n_new')
+  const setMedia = vi.fn()
+  const connectNodes = vi.fn(() => true)
 
   function Host() {
     const [current, setCurrent] = React.useState(state)
@@ -90,8 +93,12 @@ function renderDesk(
       <NextIntlClientProvider locale="zh" messages={messages}>
         <EditDesk
           state={current}
+          projectId="proj_test"
           dispatchBatch={dispatchBatch}
           mintId={(prefix) => `${prefix}_${(counter += 1)}`}
+          addNode={addNode}
+          setMedia={setMedia}
+          connect={connectNodes}
           canUndo
           onUndo={onUndo}
           onExit={onExit}
@@ -278,11 +285,15 @@ describe('剪辑台 · 台面', () => {
         <NextIntlClientProvider locale="zh" messages={messages}>
           <EditDesk
             state={emptyState}
+            projectId="proj_test"
             dispatchBatch={(batch) => {
               ops.push([...batch])
               return { applied: batch.length }
             }}
             mintId={(prefix) => `${prefix}_1`}
+            addNode={vi.fn(() => 'n_new')}
+            setMedia={vi.fn()}
+            connect={vi.fn(() => true)}
             canUndo={false}
             onUndo={vi.fn()}
             onExit={vi.fn()}

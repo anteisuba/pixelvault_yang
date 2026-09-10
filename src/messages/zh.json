@@ -5919,6 +5919,11 @@
             "today": "今天",
             "yesterday": "昨天",
             "earlier": "更早"
+          },
+          "dateGroups": {
+            "today": "今天",
+            "yesterday": "昨天",
+            "earlier": "更早"
           }
         },
         "trim": {
@@ -6172,6 +6177,42 @@
         "resolution": "清晰度",
         "confirm": "开始导出",
         "pending": "渲染层还在路上（S9）——「{range}」的导出很快就能按下去"
+      },
+      "clipClock": "段 {at} / {total}",
+      "render": {
+        "step": "{step} · {percent}%",
+        "done": "成片已就绪",
+        "cancel": "取消",
+        "dismiss": "收起",
+        "download": "下载成片",
+        "landed": "「{name}」已落到画布",
+        "failed": "导出失败了。稍后再试一次，或换一个范围。",
+        "resume": "上次的导出「{name}」还没跑完",
+        "resumeContinue": "继续",
+        "resumeRestart": "重来",
+        "status": {
+          "queued": "排队中",
+          "running": "渲染中",
+          "completed": "已完成",
+          "failed": "失败",
+          "cancelled": "已取消"
+        },
+        "steps": {
+          "download": "取素材",
+          "normalize": "规格化",
+          "compose": "编排",
+          "encode": "编码",
+          "poster": "抽封面",
+          "upload": "上传"
+        },
+        "planError": {
+          "emptyTimeline": "时间线上还没有画面，先拖一张视频卡进来。",
+          "missingSource": "有一段的来源素材找不到了 —— 检查一下它的来源节点还在不在。",
+          "emptyRange": "这个范围里没有东西可导出。",
+          "zeroDuration": "导出的长度是 0 秒。",
+          "tooManySegments": "段太多了，先删掉一些再导出。",
+          "tooLong": "成片太长了，超过一次渲染的上限。"
+        }
       }
     }
   },

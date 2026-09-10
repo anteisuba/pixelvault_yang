@@ -3,10 +3,9 @@
 /**
  * 导出对话框（spec §6「导出」）：**范围三选 · 「导出到画布」开关 · 分辨率**。
  *
- * ⚠ 本片**只出对话框**。真的按下去要 CF Container 的 ffmpeg 跑规格化 → concat /
- * xfade / 变速 / 混音，那是 S9；这里按下去给一句「渲染层在路上」，⛔ 不发一条
- * 现在跑不通的请求，也⛔ 不悄悄退回旧的 `ffmpeg-api/compose`（那条只能尾裁，
- * 出来的东西和用户在时间线上看到的不是一回事）。
+ * 按下去 → `exportTimeline()` 建计划 → `/api/studio/render` 入队 → 顶栏进度（S9）。
+ * ⛔ 不悄悄退回旧的 `ffmpeg-api/compose`：那条只能尾裁，出来的东西和用户在时间线
+ * 上看到的不是一回事。
  */
 
 import { useState } from 'react'
@@ -43,6 +42,8 @@ export interface EditDeskExportDialogProps {
     readonly range: EditExportRangeId
     readonly toCanvas: boolean
   }): void
+  /** 入队请求在飞 —— 确认键锁一下，⛔ 别让连点发两条。 */
+  readonly submitting?: boolean
 }
 
 export function EditDeskExportDialog({
@@ -53,6 +54,7 @@ export function EditDeskExportDialog({
   resolution,
   onResolutionChange,
   onExport,
+  submitting = false,
 }: EditDeskExportDialogProps) {
   const t = useTranslations('StudioNode.editDesk.exportDialog')
   const [range, setRange] = useState<EditExportRangeId>(
@@ -140,8 +142,9 @@ export function EditDeskExportDialog({
           <button
             type="button"
             data-testid="edit-desk-export-confirm"
+            disabled={submitting}
             onClick={() => onExport({ range, toCanvas })}
-            className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground"
+            className="inline-flex h-9 items-center rounded-lg bg-primary px-4 text-xs font-medium text-primary-foreground disabled:opacity-60"
           >
             {t('confirm')}
           </button>

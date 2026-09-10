@@ -66,8 +66,14 @@ export function EditDeskPreview({
             <p className="text-xs text-muted-foreground">{t('previewEmpty')}</p>
           </div>
         )}
-        {/* ⚠ 这条读的是**整条时间线**的位置，与播放器自己那条（只知道当前段）
-            不是一回事，所以摆在对角而不是叠在它上面。 */}
+        {/*
+          两个读数**分开放**（S9 修 S8 遗留）：
+          - 右上 = **整条时间线**的位置（播放头 / 成片总长）；
+          - 左上 = **当前段**的位置（段内已播 / 段长）。
+          S8 那一版把段读数也挤在右下，与播放器自己的时间码叠在同一格上，1440
+          以下直接糊成一团。⚠ 播放器**底部那一条**（transport + 它自己的时间码）
+          是它自己的，所以两个读数都走顶部 —— ⛔ 别塞回底部去跟 transport 抢那一行。
+        */}
         <span
           data-testid="edit-desk-clock"
           className="canvas-glass pointer-events-none absolute right-3 top-2 rounded-full px-2 py-0.5 text-2xs tabular-nums"
@@ -77,6 +83,20 @@ export function EditDeskPreview({
             total: formatEditClock(durationSec),
           })}
         </span>
+        {row ? (
+          <span
+            data-testid="edit-desk-clip-clock"
+            className="canvas-glass pointer-events-none absolute left-3 top-2 rounded-full px-2 py-0.5 text-2xs tabular-nums"
+          >
+            {t('clipClock', {
+              at: formatEditClock(
+                Math.max(0, playheadSec - row.startSec),
+                true,
+              ),
+              total: formatEditClock(row.durationSec),
+            })}
+          </span>
+        ) : null}
       </div>
     </div>
   )

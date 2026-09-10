@@ -23,6 +23,7 @@ import {
   EDIT_TRACKS,
   EDIT_TRACK_IDS,
   type EditAspect,
+  type EditExportRangeId,
   type EditResolution,
   type EditTrackId,
 } from '@/constants/edit-desk'
@@ -38,8 +39,11 @@ import {
   projectDurationSec,
   readClipSource,
   splitClipAt,
+  toRenderPlan,
   type EditTimelineRow,
+  type RenderPlanRange,
 } from '@/lib/edit-project'
+import type { RenderPlan } from '@/constants/render-video'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   EditClip,
@@ -111,6 +115,24 @@ export interface EditDesk {
 
   /** 落点像素 → 插入下标。磁吸开着时吸到最近的段边界。 */
   insertIndexAt(track: EditTrackId, seconds: number): number
+
+  /**
+   * 导出确认 → **渲染计划**（S9）。
+   *
+   * ⚠ 只**建计划**，不发请求：请求、轮询、落卡是台面那一侧的事（`useEditDeskRender`）。
+   * 分开的理由是这份算术要能在纯函数测试里逐条钉住 —— 一个会 `fetch` 的函数做不到。
+   * 建不出来（缺 url / 空区间 / 零时长）时**抛** `RenderPlanError`，⛔ 不返回 null：
+   * 用户按了导出，什么都不说是最坏的一种结果。
+   */
+  exportTimeline(options: EditExportOptions): RenderPlan
+}
+
+export interface EditExportOptions {
+  readonly range: EditExportRangeId
+  /** 成片落在哪个项目下（R2 key 的第一段）。 */
+  readonly projectId: string
+  /** 导出对话框上那颗下拉 —— 覆盖时间线自己的清晰度。 */
+  readonly resolution?: EditResolution
 }
 
 export interface EditClipPatch {
@@ -326,6 +348,23 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     [project, setTimeline],
   )
 
+  const exportTimeline = useCallback(
+    (options: EditExportOptions): RenderPlan => {
+      const range: RenderPlanRange = {
+        range: options.range,
+        inPointSec,
+        outPointSec,
+        clipId: selection?.clipId ?? null,
+        ...(selection ? { track: selection.track } : {}),
+      }
+      return toRenderPlan(project, state.nodes, range, {
+        projectId: options.projectId,
+        ...(options.resolution ? { resolution: options.resolution } : {}),
+      })
+    },
+    [project, state.nodes, inPointSec, outPointSec, selection],
+  )
+
   const selectedClip = useMemo(() => {
     if (!selection) return null
     return (
@@ -392,5 +431,6 @@ export function useEditDesk(options: UseEditDeskOptions): EditDesk {
     rename,
     setSettings,
     insertIndexAt,
+    exportTimeline,
   }
 }

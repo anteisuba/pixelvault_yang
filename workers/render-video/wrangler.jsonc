@@ -1,0 +1,63 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pixelvault-render-video",
+  "main": "src/index.ts",
+  // 与 `workers/execution` 同一天：那边的选择理由（只拿
+  // `workflows_preserve_non_retryable_error_message` 这一个 flag 翻转）在这边同样
+  // 成立，⛔ 两个 worker 的 compatibility_date 不该无理由地分家。
+  "compatibility_date": "2026-05-14",
+  "observability": {
+    "enabled": true,
+  },
+  "vars": {
+    // ⚠ 渲染有自己的回调口（签名口径与 execution 相同，但落库形状不同 ——
+    // 那边一路走 provider metadata / 积分 / R2 转存，渲染产物已经在 R2、也不扣积分）。
+    "INTERNAL_CALLBACK_URL": "https://www.anteisuba.com/api/studio/render/callback",
+    "R2_PUBLIC_URL": "https://cdn.anteisuba.com",
+  },
+  "r2_buckets": [
+    {
+      "binding": "GENERATION_BUCKET",
+      "bucket_name": "personal-ai-gallery",
+      // 与 execution 同一条理由：本地 dev 也写真 R2，否则 Next 存下的 CDN URL 指向
+      // 一个不存在的对象。
+      "remote": true,
+    },
+  ],
+  "workflows": [
+    {
+      "name": "pixelvault-render-video",
+      "binding": "RENDER_WORKFLOW",
+      "class_name": "RenderVideoWorkflow",
+    },
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "RENDER_CONTAINER",
+        "class_name": "RenderContainer",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["RenderContainer"],
+    },
+  ],
+  "containers": [
+    {
+      "class_name": "RenderContainer",
+      "image": "./container/Dockerfile",
+      "image_build_context": "./container",
+      // standard-3 = 2 vCPU / 8 GiB / 16 GB 盘。调研 `video-edit-models.md` §1.3：
+      // 一条 2 分钟成片 ≈ 120s × (2×$0.00002 + 8×$0.0000025) ≈ **$0.0072**。
+      // ⚠ 再往上（standard-4）单价翻倍但 ffmpeg 的并行度受滤镜图串行段限制，
+      // 不会等比变快 —— 要升档先量，别按感觉。
+      "instance_type": "standard-3",
+      // ⚠ 上限就是并发上限。一期只有 owner 在用，1 足够；调高之前先确认
+      // Workers Paid 的容器配额，超了是**排队**而不是报错，表现为「导出很久没动」。
+      "max_instances": 1,
+    },
+  ],
+}

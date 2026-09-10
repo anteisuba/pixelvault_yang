@@ -1237,8 +1237,12 @@ function NodeWorkbenchV4Inner() {
               {editMode ? (
                 <EditDesk
                   state={graph.state}
+                  projectId={store.currentProject.id}
                   dispatchBatch={graph.dispatchBatch}
                   mintId={mintEditId}
+                  addNode={graph.addNode}
+                  setMedia={graph.setMedia}
+                  connect={graph.connect}
                   canUndo={graph.canUndo}
                   onUndo={graph.undo}
                   onExit={exitEditDesk}

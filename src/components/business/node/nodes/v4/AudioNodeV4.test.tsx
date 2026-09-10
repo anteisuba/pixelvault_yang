@@ -341,7 +341,7 @@ describe('选中态：工具条与提示词栏', () => {
     ).not.toBeNull()
   })
 
-  it('「裁剪为新版本」= 切出来的 WAV 走上传落成新一版，原音留作上一版（⛔ 不生成、不扣积分）', async () => {
+  it('裁剪确认 = 新建一张「· 裁剪」音频卡放原卡右侧，原卡原样不动（owner 2026-09-11）', async () => {
     trimSpy.mockResolvedValueOnce({ blob: new Blob(['wav']) })
     const context = selectedContext()
     renderAudio(context, 'a_1', true)
@@ -352,15 +352,34 @@ describe('选中态：工具条与提示词栏', () => {
       startSec: 0,
       endSec: 7,
     })
+    // 建卡走的是转文字那条同一条路：一条 add_node，名字「原名 · 裁剪」，落右侧。
+    await waitFor(() => expect(context.onApplyBatch).toHaveBeenCalled())
+    const ops = (context.onApplyBatch as ReturnType<typeof vi.fn>).mock
+      .calls[0]![0] as readonly Record<string, unknown>[]
+    expect(ops).toHaveLength(1)
+    expect(ops[0]).toMatchObject({
+      op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+      kind: 'audio',
+      subtype: 'voice',
+      name: 'trim.derivedName:a_1',
+    })
+    expect((ops[0]!.position as { x: number }).x).toBeGreaterThan(0)
+    // 媒体落在**新卡**上，来源写原卡名；⛔ 原卡一个字不动。
     await waitFor(() =>
       expect(context.onSetMedia).toHaveBeenCalledWith(
-        'a_1',
+        't_1',
         expect.objectContaining({
           url: 'https://cdn.test/up.mp3',
-          source: expect.objectContaining({ kind: 'trim' }),
+          source: { kind: 'trim', label: 'a_1' },
         }),
       ),
     )
+    expect(context.onSetMedia).not.toHaveBeenCalledWith(
+      'a_1',
+      expect.anything(),
+    )
+    // 建完自动选中新卡。
+    expect(context.onFocusNode).toHaveBeenCalledWith('t_1')
     // ⛔ 这条路上一次生成都不该发。
     expect(generateNode).not.toHaveBeenCalled()
     // 裁完面板收起来，栏回到提示词。

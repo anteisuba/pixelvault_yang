@@ -79,11 +79,27 @@ function isTiedWith(
 }
 
 /**
+ * 这条渠道**今天点了就能跑**吗 —— 自己的 key 或平台额度，二者有其一。
+ *
+ * ⚠ 与 `isRunnableModelOption` 是同一条判据的两种口径（那边看条目，这边看候选，
+ * 映射在 `toModelChannelCandidate`）：`hasUserKey` 已经把 provider 级 key 覆盖算
+ * 进去了。⛔ 别在这里再发明第三种「可用」。
+ */
+function isAvailable(candidate: ModelChannelCandidate): boolean {
+  return candidate.hasUserKey || candidate.hasFreeQuota
+}
+
+/**
  * 挑出这个型号该跑哪条渠道，并说明理由。
  *
- * - `manualChannelId` 命中清单就直接赢（用户手选优先，调用方按型号记住它）；
- *   记忆里的渠道**已经不在清单里**（模型下架 / 被模式过滤掉）时静默退回自动规则，
- *   不报错也不留空 —— 那会让选择器显示一个点不动的型号。
+ * - **永远不落在缺 key 且无平台额度的渠道上**（owner 2026-09-10 真机第二条：
+ *   「VolcEngine · 需要 API key」是选中态）——只要清单里还有一条能跑的，缺 key 的
+ *   那几条就不参与自动规则，连用户**记住过**的那条也不例外：记忆是「上次点了
+ *   fal」，不是「以后一直发不出去」。整份清单都缺 key 时才退回它们（卡上仍要有
+ *   一颗写着型号名的 chip，点开就是配置入口，Hard Rule 8）。
+ * - `manualChannelId` 命中清单**且今天能跑**就直接赢（用户手选优先，调用方按型号
+ *   记住它）；记忆里的渠道已经不在清单里（模型下架 / 被模式过滤掉）或已经缺 key
+ *   时静默退回自动规则，不报错也不留空 —— 那会让选择器显示一个点不动的型号。
  * - 清单为空返回 `null`，调用方按「这个型号今天没有可用渠道」处理。
  */
 export function resolveModelChannel(
@@ -92,12 +108,15 @@ export function resolveModelChannel(
 ): ResolvedModelChannel | null {
   if (candidates.length === 0) return null
 
+  const available = candidates.filter(isAvailable)
+  const pool = available.length > 0 ? available : candidates
+
   const manual = manualChannelId
-    ? candidates.find((c) => c.channelId === manualChannelId)
+    ? pool.find((c) => c.channelId === manualChannelId)
     : undefined
   if (manual) return { channel: manual, reason: 'manual', tiedWith: 0 }
 
-  const best = candidates.reduce((a, b) => {
+  const best = pool.reduce((a, b) => {
     if (tierOf(a) !== tierOf(b)) return tierOf(a) < tierOf(b) ? a : b
     if (healthRankOf(a) !== healthRankOf(b)) {
       return healthRankOf(a) < healthRankOf(b) ? a : b
@@ -110,7 +129,7 @@ export function resolveModelChannel(
   return {
     channel: best,
     reason: CHANNEL_TIERS[tierOf(best)],
-    tiedWith: candidates.filter(
+    tiedWith: pool.filter(
       (c) => c.channelId !== best.channelId && isTiedWith(c, best),
     ).length,
   }

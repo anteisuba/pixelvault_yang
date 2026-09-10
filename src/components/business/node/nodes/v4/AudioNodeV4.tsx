@@ -55,6 +55,7 @@ import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { NODE_V4_CARD } from '@/constants/node-studio'
 import {
   NODE_MEDIA_KIND_IDS,
+  NODE_V4_AUDIO_SUBTYPE_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
@@ -124,7 +125,7 @@ import {
   ModelPickerPopover,
 } from '../../../studio-shared/pickers/ModelPickerPopover'
 import { useOpenApiKeys } from '../../workbench-v4/shell/ShellApiKeys'
-import { useNodeV4Canvas } from './NodeV4Context'
+import { useNodeV4Canvas, type NodeV4MediaPatch } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 
@@ -132,6 +133,8 @@ import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
 const SHOT_BATCH_REF = 'shot'
 /** 「转文字」那一批里指代新建文本卡的别名。 */
 const TEXT_BATCH_REF = 'line'
+/** 「裁剪」那一批里指代新建音频卡的别名。 */
+const TRIM_BATCH_REF = 'clip'
 
 export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const t = useTranslations('StudioNode.v4')
@@ -228,6 +231,31 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   useEffect(() => {
     latest.current = { upload, canvas, id, name: audioData.name }
   })
+  /**
+   * 把媒体回填到**刚建出来的那张卡**上。
+   *
+   * ⚠ 必须用**批之后**那份 `canvas`：`onSetMedia` 闭包着调用当时的图，拿批之前
+   * 那一份写回去，等于把刚建出来的卡一起抹掉（2026-09-11 真机实测：裁剪出来的卡
+   * 落下去就没了；`VideoNodeV4.backfillMedia` 记的是同一条）。所以等新卡出现在
+   * `latest.current` 里再写，写完再选中它。
+   */
+  const backfillTrimmed = useCallback(
+    (nodeId: string, patch: NodeV4MediaPatch) => {
+      const step = (attempt: number): void => {
+        const fresh = latest.current.canvas
+        if (fresh.nodes.some((item) => item.id === nodeId) || attempt >= 10) {
+          fresh.onSetMedia(nodeId, patch)
+          // 「建完自动选中新卡」（画板）——选中不改图，跟着同一拍走就行。
+          fresh.onFocusNode(nodeId)
+          return
+        }
+        window.requestAnimationFrame(() => step(attempt + 1))
+      }
+      step(0)
+    },
+    [],
+  )
+
   const runUpload = useCallback((file: File) => {
     const bound = latest.current
     void bound.upload.upload('audio', file, bound.name).then((patch) => {
@@ -391,8 +419,19 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   }
 
   /**
-   * 裁剪条上那颗「确认」：客户端切采样 → 编 WAV → 走**已有的上传管线**落成新一版。
-   * ⛔ 不扣积分、不生成（spec §4）；原音留作上一版（`onSetMedia` 追加一版）。
+   * 裁剪条上那颗「确认」：客户端切采样 → 编 WAV → 走**已有的上传管线** → 落成
+   * **一张新的音频卡**（owner 2026-09-11 改，spec §4：不再是本卡的新版本）。
+   *
+   * ⛔ 不扣积分、不生成（spec §4）；**原卡一个字都不动** —— 裁剪从「换掉这段声音」
+   * 变成「从这段声音里取一截」，两段并排摆着才比得出来。
+   *
+   * ⚠ 建卡 + 布局 + 选中走的是**转文字那条同一条路**（`runTranscribe`）：卡落在
+   * 本卡右侧、`onApplyBatch` 的回执给出新 id、回填媒体、`onFocusNode` 选中它。
+   * ⚠ 连线：音频卡的入口槽只有 `text` / `timbre`（`node-slots.ts` 的
+   * `audio.voice` / `audio.ambience`），**没有 `source` 槽** —— 所以这条派生关系
+   * 只写在新卡那一版的 `source` 标签里（⋯ 菜单的「来源」读它），⛔ 不硬塞一条
+   * 端口表不认的边。哪天音频卡开了 `source` 槽，这里再补一条 connect。
+   * ⚠ 进度线仍画在**原卡**上（切采样与上传都是这张卡在做），新卡出现时就是成品。
    */
   const runTrim = async (range: AudioTrimRange) => {
     if (!audioData.url || trimBusy) return
@@ -408,14 +447,33 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         toast.error(tAudio('trim.failed'))
         return
       }
-      // ⚠ 时长不进 patch（`NodeV4MediaPatch` 没有这一格）：换了 url 之后
-      // `<audio>` 的 `loadedmetadata` 会把真实时长报上来，本地读数据此重算。
-      canvas.onSetMedia(id, {
-        ...patch,
-        source: {
-          kind: AUDIO_CLIP_SOURCE.trim,
-          label: tAudio('trim.sourceLabel'),
+      const placement = resolveRelativePlacement(canvas.nodes, {
+        relativeTo: id,
+        side: 'right',
+        gap: NODE_V4_CARD.derivedGap,
+        size: { width: NODE_V4_CARD.collapsedWidth, height: AUDIO_CARD.height },
+      })
+      const outcome = await canvas.onApplyBatch([
+        {
+          op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+          kind: NODE_MEDIA_KIND_IDS.audio,
+          // 同一子型 —— 裁一段配乐出来的还是配乐（音色 chip 该不该在跟着它走）。
+          subtype: audioData.subtype ?? NODE_V4_AUDIO_SUBTYPE_IDS.voice,
+          ref: TRIM_BATCH_REF,
+          name: tAudio('trim.derivedName', { name: audioData.name }),
+          ...(placement ? { position: placement } : {}),
         },
+      ])
+      const created = outcome?.createdNodeIds?.[0]
+      if (!created) {
+        toast.error(tAudio('trim.failed'))
+        return
+      }
+      // ⚠ 时长不进 patch（`NodeV4MediaPatch` 没有这一格）：新卡的 `<audio>` 在
+      // `loadedmetadata` 里会把真实时长报上来。
+      backfillTrimmed(created, {
+        ...patch,
+        source: { kind: AUDIO_CLIP_SOURCE.trim, label: audioData.name },
       })
       setTrimming(false)
     } catch {

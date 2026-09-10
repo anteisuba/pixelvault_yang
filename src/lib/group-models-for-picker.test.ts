@@ -142,6 +142,108 @@ describe('groupModelsForPicker', () => {
     expect(channelHasOption(fal, 'workspace:nope')).toBe(false)
   })
 
+  /**
+   * owner 2026-09-10 真机第一条：Seedance 2.0 Fast 展开后 **BytePlus 出现两次**，
+   * 两行都写着 `$0.121 / 秒`。两条 byteplus 端点跑的是同一把 key —— 一条是绑在
+   * `-fast-byteplus` 上的 `saved`，另一条是被 provider 级覆盖盖上同一把 key 的
+   * `workspace`。凭据一样 = 同一条渠道。
+   */
+  it('folds the saved route and its provider-key-covered twin into one row', () => {
+    const series = groupModelsForPicker(
+      [
+        option(AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS, AI_ADAPTER_TYPES.BYTEPLUS, {
+          optionId: 'key:bp1',
+          sourceType: 'saved',
+          keyId: 'bp1',
+        }),
+        option(
+          AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS,
+          AI_ADAPTER_TYPES.BYTEPLUS,
+          { providerKeyId: 'bp1' },
+        ),
+      ],
+      labelOf,
+    )
+
+    const model = series[0].models[0]
+    expect(model.channels).toHaveLength(1)
+    // 代表取 `saved` 那条 —— 提交时钉住 apiKeyId，行上还有 key 标签与健康点。
+    expect(model.channels[0].channelId).toBe('key:bp1')
+    expect(
+      channelHasOption(
+        model.channels[0],
+        `workspace:${AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS}`,
+      ),
+    ).toBe(true)
+  })
+
+  it('keeps the whole Seedance 2.0 Fast family to one row per credential', () => {
+    const series = groupModelsForPicker(
+      [
+        option(AI_MODELS.SEEDANCE_20_FAST, AI_ADAPTER_TYPES.FAL, {
+          providerKeyId: 'fal1',
+        }),
+        option(AI_MODELS.SEEDANCE_20_FAST_REFERENCE, AI_ADAPTER_TYPES.FAL, {
+          providerKeyId: 'fal1',
+        }),
+        option(
+          AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE,
+          AI_ADAPTER_TYPES.VOLCENGINE,
+        ),
+        option(
+          AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE,
+          AI_ADAPTER_TYPES.VOLCENGINE,
+        ),
+        option(AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS, AI_ADAPTER_TYPES.BYTEPLUS, {
+          optionId: 'key:bp1',
+          sourceType: 'saved',
+          keyId: 'bp1',
+        }),
+        option(
+          AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS,
+          AI_ADAPTER_TYPES.BYTEPLUS,
+          { providerKeyId: 'bp1' },
+        ),
+      ],
+      labelOf,
+    )
+
+    const model = series[0].models[0]
+    expect(model.channels.map((c) => c.option.adapterType)).toEqual([
+      AI_ADAPTER_TYPES.FAL,
+      AI_ADAPTER_TYPES.VOLCENGINE,
+      AI_ADAPTER_TYPES.BYTEPLUS,
+    ])
+  })
+
+  /** 差别是「自己的 key A」与「自己的 key B」时**各占一行**，行上写出 key 标签。 */
+  it('splits two keys on the same provider and names them apart', () => {
+    const series = groupModelsForPicker(
+      [
+        option(AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS, AI_ADAPTER_TYPES.BYTEPLUS, {
+          optionId: 'key:bp1',
+          sourceType: 'saved',
+          keyId: 'bp1',
+          keyLabel: '公司账号',
+        }),
+        option(AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS, AI_ADAPTER_TYPES.BYTEPLUS, {
+          optionId: 'key:bp2',
+          sourceType: 'saved',
+          keyId: 'bp2',
+          keyLabel: '个人账号',
+        }),
+      ],
+      labelOf,
+    )
+
+    const channels = series[0].models[0].channels
+    expect(channels).toHaveLength(2)
+    expect(channels.map((c) => c.label)).toEqual([
+      expect.stringContaining('公司账号'),
+      expect.stringContaining('个人账号'),
+    ])
+  })
+
   it('keeps the free-tier channel apart from the user key on the same adapter', () => {
     const series = groupModelsForPicker(
       [

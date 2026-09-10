@@ -5865,7 +5865,7 @@
           "confirm": "Confirm",
           "confirming": "Trimming…",
           "failed": "Trim failed",
-          "sourceLabel": "Trimmed from the previous version"
+          "derivedName": "{name} · Trim"
         }
       },
       "video": {

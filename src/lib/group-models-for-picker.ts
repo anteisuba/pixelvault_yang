@@ -14,7 +14,10 @@ import { getProviderLabel } from '@/constants/providers'
 export interface PickerChannel {
   /** = `option.optionId`，与 `resolveModelChannel` 的 `channelId` 同一个东西。 */
   channelId: string
+  /** 行上写的渠道名；同一 provider 有两把 key 时附上 key 标签（见 `foldChannels`）。 */
   label: string
+  /** 这条渠道用的那把 key 的标签（没有 key / 走平台额度时不带）。 */
+  keyLabel?: string
   option: StudioModelOption
   /**
    * 这条渠道下被折起来的**全部**变体（代表那条排第一）。
@@ -66,48 +69,83 @@ function routeKey(option: StudioModelOption): string {
 }
 
 /**
- * 渠道身份 —— **adapter + 用的是哪份凭据**。
+ * 渠道身份 —— **adapter + 真正会用到的那份凭据**。
  *
  * ⚠ 端点（`-reference` / `-fast` 这类变体）**不进** key：它们是同一条渠道上的两个
  * 端点，分成两行就是真机上看到的「VolcEngine 两次」。凭据进 key 是因为「自己的
  * key」与「平台免费额度」是用户真要挑的两条路（`resolveModelChannel` 的排序依据），
  * 折掉等于替他选了一条。
+ *
+ * ⚠ 凭据认的是 **`keyId ?? providerKeyId`**，不是 `sourceType`：一把 BytePlus key
+ * 绑在 `seedance-2.0-fast-byteplus` 上时，那一条是 `saved`，同族的
+ * `-fast-reference-byteplus` 却是被 `withProviderKeyCoverage` 盖上同一把 key 的
+ * `workspace` —— 按 `sourceType` 分就会画出两行「BytePlus · $0.121 / 秒」，用户
+ * 看不出任何区别（owner 2026-09-10 真机第一条）。跑起来用的是同一把 key，就是
+ * 同一条渠道。两把**不同**的 key 仍旧各占一行，行上写出 key 标签（见 `labelOf`）。
  */
 function channelKeyOf(option: StudioModelOption): string {
-  const credential =
-    option.sourceType === 'saved'
-      ? `key:${option.keyId ?? ''}`
-      : option.freeTier
-        ? 'free'
-        : 'workspace'
-  return `${option.adapterType}::${credential}`
+  return `${option.adapterType}::${credentialKeyOf(option)}`
+}
+
+/** 这条路今天靠哪份凭据跑：平台额度 › 某把 key › 没有。 */
+function credentialKeyOf(option: StudioModelOption): string {
+  if (option.freeTier) return 'free'
+  const keyId = option.keyId ?? option.providerKeyId
+  return keyId ? `key:${keyId}` : 'none'
+}
+
+/** 行上这条渠道的 key 标签 —— 同一渠道两把 key 时用它把两行区分开。 */
+function keyLabelOf(option: StudioModelOption): string | undefined {
+  return option.keyLabel ?? option.maskedKey
 }
 
 /**
- * 一条渠道下拿哪个变体当代表：**同一计价单位里最便宜的那个**，比不了就取清单里
- * 的第一个（那份清单已经按偏好排过）。⛔ 不按 id 猜「哪个更全」——端点谁更全由
- * 发送层按模式定，这里只决定行上写哪个价。
+ * 一条渠道下拿哪个变体当代表 —— **能力最全的那个**在发送层由模式重算，所以这里
+ * 只决定行上写哪个价、提交时带哪个条目：
+ *
+ *   ① 报得出价的排在报不出价的前面（行上才写得出「$0.121 / 秒」）；
+ *   ② 同一计价单位里取更便宜的那个；
+ *   ③ 完全打平时取 `saved` 那条 —— 它提交时钉住 `apiKeyId`，还带 key 标签与健康点；
+ *   ④ 仍然打平就按清单顺序（那份已经按偏好排过）。
+ *
+ * ⛔ 不按 id 猜「哪个端点更全」：端点谁更全由 `resolveVideoSendModelId` 按模式定。
  */
 function pickChannelRepresentative(
   options: readonly StudioModelOption[],
 ): StudioModelOption {
   const first = options[0] as StudioModelOption
-  const base = getModelUnitPriceByStringId(first.modelId)
-  if (!base) return first
-  let best = first
-  let bestAmount = base.amount
-  for (const option of options.slice(1)) {
+  const unit = getModelUnitPriceByStringId(first.modelId)?.unit
+  const amountOf = (option: StudioModelOption): number => {
     const price = getModelUnitPriceByStringId(option.modelId)
-    if (!price || price.unit !== base.unit || price.amount >= bestAmount) {
+    if (!price) return Number.POSITIVE_INFINITY
+    if (unit && price.unit !== unit) return Number.POSITIVE_INFINITY
+    return price.amount
+  }
+  let best = first
+  for (const option of options.slice(1)) {
+    const gap = amountOf(option) - amountOf(best)
+    if (gap < 0) {
+      best = option
       continue
     }
-    best = option
-    bestAmount = price.amount
+    if (
+      gap === 0 &&
+      option.sourceType === 'saved' &&
+      best.sourceType !== 'saved'
+    ) {
+      best = option
+    }
   }
   return best
 }
 
-/** 一个型号下的渠道列表 —— 同一渠道的多个变体折成一行。 */
+/**
+ * 一个型号下的渠道列表 —— 同一渠道的多个变体折成一行。
+ *
+ * ⚠ 折完还要**把同名的行区分开**：同一个 provider 上配了两把 key 时，两行都写着
+ * 「BytePlus」，用户没有任何依据挑其中一条（owner 2026-09-10 真机第一条）。有 key
+ * 标签就把它写进行名，没有就退回打码后的 key。
+ */
 function foldChannels(options: readonly StudioModelOption[]): PickerChannel[] {
   const byChannel = new Map<string, StudioModelOption[]>()
   for (const option of options) {
@@ -116,18 +154,30 @@ function foldChannels(options: readonly StudioModelOption[]): PickerChannel[] {
     list.push(option)
     byChannel.set(key, list)
   }
-  return Array.from(byChannel.values(), (variants) => {
+  const channels = Array.from(byChannel.values(), (variants) => {
     const representative = pickChannelRepresentative(variants)
+    const keyLabel = keyLabelOf(representative)
     return {
       channelId: representative.optionId,
       label: getProviderLabel(representative.providerConfig),
       option: representative,
+      ...(keyLabel ? { keyLabel } : {}),
       variants: [
         representative,
         ...variants.filter((item) => item !== representative),
       ],
     }
   })
+
+  const labelUses = new Map<string, number>()
+  for (const channel of channels) {
+    labelUses.set(channel.label, (labelUses.get(channel.label) ?? 0) + 1)
+  }
+  return channels.map((channel) =>
+    (labelUses.get(channel.label) ?? 0) > 1 && channel.keyLabel
+      ? { ...channel, label: `${channel.label} · ${channel.keyLabel}` }
+      : channel,
+  )
 }
 
 /** 这条渠道认不认这个 `optionId`（含被折起来的变体）。 */

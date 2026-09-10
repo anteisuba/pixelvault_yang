@@ -69,6 +69,8 @@ interface ChannelView {
   channel: PickerChannel
   candidate: ModelChannelCandidate
   price: string | null
+  /** 这条渠道今天点了能不能跑 —— 不能就**不可选**（无实心点），点了去配置。 */
+  runnable: boolean
 }
 
 /**
@@ -213,6 +215,7 @@ export function ModelPickerPopover({
         price: unitPrice
           ? tCommon(`unitPrice.${unitPrice.unit}`, { amount: unitPrice.amount })
           : null,
+        runnable: isRunnableModelOption(option),
       }
     }
 
@@ -431,20 +434,33 @@ export function ModelPickerPopover({
         {expanded ? (
           <div className="mb-1.5 mt-0.5 rounded-md bg-muted/60 py-1">
             {row.channels.map((view) => {
+              // ⚠ 选中态只画在**能跑**的那条上：缺 key 的行不是一个选项，
+              // 是一条去配置的路（owner 2026-09-10 真机第二条：截图里
+              // 「VolcEngine · 需要 API key」的 radio 是亮的）。
               const picked =
+                view.runnable &&
                 view.channel.channelId === row.active.channel.channelId
               return (
                 <CommandItem
                   key={view.channel.channelId}
                   value={`${keyPrefix}:${row.modelKey}:${view.channel.channelId}`}
                   onSelect={() => handleSelectChannel(row, view)}
-                  className="gap-2.5 py-1 pl-6 pr-2.5 text-xs"
+                  data-channel-runnable={view.runnable}
+                  data-channel-picked={picked}
+                  className={cn(
+                    'gap-2.5 py-1 pl-6 pr-2.5 text-xs',
+                    !view.runnable && 'text-muted-foreground',
+                  )}
                 >
                   <span
                     aria-hidden
                     className={cn(
                       'grid size-3 shrink-0 place-items-center rounded-full border',
-                      picked ? 'border-foreground' : 'border-border',
+                      !view.runnable
+                        ? 'border-border/50'
+                        : picked
+                          ? 'border-foreground'
+                          : 'border-border',
                     )}
                   >
                     {picked ? (
@@ -454,15 +470,17 @@ export function ModelPickerPopover({
                   <span className="min-w-0 flex-1 truncate">
                     {view.channel.label}
                   </span>
-                  {view.price ? (
-                    <span className="shrink-0 tabular-nums text-muted-foreground">
-                      {view.price}
-                    </span>
-                  ) : (
+                  {/* ⚠ 右端写的是**这条能不能跑**，⛔ 不是「查不查得到价」：
+                      两件事各自成立，混用会把有 key 但没登记价的渠道说成缺 key。 */}
+                  {!view.runnable ? (
                     <span className="shrink-0 text-muted-foreground">
                       {tSetup('needsKey')}
                     </span>
-                  )}
+                  ) : view.price ? (
+                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                      {view.price}
+                    </span>
+                  ) : null}
                 </CommandItem>
               )
             })}

@@ -103,7 +103,52 @@ describe('resolveModelChannel', () => {
     const result = resolveModelChannel(
       [
         channel('mine', { hasUserKey: true, unitPrice: 0.01 }),
+        channel('volc', { hasUserKey: true, unitPrice: 0.085 }),
+      ],
+      'volc',
+    )
+    expect(result?.channel.channelId).toBe('volc')
+    expect(result?.reason).toBe('manual')
+  })
+
+  /**
+   * owner 2026-09-10 真机第二条：视频卡的模型弹层里「VolcEngine · 需要 API key」
+   * 是**选中态**。缺 key 的渠道一条都不许被自动规则或记忆选上。
+   */
+  it('never lands on a channel with neither a key nor free quota', () => {
+    const result = resolveModelChannel([
+      channel('volc-no-key', { unitPrice: 0.001 }),
+      channel('byteplus', { hasUserKey: true, unitPrice: 0.121 }),
+    ])
+    expect(result?.channel.channelId).toBe('byteplus')
+  })
+
+  it('recomputes when the remembered channel has since lost its key', () => {
+    const result = resolveModelChannel(
+      [
+        channel('volc', { unitPrice: 0.001 }),
+        channel('byteplus', { hasUserKey: true, unitPrice: 0.121 }),
+      ],
+      'volc',
+    )
+    expect(result?.channel.channelId).toBe('byteplus')
+    expect(result?.reason).toBe('userKey')
+  })
+
+  it('still answers when the whole list is missing keys (the chip needs a name)', () => {
+    const result = resolveModelChannel([
+      channel('volc', { unitPrice: 0.085 }),
+      channel('fal', { unitPrice: 0.0675 }),
+    ])
+    expect(result?.channel.channelId).toBe('fal')
+    expect(result?.reason).toBe('cheapest')
+  })
+
+  it('honours a remembered channel that is the only kind left — all locked', () => {
+    const result = resolveModelChannel(
+      [
         channel('volc', { unitPrice: 0.085 }),
+        channel('fal', { unitPrice: 0.06 }),
       ],
       'volc',
     )

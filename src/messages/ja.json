@@ -5865,7 +5865,7 @@
           "confirm": "確定",
           "confirming": "トリム中…",
           "failed": "トリムに失敗しました",
-          "sourceLabel": "前のバージョンからトリム"
+          "derivedName": "{name} · トリム"
         }
       },
       "video": {

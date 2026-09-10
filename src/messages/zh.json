@@ -5865,7 +5865,7 @@
           "confirm": "确认",
           "confirming": "裁剪中…",
           "failed": "裁剪失败",
-          "sourceLabel": "裁剪自 上一版"
+          "derivedName": "{name} · 裁剪"
         }
       },
       "video": {

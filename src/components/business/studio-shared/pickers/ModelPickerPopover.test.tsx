@@ -218,6 +218,43 @@ describe('ModelPickerPopover', () => {
     expect(window.localStorage.getItem('pv:model-picker:recent')).toBeNull()
   })
 
+  /**
+   * owner 2026-09-10 真机第二条：截图里「VolcEngine · 需要 API key」是**选中态**
+   * （radio 亮着）。缺 key 的渠道行不是一个选项，是一条去配置的路。
+   */
+  it('never marks a needs-key channel as picked and sends it to setup instead', () => {
+    const onManageChannels = vi.fn()
+    const { onChange } = openPicker({
+      onManageChannels,
+      options: [
+        ...FIXTURE,
+        option({
+          optionId: 'workspace:seedream-5.0-pro-byteplus',
+          modelId: AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS,
+          displayLabel: 'Seedream 5.0 Pro（BytePlus）',
+          adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+        }),
+      ],
+    })
+    fireEvent.click(
+      screen.getByRole('button', { name: /ModelPicker.channelCount/ }),
+    )
+    const locked = document.querySelector('[data-channel-runnable="false"]')
+    expect(locked).not.toBeNull()
+    expect(locked?.getAttribute('data-channel-picked')).toBe('false')
+    // 选中的那条一定是能跑的。
+    expect(
+      document
+        .querySelector('[data-channel-picked="true"]')
+        ?.getAttribute('data-channel-runnable'),
+    ).toBe('true')
+    fireEvent.click(locked as HTMLElement)
+    expect(onManageChannels).toHaveBeenCalledTimes(1)
+    expect(onChange).not.toHaveBeenCalled()
+    // ⛔ 缺 key 的渠道不进记忆。
+    expect(window.localStorage.getItem('pv:model-picker:channel')).toBeNull()
+  })
+
   it('keeps the panel open in multi-select mode and toggles instead of choosing', () => {
     const onToggleOption = vi.fn()
     const { onChange } = openPicker({

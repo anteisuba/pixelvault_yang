@@ -5762,7 +5762,11 @@
           "rename": "Rename",
           "clone": "Duplicate",
           "split": "Split into paragraphs",
-          "delete": "Delete"
+          "delete": "Delete",
+          "connect": "Connect to shot",
+          "renameNode": "Rename this text",
+          "cloneNode": "Duplicate this text card",
+          "deleteNode": "Delete this text"
         },
         "assist": {
           "placeholder": "Ask the assistant to write…",
@@ -5777,7 +5781,8 @@
           "label": "Image actions",
           "shot": "New shot",
           "edit": "Edit",
-          "more": "More"
+          "more": "More",
+          "connect": "Connect to shot"
         },
         "edit": {
           "inpaint": "Inpaint",
@@ -5791,7 +5796,11 @@
           "library": "From library"
         },
         "more": {
-          "setCharacter": "Set as character card"
+          "setCharacter": "Set as character card",
+          "rename": "Rename this image",
+          "duplicate": "Duplicate this image card",
+          "splitVersion": "Split out current version",
+          "delete": "Delete this image"
         },
         "frame": {
           "title": "Frame",
@@ -5811,7 +5820,9 @@
           "transcribeFailed": "Transcription failed",
           "shot": "New shot",
           "more": "More",
-          "transcribing": "Transcribing…"
+          "transcribing": "Transcribing…",
+          "trim": "Trim",
+          "connect": "Connect to shot"
         },
         "add": {
           "upload": "Upload audio",
@@ -5870,7 +5881,10 @@
         "durationUnknown": "--:--",
         "more": {
           "splitVersion": "Split out this version",
-          "source": "Source"
+          "source": "Source",
+          "rename": "Rename this audio",
+          "duplicate": "Duplicate this audio card",
+          "delete": "Delete this audio"
         },
         "source": {
           "platformSample": "From voice library · platform sample",
@@ -5878,7 +5892,8 @@
           "voiceRoom": "From voice library · voice room",
           "library": "From asset library",
           "upload": "Uploaded",
-          "generated": "Generated here"
+          "generated": "Generated here",
+          "trim": "Trimmed from the previous version"
         },
         "library": {
           "title": "Voice library",
@@ -5899,7 +5914,30 @@
           "use": "Use this",
           "setVoice": "Set as voice",
           "footerHint": "“Use this” drops the original clip onto this card — no generation, no credits. “Set as voice” makes future lines speak in it.",
-          "clone": "Clone my voice…"
+          "clone": "Clone my voice…",
+          "groups": {
+            "today": "Today",
+            "yesterday": "Yesterday",
+            "earlier": "Earlier"
+          }
+        },
+        "trim": {
+          "title": "Trim",
+          "hint": "Drag the handles or set in/out · preview plays the selection",
+          "inPoint": "In",
+          "outPoint": "Out",
+          "selection": "Selection {selection} / {total}",
+          "preview": "Preview selection",
+          "pausePreview": "Pause preview",
+          "keyIn": "I in",
+          "keyOut": "O out",
+          "keyEsc": "Esc cancel",
+          "nondestructive": "Non-destructive: the trim lands as a new version, the original stays as the previous one (←→ to switch back)",
+          "cancel": "Cancel",
+          "confirm": "Trim to new version",
+          "confirming": "Trimming…",
+          "failed": "Trim failed",
+          "sourceLabel": "Trimmed from the previous version"
         }
       },
       "video": {
@@ -5918,7 +5956,10 @@
         },
         "more": {
           "rename": "Rename",
-          "splitVersion": "Split out this version"
+          "splitVersion": "Split out this version",
+          "duplicate": "Duplicate this video card",
+          "delete": "Delete this shot",
+          "renameNode": "Rename this shot"
         },
         "frame": {
           "title": "Frame",
@@ -5942,6 +5983,19 @@
         "promptLabel": "Shot prompt",
         "slotChip": "{slot}: {name}",
         "tailFrameName": "{name} last frame"
+      },
+      "connectToShot": {
+        "searchLabel": "Search shots",
+        "searchPlaceholder": "Search shots…",
+        "new": "New shot",
+        "newHint": "Adds a card on the right and connects it",
+        "listLabel": "Shots on the canvas · in shot-strip order",
+        "empty": "No shots on the canvas yet",
+        "noMatch": "No matching shot",
+        "durationUnknown": "--:--",
+        "occupied": "Has {slot} · replace",
+        "connectInto": "Connect into {slot} of {name}",
+        "replaceIn": "Replace {slot} of {name}"
       }
     },
     "rerunDownstream": {

@@ -93,6 +93,12 @@ const OP_ICONS: Record<NodeAssistantOpV4Id, LucideIcon> = {
   [NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile]: Mic,
   [NODE_ASSISTANT_OP_V4_IDS.setMergeClips]: Scissors,
   [NODE_ASSISTANT_OP_V4_IDS.setReviewState]: Undo2,
+  // 剪辑台五条（S8）：整表用「时间线」，四条单段手势各按动作取图标。
+  [NODE_ASSISTANT_OP_V4_IDS.editSetTimeline]: ListOrdered,
+  [NODE_ASSISTANT_OP_V4_IDS.editAddClip]: Plus,
+  [NODE_ASSISTANT_OP_V4_IDS.editRemoveClip]: Trash2,
+  [NODE_ASSISTANT_OP_V4_IDS.editUpdateClip]: SlidersHorizontal,
+  [NODE_ASSISTANT_OP_V4_IDS.editMoveClip]: ArrowRightLeft,
   [NODE_ASSISTANT_OP_V4_IDS.generate]: Sparkles,
 }
 

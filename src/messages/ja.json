@@ -5762,7 +5762,11 @@
           "rename": "名前を変更",
           "clone": "複製",
           "split": "段落ごとに分割",
-          "delete": "削除"
+          "delete": "削除",
+          "connect": "ショットに接続",
+          "renameNode": "このテキストの名前を変更",
+          "cloneNode": "このテキストカードを複製",
+          "deleteNode": "このテキストを削除"
         },
         "assist": {
           "placeholder": "アシスタントに書いてもらう……",
@@ -5777,7 +5781,8 @@
           "label": "画像操作",
           "shot": "カット生成",
           "edit": "編集",
-          "more": "その他"
+          "more": "その他",
+          "connect": "ショットに接続"
         },
         "edit": {
           "inpaint": "部分描き直し",
@@ -5791,7 +5796,11 @@
           "library": "素材ライブラリから"
         },
         "more": {
-          "setCharacter": "キャラクターカードにする"
+          "setCharacter": "キャラクターカードにする",
+          "rename": "この画像の名前を変更",
+          "duplicate": "この画像カードを複製",
+          "splitVersion": "現在のバージョンを切り出す",
+          "delete": "この画像を削除"
         },
         "frame": {
           "title": "画面",
@@ -5811,7 +5820,9 @@
           "transcribeFailed": "文字起こしに失敗しました",
           "shot": "カット生成",
           "more": "その他",
-          "transcribing": "文字起こし中…"
+          "transcribing": "文字起こし中…",
+          "trim": "トリム",
+          "connect": "ショットに接続"
         },
         "add": {
           "upload": "音声をアップロード",
@@ -5870,7 +5881,10 @@
         "durationUnknown": "--:--",
         "more": {
           "splitVersion": "このバージョンを切り出す",
-          "source": "出どころ"
+          "source": "出どころ",
+          "rename": "この音声の名前を変更",
+          "duplicate": "この音声カードを複製",
+          "delete": "この音声を削除"
         },
         "source": {
           "platformSample": "ボイスライブラリ · プラットフォーム見本",
@@ -5878,7 +5892,8 @@
           "voiceRoom": "ボイスライブラリ · アフレコ室",
           "library": "素材ライブラリ",
           "upload": "アップロード",
-          "generated": "このカードで生成"
+          "generated": "このカードで生成",
+          "trim": "前のバージョンからトリム"
         },
         "library": {
           "title": "ボイスライブラリ",
@@ -5899,7 +5914,30 @@
           "use": "これを使う",
           "setVoice": "声に設定",
           "footerHint": "「これを使う」＝ 原音をそのままこのカードに置く（生成しない・クレジット消費なし）。「声に設定」＝ 以後のセリフをこの声で読む。",
-          "clone": "自分の声をクローン…"
+          "clone": "自分の声をクローン…",
+          "groups": {
+            "today": "今日",
+            "yesterday": "昨日",
+            "earlier": "それ以前"
+          }
+        },
+        "trim": {
+          "title": "トリム",
+          "hint": "ハンドルをドラッグ、またはイン／アウトを指定 · 選択範囲を試聴できます",
+          "inPoint": "イン点",
+          "outPoint": "アウト点",
+          "selection": "選択 {selection} / {total}",
+          "preview": "選択範囲を試聴",
+          "pausePreview": "試聴を一時停止",
+          "keyIn": "I イン",
+          "keyOut": "O アウト",
+          "keyEsc": "Esc キャンセル",
+          "nondestructive": "非破壊：トリム結果は新しいバージョン、元の音は前のバージョンとして残ります（←→ で戻せます）",
+          "cancel": "キャンセル",
+          "confirm": "新しいバージョンとしてトリム",
+          "confirming": "トリム中…",
+          "failed": "トリムに失敗しました",
+          "sourceLabel": "前のバージョンからトリム"
         }
       },
       "video": {
@@ -5918,7 +5956,10 @@
         },
         "more": {
           "rename": "名前を変更",
-          "splitVersion": "このバージョンを切り出す"
+          "splitVersion": "このバージョンを切り出す",
+          "duplicate": "この動画カードを複製",
+          "delete": "このショットを削除",
+          "renameNode": "このショットの名前を変更"
         },
         "frame": {
           "title": "映像",
@@ -5942,6 +5983,19 @@
         "promptLabel": "カットのプロンプト",
         "slotChip": "{slot}：{name}",
         "tailFrameName": "{name} の最終フレーム"
+      },
+      "connectToShot": {
+        "searchLabel": "ショットを検索",
+        "searchPlaceholder": "ショットを検索…",
+        "new": "新しいショット",
+        "newHint": "右側にカードを作成して接続",
+        "listLabel": "キャンバス上のショット · ショット順",
+        "empty": "キャンバスにショットがありません",
+        "noMatch": "一致するショットがありません",
+        "durationUnknown": "--:--",
+        "occupied": "{slot}あり · 差し替え",
+        "connectInto": "{name} の{slot}に接続",
+        "replaceIn": "{name} の{slot}を差し替え"
       }
     },
     "rerunDownstream": {

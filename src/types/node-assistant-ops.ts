@@ -21,6 +21,14 @@ import {
   NODE_V4_IMAGE_SUBTYPES,
 } from '@/constants/node-types'
 import { NODE_V4_OUTPUT_VERSION } from '@/constants/node-studio'
+import {
+  EDIT_CLIP_SPEED_MAX,
+  EDIT_CLIP_SPEED_MIN,
+  EDIT_TRACKS_TUPLE,
+  EDIT_TRACK_MAX_CLIPS,
+  EDIT_TRANSITIONS_TUPLE,
+} from '@/constants/edit-desk'
+import { EditClipSchema, EditProjectSchema } from '@/types/node-workflow'
 
 /**
  * 一个节点引用：要么是画布上已有节点的 id（助手在 `[[node:id]]` 里读到的那个），
@@ -642,6 +650,68 @@ export const NodeAssistantSetReviewStateV4OpSchema = z.object({
     .optional(),
 })
 
+/* ─── 剪辑台五条（S8 · spec §6 / §8.5）──────────────────────────────────── */
+
+/**
+ * 整表替换。`project` 省略 = **清空时间线**（这个项目没进过剪辑台的样子）。
+ *
+ * ⚠ 「省略 = 清空」不是巧合，是为了让 inverse 精确：第一次落表之前 `state.edit`
+ * 本来就不存在，撤销那一步必须能把它退回**不存在**而不是一份空表 —— 否则一次
+ * 「进剪辑台又撤销」会给每个项目留下一份空 `edit`。
+ */
+export const NodeAssistantEditSetTimelineOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.editSetTimeline),
+  project: EditProjectSchema.optional(),
+})
+
+export const NodeAssistantEditAddClipOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.editAddClip),
+  track: z.enum(EDIT_TRACKS_TUPLE),
+  clip: EditClipSchema,
+  /** 插在第几位。省略 = 追加到尾（拖进空白处、「加入剪辑台」都是追加）。 */
+  index: z.number().int().min(0).max(EDIT_TRACK_MAX_CLIPS).optional(),
+})
+
+export const NodeAssistantEditRemoveClipOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.editRemoveClip),
+  track: z.enum(EDIT_TRACKS_TUPLE),
+  clipId: z.string().trim().min(1).max(160),
+})
+
+/**
+ * 改一段的属性（裁剪 / 倍速 / 原声 / 转场 / 增益 / 换到新版本）。
+ *
+ * ⚠ 是 **patch** 而不是整段替换：一次手势只动一件事（拖手柄只改 `out`），整段
+ * 替换会让 inverse 存下一份与这次手势无关的快照，撤销时把用户在别处改的也一起退回。
+ * `id` / `sourceNodeId` **不在 patch 里**：换来源不是「改属性」，那是删一段加一段。
+ */
+export const NodeAssistantEditUpdateClipOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.editUpdateClip),
+  track: z.enum(EDIT_TRACKS_TUPLE),
+  clipId: z.string().trim().min(1).max(160),
+  patch: z.object({
+    in: z.number().min(0).max(36_000).optional(),
+    out: z.number().min(0).max(36_000).optional(),
+    speed: z
+      .number()
+      .min(EDIT_CLIP_SPEED_MIN)
+      .max(EDIT_CLIP_SPEED_MAX)
+      .optional(),
+    muted: z.boolean().optional(),
+    transitionOut: z.enum(EDIT_TRANSITIONS_TUPLE).optional(),
+    gain: z.number().min(0).max(2).optional(),
+    /** 「上游已更新 → 一点换新」写的就是它。 */
+    sourceVersionId: z.string().trim().min(1).max(160).optional(),
+  }),
+})
+
+export const NodeAssistantEditMoveClipOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.editMoveClip),
+  track: z.enum(EDIT_TRACKS_TUPLE),
+  clipId: z.string().trim().min(1).max(160),
+  toIndex: z.number().int().min(0).max(EDIT_TRACK_MAX_CLIPS),
+})
+
 /** ⚠ 唯一扣 credit 的 op。硬确认，执行留客户端——这道结构性钱闸不能动。 */
 export const NodeAssistantGenerateV4OpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_V4_IDS.generate),
@@ -672,6 +742,11 @@ export const NodeAssistantOpV4Schema = z.discriminatedUnion('op', [
   NodeAssistantSetVoiceProfileOpSchema,
   NodeAssistantSetMergeClipsOpSchema,
   NodeAssistantSetReviewStateV4OpSchema,
+  NodeAssistantEditSetTimelineOpSchema,
+  NodeAssistantEditAddClipOpSchema,
+  NodeAssistantEditRemoveClipOpSchema,
+  NodeAssistantEditUpdateClipOpSchema,
+  NodeAssistantEditMoveClipOpSchema,
   NodeAssistantGenerateV4OpSchema,
 ])
 

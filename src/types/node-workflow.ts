@@ -43,6 +43,20 @@ import {
   NODE_V4_VIDEO_SUBTYPE_IDS,
   type NodeWorkflowNodeType,
 } from '@/constants/node-types'
+import { AUDIO_CLIP_SOURCE_KINDS } from '@/constants/audio-options'
+import {
+  EDIT_ASPECTS,
+  EDIT_ASPECT_DEFAULT,
+  EDIT_CLIP_SPEED_DEFAULT,
+  EDIT_CLIP_SPEED_MAX,
+  EDIT_CLIP_SPEED_MIN,
+  EDIT_PROJECT_NAME_MAX_LENGTH,
+  EDIT_RESOLUTIONS,
+  EDIT_RESOLUTION_DEFAULT,
+  EDIT_TRACK_MAX_CLIPS,
+  EDIT_TRANSITIONS,
+  EDIT_TRANSITION_IDS,
+} from '@/constants/edit-desk'
 import { VIDEO_RESOLUTIONS } from '@/constants/video-options'
 import { VIDEO_NODE_MODES } from '@/constants/video-node-modes'
 import { SCRIPT_PLANNER_PROVIDERS } from '@/constants/script-breakdown'
@@ -1198,6 +1212,77 @@ export const NodeWorkflowEdgeV4Schema = z.object({
  * 被上游当成错误报出来，而不是悄悄少一个节点。区别在 v4 的读路径不再把 parse
  * 失败翻译成空状态。
  */
+/* ─── 剪辑台 · `EditProject`（S8 · spec §6 / §8.5）───────────────────────── */
+
+/**
+ * 时间线上的一段。
+ *
+ * ⚠ **段永远记得来源节点**（spec §6）：`sourceNodeId` + `sourceVersionId` 不是
+ * 冗余，它们是「上游已更新」徽标唯一的判据 —— 段上存的是**当时**那一版，
+ * 节点身上的是**现在**那一版，两者不等就该出徽标。
+ * ⛔ 段里**不存 url**：url 是那一版的属性，存进段就等于把素材复制了一份，
+ * 换版本 / 改名 / 重传之后段会指向一个谁都不再拥有的地址。
+ */
+export const EditClipSchema = z.object({
+  id: z.string().trim().min(1).max(160),
+  sourceNodeId: z.string().trim().min(1).max(160),
+  /** 落段那一刻的产出版本 id。缺席 = 那张卡当时还没有版本表（存量素材）。 */
+  sourceVersionId: z.string().trim().min(1).max(160).optional(),
+  /** 入点 / 出点，**素材本地秒**（⛔ 不是时间线秒：换序不该改裁剪）。 */
+  in: z.number().min(0).max(36_000),
+  out: z.number().min(0).max(36_000),
+  /**
+   * 倍速。**档位词表是 `EDIT_CLIP_SPEEDS`**，这里只守区间 —— 与
+   * `NodeV4GenerationParamsSchema.quality` 同一条论据：档位会随渲染层长，写死
+   * 在落库形状上等于每加一档就改一次 schema。UI 只给词表里的三档。
+   */
+  speed: z
+    .number()
+    .min(EDIT_CLIP_SPEED_MIN)
+    .max(EDIT_CLIP_SPEED_MAX)
+    .default(EDIT_CLIP_SPEED_DEFAULT),
+  /** 原声开关。⚠ 只对 V 轨有意义；A / M 轨的响度走 `gain`。 */
+  muted: z.boolean().default(false),
+  /** 段尾接下一段的转场。缺席 = `none`。 */
+  transitionOut: z.enum(EDIT_TRANSITIONS).optional(),
+  /** 音量增益（0..2，1 = 原样）。 */
+  gain: z.number().min(0).max(2).optional(),
+})
+
+export const EditProjectTracksSchema = z.object({
+  video: z.array(EditClipSchema).max(EDIT_TRACK_MAX_CLIPS),
+  audio: z.array(EditClipSchema).max(EDIT_TRACK_MAX_CLIPS),
+  music: z.array(EditClipSchema).max(EDIT_TRACK_MAX_CLIPS),
+})
+
+export const EditProjectSettingsSchema = z.object({
+  aspect: z.enum(EDIT_ASPECTS).default(EDIT_ASPECT_DEFAULT),
+  resolution: z.enum(EDIT_RESOLUTIONS).default(EDIT_RESOLUTION_DEFAULT),
+  /** 主轨道磁吸：V 轨的段首尾相接、删一段后面自动补位。 */
+  magnetic: z.boolean().default(true),
+})
+
+/**
+ * 一个项目的**唯一**一条时间线（spec §8.5）。落在画布项目 state 的 `edit` 字段
+ * 里 —— 剪辑台是画布的全屏模式，它的数据自然住在同一份项目里。
+ *
+ * ⛔ 不做「一个项目多条时间线」：`video.merge` 退役换来的正是「成片只有一条」，
+ * 多条会把「哪一条是成片」这个问题原样搬回来。
+ */
+export const EditProjectSchema = z.object({
+  name: z.string().trim().min(1).max(EDIT_PROJECT_NAME_MAX_LENGTH),
+  tracks: EditProjectTracksSchema,
+  settings: EditProjectSettingsSchema,
+})
+
+export type EditClip = z.infer<typeof EditClipSchema>
+export type EditProjectTracks = z.infer<typeof EditProjectTracksSchema>
+export type EditProjectSettings = z.infer<typeof EditProjectSettingsSchema>
+export type EditProject = z.infer<typeof EditProjectSchema>
+
+/** 转场缺席时的读值 —— ⛔ 读侧一处，别在组件里各写一个 `?? 'none'`。 */
+export const EDIT_CLIP_TRANSITION_FALLBACK = EDIT_TRANSITION_IDS.none
+
 export const NodeWorkflowStateV4Schema = z.object({
   version: z.literal(4),
   nodes: z.array(NodeV4Schema),
@@ -1208,6 +1293,13 @@ export const NodeWorkflowStateV4Schema = z.object({
   scriptDocDepth: z.enum(SCRIPT_DOC_DEPTHS).optional().catch(undefined),
   scriptDocLocks: z.array(z.string()).optional().catch(undefined),
   scriptDocShotStills: z.boolean().optional().catch(undefined),
+  /**
+   * 剪辑台的时间线（S8）。缺席 = 这个项目还没进过剪辑台。
+   *
+   * ⚠ `.catch(undefined)` 与它周围几个一致：一条坏掉的时间线不该让整份 state 读
+   * 不出来（v4 的读路径不再兜空状态，parse 失败 = 整个项目打不开）。
+   */
+  edit: EditProjectSchema.optional().catch(undefined),
 })
 
 export type NodeV4SourceRef = z.infer<typeof NodeV4SourceRefSchema>

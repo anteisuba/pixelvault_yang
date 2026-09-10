@@ -58,11 +58,20 @@ import {
   markVersionBlocked,
   setSlotVersion,
 } from '@/lib/node-slot-binding'
+import { EDIT_TRANSITION_IDS, type EditTrackId } from '@/constants/edit-desk'
+import {
+  clampTrim,
+  insertClip,
+  moveClip as moveClipInTrack,
+  removeClip as removeClipFromTrack,
+} from '@/lib/edit-project'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import {
   NodeV4DataSchema,
   type NodeV4,
   type NodeWorkflowModelSelection as NodeV4Model,
+  type EditClip,
+  type EditProject,
   type NodeV4Data,
   type NodeWorkflowEdgeV4,
   type NodeWorkflowStateV4,
@@ -264,6 +273,46 @@ function withMentionInverse(
   return {
     kind: 'sequence',
     items: [...[...sync.inverses].reverse(), textInverse],
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * 剪辑台（S8 · spec §6 / §8.5）
+ *
+ * ⚠ 五条 op 一个字都不碰 `nodes` / `edges`：时间线是**引用**画布上的卡，不是
+ * 复制它们。所以 `changedNodeIds` 报的是「这一段指向谁」（变更高亮据此指回来源
+ * 卡），⛔ 不报「改了这张卡」——那张卡确实一个字都没变。
+ *
+ * ⚠ 时间线不存在时四条单段 op **失败可见**（`editMissing`），⛔ 不就地兜一份空
+ * 表：空表要一个名字，而名字是 i18n 的事；在这里编一个英文缺省，用户就会在中文
+ * 界面上看到一行英文成片名。调用方（`useEditDesk`）在同一批里先发一条
+ * `edit_set_timeline` —— 一批 = 一个撤销条目，撤销仍然一步回到位。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+function withEditProject(
+  state: NodeWorkflowStateV4,
+  project: EditProject | undefined,
+): NodeWorkflowStateV4 {
+  if (!project) {
+    // ⚠ 删 key 而不是写 `edit: undefined`：`undefined` 会被 JSON 序列化成
+    // 「这个字段不在」——但**内存里的对象仍然带着这个 key**，`state.edit` 的
+    // 存在性判断（op 执行器里那四条 `if (!project)`）因此仍然是 false，只是
+    // `'edit' in state` 变成 true。两者不一致的对象迟早会让某处判错。
+    const next: Record<string, unknown> = { ...state }
+    delete next.edit
+    return next as NodeWorkflowStateV4
+  }
+  return { ...state, edit: project }
+}
+
+function withTrack(
+  project: EditProject,
+  track: EditTrackId,
+  clips: readonly EditClip[],
+): EditProject {
+  return {
+    ...project,
+    tracks: { ...project.tracks, [track]: [...clips] },
   }
 }
 
@@ -993,6 +1042,185 @@ export function applyNodeAssistantOpV4(
         state: replaceNodeData(state, node.id, () => parsed.data),
         inverse: { kind: 'restore', nodes: [node], edges: [] },
         changedNodeIds: [node.id],
+        changedEdgeIds: [],
+      }
+    }
+
+    /* ── 剪辑台五条（S8）──────────────────────────────────────────── */
+
+    case ids.editSetTimeline: {
+      return {
+        ok: true,
+        state: withEditProject(state, op.project),
+        inverse: {
+          kind: 'op',
+          op: {
+            op: ids.editSetTimeline,
+            ...(state.edit ? { project: state.edit } : {}),
+          },
+        },
+        changedNodeIds: [],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.editAddClip: {
+      const project = state.edit
+      if (!project) return { ok: false, reason: 'editMissing' }
+      const track = op.track as EditTrackId
+      const clips = project.tracks[track]
+      if (clips.some((clip) => clip.id === op.clip.id)) {
+        return { ok: false, reason: 'duplicateClip' }
+      }
+      const next = insertClip(clips, op.clip, op.index)
+      if (next === clips) return { ok: false, reason: 'trackFull' }
+      return {
+        ok: true,
+        state: withEditProject(state, withTrack(project, track, next)),
+        inverse: {
+          kind: 'op',
+          op: { op: ids.editRemoveClip, track: op.track, clipId: op.clip.id },
+        },
+        changedNodeIds: [op.clip.sourceNodeId],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.editRemoveClip: {
+      const project = state.edit
+      if (!project) return { ok: false, reason: 'editMissing' }
+      const track = op.track as EditTrackId
+      const clips = project.tracks[track]
+      const index = clips.findIndex((clip) => clip.id === op.clipId)
+      const removed = index < 0 ? undefined : clips[index]
+      if (!removed) return { ok: false, reason: 'unknownClip' }
+      return {
+        ok: true,
+        state: withEditProject(
+          state,
+          withTrack(project, track, removeClipFromTrack(clips, op.clipId)),
+        ),
+        // ⚠ inverse 要带**位置**：删中间一段之后撤销，段必须回到原位而不是排到队尾。
+        inverse: {
+          kind: 'op',
+          op: {
+            op: ids.editAddClip,
+            track: op.track,
+            clip: removed,
+            index,
+          },
+        },
+        changedNodeIds: [removed.sourceNodeId],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.editUpdateClip: {
+      const project = state.edit
+      if (!project) return { ok: false, reason: 'editMissing' }
+      const track = op.track as EditTrackId
+      const clips = project.tracks[track]
+      const current = clips.find((clip) => clip.id === op.clipId)
+      if (!current) return { ok: false, reason: 'unknownClip' }
+
+      // 裁剪两端一起过守卫：`in >= out` 落下去是一段零帧，与 `set_merge_clips`
+      // 拒收 `start >= end` 是同一条纪律。
+      const trimmed =
+        op.patch.in === undefined && op.patch.out === undefined
+          ? { in: current.in, out: current.out }
+          : clampTrim(current, {
+              ...(op.patch.in === undefined ? {} : { in: op.patch.in }),
+              ...(op.patch.out === undefined ? {} : { out: op.patch.out }),
+            })
+
+      const next: EditClip = {
+        ...current,
+        in: trimmed.in,
+        out: trimmed.out,
+        ...(op.patch.speed === undefined ? {} : { speed: op.patch.speed }),
+        ...(op.patch.muted === undefined ? {} : { muted: op.patch.muted }),
+        ...(op.patch.transitionOut === undefined
+          ? {}
+          : { transitionOut: op.patch.transitionOut }),
+        ...(op.patch.gain === undefined ? {} : { gain: op.patch.gain }),
+        ...(op.patch.sourceVersionId === undefined
+          ? {}
+          : { sourceVersionId: op.patch.sourceVersionId }),
+      }
+
+      // inverse 只回**这次动过的那几项**（见 op schema 头注：整段快照会把用户
+      // 在别处改的也一起退回）。
+      const inversePatch = {
+        ...(op.patch.in === undefined ? {} : { in: current.in }),
+        ...(op.patch.out === undefined ? {} : { out: current.out }),
+        ...(op.patch.speed === undefined ? {} : { speed: current.speed }),
+        ...(op.patch.muted === undefined ? {} : { muted: current.muted }),
+        ...(op.patch.transitionOut === undefined
+          ? {}
+          : {
+              transitionOut: current.transitionOut ?? EDIT_TRANSITION_IDS.none,
+            }),
+        ...(op.patch.gain === undefined || current.gain === undefined
+          ? {}
+          : { gain: current.gain }),
+        ...(op.patch.sourceVersionId === undefined ||
+        current.sourceVersionId === undefined
+          ? {}
+          : { sourceVersionId: current.sourceVersionId }),
+      }
+
+      return {
+        ok: true,
+        state: withEditProject(
+          state,
+          withTrack(
+            project,
+            track,
+            clips.map((clip) => (clip.id === op.clipId ? next : clip)),
+          ),
+        ),
+        inverse: {
+          kind: 'op',
+          op: {
+            op: ids.editUpdateClip,
+            track: op.track,
+            clipId: op.clipId,
+            patch: inversePatch,
+          },
+        },
+        changedNodeIds: [current.sourceNodeId],
+        changedEdgeIds: [],
+      }
+    }
+
+    case ids.editMoveClip: {
+      const project = state.edit
+      if (!project) return { ok: false, reason: 'editMissing' }
+      const track = op.track as EditTrackId
+      const clips = project.tracks[track]
+      const from = clips.findIndex((clip) => clip.id === op.clipId)
+      const moved = from < 0 ? undefined : clips[from]
+      if (!moved) return { ok: false, reason: 'unknownClip' }
+      return {
+        ok: true,
+        state: withEditProject(
+          state,
+          withTrack(
+            project,
+            track,
+            moveClipInTrack(clips, op.clipId, op.toIndex),
+          ),
+        ),
+        inverse: {
+          kind: 'op',
+          op: {
+            op: ids.editMoveClip,
+            track: op.track,
+            clipId: op.clipId,
+            toIndex: from,
+          },
+        },
+        changedNodeIds: [moved.sourceNodeId],
         changedEdgeIds: [],
       }
     }

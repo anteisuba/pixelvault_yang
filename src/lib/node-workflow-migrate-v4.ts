@@ -35,6 +35,11 @@ import {
   type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
 import {
+  EDIT_ASPECT_DEFAULT,
+  EDIT_RESOLUTION_DEFAULT,
+} from '@/constants/edit-desk'
+import { buildEditClipsFromMerge } from '@/lib/node-v4-merge'
+import {
   NODE_SLOT_IDS,
   NODE_SLOT_OUTPUT_IDS,
   NODE_SLOT_TEXT_ROLE_IDS,
@@ -63,6 +68,7 @@ import {
   NodeWorkflowStateV4Schema,
   type NodeV4,
   type NodeV4Data,
+  type NodeV4VideoData,
   type NodeWorkflowEdgeV4,
   type NodeWorkflowImageOutputSource,
   type NodeWorkflowNodeData,
@@ -621,4 +627,110 @@ export function migrateNodeWorkflowStateToV4(
 /** 备份 key。同项目重跑不互相覆盖（§9.2）。 */
 export function buildV3BackupKey(projectId: string, at: Date): string {
   return `backups/node-workflow-v3/${projectId}/${at.toISOString()}.json`
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * `video.merge` 退役 → 剪辑台时间线（S8 · spec §8.6）
+ *
+ * 合成节点在 v4 里干两件事：**存了一份「哪几段、各裁到哪」**，以及**挂着一条合出来
+ * 的成片 url**。剪辑台接管前一件，后一件按 spec §8.6 原样保留 —— 「其产物 url 保留
+ * 为一张视频卡」，所以合成节点**不删**，只换子型（`merge` → `shot`）。
+ *
+ * ⚠ 换子型的同时必须断掉 `clip` 槽上的边：`video.shot` 没有 `clip` 槽，留着的边
+ * 会在下一次 `reconcileStateSlots` 里成为一条指向不存在的槽的边。段的信息此刻已经
+ * 搬进时间线了，边的语义（「这几段合成这一条」）由时间线接着表达。
+ *
+ * ⚠ **幂等**：`state.edit` 已经有了就不再播种（用户可能已经在剪辑台上改过），
+ * 但子型退役照做 —— 那一步没有可丢的东西。没有 merge 节点时原样返回同一个引用。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+export interface RetireVideoMergeOptions {
+  /** 新段的 id 生成器（画布传 `mintId`，测试注入可预测值）。 */
+  mintId(prefix: string): string
+  /** 播种时间线的成片名（i18n 由调用方给，⛔ 这里不编文案）。 */
+  readonly timelineName: string
+}
+
+export interface RetireVideoMergeResult {
+  readonly state: NodeWorkflowStateV4
+  /** 退役了几个合成节点。 */
+  readonly retired: number
+  /** 播种进时间线的段数（`0` = 没播种或没段可搬）。 */
+  readonly seededClips: number
+}
+
+export function migrateRetireVideoMergeV4(
+  state: NodeWorkflowStateV4,
+  options: RetireVideoMergeOptions,
+): RetireVideoMergeResult {
+  const mergeNodes = state.nodes.filter(
+    (node) =>
+      node.data.kind === NODE_MEDIA_KIND_IDS.video &&
+      node.data.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.merge,
+  )
+  if (mergeNodes.length === 0) {
+    return { state, retired: 0, seededClips: 0 }
+  }
+
+  // ⚠ 先算段再改图：算段读的是 `clip` 槽上的边，而下面那一步正要把它们断掉。
+  const seeded = state.edit
+    ? []
+    : mergeNodes.flatMap((node) =>
+        buildEditClipsFromMerge({
+          nodeId: node.id,
+          nodes: state.nodes,
+          edges: state.edges,
+          mintId: options.mintId,
+        }),
+      )
+
+  const retiredIds = new Set(mergeNodes.map((node) => node.id))
+  const nodes = state.nodes.map((node) => {
+    if (!retiredIds.has(node.id)) return node
+    const data = node.data as NodeV4VideoData
+    // 段的信息已经搬进时间线、`clip` 边下面就要断掉 —— 这两个字段留着就是两份
+    // 会漂的事实。
+    const rest: Record<string, unknown> = { ...data }
+    delete rest.mergeSettings
+    delete rest.slots
+    return {
+      ...node,
+      data: {
+        ...rest,
+        subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+        // `video.shot` 的 `label` 必填 —— 合成节点的标签可选，缺席就用稳定名。
+        label: data.label ?? data.name,
+      } as NodeV4Data,
+    }
+  })
+
+  const edges = state.edges.filter(
+    (edge) =>
+      !(retiredIds.has(edge.target) && edge.slot === NODE_SLOT_IDS.clip),
+  )
+
+  const next: NodeWorkflowStateV4 = {
+    ...state,
+    nodes,
+    edges,
+    ...(seeded.length > 0
+      ? {
+          edit: {
+            name: options.timelineName,
+            tracks: { video: seeded, audio: [], music: [] },
+            settings: {
+              aspect: EDIT_ASPECT_DEFAULT,
+              resolution: EDIT_RESOLUTION_DEFAULT,
+              magnetic: true,
+            },
+          },
+        }
+      : {}),
+  }
+
+  return {
+    state: next,
+    retired: mergeNodes.length,
+    seededClips: seeded.length,
+  }
 }

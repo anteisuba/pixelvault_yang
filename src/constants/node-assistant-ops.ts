@@ -492,6 +492,21 @@ export const NODE_ASSISTANT_OP_V4_IDS = {
    */
   setMergeClips: 'set_merge_clips',
   setReviewState: 'set_review_state',
+  /* ── 剪辑台（S8 · spec §6 / §8.5）───────────────────────────────────── */
+  /**
+   * 整表替换时间线（inverse = 原表）。
+   *
+   * ⚠ 与 `set_merge_clips` 收整份是同一条论据：时间线是**有序数组**，「只改第 3 段」
+   * 在一个数组字段上表达不了增删，而 patch 语义会让「删掉一段」和「没提到这一段」
+   * 长得一模一样。四条细粒度 op（add / remove / update / move）是给**单次手势**用的
+   * ——它们的 inverse 是一条同族 op，撤销一步回到位；这一条是给「一句话排片整批写入」
+   * 与「迁移一次落表」用的，那两件事本来就是一整份。
+   */
+  editSetTimeline: 'edit_set_timeline',
+  editAddClip: 'edit_add_clip',
+  editRemoveClip: 'edit_remove_clip',
+  editUpdateClip: 'edit_update_clip',
+  editMoveClip: 'edit_move_clip',
   /** ⚠ 唯一扣 credit 的 op。 */
   generate: 'generate',
 } as const
@@ -520,6 +535,11 @@ export const NODE_ASSISTANT_OPS_V4 = [
   NODE_ASSISTANT_OP_V4_IDS.setVoiceProfile,
   NODE_ASSISTANT_OP_V4_IDS.setMergeClips,
   NODE_ASSISTANT_OP_V4_IDS.setReviewState,
+  NODE_ASSISTANT_OP_V4_IDS.editSetTimeline,
+  NODE_ASSISTANT_OP_V4_IDS.editAddClip,
+  NODE_ASSISTANT_OP_V4_IDS.editRemoveClip,
+  NODE_ASSISTANT_OP_V4_IDS.editUpdateClip,
+  NODE_ASSISTANT_OP_V4_IDS.editMoveClip,
   NODE_ASSISTANT_OP_V4_IDS.generate,
 ] as const
 
@@ -705,6 +725,41 @@ export const NODE_ASSISTANT_OP_V4_SPECS = {
     group: review,
     tier: free,
     inverse: NODE_ASSISTANT_OP_V4_IDS.setReviewState,
+    autoApply: true,
+  },
+  /**
+   * 剪辑台五条都归 `content` / `free`：它们**只摆时间线**，一帧都不渲染、一分
+   * 积分都不花（spec §6「一句话排片：只摆时间线，不花积分」）。真正花钱的是导出，
+   * 而导出走渲染层（S9）的自己那条路，⛔ 不混进 op 表。
+   */
+  [NODE_ASSISTANT_OP_V4_IDS.editSetTimeline]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.editSetTimeline,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.editAddClip]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.editRemoveClip,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.editRemoveClip]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.editAddClip,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.editUpdateClip]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.editUpdateClip,
+    autoApply: true,
+  },
+  [NODE_ASSISTANT_OP_V4_IDS.editMoveClip]: {
+    group: content,
+    tier: free,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.editMoveClip,
     autoApply: true,
   },
   [NODE_ASSISTANT_OP_V4_IDS.generate]: {

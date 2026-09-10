@@ -66,6 +66,10 @@ import {
   type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import {
+  EDIT_DESK_MODE_PARAM,
+  EDIT_DESK_MODE_VALUE,
+} from '@/constants/edit-desk'
 import { NODE_SLOT_IDS, getNodeV4Slot } from '@/constants/node-slots'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -97,6 +101,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 
+import { EditDesk } from '../edit-desk'
 import { CanvasWorkspaceLayout } from '../CanvasWorkspaceLayout'
 import { CanvasProjectPanel } from '../CanvasProjectPanel'
 import { ProjectNameDialog } from '../ProjectNameDialog'
@@ -194,6 +199,18 @@ export function buildTextDeriveOps(
       slot: NODE_SLOT_IDS.text,
     },
   ]
+}
+
+/**
+ * 剪辑台段 id 的生成器。
+ *
+ * ⚠ 与图引擎的 `mintId` 是同一种前缀 + uuid 的写法但**不是同一个函数**：那个是
+ * 图引擎内部的（节点 / 边 id），段 id 不该跟着它的实现走。⛔ 也不用下标当 id ——
+ * 换序之后下标全变，撤销就会指到别的段上。
+ */
+function mintEditId(prefix: string): string {
+  const random = globalThis.crypto?.randomUUID?.()
+  return `${prefix}_${random ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`
 }
 
 const OP_FAILURE_KEYS: Readonly<Record<string, string>> = {
@@ -936,10 +953,53 @@ function NodeWorkbenchV4Inner() {
     [readPointerAnchor],
   )
 
-  /** 剪辑台（S8）还没落地 —— 说清楚而不是给一颗点了没反应的按钮。 */
-  const openEditDesk = useCallback(() => {
-    toast.info(tShell('editDeskComingSoon'))
-  }, [tShell])
+  /* ── 剪辑台 · 全屏模式（S8 · spec §6）────────────────────────────────── */
+  /**
+   * ⚠ 模式是**本地 state + history 改参**，⛔ 不走 `router.push`：Next 的导航会让
+   * 这棵树重挂，画布视口与选中就没了 —— 而「退出即回到刚才那个地方」正是剪辑台
+   * 做成模式而不是新页的全部理由。URL 上仍然有 `?mode=edit`，刷新 / 分享都还在。
+   */
+  const [editMode, setEditMode] = useState(
+    () => searchParams.get(EDIT_DESK_MODE_PARAM) === EDIT_DESK_MODE_VALUE,
+  )
+  /** 「进剪辑台」带进来的那几张卡（台面开起来就先追加进 V 轨）。 */
+  const [editDeskSeed, setEditDeskSeed] = useState<readonly string[]>([])
+
+  const writeEditModeParam = useCallback((on: boolean) => {
+    if (typeof window === 'undefined') return
+    const url = new URL(window.location.href)
+    if (on) {
+      url.searchParams.set(EDIT_DESK_MODE_PARAM, EDIT_DESK_MODE_VALUE)
+    } else {
+      url.searchParams.delete(EDIT_DESK_MODE_PARAM)
+    }
+    window.history.replaceState(null, '', url.toString())
+  }, [])
+
+  const openEditDesk = useCallback(
+    (nodeIds?: readonly string[]) => {
+      setEditDeskSeed(nodeIds ?? [])
+      setEditMode(true)
+      writeEditModeParam(true)
+    },
+    [writeEditModeParam],
+  )
+
+  const exitEditDesk = useCallback(() => {
+    setEditMode(false)
+    setEditDeskSeed([])
+    writeEditModeParam(false)
+  }, [writeEditModeParam])
+
+  /** 「回节点重生成这段」：关模式 + 定位并选中来源卡。 */
+  const backToNodeFromEditDesk = useCallback(
+    (nodeId: string) => {
+      exitEditDesk()
+      focusNode(nodeId)
+      graph.onRfNodesChange([{ id: nodeId, type: 'select', selected: true }])
+    },
+    [exitEditDesk, focusNode, graph],
+  )
 
   const projectPanel = (
     <CanvasProjectPanel
@@ -1056,7 +1116,7 @@ function NodeWorkbenchV4Inner() {
                   onRenameProject={() => setProjectDialogMode('rename')}
                   onDuplicateProject={() => setProjectDialogMode('duplicate')}
                   onDeleteProject={() => setDeleteConfirmOpen(true)}
-                  onOpenEditDesk={openEditDesk}
+                  onOpenEditDesk={() => openEditDesk()}
                   assistantOpen={assistantOpen}
                   // 右上那颗是**开关**：再点一次收起（收起后右缘留一条，画板
                   // `ChromeAssistant.dc.html`）。
@@ -1122,7 +1182,7 @@ function NodeWorkbenchV4Inner() {
                     setAssistantOpen(true)
                     setAssistantEverOpened(true)
                   }}
-                  onOpenEditDesk={openEditDesk}
+                  onOpenEditDesk={() => openEditDesk()}
                   onSwitchProject={store.switchProject}
                   onManageChannels={openApiKeys}
                 />
@@ -1172,6 +1232,21 @@ function NodeWorkbenchV4Inner() {
                   }}
                 />
               </div>
+              {/* 剪辑台盖在外壳**之上**（S8）：画布留在 DOM 里只是被盖住，
+                  退出时视口与选择原样还在。 */}
+              {editMode ? (
+                <EditDesk
+                  state={graph.state}
+                  dispatchBatch={graph.dispatchBatch}
+                  mintId={mintEditId}
+                  canUndo={graph.canUndo}
+                  onUndo={graph.undo}
+                  onExit={exitEditDesk}
+                  onBackToNode={backToNodeFromEditDesk}
+                  initialNodeIds={editDeskSeed}
+                  onInitialConsumed={() => setEditDeskSeed([])}
+                />
+              ) : null}
               <ProjectNameDialog
                 open={projectDialogMode !== null}
                 title={

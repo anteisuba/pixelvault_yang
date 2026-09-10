@@ -5762,7 +5762,11 @@
           "rename": "改名",
           "clone": "复制",
           "split": "拆成多段",
-          "delete": "删除"
+          "delete": "删除",
+          "connect": "连到镜头",
+          "renameNode": "重命名这段文本",
+          "cloneNode": "复制这张文本卡",
+          "deleteNode": "删除这段文本"
         },
         "assist": {
           "placeholder": "让助手写一段……",
@@ -5777,7 +5781,8 @@
           "label": "图片操作",
           "shot": "生镜头",
           "edit": "编辑",
-          "more": "更多"
+          "more": "更多",
+          "connect": "连到镜头"
         },
         "edit": {
           "inpaint": "局部重绘",
@@ -5791,7 +5796,11 @@
           "library": "从素材库"
         },
         "more": {
-          "setCharacter": "设为角色卡"
+          "setCharacter": "设为角色卡",
+          "rename": "重命名这张图",
+          "duplicate": "复制这张图片卡",
+          "splitVersion": "拆出当前版本",
+          "delete": "删除这张图"
         },
         "frame": {
           "title": "画面",
@@ -5811,7 +5820,9 @@
           "transcribeFailed": "转写失败",
           "shot": "生镜头",
           "more": "更多",
-          "transcribing": "转写中…"
+          "transcribing": "转写中…",
+          "trim": "裁剪",
+          "connect": "连到镜头"
         },
         "add": {
           "upload": "上传音频",
@@ -5870,7 +5881,10 @@
         "durationUnknown": "--:--",
         "more": {
           "splitVersion": "拆出当前版本",
-          "source": "来源"
+          "source": "来源",
+          "rename": "重命名这段声音",
+          "duplicate": "复制这张音频卡",
+          "delete": "删除这段声音"
         },
         "source": {
           "platformSample": "来自声音库 · 平台样本",
@@ -5878,7 +5892,8 @@
           "voiceRoom": "来自声音库 · 配音间",
           "library": "来自素材库",
           "upload": "上传",
-          "generated": "本卡生成"
+          "generated": "本卡生成",
+          "trim": "裁剪自 上一版"
         },
         "library": {
           "title": "声音库",
@@ -5899,7 +5914,30 @@
           "use": "用这段",
           "setVoice": "设为音色",
           "footerHint": "「用这段」= 原声直接落进这张卡，不生成、不扣积分；「设为音色」= 之后写台词用它的声",
-          "clone": "克隆我的声音…"
+          "clone": "克隆我的声音…",
+          "groups": {
+            "today": "今天",
+            "yesterday": "昨天",
+            "earlier": "更早"
+          }
+        },
+        "trim": {
+          "title": "裁剪",
+          "hint": "拖手柄或输入入出点 · 选区内可试听",
+          "inPoint": "入点",
+          "outPoint": "出点",
+          "selection": "选区 {selection} / {total}",
+          "preview": "试听选区",
+          "pausePreview": "暂停试听",
+          "keyIn": "I 入点",
+          "keyOut": "O 出点",
+          "keyEsc": "Esc 取消",
+          "nondestructive": "非破坏：裁出来的是新版本，原音留作上一版，←→ 可切回",
+          "cancel": "取消",
+          "confirm": "裁剪为新版本",
+          "confirming": "裁剪中…",
+          "failed": "裁剪失败",
+          "sourceLabel": "裁剪自 上一版"
         }
       },
       "video": {
@@ -5918,7 +5956,10 @@
         },
         "more": {
           "rename": "改名",
-          "splitVersion": "拆出当前版本"
+          "splitVersion": "拆出当前版本",
+          "duplicate": "复制这张视频卡",
+          "delete": "删除这个镜头",
+          "renameNode": "重命名这个镜头"
         },
         "frame": {
           "title": "画面",
@@ -5942,6 +5983,19 @@
         "promptLabel": "镜头提示词",
         "slotChip": "{slot}：{name}",
         "tailFrameName": "{name} 末帧"
+      },
+      "connectToShot": {
+        "searchLabel": "搜镜头",
+        "searchPlaceholder": "搜镜头…",
+        "new": "新建镜头",
+        "newHint": "在右侧落卡并连线",
+        "listLabel": "画布上的镜头 · 按镜头带顺序",
+        "empty": "画布上还没有镜头",
+        "noMatch": "没有匹配的镜头",
+        "durationUnknown": "--:--",
+        "occupied": "已有{slot} · 替换",
+        "connectInto": "连到 {name} 的{slot}",
+        "replaceIn": "替换 {name} 的{slot}"
       }
     },
     "rerunDownstream": {

@@ -13,9 +13,15 @@
  * min=2）。⛔ 也不排版式：九个格子怎么摆是组件的事。
  */
 
+import { EDIT_CLIP_SPEED_DEFAULT } from '@/constants/edit-desk'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
-import { buildV4MergeClipUrls } from '@/lib/node-slot-payload'
+import { buildV4MergeClipUrls, readSlotSources } from '@/lib/node-slot-payload'
+import {
+  EDIT_CLIP_FALLBACK_DURATION_SEC,
+  currentVersionIdOf,
+} from '@/lib/edit-project'
 import type {
+  EditClip,
   NodeV4,
   NodeV4VideoData,
   NodeWorkflowEdgeV4,
@@ -145,3 +151,66 @@ export function summarizeV4MergePlan(plan: V4MergePlan): {
 
 /** 合并节点的 `clip` 槽 id —— 组件里不再手写字面量。 */
 export const V4_MERGE_SLOT_ID = NODE_SLOT_IDS.clip
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * `video.merge` → 剪辑台时间线（S8 · spec §8.6「视频合成节点退役」）
+ *
+ * ⚠ 这里是**同一份对齐规则的第二个读侧**：段的存在仍由 `clip` 槽上的边决定，
+ * 裁剪仍按 **url** 认领（⛔ 不按下标 —— 文件头那条教训）。⛔ 不新写一遍遍历：
+ * 顺序读 `readSlotSources`，与 `buildV4MergeClipUrls` 同一条路径。
+ *
+ * ⚠ 迁出来的段**带 `sourceVersionId`**：合成节点从来不记「用的是哪一版」，
+ * 但迁移这一刻我们看得见来源卡当前是哪一版，把它钉下来，迁过去的时间线从此
+ * 也能报「上游已更新」。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+/** 一个合成节点 → 一排段（V 轨）。没接片段的合成节点返回空数组。 */
+export function buildEditClipsFromMerge(params: {
+  readonly nodeId: string
+  readonly nodes: readonly NodeV4[]
+  readonly edges: readonly NodeWorkflowEdgeV4[]
+  mintId(prefix: string): string
+}): EditClip[] {
+  const node = params.nodes.find((candidate) => candidate.id === params.nodeId)
+  if (!node) return []
+  const data = node.data as NodeV4VideoData
+  const stored = data.kind === 'video' ? (data.mergeSettings?.clips ?? []) : []
+  const trimByUrl = new Map(stored.map((clip) => [clip.url, clip]))
+
+  const seen = new Set<string>()
+  const clips: EditClip[] = []
+  for (const source of readSlotSources(
+    node,
+    NODE_SLOT_IDS.clip,
+    params.edges,
+    params.nodes,
+  )) {
+    const sourceData = source.node.data
+    const url = 'url' in sourceData ? sourceData.url : undefined
+    // 与 `buildV4MergeClipUrls` 的去重同一条：一个 url 在载荷里只出现一次。
+    if (!url || seen.has(url)) continue
+    seen.add(url)
+
+    const trim = trimByUrl.get(url)
+    const duration =
+      sourceData.kind === 'video' ? (sourceData.durationSec ?? 0) : 0
+    const start = trim?.startSec ?? 0
+    const end =
+      trim?.endSec ??
+      (duration > 0 ? duration : start + EDIT_CLIP_FALLBACK_DURATION_SEC)
+    // `start >= end` 的段落下去是零帧 —— 迁移**不搬坏数据**，跳过并让用户重裁。
+    if (end <= start) continue
+
+    const versionId = currentVersionIdOf(source.node)
+    clips.push({
+      id: params.mintId('clip'),
+      sourceNodeId: source.node.id,
+      ...(versionId ? { sourceVersionId: versionId } : {}),
+      in: start,
+      out: end,
+      speed: EDIT_CLIP_SPEED_DEFAULT,
+      muted: false,
+    })
+  }
+  return clips
+}

@@ -390,32 +390,31 @@ describe('会话历史 · 载入与新对话', () => {
 })
 
 /**
- * 流式正文那四颗（§4.1）。它们是「发送即回显 + 一个字一个字长出来」在 store 里
- * 的全部实现，四条纪律各钉一条：占位与正文共用条目 · 增量追加 · 定稿覆盖 ·
- * 只扔空占位。
+ * 正文那三颗（§4.1 / v2 §13.1）。它们是「发送即回显 + 整段出现」在 store 里的
+ * 全部实现，三条纪律各钉一条：占位与正文共用条目 · 定稿**按 id 覆盖** · 只扔空占位。
  */
-describe('流式正文与占位行', () => {
-  it('占位行是一条 text 为空的流式正文条 —— 与正文共用同一条条目', () => {
+describe('正文与占位行', () => {
+  it('占位行是一条 text 为空的待写正文条 —— 与正文共用同一条条目', () => {
     const result = readState()
     act(() => store.appendOperatorPending('run-1:msg-0'))
     expect(result.current.entries).toEqual([
       { kind: 'message', id: 'run-1:msg-0', text: '', streaming: true },
     ])
 
-    act(() => store.appendOperatorMessageDelta('run-1:msg-0', '夜'))
-    act(() => store.appendOperatorMessageDelta('run-1:msg-0', '景'))
-    expect(result.current.entries).toHaveLength(1)
-    expect(result.current.entries[0]).toMatchObject({
-      id: 'run-1:msg-0',
-      text: '夜景',
-      streaming: true,
-    })
+    act(() => store.finalizeOperatorMessage('run-1:msg-0', '夜景'))
+    expect(result.current.entries).toEqual([
+      { kind: 'message', id: 'run-1:msg-0', text: '夜景' },
+    ])
   })
 
-  it('⭐ 定稿**覆盖**累积值并降旗，⛔ 不是追加', () => {
+  /**
+   * ⭐ **§13.1 的那一条纪律**：同一个 id 再来一帧就**原地覆盖**，⛔ 不追加 ——
+   * 追加正是「计划上下各出现一次同一段回复」那条 bug 的形状。
+   */
+  it('⭐ 定稿按 id **覆盖**，⛔ 不是追加', () => {
     const result = readState()
     act(() => store.appendOperatorPending('run-1:msg-0'))
-    act(() => store.appendOperatorMessageDelta('run-1:msg-0', '已经改成夜'))
+    act(() => store.finalizeOperatorMessage('run-1:msg-0', '已经改成夜'))
     act(() => store.finalizeOperatorMessage('run-1:msg-0', '已经改成夜景了。'))
     expect(result.current.entries).toEqual([
       { kind: 'message', id: 'run-1:msg-0', text: '已经改成夜景了。' },
@@ -424,7 +423,7 @@ describe('流式正文与占位行', () => {
 
   it('条目不在就新起一条 —— 占位行被别的事件吃掉之后仍然接得住', () => {
     const result = readState()
-    act(() => store.appendOperatorMessageDelta('run-1:msg-1', '好'))
+    act(() => store.finalizeOperatorMessage('run-1:msg-1', '好'))
     act(() => store.finalizeOperatorMessage('run-1:msg-2', '完成'))
     expect(result.current.entries.map((entry) => entry.id)).toEqual([
       'run-1:msg-1',
@@ -439,7 +438,7 @@ describe('流式正文与占位行', () => {
     expect(result.current.entries).toEqual([])
 
     act(() => store.appendOperatorPending('run-1:msg-1'))
-    act(() => store.appendOperatorMessageDelta('run-1:msg-1', '这就来'))
+    act(() => store.finalizeOperatorMessage('run-1:msg-1', '这就来'))
     act(() => store.dropOperatorPending('run-1:msg-1'))
     expect(result.current.entries).toHaveLength(1)
   })

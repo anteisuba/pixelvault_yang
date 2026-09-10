@@ -46,10 +46,9 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorCritiqueCard (评价卡，两个形态一颗组件：单图嵌图 / 视频三帧并排 + 时间码；分岔判据是载荷里有没有 frames，不是当前域)
         │       ├── StudioOperatorAttachMenu (📎 附件面板，素材库就地预览)
         │       ├── StudioOperatorHistoryItem (会话历史条目)
-        │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 长回话折首句 / `detail` 折成「为什么」)
+        │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 整段出现 / 长回话折首句 / `detail` 折成「为什么」 / 空正文时的占位脉冲)
         │       ├── StudioOperatorQuestionCard (待确认卡：阶段折一行 + 1–4 道反问 + 预估/开始)
         │       ├── StudioOperatorResearchCard (调查卡：结论 + 证据 + 候选网格 + 折叠过程)
-        │       ├── StudioOperatorStreamingText (助手正文按帧累积渲染：message_delta 逐片淡入 + 空正文时的占位脉冲)
         │       └── StudioOperatorLightbox (全屏单例，模块级 store，三处共用)
         ├── StudioDockPanelArea (studio/ — 工具面板宿主，见下方规则 3)
         ├── StudioKeepChangePanel (image/)
@@ -57,7 +56,8 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 ```
 
 ⚠ **operator 系对外只有两颗入口**（`assistant-operator/index.ts`）：`StudioOperatorDock`（`StudioWorkspaceUI` 挂）与 `StudioOperatorChangeRail`（`StudioPromptArea.tsx:711` 挂，改动标记长在被改的那一栏）。其余是面板内部件，不从 index 导出。LoRA 工作台也挂这两颗（`studio/lora/LoraWorkbench.tsx:176-177`）。
-⚠ **已接线，别再按「接线中」找**：`StudioOperatorAssetChoiceCard`（歧义单选卡，`choice_request` 事件，面板已渲染）· `StudioOperatorQuestionCard`（2026-09-06 起是**唯一**那张钉在流末尾的待确认卡，`StudioOperatorPlanCard` 已删）+ `PlanOptionVisual` · `StudioOperatorSpendConfirmCard` · `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（**进度带上那颗常驻齿轮** → `onOpenAssistantSettings`，开合 state 在 Dock；2026-09-07 起 ⋯ 菜单里不再有第二个入口）· `StudioOperatorTimelineList`（2026-09-06 起就是面板那颗 `threadRef` 容器）· `StudioOperatorStreamingText`（面板的 `message` 条目走它）。
+⚠ **已接线，别再按「接线中」找**：`StudioOperatorAssetChoiceCard`（歧义单选卡，`choice_request` 事件，面板已渲染）· `StudioOperatorQuestionCard`（2026-09-06 起是**唯一**那张钉在流末尾的待确认卡，`StudioOperatorPlanCard` 已删）+ `PlanOptionVisual` · `StudioOperatorSpendConfirmCard` · `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（**进度带上那颗常驻齿轮** → `onOpenAssistantSettings`，开合 state 在 Dock；2026-09-07 起 ⋯ 菜单里不再有第二个入口）· `StudioOperatorTimelineList`（2026-09-06 起就是面板那颗 `threadRef` 容器）。
+⚠ **逐字淡入已删（v2 §13.1 / 拍板 13）**：`StudioOperatorStreamingText` 整文件删除，正文整段出现，占位脉冲并进 `StudioOperatorMessageBody`。
 ⚠ **视频档具名槽（2026-09-07 `48d6fecb`）**：视频参考区是 `StudioVideoReferenceSlots`（首帧 / 尾帧 / 参考视频），三条落法（拖入 / 素材库 / 助手 `mount_reference slot`）**汇到同一个 dispatch**（`use-video-reference-slots.ts`），⛔ 组件里没有第二条写入。⛔ 关键帧档下**不再渲染** `ReferenceImageChip`——那一档里图片是帧，留着它写进的参考图列表发送口根本不读（静默失效）。首帧在场且线路带图锁比例时，`StudioVideoSpecFields` 把比例组**禁用而不是移除**并说清怎么解除。
 
 ⚠ **手机形态（2026-09-06 `adb0a008`）**：Dock 在 `isMobile` 时**不再 `return null`**——图片 / 视频档改渲染 `StudioOperatorMobileFab` + `StudioOperatorMobileSheet`，装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。

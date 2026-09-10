@@ -414,7 +414,6 @@ describe('工具环 · 逐事件顺序', () => {
       {
         plan: ['写提示词', '预填生成键'],
         // ⚠ `tool` 排在 `message` 前面 —— OUTPUT 契约的键序（2026-09-06）。
-        //   工具轮靠这个顺序被认出来，认出来就不吐 `message_delta`。
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
           title: 'write the prompt',
@@ -440,8 +439,7 @@ describe('工具环 · 逐事件顺序', () => {
       ASSISTANT_OPERATOR_EVENTS.planRequest,
       ASSISTANT_OPERATOR_EVENTS.step,
       ASSISTANT_OPERATOR_EVENTS.step,
-      // 收尾那一轮没有 `tool`，所以它的正文是**流出去**的，然后由一帧定稿。
-      ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      // 收尾那一轮的正文**整段一帧**（v2 §13.1）。
       ASSISTANT_OPERATOR_EVENTS.message,
       ASSISTANT_OPERATOR_EVENTS.done,
     ])
@@ -534,20 +532,18 @@ describe('工具环 · 逐事件顺序', () => {
       runAssistantOperator('clerk-1', buildRequest()),
     )
     expect(typesOf(events)).toEqual([
-      // 收尾轮 —— 正文先逐字流出来，再来一帧定稿。
-      ASSISTANT_OPERATOR_EVENTS.messageDelta,
       ASSISTANT_OPERATOR_EVENTS.message,
       ASSISTANT_OPERATOR_EVENTS.done,
     ])
   })
 
   /**
-   * 正文逐字流（owner 2026-09-06「助手回复应该一个字一个字连续出」）。
+   * ⭐ **正文只在定稿时发一帧**（v2 §3.1 / §13.1，拍板 13：逐字淡入改整段出现）。
    *
-   * ⚠ 验的是**协议**，不是分块怎么切：`message_delta` 拼起来必须与定稿的
-   * `message` 一字不差，否则客户端那次「定稿覆盖累积」会在屏幕上抖一下。
+   * ⚠ 验的是**协议**：正文恰好一帧，⛔ 客户端不再累积半截正文 —— 那条累积路径
+   * 正是「同一段回复出现两次」的来源。
    */
-  it('⭐ 收尾轮逐字吐 message_delta，最后一帧 message 是定稿', async () => {
+  it('⭐ 收尾轮正文恰好一帧 message —— ⛔ 没有第二个正文来源', async () => {
     queueTurns({ finished: true, message: '好的，已经改成夜景了。' })
     mockLlmTextStreamChunks.mockImplementation((raw) =>
       raw.match(/[\s\S]{1,6}/g),
@@ -556,25 +552,17 @@ describe('工具环 · 逐事件顺序', () => {
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest()),
     )
-    const deltas = events.filter(
-      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.messageDelta,
-    )
-    const final = events.find(
-      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.message,
-    )
 
-    expect(deltas.length).toBeGreaterThan(1)
-    expect(deltas.map((delta) => delta.text).join('')).toBe(
-      '好的，已经改成夜景了。',
-    )
-    expect(final?.text).toBe('好的，已经改成夜景了。')
-    // 定稿排在所有增量之后 —— 客户端靠它收掉 streaming 标。
-    expect(events.indexOf(final!)).toBeGreaterThan(
-      events.indexOf(deltas.at(-1)!),
-    )
+    // ⚠ `message_delta` 连事件联合都不在了（`types/assistant-operator.ts`），
+    //   所以这里断的是「正文恰好一帧」——多一帧就是又有第二个来源了。
+    expect(
+      events
+        .filter((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
+        .map((event) => event.text),
+    ).toEqual(['好的，已经改成夜景了。'])
   })
 
-  it('⛔ 工具轮不吐 message_delta —— 那一句是过程旁白', async () => {
+  it('⛔ 工具轮那句旁白整帧不发 —— 那一步已经有 step 事件在说同一件事', async () => {
     queueTurns(
       {
         tool: {
@@ -593,14 +581,10 @@ describe('工具环 · 逐事件顺序', () => {
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest()),
     )
-    const deltas = events.filter(
-      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.messageDelta,
-    )
-    // 工具轮一个字都不流（判据是键序：`tool` 在 `message` 之前）。
-    expect(deltas.map((event) => event.text).join('')).toBe('写好了。')
+
     /**
-     * ⭐ 工具轮那句旁白**整帧也不发**（2026-09-07 降噪）：客户端一个字都没收到，
-     * 服务端就不该补一颗气泡 —— 那一步已经有 step 事件在说同一件事。
+     * ⭐ **一轮只吐一次正文**（P2 降噪 / v2 §13.1）：判据只剩「这一轮是不是收尾
+     * 轮」，工具轮的那句旁白既没流出去过、也没有任何东西要定稿。
      */
     expect(
       events

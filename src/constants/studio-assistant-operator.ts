@@ -261,18 +261,10 @@ export const STUDIO_OPERATOR_HISTORY = {
 } as const
 
 /**
- * 正文逐字流的**落地节流**（`pages/assistant-shell.md` §4.1「正文按帧累积」）。
- *
- * ⭐ `flushFloorMs` 是 rAF 之外的**兜底闸**，不是替代它：合批本来只挂在
- * `requestAnimationFrame` 上，而 rAF 在窗口被遮挡 / 标签页切走时会被浏览器
- * 降到几帧每秒、甚至整段挂起 —— 表现是一段本该 600ms 长出来的回复在定稿那一刻
- * 「啪」地一次落地（🔬 2026-09-07 真机：20 帧 `message_delta` 只换来 4 次 DOM
- * 增长，窗口不在最前时更少）。有了这条闸，最长 `flushFloorMs` 必落一次。
- * ⚠ 前台时永远是 rAF 先到（16ms < 80ms），所以这个数**不决定前台的节奏** ——
- * ⛔ 别指望调大它能让字出得更慢，那只会让后台那一档更卡。
+ * 助手正文那一格里**还剩下的唯一一个时间常量**（v2 §13.1 / 拍板 13：逐字淡入
+ * 改整段出现，`flushFloorMs` / `revealCharsPerSec` / `revealMaxMs` 随之删除）。
  */
 export const STUDIO_OPERATOR_STREAMING = {
-  flushFloorMs: 80,
   /**
    * **一个工具步落定之后，等多久还没有下一步就挂占位行**（2026-09-07 真机）。
    *
@@ -283,22 +275,6 @@ export const STUDIO_OPERATOR_STREAMING = {
    * ⚠ 也别往大了调：超过一秒就等于这条占位行在最需要它的那一刻还没出现。
    */
   pendingAfterStepMs: 300,
-  /**
-   * **定稿之后的揭示速率**（字/秒，owner 2026-09-07「助手回复应该一个字一个字连续出」）。
-   *
-   * 🔬 由来：provider 那一侧的分块粗到 4 块 / 130ms —— 落地闸（`flushFloorMs`）
-   * 只能保证「块到了就写进去」，写进去的仍然是一整块。所以最后这一段由**渲染侧**
-   * 自己按速率揭示：已显示长度追着目标长度走，而不是一次性跳到末尾。
-   * ⚠ 60 ≈ 一秒一行中文：再快就看不出「在写」，再慢就变成用户等着它打字。
-   */
-  revealCharsPerSec: 60,
-  /**
-   * 揭示的**封顶时长**：按 `revealCharsPerSec` 走超过这个数就加速一次收完。
-   *
-   * ⚠ 没有这条封顶，一段 500 字的回复要揭示 8 秒 —— 而那时用户早就读完了前三行
-   * 在等剩下的。⛔ 封顶不是「跳到末尾」：它只是把这一段的速率整体提上去。
-   */
-  revealMaxMs: 1500,
 } as const
 
 /**

@@ -515,53 +515,25 @@ export function appendOperatorEntry(entry: StudioOperatorThreadEntry): void {
 /**
  * 助手正文的**占位行**（§4.1「发送即回显」）—— 发出去的同一帧就落进线程。
  *
- * ⭐ 它就是一条 `text: ''` 的流式正文条：占位与正文**共用一条条目**，第一个
- * `message_delta` 直接往它里面写字。⛔ 不做「另起一种 placeholder 条目、到货再
- * 换成 message 条目」—— 换条目 = 换 React key = 头像和那一行整个重挂一次，
- * 而用户看到的是刚出现的占位行闪一下又跳一格。
+ * ⭐ 它就是一条 `text: ''` 的待写正文条：占位与正文**共用一条条目**，定稿帧
+ * 直接往它里面写字。⛔ 不做「另起一种 placeholder 条目、到货再换成 message
+ * 条目」—— 换条目 = 换 React key = 头像和那一行整个重挂一次，而用户看到的是
+ * 刚出现的占位行闪一下又跳一格。
  */
 export function appendOperatorPending(id: string): void {
   appendOperatorEntry({ kind: 'message', id, text: '', streaming: true })
 }
 
 /**
- * 把一块增量累加进正文条。条目不在（占位行已被别的事件吃掉）就新起一条。
+ * 定稿一条正文 —— **按 id 整体覆盖**已有的那条，并把 `streaming` 降下来。
  *
- * ⚠ **追加**，不是覆盖：服务端每帧只发新解出来的那几个字。
- */
-export function appendOperatorMessageDelta(id: string, text: string): void {
-  const index = state.entries.findIndex(
-    (entry) => entry.kind === 'message' && entry.id === id,
-  )
-  if (index < 0) {
-    appendOperatorEntry({ kind: 'message', id, text, streaming: true })
-    return
-  }
-  const existing = state.entries[index] as StudioOperatorMessageEntry
-  emit({
-    ...state,
-    entries: state.entries.map((entry, i) =>
-      i === index
-        ? { ...existing, text: existing.text + text, streaming: true }
-        : entry,
-    ),
-  })
-}
-
-/**
- * 定稿一条正文 —— 服务端那一版**整体覆盖**累积值，并把 `streaming` 降下来。
- *
- * ⭐ 覆盖而不是「校验一下累积对不对」：增量是从半截 JSON 里现解的，转义、围栏、
- * 模型改口都会让它与定稿差一两个字符。差一两个字符没人查得出来，覆盖一次就没了。
+ * ⭐ 覆盖而不是追加（v2 §13.1）：追加的表现正是那条 bug —— 计划帧插在两帧正文
+ * 之间时，同一段分析回复在计划上下各出现一次。
  */
 export function finalizeOperatorMessage(
   id: string,
   text: string,
-  /**
-   * 「为什么」那一段（2026-09-06 面板轮，第 4 件）—— 面板把它折起来。
-   * ⚠ 只在定稿这一跳落地：增量帧里没有它（服务端只在整份 turn 解出来之后才有
-   * 这一段），⛔ 别为它另开一条流式通道。
-   */
+  /** 「为什么」那一段（2026-09-06 面板轮，第 4 件）—— 面板把它折起来。 */
   detail?: string,
 ): void {
   const entry: StudioOperatorMessageEntry = {
@@ -581,36 +553,6 @@ export function finalizeOperatorMessage(
     ...state,
     entries: state.entries.map((item, i) => (i === index ? entry : item)),
   })
-}
-
-/**
- * 把一条正文**从流态里放下来**，不动它的字。
- *
- * ⭐ 用在那几条**中途 return 的路径**上（计划卡到达就掐流、abort、出错）：那时
- * 定稿帧永远不会来了，而条目还举着 `streaming` 旗。旗本身今天不改变渲染，但它
- * 是一句假话 —— 哪天给流式正文加一颗光标，那颗光标就会在一条早已停下的回复
- * 末尾永远闪下去。
- */
-export function settleOperatorMessage(id: string): boolean {
-  const index = state.entries.findIndex(
-    (entry) => entry.kind === 'message' && entry.id === id && entry.streaming,
-  )
-  if (index < 0) return false
-  const existing = state.entries[index] as StudioOperatorMessageEntry
-  emit({
-    ...state,
-    entries: state.entries.map((entry, i) =>
-      i === index
-        ? {
-            kind: 'message',
-            id: existing.id,
-            text: existing.text,
-            ...(existing.detail ? { detail: existing.detail } : {}),
-          }
-        : entry,
-    ),
-  })
-  return true
 }
 
 /**

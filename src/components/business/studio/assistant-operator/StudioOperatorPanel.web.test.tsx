@@ -628,13 +628,13 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
 })
 
 /**
- * 流式与加载态的**接线闸**（§4.1）。
+ * 正文与加载态的**接线闸**（§4.1 / v2 §13.1）。
  *
  * ⭐ 与上面那份同一条论据：`StudioOperatorTimelineList` 与
- * `StudioOperatorStreamingText` 各自单测都绿，而面板不用它们的话屏幕上什么都
+ * `StudioOperatorMessageBody` 各自单测都绿，而面板不用它们的话屏幕上什么都
  * 没变 —— 组件级用例永远发现不了这种失败。
  */
-describe('StudioOperatorPanel · 流式正文与加载态', () => {
+describe('StudioOperatorPanel · 正文与加载态', () => {
   it('时间线容器是 B3 那颗 role=log 的 polite live region', () => {
     renderPanel()
     const thread = screen.getByTestId('operator-thread')
@@ -653,18 +653,35 @@ describe('StudioOperatorPanel · 流式正文与加载态', () => {
     expect(rows.at(-1)?.dataset.node).toBe('assistant')
   })
 
-  it('长出来的正文按片渲染，定稿之后 streaming 落下来', () => {
+  it('定稿帧就地写进占位行 —— 正文整段出现，⛔ 不切片', () => {
     store.appendOperatorPending('run-1:msg-0')
-    store.appendOperatorMessageDelta('run-1:msg-0', '夜景')
+    store.finalizeOperatorMessage('run-1:msg-0', '已经改成夜景了。')
     renderPanel()
-    expect(
-      screen
-        .getAllByTestId('operator-message-slice')
-        .map((node) => node.textContent),
-    ).toEqual(['夜', '景'])
-    expect(screen.getByTestId('operator-message-text').dataset.streaming).toBe(
-      'true',
+    expect(screen.queryByTestId('operator-message-pending')).toBeNull()
+    expect(screen.getByTestId('operator-message-text').textContent).toBe(
+      '已经改成夜景了。',
     )
+    // ⛔ 逐字切片已删（v2 拍板 13）：正文是一个完整文本节点，读屏与用例都找得到。
+    expect(screen.queryAllByTestId('operator-message-slice')).toHaveLength(0)
+  })
+
+  /**
+   * ⭐ **§13.1 时间线重复消息** —— `message` → `plan` → `message`（同一条正文）
+   * 之后线程里只有**一条**正文条目。
+   *
+   * 🔬 旧行为：计划帧把序号顶掉一位，定稿帧于是另起一条，同一段分析回复在计划
+   * 的上下各出现一次（owner 真机「帮我看看这张参考」）。
+   */
+  it('⭐ message → plan → message：面板上只有一条正文', () => {
+    store.finalizeOperatorMessage('run-1:msg-0', '这张参考是暖调人像。')
+    store.appendOperatorEntry({
+      kind: 'plan',
+      id: 'plan-1',
+      steps: ['读参考', '改提示词'],
+    })
+    store.finalizeOperatorMessage('run-1:msg-0', '这张参考是暖调人像。')
+    renderPanel()
+    expect(screen.getAllByTestId('operator-message-text')).toHaveLength(1)
   })
 })
 

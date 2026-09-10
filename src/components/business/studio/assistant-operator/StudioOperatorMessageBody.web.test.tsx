@@ -52,10 +52,22 @@ describe('StudioOperatorMessageBody', () => {
     expect(screen.getByTestId('operator-message-text').textContent).toBe(LONG)
   })
 
-  it('⭐ 还在流的时候⛔ 不折', () => {
+  /**
+   * ⚠ 逐字揭示删掉之后（v2 拍板 13）`streaming` 只剩一种含义：**还没有字**。
+   * 有字就一定是定稿，长回话照折不误。
+   */
+  it('⭐ 空正文 + streaming = 三点占位脉冲，⛔ 不是一行空白', () => {
+    renderBody({ text: '', streaming: true })
+    expect(screen.getByTestId('operator-message-pending')).toBeTruthy()
+    expect(screen.queryByTestId('operator-message-text')).toBeNull()
+  })
+
+  it('⭐ 有字就是定稿 —— streaming 旗不再挡住折叠', () => {
     renderBody({ text: LONG, streaming: true })
-    expect(screen.queryByTestId('operator-message-expand')).toBeNull()
-    expect(screen.getByTestId('operator-message-text').textContent).toBe(LONG)
+    expect(screen.getByTestId('operator-message-text').dataset.collapsed).toBe(
+      'true',
+    )
+    expect(screen.getByTestId('operator-message-expand')).toBeTruthy()
   })
 
   it('⭐ `detail` 折成「为什么」；缺席时一颗都不画', () => {

@@ -966,7 +966,7 @@ export function StudioOperatorPanel({
           </StudioOperatorTimelineRow>
         )
       /**
-       * 助手正文 —— 逐字长出来的那一条（§4.1）。
+       * 助手正文 —— **整段一次到齐**的那一条（v2 §13.1 / 拍板 13）。
        *
        * ⚠ `streaming` 为真且还没有字 = **发送即回显**的占位行：头像已经在了，
        *   正文位画三点脉冲，高度就是一行正文高，第一个字到达时不跳。

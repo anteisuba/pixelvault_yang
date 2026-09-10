@@ -1042,6 +1042,64 @@ describe('正文流式累积与占位行', () => {
       .at(-1)
   }
 
+  /**
+   * ⭐ **§13.1 时间线重复消息** —— 正文只有 `message` 一个来源，⛔ 不追加。
+   *
+   * 🔬 旧行为：正文先由 `message_delta` 累积成一条，计划帧插在中间把序号顶掉
+   * 一位，随后的定稿帧于是**另起一条** —— 同一段分析回复在计划的上下各出现一次
+   * （owner 真机「帮我看看这张参考」）。删掉增量之后这条路必须只落一条。
+   */
+  it('⭐ 计划帧插在正文之前：时间线里只有一条正文', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我看看这张参考')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.plan,
+      steps: ['读参考', '改提示词'],
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '这张参考是暖调人像。',
+    })
+    await settle()
+
+    const messages = store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind === 'message')
+    expect(messages.map((entry) => entry.text)).toEqual([
+      '这张参考是暖调人像。',
+    ])
+  })
+
+  /**
+   * ⭐ **同一条正文来两帧就覆盖**（§13.1 验收「按 id 覆盖，⛔ 不追加」）：
+   * 这一段还钉在线程末尾时，第二帧写回的是**同一条条目**。
+   */
+  it('⭐ 定稿帧重复到达 → 覆盖同一条，⛔ 不追加第二条', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我看看这张参考')
+    })
+    await settle()
+
+    for (const text of ['这张参考是暖调人像', '这张参考是暖调人像。']) {
+      streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.message, text })
+      await settle()
+    }
+
+    const messages = store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind === 'message')
+    expect(messages.map((entry) => entry.text)).toEqual([
+      '这张参考是暖调人像。',
+    ])
+  })
+
   it('⭐ 发送即回显：用户行与助手占位行在同一轮里立刻落进线程', async () => {
     const { result } = render()
     act(() => {
@@ -1071,7 +1129,7 @@ describe('正文流式累积与占位行', () => {
     expect(messageEntry()).toMatchObject({ text: '', streaming: true })
   })
 
-  it('message_delta 逐帧累加进同一条，定稿帧整体覆盖并降旗', async () => {
+  it('定稿帧就地写进占位行 —— 同一条条目，旗降下来', async () => {
     const { result } = render()
     act(() => {
       result.current.send('把提示词改成夜景')
@@ -1080,30 +1138,12 @@ describe('正文流式累积与占位行', () => {
     const placeholderId = messageEntry()?.id
 
     streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
-      text: '已经',
-    })
-    await settle()
-    expect(messageEntry()).toMatchObject({ text: '已经', streaming: true })
-
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
-      text: '改成夜',
-    })
-    await settle()
-    expect(messageEntry()?.text).toBe('已经改成夜')
-    // ⭐ 一路都是同一条条目 —— 换条目就是换 key，那一行会重挂一次。
-    expect(messageEntry()?.id).toBe(placeholderId)
-
-    /**
-     * ⭐ 定稿**覆盖**而不是追加：增量是从半截 JSON 里现解的，与定稿差一两个
-     * 字符是常态，而那种差错没有任何人查得出来。
-     */
-    streams[0].emit({
       type: ASSISTANT_OPERATOR_EVENTS.message,
       text: '已经改成夜景了。',
     })
     await settle()
+
+    // ⭐ 占位与正文是同一条条目 —— 换条目就是换 key，那一行会重挂一次。
     expect(messageEntry()).toMatchObject({
       id: placeholderId,
       text: '已经改成夜景了。',
@@ -1112,44 +1152,6 @@ describe('正文流式累积与占位行', () => {
     expect(
       store.getOperatorState().entries.filter((e) => e.kind === 'message'),
     ).toHaveLength(1)
-  })
-
-  /**
-   * ⭐ **rAF 停摆时正文照样一段一段长出来**（owner 2026-09-07 打回「流式还没实现」）。
-   *
-   * 🔬 根因就在这里：合批此前只挂在 rAF 上，而浏览器在窗口被遮挡 / 标签页切走时
-   * 把 rAF 降到几帧每秒甚至整段挂起 —— 真机上 20 帧 `message_delta` 只换来 4 次
-   * DOM 增长。这条用例把 rAF 桩成**永不回调**，逼出那条兜底闸：
-   * `STUDIO_OPERATOR_STREAMING.flushFloorMs` 到点必落一次。
-   * ⚠ 断言的是「落了不止一次」，⛔ 不是「落了几次」：帧数是浏览器的事。
-   */
-  it('⭐ rAF 停摆时靠 flushFloorMs 兜底 —— ⛔ 不许整段憋到定稿才一次落地', async () => {
-    vi.stubGlobal('requestAnimationFrame', () => 0)
-    vi.stubGlobal('cancelAnimationFrame', () => {})
-
-    const { result } = render()
-    act(() => {
-      result.current.send('把提示词改成夜景')
-    })
-    await settle()
-
-    const lengths: number[] = []
-    for (const text of ['已经', '改成', '夜景了。']) {
-      streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.messageDelta, text })
-      await act(async () => {
-        await new Promise((resolve) => {
-          setTimeout(resolve, STUDIO_OPERATOR_STREAMING.flushFloorMs + 20)
-        })
-      })
-      lengths.push(messageEntry()?.text.length ?? 0)
-    }
-
-    // 一次落地的表现是 [0, 0, 8]；兜底闸在的表现是逐段增长。
-    expect(lengths).toEqual([2, 4, 8])
-    expect(messageEntry()).toMatchObject({
-      text: '已经改成夜景了。',
-      streaming: true,
-    })
   })
 
   it('⭐ 第一个 step 到达 → 空占位行让位，⛔ 不留一行空脉冲在日志上面', async () => {
@@ -1186,7 +1188,7 @@ describe('正文流式累积与占位行', () => {
     expect(messageEntry()?.text).toBe('这就来')
   })
 
-  it('一轮里两段正文各占一条 —— 定稿之后序号进一位', async () => {
+  it('一轮里两段正文各占一条 —— 被压在下面之后序号进一位', async () => {
     const { result } = render()
     act(() => {
       result.current.send('把提示词改成夜景')
@@ -1195,10 +1197,8 @@ describe('正文流式累积与占位行', () => {
 
     streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.message, text: '这就来' })
     await settle()
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
-      text: '好了',
-    })
+    // ⭐ 一条工具步把上面那段压下去了 —— 后面的字属于**新的一段**。
+    streams[0].emit(doneStepEvent('step-1'))
     await settle()
     streams[0].emit({
       type: ASSISTANT_OPERATOR_EVENTS.message,
@@ -1217,11 +1217,10 @@ describe('正文流式累积与占位行', () => {
   })
 
   /**
-   * ⭐ 计划卡那一条**掐掉了流**（客户端硬判之后 abort + return），定稿帧永远
-   * 不会来了。旗必须在那一刻放下来 —— 举着一面永远降不下来的 `streaming`
-   * 等于给后来加光标 / 加脉冲的人埋一个「永远在流」的假象。
+   * ⭐ 计划卡那一条**掐掉了流**（客户端硬判之后 abort + return）。已经说出口的
+   * 那句话必须留在屏幕上，而那条还空着的占位行必须让位。
    */
-  it('计划卡掐流之后，已经流出来的那段字留在屏幕上且不再举 streaming 旗', async () => {
+  it('计划卡掐流之后，已经说出口的那句话留在屏幕上，空占位行让位', async () => {
     const { result } = render()
     act(() => {
       result.current.send('帮我配一张海报')
@@ -1229,7 +1228,7 @@ describe('正文流式累积与占位行', () => {
     await settle()
 
     streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+      type: ASSISTANT_OPERATOR_EVENTS.message,
       text: '当前提示词是空的',
     })
     await settle()
@@ -1297,7 +1296,7 @@ describe('正文流式累积与占位行', () => {
       expect(entries.at(-1)).toMatchObject({ text: '', streaming: true })
     })
 
-    it('⭐ 首个 message_delta 就地替换占位行 —— ⛔ 不另起一条条目', async () => {
+    it('⭐ 定稿帧就地替换占位行 —— ⛔ 不另起一条条目', async () => {
       const { result } = render()
       act(() => {
         result.current.send('读一下当前状态')
@@ -1310,7 +1309,7 @@ describe('正文流式累积与占位行', () => {
       const placeholderId = messageEntry()?.id
 
       streams[0].emit({
-        type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+        type: ASSISTANT_OPERATOR_EVENTS.message,
         text: '改完了',
       })
       await settle()
@@ -1318,7 +1317,6 @@ describe('正文流式累积与占位行', () => {
       expect(messageEntry()).toMatchObject({
         id: placeholderId,
         text: '改完了',
-        streaming: true,
       })
       expect(
         store.getOperatorState().entries.filter((e) => e.kind === 'message'),
@@ -1326,7 +1324,7 @@ describe('正文流式累积与占位行', () => {
     })
   })
 
-  it('流炸了也不把半句话丢在缓冲里', async () => {
+  it('流炸了也不把已经说出口的那句话扫掉', async () => {
     const { result } = render()
     act(() => {
       result.current.send('把提示词改成夜景')
@@ -1334,13 +1332,13 @@ describe('正文流式累积与占位行', () => {
     await settle()
 
     streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
-      text: '已经改',
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '已经改成夜景了。',
     })
     streams[0].fail(new Error('boom'))
     await settle()
 
-    expect(messageEntry()?.text).toBe('已经改')
+    expect(messageEntry()?.text).toBe('已经改成夜景了。')
     expect(store.getOperatorState().status).toBe('error')
   })
 })

@@ -58,7 +58,6 @@ import {
   addOperatorCostTick,
   addOperatorMention,
   appendOperatorEntry,
-  appendOperatorMessageDelta,
   appendOperatorPending,
   clearOperatorPrompts,
   clearOperatorQueue,
@@ -74,7 +73,6 @@ import {
   registerOperatorRunner,
   removeOperatorQueued,
   resetOperatorThread,
-  settleOperatorMessage,
   resolveOperatorChoice,
   resolveOperatorPlan,
   resolveOperatorSpend,
@@ -565,22 +563,15 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * 在这里落，就在请求发出去之前的同一帧。它是「它收到了」的唯一凭证：
        * 没有它，按下发送之后到第一步落地之间屏幕上什么都不长。
        *
-       * ⚠ 占位行与正文**是同一条条目**：第一个增量直接往它里面写字（见
+       * ⚠ 占位行与正文**是同一条条目**：定稿帧直接往它里面写字（见
        * `appendOperatorPending` 的头注）。⛔ 别换条目，换条目 = 换 key = 重挂。
-       * ⚠ 一轮里可能有好几段正文（旁白 + 收尾），所以 id 带序号，定稿一段进一位。
+       * ⚠ 一轮里可能有好几段正文（旁白 + 收尾），所以 id 带序号 —— 但序号只在
+       *   这一段**已经被别的条目压在下面**时才进位，见 `message` 那一支。
        */
       let messageSeq = 0
       const messageEntryId = () => `${runKey}:msg-${messageSeq}`
       appendOperatorPending(messageEntryId())
 
-      /**
-       * 增量**按帧合批**（§4.1 / `ui-defaults.md §4`）。
-       *
-       * ⚠ 一块一次 `setState` 的代价不是抽象的：provider 一秒能吐几十块，每块
-       * 都会把整条时间线（几十个条目 + 卡片）重渲一遍。合批之后一帧最多一次。
-       * ⚠ `settleDeltas()` 在**定稿之前**和收尾时各调一次 —— 否则最后半句会卡在
-       *   缓冲里等一个再也不来的帧。
-       */
       /**
        * 攒着的那份计划（第 2 件）—— `plan` 帧到达时只存不落，由紧跟的
        * `plan_request` 判定去向。⚠ 判定之外还有两条出口：流以别的方式收尾
@@ -608,54 +599,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         pendingPlanSteps = null
       }
 
-      let deltaBuffer = ''
-      let deltaFrame: number | null = null
-      /**
-       * ⭐ **rAF 之外的兜底闸**（`STUDIO_OPERATOR_STREAMING.flushFloorMs`）。
-       *
-       * 🔬 2026-09-07 真机（`localhost:3000/zh/studio/image`，窗口没在最前）：
-       * 服务端 20 帧 `message_delta` 跨 620ms 全都到齐了，DOM 里的正文却只长了
-       * 4 次 —— 浏览器把这一档的 rAF 降到了 ~6fps。窗口真被切走时 rAF 整段挂起，
-       * 那一整段字就在定稿帧那一刻一次落地，看起来与「压根没做流式」一模一样，
-       * 而这正是 owner 打回的那句话。
-       * ⚠ 两个闸**先到的那个赢**，赢了就把另一个撤掉：前台恒是 rAF（16ms），
-       * 后台恒是这颗定时器。⛔ 别把 rAF 换成纯定时器 —— 那等于放弃与绘制同步，
-       * 前台会看到字在帧中间半截落地。
-       */
-      let deltaTimer: ReturnType<typeof setTimeout> | null = null
-      const cancelFlushSchedule = () => {
-        if (deltaFrame !== null) {
-          cancelAnimationFrame(deltaFrame)
-          deltaFrame = null
-        }
-        if (deltaTimer !== null) {
-          clearTimeout(deltaTimer)
-          deltaTimer = null
-        }
-      }
-      const flushDeltas = () => {
-        cancelFlushSchedule()
-        if (!deltaBuffer) return
-        const text = deltaBuffer
-        deltaBuffer = ''
-        appendOperatorMessageDelta(messageEntryId(), text)
-      }
-      const scheduleFlush = () => {
-        if (deltaFrame === null) {
-          deltaFrame = requestAnimationFrame(flushDeltas)
-        }
-        if (deltaTimer === null) {
-          deltaTimer = setTimeout(
-            flushDeltas,
-            STUDIO_OPERATOR_STREAMING.flushFloorMs,
-          )
-        }
-      }
-      const settleDeltas = () => {
-        flushDeltas()
-        // ⚠ 缓冲空时 `flushDeltas` 提前返回**之前**已经撤过闸了，这里不必再撤。
-      }
-
       /**
        * ⭐ **收尾之前的那条占位行**（owner 2026-09-07）。
        *
@@ -665,7 +608,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * 之间闪一行三点脉冲又被下一步的让位逻辑拆掉。所以挂的条件是「这一步落定
        * 之后 `pendingAfterStepMs` 内没有下一帧」——下一帧一到就撤（见循环顶上那句）。
        * ⚠ 复用的是**同一条占位行**（`operator-message-pending`）与同一个条目 id：
-       * 首个 `message_delta` 直接往它里面写字，⛔ 不换条目（换条目 = 换 key = 重挂）。
+       * 定稿帧直接往它里面写字，⛔ 不换条目（换条目 = 换 key = 重挂）。
        */
       let pendingStepTimer: ReturnType<typeof setTimeout> | null = null
       const cancelPendingAfterStep = () => {
@@ -680,10 +623,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           // 这一轮已经停了（收尾 / 出错 / 等你定）就没有「它马上要说话」可言。
           if (getOperatorState().status !== 'working') return
           /**
-           * ⚠ 线程尾部**还有一条活的助手正文**就不挂：那条本身就在长字，
-           * 再挂一行三点是同一件事说两遍。判据取「这个 id 还在不在」——
-           * 工具步让位时序号已经进过一位（见让位那一段），所以 id 还在 = 那条
-           * 正文就是当前这一段。
+           * ⚠ 线程尾部**还有一条活的助手正文**就不挂：那条本身已经写完了，
+           * 再挂一行三点是同一件事说两遍。判据取「这个 id 还在不在」。
            */
           const id = messageEntryId()
           const live = getOperatorState().entries.some(
@@ -929,7 +870,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            *   一句再去调工具时，那句话必须留在屏幕上。
            */
           if (
-            event.type !== ASSISTANT_OPERATOR_EVENTS.messageDelta &&
             event.type !== ASSISTANT_OPERATOR_EVENTS.message &&
             /**
              * ⛔ `open` **不算「它开口了」**：那一帧是成帧器在模型开口之前就发的
@@ -940,17 +880,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              */
             event.type !== ASSISTANT_OPERATOR_EVENTS.open
           ) {
-            settleDeltas()
             dropOperatorPending(messageEntryId())
-            /**
-             * ⚠ 旗也要放下来：`planRequest` / `stopped` / `error` 之后定稿帧
-             * 永远不会来了（这条流就此结束），条目却还举着 `streaming`。
-             * ⭐ **放下旗的同时序号进一位**（2026-09-07）：这一段字已经被一条
-             * 工具步挡在下面了，后面再来的字是**新的一段**——写回上面那条的表现
-             * 是文字长在工具组的上方，读起来像时间倒流。序号进位同时也让收尾前的
-             * 占位行有一个还没被占用的 id 可挂（见 `schedulePendingAfterStep`）。
-             */
-            if (settleOperatorMessage(messageEntryId())) messageSeq += 1
           }
           /**
            * 攒着的计划**最多只等一帧**（第 2 件）：`plan_request` 是紧挨着 `plan`
@@ -1014,24 +944,31 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               controller.abort()
               return
             }
-            /** 逐字增量 —— 攒进缓冲，下一帧一次性写进去。 */
-            case ASSISTANT_OPERATOR_EVENTS.messageDelta:
-              deltaBuffer += event.text
-              scheduleFlush()
-              break
             /**
-             * 定稿 —— 服务端那一版**整体覆盖**累积值（见 `finalizeOperatorMessage`），
-             * 然后序号进一位，下一段正文另起一条。
+             * 正文的**唯一来源**（v2 §3.1 / §13.1）—— 整段一次到齐，按条目 id
+             * **覆盖**，⛔ 不追加。
+             *
+             * 🔬 那条 bug 的形状：这一段字已经落进线程，紧跟着来一帧 `plan`，
+             * 服务端随后又发一次定稿 —— 序号在中间进了一位，于是同一段分析回复
+             * 在计划的上下各出现一次。
+             * ⭐ 所以进位的判据是「这一段**已经被别的条目压在下面**」而不是
+             * 「又来了一帧」：压在下面 = 后面的字属于新的一段（写回上面那条读起来
+             * 像时间倒流）；还在线程末尾 = 就是同一段，覆盖它。
              */
-            case ASSISTANT_OPERATOR_EVENTS.message:
-              settleDeltas()
+            case ASSISTANT_OPERATOR_EVENTS.message: {
+              const entries = getOperatorState().entries
+              const index = entries.findIndex(
+                (entry) =>
+                  entry.kind === 'message' && entry.id === messageEntryId(),
+              )
+              if (index >= 0 && index !== entries.length - 1) messageSeq += 1
               finalizeOperatorMessage(
                 messageEntryId(),
                 event.text,
                 event.detail,
               )
-              messageSeq += 1
               break
+            }
             case ASSISTANT_OPERATOR_EVENTS.step: {
               const { step } = event
               upsertOperatorStep(step, runKey)
@@ -1238,12 +1175,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           }
         }
       } catch {
-        // 半句话卡在缓冲里比丢掉更糟 —— 先落地，再谈这是不是一次 abort。
+        // 攒着的那份计划比丢掉更糟 —— 先落地，再谈这是不是一次 abort。
         cancelPendingAfterStep()
         flushPlanEntry()
-        settleDeltas()
         dropOperatorPending(messageEntryId())
-        settleOperatorMessage(messageEntryId())
         /**
          * ⚠ abort 会**穿透 `for await`**：插话 / ⏹ 掐掉的是底下那个 `reader.read()`，
          * 它以 `AbortError` 拒绝，于是循环不是 `break` 出来的而是抛出来的。
@@ -1258,9 +1193,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
 
       cancelPendingAfterStep()
       flushPlanEntry()
-      settleDeltas()
       dropOperatorPending(messageEntryId())
-      settleOperatorMessage(messageEntryId())
       if (controller.signal.aborted) return
       // `done` 之后没有别的收尾 —— 状态没被 `stopped` / `error` 改过就是跑完了。
       if (getOperatorState().status === 'working') setOperatorStatus('idle')

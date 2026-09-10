@@ -715,26 +715,14 @@ describe('事件契约', () => {
   })
 
   /**
-   * 正文逐字增量（2026-09-06）。⚠ 验的是它**进了判别联合**：漏进联合的表现是
-   * 服务端吐得出来、客户端 `safeParse` 一路静默丢掉，而丢掉的东西是正文本身。
+   * ⭐ **`message_delta` 已从联合里删除**（v2 §3.1 / §13.1，拍板 13）——
+   * 逐字淡入改整段出现，正文只剩 `message` 一个来源。
    */
-  it('message_delta 进了事件联合，且只认 text', () => {
+  it('⛔ message_delta 已不在事件联合里', () => {
     expect(
       AssistantOperatorEventSchema.safeParse({
-        type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+        type: 'message_delta',
         text: '夜',
-      }).success,
-    ).toBe(true)
-    // 空增量不算错 —— 服务端本来就不发它，这里再拒一次只会把无害变成整流报错。
-    expect(
-      AssistantOperatorEventSchema.safeParse({
-        type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
-        text: '',
-      }).success,
-    ).toBe(true)
-    expect(
-      AssistantOperatorEventSchema.safeParse({
-        type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
       }).success,
     ).toBe(false)
   })

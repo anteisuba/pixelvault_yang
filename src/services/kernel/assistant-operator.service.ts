@@ -215,7 +215,6 @@ import {
  * 扇出那一段因此单独住在 `research-fanout.service`，它一行库都不碰。
  */
 import { runAssistantResearch } from '@/services/research/research-fanout.service'
-import { createOperatorMessageStreamer } from '@/lib/assistant-operator-stream'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import {
   readGenerationMentions,
@@ -5238,21 +5237,10 @@ export async function* runAssistantOperator(
       }
 
       /**
-       * ⭐ **这一轮走流式**（owner 2026-09-06「助手回复应该一个字一个字连续出」）。
-       *
-       * 收到的仍然是同一份 turn JSON，`parseTurnJson` 那一段一个字都没改 ——
-       * 变的只是「边收边解出 `message` 字段吐给客户端」。⛔ 别为了这件事再补一次
-       * LLM 往返（用户为同一段话付两次钱），也别把 OUTPUT 契约改成两段协议。
-       * ⚠ 工具轮由 `createOperatorMessageStreamer` 自己闭嘴（判据是键的先后，
-       *   见那颗的头注），所以这里无条件把增量往外吐。
+       * ⚠ **仍然按块收，但一个字都不往外吐**（v2 §3.1 拍板 13：逐字淡入改整段
+       * 出现）。收流的理由只剩一个 —— 用户按 ⏹ 时能在下一块的边界上立刻断开，
+       * ⛔ 不是为了逐字渲染：正文只在定稿时发一帧 `message`。
        */
-      const messageStreamer = createOperatorMessageStreamer()
-      /**
-       * 这一步有没有**真的往外流过字**。判据见下面「一轮只吐一次正文」那段：
-       * 工具轮按契约（`tool` 键在 `message` 之前）会被流式器静音，那时客户端
-       * 一个字都没收到，服务端也就不该再补一颗气泡。
-       */
-      let streamedThisStep = false
       let raw = ''
       const conversationImages = assistantAdapterSupportsImage(
         route.adapterType,
@@ -5273,13 +5261,8 @@ export async function* runAssistantOperator(
         responseFormat: 'json_object',
       })) {
         raw += chunk
-        // ⚠ 客户端走了就别再往一条没人读的流里解字（同下面那道 abort 复查）。
+        // ⚠ 客户端走了就别再往一条没人读的流里收字（同下面那道 abort 复查）。
         if (options.signal?.aborted) break
-        const delta = messageStreamer.push(chunk)
-        if (delta) {
-          streamedThisStep = true
-          yield { type: ASSISTANT_OPERATOR_EVENTS.messageDelta, text: delta }
-        }
       }
 
       /**
@@ -5428,18 +5411,16 @@ export async function* runAssistantOperator(
       }
 
       /**
-       * **一轮只吐一次正文**（P2 降噪，2026-09-07）。
+       * **一轮只吐一次正文**（P2 降噪，2026-09-07；v2 §13.1 收紧）。
        *
        * 🔬 owner 真机：同一个动作连出三条近义正文（「已为你写入夜景提示词…」
        * 「已根据所选方向更新了…」「已将提示词更新为…」）—— 因为每个工具步的
        * `message` 都被无条件吐了一颗气泡，而每一步本来就已经有一条 step 事件在
        * 说同一件事。
-       * ⚠ 判据是 `streamedThisStep` 而不是「有没有工具」：模型把 `message` 写在
-       * `tool` 前面时，那半句**已经流到客户端了**，这时不吐 `message` 事件就没有
-       * 任何东西去定稿它（客户端靠这一帧覆盖累积值）。契约里的键序（tool 先）
-       * 本来就要求工具轮不流字，所以守规矩的那些轮次在这里静音。
+       * ⚠ 判据只剩 `closingTurn`：逐字增量删掉之后，工具轮的那半句旁白既没有
+       * 流出去过、也没有任何东西要定稿 —— 吐它就是让线程重新刷屏。
        */
-      if (turn.message?.trim() && (closingTurn || streamedThisStep)) {
+      if (turn.message?.trim() && closingTurn) {
         /**
          * ⚠ `detail` 只在**有正文**时跟着走：一条只有「为什么」没有结论的消息，
          * 在流上表现为一颗点开才有东西的空气泡。

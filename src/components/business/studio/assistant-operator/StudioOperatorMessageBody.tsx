@@ -11,8 +11,8 @@
  *    一颗「展开全文」。⚠ 判据数的是**换行数**不是渲染行数，理由见常量头注。
  *  · **`detail` 折成「为什么」**：正文只写结论 + 下一步，理由点开才看。
  *
- * ⚠ **流着的时候不折**：一条正在长出来的回复中途被折起来，用户看到的是字长到
- * 一半自己没了。折叠只对**定稿之后**的条目生效。
+ * ⚠ 正文**整段一次到齐**（v2 拍板 13）：⛔ 没有逐字揭示，也就没有「流着的时候
+ * 不折」那条例外——`streaming` 只剩「还没有字」这一种含义（占位行）。
  * ⚠ 折叠开合是**局部 state**：它是一次性的阅读动作，不该占 store 的一格 ——
  * 而收放法则（拍板 7）把面板卸载一次之后重新收起，恰恰是对的（那时用户是在
  * 重新读这条会话）。
@@ -33,8 +33,6 @@ import type {
   StudioOperatorMessageEntry,
 } from '@/types/studio-assistant-operator'
 
-import { StudioOperatorStreamingText } from './StudioOperatorStreamingText'
-
 interface StudioOperatorMessageBodyProps {
   entry: StudioOperatorMessageEntry
 }
@@ -51,61 +49,56 @@ interface StudioOperatorMessageBodyProps {
 export function StudioOperatorCollapsibleText({
   text,
   streaming = false,
-  plain = false,
 }: {
   text: string
-  /** 流着的时候不折（字长到一半自己没了）—— 历史那一支恒为 `false`。 */
-  streaming?: boolean
   /**
-   * **一整段字，⛔ 不切片**（历史那一支）。
+   * 这一条**还没有字**（发送即回显的占位行）—— 空正文时画三点脉冲。
    *
-   * ⚠ `StudioOperatorStreamingText` 把正文切成逐字的 `<span>` 并让新片淡入 ——
-   * 那是「看得出在长」的手段，而历史是一次性铺出来的几十条已完成的话：切片在那里
-   * 只换来成千上万个开屏就一起淡一遍的节点，还把一句连续的话在 DOM 上劈成碎片
-   * （按文本找它的人 —— 读屏与用例 —— 就此找不到）。
+   * ⚠ 有字之后它不再改变任何东西：正文整段一次到齐（v2 拍板 13），⛔ 没有
+   * 「写到一半」这种中间态，也就没有「流着的时候不折」这条例外了。
    */
-  plain?: boolean
+  streaming?: boolean
 }) {
   const t = useTranslations('StudioOperator')
   const [expanded, setExpanded] = useState(false)
-  /**
-   * ⭐ **揭示没走完就不折**（owner 2026-09-07 的打字机那一条）。
-   *
-   * 定稿帧到达时 `streaming` 就落了，而那时正文才写到一半 —— 只看 `streaming`
-   * 的表现是一条正在一个字一个字长出来的长回复突然折成首句，用户看到的是
-   * 「字长到一半自己没了」，比不做打字机还糟。
-   */
-  const [revealing, setRevealing] = useState(false)
 
-  const collapsible =
-    !streaming && !revealing && shouldCollapseOperatorText(text)
+  const collapsible = shouldCollapseOperatorText(text)
   const collapsed = collapsible && !expanded
+
+  /**
+   * **发送即回显的占位行**（§4.1）—— 头像已经在了，正文位画三点脉冲。
+   *
+   * ⚠ 高度写死成一行正文高（`text-md`(15px) + `leading-relaxed` ≈ 24px = `h-6`）：
+   * §4.1「骨架尺寸 = 内容尺寸」，第一个字到达时这一行不许跳。
+   */
+  if (!text && streaming) {
+    return (
+      <p
+        data-testid="operator-message-pending"
+        className="flex h-6 items-center gap-1 text-md leading-relaxed"
+        aria-label={t('streaming.pending')}
+      >
+        {[0, 1, 2].map((dot) => (
+          <span
+            key={dot}
+            aria-hidden
+            style={{ animationDelay: `${dot * 140}ms` }}
+            className="size-1 rounded-full bg-muted-foreground/70 animate-pulse motion-reduce:animate-none"
+          />
+        ))}
+      </p>
+    )
+  }
 
   return (
     <>
-      {collapsed ? (
-        <p
-          data-testid="operator-message-text"
-          data-collapsed="true"
-          className="whitespace-pre-wrap text-md leading-relaxed text-foreground"
-        >
-          {firstOperatorSentence(text)}
-        </p>
-      ) : plain ? (
-        <p
-          data-testid="operator-message-text"
-          data-streaming="false"
-          className="whitespace-pre-wrap text-md leading-relaxed text-foreground"
-        >
-          {text}
-        </p>
-      ) : (
-        <StudioOperatorStreamingText
-          text={text}
-          streaming={streaming}
-          onRevealingChange={setRevealing}
-        />
-      )}
+      <p
+        data-testid="operator-message-text"
+        {...(collapsed ? { 'data-collapsed': 'true' } : {})}
+        className="whitespace-pre-wrap text-md leading-relaxed text-foreground"
+      >
+        {collapsed ? firstOperatorSentence(text) : text}
+      </p>
 
       {collapsible ? (
         <button

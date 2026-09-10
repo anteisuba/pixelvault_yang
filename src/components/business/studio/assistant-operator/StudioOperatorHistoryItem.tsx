@@ -97,7 +97,7 @@ export function StudioOperatorHistoryItem({
            一条 8 行的正文此前整条铺开，既没有折叠开关也没有那颗测试锚 ——
            而历史恰恰是最需要折的地方（几十轮堆在一起）。 */
         <div className="flex min-w-0 flex-col gap-1">
-          <StudioOperatorCollapsibleText text={entry.text} plain />
+          <StudioOperatorCollapsibleText text={entry.text} />
         </div>
       )
     case 'plan':

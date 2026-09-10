@@ -46,11 +46,10 @@ export interface StudioOperatorUserEntry {
 /**
  * 助手说的话。
  *
- * ⚠ `streaming` 为真时这条**还在长**（`message_delta` 正在往里累加），⛔ 它不是
- * 「渲染成什么样」的开关：面板据此决定要不要按词淡入、要不要画占位脉冲，而
- * `text` 为空 + `streaming` 为真就是**发送即回显**的那条助手占位行（§4.1）。
- * ⚠ 定稿帧（`message`）到达时由服务端那一版**整体覆盖** `text` 并把这面旗降下来
- * —— 累积值是从半截 JSON 里现解的，与定稿差一两个字符是常态。
+ * ⚠ `streaming` 为真且 `text` 为空 = **发送即回显**的那条助手占位行（§4.1），
+ * 面板据此画三点脉冲。⛔ 它不再有第二种含义：正文整段一次到齐（v2 拍板 13），
+ * 没有「写到一半」这种中间态。
+ * ⚠ 定稿帧（`message`）到达时按条目 id **整体覆盖**这一条，⛔ 不追加（§13.1）。
  */
 export interface StudioOperatorMessageEntry {
   kind: 'message'

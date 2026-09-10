@@ -81,6 +81,21 @@ export const NODE_SLOT_OUTPUTS = [
 export type NodeSlotOutputId = (typeof NODE_SLOT_OUTPUTS)[number]
 
 /**
+ * 卡上**真正画出来**的两颗端口（spec §1.13，画板 `ConnectLines.dc.html` 方向 A）：
+ * 左一入口、右一出口，不再按槽分口。
+ *
+ * ⚠ 与上面的槽表不是一回事：槽仍然是**边的属性**（`edge.slot`），只是不再各有
+ * 一个 handle —— 线松在卡上任何位置都算连上，落进哪个槽由**来源 kind** 推
+ * （`planV4ConnectDrop`）。渲染层因此把所有边的 `targetHandle` 统一写成
+ * `input`、`sourceHandle` 统一写成 `output`：存量里 `sourceHandle = 'tailFrame'`
+ * 的接续边照样画得出来（数据不动，只是不再有第二个口）。
+ */
+export const NODE_PORT_HANDLE_IDS = {
+  input: 'in',
+  output: NODE_SLOT_OUTPUT_IDS.out,
+} as const
+
+/**
  * `text` 槽的角色（第三期 · C1 契约修正 2，owner 定）。
  *
  * ── 为什么槽要再分角色 ──────────────────────────────────────────────────

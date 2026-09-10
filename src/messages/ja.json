@@ -5498,6 +5498,16 @@
         "style": "スタイル",
         "character": "キャラクター"
       },
+      "ports": {
+        "input": "入力",
+        "output": "出力"
+      },
+      "edgeRole": {
+        "menu": "このつながりの役割",
+        "firstFrame": "開始フレームにする",
+        "lastFrame": "終了フレームにする",
+        "reference": "参照にする"
+      },
       "outputs": {
         "out": "出力",
         "tailFrame": "末尾フレーム"

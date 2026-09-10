@@ -25,7 +25,7 @@
  *   —— 批内别名表让第二条认得出刚建的那张，且两条合成一个撤销条目。
  */
 
-import { Handle, NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
+import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -35,7 +35,6 @@ import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
-import { getNodeV4Ports } from '@/constants/node-slots'
 import {
   NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS,
   NODE_V4_CARD,
@@ -59,6 +58,7 @@ import type {
 import { CanvasImageEditWorkspace } from '../../CanvasImageEditWorkspace'
 import {
   NodeCardShell,
+  portSpecOf,
   NodeFrameProgress,
   NodePromptBar,
   NodeToolbar,
@@ -102,53 +102,6 @@ const SHOT_BATCH_REF = 'shot'
 /** 空卡高：16:9（画板 280×200 那张的同一档比例）。 */
 function emptyCardHeight(width: number): number {
   return Math.round((width * 9) / 16)
-}
-
-/** 端口点样式 —— 与 `chrome/NodePorts` 同一份（图片族 = 绿点）。 */
-const PORT_CLASS =
-  '!size-2.5 !border !border-background !bg-emerald-600 dark:!bg-emerald-400'
-
-/**
- * 两侧端口点（spec §1.4「卡两侧永远留空给连线」）。
- *
- * ⚠ 槽表读 `NODE_V4_PORTS`（`getNodeV4Ports`）—— 与连线合法性同一份事实源，
- * ⛔ 不在卡上硬写「一进一出」（那正是 v3 分不清首帧与参考的根）。
- */
-function ImagePorts({ node }: { node: NodeV4 }) {
-  const t = useTranslations('StudioNode.v4')
-  const ports = getNodeV4Ports(node.data.kind, node.data.subtype)
-  return (
-    <>
-      {ports?.inputs.map((spec, index) => (
-        <Handle
-          key={spec.slot}
-          id={spec.slot}
-          type="target"
-          position={Position.Left}
-          data-slot={spec.slot}
-          aria-label={t(`slots.${spec.slot}`)}
-          className={PORT_CLASS}
-          style={{
-            top: `${((index + 1) * 100) / ((ports.inputs.length || 1) + 1)}%`,
-          }}
-        />
-      ))}
-      {ports?.outputs.map((output, index) => (
-        <Handle
-          key={output}
-          id={output}
-          type="source"
-          position={Position.Right}
-          data-output={output}
-          aria-label={t(`outputs.${output}`)}
-          className={PORT_CLASS}
-          style={{
-            top: `${((index + 1) * 100) / ((ports.outputs.length || 1) + 1)}%`,
-          }}
-        />
-      ))}
-    </>
-  )
 }
 
 export function ImageNodeV4({ id, data, selected }: NodeProps) {
@@ -487,7 +440,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         onEmptyAdd={() => fileRef.current?.click()}
         surfaceClassName="overflow-hidden"
         changed={canvas.changedNodeIds.includes(id) || flashed}
-        ports={<ImagePorts node={node} />}
+        portSpec={portSpecOf(node)}
       >
         {imageData.url ? (
           <div

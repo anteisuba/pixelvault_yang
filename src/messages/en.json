@@ -5498,6 +5498,16 @@
         "style": "Style",
         "character": "Character"
       },
+      "ports": {
+        "input": "Input",
+        "output": "Output"
+      },
+      "edgeRole": {
+        "menu": "What this link does",
+        "firstFrame": "Use as first frame",
+        "lastFrame": "Use as last frame",
+        "reference": "Use as reference"
+      },
       "outputs": {
         "out": "Output",
         "tailFrame": "Tail frame"

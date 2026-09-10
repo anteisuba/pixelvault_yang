@@ -29,6 +29,7 @@ import {
 import { defaultMentionSlot } from '@/lib/node-mentions-to-slots'
 import {
   canConnect,
+  NODE_CONNECT_REJECT_REASON_IDS,
   type NodeConnectRejectReason,
 } from '@/lib/node-connection-rules'
 import {
@@ -196,6 +197,64 @@ export function planV4IngestDrop(
   }
 
   return { kind: 'choose', candidates }
+}
+
+/* ═════════════════════════════════════════════════════════════════════════
+ * 落线 / 整卡落卡的落槽决议（S6e，spec §1.13）
+ * ═══════════════════════════════════════════════════════════════════════ */
+
+export type V4ConnectDropPlan =
+  | { readonly kind: 'rejected'; readonly reason: NodeConnectRejectReason }
+  | { readonly kind: 'connect'; readonly slot: NodeSlotId }
+
+/**
+ * 一条拖出来的线（或整张拖过去的卡）落进哪个槽（spec §1.13）。
+ *
+ * 「线松在卡上**任何位置**都算连上，落进哪个槽由来源种类决定」——所以这里**不问
+ * 用户**（`planV4IngestDrop` 的 `choose` 那一档在这条路径上不存在：拖线时用户瞄的
+ * 是整张卡，不是某个口）。默认表复用 `defaultMentionSlot`（§8.2 的同一张），
+ * ⛔ 不第三次写「图→参考 / 语音→语音 / 文本→说明」。
+ *
+ * 首选口不存在或收不下时**不换一个口硬塞**：只在「恰好一个口收得下」时回落
+ * （`audio.voice` 的 `timbre`、文本卡的 `source` 都是这种），否则按拒绝算并把理由
+ * 交出去 —— 静默落进一个用户没想要的槽比不连更糟。
+ */
+export function planV4ConnectDrop(
+  source: NodeV4,
+  target: NodeV4,
+  edges: readonly NodeWorkflowEdgeV4[],
+  nodes: readonly NodeV4[],
+  capacityBySlot?: Partial<Record<NodeSlotId, number>>,
+): V4ConnectDropPlan {
+  const evaluation = evaluateV4Ingest(
+    source,
+    target,
+    edges,
+    nodes,
+    capacityBySlot,
+  )
+  if (!evaluation.legal || evaluation.slots.length === 0) {
+    // ⚠ 叶子源（`image.reference` / `video.clip`）一个入口都没有 —— `evaluateV4Ingest`
+    // 那时连「第一个口」都取不到，于是给不出理由。这一档在这里补上。
+    const hasInputs = (listAllSlots(target).length ?? 0) > 0
+    return {
+      kind: 'rejected',
+      reason: hasInputs
+        ? (evaluation.reason ?? NODE_CONNECT_REJECT_REASON_IDS.kindNotAllowed)
+        : NODE_CONNECT_REJECT_REASON_IDS.unknownSlot,
+    }
+  }
+  const preferred = defaultMentionSlot(source.data.kind, target)
+  if (preferred && evaluation.slots.includes(preferred)) {
+    return { kind: 'connect', slot: preferred }
+  }
+  const only = evaluation.slots.length === 1 ? evaluation.slots[0] : undefined
+  if (only) return { kind: 'connect', slot: only }
+  // 首选口满了（其余口还空着）—— 这是「槽满」，⛔ 不改落别的口。
+  return {
+    kind: 'rejected',
+    reason: NODE_CONNECT_REJECT_REASON_IDS.slotFull,
+  }
 }
 
 /** React 外壳：把上面两个纯函数绑到当前这张图上。 */

@@ -10,6 +10,8 @@ vi.mock('next-intl', () => ({
 // ReactFlow 的 `Handle` 在测试里没有 store，桩成一个带 data-* 的 span 就够——
 // 本组测试要断言的是「哪些槽渲染成了端口、拖线时点不点亮」，不是 ReactFlow 内部。
 vi.mock('@xyflow/react', () => ({
+  // S6e：卡壳从 RF 拿自己的 id（拖线反馈）。桩里给一个固定值就够。
+  useNodeId: () => 'node-1',
   Handle: (props: Record<string, unknown>) => (
     <span
       data-testid="handle"
@@ -35,6 +37,13 @@ vi.mock('@/components/ui/markdown', () => ({
   Markdown: ({ children }: { children: ReactNode }) => (
     <div data-testid="markdown">{children}</div>
   ),
+}))
+
+/** ⋯「加入剪辑台」走动作出口（`useNodeCanvasActions`）——本组只看它被调到。 */
+const openEditDesk = vi.fn()
+vi.mock('./NodeV4ActionsBridge', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./NodeV4ActionsBridge')>()),
+  useNodeCanvasActions: () => ({ openEditDesk }),
 }))
 
 vi.mock('@/components/ui/audio-player', () => ({
@@ -227,95 +236,13 @@ describe('四类节点的两态渲染', () => {
   })
 })
 
-describe('具名端口与拖线点亮', () => {
-  it('镜头节点按端口表渲染五个具名入口 + out/tailFrame 两个出口', () => {
+describe('端口（S6e · spec §1.13：一入一出）', () => {
+  it('镜头卡五个槽也只画一颗入口 + 一颗出口（`tailFrame` 不再有第二个口）', () => {
     const state = scene()
     const { container } = renderNode(VideoNodeV4, 'v_02', harness(state))
-    const inputs = [...container.querySelectorAll('[data-type="target"]')].map(
-      (element) => element.getAttribute('data-slot'),
-    )
-    expect(inputs).toEqual([
-      'firstFrame',
-      'lastFrame',
-      'reference',
-      'voice',
-      'text',
-    ])
-    const outputs = [...container.querySelectorAll('[data-type="source"]')].map(
-      (element) => element.getAttribute('data-output'),
-    )
-    expect(outputs).toEqual(['out', 'tailFrame'])
-  })
-
-  it('从图片拖线时只点亮 firstFrame/lastFrame/reference，其余变灰', () => {
-    const state = scene()
-    const { container } = renderNode(
-      VideoNodeV4,
-      'v_02',
-      harness(state, { draggingFrom: 'i_kf' }),
-    )
-    const lit = [...container.querySelectorAll('[data-type="target"]')]
-      .filter((element) => element.getAttribute('data-lit') === 'true')
-      .map((element) => element.getAttribute('data-slot'))
-    expect(lit).toEqual(['firstFrame', 'lastFrame', 'reference'])
-    const dim = [...container.querySelectorAll('[data-type="target"]')]
-      .filter((element) => element.getAttribute('data-lit') === 'false')
-      .map((element) => element.getAttribute('data-slot'))
-    expect(dim).toEqual(['voice', 'text'])
-  })
-
-  it('从文本拖线时只点亮 text 槽', () => {
-    const state = scene()
-    const { container } = renderNode(
-      VideoNodeV4,
-      'v_02',
-      harness(state, { draggingFrom: 't_02' }),
-    )
-    const lit = [...container.querySelectorAll('[data-type="target"]')]
-      .filter((element) => element.getAttribute('data-lit') === 'true')
-      .map((element) => element.getAttribute('data-slot'))
-    expect(lit).toEqual(['text'])
-  })
-
-  it('script 已满时 text 槽仍然点亮——会落 style，⛔ 不表现成「连不上」', () => {
-    const state = scene()
-    // 场景里 t_02 已经占了 script（0..1）。再拖一份剧本子型的文本过来。
-    const withSecondScript: NodeWorkflowStateV4 = {
-      ...state,
-      nodes: [
-        ...state.nodes,
-        node('t_script', { kind: 'text', subtype: 'script', body: '第二份' }),
-      ],
-    }
-    const { container } = renderNode(
-      VideoNodeV4,
-      'v_02',
-      harness(withSecondScript, { draggingFrom: 't_script' }),
-    )
-    const lit = [...container.querySelectorAll('[data-type="target"]')]
-      .filter((element) => element.getAttribute('data-lit') === 'true')
-      .map((element) => element.getAttribute('data-slot'))
-    expect(lit).toEqual(['text'])
-  })
-})
-
-describe('变更高亮（§7）', () => {
-  /**
-   * ⚠ 主语从图片卡换成镜头卡（2026-09-10 · S3）：图片卡已换到 `NodeCardShell`，
-   * 而变更高亮住在旧的 `NodeV4Shell` 上。`NodeCardShell` 还没有「这张卡被助手改过」
-   * 这个入口 —— 缺口记在 S3 的报告里，⛔ 不在这里给图片卡补一份私有高亮。
-   */
-  it('助手改过的节点带描边与角标', () => {
-    const state = scene()
-    const { container } = renderNode(
-      VideoNodeV4,
-      'v_02',
-      harness(state, { changedNodeIds: ['v_02'] }),
-    )
-    const card = container.querySelector('[data-changed="true"]')
-    expect(card).toBeInTheDocument()
-    // S6 起镜头卡换到 `NodeCardShell`：变更高亮是名字旁那颗细点，⛔ 不再染卡面
-    // （上百张卡同时描边会把画布读成报警面板 —— `NodeCardShell` 头注的同一条）。
-    expect(card?.querySelector('[data-node-card-changed]')).toBeInTheDocument()
+    const inputs = [...container.querySelectorAll('[data-type="target"]')]
+    const outputs = [...container.querySelectorAll('[data-type="source"]')]
+    expect(inputs).toHaveLength(1)
+    expect(outputs).toHaveLength(1)
   })
 })

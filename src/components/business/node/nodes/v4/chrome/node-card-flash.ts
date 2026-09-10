@@ -69,3 +69,62 @@ export function useNodeCardFlash(nodeId: string): boolean {
   // 服务端没有运行态可言 —— 第三个参数返回 false，⛔ 不让 SSR 读模块级可变量。
   return useSyncExternalStore(subscribe, get, () => false)
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * 落线被拒的那一下红环（S6e，spec §1.13「不连 + 卡面短暂红环 + toast 说明原因」）
+ *
+ * ⚠ 与上面那份高亮**分开记账**而不是加一个 `tone` 参数：两者会同时发生（刚被连上
+ * 的卡随即被拒第二条线），共用一个 Set 的话后来的会把前一个的定时器清掉。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+const rejectListeners = new Set<() => void>()
+let rejecting: ReadonlySet<string> = new Set()
+const rejectTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function emitReject() {
+  for (const listener of rejectListeners) listener()
+}
+
+export function flashNodeCardReject(
+  nodeId: string,
+  ms: number = NODE_V4_CONNECT_TO_SHOT.highlightMs,
+): void {
+  const existing = rejectTimers.get(nodeId)
+  if (existing) clearTimeout(existing)
+  const next = new Set(rejecting)
+  next.add(nodeId)
+  rejecting = next
+  rejectTimers.set(
+    nodeId,
+    setTimeout(() => {
+      rejectTimers.delete(nodeId)
+      const after = new Set(rejecting)
+      after.delete(nodeId)
+      rejecting = after
+      emitReject()
+    }, ms),
+  )
+  emitReject()
+}
+
+/** 测试用。⛔ 生产代码不调。 */
+export function resetNodeCardReject(): void {
+  for (const timer of rejectTimers.values()) clearTimeout(timer)
+  rejectTimers.clear()
+  rejecting = new Set()
+  emitReject()
+}
+
+export function useNodeCardReject(nodeId: string | null): boolean {
+  const subscribe = useCallback((onChange: () => void) => {
+    rejectListeners.add(onChange)
+    return () => {
+      rejectListeners.delete(onChange)
+    }
+  }, [])
+  const get = useCallback(
+    () => (nodeId === null ? false : rejecting.has(nodeId)),
+    [nodeId],
+  )
+  return useSyncExternalStore(subscribe, get, () => false)
+}

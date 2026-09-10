@@ -1052,3 +1052,113 @@ html:lang(ja) .domain-canvas .canvas-md h2 {
     transparent 6px 12px
   );
 }
+
+/* ── 连线（S6e · 画板 `ConnectLines.dc.html` 方向 A）─────────────────────
+   端口点 / 拖线中的整卡反馈 / 边上的槽名胶囊。都是**画布专属**且都写不成 Tailwind
+   类（1.5px 边、三层 box-shadow、ReactFlow 自带的 `.react-flow__handle` 要被压过），
+   所以落在这里，⛔ 不用任意值。
+
+   对比度（`contrast-check`，2026-09-10）：端口点是非文本图形对象（门槛 3:1）——
+   黑边 `#0a0a0a` 对白卡 19.80、对画布米纸 18.19；发光环用同一支墨色，同样过。 */
+.react-flow__handle.node-port {
+  width: 12px;
+  height: 12px;
+  min-width: 0;
+  min-height: 0;
+  border-radius: 999px;
+  background: var(--node-panel);
+  border: 1.5px solid var(--node-foreground);
+  opacity: 0;
+  transition:
+    opacity var(--duration-fast) var(--ease-standard),
+    width var(--duration-fast) var(--ease-standard),
+    height var(--duration-fast) var(--ease-standard);
+}
+
+.react-flow__handle.node-port.react-flow__handle-left {
+  left: 0;
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.react-flow__handle.node-port.react-flow__handle-right {
+  right: 0;
+  top: 50%;
+  transform: translate(50%, -50%);
+}
+
+/* 平时藏着：悬停 / 选中 / 画布上正有一条线在拖时才显出（画板 `.p.ghost`）。 */
+[data-node-chrome='card']:hover .react-flow__handle.node-port,
+[data-node-chrome='card'][data-selected='true'] .react-flow__handle.node-port,
+[data-node-chrome='card'][data-connecting='true']
+  .react-flow__handle.node-port {
+  opacity: 1;
+}
+
+/* 拖线起点那颗：18px 黑底「＋」（画板 `.p.hot`）。 */
+.react-flow__handle.node-port.node-port--hot {
+  width: 18px;
+  height: 18px;
+  border-width: 2px;
+  background: var(--node-foreground);
+  color: var(--node-panel);
+  opacity: 1;
+}
+
+.react-flow__handle.node-port.node-port--hot::after {
+  content: '+';
+  display: block;
+  font-size: 13px;
+  line-height: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* 拖线中的整卡反馈：合法目标发光（2px 黑环 + 8px 淡晕），非法目标压暗。 */
+.node-card-glow {
+  box-shadow:
+    0 0 0 2px var(--node-foreground),
+    0 0 0 8px color-mix(in oklab, var(--node-foreground) 8%, transparent),
+    var(--shadow-node-card);
+}
+
+.node-card-dim {
+  opacity: 0.4;
+}
+
+/* 落线被拒的那一下红环（理由走 toast，⛔ 不静默失败）。 */
+.node-card-reject {
+  outline: 2px solid var(--node-status-failed);
+  outline-offset: 0;
+}
+
+/* 已连的线（spec §1.13）：两档而不是五档 —— 平时 1.5px 灰，悬停或任一端选中时
+   2px 黑。⛔ 不按家族分色。
+   对比度：线是非文本图形对象（3:1）——`--foreground` 35% 混透明叠在米纸上实测
+   3.31，选中档纯墨 18.19。 */
+.react-flow__edge-path.node-slot-edge {
+  stroke: color-mix(in oklab, var(--node-foreground) 35%, transparent);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  transition:
+    stroke var(--duration-fast) var(--ease-standard),
+    stroke-width var(--duration-fast) var(--ease-standard);
+}
+
+.react-flow__edge-path.node-slot-edge.node-slot-edge--active {
+  stroke: var(--node-foreground);
+  stroke-width: 2;
+}
+
+/* 线中点的槽名胶囊（画板 `.ech`）。 */
+.node-edge-capsule {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 4px 0 8px;
+  border-radius: 999px;
+  background: var(--node-panel);
+  border: 1px solid color-mix(in oklab, var(--node-foreground) 14%, transparent);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.06);
+}

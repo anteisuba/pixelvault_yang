@@ -16,6 +16,8 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@xyflow/react', () => ({
+  // S6e：卡壳从 RF 拿自己的 id（拖线反馈）。桩里给一个固定值就够。
+  useNodeId: () => 'node-1',
   Handle: (props: Record<string, unknown>) => (
     <span data-testid="handle" data-slot={props['data-slot'] as string} />
   ),

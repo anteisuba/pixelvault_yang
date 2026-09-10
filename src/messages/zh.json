@@ -5498,6 +5498,16 @@
         "style": "风格",
         "character": "角色"
       },
+      "ports": {
+        "input": "入口",
+        "output": "出口"
+      },
+      "edgeRole": {
+        "menu": "这条线的用途",
+        "firstFrame": "作首帧",
+        "lastFrame": "作尾帧",
+        "reference": "作参考"
+      },
       "outputs": {
         "out": "出口",
         "tailFrame": "末帧"

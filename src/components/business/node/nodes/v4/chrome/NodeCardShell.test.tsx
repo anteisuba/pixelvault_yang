@@ -11,11 +11,13 @@ vi.mock('@xyflow/react', () => ({
     <span
       data-testid="handle"
       data-family={props['data-family'] as string}
-      data-slot={props['data-slot'] as string}
-      data-output={props['data-output'] as string}
+      data-port={props['data-port'] as string}
+      data-id={props.id as string}
     />
   ),
   Position: { Left: 'left', Right: 'right' },
+  // 卡壳被直接渲染时不在任何节点里 —— 拖线反馈退成静止态。
+  useNodeId: () => null,
 }))
 
 import { NodeCardShell } from './NodeCardShell'
@@ -113,8 +115,8 @@ describe('NodeCardShell', () => {
   })
 
   // ⚠ 端口渲染件上收进 chrome：调用方只给 `portSpec`，⛔ 不再各自复制一份
-  // `Handle` 与端口色（文本卡曾把四族色写死成蓝，2026-09-10 抓到）。
-  it('`portSpec` 由 NodePorts 默认渲染（左入右出，四族色）', () => {
+  // `Handle`（文本卡曾把四族色写死成蓝，2026-09-10 抓到）。
+  it('`portSpec` 由 NodePorts 默认渲染（一入一出，S6e）', () => {
     const { container } = setup({
       portSpec: {
         kind: 'text',

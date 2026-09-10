@@ -18,17 +18,17 @@ import { useTranslations } from 'next-intl'
 import { useMemo, useState } from 'react'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
-import { getNodeV4Ports, type NodeSlotTextRole } from '@/constants/node-slots'
+import type { NodeSlotTextRole } from '@/constants/node-slots'
 import { NODE_V4_CARD } from '@/constants/node-studio'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { renameStableNodeName } from '@/lib/node-display-name'
-import { listLiveConnectableSlots } from '@/lib/node-slot-binding'
 import type { MentionChipMedia } from './chrome'
 import type { NodeV4, NodeV4TextData } from '@/types/node-workflow'
 
 import {
   ConnectToShotPopover,
   NodeCardShell,
+  portSpecOf,
   flashNodeCard,
   useNodeCardFlash,
 } from './chrome'
@@ -98,16 +98,6 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
   // 多选时两条浮层都收起来 —— 每张卡各弹一条是 v3 被抓到的老毛病
   // （判据与 `NodeV4SelectionToolbar` 同源）。
   const soloSelected = Boolean(selected) && canvas.selectedNodeIds.length <= 1
-  const ports = getNodeV4Ports(node.data.kind, node.data.subtype)
-  const source = canvas.draggingFrom
-    ? canvas.nodes.find((item) => item.id === canvas.draggingFrom)
-    : undefined
-  const litSlots = source
-    ? listLiveConnectableSlots(source, node, canvas.edges, {
-        nodes: canvas.nodes,
-      })
-    : []
-  const dragging = Boolean(source) && source?.id !== id
 
   const renameNode = (next: string): boolean => {
     const taken = new Set(
@@ -188,19 +178,7 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         expanded={expanded}
         changed={canvas.changedNodeIds.includes(id) || flashed}
         width={NODE_V4_CARD.textCollapsedWidth}
-        portSpec={{
-          kind: node.data.kind,
-          left: (ports?.inputs ?? []).map((spec) => ({
-            id: spec.slot,
-            ariaLabel: t(`slots.${spec.slot}`),
-            lit: litSlots.includes(spec.slot),
-          })),
-          right: (ports?.outputs ?? []).map((output) => ({
-            id: output,
-            ariaLabel: t(`outputs.${output}`),
-          })),
-          dragging,
-        }}
+        portSpec={portSpecOf(node)}
       >
         {/* 收起卡 = 正文本身：15px / 1.6、六行截断 + 省略号，⛔ 不可编辑。 */}
         <div

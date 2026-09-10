@@ -12,7 +12,9 @@
  * ② **卡面就是内容**：不透明卡色 + `rounded-node corner-squircle` + hairline 边；
  *    选中 = 1.5px 前景色环、边转透明（画板 `.ring`：`box-shadow: 0 0 0 1.5px`，
  *    ⛔ 不是 `ring-2`——2px 在缩放的画布上会把卡边读成描边框）；
- * ③ **两侧端口点**：卡两侧永远留空给连线（spec §1.4）；
+ * ③ **两侧端口点**：卡两侧永远留空给连线（spec §1.4）；S6e 起是**一入一出**，
+ *    并由这一层承担拖线中的整卡反馈——合法目标发光、非法目标压暗、落线被拒红环
+ *    （spec §1.13）。⛔ 不进各节点组件：四类卡的反馈必须是同一套。
  * ④ **空态插槽**：虚线框 + 一句提示 + 加号圆钮（spec §1.3；粘贴不做按钮）。
  *
  * ⛔ 没有卡头、没有 kind 标、没有 chevron、没有卡内分区栈、没有卡底工具栏。
@@ -20,12 +22,15 @@
  * `expanded` 只是一个标记（换阴影档 + 抬 z）——邻居让位由画布引擎算。
  */
 
+import { useNodeId } from '@xyflow/react'
 import { Plus } from 'lucide-react'
 import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 
 import { NodeV4EditableLabel } from '../NodeV4EditableLabel'
+import { useNodeConnectRole } from './node-connect-state'
+import { useNodeCardReject } from './node-card-flash'
 import { NodePorts, type NodePortsProps } from './NodePorts'
 
 export interface NodeCardShellProps {
@@ -56,8 +61,8 @@ export interface NodeCardShellProps {
   /** 空态卡的高度（图片 16:9、视频 16:9、文本按行数——由调用方定）。 */
   readonly emptyHeight?: number
   /**
-   * 左右两侧的端口点：默认由 `NodePorts` 渲染（四族色、左入右出）。
-   * ⛔ 调用方不要再自己复制一份 `Handle` 与端口色。
+   * 左右两侧的端口点：默认由 `NodePorts` 渲染（一入一出，spec §1.13）。
+   * ⛔ 调用方不要再自己复制一份 `Handle`。
    */
   readonly portSpec?: NodePortsProps
   /** 端口点的完全自定义渲染（给了就覆盖 `portSpec`）。⛔ 卡面上不占位置。 */
@@ -88,6 +93,14 @@ export function NodeCardShell({
   surfaceClassName,
 }: NodeCardShellProps) {
   const empty = children === undefined || children === null
+  /**
+   * ⚠ 从 ReactFlow 拿 id（⛔ 不加一个 `nodeId` prop）：四类卡里有一张正被另一个
+   * 会话改着，而拖线反馈必须四类同时生效。卡壳被单测直接渲染时这里是 `null` ——
+   * 静止态，什么都不亮。
+   */
+  const nodeId = useNodeId()
+  const connect = useNodeConnectRole(nodeId)
+  const rejected = useNodeCardReject(nodeId)
 
   return (
     <div
@@ -96,6 +109,7 @@ export function NodeCardShell({
       data-changed={changed ? 'true' : 'false'}
       data-expanded={expanded ? 'true' : 'false'}
       data-empty={empty ? 'true' : 'false'}
+      data-connecting={connect.connecting ? 'true' : 'false'}
       className={cn('flex flex-col gap-1.5', expanded && 'z-10', className)}
       style={width === undefined ? undefined : { width }}
     >
@@ -134,6 +148,10 @@ export function NodeCardShell({
             // 选中环走 `node-selected-ring`（globals.css 的工具类，`outline`
             // 实现）——卡影已经占了 `box-shadow`，⛔ 不要再拿 shadow 类叠环。
             selected && 'node-selected-ring',
+            // 拖线中（spec §1.13）：收得下 = 发光，收不下 = 压暗。
+            connect.connecting && connect.legal && 'node-card-glow',
+            connect.connecting && !connect.legal && 'node-card-dim',
+            rejected && 'node-card-reject',
             empty
               ? 'border border-dashed border-border'
               : selected
@@ -164,7 +182,7 @@ export function NodeCardShell({
             children
           )}
         </div>
-        {ports ?? (portSpec && <NodePorts {...portSpec} />)}
+        {ports ?? (portSpec && <NodePorts {...portSpec} nodeId={nodeId} />)}
       </div>
     </div>
   )

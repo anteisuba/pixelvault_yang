@@ -1,100 +1,110 @@
 'use client'
 
 /**
- * 卡两侧的**端口点**（spec §1.4「卡两侧永远留空给连线」）。
+ * 卡两侧的**端口点**（spec §1.13，画板 `ConnectLines.dc.html` 方向 A）。
  *
- * S0 原先只在 `NodeCardShell` 留了 `ports` 插槽、没给渲染件，于是文本卡与图片卡
- * 各复制了一份 `Handle` + 一份端口色（真机 2026-09-10 抓到：文本那份写死蓝）。
- * 这一层把渲染件收上来：**四族色是唯一的
- * 画布专属视觉**，只应该有一份。
+ * ── S6e 把五颗紫点收成一入一出 ──────────────────────────────────────────
+ * 之前每张卡按端口表逐槽画一个 `Handle`（镜头卡左侧五颗、四族色），于是「口的
+ * 数量和颜色都在抢注意力」，而且拖线要瞄准 10px 的某一颗。现在**每张卡左一入口、
+ * 右一出口**：12px 白底黑边圆点，平时藏着（悬停 / 选中 / 画布上正拖线时才显出），
+ * 拖线起点那颗变成 18px 黑底「＋」。
  *
- * 纯呈现：左入右出、按数量均分纵向位置、拖拽时点亮/压暗。⛔ 不读槽表、不认识
- * 节点——`getNodeV4Ports` 的结果由调用方翻成 `left` / `right` 两串描述。
- * 文案也由调用方给（chrome 不做 i18n 查表）。
+ * ⚠ 槽没有消失，只是不再有各自的口：落进哪个槽由**来源 kind** 推
+ * （`planV4ConnectDrop`），角色之后在参考轨上改。`tailFrame` 出口不再画——续拍
+ * 走工具条；存量里 `sourceHandle = 'tailFrame'` 的边照样从这一个出口画出去。
+ *
+ * 纯呈现：⛔ 不读槽表、不认识节点。调用方给的 `left` / `right` 只用来回答
+ * 「这张卡有没有入口 / 出口」（叶子源没有入口），逐槽的 id 与点亮状态不再读。
  */
 
 import { Handle, Position } from '@xyflow/react'
+import { useTranslations } from 'next-intl'
 
-import type { NodeWorkflowMediaKind } from '@/constants/node-types'
+import { NODE_PORT_HANDLE_IDS, getNodeV4Ports } from '@/constants/node-slots'
+import type {
+  NodeV4Subtype,
+  NodeWorkflowMediaKind,
+} from '@/constants/node-types'
 import { cn } from '@/lib/utils'
 
-/**
- * 端口点四族色（脊柱以外唯一的画布专属视觉）。
- *
- * ⚠ **对比度实测**（`contrast-check`，非文本图形对象门槛 3:1，2026-09-07）：
- * 浅色卡 `#fff` 上 600 档 —— sky 4.10 · emerald 3.77 · amber 3.19 · violet 5.70；
- * 暗色卡 `oklch(20.5% 0 0)`（`#171717`）上 400 档 —— sky 8.37 · emerald 9.33 ·
- * amber 10.74 · violet 6.59。⛔ 原先的 `600/70` 半透明档四色全部落在 2.1–3.4，
- * amber/violet 在其中一档不达标，已整档换掉，不要改回半透明。
- */
-export const PORT_CLASS =
-  '!size-2.5 !border !border-background !bg-muted-foreground data-[family=text]:!bg-sky-600 dark:data-[family=text]:!bg-sky-400 data-[family=image]:!bg-emerald-600 dark:data-[family=image]:!bg-emerald-400 data-[family=audio]:!bg-amber-600 dark:data-[family=audio]:!bg-amber-400 data-[family=video]:!bg-violet-600 dark:data-[family=video]:!bg-violet-400'
+import { useNodeConnectRole } from './node-connect-state'
 
 export interface NodePortSpec {
-  /** `Handle` 的 id：入口是槽名，出口是出口名。 */
+  /** 槽名 / 出口名。⚠ S6e 起只用来数「这一侧有没有口」。 */
   readonly id: string
-  readonly ariaLabel: string
-  /** 拖拽中这个入口是否亮着（合法落点）。非拖拽态传 undefined。 */
+  /** ⚠ 不再逐槽读：一入一出的两个口由 `NodePorts` 自己起名（三语走 `ports.*`）。 */
+  readonly ariaLabel?: string
   readonly lit?: boolean
 }
 
 export interface NodePortsProps {
-  /** 决定四族色。 */
-  readonly kind: NodeWorkflowMediaKind
-  /** 左侧入口（`type="target"`）。 */
+  /** 只作 `data-family` 调试标 —— 端口不再按族分色（画板：颜色和数量都在抢注意力）。 */
+  readonly kind?: NodeWorkflowMediaKind
+  /** 左侧入口槽：非空 = 这张卡收得下东西。 */
   readonly left?: readonly NodePortSpec[]
-  /** 右侧出口（`type="source"`）。 */
+  /** 右侧出口。 */
   readonly right?: readonly NodePortSpec[]
-  /** 画布上正有一条线在拖：未点亮的入口压暗且不可接。 */
+  /** 保留给调用方的显式覆盖；缺省时读画布的拖线状态。 */
   readonly dragging?: boolean
-}
-
-/** 按个数均分纵向位置：1 个居中，2 个 1/3 与 2/3，以此类推。 */
-function offsetOf(index: number, total: number): string {
-  return `${((index + 1) * 100) / ((total || 1) + 1)}%`
+  /** 这张卡的 id（`NodeCardShell` 从 `useNodeId()` 拿）。 */
+  readonly nodeId?: string | null
 }
 
 export function NodePorts({
   kind,
   left = [],
   right = [],
-  dragging = false,
+  nodeId = null,
 }: NodePortsProps) {
+  const t = useTranslations('StudioNode.v4.ports')
+  const { isSource } = useNodeConnectRole(nodeId)
+
   return (
     <>
-      {left.map((spec, index) => (
+      {left.length > 0 && (
         <Handle
-          key={spec.id}
-          id={spec.id}
+          id={NODE_PORT_HANDLE_IDS.input}
           type="target"
           position={Position.Left}
-          isConnectable={!dragging || Boolean(spec.lit)}
-          data-family={kind}
-          data-slot={spec.id}
-          data-lit={dragging ? (spec.lit ? 'true' : 'false') : 'idle'}
-          aria-label={spec.ariaLabel}
-          className={cn(
-            PORT_CLASS,
-            'transition-opacity',
-            dragging && !spec.lit && 'opacity-30',
-            dragging && spec.lit && 'scale-125 opacity-100',
-          )}
-          style={{ top: offsetOf(index, left.length) }}
+          // 线只从右边的出口起手（画板：出口带「＋」，入口只接）。
+          isConnectableStart={false}
+          {...(kind ? { 'data-family': kind } : {})}
+          data-port="input"
+          aria-label={t('input')}
+          className="node-port"
         />
-      ))}
-      {right.map((spec, index) => (
+      )}
+      {right.length > 0 && (
         <Handle
-          key={spec.id}
-          id={spec.id}
+          id={NODE_PORT_HANDLE_IDS.output}
           type="source"
           position={Position.Right}
-          data-family={kind}
-          data-output={spec.id}
-          aria-label={spec.ariaLabel}
-          className={PORT_CLASS}
-          style={{ top: offsetOf(index, right.length) }}
+          isConnectableEnd={false}
+          {...(kind ? { 'data-family': kind } : {})}
+          data-port="output"
+          data-hot={isSource ? 'true' : 'false'}
+          aria-label={t('output')}
+          className={cn('node-port', isSource && 'node-port--hot')}
         />
-      ))}
+      )}
     </>
   )
+}
+
+/**
+ * 端口表 → 两侧描述。四类卡都调它，⛔ 不各写一份「这张卡有没有入口」。
+ * 叶子源（`image.reference` / `video.clip`）没有入口，于是左侧不画点。
+ */
+export function portSpecOf(node: {
+  readonly data: {
+    readonly kind: NodeWorkflowMediaKind
+    readonly subtype: NodeV4Subtype
+  }
+}): NodePortsProps {
+  const ports = getNodeV4Ports(node.data.kind, node.data.subtype)
+  return {
+    kind: node.data.kind,
+    left: (ports?.inputs ?? []).map((spec) => ({ id: spec.slot })),
+    right: (ports?.outputs ?? []).map((output) => ({ id: output })),
+  }
 }

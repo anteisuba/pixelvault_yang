@@ -109,7 +109,7 @@ import { VideoFrameChip } from './video/VideoFrameChip'
 import { VideoNodeFrame } from './video/VideoNodeFrame'
 import { VideoAddMenuItems, VideoMoreMenuItems } from './video/VideoNodeMenus'
 import { VideoPlayer } from './video/VideoPlayer'
-import { VideoRefRail } from './video/VideoRefRail'
+import { VideoRefRail, type VideoRailPendingItem } from './video/VideoRefRail'
 import {
   formatVideoSeconds,
   videoCardHeight,
@@ -119,6 +119,7 @@ import {
   videoVersions,
 } from './video/video-node-model'
 import { ModelPickerPopover } from '../../../studio-shared/pickers/ModelPickerPopover'
+import { useOpenApiKeys } from '../../workbench-v4/shell/ShellApiKeys'
 
 /** 「续拍」那一批里的两个别名（只在这一批之内有效）。 */
 const CONTINUE_BATCH_REFS = { tail: 'tail', shot: 'shot' } as const
@@ -168,6 +169,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const generation = useNodeMediaGenerationV4()
   const upload = useNodeUploadV4()
   const frames = useVideoReferenceSlots()
+  const openApiKeys = useOpenApiKeys()
   const videoData = data as unknown as NodeV4VideoData
   /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
   const flashed = useNodeCardFlash(id)
@@ -176,6 +178,25 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const [quickLook, setQuickLook] = useState(false)
   /** 素材库开在哪一组（`null` = 没开）—— 选中后按组新建卡并挂进轨。 */
   const [assetPicker, setAssetPicker] = useState<VideoRailGroupId | null>(null)
+  /**
+   * 正在上传、还没落成卡的那几格（owner 2026-09-10 真机反馈第七条：拖一张图进来
+   * 到它出现在轨上之间什么都没有，用户会以为没拖上）。
+   *
+   * ⚠ 只有**这一条**在跑的那一格有真实进度（`useNodeUploadV4` 是单飞的），其余
+   * 排队的格子进度停在 0 —— ⛔ 不给它们编一个假进度。
+   */
+  const [pendingUploads, setPendingUploads] = useState<
+    readonly {
+      readonly id: string
+      readonly group: VideoRailGroupId
+      readonly name: string
+      readonly file: File
+      readonly error?: string | null
+    }[]
+  >([])
+  const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
+  /** 卡本体换本片时的裱框显影（同一条反馈：上传也要有显影）。 */
+  const [selfUploading, setSelfUploading] = useState(false)
   const [hovering, setHovering] = useState(false)
   const [hoverProgress, setHoverProgress] = useState(0)
   const [draft, setDraft] = useState(videoData.prompt ?? '')
@@ -272,23 +293,69 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     [backfillMedia],
   )
 
-  /** 上传一份素材：给了组就新建一张卡挂进轨，没给就落进这张卡自己（成片）。 */
+  /**
+   * 轨上那一格的上传本体 —— 新建占位项之后与「重试」共用这一条。
+   * 成功 = 占位项换成真卡（`attachToRail`）；失败 = 占位项变红留在原位。
+   */
+  const startRailUpload = useCallback(
+    (pendingId: string, group: VideoRailGroupId, file: File) => {
+      const bound = latest.current
+      setActiveUploadId(pendingId)
+      setPendingUploads((list) =>
+        list.map((item) =>
+          item.id === pendingId ? { ...item, error: null } : item,
+        ),
+      )
+      void bound.upload
+        .upload(RAIL_GROUP_TARGETS[group].kind, file, bound.name)
+        .then((patch) => {
+          setActiveUploadId((current) =>
+            current === pendingId ? null : current,
+          )
+          if (!patch?.url) {
+            setPendingUploads((list) =>
+              list.map((item) =>
+                item.id === pendingId
+                  ? {
+                      ...item,
+                      error: tVideo('rail.uploadFailed', { name: item.name }),
+                    }
+                  : item,
+              ),
+            )
+            return
+          }
+          setPendingUploads((list) =>
+            list.filter((item) => item.id !== pendingId),
+          )
+          void attachToRail(group, { ...patch, url: patch.url })
+        })
+    },
+    [attachToRail, tVideo],
+  )
+
+  /** 上传一份素材：给了组就先落一个占位项再新建卡，没给就落进这张卡自己（成片）。 */
   const runUpload = useCallback(
     (file: File, group: VideoRailGroupId | null) => {
       const bound = latest.current
-      const kind = group
-        ? RAIL_GROUP_TARGETS[group].kind
-        : NODE_MEDIA_KIND_IDS.video
-      void bound.upload.upload(kind, file, bound.name).then((patch) => {
-        if (!patch?.url) return
-        if (!group) {
-          bound.canvas.onSetMedia(bound.id, patch)
-          return
-        }
-        void attachToRail(group, { ...patch, url: patch.url })
-      })
+      if (!group) {
+        setSelfUploading(true)
+        void bound.upload
+          .upload(NODE_MEDIA_KIND_IDS.video, file, bound.name)
+          .then((patch) => {
+            setSelfUploading(false)
+            if (patch?.url) bound.canvas.onSetMedia(bound.id, patch)
+          })
+        return
+      }
+      const pendingId = `${Date.now()}-${file.name}`
+      setPendingUploads((list) => [
+        ...list,
+        { id: pendingId, group, name: file.name, file },
+      ])
+      startRailUpload(pendingId, group, file)
     },
-    [attachToRail],
+    [startRailUpload],
   )
 
   /**
@@ -705,8 +772,19 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   }
 
   /** 轨上的公共动作 —— 提示词栏与画中框摆的是同一个组件、同一批回调。 */
+  const railPending: readonly VideoRailPendingItem[] = pendingUploads.map(
+    (item) => ({
+      id: item.id,
+      group: item.group,
+      name: item.name,
+      progress: item.id === activeUploadId ? upload.progress : 0,
+      ...(item.error ? { error: item.error } : {}),
+    }),
+  )
+
   const railProps = {
     items: railItems,
+    pending: railPending,
     capacity: railCapacity,
     referenceUnavailable: railCapacity.referenceUnavailable,
     disabled: generating,
@@ -742,6 +820,12 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     // （2026-09-10 真机实测）。⛔ 不要改成同帧直接 setState。
     onLibrary: (group: VideoRailGroupId) =>
       window.setTimeout(() => setAssetPicker(group), 0),
+    onRetryPending: (pendingId: string) => {
+      const item = pendingUploads.find((entry) => entry.id === pendingId)
+      if (item) startRailUpload(item.id, item.group, item.file)
+    },
+    onRemovePending: (pendingId: string) =>
+      setPendingUploads((list) => list.filter((item) => item.id !== pendingId)),
   }
 
   const toolbarGroups: readonly NodeToolbarGroup[] = [
@@ -874,6 +958,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         options={modelOptions.map(toStudioModelOption)}
         value={effectiveModel?.optionId ?? null}
         memoryScope={NODE_MEDIA_KIND_IDS.video}
+        // 缺 key 的行点了进内联配置（Hard Rule 8）——⛔ 不选中、不写 `set_model`。
+        {...(openApiKeys ? { onManageChannels: openApiKeys } : {})}
         disabled={generating}
         triggerEmptyLabel={tVideo('model.title')}
         onChange={(option) => {
@@ -982,7 +1068,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           dragging: Boolean(dragSource) && dragSource?.id !== id,
         }}
       >
-        {videoData.url || generating ? (
+        {videoData.url || generating || selfUploading ? (
           <div
             data-video-surface={videoData.url ? 'ready' : 'pending'}
             className="relative"
@@ -1091,6 +1177,18 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 )}
               />
             )}
+
+            {/* 换本片的上传也走裱框显影（owner 真机反馈第七条）——⛔ 不让卡
+                在上传的那几秒里一动不动。 */}
+            {!generating && selfUploading && (
+              <NodeFrameProgress
+                elapsedSeconds={0}
+                realProgress={upload.progress}
+                stageLabel={tVideo('rail.uploading', {
+                  name: displayName,
+                })}
+              />
+            )}
           </div>
         ) : undefined}
       </NodeCardShell>
@@ -1121,7 +1219,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               onCancel={() => setStartedAt(null)}
               placeholder={tVideo('promptPlaceholder')}
               ariaLabel={tVideo('promptLabel')}
-              className="w-95"
+              // 轨换第二行时栏跟着长，最大 420（画板 `VideoRefs.dc.html` 的栏宽）。
+              className="w-fit min-w-95 max-w-105"
               addMenu={
                 <VideoAddMenuItems
                   candidatesOf={railCandidatesOf}
@@ -1143,6 +1242,9 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               renderValue={(value) =>
                 renderPromptMentions(value, {
                   names: [...railNames, ...tokens.map((token) => token.name)],
+                  // `@图2` 这类序号项在栏里也带缩略（owner 真机反馈第三条）——
+                  // 与轨、与画中框读的是同一份 `mentionOptionMedia`。
+                  mediaOf: mentionOptionMedia,
                 })
               }
               chips={[paramsChip, modelChip].filter(Boolean)}

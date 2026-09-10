@@ -5943,7 +5943,10 @@
           "addLabel": "{group}を追加",
           "full": "上限に達しました（最大 {limit}）",
           "referenceUnavailable": "このモデルには参照バリアントがありません。付けても送信されません",
-          "mentionGroup": "参照レーン"
+          "mentionGroup": "参照レーン",
+          "retry": "再試行",
+          "uploading": "{name} をアップロード中",
+          "uploadFailed": "{name} のアップロードに失敗しました"
         }
       },
       "connectToShot": {

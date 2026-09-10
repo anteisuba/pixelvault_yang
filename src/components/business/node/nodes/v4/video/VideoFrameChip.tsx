@@ -140,14 +140,15 @@ export function VideoFrameChip({
           data-video-frame-chip
           aria-label={t('frame.title')}
           className={cn(
-            'nodrag nopan inline-flex min-h-6 shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-2xs',
+            // 与模型 chip 同一条：可被压缩、超了省略（⛔ 不横向滚动）。
+            'nodrag nopan inline-flex min-h-6 min-w-0 max-w-50 items-center gap-1 rounded-md border px-2 py-0.5 text-2xs',
             'border-border text-muted-foreground transition-colors duration-fast ease-standard',
             'hover:border-foreground/40 hover:text-foreground',
             'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
             'disabled:pointer-events-none disabled:opacity-60',
           )}
         >
-          {label}
+          <span className="truncate">{label}</span>
         </button>
       }
     >

@@ -3,10 +3,13 @@
 /**
  * 卡下那条**提示词栏**（spec §1.5，画板 `PromptBar.dc.html` / `Main.dc.html`）。
  *
- * 一条 44px 玻璃胶囊：`+` 圆钮 · 正文 · 最多 3 颗 chip · 发送圆钮。
- * 正文超一行**原地长高**到 4 行（此时圆角从胶囊退成 20px 方块、`+` 与 chip 挪到
- * 底行），再多就是内部滚动 + 右下角字数——⛔ 不弹大编辑器（长词该去文本节点写完
- * 再连过来，画板上写死的话）。
+ * 一片玻璃：正文一行、`+` 与 chip 与发送钮一行。正文**最小两行**
+ * （`NODE_V4_CHROME.promptMinLines`，2026-09-10 owner 真机反馈第一条：一行的编辑
+ * 区太小），随字数原地长高到 4 行，再多就是内部滚动 + 右下角字数——⛔ 不弹大编辑
+ * 器（长词该去文本节点写完再连过来，画板上写死的话）。
+ *
+ * ⚠ 44px 单行胶囊那一形态已随「最小两行」**整个退役**：两行的正文塞不进 44 的
+ * 胶囊，留着就是一条永远走不到的分支。
  *
  * 生成中：整条变灰、正文只读、发送钮换成取消（spec §1.9「提示词栏收起变灰并可取消」）。
  *
@@ -62,8 +65,7 @@ export interface NodePromptBarProps {
    * **栏内首行**（画板 `VideoSelected.dc.html`：已挂的首帧 / 尾帧 / 语音那排小
    * chip 就在栏里、正文之上，同一片玻璃）。
    *
-   * ⚠ 有内容才占这一行（`null` / `false` / 空数组都当没有）；有它时整条栏退成
-   * 方角的堆叠形态 —— ⛔ 不在胶囊里硬塞第二行。
+   * ⚠ 有内容才占这一行（`null` / `false` / 空数组都当没有）。
    */
   readonly leadingRow?: ReactNode
   readonly ariaLabel: string
@@ -215,13 +217,14 @@ export function NodePromptBar({
     leadingRow !== null &&
     leadingRow !== false &&
     !(Array.isArray(leadingRow) && leadingRow.length === 0)
-  // 首行占位时整条栏必须退成堆叠形态（画板：chip 一行、正文一行、控件一行），
-  // ⛔ 不在 44 高的胶囊里硬塞第二行。
-  const expanded = lines > 1 || hasLeadingRow
   const overflowing = lines > NODE_V4_CHROME.promptMaxLines
   const visibleChips = (chips ?? []).slice(0, NODE_V4_CHROME.promptChipMax)
-  const textareaHeight =
-    Math.min(lines, NODE_V4_CHROME.promptMaxLines) * LINE_HEIGHT_PX
+  /** 两行起、四行封顶 —— 中间随字数长高。 */
+  const bodyLines = Math.min(
+    Math.max(lines, NODE_V4_CHROME.promptMinLines),
+    NODE_V4_CHROME.promptMaxLines,
+  )
+  const textareaHeight = bodyLines * LINE_HEIGHT_PX
 
   const addButton = addMenu ? (
     <DropdownMenu>
@@ -275,11 +278,8 @@ export function NodePromptBar({
 
   // 正文与 overlay 的排版类必须**逐条相同**，否则同一段字在两层里断行的位置不一样。
   const typography = cn(
-    'text-sm leading-5',
+    'text-sm leading-5 whitespace-pre-wrap',
     overflowing ? 'overflow-y-auto' : 'overflow-hidden',
-    // 收起态是**一行不折行**（画板的 `white-space:nowrap` + 截断），⛔ 不让被
-    // chip 挤窄的 textarea 自己折行——那会让「一句话」看起来像「一段话」。
-    expanded ? 'whitespace-pre-wrap' : 'overflow-x-hidden whitespace-pre',
   )
 
   const textarea = (
@@ -363,13 +363,8 @@ export function NodePromptBar({
     <div
       data-prompt-bar-field
       style={{ height: textareaHeight }}
-      className={cn(
-        'relative min-w-0',
-        // 长高态：`basis-full` 逼出一次换行 = 正文独占首行、`+` 与 chip 落到底行。
-        // ⚠ 这是**同一份 DOM 换类**，⛔ 不换成两套 JSX 分支：React 会把 textarea
-        // 搬到另一个父节点上重挂，重挂那一下 inline height 当场丢掉（真机实测）。
-        expanded ? 'order-first basis-full' : 'flex-1',
-      )}
+      // `basis-full` 逼出一次换行 = 正文独占首行、`+` 与 chip 落到底行。
+      className="relative order-first min-w-0 basis-full"
     >
       {renderValue ? (
         <div
@@ -391,16 +386,12 @@ export function NodePromptBar({
   return (
     <div
       data-node-chrome="prompt-bar"
-      data-expanded={expanded ? 'true' : 'false'}
       data-generating={generating ? 'true' : 'false'}
       // 栏里双击（选词、双击 chip）**不冒泡到卡片** —— 卡片的双击是「展开」，
       // 在栏里选个词就把画中框顶出来是 2026-09-10 owner 真机反馈的第五条。
       onDoubleClick={(event) => event.stopPropagation()}
       className={cn(
-        'relative surface-glass shadow-node-chrome transition-[border-radius] duration-spring-slot ease-spring-slot',
-        expanded
-          ? 'rounded-node corner-squircle py-3 pr-2 pl-3.5'
-          : 'h-11 rounded-full px-2',
+        'relative rounded-node surface-glass shadow-node-chrome corner-squircle py-3 pr-2 pl-3.5',
         generating && 'opacity-60',
         className,
       )}
@@ -435,21 +426,10 @@ export function NodePromptBar({
           {leadingRow}
         </div>
       ) : null}
-      <div
-        className={cn(
-          'flex flex-wrap items-center gap-x-2.5',
-          hasLeadingRow ? undefined : 'h-full',
-          expanded && 'gap-y-2',
-        )}
-      >
+      <div className="flex flex-wrap items-center gap-x-2.5 gap-y-2">
         {addButton}
         {field}
-        <div
-          className={cn(
-            'flex items-center gap-1.5',
-            expanded ? 'min-w-0 flex-1' : 'shrink-0',
-          )}
-        >
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
           {visibleChips}
         </div>
         {overflowing && (

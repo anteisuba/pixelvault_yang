@@ -1401,10 +1401,13 @@ export const NODE_V4_LAYOUT = {
 export const NODE_V4_CHROME = {
   /** 工具条一格（纯图标，34×34；命中区 ≥ AA 底线 24）。 */
   toolbarCellSize: 34,
-  /** 提示词栏单行态高度（一条玻璃胶囊）。 */
-  promptBarHeight: 44,
   /** chip 数量上限（spec §1.5）。 */
   promptChipMax: 3,
+  /**
+   * 正文的**最小**行数（2026-09-10 owner 真机反馈第一条：一行的编辑区太小，
+   * 一句话写到一半就看不见开头）。四类卡通用 —— ⛔ 不给某一类卡单独放宽。
+   */
+  promptMinLines: 2,
   /** 正文自动长高的行数上限，再多就是内部滚动 + 字数（⛔ 不弹大编辑器）。 */
   promptMaxLines: 4,
   /** 画中框宽：文本 640 / 视频 720（spec §2 §5），由调用方选一个传进来。 */

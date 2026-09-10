@@ -38,6 +38,7 @@ import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useModelPickerMemory } from '@/hooks/use-model-picker-memory'
 import { isRunnableModelOption } from '@/hooks/use-split-model-options'
 import {
+  channelHasOption,
   flattenPickerModels,
   groupModelsForPicker,
   type PickerChannel,
@@ -247,7 +248,9 @@ export function ModelPickerPopover({
           model.label,
           seriesLabel,
           ...channels.map((c) => c.channel.label),
-          ...channels.map((c) => c.channel.option.modelId),
+          ...channels.flatMap((c) =>
+            c.channel.variants.map((option) => option.modelId),
+          ),
         ]
           .join(' ')
           .toLowerCase(),
@@ -300,20 +303,33 @@ export function ModelPickerPopover({
     if (multi || !value) return null
     return (
       rows.find((row) =>
-        row.channels.some((c) => c.channel.channelId === value),
+        // ⚠ 按**折起来的全部变体**认：存量卡上存的可能正是被折掉的那个参考变体
+        // 的 `optionId`，只比代表那条会让 chip 当场退回「选模型」。
+        row.channels.some((c) => channelHasOption(c.channel, value)),
       ) ?? null
     )
   }, [multi, rows, value])
 
   const isRowSelected = (row: ModelRow): boolean =>
     multi
-      ? row.channels.some((c) => selectedOptionIds?.has(c.channel.channelId))
-      : row.channels.some((c) => c.channel.channelId === value)
+      ? row.channels.some((c) =>
+          c.channel.variants.some((option) =>
+            selectedOptionIds?.has(option.optionId),
+          ),
+        )
+      : row.channels.some(
+          (c) => value !== null && channelHasOption(c.channel, value),
+        )
 
   const commit = (option: StudioModelOption, modelKey: string) => {
     if (!isRunnableModelOption(option)) {
-      onRequestSetup?.(option)
-      if (!multi) setOpen(false)
+      // 缺 key 的行**只带去配置**（Hard Rule 8 + owner 2026-09-10 真机反馈第五条）：
+      // ⛔ 不选中、⛔ 不写 `set_model`、⛔ 不进「最近」——配好 key 回来这一行自己
+      // 就可选了。宿主给了 `onManageChannels`（画布四类卡）就开那个抽屉，
+      // 没给的（studio 三处）走 `onRequestSetup` 的 `QuickSetupDialog`。
+      setOpen(false)
+      if (onManageChannels) onManageChannels()
+      else onRequestSetup?.(option)
       return
     }
     memory.rememberRecent(modelKey)

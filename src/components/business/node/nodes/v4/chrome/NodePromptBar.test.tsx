@@ -41,14 +41,9 @@ function setup(
 }
 
 describe('NodePromptBar', () => {
-  it('leadingRow 有内容才占栏内首行，并把整条栏推成堆叠形态', () => {
+  it('leadingRow 有内容才占栏内首行', () => {
     const { container, rerender } = setup()
     expect(container.querySelector('[data-prompt-bar-leading]')).toBeNull()
-    expect(
-      container
-        .querySelector('[data-node-chrome="prompt-bar"]')
-        ?.getAttribute('data-expanded'),
-    ).toBe('false')
 
     // `null` 与空数组都当没有——调用方常传一个「没东西时返回 null」的元素。
     rerender(
@@ -78,11 +73,6 @@ describe('NodePromptBar', () => {
     expect(row?.contains(screen.getByTestId('slot-chips'))).toBe(true)
     // 首行与正文在**同一片玻璃**里：它是提示词栏自己的子节点。
     expect(row?.closest('[data-node-chrome="prompt-bar"]')).not.toBeNull()
-    expect(
-      container
-        .querySelector('[data-node-chrome="prompt-bar"]')
-        ?.getAttribute('data-expanded'),
-    ).toBe('true')
   })
 
   it('Enter 发送、Shift+Enter 换行、IME 组字期间放行', () => {
@@ -119,12 +109,14 @@ describe('NodePromptBar', () => {
     expect(screen.queryByText('c4')).toBeNull()
   })
 
-  it('单行是 44px 胶囊；超一行原地长高并把 chip 挪到底行', () => {
+  /**
+   * 2026-09-10 owner 真机反馈第一条：一行的编辑区太小。正文**最小两行**（40px），
+   * 随字数长到 4 行（80px）封顶 —— ⛔ 44px 单行胶囊那一形态已整个退役。
+   */
+  it('正文最小两行，随字数长高到 4 行封顶', () => {
     stubScrollHeight(20)
-    const { container, rerender } = setup()
-    const bar = container.querySelector('[data-node-chrome="prompt-bar"]')
-    expect(bar).toHaveAttribute('data-expanded', 'false')
-    expect(bar?.className).toContain('h-11')
+    const { rerender } = setup()
+    expect(screen.getByLabelText('提示词').style.height).toBe('40px')
 
     stubScrollHeight(60)
     rerender(
@@ -136,9 +128,19 @@ describe('NodePromptBar', () => {
         ariaLabel="提示词"
       />,
     )
-    expect(
-      container.querySelector('[data-node-chrome="prompt-bar"]'),
-    ).toHaveAttribute('data-expanded', 'true')
+    expect(screen.getByLabelText('提示词').style.height).toBe('60px')
+
+    stubScrollHeight(200)
+    rerender(
+      <NodePromptBar
+        value={'很长很长的一段'.repeat(40)}
+        onValueChange={vi.fn()}
+        onSubmit={vi.fn()}
+        placeholder="写点什么"
+        ariaLabel="提示词"
+      />,
+    )
+    expect(screen.getByLabelText('提示词').style.height).toBe('80px')
   })
 
   it('超 4 行内部滚动并显示字数（⛔ 不弹大编辑器）', () => {

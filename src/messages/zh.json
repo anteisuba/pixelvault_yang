@@ -5943,7 +5943,10 @@
           "addLabel": "添加{group}",
           "full": "已满（上限 {limit}）",
           "referenceUnavailable": "这个模型没有参考变体，挂上去也发不出去",
-          "mentionGroup": "参考轨"
+          "mentionGroup": "参考轨",
+          "retry": "重试",
+          "uploading": "正在上传 {name}",
+          "uploadFailed": "{name} 上传失败"
         }
       },
       "connectToShot": {

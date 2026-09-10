@@ -172,7 +172,7 @@ describe('ModelPickerPopover', () => {
     expect(toggle).toHaveAttribute('aria-expanded', 'true')
   })
 
-  it('remembers a manually picked channel and appends it to the chip', () => {
+  it('remembers a manually picked channel and puts it in the chip title', () => {
     const { onChange, rerender } = openPicker()
     fireEvent.click(
       screen.getByRole('button', { name: /ModelPicker.channelCount/ }),
@@ -190,7 +190,8 @@ describe('ModelPickerPopover', () => {
     expect(window.localStorage.getItem('pv:model-picker:channel')).toContain(
       'seedream-5.0-pro',
     )
-    // chip 这时才附渠道名（自动选中的渠道不写）。
+    // 2026-09-10 owner 真机反馈第六条：手改过的渠道退到 `title` 上，
+    // chip 上**只有型号名**（带上「· 渠道」会让栏底那一行出框）。
     rerender(
       <ModelPickerPopover
         options={FIXTURE}
@@ -199,7 +200,22 @@ describe('ModelPickerPopover', () => {
       />,
     )
     const chip = screen.getByRole('button', { name: /Seedream 5.0 Pro/ })
-    expect(chip.textContent).toMatch(/·/)
+    expect(chip.textContent).not.toMatch(/·/)
+    expect(chip.getAttribute('title')).toMatch(/·/)
+  })
+
+  /**
+   * owner 2026-09-10 真机反馈第五条：缺 key 的行点了应该弹配置，而不是挂上一个
+   * 跑不了的模型。宿主给了 `onManageChannels`（画布四类卡）就开那个抽屉。
+   */
+  it('routes a needs-key row to the inline channel setup and never selects it', () => {
+    const onManageChannels = vi.fn()
+    const { onChange, onRequestSetup } = openPicker({ onManageChannels })
+    fireEvent.click(screen.getByText('GPT Image 2'))
+    expect(onManageChannels).toHaveBeenCalledTimes(1)
+    expect(onChange).not.toHaveBeenCalled()
+    expect(onRequestSetup).not.toHaveBeenCalled()
+    expect(window.localStorage.getItem('pv:model-picker:recent')).toBeNull()
   })
 
   it('keeps the panel open in multi-select mode and toggles instead of choosing', () => {

@@ -5943,7 +5943,10 @@
           "addLabel": "Add {group}",
           "full": "Full (max {limit})",
           "referenceUnavailable": "This model has no reference variant — attachments would not be sent",
-          "mentionGroup": "On the rail"
+          "mentionGroup": "On the rail",
+          "retry": "Retry",
+          "uploading": "Uploading {name}",
+          "uploadFailed": "{name} failed to upload"
         }
       },
       "connectToShot": {

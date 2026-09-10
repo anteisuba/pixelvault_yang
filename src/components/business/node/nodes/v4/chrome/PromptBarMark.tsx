@@ -68,3 +68,33 @@ export function PromptBarMark({
 export function PromptBarMarkHidden({ text }: { readonly text: string }) {
   return <span className="text-transparent">{text}</span>
 }
+
+/**
+ * 藏起来的那几个字符 + **压在它们上面**的 16px 缩略（2026-09-10 owner 真机反馈
+ * 第三条：栏内的 `@图2` 也要看得见挂的是哪张图）。
+ *
+ * ⚠ 这是唯一能在镜像层里放图而不错位的画法：缩略是 `absolute`，**一点布局宽度都
+ * 不占**，占位的仍是那几个透明字符本身。所以调用方只能把它用在「藏起来的那段
+ * 至少和缩略一样宽」的地方 —— 轨上序号项的 `@图` / `@视频` / `@语音` 前缀正好
+ * 够宽，普通 `@名字` 只有一个 `@`（约 8px）就不够，那里不画缩略。
+ */
+export function PromptBarMarkThumb({
+  text,
+  children,
+}: {
+  readonly text: string
+  readonly children: ReactNode
+}) {
+  return (
+    <span className="relative">
+      <span className="text-transparent">{text}</span>
+      <span
+        aria-hidden
+        data-prompt-bar-thumb
+        className="pointer-events-none absolute top-1/2 left-1/2 flex size-4 -translate-x-1/2 -translate-y-1/2 items-center justify-center overflow-hidden rounded-xs bg-surface-fill-track"
+      >
+        {children}
+      </span>
+    </span>
+  )
+}

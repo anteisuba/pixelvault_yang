@@ -6,11 +6,17 @@
  * ⚠ 这里画出来的字符必须与 `value` **逐字符相同**：镜像层与 textarea 分毫不差地
  * 排版，光标才落在看到的字上。要藏的字符（方括号、强度前缀）用
  * `PromptBarMarkHidden` 变透明 —— 它们顺手就是 chip 的内边距。⛔ 不删字符、
- * ⛔ 不加 `padding`、⛔ 不塞缩略图（见 `PromptBarMark` 头注）。
+ * ⛔ 不加 `padding`。
+ *
+ * 缩略图**只能压在藏起来的字符上**（`PromptBarMarkThumb`，绝对定位、零布局宽度）：
+ * 轨上序号项的 `@图2` 把 `@图` 藏掉、缩略压上去、只留下号（owner 2026-09-10 真机
+ * 反馈第三条）。普通 `@名字` 前面只有一个 `@`，宽度不够放 16px，那里不画。
  */
 
+import Image from 'next/image'
 import type { ReactNode } from 'react'
 
+import { NODE_V4_CHROME } from '@/constants/node-studio'
 import {
   VOICE_MARKUP,
   VOICE_MARKUP_INTENSITIES,
@@ -18,13 +24,60 @@ import {
   parseVoiceMarkup,
 } from '@/lib/voice-markup'
 
+import type { MentionChipMedia } from './MentionChip'
 import { parseMentions, type ParseMentionsOptions } from './parse-mentions'
 import {
   PROMPT_BAR_MARK_VARIANTS,
   PromptBarMark,
   PromptBarMarkHidden,
+  PromptBarMarkThumb,
   type PromptBarMarkVariant,
 } from './PromptBarMark'
+
+/** 带缩略的引用：`mediaOf` 给这一颗引用画什么（不给 = 全部不画缩略）。 */
+export interface RenderPromptMentionsOptions extends ParseMentionsOptions {
+  readonly mediaOf?: (name: string) => MentionChipMedia | undefined
+}
+
+/** 语音没有缩略图，压两根柱子当波形小标（与 `MentionChip` 同一套）。 */
+function WaveformGlyph() {
+  return (
+    <span className="flex h-2.5 items-end gap-px text-foreground">
+      <i className="block h-1 w-0.5 rounded-full bg-current" />
+      <i className="block h-2.5 w-0.5 rounded-full bg-current" />
+      <i className="block h-1.5 w-0.5 rounded-full bg-current" />
+    </span>
+  )
+}
+
+/**
+ * 这一颗引用能不能把缩略压上去：名字得以数字结尾（轨上的 `图2` / `视频1` /
+ * `语音1`），前面那截前缀连同 `@` 就是能藏的宽度。
+ */
+function railThumbSplit(raw: string, name: string): string | null {
+  const match = /^(.+?)\d+$/.exec(name)
+  if (!match) return null
+  const prefix = match[1] as string
+  const hidden = raw.slice(0, raw.length - (name.length - prefix.length))
+  return hidden.endsWith(prefix) ? hidden : null
+}
+
+function MentionThumb({ media }: { readonly media: MentionChipMedia }) {
+  if (media.kind === 'audio') return <WaveformGlyph />
+  if ('thumbnailUrl' in media && media.thumbnailUrl) {
+    return (
+      <Image
+        src={media.thumbnailUrl}
+        alt=""
+        width={NODE_V4_CHROME.mentionThumbSize}
+        height={NODE_V4_CHROME.mentionThumbSize}
+        unoptimized
+        className="size-full object-cover"
+      />
+    )
+  }
+  return null
+}
 
 /** 强度 → chip 形态（强 = 实心 · 中 = 灰底 · 轻 = 描边）。 */
 const INTENSITY_VARIANT: Record<string, PromptBarMarkVariant> = {
@@ -36,18 +89,30 @@ const INTENSITY_VARIANT: Record<string, PromptBarMarkVariant> = {
 /** 只画 @ 引用（文本卡的写作栏用这一支）。 */
 export function renderPromptMentions(
   text: string,
-  options: ParseMentionsOptions = {},
+  options: RenderPromptMentionsOptions = {},
   keyPrefix = 'm',
 ): ReactNode {
-  return parseMentions(text, options).map((segment, index) =>
-    segment.type === 'text' ? (
-      <span key={`${keyPrefix}:${index}`}>{segment.value}</span>
-    ) : (
+  return parseMentions(text, options).map((segment, index) => {
+    if (segment.type === 'text') {
+      return <span key={`${keyPrefix}:${index}`}>{segment.value}</span>
+    }
+    const media = options.mediaOf?.(segment.name)
+    const hidden = media ? railThumbSplit(segment.raw, segment.name) : null
+    return (
       <PromptBarMark key={`${keyPrefix}:${index}`} dataAttr="mention">
-        {segment.raw}
+        {hidden && media ? (
+          <>
+            <PromptBarMarkThumb text={hidden}>
+              <MentionThumb media={media} />
+            </PromptBarMarkThumb>
+            {segment.raw.slice(hidden.length)}
+          </>
+        ) : (
+          segment.raw
+        )}
       </PromptBarMark>
-    ),
-  )
+    )
+  })
 }
 
 /**

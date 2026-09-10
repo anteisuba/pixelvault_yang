@@ -82,10 +82,10 @@ import type { NodeV4, NodeV4AudioData } from '@/types/node-workflow'
 import {
   ConnectToShotPopover,
   NodeCardShell,
+  portSpecOf,
   NodeFrameProgress,
   NodePromptBar,
   NodeToolbar,
-  PORT_CLASS,
   VersionDots,
   flashNodeCard,
   mentionDeletionRangeAt,
@@ -123,6 +123,7 @@ import {
   MODEL_PICKER_GROUP_BY,
   ModelPickerPopover,
 } from '../../../studio-shared/pickers/ModelPickerPopover'
+import { useOpenApiKeys } from '../../workbench-v4/shell/ShellApiKeys'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
@@ -132,51 +133,12 @@ const SHOT_BATCH_REF = 'shot'
 /** 「转文字」那一批里指代新建文本卡的别名。 */
 const TEXT_BATCH_REF = 'line'
 
-/** 两侧端口点。⚠ 槽表读 `NODE_V4_PORTS`，⛔ 不在卡上硬写「一进一出」。 */
-function AudioPorts({ node }: { node: NodeV4 }) {
-  const t = useTranslations('StudioNode.v4')
-  const ports = getNodeV4Ports(node.data.kind, node.data.subtype)
-  return (
-    <>
-      {ports?.inputs.map((spec, index) => (
-        <Handle
-          key={spec.slot}
-          id={spec.slot}
-          type="target"
-          position={Position.Left}
-          data-family={NODE_MEDIA_KIND_IDS.audio}
-          data-slot={spec.slot}
-          aria-label={t(`slots.${spec.slot}`)}
-          className={PORT_CLASS}
-          style={{
-            top: `${((index + 1) * 100) / ((ports.inputs.length || 1) + 1)}%`,
-          }}
-        />
-      ))}
-      {ports?.outputs.map((output, index) => (
-        <Handle
-          key={output}
-          id={output}
-          type="source"
-          position={Position.Right}
-          data-family={NODE_MEDIA_KIND_IDS.audio}
-          data-output={output}
-          aria-label={t(`outputs.${output}`)}
-          className={PORT_CLASS}
-          style={{
-            top: `${((index + 1) * 100) / ((ports.outputs.length || 1) + 1)}%`,
-          }}
-        />
-      ))}
-    </>
-  )
-}
-
 export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const t = useTranslations('StudioNode.v4')
   const tAudio = useTranslations('StudioNode.v4.audio')
   const tStage = useTranslations('StudioV3')
   const canvas = useNodeV4Canvas()
+  const openApiKeys = useOpenApiKeys()
   const generation = useNodeMediaGenerationV4()
   const upload = useNodeUploadV4()
   const audioData = data as unknown as NodeV4AudioData
@@ -659,7 +621,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         emptyHeight={AUDIO_CARD.height}
         onEmptyAdd={() => fileRef.current?.click()}
         changed={canvas.changedNodeIds.includes(id) || flashed}
-        ports={<AudioPorts node={node} />}
+        portSpec={portSpecOf(node)}
       >
         {audioData.url || generating ? (
           <div
@@ -901,6 +863,10 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                       value={audioData.model?.optionId ?? null}
                       groupBy={MODEL_PICKER_GROUP_BY.kind}
                       memoryScope={NODE_MEDIA_KIND_IDS.audio}
+                      // 缺 key 的行点了进内联配置（Hard Rule 8）——⛔ 不选中。
+                      {...(openApiKeys
+                        ? { onManageChannels: openApiKeys }
+                        : {})}
                       disabled={generating}
                       triggerEmptyLabel={tAudio('model.title')}
                       onChange={(option) => {

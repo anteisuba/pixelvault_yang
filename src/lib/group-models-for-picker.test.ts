@@ -7,6 +7,7 @@ import {
   getDefaultProviderConfig,
 } from '@/constants/providers'
 import {
+  channelHasOption,
   deriveModelLabels,
   flattenPickerModels,
   groupModelsForPicker,
@@ -98,6 +99,69 @@ describe('groupModelsForPicker', () => {
     const models = series[0].models
     expect(models[0].channels.map((c) => c.channelId)).toEqual(['key:k1'])
     expect(models[1].channels.map((c) => c.channelId)).toEqual(['free:lite'])
+  })
+
+  /**
+   * owner 2026-09-10 真机反馈第四条：Seedance 2.5 底下 VolcEngine / fal.ai /
+   * BytePlus **各出现两次** —— 那是同一条渠道上的关键帧端点与参考端点。渠道身份是
+   * 「adapter + 凭据」，端点不进 key。
+   */
+  it('folds the reference endpoint into the same channel row', () => {
+    const series = groupModelsForPicker(
+      [
+        option(AI_MODELS.SEEDANCE_25, AI_ADAPTER_TYPES.FAL),
+        option(AI_MODELS.SEEDANCE_25_REFERENCE, AI_ADAPTER_TYPES.FAL),
+        option(AI_MODELS.SEEDANCE_25_VOLCENGINE, AI_ADAPTER_TYPES.VOLCENGINE),
+        option(
+          AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE,
+          AI_ADAPTER_TYPES.VOLCENGINE,
+        ),
+        option(AI_MODELS.SEEDANCE_25_BYTEPLUS, AI_ADAPTER_TYPES.BYTEPLUS),
+        option(
+          AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS,
+          AI_ADAPTER_TYPES.BYTEPLUS,
+        ),
+      ],
+      labelOf,
+    )
+
+    const model = series[0].models[0]
+    expect(series[0].models).toHaveLength(1)
+    expect(model.channels).toHaveLength(3)
+    expect(model.channels.map((c) => c.option.adapterType)).toEqual([
+      AI_ADAPTER_TYPES.FAL,
+      AI_ADAPTER_TYPES.VOLCENGINE,
+      AI_ADAPTER_TYPES.BYTEPLUS,
+    ])
+    // 被折掉的那条仍然认得出来 —— 存量卡上存的可能正是它的 optionId。
+    const fal = model.channels[0]
+    expect(fal.variants).toHaveLength(2)
+    expect(
+      channelHasOption(fal, `workspace:${AI_MODELS.SEEDANCE_25_REFERENCE}`),
+    ).toBe(true)
+    expect(channelHasOption(fal, 'workspace:nope')).toBe(false)
+  })
+
+  it('keeps the free-tier channel apart from the user key on the same adapter', () => {
+    const series = groupModelsForPicker(
+      [
+        option(AI_MODELS.SEEDANCE_25, AI_ADAPTER_TYPES.FAL, {
+          optionId: 'key:k1',
+          sourceType: 'saved',
+          keyId: 'k1',
+        }),
+        option(AI_MODELS.SEEDANCE_25_REFERENCE, AI_ADAPTER_TYPES.FAL, {
+          optionId: 'free:ref',
+          freeTier: true,
+        }),
+      ],
+      labelOf,
+    )
+    // 「自己的 key」与「平台额度」是用户真要挑的两条路，⛔ 不折。
+    expect(series[0].models[0].channels.map((c) => c.channelId)).toEqual([
+      'key:k1',
+      'free:ref',
+    ])
   })
 
   it('falls back to the provider as the series for catalog-less ids', () => {

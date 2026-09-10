@@ -103,7 +103,10 @@ export function NodeV4Provider({
   const dispatchBatch = engine.dispatchBatch
   const onApplyBatch = useCallback(
     (ops: readonly NodeAssistantOpV4[]) => {
-      dispatchBatch(ops)
+      // 回执只透出 `createdNodeIds`（S6 抽帧要给刚建的图片卡回填 url）——
+      // ⛔ 不把整份 `NodeGraphV4BatchResult` 摊到渲染层，那会让计数字段变成契约。
+      const result = dispatchBatch(ops)
+      return { createdNodeIds: result.createdNodeIds }
     },
     [dispatchBatch],
   )

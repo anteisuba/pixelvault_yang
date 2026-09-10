@@ -5722,29 +5722,7 @@
         "unmute": "取消静音",
         "progress": "播放进度",
         "download": "下载",
-        "captureFrames": "抓封面帧",
-        "capturing": "抓帧中…",
-        "posterFailed": "封面上传失败：{reason}",
-        "posterRetry": "重试上传封面",
-        "uploadVideo": "上传视频",
-        "replaceVideo": "替换视频",
-        "uploadingVideo": "上传中…",
-        "videoUploadFailed": "视频上传失败：{reason}",
-        "videoUploadRetry": "重试上传"
-      },
-      "merge": {
-        "slotFilled": "第 {index} 段",
-        "slotRequired": "第 {index} 段（必填）",
-        "slotOptional": "第 {index} 段（可选）",
-        "summary": "{clipCount}/{slotCount} 段 · 已裁 {trimmedCount} 段",
-        "clipIndex": "第 {index} 段",
-        "startSec": "第 {index} 段起点秒",
-        "endSec": "第 {index} 段终点秒",
-        "startPlaceholder": "起",
-        "endPlaceholder": "止",
-        "invalidRange": "起点必须小于终点",
-        "invalidRangeBlocks": "有段的裁剪区间不成立，合并暂时不能开始",
-        "needMoreClips": "至少要接 {min} 段片段才能合并"
+        "captureFrames": "抓封面帧"
       },
       "ingest": {
         "chooseSlot": "落到哪个口？",
@@ -5896,6 +5874,47 @@
           "none": "旁白"
         },
         "durationUnknown": "--:--"
+      },
+      "video": {
+        "toolbar": {
+          "label": "视频操作",
+          "continue": "续拍",
+          "extract": "抽帧",
+          "extractNeedsPlayback": "把鼠标移到画面上让它放起来，才能抽当前这一帧",
+          "more": "更多"
+        },
+        "add": {
+          "upload": "上传视频 / 图",
+          "uploadForSlot": "上传…",
+          "mention": "@ 图 / 角色",
+          "library": "从素材库"
+        },
+        "more": {
+          "rename": "改名",
+          "splitVersion": "拆出当前版本"
+        },
+        "frame": {
+          "title": "画面",
+          "duration": "时长",
+          "aspectRatio": "比例",
+          "resolution": "清晰度",
+          "generateAudio": "生成声音",
+          "generateAudioHint": "模型自带音轨；关了只出画面",
+          "audioSuffix": "有声",
+          "regenerate": "重新生成",
+          "regenerateShortcut": "⌘↵",
+          "shotNote": "镜头说明",
+          "emptyNote": "写下这个镜头怎么拍……",
+          "editAriaLabel": "编辑镜头说明",
+          "readout": "{chars} 字 · 已挂 {slots} 项"
+        },
+        "model": {
+          "title": "模型"
+        },
+        "promptPlaceholder": "描述这个镜头……",
+        "promptLabel": "镜头提示词",
+        "slotChip": "{slot}：{name}",
+        "tailFrameName": "{name} 末帧"
       }
     },
     "rerunDownstream": {

@@ -5722,29 +5722,7 @@
         "unmute": "Unmute",
         "progress": "Playback progress",
         "download": "Download",
-        "captureFrames": "Capture poster frame",
-        "capturing": "Capturing…",
-        "posterFailed": "Poster upload failed: {reason}",
-        "posterRetry": "Retry poster upload",
-        "uploadVideo": "Upload video",
-        "replaceVideo": "Replace video",
-        "uploadingVideo": "Uploading…",
-        "videoUploadFailed": "Video upload failed: {reason}",
-        "videoUploadRetry": "Retry upload"
-      },
-      "merge": {
-        "slotFilled": "Clip {index}",
-        "slotRequired": "Clip {index} (required)",
-        "slotOptional": "Clip {index} (optional)",
-        "summary": "{clipCount}/{slotCount} clips · {trimmedCount} trimmed",
-        "clipIndex": "Clip {index}",
-        "startSec": "Clip {index} start seconds",
-        "endSec": "Clip {index} end seconds",
-        "startPlaceholder": "Start",
-        "endPlaceholder": "End",
-        "invalidRange": "Start must be before end",
-        "invalidRangeBlocks": "A clip's trim range is invalid — merging is blocked",
-        "needMoreClips": "Connect at least {min} clips to merge"
+        "captureFrames": "Capture poster frame"
       },
       "ingest": {
         "chooseSlot": "Which slot?",
@@ -5896,6 +5874,47 @@
           "none": "Narrator"
         },
         "durationUnknown": "--:--"
+      },
+      "video": {
+        "toolbar": {
+          "label": "Video actions",
+          "continue": "Continue shot",
+          "extract": "Extract frame",
+          "extractNeedsPlayback": "Hover the card so the clip plays, then extract the current frame",
+          "more": "More"
+        },
+        "add": {
+          "upload": "Upload video / image",
+          "uploadForSlot": "Upload…",
+          "mention": "@ image / character",
+          "library": "From library"
+        },
+        "more": {
+          "rename": "Rename",
+          "splitVersion": "Split out this version"
+        },
+        "frame": {
+          "title": "Frame",
+          "duration": "Duration",
+          "aspectRatio": "Aspect ratio",
+          "resolution": "Resolution",
+          "generateAudio": "Generate audio",
+          "generateAudioHint": "The model brings its own track; off means picture only",
+          "audioSuffix": "with audio",
+          "regenerate": "Regenerate",
+          "regenerateShortcut": "⌘↵",
+          "shotNote": "Shot notes",
+          "emptyNote": "Write how this shot plays…",
+          "editAriaLabel": "Edit shot notes",
+          "readout": "{chars} chars · {slots} attached"
+        },
+        "model": {
+          "title": "Model"
+        },
+        "promptPlaceholder": "Describe this shot…",
+        "promptLabel": "Shot prompt",
+        "slotChip": "{slot}: {name}",
+        "tailFrameName": "{name} last frame"
       }
     },
     "rerunDownstream": {

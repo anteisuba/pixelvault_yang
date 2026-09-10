@@ -5722,29 +5722,7 @@
         "unmute": "ミュート解除",
         "progress": "再生位置",
         "download": "ダウンロード",
-        "captureFrames": "サムネイルを取得",
-        "capturing": "取得中…",
-        "posterFailed": "サムネイルのアップロード失敗：{reason}",
-        "posterRetry": "サムネイルを再アップロード",
-        "uploadVideo": "動画をアップロード",
-        "replaceVideo": "動画を差し替え",
-        "uploadingVideo": "アップロード中…",
-        "videoUploadFailed": "動画のアップロード失敗：{reason}",
-        "videoUploadRetry": "再アップロード"
-      },
-      "merge": {
-        "slotFilled": "クリップ {index}",
-        "slotRequired": "クリップ {index}（必須）",
-        "slotOptional": "クリップ {index}（任意）",
-        "summary": "{clipCount}/{slotCount} クリップ · {trimmedCount} 件トリム済み",
-        "clipIndex": "クリップ {index}",
-        "startSec": "クリップ {index} の開始秒",
-        "endSec": "クリップ {index} の終了秒",
-        "startPlaceholder": "開始",
-        "endPlaceholder": "終了",
-        "invalidRange": "開始は終了より前である必要があります",
-        "invalidRangeBlocks": "トリム範囲が不正なクリップがあるため結合できません",
-        "needMoreClips": "結合には最低 {min} クリップが必要です"
+        "captureFrames": "サムネイルを取得"
       },
       "ingest": {
         "chooseSlot": "どのスロットに？",
@@ -5896,6 +5874,47 @@
           "none": "ナレーション"
         },
         "durationUnknown": "--:--"
+      },
+      "video": {
+        "toolbar": {
+          "label": "動画の操作",
+          "continue": "続きを撮る",
+          "extract": "フレーム抽出",
+          "extractNeedsPlayback": "カードにカーソルを合わせて再生してから、現在のフレームを抽出してください",
+          "more": "その他"
+        },
+        "add": {
+          "upload": "動画 / 画像をアップロード",
+          "uploadForSlot": "アップロード…",
+          "mention": "@ 画像 / キャラクター",
+          "library": "素材ライブラリから"
+        },
+        "more": {
+          "rename": "名前を変更",
+          "splitVersion": "このバージョンを切り出す"
+        },
+        "frame": {
+          "title": "映像",
+          "duration": "長さ",
+          "aspectRatio": "比率",
+          "resolution": "解像度",
+          "generateAudio": "音声を生成",
+          "generateAudioHint": "モデル内蔵の音声トラック。オフにすると映像のみ",
+          "audioSuffix": "音声あり",
+          "regenerate": "再生成",
+          "regenerateShortcut": "⌘↵",
+          "shotNote": "カット説明",
+          "emptyNote": "このカットの撮り方を書く…",
+          "editAriaLabel": "カット説明を編集",
+          "readout": "{chars} 文字 · {slots} 件を接続中"
+        },
+        "model": {
+          "title": "モデル"
+        },
+        "promptPlaceholder": "このカットを説明…",
+        "promptLabel": "カットのプロンプト",
+        "slotChip": "{slot}：{name}",
+        "tailFrameName": "{name} の最終フレーム"
       }
     },
     "rerunDownstream": {

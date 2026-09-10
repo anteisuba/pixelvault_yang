@@ -11,6 +11,7 @@
 
 import { createContext, useContext, type ReactNode } from 'react'
 
+import type { AudioClipSourceKind } from '@/constants/audio-options'
 import type { NodeSlotId } from '@/constants/node-slots'
 import type { NodeWorkflowMediaKind } from '@/constants/node-types'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
@@ -40,6 +41,26 @@ export interface NodeV4MediaPatch {
    */
   readonly mediaJobId?: string | undefined
   readonly generationId?: string | undefined
+  /**
+   * 这一版从哪来（S5c，spec §4）。声音库「用这段」/ 素材库 / 上传会带；
+   * 生成路径不带。落进 `outputs.versions[].source`，⋯ 菜单里读它显示一行只读来源。
+   */
+  readonly source?: {
+    readonly kind: AudioClipSourceKind
+    readonly label: string
+  }
+}
+
+/**
+ * 一批 op 落完之后**只回一件事**：这一批新建了哪些节点（S6）。
+ *
+ * ⚠ 存在理由是「抽帧」这类动作：`add_node` 的载荷里没有 `url`（⛔ 让模型写地址等于
+ * 让它编地址），所以新建的图片卡要靠 `onSetMedia(newId, …)` 回填 —— 而那个 id 只有
+ * 批执行器知道（别名表在它身上）。⛔ 不给它加第二件事：这不是「一批的回执」，
+ * 只是那一个缺口。返回 `void` 仍然合法（测试里的桩就是这么写的）。
+ */
+export type NodeV4BatchOutcome = void | {
+  readonly createdNodeIds: readonly string[]
 }
 
 export interface NodeV4CanvasContextValue {
@@ -103,7 +124,9 @@ export interface NodeV4CanvasContextValue {
    *   ② 一批 = **一个**撤销条目（§7）：循环发出去的是两条，用户要按两次撤销才
    *      能退回点之前的样子。
    */
-  onApplyBatch(ops: readonly NodeAssistantOpV4[]): Promise<void> | void
+  onApplyBatch(
+    ops: readonly NodeAssistantOpV4[],
+  ): NodeV4BatchOutcome | Promise<NodeV4BatchOutcome>
   /**
    * 按镜头带重排（`tidyShotLanes`）。⚠ 不是 op —— 它只动坐标、不动图的语义，
    * 走 op 表会给每次「整理」产生一条与内容无关的撤销记录。

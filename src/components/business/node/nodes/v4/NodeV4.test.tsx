@@ -1,5 +1,5 @@
 import type { NodeProps } from '@xyflow/react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -217,24 +217,6 @@ describe('四类节点的两态渲染', () => {
     ).toBeInTheDocument()
   })
 
-  it('镜头节点展开态是固定版式：上排文本槽摘要，下排四槽卡', () => {
-    const state = scene()
-    const { container } = renderNode(
-      VideoNodeV4,
-      'v_02',
-      harness(state, { expandedNodeId: 'v_02' }),
-    )
-    const textRow = container.querySelector('[data-shot-row="text"]')!
-    expect(within(textRow as HTMLElement).getByText(/t_02/)).toBeInTheDocument()
-    const mediaRow = container.querySelector('[data-shot-row="media"]')!
-    expect(
-      [...mediaRow.querySelectorAll('[data-slot-id]')].map((element) =>
-        element.getAttribute('data-slot-id'),
-      ),
-      // 顺序 = 端口表的槽顺序，text 槽在上排不重复出现
-    ).toEqual(['firstFrame', 'lastFrame', 'reference', 'voice'])
-  })
-
   it('镜头卡头显示 `S02·label`——序号是显示前缀，落库的是 label 与 shotNo', () => {
     const state = scene()
     renderNode(VideoNodeV4, 'v_02', harness(state))
@@ -242,34 +224,6 @@ describe('四类节点的两态渲染', () => {
     // ⛔ 存的不是这一串：节点自己的 name 与 label 都不带前缀。
     const stored = state.nodes.find((item) => item.id === 'v_02')!.data
     expect(stored.kind === 'video' && stored.label).toBe('有人还在')
-  })
-
-  it('文本槽的每一项带角色小标（C1 契约修正 2）', () => {
-    const state = scene()
-    const { container } = renderNode(
-      VideoNodeV4,
-      'v_02',
-      harness(state, { expandedNodeId: 'v_02' }),
-    )
-    const textRow = container.querySelector('[data-shot-row="text"]')!
-    expect(
-      [...textRow.querySelectorAll('[data-text-role]')].map((element) =>
-        element.getAttribute('data-text-role'),
-      ),
-      // t_02 是 shotNote 子型 → 推不出角色，按缺省 script 落
-    ).toEqual(['script'])
-  })
-
-  it('空槽渲染成虚线 + 槽名', () => {
-    const state = scene()
-    const { container } = renderNode(
-      VideoNodeV4,
-      'v_02',
-      harness(state, { expandedNodeId: 'v_02' }),
-    )
-    const lastFrame = container.querySelector('[data-slot-id="lastFrame"]')!
-    expect(lastFrame.getAttribute('data-slot-empty')).toBe('true')
-    expect(lastFrame.className).toContain('border-dashed')
   })
 })
 
@@ -345,51 +299,6 @@ describe('具名端口与拖线点亮', () => {
   })
 })
 
-describe('槽内版本轮播', () => {
-  it('两版首帧显示 1/2 计数，翻页不改 cur，点「设为当前」才改', () => {
-    const state = scene()
-    const onSelectSlotVersion = vi.fn()
-    const { container } = renderNode(
-      VideoNodeV4,
-      'v_02',
-      harness(state, { expandedNodeId: 'v_02', onSelectSlotVersion }),
-    )
-    const firstFrame = container.querySelector(
-      '[data-slot-id="firstFrame"]',
-    ) as HTMLElement
-    // reconcile 把最后一条边设为当前 → 2/2
-    expect(within(firstFrame).getByText('2/2')).toBeInTheDocument()
-    expect(within(firstFrame).queryByText('setCurrent')).not.toBeInTheDocument()
-
-    fireEvent.click(within(firstFrame).getByLabelText('versionPrev'))
-    expect(within(firstFrame).getByText('1/2')).toBeInTheDocument()
-    // 翻着看不产生修改
-    expect(onSelectSlotVersion).not.toHaveBeenCalled()
-
-    fireEvent.click(within(firstFrame).getByText('setCurrent'))
-    expect(onSelectSlotVersion).toHaveBeenCalledWith(
-      'v_02',
-      'firstFrame',
-      'sv_e1',
-    )
-  })
-
-  it('点槽内内容 = 平移到源节点，不是打开它', () => {
-    const state = scene()
-    const onFocusNode = vi.fn()
-    const { container } = renderNode(
-      VideoNodeV4,
-      'v_02',
-      harness(state, { expandedNodeId: 'v_02', onFocusNode }),
-    )
-    const voice = container.querySelector(
-      '[data-slot-id="voice"]',
-    ) as HTMLElement
-    fireEvent.click(within(voice).getByRole('button', { name: 'a_v' }))
-    expect(onFocusNode).toHaveBeenCalledWith('a_v')
-  })
-})
-
 describe('变更高亮（§7）', () => {
   /**
    * ⚠ 主语从图片卡换成镜头卡（2026-09-10 · S3）：图片卡已换到 `NodeCardShell`，
@@ -405,6 +314,8 @@ describe('变更高亮（§7）', () => {
     )
     const card = container.querySelector('[data-changed="true"]')
     expect(card).toBeInTheDocument()
-    expect(card?.className).toContain('outline-primary')
+    // S6 起镜头卡换到 `NodeCardShell`：变更高亮是名字旁那颗细点，⛔ 不再染卡面
+    // （上百张卡同时描边会把画布读成报警面板 —— `NodeCardShell` 头注的同一条）。
+    expect(card?.querySelector('[data-node-card-changed]')).toBeInTheDocument()
   })
 })

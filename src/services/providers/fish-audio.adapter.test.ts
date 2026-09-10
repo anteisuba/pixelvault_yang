@@ -1,6 +1,7 @@
 import { afterEach, describe, it, expect, vi } from 'vitest'
 
 import { AI_PROVIDER_ENDPOINTS } from '@/constants/config'
+import { AI_MODELS, getExecutionModelId } from '@/constants/models'
 
 vi.mock('server-only', () => ({}))
 
@@ -10,7 +11,7 @@ afterEach(() => vi.unstubAllGlobals())
 
 const BASE_AUDIO_INPUT = {
   prompt: 'Hello, this is a test of the fish audio adapter.',
-  modelId: 'fish-speech-1.5',
+  modelId: getExecutionModelId(AI_MODELS.FISH_AUDIO_S2_PRO),
   providerConfig: {
     label: 'Fish Audio',
     baseUrl: AI_PROVIDER_ENDPOINTS.FISH_AUDIO,
@@ -37,6 +38,9 @@ describe('fishAudioAdapter.generateAudio', () => {
     const result = await generateAudio(BASE_AUDIO_INPUT)
 
     expect(result.audioUrl).toMatch(/^data:audio/)
+    expect(vi.mocked(fetch).mock.calls[0]?.[1]?.headers).toMatchObject({
+      model: 's2.1-pro',
+    })
   })
 
   it('sends prosody, quality, and multi-speaker fields in Fish request body', async () => {

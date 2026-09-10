@@ -454,7 +454,8 @@ function canSubmitAudioViaExecutionWorker(route: {
 
   return (
     route.adapterType === AI_ADAPTER_TYPES.FISH_AUDIO &&
-    route.modelId === AI_MODELS.FISH_AUDIO_S2_PRO
+    (route.modelId === AI_MODELS.FISH_AUDIO_S2_PRO ||
+      route.modelId === AI_MODELS.FISH_AUDIO_S2_PRO_FREE)
   )
 }
 

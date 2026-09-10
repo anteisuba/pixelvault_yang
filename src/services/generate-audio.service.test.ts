@@ -886,43 +886,52 @@ describe('submitAudioGeneration', () => {
     expect(mockDispatchWorkerRun).not.toHaveBeenCalled()
   })
 
-  it('dispatches Fish Audio to the execution worker without requiring queue adapter support', async () => {
-    vi.mocked(resolveGenerationRoute).mockResolvedValueOnce(
-      FAKE_SYNC_ROUTE as never,
-    )
-    vi.mocked(getProviderAdapter).mockReturnValue({} as never)
+  it.each([
+    ['fish-audio-s2-pro', 's2.1-pro'],
+    ['fish-audio-s2-pro-free', 's2.1-pro-free'],
+  ])(
+    'dispatches %s to the execution worker with its selected tier',
+    async (modelId, externalModelId) => {
+      vi.mocked(resolveGenerationRoute).mockResolvedValueOnce({
+        ...FAKE_SYNC_ROUTE,
+        modelId,
+        externalModelId,
+      } as never)
+      vi.mocked(getProviderAdapter).mockReturnValue({} as never)
 
-    const result = await submitAudioGeneration('clerk-1', {
-      ...BASE_SYNC_REQUEST,
-      voiceId: 'voice-1',
-      format: 'mp3',
-      withTimestamps: true,
-      temperature: 0.8,
-    })
+      const result = await submitAudioGeneration('clerk-1', {
+        ...BASE_SYNC_REQUEST,
+        modelId,
+        voiceId: 'voice-1',
+        format: 'mp3',
+        withTimestamps: true,
+        temperature: 0.8,
+      })
 
-    expect(result).toEqual({
-      jobId: 'job-async-1',
-      requestId: 'wf-audio-1',
-    })
-    expect(createExecutionOutbox).not.toHaveBeenCalled()
-    expect(mockDispatchWorkerRun).toHaveBeenCalledWith(
-      expect.objectContaining({
-        runId: 'job-async-1',
-        outputType: 'AUDIO',
-        providerId: AI_ADAPTER_TYPES.FISH_AUDIO,
-        apiKeyId: 'sync-key-1',
-        providerInput: expect.objectContaining({
-          externalModelId: 's2.1-pro-free',
-          voiceId: 'voice-1',
-          format: 'mp3',
-          withTimestamps: true,
-          temperature: 0.8,
-          providerBaseUrl: 'https://api.fish.audio',
-          outputStorageKey: 'audio/user-1/gen.mp3',
+      expect(result).toEqual({
+        jobId: 'job-async-1',
+        requestId: 'wf-audio-1',
+      })
+      expect(createExecutionOutbox).not.toHaveBeenCalled()
+      expect(mockDispatchWorkerRun).toHaveBeenCalledWith(
+        expect.objectContaining({
+          runId: 'job-async-1',
+          outputType: 'AUDIO',
+          providerId: AI_ADAPTER_TYPES.FISH_AUDIO,
+          apiKeyId: 'sync-key-1',
+          providerInput: expect.objectContaining({
+            externalModelId,
+            voiceId: 'voice-1',
+            format: 'mp3',
+            withTimestamps: true,
+            temperature: 0.8,
+            providerBaseUrl: 'https://api.fish.audio',
+            outputStorageKey: 'audio/user-1/gen.mp3',
+          }),
         }),
-      }),
-    )
-  })
+      )
+    },
+  )
 
   /**
    * ⭐ 表现力必须**在服务端折算成 temperature** 再交给 worker。

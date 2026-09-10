@@ -28,6 +28,7 @@ import {
   NodePorts,
   NodePromptBar,
   NodeToolbar,
+  renderVoicePromptValue,
   QuickLook,
   VersionDots,
   parseMentions,
@@ -44,6 +45,9 @@ export function ChromePreviewBoard() {
   const [prompt, setPrompt] = useState('站台，中景，冷白光')
   const [longPrompt, setLongPrompt] = useState(
     '站台，夜，中景推近，冷白光，@莫宁 靠在长椅边，行李箱立在脚边，电子屏显示末班车倒计时，风从隧道口涌出带起衣角。画面偏冷，胶片颗粒，浅景深，主体在三分线左侧，背景霓虹灯牌虚化成色块。禁止出现文字，禁止多余人物。',
+  )
+  const [markedPrompt, setMarkedPrompt] = useState(
+    '[强·愤怒][咬牙切齿]把她还给我！ [轻·温柔]……你听见了吗，@莫宁。',
   )
   const [version, setVersion] = useState(1)
   const [ratio, setRatio] = useState('16:9')
@@ -275,6 +279,25 @@ export function ChromePreviewBoard() {
                   1:1
                 </button>,
               ]}
+            />
+            <Caption>
+              栏内富 chip（`renderValue` 等距镜像）：语气标记按强度分三档形态、@
+              引用同一层；正文字色透明只留光标
+            </Caption>
+            <NodePromptBar
+              value={markedPrompt}
+              onValueChange={setMarkedPrompt}
+              onSubmit={() => {}}
+              placeholder="写台词…"
+              ariaLabel="行内 chip 提示词"
+              className="w-full"
+              renderValue={(text) =>
+                renderVoicePromptValue(text, {
+                  mentions: { names: MENTION_NAMES },
+                  titleOf: (label, intensity) =>
+                    intensity ? `${intensity}·${label}` : label,
+                })
+              }
             />
             <Caption>生成中：变灰 + 取消</Caption>
             <NodePromptBar

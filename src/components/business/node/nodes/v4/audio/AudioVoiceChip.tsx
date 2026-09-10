@@ -4,15 +4,19 @@
  * 提示词栏上的**「音色」chip 与它的弹层**（画板 `AudioSelected.dc.html` 那张 300
  * 宽的声音库 pop）。
  *
- * 一列音色（我的克隆 → 收藏 → 平台入口），每条可试听、点一下就是选中；底部收
- * **语速**（分段）与**音量**（滑杆）—— 它们不是标记而是 Fish 的 `prosody` 字段，
- * 天然与情绪标记分成两半（调研 §7.2）。
+ * 四段：**我的**（克隆）· **收藏** · **平台**（公开库前几条 + 「更多…」）·
+ * **克隆我的声音…**。每条可试听、点一下就是选中；底部收 **语速**（分段）与
+ * **音量**（滑杆）—— 它们不是标记而是 Fish 的 `prosody` 字段，天然与情绪标记分成
+ * 两半（调研 §7.2）。
  *
- * ── 两条纪律 ────────────────────────────────────────────────────────────
+ * ── 三条纪律 ────────────────────────────────────────────────────────────
  * ① **声音库的事实层复用 `useVoiceLibrary`**（收藏 / 克隆分流、公开库拉取都在那
  *    里），⛔ 不为画布另写一套检索。平台整库仍然是既有的 `FishVoiceLibraryDialog`
- *    ——弹层里塞不下分页与筛选，那张对话框是它的「看全部」。
- * ② **试听是本地 `<audio>`**：一次只响一条，切一条就停上一条。
+ *    ——弹层里塞不下分页与筛选，那张对话框是它的「看全部」，平台段只露前
+ *    `PLATFORM_PREVIEW_COUNT` 条。
+ * ② **一个搜索框覆盖四段**：我的与收藏在本地过，平台把词交给 `library.setSearch`
+ *    （公开库是服务端检索）。⛔ 不做两个搜索框。
+ * ③ **试听是本地 `<audio>`**：一次只响一条，切一条就停上一条。
  */
 
 import { useRef, useState } from 'react'
@@ -23,7 +27,7 @@ import { Input } from '@/components/ui/input'
 import { ParamSlider } from '@/components/ui/param-slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { TTS_SPEED_RANGE, TTS_VOLUME_RANGE } from '@/constants/audio-options'
-import { useVoiceLibrary, isClonedVoiceCard } from '@/hooks/use-voice-library'
+import { useVoiceLibrary } from '@/hooks/use-voice-library'
 import { cn } from '@/lib/utils'
 import type { VoiceCardRecord } from '@/types'
 
@@ -32,6 +36,9 @@ import { FishVoiceLibraryDialog } from '../../../FishVoiceLibraryDialog'
 
 /** 画板宽。 */
 const VOICE_POPOVER_WIDTH = 300
+
+/** 平台段在弹层里露几条（再多进「更多…」那张对话框）。 */
+const PLATFORM_PREVIEW_COUNT = 4
 
 /** 语速三档（画板 0.8 / 1.0 / 1.2）—— 值域仍在 `TTS_SPEED_RANGE` 之内。 */
 export const VOICE_SPEED_STEPS = [0.8, TTS_SPEED_RANGE.default, 1.2] as const
@@ -76,19 +83,24 @@ export function AudioVoiceChip({
   // 每选一张卡就打一次声音库。
   const library = useVoiceLibrary({ enabled: open })
 
-  const cards = [...library.cloned, ...library.favorites].filter((card) => {
-    const keyword = search.trim().toLowerCase()
-    if (!keyword) return true
-    return card.name.toLowerCase().includes(keyword)
-  })
+  const keyword = search.trim().toLowerCase()
+  const matches = (name: string) =>
+    keyword.length === 0 || name.toLowerCase().includes(keyword)
 
-  const current = cards.find((card) => card.voiceId === voiceId)
+  const mine = library.cloned.filter((card) => matches(card.name))
+  const favorites = library.favorites.filter((card) => matches(card.name))
+  const platform = library.publicVoices.slice(0, PLATFORM_PREVIEW_COUNT)
 
-  const preview = (card: VoiceCardRecord) => {
-    const url = card.sampleAudioUrl ?? card.referenceAudioUrl
+  const current =
+    [...library.cloned, ...library.favorites].find(
+      (card) => card.voiceId === voiceId,
+    )?.name ?? library.publicVoices.find((v) => v.voiceId === voiceId)?.title
+
+  /** 试听：一次只响一条。`id` 只是「谁在响」的标识，与选中无关。 */
+  const preview = (id: string, url: string | null) => {
     if (!url) return
     const audio = audioRef.current
-    if (audio && previewId === card.id) {
+    if (audio && previewId === id) {
       audio.pause()
       setPreviewId(null)
       return
@@ -97,9 +109,92 @@ export function AudioVoiceChip({
     const next = new Audio(url)
     audioRef.current = next
     next.onended = () => setPreviewId(null)
-    setPreviewId(card.id)
+    setPreviewId(id)
     void next.play().catch(() => setPreviewId(null))
   }
+
+  const pick = (voice: {
+    voiceId: string
+    name: string
+    sampleUrl: string | null
+  }) => {
+    onSelectVoice(voice)
+    setOpen(false)
+  }
+
+  const renderVoiceRow = ({
+    id,
+    name,
+    subtitle,
+    sampleUrl,
+    active,
+    onSelect,
+  }: {
+    id: string
+    name: string
+    subtitle: string | null
+    sampleUrl: string | null
+    active: boolean
+    onSelect: () => void
+  }) => (
+    <div
+      data-audio-voice-row={id}
+      data-active={active ? 'true' : 'false'}
+      className={cn(
+        'flex min-h-11 items-center gap-2 rounded-lg px-1.5',
+        active && 'bg-surface-fill',
+      )}
+    >
+      <button
+        type="button"
+        className="nodrag nopan min-w-0 flex-1 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        onClick={onSelect}
+      >
+        <span className="block truncate text-2sm text-foreground">{name}</span>
+        {subtitle ? (
+          <span className="block truncate text-3xs text-muted-foreground">
+            {subtitle}
+          </span>
+        ) : null}
+      </button>
+      <button
+        type="button"
+        aria-label={t('preview')}
+        data-audio-voice-preview={id}
+        disabled={!sampleUrl}
+        onClick={() => preview(id, sampleUrl)}
+        className="nodrag nopan flex size-6.5 shrink-0 items-center justify-center rounded-full bg-surface-fill text-foreground transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-40"
+      >
+        {previewId === id ? (
+          <Pause aria-hidden className="size-3" />
+        ) : (
+          <Play aria-hidden className="size-3" />
+        )}
+      </button>
+      {active ? (
+        <Check aria-hidden className="size-4 shrink-0 text-foreground" />
+      ) : null}
+    </div>
+  )
+
+  const cardRow = (card: VoiceCardRecord, sectionLabel: string) =>
+    renderVoiceRow({
+      id: card.voiceId ?? card.id,
+      name: card.name,
+      subtitle: [voiceCardSubtitle(card), sectionLabel]
+        .filter(Boolean)
+        .join(' · '),
+      sampleUrl: card.sampleAudioUrl ?? card.referenceAudioUrl,
+      active: Boolean(card.voiceId) && card.voiceId === voiceId,
+      onSelect: () => {
+        if (!card.voiceId) return
+        pick({
+          voiceId: card.voiceId,
+          name: card.name,
+          sampleUrl: card.sampleAudioUrl,
+        })
+      },
+    })
 
   return (
     <>
@@ -126,7 +221,7 @@ export function AudioVoiceChip({
                 : 'border-border text-muted-foreground',
             )}
           >
-            {current?.name ?? (voiceId ? voiceId : t('title'))}
+            {current ?? (voiceId ? voiceId : t('title'))}
           </button>
         }
       >
@@ -141,87 +236,108 @@ export function AudioVoiceChip({
               data-audio-voice-search
               aria-label={t('searchLabel')}
               placeholder={t('searchPlaceholder')}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value)
+                // 平台段是**服务端检索**（公开库有几万条），词得递下去；我的与
+                // 收藏在本地过 —— 一个框覆盖四段（头注纪律 ②）。
+                library.setSearch(event.target.value)
+              }}
               className="h-8 border-0 px-0 text-2sm shadow-none focus-visible:ring-0"
             />
           </div>
 
           <div className="-mx-1 max-h-64 overflow-y-auto px-1">
-            <p className="px-1 py-1 text-3xs tracking-node-sec text-muted-foreground">
+            {/* ① 我的（克隆） */}
+            <p
+              data-audio-voice-section="mine"
+              className="px-1 py-1 text-3xs tracking-node-sec text-muted-foreground"
+            >
               {t('mine')}
             </p>
-            {cards.length === 0 ? (
+            {mine.length === 0 ? (
               <p
-                data-audio-voice-empty
+                data-audio-voice-empty="mine"
                 className="px-1 py-2 text-2xs text-muted-foreground"
               >
                 {library.isLoading ? t('loading') : t('empty')}
               </p>
             ) : (
-              cards.map((card) => {
-                const active = Boolean(card.voiceId) && card.voiceId === voiceId
-                const subtitle = voiceCardSubtitle(card)
-                return (
-                  <div
-                    key={card.id}
-                    data-audio-voice-row={card.voiceId ?? card.id}
-                    data-active={active ? 'true' : 'false'}
-                    className={cn(
-                      'flex min-h-11 items-center gap-2 rounded-lg px-1.5',
-                      active && 'bg-surface-fill',
-                    )}
-                  >
-                    <button
-                      type="button"
-                      className="nodrag nopan min-w-0 flex-1 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                      onClick={() => {
-                        if (!card.voiceId) return
-                        onSelectVoice({
-                          voiceId: card.voiceId,
-                          name: card.name,
-                          sampleUrl: card.sampleAudioUrl,
-                        })
-                        setOpen(false)
-                      }}
-                    >
-                      <span className="block truncate text-2sm text-foreground">
-                        {card.name}
-                      </span>
-                      <span className="block truncate text-3xs text-muted-foreground">
-                        {[
-                          subtitle,
-                          isClonedVoiceCard(card) ? t('cloned') : t('favorite'),
-                        ]
-                          .filter(Boolean)
-                          .join(' · ')}
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={t('preview')}
-                      data-audio-voice-preview={card.id}
-                      disabled={!card.sampleAudioUrl && !card.referenceAudioUrl}
-                      onClick={() => preview(card)}
-                      className="nodrag nopan flex size-6.5 shrink-0 items-center justify-center rounded-full bg-surface-fill text-foreground transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-40"
-                    >
-                      {previewId === card.id ? (
-                        <Pause aria-hidden className="size-3" />
-                      ) : (
-                        <Play aria-hidden className="size-3" />
-                      )}
-                    </button>
-                    {active ? (
-                      <Check
-                        aria-hidden
-                        className="size-4 shrink-0 text-foreground"
-                      />
-                    ) : null}
-                  </div>
-                )
-              })
+              mine.map((card) => (
+                <div key={card.id}>{cardRow(card, t('cloned'))}</div>
+              ))
+            )}
+
+            {/* ② 收藏 */}
+            <p
+              data-audio-voice-section="favorites"
+              className="px-1 py-1 text-3xs tracking-node-sec text-muted-foreground"
+            >
+              {t('favorites')}
+            </p>
+            {favorites.length === 0 ? (
+              <p
+                data-audio-voice-empty="favorites"
+                className="px-1 py-2 text-2xs text-muted-foreground"
+              >
+                {library.isLoading ? t('loading') : t('emptyFavorites')}
+              </p>
+            ) : (
+              favorites.map((card) => (
+                <div key={card.id}>{cardRow(card, t('favorite'))}</div>
+              ))
+            )}
+
+            {/* ③ 平台：公开库前几条 —— 搜索词交给服务端检索（见头注纪律 ②）。 */}
+            <p
+              data-audio-voice-section="platform"
+              className="px-1 py-1 text-3xs tracking-node-sec text-muted-foreground"
+            >
+              {t('platformSection')}
+            </p>
+            {platform.length === 0 ? (
+              <p
+                data-audio-voice-empty="platform"
+                className="px-1 py-2 text-2xs text-muted-foreground"
+              >
+                {library.isLoading ? t('loading') : t('emptyPlatform')}
+              </p>
+            ) : (
+              platform.map((asset) => (
+                <div key={asset.id}>
+                  {renderVoiceRow({
+                    id: asset.voiceId,
+                    name: asset.title,
+                    subtitle: [asset.author, t('platformTag')]
+                      .filter(Boolean)
+                      .join(' · '),
+                    sampleUrl: asset.sampleUrl,
+                    active: asset.voiceId === voiceId,
+                    onSelect: () =>
+                      pick({
+                        voiceId: asset.voiceId,
+                        name: asset.title,
+                        sampleUrl: asset.sampleUrl,
+                      }),
+                  })}
+                </div>
+              ))
             )}
           </div>
 
+          {/* 「更多…」= 平台整库那张对话框（弹层里塞不下分页与筛选）。 */}
+          <button
+            type="button"
+            data-audio-voice-library
+            onClick={() => {
+              setOpen(false)
+              setLibraryOpen(true)
+            }}
+            className="nodrag nopan flex min-h-8.5 items-center rounded-lg px-1.5 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-surface-fill-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
+            {t('more')}
+          </button>
+
+          {/* ④ 克隆我的声音… */}
           <button
             type="button"
             data-audio-voice-clone
@@ -233,17 +349,6 @@ export function AudioVoiceChip({
           >
             <Mic aria-hidden className="size-4" />
             {t('clone')}
-          </button>
-          <button
-            type="button"
-            data-audio-voice-library
-            onClick={() => {
-              setOpen(false)
-              setLibraryOpen(true)
-            }}
-            className="nodrag nopan flex min-h-8.5 items-center rounded-lg px-1.5 text-2sm text-muted-foreground transition-colors duration-fast hover:bg-surface-fill-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            {t('platform')}
           </button>
 
           {/* ── prosody：语速 + 音量（⛔ 不是标记，见文件头注）───────────── */}

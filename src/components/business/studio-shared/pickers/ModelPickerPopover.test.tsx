@@ -237,4 +237,30 @@ describe('ModelPickerPopover', () => {
       screen.queryByRole('button', { name: /Common.selectModel/ }),
     ).toBeNull()
   })
+  it('groupBy="kind" 把音频模型分成语音 / 配乐 / 音效三组（空组不画）', () => {
+    render(
+      <ModelPickerPopover
+        options={[
+          option({
+            optionId: 'workspace:fish',
+            modelId: AI_MODELS.FISH_AUDIO_S2_PRO,
+            adapterType: AI_ADAPTER_TYPES.FISH_AUDIO,
+          }),
+          option({
+            optionId: 'workspace:music',
+            modelId: AI_MODELS.ELEVENLABS_MUSIC_V2,
+            adapterType: AI_ADAPTER_TYPES.ELEVENLABS,
+          }),
+        ]}
+        value={null}
+        onChange={vi.fn()}
+        groupBy="kind"
+        inline
+      />,
+    )
+    expect(screen.getByText('ModelPicker.kinds.speech')).toBeInTheDocument()
+    expect(screen.getByText('ModelPicker.kinds.music')).toBeInTheDocument()
+    // 一条音效模型都没有 —— 整组不画。
+    expect(screen.queryByText('ModelPicker.kinds.sfx')).toBeNull()
+  })
 })

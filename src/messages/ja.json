@@ -5859,7 +5859,13 @@
           "speed": "速度",
           "volume": "音量",
           "loading": "読み込み中…",
-          "empty": "まだ声がありません。ライブラリから選んでください"
+          "empty": "まだ声がありません。ライブラリから選んでください",
+          "favorites": "お気に入り",
+          "platformSection": "プラットフォーム",
+          "platformTag": "プラットフォーム音声",
+          "more": "もっと見る…",
+          "emptyFavorites": "お気に入りはまだありません",
+          "emptyPlatform": "一致する音声がありません"
         },
         "model": {
           "title": "モデル",
@@ -5882,8 +5888,14 @@
           },
           "customLabel": "カスタム語気",
           "customPlaceholder": "カスタム：例「笑いをこらえて」…",
-          "apply": "挿入"
-        }
+          "apply": "挿入",
+          "chipTitle": "{intensity}・{label}"
+        },
+        "owner": {
+          "title": "キャラクターを割り当て…",
+          "none": "ナレーション"
+        },
+        "durationUnknown": "--:--"
       }
     },
     "rerunDownstream": {
@@ -7653,6 +7665,11 @@
       "reference": "参照画像",
       "multiReference": "複数参照画像",
       "lora": "LoRA"
+    },
+    "kinds": {
+      "speech": "音声",
+      "music": "BGM",
+      "sfx": "効果音"
     }
   }
 }

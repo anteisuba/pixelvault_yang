@@ -52,6 +52,28 @@ export interface NodePromptBarProps {
       event: React.KeyboardEvent<HTMLTextAreaElement>,
     ) => void
   }
+  /**
+   * 正文那只 textarea。插标记 / 插 @ 的调用方要用它把焦点与光标放回来
+   * （⛔ 不再靠从键盘事件里捡 `event.currentTarget`——没敲过键就一直是 null）。
+   */
+  readonly inputRef?: React.Ref<HTMLTextAreaElement>
+  /** 光标 / 选区变了（点击、方向键、输入、`select` 都会报）。 */
+  onSelectionChange?(range: PromptBarSelection): void
+  /**
+   * **输入框内部**的富渲染层（画板：`[愤怒]` 与 `@莫宁` 是栏里的 chip，不是栏上
+   * 方另一行）。
+   *
+   * 做法是**等距镜像 overlay**：textarea 字色透明只留光标与选区，同一段文字由这个
+   * 函数在下面再画一遍，chip 只是给字符段加底色。⛔ 渲染出来的字符必须与 `value`
+   * **逐字符相同**（要藏的字符用 `text-transparent`，⛔ 不删、不换、不加 padding）
+   * ——少一个字符，光标就与看到的字错位。
+   */
+  readonly renderValue?: (value: string) => ReactNode
+}
+
+export interface PromptBarSelection {
+  readonly start: number
+  readonly end: number
 }
 
 /** 正文行高 20px（`text-sm` 的 `leading-5`）——长高与滚动都按它算。 */
@@ -69,9 +91,13 @@ export function NodePromptBar({
   ariaLabel,
   className,
   textareaProps,
+  inputRef,
+  onSelectionChange,
+  renderValue,
 }: NodePromptBarProps) {
   const t = useTranslations('StudioNode.v4.chrome')
   const sizerRef = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null)
   const [lines, setLines] = useState(1)
 
   // 行数**不量 textarea 本身，量一份等宽的隐藏镜像**。
@@ -133,15 +159,46 @@ export function NodePromptBar({
     </button>
   )
 
+  /** 选区回调的唯一出口 —— 点击 / 方向键 / 输入 / `select` 都从这里报。 */
+  const reportSelection = (element: HTMLTextAreaElement) => {
+    onSelectionChange?.({
+      start: element.selectionStart,
+      end: element.selectionEnd,
+    })
+  }
+
+  // 正文与 overlay 的排版类必须**逐条相同**，否则同一段字在两层里断行的位置不一样。
+  const typography = cn(
+    'text-sm leading-5',
+    overflowing ? 'overflow-y-auto' : 'overflow-hidden',
+    // 收起态是**一行不折行**（画板的 `white-space:nowrap` + 截断），⛔ 不让被
+    // chip 挤窄的 textarea 自己折行——那会让「一句话」看起来像「一段话」。
+    expanded ? 'whitespace-pre-wrap' : 'overflow-x-hidden whitespace-pre',
+  )
+
   const textarea = (
     <textarea
+      ref={inputRef}
       rows={1}
       value={value}
       readOnly={generating}
       placeholder={placeholder}
       aria-label={ariaLabel}
       data-prompt-bar-input
-      onChange={(event) => onValueChange(event.target.value)}
+      onChange={(event) => {
+        onValueChange(event.target.value)
+        reportSelection(event.currentTarget)
+      }}
+      onSelect={(event) => reportSelection(event.currentTarget)}
+      onClick={(event) => reportSelection(event.currentTarget)}
+      onKeyUp={(event) => reportSelection(event.currentTarget)}
+      // overlay 是另一层 DOM，滚动不会跟着 textarea 走 —— 手动对齐。
+      onScroll={(event) => {
+        const overlay = overlayRef.current
+        if (!overlay) return
+        overlay.scrollTop = event.currentTarget.scrollTop
+        overlay.scrollLeft = event.currentTarget.scrollLeft
+      }}
       onKeyDown={(event) => {
         textareaProps?.onKeyDown?.(event)
         if (event.defaultPrevented) return
@@ -153,17 +210,42 @@ export function NodePromptBar({
       }}
       style={{ height: textareaHeight }}
       className={cn(
-        'nodrag nopan nowheel min-w-0 resize-none bg-transparent text-sm leading-5 text-foreground placeholder:text-muted-foreground focus-visible:outline-none',
-        overflowing ? 'overflow-y-auto' : 'overflow-hidden',
-        // 收起态是**一行不折行**（画板的 `white-space:nowrap` + 截断），⛔ 不让被
-        // chip 挤窄的 textarea 自己折行——那会让「一句话」看起来像「一段话」。
-        expanded ? 'whitespace-pre-wrap' : 'overflow-x-hidden whitespace-pre',
+        'nodrag nopan nowheel absolute inset-0 size-full resize-none bg-transparent placeholder:text-muted-foreground focus-visible:outline-none',
+        typography,
+        // 有 overlay 时正文字色透明：字由下面那层画，textarea 只留光标与选区。
+        // ⚠ `caret-foreground` 必须显式给 —— 透明字色会把光标也一起透明掉。
+        renderValue ? 'text-transparent caret-foreground' : 'text-foreground',
+      )}
+    />
+  )
+
+  const field = (
+    <div
+      data-prompt-bar-field
+      style={{ height: textareaHeight }}
+      className={cn(
+        'relative min-w-0',
         // 长高态：`basis-full` 逼出一次换行 = 正文独占首行、`+` 与 chip 落到底行。
         // ⚠ 这是**同一份 DOM 换类**，⛔ 不换成两套 JSX 分支：React 会把 textarea
         // 搬到另一个父节点上重挂，重挂那一下 inline height 当场丢掉（真机实测）。
         expanded ? 'order-first basis-full' : 'flex-1',
       )}
-    />
+    >
+      {renderValue ? (
+        <div
+          ref={overlayRef}
+          aria-hidden
+          data-prompt-bar-overlay
+          className={cn(
+            'pointer-events-none absolute inset-0 size-full text-foreground',
+            typography,
+          )}
+        >
+          {renderValue(value)}
+        </div>
+      ) : null}
+      {textarea}
+    </div>
   )
 
   return (
@@ -198,7 +280,7 @@ export function NodePromptBar({
         )}
       >
         {addButton}
-        {textarea}
+        {field}
         <div
           className={cn(
             'flex items-center gap-1.5',

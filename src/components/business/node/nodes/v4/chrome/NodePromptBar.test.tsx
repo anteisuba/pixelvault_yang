@@ -108,6 +108,38 @@ describe('NodePromptBar', () => {
     ).toContain('charCount')
   })
 
+  it('renderValue = 输入框内的等距镜像：字符逐字符相同、正文字色透明留光标', () => {
+    const { container } = setup({
+      value: '[愤怒]台词',
+      renderValue: (text: string) => <span data-mirror>{text}</span>,
+    })
+    const overlay = container.querySelector('[data-prompt-bar-overlay]')!
+    expect(overlay.textContent).toBe('[愤怒]台词')
+    const input = screen.getByLabelText('提示词')
+    expect(input.className).toContain('text-transparent')
+    expect(input.className).toContain('caret-foreground')
+  })
+
+  it('不给 renderValue 就没有镜像层，正文字色照旧', () => {
+    const { container } = setup()
+    expect(container.querySelector('[data-prompt-bar-overlay]')).toBeNull()
+    expect(screen.getByLabelText('提示词').className).toContain(
+      'text-foreground',
+    )
+  })
+
+  it('inputRef 拿得到 textarea；选区变化会报出来', () => {
+    const inputRef = { current: null as HTMLTextAreaElement | null }
+    const onSelectionChange = vi.fn()
+    setup({ inputRef, onSelectionChange })
+    const input = screen.getByLabelText('提示词') as HTMLTextAreaElement
+    expect(inputRef.current).toBe(input)
+    input.selectionStart = 2
+    input.selectionEnd = 2
+    fireEvent.select(input)
+    expect(onSelectionChange).toHaveBeenCalledWith({ start: 2, end: 2 })
+  })
+
   it('生成中：正文只读，发送换成取消', () => {
     const onCancel = vi.fn()
     setup({ generating: true, onCancel })

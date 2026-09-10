@@ -7,10 +7,9 @@
  * 标记渲染成 chip、正文原样 —— 与 `TextBody` 渲染 @ chip 同一条分工：解析走纯函数
  * （`parseVoiceMarkup`），这里只负责画。
  *
- * ⚠ 这是**只读**的一层。真正可编辑的是提示词栏里的 textarea，文本才是真值
- * （见 `lib/voice-markup.ts` 头注）。缺 prop 记一笔：`NodePromptBar` 今天无法在
- * 输入框**内部**画 chip（没有 overlay / renderValue 入口），所以这一行浮在栏上方
- * ——画板里它是同一块玻璃的第一行。
+ * ⚠ 这是**只读**的一层，今天只剩**快速听**里那段裸台词在用。提示词栏里的 chip
+ * 已经进到输入框内部（`NodePromptBar.renderValue` + `renderVoicePromptValue`，
+ * S0-fix2），⛔ 别再把这一行搬回栏上方——画板里栏上方没有第二行。
  */
 
 import { parseVoiceMarkup } from '@/lib/voice-markup'
@@ -19,7 +18,7 @@ import { findVoiceMarkupTag } from '@/lib/voice-markup'
 
 export interface AudioLineChipsProps {
   readonly text: string
-  /** `bar` = 提示词栏上方那条玻璃行；`plain` = 快速听里的裸正文。 */
+  /** `plain` = 快速听里的裸正文（栏内 chip 走 `renderVoicePromptValue`）。 */
   readonly variant?: 'bar' | 'plain'
   readonly className?: string
 }

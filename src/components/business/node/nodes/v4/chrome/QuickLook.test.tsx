@@ -40,9 +40,9 @@ describe('QuickLook', () => {
   })
 
   it('压暗 55%（画布看得见但退到后面）', () => {
-    const { container } = setup()
+    setup()
     expect(
-      container.querySelector('[data-node-chrome="quick-look"]')?.className,
+      document.querySelector('[data-node-chrome="quick-look"]')?.className,
     ).toContain('bg-background/55')
   })
 
@@ -57,18 +57,18 @@ describe('QuickLook', () => {
   })
 
   it('点空白关闭，点内容不关（⛔ 不认冒泡上来的点击）', () => {
-    const { onClose, container } = setup()
+    const { onClose } = setup()
     fireEvent.pointerDown(screen.getByTestId('media'))
     expect(onClose).not.toHaveBeenCalled()
     fireEvent.pointerDown(
-      container.querySelector('[data-node-chrome="quick-look"]')!,
+      document.querySelector('[data-node-chrome="quick-look"]')!,
     )
     expect(onClose).toHaveBeenCalled()
   })
 
   it('open=false 时什么都不渲染，键盘也不再挂', () => {
-    const { container, onClose } = setup({ open: false })
-    expect(container.firstChild).toBeNull()
+    const { onClose } = setup({ open: false })
+    expect(document.querySelector('[data-node-chrome="quick-look"]')).toBeNull()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onClose).not.toHaveBeenCalled()
   })

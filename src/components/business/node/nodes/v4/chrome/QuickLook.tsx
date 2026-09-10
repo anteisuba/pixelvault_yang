@@ -4,6 +4,9 @@
  * 双击打开的**快速看**浮层（spec §1.10，画板 `ImageQuickLook.dc.html`）。
  *
  * 画布级：压暗 55%、原比例居中、底部一条「版本小点 + 读数 + 下载/关闭」。
+ * ⚠ **portal 到 body**：`absolute inset-0` 会贴在**节点卡**上，于是整张浮层跟着
+ * 画布缩放一起缩——42% 缩放下它只有拇指大（真机 2026-09-10 抓到）。快速看是
+ * 画布级的，必须脱离 ReactFlow 的 viewport 变换。
  * ⛔ 没有任何参数——参数是提示词栏的事，快速看只回答「这一版长什么样」。
  * Esc / 点空白关闭，←→ 切版本。
  *
@@ -11,6 +14,7 @@
  */
 
 import { useEffect, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { Download, X } from 'lucide-react'
 
@@ -73,9 +77,11 @@ export function QuickLook({
     return () => document.removeEventListener('keydown', onKeyDown)
   }, [open, onClose, onVersionChange, versionCount, versionIndex])
 
-  if (!open) return null
+  // ⚠ `open` 只可能被用户的交互点开，那一刻早就在客户端了；SSR 那一轮 `open`
+  // 恒为 false，所以这里不需要 mounted 门（⛔ 也就不必在 effect 里 setState）。
+  if (!open || typeof document === 'undefined') return null
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -87,7 +93,7 @@ export function QuickLook({
         if (event.target === event.currentTarget) onClose()
       }}
       className={cn(
-        'absolute inset-0 z-50 flex flex-col items-center justify-center gap-3.5 bg-background/55 p-8',
+        'fixed inset-0 z-50 flex flex-col items-center justify-center gap-3.5 bg-background/55 p-8',
         className,
       )}
     >
@@ -134,6 +140,7 @@ export function QuickLook({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

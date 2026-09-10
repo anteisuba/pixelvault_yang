@@ -27,6 +27,11 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
@@ -45,6 +50,14 @@ export interface NodeToolbarAction {
   readonly active?: boolean
   /** 给了就是子菜单入口：点开渲染这段内容（用 `DropdownMenuItem` 拼）。 */
   readonly menu?: ReactNode
+  /**
+   * 给了就是**自定义面板**入口（`Popover`，⛔ 不是 `DropdownMenu`）。
+   *
+   * ⚠ 面板里有输入框 / 分段控件时必须走这一条：`DropdownMenu` 的 typeahead 会把
+   * 每一次按键当成「跳到以这个字母开头的菜单项」吞掉，输入框一个字都打不进去。
+   * `menu` 与 `panel` 只给一个，同时给以 `panel` 为准。
+   */
+  readonly panel?: ReactNode
 }
 
 /** 一组按钮；组与组之间画一条竖线。 */
@@ -128,7 +141,26 @@ export function NodeToolbar({
                 />
               )}
               {group.map((action) =>
-                action.menu ? (
+                action.panel ? (
+                  <Popover key={action.id}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <PopoverTrigger asChild>
+                          <ToolbarCell action={action} />
+                        </PopoverTrigger>
+                      </TooltipTrigger>
+                      <TooltipContent>{action.label}</TooltipContent>
+                    </Tooltip>
+                    <PopoverContent
+                      align="start"
+                      sideOffset={8}
+                      data-toolbar-panel={action.id}
+                      className="w-auto p-3"
+                    >
+                      {action.panel}
+                    </PopoverContent>
+                  </Popover>
+                ) : action.menu ? (
                   <DropdownMenu key={action.id}>
                     <Tooltip>
                       <TooltipTrigger asChild>

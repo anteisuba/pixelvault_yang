@@ -45,6 +45,7 @@ export function ModelChip({
       type="button"
       disabled={disabled}
       onClick={onClick}
+      data-model-chip
       data-active={active ? 'true' : undefined}
       className={cn(
         'inline-flex min-h-6 max-w-full shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-2xs',

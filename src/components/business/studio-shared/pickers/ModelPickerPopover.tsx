@@ -20,8 +20,14 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover'
+import {
+  AUDIO_KIND,
+  DEFAULT_AUDIO_KIND,
+  type AudioKind,
+} from '@/constants/audio-options'
 import { MODEL_PICKER_DEFAULT_SCOPE } from '@/constants/model-picker'
 import { getModelById } from '@/constants/models'
+import { resolveAudioKind } from '@/constants/models/audio'
 import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
 import { getProviderLabel } from '@/constants/providers'
 import {
@@ -63,11 +69,35 @@ interface ChannelView {
   price: string | null
 }
 
+/**
+ * 分组维度。`series` = 厂商系列（默认，画板 `ModelPicker.dc.html`）；`kind` =
+ * 音频三类（语音 / 配乐 / 音效，画板 `AudioSelected.dc.html`「组就是类型」）。
+ *
+ * ⚠ 两种分组共用**同一份行**（渠道行、健康点、缺 key 灰显一律不变），换的只是
+ * 分组标题 —— ⛔ 不为音频另写一份列表。
+ */
+export const MODEL_PICKER_GROUP_BY = {
+  series: 'series',
+  kind: 'kind',
+} as const
+
+export type ModelPickerGroupBy =
+  (typeof MODEL_PICKER_GROUP_BY)[keyof typeof MODEL_PICKER_GROUP_BY]
+
+/** 画板上三组的顺序（语音 → 配乐 → 音效）。 */
+const KIND_ORDER: readonly AudioKind[] = [
+  AUDIO_KIND.SPEECH,
+  AUDIO_KIND.MUSIC,
+  AUDIO_KIND.SFX,
+]
+
 interface ModelRow {
   modelKey: string
   label: string
   seriesKey: string
   seriesLabel: string
+  /** 这个型号产出哪一类音频（`groupBy='kind'` 时的分组键）。 */
+  audioKind: AudioKind
   channels: ChannelView[]
   /** 当前生效的那条渠道（手选优先，否则自动规则）。 */
   active: ChannelView
@@ -109,6 +139,8 @@ export interface ModelPickerPopoverProps {
   onToggleOption?: (option: StudioModelOption) => void
   /** 底部「配置渠道与 key…」；不给则不渲染那一行。 */
   onManageChannels?: () => void
+  /** 分组维度，默认按厂商系列；音频栏传 `kind`（语音 / 配乐 / 音效）。 */
+  groupBy?: ModelPickerGroupBy
 }
 
 /** 能力标 —— 只写目录里查得到的两件事，不猜。 */
@@ -146,6 +178,7 @@ export function ModelPickerPopover({
   selectedOptionIds,
   onToggleOption,
   onManageChannels,
+  groupBy = MODEL_PICKER_GROUP_BY.series,
 }: ModelPickerPopoverProps) {
   const multi = Boolean(selectedOptionIds && onToggleOption)
   const [open, setOpen] = useState(false)
@@ -203,11 +236,15 @@ export function ModelPickerPopover({
         channels.find(
           (c) => c.channel.channelId === resolved.channel.channelId,
         ) ?? channels[0]
+      const catalogModel = getModelById(active.channel.option.modelId)
       return {
         modelKey: model.modelKey,
         label: model.label,
         seriesKey,
         seriesLabel,
+        audioKind: catalogModel
+          ? resolveAudioKind(catalogModel)
+          : DEFAULT_AUDIO_KIND,
         channels,
         active,
         activeIsManual: resolved.reason === 'manual',
@@ -245,6 +282,15 @@ export function ModelPickerPopover({
 
   const seriesOrder = useMemo(() => {
     const order: { key: string; label: string; rows: ModelRow[] }[] = []
+    if (groupBy === MODEL_PICKER_GROUP_BY.kind) {
+      for (const kind of KIND_ORDER) {
+        const rowsOfKind = visibleRows.filter((row) => row.audioKind === kind)
+        // 空组整组不画（Hard Rule 8 说的是「某一档灰掉」，一整类没有模型是另一回事）。
+        if (rowsOfKind.length === 0) continue
+        order.push({ key: kind, label: t(`kinds.${kind}`), rows: rowsOfKind })
+      }
+      return order
+    }
     for (const row of visibleRows) {
       const group = order.find((g) => g.key === row.seriesKey)
       if (group) group.rows.push(row)
@@ -252,7 +298,9 @@ export function ModelPickerPopover({
         order.push({ key: row.seriesKey, label: row.seriesLabel, rows: [row] })
     }
     return order
-  }, [visibleRows])
+    // t 随语言变，分组本身只跟着行与维度走。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visibleRows, groupBy])
 
   const selectedRow = useMemo(() => {
     if (multi || !value) return null
@@ -304,7 +352,12 @@ export function ModelPickerPopover({
       ? [
           row.active.channel.label,
           row.active.price,
-          ...capabilityTags(row.active.channel.option),
+          // 能力标只有**图像**那两件事（参考图 / LoRA）。按类型分组 = 这是音频栏，
+          // 那两个标签对 TTS 一律没有意义 —— 真机 2026-09-10 抓到 Fish S2.1 Pro
+          // 行上写着「参考图」。
+          ...(groupBy === MODEL_PICKER_GROUP_BY.kind
+            ? []
+            : capabilityTags(row.active.channel.option)),
         ]
           .filter(Boolean)
           .join(' · ')

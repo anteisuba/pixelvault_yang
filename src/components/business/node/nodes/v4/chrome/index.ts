@@ -18,7 +18,18 @@ export {
   type NodeToolbarAction,
   type NodeToolbarGroup,
 } from './NodeToolbar'
-export { NodePromptBar, type NodePromptBarProps } from './NodePromptBar'
+export {
+  NodePromptBar,
+  type NodePromptBarProps,
+  type PromptBarSelection,
+} from './NodePromptBar'
+export {
+  PromptBarMark,
+  PromptBarMarkHidden,
+  PROMPT_BAR_MARK_VARIANTS,
+  type PromptBarMarkProps,
+  type PromptBarMarkVariant,
+} from './PromptBarMark'
 export { ChipPopover, type ChipPopoverProps } from './ChipPopover'
 export {
   MentionChip,
@@ -33,6 +44,10 @@ export {
   type MentionSegmentText,
   type ParseMentionsOptions,
 } from './parse-mentions'
+export {
+  renderPromptMentions,
+  renderVoicePromptValue,
+} from './render-prompt-value'
 export { VersionDots, type VersionDotsProps } from './VersionDots'
 export {
   NodeFrameProgress,

@@ -2,23 +2,19 @@
  * 音频节点的**纯读函数**（v3 spec §4，画板 `AudioStates` / `AudioSelected` /
  * `AudioQuickListen`）。
  *
- * 矮卡尺寸、波形柱、时长读数、模型三组、音色 chip 显示什么 —— 全在这里算完再交给
+ * 矮卡尺寸、波形柱、时长读数、音色 chip 显示什么 —— 全在这里算完再交给
  * 组件（与 `image/image-node-model.ts` 同一条分工：⛔ 组件里不出现第二份算术）。
  */
 
 import {
   AUDIO_KIND,
-  AUDIO_KINDS,
   DEFAULT_AUDIO_KIND,
   type AudioKind,
 } from '@/constants/audio-options'
 import { getModelById } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
 import { readOutputVersions } from '@/lib/node-output-versions'
-import type {
-  NodeV4AudioData,
-  NodeWorkflowModelOption,
-} from '@/types/node-workflow'
+import type { NodeV4AudioData } from '@/types/node-workflow'
 
 /**
  * 矮卡的三个数（画板逐像素）。⚠ 72 是**卡高**，不是内容高：空态与有声态同高，
@@ -116,27 +112,4 @@ export function resolveAudioNodeKind(data: NodeV4AudioData): AudioKind {
 /** 音色 chip 只在语音那一类露出（配乐 / 音效没有音色可挑）。 */
 export function showsVoiceChip(kind: AudioKind): boolean {
   return kind === AUDIO_KIND.SPEECH
-}
-
-export interface AudioModelGroup {
-  readonly kind: AudioKind
-  readonly options: readonly NodeWorkflowModelOption[]
-}
-
-/**
- * 模型弹层的三组（语音 / 配乐 / 音效）。
- *
- * ⚠ 分组键是**目录里的 `audioKind`**，不是厂商系列 —— 画板上组就是类型。
- * 空组整组不画（Hard Rule 8 说的是「某一档灰掉」，一整类没有模型是另一回事）。
- */
-export function audioModelGroups(
-  options: readonly NodeWorkflowModelOption[],
-): readonly AudioModelGroup[] {
-  return AUDIO_KINDS.map((kind) => ({
-    kind,
-    options: options.filter((option) => {
-      const model = getModelById(option.modelId)
-      return model ? resolveAudioKind(model) === kind : false
-    }),
-  })).filter((group) => group.options.length > 0)
 }

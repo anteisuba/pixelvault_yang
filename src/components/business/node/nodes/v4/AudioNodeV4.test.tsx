@@ -38,6 +38,7 @@ vi.mock('@/hooks/node/use-node-media-generation-v4', () => ({
   useNodeMediaGenerationV4: () => ({ generateNode, isLoading: false }),
 }))
 
+const setSearchSpy = vi.hoisted(() => vi.fn())
 /** 声音库的事实层桩掉：本组要看的是弹层长什么样、点了写什么，不是拉取。 */
 vi.mock('@/hooks/use-voice-library', () => ({
   useVoiceLibrary: () => ({
@@ -61,10 +62,34 @@ vi.mock('@/hooks/use-voice-library', () => ({
         sampleAudioUrl: 'https://cdn.test/sample.mp3',
       },
     ],
+    publicVoices: [
+      {
+        id: 'fish_audio:fish_public',
+        voiceId: 'fish_public',
+        title: '西格莉卡',
+        author: '平台',
+        sampleUrl: 'https://cdn.test/public.mp3',
+      },
+    ],
+    setSearch: setSearchSpy,
     isLoading: false,
   }),
   isClonedVoiceCard: (card: { referenceAudioUrl: string | null }) =>
     Boolean(card.referenceAudioUrl),
+}))
+
+/** 模型弹层本体在 `ModelPickerPopover.test.tsx` 里测（分组、渠道、缺 key）；
+ *  这里只关心「音频栏摆的是它、分组维度是 kind」。 */
+vi.mock('../../../studio-shared/pickers/ModelPickerPopover', () => ({
+  MODEL_PICKER_GROUP_BY: { series: 'series', kind: 'kind' },
+  ModelPickerPopover: (props: Record<string, unknown>) => (
+    <button
+      type="button"
+      data-model-chip
+      data-group-by={String(props.groupBy)}
+      data-count={(props.options as unknown[]).length}
+    />
+  ),
 }))
 
 vi.mock('../../FishVoiceLibraryDialog', () => ({
@@ -76,13 +101,17 @@ import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { VOICE_MARKUP_INTENSITY_IDS } from '@/lib/voice-markup'
 import type { NodeV4, NodeWorkflowModelOption } from '@/types/node-workflow'
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+} from '@/components/ui/dropdown-menu'
+
 import { AudioNodeV4 } from './AudioNodeV4'
-import { AudioModelChip } from './audio/AudioModelChip'
+import { AudioOwnerMenuItem } from './audio/AudioOwnerMenuItem'
 import { AudioTonePopover } from './audio/AudioTonePopover'
 import { AudioVoiceChip } from './audio/AudioVoiceChip'
 import {
   AUDIO_CARD,
-  audioModelGroups,
   buildAudioWaveformBars,
   resolveAudioNodeKind,
   showsVoiceChip,
@@ -280,7 +309,11 @@ describe('选中态：工具条与提示词栏', () => {
     )
     renderAudio(context, 'a_1', true)
     expect(document.querySelector('[data-audio-voice-chip]')).not.toBeNull()
-    expect(document.querySelector('[data-audio-model-chip]')).not.toBeNull()
+    // 模型 chip = 共用的 `ModelPickerPopover`（chip 就是它的 `ModelChip` 触发器），
+    // 分组维度换成类型（语音 / 配乐 / 音效）。
+    const chip = document.querySelector('[data-model-chip]')!
+    expect(chip).not.toBeNull()
+    expect(chip.getAttribute('data-group-by')).toBe('kind')
   })
 
   it('选了配乐模型：音色 chip 消失、占位文案换成描述', () => {
@@ -333,14 +366,77 @@ describe('选中态：工具条与提示词栏', () => {
     expect(input.value).toBe('台词')
   })
 
-  it('有标记时栏上多一行 chip 预览', () => {
+  it('行内标记 chip 画在**输入框里**（overlay），⛔ 不是栏上另一行', () => {
     renderAudio(selectedContext(), 'a_1', true)
     const input = document.querySelector('[data-prompt-bar-input]')!
     expect(document.querySelector('[data-audio-line-chips]')).toBeNull()
-    fireEvent.change(input, { target: { value: '[愤怒]台词' } })
+    fireEvent.change(input, { target: { value: '[强·愤怒]台词' } })
+    const overlay = document.querySelector('[data-prompt-bar-overlay]')!
+    const chip = overlay.querySelector('[data-prompt-bar-mark="tone:愤怒"]')!
+    expect(chip).not.toBeNull()
+    // 强 = 实心；chip 上只写标签，强度全称进 title（画板）。
+    expect(chip.className).toContain('bg-primary')
+    expect(chip.getAttribute('title')).toBe('tone.chipTitle:强/愤怒')
+    // ⚠ overlay 的字符必须与 value 逐字符相同，否则光标错位。
+    expect(overlay.textContent).toBe('[强·愤怒]台词')
+  })
+
+  it('三档强度 = 三种 chip 形态（强实心 / 中灰底 / 轻描边）', () => {
+    renderAudio(selectedContext(), 'a_1', true)
+    const input = document.querySelector('[data-prompt-bar-input]')!
+    fireEvent.change(input, {
+      target: { value: '[强·愤怒][愤怒][轻·愤怒]' },
+    })
+    const marks = Array.from(
+      document.querySelectorAll('[data-prompt-bar-mark="tone:愤怒"]'),
+    ).map((item) => item.className)
+    expect(marks[0]).toContain('bg-primary')
+    expect(marks[1]).toContain('bg-surface-fill')
+    expect(marks[2]).toContain('ring-border')
+  })
+
+  it('@ 引用也在输入框里成 chip，退格整颗删', () => {
+    const context = harness(
+      [
+        audioNode('a_1', { url: 'https://cdn.test/v.mp3' }),
+        audioNode('a_2', { name: '莫宁' }),
+      ],
+      { selectedNodeIds: ['a_1'] },
+    )
+    renderAudio(context, 'a_1', true)
+    const input = document.querySelector(
+      '[data-prompt-bar-input]',
+    ) as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: '@莫宁' } })
     expect(
-      document.querySelector('[data-audio-line-marker="愤怒"]'),
+      document.querySelector('[data-prompt-bar-mark="mention"]'),
     ).not.toBeNull()
+    input.selectionStart = 3
+    input.selectionEnd = 3
+    fireEvent.keyDown(input, { key: 'Backspace' })
+    expect(input.value).toBe('')
+  })
+
+  it('时长未知恒显 `--:--`，⛔ 不整块不画、⛔ 不写 0s', () => {
+    renderAudio(harness([audioNode('a_1', { url: 'https://cdn.test/v.mp3' })]))
+    const readout = document.querySelector('[data-audio-duration]')!
+    expect(readout.getAttribute('data-known')).toBe('false')
+    expect(readout.textContent).toBe('durationUnknown')
+  })
+
+  it('⋯ 菜单里有「归属角色…」', () => {
+    render(
+      <DropdownMenu open>
+        <DropdownMenuContent>
+          <AudioOwnerMenuItem
+            value={undefined}
+            candidates={['莫宁', '西格莉卡']}
+            onChange={vi.fn()}
+          />
+        </DropdownMenuContent>
+      </DropdownMenu>,
+    )
+    expect(document.querySelector('[data-audio-more="owner"]')).not.toBeNull()
   })
 })
 
@@ -414,7 +510,7 @@ describe('音色弹层', () => {
       document.querySelector('[data-audio-voice-row="fish_morning"]'),
     ).not.toBeNull()
     expect(
-      document.querySelector('[data-audio-voice-preview="c1"]'),
+      document.querySelector('[data-audio-voice-preview="fish_morning"]'),
     ).not.toBeNull()
     fireEvent.click(
       document.querySelector('[data-audio-voice-row="fish_morning"] button')!,
@@ -424,6 +520,59 @@ describe('音色弹层', () => {
       name: '莫宁',
       sampleUrl: null,
     })
+  })
+
+  it('四段：我的 / 收藏 / 平台 / 克隆我的声音…，平台段末尾进「更多…」', () => {
+    render(
+      <AudioVoiceChip
+        voiceId={undefined}
+        speed={undefined}
+        volume={undefined}
+        onSelectVoice={vi.fn()}
+        onSpeedChange={vi.fn()}
+        onVolumeChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(document.querySelector('[data-audio-voice-chip]')!)
+    expect(
+      Array.from(document.querySelectorAll('[data-audio-voice-section]')).map(
+        (item) => item.getAttribute('data-audio-voice-section'),
+      ),
+    ).toEqual(['mine', 'favorites', 'platform'])
+    // 平台段的行来自公开库，每条都能试听。
+    expect(
+      document.querySelector('[data-audio-voice-row="fish_public"]'),
+    ).not.toBeNull()
+    expect(
+      document.querySelector('[data-audio-voice-preview="fish_public"]'),
+    ).not.toBeNull()
+    expect(document.querySelector('[data-audio-voice-library]')).not.toBeNull()
+    expect(document.querySelector('[data-audio-voice-clone]')).not.toBeNull()
+  })
+
+  it('一个搜索框覆盖四段：本地过我的与收藏，平台把词递给公开库', () => {
+    render(
+      <AudioVoiceChip
+        voiceId={undefined}
+        speed={undefined}
+        volume={undefined}
+        onSelectVoice={vi.fn()}
+        onSpeedChange={vi.fn()}
+        onVolumeChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(document.querySelector('[data-audio-voice-chip]')!)
+    fireEvent.change(document.querySelector('[data-audio-voice-search]')!, {
+      target: { value: '莫宁' },
+    })
+    expect(setSearchSpy).toHaveBeenCalledWith('莫宁')
+    expect(
+      document.querySelector('[data-audio-voice-row="fish_morning"]'),
+    ).not.toBeNull()
+    // 收藏段被本地过滤空掉。
+    expect(
+      document.querySelector('[data-audio-voice-empty="favorites"]'),
+    ).not.toBeNull()
   })
 
   it('弹层底部是语速三档 + 音量滑杆（prosody，⛔ 不是标记）', () => {
@@ -448,47 +597,7 @@ describe('音色弹层', () => {
 })
 
 describe('模型弹层：三组即三类', () => {
-  it('按 audioKind 分组，空组不画', () => {
-    const groups = audioModelGroups([
-      modelOption('opt_fish', AI_MODELS.FISH_AUDIO_S2_PRO),
-      modelOption('opt_music', AI_MODELS.ELEVENLABS_MUSIC_V2),
-      modelOption('opt_sfx', AI_MODELS.ELEVENLABS_SFX_V2),
-    ])
-    expect(groups.map((group) => group.kind)).toEqual([
-      'speech',
-      'sfx',
-      'music',
-    ])
-
-    const speechOnly = audioModelGroups([
-      modelOption('opt_fish', AI_MODELS.FISH_AUDIO_S2_PRO),
-    ])
-    expect(speechOnly).toHaveLength(1)
-  })
-
   it('选中一条配乐模型 → 这张卡就是配乐卡（音色 chip 随之消失）', () => {
-    const onChange = vi.fn()
-    render(
-      <AudioModelChip
-        options={[
-          modelOption('opt_fish', AI_MODELS.FISH_AUDIO_S2_PRO),
-          modelOption('opt_music', AI_MODELS.ELEVENLABS_MUSIC_V2),
-        ]}
-        value="opt_fish"
-        onChange={onChange}
-      />,
-    )
-    fireEvent.click(document.querySelector('[data-audio-model-chip]')!)
-    expect(document.querySelectorAll('[data-audio-model-group]')).toHaveLength(
-      2,
-    )
-    fireEvent.click(
-      document.querySelector('[data-audio-model-option="opt_music"]')!,
-    )
-    expect(onChange).toHaveBeenCalledWith(
-      expect.objectContaining({ optionId: 'opt_music' }),
-    )
-
     const musicData = {
       kind: 'audio',
       model: { modelId: AI_MODELS.ELEVENLABS_MUSIC_V2 },

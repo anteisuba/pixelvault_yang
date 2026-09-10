@@ -5859,7 +5859,13 @@
           "speed": "Speed",
           "volume": "Volume",
           "loading": "Loading…",
-          "empty": "No voices yet — pick one from the platform library"
+          "empty": "No voices yet — pick one from the platform library",
+          "favorites": "Favorites",
+          "platformSection": "Platform",
+          "platformTag": "Platform voice",
+          "more": "More…",
+          "emptyFavorites": "No favorites yet",
+          "emptyPlatform": "No matching platform voices"
         },
         "model": {
           "title": "Model",
@@ -5882,8 +5888,14 @@
           },
           "customLabel": "Custom tone description",
           "customPlaceholder": "Custom: e.g. “holding back a laugh”…",
-          "apply": "Insert"
-        }
+          "apply": "Insert",
+          "chipTitle": "{intensity} · {label}"
+        },
+        "owner": {
+          "title": "Assign character…",
+          "none": "Narrator"
+        },
+        "durationUnknown": "--:--"
       }
     },
     "rerunDownstream": {
@@ -7653,6 +7665,11 @@
       "reference": "Reference image",
       "multiReference": "Multi-image reference",
       "lora": "LoRA"
+    },
+    "kinds": {
+      "speech": "Speech",
+      "music": "Music",
+      "sfx": "Sound effects"
     }
   }
 }

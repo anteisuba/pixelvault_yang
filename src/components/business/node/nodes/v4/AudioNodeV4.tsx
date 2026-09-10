@@ -53,6 +53,7 @@ import { getNodeV4Ports, NODE_SLOT_IDS } from '@/constants/node-slots'
 import { NODE_V4_CARD } from '@/constants/node-studio'
 import {
   NODE_MEDIA_KIND_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
@@ -62,7 +63,6 @@ import { getGeneratingStageKey } from '@/lib/generation-progress'
 import { renameStableNodeName } from '@/lib/node-display-name'
 import { readOutputIndex } from '@/lib/node-output-versions'
 import {
-  hasVoiceMarkup,
   insertVoiceMarkup,
   voiceMarkupDeletionRangeAt,
   type VoiceMarkupInsert,
@@ -77,6 +77,8 @@ import {
   PORT_CLASS,
   QuickLook,
   VersionDots,
+  mentionDeletionRangeAt,
+  renderVoicePromptValue,
   type NodeToolbarGroup,
 } from './chrome'
 import {
@@ -88,11 +90,18 @@ import {
   showsVoiceChip,
 } from './audio/audio-node-model'
 import { AudioLineChips } from './audio/AudioLineChips'
-import { AudioModelChip } from './audio/AudioModelChip'
+import { AudioOwnerMenuItem } from './audio/AudioOwnerMenuItem'
 import { AudioTonePopover, TONE_POPOVER_WIDTH } from './audio/AudioTonePopover'
 import { AudioVoiceChip } from './audio/AudioVoiceChip'
 import { AudioWaveform } from './audio/AudioWaveform'
 import { transcribeAudioUrl } from './audio/audio-transcribe'
+// ⚠ `toStudioModelOption` 是**两类卡共用**的那一份映射（`apiKeyId → keyId` 等），
+// 住在 image 那侧；⛔ 不在音频这边再抄一份，两处对不上选中的模型就会漂。
+import { toStudioModelOption } from './image/image-node-model'
+import {
+  MODEL_PICKER_GROUP_BY,
+  ModelPickerPopover,
+} from '../../../studio-shared/pickers/ModelPickerPopover'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
@@ -163,9 +172,10 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const [transcribing, setTranscribing] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
-  /** 提示词栏那只 textarea —— 插标记与退格删 chip 都要问它光标在哪。
-   *  ⚠ 只能从键盘事件里捡（`NodePromptBar` 今天不给 ref / 选区回调，见报告）。 */
+  /** 提示词栏那只 textarea —— 插标记与退格删 chip 都要问它光标在哪
+   *  （`NodePromptBar.inputRef`，S0-fix2 补的能力）。 */
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
+  /** 最后一次报上来的光标位置（`NodePromptBar.onSelectionChange`）。 */
   const caretRef = useRef<number | null>(null)
 
   // 助手 `set_prompt` 落下来时草稿跟上 —— 渲染期同步，⛔ 不放 effect 里。
@@ -223,6 +233,22 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const modelOptions =
     canvas.modelOptionsByKind[NODE_MEDIA_KIND_IDS.audio] ?? []
   const seconds = duration || (audioData.durationSec ?? 0)
+  /** 「归属角色」的候选 = 画布上的角色卡（`characterName` 优先于稳定名）。 */
+  const characterNames = canvas.nodes
+    .filter(
+      (item) =>
+        item.data.kind === NODE_MEDIA_KIND_IDS.image &&
+        item.data.subtype === NODE_V4_IMAGE_SUBTYPE_IDS.character,
+    )
+    .map((item) =>
+      'characterName' in item.data && item.data.characterName
+        ? item.data.characterName
+        : item.data.name,
+    )
+  /** `@` 提及的候选名 —— 栏里画 chip 与退格整颗删都按它切。 */
+  const mentionNames = canvas.nodes
+    .filter((item) => item.id !== id)
+    .map((item) => item.data.name)
 
   const renameNode = (next: string): boolean => {
     const taken = new Set(
@@ -335,7 +361,9 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         icon: Smile,
         disabled: !speech,
         onSelect: () => {},
-        menu: (
+        // ⚠ 走 `panel`（Popover）而不是 `menu`（DropdownMenu）：面板里有自定义
+        // 描述输入框与强度分段，DropdownMenu 的 typeahead 会把按键全吞掉。
+        panel: (
           <div style={{ width: TONE_POPOVER_WIDTH }}>
             <AudioTonePopover
               onInsert={(inserts: readonly VoiceMarkupInsert[]) =>
@@ -405,6 +433,18 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
             >
               {tAudio('add.upload')}
             </DropdownMenuItem>
+            <AudioOwnerMenuItem
+              value={audioData.ownerName}
+              candidates={characterNames}
+              onChange={(next) =>
+                void canvas.onApplyOp({
+                  op: NODE_ASSISTANT_OP_V4_IDS.setField,
+                  target: id,
+                  field: 'ownerName',
+                  value: next ?? '',
+                })
+              }
+            />
             <DropdownMenuItem
               data-audio-more="duplicate"
               onSelect={() =>
@@ -528,18 +568,20 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                   progress={progress}
                   className="min-w-0 flex-1"
                 />
-                {/* ⚠ 时长未知时**整块不画**，⛔ 不写「0s」——那是一句假话
-                    （元数据还没回来时 `<audio>` 的 duration 是 NaN）。 */}
-                {seconds > 0 ? (
-                  <span
-                    data-audio-duration
-                    className="shrink-0 text-xs tabular-nums text-muted-foreground"
-                  >
-                    {playing
+                {/* ⚠ 时长**恒显**（画板右侧永远有一行读数，卡的宽度才不会在
+                    元数据回来的那一刻跳一下）。还没回来时写占位 `--:--` 而不是
+                    「0s」——占位是「还不知道」，`0s` 是一句假话。 */}
+                <span
+                  data-audio-duration
+                  data-known={seconds > 0 ? 'true' : 'false'}
+                  className="shrink-0 text-xs tabular-nums text-muted-foreground"
+                >
+                  {seconds <= 0
+                    ? tAudio('durationUnknown')
+                    : playing
                       ? `${formatAudioClock(progress * seconds)} / ${formatAudioSeconds(seconds)}`
                       : formatAudioSeconds(seconds)}
-                  </span>
-                ) : null}
+                </span>
               </>
             ) : null}
             {generating && (
@@ -560,6 +602,9 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
         <audio
           ref={audioRef}
           src={audioData.url}
+          // ⚠ 显式要元数据：`hidden` 的 `<audio>` 浏览器默认不预取，`duration` 会
+          // 一直是 NaN，卡上就永远停在 `--:--`（真机 2026-09-10 实测 readyState=0）。
+          preload="metadata"
           hidden
           onPlay={() => setPlaying(true)}
           onPause={() => setPlaying(false)}
@@ -593,10 +638,6 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                 })
               }
             />
-            {/* 行内标记预览：文本是真值，这一行只是把 `[愤怒]` 画成 chip。 */}
-            {hasVoiceMarkup(draft) ? (
-              <AudioLineChips text={draft} className="w-130" />
-            ) : null}
             <NodePromptBar
               value={draft}
               onValueChange={setDraft}
@@ -612,6 +653,24 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
               }
               ariaLabel={tAudio('promptLabel')}
               className="w-130"
+              inputRef={inputRef}
+              onSelectionChange={(range) => {
+                caretRef.current = range.start
+              }}
+              // 行内 chip 画在**输入框内部**（画板：`[愤怒]` 与 `@莫宁` 就在台词
+              // 那一行里）。文本仍是唯一真值，这一层只给字符段加底色。
+              renderValue={(text) =>
+                renderVoicePromptValue(text, {
+                  mentions: { names: mentionNames },
+                  titleOf: (label, intensityLabel) =>
+                    intensityLabel
+                      ? tAudio('tone.chipTitle', {
+                          intensity: intensityLabel,
+                          label,
+                        })
+                      : label,
+                })
+              }
               addMenu={
                 <>
                   <DropdownMenuItem
@@ -630,7 +689,6 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
               }
               textareaProps={{
                 onKeyDown: (event) => {
-                  inputRef.current = event.currentTarget
                   const caret = event.currentTarget.selectionStart
                   caretRef.current = caret
                   if (
@@ -639,8 +697,13 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                   ) {
                     return
                   }
-                  // 退格删**整颗** chip（spec §1.7 的同一条手感）。
-                  const range = voiceMarkupDeletionRangeAt(draft, caret)
+                  // 退格删**整颗** chip（spec §1.7 的同一条手感）——语气标记与
+                  // `@` 引用同一条判据，谁的尾巴压在光标上就删谁。
+                  const range =
+                    voiceMarkupDeletionRangeAt(draft, caret) ??
+                    mentionDeletionRangeAt(draft, caret, {
+                      names: mentionNames,
+                    })
                   if (!range) return
                   event.preventDefault()
                   const next =
@@ -675,22 +738,31 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                   />
                 ) : null,
                 modelOptions.length > 0 ? (
-                  <AudioModelChip
+                  // 与图片卡同一份弹层（渠道行 / 健康点 / 缺 key 灰显全都沿用），
+                  // 只是分组维度换成**类型**：语音 / 配乐 / 音效（画板「组就是类型」）。
+                  <ModelPickerPopover
                     key="model"
-                    options={modelOptions}
-                    value={audioData.model?.optionId}
+                    options={modelOptions.map(toStudioModelOption)}
+                    value={audioData.model?.optionId ?? null}
+                    groupBy={MODEL_PICKER_GROUP_BY.kind}
+                    memoryScope={NODE_MEDIA_KIND_IDS.audio}
                     disabled={generating}
-                    onChange={(option) =>
+                    triggerEmptyLabel={tAudio('model.title')}
+                    onChange={(option) => {
+                      const picked = modelOptions.find(
+                        (item) => item.optionId === option.optionId,
+                      )
+                      if (!picked) return
                       canvas.onSetModel(id, {
-                        optionId: option.optionId,
-                        modelId: option.modelId,
-                        adapterType: option.adapterType,
-                        providerConfig: option.providerConfig,
-                        ...(option.apiKeyId
-                          ? { apiKeyId: option.apiKeyId }
+                        optionId: picked.optionId,
+                        modelId: picked.modelId,
+                        adapterType: picked.adapterType,
+                        providerConfig: picked.providerConfig,
+                        ...(picked.apiKeyId
+                          ? { apiKeyId: picked.apiKeyId }
                           : {}),
                       })
-                    }
+                    }}
                   />
                 ) : null,
               ].filter(Boolean)}

@@ -5859,7 +5859,13 @@
           "speed": "语速",
           "volume": "音量",
           "loading": "加载中…",
-          "empty": "还没有音色，去平台音色库挑一个"
+          "empty": "还没有音色，去平台音色库挑一个",
+          "favorites": "收藏",
+          "platformSection": "平台",
+          "platformTag": "平台音色",
+          "more": "更多…",
+          "emptyFavorites": "还没有收藏",
+          "emptyPlatform": "没有匹配的平台音色"
         },
         "model": {
           "title": "模型",
@@ -5882,8 +5888,14 @@
           },
           "customLabel": "自定义语气描述",
           "customPlaceholder": "自定义：例如「像在憋着笑」…",
-          "apply": "插入"
-        }
+          "apply": "插入",
+          "chipTitle": "{intensity}·{label}"
+        },
+        "owner": {
+          "title": "归属角色…",
+          "none": "旁白"
+        },
+        "durationUnknown": "--:--"
       }
     },
     "rerunDownstream": {
@@ -7653,6 +7665,11 @@
       "reference": "参考图",
       "multiReference": "多图参考",
       "lora": "LoRA"
+    },
+    "kinds": {
+      "speech": "语音",
+      "music": "配乐",
+      "sfx": "音效"
     }
   }
 }

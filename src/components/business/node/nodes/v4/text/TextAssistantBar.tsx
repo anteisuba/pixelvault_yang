@@ -19,7 +19,7 @@ import { useLLMRoutePicker } from '@/hooks/use-llm-route-picker'
 import { cn } from '@/lib/utils'
 
 import { useOpenApiKeys } from '../../../workbench-v4/shell/ShellApiKeys'
-import { NodePromptBar } from '../chrome'
+import { NodePromptBar, renderPromptMentions } from '../chrome'
 import {
   TEXT_ASSIST_ACTIONS,
   getCanvasWritingModel,
@@ -104,6 +104,10 @@ export function TextAssistantBar({ nodeId, className }: TextAssistantBarProps) {
       }}
       placeholder={t('assist.placeholder')}
       ariaLabel={t('assist.ariaLabel')}
+      // `@` 引用画在**输入框内部**（S0-fix2 的 `renderValue`）。这一栏拿不到画布
+      // 的名字表（它挂在助手坞里，不在 `NodeV4Provider` 之内），走宽松档
+      // ——⛔ 宁可少切一个 chip，也不要把半句话吞成名字（`parse-mentions` 头注）。
+      renderValue={(text) => renderPromptMentions(text)}
       chips={[...actionChips, modelChip]}
       {...(className ? { className } : {})}
     />

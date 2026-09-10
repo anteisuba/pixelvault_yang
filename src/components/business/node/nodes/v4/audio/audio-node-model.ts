@@ -63,6 +63,12 @@ export function formatAudioClock(seconds: number): string {
   return `${minutes}:${rest < 10 ? '0' : ''}${rest.toFixed(1)}`
 }
 
+/** `8.1s` —— 裁剪条上那扇选区窗顶写的时长（画板 `AudioTrim`）。⚠ 留一位小数：
+ *  整数秒下手柄挪半秒读数纹丝不动，用户会以为拖不动。 */
+export function formatAudioTrimDuration(seconds: number): string {
+  return `${Math.max(0, seconds).toFixed(1)}s`
+}
+
 /**
  * 波形柱高。
  *

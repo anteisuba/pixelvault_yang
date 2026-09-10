@@ -1,19 +1,23 @@
 'use client'
 
 /**
- * 音频**裁剪面板**（spec §4，画板 `AudioTrim.dc.html`）。
+ * 音频**裁剪条**（spec §4，画板 `AudioTrim.dc.html`，2026-09-10 owner 参照即梦改）。
  *
- * 点了工具条那颗剪刀，卡下方的**提示词栏换成这一块**（⛔ 不是又一个对话框）：
- * 大波形 96 高 + 两端手柄 + 选区外压暗 + 播放头 + 入 / 出点 / 选区读数 + 只播选区
- * 的试听 + `I` / `O` / `Esc`，底下「取消 · 裁剪为新版本」。
+ * 点了工具条那颗剪刀，卡下方的**提示词栏换成这一条**（⛔ 不是又一个对话框）：
+ * 640 宽玻璃条，上半整条波形变淡、选区是一扇白底亮窗（窗内波形黑、两端黑色方
+ * 括号手柄、窗顶写选区时长），下半一行「播放键 + 当前 / 选区时长 + 选区区间」
+ * 与右侧「Esc 取消 · 确认」。
  *
  * ── 三条纪律 ────────────────────────────────────────────────────────────
  * ① **纯呈现 + 受控**：不认识节点、不发 op、不上传。它只吐一对入出点秒数，切采样
  *    与编 WAV 在 `src/lib/audio-trim.ts`，落版本在调用方。
- * ② **非破坏**：文案与行为都写死「裁出来的是新版本，原音留作上一版」——⛔ 不提供
- *    任何覆盖原音的路径。
+ * ② **非破坏**：确认落的是**新一版**，原音留作上一版 —— ⛔ 不提供任何覆盖原音的
+ *    路径。
  * ③ **试听只播选区**：`<audio>` 的 `currentTime` 被夹在 `[入, 出)` 里循环，
  *    ⛔ 不放全曲（那样手柄拖到哪儿都听不出差别）。
+ *
+ * ⚠ 选区窗里那层黑波形是**整条淡波形的同一份**，靠 `left: -窗左` 平移后被窗口裁掉
+ * 两边。⛔ 不另画一条属于选区的波形：两条波对不齐，拖窗时窗里的形状会自己跳。
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -24,17 +28,20 @@ import { NODE_V4_AUDIO_TRIM } from '@/constants/node-studio'
 import type { AudioTrimRange } from '@/lib/audio-trim'
 import { cn } from '@/lib/utils'
 
-import { AudioWaveform } from './AudioWaveform'
-import { formatAudioClock, formatAudioSeconds } from './audio-node-model'
+import {
+  buildAudioWaveformBars,
+  formatAudioClock,
+  formatAudioTrimDuration,
+} from './audio-node-model'
 
 export interface AudioTrimPanelProps {
-  /** 当前这一版的地址（试听与「裁剪为新版本」都对着它）。 */
+  /** 当前这一版的地址（试听与「确认」都对着它）。 */
   readonly url: string
   /** 整段时长（秒）。⚠ ≤ 0 时面板没有可拖的坐标系，调用方不该打开它。 */
   readonly durationSec: number
   /** 波形种子 —— 与矮卡同一颗，两处画出来才是同一条波。 */
   readonly seed: string
-  /** 正在切 / 传（按钮转成禁用）。 */
+  /** 正在切 / 传（确认键转成禁用）。 */
   readonly busy?: boolean
   onCancel(): void
   onConfirm(range: AudioTrimRange): void
@@ -44,6 +51,60 @@ export interface AudioTrimPanelProps {
 /** 拖的是哪一端。 */
 const TRIM_HANDLE = { start: 'start', end: 'end' } as const
 type TrimHandle = (typeof TRIM_HANDLE)[keyof typeof TRIM_HANDLE]
+
+/**
+ * 这一手正在拖什么。
+ * - `handle` 改一端 = 改时长；
+ * - `window` 整窗平移 = **时长不变**（画板那句「拖窗身整体平移」）；
+ * - `marquee` 在淡波形上拖出新窗（松手替换旧窗）。
+ */
+type TrimDrag =
+  | { readonly mode: 'handle'; readonly handle: TrimHandle }
+  | {
+      readonly mode: 'window'
+      readonly clientX: number
+      readonly startSec: number
+      readonly endSec: number
+    }
+  | {
+      readonly mode: 'marquee'
+      readonly clientX: number
+      readonly seconds: number
+      moved: boolean
+    }
+
+/** 一排等宽细柱。淡的那份铺满整条轨道，黑的那份被选区窗裁着看。 */
+function TrimBars({
+  bars,
+  tone,
+  style,
+}: {
+  readonly bars: readonly number[]
+  readonly tone: 'faint' | 'selected'
+  readonly style?: React.CSSProperties
+}) {
+  return (
+    <div
+      aria-hidden
+      data-audio-trim-bars={tone}
+      className="absolute inset-y-0 flex items-center gap-0.5"
+      style={{ height: NODE_V4_AUDIO_TRIM.trackHeight, ...style }}
+    >
+      {bars.map((ratio, index) => (
+        <i
+          key={index}
+          className={cn(
+            'block w-0.5 shrink-0 rounded-xs',
+            tone === 'selected' ? 'bg-foreground' : 'bg-foreground/18',
+          )}
+          style={{
+            height: Math.round(ratio * NODE_V4_AUDIO_TRIM.waveformHeight),
+          }}
+        />
+      ))}
+    </div>
+  )
+}
 
 export function AudioTrimPanel({
   url,
@@ -62,20 +123,11 @@ export function AudioTrimPanel({
   const [playing, setPlaying] = useState(false)
   const trackRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
-  const draggingRef = useRef<TrimHandle | null>(null)
-  /**
-   * 在波形上拖出选区那一手（画板：「拖两端手柄或在波形上拖出选区」）。按下先记着，
-   * 挪过阈值才算拖 —— 没挪就是点一下放播放头。
-   */
-  const marqueeRef = useRef<{
-    clientX: number
-    seconds: number
-    moved: boolean
-  } | null>(null)
-  /** 手柄的上一步（画板：面板内 ⌘Z 撤上一步手柄）。⛔ 不进画布的撤销栈：这一格还没落库。 */
+  const dragRef = useRef<TrimDrag | null>(null)
+  /** 上一步的入出点（面板内 ⌘Z 撤一步）。⛔ 不进画布的撤销栈：这一格还没落库。 */
   const historyRef = useRef<{ startSec: number; endSec: number }[]>([])
 
-  // 时长是异步回来的（`loadedmetadata`）——回来那一刻出点还停在 0 的话，面板一开
+  // 时长是异步回来的（`loadedmetadata`）——回来那一刻出点还停在 0 的话，条一开
   // 就是个 0 长度的选区。所以整段变长时把出点跟到末尾。
   const [syncedTotal, setSyncedTotal] = useState(total)
   if (syncedTotal !== total) {
@@ -86,14 +138,22 @@ export function AudioTrimPanel({
   }
 
   const min = NODE_V4_AUDIO_TRIM.minSelectionSec
-  const ratioOf = (seconds: number) => (total > 0 ? seconds / total : 0)
-  const percent = (seconds: number) => `${ratioOf(seconds) * 100}%`
+  const track = NODE_V4_AUDIO_TRIM.trackWidth
+  const bars = buildAudioWaveformBars(seed, NODE_V4_AUDIO_TRIM.barCount)
+  /** 秒 → 轨道内像素（⚠ 全条都用像素，窗里那层波形才对得齐柱子）。 */
+  const pxOf = (seconds: number) => (total > 0 ? (seconds / total) * track : 0)
 
   const secondsAtClientX = (clientX: number): number => {
     const rect = trackRef.current?.getBoundingClientRect()
     if (!rect || rect.width <= 0) return 0
     const ratio = Math.min(1, Math.max(0, (clientX - rect.left) / rect.width))
     return ratio * total
+  }
+
+  /** 客户端横向位移换算成秒（拖窗身用）。 */
+  const secondsPerPx = (): number => {
+    const width = trackRef.current?.getBoundingClientRect().width ?? track
+    return width > 0 ? total / width : 0
   }
 
   const moveHandle = (handle: TrimHandle, seconds: number) => {
@@ -111,7 +171,22 @@ export function AudioTrimPanel({
     setPlayhead(next)
   }
 
-  /** 记一步（拖手柄 / 拖选区 / I / O 各算一步，一次连续拖只记按下那一刻）。 */
+  /** 整窗平移：时长锁死，两端一起挪，撞到 0 / 末尾就停住（⛔ 不压缩选区）。 */
+  const slideWindow = (
+    from: { startSec: number; endSec: number },
+    by: number,
+  ) => {
+    const span = from.endSec - from.startSec
+    const next = Math.min(
+      Math.max(0, from.startSec + by),
+      Math.max(0, total - span),
+    )
+    setStartSec(next)
+    setEndSec(next + span)
+    setPlayhead(next)
+  }
+
+  /** 记一步（拖手柄 / 拖窗 / 拖出新窗 / I / O 各算一步，一次连续拖只记按下那一刻）。 */
   const pushHistory = () => {
     historyRef.current.push({ startSec, endSec })
   }
@@ -125,7 +200,7 @@ export function AudioTrimPanel({
     setPlayhead(previous.startSec)
   }
 
-  /** 拖出来的一段：按下点与当前点各当一端，短过最短选区就撑到最短。 */
+  /** 拖出来的新窗：按下点与当前点各当一端，短过最短选区就撑到最短。 */
   const setSelection = (a: number, b: number) => {
     const low = Math.max(0, Math.min(a, b))
     const high = Math.min(total, Math.max(a, b))
@@ -135,36 +210,40 @@ export function AudioTrimPanel({
     setPlayhead(low)
   }
 
-  // 拖的时候鼠标经常跑出面板 —— 监听挂在 window 上，⛔ 不挂在手柄本身
+  // 拖的时候鼠标经常跑出条外 —— 监听挂在 window 上，⛔ 不挂在手柄本身
   // （那样一出界就断，手柄粘在半路）。
   useEffect(() => {
     const onMove = (event: PointerEvent) => {
-      const handle = draggingRef.current
-      if (handle) {
+      const drag = dragRef.current
+      if (!drag) return
+      if (drag.mode === 'handle') {
         event.preventDefault()
-        moveHandle(handle, secondsAtClientX(event.clientX))
+        moveHandle(drag.handle, secondsAtClientX(event.clientX))
         return
       }
-      const marquee = marqueeRef.current
-      if (!marquee) return
+      if (drag.mode === 'window') {
+        event.preventDefault()
+        slideWindow(drag, (event.clientX - drag.clientX) * secondsPerPx())
+        return
+      }
       if (
-        !marquee.moved &&
-        Math.abs(event.clientX - marquee.clientX) <
+        !drag.moved &&
+        Math.abs(event.clientX - drag.clientX) <
           NODE_V4_AUDIO_TRIM.marqueeThresholdPx
       ) {
         return
       }
-      marquee.moved = true
+      drag.moved = true
       event.preventDefault()
-      setSelection(marquee.seconds, secondsAtClientX(event.clientX))
+      setSelection(drag.seconds, secondsAtClientX(event.clientX))
     }
     const onUp = (event: PointerEvent) => {
-      const marquee = marqueeRef.current
-      // 按下又没挪 = 点了一下：只放播放头（⛔ 不重置已经调好的入出点）。
-      if (marquee && !marquee.moved)
+      const drag = dragRef.current
+      // 在淡波形上按下又没挪 = 点了一下：只挪播放头（⛔ 不抹掉调好的入出点）。
+      if (drag?.mode === 'marquee' && !drag.moved) {
         setPlayhead(secondsAtClientX(event.clientX))
-      marqueeRef.current = null
-      draggingRef.current = null
+      }
+      dragRef.current = null
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp)
@@ -174,7 +253,7 @@ export function AudioTrimPanel({
     }
   })
 
-  /** 试听：从入点起播，到出点绕回去（`I` / `O` 改完立刻听得出来）。 */
+  /** 试听：从入点起播，到出点绕回去（拖完立刻听得出来）。 */
   const togglePreview = () => {
     const el = audioRef.current
     if (!el) return
@@ -188,15 +267,20 @@ export function AudioTrimPanel({
 
   const selectionSec = Math.max(0, endSec - startSec)
   const canConfirm = !busy && total > 0 && selectionSec >= min
+  const windowLeft = pxOf(startSec)
+  const windowWidth = Math.max(1, pxOf(endSec) - windowLeft)
 
   return (
     <div
       data-audio-trim-panel
       role="group"
       aria-label={t('title')}
-      style={{ width: NODE_V4_AUDIO_TRIM.panelWidth }}
+      style={{
+        width: NODE_V4_AUDIO_TRIM.panelWidth,
+        paddingInline: NODE_V4_AUDIO_TRIM.paddingX,
+      }}
       className={cn(
-        'nodrag nopan flex flex-col gap-2.5 rounded-node corner-squircle px-4 pt-3.5 pb-3',
+        'nodrag nopan flex flex-col gap-3 rounded-node-bar corner-squircle pt-3.5 pb-3',
         'surface-glass shadow-node-chrome',
         className,
       )}
@@ -206,8 +290,8 @@ export function AudioTrimPanel({
           onCancel()
           return
         }
-        // ⌘Z / Ctrl+Z = 撤上一步手柄（画板：面板内的撤销只管这一格，⛔ 不进
-        // 画布的撤销栈 —— 这一段还没落成版本）。
+        // ⌘Z / Ctrl+Z = 撤上一步（画板：条内的撤销只管这一格，⛔ 不进画布的撤销
+        // 栈 —— 这一段还没落成版本）。
         if (
           (event.metaKey || event.ctrlKey) &&
           event.key.toLowerCase() === 'z'
@@ -217,7 +301,15 @@ export function AudioTrimPanel({
           undoHandles()
           return
         }
-        // `I` / `O` = 把播放头设成入 / 出点（画板底部那两颗键帽）。
+        // 空格试听选区（画板右注）。⚠ 要 `preventDefault`：焦点落在条内某颗按钮上
+        // 时空格会被读成「按这颗键」。
+        if (event.key === ' ') {
+          event.preventDefault()
+          event.stopPropagation()
+          togglePreview()
+          return
+        }
+        // `I` / `O` = 把播放头收成入 / 出点（画板右注仍保留这两颗快捷键）。
         const key = event.key.toLowerCase()
         if (key === 'i') {
           pushHistory()
@@ -229,102 +321,125 @@ export function AudioTrimPanel({
       }}
       tabIndex={-1}
     >
-      <div className="flex items-center justify-between">
-        <span className="text-2sm font-semibold text-foreground">
-          {t('title')}
-        </span>
-        <span className="text-2xs text-muted-foreground">{t('hint')}</span>
-      </div>
-
       <div
         ref={trackRef}
         data-audio-trim-track
-        style={{ height: NODE_V4_AUDIO_TRIM.waveformHeight }}
-        className="relative px-1.5"
+        style={{ height: NODE_V4_AUDIO_TRIM.trackHeight }}
+        className="relative"
         onPointerDown={(event) => {
-          // 波形上按下：挪过阈值就是**拖出一段选区**（画板那句「或在波形上拖出
-          // 选区」），没挪就只是把播放头放过去 —— ⛔ 一次误点不该抹掉入出点。
+          // 淡波形上按下：挪过阈值就是**拖出一扇新窗**（松手替换旧窗），没挪就
+          // 只是把播放头放过去 —— ⛔ 一次误点不该抹掉入出点。
           pushHistory()
-          marqueeRef.current = {
+          dragRef.current = {
+            mode: 'marquee',
             clientX: event.clientX,
             seconds: secondsAtClientX(event.clientX),
             moved: false,
           }
         }}
       >
-        <div className="flex h-full items-center">
-          <AudioWaveform
-            seed={seed}
-            barCount={NODE_V4_AUDIO_TRIM.barCount}
-            height={NODE_V4_AUDIO_TRIM.waveformHeight}
-            className="w-full"
-          />
-        </div>
-        {/* 选区外压暗（画板：两侧盖一层画布底色）。 */}
+        <TrimBars bars={bars} tone="faint" style={{ left: 0 }} />
         <div
-          aria-hidden
-          data-audio-trim-dim="start"
-          style={{ width: percent(startSec) }}
-          className="absolute inset-y-0 left-0 rounded-l-lg bg-background/80"
-        />
-        <div
-          aria-hidden
-          data-audio-trim-dim="end"
-          style={{ width: percent(Math.max(0, total - endSec)) }}
-          className="absolute inset-y-0 right-0 rounded-r-lg bg-background/80"
-        />
-        {[TRIM_HANDLE.start, TRIM_HANDLE.end].map((handle) => {
-          const seconds = handle === TRIM_HANDLE.start ? startSec : endSec
-          return (
-            <button
-              key={handle}
-              type="button"
-              data-audio-trim-handle={handle}
-              aria-label={t(
-                handle === TRIM_HANDLE.start ? 'inPoint' : 'outPoint',
-              )}
-              aria-valuenow={Math.round(seconds * 10) / 10}
-              aria-valuemin={0}
-              aria-valuemax={Math.round(total * 10) / 10}
-              role="slider"
-              style={{
-                left: percent(seconds),
-                width: NODE_V4_AUDIO_TRIM.handleWidth,
-              }}
-              onPointerDown={(event) => {
-                event.stopPropagation()
-                pushHistory()
-                draggingRef.current = handle
-              }}
-              onKeyDown={(event) => {
-                // 键盘也要拖得动（AA）：一格 0.1s，Shift 一格 1s。
-                const step = event.shiftKey ? 1 : min
-                if (event.key === 'ArrowLeft') {
-                  pushHistory()
-                  moveHandle(handle, seconds - step)
-                } else if (event.key === 'ArrowRight') {
-                  pushHistory()
-                  moveHandle(handle, seconds + step)
-                } else return
-                event.preventDefault()
-                event.stopPropagation()
-              }}
-              className={cn(
-                '-mt-1 -mb-1 absolute top-0 bottom-0 -translate-x-1/2 rounded-full bg-foreground',
-                'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-              )}
+          data-audio-trim-window
+          role="group"
+          aria-label={t('selectionWindow')}
+          style={{ left: windowLeft, width: windowWidth }}
+          className="absolute inset-y-0"
+          onPointerDown={(event) => {
+            // 窗身 = 整体平移（⛔ 不冒泡给轨道，那会当成「拖出新窗」）。
+            event.stopPropagation()
+            pushHistory()
+            dragRef.current = {
+              mode: 'window',
+              clientX: event.clientX,
+              startSec,
+              endSec,
+            }
+          }}
+        >
+          {/* 亮窗本体：白底 + 浅影，窗内那层黑波形被它裁掉两边。 */}
+          <div className="absolute inset-0 overflow-hidden rounded-sm bg-card shadow-node-trim-window">
+            <TrimBars
+              bars={bars}
+              tone="selected"
+              style={{ left: -windowLeft, width: track }}
             />
-          )
-        })}
-        <span
-          aria-hidden
-          data-audio-trim-playhead
-          style={{ left: percent(playhead) }}
-          className="-mt-1.5 -mb-1.5 absolute top-0 bottom-0 w-0.5 -translate-x-1/2 bg-foreground/50"
-        />
+          </div>
+          {[TRIM_HANDLE.start, TRIM_HANDLE.end].map((handle) => {
+            const isStart = handle === TRIM_HANDLE.start
+            const seconds = isStart ? startSec : endSec
+            return (
+              <button
+                key={handle}
+                type="button"
+                data-audio-trim-handle={handle}
+                aria-label={t(isStart ? 'inPoint' : 'outPoint')}
+                role="slider"
+                aria-valuenow={Math.round(seconds * 10) / 10}
+                aria-valuemin={0}
+                aria-valuemax={Math.round(total * 10) / 10}
+                style={{
+                  width: NODE_V4_AUDIO_TRIM.handleHitWidth,
+                  ...(isStart ? { left: 0 } : { right: 0 }),
+                }}
+                onPointerDown={(event) => {
+                  event.stopPropagation()
+                  pushHistory()
+                  dragRef.current = { mode: 'handle', handle }
+                }}
+                onKeyDown={(event) => {
+                  // 键盘也要拖得动（AA）：一格 0.1s，Shift 一格 1s。
+                  const step = event.shiftKey ? 1 : min
+                  if (event.key === 'ArrowLeft') {
+                    pushHistory()
+                    moveHandle(handle, seconds - step)
+                  } else if (event.key === 'ArrowRight') {
+                    pushHistory()
+                    moveHandle(handle, seconds + step)
+                  } else return
+                  event.preventDefault()
+                  event.stopPropagation()
+                }}
+                // 命中区 16 宽、骑在窗边上；里面那只黑括号只有 10 宽（画板）。
+                className={cn(
+                  'absolute top-0 bottom-0 flex items-center cursor-ew-resize',
+                  isStart
+                    ? '-translate-x-1/2 justify-start'
+                    : 'translate-x-1/2 justify-end',
+                  'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+                )}
+              >
+                <span
+                  aria-hidden
+                  // ⚠ 括号比窗高出上下各 4px（画板 `top:-4;bottom:-4`）：贴平窗沿
+                  // 的括号读起来像窗自己的边框，探出来才像一只抓手。
+                  style={{
+                    width: NODE_V4_AUDIO_TRIM.handleWidth,
+                    height: `calc(100% + ${NODE_V4_AUDIO_TRIM.handleOverhangPx * 2}px)`,
+                    borderWidth: NODE_V4_AUDIO_TRIM.handleBorderWidth,
+                    ...(isStart
+                      ? { borderRightWidth: 0, marginLeft: 2 }
+                      : { borderLeftWidth: 0, marginRight: 2 }),
+                  }}
+                  className={cn(
+                    'block border-foreground',
+                    isStart ? 'rounded-l-sm' : 'rounded-r-sm',
+                  )}
+                />
+              </button>
+            )
+          })}
+          {/* 窗顶居中那颗选区时长（画板 `8.1s`）。 */}
+          <span
+            data-audio-trim-selection
+            className="-top-0.5 -translate-x-1/2 absolute left-1/2 rounded-xs bg-card px-1 text-xs font-semibold tabular-nums text-foreground"
+          >
+            {formatAudioTrimDuration(selectionSec)}
+          </span>
+        </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5">
         <button
           type="button"
           data-audio-trim-preview
@@ -334,7 +449,7 @@ export function AudioTrimPanel({
           onClick={togglePreview}
           className={cn(
             'flex size-7.5 shrink-0 items-center justify-center rounded-full',
-            'bg-primary text-primary-foreground transition-opacity duration-fast hover:opacity-90',
+            'bg-surface-fill text-foreground transition-colors duration-fast hover:bg-surface-fill-hover',
             'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
             'disabled:pointer-events-none disabled:opacity-50',
           )}
@@ -346,66 +461,34 @@ export function AudioTrimPanel({
           )}
         </button>
         <span
-          data-audio-trim-readout="in"
-          className="text-2xs tabular-nums text-muted-foreground"
+          data-audio-trim-clock
+          className="text-xs tabular-nums text-foreground"
         >
-          {t('inPoint')}{' '}
-          <b className="font-medium text-foreground">
-            {formatAudioClock(startSec)}
-          </b>
+          {formatAudioClock(Math.max(0, playhead - startSec))} /{' '}
+          {formatAudioClock(selectionSec)}
         </span>
         <span
-          data-audio-trim-readout="out"
-          className="text-2xs tabular-nums text-muted-foreground"
+          data-audio-trim-range
+          className="ml-1.5 text-xs tabular-nums text-muted-foreground"
         >
-          {t('outPoint')}{' '}
-          <b className="font-medium text-foreground">
-            {formatAudioClock(endSec)}
-          </b>
-        </span>
-        <span
-          data-audio-trim-readout="selection"
-          className="text-2xs tabular-nums text-muted-foreground"
-        >
-          {t('selection', {
-            selection: formatAudioSeconds(selectionSec),
-            total: formatAudioSeconds(total),
+          {t('range', {
+            start: formatAudioClock(startSec),
+            end: formatAudioClock(endSec),
           })}
         </span>
         <span className="flex-1" />
-        <span className="flex items-center gap-1.5">
-          {(['keyIn', 'keyOut', 'keyEsc'] as const).map((key) => (
-            <kbd
-              key={key}
-              className="rounded-sm border border-border px-1.5 py-px text-3xs font-normal text-muted-foreground"
-            >
-              {t(key)}
-            </kbd>
-          ))}
-        </span>
-      </div>
-
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-2xs text-muted-foreground">{t('nondestructive')}</p>
-        <div className="flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            data-audio-trim-cancel
-            onClick={onCancel}
-            className="flex h-8 items-center rounded-lg bg-surface-fill px-3 text-2sm text-foreground transition-colors duration-fast hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-          >
-            {t('cancel')}
-          </button>
-          <button
-            type="button"
-            data-audio-trim-confirm
-            disabled={!canConfirm}
-            onClick={() => onConfirm({ startSec, endSec })}
-            className="flex h-8 items-center rounded-lg bg-primary px-3 text-2sm font-medium text-primary-foreground transition-opacity duration-fast hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
-          >
-            {busy ? t('confirming') : t('confirm')}
-          </button>
-        </div>
+        <kbd className="rounded-sm border border-border px-1.5 py-px text-2xs font-normal text-muted-foreground">
+          {t('keyEsc')}
+        </kbd>
+        <button
+          type="button"
+          data-audio-trim-confirm
+          disabled={!canConfirm}
+          onClick={() => onConfirm({ startSec, endSec })}
+          className="flex h-8 shrink-0 items-center rounded-full bg-primary px-4.5 text-2sm font-medium text-primary-foreground transition-opacity duration-fast hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+        >
+          {busy ? t('confirming') : t('confirm')}
+        </button>
       </div>
 
       <audio
@@ -417,7 +500,7 @@ export function AudioTrimPanel({
         onPause={() => setPlaying(false)}
         onTimeUpdate={(event) => {
           const el = event.currentTarget
-          // 只播选区：越过出点就绕回入点（⛔ 不 pause —— 画板要的是能反复听那一段）。
+          // 只播选区：越过出点就绕回入点（⛔ 不 pause —— 要能反复听那一段）。
           if (el.currentTime >= endSec || el.currentTime < startSec) {
             el.currentTime = startSec
           }

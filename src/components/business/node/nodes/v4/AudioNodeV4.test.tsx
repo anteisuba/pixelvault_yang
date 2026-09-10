@@ -8,6 +8,8 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@xyflow/react', () => ({
+  // S6e：卡壳从 RF 拿自己的 id（拖线反馈）。桩里给一个固定值就够。
+  useNodeId: () => 'node-1',
   Handle: (props: Record<string, unknown>) => (
     <span data-testid="handle" data-slot={props['data-slot'] as string} />
   ),
@@ -321,7 +323,7 @@ describe('选中态：工具条与提示词栏', () => {
     })
   })
 
-  it('裁剪 = 卡下方那条栏换成裁剪面板，Esc / 取消退回提示词栏', () => {
+  it('裁剪 = 卡下方那条栏换成裁剪条，Esc 退回提示词栏（画板 2026-09-10：已无「取消」键）', () => {
     renderAudio(selectedContext(), 'a_1', true)
     expect(
       document.querySelector('[data-node-chrome="prompt-bar"]'),
@@ -329,7 +331,10 @@ describe('选中态：工具条与提示词栏', () => {
     fireEvent.click(document.querySelector('[data-toolbar-action="trim"]')!)
     expect(document.querySelector('[data-audio-trim-panel]')).not.toBeNull()
     expect(document.querySelector('[data-node-chrome="prompt-bar"]')).toBeNull()
-    fireEvent.click(document.querySelector('[data-audio-trim-cancel]')!)
+    expect(document.querySelector('[data-audio-trim-cancel]')).toBeNull()
+    fireEvent.keyDown(document.querySelector('[data-audio-trim-panel]')!, {
+      key: 'Escape',
+    })
     expect(document.querySelector('[data-audio-trim-panel]')).toBeNull()
     expect(
       document.querySelector('[data-node-chrome="prompt-bar"]'),

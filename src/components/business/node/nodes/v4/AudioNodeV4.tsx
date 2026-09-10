@@ -28,7 +28,7 @@
  * 一颗 chip。
  */
 
-import { Handle, NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
+import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -51,7 +51,7 @@ import {
   NODE_ASSISTANT_OP_V4_IDS,
   NODE_ASSISTANT_WRITE_MODES,
 } from '@/constants/node-assistant-ops'
-import { getNodeV4Ports, NODE_SLOT_IDS } from '@/constants/node-slots'
+import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { NODE_V4_CARD } from '@/constants/node-studio'
 import {
   NODE_MEDIA_KIND_IDS,
@@ -163,9 +163,12 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     null,
   )
   const [transcribeElapsed, setTranscribeElapsed] = useState(0)
-  /** 裁剪面板开着？开着时卡下方那条栏换成它（spec §4）。 */
+  /** 裁剪条开着？开着时卡下方那条栏换成它（spec §4）。 */
   const [trimming, setTrimming] = useState(false)
   const [trimBusy, setTrimBusy] = useState(false)
+  /** 切采样 + 上传那一段的起点 —— 卡上走同一条进度线（⛔ 不让卡看起来没反应）。 */
+  const [trimStartedAt, setTrimStartedAt] = useState<number | null>(null)
+  const [trimElapsed, setTrimElapsed] = useState(0)
 
   const fileRef = useRef<HTMLInputElement>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -203,6 +206,14 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
     const timer = window.setInterval(tick, PROGRESS_TICK_MS)
     return () => window.clearInterval(timer)
   }, [transcribeStartedAt])
+
+  useEffect(() => {
+    if (trimStartedAt === null) return
+    const tick = () => setTrimElapsed((Date.now() - trimStartedAt) / 1000)
+    tick()
+    const timer = window.setInterval(tick, PROGRESS_TICK_MS)
+    return () => window.clearInterval(timer)
+  }, [trimStartedAt])
 
   useEffect(() => {
     if (!generating) return
@@ -380,12 +391,13 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   }
 
   /**
-   * 「裁剪为新版本」：客户端切采样 → 编 WAV → 走**已有的上传管线**落成新一版。
+   * 裁剪条上那颗「确认」：客户端切采样 → 编 WAV → 走**已有的上传管线**落成新一版。
    * ⛔ 不扣积分、不生成（spec §4）；原音留作上一版（`onSetMedia` 追加一版）。
    */
   const runTrim = async (range: AudioTrimRange) => {
     if (!audioData.url || trimBusy) return
     setTrimBusy(true)
+    setTrimStartedAt(Date.now())
     try {
       const result = await trimAudioToWav(audioData.url, range)
       const file = new File([result.blob], trimmedFileName(audioData.name), {
@@ -410,6 +422,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
       toast.error(tAudio('trim.failed'))
     } finally {
       setTrimBusy(false)
+      setTrimStartedAt(null)
     }
   }
 
@@ -700,6 +713,17 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                   variant="line"
                   elapsedSeconds={transcribeElapsed}
                   stageLabel={tAudio('toolbar.transcribing')}
+                />
+              </div>
+            ) : null}
+            {/* 裁剪落版本（切采样 + 上传）也走这条线：确认到新一版之间是几秒的
+                空档，⛔ 不让卡在那几秒里看起来什么都没发生。 */}
+            {trimBusy && !generating ? (
+              <div data-audio-trimming className="absolute inset-x-4 inset-y-0">
+                <NodeFrameProgress
+                  variant="line"
+                  elapsedSeconds={trimElapsed}
+                  stageLabel={tAudio('toolbar.trimming')}
                 />
               </div>
             ) : null}

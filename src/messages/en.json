@@ -4469,7 +4469,6 @@
       "voice": "Voice Profile",
       "seedance": "Video Generation",
       "videoReference": "Reference Video",
-      "videoMerge": "Compose videos",
       "typeNameAria": "{type}: {name}",
       "text": "Text",
       "audio": "Audio",
@@ -4484,8 +4483,7 @@
       "image": "Upload, pick from the library, or generate with AI — name and categorize it once it lands. Characters and scenes come from the Cast dock.",
       "voice": "Select or upload a voice profile for video character voices.",
       "seedance": "Aggregate upstream images, keyframes, and voices into a final video.",
-      "videoReference": "Upload a clip (≤15s / ≤50MB) as a reference. Unlocks the 0.6x Seedance Reference discount.",
-      "videoMerge": "Concatenate multiple upstream videos into one long clip (~$0.001/run, up to 9 clips)."
+      "videoReference": "Upload a clip (≤15s / ≤50MB) as a reference. Unlocks the 0.6x Seedance Reference discount."
     },
     "addCatalog": {
       "groups": {
@@ -4538,10 +4536,6 @@
         "videoClip": {
           "label": "Clip",
           "helper": "Upload a video to use as a motion or look reference."
-        },
-        "videoMerge": {
-          "label": "Merge",
-          "helper": "Stitch 2–9 clips in order. Trim each one first if you like."
         }
       },
       "cast": "Cast tray",
@@ -4762,27 +4756,6 @@
       "errors": {
         "tooLong": "Video is {actual}s — longer than the {max}s cap.",
         "uploadFailed": "Video upload failed. Please try again."
-      }
-    },
-    "videoMerge": {
-      "title": "Video merge",
-      "description": "Concatenate connected upstream videos into one mp4. The result is still a video URL, so downstream Seedance Reference / further merges can use it.",
-      "merging": "Merging",
-      "merged": "Video merged",
-      "mediaLabel": "Merged {count} clips",
-      "slotRequired": "Required",
-      "slotOptional": "Optional",
-      "clipCount": "{count} / {max} clips",
-      "merge": {
-        "run": "Run merge",
-        "regenerate": "Re-merge"
-      },
-      "clear": "Clear result",
-      "hint": "Costs ~$0.001/clip, completes in ~8s. Audio tracks are preserved automatically.",
-      "trim": {
-        "startPlaceholder": "0",
-        "endPlaceholder": "Full",
-        "trimmedCount": "{count} trimmed"
       }
     },
     "mediaNodes": {
@@ -5082,9 +5055,6 @@
       },
       "frameImage": {
         "emptyState": "No keyframe yet"
-      },
-      "videoMerge": {
-        "emptyState": "No merged video yet"
       }
     },
     "topbar": {
@@ -5215,10 +5185,6 @@
         "videoShot": {
           "label": "Plan a shot",
           "prompt": "Help me plan a video shot on this canvas: subject, motion, camera, and duration."
-        },
-        "videoMerge": {
-          "label": "Merge clips",
-          "prompt": "Help me order and merge video clips already on the canvas into a short sequence."
         }
       },
       "welcomeTitle": "Select a node to inspect it",
@@ -5371,7 +5337,6 @@
     "toasts": {
       "projectCreated": "Project \"{name}\" created.",
       "projectDeleted": "Project \"{name}\" deleted.",
-      "videoMergeComposed": "{count, plural, one {Composed # clip} other {Composed # clips}} into a merge bin.",
       "localCacheFull": "This browser's local cache is full — the canvas is no longer kept here. Your work is still saved to the cloud.",
       "localCacheUnavailable": "This browser refused local storage — the canvas is no longer kept here. Your work is still saved to the cloud.",
       "cloudSaveFailed": "Can't reach the cloud — recent canvas changes aren't saved. Keep this tab open and check your connection.",
@@ -5483,8 +5448,7 @@
         "blockVersion": "Mark the “{target}” · {slot} version as rejected",
         "unblockVersion": "Un-reject the “{target}” · {slot} version",
         "setParamsV4": "Change the generation dials of “{target}”",
-        "setVoiceProfile": "Change the voice settings of “{target}”",
-        "setMergeClips": "Retrim the clips of “{target}”"
+        "setVoiceProfile": "Change the voice settings of “{target}”"
       },
       "params": {
         "duration": "{value}s",
@@ -5601,39 +5565,9 @@
         "belowMin": "{slot} is not filled yet — cannot generate"
       },
       "generateDesk": {
-        "title": "Generate",
-        "prompt": "Prompt",
-        "promptPlaceholder": {
-          "image": "Describe the image you want…",
-          "audio": "Lines to speak, or a sound description…",
-          "video": "Describe how this shot moves…",
-          "text": "Write something…"
-        },
-        "model": "Model",
-        "params": "Parameters",
-        "aspectRatio": "Aspect ratio",
-        "resolution": "Resolution",
-        "duration": "Duration",
-        "durationSeconds": "{seconds}s",
-        "generateAudio": "Generate audio",
-        "seed": "Seed",
-        "seedPlaceholder": "Empty = random",
-        "negativePrompt": "Negative prompt",
-        "generate": "Generate",
-        "regenerate": "Regenerate",
-        "retry": "Retry",
-        "generating": "Generating…",
         "failed": "Generation failed: {reason}",
-        "upload": "Upload media",
-        "uploading": "Uploading {percent}%",
-        "uploadCancel": "Cancel",
-        "uploadFailed": "Upload failed: {reason}",
-        "uploadRetry": "Retry upload",
         "noModel": "Pick a model first",
-        "slotRack": "Slots",
-        "slotCount": "{slot} {count}",
-        "noGenerate": "Text nodes do not generate — derive instead",
-        "shortcutPending": "Generate runs from the desk button for now — the ⌘+Enter path lands next."
+        "noGenerate": "Text nodes do not generate — derive instead"
       },
       "renameNode": "Rename node",
       "expandNode": "Expand",
@@ -5951,7 +5885,8 @@
           "continue": "Continue shot",
           "extract": "Extract frame",
           "extractNeedsPlayback": "Hover the card so the clip plays, then extract the current frame",
-          "more": "More"
+          "more": "More",
+          "expand": "Expand"
         },
         "add": {
           "upload": "Upload video / image",
@@ -5979,15 +5914,53 @@
           "shotNote": "Shot notes",
           "emptyNote": "Write how this shot plays…",
           "editAriaLabel": "Edit shot notes",
-          "readout": "{chars} chars · {slots} attached"
+          "readout": "{chars} chars · {slots} attached",
+          "pickModel": "Pick a model",
+          "modeLabel": "This run"
         },
         "model": {
           "title": "Model"
         },
         "promptPlaceholder": "Describe this shot…",
         "promptLabel": "Shot prompt",
-        "slotChip": "{slot}: {name}",
-        "tailFrameName": "{name} last frame"
+        "tailFrameName": "{name} last frame",
+        "mode": {
+          "omniReference": "Omni reference",
+          "firstLastFrame": "First & last frame",
+          "imageToVideo": "Image to video",
+          "textToVideo": "Text to video",
+          "hint": "Derived from what is attached: any reference → omni reference; first + last → first & last frame; first only → image to video; nothing → text to video"
+        },
+        "rail": {
+          "title": "References · drop or ⌘V",
+          "group": {
+            "image": "Images",
+            "video": "Videos",
+            "voice": "Voice"
+          },
+          "roleBadge": {
+            "firstFrame": "1st",
+            "lastFrame": "Last"
+          },
+          "setRole": {
+            "firstFrame": "Use as first frame",
+            "lastFrame": "Use as last frame",
+            "reference": "Use as reference"
+          },
+          "open": "Open",
+          "remove": "Remove",
+          "upload": "Upload",
+          "library": "From library",
+          "fromCanvas": {
+            "image": "Images on canvas",
+            "video": "Videos on canvas",
+            "voice": "Voice on canvas"
+          },
+          "itemLabel": "{group} {index}: {name}",
+          "addLabel": "Add {group}",
+          "full": "Full (max {limit})",
+          "referenceUnavailable": "This model has no reference variant — attachments would not be sent"
+        }
       },
       "connectToShot": {
         "searchLabel": "Search shots",

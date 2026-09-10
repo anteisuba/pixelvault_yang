@@ -23,6 +23,11 @@ import {
   type NodeSlotId,
 } from '@/constants/node-slots'
 import {
+  NODE_MEDIA_KIND_IDS,
+  NODE_V4_VIDEO_SUBTYPE_IDS,
+} from '@/constants/node-types'
+import { defaultMentionSlot } from '@/lib/node-mentions-to-slots'
+import {
   canConnect,
   type NodeConnectRejectReason,
 } from '@/lib/node-connection-rules'
@@ -176,6 +181,20 @@ export function planV4IngestDrop(
   const only = candidates[0]
   if (candidates.length === 1 && only)
     return { kind: 'single', candidate: only }
+
+  // 视频镜头卡是唯一有默认落点的目标（spec §5 · 2026-09-10 owner 定稿）：
+  // 「连线 / 拖放 / 上传 / 素材库都落进参考轨」，图默认作**参考**，首帧 / 尾帧
+  // 是图的角色，挂上去之后在轨上点图改。⛔ 这不是「按端口表顺序取第一个」——
+  // 落点走的是与 @ 引用同一张默认表（`defaultMentionSlot`）。
+  if (
+    target.data.kind === NODE_MEDIA_KIND_IDS.video &&
+    target.data.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
+  ) {
+    const preferred = defaultMentionSlot(source.data.kind, target)
+    const hit = candidates.find((candidate) => candidate.slot === preferred)
+    if (hit) return { kind: 'single', candidate: hit }
+  }
+
   return { kind: 'choose', candidates }
 }
 

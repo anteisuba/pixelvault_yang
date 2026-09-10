@@ -44,6 +44,7 @@ import {
   type PickerModel,
 } from '@/lib/group-models-for-picker'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import { toModelChannelCandidate } from '@/lib/pick-default-model-option'
 import {
   resolveModelChannel,
   type ModelChannelCandidate,
@@ -202,19 +203,12 @@ export function ModelPickerPopover({
   const rows = useMemo<ModelRow[]>(() => {
     const toView = (channel: PickerChannel): ChannelView => {
       const { option } = channel
-      const keyId = option.keyId ?? option.providerKeyId
       const unitPrice = getModelUnitPriceByStringId(option.modelId)
       return {
         channel,
-        candidate: {
-          channelId: channel.channelId,
-          channelLabel: channel.label,
-          hasUserKey:
-            option.sourceType === 'saved' || Boolean(option.providerKeyId),
-          hasFreeQuota: Boolean(option.freeTier),
-          unitPrice: unitPrice?.amount ?? null,
-          health: keyId ? healthMap[keyId] : undefined,
-        },
+        // ⚠ 映射与「新卡挑默认模型」共用同一份（`toModelChannelCandidate`），
+        // ⛔ 不各写一份：两份会漂成「默认选了 A、行里却说该走 B」。
+        candidate: toModelChannelCandidate(option, healthMap, channel.label),
         price: unitPrice
           ? tCommon(`unitPrice.${unitPrice.unit}`, { amount: unitPrice.amount })
           : null,

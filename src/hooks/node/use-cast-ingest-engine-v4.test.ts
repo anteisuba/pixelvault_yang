@@ -41,6 +41,17 @@ const image = node('img', {
   url: 'https://cdn/a.png',
 })
 const shot = node('shot', { kind: 'video', subtype: 'shot', label: 'S01' })
+/** 角色卡：一张图同时进得了 `reference` 与 `closeup`，两者都没有默认口。 */
+const character = node('char', {
+  kind: 'image',
+  subtype: 'character',
+  url: 'https://cdn/c.png',
+})
+const loose = node('ref', {
+  kind: 'image',
+  subtype: 'reference',
+  url: 'https://cdn/r.png',
+})
 const merge = node('merge', { kind: 'video', subtype: 'merge' })
 
 /** 画一张假的 RF 卡，好让引擎的 DOM 命中路径跑到底。 */
@@ -146,25 +157,36 @@ function renderEngine(
 }
 
 describe('useCastIngestEngineV4 · 落点三态', () => {
-  it('choose：一张图对镜头同时点亮多个口 → ⛔ 不替用户挑，交回候选', () => {
+  it('choose：一张图对角色卡同时点亮多个口 → ⛔ 不替用户挑，交回候选', () => {
+    const card = mountCard('char')
+    stubHitTest(card)
+    const { view, onConnect } = renderEngine([loose, character])
+
+    drag(loose, view.result.current)
+
+    expect(onConnect).not.toHaveBeenCalled()
+    const choice = view.result.current.dragState.pendingChoice
+    expect(choice?.targetNodeId).toBe('char')
+    expect((choice?.candidates.length ?? 0) > 1).toBe(true)
+
+    act(() => {
+      view.result.current.resolveChoice(NODE_SLOT_IDS.closeup)
+    })
+    expect(onConnect).toHaveBeenCalledWith('ref', 'char', NODE_SLOT_IDS.closeup)
+    expect(view.result.current.dragState.pendingChoice).toBeNull()
+  })
+
+  it('拖一张图到镜头卡 → 直接落**参考**（spec §5 · 2026-09-10 定稿），不问', () => {
     const card = mountCard('shot')
     stubHitTest(card)
     const { view, onConnect } = renderEngine([image, shot])
 
     drag(image, view.result.current)
 
-    expect(onConnect).not.toHaveBeenCalled()
-    const choice = view.result.current.dragState.pendingChoice
-    expect(choice?.targetNodeId).toBe('shot')
-    expect((choice?.candidates.length ?? 0) > 1).toBe(true)
-
-    act(() => {
-      view.result.current.resolveChoice(NODE_SLOT_IDS.firstFrame)
-    })
     expect(onConnect).toHaveBeenCalledWith(
       'img',
       'shot',
-      NODE_SLOT_IDS.firstFrame,
+      NODE_SLOT_IDS.reference,
     )
     expect(view.result.current.dragState.pendingChoice).toBeNull()
   })
@@ -199,11 +221,11 @@ describe('useCastIngestEngineV4 · 落点三态', () => {
   })
 
   it('cancelChoice 作废这一投，⛔ 不落一个默认槽', () => {
-    const card = mountCard('shot')
+    const card = mountCard('char')
     stubHitTest(card)
-    const { view, onConnect } = renderEngine([image, shot])
+    const { view, onConnect } = renderEngine([loose, character])
 
-    drag(image, view.result.current)
+    drag(loose, view.result.current)
     expect(view.result.current.dragState.pendingChoice).not.toBeNull()
 
     act(() => {
@@ -225,14 +247,14 @@ describe('useCastIngestEngineV4 · 落点三态', () => {
   })
 
   it('候选之外的槽点不动（引擎自己复核一次）', () => {
-    const card = mountCard('shot')
+    const card = mountCard('char')
     stubHitTest(card)
     const { view, onConnect } = renderEngine(
-      [image, shot],
-      [edge('e1', 'img', 'shot', NODE_SLOT_IDS.firstFrame)],
+      [loose, character],
+      [edge('e1', 'ref', 'char', NODE_SLOT_IDS.reference)],
     )
 
-    drag(image, view.result.current)
+    drag(loose, view.result.current)
     act(() => {
       view.result.current.resolveChoice(NODE_SLOT_IDS.clip)
     })

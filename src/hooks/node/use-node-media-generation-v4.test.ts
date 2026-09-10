@@ -128,6 +128,41 @@ describe('planV4Generation · 视频', () => {
   it('填满的镜头没有校验问题', () => {
     expect(plan.issues).toEqual([])
   })
+
+  it('挂了参考项 → 端点换成该型号的**参考变体**（spec §5 推出来的模式）', () => {
+    // 这张图上挂着角色卡（参考图）与语音 —— 推出来的模式是「全能参考」。
+    expect(plan.modelId).toBe('seedance-2.5-reference')
+  })
+
+  it('只有首 / 尾帧 → 留在关键帧端点，⛔ 不偷偷换到参考端点', () => {
+    const keyframeOnly = planV4Generation('shot', {
+      nodes: graph.nodes,
+      edges: [
+        edge('e1', 'first', 'shot', NODE_SLOT_IDS.firstFrame),
+        edge('e2', 'last', 'shot', NODE_SLOT_IDS.lastFrame),
+      ],
+    })!
+    expect(keyframeOnly.modelId).toBe('seedance-2.5')
+  })
+
+  it('这个型号在这条渠道上没有参考变体 → **保留原选择**，⛔ 不回退到别的端点', () => {
+    const veo = node('veo', {
+      kind: 'video',
+      subtype: 'shot',
+      prompt: '推近',
+      model: {
+        optionId: 'opt',
+        modelId: 'veo-3.1',
+        adapterType: 'fal',
+        apiKeyId: 'key-1',
+      } as typeof MODEL,
+    })
+    const plan31 = planV4Generation('veo', {
+      nodes: [character, veo],
+      edges: [edge('e1', 'char', 'veo', NODE_SLOT_IDS.reference)],
+    })!
+    expect(plan31.modelId).toBe('veo-3.1')
+  })
 })
 
 describe('planV4Generation · 其余分支', () => {

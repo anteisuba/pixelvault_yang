@@ -17,7 +17,10 @@
 import { useCallback } from 'react'
 
 import type { AspectRatio } from '@/constants/config'
+import { getModelVariant } from '@/constants/models'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { resolveVideoModelId } from '@/constants/video-node-modes'
 import type { VideoResolution } from '@/constants/video-options'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
 import {
@@ -70,6 +73,35 @@ export interface V4GenerationPlan {
   readonly issues: readonly V4SlotIssue[]
 }
 
+/**
+ * 这一次实际要跑的端点。判据只有一条：**载荷里有没有参考项**（参考图 = 除首尾帧
+ * 之外的图、参考视频、语音）。有 → 全能参考档，没有 → 关键帧档。
+ *
+ * ⚠ 与卡上那颗只读的模式 chip（`videoSendMode`）是同一条推法的两侧：一处给人看，
+ * 一处决定发哪个端点。⛔ 不许两处各推各的。
+ */
+function resolveVideoSendModelId(
+  model: { readonly modelId: string; readonly adapterType: AI_ADAPTER_TYPES },
+  payload: {
+    readonly imageUrls: readonly string[]
+    readonly keyframeUrls: readonly string[]
+    readonly videoUrls: readonly string[]
+    readonly audioBindings: readonly unknown[]
+  },
+): string | null {
+  const hasReference =
+    payload.imageUrls.length > payload.keyframeUrls.length ||
+    payload.videoUrls.length > 0 ||
+    payload.audioBindings.length > 0
+  const variant = getModelVariant(model.modelId)
+  if (!variant) return null
+  return resolveVideoModelId(
+    variant,
+    model.adapterType,
+    hasReference ? 'multimodal' : 'keyframe',
+  )
+}
+
 function parseDuration(value: string | undefined): number | 'auto' | undefined {
   if (!value) return undefined
   if (value === 'auto') return 'auto'
@@ -112,6 +144,11 @@ export function planV4Generation(
     })
     return {
       ...base,
+      // ⭐ **端点按推出来的模式选**（spec §5「不设模式页签」）：挂了参考项就走
+      // 该型号的参考变体（`SEEDANCE_*_REFERENCE`），只有首 / 尾帧就走关键帧那条。
+      // 解析不到（这个型号在这条渠道上没有参考变体）时**保留原选择**，⛔ 不回退
+      // 到别的端点 —— 回退意味着用户以为在用全能参考、实际发的是首帧请求。
+      modelId: resolveVideoSendModelId(data.model, payload) ?? base.modelId,
       kind: 'video',
       prompt: payload.prompt,
       ...(data.negativePrompt ? { negativePrompt: data.negativePrompt } : {}),

@@ -53,7 +53,14 @@ export interface VideoNodeFrameProps {
   /** 页脚右边那两颗 —— 视频参数与视频模型，由调用方给（⛔ 这里不接模型表）。 */
   readonly paramsChip: ReactNode
   readonly modelChip: ReactNode
+  /**
+   * 播放器与说明之间那条**参考轨** —— 与提示词栏首行是**同一个组件**（画板
+   * `VideoRefs.dc.html`：方向 B 只贡献了这一段位置）。⛔ 这里不做第二份。
+   */
+  readonly refRail: ReactNode
   readonly tokens: readonly MentionToken[]
+  /** 轨上的序号名（`@图1`）—— 正文里的胶囊要认得它们。 */
+  readonly mentionNames?: readonly string[]
   readonly candidates: readonly MentionCandidate[]
   onMentionSelect(candidate: MentionCandidate, handle: MentionInputHandle): void
   readonly mediaOf: TextMentionMediaLookup
@@ -80,7 +87,9 @@ export function VideoNodeFrame({
   footerReadout,
   paramsChip,
   modelChip,
+  refRail,
   tokens,
+  mentionNames = [],
   candidates,
   onMentionSelect,
   mediaOf,
@@ -187,6 +196,13 @@ export function VideoNodeFrame({
           />
         </div>
 
+        <div data-video-frame-rail className="flex flex-col gap-1.5">
+          <span className="text-3xs tracking-node-sec text-muted-foreground">
+            {tVideo('rail.title')}
+          </span>
+          {refRail}
+        </div>
+
         <h2 className="mt-1 text-lg font-semibold tracking-node-title">
           {tVideo('frame.shotNote')}
         </h2>
@@ -227,7 +243,7 @@ export function VideoNodeFrame({
             >
               <TextBody
                 body={body || tVideo('frame.emptyNote')}
-                names={tokens.map((token) => token.name)}
+                names={[...mentionNames, ...tokens.map((token) => token.name)]}
                 mediaOf={mediaOf}
               />
             </div>

@@ -2,6 +2,14 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
+/** 时长滑杆是 Radix Slider —— 它量 thumb 尺寸要 ResizeObserver（jsdom 没有）。 */
+class MockResizeObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+vi.stubGlobal('ResizeObserver', MockResizeObserver)
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${Object.values(values).join('/')}` : key,
@@ -89,12 +97,16 @@ import {
 } from './NodeV4Context'
 import { flashNodeCard, resetNodeCardFlash } from './chrome'
 import { VideoNodeV4 } from './VideoNodeV4'
-import { VIDEO_SLOT_PICKERS } from './video/VideoNodeMenus'
+import { VIDEO_RAIL_PICKERS } from './video/VideoNodeMenus'
 import {
+  VIDEO_SEND_MODE_IDS,
   videoCardHeight,
-  videoDurationOptions,
+  videoDurationStepIndex,
+  videoDurationSteps,
   videoFrameChipLabel,
   videoFrameReadout,
+  videoRailCapacity,
+  videoSendMode,
   videoSupportsGeneratedAudio,
 } from './video/video-node-model'
 
@@ -210,7 +222,7 @@ describe('空卡 / 有片两态（spec §5）', () => {
       READY.videoThumbnailUrl,
     )
     expect(screen.getByText('7s')).toBeInTheDocument()
-    expect(document.querySelector('[data-video-slot-chips]')).toBeNull()
+    expect(document.querySelector('[data-video-ref-rail]')).toBeNull()
   })
 
   it('悬停 = 静音自动播 + 底部细进度线 + 右上静音标', () => {
@@ -236,14 +248,14 @@ describe('空卡 / 有片两态（spec §5）', () => {
 })
 
 describe('选中：工具条与批操作', () => {
-  it('工具条是 续拍 · 抽帧 · 下载 · ⋯ 四键', () => {
+  it('工具条第一键 = 展开，其后 续拍 · 抽帧 · 下载 · ⋯', () => {
     renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
     const toolbar = screen.getByTestId('flow-toolbar-top')
     expect(
       [...toolbar.querySelectorAll('[data-toolbar-action]')].map((element) =>
         element.getAttribute('data-toolbar-action'),
       ),
-    ).toEqual(['continue', 'extract', 'download', 'more'])
+    ).toEqual(['expand', 'continue', 'extract', 'download', 'more'])
   })
 
   it('续拍 = 抓末帧 + 一批四条（建末帧图 / 建下一段 / 落首帧 / 接续边），末帧图回填 url', async () => {
@@ -345,7 +357,7 @@ describe('提示词栏', () => {
     expect(generateNode).toHaveBeenCalled()
   })
 
-  it('已挂的首帧 / 尾帧 / 语音在栏首行出小 chip，退格删断的是那条边', () => {
+  it('参考轨在栏首行：图组第 1 项带「首」角标，退格删断的是那条边', () => {
     const edges: NodeWorkflowEdgeV4[] = [
       {
         id: 'e1',
@@ -384,9 +396,13 @@ describe('提示词栏', () => {
       true,
     )
     const chip = document.querySelector(
-      '[data-video-slot-chip="firstFrame"]',
+      '[data-video-rail-slot="firstFrame"]',
     ) as HTMLElement
     expect(chip).not.toBeNull()
+    expect(chip.getAttribute('data-video-rail-index')).toBe('1')
+    expect(
+      chip.querySelector('[data-video-rail-role="firstFrame"]'),
+    ).not.toBeNull()
 
     fireEvent.keyDown(chip, { key: 'Backspace' })
     expect(onApplyOp).toHaveBeenCalledWith({
@@ -395,26 +411,32 @@ describe('提示词栏', () => {
     })
   })
 
-  it('+ 菜单四项的顺序与槽名就是画板那一列', () => {
+  it('+ 菜单收成与轨一致的三组，图 / 视频都落参考、语音落语音', () => {
     // ⚠ 顺序断在**常量**上而不是打开菜单：Radix 的子菜单要真悬停才渲染内容，
     // 在 jsdom 里断它等于断 Radix 的实现，⛔ 不是断我们的契约。
-    expect(VIDEO_SLOT_PICKERS.map((item) => item.slot)).toEqual([
-      NODE_SLOT_IDS.firstFrame,
-      NODE_SLOT_IDS.lastFrame,
-      NODE_SLOT_IDS.reference,
-      NODE_SLOT_IDS.voice,
+    expect(VIDEO_RAIL_PICKERS.map((item) => [item.group, item.slot])).toEqual([
+      ['image', NODE_SLOT_IDS.reference],
+      ['video', NODE_SLOT_IDS.reference],
+      ['voice', NODE_SLOT_IDS.voice],
     ])
   })
 })
 
 describe('画面弹层（spec §5）', () => {
-  it('时长档位跟着模型能力表走，⛔ 不是一份写死的表', () => {
-    expect(videoDurationOptions(undefined)).toEqual([])
-    const durations = videoDurationOptions(MODEL_ID).map(
-      (option) => option.value,
-    )
-    expect(durations).toContain('7')
-    expect(durations).not.toContain('60')
+  it('时长是滑杆的吸附表，跟着模型能力表走，⛔ 不是一份写死的表', () => {
+    expect(videoDurationSteps(undefined)).toEqual([])
+    const durations = videoDurationSteps(MODEL_ID)
+    expect(durations).toContain(7)
+    expect(durations).not.toContain(60)
+    // 表是升序的（滑杆两端要写最小 / 最大）。
+    expect([...durations].sort((a, b) => a - b)).toEqual([...durations])
+  })
+
+  it('存量卡上落不在档里的时长吸附到最近一格，⛔ 不跳回最左', () => {
+    const steps = [4, 8, 12]
+    expect(videoDurationStepIndex(steps, '9')).toBe(1)
+    expect(videoDurationStepIndex(steps, '12')).toBe(2)
+    expect(videoDurationStepIndex(steps, undefined)).toBe(0)
   })
 
   it('生成声音开关只在模型发得出这个字段时可点', () => {
@@ -422,17 +444,71 @@ describe('画面弹层（spec §5）', () => {
     expect(videoSupportsGeneratedAudio(MODEL_ID)).toBe(true)
   })
 
-  it('chip 上写 `7s · 16:9`，开了声音才接「· 有声」', () => {
-    const params = { duration: '7', aspectRatio: '16:9' }
-    expect(videoFrameChipLabel(params, { fallback: '画面' })).toBe('7s · 16:9')
+  it('chip 首位是推出来的模式，其后 `7s · 16:9 · 720p`，开了声音再接「· 有声」', () => {
+    const params = { duration: '7', aspectRatio: '16:9', resolution: '720p' }
+    expect(
+      videoFrameChipLabel(params, {
+        modeLabel: '文生视频',
+        fallback: '选模型',
+      }),
+    ).toBe('文生视频 · 7s · 16:9 · 720p')
     expect(
       videoFrameChipLabel(
         { ...params, generateAudio: true },
-        { audioLabel: '有声', fallback: '画面' },
+        { modeLabel: '全能参考', audioLabel: '有声', fallback: '选模型' },
       ),
-    ).toBe('7s · 16:9 · 有声')
-    // 一个数都不知道时退回「画面」，⛔ 不编一个默认时长写在 chip 上。
-    expect(videoFrameChipLabel(undefined, { fallback: '画面' })).toBe('画面')
+    ).toBe('全能参考 · 7s · 16:9 · 720p · 有声')
+    // 一个数都不知道时退回 fallback（没模型时那是「选模型」）。
+    expect(videoFrameChipLabel(undefined, { fallback: '选模型' })).toBe(
+      '选模型',
+    )
+  })
+
+  it('模式由挂了什么推出来（spec §5「不设模式页签」）', () => {
+    const empty = {
+      firstFrame: false,
+      lastFrame: false,
+      referenceImages: 0,
+      videos: 0,
+      voices: 0,
+    }
+    expect(videoSendMode(empty)).toBe(VIDEO_SEND_MODE_IDS.textToVideo)
+    expect(videoSendMode({ ...empty, firstFrame: true })).toBe(
+      VIDEO_SEND_MODE_IDS.imageToVideo,
+    )
+    expect(videoSendMode({ ...empty, firstFrame: true, lastFrame: true })).toBe(
+      VIDEO_SEND_MODE_IDS.firstLastFrame,
+    )
+    // 任何一项参考（图 / 视频 / 语音）都把它推到全能参考 —— 首尾帧也让位。
+    expect(videoSendMode({ ...empty, referenceImages: 1 })).toBe(
+      VIDEO_SEND_MODE_IDS.omniReference,
+    )
+    expect(videoSendMode({ ...empty, videos: 1 })).toBe(
+      VIDEO_SEND_MODE_IDS.omniReference,
+    )
+    expect(
+      videoSendMode({
+        ...empty,
+        firstFrame: true,
+        lastFrame: true,
+        voices: 1,
+      }),
+    ).toBe(VIDEO_SEND_MODE_IDS.omniReference)
+  })
+
+  it('每组上限来自发送契约的参考变体，⛔ 不是另列的一份数字', () => {
+    const capacity = videoRailCapacity({
+      optionId: 'opt_a',
+      modelId: MODEL_ID,
+      adapterType: 'fal',
+      providerConfig: { label: 'fal', baseUrl: 'https://fal.run' },
+    } as never)
+    // Seedance 2.0 的参考变体：图 9 · 视频 3 · 语音 3（send-plan 的
+    // `SEEDANCE_20_REFERENCE_SLOTS`）。
+    expect(capacity).toMatchObject({ images: 9, videos: 3, voices: 3 })
+    expect(capacity.referenceUnavailable).toBe(false)
+    // 没模型 = 上限未知（⛔ 不编一个数把加号灰掉）。
+    expect(videoRailCapacity(undefined).images).toBeNull()
   })
 
   it('底部读数 = 尺寸 · 时长 · 估价；缺价那一截不写', () => {
@@ -454,15 +530,171 @@ describe('画面弹层（spec §5）', () => {
     ).toBe('480×853 · 7s')
   })
 
-  it('弹层里四段齐全，声音是开关不是 chip', () => {
+  it('底部读数带每组的 已挂 / 上限；上限不可得时只写已挂数', () => {
+    expect(
+      videoFrameReadout(
+        MODEL_ID,
+        { duration: '7', aspectRatio: '16:9', resolution: '1080p' },
+        [
+          { label: '图', current: 4, limit: 9 },
+          { label: '视频', current: 2, limit: 3 },
+          { label: '语音', current: 1, limit: null },
+        ],
+      ),
+    ).toBe('1920×1080 · 7s · $4.77 · 图 4/9 · 视频 2/3 · 语音 1')
+  })
+
+  it('弹层里模式 · 时长滑杆 · 比例 · 清晰度 · 声音开关齐全', () => {
     renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
     const chip = document.querySelector(
       '[data-video-frame-chip]',
     ) as HTMLElement
     fireEvent.pointerDown(chip, { button: 0 })
     fireEvent.click(chip)
+    expect(
+      document.querySelector('[data-video-duration-slider]'),
+    ).not.toBeNull()
     expect(document.querySelector('[data-video-generate-audio]')).not.toBeNull()
     expect(document.querySelector('[data-video-frame-readout]')).not.toBeNull()
+    // 模式只读地写在弹层顶部（⛔ 没有任何一个可点的模式控件）。
+    expect(document.querySelector('[data-video-frame-mode]')).not.toBeNull()
+  })
+})
+
+describe('参考轨（spec §5，画板 `VideoRefs.dc.html` 方向 A）', () => {
+  const railEdges: NodeWorkflowEdgeV4[] = [
+    {
+      id: 'e1',
+      source: 'i_kf',
+      sourceHandle: 'out',
+      target: 'v_1',
+      slot: NODE_SLOT_IDS.firstFrame,
+    },
+  ]
+  const railNode = () =>
+    videoNode('v_1', {
+      ...READY,
+      slots: {
+        [NODE_SLOT_IDS.firstFrame]: {
+          versions: [
+            {
+              id: 'sv_e1',
+              edgeId: 'e1',
+              sourceNodeId: 'i_kf',
+              blocked: false,
+              addedAt: NOW,
+            },
+          ],
+          cur: 'sv_e1',
+        },
+      },
+    })
+
+  it('换角色 = 一批 `disconnect + connect`（**一条撤销**，⛔ 不发两个 op）', async () => {
+    const onApplyBatch = vi.fn(
+      async (ops: readonly unknown[]) => (
+        void ops,
+        { createdNodeIds: [] as string[] }
+      ),
+    )
+    renderVideo(
+      harness([railNode(), imageNode('i_kf', 'https://cdn.test/kf.png')], {
+        edges: railEdges,
+        onApplyBatch,
+      }),
+      'v_1',
+      true,
+    )
+    const item = document.querySelector(
+      '[data-video-rail-slot="firstFrame"]',
+    ) as HTMLElement
+    fireEvent.pointerDown(item, { button: 0, ctrlKey: false })
+    fireEvent.click(item)
+    const action = await screen.findByText('rail.setRole.reference')
+    fireEvent.click(action)
+
+    await waitFor(() => expect(onApplyBatch).toHaveBeenCalledTimes(1))
+    expect(onApplyBatch.mock.calls[0]?.[0]).toEqual([
+      { op: NODE_ASSISTANT_OP_V4_IDS.disconnect, edgeId: 'e1' },
+      {
+        op: NODE_ASSISTANT_OP_V4_IDS.connect,
+        source: 'i_kf',
+        target: 'v_1',
+        slot: NODE_SLOT_IDS.reference,
+      },
+    ])
+  })
+
+  it('模型没有参考变体 → 视频 / 语音两组的加号**灰掉不藏**，图组照常', () => {
+    renderVideo(
+      harness([
+        videoNode('v_1', {
+          ...READY,
+          // Veo 3.1 只有 image-content-array 那一档，没有参考端点。
+          model: { optionId: 'opt_v', modelId: 'veo-3.1', adapterType: 'fal' },
+        }),
+      ]),
+      'v_1',
+      true,
+    )
+    const addOf = (group: string) =>
+      document.querySelector(
+        `[data-video-rail-add="${group}"]`,
+      ) as HTMLButtonElement
+    expect(addOf('video')).not.toBeNull()
+    expect(addOf('video').disabled).toBe(true)
+    expect(addOf('voice').disabled).toBe(true)
+    expect(addOf('image').disabled).toBe(false)
+  })
+})
+
+describe('参数 chip 永不为空（spec §5）', () => {
+  const option = (optionId: string, extra: Record<string, unknown> = {}) => ({
+    optionId,
+    modelId: MODEL_ID,
+    adapterType: 'fal',
+    providerConfig: { label: 'fal', baseUrl: 'https://fal.run' },
+    sourceType: 'workspace',
+    requestCount: 0,
+    ...extra,
+  })
+
+  it('新卡即带默认模型（与图片卡同一条 `resolveModelChannel`：自己的 key 优先）', () => {
+    renderVideo(
+      harness([videoNode('v_1')], {
+        modelOptionsByKind: {
+          video: [
+            option('opt_platform', { freeTier: true }),
+            option('opt_mine', { sourceType: 'saved', apiKeyId: 'k_1' }),
+          ],
+        },
+      } as never),
+      'v_1',
+      true,
+    )
+    // 自己的 key 那条赢 —— chip 上写的就是它（⛔ 不是清单第一条）。
+    expect(screen.getByTestId('model-chip').getAttribute('data-value')).toBe(
+      'opt_mine',
+    )
+  })
+
+  it('有模型时参数 chip 首位写推出来的模式，⛔ 不是空的「画面」', () => {
+    renderVideo(
+      harness([videoNode('v_1')], {
+        modelOptionsByKind: { video: [option('opt_a')] },
+      } as never),
+      'v_1',
+      true,
+    )
+    const chip = document.querySelector('[data-video-frame-chip]')
+    expect(chip?.textContent).toContain('mode.textToVideo')
+  })
+
+  it('一个模型都没有时 chip 写「选模型」', () => {
+    renderVideo(harness([videoNode('v_1')]), 'v_1', true)
+    expect(document.querySelector('[data-video-frame-chip]')?.textContent).toBe(
+      'frame.pickModel',
+    )
   })
 })
 

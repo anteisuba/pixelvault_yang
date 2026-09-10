@@ -41,6 +41,7 @@ import {
   planSlotConnectRole,
   toConnectionEndpoint,
 } from '@/lib/node-slot-binding'
+import { readVideoRail, videoRailMentionLabels } from '@/lib/video-node-rail'
 import type {
   NodeV4,
   NodeWorkflowEdgeV4,
@@ -157,7 +158,37 @@ export function defaultMentionSlot(
 interface NameHit {
   readonly nodeId?: string
   readonly cardId?: string
+  /**
+   * 轨上序号（`@图1`）解析出来的**固定槽** —— 它指的就是那一项现在挂着的那个槽，
+   * ⛔ 不再按来源 kind 推（推出来的会把「作首帧」的那张图当成参考）。
+   */
+  readonly railSlot?: NodeSlotId
   readonly ambiguous: boolean
+}
+
+/**
+ * 视频卡参考轨的序号名（`@图1` / `@视频1` / `@语音1`，三语前缀都收）。
+ *
+ * ⚠ 序号由 `readVideoRail` 发，与轨上画的是同一份号 —— 删一项后面顺位，`@图1`
+ * 永远指第一张。⛔ 这里不自己数。
+ */
+function buildRailTable(
+  state: NodeWorkflowStateV4,
+  nodeId: string,
+): Map<string, NameHit> {
+  const table = new Map<string, NameHit>()
+  const target = state.nodes.find((node) => node.id === nodeId)
+  if (!target || target.data.kind !== NODE_MEDIA_KIND_IDS.video) return table
+  for (const entry of readVideoRail(target, state.edges, state.nodes)) {
+    for (const label of videoRailMentionLabels(entry)) {
+      table.set(label, {
+        nodeId: entry.sourceNodeId,
+        railSlot: entry.slot,
+        ambiguous: false,
+      })
+    }
+  }
+  return table
 }
 
 /**
@@ -250,6 +281,11 @@ export function resolveMentionsToSlots(
 
   const castCards = options.castCards ?? []
   const nameTable = buildNameTable(state, castCards)
+  // 轨上的序号名盖过同名的卡名：画布上真有一张卡叫「图1」时，正文里的 `@图1`
+  // 仍然指轨上第一项 —— 序号是这条栏自己的坐标系。
+  for (const [label, hit] of buildRailTable(state, nodeId)) {
+    nameTable.set(label, hit)
+  }
   const segments = parseMentions(text, { names: [...nameTable.keys()] })
 
   const bindings: MentionSlotBinding[] = []
@@ -288,7 +324,7 @@ export function resolveMentionsToSlots(
 
     const slot = segment.explicitRole
       ? segment.role
-      : defaultMentionSlot(source.data.kind, target)
+      : (hit.railSlot ?? defaultMentionSlot(source.data.kind, target))
     if (!slot) {
       rejected.push(
         rejectionOf(segment, NODE_CONNECT_REJECT_REASON_IDS.unknownSlot, {

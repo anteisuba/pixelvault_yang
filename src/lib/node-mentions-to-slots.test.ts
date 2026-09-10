@@ -313,6 +313,61 @@ describe('removeMentionsForSource · 手拆边 → 删 chip', () => {
   })
 })
 
+describe('参考轨的序号引用（`@图1` / `@视频1` / `@语音1`）', () => {
+  /** 轨：图 1 = 首帧站台图、图 2 = 参考尾帧图、语音 1 = 旁白。 */
+  const railState = stateOf(
+    [platform, tail, narration, shot],
+    [
+      edge('e-first', platform.id, shot.id, NODE_SLOT_IDS.firstFrame),
+      edge('e-ref', tail.id, shot.id, NODE_SLOT_IDS.reference),
+      edge('e-voice', narration.id, shot.id, NODE_SLOT_IDS.voice),
+    ],
+  )
+
+  it('序号指轨上那一项，且**沿用它现在的槽**（⛔ 不按 kind 重推成参考）', () => {
+    const diff = resolveMentionsToSlots(
+      railState,
+      shot.id,
+      '男主（@图1）看向 @图2，配 @语音1',
+    )
+    expect(diff.rejected).toEqual([])
+    // 三条边都已经在了 —— 序号引用只是**指着**它们，不新建边。
+    expect(diff.toConnect).toEqual([])
+    expect(diff.bindings.map((item) => [item.name, item.slot])).toEqual([
+      ['图1', NODE_SLOT_IDS.firstFrame],
+      ['图2', NODE_SLOT_IDS.reference],
+      ['语音1', NODE_SLOT_IDS.voice],
+    ])
+  })
+
+  it('三语前缀都收（解析靠固定表，⛔ 不靠当前 locale）', () => {
+    const diff = resolveMentionsToSlots(railState, shot.id, '@image1 @音声1')
+    expect(diff.bindings.map((item) => item.sourceNodeId)).toEqual([
+      platform.id,
+      narration.id,
+    ])
+  })
+
+  it('删一项后面顺位：断掉图 1，`@图1` 改指原来的图 2', () => {
+    const afterRemoval = stateOf(
+      [platform, tail, narration, shot],
+      [
+        edge('e-ref', tail.id, shot.id, NODE_SLOT_IDS.reference),
+        edge('e-voice', narration.id, shot.id, NODE_SLOT_IDS.voice),
+      ],
+    )
+    const diff = resolveMentionsToSlots(afterRemoval, shot.id, '@图1')
+    expect(diff.bindings[0]?.sourceNodeId).toBe(tail.id)
+  })
+
+  it('`@名字` 仍然照旧解析', () => {
+    const diff = resolveMentionsToSlots(railState, shot.id, '参照 @尾帧 尾帧图')
+    expect(diff.bindings.map((item) => [item.name, item.slot])).toEqual([
+      ['尾帧图', NODE_SLOT_IDS.lastFrame],
+    ])
+  })
+})
+
 describe('三条路汇到同一份 reconcileStateSlots', () => {
   /** 同一个目标槽：@ 落槽 / 连线 / 拖入，三条路的 `slots` 必须一模一样。 */
   it('@、connect、拖入落同一个槽的结果一致', () => {
@@ -340,30 +395,42 @@ describe('三条路汇到同一份 reconcileStateSlots', () => {
       now: NOW,
     })
 
-    // ③ 拖入（`planV4IngestDrop` 决议出的那个槽）
+    // ③ 拖入。⚠ 镜头卡的默认落点是**参考**（spec §5 · 2026-09-10 定稿），
+    // 所以这一路比的是「同样落参考」的那两份，⛔ 不是把它掰回首帧。
     const drop = planV4IngestDrop(platform, shot, base.edges, base.nodes)
-    const dropped =
-      drop.kind === 'choose'
-        ? drop.candidates.find((item) => item.slot === NODE_SLOT_IDS.firstFrame)
-        : drop.kind === 'single'
-          ? drop.candidate
-          : undefined
-    expect(dropped?.slot).toBe(NODE_SLOT_IDS.firstFrame)
+    expect(drop).toMatchObject({
+      kind: 'single',
+      candidate: { slot: NODE_SLOT_IDS.reference },
+    })
     const viaDrop = connectIntoSlot(base, {
       source: platform.id,
       target: shot.id,
-      slot: dropped?.slot ?? NODE_SLOT_IDS.firstFrame,
+      slot: NODE_SLOT_IDS.reference,
+      edgeId: 'e-same',
+      now: NOW,
+    })
+    const viaConnectReference = connectIntoSlot(base, {
+      source: platform.id,
+      target: shot.id,
+      slot: NODE_SLOT_IDS.reference,
       edgeId: 'e-same',
       now: NOW,
     })
 
     expect(viaMention.ok && viaConnect.ok && viaDrop.ok).toBe(true)
-    if (!viaMention.ok || !viaConnect.ok || !viaDrop.ok) return
+    if (
+      !viaMention.ok ||
+      !viaConnect.ok ||
+      !viaDrop.ok ||
+      !viaConnectReference.ok
+    ) {
+      return
+    }
     const slotsOf = (state: NodeWorkflowStateV4) =>
       reconcileStateSlots(state, { now: NOW }).nodes.find(
         (item) => item.id === shot.id,
       )?.data.slots
     expect(slotsOf(viaMention.state)).toEqual(slotsOf(viaConnect.state))
-    expect(slotsOf(viaDrop.state)).toEqual(slotsOf(viaConnect.state))
+    expect(slotsOf(viaDrop.state)).toEqual(slotsOf(viaConnectReference.state))
   })
 })

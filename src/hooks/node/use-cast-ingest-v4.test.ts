@@ -144,18 +144,42 @@ describe('previewV4SlotCapacity · 张口预览的 n/m', () => {
 })
 
 describe('planV4IngestDrop · 这一投落哪个槽', () => {
-  it('多个口都收得下 → 不替用户挑，把候选连同 n/m 交回去点亮', () => {
+  it('拖一张图到镜头卡 = 落进参考（spec §5 · 2026-09-10 定稿），⛔ 不再问首帧还是尾帧', () => {
+    // 镜头卡是**唯一**有默认落点的目标：图默认作参考，首 / 尾是它的角色，
+    // 挂上去之后在参考轨上点图改。
     const plan = planV4IngestDrop(first, shot, [], nodes)
+    expect(plan).toMatchObject({
+      kind: 'single',
+      candidate: { slot: NODE_SLOT_IDS.reference },
+    })
+  })
+
+  it('多个口都收得下、且没有默认落点 → 不替用户挑，把候选连同 n/m 交回去点亮', () => {
+    // 角色卡：一张图同时能进 `reference` 与 `closeup`，两者都没有默认口。
+    const character = node('character', {
+      kind: 'image',
+      subtype: 'character',
+      url: 'https://cdn/c.png',
+    })
+    const reference = node('ref', {
+      kind: 'image',
+      subtype: 'reference',
+      url: 'https://cdn/r.png',
+    })
+    const plan = planV4IngestDrop(
+      reference,
+      character,
+      [],
+      [reference, character],
+    )
     expect(plan.kind).toBe('choose')
     if (plan.kind !== 'choose') return
     expect(plan.candidates.map((candidate) => candidate.slot)).toEqual([
-      NODE_SLOT_IDS.firstFrame,
-      NODE_SLOT_IDS.lastFrame,
       NODE_SLOT_IDS.reference,
+      NODE_SLOT_IDS.closeup,
     ])
-    expect(plan.candidates[0]?.capacity).toEqual({ current: 0, limit: 1 })
     // 0..N 的槽报不出上限 —— 诚实沉默，⛔ 不硬造一个数。
-    expect(plan.candidates[2]?.capacity).toBeNull()
+    expect(plan.candidates[0]?.capacity).toBeNull()
   })
 
   it('只剩一个口收得下 → 直接给落点，不必问', () => {

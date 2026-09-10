@@ -7,10 +7,11 @@
  * 两张都只是 `DropdownMenuItem` 的列表：壳（`NodePromptBar` / `NodeToolbar`）负责
  * 弹层与定位，⛔ 这里不自己写浮层。
  *
- * ── `+` 里那四项为什么是子菜单 ────────────────────────────────────────
- * 画板原话：「首帧 / 尾帧 / 参考视频 / 语音 四项点了都是『选一张已在画布上的卡』或
- * 『上传』」。所以每一项展开是**候选卡 + 上传**，⛔ 不是一个直接弹文件选择框的按钮
- * ——那会把「画布上已经有那张图」这条主路径埋掉。
+ * ── `+` 里那三组为什么是子菜单 ────────────────────────────────────────
+ * 2026-09-10 owner 定稿把四个槽子菜单收成**与参考轨一样的三组**（图 · 视频 ·
+ * 语音）：首帧 / 尾帧不再是入口，它们是图的**角色**，挂上去之后在轨上点图改。
+ * 每一组展开仍是**候选卡 + 上传**，⛔ 不是一个直接弹文件选择框的按钮 —— 那会把
+ * 「画布上已经有那张图」这条主路径埋掉。
  *
  * ⚠ 候选**只列有产物的卡**：挂一张还没生成出来的空卡到首帧上，生成时那一格发不
  * 出去，用户却以为已经挂好了。
@@ -42,7 +43,11 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu'
-import { NODE_SLOT_IDS, type NodeSlotId } from '@/constants/node-slots'
+import { NODE_SLOT_IDS } from '@/constants/node-slots'
+import {
+  VIDEO_RAIL_GROUP_IDS,
+  type VideoRailGroupId,
+} from '@/lib/video-node-rail'
 
 /** 一张可以挂到槽上的卡。 */
 export interface VideoSlotCandidate {
@@ -50,19 +55,29 @@ export interface VideoSlotCandidate {
   readonly name: string
 }
 
-/** `+` 里那四项的顺序与图标 —— 顺序就是画板上那一列的顺序。 */
-export const VIDEO_SLOT_PICKERS = [
-  { slot: NODE_SLOT_IDS.firstFrame, icon: PictureInPicture2 },
-  { slot: NODE_SLOT_IDS.lastFrame, icon: PictureInPicture2 },
-  { slot: NODE_SLOT_IDS.reference, icon: Film },
-  { slot: NODE_SLOT_IDS.voice, icon: Mic },
+/**
+ * `+` 里那三组的顺序、落点与图标 —— **与参考轨同一份顺序**（图 · 视频 · 语音）。
+ * 落点：图 / 视频都进 `reference`（图默认作参考），语音进 `voice`。
+ */
+export const VIDEO_RAIL_PICKERS = [
+  {
+    group: VIDEO_RAIL_GROUP_IDS.image,
+    slot: NODE_SLOT_IDS.reference,
+    icon: PictureInPicture2,
+  },
+  {
+    group: VIDEO_RAIL_GROUP_IDS.video,
+    slot: NODE_SLOT_IDS.reference,
+    icon: Film,
+  },
+  { group: VIDEO_RAIL_GROUP_IDS.voice, slot: NODE_SLOT_IDS.voice, icon: Mic },
 ] as const
 
 export interface VideoAddMenuItemsProps {
-  candidatesOf(slot: NodeSlotId): readonly VideoSlotCandidate[]
-  onPickSlotSource(slot: NodeSlotId, nodeId: string): void
-  /** 上传一份新素材并落进这个槽（图 / 视频 / 音由槽决定）。 */
-  onUploadForSlot(slot: NodeSlotId): void
+  candidatesOf(group: VideoRailGroupId): readonly VideoSlotCandidate[]
+  onPickSlotSource(group: VideoRailGroupId, nodeId: string): void
+  /** 上传一份新素材并落进这一组（kind 由组决定）。 */
+  onUploadForSlot(group: VideoRailGroupId): void
   /** 「上传视频 / 图」—— 落进这张卡自己（成片或封面），⛔ 不落槽。 */
   onUpload(): void
   onMention(): void
@@ -77,7 +92,6 @@ export function VideoAddMenuItems({
   onMention,
   onLibrary,
 }: VideoAddMenuItemsProps) {
-  const t = useTranslations('StudioNode.v4')
   const tVideo = useTranslations('StudioNode.v4.video')
   return (
     <>
@@ -85,28 +99,28 @@ export function VideoAddMenuItems({
         <Upload aria-hidden className="size-4" />
         {tVideo('add.upload')}
       </DropdownMenuItem>
-      {VIDEO_SLOT_PICKERS.map(({ slot, icon: Icon }) => {
-        const candidates = candidatesOf(slot)
+      {VIDEO_RAIL_PICKERS.map(({ group, icon: Icon }) => {
+        const candidates = candidatesOf(group)
         return (
-          <DropdownMenuSub key={slot}>
-            <DropdownMenuSubTrigger data-video-add-slot={slot}>
+          <DropdownMenuSub key={group}>
+            <DropdownMenuSubTrigger data-video-add-group={group}>
               <Icon aria-hidden className="size-4" />
-              {t(`slots.${slot}`)}
+              {tVideo(`rail.group.${group}`)}
             </DropdownMenuSubTrigger>
             <DropdownMenuSubContent>
               {candidates.map((candidate) => (
                 <DropdownMenuItem
                   key={candidate.id}
                   data-video-slot-candidate={candidate.id}
-                  onSelect={() => onPickSlotSource(slot, candidate.id)}
+                  onSelect={() => onPickSlotSource(group, candidate.id)}
                 >
                   {candidate.name}
                 </DropdownMenuItem>
               ))}
               {candidates.length > 0 ? <DropdownMenuSeparator /> : null}
               <DropdownMenuItem
-                data-video-slot-upload={slot}
-                onSelect={() => onUploadForSlot(slot)}
+                data-video-slot-upload={group}
+                onSelect={() => onUploadForSlot(group)}
               >
                 <Upload aria-hidden className="size-4" />
                 {tVideo('add.uploadForSlot')}

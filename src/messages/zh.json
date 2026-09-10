@@ -4469,7 +4469,6 @@
       "voice": "音色",
       "seedance": "视频生成",
       "videoReference": "参考视频",
-      "videoMerge": "视频合成",
       "typeNameAria": "{type}：{name}",
       "text": "文本",
       "audio": "音频",
@@ -4484,8 +4483,7 @@
       "image": "上传、从素材库选，或 AI 生成一张图——落地后可命名并归类。角色、场景从 Cast 卡匣新建。",
       "voice": "选择或上传音色，作为视频角色声音线索。",
       "seedance": "聚合上游图像、关键帧和音色，生成最终视频。",
-      "videoReference": "上传一段视频（≤15s / ≤50MB）作为参考，享 Seedance Reference 6 折。",
-      "videoMerge": "把多个上游视频按顺序拼接成一段长视频（~$0.001 / 次，≤9 段）。"
+      "videoReference": "上传一段视频（≤15s / ≤50MB）作为参考，享 Seedance Reference 6 折。"
     },
     "addCatalog": {
       "groups": {
@@ -4538,10 +4536,6 @@
         "videoClip": {
           "label": "片段",
           "helper": "上传一段视频，作为运动或画面参考。"
-        },
-        "videoMerge": {
-          "label": "合并",
-          "helper": "按顺序合并 2–9 段视频，可先设置片段范围。"
         }
       },
       "cast": "卡匣",
@@ -4762,27 +4756,6 @@
       "errors": {
         "tooLong": "视频时长 {actual}s 超过 {max}s 的上限。",
         "uploadFailed": "视频上传失败，请重试。"
-      }
-    },
-    "videoMerge": {
-      "title": "视频合并",
-      "description": "把上游连进来的多段视频按顺序拼接成一段长视频，输出仍是 mp4，可继续接 Seedance Reference 使用。",
-      "merging": "正在合并",
-      "merged": "视频合并成功",
-      "mediaLabel": "合并的 {count} 段视频",
-      "slotRequired": "必须",
-      "slotOptional": "可选",
-      "clipCount": "{count} / {max} 段",
-      "merge": {
-        "run": "开始合并",
-        "regenerate": "重新合并"
-      },
-      "clear": "清空结果",
-      "hint": "成本约 $0.001/段，处理时长约 8 秒。合并后的视频会自动保留音轨。",
-      "trim": {
-        "startPlaceholder": "0",
-        "endPlaceholder": "整段",
-        "trimmedCount": "已裁 {count} 段"
       }
     },
     "mediaNodes": {
@@ -5082,9 +5055,6 @@
       },
       "frameImage": {
         "emptyState": "还没有关键帧"
-      },
-      "videoMerge": {
-        "emptyState": "还没有成片"
       }
     },
     "topbar": {
@@ -5215,10 +5185,6 @@
         "videoShot": {
           "label": "规划镜头",
           "prompt": "帮我在画布上规划一个视频镜头：主体、运动、机位与时长。"
-        },
-        "videoMerge": {
-          "label": "合成片段",
-          "prompt": "帮我把画布上已有视频片段排序并合成为短片。"
         }
       },
       "welcomeTitle": "选择节点查看检查器",
@@ -5371,7 +5337,6 @@
     "toasts": {
       "projectCreated": "项目「{name}」已创建。",
       "projectDeleted": "项目「{name}」已删除。",
-      "videoMergeComposed": "已把 {count} 段视频合成到片盒。",
       "localCacheFull": "本地缓存已满，画布不再本地暂存。你的内容仍在保存到云端。",
       "localCacheUnavailable": "浏览器拒绝了本地存储，画布不再本地暂存。你的内容仍在保存到云端。",
       "cloudSaveFailed": "连不上云端，最近的画布改动没有保存。请保持此标签页打开并检查网络连接。",
@@ -5483,8 +5448,7 @@
         "blockVersion": "把「{target}」{slot}的这一版判为不用",
         "unblockVersion": "解除「{target}」{slot}这一版的不用标记",
         "setParamsV4": "改「{target}」的生成档位",
-        "setVoiceProfile": "改「{target}」的音色档",
-        "setMergeClips": "重设「{target}」的片段范围"
+        "setVoiceProfile": "改「{target}」的音色档"
       },
       "params": {
         "duration": "{value} 秒",
@@ -5601,39 +5565,9 @@
         "belowMin": "{slot} 还没填够，暂时不能生成"
       },
       "generateDesk": {
-        "title": "生成",
-        "prompt": "提示词",
-        "promptPlaceholder": {
-          "image": "描述你要的画面…",
-          "audio": "要念的台词或声音描述…",
-          "video": "描述这个镜头怎么动…",
-          "text": "写点什么…"
-        },
-        "model": "模型",
-        "params": "参数",
-        "aspectRatio": "比例",
-        "resolution": "清晰度",
-        "duration": "时长",
-        "durationSeconds": "{seconds} 秒",
-        "generateAudio": "生成音轨",
-        "seed": "随机种子",
-        "seedPlaceholder": "留空=随机",
-        "negativePrompt": "负面词",
-        "generate": "生成",
-        "regenerate": "重新生成",
-        "retry": "重试",
-        "generating": "生成中…",
         "failed": "生成失败：{reason}",
-        "upload": "上传素材",
-        "uploading": "上传中 {percent}%",
-        "uploadCancel": "取消",
-        "uploadFailed": "上传失败：{reason}",
-        "uploadRetry": "重试上传",
         "noModel": "先选一个模型",
-        "slotRack": "素材槽",
-        "slotCount": "{slot} {count}",
-        "noGenerate": "文本节点没有生成，只能派生",
-        "shortcutPending": "生成暂时走编排台上的按钮，⌘+Enter 通路在下一步接上。"
+        "noGenerate": "文本节点没有生成，只能派生"
       },
       "renameNode": "重命名节点",
       "expandNode": "展开",
@@ -5951,7 +5885,8 @@
           "continue": "续拍",
           "extract": "抽帧",
           "extractNeedsPlayback": "把鼠标移到画面上让它放起来，才能抽当前这一帧",
-          "more": "更多"
+          "more": "更多",
+          "expand": "展开"
         },
         "add": {
           "upload": "上传视频 / 图",
@@ -5979,15 +5914,53 @@
           "shotNote": "镜头说明",
           "emptyNote": "写下这个镜头怎么拍……",
           "editAriaLabel": "编辑镜头说明",
-          "readout": "{chars} 字 · 已挂 {slots} 项"
+          "readout": "{chars} 字 · 已挂 {slots} 项",
+          "pickModel": "选模型",
+          "modeLabel": "这次按"
         },
         "model": {
           "title": "模型"
         },
         "promptPlaceholder": "描述这个镜头……",
         "promptLabel": "镜头提示词",
-        "slotChip": "{slot}：{name}",
-        "tailFrameName": "{name} 末帧"
+        "tailFrameName": "{name} 末帧",
+        "mode": {
+          "omniReference": "全能参考",
+          "firstLastFrame": "首尾帧",
+          "imageToVideo": "图生视频",
+          "textToVideo": "文生视频",
+          "hint": "由挂了什么决定：有参考项 → 全能参考；首 + 尾 → 首尾帧；只有首帧 → 图生视频；什么都没挂 → 文生视频"
+        },
+        "rail": {
+          "title": "参考 · 拖进来或 ⌘V",
+          "group": {
+            "image": "图",
+            "video": "视频",
+            "voice": "语音"
+          },
+          "roleBadge": {
+            "firstFrame": "首",
+            "lastFrame": "尾"
+          },
+          "setRole": {
+            "firstFrame": "作首帧",
+            "lastFrame": "作尾帧",
+            "reference": "作参考"
+          },
+          "open": "打开",
+          "remove": "移除",
+          "upload": "上传",
+          "library": "从素材库",
+          "fromCanvas": {
+            "image": "画布上的图",
+            "video": "画布上的视频",
+            "voice": "画布上的语音"
+          },
+          "itemLabel": "{group}{index}：{name}",
+          "addLabel": "添加{group}",
+          "full": "已满（上限 {limit}）",
+          "referenceUnavailable": "这个模型没有参考变体，挂上去也发不出去"
+        }
       },
       "connectToShot": {
         "searchLabel": "搜镜头",

@@ -11,6 +11,7 @@
 
 import { useTranslations } from 'next-intl'
 
+import { Slider } from '@/components/ui/slider'
 import { Switch } from '@/components/ui/switch'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { cn } from '@/lib/utils'
@@ -19,8 +20,10 @@ import type { NodeV4GenerationParams } from '@/types/node-workflow'
 import { ChipPopover } from '../chrome'
 import {
   VIDEO_FRAME_POPOVER_WIDTH,
+  formatVideoSeconds,
   videoAspectRatioOptions,
-  videoDurationOptions,
+  videoDurationStepIndex,
+  videoDurationSteps,
   videoFrameChipLabel,
   videoFrameReadout,
   videoResolutionOptions,
@@ -32,6 +35,20 @@ export interface VideoFrameChipProps {
   readonly params: NodeV4GenerationParams | undefined
   /** 档位值域查的是它的能力表 —— 没选模型时三段都不画。 */
   readonly modelId: string | undefined
+  /**
+   * 推出来的模式（`videoSendMode` 的译名）。写在 chip 首位与弹层顶部「这次按 ×」
+   * ——**只读**，⛔ 弹层里不给它任何一个可点的控件（spec §5「不设模式页签」）。
+   */
+  readonly modeLabel?: string
+  readonly modeHint?: string
+  /** 底部读数里每组的 `已挂 / 上限`。 */
+  readonly readoutGroups?: readonly {
+    readonly label: string
+    readonly current: number
+    readonly limit: number | null
+  }[]
+  /** 这个模型没有参考变体时的那句说明（⛔ 不静默丢用户挂的参考）。 */
+  readonly referenceNote?: string
   onDurationChange(next: string): void
   onAspectRatioChange(next: string): void
   onResolutionChange(next: string): void
@@ -88,6 +105,10 @@ function SpecSection({
 export function VideoFrameChip({
   params,
   modelId,
+  modeLabel,
+  modeHint,
+  readoutGroups = [],
+  referenceNote,
   onDurationChange,
   onAspectRatioChange,
   onResolutionChange,
@@ -96,11 +117,17 @@ export function VideoFrameChip({
 }: VideoFrameChipProps) {
   const t = useTranslations('StudioNode.v4.video')
   const label = videoFrameChipLabel(params, {
+    ...(modeLabel ? { modeLabel } : {}),
     audioLabel: t('frame.audioSuffix'),
-    fallback: t('frame.title'),
+    // 没模型时 chip 写「选模型」（画板），⛔ 不写一个空的「画面」。
+    fallback: modelId ? t('frame.title') : t('frame.pickModel'),
   })
-  const readout = videoFrameReadout(modelId, params)
+  const readout = videoFrameReadout(modelId, params, readoutGroups)
   const audioSupported = videoSupportsGeneratedAudio(modelId)
+  const durations = videoDurationSteps(modelId)
+  const durationIndex = videoDurationStepIndex(durations, params?.duration)
+  const durationMin = durations[0]
+  const durationMax = durations[durations.length - 1]
 
   return (
     <ChipPopover
@@ -125,13 +152,57 @@ export function VideoFrameChip({
       }
     >
       <div className="flex flex-col gap-3">
-        <SpecSection
-          label={t('frame.duration')}
-          options={videoDurationOptions(modelId)}
-          value={params?.duration ?? ''}
-          suffix="s"
-          onChange={onDurationChange}
-        />
+        {/* 顶部「这次按 ×」——只读读数（画板 `VideoRefs` 弹层首行）。 */}
+        {modeLabel ? (
+          <div className="flex flex-col gap-1">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-3xs tracking-node-sec text-muted-foreground">
+                {t('frame.modeLabel')}
+              </span>
+              <span data-video-frame-mode className="text-2sm font-semibold">
+                {modeLabel}
+              </span>
+            </div>
+            {modeHint ? (
+              <p className="text-3xs text-muted-foreground">{modeHint}</p>
+            ) : null}
+          </div>
+        ) : null}
+
+        {/* 时长 = 滑杆，吸附到模型档位（画板 2026-09-10 改稿；⛔ 不做分段控件）。 */}
+        {durations.length > 0 &&
+        durationMin !== undefined &&
+        durationMax !== undefined ? (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-3xs tracking-node-sec text-muted-foreground">
+                {t('frame.duration')}
+              </span>
+              <span
+                data-video-duration-value
+                className="text-2sm font-semibold tabular-nums"
+              >
+                {formatVideoSeconds(durations[durationIndex] as number)}
+              </span>
+            </div>
+            <Slider
+              data-video-duration-slider
+              aria-label={t('frame.duration')}
+              min={0}
+              max={durations.length - 1}
+              step={1}
+              value={[durationIndex]}
+              onValueChange={(next) => {
+                const step = durations[next[0] ?? 0]
+                if (step !== undefined) onDurationChange(String(step))
+              }}
+            />
+            <div className="flex justify-between text-3xs text-muted-foreground tabular-nums">
+              <span>{formatVideoSeconds(durationMin)}</span>
+              <span>{formatVideoSeconds(durationMax)}</span>
+            </div>
+          </div>
+        ) : null}
         <SpecSection
           label={t('frame.aspectRatio')}
           options={videoAspectRatioOptions(modelId)}
@@ -162,6 +233,14 @@ export function VideoFrameChip({
             onCheckedChange={onGenerateAudioChange}
           />
         </div>
+        {referenceNote ? (
+          <p
+            data-video-reference-note
+            className="text-3xs text-muted-foreground"
+          >
+            {referenceNote}
+          </p>
+        ) : null}
         {readout ? (
           <p
             data-video-frame-readout

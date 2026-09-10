@@ -19,6 +19,12 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), info: vi.fn() } }))
  * 要断言的正是**哪一个组件被挑中渲染**（v4 四类 vs legacy 空壳），而不是 RF 的
  * 视口/连线内部。
  */
+// S8c：视频卡的 ⋯「加入剪辑台」走动作出口；本组只渲染快照，桩一个空出口即可。
+vi.mock('../nodes/v4/NodeV4ActionsBridge', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../nodes/v4/NodeV4ActionsBridge')>()),
+  useNodeCanvasActions: () => ({ openEditDesk: () => {} }),
+}))
+
 vi.mock('@xyflow/react', () => {
   const ReactFlow = (props: Record<string, unknown>) => {
     const nodes = (props.nodes ?? []) as { id: string; type: string }[]
@@ -49,7 +55,7 @@ vi.mock('@xyflow/react', () => {
     ReactFlow,
     Background: () => null,
     BackgroundVariant: { Dots: 'dots' },
-    ConnectionLineType: { SmoothStep: 'smoothstep' },
+    ConnectionLineType: { SmoothStep: 'smoothstep', Bezier: 'bezier' },
     SelectionMode: { Partial: 'partial' },
     MiniMap: () => null,
     Handle: (props: Record<string, unknown>) => (
@@ -60,10 +66,17 @@ vi.mock('@xyflow/react', () => {
       props.isVisible ? <div>{props.children as ReactNode}</div> : null,
     Position: { Left: 'left', Right: 'right', Top: 'top' },
     useNodes: () => [],
+    // S6e：卡壳从 RF 拿自己的 id（拖线反馈）；快照里给固定值。
+    useNodeId: () => 'node-1',
+    useStore: () => false,
     // `useUpdateNodeInternalsOnInit`（首绘强推 handle 位置）只读 store，
     // 快照里给一个空 store 就够 —— 它一次性、且没有边时立刻收工。
     useStoreApi: () => ({
-      getState: () => ({ edges: [], updateNodeInternals: () => undefined }),
+      getState: () => ({
+        edges: [],
+        nodeLookup: new Map(),
+        updateNodeInternals: () => undefined,
+      }),
     }),
     useEdges: () => [],
     useReactFlow: () => ({

@@ -389,3 +389,22 @@ export const NODE_MENTION_ROLE_LABELS: Readonly<
   voice: NODE_SLOT_IDS.voice,
   ref: NODE_SLOT_IDS.reference,
 }
+
+/**
+ * 一条边**是怎么建出来的**（spec §8.2）。今天只有一档：`mention` = 正文里的
+ * `@` 建的。
+ *
+ * ── 为什么边要记来路 ──────────────────────────────────────────────────
+ * 「退格删 @ 即断槽」要求反向也成立：正文里没人指着的边该断。但手拖进首帧的那张
+ * 图**没有** @ 指着它，若不分来路，第一次改正文就会把它一起删掉。所以 `@` 建的边
+ * 打这个标，断槽只断打了标的那些。
+ * ⛔ 不做成「所有边都记来路」：其余三条路（拖入 / 连线 / 助手 op）之间没有需要
+ * 区分的行为，多一个字段就是多一处要同步的事实。
+ */
+export const NODE_EDGE_VIA_IDS = {
+  mention: 'mention',
+} as const
+
+export const NODE_EDGE_VIAS = [NODE_EDGE_VIA_IDS.mention] as const
+
+export type NodeEdgeVia = (typeof NODE_EDGE_VIAS)[number]

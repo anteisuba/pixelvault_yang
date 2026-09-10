@@ -22,6 +22,7 @@ import {
   resolveSlotRoleCapacity,
   slotSupportsVersions,
   type NodeSlotId,
+  type NodeEdgeVia,
   type NodeSlotOutputId,
   type NodeSlotTextRole,
 } from '@/constants/node-slots'
@@ -354,6 +355,11 @@ export interface ConnectIntoSlotParams {
    * （见 `planSlotConnectRole` 的取舍）；给了就照给的算，满了按满拒绝。
    */
   readonly role?: NodeSlotTextRole
+  /**
+   * 这条边的来路（spec §8.2）。`mention` = 正文里的 `@` 建的——「退格删 @ 即断槽」
+   * 只断打了这个标的边，⛔ 不碰手拖 / 手连进来的。缺席 = 其余三条路。
+   */
+  readonly via?: NodeEdgeVia
 }
 
 export type ConnectIntoSlotResult =
@@ -420,6 +426,7 @@ export function connectIntoSlot(
     sourceHandle: params.sourceHandle ?? NODE_SLOT_OUTPUT_IDS.out,
     target: params.target,
     slot: params.slot,
+    ...(params.via ? { data: { via: params.via } } : {}),
   }
   const edges = [...state.edges, edge]
   const now = params.now ?? new Date().toISOString()

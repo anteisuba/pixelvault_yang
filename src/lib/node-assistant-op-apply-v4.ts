@@ -20,6 +20,7 @@ import {
   type NodeAssistantWriteMode,
 } from '@/constants/node-assistant-ops'
 import {
+  NODE_EDGE_VIA_IDS,
   NODE_SLOT_OUTPUT_IDS,
   type NodeSlotId,
   type NodeSlotTextRole,
@@ -38,6 +39,10 @@ import {
   reorderShots,
   shotSpawnPosition,
 } from '@/lib/node-shot-layout'
+import {
+  resolveMentionsToSlots,
+  type MentionCastCardRef,
+} from '@/lib/node-mentions-to-slots'
 import {
   connectIntoSlot,
   disconnectEdge,
@@ -89,6 +94,20 @@ export interface ApplyOpV4Context {
    * 不给这个函数 = `set_model` 在没有旧选择可继承时**失败可见**，不静默半写。
    */
   resolveModel?(modelId: string): NodeV4Model | undefined
+  /**
+   * 画布上可被 `@` 的角色卡（spec §8.2）。卡住在库里不在图 state 里，所以名字由
+   * 调用方给；卡绑的图 / 音色仍从图上反查。不给 = 正文里只认节点名。
+   */
+  readonly castCards?: readonly MentionCastCardRef[]
+  /**
+   * 跳过 `set_text` / `set_prompt` 的 `@` 落槽后置钩子。
+   *
+   * ⚠ **只有 `applyInverseV4` 用它**：撤销一条改正文的 op 时，边的增删已经各自
+   * 记在 inverse 序列里了；让回放的 `set_text` 再同步一次等于同一件事做两遍，
+   * 且第二遍会铸出新的 edgeId，把序列里后面那条 `disconnect` 指空。
+   * ⛔ 不是给调用方「关掉这个功能」的开关。
+   */
+  readonly skipMentionSync?: boolean
 }
 
 export type ApplyOpV4Result =
@@ -145,6 +164,98 @@ function applyWriteMode(
   // `suggest` 不落文本——它是「给个建议让用户点」，落不落由 UI 决定。
   if (mode === 'append') return previous ? `${previous}\n\n${next}` : next
   return next
+}
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * `@` 引用 → 槽绑定（spec §8.2）· `set_text` / `set_prompt` 的后置钩子
+ *
+ * ── 为什么落在 op 执行器里而不是 hook 里 ──────────────────────────────
+ * 「正文里写了 `@首帧 S02`」与「S02 进了首帧槽」是**同一步意图**，两处落地就会
+ * 漂：助手发 `set_text` 走执行器、用户敲字走 hook，一边同步一边不同步。放在这里
+ * 则两条路共用同一次同步、同一份 inverse，撤销自然是**一个条目**（§7）。
+ *
+ * ⛔ 不另写一套槽写入：连 / 断仍然是 `connectIntoSlot` / `disconnectEdge` ——
+ * 与拖入（`planV4IngestDrop` → `connect` op）、连线（`connect` op）汇到同一处，
+ * 三条路的落点因此一定一致（`reconcileStateSlots` 由调用方在提交前跑一次）。
+ *
+ * ⚠ 被拒的 `@`（容量满 / 槽不收这个 kind）在这里**只是不连**：op 结果没有出声
+ * 的通道。理由要出声的地方是渲染层 —— 它自己调 `resolveMentionsToSlots` 拿
+ * `rejected` 给 chip 画叉。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+interface MentionSyncOutcome {
+  readonly state: NodeWorkflowStateV4
+  readonly inverses: readonly NodeV4Inverse[]
+  readonly changedEdgeIds: readonly string[]
+}
+
+function syncMentionSlots(
+  state: NodeWorkflowStateV4,
+  nodeId: string,
+  text: string,
+  context: ApplyOpV4Context,
+  now: string,
+): MentionSyncOutcome {
+  if (context.skipMentionSync) {
+    return { state, inverses: [], changedEdgeIds: [] }
+  }
+  const diff = resolveMentionsToSlots(state, nodeId, text, {
+    ...(context.castCards ? { castCards: context.castCards } : {}),
+  })
+  if (diff.toConnect.length === 0 && diff.toDisconnect.length === 0) {
+    return { state, inverses: [], changedEdgeIds: [] }
+  }
+
+  let next = state
+  const inverses: NodeV4Inverse[] = []
+  const changedEdgeIds: string[] = []
+
+  for (const plan of diff.toDisconnect) {
+    const result = disconnectEdge(next, plan.edgeId, { now })
+    if (!result.removed) continue
+    next = result.state
+    changedEdgeIds.push(plan.edgeId)
+    // ⚠ 撤销用 `restore` 而不是一条 `connect` op：那条 op 载荷里没有 `via`，
+    // 把边加回来就丢了「这是 @ 建的」，下一次改正文便断不掉它。
+    inverses.push({ kind: 'restore', nodes: [], edges: [result.removed] })
+  }
+
+  for (const plan of diff.toConnect) {
+    const result = connectIntoSlot(next, {
+      source: plan.sourceNodeId,
+      target: plan.targetNodeId,
+      slot: plan.slot,
+      edgeId: context.mintId('e'),
+      via: NODE_EDGE_VIA_IDS.mention,
+      now,
+    })
+    if (!result.ok) continue
+    next = result.state
+    changedEdgeIds.push(result.edgeId)
+    inverses.push({
+      kind: 'op',
+      op: {
+        op: NODE_ASSISTANT_OP_V4_IDS.disconnect,
+        edgeId: result.edgeId,
+      },
+    })
+  }
+
+  return { state: next, inverses, changedEdgeIds }
+}
+
+/** 正文 inverse + `@` 引起的边 inverse 收成一条（撤销是**一个**条目）。 */
+function withMentionInverse(
+  textInverse: NodeV4Inverse,
+  sync: MentionSyncOutcome,
+): NodeV4Inverse {
+  if (sync.inverses.length === 0) return textInverse
+  // 逆序回放：先把边退回去，再把正文退回去 —— 正文那条带
+  // `skipMentionSync`，⛔ 不会把边再同步一遍。
+  return {
+    kind: 'sequence',
+    items: [...[...sync.inverses].reverse(), textInverse],
+  }
 }
 
 /** 一条 op → 新 state。⚠ 逐条应用，调用方负责把一轮的结果收成一个 undo 条目。 */
@@ -472,20 +583,28 @@ export function applyNodeAssistantOpV4(
       }
       const previous = node.data.body
       const body = applyWriteMode(previous, op.body, op.mode)
+      const written = replaceNodeData(state, node.id, (data) => ({
+        ...data,
+        body,
+      }))
+      const sync = syncMentionSlots(written, node.id, body, context, now)
       return {
         ok: true,
-        state: replaceNodeData(state, node.id, (data) => ({ ...data, body })),
-        inverse: {
-          kind: 'op',
-          op: {
-            op: ids.setText,
-            target: node.id,
-            body: previous || ' ',
-            mode: 'replace',
+        state: sync.state,
+        inverse: withMentionInverse(
+          {
+            kind: 'op',
+            op: {
+              op: ids.setText,
+              target: node.id,
+              body: previous || ' ',
+              mode: 'replace',
+            },
           },
-        },
+          sync,
+        ),
         changedNodeIds: [node.id],
-        changedEdgeIds: [],
+        changedEdgeIds: sync.changedEdgeIds,
       }
     }
 
@@ -497,20 +616,28 @@ export function applyNodeAssistantOpV4(
       }
       const previous = node.data.prompt ?? ''
       const prompt = applyWriteMode(previous, op.prompt, op.mode)
+      const written = replaceNodeData(state, node.id, (data) => ({
+        ...data,
+        prompt,
+      }))
+      const sync = syncMentionSlots(written, node.id, prompt, context, now)
       return {
         ok: true,
-        state: replaceNodeData(state, node.id, (data) => ({ ...data, prompt })),
-        inverse: {
-          kind: 'op',
-          op: {
-            op: ids.setPrompt,
-            target: node.id,
-            prompt: previous || ' ',
-            mode: 'replace',
+        state: sync.state,
+        inverse: withMentionInverse(
+          {
+            kind: 'op',
+            op: {
+              op: ids.setPrompt,
+              target: node.id,
+              prompt: previous || ' ',
+              mode: 'replace',
+            },
           },
-        },
+          sync,
+        ),
         changedNodeIds: [node.id],
-        changedEdgeIds: [],
+        changedEdgeIds: sync.changedEdgeIds,
       }
     }
 
@@ -791,6 +918,11 @@ export function applyInverseV4(
       ],
     }
   }
-  const result = applyNodeAssistantOpV4(state, inverse.op, context)
+  // ⚠ 回放**不**再跑 `@` 同步：边的增删已经各自记在这条序列里了（见
+  // `syncMentionSlots` 头注）。
+  const result = applyNodeAssistantOpV4(state, inverse.op, {
+    ...context,
+    skipMentionSync: true,
+  })
   return result.ok ? result.state : state
 }

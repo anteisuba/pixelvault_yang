@@ -19,6 +19,7 @@ import {
 } from '@/constants/node-studio'
 import { IMAGE_SIZES } from '@/constants/config'
 import {
+  NODE_EDGE_VIAS,
   NODE_SLOT_OUTPUT_IDS,
   NODE_SLOT_OUTPUTS,
   NODE_SLOT_TEXT_ROLES,
@@ -536,6 +537,13 @@ export const NodeWorkflowEdgeDataSchema = z
       .array(z.string().trim().min(1).max(4000))
       .max(9)
       .optional(),
+    /**
+     * 这条边的来路（spec §8.2）。今天只有 `mention` 一档：正文里的 `@` 建的边
+     * 打这个标，于是「退格删 @ 即断槽」只断它自己建的那些，⛔ 不碰手拖 / 手连
+     * 进来的边。缺席 = 其余三条路建的边（拖入 / 连线 / 助手 op），三者之间不需要
+     * 区分行为，所以不给它们各编一个值。
+     */
+    via: z.enum(NODE_EDGE_VIAS).optional(),
   })
   .passthrough()
 

@@ -43,6 +43,11 @@ import {
   applyNodeAssistantOpV4,
   type NodeV4Inverse,
 } from '@/lib/node-assistant-op-apply-v4'
+import {
+  listMentionNames,
+  removeMentionsForSource,
+  type MentionCastCardRef,
+} from '@/lib/node-mentions-to-slots'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import { tidyShotLanes } from '@/lib/node-shot-layout'
 import { projectScriptDocToGraphV4 } from '@/lib/node-workflow-script-doc-v4'
@@ -126,6 +131,11 @@ export interface UseNodeGraphV4Options {
    * 眼里没选中的卡。
    */
   selectedNodeIds?: readonly string[]
+  /**
+   * 画布上可被 `@` 的角色卡（spec §8.2）。卡住在库里不在图 state 里，所以名字要
+   * 从外面给；卡绑的图 / 音色仍从图上反查。不给 = 正文里只认节点名。
+   */
+  castCards?: readonly MentionCastCardRef[]
 }
 
 export interface NodeGraphV4 {
@@ -256,6 +266,7 @@ export function useNodeGraphV4({
   resolveModel,
   onOpFailed,
   selectedNodeIds: selectedNodeIdsOverride,
+  castCards,
 }: UseNodeGraphV4Options): NodeGraphV4 {
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
   const [undoStack, setUndoStack] = useState<
@@ -339,6 +350,7 @@ export function useNodeGraphV4({
       const result = applyNodeAssistantOpV4(state, op, {
         mintId,
         ...(resolveModel ? { resolveModel } : {}),
+        ...(castCards ? { castCards } : {}),
       })
       if (!result.ok) {
         onOpFailed?.(result.reason)
@@ -359,7 +371,7 @@ export function useNodeGraphV4({
       onStateChange(next)
       return true
     },
-    [state, resolveModel, onOpFailed, onStateChange],
+    [state, resolveModel, onOpFailed, onStateChange, castCards],
   )
 
   /**
@@ -388,6 +400,7 @@ export function useNodeGraphV4({
           mintId,
           refs,
           ...(resolveModel ? { resolveModel } : {}),
+          ...(castCards ? { castCards } : {}),
         })
         if (!result.ok) {
           onOpFailed?.(result.reason)
@@ -430,7 +443,7 @@ export function useNodeGraphV4({
       onStateChange(next)
       return { applied, skipped, failedConnects, createdNodeIds }
     },
-    [state, resolveModel, onOpFailed, onStateChange],
+    [state, resolveModel, onOpFailed, onStateChange, castCards],
   )
 
   /**
@@ -509,10 +522,59 @@ export function useNodeGraphV4({
     [dispatch],
   )
 
+  /**
+   * 拆一条边。
+   *
+   * ⚠ 拆的是 **`@` 建的**边时，正文里那个 chip 要跟着删掉（spec §8.2 的反向）：
+   * 不删的话下一次改正文，同步钩子看见 @ 还在，边立刻长回来 —— 用户眼里就是
+   * 「拆不掉」。⛔ 不做成「只去掉角色前缀」：无角色的 @ 仍会落回 `reference`，
+   * 那是换个槽复活，比不删更难理解。
+   *
+   * 两步走 `dispatchBatch` = **一个**撤销条目：拆边与删 chip 是同一步意图。
+   */
   const disconnect = useCallback(
-    (edgeId: string): boolean =>
-      dispatch({ op: NODE_ASSISTANT_OP_V4_IDS.disconnect, edgeId }),
-    [dispatch],
+    (edgeId: string): boolean => {
+      const edge = state.edges.find((item) => item.id === edgeId)
+      const target = edge
+        ? state.nodes.find((node) => node.id === edge.target)
+        : undefined
+      const source = edge
+        ? state.nodes.find((node) => node.id === edge.source)
+        : undefined
+      const disconnectOp: NodeAssistantOpV4 = {
+        op: NODE_ASSISTANT_OP_V4_IDS.disconnect,
+        edgeId,
+      }
+      if (!edge || !target || !source || edge.data?.via !== 'mention') {
+        return dispatch(disconnectOp)
+      }
+
+      const data = target.data
+      const isText = data.kind === NODE_MEDIA_KIND_IDS.text
+      const body = isText ? data.body : (data.prompt ?? '')
+      const stripped = removeMentionsForSource(body, {
+        sourceName: source.data.name,
+        slot: edge.slot,
+        names: listMentionNames(state, castCards ?? []),
+      })
+      if (stripped === null) return dispatch(disconnectOp)
+
+      const rewrite: NodeAssistantOpV4 = isText
+        ? {
+            op: NODE_ASSISTANT_OP_V4_IDS.setText,
+            target: target.id,
+            body: stripped || ' ',
+            mode: 'replace',
+          }
+        : {
+            op: NODE_ASSISTANT_OP_V4_IDS.setPrompt,
+            target: target.id,
+            prompt: stripped || ' ',
+            mode: 'replace',
+          }
+      return dispatchBatch([disconnectOp, rewrite]).applied > 0
+    },
+    [state, dispatch, dispatchBatch, castCards],
   )
 
   const deleteNodes = useCallback(

@@ -22,6 +22,7 @@ import {
 } from '@/constants/lora'
 import { getCompatibleBases } from '@/constants/lora-base-models'
 import { useCivitaiModelDescription } from '@/hooks/prompts/use-civitai-model-description'
+import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
 import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
@@ -807,10 +808,19 @@ export function LoraAssetDetail({
 }) {
   const t = useTranslations('LoraWorkbench')
   const sourceUrl = getLoraAssetSourceUrl(asset)
+  const minedPrompts = useCivitaiMinedPrompts(
+    asset.provider === 'civitai' ? asset : null,
+  )
+  const sampleUrls =
+    minedPrompts.recipes.length > 0
+      ? minedPrompts.recipes.map((recipe) => recipe.imageUrl)
+      : minedPrompts.previewImages.length > 0
+        ? minedPrompts.previewImages.map((preview) => preview.imageUrl)
+        : asset.previewImageUrls
   const images = [
     ...new Set(
-      [asset.coverImageUrl, ...asset.previewImageUrls].filter(
-        (url): url is string => Boolean(url),
+      [asset.coverImageUrl, ...sampleUrls].filter((url): url is string =>
+        Boolean(url),
       ),
     ),
   ]

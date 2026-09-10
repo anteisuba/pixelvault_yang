@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -14,12 +20,23 @@ import { LoraAssetCard } from './LoraAssetCard'
 
 const mockPush = vi.hoisted(() => vi.fn())
 const mockStackPush = vi.hoisted(() => vi.fn())
+const mockMinePrompts = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client/lora-assets', () => ({
+  mineCivitaiLoraPromptsAPI: mockMinePrompts,
+}))
 let mockStackItems: { asset: LoraAssetRecord; scale?: number }[] = []
 
-vi.mock('next-intl', () => ({
-  useTranslations: (namespace: string) => (key: string) =>
-    `${namespace}:${key}`,
-}))
+vi.mock('next-intl', () => {
+  const translators = new Map<string, (key: string) => string>()
+  return {
+    useTranslations: (namespace: string) => {
+      if (!translators.has(namespace)) {
+        translators.set(namespace, (key: string) => `${namespace}:${key}`)
+      }
+      return translators.get(namespace)
+    },
+  }
+})
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
@@ -86,6 +103,7 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
     mockPush.mockReset()
     mockStackPush.mockReset()
     mockStackItems = []
+    mockMinePrompts.mockReset()
   })
 
   it('renders the type badge on the shared black-nacre cover tile', () => {
@@ -116,6 +134,51 @@ describe('LoraAssetCard — B8 shared base + preserved my-page chrome', () => {
       within(detail).getByRole('button', { name: 'LoraWorkbench:use' }),
     )
     expect(mockStackPush).toHaveBeenCalledTimes(1)
+  })
+
+  it('loads library samples only when saved details open and lets users preview them', async () => {
+    mockMinePrompts.mockResolvedValue({
+      success: true,
+      data: {
+        outfits: [],
+        totalSampled: 1,
+        previewImages: [{ imageUrl: 'https://example.com/sample.png' }],
+      },
+    })
+    render(
+      <LoraAssetCard
+        asset={makeAsset({
+          id: 'samples',
+          name: 'Saved samples',
+          modelId: 2848936,
+          modelVersionId: 3216916,
+        })}
+      />,
+    )
+    expect(mockMinePrompts).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Saved samples' }))
+    const detail = screen.getByRole('dialog', { name: 'Saved samples' })
+    await waitFor(() =>
+      expect(
+        within(detail).getAllByRole('button', {
+          name: 'LoraWorkbench:sampleImageAlt',
+        }),
+      ).toHaveLength(2),
+    )
+    expect(mockMinePrompts).toHaveBeenCalledWith({
+      modelId: 2848936,
+      modelVersionId: 3216916,
+      fileHash: undefined,
+    })
+    fireEvent.click(
+      within(detail).getAllByRole('button', {
+        name: 'LoraWorkbench:sampleImageAlt',
+      })[1],
+    )
+    expect(
+      within(detail).getByRole('img', { name: 'Saved samples' }),
+    ).toHaveAttribute('src', 'https://example.com/sample.png')
+    expect(mockStackPush).not.toHaveBeenCalled()
   })
 
   it('去生成: mounts the LoRA and navigates to the generate section', () => {

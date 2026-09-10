@@ -1512,7 +1512,7 @@ describe('LoraWorkbench GenerateBranch — mobile generate layout', () => {
 
     // 结果卡在文档顺序里排在 composer 之前。
     const position = resultCard().compareDocumentPosition(composerCard())
-     
+
     expect(position & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 

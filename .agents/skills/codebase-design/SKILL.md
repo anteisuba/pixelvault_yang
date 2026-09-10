@@ -3,25 +3,7 @@ name: codebase-design
 description: Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, decide where a seam goes, make code more testable or AI-navigable, or when another skill needs the deep-module vocabulary.
 ---
 
-## PixelVault Adapter
-
-This skill is imported from `mattpocock/skills` as an execution loop for Personal AI Gallery.
-
-Before applying the upstream workflow:
-
-1. Project rules win: follow `AGENTS.md` for Codex, `CLAUDE.md` for Claude Code, and the active reading path in `docs/README.md`.
-2. Treat this skill as an execution rhythm, not as permission to change architecture, routes, auth, credits, provider behavior, storage, database schema, package scripts, CI, hooks, or product direction.
-3. Do not create or update `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/`, `.scratch/`, `.out-of-scope/`, external issues, commits, or PRs unless the user explicitly asks for that exact artifact.
-4. When upstream text says to publish to the issue tracker, draft the PRD, issue breakdown, or agent brief in chat first. Only write it to `docs/decisions/`, GitHub, or another target after the user confirms the destination.
-5. When upstream text says to commit, do not commit unless the user explicitly requested a commit. If committing is requested, use scoped staging and inspect the cached diff first.
-6. For provider, model, API, pricing, auth, storage, database, deployment, or security work, the official-docs gate in `AGENTS.md` is mandatory.
-7. For UI-visible work, keep PixelVault's browser/mobile QA evidence rules and i18n requirements.
-
-PixelVault documentation replaces the upstream default domain-doc assumption:
-
-- Domain/product context: `docs/product/mainline.md` and relevant `docs/domains/*.md`.
-- Architecture decisions: relevant `docs/architecture/*.md`, `docs/decisions/*.md`, and code source of truth.
-- Execution loops: `docs/engineering/agent-loops.md` and `docs/engineering/matt-pocock-skills.md`.
+项目范围、授权、验证与文档位置遵循 `docs/WORKFLOW.md`；下文提供方法，不新增审批门。
 
 # Codebase Design
 
@@ -29,17 +11,17 @@ Design **deep modules**: a lot of behaviour behind a small interface, placed at 
 
 ## Glossary
 
-Use these terms exactly — don't substitute "component," "service," "API," or "boundary." Consistent language is the whole point.
+Use this vocabulary when it clarifies a design; preserve established project terms such as service, component, API and domain boundary.
 
-**Module** — anything with an interface and an implementation. Deliberately scale-agnostic: a function, class, package, or tier-spanning slice. _Avoid_: unit, component, service.
+**Module** — anything with an interface and an implementation. Deliberately scale-agnostic: a function, class, package, or tier-spanning slice.
 
-**Interface** — everything a caller must know to use the module correctly: the type signature, but also invariants, ordering constraints, error modes, required configuration, and performance characteristics. _Avoid_: API, signature (too narrow — they refer only to the type-level surface).
+**Interface** — everything a caller must know to use the module correctly: the type signature, but also invariants, ordering constraints, error modes, required configuration, and performance characteristics. The term is broader than a type signature.
 
 **Implementation** — what's inside a module, its body of code. Distinct from **Adapter**: a thing can be a small adapter with a large implementation (a Postgres repo) or a large adapter with a small implementation (an in-memory fake). Reach for "adapter" when the seam is the topic; "implementation" otherwise.
 
 **Depth** — leverage at the interface: the amount of behaviour a caller (or test) can exercise per unit of interface they have to learn. A module is **deep** when a large amount of behaviour sits behind a small interface, **shallow** when the interface is nearly as complex as the implementation.
 
-**Seam** _(Michael Feathers)_ — a place where you can alter behaviour without editing in that place; the _location_ at which a module's interface lives. Where to put the seam is its own design decision, distinct from what goes behind it. _Avoid_: boundary (overloaded with DDD's bounded context).
+**Seam** _(Michael Feathers)_ — a place where you can alter behaviour without editing in that place; the _location_ at which a module's interface lives. Where to put the seam is its own design decision, distinct from what goes behind it. Distinguish this from a domain boundary.
 
 **Adapter** — a concrete thing that satisfies an interface at a seam. Describes _role_ (what slot it fills), not substance (what's inside).
 
@@ -126,9 +108,9 @@ Good interfaces make testing natural:
 
 - **Depth as ratio of implementation-lines to interface-lines** (Ousterhout): rewards padding the implementation. We use depth-as-leverage instead.
 - **"Interface" as the TypeScript `interface` keyword or a class's public methods**: too narrow — interface here includes every fact a caller must know.
-- **"Boundary"**: overloaded with DDD's bounded context. Say **seam** or **interface**.
+- Distinguish module interfaces from domain boundaries when the distinction matters.
 
 ## Going deeper
 
 - **Deepening a cluster given its dependencies** — see [DEEPENING.md](DEEPENING.md): dependency categories, seam discipline, and replace-don't-layer testing.
-- **Exploring alternative interfaces** — see [DESIGN-IT-TWICE.md](DESIGN-IT-TWICE.md): spin up parallel sub-agents to design the interface several radically different ways, then compare on depth, locality, and seam placement.
+- **Exploring alternative interfaces** — see [DESIGN-IT-TWICE.md](DESIGN-IT-TWICE.md): compare materially different interfaces when a real design tradeoff warrants it; subagent use depends on current authorization and tools.

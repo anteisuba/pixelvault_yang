@@ -14,7 +14,7 @@ Change PixelVault's media generation stack through the project layers instead of
 1. Confirm the source of truth:
    - Read `AGENTS.md`.
    - Read `src/constants/models.ts`, `src/constants/providers.ts`, `src/constants/config.ts`, and relevant message files before changing model-facing behavior.
-   - Inspect existing provider adapters under `src/services/providers/` and generation services before adding new patterns.
+   - Inspect `src/services/providers/registry.ts`, generation services and the matching handlers under `workers/execution/src/models/` before changing execution behavior.
 
 2. Read primary API docs for media/provider changes:
    - Use official provider documentation for image, video, audio, browser media APIs, and parameter semantics.
@@ -39,9 +39,9 @@ Change PixelVault's media generation stack through the project layers instead of
    - Keep locale-prefixed routes and existing Studio workflow assumptions intact.
 
 6. Validate behavior:
-   - Run focused typecheck/lint/tests/build commands that are feasible.
+   - Follow docs/WORKFLOW.md and docs/scenes/new-model.md: catalog/adapter changes require full application checks and affected Worker tests; real paid calls require corresponding authorization.
    - For failures, capture the exact provider error and map it to a safe user-facing message.
-   - Do not retry unclear provider failures indefinitely. After two failed attempts caused by environment, keys, or external service behavior, summarize the blocker and ask the user for logs, credentials status, or provider console checks.
+   - Do not retry unclear provider failures indefinitely. Do not repeat the same failing action without new evidence. Report missing environment/access, continue independent checks, and never request raw secrets in chat.
 
 ## Model Catalog Rules
 

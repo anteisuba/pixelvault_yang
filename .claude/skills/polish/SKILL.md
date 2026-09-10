@@ -8,7 +8,7 @@ args:
     required: false
 ---
 
-**First**: Use the frontend-design skill for design principles and anti-patterns.
+先读本次目标和已确认的域/page 规范；只有需要额外设计方法时才读 frontend-design。检查范围与授权遵循 `docs/WORKFLOW.md`。
 
 Perform a meticulous final pass to catch all the small details that separate good work from great work. The difference between shipped and polished.
 
@@ -45,6 +45,7 @@ Work through these dimensions methodically:
 - **Grid adherence**: Elements snap to baseline grid
 
 **Check**:
+
 - Enable grid overlay and verify alignment
 - Check spacing with browser inspector
 - Test at multiple viewport sizes
@@ -182,6 +183,7 @@ Go through systematically:
 **IMPORTANT**: Polish is about details. Zoom in. Squint at it. Use it yourself. The little things add up.
 
 **NEVER**:
+
 - Polish before it's functionally complete
 - Spend hours on polish if it ships in 30 minutes (triage)
 - Introduce bugs while polishing (test thoroughly)

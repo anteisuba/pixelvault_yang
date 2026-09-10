@@ -3,31 +3,13 @@ name: diagnosing-bugs
 description: Diagnosis loop for hard bugs and performance regressions. Use when the user says "diagnose"/"debug this", or reports something broken/throwing/failing/slow.
 ---
 
-## PixelVault Adapter
-
-This skill is imported from `mattpocock/skills` as an execution loop for Personal AI Gallery.
-
-Before applying the upstream workflow:
-
-1. Project rules win: follow `AGENTS.md` for Codex, `CLAUDE.md` for Claude Code, and the active reading path in `docs/README.md`.
-2. Treat this skill as an execution rhythm, not as permission to change architecture, routes, auth, credits, provider behavior, storage, database schema, package scripts, CI, hooks, or product direction.
-3. Do not create or update `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/`, `.scratch/`, `.out-of-scope/`, external issues, commits, or PRs unless the user explicitly asks for that exact artifact.
-4. When upstream text says to publish to the issue tracker, draft the PRD, issue breakdown, or agent brief in chat first. Only write it to `docs/decisions/`, GitHub, or another target after the user confirms the destination.
-5. When upstream text says to commit, do not commit unless the user explicitly requested a commit. If committing is requested, use scoped staging and inspect the cached diff first.
-6. For provider, model, API, pricing, auth, storage, database, deployment, or security work, the official-docs gate in `AGENTS.md` is mandatory.
-7. For UI-visible work, keep PixelVault's browser/mobile QA evidence rules and i18n requirements.
-
-PixelVault documentation replaces the upstream default domain-doc assumption:
-
-- Domain/product context: `docs/product/mainline.md` and relevant `docs/domains/*.md`.
-- Architecture decisions: relevant `docs/architecture/*.md`, `docs/decisions/*.md`, and code source of truth.
-- Execution loops: `docs/engineering/agent-loops.md` and `docs/engineering/matt-pocock-skills.md`.
+项目范围、授权、验证与文档位置遵循 `docs/WORKFLOW.md`；下文提供方法，不新增审批门。
 
 # Diagnosing Bugs
 
 A discipline for hard bugs. Skip phases only when explicitly justified.
 
-When exploring the codebase, read `CONTEXT.md` (if it exists) to get a clear mental model of the relevant modules, and check ADRs in the area you're touching.
+Read the relevant `docs/references/domains/` document and implementation before diagnosing; preserve confirmed domain contracts.
 
 ## Phase 1 — Build a feedback loop
 
@@ -97,11 +79,11 @@ Why bother: a minimal repro shrinks the hypothesis space in Phase 3 (fewer movin
 
 Done when **every remaining element is load-bearing** — removing any one of them makes the loop go green.
 
-Do not proceed until you have reproduced **and** minimised.
+Minimise enough to distinguish causes; stop reducing when further work adds no useful evidence.
 
 ## Phase 3 — Hypothesise
 
-Generate **3–5 ranked hypotheses** before testing any of them. Single-hypothesis generation anchors on the first plausible idea.
+Rank hypotheses supported by evidence. Consider alternatives when the cause is ambiguous; a clear stack trace does not require inventing three to five candidates.
 
 Each hypothesis must be **falsifiable**: state the prediction it makes.
 
@@ -151,4 +133,4 @@ Required before declaring done:
 - [ ] Throwaway prototypes deleted (or moved to a clearly-marked debug location)
 - [ ] The hypothesis that turned out correct is stated in the commit / PR message — so the next debugger learns
 
-**Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling) hand off to the `/improve-codebase-architecture` skill with the specifics. Make the recommendation **after** the fix is in, not before — you have more information now than when you started.
+**Then ask: what would have prevented this bug?** If the answer involves architectural change (no good test seam, tangled callers, hidden coupling) report the concrete follow-up opportunity; only use `/improve-codebase-architecture` when that work is requested or needed within scope. Make the recommendation **after** the fix is in, not before — you have more information now than when you started.

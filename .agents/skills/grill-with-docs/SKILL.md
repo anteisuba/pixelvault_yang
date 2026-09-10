@@ -1,27 +1,11 @@
 ---
 name: grill-with-docs
-description: A relentless interview to sharpen a plan or design, which also creates docs (ADR's and glossary) as we go.
+description: 用户要求压力测试方案并记录结论时使用，更新现有领域文档中的术语和决策。
 disable-model-invocation: true
 ---
 
-## PixelVault Adapter
+# 方案压力测试与记录
 
-This skill is imported from `mattpocock/skills` as an execution loop for Personal AI Gallery.
+采用 `grilling` 的聚焦讨论方法，需要澄清领域术语时再读 `domain-modeling`。只询问上下文和代码不能回答、且会改变结果的问题。
 
-Before applying the upstream workflow:
-
-1. Project rules win: follow `AGENTS.md` for Codex, `CLAUDE.md` for Claude Code, and the active reading path in `docs/README.md`.
-2. Treat this skill as an execution rhythm, not as permission to change architecture, routes, auth, credits, provider behavior, storage, database schema, package scripts, CI, hooks, or product direction.
-3. Do not create or update `CONTEXT.md`, `CONTEXT-MAP.md`, `docs/adr/`, `.scratch/`, `.out-of-scope/`, external issues, commits, or PRs unless the user explicitly asks for that exact artifact.
-4. When upstream text says to publish to the issue tracker, draft the PRD, issue breakdown, or agent brief in chat first. Only write it to `docs/decisions/`, GitHub, or another target after the user confirms the destination.
-5. When upstream text says to commit, do not commit unless the user explicitly requested a commit. If committing is requested, use scoped staging and inspect the cached diff first.
-6. For provider, model, API, pricing, auth, storage, database, deployment, or security work, the official-docs gate in `AGENTS.md` is mandatory.
-7. For UI-visible work, keep PixelVault's browser/mobile QA evidence rules and i18n requirements.
-
-PixelVault documentation replaces the upstream default domain-doc assumption:
-
-- Domain/product context: `docs/product/mainline.md` and relevant `docs/domains/*.md`.
-- Architecture decisions: relevant `docs/architecture/*.md`, `docs/decisions/*.md`, and code source of truth.
-- Execution loops: `docs/engineering/agent-loops.md` and `docs/engineering/matt-pocock-skills.md`.
-
-Run a `/grilling` session, using the `/domain-modeling` skill.
+已确认结论更新到现有 `docs/references/` 所属文档，未决项留在对话。遵循 WORKFLOW 的授权和文档规则，不创建独立 ADR/CONTEXT 体系，不自动提交。

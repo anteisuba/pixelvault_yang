@@ -1,56 +1,16 @@
 ---
 name: sync-pixelvault-docs
-description: PixelVault documentation and context synchronization workflow. Use after meaningful code changes, architecture changes, model/provider updates, UI workflow changes, status audits, handoff preparation, or when the user asks to update docs, maps, plans, project memory, AGENTS.md, or implementation status for the Personal AI Gallery project.
+description: 同步 PixelVault 的规则、技能、架构契约与当前状态文档；用于明确文档请求或有稳定事实变化的任务收尾。
 ---
 
-# Sync PixelVault Docs
+# PixelVault 文档同步
 
-## Overview
+适用于规则、架构、契约或当前状态的实际变化；局部机械修复不强制写文档。通用流程见 `docs/WORKFLOW.md`，同一会话已读内容不重复读取。
 
-Keep PixelVault's planning maps, progress notes, and operating context aligned with code. This skill captures the repeated "read docs, update current status, record what changed, prepare handoff" workflow.
+1. 先看 diff，再读 `docs/status.md` 和拥有所改事实的文档。代码说明实现现状，对话说明本任务授权；不要把推测写成已确认结论。
+2. 只更新事实所属位置：流程进 WORKFLOW/scenes，项目原则进 AGENTS，领域契约进已有 references，短期状态进 status。页面方向须按 UI 场景确认；不按模型品牌限制文档编辑权。
+3. status 覆盖当前状态，保留仍有效的未决项；不要复制任务全过程或把此前验证当成本轮验证。在飞计划留在对话，不建立另一套计划、CONTEXT 或 ADR 目录。
+4. 修复受改动影响的链接与重复规则；相同技能存在两客户端副本时同步相关内容，保留客户端专有元数据和资源。
+5. 检查 diff、路径、frontmatter 与指令冲突。只改 Markdown 不跑应用测试；若改脚本，验证脚本实际行为。
 
-## Workflow
-
-1. Determine whether documentation is required:
-   - Required for meaningful code changes, model/provider catalog changes, architecture changes, workflow changes, route or schema changes, and completed task packets.
-   - Usually unnecessary for tiny typo fixes, sub-10-line mechanical changes, or pure local experiments unless the user asks.
-
-2. Load context in project order:
-   - Read `AGENTS.md`.
-   - Read `docs/README.md` and `docs/WORKFLOW.md`.
-   - Read `docs/status.md`.
-   - Read the smallest relevant set from `docs/references/`, `docs/brand-dna.md`, `docs/forbidden.md`, or `docs/checklists/`.
-   - For non-trivial implementation handoff, use `docs/templates/task-packet.md`.
-   - Inspect the actual diff before writing docs.
-
-3. Update only the narrow docs that own the changed fact:
-   - `docs/status.md` for the short active status summary.
-   - `docs/references/` for stable contracts and current-state facts (frontend, backend, database, cicd, testing, providers, product, domains/).
-   - `docs/brand-dna.md` / `docs/forbidden.md` only when the owner confirms a standards change.
-   - `docs/checklists/` for reusable P0/P1/P2 quality gates.
-   - `docs/scenes/` for per-task-type workflows.
-   - There is no task-packet directory and no history directory. In-flight task notes stay in chat; conclusions land directly in the owning `docs/references/` doc; past decisions come from git history.
-   - `AGENTS.md` only for durable project rules, not transient task notes.
-
-4. Keep docs factual:
-   - Record what changed, where it changed, why it matters, and what validation ran.
-   - Use exact file/module names and dates when status changed.
-   - Do not claim work was tested unless it was.
-   - Do not rewrite broad historical sections when appending a focused status update is enough.
-
-5. Respect planning/execution split:
-   - Codex may update execution-facing docs when asked or when project rules require it.
-   - Preserve Claude Code planning ownership for long-term plans, maps, and AGENTS changes unless the user explicitly asks Codex to edit them.
-   - For handoff, write a concise implementation summary with remaining risks instead of broad speculative plans.
-
-6. Finalize:
-   - Review the documentation diff for stale claims, duplicate status entries, and accidental roadmap drift.
-   - Mention docs updated in the final response.
-
-## Common Triggers
-
-- "Update the current project status."
-- "Record what changed after this implementation."
-- "Prepare a handoff/task packet."
-- "Sync docs after model/provider/UI changes."
-- "Review docs against the current codebase."
+报告更新文件、关键规则差异与实际验证。未跑的检查明确说明；commit/push 仍依 WORKFLOW 的授权要求。

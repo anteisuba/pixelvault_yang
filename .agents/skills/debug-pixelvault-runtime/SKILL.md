@@ -26,8 +26,8 @@ Investigate PixelVault failures with evidence first and only patch after a root 
 
 3. Respect environment ownership:
    - Do not start `npm run dev`, `npx next dev`, or equivalent dev servers.
-   - If browser/local inspection is needed, ask the user for the running URL or relevant log output.
-   - Do not retry environment or credential blockers more than twice. Summarize the blocker and ask the user to inspect or provide missing logs.
+   - Inspect the known local URL and available browser tools first. Ask only for logs or access that cannot be obtained from the current environment.
+   - Do not repeat the same failed credential/environment action without new evidence. Isolate that blocker and continue independent diagnosis.
 
 4. Patch in the correct layer:
    - API route: auth, validation, service call, response only.
@@ -37,7 +37,7 @@ Investigate PixelVault failures with evidence first and only patch after a root 
    - Constants/types: model/provider IDs, schemas, route constants, env/config metadata.
 
 5. Validate narrowly first:
-   - Run the smallest meaningful command: typecheck, lint, focused test, or build slice when available.
+   - Use the verification tiers in docs/WORKFLOW.md: focused feedback first, full gates for shared/high-risk changes.
    - If changing provider behavior, validate with schema-level or adapter-level checks before broad UI changes.
    - If a command cannot run because dependencies or environment are unavailable, say so plainly.
 

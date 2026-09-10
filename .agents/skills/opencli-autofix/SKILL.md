@@ -6,7 +6,7 @@ allowed-tools: Bash(opencli:*), Bash(gh:*), Read, Edit, Write
 
 # OpenCLI AutoFix — Automatic Adapter Self-Repair
 
-When an `opencli` command fails because a website changed its DOM, API, or response schema, **automatically diagnose, fix the adapter, and retry** — don't just report the error.
+When an `opencli` command fails because a website changed its DOM, API, or response schema, diagnose first; repair and retry when adapter changes are in the authorized scope. A research request does not by itself authorize changing a global adapter installation.
 
 ## Safety Boundaries
 
@@ -213,7 +213,7 @@ If it still fails, go back to Step 1 and collect a fresh trace. You have a budge
 
 ## Step 6: File an Upstream Issue
 
-If the retry **passes**, the local adapter has drifted from upstream. File a GitHub issue so the fix flows back to `jackwener/OpenCLI`.
+If the retry **passes**, summarize the verified fix. Prepare an upstream issue only if requested; publish only with user authorization. Trace artifacts may contain session data: exclude secrets and private content.
 
 **Do NOT file for:**
 
@@ -260,14 +260,14 @@ OpenCLI autofix repaired this adapter locally, and the retry passed.
 _Issue filed by OpenCLI autofix after a verified local repair._
 ```
 
-2. **Ask the user before filing.** Show them the draft title and body. Only proceed if they confirm.
+2. **Ask the user before filing.** Show them the draft title and body. Existing explicit authorization is sufficient; otherwise only proceed if they confirm.
 
 3. If the user approves and `gh auth status` succeeds:
 
 ```bash
 gh issue create --repo jackwener/OpenCLI \
   --title "[autofix] <site>/<command>: <error_code>" \
-  --body "<the body above>"
+  --body-file <reviewed-issue-body-file>
 ```
 
 If `gh` is not installed or not authenticated, tell the user and skip — do not error out.

@@ -8,9 +8,9 @@ args:
     required: false
 ---
 
-Run systematic quality checks and generate a comprehensive audit report with prioritized issues and actionable recommendations. Don't fix issues - document them for other commands to address.
+Run systematic quality checks and generate a comprehensive audit report with prioritized issues and actionable recommendations. 仅审计请求只报告问题；用户同时授权修复时，在当前范围内修复并验证。
 
-**First**: Use the frontend-design skill for design principles and anti-patterns.
+先读本次目标和已确认的域/page 规范；只有需要额外设计方法时才读 frontend-design。检查范围与授权遵循 `docs/WORKFLOW.md`。
 
 ## Diagnostic Scan
 

@@ -11,6 +11,8 @@ import {
   FolderOpen,
   ImageIcon,
   Sparkles,
+  SlidersHorizontal,
+  Plus,
   Upload,
   Wand2,
   X,
@@ -76,7 +78,6 @@ import { ModelViewer } from '@/components/business/ModelViewer'
 import { StageStepperBar } from '@/components/business/StageStepperBar'
 import { WireframeModelPreview } from '@/components/business/WireframeModelPreview'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
-import { XiaoheiGuideCarousel } from '@/components/business/studio-shared/XiaoheiGuideCarousel'
 import { Button } from '@/components/ui/button'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { Label } from '@/components/ui/label'
@@ -90,6 +91,15 @@ import {
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
+import { useIsMobile } from '@/hooks/use-mobile'
+import {
+  ResponsiveDialog,
+  ResponsiveDialogContent,
+  ResponsiveDialogHeader,
+  ResponsiveDialogTitle,
+  ResponsiveDialogDescription,
+} from '@/components/ui/responsive-dialog'
+import styles from './Studio3DWorkspace.module.css'
 import { useGenerate3D } from '@/hooks/use-generate-3d'
 import { useGenerateMultiView } from '@/hooks/use-generate-multiview'
 import {
@@ -225,7 +235,7 @@ function RodinAngleSlot({
           className="object-cover"
           sizes="80px"
         />
-        <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-[9px] font-medium text-foreground backdrop-blur-sm">
+        <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs font-medium text-foreground backdrop-blur-sm">
           {label}
         </span>
         <button
@@ -249,7 +259,7 @@ function RodinAngleSlot({
       className="flex aspect-square flex-col items-center justify-center gap-1 rounded-md border border-dashed border-border/60 text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
     >
       <ImageIcon className="h-3.5 w-3.5" />
-      <span className="text-[9px] font-medium uppercase tracking-wide">
+      <span className="text-2xs font-medium uppercase tracking-wide">
         {label}
       </span>
     </button>
@@ -263,7 +273,15 @@ export function Studio3DWorkspace({
   initialNextCursor,
 }: Studio3DWorkspaceProps) {
   const t = useTranslations('Model3DGenerate')
+  const tCommon = useTranslations('Common')
   const tModels = useTranslations('Models')
+  const isMobile = useIsMobile()
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [modelPickerOpen, setModelPickerOpen] = useState(false)
+  const [cameraView, setCameraView] = useState<{
+    view: 'front' | 'side' | 'reset'
+    revision: number
+  }>({ view: 'reset', revision: 0 })
   const tForm = useTranslations('StudioForm')
   const models = useMemo(() => getAvailableModel3DModels(), [])
   // P6: surface Hunyuan's credit cost on the Refine button so the user knows
@@ -333,7 +351,6 @@ export function Studio3DWorkspace({
   const [rodinBboxWidth, setRodinBboxWidth] = useState('')
   const [rodinBboxHeight, setRodinBboxHeight] = useState('')
   const [rodinBboxLength, setRodinBboxLength] = useState('')
-  const [rodinAdvancedOpen, setRodinAdvancedOpen] = useState(false)
   // Additional reference image URLs (beyond the front/source image). Max 4.
   const [rodinAdditionalImages, setRodinAdditionalImages] = useState<string[]>(
     [],
@@ -417,6 +434,7 @@ export function Studio3DWorkspace({
     isGenerating,
     stage,
     elapsedSeconds,
+    error,
     previewModelUrl,
     provisionalModelUrl,
     uploadProgress,
@@ -637,13 +655,11 @@ export function Studio3DWorkspace({
 
   // Rodin text-to-3D mode bypasses the source image requirement: a non-empty
   // prompt is enough to generate. All other models still require a source.
-  const isRodinTextOnlySubmit =
-    isRodin && rodinTextMode && rodinPrompt.trim().length > 0
   const canGenerate =
     !isGenerating &&
     (isRodin ? hasRodinKey : hasFalKey) &&
-    (isRodinTextOnlySubmit
-      ? true
+    (isRodin && rodinTextMode
+      ? rodinPrompt.trim().length > 0
       : !!sourceImage && sourceQualityIssues.length === 0)
 
   // Core submission — split out so `handleGenerate` and `handleRefineWithHunyuan`
@@ -1112,31 +1128,1217 @@ export function Studio3DWorkspace({
     }
   }
 
-  return (
-    <div className="flex h-[calc(100svh-5.75rem)] w-full flex-col bg-background md:h-svh">
-      <header className="flex flex-col gap-1 border-b border-border/40 px-4 py-3 sm:px-6 sm:py-4">
-        <div className="flex items-center gap-2">
-          <Box className="size-4 text-primary" />
-          <h1 className="text-lg font-medium tracking-tight sm:text-xl">
-            {t('title')}
-          </h1>
-        </div>
-        {/* Hide subtitle on mobile to save vertical room; the title is
-            self-explanatory once you're on /studio/3d. */}
-        <p className="hidden text-sm leading-6 text-muted-foreground sm:block">
-          {t('description')}
+  const hasGenerationKey = isRodin ? hasRodinKey : hasFalKey
+  const hasGenerationInput =
+    isRodin && rodinTextMode
+      ? rodinPrompt.trim().length > 0
+      : Boolean(sourceImage) && sourceQualityIssues.length === 0
+  const generateBar = (
+    <div className={styles.generateBar}>
+      <div className="flex flex-wrap items-center justify-between gap-1 text-xs text-muted-foreground">
+        <span>{t('estimatedCost')}</span>
+        <span>
+          {isRodin
+            ? RODIN_TIER_CREDITS[rodinTier] +
+              (rodinHighPack ? RODIN_HIGHPACK_EXTRA_CREDITS : 0)
+            : (selectedModel?.cost ?? 0)}{' '}
+          cr
+        </span>
+      </div>
+      {isRodin && (
+        <p className="text-xs text-muted-foreground">
+          {t('estimatedMinutes', {
+            minutes: Math.round(RODIN_TIER_ESTIMATED_SECONDS[rodinTier] / 60),
+          })}
         </p>
-      </header>
+      )}
+      <Button
+        type="button"
+        disabled={isGenerating || (hasGenerationKey && !hasGenerationInput)}
+        onClick={() => {
+          if (!hasGenerationKey) {
+            setQuickSetupOpen(true)
+            return
+          }
+          setSettingsOpen(false)
+          void handleGenerate()
+        }}
+        className="min-h-11 w-full rounded-xl"
+      >
+        {isGenerating ? <Spinner size="sm" /> : <Sparkles className="size-4" />}
+        {isGenerating
+          ? t('generating')
+          : !hasGenerationKey
+            ? t('setupApiKeyButton')
+            : !hasGenerationInput
+              ? isRodin && rodinTextMode
+                ? t('enterPromptToGenerate')
+                : t('selectImageToGenerate')
+              : t('generateButton')}
+      </Button>
+    </div>
+  )
+  const settingsFields = (
+    <div className={styles.fields}>
+      {!isMobile && (
+        <h2 className="text-sm font-semibold">{t('settingsTitle')}</h2>
+      )}
+      <button
+        type="button"
+        className={styles.modelButton}
+        onClick={() => setModelPickerOpen(true)}
+        aria-label={t('changeModelButton')}
+      >
+        <span className="min-w-0 text-left">
+          <span className="block truncate text-sm font-medium">
+            {tModels(`${getModelMessageKey(selectedModelId)}.label`)}
+          </span>
+          <span className="mt-1 block text-xs text-muted-foreground">
+            {selectedModel?.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN
+              ? 'Hyper3D'
+              : selectedModel?.adapterType === AI_ADAPTER_TYPES.FAL
+                ? 'fal.ai'
+                : selectedModel?.adapterType}
+          </span>
+        </span>
+        <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
+      </button>
 
-      {/* Mobile: allow the whole inner column to scroll vertically so the
-          Inspector (content height >> viewport) is reachable. md+ reverts
-          to overflow-hidden so the aside scrolls internally and the canvas
-          stays pinned. */}
-      <div className="flex flex-1 flex-col gap-0 overflow-y-auto md:flex-row md:overflow-hidden">
-        {/* Main canvas — ModelViewer when generated; placeholder otherwise.
-            Min-height on mobile prevents the canvas from collapsing flat when
-            the Inspector below has a lot of content. */}
-        <main className="relative flex min-h-[40vh] flex-1 items-center justify-center overflow-hidden bg-muted/20 p-4 sm:p-6 md:min-h-0">
+      {/* API key missing banner — shown below the model card, specific to selected adapter */}
+      {!isLoadingKeys && (isRodin ? !hasRodinKey : !hasFalKey) && (
+        <div className="flex flex-col gap-2 rounded-lg border border-status-warning/40 bg-status-warning-surface p-3">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-status-warning">
+            <AlertTriangle className="size-3.5" />
+            {isRodin ? t('rodinApiKeyMissingTitle') : t('apiKeyMissingTitle')}
+          </div>
+          <p className="text-xs leading-5 text-muted-foreground">
+            {isRodin
+              ? t('rodinApiKeyMissingDescription')
+              : t('apiKeyMissingDescription')}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setQuickSetupOpen(true)}
+            className="self-start rounded-full text-xs"
+          >
+            {t('setupApiKeyButton')}
+          </Button>
+        </div>
+      )}
+
+      {isRodin && (
+        <div className={styles.field}>
+          <Label htmlFor="rodin-input-mode">{t('rodinModeLabel')}</Label>
+          <select
+            id="rodin-input-mode"
+            className={styles.fieldSelect}
+            value={rodinMode}
+            onChange={(event) =>
+              setRodinMode(event.target.value as typeof rodinMode)
+            }
+          >
+            <option value="image">{t('rodinModeImageLabel')}</option>
+            <option value="text">{t('rodinModeTextLabel')}</option>
+            <option value="mesh_first">{t('rodinModeMeshFirstLabel')}</option>
+          </select>
+        </div>
+      )}
+
+      {/* Text-to-3D mode: prompt is the primary input, surface it
+              prominently right under the mode picker. In image/mesh modes
+              prompt stays in the Advanced section as supplementary guidance. */}
+      {isRodin && rodinMode === 'text' && (
+        <div className="flex flex-col gap-1.5">
+          <Label
+            htmlFor="rodin-prompt-top"
+            className="flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground"
+          >
+            {t('rodinPromptLabel')}
+            <span className="text-2xs normal-case tracking-normal text-status-warning">
+              {t('rodinPromptRequiredBadge')}
+            </span>
+          </Label>
+          <textarea
+            id="rodin-prompt-top"
+            value={rodinPrompt}
+            onChange={(e) => setRodinPrompt(e.target.value)}
+            placeholder={t('rodinTextPromptPlaceholder')}
+            rows={4}
+            className="w-full resize-none rounded-md border border-border/60 bg-background px-3 py-2 text-base md:text-xs leading-5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+          />
+        </div>
+      )}
+
+      {/* Compact image picker. Hidden entirely in text-to-3D mode
+              (Rodin only) — text mode has no source image at all. */}
+      {!(isRodin && rodinTextMode) && (
+        <div className="flex flex-col gap-2">
+          <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+            {t('sourceImageLabel')}
+          </Label>
+          {sourceImage ? (
+            <div className="flex gap-3 rounded-lg border border-border/50 bg-background/60 p-2">
+              <div className="relative size-20 shrink-0 overflow-hidden rounded-md ring-1 ring-border/40">
+                <Image
+                  src={sourceImage.url}
+                  alt={t('sourceImageLabel')}
+                  fill
+                  unoptimized
+                  className="object-cover"
+                  sizes="80px"
+                />
+                <button
+                  type="button"
+                  onClick={handleClearSource}
+                  className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
+                  aria-label={t('removeSourceImageLabel')}
+                >
+                  <X className="size-3" />
+                </button>
+              </div>
+              <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">
+                    {sourceImage.prompt || t('sourceImageLabel')}
+                  </p>
+                  {sourceImage.width > 0 && sourceImage.height > 0 && (
+                    <p className="text-xs text-muted-foreground">
+                      {sourceImage.width}×{sourceImage.height}
+                    </p>
+                  )}
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPickerOpen(true)}
+                    disabled={uploading || isGenerating}
+                    className="h-8 rounded-full px-2"
+                    aria-label={t('selectFromAssets')}
+                    title={t('selectFromAssets')}
+                  >
+                    <FolderOpen className="size-3.5" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={handleUploadClick}
+                    disabled={uploading || isGenerating}
+                    className="h-8 rounded-full px-2"
+                    aria-label={uploading ? t('uploading') : t('uploadButton')}
+                    title={uploading ? t('uploading') : t('uploadButton')}
+                  >
+                    {uploading ? (
+                      <Spinner size="sm" />
+                    ) : (
+                      <Upload className="size-3.5" />
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <button
+                type="button"
+                className={styles.referenceButton}
+                onClick={() => setPickerOpen(true)}
+                disabled={uploading || isGenerating}
+              >
+                <Plus className="size-4" />
+                {t('selectFromAssets')}
+              </button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleUploadClick}
+                disabled={uploading || isGenerating}
+                className="w-full text-xs text-muted-foreground"
+              >
+                <Upload className="size-3.5" />
+                {uploading ? t('uploading') : t('uploadButton')}
+              </Button>
+            </div>
+          )}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+        </div>
+      )}
+
+      {sourceImage && sourceQualityIssues.length > 0 && (
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs leading-5 text-destructive">
+          <div className="mb-1 flex items-center gap-1.5 font-medium">
+            <AlertTriangle className="size-3.5" />
+            <span>{t('sourceQualityBlocked')}</span>
+          </div>
+          <ul className="list-disc space-y-1 pl-4">
+            {sourceQualityIssues.map((issue) => (
+              <li key={issue}>{issue}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/*
+       * Multi-view section — model selector always visible for HunyuanV3;
+       * generation controls only appear once a source image is chosen.
+       */}
+      {supportsMultiViewInput && (
+        <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
+              <Wand2 className="size-3" />
+              {t('multiViewLabel')}
+            </Label>
+            <Select
+              value={selectedMultiViewModelId}
+              onValueChange={(v) => setSelectedMultiViewModelId(v)}
+            >
+              <SelectTrigger className="h-6 w-auto max-w-[150px] rounded-full px-2 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {MODEL_3D_MULTIVIEW_MODEL_IDS.map((modelId) => {
+                  const messageKey = getModelMessageKey(modelId)
+                  return (
+                    <SelectItem key={modelId} value={modelId}>
+                      {tModels(`${messageKey}.label`)}
+                    </SelectItem>
+                  )
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {sourceImage && (
+            <>
+              {effectiveMultiViewViews.length === 0 ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleGenerate4Views()}
+                    disabled={
+                      isGeneratingViews || !canUseSelectedMultiViewModel
+                    }
+                    className="w-full rounded-full"
+                  >
+                    {isGeneratingViews ? (
+                      <>
+                        <Spinner size="sm" className="mr-1.5" />
+                        {t('multiViewLoading')}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-1.5 size-3.5" />
+                        {t('multiViewButton')}
+                      </>
+                    )}
+                  </Button>
+                  <p className="text-2xs leading-4 text-muted-foreground">
+                    {canUseSelectedMultiViewModel
+                      ? t('multiViewHint')
+                      : t('multiViewApiKeyMissing')}
+                  </p>
+                </>
+              ) : (
+                <>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {[
+                      { gen: sourceImage, label: t('viewFront') },
+                      ...effectiveMultiViewViews.map((view) => ({
+                        gen: view,
+                        label: getViewLabel(view.view),
+                      })),
+                    ].map(({ gen, label }, index) => {
+                      const isFront = gen.id === sourceImage.id
+                      return (
+                        <button
+                          type="button"
+                          key={gen.id}
+                          onClick={() => setMultiViewLightboxIndex(index)}
+                          className={cn(
+                            'relative aspect-square overflow-hidden rounded-md ring-1 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+                            isFront ? 'ring-2 ring-primary' : 'ring-border/40',
+                          )}
+                        >
+                          <Image
+                            src={gen.url}
+                            alt={label}
+                            fill
+                            unoptimized
+                            className="object-cover"
+                            sizes="80px"
+                          />
+                          {isFront && (
+                            <div className="absolute right-0.5 top-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                              <Check className="size-2.5" />
+                            </div>
+                          )}
+                          <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs font-medium text-foreground backdrop-blur-sm">
+                            {label}
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <p className="text-2xs leading-4 text-muted-foreground">
+                    {t('multiViewPickHint')}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => void handleGenerate4Views({ force: true })}
+                    disabled={
+                      isGeneratingViews || !canUseSelectedMultiViewModel
+                    }
+                    className="h-8 w-full rounded-full text-xs"
+                  >
+                    {isGeneratingViews ? (
+                      <>
+                        <Spinner size="sm" className="mr-1.5" />
+                        {t('multiViewLoading')}
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="mr-1.5 size-3" />
+                        {t('multiViewRegenerateButton')}
+                      </>
+                    )}
+                  </Button>
+                  <Lightbox
+                    open={multiViewLightboxIndex >= 0}
+                    close={() => setMultiViewLightboxIndex(-1)}
+                    index={multiViewLightboxIndex}
+                    slides={[
+                      { src: sourceImage.url, alt: t('viewFront') },
+                      ...effectiveMultiViewViews.map((view) => ({
+                        src: view.url,
+                        alt: getViewLabel(view.view),
+                      })),
+                    ]}
+                    plugins={[Zoom, Counter]}
+                    carousel={{ finite: true }}
+                    zoom={{ maxZoomPixelRatio: 3, scrollToZoom: true }}
+                    styles={{
+                      container: { backgroundColor: 'rgba(0, 0, 0, 0.9)' },
+                    }}
+                    animation={{ fade: 300, swipe: 300 }}
+                  />
+                </>
+              )}
+
+              {/* Manual upload — always available when a source image is set */}
+              <div className="mt-2 flex flex-col gap-2 border-t border-border/30 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setManualMultiViewOpen((open) => !open)}
+                  className="h-8 justify-start rounded-full px-2 text-xs"
+                >
+                  <Upload className="mr-1.5 size-3" />
+                  {manualMultiViewOpen
+                    ? t('manualViewHide')
+                    : t('manualViewShow')}
+                </Button>
+
+                {manualMultiViewOpen && (
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {GENERATED_VIEW_ANGLES.map((view) => {
+                      const manualImage = manualMultiViewImages[view]
+                      const isUploading = uploadingManualView === view
+                      const label = getViewLabel(view)
+                      return (
+                        <div
+                          key={view}
+                          className="relative flex min-w-0 flex-col gap-1"
+                        >
+                          <div className="relative aspect-square overflow-hidden rounded-md border border-dashed border-border/60 bg-muted/30">
+                            {manualImage ? (
+                              <Image
+                                src={manualImage.url}
+                                alt={label}
+                                fill
+                                unoptimized
+                                className="object-cover"
+                                sizes="80px"
+                              />
+                            ) : (
+                              <div className="flex size-full items-center justify-center text-muted-foreground">
+                                <ImageIcon className="size-4" />
+                              </div>
+                            )}
+                            <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs font-medium text-foreground backdrop-blur-sm">
+                              {label}
+                            </span>
+                            {manualImage && (
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveManualView(view)}
+                                className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm hover:bg-background"
+                                aria-label={t('manualViewRemoveLabel', {
+                                  view: label,
+                                })}
+                              >
+                                <X className="size-3" />
+                              </button>
+                            )}
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleManualViewUploadClick(view)}
+                            disabled={uploadingManualView !== null}
+                            className="h-7 rounded-full px-2 text-2xs"
+                          >
+                            {isUploading ? (
+                              <Spinner size="sm" className="mr-1" />
+                            ) : (
+                              <Upload className="mr-1 size-3" />
+                            )}
+                            {manualImage
+                              ? t('manualViewReplace')
+                              : t('manualViewUpload')}
+                          </Button>
+                          <input
+                            ref={(node) => {
+                              manualViewInputRefs.current[view] = node
+                            }}
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={(event) =>
+                              handleManualViewFileChange(view, event)
+                            }
+                          />
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* HunyuanV3 controls — individual cards matching Rodin style */}
+      {isHunyuanV3 && (
+        <div className="flex flex-col gap-2">
+          <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center justify-between gap-2">
+                <Label htmlFor="enable-pbr" className="text-sm font-medium">
+                  {t('enablePbrLabel')}
+                </Label>
+                <Switch
+                  id="enable-pbr"
+                  checked={enablePbr}
+                  onCheckedChange={setEnablePbr}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('faceCountLabel')}
+                </Label>
+                <Select
+                  value={String(faceCount)}
+                  onValueChange={(v) => setFaceCount(Number(v))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {FACE_COUNT_OPTIONS.map((opt) => (
+                      <SelectItem key={opt.value} value={String(opt.value)}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="prep-3d-hunyuan" className="text-sm font-medium">
+                {t('prep3DLabel')}
+              </Label>
+              <Switch
+                id="prep-3d-hunyuan"
+                checked={prep3D}
+                onCheckedChange={setPrep3D}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Trellis 2 controls — individual cards */}
+      {isTrellis2 && (
+        <div className="flex flex-col gap-2">
+          <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col gap-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('trellisResolutionLabel')}
+                </Label>
+                <Select
+                  value={String(trellisResolution)}
+                  onValueChange={(v) =>
+                    setTrellisResolution(
+                      Number(v) as (typeof TRELLIS_2_RESOLUTIONS)[number],
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TRELLIS_2_RESOLUTIONS.map((value) => (
+                      <SelectItem key={value} value={String(value)}>
+                        {value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('trellisTextureLabel')}
+                </Label>
+                <Select
+                  value={String(trellisTextureSize)}
+                  onValueChange={(v) =>
+                    setTrellisTextureSize(
+                      Number(v) as (typeof TRELLIS_2_TEXTURE_SIZES)[number],
+                    )
+                  }
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TRELLIS_2_TEXTURE_SIZES.map((value) => (
+                      <SelectItem key={value} value={String(value)}>
+                        {value}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+            <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+              {t('trellisDecimationLabel')}
+            </Label>
+            <Select
+              value={String(trellisDecimationTarget)}
+              onValueChange={(v) => setTrellisDecimationTarget(Number(v))}
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TRELLIS_DECIMATION_OPTIONS.map((opt) => (
+                  <SelectItem key={opt.value} value={String(opt.value)}>
+                    {opt.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="trellis-remesh" className="text-sm font-medium">
+                {t('trellisRemeshLabel')}
+              </Label>
+              <Switch
+                id="trellis-remesh"
+                checked={trellisRemesh}
+                onCheckedChange={setTrellisRemesh}
+              />
+            </div>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="prep-3d-trellis" className="text-sm font-medium">
+                {t('prep3DLabel')}
+              </Label>
+              <Switch
+                id="prep-3d-trellis"
+                checked={prep3D}
+                onCheckedChange={setPrep3D}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* TripoSR controls */}
+      {isTriposr && (
+        <div className="flex flex-col gap-2">
+          <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="remove-bg" className="text-sm font-medium">
+                {t('removeBackgroundLabel')}
+              </Label>
+              <Switch
+                id="remove-bg"
+                checked={removeBackground}
+                onCheckedChange={setRemoveBackground}
+              />
+            </div>
+          </div>
+          <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="prep-3d-triposr" className="text-sm font-medium">
+                {t('prep3DLabel')}
+              </Label>
+              <Switch
+                id="prep-3d-triposr"
+                checked={prep3D}
+                onCheckedChange={setPrep3D}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* T11: Rodin Inspector — Quality / Geometry / Texture & Material */}
+      {isRodin && (
+        <div className="flex flex-col gap-5">
+          <div className={styles.field}>
+            <Label htmlFor="rodin-tier">{t('rodinTierLabel')}</Label>
+            <select
+              id="rodin-tier"
+              className={styles.fieldSelect}
+              value={rodinTier}
+              onChange={(event) =>
+                setRodinTier(event.target.value as RodinTier)
+              }
+            >
+              {RODIN_TIERS.map((tier) => (
+                <option key={tier} value={tier}>
+                  {tier.replace('Gen-2.5-', '')} · {RODIN_TIER_CREDITS[tier]} cr
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className={styles.field}>
+            <Label htmlFor="rodin-format">
+              {t('rodinGeometryFileFormatLabel')}
+            </Label>
+            <select
+              id="rodin-format"
+              className={styles.fieldSelect}
+              value={rodinGeometryFileFormat}
+              onChange={(event) =>
+                setRodinGeometryFileFormat(
+                  event.target.value as RodinGeometryFileFormat,
+                )
+              }
+            >
+              {RODIN_GEOMETRY_FILE_FORMATS.map((format) => (
+                <option key={format} value={format}>
+                  {format.toUpperCase()}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <details className={styles.advanced}>
+            <summary className="min-h-9 cursor-pointer py-2 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              {t('rodinAdvancedSectionLabel')}
+            </summary>
+            <div className="mt-3 flex flex-col gap-3">
+              {/* Geometry preset card — unified mesh_mode + quality grid.
+                  Drop to 2 columns on very narrow inspector (mobile portrait)
+                  so each chip still reads cleanly; 4 columns at md+. */}
+              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('rodinMeshModeLabel')}
+                </Label>
+                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                  {RODIN_MESH_MODES.flatMap((mode) =>
+                    RODIN_QUALITIES.map((quality) => {
+                      const isActive =
+                        rodinMeshMode === mode && rodinQuality === quality
+                      const faceLabel = RODIN_FACE_COUNT_LABEL[mode][quality]
+                      return (
+                        <button
+                          key={`${mode}-${quality}`}
+                          type="button"
+                          onClick={() => {
+                            setRodinMeshMode(mode)
+                            setRodinQuality(quality)
+                          }}
+                          className={cn(
+                            'flex flex-col items-center gap-0.5 rounded-md border px-1 py-2 text-center transition-colors',
+                            isActive
+                              ? 'border-primary bg-primary/5 text-primary'
+                              : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground',
+                          )}
+                        >
+                          <span className="text-[12px] font-semibold leading-tight">
+                            {faceLabel}
+                          </span>
+                          <span className="text-2xs leading-tight opacity-80">
+                            {mode === RODIN_MESH_MODE.QUAD
+                              ? 'Quad'
+                              : 'Triangle'}
+                          </span>
+                        </button>
+                      )
+                    }),
+                  )}
+                </div>
+                <p className="mt-1.5 text-xs italic text-muted-foreground">
+                  {t('rodinMeshModeHint')}
+                </p>
+              </div>
+
+              {/* Material card — segmented + HighPack switch */}
+              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('rodinMaterialLabel')}
+                </Label>
+                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
+                  {RODIN_MATERIALS.map((mat) => (
+                    <button
+                      key={mat}
+                      type="button"
+                      onClick={() => setRodinMaterial(mat)}
+                      className={cn(
+                        'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
+                        rodinMaterial === mat
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {mat}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-2 flex items-center gap-2 border-t border-border/40 pt-2">
+                  <Switch
+                    id="rodin-highpack"
+                    checked={rodinHighPack}
+                    onCheckedChange={setRodinHighPack}
+                  />
+                  <Label
+                    htmlFor="rodin-highpack"
+                    className="flex-1 cursor-pointer text-xs font-medium"
+                  >
+                    {t('rodinHighPackLabel')}
+                  </Label>
+                </div>
+                {/* Mesh-first preview promoted to the top-of-panel mode
+                    picker — no inline switch here anymore. */}
+              </div>
+
+              {/* T12: Input Images — cross/compass layout */}
+              {sourceImage && (
+                <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                  <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('rodinAdditionalImagesLabel')}
+                  </Label>
+                  {/* 3×3 grid: cross shape — Front center, Back top, Left/Right sides, LFrt bottom-left */}
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {/* Row 1: _ Back _ */}
+                    <div />
+                    <RodinAngleSlot
+                      angle="back"
+                      label={t('viewBack')}
+                      url={(() => {
+                        const idx = RODIN_EXTRA_ANGLES.indexOf('back')
+                        return rodinAdditionalImages[idx] ?? null
+                      })()}
+                      isUploading={uploadingRodinAngle === 'back'}
+                      onUpload={() => handleRodinImageUploadClick('back')}
+                      onRemove={() => handleRemoveRodinImage('back')}
+                    />
+                    <div />
+                    {/* Row 2: Left Front Right */}
+                    <RodinAngleSlot
+                      angle="left"
+                      label={t('viewLeft')}
+                      url={(() => {
+                        const idx = RODIN_EXTRA_ANGLES.indexOf('left')
+                        return rodinAdditionalImages[idx] ?? null
+                      })()}
+                      isUploading={uploadingRodinAngle === 'left'}
+                      onUpload={() => handleRodinImageUploadClick('left')}
+                      onRemove={() => handleRemoveRodinImage('left')}
+                    />
+                    {/* Front = sourceImage (always filled) */}
+                    <div className="relative aspect-square overflow-hidden rounded-md border-2 border-primary/40 bg-muted/30">
+                      <Image
+                        src={sourceImage.url}
+                        alt={t('sourceImageLabel')}
+                        fill
+                        unoptimized
+                        className="object-cover"
+                        sizes="80px"
+                      />
+                      <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-2xs font-medium text-foreground backdrop-blur-sm">
+                        {t('viewFront')}
+                      </span>
+                    </div>
+                    <RodinAngleSlot
+                      angle="right"
+                      label={t('viewRight')}
+                      url={(() => {
+                        const idx = RODIN_EXTRA_ANGLES.indexOf('right')
+                        return rodinAdditionalImages[idx] ?? null
+                      })()}
+                      isUploading={uploadingRodinAngle === 'right'}
+                      onUpload={() => handleRodinImageUploadClick('right')}
+                      onRemove={() => handleRemoveRodinImage('right')}
+                    />
+                    {/* Row 3: LFrt _ _ */}
+                    <RodinAngleSlot
+                      angle="leftFront"
+                      label={t('viewLeftFront')}
+                      url={(() => {
+                        const idx = RODIN_EXTRA_ANGLES.indexOf('leftFront')
+                        return rodinAdditionalImages[idx] ?? null
+                      })()}
+                      isUploading={uploadingRodinAngle === 'leftFront'}
+                      onUpload={() => handleRodinImageUploadClick('leftFront')}
+                      onRemove={() => handleRemoveRodinImage('leftFront')}
+                    />
+                    <div />
+                    <div />
+                  </div>
+                  <p className="mt-1.5 text-2xs text-muted-foreground">
+                    {t('rodinAdditionalImagesHint')}
+                  </p>
+                  {/* Hidden file inputs for each angle */}
+                  {RODIN_EXTRA_ANGLES.map((angle) => (
+                    <input
+                      key={angle}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      ref={(el) => {
+                        rodinImageFileRefs.current[angle] = el
+                      }}
+                      onChange={(e) =>
+                        void handleRodinImageFileChange(angle, e)
+                      }
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Geometry instruction card — faithful vs creative */}
+              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('rodinGeometryInstructModeLabel')}
+                </Label>
+                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
+                  {RODIN_GEOMETRY_INSTRUCT_MODES.map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setRodinGeometryInstructMode(mode)}
+                      className={cn(
+                        'flex-1 rounded px-2 py-1 text-xs font-medium transition-colors',
+                        rodinGeometryInstructMode === mode
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {mode === RODIN_GEOMETRY_INSTRUCT_MODE.FAITHFUL
+                        ? t('rodinFaithfulLabel')
+                        : t('rodinCreativeLabel')}
+                    </button>
+                  ))}
+                </div>
+                <p className="mt-1.5 text-xs italic text-muted-foreground">
+                  {t('rodinGeometryInstructModeHint')}
+                </p>
+              </div>
+
+              {/* Texture quality card — 5-way segmented */}
+              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                  {t('rodinTextureModeLabel')}
+                </Label>
+                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
+                  {RODIN_TEXTURE_MODES.map((mode) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      onClick={() => setRodinTextureMode(mode)}
+                      className={cn(
+                        'flex-1 rounded px-1 py-1 text-2xs font-medium capitalize transition-colors',
+                        rodinTextureMode === mode
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground hover:text-foreground',
+                      )}
+                    >
+                      {mode}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 border-t border-border/40 p-3">
+                {/* Toggle row 1 */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="rodin-tapose"
+                      checked={rodinTAPose}
+                      onCheckedChange={setRodinTAPose}
+                    />
+                    <Label
+                      htmlFor="rodin-tapose"
+                      className="flex-1 cursor-pointer text-xs"
+                    >
+                      {t('rodinTAPoseLabel')}
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="rodin-hd-texture"
+                      checked={rodinHdTexture}
+                      onCheckedChange={setRodinHdTexture}
+                    />
+                    <Label
+                      htmlFor="rodin-hd-texture"
+                      className="flex-1 cursor-pointer text-xs"
+                    >
+                      {t('rodinHdTextureLabel')}
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="rodin-texture-delight"
+                      checked={rodinTextureDelight}
+                      onCheckedChange={setRodinTextureDelight}
+                    />
+                    <Label
+                      htmlFor="rodin-texture-delight"
+                      className="flex-1 cursor-pointer text-xs"
+                    >
+                      {t('rodinTextureDelightLabel')}
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="rodin-use-original-alpha"
+                      checked={rodinUseOriginalAlpha}
+                      onCheckedChange={setRodinUseOriginalAlpha}
+                    />
+                    <Label
+                      htmlFor="rodin-use-original-alpha"
+                      className="flex-1 cursor-pointer text-xs"
+                    >
+                      {t('rodinUseOriginalAlphaLabel')}
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      id="rodin-preview-render"
+                      checked={rodinPreviewRender}
+                      onCheckedChange={setRodinPreviewRender}
+                    />
+                    <Label
+                      htmlFor="rodin-preview-render"
+                      className="flex-1 cursor-pointer text-xs"
+                    >
+                      {t('rodinPreviewRenderLabel')}
+                    </Label>
+                  </div>
+                  <div
+                    className={cn(
+                      'flex items-center gap-2',
+                      rodinTier !== RODIN_IS_MICRO_REQUIRED_TIER &&
+                        'opacity-50',
+                    )}
+                  >
+                    <Switch
+                      id="rodin-is-micro"
+                      checked={rodinIsMicro}
+                      disabled={rodinTier !== RODIN_IS_MICRO_REQUIRED_TIER}
+                      onCheckedChange={setRodinIsMicro}
+                    />
+                    <Label
+                      htmlFor="rodin-is-micro"
+                      className="flex-1 cursor-pointer text-xs"
+                    >
+                      {t('rodinIsMicroLabel')}
+                    </Label>
+                  </div>
+                </div>
+
+                {/* Prompt (image/mesh modes only — text mode promotes
+                        prompt to a top-of-panel input). */}
+                {rodinMode !== 'text' && (
+                  <div className="flex flex-col gap-1">
+                    <Label
+                      htmlFor="rodin-prompt"
+                      className="text-xs uppercase tracking-wider text-muted-foreground"
+                    >
+                      {t('rodinPromptLabel')}
+                    </Label>
+                    <textarea
+                      id="rodin-prompt"
+                      value={rodinPrompt}
+                      onChange={(e) => setRodinPrompt(e.target.value)}
+                      placeholder={t('rodinPromptPlaceholder')}
+                      rows={2}
+                      className="w-full resize-none rounded-md border border-border/60 bg-background px-2 py-1.5 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                )}
+
+                {/* Numeric inputs */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex flex-col gap-1">
+                    <Label
+                      htmlFor="rodin-seed"
+                      className="text-xs uppercase tracking-wider text-muted-foreground"
+                    >
+                      Seed
+                    </Label>
+                    <input
+                      id="rodin-seed"
+                      type="number"
+                      inputMode="numeric"
+                      value={rodinSeedInput}
+                      onChange={(e) => setRodinSeedInput(e.target.value)}
+                      placeholder="-1"
+                      className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <Label
+                      htmlFor="rodin-quality-override"
+                      className="text-xs uppercase tracking-wider text-muted-foreground"
+                    >
+                      {t('rodinQualityOverrideLabel')}
+                    </Label>
+                    <input
+                      id="rodin-quality-override"
+                      type="number"
+                      inputMode="numeric"
+                      value={rodinQualityOverrideInput}
+                      onChange={(e) =>
+                        setRodinQualityOverrideInput(e.target.value)
+                      }
+                      placeholder="auto"
+                      className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+
+                {/* Bbox condition (W / H / L) */}
+                <div className="flex flex-col gap-1">
+                  <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                    Bounding Box
+                  </Label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={rodinBboxWidth}
+                      onChange={(e) => setRodinBboxWidth(e.target.value)}
+                      placeholder="W"
+                      className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                    />
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={rodinBboxHeight}
+                      onChange={(e) => setRodinBboxHeight(e.target.value)}
+                      placeholder="H"
+                      className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                    />
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      value={rodinBboxLength}
+                      onChange={(e) => setRodinBboxLength(e.target.value)}
+                      placeholder="L"
+                      className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+              </div>
+              {/* Rodin BYOK key selector (optional) */}
+              {rodinActiveKeys.length > 1 && (
+                <div className="rounded-lg border border-border/60 bg-background/60 p-3">
+                  <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
+                    {t('apiKeyDropdownLabel')}
+                  </Label>
+                  <Select
+                    value={selectedRodinKeyId}
+                    onValueChange={setSelectedRodinKeyId}
+                  >
+                    <SelectTrigger className="w-full">
+                      {(() => {
+                        const sel = rodinActiveKeys.find(
+                          (k) => k.id === selectedRodinKeyId,
+                        )
+                        return sel ? (
+                          <span className="font-medium">{sel.label}</span>
+                        ) : (
+                          <span className="text-muted-foreground">
+                            {t('apiKeyDropdownPlaceholder')}
+                          </span>
+                        )
+                      })()}
+                    </SelectTrigger>
+                    <SelectContent>
+                      {rodinActiveKeys.map((k) => (
+                        <SelectItem key={k.id} value={k.id}>
+                          <div className="flex flex-col gap-0.5">
+                            <span className="font-medium">{k.label}</span>
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {k.maskedKey}
+                            </span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+            </div>
+          </details>
+        </div>
+      )}
+    </div>
+  )
+
+  return (
+    <div className={styles.root}>
+      <h1 className="sr-only">{t('title')}</h1>
+      <div className={styles.workspace}>
+        <main className={styles.canvas}>
+          <div className={styles.stageHeader}>
+            <span>{t('modelPreview')}</span>
+            <span>{displayGeneration ? 'GLB' : t('shapeIllustration')}</span>
+          </div>
           {displayGeneration ? (
             <div className="relative size-full">
               {previewModelUrl && !finalModelVisible && (
@@ -1149,6 +2351,8 @@ export function Studio3DWorkspace({
                 />
               )}
               <ModelViewer
+                autoRotate={false}
+                cameraView={cameraView}
                 src={displayGeneration.modelUrl ?? displayGeneration.url}
                 poster={
                   // Prefer the live source image (just-clicked picker) so
@@ -1198,13 +2402,13 @@ export function Studio3DWorkspace({
                 <button
                   slot="ar-button"
                   type="button"
-                  className="absolute bottom-6 right-6 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-sm hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+                  className="absolute bottom-24 right-6 inline-flex items-center gap-1.5 rounded-full bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-sm hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
                 >
                   <Box className="size-3.5" />
                   {t('openInAR')}
                 </button>
               </ModelViewer>
-              <div className="absolute bottom-6 left-1/2 flex -translate-x-1/2 items-center gap-2">
+              <div className="absolute top-12 left-1/2 flex max-w-full -translate-x-1/2 flex-wrap justify-center gap-2">
                 <Button asChild variant="secondary" size="sm">
                   <a
                     href={displayGeneration.modelUrl ?? displayGeneration.url}
@@ -1338,27 +2542,84 @@ export function Studio3DWorkspace({
               />
             </div>
           ) : (
-            <div className="flex w-full max-w-2xl flex-col items-center gap-3">
-              <XiaoheiGuideCarousel guideId="model3d" />
-              {/*
-               * Empty-canvas affordance to load a previously generated 3D
-               * back into the viewer — same effect as the `?gen=<id>`
-               * deeplink that AssetDetailSheet's "Remix in Studio" produces,
-               * but reachable without leaving 3D Studio.
-               */}
+            <div className={styles.emptyStage}>
+              <div
+                className={styles.modelObject}
+                data-view={cameraView.view}
+                aria-hidden="true"
+              >
+                <div className={styles.modelHead} />
+                <div className={styles.modelBody} />
+                <div className={styles.modelBase} />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                {t('chooseInputShape')}
+              </p>
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 onClick={() => setExistingModelPickerOpen(true)}
-                className="rounded-full"
               >
-                <FolderOpen className="mr-1.5 size-3.5" />
+                <FolderOpen className="size-4" />
                 {t('openExistingModel')}
               </Button>
             </div>
           )}
 
+          {!isGenerating &&
+            !error &&
+            (displayGeneration ||
+              (!sourceImage && !previewModelUrl && !provisionalModelUrl)) && (
+              <div
+                className={styles.viewTools}
+                role="group"
+                aria-label={t('previewViews')}
+              >
+                {(['front', 'side', 'reset'] as const).map((view) => (
+                  <Button
+                    key={view}
+                    variant="ghost"
+                    className="min-h-11 rounded-xl px-4"
+                    onClick={() =>
+                      setCameraView((current) => ({
+                        view,
+                        revision: current.revision + 1,
+                      }))
+                    }
+                  >
+                    {t(
+                      view === 'front'
+                        ? 'previewFront'
+                        : view === 'side'
+                          ? 'previewSide'
+                          : 'previewReset',
+                    )}
+                  </Button>
+                ))}
+              </div>
+            )}
+
+          {error && !isGenerating && (
+            <div
+              role="alert"
+              className="absolute inset-x-4 bottom-4 mx-auto max-w-lg space-y-3 rounded-2xl border border-destructive/30 bg-background p-4 shadow-sm"
+            >
+              <p className="text-sm font-medium">
+                {t('generationFailedTitle')}
+              </p>
+              <p className="text-sm text-muted-foreground">{error}</p>
+              <p className="text-xs text-muted-foreground">
+                {t('draftPreserved')}
+              </p>
+              <Button
+                variant="outline"
+                disabled={!canGenerate}
+                onClick={() => void handleGenerate()}
+              >
+                {t('retryGeneration')}
+              </Button>
+            </div>
+          )}
           {isGenerating && (
             /*
              * Two-step progress at the bottom of the canvas.
@@ -1421,1321 +2682,88 @@ export function Studio3DWorkspace({
           )}
         </main>
 
-        {/* Right panel — source, multi-view, preset, advanced params, generate.
-            Width scales up at larger breakpoints so the dense parameter list
-            doesn't feel cramped on a 4K monitor and doesn't waste laptop
-            real estate. On mobile this becomes a full-width section stacked
-            below the canvas and flows naturally (parent scrolls); on md+
-            it scrolls independently inside its fixed column width. */}
-        <aside className="flex w-full shrink-0 flex-col gap-4 border-t border-border/40 bg-muted/10 px-4 pb-4 pt-4 sm:px-5 sm:pb-5 sm:pt-5 md:min-h-0 md:w-80 md:overflow-y-auto md:border-l md:border-t-0 md:p-5 lg:w-96 2xl:w-[28rem]">
-          {/* Model Hero Card — shows active model + "Change" switcher */}
-          <div className="rounded-lg border border-border/60 bg-card p-3">
-            <div className="flex items-center gap-3">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-muted/40">
-                <Box className="size-5 text-muted-foreground" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">
-                  {tModels(`${getModelMessageKey(selectedModelId)}.label`)}
-                </p>
-                <p className="text-[11px] text-muted-foreground">
-                  {selectedModel?.adapterType === AI_ADAPTER_TYPES.HYPER3D_RODIN
-                    ? 'Hyper3D'
-                    : selectedModel?.adapterType === AI_ADAPTER_TYPES.FAL
-                      ? 'fal.ai'
-                      : (selectedModel?.adapterType ?? '')}
-                  {' · '}
-                  {selectedModel?.cost ?? 0} cr / gen
-                </p>
-              </div>
-              <MainModelPicker
-                modality="model_3d"
-                size="compact"
-                value={`workspace:${selectedModelId}`}
-                onChange={(option) => setSelectedModelId(option.modelId)}
-                onRequestSetup={() => setQuickSetupOpen(true)}
-                triggerEmptyLabel={t('changeModelButton')}
-                searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
-                emptySearchText={tForm('modelSelector.emptySearch')}
-              />
-            </div>
-          </div>
-
-          {/* API key missing banner — shown below the model card, specific to selected adapter */}
-          {!isLoadingKeys && (isRodin ? !hasRodinKey : !hasFalKey) && (
-            <div className="flex flex-col gap-2 rounded-lg border border-status-warning/40 bg-status-warning-surface p-3">
-              <div className="flex items-center gap-1.5 text-xs font-medium text-status-warning">
-                <AlertTriangle className="size-3.5" />
-                {isRodin
-                  ? t('rodinApiKeyMissingTitle')
-                  : t('apiKeyMissingTitle')}
-              </div>
-              <p className="text-xs leading-5 text-muted-foreground">
-                {isRodin
-                  ? t('rodinApiKeyMissingDescription')
-                  : t('apiKeyMissingDescription')}
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setQuickSetupOpen(true)}
-                className="self-start rounded-full text-xs"
-              >
-                {t('setupApiKeyButton')}
-              </Button>
-            </div>
-          )}
-
-          {/* Rodin mode picker — three mutually exclusive workflows.
-              Replaces what used to be two separate switch cards (Text-to-3D
-              and Mesh-first) further down the panel. Image is the default;
-              Text hides the source picker entirely; Mesh emits a textureless
-              first pass with a "Continue with textures" affordance on the
-              result. */}
-          {isRodin && (
-            <div className="flex flex-col gap-1.5">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                {t('rodinModeLabel')}
-              </Label>
-              <div
-                role="radiogroup"
-                aria-label={t('rodinModeLabel')}
-                className="flex gap-0.5 rounded-md bg-muted/50 p-0.5"
-              >
-                {(['image', 'text', 'mesh_first'] as const).map((mode) => {
-                  const isActive = rodinMode === mode
-                  const labelKey =
-                    mode === 'image'
-                      ? 'rodinModeImageLabel'
-                      : mode === 'text'
-                        ? 'rodinModeTextLabel'
-                        : 'rodinModeMeshFirstLabel'
-                  return (
-                    <button
-                      key={mode}
-                      type="button"
-                      role="radio"
-                      aria-checked={isActive}
-                      onClick={() => setRodinMode(mode)}
-                      className={cn(
-                        'min-w-0 flex-1 truncate rounded px-1.5 py-1.5 text-[11px] font-medium transition-colors',
-                        isActive
-                          ? 'bg-background text-foreground shadow-sm'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {t(labelKey)}
-                    </button>
-                  )
-                })}
-              </div>
-              {/* One-line contextual hint so the three modes aren't visually
-                  identical — explains how the current pick actually behaves. */}
-              <p className="text-[11px] italic leading-snug text-muted-foreground">
-                {t(
-                  rodinMode === 'image'
-                    ? 'rodinModeImageHint'
-                    : rodinMode === 'text'
-                      ? 'rodinModeTextHint'
-                      : 'rodinModeMeshFirstHint',
-                )}
-              </p>
-            </div>
-          )}
-
-          {/* Text-to-3D mode: prompt is the primary input, surface it
-              prominently right under the mode picker. In image/mesh modes
-              prompt stays in the Advanced section as supplementary guidance. */}
-          {isRodin && rodinMode === 'text' && (
-            <div className="flex flex-col gap-1.5">
-              <Label
-                htmlFor="rodin-prompt-top"
-                className="flex items-center gap-1 text-xs uppercase tracking-wider text-muted-foreground"
-              >
-                {t('rodinPromptLabel')}
-                <span className="text-[10px] normal-case tracking-normal text-status-warning">
-                  {t('rodinPromptRequiredBadge')}
-                </span>
-              </Label>
-              <textarea
-                id="rodin-prompt-top"
-                value={rodinPrompt}
-                onChange={(e) => setRodinPrompt(e.target.value)}
-                placeholder={t('rodinPromptPlaceholder')}
-                rows={4}
-                className="w-full resize-none rounded-md border border-border/60 bg-background px-3 py-2 text-base md:text-xs leading-5 text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-              />
-            </div>
-          )}
-
-          {/* Compact image picker. Hidden entirely in text-to-3D mode
-              (Rodin only) — text mode has no source image at all. */}
-          {!(isRodin && rodinTextMode) && (
-            <div className="flex flex-col gap-2">
-              <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                {t('sourceImageLabel')}
-              </Label>
-              {sourceImage ? (
-                <div className="flex gap-3 rounded-lg border border-border/50 bg-background/60 p-2">
-                  <div className="relative size-20 shrink-0 overflow-hidden rounded-md ring-1 ring-border/40">
-                    <Image
-                      src={sourceImage.url}
-                      alt={t('sourceImageLabel')}
-                      fill
-                      unoptimized
-                      className="object-cover"
-                      sizes="80px"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleClearSource}
-                      className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm transition-colors hover:bg-background"
-                      aria-label={t('removeSourceImageLabel')}
-                    >
-                      <X className="size-3" />
-                    </button>
-                  </div>
-                  <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        {sourceImage.prompt || t('sourceImageLabel')}
-                      </p>
-                      {sourceImage.width > 0 && sourceImage.height > 0 && (
-                        <p className="text-xs text-muted-foreground">
-                          {sourceImage.width}×{sourceImage.height}
-                        </p>
-                      )}
-                    </div>
-                    <div className="grid grid-cols-2 gap-1.5">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setPickerOpen(true)}
-                        disabled={uploading || isGenerating}
-                        className="h-8 rounded-full px-2"
-                        aria-label={t('selectFromAssets')}
-                        title={t('selectFromAssets')}
-                      >
-                        <FolderOpen className="size-3.5" />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={handleUploadClick}
-                        disabled={uploading || isGenerating}
-                        className="h-8 rounded-full px-2"
-                        aria-label={
-                          uploading ? t('uploading') : t('uploadButton')
-                        }
-                        title={uploading ? t('uploading') : t('uploadButton')}
-                      >
-                        {uploading ? (
-                          <Spinner size="sm" />
-                        ) : (
-                          <Upload className="size-3.5" />
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 bg-muted/30 px-4 py-5 text-center">
-                  <ImageIcon className="size-6 text-muted-foreground" />
-                  <span className="text-xs text-muted-foreground">
-                    {t('sourceImagePlaceholder')}
-                  </span>
-                  <div className="flex w-full flex-col gap-2">
-                    <Button
-                      type="button"
-                      onClick={handleUploadClick}
-                      disabled={uploading}
-                      className="w-full rounded-full"
-                    >
-                      <Upload className="mr-1.5 size-3.5" />
-                      {uploading ? t('uploading') : t('uploadButton')}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      onClick={() => setPickerOpen(true)}
-                      disabled={uploading}
-                      className="w-full rounded-full"
-                    >
-                      <FolderOpen className="mr-1.5 size-3.5" />
-                      {t('selectFromAssets')}
-                    </Button>
-                  </div>
-                </div>
-              )}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-            </div>
-          )}
-
-          {sourceImage && sourceQualityIssues.length > 0 && (
-            <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs leading-5 text-destructive">
-              <div className="mb-1 flex items-center gap-1.5 font-medium">
-                <AlertTriangle className="size-3.5" />
-                <span>{t('sourceQualityBlocked')}</span>
-              </div>
-              <ul className="list-disc space-y-1 pl-4">
-                {sourceQualityIssues.map((issue) => (
-                  <li key={issue}>{issue}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/*
-           * Multi-view section — model selector always visible for HunyuanV3;
-           * generation controls only appear once a source image is chosen.
-           */}
-          {supportsMultiViewInput && (
-            <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <Label className="flex items-center gap-1.5 text-xs uppercase tracking-wider text-muted-foreground">
-                  <Wand2 className="size-3" />
-                  {t('multiViewLabel')}
-                </Label>
-                <Select
-                  value={selectedMultiViewModelId}
-                  onValueChange={(v) => setSelectedMultiViewModelId(v)}
-                >
-                  <SelectTrigger className="h-6 w-auto max-w-[150px] rounded-full px-2 text-[11px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {MODEL_3D_MULTIVIEW_MODEL_IDS.map((modelId) => {
-                      const messageKey = getModelMessageKey(modelId)
-                      return (
-                        <SelectItem key={modelId} value={modelId}>
-                          {tModels(`${messageKey}.label`)}
-                        </SelectItem>
-                      )
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {sourceImage && (
-                <>
-                  {effectiveMultiViewViews.length === 0 ? (
-                    <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void handleGenerate4Views()}
-                        disabled={
-                          isGeneratingViews || !canUseSelectedMultiViewModel
-                        }
-                        className="w-full rounded-full"
-                      >
-                        {isGeneratingViews ? (
-                          <>
-                            <Spinner size="sm" className="mr-1.5" />
-                            {t('multiViewLoading')}
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="mr-1.5 size-3.5" />
-                            {t('multiViewButton')}
-                          </>
-                        )}
-                      </Button>
-                      <p className="text-[10px] leading-4 text-muted-foreground">
-                        {canUseSelectedMultiViewModel
-                          ? t('multiViewHint')
-                          : t('multiViewApiKeyMissing')}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {[
-                          { gen: sourceImage, label: t('viewFront') },
-                          ...effectiveMultiViewViews.map((view) => ({
-                            gen: view,
-                            label: getViewLabel(view.view),
-                          })),
-                        ].map(({ gen, label }, index) => {
-                          const isFront = gen.id === sourceImage.id
-                          return (
-                            <button
-                              type="button"
-                              key={gen.id}
-                              onClick={() => setMultiViewLightboxIndex(index)}
-                              className={cn(
-                                'relative aspect-square overflow-hidden rounded-md ring-1 transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-                                isFront
-                                  ? 'ring-2 ring-primary'
-                                  : 'ring-border/40',
-                              )}
-                            >
-                              <Image
-                                src={gen.url}
-                                alt={label}
-                                fill
-                                unoptimized
-                                className="object-cover"
-                                sizes="80px"
-                              />
-                              {isFront && (
-                                <div className="absolute right-0.5 top-0.5 flex size-3.5 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                  <Check className="size-2.5" />
-                                </div>
-                              )}
-                              <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-[9px] font-medium text-foreground backdrop-blur-sm">
-                                {label}
-                              </span>
-                            </button>
-                          )
-                        })}
-                      </div>
-                      <p className="text-[10px] leading-4 text-muted-foreground">
-                        {t('multiViewPickHint')}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          void handleGenerate4Views({ force: true })
-                        }
-                        disabled={
-                          isGeneratingViews || !canUseSelectedMultiViewModel
-                        }
-                        className="h-8 w-full rounded-full text-xs"
-                      >
-                        {isGeneratingViews ? (
-                          <>
-                            <Spinner size="sm" className="mr-1.5" />
-                            {t('multiViewLoading')}
-                          </>
-                        ) : (
-                          <>
-                            <Sparkles className="mr-1.5 size-3" />
-                            {t('multiViewRegenerateButton')}
-                          </>
-                        )}
-                      </Button>
-                      <Lightbox
-                        open={multiViewLightboxIndex >= 0}
-                        close={() => setMultiViewLightboxIndex(-1)}
-                        index={multiViewLightboxIndex}
-                        slides={[
-                          { src: sourceImage.url, alt: t('viewFront') },
-                          ...effectiveMultiViewViews.map((view) => ({
-                            src: view.url,
-                            alt: getViewLabel(view.view),
-                          })),
-                        ]}
-                        plugins={[Zoom, Counter]}
-                        carousel={{ finite: true }}
-                        zoom={{ maxZoomPixelRatio: 3, scrollToZoom: true }}
-                        styles={{
-                          container: { backgroundColor: 'rgba(0, 0, 0, 0.9)' },
-                        }}
-                        animation={{ fade: 300, swipe: 300 }}
-                      />
-                    </>
-                  )}
-
-                  {/* Manual upload — always available when a source image is set */}
-                  <div className="mt-2 flex flex-col gap-2 border-t border-border/30 pt-2">
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setManualMultiViewOpen((open) => !open)}
-                      className="h-8 justify-start rounded-full px-2 text-xs"
-                    >
-                      <Upload className="mr-1.5 size-3" />
-                      {manualMultiViewOpen
-                        ? t('manualViewHide')
-                        : t('manualViewShow')}
-                    </Button>
-
-                    {manualMultiViewOpen && (
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {GENERATED_VIEW_ANGLES.map((view) => {
-                          const manualImage = manualMultiViewImages[view]
-                          const isUploading = uploadingManualView === view
-                          const label = getViewLabel(view)
-                          return (
-                            <div
-                              key={view}
-                              className="relative flex min-w-0 flex-col gap-1"
-                            >
-                              <div className="relative aspect-square overflow-hidden rounded-md border border-dashed border-border/60 bg-muted/30">
-                                {manualImage ? (
-                                  <Image
-                                    src={manualImage.url}
-                                    alt={label}
-                                    fill
-                                    unoptimized
-                                    className="object-cover"
-                                    sizes="80px"
-                                  />
-                                ) : (
-                                  <div className="flex size-full items-center justify-center text-muted-foreground">
-                                    <ImageIcon className="size-4" />
-                                  </div>
-                                )}
-                                <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-[9px] font-medium text-foreground backdrop-blur-sm">
-                                  {label}
-                                </span>
-                                {manualImage && (
-                                  <button
-                                    type="button"
-                                    onClick={() => handleRemoveManualView(view)}
-                                    className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur-sm hover:bg-background"
-                                    aria-label={t('manualViewRemoveLabel', {
-                                      view: label,
-                                    })}
-                                  >
-                                    <X className="size-3" />
-                                  </button>
-                                )}
-                              </div>
-                              <Button
-                                type="button"
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleManualViewUploadClick(view)
-                                }
-                                disabled={uploadingManualView !== null}
-                                className="h-7 rounded-full px-2 text-[10px]"
-                              >
-                                {isUploading ? (
-                                  <Spinner size="sm" className="mr-1" />
-                                ) : (
-                                  <Upload className="mr-1 size-3" />
-                                )}
-                                {manualImage
-                                  ? t('manualViewReplace')
-                                  : t('manualViewUpload')}
-                              </Button>
-                              <input
-                                ref={(node) => {
-                                  manualViewInputRefs.current[view] = node
-                                }}
-                                type="file"
-                                accept="image/*"
-                                className="hidden"
-                                onChange={(event) =>
-                                  handleManualViewFileChange(view, event)
-                                }
-                              />
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* HunyuanV3 controls — individual cards matching Rodin style */}
-          {isHunyuanV3 && (
-            <div className="flex flex-col gap-2">
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <Label htmlFor="enable-pbr" className="text-sm font-medium">
-                      {t('enablePbrLabel')}
-                    </Label>
-                    <Switch
-                      id="enable-pbr"
-                      checked={enablePbr}
-                      onCheckedChange={setEnablePbr}
-                    />
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                      {t('faceCountLabel')}
-                    </Label>
-                    <Select
-                      value={String(faceCount)}
-                      onValueChange={(v) => setFaceCount(Number(v))}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {FACE_COUNT_OPTIONS.map((opt) => (
-                          <SelectItem key={opt.value} value={String(opt.value)}>
-                            {opt.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <Label
-                    htmlFor="prep-3d-hunyuan"
-                    className="text-sm font-medium"
-                  >
-                    {t('prep3DLabel')}
-                  </Label>
-                  <Switch
-                    id="prep-3d-hunyuan"
-                    checked={prep3D}
-                    onCheckedChange={setPrep3D}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Trellis 2 controls — individual cards */}
-          {isTrellis2 && (
-            <div className="flex flex-col gap-2">
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="flex flex-col gap-2">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                      {t('trellisResolutionLabel')}
-                    </Label>
-                    <Select
-                      value={String(trellisResolution)}
-                      onValueChange={(v) =>
-                        setTrellisResolution(
-                          Number(v) as (typeof TRELLIS_2_RESOLUTIONS)[number],
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TRELLIS_2_RESOLUTIONS.map((value) => (
-                          <SelectItem key={value} value={String(value)}>
-                            {value}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                      {t('trellisTextureLabel')}
-                    </Label>
-                    <Select
-                      value={String(trellisTextureSize)}
-                      onValueChange={(v) =>
-                        setTrellisTextureSize(
-                          Number(v) as (typeof TRELLIS_2_TEXTURE_SIZES)[number],
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TRELLIS_2_TEXTURE_SIZES.map((value) => (
-                          <SelectItem key={value} value={String(value)}>
-                            {value}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-              </div>
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('trellisDecimationLabel')}
-                </Label>
-                <Select
-                  value={String(trellisDecimationTarget)}
-                  onValueChange={(v) => setTrellisDecimationTarget(Number(v))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TRELLIS_DECIMATION_OPTIONS.map((opt) => (
-                      <SelectItem key={opt.value} value={String(opt.value)}>
-                        {opt.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <Label
-                    htmlFor="trellis-remesh"
-                    className="text-sm font-medium"
-                  >
-                    {t('trellisRemeshLabel')}
-                  </Label>
-                  <Switch
-                    id="trellis-remesh"
-                    checked={trellisRemesh}
-                    onCheckedChange={setTrellisRemesh}
-                  />
-                </div>
-              </div>
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <Label
-                    htmlFor="prep-3d-trellis"
-                    className="text-sm font-medium"
-                  >
-                    {t('prep3DLabel')}
-                  </Label>
-                  <Switch
-                    id="prep-3d-trellis"
-                    checked={prep3D}
-                    onCheckedChange={setPrep3D}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* TripoSR controls */}
-          {isTriposr && (
-            <div className="flex flex-col gap-2">
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <Label htmlFor="remove-bg" className="text-sm font-medium">
-                    {t('removeBackgroundLabel')}
-                  </Label>
-                  <Switch
-                    id="remove-bg"
-                    checked={removeBackground}
-                    onCheckedChange={setRemoveBackground}
-                  />
-                </div>
-              </div>
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <div className="flex items-center justify-between gap-2">
-                  <Label
-                    htmlFor="prep-3d-triposr"
-                    className="text-sm font-medium"
-                  >
-                    {t('prep3DLabel')}
-                  </Label>
-                  <Switch
-                    id="prep-3d-triposr"
-                    checked={prep3D}
-                    onCheckedChange={setPrep3D}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* T11: Rodin Inspector — Quality / Geometry / Texture & Material */}
-          {isRodin && (
-            <div className="flex flex-col gap-2">
-              {/* Quality card — A-style horizontal tier tabs */}
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('rodinTierLabel')}
-                </Label>
-                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
-                  {RODIN_TIERS.map((tier) => {
-                    const isActive = rodinTier === tier
-                    const credits = RODIN_TIER_CREDITS[tier]
-                    return (
-                      <button
-                        key={tier}
-                        type="button"
-                        onClick={() => setRodinTier(tier)}
-                        className={cn(
-                          'flex flex-1 flex-col items-center rounded px-0.5 py-1.5 text-center transition-colors',
-                          isActive
-                            ? 'border-b-2 border-primary bg-background text-primary shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground',
-                        )}
-                      >
-                        <span className="text-[10px] font-medium leading-tight">
-                          {tier === RODIN_TIER.EXTREME_LOW
-                            ? 'XS'
-                            : tier === RODIN_TIER.EXTREME_HIGH
-                              ? 'XH'
-                              : tier.replace('Gen-2.5-', '')}
-                        </span>
-                        <span className="text-[9px] leading-tight opacity-70">
-                          {credits} cr
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-                <p className="mt-1.5 text-[11px] italic text-muted-foreground">
-                  ~{Math.round(RODIN_TIER_ESTIMATED_SECONDS[rodinTier] / 60)}{' '}
-                  min ·{' '}
-                  {RODIN_TIER_CREDITS[rodinTier] +
-                    (rodinHighPack ? RODIN_HIGHPACK_EXTRA_CREDITS : 0)}{' '}
-                  cr
-                </p>
-              </div>
-
-              {/* Geometry preset card — unified mesh_mode + quality grid.
-                  Drop to 2 columns on very narrow inspector (mobile portrait)
-                  so each chip still reads cleanly; 4 columns at md+. */}
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('rodinMeshModeLabel')}
-                </Label>
-                <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">
-                  {RODIN_MESH_MODES.flatMap((mode) =>
-                    RODIN_QUALITIES.map((quality) => {
-                      const isActive =
-                        rodinMeshMode === mode && rodinQuality === quality
-                      const faceLabel = RODIN_FACE_COUNT_LABEL[mode][quality]
-                      return (
-                        <button
-                          key={`${mode}-${quality}`}
-                          type="button"
-                          onClick={() => {
-                            setRodinMeshMode(mode)
-                            setRodinQuality(quality)
-                          }}
-                          className={cn(
-                            'flex flex-col items-center gap-0.5 rounded-md border px-1 py-2 text-center transition-colors',
-                            isActive
-                              ? 'border-primary bg-primary/5 text-primary'
-                              : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground',
-                          )}
-                        >
-                          <span className="text-[12px] font-semibold leading-tight">
-                            {faceLabel}
-                          </span>
-                          <span className="text-[10px] leading-tight opacity-80">
-                            {mode === RODIN_MESH_MODE.QUAD
-                              ? 'Quad'
-                              : 'Triangle'}
-                          </span>
-                        </button>
-                      )
-                    }),
-                  )}
-                </div>
-                <p className="mt-1.5 text-[11px] italic text-muted-foreground">
-                  {t('rodinMeshModeHint')}
-                </p>
-              </div>
-
-              {/* Material card — segmented + HighPack switch */}
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('rodinMaterialLabel')}
-                </Label>
-                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
-                  {RODIN_MATERIALS.map((mat) => (
-                    <button
-                      key={mat}
-                      type="button"
-                      onClick={() => setRodinMaterial(mat)}
-                      className={cn(
-                        'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
-                        rodinMaterial === mat
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {mat}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-2 flex items-center gap-2 border-t border-border/40 pt-2">
-                  <Switch
-                    id="rodin-highpack"
-                    checked={rodinHighPack}
-                    onCheckedChange={setRodinHighPack}
-                  />
-                  <Label
-                    htmlFor="rodin-highpack"
-                    className="flex-1 cursor-pointer text-xs font-medium"
-                  >
-                    {t('rodinHighPackLabel')}
-                  </Label>
-                </div>
-                {/* Mesh-first preview promoted to the top-of-panel mode
-                    picker — no inline switch here anymore. */}
-              </div>
-
-              {/* T12: Input Images — cross/compass layout */}
-              {sourceImage && (
-                <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                  <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                    {t('rodinAdditionalImagesLabel')}
-                  </Label>
-                  {/* 3×3 grid: cross shape — Front center, Back top, Left/Right sides, LFrt bottom-left */}
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {/* Row 1: _ Back _ */}
-                    <div />
-                    <RodinAngleSlot
-                      angle="back"
-                      label={t('viewBack')}
-                      url={(() => {
-                        const idx = RODIN_EXTRA_ANGLES.indexOf('back')
-                        return rodinAdditionalImages[idx] ?? null
-                      })()}
-                      isUploading={uploadingRodinAngle === 'back'}
-                      onUpload={() => handleRodinImageUploadClick('back')}
-                      onRemove={() => handleRemoveRodinImage('back')}
-                    />
-                    <div />
-                    {/* Row 2: Left Front Right */}
-                    <RodinAngleSlot
-                      angle="left"
-                      label={t('viewLeft')}
-                      url={(() => {
-                        const idx = RODIN_EXTRA_ANGLES.indexOf('left')
-                        return rodinAdditionalImages[idx] ?? null
-                      })()}
-                      isUploading={uploadingRodinAngle === 'left'}
-                      onUpload={() => handleRodinImageUploadClick('left')}
-                      onRemove={() => handleRemoveRodinImage('left')}
-                    />
-                    {/* Front = sourceImage (always filled) */}
-                    <div className="relative aspect-square overflow-hidden rounded-md border-2 border-primary/40 bg-muted/30">
-                      <Image
-                        src={sourceImage.url}
-                        alt={t('sourceImageLabel')}
-                        fill
-                        unoptimized
-                        className="object-cover"
-                        sizes="80px"
-                      />
-                      <span className="absolute bottom-0 left-0 right-0 bg-background/80 py-0.5 text-center text-[9px] font-medium text-foreground backdrop-blur-sm">
-                        {t('viewFront')}
-                      </span>
-                    </div>
-                    <RodinAngleSlot
-                      angle="right"
-                      label={t('viewRight')}
-                      url={(() => {
-                        const idx = RODIN_EXTRA_ANGLES.indexOf('right')
-                        return rodinAdditionalImages[idx] ?? null
-                      })()}
-                      isUploading={uploadingRodinAngle === 'right'}
-                      onUpload={() => handleRodinImageUploadClick('right')}
-                      onRemove={() => handleRemoveRodinImage('right')}
-                    />
-                    {/* Row 3: LFrt _ _ */}
-                    <RodinAngleSlot
-                      angle="leftFront"
-                      label={t('viewLeftFront')}
-                      url={(() => {
-                        const idx = RODIN_EXTRA_ANGLES.indexOf('leftFront')
-                        return rodinAdditionalImages[idx] ?? null
-                      })()}
-                      isUploading={uploadingRodinAngle === 'leftFront'}
-                      onUpload={() => handleRodinImageUploadClick('leftFront')}
-                      onRemove={() => handleRemoveRodinImage('leftFront')}
-                    />
-                    <div />
-                    <div />
-                  </div>
-                  <p className="mt-1.5 text-[10px] text-muted-foreground">
-                    {t('rodinAdditionalImagesHint')}
-                  </p>
-                  {/* Hidden file inputs for each angle */}
-                  {RODIN_EXTRA_ANGLES.map((angle) => (
-                    <input
-                      key={angle}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      ref={(el) => {
-                        rodinImageFileRefs.current[angle] = el
-                      }}
-                      onChange={(e) =>
-                        void handleRodinImageFileChange(angle, e)
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-
-              {/* Geometry instruction card — faithful vs creative */}
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('rodinGeometryInstructModeLabel')}
-                </Label>
-                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
-                  {RODIN_GEOMETRY_INSTRUCT_MODES.map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setRodinGeometryInstructMode(mode)}
-                      className={cn(
-                        'flex-1 rounded px-2 py-1 text-[11px] font-medium transition-colors',
-                        rodinGeometryInstructMode === mode
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {mode === RODIN_GEOMETRY_INSTRUCT_MODE.FAITHFUL
-                        ? t('rodinFaithfulLabel')
-                        : t('rodinCreativeLabel')}
-                    </button>
-                  ))}
-                </div>
-                <p className="mt-1.5 text-[11px] italic text-muted-foreground">
-                  {t('rodinGeometryInstructModeHint')}
-                </p>
-              </div>
-
-              {/* Texture quality card — 5-way segmented */}
-              <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                  {t('rodinTextureModeLabel')}
-                </Label>
-                <div className="flex gap-0.5 rounded-md bg-muted/50 p-0.5">
-                  {RODIN_TEXTURE_MODES.map((mode) => (
-                    <button
-                      key={mode}
-                      type="button"
-                      onClick={() => setRodinTextureMode(mode)}
-                      className={cn(
-                        'flex-1 rounded px-1 py-1 text-[10px] font-medium capitalize transition-colors',
-                        rodinTextureMode === mode
-                          ? 'bg-primary text-primary-foreground'
-                          : 'text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {mode}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Advanced collapsible — extra Gen-2.5 knobs */}
-              <div className="rounded-lg border border-border/60 bg-background/60">
-                <button
-                  type="button"
-                  onClick={() => setRodinAdvancedOpen((v) => !v)}
-                  className="flex w-full items-center justify-between rounded-t-lg px-3 py-2.5 text-xs uppercase tracking-wider text-muted-foreground transition-colors hover:bg-muted/40"
-                >
-                  <span>{t('rodinAdvancedSectionLabel')}</span>
-                  <ChevronDown
-                    className={cn(
-                      'size-4 transition-transform',
-                      rodinAdvancedOpen && 'rotate-180',
-                    )}
-                  />
-                </button>
-                {rodinAdvancedOpen && (
-                  <div className="flex flex-col gap-3 border-t border-border/40 p-3">
-                    {/* Toggle row 1 */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="rodin-tapose"
-                          checked={rodinTAPose}
-                          onCheckedChange={setRodinTAPose}
-                        />
-                        <Label
-                          htmlFor="rodin-tapose"
-                          className="flex-1 cursor-pointer text-xs"
-                        >
-                          {t('rodinTAPoseLabel')}
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="rodin-hd-texture"
-                          checked={rodinHdTexture}
-                          onCheckedChange={setRodinHdTexture}
-                        />
-                        <Label
-                          htmlFor="rodin-hd-texture"
-                          className="flex-1 cursor-pointer text-xs"
-                        >
-                          {t('rodinHdTextureLabel')}
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="rodin-texture-delight"
-                          checked={rodinTextureDelight}
-                          onCheckedChange={setRodinTextureDelight}
-                        />
-                        <Label
-                          htmlFor="rodin-texture-delight"
-                          className="flex-1 cursor-pointer text-xs"
-                        >
-                          {t('rodinTextureDelightLabel')}
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="rodin-use-original-alpha"
-                          checked={rodinUseOriginalAlpha}
-                          onCheckedChange={setRodinUseOriginalAlpha}
-                        />
-                        <Label
-                          htmlFor="rodin-use-original-alpha"
-                          className="flex-1 cursor-pointer text-xs"
-                        >
-                          {t('rodinUseOriginalAlphaLabel')}
-                        </Label>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Switch
-                          id="rodin-preview-render"
-                          checked={rodinPreviewRender}
-                          onCheckedChange={setRodinPreviewRender}
-                        />
-                        <Label
-                          htmlFor="rodin-preview-render"
-                          className="flex-1 cursor-pointer text-xs"
-                        >
-                          {t('rodinPreviewRenderLabel')}
-                        </Label>
-                      </div>
-                      <div
-                        className={cn(
-                          'flex items-center gap-2',
-                          rodinTier !== RODIN_IS_MICRO_REQUIRED_TIER &&
-                            'opacity-50',
-                        )}
-                      >
-                        <Switch
-                          id="rodin-is-micro"
-                          checked={rodinIsMicro}
-                          disabled={rodinTier !== RODIN_IS_MICRO_REQUIRED_TIER}
-                          onCheckedChange={setRodinIsMicro}
-                        />
-                        <Label
-                          htmlFor="rodin-is-micro"
-                          className="flex-1 cursor-pointer text-xs"
-                        >
-                          {t('rodinIsMicroLabel')}
-                        </Label>
-                      </div>
-                    </div>
-
-                    {/* Prompt (image/mesh modes only — text mode promotes
-                        prompt to a top-of-panel input). */}
-                    {rodinMode !== 'text' && (
-                      <div className="flex flex-col gap-1">
-                        <Label
-                          htmlFor="rodin-prompt"
-                          className="text-[11px] uppercase tracking-wider text-muted-foreground"
-                        >
-                          {t('rodinPromptLabel')}
-                        </Label>
-                        <textarea
-                          id="rodin-prompt"
-                          value={rodinPrompt}
-                          onChange={(e) => setRodinPrompt(e.target.value)}
-                          placeholder={t('rodinPromptPlaceholder')}
-                          rows={2}
-                          className="w-full resize-none rounded-md border border-border/60 bg-background px-2 py-1.5 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                        />
-                      </div>
-                    )}
-
-                    {/* File format */}
-                    <div className="flex items-center gap-2">
-                      <Label
-                        htmlFor="rodin-format"
-                        className="w-24 shrink-0 text-[11px] uppercase tracking-wider text-muted-foreground"
-                      >
-                        {t('rodinGeometryFileFormatLabel')}
-                      </Label>
-                      <Select
-                        value={rodinGeometryFileFormat}
-                        onValueChange={(v) =>
-                          setRodinGeometryFileFormat(
-                            v as RodinGeometryFileFormat,
-                          )
-                        }
-                      >
-                        <SelectTrigger
-                          id="rodin-format"
-                          className="h-8 flex-1 text-xs"
-                        >
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {RODIN_GEOMETRY_FILE_FORMATS.map((fmt) => (
-                            <SelectItem
-                              key={fmt}
-                              value={fmt}
-                              className="text-xs"
-                            >
-                              {fmt.toUpperCase()}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Numeric inputs */}
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex flex-col gap-1">
-                        <Label
-                          htmlFor="rodin-seed"
-                          className="text-[11px] uppercase tracking-wider text-muted-foreground"
-                        >
-                          Seed
-                        </Label>
-                        <input
-                          id="rodin-seed"
-                          type="number"
-                          inputMode="numeric"
-                          value={rodinSeedInput}
-                          onChange={(e) => setRodinSeedInput(e.target.value)}
-                          placeholder="-1"
-                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                        />
-                      </div>
-                      <div className="flex flex-col gap-1">
-                        <Label
-                          htmlFor="rodin-quality-override"
-                          className="text-[11px] uppercase tracking-wider text-muted-foreground"
-                        >
-                          {t('rodinQualityOverrideLabel')}
-                        </Label>
-                        <input
-                          id="rodin-quality-override"
-                          type="number"
-                          inputMode="numeric"
-                          value={rodinQualityOverrideInput}
-                          onChange={(e) =>
-                            setRodinQualityOverrideInput(e.target.value)
-                          }
-                          placeholder="auto"
-                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Bbox condition (W / H / L) */}
-                    <div className="flex flex-col gap-1">
-                      <Label className="text-[11px] uppercase tracking-wider text-muted-foreground">
-                        Bounding Box
-                      </Label>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          value={rodinBboxWidth}
-                          onChange={(e) => setRodinBboxWidth(e.target.value)}
-                          placeholder="W"
-                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                        />
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          value={rodinBboxHeight}
-                          onChange={(e) => setRodinBboxHeight(e.target.value)}
-                          placeholder="H"
-                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                        />
-                        <input
-                          type="number"
-                          inputMode="decimal"
-                          value={rodinBboxLength}
-                          onChange={(e) => setRodinBboxLength(e.target.value)}
-                          placeholder="L"
-                          className="h-8 rounded-md border border-border/60 bg-background px-2 text-base md:text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Rodin BYOK key selector (optional) */}
-              {rodinActiveKeys.length > 1 && (
-                <div className="rounded-lg border border-border/60 bg-background/60 p-3">
-                  <Label className="mb-2 block text-xs uppercase tracking-wider text-muted-foreground">
-                    {t('apiKeyDropdownLabel')}
-                  </Label>
-                  <Select
-                    value={selectedRodinKeyId}
-                    onValueChange={setSelectedRodinKeyId}
-                  >
-                    <SelectTrigger className="w-full">
-                      {(() => {
-                        const sel = rodinActiveKeys.find(
-                          (k) => k.id === selectedRodinKeyId,
-                        )
-                        return sel ? (
-                          <span className="font-medium">{sel.label}</span>
-                        ) : (
-                          <span className="text-muted-foreground">
-                            {t('apiKeyDropdownPlaceholder')}
-                          </span>
-                        )
-                      })()}
-                    </SelectTrigger>
-                    <SelectContent>
-                      {rodinActiveKeys.map((k) => (
-                        <SelectItem key={k.id} value={k.id}>
-                          <div className="flex flex-col gap-0.5">
-                            <span className="font-medium">{k.label}</span>
-                            <span className="font-mono text-xs text-muted-foreground">
-                              {k.maskedKey}
-                            </span>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Generate button — on mobile it sticks to the bottom of the
-              Inspector with a backdrop so it stays in view as the user
-              scrolls long parameter lists. On md+ it just sits at the
-              bottom of the scrollable aside. */}
-          <div
-            className="sticky mt-auto pt-1 md:static md:pt-0"
-            style={{
-              bottom:
-                'calc(var(--keyboard-safe-area-bottom, 0px) + var(--keyboard-inset, 0px))',
-            }}
-          >
-            <Button
-              type="button"
-              disabled={!canGenerate}
-              onClick={handleGenerate}
-              size="lg"
-              className={cn(
-                'h-11 w-full rounded-full text-sm font-semibold shadow-none disabled:opacity-100',
-                isGenerating
-                  ? 'bg-primary text-primary-foreground'
-                  : canGenerate
-                    ? 'bg-foreground text-background hover:bg-foreground/90'
-                    : 'border border-border/60 bg-muted/60 text-muted-foreground hover:bg-muted/60',
-              )}
-            >
-              <Sparkles className="mr-1.5 size-4" />
-              {isGenerating ? t('generating') : t('generateButton')}
-            </Button>
-          </div>
-        </aside>
+        {!isMobile && (
+          <aside className={styles.settings}>
+            {settingsFields}
+            {generateBar}
+          </aside>
+        )}
       </div>
 
+      {isMobile && (
+        <>
+          <div className={styles.mobileBar}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSettingsOpen(true)}
+              aria-expanded={settingsOpen}
+            >
+              <SlidersHorizontal className="size-4" />
+              {t('settingsTitle')}
+            </Button>
+            {generateBar}
+          </div>
+          <ResponsiveDialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+            <ResponsiveDialogContent
+              className="p-0"
+              mobileBodyClassName="flex min-h-0 flex-col p-0"
+              style={{ height: '85svh' }}
+            >
+              <ResponsiveDialogHeader className="shrink-0 border-b border-border px-5 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <ResponsiveDialogTitle>
+                    {t('settingsTitle')}
+                  </ResponsiveDialogTitle>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSettingsOpen(false)}
+                    aria-label={tCommon('close')}
+                  >
+                    <X className="size-4" />
+                  </Button>
+                </div>
+                <ResponsiveDialogDescription className="sr-only">
+                  {t('description')}
+                </ResponsiveDialogDescription>
+              </ResponsiveDialogHeader>
+              {settingsFields}
+              {generateBar}
+            </ResponsiveDialogContent>
+          </ResponsiveDialog>
+        </>
+      )}
+      <ResponsiveDialog
+        open={modelPickerOpen}
+        onOpenChange={setModelPickerOpen}
+      >
+        <ResponsiveDialogContent className="sm:max-w-xl">
+          <ResponsiveDialogHeader>
+            <ResponsiveDialogTitle>
+              {t('changeModelButton')}
+            </ResponsiveDialogTitle>
+            <ResponsiveDialogDescription className="sr-only">
+              {t('settingsTitle')}
+            </ResponsiveDialogDescription>
+          </ResponsiveDialogHeader>
+          <MainModelPicker
+            modality="model_3d"
+            inline
+            value={`workspace:${selectedModelId}`}
+            onChange={(option) => {
+              setSelectedModelId(option.modelId)
+              setModelPickerOpen(false)
+            }}
+            onRequestSetup={() => {
+              setModelPickerOpen(false)
+              setQuickSetupOpen(true)
+            }}
+            searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+            emptySearchText={tForm('modelSelector.emptySearch')}
+          />
+        </ResponsiveDialogContent>
+      </ResponsiveDialog>
       <AssetSelectorDialog
         open={pickerOpen}
         onOpenChange={setPickerOpen}

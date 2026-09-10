@@ -20,6 +20,7 @@ interface ModelViewerProps {
   autoRotate?: boolean
   /** Allow user to orbit / zoom (default: true) */
   cameraControls?: boolean
+  cameraView?: { view: 'front' | 'side' | 'reset'; revision: number }
   /** Show AR button (default: true; iOS needs ios-src USDZ to actually launch AR) */
   ar?: boolean
   /** Optional iOS USDZ for AR Quick Look */

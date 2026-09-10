@@ -1,0 +1,241 @@
+.root {
+  display: flex;
+  height: calc(100svh - 5.75rem);
+  min-height: 0;
+  flex-direction: column;
+  padding: 0.75rem;
+  gap: 0.75rem;
+  background: var(--background);
+}
+.workspace {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  gap: 1rem;
+}
+.canvas {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: radial-gradient(
+    ellipse at 50% 60%,
+    var(--background),
+    var(--muted) 65%
+  );
+  padding: 1rem;
+}
+.settings {
+  order: -1;
+  display: flex;
+  width: 17.5rem;
+  flex: none;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: var(--card);
+}
+.stageHeader {
+  position: absolute;
+  inset: 1.25rem 1.25rem auto;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+  pointer-events: none;
+}
+.emptyStage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 4rem 1rem 6rem;
+  text-align: center;
+}
+.modelObject {
+  position: relative;
+  width: 165px;
+  height: 230px;
+  transform: rotate(-8deg);
+  filter: drop-shadow(
+    15px 25px 15px color-mix(in srgb, var(--foreground) 13%, transparent)
+  );
+  transition: transform 250ms ease;
+}
+.modelObject[data-view='front'] {
+  transform: rotate(0deg);
+}
+.modelObject[data-view='side'] {
+  transform: rotate(0deg) scaleX(0.65);
+}
+.modelHead,
+.modelBody {
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--foreground) 16%, var(--muted));
+  background: linear-gradient(
+    120deg,
+    var(--background),
+    color-mix(in srgb, var(--foreground) 25%, var(--muted))
+  );
+}
+.modelHead {
+  width: 80px;
+  height: 80px;
+  left: 42px;
+  border-radius: 45% 45% 40% 40%;
+}
+.modelBody {
+  top: 68px;
+  left: 30px;
+  width: 108px;
+  height: 120px;
+  border-radius: 45% 45% 20% 20%;
+}
+.modelBase {
+  position: absolute;
+  bottom: 20px;
+  width: 170px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(
+    var(--muted),
+    color-mix(in srgb, var(--foreground) 35%, var(--muted))
+  );
+}
+.viewTools {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.375rem;
+  transform: translateX(-50%);
+  border: 1px solid var(--border);
+  border-radius: 1.125rem;
+  background: color-mix(in srgb, var(--background) 80%, transparent);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--foreground) 6%, transparent);
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .modelObject {
+    transition: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .viewTools {
+    background: var(--background);
+    backdrop-filter: none;
+  }
+}
+.fields {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 1.25rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1.25rem;
+}
+.generateBar {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0.5rem;
+  border-top: 1px solid var(--border);
+  background: var(--card);
+  padding: 1rem 1.25rem;
+}
+.mobileBar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.75rem;
+  padding-bottom: var(--keyboard-safe-area-bottom, 0px);
+}
+.mobileBar > .generateBar {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  padding: 0;
+}
+@media (min-width: 1024px) {
+  .root {
+    height: 100svh;
+    padding: 1.25rem;
+  }
+}
+@media (pointer: coarse) {
+  .fields button {
+    min-height: 2.75rem;
+  }
+}
+.modelButton {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  background: var(--muted);
+  cursor: pointer;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.fieldSelect {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.625rem;
+  padding: 0.625rem 0.75rem;
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 0.875rem;
+}
+.referenceButton {
+  display: flex;
+  width: 100%;
+  min-height: 5.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px dashed var(--border);
+  border-radius: 0.625rem;
+  color: var(--muted-foreground);
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.modelButton:hover,
+.referenceButton:hover {
+  background: var(--accent);
+}
+.modelButton:focus-visible,
+.referenceButton:focus-visible,
+.fieldSelect:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 3px;
+}
+.advanced {
+  border-top: 1px solid var(--border);
+  padding-top: 0.75rem;
+}
+.fields label {
+  color: var(--foreground);
+  font-size: 0.75rem;
+  font-weight: 500;
+  letter-spacing: normal;
+}

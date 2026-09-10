@@ -15,6 +15,7 @@ interface ModelViewerInnerProps {
   alt?: string
   autoRotate?: boolean
   cameraControls?: boolean
+  cameraView?: { view: 'front' | 'side' | 'reset'; revision: number }
   ar?: boolean
   iosSrc?: string
   className?: string
@@ -64,6 +65,12 @@ declare module 'react' {
 // Shape of the methods we actually call on the element. Avoids pulling in
 // @google/model-viewer's full type ambient (which clashes with React 19).
 interface ModelViewerElement extends HTMLElement {
+  cameraOrbit: string
+  cameraTarget: string
+  fieldOfView: string
+  updateComplete: Promise<boolean>
+  resetTurntableRotation: (theta?: number) => void
+  jumpCameraToGoal: () => void
   toBlob: (opts?: {
     mimeType?: string
     qualityArgument?: number
@@ -77,6 +84,7 @@ export default function ModelViewerInner({
   alt,
   autoRotate = true,
   cameraControls = true,
+  cameraView,
   ar = true,
   iosSrc,
   className,
@@ -88,6 +96,28 @@ export default function ModelViewerInner({
   // Track whether we've already captured for this src so HMR / re-renders
   // don't trigger repeat uploads while staying on the same mesh.
   const capturedForRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    const el = ref.current as ModelViewerElement | null
+    if (!el || !cameraView) return
+    let cancelled = false
+    el.resetTurntableRotation(0)
+    el.cameraOrbit =
+      cameraView.view === 'side' ? '90deg 75deg 105%' : '0deg 75deg 105%'
+    el.cameraTarget = 'auto auto auto'
+    el.fieldOfView = 'auto'
+    void el.updateComplete.then(() => {
+      if (
+        !cancelled &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      ) {
+        el.jumpCameraToGoal()
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [cameraView, src])
 
   const capturePoster = useCallback(async () => {
     if (!onPosterCaptured) return

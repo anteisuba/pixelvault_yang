@@ -11,7 +11,11 @@
  * Esc / 点框外收起；进出走 `spring-expand`（ui-defaults §4.1：卡展开是「物体在
  * 原地长大」，线性缓动会读成面板切换）。
  *
- * 宽度由调用方给：文本 640 / 视频 720（`NODE_V4_CHROME.frameWidth`）。
+ * 宽度由调用方给：视频 720（`NODE_V4_CHROME.frameWidth.video`）。
+ *
+ * **两档形态**（`variant`）：`frame` = 上面那只画中框（视频卡）；`fullscreen` =
+ * 铺满视口的**全屏文档**（文本卡，spec §2，owner 2026-09-11）——同一层压暗、同一
+ * 条 Esc、同一个顶栏骨架，⛔ 不为文本卡另写一套浮层。全屏档忽略 `width`。
  *
  * ⚠ **自己 portal 到 `document.body`**：调用方是 ReactFlow 的节点元素（`transform`
  * 定位祖先），留在原地的话 `fixed` 压暗层会被那层 transform 关进卡里——真机
@@ -33,7 +37,12 @@ export interface NodeFrameProps {
   readonly title: string
   /** 顶栏名字与关闭之间的东西（文本节点的角色分段控件）。 */
   readonly titleExtra?: ReactNode
-  readonly width: number
+  /** 顶栏名字**之前**那颗（全屏文档的文件图标）。 */
+  readonly titleLeading?: ReactNode
+  /** 画中框宽；`fullscreen` 档忽略它。 */
+  readonly width?: number
+  /** 形态档（默认画中框）。 */
+  readonly variant?: 'frame' | 'fullscreen'
   readonly children: ReactNode
   /** 框底第一条：这类节点自己的生成行 / 读数行。 */
   readonly footer?: ReactNode
@@ -48,7 +57,9 @@ export function NodeFrame({
   onClose,
   title,
   titleExtra,
+  titleLeading,
   width,
+  variant = 'frame',
   children,
   footer,
   assistantBar,
@@ -70,13 +81,18 @@ export function NodeFrame({
 
   if (!open || typeof document === 'undefined') return null
 
+  const fullscreen = variant === 'fullscreen'
+
   return createPortal(
     <div
       data-node-chrome="frame-scrim"
       onPointerDown={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-background/55 p-10"
+      className={cn(
+        'fixed inset-0 z-50 flex items-start justify-center bg-background/55',
+        fullscreen ? 'p-0' : 'overflow-y-auto p-10',
+      )}
     >
       <div
         role="dialog"
@@ -88,13 +104,20 @@ export function NodeFrame({
         // 2026-09-10 owner 真机反馈第三、五条的同一个根因，在这里一次挡住。
         onDoubleClick={(event) => event.stopPropagation()}
         className={cn(
-          'flex max-w-full flex-col rounded-node corner-squircle border bg-card shadow-node-card-expanded',
+          'flex max-w-full flex-col border bg-card shadow-node-card-expanded',
+          fullscreen ? 'h-full w-full' : 'rounded-node corner-squircle',
           'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 duration-spring-expand ease-spring-expand',
           className,
         )}
-        style={{ width }}
+        style={fullscreen || width === undefined ? undefined : { width }}
       >
-        <div className="flex h-12 shrink-0 items-center gap-3 pr-2.5 pl-5">
+        <div
+          className={cn(
+            'flex h-12 shrink-0 items-center gap-3 pr-2.5 pl-5',
+            fullscreen && 'h-11 border-b pr-2 pl-4',
+          )}
+        >
+          {titleLeading}
           <h2 className="min-w-0 flex-1 truncate text-2sm font-semibold tracking-node-title">
             {title}
           </h2>
@@ -109,7 +132,14 @@ export function NodeFrame({
             <X aria-hidden className="size-4" />
           </button>
         </div>
-        <div className="min-h-0 flex-1 px-8 pb-5">{children}</div>
+        <div
+          className={cn(
+            'min-h-0 flex-1',
+            fullscreen ? 'flex flex-col overflow-hidden' : 'px-8 pb-5',
+          )}
+        >
+          {children}
+        </div>
         {footer && <div className="shrink-0 px-5 pb-2.5">{footer}</div>}
         {assistantBar && (
           <div className="shrink-0 px-3 pb-3">{assistantBar}</div>

@@ -61,6 +61,15 @@ export interface NodeCardShellProps {
   /** 空态卡的高度（图片 16:9、视频 16:9、文本按行数——由调用方定）。 */
   readonly emptyHeight?: number
   /**
+   * **有内容**时的卡面固定高（文本卡的高文本框，spec §2）。给了就由卡面兜住高度、
+   * 内容自己在里面滚。⛔ 其余三类卡不给 —— 它们的高由内容（图 / 波形 / 封面）定。
+   */
+  readonly surfaceHeight?: number
+  /** 名字行最左那颗标记（文本卡的「T」字形）。 */
+  readonly nameLeading?: ReactNode
+  /** 名字行最右那颗（文本卡的归属 / 子型标签图标）。 */
+  readonly nameTrailing?: ReactNode
+  /**
    * 左右两侧的端口点：默认由 `NodePorts` 渲染（一入一出，spec §1.13）。
    * ⛔ 调用方不要再自己复制一份 `Handle`。
    */
@@ -87,6 +96,9 @@ export function NodeCardShell({
   onEmptyAdd,
   emptyAddAriaLabel,
   emptyHeight,
+  surfaceHeight,
+  nameLeading,
+  nameTrailing,
   portSpec,
   ports,
   className,
@@ -114,6 +126,7 @@ export function NodeCardShell({
       style={width === undefined ? undefined : { width }}
     >
       <div className="flex min-w-0 items-center gap-1">
+        {nameLeading}
         <NodeV4EditableLabel
           value={name}
           {...(editName === undefined ? {} : { editValue: editName })}
@@ -137,6 +150,7 @@ export function NodeCardShell({
             className="size-1.5 shrink-0 rounded-full bg-primary"
           />
         )}
+        {nameTrailing}
       </div>
       <div className="relative">
         <div
@@ -160,9 +174,13 @@ export function NodeCardShell({
             surfaceClassName,
           )}
           style={
-            empty && emptyHeight !== undefined
-              ? { height: emptyHeight }
-              : undefined
+            empty
+              ? emptyHeight === undefined
+                ? undefined
+                : { height: emptyHeight }
+              : surfaceHeight === undefined
+                ? undefined
+                : { height: surfaceHeight }
           }
         >
           {empty ? (

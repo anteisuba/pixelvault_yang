@@ -815,6 +815,11 @@ export const NODE_ASSISTANT_SETTABLE_FIELDS = [
   'ownerName',
   /** 文本节点连进 `text` 槽时的**缺省**角色（C1 契约修正 2）。单条边上的角色以边为准。 */
   'defaultRole',
+  /**
+   * 文本卡被拖成多高（spec §2）。⚠ 它进这张词表**只是为了走同一条撤销栈**——
+   * 拖高是一次可撤销的编辑，自己另开一条写状态的暗路才是错的。
+   */
+  'cardHeight',
   'sourceRef',
   'blocked',
   'note',

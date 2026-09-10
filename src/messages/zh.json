@@ -5667,32 +5667,23 @@
       },
       "text": {
         "empty": "继续写……",
-        "readout": "{chars} 字 · {paragraphs} 段",
         "editAriaLabel": "编辑正文",
         "roles": {
           "script": "剧本",
           "style": "风格",
           "character": "角色"
         },
-        "shortcuts": {
-          "edit": "⌘E 编辑",
-          "generate": "⌘↵ 生图",
-          "collapse": "Esc 收起"
-        },
         "toolbar": {
           "ariaLabel": "文本节点动作",
-          "mention": "@ 提及",
           "shotImage": "生图",
           "video": "生镜头",
           "more": "更多",
-          "rename": "改名",
-          "clone": "复制",
           "split": "拆成多段",
-          "delete": "删除",
-          "connect": "连到镜头",
           "renameNode": "重命名这段文本",
           "cloneNode": "复制这张文本卡",
-          "deleteNode": "删除这段文本"
+          "deleteNode": "删除这段文本",
+          "expand": "展开",
+          "download": "下载"
         },
         "assist": {
           "placeholder": "让助手写一段……",
@@ -5700,6 +5691,35 @@
           "continue": "续写",
           "rewrite": "改写",
           "model": "写作模型"
+        },
+        "card": {
+          "resize": "拖动改变卡片高度"
+        },
+        "tag": {
+          "title": "归属与子型",
+          "subtype": "子型",
+          "role": "归属"
+        },
+        "subtypes": {
+          "script": "剧本",
+          "shotNote": "镜头说明",
+          "rule": "规则"
+        },
+        "doc": {
+          "title": "{name}.md",
+          "formatAriaLabel": "格式",
+          "heading": "标题级",
+          "h1": "标题 1",
+          "h2": "标题 2",
+          "h3": "标题 3",
+          "bulleted": "无序列表",
+          "numbered": "有序列表",
+          "bold": "加粗",
+          "strike": "删除线",
+          "italic": "斜体",
+          "underline": "下划线",
+          "mentionAriaLabel": "引用候选",
+          "mentionEmpty": "没有可引用的卡"
         }
       },
       "image": {

@@ -5667,32 +5667,23 @@
       },
       "text": {
         "empty": "続きを書く……",
-        "readout": "{chars} 文字 · {paragraphs} 段落",
         "editAriaLabel": "本文を編集",
         "roles": {
           "script": "脚本",
           "style": "スタイル",
           "character": "キャラクター"
         },
-        "shortcuts": {
-          "edit": "⌘E 編集",
-          "generate": "⌘↵ 画像",
-          "collapse": "Esc 折りたたむ"
-        },
         "toolbar": {
           "ariaLabel": "テキストノードの操作",
-          "mention": "@ メンション",
           "shotImage": "画像を作る",
           "video": "カットを作る",
           "more": "その他",
-          "rename": "名前を変更",
-          "clone": "複製",
           "split": "段落ごとに分割",
-          "delete": "削除",
-          "connect": "ショットに接続",
           "renameNode": "このテキストの名前を変更",
           "cloneNode": "このテキストカードを複製",
-          "deleteNode": "このテキストを削除"
+          "deleteNode": "このテキストを削除",
+          "expand": "展開",
+          "download": "ダウンロード"
         },
         "assist": {
           "placeholder": "アシスタントに書いてもらう……",
@@ -5700,6 +5691,35 @@
           "continue": "続きを書く",
           "rewrite": "書き直す",
           "model": "執筆モデル"
+        },
+        "card": {
+          "resize": "ドラッグして高さを変更"
+        },
+        "tag": {
+          "title": "種別と役割",
+          "subtype": "種別",
+          "role": "役割"
+        },
+        "subtypes": {
+          "script": "脚本",
+          "shotNote": "カット説明",
+          "rule": "ルール"
+        },
+        "doc": {
+          "title": "{name}.md",
+          "formatAriaLabel": "書式",
+          "heading": "見出しレベル",
+          "h1": "見出し 1",
+          "h2": "見出し 2",
+          "h3": "見出し 3",
+          "bulleted": "箇条書き",
+          "numbered": "番号付きリスト",
+          "bold": "太字",
+          "strike": "取り消し線",
+          "italic": "斜体",
+          "underline": "下線",
+          "mentionAriaLabel": "引用候補",
+          "mentionEmpty": "引用できるカードがありません"
         }
       },
       "image": {

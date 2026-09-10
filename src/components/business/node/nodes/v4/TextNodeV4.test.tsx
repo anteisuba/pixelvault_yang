@@ -3,7 +3,8 @@ import type { ReactNode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}:${Object.values(values).join(',')}` : key,
 }))
 
 vi.mock('@xyflow/react', () => ({
@@ -35,8 +36,7 @@ vi.mock(
 /**
  * 本组测试断言的是**本片的接线**（哪一键接哪个回调），所以把工具条那层壳桩掉：
  * 玻璃胶囊 / tooltip / 子菜单是 `chrome/NodeToolbar` 自己的事，回归闸在
- * `chrome/NodeToolbar.test.tsx`（其中就有「点一下必须真的调 onSelect」那条——
- * 那个覆盖 bug 已于 2026-09-10 修）。
+ * `chrome/NodeToolbar.test.tsx`。
  */
 vi.mock('./chrome/NodeToolbar', () => ({
   NodeToolbar: ({
@@ -62,13 +62,60 @@ vi.mock('./chrome/NodeToolbar', () => ({
             data-has-panel={action.panel ? 'true' : undefined}
             onClick={action.onSelect}
           />
-          {/* 面板（`panel`）在真壳里是 Popover 的内容——桩里常驻渲染，
-              本组测试要断言的是「哪一键接哪份内容」。 */}
+          {/* 子菜单 / 面板在真壳里要点开才有；桩里常驻渲染，本组要断言的是
+              「哪一键接哪份内容」。 */}
+          {action.menu}
           {action.panel}
         </div>
       ))}
     </div>
   ),
+}))
+
+/**
+ * ⋯ 菜单的项在真壳里长在 Radix 的 `Menu` 上下文里；本组要断言的是「⋯ 里有哪几项、
+ * 各接哪个回调」，所以把菜单原语换成裸按钮。⛔ 不为此在被测组件里加测试专用分支。
+ */
+vi.mock('@/components/ui/dropdown-menu', () => ({
+  DropdownMenu: ({ children }: { children: ReactNode }) => <>{children}</>,
+  DropdownMenuTrigger: ({ children }: { children: ReactNode }) => (
+    <>{children}</>
+  ),
+  DropdownMenuContent: ({ children }: { children: ReactNode }) => (
+    <>{children}</>
+  ),
+  DropdownMenuSeparator: () => null,
+  DropdownMenuItem: ({
+    children,
+    onSelect,
+    disabled,
+    variant,
+    ...attrs
+  }: {
+    children: ReactNode
+    onSelect?: () => void
+    disabled?: boolean
+    /** 真壳的 `variant="destructive"` 不是 DOM 属性，桩里丢掉。 */
+    variant?: string
+  }) => (
+    <button
+      type="button"
+      disabled={disabled}
+      data-variant={variant}
+      onClick={onSelect}
+      {...attrs}
+    >
+      {children}
+    </button>
+  ),
+}))
+
+/**
+ * 「拆成多段」自带一条动作总线依赖（`useNodeCanvasActions`），真壳里它**只在菜单
+ * 真的打开时**才挂载；桩工具条把菜单常驻渲染，所以这里把这一项换成裸按钮。
+ */
+vi.mock('./text/TextSplitMenuItem', () => ({
+  TextSplitMenuItem: () => <button type="button" data-menu-action="split" />,
 }))
 
 vi.mock('@/hooks/use-llm-route-picker', () => ({
@@ -80,6 +127,7 @@ vi.mock('@/hooks/use-llm-route-picker', () => ({
   }),
 }))
 
+import { NODE_V4_CARD } from '@/constants/node-studio'
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
@@ -109,12 +157,17 @@ function node(
   }
 }
 
-function scene(): NodeWorkflowStateV4 {
+function scene(textData: { cardHeight?: number } = {}): NodeWorkflowStateV4 {
   return reconcileStateSlots(
     {
       version: 4,
       nodes: [
-        node('t_02', { kind: 'text', subtype: 'shotNote', body: BODY }),
+        node('t_02', {
+          kind: 'text',
+          subtype: 'shotNote',
+          body: BODY,
+          ...textData,
+        }),
         node('莫宁', {
           kind: 'image',
           subtype: 'character',
@@ -178,24 +231,75 @@ beforeEach(() => {
   takeCanvasTextAssist()
 })
 
-describe('S2 文本节点 · 收起态', () => {
-  it('卡就是正文：15px 六行截断、不可编辑，⛔ 卡面上没有卡头', () => {
+describe('S2b 文本节点 · 收起态 = 高文本框', () => {
+  it('卡面固定高（默认 480）、正文在卡内滚，⛔ 不再六行截断', () => {
     const { container } = renderText(harness(scene()))
-    const body = container.querySelector('[data-text-collapsed] p')!
-    expect(body.className).toContain('line-clamp-6')
-    expect(body.className).toContain('text-md')
-    expect(body.textContent).toContain('夜色里的车站站台空无一人。')
-    expect(container.querySelector('.node-v4-head')).toBeNull()
-    expect(container.querySelector('[contenteditable]')).toBeNull()
+    const surface = container.querySelector<HTMLElement>(
+      '[data-node-card-surface]',
+    )!
+    expect(surface.style.height).toBe(`${NODE_V4_CARD.textCollapsedHeight}px`)
+    const scroll = container.querySelector<HTMLElement>('[data-text-scroll]')!
+    expect(scroll.className).toContain('overflow-y-auto')
+    expect(scroll.className).toContain('nowheel')
+    expect(container.querySelector('.line-clamp-6')).toBeNull()
+    expect(container.querySelector('[data-text-fade]')).not.toBeNull()
+    expect(scroll.textContent).toContain('夜色里的车站站台空无一人。')
   })
 
-  it('名字在卡外上方（`NodeCardShell` 的改名触发器），⛔ 不在卡面里', () => {
+  it('卡上存过的高优先于默认高', () => {
+    const { container } = renderText(harness(scene({ cardHeight: 240 })))
+    expect(
+      container.querySelector<HTMLElement>('[data-node-card-surface]')!.style
+        .height,
+    ).toBe('240px')
+  })
+
+  it('名字行 = 左「T」+ 名字 + 右侧标签图标（名字仍在卡外）', () => {
     const { container } = renderText(harness(scene()))
+    expect(container.querySelector('[data-text-mark]')?.textContent).toBe('T')
+    const tag = container.querySelector('[data-text-tag-chip]')!
     const label = container.querySelector('[data-node-rename-trigger]')!
     expect(label.textContent).toContain('t_02')
-    expect(
-      container.querySelector('[data-node-card-surface]')!.contains(label),
-    ).toBe(false)
+    const surface = container.querySelector('[data-node-card-surface]')!
+    expect(surface.contains(label)).toBe(false)
+    expect(surface.contains(tag)).toBe(false)
+  })
+
+  it('拖右下角手柄改高：跟手预览 + 松手落一条 op（`dispatchBatch` 一条撤销）', () => {
+    const state = scene()
+    const context = harness(state)
+    const { container } = renderText(context)
+    const grip = container.querySelector('[data-text-resize]')!
+    const surface = container.querySelector<HTMLElement>(
+      '[data-node-card-surface]',
+    )!
+
+    fireEvent.pointerDown(grip, { clientY: 100, pointerId: 1 })
+    fireEvent.pointerMove(grip, { clientY: 160, pointerId: 1 })
+    expect(surface.style.height).toBe('540px')
+    expect(context.onApplyBatch).not.toHaveBeenCalled()
+
+    fireEvent.pointerUp(grip, { clientY: 160, pointerId: 1 })
+    expect(context.onApplyBatch).toHaveBeenCalledTimes(1)
+    expect(context.onApplyBatch).toHaveBeenCalledWith([
+      { op: 'set_field', target: 't_02', field: 'cardHeight', value: 540 },
+    ])
+  })
+
+  it('拖到上下限之外一律钳制', () => {
+    const context = harness(scene())
+    const { container } = renderText(context)
+    const grip = container.querySelector('[data-text-resize]')!
+    fireEvent.pointerDown(grip, { clientY: 0, pointerId: 1 })
+    fireEvent.pointerUp(grip, { clientY: -9999, pointerId: 1 })
+    expect(context.onApplyBatch).toHaveBeenCalledWith([
+      {
+        op: 'set_field',
+        target: 't_02',
+        field: 'cardHeight',
+        value: NODE_V4_CARD.textMinHeight,
+      },
+    ])
   })
 
   it('未选中时工具条与助手栏都不出', () => {
@@ -205,43 +309,47 @@ describe('S2 文本节点 · 收起态', () => {
   })
 })
 
-describe('S2 文本节点 · 选中态', () => {
+describe('S2b 文本节点 · 选中态', () => {
   function selected(overrides: Partial<NodeV4CanvasContextValue> = {}) {
     const state = scene()
     const context = harness(state, { selectedNodeIds: ['t_02'], ...overrides })
     return { context, ...renderText(context, true) }
   }
 
-  it('工具条 = @ 提及 · 生图 · 生镜头 · ⋯，助手栏居中在卡下', () => {
+  it('工具条 = 展开 · 下载 · ⋯，助手栏居中在卡下', () => {
     const { container } = selected()
     expect(
       [...container.querySelectorAll('[data-toolbar-action]')].map((element) =>
         element.getAttribute('data-toolbar-action'),
       ),
-    ).toEqual(['mention', 'shotImage', 'video', 'more'])
+    ).toEqual(['expand', 'download', 'more'])
     const bar = container.querySelector('[data-text-assistant-bar]')!
     expect(bar.className).toContain('-translate-x-1/2')
+  })
+
+  it('⋯ = 改名 / 复制 / 拆成多段 / 生图 / 生镜头 / 删除', () => {
+    const { container } = selected()
+    expect(
+      [...container.querySelectorAll('[data-menu-action]')].map((element) =>
+        element.getAttribute('data-menu-action'),
+      ),
+    ).toEqual(['rename', 'clone', 'split', 'shotImage', 'shot', 'delete'])
+  })
+
+  it('展开走画布的展开态；生图 / 生镜头把动作交给画布', () => {
+    const { context, container } = selected()
+    fireEvent.click(container.querySelector('[data-toolbar-action="expand"]')!)
+    expect(context.onToggleExpanded).toHaveBeenCalledWith('t_02')
+    fireEvent.click(container.querySelector('[data-menu-action="shotImage"]')!)
+    expect(context.onDeriveFromText).toHaveBeenCalledWith('t_02', 'shotImage')
+    fireEvent.click(container.querySelector('[data-menu-action="shot"]')!)
+    expect(context.onDeriveFromText).toHaveBeenCalledWith('t_02', 'video')
   })
 
   it('多选时两条浮层都收起来', () => {
     const { container } = selected({ selectedNodeIds: ['t_02', '莫宁'] })
     expect(screen.queryByTestId('node-toolbar')).toBeNull()
     expect(container.querySelector('[data-text-assistant-bar]')).toBeNull()
-  })
-
-  it('生图 / 生镜头 把动作交给画布，@ 提及 打开画中框', () => {
-    const { context, container } = selected()
-    fireEvent.click(
-      container.querySelector('[data-toolbar-action="shotImage"]')!,
-    )
-    expect(context.onDeriveFromText).toHaveBeenCalledWith('t_02', 'shotImage')
-    // 「生镜头」改成「连到镜头」弹层（spec §1.13）：顶行「新建镜头」才是原来
-    // 那条派生。
-    fireEvent.click(container.querySelector('[data-toolbar-action="video"]')!)
-    fireEvent.click(document.querySelector('[data-connect-to-shot-new]')!)
-    expect(context.onDeriveFromText).toHaveBeenCalledWith('t_02', 'video')
-    fireEvent.click(container.querySelector('[data-toolbar-action="mention"]')!)
-    expect(context.onToggleExpanded).toHaveBeenCalledWith('t_02')
   })
 
   it('助手栏：动作 chip 可开可关，发送投一张便条（⛔ 不另起 LLM 调用）', () => {
@@ -265,55 +373,73 @@ describe('S2 文本节点 · 选中态', () => {
   })
 })
 
-describe('S2 文本节点 · 画中框', () => {
+describe('S2b 文本节点 · 展开 = 全屏文档', () => {
   function expanded(overrides: Partial<NodeV4CanvasContextValue> = {}) {
     const state = scene()
     const context = harness(state, { expandedNodeId: 't_02', ...overrides })
     return { context, ...renderText(context, true) }
   }
 
-  it('640 宽、顶栏有角色分段、@ 引用渲染成胶囊', () => {
+  it('铺满视口（⛔ 不是 640 画中框），顶栏是 `名字.md` + 下载', () => {
     expanded()
-    const frame = document.querySelector(
+    const frame = document.querySelector<HTMLElement>(
       '[data-node-chrome="frame"]',
-    ) as HTMLElement | null
-    expect(frame?.style.width).toBe('640px')
-    expect(
-      [...document.querySelectorAll('[data-text-role-option]')].map((element) =>
-        element.getAttribute('data-text-role-option'),
-      ),
-    ).toEqual(['script', 'style', 'character'])
-    expect(document.querySelector('[data-mention-chip]')?.textContent).toBe(
-      '@莫宁',
-    )
+    )!
+    expect(frame.style.width).toBe('')
+    expect(frame.className).toContain('h-full')
+    expect(screen.getByRole('heading').textContent).toBe('doc.title:t_02')
+    expect(document.querySelector('[data-text-doc-download]')).not.toBeNull()
   })
 
-  it('角色分段写 `defaultRole`，关闭走收起', () => {
+  it('正文可编辑，失焦即存（`set_text`）', () => {
     const { context } = expanded()
-    fireEvent.click(document.querySelector('[data-text-role-option="style"]')!)
-    expect(context.onApplyOp).toHaveBeenCalledWith({
-      op: 'set_field',
-      target: 't_02',
-      field: 'defaultRole',
-      value: 'style',
-    })
+    const editor = document.querySelector<HTMLTextAreaElement>(
+      '[data-text-doc-input]',
+    )!
+    expect(editor.value).toBe(BODY)
+    fireEvent.change(editor, { target: { value: '改过的正文' } })
+    fireEvent.blur(editor)
+    expect(context.onEditText).toHaveBeenCalledWith('t_02', '改过的正文')
+  })
+
+  it('格式工具条只往正文插 Markdown 语法（⛔ 不引入富文本存储）', () => {
+    expanded()
+    const editor = document.querySelector<HTMLTextAreaElement>(
+      '[data-text-doc-input]',
+    )!
+    editor.setSelectionRange(0, 2)
+    fireEvent.select(editor)
+    fireEvent.click(document.querySelector('[data-text-format="bold"]')!)
+    expect(editor.value.startsWith('**夜色**')).toBe(true)
+
+    fireEvent.click(document.querySelector('[data-text-format="bulleted"]')!)
+    expect(editor.value.startsWith('- **夜色**')).toBe(true)
+  })
+
+  it('关闭前把草稿存下来，再收起', () => {
+    const { context } = expanded()
+    const editor = document.querySelector<HTMLTextAreaElement>(
+      '[data-text-doc-input]',
+    )!
+    fireEvent.change(editor, { target: { value: '收起前改的' } })
     fireEvent.click(document.querySelector('[data-node-frame-close]')!)
+    expect(context.onEditText).toHaveBeenCalledWith('t_02', '收起前改的')
     expect(context.onToggleExpanded).toHaveBeenCalledWith('t_02')
   })
 
-  it('读数是「N 字 · M 段」，框底带三条快捷键', () => {
+  it('`@` 弹层复用 `MentionPicker`：文本节点粘原文、素材插 `@名字`', () => {
     expanded()
-    expect(document.querySelector('[data-text-readout]')).not.toBeNull()
-    expect(document.querySelectorAll('kbd')).toHaveLength(3)
-  })
-
-  it('双击正文进编辑、失焦即存（`set_text`）', () => {
-    const { context } = expanded()
-    fireEvent.doubleClick(document.querySelector('[data-text-preview]')!)
-    const editor = screen.getByLabelText('editAriaLabel')
-    editor.textContent = '改过的正文'
-    fireEvent.input(editor)
-    fireEvent.focusOut(editor)
-    expect(context.onEditText).toHaveBeenCalledWith('t_02', '改过的正文')
+    const editor = document.querySelector<HTMLTextAreaElement>(
+      '[data-text-doc-input]',
+    )!
+    fireEvent.change(editor, { target: { value: '开场 @' } })
+    editor.setSelectionRange(4, 4)
+    fireEvent.keyUp(editor)
+    const picker = document.querySelector('[data-node-chrome="mention-picker"]')
+    expect(picker).not.toBeNull()
+    fireEvent.pointerDown(
+      document.querySelector('[data-mention-option="莫宁"]')!,
+    )
+    expect(editor.value).toContain('@莫宁')
   })
 })

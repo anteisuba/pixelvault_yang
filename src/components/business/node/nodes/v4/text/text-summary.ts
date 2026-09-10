@@ -1,25 +1,10 @@
 /**
- * 文本节点的读数（spec §2「框底 读数「N 字 · M 段」」）——**纯函数，无 React**。
+ * 文本节点的**分段算术**——**纯函数，无 React**。
  *
- * 字数不数空白（中日文正文里空白是排版不是内容），段数按空行切块。
+ * ⚠ 「N 字 · M 段」的读数随 640 画中框一起退役（owner 2026-09-11 全屏文档定稿，
+ * spec §2）：全屏文档的顶栏只有 文件图标 · 名字.md · 下载 · ×，没有读数那一行。
+ * 留下的只有「拆成多段」要的这一条。
  */
-
-export interface TextSummary {
-  /** 第一行非空文字，去掉 Markdown 标题号——收起卡的兜底名字。 */
-  readonly title: string
-  readonly chars: number
-  readonly paragraphs: number
-}
-
-export function summarizeTextBody(body: string): TextSummary {
-  const title = (body.split('\n').find((line) => line.trim().length > 0) ?? '')
-    .replace(/^#+\s*/, '')
-    .trim()
-  const paragraphs = body
-    .split(/\n{2,}/)
-    .filter((block) => block.trim().length > 0).length
-  return { title, chars: body.replace(/\s/g, '').length, paragraphs }
-}
 
 /**
  * 「拆成多段」的切法：按空行切块并去掉空块。⚠ 只有 ≥2 段才值得拆——

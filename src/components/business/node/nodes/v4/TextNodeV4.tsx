@@ -1,16 +1,19 @@
 'use client'
 
 /**
- * 文本节点（`node-canvas-v2.md` §2，画板 `Main.dc.html` / `Expanded.dc.html` /
- * `TextBarModel.dc.html`）。
+ * 文本节点（`node-canvas-v2.md` §2，画板 `TextJimeng.dc.html` **方向 A**，
+ * owner 2026-09-11 定稿）。
  *
  * 三态都摆在这里，卡内件在 `./text/`：
- * ① **收起** = 卡就是正文（15px / 1.6、六行截断、不可编辑），名字在卡外上方；
- * ② **选中** = 工具条居中悬卡上 + 助手栏居中在卡下（⛔ 多选时两条都不出）；
- * ③ **展开** = 画中框 640（顶栏角色分段 / Markdown 正文可 @ / 读数 + 快捷键 / 助手栏）。
+ * ① **收起** = 一只**高文本框**（320 宽 / 默认 480 高、卡内滚动 + 底部渐隐 +
+ *    右下角拖高），名字行 = 「T」+ 名字 + 归属/子型标签图标；
+ * ② **选中** = 工具条 `展开 · 下载 · ⋯` 居中悬卡上 + 助手栏居中在卡下
+ *    （⛔ 多选时两条都不出）；
+ * ③ **展开** = **全屏文档**（`text/TextDocOverlay`）。
  *
  * ⛔ 卡面上没有卡头、没有分段控件、没有派生按钮行 —— 那是 v3 旧骨架的形状，
- * 它已在 S11 删除，⛔ 不要复活。
+ * 它已在 S11 删除，⛔ 不要复活。⛔ 也不要把六行截断与 640 画中框改回来：
+ * 「长文不展开也能读」正是这一版的全部理由。
  */
 
 import type { NodeProps } from '@xyflow/react'
@@ -22,29 +25,19 @@ import type { NodeSlotTextRole } from '@/constants/node-slots'
 import { NODE_V4_CARD } from '@/constants/node-studio'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { renameStableNodeName } from '@/lib/node-display-name'
-import type { MentionChipMedia } from './chrome'
+import type { MentionChipMedia, MentionPickerOption } from './chrome'
 import type { NodeV4, NodeV4TextData } from '@/types/node-workflow'
 
-import {
-  ConnectToShotPopover,
-  NodeCardShell,
-  portSpecOf,
-  flashNodeCard,
-  useNodeCardFlash,
-} from './chrome'
-import {
-  buildConnectToShotOps,
-  buildConnectToShotTargets,
-} from './connect-to-shot-targets'
+import { NodeCardShell, portSpecOf, useNodeCardFlash } from './chrome'
 import { useNodeV4Canvas } from './NodeV4Context'
-import { buildMentionCandidates, buildMentionTokens } from './NodeV4Mentions'
+import { buildMentionCandidates } from './NodeV4Mentions'
 import { TextAssistantBar } from './text/TextAssistantBar'
-import { TextNodeFrame } from './text/TextNodeFrame'
+import { TextCardBody } from './text/TextCardBody'
+import { TextDocOverlay } from './text/TextDocOverlay'
 import { TextNodeToolbar } from './text/TextNodeToolbar'
 import { TextSplitMenuItem } from './text/TextSplitMenuItem'
-import { summarizeTextBody } from './text/text-summary'
-
-export { summarizeTextBody }
+import { TextTagChip } from './text/TextTagChip'
+import { downloadTextNodeBody } from './text/text-download'
 
 export function TextNodeV4({ id, data, selected }: NodeProps) {
   const t = useTranslations('StudioNode.v4')
@@ -53,21 +46,12 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
   const textData = data as unknown as NodeV4TextData
   /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
   const flashed = useNodeCardFlash(id)
-  /** 「连到镜头」列表 = 画布上的视频卡，按镜头带顺序。 */
-  const shotTargets = buildConnectToShotTargets({
-    nodes: canvas.nodes,
-    edges: canvas.edges,
-    formatDuration: (seconds) => `${Math.round(seconds)}s`,
-  })
   const node = canvas.nodes.find((item) => item.id === id) as NodeV4 | undefined
-  const [autoMention, setAutoMention] = useState(false)
   // ⋯ 菜单的「改名」走 `NodeCardShell` 的受控入口（每 +1 进一次编辑态）。
   const [renameRequest, setRenameRequest] = useState(0)
+  /** 拖拽中的临时高（松手写进节点数据，见 `commitHeight`）。 */
+  const [dragHeight, setDragHeight] = useState<number | null>(null)
 
-  const tokens = useMemo(
-    () => buildMentionTokens(canvas.nodes, id),
-    [canvas.nodes, id],
-  )
   const candidates = useMemo(
     () =>
       buildMentionCandidates(canvas.nodes, id, (item) =>
@@ -91,6 +75,19 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
     }
     return (name: string) => byName.get(name)
   }, [canvas.nodes])
+  const mentionOptions = useMemo<MentionPickerOption[]>(
+    () =>
+      candidates.map((candidate) => {
+        const media = mediaOf(candidate.name)
+        return {
+          id: candidate.id,
+          name: candidate.name,
+          groupLabel: candidate.groupLabel ?? '',
+          ...(media ? { media } : {}),
+        }
+      }),
+    [candidates, mediaOf],
+  )
 
   if (!node) return null
 
@@ -98,6 +95,8 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
   // 多选时两条浮层都收起来 —— 每张卡各弹一条是 v3 被抓到的老毛病
   // （判据与 `NodeV4SelectionToolbar` 同源）。
   const soloSelected = Boolean(selected) && canvas.selectedNodeIds.length <= 1
+  const cardHeight =
+    dragHeight ?? textData.cardHeight ?? NODE_V4_CARD.textCollapsedHeight
 
   const renameNode = (next: string): boolean => {
     const taken = new Set(
@@ -116,39 +115,30 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
     return true
   }
 
+  /**
+   * 拖高落值：**一条 op 一批**（`onApplyBatch`）—— 拖一次 = 撤销栈上一条，
+   * ⛔ 不在拖拽的每一帧发 op（那会把撤销栈灌成一串没人看得懂的 1px 变化）。
+   */
+  const commitHeight = (next: number) => {
+    setDragHeight(null)
+    void canvas.onApplyBatch([
+      {
+        op: NODE_ASSISTANT_OP_V4_IDS.setField,
+        target: id,
+        field: 'cardHeight',
+        value: next,
+      },
+    ])
+  }
+
   return (
     <div className="relative">
       <TextNodeToolbar
         visible={soloSelected && !expanded}
-        onMention={() => {
-          setAutoMention(true)
-          if (!expanded) canvas.onToggleExpanded(id)
-        }}
+        onExpand={() => canvas.onToggleExpanded(id)}
+        onDownload={() => downloadTextNodeBody(textData.name, textData.body)}
         onDeriveShotImage={() => canvas.onDeriveFromText(id, 'shotImage')}
-        connectPanel={
-          <ConnectToShotPopover
-            sourceNodeId={id}
-            sourceKind={NODE_MEDIA_KIND_IDS.text}
-            targets={shotTargets}
-            // 顶行「新建镜头」= 原来那条派生（建镜头 + 连成镜头说明）。
-            onNew={() => canvas.onDeriveFromText(id, 'video')}
-            onConnect={(targetId, slot) => {
-              void Promise.resolve(
-                canvas.onApplyBatch(
-                  buildConnectToShotOps({
-                    sourceId: id,
-                    targetId,
-                    slot,
-                    edges: canvas.edges,
-                  }),
-                ),
-              ).then(() => {
-                canvas.onFocusNode(targetId)
-                flashNodeCard(targetId)
-              })
-            }}
-          />
-        }
+        onDeriveShot={() => canvas.onDeriveFromText(id, 'video')}
         onRename={() => setRenameRequest((count) => count + 1)}
         onClone={() =>
           void canvas.onApplyOp({
@@ -178,17 +168,45 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         expanded={expanded}
         changed={canvas.changedNodeIds.includes(id) || flashed}
         width={NODE_V4_CARD.textCollapsedWidth}
+        surfaceHeight={cardHeight}
+        surfaceClassName="overflow-hidden"
         portSpec={portSpecOf(node)}
+        nameLeading={
+          <span
+            aria-hidden
+            data-text-mark
+            className="shrink-0 px-0.5 text-xs font-semibold"
+          >
+            T
+          </span>
+        }
+        nameTrailing={
+          <TextTagChip
+            subtype={textData.subtype}
+            role={textData.defaultRole as NodeSlotTextRole | undefined}
+            onRoleChange={(role) =>
+              void canvas.onApplyOp({
+                op: NODE_ASSISTANT_OP_V4_IDS.setField,
+                target: id,
+                field: 'defaultRole',
+                value: role,
+              })
+            }
+          />
+        }
       >
-        {/* 收起卡 = 正文本身：15px / 1.6、六行截断 + 省略号，⛔ 不可编辑。 */}
         <div
-          data-text-collapsed
+          className="h-full"
           onDoubleClick={() => canvas.onToggleExpanded(id)}
-          className="px-5 py-4.5"
         >
-          <p className="line-clamp-6 text-md leading-relaxed tracking-node-body">
-            {textData.body.trim() || tText('empty')}
-          </p>
+          <TextCardBody
+            body={textData.body}
+            emptyLabel={tText('empty')}
+            height={cardHeight}
+            onHeightPreview={setDragHeight}
+            onHeightCommit={commitHeight}
+            resizeAriaLabel={tText('card.resize')}
+          />
         </div>
       </NodeCardShell>
 
@@ -201,41 +219,26 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         </div>
       )}
 
-      {/* 画中框自己 portal 到 body（`chrome/NodeFrame`），这里只管开合。 */}
+      {/* 全屏文档自己 portal 到 body（`chrome/NodeFrame`），这里只管开合。 */}
       {expanded && (
-        <TextNodeFrame
+        <TextDocOverlay
           open={expanded}
-          onClose={() => {
-            setAutoMention(false)
-            canvas.onToggleExpanded(id)
-          }}
+          onClose={() => canvas.onToggleExpanded(id)}
           nodeId={id}
           title={textData.name}
           body={textData.body}
-          role={textData.defaultRole as NodeSlotTextRole | undefined}
-          onRoleChange={(role) =>
-            void canvas.onApplyOp({
-              op: NODE_ASSISTANT_OP_V4_IDS.setField,
-              target: id,
-              field: 'defaultRole',
-              value: role,
-            })
-          }
           onSave={(body) => canvas.onEditText(id, body)}
-          onGenerateImage={() => canvas.onDeriveFromText(id, 'shotImage')}
-          tokens={tokens}
-          candidates={candidates}
-          onMentionSelect={(candidate, handle) => {
-            const picked = canvas.nodes.find((item) => item.id === candidate.id)
+          onDownload={() => downloadTextNodeBody(textData.name, textData.body)}
+          mentionOptions={mentionOptions}
+          onMentionSelect={(option, insertText) => {
+            const picked = canvas.nodes.find((item) => item.id === option.id)
             // 文本节点粘原文，素材插一枚 `@名字` 胶囊——两条路径分家。
-            if (picked?.data.kind === NODE_MEDIA_KIND_IDS.text) {
-              handle.insertText(picked.data.body)
-            } else {
-              handle.insertToken(candidate.name)
-            }
+            insertText(
+              picked?.data.kind === NODE_MEDIA_KIND_IDS.text
+                ? picked.data.body
+                : `@${option.name} `,
+            )
           }}
-          mediaOf={mediaOf}
-          autoMention={autoMention}
         />
       )}
     </div>

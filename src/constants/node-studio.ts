@@ -1334,6 +1334,14 @@ export const NODE_V4_SLOT_VERSION = {
 export const NODE_V4_CARD = {
   collapsedWidth: 320,
   textCollapsedWidth: 320,
+  /**
+   * 文本卡的**高文本框**三档（owner 2026-09-11 定，画板 `TextJimeng.dc.html`
+   * 方向 A）：默认 480，右下角拖拽在 120–720 之间改，拖过的高记进节点数据
+   * （`NodeV4TextData.cardHeight`）。⛔ 不再六行截断 —— 长文在卡里直接滚。
+   */
+  textCollapsedHeight: 480,
+  textMinHeight: 120,
+  textMaxHeight: 720,
   shotCollapsedWidth: 400,
   /**
    * 展开宽（owner 2026-09-08 定稿：方向 A「原地长高的卡」，spec v2 的 560 作废）。
@@ -1410,11 +1418,19 @@ export const NODE_V4_CHROME = {
   promptMinLines: 2,
   /** 正文自动长高的行数上限，再多就是内部滚动 + 字数（⛔ 不弹大编辑器）。 */
   promptMaxLines: 4,
-  /** 画中框宽：文本 640 / 视频 720（spec §2 §5），由调用方选一个传进来。 */
+  /**
+   * 画中框宽（spec §5），由调用方传进来。
+   * ⚠ 只剩视频一档：文本卡的展开态自 2026-09-11 起是**全屏文档**（spec §2），
+   * 不再是 640 的画中框。
+   */
   frameWidth: {
-    text: 640,
     video: 720,
   },
+  /**
+   * 全屏文档的正文栏宽（spec §2，画板 `TextJimeng.dc.html`）。窄于屏时按屏走
+   * （`max-w-full`）——⛔ 不做横向滚动。
+   */
+  textDocWidth: 1100,
   /** @ chip 里的缩略图边长（spec §1.7）。 */
   mentionThumbSize: 16,
   /**

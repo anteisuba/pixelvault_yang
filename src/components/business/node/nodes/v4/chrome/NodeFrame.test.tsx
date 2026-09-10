@@ -16,7 +16,7 @@ function setup(props: Partial<React.ComponentProps<typeof NodeFrame>> = {}) {
       open
       onClose={onClose}
       title="S02 · 站台独白"
-      width={NODE_V4_CHROME.frameWidth.text}
+      width={NODE_V4_CHROME.frameWidth.video}
       footer={<div>182 字 · 3 段</div>}
       assistantBar={<div>让助手写一段…</div>}
       {...props}
@@ -79,13 +79,29 @@ describe('NodeFrame', () => {
     expect(heading.className).toContain('font-semibold')
   })
 
-  it('宽度由调用方给（文本 640 / 视频 720），走 spring-expand', () => {
+  it('宽度由调用方给（视频 720），走 spring-expand', () => {
     setup({ width: NODE_V4_CHROME.frameWidth.video })
     const frame = document.body.querySelector<HTMLElement>(
       '[data-node-chrome="frame"]',
     )!
     expect(frame.style.width).toBe('720px')
     expect(frame.className).toContain('ease-spring-expand')
+  })
+
+  // 文本卡的展开态（owner 2026-09-11）：全屏铺满，⛔ 不吃 `width`。
+  it('fullscreen 档铺满视口、忽略 width、顶栏可加文件图标', () => {
+    setup({
+      variant: 'fullscreen',
+      width: NODE_V4_CHROME.frameWidth.video,
+      titleLeading: <span data-testid="doc-icon" />,
+    })
+    const frame = document.body.querySelector<HTMLElement>(
+      '[data-node-chrome="frame"]',
+    )!
+    expect(frame.style.width).toBe('')
+    expect(frame.className).toContain('h-full')
+    expect(frame.className).not.toContain('rounded-node')
+    expect(screen.getByTestId('doc-icon')).toBeInTheDocument()
   })
 
   it('open=false 时什么都不渲染', () => {

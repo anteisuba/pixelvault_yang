@@ -16,6 +16,7 @@ import {
   NODE_STUDIO_VOICE_CLIP_SOURCES,
   NODE_STUDIO_VOICE_PROFILE_SOURCES,
   NODE_STUDIO_WORKFLOW_STORAGE,
+  NODE_V4_CARD,
   NODE_V4_OUTPUT_VERSION,
 } from '@/constants/node-studio'
 import { IMAGE_SIZES } from '@/constants/config'
@@ -1040,6 +1041,18 @@ export const NodeV4TextDataSchema = z.object({
    * 只在用户/助手要覆盖时才写；连线时显式给的 `role` 仍然优先。
    */
   defaultRole: z.enum(NODE_SLOT_TEXT_ROLES).optional(),
+  /**
+   * 收起卡被拖成多高（spec §2，owner 2026-09-11）。缺席 = 默认 480
+   * （`NODE_V4_CARD.textCollapsedHeight`）。值域就是拖拽的钳制区间，⛔ 不放宽：
+   * 卡高是布局事实，越界的高会把镜头带的占地算错。
+   */
+  cardHeight: z
+    .number()
+    .int()
+    .min(NODE_V4_CARD.textMinHeight)
+    .max(NODE_V4_CARD.textMaxHeight)
+    .optional()
+    .catch(undefined),
   title: z.string().trim().min(1).max(160).optional(),
   source: z.string().trim().min(1).max(400).optional(),
   recordedAt: z.string().trim().min(1).max(40).optional(),

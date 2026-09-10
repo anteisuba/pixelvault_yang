@@ -5667,32 +5667,23 @@
       },
       "text": {
         "empty": "Keep writing…",
-        "readout": "{chars} characters · {paragraphs} paragraphs",
         "editAriaLabel": "Edit body",
         "roles": {
           "script": "Script",
           "style": "Style",
           "character": "Character"
         },
-        "shortcuts": {
-          "edit": "⌘E Edit",
-          "generate": "⌘↵ Image",
-          "collapse": "Esc Collapse"
-        },
         "toolbar": {
           "ariaLabel": "Text node actions",
-          "mention": "@ Mention",
           "shotImage": "Make image",
           "video": "Make shot",
           "more": "More",
-          "rename": "Rename",
-          "clone": "Duplicate",
           "split": "Split into paragraphs",
-          "delete": "Delete",
-          "connect": "Connect to shot",
           "renameNode": "Rename this text",
           "cloneNode": "Duplicate this text card",
-          "deleteNode": "Delete this text"
+          "deleteNode": "Delete this text",
+          "expand": "Expand",
+          "download": "Download"
         },
         "assist": {
           "placeholder": "Ask the assistant to write…",
@@ -5700,6 +5691,35 @@
           "continue": "Continue",
           "rewrite": "Rewrite",
           "model": "Writing model"
+        },
+        "card": {
+          "resize": "Drag to resize the card"
+        },
+        "tag": {
+          "title": "Kind and role",
+          "subtype": "Kind",
+          "role": "Role"
+        },
+        "subtypes": {
+          "script": "Script",
+          "shotNote": "Shot note",
+          "rule": "Rule"
+        },
+        "doc": {
+          "title": "{name}.md",
+          "formatAriaLabel": "Formatting",
+          "heading": "Heading level",
+          "h1": "Heading 1",
+          "h2": "Heading 2",
+          "h3": "Heading 3",
+          "bulleted": "Bulleted list",
+          "numbered": "Numbered list",
+          "bold": "Bold",
+          "strike": "Strikethrough",
+          "italic": "Italic",
+          "underline": "Underline",
+          "mentionAriaLabel": "Mention candidates",
+          "mentionEmpty": "No cards to mention"
         }
       },
       "image": {

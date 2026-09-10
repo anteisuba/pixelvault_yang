@@ -32,7 +32,7 @@ const BREAKDOWN_RESPONSE: ScriptBreakdownResponseData = {
   },
   planner: {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
-    modelId: 'gemini-3.7-flash',
+    modelId: 'gemini-3.8-flash',
     label: 'Gemini',
   },
 }

@@ -44,7 +44,7 @@ export const SCRIPT_PLANNER_MODELS = {
   gemini: {
     modelId: LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
     adapterType: AI_ADAPTER_TYPES.GEMINI,
-    label: 'Gemini 3.7 Flash',
+    label: 'Gemini 3.8 Flash',
   },
   deepseek: {
     modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,

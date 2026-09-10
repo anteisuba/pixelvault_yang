@@ -6,10 +6,22 @@ import { describe, expect, it } from 'vitest'
 
 import { AI_MODELS, MODEL_MESSAGE_KEYS } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { VIDEO_NODE_MODES } from '@/constants/video-node-modes'
 
 const LOCALES = ['en', 'ja', 'zh'] as const
 const SRC_DIR = join(process.cwd(), 'src')
 const MESSAGES_DIR = join(process.cwd(), 'src', 'messages')
+
+it('translates every video mode rendered by the Studio toggle in all locales', () => {
+  for (const locale of LOCALES) {
+    const keys = collectKeys(loadMessages(locale))
+    for (const mode of VIDEO_NODE_MODES) {
+      expect(keys, `${locale}: ${mode}`).toContain(
+        `StudioNode.videoComposer.sidecar.mode.${mode}`,
+      )
+    }
+  }
+})
 
 function loadMessages(locale: string): Record<string, unknown> {
   const raw = readFileSync(join(MESSAGES_DIR, `${locale}.json`), 'utf-8')

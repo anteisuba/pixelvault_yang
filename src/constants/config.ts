@@ -167,6 +167,7 @@ export const API_ENDPOINTS = {
   IMAGE_EDIT: '/api/image/edit',
   /** 多框注释一次全改 */
   IMAGE_OBJECT_REPLACE: '/api/image/object-replace',
+  IMAGE_EDIT_STREAM: '/api/image/edit-stream',
   /** Image inpainting */
   IMAGE_INPAINT: '/api/image/inpaint',
 

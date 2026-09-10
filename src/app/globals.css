@@ -243,6 +243,9 @@
   /* 画布节点卡的圆角例外（ui-defaults.md §3）：18px，比卡片档 `rounded-lg` 大
      一档，配 `corner-shape: squircle` 渐进增强。其他页面卡片不跟着抬。 */
   --radius-node: 1.125rem;
+  /* 参考轨上那颗 48px 缩略的圆角（12px，画板 `VideoRefs.dc.html` `.th`）——
+     卡（18）与控件（14）之间还差一档，⛔ 不拿 `rounded-xl` 顶替。 */
+  --radius-node-thumb: 0.75rem;
   /* 节点卡的两层低不透明阴影（一层贴边定位置、一层大扩散给「浮」）。展开态只把
      扩散那层加大 = 「这是当前工作面」。⛔ 不退回一档 `shadow-lg`。 */
   --shadow-node-card:

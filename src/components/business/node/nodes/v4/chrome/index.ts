@@ -37,6 +37,14 @@ export {
   type MentionChipMedia,
 } from './MentionChip'
 export {
+  MentionPicker,
+  readMentionQuery,
+  matchMentionOptions,
+  type MentionPickerProps,
+  type MentionPickerOption,
+  type MentionQuery,
+} from './MentionPicker'
+export {
   parseMentions,
   mentionDeletionRangeAt,
   type MentionSegment,

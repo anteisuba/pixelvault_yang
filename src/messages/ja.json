@@ -4568,25 +4568,6 @@
       "retry": "再試行",
       "replace": "差し替え"
     },
-    "workflowModelPicker": {
-      "labels": {
-        "image": "画像モデル",
-        "video": "動画モデル",
-        "audio": "音声モデル"
-      },
-      "placeholder": "モデルを選択",
-      "hints": {
-        "image": "このノードで使える保存済みルートと無料画像モデルを表示します。",
-        "video": "このノードで使える保存済みルートと無料動画モデルを表示します。",
-        "audio": "このノードで使える保存済みルートと無料音声モデルを表示します。"
-      },
-      "noOptions": {
-        "image": "設定済みキーで使える画像モデルはまだありません。",
-        "video": "設定済みキーで使える動画モデルはまだありません。",
-        "audio": "設定済みキーで使える音声モデルはまだありません。"
-      },
-      "searchPlaceholder": "モデルを検索..."
-    },
     "characterImage": {
       "voiceBound": {
         "unnamed": "🎙 上流から音色をバインド（動画生成時に @AudioN にキャラクター名が付きます）",
@@ -5671,7 +5652,8 @@
         "charCount": "{count} 文字",
         "versions": "バージョン",
         "versionOf": "{total} 件中 {index} 件目",
-        "emptyHint": "アップロード · 貼り付け · またはプロンプトを入力"
+        "emptyHint": "アップロード · 貼り付け · またはプロンプトを入力",
+        "mentionPicker": "メンション候補"
       },
       "text": {
         "empty": "続きを書く……",
@@ -5896,10 +5878,12 @@
         },
         "more": {
           "rename": "名前を変更",
+          "quickLook": "クイックルック",
           "splitVersion": "このバージョンを切り出す",
           "duplicate": "この動画カードを複製",
           "delete": "このショットを削除",
-          "renameNode": "このショットの名前を変更"
+          "renameNode": "このショットの名前を変更",
+          "source": "出どころ"
         },
         "frame": {
           "title": "映像",
@@ -5911,7 +5895,6 @@
           "audioSuffix": "音声あり",
           "regenerate": "再生成",
           "regenerateShortcut": "⌘↵",
-          "shotNote": "カット説明",
           "emptyNote": "このカットの撮り方を書く…",
           "editAriaLabel": "カット説明を編集",
           "readout": "{chars} 文字 · {slots} 件を接続中",
@@ -5959,7 +5942,8 @@
           "itemLabel": "{group}{index}：{name}",
           "addLabel": "{group}を追加",
           "full": "上限に達しました（最大 {limit}）",
-          "referenceUnavailable": "このモデルには参照バリアントがありません。付けても送信されません"
+          "referenceUnavailable": "このモデルには参照バリアントがありません。付けても送信されません",
+          "mentionGroup": "参照レーン"
         }
       },
       "connectToShot": {
@@ -6158,6 +6142,7 @@
         "cancel": "キャンセル",
         "dismiss": "閉じる",
         "download": "ダウンロード",
+        "sourceLabel": "編集デスクから · {name}",
         "landed": "「{name}」をキャンバスに置きました",
         "failed": "書き出しに失敗しました。もう一度試すか、範囲を変えてみてください。",
         "resume": "前回の書き出し「{name}」がまだ終わっていません",

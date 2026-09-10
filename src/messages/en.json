@@ -4568,25 +4568,6 @@
       "retry": "Retry",
       "replace": "Replace"
     },
-    "workflowModelPicker": {
-      "labels": {
-        "image": "Image model",
-        "video": "Video model",
-        "audio": "Audio model"
-      },
-      "placeholder": "Select model",
-      "hints": {
-        "image": "Saved routes and free image models available for this node.",
-        "video": "Saved routes and free video models available for this node.",
-        "audio": "Saved routes and free audio models available for this node."
-      },
-      "noOptions": {
-        "image": "No image model with a configured key is available yet.",
-        "video": "No video model with a configured key is available yet.",
-        "audio": "No audio model with a configured key is available yet."
-      },
-      "searchPlaceholder": "Search models..."
-    },
     "characterImage": {
       "voiceBound": {
         "unnamed": "🎙 Voice bound from upstream (will label the @AudioN slot in the video prompt)",
@@ -5671,7 +5652,8 @@
         "charCount": "{count} chars",
         "versions": "Versions",
         "versionOf": "Version {index} of {total}",
-        "emptyHint": "Upload · paste · or write a prompt"
+        "emptyHint": "Upload · paste · or write a prompt",
+        "mentionPicker": "Mention suggestions"
       },
       "text": {
         "empty": "Keep writing…",
@@ -5896,10 +5878,12 @@
         },
         "more": {
           "rename": "Rename",
+          "quickLook": "Quick look",
           "splitVersion": "Split out this version",
           "duplicate": "Duplicate this video card",
           "delete": "Delete this shot",
-          "renameNode": "Rename this shot"
+          "renameNode": "Rename this shot",
+          "source": "Source"
         },
         "frame": {
           "title": "Frame",
@@ -5911,7 +5895,6 @@
           "audioSuffix": "with audio",
           "regenerate": "Regenerate",
           "regenerateShortcut": "⌘↵",
-          "shotNote": "Shot notes",
           "emptyNote": "Write how this shot plays…",
           "editAriaLabel": "Edit shot notes",
           "readout": "{chars} chars · {slots} attached",
@@ -5959,7 +5942,8 @@
           "itemLabel": "{group} {index}: {name}",
           "addLabel": "Add {group}",
           "full": "Full (max {limit})",
-          "referenceUnavailable": "This model has no reference variant — attachments would not be sent"
+          "referenceUnavailable": "This model has no reference variant — attachments would not be sent",
+          "mentionGroup": "On the rail"
         }
       },
       "connectToShot": {
@@ -6158,6 +6142,7 @@
         "cancel": "Cancel",
         "dismiss": "Dismiss",
         "download": "Download",
+        "sourceLabel": "From the edit desk · {name}",
         "landed": "“{name}” landed on the canvas",
         "failed": "The export failed. Try again, or pick a different range.",
         "resume": "Your last export “{name}” never finished",

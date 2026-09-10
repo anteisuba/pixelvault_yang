@@ -124,6 +124,9 @@ export function NodeToolbar({
         role="toolbar"
         aria-label={ariaLabel}
         data-node-chrome="toolbar"
+        // 工具条上双击**不冒泡到卡片**（卡片的双击是展开）—— 连点两下同一颗键
+        // 不该顺手把画中框顶出来。2026-09-10 owner 真机反馈第五条。
+        onDoubleClick={(event) => event.stopPropagation()}
         className={cn(
           'inline-flex items-center gap-0.5 rounded-xl p-0.75 surface-glass shadow-node-chrome',
           className,

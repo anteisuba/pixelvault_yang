@@ -184,6 +184,27 @@ describe('NodePromptBar', () => {
     expect(onSelectionChange).toHaveBeenCalledWith({ start: 2, end: 2 })
   })
 
+  /**
+   * 2026-09-10 owner 真机反馈第五条：在栏里双击选词，卡片把它当成「双击卡片」
+   * 顺手展开 / 弹快速看。栏 / 轨 / 工具条三处根元素一起挡住冒泡。
+   */
+  it('栏内双击不冒泡到卡片', () => {
+    const onCardDoubleClick = vi.fn()
+    render(
+      <div onDoubleClick={onCardDoubleClick}>
+        <NodePromptBar
+          value="站台"
+          onValueChange={() => {}}
+          onSubmit={() => {}}
+          placeholder="写点什么"
+          ariaLabel="提示词"
+        />
+      </div>,
+    )
+    fireEvent.doubleClick(screen.getByLabelText('提示词'))
+    expect(onCardDoubleClick).not.toHaveBeenCalled()
+  })
+
   it('生成中：正文只读，发送换成取消', () => {
     const onCancel = vi.fn()
     setup({ generating: true, onCancel })

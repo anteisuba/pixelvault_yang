@@ -4568,25 +4568,6 @@
       "retry": "重试",
       "replace": "替换"
     },
-    "workflowModelPicker": {
-      "labels": {
-        "image": "图像模型",
-        "video": "视频模型",
-        "audio": "音频模型"
-      },
-      "placeholder": "选择模型",
-      "hints": {
-        "image": "这里显示当前可用于此节点的已保存路由和免费图像模型。",
-        "video": "这里显示当前可用于此节点的已保存路由和免费视频模型。",
-        "audio": "这里显示当前可用于此节点的已保存路由和免费音频模型。"
-      },
-      "noOptions": {
-        "image": "暂时没有已配置 Key 的图像模型。",
-        "video": "暂时没有已配置 Key 的视频模型。",
-        "audio": "暂时没有已配置 Key 的音频模型。"
-      },
-      "searchPlaceholder": "搜索模型..."
-    },
     "characterImage": {
       "voiceBound": {
         "unnamed": "🎙 已绑定上游音色（视频生成时会标注角色名）",
@@ -5671,7 +5652,8 @@
         "charCount": "{count} 字",
         "versions": "版本",
         "versionOf": "第 {index} 版，共 {total} 版",
-        "emptyHint": "上传 · 粘贴 · 或写提示词"
+        "emptyHint": "上传 · 粘贴 · 或写提示词",
+        "mentionPicker": "引用候选"
       },
       "text": {
         "empty": "继续写……",
@@ -5896,10 +5878,12 @@
         },
         "more": {
           "rename": "改名",
+          "quickLook": "快速看",
           "splitVersion": "拆出当前版本",
           "duplicate": "复制这张视频卡",
           "delete": "删除这个镜头",
-          "renameNode": "重命名这个镜头"
+          "renameNode": "重命名这个镜头",
+          "source": "来源"
         },
         "frame": {
           "title": "画面",
@@ -5911,7 +5895,6 @@
           "audioSuffix": "有声",
           "regenerate": "重新生成",
           "regenerateShortcut": "⌘↵",
-          "shotNote": "镜头说明",
           "emptyNote": "写下这个镜头怎么拍……",
           "editAriaLabel": "编辑镜头说明",
           "readout": "{chars} 字 · 已挂 {slots} 项",
@@ -5959,7 +5942,8 @@
           "itemLabel": "{group}{index}：{name}",
           "addLabel": "添加{group}",
           "full": "已满（上限 {limit}）",
-          "referenceUnavailable": "这个模型没有参考变体，挂上去也发不出去"
+          "referenceUnavailable": "这个模型没有参考变体，挂上去也发不出去",
+          "mentionGroup": "参考轨"
         }
       },
       "connectToShot": {
@@ -6158,6 +6142,7 @@
         "cancel": "取消",
         "dismiss": "收起",
         "download": "下载成片",
+        "sourceLabel": "来自剪辑台 · {name}",
         "landed": "「{name}」已落到画布",
         "failed": "导出失败了。稍后再试一次，或换一个范围。",
         "resume": "上次的导出「{name}」还没跑完",

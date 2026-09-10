@@ -95,4 +95,15 @@ describe('NodeToolbar', () => {
     })
     expect(await screen.findByText('局部重绘')).toBeInTheDocument()
   })
+
+  it('工具条上双击不冒泡到卡片（owner 真机反馈第五条）', () => {
+    const onCardDoubleClick = vi.fn()
+    render(
+      <div onDoubleClick={onCardDoubleClick}>
+        <NodeToolbar ariaLabel="工具条" groups={[[action('expand')]]} />
+      </div>,
+    )
+    fireEvent.doubleClick(screen.getByRole('toolbar'))
+    expect(onCardDoubleClick).not.toHaveBeenCalled()
+  })
 })

@@ -8,7 +8,8 @@
  * （卡即封面、右下角只有时长；悬停静音自动播 + 底部细进度线 + 右上静音标）·
  * **选中**（工具条 `续拍 · 抽帧 · 下载 · ⋯` 浮在卡上，版本点 + 已挂小 chip + 提示词栏
  * 浮在卡下）· **生成中**（裱框显影 + 栏变灰可取消）· **展开**（画中框 720：播放器 +
- * 镜头说明 + 生成行 + 写作助手栏）。双击 = 快速看片。
+ * 镜头说明 + 生成行 + 写作助手栏）。**双击 = 展开**；快速看片走空格与 ⋯ 菜单
+ * （2026-09-10 owner 真机反馈第四条）。
  *
  * ── 四条纪律 ────────────────────────────────────────────────────────────
  * ① **壳全部来自 `chrome/`**：卡骨架 / 工具条 / 提示词栏 / chip 弹层 / 版本点 /
@@ -63,7 +64,7 @@ import {
   renameStableNodeName,
 } from '@/lib/node-display-name'
 import { getTranslatedModelLabel } from '@/lib/model-options'
-import { readOutputIndex } from '@/lib/node-output-versions'
+import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import { listLiveConnectableSlots } from '@/lib/node-slot-binding'
 import { readSlotSources } from '@/lib/node-slot-payload'
@@ -75,6 +76,10 @@ import {
   type VideoRailEntry,
   type VideoRailGroupId,
 } from '@/lib/video-node-rail'
+import type {
+  MentionCandidate,
+  MentionToken,
+} from '@/components/ui/mention-input'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   NodeV4,
@@ -91,6 +96,8 @@ import {
   VersionDots,
   renderPromptMentions,
   useNodeCardFlash,
+  type MentionChipMedia,
+  type MentionPickerOption,
   type NodeToolbarGroup,
 } from './chrome'
 import { useNodeV4Canvas } from './NodeV4Context'
@@ -188,6 +195,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const pendingTargetRef = useRef<VideoRailGroupId | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const frameVideoRef = useRef<HTMLVideoElement | null>(null)
+  const promptInputRef = useRef<HTMLTextAreaElement>(null)
 
   // 助手 `set_prompt` 落下来时草稿跟上 —— 渲染期同步，⛔ 不放 effect 里。
   const currentPrompt = videoData.prompt ?? ''
@@ -382,6 +390,13 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const height = videoCardHeight(width)
   const versions = videoVersions(videoData)
   const versionIndex = readOutputIndex(videoData)
+  /**
+   * 当前版的来源（⋯ 里那一行只读小字）。今天只有剪辑台导出的成片会写它
+   * （`source.kind === 'render'`，`node-canvas-v2.md` §6「导出」）——本卡自己生成
+   * 的版本没有来源，整行不出。
+   */
+  const currentSourceLabel =
+    readOutputVersions(videoData)[versionIndex]?.source?.label
   /** 卡上生效的模型 = 用户选过的，否则默认那条。 */
   const effectiveModel = videoData.model ?? defaultModel
   const modelId = effectiveModel?.modelId
@@ -424,6 +439,61 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
       ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
     }
   }
+  /** `@` 候选与胶囊上的缩略 —— 与轨、与画布上的卡同一份。 */
+  const mentionOptionMedia = (name: string): MentionChipMedia | undefined => {
+    const found = mentionMediaOf(name)
+    if (!found) return undefined
+    if (found.kind === 'audio') return { kind: 'audio' }
+    if (found.kind === 'text') return { kind: 'text' }
+    return {
+      kind: found.kind,
+      ...(found.thumbnailUrl ? { thumbnailUrl: found.thumbnailUrl } : {}),
+    }
+  }
+  /**
+   * 轨上的序号项**也是引用物种**（`@图1`）：它们与画布上的卡拼成同一份候选与同
+   * 一份胶囊表，提示词栏与画中框读的都是这一份。⛔ 不在两处各拼一次。
+   */
+  const railTokens: MentionToken[] = railItems.flatMap((entry) =>
+    videoRailMentionLabels(entry).map((label) => ({
+      name: label,
+      kind:
+        entry.group === VIDEO_RAIL_GROUP_IDS.voice
+          ? ('voice' as const)
+          : entry.group === VIDEO_RAIL_GROUP_IDS.video
+            ? ('video' as const)
+            : ('shot' as const),
+      ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
+    })),
+  )
+  /**
+   * ⚠ 候选里每一项**只出当前界面语言那一个写法**（`图1` / `画像1` / `image1` 三
+   * 个串解析时都认，但列表里摆三份等于同一项出现三次）。
+   */
+  const railCandidates: MentionCandidate[] = railItems.map((entry) => {
+    const label = `${tVideo(`rail.group.${entry.group}`)}${entry.index}`
+    return {
+      id: `rail:${entry.edgeId}`,
+      name: label,
+      groupLabel: tVideo('rail.mentionGroup'),
+      group: 'rail',
+      ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
+    }
+  })
+  const frameTokens = [...railTokens, ...tokens]
+  const frameCandidates = [...railCandidates, ...candidates]
+  const mentionOptions: MentionPickerOption[] = frameCandidates.map(
+    (candidate) => {
+      const media = mentionOptionMedia(candidate.name)
+      return {
+        id: candidate.id,
+        name: candidate.name,
+        groupLabel: candidate.groupLabel ?? tVideo('rail.mentionGroup'),
+        ...(media ? { media } : {}),
+      }
+    },
+  )
+
   // poster 两级：落库的封面 → 首帧槽的源图。⚠ ⛔ 不拿成片 url 当 poster：
   // `<img src={视频}>` 什么都画不出来（那是 v3 缩略图空白的老根）。
   const firstFrameSource = readSlotSources(
@@ -723,6 +793,9 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         onSelect: () => {},
         menu: (
           <VideoMoreMenuItems
+            {...(videoData.url
+              ? { onQuickLook: () => setQuickLook(true) }
+              : {})}
             onRename={() => setRenameRequest((count) => count + 1)}
             onDuplicate={() =>
               void canvas.onApplyOp({
@@ -744,6 +817,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                     })
                 : undefined
             }
+            {...(currentSourceLabel ? { sourceLabel: currentSourceLabel } : {})}
             onDelete={() =>
               void canvas.onApplyOp({
                 op: NODE_ASSISTANT_OP_V4_IDS.delete,
@@ -856,7 +930,16 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         }
         runUpload(file, null)
       }}
-      onDoubleClick={() => {
+      // 画板 `VideoRefs.dc.html` 底注（2026-09-10 owner 真机反馈第四条）：
+      // **双击卡片 = 展开**（与工具条第一键、右键菜单同一个框）；快速看片改走
+      // 选中态的**空格**与 ⋯ 菜单里的「快速看」。⛔ 双击不再是快速看。
+      onDoubleClick={() => canvas.onToggleExpanded(id)}
+      tabIndex={-1}
+      onKeyDown={(event) => {
+        if (event.key !== ' ' || expanded) return
+        // 栏里 / 框里打字的空格不是快捷键。
+        if (event.target !== event.currentTarget) return
+        event.preventDefault()
         if (videoData.url) setQuickLook(true)
       }}
     >
@@ -1045,12 +1128,18 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                   onPickSlotSource={railProps.onPickFromCanvas}
                   onUploadForSlot={(group) => openFilePicker(group)}
                   onUpload={() => openFilePicker(null)}
-                  onMention={() => setDraft(`${draft}@`)}
+                  onMention={() => {
+                    setDraft(`${draft}@`)
+                    // 插完 `@` 把光标交回正文 —— 候选列表是跟着光标弹的。
+                    window.setTimeout(() => promptInputRef.current?.focus(), 0)
+                  }}
                   onLibrary={() =>
                     railProps.onLibrary(VIDEO_RAIL_GROUP_IDS.image)
                   }
                 />
               }
+              inputRef={promptInputRef}
+              mentionOptions={mentionOptions}
               renderValue={(value) =>
                 renderPromptMentions(value, {
                   names: [...railNames, ...tokens.map((token) => token.name)],
@@ -1110,13 +1199,11 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           paramsChip={paramsChip}
           modelChip={modelChip}
           refRail={<VideoRefRail {...railProps} />}
-          tokens={tokens}
-          mentionNames={railNames}
-          candidates={candidates}
+          tokens={frameTokens}
+          candidates={frameCandidates}
           onMentionSelect={(candidate, handle) =>
             handle.insertToken(candidate.name)
           }
-          mediaOf={mentionMediaOf}
         />
       ) : null}
 

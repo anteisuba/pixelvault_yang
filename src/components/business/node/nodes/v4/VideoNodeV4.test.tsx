@@ -739,20 +739,57 @@ describe('画中框（spec §5 / §1.11）', () => {
   })
 })
 
-describe('快速看（spec §1.10）', () => {
-  it('双击有片的卡打开播放器，⛔ 空卡不弹', () => {
-    renderVideo(harness([videoNode('v_1')]))
+describe('双击 = 展开 · 快速看走空格（画板 `VideoRefs.dc.html` 底注）', () => {
+  it('双击卡片 = 展开画中框，⛔ 不再弹快速看', () => {
+    const context = harness([videoNode('v_1', READY)])
+    renderVideo(context, 'v_1')
     fireEvent.doubleClick(
       document.querySelector('[data-node-chrome="card"]') as HTMLElement,
     )
+    expect(context.onToggleExpanded).toHaveBeenCalledWith('v_1')
+    expect(document.querySelector('[data-node-chrome="quick-look"]')).toBeNull()
+  })
+
+  it('选中态按空格 = 快速看；空卡按了不弹', () => {
+    renderVideo(harness([videoNode('v_1')]), 'v_1', true)
+    fireEvent.keyDown(
+      document.querySelector('[data-node-kind="video"]') as HTMLElement,
+      { key: ' ' },
+    )
     expect(document.querySelector('[data-node-chrome="quick-look"]')).toBeNull()
 
-    renderVideo(harness([videoNode('v_2', READY)]), 'v_2')
-    fireEvent.doubleClick(
-      document.querySelectorAll('[data-node-chrome="card"]')[1] as HTMLElement,
+    renderVideo(harness([videoNode('v_2', READY)]), 'v_2', true)
+    fireEvent.keyDown(
+      document.querySelectorAll('[data-node-kind="video"]')[1] as HTMLElement,
+      { key: ' ' },
     )
     expect(
       document.querySelector('[data-node-chrome="quick-look"]'),
+    ).not.toBeNull()
+  })
+
+  it('栏内 / 轨上双击不冒泡到卡片（⛔ 选个词不该把框顶出来）', () => {
+    const context = harness([videoNode('v_1', READY)])
+    renderVideo(context, 'v_1', true)
+    fireEvent.doubleClick(
+      document.querySelector('[data-prompt-bar-input]') as HTMLElement,
+    )
+    fireEvent.doubleClick(
+      document.querySelector('[data-video-ref-rail]') as HTMLElement,
+    )
+    expect(context.onToggleExpanded).not.toHaveBeenCalled()
+  })
+
+  it('⋯ 菜单里有「快速看」这一项（有片才给）', async () => {
+    renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
+    const more = document.querySelector(
+      '[data-toolbar-action="more"]',
+    ) as HTMLElement
+    fireEvent.pointerDown(more, { button: 0, ctrlKey: false })
+    fireEvent.click(more)
+    await screen.findByText('more.quickLook')
+    expect(
+      document.querySelector('[data-video-more="quick-look"]'),
     ).not.toBeNull()
   })
 })

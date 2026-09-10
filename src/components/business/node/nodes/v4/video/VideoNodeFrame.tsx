@@ -12,7 +12,7 @@
  * 在同一步里做（`syncMentionSlots`），⛔ 这里不自己连边。
  */
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -25,7 +25,6 @@ import { NODE_V4_CHROME } from '@/constants/node-studio'
 
 import { NodeFrame, VersionDots } from '../chrome'
 import { TextAssistantBar } from '../text/TextAssistantBar'
-import { TextBody, type TextMentionMediaLookup } from '../text/TextBody'
 import { VideoPlayer } from './VideoPlayer'
 
 export interface VideoNodeFrameProps {
@@ -58,12 +57,13 @@ export interface VideoNodeFrameProps {
    * `VideoRefs.dc.html`：方向 B 只贡献了这一段位置）。⛔ 这里不做第二份。
    */
   readonly refRail: ReactNode
+  /**
+   * 正文里要渲染成胶囊的名字 —— 画布上的卡**与轨上的序号项**（`@图1`）是同一份，
+   * 调用方拼好传进来。
+   */
   readonly tokens: readonly MentionToken[]
-  /** 轨上的序号名（`@图1`）—— 正文里的胶囊要认得它们。 */
-  readonly mentionNames?: readonly string[]
   readonly candidates: readonly MentionCandidate[]
   onMentionSelect(candidate: MentionCandidate, handle: MentionInputHandle): void
-  readonly mediaOf: TextMentionMediaLookup
 }
 
 export function VideoNodeFrame({
@@ -89,14 +89,11 @@ export function VideoNodeFrame({
   modelChip,
   refRail,
   tokens,
-  mentionNames = [],
   candidates,
   onMentionSelect,
-  mediaOf,
 }: VideoNodeFrameProps) {
   const t = useTranslations('StudioNode.v4')
   const tVideo = useTranslations('StudioNode.v4.video')
-  const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState(body)
   const editorRef = useRef<MentionInputHandle>(null)
 
@@ -107,13 +104,8 @@ export function VideoNodeFrame({
     setDraft(body)
   }
 
-  useEffect(() => {
-    if (!editing) return
-    editorRef.current?.focus()
-  }, [editing])
-
+  /** 失焦即存（spec §2 / §5）。⛔ 不做「保存」按钮。 */
   const commit = () => {
-    setEditing(false)
     if (draft !== body) onSave(draft)
   }
 
@@ -121,7 +113,7 @@ export function VideoNodeFrame({
     <NodeFrame
       open={open}
       onClose={() => {
-        if (editing && draft !== body) onSave(draft)
+        commit()
         onClose()
       }}
       title={title}
@@ -150,7 +142,7 @@ export function VideoNodeFrame({
               data-video-regenerate
               disabled={regenerateDisabled}
               onClick={() => {
-                if (editing && draft !== body) onSave(draft)
+                commit()
                 onRegenerate()
               }}
               className="inline-flex h-7.5 items-center gap-1.5 rounded-full bg-primary px-3 text-2xs font-medium text-primary-foreground transition-opacity duration-fast ease-standard hover:opacity-90 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
@@ -203,51 +195,38 @@ export function VideoNodeFrame({
           {refRail}
         </div>
 
-        <h2 className="mt-1 text-lg font-semibold tracking-node-title">
-          {tVideo('frame.shotNote')}
-        </h2>
+        {/* 正文**永远是编辑区**（画板 `VideoExpanded.dc.html` 下半：一块带边框的
+            文档，没有标题）。2026-09-10 owner 真机反馈第三条：旧写法要先双击才
+            进编辑，而那一下双击同时冒泡到卡片上把快速看片顶了出来，看上去就是
+            「点不进去」。⛔ 不再留只读预览态。 */}
         <div
           data-video-frame-body
+          onDoubleClick={(event) => event.stopPropagation()}
+          onBlur={commit}
           onKeyDown={(event) => {
             if (!(event.metaKey || event.ctrlKey)) return
             if (event.key !== 'Enter') return
             event.preventDefault()
-            if (editing && draft !== body) onSave(draft)
+            commit()
             onRegenerate()
           }}
-          className="max-h-60 min-h-24 overflow-y-auto text-2sm leading-relaxed tracking-node-body"
+          className="mt-1 max-h-60 min-h-24 overflow-y-auto rounded-xl border p-3.5 text-2sm leading-relaxed tracking-node-body shadow-node-card"
         >
-          {editing ? (
-            <div onBlur={commit}>
-              <MentionInput
-                variant="canvas"
-                ref={editorRef}
-                value={draft}
-                onValueChange={setDraft}
-                tokens={[...tokens]}
-                mentionCandidates={[...candidates]}
-                aria-label={tVideo('frame.editAriaLabel')}
-                onMentionSelect={(candidate) => {
-                  if (!editorRef.current) return
-                  onMentionSelect(candidate, editorRef.current)
-                }}
-                className="min-h-24 w-full rounded-xl p-0 text-2sm leading-relaxed corner-squircle"
-              />
-            </div>
-          ) : (
-            <div
-              role="textbox"
-              tabIndex={0}
-              data-video-frame-preview
-              onDoubleClick={() => setEditing(true)}
-            >
-              <TextBody
-                body={body || tVideo('frame.emptyNote')}
-                names={[...mentionNames, ...tokens.map((token) => token.name)]}
-                mediaOf={mediaOf}
-              />
-            </div>
-          )}
+          <MentionInput
+            variant="canvas"
+            ref={editorRef}
+            value={draft}
+            onValueChange={setDraft}
+            tokens={[...tokens]}
+            mentionCandidates={[...candidates]}
+            placeholder={tVideo('frame.emptyNote')}
+            aria-label={tVideo('frame.editAriaLabel')}
+            onMentionSelect={(candidate) => {
+              if (!editorRef.current) return
+              onMentionSelect(candidate, editorRef.current)
+            }}
+            className="min-h-16 w-full p-0 text-2sm leading-relaxed"
+          />
         </div>
       </div>
     </NodeFrame>

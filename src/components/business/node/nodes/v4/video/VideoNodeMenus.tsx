@@ -28,6 +28,7 @@ import {
   Film,
   GalleryVerticalEnd,
   Library,
+  Eye,
   Mic,
   PictureInPicture2,
   Scissors,
@@ -38,6 +39,7 @@ import {
 
 import {
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuSub,
   DropdownMenuSubContent,
@@ -142,22 +144,41 @@ export function VideoAddMenuItems({
 }
 
 export interface VideoMoreMenuItemsProps {
+  /**
+   * 「快速看」（spec §5，2026-09-10 owner 真机反馈第四条把它从双击挪过来）——
+   * 没片的卡不给这一项。空格键是它的第二条路。
+   */
+  onQuickLook?: (() => void) | undefined
   onRename(): void
   onDuplicate(): void
   /** 「拆出当前版本」—— 只有两版起才给（⛔ 不摆一个按了什么都不变的项）。 */
   onSplitVersion?: (() => void) | undefined
+  /**
+   * 「来源」那一行只读小字 —— 当前版的 `source.label`（今天只有剪辑台成片会写，
+   * `source.kind === 'render'`）。自己生成的那几版没有来源，整行不出。
+   * ⚠ 与音频卡同一条规矩（`AudioMoreMenuItems`）：⛔ 不做成可点的项。
+   */
+  sourceLabel?: string | undefined
   onDelete(): void
 }
 
 export function VideoMoreMenuItems({
+  onQuickLook,
   onRename,
   onDuplicate,
   onSplitVersion,
+  sourceLabel,
   onDelete,
 }: VideoMoreMenuItemsProps) {
   const tVideo = useTranslations('StudioNode.v4.video')
   return (
     <>
+      {onQuickLook ? (
+        <DropdownMenuItem data-video-more="quick-look" onSelect={onQuickLook}>
+          <Eye aria-hidden className="size-4" />
+          {tVideo('more.quickLook')}
+        </DropdownMenuItem>
+      ) : null}
       <DropdownMenuItem data-video-more="rename" onSelect={onRename}>
         <SquarePen aria-hidden className="size-4" />
         {tVideo('more.rename')}
@@ -172,6 +193,19 @@ export function VideoMoreMenuItems({
           <GalleryVerticalEnd aria-hidden className="size-4" />
           {tVideo('more.splitVersion')}
         </DropdownMenuItem>
+      ) : null}
+      {sourceLabel ? (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuLabel data-video-more="source">
+            <span className="block text-3xs font-normal text-muted-foreground">
+              {tVideo('more.source')}
+            </span>
+            <span className="block truncate text-2xs font-normal text-foreground">
+              {sourceLabel}
+            </span>
+          </DropdownMenuLabel>
+        </>
       ) : null}
       <DropdownMenuSeparator />
       <DropdownMenuItem

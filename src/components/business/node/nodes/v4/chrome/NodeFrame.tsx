@@ -83,6 +83,10 @@ export function NodeFrame({
         aria-modal="true"
         aria-label={ariaLabel ?? title}
         data-node-chrome="frame"
+        // ⚠ 框是 portal 到 `body` 的，但 **React 的事件仍沿组件树冒泡**回节点卡
+        // ——框里双击（选词、连点播放器）会触发卡片自己的双击（展开 / 快速看）。
+        // 2026-09-10 owner 真机反馈第三、五条的同一个根因，在这里一次挡住。
+        onDoubleClick={(event) => event.stopPropagation()}
         className={cn(
           'flex max-w-full flex-col rounded-node corner-squircle border bg-card shadow-node-card-expanded',
           'motion-safe:animate-in motion-safe:fade-in-0 motion-safe:zoom-in-95 duration-spring-expand ease-spring-expand',

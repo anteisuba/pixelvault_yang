@@ -3,7 +3,7 @@
 /**
  * 视频节点的**参考轨**（spec §5，画板 `VideoRefs.dc.html` 方向 A 定稿）。
  *
- * 提示词栏首行 = 三组（图 · 视频 · 语音）以细分隔线分开，每项 32px 编号缩略
+ * 提示词栏首行 = 三组（图 · 视频 · 语音）以细分隔线分开，每项 48px 编号缩略
  * （图角标写 首 / 尾），每组末尾一个虚线加号。展开态的画中框在播放器与说明之间
  * 摆**同一个组件**，⛔ 不做第二份。
  *
@@ -37,8 +37,11 @@ import {
   type VideoRailGroupId,
 } from '@/lib/video-node-rail'
 
-/** 轨上每项 32px（画板）。 */
-const RAIL_THUMB_PX = 32
+/**
+ * 轨上每项 48px（画板 `VideoRefs.dc.html` `.th`，2026-09-10 owner 真机反馈把
+ * 32 抬到 48：32px 的缩略认不出画面，「挂了什么」这件事就白摆了）。
+ */
+const RAIL_THUMB_PX = 48
 
 /** 图组里点一张能改成的三个角色（画板：作首帧 / 作尾帧 / 作参考）。 */
 const IMAGE_ROLE_SLOTS = [
@@ -79,12 +82,12 @@ function WaveformGlyph() {
   return (
     <span
       aria-hidden
-      className="flex h-3.5 shrink-0 items-end gap-px text-foreground"
+      className="flex h-4 shrink-0 items-end gap-0.5 text-foreground"
     >
-      <i className="block h-1.25 w-0.5 rounded-full bg-current" />
+      <i className="block h-1.5 w-0.5 rounded-full bg-current" />
+      <i className="block h-3.5 w-0.5 rounded-full bg-current" />
+      <i className="block h-2.25 w-0.5 rounded-full bg-current" />
       <i className="block h-3 w-0.5 rounded-full bg-current" />
-      <i className="block h-2 w-0.5 rounded-full bg-current" />
-      <i className="block h-2.5 w-0.5 rounded-full bg-current" />
     </span>
   )
 }
@@ -128,6 +131,8 @@ export function VideoRefRail({
   return (
     <div
       data-video-ref-rail
+      // 轨上双击（连点一张缩略）**不冒泡到卡片** —— 卡片的双击是展开。
+      onDoubleClick={(event) => event.stopPropagation()}
       className={cn('flex flex-wrap items-center gap-1.5', className)}
     >
       {VIDEO_RAIL_GROUPS.map((group, groupIndex) => {
@@ -138,12 +143,12 @@ export function VideoRefRail({
           <div
             key={group}
             data-video-rail-group={group}
-            className="flex items-center gap-1"
+            className="flex flex-wrap items-center gap-1"
           >
             {groupIndex > 0 ? (
               <span
                 aria-hidden
-                className="mx-1 block h-5.5 w-px shrink-0 bg-border"
+                className="mx-1 block h-7.5 w-px shrink-0 bg-border"
               />
             ) : null}
 
@@ -169,7 +174,7 @@ export function VideoRefRail({
                       onRemove(item.edgeId)
                     }}
                     className={cn(
-                      'nodrag nopan relative size-8 shrink-0 rounded-md bg-surface-fill',
+                      'nodrag nopan relative size-12 shrink-0 rounded-node-thumb bg-surface-fill',
                       'transition-colors duration-fast ease-standard hover:bg-surface-fill-hover',
                       'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                       'disabled:pointer-events-none disabled:opacity-60',
@@ -186,21 +191,21 @@ export function VideoRefRail({
                         width={RAIL_THUMB_PX}
                         height={RAIL_THUMB_PX}
                         unoptimized
-                        className="size-full rounded-md object-cover"
+                        className="size-full rounded-node-thumb object-cover"
                       />
                     ) : item.group === VIDEO_RAIL_GROUP_IDS.video ? (
                       <span className="flex size-full items-center justify-center text-muted-foreground">
-                        <Film aria-hidden className="size-3.5" />
+                        <Film aria-hidden className="size-5" />
                       </span>
                     ) : (
                       <span className="flex size-full items-center justify-center text-muted-foreground">
-                        <ImageIcon aria-hidden className="size-3.5" />
+                        <ImageIcon aria-hidden className="size-5" />
                       </span>
                     )}
                     <span
                       aria-hidden
                       data-video-rail-badge
-                      className="absolute -top-1 -right-1 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-0.75 text-3xs font-semibold text-primary-foreground tabular-nums"
+                      className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-3xs font-semibold text-primary-foreground tabular-nums"
                     >
                       {item.index}
                     </span>
@@ -209,7 +214,7 @@ export function VideoRefRail({
                       <span
                         aria-hidden
                         data-video-rail-role={item.slot}
-                        className="absolute bottom-0 left-0 rounded-tr-sm rounded-bl-md bg-foreground/70 px-1 text-3xs text-background"
+                        className="absolute bottom-0 left-0 rounded-tr-md rounded-bl-node-thumb bg-foreground/70 px-1.25 text-3xs text-background"
                       >
                         {tVideo(`rail.roleBadge.${item.slot}`)}
                       </span>
@@ -271,13 +276,13 @@ export function VideoRefRail({
                     group: tVideo(`rail.group.${group}`),
                   })}
                   className={cn(
-                    'nodrag nopan flex size-8 shrink-0 items-center justify-center rounded-md border border-dashed border-border text-muted-foreground',
+                    'nodrag nopan flex size-12 shrink-0 items-center justify-center rounded-node-thumb border border-dashed border-border text-muted-foreground',
                     'transition-colors duration-fast ease-standard hover:border-foreground/40 hover:text-foreground',
                     'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
                     'disabled:pointer-events-none disabled:opacity-50',
                   )}
                 >
-                  <Plus aria-hidden className="size-3.5" />
+                  <Plus aria-hidden className="size-3" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="start" className="w-48">

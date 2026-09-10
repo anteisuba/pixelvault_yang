@@ -18,7 +18,13 @@
  * 调用方传。
  */
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  useImperativeHandle,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { useTranslations } from 'next-intl'
 import { ArrowRight, Plus, X } from 'lucide-react'
 
@@ -29,6 +35,13 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { NODE_V4_CHROME } from '@/constants/node-studio'
 import { cn } from '@/lib/utils'
+
+import {
+  MentionPicker,
+  matchMentionOptions,
+  readMentionQuery,
+  type MentionPickerOption,
+} from './MentionPicker'
 
 export interface NodePromptBarProps {
   readonly value: string
@@ -77,6 +90,15 @@ export interface NodePromptBarProps {
    * ——少一个字符，光标就与看到的字错位。
    */
   readonly renderValue?: (value: string) => ReactNode
+  /**
+   * `@` 候选（spec §1.7）。给了就在正文里键 `@` 时弹列表：↑↓ 选、↵ / Tab 落成
+   * `@名字 `、Esc 关。⛔ 不给的卡不弹 —— 空列表比没有更糟。
+   *
+   * 落字是**这一层**做的（纯文本替换 + 光标复位），调用方只在 `onMentionSelect`
+   * 里做副作用（比如把这一项挂到槽上）。
+   */
+  readonly mentionOptions?: readonly MentionPickerOption[]
+  onMentionSelect?(option: MentionPickerOption): void
 }
 
 export interface PromptBarSelection {
@@ -103,11 +125,29 @@ export function NodePromptBar({
   inputRef,
   onSelectionChange,
   renderValue,
+  mentionOptions,
+  onMentionSelect,
 }: NodePromptBarProps) {
   const t = useTranslations('StudioNode.v4.chrome')
   const sizerRef = useRef<HTMLDivElement>(null)
   const overlayRef = useRef<HTMLDivElement>(null)
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  /** 落完一颗 `@` 之后光标该去哪 —— 由下面那个 layout effect 兑现。 */
+  const pendingCaretRef = useRef<number | null>(null)
   const [lines, setLines] = useState(1)
+  const [caret, setCaret] = useState(0)
+  /** Esc 关掉的是**这一个** `@`（下标）——再键一个字不该又弹回来。 */
+  const [dismissedAt, setDismissedAt] = useState<number | null>(null)
+  const [activeId, setActiveId] = useState<string | null>(null)
+
+  /**
+   * 正文那只 textarea 分给两边：内部量光标，调用方（插标记 / 插 `@`）拿去聚焦。
+   * ⛔ 不手写「把 element 塞进调用方的 ref」——那是在改 props。
+   */
+  useImperativeHandle(
+    inputRef,
+    () => textareaRef.current as HTMLTextAreaElement,
+  )
 
   // 行数**不量 textarea 本身，量一份等宽的隐藏镜像**。
   // ⚠ 收起态里 textarea 被 `+`、三颗 chip 和发送钮挤到只剩几十像素宽，量它得到的
@@ -119,6 +159,51 @@ export function NodePromptBar({
     if (!el) return
     setLines(Math.max(1, Math.round(el.scrollHeight / LINE_HEIGHT_PX)))
   }, [value])
+
+  /**
+   * 正文一变就把光标位置对齐：自己落完 `@` 走 `pendingCaretRef`（顺带把焦点抢
+   * 回来），其余情况（外部改 `value`、`+` 菜单里插一个 `@`）从 DOM 读。
+   * ⚠ 光标不同步，`@` 就永远弹不出来 —— 判据完全靠它。
+   */
+  useLayoutEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    const pending = pendingCaretRef.current
+    if (pending !== null) {
+      pendingCaretRef.current = null
+      el.focus()
+      el.setSelectionRange(pending, pending)
+      setCaret(pending)
+      return
+    }
+    setCaret(el.selectionStart)
+  }, [value])
+
+  const mentionQuery =
+    mentionOptions && mentionOptions.length > 0 && !generating
+      ? readMentionQuery(value, caret)
+      : null
+  const mentionMatches =
+    mentionQuery && mentionQuery.start !== dismissedAt
+      ? matchMentionOptions(mentionOptions ?? [], mentionQuery.query)
+      : []
+  const mentionOpen = mentionMatches.length > 0
+  const activeIndex = Math.max(
+    0,
+    mentionMatches.findIndex((option) => option.id === activeId),
+  )
+  const activeOption = mentionMatches[activeIndex]
+
+  /** 把 `@查询` 整段换成 `@名字 `，光标落在空格之后。 */
+  const commitMention = (option: MentionPickerOption) => {
+    if (!mentionQuery) return
+    const head = value.slice(0, mentionQuery.start)
+    const tail = value.slice(caret)
+    pendingCaretRef.current = mentionQuery.start + option.name.length + 2
+    setActiveId(null)
+    onValueChange(`${head}@${option.name} ${tail}`)
+    onMentionSelect?.(option)
+  }
 
   /**
    * 栏内首行有内容？⚠ `Boolean(节点)` 不够 —— 调用方常传一个「没东西时自己返回
@@ -199,7 +284,7 @@ export function NodePromptBar({
 
   const textarea = (
     <textarea
-      ref={inputRef}
+      ref={textareaRef}
       rows={1}
       value={value}
       readOnly={generating}
@@ -207,12 +292,23 @@ export function NodePromptBar({
       aria-label={ariaLabel}
       data-prompt-bar-input
       onChange={(event) => {
+        setCaret(event.currentTarget.selectionStart)
+        setDismissedAt(null)
         onValueChange(event.target.value)
         reportSelection(event.currentTarget)
       }}
-      onSelect={(event) => reportSelection(event.currentTarget)}
-      onClick={(event) => reportSelection(event.currentTarget)}
-      onKeyUp={(event) => reportSelection(event.currentTarget)}
+      onSelect={(event) => {
+        setCaret(event.currentTarget.selectionStart)
+        reportSelection(event.currentTarget)
+      }}
+      onClick={(event) => {
+        setCaret(event.currentTarget.selectionStart)
+        reportSelection(event.currentTarget)
+      }}
+      onKeyUp={(event) => {
+        setCaret(event.currentTarget.selectionStart)
+        reportSelection(event.currentTarget)
+      }}
       // overlay 是另一层 DOM，滚动不会跟着 textarea 走 —— 手动对齐。
       onScroll={(event) => {
         const overlay = overlayRef.current
@@ -224,6 +320,29 @@ export function NodePromptBar({
         textareaProps?.onKeyDown?.(event)
         if (event.defaultPrevented) return
         if (event.nativeEvent.isComposing) return
+        // `@` 候选开着时键盘归它 —— ⛔ 这一段必须在「Enter = 发送」之前，
+        // 否则选候选那一下会把半截提示词发出去。
+        if (mentionOpen && mentionQuery) {
+          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+            event.preventDefault()
+            const step = event.key === 'ArrowDown' ? 1 : -1
+            const next =
+              (activeIndex + step + mentionMatches.length) %
+              mentionMatches.length
+            setActiveId(mentionMatches[next]?.id ?? null)
+            return
+          }
+          if (event.key === 'Enter' || event.key === 'Tab') {
+            event.preventDefault()
+            if (activeOption) commitMention(activeOption)
+            return
+          }
+          if (event.key === 'Escape') {
+            event.preventDefault()
+            setDismissedAt(mentionQuery.start)
+            return
+          }
+        }
         if (event.key !== 'Enter' || event.shiftKey) return
         event.preventDefault()
         if (generating || value.trim().length === 0) return
@@ -274,6 +393,9 @@ export function NodePromptBar({
       data-node-chrome="prompt-bar"
       data-expanded={expanded ? 'true' : 'false'}
       data-generating={generating ? 'true' : 'false'}
+      // 栏里双击（选词、双击 chip）**不冒泡到卡片** —— 卡片的双击是「展开」，
+      // 在栏里选个词就把画中框顶出来是 2026-09-10 owner 真机反馈的第五条。
+      onDoubleClick={(event) => event.stopPropagation()}
       className={cn(
         'relative surface-glass shadow-node-chrome transition-[border-radius] duration-spring-slot ease-spring-slot',
         expanded
@@ -294,11 +416,21 @@ export function NodePromptBar({
         {value}
         {'\u200b'}
       </div>
+      {mentionOpen ? (
+        <MentionPicker
+          options={mentionMatches}
+          activeId={activeOption?.id ?? null}
+          onActiveChange={setActiveId}
+          onSelect={commitMention}
+          ariaLabel={t('mentionPicker')}
+          emptyLabel={t('emptyHint')}
+        />
+      ) : null}
       {hasLeadingRow ? (
         <div
           data-prompt-bar-leading
-          style={{ height: NODE_V4_CHROME.promptLeadingRowHeight }}
-          className="flex items-center gap-1.5 overflow-hidden"
+          style={{ minHeight: NODE_V4_CHROME.promptLeadingRowMinHeight }}
+          className="flex flex-wrap items-center gap-1.5"
         >
           {leadingRow}
         </div>

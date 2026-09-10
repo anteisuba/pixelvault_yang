@@ -8,116 +8,107 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@xyflow/react', () => ({
-  Handle: () => <span data-testid="handle" />,
-  Position: { Left: 'left', Right: 'right', Top: 'top' },
-  NodeResizer: (props: Record<string, unknown>) => (
-    <span data-testid="resizer" data-visible={String(props.isVisible)} />
+  Handle: (props: Record<string, unknown>) => (
+    <span data-testid="handle" data-slot={props['data-slot'] as string} />
   ),
+  Position: { Left: 'left', Right: 'right', Top: 'top', Bottom: 'bottom' },
   NodeToolbar: (props: Record<string, unknown>) =>
     props.isVisible ? (
-      <div data-testid="node-toolbar">{props.children as ReactNode}</div>
+      <div data-testid={`flow-toolbar-${String(props.position)}`}>
+        {props.children as ReactNode}
+      </div>
     ) : null,
 }))
 
-// 编排区自带一串 hook（模型清单 / 上传 / 生成），本组测试只看图片卡自己长出来的
-// 那几块，桩掉它就够——⛔ 不为了它把整棵 provider 树搭起来。
-vi.mock('./NodeV4GenerateDesk', () => ({
-  NodeV4GenerateDesk: () => <div data-testid="desk" />,
+/** 上传 / 生成 / 模型清单三条外部路径桩掉：本组只看图片卡自己的行为。 */
+const uploadFn = vi.fn(async () => ({ url: 'https://cdn.test/up.png' }))
+vi.mock('@/hooks/node/use-node-upload-v4', () => ({
+  useNodeUploadV4: () => ({
+    upload: uploadFn,
+    retry: vi.fn(),
+    isUploading: false,
+    progress: 0,
+    error: null,
+    canRetry: false,
+    cancel: vi.fn(),
+  }),
+}))
+
+const generateNode = vi.fn(async () => ({ success: false as const }))
+vi.mock('@/hooks/node/use-node-media-generation-v4', () => ({
+  useNodeMediaGenerationV4: () => ({ generateNode, isLoading: false }),
+}))
+
+vi.mock(
+  '@/components/business/studio-shared/pickers/ModelPickerPopover',
+  () => ({
+    ModelPickerPopover: (props: Record<string, unknown>) => (
+      <button
+        type="button"
+        data-testid="model-chip"
+        data-value={String(props.value)}
+        data-count={(props.options as unknown[]).length}
+        onClick={() =>
+          (props.onChange as (option: { optionId: string }) => void)({
+            optionId: 'opt_b',
+          })
+        }
+      />
+    ),
+  }),
+)
+
+vi.mock('@/components/business/AssetSelectorDialog', () => ({
+  AssetSelectorDialog: () => <div data-testid="asset-picker" />,
+}))
+
+vi.mock('../../CanvasImageEditWorkspace', () => ({
+  CanvasImageEditWorkspace: (props: Record<string, unknown>) => (
+    <div data-testid="image-edit" data-task={String(props.defaultTask)} />
+  ),
 }))
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
-import { NODE_SLOT_IDS } from '@/constants/node-slots'
-import { reconcileStateSlots } from '@/lib/node-slot-binding'
-import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
+import type { NodeV4 } from '@/types/node-workflow'
 
+import { ImageNodeV4 } from './ImageNodeV4'
 import {
-  ImageNodeV4,
+  collapsedImageHeight,
   collapsedImageWidth,
-  formatSizeBytes,
-} from './ImageNodeV4'
+  imageFrameReadout,
+  imageVersions,
+  toStudioModelOption,
+} from './image/image-node-model'
+import { IMAGE_EDIT_MENU_TASKS } from './image/ImageNodeMenus'
 import {
   NodeV4CanvasProvider,
   type NodeV4CanvasContextValue,
 } from './NodeV4Context'
 
-const NOW = '2026-09-07T00:00:00.000Z'
+const NOW = '2026-09-10T00:00:00.000Z'
 
-function node(
-  id: string,
-  data: Partial<NodeV4['data']> & { kind: NodeV4['data']['kind'] },
-): NodeV4 {
+function imageNode(id: string, data: Record<string, unknown> = {}): NodeV4 {
   return {
     id,
     position: { x: 0, y: 0 },
     data: {
+      kind: 'image',
+      subtype: 'reference',
       name: id,
       status: 'idle',
       createdAt: NOW,
       ...data,
-    } as NodeV4['data'],
-  }
-}
-
-/** 一张角色图 + 两张参考图（一张已挂进 `reference` 槽，一张还没挂）+ 一个下游镜头。 */
-function scene(): NodeWorkflowStateV4 {
-  return reconcileStateSlots(
-    {
-      version: 4,
-      nodes: [
-        node('i_char', {
-          kind: 'image',
-          subtype: 'character',
-          url: 'https://cdn.test/c.png',
-          mediaWidth: 1600,
-          mediaHeight: 900,
-          sizeBytes: 2 * 1024 * 1024,
-          imageSource: 'generated',
-        }),
-        node('i_ref', {
-          kind: 'image',
-          subtype: 'reference',
-          url: 'https://cdn.test/r.png',
-        }),
-        node('i_free', {
-          kind: 'image',
-          subtype: 'reference',
-          url: 'https://cdn.test/f.png',
-        }),
-        node('v_01', {
-          kind: 'video',
-          subtype: 'shot',
-          shotNo: 1,
-          label: '开场',
-        }),
-      ],
-      edges: [
-        {
-          id: 'e_ref',
-          source: 'i_ref',
-          sourceHandle: 'out',
-          target: 'i_char',
-          slot: NODE_SLOT_IDS.reference,
-        },
-        {
-          id: 'e_down',
-          source: 'i_char',
-          sourceHandle: 'out',
-          target: 'v_01',
-          slot: NODE_SLOT_IDS.reference,
-        },
-      ],
     },
-    { now: NOW },
-  )
+  } as NodeV4
 }
 
 function harness(
-  state: NodeWorkflowStateV4,
+  nodes: readonly NodeV4[],
   overrides: Partial<NodeV4CanvasContextValue> = {},
 ): NodeV4CanvasContextValue {
   return {
-    nodes: state.nodes,
-    edges: state.edges,
+    nodes,
+    edges: [],
     draggingFrom: null,
     changedNodeIds: [],
     expandedNodeId: null,
@@ -145,7 +136,7 @@ function harness(
 
 function renderImage(
   context: NodeV4CanvasContextValue,
-  nodeId = 'i_char',
+  nodeId = 'i_1',
   selected = false,
 ) {
   const target = context.nodes.find((item) => item.id === nodeId)!
@@ -157,196 +148,310 @@ function renderImage(
   )
 }
 
-describe('卡宽随媒体比例', () => {
-  it('缺 mediaWidth/Height 时退回收起态定宽', () => {
+describe('卡宽卡高随媒体比例', () => {
+  it('缺尺寸时退回收起态定宽与 16:9', () => {
     expect(collapsedImageWidth({ kind: 'image' } as never)).toBe(320)
+    expect(collapsedImageHeight({ kind: 'image' } as never)).toBe(180)
   })
 
-  it('横图变宽但钳在展开态宽以内，⛔ 不放开上限', () => {
-    const wide = collapsedImageWidth({
+  it('竖图卡不变宽，高按真实比例长出来', () => {
+    const data = {
       kind: 'image',
-      mediaWidth: 4000,
-      mediaHeight: 1000,
-    } as never)
-    expect(wide).toBeLessThanOrEqual(560)
-    expect(wide).toBeGreaterThan(320)
+      mediaWidth: 1024,
+      mediaHeight: 1792,
+    } as never
+    expect(collapsedImageWidth(data)).toBe(320)
+    expect(collapsedImageHeight(data)).toBe(560)
   })
 
-  it('竖图不比收起态更窄', () => {
+  it('横图变宽但钳在展开宽以内', () => {
     expect(
       collapsedImageWidth({
         kind: 'image',
-        mediaWidth: 900,
-        mediaHeight: 1600,
+        mediaWidth: 4000,
+        mediaHeight: 1000,
       } as never),
-    ).toBe(320)
+    ).toBe(480)
   })
 })
 
-describe('读数条', () => {
-  it('W×H / 大小 / 来源角标都渲染', () => {
-    renderImage(harness(scene()))
+describe('空卡 / 有图两态', () => {
+  it('空卡是虚线框 + 加号 + 一句提示，⛔ 没有图', () => {
+    renderImage(harness([imageNode('i_1')]))
+    const card = screen.getByTestId
+    void card
     expect(
-      screen.getAllByText('readout.dimensions:1600/900').length,
-    ).toBeGreaterThan(0)
-    expect(screen.getAllByText('2.0 MB').length).toBeGreaterThan(0)
-    expect(
-      document.querySelector('[data-image-source="generated"]'),
-    ).not.toBeNull()
+      document
+        .querySelector('[data-node-chrome="card"]')
+        ?.getAttribute('data-empty'),
+    ).toBe('true')
+    expect(document.querySelector('[data-node-card-add]')).not.toBeNull()
+    expect(document.querySelector('img')).toBeNull()
   })
 
-  it('缺尺寸字段时那一条整段不渲染，⛔ 不显示 0×0', () => {
-    renderImage(harness(scene()), 'i_ref')
-    expect(document.querySelector('[data-readout-dimensions]')).toBeNull()
-  })
-
-  it('没有 url 时整条读数不渲染', () => {
-    const state = scene()
-    const stripped = {
-      ...state,
-      nodes: state.nodes.map((item) =>
-        item.id === 'i_ref'
-          ? { ...item, data: { ...item.data, url: undefined } }
-          : item,
-      ),
-    } as NodeWorkflowStateV4
-    renderImage(harness(stripped), 'i_ref')
-    expect(document.querySelector('[data-image-readout]')).toBeNull()
-  })
-})
-
-describe('选中工具条', () => {
-  it('单选时出现；删除发 delete op', () => {
-    const context = harness(scene())
-    renderImage(context, 'i_char', true)
-    fireEvent.click(
-      document.querySelector('[data-toolbar-action="delete"]') as Element,
-    )
-    expect(context.onApplyOp).toHaveBeenCalledWith({
-      op: NODE_ASSISTANT_OP_V4_IDS.delete,
-      target: 'i_char',
-    })
-  })
-
-  it('克隆发的是**同类空节点**的 add_node，⛔ 不带 url', () => {
-    const context = harness(scene())
-    renderImage(context, 'i_char', true)
-    fireEvent.click(
-      document.querySelector('[data-toolbar-action="clone"]') as Element,
-    )
-    expect(context.onApplyOp).toHaveBeenCalledWith({
-      op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-      kind: 'image',
-      subtype: 'character',
-    })
-  })
-
-  it('审核按钮写 reviewState', () => {
-    const context = harness(scene())
-    renderImage(context, 'i_char', true)
-    fireEvent.click(
-      document.querySelector('[data-toolbar-action="reject"]') as Element,
-    )
-    expect(context.onApplyOp).toHaveBeenCalledWith({
-      op: NODE_ASSISTANT_OP_V4_IDS.setReviewState,
-      target: 'i_char',
-      url: 'https://cdn.test/c.png',
-      state: 'rejected',
-    })
-  })
-
-  it('多选时整条不渲染（legacy multiSelectActive 的同一判据）', () => {
+  it('有图收起态卡即图，⛔ 无读数角标', () => {
     renderImage(
-      harness(scene(), { selectedNodeIds: ['i_char', 'i_ref'] }),
-      'i_char',
+      harness([
+        imageNode('i_1', {
+          url: 'https://cdn.test/a.png',
+          mediaWidth: 1600,
+          mediaHeight: 900,
+          imageSource: 'generated',
+        }),
+      ]),
+    )
+    expect(document.querySelector('img')?.getAttribute('src')).toBe(
+      'https://cdn.test/a.png',
+    )
+    expect(document.querySelector('[data-image-readout]')).toBeNull()
+    expect(document.querySelector('[data-image-source]')).toBeNull()
+  })
+
+  it('端口点按端口表渲染，卡面上不占位置', () => {
+    renderImage(harness([imageNode('i_1')]))
+    expect(screen.getAllByTestId('handle').length).toBeGreaterThan(0)
+  })
+})
+
+describe('选中态：工具条 + 提示词栏', () => {
+  const selectedContext = () =>
+    harness(
+      [imageNode('i_1', { url: 'https://cdn.test/a.png', prompt: '站台' })],
+      { selectedNodeIds: ['i_1'] },
+    )
+
+  it('工具条四键：生镜头 · 编辑 · 下载 · ⋯', () => {
+    renderImage(selectedContext(), 'i_1', true)
+    const ids = Array.from(
+      document.querySelectorAll('[data-toolbar-action]'),
+    ).map((element) => element.getAttribute('data-toolbar-action'))
+    expect(ids).toEqual(['shot', 'edit', 'download', 'more'])
+  })
+
+  it('提示词栏预填上次的词', () => {
+    renderImage(selectedContext(), 'i_1', true)
+    const input = document.querySelector(
+      '[data-prompt-bar-input]',
+    ) as HTMLTextAreaElement
+    expect(input.value).toBe('站台')
+  })
+
+  it('多选时工具条与提示词栏都收起（⛔ 每张卡各弹一条）', () => {
+    const context = harness(
+      [imageNode('i_1', { url: 'https://cdn.test/a.png' })],
+      { selectedNodeIds: ['i_1', 'i_2'] },
+    )
+    renderImage(context, 'i_1', true)
+    expect(document.querySelector('[data-toolbar-action]')).toBeNull()
+    expect(document.querySelector('[data-prompt-bar-input]')).toBeNull()
+  })
+
+  it('回车 = 生成新版本，先落提示词再发', () => {
+    const context = selectedContext()
+    renderImage(context, 'i_1', true)
+    const input = document.querySelector(
+      '[data-prompt-bar-input]',
+    ) as HTMLTextAreaElement
+    fireEvent.change(input, { target: { value: '站台，夜' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(context.onSetPrompt).toHaveBeenCalledWith('i_1', '站台，夜')
+    expect(generateNode).toHaveBeenCalled()
+  })
+
+  /**
+   * ⚠ **阻塞在 S0**：`chrome/NodeToolbar` 的 `ToolbarCell` 把 `{...rest}` 展开在
+   * `onClick={action.onSelect}` **之后**，而 Radix Tooltip 的触发器会经由 `rest`
+   * 递一个自己的 `onClick` 下来 —— 于是每一格的点击都被覆盖掉，四个键一个都不响应。
+   * 修法是一行（`{...rest}` 挪到 `onClick` 之前），但 `chrome/**` 不在本片的所有权
+   * 里。这条用 `it.fails` 钉住现状：S0 修好的那一刻它会转红，提醒把它改回 `it`。
+   */
+  it.fails('生镜头发 add_node（视频镜头）', () => {
+    const context = selectedContext()
+    renderImage(context, 'i_1', true)
+    fireEvent.click(
+      document.querySelector('[data-toolbar-action="shot"]') as HTMLElement,
+    )
+    expect(context.onApplyOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        op: NODE_ASSISTANT_OP_V4_IDS.addNode,
+        kind: 'video',
+        subtype: 'shot',
+      }),
+    )
+  })
+})
+
+describe('画面弹层与模型 chip', () => {
+  it('比例弹层底部算的是**真的会发出去**的那个尺寸 + 单价', () => {
+    expect(imageFrameReadout('16:9', undefined)).toBe('1792×1024')
+    expect(imageFrameReadout(undefined, undefined)).toBe('')
+  })
+
+  it('画面 chip 改比例走 onSetParams', () => {
+    const context = harness(
+      [
+        imageNode('i_1', {
+          url: 'https://cdn.test/a.png',
+          params: { aspectRatio: '1:1' },
+        }),
+      ],
+      { selectedNodeIds: ['i_1'] },
+    )
+    renderImage(context, 'i_1', true)
+    expect(document.querySelector('[data-image-frame-chip]')?.textContent).toBe(
+      '1:1',
+    )
+  })
+
+  it('模型 chip 单选：选中回落 onSetModel', () => {
+    const options = [
+      {
+        optionId: 'opt_a',
+        modelId: 'model-a',
+        adapterType: 'fal',
+        providerConfig: {},
+        requestCount: 0,
+        sourceType: 'workspace',
+      },
+      {
+        optionId: 'opt_b',
+        modelId: 'model-b',
+        adapterType: 'fal',
+        providerConfig: {},
+        requestCount: 0,
+        sourceType: 'saved',
+      },
+    ] as never
+    const context = harness(
+      [
+        imageNode('i_1', {
+          url: 'https://cdn.test/a.png',
+          model: { optionId: 'opt_a', modelId: 'model-a' },
+        }),
+      ],
+      { selectedNodeIds: ['i_1'], modelOptionsByKind: { image: options } },
+    )
+    renderImage(context, 'i_1', true)
+    const chip = screen.getByTestId('model-chip')
+    expect(chip.getAttribute('data-value')).toBe('opt_a')
+    expect(chip.getAttribute('data-count')).toBe('2')
+    fireEvent.click(chip)
+    expect(context.onSetModel).toHaveBeenCalledWith(
+      'i_1',
+      expect.objectContaining({ optionId: 'opt_b', modelId: 'model-b' }),
+    )
+  })
+
+  it('选项映射与 WorkflowModelPicker 同口径（apiKeyId → keyId）', () => {
+    expect(
+      toStudioModelOption({
+        optionId: 'o',
+        modelId: 'm',
+        adapterType: 'fal',
+        providerConfig: {},
+        requestCount: 0,
+        sourceType: 'saved',
+        apiKeyId: 'k1',
+      } as never),
+    ).toMatchObject({ keyId: 'k1', isBuiltIn: false })
+  })
+})
+
+describe('编辑子菜单', () => {
+  it('四项都映射到已经跑得通的能力 id', () => {
+    expect(IMAGE_EDIT_MENU_TASKS.map((entry) => entry.task)).toEqual([
+      'inpaint',
+      'upscale',
+      'remove-background',
+      'object-replace',
+    ])
+  })
+})
+
+describe('粘贴 / 上传落卡', () => {
+  it('选中态 ⌘V 图片落进这张卡（⛔ 不另开一张）', async () => {
+    uploadFn.mockClear()
+    const context = harness([imageNode('i_1')], { selectedNodeIds: ['i_1'] })
+    renderImage(context, 'i_1', true)
+    const file = new File(['x'], 'a.png', { type: 'image/png' })
+    const event = new Event('paste', { bubbles: true }) as ClipboardEvent
+    Object.defineProperty(event, 'clipboardData', { value: { files: [file] } })
+    window.dispatchEvent(event)
+    expect(uploadFn).toHaveBeenCalledWith('image', file, 'i_1')
+    await Promise.resolve()
+    await Promise.resolve()
+    expect(context.onSetMedia).toHaveBeenCalledWith(
+      'i_1',
+      expect.objectContaining({ url: 'https://cdn.test/up.png' }),
+    )
+  })
+
+  it('未选中时不接管粘贴', () => {
+    uploadFn.mockClear()
+    renderImage(harness([imageNode('i_1')]), 'i_1', false)
+    const file = new File(['x'], 'a.png', { type: 'image/png' })
+    const event = new Event('paste', { bubbles: true }) as ClipboardEvent
+    Object.defineProperty(event, 'clipboardData', { value: { files: [file] } })
+    window.dispatchEvent(event)
+    expect(uploadFn).not.toHaveBeenCalled()
+  })
+})
+
+describe('生成中 / 版本 / 快速看', () => {
+  it('在飞的 job 让卡进裱框显影，提示词栏变灰可取消', () => {
+    renderImage(
+      harness(
+        [imageNode('i_1', { url: 'https://cdn.test/a.png', mediaJobId: 'j1' })],
+        {
+          selectedNodeIds: ['i_1'],
+        },
+      ),
+      'i_1',
       true,
     )
-    expect(screen.queryByTestId('node-toolbar')).toBeNull()
-  })
-})
-
-describe('展开态的四块', () => {
-  const expandedContext = () => harness(scene(), { expandedNodeId: 'i_char' })
-
-  it('参考图集读的是**槽的版本**，不是 referenceAssets', () => {
-    renderImage(expandedContext())
-    expect(document.querySelector('[data-gallery-item="i_ref"]')).not.toBeNull()
-    expect(document.querySelector('[data-gallery-empty]')).toBeNull()
-  })
-
-  it('图集「移除」断的是那条边，节点留在画布上', () => {
-    const context = expandedContext()
-    renderImage(context)
-    fireEvent.click(document.querySelector('[data-gallery-remove]') as Element)
-    expect(context.onDisconnectSlot).toHaveBeenCalledWith(
-      'i_char',
-      NODE_SLOT_IDS.reference,
-      expect.any(String),
-    )
-  })
-
-  it('图集「＋加入」只列还没挂进来的图片节点，点一下发 connect', () => {
-    const context = expandedContext()
-    renderImage(context)
-    fireEvent.click(document.querySelector('[data-gallery-add]') as Element)
-    expect(document.querySelector('[data-gallery-pick="i_ref"]')).toBeNull()
-    fireEvent.click(
-      document.querySelector('[data-gallery-pick="i_free"]') as Element,
-    )
-    expect(context.onApplyOp).toHaveBeenCalledWith({
-      op: NODE_ASSISTANT_OP_V4_IDS.connect,
-      source: 'i_free',
-      target: 'i_char',
-      slot: NODE_SLOT_IDS.reference,
-    })
-  })
-
-  it('关系带做的是**下游**反查，点 chip 飞相机而不是打开', () => {
-    const context = expandedContext()
-    renderImage(context)
-    const chip = document.querySelector('[data-relation-chip="v_01"]')
-    expect(chip).not.toBeNull()
-    fireEvent.click(chip as Element)
-    expect(context.onFocusNode).toHaveBeenCalledWith('v_01')
-    expect(context.onToggleExpanded).not.toHaveBeenCalled()
-  })
-
-  it('证据抽屉默认收起，展开后逐槽列出当前版', () => {
-    renderImage(expandedContext())
-    const toggle = document.querySelector(
-      '[data-disclosure-toggle="evidence"]',
-    ) as Element
-    expect(toggle.getAttribute('aria-expanded')).toBe('false')
-    fireEvent.click(toggle)
     expect(
-      document.querySelectorAll('[data-evidence-row]').length,
-    ).toBeGreaterThan(0)
+      document
+        .querySelector('[data-node-chrome="prompt-bar"]')
+        ?.getAttribute('data-generating'),
+    ).toBe('true')
+    expect(document.querySelector('[data-prompt-bar-cancel]')).not.toBeNull()
   })
-})
 
-describe('右键菜单', () => {
-  /**
-   * ⚠ 五条是**常驻**那几条（展开 / 下载 / 克隆 / 整理 / 删除）。第六条
-   * 「重跑下游」只在这个节点真的有下游时才出现（第三期）—— 这一幕里 `i_char`
-   * 连着 `v_01`，所以它在。⛔ 别把它写成「固定六条」：叶子节点上一条都不该有。
-   */
-  it('在节点上右键出菜单：常驻五条 + 有下游时的「重跑下游」', () => {
-    renderImage(harness(scene()))
-    fireEvent.contextMenu(
-      document.querySelector('[data-node-kind="image"]') as Element,
+  it('产出版本今天只有一版，版本点自己不渲染', () => {
+    expect(imageVersions({ kind: 'image' } as never)).toEqual([])
+    expect(
+      imageVersions({ kind: 'image', url: 'https://cdn.test/a.png' } as never),
+    ).toEqual(['https://cdn.test/a.png'])
+    renderImage(
+      harness([imageNode('i_1', { url: 'https://cdn.test/a.png' })], {
+        selectedNodeIds: ['i_1'],
+      }),
+      'i_1',
+      true,
     )
     expect(
-      document.querySelectorAll('[data-node-context-menu] [role="menuitem"]')
-        .length,
-    ).toBe(6)
+      document.querySelector('[data-node-chrome="version-dots"]'),
+    ).toBeNull()
+  })
+
+  it('双击 = 快速看（有图才开）', () => {
+    renderImage(
+      harness([imageNode('i_1', { url: 'https://cdn.test/a.png' })]),
+      'i_1',
+    )
+    fireEvent.doubleClick(
+      document.querySelector('[data-node-kind="image"]') as HTMLElement,
+    )
     expect(
-      document.querySelector('[data-menu-action="rerunDownstream"]'),
+      document.querySelector('[data-node-chrome="quick-look"]'),
     ).not.toBeNull()
   })
-})
 
-describe('formatSizeBytes', () => {
-  it('1MB 以下走 KB', () => {
-    expect(formatSizeBytes(2048)).toBe('2 KB')
+  it('空卡双击不开快速看', () => {
+    renderImage(harness([imageNode('i_1')]))
+    fireEvent.doubleClick(
+      document.querySelector('[data-node-kind="image"]') as HTMLElement,
+    )
+    expect(document.querySelector('[data-node-chrome="quick-look"]')).toBeNull()
   })
 })

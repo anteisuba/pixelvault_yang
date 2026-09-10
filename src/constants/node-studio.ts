@@ -1385,3 +1385,28 @@ export const NODE_V4_LAYOUT = {
   looseRowGap: 280,
   looseColumns: 6,
 } as const
+
+/**
+ * 画布节点的**共用界面件**尺寸与上限（v3 spec §1 通用语言）。
+ *
+ * 这些值是设计画板逐像素定的（`design-text-node/*.dc.html`），四类节点共用一份：
+ * 工具条格 34、提示词栏 44、chip 上限 3、正文最多 4 行再滚。⛔ 不在组件里散写
+ * 数字，也⛔ 不给某一类节点单开一档——差异化的是内容，不是这层壳。
+ */
+export const NODE_V4_CHROME = {
+  /** 工具条一格（纯图标，34×34；命中区 ≥ AA 底线 24）。 */
+  toolbarCellSize: 34,
+  /** 提示词栏单行态高度（一条玻璃胶囊）。 */
+  promptBarHeight: 44,
+  /** chip 数量上限（spec §1.5）。 */
+  promptChipMax: 3,
+  /** 正文自动长高的行数上限，再多就是内部滚动 + 字数（⛔ 不弹大编辑器）。 */
+  promptMaxLines: 4,
+  /** 画中框宽：文本 640 / 视频 720（spec §2 §5），由调用方选一个传进来。 */
+  frameWidth: {
+    text: 640,
+    video: 720,
+  },
+  /** @ chip 里的缩略图边长（spec §1.7）。 */
+  mentionThumbSize: 16,
+} as const

@@ -353,3 +353,39 @@ export function resolveSlotRoleCapacity(
 ): { readonly min: number; readonly max: number | null } {
   return spec.byRole?.[role] ?? { min: spec.min, max: spec.max }
 }
+
+/**
+ * `@` 引用可以携带的**槽角色**（spec §1.7 / §8.2：`@首帧 xxx` / `@尾帧` /
+ * `@语音` / `@参考`，无前缀 = 参考）。角色就是槽 id 的一个子集——⛔ 不另起一套
+ * 名字，否则 S4 把 mention 写进 `slots` 时要多一张翻译表。
+ */
+export const NODE_MENTION_ROLES = [
+  NODE_SLOT_IDS.firstFrame,
+  NODE_SLOT_IDS.lastFrame,
+  NODE_SLOT_IDS.voice,
+  NODE_SLOT_IDS.reference,
+] as const
+
+export type NodeMentionRole = (typeof NODE_MENTION_ROLES)[number]
+
+/**
+ * 正文里能打出来的角色前缀 → 角色。**三语全收**：用户可能在 zh 界面里打英文
+ * 前缀，也可能把 ja 写的正文粘进 zh 项目——解析靠一张固定表，⛔ 不靠当前 locale
+ * （那会让同一段文字在不同界面语言下解析出不同的槽）。
+ */
+export const NODE_MENTION_ROLE_LABELS: Readonly<
+  Record<string, NodeMentionRole>
+> = {
+  首帧: NODE_SLOT_IDS.firstFrame,
+  尾帧: NODE_SLOT_IDS.lastFrame,
+  语音: NODE_SLOT_IDS.voice,
+  参考: NODE_SLOT_IDS.reference,
+  開始フレーム: NODE_SLOT_IDS.firstFrame,
+  終了フレーム: NODE_SLOT_IDS.lastFrame,
+  音声: NODE_SLOT_IDS.voice,
+  参照: NODE_SLOT_IDS.reference,
+  first: NODE_SLOT_IDS.firstFrame,
+  last: NODE_SLOT_IDS.lastFrame,
+  voice: NODE_SLOT_IDS.voice,
+  ref: NODE_SLOT_IDS.reference,
+}

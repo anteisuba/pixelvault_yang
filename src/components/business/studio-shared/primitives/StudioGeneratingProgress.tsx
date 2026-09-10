@@ -27,8 +27,12 @@ export interface StudioGeneratingProgressProps {
   isCompleting?: boolean
   /** Fires once the full close/hold/fade sequence has played — parent unmounts on this. */
   onCompleteAnimationDone?: () => void
-  /** Matches the art box's corner radius so the frame hugs it exactly. */
-  cornerRadiusVar?: '--radius-xl' | '--radius-2xl'
+  /**
+   * Matches the art box's corner radius so the frame hugs it exactly.
+   * `--radius-node` is the canvas node card's own radius exception
+   * (ui-defaults §3.1) — added for `NodeFrameProgress`.
+   */
+  cornerRadiusVar?: '--radius-xl' | '--radius-2xl' | '--radius-node'
   className?: string
 }
 

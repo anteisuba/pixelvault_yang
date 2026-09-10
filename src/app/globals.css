@@ -2387,6 +2387,17 @@ html:lang(ja) {
   transition-duration: var(--duration-spring-press);
 }
 
+/* 节点卡的**选中环**（画板 `.ring`：1.5px 前景色）。
+   ⚠ 走 `outline` 而不是 `box-shadow`：卡影本身就是 `box-shadow`，两者同属一个
+   属性会互相盖掉；而把环合进一个 `--shadow-*` 令牌里 Tailwind 生成不出来——它的
+   shadow 工具要能解析出颜色，值里带 `var(--foreground)` 时整条规则被跳过（真机
+   实测 `box-shadow: none`）。⛔ 也不用 `ring-2`：2px 在缩放的画布上读成描边框，
+   而不是「这张被选中了」。 */
+@utility node-selected-ring {
+  outline: 1.5px solid var(--foreground);
+  outline-offset: 0;
+}
+
 @utility corner-squircle {
   @supports (corner-shape: squircle) {
     corner-shape: squircle;

@@ -1,16 +1,21 @@
 'use client'
 
 /**
- * 顶部**进度带**（§2.4 / 拍板 10 改口：头部改进度带，~40px 钉住）。
+ * 面板**头部**（v2 §4.1）—— 一行：会话标题▾ · 续跑 · 设置 · 收起。
  *
- * ⭐ 两副面孔，同一条带：
- *  · 运行中 → `进度环 · 3/6 · 正在挂 LoRA`，点开展完整清单；
- *  · 空闲   → 退化回旧头部那一行 `域 chip · 会话名 · ⋯ · 收起`。
- * 「长任务里还剩几步」是耐心的唯一来源 —— 过程折叠（方向 C 的前提）之后，
- * 没有这条带就等于进度完全不可见。
+ * ── 它替掉了什么 ────────────────────────────────────────────────
+ * 顶部那条进度带（整文件删）。决策 14：它占了 40px
+ * 的常驻高度去说一句「3/6」，而这句话在加载态那句状态词里顺带就说了
+ * （「正在查 3 个来源…」本身就是进度，§3.6）。
  *
- * ⚠ 清单的数据是**从线程现算的**（`steps` prop），⛔ store 里不另存一份
- * 「进度清单」：两份会分叉，而分叉的表现是带上写着 4/6、点开只有 5 行。
+ * ⚠ 带上挂着的两样东西**各自找到了去处**（§3.6 那条 ⚠）：
+ *  · 齿轮设置入口 → 这里（头部右上，§4.1）；
+ *  · 续跑 chip → **暂挂在这里**。§3.6 写的是「结论记录块的尾部一行」，而结论记录
+ *    块是 #13 才做的东西 —— 在它落地之前把这颗按钮扔掉，等于刷新之后「从第 N 步
+ *    继续」一个入口都没有（它本来就是为「刷新之后」存在的）。#13 落地时搬走。
+ *
+ * ⚠ **本片只搬不改**（#4 是卡片收敛）：标题▾ / 重命名 / 删除 / 新会话那一套逐字
+ * 来自进度带。§4.1 要的第二颗「历史图标」是 #6 的事，⛔ 这里不提前造。
  */
 
 import { useState } from 'react'
@@ -42,7 +47,6 @@ import {
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { Input } from '@/components/ui/input'
 import { ASSISTANT_CONVERSATION_LIMITS } from '@/types/assistant-conversation'
-import { cn } from '@/lib/utils'
 import {
   AlertDialog,
   AlertDialogContent,
@@ -76,50 +80,19 @@ const SESSION_DOMAIN_BY_SURFACE: Record<
   [ASSISTANT_SURFACE_IDS.nodeCanvas]: null,
 }
 
-/** 清单里一行的三态 —— 与 §11.2 的状态色分工一一对应。 */
-export const STUDIO_OPERATOR_BAND_STEP_STATES = {
-  done: 'done',
-  running: 'running',
-  failed: 'failed',
-} as const
-
-export type StudioOperatorBandStepState =
-  (typeof STUDIO_OPERATOR_BAND_STEP_STATES)[keyof typeof STUDIO_OPERATOR_BAND_STEP_STATES]
-
-export interface StudioOperatorBandStep {
-  id: string
-  title: string
-  state: StudioOperatorBandStepState
-}
-
-const RING_RADIUS = 7
-const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
-
-interface StudioOperatorProgressBandProps {
+interface StudioOperatorHeaderProps {
   domain: AssistantOperatorDomain
-  working: boolean
   /**
-   * 计划卡钉住了，球在用户脚下（§4.1 最后一行）。
-   *
-   * ⚠ 与 `working` **分开一个 prop** 而不是并进它：两件事要用户做的动作完全不同
-   * ——「思考中」是等它，「等你确认计划」是等你。合成一个的表现是计划卡钉在屏幕上
-   * 而带上还写着「思考中」，于是没人知道要去点那张卡。
+   * 这一轮还在跑 —— 会话切换 / 新会话在这一档**不可点**（换会话 = 换语境，
+   * 而流正读着旧那一份）。
+   * ⚠ ⛔ 它不再决定头部长什么样：进度带删了（决策 14），进度由状态词说（§3.6）。
    */
-  awaitingPlan: boolean
-  stepsDone: number
-  plannedSteps: number
-  /** 现在这一步在做什么 —— `null` = 计划已下但还没有步在跑。 */
-  currentStepTitle: string | null
-  steps: readonly StudioOperatorBandStep[]
+  working: boolean
   history: UseStudioOperatorHistoryResult
   onNewThread(): void
   /**
-   * 「助手设置」（§8.1 主入口）—— **带上那颗常驻齿轮**（owner 2026-09-07）。
+   * 「助手设置」（§4.1 右上那颗齿轮）。
    *
-   * ⭐ 由来：它此前只活在 ⋯ 菜单的第三格里，等于「要先知道它在那儿才找得到」。
-   * 而「这个助手是谁」是每个人第一次用面板就要改的东西。
-   * ⚠ ⋯ 菜单里那一项**已经删掉**（工程原则 1）：⛔ 不留两个入口 —— 两个入口的
-   * 下场是有人改了菜单那一支而齿轮那一支还开着旧弹层。
    * ⚠ 弹层住在外壳（`StudioOperatorDock`）：收放法则（拍板 7）随时会把面板卸载，
    * 弹层跟着面板走的下场是它自己突然消失。
    */
@@ -128,11 +101,10 @@ interface StudioOperatorProgressBandProps {
   /**
    * **有未完成计划**（第三期 · 断点续跑）—— 刷新之后唯一还看得见的入口。
    *
-   * ⭐ 它必须在带子上而不是只在流里：刷新之后线程是从库里载回来的**只读历史**
-   * （`state.history`），checkpoint 薄卡那一档在历史类型里根本不存在 —— 于是
-   * 「从第 N 步继续」在最需要它的那一刻（刚刷新完）一个入口都没有。
-   * ⚠ 只在**空闲**时露脸：正在跑的时候带子上写的是这一轮的进度，再挤一颗
-   *   「继续」按钮会让人以为要开第二条流。
+   * ⭐ 它必须在头部而不是只在流里：刷新之后线程是从库里载回来的**只读历史**，
+   * checkpoint 薄卡那一档在历史类型里根本不存在 —— 于是「从第 N 步继续」在最需要
+   * 它的那一刻（刚刷新完）一个入口都没有。
+   * ⚠ 只在**空闲**时露脸：正在跑的时候再挤一颗「继续」会让人以为要开第二条流。
    * ⚠ 缺席 = 没有没跑完的计划，⛔ 不画停用态。
    */
   resume?: {
@@ -142,23 +114,17 @@ interface StudioOperatorProgressBandProps {
   }
 }
 
-export function StudioOperatorProgressBand({
+export function StudioOperatorHeader({
   domain,
   working,
-  awaitingPlan,
-  stepsDone,
-  plannedSteps,
-  currentStepTitle,
-  steps,
   history,
   onNewThread,
   onOpenAssistantSettings,
   onCollapse,
   resume,
-}: StudioOperatorProgressBandProps) {
+}: StudioOperatorHeaderProps) {
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
-  const [open, setOpen] = useState(false)
   const [deleteTarget, setDeleteTarget] =
     useState<AssistantConversationSummary | null>(null)
 
@@ -166,94 +132,23 @@ export function StudioOperatorProgressBand({
     useState<AssistantConversationSummary | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
 
-  const hasProgress = working && plannedSteps > 0
-  const ratio = hasProgress ? Math.min(stepsDone / plannedSteps, 1) : 0
-  /** 进度环那一档露不露脸 —— 干活中和「等你定」共用它，空闲才退回域 chip。 */
-  const busy = working || awaitingPlan
-  /**
-   * **还没有分母**（`plan` 帧还没到）—— 环转起来，⛔ 不画 `0/0`：
-   * 一个没有分母的计数比一句「思考中」更像卡住了（§4.1 第三行）。
-   */
-  const indeterminate = working && !hasProgress
   const sessionTitle =
     history.sessions.find((item) => item.id === history.currentSessionId)
       ?.title ?? t('newThread')
-  const bandTitle = awaitingPlan
-    ? t('band.awaitingPlan')
-    : working
-      ? (currentStepTitle ??
-        (hasProgress ? t('band.working') : t('band.thinking')))
-      : (sessionTitle ?? t('newThread'))
 
   return (
     <div
-      data-testid="operator-progress-band"
+      data-testid="operator-header"
       data-working={working ? 'true' : 'false'}
-      data-awaiting-plan={awaitingPlan ? 'true' : 'false'}
-      data-open={open ? 'true' : 'false'}
       className="shrink-0 border-b border-border bg-card"
     >
       <div
-        style={{ height: `${STUDIO_OPERATOR_SHELL.progressBandHeightPx}px` }}
+        style={{ height: `${STUDIO_OPERATOR_SHELL.headerHeightPx}px` }}
         className="flex items-center gap-2 px-3"
       >
-        {busy ? (
-          <>
-            <svg
-              data-testid="operator-band-ring"
-              data-indeterminate={indeterminate ? 'true' : 'false'}
-              viewBox="0 0 18 18"
-              // ⚠ 转的是「不知道还剩多少」那一档；有了分母就停下来按比例画。
-              className={cn(
-                'size-4.5 shrink-0',
-                indeterminate && 'animate-spin motion-reduce:animate-none',
-              )}
-              aria-hidden
-            >
-              <circle
-                cx="9"
-                cy="9"
-                r={RING_RADIUS}
-                fill="none"
-                strokeWidth="2.5"
-                className="stroke-border"
-              />
-              <circle
-                cx="9"
-                cy="9"
-                r={RING_RADIUS}
-                fill="none"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                transform="rotate(-90 9 9)"
-                style={
-                  indeterminate
-                    ? // 固定一段弧，靠外层 `animate-spin` 转 —— 这就是环形 spinner。
-                      {
-                        strokeDasharray: `${RING_CIRCUMFERENCE * 0.28} ${RING_CIRCUMFERENCE}`,
-                      }
-                    : {
-                        strokeDasharray: RING_CIRCUMFERENCE,
-                        strokeDashoffset: RING_CIRCUMFERENCE * (1 - ratio),
-                      }
-                }
-                className="stroke-primary transition-[stroke-dashoffset] duration-(--duration-slow) ease-standard motion-reduce:transition-none"
-              />
-            </svg>
-            {hasProgress ? (
-              <span
-                data-testid="operator-band-fraction"
-                className="shrink-0 font-mono text-2sm tracking-nav tabular-nums text-foreground"
-              >
-                {`${stepsDone}/${plannedSteps}`}
-              </span>
-            ) : null}
-          </>
-        ) : (
-          <span data-testid="operator-domain-chip" className="sr-only">
-            {t(`domainName.${domain}`)}
-          </span>
-        )}
+        <span data-testid="operator-domain-chip" className="sr-only">
+          {t(`domainName.${domain}`)}
+        </span>
 
         <DropdownMenu
           modal={false}
@@ -387,7 +282,7 @@ export function StudioOperatorProgressBand({
             ⚠ 长在标题右边、成本计数左边：它是一个**动作**，而右边那两样是注脚
               与常驻入口 —— 动作排在注脚前面。
             ⚠ `busy` 时整块不渲染（见 prop 头注）。 */}
-        {resume && !busy ? (
+        {resume && !working ? (
           <button
             type="button"
             data-testid="operator-band-resume"
@@ -425,21 +320,6 @@ export function StudioOperatorProgressBand({
         </button>
       </div>
 
-      {(busy || steps.length > 0) && (
-        <button
-          type="button"
-          data-testid="operator-band-toggle"
-          aria-expanded={open}
-          disabled={steps.length === 0}
-          onClick={() => setOpen((value) => !value)}
-          className="flex w-full items-center justify-between gap-2 px-3 pb-2 text-left text-xs text-muted-foreground"
-        >
-          <span className="truncate">{bandTitle}</span>
-          <ChevronDown
-            className={cn('size-3 shrink-0', open && 'rotate-180')}
-          />
-        </button>
-      )}
       <AlertDialog
         open={deleteTarget !== null}
         onOpenChange={(next) => {
@@ -534,44 +414,6 @@ export function StudioOperatorProgressBand({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* 完整清单：`grid-template-rows` 0fr↔1fr 配方（`ui-defaults.md §4`）。 */}
-      <div
-        className={cn(
-          'grid transition-[grid-template-rows] duration-(--duration-base) ease-standard motion-reduce:transition-none',
-          open ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]',
-        )}
-      >
-        <div className="min-h-0 overflow-hidden">
-          <ul data-testid="operator-band-list" className="px-3 pb-2">
-            {steps.map((step, index) => (
-              <li
-                key={step.id}
-                data-state={step.state}
-                className="flex items-center gap-2 py-1 text-md text-muted-foreground data-[state=running]:font-medium data-[state=running]:text-foreground data-[state=done]:text-foreground"
-              >
-                <span className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground">
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-                <span className="min-w-0 flex-1 truncate">{step.title}</span>
-                <span
-                  className={cn(
-                    'shrink-0 font-mono text-xs tracking-nav',
-                    step.state === STUDIO_OPERATOR_BAND_STEP_STATES.done &&
-                      'text-status-applied',
-                    step.state === STUDIO_OPERATOR_BAND_STEP_STATES.running &&
-                      'text-status-warning',
-                    step.state === STUDIO_OPERATOR_BAND_STEP_STATES.failed &&
-                      'text-status-risk',
-                  )}
-                >
-                  {t(`band.state.${step.state}`)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
     </div>
   )
 }

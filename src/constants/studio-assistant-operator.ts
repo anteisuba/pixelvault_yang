@@ -201,6 +201,14 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'queuePicked',
   /** 排队条上点了「撤回」（§3.1 ㉔）—— 那句话丢了，得说一声。 */
   'queueDropped',
+  /**
+   * **问题卡答完了**（v2 §3.4 落账规则 ①）—— 「问题 · 你选了 X」。
+   *
+   * ⭐ 它是问题卡离开钉住区之后**唯一的痕迹**：卡钉在输入框上方、答完就消失，
+   * 而「我刚才选了什么」是下一轮里用户最常回头找的东西。⛔ 别把卡留在时间线里
+   * 代替这一行 —— 那样它会随时间线滚走，而钉住区的整个意义就是不滚。
+   */
+  'questionAnswered',
   'urlImportFailed',
   /**
    * 挂 LoRA 那一跳没成（P4-C）：作者关掉了下载、导入报错、或挂载栈拒了。
@@ -276,8 +284,13 @@ export const STUDIO_OPERATOR_STREAMING = {
  * 写在这里是为了测试与组件读同一个数，⛔ 不是为了让组件去算 style。
  */
 export const STUDIO_OPERATOR_SHELL = {
-  /** 顶部进度带的高（§2.4：~40px，钉住不滚）。 */
-  progressBandHeightPx: 40,
+  /**
+   * 顶部头部那一行的高（v2 §4.1）。
+   *
+   * ⚠ 进度带整条删掉了（决策 14 / §3.6）：这个数现在量的是**头部**——会话标题▾ +
+   * 设置 + 收起那一行。⛔ 别把它读成「带高」：面板上不再有那条带子。
+   */
+  headerHeightPx: 40,
   /** 面板 fixed 的 top/right/bottom（§11.1）。 */
   insetPx: 24,
   /**
@@ -353,6 +366,35 @@ export const STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS = 2
  * 查无此项的答复。用户写的那句话走 `otherText`。
  */
 export const STUDIO_OPERATOR_QUESTION_OTHER_ID = '__other__'
+
+/**
+ * **确认卡那一格的四态**（v2 §3.2 状态表 / 画板 BCards「确认」那一节）。
+ *
+ * ⚠ 住在 store 不住在卡里：收放法则（拍板 7）随时会把面板卸载，卡自己记的下场是
+ * 收一下再展开，那颗**会花钱**的按钮又变回可点的 —— 而这一枪已经发出去了。
+ * ⚠ `submitting` 与 `confirmed` 分开：前者管的是同一帧里的连点（两次点击 = 两枪），
+ * 后者是「这一轮已经受理」。
+ */
+export const STUDIO_OPERATOR_CONFIRM_STATUS_IDS = {
+  /** 默认态 —— 两颗按钮都可点。 */
+  idle: 'idle',
+  /** 点下去了，还没落地。 */
+  submitting: 'submitting',
+  /** 已确认 · 时间（卡就地换态，⛔ 不离开时间线）。 */
+  confirmed: 'confirmed',
+  /** 已取消 · 时间。 */
+  cancelled: 'cancelled',
+} as const
+
+export const STUDIO_OPERATOR_CONFIRM_STATUSES = [
+  STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+  STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting,
+  STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed,
+  STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled,
+] as const
+
+export type StudioOperatorConfirmStatus =
+  (typeof STUDIO_OPERATOR_CONFIRM_STATUSES)[number]
 
 /**
  * 图标轨上那颗**状态点**的四档语义（拍板 7 改口：胶囊没了，语义迁到状态点）。

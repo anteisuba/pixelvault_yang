@@ -179,18 +179,6 @@ describe('新对话', () => {
   })
 })
 
-describe('续跑注册口', () => {
-  it('注册与注销 —— 就地确认条在参数栏，续跑的能力在面板', () => {
-    const resume = vi.fn()
-    store.registerOperatorRunner({ resume })
-    store.getOperatorRunner()?.resume('append')
-    expect(resume).toHaveBeenCalledWith('append')
-
-    store.registerOperatorRunner(null)
-    expect(store.getOperatorRunner()).toBeNull()
-  })
-})
-
 // ── 跨域（P4-A，拍板 8：切域换工具、不断会话）────────────────────────
 describe('切域', () => {
   it('线程连续 —— 域标记插在原地，之前的条目一条都不掉', () => {
@@ -275,22 +263,6 @@ describe('切域', () => {
     act(() => store.switchOperatorDomain('image'))
     // 切走时不消失 —— 那份表单还预填着，生成键该继续亮。
     expect(result.current.primed).toBe(true)
-  })
-
-  it('就地确认条也按域分槽 —— 问的是图片档的提示词，条子不该出现在视频档', () => {
-    const result = readState()
-    act(() =>
-      store.setOperatorConfirm({
-        field: 'prompt',
-        have: '用户手写的原文',
-        proposed: '助手想写的',
-      }),
-    )
-    act(() => store.switchOperatorDomain('video'))
-    expect(result.current.confirm).toBeNull()
-
-    act(() => store.switchOperatorDomain('image'))
-    expect(result.current.confirm).toMatchObject({ field: 'prompt' })
   })
 
   it('清掉全部改动只清当前域 —— ⛔ 别把用户切回去要用的那份一起清了', () => {
@@ -654,9 +626,10 @@ it('恢复配置保留历史并清掉旧撤销、确认、待生成及未完成�
     await import('@/lib/studio-operator-history')
   store.upsertOperatorStep(DONE, RUN)
   store.setOperatorConfirm({
-    field: 'prompt',
-    have: 'old',
-    proposed: 'new',
+    id: 'confirm-old',
+    kind: 'multistep',
+    steps: [{ id: 's1', label: '改提示词' }],
+    status: 'idle',
   })
   store.setOperatorPrimed(true)
   store.setOperatorResumeScope('checkpoint-test')
@@ -672,12 +645,10 @@ it('恢复配置保留历史并清掉旧撤销、确认、待生成及未完成�
   })
   expect(state).toMatchObject({
     status: 'idle',
+    question: null,
     confirm: null,
     primed: false,
     changes: {},
-    plan: null,
-    spend: null,
-    choice: null,
     resume: null,
     queue: [],
   })

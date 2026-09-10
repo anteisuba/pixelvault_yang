@@ -611,8 +611,11 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
      * 没开始跑」——被盖过去的表现是图标轨上「待你定」变成「待确认」。
      */
     expect(state.status).toBe('awaitingPlan')
-    expect(state.plan?.steps).toHaveLength(3)
-    expect(state.plan?.resolved).toBe(false)
+    expect(state.confirm?.kind).toBe('multistep')
+    expect(
+      state.confirm?.kind === 'multistep' ? state.confirm.steps : [],
+    ).toHaveLength(3)
+    expect(state.confirm?.status).toBe('idle')
   })
 
   it('没有确认帧的那一轮 ⛔ 不出卡，直接接着跑', async () => {
@@ -629,7 +632,7 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     streams[0].emit(doneStepEvent('step-1'))
     await settle()
 
-    expect(store.getOperatorState().plan).toBeNull()
+    expect(store.getOperatorState().confirm).toBeNull()
     expect(store.getOperatorState().status).toBe('working')
   })
 
@@ -677,7 +680,7 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     await settle()
 
     const state = store.getOperatorState()
-    expect(state.plan).not.toBeNull()
+    expect(state.confirm).not.toBeNull()
     // 阶段清单归卡了 —— 流里⛔ 不再有第二份。
     expect(state.entries.some((entry) => entry.kind === 'plan')).toBe(false)
     // 计数照旧（顶部进度带按它画）。
@@ -698,13 +701,13 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     await settle()
 
     const state = store.getOperatorState()
-    expect(state.plan).toBeNull()
+    expect(state.confirm).toBeNull()
     expect(state.entries.filter((entry) => entry.kind === 'plan')).toHaveLength(
       1,
     )
   })
 
-  it('「开始」带 planAnswers + planApproved 重发，并把卡收成摘要（⛔ 不再 forcePlan）', async () => {
+  it('「开始」带 planApproved 重发，并把卡换成「已确认」（⛔ 不再 forcePlan）', async () => {
     const { result } = render()
     act(() => {
       result.current.send('分三步做')
@@ -714,25 +717,16 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     await settle()
 
     act(() => {
-      result.current.answerQuestions([
-        { questionId: 'q1', optionIds: ['half'] },
-      ])
+      result.current.approvePlan()
     })
     await settle()
 
     expect(streams).toHaveLength(2)
     const sent = streamAssistantOperatorAPI.mock.calls[1]?.[0]
-    expect(sent.planAnswers).toEqual([
-      { questionId: 'q1', optionIds: ['half'] },
-    ])
-    // 答复也留在 store 那张卡上 —— 收起态那一行「你选了：…」按它写。
-    expect(store.getOperatorState().plan?.answers).toEqual([
-      { questionId: 'q1', optionIds: ['half'] },
-    ])
     expect(sent.planApproved).toBe(true)
     // ⛔ 不带 forcePlan：带了会让服务端再摆一帧，用户点完「开始」看到同一张卡又回来。
     expect(sent.forcePlan).toBeUndefined()
-    expect(store.getOperatorState().plan?.resolved).toBe(true)
+    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
     expect(store.getOperatorState().status).toBe('working')
   })
 
@@ -746,16 +740,12 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     await settle()
 
     act(() => {
-      result.current.answerQuestions([
-        { questionId: 'q1', optionIds: ['half'] },
-      ])
-      result.current.answerQuestions([
-        { questionId: 'q1', optionIds: ['half'] },
-      ])
+      result.current.approvePlan()
+      result.current.approvePlan()
     })
     await settle()
 
-    // 第二发被 `plan.resolved` 挡掉 —— ⛔ 不是「发两次但第二次覆盖第一次」。
+    // 第二发被 `confirm.status` 挡掉 —— ⛔ 不是「发两次但第二次覆盖第一次」。
     expect(streams).toHaveLength(2)
   })
 
@@ -769,9 +759,7 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     await settle()
 
     act(() => {
-      result.current.answerQuestions([
-        { questionId: 'q1', optionIds: ['half'] },
-      ])
+      result.current.approvePlan()
     })
     await settle()
 
@@ -784,8 +772,8 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     await settle()
 
     const state = store.getOperatorState()
-    // 卡还是那张收起来的（`resolved`），⛔ 没有被一张新的待确认卡顶掉。
-    expect(state.plan?.resolved).toBe(true)
+    // 卡还是那张定过的，⛔ 没有被一张新的待确认卡顶掉。
+    expect(state.confirm?.status).toBe('confirmed')
     expect(state.status).toBe('working')
     // 那份阶段落成一行折叠条目，⛔ 不再变成一张待确认卡。
     expect(state.entries.filter((entry) => entry.kind === 'plan')).toHaveLength(
@@ -845,12 +833,13 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
 
     streams[0].emit(generateConfirmEvent())
     await settle()
-    expect(store.getOperatorState().spend?.request.model.label).toBe(
-      'Seedream 4',
-    )
+    const pending = store.getOperatorState().confirm
+    expect(
+      pending?.kind === 'generate' ? pending.request.model.label : null,
+    ).toBe('Seedream 4')
 
     act(() => {
-      result.current.answerSpend()
+      result.current.confirmGeneration()
     })
     await settle()
 
@@ -861,7 +850,7 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
      */
     expect(triggerGeneration).toHaveBeenCalledWith(SPEND_REQUEST)
     expect(streams).toHaveLength(1)
-    expect(store.getOperatorState().spend?.resolved).toBe(true)
+    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
   })
 
   it('⭐ 连点两次「确认生成」只扣一次扳机', async () => {
@@ -874,8 +863,8 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
     await settle()
 
     act(() => {
-      result.current.answerSpend()
-      result.current.answerSpend()
+      result.current.confirmGeneration()
+      result.current.confirmGeneration()
     })
     await settle()
     expect(triggerGeneration).toHaveBeenCalledTimes(1)
@@ -889,12 +878,12 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
     await settle()
     streams[0].emit(generateConfirmEvent())
     await settle()
-    expect(store.getOperatorState().spend).not.toBeNull()
+    expect(store.getOperatorState().confirm).not.toBeNull()
 
     act(() => {
       result.current.newThread()
     })
-    expect(store.getOperatorState().spend).toBeNull()
+    expect(store.getOperatorState().confirm).toBeNull()
   })
 })
 
@@ -956,25 +945,43 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
       }),
     )
     await settle()
-    expect(store.getOperatorState().choice?.options).toHaveLength(2)
+    expect(store.getOperatorState().question?.question.options).toHaveLength(2)
 
-    const picked = store.getOperatorState().choice?.options[1]
+    const picked = store.getOperatorState().question?.question.options[1]
     act(() => {
-      result.current.answerChoice(picked!, '就这张：结果②')
+      result.current.answerQuestion(
+        { questionId: 'which-asset', optionIds: [picked!.id] },
+        {
+          label: picked!.label,
+          asset: {
+            id: picked!.id,
+            url: picked!.assetUrl as string,
+            label: picked!.label,
+            kind: 'image',
+            thumbnailUrl: picked!.assetUrl as string,
+          },
+        },
+      )
     })
     await settle()
 
     const state = store.getOperatorState()
     // ⭐ 与另外三个入口同一条 chip 管线。
     expect(state.mentions.map((chip) => chip.id)).toEqual(['gen-2'])
-    expect(state.choice?.chosenId).toBe('gen-2')
+    // ⭐ 答完卡就消失（§3.4）。⚠ 缩略图那一支落的是**用户行**：服务端的准入
+    //   名单读的是最后一条用户消息的附件，落成系统行那张图到不了服务端。
+    expect(state.question).toBeNull()
+    // ⚠ 末尾那条是下一轮的助手占位行 —— 找的是最后一条**用户行**。
+    expect(
+      state.entries.filter((entry) => entry.kind === 'user').at(-1),
+    ).toMatchObject({ attachments: [{ id: 'gen-2' }] })
     // ⭐ 服务端那一侧的**准入名单**：`critique_result.targetIds` 只能从这里挑。
     expect(
       streamAssistantOperatorAPI.mock.calls[1]?.[0].mentionedAssets,
     ).toEqual([{ id: 'gen-2', url: 'https://cdn.test/b.png', label: '结果②' }])
   })
 
-  it('用户改口 → 三张卡一起收（⛔ 别留一张还能点的花钱卡）', async () => {
+  it('用户改口 → 两张卡一起收（⛔ 别留一张还能点的生成确认卡）', async () => {
     const { result } = render()
     act(() => {
       result.current.send('帮我发一枪')
@@ -987,13 +994,13 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
       reason: 'awaiting_confirm',
     })
     await settle()
-    expect(store.getOperatorState().spend).not.toBeNull()
+    expect(store.getOperatorState().confirm).not.toBeNull()
 
     act(() => {
       result.current.send('算了，换个别的')
     })
     await settle()
-    expect(store.getOperatorState().spend).toBeNull()
+    expect(store.getOperatorState().confirm).toBeNull()
   })
 })
 

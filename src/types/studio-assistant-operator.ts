@@ -15,8 +15,12 @@
 import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import type { ContextCardKindId } from '@/constants/context-cards'
 import type { ContextCardImage } from '@/types/context-cards'
-import type { ProjectRuleSourceId } from '@/constants/assistant-operator'
 import type {
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
+  ProjectRuleSourceId,
+} from '@/constants/assistant-operator'
+import type {
+  StudioOperatorConfirmStatus,
   StudioOperatorField,
   StudioOperatorSystemCode,
 } from '@/constants/studio-assistant-operator'
@@ -277,69 +281,60 @@ export interface StudioOperatorResultItem {
   outputType?: string | null
 }
 
-/** 就地确认条（拍板 3）—— 直接复用事件载荷，不另立形状。 */
-/**
- * 参数栏上那条**就地确认**（覆盖手写三选）—— `ask` 帧 `overwrite` 那一块。
- *
- * ⚠ 取的是帧上那一块而不是整帧：问句与选项文案由卡自己按 i18n 写，条子要的
- * 只是「改哪一格、原文是什么、建议是什么」这三样。
- */
-export type StudioOperatorConfirm = NonNullable<
-  AssistantOperatorAskEvent['overwrite']
->
-
 /**
  * 反问卡的三样东西 —— **契约住在 `types/assistant-operator.ts`**（2026-09-06 面板轮）。
  *
  * ⭐ 这里只留三个别名：那一份是 Zod（跨进程边界要运行时校验），面板这一侧要的
  * 只是同一个形状的静态类型。⛔ 不在这里再抄一份 interface —— 两份形状迟早会分叉，
  * 而分叉的表现是「服务端明明发了 `description`，卡上就是不显示」。
- * ⚠ 别名而不是直接在组件里 import 那三个名字：面板目录里所有类型都从这一份进，
- * 换契约时只改这三行。
  */
 export type StudioOperatorQuestionOption = AssistantOperatorPlanOption
 export type StudioOperatorQuestion = AssistantOperatorPlanQuestion
 export type StudioOperatorQuestionAnswer = AssistantOperatorPlanAnswer
 
 /**
- * 钉在流末尾的**计划卡**（§2.6 / §4.1 `awaitingPlan`，切片 3a）。
+ * **问题卡**（v2 §3.2 / §3.4）—— 五类卡里唯一**不进时间线**的那一张。
  *
- * ⚠ 它**不是线程条目**：三张「等你定」的卡（计划 / 花钱 / 歧义反问）一轮最多各
- * 一张，且永远钉在流末尾（§4.1 状态矩阵逐字写着「钉在流末尾」）。做成线程条目
- * 就得回答「上一轮那张卡还留在中间做什么」，而答案是它不该留。
- * ⚠ `resolved` 存在 store 而不是卡自己的 `useState`：收放法则（拍板 7）随时会把
- * 面板卸载 —— 卡自己记的话，点完「开始」收一下面板再展开，它又变回可点的了。
+ * ⭐ 它钉在**输入框上方**：未答的问题是当下唯一挡路的东西，滚走了就等于问了个
+ * 寂寞。答完之后卡消失，时间线里落一行「问题 · 你选了 X」（系统行）。
+ * ⚠ 一次只有一张（§3.4「一次只问一个」）：模型想问两件事就分两轮。
+ * ⚠ `overwrite` 是**覆盖手写那一支的回执路由**（`ask` 帧上那一块）：三选答完之后
+ * 要按 `field` 原样带回服务端（`confirmations`），而问句本身说不出「改的是哪一格」。
+ * 缺席 = 这道题不是覆盖三选。
+ * ⚠ `resolved` 住在 store 不住在卡里：收放法则（拍板 7）随时会把面板卸载。
  */
-export interface StudioOperatorPlanPrompt {
+export interface StudioOperatorQuestionPrompt {
   id: string
-  steps: readonly { id: string; label: string }[]
-  /**
-   * 反问卡的题（1–4 题，每题 2–4 项）。空 = 这一轮没什么可问的，卡上只有计划本身。
-   * ⚠ 旧的三格待定项区（`pending`）已**整块删掉**（2026-09-06 面板轮）：那一版
-   * 问的是「哪个图标好看」，⛔ 不留兼容分支。
-   */
-  questions: readonly StudioOperatorQuestion[]
-  /** 已经点过「开始」——卡收成一行摘要（§3.1 ④）。 */
-  resolved: boolean
-  /** 点过「开始」时提交的那份答复 —— 收起态那一行摘要按它写。 */
-  answers: readonly StudioOperatorQuestionAnswer[]
+  question: StudioOperatorQuestion
+  /** 「为什么问这一句」—— 一行小字，缺席就不画。 */
+  why?: string
+  overwrite?: NonNullable<AssistantOperatorAskEvent['overwrite']>
 }
 
-/** 钉在流末尾的**花钱硬确认卡**（§6 第三档 / §3.1 ⑮–⑰）。 */
-export interface StudioOperatorSpendPrompt {
+/**
+ * **确认卡**（v2 §3.3）—— 两种来源，一张卡。
+ *
+ * ⛔ **没有第三种**：花费确认删除（决策 8），覆盖手写降级成问题卡（§3.1）。
+ * ⚠ `multistep` 带 `steps`、`generate` 带 `request`：两支的必填字段互不相容，
+ * 所以走判别联合而不是把两边都做成可选 —— 可选的下场是卡要去处理「既没有步
+ * 也没有载荷的确认」。
+ * ⚠ `status` 住在 store（见 `STUDIO_OPERATOR_CONFIRM_STATUS_IDS` 的头注）。
+ */
+export type StudioOperatorConfirmPrompt = {
   id: string
-  request: AssistantOperatorGenerationRequest
-  resolved: boolean
-}
-
-/** 钉在流末尾的**歧义反问单选卡**（§3.3 第 5 行 / §7）。 */
-export interface StudioOperatorChoicePrompt {
-  id: string
-  question: string
-  options: readonly StudioOperatorAttachment[]
-  /** 点过的那一格；`null` = 还没选。 */
-  chosenId: string | null
-}
+  status: StudioOperatorConfirmStatus
+  /** 已确认 / 已取消那一态的时刻（ISO 串）—— 卡上「已确认 · 11:24」写它。 */
+  decidedAt?: string
+} & (
+  | {
+      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+      steps: readonly { id: string; label: string }[]
+    }
+  | {
+      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
+      request: AssistantOperatorGenerationRequest
+    }
+)
 
 export type StudioOperatorStatus =
   /** 没在跑。 */

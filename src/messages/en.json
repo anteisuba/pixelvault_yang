@@ -5379,14 +5379,30 @@
       "regenerate": "Tweak & retry",
       "regenerating": "Regenerating"
     },
-    "mobileCanvas": {
-      "viewCanvas": "View canvas",
-      "backToList": "Back to list",
-      "fedBy": "Fed by",
-      "feeds": "Feeds into",
-      "noConnections": "Not connected to any other node",
-      "removedNotice": "This node is no longer on the canvas",
-      "emptyMedia": "No media yet"
+    "mobileRail": {
+      "assistant": "Assistant",
+      "listLabel": "List",
+      "tab": {
+        "shots": "Shots",
+        "images": "Images",
+        "voices": "Voice",
+        "texts": "Text"
+      },
+      "empty": {
+        "shots": "No shots yet. Tap + to add one.",
+        "images": "No images yet. Tap + to upload.",
+        "voices": "No voice clips yet.",
+        "texts": "No text nodes yet."
+      },
+      "add": "Add",
+      "newShot": "New shot",
+      "upload": "Upload (photos / files)",
+      "addReference": "Add reference",
+      "fromDevice": "Photos or files",
+      "play": "Play",
+      "pause": "Pause",
+      "emptyShot": "No footage yet. Tap to write a prompt.",
+      "versionReadout": "{index} / {total}"
     },
     "canvasOps": {
       "title": "The assistant wants to change the canvas",
@@ -7444,17 +7460,6 @@
       "sheetDescription": "Full-screen assistant panel — say what you want, or attach your assets.",
       "open": "Open assistant"
     },
-    "band": {
-      "working": "Working",
-      "state": {
-        "done": "done",
-        "running": "running",
-        "failed": "failed"
-      },
-      "thinking": "Thinking…",
-      "awaitingPlan": "Waiting on your plan",
-      "capturingFrames": "Taking frames…"
-    },
     "researchDetails": "Research details",
     "toolGroup": {
       "title": "{count} operations",
@@ -7538,18 +7543,30 @@
       "clearConfirm": "Really clear {count} changes?"
     },
     "confirm": {
-      "have": {
-        "prompt": "You hand-wrote {count} characters in the prompt — what should happen to them?",
-        "negative": "You hand-wrote {count} characters in the negative prompt — what should happen to them?"
+      "generate": {
+        "title": "Generate {count} images?",
+        "count": "{count} images",
+        "countLabel": "Count",
+        "confirm": "Confirm generate",
+        "cancel": "Not now",
+        "handedOff": "Handed off to generate",
+        "notRun": "Not run",
+        "retry": "Try again",
+        "model": "Model",
+        "aspect": "Aspect ratio",
+        "resolution": "Resolution"
       },
-      "choice": {
-        "append": "Append after",
-        "overwrite": "Overwrite",
-        "keep": "Keep mine"
+      "multistep": {
+        "title": "{count}-step plan",
+        "start": "Start",
+        "stepByStep": "Step by step",
+        "stoppable": " — you can stop it anytime"
       },
-      "title": "How should the assistant prompt be applied?",
-      "current": "Current prompt",
-      "proposed": "Suggested prompt"
+      "state": {
+        "submitting": "Confirming…",
+        "confirmed": "Confirmed · {time}",
+        "cancelled": "Cancelled · {time}"
+      }
     },
     "system": {
       "undoStep": "You undid: {subject} (the assistant knows and will not redo it)",
@@ -7564,7 +7581,8 @@
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
       "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
       "videoFramesFailed": "No frames could be taken from this clip — the assistant cannot look at it this turn ({subject})",
-      "checkpointRestored": "Restored the selected step’s configuration. Use the current form for subsequent actions."
+      "checkpointRestored": "Restored the selected step’s configuration. Use the current form for subsequent actions.",
+      "questionAnswered": "You picked: {subject}"
     },
     "suggestion": {
       "setupShot": "Set this shot up for me",
@@ -7673,11 +7691,6 @@
       "chipLabel": "Result {ordinal}",
       "pending": "Still generating"
     },
-    "choice": {
-      "title": "Which one did you mean?",
-      "resolved": "Picked",
-      "answer": "This one: {label}"
-    },
     "error": {
       "generic": "The assistant did not finish this round",
       "failed": "The assistant hit an error partway through this round",
@@ -7757,18 +7770,7 @@
       "scopeAll": "all workbenches"
     },
     "plan": {
-      "title": "Plan · needs your say",
       "revisePrefill": "Change the plan: "
-    },
-    "spend": {
-      "title": "Send this? It spends credits",
-      "model": "Model",
-      "count": "Images",
-      "specs": "Specs",
-      "seconds": "{seconds}s",
-      "cancel": "Cancel",
-      "confirm": "Send",
-      "resolved": "Sent · it spent credits"
     },
     "planVisual": {
       "comp": {
@@ -7870,15 +7872,13 @@
       "pending": "The assistant is thinking"
     },
     "question": {
-      "title": "A few things to confirm",
-      "meta": "{count} questions",
       "recommended": "Recommended",
       "other": "Other",
       "otherPlaceholder": "Tell it what you want…",
-      "summary": "You picked: {answers}",
-      "missing": "{count} still unanswered",
-      "start": "Start",
-      "revise": "Revise"
+      "pinnedTitle": "{name} wants to confirm first",
+      "current": "Current prompt",
+      "proposed": "Suggested prompt",
+      "send": "Send"
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "this environment cannot read video",
@@ -7892,7 +7892,17 @@
       "continue": "Continue from step {step}",
       "failed": "Failed: {reason}",
       "band": "Unfinished plan · continue from step {step}"
-    }
+    },
+    "status": {
+      "thinking": "Thinking…",
+      "capturingFrames": "Taking frames…",
+      "look": "Looking at the image…",
+      "research": "Checking {count} sources…",
+      "ask": "Thinking of a question…",
+      "apply": "Adjusting settings…",
+      "request_generation": "Getting ready to generate…"
+    },
+    "placeholderQuestion": "You don't have to answer — you can type something else…"
   },
   "GenerationCancel": {
     "cancel": "Cancel",

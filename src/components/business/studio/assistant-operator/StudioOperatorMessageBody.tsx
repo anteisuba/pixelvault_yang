@@ -41,6 +41,14 @@ import type {
 
 interface StudioOperatorMessageBodyProps {
   entry: StudioOperatorMessageEntry
+  /**
+   * **加载态那一句状态词**（v2 §3.6）—— 「正在查 3 个来源…」。
+   *
+   * ⚠ 只在**还没有字**的那一格上画（占位行）：正文一到它就该让位。
+   * ⚠ 缺席时退回三点脉冲 —— 状态词只有在跑着的时候才算得出来（历史里那一条
+   *   永远没有），⛔ 别为它留一行空白。
+   */
+  statusText?: string
 }
 
 /**
@@ -55,8 +63,11 @@ interface StudioOperatorMessageBodyProps {
 export function StudioOperatorCollapsibleText({
   text,
   streaming = false,
+  statusText,
 }: {
   text: string
+  /** 见 `StudioOperatorMessageBodyProps.statusText`。 */
+  statusText?: string
   /**
    * 这一条**还没有字**（发送即回显的占位行）—— 空正文时画三点脉冲。
    *
@@ -78,6 +89,21 @@ export function StudioOperatorCollapsibleText({
    * §4.1「骨架尺寸 = 内容尺寸」，第一个字到达时这一行不许跳。
    */
   if (!text && streaming) {
+    /**
+     * ⭐ **头像旁一行状态词**（§3.6）—— 不转圈、不用骨架屏。
+     * ⚠ 它替掉的是顶部那条进度带（决策 14）：「正在查 3 个来源…」本身就是进度，
+     * 而带子要花 40px 的常驻高度才说得出同一句话。
+     */
+    if (statusText) {
+      return (
+        <p
+          data-testid="operator-status-word"
+          className="flex h-6 items-center text-md leading-relaxed text-muted-foreground"
+        >
+          {statusText}
+        </p>
+      )
+    }
     return (
       <p
         data-testid="operator-message-pending"
@@ -132,6 +158,7 @@ export function StudioOperatorCollapsibleText({
 
 export function StudioOperatorMessageBody({
   entry,
+  statusText,
 }: StudioOperatorMessageBodyProps) {
   const t = useTranslations('StudioOperator')
 
@@ -140,6 +167,7 @@ export function StudioOperatorMessageBody({
       <StudioOperatorCollapsibleText
         text={entry.text}
         streaming={entry.streaming ?? false}
+        {...(statusText ? { statusText } : {})}
       />
 
       {/* ⚠ 没有 `detail` 就**什么都不画**（⛔ 不画一颗点开是空的「为什么」）。 */}

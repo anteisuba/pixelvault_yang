@@ -31,7 +31,11 @@ import {
   GENERATION_REVIEW_STATE_IDS,
 } from '@/constants/assistant-operator'
 import type { GenerationReviewState } from '@/constants/assistant-operator'
-import type { StudioOperatorField } from '@/constants/studio-assistant-operator'
+import {
+  STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
+  type StudioOperatorConfirmStatus,
+  type StudioOperatorField,
+} from '@/constants/studio-assistant-operator'
 import {
   createOperatorClaim,
   type StudioOperatorClaim,
@@ -53,18 +57,14 @@ import type {
   StudioOperatorChange,
   StudioOperatorMemoryArtifact,
   StudioOperatorMemoryRound,
-  StudioOperatorChoicePrompt,
-  StudioOperatorConfirm,
+  StudioOperatorConfirmPrompt,
   StudioOperatorMessageEntry,
-  StudioOperatorPlanPrompt,
-  StudioOperatorQuestionAnswer,
+  StudioOperatorQuestionPrompt,
   StudioOperatorQueuedMessage,
-  StudioOperatorSpendPrompt,
   StudioOperatorStatus,
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
-import type { AssistantOperatorConfirmChoice } from '@/constants/assistant-operator'
 import type { AssistantOperatorStep } from '@/types/assistant-operator'
 import type { AssistantSurfaceId } from '@/types/assistant-conversation'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
@@ -78,11 +78,11 @@ import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history
  *    登记被顶掉，回到图片档一点还原，撤的是视频那一版（真正的「误标」）；
  *  · `primed` 不分槽的下场：在图片档备好一枪、切到视频，视频的生成键跟着亮起来
  *    —— 而那份表单助手根本没碰过；
- *  · `confirm` 不分槽的下场：问的是图片档的提示词，条子却出现在视频档的参数栏上。
+ * ⚠ **覆写三选那条子已经不在这里了**（v2 §3.1）：它降级成了问题卡，而问题卡
+ *   钉在输入框上方、一次只有一张（§3.4）—— 于是它跟着 `question` 走全局那一份。
  */
 interface StudioOperatorDomainSlice {
   changes: Readonly<Partial<Record<StudioOperatorField, StudioOperatorChange>>>
-  confirm: StudioOperatorConfirm | null
   primed: boolean
 }
 
@@ -114,8 +114,6 @@ export interface StudioOperatorState {
   entries: readonly StudioOperatorThreadEntry[]
   /** 改动登记簿 —— 按字段存，见 `StudioOperatorChange` 的头注。**当前域的那一份。** */
   changes: Readonly<Partial<Record<StudioOperatorField, StudioOperatorChange>>>
-  /** 就地确认条（拍板 3）。非 null 时流已经停了，等用户选。**当前域的那一份。** */
-  confirm: StudioOperatorConfirm | null
   /** 生成键是否被预填亮起（拍板 2）。**当前域的那一份。** */
   primed: boolean
   /** 已经跑完的步数 / 计划里说要跑几步 —— 胶囊上「干活中 3/7」的两个数。 */
@@ -185,9 +183,10 @@ export interface StudioOperatorState {
    * ⚠ 三张各自最多一张，且**跨域不分槽**：它们属于「此刻这条流停在哪儿」，而流
    * 本来就只有一条。切域时由驱动 hook 一起清（同 `confirm` 的理由）。
    */
-  plan: StudioOperatorPlanPrompt | null
-  spend: StudioOperatorSpendPrompt | null
-  choice: StudioOperatorChoicePrompt | null
+  /** 钉在输入框上方那张**问题卡**（§3.4）。⛔ 不进时间线。 */
+  question: StudioOperatorQuestionPrompt | null
+  /** 时间线末尾那张**确认卡**（§3.3，两种来源一张卡）。 */
+  confirm: StudioOperatorConfirmPrompt | null
   /**
    * 视频域评审的**抽帧那一段**正在跑（第二期最后一环）。
    *
@@ -233,7 +232,6 @@ const EMPTY_MEMORY: readonly StudioOperatorMemoryRound[] = []
 
 const EMPTY_SLICE: StudioOperatorDomainSlice = {
   changes: {},
-  confirm: null,
   primed: false,
 }
 
@@ -259,9 +257,8 @@ const INITIAL_STATE: StudioOperatorState = {
   selectedResultId: null,
   askFirst: false,
   planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
-  plan: null,
-  spend: null,
-  choice: null,
+  question: null,
+  confirm: null,
   capturingFrames: false,
   reviewStates: {},
   workingMemory: EMPTY_MEMORY,
@@ -359,33 +356,6 @@ export function useStudioOperatorState(): StudioOperatorState {
  */
 export function getOperatorState(): StudioOperatorState {
   return state
-}
-
-/**
- * 「续跑」的注册口。
- *
- * ⚠ 就地确认条长在**参数栏**（提示词框底下，拍板 3 要求「就地」），而续跑要
- * 重发整条流 —— 那件事只有面板里的驱动 hook 做得到。两棵组件树之间没有共同的
- * Provider（见文件头注：本片不动 `studio-context.tsx`），所以留一个模块级的
- * 命令口：面板挂载时注册，卸载时注销。
- *
- * ⛔ 它**不进 `state`**：它不是渲染要读的数据，进了 state 只会让每次注册都触发
- * 一次全面板重渲染。
- */
-export interface StudioOperatorRunner {
-  resume(choice: AssistantOperatorConfirmChoice): void
-}
-
-let runner: StudioOperatorRunner | null = null
-
-export function registerOperatorRunner(
-  next: StudioOperatorRunner | null,
-): void {
-  runner = next
-}
-
-export function getOperatorRunner(): StudioOperatorRunner | null {
-  return runner
 }
 
 // ─── 「把这张图给助手看」的投递口（P4-C）──────────────────────────────
@@ -641,12 +611,6 @@ export function setOperatorCapturingFrames(capturingFrames: boolean): void {
   emit({ ...state, capturingFrames })
 }
 
-export function setOperatorConfirm(
-  confirm: StudioOperatorConfirm | null,
-): void {
-  emitSlice({ confirm })
-}
-
 export function setOperatorPrimed(primed: boolean): void {
   if (state.primed === primed) return
   emitSlice({ primed })
@@ -844,63 +808,62 @@ export function setOperatorPlanMode(planMode: AssistantPersonaPlanMode): void {
   emit({ ...state, planMode, askFirst: askFirst || state.askFirst })
 }
 
-// ─── 三张「等你定」的卡（§4.1 / §2.6 / §6 / §7）──────────────────
+// ─── 两张「等你定」的卡（v2 §3.2：问题 / 确认）────────────────────
+//
+// ⭐ 五类卡收敛之后这里只剩两格（此前是计划 / 花钱 / 歧义三格）：
+//  · `question` 钉在输入框上方，答完消失，时间线落一行系统行；
+//  · `confirm`  长在时间线末尾，确认 / 取消后**就地换态**，⛔ 不消失。
 
-/** 计划卡到货（§2.6）。⚠ 出不出由 `shouldShowPlanCard` 判，这里只管存。 */
-export function setOperatorPlan(plan: StudioOperatorPlanPrompt | null): void {
-  emit({ ...state, plan })
+/** 问题卡到货（§3.4）—— ⚠ 一次只有一张，新的一张直接顶掉旧的。 */
+export function setOperatorQuestion(
+  question: StudioOperatorQuestionPrompt | null,
+): void {
+  emit({ ...state, question })
+}
+
+/** 确认卡到货（§3.3）。 */
+export function setOperatorConfirm(
+  confirm: StudioOperatorConfirmPrompt | null,
+): void {
+  emit({ ...state, confirm })
 }
 
 /**
- * 点过「开始」—— 卡收成一行摘要（§3.1 ④），⛔ 不删掉它。
+ * 确认卡换态（§3.2 状态表）—— 「确认中 / 已确认 / 已取消」。
  *
- * ⚠ `answers` 是**反问卡**那一份（2026-09-06 面板轮）：收起态那一行写的是
- * 「你选了：…」，没有它就只剩一句「已确认」—— 而用户下一秒要问的正是
- * 「我刚才选了什么」。旧的三格待定项那条路不带它，行为一字不变。
+ * ⚠ 已经定过的**不再改**：`confirmed` 之后再收到一次 `cancelled` 的表现是那一枪
+ * 明明发出去了，卡上却写着「没有执行」。⛔ 唯一的例外是「再来一次」——它走
+ * `setOperatorConfirm` 重新摆一张 `idle` 的卡，不是在这里回退。
  */
-export function resolveOperatorPlan(
-  answers: readonly StudioOperatorQuestionAnswer[] = [],
+export function resolveOperatorConfirm(
+  status: StudioOperatorConfirmStatus,
 ): void {
-  if (!state.plan || state.plan.resolved) return
+  const confirm = state.confirm
+  if (!confirm) return
+  if (
+    confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed ||
+    confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled
+  ) {
+    return
+  }
   emit({
     ...state,
-    plan: {
-      ...state.plan,
-      resolved: true,
-      ...(answers.length > 0 ? { answers } : {}),
+    confirm: {
+      ...confirm,
+      status,
+      ...(status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting
+        ? {}
+        : { decidedAt: new Date().toISOString() }),
     },
   })
 }
 
-export function setOperatorSpend(
-  spend: StudioOperatorSpendPrompt | null,
-): void {
-  emit({ ...state, spend })
-}
-
-export function resolveOperatorSpend(): void {
-  if (!state.spend || state.spend.resolved) return
-  emit({ ...state, spend: { ...state.spend, resolved: true } })
-}
-
-export function setOperatorChoice(
-  choice: StudioOperatorChoicePrompt | null,
-): void {
-  emit({ ...state, choice })
-}
-
-/** 点中了一格 —— 卡转 `.resolved`（§11.4 卡型通则），⛔ 不消失。 */
-export function resolveOperatorChoice(optionId: string): void {
-  if (!state.choice || state.choice.chosenId) return
-  emit({ ...state, choice: { ...state.choice, chosenId: optionId } })
-}
-
 /**
- * 三张卡一起清 —— 切域（拍板 8）与 ⏹ Stop 用。
+ * 两张卡一起清 —— 切域（拍板 8）与 ⏹ Stop 用。
  */
 export function clearOperatorPrompts(): void {
-  if (!state.plan && !state.spend && !state.choice) return
-  emit({ ...state, plan: null, spend: null, choice: null })
+  if (!state.question && !state.confirm) return
+  emit({ ...state, question: null, confirm: null })
 }
 
 /**
@@ -946,7 +909,7 @@ export function restoreOperatorThreadCheckpoint(
   for (const slice of Object.values(slices)) {
     slice.changes = {}
   }
-  emitSlice({ changes: {}, primed: false, confirm: null })
+  emitSlice({ changes: {}, primed: false })
   emit({
     ...state,
     history,
@@ -961,9 +924,8 @@ export function restoreOperatorThreadCheckpoint(
     status: 'idle',
     workingMemory: EMPTY_MEMORY,
     queue: [],
-    plan: null,
-    spend: null,
-    choice: null,
+    question: null,
+    confirm: null,
     stepsDone: 0,
     plannedSteps: 0,
     errorText: null,
@@ -973,7 +935,7 @@ export function restoreOperatorThreadCheckpoint(
 /**
  * 载入一段历史（P4-B，拍板 10 的「历史」那一半）。
  *
- * ⭐ **只换会话，不碰表单**：`changes` / `primed` / `confirm` 三个分槽一个都不动。
+ * ⭐ **只换会话，不碰表单**：`changes` / `primed` 两个分槽一个都不动。
  * 它们说的是「助手在这台工作台上把哪些旋钮拧过、哪一枪备着」，而那是表单此刻的
  * 事实，与用户翻看哪一段对话无关。顺手清掉的下场是「翻了一眼历史，✦ 标记全没了、
  * 撤不回去了」。
@@ -1129,8 +1091,6 @@ export function clearOperatorResumePlan(): void {
  * 第一次保存会把新线程写进**上一条会话那一行**，库里永远只有一条。
  */
 export function resetOperatorThread(): void {
-  // ⚠ `confirm` 走分槽写入（它属于当前域），其余是跨域的会话态。
-  slices[state.domain] = { ...slices[state.domain], confirm: null }
   emit({
     ...state,
     status: 'idle',
@@ -1138,6 +1098,7 @@ export function resetOperatorThread(): void {
     sessionId: null,
     sessionSurface: null,
     entries: [],
+    question: null,
     confirm: null,
     stepsDone: 0,
     plannedSteps: 0,
@@ -1148,9 +1109,6 @@ export function resetOperatorThread(): void {
     selectedResultId: null,
     // ⚠ `mentions` **不清**：它属于用户此刻正在写的那条消息（与草稿同命），
     //   而「＋新对话」清的是已经说完的那些。顺手清掉 = 挂好的三张图凭空消失。
-    plan: null,
-    spend: null,
-    choice: null,
     /**
      * ⭐ 「不再问」跟着会话走（§6 拍板 24 的第一条要素）—— 新话题重新硬确认。
      * ⛔ 留着它的表现是：用户为上一个话题批过一次 4 credits，新话题里助手直接

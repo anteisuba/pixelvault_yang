@@ -51,7 +51,10 @@ import {
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PERSONA_PLAN_MODE_IDS } from '@/constants/assistant-persona'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
+import {
+  STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
+  STUDIO_OPERATOR_STREAMING,
+} from '@/constants/studio-assistant-operator'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
@@ -69,22 +72,17 @@ import {
   operatorStepEntryId,
   recordOperatorArtifacts,
   recordOperatorChange,
-  registerOperatorRunner,
   removeOperatorQueued,
   resetOperatorThread,
-  resolveOperatorChoice,
-  resolveOperatorPlan,
-  resolveOperatorSpend,
+  resolveOperatorConfirm,
   setOperatorAskFirst,
   setOperatorCapturingFrames,
-  setOperatorChoice,
   setOperatorConfirm,
+  setOperatorQuestion,
   clearOperatorResumePlan,
   markOperatorResumeStep,
-  setOperatorPlan,
   setOperatorPlannedSteps,
   startOperatorResumePlan,
-  setOperatorSpend,
   setOperatorStatus,
   switchOperatorDomain,
   takeOperatorQueue,
@@ -366,27 +364,40 @@ export interface UseAssistantOperatorResult {
   stop(): void
   /** 撤回一条还没轮到的排队消息（§3.1 ㉔）—— 丢弃不发，线程里留一行交代。 */
   cancelQueued(id: string): void
-  /** 就地确认的三选一（拍板 3）：追加在后 / 覆盖 / 保留。 */
-  answerConfirm(choice: AssistantOperatorConfirmChoice): void
-  /** 反问卡「开始」—— 一卡 1–4 题一次交，之后卡收成一行「你选了：…」。 */
-  answerQuestions(answers: StudioOperatorQuestionAnswer[]): void
-  /** 计划卡「修改」（§3.1 ⑤）—— ⛔ 不发请求，只记下「下一条消息是改计划」。 */
+  /**
+   * **问题卡答复**（§3.4）—— 一次一道题；卡消失，时间线落一行「你选了 X」。
+   *
+   * ⚠ `label` 由面板给（i18n 在那一层）；`asset` / `choice` 决定走哪条回执通道。
+   */
+  answerQuestion(
+    answer: StudioOperatorQuestionAnswer,
+    options: {
+      label: string
+      asset?: StudioOperatorAttachment
+      choice?: AssistantOperatorConfirmChoice
+    },
+  ): void
+  /** 多步确认卡「开始」（§3.3）—— 带 `planApproved` 重发。 */
+  approvePlan(): void
+  /** 多步确认卡「一步一步来」—— ⛔ 不发请求，只记下「下一条消息是改计划」。 */
+  declinePlan(): void
+  /** 计划「修改」（§3.1 ⑤）—— ⛔ 不发请求，只记下「下一条消息是改计划」。 */
   revisePlan(): void
   /**
-   * **从断点接着跑**（第三期）—— 检查点卡 / 进度带上那颗「从第 N 步继续」。
+   * **从断点接着跑**（第三期）—— 检查点卡 / 头部那颗「从第 N 步继续」。
    *
-   * ⚠ ⛔ **不重新弹计划卡**：那份计划当初就是用户批过的（`planApproved: true`
+   * ⚠ ⛔ **不重新弹确认卡**：那份计划当初就是用户批过的（`planApproved: true`
    * 沿用）。但**生成那一步照常走 `confirm` 确认** —— 续跑不是免检通道
    * （owner 2026-09-07 定）。
    * ⚠ 没有未完成的计划时是 no-op：那颗按钮本来就不该在。
    */
   resumePlan(): void
   /** 生成确认卡「确认生成」（§5）—— **客户端扣扳机**，⛔ 不重发一轮。 */
-  answerSpend(): void
-  /** 生成确认卡「先不要」—— 流已经停了，只把卡收掉。 */
-  cancelSpend(): void
-  /** 歧义反问单选卡点中一格（§7）—— 插 @chip 并带上下文重发。 */
-  answerChoice(option: StudioOperatorAttachment, text: string): void
+  confirmGeneration(): void
+  /** 生成确认卡「先不要」—— 流已经停了，只把卡转「已取消」。 */
+  cancelGeneration(): void
+  /** 「已取消」那一态上的「再来一次」—— 摆一张新的 `idle` 卡。 */
+  retryGeneration(): void
   /**
    * 它备的那一枪回来了 —— 投回线程并自动请一轮评价（P3-C，拍板 4）。
    *
@@ -545,7 +556,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       const controller = new AbortController()
       abortRef.current = controller
 
-      setOperatorConfirm(null)
+      /**
+       * ⚠ ⛔ **不清确认卡**（v2 §3.2 进离场表）：它确认 / 取消之后就地换态留在
+       * 时间线里，跑下一轮时抹掉它等于时间线上少了一段因果。此前这里清的是
+       * 覆写三选那条子（已降级成问题卡），而问题卡由答复那一侧自己收。
+       */
       setOperatorStatus('working')
       /**
        * ⚠ 这一轮的 token —— 服务端每轮都从 `step-1` 重新编号，线程却是跨轮累积
@@ -585,7 +600,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         /**
          * ⭐ **续跑记录就落在这里**（第三期）：这一帧的含义正是「这份计划要开跑
          * 了」——出卡那一支根本走不到这儿（卡还钉着，一步都没开始），而不出卡与
-         * 点过「开始」两条路都从这里过。⛔ 别改到 `answerQuestions` 里去落：
+         * 点过「开始」两条路都从这里过。⛔ 别改到 `approvePlan` 里去落：
          * 那样「步数不够、没出卡」的那一类多步计划一份记录都不会有。
          * ⚠ 续跑那一轮**不重落**：记录里前几步的 done 就是它存在的全部理由。
          */
@@ -886,53 +901,36 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               pendingPlanSteps = event.steps.map((step) => step.label)
               break
             /**
-             * **问题卡**（v2 §3.2 / §3.4）—— 三个来源一帧到齐，按载荷分派到
-             * 今天已经在跑的那两张卡上（卡本身的收敛是下一片的事）：
-             *  · 带 `overwrite` = 覆盖手写三选 → 参数栏上那条就地确认；
-             *  · 选项全带 `assetUrl` = 「你说的是哪一张」→ 缩略图单选卡；
-             *  · 其余 = 计划里的待定项 → 反问卡（一次一道题）。
+             * **问题卡**（v2 §3.2 / §3.4）—— 三个来源一帧到齐，**一张卡收全**。
+             *
+             * ⭐ 收敛点就在这里（v2 §3.2「14 → 5」）：覆盖三选、缩略图单选、计划
+             * 里的待定项此前各有一张卡，而它们问的是同一件事 ——「列几个选项等你
+             * 点一个」。⛔ 别按载荷再分派回三张：那正是 v1 那 14 张卡的来路。
+             * ⚠ 卡**不进时间线**（§3.4）：它钉在输入框上方，答完落一行系统行。
+             * ⚠ `overwrite` 原样收着 —— 它是回执路由（答复要按 `field` 带回
+             *   `confirmations`），问句本身说不出「改的是哪一格」。
              * ⚠ ⛔ 不用像 v1 那样掐流：停流已经由服务端那一帧 `stopped` 说了。
              */
             case ASSISTANT_OPERATOR_EVENTS.ask: {
-              const { question } = event
-              if (event.overwrite) {
-                setOpen(true)
-                setOperatorConfirm(event.overwrite)
-                break
-              }
-              const assetOptions = question.options.filter(
-                (option) => option.assetUrl,
-              )
-              if (assetOptions.length === question.options.length) {
-                setOperatorChoice({
-                  id: nextOperatorEntryId('choice'),
-                  question: question.question,
-                  options: assetOptions.map((option) => ({
-                    id: option.id,
-                    url: option.assetUrl as string,
-                    label: option.label,
-                    kind: 'image' as const,
-                    thumbnailUrl: option.assetUrl as string,
-                  })),
-                  chosenId: null,
-                })
-                break
-              }
-              setOperatorPlan({
-                id: nextOperatorEntryId('plancard'),
-                steps: [],
-                questions: [question],
-                resolved: false,
-                answers: [],
+              flushPlanEntry()
+              setOpen(true)
+              setOperatorQuestion({
+                id: nextOperatorEntryId('question'),
+                question: event.question,
+                ...(event.why ? { why: event.why } : {}),
+                ...(event.overwrite ? { overwrite: event.overwrite } : {}),
               })
-              setOperatorStatus('awaitingPlan')
+              setOperatorStatus('awaitingConfirm')
               break
             }
             /**
-             * **确认卡**（v2 §3.3）—— 两种来源，按 `kind` 分派到今天那两张卡：
-             *  · `multistep` → 反问卡（这一轮攒着的那份计划归它，⛔ 别再落一条
-             *    `kind:'plan'` 条目）；
+             * **确认卡**（v2 §3.3）—— 两种来源，**一张卡**（`kind` 判别）：
+             *  · `multistep` → 这一轮攒着的那份计划归它，⛔ 别再落一条
+             *    `kind:'plan'` 条目（同一份阶段出现两遍 = 「它规划了两遍」）；
              *  · `generate`  → 生成确认卡，⚠ 点「确认生成」由客户端扣扳机（§5）。
+             * ⚠ 状态分两档写：多步是「一整轮还没开始跑」（`awaitingPlan`），
+             *   生成是「有一件事等你拍板」（`awaitingConfirm`）——图标轨那一行
+             *   两句话不一样。
              */
             case ASSISTANT_OPERATOR_EVENTS.confirm: {
               if (
@@ -940,21 +938,21 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
               ) {
                 pendingPlanSteps = null
-                setOperatorPlan({
-                  id: nextOperatorEntryId('plancard'),
+                setOperatorConfirm({
+                  id: nextOperatorEntryId('confirm'),
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep,
                   steps: event.confirm.steps,
-                  questions: [],
-                  resolved: false,
-                  answers: [],
+                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
                 })
                 setOperatorStatus('awaitingPlan')
                 break
               }
               flushPlanEntry()
-              setOperatorSpend({
-                id: nextOperatorEntryId('spend'),
+              setOperatorConfirm({
+                id: nextOperatorEntryId('confirm'),
+                kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
                 request: event.confirm.request,
-                resolved: false,
+                status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
               })
               break
             }
@@ -1284,48 +1282,198 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     })
   }, [])
 
-  const answerConfirm = useCallback(
-    (choice: AssistantOperatorConfirmChoice) => {
-      const confirm = getOperatorState().confirm
-      if (!confirm) return
-      void run({ confirmations: [{ field: confirm.field, choice }] })
+  /**
+   * **问题卡答复**（v2 §3.4 落账规则）—— 三条路一个入口。
+   *
+   * ⭐ 三件事，缺一不可：
+   *  ① 卡消失（钉住区清空）；
+   *  ② 时间线落一行「问题 · 你选了 X」（系统行）——⛔ 不把卡留在时间线里代替
+   *     它：卡钉在输入框上方就是为了不随时间线滚走，留一张滚得走的复本等于
+   *     把这条纪律又还回去了；
+   *  ③ 按载荷选回执通道：覆盖三选 → `confirmations`（⛔ 不靠模型从对话文本里
+   *     猜）；带素材的选项 → @chip 那条管线；其余 → `planAnswers`。
+   *
+   * ⚠ `label` 由面板给（i18n 在那一层）：hook 里没有词表，硬编一句中文会在英文
+   *   界面上原样印出来。
+   */
+  const answerQuestion = useCallback(
+    (
+      answer: StudioOperatorQuestionAnswer,
+      options: {
+        /** 系统行上那句「你选了 X」里的 X。 */
+        label: string
+        /** 选项带缩略图时，被点中的那一张 —— 走 @chip 管线端上去。 */
+        asset?: StudioOperatorAttachment
+        /** 覆盖三选时选的那一档。 */
+        choice?: AssistantOperatorConfirmChoice
+      },
+    ) => {
+      const question = getOperatorState().question
+      if (!question) return
+      setOperatorQuestion(null)
+      /**
+       * ⚠ 缩略图那一支落的是**用户行**而不是系统行：服务端的准入名单
+       * （`mentionedAssets`）读的是**最后一条用户消息的附件**（见
+       * `buildMentionedAssets`）—— 落成系统行的话那张图根本到不了服务端，
+       * 而「你说的是哪一张」问完之后它是这一轮唯一要紧的东西。
+       * ⚠ 那一行本身就是「你选了 X」：它带着被选中的缩略图，⛔ 不再额外落一条
+       *   系统行（同一句话说两遍）。
+       */
+      if (options.asset) {
+        addOperatorMention(options.asset)
+        pendingResultRef.current = null
+        appendOperatorEntry({
+          kind: 'user',
+          id: nextOperatorEntryId('user'),
+          text: options.label,
+          attachments: [options.asset],
+        })
+        void run({ forcePlan: false })
+        return
+      }
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'questionAnswered',
+        subject: options.label,
+      })
+
+      if (question.overwrite && options.choice) {
+        void run({
+          confirmations: [
+            { field: question.overwrite.field, choice: options.choice },
+          ],
+        })
+        return
+      }
+      void run({
+        planAnswers: [answer],
+        planApproved: true,
+        forcePlan: false,
+      })
     },
     [run],
   )
 
   /**
-   * 反问卡「开始」（§3.1 ④ / 2026-09-06 面板轮，第 1 件）—— 带 `planAnswers`
-   * + `planApproved: true` 重发。
+   * **多步确认卡「开始」**（§3.3）—— 带 `planApproved: true` 重发。
    *
    * ⚠ `forcePlan: false` 是硬要求：这一轮的卡**已经问过了**，再带一次「先问我」
    * 会让服务端再摆一帧、客户端再出一张卡 —— 用户点「开始」之后看到的是同一张卡
    * 又回来了（一个自己喂自己的环）。
-   *
-   * ⚠ 答复**存进 store 那张卡里**（`resolveOperatorPlan(answers)`）：收起态那一行
-   * 「你选了：…」按它写。⛔ 不存的表现是卡收起来之后只剩一句「已确认」——
-   * 而用户下一秒要问的正是「我刚才选了什么」。
+   * ⚠ 已经定过的直接返回：连点两下发的是两轮请求，而第二轮会把第一轮 abort 掉
+   * 再从头跑一遍。
    */
-  const answerQuestions = useCallback(
-    (answers: StudioOperatorQuestionAnswer[]) => {
-      /**
-       * ⚠ 已经点过一次就**直接返回**（2026-09-07 真机）：`resolveOperatorPlan` 自己
-       * 会挡住第二次写入，但挡不住第二次 `run()` —— 连点两下发的是两轮请求，而
-       * 第二轮会把第一轮 abort 掉再从头跑一遍（用户付两次的钱、看一次的结果）。
-       */
-      const plan = getOperatorState().plan
-      if (!plan || plan.resolved) return
-      resolveOperatorPlan(answers)
-      void run({ planAnswers: answers, planApproved: true, forcePlan: false })
-    },
-    [run],
-  )
+  const approvePlan = useCallback(() => {
+    const confirm = getOperatorState().confirm
+    if (
+      !confirm ||
+      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep ||
+      confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+    ) {
+      return
+    }
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting)
+    startOperatorResumePlan({
+      planId: confirm.id,
+      labels: confirm.steps.map((step) => step.label),
+    })
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
+    void run({ planApproved: true, forcePlan: false })
+  }, [run])
+
+  /**
+   * **多步确认卡「一步一步来」**（§3.3 第二颗按钮）—— ⛔ **不发请求**。
+   *
+   * ⚠ 与「开始」不是一对反义词：它说的是「别一口气做完」，而不是「不要做」。
+   * 面板把输入框预填成「修改计划：」并聚焦；用户按发送时那条消息带
+   * `planApproved: false`（把答复并进上下文重新规划一次）。
+   * ⚠ §3.3 只写了「开始」那一支的落地，这一支按 v1 计划卡「修改」的同一条纪律
+   * 走 —— ⛔ 别顺手替用户发出去：他还没写要怎么拆。
+   */
+  const declinePlan = useCallback(() => {
+    const confirm = getOperatorState().confirm
+    if (
+      !confirm ||
+      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+    ) {
+      return
+    }
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
+    reviseRef.current = true
+    setOperatorStatus('idle')
+  }, [])
+
+  /**
+   * 计划「修改」（§3.1 ⑤）—— ⛔ **不发请求**，只记下「下一条消息是一次改计划」。
+   */
+  const revisePlan = useCallback(() => {
+    if (!getOperatorState().confirm) return
+    reviseRef.current = true
+    setOperatorStatus('idle')
+  }, [])
+
+  /**
+   * **生成确认卡「确认生成」**（v2 §3.3 / §5）。
+   *
+   * ⭐ **客户端扣扳机，⛔ 不再重发一轮**：v1 走的是「带 `autoApprove` 重发 →
+   * 服务端吐 `request_generation` 那一步 → `applyOperatorStep` 交给宿主」，
+   * 而那条免检通道随花费确认一起删了（决策 8）。留着重发的表现是用户点一次
+   * 「确认生成」、服务端再问一次同一张卡 —— 一个自己喂自己的环。
+   * ⚠ 名字先落、再扣扳机：扳机那一跳是同步 dispatch，落在它后面的话这一枪带的
+   *   还是上一次的名字（判据与 `applyOperatorStep` 里那一处逐字同源）。
+   */
+  const confirmGeneration = useCallback(() => {
+    const confirm = getOperatorState().confirm
+    if (
+      !confirm ||
+      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate ||
+      confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+    ) {
+      return
+    }
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
+    setOperatorStatus('idle')
+    if (confirm.request.label)
+      applyContext.setGenerationLabel?.(confirm.request.label)
+    applyContext.triggerGeneration?.(confirm.request)
+  }, [applyContext])
+
+  /** 生成确认卡「先不要」—— 流已经停了，什么都不用发；卡就地转「已取消」。 */
+  const cancelGeneration = useCallback(() => {
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
+    setOperatorStatus('idle')
+  }, [])
+
+  /**
+   * 「已取消」那一态上的**再来一次**（画板 BCards「已取消 · 11:22」）。
+   *
+   * ⚠ 摆一张**新的** `idle` 卡而不是把状态改回去（`resolveOperatorConfirm` 明确
+   * 不回退）：这一次确认与上一次是两件事，时刻也该重新记。
+   */
+  const retryGeneration = useCallback(() => {
+    const confirm = getOperatorState().confirm
+    if (
+      !confirm ||
+      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate ||
+      confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled
+    ) {
+      return
+    }
+    setOperatorConfirm({
+      id: nextOperatorEntryId('confirm'),
+      kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+      request: confirm.request,
+      status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+    })
+  }, [])
 
   /**
    * **从断点接着跑**（第三期 · 断点续跑）。
    *
    * ⭐ 三件事，缺一不可：
    *  ① `resumeFrom` —— 已经做完的那几步（服务端据此不重跑、不重规划）；
-   *  ② `planApproved: true` —— ⛔ 不再弹一次计划卡（那份计划批过了）；
+   *  ② `planApproved: true` —— ⛔ 不再弹一次确认卡（那份计划批过了）；
    *  ③ `forcePlan: false` —— 同一条论据：「先问我」在续跑这一轮里会把卡叫回来。
    *
    * ⛔ **钱闸一个字都不动**：剩下的步里有生成，`confirm` 照出、确认卡
@@ -1339,72 +1487,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     if (!resumeFrom) return
     void run({ resumeFrom, planApproved: true, forcePlan: false })
   }, [run])
-
-  /**
-   * 计划卡「修改」（§3.1 ⑤）—— ⛔ **不发请求**。
-   *
-   * 面板把输入框预填成「修改计划：」并聚焦；用户按发送时那条消息带
-   * `planApproved: false`（= 把答复并进上下文**重新规划一次**）。这里只负责
-   * 记下「下一条消息是一次改计划」，⛔ 别顺手替用户发出去：他还没写要改什么。
-   */
-  const revisePlan = useCallback(() => {
-    if (!getOperatorState().plan) return
-    reviseRef.current = true
-    setOperatorStatus('idle')
-  }, [])
-
-  /**
-   * 生成确认卡「确认生成」（v2 §3.3 / §5）。
-   *
-   * ⭐ **客户端扣扳机，⛔ 不再重发一轮**：v1 走的是「带 `autoApprove` 重发 →
-   * 服务端吐 `request_generation` 那一步 → `applyOperatorStep` 交给宿主」，
-   * 而那条免检通道随花费确认一起删了（决策 8）。留着重发的表现是用户点一次
-   * 「确认生成」、服务端再问一次同一张卡 —— 一个自己喂自己的环。
-   * ⚠ 名字先落、再扣扳机：扳机那一跳是同步 dispatch，落在它后面的话这一枪带的
-   *   还是上一次的名字（判据与 `applyOperatorStep` 里那一处逐字同源）。
-   */
-  const answerSpend = useCallback(() => {
-    const spend = getOperatorState().spend
-    if (!spend || spend.resolved) return
-    resolveOperatorSpend()
-    setOperatorStatus('idle')
-    if (spend.request.label)
-      applyContext.setGenerationLabel?.(spend.request.label)
-    applyContext.triggerGeneration?.(spend.request)
-  }, [applyContext])
-
-  /** 花钱卡「取消」—— 流已经停了，什么都不用发；把卡收掉即可。 */
-  const cancelSpend = useCallback(() => {
-    setOperatorSpend(null)
-    setOperatorStatus('idle')
-  }, [])
-
-  /**
-   * 歧义反问单选卡点中一格（§3.3 第 5 行 / §7）。
-   *
-   * ⭐ 走的是**四入口那条同一条 chip 管线**：插一枚 @chip、把它作为这一轮的
-   * `mentionedAssets` 端上去，然后带上下文重发。⛔ 没有第二条「被选中的候选」
-   * 通道 —— 服务端那一侧只认 `mentionedAssets` 这一张名单。
-   * ⚠ `text` 由面板给（i18n 在那一层）：hook 里没有词表，硬编一句中文会在英文
-   *   界面上原样印出来。
-   */
-  const answerChoice = useCallback(
-    (option: StudioOperatorAttachment, text: string) => {
-      const choice = getOperatorState().choice
-      if (!choice || choice.chosenId) return
-      resolveOperatorChoice(option.id)
-      addOperatorMention(option)
-      pendingResultRef.current = null
-      appendOperatorEntry({
-        kind: 'user',
-        id: nextOperatorEntryId('user'),
-        text,
-        attachments: [option],
-      })
-      void run({ forcePlan: false })
-    },
-    [run],
-  )
 
   /**
    * 看图闭环的**触发口**（P3-C，拍板 4）。
@@ -1450,12 +1532,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     [domain, run],
   )
 
-  // 就地确认条长在参数栏，续跑的能力在这里 —— 挂载时把它注册进模块 store。
-  useEffect(() => {
-    registerOperatorRunner({ resume: answerConfirm })
-    return () => registerOperatorRunner(null)
-  }, [answerConfirm])
-
   // 面板卸载（切模态 / 离开工作台）时把在飞的流掐掉：留着它会继续往一个不存在
   // 的面板里应用 op —— 表单被改而线程已经没了。
   useEffect(() => () => abortRef.current?.abort(), [])
@@ -1472,13 +1548,14 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     send,
     stop,
     cancelQueued,
-    answerConfirm,
-    answerQuestions,
+    answerQuestion,
+    approvePlan,
+    declinePlan,
     revisePlan,
     resumePlan,
-    answerSpend,
-    cancelSpend,
-    answerChoice,
+    confirmGeneration,
+    cancelGeneration,
+    retryGeneration,
     critique,
     newThread,
   }

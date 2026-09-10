@@ -5379,14 +5379,30 @@
       "regenerate": "改词再来",
       "regenerating": "重新生成中"
     },
-    "mobileCanvas": {
-      "viewCanvas": "查看画布",
-      "backToList": "返回列表",
-      "fedBy": "上游",
-      "feeds": "下游",
-      "noConnections": "还没连到别的节点",
-      "removedNotice": "这个节点已经不在画布上了",
-      "emptyMedia": "还没有素材"
+    "mobileRail": {
+      "assistant": "助手",
+      "listLabel": "看哪一类",
+      "tab": {
+        "shots": "镜头",
+        "images": "图",
+        "voices": "语音",
+        "texts": "文本"
+      },
+      "empty": {
+        "shots": "还没有镜头。点右下角 + 新建一个。",
+        "images": "还没有图。点右下角 + 上传。",
+        "voices": "还没有语音。",
+        "texts": "还没有文本。"
+      },
+      "add": "新建",
+      "newShot": "新建镜头",
+      "upload": "上传（相册 / 文件）",
+      "addReference": "加参考",
+      "fromDevice": "从相册或文件选",
+      "play": "播放",
+      "pause": "暂停",
+      "emptyShot": "还没有画面。点这里写提示词。",
+      "versionReadout": "{index} / {total} 版"
     },
     "canvasOps": {
       "title": "助手想改画布",
@@ -7444,17 +7460,6 @@
       "sheetDescription": "全屏助手面板 —— 说一句你想要什么，或把素材挂进来。",
       "open": "打开助手"
     },
-    "band": {
-      "working": "正在干活",
-      "state": {
-        "done": "完成",
-        "running": "进行中",
-        "failed": "失败"
-      },
-      "thinking": "思考中…",
-      "awaitingPlan": "等你确认计划",
-      "capturingFrames": "正在抽帧…"
-    },
     "researchDetails": "调查过程",
     "toolGroup": {
       "title": "{count} 个操作",
@@ -7538,18 +7543,30 @@
       "clearConfirm": "确认清掉 {count} 处？"
     },
     "confirm": {
-      "have": {
-        "prompt": "提示词框里有你手写的 {count} 个字 —— 怎么处理？",
-        "negative": "负面提示词里有你手写的 {count} 个字 —— 怎么处理？"
+      "generate": {
+        "title": "确认生成 {count} 张？",
+        "count": "{count} 张",
+        "countLabel": "张数",
+        "confirm": "确认生成",
+        "cancel": "先不要",
+        "handedOff": "已转交生成",
+        "notRun": "没有执行",
+        "retry": "再来一次",
+        "model": "模型",
+        "aspect": "宽高比",
+        "resolution": "分辨率"
       },
-      "choice": {
-        "append": "追加在后",
-        "overwrite": "覆盖",
-        "keep": "保留"
+      "multistep": {
+        "title": "{count} 步计划",
+        "start": "开始",
+        "stepByStep": "一步一步来",
+        "stoppable": " —— 随时可以叫停"
       },
-      "title": "如何应用助手的提示词？",
-      "current": "当前提示词",
-      "proposed": "助手建议的提示词"
+      "state": {
+        "submitting": "确认中…",
+        "confirmed": "已确认 · {time}",
+        "cancelled": "已取消 · {time}"
+      }
     },
     "system": {
       "undoStep": "你撤销了：{subject}（助手已知晓，下一轮不再重做）",
@@ -7564,7 +7581,8 @@
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
       "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
       "videoFramesFailed": "这段片子没能抽出帧 —— 助手这一轮看不了它（{subject}）",
-      "checkpointRestored": "已恢复到所选步骤的配置，后续操作以当前表单为准。"
+      "checkpointRestored": "已恢复到所选步骤的配置，后续操作以当前表单为准。",
+      "questionAnswered": "你选了：{subject}"
     },
     "suggestion": {
       "setupShot": "帮我配好这张图",
@@ -7673,11 +7691,6 @@
       "chipLabel": "结果 {ordinal}",
       "pending": "生成中"
     },
-    "choice": {
-      "title": "你说的是哪一张？",
-      "resolved": "已选定",
-      "answer": "就这张：{label}"
-    },
     "error": {
       "generic": "助手这一轮没跑完",
       "failed": "助手这一轮中途出错了",
@@ -7757,18 +7770,7 @@
       "scopeAll": "全部工作台"
     },
     "plan": {
-      "title": "计划 · 待确认",
       "revisePrefill": "修改计划："
-    },
-    "spend": {
-      "title": "这一枪要花钱，确认一下",
-      "model": "模型",
-      "count": "张数",
-      "specs": "规格",
-      "seconds": "{seconds} 秒",
-      "cancel": "取消",
-      "confirm": "生成",
-      "resolved": "已生成 · 已扣 credits"
     },
     "planVisual": {
       "comp": {
@@ -7870,15 +7872,13 @@
       "pending": "助手正在思考"
     },
     "question": {
-      "title": "先确认几件事",
-      "meta": "{count} 个问题",
       "recommended": "推荐",
       "other": "其他",
       "otherPlaceholder": "写一句你想要的…",
-      "summary": "你选了：{answers}",
-      "missing": "还有 {count} 题没答",
-      "start": "开始",
-      "revise": "修改"
+      "pinnedTitle": "{name} 想先确认",
+      "current": "当前提示词",
+      "proposed": "助手建议的提示词",
+      "send": "发送"
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "这个环境读不了视频",
@@ -7892,7 +7892,17 @@
       "continue": "从第 {step} 步继续",
       "failed": "失败：{reason}",
       "band": "有未完成计划 · 从第 {step} 步继续"
-    }
+    },
+    "status": {
+      "thinking": "正在想…",
+      "capturingFrames": "正在抽帧…",
+      "look": "正在看图…",
+      "research": "正在查 {count} 个来源…",
+      "ask": "正在想问题…",
+      "apply": "正在改参数…",
+      "request_generation": "正在准备生成…"
+    },
+    "placeholderQuestion": "也可以不选，直接打字说别的…"
   },
   "GenerationCancel": {
     "cancel": "取消",

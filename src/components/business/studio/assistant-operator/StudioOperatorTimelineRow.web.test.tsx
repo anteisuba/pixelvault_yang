@@ -6,7 +6,8 @@ import zhMessages from '@/messages/zh.json'
 import { StudioOperatorReferenceAnalysisCard } from './StudioOperatorReferenceAnalysisCard'
 
 import {
-  STUDIO_OPERATOR_NODE_KINDS,
+  STUDIO_OPERATOR_CARD_KINDS,
+  STUDIO_OPERATOR_SPEAKERS,
   StudioOperatorTimelineList,
   StudioOperatorTimelineRow,
 } from './StudioOperatorTimelineRow'
@@ -14,10 +15,11 @@ import {
 /**
  * 时间线沟的回归闸（§11.3）。
  *
- * 钉三件事：
+ * 钉四件事：
  *  ① 沟宽就是 `STUDIO_OPERATOR_TIMELINE.gutterPx`（真机目检读同一个数）；
- *  ② 五档节点各自的形状类不串（大节点实心 / 工具步空心 / 系统行短横 / 两方头像）；
- *  ③ 头像行的时间戳退到行尾且默认 `opacity-0`（hover 才出），形状节点行不长头像。
+ *  ② **五类卡 + 系统行的分派**（v2 §3.2）各自落在哪一档形状上；
+ *  ③ 五档节点各自的形状类不串（大节点实心 / 证据空心 / 系统行短横 / 两方头像）；
+ *  ④ 任何一行都不显示时间戳（§11.3）。
  */
 
 // 词表桩回键名 + 参数，行标签那几条断言按键名读。
@@ -74,7 +76,7 @@ describe('StudioOperatorTimelineRow', () => {
   })
   it('uses ANTI as the default assistant ID', () => {
     render(
-      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.assistant}>
+      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.message}>
         <p>已更新分工。</p>
       </StudioOperatorTimelineRow>,
     )
@@ -84,7 +86,10 @@ describe('StudioOperatorTimelineRow', () => {
   })
   it('shows the account ID before the message body on its own row', () => {
     render(
-      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.user}>
+      <StudioOperatorTimelineRow
+        card={STUDIO_OPERATOR_CARD_KINDS.message}
+        speaker={STUDIO_OPERATOR_SPEAKERS.user}
+      >
         <p>保留三图分工，只修改背景。</p>
       </StudioOperatorTimelineRow>,
     )
@@ -99,12 +104,13 @@ describe('StudioOperatorTimelineRow', () => {
 
   it('沟宽 24px，五档 data-node 都落在行上', () => {
     render(
-      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.tool}>
+      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.evidence}>
         <span>tool</span>
       </StudioOperatorTimelineRow>,
     )
     const row = screen.getByTestId('operator-timeline-row')
-    expect(row.dataset.node).toBe(STUDIO_OPERATOR_NODE_KINDS.tool)
+    expect(row.dataset.card).toBe(STUDIO_OPERATOR_CARD_KINDS.evidence)
+    expect(row.dataset.node).toBe('tool')
     expect(row.style.gridTemplateColumns).toBe(
       `${STUDIO_OPERATOR_TIMELINE.gutterPx}px minmax(0, 1fr)`,
     )
@@ -112,7 +118,7 @@ describe('StudioOperatorTimelineRow', () => {
 
   it('大节点是 8px 实心圆、工具步是 6px 空心圆、系统行是 8×2 短横', () => {
     const { rerender } = render(
-      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.big}>
+      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.confirm}>
         <span />
       </StudioOperatorTimelineRow>,
     )
@@ -121,7 +127,7 @@ describe('StudioOperatorTimelineRow', () => {
     )
 
     rerender(
-      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.tool}>
+      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.evidence}>
         <span />
       </StudioOperatorTimelineRow>,
     )
@@ -130,7 +136,7 @@ describe('StudioOperatorTimelineRow', () => {
     )
 
     rerender(
-      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.system}>
+      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.system}>
         <span />
       </StudioOperatorTimelineRow>,
     )
@@ -141,7 +147,10 @@ describe('StudioOperatorTimelineRow', () => {
 
   it('会说话的两方挂 32px 头像，且没有形状节点', () => {
     const { rerender } = render(
-      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.user}>
+      <StudioOperatorTimelineRow
+        card={STUDIO_OPERATOR_CARD_KINDS.message}
+        speaker={STUDIO_OPERATOR_SPEAKERS.user}
+      >
         <span />
       </StudioOperatorTimelineRow>,
     )
@@ -154,7 +163,7 @@ describe('StudioOperatorTimelineRow', () => {
     expect(screen.queryByTestId('operator-timeline-node')).toBeNull()
 
     rerender(
-      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.assistant}>
+      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.message}>
         <span />
       </StudioOperatorTimelineRow>,
     )
@@ -169,7 +178,10 @@ describe('StudioOperatorTimelineRow', () => {
    */
   it('每一档都有 aria-label，助手行念 persona 名字', () => {
     const { rerender } = render(
-      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.user}>
+      <StudioOperatorTimelineRow
+        card={STUDIO_OPERATOR_CARD_KINDS.message}
+        speaker={STUDIO_OPERATOR_SPEAKERS.user}
+      >
         <span />
       </StudioOperatorTimelineRow>,
     )
@@ -179,7 +191,7 @@ describe('StudioOperatorTimelineRow', () => {
     )
 
     rerender(
-      <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.tool}>
+      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.evidence}>
         <span />
       </StudioOperatorTimelineRow>,
     )
@@ -190,7 +202,7 @@ describe('StudioOperatorTimelineRow', () => {
 
     rerender(
       <StudioOperatorTimelineRow
-        node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+        card={STUDIO_OPERATOR_CARD_KINDS.message}
         persona={{
           name: '小满',
           avatarPreset: 'mark',
@@ -227,11 +239,11 @@ describe('StudioOperatorTimelineRow', () => {
     expect(list).toHaveAttribute('aria-label', 'listLabel')
   })
 
-  it.each(Object.values(STUDIO_OPERATOR_NODE_KINDS))(
+  it.each(Object.values(STUDIO_OPERATOR_CARD_KINDS))(
     '%s 行不显示时间',
-    (node) => {
+    (card) => {
       const { container } = render(
-        <StudioOperatorTimelineRow node={node}>
+        <StudioOperatorTimelineRow card={card}>
           <span>内容</span>
         </StudioOperatorTimelineRow>,
       )

@@ -603,6 +603,99 @@ export const ASSISTANT_OPERATOR_SPEND_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
 ] as const
 
+/**
+ * **五动词**（v2 §2.1 / §2.4）—— 加载态那五句状态词按它分派（§3.6）。
+ *
+ * ⚠ 本片（卡片收敛）只用到它的**读侧**：`step` 帧那个必填 `verb` 字段是下一片
+ * （五入口工具）的事，所以这里先给一张**工具 → 动词**的对照表，让面板此刻就说得出
+ * 「它正在干哪一类活」。⛔ 别把这张表理解成分组的真值：真值将来在入口工具的
+ * schema 里，这张表那时会被 `step.verb` 顶掉。
+ */
+export const ASSISTANT_OPERATOR_VERB_IDS = {
+  /** 看：读表单、看图、看素材、看视频。 */
+  look: 'look',
+  /** 查：联网 / 库里 / LoRA 的检索与读页。 */
+  research: 'research',
+  /** 问：反问（它没有工具，帧本身就是 `ask`）。 */
+  ask: 'ask',
+  /** 改：所有会改工作台旋钮的那些。 */
+  apply: 'apply',
+  /** 请求生成：只吐载荷，⛔ 永远不创建 generation（§0 钱闸）。 */
+  requestGeneration: 'request_generation',
+} as const
+
+export const ASSISTANT_OPERATOR_VERBS = [
+  ASSISTANT_OPERATOR_VERB_IDS.look,
+  ASSISTANT_OPERATOR_VERB_IDS.research,
+  ASSISTANT_OPERATOR_VERB_IDS.ask,
+  ASSISTANT_OPERATOR_VERB_IDS.apply,
+  ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
+] as const
+
+export type AssistantOperatorVerb = (typeof ASSISTANT_OPERATOR_VERBS)[number]
+
+/**
+ * 每条工具归哪个动词。
+ *
+ * ⚠ `Record<AssistantOperatorTool, …>`：工具表加一条而这里没跟上，编译期就红 ——
+ * 漏掉的表现是那一步跑起来时头像旁边一句状态词都没有。
+ */
+export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
+  AssistantOperatorTool,
+  AssistantOperatorVerb
+> = {
+  [ASSISTANT_OPERATOR_TOOL_IDS.readState]: ASSISTANT_OPERATOR_VERB_IDS.look,
+  [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]:
+    ASSISTANT_OPERATOR_VERB_IDS.look,
+  [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]:
+    ASSISTANT_OPERATOR_VERB_IDS.look,
+  [ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder]:
+    ASSISTANT_OPERATOR_VERB_IDS.look,
+  [ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules]:
+    ASSISTANT_OPERATOR_VERB_IDS.look,
+  [ASSISTANT_OPERATOR_TOOL_IDS.readContextCard]:
+    ASSISTANT_OPERATOR_VERB_IDS.look,
+  [ASSISTANT_OPERATOR_TOOL_IDS.listContextCards]:
+    ASSISTANT_OPERATOR_VERB_IDS.look,
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchAssets]:
+    ASSISTANT_OPERATOR_VERB_IDS.research,
+  [ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders]:
+    ASSISTANT_OPERATOR_VERB_IDS.research,
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages]:
+    ASSISTANT_OPERATOR_VERB_IDS.research,
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchWeb]: ASSISTANT_OPERATOR_VERB_IDS.research,
+  [ASSISTANT_OPERATOR_TOOL_IDS.research]: ASSISTANT_OPERATOR_VERB_IDS.research,
+  [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]: ASSISTANT_OPERATOR_VERB_IDS.research,
+  [ASSISTANT_OPERATOR_TOOL_IDS.searchLoras]:
+    ASSISTANT_OPERATOR_VERB_IDS.research,
+  [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setNegative]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setSpecs]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setSound]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]:
+    ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
+  [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]:
+    ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
+}
+
 export function isMutatingAssistantOperatorTool(
   tool: AssistantOperatorTool,
 ): boolean {

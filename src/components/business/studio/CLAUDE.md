@@ -33,8 +33,8 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │   ├── StudioOperatorMobileFab (手机入口浮标 44px —— 图标轨的手机对应物，复用同一张 tone 表)
         │   ├── StudioOperatorMobileSheet (手机全屏 vaul Sheet 100dvh —— 装的是下面同一个 Panel 元素)
         │   └── StudioOperatorPanel (同目录 — 面板内容：进度带 / 时间线 / 双行输入区)
-        │       ├── StudioOperatorProgressBand (顶部进度带 ~40px，空闲退化为头部)
-        │       ├── StudioOperatorTimelineRow (时间线沟一行，五档节点)
+        │       ├── StudioOperatorHeader (头部一行 40px：会话标题▾ / 续跑 / 设置 / 收起)
+        │       ├── StudioOperatorTimelineRow (时间线沟一行 + **五类卡的分派点**)
         │       │   └── TimelineAvatar (用户 / 助手 32px 头像，与竖线同轴)
         │       ├── StudioOperatorToolGroup (「5 个操作 · 4 成功 1 失败」折叠行)
         │       ├── StudioOperatorCheckpointCard (每轮 checkpoint 薄卡，就地二选撤销)
@@ -47,7 +47,8 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorAttachMenu (📎 附件面板，素材库就地预览)
         │       ├── StudioOperatorHistoryItem (会话历史条目)
         │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 整段出现 / 长回话折首句 / `detail` 折成「为什么」 / 空正文时的占位脉冲)
-        │       ├── StudioOperatorQuestionCard (待确认卡：阶段折一行 + 1–4 道反问 + 预估/开始)
+        │       ├── StudioOperatorQuestionCard (问题卡：**钉在输入框上方**，一次一题；答完落一行系统行)
+        │       ├── StudioOperatorConfirmCard (确认卡：多步 / 生成两支，就地换「已确认 · 时间」)
         │       ├── StudioOperatorResearchCard (调查卡：结论 + 证据 + 候选网格 + 折叠过程)
         │       └── StudioOperatorLightbox (全屏单例，模块级 store，三处共用)
         ├── StudioDockPanelArea (studio/ — 工具面板宿主，见下方规则 3)
@@ -56,7 +57,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 ```
 
 ⚠ **operator 系对外只有两颗入口**（`assistant-operator/index.ts`）：`StudioOperatorDock`（`StudioWorkspaceUI` 挂）与 `StudioOperatorChangeRail`（`StudioPromptArea.tsx:711` 挂，改动标记长在被改的那一栏）。其余是面板内部件，不从 index 导出。LoRA 工作台也挂这两颗（`studio/lora/LoraWorkbench.tsx:176-177`）。
-⚠ **已接线，别再按「接线中」找**：`StudioOperatorAssetChoiceCard`（歧义单选卡，`ask` 帧里选项全带 `assetUrl` 的那一支，面板已渲染）· `StudioOperatorQuestionCard`（`ask` 的文字选项支与 `confirm` 的 `multistep` 支都落在它上面，`StudioOperatorPlanCard` 已删）+ `PlanOptionVisual` · `StudioOperatorSpendConfirmCard`（`confirm` 的 `generate` 支；确认即客户端扣扳机）· `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（**进度带上那颗常驻齿轮** → `onOpenAssistantSettings`，开合 state 在 Dock；2026-09-07 起 ⋯ 菜单里不再有第二个入口）· `StudioOperatorTimelineList`（2026-09-06 起就是面板那颗 `threadRef` 容器）。
+⚠ **卡片已收敛为五类（v2 §3.2，commit #4）**：消息 / 问题 / 确认 / 结果 / 证据 + 系统行，分派表在 `StudioOperatorTimelineRow.tsx`（`STUDIO_OPERATOR_CARD_KINDS`）。⛔ `StudioOperatorSpendConfirmCard` · `StudioOperatorAssetChoiceCard` · `StudioOperatorProgressBand` **三个文件已删**，旧的覆写三选条也整块删掉 —— 别再按名字找：花钱确认随决策 8 消失，缩略图单选并进问题卡，覆写三选降级成问题卡，进度带的两样挂件搬去了头部。`StudioOperatorQuestionCard`（`ask` 一帧到底，钉在输入框上方）+ `PlanOptionVisual` · `StudioOperatorConfirmCard`（`confirm` 两支；生成支确认即客户端扣扳机）· `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（**头部右上那颗常驻齿轮** → `onOpenAssistantSettings`，开合 state 在 Dock；2026-09-07 起 ⋯ 菜单里不再有第二个入口）· `StudioOperatorTimelineList`（2026-09-06 起就是面板那颗 `threadRef` 容器）。
 ⚠ **逐字淡入已删（v2 §13.1 / 拍板 13）**：`StudioOperatorStreamingText` 整文件删除，正文整段出现，占位脉冲并进 `StudioOperatorMessageBody`。
 ⚠ **视频档具名槽（2026-09-07 `48d6fecb`）**：视频参考区是 `StudioVideoReferenceSlots`（首帧 / 尾帧 / 参考视频），三条落法（拖入 / 素材库 / 助手 `mount_reference slot`）**汇到同一个 dispatch**（`use-video-reference-slots.ts`），⛔ 组件里没有第二条写入。⛔ 关键帧档下**不再渲染** `ReferenceImageChip`——那一档里图片是帧，留着它写进的参考图列表发送口根本不读（静默失效）。首帧在场且线路带图锁比例时，`StudioVideoSpecFields` 把比例组**禁用而不是移除**并说清怎么解除。
 

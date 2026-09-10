@@ -57,6 +57,8 @@ import {
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  ASSISTANT_OPERATOR_TOOL_VERBS,
+  ASSISTANT_OPERATOR_VERB_IDS,
 } from '@/constants/assistant-operator'
 import {
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
@@ -65,8 +67,6 @@ import {
   STUDIO_OPERATOR_TIMELINE,
 } from '@/constants/studio-assistant-operator'
 import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
-import { StudioOperatorAssetChoiceCard } from '@/components/business/studio/assistant-operator/StudioOperatorAssetChoiceCard'
-import { StudioOperatorSpendConfirmCard } from '@/components/business/studio/assistant-operator/StudioOperatorSpendConfirmCard'
 import { CanvasAssistantRouteSelector } from '@/components/business/node/CanvasAssistantRouteSelector'
 import {
   AttachKindGlyph,
@@ -97,18 +97,18 @@ import {
   StudioOperatorUserText,
 } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import { StudioOperatorResearchCard } from '@/components/business/studio/assistant-operator/StudioOperatorResearchCard'
-import { StudioOperatorQuestionCard } from '@/components/business/studio/assistant-operator/StudioOperatorQuestionCard'
+import {
+  StudioOperatorQuestionCard,
+  type StudioOperatorQuestionAnswerPayload,
+} from '@/components/business/studio/assistant-operator/StudioOperatorQuestionCard'
 import { StudioOperatorQueueBar } from '@/components/business/studio/assistant-operator/StudioOperatorQueueBar'
+import { StudioOperatorHeader } from '@/components/business/studio/assistant-operator/StudioOperatorHeader'
 import {
-  STUDIO_OPERATOR_BAND_STEP_STATES,
-  StudioOperatorProgressBand,
-  type StudioOperatorBandStep,
-} from '@/components/business/studio/assistant-operator/StudioOperatorProgressBand'
-import {
-  STUDIO_OPERATOR_NODE_KINDS,
+  STUDIO_OPERATOR_CARD_KINDS,
+  STUDIO_OPERATOR_SPEAKERS,
   StudioOperatorTimelineList,
   StudioOperatorTimelineRow,
-  type StudioOperatorNodeKind,
+  type StudioOperatorCardKind,
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { Spinner } from '@/components/ui/spinner'
@@ -137,6 +137,7 @@ import type { AssistantPersona } from '@/types/assistant-persona'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
 import type {
   StudioOperatorAttachment,
+  StudioOperatorQuestionOption,
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
@@ -147,15 +148,52 @@ import type {
  * ⚠ 与实时线程用**同一张分级表**：历史里同一种条目换个形状，用户会以为那是
  * 另一种东西 —— 而它只是同一条会话的昨天。
  */
-function historyNodeKind(
-  kind: StudioOperatorHistoryEntry['kind'],
-): StudioOperatorNodeKind {
-  if (kind === 'user') return STUDIO_OPERATOR_NODE_KINDS.user
-  if (kind === 'message' || kind === 'plan') {
-    return STUDIO_OPERATOR_NODE_KINDS.assistant
+function historyCardKind(kind: StudioOperatorHistoryEntry['kind']): {
+  card: StudioOperatorCardKind
+  speaker: (typeof STUDIO_OPERATOR_SPEAKERS)[keyof typeof STUDIO_OPERATOR_SPEAKERS]
+} {
+  if (kind === 'user') {
+    return {
+      card: STUDIO_OPERATOR_CARD_KINDS.message,
+      speaker: STUDIO_OPERATOR_SPEAKERS.user,
+    }
   }
-  if (kind === 'step') return STUDIO_OPERATOR_NODE_KINDS.tool
-  return STUDIO_OPERATOR_NODE_KINDS.system
+  if (kind === 'message' || kind === 'plan') {
+    return {
+      card: STUDIO_OPERATOR_CARD_KINDS.message,
+      speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+    }
+  }
+  if (kind === 'step') {
+    return {
+      card: STUDIO_OPERATOR_CARD_KINDS.evidence,
+      speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+    }
+  }
+  return {
+    card: STUDIO_OPERATOR_CARD_KINDS.system,
+    speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+  }
+}
+
+/**
+ * 缩略图选项 → 附件（@chip 管线要的那个形状）。
+ *
+ * ⚠ 走的是**四入口那条同一条 chip 管线**（§7）：点中即成 @chip，⛔ 没有第二条
+ * 「被选中的候选」通道 —— 服务端那一侧只认 `mentionedAssets` 这一张名单。
+ * ⚠ 预览与地址都用 `assetUrl`：选项在协议里只有这一个地址位。
+ */
+function toQuestionAsset(
+  option: StudioOperatorQuestionOption | undefined,
+): StudioOperatorAttachment | undefined {
+  if (!option?.assetUrl) return undefined
+  return {
+    id: option.id,
+    url: option.assetUrl,
+    label: option.label,
+    kind: 'image',
+    thumbnailUrl: option.assetUrl,
+  }
 }
 
 interface StudioOperatorPanelProps {
@@ -231,13 +269,9 @@ export function StudioOperatorPanel({
     status,
     errorText,
     history: allHistoryEntries,
-    stepsDone,
-    plannedSteps,
     queue,
     askFirst,
-    plan,
-    spend,
-    choice,
+    question,
     confirm,
     capturingFrames,
     resume,
@@ -257,12 +291,13 @@ export function StudioOperatorPanel({
     stop,
     cancelQueued,
     newThread,
-    answerConfirm,
-    answerQuestions,
+    answerQuestion,
+    approvePlan,
+    declinePlan,
     revisePlan,
-    answerSpend,
-    cancelSpend,
-    answerChoice,
+    confirmGeneration,
+    cancelGeneration,
+    retryGeneration,
     resumePlan,
   } = operator
 
@@ -456,9 +491,9 @@ export function StudioOperatorPanel({
    * 新条目进来就滚到底 —— 日志是逐条落地的，不跟着滚等于让用户一直手动拖。
    * ⚠ 载回历史也要滚（P4-B）：刷新之后停在几十条之前的开头，用户以为对话丢了。
    *
-   * ⭐ **三张「等你定」的卡也要滚**（2026-09-07 真机）：它们不是线程条目（住在
-   * store 的 `plan` / `spend` / `choice` 里），只盯 `entries` 的下场是反问卡出现在
-   * 屏幕外面，而那张卡正是此刻唯一要人动手的东西。
+   * ⭐ **确认卡也要滚**（2026-09-07 真机）：它不是线程条目（住在 store 的
+   * `confirm` 里），只盯 `entries` 的下场是卡出现在屏幕外面，而它正是此刻唯一
+   * 要人动手的东西。⚠ 问题卡不在这条里 —— 它钉在输入框上方，本来就不会滚走。
    * ⚠ **用户已经手动上滚就不打扰**（`stickRef`）：他在读三轮之前那段话时被每一条
    *   新日志拽回底部，比不滚更糟。
    */
@@ -466,16 +501,7 @@ export function StudioOperatorPanel({
     const node = threadRef.current
     if (!node || !stickRef.current) return
     node.scrollTop = node.scrollHeight
-  }, [
-    entries,
-    historyEntries,
-    confirm,
-    plan?.id,
-    plan?.resolved,
-    spend?.id,
-    spend?.resolved,
-    choice?.id,
-  ])
+  }, [entries, historyEntries, confirm?.id, confirm?.status])
 
   const submit = useCallback(
     (text: string) => {
@@ -623,35 +649,53 @@ export function StudioOperatorPanel({
     inputRef.current?.focus()
   }, [draft, onDraftChange, revisePlan, t])
 
-  const bandSteps = useMemo<readonly StudioOperatorBandStep[]>(() => {
-    if (!latestRunKey) return []
-    return entries
-      .filter(
-        (entry): entry is StudioOperatorStepEntry =>
-          entry.kind === 'step' && entry.runKey === latestRunKey,
-      )
-      .map((entry) => ({
-        id: entry.id,
-        title: entry.step.title,
-        state:
-          entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
-            ? STUDIO_OPERATOR_BAND_STEP_STATES.failed
-            : entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running
-              ? STUDIO_OPERATOR_BAND_STEP_STATES.running
-              : STUDIO_OPERATOR_BAND_STEP_STATES.done,
-      }))
-  }, [entries, latestRunKey])
+  /**
+   * 「已确认 · 11:24」里那个时刻 —— ⚠ 词表在这一层，卡只收一个 `formatTime`。
+   */
+  const formatDecidedAt = useCallback(
+    (iso: string) =>
+      format.dateTime(new Date(iso), { hour: '2-digit', minute: '2-digit' }),
+    [format],
+  )
 
   /**
-   * ⚠ **抽帧那一段压过步标题**（第二期最后一环）：它跑在请求发出去之前，进度带上
-   * 一步都还没有，而它实测要几秒（浏览器解码 + 三次 seek）。不说这一句的话，
-   * 那几秒里带上写的是「思考中」—— 而它并没有在思考。
+   * **加载态那一句状态词**（v2 §3.6）—— 头像旁一行小字，不转圈、不用骨架屏。
+   *
+   * ⭐ 五个动词各一句（正在看图… / 正在查 N 个来源… / 正在想问题… / 正在改参数… /
+   * 正在准备生成…）。⚠ 动词此刻按**工具**反查（`ASSISTANT_OPERATOR_TOOL_VERBS`）：
+   * `step` 帧上那个必填 `verb` 是下一片的事，那之后这里直接读它。
+   * ⚠ 「查 N 个来源」的 N 数的是**这一轮已经跑完的检索步**：它就是进度本身
+   * （决策 14 删掉进度带的全部理由）—— ⛔ 别拿计划步数去填，那是另一个数。
+   * ⚠ 抽帧那一段压过状态词：它跑在请求发出去之前，一步都还没有，而实测要几秒
+   * （浏览器解码 + 三次 seek）。不说这一句的话，那几秒里屏幕上什么都不动。
    */
-  const currentStepTitle = capturingFrames
-    ? t('band.capturingFrames')
-    : (bandSteps.find(
-        (step) => step.state === STUDIO_OPERATOR_BAND_STEP_STATES.running,
-      )?.title ?? null)
+  const statusWord = useMemo<string | null>(() => {
+    if (capturingFrames) return t('status.capturingFrames')
+    if (!working) return null
+    if (!latestRunKey) return t('status.thinking')
+    const runSteps = entries.filter(
+      (entry): entry is StudioOperatorStepEntry =>
+        entry.kind === 'step' && entry.runKey === latestRunKey,
+    )
+    const running = runSteps.find(
+      (entry) =>
+        entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+    )
+    const verb = running
+      ? ASSISTANT_OPERATOR_TOOL_VERBS[running.step.tool]
+      : null
+    if (!verb) return t('status.thinking')
+    if (verb === ASSISTANT_OPERATOR_VERB_IDS.research) {
+      return t('status.research', {
+        count: runSteps.filter(
+          (entry) =>
+            ASSISTANT_OPERATOR_TOOL_VERBS[entry.step.tool] ===
+            ASSISTANT_OPERATOR_VERB_IDS.research,
+        ).length,
+      })
+    }
+    return t(`status.${verb}`)
+  }, [capturingFrames, entries, latestRunKey, t, working])
 
   /**
    * 把线程劈成「渲染块」—— **连续的工具步合成一组**（§2.7）。
@@ -858,7 +902,7 @@ export function StudioOperatorPanel({
       ))
       return (
         <div key={`tools:${block.runKey}:${block.steps[0]?.id}`}>
-          <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.tool}>
+          <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.evidence}>
             {showResearchCard ? (
               <StudioOperatorResearchCard
                 steps={researchSteps}
@@ -884,7 +928,7 @@ export function StudioOperatorPanel({
             item.step.result ? (
               <StudioOperatorTimelineRow
                 key={item.id}
-                node={STUDIO_OPERATOR_NODE_KINDS.tool}
+                card={STUDIO_OPERATOR_CARD_KINDS.evidence}
               >
                 <StudioOperatorReferenceAnalysisCard
                   analysis={item.step.result}
@@ -895,7 +939,7 @@ export function StudioOperatorPanel({
           {roundDone &&
           changeCountInRound > 0 &&
           lastToolsBlock === block.steps[0]?.id ? (
-            <StudioOperatorTimelineRow node={STUDIO_OPERATOR_NODE_KINDS.system}>
+            <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.system}>
               <StudioOperatorCheckpointCard
                 runKey={block.runKey}
                 count={changeCountInRound}
@@ -927,7 +971,8 @@ export function StudioOperatorPanel({
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
-            node={STUDIO_OPERATOR_NODE_KINDS.user}
+            card={STUDIO_OPERATOR_CARD_KINDS.message}
+            speaker={STUDIO_OPERATOR_SPEAKERS.user}
           >
             <StudioOperatorUserText
               text={entry.text}
@@ -973,17 +1018,23 @@ export function StudioOperatorPanel({
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
-            node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+            card={STUDIO_OPERATOR_CARD_KINDS.message}
             {...(persona ? { persona } : {})}
           >
-            <StudioOperatorMessageBody entry={entry} />
+            {/* ⚠ 空正文那一行画的是**状态词**而不是三点脉冲（§3.6）：脉冲说的是
+                「它还在」，状态词说的是「它在干什么」—— 后者才是耐心的来源。
+                ⛔ 有字之后不再传：正文一到，那句状态词就该让位。 */}
+            <StudioOperatorMessageBody
+              entry={entry}
+              {...(statusWord ? { statusText: statusWord } : {})}
+            />
           </StudioOperatorTimelineRow>
         )
       case 'plan':
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
-            node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+            card={STUDIO_OPERATOR_CARD_KINDS.message}
             {...(persona ? { persona } : {})}
           >
             {/* ⭐ 不出卡的那一轮，计划**折成一行**（2026-09-06 面板轮，第 2 件）。
@@ -1028,7 +1079,7 @@ export function StudioOperatorPanel({
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
-            node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+            card={STUDIO_OPERATOR_CARD_KINDS.message}
             {...(persona ? { persona } : {})}
           >
             <StudioOperatorCritiqueCard
@@ -1045,7 +1096,7 @@ export function StudioOperatorPanel({
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
-            node={STUDIO_OPERATOR_NODE_KINDS.system}
+            card={STUDIO_OPERATOR_CARD_KINDS.system}
           >
             <p
               data-testid="operator-system-line"
@@ -1076,7 +1127,7 @@ export function StudioOperatorPanel({
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
-            node={STUDIO_OPERATOR_NODE_KINDS.system}
+            card={STUDIO_OPERATOR_CARD_KINDS.system}
           >
             <RuleChip
               ruleId={entry.ruleId}
@@ -1094,15 +1145,10 @@ export function StudioOperatorPanel({
 
   return (
     <>
-      {/* ── 顶部进度带（拍板 10 改口 · §2.4）──────────────────────── */}
-      <StudioOperatorProgressBand
+      {/* ── 头部（v2 §4.1）—— 进度带整条删掉（决策 14），进度由状态词说（§3.6）。 */}
+      <StudioOperatorHeader
         domain={domain}
         working={working}
-        awaitingPlan={status === 'awaitingPlan'}
-        stepsDone={stepsDone}
-        plannedSteps={plannedSteps}
-        currentStepTitle={currentStepTitle}
-        steps={bandSteps}
         history={history}
         onNewThread={newThread}
         onOpenAssistantSettings={onOpenAssistantSettings}
@@ -1175,7 +1221,7 @@ export function StudioOperatorPanel({
                 return (
                   <StudioOperatorTimelineRow
                     key={`h:${index}:${entry.id}`}
-                    node={historyNodeKind(entry.kind)}
+                    {...historyCardKind(entry.kind)}
                     {...(persona ? { persona } : {})}
                   >
                     <StudioOperatorHistoryItem entry={entry} />
@@ -1239,81 +1285,35 @@ export function StudioOperatorPanel({
 
             {renderGroups(liveGroups, (index) => renderBlock(blocks[index]!))}
 
-            {/* ── 三张「等你定」的卡（§4.1「钉在流末尾」）──────────────────
-              ⚠ 顺序是**计划 → 反问 → 花钱**，与它们在一轮里出现的先后一致：
-                计划卡在任何一步之前，反问在中途，花钱在最后一步。三张同时在场
-                在协议上不可能（每一帧之后流都停了），顺序只是为了「万一」时读起来
-                仍然像一条时间线。 */}
-            {plan ? (
-              <StudioOperatorTimelineRow
-                node={STUDIO_OPERATOR_NODE_KINDS.big}
-                {...(persona ? { persona } : {})}
-              >
-                {/* ⭐ **一轮只有一张**待确认卡（2026-09-06 面板轮，第 2 件）：阶段
-                  清单折在它头上，题在中间。⛔ 旧的计划卡已整块删掉 —— 两张卡列
-                  同一份阶段、各带一颗「开始」，用户要答两遍。 */}
-                <StudioOperatorQuestionCard
-                  steps={plan.steps}
-                  questions={plan.questions}
-                  answers={plan.answers}
-                  resolved={plan.resolved}
-                  onSubmit={answerQuestions}
-                  /* 「修改」= 预填「修改计划：」并聚焦（§3.1 ⑤）——⛔ 不发请求，
-                   下一条消息才带 `planApproved: false`（hook 那一侧记着）。 */
-                  onRevise={revisePrompt}
-                />
-              </StudioOperatorTimelineRow>
-            ) : null}
-
-            {choice ? (
-              <StudioOperatorTimelineRow
-                node={STUDIO_OPERATOR_NODE_KINDS.big}
-                {...(persona ? { persona } : {})}
-              >
-                <StudioOperatorAssetChoiceCard
-                  question={choice.question}
-                  options={choice.options}
-                  chosenId={choice.chosenId}
-                  onChoose={(option) =>
-                    answerChoice(
-                      option,
-                      t('choice.answer', {
-                        label: option.label,
-                      }),
-                    )
-                  }
-                />
-              </StudioOperatorTimelineRow>
-            ) : null}
-
+            {/* ── 确认卡（§3.2 进离场表：帧到即插，⛔ 不离开）──────────────
+              ⚠ 此处**只剩一张**：计划卡与花钱卡合成了它（`kind` 两支），而问题卡
+                按 §3.4 钉到了输入框上方 —— ⛔ 别把它挪回这里，钉住的整个意义就是
+                不随时间线滚走。 */}
             {confirm ? (
               <StudioOperatorTimelineRow
-                node={STUDIO_OPERATOR_NODE_KINDS.assistant}
+                card={STUDIO_OPERATOR_CARD_KINDS.confirm}
+                {...(persona ? { persona } : {})}
               >
                 <StudioOperatorConfirmCard
                   confirm={confirm}
-                  onAnswer={answerConfirm}
-                />
-              </StudioOperatorTimelineRow>
-            ) : null}
-
-            {spend ? (
-              <StudioOperatorTimelineRow
-                node={STUDIO_OPERATOR_NODE_KINDS.big}
-                {...(persona ? { persona } : {})}
-              >
-                <StudioOperatorSpendConfirmCard
-                  request={spend.request}
-                  resolved={spend.resolved}
-                  onConfirm={answerSpend}
-                  onCancel={cancelSpend}
+                  onApprove={approvePlan}
+                  /* 「一步一步来」= 预填「修改计划：」并聚焦（§3.1 ⑤）——
+                     ⛔ 不发请求，下一条消息才带 `planApproved: false`。 */
+                  onDecline={() => {
+                    declinePlan()
+                    revisePrompt()
+                  }}
+                  onConfirm={confirmGeneration}
+                  onCancel={cancelGeneration}
+                  onRetry={retryGeneration}
+                  formatTime={formatDecidedAt}
                 />
               </StudioOperatorTimelineRow>
             ) : null}
 
             {status === 'error' ? (
               <StudioOperatorTimelineRow
-                node={STUDIO_OPERATOR_NODE_KINDS.system}
+                card={STUDIO_OPERATOR_CARD_KINDS.system}
               >
                 <p
                   data-testid="operator-error"
@@ -1347,6 +1347,40 @@ export function StudioOperatorPanel({
           ⚠ 长在输入框**上方**（不是线程末尾）：它说的是「你刚打的这句还在手上」，
             而线程里的一切都是「已经发生的事」。 */}
         <StudioOperatorQueueBar items={queue} onCancel={cancelQueued} />
+
+        {/* ── 问题卡：**钉在输入框上方**（§3.4）────────────────────────
+          ⭐ 它不进时间线：未答的问题是当下唯一挡路的东西，滚走了就等于问了个
+            寂寞。答完卡消失，时间线里落一行「问题 · 你选了 X」（系统行）。
+          ⚠ 用户可以**不答直接打字**：输入框的 placeholder 在这一档换一句
+            （见下面 `MentionInput` 的 placeholder）。 */}
+        {question ? (
+          <div className="shrink-0 px-3 pb-2">
+            <StudioOperatorQuestionCard
+              prompt={question}
+              assistantName={
+                persona?.name?.trim() || t('timeline.assistantFallback')
+              }
+              onAnswer={(
+                answer,
+                payload: StudioOperatorQuestionAnswerPayload,
+              ) =>
+                answerQuestion(answer, {
+                  label: payload.label,
+                  ...(payload.choice ? { choice: payload.choice } : {}),
+                  ...(payload.assetOptionId
+                    ? {
+                        asset: toQuestionAsset(
+                          question.question.options.find(
+                            (option) => option.id === payload.assetOptionId,
+                          ),
+                        ),
+                      }
+                    : {}),
+                })
+              }
+            />
+          </div>
+        ) : null}
 
         {/* ── 上传中 / 上传失败的 chip（P3-A）──────────────────────
           ⭐ 与下面「已挂上的附件」是同一排、同一种形状：对用户来说这就是
@@ -1698,11 +1732,15 @@ export function StudioOperatorPanel({
                 upload.uploadFiles(files)
               }}
               placeholder={
-                askFirst
-                  ? t('placeholderAskFirst')
-                  : working
-                    ? t('placeholderWorking')
-                    : t('placeholderIdle')
+                /* ⚠ 有未答问题时换一句（§3.4）：用户可以**不答直接打字**，而
+                   默认那句「写点什么…」会让人以为必须先答上面那张卡。 */
+                question
+                  ? t('placeholderQuestion')
+                  : askFirst
+                    ? t('placeholderAskFirst')
+                    : working
+                      ? t('placeholderWorking')
+                      : t('placeholderIdle')
               }
               className="max-h-24 min-h-9 flex-1 resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-md outline-none transition-colors duration-(--duration-fast) ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
             />

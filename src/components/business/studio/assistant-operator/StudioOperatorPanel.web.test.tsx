@@ -9,11 +9,10 @@ import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-
 import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
 
 /**
- * **接线闸**（切片 3a）：四种卡真的出现在时间线里。
+ * **接线闸**：五类卡真的出现在它们该在的地方（v2 §3.2 / §3.4）。
  *
- * ⭐ 这份用例存在的理由：前四片把 `StudioOperatorQuestionCard` /
- * `StudioOperatorSpendConfirmCard` / `RuleChip` / `StudioOperatorAssetChoiceCard`
- * 各自写完并单测过了，但**没有任何调用方** —— 四个组件全绿、面板里一张都不出。
+ * ⭐ 这份用例存在的理由：卡片各自写完并单测过了，也可能**没有任何调用方**
+ * —— 组件全绿、面板里一张都不出。
  * 组件级用例永远发现不了这种失败，只有「把 store 摆成那个状态、看面板画了什么」
  * 才发现得了。
  *
@@ -95,11 +94,13 @@ type PanelModule = typeof import('./StudioOperatorPanel')
 let store: Store
 let Panel: PanelModule['StudioOperatorPanel']
 
-const answerConfirm = vi.fn()
-const answerQuestions = vi.fn()
+const answerQuestion = vi.fn()
+const approvePlan = vi.fn()
+const declinePlan = vi.fn()
 const revisePlan = vi.fn()
-const answerSpend = vi.fn()
-const answerChoice = vi.fn()
+const confirmGeneration = vi.fn()
+const cancelGeneration = vi.fn()
+const retryGeneration = vi.fn()
 
 /**
  * ⚠ store 是**模块级单例**，用例之间必须换新的一份，而面板也要在同一次 reset
@@ -152,12 +153,14 @@ function PanelHarness() {
           send,
           stop: vi.fn(),
           cancelQueued: vi.fn(),
-          answerConfirm,
-          answerQuestions,
+          answerQuestion,
+          approvePlan,
+          declinePlan,
           revisePlan,
-          answerSpend,
+          confirmGeneration,
+          cancelGeneration,
+          retryGeneration,
           cancelSpend: vi.fn(),
-          answerChoice,
           critique: vi.fn(),
           newThread: vi.fn(),
         } as unknown as Parameters<typeof Panel>[0]['operator']
@@ -437,56 +440,77 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(disclosure).not.toContainElement(screen.getByText('搜索失败'))
   })
 
-  it('① 待确认卡钉在流末尾 —— 一轮只有一张，「开始」把答复交给驱动 hook', () => {
-    store.setOperatorPlan({
-      id: 'plancard-1',
+  it('① 确认卡（多步）钉在流末尾 —— 一行动作串 +「开始」交给驱动 hook', () => {
+    store.setOperatorConfirm({
+      id: 'confirm-1',
+      kind: 'multistep',
       steps: [
         { id: 'plan-1', label: '写提示词' },
         { id: 'plan-2', label: '挂参考图' },
         { id: 'plan-3', label: '备好生成键' },
       ],
-      questions: [],
-      answers: [],
-      resolved: false,
+      status: 'idle',
     })
     store.setOperatorStatus('awaitingPlan')
     renderPanel()
 
-    expect(screen.getByTestId('operator-question-card')).toBeTruthy()
-    // 没有题 → 阶段清单默认展开（那时它就是这张卡的全部内容）。
-    expect(screen.getAllByTestId('operator-plan-step')).toHaveLength(3)
-    fireEvent.click(screen.getByTestId('operator-question-start'))
-    // 没有题 → 空数组，⛔ 不是 undefined（服务端那边按数组读）。
-    expect(answerQuestions).toHaveBeenCalledWith([])
+    const card = screen.getByTestId('operator-confirm-card')
+    expect(card.dataset.kind).toBe('multistep')
+    expect(screen.getByTestId('operator-confirm-steps')).toHaveTextContent(
+      '写提示词 · 挂参考图 · 备好生成键',
+    )
+    fireEvent.click(screen.getByTestId('operator-confirm-primary'))
+    expect(approvePlan).toHaveBeenCalledTimes(1)
   })
 
-  it('⭐ 有题时只有一张卡 —— ⛔ 阶段清单不再另起一张（第 2 件）', () => {
-    store.setOperatorPlan({
-      id: 'plancard-2',
-      steps: [{ id: 'plan-1', label: '写提示词' }],
-      questions: [
-        {
-          id: 'q1',
-          header: '取景',
-          question: '要取到多少身？',
-          multiSelect: false,
-          allowOther: false,
-          options: [
-            { id: 'o1', label: '半身', description: '腰以上' },
-            { id: 'o2', label: '全身', description: '连鞋一起' },
-          ],
-        },
-      ],
-      answers: [],
-      resolved: false,
+  /**
+   * 五类之后**时间线上只剩一张待定卡**：问题卡钉到了输入框上方（§3.4），
+   * ⛔ 它不许再出现在时间线容器里。
+   */
+  it('⭐ 问题卡钉在输入框上方 —— ⛔ 不在时间线里', () => {
+    store.setOperatorQuestion({
+      id: 'ask-1',
+      question: {
+        id: 'q1',
+        header: '取景',
+        question: '要取到多少身？',
+        multiSelect: false,
+        allowOther: false,
+        options: [
+          { id: 'o1', label: '半身', description: '腰以上' },
+          { id: 'o2', label: '全身', description: '连鞋一起' },
+        ],
+      },
     })
-    store.setOperatorStatus('awaitingPlan')
+    store.setOperatorStatus('awaitingConfirm')
     renderPanel()
 
-    expect(screen.getAllByTestId('operator-question-card')).toHaveLength(1)
-    // 有题 → 阶段清单折着（一行「计划 · N 步」）。
-    expect(screen.queryAllByTestId('operator-plan-step')).toHaveLength(0)
-    expect(screen.getByTestId('operator-plan-fold')).toBeTruthy()
+    const card = screen.getByTestId('operator-question-card')
+    expect(card.dataset.pinned).toBe('true')
+    expect(screen.getByTestId('operator-thread')).not.toContainElement(card)
+    // 它长在输入区里：钉住的位置就是「输入框上方」。
+    expect(
+      screen.getByTestId('operator-input-area').parentElement,
+    ).toContainElement(card)
+  })
+
+  it('⭐ 答完之后时间线落一行「你选了 X」（§3.4 落账规则 ①）', () => {
+    store.appendOperatorEntry({
+      kind: 'system',
+      id: 'sys-question-1',
+      code: 'questionAnswered',
+      subject: '全身',
+    })
+    renderPanel()
+
+    // 词表桩只回键名 —— 断言的是「落到了这一条系统行」而不是译文本身。
+    const line = screen.getByTestId('operator-system-line')
+    expect(line).toHaveTextContent('system.questionAnswered')
+    expect(
+      line
+        .closest('[data-testid="operator-timeline-row"]')
+        ?.getAttribute('data-card'),
+    ).toBe('system')
   })
 
   it('不显示实时或历史工作台切换提示', () => {
@@ -535,56 +559,63 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     expect(older).not.toContainElement(screen.getByText('第三轮'))
   })
 
-  it('② 生成确认卡出现，三要素齐；点「确认生成」走 `answerSpend`', () => {
-    store.setOperatorSpend({
-      id: 'spend-1',
+  it('② 确认卡（生成）四颗旋钮在场；点「确认生成」走 `confirmGeneration`', () => {
+    store.setOperatorConfirm({
+      id: 'confirm-2',
+      kind: 'generate',
       request: {
         model: { id: 'seedream-4', label: 'Seedream 4' },
         count: 2,
         specs: { aspectRatio: '3:4', resolution: '2K', durationSeconds: null },
       },
-      resolved: false,
+      status: 'idle',
     })
     renderPanel()
 
-    expect(screen.getByTestId('operator-spend-model').textContent).toBe(
-      'Seedream 4',
-    )
-    expect(screen.getByTestId('operator-spend-count').textContent).toBe('2')
-    fireEvent.click(screen.getByTestId('operator-spend-confirm'))
-    expect(answerSpend).toHaveBeenCalledWith()
+    const knobs = screen.getAllByTestId('operator-confirm-knob')
+    expect(knobs[0]).toHaveTextContent('Seedream 4')
+    expect(knobs[1]).toHaveTextContent('3:4')
+    fireEvent.click(screen.getByTestId('operator-confirm-primary'))
+    expect(confirmGeneration).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTestId('operator-confirm-secondary'))
+    expect(cancelGeneration).toHaveBeenCalledTimes(1)
   })
 
-  it('③ 歧义反问单选卡出现，点一张走 `answerChoice`', () => {
-    const options = [
-      {
-        id: 'gen-1',
-        url: 'https://cdn.test/a.png',
-        label: '结果①',
-        kind: 'image' as const,
-        thumbnailUrl: 'https://cdn.test/a.png',
+  it('③ 问题卡的缩略图那一支：点一张走 `answerQuestion` 并带上素材', () => {
+    store.setOperatorQuestion({
+      id: 'ask-2',
+      question: {
+        id: 'q2',
+        header: '候选',
+        question: '你说的是哪一张？',
+        multiSelect: false,
+        allowOther: false,
+        options: [
+          {
+            id: 'gen-1',
+            label: '结果①',
+            description: '',
+            assetUrl: 'https://cdn.test/a.png',
+          },
+          {
+            id: 'gen-2',
+            label: '结果②',
+            description: '',
+            assetUrl: 'https://cdn.test/b.png',
+          },
+        ],
       },
-      {
-        id: 'gen-2',
-        url: 'https://cdn.test/b.png',
-        label: '结果②',
-        kind: 'image' as const,
-        thumbnailUrl: 'https://cdn.test/b.png',
-      },
-    ]
-    store.setOperatorChoice({
-      id: 'choice-1',
-      question: '你说的是哪一张？',
-      options,
-      chosenId: null,
     })
     renderPanel()
 
-    const grid = screen.getAllByTestId('operator-asset-choice-option')
+    const grid = screen.getAllByTestId('operator-question-option')
     expect(grid).toHaveLength(2)
     fireEvent.click(grid[1] as HTMLElement)
-    expect(answerChoice).toHaveBeenCalledTimes(1)
-    expect(answerChoice.mock.calls[0]?.[0]).toMatchObject({ id: 'gen-2' })
+    expect(answerQuestion).toHaveBeenCalledTimes(1)
+    expect(answerQuestion.mock.calls[0]?.[1]).toMatchObject({
+      label: '结果②',
+      asset: { id: 'gen-2', url: 'https://cdn.test/b.png' },
+    })
   })
 
   it('④ 规则薄卡长在时间线里；「查看规则」开设置弹层的规则页', () => {
@@ -796,19 +827,39 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
   })
 })
 
+/**
+ * 覆盖手写三选 —— v2 §3.1 起它**降级成问题卡**（旧的就地确认条整块删掉）。
+ * 三个选项 id 就是 `confirmations` 要带回服务端的那三个值。
+ */
 it.each(['append', 'overwrite', 'keep'] as const)(
-  '提示词 %s 在助手时间线中确认，展示完整建议',
+  '提示词 %s 走问题卡，答复带 choice 回执',
   (choice) => {
     const proposed = '完整提示词'.repeat(100)
-    store.setOperatorConfirm({
-      field: 'prompt',
-      have: '手写提示词',
-      proposed,
+    store.setOperatorQuestion({
+      id: 'ask-overwrite',
+      question: {
+        id: 'overwrite-prompt',
+        header: '提示词',
+        question: '提示词你已经自己写过了，这一段怎么办？',
+        multiSelect: false,
+        allowOther: false,
+        options: [
+          { id: 'append', label: '追加在后', description: '你写的留着' },
+          { id: 'overwrite', label: '覆盖', description: '换成它写的' },
+          { id: 'keep', label: '保留', description: '什么都不改' },
+        ],
+      },
+      overwrite: { field: 'prompt', have: '手写提示词', proposed },
     })
     renderPanel()
-    const thread = screen.getByTestId('operator-thread')
-    expect(within(thread).getByText(proposed)).toBeInTheDocument()
-    fireEvent.click(within(thread).getByTestId(`operator-confirm-${choice}`))
-    expect(answerConfirm).toHaveBeenCalledExactlyOnceWith(choice)
+    const card = screen.getByTestId('operator-question-card')
+    expect(within(card).getByText(proposed)).toBeInTheDocument()
+    fireEvent.click(
+      within(card)
+        .getAllByTestId('operator-question-option')
+        .find((node) => node.dataset.optionId === choice)!,
+    )
+    expect(answerQuestion).toHaveBeenCalledTimes(1)
+    expect(answerQuestion.mock.calls[0]?.[1]).toMatchObject({ choice })
   },
 )

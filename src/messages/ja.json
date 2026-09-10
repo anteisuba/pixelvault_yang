@@ -5379,14 +5379,30 @@
       "regenerate": "修正して再生成",
       "regenerating": "再生成中"
     },
-    "mobileCanvas": {
-      "viewCanvas": "キャンバス表示",
-      "backToList": "リストに戻る",
-      "fedBy": "上流",
-      "feeds": "下流",
-      "noConnections": "他のノードと接続されていません",
-      "removedNotice": "このノードはキャンバスから削除されました",
-      "emptyMedia": "まだ素材がありません"
+    "mobileRail": {
+      "assistant": "アシスタント",
+      "listLabel": "表示するリスト",
+      "tab": {
+        "shots": "カット",
+        "images": "画像",
+        "voices": "音声",
+        "texts": "テキスト"
+      },
+      "empty": {
+        "shots": "カットがありません。右下の + から追加します。",
+        "images": "画像がありません。右下の + からアップロードします。",
+        "voices": "音声がありません。",
+        "texts": "テキストがありません。"
+      },
+      "add": "追加",
+      "newShot": "カットを追加",
+      "upload": "アップロード（写真 / ファイル）",
+      "addReference": "参照を追加",
+      "fromDevice": "写真またはファイル",
+      "play": "再生",
+      "pause": "一時停止",
+      "emptyShot": "映像がありません。タップしてプロンプトを書きます。",
+      "versionReadout": "{index} / {total}"
     },
     "canvasOps": {
       "title": "アシスタントがキャンバスを変更しようとしています",
@@ -7444,17 +7460,6 @@
       "sheetDescription": "全画面アシスタントパネル — やりたいことを話すか、素材を添付してください。",
       "open": "アシスタントを開く"
     },
-    "band": {
-      "working": "作業中",
-      "state": {
-        "done": "完了",
-        "running": "進行中",
-        "failed": "失敗"
-      },
-      "thinking": "考え中…",
-      "awaitingPlan": "プランの確認待ち",
-      "capturingFrames": "フレーム抽出中…"
-    },
     "researchDetails": "調査の詳細",
     "toolGroup": {
       "title": "{count} 件の操作",
@@ -7538,18 +7543,30 @@
       "clearConfirm": "{count} 件を本当に消しますか？"
     },
     "confirm": {
-      "have": {
-        "prompt": "プロンプト欄にあなたが書いた {count} 文字があります —— どうしますか？",
-        "negative": "ネガティブプロンプトにあなたが書いた {count} 文字があります —— どうしますか？"
+      "generate": {
+        "title": "{count} 枚を生成しますか？",
+        "count": "{count} 枚",
+        "countLabel": "枚数",
+        "confirm": "生成を確定",
+        "cancel": "今はしない",
+        "handedOff": "生成に引き渡しました",
+        "notRun": "未実行",
+        "retry": "もう一度",
+        "model": "モデル",
+        "aspect": "アスペクト比",
+        "resolution": "解像度"
       },
-      "choice": {
-        "append": "後ろに追記",
-        "overwrite": "上書き",
-        "keep": "そのまま"
+      "multistep": {
+        "title": "{count} ステップのプラン",
+        "start": "開始",
+        "stepByStep": "一歩ずつ進める",
+        "stoppable": "  ——  いつでも止められます"
       },
-      "title": "提案されたプロンプトをどう適用しますか？",
-      "current": "現在のプロンプト",
-      "proposed": "提案されたプロンプト"
+      "state": {
+        "submitting": "確定中…",
+        "confirmed": "確定済み · {time}",
+        "cancelled": "キャンセル済み · {time}"
+      }
     },
     "system": {
       "undoStep": "取り消しました：{subject}（アシスタントは把握済み、やり直しません）",
@@ -7564,7 +7581,8 @@
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
       "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）",
       "videoFramesFailed": "このクリップからフレームを取り出せませんでした —— 今回アシスタントは見られません（{subject}）",
-      "checkpointRestored": "選択したステップの設定を復元しました。以後は現在のフォームに従って操作してください。"
+      "checkpointRestored": "選択したステップの設定を復元しました。以後は現在のフォームに従って操作してください。",
+      "questionAnswered": "選んだのは：{subject}"
     },
     "suggestion": {
       "setupShot": "この一枚を組み立てて",
@@ -7673,11 +7691,6 @@
       "chipLabel": "結果 {ordinal}",
       "pending": "生成中"
     },
-    "choice": {
-      "title": "どれのことですか？",
-      "resolved": "選びました",
-      "answer": "これです：{label}"
-    },
     "error": {
       "generic": "今回のラウンドは最後まで走りませんでした",
       "failed": "今回のラウンドは途中でエラーになりました",
@@ -7757,18 +7770,7 @@
       "scopeAll": "全ワークベンチ"
     },
     "plan": {
-      "title": "プラン · 確認待ち",
       "revisePrefill": "計画を変更："
-    },
-    "spend": {
-      "title": "これを送信しますか（クレジットを消費します）",
-      "model": "モデル",
-      "count": "枚数",
-      "specs": "仕様",
-      "seconds": "{seconds}秒",
-      "cancel": "キャンセル",
-      "confirm": "送信",
-      "resolved": "送信済み · クレジットを消費しました"
     },
     "planVisual": {
       "comp": {
@@ -7870,15 +7872,13 @@
       "pending": "アシスタントが考えています"
     },
     "question": {
-      "title": "先に何点か確認させて",
-      "meta": "{count} 件の質問",
       "recommended": "おすすめ",
       "other": "その他",
       "otherPlaceholder": "ほしいものを一言で…",
-      "summary": "選んだのは：{answers}",
-      "missing": "あと {count} 問が未回答",
-      "start": "開始",
-      "revise": "修正"
+      "pinnedTitle": "{name} が先に確認したいこと",
+      "current": "現在のプロンプト",
+      "proposed": "提案されたプロンプト",
+      "send": "送信"
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "この環境では動画を読めません",
@@ -7892,7 +7892,17 @@
       "continue": "ステップ {step} から続行",
       "failed": "失敗：{reason}",
       "band": "未完了の計画 · ステップ {step} から続行"
-    }
+    },
+    "status": {
+      "thinking": "考え中…",
+      "capturingFrames": "フレーム抽出中…",
+      "look": "画像を見ています…",
+      "research": "{count} 件のソースを確認中…",
+      "ask": "質問を考えています…",
+      "apply": "設定を変更しています…",
+      "request_generation": "生成の準備をしています…"
+    },
+    "placeholderQuestion": "答えなくても大丈夫 —— 別のことを入力できます…"
   },
   "GenerationCancel": {
     "cancel": "キャンセル",

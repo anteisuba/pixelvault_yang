@@ -64,7 +64,7 @@ export type MediaGenerateBlockReason = 'noModel' | 'noPrompt'
 
 /**
  * 台账 #12（2026-08-02）：媒体节点「能不能生成」的渲染期判定，与
- * `StudioNodeWorkbench.handleGenerateMediaNode` 点击后的两道守卫**同一判据、
+ * 画布的生成路径 点击后的两道守卫**同一判据、
  * 同一顺序**（先 model 后 prompt）——那边的守卫保留当兜底（触屏没有 hover、
  * 助手 op 与用户共用同一入口），这里让按钮在点击前就说清楚为什么不能点。
  * `GenericDetailBody` / `NodeMediaInspector` 各有一份手写的同款判定，收敛到

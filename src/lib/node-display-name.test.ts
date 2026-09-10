@@ -168,7 +168,7 @@ describe('resolveNodeDisplayName', () => {
   })
 
   // ⚠ 这道守卫此前只挡 mediaLabel/sourceLabel 两个字段——但
-  // `StudioNodeWorkbench.handleSpawnReference` 按 role 把同一个机器串写进
+  // 画布的生成路径 按 role 把同一个机器串写进
   // characterName/backgroundName/shotName 时，读侧完全不设防（这几个字段排
   // 在优先链最前面，根本不会走到 mediaLabel 那一步）。
   it.each([

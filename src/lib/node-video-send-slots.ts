@@ -6,7 +6,7 @@ import type { VideoModelSendContract } from '@/constants/video-model-send-plan'
  * ⚠ 这个模块存在的理由是「**一个真相**」。此前容量算了两遍：
  *
  *   · 预览层（`node-video-send-preview.ts`）按 `contract.slots` 算
- *   · 发送路径（`StudioNodeWorkbench`）按 `getMaxReferenceImages` 算，
+ *   · 发送路径（画布 workbench）按 `getMaxReferenceImages` 算，
  *     视频与音频甚至是写死的 `.slice(0, 3)`
  *
  * 后果不是「数字对不上」这么轻——多图参考档的 `slots.videos` 是 0，而发送路径照发

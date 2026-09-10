@@ -74,7 +74,7 @@ describe('assembleReferenceImagePayload', () => {
     ])
   })
 
-  // Zero-drift snapshot for StudioNodeWorkbench's handleGenerateCharacterImage
+  // Zero-drift snapshot for 画布 workbench's handleGenerateCharacterImage
   // call site (§1 抽取前后行为对照): existing-image-reference first, then the
   // card's own referenceAssets, in that priority order, capped to the model.
   it("matches handleGenerateCharacterImage's pre-extraction shape (existing + own referenceAssets, capped)", () => {

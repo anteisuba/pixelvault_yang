@@ -6,7 +6,11 @@ import {
   objectReplaceAPI,
 } from '@/lib/api-client'
 import type { CanvasDerivedImageOutput } from '@/types/canvas-image-edit'
-import type { GenerationRecord, ObjectReplaceAnnotation } from '@/types'
+import type {
+  GenerationRecord,
+  ObjectReplaceAnnotation,
+  ImageEditOptions,
+} from '@/types'
 
 export interface CanvasCapabilityTarget {
   sourceUrl: string
@@ -36,6 +40,9 @@ export type CanvasCapabilityRequest =
     }
   | {
       capability: 'inpaint'
+      options?: ImageEditOptions
+      onPreview?: (url: string) => void
+      signal?: AbortSignal
       target: CanvasCapabilityTarget
       maskImageUrl: string
       prompt: string
@@ -43,6 +50,9 @@ export type CanvasCapabilityRequest =
     }
   | {
       capability: 'object-replace'
+      options?: ImageEditOptions
+      onPreview?: (url: string) => void
+      signal?: AbortSignal
       target: CanvasCapabilityTarget
       /** ⚠ 注释清单，不是 mask —— 图上那些编号不落像素。 */
       annotations: readonly ObjectReplaceAnnotation[]
@@ -242,13 +252,17 @@ async function executeCanvasCapability(
       }
     }
     case 'inpaint': {
-      const response = await inpaintImageAPI({
-        imageUrl: target.sourceUrl,
-        maskImageUrl: request.maskImageUrl,
-        prompt: request.prompt,
-        sourceGenerationId: target.sourceGenerationId,
-        modelId: request.modelId,
-      })
+      const response = await inpaintImageAPI(
+        {
+          imageUrl: target.sourceUrl,
+          maskImageUrl: request.maskImageUrl,
+          options: request.options,
+          prompt: request.prompt,
+          sourceGenerationId: target.sourceGenerationId,
+          modelId: request.modelId,
+        },
+        { onPreview: request.onPreview, signal: request.signal },
+      )
       if (!response.success || !response.data) {
         return { success: false, outputs: [], error: response.error }
       }
@@ -263,12 +277,16 @@ async function executeCanvasCapability(
       }
     }
     case 'object-replace': {
-      const response = await objectReplaceAPI({
-        imageUrl: target.sourceUrl,
-        annotations: [...request.annotations],
-        sourceGenerationId: target.sourceGenerationId,
-        modelId: request.modelId,
-      })
+      const response = await objectReplaceAPI(
+        {
+          imageUrl: target.sourceUrl,
+          annotations: [...request.annotations],
+          options: request.options,
+          sourceGenerationId: target.sourceGenerationId,
+          modelId: request.modelId,
+        },
+        { onPreview: request.onPreview, signal: request.signal },
+      )
       if (!response.success || !response.data) {
         return { success: false, outputs: [], error: response.error }
       }

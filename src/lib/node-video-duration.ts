@@ -21,7 +21,7 @@ export interface ResolveNodeVideoDurationInput {
  * 把节点上存的时长翻译成能上线的值：秒数、`'auto'`，或 `undefined`（发不出去，
  * 由服务端默认值兜底）。
  *
- * ⚠ 可接受范围**只有一个事实源：模型自己**。这里曾在 `StudioNodeWorkbench` 里
+ * ⚠ 可接受范围**只有一个事实源：模型自己**。这里曾在画布 workbench 里
  * 写死 `parsed < 4 || parsed > 15` —— 那是 Seedance 2.0 的档位。2.5 的档位到 30
  * 秒（`video-model-capabilities.ts`），于是用户在滑条上选的 20/25/30 存进了节点、
  * OSD 也照实显示，却在发送前被静默丢成 `undefined`，provider 拿自己的默认 5 秒

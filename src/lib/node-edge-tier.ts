@@ -133,7 +133,7 @@ export interface NodeEdgeVisibilityInputs {
 
 /**
  * The 渲染条件矩阵's "两端可见前提下，这条边该不该画" boolean — extracted out
- * of `StudioNodeWorkbench`'s `renderedEdges` memo so it has ONE definition
+ * of 画布 workbench's `renderedEdges` memo so it has ONE definition
  * shared by three call sites that all need the exact same answer: the memo
  * itself, the pre-delete "is this edge currently rendered" check that decides
  * whether an unbind gets the 墨线反向褪去 treatment, and the 墨线签署 hold

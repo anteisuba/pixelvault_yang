@@ -2,7 +2,7 @@
  * R3-6a §1 共享 payload 装配（canvas-relationship-v3-2026-07 §7 R3-6 / v4 §14.3）:
  * the "collect candidate reference-image URLs → dedupe (first-seen wins) →
  * truncate to the model's cap" step used to live inline, TWICE, inside
- * `StudioNodeWorkbench`'s two generation handlers — `handleGenerateCharacterImage`
+ * 画布 workbench's two generation handlers — `handleGenerateCharacterImage`
  * (a character card's own referenceAssets) and `handleGenerateMediaNode` (a
  * shot/video node's full graph harvest). Divergent inline copies is exactly the
  * "will drift" risk v4 §14.3 called out before any R3-6 出场组 work could safely

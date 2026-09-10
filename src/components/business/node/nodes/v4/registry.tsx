@@ -13,7 +13,7 @@ import type { NodeTypes } from '@xyflow/react'
 
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 
-import { AudioNodeV4 } from './MediaNodeV4'
+import { AudioNodeV4 } from './AudioNodeV4'
 import { ImageNodeV4 } from './ImageNodeV4'
 import { TextNodeV4 } from './TextNodeV4'
 import { VideoNodeV4 } from './VideoNodeV4'

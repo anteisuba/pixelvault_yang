@@ -372,6 +372,29 @@ describe('buildV4ImagePayload / buildV4AudioPayload / buildV4MergeClipUrls', () 
     expect(payload.prompt).toBe('她回头')
   })
 
+  it('音：行内语气标记在装配层编译，音色与 prosody 一起出（S5）', () => {
+    const voiceNode = node('v-out', {
+      kind: 'audio',
+      subtype: 'voice',
+      prompt: '[强·愤怒][咬牙切齿]把她还给我！',
+      voiceProfile: { voiceId: 'fish_morning', speed: 0.9, volume: 2 },
+    })
+    const payload = buildV4AudioPayload({
+      nodeId: 'v-out',
+      nodes: [voiceNode],
+      edges: [],
+      ownPrompt: '[强·愤怒][咬牙切齿]把她还给我！',
+    })
+    expect(payload.prompt).toBe(
+      '[very angry][through gritted teeth]把她还给我！',
+    )
+    expect(payload.rawPrompt).toBe('[强·愤怒][咬牙切齿]把她还给我！')
+    expect(payload.voiceTags).toEqual(['very angry', 'through gritted teeth'])
+    expect(payload.voiceId).toBe('fish_morning')
+    expect(payload.speed).toBe(0.9)
+    expect(payload.volume).toBe(2)
+  })
+
   it('合并：clip 槽按顺序出 URL', () => {
     const a = node('a', {
       kind: 'video',

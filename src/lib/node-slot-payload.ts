@@ -29,6 +29,7 @@ import {
 } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { resolveEdgeTextRole } from '@/lib/node-slot-binding'
+import { compileVoiceMarkup } from '@/lib/voice-markup'
 import type {
   NodeV4,
   NodeV4Data,
@@ -408,13 +409,31 @@ export function buildV4ImagePayload(params: {
 }
 
 export interface V4AudioPayload {
+  /** **编译后**的台词：行内语气标记已翻成 Fish 的 `[tag]` 写法。 */
   readonly prompt: string
+  /** 编译前的原文（存档 / 显示用，⚠ 送出去的是 `prompt`）。 */
+  readonly rawPrompt: string
+  /** 这一次用了哪些标记（按出现顺序，已编译）。 */
+  readonly voiceTags: readonly string[]
+  /** 音色（Fish 的 `reference_id`）。 */
+  readonly voiceId?: string
+  /** `prosody.speed` / `prosody.volume`。 */
+  readonly speed?: number
+  readonly volume?: number
   /** 音色参考（`timbre` 槽的当前版）。 */
   readonly timbreUrl?: string
   readonly text: SlotTextSegments
 }
 
-/** 一个 `audio.*` 节点的送出载荷：台词走 `text` 槽，音色供体走 `timbre` 槽。 */
+/**
+ * 一个 `audio.*` 节点的送出载荷：台词走 `text` 槽，音色供体走 `timbre` 槽。
+ *
+ * ⚠ **编译发生在这里**（S5）：台词里的 `[强·愤怒]` 到了这一层才变成
+ * `[very angry]`。理由是「文本是唯一真值」—— 节点上存的一直是用户看到的那一份，
+ * 只有送出的那一刻才翻成 Fish 的写法（`compileVoiceMarkup` 是纯函数，视频卡的
+ * @语音 与剪辑台复用同一份）。⛔ 不在组件里先编译再存回去：那会让用户下次打开
+ * 看到一串英文标记。
+ */
 export function buildV4AudioPayload(params: {
   readonly nodeId: string
   readonly nodes: readonly NodeV4[]
@@ -424,8 +443,11 @@ export function buildV4AudioPayload(params: {
   const { nodeId, nodes, edges } = params
   const node = nodes.find((candidate) => candidate.id === nodeId)
   if (!node) {
+    const fallback = compileVoiceMarkup(params.ownPrompt?.trim() ?? '')
     return {
-      prompt: params.ownPrompt?.trim() ?? '',
+      prompt: fallback.text,
+      rawPrompt: params.ownPrompt?.trim() ?? '',
+      voiceTags: fallback.tags,
       text: { style: [], character: [] },
     }
   }
@@ -436,13 +458,24 @@ export function buildV4AudioPayload(params: {
     nodes,
   ).map((source) => readNodeUrl(source.node.data))[0]
   const text = readTextSegments(node, edges, nodes)
+  const rawPrompt = composeSlotPrompt({
+    ...(params.ownPrompt ? { ownPrompt: params.ownPrompt } : {}),
+    ...(text.script ? { script: text.script } : {}),
+    style: text.style,
+    character: text.character,
+  })
+  const compiled = compileVoiceMarkup(rawPrompt)
+  const profile =
+    node.data.kind === NODE_MEDIA_KIND_IDS.audio
+      ? node.data.voiceProfile
+      : undefined
   return {
-    prompt: composeSlotPrompt({
-      ...(params.ownPrompt ? { ownPrompt: params.ownPrompt } : {}),
-      ...(text.script ? { script: text.script } : {}),
-      style: text.style,
-      character: text.character,
-    }),
+    prompt: compiled.text,
+    rawPrompt,
+    voiceTags: compiled.tags,
+    ...(profile?.voiceId ? { voiceId: profile.voiceId } : {}),
+    ...(profile?.speed === undefined ? {} : { speed: profile.speed }),
+    ...(profile?.volume === undefined ? {} : { volume: profile.volume }),
     ...(timbreUrl ? { timbreUrl } : {}),
     text,
   }

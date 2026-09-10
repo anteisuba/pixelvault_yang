@@ -57,6 +57,10 @@ export interface V4GenerationPlan {
    * `StudioGenerateSchema` 里没有这个字段，塞了服务端也读不到。
    */
   readonly count?: number
+  /** 音频：Fish 的 `reference_id`（音色）与 `prosody` 两档。 */
+  readonly voiceId?: string
+  readonly speed?: number
+  readonly volume?: number
   readonly referenceImages?: readonly string[]
   readonly audioUrls?: readonly string[]
   readonly audioBindings?: readonly { url: string; characterName?: string }[]
@@ -145,7 +149,16 @@ export function planV4Generation(
         ? { ownPrompt: overrides.prompt ?? data.prompt }
         : {}),
     })
-    return { ...base, kind: 'audio', prompt: payload.prompt }
+    // ⚠ `payload.prompt` 已经是**编译后**的台词（`[very angry]…`，编译在
+    // `buildV4AudioPayload` 里）。音色与 prosody 是 Fish 的正交字段，跟着一起送。
+    return {
+      ...base,
+      kind: 'audio',
+      prompt: payload.prompt,
+      ...(payload.voiceId ? { voiceId: payload.voiceId } : {}),
+      ...(payload.speed === undefined ? {} : { speed: payload.speed }),
+      ...(payload.volume === undefined ? {} : { volume: payload.volume }),
+    }
   }
 
   const payload = buildV4ImagePayload({
@@ -223,6 +236,9 @@ export function useNodeMediaGenerationV4() {
             ...(plan.generateAudio === undefined
               ? {}
               : { generateAudio: plan.generateAudio }),
+            ...(plan.voiceId ? { voiceId: plan.voiceId } : {}),
+            ...(plan.speed === undefined ? {} : { speed: plan.speed }),
+            ...(plan.volume === undefined ? {} : { volume: plan.volume }),
             ...(plan.negativePrompt
               ? { negativePrompt: plan.negativePrompt }
               : {}),

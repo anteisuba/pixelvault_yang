@@ -46,7 +46,7 @@ vi.mock('@/components/ui/audio-player', () => ({
 import { reconcileStateSlots } from '@/lib/node-slot-binding'
 import type { NodeV4, NodeWorkflowStateV4 } from '@/types/node-workflow'
 
-import { AudioNodeV4 } from './MediaNodeV4'
+import { AudioNodeV4 } from './AudioNodeV4'
 import { ImageNodeV4 } from './ImageNodeV4'
 import {
   NodeV4CanvasProvider,
@@ -198,14 +198,23 @@ describe('四类节点的两态渲染', () => {
     )
   })
 
-  it('音频节点收起态显示时长条，展开态出播放器', () => {
+  it('音频节点是矮卡：波形 + 时长，⛔ 无展开态', () => {
     const state = scene()
-    renderNode(AudioNodeV4, 'a_v', harness(state))
-    expect(screen.getByText('audioDuration')).toBeInTheDocument()
-    expect(screen.queryByTestId('audio')).not.toBeInTheDocument()
+    const { container } = renderNode(AudioNodeV4, 'a_v', harness(state))
+    const surface = container.querySelector('[data-audio-surface="ready"]')!
+    expect(surface).toBeInTheDocument()
+    expect(surface.querySelector('[data-audio-waveform]')).toBeInTheDocument()
+    expect(screen.getByText('4s')).toBeInTheDocument()
 
-    renderNode(AudioNodeV4, 'a_v', harness(state, { expandedNodeId: 'a_v' }))
-    expect(screen.getByTestId('audio')).toBeInTheDocument()
+    // 展开态在 S5 随 spec §4「无画中框」一起删 —— 传 `expandedNodeId` 也不换版式。
+    const expanded = renderNode(
+      AudioNodeV4,
+      'a_v',
+      harness(state, { expandedNodeId: 'a_v' }),
+    )
+    expect(
+      expanded.container.querySelector('[data-audio-surface="ready"]'),
+    ).toBeInTheDocument()
   })
 
   it('镜头节点展开态是固定版式：上排文本槽摘要，下排四槽卡', () => {

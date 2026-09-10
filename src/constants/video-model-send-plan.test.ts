@@ -44,7 +44,7 @@ describe('video model send contracts', () => {
     expect(contract.execution).toBe('ready')
   })
 
-  it('does not invent a Gemini image cap and reports its missing worker route', () => {
+  it('does not invent a Gemini image cap and enables its worker route', () => {
     const contract = getVideoModelSendContract(
       AI_MODELS.GEMINI_OMNI_FLASH,
       AI_ADAPTER_TYPES.GEMINI,
@@ -54,7 +54,7 @@ describe('video model send contracts', () => {
     expect(contract.slots.images).toBeUndefined()
     expect(contract.slots.videos).toBe(0)
     expect(contract.slots.audio).toBe(0)
-    expect(contract.execution).toBe('execution-not-migrated')
+    expect(contract.execution).toBe('ready')
   })
 
   it('does not mark an unknown Fal video model runnable from its adapter alone', () => {

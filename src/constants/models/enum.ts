@@ -7,6 +7,8 @@ export enum AI_MODELS {
   // Image models
   GEMINI_FLASH_IMAGE = 'gemini-3.1-flash-image-preview',
   OPENAI_GPT_IMAGE_2 = 'gpt-image-2',
+  OPENAI_GPT_IMAGE_25_FLARE = 'gpt-image-2.5-flare',
+  OPENAI_GPT_IMAGE_25_SUNBURST = 'gpt-image-2.5-sunburst',
   FLUX_2_PRO = 'flux-2-pro',
   /** FLUX.2 Pro multi-reference edit endpoint (image_urls + prompt). */
   FLUX_2_PRO_EDIT = 'flux-2-pro-edit',
@@ -87,13 +89,11 @@ export enum AI_MODELS {
 
   // Audio models
   /**
-   * Catalog key kept as fish-audio-s2-pro for DB/i18n stability. Execution id
-   * is `s2.1-pro-free` — Fish's **free tier** of S2.1 Pro (same model, same
-   * language coverage), free only through **2026-08-31**. If Fish does not
-   * extend the window again, switch back to the paid `s2.1-pro`; see the note
-   * on this entry in `src/constants/models/audio.ts`.
+   * Stable catalog key for generation history and VoiceCards.
+   * Execution uses the paid `s2.1-pro` tier (owner 2026-09-06).
    */
   FISH_AUDIO_S2_PRO = 'fish-audio-s2-pro',
+  FISH_AUDIO_S2_PRO_FREE = 'fish-audio-s2-pro-free',
   ELEVENLABS_V3 = 'eleven-v3',
   ELEVENLABS_SFX_V2 = 'eleven-sfx-v2',
   /** ElevenLabs Music v2 — text-to-music (audioKind=music). */

@@ -16,6 +16,34 @@ const RUNNER_TIMEOUT_MS = 600_000
  */
 export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
   {
+    id: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI),
+    externalModelId: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://developers.openai.com/api/docs/models/gpt-image-2.5-flare',
+    qualityTier: 'premium',
+    styleTag: 'general',
+    maxPromptChars: 32_000,
+  },
+  {
+    id: AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.OPENAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.OPENAI),
+    externalModelId: AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
+    outputType: 'IMAGE',
+    available: true,
+    officialUrl:
+      'https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst',
+    qualityTier: 'premium',
+    styleTag: 'general',
+    maxPromptChars: 32_000,
+  },
+  {
     id: AI_MODELS.OPENAI_GPT_IMAGE_2,
     cost: 3,
     adapterType: AI_ADAPTER_TYPES.OPENAI,

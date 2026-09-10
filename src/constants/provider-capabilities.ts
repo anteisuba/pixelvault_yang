@@ -183,7 +183,7 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       // **一个**读者：`CapabilityForm` 的「加号还能不能按」UI 闸。没有任何一条链路
       // 再拿它截断发出去的载荷。
       // 已按 owner 2026-08-07「一把尺子也不要了」退役掉的：LoRA 装配台、卡片配方
-      // 编译（H，eb295d23 / 6c3add69）、StudioNodeWorkbench 两条 generate 路径的
+      // 编译（H，eb295d23 / 6c3add69）、画布两条 generate 路径的
       // `.slice(0, maxLoras)`（J4，f9522e44）。
       // M（2026-08-07）退役了最后一个读它的画布件 `CharacterImageLoraControls`
       // 的加号闸——开工后查出该组件自 `04f8f6be`（08-05）起零渲染，owner 拍板
@@ -325,6 +325,16 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     steps: { min: 1, max: 50, step: 1, default: 23 },
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
+    maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
+  },
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
+    capabilities: ['quality', 'resolution', 'background', 'imageAnalysis'],
+    qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+    maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
+  },
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: {
+    capabilities: ['quality', 'resolution', 'background', 'imageAnalysis'],
+    qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.FLUX_2_PRO]: {

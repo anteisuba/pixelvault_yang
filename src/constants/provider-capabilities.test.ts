@@ -10,6 +10,28 @@ import {
 } from '@/constants/provider-capabilities'
 
 describe('provider-capabilities', () => {
+  it.each([
+    AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+    AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
+  ])('exposes native editing and extended quality for %s', (modelId) => {
+    const config = getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, modelId)
+    expect(config.maxReferenceImages).toBe(16)
+    expect(config.referenceImageMode).toBe('native')
+    expect(config.qualityOptions).toEqual([
+      'auto',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+      'max',
+    ])
+    expect(config.capabilities).not.toContain('style')
+    expect(
+      getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, AI_MODELS.OPENAI_GPT_IMAGE_2)
+        .qualityOptions,
+    ).not.toContain('max')
+  })
+
   it('every AI_ADAPTER_TYPES entry has a capabilities config', () => {
     for (const adapterType of Object.values(AI_ADAPTER_TYPES)) {
       const config = ADAPTER_CAPABILITIES[adapterType]

@@ -427,7 +427,7 @@ export function getVideoModelSendContract(
       family: 'gemini',
       referenceMode: 'image-content-array',
       slots: {
-        // The official preview guide demonstrates multiple image references
+        // The official guide demonstrates multiple image references
         // but does not publish a hard maximum. Do not reuse the generic Gemini
         // image-edit cap here.
         images: undefined,
@@ -442,7 +442,7 @@ export function getVideoModelSendContract(
         generateAudio: false,
         seed: false,
       },
-      execution: 'execution-not-migrated',
+      execution: 'ready',
       positionalImageTokens: false,
       imageAspectRatioLock: null,
       keyframeSlots: 1,

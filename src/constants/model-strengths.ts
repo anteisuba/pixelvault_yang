@@ -171,6 +171,24 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
       health: 0.95,
     },
   },
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
+    bestFor: ['general', 'concept', 'creative', 'editing', 'text-in-image'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
+    enhanceHint:
+      'GPT Image 2.5 Flare. Describe the subject, composition, lighting and desired style in natural language. Quote text to render exactly. Identify reference images by position (Image 1, Image 2) and explain their roles. Describe the wanted result; there is no negative prompt field.',
+    editHint:
+      'Change only the named element and specify what to preserve. Refer to each source as Image 1 / Image 2 in attachment order. Quote replacement text exactly and keep unrelated details unchanged.',
+  },
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: {
+    bestFor: ['general', 'concept', 'creative', 'editing', 'text-in-image'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'unsupported',
+    enhanceHint:
+      'GPT Image 2.5 Sunburst. Use precise natural-language instructions for composition, materials, lighting and fine details. Quote text to render exactly. Give every reference image a clear role and state what must remain consistent. There is no negative prompt field.',
+    editHint:
+      'Change the specified element with precise location and attributes. Identify sources as Image 1 / Image 2 in attachment order, preserve the subject and composition, and explicitly keep unrelated details unchanged.',
+  },
   // ── Google Gemini ───────────────────────────────────────────────
   // 来源 https://ai.google.dev/gemini-api/docs/image-generation
   [AI_MODELS.GEMINI_PRO_IMAGE]: {

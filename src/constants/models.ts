@@ -25,6 +25,8 @@ export type {
 export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.GEMINI_FLASH_IMAGE]: 'geminiFlashImage',
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: 'openaiGptImage2',
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: 'openaiGptImage25Flare',
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: 'openaiGptImage25Sunburst',
   [AI_MODELS.FLUX_2_PRO]: 'flux2Pro',
   [AI_MODELS.FLUX_2_PRO_EDIT]: 'flux2ProEdit',
   [AI_MODELS.FLUX_2_FLASH]: 'flux2Flash',
@@ -55,6 +57,7 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.SDXL_10_RUNNER]: 'sdxl10Runner',
   [AI_MODELS.ANIMA_DIT_RUNNER]: 'animaDitRunner',
   [AI_MODELS.FISH_AUDIO_S2_PRO]: 'fishAudioS2Pro',
+  [AI_MODELS.FISH_AUDIO_S2_PRO_FREE]: 'fishAudioS2ProFree',
   [AI_MODELS.ELEVENLABS_V3]: 'elevenV3',
   [AI_MODELS.ELEVENLABS_SFX_V2]: 'elevenSfxV2',
   [AI_MODELS.ELEVENLABS_MUSIC_V2]: 'elevenMusicV2',
@@ -166,6 +169,8 @@ export const MODEL_OPTIONS: ModelOption[] = [
 
 export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: 'GPT Image',
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: 'GPT Image',
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: 'GPT Image',
   [AI_MODELS.GEMINI_PRO_IMAGE]: 'Gemini',
   [AI_MODELS.GEMINI_FLASH_IMAGE]: 'Gemini',
   [AI_MODELS.FLUX_2_PRO]: 'FLUX',
@@ -229,6 +234,7 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.WAN_30_REFERENCE]: 'Wan',
   [AI_MODELS.LTX_23]: 'LTX',
   [AI_MODELS.FISH_AUDIO_S2_PRO]: 'Fish Audio',
+  [AI_MODELS.FISH_AUDIO_S2_PRO_FREE]: 'Fish Audio',
   [AI_MODELS.ELEVENLABS_V3]: 'ElevenLabs',
   [AI_MODELS.ELEVENLABS_SFX_V2]: 'ElevenLabs',
   [AI_MODELS.ELEVENLABS_MUSIC_V2]: 'ElevenLabs',

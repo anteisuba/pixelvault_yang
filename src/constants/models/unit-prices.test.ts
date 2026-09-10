@@ -1,3 +1,4 @@
+import { getOpenAIImageOutputPrice } from './unit-prices'
 import { describe, expect, it } from 'vitest'
 
 import { getModelById } from '@/constants/models'
@@ -6,6 +7,7 @@ import {
   MODEL_UNIT_PRICES,
   formatUnitPriceAmount,
   getModelUnitPrice,
+  getModelUnitPriceRangeByStringId,
   getVideoUnitPricePerSecond,
 } from '@/constants/models/unit-prices'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
@@ -24,6 +26,22 @@ const entries = Object.entries(MODEL_UNIT_PRICES) as [
 ][]
 
 describe('model unit prices', () => {
+  it.each([
+    AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+    AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
+  ])(
+    'keeps %s variable-priced rather than claiming a fixed image cost',
+    (modelId) => {
+      expect(getModelUnitPrice(modelId)).toBeNull()
+      expect(getModelUnitPriceRangeByStringId(modelId)).toMatchObject({
+        min: 0.00588,
+        max: 0.21072,
+        unit: 'image',
+        verifiedAt: '2026-09-09',
+      })
+    },
+  )
+
   it('has at least the Seedance VolcEngine line priced', () => {
     // 火山是目前唯一端到端跑通、且我们主推的视频线；它没价，第三层比价就没意义。
     expect(getModelUnitPrice(AI_MODELS.SEEDANCE_25_VOLCENGINE)).toBeTruthy()
@@ -146,5 +164,56 @@ describe('model unit prices', () => {
     expect(formatUnitPriceAmount(1.072)).toBe('$1.07')
     // 尾随 0 去掉：`$0.003` 而不是 `$0.0030`
     expect(formatUnitPriceAmount(0.003)).toBe('$0.003')
+  })
+})
+
+describe('OpenAI image output estimates', () => {
+  it.each([
+    ['low', 0.00588],
+    ['medium', 0.01317],
+    ['high', 0.05268],
+    ['xhigh', 0.09366],
+    ['max', 0.21072],
+  ])(
+    'matches the official 1024-square calculator for %s',
+    (quality, amount) => {
+      for (const modelId of ['gpt-image-2.5-flare', 'gpt-image-2.5-sunburst']) {
+        expect(
+          getOpenAIImageOutputPrice(modelId, {
+            aspectRatio: '1:1',
+            resolution: '1K',
+            quality: String(quality),
+          }),
+        ).toEqual({ min: amount, max: amount })
+      }
+    },
+  )
+  it('scales with the actual 2K size and includes only an upper bound for previews', () => {
+    expect(
+      getOpenAIImageOutputPrice('gpt-image-2.5-flare', {
+        aspectRatio: '1:1',
+        resolution: '2K',
+        quality: 'max',
+      }),
+    ).toEqual({ min: 0.42816, max: 0.42816 })
+    const price = getOpenAIImageOutputPrice('gpt-image-2.5-flare', {
+      aspectRatio: '1:1',
+      resolution: '1K',
+      quality: 'low',
+      preview: true,
+    })
+    expect(price?.min).toBeCloseTo(0.00588)
+    expect(price?.max).toBeCloseTo(0.01188)
+  })
+  it('does not invent a price for unsupported quality or another provider', () => {
+    expect(
+      getOpenAIImageOutputPrice('gpt-image-2', {
+        aspectRatio: '1:1',
+        quality: 'max',
+      }),
+    ).toBeNull()
+    expect(
+      getOpenAIImageOutputPrice('other', { aspectRatio: '1:1' }),
+    ).toBeNull()
   })
 })

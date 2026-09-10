@@ -1,5 +1,52 @@
 import { AI_MODELS } from '@/constants/models/enum'
 import type { VideoResolution } from '@/constants/video-options'
+import {
+  aspectRatioToOpenAISize,
+  isImageResolutionTier,
+  tieredOpenAISize,
+} from '@/lib/image-output-size'
+
+export function getOpenAIImageOutputPrice(
+  modelId: string,
+  options: {
+    aspectRatio: string
+    resolution?: string
+    quality?: string
+    preview?: boolean
+  },
+): { min: number; max: number } | null {
+  const is25 =
+    modelId === AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE ||
+    modelId === AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST
+  if (!is25 && modelId !== AI_MODELS.OPENAI_GPT_IMAGE_2) return null
+  const scales: Record<string, number> = is25
+    ? { low: 16, medium: 24, high: 48, xhigh: 64, max: 96 }
+    : { low: 16, medium: 48, high: 96 }
+  const { width, height } =
+    options.resolution && isImageResolutionTier(options.resolution)
+      ? tieredOpenAISize(options.aspectRatio, options.resolution)
+      : aspectRatioToOpenAISize(options.aspectRatio)
+  const price = (scale: number) => {
+    const short = (scale * Math.min(width, height)) / Math.max(width, height)
+    const floor = Math.floor(short)
+    const rounded =
+      short - floor === 0.5 ? floor + (floor % 2) : Math.round(short)
+    return (
+      (Math.ceil((scale * rounded * (2_000_000 + width * height)) / 4_000_000) *
+        30) /
+      1_000_000
+    )
+  }
+  const scale = options.quality ? scales[options.quality] : undefined
+  if (options.quality && options.quality !== 'auto' && scale === undefined)
+    return null
+  const values =
+    scale === undefined ? Object.values(scales).map(price) : [price(scale)]
+  return {
+    min: Math.min(...values),
+    max: Math.max(...values) + (options.preview ? 0.006 : 0),
+  }
+}
 
 /**
  * 模型单价 —— 模型选择器**第三层「渠道比价」**的数据源。
@@ -16,14 +63,12 @@ import type { VideoResolution } from '@/constants/video-options'
  *   里写清算了几张输入）。⚠ **不是「1024² 一刀切」** —— 图片按输出像素分档，而
  *   各家 adapter 发出去的尺寸并不一样，口径必须跟着**产品实际发的那个尺寸**走：
  *   · fal 恒发 `image_size: square_hd` = 1024×1024（1MP）
- *   · OpenAI 恒发 `size: 1024x1024`
+ *   · OpenAI 基准 `size: 1024x1024`；工作台按实际尺寸与画质计算输出价
  *   · Gemini 不发 imageSize，走官方默认 1K
  *   · **火山发的是 2K 档 2048×2048**（`VOLCENGINE_IMAGE_SIZES`）= 419 万像素
  *   所以火山 Seedream Pro 落在官方「> 261 万像素」的**高档位 0.60 元**，不是低档位
  *   的 0.30 元。按低档位标价会把它腰斩，正是首页那张表犯过的错。
- *   ⛔ **别按 UI 上的「清晰度」推算**：四个图片 adapter（fal / openai / gemini /
- *   volcengine）的图片路径**都只读 `aspectRatio`，一个都不读 `advancedParams.resolution`**
- *   （2026-08-18 逐个查实）。那个选项对图片是空转，拿它算价会算出一个产品根本发不出去的档。
+ *   OpenAI 的动态估算复用 Worker 的尺寸换算；`quality` 与 `resolution` 分别参与输出费用计算。
  * - 一律 **USD**。人民币计价的渠道在 `source` 里注明原始金额与换算汇率 ——
  *   ⚠ 汇率会漂，复核时连同 `verifiedAt` 一起更新。**换算汇率统一 7.1**，与既有
  *   视频条目同口径；要改就整表一起改，不许新旧两个汇率并存。
@@ -529,6 +574,26 @@ export interface ModelUnitPriceRange {
 export const MODEL_UNIT_PRICE_RANGES: Partial<
   Record<AI_MODELS, ModelUnitPriceRange>
 > = {
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
+    min: 0.00588,
+    max: 0.21072,
+    unit: 'image',
+    reason:
+      '1024×1024 输出参考价，low / medium / high / xhigh / max 分别为 $0.00588 / $0.01317 / $0.05268 / $0.09366 / $0.21072。auto 随生成结果变化；不含文字和参考图输入，其他尺寸费用不同。',
+    source:
+      'https://developers.openai.com/api/docs/guides/image-generation#gpt-image-25-and-gpt-image-2-output-tokens',
+    verifiedAt: '2026-09-09',
+  },
+  [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: {
+    min: 0.00588,
+    max: 0.21072,
+    unit: 'image',
+    reason:
+      '1024×1024 输出参考价，low / medium / high / xhigh / max 分别为 $0.00588 / $0.01317 / $0.05268 / $0.09366 / $0.21072。auto 随生成结果变化；不含文字和参考图输入，其他尺寸费用不同。',
+    source:
+      'https://developers.openai.com/api/docs/guides/image-generation#gpt-image-25-and-gpt-image-2-output-tokens',
+    verifiedAt: '2026-09-09',
+  },
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
     min: 0.006,
     max: 0.211,

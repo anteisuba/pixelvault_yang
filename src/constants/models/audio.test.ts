@@ -35,6 +35,7 @@ describe('audio model kinds', () => {
   it('filters models by kind', () => {
     expect(getAudioModelsByKind(AUDIO_KIND.SPEECH).map((m) => m.id)).toEqual([
       AI_MODELS.FISH_AUDIO_S2_PRO,
+      AI_MODELS.FISH_AUDIO_S2_PRO_FREE,
       AI_MODELS.ELEVENLABS_V3,
     ])
     expect(getAudioModelsByKind(AUDIO_KIND.SFX).map((m) => m.id)).toEqual([
@@ -87,16 +88,11 @@ describe('audio model kinds', () => {
     })
   })
 
-  // ⚠ 2026-09-01 复核提醒：这个 pin 钉的是**免费档** `s2.1-pro-free`，免费期
-  // 2026-08-31 到期（此前已延期两次）。改动它之前先去
-  // https://fish.audio/blog/s2-1-pro-free-api/ 确认有没有第三次延期；没有就把执行
-  // id 改回 `'s2.1-pro'`（收费档，$15 / 百万 UTF-8 字节）——它是目前唯一
-  // `available: true` 的语音模型，model string 失效等于语音生成整条断掉。
-  it('pins Fish production execution id to s2.1-pro-free', () => {
+  it('pins Fish production execution id to s2.1-pro', () => {
     const fish = AUDIO_MODEL_OPTIONS.find(
       (m) => m.id === AI_MODELS.FISH_AUDIO_S2_PRO,
     )
-    expect(fish?.externalModelId).toBe('s2.1-pro-free')
+    expect(fish?.externalModelId).toBe('s2.1-pro')
     expect(fish?.available).toBe(true)
   })
 })

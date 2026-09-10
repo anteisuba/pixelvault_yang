@@ -22,6 +22,26 @@ import { getWorkflowStudioDefaults, WORKFLOWS } from '@/constants/workflows'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 describe('models', () => {
+  it.each([
+    [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE, 'openaiGptImage25Flare'],
+    [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST, 'openaiGptImage25Sunburst'],
+  ])(
+    'makes %s selectable through the OpenAI BYOK route',
+    (modelId, messageKey) => {
+      expect(getAvailableImageModels().map((model) => model.id)).toContain(
+        modelId,
+      )
+      expect(getModelById(modelId)).toMatchObject({
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        externalModelId: modelId,
+        maxPromptChars: 32_000,
+      })
+      expect(isFreeTierModel(modelId)).toBe(false)
+      expect(getModelMessageKey(modelId)).toBe(messageKey)
+      expect(getModelFamily(modelId)).toBe('GPT Image')
+    },
+  )
+
   it('keeps renamed video model IDs canonical in the active catalog', () => {
     const modelIds = MODEL_OPTIONS.map((model) => model.id)
 
@@ -147,15 +167,18 @@ describe('models', () => {
     // stay as non-speech audio kinds.
     expect(getAvailableAudioModels().map((model) => model.id)).toEqual([
       AI_MODELS.FISH_AUDIO_S2_PRO,
+      AI_MODELS.FISH_AUDIO_S2_PRO_FREE,
       AI_MODELS.ELEVENLABS_SFX_V2,
       AI_MODELS.ELEVENLABS_MUSIC_V2,
     ])
   })
 
-  it('uses Fish s2.1-pro-free execution id while keeping stable catalog key', () => {
-    expect(getExecutionModelId(AI_MODELS.FISH_AUDIO_S2_PRO)).toBe(
+  it('uses Fish s2.1-pro execution id while keeping stable catalog key', () => {
+    expect(getExecutionModelId(AI_MODELS.FISH_AUDIO_S2_PRO)).toBe('s2.1-pro')
+    expect(getExecutionModelId(AI_MODELS.FISH_AUDIO_S2_PRO_FREE)).toBe(
       's2.1-pro-free',
     )
+    expect(isFreeTierModel(AI_MODELS.FISH_AUDIO_S2_PRO_FREE)).toBe(false)
   })
 
   it('registers Kling O3 Pro and FLUX.2 Pro Edit as available', () => {

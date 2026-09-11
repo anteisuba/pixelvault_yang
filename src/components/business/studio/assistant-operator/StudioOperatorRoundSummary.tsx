@@ -162,7 +162,9 @@ export function StudioOperatorRoundSummary({
         data-testid="operator-round-summary"
         data-state="editing"
         data-round={summary.roundIndex}
-        className="rounded-lg border border-input bg-card p-3 shadow-md"
+        /* 画板 BCards「结论记录 · 编辑态」：raised 那一档 —— 它此刻是当下要你动手的
+           那张卡（§12.1）。 */
+        className="rounded-xl border border-assistant-line-strong bg-card p-3 shadow-assistant-raised"
       >
         <div className="flex items-center gap-1.5">
           {icon}
@@ -182,7 +184,7 @@ export function StudioOperatorRoundSummary({
                 onChange={(event) =>
                   setDraft({ ...draft, [column]: event.target.value })
                 }
-                className="w-full resize-none rounded-md border border-input bg-card px-2 py-1.5 text-xs leading-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full resize-none rounded-md border border-assistant-line-strong bg-card px-2 py-1.5 text-xs leading-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </label>
           ))}
@@ -207,7 +209,7 @@ export function StudioOperatorRoundSummary({
               })
               setDraft(null)
             }}
-            className="rounded-md bg-primary px-3.5 py-1 text-xs font-medium text-primary-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-md bg-foreground px-3.5 py-1 text-xs font-medium text-background transition-colors duration-(--duration-fast) ease-standard hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
           >
             {t('save')}
           </button>

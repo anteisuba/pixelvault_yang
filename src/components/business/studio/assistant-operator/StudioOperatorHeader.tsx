@@ -193,7 +193,9 @@ export function StudioOperatorHeader({
     <div
       data-testid="operator-header"
       data-working={working ? 'true' : 'false'}
-      className="shrink-0 border-b border-border bg-card"
+      /* ⚠ 头部**不铺自己的底**（§12.1）：它坐在面板那层玻璃上，给它一层
+         `bg-card` 等于在玻璃上又糊一块不透明白 —— 分层交给那条下边线。 */
+      className="shrink-0 border-b border-border"
     >
       <div
         style={{ height: `${STUDIO_OPERATOR_SHELL.headerHeightPx}px` }}
@@ -217,7 +219,10 @@ export function StudioOperatorHeader({
               data-testid="operator-session-menu"
               aria-label={t('history.heading')}
               title={sessionTitle}
-              className="flex min-w-0 flex-1 items-center gap-1 rounded-md py-1 text-left text-sm font-medium text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              /* 画板 BCards「头部 · 静止」：标题是一颗 `bg-muted` 的浅片，
+                 不是一行裸字 —— 那颗片就是「这里可以点开历史」的形状。
+                 ⚠ 展开时压深一档（`data-[state=open]`），⛔ 不换色相。 */
+              className="flex h-8 min-w-0 flex-1 items-center gap-1 rounded-md bg-muted px-2.5 text-left text-sm font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent data-[state=open]:bg-surface-fill-track focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               <span className="min-w-0 truncate">{sessionTitle}</span>
               <ChevronDown className="size-3.5 shrink-0" aria-hidden />
@@ -233,7 +238,9 @@ export function StudioOperatorHeader({
               )
                 event.preventDefault()
             }}
-            className="max-h-[60svh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto"
+            /* ── 三层玻璃③：**浮层**（§12.1）。唯一真正半透 + 模糊的一层，
+               配强投影；14px 圆角走区间上限一侧。 */
+            className="max-h-[60svh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl assistant-glass-overlay shadow-assistant-overlay"
           >
             <DropdownMenuLabel className="text-2sm font-normal text-muted-foreground">
               {t('history.heading')}

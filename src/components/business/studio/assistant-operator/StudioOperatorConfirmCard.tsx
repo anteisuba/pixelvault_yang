@@ -267,9 +267,18 @@ export function StudioOperatorConfirmCard({
               : 1,
         name: contextCard ? contextCard.card.name : '',
       })}
+      /* 画板 BCards「确认」四态的皮肤（§12.1）：
+         **待决**走 raised（深一档描边 + 柔扩散影）——它是当下挡路的那张卡；
+         **已确认**退回并列的普通卡（细边 + 贴边影）；
+         **已取消**再退一档到浅底，它已经不是一件要办的事了。
+         ⛔ 不用 opacity 压整卡：半透的字在玻璃面板上直接掉到 AA 线下。 */
       className={cn(
-        'overflow-hidden rounded-xl border border-border bg-card',
-        decided && 'opacity-[.92]',
+        'overflow-hidden rounded-xl',
+        decided
+          ? confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled
+            ? 'border border-border bg-muted'
+            : 'border border-border bg-card shadow-assistant-card'
+          : 'border border-assistant-line-strong bg-card shadow-assistant-raised',
       )}
     >
       {/* ── 已确认 / 已取消：整卡收成一行「态 · 时间」+ 一句交代 ──────── */}
@@ -406,7 +415,7 @@ export function StudioOperatorConfirmCard({
                         key={knob.id}
                         data-testid="operator-confirm-knob"
                         data-knob={knob.id}
-                        className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-2 py-1"
+                        className="flex items-center gap-1 rounded-md border border-border bg-muted px-2.5 py-1"
                       >
                         <span className="sr-only">{label}</span>
                         <span className="text-2sm text-foreground">
@@ -433,10 +442,10 @@ export function StudioOperatorConfirmCard({
                           disabled={busy}
                           aria-label={label}
                           className={cn(
-                            'flex items-center gap-1.5 rounded-lg border px-2 py-1 text-2sm transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+                            'flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-2sm transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none',
                             open
-                              ? 'border-primary bg-primary font-medium text-primary-foreground'
-                              : 'border-border bg-muted/50 text-foreground hover:bg-accent',
+                              ? 'border-foreground bg-foreground font-medium text-background'
+                              : 'border-border bg-muted text-foreground hover:bg-accent',
                           )}
                         >
                           <span className="max-w-40 truncate">
@@ -527,27 +536,7 @@ export function StudioOperatorConfirmCard({
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-2 border-t border-border bg-muted/45 px-3 py-2">
-            <button
-              type="button"
-              data-testid="operator-confirm-secondary"
-              disabled={busy}
-              onClick={
-                contextCard
-                  ? onDismissCard
-                  : confirm.kind ===
-                      ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
-                    ? onDecline
-                    : onCancel
-              }
-              className="rounded-md px-1.5 py-0.5 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
-            >
-              {contextCard
-                ? t('confirm.contextCard.dismiss')
-                : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
-                  ? t('confirm.multistep.stepByStep')
-                  : t('confirm.generate.cancel')}
-            </button>
+          <div className="flex items-center gap-2 px-3 pb-3 pt-1">
             <button
               type="button"
               data-testid="operator-confirm-primary"
@@ -561,7 +550,7 @@ export function StudioOperatorConfirmCard({
                     ? onApprove
                     : onConfirm
               }
-              className="rounded-md bg-primary px-2 py-1 text-2sm text-primary-foreground transition-opacity duration-(--duration-fast) ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex h-8 items-center rounded-md bg-foreground px-4 text-2sm font-medium text-background transition-[background-color,transform] duration-(--duration-fast) ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
             >
               {/* ⚠ 「确认中」是**按钮上的字**而不是另起一行（画板「确认中」那一
                   态）：那一刻用户的眼睛就在这颗按钮上，写在别处等于没写。 */}
@@ -573,6 +562,26 @@ export function StudioOperatorConfirmCard({
                       ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
                     ? t('confirm.multistep.start')
                     : t('confirm.generate.confirm')}
+            </button>
+            <button
+              type="button"
+              data-testid="operator-confirm-secondary"
+              disabled={busy}
+              onClick={
+                contextCard
+                  ? onDismissCard
+                  : confirm.kind ===
+                      ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+                    ? onDecline
+                    : onCancel
+              }
+              className="flex h-8 items-center rounded-md border border-border bg-card px-4 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
+            >
+              {contextCard
+                ? t('confirm.contextCard.dismiss')
+                : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+                  ? t('confirm.multistep.stepByStep')
+                  : t('confirm.generate.cancel')}
             </button>
           </div>
         </>

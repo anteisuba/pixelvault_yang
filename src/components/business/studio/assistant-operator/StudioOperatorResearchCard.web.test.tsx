@@ -334,18 +334,39 @@ describe('StudioOperatorResearchCard', () => {
       )
     })
 
-    it('⭐ 已钉住态：结论留着、来源列表收掉，再点一次取消', () => {
+    it('⭐ 已钉住：时间线这一份**折起来**（§3.2），结论那一份归面板顶部常驻条', () => {
       const onTogglePin = vi.fn()
       renderCard([RESEARCH], undefined, { pinned: true, onTogglePin })
       const card = screen.getByTestId('operator-research-card')
-      expect(card.dataset.state).toBe('pinned')
-      expect(
-        screen.getByTestId('operator-research-conclusion').textContent,
-      ).toContain('粉发')
+      // 钉住 ≠ 卡上再摊一遍：同一句结论在两处摊开，用户会读成查了两轮。
+      expect(card.dataset.state).toBe('collapsed')
+      expect(card.dataset.pinned).toBe('true')
       expect(screen.queryByTestId('operator-research-evidence')).toBeNull()
+      expect(
+        screen.getByTestId('operator-research-collapsed').textContent,
+      ).toBeTruthy()
+    })
 
+    it('⭐ 钉住按钮带**摘要**出去（结论 + 来源计数），⛔ 不让面板再解析一遍', () => {
+      const onTogglePin = vi.fn()
+      renderCard([RESEARCH], undefined, { onTogglePin })
       fireEvent.click(screen.getByTestId('operator-research-pin'))
       expect(onTogglePin).toHaveBeenCalledTimes(1)
+      const summary = onTogglePin.mock.calls[0]![0]
+      expect(summary.conclusion).toContain('粉发')
+      expect(summary.sourceCount).toBeGreaterThan(0)
+      expect(typeof summary.corroborated).toBe('number')
+    })
+
+    it('⭐ 钉住后那颗按钮翻成信号位（近黑实底 + 白字，§12.2）且 `aria-pressed`', () => {
+      const onTogglePin = vi.fn()
+      // 用户先手动展开，才看得到头上那颗按钮的钉住态。
+      renderCard([RESEARCH], undefined, { pinned: true, onTogglePin })
+      fireEvent.click(screen.getByTestId('operator-research-card'))
+      const pin = screen.getByTestId('operator-research-pin')
+      expect(pin.getAttribute('aria-pressed')).toBe('true')
+      expect(pin.className).toContain('bg-foreground')
+      expect(pin.className).toContain('text-background')
     })
 
     it('⛔ 没给钉住去处就不画那颗按钮；「再多找几个源」同理', () => {

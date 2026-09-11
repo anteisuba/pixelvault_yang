@@ -218,13 +218,16 @@ describe('StudioOperatorDock', () => {
     expect(screen.queryByTestId('operator-collapsed')).toBeNull()
   })
 
-  it('展开态皮肤走脊柱：bg-card + border + shadow-lg + rounded-xl', () => {
+  it('展开态皮肤走三层玻璃①「面板」（v2 §12.1）：玻璃面 + 细边 + 柔投影 + 18px 圆角', () => {
     render(<StudioOperatorDock />)
     const panel = screen.getByTestId('operator-panel')
-    expect(panel.className).toContain('rounded-xl')
+    // 18px = `rounded-2xl`，圆角区间的上限那一档（§12.3「面板与浮层取上限」）。
+    expect(panel.className).toContain('rounded-2xl')
     expect(panel.className).toContain('border border-border')
-    expect(panel.className).toContain('bg-card')
-    expect(panel.className).toContain('shadow-lg')
+    // ⛔ 不是 `bg-card`：面板是**玻璃**那一层（半透 + 模糊，低端机回落不透明）。
+    expect(panel.className).toContain('assistant-glass-panel')
+    expect(panel.className).not.toContain('bg-card')
+    expect(panel.className).toContain('shadow-assistant-panel')
   })
 
   it('收起态：同一个 aside 收成 40px 微状态卡（§4.3），⛔ 没有图标轨', () => {

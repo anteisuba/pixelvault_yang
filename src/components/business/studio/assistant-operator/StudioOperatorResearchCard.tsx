@@ -25,6 +25,7 @@
  * 不同的委托说成一件事。
  */
 
+import { Pin } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -47,18 +48,31 @@ import { StudioOperatorWebCandidateGrid } from './StudioOperatorWebCandidateGrid
 /** 展开键与列表的 `aria-controls` 对表 —— 两颗按钮指的是同一份列表。 */
 const EVIDENCE_LIST_ID = 'operator-research-evidence-list'
 
+/** 钉住时交给面板顶部常驻条的那三样（见 `onTogglePin` 的头注）。 */
+export interface StudioOperatorResearchSummary {
+  conclusion: string
+  sourceCount: number
+  corroborated: number
+}
+
 interface StudioOperatorResearchCardProps {
   /** 这一轮里属于调查的那几步（结论 / 证据 / 候选都从它们身上取）。 */
   steps: readonly StudioOperatorStepEntry[]
   /**
-   * **已钉住**（§3.2 证据卡第三态，commit #16）——钉住的那一条会额外留在面板顶部，
-   * 时间线里这一份换成近黑描边的紧凑形态。
+   * **已钉住**（§3.2 证据卡第三态，commit #21）——钉住的那一条**额外**在面板顶部
+   * 留一份（`StudioOperatorPinnedEvidence`），⭐ 时间线里这一份**照旧折叠**
+   * （§3.2「进入 / 离开时间线的规则」最后一行）：一条结论同时在两处摊开，用户
+   * 读到第二遍时会以为查了两轮。
    * ⚠ 钉住写进的是本轮结论记录的 `evidenceRefs`（§7.3），所以钉的是**这一轮**
    * 查到的那几条，⛔ 不是「收藏一张卡」。
    */
   pinned?: boolean
-  /** 给了才画「钉住」——没有钉住去处的界面上⛔ 不摆一颗按不了的按钮。 */
-  onTogglePin?(): void
+  /**
+   * 给了才画「钉住」——没有钉住去处的界面上⛔ 不摆一颗按不了的按钮。
+   * ⚠ 带**摘要**出去：结论与来源计数是在这张卡里算出来的，面板顶部那条常驻条
+   * ⛔ 不为了同一句话把整套解析再跑一遍。
+   */
+  onTogglePin?(summary: StudioOperatorResearchSummary): void
   /**
    * 「再多找几个源」——**再跑一次查证并加源**（`expandSources`，§9.1 ③），
    * ⛔ 不是换一句查询重来：用户按它说的是「这几条来源不够」。
@@ -92,8 +106,11 @@ export function StudioOperatorResearchCard({
    * **整张卡折起来**（§3.2 折叠态）——默认展开一次，用户折了就只剩一行
    * 「查证 · N 个来源」。⛔ 与上面那颗证据开关不是同一件事：那颗管的是「铺不铺
    * 摘录」，这颗管的是「这张卡还占不占屏」。
+   * ⚠ `null` = **用户还没自己动过**：这时跟着 `pinned` 走（钉住 → 时间线这份
+   * 折起来，§3.2）。用户一旦点过折叠 / 展开，他的选择就压过钉住那条默认。
    */
-  const [folded, setFolded] = useState(false)
+  const [folded, setFolded] = useState<boolean | null>(null)
+  const isFolded = folded ?? pinned
 
   /** 结论那一行的两样：去查什么（`goal`）、拿回来几条。 */
   const goals: string[] = []
@@ -197,67 +214,37 @@ export function StudioOperatorResearchCard({
   const sourceCount = evidence.length
   const corroborated = evidence.filter((item) => item.corroboration > 1).length
 
-  /**
-   * ── 第三态：**已钉住**（§3.2 / 画板 BCards「已钉住 · 留在面板顶部」）──
-   * 近黑描边 + 结论一句 + 「N 个来源 · M 源印证」。⛔ 钉住态不铺来源列表：
-   * 它留在屏幕上是为了让结论一直看得见，而不是把那一屏再占一次。
-   */
-  if (pinned) {
-    return (
-      <div
-        data-testid="operator-research-card"
-        data-state="pinned"
-        className="rounded-xl border-[1.5px] border-foreground bg-card px-4 py-3"
-      >
-        <div className="flex items-center justify-between gap-2">
-          <span className="truncate font-mono text-xs tracking-nav uppercase text-foreground">
-            {t('research.pinned')}
-          </span>
-          {onTogglePin ? (
-            <button
-              type="button"
-              data-testid="operator-research-pin"
-              aria-pressed={true}
-              onClick={onTogglePin}
-              className="shrink-0 rounded-sm text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
-            >
-              {t('research.unpin')}
-            </button>
-          ) : null}
-        </div>
-        <p
-          data-testid="operator-research-conclusion"
-          className="mt-2 text-2sm leading-relaxed text-foreground"
-        >
-          {conclusion ??
-            (goals.length > 0
-              ? t('research.goal', { goal: goals.join(' · ') })
-              : t('research.goalUnknown'))}
-        </p>
-        <p className="mt-1 text-xs text-muted-foreground">
-          {t('research.sourceCount', { count: sourceCount })}
-          {corroborated > 0
-            ? ` · ${t('research.corroborated', { count: 2 })}`
-            : ''}
-        </p>
-      </div>
-    )
+  /** 钉住时交给面板顶部那条常驻条的摘要（见 `onTogglePin` 头注）。 */
+  const summary: StudioOperatorResearchSummary = {
+    conclusion:
+      conclusion ??
+      (goals.length > 0
+        ? t('research.goal', { goal: goals.join(' · ') })
+        : t('research.goalUnknown')),
+    sourceCount,
+    corroborated,
   }
 
   /**
    * ── 第二态：**折叠**（画板「查证 · 折叠态 · 3 个来源」）──
    * 一行，点它回到展开。⛔ 折叠不是删除：证据、候选、过程都还在，只是收着。
+   * ⚠ **钉住的那一份默认落在这一态**（§3.2）：结论已经在面板顶部常驻，这里
+   * 只留「回到那张卡」的入口。图钉是那条常驻条的**去处标记**，⛔ 不是第二颗开关。
    */
-  if (folded) {
+  if (isFolded) {
     return (
       <button
         type="button"
         data-testid="operator-research-card"
         data-state="collapsed"
+        data-pinned={pinned ? 'true' : 'false'}
         aria-expanded={false}
         onClick={() => setFolded(false)}
-        className="flex w-full items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-left transition-colors duration-(--duration-fast) ease-standard hover:bg-muted/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+        className="flex w-full items-center gap-2 rounded-xl border border-border bg-card px-4 py-3 text-left shadow-assistant-card transition-colors duration-(--duration-fast) ease-standard hover:bg-muted/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
       >
+        {pinned ? (
+          <Pin className="size-3.5 shrink-0 text-foreground" aria-hidden />
+        ) : null}
         <span
           data-testid="operator-research-collapsed"
           className="min-w-0 flex-1 truncate text-2sm text-muted-foreground"
@@ -272,7 +259,9 @@ export function StudioOperatorResearchCard({
     <div
       data-testid="operator-research-card"
       data-state="expanded"
-      className="overflow-hidden rounded-xl border border-border bg-card"
+      data-pinned={pinned ? 'true' : 'false'}
+      // 三层玻璃②：**卡片**（§12.1）——白面 + 极细描边，只留一层贴边影。
+      className="overflow-hidden rounded-xl border border-border bg-card shadow-assistant-card"
     >
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <span
@@ -296,16 +285,24 @@ export function StudioOperatorResearchCard({
         >
           {t('research.count', { count: evidence.length })}
         </button>
-        {/* 「钉住」——钉的是**这一轮的结论与它的编号**（§7.3），⛔ 不是收藏。 */}
+        {/* 「钉住」——钉的是**这一轮的结论与它的编号**（§7.3），⛔ 不是收藏。
+            画板「查证 · 展开态」右上那颗：图钉 + 一个词的浅片胶囊。
+            ⚠ 钉住之后整颗翻成信号位（近黑实底 + 白字，§12.2），⛔ 不只换文案。 */}
         {onTogglePin ? (
           <button
             type="button"
             data-testid="operator-research-pin"
-            aria-pressed={false}
-            onClick={onTogglePin}
-            className="shrink-0 rounded-sm border border-border px-2 py-0.5 text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
+            aria-pressed={pinned}
+            onClick={() => onTogglePin(summary)}
+            className={cn(
+              'flex h-6 shrink-0 items-center gap-1 rounded-full px-2.5 text-xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none',
+              pinned
+                ? 'bg-foreground font-medium text-background'
+                : 'border border-border bg-muted text-muted-foreground hover:text-foreground',
+            )}
           >
-            {t('research.pin')}
+            <Pin className="size-3" aria-hidden />
+            {pinned ? t('research.unpin') : t('research.pin')}
           </button>
         ) : null}
         {/* 整张卡折起来 —— 与上面那颗证据开关是两件事（见 `folded` 的头注）。 */}

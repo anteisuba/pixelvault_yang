@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react'
-import { Check, ChevronUp } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -170,10 +170,25 @@ export function StudioOperatorModelChip({
             type="button"
             data-testid="operator-model-chip"
             aria-label={t('label')}
-            className="flex h-7 shrink-0 items-center gap-1.5 rounded-lg bg-primary px-2.5 text-xs font-medium text-primary-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            data-open={open || undefined}
+            /* 画板 BCards「输入区 · 静止 / 文本模型选择器展开」：静止时是一颗浅
+               片（`bg-muted` + 细边），**展开才翻成信号位**（近黑实底 + 白字，
+               §12.2）。⛔ 常驻黑会和右边那颗发送键抢同一个重量级。 */
+            className={cn(
+              'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+              open
+                ? 'bg-foreground font-medium text-background'
+                : 'border border-border bg-muted text-foreground hover:bg-accent',
+            )}
           >
             <span className="max-w-32 truncate">{selectedLabel}</span>
-            <ChevronUp className="size-3.5 shrink-0" aria-hidden />
+            {/* 收着朝下、展开朝上（画板 BCards 两态）——箭头方向本身就是那一句
+                「它会往上开」。 */}
+            {open ? (
+              <ChevronUp className="size-3.5 shrink-0" aria-hidden />
+            ) : (
+              <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+            )}
           </button>
         </ResponsivePopoverTrigger>
         {/* 固定高度 + 自己滚（画板：列表区 320px 可滚动）——⛔ 不让它顶着面板长高。 */}
@@ -181,7 +196,8 @@ export function StudioOperatorModelChip({
           side="top"
           align="start"
           label={t('label')}
-          className="w-72 p-0"
+          /* 三层玻璃③：**浮层**（§12.1）。 */
+          className="w-72 rounded-xl border-assistant-line-strong p-0 assistant-glass-overlay shadow-assistant-overlay"
           mobileClassName="px-0"
         >
           <div

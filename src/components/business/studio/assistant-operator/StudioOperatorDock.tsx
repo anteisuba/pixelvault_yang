@@ -623,8 +623,10 @@ export function StudioOperatorDock() {
         className={cn(
           'fixed right-6 top-6 z-40 hidden flex-col lg:flex',
           styles.shell,
+          // ── 三层玻璃①：**面板**（§12.1）。86% 白 + 轻模糊 + 细边 + 柔投影；
+          //    18px 圆角是区间上限（§12.3 「面板与浮层取上限」）。
           open
-            ? 'overflow-hidden rounded-xl border border-border bg-card shadow-lg'
+            ? 'overflow-hidden rounded-2xl border border-border assistant-glass-panel shadow-assistant-panel'
             : '',
           isResizing && styles.resizing,
         )}

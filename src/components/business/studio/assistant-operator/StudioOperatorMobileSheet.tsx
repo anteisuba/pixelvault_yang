@@ -116,6 +116,9 @@ export function StudioOperatorMobileSheet({
         /* 当前吸附档 —— 三档切换的唯一可测读数（vaul 的 transform 在 jsdom 里
            量不出来）。⛔ 别拿它当样式钩子，视觉全归 vaul。 */
         data-snap={String(activeSnap)}
+        /* 三层玻璃①：**面板**（§12.1）。手机上装的是同一层玻璃，圆角只在上沿
+           （画板 BMobile 的 20px）—— 下沿贴着屏幕边，给它圆角只会露出一条缝。 */
+        className="rounded-t-2xl border-border assistant-glass-panel"
         {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
         /* ⚠ 高度走 style 不走工具类：原语自己带着 `h-auto`，同属性的两个类谁赢
            取决于 Tailwind 的输出顺序（不是 class 串里的顺序）—— 而「面板高度」

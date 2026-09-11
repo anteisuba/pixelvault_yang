@@ -7946,7 +7946,8 @@
       "corroborated": "{count} sources agree",
       "singleSource": "Single source",
       "expandSources": "Look in more places",
-      "expandPrompt": "Check that again and look in more places — I want more than these sources."
+      "expandPrompt": "Check that again and look in more places — I want more than these sources.",
+      "pinnedHeading": "Pinned evidence"
     },
     "message": {
       "expand": "Show all",
@@ -7999,6 +8000,16 @@
       "ask": "Thinking of a question…",
       "apply": "Adjusting settings…",
       "request_generation": "Getting ready to generate…"
+    },
+    "verb": {
+      "look": "Look",
+      "research": "Check",
+      "ask": "Ask",
+      "apply": "Adjust",
+      "request_generation": "Generate"
+    },
+    "verbStrip": {
+      "label": "This round"
     },
     "placeholderQuestion": "You don't have to answer — you can type something else…",
     "collapsedTodo": "{count} waiting on you"

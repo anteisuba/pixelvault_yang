@@ -110,7 +110,7 @@ export function StudioOperatorWebCandidateGrid({
       {/* ⚠ 列数看**容器**不看视口（同 `StudioOperatorResultRow`）：面板宽度是用户
           拖出来的，视口断点在这里说不了话。700 与 `STUDIO_OPERATOR_SHELL.wideAtPx`
           是同一个数。 */}
-      <div className="grid grid-cols-2 gap-2 @min-[420px]:grid-cols-3 @min-[700px]:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 @sm:grid-cols-3 @2xl:grid-cols-4">
         {images.map((image) => {
           const pick = picks.find((item) => item.imageUrl === image.imageUrl)
           const importing = pick?.status === 'importing'

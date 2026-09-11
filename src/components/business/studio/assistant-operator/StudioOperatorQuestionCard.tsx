@@ -143,12 +143,15 @@ export function StudioOperatorQuestionCard({
       data-pinned="true"
       data-mode={assetMode ? 'asset' : 'text'}
       aria-label={t('question.pinnedTitle', { name: assistantName })}
-      className="overflow-hidden rounded-xl border border-primary/30 bg-card"
+      /* 画板 BCards「ANTI 想先确认 · 固定在输入框上方」：raised 那一档 ——
+         深一档描边 + 柔扩散影（§12.1）。⛔ 不用 `--primary` 描边：强调色的
+         独占位置是「选中 / CTA 焦点环 / 进度」（`ui-defaults.md §2.3`）。 */
+      className="overflow-hidden rounded-xl border border-assistant-line-strong bg-card shadow-assistant-raised"
     >
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <span
           data-testid="operator-question-pinned-title"
-          className="min-w-0 flex-1 text-2sm font-semibold text-foreground"
+          className="min-w-0 flex-1 truncate text-2xs tracking-nav uppercase text-muted-foreground"
         >
           {t('question.pinnedTitle', { name: assistantName })}
         </span>
@@ -156,7 +159,9 @@ export function StudioOperatorQuestionCard({
 
       <fieldset className="flex min-w-0 flex-col gap-2 p-3">
         <legend className="flex min-w-0 flex-col gap-1">
-          <span className="text-2sm text-foreground">{question.question}</span>
+          <span className="text-sm font-medium leading-snug text-foreground">
+            {question.question}
+          </span>
           {/* 「为什么问这一句」—— 缺席就不画。 */}
           {prompt.why ? (
             <span
@@ -240,7 +245,7 @@ export function StudioOperatorQuestionCard({
                         : {}),
                     })
                   }
-                  className="flex items-start gap-2 rounded-lg border border-border p-2 text-left transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                  className="flex items-start gap-2 rounded-md border border-assistant-line-strong bg-muted p-2 text-left font-medium transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none"
                 >
                   <PlanOptionVisual
                     option={option}
@@ -283,7 +288,7 @@ export function StudioOperatorQuestionCard({
                   aria-expanded={otherOpen}
                   disabled={submitted}
                   onClick={() => setOtherOpen((value) => !value)}
-                  className="flex items-center gap-2 rounded-lg border border-border p-2 text-left text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                  className="flex items-center gap-2 rounded-md border border-border bg-card p-2 text-left text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none"
                 >
                   {t('question.other')}
                 </button>
@@ -303,7 +308,7 @@ export function StudioOperatorQuestionCard({
                       data-testid="operator-question-other-submit"
                       disabled={submitted || !otherText.trim()}
                       onClick={() => submit(null, otherText.trim())}
-                      className="shrink-0 rounded-md bg-primary px-2 py-1 text-2sm text-primary-foreground transition-opacity duration-(--duration-fast) ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                      className="shrink-0 rounded-md bg-foreground px-2.5 py-1 text-2sm font-medium text-background transition-colors duration-(--duration-fast) ease-standard hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
                     >
                       {t('question.send')}
                     </button>

@@ -89,7 +89,8 @@ export function StudioOperatorMobileFab({
       }}
       /* ⚠ `z-30` 低于 composer 的 `z-40`：净空万一不够，让位的是浮标不是生成键。 */
       className={cn(
-        'fixed z-30 grid place-items-center rounded-full border border-border bg-card text-foreground shadow-lg lg:hidden',
+        // 浮标也浮在工作台上 → 浮层那一层（§12.1）。
+        'fixed z-30 grid place-items-center rounded-full border border-assistant-line-strong text-foreground assistant-glass-overlay shadow-assistant-overlay lg:hidden',
         'transition-colors duration-(--duration-fast) ease-standard',
         // 「已备好」= 生成键亮着 —— 与图标轨同一条视觉线索（外面一圈 primary）。
         primed && 'ring-2 ring-primary',
@@ -102,7 +103,7 @@ export function StudioOperatorMobileFab({
       {statusText ? (
         <span
           data-testid="operator-mobile-fab-status"
-          className="pointer-events-none absolute right-full top-1/2 mr-2 max-w-40 -translate-y-1/2 truncate rounded-full border border-border bg-card px-2 py-1 text-xs text-muted-foreground shadow-sm"
+          className="pointer-events-none absolute right-full top-1/2 mr-2 max-w-40 -translate-y-1/2 truncate rounded-full border border-border px-2 py-1 text-xs text-muted-foreground assistant-glass-overlay shadow-assistant-card"
           aria-hidden
         >
           {statusText}

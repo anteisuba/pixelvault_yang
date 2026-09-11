@@ -7946,7 +7946,8 @@
       "corroborated": "{count} 件で裏取り",
       "singleSource": "単一出典",
       "expandSources": "もっと出典を探す",
-      "expandPrompt": "もう一度裏取りして、出典をもっと探してください。これだけでは足りません。"
+      "expandPrompt": "もう一度裏取りして、出典をもっと探してください。これだけでは足りません。",
+      "pinnedHeading": "ピン留めした根拠"
     },
     "message": {
       "expand": "全文を表示",
@@ -7999,6 +8000,16 @@
       "ask": "質問を考えています…",
       "apply": "設定を変更しています…",
       "request_generation": "生成の準備をしています…"
+    },
+    "verb": {
+      "look": "見る",
+      "research": "調べる",
+      "ask": "聞く",
+      "apply": "直す",
+      "request_generation": "生成"
+    },
+    "verbStrip": {
+      "label": "このラウンド"
     },
     "placeholderQuestion": "答えなくても大丈夫 —— 別のことを入力できます…",
     "collapsedTodo": "未対応 {count} 件"

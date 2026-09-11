@@ -113,7 +113,7 @@ export function StudioOperatorResultRow({
     <div
       data-testid="operator-result-row"
       data-generating={generating}
-      className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
+      className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-assistant-card"
     >
       {generating ? (
         <>

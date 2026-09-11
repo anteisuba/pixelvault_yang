@@ -110,7 +110,9 @@ export function StudioOperatorCollapsedCard({
       title={line ?? name}
       onClick={onExpand}
       style={{ height: `${STUDIO_OPERATOR_SHELL.collapsedHeightPx}px` }}
-      className="relative flex items-center gap-2 rounded-full border border-border bg-card pl-1.5 pr-3.5 text-left shadow-sm transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+      /* 画板 BCollapsed：它**浮在工作台上**，所以走三层玻璃③ 浮层那一档
+         （§12.1）——半透 + 模糊 + 强投影，深一档描边。 */
+      className="relative flex items-center gap-2 rounded-full border border-assistant-line-strong pl-1.5 pr-3.5 text-left assistant-glass-overlay shadow-assistant-overlay transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
     >
       <AssistantTimelineAvatar
         {...(persona ? { persona } : {})}

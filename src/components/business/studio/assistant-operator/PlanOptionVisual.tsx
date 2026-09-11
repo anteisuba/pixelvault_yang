@@ -98,7 +98,7 @@ export function PlanOptionVisual({
   className,
 }: PlanOptionVisualProps) {
   const box = cn(
-    'flex size-[34px] shrink-0 items-center justify-center overflow-hidden rounded-md',
+    'flex size-8.5 shrink-0 items-center justify-center overflow-hidden rounded-md',
     className,
   )
 
@@ -155,7 +155,7 @@ export function PlanOptionVisual({
         aria-label={label}
         className={box}
       >
-        <LucideGlyph className="size-[18px] stroke-[1.5]" aria-hidden />
+        <LucideGlyph className="size-4.5 stroke-[1.5]" aria-hidden />
       </span>
     )
   }
@@ -174,7 +174,7 @@ export function PlanOptionVisual({
     >
       <svg
         viewBox={`0 0 ${DRAW_VIEWBOX} ${DRAW_VIEWBOX}`}
-        className="size-[18px]"
+        className="size-4.5"
         fill="none"
         stroke="currentColor"
         strokeWidth={1.5}

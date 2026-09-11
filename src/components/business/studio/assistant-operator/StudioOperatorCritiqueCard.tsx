@@ -164,7 +164,7 @@ export function StudioOperatorCritiqueCard({
       {frames.length > 0 ? (
         <div
           data-testid="operator-critique-frames"
-          className="grid grid-cols-1 gap-2 p-2.5 @min-[360px]:grid-cols-3"
+          className="grid grid-cols-1 gap-2 p-2.5 @xs:grid-cols-3"
         >
           {frames.map((frame, index) => (
             <motion.button

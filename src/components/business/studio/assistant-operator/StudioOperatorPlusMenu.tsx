@@ -169,7 +169,8 @@ export function StudioOperatorPlusMenu({
       initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.985 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={motionTransition('base', reduceMotion)}
-      className="absolute bottom-24 left-3 z-20 w-56 origin-bottom-left rounded-xl border border-border/70 bg-popover/95 p-1.5 shadow-lg backdrop-blur-md"
+      /* 三层玻璃③：**浮层**（§12.1）——唯一真正半透 + 模糊的一层 + 强投影。 */
+      className="absolute bottom-24 left-3 z-20 w-56 origin-bottom-left rounded-xl border border-assistant-line-strong p-1.5 assistant-glass-overlay shadow-assistant-overlay"
     >
       {view === 'root' ? (
         <div className="flex flex-col gap-0.5">

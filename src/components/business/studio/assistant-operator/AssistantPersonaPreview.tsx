@@ -60,13 +60,15 @@ export function AssistantPersonaPreview({
   return (
     <aside
       data-testid="assistant-persona-preview"
-      className="flex flex-col gap-2.5 rounded-lg border border-border bg-muted/40 p-3"
+      /* 画板 BSettings 右栏：示例区是**浅底的一格**，示例本身是浮在它上面的白卡
+         —— 两层靠明度分（§12.1），⛔ 不靠阴影。 */
+      className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/40 p-3"
     >
       <span className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground">
         {t('previewTitle', { name })}
       </span>
 
-      <div className="flex flex-col gap-2 rounded-lg border border-border bg-card p-3">
+      <div className="flex flex-col gap-2 rounded-xl border border-border bg-card p-3 shadow-assistant-card">
         <div className="flex items-center gap-2">
           <span className="grid size-6 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-muted">
             {avatarUrl ? (

@@ -30,6 +30,11 @@
      `--surface-fill*` 是 HIG 填充式控件的三档面（填充输入 / inset 分组 /
      分段控件底 / 轨道），三档全部由 `--foreground` color-mix 派生，⛔ 无新色相。 */
   --color-surface-glass: var(--surface-glass);
+  /* 助手面板的两层玻璃面（§12.1）。卡片那一层**不是**新面：它就是脊柱的
+     `--card`（白 + `border-border`），⛔ 不为「卡片层」再造一个颜色 token。 */
+  --color-assistant-panel: var(--assistant-panel);
+  --color-assistant-overlay: var(--assistant-overlay);
+  --color-assistant-line-strong: var(--assistant-line-strong);
   --color-surface-fill: var(--surface-fill);
   --color-surface-fill-hover: var(--surface-fill-hover);
   --color-surface-fill-track: var(--surface-fill-track);
@@ -217,6 +222,20 @@
   /* 激活浮片的投影。它连同圆角一起承担「浮」的观感 —— 面色差只有 1.24:1。 */
   --shadow-sidebar-chip:
     0 1px 2px rgb(11 14 18 / 0.09), 0 6px 16px -12px rgb(11 14 18 / 0.5);
+
+  /* ── 助手面板「玻璃仪表」的四档投影（pages/assistant-shell-v2.md §12.1）──
+     三层之间靠**明度与描边**分层，阴影只负责「浮起来多少」：
+     panel = 覆盖层本体 · overlay = 临时浮层（历史下拉 / +菜单 / 模型选择器）·
+     raised = 当下要你动手的那张卡（问题 / 确认 / 输入区 / 结论编辑）·
+     card = 并列的普通卡，只留一层贴边影，分层交给描边。
+     ⛔ 别把 raised 铺给所有卡：浅色底上多层阴影会糊成灰块（§12.1 警告）。 */
+  --shadow-assistant-panel:
+    0 1px 2px rgb(0 0 0 / 0.04), 0 24px 56px -28px rgb(0 0 0 / 0.3);
+  --shadow-assistant-overlay:
+    0 1px 2px rgb(0 0 0 / 0.06), 0 18px 44px -18px rgb(0 0 0 / 0.38);
+  --shadow-assistant-raised:
+    0 1px 2px rgb(0 0 0 / 0.05), 0 10px 26px -18px rgb(0 0 0 / 0.35);
+  --shadow-assistant-card: 0 1px 2px rgb(0 0 0 / 0.04);
 
   --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 120ms;
@@ -456,6 +475,35 @@
      暗色（card #1a1a1a 70% 落在 #0a0a0a = #131313）：fg 17.80 ·
      muted-fg 7.19 · destructive 6.43。 */
   --surface-glass: color-mix(in oklab, var(--popover) 70%, transparent);
+  /* ── 助手面板的三层玻璃（pages/assistant-shell-v2.md §12.1）────────────
+     ① **面板** `--assistant-panel`：最不透明的一层，它要压住工作台的内容，
+        读字优先于透视 —— 86% 的白 + 轻 backdrop 模糊。
+     ② **卡片**：就是 `--card`（纯白）+ `border-border`，⛔ 不另造 token；
+        卡与卡是并列关系，靠极细描边分，不靠阴影落差。
+     ③ **浮层** `--assistant-overlay`：唯一允许真正半透 + 模糊的一层，
+        92% 的白 —— 它叠在①上面，比面板**更实**才读得出「我盖在什么上面」。
+     ⚠ 对比度（contrast-check，2026-09-11，逐对算过）：
+     ① 面板 86% 白合成后 —— 工作台底 #f4f4f1 上 = #fdfdfd、壳底 #ebebeb 上 =
+        #fcfcfc：`--foreground`(#0a0a0a) 19.46 / 19.30 ·
+        `--muted-foreground`(#696969) 5.40 / 5.35；
+     ② 卡片层（不透明 #ffffff）：19.80 / 5.49；卡内 `--muted` 填充：18.16 / 5.04；
+     ③ 浮层 92% 白 —— 压在①上 = #ffffff、直接压工作台底 = #fefefe：
+        19.80 / 5.49 与 19.63 / 5.44。全部过 AA 4.5。
+     信号位（`bg-foreground` 上的 `--background` 白字）19.80，描边对三层 ≥ 19.46
+     （门槛 3:1）。状态绿 `--status-applied` 对①/② 5.33 / 5.42。
+     ⚠ 低端机 / 不支持 backdrop-filter 的浏览器由下方 `@utility` 里的
+     `@supports` 回落成**不透明**面 —— 半透明而不模糊 = 底下的字直接透上来。 */
+  --assistant-panel: color-mix(in oklab, var(--card) 86%, transparent);
+  --assistant-overlay: color-mix(in oklab, var(--popover) 92%, transparent);
+  /* **要你动手的那张卡**的描边（问题 / 确认 / 输入区 / 结论编辑）——比脊柱的
+     `--border`(92.2%) 深一档。三层玻璃靠明度与描边分层，而「并列的卡」与「当下
+     挡路的卡」之间的那一档差别只能由描边说（阴影会糊，§12.1）。
+     ⛔ 无新色相：同一条中性灰梯上的一档。
+     ⚠ 对比度（contrast-check，2026-09-11）：#d4d4d4 对白卡 1.48 —— 与脊柱
+     `--border`(#e5e5e5, 1.26) 同性质，是**装饰性分层线**，卡的边界由阴影与填充
+     一起承担，⛔ 不拿它当信息性图形（那一类走 3:1，见 `TimelineAvatar` 旁的
+     节点点为什么改用 `--muted-foreground`）。它只比脊柱那一档更深，不更浅。 */
+  --assistant-line-strong: oklch(87% 0 0);
   /* 三档填充面。⚠ 对比度（contrast-check，2026-09-08：白卡面上合成后
      #f5f5f5 / #eeeeee / #e4e4e4）：`--muted-foreground` 5.04 / 4.73 / 4.32、
      `--foreground` 18.16 / 17.06 / 15.57 —— 前两档过 AA 4.5，
@@ -675,6 +723,9 @@ html:lang(ja) {
 
   --surface-sunken: oklch(0% 0 0);
   --sidebar: var(--surface-sunken);
+  /* 助手面板锁浅色（§12 前提「不要深色」），这一档只为了 `.dark` 孤岛
+     （lightbox / 媒体观看面）里万一落到同一颗组件时不塌成不可见的描边。 */
+  --assistant-line-strong: oklch(100% 0 0 / 0.18);
   /* 暗色工作台地台：配音间锁浅色（owner 2026-08-29），没有暗档可对齐，沿用
      壳底既有的沉降黑，不另造第二套暗色地台。 */
   --surface-workbench: var(--surface-sunken);
@@ -2380,6 +2431,37 @@ html:lang(ja) {
   background-color: var(--surface-glass);
   -webkit-backdrop-filter: saturate(180%) blur(24px);
   backdrop-filter: saturate(180%) blur(24px);
+}
+
+/* ── 助手面板玻璃仪表的两个材质工具类（pages/assistant-shell-v2.md §12.1）──
+   `assistant-glass-panel`：面板本体，86% 白 + 轻模糊（18px，比浮层的 24px 浅
+   一档 —— 它铺的面积最大，模糊越重滚动时越贵）。
+   `assistant-glass-overlay`：临时浮层，92% 白 + 24px 模糊 + 饱和提升。
+   ⚠ **低端机回落**：`backdrop-filter` 不支持时两者都退回**不透明**面 ——
+   半透明而不模糊的结果是底下的字直接透上来，那比没有玻璃更糟。
+   ⛔ 卡片层不在这里：它是 `bg-card` + `border-border`，不带模糊。 */
+@utility assistant-glass-panel {
+  background-color: var(--card);
+
+  @supports (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
+    background-color: var(--assistant-panel);
+    -webkit-backdrop-filter: saturate(180%) blur(18px);
+    backdrop-filter: saturate(180%) blur(18px);
+  }
+}
+
+@utility assistant-glass-overlay {
+  background-color: var(--popover);
+
+  @supports (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+  ) {
+    background-color: var(--assistant-overlay);
+    -webkit-backdrop-filter: saturate(180%) blur(24px);
+    backdrop-filter: saturate(180%) blur(24px);
+  }
 }
 
 /* Tailwind 的 `duration-*` 只吃数字与 `(--var)` 两种写法，没有 `--duration-*`

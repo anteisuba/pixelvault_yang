@@ -90,7 +90,7 @@ export function StudioOperatorEmptyState({
                   data-testid="operator-empty-suggestion"
                   data-suggestion={suggestion.id}
                   onClick={() => onSuggestion(t(`suggestion.${suggestion.id}`))}
-                  className="flex min-h-11 items-center gap-2.5 rounded-lg border border-border bg-card px-4 text-left text-sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                  className="flex min-h-11 items-center gap-2.5 rounded-md border border-border bg-card px-4 text-left text-sm text-foreground shadow-assistant-card transition-colors duration-(--duration-fast) ease-standard hover:bg-accent active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
                 >
                   <Icon className="size-4 shrink-0" aria-hidden />
                   <span className="min-w-0">

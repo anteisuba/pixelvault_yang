@@ -108,6 +108,11 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import { StudioOperatorResearchCard } from '@/components/business/studio/assistant-operator/StudioOperatorResearchCard'
 import {
+  StudioOperatorPinnedEvidence,
+  type StudioOperatorPinnedEvidenceItem,
+} from '@/components/business/studio/assistant-operator/StudioOperatorPinnedEvidence'
+import { StudioOperatorVerbStrip } from '@/components/business/studio/assistant-operator/StudioOperatorVerbStrip'
+import {
   StudioOperatorQuestionCard,
   type StudioOperatorQuestionAnswerPayload,
 } from '@/components/business/studio/assistant-operator/StudioOperatorQuestionCard'
@@ -426,14 +431,31 @@ export function StudioOperatorPanel({
   const inputAreaRef = useRef<HTMLDivElement>(null)
   const [dragOver, setDragOver] = useState(false)
   /**
-   * **钉住的证据卡**（v2 §3.2 / §9，commit #16）——按轮记，`runKey` 就是一张卡。
+   * **钉住的证据卡**（v2 §3.2 / §9，commit #21）——按轮记，`runKey` 就是一张卡。
    *
    * ⚠ 状态留在面板里：钉住本身不是一次请求 —— 那一轮的证据编号（§7.3）在结账时
    * 已经进了结论记录，钉住决定的只是「它还留不留在眼前」。
    * ⛔ 别把它写进会话：钉住是「这一屏我还要看着它」，跨会话恢复一屏钉住的旧证据
    * 只会让用户以为助手还在查。
+   * ⚠ 存的是**摘要**不是 `runKey` 数组：面板顶部那条常驻条要画结论与来源计数，
+   * 而那两样是在证据卡里算出来的（`onTogglePin` 带出来），⛔ 不在这里再解析一遍。
    */
-  const [pinnedResearch, setPinnedResearch] = useState<readonly string[]>([])
+  const [pinnedResearch, setPinnedResearch] = useState<
+    readonly StudioOperatorPinnedEvidenceItem[]
+  >([])
+
+  /**
+   * 点面板顶部那条常驻条 → **滚回时间线里那张卡**（§3.2：常驻条只说结论，
+   * 来源 / 候选 / 过程都还在卡上）。
+   * ⚠ 走 `threadRef` 里的 `data-research-run` 锚点，⛔ 不用全局 `document`
+   * 查询：同一屏上可能挂着两台工作台的面板（手机 Sheet + 桌面 aside 过渡期）。
+   */
+  const jumpToResearch = useCallback((runKey: string) => {
+    const target = threadRef.current?.querySelector(
+      `[data-research-run="${CSS.escape(runKey)}"]`,
+    )
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' })
+  }, [])
 
   /**
    * 「最近生成」那一批（§3.3：@ 选择器最近生成在前 · §3.1 ⑱ 结果行卡）。
@@ -1088,17 +1110,23 @@ export function StudioOperatorPanel({
         </div>
       ))
       return (
-        <div key={`tools:${block.runKey}:${block.steps[0]?.id}`}>
+        <div
+          key={`tools:${block.runKey}:${block.steps[0]?.id}`}
+          /* 面板顶部那条钉住常驻条点回来的锚点（`jumpToResearch`）。 */
+          data-research-run={block.runKey}
+        >
           <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.evidence}>
             {showResearchCard ? (
               <StudioOperatorResearchCard
                 steps={researchSteps}
-                pinned={pinnedResearch.includes(block.runKey)}
-                onTogglePin={() =>
+                pinned={pinnedResearch.some(
+                  (item) => item.runKey === block.runKey,
+                )}
+                onTogglePin={(summary) =>
                   setPinnedResearch((current) =>
-                    current.includes(block.runKey)
-                      ? current.filter((key) => key !== block.runKey)
-                      : [...current, block.runKey],
+                    current.some((item) => item.runKey === block.runKey)
+                      ? current.filter((item) => item.runKey !== block.runKey)
+                      : [...current, { runKey: block.runKey, ...summary }],
                   )
                 }
                 /* 「再多找几个源」= 再跑一次查证并加源（§9.1 ③）。⚠ 走的是**普通
@@ -1400,6 +1428,23 @@ export function StudioOperatorPanel({
           : {
               resume: { stepNumber: resumeStepNumber, onResume: resumePlan },
             })}
+      />
+
+      {/* ── 五动词小标签条（§4.6 / 画板 BMobile）——**只在移动端**，
+          桌面靠头像旁那句状态词说同一件事。 */}
+      <StudioOperatorVerbStrip />
+
+      {/* ── 钉住的证据常驻条（§3.2）——钉住之后在面板顶部留一份，可点回卡。
+          ⚠ 排在头部与动词条之下、时间线之上：它是「这一整轮都别忘了这句」，
+            不是一条时间线上的发言。⛔ 一条都没钉住时整条不渲染。 */}
+      <StudioOperatorPinnedEvidence
+        items={pinnedResearch}
+        onJump={jumpToResearch}
+        onUnpin={(runKey) =>
+          setPinnedResearch((current) =>
+            current.filter((item) => item.runKey !== runKey),
+          )
+        }
       />
 
       {history.loadingSessionId ? (
@@ -1889,11 +1934,15 @@ export function StudioOperatorPanel({
             const files = mention.acceptDrop(event.dataTransfer)
             if (files.length > 0) upload.uploadFiles(files)
           }}
+          /* 画板 Main / BEmpty / BCards「输入区 · 静止」：输入区是**浮在面板里
+             的一张卡**，不是贴着底边的一条工具栏 —— 玻璃面板上一条横贯的分隔线
+             会把面板切成两半，而输入区本来就该读成「当下要你动手的那一件」。
+             走 raised 那一档（深一档描边 + 柔扩散影，§12.1）。 */
           className={cn(
-            'relative flex shrink-0 flex-col gap-1.5 border-t bg-card px-3 py-2.5 transition-colors duration-(--duration-fast) ease-standard',
+            'relative mx-3 mb-3 flex shrink-0 flex-col gap-1.5 rounded-xl border bg-card px-3 py-2.5 shadow-assistant-raised transition-colors duration-(--duration-fast) ease-standard motion-reduce:transition-none',
             dragOver
               ? 'border-primary ring-2 ring-inset ring-primary'
-              : 'border-border',
+              : 'border-assistant-line-strong',
           )}
         >
           <div className="flex flex-col gap-2">
@@ -1969,9 +2018,10 @@ export function StudioOperatorPanel({
                 data-operator-plus-trigger
                 onClick={() => setAttachOpen((open) => !open)}
                 className={cn(
-                  'grid size-7 shrink-0 place-items-center rounded-lg border border-border/70 text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'grid size-8 shrink-0 place-items-center rounded-md border border-border bg-muted text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                  // 展开时翻成信号位（近黑实底 + 白字，§12.2）。
                   attachOpen &&
-                    'border-primary bg-primary text-primary-foreground',
+                    'border-foreground bg-foreground text-background hover:bg-foreground',
                 )}
               >
                 <Plus className="size-4" aria-hidden />
@@ -1988,7 +2038,7 @@ export function StudioOperatorPanel({
                 data-testid="operator-attach-toggle"
                 aria-label={t('attach.label')}
                 onClick={() => uploadInputRef.current?.click()}
-                className="grid size-7 shrink-0 place-items-center rounded-lg border border-border/70 text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
                 <Paperclip className="size-3.5" aria-hidden />
               </button>
@@ -2038,7 +2088,7 @@ export function StudioOperatorPanel({
                   aria-label={t('stop')}
                   title={t('stop')}
                   onClick={stop}
-                  className="grid size-7 shrink-0 place-items-center rounded-lg border border-destructive/40 bg-destructive/5 text-destructive transition-colors duration-(--duration-fast) ease-standard hover:bg-destructive/10"
+                  className="grid size-8 shrink-0 place-items-center rounded-md border border-destructive/40 bg-destructive/5 text-destructive transition-colors duration-(--duration-fast) ease-standard hover:bg-destructive/10 motion-reduce:transition-none"
                 >
                   <Square className="size-3" aria-hidden />
                 </button>
@@ -2059,10 +2109,10 @@ export function StudioOperatorPanel({
                 title={sendLabel}
                 aria-label={sendLabel}
                 onClick={() => submit(draft)}
-                className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                className="grid size-8 shrink-0 place-items-center rounded-md bg-foreground text-background transition-[background-color,transform] duration-(--duration-fast) ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground disabled:opacity-100 motion-reduce:transition-none"
               >
                 {uploading ? (
-                  <Spinner size="sm" className="text-primary-foreground" />
+                  <Spinner size="sm" className="text-background" />
                 ) : (
                   <Send className="size-4" aria-hidden />
                 )}

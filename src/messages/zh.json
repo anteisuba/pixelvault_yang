@@ -7946,7 +7946,8 @@
       "corroborated": "{count} 源印证",
       "singleSource": "单源",
       "expandSources": "再多找几个源",
-      "expandPrompt": "再查证一次，多找几个来源——这几条不够。"
+      "expandPrompt": "再查证一次，多找几个来源——这几条不够。",
+      "pinnedHeading": "钉住的证据"
     },
     "message": {
       "expand": "展开全文",
@@ -7999,6 +8000,16 @@
       "ask": "正在想问题…",
       "apply": "正在改参数…",
       "request_generation": "正在准备生成…"
+    },
+    "verb": {
+      "look": "看",
+      "research": "查",
+      "ask": "问",
+      "apply": "改",
+      "request_generation": "生成"
+    },
+    "verbStrip": {
+      "label": "本轮进度"
     },
     "placeholderQuestion": "也可以不选，直接打字说别的…",
     "collapsedTodo": "{count} 件等你处理"

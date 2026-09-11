@@ -471,7 +471,8 @@ export function AssistantSettingsDialog({
          * vaul 抽屉（`fixed inset-x-0`），给它一个 `max-w` 会把抽屉挤成左对齐
          * 的一条。`lg` 正好是抽屉/弹层的分界。
          */
-        className="flex flex-col gap-0 overflow-hidden p-0 lg:max-w-2xl"
+        /* 画板 BSettings：弹层圆角与面板同一档（18px，§12.3 上限）。 */
+        className="flex flex-col gap-0 overflow-hidden p-0 lg:max-w-2xl lg:rounded-2xl"
         style={{
           /**
            * 三项取最小：
@@ -550,8 +551,8 @@ export function AssistantSettingsDialog({
                           className={cn(
                             'flex flex-col gap-2 rounded-xl border-2 p-3 text-left transition-[border-color,background-color,transform] duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-95 motion-reduce:transition-none',
                             selected
-                              ? 'border-primary bg-muted'
-                              : 'border-border bg-card hover:border-primary/40',
+                              ? 'border-foreground bg-muted'
+                              : 'border-border bg-card hover:border-assistant-line-strong',
                           )}
                         >
                           <span className="flex items-center gap-1.5">

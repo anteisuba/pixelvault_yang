@@ -210,7 +210,10 @@ export function StudioOperatorUserText({
   return (
     <p
       data-testid="operator-user-text"
-      className="whitespace-pre-wrap text-md font-medium leading-relaxed text-foreground"
+      /* 画板 BCards「消息 · 用户」：用户那一侧**带气泡**（浅填充 + 细边 +
+         右下角收成小圆角），助手那一侧不带 —— 两侧靠「有没有壳」分，
+         ⛔ 不靠字色分（§12.1 卡片层：白面 + 极细描边）。 */
+      className="w-fit max-w-full whitespace-pre-wrap rounded-xl rounded-br-sm border border-border bg-muted px-3 py-2 text-md font-medium leading-relaxed text-foreground"
     >
       {displayText
         .split(/(\breference image [1-9]\d*\b)/gi)

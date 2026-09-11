@@ -6,10 +6,16 @@ interface HomeV4FnFrameProps {
   /** The one line the page is about. */
   title: string
   /**
-   * True on page 01, the only stage that stacks two blocks (the workbench over
-   * the model chips) instead of centring a single one.
+   * Wide desktop only (≥1100px, see `home-v4.css`): the header moves into a
+   * left rail and the stage takes the full height beside it. On for pages 01 /
+   * 02 — their stage is too tall to sit under a centred header on a laptop.
    */
-  column?: boolean
+  rail?: boolean
+  /**
+   * A block that belongs to the header in the rail and sits under the stage
+   * everywhere else — page 01's model chips.
+   */
+  aside?: ReactNode
   children: ReactNode
 }
 
@@ -25,21 +31,30 @@ interface HomeV4FnFrameProps {
  * visual block, so the two arrive at different speeds when the page turns.
  * ⚠ Anything carrying a layer class has its `transform` written by the parallax
  * rules — never centre such an element with `translate`.
+ *
+ * `.fn-text` is `display: contents` until the rail turns it into the left
+ * column, which is why it carries no layer class of its own: without a rail
+ * the header, stage and aside are three flex items of `.imgfn`, and the aside
+ * is ordered after the stage.
  */
 export function HomeV4FnFrame({
   eyebrow,
   title,
-  column = false,
+  rail = false,
+  aside,
   children,
 }: HomeV4FnFrameProps) {
   return (
-    <div className="page-inner">
+    <div className={rail ? 'page-inner rail' : 'page-inner'}>
       <div className="fg imgfn">
-        <div className="fn-head l2">
-          <p className="eyebrow">{eyebrow}</p>
-          <h2>{title}</h2>
+        <div className="fn-text">
+          <div className="fn-head l2">
+            <p className="eyebrow">{eyebrow}</p>
+            <h2>{title}</h2>
+          </div>
+          {aside ? <div className="fn-aside l3">{aside}</div> : null}
         </div>
-        <div className={`fn-stage l3${column ? ' col' : ''}`}>{children}</div>
+        <div className="fn-stage l3">{children}</div>
       </div>
     </div>
   )

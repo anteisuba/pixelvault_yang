@@ -90,7 +90,7 @@ export function HomeV4FnLora({ active, eyebrow, title }: HomeV4FnLoraProps) {
   }, [active])
 
   return (
-    <HomeV4FnFrame eyebrow={eyebrow} title={title}>
+    <HomeV4FnFrame eyebrow={eyebrow} title={title} rail>
       <div className="fn-lora">
         <div className="bar">
           <span className="t">{t('v4.fn.lora.workbench')}</span>
@@ -199,7 +199,7 @@ export function HomeV4FnLora({ active, eyebrow, title }: HomeV4FnLoraProps) {
                       solid: out.solid,
                     })}
                     fill
-                    sizes="(max-width: 768px) 44vw, 210px"
+                    sizes="(max-width: 768px) 44vw, 220px"
                   />
                   {/* The two numbers are the whole point — same mounts, same seed,
                   only these moved. Never translated: they are values. */}

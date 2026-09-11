@@ -105,8 +105,28 @@ export function HomeV4FnImage({
     return () => timers.forEach((id) => window.clearTimeout(id))
   }, [active, promptText])
 
+  /* PC only — mobile hides the row and keeps the quad as the one focus. In the
+     rail it sits under the title; otherwise under the window. */
+  const chips = (
+    <div className="chips">
+      <span className="hint">
+        {t('v4.fn.image.moreModels', { count: models.length })}{' '}
+        {HOME_V4_GLYPHS.arrow}
+      </span>
+      {models.map((model, index) => (
+        <button
+          type="button"
+          key={model.key}
+          onClick={() => onOpenModel(index)}
+        >
+          {model.name}
+        </button>
+      ))}
+    </div>
+  )
+
   return (
-    <HomeV4FnFrame eyebrow={eyebrow} title={title} column>
+    <HomeV4FnFrame eyebrow={eyebrow} title={title} rail aside={chips}>
       <div className={`fn-studio${BEAT_CLASS[beat]}`}>
         <div className="bar">
           <span className="t">{t('v4.fn.image.workbench')}</span>
@@ -142,30 +162,13 @@ export function HomeV4FnImage({
                   src={model.shot}
                   alt={`${model.name} · ${promptText}`}
                   fill
-                  sizes="(max-width: 768px) 44vw, 250px"
+                  sizes="(max-width: 768px) 44vw, 290px"
                 />
                 <span className="mtag">{model.name}</span>
               </div>
             ))}
           </div>
         </div>
-      </div>
-
-      {/* PC only — mobile hides the row and keeps the quad as the one focus. */}
-      <div className="chips">
-        <span className="hint">
-          {t('v4.fn.image.moreModels', { count: models.length })}{' '}
-          {HOME_V4_GLYPHS.arrow}
-        </span>
-        {models.map((model, index) => (
-          <button
-            type="button"
-            key={model.key}
-            onClick={() => onOpenModel(index)}
-          >
-            {model.name}
-          </button>
-        ))}
       </div>
     </HomeV4FnFrame>
   )

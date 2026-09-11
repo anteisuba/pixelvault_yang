@@ -890,10 +890,17 @@ body.home-v4-locked {
   justify-content: center;
 }
 
-.home-v4 .fn-stage.col {
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
+/* 标题与 aside 的外壳：左栏之外它不成盒，三块照旧是 `.imgfn` 的直接子项。 */
+.home-v4 .fn-text {
+  display: contents;
+}
+
+/* aside（01 的模型条）左栏之外排在工作台下面；负边距把 `.imgfn` 的 20px
+   收回到原来工作台与模型条之间的 12px。 */
+.home-v4 .fn-aside {
+  order: 1;
+  width: 100%;
+  margin-top: -8px;
 }
 
 /* 三处打字机共用一个光标闪烁 */
@@ -1530,6 +1537,108 @@ body.home-v4-locked {
   padding: 2px 7px;
   border-radius: 999px;
   backdrop-filter: blur(3px);
+}
+
+/* ─── 01 / 02 · 左栏标题（宽屏）─────────────────────────────────
+   owner 2026-09-11 定 B：这两页的工作台比笔记本屏幕还高，标题摞在上面时整块居中
+   会把溢出上下平分，标题钻进浮岛下面（1470×803 实测：图片页压 18px，LoRA 页整行）。
+   标题挪进左栏，工作台吃满整屏高度，图片尺寸由剩余高度决定。其余四页内容够矮，
+   照旧居中。1100px 以下左栏挤不下，回到居中堆叠。
+   ⚠ 下面几个 calc 里的常数是工作台自身 chrome 的高度加上下留白，改了面板的条、
+   内边距或机架行高要一起重算。 */
+@media (min-width: 1100px) {
+  .home-v4 .page-inner.rail {
+    --rail-w: clamp(260px, 22vw, 320px);
+    --rail-gap: clamp(32px, 3.8vw, 56px);
+    /* 放不下时从顶部排起、只往下溢出——标题永远在浮岛（底 67px）下面。 */
+    justify-content: safe center;
+    padding-top: calc(var(--bar) + 30px);
+    padding-bottom: 24px;
+  }
+
+  .home-v4 .rail .imgfn {
+    flex-direction: row;
+    justify-content: center;
+    gap: var(--rail-gap);
+    width: 100%;
+  }
+
+  .home-v4 .rail .fn-text {
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    flex: none;
+    width: var(--rail-w);
+  }
+
+  .home-v4 .rail .fn-head {
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  /* 窄栏里标题要折行：中文只在标点处断（「一句话，/四家一起出。」），
+     放不下的长段再退回任意处断，免得撑破左栏。 */
+  .home-v4 .rail .fn-head h2 {
+    text-align: left;
+    font-size: clamp(2.4rem, 3.4vw, 3.125rem);
+    word-break: keep-all;
+    overflow-wrap: anywhere;
+  }
+
+  .home-v4[data-locale='ja'] .rail .fn-head h2 {
+    word-break: auto-phrase;
+  }
+
+  .home-v4 .rail .fn-aside {
+    order: 0;
+    margin-top: 0;
+  }
+
+  .home-v4 .rail .chips {
+    justify-content: flex-start;
+  }
+
+  .home-v4 .rail .chips .hint {
+    flex-basis: 100%;
+    margin-bottom: 2px;
+  }
+
+  /* 939 = 四宫格 580 + 输入列 314 + 栏间距 13 + 内边距 30 + 边框 2。 */
+  .home-v4 .rail .fn-stage {
+    flex: 1;
+    min-width: 0;
+    max-width: 939px;
+  }
+
+  /* 方格 1:1，宽度就是高度。三个上限取最小：设计尺寸 580；屏高扣掉上下留白与
+     工作台自身的条、内边距、边框（187）；工作台内宽扣掉输入列 314 + 栏间距 13。 */
+  .home-v4 .rail .fn-quad {
+    width: min(580px, calc(100vh - 187px), calc(100% - 327px));
+  }
+
+  .home-v4 .rail .fn-lora {
+    container-type: inline-size;
+  }
+
+  .home-v4 .rail .fn-lora .cols {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  /* 机架是定高（363），库列拿剩下的：屏高扣掉上下留白、面板边框与条（153）再扣机架。
+     下限 150 仍露得出第三张（异底模）卡的上半。 */
+  .home-v4 .rail .fn-lora .lib {
+    max-height: clamp(150px, calc(100vh - 516px), 286px);
+  }
+
+  /* 出图 3:4，列宽三个上限取最小：设计尺寸 220；按高度——屏高扣掉留白、面板条和
+     出图区自身的标题与内边距（213）后两行平分，再乘 3/4；按宽度——面板内宽给左栏
+     留 390，扣出图区内边距 32 与格间距 9。 */
+  .home-v4 .rail .fn-lora .outrow {
+    grid-template-columns: repeat(
+      2,
+      min(220px, calc((100vh - 213px) * 0.375), calc((100cqw - 431px) / 2))
+    );
+  }
 }
 
 /* ─── 03 声音：配音聊天室 ───────────────────────────────────────── */

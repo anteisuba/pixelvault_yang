@@ -870,10 +870,12 @@ export const AssistantOperatorRequestSchema = z.object({
    * `critique_result` 按 `noResultToCritique` 拒。见 schema 头注。
    */
   result: AssistantOperatorResultSchema.optional(),
-  /** 用户在设置里选的 LLM key；缺省走 `resolveLlmTextRoute` 的优先级。 */
-  apiKeyId: z.string().optional(),
-  /** 用户选的 LLM 档位（非生成模型），服务端对表校验。 */
-  llmModelId: z.string().optional(),
+  /*
+   * ⛔ **没有 `apiKeyId` / `llmModelId`**（commit #8，v2 §4.5）：这一轮用哪个
+   * 脑子的唯一真值是 `AssistantPersona.routeModel`，服务端自己读。客户端上送那
+   * 两个字段的年代里，同一件事有两个真值口，而「界面显示 A、实际打 B」正是那么
+   * 来的（2026-08-19 生产事故）。要换模型去改 persona，⛔ 别把它加回请求体。
+   */
   /**
    * 助手说话用哪种语言。⚠ 复用现有助手那张三值表，不另立词表 —— 同一个助手
    * 换个面板不该换一套语言 id。

@@ -17,6 +17,8 @@ vi.mock('@/services/user.service', () => ({
 
 const mockLlmTextCompletion = vi.fn()
 const mockResolveLlmTextRoute = vi.fn()
+/** persona 选了具体模型时才会被问一次：那个厂商下有没有活着的 key。 */
+const mockFindLlmTextKeyId = vi.fn()
 /**
  * 工具环那一轮走的是 `llmTextStream`（2026-09-06 的逐字流），**桩到同一颗
  * `mockLlmTextCompletion` 上**：这一层要验的是「模型这一轮说了什么会怎么样」，
@@ -41,6 +43,7 @@ vi.mock('@/services/llm-text.service', () => ({
     yield raw
   },
   resolveLlmTextRoute: (...args: unknown[]) => mockResolveLlmTextRoute(...args),
+  findLlmTextKeyId: (...args: unknown[]) => mockFindLlmTextKeyId(...args),
   isLlmTextContextLimitError: () => false,
 }))
 
@@ -229,7 +232,9 @@ import {
   ASSISTANT_PERSONA_PLAN_MODE_IDS,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_VERBOSITY_IDS,
+  ASSISTANT_ROUTE_MODEL_AUTO,
 } from '@/constants/assistant-persona'
+import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { TAG_BASED_GENERATION_PROMPT_RULE } from '@/constants/model-strengths'
 import { ASSISTANT_PLAN_VISUALS } from '@/constants/assistant-plan-visuals'
 import { AI_MODELS } from '@/constants/models'
@@ -374,6 +379,7 @@ beforeEach(() => {
     providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
     apiKey: 'test-key',
   })
+  mockFindLlmTextKeyId.mockResolvedValue(undefined)
   mockGetPublicGenerationPage.mockResolvedValue({
     generations: [],
     total: 0,
@@ -7837,5 +7843,97 @@ describe('五动词入口 · 派发与拒绝', () => {
         prompt.includes(`  - ${entry}: `),
       ),
     ).toHaveLength(ASSISTANT_OPERATOR_ENTRY_TOOLS.length)
+  })
+})
+
+/**
+ * §4.5 / commit #8：**这一轮用哪个脑子，真值是 `AssistantPersona.routeModel`**。
+ *
+ * ⛔ 请求体里不再有 `apiKeyId` / `llmModelId` —— 同一件事两个真值口正是
+ * 「界面显示 A、实际打 B」的成因（2026-08-19 生产事故）。
+ */
+describe('文本模型路由 · persona 说了算', () => {
+  /** 这一轮打给模型的那个 modelId。 */
+  function calledModelId(): string | undefined {
+    const call = mockLlmTextCompletion.mock.calls[0]?.[0] as {
+      modelId?: string
+    }
+    return call?.modelId
+  }
+
+  const PINNED = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+    (model) => model.adapterType === AI_ADAPTER_TYPES.DEEPSEEK,
+  )!
+
+  it('persona 指定了模型 → 按那个厂商找 key，并用那一档说话', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      routeModel: PINNED.modelId,
+    })
+    mockFindLlmTextKeyId.mockResolvedValue('key-deepseek')
+    mockResolveLlmTextRoute.mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
+      apiKey: 'deepseek-key',
+    })
+    queueTurns({ finished: true })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    expect(mockFindLlmTextKeyId).toHaveBeenCalledWith(
+      'user-db-1',
+      PINNED.adapterType,
+    )
+    expect(mockResolveLlmTextRoute).toHaveBeenCalledWith(
+      'user-db-1',
+      'key-deepseek',
+    )
+    expect(calledModelId()).toBe(PINNED.modelId)
+  })
+
+  it('persona 是「自动」→ 不找 key，走既有的优先级兜底', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
+    })
+    queueTurns({ finished: true })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    expect(mockFindLlmTextKeyId).not.toHaveBeenCalled()
+    expect(mockResolveLlmTextRoute).toHaveBeenCalledWith('user-db-1', undefined)
+    // 兜底那条路的默认档（Gemini 的第一条）。
+    expect(calledModelId()).toBe(
+      NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+        (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
+      )!.modelId,
+    )
+  })
+
+  /**
+   * ⚠ 选了 Claude 但没绑 Anthropic key：**回落到自动那条路**，⛔ 不把另一个厂商
+   * 的 key 配上 Claude 的型号（那会打出一个对面不认识的模型名）。
+   */
+  it('选中的厂商没绑 key → 回落自动，且不把型号带过去', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      routeModel: NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+        (model) => model.adapterType === AI_ADAPTER_TYPES.ANTHROPIC,
+      )!.modelId,
+    })
+    mockFindLlmTextKeyId.mockResolvedValue(undefined)
+    queueTurns({ finished: true })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    expect(mockResolveLlmTextRoute).toHaveBeenCalledWith('user-db-1', undefined)
+    expect(calledModelId()).toBe(
+      NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+        (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
+      )!.modelId,
+    )
   })
 })

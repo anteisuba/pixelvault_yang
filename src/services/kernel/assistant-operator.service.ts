@@ -65,6 +65,7 @@ import {
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_VERBOSITY_IDS,
   ASSISTANT_PERSONA_LIMITS as PERSONA_LIMITS,
+  getAssistantRouteModelEntry,
 } from '@/constants/assistant-persona'
 import {
   ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
@@ -121,6 +122,7 @@ import {
   streamAssistantTextWithContextRetry,
 } from '@/services/kernel/assistant-completion.service'
 import {
+  findLlmTextKeyId,
   resolveLlmTextRoute,
   type ResolvedLlmTextRoute,
 } from '@/services/llm-text.service'
@@ -423,6 +425,12 @@ interface OperatorRun {
    * `resolveLlmTextRoute` 一次 —— 多一次库查询，还可能与规划器用的不是同一条路。
    */
   route: ResolvedLlmTextRoute
+  /**
+   * 这条路用的那把 key 的 id —— persona 选了具体模型时才有值（「自动」是
+   * `undefined`）。看图那条腿（`inspect_asset_folder`）要把同一把 key 递下去，
+   * 否则「设置里选了 Gemini、看图却借了另一家」会变成一次说不清的归因。
+   */
+  apiKeyId: string | undefined
   /** 规划器用的模型 id。⚠ 借路时**不能**把它带过去：它是另一个 adapter 的型号。 */
   modelId: string | undefined
   /**
@@ -1220,7 +1228,7 @@ function planInspectAssetFolder(
         userId,
         folderId: listedFolder.folderId,
         instruction,
-        ...(run.request.apiKeyId ? { apiKeyId: run.request.apiKeyId } : {}),
+        ...(run.apiKeyId ? { apiKeyId: run.apiKeyId } : {}),
       })
       const observation =
         result.inspectedImages === 0
@@ -5143,11 +5151,54 @@ export async function* runAssistantOperator(
   options: AssistantOperatorRunOptions = {},
 ): AsyncIterable<AssistantOperatorEvent> {
   const user = await ensureUser(clerkId)
+
+  /**
+   * persona 与规则**在开跑前一次性读出来**（§8.5 / §10）。
+   *
+   * ⚠ 不在每一步重读：系统提示每一步都要重发，但它每一步都是同一份 —— 重读只是
+   * 给每一步多加一次库查询。⚠ 也不从客户端收：这两样直连系统提示。
+   * ⭐ 它排在路由解析**之前**（v2 §4.5）：文本模型选哪一档现在住在
+   * `persona.routeModel`，路由要等它读回来才知道该找哪把 key。
+   */
+  const [persona, rules, contextCards] = await Promise.all([
+    getAssistantPersonaByUserId(user.id),
+    listProjectRules(user.id, {
+      scope: request.domain,
+      limit: RULE_LIMITS.maxInPrompt,
+    }),
+    /**
+     * 常挂在**当前域**上的上下文卡（K1）。⚠ 按 `pinnedScopes` 命中收敛，
+     * ⛔ 不把用户全部的卡拼进提示 —— 常挂那颗开关的全部意义就是「这台工作台上
+     * 带哪几张」，全带等于没有这颗开关。没挂的那些靠 `list_context_cards` 翻。
+     */
+    listContextCards(user.id, {
+      pinnedScope: request.domain,
+      limit: CARD_LIMITS.maxInPrompt,
+    }),
+  ])
+
+  /**
+   * ⭐ **这一轮用哪个脑子，唯一真值是 persona**（v2 §4.5，commit #8）。
+   *
+   * ⛔ 请求体里那两个临时字段（`apiKeyId` / `llmModelId`）已经删掉：模型偏好是
+   * 用户级的一份设置，让客户端每轮上送等于给同一件事开两个真值口 ——
+   * 「界面显示 A、实际打 B」那类事故（2026-08-19）正是这么来的。
+   *
+   * ⚠ 选中的厂商**没绑 key** 时回落到自动那条优先级（`findLlmTextKeyId` 给
+   * `undefined`）：选择照旧留在库里，用户补上 key 之后自动生效。
+   */
+  const pinnedRouteModel = getAssistantRouteModelEntry(persona.routeModel)
+  const apiKeyId = pinnedRouteModel
+    ? await findLlmTextKeyId(user.id, pinnedRouteModel.adapterType)
+    : undefined
   const route: ResolvedLlmTextRoute = await resolveLlmTextRoute(
     user.id,
-    request.apiKeyId,
+    apiKeyId,
   )
-  const modelId = resolveAssistantModelId(route.adapterType, request.llmModelId)
+  const modelId = resolveAssistantModelId(
+    route.adapterType,
+    pinnedRouteModel?.modelId,
+  )
   const mediaAttachments = request.mediaAttachments ?? []
   if (
     mediaAttachments.length &&
@@ -5168,29 +5219,6 @@ export async function* runAssistantOperator(
     .filter((item) => item.kind === 'audio')
     .map((item) => item.url)
 
-  /**
-   * persona 与规则**在开跑前一次性读出来**（§8.5 / §10）。
-   *
-   * ⚠ 不在每一步重读：系统提示每一步都要重发，但它每一步都是同一份 —— 重读只是
-   * 给每一步多加一次库查询。⚠ 也不从客户端收：这两样直连系统提示。
-   */
-  const [persona, rules, contextCards] = await Promise.all([
-    getAssistantPersonaByUserId(user.id),
-    listProjectRules(user.id, {
-      scope: request.domain,
-      limit: RULE_LIMITS.maxInPrompt,
-    }),
-    /**
-     * 常挂在**当前域**上的上下文卡（K1）。⚠ 按 `pinnedScopes` 命中收敛，
-     * ⛔ 不把用户全部的卡拼进提示 —— 常挂那颗开关的全部意义就是「这台工作台上
-     * 带哪几张」，全带等于没有这颗开关。没挂的那些靠 `list_context_cards` 翻。
-     */
-    listContextCards(user.id, {
-      pinnedScope: request.domain,
-      limit: CARD_LIMITS.maxInPrompt,
-    }),
-  ])
-
   const run: OperatorRun = {
     referenceAnalysis: null,
     promptReviewFailures: 0,
@@ -5203,6 +5231,7 @@ export async function* runAssistantOperator(
     contextCardIndex: new Map(contextCards.map((card) => [card.id, card])),
     state: toWorkingState(request.snapshot),
     route,
+    apiKeyId,
     modelId,
     webImageIndex: new Map(),
     researchRounds: 0,

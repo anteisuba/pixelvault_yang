@@ -5,7 +5,9 @@ import {
   ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_PERSONA_LIMITS,
   ASSISTANT_PERSONA_TONE_IDS,
+  ASSISTANT_ROUTE_MODEL_AUTO,
   normalizeAvatarPreset,
+  normalizeRouteModel,
 } from '@/constants/assistant-persona'
 import { sanitizePrompt } from '@/services/kernel/prompt-guard'
 import { ensureUser } from '@/services/user.service'
@@ -42,6 +44,7 @@ function toPersona(
     verbosity: string
     planMode: string
     language: string
+    routeModel: string | null
   } | null,
 ): AssistantPersona {
   if (!row) {
@@ -67,6 +70,12 @@ function toPersona(
       row.avatarPreset === null
         ? null
         : normalizeAvatarPreset(row.avatarPreset),
+    /**
+     * ⚠ `routeModel` 与头像同理**先单独回落**：`null`（从没选过）是「自动」，
+     * 而模型表退役过的 id 只该让这一格回到「自动」，⛔ 不该连累整份 persona
+     * 一起退回默认值（用户的语气和长度不该因为换了模型表就丢）。
+     */
+    routeModel: normalizeRouteModel(row.routeModel),
   })
   return parsed.success
     ? parsed.data
@@ -82,6 +91,7 @@ const PERSONA_SELECT = {
   verbosity: true,
   planMode: true,
   language: true,
+  routeModel: true,
 } as const
 
 export async function getAssistantPersona(
@@ -144,6 +154,12 @@ export async function upsertAssistantPersona(
     verbosity: input.verbosity,
     planMode: input.planMode,
     language: input.language,
+    /**
+     * 「自动」在库里就是 **null**（§4.5）——⛔ 不存字符串 `'auto'`：那样
+     * 「没选过」和「选了自动」会变成两个值，而它们是同一件事。
+     */
+    routeModel:
+      input.routeModel === ASSISTANT_ROUTE_MODEL_AUTO ? null : input.routeModel,
   }
 
   const row = await db.assistantPersona.upsert({

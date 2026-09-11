@@ -246,6 +246,12 @@ export function AssistantSettingsDialog({
       verbosity: persona.verbosity,
       planMode: persona.planMode,
       language: persona.language,
+      /**
+       * ⚠ 这一格**没有控件**：模型选在输入区那颗 chip 上（§4.5）。带上它是因为
+       * `PUT` 收的是完整形状 —— 不带的话在设置里点一次保存就会把用户选的模型
+       * 悄悄打回「自动」。
+       */
+      routeModel: persona.routeModel,
       ...touched,
     }),
     [persona, touched],

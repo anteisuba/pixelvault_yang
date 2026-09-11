@@ -55,7 +55,6 @@ import {
   STUDIO_OPERATOR_STREAMING,
 } from '@/constants/studio-assistant-operator'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
-import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
   addOperatorMention,
   appendOperatorEntry,
@@ -347,8 +346,6 @@ interface RunOptions {
 
 export interface UseAssistantOperatorResult {
   domain: AssistantOperatorDomain
-  /** 助手实际会用哪个模型说话（chip 上写的那个）—— null = 自动路由。 */
-  routeModelId: string | undefined
   /**
    * 说一句。
    *
@@ -418,7 +415,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   const host = useStudioOperatorHost()
   const { domain, buildSnapshot, checkpoints, setOpen } = host
   const applyContext = host.apply
-  const { route } = useStudioAssistantControls()
   const locale = useLocale()
   const tError = useTranslations('StudioOperator.error')
   const tErrors = useTranslations('Errors')
@@ -798,8 +794,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            * 剩下的步里但凡有一步要生成，`confirm` 照出（owner 定）。
            */
           ...(resumeFrom ? { resumeFrom } : {}),
-          ...(route.apiKeyId ? { apiKeyId: route.apiKeyId } : {}),
-          ...(route.modelId ? { llmModelId: route.modelId } : {}),
           responseLanguage: toResponseLanguage(locale),
         },
         { signal: controller.signal },
@@ -1155,8 +1149,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       domain,
       flushQueue,
       locale,
-      route.apiKeyId,
-      route.modelId,
     ],
   )
 
@@ -1513,7 +1505,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
 
   return {
     domain,
-    routeModelId: route.modelId,
     send,
     stop,
     cancelQueued,

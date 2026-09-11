@@ -210,6 +210,7 @@ describe('StudioOperatorTimelineRow', () => {
           tone: 'professional',
           toneCustom: null,
           verbosity: 'standard',
+          routeModel: 'auto',
           planMode: 'auto',
           language: 'ui',
         }}

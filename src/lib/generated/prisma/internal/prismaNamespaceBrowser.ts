@@ -467,6 +467,7 @@ export const AssistantPersonaScalarFieldEnum = {
   verbosity: 'verbosity',
   planMode: 'planMode',
   language: 'language',
+  routeModel: 'routeModel',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

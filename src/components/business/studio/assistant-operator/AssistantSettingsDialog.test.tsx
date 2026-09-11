@@ -134,6 +134,9 @@ describe('AssistantSettingsDialog', () => {
       verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.detailed,
       planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.always,
       language: 'chinese',
+      // ⚠ 设置里没有这一格的控件（模型选在输入区的 chip 上），但保存必须原样
+      //   带上它 —— 不带的话在设置里点一次保存就把用户选的模型打回「自动」。
+      routeModel: ASSISTANT_PERSONA_DEFAULTS.routeModel,
     })
   })
 

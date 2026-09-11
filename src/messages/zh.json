@@ -7629,6 +7629,12 @@
       "cardsEmpty": "还没有角色 / 风格 / 品牌卡",
       "cardsCreate": "新建一张卡"
     },
+    "modelChip": {
+      "label": "文本模型",
+      "auto": "自动",
+      "autoHint": "按任务挑模型",
+      "needsKey": "待配置"
+    },
     "web": {
       "candidates": "联网候选 · 预览，还没进你的库",
       "pickHint": "点图看大图（不下载）· 点「选用」才收进素材库并挂上",

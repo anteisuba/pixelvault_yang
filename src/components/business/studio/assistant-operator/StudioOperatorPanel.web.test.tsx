@@ -42,15 +42,16 @@ vi.mock('motion/react', () => ({
   useReducedMotion: () => true,
 }))
 
-/** 模型 chip 点开的是现有「自动路由」组件（拍板 11）—— 这里不验它。 */
-vi.mock('@/components/business/node/CanvasAssistantRouteSelector', () => ({
-  CanvasAssistantRouteSelector: () => <span data-testid="route-selector" />,
-}))
-
-vi.mock('@/hooks/use-studio-assistant-controls', () => ({
-  useStudioAssistantControls: () => ({
-    route: { apiKeyId: null, modelId: null },
-    setRoute: vi.fn(),
+/**
+ * 模型 chip 有自己的一份闸（`StudioOperatorModelChip.web.test.tsx`）——
+ * 这里只桩掉它要的 key 表，免得面板测试连上 `ApiKeysProvider`。
+ */
+vi.mock('@/hooks/use-llm-route-picker', () => ({
+  useLLMRoutePicker: () => ({
+    savedRoutes: [],
+    lockedRoutes: [],
+    allRoutes: [],
+    healthMap: {},
   }),
 }))
 
@@ -145,6 +146,7 @@ const WEB_IMPORT = {
 
 const onOpenProjectRules = vi.fn()
 const onOpenAssistantSettings = vi.fn()
+const onSelectRouteModel = vi.fn().mockResolvedValue(true)
 
 const send = vi.fn()
 const changeAttachments = vi.fn()
@@ -157,7 +159,6 @@ function PanelHarness() {
       operator={
         {
           domain: 'image',
-          routeModelId: undefined,
           send,
           stop: vi.fn(),
           cancelQueued: vi.fn(),
@@ -181,6 +182,7 @@ function PanelHarness() {
       webImport={WEB_IMPORT}
       history={HISTORY}
       onOpenAssistantSettings={onOpenAssistantSettings}
+      onSelectRouteModel={onSelectRouteModel}
       onOpenProjectRules={onOpenProjectRules}
       onCollapse={vi.fn()}
     />

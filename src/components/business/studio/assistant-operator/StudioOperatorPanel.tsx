@@ -71,8 +71,9 @@ import {
   STUDIO_OPERATOR_TIMELINE,
   STUDIO_OPERATOR_UPLOAD_ACCEPT,
 } from '@/constants/studio-assistant-operator'
+import { ASSISTANT_ROUTE_MODEL_AUTO } from '@/constants/assistant-persona'
 import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
-import { CanvasAssistantRouteSelector } from '@/components/business/node/CanvasAssistantRouteSelector'
+import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
 import {
   STUDIO_OPERATOR_PLUS_MENU_ID,
   StudioOperatorPlusMenu,
@@ -130,7 +131,6 @@ import {
 } from '@/hooks/use-studio-operator-mention'
 import { useStudioOperatorStatusWord } from '@/hooks/use-studio-operator-status-word'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
-import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
   hydrateOperatorResume,
   getOperatorState,
@@ -143,7 +143,10 @@ import {
   nextResumeStepNumber,
 } from '@/lib/studio-operator-resume'
 import { cn } from '@/lib/utils'
-import type { AssistantPersona } from '@/types/assistant-persona'
+import type {
+  AssistantPersona,
+  AssistantRouteModel,
+} from '@/types/assistant-persona'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
 import type {
   StudioOperatorAttachment,
@@ -249,6 +252,11 @@ interface StudioOperatorPanelProps {
    * 竞态。⚠ 缺席（还没拉到）时头像画默认预设、问候语用域名（§8.2）。
    */
   persona?: AssistantPersona
+  /**
+   * 文本模型 chip 选中即写 persona（§4.5）。**回调由外壳给** —— persona 全树只
+   * 拉一次（`StudioOperatorDock`），面板自己 `save()` 会开出第二份 persona 状态。
+   */
+  onSelectRouteModel(next: AssistantRouteModel): Promise<boolean>
   /** ⋯ 菜单 →「助手设置」（§8.1 主入口）。弹层住在外壳里（收放法则会卸载面板）。 */
   onOpenAssistantSettings(): void
   /** 规则薄卡上的「查看规则」（§10）—— 打开助手设置并落到规则那一页。 */
@@ -276,13 +284,13 @@ export function StudioOperatorPanel({
   webImport,
   history,
   persona,
+  onSelectRouteModel,
   onOpenAssistantSettings,
   onOpenProjectRules,
   onCollapse,
 }: StudioOperatorPanelProps) {
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
-  const tPrompt = useTranslations('PromptAssistant')
   const tReference = useTranslations('StudioPromptArea.referenceMention')
   const {
     entries: allEntries,
@@ -376,7 +384,6 @@ export function StudioOperatorPanel({
     roundFields,
     changeCount,
   } = useStudioOperatorRevert()
-  const { route, setRoute } = useStudioAssistantControls()
 
   // 「+」菜单开着与否**是**局部态：它是一次性的挑选动作，收起再展开时它该是关的。
   const [attachOpen, setAttachOpen] = useState(false)
@@ -1827,17 +1834,13 @@ export function StudioOperatorPanel({
                   if (files.length > 0) handleUploadFiles(files)
                 }}
               />
-              {/* ⭐ 文本模型 chip = 现有「自动路由」组件（拍板 11），本轮位置不变、
-                行为不变；换成 §4.5 的九条模型表是 commit #8 的事。
-                `emptyRouteLabel` 必须由调用方给：studio 没有 gateway 分支，
-                写死任何一个具体型号都是在说谎（2026-08-19 生产事故）。 */}
-              <span data-testid="operator-model-chip">
-                <CanvasAssistantRouteSelector
-                  value={route}
-                  onChange={setRoute}
-                  emptyRouteLabel={tPrompt('routeAuto')}
-                />
-              </span>
+              {/* ⭐ 文本模型 chip（§4.5，commit #8）：「自动」是真选项排第一，
+                九条模型按厂商分组，选中即写 `AssistantPersona.routeModel`。
+                ⛔ 面板不再持有任何 route 内存态 —— 真值在 persona，服务端自己读。 */}
+              <StudioOperatorModelChip
+                value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
+                onChange={onSelectRouteModel}
+              />
               <span className="flex-1" />
               {working ? (
                 <button

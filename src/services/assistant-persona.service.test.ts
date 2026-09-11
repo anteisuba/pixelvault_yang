@@ -4,7 +4,9 @@ import {
   ASSISTANT_AVATAR_PRESET_IDS,
   ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_PERSONA_TONE_IDS,
+  ASSISTANT_ROUTE_MODEL_AUTO,
 } from '@/constants/assistant-persona'
+import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 
 // ─── Mocks ──────────────────────────────────────────────────────
 
@@ -39,6 +41,13 @@ const STORED_ROW = {
   verbosity: 'detailed',
   planMode: 'always',
   language: 'chinese',
+  routeModel: null,
+}
+
+/** 库里那一行的协议形状 —— `routeModel: null` 读回来是「自动」（§4.5）。 */
+const STORED_PERSONA = {
+  ...STORED_ROW,
+  routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
 }
 
 describe('assistant persona service', () => {
@@ -58,7 +67,9 @@ describe('assistant persona service', () => {
   it('有行时逐字读回那一行', async () => {
     mockFindUnique.mockResolvedValue(STORED_ROW)
 
-    await expect(getAssistantPersona('clerk_1')).resolves.toEqual(STORED_ROW)
+    await expect(getAssistantPersona('clerk_1')).resolves.toEqual(
+      STORED_PERSONA,
+    )
   })
 
   /**
@@ -81,7 +92,7 @@ describe('assistant persona service', () => {
     mockFindUnique.mockResolvedValue({ ...STORED_ROW, avatarPreset: 'spark' })
 
     await expect(getAssistantPersona('clerk_1')).resolves.toEqual({
-      ...STORED_ROW,
+      ...STORED_PERSONA,
       avatarPreset: ASSISTANT_PERSONA_DEFAULTS.avatarPreset,
     })
   })
@@ -97,6 +108,7 @@ describe('assistant persona service', () => {
       verbosity: 'detailed',
       planMode: 'always',
       language: 'chinese',
+      routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
     })
 
     const call = mockUpsert.mock.calls[0][0] as {
@@ -108,6 +120,58 @@ describe('assistant persona service', () => {
     expect(call.update).not.toHaveProperty('avatarUrl')
     expect(call.update).not.toHaveProperty('avatarStorageKey')
     expect(call.create.userId).toBe('db_user_1')
+  })
+
+  /**
+   * §4.5：模型偏好存在这一列上。⚠ 库里的 null 与「自动」是**同一件事** ——
+   * 存字符串 `'auto'` 会让「没选过」和「选了自动」变成两个值。
+   */
+  it('routeModel 读回：库里存的 modelId 逐字读回，悬空 id 回落到自动', async () => {
+    const pinned = NODE_STUDIO_ASSISTANT_ROUTE_MODELS[2].modelId
+    mockFindUnique.mockResolvedValue({ ...STORED_ROW, routeModel: pinned })
+    await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
+      routeModel: pinned,
+      // ⚠ 其余几格照样逐字读回，⛔ 不整份退默认。
+      tone: STORED_ROW.tone,
+    })
+
+    mockFindUnique.mockResolvedValue({
+      ...STORED_ROW,
+      routeModel: 'qwen3-max-retired',
+    })
+    await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
+      routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
+      tone: STORED_ROW.tone,
+    })
+  })
+
+  it('routeModel 写入：具体模型逐字写，「自动」写 null', async () => {
+    mockUpsert.mockResolvedValue(STORED_ROW)
+    const pinned = NODE_STUDIO_ASSISTANT_ROUTE_MODELS[1].modelId
+    const base = {
+      name: null,
+      avatarPreset: null,
+      tone: ASSISTANT_PERSONA_TONE_IDS.terse,
+      toneCustom: null,
+      verbosity: 'standard',
+      planMode: 'auto',
+      language: 'ui',
+    } as const
+
+    await upsertAssistantPersona('clerk_1', { ...base, routeModel: pinned })
+    expect(
+      (mockUpsert.mock.calls[0][0] as { update: { routeModel: unknown } })
+        .update.routeModel,
+    ).toBe(pinned)
+
+    await upsertAssistantPersona('clerk_1', {
+      ...base,
+      routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
+    })
+    expect(
+      (mockUpsert.mock.calls[1][0] as { update: { routeModel: unknown } })
+        .update.routeModel,
+    ).toBeNull()
   })
 
   /** 换回非 custom 档时那句自定义语气就该消失，⛔ 别让它下次诈尸。 */
@@ -122,6 +186,7 @@ describe('assistant persona service', () => {
       verbosity: 'standard',
       planMode: 'auto',
       language: 'ui',
+      routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
     })
 
     const call = mockUpsert.mock.calls[0][0] as {

@@ -711,6 +711,11 @@ model AssistantPersona {
   /// ui / chinese / english —— 覆盖请求里的 responseLanguage。
   language  String @default("ui")
 
+  /// 输入区文本模型 chip 选的那一档（`NODE_STUDIO_ASSISTANT_ROUTE_MODELS` 的
+  /// modelId）。null = 「自动」——服务端按 resolveLlmTextRoute 的优先级自己挑。
+  /// ⛔ 不做成 Prisma 枚举：模型表住 constants，边界校验交给 Zod。
+  routeModel String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

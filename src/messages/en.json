@@ -7629,6 +7629,12 @@
       "cardsEmpty": "No character / style / brand cards yet",
       "cardsCreate": "New card"
     },
+    "modelChip": {
+      "label": "Text model",
+      "auto": "Auto",
+      "autoHint": "Pick per task",
+      "needsKey": "Set up"
+    },
     "web": {
       "candidates": "From the web · previews, not in your library yet",
       "pickHint": "Click a picture to see it big (nothing is downloaded) · press Use to file it and attach it",

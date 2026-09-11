@@ -20,6 +20,7 @@ import {
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_TONES,
   ASSISTANT_PERSONA_VERBOSITIES,
+  ASSISTANT_ROUTE_MODEL_VALUES,
 } from '@/constants/assistant-persona'
 import {
   ASSISTANT_OPERATOR_DOMAINS,
@@ -40,6 +41,14 @@ export const AssistantPersonaPlanModeSchema = z.enum(
 export const AssistantPersonaLanguageSchema = z.enum(
   ASSISTANT_PERSONA_LANGUAGES,
 )
+/**
+ * 文本模型 chip 选的那一档（§4.5）。词表 = 「自动」+ 路由表的九条 ——
+ * ⚠ 名单从 `NODE_STUDIO_ASSISTANT_ROUTE_MODELS` 摊出来，⛔ 不在这里复制一份：
+ * 复制的那一刻「界面能选」和「服务端认得」就开始各自漂。
+ */
+export const AssistantRouteModelSchema = z.enum(ASSISTANT_ROUTE_MODEL_VALUES)
+
+export type AssistantRouteModel = z.infer<typeof AssistantRouteModelSchema>
 
 /**
  * persona 的**列**本体。两个对外 schema 都从它派生 —— 写两遍字段的表现是
@@ -64,6 +73,8 @@ const AssistantPersonaShapeSchema = z.object({
   verbosity: AssistantPersonaVerbositySchema,
   planMode: AssistantPersonaPlanModeSchema,
   language: AssistantPersonaLanguageSchema,
+  /** `auto` = 服务端自己挑（库里存 null）。⛔ 不做成可空：读回来永远是个词。 */
+  routeModel: AssistantRouteModelSchema,
 })
 
 /**

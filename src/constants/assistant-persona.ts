@@ -15,6 +15,8 @@
  * ⛔ 也不再在这里存一张「画它要的几何」的封闭表 —— 两款之后那张表是纯负担。
  */
 
+import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
+
 /**
  * 预设头像**两款**（owner 2026-09-07 定：「先找一下，只给一两张预设图」）。
  *
@@ -40,6 +42,59 @@ export function normalizeAvatarPreset(
   )
     ? (value as AssistantAvatarPresetId)
     : ASSISTANT_AVATAR_PRESET_IDS[0]
+}
+
+/**
+ * 文本模型 chip 的「自动」档（§4.5）——**它是一个真选项**，排第一、也是默认值，
+ * ⛔ 不是「没选时的显示文案」。选中它 = 服务端按 `resolveLlmTextRoute` 的优先级
+ * 自己挑，与这一列为空时的行为逐字相同（库里存 null）。
+ */
+export const ASSISTANT_ROUTE_MODEL_AUTO = 'auto'
+
+/**
+ * 可选的文本模型 = 「自动」+ `NODE_STUDIO_ASSISTANT_ROUTE_MODELS` 的全部条目。
+ *
+ * ⚠ **名单不在这里复制**：路由表是唯一真值（改一条模型只改那一处），这里只把
+ * 它的 `modelId` 摊平成词表。⛔ 别为了「看得见」在这里手写九个 id。
+ */
+export const ASSISTANT_ROUTE_MODEL_IDS = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.map(
+  (model) => model.modelId,
+)
+
+export type AssistantRouteModel =
+  | typeof ASSISTANT_ROUTE_MODEL_AUTO
+  | (typeof NODE_STUDIO_ASSISTANT_ROUTE_MODELS)[number]['modelId']
+
+export const ASSISTANT_ROUTE_MODEL_VALUES = [
+  ASSISTANT_ROUTE_MODEL_AUTO,
+  ...ASSISTANT_ROUTE_MODEL_IDS,
+] as [AssistantRouteModel, ...AssistantRouteModel[]]
+
+/**
+ * 词表里的值 → 路由表那一条（`auto` 与词表外的值都是 `null`）。
+ *
+ * ⚠ 服务端与 chip 共用这一跳：**「这个选择对应哪个厂商、哪个模型」只有一个答案**。
+ * 库里存着一个已经下架的 modelId 时回落到 `null`（= 自动），⛔ 不抛错、
+ * ⛔ 也不假装用户选的还在。
+ */
+export function getAssistantRouteModelEntry(
+  value: string | null | undefined,
+): (typeof NODE_STUDIO_ASSISTANT_ROUTE_MODELS)[number] | null {
+  if (!value || value === ASSISTANT_ROUTE_MODEL_AUTO) return null
+  return (
+    NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+      (model) => model.modelId === value,
+    ) ?? null
+  )
+}
+
+/** 库里那一列（`String?`）→ 词表值。null / 悬空值都是「自动」。 */
+export function normalizeRouteModel(
+  value: string | null | undefined,
+): AssistantRouteModel {
+  return (
+    getAssistantRouteModelEntry(value)?.modelId ?? ASSISTANT_ROUTE_MODEL_AUTO
+  )
 }
 
 /** 语气四档（§8.2）。`custom` 多带一句用户自己写的话。 */
@@ -142,6 +197,8 @@ export const ASSISTANT_PERSONA_DEFAULTS = {
   verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.concise,
   planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.auto,
   language: ASSISTANT_PERSONA_LANGUAGE_IDS.ui,
+  /** §4.5：默认「自动」= 库里 `routeModel` 为 null 时的语义，两处必须一致。 */
+  routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
 } as const
 
 export const ASSISTANT_PERSONA_LIMITS = {

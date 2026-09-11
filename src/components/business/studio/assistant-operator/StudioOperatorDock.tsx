@@ -81,6 +81,7 @@ import { StudioOperatorMobileFab } from '@/components/business/studio/assistant-
 import { StudioOperatorMobileSheet } from '@/components/business/studio/assistant-operator/StudioOperatorMobileSheet'
 import { StudioOperatorPanel } from '@/components/business/studio/assistant-operator/StudioOperatorPanel'
 import { cn } from '@/lib/utils'
+import type { AssistantRouteModel } from '@/types/assistant-persona'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 
 // ─── 宽度记忆（localStorage 背书的模块 store）──────────────────────
@@ -212,7 +213,26 @@ export function StudioOperatorDock() {
    * ⚠ 住在外壳而不是面板里，理由同驱动 hook：收放法则（拍板 7）随时卸载面板，
    *   挂在那里的下场是每展开一次就重新拉一遍。
    */
-  const { persona } = useAssistantPersona()
+  const { persona, save: savePersona } = useAssistantPersona()
+  /**
+   * 文本模型 chip 选中即写（§4.5）。⚠ **写的是整份 persona**：`PUT` 收的是完整
+   * 形状，只递一列会把其余几列按默认值覆盖回去。⛔ 别在 chip 里自己 `save()` ——
+   * persona 全树只拉这一次，第二份状态会各说各话。
+   */
+  const handleSelectRouteModel = useCallback(
+    (routeModel: AssistantRouteModel) =>
+      savePersona({
+        name: persona.name,
+        avatarPreset: persona.avatarPreset,
+        tone: persona.tone,
+        toneCustom: persona.toneCustom,
+        verbosity: persona.verbosity,
+        planMode: persona.planMode,
+        language: persona.language,
+        routeModel,
+      }),
+    [persona, savePersona],
+  )
   /**
    * 助手设置弹层（§8.1）。**状态住在外壳**：面板会被收放法则卸载，而弹层是它开
    * 出来的 —— 挂在面板里的表现是「点开设置、鼠标滑出面板，弹层自己没了」。
@@ -490,6 +510,7 @@ export function StudioOperatorDock() {
       webImport={webImport}
       history={history}
       persona={persona}
+      onSelectRouteModel={handleSelectRouteModel}
       onOpenAssistantSettings={() =>
         setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.persona)
       }

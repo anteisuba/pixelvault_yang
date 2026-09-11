@@ -776,6 +776,31 @@ async function fetchLlmTextStreaming(
 // ─── Route Resolution ────────────────────────────────────────────
 
 /**
+ * 这个用户绑在某个厂商下、还活着的那把文本 key 的 **id**（没有就是 `undefined`）。
+ *
+ * ⚠ 存在的理由只有一条：助手的模型选择存的是**模型**（`AssistantPersona.routeModel`
+ * = 一个 modelId），而 `resolveLlmTextRoute` 认的是 **key id**。这一跳把
+ * 「用户想用哪个脑子」翻译成「用哪把钥匙」。⛔ 别让调用方各自去 `userApiKey`
+ * 查一遍 —— `isActive` / 取最新那条这两条判据必须与下面那段优先级循环逐字一致。
+ *
+ * 没绑那个厂商的 key 时**返回 undefined 而不是抛错**：调用方随后照常走
+ * `resolveLlmTextRoute` 的优先级兜底（= 与「自动」同一条路），选择本身留在库里，
+ * 用户补上 key 之后自动生效。
+ */
+export async function findLlmTextKeyId(
+  userId: string,
+  adapterType: AI_ADAPTER_TYPES,
+): Promise<string | undefined> {
+  if (!isLlmTextAdapter(adapterType)) return undefined
+  const key = await db.userApiKey.findFirst({
+    where: { userId, adapterType, isActive: true },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  })
+  return key?.id
+}
+
+/**
  * Resolves which LLM provider + API key to use for text completion.
  * Priority: specified apiKeyId → user Gemini key → user DeepSeek key → user OpenAI key → user VolcEngine key
  */

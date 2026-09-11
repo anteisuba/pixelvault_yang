@@ -6,6 +6,8 @@ import {
   HIDDEN_CANVAS_IMAGE_EDIT_CAPABILITIES,
   READY_CANVAS_IMAGE_EDIT_CAPABILITIES,
 } from '@/constants/canvas-image-edit-capabilities'
+import { EDIT_MODELS } from '@/constants/edit-tasks'
+import { AI_MODELS, getExecutionModelId } from '@/constants/models'
 import { CANVAS_CAPABILITY_DESCRIPTORS } from '@/lib/canvas-capability-runtime'
 import {
   CanvasImageEditCapabilitySchema,
@@ -65,6 +67,25 @@ describe('canvas image edit capability registry', () => {
         (id) => !runtimeIds.has(id),
       ),
     ).toEqual([])
+  })
+
+  // 选择器按 EDIT_MODELS 取显示名；漏登记的 id 会以原串露给用户。
+  it('gives every registered edit model a picker entry', () => {
+    const missing = CANVAS_IMAGE_EDIT_CAPABILITIES.flatMap(({ models }) =>
+      models.filter((modelId) => !(modelId in EDIT_MODELS)),
+    )
+    expect(missing).toEqual([])
+  })
+
+  // 目录里 `imageKind: edit` 的两条只归编辑入口（owner 2026-09-11）；编辑侧直发
+  // 执行 id，这里钉住两处不各写一份后漂开。
+  it('routes the catalog edit entries through object-replace by their execution ids', () => {
+    expect(getCanvasImageEditCapability('object-replace').models).toEqual(
+      expect.arrayContaining([
+        getExecutionModelId(AI_MODELS.FLUX_KONTEXT_MAX),
+        getExecutionModelId(AI_MODELS.FLUX_2_PRO_EDIT),
+      ]),
+    )
   })
 
   it('degrades malformed persisted edit lineage without rejecting the node', () => {

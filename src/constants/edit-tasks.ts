@@ -69,6 +69,16 @@ export const EDIT_MODELS: Record<string, EditModelOption> = {
     provider: 'fal',
     displayName: 'EVF-SAM',
   },
+  'fal-ai/flux-pro/kontext/max/multi': {
+    id: 'fal-ai/flux-pro/kontext/max/multi',
+    provider: 'fal',
+    displayName: 'FLUX Kontext Max',
+  },
+  'fal-ai/flux-2-pro/edit': {
+    id: 'fal-ai/flux-2-pro/edit',
+    provider: 'fal',
+    displayName: 'FLUX.2 Pro Edit',
+  },
   'gemini-3-pro-image': {
     id: 'gemini-3-pro-image',
     provider: 'gemini',

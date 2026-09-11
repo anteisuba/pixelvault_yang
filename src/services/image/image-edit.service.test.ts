@@ -9,6 +9,7 @@ import {
   extractElement,
   inpaintImage,
   removeBackground,
+  replaceObjects,
   upscaleImage,
 } from './image-edit.service'
 
@@ -380,4 +381,58 @@ describe('GPT Image 2.5 editing', () => {
       expect(result).toMatchObject({ width: 2, height: 1 })
     },
   )
+})
+
+describe('object-replace on fal edit endpoints', () => {
+  const annotations = [{ index: 1, instruction: 'change the jacket to red' }]
+
+  it('sends Kontext Max the image as image_urls', async () => {
+    mockFetchJson({
+      images: [
+        {
+          url: 'https://cdn.example.com/kontext.png',
+          width: 1024,
+          height: 768,
+        },
+      ],
+    })
+
+    const result = await replaceObjects({
+      imageUrl: 'https://example.com/source.png',
+      annotations,
+      apiKey: 'key',
+      modelId: 'fal-ai/flux-pro/kontext/max/multi',
+    })
+
+    expect(result).toEqual({
+      imageUrl: 'https://cdn.example.com/kontext.png',
+      width: 1024,
+      height: 768,
+    })
+    const [url, init] = vi.mocked(global.fetch).mock.calls[0]
+    expect(url).toBe('https://fal.run/fal-ai/flux-pro/kontext/max/multi')
+    const body = JSON.parse(String(init?.body))
+    expect(body.image_urls).toEqual(['https://example.com/source.png'])
+    expect(body).not.toHaveProperty('image_url')
+  })
+
+  it('measures a FLUX.2 Pro Edit result that comes back without a size', async () => {
+    const result = await sharp({
+      create: { width: 3, height: 2, channels: 3, background: 'blue' },
+    })
+      .png()
+      .toBuffer()
+    mockFetchJson({
+      images: [{ url: `data:image/png;base64,${result.toString('base64')}` }],
+    })
+
+    const edited = await replaceObjects({
+      imageUrl: 'https://example.com/source.png',
+      annotations,
+      apiKey: 'key',
+      modelId: 'fal-ai/flux-2-pro/edit',
+    })
+
+    expect(edited).toMatchObject({ width: 3, height: 2 })
+  })
 })

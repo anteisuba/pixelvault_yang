@@ -51,6 +51,15 @@ const FAL_DEFAULT_INPAINT_MODEL = 'fal-ai/flux-pro/v1/fill'
  * `mask_url`），要换回它得先按 edit 端点的正确载荷重测。
  */
 const DEFAULT_OBJECT_REPLACE_MODEL = 'gemini-3-pro-image'
+/**
+ * fal edit endpoints that take `image_urls[]` instead of a single `image_url`
+ * (both mark it required in their OpenAPI, checked 2026-09-11). They are the
+ * catalog's `imageKind: edit` entries, surfaced through object-replace.
+ */
+const FAL_IMAGE_URLS_EDIT_MODELS = new Set([
+  'fal-ai/flux-pro/kontext/max/multi',
+  'fal-ai/flux-2-pro/edit',
+])
 
 export type UpscaleTargetScale = '2x' | '4x'
 
@@ -104,13 +113,15 @@ const FalImageEditResponseSchema = z.object({
   }),
 })
 
+// fal's shared `ImageFile` type (e.g. flux-2-pro/edit) marks width/height
+// optional, so the list shape can't require them — see `withDimensions`.
 const FalImageListEditResponseSchema = z.object({
   images: z
     .array(
       z.object({
         url: z.string().url(),
-        width: z.number().int().positive(),
-        height: z.number().int().positive(),
+        width: z.number().int().positive().optional(),
+        height: z.number().int().positive().optional(),
       }),
     )
     .min(1),
@@ -122,7 +133,10 @@ export interface ImageEditResult {
   height: number
 }
 
-function parseFalImageEditResult(value: unknown): ImageEditResult {
+type FalEditImage = Pick<ImageEditResult, 'imageUrl'> &
+  Partial<Pick<ImageEditResult, 'width' | 'height'>>
+
+function parseFalImageEditResult(value: unknown): FalEditImage {
   const result = FalImageEditResponseSchema.safeParse(value)
 
   if (result.success) {
@@ -146,6 +160,19 @@ function parseFalImageEditResult(value: unknown): ImageEditResult {
   throw new ProviderError('fal.ai', 502, 'Malformed image edit response')
 }
 
+/** Measure the result when fal leaves out its size, instead of guessing. */
+async function withDimensions(image: FalEditImage): Promise<ImageEditResult> {
+  if (image.width && image.height) {
+    return {
+      imageUrl: image.imageUrl,
+      width: image.width,
+      height: image.height,
+    }
+  }
+  const { buffer } = await fetchAsBuffer(image.imageUrl)
+  return { imageUrl: image.imageUrl, ...(await readBufferDimensions(buffer)) }
+}
+
 async function postFalImageEdit(
   model: string,
   apiKey: string,
@@ -154,7 +181,9 @@ async function postFalImageEdit(
 ): Promise<ImageEditResult> {
   const endpoint = `${AI_PROVIDER_ENDPOINTS.FAL}/${model}`
 
-  return await withRetry(
+  // Measuring sits outside the retry: a failed download must not re-run a
+  // paid edit.
+  const image = await withRetry(
     async () => {
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -174,6 +203,7 @@ async function postFalImageEdit(
     },
     { label, maxAttempts: 3, baseDelayMs: 1000 },
   )
+  return await withDimensions(image)
 }
 
 /**
@@ -221,7 +251,7 @@ export async function upscaleImage(
     throw new ProviderError('fal.ai', response.status, errorBody)
   }
 
-  return parseFalImageEditResult(await response.json())
+  return await withDimensions(parseFalImageEditResult(await response.json()))
 }
 
 /**
@@ -249,7 +279,7 @@ export async function removeBackground(
     throw new ProviderError('fal.ai', response.status, errorBody)
   }
 
-  return parseFalImageEditResult(await response.json())
+  return await withDimensions(parseFalImageEditResult(await response.json()))
 }
 
 /**
@@ -664,7 +694,9 @@ export async function replaceObjects(params: {
   return await postFalImageEdit(
     modelId,
     params.apiKey,
-    { image_url: params.imageUrl, prompt },
+    FAL_IMAGE_URLS_EDIT_MODELS.has(modelId)
+      ? { image_urls: [params.imageUrl], prompt }
+      : { image_url: params.imageUrl, prompt },
     'fal.replaceObjects',
   )
 }

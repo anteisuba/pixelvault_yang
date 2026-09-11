@@ -79,7 +79,15 @@ export const CANVAS_IMAGE_EDIT_CAPABILITIES = [
     interaction: 'annotate',
     input: SINGLE_IMAGE_INPUT,
     output: 'single-image',
-    models: ['gemini-3-pro-image', 'gpt-image-2', ...GPT_IMAGE_25_EDIT_MODELS],
+    // FLUX 两条是目录里 `imageKind: edit` 的条目在编辑入口的落点（owner
+    // 2026-09-11）；未经 §7.11 那样的实测，所以不当默认。
+    models: [
+      'gemini-3-pro-image',
+      'gpt-image-2',
+      ...GPT_IMAGE_25_EDIT_MODELS,
+      'fal-ai/flux-pro/kontext/max/multi',
+      'fal-ai/flux-2-pro/edit',
+    ],
     defaultModelId: 'gemini-3-pro-image',
   },
   // ⚠ 仍然零执行路径 —— 别只改这一行就以为它能用（2026-08-18 E0 的教训）。

@@ -69,7 +69,9 @@
 | 不框 + 整体一句话 | `style-transfer`                                        |
 
 ✅ **`object-replace` 已于 2026-08-19（E3）从零建成并提回 ready**，默认模型 `gemini-3-pro-image`
-（三选一实测选定，任务包 §7.11）。⚠ **`style-transfer` 至今零执行路径，仍是 hidden** —— 要用它得先建，
+（三选一实测选定，任务包 §7.11）。2026-09-11 起模型下拉另挂 `FLUX Kontext Max` 与 `FLUX.2 Pro Edit`（目录里
+`imageKind: edit` 的两条只归编辑入口，owner 拍板），两者走 fal 的 `image_urls` 载荷；未经实测，不当默认。
+⚠ **`style-transfer` 至今零执行路径，仍是 hidden** —— 要用它得先建，
 别只改 `availability` 那一行（E0 的教训）。
 
 ⚠ **E3 的能力边界（真机实证）**：模型按**名字**改，不按框 —— 改动会溢出框（「加靴子」会把画面里所有

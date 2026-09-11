@@ -42,6 +42,8 @@ interface AssetSelectorDialogProps {
   onConfirmMany?: (generations: GenerationRecord[]) => void
   /** 多选容量。传**剩余容量**（`上限 - 已有`），picker 据此就地红字拒绝。 */
   maxSelection?: number
+  /** 首屏 / 每页取几条（透传给 picker）。不给就是整页素材库那一档（24）。 */
+  pageSize?: number
 }
 
 /**
@@ -66,6 +68,7 @@ export function AssetSelectorDialog({
   multiSelect = false,
   onConfirmMany,
   maxSelection,
+  pageSize,
 }: AssetSelectorDialogProps) {
   return (
     <ResponsiveDialog open={open} onOpenChange={onOpenChange}>
@@ -93,6 +96,7 @@ export function AssetSelectorDialog({
             mode={multiSelect ? 'multi' : 'single'}
             mediaType={mediaType}
             maxSelection={maxSelection}
+            {...(pageSize != null ? { pageSize } : {})}
             initialGenerations={initialGenerations}
             initialTotal={initialTotal}
             initialHasMore={initialHasMore}

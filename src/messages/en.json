@@ -7679,17 +7679,16 @@
     "mention": {
       "pickerLabel": "Pick something for the assistant to look at",
       "recent": "Recent results",
-      "library": "Your library",
-      "workbench": "This workbench",
-      "libraryEmpty": "Nothing in your library matches",
-      "searchFailed": "Couldn't search your library",
-      "searchRetry": "Retry",
       "empty": "Nothing matches — keep typing",
       "remove": "Remove this reference",
       "count": "will look at {count}",
       "countWarn": "will look at {count} · over {limit} may get fuzzy",
-      "searching": "Searching your library…",
       "cards": "Character & style cards"
+    },
+    "library": {
+      "label": "Asset library",
+      "title": "Pick from your asset library",
+      "description": "Browse your assets by folder and attach them for the assistant to look at."
     },
     "result": {
       "title": "Results · {count}",

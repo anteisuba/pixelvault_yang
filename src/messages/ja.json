@@ -7679,17 +7679,16 @@
     "mention": {
       "pickerLabel": "アシスタントに見せるものを選ぶ",
       "recent": "最近の生成",
-      "library": "ライブラリ",
-      "workbench": "このワークベンチ",
-      "libraryEmpty": "ライブラリに一致するものがありません",
-      "searchFailed": "ライブラリを検索できませんでした",
-      "searchRetry": "再試行",
       "empty": "見つかりません —— そのまま入力してください",
       "remove": "この参照を外す",
       "count": "{count} 枚を見ます",
       "countWarn": "{count} 枚を見ます · {limit} 枚を超えると精度が落ちます",
-      "searching": "ライブラリを検索中…",
       "cards": "キャラクター / スタイルカード"
+    },
+    "library": {
+      "label": "素材ライブラリ",
+      "title": "素材ライブラリから選ぶ",
+      "description": "フォルダーごとに素材を見て、アシスタントに見せる画像を添付します。"
     },
     "result": {
       "title": "結果 · {count} 枚",

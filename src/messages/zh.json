@@ -7679,17 +7679,16 @@
     "mention": {
       "pickerLabel": "挑一张给助手看",
       "recent": "最近生成",
-      "library": "素材库",
-      "workbench": "当前工作台",
-      "libraryEmpty": "素材库里没有对得上的",
-      "searchFailed": "素材库没搜出来",
-      "searchRetry": "重试",
       "empty": "没找到 —— 接着打字试试",
       "remove": "去掉这个引用",
       "count": "将看 {count} 张",
       "countWarn": "将看 {count} 张 · 超过 {limit} 张可能不准",
-      "searching": "正在搜素材库…",
       "cards": "角色卡 / 风格卡"
+    },
+    "library": {
+      "label": "素材库",
+      "title": "从素材库挑图",
+      "description": "按文件夹浏览素材，挑出来挂给助手看。"
     },
     "result": {
       "title": "结果 · {count} 张",

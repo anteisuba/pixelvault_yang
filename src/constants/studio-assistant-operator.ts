@@ -488,34 +488,19 @@ export type StudioOperatorRailTone =
  */
 export const STUDIO_OPERATOR_MENTION = {
   trigger: '@',
-  /** 选择器上半「最近生成」最多列几条。 */
-  recentCount: 6,
-  /** 下半素材库搜索一次取几条（走现有 `fetchGalleryImages`，⛔ 不新建 route）。 */
-  searchLimit: 12,
-  /** 打字到发请求之间等多久 —— 每个字符发一次请求是把库搜成一次 DDoS。 */
-  searchDebounceMs: 250,
   /** 超过这么多张就把 chip 区计数转 warning（见上：只提示，不拦）。 */
   warnAboveCount: 8,
 } as const
 
 /**
- * `@` 选择器的两段（切片 #7b）。
+ * 素材库按钮打开的选择器**首屏取几条**（切片 #7c，owner「初次只加在 10 个左右」）。
  *
- * ⭐ 分段判据是**来源与后果**，不是媒体类型：`workbench` 那一段的图已经在工作台上
- * （选中只是引用它），`library` 那一段选中会**挂进工作台**再引用。
+ * ⚠ 只是**首屏**不是上限：往下拉继续翻页（`AssetPickerBrowser` 的无限滚动照旧），
+ * 点文件夹分类也照旧。⛔ 别把它读成「助手只能看 10 张素材」。
+ * ⚠ 与 `/assets` 的 `ASSET_BROWSER_PAGE_SIZE`（24）分开：那是整页素材库，一屏本来
+ * 就要铺满；助手这颗弹层是**顺手挑一张**，一屏 10 张就够，首屏还快。
  */
-export const STUDIO_OPERATOR_MENTION_SECTION_IDS = {
-  workbench: 'workbench',
-  library: 'library',
-} as const
-
-/**
- * 素材库候选的 id 前缀 —— 与工作台那段的 `Image1` / `Attachment[…]` 区分开。
- *
- * ⚠ 必须有一个前缀：两段的 id 撞上时 React 的 key 会重复，而「选中的是哪一条」
- * 也就跟着分不清了（表现是点素材库那条却挂了工作台上的同名图）。
- */
-export const STUDIO_OPERATOR_LIBRARY_CANDIDATE_PREFIX = 'library:'
+export const STUDIO_OPERATOR_LIBRARY_PAGE_SIZE = 10
 
 /**
  * 结果行卡的入场 stagger（§11.5：30ms，最多前 12 项）。

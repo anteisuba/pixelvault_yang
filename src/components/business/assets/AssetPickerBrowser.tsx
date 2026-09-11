@@ -69,6 +69,14 @@ export interface AssetPickerBrowserProps {
   mode: 'single' | 'multi'
   mediaType?: OutputTypeValue
   maxSelection?: number
+  /**
+   * 首屏 / 每页取几条。缺省 `ASSET_BROWSER_PAGE_SIZE`（24，整页素材库那一档）。
+   *
+   * ⚠ 改的只是**页大小**，不是上限：无限滚动照旧往下翻，文件夹分类照旧。
+   * 助手那颗弹层传 10（`STUDIO_OPERATOR_LIBRARY_PAGE_SIZE`）—— 顺手挑一张的场景
+   * 一屏不需要铺 24 格，首屏还快。
+   */
+  pageSize?: number
   initialGenerations?: GenerationRecord[]
   initialTotal?: number
   initialHasMore?: boolean
@@ -115,6 +123,7 @@ function AssetPickerBrowserContent({
   cacheScope,
   mediaType,
   maxSelection,
+  pageSize = ASSET_BROWSER_PAGE_SIZE,
   initialGenerations = [],
   initialTotal = 0,
   initialHasMore = false,
@@ -165,7 +174,7 @@ function AssetPickerBrowserContent({
     mine: true,
     includeTotal: false,
     cacheScope,
-    limit: ASSET_BROWSER_PAGE_SIZE,
+    limit: pageSize,
   })
 
   const { projects, counts, refreshCounts } = useAssetPickerNavigation(

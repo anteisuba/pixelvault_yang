@@ -1,6 +1,6 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { useState } from 'react'
-import { act, fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
@@ -59,12 +59,43 @@ vi.mock('@/hooks/use-my-profile', () => ({
   useMyProfile: () => ({ profile: null }),
 }))
 
-/** `@` 选择器下半段那一发搜索（切片 #7b）—— ⛔ 用例里不打真请求。 */
+/** ⛔ 用例里不打真请求。 */
 const fetchGalleryImages = vi.hoisted(() => vi.fn())
 
 vi.mock('@/lib/api-client/gallery', () => ({
   fetchGalleryImages,
   fetchGenerationByIdAPI: vi.fn(),
+}))
+
+/**
+ * 素材库弹层（切片 #7c）—— 桩成「一颗按钮 = 挑完两张」，⛔ 不把整个 picker
+ * 拉进面板用例：它自己有一份闸（`AssetPickerBrowser.test.tsx`）。
+ */
+vi.mock('@/components/business/AssetSelectorDialog', () => ({
+  AssetSelectorDialog: ({
+    mediaType,
+    multiSelect,
+    pageSize,
+    onConfirmMany,
+  }: {
+    mediaType?: string
+    multiSelect?: boolean
+    pageSize?: number
+    onConfirmMany?: (generations: unknown[]) => void
+  }) => (
+    <div
+      data-testid="asset-selector-dialog"
+      data-media-type={mediaType}
+      data-multi={String(Boolean(multiSelect))}
+      data-page-size={String(pageSize)}
+    >
+      <button
+        type="button"
+        data-testid="asset-selector-confirm-many"
+        onClick={() => onConfirmMany?.(libraryPicks)}
+      />
+    </div>
+  ),
 }))
 
 const applyDispatch = vi.hoisted(() => vi.fn())
@@ -119,6 +150,20 @@ beforeEach(async () => {
   vi.resetModules()
   vi.clearAllMocks()
   initialAttachments = []
+  libraryPicks = [
+    {
+      id: 'lib-1',
+      url: 'https://cdn.test/lib-1.png',
+      prompt: '库里那张海报',
+      outputType: 'IMAGE',
+    },
+    {
+      id: 'lib-2',
+      url: 'https://cdn.test/lib-2.png',
+      prompt: '库里那张插画',
+      outputType: 'IMAGE',
+    },
+  ]
   store = await import('@/hooks/use-studio-operator-store')
   Panel = (await import('./StudioOperatorPanel')).StudioOperatorPanel
 })
@@ -143,6 +188,9 @@ const WEB_IMPORT = {
   limit: 4,
   toggleCandidate: vi.fn(),
 } as unknown as UseStudioOperatorWebImportResult
+
+/** 素材库弹层里「挑中」的那些 —— 用例各自改。 */
+let libraryPicks: unknown[] = []
 
 const onOpenProjectRules = vi.fn()
 const onOpenAssistantSettings = vi.fn()
@@ -953,14 +1001,65 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
 })
 
 /**
- * `@` 选择器现在分两段：**当前工作台**与**素材库**（v2 §4.4 · 切片 #7b）。
+ * 素材库按钮（切片 #7c，owner 2026-09-11「@ 那边取消，最好新做一个按钮」）。
  *
- * ⭐ 这份用例存在的理由与本文件其余部分同源：搜索 hook 自己绿着、选择器自己绿着，
- * 而「打一个 `@` 到底出不出素材库那一段」只有把面板真的画出来才看得见。
- * ⚠ 挂进工作台的那一跳（mention → `apply.addReference`）钉在 `StudioOperatorDock`
+ * ⭐ 这份用例存在的理由与本文件其余部分同源：弹层自己绿着、chip 管线自己绿着，
+ * 而「下行到底有没有这颗按钮、点了到底开不开弹层、挑完到底落不落 chip」只有把
+ * 面板真的画出来才看得见。
+ * ⚠ 挂进工作台的那一跳（chip → `apply.addReference`）钉在 `StudioOperatorDock`
  * 的用例里 —— 面板这一侧的责任到 `addChip` 为止（管线只有一条）。
  */
-describe('@ 选择器的素材库那一段（切片 #7b）', () => {
+describe('素材库按钮（切片 #7c）', () => {
+  it('下行有素材库按钮，点一下开弹层，首屏页大小是 10', () => {
+    renderPanel()
+    const toolbar = screen.getByTestId('operator-toolbar')
+    const button = within(toolbar).getByTestId('operator-library-toggle')
+
+    expect(screen.queryByTestId('asset-selector-dialog')).toBeNull()
+    fireEvent.click(button)
+
+    const dialog = screen.getByTestId('asset-selector-dialog')
+    expect(dialog).toHaveAttribute('data-page-size', '10')
+    expect(dialog).toHaveAttribute('data-media-type', 'image')
+    expect(dialog).toHaveAttribute('data-multi', 'true')
+  })
+
+  it('挑两张：两张都落 chip 管线，正文里各留一个 @ 胶囊', () => {
+    renderPanel()
+    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+    fireEvent.click(screen.getByTestId('operator-library-toggle'))
+    fireEvent.click(screen.getByTestId('asset-selector-confirm-many'))
+
+    expect(store.getOperatorState().mentions.map((item) => item.id)).toEqual([
+      'lib-1',
+      'lib-2',
+    ])
+    // 宿主已经有 2 张可用参考图（第三张 disabled 也占位），新的两张顺次落在队尾。
+    expect(editor.textContent).toContain('@Image4')
+    expect(editor.textContent).toContain('@Image5')
+  })
+
+  it('已经在工作台上的那张跳过 —— ⛔ 不做「点了没反应」的重复挂载', () => {
+    libraryPicks = [
+      {
+        id: 'dup',
+        url: HOST_RESULTS[0].url,
+        prompt: '已经挂着的那张',
+        outputType: 'IMAGE',
+      },
+    ]
+    renderPanel()
+    fireEvent.click(screen.getByTestId('operator-library-toggle'))
+    fireEvent.click(screen.getByTestId('asset-selector-confirm-many'))
+
+    expect(store.getOperatorState().mentions).toEqual([])
+  })
+})
+
+/**
+ * `@` 选择器回到**只列当前工作台**（切片 #7c 取消了素材库那一段）。
+ */
+describe('@ 选择器只剩工作台一段（切片 #7c）', () => {
   /** 在 contenteditable 里打一个 `@`（jsdom 不会替我们动 selection）。 */
   function typeAt(editor: HTMLElement) {
     editor.textContent = '@'
@@ -973,111 +1072,16 @@ describe('@ 选择器的素材库那一段（切片 #7b）', () => {
     fireEvent.input(editor)
   }
 
-  beforeEach(() => {
-    fetchGalleryImages.mockResolvedValue({
-      success: true,
-      data: {
-        generations: [
-          {
-            id: 'lib-1',
-            url: 'https://cdn.test/lib-1.png',
-            prompt: '库里那张海报',
-            outputType: 'IMAGE',
-          },
-        ],
-      },
-    })
-  })
+  it('打 @ 只出工作台候选，没有素材库那一段，也不打搜索请求', () => {
+    renderPanel()
+    typeAt(screen.getByRole('textbox', { name: 'placeholderIdle' }))
 
-  it('打 @ 出两段：先加载中，搜到之后素材库那一段列出候选', async () => {
-    vi.useFakeTimers()
-    try {
-      renderPanel()
-      typeAt(screen.getByRole('textbox', { name: 'placeholderIdle' }))
-
-      expect(
-        document.querySelector('[data-mention-section="workbench"]'),
-      ).not.toBeNull()
-      expect(
-        document.querySelector('[data-mention-section-status="loading"]'),
-      ).not.toBeNull()
-
-      await act(async () => {
-        vi.advanceTimersByTime(300)
-      })
-
-      const library = document.querySelector(
-        '[data-mention-section="library"]',
-      ) as HTMLElement
-      expect(
-        within(library).getByRole('option', { name: /库里那张海报/ }),
-      ).toBeTruthy()
-      // 工作台那一段照旧在（两段并存，⛔ 不是互斥的两个视图）。
-      expect(
-        document.querySelector('[data-mention-section="workbench"]'),
-      ).not.toBeNull()
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('选中素材库一条：落 chip 管线并在正文留下 @ 胶囊', async () => {
-    vi.useFakeTimers()
-    try {
-      renderPanel()
-      const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
-      typeAt(editor)
-      await act(async () => {
-        vi.advanceTimersByTime(300)
-      })
-
-      const library = document.querySelector(
-        '[data-mention-section="library"]',
-      ) as HTMLElement
-      fireEvent.click(
-        within(library).getByRole('option', { name: /库里那张海报/ }),
-      )
-
-      expect(store.getOperatorState().mentions.map((item) => item.id)).toEqual([
-        'lib-1',
-      ])
-      // 宿主已经有 2 张可用参考图（第三张 disabled 也占位），新的那张落在队尾。
-      expect(editor.textContent).toContain('@Image4')
-    } finally {
-      vi.useRealTimers()
-    }
-  })
-
-  it('搜不出来时给出错那一句与重试，点重试真的再发一发', async () => {
-    vi.useFakeTimers()
-    try {
-      fetchGalleryImages.mockResolvedValue({ success: false, error: 'boom' })
-      renderPanel()
-      typeAt(screen.getByRole('textbox', { name: 'placeholderIdle' }))
-      await act(async () => {
-        vi.advanceTimersByTime(300)
-      })
-
-      expect(
-        document.querySelector('[data-mention-section-status="error"]'),
-      ).not.toBeNull()
-      const retry = document.querySelector(
-        '[data-mention-section-retry="library"]',
-      ) as HTMLElement
-      fetchGalleryImages.mockResolvedValue({
-        success: true,
-        data: { generations: [] },
-      })
-      fireEvent.click(retry)
-      await act(async () => {
-        vi.advanceTimersByTime(300)
-      })
-      expect(fetchGalleryImages).toHaveBeenCalledTimes(2)
-      expect(
-        document.querySelector('[data-mention-section-status="empty"]'),
-      ).not.toBeNull()
-    } finally {
-      vi.useRealTimers()
-    }
+    const options = screen.getAllByRole('option')
+    expect(options.map((option) => option.textContent)).toEqual([
+      'image',
+      'image',
+    ])
+    expect(document.querySelector('[data-mention-section]')).toBeNull()
+    expect(fetchGalleryImages).not.toHaveBeenCalled()
   })
 })

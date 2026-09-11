@@ -453,38 +453,6 @@ export interface MentionCandidate {
   preview?: string
   thumbnailUrl?: string
   tokenName?: string
-  /** 落在哪一段（见 `mentionSections`）。不给就不分段，行为与从前一致。 */
-  sectionId?: string
-  /**
-   * **这一条已经按查询词筛过了**（服务端搜出来的那些）——⛔ 别再用名字子串筛一遍。
-   *
-   * 不给这一位的下场：素材库按提示词 / 标签搜到的那张图，名字里没有查询词，
-   * 于是刚回来就被本地那道 `name.includes(q)` 全部滤掉，列表恒空。
-   */
-  searched?: boolean
-}
-
-/**
- * 候选列表的一段（`@` 选择器分段时给）。
- *
- * ⭐ 段是**来源**不是类型：「当前工作台」与「素材库」回答的是「这张图从哪儿来、
- * 选中它会发生什么」——前者已经在工作台上，后者选中会挂上去。
- */
-export interface MentionSection {
-  id: string
-  label: string
-  /**
-   * 这一段一条候选都没有时说什么。三态各一句（加载中 / 空 / 出错），
-   * ⛔ 没有「什么都不显示」那一档 —— 那正是「点了没反应」的样子。
-   * 不给 = 这一段没东西时整段不渲染（当前工作台那一段就是这么用的）。
-   */
-  status?: {
-    kind: 'loading' | 'empty' | 'error'
-    label: string
-    /** 出错那一档上那颗重试；不给就只有一句话。 */
-    onRetry?(): void
-    retryLabel?: string
-  }
 }
 
 /** 光标前的 `@查询` —— 没在写 @ 时为 null。 */
@@ -523,13 +491,6 @@ export interface MentionInputProps {
    * 再通过 ref 的 `insertToken(name)` / `insertText(原文)` 把内容放进去。
    */
   onMentionSelect?(candidate: MentionCandidate): void
-  /**
-   * 把候选分段渲染（段头 + 段内候选）。顺序 = 渲染顺序 = 键盘上下走的顺序。
-   * 不传就是一张平列表，与加这个能力之前逐字一致。
-   */
-  mentionSections?: readonly MentionSection[]
-  /** `@` 查询词变了（`null` = 选择器关了）—— 分段的那一方靠它去搜。 */
-  onMentionQueryChange?(query: string | null): void
 }
 
 /**
@@ -595,8 +556,6 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       onKeyUpCapture,
       mentionCandidates,
       onMentionSelect,
-      mentionSections,
-      onMentionQueryChange,
       id,
       disabled = false,
       variant = 'default',
@@ -720,17 +679,8 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       if (!mention || !mentionCandidates?.length) return []
       const q = mention.query.text.toLowerCase()
       const hit = q
-        ? mentionCandidates.filter(
-            (c) => c.searched || c.name.toLowerCase().includes(q),
-          )
+        ? mentionCandidates.filter((c) => c.name.toLowerCase().includes(q))
         : [...mentionCandidates]
-      // 分段时**渲染顺序就是这个数组的顺序** —— 键盘上下与 aria-activedescendant
-      // 都认下标，两边对不上的表现是「按下箭头高亮跳到另一段」。
-      if (mentionSections?.length) {
-        return mentionSections.flatMap((section) =>
-          hit.filter((c) => c.sectionId === section.id),
-        )
-      }
       if (variant !== 'canvas' || hit.length <= MENTION_MAX_VISIBLE) return hit
 
       // 按族收拢，保持族的首次出现顺序。
@@ -759,22 +709,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         if (left === before) break // 所有族都发完了
       }
       return buckets.flatMap((bucket, i) => bucket.slice(0, quota[i]))
-    }, [mention, mentionCandidates, mentionSections, variant])
-
-    /**
-     * 查询词变了就告诉调用方（`null` = 选择器关了）。
-     *
-     * ⚠ 走 effect 而不是在 `syncMention` 里直接调：那是渲染路径上的事件处理，
-     * 在里面调用方一 `setState` 就是「渲染另一个组件时更新状态」那条 React 警告。
-     * ⚠ 回调放 ref 里读：调用方多半给的是一个行内箭头函数，进依赖数组会让这条
-     * effect 每帧都跑一次。
-     */
-    const mentionQuery = mention ? mention.query.text : null
-    const onMentionQueryChangeRef = useRef(onMentionQueryChange)
-    onMentionQueryChangeRef.current = onMentionQueryChange
-    useEffect(() => {
-      onMentionQueryChangeRef.current?.(mentionQuery)
-    }, [mentionQuery])
+    }, [mention, mentionCandidates, variant])
 
     /** 光标动了就重算查询 —— 输入、点击、方向键都要走这里。 */
     const syncMention = () => {
@@ -847,15 +782,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       }
     }, [mention, listId, variant])
 
-    // 段头也占高度 —— 不算进去的话分段浮层会在贴底时算错翻转点（弹在光标下面
-    // 一半被视口切掉）。
-    const pickerHeight = Math.min(
-      264,
-      Math.max(
-        60,
-        matches.length * 52 + (mentionSections?.length ?? 0) * 26 + 8,
-      ),
-    )
+    const pickerHeight = Math.min(264, Math.max(60, matches.length * 52 + 8))
     const viewportBottom = portalHost
       ? (window.visualViewport?.height ?? window.innerHeight) +
         (window.visualViewport?.offsetTop ?? 0)
@@ -942,30 +869,6 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
         ) : null}
       </button>
     )
-
-    /** 一段里一条候选都没有时的那一行 —— 加载中 / 空 / 出错，⛔ 没有第四档。 */
-    const renderSectionStatus = (section: MentionSection) => {
-      const status = section.status
-      if (!status) return null
-      return (
-        <div
-          data-mention-section-status={status.kind}
-          className="flex items-center gap-2 px-2 py-2 text-sm text-muted-foreground"
-        >
-          <span className="min-w-0 flex-1 truncate">{status.label}</span>
-          {status.onRetry ? (
-            <button
-              type="button"
-              data-mention-section-retry={section.id}
-              onClick={status.onRetry}
-              className="shrink-0 rounded-md px-1.5 py-0.5 text-sm text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {status.retryLabel}
-            </button>
-          ) : null}
-        </div>
-      )
-    }
 
     useImperativeHandle(
       ref,
@@ -1139,11 +1042,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           原注释「fixed + 视口坐标，所以不会被父级带跑」正是这条错判，就地改掉。
           ⚠ `onMouseDown` 必须 preventDefault —— 否则点击先让编辑器失焦，onBlur 把
           浮层关掉，click 永远等不到。 */}
-        {portalHost &&
-        mention &&
-        (matches.length > 0 ||
-          emptyLabel ||
-          mentionSections?.some((section) => section.status))
+        {portalHost && mention && (matches.length > 0 || emptyLabel)
           ? createPortal(
               <div
                 role="listbox"
@@ -1176,47 +1075,12 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
                 }}
                 onMouseDown={(event) => event.preventDefault()}
               >
-                {mentionSections?.length ? (
-                  mentionSections.map((section) => {
-                    /* 段内候选从**扁平 matches 里挑**（而不是各段自己再筛一遍）：
-                       键盘高亮认的是 matches 的下标，两处各排一次序就会错位。 */
-                    const rows = matches.flatMap((candidate, index) =>
-                      candidate.sectionId === section.id
-                        ? [{ candidate, index }]
-                        : [],
-                    )
-                    if (!rows.length && !section.status) return null
-                    return (
-                      <div
-                        key={section.id}
-                        data-mention-section={section.id}
-                        className="flex flex-col"
-                      >
-                        <p className="px-2 pb-1 pt-1.5 text-3xs uppercase tracking-nav text-muted-foreground">
-                          {section.label}
-                        </p>
-                        {rows.length
-                          ? rows.map(({ candidate, index }) =>
-                              renderRow(candidate, index),
-                            )
-                          : section.status
-                            ? renderSectionStatus(section)
-                            : null}
-                      </div>
-                    )
-                  })
-                ) : (
-                  <>
-                    {!matches.length ? (
-                      <p className="px-3 py-3 text-sm text-muted-foreground">
-                        {emptyLabel}
-                      </p>
-                    ) : null}
-                    {matches.map((candidate, index) =>
-                      renderRow(candidate, index),
-                    )}
-                  </>
-                )}
+                {!matches.length ? (
+                  <p className="px-3 py-3 text-sm text-muted-foreground">
+                    {emptyLabel}
+                  </p>
+                ) : null}
+                {matches.map((candidate, index) => renderRow(candidate, index))}
               </div>,
               portalHost,
             )

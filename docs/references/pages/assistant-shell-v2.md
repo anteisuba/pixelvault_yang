@@ -274,26 +274,33 @@
 ### 4.4 输入区（两行）
 
 **上行**：文本框（多行自增高）。
-**下行**：`+` · 上传 · **LLM 模型 chip** · ……右端发送键。
+**下行**：`+` · 上传 · **素材库** · **LLM 模型 chip** · ……右端发送键。
 
 **「+」菜单三项**（画板 BCards「+」展开态）：
 
 | 项       | 作用                                                 |
 | -------- | ---------------------------------------------------- |
-| 提及素材 | 唤出 `@` 选择器（v1 `MentionInput`，**两段**，见下） |
+| 提及素材 | 唤出 `@` 选择器（v1 `MentionInput`，**单段**，见下） |
 | 上下文卡 | 挂一张角色 / 风格 / 品牌卡                           |
 | 指定来源 | 本轮限定检索来源（接 §9.3 白 / 黑名单）              |
 
-**`@` 选择器分两段**（切片 #7b）：**当前工作台**（参考图 / 结果，选中 = 引用它）与
-**素材库**（按输入词搜 `/api/images` `mine`，无输入词时最近 6 条；选中 = **挂进工作台**
-再引用）。素材库那一段三态都说话（搜索中 / 空 / 出错带重试），⛔ 没有「悄悄什么都不显示」。
+**`@` 选择器只列当前工作台**（参考图 / 结果，选中 = 引用它）。一条都没对上时也要
+说话（「这儿本来就没有参考图」与「没一条对得上你打的字」两句分开），⛔ 没有「悄悄
+什么都不显示」。
 
-**为什么并进 `@` 而不是加第四个菜单项**：旧 📎 面板里的「最近 6 格 + 打开完整素材库」
-（`AssetSelectorDialog`）删掉之后，「从素材库挑图挂到助手」没了入口。挑图与提及回答的是
-同一个问题——「让助手看这张」——两个入口会各自长出一套选中行为。落点：
-`use-studio-operator-mention.ts` 的 `useStudioOperatorAssetLibrary`（搜索 + 防抖 + 去重）、
-共享 `MentionInput` 的 `mentionSections`（分段 + 三态）、`StudioOperatorPanel` 的
-`pickLibraryAsset`（`addChip` → dock effect → `apply.addReference`，⛔ 面板不自己挂）。
+**素材库是下行一颗独立按钮**（切片 #7c，owner 2026-09-11「@ 那边取消，最好新做一个
+按钮」）：点开 `AssetSelectorDialog`（桌面 Dialog / 手机 Drawer），里面仍是
+`AssetPickerBrowser` —— **首屏 10 条**（`STUDIO_OPERATOR_LIBRARY_PAGE_SIZE`）、左侧
+文件夹分类、往下拉继续翻页、多选、锁图片档。选中 → 每张走 `mention.addChip`，图片
+那一档由 `StudioOperatorDock` 的 effect 落到 `apply.addReference`，⛔ 面板不自己挂。
+
+**为什么从 `@` 的第二段改成显性按钮**：`@` 得先想起来打一个 `@` 才看得见，而「从素材
+库挑图」是用户一眼要找的入口——藏在提及语法后面等于没有入口。⛔ 随之删掉的：
+`useStudioOperatorAssetLibrary`（搜索 + 防抖 + 三态）、共享 `MentionInput` 的
+`mentionSections` / `onMentionQueryChange` / `MentionCandidate.searched`（全仓只有助手
+这一处消费，删回单段实现）、`STUDIO_OPERATOR_MENTION_SECTION_IDS` 与
+`STUDIO_OPERATOR_LIBRARY_CANDIDATE_PREFIX`、i18n `mention.{workbench,library,libraryEmpty,searchFailed,searchRetry,searching}`。
+⛔ 不留兼容层。
 
 **删掉的**：「先问我」开关（决策 6）。它的语义迁到人设三档的 `planMode`（§11.1）。⛔ 不留兼容开关。
 

@@ -7,13 +7,19 @@ import type {
   VideoDefaults,
   VideoExtensionConfig,
 } from '@/constants/models/types'
-import { IMAGE_MODEL_OPTIONS } from '@/constants/models/image'
+import {
+  IMAGE_KIND,
+  IMAGE_MODEL_OPTIONS,
+  resolveImageKind,
+  type ImageKind,
+} from '@/constants/models/image'
 import { VIDEO_MODEL_OPTIONS } from '@/constants/models/video'
 import { AUDIO_MODEL_OPTIONS } from '@/constants/models/audio'
 import { MODEL_3D_OPTIONS } from '@/constants/models/model-3d'
 
 // Re-exports for backwards compatibility.
-export { AI_MODELS }
+export { AI_MODELS, IMAGE_KIND, resolveImageKind }
+export type { ImageKind }
 export type {
   ModelOption,
   QualityTier,
@@ -414,10 +420,17 @@ export const getAvailableVideoModels = (): ModelOption[] =>
       (VIDEO_MODEL_PRIORITY[a.id] ?? 999) - (VIDEO_MODEL_PRIORITY[b.id] ?? 999),
   )
 
-/** Get only the currently available image models. */
-export const getAvailableImageModels = (): ModelOption[] =>
+/**
+ * Get only the currently available image models. Pass `kind` to keep one role
+ * — generation surfaces pass `IMAGE_KIND.GENERATE` so edit endpoints and LoRA
+ * bases stay out of their pickers.
+ */
+export const getAvailableImageModels = (kind?: ImageKind): ModelOption[] =>
   MODEL_OPTIONS.filter(
-    (model) => model.available && model.outputType === 'IMAGE',
+    (model) =>
+      model.available &&
+      model.outputType === 'IMAGE' &&
+      (kind === undefined || resolveImageKind(model) === kind),
   )
 
 /** Get only the currently available audio models. */

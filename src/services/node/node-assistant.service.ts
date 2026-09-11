@@ -26,6 +26,7 @@ import {
   getAvailableAudioModels,
   getAvailableImageModels,
   getAvailableVideoModels,
+  IMAGE_KIND,
 } from '@/constants/models'
 import {
   assistantAdapterAcceptsReferenceKind,
@@ -233,7 +234,7 @@ function getNodeAssistantMediaInputs(
  */
 function buildModelCatalogInstructions(): string {
   const groups = [
-    { kind: 'image', models: getAvailableImageModels() },
+    { kind: 'image', models: getAvailableImageModels(IMAGE_KIND.GENERATE) },
     { kind: 'video', models: getAvailableVideoModels() },
     { kind: 'audio', models: getAvailableAudioModels() },
   ]

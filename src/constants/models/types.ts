@@ -3,6 +3,7 @@ import type { AudioKind } from '@/constants/audio-options'
 import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
 import type { VideoResolution } from '@/constants/video-options'
 import type { AI_MODELS } from '@/constants/models/enum'
+import type { ImageKind } from '@/constants/models/image'
 
 /** Quality tier for all models */
 export type QualityTier = 'budget' | 'standard' | 'premium'
@@ -49,6 +50,11 @@ export interface ModelOption {
    * attribute, not a separate mode. Omitted → speech (see DEFAULT_AUDIO_KIND).
    */
   audioKind?: AudioKind
+  /**
+   * For IMAGE models: what the entry is for (generate / edit / lora-base).
+   * Omitted → generate (see DEFAULT_IMAGE_KIND).
+   */
+  imageKind?: ImageKind
   available: boolean
   freeTier?: boolean
   officialUrl?: string

@@ -429,9 +429,9 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     maxReferenceImages: 0,
   },
   [AI_MODELS.FLUX_KONTEXT_MAX]: {
-    capabilities: ['seed', 'lora'] as const,
+    // fal `kontext/max/multi` has no `loras` input (OpenAPI checked 2026-09-11).
+    capabilities: ['seed'] as const,
     maxReferenceImages: 4,
-    maxLoras: 5,
     referenceImageMode: 'native' as const,
   },
   [AI_MODELS.ANIMA_PENCIL_XL]: {

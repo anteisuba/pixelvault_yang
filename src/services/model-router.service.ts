@@ -8,7 +8,12 @@ import {
   USER_PREFERENCE_WEIGHT,
   type ModelRouterWeights,
 } from '@/constants/model-strengths'
-import { MODEL_OPTIONS, getModelById } from '@/constants/models'
+import {
+  IMAGE_KIND,
+  MODEL_OPTIONS,
+  getModelById,
+  resolveImageKind,
+} from '@/constants/models'
 import { classifyImageIntentTaskType } from '@/lib/classify-task-type'
 import { logger } from '@/lib/logger'
 import type { ImageIntent, ModelRouterPreferences } from '@/types'
@@ -303,6 +308,7 @@ export async function routeModelsForIntent(
     (model) =>
       model.available === true &&
       model.outputType === 'IMAGE' &&
+      resolveImageKind(model) === IMAGE_KIND.GENERATE &&
       MODEL_STRENGTHS[model.id],
   )
     .filter((model) => {

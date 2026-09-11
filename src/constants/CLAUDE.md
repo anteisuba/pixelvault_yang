@@ -35,6 +35,8 @@ Constants are imported throughout the entire codebase. Changes here affect provi
 
 Follow `docs/scenes/new-model.md` (workflow, 5 questions, checklist). The four things that must move together: `AI_MODELS` enum + `ModelOption` config here, the i18n entry in all three of `src/messages/{en,ja,zh}.json`, and the provider adapter in `src/services/providers/`. Verify with `npx vitest run src/constants/`.
 
+Image entries declare their role with `imageKind` (`edit` = must-have-image endpoint, `lora-base` = exists to mount LoRA; omitted = `generate`). Generation surfaces read `getAvailableImageModels(IMAGE_KIND.GENERATE)`; ⛔ don't infer the role from `supportsLora` / `requiresReferenceImage`.
+
 ### Modifying config.ts (limits, timeouts, pagination)
 
 These values are used at runtime. Changes affect:

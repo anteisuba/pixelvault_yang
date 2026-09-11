@@ -6,6 +6,7 @@ import {
   getAvailableAudioModels,
   getAvailableImageModels,
   getAvailableVideoModels,
+  IMAGE_KIND,
   type ModelOption,
 } from '@/constants/models'
 import {
@@ -44,7 +45,10 @@ function toNodeWorkflowModelOption(
 
 export function useWorkflowModelOptions(): NodeWorkflowModelOptionsByType {
   const { keys, healthMap } = useApiKeysContext()
-  const imageModels = useMemo(() => getAvailableImageModels(), [])
+  const imageModels = useMemo(
+    () => getAvailableImageModels(IMAGE_KIND.GENERATE),
+    [],
+  )
   const videoModels = useMemo(() => getAvailableVideoModels(), [])
   const audioModels = useMemo(() => getAvailableAudioModels(), [])
 

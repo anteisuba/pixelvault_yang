@@ -158,9 +158,6 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
     recommendedModelIds: [
       AI_MODELS.NOVELAI_V5_FULL,
       AI_MODELS.NOVELAI_V45_FULL,
-      // ILLUSTRIOUS_XL is the hosted LoRA anime line (Civitai adapters).
-      // NovelAI is a closed API — tags, not LoRA files.
-      AI_MODELS.ILLUSTRIOUS_XL,
     ],
   },
   [WORKFLOW_IDS.CHARACTER_CONSISTENCY_IMAGE]: {
@@ -170,10 +167,7 @@ const WORKFLOW_STUDIO_DEFAULT_OVERRIDES: Partial<
   },
   [WORKFLOW_IDS.IMAGE_EDIT_REMIX]: {
     openPanel: 'refImage',
-    recommendedModelIds: [
-      AI_MODELS.FLUX_KONTEXT_MAX,
-      AI_MODELS.GEMINI_PRO_IMAGE,
-    ],
+    recommendedModelIds: [AI_MODELS.GEMINI_PRO_IMAGE],
   },
   [WORKFLOW_IDS.POSTER_LAYOUT]: {
     openPanel: 'modelSelector',

@@ -11,6 +11,30 @@ import { getRunnerCheckpointById } from '@/constants/runner-checkpoints'
 const RUNNER_TIMEOUT_MS = 600_000
 
 /**
+ * 图片条目的用途（owner 2026-09-11）。与音频的 `audioKind` 同形：一个显式写死的
+ * 属性，⛔ 不从 `supportsLora` / `requiresReferenceImage` 这类能力位推导——能力
+ * 不等于用途（Kontext Max 曾因虚标 `supportsLora` 被当成 LoRA 模型）。
+ *
+ * - `generate` 通用生成：Image 工作台、画布、助手目录只列这一类
+ * - `edit` 必须带图的编辑端点：只归编辑入口，不进生成选择器
+ * - `lora-base` 为挂 LoRA 而存在的底模：只在 LoRA 工作台出现
+ */
+export const IMAGE_KIND = {
+  GENERATE: 'generate',
+  EDIT: 'edit',
+  LORA_BASE: 'lora-base',
+} as const
+
+export type ImageKind = (typeof IMAGE_KIND)[keyof typeof IMAGE_KIND]
+
+export const DEFAULT_IMAGE_KIND: ImageKind = IMAGE_KIND.GENERATE
+
+/** The role of an image entry — defaults to generate when unset. */
+export function resolveImageKind(model: ModelOption): ImageKind {
+  return model.imageKind ?? DEFAULT_IMAGE_KIND
+}
+
+/**
  * Image generation models, ordered by product recommendation. The catalog is
  * intentionally lean: one flagship plus specialized models with distinct roles.
  */
@@ -101,6 +125,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     styleTag: 'general',
     maxPromptChars: 8000,
     requiresReferenceImage: true,
+    imageKind: IMAGE_KIND.EDIT,
   },
   {
     // Seedream 5.0 Pro — #8 on the Artificial Analysis text-to-image arena.
@@ -347,6 +372,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://replicate.com/delta-lock/noobai-xl',
     qualityTier: 'standard',
     styleTag: 'anime',
+    imageKind: IMAGE_KIND.LORA_BASE,
     supportsLora: true,
   },
   {
@@ -360,6 +386,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://fal.ai/models/fal-ai/flux-lora',
     qualityTier: 'standard',
     styleTag: 'general',
+    imageKind: IMAGE_KIND.LORA_BASE,
     supportsLora: true,
   },
   {
@@ -418,7 +445,8 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     timeoutMs: 300_000,
     qualityTier: 'premium',
     styleTag: 'general',
-    supportsLora: true,
+    requiresReferenceImage: true,
+    imageKind: IMAGE_KIND.EDIT,
   },
   {
     id: AI_MODELS.ANIMA_PENCIL_XL,
@@ -431,6 +459,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     officialUrl: 'https://replicate.com/explore?query=anima',
     qualityTier: 'standard',
     styleTag: 'anime',
+    imageKind: IMAGE_KIND.LORA_BASE,
     supportsLora: true,
   },
   // ─── Comfy Runner (RunPod Serverless ComfyUI) ──────────────────────
@@ -449,6 +478,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     available: FEATURE_FLAGS.comfyRunner,
     qualityTier: 'standard',
     styleTag: 'anime',
+    imageKind: IMAGE_KIND.LORA_BASE,
     supportsLora: true,
     timeoutMs: RUNNER_TIMEOUT_MS,
   },
@@ -462,6 +492,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     available: FEATURE_FLAGS.comfyRunner,
     qualityTier: 'standard',
     styleTag: 'anime',
+    imageKind: IMAGE_KIND.LORA_BASE,
     supportsLora: true,
     timeoutMs: RUNNER_TIMEOUT_MS,
   },
@@ -475,6 +506,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     available: FEATURE_FLAGS.comfyRunner,
     qualityTier: 'standard',
     styleTag: 'anime',
+    imageKind: IMAGE_KIND.LORA_BASE,
     supportsLora: true,
     timeoutMs: RUNNER_TIMEOUT_MS,
   },
@@ -488,6 +520,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     available: FEATURE_FLAGS.comfyRunner,
     qualityTier: 'standard',
     styleTag: 'general',
+    imageKind: IMAGE_KIND.LORA_BASE,
     supportsLora: true,
     timeoutMs: RUNNER_TIMEOUT_MS,
   },
@@ -504,6 +537,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     available: FEATURE_FLAGS.comfyRunner,
     qualityTier: 'standard',
     styleTag: 'anime',
+    imageKind: IMAGE_KIND.LORA_BASE,
     supportsLora: true,
     timeoutMs: RUNNER_TIMEOUT_MS,
   },

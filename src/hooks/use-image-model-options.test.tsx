@@ -3,15 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
-vi.mock('@/constants/models', async () => ({
-  AI_MODELS: (await import('@/constants/models/enum')).AI_MODELS,
-  getAvailableImageModels: vi.fn(() => [
+vi.mock('@/constants/models', async () => {
+  const { IMAGE_KIND } = await import('@/constants/models/image')
+  const models = [
     {
       id: 'runner-only-model',
       adapterType: AI_ADAPTER_TYPES.RUNNER,
       providerConfig: { label: 'PixelVault Runner', baseUrl: '' },
       cost: 3,
       freeTier: false,
+      imageKind: IMAGE_KIND.LORA_BASE,
     },
     {
       id: 'studio-image-model',
@@ -20,8 +21,19 @@ vi.mock('@/constants/models', async () => ({
       cost: 1,
       freeTier: false,
     },
-  ]),
-}))
+  ]
+  return {
+    AI_MODELS: (await import('@/constants/models/enum')).AI_MODELS,
+    IMAGE_KIND,
+    getAvailableImageModels: vi.fn((kind?: string) =>
+      models.filter(
+        (model) =>
+          kind === undefined ||
+          (model.imageKind ?? IMAGE_KIND.GENERATE) === kind,
+      ),
+    ),
+  }
+})
 
 vi.mock('@/contexts/api-keys-context', () => ({
   useApiKeysContext: vi.fn(() => ({ keys: [], healthMap: {} })),
@@ -48,6 +60,7 @@ vi.mock('@/lib/model-options', () => ({
   withProviderKeyCoverage: vi.fn((options) => options),
 }))
 
+import { getAvailableImageModels, IMAGE_KIND } from '@/constants/models'
 import { useStudioForm } from '@/contexts/studio-context'
 import { findSelectedModel } from '@/lib/model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
@@ -77,9 +90,10 @@ describe('useImageModelOptions', () => {
     })
   })
 
-  it('excludes LoRA-only Runner checkpoints from Image Studio', () => {
+  it('lists only generation entries, keeping LoRA bases out of Image Studio', () => {
     const { result } = renderHook(() => useImageModelOptions())
 
+    expect(getAvailableImageModels).toHaveBeenCalledWith(IMAGE_KIND.GENERATE)
     expect(result.current.modelOptions).toHaveLength(1)
     expect(result.current.modelOptions[0]?.modelId).toBe('studio-image-model')
     expect(result.current.modelOptions[0]?.adapterType).toBe(

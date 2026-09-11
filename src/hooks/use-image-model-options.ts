@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo } from 'react'
 
-import { getAvailableImageModels } from '@/constants/models'
+import { getAvailableImageModels, IMAGE_KIND } from '@/constants/models'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
@@ -32,10 +32,7 @@ export function useImageModelOptions(): UseImageModelOptionsReturn {
   const { keys, healthMap } = useApiKeysContext()
 
   const imageModels = useMemo(
-    () =>
-      getAvailableImageModels().filter(
-        (model) => model.adapterType !== AI_ADAPTER_TYPES.RUNNER,
-      ),
+    () => getAvailableImageModels(IMAGE_KIND.GENERATE),
     [],
   )
 

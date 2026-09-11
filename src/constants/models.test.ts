@@ -10,14 +10,18 @@ import {
   getModelById,
   getModelFamily,
   getModelMessageKey,
+  IMAGE_KIND,
+  type ImageKind,
   isBuiltInModel,
   isFreeTierModel,
   isRetiredModelId,
   MODEL_OPTIONS,
   normalizeModelId,
   RESERVED_MODEL_IDS,
+  resolveImageKind,
   RETIRED_MODEL_IDS,
 } from '@/constants/models'
+import { LORA_BASE_MODELS } from '@/constants/lora-base-models'
 import { getWorkflowStudioDefaults, WORKFLOWS } from '@/constants/workflows'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
@@ -153,8 +157,70 @@ describe('models', () => {
       for (const modelId of defaults.recommendedModelIds ?? []) {
         expect(availableModelIds.has(modelId)).toBe(true)
         expect(isRetiredModelId(modelId)).toBe(false)
+        // Workflow presets feed the Image Studio picker, which only lists
+        // generation entries — recommending an edit/LoRA-base entry is a dead pick.
+        const model = getModelById(modelId)
+        if (model?.outputType === 'IMAGE') {
+          expect(resolveImageKind(model), modelId).toBe(IMAGE_KIND.GENERATE)
+        }
       }
     }
+  })
+
+  it('gives every image entry one role, not derived from capability flags', () => {
+    const imageModels = MODEL_OPTIONS.filter(
+      (model) => model.outputType === 'IMAGE',
+    )
+    const idsOfKind = (kind: ImageKind) =>
+      imageModels
+        .filter((model) => resolveImageKind(model) === kind)
+        .map((model) => model.id)
+
+    expect(idsOfKind(IMAGE_KIND.EDIT)).toEqual([
+      AI_MODELS.FLUX_2_PRO_EDIT,
+      AI_MODELS.FLUX_KONTEXT_MAX,
+    ])
+
+    for (const model of imageModels) {
+      const kind = resolveImageKind(model)
+      // Only LoRA bases take LoRA files (Kontext Max once claimed it falsely).
+      expect(model.supportsLora === true, model.id).toBe(
+        kind === IMAGE_KIND.LORA_BASE,
+      )
+      if (model.adapterType === AI_ADAPTER_TYPES.RUNNER) {
+        expect(kind, model.id).toBe(IMAGE_KIND.LORA_BASE)
+      }
+      if (kind === IMAGE_KIND.EDIT) {
+        expect(model.requiresReferenceImage, model.id).toBe(true)
+      }
+    }
+
+    for (const base of LORA_BASE_MODELS) {
+      if (!base.providerModelId) continue
+      const model = getModelById(base.providerModelId)
+      expect(model && resolveImageKind(model), base.id).toBe(
+        IMAGE_KIND.LORA_BASE,
+      )
+    }
+  })
+
+  it('keeps edit endpoints and LoRA bases out of generation pickers', () => {
+    const generateIds = getAvailableImageModels(IMAGE_KIND.GENERATE).map(
+      (model) => model.id,
+    )
+    for (const modelId of [
+      AI_MODELS.FLUX_2_PRO_EDIT,
+      AI_MODELS.FLUX_KONTEXT_MAX,
+      AI_MODELS.FLUX_LORA,
+      AI_MODELS.ILLUSTRIOUS_XL,
+    ]) {
+      expect(generateIds).not.toContain(modelId)
+    }
+    // The unfiltered list still carries them for the LoRA workbench and the
+    // gallery's by-model filter (history includes LoRA-base generations).
+    expect(getAvailableImageModels().map((model) => model.id)).toContain(
+      AI_MODELS.FLUX_LORA,
+    )
   })
 
   it('does not treat retired models as active free-tier options', () => {

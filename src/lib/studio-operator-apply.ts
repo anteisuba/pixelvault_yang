@@ -355,6 +355,8 @@ export function applyOperatorStep(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.research:
     case ASSISTANT_OPERATOR_TOOL_IDS.readUrl:
+    /** ⚠ 翻证据本（§7.3）也是读：它只把库里已有的正文摆出来，表单一个字都没动。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence:
     /**
      * ⚠ 看图（P3-C）也是读：它只产生一段评价，表单一个字都没动 —— 要改什么由
      * 它之后那几条 `set_*` 各自负责（因此各自可撤销、各自进登记簿）。
@@ -613,6 +615,7 @@ export function revertOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.searchLoras:
     case ASSISTANT_OPERATOR_TOOL_IDS.research:
     case ASSISTANT_OPERATOR_TOOL_IDS.readUrl:
+    case ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence:
     case ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules:
     case ASSISTANT_OPERATOR_TOOL_IDS.listContextCards:
     case ASSISTANT_OPERATOR_TOOL_IDS.readContextCard:

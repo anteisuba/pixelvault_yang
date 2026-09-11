@@ -466,67 +466,6 @@ describe('审核态', () => {
   })
 })
 
-describe('跨轮工作记忆', () => {
-  const artifact = (id: string) => ({
-    id,
-    displayName: id,
-    kind: 'result' as const,
-    url: `https://x/${id}`,
-  })
-
-  it('同一轮按 runKey 合并、轮内按 id 去重', () => {
-    const result = readState()
-    act(() => store.recordOperatorArtifacts('run-1', [artifact('a')]))
-    act(() =>
-      store.recordOperatorArtifacts('run-1', [artifact('a'), artifact('b')]),
-    )
-    expect(result.current.workingMemory).toHaveLength(1)
-    expect(
-      result.current.workingMemory[0]?.artifacts.map((item) => item.id),
-    ).toEqual(['a', 'b'])
-  })
-
-  it('轮内封顶留最先见到的那些，轮数封顶只留最近几轮', async () => {
-    const { ASSISTANT_WORKING_MEMORY } =
-      await import('@/constants/assistant-operator')
-    const result = readState()
-    const many = Array.from(
-      { length: ASSISTANT_WORKING_MEMORY.maxArtifactsPerRound + 5 },
-      (_, index) => artifact(`a${index}`),
-    )
-    act(() => store.recordOperatorArtifacts('run-0', many))
-    expect(result.current.workingMemory[0]?.artifacts).toHaveLength(
-      ASSISTANT_WORKING_MEMORY.maxArtifactsPerRound,
-    )
-    // ⚠ 留的是**最先**那些：截头会让助手记不住这一轮从什么开始。
-    expect(result.current.workingMemory[0]?.artifacts[0]?.id).toBe('a0')
-
-    for (
-      let round = 1;
-      round <= ASSISTANT_WORKING_MEMORY.maxRounds;
-      round += 1
-    ) {
-      act(() =>
-        store.recordOperatorArtifacts(`run-${round}`, [artifact(`r${round}`)]),
-      )
-    }
-    expect(result.current.workingMemory).toHaveLength(
-      ASSISTANT_WORKING_MEMORY.maxRounds,
-    )
-    // 最早那一轮（run-0）被挤掉了。
-    expect(
-      result.current.workingMemory.map((round) => round.runKey),
-    ).not.toContain('run-0')
-  })
-
-  it('新对话清空 —— 新话题里指认上一条线程的产物是幻觉', () => {
-    const result = readState()
-    act(() => store.recordOperatorArtifacts('run-1', [artifact('a')]))
-    act(() => store.resetOperatorThread())
-    expect(result.current.workingMemory).toHaveLength(0)
-  })
-})
-
 /**
  * 断点续跑（第三期）——「刷新之后还在」是这一组唯一要钉的事。
  *

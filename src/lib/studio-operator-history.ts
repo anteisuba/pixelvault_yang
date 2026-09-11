@@ -139,6 +139,12 @@ export function describeOperatorStepDetail(
       ]
         .filter(Boolean)
         .join(' ')
+    /**
+     * 翻证据本（§7.3）—— 那一行写的是**编号**，⛔ 不是正文：正文有上千字，
+     * 而日志条上那一行的工作是「他去翻了哪几条」。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence:
+      return step.payload.refs.join(' ')
     case ASSISTANT_OPERATOR_TOOL_IDS.setPrompt:
     case ASSISTANT_OPERATOR_TOOL_IDS.setNegative:
       return `${step.payload.mode} · ${step.payload.value}`

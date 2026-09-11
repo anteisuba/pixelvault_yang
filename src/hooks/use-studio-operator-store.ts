@@ -23,10 +23,7 @@ import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
-import {
-  ASSISTANT_WORKING_MEMORY,
-  GENERATION_REVIEW_STATE_IDS,
-} from '@/constants/assistant-operator'
+import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import type { GenerationReviewState } from '@/constants/assistant-operator'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
@@ -52,8 +49,6 @@ import type {
   StudioOperatorAttachment,
   StudioOperatorCardMention,
   StudioOperatorChange,
-  StudioOperatorMemoryArtifact,
-  StudioOperatorMemoryRound,
   StudioOperatorConfirmPrompt,
   StudioOperatorMessageEntry,
   StudioOperatorQuestionPrompt,
@@ -207,13 +202,11 @@ export interface StudioOperatorState {
    * ⚠ `pending` **不落键**：没有键就是没人看过，⛔ 别为每一张都写一行 pending。
    */
   reviewStates: Readonly<Record<string, GenerationReviewState>>
-  /**
-   * **跨轮工作记忆**（切片 Y）—— 最近 `maxRounds` 轮的产物索引，随请求一起上去。
-   *
-   * ⚠ 住 store 而不是 hook 的 ref：面板会被收放法则（拍板 7）随时卸载，而
-   * 「上一轮那张图叫什么」不该因为收了一下面板就没了。
+  /*
+   * ⛔ **没有 `workingMemory`**（v2 §7.6，commit #12）：产物索引改由服务端从
+   * 本轮每一步的 `result` 现场派生 —— 客户端镜像一份再传回去，是为了「省一次
+   * 查库」而多养的一套会分叉的事实。跨轮那一半由结论记录接手（注入段）。
    */
-  workingMemory: readonly StudioOperatorMemoryRound[]
   /**
    * **上一份还没跑完的计划**（第三期 · 断点续跑）。
    *
@@ -226,8 +219,6 @@ export interface StudioOperatorState {
    */
   resume: StudioOperatorResumePlan | null
 }
-
-const EMPTY_MEMORY: readonly StudioOperatorMemoryRound[] = []
 
 const EMPTY_SLICE: StudioOperatorDomainSlice = {
   changes: {},
@@ -260,7 +251,6 @@ const INITIAL_STATE: StudioOperatorState = {
   confirm: null,
   capturingFrames: false,
   reviewStates: {},
-  workingMemory: EMPTY_MEMORY,
   resume: null,
 }
 
@@ -686,53 +676,6 @@ export function getOperatorReviewState(id: string): GenerationReviewState {
   return state.reviewStates[id] ?? GENERATION_REVIEW_STATE_IDS.pending
 }
 
-/**
- * 把这一轮见过的产物记进工作记忆。
- *
- * ⭐ **按 runKey 合并**：一轮里产物是陆续到的（先出结果、再 `@` 一张素材），
- * 每次都新起一轮的下场是五轮上限在半分钟内就被同一轮吃光。
- * ⚠ 轮内按 id 去重、超过 `maxArtifactsPerRound` 只留**最先见到的那些**：后来的
- * 那些多半是同一批的尾巴，而截头会让助手记不住这一轮是从什么开始的。
- * ⚠ 只留最近 `maxRounds` 轮。
- */
-export function recordOperatorArtifacts(
-  runKey: string,
-  artifacts: readonly StudioOperatorMemoryArtifact[],
-): void {
-  if (artifacts.length === 0) return
-  const rounds = [...state.workingMemory]
-  const index = rounds.findIndex((round) => round.runKey === runKey)
-  const existing = index >= 0 ? rounds[index] : undefined
-  const seen = new Set((existing?.artifacts ?? []).map((item) => item.id))
-  const fresh = artifacts.filter((item) => {
-    if (seen.has(item.id)) return false
-    seen.add(item.id)
-    return true
-  })
-  if (fresh.length === 0) return
-  const merged = [...(existing?.artifacts ?? []), ...fresh].slice(
-    0,
-    ASSISTANT_WORKING_MEMORY.maxArtifactsPerRound,
-  )
-  const round: StudioOperatorMemoryRound = {
-    runKey,
-    at: existing?.at ?? new Date().toISOString(),
-    artifacts: merged,
-  }
-  if (index >= 0) rounds[index] = round
-  else rounds.push(round)
-  emit({
-    ...state,
-    workingMemory: rounds.slice(-ASSISTANT_WORKING_MEMORY.maxRounds),
-  })
-}
-
-/** 切会话清空（见 `workingMemory` 的头注）。 */
-export function clearOperatorWorkingMemory(): void {
-  if (state.workingMemory.length === 0) return
-  emit({ ...state, workingMemory: EMPTY_MEMORY })
-}
-
 // ─── @ chip（§3.3 / §7）──────────────────────────────────────────
 
 /**
@@ -976,7 +919,6 @@ export function restoreOperatorThreadCheckpoint(
       },
     ],
     status: 'idle',
-    workingMemory: EMPTY_MEMORY,
     queue: [],
     question: null,
     confirm: null,
@@ -1011,8 +953,6 @@ export function loadOperatorThread(args: {
     stepsDone: 0,
     plannedSteps: 0,
     errorText: null,
-    // ⚠ 换一条线程 = 换一份工作记忆（同 `resetOperatorThread`）。
-    workingMemory: EMPTY_MEMORY,
   })
 }
 
@@ -1171,11 +1111,8 @@ export function resetOperatorThread(): void {
      * 又发了一枪，而他这一次根本没看见过任何确认卡。
      */
     /**
-     * ⭐ 工作记忆**跟着会话走**（切片 Y）：新话题里带着上一条线程的产物索引，
-     * 助手会去指认一件用户已经翻篇的东西。
-     * ⛔ `reviewStates` **不在这里清**：那是用户对产物的判断，与聊哪条线程无关。
+     * ⛔ `reviewStates` **不清**：那是用户对产物的判断，与聊哪条线程无关。
      */
-    workingMemory: EMPTY_MEMORY,
     /**
      * ⭐ 续跑记录也跟着会话走：那份没跑完的计划是**上一个话题**的事，留在新话题
      * 里的表现是一颗「从第 4 步继续」按钮，点下去助手接着做用户已经翻篇的活。

@@ -3,6 +3,7 @@ import 'server-only'
 import type { Prisma } from '@/lib/generated/prisma/client'
 
 import {
+  ASSISTANT_EVIDENCE_RECALL_LIMITS,
   ASSISTANT_EVIDENCE_REF_PREFIX,
   ASSISTANT_ROUND_SUMMARY_LIMITS,
 } from '@/constants/assistant-operator'
@@ -144,5 +145,89 @@ export async function appendAssistantEvidenceBook(args: {
       error: error instanceof Error ? error.message : String(error),
     })
     return { refs: [], researchRunIds: [] }
+  }
+}
+
+/**
+ * 一条被翻回来的证据 —— 形状见
+ * `AssistantOperatorRecalledEvidenceSchema`（`types/assistant-operator.ts`）。
+ */
+export interface AssistantRecalledEvidence {
+  ref: string
+  title: string
+  url?: string
+  source: string
+  body: string
+}
+
+export interface AssistantEvidenceRecallResult {
+  items: AssistantRecalledEvidence[]
+  /** 这段会话的证据本里**没有**的那几个号（§7.3：不存在要说得出来）。 */
+  missing: string[]
+}
+
+/** 三种 `kind` 压平成模型要读的那一段正文。 */
+function evidenceBody(item: EvidenceItem): string {
+  const text =
+    item.kind === 'text'
+      ? item.excerpt
+      : item.kind === 'tags'
+        ? `${item.tags.join(', ')}（${item.provenance}）`
+        : item.imageUrl
+  return text.slice(0, ASSISTANT_EVIDENCE_RECALL_LIMITS.maxBodyChars)
+}
+
+/**
+ * **按编号翻证据本**（§7.3 / commit #12 的 `recall_evidence`）。
+ *
+ * ⚠ 两道闸都在 where 里：`userId` **与** `conversationId` —— 编号是**会话内**
+ * 自增的，只核用户的话，A 会话的 `#e3` 会把 B 会话的 `#e3` 翻出来。
+ * ⚠ 翻不到的号进 `missing` 而不是抛错：三个号里有一个过期时，把翻到的两条给出去
+ * 比整条拒掉有用；一个都没翻到该不该拒，由调用方（规划器）判 —— 这里只答事实。
+ * ⛔ 它**不去打任何外部源**：翻旧账要是会触发一次新检索，那就不是翻旧账了。
+ */
+export async function recallAssistantEvidence(args: {
+  /** DB user id（不是 clerkId）。 */
+  userId: string
+  conversationId: string
+  refs: readonly string[]
+}): Promise<AssistantEvidenceRecallResult> {
+  const wanted = [...new Set(args.refs)].slice(
+    0,
+    ASSISTANT_EVIDENCE_RECALL_LIMITS.maxRefsPerCall,
+  )
+  if (wanted.length === 0) return { items: [], missing: [] }
+
+  const rows = await db.researchRun.findMany({
+    where: { userId: args.userId, conversationId: args.conversationId },
+    select: { evidence: true },
+  })
+
+  const found = new Map<string, AssistantRecalledEvidence>()
+  for (const row of rows) {
+    if (!Array.isArray(row.evidence)) continue
+    for (const raw of row.evidence) {
+      const parsed = EvidenceItemSchema.safeParse(raw)
+      if (!parsed.success) continue
+      const item = parsed.data
+      if (!item.ref || !wanted.includes(item.ref) || found.has(item.ref)) {
+        continue
+      }
+      found.set(item.ref, {
+        ref: item.ref,
+        title: item.title,
+        ...(item.url ? { url: item.url } : {}),
+        source: item.sourceId,
+        body: evidenceBody(item),
+      })
+    }
+  }
+
+  return {
+    // ⚠ 按**模型问的顺序**回，⛔ 不按库里的顺序：它问的顺序就是它读的顺序。
+    items: wanted
+      .map((ref) => found.get(ref))
+      .filter((item): item is AssistantRecalledEvidence => Boolean(item)),
+    missing: wanted.filter((ref) => !found.has(ref)),
   }
 }

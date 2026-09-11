@@ -33,7 +33,6 @@ import type {
   AssistantOperatorPlanOption,
   AssistantOperatorPlanQuestion,
   AssistantOperatorStep,
-  AssistantOperatorWorkingMemory,
   AssistantOperatorWorkingMemoryArtifact,
 } from '@/types/assistant-operator'
 
@@ -471,15 +470,13 @@ export function isVideoCritiquePayload(
 }
 
 /**
- * 工作记忆里那一轮 / 那一件 —— **契约那份的别名**（同反问卡三个别名的判据）。
+ * 工作记忆里那一件 —— **契约那份的别名**（同反问卡三个别名的判据）。
  *
  * ⛔ 不在这里抄一份 interface：这一份是要**原样进请求**的，抄一份的下场是
  * 客户端攒出一个服务端 schema 拒收的形状，而拒收发生在运行时。
  */
 export type StudioOperatorMemoryArtifact =
   AssistantOperatorWorkingMemoryArtifact
-export type StudioOperatorMemoryRound =
-  AssistantOperatorWorkingMemory['rounds'][number]
 
 /**
  * `@` 上来的**一张上下文卡**（切片 Y）—— 提示词栏里那颗 `ContextCardChip`。

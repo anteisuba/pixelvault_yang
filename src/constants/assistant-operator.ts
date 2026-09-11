@@ -171,6 +171,17 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   readUrl: 'read_url',
   /**
+   * **按编号翻证据本**（v2 §7.3，commit #12）。
+   *
+   * ⭐ 它存在的理由是「结论记录里只写编号」那条决定的另一半：上一轮查到的正文
+   * 不再跟着每一轮重发（那是每步一次 LLM 往返的重复账单），下一轮要看就按
+   * `#e12` 这个编号翻一次。⛔ 没有它的话，编号指向的是一个模型永远打不开的抽屉。
+   * ⚠ 只读**这段会话自己的**证据本（`ResearchRun.conversationId` + `userId` 双核），
+   * 编号不存在就明确拒（`unknownEvidenceRef`），⛔ 不去补查一次外网 —— 那会让
+   * 「翻旧账」变成一次新的花钱检索。
+   */
+  recallEvidence: 'recall_evidence',
+  /**
    * 把素材挂成参考图。
    *
    * ⛔ **载荷里的 URL 不由模型写**：模型只能给 `assetId`，而且只能是本轮
@@ -458,6 +469,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
   ASSISTANT_OPERATOR_TOOL_IDS.research,
   ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
+  ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
   ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setModel,
   ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -515,6 +527,11 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
    * ⛔ 它不下载图片、不落 R2、不碰素材库 —— 那条腿仍然只由用户点「选用」触发。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
+  /**
+   * ⚠ 翻证据本**也是读**（§7.3）：它把库里已经落下的那几条正文摆到模型面前，
+   * 一个外部源都不打、一分钱都不花、表单一个字都不改。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
   /**
    * ⚠ 看图**也是读**：这一步只产生一段评价，表单一个字都没动。所以它没有
    * `inverse`，日志条上也不该出现「撤销」（撤一条评价什么都撤不掉）。
@@ -665,6 +682,12 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.searchWeb]: ASSISTANT_OPERATOR_VERB_IDS.research,
   [ASSISTANT_OPERATOR_TOOL_IDS.research]: ASSISTANT_OPERATOR_VERB_IDS.research,
   [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]: ASSISTANT_OPERATOR_VERB_IDS.research,
+  /**
+   * ⚠ 翻证据本归**查**（§2.1「新增进「查」组的」那一行）：判据与组内其余几条
+   * 一致 —— 它去**别处**（这里是证据本）找东西回来，产出是「候选 + 证据」。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence]:
+    ASSISTANT_OPERATOR_VERB_IDS.research,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchLoras]:
     ASSISTANT_OPERATOR_VERB_IDS.research,
   /**
@@ -1017,6 +1040,12 @@ const COMMON_DOMAIN_TOOLS = [
    */
   ASSISTANT_OPERATOR_TOOL_IDS.research,
   ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
+  /**
+   * ⚠ 翻证据本**全域通用**（§7.3）：证据本是按**会话**长的，而一条会话可以跨
+   * 图片 / 视频 / LoRA 三台工作台（拍板 8）。按域裁等于让同一段对话在换个工作台
+   * 之后翻不开自己刚记下的编号。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
   ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
   ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -1419,30 +1448,17 @@ export const ASSISTANT_OPERATOR_LIMITS = {
 } as const
 
 /**
- * **跨轮工作记忆**的上限（切片 X）。
+ * **一轮里记得住几件产物**（切片 X；v2 §7.6 之后是**服务端现场派生**的那份）。
  *
- * ── 它解决的是什么 ────────────────────────────────────────────────
- * 服务端零会话态（拍板 13）的代价一直很具体：上一轮搜到的候选、上一轮生成的那张
- * 图，这一轮的准入名单里**一个都不在** —— 于是用户说「把刚才那张挂上」时助手只能
- * 重新搜一遍，或者干脆按 `unknownAsset` 拒。`priorSteps` 带回来的是「做过什么」
- * （一行摘要），带不回「产出了什么」（可指认的东西）。
- * ⚠ 它仍然**不是服务端状态**：整份记忆由客户端在每次请求里带上来，服务端读完就
- * 丢。⛔ 别把它做成服务端的一张表 —— 那正是打断语义要躲开的东西。
- * ⚠ 它也**不放宽任何实体闸**：blocked 照旧拒、参考位上限照旧、站点判定照旧。
- * 它只是让「这一轮之前产出过的东西」进得了准入名单。
+ * ⚠ 它不再是「最近几轮」：跨轮那一半由结论记录接手（§7.6 的注入段），而产物索引
+ * 现在只活在**本轮**里 —— 服务端手握每一步的完整 `result`，⛔ 不再让客户端镜像
+ * 一份传回来。
+ * ⚠ 上限仍然要有：索引里每一条都会以名字印进系统提示，而每一步 LLM 往返都要
+ * 重付一次这一段。
  */
 export const ASSISTANT_WORKING_MEMORY = {
-  /**
-   * 记得最近几轮。
-   *
-   * ⚠ 5 是「够用户说得出『刚才那张』」与「每一步系统提示都要重发这一段」之间的
-   * 那个数：每一轮至多 `maxArtifactsPerRound` 条名字，5 轮就是一屏 token，而
-   * 每一步 LLM 往返都要重付一次。⛔ 别调大成「整条会话」：那是把上下文窗口的钱
-   * 花在用户十分钟前就不再提的东西上。
-   */
-  maxRounds: 5,
-  /** 一轮里最多记几件产物。 */
-  maxArtifactsPerRound: 20,
+  /** 本轮最多记几件可指认的产物。 */
+  maxArtifacts: 40,
 } as const
 
 /**
@@ -1466,6 +1482,27 @@ export const ASSISTANT_ROUND_SUMMARY_LIMITS = {
    * 超了从最旧的那头丢 —— 注入只带最近 8 轮（§7.6），更旧的那些没人读。
    */
   maxRoundsPerConversation: 100,
+  /**
+   * **下一轮注入带最近几条**（§7.6）。判据照抄 spec：一次典型的图片调参对话在
+   * 8 轮内收敛；再多就该靠证据本按需翻（`recall_evidence`）而不是全量重发。
+   */
+  maxRoundsInPrompt: 8,
+} as const
+
+/**
+ * **按编号翻证据本**的上限（§7.3，commit #12）。
+ *
+ * ⚠ 它不是省钱闸（这一跳一分钱不花、一个外部源不打），是**上下文闸**：一轮只有
+ * `ASSISTANT_OPERATOR_LIMITS.maxSteps` 步，而每一步都把之前所有观察重发一遍 ——
+ * 不封顶的表现是助手把整轮步数烧在翻旧账上，表单一个字都没写。
+ */
+export const ASSISTANT_EVIDENCE_RECALL_LIMITS = {
+  /** 一轮最多翻几次。 */
+  maxCallsPerTurn: 3,
+  /** 一次最多翻几条编号。 */
+  maxRefsPerCall: 4,
+  /** 一条正文最多带回多少字 —— 超了截断，⛔ 不整条丢掉。 */
+  maxBodyChars: 1200,
 } as const
 
 /**
@@ -1677,6 +1714,21 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    */
   researchRoundsExhausted: 'researchRoundsExhausted',
   /**
+   * `recall_evidence` 引的编号**这段会话的证据本里没有**（§7.3，commit #12）。
+   *
+   * ⛔ 与 `unknownAsset` 同一条论据：不去补查一次、也不去打一次外网 —— 那等于
+   * 承认模型可以凭空说出一个编号，而编号的全部价值就是「点得回那一条」。
+   * ⚠ 它**可教**：助手读到之后该回到注入段里真的印着的那几个号，而不是换个号再试。
+   */
+  unknownEvidenceRef: 'unknownEvidenceRef',
+  /**
+   * 这一轮翻证据本的次数**用完了**（§7.3）。
+   *
+   * ⚠ 与 `researchRoundsExhausted` 分开：那条说「不能再去外面查了」，这条说
+   * 「旧账翻够了」—— 前者护的是钱，后者护的是这一轮剩下的步数。
+   */
+  evidenceRecallsExhausted: 'evidenceRecallsExhausted',
+  /**
    * `read_url` 拿到的地址**不能读**（2026-09-06）。
    *
    * 判据两条，都在服务端：非 http(s)，或指向本站自己（助手去读自己的页面
@@ -1812,6 +1864,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'find out about a SUBJECT properly — a character, a work, a studio, a piece of terminology. Give it a goal in one line plus the entities it turns on ("Ananta", "Shiye"), and it hits several kinds of source at once (encyclopedias, tag libraries, video, general web) and hands back evidence lines: what was said, who published it, how much weight it carries. Use it INSTEAD of search_web whenever the answer is a description rather than a single word, and use it FIRST when the creator names a character or work you are not certain of. You may call it a SECOND time in the same turn with a narrower goal once the first round tells you the official name, the right spelling, or which site is the source of truth — that second round is where the real answer usually is. One round that came back thin is not a dead end: change the entity spelling or the source mix and go again.',
   [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]:
     'actually READ one web page and get the part you need out of it. Takes a url you saw in a research or search_web result (or one the creator gave you) plus a short \'focus\' saying what you are looking for — "appearance and outfit", "release date", "official name". The server pulls the page, finds the passages that match your focus, and returns just those. This is how you get the details that a search extract never contains: hair, eyes, costume, colours, the exact wording of an official description. ⛔ It reads words only — it does not fetch, save or attach pictures.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence]:
+    'open the evidence you already gathered earlier in THIS conversation, by number. Earlier rounds are summarised for you in "WHAT EARLIER ROUNDS SETTLED", and the evidence there appears only as numbers like #e12 — this is how you read the actual text behind one. Pass the numbers you need in "refs". Use it when an earlier finding decides what you are about to write; never re-run a web search to recover something this conversation already looked up. A number that does not exist is refused — it is not a hint to go searching.',
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]:
     "attach one asset from a previous search_assets result to the workbench as a reference image. Takes an assetId, never a URL. ⚠ Web search results have no assetId and can never be mounted this way — only the creator's own library can.",
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]:

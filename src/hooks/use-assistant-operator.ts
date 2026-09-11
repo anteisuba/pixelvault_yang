@@ -70,7 +70,6 @@ import {
   getOperatorState,
   nextOperatorEntryId,
   operatorStepEntryId,
-  recordOperatorArtifacts,
   recordOperatorChange,
   removeOperatorQueued,
   resetOperatorThread,
@@ -89,12 +88,7 @@ import {
   setOperatorStepCheckpoint,
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
-import {
-  attachmentArtifacts,
-  collectStepArtifacts,
-  operatorMemoryName,
-  resultArtifacts,
-} from '@/lib/studio-operator-memory'
+import { collectStepArtifacts } from '@/lib/studio-operator-memory'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
 import {
@@ -669,7 +663,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * 旧助手线（`use-assistant-conversation`）也是把历史原样带回上下文的。
        * ⚠ 只带最后几条对白（`historyToOperatorMessages` 自己截），显示是全部。
        */
-      const { entries, history } = getOperatorState()
+      const { entries, history, sessionId } = getOperatorState()
       const mentionedAssets = buildMentionedAssets(entries, domain)
       const messages = [
         ...historyToOperatorMessages(history),
@@ -679,31 +673,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         setOperatorStatus('idle')
         return
       }
-
-      /**
-       * ⭐ 用户这一轮 `@` / 📎 上来的那几件先记进**这一轮**的工作记忆，再读整份
-       * 带走：顺序反过来的话，助手在下一轮才「记得」用户刚才指的是哪张。
-       * ⚠ 记的是最后一条用户消息上的那些（判据与 `mentionedAssets` 同源）：
-       *   把整条线程的附件都记一遍，五轮上限会被同一批图反复吃掉。
-       */
-      recordOperatorArtifacts(runKey, [
-        // ⚠ 它备的那一枪刚回来的那张也算这一轮见过的东西（`kind: 'result'`）：
-        //   用户下一句十有八九就是「刚出的那张」。⛔ 没有 generationId 时不记
-        //   —— 工作记忆是**按 id 指认**的，一条没有身份的记录指认不了任何东西。
-        ...(pendingResultRef.current?.generationId
-          ? resultArtifacts([
-              {
-                id: pendingResultRef.current.generationId,
-                url: pendingResultRef.current.url,
-                ...(pendingResultRef.current.prompt
-                  ? { label: pendingResultRef.current.prompt }
-                  : {}),
-              },
-            ])
-          : []),
-        ...attachmentArtifacts(lastUserAttachments(entries)),
-      ])
-      const workingMemory = getOperatorState().workingMemory
 
       /**
        * ⭐ **视频域评审的帧生产者**（第二期最后一环）—— 请求发出去之前抽 0/中/末。
@@ -787,29 +756,16 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            */
           ...(mentionedAssets.length ? { mentionedAssets } : {}),
           /**
-           * ⭐ **跨轮工作记忆**（切片 Y）：最近几轮见过的产物索引。没有它，助手
-           * 每一轮都从零开始 —— 第三轮里用户说「用刚才那张官方立绘」，它会回一句
-           * 「我没有看到你说的那张」。
-           * ⚠ 上限（5 轮 / 每轮 20 件）由 store 在写入时就截好，这里原样带上去 ——
-           *   ⛔ 别在这里再截一次：两处判据迟早说两句不一样的话，而服务端 schema
-           *   的 `.max()` 会把超出的那一份整个拒掉。
+           * ⭐ **这一轮属于哪段会话**（v2 §7.5 / §7.6，commit #12）—— 结账写库与
+           * 下一轮注入唯一的落点：服务端零会话态，会话的身份一直由客户端持有
+           * （`sessionId` 就是 `upsertAssistantConversation` 回来的那个 id）。
+           * ⚠ **缺席是常态而不是故障**：这条线程还没落过库（新会话的第一轮 ——
+           *   落库发生在这一轮说完话之后的那次 upsert）。那一轮的结论记录照旧算、
+           *   照旧随 `done` 下发，只是不落库，下一轮起才开始接得上。
+           * ⛔ 别为此在发请求前抢先建一条会话：那会给「说了一句就关掉」的用户在
+           *   历史列表里留一条空线程。
            */
-          ...(workingMemory.length
-            ? {
-                workingMemory: {
-                  rounds: workingMemory.map((round) => ({
-                    ...round,
-                    artifacts: round.artifacts.map((artifact) => ({
-                      ...artifact,
-                      displayName: operatorMemoryName(
-                        artifact.displayName,
-                        artifact.id,
-                      ),
-                    })),
-                  })),
-                },
-              }
-            : {}),
+          ...(sessionId ? { conversationId: sessionId } : {}),
           ...(videoFrames ? { videoFrames } : {}),
           ...(confirmations?.length ? { confirmations } : {}),
           ...(planAnswers?.length ? { planAnswers } : {}),
@@ -978,12 +934,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             case ASSISTANT_OPERATOR_EVENTS.step: {
               const { step } = event
               upsertOperatorStep(step, runKey)
-              /**
-               * ⭐ 这一步让谁看见了什么 —— 进工作记忆（切片 Y）。
-               * ⚠ 放在应用 op **之前**：下面那几条分支里有 `return`（停顿点、
-               *   计划卡），记在后面的话那几条路上这一步的产物就丢了。
-               */
-              recordOperatorArtifacts(runKey, collectStepArtifacts(step))
               /**
                * ⭐ **续跑记录跟着走**（第三期）：这一步有结论了，把计划里第一个
                * 还没有结论的那一格填掉。

@@ -108,9 +108,15 @@ export function collectStepArtifacts(
  *
  * ⚠ `kind` 恒 `asset`：它们来自素材库（或已经转存进库的那些），而不是这一轮
  * 新查出来的东西。⛔ 别按媒体类型分（见文件头注）。
+ * ⚠ 入参收的是**这三格的最小形状**而不是 `StudioOperatorAttachment`（v2 §7.6）：
+ * 服务端拿到的同一批东西叫 `request.mentionedAssets`（它的 `label` 可缺席），
+ * 而这个函数从头到尾只读 id / url / label。收窄到某一个调用方的完整类型，
+ * 结果就是另一个调用方要为了过类型去捏一个假的 `kind` —— 那是给类型系统演戏。
  */
 export function attachmentArtifacts(
-  attachments: readonly StudioOperatorAttachment[],
+  attachments: readonly (Pick<StudioOperatorAttachment, 'id' | 'url'> & {
+    label?: string
+  })[],
 ): readonly StudioOperatorMemoryArtifact[] {
   return attachments.map((attachment) => ({
     id: attachment.id,

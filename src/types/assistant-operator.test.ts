@@ -4,6 +4,7 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
+  ASSISTANT_EVIDENCE_RECALL_LIMITS,
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_ENTRY_ACTIONS,
   ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN,
@@ -216,6 +217,21 @@ const STEP_FIXTURES: Record<
       title: 'https://zh.moegirl.org.cn/%E6%97%B6%E5%A4%9C',
       url: 'https://zh.moegirl.org.cn/%E6%97%B6%E5%A4%9C',
       excerpt: '外貌：黑色长发…',
+    },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence]: {
+    payload: { refs: ['#e1', '#e2'] },
+    result: {
+      items: [
+        {
+          ref: '#e1',
+          title: '时夜 - 萌娘百科',
+          url: 'https://zh.moegirl.org.cn/%E6%97%B6%E5%A4%9C',
+          source: 'moegirl',
+          body: '外貌：黑色长发…',
+        },
+      ],
+      missing: ['#e2'],
     },
   },
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]: {
@@ -632,6 +648,50 @@ describe('五动词入口', () => {
    * 「都在」：后者放得过一条同时挂在两个入口下的工具，而那意味着模型有两条路
    * 去动同一颗旋钮。
    */
+  /**
+   * ⭐ **数目本身也锁一道**（commit #12 把 31 变成 32）：集合相等那条用例
+   * 断的是「没有孤儿、没有分身」，断不出「有人悄悄加了一条工具」——
+   * 而模型看得见的工具多一条，就是它多一条挑错的路。
+   */
+  it('⭐ 工具表是 32 条，recall_evidence 归「查」组（§7.3）', () => {
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(32)
+    expect(
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS[
+        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
+      ],
+    ).toContain(ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence)
+    expect(
+      ASSISTANT_OPERATOR_TOOL_VERBS[ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence],
+    ).toBe(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research)
+    // 五个入口里其余四个都碰不到它。
+    for (const entry of ASSISTANT_OPERATOR_ENTRY_TOOLS) {
+      if (entry === ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research) continue
+      expect(ASSISTANT_OPERATOR_ENTRY_ACTIONS[entry]).not.toContain(
+        ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
+      )
+    }
+  })
+
+  /** `recall_evidence` 的入参：编号形状封闭、一次最多几条。 */
+  it('recall_evidence 只收 #eN 形状的编号，且一次有上限', () => {
+    const schema =
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence
+      ]
+    expect(schema.safeParse({ refs: ['#e1', '#e12'] }).success).toBe(true)
+    expect(schema.safeParse({ refs: [] }).success).toBe(false)
+    expect(schema.safeParse({ refs: ['e1'] }).success).toBe(false)
+    expect(schema.safeParse({ refs: ['#e0'] }).success).toBe(false)
+    expect(
+      schema.safeParse({
+        refs: Array.from(
+          { length: ASSISTANT_EVIDENCE_RECALL_LIMITS.maxRefsPerCall + 1 },
+          (_, index) => `#e${index + 1}`,
+        ),
+      }).success,
+    ).toBe(false)
+  })
+
   it('⭐ 五个入口的 action 枚举合起来恰好是全部工具，且两两不重叠', () => {
     const all = ASSISTANT_OPERATOR_ENTRY_TOOLS.flatMap(
       (entry) => ASSISTANT_OPERATOR_ENTRY_ACTIONS[entry],

@@ -2,6 +2,7 @@ import { beforeEach, expect, it, vi } from 'vitest'
 import {
   appendAssistantConversationRound,
   getAssistantConversation,
+  listAssistantConversationRounds,
   listAssistantConversations,
   renameAssistantConversation,
   deleteAssistantConversation,
@@ -192,4 +193,41 @@ it('读回来时坏掉的那一条丢掉，⛔ 不作废整段会话', async () 
 
   expect(record?.rounds).toEqual([{ ...ROUND, roundIndex: 0 }])
   expect(record?.messages).toHaveLength(1)
+})
+
+/**
+ * **下一轮注入要读的那几条**（§7.6，commit #12）。
+ *
+ * ⚠ 它收的是 DB `userId`（⛔ 不是 clerkId）—— 调用方手上已经有那一行，
+ * 为签名整齐再 upsert 一次用户，是给每一轮多加一次写库。
+ */
+it('注入读：按 userId 核所有权，只回最近几条', async () => {
+  mocks.findFirst.mockResolvedValue({
+    rounds: [
+      { ...ROUND, roundIndex: 0 },
+      { ...ROUND, roundIndex: 1 },
+      { ...ROUND, roundIndex: 2 },
+    ],
+  })
+
+  const rounds = await listAssistantConversationRounds('owner-id', 'conv-1', {
+    limit: 2,
+  })
+
+  expect(mocks.findFirst).toHaveBeenCalledWith({
+    where: { id: 'conv-1', userId: 'owner-id' },
+    select: { rounds: true },
+  })
+  expect(rounds.map((round) => round.roundIndex)).toEqual([1, 2])
+  // ⛔ 没有额外一次 ensureUser：调用方已经有那一行了。
+  expect(mocks.ensureUser).not.toHaveBeenCalled()
+})
+
+it('注入读：会话不归这个用户 → 空，⛔ 不抛（注入不到不是跑不了）', async () => {
+  mocks.findFirst.mockResolvedValue(null)
+  expect(
+    await listAssistantConversationRounds('owner-id', 'conv-other', {
+      limit: 8,
+    }),
+  ).toEqual([])
 })

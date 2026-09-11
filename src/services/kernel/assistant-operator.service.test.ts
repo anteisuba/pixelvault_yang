@@ -129,20 +129,33 @@ const mockAppendAssistantConversationRound = vi.fn(
     round: Record<string, unknown>,
   ) => ({ ...round, roundIndex: 3 }),
 )
+/** 下一轮注入要读的那几条（§7.6）—— 同样桩掉，⛔ 这一层不验那条 SQL。 */
+const mockListAssistantConversationRounds = vi.fn(
+  async (..._args: unknown[]) => [] as Record<string, unknown>[],
+)
 vi.mock('@/services/assistant-conversation.service', () => ({
   appendAssistantConversationRound: (...args: unknown[]) =>
     mockAppendAssistantConversationRound(
       ...(args as [string, string, Record<string, unknown>]),
     ),
+  listAssistantConversationRounds: (...args: unknown[]) =>
+    mockListAssistantConversationRounds(...args),
 }))
 
 const mockAppendAssistantEvidenceBook = vi.fn(async (..._args: unknown[]) => ({
   refs: [] as string[],
   researchRunIds: [] as string[],
 }))
+/** 按编号翻证据本（§7.3）—— 桩掉，这一层验的是规划器那三道闸。 */
+const mockRecallAssistantEvidence = vi.fn(async (..._args: unknown[]) => ({
+  items: [] as Record<string, unknown>[],
+  missing: [] as string[],
+}))
 vi.mock('@/services/research/assistant-evidence-book.service', () => ({
   appendAssistantEvidenceBook: (...args: unknown[]) =>
     mockAppendAssistantEvidenceBook(...args),
+  recallAssistantEvidence: (...args: unknown[]) =>
+    mockRecallAssistantEvidence(...args),
 }))
 
 /**
@@ -239,6 +252,8 @@ vi.mock('@/services/context-cards.service', () => ({
 
 import {
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
+  ASSISTANT_EVIDENCE_RECALL_LIMITS,
+  ASSISTANT_ROUND_SUMMARY_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_ENTRY_TOOL_IDS,
   ASSISTANT_OPERATOR_ENTRY_TOOLS,
@@ -5055,27 +5070,20 @@ describe('计划协议 · plan / ask / confirm', () => {
     expect(prompt).toContain('[2] 写提示词')
   })
 
-  it('⭐ 产物按**名字**念（工作记忆水合），水合不到才退回 id', async () => {
+  it('⭐ 产物按**名字**念（准入索引水合），水合不到才退回 id', async () => {
     queueTurns({ plan: ['接着跑'] }, { finished: true })
     await collect(
       runAssistantOperator(
         'clerk-1',
         buildRequest({
-          workingMemory: {
-            rounds: [
-              {
-                runKey: 'run-1',
-                at: '2026-09-08T09:00:00.000Z',
-                artifacts: [
-                  {
-                    id: 'gen-42',
-                    displayName: '图_012·银发少女',
-                    kind: 'result',
-                  },
-                ],
-              },
-            ],
-          },
+          // §7.6：索引由服务端从这一轮递上来的东西派生，⛔ 不再由客户端镜像。
+          mentionedAssets: [
+            {
+              id: 'gen-42',
+              url: 'https://cdn.example.test/gen-42.png',
+              label: '图_012·银发少女',
+            },
+          ],
           resumeFrom: {
             planId: 'plan-7',
             completedSteps: [
@@ -6524,25 +6532,20 @@ describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
     })
   })
 
-  describe('跨轮工作记忆', () => {
-    const MEMORY = {
-      rounds: [
-        {
-          runKey: 'run-1',
-          at: '2026-09-07T10:00:00.000Z',
-          artifacts: [
-            {
-              id: 'gen-earlier',
-              displayName: '图_042·雨夜街道',
-              kind: 'result' as const,
-              url: 'https://cdn.example.test/earlier.png',
-            },
-          ],
-        },
-      ],
-    }
+  /**
+   * **可指认产物的准入索引**（切片 X；v2 §7.6 起由服务端从这一轮递上来的东西
+   * 现场派生 —— ⛔ 客户端不再镜像一份 `workingMemory` 传回来）。
+   */
+  describe('本轮准入索引（服务端派生）', () => {
+    const MENTIONED = [
+      {
+        id: 'gen-earlier',
+        url: 'https://cdn.example.test/earlier.png',
+        label: '图_042·雨夜街道',
+      },
+    ]
 
-    it('上一轮那张**不必重搜**就挂得上（第三张准入名单）', async () => {
+    it('用户递上来的那张**不必重搜**就挂得上（第三张准入名单）', async () => {
       queueTurns(
         {
           tool: {
@@ -6557,7 +6560,7 @@ describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
       const events = await collect(
         runAssistantOperator(
           'clerk-1',
-          buildRequest({ workingMemory: MEMORY }),
+          buildRequest({ mentionedAssets: MENTIONED }),
         ),
       )
       const step = terminalStep(
@@ -6573,12 +6576,12 @@ describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
       expect(mockGetPublicGenerationPage).not.toHaveBeenCalled()
     })
 
-    it('记忆里的名字进系统提示，⛔ 但 id 与地址不进', async () => {
+    it('索引里的名字进系统提示，⛔ 但 id 与地址不进', async () => {
       queueTurns({ finished: true, message: '好的' })
       await collect(
         runAssistantOperator(
           'clerk-1',
-          buildRequest({ workingMemory: MEMORY }),
+          buildRequest({ mentionedAssets: MENTIONED }),
         ),
       )
       const prompt = systemPrompt()
@@ -6588,8 +6591,8 @@ describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
     })
 
     /**
-     * ⭐ `import_user_url` 的**第三张准入名单**：上一轮摆出来过的那条地址，
-     * 用户此刻说「就那张」时既不在本轮消息里、也不在本轮候选表里。
+     * ⭐ `import_user_url` 的**第三张准入名单**：用户 `@` / 📎 递上来的那条地址 ——
+     * 它既不逐字出现在本轮消息里、也不在本轮候选表里。
      * ⛔ 它照旧不松来源判定 —— 下一条用例验的就是那道闸没动。
      */
     it('上一轮那条地址进得了 import_user_url 的名单', async () => {
@@ -6606,7 +6609,7 @@ describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
       const events = await collect(
         runAssistantOperator(
           'clerk-1',
-          buildRequest({ workingMemory: MEMORY }),
+          buildRequest({ mentionedAssets: MENTIONED }),
         ),
       )
       const step = terminalStep(
@@ -6619,7 +6622,7 @@ describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
       })
     })
 
-    it('⛔ 记忆之外的地址照旧 urlNotFromUser', async () => {
+    it('⛔ 索引之外的地址照旧 urlNotFromUser', async () => {
       queueTurns(
         {
           tool: {
@@ -6633,7 +6636,7 @@ describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
       const events = await collect(
         runAssistantOperator(
           'clerk-1',
-          buildRequest({ workingMemory: MEMORY }),
+          buildRequest({ mentionedAssets: MENTIONED }),
         ),
       )
       expect(
@@ -6643,7 +6646,7 @@ describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
       })
     })
 
-    it('⛔ 记忆之外的 id 照旧 unknownAsset —— 名单不是「什么都能挂」', async () => {
+    it('⛔ 索引之外的 id 照旧 unknownAsset —— 名单不是「什么都能挂」', async () => {
       queueTurns(
         {
           tool: {
@@ -6657,7 +6660,7 @@ describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
       const events = await collect(
         runAssistantOperator(
           'clerk-1',
-          buildRequest({ workingMemory: MEMORY }),
+          buildRequest({ mentionedAssets: MENTIONED }),
         ),
       )
       expect(
@@ -8213,5 +8216,280 @@ describe('每轮结账', () => {
     expect(doneEvent(events).roundSummary?.evidenceRefs).toEqual([])
     expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
     expect(mockAppendAssistantEvidenceBook).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * **结论注入与翻证据本**（v2 §7.6 / §7.3，commit #12）。
+ *
+ * ⭐ 这一组验的是「上一轮得出的结论下一轮还在不在」——§7.1 那张断点表的另一半。
+ * 结账（上一组）把一轮压成四栏落进会话，这一组验它怎么回到系统提示里，
+ * 以及证据正文怎么**按编号**取回（⛔ 而不是跟着每一轮重发）。
+ */
+describe('结论注入与 recall_evidence', () => {
+  const CONVERSATION_ID = '55555555-5555-4555-8555-555555555555'
+
+  /** 这一步**有结论**的那一帧（⛔ 不是 `running` 那一帧）。 */
+  function terminalStep(events: AssistantOperatorEvent[], tool: string) {
+    return stepsOf(events)
+      .filter(
+        (step) =>
+          step.tool === tool &&
+          step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+      )
+      .at(-1)
+  }
+
+  function round(index: number, overrides: Record<string, unknown> = {}) {
+    return {
+      roundIndex: index,
+      createdAt: '2026-09-10T10:00:00.000Z',
+      facts: [`第 ${index} 轮的事实`],
+      decisions: [],
+      todos: [],
+      evidenceRefs: [],
+      ...overrides,
+    }
+  }
+
+  it('⭐ 注入段只带最近 N 条，格式固定（事实 / 决定 / 待办 / 证据编号）', async () => {
+    mockListAssistantConversationRounds.mockResolvedValueOnce([
+      round(0, {
+        facts: ['库里有三张夜景'],
+        decisions: ['走写实档'],
+        todos: ['等用户定比例'],
+        evidenceRefs: ['#e1', '#e2'],
+      }),
+    ])
+    queueTurns({ finished: true, message: '好的' })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    const prompt = systemPrompt()
+    // ⚠ 断的是**段头整句**：`recall_evidence` 的工具说明里也提到这个段名。
+    expect(prompt).toContain('WHAT EARLIER ROUNDS SETTLED — oldest first')
+    expect(prompt).toContain('Round 1')
+    expect(prompt).toContain('Facts: 库里有三张夜景')
+    expect(prompt).toContain('Decided: 走写实档')
+    expect(prompt).toContain('Still open: 等用户定比例')
+    expect(prompt).toContain('Evidence: #e1 #e2')
+    // ⛔ 编号旁边**没有正文**：要看就调 recall_evidence（§7.6）。
+    expect(prompt).toContain('recall_evidence')
+  })
+
+  it('空栏写 `—`，没有证据编号时不印那一行', async () => {
+    mockListAssistantConversationRounds.mockResolvedValueOnce([round(0)])
+    queueTurns({ finished: true, message: '好的' })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain('Decided: —')
+    expect(prompt).toContain('Still open: —')
+    expect(prompt).not.toContain('Evidence:')
+  })
+
+  /**
+   * ⚠ 「只带最近 N 条」这道闸**两侧各一半**：读那一跳按 `limit` 要，注入那一段
+   * 自己再切一刀 —— 服务真回多了（老数据、别处调），提示里也不该多出来。
+   */
+  it('⭐ 读那一跳按 N 要，注入段自己再切一刀', async () => {
+    const many = Array.from({ length: 12 }, (_, index) => round(index))
+    mockListAssistantConversationRounds.mockResolvedValueOnce(many)
+    queueTurns({ finished: true, message: '好的' })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    expect(mockListAssistantConversationRounds).toHaveBeenCalledWith(
+      expect.any(String),
+      CONVERSATION_ID,
+      { limit: ASSISTANT_ROUND_SUMMARY_LIMITS.maxRoundsInPrompt },
+    )
+    const prompt = systemPrompt()
+    const printed = prompt.match(/ {2}Round \d+/g) ?? []
+    expect(printed).toHaveLength(
+      ASSISTANT_ROUND_SUMMARY_LIMITS.maxRoundsInPrompt,
+    )
+    // 最旧的那几条被切掉，最后一条一定在。
+    expect(prompt).not.toContain('  Round 1\n')
+    expect(prompt).toContain('  Round 12')
+  })
+
+  it('⛔ 没有会话 id 的那一轮读都不读', async () => {
+    queueTurns({ finished: true, message: '好的' })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(mockListAssistantConversationRounds).not.toHaveBeenCalled()
+    expect(systemPrompt()).not.toContain(
+      'WHAT EARLIER ROUNDS SETTLED — oldest first',
+    )
+  })
+
+  function recallTurn(refs: string[]) {
+    return {
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
+        title: '翻证据本',
+        args: { refs },
+      },
+    }
+  }
+
+  it('⭐ 命中：正文进观察，⛔ 服务端按会话 + 用户翻', async () => {
+    mockRecallAssistantEvidence.mockResolvedValueOnce({
+      items: [
+        {
+          ref: '#e1',
+          title: '萌娘百科 · 时夜',
+          url: 'https://zh.moegirl.org.cn/x',
+          source: 'moegirl',
+          body: '黑色长发，金瞳。',
+        },
+      ],
+      missing: [],
+    })
+    queueTurns(recallTurn(['#e1']), { finished: true, message: '照这个写。' })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    const step = terminalStep(
+      events,
+      ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
+    )
+    expect(step?.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect(step?.payload).toMatchObject({ refs: ['#e1'] })
+    expect(mockRecallAssistantEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        conversationId: CONVERSATION_ID,
+        refs: ['#e1'],
+      }),
+    )
+    expect(lastUserPrompt()).toContain('黑色长发，金瞳。')
+  })
+
+  it('⛔ 一个号都翻不到 = unknownEvidenceRef，⛔ 不去补查一次', async () => {
+    mockRecallAssistantEvidence.mockResolvedValueOnce({
+      items: [],
+      missing: ['#e9'],
+    })
+    queueTurns(recallTurn(['#e9']), { finished: true })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    expect(
+      terminalStep(events, ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence),
+    ).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: {
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownEvidenceRef,
+      },
+    })
+    expect(mockRunAssistantResearch).not.toHaveBeenCalled()
+  })
+
+  it('⚠ 翻到一部分就不拒：missing 在观察里说清楚', async () => {
+    mockRecallAssistantEvidence.mockResolvedValueOnce({
+      items: [
+        {
+          ref: '#e1',
+          title: '萌娘百科 · 时夜',
+          source: 'moegirl',
+          body: '黑色长发。',
+        },
+      ],
+      missing: ['#e9'],
+    })
+    queueTurns(recallTurn(['#e1', '#e9']), { finished: true })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    expect(
+      terminalStep(events, ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence)?.status,
+    ).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect(lastUserPrompt()).toContain('Not in the book: #e9')
+  })
+
+  it('⛔ 没有会话 id：翻不了，理由说得出来', async () => {
+    queueTurns(recallTurn(['#e1']), { finished: true })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(
+      terminalStep(events, ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence),
+    ).toMatchObject({
+      error: {
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownEvidenceRef,
+      },
+    })
+    expect(mockRecallAssistantEvidence).not.toHaveBeenCalled()
+  })
+
+  it('⭐ 每轮上限：第 N+1 次翻被拒（护的是这一轮剩下的步数）', async () => {
+    mockRecallAssistantEvidence.mockResolvedValue({
+      items: [
+        { ref: '#e1', title: 't', source: 'moegirl', body: '黑色长发。' },
+      ],
+      missing: [],
+    })
+    /**
+     * ⚠ 每次换一个号：同参的一步会先撞**原地打转**那道闸（`repeatedStep`），
+     * 而这一条验的是次数上限。
+     */
+    const turns = Array.from(
+      { length: ASSISTANT_EVIDENCE_RECALL_LIMITS.maxCallsPerTurn + 1 },
+      (_, index) => recallTurn([`#e${index + 1}`]),
+    )
+    queueTurns(...turns, { finished: true })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    const recalls = stepsOf(events).filter(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence &&
+        step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
+    )
+    expect(recalls).toHaveLength(
+      ASSISTANT_EVIDENCE_RECALL_LIMITS.maxCallsPerTurn + 1,
+    )
+    expect(recalls.at(-1)).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: {
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.evidenceRecallsExhausted,
+      },
+    })
   })
 })

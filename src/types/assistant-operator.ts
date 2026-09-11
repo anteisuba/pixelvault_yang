@@ -58,8 +58,8 @@ import {
   ASSISTANT_RESEARCH_SCOPES,
   ASSISTANT_RESEARCH_SOURCES,
   ASSISTANT_EVIDENCE_REF_PATTERN,
+  ASSISTANT_EVIDENCE_RECALL_LIMITS as EVIDENCE_RECALL_LIMITS,
   ASSISTANT_ROUND_SUMMARY_LIMITS as ROUND_LIMITS,
-  ASSISTANT_WORKING_MEMORY as MEMORY_LIMITS,
   GENERATION_REVIEW_STATES,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
@@ -733,17 +733,16 @@ export type AssistantOperatorVideoFrames = z.infer<
 >
 
 /**
- * **跨轮工作记忆**（客户端 → 服务端，切片 X）—— 上限见
- * `ASSISTANT_WORKING_MEMORY` 的头注（含「它为什么仍然不是服务端状态」）。
+ * **一件可指认的产物**（切片 X；v2 §7.6 之后由**服务端现场派生**）。
  *
- * ⭐ 它答的是一个具体的失败：用户说「把刚才那张挂上」，而「刚才那张」产生于上一轮
- * —— 服务端零会话态，本轮的 `searchIndex` 里一条都没有，于是助手要么重搜一遍，
- * 要么按 `unknownAsset` 拒。`priorSteps` 带得回「做过什么」（一行摘要），
- * 带不回「产出了什么」（可指认、挂得上的东西）。
- *
+ * ⭐ 它答的是一个具体的失败：用户说「把刚才那张挂上」，而助手手上只有一串 id
+ * —— 名字是称呼，准入名单在服务端（`run.workingMemoryIndex`）。
+ * ⚠ 它**不再进请求体**（§7.6 删了 `request.workingMemory`）：服务端本来就手握
+ * 每一步的完整 `result`，镜像一份再传回来是多养的一套逻辑。这份 schema 留着，
+ * 是因为服务端与客户端（续跑的 `artifactIds`）读的是同一份形状。
  * ⚠ 每件产物带 `displayName`：模型在对白里指认用的就是它（切片 N1 的名字），
  * ⛔ 不念 id。`url` 可选 —— 有地址的才挂得上，没地址的（一段检索证据）只是让
- * 助手记得「这件事我上一轮查过了」。
+ * 助手记得「这件事查过了」。
  */
 export const AssistantOperatorWorkingMemoryArtifactSchema = z.object({
   id: IdSchema,
@@ -756,33 +755,6 @@ export const AssistantOperatorWorkingMemoryArtifactSchema = z.object({
   kind: z.enum(['result', 'candidate', 'evidence', 'asset']),
   url: z.string().url().optional(),
 })
-
-export const AssistantOperatorWorkingMemoryRoundSchema = z.object({
-  /** 那一轮的身份（客户端给的稳定串）—— 只用于把同一轮的东西归到一起。 */
-  runKey: IdSchema,
-  /** ISO 串。系统提示里按它排「最近的在最后」。 */
-  at: z.string(),
-  /**
-   * ⚠ `.readonly()` 是**给调用方留的口**：客户端那份记忆是只读结构（它是从
-   * 已经落定的历史里算出来的），而 `T[]` 可以赋给 `readonly T[]`、反过来不行。
-   * 写成可变数组的表现是客户端要为了过类型 `[...]` 拷一份 —— 拷贝没有任何收益。
-   */
-  artifacts: z
-    .array(AssistantOperatorWorkingMemoryArtifactSchema)
-    .max(MEMORY_LIMITS.maxArtifactsPerRound)
-    .readonly(),
-})
-
-export const AssistantOperatorWorkingMemorySchema = z.object({
-  rounds: z
-    .array(AssistantOperatorWorkingMemoryRoundSchema)
-    .max(MEMORY_LIMITS.maxRounds)
-    .readonly(),
-})
-
-export type AssistantOperatorWorkingMemory = z.infer<
-  typeof AssistantOperatorWorkingMemorySchema
->
 
 export type AssistantOperatorWorkingMemoryArtifact = z.infer<
   typeof AssistantOperatorWorkingMemoryArtifactSchema
@@ -1033,13 +1005,13 @@ export const AssistantOperatorRequestSchema = z.object({
     )
     .max(LIMITS.maxSnapshotReferences)
     .optional(),
-  /**
-   * 最近几轮的产出（切片 X）。见 `AssistantOperatorWorkingMemorySchema` 头注。
-   *
-   * ⚠ 缺席 = 这一轮没有跨轮记忆（新会话 / 老客户端），一切照旧：准入名单退回
-   * 「本轮检索 + `@` 名单」那两张。
+  /*
+   * ⛔ **没有 `workingMemory`**（v2 §7.6，commit #12）：产物索引改由**服务端现场
+   * 派生** —— 它本来就手握每一步的完整 `result`，让客户端把它镜像一份再传回来，
+   * 是为了「省一次查库」而多养的一套镜像逻辑。跨轮那一半由结论记录接手
+   * （`AssistantConversation.rounds` → 系统提示的「之前几轮记住的事」一段），
+   * 证据正文按编号翻（`recall_evidence`）。⛔ 别把它加回请求体。
    */
-  workingMemory: AssistantOperatorWorkingMemorySchema.optional(),
   /**
    * 这一轮客户端抽好的**三帧**（第二期 · 视频域评审）。见 schema 头注。
    *
@@ -1157,6 +1129,22 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
       }),
     /** 「外貌与服饰」这类一句话 —— 服务端按它在正文里截段。 */
     focus: z.string().trim().max(RESEARCH_LIMITS.maxFocusChars).optional(),
+  }),
+  /**
+   * **按编号翻证据本**（§7.3，commit #12）。
+   *
+   * ⚠ 入参是**编号数组**而不是单个编号：一条结论记录挂着一串号（`#e3 #e4 #e7`），
+   * 而模型要判的往往是它们合起来说了什么。一次一条的表现是同一件事烧三步，
+   * 而一轮只有 `maxSteps` 步。
+   * ⚠ 形状闸（`#e` + 正整数）在 schema 上，**存在性闸**留在规划器
+   * （`unknownEvidenceRef`）—— schema 拒 = 模型学不到「这个号没有」，
+   * 规划器拒 = 它读得到理由还能换一个号。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence]: z.object({
+    refs: z
+      .array(AssistantOperatorEvidenceRefSchema)
+      .min(1)
+      .max(EVIDENCE_RECALL_LIMITS.maxRefsPerCall),
   }),
   /**
    * 联网查文字（切片 3b）。形状与搜图那条**故意逐字同构**（`query` + 可选 `limit`）：
@@ -1796,6 +1784,29 @@ export type AssistantOperatorEvidence = z.infer<
   typeof AssistantOperatorEvidenceSchema
 >
 
+/**
+ * **按编号翻回来的一条证据**（§7.3，commit #12）。
+ *
+ * ⭐ 它是 `EvidenceItem`（`types/research.ts`）的**投影而不是别名**：库里那一条
+ * 带着 `sourceTier` / `retrievedAt` / `untrusted` 与三种 `kind` 各自的正文字段，
+ * 而模型这一跳只要「谁说的、说了什么、哪一页」。整条透传的代价是每次翻账都把
+ * 一堆它用不上的字段塞进上下文，而这条工具存在的全部理由就是省上下文。
+ * ⚠ `body` 是**三种 kind 压平**后的正文（摘录 / 标签串 / 图片地址），⛔ 不在
+ * 这一层把 kind 的判别搬给模型：它要的是内容，不是证据的形态学。
+ */
+export const AssistantOperatorRecalledEvidenceSchema = z.object({
+  ref: AssistantOperatorEvidenceRefSchema,
+  title: z.string().max(RESEARCH_LIMITS.maxEvidenceTitleChars),
+  url: z.string().optional(),
+  /** 源 id（萌百 / danbooru / web_search…），落库时就在那一条上。 */
+  source: z.string().max(RESEARCH_LIMITS.maxEvidencePublisherChars),
+  body: z.string().max(EVIDENCE_RECALL_LIMITS.maxBodyChars),
+})
+
+export type AssistantOperatorRecalledEvidence = z.infer<
+  typeof AssistantOperatorRecalledEvidenceSchema
+>
+
 export type AssistantOperatorWebSearchResult = z.infer<
   typeof AssistantOperatorWebSearchResultSchema
 >
@@ -1989,6 +2000,29 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
       title: z.string().max(RESEARCH_LIMITS.maxEvidenceTitleChars),
       url: z.string().url(),
       excerpt: z.string().max(RESEARCH_LIMITS.maxReadUrlExcerptChars),
+    }),
+  ),
+  /**
+   * 翻证据本（§7.3）。⛔ 永远是 readStep：它读的是**库里已经落下的**那几条，
+   * 一个外部源都不打、表单一个字都不改。
+   *
+   * ⚠ 结果里 `missing` 与 `items` **并存**：三个号里有一个翻不到时，把翻到的两条
+   * 给出去比整条拒掉有用得多 —— 一个都没翻到才是 `unknownEvidenceRef`。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
+    z.object({
+      refs: z
+        .array(AssistantOperatorEvidenceRefSchema)
+        .max(EVIDENCE_RECALL_LIMITS.maxRefsPerCall),
+    }),
+    z.object({
+      items: z
+        .array(AssistantOperatorRecalledEvidenceSchema)
+        .max(EVIDENCE_RECALL_LIMITS.maxRefsPerCall),
+      missing: z
+        .array(AssistantOperatorEvidenceRefSchema)
+        .max(EVIDENCE_RECALL_LIMITS.maxRefsPerCall),
     }),
   ),
   mutatingStep(

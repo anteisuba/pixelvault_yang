@@ -7523,6 +7523,8 @@
       "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page",
       "sourceNotUsable": "That site asks not to be used as AI input, or republishes work without a traceable source",
       "researchRoundsExhausted": "It already researched as much as one turn allows — it is working from what it found",
+      "unknownEvidenceRef": "That evidence number is not in this conversation",
+      "evidenceRecallsExhausted": "It already opened the evidence book as much as one turn allows",
       "urlNotReadable": "That address can't be read here",
       "urlUnreadable": "That page could not be read",
       "aspectLockedByFirstFrame": "A first frame is set, so this model only accepts the adaptive aspect ratio",

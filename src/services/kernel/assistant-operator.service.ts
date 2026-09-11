@@ -37,6 +37,7 @@ import {
   ASSISTANT_OPERATOR_TOOLS,
   ASSISTANT_OPERATOR_VERDICT_SEVERITIES,
   ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS as SEVERITY,
+  ASSISTANT_EVIDENCE_RECALL_LIMITS as RECALL_LIMITS,
   ASSISTANT_OPERATOR_WRITE_MODES,
   type AssistantOperatorVerdictSeverity,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
@@ -227,11 +228,28 @@ import {
 import { runAssistantResearch } from '@/services/research/research-fanout.service'
 import {
   appendAssistantEvidenceBook,
+  recallAssistantEvidence,
   type AssistantEvidenceBookEntry,
 } from '@/services/research/assistant-evidence-book.service'
-import { appendAssistantConversationRound } from '@/services/assistant-conversation.service'
+import {
+  appendAssistantConversationRound,
+  listAssistantConversationRounds,
+} from '@/services/assistant-conversation.service'
 import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
+/**
+ * ⭐ **产物提取的三个纯函数**（v2 §7.6：「原样搬到服务端复用，不重写」）。
+ *
+ * 它们本来跑在客户端，把每一步的结果压成一份「可指认的东西」索引再传回来 ——
+ * 而服务端本来就手握每一步的完整 `result`。现在这三条在**服务端**跑，客户端
+ * 那份镜像与 `request.workingMemory` 一起删掉了。
+ * ⚠ 它们是纯函数（`@/lib`）：不碰库、不打网、不花钱，钱闸那份名单一条不动。
+ */
+import {
+  attachmentArtifacts,
+  collectStepArtifacts,
+  resultArtifacts,
+} from '@/lib/studio-operator-memory'
 import {
   readGenerationMentions,
   resolveGenerationDisplayName,
@@ -260,6 +278,7 @@ import {
   type AssistantOperatorTurn,
   type AssistantOperatorWorkingMemoryArtifact,
 } from '@/types/assistant-operator'
+import type { AssistantConversationRoundStored } from '@/types/assistant-conversation'
 import type { OutputType, PromptAssistantResponseLanguage } from '@/types'
 import type { AssistantPersona, ProjectRule } from '@/types/assistant-persona'
 import { toContextCardDigest, type ContextCard } from '@/types/context-cards'
@@ -522,17 +541,25 @@ interface OperatorRun {
    */
   contextCardIndex: Map<string, ContextCard>
   /**
-   * **跨轮工作记忆的准入索引**（切片 X）—— 键是产物 id **与**它的地址（两样都进
-   * 表），值是那件产物。
+   * **可指认产物的准入索引**（切片 X；v2 §7.6 改为服务端派生）—— 键是产物 id
+   * **与**它的地址（两样都进表），值是那件产物。
    *
    * ⭐ 它是 `import_user_url` / `mount_reference` / `critique_result` 的**第三张
-   * 准入名单**（前两张：本轮检索结果、用户 `@` 上来的那些）。加它的判据只有一条：
-   * 用户说「把刚才那张挂上」时，「刚才那张」产生于上一轮 —— 而服务端零会话态，
-   * 前两张名单里一条都没有。
+   * 准入名单**（前两张：本轮检索结果、用户 `@` 上来的那些）。
+   * ⚠ **来源全在服务端**（§7.6）：开跑时装的是用户这一轮递上来的附件与助手刚
+   * 回来的那一枪，跑起来之后每一步 `done` 把自己的产物加进来（`collectStepArtifacts`）。
+   * ⛔ 客户端不再镜像一份传回来 —— 那是为「省一次查库」多养的一套会分叉的事实。
    * ⛔ 它仍然**不放宽任何实体闸**：blocked 照旧拒、站点判定照旧、参考位上限照旧。
-   * ⚠ 整份记忆由客户端在请求里带上来，读完就丢 —— ⛔ 服务端不存。
+   * ⚠ 读完就丢 —— ⛔ 服务端不存。
    */
   workingMemoryIndex: Map<string, AssistantOperatorWorkingMemoryArtifact>
+  /**
+   * 这一轮**翻过几次证据本**（§7.3，commit #12）。
+   *
+   * ⚠ 与 `researchRounds` 分开数：那条护的是钱（每一轮都真打外部源），这条护的是
+   * 这一轮剩下的步数 —— 翻旧账不花钱，但照样一步一次 LLM 往返。
+   */
+  evidenceRecalls: number
   /**
    * **本轮结账的原料**（v2 §7.2 / §7.5 ①）—— 这一轮做完之后要压成一条结论记录
    * 的那几摞原话。
@@ -1898,6 +1925,15 @@ function workingMemoryAsset(
 ): AssistantOperatorSearchResultAsset | null {
   const artifact = run.workingMemoryIndex.get(wanted)
   if (!artifact?.url) return null
+  /**
+   * ⛔ **联网候选挂不上**（拍板 21，v2 §7.6 之后这道闸必须写在这里）。
+   *
+   * 🔬 索引改成服务端派生之后，本轮 `search_web_images` 的候选也进了这张表 ——
+   * 它们必须在：`import_user_url` 的准入名单读的就是它（「用户说挂上那几张」
+   * 那条路）。但**挂参考图**认的永远是用户库里的 assetId：候选只是一串第三方
+   * 地址，挂上去等于让助手替用户把它落进库。两条路共用一张索引、各自判 `kind`。
+   */
+  if (artifact.kind === 'candidate') return null
   return {
     assetId: artifact.id,
     displayName: artifact.displayName,
@@ -4120,6 +4156,71 @@ ${images}`,
   }
 }
 
+/**
+ * **按编号翻证据本**（v2 §7.3，commit #12）。
+ *
+ * ── 三道闸，逐条有理由 ────────────────────────────────────────────
+ *  ① **没有会话 id 就没有证据本**：编号是会话内自增的，没有会话就没有那本账 ——
+ *     这不是故障，是这条线程还没落过库（第一轮）。说清楚比含糊地回空有用。
+ *  ② **每轮上限**：翻旧账不花钱，但照样一步一次 LLM 往返，而一轮只有 `maxSteps`
+ *     步。⛔ 不封顶的表现是整轮步数烧在翻账上、表单一个字没写。
+ *  ③ **一个号都没翻到 = 拒**（`unknownEvidenceRef`）：编了一个号与「那条过期了」
+ *     在这一层长得一样，而下一步该做的事是同一件 —— 回到注入段里真的印着的那几个
+ *     号。⚠ 翻到一部分就**不拒**：把翻到的给出去，missing 在观察里说明。
+ *
+ * ⛔ 它不去打任何外部源：翻旧账要是会触发一次新检索，那就不是翻旧账了。
+ */
+async function planRecallEvidence(
+  run: OperatorRun,
+  args: { refs: string[] },
+  userId: string,
+): Promise<ToolPlan> {
+  const conversationId = run.request.conversationId
+  if (!conversationId) {
+    return reject(
+      REJECT.unknownEvidenceRef,
+      'This conversation has no evidence book yet — nothing has been filed under a number. Work from what is in front of you, or research it now.',
+    )
+  }
+  if (run.evidenceRecalls >= RECALL_LIMITS.maxCallsPerTurn) {
+    return reject(
+      REJECT.evidenceRecallsExhausted,
+      `You have already opened the evidence book ${RECALL_LIMITS.maxCallsPerTurn} times this turn. Work with what those pieces gave you and move on to the form.`,
+    )
+  }
+
+  const refs = [...new Set(args.refs)].slice(0, RECALL_LIMITS.maxRefsPerCall)
+  const { items, missing } = await recallAssistantEvidence({
+    userId,
+    conversationId,
+    refs,
+  })
+  if (items.length === 0) {
+    return reject(
+      REJECT.unknownEvidenceRef,
+      `${missing.join(' ')} ${missing.length > 1 ? 'are' : 'is'} not in this conversation's evidence book. Use only the numbers printed in "WHAT EARLIER ROUNDS SETTLED" — a number you did not read there does not exist.`,
+    )
+  }
+
+  run.evidenceRecalls += 1
+  const observation = `recall_evidence(${refs.join(' ')}) → ${items.length} piece(s) from this conversation's evidence book:\n${items
+    .map(
+      (item) =>
+        `  ${item.ref} [${item.source}] ${item.title}\n     ${item.body}`,
+    )
+    .join('\n')}${
+    missing.length > 0
+      ? `\nNot in the book: ${missing.join(' ')} — do not cite those, and do not go looking for them.`
+      : ''
+  }`
+
+  return {
+    kind: 'read',
+    payload: { refs },
+    run: async () => ({ result: { items, missing }, observation }),
+  }
+}
+
 async function planTool(
   run: OperatorRun,
   tool: AssistantOperatorTool,
@@ -4218,6 +4319,8 @@ async function planTool(
       )
     case TOOL.readUrl:
       return planReadUrl(run, parsed.data as { url: string; focus?: string })
+    case TOOL.recallEvidence:
+      return planRecallEvidence(run, parsed.data as { refs: string[] }, userId)
     case TOOL.searchWeb:
       return planSearchWeb(
         run,
@@ -4565,7 +4668,7 @@ ${lines}
  * 抄的那份会先过期，而过期的表现是「明明加了新图示，模型从来不用」。
  */
 /**
- * **最近几轮你产出 / 看过的东西**（切片 X）。
+ * **此刻你手上有哪几件可指认的东西**（切片 X；v2 §7.6 起由服务端派生）。
  *
  * ⭐ 它进的是**系统提示**而不是用户提示，与项目规则 / 上下文卡同一档：这几行是
  * 「你是谁、你手上有什么」的一部分，每一步都要在场 —— 一件助手记不住的产物等于
@@ -4573,27 +4676,66 @@ ${lines}
  * ⚠ 只写**名字**（切片 N1 的产物名），⛔ 不写 id、不写地址：id 它会抄错，
  * 地址它会当成可以随便挂的东西。名字是称呼，准入名单在服务端
  * （`run.workingMemoryIndex`）—— 模型念一个名字，服务端在名单里解析。
- * ⚠ 最近的排在最后：模型对末尾的东西更敏感，而「刚才那张」指的正是最后一轮。
+ * ⚠ 入参是**开跑那一刻**的那几件（用户递上来的附件 + 助手刚回来的那一枪）：
+ * 跑起来之后每一步新产出的那些进得了索引，但进不了这一段 —— 系统提示一轮只拼
+ * 一次，而那几件助手在观察里刚刚读过一遍，⛔ 不必再印第二遍。
  */
 function buildWorkingMemorySection(
-  memory: AssistantOperatorRequest['workingMemory'],
+  artifacts: readonly AssistantOperatorWorkingMemoryArtifact[],
 ): string {
-  const rounds = (memory?.rounds ?? []).slice(-MEMORY_LIMITS.maxRounds)
-  if (rounds.length === 0) return ''
-
-  const lines = rounds.flatMap((round) => {
-    const items = round.artifacts
-      .slice(0, MEMORY_LIMITS.maxArtifactsPerRound)
-      .map((artifact) => `${artifact.displayName} (${artifact.kind})`)
-    return items.length > 0 ? [`  - ${items.join(', ')}`] : []
-  })
-  if (lines.length === 0) return ''
+  const items = artifacts
+    .slice(0, MEMORY_LIMITS.maxArtifacts)
+    .map((artifact) => `${artifact.displayName} (${artifact.kind})`)
+  if (items.length === 0) return ''
 
   return `
 
-WHAT YOU PRODUCED AND LOOKED AT EARLIER IN THIS SESSION — oldest first, the last line is the most recent:
-${lines.join('\n')}
+WHAT YOU ALREADY HAVE IN HAND THIS TURN:
+  - ${items.join(', ')}
 The creator says "that one" or "the earlier one" about these. Call them by these names, and you may mount, import or review one directly — no need to search for it again. Anything else still has to come from a search this turn.`
+}
+
+/**
+ * **之前几轮记住的事**（v2 §7.6 的注入段，commit #12）。
+ *
+ * ⭐ 它答的是 §7.1 那张断点表：上一轮查到的证据、评审得出的结论、用户在问题卡上
+ * 选的那一项，下一轮**一条都看不见**。结账把每一轮压成四栏落进会话
+ * （`AssistantConversation.rounds`），这一段把最近 `maxRoundsInPrompt` 条印回去。
+ *
+ * ⚠ 三条纪律，逐条对应 spec 的一行：
+ *  ① **进系统提示的独立一段**，⛔ 不混进对话消息 —— 混进去的那一刻它就变成了
+ *     「助手自己说过的话」，模型会去反驳它、续写它，而它是事实不是发言；
+ *  ② **证据只写编号**，⛔ 不带正文：正文在证据本里，要看就调 `recall_evidence`。
+ *     重发正文等于把「每轮结账」省下来的那笔上下文又原样付回去；
+ *  ③ 旧的 `priorSteps` **保留**：那一段答的是「刚才动了哪几步」，这一段答的是
+ *     「得出了什么」—— 两件事。
+ * ⚠ 最旧的排在最前（与对话同序），每条的三栏顺序固定，空栏写 `—` ——
+ * 固定格式让模型不必去猜哪一行是什么，也让这一段可被测试逐字锁住。
+ */
+function buildRoundMemorySection(
+  rounds: readonly AssistantConversationRoundStored[],
+): string {
+  const recent = rounds.slice(-ROUND_LIMITS.maxRoundsInPrompt)
+  if (recent.length === 0) return ''
+
+  const blocks = recent.map((round) => {
+    const column = (entries: readonly string[]) =>
+      entries.length > 0 ? entries.join(' · ') : '—'
+    const evidence =
+      round.evidenceRefs.length > 0
+        ? `\n    Evidence: ${round.evidenceRefs.join(' ')}`
+        : ''
+    return `  Round ${round.roundIndex + 1}
+    Facts: ${column(round.facts)}
+    Decided: ${column(round.decisions)}
+    Still open: ${column(round.todos)}${evidence}`
+  })
+
+  return `
+
+WHAT EARLIER ROUNDS SETTLED — oldest first; this is what this conversation already established, not something you said:
+${blocks.join('\n')}
+Treat these as settled unless the creator changes them: do not ask again about anything under "Decided", and do not re-research anything under "Facts". Evidence appears as numbers only (#e12) — call recall_evidence with those numbers when you need the text behind one.`
 }
 
 function buildPlanVisualSection(): string {
@@ -4610,6 +4752,10 @@ function buildOperatorSystemPrompt(
   persona: AssistantPersona,
   rules: readonly ProjectRule[],
   contextCards: readonly ContextCard[],
+  /** 开跑那一刻手上的那几件（§7.6：服务端派生，⛔ 不再由客户端上送）。 */
+  artifacts: readonly AssistantOperatorWorkingMemoryArtifact[],
+  /** 这段会话最近几条结论记录（§7.6 的注入段）。 */
+  rounds: readonly AssistantConversationRoundStored[],
 ): string {
   const brief = ASSISTANT_DOMAIN_BRIEFS[request.domain]
   const language =
@@ -4755,7 +4901,7 @@ HOW YOU TALK — the creator hired an operator, not a rulebook:
 - NEVER recite your own constraints to them. Not what you cannot do, not why, not "as I mentioned". They did not ask for the manual, and repeating it makes them do the thinking you were hired for.
 - If a tool in your list can do a thing, DO IT. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The one exception is the generate button itself, which is theirs by design.
 - When a call is refused, change the approach silently. Say what you are doing next, not which rule stopped you. Never explain the same rule twice.
-- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.${buildPersonaStyleSection(persona)}${buildProjectRulesSection(rules)}${buildContextCardsSection(contextCards)}${buildWorkingMemorySection(request.workingMemory)}
+- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.${buildPersonaStyleSection(persona)}${buildProjectRulesSection(rules)}${buildContextCardsSection(contextCards)}${buildWorkingMemorySection(artifacts)}${buildRoundMemorySection(rounds)}
 
 TOOLS:
 ${tools}
@@ -5432,6 +5578,52 @@ function seedLedgerDecisions(request: AssistantOperatorRequest): string[] {
   return lines
 }
 
+/**
+ * 开跑那一刻手上已经有的几件（§7.6）。
+ *
+ * ⚠ 两条来源，各自答一个不同的问题：
+ *  · `result` —— **助手自己备的那一枪回来了**（归属票，拍板 4 的保留那一半）：
+ *    用户下一句十有八九就是「刚出的那张」。⛔ 没有 `generationId` 时不记 ——
+ *    索引是**按 id 指认**的，一条没有身份的记录指认不了任何东西。
+ *  · `mentionedAssets` —— 用户这一轮 `@` / 📎 递上来的那几张（同一条 chip 管线）。
+ * ⛔ 这里**不去查库**补更多东西：这一段是「他刚递给你什么」，不是一次检索。
+ */
+function initialMemoryArtifacts(
+  request: AssistantOperatorRequest,
+): AssistantOperatorWorkingMemoryArtifact[] {
+  const result = request.result
+  return [
+    ...(result?.generationId
+      ? resultArtifacts([
+          {
+            id: result.generationId,
+            url: result.url,
+            ...(result.prompt ? { label: result.prompt } : {}),
+          },
+        ])
+      : []),
+    ...attachmentArtifacts(request.mentionedAssets ?? []),
+  ].slice(0, MEMORY_LIMITS.maxArtifacts)
+}
+
+/**
+ * 一步跑完之后，把它产出的东西加进准入索引（§7.6）。
+ *
+ * ⚠ 只认**已经有结论**的那一帧（`collectStepArtifacts` 自己判 `done`）：
+ * `running` 那一帧还没有 `result`，从它身上取只会得到一份空索引。
+ * ⚠ 封顶之后**不再加**（⛔ 不挤掉旧的）：先见到的那几件是这一轮的来路，
+ * 而截头会让助手记不住这一轮是从什么开始的（与客户端那份判据逐字同源）。
+ */
+function rememberStepArtifacts(run: OperatorRun, rawStep: unknown): void {
+  const parsed = AssistantOperatorStepSchema.safeParse(rawStep)
+  if (!parsed.success) return
+  for (const artifact of collectStepArtifacts(parsed.data)) {
+    if (run.workingMemoryIndex.size >= MEMORY_LIMITS.maxArtifacts * 2) return
+    run.workingMemoryIndex.set(artifact.id, artifact)
+    if (artifact.url) run.workingMemoryIndex.set(artifact.url, artifact)
+  }
+}
+
 export async function* runAssistantOperator(
   clerkId: string,
   request: AssistantOperatorRequest,
@@ -5447,7 +5639,7 @@ export async function* runAssistantOperator(
    * ⭐ 它排在路由解析**之前**（v2 §4.5）：文本模型选哪一档现在住在
    * `persona.routeModel`，路由要等它读回来才知道该找哪把 key。
    */
-  const [persona, rules, contextCards] = await Promise.all([
+  const [persona, rules, contextCards, priorRounds] = await Promise.all([
     getAssistantPersonaByUserId(user.id),
     listProjectRules(user.id, {
       scope: request.domain,
@@ -5462,6 +5654,17 @@ export async function* runAssistantOperator(
       pinnedScope: request.domain,
       limit: CARD_LIMITS.maxInPrompt,
     }),
+    /**
+     * ⭐ **之前几轮记住的事**（§7.6）—— 与 persona / 规则 / 卡同一档：开跑前读
+     * 一次，⛔ 不在每一步重读（系统提示每一步都重发，但它每一步都是同一份）。
+     * ⚠ 没有 `conversationId`（这条线程还没落过库 / 老客户端）时就是空的 ——
+     * 那一轮照常跑，只是没有跨轮记忆可注入。
+     */
+    request.conversationId
+      ? listAssistantConversationRounds(user.id, request.conversationId, {
+          limit: ROUND_LIMITS.maxRoundsInPrompt,
+        })
+      : [],
   ])
 
   /**
@@ -5537,17 +5740,12 @@ export async function* runAssistantOperator(
      * 印出来的与认得的不是同一批，是「它说了个名字却被拒」的成因。
      */
     workingMemoryIndex: new Map(
-      (request.workingMemory?.rounds ?? [])
-        .slice(-MEMORY_LIMITS.maxRounds)
-        .flatMap((round) =>
-          round.artifacts
-            .slice(0, MEMORY_LIMITS.maxArtifactsPerRound)
-            .flatMap((artifact) => [
-              [artifact.id, artifact] as const,
-              ...(artifact.url ? [[artifact.url, artifact] as const] : []),
-            ]),
-        ),
+      initialMemoryArtifacts(request).flatMap((artifact) => [
+        [artifact.id, artifact] as const,
+        ...(artifact.url ? [[artifact.url, artifact] as const] : []),
+      ]),
     ),
+    evidenceRecalls: 0,
     /**
      * ⭐ 「决定」栏**开局就装着用户刚点的那几下**（§7.5 ②）。
      *
@@ -5569,6 +5767,8 @@ export async function* runAssistantOperator(
     persona,
     rules,
     contextCards,
+    initialMemoryArtifacts(request),
+    priorRounds,
   )
   let planEmitted = false
   /** 本轮已经吐过薄卡的规则 —— 同一条不重复贴（见下面那段）。 */
@@ -6184,13 +6384,20 @@ export async function* runAssistantOperator(
         })
         const { result, observation } = await plan.run()
         // 读类工具真正打外部源是在 `run()` 里（检索 / 读正文 / 文件夹视觉）。
-        yield toStepEvent({
+        const doneStep = {
           ...base,
           tool: name,
           status: STATUS.done,
           payload: plan.payload,
           result,
-        })
+        }
+        yield toStepEvent(doneStep)
+        /**
+         * ⭐ 这一步让谁看见了什么 —— 进准入索引（§7.6：服务端现场派生）。
+         * ⚠ 只有读步产得出可指认的东西（`collectStepArtifacts` 只认那四条）：
+         *   改步动的是表单，⛔ 不是可以 `@` 的产物。
+         */
+        rememberStepArtifacts(run, doneStep)
         run.observations.push(observation)
         recordLedgerStep(run, base.verb, base.title, observation)
         // ⭐ 记账在**跑完之后**：跑到一半抛出去的那次不算「已执行」，否则重试

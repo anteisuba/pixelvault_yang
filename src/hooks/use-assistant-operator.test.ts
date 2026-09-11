@@ -270,49 +270,40 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     ).toBe(true)
   })
 
-  it('长结果名称写入记忆后符合服务端请求契约', async () => {
-    const { resultArtifacts } = await import('@/lib/studio-operator-memory')
-    const { AssistantOperatorWorkingMemorySchema } =
-      await import('@/types/assistant-operator')
-    const artifacts = resultArtifacts([
-      {
-        id: 'result-long',
-        url: 'https://cdn.test/result.png',
-        label: '长提示词'.repeat(100),
-      },
-    ])
-    expect(
-      AssistantOperatorWorkingMemorySchema.safeParse({
-        rounds: [
-          { runKey: 'previous', at: new Date().toISOString(), artifacts },
-        ],
-      }).success,
-    ).toBe(true)
-    expect(artifacts[0]?.url).toBe('https://cdn.test/result.png')
-  })
-
-  it('已有会话的超长记忆名称在发送前规范化，保留图片身份与地址', async () => {
-    const { AssistantOperatorWorkingMemorySchema } =
-      await import('@/types/assistant-operator')
-    store.recordOperatorArtifacts('previous', [
-      {
-        id: 'result-long',
-        kind: 'result',
-        url: 'https://cdn.test/result.png',
-        displayName: '长提示词'.repeat(100),
-      },
-    ])
+  /**
+   * ⭐ **每轮都带上当前会话 id**（v2 §7.5 / §7.6，commit #12）—— 服务端零会话态，
+   * 会话的身份一直由客户端持有，而结账写库与下一轮注入都落在它上面。
+   */
+  it('已落库的线程：每轮请求带 conversationId', async () => {
+    store.setOperatorSession(
+      '11111111-2222-3333-4444-555555555555',
+      'IMAGE_STUDIO',
+    )
     const { result } = render()
     act(() => result.current.send('请调整画风'))
     await settle()
-    const memory = streamAssistantOperatorAPI.mock.calls[0]?.[0].workingMemory
-    expect(AssistantOperatorWorkingMemorySchema.safeParse(memory).success).toBe(
-      true,
+    expect(streamAssistantOperatorAPI.mock.calls[0]?.[0].conversationId).toBe(
+      '11111111-2222-3333-4444-555555555555',
     )
-    expect(memory.rounds[0].artifacts[0]).toMatchObject({
-      id: 'result-long',
-      url: 'https://cdn.test/result.png',
-    })
+    streams[0].close()
+    await settle()
+  })
+
+  /**
+   * ⚠ 第一轮**没有** id（这条线程还没落过库）——那一轮照常发，⛔ 不带一个空键：
+   * 服务端的 schema 收的是 uuid，空串会让整条请求 400。
+   */
+  it('还没落库的线程：请求里没有 conversationId 这个键', async () => {
+    const { result } = render()
+    act(() => result.current.send('请调整画风'))
+    await settle()
+    expect(streamAssistantOperatorAPI.mock.calls[0]?.[0]).not.toHaveProperty(
+      'conversationId',
+    )
+    // ⛔ `workingMemory` 一并不再上送（§7.6）。
+    expect(streamAssistantOperatorAPI.mock.calls[0]?.[0]).not.toHaveProperty(
+      'workingMemory',
+    )
     streams[0].close()
     await settle()
   })

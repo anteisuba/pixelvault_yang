@@ -24,6 +24,7 @@ import {
   ImagePlus,
   IdCard,
   Layers,
+  BookOpen,
   Library,
   Link2,
   Music2,
@@ -89,6 +90,11 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.research]: Library,
   /** 读正文 —— 「把那一页看完了」，与「去搜」是两个动作，两枚图标。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]: ScanText,
+  /**
+   * 翻证据本（§7.3）—— 与 📚 `research` **分开**：那条是「去外面查了一圈」，
+   * 这条是「翻回自己记过的那一条」。日志流里两者常前后脚出现。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence]: BookOpen,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]: ImagePlus,
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: Sparkles,
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]: Pencil,

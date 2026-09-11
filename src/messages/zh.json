@@ -7523,6 +7523,8 @@
       "loraNotImportable": "这把 LoRA 收不进你的库，只能去它的来源页看",
       "sourceNotUsable": "这个站点声明不接受作为 AI 输入，或是溯源不到原作者的转载",
       "researchRoundsExhausted": "这一轮能查的次数已经用完了 —— 它在用已经查到的东西继续",
+      "unknownEvidenceRef": "这段对话里没有这个证据编号",
+      "evidenceRecallsExhausted": "这一轮翻证据本的次数已经用完了",
       "urlNotReadable": "这条地址在这里读不了",
       "urlUnreadable": "这一页没能读出来",
       "aspectLockedByFirstFrame": "挂了首帧，这个模型的宽高比就只剩自适应",

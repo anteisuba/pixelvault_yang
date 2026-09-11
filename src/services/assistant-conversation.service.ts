@@ -346,3 +346,26 @@ export async function appendAssistantConversationRound(
   })
   return stored
 }
+
+/**
+ * **下一轮注入要读的那几条结论记录**（v2 §7.6，commit #12）。
+ *
+ * ⚠ 收的是 **DB `userId`** 而不是 `clerkId`（与同文件其余几条不同，有意的）：
+ * 调用方是工具环开跑前那一批并行读，它手上已经有 `ensureUser` 回来的那一行 ——
+ * 为了签名整齐再 upsert 一次用户，是给每一轮多加一次写库。
+ * ⚠ 所有权照旧**服务端核**：`userId` 不匹配就当没这段会话（返回空），
+ * ⛔ 不抛错 —— 注入不到跨轮记忆是「这一轮少知道点事」，不是这一轮跑不了。
+ * ⚠ 读**最近**几条（`rounds` 是追加序），⛔ 不读整列：更旧的那些没有读者。
+ */
+export async function listAssistantConversationRounds(
+  userId: string,
+  conversationId: string,
+  args: { limit: number },
+): Promise<AssistantConversationRoundStored[]> {
+  const row = await db.assistantConversation.findFirst({
+    where: { id: conversationId, userId },
+    select: { rounds: true },
+  })
+  if (!row) return []
+  return sanitizeRounds(row.rounds).slice(-args.limit)
+}

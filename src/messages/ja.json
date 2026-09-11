@@ -7523,6 +7523,8 @@
       "loraNotImportable": "その LoRA はライブラリに取り込めません。配布元ページでのみ確認できます",
       "sourceNotUsable": "このサイトは AI の入力に使わないよう求めているか、出所をたどれない転載です",
       "researchRoundsExhausted": "1 ターンで調べられる回数を使い切りました — 分かった範囲で進めます",
+      "unknownEvidenceRef": "その証拠番号はこの会話にありません",
+      "evidenceRecallsExhausted": "1 ターンで証拠を開ける回数を使い切りました",
       "urlNotReadable": "このアドレスはここでは読み込めません",
       "urlUnreadable": "そのページを読み込めませんでした",
       "aspectLockedByFirstFrame": "最初のフレームがあるため、このモデルはアスペクト比「自動（adaptive）」しか受け付けません",

@@ -2496,6 +2496,34 @@ html:lang(ja) {
   }
 }
 
+/* ── 收起态微状态卡的三点进度（pages/assistant-shell-v2.md §4.3 / 画板 BCollapsed）──
+   三颗 4px 点由深到浅排开，是「本轮还在往前走」的最小读数 —— 它替掉了此前那颗
+   单独的状态点（一颗点只说得出「有事 / 没事」）。
+   ⚠ 忙时**逐点**脉冲（延迟拉开一档）：三颗同步呼吸读起来是一颗大点在闪，
+     拉开之后才读得出方向。⛔ 颜色只走脊柱 token，组件里不写 hex、不写任意值。
+   ⚠ `prefers-reduced-motion` 由文件末尾那条全局降级接住。 */
+.assistant-progress-dots > * {
+  animation: assistant-progress-dot 1.2s var(--ease-standard) infinite;
+}
+
+.assistant-progress-dots > *:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.assistant-progress-dots > *:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes assistant-progress-dot {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
 /* ── B7: Reduced motion preference ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   /* 弹簧三档整体退化成脊柱的线性档：曲线里的过冲在减弱动效偏好下必须消失，

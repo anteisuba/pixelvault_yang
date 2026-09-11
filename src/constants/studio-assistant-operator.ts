@@ -341,8 +341,10 @@ export const STUDIO_OPERATOR_SHELL = {
    *
    * ⚠ 进度带整条删掉了（决策 14 / §3.6）：这个数现在量的是**头部**——会话标题▾ +
    * 设置 + 收起那一行。⛔ 别把它读成「带高」：面板上不再有那条带子。
+   * ⚠ 56 = 画板 Main 的口径（14px 上下留白 + 32px 控件）。⛔ 别压回 40：那一档
+   *   把 32px 的图标钮挤到只剩 4px 呼吸，头部读起来像一条压扁的工具条。
    */
-  headerHeightPx: 40,
+  headerHeightPx: 56,
   /** 面板 fixed 的 top/right/bottom（§11.1）。 */
   insetPx: 24,
   /**

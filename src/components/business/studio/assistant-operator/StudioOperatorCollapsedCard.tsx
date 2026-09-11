@@ -7,8 +7,9 @@
  * `StudioOperatorIconRail`（48px 图标轨）**整文件删**。§4.3 原文：「收起后不是
  * 一条 48px 竖轨，而是一张微状态卡」。轨上那三样各自的去处：
  *  · 域图标 → 没了（收起时用户站在哪台工作台是他自己看得见的事）；
- *  · 状态点 → 留着，缩成头像旁那一颗（`RAIL_TONE_CLASS` 整张表搬到这里，
- *    手机浮标仍读同一份，⛔ 全仓只有这一份四档配色）；
+ *  · 状态点 → 换成头像旁那**三颗点的进度**（对稿 2026-09-11 / 画板 BCollapsed）；
+ *    `RAIL_TONE_CLASS` 那张四档配色表**留在这里**给手机浮标读（⛔ 全仓只有这一份），
+ *    这张卡自己不再用它上色；
  *  · `N/M` 进度环 → 没了，进度由**状态词**说（决策 14 / §3.6：「正在查 3 个
  *    来源…」本身就是进度）。
  *
@@ -135,15 +136,25 @@ export function StudioOperatorCollapsedCard({
         ) : null}
       </span>
 
+      {/* ⚠ **三点进度**（画板 BCollapsed）——⛔ 不再是一颗按运行态换色的状态点：
+          一颗点只说得出「有事 / 没事」，而收起态要说的是「这一轮还在往前走」。
+          运行态本身仍由 `data-tone` 与上面那句状态词说。
+          ⚠ 忙时逐点脉冲走 `.assistant-progress-dots`（globals.css），
+            ⛔ 别在这里散写 `[animation-delay:…]` 任意值。 */}
       <span
         data-testid="operator-collapsed-dot"
         aria-hidden
         className={cn(
-          'size-2 shrink-0 rounded-full',
-          RAIL_TONE_CLASS[tone],
+          'flex shrink-0 items-center gap-1',
+          tone === STUDIO_OPERATOR_RAIL_TONES.working &&
+            'assistant-progress-dots',
           status === 'idle' && !primed && 'hidden',
         )}
-      />
+      >
+        <span className="size-1 rounded-full bg-foreground" />
+        <span className="size-1 rounded-full bg-muted-foreground" />
+        <span className="size-1 rounded-full bg-border" />
+      </span>
 
       {todoCount > 0 ? (
         <span

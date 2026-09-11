@@ -227,7 +227,10 @@ export function StudioOperatorQuestionCard({
             ))}
           </div>
         ) : (
-          <div className="flex flex-col gap-1">
+          /* ⚠ 桌面**横排可换行**、手机**竖排整宽**（画板 Main / 对稿 2026-09-11）：
+             桌面上两三个短选项各占一整行会把卡撑成一面墙；手机上横排则会把中文
+             选项压成两个字一行。⛔ 别给这一支再加第三种排法。 */
+          <div className="flex flex-col gap-1 md:flex-row md:flex-wrap md:gap-2">
             {orderOptions(question.options).map((option) => {
               const visual = getAssistantPlanVisual(option.visual)
               return (
@@ -245,7 +248,9 @@ export function StudioOperatorQuestionCard({
                         : {}),
                     })
                   }
-                  className="flex items-start gap-2 rounded-md border border-assistant-line-strong bg-muted p-2 text-left font-medium transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none"
+                  /* 桌面那一档是画板上那颗 32px 胶囊（`md:min-h-8` + 紧内距），
+                     ⛔ 不固定高：带说明文字的选项仍要能自己长高。 */
+                  className="flex items-start gap-2 rounded-md border border-assistant-line-strong bg-muted p-2 text-left font-medium transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none md:min-h-8 md:items-center md:px-3 md:py-1.5"
                 >
                   <PlanOptionVisual
                     option={option}
@@ -279,7 +284,9 @@ export function StudioOperatorQuestionCard({
             })}
 
             {question.allowOther ? (
-              <div className="flex flex-col gap-1">
+              /* ⚠ 桌面横排时这一支**整行独占**（`md:w-full`）：它展开后是一条
+                 输入框 + 发送键，挤在选项胶囊中间会被压成两个字宽。 */
+              <div className="flex flex-col gap-1 md:w-full md:flex-row md:flex-wrap md:items-start md:gap-2">
                 <button
                   type="button"
                   data-testid="operator-question-option"
@@ -288,12 +295,12 @@ export function StudioOperatorQuestionCard({
                   aria-expanded={otherOpen}
                   disabled={submitted}
                   onClick={() => setOtherOpen((value) => !value)}
-                  className="flex items-center gap-2 rounded-md border border-border bg-card p-2 text-left text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none"
+                  className="flex items-center gap-2 rounded-md border border-border bg-card p-2 text-left text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none md:min-h-8 md:px-3 md:py-1.5"
                 >
                   {t('question.other')}
                 </button>
                 {otherOpen ? (
-                  <div className="flex gap-1.5">
+                  <div className="flex gap-1.5 md:w-full">
                     <input
                       type="text"
                       data-testid="operator-question-other-input"

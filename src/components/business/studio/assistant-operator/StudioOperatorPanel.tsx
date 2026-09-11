@@ -36,6 +36,7 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  ArrowUp,
   Box,
   Images,
   Music,
@@ -43,7 +44,6 @@ import {
   Play,
   Plus,
   RotateCw,
-  Send,
   Square,
   TriangleAlert,
   X,
@@ -1430,8 +1430,8 @@ export function StudioOperatorPanel({
             })}
       />
 
-      {/* ── 五动词小标签条（§4.6 / 画板 BMobile）——**只在移动端**，
-          桌面靠头像旁那句状态词说同一件事。 */}
+      {/* ── 五动词小标签条（画板 Main 头部正下方 / §4.6）——**桌面与手机都画**：
+          它说的是「五步里走到第几步」，与状态词那句「正在做什么」不重复。 */}
       <StudioOperatorVerbStrip />
 
       {/* ── 钉住的证据常驻条（§3.2）——钉住之后在面板顶部留一份，可点回卡。
@@ -2071,7 +2071,10 @@ export function StudioOperatorPanel({
                 aria-label={t('library.label')}
                 title={t('library.label')}
                 onClick={() => setLibraryOpen(true)}
-                className="grid size-7 shrink-0 place-items-center rounded-lg border border-border/70 text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                /* ⚠ 与左边那两颗同尺寸同圆角（`size-8 rounded-md`，对稿
+                   2026-09-11）：下行四颗控件是一排并列的入口，⛔ 不许某一颗
+                   自己小一号、圆一档。 */
+                className="grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
                 <Images className="size-3.5" aria-hidden />
               </button>
@@ -2116,7 +2119,10 @@ export function StudioOperatorPanel({
                 {uploading ? (
                   <Spinner size="sm" className="text-background" />
                 ) : (
-                  <Send className="size-4" aria-hidden />
+                  /* ⚠ 画板 Main 的发送键是一支**↑**不是纸飞机：这一颗提交的是
+                     「把这句话推上去」，箭头比纸飞机更直说这件事。底仍是
+                     `bg-foreground`（信号位，§12.2）。 */
+                  <ArrowUp className="size-4" aria-hidden />
                 )}
               </button>
             </div>

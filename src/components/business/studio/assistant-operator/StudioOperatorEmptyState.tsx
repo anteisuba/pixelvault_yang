@@ -69,7 +69,9 @@ export function StudioOperatorEmptyState({
       />
 
       <div className="flex flex-col items-center gap-2.5">
-        <h2 className="text-lg font-semibold tracking-tight text-foreground">
+        {/* 20px（画板 BEmpty）——空态大标题是这一屏唯一的主角，18px 读起来
+            像一行小标题。 */}
+        <h2 className="text-xl font-semibold tracking-tight text-foreground">
           {t('emptyState.title', { name })}
         </h2>
         <p className="max-w-95 text-sm leading-relaxed text-muted-foreground">
@@ -90,7 +92,9 @@ export function StudioOperatorEmptyState({
                   data-testid="operator-empty-suggestion"
                   data-suggestion={suggestion.id}
                   onClick={() => onSuggestion(t(`suggestion.${suggestion.id}`))}
-                  className="flex min-h-11 items-center gap-2.5 rounded-md border border-border bg-card px-4 text-left text-sm text-foreground shadow-assistant-card transition-colors duration-(--duration-fast) ease-standard hover:bg-accent active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                  /* 10px 圆角（`rounded-lg`，画板 BEmpty）：这一行是一张可点的
+                     卡而不是一颗控件，⛔ 不用控件档的 `rounded-md`。 */
+                  className="flex min-h-11 items-center gap-2.5 rounded-lg border border-border bg-card px-4 text-left text-sm text-foreground shadow-assistant-card transition-colors duration-(--duration-fast) ease-standard hover:bg-accent active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
                 >
                   <Icon className="size-4 shrink-0" aria-hidden />
                   <span className="min-w-0">

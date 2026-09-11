@@ -221,8 +221,10 @@ export function StudioOperatorHeader({
               title={sessionTitle}
               /* 画板 BCards「头部 · 静止」：标题是一颗 `bg-muted` 的浅片，
                  不是一行裸字 —— 那颗片就是「这里可以点开历史」的形状。
-                 ⚠ 展开时压深一档（`data-[state=open]`），⛔ 不换色相。 */
-              className="flex h-8 min-w-0 flex-1 items-center gap-1 rounded-md bg-muted px-2.5 text-left text-sm font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent data-[state=open]:bg-surface-fill-track focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                 ⚠ 展开时压深一档（`data-[state=open]`），⛔ 不换色相。
+                 ⚠ **hug-content**（对稿 2026-09-11）：⛔ 不给 `flex-1` —— 撑满一行
+                   的浅片读起来是一条输入框，而它是一颗药丸式的下拉触发器。 */
+              className="flex h-8 min-w-0 max-w-full items-center gap-1 rounded-md bg-muted px-2.5 text-left text-sm font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent data-[state=open]:bg-surface-fill-track focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               <span className="min-w-0 truncate">{sessionTitle}</span>
               <ChevronDown className="size-3.5 shrink-0" aria-hidden />
@@ -362,6 +364,9 @@ export function StudioOperatorHeader({
             {t('resume.band', { step: resume.stepNumber })}
           </button>
         ) : null}
+
+        {/* 标题药丸 hug 之后靠这一格把右上三颗推到右边（⛔ 不靠 `flex-1` 撑标题）。 */}
+        <span className="flex-1" />
 
         {/* ── 右上两颗 32px 图标（§4.1 / 画板 BCards「头部 · 静止」）────────
             ⚠ 历史这一颗与标题▾ 开的是**同一个菜单**（见头注）：它只是给「不知道

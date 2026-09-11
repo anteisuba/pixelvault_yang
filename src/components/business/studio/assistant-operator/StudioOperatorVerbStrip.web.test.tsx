@@ -9,14 +9,14 @@ import {
 import { StudioOperatorVerbStrip } from './StudioOperatorVerbStrip'
 
 /**
- * 五动词小标签条的回归闸（v2 §4.6 / 画板 BMobile，commit #21）。
+ * 五动词小标签条的回归闸（v2 §4.6 / 画板 Main，commit #21）。
  *
  * 钉五件事：
  *  ① 五颗都在、顺序就是 `ASSISTANT_OPERATOR_VERBS`（⛔ 不在组件里另排一遍）；
  *  ② 当前动词**直接读 `step.verb`**（⛔ 不按工具名反查对照表）；
  *  ③ 「本轮」= 最后一条步所在的那一轮 —— 上一轮跑过的动词不算数；
  *  ④ 状态不只靠颜色：当前那颗近黑实底 + 白字 + 加粗 + `aria-current="step"`；
- *  ⑤ **只在移动端**（`lg:hidden`）—— 桌面靠头像旁那句状态词说同一件事。
+ *  ⑤ **桌面与手机都画**（对稿 2026-09-11）—— ⛔ 不许再按断点把它藏掉。
  */
 
 vi.mock('next-intl', () => ({
@@ -67,10 +67,10 @@ describe('StudioOperatorVerbStrip', () => {
     ])
   })
 
-  it('⭐ 只在移动端画（`lg:hidden`）：桌面那一档由状态词承担', () => {
+  it('⭐ 桌面也画（画板 Main 头部正下方）：⛔ 不许再有断点把它藏掉', () => {
     render(<StudioOperatorVerbStrip />)
-    expect(screen.getByTestId('operator-verb-strip').className).toContain(
-      'lg:hidden',
+    expect(screen.getByTestId('operator-verb-strip').className).not.toMatch(
+      /hidden/,
     )
   })
 

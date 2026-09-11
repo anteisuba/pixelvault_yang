@@ -3,11 +3,9 @@
 /**
  * **五动词小标签条**（v2 §4.6 / 画板 BMobile）——「本轮走到哪一步」的读数。
  *
- * ⭐ **只在移动端画**。桌面靠头像旁那句状态词（§3.6）说同一件事；手机上那句话
- * 常常被半屏 Sheet 的折叠内容顶到看不见的地方，所以它在这里换成一条一眼扫得完
- * 的标签条。⛔ 两处同时画 = 同一个进度说了两遍。
- * ⚠ 断点判据用 `lg:hidden`：与外壳自己的 `lg:flex`（`StudioOperatorDock`）
- * **同一条线**，⛔ 不另起容器查询 —— 这不是「面板变窄了」而是「换了一种外壳」。
+ * ⭐ **桌面与移动端都画**（对稿 2026-09-11）：画板 Main 把它摆在头部正下方，
+ * 作为「本轮走到哪一步」的常驻读数。此前的 `lg:hidden` 是对稿偏差 —— 桌面那一句
+ * 状态词只说「正在做什么」，说不出「五步里走到第几步」，两者不重复。
  *
  * ⚠ 动词**直接读 `step.verb`**（§3.1 的必填一等字段），⛔ 不按工具名反查对照表
  * ——和 `use-studio-operator-status-word` 同一条判据。
@@ -61,8 +59,8 @@ export function StudioOperatorVerbStrip() {
     <div
       data-testid="operator-verb-strip"
       aria-label={t('verbStrip.label')}
-      // ⚠ `lg:hidden` 见头注：桌面上这条不存在，不是「藏起来」。
-      className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2 lg:hidden"
+      // ⚠ 两档外壳共用这一条（见头注），⛔ 别再按断点藏掉它。
+      className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2 pt-2"
     >
       {ASSISTANT_OPERATOR_VERBS.map((verb) => {
         const isActive = active === verb

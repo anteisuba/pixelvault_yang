@@ -1528,3 +1528,34 @@ export const NODE_V4_IMAGE_QUALITY_COST = {
   xhigh: 3,
   max: 4,
 } as const
+
+/**
+ * 手机端**镜头带视图**（node-canvas-v2 §7.x，画板 `MobileCanvas.dc.html` 方向 A）。
+ *
+ * ⚠ 四个列表的 id 就是分段控件的词表，文案走 i18n（`StudioNode.mobileRail.tab.*`）
+ * ——⛔ 不拿稳定名当文案，也⛔ 不在组件里另写一份顺序。
+ */
+export const NODE_MOBILE_LIST_IDS = {
+  shots: 'shots',
+  images: 'images',
+  voices: 'voices',
+  texts: 'texts',
+} as const
+
+export const NODE_MOBILE_LISTS = [
+  NODE_MOBILE_LIST_IDS.shots,
+  NODE_MOBILE_LIST_IDS.images,
+  NODE_MOBILE_LIST_IDS.voices,
+  NODE_MOBILE_LIST_IDS.texts,
+] as const
+
+export type NodeMobileListId = (typeof NODE_MOBILE_LISTS)[number]
+
+export const NODE_MOBILE_RAIL = {
+  /** 卡上参考条的缩略边长（画板 `.strip .th`：44，正好是触屏命中区底线）。 */
+  stripThumbSize: 44,
+  /** 抽屉两档：半屏 / 全屏（`svh` 百分比）。 */
+  sheetSnapPoints: [0.55, 0.95],
+  /** 长按多久算「移除这一项」（画板：长按缩略 = 断边）。 */
+  longPressMs: 500,
+} as const

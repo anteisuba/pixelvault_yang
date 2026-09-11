@@ -108,6 +108,15 @@ export interface WorkbenchDndV4Value {
   onDragOver(event: React.DragEvent): void
   /** 添加菜单「上传素材」走的也是这条路。 */
   dropFiles(files: readonly File[], screenPoint: { x: number; y: number }): void
+  /**
+   * 直接给**画布坐标**的落法。⚠ 存在理由：手机镜头带视图里 ReactFlow 根本没挂载，
+   * `screenToFlowPosition` 没有视口可换算 —— 但落卡这件事本身一模一样，所以只把
+   * 「屏幕 → 画布」那一步让出来，⛔ 不为手机另写一条上传落卡的路径。
+   */
+  dropFilesAtFlow(
+    files: readonly File[],
+    flowPoint: { x: number; y: number },
+  ): void
   readonly isUploading: boolean
 }
 
@@ -143,8 +152,8 @@ export function useWorkbenchDndV4({
     latest.current = { graph, upload, screenToFlowPosition, t }
   }, [graph, upload, screenToFlowPosition, t])
 
-  const dropFiles = useCallback(
-    (files: readonly File[], screenPoint: { x: number; y: number }) => {
+  const dropFilesAtFlow = useCallback(
+    (files: readonly File[], origin: { x: number; y: number }) => {
       const accepted = files
         .map((file) => ({ file, plan: resolveDropKind(file) }))
         .filter(
@@ -155,7 +164,6 @@ export function useWorkbenchDndV4({
         )
       if (accepted.length === 0) return
 
-      const origin = latest.current.screenToFlowPosition(screenPoint)
       accepted.forEach((entry, index) => {
         // 多个文件错位铺开，⛔ 不叠在同一个坐标上（叠着的卡看起来只有一张）。
         // 步进复用顶栏 ＋ 那一份（`topbarAddStep`），⛔ 不为落物再定一个数。
@@ -182,6 +190,12 @@ export function useWorkbenchDndV4({
       })
     },
     [],
+  )
+
+  const dropFiles = useCallback(
+    (files: readonly File[], screenPoint: { x: number; y: number }) =>
+      dropFilesAtFlow(files, latest.current.screenToFlowPosition(screenPoint)),
+    [dropFilesAtFlow],
   )
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -226,5 +240,11 @@ export function useWorkbenchDndV4({
     return () => window.removeEventListener('paste', onPaste)
   }, [pasteEnabled, dropFiles])
 
-  return { onDrop, onDragOver, dropFiles, isUploading: upload.isUploading }
+  return {
+    onDrop,
+    onDragOver,
+    dropFiles,
+    dropFilesAtFlow,
+    isUploading: upload.isUploading,
+  }
 }

@@ -16,10 +16,10 @@ import {
   CommandSeparator,
 } from '@/components/ui/command'
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import {
   AUDIO_KIND,
   DEFAULT_AUDIO_KIND,
@@ -574,8 +574,10 @@ export function ModelPickerPopover({
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger asChild>
+      {/* 触屏紧凑态自动换成底部 sheet（ui-defaults §6）——⛔ 别在窄视口裸用
+          锚定弹层，320 宽的列表会被裁。 */}
+      <ResponsivePopover open={open} onOpenChange={setOpen}>
+        <ResponsivePopoverTrigger asChild>
           <ModelChip
             modelLabel={
               selectedRow?.label ?? triggerEmptyLabel ?? tCommon('selectModel')
@@ -590,15 +592,17 @@ export function ModelPickerPopover({
             disabled={disabled}
             className={className}
           />
-        </PopoverTrigger>
-        <PopoverContent
+        </ResponsivePopoverTrigger>
+        <ResponsivePopoverContent
           side={side}
           align={align}
+          label={triggerEmptyLabel ?? tCommon('selectModel')}
           className="w-model-picker p-0"
+          mobileClassName="px-0"
         >
           {body}
-        </PopoverContent>
-      </Popover>
+        </ResponsivePopoverContent>
+      </ResponsivePopover>
       {setupDialog}
     </>
   )

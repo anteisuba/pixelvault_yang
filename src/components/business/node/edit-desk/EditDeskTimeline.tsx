@@ -115,6 +115,11 @@ export interface EditDeskTimelineProps {
    * 就与轨道脱开，用户读不出「这张卡说的是下面这几段」。
    */
   readonly overlay?: ReactNode
+  /**
+   * **只看不剪**（手机档，node-canvas-v2 §7.x）：工具条与磁吸开关整条不渲染。
+   * ⛔ 不是置灰 —— 手机上剪辑本来就做不了，一排灰键只会让人反复去点。
+   */
+  readonly readOnly?: boolean
 }
 
 export function EditDeskTimeline({
@@ -124,6 +129,7 @@ export function EditDeskTimeline({
   highlightTrack,
   footer,
   overlay,
+  readOnly = false,
 }: EditDeskTimelineProps) {
   const t = useTranslations('StudioNode.editDesk')
   const laneRef = useRef<HTMLDivElement | null>(null)
@@ -172,46 +178,48 @@ export function EditDeskTimeline({
       style={{ height: EDIT_DESK_LAYOUT.timelineHeightPx }}
       className="relative flex shrink-0 flex-col border-t border-border bg-card"
     >
-      {/* 工具条 + 磁吸开关 */}
-      <div className="flex items-center gap-2 px-3 pt-2">
-        <div className="inline-flex gap-0.5">
-          {EDIT_TOOLS.map((tool) => (
-            <ShellIconButton
-              key={tool}
-              icon={TOOL_ICONS[tool]}
-              label={t(`tools.${tool}`)}
-              testId={`edit-desk-tool-${tool}`}
-              onClick={() => onToolClick(tool)}
-            />
-          ))}
-        </div>
-        <div className="flex-1" />
-        <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <span>{t('magnetic')}</span>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={desk.project.settings.magnetic}
-            data-testid="edit-desk-magnetic"
-            onClick={() =>
-              desk.setSettings({ magnetic: !desk.project.settings.magnetic })
-            }
-            className={cn(
-              'relative h-5 w-[30px] rounded-full transition-colors duration-fast motion-reduce:transition-none',
-              desk.project.settings.magnetic
-                ? 'bg-primary'
-                : 'bg-surface-fill-track',
-            )}
-          >
-            <span
+      {/* 工具条 + 磁吸开关（只看不剪时整条不出） */}
+      {readOnly ? null : (
+        <div className="flex items-center gap-2 px-3 pt-2">
+          <div className="inline-flex gap-0.5">
+            {EDIT_TOOLS.map((tool) => (
+              <ShellIconButton
+                key={tool}
+                icon={TOOL_ICONS[tool]}
+                label={t(`tools.${tool}`)}
+                testId={`edit-desk-tool-${tool}`}
+                onClick={() => onToolClick(tool)}
+              />
+            ))}
+          </div>
+          <div className="flex-1" />
+          <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span>{t('magnetic')}</span>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={desk.project.settings.magnetic}
+              data-testid="edit-desk-magnetic"
+              onClick={() =>
+                desk.setSettings({ magnetic: !desk.project.settings.magnetic })
+              }
               className={cn(
-                'absolute top-0.5 size-4 rounded-full bg-background transition-[left] duration-fast motion-reduce:transition-none',
-                desk.project.settings.magnetic ? 'left-[12px]' : 'left-0.5',
+                'relative h-5 w-[30px] rounded-full transition-colors duration-fast motion-reduce:transition-none',
+                desk.project.settings.magnetic
+                  ? 'bg-primary'
+                  : 'bg-surface-fill-track',
               )}
-            />
-          </button>
-        </label>
-      </div>
+            >
+              <span
+                className={cn(
+                  'absolute top-0.5 size-4 rounded-full bg-background transition-[left] duration-fast motion-reduce:transition-none',
+                  desk.project.settings.magnetic ? 'left-[12px]' : 'left-0.5',
+                )}
+              />
+            </button>
+          </label>
+        </div>
+      )}
 
       {/* 标尺 + 三轨 + 播放头 */}
       <div className="relative flex-1 overflow-x-auto overflow-y-hidden px-3 pb-2 pt-5">
@@ -329,7 +337,9 @@ function TextLane({
       </span>
       <div
         data-testid="edit-desk-track-text"
-        onPointerDown={(event) => desk.setPlayhead(secondsFromEvent(event.clientX))}
+        onPointerDown={(event) =>
+          desk.setPlayhead(secondsFromEvent(event.clientX))
+        }
         className="relative min-w-0 flex-1"
         style={{ height: EDIT_TEXT_CLIP_HEIGHT_PX }}
       >
@@ -407,7 +417,8 @@ function TextClipView({
             0,
             Math.min(
               origin.startSec + delta,
-              origin.startSec + origin.durationSec -
+              origin.startSec +
+                origin.durationSec -
                 EDIT_TEXT_CLIP_MIN_DURATION_SEC,
             ),
           )

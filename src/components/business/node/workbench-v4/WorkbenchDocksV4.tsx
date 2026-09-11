@@ -10,7 +10,7 @@
  * ③d-4 之前那个 v3 适配器），节点由外层的 `<ReactFlow>` 给。
  *
  * ⚠ 已知缺口（③d-4 的接线清单里点名）：`StudioNodeAssistantDock` 的 `nodes` /
- * `edges` props 与 `CanvasMobileView` / `CastDock` 的 `useNodes<NodeWorkflowNode>()`
+ * `edges` props 与 `CastDock` 的 `useNodes<NodeWorkflowNode>()`
  * 仍是 **v3 形状的类型**。运行时它们拿到的是 v4 节点（RF store 里就是这一份），
  * 读 `data.type` / `data.role` 这类 v3 字段会读到 `undefined` —— 不是崩，是**降级**。
  * 本片不给它们套形状转换层：那正是「给旧签名留垫片」。它们各自的 v4 props 改造
@@ -26,7 +26,6 @@ import type {
 } from '@/types/node-workflow'
 import type { ScriptDoc } from '@/types/script-doc'
 
-import { CanvasMobileView } from '../CanvasMobileView'
 import { ReviewModeBar } from '../ReviewModeBar'
 import { StudioNodeAssistantDock } from '../StudioNodeAssistantDock'
 
@@ -45,13 +44,6 @@ export interface WorkbenchDocksV4Props {
   onAssistantOpenChange(open: boolean): void
   onAssistantExpandedChange(expanded: boolean): void
   onFocusNode(nodeId: string): void
-  readonly assistantHistoryHost: HTMLDivElement | null
-  setAssistantHistoryHost(el: HTMLDivElement | null): void
-
-  readonly isMobile: boolean
-  readonly canvasPeek: boolean
-  onEnterPeek(): void
-  onExitPeek(): void
 }
 
 /** 助手 dock 单独摘出来：它是 `CanvasWorkspaceLayout` 的 `assistant` 插槽内容。 */
@@ -67,7 +59,6 @@ export function WorkbenchAssistantDockV4({
   onAssistantOpenChange,
   onAssistantExpandedChange,
   onFocusNode,
-  assistantHistoryHost,
 }: Pick<
   WorkbenchDocksV4Props,
   | 'projectId'
@@ -81,7 +72,6 @@ export function WorkbenchAssistantDockV4({
   | 'onAssistantOpenChange'
   | 'onAssistantExpandedChange'
   | 'onFocusNode'
-  | 'assistantHistoryHost'
 >) {
   return (
     <StudioNodeAssistantDock
@@ -96,7 +86,6 @@ export function WorkbenchAssistantDockV4({
       onOpenChange={onAssistantOpenChange}
       onExpandedChange={onAssistantExpandedChange}
       onFocusNode={onFocusNode}
-      historyPortalTarget={assistantHistoryHost}
     />
   )
 }
@@ -104,35 +93,11 @@ export function WorkbenchAssistantDockV4({
 /**
  * ⚠ S7 起桌面档的左栏不在这里 —— 44px 图标栏 + 264 浮起面板由
  * `shell/ShellSidePanels` 直接挂在 workbench 上（画板 `ChromePanels.dc.html`）。
- * 本文件只剩「审阅条 + 手机形态」这两件与外壳无关的摆放。
+ * ⚠ S12 起手机形态也不在这里 —— < 768 由 `NodeWorkbenchV4` 整棵换成
+ * `mobile/CanvasMobileRail`（node-canvas-v2 §7.x），2026-08-26 的只读覆盖层
+ * `CanvasMobileView` 随之删除，⛔ 不留兼容层。本文件只剩审阅条这一件摆放。
  */
-export function WorkbenchDocksV4({
-  projectPanel,
-  setAssistantHistoryHost,
-  isMobile,
-  canvasPeek,
-  onEnterPeek,
-  onExitPeek,
-  projectId,
-}: WorkbenchDocksV4Props) {
-  return (
-    <>
-      {/* 审阅模式条：组件自己判「在不在模式里」，不在就整个不渲染。 */}
-      <ReviewModeBar />
-      {isMobile ? (
-        <CanvasMobileView
-          // 切项目要整块重挂：手机形态里它是**唯一**的内容视图，留着旧项目的
-          // 局部状态会让用户以为项目没切过去。
-          key={projectId}
-          peeking={canvasPeek}
-          onEnterPeek={onEnterPeek}
-          onExitPeek={onExitPeek}
-          projectPanel={projectPanel}
-          assistantHistoryPanel={
-            <div ref={setAssistantHistoryHost} className="h-full" />
-          }
-        />
-      ) : null}
-    </>
-  )
+export function WorkbenchDocksV4() {
+  // 审阅模式条：组件自己判「在不在模式里」，不在就整个不渲染。
+  return <ReviewModeBar />
 }

@@ -56,6 +56,7 @@ import {
   NODE_STUDIO_TOOL_MODE_IDS,
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
+import { looseAreaSpawn, nextShotNo } from '@/lib/node-shot-layout'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
@@ -72,7 +73,7 @@ import {
 } from '@/constants/edit-desk'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
-import { useIsMobile } from '@/hooks/use-mobile'
+import { useIsMobile, useIsPhone } from '@/hooks/use-mobile'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { useCanvasImageEditHandoffV4 } from '@/hooks/node/use-canvas-image-edit-handoff-v4'
 import { useEdgeSigning } from '@/hooks/node/use-edge-signing'
@@ -102,8 +103,8 @@ import {
 } from '@/components/ui/alert-dialog'
 
 import { EditDesk } from '../edit-desk'
+import { CanvasMobileRail } from '../mobile'
 import { CanvasWorkspaceLayout } from '../CanvasWorkspaceLayout'
-import { CanvasProjectPanel } from '../CanvasProjectPanel'
 import { ProjectNameDialog } from '../ProjectNameDialog'
 import { NodeCanvasEmptyGuide } from '../NodeCanvasEmptyGuide'
 import { IngestDragProviderV4 } from '../IngestDragLayerV4'
@@ -126,6 +127,7 @@ import { ShellBottomBar } from './shell/ShellBottomBar'
 import { ShellPaneMenu, ShellQuickAdd } from './shell/ShellCanvasMenus'
 import { ShellCommandPalette } from './shell/ShellCommandPalette'
 import { ShellSidePanels } from './shell/ShellSidePanels'
+import { ShellProjectPill } from './shell/ShellProjectPill'
 import { ShellTopBar } from './shell/ShellTopBar'
 
 /**
@@ -240,6 +242,8 @@ function NodeWorkbenchV4Inner() {
   const locale = useLocale()
   const appLocale = isAppLocale(locale) ? locale : DEFAULT_LOCALE
   const isMobile = useIsMobile()
+  /** < 768 = 镜头带视图（桌面 ReactFlow 不挂载）。 */
+  const isPhone = useIsPhone()
 
   // Clerk userId 给 store 划分本地槽与服务端调用；未加载时传 null = 停在空态，
   // ⛔ 不泄漏上一个账号的快照。
@@ -329,15 +333,12 @@ function NodeWorkbenchV4Inner() {
   /** 助手从没开过时右缘不留那一条（画板默认态右缘是空的）。 */
   const [assistantEverOpened, setAssistantEverOpened] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
-  const [assistantHistoryHost, setAssistantHistoryHost] =
-    useState<HTMLDivElement | null>(null)
   /**
    * 就地加节点的两个浮层（双击 / 右键）。`screen` 是**相对画布容器**的坐标 ——
    * 浮层挂在 chrome 层里，用 clientX/Y 会在 stage 不贴视口左上角时整体偏移。
    */
   const [quickAdd, setQuickAdd] = useState<CanvasPointerAnchor | null>(null)
   const [paneMenu, setPaneMenu] = useState<CanvasPointerAnchor | null>(null)
-  const [canvasPeek, setCanvasPeek] = useState(false)
   const [projectDialogMode, setProjectDialogMode] = useState<
     'create' | 'rename' | 'duplicate' | null
   >(null)
@@ -959,20 +960,177 @@ function NodeWorkbenchV4Inner() {
     [readPointerAnchor],
   )
 
-  const projectPanel = (
-    <CanvasProjectPanel
-      projectName={store.currentProject.name}
-      projects={store.projects}
-      currentProjectId={store.currentProject.id}
-      nodeCount={graph.nodes.length}
-      isSaving={false}
-      onSave={() => void store.saveNow()}
-      onCreateProject={() => setProjectDialogMode('create')}
-      onRenameProject={() => setProjectDialogMode('rename')}
-      onDeleteProject={() => setDeleteConfirmOpen(true)}
-      onSwitchProject={store.switchProject}
-    />
+  /**
+   * 手机 FAB 的「新建镜头」：落在**镜头带末尾**（`shotNo` 顺延）——⛔ 不落进散
+   * 节点区，否则它在手机的镜头列表里根本不出现。
+   */
+  const addShotAtRailEnd = useCallback(() => {
+    const nodeId = graph.addNode(
+      NODE_MEDIA_KIND_IDS.video,
+      NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+      { shotNo: nextShotNo(graph.nodes) },
+    )
+    if (nodeId) lastCreatedRef.current = [nodeId]
+  }, [graph])
+
+  /** 项目重命名 / 新建 / 复制 / 删除的两个弹窗 —— 桌面与手机镜头带共用。 */
+  const projectDialogs = (
+    <>
+      <ProjectNameDialog
+        open={projectDialogMode !== null}
+        title={
+          projectDialogMode === 'rename'
+            ? t('projectDialog.renameTitle')
+            : projectDialogMode === 'duplicate'
+              ? tShell('project.duplicate')
+              : t('projectDialog.createTitle')
+        }
+        placeholder={t('topbar.createProjectPrompt')}
+        submitLabel={
+          projectDialogMode === 'rename'
+            ? t('projectDialog.renameSubmit')
+            : t('projectDialog.createSubmit')
+        }
+        cancelLabel={t('projectDialog.cancel')}
+        defaultValue={
+          projectDialogMode === 'rename'
+            ? store.currentProject.name
+            : projectDialogMode === 'duplicate'
+              ? tShell('project.duplicateSuffix', {
+                  name: store.currentProject.name,
+                })
+              : t('projectNewDefaultName', {
+                  n: store.projects.length + 1,
+                })
+        }
+        onOpenChange={(open) => {
+          if (!open) setProjectDialogMode(null)
+        }}
+        onSubmit={(name) => {
+          if (projectDialogMode === 'rename') {
+            store.renameCurrentProject(name)
+          } else if (projectDialogMode === 'duplicate') {
+            store.duplicateProject(store.currentProject.id, name)
+          } else {
+            store.createProject(name)
+          }
+          setProjectDialogMode(null)
+        }}
+      />
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('projectDialog.deleteTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('topbar.deleteProjectConfirm', {
+                name: store.currentProject.name,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('projectDialog.cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                store.deleteProject(store.currentProject.id)
+                setDeleteConfirmOpen(false)
+              }}
+            >
+              {t('projectDialog.deleteConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   )
+
+  /**
+   * 手机端（< 768）**整个换成镜头带视图**（node-canvas-v2 §7.x，画板
+   * `MobileCanvas.dc.html` 方向 A）。
+   *
+   * ⚠ 桌面 ReactFlow **不挂载** —— 手机上不摆自由画布，挂着它等于让一棵没人看的
+   * 画布争 375 宽里的每一次布局与合成。所有钩子都在这一行之前调完，⛔ 别把这个
+   * 分支往上挪。
+   *
+   * 剪辑台在手机上**只看不剪**（`readOnly`）：时间线不可拖、工具条与右栏不出，
+   * 只留 预览 + 导出进度 + 下载成片。
+   */
+  if (isPhone) {
+    return (
+      <NodeCanvasActionsProvider value={actions}>
+        <NodeV4Provider
+          graph={graph}
+          modelOptionsByKind={modelOptionsByKind}
+          onFocusNode={focusNode}
+          onDeriveFromText={deriveFromText}
+        >
+          <div className="node-workbench-v4 relative size-full">
+            <CanvasMobileRail
+              key={store.currentProject.id}
+              projectPill={
+                <ShellProjectPill
+                  projectName={store.currentProject.name}
+                  projects={store.projects}
+                  currentProjectId={store.currentProject.id}
+                  isSaving={dnd.isUploading}
+                  onSwitchProject={store.switchProject}
+                  onCreateProject={() => setProjectDialogMode('create')}
+                  onRenameProject={() => setProjectDialogMode('rename')}
+                  onDuplicateProject={() => setProjectDialogMode('duplicate')}
+                  onDeleteProject={() => setDeleteConfirmOpen(true)}
+                />
+              }
+              assistantOpen={assistantOpen}
+              onOpenAssistant={() => {
+                setAssistantOpen(!assistantOpen)
+                setAssistantEverOpened(true)
+              }}
+              assistant={
+                <WorkbenchAssistantDockV4
+                  projectId={store.currentProject.id}
+                  projectName={store.currentProject.name}
+                  scriptDoc={store.state.scriptDoc}
+                  locale={appLocale}
+                  nodes={graph.nodes}
+                  edges={graph.edges}
+                  assistantOpen={assistantOpen}
+                  assistantExpanded={false}
+                  onAssistantOpenChange={setAssistantOpen}
+                  onAssistantExpandedChange={setAssistantExpanded}
+                  onFocusNode={focusNode}
+                />
+              }
+              onAddShot={addShotAtRailEnd}
+              onUploadFiles={(files) =>
+                dnd.dropFilesAtFlow(files, looseAreaSpawn(graph.nodes.length))
+              }
+            />
+            {editMode ? (
+              <EditDesk
+                readOnly
+                state={graph.state}
+                projectId={store.currentProject.id}
+                dispatchBatch={graph.dispatchBatch}
+                mintId={mintEditId}
+                addNode={graph.addNode}
+                setMedia={graph.setMedia}
+                connect={graph.connect}
+                canUndo={graph.canUndo}
+                onUndo={graph.undo}
+                onExit={exitEditDesk}
+                onBackToNode={backToNodeFromEditDesk}
+                initialNodeIds={editDeskSeed}
+                onInitialConsumed={() => setEditDeskSeed([])}
+              />
+            ) : null}
+            {projectDialogs}
+          </div>
+        </NodeV4Provider>
+      </NodeCanvasActionsProvider>
+    )
+  }
 
   return (
     <NodeCanvasActionsProvider value={actions}>
@@ -1000,7 +1158,6 @@ function NodeWorkbenchV4Inner() {
               onAssistantOpenChange={setAssistantOpen}
               onAssistantExpandedChange={setAssistantExpanded}
               onFocusNode={focusNode}
-              assistantHistoryHost={assistantHistoryHost}
             />
           </ShellAssistantFrame>
         }
@@ -1137,27 +1294,7 @@ function NodeWorkbenchV4Inner() {
                   onSwitchProject={store.switchProject}
                   onManageChannels={openApiKeys}
                 />
-                <WorkbenchDocksV4
-                  projectId={store.currentProject.id}
-                  projectName={store.currentProject.name}
-                  projectPanel={projectPanel}
-                  modelOptionsByType={modelOptionsByType}
-                  scriptDoc={store.state.scriptDoc}
-                  locale={appLocale}
-                  nodes={graph.nodes}
-                  edges={graph.edges}
-                  assistantOpen={assistantOpen}
-                  assistantExpanded={assistantExpanded}
-                  onAssistantOpenChange={setAssistantOpen}
-                  onAssistantExpandedChange={setAssistantExpanded}
-                  onFocusNode={focusNode}
-                  assistantHistoryHost={assistantHistoryHost}
-                  setAssistantHistoryHost={setAssistantHistoryHost}
-                  isMobile={isMobile}
-                  canvasPeek={canvasPeek}
-                  onEnterPeek={() => setCanvasPeek(true)}
-                  onExitPeek={() => setCanvasPeek(false)}
-                />
+                <WorkbenchDocksV4 />
                 {/* 添加菜单「上传素材」的隐藏 input：菜单关掉后仍要在场接住系统
                     对话框的 change，所以挂宿主不挂菜单。 */}
                 <input
@@ -1202,78 +1339,7 @@ function NodeWorkbenchV4Inner() {
                   onInitialConsumed={() => setEditDeskSeed([])}
                 />
               ) : null}
-              <ProjectNameDialog
-                open={projectDialogMode !== null}
-                title={
-                  projectDialogMode === 'rename'
-                    ? t('projectDialog.renameTitle')
-                    : projectDialogMode === 'duplicate'
-                      ? tShell('project.duplicate')
-                      : t('projectDialog.createTitle')
-                }
-                placeholder={t('topbar.createProjectPrompt')}
-                submitLabel={
-                  projectDialogMode === 'rename'
-                    ? t('projectDialog.renameSubmit')
-                    : t('projectDialog.createSubmit')
-                }
-                cancelLabel={t('projectDialog.cancel')}
-                defaultValue={
-                  projectDialogMode === 'rename'
-                    ? store.currentProject.name
-                    : projectDialogMode === 'duplicate'
-                      ? tShell('project.duplicateSuffix', {
-                          name: store.currentProject.name,
-                        })
-                      : t('projectNewDefaultName', {
-                          n: store.projects.length + 1,
-                        })
-                }
-                onOpenChange={(open) => {
-                  if (!open) setProjectDialogMode(null)
-                }}
-                onSubmit={(name) => {
-                  if (projectDialogMode === 'rename') {
-                    store.renameCurrentProject(name)
-                  } else if (projectDialogMode === 'duplicate') {
-                    store.duplicateProject(store.currentProject.id, name)
-                  } else {
-                    store.createProject(name)
-                  }
-                  setProjectDialogMode(null)
-                }}
-              />
-              <AlertDialog
-                open={deleteConfirmOpen}
-                onOpenChange={setDeleteConfirmOpen}
-              >
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      {t('projectDialog.deleteTitle')}
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t('topbar.deleteProjectConfirm', {
-                        name: store.currentProject.name,
-                      })}
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>
-                      {t('projectDialog.cancel')}
-                    </AlertDialogCancel>
-                    <AlertDialogAction
-                      className="rounded-full bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                      onClick={() => {
-                        store.deleteProject(store.currentProject.id)
-                        setDeleteConfirmOpen(false)
-                      }}
-                    >
-                      {t('projectDialog.deleteConfirm')}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
+              {projectDialogs}
             </div>
           </NodeV4Provider>
         </IngestDragProviderV4>

@@ -121,6 +121,14 @@ export interface EditDeskProps {
   readonly initialNodeIds?: readonly string[]
   /** 上面那批已经落进去了，调用方该把它清空（⛔ 不然每次重渲染都再加一遍）。 */
   onInitialConsumed?(): void
+  /**
+   * **只看不剪**（node-canvas-v2 §7.x，< 768）：时间线不可拖、左工具条与右栏不出，
+   * 只留 预览 + 导出进度 + 下载成片。
+   *
+   * ⚠ 是**不渲染**那些入口，⛔ 不是把它们置灰 —— 手机上剪辑本来就做不了，一排
+   * 灰键只会让人反复去点（ui-defaults §7「不支持的能力不渲染」）。
+   */
+  readonly readOnly?: boolean
 }
 
 export function EditDesk({
@@ -137,6 +145,7 @@ export function EditDesk({
   onBackToNode,
   initialNodeIds,
   onInitialConsumed,
+  readOnly = false,
 }: EditDeskProps) {
   const t = useTranslations('StudioNode.editDesk')
   const tPlan = useTranslations('StudioNode.editDesk.plan')
@@ -497,9 +506,7 @@ export function EditDesk({
         setAudioFilter(
           voice ? EDIT_AUDIO_FILTER_IDS.voice : EDIT_AUDIO_FILTER_IDS.music,
         )
-        setHighlightTrack(
-          voice ? EDIT_TRACK_IDS.audio : EDIT_TRACK_IDS.music,
-        )
+        setHighlightTrack(voice ? EDIT_TRACK_IDS.audio : EDIT_TRACK_IDS.music)
         return
       }
       if (tool === EDIT_TOOL_IDS.text) {
@@ -634,22 +641,24 @@ export function EditDesk({
       ) : null}
 
       <div className="flex min-h-0 flex-1">
-        <EditDeskAssetRail
-          activePanel={activePanel}
-          onActivePanelChange={(panel) => {
-            setActivePanel(panel)
-            // 自己去别的页了 = 刚才那条指路已经没意义。
-            if (panel !== EDIT_PANEL_IDS.audio) setHighlightTrack(null)
-          }}
-          assets={desk.assets}
-          textNodes={textNodes}
-          onAppend={(nodeId) => {
-            desk.addClips([nodeId])
-            setHighlightTrack(null)
-          }}
-          audioFilter={audioFilter}
-          onAudioFilterChange={setAudioFilter}
-        />
+        {readOnly ? null : (
+          <EditDeskAssetRail
+            activePanel={activePanel}
+            onActivePanelChange={(panel) => {
+              setActivePanel(panel)
+              // 自己去别的页了 = 刚才那条指路已经没意义。
+              if (panel !== EDIT_PANEL_IDS.audio) setHighlightTrack(null)
+            }}
+            assets={desk.assets}
+            textNodes={textNodes}
+            onAppend={(nodeId) => {
+              desk.addClips([nodeId])
+              setHighlightTrack(null)
+            }}
+            audioFilter={audioFilter}
+            onAudioFilterChange={setAudioFilter}
+          />
+        )}
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex min-h-0 flex-1 gap-4 p-4">
@@ -663,9 +672,10 @@ export function EditDesk({
               onPlayheadChange={setPlayhead}
               textClips={desk.activeTextClips}
             />
-            {desk.proposal && desk.proposalClipIndex !== null ? (
+            {readOnly ? null : desk.proposal &&
+              desk.proposalClipIndex !== null ? (
               <EditDeskProposalInspector desk={desk} />
-            ) : (
+            ) : readOnly ? null : (
               <EditDeskInspector desk={desk} onBackToNode={onBackToNode} />
             )}
           </div>
@@ -675,45 +685,58 @@ export function EditDesk({
             S8 那一版把它摆成时间线块外的一条、再用负 margin 往上蹭，1440 以下
             会压住 M 轨。本片**只画栏**：提案与幽灵段是 S10。
           */}
-          <EditDeskTimeline
-            desk={desk}
-            onTool={onTool}
-            onDropLibraryAsset={onDropLibraryAsset}
-            highlightTrack={highlightTrack}
-            overlay={
-              desk.proposal ? (
-                <EditDeskProposalCard
-                  proposal={desk.proposal}
-                  reviewing={desk.proposalClipIndex !== null}
-                  onAdopt={() => {
-                    desk.applyProposal()
-                    toast.success(tPlan('adopted'))
-                  }}
-                  onReview={desk.enterProposalReview}
-                  onDiscard={desk.discardProposal}
-                />
-              ) : undefined
-            }
-            footer={
-              <NodePromptBar
-                value={planPrompt}
-                onValueChange={setPlanPrompt}
-                onSubmit={onPlanSubmit}
-                generating={planPending}
-                placeholder={t('planPlaceholder')}
-                ariaLabel={t('planAria')}
-                chips={[
-                  <span
-                    key="model"
-                    data-testid="edit-desk-plan-model"
-                    className="inline-flex h-6 items-center rounded-md border border-border px-1.5 text-3xs text-muted-foreground"
-                  >
-                    {t('planModel')}
-                  </span>,
-                ]}
-              />
-            }
-          />
+          {/* 只看不剪：时间线仍然画（要看得见排片），但整块不接手势 ——
+              `inert` 连键盘焦点一起挡掉，⛔ 不只是 `pointer-events-none`。 */}
+          <div
+            {...(readOnly ? { inert: true } : {})}
+            data-edit-desk-readonly={readOnly ? 'true' : 'false'}
+            className="contents"
+          >
+            <EditDeskTimeline
+              desk={desk}
+              readOnly={readOnly}
+              onTool={onTool}
+              onDropLibraryAsset={onDropLibraryAsset}
+              highlightTrack={highlightTrack}
+              overlay={
+                desk.proposal ? (
+                  <EditDeskProposalCard
+                    proposal={desk.proposal}
+                    reviewing={desk.proposalClipIndex !== null}
+                    onAdopt={() => {
+                      desk.applyProposal()
+                      toast.success(tPlan('adopted'))
+                    }}
+                    onReview={desk.enterProposalReview}
+                    onDiscard={desk.discardProposal}
+                  />
+                ) : undefined
+              }
+              {...(readOnly
+                ? {}
+                : {
+                    footer: (
+                      <NodePromptBar
+                        value={planPrompt}
+                        onValueChange={setPlanPrompt}
+                        onSubmit={onPlanSubmit}
+                        generating={planPending}
+                        placeholder={t('planPlaceholder')}
+                        ariaLabel={t('planAria')}
+                        chips={[
+                          <span
+                            key="model"
+                            data-testid="edit-desk-plan-model"
+                            className="inline-flex h-6 items-center rounded-md border border-border px-1.5 text-3xs text-muted-foreground"
+                          >
+                            {t('planModel')}
+                          </span>,
+                        ]}
+                      />
+                    ),
+                  })}
+            />
+          </div>
         </div>
       </div>
 

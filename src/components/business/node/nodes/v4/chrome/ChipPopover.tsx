@@ -8,17 +8,18 @@
  * 四种弹层长得不一样，⛔ 不在这里 switch 出四个变体。分段控件用
  * `ToggleGroup variant="segmented"`（ui-defaults §3.1），⛔ 不拿一排 chip 冒充单选。
  *
- * 底座是 Radix `Popover`：Esc / 点外关闭、焦点陷阱、`fade-in-0 zoom-in-95` 全是
- * 它自带的（ui-defaults §4「不要覆盖」）。
+ * 底座是 `ResponsivePopover`：细指针锚定弹层、触屏紧凑态自动换成底部 vaul 抽屉
+ * （ui-defaults §6「锚定 Popover → 触屏紧凑态抽屉」）。⛔ 不在这里手写第二条
+ * 手机分支 —— S12 的手机端参数 chip 走的就是这一条。
  */
 
 import type { ReactNode } from 'react'
 
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import { cn } from '@/lib/utils'
 
 export interface ChipPopoverProps {
@@ -43,12 +44,12 @@ export function ChipPopover({
   className,
 }: ChipPopoverProps) {
   return (
-    <Popover open={open} onOpenChange={onOpenChange}>
-      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
-      <PopoverContent
+    <ResponsivePopover open={open} onOpenChange={onOpenChange}>
+      <ResponsivePopoverTrigger asChild>{trigger}</ResponsivePopoverTrigger>
+      <ResponsivePopoverContent
         align="end"
         sideOffset={8}
-        aria-label={ariaLabel}
+        label={ariaLabel}
         data-node-chrome="chip-popover"
         // 弹层才配 vibrancy；卡面不透明（node/CLAUDE.md 禁改第 6 条）。
         className={cn(
@@ -58,7 +59,7 @@ export function ChipPopover({
         style={width === undefined ? undefined : { width }}
       >
         {children}
-      </PopoverContent>
-    </Popover>
+      </ResponsivePopoverContent>
+    </ResponsivePopover>
   )
 }

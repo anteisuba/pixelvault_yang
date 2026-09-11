@@ -29,7 +29,7 @@
 import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Download,
   Maximize2,
@@ -40,52 +40,28 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
-import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import {
   getNodeV4Ports,
   NODE_SLOT_IDS,
   NODE_SLOT_OUTPUT_IDS,
-  type NodeSlotId,
 } from '@/constants/node-slots'
 import { NODE_V4_CARD } from '@/constants/node-studio'
+import { VIDEO_RAIL_GROUP_IDS } from '@/lib/video-node-rail'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
-import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
-import { useNodeUploadV4 } from '@/hooks/node/use-node-upload-v4'
 import { useVideoReferenceSlots } from '@/hooks/node/use-video-reference-slots'
 import { getGeneratingStageKey } from '@/lib/generation-progress'
 import {
   formatShotDisplayName,
   renameStableNodeName,
 } from '@/lib/node-display-name'
-import { getTranslatedModelLabel } from '@/lib/model-options'
-import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
-import { pickDefaultModelOption } from '@/lib/pick-default-model-option'
 import { listLiveConnectableSlots } from '@/lib/node-slot-binding'
-import { readSlotSources } from '@/lib/node-slot-payload'
-import {
-  readVideoRail,
-  videoRailCounts,
-  videoRailMentionLabels,
-  VIDEO_RAIL_GROUP_IDS,
-  type VideoRailEntry,
-  type VideoRailGroupId,
-} from '@/lib/video-node-rail'
-import type {
-  MentionCandidate,
-  MentionToken,
-} from '@/components/ui/mention-input'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
-import type {
-  NodeV4,
-  NodeV4VideoData,
-  NodeWorkflowModelSelection,
-} from '@/types/node-workflow'
+import type { NodeV4VideoData } from '@/types/node-workflow'
 
 import {
   NodeCardShell,
@@ -94,83 +70,32 @@ import {
   NodeToolbar,
   QuickLook,
   VersionDots,
-  renderPromptMentions,
   useNodeCardFlash,
-  type MentionChipMedia,
-  type MentionPickerOption,
   type NodeToolbarGroup,
 } from './chrome'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { buildMentionCandidates, buildMentionTokens } from './NodeV4Mentions'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
-import { toStudioModelOption } from './image/image-node-model'
-import { VideoFrameChip } from './video/VideoFrameChip'
 import { VideoNodeFrame } from './video/VideoNodeFrame'
 import { VideoAddMenuItems, VideoMoreMenuItems } from './video/VideoNodeMenus'
 import { VideoPlayer } from './video/VideoPlayer'
-import { VideoRefRail, type VideoRailPendingItem } from './video/VideoRefRail'
-import {
-  formatVideoSeconds,
-  videoCardHeight,
-  videoEffectiveParams,
-  videoRailCapacity,
-  videoSendMode,
-  videoVersions,
-} from './video/video-node-model'
+import { VideoRefRail } from './video/VideoRefRail'
+import { useVideoComposer } from './video/use-video-composer'
+import { ASSET_BATCH_REF } from './video/use-video-rail-binding'
+import { formatVideoSeconds, videoCardHeight } from './video/video-node-model'
 import { useNodeCanvasActions } from './NodeV4ActionsBridge'
-import { ModelPickerPopover } from '../../../studio-shared/pickers/ModelPickerPopover'
-import { useOpenApiKeys } from '../../workbench-v4/shell/ShellApiKeys'
 
 /** 「续拍」那一批里的两个别名（只在这一批之内有效）。 */
 const CONTINUE_BATCH_REFS = { tail: 'tail', shot: 'shot' } as const
-/** 「抽帧」与「+ 上传落槽」那一批里指代新建素材卡的别名。 */
-const ASSET_BATCH_REF = 'asset'
-
-/**
- * 参考轨三组各自的 **kind 与落点**（画板 `VideoRefs.dc.html` 方向 A）。
- *
- * 图与视频同落 `reference`（图默认作参考，首 / 尾是它的角色，在轨上点图改），
- * 语音落 `voice`。⛔ 这不是合法性判据 —— 落不落得下仍由 `canConnect` 说。
- */
-const RAIL_GROUP_TARGETS: Readonly<
-  Record<
-    VideoRailGroupId,
-    { readonly kind: 'image' | 'video' | 'audio'; readonly slot: NodeSlotId }
-  >
-> = {
-  [VIDEO_RAIL_GROUP_IDS.image]: {
-    kind: NODE_MEDIA_KIND_IDS.image,
-    slot: NODE_SLOT_IDS.reference,
-  },
-  [VIDEO_RAIL_GROUP_IDS.video]: {
-    kind: NODE_MEDIA_KIND_IDS.video,
-    slot: NODE_SLOT_IDS.reference,
-  },
-  [VIDEO_RAIL_GROUP_IDS.voice]: {
-    kind: NODE_MEDIA_KIND_IDS.audio,
-    slot: NODE_SLOT_IDS.voice,
-  },
-}
-
-/** 上传 / 素材库落进轨时新建的那张卡是什么子型。 */
-const RAIL_SUBTYPE_OF: Readonly<Record<'image' | 'video' | 'audio', string>> = {
-  [NODE_MEDIA_KIND_IDS.image]: NODE_V4_IMAGE_SUBTYPE_IDS.shot,
-  [NODE_MEDIA_KIND_IDS.video]: NODE_V4_VIDEO_SUBTYPE_IDS.clip,
-  [NODE_MEDIA_KIND_IDS.audio]: 'voice',
-}
 
 export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const t = useTranslations('StudioNode.v4')
   const tVideo = useTranslations('StudioNode.v4.video')
   const tStage = useTranslations('StudioV3')
   const tCapture = useTranslations('VideoAnalysis')
-  const tModels = useTranslations('Models')
   const canvas = useNodeV4Canvas()
-  const generation = useNodeMediaGenerationV4()
-  const upload = useNodeUploadV4()
   const frames = useVideoReferenceSlots()
-  const openApiKeys = useOpenApiKeys()
   /** ⋯「加入剪辑台」的出口（模式不是 op，见 `NodeV4ActionsBridge`）。 */
   const { openEditDesk } = useNodeCanvasActions()
   const videoData = data as unknown as NodeV4VideoData
@@ -179,208 +104,18 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [quickLook, setQuickLook] = useState(false)
-  /** 素材库开在哪一组（`null` = 没开）—— 选中后按组新建卡并挂进轨。 */
-  const [assetPicker, setAssetPicker] = useState<VideoRailGroupId | null>(null)
-  /**
-   * 正在上传、还没落成卡的那几格（owner 2026-09-10 真机反馈第七条：拖一张图进来
-   * 到它出现在轨上之间什么都没有，用户会以为没拖上）。
-   *
-   * ⚠ 只有**这一条**在跑的那一格有真实进度（`useNodeUploadV4` 是单飞的），其余
-   * 排队的格子进度停在 0 —— ⛔ 不给它们编一个假进度。
-   */
-  const [pendingUploads, setPendingUploads] = useState<
-    readonly {
-      readonly id: string
-      readonly group: VideoRailGroupId
-      readonly name: string
-      readonly file: File
-      readonly error?: string | null
-    }[]
-  >([])
-  const [activeUploadId, setActiveUploadId] = useState<string | null>(null)
-  /** 卡本体换本片时的裱框显影（同一条反馈：上传也要有显影）。 */
-  const [selfUploading, setSelfUploading] = useState(false)
   const [hovering, setHovering] = useState(false)
   const [hoverProgress, setHoverProgress] = useState(0)
-  const [draft, setDraft] = useState(videoData.prompt ?? '')
-  const [syncedPrompt, setSyncedPrompt] = useState(videoData.prompt ?? '')
-  const [startedAt, setStartedAt] = useState<number | null>(null)
-  const [elapsed, setElapsed] = useState(0)
   const [renameRequest, setRenameRequest] = useState(0)
   /**
    * 从静帧那只 `<video>` 的元数据里读到的时长。
    *
    * ⚠ 手传进来的片子身上**没有** `durationSec`（上传补丁只回 url 与体积），而画板
-   * 上「右下角只有时长」是有片卡唯一的读数 —— 没有它这张卡就什么都不写。⛔ 不写
-   * `0s` 顶上：那是一句假话。
+   * 上「右下角只有时长」是有片卡唯一的读数。⛔ 不写 `0s` 顶上：那是一句假话。
    */
   const [probedDuration, setProbedDuration] = useState<number | null>(null)
-  /** `+` / 轨上加号的「上传」要落到哪一组；`null` = 落到这张卡自己（成片）。 */
-  const pendingTargetRef = useRef<VideoRailGroupId | null>(null)
-  const fileRef = useRef<HTMLInputElement>(null)
   const frameVideoRef = useRef<HTMLVideoElement | null>(null)
   const promptInputRef = useRef<HTMLTextAreaElement>(null)
-
-  // 助手 `set_prompt` 落下来时草稿跟上 —— 渲染期同步，⛔ 不放 effect 里。
-  const currentPrompt = videoData.prompt ?? ''
-  if (syncedPrompt !== currentPrompt) {
-    setSyncedPrompt(currentPrompt)
-    setDraft(currentPrompt)
-  }
-
-  const generating = Boolean(videoData.mediaJobId) || startedAt !== null
-
-  useEffect(() => {
-    if (!generating) return
-    const begin = startedAt ?? Date.now()
-    const tick = () => setElapsed((Date.now() - begin) / 1000)
-    tick()
-    const timer = window.setInterval(tick, PROGRESS_TICK_MS)
-    return () => window.clearInterval(timer)
-  }, [generating, startedAt])
-
-  // ⚠ 走「最新值 ref」而不是把依赖列进 `useCallback`：`useNodeUploadV4()` 每次渲染
-  // 都返回一个新对象，列进去等于每渲染一次就把粘贴监听拆装一遍。
-  const latest = useRef({ upload, canvas, id, name: videoData.name })
-  useEffect(() => {
-    latest.current = { upload, canvas, id, name: videoData.name }
-  })
-
-  /**
-   * 一批 op **之后**的媒体回填。
-   *
-   * ⚠ 必须用**批之后**那份 `canvas`：`onSetMedia` 闭包着调用时的图，拿批之前那
-   * 份写回去，等于把刚建出来的卡与边一起抹掉（2026-09-10 真机实测：素材库落卡
-   * 后节点凭空消失）。所以这里等到新卡出现在 `latest.current` 里再写。
-   */
-  const backfillMedia = useCallback(
-    (nodeId: string, patch: { readonly url: string }) => {
-      const step = (attempt: number): void => {
-        const fresh = latest.current.canvas
-        if (fresh.nodes.some((item) => item.id === nodeId) || attempt >= 10) {
-          fresh.onSetMedia(nodeId, patch)
-          return
-        }
-        requestAnimationFrame(() => step(attempt + 1))
-      }
-      step(0)
-    },
-    [],
-  )
-
-  /**
-   * 新建一张卡挂进轨的某一组 —— **上传与素材库共用这一条**（画板：两条来路落点
-   * 相同，⛔ 素材库不再 `onSetMedia` 换本片）。
-   */
-  const attachToRail = useCallback(
-    async (group: VideoRailGroupId, patch: { readonly url: string }) => {
-      const bound = latest.current
-      const target = RAIL_GROUP_TARGETS[group]
-      const outcome = await bound.canvas.onApplyBatch([
-        {
-          op: NODE_ASSISTANT_OP_V4_IDS.addNode,
-          kind: target.kind,
-          subtype: RAIL_SUBTYPE_OF[target.kind],
-          ref: ASSET_BATCH_REF,
-        },
-        {
-          op: NODE_ASSISTANT_OP_V4_IDS.connect,
-          source: ASSET_BATCH_REF,
-          target: bound.id,
-          slot: target.slot,
-        },
-      ] as readonly NodeAssistantOpV4[])
-      const created = outcome?.createdNodeIds?.[0]
-      if (created) backfillMedia(created, patch)
-    },
-    [backfillMedia],
-  )
-
-  /**
-   * 轨上那一格的上传本体 —— 新建占位项之后与「重试」共用这一条。
-   * 成功 = 占位项换成真卡（`attachToRail`）；失败 = 占位项变红留在原位。
-   */
-  const startRailUpload = useCallback(
-    (pendingId: string, group: VideoRailGroupId, file: File) => {
-      const bound = latest.current
-      setActiveUploadId(pendingId)
-      setPendingUploads((list) =>
-        list.map((item) =>
-          item.id === pendingId ? { ...item, error: null } : item,
-        ),
-      )
-      void bound.upload
-        .upload(RAIL_GROUP_TARGETS[group].kind, file, bound.name)
-        .then((patch) => {
-          setActiveUploadId((current) =>
-            current === pendingId ? null : current,
-          )
-          if (!patch?.url) {
-            setPendingUploads((list) =>
-              list.map((item) =>
-                item.id === pendingId
-                  ? {
-                      ...item,
-                      error: tVideo('rail.uploadFailed', { name: item.name }),
-                    }
-                  : item,
-              ),
-            )
-            return
-          }
-          setPendingUploads((list) =>
-            list.filter((item) => item.id !== pendingId),
-          )
-          void attachToRail(group, { ...patch, url: patch.url })
-        })
-    },
-    [attachToRail, tVideo],
-  )
-
-  /** 上传一份素材：给了组就先落一个占位项再新建卡，没给就落进这张卡自己（成片）。 */
-  const runUpload = useCallback(
-    (file: File, group: VideoRailGroupId | null) => {
-      const bound = latest.current
-      if (!group) {
-        setSelfUploading(true)
-        void bound.upload
-          .upload(NODE_MEDIA_KIND_IDS.video, file, bound.name)
-          .then((patch) => {
-            setSelfUploading(false)
-            if (patch?.url) bound.canvas.onSetMedia(bound.id, patch)
-          })
-        return
-      }
-      const pendingId = `${Date.now()}-${file.name}`
-      setPendingUploads((list) => [
-        ...list,
-        { id: pendingId, group, name: file.name, file },
-      ])
-      startRailUpload(pendingId, group, file)
-    },
-    [startRailUpload],
-  )
-
-  /**
-   * ⌘V 落进**这张卡**（spec §1.3「粘贴不做按钮」）。捕获阶段挂在 `window` 上并
-   * `stopPropagation`：工作台那条粘贴路径是「在鼠标处新建一张卡」，选中态下两条都跑
-   * 会同时落进这张卡又多出一张。选中的卡优先。
-   */
-  useEffect(() => {
-    if (!selected || canvas.selectedNodeIds.length >= 2) return
-    const onPaste = (event: ClipboardEvent) => {
-      const file = Array.from(event.clipboardData?.files ?? []).find((item) =>
-        item.type.startsWith('video/'),
-      )
-      if (!file) return
-      event.preventDefault()
-      event.stopPropagation()
-      runUpload(file, null)
-    }
-    window.addEventListener('paste', onPaste, true)
-    return () => window.removeEventListener('paste', onPaste, true)
-  }, [selected, canvas.selectedNodeIds.length, runUpload])
-
   const tokens = useMemo(
     () => buildMentionTokens(canvas.nodes, id),
     [canvas.nodes, id],
@@ -392,35 +127,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
       ),
     [canvas.nodes, id, t],
   )
-  const modelOptions = useMemo(
-    () => canvas.modelOptionsByKind[NODE_MEDIA_KIND_IDS.video] ?? [],
-    [canvas.modelOptionsByKind],
-  )
-  /**
-   * 新卡即带的默认模型（spec §5「参数 chip 永不为空」）。
-   *
-   * ⚠ **只派生不落库**：落库要走 `set_model` op，那会给「刚建好一张卡」平白多出
-   * 一个撤销条目（⌘Z 变成「清掉模型」而不是「撤掉这张卡」）。真正写进节点的时机
-   * 是用户按下生成那一下 —— 那时它已经是用户的动作。
-   *
-   * ⚠ 健康度这一档不参与：它要 `ApiKeysProvider`，而节点卡在没有模型清单时并不
-   * 渲染选择器（也就不在那个 provider 的保证之内）。档 / 价 / 清单顺序三档一致，
-   * 与选择器同一条 `resolveModelChannel`。
-   */
-  const defaultModel = useMemo<NodeWorkflowModelSelection | undefined>(() => {
-    const picked = pickDefaultModelOption(modelOptions.map(toStudioModelOption))
-    const source = picked
-      ? modelOptions.find((item) => item.optionId === picked.optionId)
-      : undefined
-    if (!source) return undefined
-    return {
-      optionId: source.optionId,
-      modelId: source.modelId,
-      adapterType: source.adapterType,
-      providerConfig: source.providerConfig,
-      ...(source.apiKeyId ? { apiKeyId: source.apiKeyId } : {}),
-    }
-  }, [modelOptions])
 
   const mediaOf = useMemo(() => {
     const byName = new Map<
@@ -442,9 +148,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     return (name: string) => byName.get(name)
   }, [canvas.nodes])
 
-  const node = canvas.nodes.find((item) => item.id === id) as NodeV4 | undefined
-  if (!node) return null
-
   const displayName =
     videoData.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
       ? formatShotDisplayName(videoData.label, videoData.shotNo)
@@ -454,129 +157,75 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
       ? videoData.label
       : videoData.name
 
+  /**
+   * 轨 / 草稿 / 参数 / 模型 / 发送 / 上传落卡 —— 与手机镜头带的底部抽屉共用
+   * **同一份编排件**（`use-video-composer`）。⛔ 这里不再自己接一遍那条路径。
+   */
+  const {
+    node,
+    generating,
+    elapsed,
+    draft,
+    setDraft,
+    currentPrompt,
+    submitPrompt,
+    cancelGeneration,
+    railProps,
+    railItems,
+    railCandidatesOf,
+    paramsChip,
+    modelChip,
+    mentionOptions,
+    frameTokens,
+    frameCandidates,
+    renderPromptValue,
+    versions,
+    versionIndex,
+    selectVersion,
+    currentSourceLabel,
+    posterUrl,
+    modelLabel,
+    runUpload,
+    openFilePicker,
+    selfUploading,
+    uploadProgress,
+    backfillMedia,
+    overlays,
+  } = useVideoComposer({
+    id,
+    videoData,
+    displayName,
+    tokens,
+    candidates,
+    mediaOf,
+  })
+
+  /**
+   * ⌘V 落进**这张卡**（spec §1.3「粘贴不做按钮」）。捕获阶段挂在 `window` 上并
+   * `stopPropagation`：工作台那条粘贴路径是「在鼠标处新建一张卡」，选中态下两条都跑
+   * 会同时落进这张卡又多出一张。选中的卡优先。
+   */
+  useEffect(() => {
+    if (!selected || canvas.selectedNodeIds.length >= 2) return
+    const onPaste = (event: ClipboardEvent) => {
+      const file = Array.from(event.clipboardData?.files ?? []).find((item) =>
+        item.type.startsWith('video/'),
+      )
+      if (!file) return
+      event.preventDefault()
+      event.stopPropagation()
+      runUpload(file, null)
+    }
+    window.addEventListener('paste', onPaste, true)
+    return () => window.removeEventListener('paste', onPaste, true)
+  }, [selected, canvas.selectedNodeIds.length, runUpload])
+
+  if (!node) return null
+
   const expanded = canvas.expandedNodeId === id
   const showChrome = Boolean(selected) && canvas.selectedNodeIds.length < 2
   const width = NODE_V4_CARD.collapsedWidth
   const height = videoCardHeight(width)
-  const versions = videoVersions(videoData)
-  const versionIndex = readOutputIndex(videoData)
-  /**
-   * 当前版的来源（⋯ 里那一行只读小字）。今天只有剪辑台导出的成片会写它
-   * （`source.kind === 'render'`，`node-canvas-v2.md` §6「导出」）——本卡自己生成
-   * 的版本没有来源，整行不出。
-   */
-  const currentSourceLabel =
-    readOutputVersions(videoData)[versionIndex]?.source?.label
-  /** 卡上生效的模型 = 用户选过的，否则默认那条。 */
-  const effectiveModel = videoData.model ?? defaultModel
-  const modelId = effectiveModel?.modelId
-  /** 生效的参数 = 存着的 + 这个模型的默认档（⛔ chip 上不留空）。 */
-  const effectiveParams = videoEffectiveParams(videoData.params, modelId)
-  // 读数上写的是**型号名**（画板：`Seedance 2.0`），⛔ 不是落库的那串 id
-  // ——与模型 chip 同一份译名表，两处对不上用户会以为选的是两个模型。
-  const modelLabel = modelId
-    ? getTranslatedModelLabel(tModels, modelId)
-    : undefined
-
-  /* ── 参考轨（spec §5，画板 `VideoRefs.dc.html` 方向 A）─────────────── */
-  const railItems = readVideoRail(node, canvas.edges, canvas.nodes)
-  const railCounts = videoRailCounts(railItems)
-  const sendMode = videoSendMode({
-    firstFrame: railCounts.firstFrame,
-    lastFrame: railCounts.lastFrame,
-    referenceImages: railCounts.referenceImages,
-    videos: railCounts.video,
-    voices: railCounts.voice,
-  })
-  const railCapacity = videoRailCapacity(effectiveModel)
-  const railNames = railItems.flatMap((entry) => videoRailMentionLabels(entry))
-  /**
-   * `@图1` 这类序号引用的缩略 —— 与轨上画的是同一张图（序号也是同一份）。
-   * ⛔ 不另查一次节点：轨已经把来源与缩略算好了。
-   */
-  const mentionMediaOf = (name: string) => {
-    const entry = railItems.find((item) =>
-      videoRailMentionLabels(item).includes(name),
-    )
-    if (!entry) return mediaOf(name)
-    if (entry.group === VIDEO_RAIL_GROUP_IDS.voice)
-      return { kind: 'audio' as const }
-    return {
-      kind:
-        entry.group === VIDEO_RAIL_GROUP_IDS.video
-          ? ('video' as const)
-          : ('image' as const),
-      ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
-    }
-  }
-  /** `@` 候选与胶囊上的缩略 —— 与轨、与画布上的卡同一份。 */
-  const mentionOptionMedia = (name: string): MentionChipMedia | undefined => {
-    const found = mentionMediaOf(name)
-    if (!found) return undefined
-    if (found.kind === 'audio') return { kind: 'audio' }
-    if (found.kind === 'text') return { kind: 'text' }
-    return {
-      kind: found.kind,
-      ...(found.thumbnailUrl ? { thumbnailUrl: found.thumbnailUrl } : {}),
-    }
-  }
-  /**
-   * 轨上的序号项**也是引用物种**（`@图1`）：它们与画布上的卡拼成同一份候选与同
-   * 一份胶囊表，提示词栏与画中框读的都是这一份。⛔ 不在两处各拼一次。
-   */
-  const railTokens: MentionToken[] = railItems.flatMap((entry) =>
-    videoRailMentionLabels(entry).map((label) => ({
-      name: label,
-      kind:
-        entry.group === VIDEO_RAIL_GROUP_IDS.voice
-          ? ('voice' as const)
-          : entry.group === VIDEO_RAIL_GROUP_IDS.video
-            ? ('video' as const)
-            : ('shot' as const),
-      ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
-    })),
-  )
-  /**
-   * ⚠ 候选里每一项**只出当前界面语言那一个写法**（`图1` / `画像1` / `image1` 三
-   * 个串解析时都认，但列表里摆三份等于同一项出现三次）。
-   */
-  const railCandidates: MentionCandidate[] = railItems.map((entry) => {
-    const label = `${tVideo(`rail.group.${entry.group}`)}${entry.index}`
-    return {
-      id: `rail:${entry.edgeId}`,
-      name: label,
-      groupLabel: tVideo('rail.mentionGroup'),
-      group: 'rail',
-      ...(entry.thumbnailUrl ? { thumbnailUrl: entry.thumbnailUrl } : {}),
-    }
-  })
-  const frameTokens = [...railTokens, ...tokens]
-  const frameCandidates = [...railCandidates, ...candidates]
-  const mentionOptions: MentionPickerOption[] = frameCandidates.map(
-    (candidate) => {
-      const media = mentionOptionMedia(candidate.name)
-      return {
-        id: candidate.id,
-        name: candidate.name,
-        groupLabel: candidate.groupLabel ?? tVideo('rail.mentionGroup'),
-        ...(media ? { media } : {}),
-      }
-    },
-  )
-
-  // poster 两级：落库的封面 → 首帧槽的源图。⚠ ⛔ 不拿成片 url 当 poster：
-  // `<img src={视频}>` 什么都画不出来（那是 v3 缩略图空白的老根）。
-  const firstFrameSource = readSlotSources(
-    node,
-    NODE_SLOT_IDS.firstFrame,
-    canvas.edges,
-    canvas.nodes,
-  )[0]
-  const posterUrl =
-    videoData.videoThumbnailUrl ??
-    (firstFrameSource?.node.data.kind === NODE_MEDIA_KIND_IDS.image
-      ? firstFrameSource.node.data.url
-      : undefined)
   const durationSeconds =
     videoData.durationSec ??
     probedDuration ??
@@ -592,13 +241,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         nodes: canvas.nodes,
       })
     : []
-
-  const selectVersion = (index: number) =>
-    void canvas.onApplyOp({
-      op: NODE_ASSISTANT_OP_V4_IDS.setOutputVersion,
-      target: id,
-      index,
-    })
 
   const renameNode = (next: string): boolean => {
     const taken = new Set(
@@ -635,55 +277,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           ] as const)) as readonly NodeAssistantOpV4[],
     )
     return true
-  }
-
-  const setParams = (patch: Partial<NonNullable<NodeV4VideoData['params']>>) =>
-    canvas.onSetParams(id, { ...videoData.params, ...patch })
-
-  const submitPrompt = () => {
-    if (draft.trim().length === 0 || generating) return
-    if (draft !== currentPrompt) canvas.onSetPrompt(id, draft)
-    // 默认模型 / 默认档到这一刻才落库：用户按了生成，它就是**用户的**选择了
-    // （⛔ 不在挂载时写，那会给新建一张卡多出一个撤销条目）。
-    if (!videoData.model && effectiveModel)
-      canvas.onSetModel(id, effectiveModel)
-    if (!videoData.params) canvas.onSetParams(id, effectiveParams)
-    // ⚠ 这一枪读的图是**打过补丁的**那份：上面两次写是异步落库，这一帧的
-    // `canvas.nodes` 还是旧的，照它发出去就会少掉模型（发不出）与默认档。
-    const nodes = canvas.nodes.map((item) =>
-      item.id === id
-        ? ({
-            ...item,
-            data: {
-              ...item.data,
-              ...(effectiveModel ? { model: effectiveModel } : {}),
-              params: effectiveParams,
-            },
-          } as NodeV4)
-        : item,
-    )
-    setStartedAt(Date.now())
-    void generation
-      .generateNode(
-        id,
-        { nodes, edges: canvas.edges },
-        {
-          prompt: draft,
-          onJobCreated: (jobId) => canvas.onSetMedia(id, { mediaJobId: jobId }),
-          onEach: (result) => {
-            if (!result.success) return
-            canvas.onSetMedia(id, {
-              url: result.mediaUrl,
-              generationId: result.generation.id,
-              mediaJobId: undefined,
-              ...(result.thumbnailUrl
-                ? { videoThumbnailUrl: result.thumbnailUrl }
-                : {}),
-            })
-          },
-        },
-      )
-      .then(() => setStartedAt(null))
   }
 
   const reportCaptureFailure = (reasonKey: string) =>
@@ -752,83 +345,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     ])
     const created = outcome?.createdNodeIds?.[0]
     if (created) backfillMedia(created, { url: grabbed.url })
-  }
-
-  /** 「画布上的 X ›」的候选。⚠ 只列**有产物**的卡：挂一张还没生成出来的空卡，
-   *  生成时那一格发不出去，用户却以为已经挂好了。 */
-  const railCandidatesOf = (group: VideoRailGroupId) => {
-    const kind = RAIL_GROUP_TARGETS[group].kind
-    return canvas.nodes
-      .filter(
-        (item) =>
-          item.id !== id &&
-          item.data.kind === kind &&
-          'url' in item.data &&
-          Boolean(item.data.url),
-      )
-      .map((item) => ({ id: item.id, name: item.data.name }))
-  }
-
-  const openFilePicker = (group: VideoRailGroupId | null) => {
-    pendingTargetRef.current = group
-    fileRef.current?.click()
-  }
-
-  /** 轨上的公共动作 —— 提示词栏与画中框摆的是同一个组件、同一批回调。 */
-  const railPending: readonly VideoRailPendingItem[] = pendingUploads.map(
-    (item) => ({
-      id: item.id,
-      group: item.group,
-      name: item.name,
-      progress: item.id === activeUploadId ? upload.progress : 0,
-      ...(item.error ? { error: item.error } : {}),
-    }),
-  )
-
-  const railProps = {
-    items: railItems,
-    pending: railPending,
-    capacity: railCapacity,
-    referenceUnavailable: railCapacity.referenceUnavailable,
-    disabled: generating,
-    onOpen: canvas.onFocusNode,
-    onRemove: (edgeId: string) =>
-      void canvas.onApplyOp({
-        op: NODE_ASSISTANT_OP_V4_IDS.disconnect,
-        edgeId,
-      }),
-    // 换角色 = 同一批 `disconnect + connect(slot)` —— **一条撤销**，
-    // ⛔ 不发两个 op（那会让用户按两次 ⌘Z 才回到原样，中间还路过一个断开态）。
-    onChangeRole: (item: VideoRailEntry, slot: NodeSlotId) =>
-      void canvas.onApplyBatch([
-        { op: NODE_ASSISTANT_OP_V4_IDS.disconnect, edgeId: item.edgeId },
-        {
-          op: NODE_ASSISTANT_OP_V4_IDS.connect,
-          source: item.sourceNodeId,
-          target: id,
-          slot,
-        },
-      ] as readonly NodeAssistantOpV4[]),
-    candidatesOf: railCandidatesOf,
-    onPickFromCanvas: (group: VideoRailGroupId, sourceNodeId: string) =>
-      void canvas.onApplyOp({
-        op: NODE_ASSISTANT_OP_V4_IDS.connect,
-        source: sourceNodeId,
-        target: id,
-        slot: RAIL_GROUP_TARGETS[group].slot,
-      }),
-    onUpload: (group: VideoRailGroupId) => openFilePicker(group),
-    // ⚠ 弹层要等菜单**关完**再开：Radix 的菜单与对话框各自往 `body` 上写
-    // `pointer-events:none`，同一帧里一开一关会把它留在 body 上，整页从此点不动
-    // （2026-09-10 真机实测）。⛔ 不要改成同帧直接 setState。
-    onLibrary: (group: VideoRailGroupId) =>
-      window.setTimeout(() => setAssetPicker(group), 0),
-    onRetryPending: (pendingId: string) => {
-      const item = pendingUploads.find((entry) => entry.id === pendingId)
-      if (item) startRailUpload(item.id, item.group, item.file)
-    },
-    onRemovePending: (pendingId: string) =>
-      setPendingUploads((list) => list.filter((item) => item.id !== pendingId)),
   }
 
   const toolbarGroups: readonly NodeToolbarGroup[] = [
@@ -918,70 +434,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
       },
     ],
   ]
-
-  const railReadoutGroups = [
-    {
-      label: tVideo('rail.group.image'),
-      current: railCounts.image,
-      limit: railCapacity.images,
-    },
-    {
-      label: tVideo('rail.group.video'),
-      current: railCounts.video,
-      limit: railCapacity.videos,
-    },
-    {
-      label: tVideo('rail.group.voice'),
-      current: railCounts.voice,
-      limit: railCapacity.voices,
-    },
-  ]
-
-  const paramsChip = (
-    <VideoFrameChip
-      key="frame"
-      params={effectiveParams}
-      modelId={modelId}
-      {...(modelId ? { modeLabel: tVideo(`mode.${sendMode}`) } : {})}
-      modeHint={tVideo('mode.hint')}
-      readoutGroups={railReadoutGroups}
-      {...(railCapacity.referenceUnavailable
-        ? { referenceNote: tVideo('rail.referenceUnavailable') }
-        : {})}
-      disabled={generating}
-      onDurationChange={(duration) => setParams({ duration })}
-      onAspectRatioChange={(aspectRatio) => setParams({ aspectRatio })}
-      onResolutionChange={(resolution) => setParams({ resolution })}
-      onGenerateAudioChange={(generateAudio) => setParams({ generateAudio })}
-    />
-  )
-
-  const modelChip =
-    modelOptions.length > 0 ? (
-      <ModelPickerPopover
-        key="model"
-        options={modelOptions.map(toStudioModelOption)}
-        value={effectiveModel?.optionId ?? null}
-        memoryScope={NODE_MEDIA_KIND_IDS.video}
-        // 缺 key 的行点了进内联配置（Hard Rule 8）——⛔ 不选中、不写 `set_model`。
-        {...(openApiKeys ? { onManageChannels: openApiKeys } : {})}
-        disabled={generating}
-        triggerEmptyLabel={tVideo('model.title')}
-        onChange={(option) => {
-          const picked = modelOptions.find(
-            (item) => item.optionId === option.optionId,
-          )
-          if (!picked) return
-          canvas.onSetModel(id, {
-            optionId: picked.optionId,
-            modelId: picked.modelId,
-            adapterType: picked.adapterType,
-            providerConfig: picked.providerConfig,
-            ...(picked.apiKeyId ? { apiKeyId: picked.apiKeyId } : {}),
-          })
-        }}
-      />
-    ) : null
 
   return (
     <div
@@ -1188,7 +640,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             {!generating && selfUploading && (
               <NodeFrameProgress
                 elapsedSeconds={0}
-                realProgress={upload.progress}
+                realProgress={uploadProgress}
                 stageLabel={tVideo('rail.uploading', {
                   name: displayName,
                 })}
@@ -1221,7 +673,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               onValueChange={setDraft}
               onSubmit={submitPrompt}
               generating={generating}
-              onCancel={() => setStartedAt(null)}
+              onCancel={cancelGeneration}
               placeholder={tVideo('promptPlaceholder')}
               ariaLabel={tVideo('promptLabel')}
               // 轨换第二行时栏跟着长，最大 420（画板 `VideoRefs.dc.html` 的栏宽）。
@@ -1244,32 +696,15 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               }
               inputRef={promptInputRef}
               mentionOptions={mentionOptions}
-              renderValue={(value) =>
-                renderPromptMentions(value, {
-                  names: [...railNames, ...tokens.map((token) => token.name)],
-                  // `@图2` 这类序号项在栏里也带缩略（owner 真机反馈第三条）——
-                  // 与轨、与画中框读的是同一份 `mentionOptionMedia`。
-                  mediaOf: mentionOptionMedia,
-                })
-              }
+              renderValue={renderPromptValue}
               chips={[paramsChip, modelChip].filter(Boolean)}
             />
           </div>
         </FlowNodeToolbar>
       )}
 
-      <input
-        ref={fileRef}
-        type="file"
-        accept="video/*,image/*,audio/*"
-        hidden
-        onChange={(event) => {
-          const file = event.target.files?.[0]
-          if (file) runUpload(file, pendingTargetRef.current)
-          pendingTargetRef.current = null
-          event.target.value = ''
-        }}
-      />
+      {/* 隐藏的 file input 与素材库对话框都住在编排件里（`use-video-composer`）。 */}
+      {overlays}
 
       {expanded ? (
         <VideoNodeFrame
@@ -1342,25 +777,6 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             className="w-175 max-w-full"
           />
         </QuickLook>
-      ) : null}
-
-      {assetPicker ? (
-        <AssetSelectorDialog
-          open
-          onOpenChange={(next) => {
-            if (!next) setAssetPicker(null)
-          }}
-          mediaType={RAIL_GROUP_TARGETS[assetPicker].kind}
-          title={tVideo('add.library')}
-          description={tVideo('add.library')}
-          onSelect={(record) => {
-            // 素材库与上传落的是**同一条**创建路径：新建一张对应 kind 的卡
-            // （url 落卡）再连到槽。⛔ 不 `onSetMedia` 换本片 —— 本片替换只留在
-            // `+` 菜单的「上传视频 / 图」。
-            if (record.url) void attachToRail(assetPicker, { url: record.url })
-            setAssetPicker(null)
-          }}
-        />
       ) : null}
 
       {menu ? (

@@ -31,3 +31,32 @@ export function useIsMobile() {
 
   return !!isMobile
 }
+
+/**
+ * 手机宽阈值（< 768）。⚠ 与 `MOBILE_BREAKPOINT`（<1024 = 紧凑壳）**不是同一件事**：
+ * 1024 决定「用不用移动 chrome」，768 决定「画布是不是整个换成另一种视图」
+ * （node-canvas-v2 §7.x：< 768 渲染镜头带，桌面 ReactFlow 在手机上不挂载）。
+ * 平板（768–1023）仍是自由画布 + 移动 chrome。
+ */
+export const PHONE_BREAKPOINT = 768
+
+export function useIsPhone() {
+  const [isPhone, setIsPhone] = React.useState<boolean | undefined>(undefined)
+
+  React.useEffect(() => {
+    // JSDOM 没有 matchMedia：退回桌面默认值，单测里镜头带不抢戏。
+    if (typeof window.matchMedia !== 'function') {
+      setIsPhone(false)
+      return
+    }
+    const mql = window.matchMedia(`(max-width: ${PHONE_BREAKPOINT - 1}px)`)
+    const onChange = () => {
+      setIsPhone(window.innerWidth < PHONE_BREAKPOINT)
+    }
+    mql.addEventListener('change', onChange)
+    setIsPhone(window.innerWidth < PHONE_BREAKPOINT)
+    return () => mql.removeEventListener('change', onChange)
+  }, [])
+
+  return !!isPhone
+}

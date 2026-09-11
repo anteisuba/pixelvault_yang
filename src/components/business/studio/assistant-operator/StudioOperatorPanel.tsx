@@ -64,7 +64,9 @@ import {
 } from '@/constants/assistant-operator'
 import {
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
+  STUDIO_OPERATOR_LIBRARY_CANDIDATE_PREFIX,
   STUDIO_OPERATOR_MENTION,
+  STUDIO_OPERATOR_MENTION_SECTION_IDS,
   STUDIO_OPERATOR_SUGGESTIONS,
   STUDIO_OPERATOR_TIMELINE,
   STUDIO_OPERATOR_UPLOAD_ACCEPT,
@@ -73,8 +75,8 @@ import { RuleChip } from '@/components/business/studio/assistant-operator/RuleCh
 import { CanvasAssistantRouteSelector } from '@/components/business/node/CanvasAssistantRouteSelector'
 import {
   STUDIO_OPERATOR_PLUS_MENU_ID,
-  StudioOperatorAttachMenu,
-} from '@/components/business/studio/assistant-operator/StudioOperatorAttachMenu'
+  StudioOperatorPlusMenu,
+} from '@/components/business/studio/assistant-operator/StudioOperatorPlusMenu'
 import {
   STUDIO_OPERATOR_REVERT_CHOICES,
   StudioOperatorCheckpointCard,
@@ -86,7 +88,9 @@ import { StudioOperatorLogItem } from '@/components/business/studio/assistant-op
 import { ContextCardChip } from '@/components/business/studio/assistant-operator/ContextCardChip'
 import {
   MentionInput,
+  type MentionCandidate,
   type MentionInputHandle,
+  type MentionSection,
   type MentionToken,
 } from '@/components/ui/mention-input'
 import {
@@ -120,7 +124,10 @@ import type { UseAssistantOperatorResult } from '@/hooks/use-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
 import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
-import { useStudioOperatorMention } from '@/hooks/use-studio-operator-mention'
+import {
+  useStudioOperatorAssetLibrary,
+  useStudioOperatorMention,
+} from '@/hooks/use-studio-operator-mention'
 import { useStudioOperatorStatusWord } from '@/hooks/use-studio-operator-status-word'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
@@ -350,6 +357,14 @@ export function StudioOperatorPanel({
    */
   const mention = useStudioOperatorMention()
   /**
+   * `@` 选择器下半段：**搜整个素材库**（v2 §4.4「提及素材」并进来的那条，切片 #7b）。
+   *
+   * ⭐ 这是「从素材库挑图挂到助手」今天唯一的入口 —— 旧的 📎 面板（最近 6 格 +
+   * 完整素材库弹层）在「+」菜单那一轮删掉了，⛔ 不为它补第四个菜单项：挑图与
+   * 提及本来就是同一件事（「让助手看这张」），两个入口会各自长出一套选中行为。
+   */
+  const library = useStudioOperatorAssetLibrary()
+  /**
    * 结果格上那两颗 ✓/✕（切片 Y）—— 乐观更新 + PATCH 在 hook 里，
    * ⛔ 面板不自己打请求（Hard Rule 3）。
    */
@@ -448,17 +463,19 @@ export function StudioOperatorPanel({
       slotLabel: `@${tReference('image', { index: index + 1 })}`,
     }),
   )
-  const referenceCandidates = referenceTokens.flatMap((token, index) =>
-    referenceImages[index].disabledReason
-      ? []
-      : [
-          {
-            id: token.name,
-            name: token.slotLabel!.slice(1),
-            tokenName: token.name,
-            thumbnailUrl: token.thumbnailUrl,
-          },
-        ],
+  const referenceCandidates: MentionCandidate[] = referenceTokens.flatMap(
+    (token, index) =>
+      referenceImages[index].disabledReason
+        ? []
+        : [
+            {
+              id: token.name,
+              name: token.slotLabel!.slice(1),
+              tokenName: token.name,
+              thumbnailUrl: token.thumbnailUrl,
+              sectionId: STUDIO_OPERATOR_MENTION_SECTION_IDS.workbench,
+            },
+          ],
   )
 
   for (const attachment of attachments) {
@@ -475,7 +492,83 @@ export function StudioOperatorPanel({
       name: attachment.label,
       tokenName: name,
       thumbnailUrl: attachment.thumbnailUrl,
+      sectionId: STUDIO_OPERATOR_MENTION_SECTION_IDS.workbench,
     })
+  }
+
+  /**
+   * 素材库那一段的候选。
+   *
+   * ⚠ **已经在工作台上的那些按 url 滤掉**：同一张图在两段里各出现一次时，用户
+   * 点下半段等于「再挂一次已经挂着的图」——宿主按 url 去重，于是什么都不会发生，
+   * 也就是本仓最讨厌的那种「点了没反应」。
+   * ⚠ `searched: true` —— 这些是服务端按查询词搜出来的，⛔ 别再按名字本地筛一遍
+   *   （按提示词命中的那张图名字里没有查询词，筛完列表恒空）。
+   */
+  const libraryCandidates: MentionCandidate[] = library.assets
+    .filter((asset) => !referenceImages.some((ref) => ref.url === asset.url))
+    .map((asset) => ({
+      id: `${STUDIO_OPERATOR_LIBRARY_CANDIDATE_PREFIX}${asset.id}`,
+      name: asset.label,
+      searched: true,
+      sectionId: STUDIO_OPERATOR_MENTION_SECTION_IDS.library,
+      ...(asset.thumbnailUrl ? { thumbnailUrl: asset.thumbnailUrl } : {}),
+    }))
+  const mentionCandidates = [...referenceCandidates, ...libraryCandidates]
+  const mentionSections: readonly MentionSection[] = [
+    {
+      id: STUDIO_OPERATOR_MENTION_SECTION_IDS.workbench,
+      label: t('mention.workbench'),
+      // 两句分得开：一句是「这儿本来就没有参考图」，另一句是「有，但没一条对得上
+      // 你打的字」——合成一句的话前者会把用户支使去改搜索词。
+      status: {
+        kind: 'empty' as const,
+        label: referenceCandidates.length
+          ? tReference('noMatches')
+          : tReference('empty'),
+      },
+    },
+    {
+      id: STUDIO_OPERATOR_MENTION_SECTION_IDS.library,
+      label: t('mention.library'),
+      // 三态都说话：⛔ 没有「这一段悄悄消失」那一档。
+      status:
+        library.status === 'loading'
+          ? { kind: 'loading' as const, label: t('mention.searching') }
+          : library.status === 'error'
+            ? {
+                kind: 'error' as const,
+                label: t('mention.searchFailed'),
+                retryLabel: t('mention.searchRetry'),
+                onRetry: library.retry,
+              }
+            : { kind: 'empty' as const, label: t('mention.libraryEmpty') },
+    },
+  ]
+
+  /**
+   * 选中一条素材库候选 = **挂进工作台 + 正文里留一个 @ chip**。
+   *
+   * ⭐ 挂载走的是 `addChip` 那一条（图片档由 `StudioOperatorDock` 的 effect 落到
+   * `apply.addReference`），⛔ 面板不自己调宿主的挂载手 —— 两处各挂一遍就是两条
+   * 会分叉的链（判据与 `use-studio-operator-mention.ts` 头注同源）。
+   * ⚠ 序号按**追加位**算（`referenceImages.length + 1`）：候选已经把重复的那张
+   * 滤掉了，所以新的那张一定落在队尾。
+   * ⚠ 视频 / 音频那一档**不插 token**：它们不进参考图列，插一个指不到东西的
+   * `@` 出去比不插更糟 —— 它们以 chip 的形态摆在输入框上方。
+   */
+  const pickLibraryAsset = (candidate: MentionCandidate) => {
+    const asset = library.assets.find(
+      (item) =>
+        `${STUDIO_OPERATOR_LIBRARY_CANDIDATE_PREFIX}${item.id}` ===
+        candidate.id,
+    )
+    if (!asset) return
+    mention.addChip(asset)
+    if (asset.kind === 'image') {
+      inputRef.current?.insertToken(`Image${referenceImages.length + 1}`)
+    }
+    inputRef.current?.focus()
   }
 
   const working = status === 'working'
@@ -1631,17 +1724,22 @@ export function StudioOperatorPanel({
               aria-label={t('placeholderIdle')}
               onValueChange={onDraftChange}
               tokens={referenceTokens}
-              mentionCandidates={referenceCandidates}
-              onMentionSelect={(candidate) =>
+              mentionCandidates={mentionCandidates}
+              mentionSections={mentionSections}
+              onMentionQueryChange={library.search}
+              onMentionSelect={(candidate) => {
+                if (
+                  candidate.id.startsWith(
+                    STUDIO_OPERATOR_LIBRARY_CANDIDATE_PREFIX,
+                  )
+                ) {
+                  pickLibraryAsset(candidate)
+                  return
+                }
                 inputRef.current?.insertToken(
                   candidate.tokenName ?? candidate.name,
                 )
-              }
-              emptyLabel={
-                referenceCandidates.length
-                  ? tReference('noMatches')
-                  : tReference('empty')
-              }
+              }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault()
@@ -1783,7 +1881,7 @@ export function StudioOperatorPanel({
       </div>
 
       {attachOpen && !history.loadingSessionId ? (
-        <StudioOperatorAttachMenu
+        <StudioOperatorPlusMenu
           triggerRef={attachTriggerRef}
           onDismiss={() => setAttachOpen(false)}
           {...(domain ? { scope: domain } : {})}

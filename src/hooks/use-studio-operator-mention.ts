@@ -26,7 +26,7 @@
  * ⛔ 不软截断。悄悄少看几张比说不出话坏得多。
  */
 
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
 import { STUDIO_OPERATOR_MENTION } from '@/constants/studio-assistant-operator'
@@ -39,7 +39,10 @@ import {
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
-import { fetchGenerationByIdAPI } from '@/lib/api-client/gallery'
+import {
+  fetchGalleryImages,
+  fetchGenerationByIdAPI,
+} from '@/lib/api-client/gallery'
 import { resolveGenerationMentions } from '@/lib/generation-name'
 import type {
   StudioOperatorAttachment,
@@ -268,7 +271,7 @@ export function useStudioOperatorMention(): UseStudioOperatorMentionResult {
          * ⚠ 拖拽只递了 id，chip 上要缩略图与名字，所以现取一次详情。
          * ⭐ 走 `/api/generations/{id}` 的**详情**口（`fetchGenerationByIdAPI`，
          * 工作台 remix 用的就是它），⛔ 不是 `/api/generations` 那个列表口 ——
-         * 后者会打断正在跑的生成（本仓踩过，`StudioOperatorAttachMenu` 的头注
+         * 后者会打断正在跑的生成（本仓踩过，`StudioOperatorPlusMenu` 的头注
          * 记着这条）。
          * ⚠ 取不到就静默跳过这一条：拖来的可能是别人的图或已经删掉的行，
          * 为此把输入框打红是不成比例的。
@@ -304,5 +307,103 @@ export function useStudioOperatorMention(): UseStudioOperatorMentionResult {
     removeCardChip: removeOperatorCardMention,
     syncNameMentions,
     acceptDrop,
+  }
+}
+
+/** 素材库那一段此刻是什么状态 —— 三态，⛔ 没有第四种「什么都不显示」。 */
+export type StudioOperatorLibraryStatus = 'loading' | 'ready' | 'error'
+
+export interface UseStudioOperatorAssetLibraryResult {
+  /** 这一次搜到的那些（无查询词时 = 最近 `recentCount` 条）。 */
+  assets: readonly StudioOperatorAttachment[]
+  status: StudioOperatorLibraryStatus
+  /**
+   * 选择器的查询词变了就喂给它；`null` = 选择器关着。
+   *
+   * ⚠ `null` **不清结果**：用户关掉又马上打一个 `@`，上一次搜到的那几条直接还在，
+   * 不用再等一次 loading。
+   */
+  search(query: string | null): void
+  /** 出错那一段上那颗「重试」。 */
+  retry(): void
+}
+
+/**
+ * `@` 选择器下半段：**搜整个素材库**（切片 #7b）。
+ *
+ * ⭐ 走**现有** `fetchGalleryImages`（`/api/images`，`mine: true`），⛔ 不新建 route：
+ * `search_assets` 背后查的就是同一张表同一个口。
+ * ⚠ 端点不是 `/api/generations` —— 后者会打断正在跑的生成（本仓踩过，判据与
+ * `acceptDrop` 里那条同源）。
+ *
+ * ⭐ 选中一条 = `addChip`，与另外五个入口同一条管线：图片那一档由
+ * `StudioOperatorDock` 的 effect 挂成工作台参考图（`apply.addReference`），
+ * ⛔ 这里不自己挂 —— 面板挂一遍、dock 再挂一遍就是两条会分叉的链。
+ */
+export function useStudioOperatorAssetLibrary(): UseStudioOperatorAssetLibraryResult {
+  const [query, setQuery] = useState<string | null>(null)
+  /**
+   * `loaded` 是**已经拿到结果的那个词**（`null` = 一条都还没拿到）。
+   *
+   * ⚠ 状态由「它与当前查询词对不对得上」推出来，而不是另存一个 `isLoading`
+   * 布尔量：两份状态必然会在防抖窗口里对不上（打完字的那 250ms 里布尔量还是
+   * false，界面于是拿旧结果冒充新结果）。
+   */
+  const [loaded, setLoaded] = useState<{
+    query: string | null
+    status: 'ready' | 'error'
+    assets: readonly StudioOperatorAttachment[]
+  }>({ query: null, status: 'ready', assets: [] })
+  /** 请求序号 —— 慢回来的那一发直接丢掉，⛔ 不让它盖住新词的结果。 */
+  const requestRef = useRef(0)
+
+  useEffect(() => {
+    if (query === null || loaded.query === query) return
+    const seq = requestRef.current + 1
+    requestRef.current = seq
+    const timer = window.setTimeout(() => {
+      void fetchGalleryImages(
+        1,
+        query
+          ? STUDIO_OPERATOR_MENTION.searchLimit
+          : STUDIO_OPERATOR_MENTION.recentCount,
+        {
+          mine: true,
+          type: ['image', 'video'],
+          includeTotal: false,
+          ...(query ? { search: query } : {}),
+        },
+      ).then((result) => {
+        if (seq !== requestRef.current) return
+        if (!result.success) {
+          setLoaded({ query, status: 'error', assets: [] })
+          return
+        }
+        const seen = new Set<string>()
+        const assets: StudioOperatorAttachment[] = []
+        for (const generation of result.data?.generations ?? []) {
+          // ⚠ 按 id 去重：分页边界上同一行回来两次是真事（新素材插队时后一页
+          //   会把前一页最后那条再带一遍），而重复的候选在列表里点哪一条都一样。
+          if (!generation.url || seen.has(generation.id)) continue
+          seen.add(generation.id)
+          assets.push(toOperatorAttachment(generation))
+        }
+        setLoaded({ query, status: 'ready', assets })
+      })
+    }, STUDIO_OPERATOR_MENTION.searchDebounceMs)
+    return () => window.clearTimeout(timer)
+  }, [query, loaded.query])
+
+  const retry = useCallback(() => {
+    // 把「已经拿到的那个词」抹掉 = 让上面那条 effect 认为还没搜过，于是重来一发。
+    setLoaded((current) => ({ ...current, query: null }))
+  }, [])
+
+  return {
+    assets: loaded.assets,
+    status:
+      query !== null && loaded.query !== query ? 'loading' : loaded.status,
+    search: setQuery,
+    retry,
   }
 }

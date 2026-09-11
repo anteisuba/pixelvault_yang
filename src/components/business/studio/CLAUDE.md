@@ -40,12 +40,14 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorToolGroup (「5 个操作 · 4 成功 1 失败」折叠行)
         │       ├── StudioOperatorCheckpointCard (每轮 checkpoint 薄卡，就地二选撤销)
         │       ├── StudioOperatorQueueBar (排队条，浮在输入框上方)
-        │       ├── MentionInput（共享输入框：@ 当前参考图，正文缩略图标签）
+        │       ├── MentionInput（共享输入框：`@` 选择器**两段** —— 当前工作台（参考图 / 结果）
+        │       │    与素材库（搜 `/api/images`，选中即挂进工作台）；正文缩略图标签）
         │       ├── StudioOperatorResultRow (结果行卡 2/4 列，@ 闭环入口)
         │       ├── StudioOperatorLogItem (时间线一行：工具步 / 动作 / 系统行 / 证据卡)
         │       ├── StudioOperatorWebCandidateGrid (联网候选网格：来源三字段 + 「挂上 N 张」)
         │       ├── StudioOperatorCritiqueCard (评价卡，两个形态一颗组件：单图嵌图 / 视频三帧并排 + 时间码；分岔判据是载荷里有没有 frames，不是当前域)
-        │       ├── StudioOperatorAttachMenu (📎 附件面板，素材库就地预览)
+        │       ├── StudioOperatorPlusMenu (「+」菜单三项：提及素材 / 上下文卡 / 指定来源；
+        │       │    上传是下行那颗独立回形针按钮，素材库并进了 @ 选择器的第二段)
         │       ├── StudioOperatorHistoryItem (会话历史条目)
         │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 整段出现 / 长回话折首句 / `detail` 折成「为什么」 / 空正文时的占位脉冲)
         │       ├── StudioOperatorQuestionCard (问题卡：**钉在输入框上方**，一次一题；答完落一行系统行)

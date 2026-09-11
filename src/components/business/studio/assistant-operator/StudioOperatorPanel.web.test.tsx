@@ -1,6 +1,6 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { useState } from 'react'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
@@ -56,6 +56,14 @@ vi.mock('@/hooks/use-studio-assistant-controls', () => ({
 
 vi.mock('@/hooks/use-my-profile', () => ({
   useMyProfile: () => ({ profile: null }),
+}))
+
+/** `@` 选择器下半段那一发搜索（切片 #7b）—— ⛔ 用例里不打真请求。 */
+const fetchGalleryImages = vi.hoisted(() => vi.fn())
+
+vi.mock('@/lib/api-client/gallery', () => ({
+  fetchGalleryImages,
+  fetchGenerationByIdAPI: vi.fn(),
 }))
 
 const applyDispatch = vi.hoisted(() => vi.fn())
@@ -939,5 +947,135 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
     expect(editor.textContent).toContain('@')
     expect(screen.queryByTestId('operator-plus-menu')).toBeNull()
+  })
+})
+
+/**
+ * `@` 选择器现在分两段：**当前工作台**与**素材库**（v2 §4.4 · 切片 #7b）。
+ *
+ * ⭐ 这份用例存在的理由与本文件其余部分同源：搜索 hook 自己绿着、选择器自己绿着，
+ * 而「打一个 `@` 到底出不出素材库那一段」只有把面板真的画出来才看得见。
+ * ⚠ 挂进工作台的那一跳（mention → `apply.addReference`）钉在 `StudioOperatorDock`
+ * 的用例里 —— 面板这一侧的责任到 `addChip` 为止（管线只有一条）。
+ */
+describe('@ 选择器的素材库那一段（切片 #7b）', () => {
+  /** 在 contenteditable 里打一个 `@`（jsdom 不会替我们动 selection）。 */
+  function typeAt(editor: HTMLElement) {
+    editor.textContent = '@'
+    const range = document.createRange()
+    range.setStart(editor.firstChild!, 1)
+    range.collapse(true)
+    const selection = document.getSelection()!
+    selection.removeAllRanges()
+    selection.addRange(range)
+    fireEvent.input(editor)
+  }
+
+  beforeEach(() => {
+    fetchGalleryImages.mockResolvedValue({
+      success: true,
+      data: {
+        generations: [
+          {
+            id: 'lib-1',
+            url: 'https://cdn.test/lib-1.png',
+            prompt: '库里那张海报',
+            outputType: 'IMAGE',
+          },
+        ],
+      },
+    })
+  })
+
+  it('打 @ 出两段：先加载中，搜到之后素材库那一段列出候选', async () => {
+    vi.useFakeTimers()
+    try {
+      renderPanel()
+      typeAt(screen.getByRole('textbox', { name: 'placeholderIdle' }))
+
+      expect(
+        document.querySelector('[data-mention-section="workbench"]'),
+      ).not.toBeNull()
+      expect(
+        document.querySelector('[data-mention-section-status="loading"]'),
+      ).not.toBeNull()
+
+      await act(async () => {
+        vi.advanceTimersByTime(300)
+      })
+
+      const library = document.querySelector(
+        '[data-mention-section="library"]',
+      ) as HTMLElement
+      expect(
+        within(library).getByRole('option', { name: /库里那张海报/ }),
+      ).toBeTruthy()
+      // 工作台那一段照旧在（两段并存，⛔ 不是互斥的两个视图）。
+      expect(
+        document.querySelector('[data-mention-section="workbench"]'),
+      ).not.toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('选中素材库一条：落 chip 管线并在正文留下 @ 胶囊', async () => {
+    vi.useFakeTimers()
+    try {
+      renderPanel()
+      const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+      typeAt(editor)
+      await act(async () => {
+        vi.advanceTimersByTime(300)
+      })
+
+      const library = document.querySelector(
+        '[data-mention-section="library"]',
+      ) as HTMLElement
+      fireEvent.click(
+        within(library).getByRole('option', { name: /库里那张海报/ }),
+      )
+
+      expect(store.getOperatorState().mentions.map((item) => item.id)).toEqual([
+        'lib-1',
+      ])
+      // 宿主已经有 2 张可用参考图（第三张 disabled 也占位），新的那张落在队尾。
+      expect(editor.textContent).toContain('@Image4')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('搜不出来时给出错那一句与重试，点重试真的再发一发', async () => {
+    vi.useFakeTimers()
+    try {
+      fetchGalleryImages.mockResolvedValue({ success: false, error: 'boom' })
+      renderPanel()
+      typeAt(screen.getByRole('textbox', { name: 'placeholderIdle' }))
+      await act(async () => {
+        vi.advanceTimersByTime(300)
+      })
+
+      expect(
+        document.querySelector('[data-mention-section-status="error"]'),
+      ).not.toBeNull()
+      const retry = document.querySelector(
+        '[data-mention-section-retry="library"]',
+      ) as HTMLElement
+      fetchGalleryImages.mockResolvedValue({
+        success: true,
+        data: { generations: [] },
+      })
+      fireEvent.click(retry)
+      await act(async () => {
+        vi.advanceTimersByTime(300)
+      })
+      expect(fetchGalleryImages).toHaveBeenCalledTimes(2)
+      expect(
+        document.querySelector('[data-mention-section-status="empty"]'),
+      ).not.toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })

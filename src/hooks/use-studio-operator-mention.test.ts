@@ -1,5 +1,5 @@
 import { act, renderHook } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSET_DND_MIME } from '@/constants/asset-dnd'
 import { ASSISTANT_MENTION_LIMITS } from '@/constants/generation-naming'
@@ -23,8 +23,12 @@ import {
  */
 
 const fetchGenerationByIdAPI = vi.hoisted(() => vi.fn())
+const fetchGalleryImages = vi.hoisted(() => vi.fn())
 
-vi.mock('@/lib/api-client/gallery', () => ({ fetchGenerationByIdAPI }))
+vi.mock('@/lib/api-client/gallery', () => ({
+  fetchGenerationByIdAPI,
+  fetchGalleryImages,
+}))
 
 /** store 是模块级单例 —— 每个用例换一份新的（照抄驱动 hook 用例的头注）。 */
 type Mention = typeof import('@/hooks/use-studio-operator-mention')
@@ -343,5 +347,119 @@ describe('上下文卡 chip', () => {
     })
     expect(result.current.chips).toHaveLength(0)
     expect(result.current.cardChips).toHaveLength(0)
+  })
+})
+
+/**
+ * `@` 选择器下半段：**搜整个素材库**（切片 #7b）。
+ *
+ * 钉四件事，每一条都有具体的失败面：
+ *  ① 防抖 —— 每敲一个字符发一发请求就是把自家库搜成一次 DDoS；
+ *  ② 三态说得出口 —— 打完字到结果回来之间必须是 `loading`，⛔ 不能拿上一个词的
+ *    结果冒充这个词的（那正是「搜了没反应」的手感）；
+ *  ③ 重复行按 id 收掉 —— 分页边界上同一行真的会回来两次；
+ *  ④ 出错有下一步 —— `retry()` 真的再发一次。
+ */
+describe('useStudioOperatorAssetLibrary（素材库搜索）', () => {
+  function galleryRow(id: string) {
+    return {
+      id,
+      url: `https://cdn.test/${id}.png`,
+      prompt: id,
+      outputType: 'IMAGE',
+    }
+  }
+
+  function ok(ids: readonly string[]) {
+    return {
+      success: true,
+      data: { generations: ids.map(galleryRow) },
+    }
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+
+  afterEach(() => {
+    // ⚠ 一定要还回去：假时钟漏给后面的用例时，表现是别处的 `await` 永远不回来。
+    vi.useRealTimers()
+  })
+
+  it('防抖：连打三个字符只发最后那一次请求', async () => {
+    fetchGalleryImages.mockResolvedValue(ok(['a']))
+    const { result } = renderHook(() => mention.useStudioOperatorAssetLibrary())
+
+    act(() => result.current.search('海'))
+    act(() => result.current.search('海报'))
+    act(() => result.current.search('海报设'))
+    expect(fetchGalleryImages).not.toHaveBeenCalled()
+
+    await act(async () => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(fetchGalleryImages).toHaveBeenCalledTimes(1)
+    expect(fetchGalleryImages.mock.calls[0][2]).toMatchObject({
+      mine: true,
+      search: '海报设',
+    })
+  })
+
+  it('没有查询词时取最近几条，且状态从 loading 走到 ready', async () => {
+    fetchGalleryImages.mockResolvedValue(ok(['a', 'b']))
+    const { result } = renderHook(() => mention.useStudioOperatorAssetLibrary())
+
+    act(() => result.current.search(''))
+    expect(result.current.status).toBe('loading')
+
+    await act(async () => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(result.current.status).toBe('ready')
+    expect(result.current.assets.map((item) => item.id)).toEqual(['a', 'b'])
+    // 最近档取的是 `recentCount`，不是搜索档那个更大的上限。
+    expect(fetchGalleryImages.mock.calls[0][1]).toBe(6)
+    expect(fetchGalleryImages.mock.calls[0][2]).not.toHaveProperty('search')
+  })
+
+  it('同一个词不重复发请求；重复行按 id 去重', async () => {
+    fetchGalleryImages.mockResolvedValue(ok(['a', 'a', 'b']))
+    const { result } = renderHook(() => mention.useStudioOperatorAssetLibrary())
+
+    act(() => result.current.search('海报'))
+    await act(async () => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(result.current.assets.map((item) => item.id)).toEqual(['a', 'b'])
+
+    // 关掉选择器再用同一个词打开 —— 结果还在，⛔ 不再发一发。
+    act(() => result.current.search(null))
+    act(() => result.current.search('海报'))
+    await act(async () => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(fetchGalleryImages).toHaveBeenCalledTimes(1)
+    expect(result.current.status).toBe('ready')
+  })
+
+  it('出错说得出口，retry 真的再发一次', async () => {
+    fetchGalleryImages.mockResolvedValue({ success: false, error: 'boom' })
+    const { result } = renderHook(() => mention.useStudioOperatorAssetLibrary())
+
+    act(() => result.current.search('海报'))
+    await act(async () => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(result.current.status).toBe('error')
+    expect(result.current.assets).toEqual([])
+
+    fetchGalleryImages.mockResolvedValue(ok(['a']))
+    act(() => result.current.retry())
+    await act(async () => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(fetchGalleryImages).toHaveBeenCalledTimes(2)
+    expect(result.current.status).toBe('ready')
+    expect(result.current.assets.map((item) => item.id)).toEqual(['a'])
   })
 })

@@ -47,7 +47,7 @@ const MENU_ICONS: Record<StudioOperatorPlusMenuId, typeof AtSign> = {
   [STUDIO_OPERATOR_PLUS_MENU_IDS.source]: Search,
 }
 
-interface StudioOperatorAttachMenuProps {
+interface StudioOperatorPlusMenuProps {
   onDismiss(): void
   triggerRef: RefObject<HTMLButtonElement | null>
   /** 唤出 `@` 选择器（插 `@` + 聚焦输入框）。 */
@@ -67,13 +67,13 @@ function toCardMention(card: ContextCard): StudioOperatorCardMention {
   }
 }
 
-export function StudioOperatorAttachMenu({
+export function StudioOperatorPlusMenu({
   onDismiss,
   triggerRef,
   onPickMention,
   onPickCard,
   scope,
-}: StudioOperatorAttachMenuProps) {
+}: StudioOperatorPlusMenuProps) {
   const t = useTranslations('StudioOperator')
   const reduceMotion = useReducedMotion()
   const menuRef = useRef<HTMLDivElement>(null)

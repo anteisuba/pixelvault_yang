@@ -499,6 +499,25 @@ export const STUDIO_OPERATOR_MENTION = {
 } as const
 
 /**
+ * `@` 选择器的两段（切片 #7b）。
+ *
+ * ⭐ 分段判据是**来源与后果**，不是媒体类型：`workbench` 那一段的图已经在工作台上
+ * （选中只是引用它），`library` 那一段选中会**挂进工作台**再引用。
+ */
+export const STUDIO_OPERATOR_MENTION_SECTION_IDS = {
+  workbench: 'workbench',
+  library: 'library',
+} as const
+
+/**
+ * 素材库候选的 id 前缀 —— 与工作台那段的 `Image1` / `Attachment[…]` 区分开。
+ *
+ * ⚠ 必须有一个前缀：两段的 id 撞上时 React 的 key 会重复，而「选中的是哪一条」
+ * 也就跟着分不清了（表现是点素材库那条却挂了工作台上的同名图）。
+ */
+export const STUDIO_OPERATOR_LIBRARY_CANDIDATE_PREFIX = 'library:'
+
+/**
  * 结果行卡的入场 stagger（§11.5：30ms，最多前 12 项）。
  *
  * ⚠ 单位是**秒**（motion 的 `delay` 收秒），与 `STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS`

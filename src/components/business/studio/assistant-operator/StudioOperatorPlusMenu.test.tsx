@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useRef, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { StudioOperatorAttachMenu } from './StudioOperatorAttachMenu'
+import { StudioOperatorPlusMenu } from './StudioOperatorPlusMenu'
 
 /**
  * v2 §4.4 的回归闸：输入区「+」菜单**三项，不多不少**。
@@ -85,7 +85,7 @@ function KeyboardDismissHarness({ onDismiss }: { onDismiss(): void }) {
   return (
     <div>
       {open ? (
-        <StudioOperatorAttachMenu
+        <StudioOperatorPlusMenu
           {...defaultProps}
           triggerRef={triggerRef}
           onDismiss={() => {
@@ -106,14 +106,14 @@ function KeyboardDismissHarness({ onDismiss }: { onDismiss(): void }) {
   )
 }
 
-describe('StudioOperatorAttachMenu · v2 §4.4「+」菜单三项', () => {
+describe('StudioOperatorPlusMenu · v2 §4.4「+」菜单三项', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockUseContextCards.mockImplementation(stubContextCards([CARD]))
   })
 
   it('只有三项：提及素材 / 上下文卡 / 指定来源，⛔ 没有「附件」', () => {
-    render(<StudioOperatorAttachMenu {...defaultProps} />)
+    render(<StudioOperatorPlusMenu {...defaultProps} />)
 
     expect(screen.getByTestId('operator-plus-item-mention')).toBeTruthy()
     expect(screen.getByTestId('operator-plus-item-contextCard')).toBeTruthy()
@@ -130,7 +130,7 @@ describe('StudioOperatorAttachMenu · v2 §4.4「+」菜单三项', () => {
     const onPickMention = vi.fn()
     const onDismiss = vi.fn()
     render(
-      <StudioOperatorAttachMenu
+      <StudioOperatorPlusMenu
         {...defaultProps}
         onPickMention={onPickMention}
         onDismiss={onDismiss}
@@ -143,7 +143,7 @@ describe('StudioOperatorAttachMenu · v2 §4.4「+」菜单三项', () => {
   })
 
   it('「指定来源」本轮停用（commit #17 才接白 / 黑名单）—— ⛔ 不是死按钮', () => {
-    render(<StudioOperatorAttachMenu {...defaultProps} />)
+    render(<StudioOperatorPlusMenu {...defaultProps} />)
 
     const item = screen.getByTestId(
       'operator-plus-item-source',
@@ -155,7 +155,7 @@ describe('StudioOperatorAttachMenu · v2 §4.4「+」菜单三项', () => {
     const onPickCard = vi.fn()
     const onDismiss = vi.fn()
     render(
-      <StudioOperatorAttachMenu
+      <StudioOperatorPlusMenu
         {...defaultProps}
         onPickCard={onPickCard}
         onDismiss={onDismiss}
@@ -188,7 +188,7 @@ describe('StudioOperatorAttachMenu · v2 §4.4「+」菜单三项', () => {
 
   it('一张卡都没有时给的是「新建一张」这条下一步，⛔ 不摆白板', async () => {
     mockUseContextCards.mockImplementation(stubContextCards([]))
-    render(<StudioOperatorAttachMenu {...defaultProps} />)
+    render(<StudioOperatorPlusMenu {...defaultProps} />)
 
     fireEvent.click(screen.getByTestId('operator-plus-item-contextCard'))
     const create = await screen.findByTestId('operator-plus-card-create')
@@ -207,7 +207,7 @@ describe('StudioOperatorAttachMenu · v2 §4.4「+」菜单三项', () => {
         <button type="button" data-testid="outside">
           outside
         </button>
-        <StudioOperatorAttachMenu {...defaultProps} onDismiss={onDismiss} />
+        <StudioOperatorPlusMenu {...defaultProps} onDismiss={onDismiss} />
       </div>,
     )
 

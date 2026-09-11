@@ -7576,6 +7576,62 @@ describe('current reference image bindings', () => {
     ]
   }
 
+  /**
+   * ⭐ 真机缺口（2026-09-12）：挂着两张参考图，用户问「这两张分别是什么画风」，
+   * 模型回「我无法直接查看这两张参考图的画面像素」。⛔ 修的是**提示**不是闸 ——
+   * 状态块要说出「这些图你看得到，先 analyze_references」。
+   */
+  describe('mounted references are readable — the prompt says so', () => {
+    const twoRefs = refs.slice(0, 2)
+    const styleQuestion = '帮我看看这两张参考图，分别是什么画风'
+
+    async function runStyleQuestion(reply: unknown) {
+      queueTurns(reply)
+      return collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            messages: [{ role: 'user', content: styleQuestion }],
+            snapshot: { ...SNAPSHOT, references: { items: twoRefs, limit: 4 } },
+          }),
+        ),
+      )
+    }
+
+    it('tells the model the two mounted references can be opened with analyze_references', async () => {
+      await runStyleQuestion({ finished: true, message: '两张都是写实风。' })
+      const prompt = lastUserPrompt()
+      expect(prompt).toContain(
+        '2 reference image(s) are mounted on this workbench and you CAN see them',
+      )
+      expect(prompt).toContain('analyze_references')
+      expect(prompt).toContain(
+        'Never tell the creator you cannot see these pictures',
+      )
+    })
+
+    it('carries the same instruction in the domain rules of the system prompt', async () => {
+      await runStyleQuestion({ finished: true, message: '两张都是写实风。' })
+      const prompt = systemPrompt()
+      expect(prompt).toContain(
+        'analyze_references is how you SEE the mounted references',
+      )
+      expect(prompt).toContain(
+        '"I cannot see the pixels of these reference images" is never a true answer',
+      )
+    })
+
+    /** ⛔ 只改提示：模型硬要说「看不到」时**不拦**，这里锁住没有多长出一道闸。 */
+    it('does not hard-block a first turn that claims it cannot see them', async () => {
+      const events = await runStyleQuestion({
+        finished: true,
+        message: '目前我无法直接查看这两张参考图的画面像素。',
+      })
+      expect(stepsOf(events)).toHaveLength(0)
+      expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+    })
+  })
+
   it('gives the answering model current verified evidence despite historical failure messages', async () => {
     queueTurns({
       finished: true,

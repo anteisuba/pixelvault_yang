@@ -463,7 +463,14 @@ interface MentionQuery {
 }
 
 export interface MentionInputProps {
-  portalContainerRef?: React.RefObject<HTMLElement | null>
+  /**
+   * 浮层根节点上额外挂的属性 —— 目前只有助手面板用它挂
+   * `STUDIO_OPERATOR_KEEP_OPEN_ATTR`：浮层 portal 在 `document.body`（见下面
+   * `portalHost` 的注释），不在面板 DOM 里，点候选会被「注意力收放法则」当成
+   * 点了面板外面而把面板收掉。
+   * ⛔ 不要改回「portal 进面板」来绕过这条 —— 那正是浮层被裁的根因。
+   */
+  popoverAttributes?: Record<string, string>
   id?: string
   disabled?: boolean
   variant?: 'default' | 'canvas'
@@ -574,14 +581,14 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     const [isComposing, setIsComposing] = useState(false)
     // 浮层的 portal 宿主。挂在 state 上而不是直接读 `document.body`，是因为这个
     // 组件也走 SSR —— 首帧没有 document，effect 之后才有。
+    // ⚠ 宿主**只能是 `document.body`**：浮层是 `position: fixed`，而 fixed 只在
+    // 「没有生成包含块的祖先」时才以视口为参照 —— `transform` / `filter` /
+    // `backdrop-filter` 任意一个都会把它接管。2026-09-11 回归：助手面板换成
+    // `assistant-glass-panel`（带 `backdrop-filter`）后，portal 进面板的浮层被
+    // 那层玻璃接管坐标、又被面板的 `overflow-hidden` 裁掉一半，整个菜单落到输入
+    // 区右下角压在发送键上。⛔ 别再往任何面板 / 卡片里 portal。
     const [portalHost, setPortalHost] = useState<HTMLElement | null>(null)
-    useEffect(() => {
-      setPortalHost(
-        rest.portalContainerRef?.current ??
-          editorRef.current?.closest<HTMLElement>('[role="dialog"]') ??
-          document.body,
-      )
-    }, [rest.portalContainerRef])
+    useEffect(() => setPortalHost(document.body), [])
     // @ 下拉：查询串 + 光标处的屏幕坐标（浮层用 fixed 定位，画布有 transform，
     // 只能用视口坐标）。null = 没在写 @。
     const [mention, setMention] = useState<{
@@ -787,10 +794,22 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
       ? (window.visualViewport?.height ?? window.innerHeight) +
         (window.visualViewport?.offsetTop ?? 0)
       : 0
+    /**
+     * 默认档（助手面板 / 工作台提示词）的输入框都贴着屏幕下沿，浮层**优先开在
+     * 光标上方**——开在下方就是开在屏幕外。上方装不下才退回下方，退回时再按视口
+     * 下沿夹一次，免得被裁。
+     */
+    const pickerAbove = (mention?.rect.top ?? 0) - pickerHeight - 6
     const pickerTop =
-      mention && mention.rect.bottom + pickerHeight + 6 > viewportBottom - 8
-        ? Math.max(8, mention.rect.top - pickerHeight - 6)
-        : (mention?.rect.bottom ?? 0) + 6
+      pickerAbove >= MENTION_POPOVER_EDGE_GAP
+        ? pickerAbove
+        : Math.max(
+            MENTION_POPOVER_EDGE_GAP,
+            Math.min(
+              (mention?.rect.bottom ?? 0) + 6,
+              viewportBottom - pickerHeight - MENTION_POPOVER_EDGE_GAP,
+            ),
+          )
 
     /**
      * 选中一个候选：先把用户打出来的 `@查询` 从正文里删掉，再交给父级去连线 + 插胶囊。
@@ -1048,6 +1067,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
                 role="listbox"
                 id={listId}
                 aria-label={rest['aria-label']}
+                {...rest.popoverAttributes}
                 className={
                   variant === 'canvas'
                     ? 'canvas-mention-popover'

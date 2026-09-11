@@ -68,6 +68,7 @@ import {
 } from '@/constants/assistant-operator'
 import {
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
+  STUDIO_OPERATOR_KEEP_OPEN_ATTR,
   STUDIO_OPERATOR_LIBRARY_PAGE_SIZE,
   STUDIO_OPERATOR_MENTION,
   STUDIO_OPERATOR_SUGGESTIONS,
@@ -428,7 +429,6 @@ export function StudioOperatorPanel({
   // 「问助手」/「按这张继续」按完要把焦点还给输入框（§3.1 ⑲「chip 插入并聚焦」）
   // —— 不还的话用户得再点一次输入框才能接着说，而他刚刚明明就在说话。
   const inputRef = useRef<MentionInputHandle>(null)
-  const inputAreaRef = useRef<HTMLDivElement>(null)
   const [dragOver, setDragOver] = useState(false)
   /**
    * **钉住的证据卡**（v2 §3.2 / §9，commit #21）——按轮记，`runKey` 就是一张卡。
@@ -1912,7 +1912,6 @@ export function StudioOperatorPanel({
         {/* ── 输入区：上行工具条 + 下行输入（拍板 12）──────────────── */}
         <div
           data-testid="operator-input-area"
-          ref={inputAreaRef}
           data-drag-over={dragOver}
           /**
            * 拖图进输入框（§3.3 第 3 行）—— 四入口之三。
@@ -1948,7 +1947,10 @@ export function StudioOperatorPanel({
           <div className="flex flex-col gap-2">
             <MentionInput
               ref={inputRef}
-              portalContainerRef={inputAreaRef}
+              /* 浮层 portal 在 `document.body`（面板带 `backdrop-filter` +
+                 `overflow-hidden`，portal 进来就会被接管坐标再被裁），所以要自己
+                 挂收放法则的豁免标记，否则点候选 = 点面板外面 = 面板收起。 */
+              popoverAttributes={{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
               value={draft}
               aria-label={t('placeholderIdle')}
               onValueChange={onDraftChange}

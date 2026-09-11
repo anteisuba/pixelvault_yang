@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { STUDIO_OPERATOR_KEEP_OPEN_ATTR } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
@@ -361,9 +362,24 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     document.getSelection()?.addRange(range)
     fireEvent.input(editor)
     expect(screen.getAllByRole('option')).toHaveLength(2)
-    expect(screen.getByTestId('operator-input-area')).toContainElement(
-      screen.getByRole('listbox'),
-    )
+    /**
+     * 2026-09-11 回归的钉子：候选浮层是 `position: fixed`，只有挂在
+     * `document.body` 下才以视口为参照。面板换成 `assistant-glass-panel`
+     * （`backdrop-filter` 生成包含块）+ `overflow-hidden` 之后，portal 进面板的
+     * 浮层会被接管坐标再被裁掉——实测落在输入区右下角压着发送键。
+     * ⛔ 别把它 portal 回任何面板 / 卡片里。
+     */
+    const listbox = screen.getByRole('listbox')
+    expect(listbox.parentElement).toBe(document.body)
+    for (
+      let node = listbox.parentElement;
+      node;
+      node = node.parentElement as HTMLElement | null
+    ) {
+      expect(node.className).not.toContain('overflow-hidden')
+    }
+    // portal 出面板后，点候选不能被「注意力收放法则」当成点了面板外面。
+    expect(listbox.hasAttribute(STUDIO_OPERATOR_KEEP_OPEN_ATTR)).toBe(true)
     fireEvent.keyDown(editor, { key: 'ArrowDown' })
     fireEvent.keyDown(editor, { key: 'Enter' })
     expect(send).not.toHaveBeenCalled()

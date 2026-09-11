@@ -7587,6 +7587,7 @@
       "queuePicked": "区切りです —— 並べておいた {count} 件を受け取りました",
       "queueDropped": "並んでいたメッセージを取り消しました：{subject}",
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
+      "generationFailed": "この回は一枚も出ませんでした —— アシスタントは確認しません",
       "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）",
       "videoFramesFailed": "このクリップからフレームを取り出せませんでした —— 今回アシスタントは見られません（{subject}）",
       "checkpointRestored": "選択したステップの設定を復元しました。以後は現在のフォームに従って操作してください。",
@@ -7694,19 +7695,11 @@
       "description": "フォルダーごとに素材を見て、アシスタントに見せる画像を添付します。"
     },
     "result": {
-      "title": "結果 · {count} 枚",
-      "select": "結果 {ordinal} を選ぶ",
-      "ask": "これについて聞く",
-      "zoom": "拡大",
-      "selected": "{ordinal} を選択中",
-      "unselected": "未選択",
-      "continue": "これで続ける",
-      "continuePrefill": "これで続けて：",
-      "approve": "採用にする",
-      "block": "不採用にする",
-      "reviewFailed": "その印を保存できませんでした",
-      "chipLabel": "結果 {ordinal}",
-      "pending": "生成中"
+      "stored": "ライブラリに保存済み",
+      "storedCount": "ライブラリに {count} 枚保存済み",
+      "generating": "生成中 · {done} / {total}",
+      "rerun": "もう一組",
+      "useAsReference": "これを参照にする"
     },
     "error": {
       "generic": "今回のラウンドは最後まで走りませんでした",

@@ -58,6 +58,7 @@ import type {
   StudioOperatorMessageEntry,
   StudioOperatorQuestionPrompt,
   StudioOperatorQueuedMessage,
+  StudioOperatorResultEntry,
   StudioOperatorStatus,
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
@@ -155,6 +156,17 @@ export interface StudioOperatorState {
    */
   selectedResultId: string | null
   /**
+   * **还在出图的那张结果卡**的条目 id（v2 §6.3，commit #10）。
+   *
+   * ⭐ 卡在「确认生成」那一刻就落进时间线（生成中态），宿主的回流随后往它身上
+   * 写张数与缩略图。记一个 id 是为了让回流那一侧**找得到该改哪一条** ——
+   * ⛔ 别去线程里倒着找最后一条 `result`：用户在等图的这段时间里照样可以说话，
+   * 而「最后一条」随时会变成别的东西。
+   * ⚠ 结账（全部落地 / 全挂了）之后清回 `null`：留着它，下一批的进度会写进上一
+   * 张卡里。
+   */
+  pendingResultId: string | null
+  /**
    * persona 的「默认行为」（§8.2 `planMode`）—— **store 里存一份的唯一理由**是
    * 驱动 hook 要在事件处理器里同步读它（`getOperatorState()`），而 persona 是
    * 一次异步拉取的结果。
@@ -242,6 +254,7 @@ const INITIAL_STATE: StudioOperatorState = {
   mentions: [],
   cardMentions: [],
   selectedResultId: null,
+  pendingResultId: null,
   planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
   question: null,
   confirm: null,
@@ -771,6 +784,72 @@ export function setOperatorSelectedResult(id: string | null): void {
 }
 
 /**
+ * **落一张生成中的结果卡**（v2 §6.3，commit #10）—— 「确认生成」那一刻调。
+ *
+ * ⚠ 同时记下 `pendingResultId`：回流那一侧靠它找到该往哪条写（见字段头注）。
+ * ⚠ 上一张还没结账就又来一张时，旧的那张**留在原地不动**（它已经是历史了），
+ * 只有指针改到新的这条 —— ⛔ 别去把旧卡改成失败：它到底出没出图这里并不知道。
+ */
+export function appendOperatorPendingResult(
+  entry: Omit<StudioOperatorResultEntry, 'kind' | 'items' | 'completed'>,
+): void {
+  emit({
+    ...state,
+    entries: [
+      ...state.entries,
+      { ...entry, kind: 'result', items: [], completed: 0 },
+    ],
+    pendingResultId: entry.id,
+  })
+}
+
+/**
+ * 往那张结果卡上写回流（张数 / 缩略图 / 入库时刻）。
+ *
+ * ⚠ 找不到那一条就**什么都不做**（用户可能已经＋新对话把线程清了）：
+ * 补一条新的表现是一张凭空出现在流末尾的结果卡，而它上面那句「已入库」
+ * 对应的是上一个话题。
+ */
+export function updateOperatorResult(
+  id: string,
+  patch: Partial<Omit<StudioOperatorResultEntry, 'kind' | 'id'>>,
+): void {
+  const index = state.entries.findIndex(
+    (entry) => entry.kind === 'result' && entry.id === id,
+  )
+  if (index < 0) return
+  const entries = [...state.entries]
+  entries[index] = {
+    ...(entries[index] as StudioOperatorResultEntry),
+    ...patch,
+  }
+  emit({ ...state, entries })
+}
+
+/** 这一批结账了 —— 指针清掉，下一批不会再写进这张卡。 */
+export function clearOperatorPendingResult(): void {
+  if (state.pendingResultId === null) return
+  emit({ ...state, pendingResultId: null })
+}
+
+/**
+ * 全挂了 —— **把那张生成中的卡撤掉**，由调用方另落一行系统行（§6 头注）。
+ *
+ * ⚠ 撤掉而不是留一张写着「失败」的结果卡：结果卡的两个轻操作在一批空图上
+ * 全是死的，而一张每一格都点不动的卡比没有卡更难读。
+ */
+export function dropOperatorPendingResult(id: string): void {
+  emit({
+    ...state,
+    entries: state.entries.filter(
+      (entry) => !(entry.kind === 'result' && entry.id === id),
+    ),
+    pendingResultId:
+      state.pendingResultId === id ? null : state.pendingResultId,
+  })
+}
+
+/**
  * persona 的「默认行为」落进 store（§8.2）。
  *
  * ⚠ 「先问我」开关已随 v2 决策 6 删掉，`planMode` 就是它的**唯一**语义来源：
@@ -1082,6 +1161,8 @@ export function resetOperatorThread(): void {
     //   用户会看到助手回答一个他已经翻篇的问题。
     queue: [],
     selectedResultId: null,
+    // ⚠ 在飞那张结果卡跟着走：新话题里它指向的条目已经不在线程里了。
+    pendingResultId: null,
     // ⚠ `mentions` **不清**：它属于用户此刻正在写的那条消息（与草稿同命），
     //   而「＋新对话」清的是已经说完的那些。顺手清掉 = 挂好的三张图凭空消失。
     /**

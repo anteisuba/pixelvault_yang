@@ -29,7 +29,10 @@ import {
   buildVideoOperatorSnapshot,
 } from '@/lib/studio-operator-snapshot'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
-import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
+import type {
+  StudioOperatorResultItem,
+  StudioOperatorResultRun,
+} from '@/types/studio-assistant-operator'
 
 /**
  * ⚠ 摘除按**索引**（`removeReferenceImage` 的契约），所以要先按 URL 找位。
@@ -393,6 +396,35 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
   }, [activeRun])
 
   /**
+   * **这一批的在飞读数**（v2 §6.3，commit #10）—— 结果卡的生成中态读它。
+   *
+   * ⭐ 与上面那份 `results` 同源同一条回流，只是**不过滤**：占位格数是「这一批
+   * 一共几条」，而 `results` 只留跑完的那几条。两个数从同一个数组算出来，⛔ 别
+   * 让结果卡去外面再问一次「这次要出几张」——那一份（表单的 `imageBatchCount`）
+   * 在用户等图的这几十秒里随时会被改掉。
+   * ⚠ `settled` 在这里判：`cancelled` 与 `failed` 同等对待（都是不会再变的终态，
+   * 判据与 `isOperatorClaimSettled` 逐字同源）。
+   */
+  const resultRun = useMemo<StudioOperatorResultRun | undefined>(() => {
+    const items = activeRun?.items
+    if (!items || items.length === 0) return undefined
+    return {
+      total: items.length,
+      completed: items.filter((item) => item.status === 'completed').length,
+      failed: items.filter(
+        (item) => item.status === 'failed' || item.status === 'cancelled',
+      ).length,
+      settled: items.every(
+        (item) =>
+          item.status === 'completed' ||
+          item.status === 'failed' ||
+          item.status === 'cancelled',
+      ),
+      items: results,
+    }
+  }, [activeRun, results])
+
+  /**
    * **生成确认卡那四颗旋钮的真值**（v2 §5.2 第一 / 第三行，commit #9）。
    *
    * ⭐ 与 `buildSnapshot` 不同，它是**渲染期算的值**：§5.2 第三行要求「卡未确认时
@@ -438,6 +470,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       checkpoints,
       apply,
       results,
+      ...(resultRun ? { resultRun } : {}),
       generationControls,
       referenceLimit,
       referenceImages: imageUpload.referenceEntries,
@@ -453,6 +486,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       open,
       referenceLimit,
       imageUpload.referenceEntries,
+      resultRun,
       results,
       setOpen,
     ],

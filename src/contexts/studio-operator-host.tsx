@@ -34,6 +34,7 @@ import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type {
   StudioOperatorGenerationControls,
   StudioOperatorResultItem,
+  StudioOperatorResultRun,
 } from '@/types/studio-assistant-operator'
 
 export interface StudioOperatorHost {
@@ -80,6 +81,16 @@ export interface StudioOperatorHost {
    * ⚠ 空数组 = 这一轮还没有结果，结果行卡整块不渲染（⛔ 不做空占位）。
    */
   results: readonly StudioOperatorResultItem[]
+  /**
+   * **这一批的在飞读数**（v2 §6.3，commit #10）—— 结果卡「正在出图 · 1 / 3」
+   * 与占位格数的数据源。
+   *
+   * ⭐ 与上面那份 `results` 的分工：那一份只收**跑完的**（`@` 选择器挑的就是它们），
+   * 而结果卡还得说得出没跑完的那几张 —— 否则占位格数只能靠猜。
+   * ⚠ **可选**：装配台那条结果列没有「一批」的概念（一次一张），缺席时结果卡的
+   * 生成中态不出现 —— ⛔ 别在那边造一个假的一批。
+   */
+  resultRun?: StudioOperatorResultRun
   /**
    * **生成确认卡那四颗旋钮的真值**（v2 §5.2，commit #9）。
    *

@@ -59,6 +59,7 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useAssistantOperator } from '@/hooks/use-assistant-operator'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useStudioOperatorCritique } from '@/hooks/use-studio-operator-critique'
+import { useStudioOperatorResults } from '@/hooks/use-studio-operator-results'
 import { useStudioOperatorHistory } from '@/hooks/use-studio-operator-history'
 import { useStudioOperatorStatusWord } from '@/hooks/use-studio-operator-status-word'
 import {
@@ -156,6 +157,7 @@ export function StudioOperatorDock() {
     referenceImages,
     apply,
     domain: hostDomain,
+    resultRun,
   } = useStudioOperatorHost()
   const isMobile = useIsMobile()
   const {
@@ -199,6 +201,12 @@ export function StudioOperatorDock() {
    *   面板是卸载的，但闭环该照常闭。
    */
   useStudioOperatorCritique({ onResult: operator.critique })
+  /**
+   * ⭐ 结果卡的回流（v2 §6，commit #10）同样**住在外壳**，理由与上面那条逐字
+   * 相同：图回来的那一刻面板多半是收着的（点生成键 = 点工作台 = 收面板），
+   * 挂在面板里的下场是那张卡永远停在「正在出图」。
+   */
+  useStudioOperatorResults(resultRun)
   /**
    * ⭐ 会话历史（P4-B）也**住在外壳**：水化（载回最近一条）只该每次页面加载跑
    * 一次，而收放法则（拍板 7）随时会把面板整颗卸载再挂回来 —— 挂在面板里的

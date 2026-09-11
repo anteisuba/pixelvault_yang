@@ -7587,6 +7587,7 @@
       "queuePicked": "Pause point — picking up the {count} message(s) you queued",
       "queueDropped": "You pulled back the queued message: {subject}",
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
+      "generationFailed": "Nothing came out of that run — the assistant will not look at it",
       "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
       "videoFramesFailed": "No frames could be taken from this clip — the assistant cannot look at it this turn ({subject})",
       "checkpointRestored": "Restored the selected step’s configuration. Use the current form for subsequent actions.",
@@ -7694,19 +7695,11 @@
       "description": "Browse your assets by folder and attach them for the assistant to look at."
     },
     "result": {
-      "title": "Results · {count}",
-      "select": "Pick result {ordinal}",
-      "ask": "Ask about it",
-      "zoom": "Zoom",
-      "selected": "Picked {ordinal}",
-      "unselected": "None picked",
-      "continue": "Continue from this one",
-      "continuePrefill": "Continue from this one: ",
-      "approve": "Mark as good",
-      "block": "Mark as failed",
-      "reviewFailed": "Could not save that mark",
-      "chipLabel": "Result {ordinal}",
-      "pending": "Still generating"
+      "stored": "Saved to library",
+      "storedCount": "Saved {count} to library",
+      "generating": "Generating · {done} / {total}",
+      "rerun": "One more set",
+      "useAsReference": "Use as reference"
     },
     "error": {
       "generic": "The assistant did not finish this round",

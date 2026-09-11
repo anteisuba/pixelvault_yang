@@ -151,6 +151,54 @@ export interface StudioOperatorDomainMarkEntry {
   domain: string
 }
 
+/**
+ * **结果卡**（v2 §6，commit #10）—— 时间线里那一张「这一批出来了」。
+ *
+ * ⭐ **没有审核态**（§6.1 / 决策 12）：生成一律自动入库，卡上写的是
+ * `已入库` 而不是一道要人点的二元判断。⛔ 别把 `reviewState` 加回这个形状 ——
+ * 那一档要求用户在「刚看到图」这个最没耐心的时刻表态，实测绝大多数人直接跳过，
+ * 留着一个没人点的控件只会让「这张我否过」这条语义看上去存在、实际不可靠。
+ *
+ * ⚠ `items` 为空且 `total > 0` = **生成中那一态**（§6.3）：占位格数 = `total`，
+ * 「正在出图 · {completed} / {total}」的分子是 `completed`。⛔ 别用第二个
+ * `status` 字段说同一件事 —— 两处会分叉，而分叉的表现是「图都出来了还在转」。
+ * ⚠ `request` 是「再来一组」的本钱（§6.2）：它原样变成下一张生成确认卡的载荷，
+ * 缺席时那颗按钮不画（⛔ 不摆一颗点了没反应的）。
+ */
+export interface StudioOperatorResultEntry {
+  kind: 'result'
+  id: string
+  /** 这一批要出几张 —— 占位格数与「1 / 3」的分母。 */
+  total: number
+  /** 已经落地几张 —— 「1 / 3」的分子。 */
+  completed: number
+  /** 跑完且入库的那些；生成中是空数组。 */
+  items: readonly StudioOperatorResultItem[]
+  /** 卡上那句摘要（一般是提示词头几个字 / 助手给这一枪起的名字）。 */
+  summary?: string
+  /** 入库时刻（ISO 串）—— 卡上「已入库 · 11:26」写它；生成中缺席。 */
+  storedAt?: string
+  /** 「再来一组」原样重发的那份载荷（§6.2）。 */
+  request?: AssistantOperatorGenerationRequest
+}
+
+/**
+ * **宿主那条在飞的结果回流**（commit #10）—— 结果卡的数据源。
+ *
+ * ⭐ 与 `StudioOperatorHost.results` 的分工：那一份是「@ 选择器能挑哪几张」
+ * （只收跑完的），这一份还要说得出**没跑完的那几张**，否则 §6.3 的占位格数与
+ * 「1 / 3」在结构上算不出来。
+ * ⚠ `settled` 由宿主判（每一条都有了终局），⛔ 不由消费端拿 `completed + failed
+ * === total` 再算一遍：取消掉的那些两边都不计，自己算会永远差一条。
+ */
+export interface StudioOperatorResultRun {
+  total: number
+  completed: number
+  failed: number
+  settled: boolean
+  items: readonly StudioOperatorResultItem[]
+}
+
 export type StudioOperatorThreadEntry =
   | StudioOperatorUserEntry
   | StudioOperatorMessageEntry
@@ -158,6 +206,7 @@ export type StudioOperatorThreadEntry =
   | StudioOperatorStepEntry
   | StudioOperatorSystemEntry
   | StudioOperatorRuleEntry
+  | StudioOperatorResultEntry
   | StudioOperatorDomainMarkEntry
 
 /**

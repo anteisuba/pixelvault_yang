@@ -44,7 +44,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       │    正文缩略图标签。⛔ 分段能力已随 #7c 删回单段，素材库走下行那颗按钮）
         │       ├── AssetSelectorDialog（下行「素材库」按钮 `operator-library-toggle` 开的弹层：
         │       │    `AssetPickerBrowser` 多选 + 图片锁 + 文件夹分类 + 无限滚动，首屏 10 条）
-        │       ├── StudioOperatorResultRow (结果行卡 2/4 列，@ 闭环入口)
+        │       ├── StudioOperatorResultRow (结果卡三态：生成中 / 单张 / 多张；**无审核态**，只有「再来一组」「用它当参考」两颗。回流在 use-studio-operator-results.ts)
         │       ├── StudioOperatorLogItem (时间线一行：工具步 / 动作 / 系统行 / 证据卡)
         │       ├── StudioOperatorWebCandidateGrid (联网候选网格：来源三字段 + 「挂上 N 张」)
         │       ├── StudioOperatorCritiqueCard (评价卡，两个形态一颗组件：单图嵌图 / 视频三帧并排 + 时间码；分岔判据是载荷里有没有 frames，不是当前域)

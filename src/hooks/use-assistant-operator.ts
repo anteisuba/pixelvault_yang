@@ -59,6 +59,7 @@ import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import {
   addOperatorMention,
   appendOperatorEntry,
+  appendOperatorPendingResult,
   appendOperatorPending,
   clearOperatorPrompts,
   clearOperatorQueue,
@@ -114,6 +115,7 @@ import {
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
   AssistantOperatorConfirmDecision,
+  AssistantOperatorGenerationRequest,
   AssistantOperatorMessage,
   AssistantOperatorPlanAnswer,
   AssistantOperatorResumeFrom,
@@ -406,6 +408,12 @@ export interface UseAssistantOperatorResult {
   cancelGeneration(): void
   /** 「已取消」那一态上的「再来一次」—— 摆一张新的 `idle` 卡。 */
   retryGeneration(): void
+  /**
+   * 结果卡上的**「再来一组」**（v2 §6.2）—— 参数原样，直接出一张新的生成确认卡。
+   *
+   * ⚠ ⛔ 不直接扣扳机：花钱这件事只有确认卡一个入口（见实现处头注）。
+   */
+  rerunGeneration(request: AssistantOperatorGenerationRequest): void
   /**
    * 它备的那一枪回来了 —— 投回线程并自动请一轮评价（P3-C，拍板 4）。
    *
@@ -1474,20 +1482,35 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
      *   写的那几行与真的发出去的逐字相同。
      */
     const controls = host.generationControls
-    applyContext.triggerGeneration?.(
-      controls
-        ? {
-            ...confirm.request,
-            model: controls.model ?? confirm.request.model,
-            count: controls.count,
-            specs: {
-              ...confirm.request.specs,
-              aspectRatio: controls.aspectRatio,
-              resolution: controls.resolution,
-            },
-          }
-        : confirm.request,
-    )
+    const request = controls
+      ? {
+          ...confirm.request,
+          model: controls.model ?? confirm.request.model,
+          count: controls.count,
+          specs: {
+            ...confirm.request.specs,
+            aspectRatio: controls.aspectRatio,
+            resolution: controls.resolution,
+          },
+        }
+      : confirm.request
+    applyContext.triggerGeneration?.(request)
+    /**
+     * **生成中那张结果卡就地落进时间线**（v2 §6.3，commit #10）。
+     *
+     * ⭐ 落在扣扳机**之后**、而且用的是刚刚拼出来的那份 `request`：卡上写的张数
+     * 与真的发出去的那一枪逐字同源（判据与上面那段头注同一条）。⛔ 别等结果回来
+     * 才落卡 —— 图片档一批四张要跑几十秒，这几十秒里时间线上什么都没有，
+     * 用户不知道自己刚才那一下点没点上。
+     * ⚠ 张数与缩略图由宿主回流往这条上写（`use-studio-operator-results.ts`），
+     *   这里一个数都不猜。
+     */
+    appendOperatorPendingResult({
+      id: nextOperatorEntryId('result'),
+      total: request.count,
+      ...(request.label ? { summary: request.label } : {}),
+      request,
+    })
   }, [applyContext, host.generationControls])
 
   /** 生成确认卡「先不要」—— 流已经停了，什么都不用发；卡就地转「已取消」。 */
@@ -1518,6 +1541,27 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
     })
   }, [])
+
+  /**
+   * 结果卡上的**「再来一组」**（v2 §6.2 第一行）。
+   *
+   * ⭐ **参数原样、直接出一张新的生成确认卡**，⛔ 不再走一遍多步确认：用户刚
+   * 看完这一批、想要同样设置的另一批 —— 这中间没有任何一件需要他再拍一次板的事，
+   * 除了「这一枪要花钱」本身，而那正是确认卡在做的。
+   * ⚠ ⛔ 不直接扣扳机：钱闸是一张看得见的卡（决策 8 之后它是唯一的花钱确认），
+   *   绕过它的表现是「点一下『再来一组』，credits 就没了」。
+   */
+  const rerunGeneration = useCallback(
+    (request: AssistantOperatorGenerationRequest) => {
+      setOperatorConfirm({
+        id: nextOperatorEntryId('confirm'),
+        kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+        request,
+        status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+      })
+    },
+    [],
+  )
 
   /**
    * **从断点接着跑**（第三期 · 断点续跑）。
@@ -1606,6 +1650,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     confirmGeneration,
     cancelGeneration,
     retryGeneration,
+    rerunGeneration,
     critique,
     newThread,
   }

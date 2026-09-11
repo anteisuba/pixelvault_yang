@@ -1,313 +1,224 @@
 'use client'
 
 /**
- * **结果行卡**（`pages/assistant-shell.md` §3.1 ⑱–⑲ / §4.2 / §11.4）。
+ * **结果卡**（v2 §6 / 画板 BCards「结果」三态）。
  *
- * 助手触发或用户点名的那一批生成回来之后，在时间线里插一行缩略图：
- *  · 2 列，容器 ≥`wideAtPx` 时 4 列（`@container`，⛔ 不看视口 —— 面板宽是用户
- *    拖出来的，视口断点在这里说不了话）；
- *  · 点一格 = 选中（再点一次取消）；选中态是 `border-primary` + 内描边，
- *    ⛔ 不用底色块（§11.3 的「层级靠形状与缩进」同一条纪律）；
- *  · hover / focus-within 出底部浮层两颗：「问助手」（→ @chip 管线）与「放大」
- *    （→ 既有灯箱，⛔ 不新做一个查看器）；
- *  · 卡脚「未选定 / 已选 ②」+「按这张继续」= 插 @chip 并预填一句。
+ * 一张卡三个形态，分岔只看载荷：
+ *  · **生成中**（`items` 为空）—— 灰底占位格 × `total` + 「正在出图 · 1 / 3」+ 细进度条；
+ *  · **单张**（`items.length === 1`）—— 左缩略图 + 右「已入库 · 摘要 · 时间」+ 两颗轻操作；
+ *  · **多张** —— 一排等宽缩略图 + 同一行读数 + 同两颗轻操作。
+ *
+ * ── ⛔ 没有审核态（§6.1 / 决策 12）────────────────────────────────
+ * 生成一律**自动入库**，卡上写的是结果（`已入库 3 张`）而不是一道要人点的题。
+ * ✓/✕ 两颗记号、标审核态的那条工具在面板里的入口、以及「未选定 / 已选 ②」
+ * 那一行全部删掉。由来：审核态要求用户在「刚看到图」这个最没耐心的时刻做一次
+ * 二元判断，而实测里绝大多数人直接跳过 —— 留着一个没人点的控件，只会让「这张
+ * 我否过」这条语义看上去存在、实际不可靠。⚠ **工具本身留在服务端「改」组**
+ * （画布侧还在用它），⛔ 别顺手把它也删了。
+ *
+ * ── 两个轻操作（§6.2）──────────────────────────────────────────────
+ * 「再来一组」→ 参数原样出一张**新的生成确认卡**（⛔ 不直接扣扳机，钱闸只有
+ * 确认卡一个入口）；「用它当参考」→ 走 `@` chip 那条唯一的管线挂进工作台参考位
+ * （与下行「素材库」按钮同一条路）。⛔ 没有第三颗：放大与「问助手」随 §6 一起
+ * 删了 —— 放大去灯箱、指认去 `@` 选择器，两条路本来就在。
  *
  * ── ⚠ 这颗组件**不知道结果从哪来** ────────────────────────────────
- * 它只画 `items`。数据源是宿主那条在飞回流（工作台的 `activeRun`；LoRA 装配台
- * 第 3 轮接自己的结果列）。组件里去 context 摸一把的下场是它在 `/studio/lora`
- * 上直接抛 —— 那条路由故意不挂 `<StudioProvider>`。
+ * 它只画传进来的那几样。回流在 `use-studio-operator-results.ts`，卡的落地在
+ * `confirmGeneration`。组件里去 context 摸一把的下场是它在 `/studio/lora` 上
+ * 直接抛 —— 那条路由故意不挂 `<StudioProvider>`。
  */
 
 import { motion, useReducedMotion } from 'motion/react'
-import { Check, Maximize2, MessageSquarePlus, X } from 'lucide-react'
+import { Images, RotateCw } from 'lucide-react'
 import Image from 'next/image'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 
-import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
-import type { GenerationReviewState } from '@/constants/assistant-operator'
 import { EASE_STANDARD, DURATION } from '@/constants/motion'
 import { STUDIO_OPERATOR_RESULT_STAGGER } from '@/constants/studio-assistant-operator'
-import { buildGenerationTag } from '@/lib/generation-name'
 import { cn } from '@/lib/utils'
-import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
-
-/**
- * 序号字形（§3.1 ⑲「结果 ②」的那个 ②）。
- *
- * ⚠ 用带圈数字而不是 `02`：这个序号会**出现在对话里**（「@结果② 手指有问题」），
- * 而带圈数字在一句话中间读得出来、也复制得走。超出表长回落成 `#21` —— ⛔ 不
- * 静默截断成 ⑳（那会让两格顶着同一个号）。
- */
-const RESULT_ORDINALS = '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳'
-
-export function resultOrdinal(index: number): string {
-  return RESULT_ORDINALS[index] ?? `#${index + 1}`
-}
+import type {
+  StudioOperatorResultEntry,
+  StudioOperatorResultItem,
+} from '@/types/studio-assistant-operator'
 
 interface StudioOperatorResultRowProps {
-  items: readonly StudioOperatorResultItem[]
-  /** 当前选中的那一格（store 里那份）。 */
-  selectedId: string | null
-  /** 点一格 —— 再点同一格时调用方收到 `null`（取消选中）。 */
-  onSelect(id: string | null): void
-  /** 「问助手」—— 插一枚 @chip 并把焦点还给输入框。 */
-  onAsk(item: StudioOperatorResultItem, index: number): void
-  /** 「放大」—— 复用既有灯箱。 */
-  onZoom(item: StudioOperatorResultItem, index: number): void
-  /** 「按这张继续」—— 插 @chip + 预填一句。 */
-  onContinue(item: StudioOperatorResultItem, index: number): void
-  /**
-   * 这一格此刻的审核态（切片 Y）。⚠ 由宿主给（`useOperatorReview`），⛔ 这颗
-   * 组件不去 store 里摸：它挂在两个宿主上，而组件里摸一把 store 会让这张卡在
-   * 测试里也得先立一份模块状态。
-   */
-  reviewStateOf(id: string): GenerationReviewState
-  /** 点 ✓ / ✕ —— 已经是这一档时调用方把它改回「还没看」（取消标记）。 */
-  onReview(item: StudioOperatorResultItem, next: GenerationReviewState): void
+  entry: StudioOperatorResultEntry
+  /** 「再来一组」—— 缺席时那颗不画（载荷丢了的历史条目）。 */
+  onRerun?(entry: StudioOperatorResultEntry): void
+  /** 「用它当参考」—— 多张时挂的是第一张（画板上那两颗按钮没有分格）。 */
+  onUseAsReference(item: StudioOperatorResultItem): void
+}
+
+/** 缩略图一格 —— 单张那一档给固定宽，多张那一档等分。 */
+function ResultThumb({
+  item,
+  index,
+  className,
+}: {
+  item: StudioOperatorResultItem
+  index: number
+  className: string
+}) {
+  const reduceMotion = useReducedMotion()
+  return (
+    <motion.span
+      data-testid="operator-result-tile"
+      // `tileIn`（§11.5）：opacity + y8，stagger 30ms 封顶前 12 项。
+      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{
+        duration: reduceMotion ? 0 : DURATION.base,
+        ease: EASE_STANDARD,
+        delay: reduceMotion
+          ? 0
+          : Math.min(index, STUDIO_OPERATOR_RESULT_STAGGER.maxItems) *
+            STUDIO_OPERATOR_RESULT_STAGGER.stepSeconds,
+      }}
+      className={cn('overflow-hidden rounded-lg bg-muted', className)}
+    >
+      <Image
+        src={item.thumbnailUrl ?? item.url}
+        alt={item.label ?? ''}
+        width={240}
+        height={180}
+        unoptimized
+        className="size-full object-cover"
+      />
+    </motion.span>
+  )
 }
 
 export function StudioOperatorResultRow({
-  items,
-  selectedId,
-  onSelect,
-  onAsk,
-  onZoom,
-  onContinue,
-  reviewStateOf,
-  onReview,
+  entry,
+  onRerun,
+  onUseAsReference,
 }: StudioOperatorResultRowProps) {
-  const t = useTranslations('StudioOperator')
-  const reduceMotion = useReducedMotion()
+  const t = useTranslations('StudioOperator.result')
+  const format = useFormatter()
+  const { items, total, completed } = entry
+  const generating = items.length === 0
+  const single = items.length === 1
+  const first = items[0]
 
-  if (items.length === 0) return null
-
-  const selectedIndex = items.findIndex((item) => item.id === selectedId)
-  const selected = selectedIndex >= 0 ? items[selectedIndex] : null
+  /**
+   * ⚠ 占位格数 = 本次张数（§6.3），⛔ 不画一个固定的三格：一次出一张时三格
+   * 里有两格永远是空的，而用户会以为有两张没出来。
+   */
+  const placeholders = Array.from(
+    { length: Math.max(total, 1) },
+    (_, index) => index,
+  )
 
   return (
     <div
       data-testid="operator-result-row"
-      className="@container overflow-hidden rounded-xl border border-border bg-card"
+      data-generating={generating}
+      className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4"
     >
-      <p className="border-b border-border px-3 py-2 text-md font-semibold text-foreground">
-        {t('result.title', { count: items.length })}
-      </p>
-
-      {/* ⚠ 宽档门槛与 `STUDIO_OPERATOR_SHELL.wideAtPx` 是同一个数（用例按它断言
-          类名）。⛔ 不看视口断点：面板宽度是拖出来的。 */}
-      <div className="grid grid-cols-2 gap-2 p-3 @min-[700px]:grid-cols-4">
-        {items.map((item, index) => {
-          const isSelected = item.id === selectedId
-          const reviewState = reviewStateOf(item.id)
-          const isBlocked = reviewState === GENERATION_REVIEW_STATE_IDS.blocked
-          const isApproved =
-            reviewState === GENERATION_REVIEW_STATE_IDS.approved
-          /**
-           * ⚠ 无号 = **不画角标**（切片 N1 收口）：`buildGenerationTag` 在
-           * `seq` 缺席时回 `undefined`，⛔ 这里不补一个派生号 —— 它与真号长得
-           * 一模一样，而用户照着它打出来的 `@` 会落到另一张图上。
-           */
-          const tag = buildGenerationTag({
-            seq: item.seq,
-            outputType: item.outputType,
-          })
-          return (
-            <motion.div
-              key={item.id}
-              data-testid="operator-result-tile"
-              data-selected={isSelected}
-              data-review-state={reviewState}
-              // `tileIn`（§11.5）：opacity + y8，stagger 30ms 封顶前 12 项。
-              initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{
-                duration: reduceMotion ? 0 : DURATION.base,
-                ease: EASE_STANDARD,
-                delay: reduceMotion
-                  ? 0
-                  : Math.min(index, STUDIO_OPERATOR_RESULT_STAGGER.maxItems) *
-                    STUDIO_OPERATOR_RESULT_STAGGER.stepSeconds,
-              }}
-              className="group/tile relative aspect-3/4 overflow-hidden rounded-lg"
-            >
-              <button
-                type="button"
-                data-testid="operator-result-select"
-                aria-pressed={isSelected}
-                aria-label={t('result.select', {
-                  ordinal: resultOrdinal(index),
-                })}
-                onClick={() => onSelect(isSelected ? null : item.id)}
-                className={cn(
-                  'absolute inset-0 size-full overflow-hidden rounded-lg border bg-muted transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  isSelected
-                    ? 'border-primary ring-2 ring-inset ring-primary'
-                    : 'border-border hover:border-primary/40',
-                )}
-              >
-                <Image
-                  src={item.thumbnailUrl ?? item.url}
-                  alt={item.label ?? ''}
-                  width={240}
-                  height={320}
-                  unoptimized
-                  className={cn(
-                    'size-full object-cover transition-[filter,opacity] duration-(--duration-fast) ease-standard motion-reduce:transition-none',
-                    // 已否 = **降灰 + 压暗**，⛔ 不隐藏：那张图还在，它只是被否了。
-                    isBlocked && 'opacity-45 grayscale',
-                  )}
-                />
-              </button>
-
-              {/**
-               * 已否的那一格打一个叉（§11.2 的状态色只用于状态记号）。
-               *
-               * ⭐ 单靠降灰不够：色觉与小屏上「灰一点」读不出来，而这一格的意思
-               * （「这张不能再当首帧了」）必须一眼看得出。⛔ 不用红底块 ——
-               * 那会把整行卡变成一片警告。
-               */}
-              {isBlocked ? (
-                <span
-                  aria-hidden
-                  data-testid="operator-result-blocked-mark"
-                  className="pointer-events-none absolute inset-0 grid place-items-center"
-                >
-                  <X className="size-8 text-status-risk" strokeWidth={1.5} />
-                </span>
-              ) : null}
-
-              {/**
-               * 右上角那两颗（切片 Y）—— **常驻，⛔ 不藏进 hover 浮层**。
-               *
-               * ⭐ 判据：审核是「看完这一屏就顺手点」的动作，藏起来等于要求用户
-               * 先把鼠标移上去才知道自己能标。而底部那层浮层（问助手 / 放大）是
-               * 「对这一张再做点什么」，两类动作不该挤在一处。
-               * ⚠ 命中区 24px：它压在缩略图上，再大就把图盖住了；两颗之间留 2px
-               * 缝，⛔ 别贴在一起（点错的那一下代价是「把想留的标成否了」）。
-               */}
-              {/* 🔬 contrast-check（2026-09-07，浅 / 深）：
-                  · `status-risk` 对卡背 **6.54 / 5.55**、对页底 6.54 / 6.13 —— 信息性
-                    图形按 1.4.11 走 3:1，两档都过；
-                  · 按下态 `primary-foreground` 压在 `status-risk` 上 **6.54 / 6.50**、
-                    压在 `status-applied` 上 **5.42 / 10.26**。 */}
+      {generating ? (
+        <>
+          <div className="flex gap-1.5">
+            {placeholders.map((index) => (
               <span
-                data-testid="operator-result-review"
-                className="absolute right-1 top-1 flex gap-0.5"
-              >
-                <button
-                  type="button"
-                  data-testid="operator-result-approve"
-                  data-active={isApproved}
-                  aria-pressed={isApproved}
-                  title={t('result.approve')}
-                  aria-label={t('result.approve')}
-                  onClick={() =>
-                    onReview(item, GENERATION_REVIEW_STATE_IDS.approved)
-                  }
-                  className={cn(
-                    'grid size-6 place-items-center rounded-md border shadow-xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
-                    isApproved
-                      ? 'border-status-applied bg-status-applied text-primary-foreground'
-                      : 'border-border bg-card/85 text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <Check className="size-3.5" aria-hidden />
-                </button>
-                <button
-                  type="button"
-                  data-testid="operator-result-block"
-                  data-active={isBlocked}
-                  aria-pressed={isBlocked}
-                  title={t('result.block')}
-                  aria-label={t('result.block')}
-                  onClick={() =>
-                    onReview(item, GENERATION_REVIEW_STATE_IDS.blocked)
-                  }
-                  className={cn(
-                    'grid size-6 place-items-center rounded-md border shadow-xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
-                    isBlocked
-                      ? 'border-status-risk bg-status-risk text-primary-foreground'
-                      : 'border-border bg-card/85 text-muted-foreground hover:text-foreground',
-                  )}
-                >
-                  <X className="size-3.5" aria-hidden />
-                </button>
-              </span>
-
-              {/**
-               * 角标写**产物名的身份段**（`图_012`，切片 N1）而不是 ①②③。
-               *
-               * ⭐ 理由是这个角标要能**照着打出来**：用户在输入框里写
-               * `@图_012 手指有问题`，正文解析当场把它变成 chip。序号 ① 做不到
-               * 这件事 —— 它每一轮都从 ① 重新数，指的是「这一屏的第几格」，
-               * 一换轮次就指向另一张图。
-               * ⚠ 序号本身**没有消失**：选中态文案与读屏名照旧用它（那两处说的
-               * 就是「这一屏的第几格」），⛔ 不为了统一而把它们也换掉。
-               */}
-              {tag ? (
-                <span
-                  data-testid="operator-result-name"
-                  className="pointer-events-none absolute left-1 top-1 rounded bg-card/85 px-1 font-mono text-xs tracking-nav tabular-nums text-foreground"
-                >
-                  {tag}
-                </span>
-              ) : null}
-
-              {/* 底部渐变浮层（§3.1 ⑲）：默认透明，hover / 键盘聚焦才出现 ——
-                  ⚠ `focus-within` 那一半不能省，否则这两颗按钮键盘永远够不着。 */}
-              <div
-                data-testid="operator-result-overlay"
-                className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-1 bg-gradient-to-t from-foreground/70 to-transparent p-1 opacity-0 transition-opacity duration-(--duration-fast) ease-standard group-hover/tile:pointer-events-auto group-hover/tile:opacity-100 group-focus-within/tile:pointer-events-auto group-focus-within/tile:opacity-100 motion-reduce:transition-none"
-              >
-                <button
-                  type="button"
-                  data-testid="operator-result-ask"
-                  title={t('result.ask')}
-                  aria-label={t('result.ask')}
-                  onClick={() => onAsk(item, index)}
-                  className="flex items-center gap-1 rounded-md bg-card px-1.5 py-0.5 text-xs text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <MessageSquarePlus className="size-2.5" aria-hidden />
-                  {t('result.ask')}
-                </button>
-                <button
-                  type="button"
-                  data-testid="operator-result-zoom"
-                  title={t('result.zoom')}
-                  aria-label={t('result.zoom')}
-                  onClick={() => onZoom(item, index)}
-                  className="flex items-center gap-1 rounded-md bg-card px-1.5 py-0.5 text-xs text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <Maximize2 className="size-2.5" aria-hidden />
-                  {t('result.zoom')}
-                </button>
-              </div>
-            </motion.div>
-          )
-        })}
-      </div>
-
-      <div className="flex items-center gap-2 border-t border-border bg-muted/45 px-3 py-2">
-        <span
-          data-testid="operator-result-selection"
-          className="min-w-0 flex-1 truncate font-mono text-xs tracking-nav text-muted-foreground"
-        >
-          {selected
-            ? t('result.selected', { ordinal: resultOrdinal(selectedIndex) })
-            : t('result.unselected')}
-        </span>
-        {/* ⚠ 没选中时**不渲染**这颗，⛔ 不做禁用占位（§4.3）。 */}
-        {selected ? (
-          <button
-            type="button"
-            data-testid="operator-result-continue"
-            onClick={() => onContinue(selected, selectedIndex)}
-            className="shrink-0 rounded-md bg-primary px-2 py-1 text-2sm text-primary-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                key={index}
+                data-testid="operator-result-placeholder"
+                // ⚠ 脉冲**逐格错开**（画板上那三格是三档灰的静态表达）：三格
+                //   同时呼吸读起来像一整块没加载出来的背景，错开之后它说的才是
+                //   「有 3 张各自在路上」。⛔ 不画转圈。
+                className="h-16 flex-1 animate-pulse rounded-lg bg-muted"
+                style={{ animationDelay: `${index * 120}ms` }}
+              />
+            ))}
+          </div>
+          <p
+            data-testid="operator-result-progress"
+            className="text-2sm text-muted-foreground"
           >
-            {t('result.continue')}
-          </button>
-        ) : null}
-      </div>
+            {t('generating', { done: completed, total })}
+          </p>
+          {/* 细进度条 —— 读数已经写在上一行，这条只是它的形状。 */}
+          <span
+            aria-hidden
+            className="h-1 overflow-hidden rounded-full bg-muted"
+          >
+            <span
+              className="block h-full rounded-full bg-foreground transition-[width] duration-(--duration-fast) ease-standard motion-reduce:transition-none"
+              style={{
+                width: `${total > 0 ? Math.round((completed / total) * 100) : 0}%`,
+              }}
+            />
+          </span>
+        </>
+      ) : (
+        <div className={cn('flex gap-3', single ? 'items-center' : 'flex-col')}>
+          {single && first ? (
+            <ResultThumb
+              item={first}
+              index={0}
+              className="h-20 w-28 shrink-0"
+            />
+          ) : (
+            <div className="flex gap-1.5">
+              {items.map((item, index) => (
+                <ResultThumb
+                  key={item.id}
+                  item={item}
+                  index={index}
+                  className="h-16 min-w-0 flex-1"
+                />
+              ))}
+            </div>
+          )}
+
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            {/* 🔬 contrast-check（2026-09-11，浅 / 深）：`status-applied` 对卡背
+                5.42 / 10.26 —— 正文字号按 1.4.3 走 4.5:1，两档都过。 */}
+            <p
+              data-testid="operator-result-stored"
+              className="min-w-0 truncate text-2sm text-muted-foreground"
+            >
+              <span className="text-status-applied">
+                {single
+                  ? t('stored')
+                  : t('storedCount', { count: items.length })}
+              </span>
+              {entry.summary ? ` · ${entry.summary}` : ''}
+              {entry.storedAt
+                ? ` · ${format.dateTime(new Date(entry.storedAt), {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}`
+                : ''}
+            </p>
+
+            <div className="flex flex-wrap gap-1.5">
+              {/* ⚠ 载荷缺席时**不渲染**，⛔ 不做禁用占位（§4.3 同一条纪律）。 */}
+              {entry.request && onRerun ? (
+                <button
+                  type="button"
+                  data-testid="operator-result-rerun"
+                  onClick={() => onRerun(entry)}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                >
+                  <RotateCw className="size-3" aria-hidden />
+                  {t('rerun')}
+                </button>
+              ) : null}
+              {first ? (
+                <button
+                  type="button"
+                  data-testid="operator-result-reference"
+                  onClick={() => onUseAsReference(first)}
+                  className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                >
+                  <Images className="size-3" aria-hidden />
+                  {t('useAsReference')}
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

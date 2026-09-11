@@ -7587,6 +7587,7 @@
       "queuePicked": "停顿点到了 —— 接住你排的 {count} 句",
       "queueDropped": "你撤回了排着的那句：{subject}",
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
+      "generationFailed": "这一批没有出图 —— 助手不会接着看了",
       "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
       "videoFramesFailed": "这段片子没能抽出帧 —— 助手这一轮看不了它（{subject}）",
       "checkpointRestored": "已恢复到所选步骤的配置，后续操作以当前表单为准。",
@@ -7694,19 +7695,11 @@
       "description": "按文件夹浏览素材，挑出来挂给助手看。"
     },
     "result": {
-      "title": "结果 · {count} 张",
-      "select": "选中结果 {ordinal}",
-      "ask": "问助手",
-      "zoom": "放大",
-      "selected": "已选 {ordinal}",
-      "unselected": "未选定",
-      "continue": "按这张继续",
-      "continuePrefill": "按这张继续：",
-      "approve": "标为已确认",
-      "block": "标为已否",
-      "reviewFailed": "这个标记没能存上",
-      "chipLabel": "结果 {ordinal}",
-      "pending": "生成中"
+      "stored": "已入库",
+      "storedCount": "已入库 {count} 张",
+      "generating": "正在出图 · {done} / {total}",
+      "rerun": "再来一组",
+      "useAsReference": "用它当参考"
     },
     "error": {
       "generic": "助手这一轮没跑完",

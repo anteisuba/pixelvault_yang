@@ -346,6 +346,17 @@ export function toOperatorHistoryEntry(
      */
     case 'rule':
       return null
+    /**
+     * 结果卡**不进历史**（v2 §6，commit #10）—— 与规则薄卡同一条判据。
+     *
+     * ⭐ 卡上那两颗按钮（再来一组 / 用它当参考）都是**活的操作**：前者要一份
+     * 生成载荷才摆得出确认卡，后者要往此刻这台工作台上挂参考。刷新之后两者都
+     * 没有落点，留下来的会是一张两颗钮都点不动的卡。
+     * ⚠ 图不会因此丢：它们已经**入库**了，素材库与 `@` 选择器里照旧找得到 ——
+     * 这正是「自动入库」这条决策让历史条目变得多余的地方。
+     */
+    case 'result':
+      return null
     case 'system':
       return {
         kind: 'system',

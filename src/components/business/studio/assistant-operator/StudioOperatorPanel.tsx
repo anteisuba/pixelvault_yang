@@ -21,6 +21,7 @@ import { StudioOperatorReferenceAnalysisCard } from './StudioOperatorReferenceAn
  */
 
 import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
+import { StudioOperatorResultRow } from './StudioOperatorResultRow'
 import { StudioOperatorRestoreButton } from './StudioOperatorRestoreButton'
 import { isRevertibleAssistantOperatorTool } from '@/constants/assistant-operator'
 import { toOperatorHistory } from '@/lib/studio-operator-history'
@@ -150,6 +151,7 @@ import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history
 import type {
   StudioOperatorAttachment,
   StudioOperatorQuestionOption,
+  StudioOperatorResultItem,
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
@@ -324,6 +326,7 @@ export function StudioOperatorPanel({
     confirmGeneration,
     cancelGeneration,
     retryGeneration,
+    rerunGeneration,
     resumePlan,
   } = operator
 
@@ -459,6 +462,30 @@ export function StudioOperatorPanel({
       })
     },
     [operatorHost],
+  )
+
+  /**
+   * 结果卡上的**「用它当参考」**（v2 §6.2 第二行）。
+   *
+   * ⭐ 走的是 `@` chip 那条**唯一的挂载管线**（`addChip` → Dock 那条 effect →
+   * `apply.addReference`）—— 与下行「素材库」按钮逐字同一条路。⛔ 面板不自己去
+   * 调宿主的挂载手：两处各挂一遍就是两条会分叉的链（判据与
+   * `use-studio-operator-mention.ts` 头注同源）。
+   * ⚠ 挂完把焦点还给输入框：用户点这颗的下一个动作多半是接着说「照这张再来一版」。
+   */
+  const useResultAsReference = useCallback(
+    (item: StudioOperatorResultItem) => {
+      mention.addChip({
+        id: item.id,
+        url: item.url,
+        label: item.label ?? item.id,
+        kind: item.outputType === 'video' ? 'video' : 'image',
+        ...(item.thumbnailUrl ? { thumbnailUrl: item.thumbnailUrl } : {}),
+        ...(item.seq === undefined ? {} : { seq: item.seq }),
+      })
+      inputRef.current?.focus()
+    },
+    [mention],
   )
 
   const referenceImages = operatorHost.referenceImages
@@ -1132,6 +1159,27 @@ export function StudioOperatorPanel({
           </StudioOperatorTimelineRow>
         )
       }
+      /**
+       * **结果卡**（v2 §6，commit #10）—— 生成中 / 单张 / 多张三态一颗组件。
+       *
+       * ⚠ 它走**结果**那一档沟位（`big` 实心节点）而不是助手消息：这一条不是
+       * 谁说的话，是「这一批出来了」。
+       */
+      case 'result':
+        return (
+          <StudioOperatorTimelineRow
+            key={entry.id}
+            card={STUDIO_OPERATOR_CARD_KINDS.result}
+          >
+            <StudioOperatorResultRow
+              entry={entry}
+              onRerun={(target) =>
+                target.request && rerunGeneration(target.request)
+              }
+              onUseAsReference={useResultAsReference}
+            />
+          </StudioOperatorTimelineRow>
+        )
       case 'system':
         return (
           <StudioOperatorTimelineRow

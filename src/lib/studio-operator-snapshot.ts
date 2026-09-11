@@ -129,6 +129,22 @@ export interface ImageOperatorSnapshotInput {
  * 抽出来是因为「卡上能选到的模型」与「助手能选到的模型」必须逐条相同：两处各算
  * 一遍的表现是用户在卡上选到一个助手说「没有这个模型」的型号。
  */
+/**
+ * 一个模型在**界面上叫什么**（2026-09-12 实测第 5 步）。
+ *
+ * 🔬 实测：生成确认卡的模型旋钮上写着 `gpt-image-2.5-flare` —— 一个 id。工作区
+ * 内置模型没有 `displayLabel`，这里此前直接回落到 `modelId`，而工作台自己的
+ * 模型选择器读的是 i18n 那张 `Models.*.label` 表。
+ * ⚠ 词表在**调用方**（`labelOf`，客户端组件里 `useTranslations('Models')`）：这个
+ * 文件是纯函数层，⛔ 不把 i18n 拖进来。给不出时照旧回落到 id。
+ */
+function labelOfOption(
+  option: StudioModelOption,
+  labelOf?: (option: StudioModelOption) => string | undefined,
+): string {
+  return clampLabel(labelOf?.(option) ?? option.displayLabel ?? option.modelId)
+}
+
 function imageRunnableOptions(
   modelOptions: readonly StudioModelOption[],
 ): StudioModelOption[] {
@@ -227,8 +243,11 @@ export interface VideoOperatorSnapshotInput {
  * ⭐ **渠道必须印出来**（K-3）：同一个型号在不同渠道上价钱差一倍多，而助手看不见
  * 价目表；把渠道与积分写进标签是让它有据可依的最省事办法（这两样界面上也都有）。
  */
-function describeVideoOption(option: StudioModelOption): string {
-  const name = option.displayLabel ?? option.modelId
+function describeVideoOption(
+  option: StudioModelOption,
+  labelOf?: (option: StudioModelOption) => string | undefined,
+): string {
+  const name = labelOf?.(option) ?? option.displayLabel ?? option.modelId
   const channel = getProviderLabel(option.providerConfig)
   return clampLabel(`${name} · ${channel} · ${option.requestCount} credits`)
 }
@@ -517,12 +536,15 @@ export function buildImageGenerationControls({
   aspectRatio,
   resolution,
   count,
+  labelOf,
 }: {
   modelOptions: readonly StudioModelOption[]
   selectedModel: StudioModelOption | undefined
   aspectRatio: string
   resolution: string | null
   count: number
+  /** 模型的**显示名**（见 `labelOfOption`）—— 不给就回落到 id。 */
+  labelOf?: (option: StudioModelOption) => string | undefined
 }): StudioOperatorGenerationControls {
   const options = imageRunnableOptions(modelOptions)
   const choicesByModel: Record<string, StudioOperatorGenerationChoices> = {}
@@ -540,14 +562,12 @@ export function buildImageGenerationControls({
     model: selectedModel
       ? {
           id: selectedModel.modelId,
-          label: clampLabel(
-            selectedModel.displayLabel ?? selectedModel.modelId,
-          ),
+          label: labelOfOption(selectedModel, labelOf),
         }
       : null,
     models: options.map((option) => ({
       id: option.modelId,
-      label: clampLabel(option.displayLabel ?? option.modelId),
+      label: labelOfOption(option, labelOf),
     })),
     aspectRatio,
     resolution,
@@ -571,12 +591,15 @@ export function buildVideoGenerationControls({
   videoMode,
   aspectRatio,
   resolution,
+  labelOf,
 }: {
   modelOptions: readonly StudioModelOption[]
   selectedModel: StudioModelOption | undefined
   videoMode: VideoNodeMode
   aspectRatio: string
   resolution: string | null
+  /** 模型的**显示名**（见 `labelOfOption`）—— 不给就回落到 id。 */
+  labelOf?: (option: StudioModelOption) => string | undefined
 }): StudioOperatorGenerationControls {
   const options = videoRunnableOptions(modelOptions, videoMode)
   const choicesByModel: Record<string, StudioOperatorGenerationChoices> = {}
@@ -597,12 +620,12 @@ export function buildVideoGenerationControls({
     model: selectedModel
       ? {
           id: selectedModel.optionId,
-          label: describeVideoOption(selectedModel),
+          label: describeVideoOption(selectedModel, labelOf),
         }
       : null,
     models: options.map((option) => ({
       id: option.optionId,
-      label: describeVideoOption(option),
+      label: describeVideoOption(option, labelOf),
     })),
     aspectRatio,
     resolution,

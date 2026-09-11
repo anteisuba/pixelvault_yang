@@ -110,6 +110,30 @@ export function hasOperatorResearchFindings(
 }
 
 /**
+ * 这一轮调查**查到的那几条证据的编号**（§7.3，2026-09-12 实测第三组 B）。
+ *
+ * ⭐ 钉住认卡靠它：钉住落在结论记录的 `pinnedEvidence` 一列里，而那一列里存的
+ * 是编号 —— 刷新之后 `runKey` 对不上任何东西，编号对得上。
+ * ⚠ 没有会话 id 的那几轮（第一轮 / 老客户端）证据不带编号，这里因此回空数组：
+ * 调用方据此走「先留本地态」那一支，⛔ 不编一个号出来。
+ */
+export function collectOperatorResearchRefs(
+  steps: readonly StudioOperatorStepEntry[],
+): string[] {
+  const refs: string[] = []
+  for (const { step } of steps) {
+    if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) continue
+    if (step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.research) continue
+    for (const item of step.result?.evidence ?? []) {
+      if (item.evidenceRef && !refs.includes(item.evidenceRef)) {
+        refs.push(item.evidenceRef)
+      }
+    }
+  }
+  return refs
+}
+
+/**
  * 新条目落位时**要不要跟着滚到底**（2026-09-07 真机）。
  *
  * ⭐ 由来：反问卡 / 新卡出现后视图停在旧位置 —— 那几张卡不是线程条目（住在 store

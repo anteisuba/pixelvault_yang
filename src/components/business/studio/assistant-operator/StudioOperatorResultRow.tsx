@@ -82,7 +82,12 @@ function ResultThumb({
         width={240}
         height={180}
         unoptimized
-        className="size-full object-cover"
+        /**
+         * ⚠ `object-top`（2026-09-12 实测第 5 步）：格子是横的、出的图多半是竖的，
+         * 按中心裁一张人物图正好剩两条腿。取顶部之后缩略图里至少有脸。
+         * ⛔ 不写任意值的 `object-position`（Tailwind 4，本仓无 tailwind.config）。
+         */
+        className="size-full object-cover object-top"
       />
     </motion.span>
   )

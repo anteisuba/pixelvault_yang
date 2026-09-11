@@ -212,8 +212,14 @@ export function StudioOperatorConfirmCard({
             },
           ] satisfies KnobSpec[]
         )
-          // 候选空 = 这个模型没有这颗旋钮（视频档的张数、无清晰度档的模型）。
-          .filter((knob) => knob.options.length > 0)
+          /**
+           * 候选空 = 这个模型没有这颗旋钮（视频档的张数、无清晰度档的模型）。
+           * ⚠ **读数空的也不画**（2026-09-12 实测第 5 步）：该模型有清晰度档、
+           * 而工作台那一格还没有值时，此前画出来的是一颗空 chip —— 一颗什么都
+           * 没写的旋钮比没有这颗旋钮更难读。⛔ 不为它编一个默认值：真值在
+           * 工作台（§5.2），卡只是它的一个视图。
+           */
+          .filter((knob) => knob.options.length > 0 && knob.value.length > 0)
       : (
           [
             {

@@ -277,6 +277,37 @@ it('用户改过的那一条按 roundIndex 认，三栏覆盖、编号与时刻�
   })
 })
 
+it('⭐ 只钉住那一次：写 pinnedEvidence、三栏原样、⛔ 不标 editedByUser（实测第三组 B）', async () => {
+  mocks.findFirst.mockResolvedValue({
+    id: 'conv-1',
+    rounds: [{ ...ROUND, roundIndex: 4, facts: ['模型压出来的事实'] }],
+  })
+  mocks.update.mockResolvedValue({})
+
+  const pinned = [
+    {
+      refs: ['#e12'],
+      conclusion: '鸣潮式 3D 靠卡通着色。',
+      sourceCount: 8,
+      corroborated: 3,
+    },
+  ]
+  const updated = await updateAssistantConversationRound(
+    'clerk-owner',
+    'conv-1',
+    4,
+    { pinnedEvidence: pinned },
+  )
+
+  expect(updated).toEqual({
+    ...ROUND,
+    roundIndex: 4,
+    facts: ['模型压出来的事实'],
+    pinnedEvidence: pinned,
+  })
+  expect(updated?.editedByUser).toBeUndefined()
+})
+
 it('没有这一号 / 不归他时不写库，返回 null', async () => {
   mocks.findFirst.mockResolvedValue({
     id: 'conv-1',

@@ -353,10 +353,12 @@ export async function appendAssistantConversationRound(
  * **用户就地改过的那一条写回去**（v2 §7.7，commit #13）。
  *
  * ⭐ 三条纪律，逐条对应一种走样：
- *  ① 只覆盖三栏文字，`roundIndex` / `createdAt` / `evidenceRefs` 原样留着 ——
- *     它们是这条记录的身份与出处，改了就指不回证据本；
- *  ② 一律置 `editedByUser: true` —— 下一轮注入的必须是用户这一版，而
- *     §7.2 写明它 ⛔ 不许被下一次结账悄悄覆盖回模型写的版本；
+ *  ① 只覆盖**带上来的那几栏**，`roundIndex` / `createdAt` / `evidenceRefs` 原样
+ *     留着 —— 它们是这条记录的身份与出处，改了就指不回证据本；
+ *  ② 带了三栏文字才置 `editedByUser: true` —— 下一轮注入的必须是用户这一版，而
+ *     §7.2 写明它 ⛔ 不许被下一次结账悄悄覆盖回模型写的版本。
+ *     ⚠ **只钉住 / 取消钉住的那一次不置**（实测第三组 B）：钉住动的是「这一句
+ *     还留不留在眼前」，⛔ 不是把模型写的那三栏认领成用户写的；
  *  ③ **按 `roundIndex` 认，不按数组下标**：这一列会从最旧的那头截
  *     （`maxRoundsPerConversation`），下标会整体左移而编号不会。
  *
@@ -366,9 +368,11 @@ export async function updateAssistantConversationRound(
   clerkId: string,
   conversationId: string,
   roundIndex: number,
-  columns: Pick<
-    AssistantConversationRoundStored,
-    'facts' | 'decisions' | 'todos'
+  columns: Partial<
+    Pick<
+      AssistantConversationRoundStored,
+      'facts' | 'decisions' | 'todos' | 'pinnedEvidence'
+    >
   >,
 ): Promise<AssistantConversationRoundStored | null> {
   const user = await ensureUser(clerkId)
@@ -382,12 +386,21 @@ export async function updateAssistantConversationRound(
   const target = rounds.find((round) => round.roundIndex === roundIndex)
   if (!target) return null
 
+  const editedColumns =
+    columns.facts !== undefined ||
+    columns.decisions !== undefined ||
+    columns.todos !== undefined
   const updated: AssistantConversationRoundStored = {
     ...target,
-    facts: columns.facts,
-    decisions: columns.decisions,
-    todos: columns.todos,
-    editedByUser: true,
+    ...(columns.facts !== undefined ? { facts: columns.facts } : {}),
+    ...(columns.decisions !== undefined
+      ? { decisions: columns.decisions }
+      : {}),
+    ...(columns.todos !== undefined ? { todos: columns.todos } : {}),
+    ...(columns.pinnedEvidence !== undefined
+      ? { pinnedEvidence: columns.pinnedEvidence }
+      : {}),
+    ...(editedColumns ? { editedByUser: true } : {}),
   }
   const next = rounds.map((round) =>
     round.roundIndex === roundIndex ? updated : round,

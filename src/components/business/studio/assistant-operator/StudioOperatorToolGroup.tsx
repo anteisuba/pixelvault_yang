@@ -13,6 +13,8 @@
  * 不敢再点开了。
  * ⭐ **有失败步的组不自动收**（2026-09-06 面板轮，第 5 件）：折起来的那一行只
  * 写着「1 失败」，而用户那一刻唯一要看的就是它错在哪。
+ * ⚠ **跳过不算失败**（2026-09-12 实测第 7 步）：同一轮里做过的那一步被去重时
+ * 走「跳过 N」那一格，组照旧自动收 —— 那不是一件要用户去看的事。
  *
  * ⚠ 无卡框（§11.4）：它是沟里的一行，不是一张卡。加了框就和确认卡 / 结果卡
  * 抢同一档视觉重量。
@@ -31,6 +33,13 @@ interface StudioOperatorToolGroupProps {
   total: number
   /** 其中失败了几步 —— >0 时计数套 `text-status-risk`（§11.2 的 risk 分工）。 */
   failed: number
+  /**
+   * 其中**跳过**了几步（2026-09-12 实测第 7 步）—— 同一轮里做过的那一步被去重。
+   * ⚠ 它既不是成功也不是失败：算成成功等于说「又写了一次」，算成失败等于给一轮
+   * 全做成了的操作扣一笔红字。⛔ 缺席 = 0，⛔ 别让它参与 `succeeded` 的减法之外
+   * 的任何计算。
+   */
+  skipped?: number
   /** 组里还有步在跑（流式）—— 为真时强制展开。 */
   running: boolean
   children: ReactNode
@@ -39,6 +48,7 @@ interface StudioOperatorToolGroupProps {
 export function StudioOperatorToolGroup({
   total,
   failed,
+  skipped = 0,
   running,
   children,
 }: StudioOperatorToolGroupProps) {
@@ -82,7 +92,7 @@ export function StudioOperatorToolGroup({
     return () => window.clearTimeout(timer)
   }, [running, startedAt])
 
-  const succeeded = total - failed
+  const succeeded = total - failed - skipped
 
   return (
     <div data-testid="operator-tool-group" data-open={open ? 'true' : 'false'}>
@@ -120,9 +130,21 @@ export function StudioOperatorToolGroup({
             {t('toolGroup.running')}
           </span>
         ) : null}
-        <span className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground">
+        <span
+          data-testid="operator-tool-group-succeeded"
+          className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground"
+        >
           {t('toolGroup.succeeded', { count: succeeded })}
         </span>
+        {/* 「跳过 N」——中性色（⛔ 不是 risk 橙）：它说的是「这一步不用做了」。 */}
+        {skipped > 0 ? (
+          <span
+            data-testid="operator-tool-group-skipped"
+            className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground"
+          >
+            {t('toolGroup.skipped', { count: skipped })}
+          </span>
+        ) : null}
         {failed > 0 ? (
           <span
             data-testid="operator-tool-group-failed"

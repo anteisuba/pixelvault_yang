@@ -32,9 +32,18 @@ vi.mock('motion/react', () => ({
 }))
 
 vi.mock('next/image', () => ({
-  default: ({ src, alt }: { src: string; alt: string }) => (
+  // ⚠ `className` 透传：缩略图的裁切基准（`object-top`）就验在它身上。
+  default: ({
+    src,
+    alt,
+    className,
+  }: {
+    src: string
+    alt: string
+    className?: string
+  }) => (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt={alt} />
+    <img src={src} alt={alt} className={className} />
   ),
 }))
 
@@ -110,6 +119,20 @@ describe('StudioOperatorResultRow', () => {
     expect(screen.getByTestId('operator-result-stored').textContent).toContain(
       'storedCount',
     )
+  })
+
+  it('⭐ 缩略图按顶部裁（人物图别只剩腿）—— 单张与多张同一条 class', () => {
+    const single = renderCard({ items: [items[0]], total: 1, completed: 1 })
+    expect(
+      screen.getAllByTestId('operator-result-tile')[0]?.querySelector('img')
+        ?.className,
+    ).toContain('object-top')
+    single.view.unmount()
+
+    renderCard()
+    for (const tile of screen.getAllByTestId('operator-result-tile')) {
+      expect(tile.querySelector('img')?.className).toContain('object-top')
+    }
   })
 
   /**

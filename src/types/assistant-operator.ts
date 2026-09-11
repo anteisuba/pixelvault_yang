@@ -869,6 +869,32 @@ export type AssistantOperatorEvidenceRef = z.infer<
 >
 
 /**
+ * **一条钉住的结论**（§3.2 / 实测第三组 B）—— 面板顶部那条常驻条的全部载荷。
+ *
+ * ⚠ `refs` 是它钉的那几条证据的编号（§7.3）：证据卡据此认出「我是被钉住的那
+ * 一张」，⛔ 不靠 `runKey` —— 那是这一次页面加载现造的串，刷新之后对不上。
+ */
+export const AssistantOperatorPinnedEvidenceSchema = z.object({
+  refs: z
+    .array(AssistantOperatorEvidenceRefSchema)
+    .min(1)
+    .max(ROUND_LIMITS.maxEvidenceRefs),
+  conclusion: z
+    .string()
+    .trim()
+    .min(1)
+    .max(ROUND_LIMITS.maxPinnedConclusionChars),
+  /** 卡上那一行「N 个来源」。 */
+  sourceCount: z.number().int().nonnegative(),
+  /** 其中几条有多源印证 —— 0 就不画那一截。 */
+  corroborated: z.number().int().nonnegative(),
+})
+
+export type AssistantOperatorPinnedEvidence = z.infer<
+  typeof AssistantOperatorPinnedEvidenceSchema
+>
+
+/**
  * **本轮结论**（§7.2）—— 每轮结账写下的那一条，四栏 + 三个元字段。
  *
  * ⭐ 它答的是 §7.1 那张断点表：证据、评审理由、问题卡选了什么、上一轮的计划，
@@ -904,6 +930,23 @@ export const AssistantOperatorRoundSummarySchema = z.object({
     .max(ROUND_LIMITS.maxEvidenceRefs),
   /** 用户就地改过这条记录（§7.7）。⚠ 缺席 = 没改过，⛔ 别写成必填。 */
   editedByUser: z.boolean().optional(),
+  /**
+   * **这一轮钉住的那几条结论**（§3.2 证据卡第三态，2026-09-12 实测第三组 B）。
+   *
+   * ⭐ 钉住从此**落在这条记录上**而不是面板的局部态：实测第 8 步里刷新一次就
+   * 全没了，而用户钉它正是为了「接下来别让我忘了这句」—— 一个刷新就忘的提醒
+   * 不如没有。取消钉住 = 从这一列里移掉。
+   * ⚠ 与 `evidenceRefs` **分开一列**：那一列是「这一轮查到的全部证据编号」
+   * （结论块的证据 chip 行读它，§7.7），服务端结账时自动写满 —— 把钉住塞进去
+   * 等于每张证据卡一出生就是钉住态。
+   * ⚠ 带 `conclusion` / 计数是有意的：刷新之后历史里**没有证据卡**
+   * （`StudioOperatorHistoryStepSchema` 不留证据列表），常驻条要画的那一句
+   * 只能由这条记录自己带着。⛔ 但只带那一句，证据正文照旧在 `ResearchRun`。
+   */
+  pinnedEvidence: z
+    .array(AssistantOperatorPinnedEvidenceSchema)
+    .max(ROUND_LIMITS.maxPinnedPerRound)
+    .optional(),
 })
 
 export type AssistantOperatorRoundSummary = z.infer<
@@ -927,6 +970,25 @@ export const AssistantOperatorRoundSummaryDraftSchema = z.object({
 
 export type AssistantOperatorRoundSummaryDraft = z.infer<
   typeof AssistantOperatorRoundSummaryDraftSchema
+>
+
+/**
+ * **查证收尾那一句归纳**（§9.1 ④，2026-09-12 实测第三组 A）—— 模型 → 服务端。
+ *
+ * ⭐ 它替掉的是「印证最多那条来源的原句」：实测里卡上那句结论是一段知乎评论的
+ * 原文（「这篇完全是对卡通渲染的完整考虑。。。」），它被当作本轮的「事实」摆在
+ * 钉住条与结论块里 —— 摘录读起来像结论，却是某一个人说话的半句。
+ * ⚠ 它**只归纳、不添事实**：提示词里那条硬要求在服务端无从校验，所以宽的那一半
+ * 由长度收（`maxConclusionChars`），窄的那一半由「失败就回落到确定性摘录」兜。
+ * ⛔ 没有 `sources` / `confidence`：来源与可信度都是服务端算的，让模型写就是让它
+ * 给自己打分（§9.2 那条头注的同一条论据）。
+ */
+export const AssistantResearchConclusionDraftSchema = z.object({
+  conclusion: z.string(),
+})
+
+export type AssistantResearchConclusionDraft = z.infer<
+  typeof AssistantResearchConclusionDraftSchema
 >
 
 /**

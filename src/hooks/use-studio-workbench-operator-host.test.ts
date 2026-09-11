@@ -33,6 +33,15 @@ const settle = vi.hoisted(() => vi.fn(async () => true))
 const cancelPending = vi.hoisted(() => vi.fn())
 const setReferenceImage = vi.hoisted(() => vi.fn())
 
+/**
+ * 模型显示名那张词表（`Models.*.label`）—— 这个 hook 从 2026-09-12 起读它，好让
+ * 生成确认卡上写的是显示名而不是 id。⚠ 测试里没有 `NextIntlClientProvider`，
+ * 桩成「回 key」就够：这一层验的是宿主契约，不是词表。
+ */
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({
     state: {

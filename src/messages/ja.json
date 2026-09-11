@@ -7461,6 +7461,7 @@
       "title": "{count} 件の操作",
       "elapsed": "所要 {seconds}s",
       "succeeded": "{count} 成功",
+      "skipped": "{count} スキップ",
       "failed": "{count} 失敗",
       "running": "進行中"
     },

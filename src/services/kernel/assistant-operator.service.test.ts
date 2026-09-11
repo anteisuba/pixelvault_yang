@@ -454,6 +454,14 @@ function queueTurns(...turns: unknown[]): void {
   mockLlmTextCompletion.mockResolvedValue(JSON.stringify({ finished: true }))
 }
 
+/**
+ * **查证收尾那一次归纳**（§9.1 ④，2026-09-12）也从 `queueTurns` 这条队列里取一份
+ * —— 它与工具环共用同一个 `llmTextCompletion` 桩。所以：**一条 verify 之后**
+ * 如果队列里还排着别的轮次，中间得给它垫这一条，⛔ 否则下一轮会被归纳吃掉。
+ * ⚠ 归纳失败（解不出 JSON）不影响这一轮：结论回落到确定性摘录。
+ */
+const CONCLUSION_TURN = JSON.stringify({ conclusion: '归纳出来的那一句。' })
+
 async function collect(
   events: AsyncIterable<AssistantOperatorEvent>,
 ): Promise<AssistantOperatorEvent[]> {
@@ -486,14 +494,30 @@ function stepsOf(events: AssistantOperatorEvent[]) {
  * 专有的，⛔ 别按调用次数倒数第二个数：结账**可能不发生**（没料可结的轮次）。
  */
 /** 工具环那几次往返（⛔ 不含结账那一跳，见 `lastUserPrompt` 的头注）。 */
+/**
+ * 工具环之外还有两条**轻量往返**：每轮结账（§7.5 ③）与查证收尾那句归纳
+ * （§9.1 ④，2026-09-12）。⚠ 两条都要滤掉 —— 它们不是「模型这一轮说了什么」。
+ */
+function isSideCall(entry: { systemPrompt?: string }): boolean {
+  return Boolean(
+    entry.systemPrompt?.startsWith(
+      'You write the creator-facing closing record',
+    ) || entry.systemPrompt?.startsWith('You write ONE short conclusion'),
+  )
+}
+
 function toolRingCalls(): { userPrompt: string; systemPrompt?: string }[] {
   return mockLlmTextCompletion.mock.calls
     .map((entry) => entry[0] as { userPrompt: string; systemPrompt?: string })
-    .filter(
-      (entry) =>
-        !entry.systemPrompt?.startsWith(
-          'You write the creator-facing closing record',
-        ),
+    .filter((entry) => !isSideCall(entry))
+}
+
+/** 查证收尾那次归纳的入参（0 次 = 没归纳过）。 */
+function conclusionCalls(): { userPrompt: string; systemPrompt?: string }[] {
+  return mockLlmTextCompletion.mock.calls
+    .map((entry) => entry[0] as { userPrompt: string; systemPrompt?: string })
+    .filter((entry) =>
+      entry.systemPrompt?.startsWith('You write ONE short conclusion'),
     )
 }
 
@@ -501,12 +525,7 @@ function lastUserPrompt(): string {
   const call = [...mockLlmTextCompletion.mock.calls]
     .reverse()
     .map((entry) => entry[0] as { userPrompt: string; systemPrompt?: string })
-    .find(
-      (entry) =>
-        !entry.systemPrompt?.startsWith(
-          'You write the creator-facing closing record',
-        ),
-    )
+    .find((entry) => !isSideCall(entry))
   return call?.userPrompt ?? ''
 }
 
@@ -6489,7 +6508,9 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     })
     queueTurns(
       researchTurn('which site is official'),
+      CONCLUSION_TURN,
       researchTurn('appearance and outfit'),
+      CONCLUSION_TURN,
       researchTurn('one more time'),
       { finished: true },
     )
@@ -6670,6 +6691,7 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     mockWebImageSearchMulti.mockResolvedValue([])
     queueTurns(
       verifyTurn({ goal: '外貌与服饰', entities: ['无限大', '时夜'] }),
+      CONCLUSION_TURN,
       {
         tool: {
           name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research,
@@ -6768,6 +6790,83 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     expect(prompt).toContain('SINGLE SOURCE')
   })
 
+  it('⭐ 结论是**归纳**不是摘录：收尾一次归纳往返，卡上那句用它', async () => {
+    queueOutcome([CORROBORATED])
+    queueTurns(
+      verifyTurn({ goal: '画风怎么描述', entities: ['鸣潮'] }),
+      JSON.stringify({
+        conclusion: '鸣潮式 3D 靠卡通着色 + 描边 + 冷调补光。',
+      }),
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    const result = done?.result as { conclusion?: string }
+    expect(result.conclusion).toBe('鸣潮式 3D 靠卡通着色 + 描边 + 冷调补光。')
+    // ⛔ 不再是「印证最多那条来源的原句」。
+    expect(result.conclusion).not.toContain('黑色长发')
+    // ⚠ **只烧一次**：一轮查证收尾一次，⛔ 不是每条证据一次。
+    const calls = conclusionCalls()
+    expect(calls).toHaveLength(1)
+    // 喂进去的是证据本身（归纳只许基于它们）。
+    expect(calls[0]?.userPrompt).toContain('黑色长发')
+    expect(calls[0]?.userPrompt).toContain('画风怎么描述')
+  })
+
+  it('⚠ 归纳解不出来就**回落到确定性摘录**，⛔ 不把结论栏抹掉', async () => {
+    queueOutcome([CORROBORATED])
+    queueTurns(
+      verifyTurn({ goal: '外貌', entities: ['时夜'] }),
+      '这不是一个 JSON 对象',
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect((done?.result as { conclusion?: string }).conclusion).toContain(
+      '黑色长发',
+    )
+  })
+
+  it('⭐ 归纳出来那一句也是结论块「事实」栏的原料（卡 / 钉住条 / 结论块同一句）', async () => {
+    queueOutcome([CORROBORATED])
+    queueTurns(
+      verifyTurn({ goal: '画风', entities: ['鸣潮'] }),
+      JSON.stringify({ conclusion: '鸣潮式 3D 靠卡通着色。' }),
+      { finished: true },
+    )
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '33333333-3333-4333-8333-333333333333',
+        }),
+      ),
+    )
+    const checkoutPrompt = mockLlmTextCompletion.mock.calls
+      .map((entry) => entry[0] as { userPrompt: string; systemPrompt?: string })
+      .find((entry) =>
+        entry.systemPrompt?.startsWith('You write the creator-facing closing'),
+      )?.userPrompt
+    expect(checkoutPrompt).toContain('鸣潮式 3D 靠卡通着色。')
+    // ⛔ 事实栏拿的不是那一整条链路观察（改写了哪几句词、逐源回执）。
+    expect(checkoutPrompt).not.toContain('rewrote into')
+  })
+
   it('⭐ 「再多找几个源」= 加源（打全部源组），⛔ 不是换一句查询重来', async () => {
     queueOutcome([CORROBORATED])
     queueTurns(
@@ -6792,7 +6891,9 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     queueOutcome([CORROBORATED])
     queueTurns(
       verifyTurn({ goal: 'a' }),
+      CONCLUSION_TURN,
       verifyTurn({ goal: 'b' }),
+      CONCLUSION_TURN,
       verifyTurn({ goal: 'c' }),
       { finished: true },
     )

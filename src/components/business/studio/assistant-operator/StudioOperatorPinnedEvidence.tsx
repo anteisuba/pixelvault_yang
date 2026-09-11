@@ -22,6 +22,11 @@ export interface StudioOperatorPinnedEvidenceItem {
   sourceCount: number
   /** 几条证据有多源印证 —— 0 就不画那一截。 */
   corroborated: number
+  /**
+   * 它钉的那几条证据编号（§7.3）—— × 那一下要按它从结论记录里摘掉这一条。
+   * ⚠ 可空：拿不到号段的那几轮只活在面板的暂存态里（见面板 `localPins`）。
+   */
+  refs?: readonly string[]
 }
 
 interface StudioOperatorPinnedEvidenceProps {

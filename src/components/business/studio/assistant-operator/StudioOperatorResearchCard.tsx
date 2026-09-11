@@ -53,6 +53,11 @@ export interface StudioOperatorResearchSummary {
   conclusion: string
   sourceCount: number
   corroborated: number
+  /**
+   * 这一轮证据的编号（§7.3）—— 钉住落库时认的就是它（`pinnedEvidence`）。
+   * ⚠ 可能是**空数组**（这一轮没拿到号段）：调用方据此走「先留本地态」那一支。
+   */
+  evidenceRefs: string[]
 }
 
 interface StudioOperatorResearchCardProps {
@@ -63,8 +68,9 @@ interface StudioOperatorResearchCardProps {
    * 留一份（`StudioOperatorPinnedEvidence`），⭐ 时间线里这一份**照旧折叠**
    * （§3.2「进入 / 离开时间线的规则」最后一行）：一条结论同时在两处摊开，用户
    * 读到第二遍时会以为查了两轮。
-   * ⚠ 钉住写进的是本轮结论记录的 `evidenceRefs`（§7.3），所以钉的是**这一轮**
-   * 查到的那几条，⛔ 不是「收藏一张卡」。
+   * ⚠ 钉住写进的是本轮结论记录的 `pinnedEvidence`（§7.2，按证据编号认卡），
+   * 所以钉的是**这一轮**查到的那几条，⛔ 不是「收藏一张卡」——⚠ 也因此它
+   * **刷新之后还在**（2026-09-12 实测第三组 B）。
    */
   pinned?: boolean
   /**
@@ -223,6 +229,9 @@ export function StudioOperatorResearchCard({
         : t('research.goalUnknown')),
     sourceCount,
     corroborated,
+    evidenceRefs: evidence
+      .map((item) => item.evidenceRef)
+      .filter((ref): ref is string => Boolean(ref)),
   }
 
   /**

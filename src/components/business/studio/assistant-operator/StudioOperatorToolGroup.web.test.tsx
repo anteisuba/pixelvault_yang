@@ -16,8 +16,10 @@ import { StudioOperatorToolGroup } from './StudioOperatorToolGroup'
  *  ④ 用户手点过之后**不再自动收** —— 自动化压过显式意图，用户下次就不敢点了。
  */
 
+// ⚠ 带 `count` 的那几句回 `key:count` —— 「成功 / 跳过 / 失败」三格验的正是数。
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values && 'count' in values ? `${key}:${String(values.count)}` : key,
 }))
 
 beforeEach(() => {
@@ -38,7 +40,7 @@ describe('StudioOperatorToolGroup', () => {
     const group = screen.getByTestId('operator-tool-group')
     expect(group.dataset.open).toBe('true')
     expect(screen.getByTestId('operator-tool-group-title').textContent).toBe(
-      'toolGroup.title',
+      'toolGroup.title:3',
     )
 
     rerender(
@@ -76,8 +78,25 @@ describe('StudioOperatorToolGroup', () => {
     // 折起来的那一行只写着「1 失败」，而用户那一刻要看的是它错在哪。
     expect(screen.getByTestId('operator-tool-group').dataset.open).toBe('true')
     expect(screen.getByTestId('operator-tool-group-failed').textContent).toBe(
-      'toolGroup.failed',
+      'toolGroup.failed:1',
     )
+  })
+
+  it('⭐ 跳过**不算失败**（2026-09-12 实测第 7 步）：三格是「成功 / 跳过 / 失败」', () => {
+    render(
+      <StudioOperatorToolGroup total={3} failed={0} skipped={1} running={false}>
+        <span data-testid="child" />
+      </StudioOperatorToolGroup>,
+    )
+    expect(
+      screen.getByTestId('operator-tool-group-succeeded').textContent,
+    ).toBe('toolGroup.succeeded:2')
+    expect(screen.getByTestId('operator-tool-group-skipped').textContent).toBe(
+      'toolGroup.skipped:1',
+    )
+    // ⛔ 跳过不画失败格，也⛔ 不把这一组自动展开（那是失败才有的待遇）。
+    expect(screen.queryByTestId('operator-tool-group-failed')).toBeNull()
+    expect(screen.getByTestId('operator-tool-group').dataset.open).toBe('false')
   })
 
   it('⭐ 失败组用户**手动收起**之后就收着 —— 自动化⛔ 不压过显式意图', () => {

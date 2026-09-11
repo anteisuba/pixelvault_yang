@@ -89,7 +89,14 @@ export const PATCH = createApiRoute({
       clerkId,
       data.id,
       data.roundIndex,
-      { facts: data.facts, decisions: data.decisions, todos: data.todos },
+      {
+        ...(data.facts !== undefined ? { facts: data.facts } : {}),
+        ...(data.decisions !== undefined ? { decisions: data.decisions } : {}),
+        ...(data.todos !== undefined ? { todos: data.todos } : {}),
+        ...(data.pinnedEvidence !== undefined
+          ? { pinnedEvidence: data.pinnedEvidence }
+          : {}),
+      },
     )
     if (!updated) {
       throw new ApiRequestError(

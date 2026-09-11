@@ -12,6 +12,7 @@
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { USER_UPLOAD_ACCEPTED_MIME_TYPES } from '@/constants/uploads'
 import {
+  ASSISTANT_OPERATOR_REJECT_REASON_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
   type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
@@ -746,3 +747,16 @@ export const STUDIO_OPERATOR_RESUME = {
  * 起它说的是哪件事。
  */
 export const STUDIO_OPERATOR_RESUME_TTL_MS = 24 * 60 * 60 * 1000
+
+/**
+ * **跳过 ≠ 失败**（2026-09-12 实测第 7 步）。
+ *
+ * 🔬 实测：同一轮里第二次 `set_prompt` 被原地打转护栏正确去重（日志写着「这一步
+ * 刚才做过了，跳过」），而工具组那一行把它计成了「1 失败」—— 一轮明明全做成了
+ * 的操作，折叠行上顶着一个红色的失败数。
+ * ⚠ 名单只收**幂等/已经做过**这一档，⛔ 不收「被拒是因为条件不对」那些
+ * （`malformedArgs` / `unknownModel` …）：那些是真的没做成，该算失败。
+ */
+export const STUDIO_OPERATOR_SKIPPED_REJECT_REASONS: readonly string[] = [
+  ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep,
+]

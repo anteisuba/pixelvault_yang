@@ -7461,6 +7461,7 @@
       "title": "{count} 个操作",
       "elapsed": "用时 {seconds}s",
       "succeeded": "{count} 成功",
+      "skipped": "{count} 跳过",
       "failed": "{count} 失败",
       "running": "进行中"
     },

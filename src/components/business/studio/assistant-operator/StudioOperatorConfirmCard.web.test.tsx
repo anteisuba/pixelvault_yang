@@ -340,6 +340,55 @@ describe('StudioOperatorConfirmCard', () => {
     expect(knobs[3]).toHaveTextContent('1536')
   })
 
+  it('⭐ 工作台还没有清晰度读数时**不画那颗旋钮**（⛔ 不是一颗空 chip）', () => {
+    renderCard(GENERATE, {
+      controls: { ...CONTROLS, resolution: null },
+    })
+    const knobs = screen.getAllByTestId('operator-confirm-knob')
+    expect(knobs.map((node) => node.dataset.knob)).toEqual([
+      'model',
+      'aspect',
+      'count',
+    ])
+  })
+
+  it('⚠ 模型没有清晰度档时同样不画（候选空）', () => {
+    renderCard(GENERATE, {
+      controls: {
+        ...CONTROLS,
+        model: { id: 'seedream-4', label: 'Seedream 4' },
+        resolution: null,
+      },
+    })
+    expect(
+      screen
+        .getAllByTestId('operator-confirm-knob')
+        .map((node) => node.dataset.knob),
+    ).not.toContain('resolution')
+  })
+
+  it('⭐ 模型旋钮写的是**显示名**，⛔ 不是 id', () => {
+    renderCard(GENERATE, {
+      controls: {
+        ...CONTROLS,
+        model: { id: 'gpt-image-2.5-flare', label: 'GPT Image 2.5' },
+        models: [{ id: 'gpt-image-2.5-flare', label: 'GPT Image 2.5' }],
+        choicesByModel: {
+          'gpt-image-2.5-flare': {
+            aspectRatios: ['3:2'],
+            resolutions: [],
+            counts: [1],
+          },
+        },
+      },
+    })
+    const model = screen
+      .getAllByTestId('operator-confirm-knob')
+      .find((node) => node.dataset.knob === 'model')
+    expect(model).toHaveTextContent('GPT Image 2.5')
+    expect(model).not.toHaveTextContent('gpt-image-2.5-flare')
+  })
+
   it('四颗各自是下拉，当前项打勾；点一项就走 onAdjust（比例 / 张数 / 分辨率）', () => {
     const onAdjust = vi.fn(() => [])
     renderCard(GENERATE, { controls: CONTROLS, onAdjust })

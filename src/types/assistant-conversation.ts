@@ -251,7 +251,7 @@ export interface SharedAssistantConversationRecord {
 /**
  * **就地改一条结论记录**（v2 §7.7，commit #13）—— `PATCH /api/assistant/conversation`。
  *
- * ⭐ 只收三栏文字：`evidenceRefs` 是服务端按证据本分配的编号，`createdAt` /
+ * ⭐ 只收三栏文字 + 钉住那一列：`evidenceRefs` 是服务端按证据本分配的编号，`createdAt` /
  * `roundIndex` 是它的身份 —— 让客户端改这几样，等于让它把一条记录指向别的证据、
  * 或者顶掉另一轮。⛔ 别为「顺手也能改证据」放宽。
  * ⚠ `editedByUser` **不收**：它是服务端写的事实（「这一条被人改过」），收上来就
@@ -263,9 +263,17 @@ export interface SharedAssistantConversationRecord {
 export const UpdateAssistantConversationRoundRequestSchema = z.object({
   id: z.string().uuid(),
   roundIndex: z.number().int().nonnegative(),
-  facts: AssistantConversationRoundSchema.shape.facts,
-  decisions: AssistantConversationRoundSchema.shape.decisions,
-  todos: AssistantConversationRoundSchema.shape.todos,
+  facts: AssistantConversationRoundSchema.shape.facts.optional(),
+  decisions: AssistantConversationRoundSchema.shape.decisions.optional(),
+  todos: AssistantConversationRoundSchema.shape.todos.optional(),
+  /**
+   * **钉住 / 取消钉住**（2026-09-12 实测第三组 B）—— 客户端把这一轮钉住的那几条
+   * 整列发上来（⛔ 不做「加一条 / 减一条」的增量口：两个面板同时钉的时候，增量
+   * 口要在服务端合并，而合并规则会与客户端那份各算各的）。
+   * ⚠ 它与三栏文字**各自可缺席**：钉住不是一次就地编辑，所以只带这一列的 PATCH
+   * ⛔ 不该把记录标成 `editedByUser`（那个标记的含义是「下一轮注入用户这一版」）。
+   */
+  pinnedEvidence: AssistantConversationRoundSchema.shape.pinnedEvidence,
 })
 
 export type UpdateAssistantConversationRoundRequest = z.infer<

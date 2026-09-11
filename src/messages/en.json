@@ -7461,6 +7461,7 @@
       "title": "{count} operations",
       "elapsed": "took {seconds}s",
       "succeeded": "{count} ok",
+      "skipped": "{count} skipped",
       "failed": "{count} failed",
       "running": "in progress"
     },

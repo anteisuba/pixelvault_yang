@@ -1776,6 +1776,15 @@ export const ASSISTANT_ROUND_SUMMARY_LIMITS = {
    * 8 轮内收敛；再多就该靠证据本按需翻（`recall_evidence`）而不是全量重发。
    */
   maxRoundsInPrompt: 8,
+  /**
+   * 一条记录最多钉住几条结论（2026-09-12 实测第三组 B）。
+   *
+   * ⚠ 钉住条是「这一整轮都别忘了这句」，⛔ 不是收藏夹：一屏顶上摞四条常驻条
+   * 之后，它们一起失去了「别忘了」的意思。
+   */
+  maxPinnedPerRound: 3,
+  /** 钉住那一句的长度 —— 与查证归纳出来那一句同源（⛔ 不另立一个数）。 */
+  maxPinnedConclusionChars: 220,
 } as const
 
 /**
@@ -2395,6 +2404,15 @@ export const ASSISTANT_RESEARCH_LIMITS = {
   maxImageQueryVariants: 3,
   /** `search_web_images` 的 `subject`（作品名 + 角色名）长度。 */
   maxSubjectChars: 120,
+  /**
+   * 收尾归纳那一跳看几条证据（2026-09-12 实测第三组 A）。
+   *
+   * ⭐ 只喂**排在最前**的那几条：扇出已经把「互相印证的排前」做完了，把十条全
+   * 喂进去只是让归纳那句话去迁就长尾里的单源说法。
+   */
+  maxConclusionEvidence: 5,
+  /** 归纳出来那句话的长度（≤2 句，不是一段）。 */
+  maxConclusionChars: 220,
 } as const
 
 /**

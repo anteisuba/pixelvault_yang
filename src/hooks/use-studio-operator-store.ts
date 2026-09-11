@@ -505,17 +505,36 @@ export function appendOperatorRoundSummary(
  * ⚠ `editedByUser` 在这里就置上，⛔ 不等服务端回来：那一次往返的空窗里用户会
  * 以为自己没点上（与 `reviewStates` 那一格同一条判据）。PATCH 失败时由调用方
  * 用原值再调一次这个函数退回去。
+ * ⚠ **只钉住那一次不置 `editedByUser`**（2026-09-12 实测第三组 B）：钉住写的是
+ * `pinnedEvidence` 一列，动的是「这一句还留不留在眼前」——⛔ 不是把模型压出来的
+ * 那三栏认领成用户写的（服务端那侧逐字同一条纪律）。
  */
 export function updateOperatorRoundSummary(
   roundIndex: number,
-  patch: Pick<AssistantOperatorRoundSummary, 'facts' | 'decisions' | 'todos'> &
-    Partial<Pick<AssistantOperatorRoundSummary, 'editedByUser'>>,
+  patch: Partial<
+    Pick<
+      AssistantOperatorRoundSummary,
+      'facts' | 'decisions' | 'todos' | 'pinnedEvidence' | 'editedByUser'
+    >
+  >,
 ): void {
+  const editedColumns =
+    patch.facts !== undefined ||
+    patch.decisions !== undefined ||
+    patch.todos !== undefined
   const apply = (
     summary: AssistantOperatorRoundSummary,
   ): AssistantOperatorRoundSummary =>
     summary.roundIndex === roundIndex
-      ? { ...summary, ...patch, editedByUser: patch.editedByUser ?? true }
+      ? {
+          ...summary,
+          ...patch,
+          ...(editedColumns
+            ? { editedByUser: patch.editedByUser ?? true }
+            : patch.editedByUser !== undefined
+              ? { editedByUser: patch.editedByUser }
+              : {}),
+        }
       : summary
   emit({
     ...state,

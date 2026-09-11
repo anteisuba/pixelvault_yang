@@ -1,11 +1,11 @@
 'use client'
 
 /**
- * 操作员面板的**外壳**：两态（展开 ↔ 右上角助手按钮）、注意力收放法则、左缘拖拽与
+ * 操作员面板的**外壳**：两态（展开 ↔ 右上角微状态卡，v2 §4.3）、注意力收放法则、左缘拖拽与
  * 宽度记忆。
  *
  * ## 注意力收放法则（拍板 7 —— 唯一的收放规则）
- * 点工作台任意处 → 收成图标轨；点**提示词框**或**助手面板**→ 不收；点轨 → 展开。
+ * 点工作台任意处 → 收成微状态卡；点**提示词框**或**助手面板**→ 不收；点卡 → 展开。
  * **没有定时器，没有流程钩子。** 推论：点生成键属于「工作台任意处」，所以扣扳机
  * 时面板自动让位 —— 这条不需要单独写代码，它是同一条规则的结果。
  *
@@ -16,9 +16,9 @@
  * ## 手机（本片）
  * 同一颗外壳两种容器：`≥lg` 是右侧那颗 `<aside>`（两态 + 拖宽），`<lg` 是
  * `StudioOperatorMobileSheet`（全屏底部 Sheet）+ `StudioOperatorMobileFab`
- * （右下浮标，替代图标轨）。⭐ **面板与 props 两条分支共用同一个元素**，⛔ 手机
+ * （右下浮标，替代微状态卡）。⭐ **面板与 props 两条分支共用同一个元素**，⛔ 手机
  * 上没有第二套面板内容 —— 疏密由面板自己的 `@container` 收。
- * ⚠ 手机上**不渲染图标轨、不记宽**：那两样都是「拖得动的浮层」才有的概念。
+ * ⚠ 手机上**不渲染微状态卡、不记宽**：那两样都是「拖得动的浮层」才有的概念。
  * ⛔ LoRA 装配台的手机档不在本片内（仍走 `LoraAssistantDock`），判据见下方
  * `hasMobileShell`。
  *
@@ -45,8 +45,10 @@ import { useTranslations } from 'next-intl'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import {
+  STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
   STUDIO_OPERATOR_PANEL_RESIZE as RESIZE,
+  STUDIO_OPERATOR_SHELL,
 } from '@/constants/studio-assistant-operator'
 import {
   getReferenceImageAttachmentId,
@@ -58,6 +60,7 @@ import { useAssistantOperator } from '@/hooks/use-assistant-operator'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useStudioOperatorCritique } from '@/hooks/use-studio-operator-critique'
 import { useStudioOperatorHistory } from '@/hooks/use-studio-operator-history'
+import { useStudioOperatorStatusWord } from '@/hooks/use-studio-operator-status-word'
 import {
   setOperatorPlanMode,
   removeOperatorMention,
@@ -72,7 +75,7 @@ import {
   AssistantSettingsDialog,
   type AssistantSettingsSection,
 } from '@/components/business/studio/assistant-operator/AssistantSettingsDialog'
-import { StudioOperatorIconRail } from '@/components/business/studio/assistant-operator/StudioOperatorIconRail'
+import { StudioOperatorCollapsedCard } from '@/components/business/studio/assistant-operator/StudioOperatorCollapsedCard'
 import { StudioOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { StudioOperatorMobileFab } from '@/components/business/studio/assistant-operator/StudioOperatorMobileFab'
 import { StudioOperatorMobileSheet } from '@/components/business/studio/assistant-operator/StudioOperatorMobileSheet'
@@ -154,8 +157,33 @@ export function StudioOperatorDock() {
     domain: hostDomain,
   } = useStudioOperatorHost()
   const isMobile = useIsMobile()
-  const { status, primed, stepsDone, plannedSteps, domain, mentions } =
-    useStudioOperatorState()
+  const {
+    status,
+    primed,
+    stepsDone,
+    plannedSteps,
+    domain,
+    mentions,
+    question,
+    confirm,
+  } = useStudioOperatorState()
+  /**
+   * 收起态那一行**微状态**（§4.3）—— 与展开时助手头像旁那一句是**同一句**
+   * （见 `use-studio-operator-status-word.ts` 的头注）。
+   * ⚠ 算在外壳这一层：收起时面板是卸载的，而那一句正是收起之后唯一的读数。
+   */
+  const statusWord = useStudioOperatorStatusWord()
+  /**
+   * 待办角标（§4.3）：**未答问题 + 未处理确认**。
+   *
+   * ⚠ 确认卡只有 `idle` 那一档算数：已确认 / 已取消的卡还留在流里（它们是记录），
+   * 把它们也数进去的表现是「答完了角标还挂着 1」。
+   */
+  const todoCount =
+    (question ? 1 : 0) +
+    (confirm && confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+      ? 1
+      : 0)
   /**
    * ⭐ 驱动 hook 在**外壳**这一层调用，不在面板里：收起面板时面板会被卸载，
    * 而收起（拍板 7）绝不该把在飞的那一轮掐掉 —— 胶囊上那句「干活中 3/7」
@@ -544,7 +572,9 @@ export function StudioOperatorDock() {
         data-open={open ? 'true' : 'false'}
         style={{
           width: open ? `${width}px` : 'auto',
-          height: open ? 'calc(100dvh - 3rem)' : '44px',
+          height: open
+            ? 'calc(100dvh - 3rem)'
+            : `${STUDIO_OPERATOR_SHELL.collapsedHeightPx}px`,
         }}
         // ⚠ 拖拽中关掉过渡：320ms 的 width 过渡会让把手「跟不上手」。
         className={cn(
@@ -552,7 +582,7 @@ export function StudioOperatorDock() {
           styles.shell,
           open
             ? 'overflow-hidden rounded-xl border border-border bg-card shadow-lg'
-            : 'h-11',
+            : '',
           isResizing && styles.resizing,
         )}
       >
@@ -604,12 +634,12 @@ export function StudioOperatorDock() {
         ) : null}
         {!open && (
           <div className={styles.trigger}>
-            <StudioOperatorIconRail
-              domain={domain}
+            <StudioOperatorCollapsedCard
               status={status}
               primed={primed}
-              stepsDone={stepsDone}
-              plannedSteps={plannedSteps}
+              statusText={statusWord}
+              todoCount={todoCount}
+              {...(persona ? { persona } : {})}
               onExpand={() => setOpen(true)}
             />
           </div>

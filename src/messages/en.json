@@ -7409,8 +7409,14 @@
     },
     "session": "Session",
     "newThread": "New chat",
+    "emptyState": {
+      "title": "I'm {name}, your image partner",
+      "description": "Drop a reference image, or just say the feeling you are after. I look at it, do the research, dial the settings in, and lay out the model and image count before anything gets generated."
+    },
     "history": {
       "heading": "Earlier chats",
+      "today": "Today",
+      "yesterday": "Yesterday",
       "empty": "No earlier chats yet",
       "loading": "Loading…",
       "untitled": "Untitled chat",
@@ -7440,7 +7446,6 @@
     "collapse": "Collapse assistant",
     "expand": "Expand assistant",
     "resize": "Drag to resize the assistant",
-    "empty": "Say what you want. Anything free it just does; anything that costs credits stops at a pre-filled generate button for you to press.",
     "planFold": "Plan · {count} steps",
     "placeholderIdle": "Keep talking, or attach something…",
     "placeholderWorking": "Go ahead, I am listening — what you type gets queued for the next pause point",
@@ -7593,7 +7598,8 @@
       "splitShots": "Cut it into 3 shots",
       "findStyle": "Find a LoRA that fits this look",
       "stackConflict": "Will this stack fight itself?",
-      "sweepWeights": "Sweep the weights and compare"
+      "sweepWeights": "Sweep the weights and compare",
+      "checkStyle": "Look up this art style"
     },
     "attach": {
       "label": "Attach: upload / library / paste",
@@ -7902,7 +7908,8 @@
       "apply": "Adjusting settings…",
       "request_generation": "Getting ready to generate…"
     },
-    "placeholderQuestion": "You don't have to answer — you can type something else…"
+    "placeholderQuestion": "You don't have to answer — you can type something else…",
+    "collapsedTodo": "{count} waiting on you"
   },
   "GenerationCancel": {
     "cancel": "Cancel",

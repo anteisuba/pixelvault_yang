@@ -3,11 +3,11 @@
 /**
  * 手机上的助手入口 —— 右下角一颗浮标。
  *
- * ⭐ 它是**桌面 48px 图标轨在手机上的对应物**（`StudioOperatorIconRail`）：
+ * ⭐ 它是**桌面收起态那张微状态卡在手机上的对应物**（`StudioOperatorCollapsedCard`）：
  * 面板让位之后，助手唯一还看得见的东西。所以它必须说得出「在干什么、做到第几
  * 步」，⛔ 不能只是一颗图标 —— 那等于什么都没说（图标轨那条注释同源）。
  *
- * ⚠ 状态点的四档配色**直接复用图标轨那张表**（`RAIL_TONE_CLASS`），⛔ 不在这里
+ * ⚠ 状态点的四档配色**直接复用微状态卡那张表**（`RAIL_TONE_CLASS`），⛔ 不在这里
  * 重抄一份：抄一份的下场是某天 `awaiting` 在桌面改成了另一个 token，而手机上
  * 还是旧色 —— 同一个状态两种颜色比没有颜色更糟。
  *
@@ -26,7 +26,7 @@ import {
 import {
   RAIL_TONE_CLASS,
   studioOperatorRailTone,
-} from '@/components/business/studio/assistant-operator/StudioOperatorIconRail'
+} from '@/components/business/studio/assistant-operator/StudioOperatorCollapsedCard'
 import { cn } from '@/lib/utils'
 import type { StudioOperatorStatus } from '@/types/studio-assistant-operator'
 

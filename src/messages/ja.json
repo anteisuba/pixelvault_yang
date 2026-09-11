@@ -7409,8 +7409,14 @@
     },
     "session": "セッション",
     "newThread": "新しい会話",
+    "emptyState": {
+      "title": "{name} です。画づくりの相棒です",
+      "description": "参考画像を投げるか、欲しい雰囲気をそのまま言ってください。画像を見て、調べて、パラメータを整えて、生成の前にモデルと枚数をお見せします。"
+    },
     "history": {
       "heading": "これまでの会話",
+      "today": "今日",
+      "yesterday": "昨日",
       "empty": "ほかの会話はまだありません",
       "loading": "読み込み中…",
       "untitled": "無題の会話",
@@ -7440,7 +7446,6 @@
     "collapse": "アシスタントを畳む",
     "expand": "アシスタントを開く",
     "resize": "ドラッグで幅を変更",
-    "empty": "やりたいことを一言どうぞ。無料の操作はそのまま実行し、クレジットを使うものは「押すだけ」の生成ボタンで止めます。",
     "planFold": "計画 · {count} ステップ",
     "placeholderIdle": "続けてどうぞ。素材を添付しても構いません…",
     "placeholderWorking": "どうぞ、聞いています —— 入力は次の区切りまで順番待ちに入ります",
@@ -7593,7 +7598,8 @@
       "splitShots": "3 カットに分けて",
       "findStyle": "この画風に合う LoRA を探して",
       "stackConflict": "この組み合わせはぶつかる？",
-      "sweepWeights": "ウェイトを振って比べて"
+      "sweepWeights": "ウェイトを振って比べて",
+      "checkStyle": "この画風を調べて"
     },
     "attach": {
       "label": "添付：アップロード / ライブラリ / 貼り付け",
@@ -7902,7 +7908,8 @@
       "apply": "設定を変更しています…",
       "request_generation": "生成の準備をしています…"
     },
-    "placeholderQuestion": "答えなくても大丈夫 —— 別のことを入力できます…"
+    "placeholderQuestion": "答えなくても大丈夫 —— 別のことを入力できます…",
+    "collapsedTodo": "未対応 {count} 件"
   },
   "GenerationCancel": {
     "cancel": "キャンセル",

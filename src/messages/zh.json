@@ -7409,8 +7409,14 @@
     },
     "session": "会话",
     "newThread": "新对话",
+    "emptyState": {
+      "title": "我是 {name}，你的画面搭档",
+      "description": "丢一张参考图给我，或者直接说你想要什么感觉。我会看图、查资料、把参数改好，出图之前把模型和张数摆给你看。"
+    },
     "history": {
       "heading": "以前的会话",
+      "today": "今天",
+      "yesterday": "昨天",
       "empty": "还没有别的会话",
       "loading": "读取中…",
       "untitled": "未命名会话",
@@ -7440,7 +7446,6 @@
     "collapse": "收起助手",
     "expand": "展开助手",
     "resize": "拖动调整助手宽度",
-    "empty": "说一句你想要什么。不花积分的它直接做，花钱的停在预填好的生成键上，等你来点。",
     "planFold": "计划 · {count} 步",
     "placeholderIdle": "继续说，或把素材挂进来…",
     "placeholderWorking": "说，我在听 —— 你打的这句会排队，下一个停顿点处理",
@@ -7593,7 +7598,8 @@
       "splitShots": "切成 3 个镜头",
       "findStyle": "找个对味的画风 LoRA",
       "stackConflict": "这套挂载会打架吗",
-      "sweepWeights": "把权重扫一遍对比"
+      "sweepWeights": "把权重扫一遍对比",
+      "checkStyle": "查一下这个画风"
     },
     "attach": {
       "label": "附件：上传 / 素材库 / 粘贴",
@@ -7902,7 +7908,8 @@
       "apply": "正在改参数…",
       "request_generation": "正在准备生成…"
     },
-    "placeholderQuestion": "也可以不选，直接打字说别的…"
+    "placeholderQuestion": "也可以不选，直接打字说别的…",
+    "collapsedTodo": "{count} 件等你处理"
   },
   "GenerationCancel": {
     "cancel": "取消",

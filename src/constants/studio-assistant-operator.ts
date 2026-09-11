@@ -109,6 +109,14 @@ export const STUDIO_OPERATOR_SUGGESTIONS: Record<
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.image]: [
     { id: 'setupShot', minChanges: 0 },
     { id: 'findReference', minChanges: 0 },
+    /**
+     * 空态那三颗的第三颗（v2 §4.2 / 画板 BEmpty）。
+     *
+     * ⚠ `minChanges: 0` 是它存在的**全部理由**：§4.2 要的三颗起手势必须在
+     * 「一处都还没改」时同时在场，而 `whyNotEnough` 的门是 1 —— 只留那一颗的话
+     * 空态永远只画得出两颗。⛔ 别为此另开一张「空态专用药丸表」：两张表会漂。
+     */
+    { id: 'checkStyle', minChanges: 0 },
     { id: 'whyNotEnough', minChanges: 1 },
   ],
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: [
@@ -302,7 +310,23 @@ export const STUDIO_OPERATOR_SHELL = {
    * 的用例就按它断言类名），⛔ 不是让组件去算 style。
    */
   wideAtPx: 700,
+  /**
+   * **收起态那张微状态卡**的高（v2 §4.3 / 画板 BCollapsed）。
+   *
+   * ⚠ 它是外壳收起后的高，不是按钮的命中区：卡整张可点，40px 已经过
+   * `ui-defaults.md §5` 的 fine 32/36 底线（这一档只有桌面 —— 手机走 44px 的
+   * `STUDIO_OPERATOR_MOBILE_SHELL.fabHitPx`，触屏那条 44 在那边）。
+   */
+  collapsedHeightPx: 40,
 } as const
+
+/**
+ * 空态最多摆几颗起手药丸（v2 §4.2 / 画板 BEmpty 的三行）。
+ *
+ * ⚠ 它是**封顶不是定额**：药丸表按域给，域里 `minChanges` 放行的可能不足三颗
+ * （视频 / LoRA 在零改动时各只有两颗）—— 那就画两颗，⛔ 不凑数、⛔ 不补占位。
+ */
+export const STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT = 3
 
 /**
  * 时间线沟（§11.3）。

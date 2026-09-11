@@ -210,7 +210,7 @@ describe('StudioOperatorDock', () => {
     expect(panel).toHaveClass('fixed', 'right-6', 'top-6')
     expect(panel.style.height).toBe('calc(100dvh - 3rem)')
     expect(screen.getByTestId('operator-panel-content')).toBeTruthy()
-    expect(screen.queryByTestId('operator-rail')).toBeNull()
+    expect(screen.queryByTestId('operator-collapsed')).toBeNull()
   })
 
   it('展开态皮肤走脊柱：bg-card + border + shadow-lg + rounded-xl', () => {
@@ -222,32 +222,35 @@ describe('StudioOperatorDock', () => {
     expect(panel.className).toContain('shadow-lg')
   })
 
-  it('收起态：同一个 aside 收到 48px 并渲染图标轨，⛔ 没有胶囊', () => {
+  it('收起态：同一个 aside 收成 40px 微状态卡（§4.3），⛔ 没有图标轨', () => {
     hostOpen = false
     render(<StudioOperatorDock />)
     const panel = screen.getByTestId('operator-panel')
     expect(panel.dataset.open).toBe('false')
     expect(panel.style.width).toBe('auto')
     expect(panel).not.toHaveClass('bottom-6')
-    expect(screen.getByTestId('operator-rail')).toBeTruthy()
+    expect(panel.style.height).toBe(
+      `${STUDIO_OPERATOR_SHELL.collapsedHeightPx}px`,
+    )
+    expect(screen.getByTestId('operator-collapsed')).toBeTruthy()
     expect(screen.queryByTestId('operator-panel-content')).toBeNull()
   })
 
-  it('点图标轨展开', () => {
+  it('点微状态卡展开', () => {
     hostOpen = false
     render(<StudioOperatorDock />)
-    fireEvent.click(screen.getByTestId('operator-rail'))
+    fireEvent.click(screen.getByTestId('operator-collapsed'))
     expect(setOpen).toHaveBeenCalledWith(true)
   })
 })
 
 describe('StudioOperatorDock · 手机档', () => {
-  it('渲染全屏 Sheet + 浮标，⛔ 没有图标轨、没有桌面 aside', () => {
+  it('渲染全屏 Sheet + 浮标，⛔ 没有微状态卡、没有桌面 aside', () => {
     mobile = true
     render(<StudioOperatorDock />)
     expect(screen.getByTestId('operator-mobile-sheet')).toBeTruthy()
     expect(screen.getByTestId('operator-mobile-fab')).toBeTruthy()
-    expect(screen.queryByTestId('operator-rail')).toBeNull()
+    expect(screen.queryByTestId('operator-collapsed')).toBeNull()
     expect(screen.queryByTestId('operator-panel')).toBeNull()
   })
 
@@ -303,7 +306,7 @@ it('disables closing content immediately, removes it after the animation, and ca
     view.rerender(<StudioOperatorDock />)
     act(() => vi.advanceTimersByTime(240))
     expect(screen.queryByTestId('operator-panel-content')).toBeNull()
-    expect(screen.getByTestId('operator-rail')).toBeInTheDocument()
+    expect(screen.getByTestId('operator-collapsed')).toBeInTheDocument()
   } finally {
     vi.useRealTimers()
   }

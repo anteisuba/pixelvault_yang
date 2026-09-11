@@ -57,7 +57,6 @@ import {
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
-  ASSISTANT_OPERATOR_VERB_IDS,
 } from '@/constants/assistant-operator'
 import {
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
@@ -101,6 +100,7 @@ import {
   type StudioOperatorQuestionAnswerPayload,
 } from '@/components/business/studio/assistant-operator/StudioOperatorQuestionCard'
 import { StudioOperatorQueueBar } from '@/components/business/studio/assistant-operator/StudioOperatorQueueBar'
+import { StudioOperatorEmptyState } from '@/components/business/studio/assistant-operator/StudioOperatorEmptyState'
 import { StudioOperatorHeader } from '@/components/business/studio/assistant-operator/StudioOperatorHeader'
 import {
   STUDIO_OPERATOR_CARD_KINDS,
@@ -117,6 +117,7 @@ import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator
 import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
 import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
 import { useStudioOperatorMention } from '@/hooks/use-studio-operator-mention'
+import { useStudioOperatorStatusWord } from '@/hooks/use-studio-operator-status-word'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import { useStudioAssistantControls } from '@/hooks/use-studio-assistant-controls'
 import {
@@ -272,7 +273,6 @@ export function StudioOperatorPanel({
     askFirst,
     question,
     confirm,
-    capturingFrames,
     resume,
   } = useStudioOperatorState()
   const entries = useMemo(
@@ -605,6 +605,14 @@ export function StudioOperatorPanel({
   )
 
   /**
+   * 这条线程一个字都还没有（§4.2 的判据）—— 首次打开或刚开一条新会话。
+   *
+   * ⚠ 载回来的只读历史也要数：翻开一条旧会话时线程里明明有内容，画空态就是在
+   * 说「我不记得我们聊过」。
+   */
+  const threadEmpty = entries.length === 0 && historyEntries.length === 0
+
+  /**
    * checkpoint 二选的落点（§3.2）。
    *
    * ⭐ 两条路共用同一份 `inverse`，⛔ 没有第二套撤销：区别只在「连对话一起回」
@@ -660,37 +668,10 @@ export function StudioOperatorPanel({
   /**
    * **加载态那一句状态词**（v2 §3.6）—— 头像旁一行小字，不转圈、不用骨架屏。
    *
-   * ⭐ 五个动词各一句（正在看图… / 正在查 N 个来源… / 正在想问题… / 正在改参数… /
-   * 正在准备生成…）。⚠ 动词**直接读 `step.verb`**（v2 §3.1 那个必填的一等字段），
-   * ⛔ 不再按工具名反查对照表 —— 反查那版和工具表漏同步时，屏幕上一个字都没有。
-   * ⚠ 「查 N 个来源」的 N 数的是**这一轮已经跑完的检索步**：它就是进度本身
-   * （决策 14 删掉进度带的全部理由）—— ⛔ 别拿计划步数去填，那是另一个数。
-   * ⚠ 抽帧那一段压过状态词：它跑在请求发出去之前，一步都还没有，而实测要几秒
-   * （浏览器解码 + 三次 seek）。不说这一句的话，那几秒里屏幕上什么都不动。
+   * ⚠ 算法住在 `use-studio-operator-status-word.ts`：收起态那张微状态卡（§4.3）
+   * 要读的是**同一句话**，两边各算一遍必然会漂（见那份 hook 的头注）。
    */
-  const statusWord = useMemo<string | null>(() => {
-    if (capturingFrames) return t('status.capturingFrames')
-    if (!working) return null
-    if (!latestRunKey) return t('status.thinking')
-    const runSteps = entries.filter(
-      (entry): entry is StudioOperatorStepEntry =>
-        entry.kind === 'step' && entry.runKey === latestRunKey,
-    )
-    const running = runSteps.find(
-      (entry) =>
-        entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
-    )
-    const verb = running ? running.step.verb : null
-    if (!verb) return t('status.thinking')
-    if (verb === ASSISTANT_OPERATOR_VERB_IDS.research) {
-      return t('status.research', {
-        count: runSteps.filter(
-          (entry) => entry.step.verb === ASSISTANT_OPERATOR_VERB_IDS.research,
-        ).length,
-      })
-    }
-    return t(`status.${verb}`)
-  }, [capturingFrames, entries, latestRunKey, t, working])
+  const statusWord = useStudioOperatorStatusWord()
 
   /**
    * 把线程劈成「渲染块」—— **连续的工具步合成一组**（§2.7）。
@@ -1185,18 +1166,25 @@ export function StudioOperatorPanel({
           className="min-h-0 flex-1 overflow-y-auto"
         >
           <div className="relative px-3.5 pb-5 pt-3.5">
-            {/* 贯穿的 1px border 色线 —— 节点与头像都压在它上面（同轴）。 */}
-            <span
-              aria-hidden
-              data-testid="operator-timeline-line"
-              style={{ left: `${STUDIO_OPERATOR_TIMELINE.linePx}px` }}
-              className="pointer-events-none absolute bottom-2 top-4 w-px bg-border"
-            />
+            {/* 贯穿的 1px border 色线 —— 节点与头像都压在它上面（同轴）。
+                ⚠ 空态**不画这条线**（§4.2 / 画板 BEmpty）：一条从头贯到底、
+                  上面一个节点都没有的竖线看起来像渲染坏了。 */}
+            {threadEmpty ? null : (
+              <span
+                aria-hidden
+                data-testid="operator-timeline-line"
+                style={{ left: `${STUDIO_OPERATOR_TIMELINE.linePx}px` }}
+                className="pointer-events-none absolute bottom-2 top-4 w-px bg-border"
+              />
+            )}
 
-            {entries.length === 0 && historyEntries.length === 0 ? (
-              <p className="px-1 py-6 text-center text-md leading-relaxed text-muted-foreground">
-                {t('empty')}
-              </p>
+            {/* ── 空态（§4.2）—— ⛔ 不再是一行灰字：头像 + 自我介绍 + 三颗起手势。 */}
+            {threadEmpty ? (
+              <StudioOperatorEmptyState
+                suggestions={suggestions}
+                onSuggestion={submit}
+                {...(persona ? { persona } : {})}
+              />
             ) : null}
 
             {/* ── 载回来的只读历史（P4-B）───────────────────────────────
@@ -1321,8 +1309,10 @@ export function StudioOperatorPanel({
           </div>
         </StudioOperatorTimelineList>
 
-        {/* ── 建议药丸：语境化，点即发送（拍板 15）────────────────── */}
-        {suggestions.length > 0 ? (
+        {/* ── 建议药丸：语境化，点即发送（拍板 15）──────────────────
+          ⚠ 空态时**这一排不画**：同样三句话已经在空态那张卡上摆成了三行
+            （§4.2），两处同时出现是同一颗按钮画了两遍。 */}
+        {suggestions.length > 0 && !threadEmpty ? (
           <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2">
             {suggestions.map((suggestion) => (
               <button

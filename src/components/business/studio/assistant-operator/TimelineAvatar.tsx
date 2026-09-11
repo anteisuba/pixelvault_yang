@@ -27,6 +27,80 @@ import { useMyProfile } from '@/hooks/use-my-profile'
 import { cn } from '@/lib/utils'
 import type { AssistantPersona } from '@/types/assistant-persona'
 
+/**
+ * 两方各自一颗组件（而不是一颗组件里两条分支）的**唯一理由**：`useMyProfile()`
+ * 里有 `useAuth()`，写在共用的函数体里就是**助手那一档也要 Clerk**。
+ * 收起态那张微状态卡（§4.3）与空态（§4.2）画的都是助手头像，它们住在外壳里、
+ * 也被没有 `<ClerkProvider>` 的用例渲染 —— 合在一起的下场是那两处一挂载就抛。
+ * ⚠ 助手那一档因此**从 index 之外也能单独用**（`AssistantTimelineAvatar`）。
+ */
+const AVATAR_SHELL =
+  // ⚠ `ring-card` 而不是 `ring-background`：头像盖在贯穿竖线上，而那条线画在
+  //   面板的 `bg-card` 上 —— 用 background 会在卡片底上留一圈更白的环。
+  'grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted ring-2 ring-card'
+
+interface AssistantTimelineAvatarProps {
+  /**
+   * 助手那一档的头像来源（§8.2 / §11.3）—— **由外壳拉一次往下传**。
+   *
+   * ⚠ ⛔ 这颗组件不自己调 `useAssistantPersona()`：它一轮里要渲染好几次，
+   * 每一次都会开一个 `GET /api/assistant/persona`。⚠ 缺席（还没拉到）时画默认
+   * 预设那一款 —— ⛔ 不出骨架屏，⛔ 不留空圈（§3.4「未加载完先画首字母」）。
+   */
+  persona?: AssistantPersona
+  className?: string
+}
+
+export function AssistantTimelineAvatar({
+  persona,
+  className,
+}: AssistantTimelineAvatarProps) {
+  const t = useTranslations('StudioOperator.timeline')
+  const shell = cn(AVATAR_SHELL, className)
+  /**
+   * 自传头像优先于预设（§8.2：`avatarPreset` 或 `avatarUrl` 二选一，传过就是
+   * 传过）。⚠ `unoptimized`：R2 上那张图与侧栏头像同一条路（`AppSidebar` 的写法）。
+   */
+  const avatarUrl = persona?.avatarUrl ?? null
+  /**
+   * ⚠ `alt` / `aria-label` 不是空串（2026-09-06 真机：读屏走到助手回合只念得
+   * 出一个「图片」）。有名字就念名字，没名字念默认 ID—— 这一行是读屏用户
+   * 能分辨「谁在说这句话」的地方，与首行发言人名称一致。
+   */
+  const label = t('avatarAssistant', {
+    name: persona?.name?.trim() || t('assistantFallback'),
+  })
+  return (
+    <span
+      data-testid="operator-timeline-avatar"
+      data-speaker="assistant"
+      className={shell}
+    >
+      {avatarUrl ? (
+        <Image
+          src={avatarUrl}
+          alt={label}
+          width={64}
+          height={64}
+          unoptimized
+          className="size-full object-cover"
+        />
+      ) : (
+        // 预设款是纯图形（`aria-hidden` 的 SVG）—— 名字挂在外层 span 上。
+        <span role="img" aria-label={label} className="size-full">
+          <AssistantAvatarGlyph
+            presetId={
+              persona?.avatarPreset ?? ASSISTANT_PERSONA_DEFAULTS.avatarPreset
+            }
+            name={persona?.name?.trim() || t('assistantFallback')}
+            className="size-full"
+          />
+        </span>
+      )}
+    </span>
+  )
+}
+
 interface TimelineAvatarProps {
   /** 谁在说话 —— 用户回合读账户头像，助手回合读 persona（§8.2）。 */
   speaker: 'user' | 'assistant'
@@ -46,61 +120,24 @@ export function TimelineAvatar({
   persona,
   className,
 }: TimelineAvatarProps) {
-  const t = useTranslations('StudioOperator.timeline')
-  const { profile } = useMyProfile()
-
-  const shell = cn(
-    // ⚠ `ring-card` 而不是 `ring-background`：头像盖在贯穿竖线上，而那条线画在
-    //   面板的 `bg-card` 上 —— 用 background 会在卡片底上留一圈更白的环。
-    'grid size-8 shrink-0 place-items-center overflow-hidden rounded-full bg-muted ring-2 ring-card',
-    className,
-  )
-
+  /**
+   * ⚠ **分派而不是分支**：`useMyProfile()`（里面是 `useAuth()`）只该在用户那一档
+   * 跑。写在这个函数体里就是助手那一档也要 Clerk —— 见上面 `AVATAR_SHELL` 那段。
+   */
   if (speaker === 'assistant') {
-    /**
-     * 自传头像优先于预设（§8.2：`avatarPreset` 或 `avatarUrl` 二选一，传过就是
-     * 传过）。⚠ `unoptimized`：R2 上那张图与侧栏头像同一条路（`AppSidebar` 的写法）。
-     */
-    const avatarUrl = persona?.avatarUrl ?? null
-    /**
-     * ⚠ `alt` / `aria-label` 不是空串（2026-09-06 真机：读屏走到助手回合只念得
-     * 出一个「图片」）。有名字就念名字，没名字念默认 ID—— 这一行是读屏用户
-     * 能分辨「谁在说这句话」的地方，与首行发言人名称一致。
-     */
-    const label = t('avatarAssistant', {
-      name: persona?.name?.trim() || t('assistantFallback'),
-    })
     return (
-      <span
-        data-testid="operator-timeline-avatar"
-        data-speaker="assistant"
-        className={shell}
-      >
-        {avatarUrl ? (
-          <Image
-            src={avatarUrl}
-            alt={label}
-            width={64}
-            height={64}
-            unoptimized
-            className="size-full object-cover"
-          />
-        ) : (
-          // 预设款是纯图形（`aria-hidden` 的 SVG）—— 名字挂在外层 span 上。
-          <span role="img" aria-label={label} className="size-full">
-            <AssistantAvatarGlyph
-              presetId={
-                persona?.avatarPreset ?? ASSISTANT_PERSONA_DEFAULTS.avatarPreset
-              }
-              name={persona?.name?.trim() || t('assistantFallback')}
-              className="size-full"
-            />
-          </span>
-        )}
-      </span>
+      <AssistantTimelineAvatar
+        {...(persona ? { persona } : {})}
+        {...(className ? { className } : {})}
+      />
     )
   }
+  return <UserTimelineAvatar {...(className ? { className } : {})} />
+}
 
+function UserTimelineAvatar({ className }: { className?: string }) {
+  const t = useTranslations('StudioOperator.timeline')
+  const { profile } = useMyProfile()
   const name = profile?.displayName ?? profile?.username ?? ''
   const userLabel = t('avatarUser')
 
@@ -108,7 +145,7 @@ export function TimelineAvatar({
     <span
       data-testid="operator-timeline-avatar"
       data-speaker="user"
-      className={shell}
+      className={cn(AVATAR_SHELL, className)}
     >
       {profile?.avatarUrl ? (
         <Image

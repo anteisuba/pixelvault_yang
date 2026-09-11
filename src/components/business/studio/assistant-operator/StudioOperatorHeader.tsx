@@ -1,7 +1,8 @@
 'use client'
 
 /**
- * 面板**头部**（v2 §4.1）—— 一行：会话标题▾ · 续跑 · 设置 · 收起。
+ * 面板**头部**（v2 §4.1 / 画板 Main 头部 · BCards「头部」两态）—— 一行：
+ * 左边会话标题▾，右边两颗 32px 图标（历史 · 设置）。
  *
  * ── 它替掉了什么 ────────────────────────────────────────────────
  * 顶部那条进度带（整文件删）。决策 14：它占了 40px
@@ -14,8 +15,17 @@
  *    块是 #13 才做的东西 —— 在它落地之前把这颗按钮扔掉，等于刷新之后「从第 N 步
  *    继续」一个入口都没有（它本来就是为「刷新之后」存在的）。#13 落地时搬走。
  *
- * ⚠ **本片只搬不改**（#4 是卡片收敛）：标题▾ / 重命名 / 删除 / 新会话那一套逐字
- * 来自进度带。§4.1 要的第二颗「历史图标」是 #6 的事，⛔ 这里不提前造。
+ * ── 历史图标为什么和标题▾ 开的是**同一个下拉**（§4.1）──────────────
+ * v1 把它们合并过一次（2026-09-09），结论是对的：用户找「上次那个会话」时脑子里
+ * 想的就是「换一个标题」。所以这里是**一个受控的 `DropdownMenu`**，标题是它的
+ * 触发器兼锚点，图标只是第二条路 —— ⛔ 不开第二个菜单实例（两份菜单内容必然漂）。
+ * ⚠ 图标要能**再点一下关掉**：Radix 会先因为「点了菜单外面」把 open 置回 false，
+ *   于是 onClick 里的取反永远只看得到 false。判据因此写在 `onInteractOutside` 上
+ *   （点到的是这颗图标就不当外部点击），⛔ 别改成 pointerdown 去猜。
+ *
+ * ⚠ 收起钮（`onCollapse`）画板上没有，这里**保留**：收放法则（拍板 7）那条
+ * 「点工作台就收」只有指针走得通，键盘用户在画板那版里一个收起的路都没有。
+ * 它与那两颗同宽（32px），⛔ 不是第三种尺寸。
  */
 
 import { useState } from 'react'
@@ -25,6 +35,7 @@ import {
   MessageSquarePlus,
   ChevronDown,
   Trash2,
+  History,
   PanelRightClose,
   Settings2,
 } from 'lucide-react'
@@ -70,6 +81,25 @@ import {
  * 漏掉的表现是菜单上一枚印着 `undefined` 的标签。
  * ⚠ 画布不是操作员的域，`domainName` 里也没有它的词条 —— 不画标签。
  */
+/**
+ * 历史图标身上的标记 —— 菜单的 `onInteractOutside` 靠它认出「点的是我自己的
+ * 第二个入口」（见头注）。⚠ 用属性不用 `data-testid`：testid 是给用例的，
+ * ⛔ 不让运行时逻辑依赖它。
+ */
+const HISTORY_BUTTON_ATTR = 'data-operator-history-trigger'
+
+/** 一天的毫秒数 —— 只给下面那个「今天 / 昨天」的日差用。 */
+const MS_PER_DAY = 86_400_000
+
+/**
+ * 右上那两颗（＋保留的收起）图标钮的共用皮肤（§4.1：32px）。
+ *
+ * ⚠ 命中区 32px 是 `ui-defaults.md §5` 的 fine 档底线，⛔ 别为了挤下更多东西
+ * 缩到 28 —— 它们是常驻入口，先保命中。
+ */
+const HEADER_ICON_BUTTON_CLASS =
+  'grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
+
 const SESSION_DOMAIN_BY_SURFACE: Record<
   AssistantSurfaceId,
   AssistantOperatorDomain | null
@@ -131,10 +161,32 @@ export function StudioOperatorHeader({
   const [renameTarget, setRenameTarget] =
     useState<AssistantConversationSummary | null>(null)
   const [renameTitle, setRenameTitle] = useState('')
+  /** 标题▾ 与历史图标共开的那一个菜单（见头注），⛔ 不是两个实例。 */
+  const [menuOpen, setMenuOpen] = useState(false)
 
   const sessionTitle =
     history.sessions.find((item) => item.id === history.currentSessionId)
       ?.title ?? t('newThread')
+
+  /**
+   * 会话行右边那枚日期（画板 BCards：`今天` / `昨天` / `09-05`）。
+   *
+   * ⚠ 日差按**本地零点**算不按 24 小时算：`23:50` 与次日 `00:10` 差 20 分钟，
+   * 按毫秒除会得出「今天」，而用户看到的是两个日子。
+   * ⚠ 更早的那一档走 `format.dateTime` 而不是手拼 `MM-DD`：分隔符是地区的事
+   *   （ja 是 `09/05`），⛔ 不在这里替三种语言拿主意。
+   */
+  const sessionDateLabel = (iso: string): string => {
+    const date = new Date(iso)
+    const midnight = (value: Date) =>
+      new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime()
+    const days = Math.round(
+      (midnight(new Date()) - midnight(date)) / MS_PER_DAY,
+    )
+    if (days <= 0) return t('history.today')
+    if (days === 1) return t('history.yesterday')
+    return format.dateTime(date, { month: '2-digit', day: '2-digit' })
+  }
 
   return (
     <div
@@ -152,7 +204,9 @@ export function StudioOperatorHeader({
 
         <DropdownMenu
           modal={false}
+          open={menuOpen}
           onOpenChange={(next) => {
+            setMenuOpen(next)
             if (next) history.refreshSessions()
           }}
         >
@@ -170,16 +224,16 @@ export function StudioOperatorHeader({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
+            onInteractOutside={(event) => {
+              // 点历史图标不算「点了外面」—— 否则它永远关不掉菜单（见头注）。
+              if (
+                event.target instanceof Element &&
+                event.target.closest(`[${HISTORY_BUTTON_ATTR}]`)
+              )
+                event.preventDefault()
+            }}
             className="max-h-[60svh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto"
           >
-            <DropdownMenuItem
-              disabled={working || Boolean(history.loadingSessionId)}
-              onSelect={() => onNewThread()}
-            >
-              <MessageSquarePlus className="size-4" aria-hidden />
-              {t('newThread')}
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-2sm font-normal text-muted-foreground">
               {t('history.heading')}
             </DropdownMenuLabel>
@@ -225,12 +279,7 @@ export function StudioOperatorHeader({
                           <span>{t(`domainName.${sessionDomain}`)}</span>
                         ) : null}
                         <span className="font-mono tabular-nums">
-                          {format.dateTime(new Date(session.updatedAt), {
-                            month: 'numeric',
-                            day: 'numeric',
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
+                          {sessionDateLabel(session.updatedAt)}
                         </span>
                       </span>
                     </span>
@@ -275,6 +324,18 @@ export function StudioOperatorHeader({
                 {history.error}
               </DropdownMenuItem>
             ) : null}
+            {/* 「新会话」在**底部**（画板 BCards「历史下拉展开」）：列表是来找
+                旧东西的，新建是找不到时的兜底 —— 摆在最上面等于每次翻历史都先
+                跨过一颗会把当前会话换掉的按钮。 */}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              data-testid="operator-new-thread"
+              disabled={working || Boolean(history.loadingSessionId)}
+              onSelect={() => onNewThread()}
+            >
+              <MessageSquarePlus className="size-4" aria-hidden />
+              {t('newThread')}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
 
@@ -294,29 +355,44 @@ export function StudioOperatorHeader({
           </button>
         ) : null}
 
+        {/* ── 右上两颗 32px 图标（§4.1 / 画板 BCards「头部 · 静止」）────────
+            ⚠ 历史这一颗与标题▾ 开的是**同一个菜单**（见头注）：它只是给「不知道
+              标题可以点」的人的第二条路。 */}
+        <button
+          type="button"
+          data-testid="operator-history-button"
+          aria-label={t('history.heading')}
+          aria-expanded={menuOpen}
+          {...{ [HISTORY_BUTTON_ATTR]: '' }}
+          {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+          onClick={() => setMenuOpen((current) => !current)}
+          className={HEADER_ICON_BUTTON_CLASS}
+        >
+          <History className="size-4" aria-hidden />
+        </button>
+
         {/* 助手设置（§8.1 主入口）—— ⚠ 带 `data-operator-keep`：点它弹层要开，
-            而收放法则（拍板 7）会因为「点了面板外面」把面板收掉，判据就是这个属性。
-            ⚠ 命中区 32px（`ui-defaults.md §5`：fine 32/36）：它比旁边两颗 28 大
-            一档是有意的 —— 常驻入口先保命中，⛔ 不为了对齐把它缩回 `size-7`。 */}
+            而收放法则（拍板 7）会因为「点了面板外面」把面板收掉，判据就是这个属性。 */}
         <button
           type="button"
           data-testid="operator-assistant-settings"
           aria-label={t('assistantSettings')}
           {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
           onClick={onOpenAssistantSettings}
-          className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none"
+          className={HEADER_ICON_BUTTON_CLASS}
         >
           <Settings2 className="size-4" aria-hidden />
         </button>
 
+        {/* 收起 —— 画板上没有这一颗，保留的理由见头注（键盘可达）。 */}
         <button
           type="button"
           data-testid="operator-collapse"
           aria-label={t('collapse')}
           onClick={onCollapse}
-          className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground"
+          className={HEADER_ICON_BUTTON_CLASS}
         >
-          <PanelRightClose className="size-3.5" aria-hidden />
+          <PanelRightClose className="size-4" aria-hidden />
         </button>
       </div>
 

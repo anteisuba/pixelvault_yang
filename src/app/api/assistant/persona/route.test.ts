@@ -10,6 +10,7 @@ import {
 import {
   ASSISTANT_AVATAR_PRESET_IDS,
   ASSISTANT_PERSONA_DEFAULTS,
+  ASSISTANT_ROUTE_MODEL_AUTO,
   ASSISTANT_PERSONA_TONE_IDS,
 } from '@/constants/assistant-persona'
 
@@ -37,6 +38,7 @@ const VALID_BODY = {
   verbosity: 'standard',
   planMode: 'auto',
   language: 'ui',
+  routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
 }
 
 describe('GET /api/assistant/persona', () => {

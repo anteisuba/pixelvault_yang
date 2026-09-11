@@ -3,9 +3,12 @@ import { describe, expect, it, vi } from 'vitest'
 import { ASSISTANT_OPERATOR_TOOL_IDS } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_FIELD_IDS } from '@/constants/studio-assistant-operator'
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   applyOperatorStep,
+  buildGenerationKnobSteps,
   describeOperatorInverse,
+  fallbackGenerationValues,
   getOperatorStepField,
   revertOperatorStep,
   type StudioOperatorApplyContext,
@@ -14,6 +17,7 @@ import type {
   AssistantOperatorAppliedStep,
   AssistantOperatorGenerationRequest,
 } from '@/types/assistant-operator'
+import type { StudioOperatorGenerationControls } from '@/types/studio-assistant-operator'
 
 /**
  * 只搭这条链真的会读的那几个键 —— 整个 `StudioFormState` 有 60+ 字段，全填一遍
@@ -1047,5 +1051,200 @@ describe('LoRA 装配台的三条改动型（P4-C）', () => {
         inverse: { loraId: 'lora-1', weight: 0.8 },
       } as unknown as AssistantOperatorAppliedStep),
     ).toBe('0.8')
+  })
+})
+
+/**
+ * ─── 生成确认卡的就地改参数（v2 §5，commit #9）─────────────────────────
+ *
+ * 钉两件事：
+ *  ① `fallbackGenerationValues` —— 换模型之后不合法的值回落到该模型第一档，
+ *    并**说清动了哪几颗**（卡上那行「已按 X 调整」）；
+ *  ② `buildGenerationKnobSteps` —— 一次旋钮改动翻译成那几条 step，
+ *    `inverse` 一律是**改之前**那份（撤销的本钱）。
+ */
+
+const CHOICES = {
+  aspectRatios: ['1:1', '16:9'],
+  resolutions: ['1K', '2K'],
+  counts: [1, 2, 4],
+}
+
+const CONTROLS: StudioOperatorGenerationControls = {
+  model: { id: 'flux-2-flash', label: 'FLUX 2 Flash' },
+  models: [
+    { id: 'flux-2-flash', label: 'FLUX 2 Flash' },
+    { id: 'seedream-4', label: 'Seedream 4' },
+  ],
+  aspectRatio: '4:3',
+  resolution: '4K',
+  count: 4,
+  choicesByModel: {
+    'flux-2-flash': {
+      aspectRatios: ['4:3', '1:1'],
+      resolutions: ['4K', '1K'],
+      counts: [1, 2, 4],
+    },
+    'seedream-4': CHOICES,
+  },
+}
+
+const KNOB_BASE = {
+  domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.image,
+  controls: CONTROLS,
+  stepId: 'knob-1',
+  title: '在确认卡上改了参数',
+  reason: '你在确认卡上改的',
+  advanced: { quality: undefined, preview: undefined, background: undefined },
+} as const
+
+describe('fallbackGenerationValues（§5.1 换模型 → 非法值回落）', () => {
+  it('合法的一律不动，也不报「已调整」', () => {
+    const result = fallbackGenerationValues(
+      { aspectRatio: '16:9', resolution: '2K', count: 2 },
+      CHOICES,
+    )
+    expect(result.values).toEqual({
+      aspectRatio: '16:9',
+      resolution: '2K',
+      count: 2,
+    })
+    expect(result.adjusted).toEqual([])
+  })
+
+  it('三格都不合法 → 各自落到该模型第一档，三颗都记在「已调整」里', () => {
+    const result = fallbackGenerationValues(
+      { aspectRatio: '3:2', resolution: '4K', count: 3 },
+      CHOICES,
+    )
+    expect(result.values).toEqual({
+      aspectRatio: '1:1',
+      resolution: '1K',
+      count: 1,
+    })
+    expect(result.adjusted).toEqual(['aspect', 'resolution', 'count'])
+  })
+
+  it('⭐ 清晰度候选为空 = 这个模型没有这颗旋钮 → 落 `null`，⛔ 不编一个值', () => {
+    const result = fallbackGenerationValues(
+      { aspectRatio: '1:1', resolution: '2K', count: 1 },
+      { aspectRatios: ['1:1'], resolutions: [], counts: [1] },
+    )
+    expect(result.values.resolution).toBeNull()
+    expect(result.adjusted).toEqual(['resolution'])
+  })
+
+  it('⚠ 比例 / 张数候选为空 → 保持原值（那说明这张表压根没算出来）', () => {
+    const result = fallbackGenerationValues(
+      { aspectRatio: '21:9', resolution: null, count: 7 },
+      { aspectRatios: [], resolutions: [], counts: [] },
+    )
+    expect(result.values).toEqual({
+      aspectRatio: '21:9',
+      resolution: null,
+      count: 7,
+    })
+    expect(result.adjusted).toEqual([])
+  })
+})
+
+describe('buildGenerationKnobSteps（§5.2 第二行：卡上改一项 → 写回工作台）', () => {
+  it('换比例 → 一条 `set_specs`，两格一起下，`inverse` 是改之前那份', () => {
+    const { steps, adjusted } = buildGenerationKnobSteps({
+      ...KNOB_BASE,
+      knob: 'aspect',
+      value: '1:1',
+    })
+    expect(adjusted).toEqual([])
+    expect(steps).toHaveLength(1)
+    const step = steps[0]!
+    expect(step.tool).toBe(ASSISTANT_OPERATOR_TOOL_IDS.setSpecs)
+    expect(step.status).toBe('done')
+    expect(step.payload).toMatchObject({ aspectRatio: '1:1', resolution: '4K' })
+    expect(step).toMatchObject({
+      inverse: { aspectRatio: '4:3', resolution: '4K' },
+    })
+  })
+
+  it('换张数 → 一条 `set_count`（字符串进来，数字出去）', () => {
+    const { steps } = buildGenerationKnobSteps({
+      ...KNOB_BASE,
+      knob: 'count',
+      value: '2',
+    })
+    expect(steps).toHaveLength(1)
+    expect(steps[0]!.tool).toBe(ASSISTANT_OPERATOR_TOOL_IDS.setCount)
+    expect(steps[0]!.payload).toEqual({ count: 2 })
+    expect(steps[0]!).toMatchObject({ inverse: { count: 4 } })
+  })
+
+  it('⭐ 换模型 → `set_model` + 回落出来的 `set_specs` / `set_count`，逐条记账', () => {
+    const { steps, adjusted } = buildGenerationKnobSteps({
+      ...KNOB_BASE,
+      knob: 'model',
+      value: 'seedream-4',
+    })
+    // 4:3 与 4K 在 Seedream 4 上都不合法，4 张合法 —— 于是只有规格那一条。
+    expect(adjusted).toEqual(['aspect', 'resolution'])
+    expect(steps.map((step) => step.tool)).toEqual([
+      ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+      ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+    ])
+    expect(steps[0]!.payload).toMatchObject({
+      modelId: 'seedream-4',
+      modelLabel: 'Seedream 4',
+    })
+    expect(steps[0]!).toMatchObject({ inverse: { modelId: 'flux-2-flash' } })
+    expect(steps[1]!.payload).toMatchObject({
+      aspectRatio: '1:1',
+      resolution: '1K',
+    })
+  })
+
+  it('⚠ 选中当前那一项 = 什么都没改 → 一条 step 都不落', () => {
+    expect(
+      buildGenerationKnobSteps({
+        ...KNOB_BASE,
+        knob: 'model',
+        value: 'flux-2-flash',
+      }).steps,
+    ).toEqual([])
+    expect(
+      buildGenerationKnobSteps({ ...KNOB_BASE, knob: 'aspect', value: '4:3' })
+        .steps,
+    ).toEqual([])
+  })
+
+  it('⭐ 视频档走 `set_video_specs`（⛔ 不把图片那份载荷硬塞过去）', () => {
+    const { steps } = buildGenerationKnobSteps({
+      ...KNOB_BASE,
+      domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
+      knob: 'aspect',
+      value: '16:9',
+    })
+    expect(steps[0]!.tool).toBe(ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs)
+    expect(steps[0]!.payload).toEqual({
+      durationSeconds: null,
+      aspectRatio: '16:9',
+      resolution: '4K',
+    })
+  })
+
+  it('⭐ 造出来的 step 能被 `applyOperatorStep` 真的落下去，也撤得回来', () => {
+    const { ctx, state, dispatched } = makeContext({ aspectRatio: '4:3' })
+    const { steps } = buildGenerationKnobSteps({
+      ...KNOB_BASE,
+      knob: 'aspect',
+      value: '1:1',
+    })
+    expect(applyOperatorStep(steps[0]!, ctx)).toBe(
+      STUDIO_OPERATOR_FIELD_IDS.specs,
+    )
+    expect(dispatched).toContainEqual({
+      type: 'SET_ASPECT_RATIO',
+      payload: '1:1',
+    })
+    revertOperatorStep(steps[0]!, ctx)
+    expect(state.aspectRatio).toBe('4:3')
   })
 })

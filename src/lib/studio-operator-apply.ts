@@ -25,16 +25,21 @@ import {
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  ASSISTANT_OPERATOR_VERB_IDS,
   ASSISTANT_OPERATOR_WRITE_MODES,
+  type AssistantOperatorDomain,
   type AssistantOperatorReferenceSlot,
   type GenerationReviewState,
 } from '@/constants/assistant-operator'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { isAspectRatio } from '@/constants/config'
 import { isImageBatchCount } from '@/constants/studio'
 import { isVideoResolution } from '@/constants/video-options'
 import {
   STUDIO_OPERATOR_FIELD_IDS,
+  STUDIO_OPERATOR_GENERATE_KNOB_IDS,
   type StudioOperatorField,
+  type StudioOperatorGenerateKnob,
 } from '@/constants/studio-assistant-operator'
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
 import { AdvancedParamsSchema } from '@/types'
@@ -44,6 +49,10 @@ import type {
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type { LoraCandidateImportPayload } from '@/types/lora-candidate'
+import type {
+  StudioOperatorGenerationChoices,
+  StudioOperatorGenerationControls,
+} from '@/types/studio-assistant-operator'
 
 /**
  * LoRA 装配台**专属**的那几只手（P4-C）。
@@ -757,4 +766,256 @@ export function revertOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
       return
   }
+}
+
+/**
+ * ─── 生成确认卡的就地改参数（v2 §5，commit #9）─────────────────────────
+ *
+ * 这一段是 §5.2 那张表的**第二行与第四行**在纯函数层的落点：卡上改一项要
+ * 「立刻写回工作台，走 `apply` 的同一条 op 通道，带 `inverse`」，于是它需要
+ * ① 换模型之后的回落判据，② 把一次旋钮改动翻译成若干条 `AssistantOperatorAppliedStep`。
+ *
+ * ⭐ 为什么两件事都在这里而不在组件里：**应用与撤销必须是同一份判据的两侧**
+ * （本文件头注）。卡上改出来的那一步与助手改出来的那一步走的是同一个
+ * `applyOperatorStep` / `revertOperatorStep`，于是「谁改的」在撤销这一侧根本不需要
+ * 分辨 —— 这正是 §5.2 第五行（先不要 = 已写回的改动不回滚，用户可以用 checkpoint 撤）
+ * 能成立的结构理由。
+ */
+
+/** 四颗旋钮里**随模型变的那三格**的当前值。 */
+export interface StudioOperatorGenerationValues {
+  aspectRatio: string
+  resolution: string | null
+  count: number
+}
+
+export interface StudioOperatorGenerationFallback {
+  values: StudioOperatorGenerationValues
+  /** 这一次回落动了哪几颗 —— 卡上那句「已按 X 调整」按它写（§5.1）。 */
+  adjusted: readonly StudioOperatorGenerateKnob[]
+}
+
+/**
+ * **换模型之后的回落**（§5.1 那条 ⚠：不合法的值就地回落到该模型的默认值，
+ * 并在卡上标一行「已按 X 调整」，⛔ 不弹二次确认）。
+ *
+ * ⭐ 「默认值」= **候选表的第一条**。这不是随手取的：三张表（`STUDIO_IMAGE_ASPECT_RATIOS`
+ * / `IMAGE_BATCH_COUNTS` / 各 provider 的 `resolutionOptions`）的第一条本来就是
+ * 工作台各自控件上的默认档，取它等于「回到用户自己点开那颗控件时会看到的那一档」。
+ * ⚠ **空表不等于「随便填一个」**：比例与张数空表时保持原值（那说明这张表压根没算
+ * 出来，改它只会凭空造一个值）；清晰度空表则落 `null` —— 那是「这个模型没有清晰度
+ * 这颗旋钮」，而 `null` 正是表单里那一格的「不设」态。
+ */
+export function fallbackGenerationValues(
+  current: StudioOperatorGenerationValues,
+  choices: StudioOperatorGenerationChoices,
+): StudioOperatorGenerationFallback {
+  const adjusted: StudioOperatorGenerateKnob[] = []
+
+  let aspectRatio = current.aspectRatio
+  if (
+    choices.aspectRatios.length > 0 &&
+    !choices.aspectRatios.includes(aspectRatio)
+  ) {
+    aspectRatio = choices.aspectRatios[0]!
+    adjusted.push(STUDIO_OPERATOR_GENERATE_KNOB_IDS.aspect)
+  }
+
+  let resolution = current.resolution
+  if (choices.resolutions.length === 0) {
+    if (resolution !== null) {
+      resolution = null
+      adjusted.push(STUDIO_OPERATOR_GENERATE_KNOB_IDS.resolution)
+    }
+  } else if (resolution === null || !choices.resolutions.includes(resolution)) {
+    resolution = choices.resolutions[0]!
+    adjusted.push(STUDIO_OPERATOR_GENERATE_KNOB_IDS.resolution)
+  }
+
+  let count = current.count
+  if (choices.counts.length > 0 && !choices.counts.includes(count)) {
+    count = choices.counts[0]!
+    adjusted.push(STUDIO_OPERATOR_GENERATE_KNOB_IDS.count)
+  }
+
+  return { values: { aspectRatio, resolution, count }, adjusted }
+}
+
+export interface StudioOperatorGenerationKnobInput {
+  knob: StudioOperatorGenerateKnob
+  /** 下拉里点中的那一项（张数也是字符串 —— 它从 DOM 上来）。 */
+  value: string
+  domain: AssistantOperatorDomain
+  controls: StudioOperatorGenerationControls
+  /** 这一批步的 id 前缀 —— 调用方给（面板那只发号器）。 */
+  stepId: string
+  /** 步上那句话。⚠ i18n 在调用方（本文件是纯函数，碰不到 `useTranslations`）。 */
+  title: string
+  /** 归属标记 hover 里那句「为什么」。 */
+  reason: string
+  /** 图片档 `set_specs` 的三个附带格 —— 原样带回，撤销才回得去。 */
+  advanced: {
+    quality: StudioFormState['advancedParams']['quality']
+    preview: StudioFormState['advancedParams']['preview']
+    background: StudioFormState['advancedParams']['background']
+  }
+}
+
+export interface StudioOperatorGenerationKnobSteps {
+  steps: readonly AssistantOperatorAppliedStep[]
+  /** 换模型顺手回落了哪几颗（§5.1 那行「已按 X 调整」）。 */
+  adjusted: readonly StudioOperatorGenerateKnob[]
+}
+
+/**
+ * 把卡上**一次旋钮改动**翻译成要落的那几条 step（§5.2 第二行）。
+ *
+ * ⭐ 换模型是**一次动作、可能两三条 step**：模型本身一条，回落掉的比例 / 清晰度
+ * 一条（`set_specs` 台账 AE/BG/BS：两格必须同时下），张数一条。分开记账是因为
+ * 登记簿按**字段**存（`STUDIO_OPERATOR_FIELD_IDS`）—— 合成一条的话「撤销比例」
+ * 会把模型也一起撤回去，而用户按的那颗 ✦ 上写的是比例。
+ * ⚠ 张数在视频档**不发**：那一档一次就是一条片子，卡上那颗旋钮本来就不画。
+ * ⚠ 值域收窄不在这里做第二遍 —— `applyOperatorStep` 那三道守卫是唯一一道
+ *   （收不窄就整条不落，⛔ 不 `as`）。
+ */
+export function buildGenerationKnobSteps({
+  knob,
+  value,
+  domain,
+  controls,
+  stepId,
+  title,
+  reason,
+  advanced,
+}: StudioOperatorGenerationKnobInput): StudioOperatorGenerationKnobSteps {
+  const base = {
+    verb: ASSISTANT_OPERATOR_VERB_IDS.apply,
+    title,
+    reason,
+    status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+  } as const
+  const current: StudioOperatorGenerationValues = {
+    aspectRatio: controls.aspectRatio,
+    resolution: controls.resolution,
+    count: controls.count,
+  }
+
+  /** 图片 / 视频两条规格通道 —— 载荷形状不同，⛔ 别硬塞给对方（P4-A 那条教训）。 */
+  const specsStep = (
+    id: string,
+    next: StudioOperatorGenerationValues,
+  ): AssistantOperatorAppliedStep =>
+    domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+      ? {
+          ...base,
+          id,
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
+          payload: {
+            durationSeconds: null,
+            aspectRatio: next.aspectRatio,
+            resolution: next.resolution,
+          },
+          inverse: {
+            durationSeconds: null,
+            aspectRatio: current.aspectRatio,
+            resolution: current.resolution,
+          },
+        }
+      : {
+          ...base,
+          id,
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+          payload: {
+            aspectRatio: next.aspectRatio,
+            // ⚠ 图片档的 `set_specs` 只有两格齐了才落（台账 AE/BG/BS）——
+            //   这个模型没有清晰度这颗旋钮时写 `auto`，那正是表单里那一格的默认档。
+            resolution: next.resolution ?? 'auto',
+            quality: advanced.quality,
+            preview: advanced.preview,
+            background: advanced.background,
+          },
+          inverse: {
+            aspectRatio: current.aspectRatio,
+            resolution: current.resolution,
+            quality: advanced.quality ?? null,
+            preview: advanced.preview ?? null,
+            background: advanced.background ?? null,
+          },
+        }
+
+  if (knob === STUDIO_OPERATOR_GENERATE_KNOB_IDS.model) {
+    if (value === controls.model?.id) return { steps: [], adjusted: [] }
+    const { values, adjusted } = fallbackGenerationValues(
+      current,
+      controls.choicesByModel[value] ?? {
+        aspectRatios: [],
+        resolutions: [],
+        counts: [],
+      },
+    )
+    const steps: AssistantOperatorAppliedStep[] = [
+      {
+        ...base,
+        id: `${stepId}-model`,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+        payload: {
+          modelId: value,
+          ...(controls.models.find((model) => model.id === value)?.label
+            ? {
+                modelLabel: controls.models.find((model) => model.id === value)!
+                  .label,
+              }
+            : {}),
+        },
+        inverse: { modelId: controls.model?.id ?? null },
+      },
+    ]
+    if (
+      adjusted.includes(STUDIO_OPERATOR_GENERATE_KNOB_IDS.aspect) ||
+      adjusted.includes(STUDIO_OPERATOR_GENERATE_KNOB_IDS.resolution)
+    ) {
+      steps.push(specsStep(`${stepId}-specs`, values))
+    }
+    if (adjusted.includes(STUDIO_OPERATOR_GENERATE_KNOB_IDS.count)) {
+      steps.push({
+        ...base,
+        id: `${stepId}-count`,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+        payload: { count: values.count },
+        inverse: { count: current.count },
+      })
+    }
+    return { steps, adjusted }
+  }
+
+  if (knob === STUDIO_OPERATOR_GENERATE_KNOB_IDS.count) {
+    const next = Number(value)
+    if (!Number.isFinite(next) || next === current.count) {
+      return { steps: [], adjusted: [] }
+    }
+    return {
+      steps: [
+        {
+          ...base,
+          id: `${stepId}-count`,
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+          payload: { count: next },
+          inverse: { count: current.count },
+        },
+      ],
+      adjusted: [],
+    }
+  }
+
+  const next: StudioOperatorGenerationValues =
+    knob === STUDIO_OPERATOR_GENERATE_KNOB_IDS.aspect
+      ? { ...current, aspectRatio: value }
+      : { ...current, resolution: value }
+  if (
+    next.aspectRatio === current.aspectRatio &&
+    next.resolution === current.resolution
+  ) {
+    return { steps: [], adjusted: [] }
+  }
+  return { steps: [specsStep(`${stepId}-specs`, next)], adjusted: [] }
 }

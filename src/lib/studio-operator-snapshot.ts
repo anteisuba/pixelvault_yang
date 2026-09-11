@@ -44,6 +44,10 @@ import {
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import type { VideoAudioReference } from '@/contexts/studio-context'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
+import type {
+  StudioOperatorGenerationChoices,
+  StudioOperatorGenerationControls,
+} from '@/types/studio-assistant-operator'
 
 /** 快照要的那几样表单值 —— ⚠ 只列真的用到的，别把整个 `StudioFormState` 拖进来。 */
 export interface StudioOperatorSnapshotForm {
@@ -120,23 +124,31 @@ export interface ImageOperatorSnapshotInput {
  * 逻辑（`modelOptions` 的偏好排序）决定。⛔ 别顺手改成 optionId —— 那会让
  * `set_model` 的载荷语义在两个域之间漂，而图片档的登记簿/日志里印的是型号名。
  */
+/**
+ * 图片档的模型名单 —— **快照与确认卡的旋钮共用这一份**（v2 §5.1）。
+ * 抽出来是因为「卡上能选到的模型」与「助手能选到的模型」必须逐条相同：两处各算
+ * 一遍的表现是用户在卡上选到一个助手说「没有这个模型」的型号。
+ */
+function imageRunnableOptions(
+  modelOptions: readonly StudioModelOption[],
+): StudioModelOption[] {
+  return [
+    ...new Map(
+      runnable(modelOptions).map((option) => [option.modelId, option]),
+    ).values(),
+  ].slice(0, ASSISTANT_OPERATOR_LIMITS.maxAvailableModels)
+}
+
 export function buildImageOperatorSnapshot({
   form,
   modelOptions,
   selectedModel,
   references,
 }: ImageOperatorSnapshotInput): AssistantOperatorSnapshot {
-  const availableModels = [
-    ...new Map(
-      runnable(modelOptions).map((option) => [
-        option.modelId,
-        {
-          id: option.modelId,
-          label: clampLabel(option.displayLabel ?? option.modelId),
-        },
-      ]),
-    ).values(),
-  ].slice(0, ASSISTANT_OPERATOR_LIMITS.maxAvailableModels)
+  const availableModels = imageRunnableOptions(modelOptions).map((option) => ({
+    id: option.modelId,
+    label: clampLabel(option.displayLabel ?? option.modelId),
+  }))
 
   const resolutionOptions = selectedModel
     ? [
@@ -221,6 +233,25 @@ function describeVideoOption(option: StudioModelOption): string {
   return clampLabel(`${name} · ${channel} · ${option.requestCount} credits`)
 }
 
+/**
+ * 视频档的模型名单 —— 同 `imageRunnableOptions` 的理由，快照与卡共用一份。
+ * ⚠ **不按 modelId 去重**（渠道就是这一档要给的信息，K-3），⚠ 按当前「用途」档筛。
+ */
+function videoRunnableOptions(
+  modelOptions: readonly StudioModelOption[],
+  videoMode: VideoNodeMode,
+): StudioModelOption[] {
+  return runnable(modelOptions)
+    .filter(
+      (option) =>
+        getNodeModeForModel(
+          option.modelId,
+          option.adapterType as AI_ADAPTER_TYPES,
+        ) === videoMode,
+    )
+    .slice(0, ASSISTANT_OPERATOR_LIMITS.maxAvailableModels)
+}
+
 export function buildVideoOperatorSnapshot({
   form,
   modelOptions,
@@ -232,19 +263,9 @@ export function buildVideoOperatorSnapshot({
    * ⚠ **不按 modelId 去重**：一个型号在几条渠道上就是几行，那正是这一档要给的
    * 信息。⛔ 去重就等于把渠道选择又交回给「排序里的第一条」。
    */
-  const availableModels = runnable(modelOptions)
-    .filter(
-      (option) =>
-        getNodeModeForModel(
-          option.modelId,
-          option.adapterType as AI_ADAPTER_TYPES,
-        ) === videoMode,
-    )
-    .map((option) => ({
-      id: option.optionId,
-      label: describeVideoOption(option),
-    }))
-    .slice(0, ASSISTANT_OPERATOR_LIMITS.maxAvailableModels)
+  const availableModels = videoRunnableOptions(modelOptions, videoMode).map(
+    (option) => ({ id: option.optionId, label: describeVideoOption(option) }),
+  )
 
   const params = getVideoModelParameterOptions(
     selectedModel?.modelId,
@@ -475,5 +496,118 @@ export function buildLoraOperatorSnapshot({
       minWeight,
       maxWeight,
     },
+  }
+}
+
+// ─── 生成确认卡的四颗旋钮（v2 §5.1，commit #9）──────────────────────────
+
+/**
+ * **卡上四颗旋钮的真值视图**（§5.2「工作台是真值，卡是它的一个可编辑视图」）。
+ *
+ * ⭐ 与快照住同一个文件、共用同两条 `*RunnableOptions`：卡上能选到的模型 / 比例 /
+ * 清晰度 / 张数，与助手在 `read_state` 里读到的**必须逐条相同**。两处各算一遍的
+ * 表现是「卡上选得到、助手说没有」，而那种不一致没有任何测试抓得住。
+ * ⚠ `choicesByModel` 对**每个可选模型**各算一份：换模型那一刻要立刻知道新模型的
+ * 可选值（§5.1 的回落判据），而那一刻没有网络往返。名单上限本来就只有
+ * `maxAvailableModels` 条，⛔ 不值得为它做懒算。
+ */
+export function buildImageGenerationControls({
+  modelOptions,
+  selectedModel,
+  aspectRatio,
+  resolution,
+  count,
+}: {
+  modelOptions: readonly StudioModelOption[]
+  selectedModel: StudioModelOption | undefined
+  aspectRatio: string
+  resolution: string | null
+  count: number
+}): StudioOperatorGenerationControls {
+  const options = imageRunnableOptions(modelOptions)
+  const choicesByModel: Record<string, StudioOperatorGenerationChoices> = {}
+  for (const option of options) {
+    choicesByModel[option.modelId] = {
+      aspectRatios: [...STUDIO_IMAGE_ASPECT_RATIOS],
+      resolutions: [
+        ...(getCapabilityConfig(option.adapterType, option.modelId)
+          ?.resolutionOptions ?? []),
+      ],
+      counts: [...IMAGE_BATCH_COUNTS],
+    }
+  }
+  return {
+    model: selectedModel
+      ? {
+          id: selectedModel.modelId,
+          label: clampLabel(
+            selectedModel.displayLabel ?? selectedModel.modelId,
+          ),
+        }
+      : null,
+    models: options.map((option) => ({
+      id: option.modelId,
+      label: clampLabel(option.displayLabel ?? option.modelId),
+    })),
+    aspectRatio,
+    resolution,
+    count,
+    choicesByModel,
+  }
+}
+
+/**
+ * 视频档的四颗旋钮。
+ *
+ * ⚠ **张数恒空**：视频一次就是一条片子，`counts: []` 的意思是「这一档没有这颗
+ * 旋钮」——卡上因此不画它（§5.1 那条「LoRA 域单次出图，不显示」的同一条判据）。
+ * ⚠ 比例照 `STUDIO_VIDEO_ASPECT_RATIOS` 过一道：目录里会声明我们不提供的比例
+ * （与 `buildVideoOperatorSnapshot` 逐字同源的那道过滤）。
+ * ⚠ 模型 id 是 **optionId**（型号 × 渠道，K-3）—— 与快照 `availableModels` 同源。
+ */
+export function buildVideoGenerationControls({
+  modelOptions,
+  selectedModel,
+  videoMode,
+  aspectRatio,
+  resolution,
+}: {
+  modelOptions: readonly StudioModelOption[]
+  selectedModel: StudioModelOption | undefined
+  videoMode: VideoNodeMode
+  aspectRatio: string
+  resolution: string | null
+}): StudioOperatorGenerationControls {
+  const options = videoRunnableOptions(modelOptions, videoMode)
+  const choicesByModel: Record<string, StudioOperatorGenerationChoices> = {}
+  for (const option of options) {
+    const params = getVideoModelParameterOptions(
+      option.modelId,
+      option.adapterType as AI_ADAPTER_TYPES,
+    )
+    choicesByModel[option.optionId] = {
+      aspectRatios: params.aspectRatios.filter((ratio) =>
+        (STUDIO_VIDEO_ASPECT_RATIOS as readonly string[]).includes(ratio),
+      ),
+      resolutions: [...params.resolutions],
+      counts: [],
+    }
+  }
+  return {
+    model: selectedModel
+      ? {
+          id: selectedModel.optionId,
+          label: describeVideoOption(selectedModel),
+        }
+      : null,
+    models: options.map((option) => ({
+      id: option.optionId,
+      label: describeVideoOption(option),
+    })),
+    aspectRatio,
+    resolution,
+    // 卡上不画它（`counts: []`），这里给 1 是「这一枪出一条」的诚实读数。
+    count: 1,
+    choicesByModel,
   }
 }

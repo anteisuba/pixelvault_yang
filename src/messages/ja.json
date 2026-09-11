@@ -7559,7 +7559,10 @@
         "retry": "もう一度",
         "model": "モデル",
         "aspect": "アスペクト比",
-        "resolution": "解像度"
+        "resolution": "解像度",
+        "adjusted": "このモデルに合わせて調整しました：{fields}",
+        "knobStepTitle": "確認カードで変更",
+        "knobStepReason": "確認カードであなたが変更しました"
       },
       "multistep": {
         "title": "{count} ステップのプラン",

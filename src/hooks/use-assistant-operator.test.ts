@@ -68,6 +68,14 @@ vi.mock('next-intl', () => {
  * 表单侧一个都不需要真的动，所以整份桩成空手。
  */
 const triggerGeneration = vi.hoisted(() => vi.fn())
+const dispatch = vi.hoisted(() => vi.fn())
+/**
+ * 宿主上那份**可选**的四颗旋钮真值（#9 / §5.2）—— 逐例现填。
+ * ⚠ 默认 `null`（缺席）：那一档验的正是「宿主不给就照载荷走」的既有行为。
+ */
+const generationControls = vi.hoisted(() => ({
+  current: null as unknown,
+}))
 
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
@@ -77,10 +85,13 @@ vi.mock('@/contexts/studio-operator-host', () => ({
     referenceLimit: 4,
     open: true,
     setOpen: () => {},
+    ...(generationControls.current
+      ? { generationControls: generationControls.current }
+      : {}),
     apply: {
       triggerGeneration,
       getState: () => ({ prompt: '', advancedParams: {} }),
-      dispatch: () => {},
+      dispatch,
       resolveOptionId: () => null,
       addReference: () => {},
       removeReference: () => {},
@@ -190,6 +201,7 @@ const streams: FakeStream[] = []
 beforeEach(async () => {
   vi.resetModules()
   vi.clearAllMocks()
+  generationControls.current = null
   streams.length = 0
   streamAssistantOperatorAPI.mockImplementation(
     (_request: unknown, options: { signal?: AbortSignal } = {}) => {
@@ -846,6 +858,105 @@ describe('生成确认卡（v2 §3.3 / §5）', () => {
     expect(triggerGeneration).toHaveBeenCalledWith(SPEND_REQUEST)
     expect(streams).toHaveLength(1)
     expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+  })
+
+  /**
+   * ⭐ #9（§5.2）：卡上那四颗旋钮就地可换。
+   * 钉两行规则 —— 第二行「卡上改一项立刻写回工作台」、第四行「点确认用工作台
+   * **此刻**的值触发，⛔ 不用卡上缓存的那一份」。
+   */
+  describe('就地改参数（§5.2）', () => {
+    const CONTROLS = {
+      model: { id: 'seedream-4', label: 'Seedream 4' },
+      models: [
+        { id: 'seedream-4', label: 'Seedream 4' },
+        { id: 'flux-2-flash', label: 'FLUX 2 Flash' },
+      ],
+      aspectRatio: '16:9',
+      resolution: '2K',
+      count: 2,
+      choicesByModel: {
+        'seedream-4': {
+          aspectRatios: ['16:9', '1:1'],
+          resolutions: ['2K', '1K'],
+          counts: [1, 2, 4],
+        },
+        'flux-2-flash': {
+          aspectRatios: ['1:1'],
+          resolutions: ['1K'],
+          counts: [1],
+        },
+      },
+    }
+
+    it('改一颗 → 立刻 dispatch 到工作台，并在登记簿上记一格（✦ 亮起来）', async () => {
+      generationControls.current = CONTROLS
+      const { result } = render()
+      act(() => {
+        result.current.adjustGeneration('count', '4')
+      })
+      expect(dispatch).toHaveBeenCalledWith({
+        type: 'SET_IMAGE_BATCH_COUNT',
+        payload: 4,
+      })
+      expect(store.getOperatorState().changes.count).toBeDefined()
+      // 撤销的本钱是**改之前**那个数。
+      expect(
+        store.getOperatorState().changes.count?.firstInverse,
+      ).toMatchObject({ inverse: { count: 2 } })
+    })
+
+    it('⭐ 换模型 → 不合法的比例 / 清晰度就地回落，回落掉的那几颗报给卡', async () => {
+      generationControls.current = CONTROLS
+      const { result } = render()
+      let adjusted: readonly string[] = []
+      act(() => {
+        adjusted = result.current.adjustGeneration('model', 'flux-2-flash')
+      })
+      expect(adjusted).toEqual(['aspect', 'resolution', 'count'])
+      expect(dispatch).toHaveBeenCalledWith({
+        type: 'SET_ASPECT_RATIO',
+        payload: '1:1',
+      })
+      expect(dispatch).toHaveBeenCalledWith({
+        type: 'SET_IMAGE_BATCH_COUNT',
+        payload: 1,
+      })
+    })
+
+    it('⭐ 「确认生成」用的是**工作台此刻**的值，⛔ 不是卡出现那一刻的载荷', async () => {
+      generationControls.current = CONTROLS
+      const { result } = render()
+      act(() => {
+        result.current.send('帮我发一枪')
+      })
+      await settle()
+      streams[0].emit(generateConfirmEvent())
+      await settle()
+
+      act(() => {
+        result.current.confirmGeneration()
+      })
+      await settle()
+      expect(triggerGeneration).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: { id: 'seedream-4', label: 'Seedream 4' },
+          count: 2,
+          specs: expect.objectContaining({
+            aspectRatio: '16:9',
+            resolution: '2K',
+          }),
+        }),
+      )
+    })
+
+    it('⚠ 宿主不给 controls（LoRA 装配台）→ 改参数是 no-op', async () => {
+      const { result } = render()
+      act(() => {
+        expect(result.current.adjustGeneration('count', '4')).toEqual([])
+      })
+      expect(dispatch).not.toHaveBeenCalled()
+    })
   })
 
   it('⭐ 连点两次「确认生成」只扣一次扳机', async () => {

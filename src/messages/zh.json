@@ -7559,7 +7559,10 @@
         "retry": "再来一次",
         "model": "模型",
         "aspect": "宽高比",
-        "resolution": "分辨率"
+        "resolution": "分辨率",
+        "adjusted": "已按该模型调整：{fields}",
+        "knobStepTitle": "在确认卡上改了参数",
+        "knobStepReason": "你在确认卡上改的"
       },
       "multistep": {
         "title": "{count} 步计划",

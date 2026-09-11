@@ -23,7 +23,9 @@ import {
 import { resolveGenerationDisplayName } from '@/lib/generation-name'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import {
+  buildImageGenerationControls,
   buildImageOperatorSnapshot,
+  buildVideoGenerationControls,
   buildVideoOperatorSnapshot,
 } from '@/lib/studio-operator-snapshot'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
@@ -390,6 +392,45 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
     })
   }, [activeRun])
 
+  /**
+   * **生成确认卡那四颗旋钮的真值**（v2 §5.2 第一 / 第三行，commit #9）。
+   *
+   * ⭐ 与 `buildSnapshot` 不同，它是**渲染期算的值**：§5.2 第三行要求「卡未确认时
+   * 用户改工作台，卡上对应项跟着变」，而那只有当它进依赖、跟着重渲染时才成立。
+   * ⚠ 依赖列的是**用到的那几格**而不是整个 `state`：提示词每敲一个字都重算一遍
+   *   这张按模型展开的表，是白烧的。
+   */
+  const generationControls = useMemo(
+    () =>
+      domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+        ? buildVideoGenerationControls({
+            modelOptions: videoModels.modelOptions,
+            selectedModel: videoModels.selectedModel,
+            videoMode: state.videoMode,
+            aspectRatio: state.aspectRatio,
+            resolution: state.videoResolution,
+          })
+        : buildImageGenerationControls({
+            modelOptions: imageModels.modelOptions,
+            selectedModel: imageModels.selectedModel,
+            aspectRatio: state.aspectRatio,
+            resolution: state.advancedParams.resolution ?? null,
+            count: state.imageBatchCount,
+          }),
+    [
+      domain,
+      imageModels.modelOptions,
+      imageModels.selectedModel,
+      state.advancedParams.resolution,
+      state.aspectRatio,
+      state.imageBatchCount,
+      state.videoMode,
+      state.videoResolution,
+      videoModels.modelOptions,
+      videoModels.selectedModel,
+    ],
+  )
+
   return useMemo(
     () => ({
       domain,
@@ -397,6 +438,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       checkpoints,
       apply,
       results,
+      generationControls,
       referenceLimit,
       referenceImages: imageUpload.referenceEntries,
       open,
@@ -407,6 +449,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       checkpoints,
       buildSnapshot,
       domain,
+      generationControls,
       open,
       referenceLimit,
       imageUpload.referenceEntries,

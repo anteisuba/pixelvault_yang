@@ -446,6 +446,32 @@ export type StudioOperatorConfirmStatus =
   (typeof STUDIO_OPERATOR_CONFIRM_STATUSES)[number]
 
 /**
+ * **生成确认卡上那四颗旋钮**（v2 §5.1 / 画板 BCards「生成 · 默认态」那一张）。
+ *
+ * ⚠ 顺序就是卡上从左到右的摆法 —— 模型排第一，因为换它会让后面三颗的可选值
+ * 整个变（§5.1 那条「换模型会让另外三项的可选值变」）。
+ * ⚠ 这四个 id 同时是 `data-knob` 与 i18n 键的后缀（`StudioOperator.confirm.generate.*`）：
+ * 卡、回落纯函数、测试三处认的是同一张表，⛔ 别在任何一处抄一份字面量。
+ * ⚠ ⛔ 没有「时长」那一颗：视频的时长不在 §5.1 的四颗里，它留在工作台的规格弹层上。
+ */
+export const STUDIO_OPERATOR_GENERATE_KNOB_IDS = {
+  model: 'model',
+  aspect: 'aspect',
+  count: 'count',
+  resolution: 'resolution',
+} as const
+
+export const STUDIO_OPERATOR_GENERATE_KNOBS = [
+  STUDIO_OPERATOR_GENERATE_KNOB_IDS.model,
+  STUDIO_OPERATOR_GENERATE_KNOB_IDS.aspect,
+  STUDIO_OPERATOR_GENERATE_KNOB_IDS.count,
+  STUDIO_OPERATOR_GENERATE_KNOB_IDS.resolution,
+] as const
+
+export type StudioOperatorGenerateKnob =
+  (typeof STUDIO_OPERATOR_GENERATE_KNOBS)[number]
+
+/**
  * 图标轨上那颗**状态点**的四档语义（拍板 7 改口：胶囊没了，语义迁到状态点）。
  *
  * ⚠ 这里是**语义档**不是颜色：颜色在组件里按脊柱四 token 落地

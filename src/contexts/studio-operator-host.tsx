@@ -31,7 +31,10 @@ import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoin
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
-import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
+import type {
+  StudioOperatorGenerationControls,
+  StudioOperatorResultItem,
+} from '@/types/studio-assistant-operator'
 
 export interface StudioOperatorHost {
   checkpoints?: {
@@ -77,6 +80,17 @@ export interface StudioOperatorHost {
    * ⚠ 空数组 = 这一轮还没有结果，结果行卡整块不渲染（⛔ 不做空占位）。
    */
   results: readonly StudioOperatorResultItem[]
+  /**
+   * **生成确认卡那四颗旋钮的真值**（v2 §5.2，commit #9）。
+   *
+   * ⭐ 它与 `buildSnapshot` 的分工是「现读」对「随表单变」：快照是每次调用现算的
+   * （事件循环跨很多次 render），而这一份必须**跟着表单一起重渲染** —— §5.2 第三行
+   * 「卡未确认时用户改工作台，卡上对应项跟着变」就是靠它成立的。所以它是一个值
+   * 而不是一个函数，⛔ 别改成 `buildGenerationControls()`。
+   * ⚠ **可选**：LoRA 装配台一次只出一张图、也没有比例 / 清晰度那两颗旋钮，缺席
+   *   时确认卡退回只读读数（⛔ 不摆一颗点了没反应的下拉）。
+   */
+  generationControls?: StudioOperatorGenerationControls
   /**
    * 参考位上限（拍板 21：联网候选一行能选几张）。
    *

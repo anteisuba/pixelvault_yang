@@ -7559,7 +7559,10 @@
         "retry": "Try again",
         "model": "Model",
         "aspect": "Aspect ratio",
-        "resolution": "Resolution"
+        "resolution": "Resolution",
+        "adjusted": "Adjusted for this model: {fields}",
+        "knobStepTitle": "Changed on the confirm card",
+        "knobStepReason": "You changed this on the confirm card"
       },
       "multistep": {
         "title": "{count}-step plan",

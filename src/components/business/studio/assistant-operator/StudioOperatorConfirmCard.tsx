@@ -20,19 +20,39 @@
  * 确认 / 取消之后卡**留在原地**换成「已确认 · 11:24」/「已取消 · 11:22」。
  * 理由：它是这一轮里的一次决定，抹掉它等于时间线上少了一段因果。
  *
- * ⚠ **生成那一支的四颗旋钮本片只有结构**：就地改参数是 #9（§5），所以它们此刻
- * 是**只读读数**而不是下拉 —— ⛔ 不摆一颗点了没反应的下拉（那比不摆更坏）。
+ * ── 四颗旋钮：就地可换（#9 / §5.1）────────────────────────────────
+ * ⭐ **卡自己不存任何一份参数**（§5.2「工作台是真值，卡是它的一个可编辑视图」）：
+ * 读数来自宿主现算的 `controls`，改一下立刻经 `onAdjust` 写回工作台，下一帧
+ * `controls` 自己变过来。⛔ 别为「点下去要立刻看见」加一个乐观 `useState` ——
+ * 那就是卡自己攒一份参数，而 §5.2 那段「为什么立刻写回」讲的正是它的下场。
+ * ⚠ 宿主不给 `controls` 时（LoRA 装配台）退回**只读读数**，⛔ 不摆一颗点了没
+ * 反应的下拉（那比不摆更坏）。
+ * ⚠ 某颗旋钮的候选表为空 = 这个模型没有它（视频档大量如此），那一颗**不画**。
  */
 
+import { useState } from 'react'
+import { Check, ChevronDown, ChevronUp } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import {
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   type AssistantOperatorConfirmKind,
 } from '@/constants/assistant-operator'
-import { STUDIO_OPERATOR_CONFIRM_STATUS_IDS } from '@/constants/studio-assistant-operator'
+import {
+  STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
+  STUDIO_OPERATOR_GENERATE_KNOB_IDS,
+  type StudioOperatorGenerateKnob,
+} from '@/constants/studio-assistant-operator'
+import {
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover'
 import { cn } from '@/lib/utils'
-import type { StudioOperatorConfirmPrompt } from '@/types/studio-assistant-operator'
+import type {
+  StudioOperatorConfirmPrompt,
+  StudioOperatorGenerationControls,
+} from '@/types/studio-assistant-operator'
 
 interface StudioOperatorConfirmCardProps {
   confirm: StudioOperatorConfirmPrompt
@@ -48,6 +68,28 @@ interface StudioOperatorConfirmCardProps {
   onRetry(): void
   /** 「已确认 · 11:24」里那个时刻怎么写 —— 面板给（`useFormatter` 在那一层）。 */
   formatTime(iso: string): string
+  /**
+   * 四颗旋钮的**真值视图**（§5.2）。缺席 = 这个宿主上它们是只读读数。
+   */
+  controls?: StudioOperatorGenerationControls
+  /**
+   * 就地换一颗（§5.2 第二行）—— 返回换模型顺手回落掉的那几颗，卡据此写
+   * 「已按 X 调整」那一行（§5.1）。
+   */
+  onAdjust?(
+    knob: StudioOperatorGenerateKnob,
+    value: string,
+  ): readonly StudioOperatorGenerateKnob[]
+}
+
+/** 一颗旋钮摆什么：读数 + （可换时）候选表。⚠ 候选空 = 这一颗不画。 */
+interface KnobSpec {
+  id: StudioOperatorGenerateKnob
+  /** chip 上写的那串（张数是「3 张」，模型是标签）。 */
+  value: string
+  /** 打勾比的那一份原值（张数是 `"3"`，模型是 id）。 */
+  current: string
+  options: readonly { value: string; label: string }[]
 }
 
 /** 生成那一支的一行摘要 —— 三态（确认中 / 已确认 / 已取消）都写它。 */
@@ -71,13 +113,129 @@ export function StudioOperatorConfirmCard({
   onCancel,
   onRetry,
   formatTime,
+  controls,
+  onAdjust,
 }: StudioOperatorConfirmCardProps) {
   const t = useTranslations('StudioOperator')
+  /**
+   * 哪一颗的下拉开着 —— 一次只开一颗（画板「模型下拉展开」那一张）。
+   * ⚠ 这是**弹层开合**，不是参数：参数一个字都不住在卡里（见文件头注）。
+   */
+  const [openKnob, setOpenKnob] = useState<StudioOperatorGenerateKnob | null>(
+    null,
+  )
+  /** 上一次换模型顺手回落掉的那几颗（§5.1「已按 X 调整」那一行）。 */
+  const [adjusted, setAdjusted] = useState<
+    readonly StudioOperatorGenerateKnob[]
+  >([])
   const decided =
     confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed ||
     confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled
   const busy = confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting
   const kind: AssistantOperatorConfirmKind = confirm.kind
+
+  const generate =
+    confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
+      ? confirm
+      : null
+  /**
+   * 四颗旋钮摆什么。
+   *
+   * ⭐ 有 `controls` 时**一格都不读 `request`**：工作台是真值（§5.2 第一 / 第三行），
+   * 读 `request` 等于读卡出现那一刻的快照 —— 用户之后在工作台上改的就看不见了。
+   * ⚠ 没有 `controls`（LoRA 装配台）才回落到 `request` 那份只读读数。
+   */
+  const choices = controls
+    ? (controls.choicesByModel[controls.model?.id ?? ''] ?? {
+        aspectRatios: [],
+        resolutions: [],
+        counts: [],
+      })
+    : null
+  const countLabel = (count: number) => t('confirm.generate.count', { count })
+  const knobs: readonly KnobSpec[] = !generate
+    ? []
+    : controls && choices
+      ? (
+          [
+            {
+              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.model,
+              value: controls.model?.label ?? generate.request.model.label,
+              current: controls.model?.id ?? '',
+              options: controls.models.map((model) => ({
+                value: model.id,
+                label: model.label,
+              })),
+            },
+            {
+              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.aspect,
+              value: controls.aspectRatio,
+              current: controls.aspectRatio,
+              options: choices.aspectRatios.map((ratio) => ({
+                value: ratio,
+                label: ratio,
+              })),
+            },
+            {
+              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.count,
+              value: countLabel(controls.count),
+              current: String(controls.count),
+              options: choices.counts.map((count) => ({
+                value: String(count),
+                label: countLabel(count),
+              })),
+            },
+            {
+              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.resolution,
+              value: controls.resolution ?? '',
+              current: controls.resolution ?? '',
+              options: choices.resolutions.map((resolution) => ({
+                value: resolution,
+                label: resolution,
+              })),
+            },
+          ] satisfies KnobSpec[]
+        )
+          // 候选空 = 这个模型没有这颗旋钮（视频档的张数、无清晰度档的模型）。
+          .filter((knob) => knob.options.length > 0)
+      : (
+          [
+            {
+              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.model,
+              value: generate.request.model.label,
+              current: generate.request.model.id,
+              options: [],
+            },
+            {
+              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.aspect,
+              value: generate.request.specs.aspectRatio ?? '',
+              current: generate.request.specs.aspectRatio ?? '',
+              options: [],
+            },
+            {
+              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.count,
+              value: countLabel(generate.request.count),
+              current: String(generate.request.count),
+              options: [],
+            },
+            {
+              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.resolution,
+              value: generate.request.specs.resolution ?? '',
+              current: generate.request.specs.resolution ?? '',
+              options: [],
+            },
+          ] satisfies KnobSpec[]
+        ).filter((knob) => Boolean(knob.value))
+
+  /**
+   * 点中一项 —— **立刻写回工作台**（§5.2 第二行），⛔ 卡上不留一份乐观值。
+   * 换模型返回回落掉的那几颗；换别的返回空数组，那句「已按 X 调整」顺手清掉
+   * （用户已经自己接管了那一格）。
+   */
+  const pick = (knob: StudioOperatorGenerateKnob, value: string) => {
+    setOpenKnob(null)
+    setAdjusted(onAdjust?.(knob, value) ?? [])
+  }
 
   return (
     <section
@@ -160,42 +318,146 @@ export function StudioOperatorConfirmCard({
               {t('confirm.multistep.stoppable')}
             </p>
           ) : (
-            /* ⚠ 四颗旋钮本片是**只读读数**：就地改参数是 #9（§5）。
-               ⛔ 不摆下拉箭头 —— 点了没反应的下拉比一行读数更坏。 */
-            <dl
-              data-testid="operator-confirm-knobs"
-              className="flex flex-wrap gap-1.5 px-3 py-2"
-            >
-              {(
-                [
-                  ['model', confirm.request.model.label],
-                  ['aspect', confirm.request.specs.aspectRatio],
-                  [
-                    'count',
-                    t('confirm.generate.count', {
-                      count: confirm.request.count,
-                    }),
-                  ],
-                  ['resolution', confirm.request.specs.resolution],
-                ] as const
-              )
-                .filter(([, value]) => Boolean(value))
-                .map(([id, value]) => (
-                  <div
-                    key={id}
-                    data-testid="operator-confirm-knob"
-                    data-knob={id}
-                    className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-2 py-1"
-                  >
-                    <dt className="sr-only">
-                      {t(
-                        `confirm.generate.${id === 'count' ? 'countLabel' : id}`,
-                      )}
-                    </dt>
-                    <dd className="text-2sm text-foreground">{value}</dd>
-                  </div>
-                ))}
-            </dl>
+            /* ⭐ 四颗旋钮就地可换（§5.1）—— 候选表空的那一颗**不画**（这个模型
+               没有它）。⛔ 不摆一颗点了没反应的下拉，那比不摆更坏。 */
+            <div className="flex flex-col gap-1 px-3 py-2">
+              <div
+                data-testid="operator-confirm-knobs"
+                className="flex flex-wrap gap-1.5"
+              >
+                {knobs.map((knob) => {
+                  const label = t(
+                    `confirm.generate.${
+                      knob.id === STUDIO_OPERATOR_GENERATE_KNOB_IDS.count
+                        ? 'countLabel'
+                        : knob.id
+                    }`,
+                  )
+                  if (knob.options.length === 0) {
+                    return (
+                      <div
+                        key={knob.id}
+                        data-testid="operator-confirm-knob"
+                        data-knob={knob.id}
+                        className="flex items-center gap-1 rounded-lg border border-border bg-muted/50 px-2 py-1"
+                      >
+                        <span className="sr-only">{label}</span>
+                        <span className="text-2sm text-foreground">
+                          {knob.value}
+                        </span>
+                      </div>
+                    )
+                  }
+                  const open = openKnob === knob.id
+                  return (
+                    <ResponsivePopover
+                      key={knob.id}
+                      open={open}
+                      onOpenChange={(next) =>
+                        setOpenKnob(next ? knob.id : null)
+                      }
+                    >
+                      <ResponsivePopoverTrigger asChild>
+                        <button
+                          type="button"
+                          data-testid="operator-confirm-knob"
+                          data-knob={knob.id}
+                          data-open={open || undefined}
+                          disabled={busy}
+                          aria-label={label}
+                          className={cn(
+                            'flex items-center gap-1.5 rounded-lg border px-2 py-1 text-2sm transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+                            open
+                              ? 'border-primary bg-primary font-medium text-primary-foreground'
+                              : 'border-border bg-muted/50 text-foreground hover:bg-accent',
+                          )}
+                        >
+                          <span className="max-w-40 truncate">
+                            {knob.value}
+                          </span>
+                          {open ? (
+                            <ChevronUp
+                              className="size-3 shrink-0"
+                              aria-hidden
+                            />
+                          ) : (
+                            <ChevronDown
+                              className="size-3 shrink-0 text-muted-foreground"
+                              aria-hidden
+                            />
+                          )}
+                        </button>
+                      </ResponsivePopoverTrigger>
+                      <ResponsivePopoverContent
+                        /* 画板：弹层落在 chip **下方**（卡在时间线中段，
+                           ⛔ 不照输入框那颗 chip 的 `side="top"` 抄）。 */
+                        side="bottom"
+                        align="start"
+                        label={label}
+                        className="w-60 p-0"
+                        mobileClassName="px-0"
+                      >
+                        <div
+                          role="menu"
+                          aria-label={label}
+                          data-testid="operator-confirm-knob-menu"
+                          data-knob={knob.id}
+                          className="flex max-h-72 flex-col gap-0.5 overflow-y-auto p-1.5"
+                        >
+                          {knob.options.map((option) => {
+                            const active = option.value === knob.current
+                            return (
+                              <button
+                                key={option.value}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={active}
+                                data-testid="operator-confirm-knob-option"
+                                data-value={option.value}
+                                onClick={() => pick(knob.id, option.value)}
+                                className={cn(
+                                  'flex items-center justify-between gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                                  active && 'bg-muted font-medium',
+                                )}
+                              >
+                                <span className="truncate">{option.label}</span>
+                                {active ? (
+                                  <Check
+                                    className="size-3.5 shrink-0 text-foreground"
+                                    aria-hidden
+                                  />
+                                ) : null}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </ResponsivePopoverContent>
+                    </ResponsivePopover>
+                  )
+                })}
+              </div>
+              {/* ⚠ 换模型让别的值不合法时**就地说一句**，⛔ 不弹二次确认（§5.1）。 */}
+              {adjusted.length > 0 ? (
+                <p
+                  data-testid="operator-confirm-adjusted"
+                  className="text-2xs text-muted-foreground"
+                >
+                  {t('confirm.generate.adjusted', {
+                    fields: adjusted
+                      .map((knob) =>
+                        t(
+                          `confirm.generate.${
+                            knob === STUDIO_OPERATOR_GENERATE_KNOB_IDS.count
+                              ? 'countLabel'
+                              : knob
+                          }`,
+                        ),
+                      )
+                      .join(' · '),
+                  })}
+                </p>
+              ) : null}
+            </div>
           )}
 
           <div className="flex items-center justify-end gap-2 border-t border-border bg-muted/45 px-3 py-2">

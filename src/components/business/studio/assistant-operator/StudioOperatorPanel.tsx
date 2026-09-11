@@ -320,6 +320,7 @@ export function StudioOperatorPanel({
     approvePlan,
     declinePlan,
     revisePlan,
+    adjustGeneration,
     confirmGeneration,
     cancelGeneration,
     retryGeneration,
@@ -1353,6 +1354,12 @@ export function StudioOperatorPanel({
                   onCancel={cancelGeneration}
                   onRetry={retryGeneration}
                   formatTime={formatDecidedAt}
+                  /* 四颗旋钮的真值 —— 宿主现算的那一份（§5.2）。缺席时卡退回
+                     只读读数（LoRA 装配台就是这一档）。 */
+                  {...(operatorHost.generationControls
+                    ? { controls: operatorHost.generationControls }
+                    : {})}
+                  onAdjust={adjustGeneration}
                 />
               </StudioOperatorTimelineRow>
             ) : null}

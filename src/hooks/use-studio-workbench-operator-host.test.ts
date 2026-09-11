@@ -88,9 +88,21 @@ vi.mock('@/hooks/use-operator-user-url-mount', () => ({
     unmountUserUrl: vi.fn(),
   }),
 }))
+const EMPTY_CONTROLS = {
+  model: null,
+  models: [],
+  aspectRatio: '1:1',
+  resolution: null,
+  count: 1,
+  choicesByModel: {},
+}
+
 vi.mock('@/lib/studio-operator-snapshot', () => ({
   buildImageOperatorSnapshot: () => ({ prompt: '', availableModels: [] }),
   buildVideoOperatorSnapshot: () => ({ prompt: '', availableModels: [] }),
+  // 四颗旋钮那份视图（#9）—— 这一层验的是 results / 分槽，桩成空的就够。
+  buildImageGenerationControls: () => EMPTY_CONTROLS,
+  buildVideoGenerationControls: () => EMPTY_CONTROLS,
 }))
 
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'

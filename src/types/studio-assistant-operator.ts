@@ -336,6 +336,43 @@ export type StudioOperatorConfirmPrompt = {
     }
 )
 
+/**
+ * **一个模型能给的那三串可选值**（v2 §5.1「取值来源」那一列）。
+ *
+ * ⭐ 名单是**客户端从模型表现算**的（`constants/models` / `provider-capabilities`
+ * / `video-model-send-plan` 那三张表），⛔ 不由服务端随 `confirm` 帧下发：卡上
+ * 换一次模型要立刻换出另一串可选值，而那一刻没有任何一次网络往返。
+ * 这也是 `confirm` 的载荷**只带当前值**、不带候选表的理由（§5.1 + 台账：载荷里
+ * 多一张随模型变的表，只会与工作台上那张随时漂开）。
+ * ⚠ 空数组 = 这个模型**没有这颗旋钮**（视频档大量如此），卡上那一颗就不画 ——
+ * ⛔ 别回落成一串写死的全集，那会让人选一个这条线路根本不吃的值。
+ */
+export interface StudioOperatorGenerationChoices {
+  aspectRatios: readonly string[]
+  resolutions: readonly string[]
+  counts: readonly number[]
+}
+
+/**
+ * **生成确认卡四颗旋钮的真值视图**（v2 §5.2「工作台是真值，卡是它的一个可编辑
+ * 视图」）。
+ *
+ * ⭐ 它由**宿主**现算（`use-studio-workbench-operator-host.ts`），随表单一起变 ——
+ * 这正是 §5.2 第三行「卡未确认时用户改工作台，卡上对应项跟着变」的落点：卡不存
+ * 任何一份自己的参数，⛔ 没有 `useState`。
+ * ⚠ `choicesByModel` 的键与 `models[].id` 逐字同源：图片档是 `modelId`，视频档是
+ * `optionId`（型号 × 渠道，K-3）—— 与快照 `availableModels` 那条判据同一份。
+ * ⚠ 缺席（宿主不给）= 这个宿主上的卡还是只读读数（LoRA 装配台就是这一档）。
+ */
+export interface StudioOperatorGenerationControls {
+  model: { id: string; label: string } | null
+  models: readonly { id: string; label: string }[]
+  aspectRatio: string
+  resolution: string | null
+  count: number
+  choicesByModel: Readonly<Record<string, StudioOperatorGenerationChoices>>
+}
+
 export type StudioOperatorStatus =
   /** 没在跑。 */
   | 'idle'

@@ -604,12 +604,12 @@ export const ASSISTANT_OPERATOR_SPEND_TOOLS = [
 ] as const
 
 /**
- * **五动词**（v2 §2.1 / §2.4）—— 加载态那五句状态词按它分派（§3.6）。
+ * **五动词**（v2 §2.1 / §2.4）—— 模型只见这五个入口，加载态五句状态词也按它分派（§3.6）。
  *
- * ⚠ 本片（卡片收敛）只用到它的**读侧**：`step` 帧那个必填 `verb` 字段是下一片
- * （五入口工具）的事，所以这里先给一张**工具 → 动词**的对照表，让面板此刻就说得出
- * 「它正在干哪一类活」。⛔ 别把这张表理解成分组的真值：真值将来在入口工具的
- * schema 里，这张表那时会被 `step.verb` 顶掉。
+ * ⚠ 动词 id 与**入口工具名**逐字相同（`ASSISTANT_OPERATOR_ENTRY_TOOL_IDS`），
+ * 这不是巧合而是 §2.4 的对齐要求：模型写的工具名、`step` 帧上的 `verb`、面板上
+ * 那句状态词是同一个词。⛔ 别让两边各起一套名字 —— 那正是 v1「同一件事在三处
+ * 叫三个名字」的形状。
  */
 export const ASSISTANT_OPERATOR_VERB_IDS = {
   /** 看：读表单、看图、看素材、看视频。 */
@@ -635,10 +635,11 @@ export const ASSISTANT_OPERATOR_VERBS = [
 export type AssistantOperatorVerb = (typeof ASSISTANT_OPERATOR_VERBS)[number]
 
 /**
- * 每条工具归哪个动词。
+ * 每条工具归哪个动词 —— **这就是 31 → 5 那张映射表的真值**（v2 §2.1）。
  *
  * ⚠ `Record<AssistantOperatorTool, …>`：工具表加一条而这里没跟上，编译期就红 ——
- * 漏掉的表现是那一步跑起来时头像旁边一句状态词都没有。
+ * 漏掉的表现是那一步跑起来时头像旁边一句状态词都没有，而且它进不了任何一个入口
+ * 的 `action` 枚举，也就是模型压根调不到它。
  */
 export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   AssistantOperatorTool,
@@ -655,8 +656,6 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
     ASSISTANT_OPERATOR_VERB_IDS.look,
   [ASSISTANT_OPERATOR_TOOL_IDS.readContextCard]:
     ASSISTANT_OPERATOR_VERB_IDS.look,
-  [ASSISTANT_OPERATOR_TOOL_IDS.listContextCards]:
-    ASSISTANT_OPERATOR_VERB_IDS.look,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchAssets]:
     ASSISTANT_OPERATOR_VERB_IDS.research,
   [ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders]:
@@ -667,6 +666,12 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.research]: ASSISTANT_OPERATOR_VERB_IDS.research,
   [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]: ASSISTANT_OPERATOR_VERB_IDS.research,
   [ASSISTANT_OPERATOR_TOOL_IDS.searchLoras]:
+    ASSISTANT_OPERATOR_VERB_IDS.research,
+  /**
+   * ⚠ 翻卡是**查**、读卡是**看**（v2 §2.1）：`list_context_cards` 是「去库里找
+   * 有哪些卡」，`read_context_card` 是「把选中那张的正文摆到眼前」。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.listContextCards]:
     ASSISTANT_OPERATOR_VERB_IDS.research,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
@@ -694,6 +699,77 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
     ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
   [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]:
     ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
+}
+
+/**
+ * **五个入口工具**（v2 §2.1 / §2.2，决策 1 + 2）—— 模型只见这五条，31 条旧工具
+ * 退到入口背后由代码派发。
+ *
+ * ── 为什么收口 ────────────────────────────────────────────────────
+ * v1 的模型要在 31 条描述里挑一条，挑错的代价是白烧一步 LLM 往返（`maxSteps`
+ * 只有 8）。收成 5 条之后，「挑哪个动词」这个判断人和模型都做得对，剩下的
+ * 「具体哪一支」是确定性的字段派发 —— 那是代码该干的活。
+ *
+ * ⚠ **入口名 = 动词 id**（`ASSISTANT_OPERATOR_VERB_IDS`），⛔ 别起第二套名字。
+ * ⚠ 旧的 31 条**执行函数一条不少地留着**：收的是模型看得见的那张表，
+ *   不是服务端的实现（v2 §0 非目标：不拆引擎）。
+ */
+export const ASSISTANT_OPERATOR_ENTRY_TOOL_IDS = {
+  look: ASSISTANT_OPERATOR_VERB_IDS.look,
+  research: ASSISTANT_OPERATOR_VERB_IDS.research,
+  ask: ASSISTANT_OPERATOR_VERB_IDS.ask,
+  apply: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  requestGeneration: ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
+} as const
+
+export const ASSISTANT_OPERATOR_ENTRY_TOOLS = [
+  ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look,
+  ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research,
+  ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+  ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
+  ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration,
+] as const
+
+export type AssistantOperatorEntryTool =
+  (typeof ASSISTANT_OPERATOR_ENTRY_TOOLS)[number]
+
+export function isAssistantOperatorEntryTool(
+  name: string,
+): name is AssistantOperatorEntryTool {
+  return (ASSISTANT_OPERATOR_ENTRY_TOOLS as readonly string[]).includes(name)
+}
+
+/**
+ * 每个入口的 `action` 枚举 —— **从 `ASSISTANT_OPERATOR_TOOL_VERBS` 现算**。
+ *
+ * ⭐ 现算而不是手抄第二份：手抄的那份会在工具表加一条时静默漏掉，而漏掉的表现是
+ * 「这条工具在系统提示里看得见、模型一调就说不存在」。⛔ 别改成字面量表。
+ * ⚠ `ask` 组是空的：v1 里没有对应工具，反问的形状写在入口自己的 schema 里
+ * （`types/assistant-operator.ts`）。
+ */
+export const ASSISTANT_OPERATOR_ENTRY_ACTIONS: Record<
+  AssistantOperatorEntryTool,
+  readonly AssistantOperatorTool[]
+> = {
+  look: ASSISTANT_OPERATOR_TOOLS.filter(
+    (tool) =>
+      ASSISTANT_OPERATOR_TOOL_VERBS[tool] === ASSISTANT_OPERATOR_VERB_IDS.look,
+  ),
+  research: ASSISTANT_OPERATOR_TOOLS.filter(
+    (tool) =>
+      ASSISTANT_OPERATOR_TOOL_VERBS[tool] ===
+      ASSISTANT_OPERATOR_VERB_IDS.research,
+  ),
+  ask: [],
+  apply: ASSISTANT_OPERATOR_TOOLS.filter(
+    (tool) =>
+      ASSISTANT_OPERATOR_TOOL_VERBS[tool] === ASSISTANT_OPERATOR_VERB_IDS.apply,
+  ),
+  request_generation: ASSISTANT_OPERATOR_TOOLS.filter(
+    (tool) =>
+      ASSISTANT_OPERATOR_TOOL_VERBS[tool] ===
+      ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
+  ),
 }
 
 export function isMutatingAssistantOperatorTool(
@@ -743,17 +819,14 @@ export type AssistantOperatorConfirmKind =
   (typeof ASSISTANT_OPERATOR_CONFIRM_KINDS)[number]
 
 /**
- * 步数到几就值得先出一张多步确认卡（v2 §3.3）。
+ * ⛔ **这里曾经有一条「计划步数下限」常量（值 3）**，v2 决策 4 把它删了。
  *
- * ⚠ 判在**服务端**（`confirm` 帧就是它摆出来的）—— v1 那条「客户端硬判」的
- * 判据随计划请求帧一起没了：判据要用的三样东西（理由 / 待定项 / 预估）
- * 有两样在 v2 里不存在了。
- *
- * ⚠ 3 不是随手拍的：一步（改个提示词）和两步（改提示词 + 换模型）出卡是纯打扰 ——
- * 用户看着一张卡上写着一句他刚说过的话。三步起才是「它要替我做一串事」，那时
- * 「开始 / 修改」才有得选。⛔ 调这个数之前先想清楚：调小 = 每次说话都先弹一张卡。
+ * 死阈值判的是「这一轮有几步」，而用户在意的是「它接下来要替我做的事，有没有
+ * 一步是我不想让它自己做的」—— 那是同一个数答不了的问题：三步的「查一下 → 写
+ * 提示词 → 预填」是纯打扰，两步的「覆盖我手写的提示词 → 换模型」才该先问一句。
+ * 判据因此交给模型（`AssistantOperatorTurnSchema.confirmPlan`，v2 §3.3 「模型判，
+ * 不设死阈值」），服务端只按它出帧。⛔ 别把那条阈值常量加回来。
  */
-export const ASSISTANT_PLAN_CARD_MIN_STEPS = 3
 
 /**
  * **反问卡**的协议护栏（2026-09-06 改写，替换旧的三格待定项）。
@@ -1106,6 +1179,56 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
   ],
+}
+
+/**
+ * **域裁剪裁的是枚举值，不是工具条目**（v2 §2.2 ⛔ 那一条）。
+ *
+ * ⚠ 系统提示按这张表列每个入口的 `action` 清单：视频档上 `apply` 的枚举里有
+ * `set_video_specs` / `set_sound` / `mount_audio_reference` 而没有 `set_count`，
+ * 图片档反过来（§2.3：音频两条住在 video 域，⛔ 不新增 `audio` 域）。
+ * ⚠ 枚举空掉的入口**不出现在提示里**（LoRA 域没有 `request_generation`）——
+ * 摆一个这个域里无解的入口，正是 `set_count` 当初被裁掉的同一个形状。
+ * ⚠ `ask` 永远在：它不依赖任何一台工作台上的旋钮。
+ * ⚠ 这只是**第一道闸**（模型看不见）。第二道闸照旧是规划器里的
+ *   `isAssistantOperatorToolInDomain` —— 提示词从来不是闸。
+ */
+export const ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN: Record<
+  AssistantOperatorDomain,
+  Record<AssistantOperatorEntryTool, readonly AssistantOperatorTool[]>
+> = ASSISTANT_OPERATOR_DOMAINS.reduce(
+  (byDomain, domain) => {
+    byDomain[domain] = ASSISTANT_OPERATOR_ENTRY_TOOLS.reduce(
+      (byEntry, entry) => {
+        byEntry[entry] = ASSISTANT_OPERATOR_ENTRY_ACTIONS[entry].filter(
+          (tool) => ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[domain].includes(tool),
+        )
+        return byEntry
+      },
+      {} as Record<
+        AssistantOperatorEntryTool,
+        readonly AssistantOperatorTool[]
+      >,
+    )
+    return byDomain
+  },
+  {} as Record<
+    AssistantOperatorDomain,
+    Record<AssistantOperatorEntryTool, readonly AssistantOperatorTool[]>
+  >,
+)
+
+/**
+ * 这个域里模型真正见得到的入口 —— 枚举空掉的（`ask` 除外）不列进提示。
+ */
+export function assistantOperatorEntryToolsInDomain(
+  domain: AssistantOperatorDomain,
+): readonly AssistantOperatorEntryTool[] {
+  return ASSISTANT_OPERATOR_ENTRY_TOOLS.filter(
+    (entry) =>
+      entry === ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask ||
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN[domain][entry].length > 0,
+  )
 }
 
 export function isAssistantOperatorToolInDomain(
@@ -1721,6 +1844,30 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'write down ONE standing rule the creator just stated — something that should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
     'mark one of the creator\'s own assets as approved or blocked, so the verdict survives this turn. Use "blocked" when they say a picture did not work ("the hands are wrong", "not this one") — a blocked asset can never be used as a first or last frame again, on any workbench, and you should stop offering it. Use "approved" when they settle on one. The assetId comes from search_assets, from what they handed you, or from what you produced earlier this session — never invent one. Blocking deletes nothing: the picture stays in their library and you can still review it. Give a short reason in their words.',
+}
+
+/**
+ * **五段工具说明的第一句**（v2 §2.4：每段一句「什么时候用它」+ 一张枚举表）。
+ *
+ * ⚠ 逐条 `action` 的说明**照旧从 `ASSISTANT_OPERATOR_TOOL_HINTS` 里取**：收的是
+ * 「模型要在多少条里挑一条」（31 → 5），⛔ 不是把 31 条里写死的那些硬教训
+ * （「asset id 只能来自 search_assets」「搜图只出预览」）扔掉 —— 那些不是描述，
+ * 是闸的可教版本，扔掉之后模型会在同一个坑里重新掉一遍。
+ */
+export const ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS: Record<
+  AssistantOperatorEntryTool,
+  string
+> = {
+  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look]:
+    'LOOK at something that is already here — the form, a picture, a folder, a clip, a card, the standing rules. It changes nothing and produces facts.',
+  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research]:
+    "GO AND FIND something that is not here yet — on the web, or in the creator's own library. It produces candidates and evidence, and files nothing.",
+  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask]:
+    'STOP AND ASK the creator to settle one thing you genuinely cannot settle yourself. It ends your turn: the app shows one question and waits for their tap.',
+  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply]:
+    'TURN A KNOB on the workbench in front of them. Every one of these is undoable and shows up on their screen immediately.',
+  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration]:
+    'ASK FOR THE GENERATION to be set up. You never spend their credits: the most this does is arm the button, and they press it.',
 }
 
 /**

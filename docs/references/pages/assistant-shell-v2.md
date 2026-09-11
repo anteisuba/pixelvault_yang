@@ -115,21 +115,23 @@
 
 五个入口工具的 schema 长这样（要点，不是完整定义）：
 
-| 入口                 | 必填参数                                                                                       | 组内细分怎么定                                                                                                                 |
-| -------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `look`               | `subject`（枚举）· `target?`                                                                   | `subject` 是**封闭枚举**（`form` / `folder` / `references` / `result` / `video` / `card` / `rules`），代码按它派发到对应旧工具 |
-| `research`           | `goal`（一句话）· `want`（`facts`/`images`）· `entities?` · `scope?`（`web`/`library`/`lora`） | `want` 两档决定走「查证」还是「找图」（§9）；`scope` 决定打网还是打库                                                          |
-| `ask`                | `question` · `options[]`（2–4）· `why?`                                                        | 只有一种形态：单选。多步计划走 `plan` 帧不走它                                                                                 |
-| `apply`              | `changes[]`（每项 `field` + `value`）                                                          | `field` 是封闭枚举，代码按 `field` 派发到旧 `set_*`；一次调用可含多项                                                          |
-| `request_generation` | `reason`                                                                                       | 参数从工作台快照现取，模型不填模型 / 张数 / 比例（用户在卡上改，§5）                                                           |
+| 入口                 | 必填参数                                            | 组内细分怎么定                                                                                                                  |
+| -------------------- | --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `look`               | `action`（枚举）+ 该动作原有的参数                  | `action` 是**封闭枚举**，值 = 本组原工具 id（§2.1 表「看」列）；代码按它派发到原实现，原入参 schema 一份不复制                  |
+| `research`           | `action`（枚举）+ 原有参数                          | 同上；「查证 / 找图」两档与 `scope` 的合并在 #16 落地，本组届时只剩两个 `action`（§9）                                          |
+| `ask`                | `question` · `options[]`（2–4）· `why?`             | 只有一种形态：单选，无 `action`。多步计划由模型在 turn 上写 `confirmPlan: true` 出 `confirm(multistep)`，不走它                 |
+| `apply`              | `action`（枚举）+ 原有参数                          | 一次调用只改**一项**（不是 `changes[]`）——错一项只重发一项，报错仍是模型学得会的 `malformedArgs`；`action` 枚举按域裁剪（§2.3） |
+| `request_generation` | `action`（`prime_generate` / `request_generation`） | 参数从工作台快照现取，模型不填模型 / 张数 / 比例（用户在卡上改，§5）                                                            |
+
+真值只有一份：`ASSISTANT_OPERATOR_ENTRY_ACTIONS` 由 `ASSISTANT_OPERATOR_TOOL_VERBS` 过滤得出，五组并集 = 31、两两不交，由测试锁住。`step` 帧带必填 `verb`（= 入口名），面板状态词直接读它。
 
 **为什么这样切**：v1 的模型要在 31 条描述里挑一条，挑错的代价是白烧一步 LLM 往返（`maxSteps` 只有 8）。收成 5 条之后，「挑哪个动词」这个判断人和模型都做得对，剩下的「具体哪一支」是确定性的字段派发——那是代码该干的活。
 
-**⛔ 别做的事**：别把 `subject` / `field` 做成开放字符串。开放了就等于把 31 选 1 换成了 31 选 1 加拼写错误。域裁剪（`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN`）继续生效，裁的是**枚举值**而不是工具条目。
+**⛔ 别做的事**：别把 `action` 做成开放字符串。开放了就等于把 31 选 1 换成了 31 选 1 加拼写错误。域裁剪（`ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN`）继续生效，裁的是**枚举值**而不是工具条目；枚举被裁空的入口不进提示词，`ask` 永远在。
 
 ### 2.3 audio 域工具怎么处理
 
-`mount_audio_reference` 与 `set_sound` 两条**列进「改」组**，但 `ASSISTANT_OPERATOR_DOMAINS` **不新增 `audio`**——它们在 v1 里就住在 video 域的工具表里（`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[video]`），v2 保持原样：`apply` 的 `field` 枚举在 video 域下包含 `audioReference` / `sound`，在 image / lora 域下不包含。
+`mount_audio_reference` 与 `set_sound` 两条**列进「改」组**，但 `ASSISTANT_OPERATOR_DOMAINS` **不新增 `audio`**——它们在 v1 里就住在 video 域的工具表里（`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[video]`），v2 保持原样：`apply` 的 `action` 枚举在 video 域下包含 `mount_audio_reference` / `set_sound`，在 image / lora 域下不包含。
 
 为什么：这两条动的是**视频工作台上真实存在的两颗旋钮**（配音参考、声音开关），不是一个独立的音频工作台。给它们单开一个域，等于造一个界面上不存在的工作台，而域裁剪的全部意义就是「界面上没有的旋钮，模型压根看不见」。
 

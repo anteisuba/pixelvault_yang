@@ -86,6 +86,7 @@ function promptStep(id: string, value: string, previous: string) {
     title: `write "${value}"`,
     status: 'done',
     tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+    verb: 'apply',
     payload: { value, mode: 'replace' },
     inverse: { value: previous },
   } satisfies AssistantOperatorAppliedStep
@@ -97,6 +98,7 @@ function countStep(id: string, count: number, previous: number) {
     title: `${count} outputs`,
     status: 'done',
     tool: ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+    verb: 'apply',
     payload: { count },
     inverse: { count: previous },
   } satisfies AssistantOperatorAppliedStep
@@ -107,6 +109,7 @@ const CRITIQUE_STEP = {
   title: 'look at what came back',
   status: 'done',
   tool: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+  verb: 'look',
   payload: {
     imageUrl: 'https://cdn.example.com/result.png',
     goal: 'a girl under a red umbrella',
@@ -123,6 +126,7 @@ const PRIME_STEP = {
   title: 'arm the button',
   status: 'done',
   tool: ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+  verb: 'request_generation',
   payload: { primed: true },
   inverse: { primed: false },
 } satisfies AssistantOperatorAppliedStep

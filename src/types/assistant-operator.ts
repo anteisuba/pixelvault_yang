@@ -32,6 +32,10 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_DOMAINS,
+  ASSISTANT_OPERATOR_ENTRY_ACTIONS,
+  ASSISTANT_OPERATOR_ENTRY_TOOL_IDS,
+  ASSISTANT_OPERATOR_ENTRY_TOOLS,
+  type AssistantOperatorEntryTool,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
   ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS,
@@ -43,6 +47,7 @@ import {
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOLS,
+  ASSISTANT_OPERATOR_VERBS,
   ASSISTANT_OPERATOR_VERDICT_SEVERITIES,
   ASSISTANT_OPERATOR_WRITE_MODES,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
@@ -92,6 +97,15 @@ const TextValueSchema = z.string().max(LIMITS.maxPromptChars)
 
 export const AssistantOperatorDomainSchema = z.enum(ASSISTANT_OPERATOR_DOMAINS)
 export const AssistantOperatorToolSchema = z.enum(ASSISTANT_OPERATOR_TOOLS)
+/**
+ * **五个入口工具**（v2 §2.1）—— 模型写在 `tool.name` 里的那个词。
+ * ⚠ 值域与 `AssistantOperatorVerbSchema` 逐字相同（§2.4 对齐）。
+ */
+export const AssistantOperatorEntryToolSchema = z.enum(
+  ASSISTANT_OPERATOR_ENTRY_TOOLS,
+)
+/** `step` 帧上那个必填的一等字段（v2 §3.1）。 */
+export const AssistantOperatorVerbSchema = z.enum(ASSISTANT_OPERATOR_VERBS)
 /**
  * ⚠ 这几个都直接吃**词表对象本身**（Zod 4 的 `z.enum` 收对象字面量）——
  * 不写 `Object.values(...) as [string, ...string[]]`：那个断言会把字面量类型抹成
@@ -1275,6 +1289,99 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   }),
 }
 
+// ─── ②′ 五个入口工具（v2 §2.1 / §2.2）────────────────────────────
+
+/**
+ * `ask` 入口的入参 —— **组内没有旧工具**，所以它的形状写在这里（v2 §2.2）。
+ *
+ * ⚠ 一次只问一道题（§3.4）：想问两件事就分两轮。多问的那几道由服务端丢掉。
+ * ⚠ 每个选项**必须带一句说明** —— 差别写在说明里，不写就没有差别可选
+ * （`ASSISTANT_PLAN_CARD_LIMITS` 头注那段的复述）。剥到少于两项时整道题一起丢。
+ * ⚠ 一律宽松（与整份「模型 → 服务端」档同一条纪律）：`id` 由服务端补，
+ * `visual` 收 `z.string()` 而不是枚举 —— 写错一个图示 id 只该丢掉那个图示。
+ */
+export const AssistantOperatorAskArgsSchema = z.object({
+  question: z.string().trim().min(1).max(PLAN_LIMITS.maxQuestionChars),
+  /** 收起态那一行写得下的几个字；漏了服务端从问句头上截。 */
+  header: z.string().trim().max(PLAN_LIMITS.maxHeaderChars).nullish(),
+  multiSelect: z.boolean().nullish(),
+  allowOther: z.boolean().nullish(),
+  options: z
+    .array(
+      z.object({
+        id: z.string().trim().max(LIMITS.maxIdChars).nullish(),
+        label: z.string().trim().min(1).max(PLAN_LIMITS.maxOptionLabelChars),
+        description: z
+          .string()
+          .trim()
+          .max(PLAN_LIMITS.maxOptionDescriptionChars)
+          .nullish(),
+        recommended: z.boolean().nullish(),
+        visual: z.string().trim().max(LIMITS.maxIdChars).nullish(),
+        assetUrl: z
+          .string()
+          .trim()
+          .max(LIMITS.maxIdChars * 4)
+          .nullish(),
+      }),
+    )
+    .max(PLAN_LIMITS.maxOptions),
+  /** 为什么要问 —— 卡上那一行小字。 */
+  why: z.string().trim().max(PLAN_LIMITS.maxQuestionChars).nullish(),
+})
+
+export type AssistantOperatorAskArgs = z.infer<
+  typeof AssistantOperatorAskArgsSchema
+>
+
+/**
+ * **每个入口的入参**（v2 §2.2 / 决策 2）—— 模型只挑动词，组内哪一支由 `action` 定。
+ *
+ * ── 为什么 `action` 之外的参数在这里是**放行**的 ──────────────────
+ * 收口收的是「31 选 1」这个判断，⛔ 不是把 31 份入参 schema 复制一遍：真正的
+ * 值域校验照旧由 `ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[action]` 在规划器里跑
+ * （`services/kernel/assistant-operator.service.ts`），因此
+ *  · 报错还是那条模型学得会的 `malformedArgs`（「value: Required」），
+ *    ⛔ 不是一句「这个入口的参数不对」；
+ *  · 旧工具的 schema 只有一份，⛔ 不会两份漂开。
+ * 所以这里用 `z.looseObject`：`action` 收窄，其余原样带下去。
+ *
+ * ⚠ `action` 枚举是**全集**，域裁剪不在这一层：模型在视频档写 `set_count`
+ * 时该读到一条可教的 `noSuchControl`（「这台工作台上没这个控件」），
+ * ⛔ 不是一整轮读不出来。第一道闸（模型压根看不见）在系统提示里，
+ * 见 `ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN`。
+ */
+export const ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS: Record<
+  AssistantOperatorEntryTool,
+  z.ZodType
+> = {
+  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look]: z.looseObject({
+    action: z.enum(
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look],
+    ),
+  }),
+  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research]: z.looseObject({
+    action: z.enum(
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS[
+        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
+      ],
+    ),
+  }),
+  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask]: AssistantOperatorAskArgsSchema,
+  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply]: z.looseObject({
+    action: z.enum(
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply],
+    ),
+  }),
+  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration]: z.looseObject({
+    action: z.enum(
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS[
+        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration
+      ],
+    ),
+  }),
+}
+
 export const AssistantOperatorTurnSchema = z.object({
   /** 计划条，只在第一轮有意义。 */
   plan: z
@@ -1293,7 +1400,13 @@ export const AssistantOperatorTurnSchema = z.object({
   detail: z.string().trim().max(LIMITS.maxMessageChars).optional(),
   tool: z
     .object({
-      name: AssistantOperatorToolSchema,
+      /**
+       * ⚠ **收 `z.string()` 而不是入口枚举**（v2 §2.1）：模型写了一个旧工具名
+       * （`set_prompt`）时，它该读到一条可教的拒绝「这条工具退到 apply 后面去了」，
+       * ⛔ 不是整轮读不出来退化成一次重试 —— 那正是本文件头注 ② 那条纪律。
+       * 收窄发生在服务端拆入口那一跳（`unwrapEntryToolCall`）。
+       */
+      name: z.string().trim().min(1).max(LIMITS.maxIdChars),
       /**
        * 日志条上的一行标题。
        *
@@ -1366,6 +1479,14 @@ export const AssistantOperatorTurnSchema = z.object({
     )
     .max(PLAN_LIMITS.maxQuestions)
     .optional(),
+  /**
+   * **这一轮先问一句再动手**（v2 §3.3 / 决策 4）—— 多步确认卡的唯一触发。
+   *
+   * ⭐ 它替掉的是那条「步数 ≥ 3 就出卡」的死阈值：步数答不了用户真正在问的
+   * 那件事（「它接下来要做的事里，有没有一步是我不想让它自己做的」）。
+   * ⚠ 缺席 = 不出卡。⛔ 服务端不按步数补判。
+   */
+  confirmPlan: z.boolean().optional(),
   /** 模型认为活干完了。没有 `tool` 时等价于 true。 */
   finished: z.boolean().optional(),
 })
@@ -1377,6 +1498,16 @@ export type AssistantOperatorTurn = z.infer<typeof AssistantOperatorTurnSchema>
 const STEP_BASE_SHAPE = {
   /** 同一步的 `running` 与 `done` 共用一个 id —— 客户端按 id 覆盖，不追加。 */
   id: z.string().trim().min(1).max(LIMITS.maxIdChars),
+  /**
+   * **这一步属于哪个动词**（v2 §3.1，必填）—— 面板那句状态词直接读它。
+   *
+   * ⭐ 必填不是洁癖：v1 的面板靠「按工具名反查一张对照表」猜动词，那张表和工具
+   * 表漏同步的表现是「跑着一步而头像旁边一个字都没有」。写成一等字段之后，
+   * 服务端出帧那一刻就得说清楚它在干哪一类活。
+   * ⚠ 它与工具的归属由 `ASSISTANT_OPERATOR_TOOL_VERBS` 定，服务端填，
+   *   ⛔ 客户端不再自己反查。
+   */
+  verb: AssistantOperatorVerbSchema,
   title: z.string().trim().min(1).max(LIMITS.maxTitleChars),
   reason: z.string().trim().max(LIMITS.maxReasonChars).optional(),
 }
@@ -2169,8 +2300,8 @@ export const AssistantOperatorOpenEventSchema = z.object({
  * **这一轮打算分几步**（v2 §3.1：`plan` 与计划请求帧合并）。
  *
  * ⚠ 只剩阶段列表：待定项整体搬去了 `ask`（问题卡），预估随决策 8 删掉，
- * 服务端观察到的「出卡理由」也一起没了（判定改在服务端，见
- * `ASSISTANT_PLAN_CARD_MIN_STEPS`）。
+ * 服务端观察到的「出卡理由」也一起没了。多步确认要不要出，v2 §3.3 交给模型判
+ * （`AssistantOperatorTurnSchema.confirmPlan`），⛔ 不再有步数死阈值。
  * ⚠ 步骤带 `id` 而不是裸字符串：多步确认卡与续跑记录都要按格指认某一步，
  * 而序号会随重规划变。
  */

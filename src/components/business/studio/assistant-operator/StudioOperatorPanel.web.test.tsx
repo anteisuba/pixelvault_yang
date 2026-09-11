@@ -190,6 +190,7 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
         id: 'advice-step',
         title: '看图',
         tool: 'critique_result',
+        verb: 'look',
         status: 'done',
         payload: { imageUrl: 'https://cdn.test/result.png', goal: '3D渲染' },
         result: {
@@ -724,6 +725,7 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       id: 'reference-analysis',
       title: '分析参考图',
       tool: 'analyze_references',
+      verb: 'look',
       status: 'done',
       payload: {},
       result: {
@@ -764,6 +766,7 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       id: 'step-1',
       title: '查了一下',
       tool: 'research',
+      verb: 'research',
       status: 'done',
       payload: { goal: '', round: 1, sources: ['web'] },
       result: { evidence: [], totalFound: 0 },
@@ -779,6 +782,7 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       id: 'step-1',
       title: '查了一下',
       tool: 'research',
+      verb: 'research',
       status: 'done',
       payload: { goal: '找官方设定', round: 1, sources: ['web'] },
       result: {
@@ -802,6 +806,7 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       id: 'step-1',
       title: '写提示词',
       tool: 'set_prompt',
+      verb: 'apply',
       status: 'done',
       payload: { value: '夜景' },
       inverse: { tool: 'set_prompt', payload: { value: '' } },
@@ -815,6 +820,7 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       id: 'step-2',
       title: '再写一次提示词',
       tool: 'set_prompt',
+      verb: 'apply',
       status: 'done',
       payload: { value: '夜景 + 霓虹' },
       inverse: { tool: 'set_prompt', payload: { value: '夜景' } },

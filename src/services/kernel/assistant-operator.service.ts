@@ -26,24 +26,32 @@ import {
   ASSISTANT_OPERATOR_REJECT_REASON_IDS as REJECT,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS as STATUS,
   ASSISTANT_OPERATOR_STOP_REASONS,
+  ASSISTANT_OPERATOR_ENTRY_ACTIONS,
+  ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN,
+  ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS,
+  ASSISTANT_OPERATOR_ENTRY_TOOLS,
+  ASSISTANT_OPERATOR_ENTRY_TOOL_IDS as ENTRY,
   ASSISTANT_OPERATOR_TOOL_HINTS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
-  ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN,
+  ASSISTANT_OPERATOR_TOOL_VERBS,
+  ASSISTANT_OPERATOR_TOOLS,
   ASSISTANT_OPERATOR_VERDICT_SEVERITIES,
   ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS as SEVERITY,
   ASSISTANT_OPERATOR_WRITE_MODES,
   type AssistantOperatorVerdictSeverity,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
-  ASSISTANT_PLAN_CARD_MIN_STEPS,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   ASSISTANT_RESEARCH_SCOPE_IDS,
   ASSISTANT_WORKING_MEMORY as MEMORY_LIMITS,
   GENERATION_REVIEW_STATE_IDS as REVIEW,
+  assistantOperatorEntryToolsInDomain,
+  isAssistantOperatorEntryTool,
   isAssistantOperatorToolInDomain,
   isUnfinishedClosingMessage,
   type AssistantOperatorConfirmChoice,
   type AssistantOperatorConfirmField,
   type AssistantOperatorDomain,
+  type AssistantOperatorEntryTool,
   type AssistantOperatorReferenceSlot,
   type AssistantOperatorRejectReason,
   type AssistantOperatorSearchKind,
@@ -220,10 +228,12 @@ import {
 import { logger } from '@/lib/logger'
 import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
+  ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS,
   AssistantOperatorCritiqueSchema,
   AssistantOperatorVideoCritiqueSchema,
   AssistantOperatorStepSchema,
   AssistantOperatorTurnSchema,
+  type AssistantOperatorAskArgs,
   type AssistantOperatorCritique,
   type AssistantOperatorVideoCritique,
   type AssistantOperatorEvent,
@@ -575,6 +585,88 @@ type ToolPlan =
       question: string
       options: { id: string; label: string; assetUrl: string }[]
     }
+
+/**
+ * **把入口工具拆成组内那一支**（v2 §2.1 / §2.2）。
+ *
+ * 模型写的是 `{"name":"apply","args":{"action":"set_prompt","value":"…"}}`，
+ * 而引擎从这一行往下**一个字都没变**：域闸、入参 schema、`inverse`、撤销、
+ * 重复护栏全都还认那 31 条旧工具（v2 §0：收的是模型看得见的表，不拆引擎）。
+ *
+ * ⚠ 三种失败各有**各自的下一句话**，⛔ 别合并成一句「参数不对」：
+ *  · 写了旧工具名 → 那条工具真实存在，只是退到入口后面去了 → 告诉它入口叫什么；
+ *  · 写了入口但 `action` 不在枚举里 → 把这个入口下能选的那几个原样列给它；
+ *  · 名字压根不认识 → 把五个入口列一遍。
+ * 前两种模型改一个词就能自己走通，合并成一句之后它只能瞎猜。
+ */
+type EntryUnwrap =
+  | { ok: true; tool: AssistantOperatorTool; args: unknown }
+  | { ok: true; ask: AssistantOperatorAskArgs }
+  | { ok: false; legacyTool?: AssistantOperatorTool; observation: string }
+
+function unwrapEntryToolCall(name: string, rawArgs: unknown): EntryUnwrap {
+  if (!isAssistantOperatorEntryTool(name)) {
+    /**
+     * 旧工具名直接调 —— 这是收口之后最常见的一次跑偏（模型的先验里全是旧名字）。
+     * ⚠ 回一条**指得出路的**观察：它下一轮该写哪个入口、`action` 填什么。
+     */
+    if ((ASSISTANT_OPERATOR_TOOLS as readonly string[]).includes(name)) {
+      const legacyTool = name as AssistantOperatorTool
+      const entry = ASSISTANT_OPERATOR_TOOL_VERBS[legacyTool]
+      return {
+        ok: false,
+        legacyTool,
+        observation: `"${legacyTool}" is not a tool you can call directly any more. Call "${entry}" with {"action":"${legacyTool}", …the same arguments}. There are only five tools: ${ASSISTANT_OPERATOR_ENTRY_TOOLS.join(' / ')}.`,
+      }
+    }
+    return {
+      ok: false,
+      observation: `"${name}" is not one of your tools. You have exactly five: ${ASSISTANT_OPERATOR_ENTRY_TOOLS.join(' / ')}. Pick the one whose verb matches what you are about to do, and put the specific move in "action".`,
+    }
+  }
+
+  const entry: AssistantOperatorEntryTool = name
+  /**
+   * ⚠ **两个名字撞车**：`research` 与 `request_generation` 既是入口名也是组内旧
+   * 工具名。模型漏写 `action` 时这一支救得回来，而且**没有歧义** —— 那个入口下
+   * 只可能指它自己那条同名工具。⛔ 别把这条推广到别的入口：`apply` 漏了 action
+   * 是真的不知道要改哪颗旋钮，该拒。
+   */
+  const entryArgs =
+    rawArgs &&
+    typeof rawArgs === 'object' &&
+    !('action' in rawArgs) &&
+    (ASSISTANT_OPERATOR_TOOLS as readonly string[]).includes(entry)
+      ? { ...(rawArgs as Record<string, unknown>), action: entry }
+      : rawArgs
+  const parsed =
+    ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS[entry].safeParse(entryArgs)
+  if (!parsed.success) {
+    if (entry === ENTRY.ask) {
+      return {
+        ok: false,
+        observation: `"ask" was refused: ${parsed.error.issues
+          .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
+          .join(
+            '; ',
+          )}. Ask ONE question with ${PLAN_LIMITS.minOptions}-${PLAN_LIMITS.maxOptions} options, each carrying a one-line description.`,
+      }
+    }
+    return {
+      ok: false,
+      observation: `"${entry}" needs an "action" from this list: ${ASSISTANT_OPERATOR_ENTRY_ACTIONS[entry].join(', ')}. You sent something else, so nothing ran.`,
+    }
+  }
+
+  if (entry === ENTRY.ask) {
+    return { ok: true, ask: parsed.data as AssistantOperatorAskArgs }
+  }
+
+  const { action, ...args } = parsed.data as {
+    action: AssistantOperatorTool
+  } & Record<string, unknown>
+  return { ok: true, tool: action, args }
+}
 
 function reject(
   reason: AssistantOperatorRejectReason,
@@ -4440,8 +4532,24 @@ function buildOperatorSystemPrompt(
    * 视频档上看得见 `set_count`，模型就会去试，而每一步都是一次完整的 LLM 往返，
    * 一轮总共只有 `maxSteps` 步。
    */
-  const tools = ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[request.domain]
-    .map((tool) => `  - ${tool}: ${ASSISTANT_OPERATOR_TOOL_HINTS[tool]}`)
+  const tools = assistantOperatorEntryToolsInDomain(request.domain)
+    .map((entry) => {
+      const actions =
+        ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN[request.domain][entry]
+      /**
+       * ⚠ `ask` 的枚举是空的（组内没有旧工具）—— 它的形状写在 OUTPUT 那一段的
+       * 例子里，这里只留那一句「什么时候用它」。
+       */
+      const table = actions.length
+        ? `\n    "action" is one of:\n${actions
+            .map(
+              (tool) =>
+                `      · ${tool} — ${ASSISTANT_OPERATOR_TOOL_HINTS[tool]}`,
+            )
+            .join('\n')}`
+        : ''
+      return `  - ${entry}: ${ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS[entry]}${table}`
+    })
     .join('\n')
   /**
    * 域简报的另一半（`ASSISTANT_DOMAIN_BRIEFS[...].slots`）：**这个域收敛前要问清
@@ -4530,6 +4638,8 @@ ${slots}
 
 You do not tell the creator which buttons to press — you press them. Every turn you either call ONE tool or finish.
 
+YOU HAVE FIVE TOOLS, one per verb: look / research / ask / apply / request_generation. Pick the verb that matches what you are about to do, and name the specific move in "action" — every rule below that mentions a move like set_prompt, search_web or mount_reference means that "action" value, never a tool name of its own.
+
 HARD RULES — these are structural, not stylistic:
 - You CANNOT generate anything. No tool of yours spends the creator's credits. The most you can do is prime_generate, which arms the button; the creator presses it. Never claim you generated, rendered, or started anything.
 - You may only touch knobs that exist on this workbench. The state block tells you which ones exist; a field described as absent has no control behind it, and calling its tool will be refused.
@@ -4564,7 +4674,11 @@ TOOLS:
 ${tools}
 
 OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outside it, no code fence:
-{"plan":["short step","short step"],"tool":{"name":"set_prompt","title":"one short line for the log","reason":"why, in one line","args":{"value":"..."}},"message":"what you are telling the creator","detail":"the reasoning, if it is worth reading","finished":false}
+{"plan":["short step","short step"],"tool":{"name":"apply","title":"one short line for the log","reason":"why, in one line","args":{"action":"set_prompt","value":"..."}},"message":"what you are telling the creator","detail":"the reasoning, if it is worth reading","finished":false}
+
+- "tool"."name" is ALWAYS one of the five verbs. Everything else about the call goes in "args": "action" says which move, and the rest of "args" is that move's own arguments, flat beside it. Writing a move's name in "name" is refused and costs you a step.
+- ASKING is a tool call too: {"tool":{"name":"ask","args":{"question":"Which look are you after?","header":"Look","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}}}. It ENDS your turn: the app shows the question and waits for their tap. Use it only when their words genuinely fit two or more clearly different jobs; when you can guess at eight in ten, just do it and say in your reply which reading you went with. One question at a time.
+- "confirmPlan":true on your FIRST turn when what you are about to do is a run the creator would want to green-light first — a string of moves, or one that writes over something of theirs. The app shows the plan and waits. Leave it out otherwise; a card in front of a single obvious edit is pure interruption.
 
 - "plan" only on your FIRST turn, at most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
 ${
@@ -5160,6 +5274,7 @@ export async function* runAssistantOperator(
           id: `step-${run.stepSeq}`,
           tool: TOOL.analyzeReferences,
           title: TOOL.analyzeReferences,
+          verb: ASSISTANT_OPERATOR_TOOL_VERBS[TOOL.analyzeReferences],
         }
         yield toStepEvent({
           ...step,
@@ -5353,14 +5468,12 @@ export async function* runAssistantOperator(
             /**
              * **多步确认**（§3.3 第一种来源）—— 判在服务端。
              *
-             * ⚠ v1 这一判在客户端（`shouldShowPlanCard`），判据里的三样东西
-             * （出卡理由 / 待定项 / 预估）v2 只剩下一样，判据没有留在客户端的
-             * 理由了。⚠ 「先问我」（`forcePlan`）照旧无条件拦。
+             * ⚠ **模型判，不设死阈值**（决策 4）：步数答不了用户真正在问的那件事
+             * ——「它接下来要做的事里，有没有一步是我不想让它自己做的」。模型把
+             * `confirmPlan` 写成 true 才出卡，⛔ 服务端不按步数补判。
+             * ⚠ 「先问我」（`forcePlan`）照旧无条件拦。
              */
-            if (
-              request.forcePlan === true ||
-              steps.length >= ASSISTANT_PLAN_CARD_MIN_STEPS
-            ) {
+            if (request.forcePlan === true || turn.confirmPlan === true) {
               yield {
                 type: ASSISTANT_OPERATOR_EVENTS.confirm,
                 confirm: {
@@ -5473,12 +5586,69 @@ export async function* runAssistantOperator(
         return
       }
 
-      const { name, title, reason, args } = turn.tool
+      const { name: rawToolName, title, reason, args: rawToolArgs } = turn.tool
+
+      /**
+       * ⭐ **拆入口**（v2 §2.1）—— 模型只写了五个动词之一，组内哪一支由 `action` 定。
+       * 拆完之后 `name` / `args` 与 v1 逐字同义，往下每一道闸都不知道入口存在过。
+       */
+      const unwrapped = unwrapEntryToolCall(rawToolName, rawToolArgs)
+      if (!unwrapped.ok) {
+        /**
+         * ⚠ 旧工具名那一支**出一条被拒的步**（它是真工具，拒得出一条合法的帧），
+         * 别的写法只留观察 —— 一个不存在的工具名塞不进 `step.tool` 的值域。
+         */
+        if (unwrapped.legacyTool) {
+          run.stepSeq += 1
+          yield toStepEvent({
+            id: `step-${run.stepSeq}`,
+            title: title ?? unwrapped.legacyTool,
+            verb: ASSISTANT_OPERATOR_TOOL_VERBS[unwrapped.legacyTool],
+            tool: unwrapped.legacyTool,
+            status: STATUS.error,
+            error: {
+              reason: REJECT.noSuchControl,
+              detail: unwrapped.observation,
+            },
+          })
+        }
+        run.observations.push(unwrapped.observation)
+        continue
+      }
+
+      /**
+       * **反问**（v2 §3.4，决策 4）—— `ask` 组里没有旧工具，入口自己就是终点：
+       * 吐一帧问题卡、停流，客户端答完带 `planAnswers` 重发。形态与覆盖三选
+       * 逐字同构，⛔ 服务端照旧一个挂起态都没有。
+       */
+      if ('ask' in unwrapped) {
+        const [question] = normalizePlanQuestions(
+          { questions: [unwrapped.ask] },
+          clerkId,
+        )
+        if (!question) {
+          run.observations.push(
+            `ask was REFUSED: after dropping options without a description, fewer than ${PLAN_LIMITS.minOptions} were left. Every option needs a one-line description saying what that choice actually does.`,
+          )
+          continue
+        }
+        yield { type: ASSISTANT_OPERATOR_EVENTS.ask, question }
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+        }
+        completed = true
+        return
+      }
+
+      const { tool: name, args } = unwrapped
       run.stepSeq += 1
       const base = {
         id: `step-${run.stepSeq}`,
         // 模型没写标题就用工具名兜底 —— 少一个装饰字段不值得作废一整步。
         title: title ?? name,
+        /** 五动词那一等字段（v2 §3.1）—— 每一条 step 都从这里带出去。 */
+        verb: ASSISTANT_OPERATOR_TOOL_VERBS[name],
         ...(reason ? { reason } : {}),
       }
 
@@ -5726,7 +5896,7 @@ export async function* runAssistantOperator(
  *   关掉它要模型明写。
  */
 function normalizePlanQuestions(
-  turn: AssistantOperatorTurn,
+  turn: Pick<AssistantOperatorTurn, 'questions'>,
   clerkId: string,
 ): AssistantOperatorPlanQuestion[] {
   const out: AssistantOperatorPlanQuestion[] = []

@@ -152,6 +152,7 @@ describe('applyOperatorStep', () => {
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+      verb: 'apply',
       payload: { aspectRatio: '3:4', resolution: '2K' },
       inverse: { aspectRatio: '1:1', resolution: 'auto' },
     } satisfies AssistantOperatorAppliedStep
@@ -171,6 +172,7 @@ describe('applyOperatorStep', () => {
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+      verb: 'apply',
       payload: {
         aspectRatio: '1:1',
         resolution: '2K',
@@ -205,6 +207,7 @@ describe('applyOperatorStep', () => {
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+      verb: 'apply',
       payload: { aspectRatio: '5:7', resolution: '8K' },
       inverse: { aspectRatio: '1:1', resolution: 'auto' },
     } satisfies AssistantOperatorAppliedStep
@@ -218,6 +221,7 @@ describe('applyOperatorStep', () => {
     const appendStep = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      verb: 'apply',
       payload: { value: 'PVC 材质', mode: 'append' },
       inverse: { value: '手办质感的立绘' },
     } satisfies AssistantOperatorAppliedStep
@@ -239,6 +243,7 @@ describe('applyOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        verb: 'apply',
         payload: { value: '第一句', mode: 'append' },
         inverse: { value: '' },
       } satisfies AssistantOperatorAppliedStep,
@@ -254,6 +259,7 @@ describe('applyOperatorStep', () => {
         {
           ...BASE,
           tool: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+          verb: 'apply',
           payload: { modelId: 'ghost-model' },
           inverse: { modelId: null },
         } satisfies AssistantOperatorAppliedStep,
@@ -269,6 +275,7 @@ describe('applyOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+        verb: 'apply',
         payload: { count: 3 },
         inverse: { count: 1 },
       } satisfies AssistantOperatorAppliedStep,
@@ -280,6 +287,7 @@ describe('applyOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+        verb: 'apply',
         payload: { count: 4 },
         inverse: { count: 1 },
       } satisfies AssistantOperatorAppliedStep,
@@ -295,6 +303,7 @@ describe('applyOperatorStep', () => {
         {
           ...BASE,
           tool: ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+          verb: 'request_generation',
           payload: { primed: true },
           inverse: { primed: false },
         } satisfies AssistantOperatorAppliedStep,
@@ -330,6 +339,7 @@ describe('applyOperatorStep', () => {
         {
           ...BASE,
           tool: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+          verb: 'request_generation',
           payload,
         } satisfies AssistantOperatorAppliedStep,
         ctx,
@@ -351,6 +361,7 @@ describe('applyOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+        verb: 'request_generation',
         payload: {
           model: { id: 'seedream-4', label: 'Seedream 4' },
           count: 1,
@@ -372,6 +383,7 @@ describe('applyOperatorStep', () => {
         {
           ...BASE,
           tool: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+          verb: 'request_generation',
           payload: {
             model: { id: 'seedream-4', label: 'Seedream 4' },
             count: 1,
@@ -395,6 +407,7 @@ describe('applyOperatorStep', () => {
         {
           ...BASE,
           tool: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          verb: 'look',
           payload: {},
           result: { digest: '…' },
         } satisfies AssistantOperatorAppliedStep,
@@ -412,6 +425,7 @@ describe('revertOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        verb: 'apply',
         payload: { value: 'PVC 材质', mode: 'append' },
         inverse: { value: '手办质感的立绘' },
       } satisfies AssistantOperatorAppliedStep,
@@ -428,6 +442,7 @@ describe('revertOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setNegative,
+        verb: 'apply',
         payload: { value: '布料褶皱', mode: 'replace' },
         inverse: { value: '' },
       } satisfies AssistantOperatorAppliedStep,
@@ -443,6 +458,7 @@ describe('revertOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+        verb: 'apply',
         payload: { modelId: 'known-model' },
         inverse: { modelId: null },
       } satisfies AssistantOperatorAppliedStep,
@@ -456,6 +472,7 @@ describe('revertOperatorStep', () => {
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
+      verb: 'apply',
       payload: {
         assetId: 'asset-1',
         url: 'https://cdn.example.com/a.png',
@@ -485,6 +502,7 @@ describe('revertOperatorStep', () => {
       const step = {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
+        verb: 'apply',
         payload: {
           assetId: 'asset-1',
           url: 'https://cdn.example.com/a.mp4',
@@ -506,6 +524,7 @@ describe('revertOperatorStep', () => {
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
+      verb: 'apply',
       payload: { durationSeconds: 10, aspectRatio: '9:16', resolution: '720p' },
       inverse: { durationSeconds: 5, aspectRatio: '1:1', resolution: null },
     } satisfies AssistantOperatorAppliedStep
@@ -524,6 +543,7 @@ describe('revertOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
+        verb: 'apply',
         // `2K` 是图片档的清晰度档位，视频档只认 480p/540p/720p/1080p/2k。
         payload: { durationSeconds: null, aspectRatio: null, resolution: '2K' },
         inverse: {
@@ -545,6 +565,7 @@ describe('revertOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
+        verb: 'apply',
         payload: {
           durationSeconds: 10,
           aspectRatio: '9:16',
@@ -566,6 +587,7 @@ describe('revertOperatorStep', () => {
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
+      verb: 'apply',
       payload: {
         assetId: 'gen-audio-1',
         url: 'https://cdn.example.com/line.mp3',
@@ -597,6 +619,7 @@ describe('revertOperatorStep', () => {
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.setSound,
+      verb: 'apply',
       payload: { enabled: false },
       inverse: { enabled: null },
     } satisfies AssistantOperatorAppliedStep
@@ -615,6 +638,7 @@ describe('revertOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+        verb: 'request_generation',
         payload: { primed: true },
         inverse: { primed: false },
       } satisfies AssistantOperatorAppliedStep,
@@ -636,6 +660,7 @@ describe('revertOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+        verb: 'request_generation',
         payload: { primed: true, label: '银发少女立绘' },
         inverse: { primed: false },
       } satisfies AssistantOperatorAppliedStep,
@@ -648,6 +673,7 @@ describe('revertOperatorStep', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+        verb: 'request_generation',
         payload: {
           model: { id: 'seedream-4', label: 'Seedream 4' },
           count: 1,
@@ -665,6 +691,7 @@ describe('revertOperatorStep', () => {
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+      verb: 'apply',
       payload: { assetId: 'gen-9', state: 'blocked', reason: '手指糊了' },
       inverse: { assetId: 'gen-9', state: 'pending' },
     } satisfies AssistantOperatorAppliedStep
@@ -684,6 +711,7 @@ describe('getOperatorStepField / describeOperatorInverse', () => {
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+      verb: 'apply',
       payload: { aspectRatio: '3:4', resolution: '2K' },
       inverse: { aspectRatio: '16:9', resolution: '1K' },
     } satisfies AssistantOperatorAppliedStep
@@ -696,6 +724,7 @@ describe('getOperatorStepField / describeOperatorInverse', () => {
       getOperatorStepField({
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+        verb: 'request_generation',
         payload: { primed: true },
         inverse: { primed: false },
       } satisfies AssistantOperatorAppliedStep),
@@ -708,6 +737,7 @@ describe('getOperatorStepField / describeOperatorInverse', () => {
         id: 'step-2',
         title: '换模型',
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+        verb: 'apply',
         status: 'error',
         error: { reason: 'unknownModel' },
       }),
@@ -725,6 +755,7 @@ describe('import_user_url（拍板 22）', () => {
   const STEP = {
     ...BASE,
     tool: ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl,
+    verb: 'apply',
     payload: {
       url: 'https://upload.wikimedia.org/wikipedia/commons/a/a1/E.jpg',
       domain: 'upload.wikimedia.org',
@@ -777,6 +808,7 @@ describe('钱闸', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+        verb: 'request_generation',
         payload: { primed: true },
         inverse: { primed: false },
       } satisfies AssistantOperatorAppliedStep,
@@ -876,6 +908,7 @@ function mountLoraStep(): AssistantOperatorAppliedStep {
   return {
     ...BASE,
     tool: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+    verb: 'apply',
     payload: {
       candidateId: 'civitai:12345:67890',
       name: 'Watercolor Storybook',
@@ -898,6 +931,7 @@ describe('LoRA 装配台的三条改动型（P4-C）', () => {
       getOperatorStepField({
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
+        verb: 'apply',
         payload: { loraId: 'lora-1', name: 'Ink Lines' },
         inverse: { loraId: 'lora-1', weight: 0.8 },
       } as unknown as AssistantOperatorAppliedStep),
@@ -906,6 +940,7 @@ describe('LoRA 装配台的三条改动型（P4-C）', () => {
       getOperatorStepField({
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+        verb: 'apply',
         payload: { loraId: 'lora-1', name: 'Ink Lines', weight: 1.2 },
         inverse: { loraId: 'lora-1', weight: 0.8 },
       } as unknown as AssistantOperatorAppliedStep),
@@ -918,6 +953,7 @@ describe('LoRA 装配台的三条改动型（P4-C）', () => {
       {
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+        verb: 'research',
         payload: { query: 'watercolor', limit: 6 },
         result: { totalFound: 0, candidates: [], sources: [] },
       } as unknown as AssistantOperatorAppliedStep,
@@ -956,6 +992,7 @@ describe('LoRA 装配台的三条改动型（P4-C）', () => {
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
+      verb: 'apply',
       payload: { loraId: 'lora-1', name: 'Ink Lines' },
       inverse: { loraId: 'lora-1', weight: 0.8 },
     } as unknown as AssistantOperatorAppliedStep
@@ -972,6 +1009,7 @@ describe('LoRA 装配台的三条改动型（P4-C）', () => {
     const step = {
       ...BASE,
       tool: ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+      verb: 'apply',
       payload: { loraId: 'lora-1', name: 'Ink Lines', weight: 1.2 },
       inverse: { loraId: 'lora-1', weight: 0.8 },
     } as unknown as AssistantOperatorAppliedStep
@@ -1004,6 +1042,7 @@ describe('LoRA 装配台的三条改动型（P4-C）', () => {
       describeOperatorInverse({
         ...BASE,
         tool: ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+        verb: 'apply',
         payload: { loraId: 'lora-1', name: 'Ink Lines', weight: 1.2 },
         inverse: { loraId: 'lora-1', weight: 0.8 },
       } as unknown as AssistantOperatorAppliedStep),

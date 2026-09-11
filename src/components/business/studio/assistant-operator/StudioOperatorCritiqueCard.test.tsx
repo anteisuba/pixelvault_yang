@@ -55,6 +55,7 @@ const STEP: DoneCritiqueStep = {
   title: '看看刚出的那张',
   status: 'done',
   tool: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+  verb: 'look',
   payload: IMAGE_PAYLOAD,
   result: {
     findings: [

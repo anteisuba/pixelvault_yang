@@ -29,6 +29,7 @@ const RUNNING: AssistantOperatorAppliedStep = {
   title: '换模型',
   status: 'running',
   tool: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+  verb: 'apply',
   payload: { modelId: 'gpt-image-2' },
   inverse: { modelId: null },
 }
@@ -97,6 +98,7 @@ describe('改动登记簿', () => {
     title: '写提示词',
     status: 'done',
     tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+    verb: 'apply',
     payload: { value: '第一版', mode: 'replace' },
     inverse: { value: '用户手写的原文' },
   }

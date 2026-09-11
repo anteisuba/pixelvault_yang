@@ -252,6 +252,7 @@ describe('配置快照与刷新恢复', () => {
         step: {
           id: '1',
           tool: 'set_prompt',
+          verb: 'apply',
           title: 'prompt',
           status: 'done',
           payload: { value: saved!.form.prompt, mode: 'replace' },

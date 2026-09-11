@@ -57,7 +57,6 @@ import {
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
-  ASSISTANT_OPERATOR_TOOL_VERBS,
   ASSISTANT_OPERATOR_VERB_IDS,
 } from '@/constants/assistant-operator'
 import {
@@ -662,8 +661,8 @@ export function StudioOperatorPanel({
    * **加载态那一句状态词**（v2 §3.6）—— 头像旁一行小字，不转圈、不用骨架屏。
    *
    * ⭐ 五个动词各一句（正在看图… / 正在查 N 个来源… / 正在想问题… / 正在改参数… /
-   * 正在准备生成…）。⚠ 动词此刻按**工具**反查（`ASSISTANT_OPERATOR_TOOL_VERBS`）：
-   * `step` 帧上那个必填 `verb` 是下一片的事，那之后这里直接读它。
+   * 正在准备生成…）。⚠ 动词**直接读 `step.verb`**（v2 §3.1 那个必填的一等字段），
+   * ⛔ 不再按工具名反查对照表 —— 反查那版和工具表漏同步时，屏幕上一个字都没有。
    * ⚠ 「查 N 个来源」的 N 数的是**这一轮已经跑完的检索步**：它就是进度本身
    * （决策 14 删掉进度带的全部理由）—— ⛔ 别拿计划步数去填，那是另一个数。
    * ⚠ 抽帧那一段压过状态词：它跑在请求发出去之前，一步都还没有，而实测要几秒
@@ -681,16 +680,12 @@ export function StudioOperatorPanel({
       (entry) =>
         entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
     )
-    const verb = running
-      ? ASSISTANT_OPERATOR_TOOL_VERBS[running.step.tool]
-      : null
+    const verb = running ? running.step.verb : null
     if (!verb) return t('status.thinking')
     if (verb === ASSISTANT_OPERATOR_VERB_IDS.research) {
       return t('status.research', {
         count: runSteps.filter(
-          (entry) =>
-            ASSISTANT_OPERATOR_TOOL_VERBS[entry.step.tool] ===
-            ASSISTANT_OPERATOR_VERB_IDS.research,
+          (entry) => entry.step.verb === ASSISTANT_OPERATOR_VERB_IDS.research,
         ).length,
       })
     }

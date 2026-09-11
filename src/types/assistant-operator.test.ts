@@ -4,6 +4,12 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
+  ASSISTANT_OPERATOR_DOMAINS,
+  ASSISTANT_OPERATOR_ENTRY_ACTIONS,
+  ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN,
+  ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS,
+  ASSISTANT_OPERATOR_ENTRY_TOOL_IDS,
+  ASSISTANT_OPERATOR_ENTRY_TOOLS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_MUTATING_TOOLS,
@@ -16,6 +22,11 @@ import {
   ASSISTANT_OPERATOR_TOOL_HINTS,
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOLS,
+  ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN,
+  ASSISTANT_OPERATOR_TOOL_VERBS,
+  ASSISTANT_OPERATOR_VERBS,
+  assistantOperatorEntryToolsInDomain,
+  isAssistantOperatorEntryTool,
   isMutatingAssistantOperatorTool,
   isRevertibleAssistantOperatorTool,
   isSpendAssistantOperatorTool,
@@ -23,7 +34,9 @@ import {
 } from '@/constants/assistant-operator'
 import { ASSISTANT_STREAM_EVENTS } from '@/constants/assistant-stream'
 import {
+  ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS,
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
+  AssistantOperatorAskArgsSchema,
   AssistantOperatorEventSchema,
   AssistantOperatorRequestSchema,
   AssistantOperatorSnapshotSchema,
@@ -478,6 +491,8 @@ function buildStep(tool: AssistantOperatorTool, omitInverse = false) {
     id: `step-${tool}`,
     title: 'a title',
     tool,
+    // ⚠ v2 §3.1：`verb` 是 step 帧上的必填一等字段，服务端按工具归属填。
+    verb: ASSISTANT_OPERATOR_TOOL_VERBS[tool],
     status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
     payload: fixture.payload,
     ...(fixture.result === undefined ? {} : { result: fixture.result }),
@@ -588,6 +603,158 @@ describe('操作员工具表', () => {
   })
 })
 
+/**
+ * **五个入口工具**（v2 §2.1 / §2.2，commit #5）—— 模型只见这五条，31 条旧工具
+ * 退到入口背后由代码按 `action` 派发。
+ */
+describe('五动词入口', () => {
+  it('⭐ 入口恰好五个，且名字与动词表逐字相同（§2.4 对齐）', () => {
+    expect([...ASSISTANT_OPERATOR_ENTRY_TOOLS]).toEqual([
+      ...ASSISTANT_OPERATOR_VERBS,
+    ])
+    expect(Object.keys(ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS).sort()).toEqual(
+      [...ASSISTANT_OPERATOR_ENTRY_TOOLS].sort(),
+    )
+    for (const entry of ASSISTANT_OPERATOR_ENTRY_TOOLS) {
+      expect(isAssistantOperatorEntryTool(entry)).toBe(true)
+      expect(ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS[entry].length).toBeGreaterThan(
+        20,
+      )
+    }
+    expect(isAssistantOperatorEntryTool('set_prompt')).toBe(false)
+  })
+
+  /**
+   * ⭐ **31 条全部有归属**（§2.1 映射表的完成判据）—— 断的是集合相等而不是
+   * 「都在」：后者放得过一条同时挂在两个入口下的工具，而那意味着模型有两条路
+   * 去动同一颗旋钮。
+   */
+  it('⭐ 五个入口的 action 枚举合起来恰好是全部工具，且两两不重叠', () => {
+    const all = ASSISTANT_OPERATOR_ENTRY_TOOLS.flatMap(
+      (entry) => ASSISTANT_OPERATOR_ENTRY_ACTIONS[entry],
+    )
+    expect([...all].sort()).toEqual([...ASSISTANT_OPERATOR_TOOLS].sort())
+    expect(new Set(all).size).toBe(all.length)
+    // `ask` 组里没有旧工具：反问的形状写在入口自己的 schema 里。
+    expect(
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask],
+    ).toEqual([])
+  })
+
+  it('audio 两条列进 apply，且 ⛔ 没有多出一个 audio 域（§2.3）', () => {
+    expect(
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply],
+    ).toEqual(
+      expect.arrayContaining([
+        ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
+        ASSISTANT_OPERATOR_TOOL_IDS.setSound,
+      ]),
+    )
+    expect([...ASSISTANT_OPERATOR_DOMAINS]).not.toContain('audio')
+  })
+
+  it('每个入口的 action 收窄到自己那一组 —— 跨组串门当场拒', () => {
+    const look =
+      ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look
+      ]
+    expect(
+      look.safeParse({ action: ASSISTANT_OPERATOR_TOOL_IDS.readState }).success,
+    ).toBe(true)
+    expect(
+      look.safeParse({ action: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt }).success,
+    ).toBe(false)
+    expect(look.safeParse({}).success).toBe(false)
+  })
+
+  /**
+   * ⚠ `action` 之外的参数在这一层是**放行**的：真正的值域校验照旧由
+   * `ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[action]` 在规划器里跑，⛔ 不复制第二份。
+   */
+  it('apply 收下 action 并把其余参数原样带下去（值域校验留给规划器）', () => {
+    const parsed = ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS[
+      ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply
+    ].safeParse({
+      action: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+      aspectRatio: '21:9',
+      resolution: '8K',
+    })
+    expect(parsed.success).toBe(true)
+    expect(parsed.data).toMatchObject({ aspectRatio: '21:9', resolution: '8K' })
+  })
+
+  it('ask 的形状写在入口自己身上：一道题 + 带说明的选项', () => {
+    const ok = AssistantOperatorAskArgsSchema.safeParse({
+      question: '要哪一路画风？',
+      options: [
+        { label: '写实', description: '照片那一路' },
+        { label: '插画', description: '手绘那一路' },
+      ],
+    })
+    expect(ok.success).toBe(true)
+    expect(
+      AssistantOperatorAskArgsSchema.safeParse({ options: [] }).success,
+    ).toBe(false)
+  })
+
+  /**
+   * ⭐ **域裁剪裁的是枚举值，不是工具条目**（§2.2 ⛔ 那一条）。
+   */
+  it('⭐ 域裁剪落在 action 枚举上：视频档有音频两条与 set_video_specs，没有 set_count', () => {
+    const video =
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN.video[
+        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply
+      ]
+    expect(video).toEqual(
+      expect.arrayContaining([
+        ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
+        ASSISTANT_OPERATOR_TOOL_IDS.setSound,
+        ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
+      ]),
+    )
+    expect(video).not.toContain(ASSISTANT_OPERATOR_TOOL_IDS.setCount)
+    expect(video).not.toContain(ASSISTANT_OPERATOR_TOOL_IDS.setSpecs)
+
+    const image =
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN.image[
+        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply
+      ]
+    expect(image).toEqual(
+      expect.arrayContaining([
+        ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+        ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+      ]),
+    )
+    expect(image).not.toContain(ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs)
+    expect(image).not.toContain(ASSISTANT_OPERATOR_TOOL_IDS.setSound)
+  })
+
+  it('每个域的 action 枚举都是该域工具表的另一种切法', () => {
+    for (const domain of ASSISTANT_OPERATOR_DOMAINS) {
+      const flat = ASSISTANT_OPERATOR_ENTRY_TOOLS.flatMap(
+        (entry) => ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN[domain][entry],
+      )
+      expect([...flat].sort()).toEqual(
+        [...ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[domain]].sort(),
+      )
+    }
+  })
+
+  /** ⚠ 枚举空掉的入口不列进提示；`ask` 永远在（它不依赖任何一颗旋钮）。 */
+  it('枚举空掉的入口不出现在这个域里，ask 永远在', () => {
+    for (const domain of ASSISTANT_OPERATOR_DOMAINS) {
+      const entries = assistantOperatorEntryToolsInDomain(domain)
+      expect(entries).toContain(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask)
+      for (const entry of ASSISTANT_OPERATOR_ENTRY_TOOLS) {
+        const actions =
+          ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN[domain][entry]
+        if (entry === ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask) continue
+        expect(entries.includes(entry)).toBe(actions.length > 0)
+      }
+    }
+  })
+})
+
 describe('step 契约 · inverse 完备性', () => {
   it('每个工具的合法 step 都能通过校验', () => {
     for (const tool of ASSISTANT_OPERATOR_TOOLS) {
@@ -628,6 +795,9 @@ describe('step 契约 · inverse 完备性', () => {
       id: 'step-1',
       title: 'searching',
       tool: ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+      verb: ASSISTANT_OPERATOR_TOOL_VERBS[
+        ASSISTANT_OPERATOR_TOOL_IDS.searchAssets
+      ],
       status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
       payload: { query: 'x', kind: null, limit: 6 },
     })
@@ -647,6 +817,7 @@ describe('step 契约 · inverse 完备性', () => {
       id: 'step-9',
       title: 'switch model',
       tool: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+      verb: ASSISTANT_OPERATOR_TOOL_VERBS[ASSISTANT_OPERATOR_TOOL_IDS.setModel],
       status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
       error: {
         reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownModel,
@@ -656,11 +827,45 @@ describe('step 契约 · inverse 完备性', () => {
     expect(rejected.success).toBe(true)
   })
 
+  /**
+   * ⭐ **`verb` 必填**（v2 §3.1）—— 面板那句状态词直接读它。
+   *
+   * ⚠ v1 的面板靠「按工具名反查一张对照表」猜动词，漏同步的表现是「跑着一步而
+   * 头像旁边一个字都没有」。写成必填之后，服务端出帧那一刻就得说清楚它在干哪一类活。
+   */
+  it('⭐ step 缺 verb 必须校验失败（五句状态词直接读它）', () => {
+    for (const tool of ASSISTANT_OPERATOR_TOOLS) {
+      const withoutVerb: Record<string, unknown> = { ...buildStep(tool) }
+      delete withoutVerb.verb
+      expect(
+        AssistantOperatorStepSchema.safeParse(withoutVerb).success,
+        `${tool} 少了 verb 却通过了校验`,
+      ).toBe(false)
+    }
+  })
+
+  it('verb 是封闭词表 —— 写一个表外的词不给过', () => {
+    expect(
+      AssistantOperatorStepSchema.safeParse({
+        ...buildStep(ASSISTANT_OPERATOR_TOOL_IDS.setPrompt),
+        verb: 'think',
+      }).success,
+    ).toBe(false)
+  })
+
+  it('每条工具的 verb 与它所属入口的 action 枚举对得上', () => {
+    for (const tool of ASSISTANT_OPERATOR_TOOLS) {
+      const verb = ASSISTANT_OPERATOR_TOOL_VERBS[tool]
+      expect(ASSISTANT_OPERATOR_ENTRY_ACTIONS[verb]).toContain(tool)
+    }
+  })
+
   it('不认识的拒绝理由不给过 —— 词表是封闭的', () => {
     const parsed = AssistantOperatorStepSchema.safeParse({
       id: 'step-9',
       title: 'switch model',
       tool: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+      verb: ASSISTANT_OPERATOR_TOOL_VERBS[ASSISTANT_OPERATOR_TOOL_IDS.setModel],
       status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
       error: { reason: 'because-i-said-so' },
     })
@@ -936,12 +1141,58 @@ describe('模型这一轮写的东西（宽松层）', () => {
     expect(parsed.success).toBe(true)
   })
 
-  it('不认识的工具名当场拒 —— 值域校验只对**已知**工具留给规划器', () => {
+  /**
+   * ⚠ **工具名这一层故意不收窄**（v2 §2.1）：模型写了旧工具名或干脆编一个时，
+   * 它该读到一条**指得出路**的拒绝（「set_prompt 退到 apply 后面去了」），
+   * ⛔ 不是整轮 JSON 读不出来退化成一次白烧的重试。收窄发生在服务端拆入口那一跳
+   * （`unwrapEntryToolCall`），被拒的用例在 `assistant-operator.service.test.ts`。
+   */
+  it('工具名收 z.string() —— 旧名字 / 编出来的名字都先解析得出来，拒在服务端', () => {
+    for (const name of [
+      'generate_image',
+      ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+    ]) {
+      const parsed = AssistantOperatorTurnSchema.safeParse({
+        tool: { name, title: 'go', args: {} },
+      })
+      expect(parsed.success, `${name} 应该解析得出来`).toBe(true)
+      expect(parsed.data?.tool?.name).toBe(name)
+    }
+  })
+
+  /** 五动词那一行：模型写对了入口，`action` 与其余参数平铺在 `args` 里。 */
+  it('入口形状可解析：name 是动词，action 与参数平铺在 args 里', () => {
+    const parsed = AssistantOperatorTurnSchema.safeParse({
+      tool: {
+        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
+        title: 'write the prompt',
+        args: {
+          action: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          value: 'a girl under a red umbrella',
+        },
+      },
+    })
+    expect(parsed.success).toBe(true)
+  })
+
+  /**
+   * ⭐ **多步确认由模型判**（v2 §3.3 / 决策 4）—— `confirmPlan` 缺席 = 不出卡，
+   * ⛔ 服务端不按步数补判（那条死阈值常量已删）。
+   */
+  it('confirmPlan 是可选布尔 —— 缺席就是不出卡', () => {
     expect(
       AssistantOperatorTurnSchema.safeParse({
-        tool: { name: 'generate_image', title: 'go', args: {} },
-      }).success,
-    ).toBe(false)
+        plan: ['一', '二', '三'],
+        confirmPlan: true,
+        finished: true,
+      }).data?.confirmPlan,
+    ).toBe(true)
+    expect(
+      AssistantOperatorTurnSchema.safeParse({
+        plan: ['一', '二', '三'],
+        finished: true,
+      }).data?.confirmPlan,
+    ).toBeUndefined()
   })
 
   it('漏写标题 / args 给 null 都不作废整轮（每步都是一次 LLM 往返，别为装饰字段烧步）', () => {

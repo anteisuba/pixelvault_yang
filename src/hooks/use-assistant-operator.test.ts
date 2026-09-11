@@ -26,6 +26,7 @@ function doneStepEvent(id: string): AssistantOperatorEvent {
       id,
       title: '读了一眼当前状态',
       tool: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+      verb: 'look',
       status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
       payload: {},
       result: { digest: 'prompt: 海报' },

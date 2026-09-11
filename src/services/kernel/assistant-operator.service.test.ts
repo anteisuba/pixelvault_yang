@@ -198,6 +198,8 @@ vi.mock('@/services/context-cards.service', () => ({
 import {
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
+  ASSISTANT_OPERATOR_ENTRY_TOOL_IDS,
+  ASSISTANT_OPERATOR_ENTRY_TOOLS,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
@@ -205,7 +207,10 @@ import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  ASSISTANT_OPERATOR_TOOL_VERBS,
+  ASSISTANT_OPERATOR_TOOLS,
   ASSISTANT_RESEARCH_LIMITS,
+  isAssistantOperatorEntryTool,
 } from '@/constants/assistant-operator'
 import {
   ASSISTANT_PERSONA_DEFAULTS,
@@ -255,10 +260,50 @@ function buildRequest(
   }
 }
 
+/**
+ * 用例里写的是**旧工具名**（`{ name: 'set_prompt', args: {...} }`），这里替它包成
+ * v2 的入口形状（`{ name: 'apply', args: { action: 'set_prompt', ... } }`）。
+ *
+ * ⭐ 包在这一层而不是把 158 处 fixture 逐条改写：这些用例断言的是**每条工具自己
+ * 的行为**（值域、`inverse`、拒绝理由），入口只是模型写法的一层壳 —— 把壳抄进
+ * 每一条 fixture 只会让下一次协议微调再抄一遍。入口本身的行为（派发 / 枚举 /
+ * 旧名被拒）有它自己那一组用例，⛔ 那几条不走这个包装。
+ * ⚠ 已经写成入口形状的（`name` 是五个动词之一）原样放行。
+ */
+function wrapEntryToolCall(turn: unknown): unknown {
+  if (!turn || typeof turn !== 'object') return turn
+  const record = turn as Record<string, unknown>
+  const tool = record.tool
+  if (!tool || typeof tool !== 'object') return turn
+  const call = tool as Record<string, unknown>
+  const name = call.name
+  if (typeof name !== 'string') return turn
+  const args = (call.args as Record<string, unknown> | undefined) ?? {}
+  if (
+    (ASSISTANT_OPERATOR_ENTRY_TOOLS as readonly string[]).includes(name) &&
+    'action' in args
+  ) {
+    return turn
+  }
+  if (!(ASSISTANT_OPERATOR_TOOLS as readonly string[]).includes(name)) {
+    return turn
+  }
+  const legacyTool = name as (typeof ASSISTANT_OPERATOR_TOOLS)[number]
+  return {
+    ...record,
+    tool: {
+      ...call,
+      name: ASSISTANT_OPERATOR_TOOL_VERBS[legacyTool],
+      args: { action: legacyTool, ...args },
+    },
+  }
+}
+
 /** 模型按顺序吐出来的几轮回复。 */
 function queueTurns(...turns: unknown[]): void {
   mockLlmTextCompletion.mockReset()
-  for (const turn of turns) {
+  for (const raw of turns) {
+    const turn = wrapEntryToolCall(raw)
     mockLlmTextCompletion.mockResolvedValueOnce(
       typeof turn === 'string' ? turn : JSON.stringify(turn),
     )
@@ -2562,15 +2607,21 @@ describe('域工具表', () => {
     await collect(runAssistantOperator('clerk-1', buildVideoRequest()))
 
     const prompt = systemPrompt()
-    expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs)
-    expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference)
-    expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.setSound)
+    // ⚠ v2 §2.2：裁的是**入口的 action 枚举**，不是工具条目 —— 提示里每条以
+    //   `· <name> —` 出现在它那个动词底下。
+    expect(prompt).toContain(`· ${ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs} —`)
+    expect(prompt).toContain(
+      `· ${ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference} —`,
+    )
+    expect(prompt).toContain(`· ${ASSISTANT_OPERATOR_TOOL_IDS.setSound} —`)
     // ⭐ 看片评审（第二期）：视频档**现在有** critique_result —— 它吃的仍然是静态图
     //    （客户端抽的 0/中/末 三帧），⛔ 不是把 mp4 喂给视觉线。
-    expect(prompt).toContain(`- ${ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult}:`)
+    expect(prompt).toContain(
+      `· ${ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult} —`,
+    )
     // ⭐ 列全集的代价是实打实的：看得见就会去试，而一轮只有 maxSteps 步。
-    expect(prompt).not.toContain(`- ${ASSISTANT_OPERATOR_TOOL_IDS.setCount}:`)
-    expect(prompt).not.toContain(`- ${ASSISTANT_OPERATOR_TOOL_IDS.setSpecs}:`)
+    expect(prompt).not.toContain(`· ${ASSISTANT_OPERATOR_TOOL_IDS.setCount} —`)
+    expect(prompt).not.toContain(`· ${ASSISTANT_OPERATOR_TOOL_IDS.setSpecs} —`)
   })
 
   it('图片域的清单里没有视频那三条', async () => {
@@ -2578,14 +2629,14 @@ describe('域工具表', () => {
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
     const prompt = systemPrompt()
-    expect(prompt).toContain(`- ${ASSISTANT_OPERATOR_TOOL_IDS.setCount}:`)
+    expect(prompt).toContain(`· ${ASSISTANT_OPERATOR_TOOL_IDS.setCount} —`)
     expect(prompt).not.toContain(
-      `- ${ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs}:`,
+      `· ${ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs} —`,
     )
     expect(prompt).not.toContain(
-      `- ${ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference}:`,
+      `· ${ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference} —`,
     )
-    expect(prompt).not.toContain(`- ${ASSISTANT_OPERATOR_TOOL_IDS.setSound}:`)
+    expect(prompt).not.toContain(`· ${ASSISTANT_OPERATOR_TOOL_IDS.setSound} —`)
   })
 
   it('域简报的收敛槽位进了系统提示（视频问的不是构图，是时长与什么在动）', async () => {
@@ -4566,10 +4617,12 @@ describe('项目规则（§10，拍板 23）', () => {
  * 有题就问一题，没题而步数够多就出多步确认卡，两条路都当场停流。
  */
 describe('计划协议 · plan / ask / confirm', () => {
-  it('⭐ 多步计划：plan 之后紧跟 confirm(multistep) 并停流，⛔ 一步都不落', async () => {
+  it('⭐ 模型写了 confirmPlan：plan 之后紧跟 confirm(multistep) 并停流，⛔ 一步都不落', async () => {
     queueTurns(
       {
         plan: ['看一眼表单', '写提示词', '备好生成键'],
+        // ⭐ v2 决策 4：出不出卡由模型说，⛔ 服务端不数步数。
+        confirmPlan: true,
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
           args: { value: 'a girl under a red umbrella' },
@@ -4599,10 +4652,10 @@ describe('计划协议 · plan / ask / confirm', () => {
     })
   })
 
-  it('两步计划、无题 —— ⛔ 不拦，直接开跑（改一句提示词还先弹卡是纯打扰）', async () => {
+  it('⛔ 三步计划但模型没写 confirmPlan —— 不拦，直接开跑（死阈值已删，决策 4）', async () => {
     queueTurns(
       {
-        plan: ['写提示词', '换模型'],
+        plan: ['看一眼表单', '写提示词', '换模型'],
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
           args: { value: 'a girl under a red umbrella' },
@@ -4993,7 +5046,8 @@ describe('计划协议 · plan / ask / confirm', () => {
 
   it('planApproved=false 那一支照旧拦一次（那就是要重新规划）', async () => {
     queueTurns(
-      { plan: ['重新来一版', '再写一遍提示词', '第三步'] },
+      // ⚠ 判据是模型写的 `confirmPlan`（决策 4），⛔ 不再是步数。
+      { plan: ['重新来一版', '再写一遍提示词', '第三步'], confirmPlan: true },
       { finished: true },
     )
     const events = await collect(
@@ -6111,8 +6165,10 @@ describe('上下文卡（第三期 K1）', () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
     const prompt = systemPrompt()
-    expect(prompt).toContain('list_context_cards:')
-    expect(prompt).toContain('read_context_card:')
+    // ⚠ v2 §2.4：翻卡进「查」组、读卡进「看」组，两条都以 `· <name> —` 出现在
+    //   各自入口的 action 枚举表里。
+    expect(prompt).toContain('· list_context_cards —')
+    expect(prompt).toContain('· read_context_card —')
   })
 
   it('list_context_cards 出摘要，⛔ 不带正文', async () => {
@@ -6613,15 +6669,20 @@ describe('current reference image bindings', () => {
     avoid: ['Unrequested background'],
     uncertainties: [],
   }
+  /**
+   * ⚠ **这里就地包成入口形状**（`wrapEntryToolCall`）：这一组用例里有三条不走
+   * `queueTurns`（它们要按 `systemPrompt` 分流不同的假回复），直接喂
+   * `mockLlmTextCompletion`，所以壳得在这一层套好。
+   */
   function analysisTurns(cached = false): unknown[] {
     return [
-      {
+      wrapEntryToolCall({
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
           title: '分析参考图',
           args: {},
         },
-      },
+      }),
       ...(cached
         ? []
         : [
@@ -7291,20 +7352,20 @@ describe('current reference image bindings', () => {
   it('writes a validated reference prompt once instead of paying for successful synonym rewrites', async () => {
     const turns = [
       ...analysisTurns(),
-      {
+      wrapEntryToolCall({
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
           title: '填写完整提示词',
           args: { value: 'Two people hugging on white' },
         },
-      },
-      {
+      }),
+      wrapEntryToolCall({
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
           title: '再润色一次',
           args: { value: 'Two people embracing on a pure white background' },
         },
-      },
+      }),
       { finished: true },
     ]
     mockLlmTextCompletion
@@ -7536,4 +7597,248 @@ describe('operator native media inputs', () => {
       expect(mockLlmTextCompletion).not.toHaveBeenCalled()
     },
   )
+})
+
+/**
+ * **五动词入口**（v2 §2.1 / §2.2，commit #5）—— 模型只见五条，组内哪一支由
+ * `action` 定，拆开之后引擎往下一个字都没变。
+ *
+ * ⚠ 这一组**不走 `queueTurns` 的包装**：要验的正是模型把名字写错时会发生什么，
+ * 而包装的职责恰恰是替别的用例把名字写对。
+ */
+describe('五动词入口 · 派发与拒绝', () => {
+  /** 原样喂给模型 mock，⛔ 不套入口壳。 */
+  function queueRawTurns(...turns: unknown[]): void {
+    mockLlmTextCompletion.mockReset()
+    for (const turn of turns) {
+      mockLlmTextCompletion.mockResolvedValueOnce(
+        typeof turn === 'string' ? turn : JSON.stringify(turn),
+      )
+    }
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify({ finished: true }))
+  }
+
+  /** 观察进的是下一轮的 user prompt —— 模型读得到它才谈得上「改一个词自己走通」。 */
+  function observations(): string {
+    return mockLlmTextCompletion.mock.calls
+      .map((call) => (call[0] as { userPrompt: string }).userPrompt)
+      .join('\n')
+  }
+
+  it('⭐ apply{action} 派发到原实现：step 上是旧工具名，verb 是入口名', async () => {
+    queueRawTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
+          title: 'write the prompt',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            value: 'a girl under a red umbrella',
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const [running, done] = stepsOf(events)
+    expect(running.tool).toBe(ASSISTANT_OPERATOR_TOOL_IDS.setPrompt)
+    // ⭐ `verb` 是必填的一等字段（§3.1）：面板那句状态词直接读它。
+    expect(running.verb).toBe(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply)
+    expect(done.verb).toBe(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply)
+    // ⛔ `action` 不许漏进载荷 —— 往下每一道闸都不知道入口存在过。
+    expect(done.payload).toEqual({
+      value: 'a girl under a red umbrella',
+      mode: 'replace',
+    })
+    expect(done.inverse).toEqual({ value: '' })
+  })
+
+  it('每个 step 的 verb 与工具表对得上（读类那一支也一样）', async () => {
+    queueRawTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look,
+          args: { action: ASSISTANT_OPERATOR_TOOL_IDS.readState },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    for (const step of stepsOf(events)) {
+      expect(step.verb).toBe(
+        ASSISTANT_OPERATOR_TOOL_VERBS[
+          step.tool as (typeof ASSISTANT_OPERATOR_TOOLS)[number]
+        ],
+      )
+    }
+  })
+
+  /**
+   * ⭐ 旧工具名直接调是收口之后最常见的一次跑偏（模型的先验里全是旧名字）。
+   * ⚠ 拒得**指得出路**：下一轮该写哪个入口、`action` 填什么。
+   */
+  it('⭐ 旧工具名直接调被拒，且拒绝里写清楚该改成哪个入口', async () => {
+    queueRawTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: 'write the prompt',
+          args: { value: 'a girl under a red umbrella' },
+        },
+      },
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const steps = stepsOf(events)
+    // 一条被拒的步 —— 旧名字是真工具，拒得出一条合法的帧。
+    expect(steps).toHaveLength(1)
+    expect(steps[0]).toMatchObject({
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
+    })
+    // ⛔ 一个字都没落到表单上。
+    expect(steps[0]).not.toHaveProperty('inverse')
+    const observed = observations()
+    expect(observed).toContain(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply)
+    expect(observed).toContain(ASSISTANT_OPERATOR_TOOL_IDS.setPrompt)
+  })
+
+  it('名字压根不认识：一步都不落，观察里把五个入口列一遍', async () => {
+    queueRawTurns(
+      { tool: { name: 'generate_image', title: 'go', args: {} } },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(stepsOf(events)).toHaveLength(0)
+    const observed = observations()
+    for (const entry of ASSISTANT_OPERATOR_ENTRY_TOOLS) {
+      expect(observed).toContain(entry)
+    }
+  })
+
+  it('action 不在这个入口的枚举里：一步都不落，观察里列出能选的那几个', async () => {
+    queueRawTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look,
+          args: { action: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt, value: 'x' },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(stepsOf(events)).toHaveLength(0)
+    expect(observations()).toContain(ASSISTANT_OPERATOR_TOOL_IDS.readState)
+  })
+
+  /**
+   * ⚠ `research` / `request_generation` 既是入口名也是组内同名旧工具 —— 漏写
+   * `action` 时这一支救得回来，而且没有歧义。⛔ 别把它推广到别的入口。
+   */
+  it('request_generation 漏写 action 时按同名那条走（⛔ apply 漏了照旧拒）', async () => {
+    queueRawTurns(
+      {
+        tool: { name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply, args: {} },
+      },
+      { finished: true },
+    )
+    const noAction = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(stepsOf(noAction)).toHaveLength(0)
+
+    queueRawTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration,
+          args: {},
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(stepsOf(events)[0]?.tool).toBe(
+      ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+    )
+  })
+
+  /**
+   * **反问**（§3.4）—— `ask` 组里没有旧工具，入口自己就是终点：一帧问题卡、停流，
+   * ⛔ 一步都不落。
+   */
+  it('⭐ ask 入口吐问题卡并停流，⛔ 一步都不落', async () => {
+    queueRawTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+        title: 'ask about the look',
+        args: {
+          question: '要哪一路画风？',
+          header: '画风',
+          options: [
+            {
+              label: '3D 游戏渲染',
+              description: '干净的引擎质感，最接近官图。',
+            },
+            {
+              label: '风格化 3D',
+              description: '形更软、色更平，读起来像插画。',
+            },
+          ],
+        },
+      },
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(typesOf(events)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.ask,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
+    ])
+    const ask = events[0] as Extract<AssistantOperatorEvent, { type: 'ask' }>
+    expect(ask.question.question).toBe('要哪一路画风？')
+    expect(ask.question.options).toHaveLength(2)
+    expect(events[1]).toMatchObject({
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+    })
+  })
+
+  it('⭐ 系统提示的工具段是五段，⛔ 不再逐条罗列 31 个工具名', async () => {
+    queueRawTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const prompt = systemPrompt()
+    for (const entry of ASSISTANT_OPERATOR_ENTRY_TOOLS) {
+      expect(prompt).toContain(`  - ${entry}: `)
+    }
+    /**
+     * 旧的逐条清单形状（`  - set_prompt: …`）在提示里彻底消失。
+     * ⚠ 跳过 `research` / `request_generation`：它们与入口同名（入口那一行本身
+     * 就长这样），不是残留的旧清单。
+     */
+    for (const tool of ASSISTANT_OPERATOR_TOOLS) {
+      if (isAssistantOperatorEntryTool(tool)) continue
+      expect(prompt).not.toContain(`  - ${tool}: `)
+    }
+    // 图片域里模型看得见的入口就是这五个 —— 每个入口的枚举都非空。
+    expect(
+      ASSISTANT_OPERATOR_ENTRY_TOOLS.filter((entry) =>
+        prompt.includes(`  - ${entry}: `),
+      ),
+    ).toHaveLength(ASSISTANT_OPERATOR_ENTRY_TOOLS.length)
+  })
 })

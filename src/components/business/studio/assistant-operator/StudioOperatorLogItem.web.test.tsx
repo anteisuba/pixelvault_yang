@@ -47,6 +47,7 @@ const WEB_STEP: AssistantOperatorStep = {
   id: 'step-1',
   title: 'searched the web',
   tool: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+  verb: 'research',
   status: 'done',
   payload: { query: 'pvc figure studio shot', limit: 8 },
   result: {
@@ -76,6 +77,7 @@ const FOLDER_VISION_STEP: AssistantOperatorStep = {
   id: 'step-folder',
   title: 'inspected the folder',
   tool: ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
+  verb: 'look',
   status: 'done',
   payload: {
     folderId: 'hero-folder',
@@ -353,6 +355,7 @@ describe('日志条 · 证据卡（research，2026-09-06）', () => {
   const RESEARCH_STEP = {
     id: 'step-1',
     tool: 'research',
+    verb: 'research',
     status: 'done',
     title: 'research the character',
     payload: {
@@ -421,6 +424,7 @@ describe('日志条 · 读回来的正文（read_url，2026-09-06）', () => {
   const READ_STEP = {
     id: 'step-1',
     tool: 'read_url',
+    verb: 'research',
     status: 'done',
     title: 'read the page',
     payload: {

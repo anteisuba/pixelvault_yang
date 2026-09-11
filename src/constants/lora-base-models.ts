@@ -11,8 +11,8 @@ import { AI_MODELS, getModelById } from '@/constants/models'
  * - runner 条目指向未来的 RUNNER_CHECKPOINTS（comfy-runner 任务包），当前 available=false。
  *
  * 注：本文件的 family 是**细粒度**（Illustrious/Pony/SDXL 分开），用于底模选择器；
- * 与 `lora-model-compatibility.ts` 里的粗粒度 `LoraFamilyBucket`(flux/sdxl/anima/other)
- * 各司其职——粗的用于 hosted 路由，细的用于"可选底模"展示。
+ * 挂载兼容另按权重架构判（`lora-model-compatibility.ts`：SDXL 系家族互通但
+ * Illustrious ↔ Pony 互拦，anima-dit / flux 各自独立，sd15 永不兼容）。
  */
 
 export const LORA_BASE_FAMILIES = [

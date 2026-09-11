@@ -1,81 +1,78 @@
-import { AI_MODELS } from '@/constants/models'
-import { IMAGE_MODEL_OPTIONS } from '@/constants/models/image'
+import {
+  LORA_BASE_FAMILIES,
+  normalizeToLoraBaseFamily,
+  type LoraBaseFamily,
+} from '@/constants/lora-base-models'
 
-export type LoraFamilyBucket = 'flux' | 'sdxl' | 'anima' | 'other'
+type LoraArchitecture = 'sdxl' | 'dit' | 'flux'
 
-export interface LoraRouteOption {
-  optionId: string
-  modelId: string
-  sourceType: 'workspace' | 'saved'
-  freeTier?: boolean
-}
-
-export function getLoraFamilyBucket(rawBaseModel: string): LoraFamilyBucket {
-  const value = rawBaseModel.toLowerCase()
-  if (value.includes('flux')) return 'flux'
-  if (value.includes('anima')) return 'anima'
-  if (
-    value.includes('sdxl') ||
-    value.includes('illustrious') ||
-    value.includes('pony') ||
-    value.includes('noobai')
-  ) {
-    return 'sdxl'
-  }
-  return 'other'
-}
-
-export function getImageModelLoraFamilyBucket(
-  modelId: string | null,
-): LoraFamilyBucket | null {
-  if (!modelId) return null
-  const option = IMAGE_MODEL_OPTIONS.find((model) => model.id === modelId)
-  if (!option?.supportsLora) return 'other'
-  if (option.id === AI_MODELS.FLUX_LORA) {
-    return 'flux'
-  }
-  if (option.id === AI_MODELS.ILLUSTRIOUS_XL) return 'sdxl'
-  if (option.id === AI_MODELS.ANIMA_PENCIL_XL) return 'anima'
-  return 'other'
-}
-
-export function getRecommendedLoraImageModelId(
-  rawBaseModel: string,
-): AI_MODELS | null {
-  const family = getLoraFamilyBucket(rawBaseModel)
-  if (family === 'flux') return AI_MODELS.FLUX_LORA
-  if (family === 'sdxl') return AI_MODELS.ILLUSTRIOUS_XL
-  if (family === 'anima') return AI_MODELS.ANIMA_PENCIL_XL
-  return null
-}
-
-export function isImageModelCompatibleWithLoraFamily(
-  modelId: string | null,
-  rawBaseModel: string,
-): boolean {
-  const family = getLoraFamilyBucket(rawBaseModel)
-  if (family === 'other') return false
-  return getImageModelLoraFamilyBucket(modelId) === family
+/**
+ * Weight architecture per fine-grained family. Mount compatibility is decided
+ * here, not by family name: illustrious/pony/sdxl and Anima Pencil XL
+ * (`anima`) are all SDXL checkpoints; DiT Anima (`anima-dit`,
+ * Cosmos-Predict2, UNET-only) and flux are distinct architectures whose LoRA
+ * tensors don't map onto an SDXL checkpoint (→ melted/garbage output). `null`
+ * = never compatible (sd1.5 is out of runner scope).
+ */
+const LORA_FAMILY_ARCHITECTURE: Record<
+  LoraBaseFamily,
+  LoraArchitecture | null
+> = {
+  sdxl: 'sdxl',
+  illustrious: 'sdxl',
+  pony: 'sdxl',
+  anima: 'sdxl',
+  'anima-dit': 'dit',
+  flux: 'flux',
+  sd15: null,
 }
 
 /**
- * Whether a recipe-extra LoRA (given its raw baseModel string) can be mounted
- * onto a base of the given family without an architecture mismatch that
- * corrupts the checkpoint. Reuses the same coarse buckets as hosted routing:
- * illustrious/pony/sdxl share the SDXL bucket and interload; flux, anima and
- * sd1.5/other are distinct architectures whose LoRA tensors don't map onto an
- * SDXL checkpoint (→ melted/garbage output). Buckets must match; `other`
- * (unrecognized / sd1.5) never matches. `baseFamilyRaw` accepts either a raw
- * baseModel string or a `LoraBaseFamily` value (e.g. `'illustrious'`).
+ * SDXL finetune lineages that load onto each other but blur / artifact when
+ * crossed — blocked by default (lora.md §7.1.1, owner 2026-09-11). Plain
+ * sdxl and Anima Pencil stay neutral within the SDXL architecture.
+ */
+const EXCLUSIVE_SDXL_LINEAGES: readonly LoraBaseFamily[] = [
+  'illustrious',
+  'pony',
+]
+
+function isLoraBaseFamily(value: string): value is LoraBaseFamily {
+  return (LORA_BASE_FAMILIES as readonly string[]).includes(value)
+}
+
+function isFamilyPairCompatible(
+  loraFamily: LoraBaseFamily,
+  baseFamily: LoraBaseFamily,
+): boolean {
+  const architecture = LORA_FAMILY_ARCHITECTURE[loraFamily]
+  if (!architecture || architecture !== LORA_FAMILY_ARCHITECTURE[baseFamily]) {
+    return false
+  }
+  return !(
+    loraFamily !== baseFamily &&
+    EXCLUSIVE_SDXL_LINEAGES.includes(loraFamily) &&
+    EXCLUSIVE_SDXL_LINEAGES.includes(baseFamily)
+  )
+}
+
+/**
+ * Whether a LoRA (given its raw baseModel string — Civitai value /
+ * `LoraAsset.baseModelFamily`) can be mounted onto a base of the given
+ * `LoraBaseFamily` (`selectedBase.family`).
+ *
+ * The two sides are read differently on purpose: raw `"Anima"` on a LoRA is
+ * the DiT family, while the base family value `'anima'` is Anima Pencil XL
+ * (SDXL) — so only the LoRA side goes through `normalizeToLoraBaseFamily`.
+ * Unrecognized values on either side never match.
  */
 export function isLoraBaseModelMountCompatible(
   loraRawBaseModel: string,
-  baseFamilyRaw: string,
+  baseFamily: string,
 ): boolean {
-  const loraBucket = getLoraFamilyBucket(loraRawBaseModel)
-  const baseBucket = getLoraFamilyBucket(baseFamilyRaw)
-  if (loraBucket === 'other' || baseBucket === 'other') return false
-  return loraBucket === baseBucket
+  const loraFamily = normalizeToLoraBaseFamily(loraRawBaseModel)
+  if (!loraFamily || !isLoraBaseFamily(baseFamily)) return false
+  return isFamilyPairCompatible(loraFamily, baseFamily)
 }
 
 /**
@@ -83,11 +80,11 @@ export function isLoraBaseModelMountCompatible(
  * 圆点 + 出图键上方警示行共用同一份判定，抽成纯函数方便脱离 UI 单测。
  *
  * - `incompatibleCount`：挂载栈里有多少项与 `selectedBaseFamily` 不兼容
- *   （粗粒度架构桶不同，见 isLoraBaseModelMountCompatible）。
- * - `mutuallyExclusive`：挂载栈里存在 2+ 个不同的粗架构桶（`other` 桶不计入，
- *   因为它本来就永不兼容任何底模，不构成"桶冲突"）——此时没有单一底模能
- *   同时满足全部挂载，警示行退化成"卸载其一"而不是给一个只能救一半的假
- *   建议。
+ *   （见 isLoraBaseModelMountCompatible）。
+ * - `mutuallyExclusive`：挂载之间两两存在冲突（跨权重架构，或 Illustrious +
+ *   Pony 同挂）。无法识别 / sd1.5 的挂载不计入，因为它本来就永不兼容任何
+ *   底模，不构成"家族冲突"——此时警示行退化成"卸载其一"而不是给一个只能救
+ *   一半的假建议。
  *
  * `selectedBaseFamily` 为 null（底模未选）时不判定，两个字段都归零/false。
  */
@@ -106,29 +103,16 @@ export function summarizeLoraStackCompatibility(
   const incompatibleCount = mountBaseModelFamilies.filter(
     (family) => !isLoraBaseModelMountCompatible(family, selectedBaseFamily),
   ).length
-  const buckets = new Set(
-    mountBaseModelFamilies
-      .map((family) => getLoraFamilyBucket(family))
-      .filter((bucket) => bucket !== 'other'),
-  )
+  const classifiedFamilies = mountBaseModelFamilies
+    .map((family) => normalizeToLoraBaseFamily(family))
+    .filter(
+      (family): family is LoraBaseFamily =>
+        family !== null && LORA_FAMILY_ARCHITECTURE[family] !== null,
+    )
   return {
     incompatibleCount,
-    mutuallyExclusive: buckets.size > 1,
+    mutuallyExclusive: classifiedFamilies.some((a) =>
+      classifiedFamilies.some((b) => !isFamilyPairCompatible(a, b)),
+    ),
   }
-}
-
-export function findUsableRecommendedLoraRoute(
-  options: readonly LoraRouteOption[],
-  rawBaseModel: string,
-): LoraRouteOption | null {
-  const recommendedModelId = getRecommendedLoraImageModelId(rawBaseModel)
-  if (!recommendedModelId) return null
-  const candidates = options.filter(
-    (option) => option.modelId === recommendedModelId,
-  )
-  return (
-    candidates.find((option) => option.sourceType === 'saved') ??
-    candidates.find((option) => option.freeTier) ??
-    null
-  )
 }

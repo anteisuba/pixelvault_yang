@@ -2304,7 +2304,7 @@
       "currentLora": "Current LoRA",
       "baseModel": "Base model",
       "baseModelPending": "No base model is available",
-      "compatDotWarning": "Doesn't match the current base architecture — this LoRA won't take effect",
+      "compatDotWarning": "Not compatible with the current base — this LoRA won't take effect",
       "baseGroupCloud": "Cloud API · bring your own key",
       "baseGroupRunner": "Runner · free platform quota",
       "baseGroupSdxl": "SDXL family",

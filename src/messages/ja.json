@@ -2304,7 +2304,7 @@
       "currentLora": "現在のLoRA",
       "baseModel": "ベースモデル",
       "baseModelPending": "利用可能なベースモデルがありません",
-      "compatDotWarning": "現在のベースアーキテクチャと一致しません。このLoRAは反映されません",
+      "compatDotWarning": "現在のベースと互換性がありません。このLoRAは反映されません",
       "baseGroupCloud": "クラウド API · 自分のキーを使用",
       "baseGroupRunner": "Runner · プラットフォーム無料枠",
       "baseGroupSdxl": "SDXL 系",

@@ -201,9 +201,9 @@ UI **不逐卡暴露匹配层**（噪音）；只在稀疏/空态整体说明（
 ### 4.1 兼容度圆点（NovelAI 熟悉度圆点的 LoRA 翻译）
 
 - 位置：脊柱条每个 LoRA chip 内、名字左侧，`size-1.5` 圆点。
-- 判定：`isLoraBaseModelMountCompatible(item.asset.baseModelFamily, selectedBase.family)`（引擎已有，`lib/lora-model-compatibility.ts:71`）。
-- **兼容给淡信号**（2026-07-17 owner 改，原「安静默认·兼容不渲染」作废）：兼容 → **淡绿/中性小点**（明确表达「已判定兼容」，与「未判定」区分开——owner 判 LoRA 兼容性易踩坑，需要明确信号）；不兼容（跨架构桶或 other）→ **琥珀实心点** + tooltip/aria「与当前底模架构不符，出图时该 LoRA 不会生效」；底模未选 → 不判定不渲染。淡绿点守颜料纪律（低饱和、不与琥珀警示争夺注意力）。
-- 出图前置（2026-07-17 owner 拍板加码：**警示 + 给出建议底模**）：存在不兼容挂载时，纸上出图键不阻断，其上方追加一行琥珀警示（与 runner 额度提示同区、同形制）：「{n} 个挂载与当前底模不兼容，将被忽略」+ **文字链动作「切到 {建议底模}」**——建议值来自该 LoRA 家族的默认底模（`getDefaultBase(family)` / `getRecommendedLoraImageModelId`，引擎已有），点击即切换并重算。多挂载家族互斥（如 Illustrious + Flux 同挂）时无单一解，动作退化为提示「两个挂载家族互斥，请卸载其一」，不给假建议。
+- 判定：`isLoraBaseModelMountCompatible(item.asset.baseModelFamily, selectedBase.family)`（引擎已有，`lib/lora-model-compatibility.ts`）。按权重架构判：SDXL 系（sdxl / illustrious / pony / Anima Pencil XL）互通，但 Illustrious ↔ Pony 互拦（`domains/lora.md` §7.1.1）；DiT Anima 与 FLUX 各自独立，sd15 / 无法识别永不兼容。
+- **兼容给淡信号**（2026-07-17 owner 改，原「安静默认·兼容不渲染」作废）：兼容 → **淡绿/中性小点**（明确表达「已判定兼容」，与「未判定」区分开——owner 判 LoRA 兼容性易踩坑，需要明确信号）；不兼容（跨权重架构或无法识别）→ **琥珀实心点** + tooltip/aria「与当前底模架构不符，出图时该 LoRA 不会生效」；底模未选 → 不判定不渲染。淡绿点守颜料纪律（低饱和、不与琥珀警示争夺注意力）。
+- 出图前置（2026-07-17 owner 拍板加码：**警示 + 给出建议底模**）：存在不兼容挂载时，纸上出图键不阻断，其上方追加一行琥珀警示（与 runner 额度提示同区、同形制）：「{n} 个挂载与当前底模不兼容，将被忽略」+ **文字链动作「切到 {建议底模}」**——建议值来自该 LoRA 家族的默认底模（`getDefaultBase(family)`，引擎已有），点击即切换并重算。多挂载家族互斥（如 Illustrious + Flux 同挂）时无单一解，动作退化为提示「两个挂载家族互斥，请卸载其一」，不给假建议。
 - 联动：切换底模 Select 时圆点/警示行即时重算。
 
 ### 4.4 底模选择器分组（2026-07-17 owner 拍板追加）

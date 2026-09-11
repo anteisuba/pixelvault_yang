@@ -105,7 +105,7 @@ LoRA 的核心承诺是：
 
 配套硬事实：
 
-- **跨族挂载**（IL ↔ Pony）默认拦截或强警告——能出图但易糊 / 伪影。
+- **跨族挂载**（IL ↔ Pony）默认拦截（2026-09-11 owner 拍板）——能出图但易糊 / 伪影；判据 `isLoraBaseModelMountCompatible`。
 - **Pony 无 hosted 快通道**：UI 必须写清「仅 Runner 忠实」，否则用户会以为和 FLUX 一样快。
 - 社区常挂 **2–4 张** LoRA；本仓容量 = 全局 cap ∩ provider max。
 

@@ -218,6 +218,12 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
         }
         loadOperatorThread({
           history: fromStoredOperatorMessages(result.data.messages),
+          /**
+           * 结论记录从**另一列**回填（v2 §7.7，commit #13）：`GET` 的响应
+           * 本来就带着 `rounds`（`AssistantConversationRecord`），⛔ 不再开
+           * 第二条读路由。
+           */
+          rounds: result.data.rounds,
           sessionId: result.data.id,
           sessionSurface: result.data.surface,
         })

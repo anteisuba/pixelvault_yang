@@ -7905,6 +7905,19 @@
       "failed": "失败：{reason}",
       "band": "有未完成计划 · 从第 {step} 步继续"
     },
+    "roundSummary": {
+      "heading": "本轮结论 · {time}",
+      "collapsed": "本轮记住 {count} 件事",
+      "column": {
+        "facts": "事实",
+        "decisions": "决定",
+        "todos": "待办"
+      },
+      "edit": "改",
+      "edited": "· 已修改",
+      "save": "保存",
+      "cancel": "取消"
+    },
     "status": {
       "thinking": "正在想…",
       "capturingFrames": "正在抽帧…",

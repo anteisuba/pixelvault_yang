@@ -151,6 +151,48 @@ export function splitOperatorHistoryRounds(
 }
 
 /**
+ * 载回来的结论记录**挂在历史的哪几条后面**（v2 §7.7，commit #13）。
+ *
+ * ⭐ 为什么要算：库里**没有**「这条结论长在哪条消息之后」的锚 ——
+ * `roundIndex` 是结论的序号（`rounds.length`），不是消息的下标（见
+ * `appendAssistantConversationRound`）。结论记录与消息分住两列，跨列的位置关系
+ * 从来没有被写下来过。
+ *
+ * ⭐ 所以这里按**从尾对齐**摊：最后一条结论挂在最后一轮的末尾，倒数第二条挂在
+ * 倒数第二轮的末尾，以此类推。判据是常态 —— 每轮 `done` 都会结账一次，两边条数
+ * 一致，对齐就是精确的。条数不一致时（有的轮次没产出、更旧的被 100 条上限截过）
+ * 多出来的那几条落进 `leading`，由调用方摊在历史段的最前面：它们确实发生在
+ * 摊得出位置的那些之前，⛔ 不丢掉（丢掉 = 用户改过的结论凭空消失）。
+ *
+ * @param kinds 历史条目的 `kind` 序列（与 `splitOperatorHistoryRounds` 同一份）
+ * @param summaryCount 载回来几条结论记录
+ * @returns `byIndex`: 历史条目下标 → 挂在它后面的结论下标（升序）；
+ *          `leading`: 没有宿主轮次的那几条（升序），摊在最前面
+ */
+export function placeOperatorRoundSummaries(
+  kinds: readonly string[],
+  summaryCount: number,
+): { byIndex: Map<number, number[]>; leading: number[] } {
+  const byIndex = new Map<number, number[]>()
+  if (summaryCount <= 0) return { byIndex, leading: [] }
+
+  const rounds = splitOperatorHistoryRounds(kinds)
+  const paired = Math.min(rounds.length, summaryCount)
+  for (let offset = 0; offset < paired; offset++) {
+    const round = rounds[rounds.length - 1 - offset]
+    const last = round?.indexes.at(-1)
+    if (last === undefined) continue
+    byIndex.set(last, [summaryCount - 1 - offset])
+  }
+
+  const leading: number[] = []
+  for (let index = 0; index < summaryCount - paired; index++) {
+    leading.push(index)
+  }
+  return { byIndex, leading }
+}
+
+/**
  * 助手长回话要不要自动折叠（第 5 件）。
  *
  * ⚠ 数**换行**不是渲染行 —— 理由见 `STUDIO_OPERATOR_TIMELINE.collapseAfterLines`

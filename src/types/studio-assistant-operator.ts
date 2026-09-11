@@ -32,6 +32,7 @@ import type {
   AssistantOperatorPlanAnswer,
   AssistantOperatorPlanOption,
   AssistantOperatorPlanQuestion,
+  AssistantOperatorRoundSummary,
   AssistantOperatorStep,
   AssistantOperatorWorkingMemoryArtifact,
 } from '@/types/assistant-operator'
@@ -198,6 +199,28 @@ export interface StudioOperatorResultRun {
   items: readonly StudioOperatorResultItem[]
 }
 
+/**
+ * **本轮结论记录**（v2 §7.2 / §7.7，commit #13）—— 时间线里那条全宽分隔块。
+ *
+ * ⭐ 它是**一轮的收口**而不是第六类卡：服务端在 `done` 帧里把本轮压成四栏
+ * （事实 / 决定 / 待办 / 证据编号）一起下发，客户端**直接渲染，不再请求一次**
+ * （§7.5 ④）。所以它落进线程的时刻天然就是「该轮最后一条之后」——
+ * ⛔ 别去倒着找「这一轮的最后一条」再插进去：那种位置计算会在用户于流末尾
+ * 插话时把分隔块夹到下一轮里。
+ *
+ * ⚠ `summary.roundIndex` 是**服务端定的号**（`appendAssistantConversationRound`），
+ * 编辑回写按它定位库里那一条 —— ⛔ 别拿条目 id 去回写：条目 id 是本次页面加载
+ * 现造的，刷新之后对不上任何一条。
+ * ⚠ **不进 `messages`**（`toOperatorHistoryEntry` 返回 null）：它住在
+ * `AssistantConversation.rounds` 那一列，写两份的下场是编辑回写改了一份、
+ * 刷新之后读到的是另一份。
+ */
+export interface StudioOperatorRoundSummaryEntry {
+  kind: 'roundSummary'
+  id: string
+  summary: AssistantOperatorRoundSummary
+}
+
 export type StudioOperatorThreadEntry =
   | StudioOperatorUserEntry
   | StudioOperatorMessageEntry
@@ -206,6 +229,7 @@ export type StudioOperatorThreadEntry =
   | StudioOperatorSystemEntry
   | StudioOperatorRuleEntry
   | StudioOperatorResultEntry
+  | StudioOperatorRoundSummaryEntry
   | StudioOperatorDomainMarkEntry
 
 /**

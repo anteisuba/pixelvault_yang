@@ -348,6 +348,61 @@ export async function appendAssistantConversationRound(
 }
 
 /**
+ * **用户就地改过的那一条写回去**（v2 §7.7，commit #13）。
+ *
+ * ⭐ 三条纪律，逐条对应一种走样：
+ *  ① 只覆盖三栏文字，`roundIndex` / `createdAt` / `evidenceRefs` 原样留着 ——
+ *     它们是这条记录的身份与出处，改了就指不回证据本；
+ *  ② 一律置 `editedByUser: true` —— 下一轮注入的必须是用户这一版，而
+ *     §7.2 写明它 ⛔ 不许被下一次结账悄悄覆盖回模型写的版本；
+ *  ③ **按 `roundIndex` 认，不按数组下标**：这一列会从最旧的那头截
+ *     （`maxRoundsPerConversation`），下标会整体左移而编号不会。
+ *
+ * @returns 改完的那条；会话不存在 / 不归他 / 没有这一号时 `null`（调用方回 404）。
+ */
+export async function updateAssistantConversationRound(
+  clerkId: string,
+  conversationId: string,
+  roundIndex: number,
+  columns: Pick<
+    AssistantConversationRoundStored,
+    'facts' | 'decisions' | 'todos'
+  >,
+): Promise<AssistantConversationRoundStored | null> {
+  const user = await ensureUser(clerkId)
+  const existing = await db.assistantConversation.findFirst({
+    where: { id: conversationId, userId: user.id },
+    select: { id: true, rounds: true },
+  })
+  if (!existing) return null
+
+  const rounds = sanitizeRounds(existing.rounds)
+  const target = rounds.find((round) => round.roundIndex === roundIndex)
+  if (!target) return null
+
+  const updated: AssistantConversationRoundStored = {
+    ...target,
+    facts: columns.facts,
+    decisions: columns.decisions,
+    todos: columns.todos,
+    editedByUser: true,
+  }
+  const next = rounds.map((round) =>
+    round.roundIndex === roundIndex ? updated : round,
+  )
+
+  await db.assistantConversation.update({
+    where: { id: existing.id },
+    data: { rounds: next as unknown as Prisma.InputJsonValue },
+  })
+  logger.info('assistant round summary edited', {
+    conversationId: existing.id,
+    roundIndex,
+  })
+  return updated
+}
+
+/**
  * **下一轮注入要读的那几条结论记录**（v2 §7.6，commit #12）。
  *
  * ⚠ 收的是 **DB `userId`** 而不是 `clerkId`（与同文件其余几条不同，有意的）：

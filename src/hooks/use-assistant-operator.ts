@@ -61,6 +61,7 @@ import {
   appendOperatorEntry,
   appendOperatorPendingResult,
   appendOperatorPending,
+  appendOperatorRoundSummary,
   clearOperatorPrompts,
   clearOperatorQueue,
   dropOperatorPending,
@@ -1064,6 +1065,19 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               )
               break
             }
+            /**
+             * **本轮结账**（v2 §7.7，commit #13）—— 结论记录随 `done` 帧下发，
+             * 落进时间线当这一轮的分隔块，⛔ 不再请求一次（§7.5 ④）。
+             *
+             * ⚠ `roundSummary` **缺席是正常形态**（见事件 schema 头注）：这一轮
+             * 什么都没产出、或者压缩那一跳失败了，都照常收尾 —— ⛔ 别为此画一个
+             * 三栏全空的分隔块，那讲的是零。
+             */
+            case ASSISTANT_OPERATOR_EVENTS.done:
+              if (event.roundSummary) {
+                appendOperatorRoundSummary(event.roundSummary)
+              }
+              break
             case ASSISTANT_OPERATOR_EVENTS.error:
               setOperatorStatus('error', describeError(event))
               break

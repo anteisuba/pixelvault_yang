@@ -8,10 +8,12 @@ import { ApiRequestError } from '@/lib/errors'
 import {
   getAssistantConversation,
   listAssistantConversations,
+  updateAssistantConversationRound,
   upsertAssistantConversation,
 } from '@/services/assistant-conversation.service'
 import {
   AssistantSurfaceSchema,
+  UpdateAssistantConversationRoundRequestSchema,
   UpsertAssistantConversationRequestSchema,
 } from '@/types/assistant-conversation'
 
@@ -67,5 +69,36 @@ export const POST = createApiRoute({
       }
       throw error
     }
+  },
+})
+
+/**
+ * **改一条结论记录**（v2 §7.7，commit #13）—— 三栏就地编辑的落点。
+ *
+ * ⚠ 挂在**这条既有路由**上而不是新开一个：它改的是会话那一行里的一列，
+ * 与 POST 改 `messages` 是同一件事的两半（⛔ 不为一列新开一条路由）。
+ * ⚠ 所有权与「有没有这一号」都在 service 里核，这里只把 `null` 翻成 404 ——
+ * 非法 `roundIndex`（负数 / 非整数）已经被 schema 拦在外面。
+ */
+export const PATCH = createApiRoute({
+  schema: UpdateAssistantConversationRoundRequestSchema,
+  routeName: 'PATCH /api/assistant/conversation',
+  rateLimit: RATE_LIMIT_CONFIGS.authedWrite,
+  handler: async (clerkId, data) => {
+    const updated = await updateAssistantConversationRound(
+      clerkId,
+      data.id,
+      data.roundIndex,
+      { facts: data.facts, decisions: data.decisions, todos: data.todos },
+    )
+    if (!updated) {
+      throw new ApiRequestError(
+        'ASSISTANT_CONVERSATION_NOT_FOUND',
+        404,
+        'errors.assistantConversation.notFound',
+        'Conversation round not found',
+      )
+    }
+    return updated
   },
 })

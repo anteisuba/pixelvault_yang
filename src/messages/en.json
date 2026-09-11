@@ -7905,6 +7905,19 @@
       "failed": "Failed: {reason}",
       "band": "Unfinished plan · continue from step {step}"
     },
+    "roundSummary": {
+      "heading": "Round notes · {time}",
+      "collapsed": "{count} things remembered this round",
+      "column": {
+        "facts": "Facts",
+        "decisions": "Decided",
+        "todos": "To do"
+      },
+      "edit": "Edit",
+      "edited": "· edited",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
     "status": {
       "thinking": "Thinking…",
       "capturingFrames": "Taking frames…",

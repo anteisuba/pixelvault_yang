@@ -27,6 +27,7 @@ import { isRevertibleAssistantOperatorTool } from '@/constants/assistant-operato
 import { toOperatorHistory } from '@/lib/studio-operator-history'
 import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -52,6 +53,7 @@ import {
   groupOperatorResearchRuns,
   hasOperatorResearchFindings,
   isOperatorResearchTool,
+  placeOperatorRoundSummaries,
   shouldStickOperatorScroll,
   splitOperatorHistoryRounds,
 } from '@/lib/studio-operator-timeline'
@@ -119,6 +121,10 @@ import {
   StudioOperatorTimelineRow,
   type StudioOperatorCardKind,
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
+import {
+  StudioOperatorRoundSummary,
+  type StudioOperatorRoundColumns,
+} from '@/components/business/studio/assistant-operator/StudioOperatorRoundSummary'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { Spinner } from '@/components/ui/spinner'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
@@ -135,8 +141,10 @@ import {
   getOperatorState,
   restoreOperatorThreadCheckpoint,
   setOperatorResumeScope,
+  updateOperatorRoundSummary,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
+import { updateAssistantConversationRoundAPI } from '@/lib/api-client'
 import {
   failedResumeStep,
   nextResumeStepNumber,
@@ -147,6 +155,7 @@ import type {
   AssistantRouteModel,
 } from '@/types/assistant-persona'
 import type { GenerationRecord } from '@/types'
+import type { AssistantOperatorRoundSummary } from '@/types/assistant-operator'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
 import type {
   StudioOperatorAttachment,
@@ -298,6 +307,7 @@ export function StudioOperatorPanel({
     status,
     errorText,
     history: allHistoryEntries,
+    historyRounds,
     queue,
     question,
     confirm,
@@ -772,6 +782,105 @@ export function StudioOperatorPanel({
    * ⚠ 组的边界是 `runKey` 也是「连不连续」：跨轮的两组步长得一样，但它们是两次
    * 不同的委托，合成一行会让 checkpoint 的「这一轮」失去参照。
    */
+  /**
+   * 结论记录**就地改完之后的回写**（v2 §7.7，commit #13）。
+   *
+   * ⭐ 先写屏幕再写库（乐观）：那一次往返的空窗里用户会以为自己没点上 ——
+   * 与 `reviewStates` 那一格同一条判据。失败时用**原值**再调一次退回去，
+   * ⛔ 不弹错误对话框：改一条结论是个小动作。
+   * ⚠ 还没落过库的线程（`currentSessionId === null`）只改屏幕：库里根本没有那
+   * 一行可写，而下一次 upsert 之后这条记录是**服务端**结账时写进去的那一份 ——
+   * ⛔ 别在这里替它新建一行。
+   */
+  const saveRoundSummary = useCallback(
+    (
+      summary: AssistantOperatorRoundSummary,
+      columns: StudioOperatorRoundColumns,
+    ) => {
+      const sessionId = history.currentSessionId
+      const previous = {
+        facts: summary.facts,
+        decisions: summary.decisions,
+        todos: summary.todos,
+        editedByUser: summary.editedByUser,
+      }
+      updateOperatorRoundSummary(summary.roundIndex, columns)
+      if (!sessionId) return
+      void updateAssistantConversationRoundAPI({
+        id: sessionId,
+        roundIndex: summary.roundIndex,
+        ...columns,
+      }).then((result) => {
+        if (!result.success) {
+          updateOperatorRoundSummary(summary.roundIndex, previous)
+        }
+      })
+    },
+    [history.currentSessionId],
+  )
+
+  /**
+   * 续跑 chip 挂在**最新那一块结论记录的尾部**（§3.6）。
+   *
+   * ⚠ 「最新」优先取在飞线程里的那一条；线程是空的（刷新之后）就取载回来的
+   * 最后一条 —— 续跑按钮本来就是为「刷新之后」存在的，只认在飞那一条等于它在
+   * 最需要的时刻不见了。
+   * ⚠ 两边都没有结论记录时**回落到头部**（`StudioOperatorHeader` 那颗）：
+   * §3.6 只说了它的去处，没说「没有去处时就不要这个入口」——
+   * 而一条从没结过账的会话照样可能断在第四步。
+   */
+  const resumeHost = useMemo(() => {
+    if (resumeStepNumber === null) return null
+    const live = [...entries]
+      .reverse()
+      .find((entry) => entry.kind === 'roundSummary')
+    if (live && live.kind === 'roundSummary') {
+      return { scope: 'live' as const, roundIndex: live.summary.roundIndex }
+    }
+    const last = historyRounds.at(-1)
+    if (last) {
+      return { scope: 'history' as const, roundIndex: last.roundIndex }
+    }
+    return null
+  }, [entries, historyRounds, resumeStepNumber])
+
+  const roundResume =
+    resumeStepNumber === null
+      ? null
+      : {
+          stepNumber: resumeStepNumber,
+          ...(resumeFailedReason ? { failedReason: resumeFailedReason } : {}),
+          onResume: resumePlan,
+        }
+
+  /** 载回来的结论记录挂在历史的哪几条后面（见 `placeOperatorRoundSummaries`）。 */
+  const historyRoundPlacement = useMemo(
+    () =>
+      placeOperatorRoundSummaries(
+        historyEntries.map((entry) => entry.kind),
+        historyRounds.length,
+      ),
+    [historyEntries, historyRounds.length],
+  )
+
+  const renderHistoryRound = (summaryIndex: number) => {
+    const summary = historyRounds[summaryIndex]
+    if (!summary) return null
+    return (
+      <StudioOperatorRoundSummary
+        key={`hr:${summary.roundIndex}`}
+        summary={summary}
+        defaultCollapsed
+        onSave={(columns) => saveRoundSummary(summary, columns)}
+        {...(roundResume &&
+        resumeHost?.scope === 'history' &&
+        resumeHost.roundIndex === summary.roundIndex
+          ? { resume: roundResume }
+          : {})}
+      />
+    )
+  }
+
   const blocks = useMemo(() => {
     type Block =
       | { kind: 'entry'; entry: StudioOperatorThreadEntry }
@@ -1226,6 +1335,27 @@ export function StudioOperatorPanel({
             />
           </StudioOperatorTimelineRow>
         )
+      /**
+       * **本轮结论记录**（v2 §7.7，commit #13）——「这一轮到此为止」的分隔块。
+       *
+       * ⚠ **不套 `StudioOperatorTimelineRow`**：它是全宽分节符（画板 Main），
+       * 而那一颗会把内容推进 24px 的沟里并配一个节点形状 —— 缩进之后它读起来
+       * 就成了「时间线上的又一条发言」，而它恰恰是用来把发言分段的。
+       * ⛔ 这不是给五类卡开的第六档（`STUDIO_OPERATOR_CARD_KINDS` 一个字没改）。
+       */
+      case 'roundSummary':
+        return (
+          <StudioOperatorRoundSummary
+            key={entry.id}
+            summary={entry.summary}
+            onSave={(columns) => saveRoundSummary(entry.summary, columns)}
+            {...(roundResume &&
+            resumeHost?.scope === 'live' &&
+            resumeHost.roundIndex === entry.summary.roundIndex
+              ? { resume: roundResume }
+              : {})}
+          />
+        )
       case 'domainMark':
         return null
     }
@@ -1241,7 +1371,9 @@ export function StudioOperatorPanel({
         onNewThread={newThread}
         onOpenAssistantSettings={onOpenAssistantSettings}
         onCollapse={onCollapse}
-        {...(resumeStepNumber === null
+        /* ⚠ 续跑 chip 的正位是**结论记录块的尾部**（§3.6）——头部这一颗只在
+           一条结论记录都没有时出现（见 `resumeHost` 的头注）。 */
+        {...(resumeStepNumber === null || resumeHost !== null
           ? {}
           : {
               resume: { stepNumber: resumeStepNumber, onResume: resumePlan },
@@ -1313,7 +1445,7 @@ export function StudioOperatorPanel({
             {(() => {
               const renderHistoryEntry = (index: number) => {
                 const entry = historyEntries[index]!
-                return (
+                const row = (
                   <StudioOperatorTimelineRow
                     key={`h:${index}:${entry.id}`}
                     {...historyCardKind(entry.kind)}
@@ -1336,6 +1468,14 @@ export function StudioOperatorPanel({
                     ) : null}
                   </StudioOperatorTimelineRow>
                 )
+                const placed = historyRoundPlacement.byIndex.get(index)
+                if (!placed) return row
+                return (
+                  <Fragment key={`hrw:${index}`}>
+                    {row}
+                    {placed.map(renderHistoryRound)}
+                  </Fragment>
+                )
               }
               /* ⚠ 跨切点的那一组算「最近」——⛔ 不从一组研究步中间切一刀，
                那会把「查了什么」折进去、「查出什么」留在外面。 */
@@ -1347,6 +1487,9 @@ export function StudioOperatorPanel({
               )
               return (
                 <>
+                  {/* 没有宿主轮次的那几条（见 `placeOperatorRoundSummaries`）——
+                      ⛔ 不丢掉：用户改过的结论凭空消失比位置不精确坏得多。 */}
+                  {historyRoundPlacement.leading.map(renderHistoryRound)}
                   {older.length > 0 ? (
                     <details
                       data-testid="operator-history-older"

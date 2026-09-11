@@ -363,6 +363,16 @@ export function toOperatorHistoryEntry(
      */
     case 'result':
       return null
+    /**
+     * 结论记录**不进 `messages`**（v2 §7.7，commit #13）—— 它住在同一行的
+     * `rounds` 那一列（§7.4）。
+     *
+     * ⭐ 判据是「一件事只有一个家」：§7.7 的编辑要把改过的那条**原样写回那一列**
+     * （下一轮注入读的就是那一列）。抄一份进 `messages` 的下场是改完之后库里有
+     * 两个版本，而刷新之后面板读的是没改过的那一份。
+     */
+    case 'roundSummary':
+      return null
     case 'system':
       return {
         kind: 'system',

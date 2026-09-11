@@ -7905,6 +7905,19 @@
       "failed": "失敗：{reason}",
       "band": "未完了の計画 · ステップ {step} から続行"
     },
+    "roundSummary": {
+      "heading": "このラウンドの結論 · {time}",
+      "collapsed": "このラウンドで覚えたこと {count} 件",
+      "column": {
+        "facts": "事実",
+        "decisions": "決定",
+        "todos": "TODO"
+      },
+      "edit": "修正",
+      "edited": "· 修正済み",
+      "save": "保存",
+      "cancel": "キャンセル"
+    },
     "status": {
       "thinking": "考え中…",
       "capturingFrames": "フレーム抽出中…",

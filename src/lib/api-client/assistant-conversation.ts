@@ -5,6 +5,8 @@ import type {
   AssistantConversationSummary,
   AssistantSurfaceId,
   SharedAssistantConversationRecord,
+  AssistantConversationRoundStored,
+  UpdateAssistantConversationRoundRequest,
   UpsertAssistantConversationRequest,
 } from '@/types/assistant-conversation'
 
@@ -200,5 +202,30 @@ export async function renameAssistantConversationAPI(
     return parseJsonResult(response, 'Failed to rename conversation')
   } catch {
     return { success: false, error: 'Failed to rename conversation' }
+  }
+}
+
+/**
+ * 结论记录的**就地编辑**回写（v2 §7.7，commit #13）。
+ *
+ * ⚠ 走的是**会话那条既有路由**的 PATCH：结论记录是那一行里的一列，
+ * ⛔ 不为它新开端点（见 route 的头注）。
+ */
+export async function updateAssistantConversationRoundAPI(
+  body: UpdateAssistantConversationRoundRequest,
+): Promise<ApiResult<AssistantConversationRoundStored>> {
+  try {
+    const response = await fetch(API_ENDPOINTS.ASSISTANT_CONVERSATION, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    return parseJsonResult(response, 'Failed to save round summary')
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : 'Failed to save round summary',
+    }
   }
 }

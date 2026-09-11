@@ -10,6 +10,7 @@ import {
   isOperatorResearchTool,
   shouldCollapseOperatorText,
   shouldStickOperatorScroll,
+  placeOperatorRoundSummaries,
   splitOperatorHistoryRounds,
 } from './studio-operator-timeline'
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
@@ -205,6 +206,48 @@ describe('splitOperatorHistoryRounds', () => {
   })
   it('空历史没有轮', () => {
     expect(splitOperatorHistoryRounds([])).toEqual([])
+  })
+})
+
+describe('placeOperatorRoundSummaries', () => {
+  const KINDS = ['user', 'message', 'user', 'step', 'message']
+
+  it('从尾对齐：最后一条结论挂在最后一轮的末尾', () => {
+    expect(placeOperatorRoundSummaries(KINDS, 2)).toEqual({
+      byIndex: new Map([
+        [1, [0]],
+        [4, [1]],
+      ]),
+      leading: [],
+    })
+  })
+
+  it('结论比轮次少时只摊得下的那几条落位，⛔ 不往前硬凑', () => {
+    expect(placeOperatorRoundSummaries(KINDS, 1)).toEqual({
+      byIndex: new Map([[4, [0]]]),
+      leading: [],
+    })
+  })
+
+  it('结论比轮次多时多出来的那几条进 leading，⛔ 一条都不丢', () => {
+    expect(placeOperatorRoundSummaries(KINDS, 4)).toEqual({
+      byIndex: new Map([
+        [1, [2]],
+        [4, [3]],
+      ]),
+      leading: [0, 1],
+    })
+  })
+
+  it('没有历史条目时全部进 leading；一条结论都没有时什么都不摊', () => {
+    expect(placeOperatorRoundSummaries([], 2)).toEqual({
+      byIndex: new Map(),
+      leading: [0, 1],
+    })
+    expect(placeOperatorRoundSummaries(KINDS, 0)).toEqual({
+      byIndex: new Map(),
+      leading: [],
+    })
   })
 })
 

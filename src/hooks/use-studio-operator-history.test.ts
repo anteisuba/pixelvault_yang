@@ -293,6 +293,32 @@ it('ignores an older selection when requests finish out of order', async () => {
   expect(store.getOperatorState().sessionId).toBe('newer')
   expect(hook.result.current.loadingSessionId).toBeNull()
 })
+it('载回一条会话时把 `rounds` 那一列一起回填（v2 §7.7，commit #13）', async () => {
+  const hook = await mount()
+  const round = {
+    roundIndex: 0,
+    createdAt: '2026-09-11T03:26:00.000Z',
+    facts: ['参考图是冷蓝夜景'],
+    decisions: ['用 16:9'],
+    todos: [],
+    evidenceRefs: ['#e12'],
+  }
+  getMock.mockResolvedValue({
+    success: true,
+    data: {
+      id: session.id,
+      surface: session.surface,
+      messages: [],
+      rounds: [round],
+    },
+  })
+  await act(async () => {
+    hook.result.current.selectSession(session)
+    await vi.advanceTimersByTimeAsync(0)
+  })
+  expect(store.getOperatorState().historyRounds).toEqual([round])
+})
+
 it('updates a renamed title only after a successful save', async () => {
   const hook = await mount()
   listMock.mockResolvedValue({ success: true, data: [session] })

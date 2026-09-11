@@ -602,3 +602,98 @@ it('恢复配置保留历史并清掉旧撤销、确认、待生成及未完成�
     'restored a configuration checkpoint',
   )
 })
+
+describe('结论记录（v2 §7.7，commit #13）', () => {
+  const ROUND = {
+    roundIndex: 0,
+    createdAt: '2026-09-11T03:26:00.000Z',
+    facts: ['参考图是冷蓝夜景'],
+    decisions: ['用 16:9'],
+    todos: [],
+    evidenceRefs: ['#e12'],
+  }
+
+  it('`done` 的结账落进线程，同一轮再来一次是覆盖不是追加', () => {
+    act(() => {
+      store.appendOperatorRoundSummary(ROUND)
+      store.appendOperatorRoundSummary({ ...ROUND, facts: ['改写过的事实'] })
+    })
+    const entries = store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind === 'roundSummary')
+    expect(entries).toHaveLength(1)
+    expect(entries[0]).toMatchObject({
+      kind: 'roundSummary',
+      summary: { roundIndex: 0, facts: ['改写过的事实'] },
+    })
+  })
+
+  it('轮次号不同就各占一条', () => {
+    act(() => {
+      store.appendOperatorRoundSummary(ROUND)
+      store.appendOperatorRoundSummary({ ...ROUND, roundIndex: 1 })
+    })
+    expect(
+      store
+        .getOperatorState()
+        .entries.filter((entry) => entry.kind === 'roundSummary'),
+    ).toHaveLength(2)
+  })
+
+  it('载回来的那几条住 `historyRounds`，⛔ 不混进 entries', () => {
+    act(() => {
+      store.loadOperatorThread({
+        history: [],
+        rounds: [ROUND],
+        sessionId: 'conv-1',
+        sessionSurface: 'IMAGE_STUDIO',
+      })
+    })
+    const state = store.getOperatorState()
+    expect(state.historyRounds).toEqual([ROUND])
+    expect(state.entries).toEqual([])
+  })
+
+  it('就地编辑同时改在飞那条与载回来那条，并标 editedByUser', () => {
+    act(() => {
+      store.loadOperatorThread({
+        history: [],
+        rounds: [ROUND],
+        sessionId: 'conv-1',
+        sessionSurface: 'IMAGE_STUDIO',
+      })
+      store.appendOperatorRoundSummary(ROUND)
+      store.updateOperatorRoundSummary(0, {
+        facts: ['我改过的'],
+        decisions: [],
+        todos: ['等我确认'],
+      })
+    })
+    const state = store.getOperatorState()
+    expect(state.historyRounds[0]).toMatchObject({
+      facts: ['我改过的'],
+      todos: ['等我确认'],
+      editedByUser: true,
+      // ⚠ 编号与时刻原样留着 —— 它们是这条记录的出处与身份。
+      evidenceRefs: ['#e12'],
+      createdAt: ROUND.createdAt,
+    })
+    const live = state.entries.find((entry) => entry.kind === 'roundSummary')
+    expect(live).toMatchObject({
+      summary: { facts: ['我改过的'], editedByUser: true },
+    })
+  })
+
+  it('＋新对话把载回来的那几条也清掉', () => {
+    act(() => {
+      store.loadOperatorThread({
+        history: [],
+        rounds: [ROUND],
+        sessionId: 'conv-1',
+        sessionSurface: 'IMAGE_STUDIO',
+      })
+      store.resetOperatorThread()
+    })
+    expect(store.getOperatorState().historyRounds).toEqual([])
+  })
+})

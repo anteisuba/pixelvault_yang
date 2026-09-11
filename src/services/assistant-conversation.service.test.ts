@@ -5,6 +5,7 @@ import {
   listAssistantConversationRounds,
   listAssistantConversations,
   renameAssistantConversation,
+  updateAssistantConversationRound,
   deleteAssistantConversation,
 } from './assistant-conversation.service'
 
@@ -230,4 +231,72 @@ it('注入读：会话不归这个用户 → 空，⛔ 不抛（注入不到不�
       limit: 8,
     }),
   ).toEqual([])
+})
+
+it('用户改过的那一条按 roundIndex 认，三栏覆盖、编号与时刻原样留着（§7.7）', async () => {
+  mocks.findFirst.mockResolvedValue({
+    id: 'conv-1',
+    rounds: [
+      { ...ROUND, roundIndex: 3 },
+      { ...ROUND, roundIndex: 4, facts: ['旧事实'] },
+    ],
+  })
+  mocks.update.mockResolvedValue({})
+
+  const updated = await updateAssistantConversationRound(
+    'clerk-owner',
+    'conv-1',
+    4,
+    { facts: ['我改过的事实'], decisions: ['用 3:2'], todos: [] },
+  )
+
+  expect(updated).toEqual({
+    ...ROUND,
+    roundIndex: 4,
+    facts: ['我改过的事实'],
+    decisions: ['用 3:2'],
+    todos: [],
+    editedByUser: true,
+  })
+  // ⚠ 另一条一个字都没动。
+  expect(mocks.update.mock.calls[0]?.[0]).toEqual({
+    where: { id: 'conv-1' },
+    data: {
+      rounds: [
+        { ...ROUND, roundIndex: 3 },
+        {
+          ...ROUND,
+          roundIndex: 4,
+          facts: ['我改过的事实'],
+          decisions: ['用 3:2'],
+          todos: [],
+          editedByUser: true,
+        },
+      ],
+    },
+  })
+})
+
+it('没有这一号 / 不归他时不写库，返回 null', async () => {
+  mocks.findFirst.mockResolvedValue({
+    id: 'conv-1',
+    rounds: [{ ...ROUND, roundIndex: 0 }],
+  })
+  expect(
+    await updateAssistantConversationRound('clerk-owner', 'conv-1', 9, {
+      facts: [],
+      decisions: [],
+      todos: [],
+    }),
+  ).toBeNull()
+
+  mocks.findFirst.mockResolvedValue(null)
+  expect(
+    await updateAssistantConversationRound('clerk-owner', 'conv-other', 0, {
+      facts: [],
+      decisions: [],
+      todos: [],
+    }),
+  ).toBeNull()
+  expect(mocks.update).not.toHaveBeenCalled()
 })

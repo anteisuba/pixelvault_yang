@@ -58,7 +58,10 @@ import type {
   StudioOperatorStepEntry,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
-import type { AssistantOperatorStep } from '@/types/assistant-operator'
+import type {
+  AssistantOperatorRoundSummary,
+  AssistantOperatorStep,
+} from '@/types/assistant-operator'
 import type { AssistantSurfaceId } from '@/types/assistant-conversation'
 import type { StudioOperatorHistoryEntry } from '@/types/studio-operator-history'
 
@@ -218,6 +221,17 @@ export interface StudioOperatorState {
    *   （不露续跑入口），⛔ 不为此加第三档。
    */
   resume: StudioOperatorResumePlan | null
+  /**
+   * **载回来的那几条结论记录**（v2 §7.2 / §7.7，commit #13）。
+   *
+   * ⭐ 与 `history` 分开的理由和 `history` 与 `entries` 分开的理由是同一条：
+   * 它们来自**另一列**（`AssistantConversation.rounds`），不是 `messages` 里的
+   * 条目，库里也没有「这条结论长在哪条消息之后」的锚。合进 `history` 就得先
+   * 编一个位置出来，而编出来的位置会在下一次读写里变成事实。
+   * ⚠ 在飞那一轮的结论记录**不在这里**：它是 `entries` 里的 `roundSummary`
+   * 条目（`done` 帧到达即落位）。⛔ 别两边都写 —— 那会让同一轮的结论出现两次。
+   */
+  historyRounds: readonly AssistantOperatorRoundSummary[]
 }
 
 const EMPTY_SLICE: StudioOperatorDomainSlice = {
@@ -229,6 +243,7 @@ const INITIAL_DOMAIN: AssistantOperatorDomain =
   ASSISTANT_PROTOCOL_DOMAIN_IDS.image
 
 const EMPTY_HISTORY: readonly StudioOperatorHistoryEntry[] = []
+const EMPTY_ROUNDS: readonly AssistantOperatorRoundSummary[] = []
 
 const INITIAL_STATE: StudioOperatorState = {
   status: 'idle',
@@ -252,6 +267,7 @@ const INITIAL_STATE: StudioOperatorState = {
   capturingFrames: false,
   reviewStates: {},
   resume: null,
+  historyRounds: EMPTY_ROUNDS,
 }
 
 /**
@@ -433,6 +449,73 @@ export function nextOperatorEntryId(prefix: string): string {
 
 export function appendOperatorEntry(entry: StudioOperatorThreadEntry): void {
   emit({ ...state, entries: [...state.entries, entry] })
+}
+
+/**
+ * **本轮结账落进时间线**（v2 §7.7，commit #13）—— `done` 帧带着它来。
+ *
+ * ⚠ 同一个 `roundIndex` 只留一条：一轮里被问题卡停过几次都不算新的一轮
+ * （服务端那侧的同一条纪律，见 `appendAssistantConversationRound` 头注），而
+ * 客户端重发续跑时那条 `done` 会再来一次 —— 追加的表现是流末尾两条一模一样的
+ * 「本轮结论」。
+ */
+export function appendOperatorRoundSummary(
+  summary: AssistantOperatorRoundSummary,
+): void {
+  const exists = state.entries.some(
+    (entry) =>
+      entry.kind === 'roundSummary' &&
+      entry.summary.roundIndex === summary.roundIndex,
+  )
+  if (exists) {
+    emit({
+      ...state,
+      entries: state.entries.map((entry) =>
+        entry.kind === 'roundSummary' &&
+        entry.summary.roundIndex === summary.roundIndex
+          ? { ...entry, summary }
+          : entry,
+      ),
+    })
+    return
+  }
+  appendOperatorEntry({
+    kind: 'roundSummary',
+    id: nextOperatorEntryId('round'),
+    summary,
+  })
+}
+
+/**
+ * 用户就地改完那三栏之后的**乐观写入**（§7.7）。
+ *
+ * ⭐ 在飞那条（`entries`）与载回来那几条（`historyRounds`）**一起改**：同一个
+ * `roundIndex` 在两个数组里各存在过一次（这一次页面加载里生成的 vs 上一次载回
+ * 来的），只改一边的表现是编辑保存后那个块看上去回滚了。
+ * ⚠ `editedByUser` 在这里就置上，⛔ 不等服务端回来：那一次往返的空窗里用户会
+ * 以为自己没点上（与 `reviewStates` 那一格同一条判据）。PATCH 失败时由调用方
+ * 用原值再调一次这个函数退回去。
+ */
+export function updateOperatorRoundSummary(
+  roundIndex: number,
+  patch: Pick<AssistantOperatorRoundSummary, 'facts' | 'decisions' | 'todos'> &
+    Partial<Pick<AssistantOperatorRoundSummary, 'editedByUser'>>,
+): void {
+  const apply = (
+    summary: AssistantOperatorRoundSummary,
+  ): AssistantOperatorRoundSummary =>
+    summary.roundIndex === roundIndex
+      ? { ...summary, ...patch, editedByUser: patch.editedByUser ?? true }
+      : summary
+  emit({
+    ...state,
+    entries: state.entries.map((entry) =>
+      entry.kind === 'roundSummary'
+        ? { ...entry, summary: apply(entry.summary) }
+        : entry,
+    ),
+    historyRounds: state.historyRounds.map(apply),
+  })
 }
 
 /**
@@ -940,6 +1023,8 @@ export function restoreOperatorThreadCheckpoint(
  */
 export function loadOperatorThread(args: {
   history: readonly StudioOperatorHistoryEntry[]
+  /** 那一行 `rounds` 列里读出来的结论记录（§7.7 回填）。缺席 = 这条会话一条都没有。 */
+  rounds?: readonly AssistantOperatorRoundSummary[]
   sessionId: string | null
   sessionSurface: AssistantSurfaceId | null
 }): void {
@@ -947,6 +1032,7 @@ export function loadOperatorThread(args: {
     ...state,
     status: 'idle',
     history: args.history,
+    historyRounds: args.rounds ?? EMPTY_ROUNDS,
     sessionId: args.sessionId,
     sessionSurface: args.sessionSurface,
     entries: [],
@@ -1089,6 +1175,7 @@ export function resetOperatorThread(): void {
     ...state,
     status: 'idle',
     history: EMPTY_HISTORY,
+    historyRounds: EMPTY_ROUNDS,
     sessionId: null,
     sessionSurface: null,
     entries: [],

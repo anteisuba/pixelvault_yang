@@ -2227,9 +2227,9 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.readContextCard]:
     'read one context card in full: the body the creator wrote (appearance, outfit, personality — or the style rules, or the brand spec), the hard negatives that card carries, and the URLs of its reference images with what each one is for. The card id comes from list_context_cards or from your instructions — never invent one. A sheet image is identity evidence: the look is decided by it. Mount the images you actually need with mount_reference; reading a card mounts nothing on its own.',
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]:
-    "OFFER to remember a character, a look or a brand spec the creator just described, as a context card they can reuse later. This SAVES NOTHING on its own: the app shows them the draft card and they decide. It ends your turn. Use it when they have just settled a set of details that will obviously come back — a character's appearance and outfit, a style they keep asking for, their brand colours — never for a one-off instruction about this run. Write the summary as the one line that gets quoted back to you every turn, and the body as the full description in THEIR words. One card at a time, and never offer the same card twice in a session.",
+    'OFFER to remember a character, a look or a brand spec the creator just described, as a context card they can reuse later. This SAVES NOTHING on its own: the app shows them the draft card and they decide. It ends your turn. Use it when they have just settled a set of details that will obviously come back — a character\'s appearance and outfit, a style they keep asking for, their brand colours — never for a one-off instruction about this run. Write the summary as the one line that gets quoted back to you every turn, and the body as the full description in THEIR words. One card at a time, and never offer the same card twice in a session.\nTHIS IS THE ONE FOR A STANDING SETTING ABOUT A THING: what a character looks like, wears, or does with their hair; what a look is made of; brand colours and what is forbidden on them. Chinese openings that mean exactly this: 「以后…固定…」「记一下…设定」「这个角色一直是…」. Example — they say 「以后图1这个男角色固定穿藏青水手服，双马尾」, you send {"action":"propose_context_card","kind":"character","name":"图1的男角色","summary":"navy sailor uniform, twin tails","body":"以后图1这个男角色固定穿藏青水手服，双马尾"}. ⛔ Never file one of these as a project rule — a rule is a way of working, this is what something IS.',
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
-    'write down ONE standing rule the creator just stated — something that should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice. "kind" picks which sort of rule it is: "note" (the default, their own words), "sourceAllow" ("only trust these sources from now on") or "sourceDeny" ("never use this site again"). Those last two hold ONE search source id (the same ids the verify tool takes) or ONE domain — ask which site they mean rather than writing a sentence, and use them only when they asked for a standing source list, not for this one search.',
+    'write down ONE standing rule about HOW YOU WORK that the creator just stated — which sources to trust, what to always or never do, how they want things written or delivered. It should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice. "kind" picks which sort of rule it is: "note" (the default, their own words), "sourceAllow" ("only trust these sources from now on") or "sourceDeny" ("never use this site again"). Those last two hold ONE search source id (the same ids the verify tool takes) or ONE domain — ask which site they mean rather than writing a sentence, and use them only when they asked for a standing source list, not for this one search. Example — they say 「以后查资料只信官方站，别拿同人图当依据」, you send {"action":"add_project_rule","text":"以后查资料只信官方站，别拿同人图当依据"}.\n⛔ NOT FOR A SETTING ABOUT A THING. A character\'s appearance, outfit or hair; a look they want fixed; brand colours and their forbidden list — those are context cards, not rules: send ask{"action":"propose_context_card", …} instead. 「以后图1这个男角色固定穿藏青水手服，双马尾」 is a card, not a rule. The test is simple: a rule tells you how to behave, a card tells you what something IS. Filing a card as a rule costs the creator the reusable card they should have been offered.',
   [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]:
     "put one or more short tags on the creator's own assets so they can find them again — up to 20 assets and 5 tags in one call. Tags they already carry are left alone. Use the creator's own words for a tag, keep it to a word or two, and only tag what they actually asked you to; this writes to their library. Undoing this removes exactly the tags this call added, nothing they had before.",
   [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]:
@@ -2259,9 +2259,9 @@ export const ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research]:
     "GO AND FIND something that is not here yet — on the web, or in the creator's own library. It produces candidates and evidence, and files nothing.",
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask]:
-    'STOP AND ASK the creator to settle one thing you genuinely cannot settle yourself. It ends your turn: the app shows one question and waits for their tap. Leave "action" out for a plain question; the one "action" listed below offers them something to keep instead of asking a question.',
+    'STOP AND ASK the creator to settle one thing you genuinely cannot settle yourself. It ends your turn: the app shows one question and waits for their tap. Leave "action" out for a plain question; the one "action" listed below offers them something to keep instead of asking a question — and that is where every standing SETTING goes (what a character looks like or wears, a fixed look, brand colours), while a standing way of WORKING goes to apply/add_project_rule.',
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply]:
-    'TURN A KNOB on the workbench in front of them. Every one of these is undoable and shows up on their screen immediately.',
+    'TURN A KNOB on the workbench in front of them. Every one of these is undoable and shows up on their screen immediately. ⚠ add_project_rule in here takes a standing rule about HOW YOU WORK only — a standing setting about what a character or a look IS belongs to ask/propose_context_card.',
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration]:
     'ASK FOR THE GENERATION to be set up. You never spend their credits: the most this does is arm the button, and they press it.',
 }
@@ -2282,6 +2282,21 @@ export const ASSISTANT_OPERATOR_ENTRY_ACTION_HINTS: Record<
     'CHECK A FACT you are not certain of, properly. Give it a goal in one line ("what Shiye officially looks like") plus the entities it turns on ("Ananta", "Shiye"), first the work and last the character. The app rewrites it into two or three search phrases in Chinese, English and Japanese, picks the right kinds of source (encyclopedias, tag libraries, video, general web), hits them at once and hands you back a conclusion plus the sources behind it — what was said, who published it, and how many independent sources agree. Use it whenever the creator\'s request turns on a detail you would otherwise guess: an official name, a character\'s design, a platform rule, a studio\'s own terminology. Evidence marked "single source" is exactly that — say so instead of stating it as fact. You may verify a SECOND time with a narrower goal once the first round tells you the official name or the site of record; that second round is where the real answer usually is. ⚠ This is NOT how you find reference pictures — that is find_images.',
   [ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.findImages]:
     'FIND REFERENCE PICTURES on the web. Takes three or four words in English plus "subject" (the work and the character) and, for character designs, preferOfficial:true. It puts candidates on screen as previews and files NOTHING: the creator picks the ones they want and the app imports those. ⛔ Never describe these pictures as if you had looked at them, and never write one of their addresses into the form. ⚠ This does not answer questions — that is verify.',
+}
+
+/**
+ * **被 `malformedArgs` 拒掉时，观察里附的那份正确形状**（2026-09-12 实测第 9 步）。
+ *
+ * ⭐ 判据与本文件其它「可教的拒」逐字同源：一条只说「参数形状不对」的理由，
+ * 模型只会换个值再撞一次（实测：`add_project_rule` 第一次红、第二次才落）。
+ * ⚠ 只给**实测撞过**的那几条，⛔ 不为 31 条工具各抄一份 JSON —— 那份清单会与
+ * schema 分家，而分家之后它比没有更糟。
+ */
+export const ASSISTANT_OPERATOR_TOOL_ARG_SHAPE_HINTS: Partial<
+  Record<AssistantOperatorTool, string>
+> = {
+  [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
+    'Correct shape: {"action":"add_project_rule","text":"<their sentence>"} — "text" is a plain string and the only required field. "kind" ("note"/"sourceAllow"/"sourceDeny") and "scope" are optional; leave them out unless you mean them.',
 }
 
 /**
@@ -2548,6 +2563,47 @@ export const PROJECT_RULE_KINDS = [
 ] as const
 
 export type ProjectRuleKindId = (typeof PROJECT_RULE_KINDS)[number]
+
+/**
+ * **模型写歪的 `add_project_rule` 参数往回掰的那张对照表**（2026-09-12 实测第 9 步）。
+ *
+ * ⭐ 起因很具体：`add_project_rule` 第一次调用被 schema 判成「参数形状不对」，
+ * 第二次才落 —— 用户看到的是一条红字加一次白等，而两次说的是同一件事。
+ * ⚠ 这不是给协议开后门：`text` 的长度、`kind` 的值域一个字都没松，松的只有
+ * **同一个东西叫什么名字**。认不出来的照旧拒（带一句正确形状的例子）。
+ * ⛔ 别把这张表推广到别的工具：形状容错的代价是「模型学不会正确形状」，只在
+ * 真的实测撞过的那条工具上付。
+ */
+export const PROJECT_RULE_TEXT_ARG_ALIASES = [
+  'rule',
+  'content',
+  'value',
+  'note',
+] as const
+
+/** `kind` 的常见别名（含中文）——⚠ 一律小写比对。 */
+export const PROJECT_RULE_KIND_ALIASES: Record<string, ProjectRuleKindId> = {
+  note: PROJECT_RULE_KIND_IDS.note,
+  plain: PROJECT_RULE_KIND_IDS.note,
+  general: PROJECT_RULE_KIND_IDS.note,
+  rule: PROJECT_RULE_KIND_IDS.note,
+  普通: PROJECT_RULE_KIND_IDS.note,
+  规则: PROJECT_RULE_KIND_IDS.note,
+  笔记: PROJECT_RULE_KIND_IDS.note,
+  sourceallow: PROJECT_RULE_KIND_IDS.sourceAllow,
+  source_allow: PROJECT_RULE_KIND_IDS.sourceAllow,
+  'source-allow': PROJECT_RULE_KIND_IDS.sourceAllow,
+  allow: PROJECT_RULE_KIND_IDS.sourceAllow,
+  allowlist: PROJECT_RULE_KIND_IDS.sourceAllow,
+  白名单: PROJECT_RULE_KIND_IDS.sourceAllow,
+  sourcedeny: PROJECT_RULE_KIND_IDS.sourceDeny,
+  source_deny: PROJECT_RULE_KIND_IDS.sourceDeny,
+  'source-deny': PROJECT_RULE_KIND_IDS.sourceDeny,
+  deny: PROJECT_RULE_KIND_IDS.sourceDeny,
+  block: PROJECT_RULE_KIND_IDS.sourceDeny,
+  blocklist: PROJECT_RULE_KIND_IDS.sourceDeny,
+  黑名单: PROJECT_RULE_KIND_IDS.sourceDeny,
+}
 
 /** 两种来源名单 —— 读名单那条查询按它收敛。 */
 export const PROJECT_RULE_SOURCE_KINDS = [

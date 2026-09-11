@@ -52,6 +52,8 @@ import {
   ASSISTANT_OPERATOR_WRITE_MODES,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
+  PROJECT_RULE_KIND_ALIASES,
+  PROJECT_RULE_TEXT_ARG_ALIASES,
   ASSISTANT_ASSET_WRITE_LIMITS as ASSET_WRITE_LIMITS,
   ASSISTANT_RESEARCH_CONFIDENCES,
   ASSISTANT_RESEARCH_EVIDENCE_KINDS,
@@ -1186,6 +1188,56 @@ export type AssistantOperatorContextCardDraft = z.infer<
   typeof AssistantOperatorContextCardDraftSchema
 >
 
+/**
+ * **`add_project_rule` 的形状容错**（2026-09-12 实测第 9 步）。
+ *
+ * ⭐ 真机里这条工具**第一次调用一定被拒**、第二次才落 —— 用户读到的是一条
+ * 「参数形状不对」加一次白等。掰的只有「同一个东西叫什么名字」三件：
+ *  ① 整包裹在 `rule` / `input` 下的（`{rule:{text:…}}`）；
+ *  ② `text` 写成 `rule` / `content` / `value` / `note`；
+ *  ③ `kind` 写成别名或中文（`PROJECT_RULE_KIND_ALIASES`）。
+ * ⛔ 长度与值域一个字都没松：掰不动的照旧 `malformedArgs`，并在观察里给一份
+ * 正确形状（见 `ASSISTANT_OPERATOR_TOOL_ARG_SHAPE_HINTS`）。
+ */
+function normalizeAddProjectRuleArgs(raw: unknown): unknown {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return raw
+  let args = raw as Record<string, unknown>
+
+  // ① 整包裹一层：`{rule:{…}}` / `{input:{…}}`。
+  for (const wrapper of ['rule', 'input'] as const) {
+    const inner = args[wrapper]
+    if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+      args = { ...args, ...(inner as Record<string, unknown>) }
+      delete args[wrapper]
+    }
+  }
+
+  const next: Record<string, unknown> = { ...args }
+
+  // ② `text` 的别名 —— ⚠ 只在 `text` 本身缺席/空时才顶上。
+  if (typeof next.text !== 'string' || next.text.trim() === '') {
+    for (const alias of PROJECT_RULE_TEXT_ARG_ALIASES) {
+      const value = next[alias]
+      if (typeof value === 'string' && value.trim() !== '') {
+        next.text = value
+        break
+      }
+    }
+  }
+
+  // ③ `kind` 的别名与中文。认不出来的**删掉**（缺省 = 普通规则）。
+  if (typeof next.kind === 'string') {
+    const mapped =
+      PROJECT_RULE_KIND_ALIASES[next.kind.trim().toLowerCase()] ?? undefined
+    if (mapped) next.kind = mapped
+    else delete next.kind
+  } else if (next.kind !== undefined) {
+    delete next.kind
+  }
+
+  return next
+}
+
 export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   AssistantOperatorTool,
   z.ZodType
@@ -1500,18 +1552,26 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
    * ⚠ `scope` 可选，缺省 = 全域：一条规则默认对四台工作台都成立，缩小它是一个
    * 有意的动作。
    */
-  [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]: z.object({
-    text: z.string().trim().min(1).max(RULE_LIMITS.maxTextChars),
-    scope: ProjectRuleScopeSchema.optional(),
-    /**
-     * 哪一种规则（§9.3）。缺省 = 普通规则。
-     *
-     * ⚠ 来源名单那两种的 `text` 必须是来源 id 或域名 —— 值域在规划器收
-     * （`planAddProjectRule`），⛔ 不在这里拒：schema 拒 = 模型这一轮整个作废，
-     * 规划器拒 = 它读得到理由还能改口（文件头注 ②）。
-     */
-    kind: ProjectRuleKindSchema.optional(),
-  }),
+  [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]: z.preprocess(
+    normalizeAddProjectRuleArgs,
+    z.object({
+      text: z.string().trim().min(1).max(RULE_LIMITS.maxTextChars),
+      /**
+       * ⚠ 认不出来的作用域**当没写**（`.catch(undefined)`）而不是整条拒：
+       * 缺省 = 全域，本来就是这条工具最常见的形态 —— 让一个编出来的
+       * `"global"` 把整轮拖垮，换来的只是用户连吃两条「参数形状不对」。
+       */
+      scope: ProjectRuleScopeSchema.optional().catch(undefined),
+      /**
+       * 哪一种规则（§9.3）。缺省 = 普通规则。
+       *
+       * ⚠ 来源名单那两种的 `text` 必须是来源 id 或域名 —— 值域在规划器收
+       * （`planAddProjectRule`），⛔ 不在这里拒：schema 拒 = 模型这一轮整个作废，
+       * 规划器拒 = 它读得到理由还能改口（文件头注 ②）。
+       */
+      kind: ProjectRuleKindSchema.optional().catch(undefined),
+    }),
+  ),
   /**
    * 上下文卡两条（K1）。
    *

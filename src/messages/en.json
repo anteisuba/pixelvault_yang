@@ -7532,6 +7532,14 @@
       "sound": "Soundtrack",
       "loras": "LoRA stack"
     },
+    "changeSubject": {
+      "rule": "Project rule",
+      "reviewState": "Review state",
+      "assetTags": "Asset tags",
+      "assetFavorite": "Asset stars",
+      "assetFolder": "New folder",
+      "assetMove": "Asset filing"
+    },
     "changes": {
       "originalValue": "Was: {value}",
       "originalEmpty": "Was empty",

@@ -5007,6 +5007,141 @@ describe('项目规则（§10，拍板 23）', () => {
     )
   })
 
+  /**
+   * **设定不是规矩**（2026-09-12 实测第 9 步）。
+   *
+   * 真机里用户说「以后图1这个男角色固定穿藏青水手服，双马尾」，模型挑了
+   * `add_project_rule` —— 用户丢掉的是一张能复用、能常挂、能挂参考图的角色卡。
+   * ⚠ 这一条验的是**闸**（提示词已经写清边界，但提示词从来不是闸）。
+   */
+  it('角色设定走上下文卡那一帧，⛔ 不硬存成规则', async () => {
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+        title: 'remember the outfit',
+        args: { text: '以后图1这个男角色固定穿藏青水手服，双马尾' },
+      },
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const confirm = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+    )
+    expect(confirm).toMatchObject({
+      confirm: {
+        kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard,
+        card: {
+          kind: 'character',
+          // 摘要与正文都是用户的原话 —— 这张卡的价值就在这句是他说的。
+          summary: '以后图1这个男角色固定穿藏青水手服，双马尾',
+          body: '以后图1这个男角色固定穿藏青水手服，双马尾',
+        },
+      },
+    })
+    // ⛔ 库里不该留下那条被改判的规则。
+    expect(mockAddProjectRule).not.toHaveBeenCalled()
+  })
+
+  it('工作方式那类规矩照旧落成项目规则', async () => {
+    mockAddProjectRule.mockResolvedValue({
+      id: 'rule-10',
+      scope: null,
+      text: '以后查资料只信官方站，别拿同人图当依据',
+      source: 'assistant',
+      createdAt: '2026-09-12T10:00:00.000Z',
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+          args: { text: '以后查资料只信官方站，别拿同人图当依据' },
+        },
+      },
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
+    ).toBe(false)
+    expect(mockAddProjectRule).toHaveBeenCalledWith('user-db-1', {
+      text: '以后查资料只信官方站，别拿同人图当依据',
+      scope: null,
+      kind: 'note',
+      source: 'assistant',
+    })
+  })
+
+  /**
+   * **参数形状漂移**（2026-09-12 实测第 9 步）——真机里这条工具第一次调用被判
+   * 「参数形状不对」、第二次才落。掰的只有「同一个东西叫什么名字」。
+   */
+  it.each([
+    ['text 写成 rule', { rule: '输出一律不加水印' }],
+    ['kind 写中文别名', { text: '输出一律不加水印', kind: '普通' }],
+    ['scope 编了一个不存在的值', { text: '输出一律不加水印', scope: 'global' }],
+  ])('%s 时照样落库，⛔ 不吐 malformedArgs', async (_name, args) => {
+    mockAddProjectRule.mockResolvedValue({
+      id: 'rule-11',
+      scope: null,
+      text: '输出一律不加水印',
+      source: 'assistant',
+      createdAt: '2026-09-12T10:00:00.000Z',
+    })
+    queueTurns(
+      {
+        tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule, args },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(
+      steps.some(
+        (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      ),
+    ).toBe(false)
+    expect(mockAddProjectRule).toHaveBeenCalledWith('user-db-1', {
+      text: '输出一律不加水印',
+      scope: null,
+      kind: 'note',
+      source: 'assistant',
+    })
+  })
+
+  /** 掰不动的照旧拒 —— ⚠ 但理由里要带一份正确形状，否则模型只会换个值再撞一次。 */
+  it('text 缺席时拒，理由里带正确形状', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+          args: { scope: 'image' },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const rejected = steps.find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+    )
+    const error = rejected?.error as
+      | { reason: string; detail?: string }
+      | undefined
+    expect(error?.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.malformedArgs,
+    )
+    expect(error?.detail).toContain('"text"')
+  })
+
   it('同一句规则记两遍在规划期就被拒（换标点也绕不过去）', async () => {
     mockListProjectRules.mockResolvedValue([RULE])
     queueTurns(

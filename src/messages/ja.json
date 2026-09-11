@@ -7532,6 +7532,14 @@
       "sound": "音声出力",
       "loras": "LoRA 構成"
     },
+    "changeSubject": {
+      "rule": "プロジェクトルール",
+      "reviewState": "レビュー状態",
+      "assetTags": "素材タグ",
+      "assetFavorite": "素材のお気に入り",
+      "assetFolder": "新規フォルダ",
+      "assetMove": "素材の移動"
+    },
     "changes": {
       "originalValue": "元の値：{value}",
       "originalEmpty": "元は空でした",

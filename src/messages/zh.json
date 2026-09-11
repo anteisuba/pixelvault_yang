@@ -7532,6 +7532,14 @@
       "sound": "出声",
       "loras": "LoRA 挂载"
     },
+    "changeSubject": {
+      "rule": "项目规则",
+      "reviewState": "审核态",
+      "assetTags": "素材标签",
+      "assetFavorite": "素材收藏",
+      "assetFolder": "新建文件夹",
+      "assetMove": "素材归档"
+    },
     "changes": {
       "originalValue": "原值：{value}",
       "originalEmpty": "原来是空的",

@@ -1186,6 +1186,35 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     })
   })
 
+  /**
+   * 2026-09-12 实测第 9 步：同一条规则的薄卡在后续轮次的时间线里又画了一遍。
+   * 服务端只在**一轮之内**去重（`emittedRuleHits`），跨轮那一半在这里认。
+   */
+  it('同一条规则只画一次 —— 下一轮再命中不重复插条', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('按老规矩来')
+    })
+    await settle()
+
+    const hit = {
+      type: ASSISTANT_OPERATOR_EVENTS.ruleHit,
+      ruleId: 'rule-1',
+      text: '主角的耳环永远在左边',
+      source: 'creator',
+      createdAt: '2026-08-14T02:00:00.000Z',
+    } as const
+    streams[0].emit(hit)
+    await settle()
+    streams[0].emit(hit)
+    await settle()
+
+    expect(
+      store.getOperatorState().entries.filter((entry) => entry.kind === 'rule')
+        .length,
+    ).toBe(1)
+  })
+
   it('ask（选项全带 assetUrl）→ 摆卡；点一张 = 插 @chip + 带 mentionedAssets 重发', async () => {
     const { result } = render()
     act(() => {

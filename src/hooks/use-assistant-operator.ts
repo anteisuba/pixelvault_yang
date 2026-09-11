@@ -1238,7 +1238,19 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              * **规则薄卡**（§2.21 / §10，拍板 23）—— 时间线里插一条，⛔ 不是一步。
              * 原文与日期是服务端从规则表里查出来的原话（见事件 schema 头注）。
              */
-            case ASSISTANT_OPERATOR_EVENTS.ruleHit:
+            case ASSISTANT_OPERATOR_EVENTS.ruleHit: {
+              /**
+               * ⚠ **一条规则在这段对话里只画一次**（2026-09-12 实测第 9 步）：
+               * 服务端只在**一轮之内**去重（`emittedRuleHits`），而同一条规则
+               * 下一轮照样会命中 —— 用户读到的是同一张薄卡在时间线上出现两次、
+               * 三次。⛔ 不在服务端跨轮去重：那要给流一份会话态，而「运行中的一轮
+               * 不许留痕」是那条流的前提（§7.2）。这里按 `ruleId` 认就够了。
+               */
+              const seen = getOperatorState().entries.some(
+                (entry) =>
+                  entry.kind === 'rule' && entry.ruleId === event.ruleId,
+              )
+              if (seen) break
               appendOperatorEntry({
                 kind: 'rule',
                 id: nextOperatorEntryId('rule'),
@@ -1248,6 +1260,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 createdAt: event.createdAt,
               })
               break
+            }
             /**
              * ⚠ **`awaitingPlan` 不被这一帧降级**：计划卡 / 问题卡那两支自己已经
              * 把状态说清楚了，而服务端只会笼统地说一句 `awaiting_confirm` ——

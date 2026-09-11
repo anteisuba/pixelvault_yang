@@ -35,6 +35,7 @@ import {
   ASSISTANT_OPERATOR_ENTRY_TOOLS,
   ASSISTANT_OPERATOR_ENTRY_TOOL_IDS as ENTRY,
   ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS as RESEARCH_ACTION,
+  ASSISTANT_OPERATOR_TOOL_ARG_SHAPE_HINTS,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_OPERATOR_TOOL_VERBS,
   ASSISTANT_OPERATOR_TOOLS,
@@ -362,7 +363,10 @@ import {
 } from '@/types/assistant-persona'
 import { toContextCardDigest, type ContextCard } from '@/types/context-cards'
 import type { ContextCardKindId } from '@/constants/context-cards'
-import { CONTEXT_CARD_LIMITS as CARD_LIMITS } from '@/constants/context-cards'
+import {
+  CONTEXT_CARD_KIND_IDS as CARD_KIND,
+  CONTEXT_CARD_LIMITS as CARD_LIMITS,
+} from '@/constants/context-cards'
 import type { AssistantAssetFolderCandidate } from '@/types/asset-folder-vision'
 import type { LoraCandidate } from '@/types/lora-candidate'
 
@@ -925,11 +929,20 @@ function unwrapEntryToolCall(name: string, rawArgs: unknown): EntryUnwrap {
   return { ok: true, tool: resolveAssistantOperatorEntryAction(action), args }
 }
 
+/**
+ * ⚠ `detail` **在这里截**（`LIMITS.maxReasonChars`）：它下游要过 `step` 帧那道
+ * schema，超一个字就是 `toStepEvent` 当场抛 —— 整轮以一句笼统的「run failed
+ * midway」结束（判据与 `clamp` 头注记下的那次真机事故逐字同源）。
+ */
 function reject(
   reason: AssistantOperatorRejectReason,
   detail?: string,
 ): ToolPlan {
-  return { kind: 'rejected', reason, ...(detail ? { detail } : {}) }
+  return {
+    kind: 'rejected',
+    reason,
+    ...(detail ? { detail: clamp(detail, LIMITS.maxReasonChars) } : {}),
+  }
 }
 
 /**
@@ -4457,6 +4470,79 @@ function planReadProjectRules(
  * 日志上那一条就得先带着一个假 id，撤销拿它什么都删不掉。
  * ⚠ 上限撞到时在这里拒，⛔ 不静默丢弃、也不挤掉最老的一条。
  */
+/**
+ * **这条「规则」其实是一张卡吗**（2026-09-12 实测第 9 步）。
+ *
+ * ⭐ 起因：用户说「以后图1这个男角色固定穿藏青水手服，双马尾」，模型把它当成
+ * 项目规则存了进去 —— 用户丢掉的是一张能复用、能常挂、能挂参考图的角色卡，
+ * 换来一行永远拼在系统提示里的句子。提示词里已经写清了边界（见两条 hint），
+ * 但**提示词从来不是闸**：这里是那道闸。
+ *
+ * ⚠ 判据故意要求**两半都在**：一个主体（角色 / 画风 / 品牌）+ 一件属于它的属性
+ * （穿什么 / 头发 / 配色 / 笔触）。只有一半就放行 —— 「以后别用同人图当依据」里
+ * 有「图」没有属性，它是规矩；「统一用暖色调」有属性没主体，⛔ 不去猜它说的是谁。
+ * ⚠ 只对普通规则（`note`）生效：来源名单那两种已经被 token 那把刀收过了。
+ */
+const CONTEXT_CARD_SETTING_SUBJECTS: readonly {
+  kind: (typeof CARD_KIND)[keyof typeof CARD_KIND]
+  subject: RegExp
+  attribute: RegExp
+}[] = [
+  {
+    kind: CARD_KIND.character,
+    subject: /@?image\s*\d|图\s*\d|角色|人物|主角|character/i,
+    attribute:
+      /穿|服装|衣服|制服|水手服|裙|发型|头发|马尾|瞳|眼睛|长相|外貌|身高|体型|outfit|wears?|hair|eyes|appearance/i,
+  },
+  {
+    kind: CARD_KIND.style,
+    subject: /画风|风格|art\s*style|style/i,
+    attribute:
+      /色调|配色|笔触|线条|质感|光影|渲染|palette|colou?rs?|brush|lighting|texture/i,
+  },
+  {
+    kind: CARD_KIND.brand,
+    subject: /品牌|logo|标志|brand/i,
+    attribute:
+      /主色|配色|色值|字体|禁止|不能用|colou?rs?|font|typeface|forbidden/i,
+  },
+]
+
+/** ⚠ 只在「以后 / 一律 / 固定」这类**长期**措辞出现时才改判：一次性的指令不是设定。 */
+const CONTEXT_CARD_SETTING_STANDING =
+  /以后|今后|一律|固定|永远|始终|每次|一直|统一|from now on|always|every time/i
+
+function detectContextCardSetting(
+  text: string,
+): { kind: (typeof CARD_KIND)[keyof typeof CARD_KIND]; name: string } | null {
+  if (!CONTEXT_CARD_SETTING_STANDING.test(text)) return null
+  for (const probe of CONTEXT_CARD_SETTING_SUBJECTS) {
+    if (!probe.subject.test(text) || !probe.attribute.test(text)) continue
+    return { kind: probe.kind, name: guessContextCardName(text) }
+  }
+  return null
+}
+
+/**
+ * 草稿卡的**名字**。
+ *
+ * ⚠ 取的是「长期措辞之前那一段」（「以后图1这个男角色固定…」→「图1这个男角色」），
+ * ⛔ 不编一个用户没说过的名字：这张卡要摆到他面前让他点头，名字编错了他只会点
+ * 「不用」。取不出来就整句截断 —— 难看但真。
+ */
+function guessContextCardName(text: string): string {
+  const head = text.split(/[，,。；;、\n]/)[0]?.trim() ?? text.trim()
+  const stripped = head
+    .replace(
+      /^(以后|今后|一律|永远|始终|每次|一直|记一下|记住|请)+[，,：:]?/,
+      '',
+    )
+    .split(/固定|一律|永远|始终|总是|都要|都是|统一/)[0]
+    ?.trim()
+  const name = stripped && stripped.length > 0 ? stripped : head
+  return clamp(name || text.trim(), CARD_LIMITS.maxNameChars)
+}
+
 async function planAddProjectRule(
   run: OperatorRun,
   args: {
@@ -4484,6 +4570,27 @@ async function planAddProjectRule(
       )
     }
     text = token.data
+  }
+
+  /**
+   * ⭐ **设定不是规矩**（2026-09-12 实测第 9 步）——「以后图1这个男角色固定穿
+   * 藏青水手服」这类话改判成**提议一张上下文卡**，⛔ 不硬存成规则。
+   * ⚠ 这一跳直接结束本轮（`confirmContextCard` 会吐一帧确认卡并停流），所以
+   * 放在查重与写库**之前**：库里不该留下那条被改判的规则。
+   */
+  if (kind === PROJECT_RULE_KIND_IDS.note) {
+    const setting = detectContextCardSetting(text)
+    if (setting)
+      return {
+        kind: 'confirmContextCard',
+        card: {
+          kind: setting.kind,
+          name: setting.name,
+          // ⚠ 摘要与正文都是**用户的原话**：这张卡的全部价值就在这句是他说的。
+          summary: clamp(text, CARD_LIMITS.maxSummaryChars),
+          body: clamp(text, CARD_LIMITS.maxBodyChars),
+        },
+      }
   }
 
   /**
@@ -4989,12 +5096,16 @@ async function planTool(
 
   const parsed = ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[tool].safeParse(rawArgs)
   if (!parsed.success) {
-    return reject(
-      REJECT.malformedArgs,
-      parsed.error.issues
-        .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
-        .join('; '),
-    )
+    /**
+     * ⚠ 理由后面**接一份正确形状**（2026-09-12 实测第 9 步）：一句
+     * 「text: Required」不可教，模型只会换个值再撞一次。形状表只覆盖实测撞过的
+     * 那几条，缺席时照旧只报 issue（见 `ASSISTANT_OPERATOR_TOOL_ARG_SHAPE_HINTS`）。
+     */
+    const shape = ASSISTANT_OPERATOR_TOOL_ARG_SHAPE_HINTS[tool]
+    const issues = parsed.error.issues
+      .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
+      .join('; ')
+    return reject(REJECT.malformedArgs, shape ? `${shape} (${issues})` : issues)
   }
 
   // ⚠ `switch` 上的穷举：工具表加一条而这里没接，编译期就红（见文件末尾的
@@ -5145,7 +5256,11 @@ async function planTool(
     case TOOL.addProjectRule:
       return planAddProjectRule(
         run,
-        parsed.data as { text: string; scope?: AssistantOperatorDomain },
+        parsed.data as {
+          text: string
+          scope?: AssistantOperatorDomain
+          kind?: ProjectRuleKindId
+        },
         userId,
       )
     case TOOL.listContextCards:

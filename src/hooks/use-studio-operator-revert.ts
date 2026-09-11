@@ -19,6 +19,7 @@ import {
 } from '@/constants/assistant-operator'
 import {
   STUDIO_OPERATOR_FIELDS,
+  studioOperatorChangeSubject,
   type StudioOperatorField,
 } from '@/constants/studio-assistant-operator'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
@@ -83,11 +84,19 @@ export interface UseStudioOperatorRevertResult {
   /** 那一轮有几处可还原 —— 按钮上写的那个数；0 时按钮不该出现。 */
   countRoundChanges(runKey: string): number
   /**
-   * 那一轮碰过哪几个字段 —— checkpoint 薄卡上「已改 3 项：模型 · 提示词 · 参考图」
-   * 的后半句。⚠ 去重且按 `STUDIO_OPERATOR_FIELDS` 的顺序排：同一轮里同一个字段
-   * 被改两次时列两遍，用户会以为助手动了四处。
+   * checkpoint 薄卡上「已改 3 项：模型 · 提示词 · 参考图」后半句的**词表 key**（2026-09-12 实测第 9 步）。
+   *
+   * ⚠ 去重且表单那几格按 `STUDIO_OPERATOR_FIELDS` 排：同一轮里同一个字段被改两次
+   * 时列两遍，用户会以为助手动了四处。
+   *
+   * ⭐ 它取代了原来只读登记簿的 `roundFields`，病根就是那次实测：薄卡上的数来自
+   * `countRoundChanges`（数**可撤的步**），名字来自 `roundFields`（读**登记簿**），
+   * 而记规则 / 标审核态 / 素材库四条按设计不进登记簿 —— 冒号后面因此是空的。
+   * 这一条把两边合到一处：有登记簿那一格的走 `field.*`，后果落在库里的走
+   * `changeSubject.*`（见 `STUDIO_OPERATOR_CHANGE_SUBJECT_BY_TOOL`）。
+   * ⚠ 返回的是 key 不是人话：翻译在组件里做，hook 不碰 `useTranslations`。
    */
-  roundFields(runKey: string): readonly StudioOperatorField[]
+  roundChangeLabelKeys(runKey: string): readonly string[]
   /** 现在有几处改动 —— 「还原助手的全部改动（N 处）」里的那个数。 */
   changeCount: number
 }
@@ -300,22 +309,33 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
     [operatorState.entries],
   )
 
-  const roundFields = useCallback(
+  const roundChangeLabelKeys = useCallback(
     (runKey: string) => {
+      const steps = operatorState.entries.filter(
+        (entry): entry is StudioOperatorStepEntry =>
+          entry.kind === 'step' &&
+          entry.runKey === runKey &&
+          isRevertableStepEntry(entry),
+      )
       const touched = new Set(
-        operatorState.entries
-          .filter(
-            (entry): entry is StudioOperatorStepEntry =>
-              entry.kind === 'step' &&
-              entry.runKey === runKey &&
-              isRevertableStepEntry(entry),
-          )
+        steps
           .map((entry) => getOperatorStepField(entry.step))
           .filter((field): field is StudioOperatorField => field !== null),
       )
-      // ⚠ 按登记簿的顺序排，不按发生顺序：参数栏上的 ✦ 也是这个顺序，两处对不上
-      //   会让人以为它们说的是两件事。
-      return STUDIO_OPERATOR_FIELDS.filter((field) => touched.has(field))
+      // ⚠ 表单那几格在前且按登记簿顺序（与参数栏上的 ✦ 同序），两处对不上会让人
+      //   以为它们说的是两件事。库里那几档按发生顺序跟在后面 —— 它们没有第二处
+      //   顺序要对齐。
+      const keys = STUDIO_OPERATOR_FIELDS.filter((field) =>
+        touched.has(field),
+      ).map((field) => `field.${field}`)
+      for (const entry of steps) {
+        if (getOperatorStepField(entry.step) !== null) continue
+        const subject = studioOperatorChangeSubject(entry.step.tool)
+        if (!subject) continue
+        const key = `changeSubject.${subject}`
+        if (!keys.includes(key)) keys.push(key)
+      }
+      return keys
     },
     [operatorState.entries],
   )
@@ -331,7 +351,7 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
     revertRound,
     revertRoundThread,
     countRoundChanges,
-    roundFields,
+    roundChangeLabelKeys,
     changeCount,
   }
 }

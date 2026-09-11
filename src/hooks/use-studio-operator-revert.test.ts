@@ -163,6 +163,69 @@ function buildTwoRounds(): void {
   store.setOperatorPrimed(true)
 }
 
+/**
+ * **记一条规则**（§10）—— 后果落在库里，表单一格没动，所以它不进登记簿。
+ * ⚠ 但它照旧是可撤的一步（`inverse` 里是库记录 id），因此照旧算进「已改 N 项」。
+ */
+const RULE_STEP = {
+  id: 'step-4',
+  title: 'note the rule',
+  status: 'done',
+  tool: ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+  verb: 'apply',
+  payload: {
+    ruleId: 'rule-9',
+    scope: null,
+    text: '输出一律不加水印',
+    kind: 'note',
+    source: 'assistant',
+    createdAt: '2026-09-12T10:00:00.000Z',
+  },
+  inverse: { ruleId: 'rule-9' },
+} satisfies AssistantOperatorAppliedStep
+
+describe('checkpoint 薄卡的「已改 N 项：××」', () => {
+  /**
+   * 2026-09-12 实测第 9 步：记一条规则之后薄卡上写着「已改 1 项：」——冒号后面
+   * 空着。数来自「可撤的步」，名字来自登记簿，而这一步进得了前者进不了后者。
+   */
+  it('记规则那一步有数也有名字，⛔ 冒号后面不留空', () => {
+    store.upsertOperatorStep(RULE_STEP, ROUND_A)
+    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+
+    expect(result.current.countRoundChanges(ROUND_A)).toBe(1)
+    expect(result.current.roundChangeLabelKeys(ROUND_A)).toEqual([
+      'changeSubject.rule',
+    ])
+  })
+
+  it('撤销的本钱还在 —— inverse 里是库记录 id', () => {
+    store.upsertOperatorStep(RULE_STEP, ROUND_A)
+    const entry = store
+      .getOperatorState()
+      .entries.find((item) => item.kind === 'step')
+    const step = entry?.kind === 'step' ? entry.step : null
+    expect(
+      step?.tool === ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule &&
+        step.status === 'done'
+        ? step.inverse
+        : null,
+    ).toEqual({ ruleId: 'rule-9' })
+  })
+
+  it('表单那几格在前、按登记簿顺序；库里那一档跟在后面', () => {
+    buildTwoRounds()
+    store.upsertOperatorStep(RULE_STEP, ROUND_B)
+    const { result } = renderHook(() => revert.useStudioOperatorRevert())
+
+    expect(result.current.roundChangeLabelKeys(ROUND_B)).toEqual([
+      'field.prompt',
+      'field.count',
+      'changeSubject.rule',
+    ])
+  })
+})
+
 describe('还原这轮', () => {
   it('数的是这一轮里可还原的步 —— 评价那一条不算（它什么都没改）', () => {
     buildTwoRounds()

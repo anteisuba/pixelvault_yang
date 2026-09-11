@@ -74,6 +74,7 @@ import {
   STUDIO_OPERATOR_SUGGESTIONS,
   STUDIO_OPERATOR_TIMELINE,
   STUDIO_OPERATOR_UPLOAD_ACCEPT,
+  studioOperatorChangeSubject,
 } from '@/constants/studio-assistant-operator'
 import { ASSISTANT_ROUTE_MODEL_AUTO } from '@/constants/assistant-persona'
 import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
@@ -394,7 +395,7 @@ export function StudioOperatorPanel({
     revertRound,
     revertRoundThread,
     countRoundChanges,
-    roundFields,
+    roundChangeLabelKeys,
     changeCount,
   } = useStudioOperatorRevert()
 
@@ -1052,7 +1053,13 @@ export function StudioOperatorPanel({
       const lastToolsBlock = lastToolsBlockKeys.get(block.runKey)
       const roundDone = !working || block.runKey !== latestRunKey
       const changeCountInRound = countRoundChanges(block.runKey)
-      const fields = roundFields(block.runKey)
+      /**
+       * ⚠ 薄卡的后半句读**这一条**而不是 `roundFields`（2026-09-12 实测第 9 步）：
+       * 记规则那一步进得了「N 项」的数（它可撤），却进不了登记簿（表单没动），
+       * 于是薄卡上写着「已改 1 项：」——冒号后面空着。见
+       * `roundChangeLabelKeys` 的头注。
+       */
+      const changeLabelKeys = roundChangeLabelKeys(block.runKey)
       /**
        * ⭐ 这一组里有调查步 → 整组改画**调查卡**（第 6 件）：结论 + 证据 + 候选
        * 在明面上，翻页读页那一串折进「过程」。⛔ 不与 ToolGroup 并排画 —— 那会
@@ -1097,8 +1104,15 @@ export function StudioOperatorPanel({
             onToggleWebImage={webImport.toggleCandidate}
             renderWebCandidates={!showResearchCard}
           />
+          {/* ⚠ 后果落在**库里**的那几步（记规则 / 标审核态 / 素材库四条）
+                ⛔ 不挂「还原到这一步」：还原读的是工作台快照，而它们一颗旋钮都
+                没动 —— 快照因此从来就没被拍过，用户读到的是一句
+                「此步骤未保存完整配置，无法恢复」挂在一步明明成功了的操作下面
+                （2026-09-12 实测第 9 步）。它们的回头路是那颗撤销钮（走
+                `step.inverse`，记规则那条会真的把库里那行删掉）。 */}
           {operatorHost.checkpoints &&
           item.step.status === 'done' &&
+          !studioOperatorChangeSubject(item.step.tool) &&
           (isRevertibleAssistantOperatorTool(item.step.tool) ||
             item.checkpoint) ? (
             <StudioOperatorRestoreButton
@@ -1169,9 +1183,7 @@ export function StudioOperatorPanel({
               <StudioOperatorCheckpointCard
                 runKey={block.runKey}
                 count={changeCountInRound}
-                fieldSummary={fields
-                  .map((field) => t(`field.${field}`))
-                  .join(' · ')}
+                fieldSummary={changeLabelKeys.map((key) => t(key)).join(' · ')}
                 onRevert={handleCheckpointRevert}
                 {...(resumeStepNumber !== null && block.runKey === latestRunKey
                   ? {

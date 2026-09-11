@@ -11,7 +11,10 @@
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { USER_UPLOAD_ACCEPTED_MIME_TYPES } from '@/constants/uploads'
-import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_TOOL_IDS,
+  type AssistantOperatorDomain,
+} from '@/constants/assistant-operator'
 
 /**
  * 覆盖层的宽度（拍板 9：默认 560，左缘拖拽 420–860，宽度记忆）。
@@ -193,6 +196,36 @@ export const STUDIO_OPERATOR_FIELD_IDS = {
 
 export type StudioOperatorField =
   (typeof STUDIO_OPERATOR_FIELD_IDS)[keyof typeof STUDIO_OPERATOR_FIELD_IDS]
+
+/**
+ * **后果落在库里、表单一格没动**的那几条改动型工具，对应 checkpoint 薄卡上的
+ * 一格（2026-09-12 实测第 9 步）。
+ *
+ * ⭐ 起因很具体：记一条项目规则之后，薄卡上写着「已改 1 项：」—— 冒号后面空着。
+ * 数是 `countRoundChanges`（数**可撤的步**）给的，名字是 `roundFields`（读
+ * **登记簿**）给的，而这几条工具按设计不进登记簿（`applyOperatorStep` 返回
+ * `null`）—— 两个数据源对不上，冒号后面就什么都没有。
+ * ⚠ 它们**不是**登记簿的一格：✦ 归属标记管的是「工作台上这颗旋钮被助手动过」，
+ * 而这几条一颗旋钮都没动。⛔ 别为了让薄卡有话说就把它们塞进
+ * `STUDIO_OPERATOR_FIELDS` —— 那会让参数栏上多出一颗点了没反应的 ✦。
+ * ⚠ 同时是**「还原到这一步」那颗按钮的负名单**：还原读的是工作台快照，而这几步
+ * 的后果不在快照里（见 `StudioOperatorPanel` 那一处）。
+ */
+export const STUDIO_OPERATOR_CHANGE_SUBJECT_BY_TOOL: Readonly<
+  Record<string, string>
+> = {
+  [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]: 'rule',
+  [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]: 'reviewState',
+  [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]: 'assetTags',
+  [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]: 'assetFavorite',
+  [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]: 'assetFolder',
+  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]: 'assetMove',
+}
+
+/** 这一步的后果在库里（表单没动）—— 还原按钮与薄卡标签共用这一条判据。 */
+export function studioOperatorChangeSubject(tool: string): string | null {
+  return STUDIO_OPERATOR_CHANGE_SUBJECT_BY_TOOL[tool] ?? null
+}
 
 export const STUDIO_OPERATOR_FIELDS = [
   STUDIO_OPERATOR_FIELD_IDS.prompt,

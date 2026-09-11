@@ -334,6 +334,8 @@ export function StudioOperatorPanel({
     revisePlan,
     adjustGeneration,
     confirmGeneration,
+    saveContextCard,
+    dismissContextCard,
     cancelGeneration,
     retryGeneration,
     rerunGeneration,
@@ -1543,6 +1545,10 @@ export function StudioOperatorPanel({
                   }}
                   onConfirm={confirmGeneration}
                   onCancel={cancelGeneration}
+                  /* 上下文卡提议那一支（§8.1）：提议到达时已写成一行「待确认」，
+                     「存这张卡」把它翻面，「不用」把它删掉。 */
+                  onSaveCard={() => void saveContextCard()}
+                  onDismissCard={() => void dismissContextCard()}
                   onRetry={retryGeneration}
                   formatTime={formatDecidedAt}
                   /* 四颗旋钮的真值 —— 宿主现算的那一份（§5.2）。缺席时卡退回

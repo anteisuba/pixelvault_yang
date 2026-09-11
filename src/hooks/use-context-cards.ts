@@ -11,7 +11,10 @@ import {
   updateContextCardAPI,
 } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
-import type { ContextCardKindId } from '@/constants/context-cards'
+import type {
+  ContextCardKindId,
+  ContextCardStatusId,
+} from '@/constants/context-cards'
 import type {
   AddContextCardImageRequest,
   ContextCard,
@@ -56,11 +59,13 @@ export interface UseContextCardsValue {
 export function useContextCards(
   options: {
     kind?: ContextCardKindId
+    /** ⚠ 缺席 = 只要已确认的。待确认区传 `proposed`（v2 §8.1）。 */
+    status?: ContextCardStatusId
     pinnedScope?: string
     enabled?: boolean
   } = {},
 ): UseContextCardsValue {
-  const { kind, pinnedScope } = options
+  const { kind, status, pinnedScope } = options
   const enabled = options.enabled ?? true
   const [cards, setCards] = useState<ContextCard[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -76,7 +81,11 @@ export function useContextCards(
 
   const reload = useCallback(async () => {
     setIsLoading(true)
-    const result = await listContextCardsAPI({ kind, pinnedScope })
+    const result = await listContextCardsAPI({
+      ...(kind ? { kind } : {}),
+      ...(status ? { status } : {}),
+      ...(pinnedScope ? { pinnedScope } : {}),
+    })
     if (!aliveRef.current) return
     setIsLoading(false)
     if (result.success) {
@@ -85,7 +94,7 @@ export function useContextCards(
       return
     }
     setError(result.error)
-  }, [kind, pinnedScope])
+  }, [kind, status, pinnedScope])
 
   /**
    * ⚠ 走 `deferEffectTask`：React 19 的 lint 不允许在 effect 体里同步启动会

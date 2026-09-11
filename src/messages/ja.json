@@ -7576,6 +7576,14 @@
         "submitting": "確定中…",
         "confirmed": "確定済み · {time}",
         "cancelled": "キャンセル済み · {time}"
+      },
+      "contextCard": {
+        "title": "このカードを覚えますか？",
+        "save": "保存する",
+        "dismiss": "不要",
+        "saved": "保存済み",
+        "notSaved": "未保存",
+        "negative": "ハードネガティブ：{value}"
       }
     },
     "system": {
@@ -7593,7 +7601,9 @@
       "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）",
       "videoFramesFailed": "このクリップからフレームを取り出せませんでした —— 今回アシスタントは見られません（{subject}）",
       "checkpointRestored": "選択したステップの設定を復元しました。以後は現在のフォームに従って操作してください。",
-      "questionAnswered": "選んだのは：{subject}"
+      "questionAnswered": "選んだのは：{subject}",
+      "contextCardSaved": "コンテキストカードを保存しました：{subject}",
+      "contextCardSaveFailed": "「{subject}」を保存できませんでした —— もう一度試しますか？"
     },
     "suggestion": {
       "setupShot": "この一枚を組み立てて",
@@ -7772,7 +7782,11 @@
       "cardsEmpty": "まだカードがありません —— キャラクターカードを作れば次のターンから認識します。",
       "cardNew": "新しいカード",
       "cardEdit": "「{name}」を編集",
-      "cardPinnedHere": "このワークベンチに常時オン"
+      "cardPinnedHere": "このワークベンチに常時オン",
+      "cardsProposedTitle": "アシスタントの提案（{count}）",
+      "cardsProposedHint": "覚えておこうと提案されたものです。保存して初めて反映されます。",
+      "cardConfirm": "「{name}」を保存",
+      "cardReject": "「{name}」を削除"
     },
     "rule": {
       "recordedOn": "{date} に記録",

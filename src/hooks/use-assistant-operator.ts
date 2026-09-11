@@ -50,6 +50,7 @@ import {
   type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_STREAMING,
@@ -92,6 +93,12 @@ import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { collectStepArtifacts } from '@/lib/studio-operator-memory'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
+/** ⚠ Hard Rule 3：写库走 api-client，⛔ 组件与 hook 里不 `fetch`。 */
+import {
+  createContextCardAPI,
+  deleteContextCardAPI,
+  updateContextCardAPI,
+} from '@/lib/api-client/context-cards'
 import {
   applyOperatorStep,
   buildGenerationKnobSteps,
@@ -110,6 +117,7 @@ import {
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
   AssistantOperatorConfirmDecision,
+  AssistantOperatorContextCardDraft,
   AssistantOperatorGenerationRequest,
   AssistantOperatorMessage,
   AssistantOperatorPlanAnswer,
@@ -328,6 +336,48 @@ function resolveVideoCritiqueSource(
   )
 }
 
+/**
+ * **提议一到就写成一行「待确认」**（v2 §8.1，owner 2026-09-11）。
+ *
+ * ⭐ 为什么客户端写而不是服务端写：写库这一跳必须**长在用户那一侧**——服务端
+ * 自己落库等于助手能直接写用户的长期记忆；而用户当场没点、事后想在设置里补点，
+ * 前提是那张卡还在。这两条只有「客户端收到提议就写一行 `proposed`」同时满足。
+ * ⚠ 待确认那一档**不进系统提示、也不进 `list_context_cards`**（服务端默认只列
+ * 已确认的），所以这一行不会变成模型的自引用回路。
+ * ⚠ 失败**不阻塞卡**：卡照旧可存可弃 —— 那时 `cardId` 缺席，「存这张卡」回落成
+ * `create confirmed`。⛔ 不为此在时间线上报错：用户什么都还没点。
+ * ⚠ 幂等靠**调用点**：一帧 `confirm` 只调它一次，`entryId` 只用来认「回来的时候
+ * 卡还是不是那一张」。人比请求快时（已存 / 已弃 / 已被顶掉）这一行是孤儿，
+ * ⛔ 不能留在设置的待确认区里 —— 就地删掉。
+ */
+async function persistProposedContextCard(
+  entryId: string,
+  card: AssistantOperatorContextCardDraft,
+): Promise<void> {
+  const result = await createContextCardAPI({
+    kind: card.kind,
+    name: card.name,
+    summary: card.summary,
+    body: card.body,
+    ...(card.negative ? { negative: card.negative } : {}),
+    /** ⚠ 新卡不常挂到任何域：挂哪儿是用户的决定（设置里那颗开关）。 */
+    pinnedScopes: [],
+    status: CONTEXT_CARD_STATUS_IDS.proposed,
+  })
+  if (!result.success) return
+  const live = getOperatorState().confirm
+  if (
+    !live ||
+    live.id !== entryId ||
+    live.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard ||
+    live.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+  ) {
+    void deleteContextCardAPI(result.data.id)
+    return
+  }
+  setOperatorConfirm({ ...live, cardId: result.data.id })
+}
+
 /** 跑一轮时那几样「带上下文重发」的东西（拍板 3 / §2.6 / §6 共用一条通道）。 */
 interface RunOptions {
   confirmations?: AssistantOperatorConfirmDecision[]
@@ -401,6 +451,15 @@ export interface UseAssistantOperatorResult {
   confirmGeneration(): void
   /** 生成确认卡「先不要」—— 流已经停了，只把卡转「已取消」。 */
   cancelGeneration(): void
+  /**
+   * 上下文卡确认卡「存这张卡」（§8.1）—— 把那一行 `proposed` 翻成 `confirmed`
+   * （提议到达时已写；那一跳失败过就回落成新建一行 `confirmed`）。
+   *
+   * ⚠ 写库这条链一整条都在**客户端**：服务端提议那一步一行都没写。
+   */
+  saveContextCard(): Promise<void>
+  /** 上下文卡确认卡「不用」—— 卡收成已取消，那一行 `proposed` 真删。 */
+  dismissContextCard(): Promise<void>
   /** 「已取消」那一态上的「再来一次」—— 摆一张新的 `idle` 卡。 */
   retryGeneration(): void
   /**
@@ -896,6 +955,32 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
                 })
                 setOperatorStatus('awaitingPlan')
+                break
+              }
+              if (
+                event.confirm.kind ===
+                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard
+              ) {
+                /**
+                 * **提议记一张卡**（v2 §8.1）——卡上摆草稿，同时把它写成一行
+                 * 「待确认」：当场不点的那几张，用户事后能在设置里补点。
+                 * ⚠ 写库那一跳**不等**：卡当场就该在，写成功与否只决定
+                 * 「存这张卡」走翻面还是走新建。
+                 */
+                flushPlanEntry()
+                setOpen(true)
+                const contextCardEntryId = nextOperatorEntryId('confirm')
+                setOperatorConfirm({
+                  id: contextCardEntryId,
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard,
+                  card: event.confirm.card,
+                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+                })
+                setOperatorStatus('awaitingConfirm')
+                void persistProposedContextCard(
+                  contextCardEntryId,
+                  event.confirm.card,
+                )
                 break
               }
               flushPlanEntry()
@@ -1477,6 +1562,90 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     })
   }, [applyContext, host.generationControls])
 
+  /**
+   * **上下文卡确认卡「存这张卡」**（v2 §8.1）—— 这一点把那张卡翻成「已确认」。
+   *
+   * ⭐ 走**既有的** `/api/context-cards`，⛔ 不新开一条「确认提议」的路由：
+   * 用户在设置里按「新建」存下的和这里存下的是同一种东西，两条路会长出两份校验。
+   * ⚠ 卡到达时已经写过一行 `proposed`（见 `persistProposedContextCard`），所以
+   *   常态是 **PATCH 翻面**；⚠ 那一跳写失败时 `cardId` 缺席，这里**回落成
+   *   `create confirmed`** —— ⛔ 不能因为草稿没写成就让用户存不下。
+   * ⚠ 成功之后落一行系统行「已存上下文卡 X」：卡就地收成「已确认 · 11:24」，
+   *   那一行上没有卡名，而「我刚才让它记住了什么」正是事后要回头找的。
+   * ⚠ 失败**不静默**：卡转回 `idle`（用户可以再点一次），时间线上说一句。
+   */
+  const saveContextCard = useCallback(async () => {
+    const confirm = getOperatorState().confirm
+    if (
+      !confirm ||
+      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard ||
+      confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+    ) {
+      return
+    }
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting)
+    const result = confirm.cardId
+      ? await updateContextCardAPI(confirm.cardId, {
+          status: CONTEXT_CARD_STATUS_IDS.confirmed,
+        })
+      : await createContextCardAPI({
+          kind: confirm.card.kind,
+          name: confirm.card.name,
+          summary: confirm.card.summary,
+          body: confirm.card.body,
+          ...(confirm.card.negative ? { negative: confirm.card.negative } : {}),
+          /** ⚠ 新卡不常挂到任何域：挂哪儿是用户的决定（设置里那颗开关）。 */
+          pinnedScopes: [],
+          status: CONTEXT_CARD_STATUS_IDS.confirmed,
+        })
+    if (!result.success) {
+      // ⛔ 不静默：用户以为已经记下了，而库里那一行还停在「待确认」。
+      setOperatorConfirm({
+        id: nextOperatorEntryId('confirm'),
+        kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard,
+        card: confirm.card,
+        // ⚠ id 要留住：再点一次仍该翻同一行的面，⛔ 不能变成新建第二行。
+        ...(confirm.cardId ? { cardId: confirm.cardId } : {}),
+        status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+      })
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'contextCardSaveFailed',
+        subject: confirm.card.name,
+      })
+      return
+    }
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
+    setOperatorStatus('idle')
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      code: 'contextCardSaved',
+      subject: result.data.name,
+    })
+  }, [])
+
+  /**
+   * **「不用」**（§8.1）—— 卡收成「已取消」，那一行 `proposed` **真删**。
+   *
+   * ⚠ 「不用」是一个**明确的拒绝**：留着它只会在设置的待确认区里反复问同一句。
+   * ⚠ 删失败不报错、也不回退卡态：用户表达过的意思不该因为一次网络抖动被推翻，
+   *   ⛔ 那一行最坏就是留在待确认区里，他在那儿还能再删一次。
+   */
+  const dismissContextCard = useCallback(async () => {
+    const confirm = getOperatorState().confirm
+    if (
+      !confirm ||
+      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard
+    ) {
+      return
+    }
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
+    setOperatorStatus('idle')
+    if (confirm.cardId) await deleteContextCardAPI(confirm.cardId)
+  }, [])
+
   /** 生成确认卡「先不要」—— 流已经停了，什么都不用发；卡就地转「已取消」。 */
   const cancelGeneration = useCallback(() => {
     resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
@@ -1613,6 +1782,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     adjustGeneration,
     confirmGeneration,
     cancelGeneration,
+    saveContextCard,
+    dismissContextCard,
     retryGeneration,
     rerunGeneration,
     critique,

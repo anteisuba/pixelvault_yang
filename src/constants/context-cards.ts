@@ -29,6 +29,30 @@ export const CONTEXT_CARD_KINDS = [
 export type ContextCardKindId = (typeof CONTEXT_CARD_KINDS)[number]
 
 /**
+ * 一张卡**进没进用户的长期记忆**（v2 §8.1 / §8.2）。
+ *
+ * ⭐ 两态，默认 `confirmed`：用户自己在设置里建的卡、以及这一列出现之前的存量行，
+ * 全是它。
+ * ⚠ `proposed` = 助手提议、用户还没点头的草稿。它**不进系统提示、也不进
+ * `list_context_cards` 的名单** —— 让模型读到自己刚提议的草稿，等于给它一条
+ * 「自己说了算」的自引用回路。
+ * ⛔ 这一档不是助手的写入后门：服务端提议那一跳一行库都不写（§8.1），写下这一行
+ * 的是**客户端**——面板收到提议帧时替用户留一份草稿（owner 2026-09-11：当场没点
+ * 的，要能在设置里补点）。用户点头才翻成 `confirmed`，点「不用」当场删掉。
+ */
+export const CONTEXT_CARD_STATUS_IDS = {
+  proposed: 'proposed',
+  confirmed: 'confirmed',
+} as const
+
+export const CONTEXT_CARD_STATUSES = [
+  CONTEXT_CARD_STATUS_IDS.proposed,
+  CONTEXT_CARD_STATUS_IDS.confirmed,
+] as const
+
+export type ContextCardStatusId = (typeof CONTEXT_CARD_STATUSES)[number]
+
+/**
  * 一张参考图在这张卡里**干什么用**（owner 的 S4：「风格校准图 / 官方实机图 /
  * 参考片段三者分工不混权重」）。
  *

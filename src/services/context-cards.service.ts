@@ -4,10 +4,16 @@ import { db } from '@/lib/db'
 import {
   CONTEXT_CARD_KIND_IDS,
   CONTEXT_CARD_LIMITS,
+  CONTEXT_CARD_STATUS_IDS,
   type ContextCardKindId,
+  type ContextCardStatusId,
 } from '@/constants/context-cards'
 import { ensureUser } from '@/services/user.service'
-import type { ContextCardKind, Prisma } from '@/lib/generated/prisma/client'
+import type {
+  ContextCardKind,
+  ContextCardStatus,
+  Prisma,
+} from '@/lib/generated/prisma/client'
 import {
   ContextCardImageSchema,
   ContextCardSchema,
@@ -47,9 +53,21 @@ const ID_BY_DB_KIND: Record<ContextCardKind, ContextCardKindId> = {
   BRAND: CONTEXT_CARD_KIND_IDS.brand,
 }
 
+/** 同上，档位那一列（v2 §8.2）。 */
+const DB_STATUS_BY_ID: Record<ContextCardStatusId, ContextCardStatus> = {
+  [CONTEXT_CARD_STATUS_IDS.proposed]: 'PROPOSED',
+  [CONTEXT_CARD_STATUS_IDS.confirmed]: 'CONFIRMED',
+}
+
+const ID_BY_DB_STATUS: Record<ContextCardStatus, ContextCardStatusId> = {
+  PROPOSED: CONTEXT_CARD_STATUS_IDS.proposed,
+  CONFIRMED: CONTEXT_CARD_STATUS_IDS.confirmed,
+}
+
 const CARD_SELECT = {
   id: true,
   kind: true,
+  status: true,
   name: true,
   summary: true,
   body: true,
@@ -63,6 +81,7 @@ const CARD_SELECT = {
 type CardRow = {
   id: string
   kind: ContextCardKind
+  status: ContextCardStatus
   name: string
   summary: string
   body: string
@@ -95,6 +114,7 @@ function toCard(row: CardRow): ContextCard | null {
   const parsed = ContextCardSchema.safeParse({
     id: row.id,
     kind: ID_BY_DB_KIND[row.kind],
+    status: ID_BY_DB_STATUS[row.status],
     name: row.name,
     summary: row.summary,
     body: row.body,
@@ -109,6 +129,15 @@ function toCard(row: CardRow): ContextCard | null {
 
 export interface ListContextCardsOptions {
   kind?: ContextCardKindId | null
+  /**
+   * 要哪一档（v2 §8.1）。
+   *
+   * ⭐ **缺席 = 只要已确认的**：`list_context_cards`、系统提示注入、设置里的卡表
+   * 三条路都不传它，于是助手提议的草稿一条都看不见 —— ⛔ 让模型读到自己提议的
+   * 草稿等于给它一条自引用回路（「我记得你说过」而用户从没点过头）。
+   * 待确认区显式传 `proposed`。
+   */
+  status?: ContextCardStatusId | null
   /** 给了就只要**常挂在这个域 / 工作台**的卡（系统提示注入走这一条）。 */
   pinnedScope?: string | null
   limit?: number
@@ -122,6 +151,8 @@ export async function listContextCards(
   const rows = await db.contextCard.findMany({
     where: {
       userId,
+      status:
+        DB_STATUS_BY_ID[options.status ?? CONTEXT_CARD_STATUS_IDS.confirmed],
       ...(options.kind ? { kind: DB_KIND_BY_ID[options.kind] } : {}),
       ...(options.pinnedScope
         ? { pinnedScopes: { has: options.pinnedScope } }
@@ -192,7 +223,12 @@ export async function createContextCard(
   userId: string,
   input: CreateContextCardRequest,
 ): Promise<ContextCard> {
-  const count = await db.contextCard.count({ where: { userId } })
+  const count = await db.contextCard.count({
+    where: {
+      userId,
+      status: DB_STATUS_BY_ID[CONTEXT_CARD_STATUS_IDS.confirmed],
+    },
+  })
   if (count >= CONTEXT_CARD_LIMITS.maxPerUser) {
     throw new ContextCardLimitError(CONTEXT_CARD_LIMITS.maxPerUser)
   }
@@ -201,6 +237,9 @@ export async function createContextCard(
     data: {
       userId,
       kind: DB_KIND_BY_ID[input.kind],
+      /** ⚠ 缺席 = 已确认：用户自己建的卡与面板上「存这张卡」都走这条路。 */
+      status:
+        DB_STATUS_BY_ID[input.status ?? CONTEXT_CARD_STATUS_IDS.confirmed],
       name: input.name,
       summary: input.summary,
       body: input.body,
@@ -261,6 +300,7 @@ export async function updateContextCard(
     where: { id: existing.id },
     data: {
       ...(input.kind ? { kind: DB_KIND_BY_ID[input.kind] } : {}),
+      ...(input.status ? { status: DB_STATUS_BY_ID[input.status] } : {}),
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.summary !== undefined ? { summary: input.summary } : {}),
       ...(input.body !== undefined ? { body: input.body } : {}),

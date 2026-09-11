@@ -263,6 +263,7 @@ import {
   AssistantOperatorStepSchema,
   AssistantOperatorTurnSchema,
   type AssistantOperatorAskArgs,
+  type AssistantOperatorContextCardDraft,
   type AssistantOperatorCritique,
   type AssistantOperatorVideoCritique,
   type AssistantOperatorEvent,
@@ -674,6 +675,18 @@ type ToolPlan =
       request: AssistantOperatorGenerationRequest
     }
   /**
+   * **提议记一张上下文卡**（v2 §8.1）—— 与 `confirmGenerate` 逐字同构：吐一帧
+   * 确认、停流，⛔ 服务端一行库都不写。
+   *
+   * ⚠ 为什么它不是 `mutate`：改动型那一档的判据是「撤得掉」，而这一步根本没有
+   * 后果可撤 —— 卡是用户点下去才存的。写成 `mutate` 的表现是日志条上多一颗
+   * 点了什么都不会发生的撤销钮（判据与花钱档那条头注逐字同源）。
+   */
+  | {
+      kind: 'confirmContextCard'
+      card: AssistantOperatorContextCardDraft
+    }
+  /**
    * **歧义反问**（§3.3 第 5 行 / §7，切片 3a）—— 「你说的是哪一张？」
    *
    * ⚠ 与 `confirm` / `confirmGenerate` 同一条机制（吐一帧、停流、客户端带上下文
@@ -749,7 +762,7 @@ function unwrapEntryToolCall(name: string, rawArgs: unknown): EntryUnwrap {
           .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
           .join(
             '; ',
-          )}. Ask ONE question with ${PLAN_LIMITS.minOptions}-${PLAN_LIMITS.maxOptions} options, each carrying a one-line description.`,
+          )}. Ask ONE question with ${PLAN_LIMITS.minOptions}-${PLAN_LIMITS.maxOptions} options, each carrying a one-line description — or, to offer them something worth keeping, send {"action":"${TOOL.proposeContextCard}", …}.`,
       }
     }
     return {
@@ -758,8 +771,19 @@ function unwrapEntryToolCall(name: string, rawArgs: unknown): EntryUnwrap {
     }
   }
 
+  /**
+   * ⚠ `ask` 有**两形**（v2 §8.1）：写了 `action` 的那一形是组内那条工具
+   * （今天只有 `propose_context_card`），其余照旧是「问一道题」。
+   */
   if (entry === ENTRY.ask) {
-    return { ok: true, ask: parsed.data as AssistantOperatorAskArgs }
+    const data = parsed.data as Record<string, unknown>
+    if (!('action' in data)) {
+      return { ok: true, ask: parsed.data as AssistantOperatorAskArgs }
+    }
+    const { action, ...args } = data as {
+      action: AssistantOperatorTool
+    } & Record<string, unknown>
+    return { ok: true, tool: action, args }
   }
 
   const { action, ...args } = parsed.data as {
@@ -4104,6 +4128,23 @@ function planListContextCards(
 }
 
 /**
+ * **提议一张卡**（v2 §8.1）—— ⛔ 一行库都不写。
+ *
+ * ⭐ 它做的全部事情是把模型写的草稿原样交出去，由流循环吐成一帧
+ * `confirm(contextCard)`。落库那一跳由用户在卡上点「存这张卡」时经
+ * `/api/context-cards` 完成 —— 那条路上带着用户自己的 Clerk 会话。
+ * ⛔ 别在这里「顺手」写一行 `status: proposed`：助手能往用户的长期记忆里写字
+ * 而不经过人，正是 §8.1 那条 ⛔ 说的后门。
+ * ⚠ 也不去查重：查重要先读一遍卡表，而这一步连读都不必 —— 同一张卡提议两次的
+ * 代价是用户多点一次「不用」，⛔ 不值得为它再花一次库往返。
+ */
+function planProposeContextCard(
+  card: AssistantOperatorContextCardDraft,
+): ToolPlan {
+  return { kind: 'confirmContextCard', card }
+}
+
+/**
  * 读一张卡的全文。
  *
  * ⚠ 正文按 `CARD_LIMITS.maxBodyInToolChars` 截 —— 与 `read_url` 的截段同一条判据：
@@ -4422,6 +4463,10 @@ async function planTool(
       )
     case TOOL.readContextCard:
       return planReadContextCard(run, parsed.data as { cardId: string }, userId)
+    case TOOL.proposeContextCard:
+      return planProposeContextCard(
+        parsed.data as AssistantOperatorContextCardDraft,
+      )
     case TOOL.setReviewState:
       return planSetReviewState(
         run,
@@ -6346,6 +6391,27 @@ export async function* runAssistantOperator(
           confirm: {
             kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
             request: plan.request,
+          },
+        }
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+        }
+        completed = true
+        return
+      }
+
+      if (plan.kind === 'confirmContextCard') {
+        /**
+         * **提议记一张卡**（v2 §8.1）—— 形态与生成确认逐字同构：吐一帧、停流。
+         * ⚠ 到这一帧为止**一行库都没写**：用户点「存这张卡」时客户端才走
+         * `/api/context-cards` 把它存成 `confirmed`。
+         */
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.confirm,
+          confirm: {
+            kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard,
+            card: plan.card,
           },
         }
         yield {

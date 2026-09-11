@@ -68,6 +68,7 @@ const CARD: ContextCard = {
   ],
   negative: 'air ripples',
   pinnedScopes: [],
+  status: 'confirmed' as const,
   createdAt: '2026-09-07T10:00:00.000Z',
   updatedAt: '2026-09-07T10:00:00.000Z',
 }

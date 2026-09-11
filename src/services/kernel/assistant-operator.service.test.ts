@@ -6222,6 +6222,7 @@ describe('上下文卡（第三期 K1）', () => {
     ],
     negative: 'air ripples, holographic overlay',
     pinnedScopes: ['image'],
+    status: 'confirmed' as const,
     createdAt: '2026-09-07T10:00:00.000Z',
     updatedAt: '2026-09-07T10:00:00.000Z',
   }
@@ -6269,6 +6270,87 @@ describe('上下文卡（第三期 K1）', () => {
     //   各自入口的 action 枚举表里。
     expect(prompt).toContain('· list_context_cards —')
     expect(prompt).toContain('· read_context_card —')
+    // ⚠ 提议那一条进「问」组（v2 §8.1）—— `ask` 组因此第一次有了 action 表。
+    expect(prompt).toContain('· propose_context_card —')
+  })
+
+  /**
+   * **助手提议记一张卡**（v2 §8.1，commit #14）。
+   *
+   * 三件事，缺一不可：
+   *  ① 吐一帧 `confirm(contextCard)`，载荷是草稿本身；
+   *  ② 这一轮到此为止（`stopped: awaiting_confirm`）—— 等用户拍板；
+   *  ③ ⛔ **一行库都不写**：入库那一跳由客户端在用户点「存这张卡」时走
+   *     `/api/context-cards`。
+   */
+  it('propose_context_card 吐一帧确认并停流，⛔ 一行库都不写', async () => {
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+        title: 'offer to remember her',
+        args: {
+          action: ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
+          kind: 'character',
+          name: 'Sigrika',
+          summary: 'Silver hair, gold eyes.',
+          body: '## Appearance\nSilver hair.',
+          negative: 'air ripples',
+        },
+      },
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const confirm = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm,
+    )
+    expect(confirm).toEqual({
+      type: ASSISTANT_OPERATOR_EVENTS.confirm,
+      confirm: {
+        kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard,
+        card: {
+          kind: 'character',
+          name: 'Sigrika',
+          summary: 'Silver hair, gold eyes.',
+          body: '## Appearance\nSilver hair.',
+          negative: 'air ripples',
+        },
+      },
+    })
+    expect(events.at(-1)).toEqual({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+    })
+    // ⛔ 钱闸那条同源的判据：这一步没有任何写库的手。
+    expect(mockListContextCards).toHaveBeenCalledTimes(1) // 只有系统提示那一次
+  })
+
+  /** ⚠ `ask` 不写 `action` 照旧是「问一道题」——两形不能互相踩。 */
+  it('ask 不带 action 时仍然是问题卡那一帧', async () => {
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+        title: 'which look',
+        args: {
+          question: '要哪一种画风？',
+          options: [
+            { label: '3D 渲染', description: '接近官方设定的引擎风。' },
+            { label: '插画', description: '更平、更手绘。' },
+          ],
+        },
+      },
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
+    ).toBe(true)
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
+    ).toBe(false)
   })
 
   it('list_context_cards 出摘要，⛔ 不带正文', async () => {

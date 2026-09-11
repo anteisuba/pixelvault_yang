@@ -980,6 +980,7 @@ export const ContextCardScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   kind: 'kind',
+  status: 'status',
   name: 'name',
   summary: 'summary',
   body: 'body',

@@ -16,6 +16,7 @@ import { memo, useState } from 'react'
 import {
   Ban,
   Blocks,
+  BookmarkPlus,
   BookUser,
   CircleDollarSign,
   Eye,
@@ -145,6 +146,8 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.listContextCards]: BookUser,
   [ASSISTANT_OPERATOR_TOOL_IDS.readContextCard]: IdCard,
+  /** 提议一张卡（§8.1）—— 「要不要把这个记下来」，所以是一颗书签。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]: BookmarkPlus,
   /**
    * 标审核态（切片 Y）—— ✓/✕ 的那一枚。
    * ⚠ 用 `CheckCheck` 而不是 `Check`：单钩在日志流里与「这一步完成了」那个状态

@@ -72,12 +72,32 @@ const cardsState = vi.hoisted(() => ({
     },
   ],
 }))
+/**
+ * **待确认区**那一份（v2 §8.1）—— ⚠ 与卡表是**两次查询**：默认那次看不见待确认
+ * 的卡（服务端只回已确认的），所以桩也按 `status` 分两份，⛔ 别让一份桩糊弄过去。
+ */
+const proposedState = vi.hoisted(() => ({
+  current: [] as {
+    id: string
+    kind: string
+    name: string
+    summary: string
+    pinnedScopes: string[]
+  }[],
+}))
+const updateCard = vi.hoisted(() => vi.fn(async () => ({ id: 'card-2' })))
+const removeCard = vi.hoisted(() => vi.fn(async () => true))
 vi.mock('@/hooks/use-context-cards', () => ({
-  useContextCards: () => ({
-    cards: cardsState.current,
+  useContextCards: (options?: { status?: string }) => ({
+    cards:
+      options?.status === 'proposed'
+        ? proposedState.current
+        : cardsState.current,
     isLoading: false,
     error: null,
     setPinned,
+    update: updateCard,
+    remove: removeCard,
     reload: vi.fn(),
   }),
 }))
@@ -284,6 +304,55 @@ describe('AssistantSettingsDialog', () => {
 })
 
 describe('助手设置 · 上下文卡页（切片 Y）', () => {
+  beforeEach(() => {
+    proposedState.current = []
+    updateCard.mockClear()
+    removeCard.mockClear()
+  })
+
+  /** ⛔ 没有提议时整块不画：常年空着的区块只会把真正的卡表往下挤。 */
+  it('没有提议时待确认区不渲染', () => {
+    render(
+      <AssistantSettingsDialog
+        open
+        onOpenChange={vi.fn()}
+        section={ASSISTANT_SETTINGS_SECTIONS.cards}
+      />,
+    )
+    expect(screen.queryByTestId('assistant-context-cards-proposed')).toBeNull()
+  })
+
+  /** 待确认区在卡表**之上**，每条两颗：存下（翻面）/ 删掉（真删）。 */
+  it('待确认区列出提议，存下翻面成 confirmed，删掉走 remove', () => {
+    proposedState.current = [
+      {
+        id: 'card-2',
+        kind: 'style',
+        name: '黄昏逆光',
+        summary: '暖色压低，轮廓留一圈光',
+        pinnedScopes: [],
+      },
+    ]
+    render(
+      <AssistantSettingsDialog
+        open
+        onOpenChange={vi.fn()}
+        section={ASSISTANT_SETTINGS_SECTIONS.cards}
+      />,
+    )
+    const region = screen.getByTestId('assistant-context-cards-proposed')
+    expect(region).toHaveTextContent('黄昏逆光')
+    expect(
+      screen.getAllByTestId('assistant-context-card-proposed-item'),
+    ).toHaveLength(1)
+
+    fireEvent.click(screen.getByTestId('assistant-context-card-confirm'))
+    expect(updateCard).toHaveBeenCalledWith('card-2', { status: 'confirmed' })
+
+    fireEvent.click(screen.getByTestId('assistant-context-card-reject'))
+    expect(removeCard).toHaveBeenCalledWith('card-2')
+  })
+
   it('列出卡、常挂开关落到 setPinned、新建开出编辑器', () => {
     render(
       <AssistantSettingsDialog

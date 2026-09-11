@@ -1037,6 +1037,34 @@ export type AssistantOperatorRequest = z.infer<
  * 理由见文件头注 ②。
  * 写成 `Record<AssistantOperatorTool, …>`：工具表加一条而这里没跟上，编译期就红。
  */
+/**
+ * **助手提议的一张上下文卡的草稿**（v2 §8.1）。
+ *
+ * ⭐ 它**不是** `ContextCard`：库里那一行有 id、有常挂域、有参考图、有 `status`，
+ * 而这四样没有一样是模型说了算的。草稿只有用户读得懂的那四格 —— 卡的档、名字、
+ * 一句话摘要、正文（外加可选的硬否定串）。
+ * ⚠ 同一个形状既是工具入参，也是 `confirm(contextCard)` 那一帧的载荷：⛔ 别在
+ * 两处各写一份，写两份的下场是模型填得出而卡渲染不出来。
+ * ⚠ 上限逐条借 `CONTEXT_CARD_LIMITS` —— 用户点「存这张卡」时这份草稿原样进
+ * `CreateContextCardSchema`，两处上限漂开的表现是「卡存不下去且说不出为什么」。
+ */
+export const AssistantOperatorContextCardDraftSchema = z.object({
+  kind: ContextCardKindSchema,
+  name: z.string().trim().min(1).max(CONTEXT_CARD_LIMITS.maxNameChars),
+  /** 唯一每轮都进系统提示的那一行。 */
+  summary: z.string().trim().max(CONTEXT_CARD_LIMITS.maxSummaryChars),
+  body: z.string().max(CONTEXT_CARD_LIMITS.maxBodyChars),
+  negative: z
+    .string()
+    .trim()
+    .max(CONTEXT_CARD_LIMITS.maxNegativeChars)
+    .nullish(),
+})
+
+export type AssistantOperatorContextCardDraft = z.infer<
+  typeof AssistantOperatorContextCardDraftSchema
+>
+
 export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   AssistantOperatorTool,
   z.ZodType
@@ -1352,6 +1380,12 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     cardId: IdSchema,
   }),
   /**
+   * **提议**一张卡（v2 §8.1）—— 模型只写草稿，⛔ 写不出 id、写不出常挂域、
+   * 也写不出 `status`：那三样分别由库、用户和「用户点了没点」决定。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]:
+    AssistantOperatorContextCardDraftSchema,
+  /**
    * 标一张产物的审核态（切片 X）。
    *
    * ⚠ `state` 收下**三个值都收**（含 `approved`），值域不在这里收窄 —— 与本文件
@@ -1445,7 +1479,20 @@ export const ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS: Record<
       ],
     ),
   }),
-  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask]: AssistantOperatorAskArgsSchema,
+  /**
+   * ⚠ `ask` 是全表唯一**两种形状**的入口（v2 §8.1）：不写 `action` = 问一道题
+   * （形状写在 `AssistantOperatorAskArgsSchema` 里，组内没有旧工具）；
+   * 写了 `action` = 组里那一条（今天只有 `propose_context_card`）。
+   * ⛔ 别把提议也塞进问题那个形状：它摆的是一张卡的草稿，不是 2–4 个选项。
+   */
+  [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask]: z.union([
+    z.looseObject({
+      action: z.enum(
+        ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask],
+      ),
+    }),
+    AssistantOperatorAskArgsSchema,
+  ]),
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply]: z.looseObject({
     action: z.enum(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply],
@@ -2349,6 +2396,18 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ContextCardSchema.nullable(),
   ),
   /**
+   * 提议一张卡（§8.1）—— 与 `request_generation` 同一种形状：**这条路上通常不出
+   * step**，它的产出是一帧 `confirm(contextCard)` 加停流。契约照旧写在这里，
+   * 因为「每条工具都有一份合法 step」是这份判别联合的完备性要求。
+   * ⚠ 归读类：`result` 里没有 id，也没有 `inverse` —— 服务端一行库都没写，
+   * ⛔ 撤无可撤。
+   */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
+    AssistantOperatorContextCardDraftSchema,
+    z.object({ offered: z.boolean() }),
+  ),
+  /**
    * 标一张产物的审核态（切片 X）。
    *
    * ⚠ 与 `add_project_rule` 同一档：后果**落在服务端**（写 `Generation.snapshot`），
@@ -2527,6 +2586,18 @@ export const AssistantOperatorConfirmEventSchema = z.object({
     z.object({
       kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate),
       request: AssistantOperatorGenerationRequestSchema,
+    }),
+    /**
+     * **助手提议记一张上下文卡**（v2 §8.1）。
+     *
+     * ⚠ 它与生成那一支同构：服务端到这一帧为止**一行库都没写**，入库那一跳
+     * 由用户在卡上点「存这张卡」时走既有的 `/api/context-cards`。
+     * ⛔ 别把它做成 `ask` 的选项题：卡上要摆的是一张卡的预览（档 / 名字 /
+     * 一句话 / 正文），而不是 2–4 个带说明的选项。
+     */
+    z.object({
+      kind: z.literal(ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard),
+      card: AssistantOperatorContextCardDraftSchema,
     }),
   ]),
 })

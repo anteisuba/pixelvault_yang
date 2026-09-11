@@ -29,6 +29,8 @@ export const GET = createApiGetRoute({
   handler: async ({ clerkId, data }) =>
     listContextCardsForClerkId(clerkId!, {
       kind: data.kind ?? null,
+      /** ⚠ 缺席 = 只要已确认的（服务端默认）——待确认区显式传 `proposed`。 */
+      status: data.status ?? null,
       pinnedScope: data.pinnedScope ?? null,
     }),
 })

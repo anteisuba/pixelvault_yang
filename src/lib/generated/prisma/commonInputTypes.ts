@@ -613,6 +613,13 @@ export type EnumContextCardKindFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumContextCardKindFilter<$PrismaModel> | $Enums.ContextCardKind
 }
 
+export type EnumContextCardStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContextCardStatus | Prisma.EnumContextCardStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.ContextCardStatus[] | Prisma.ListEnumContextCardStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContextCardStatus[] | Prisma.ListEnumContextCardStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContextCardStatusFilter<$PrismaModel> | $Enums.ContextCardStatus
+}
+
 export type EnumContextCardKindWithAggregatesFilter<$PrismaModel = never> = {
   equals?: $Enums.ContextCardKind | Prisma.EnumContextCardKindFieldRefInput<$PrismaModel>
   in?: $Enums.ContextCardKind[] | Prisma.ListEnumContextCardKindFieldRefInput<$PrismaModel>
@@ -621,6 +628,16 @@ export type EnumContextCardKindWithAggregatesFilter<$PrismaModel = never> = {
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumContextCardKindFilter<$PrismaModel>
   _max?: Prisma.NestedEnumContextCardKindFilter<$PrismaModel>
+}
+
+export type EnumContextCardStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContextCardStatus | Prisma.EnumContextCardStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.ContextCardStatus[] | Prisma.ListEnumContextCardStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContextCardStatus[] | Prisma.ListEnumContextCardStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContextCardStatusWithAggregatesFilter<$PrismaModel> | $Enums.ContextCardStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumContextCardStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumContextCardStatusFilter<$PrismaModel>
 }
 
 export type NestedStringFilter<$PrismaModel = never> = {
@@ -1159,6 +1176,13 @@ export type NestedEnumContextCardKindFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumContextCardKindFilter<$PrismaModel> | $Enums.ContextCardKind
 }
 
+export type NestedEnumContextCardStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContextCardStatus | Prisma.EnumContextCardStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.ContextCardStatus[] | Prisma.ListEnumContextCardStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContextCardStatus[] | Prisma.ListEnumContextCardStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContextCardStatusFilter<$PrismaModel> | $Enums.ContextCardStatus
+}
+
 export type NestedEnumContextCardKindWithAggregatesFilter<$PrismaModel = never> = {
   equals?: $Enums.ContextCardKind | Prisma.EnumContextCardKindFieldRefInput<$PrismaModel>
   in?: $Enums.ContextCardKind[] | Prisma.ListEnumContextCardKindFieldRefInput<$PrismaModel>
@@ -1167,6 +1191,16 @@ export type NestedEnumContextCardKindWithAggregatesFilter<$PrismaModel = never> 
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumContextCardKindFilter<$PrismaModel>
   _max?: Prisma.NestedEnumContextCardKindFilter<$PrismaModel>
+}
+
+export type NestedEnumContextCardStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.ContextCardStatus | Prisma.EnumContextCardStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.ContextCardStatus[] | Prisma.ListEnumContextCardStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.ContextCardStatus[] | Prisma.ListEnumContextCardStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumContextCardStatusWithAggregatesFilter<$PrismaModel> | $Enums.ContextCardStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumContextCardStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumContextCardStatusFilter<$PrismaModel>
 }
 
 

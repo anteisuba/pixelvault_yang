@@ -487,9 +487,25 @@ const STEP_FIXTURES: Record<
       ],
       negative: 'air ripples, holographic overlay',
       pinnedScopes: ['video'],
+      status: 'confirmed',
       createdAt: '2026-09-07T10:00:00.000Z',
       updatedAt: '2026-09-07T10:00:00.000Z',
     },
+  },
+  /**
+   * 提议一张卡（v2 §8.1）——**读类**：一行库都没写，所以没有 `inverse`。
+   * ⚠ 这条工具在真实链路上通常不出 step（它的产出是一帧 `confirm(contextCard)`），
+   * 契约照旧要有一份合法 step —— 判据与 `request_generation` 逐字同源。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]: {
+    payload: {
+      kind: 'character',
+      name: 'Sigrika',
+      summary: 'Silver hair, gold eyes, control-room mech suit.',
+      body: '## Appearance\nSilver hair, gold eyes.',
+      negative: 'air ripples',
+    },
+    result: { offered: true },
   },
   /** 切片 X：`inverse` 里是**旧值**，撤销 = 写回去。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]: {
@@ -653,8 +669,8 @@ describe('五动词入口', () => {
    * 断的是「没有孤儿、没有分身」，断不出「有人悄悄加了一条工具」——
    * 而模型看得见的工具多一条，就是它多一条挑错的路。
    */
-  it('⭐ 工具表是 32 条，recall_evidence 归「查」组（§7.3）', () => {
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(32)
+  it('⭐ 工具表是 33 条，recall_evidence 归「查」组（§7.3）', () => {
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(33)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
@@ -698,10 +714,13 @@ describe('五动词入口', () => {
     )
     expect([...all].sort()).toEqual([...ASSISTANT_OPERATOR_TOOLS].sort())
     expect(new Set(all).size).toBe(all.length)
-    // `ask` 组里没有旧工具：反问的形状写在入口自己的 schema 里。
+    /**
+     * `ask` 组里**只有提议卡那一条**（v2 §8.1）：反问本身没有工具，它的形状写在
+     * 入口自己的 schema 里（不写 `action` 就是「问一道题」）。
+     */
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask],
-    ).toEqual([])
+    ).toEqual([ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard])
   })
 
   it('audio 两条列进 apply，且 ⛔ 没有多出一个 audio 域（§2.3）', () => {

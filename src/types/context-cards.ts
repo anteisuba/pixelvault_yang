@@ -22,9 +22,12 @@ import {
   CONTEXT_CARD_IMAGE_ROLE_IDS,
   CONTEXT_CARD_KINDS,
   CONTEXT_CARD_LIMITS,
+  CONTEXT_CARD_STATUSES,
 } from '@/constants/context-cards'
 
 export const ContextCardKindSchema = z.enum(CONTEXT_CARD_KINDS)
+/** 待确认 / 已确认（v2 §8.2）。⚠ 读回来的每一行都有它 —— 存量行是 `confirmed`。 */
+export const ContextCardStatusSchema = z.enum(CONTEXT_CARD_STATUSES)
 export const ContextCardImageRoleSchema = z.enum(CONTEXT_CARD_IMAGE_ROLES)
 
 /**
@@ -83,6 +86,7 @@ export const ContextCardSchema = z.object({
   pinnedScopes: z
     .array(ContextCardScopeSchema)
     .max(CONTEXT_CARD_LIMITS.maxPinnedScopes),
+  status: ContextCardStatusSchema,
   /** ISO 串。 */
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -112,6 +116,16 @@ const ContextCardWritableShape = {
     .array(ContextCardScopeSchema)
     .max(CONTEXT_CARD_LIMITS.maxPinnedScopes)
     .default([]),
+  /**
+   * 建出来是**已确认**还是**待确认**（v2 §8.1）。
+   *
+   * ⚠ **缺席 = `confirmed`**（服务端补）：设置里「新建一张卡」与面板上
+   * 「存这张卡」走的都是这条路，两者都是用户自己按下去的。
+   * ⚠ 显式传 `proposed` 的只有一处：面板收到提议帧时替用户留的那份草稿（§8.1）。
+   * ⛔ 助手够不着这条路 —— 服务端提议那一跳一行库都不写，工具环里也没有任何
+   * 一条能调 `createContextCard`。
+   */
+  status: ContextCardStatusSchema.optional(),
 } as const
 
 /** POST `/api/context-cards`。⚠ `images` 不在这里 —— 见文件头注 ③。 */
@@ -160,6 +174,13 @@ export const UpdateContextCardSchema = z
      * 就没有这回事。
      * ⛔ 与 `pinnedScopes` 互斥：同一次请求里既整份覆盖又切一格，语义没有答案。
      */
+    /**
+     * 待确认 → 已确认（待确认区那颗「存下」，v2 §8.1）。
+     *
+     * ⚠ 反向（已确认 → 待确认）**协议上也收**，但界面上没有那颗按钮：
+     * 一张卡不该因为一次误点就回到「助手提议」那一档。
+     */
+    status: ContextCardStatusSchema.optional(),
     pin: z
       .object({ scope: ContextCardScopeSchema, pinned: z.boolean() })
       .strict()
@@ -181,6 +202,12 @@ export type UpdateContextCardRequest = z.infer<typeof UpdateContextCardSchema>
 /** GET `/api/context-cards` 的查询串。 */
 export const ListContextCardsQuerySchema = z.object({
   kind: ContextCardKindSchema.optional(),
+  /**
+   * 要哪一档。⚠ **缺席 = 只要已确认的**（服务端那一侧的默认）：待确认的草稿
+   * 不该出现在任何一张「我的卡」列表里，⛔ 更不该进系统提示。
+   * 待确认区显式传 `proposed`。
+   */
+  status: ContextCardStatusSchema.optional(),
   /** 给了就只返回**常挂在这个域**的卡（系统提示注入走的就是这一条）。 */
   pinnedScope: ContextCardScopeSchema.optional(),
 })

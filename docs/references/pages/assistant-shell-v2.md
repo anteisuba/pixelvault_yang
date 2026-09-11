@@ -485,17 +485,20 @@
 
 ### 8.1 助手提议上下文卡
 
-流程：`propose_context_card`（「问」组）→ **待确认区** → 用户确认才入库。
+流程：`propose_context_card`（「问」组）→ 面板确认卡（同时写一行**待确认**）→ 用户点头才进长期记忆；当场没点的，留在设置里的**待确认区**补点。
 
-| 环节     | 规则                                                                           |
-| -------- | ------------------------------------------------------------------------------ |
-| 工具入参 | `kind`（character / style / brand）· `name` · `summary` · `body` · `negative?` |
-| 服务端   | **不落库**，只吐一帧 `ask`（`kind: "contextCard"`），载荷是卡的草稿            |
-| 客户端   | 渲染成一张问题卡形态：卡片预览 + `记住它` / `不用`                             |
-| 确认后   | 走既有 `/api/context-cards` 写入，`status: "confirmed"`                        |
-| 待确认区 | 设置弹层「上下文卡」页签**顶部**一个区，列出所有 `status: "proposed"` 的卡     |
+| 环节         | 规则                                                                                              |
+| ------------ | ------------------------------------------------------------------------------------------------- |
+| 工具入参     | `kind`（character / style / brand）· `name` · `summary` · `body` · `negative?`                    |
+| 服务端       | **不落库**，只吐一帧 `ask`（`kind: "contextCard"`），载荷是卡的草稿                               |
+| 客户端       | 渲染成一张问题卡形态：卡片预览 + `存这张卡` / `不用`；**同时**把草稿写成一行 `status: "proposed"` |
+| 「存这张卡」 | PATCH 那一行 `status` → `confirmed`（那一行没写成时回落成 `POST … status: "confirmed"`）          |
+| 「不用」     | DELETE 那一行 —— 明确的拒绝，⛔ 不留在待确认区里反复问                                            |
+| 待确认区     | 设置弹层「上下文卡」页签**顶部**一个区，列出所有 `status: "proposed"` 的卡，每条「存下 / 删掉」   |
 
-⚠ 为什么服务端不落库：落了就等于助手能写用户的长期记忆而不经过人。`status` 那一列存在的意义是让「用户在面板上没点、后来在设置里补点」这条路走得通——⛔ 不是给助手一个「先写了再说」的后门。
+⚠ **为什么服务端不落库、而客户端落**（owner 2026-09-11）：写库这一跳必须长在用户那一侧 —— 服务端自己落库等于助手能不经过人就写用户的长期记忆；而「当场没点，后来在设置里补点」这条路要走得通，前提是那张卡还在。两条同时成立只有一种落法：**服务端不写，客户端收到提议帧就写一行 `proposed`，用户点头翻面、放弃删除**。
+⚠ `proposed` 那一档**不进系统提示、也不进 `list_context_cards`**（服务端列表默认只回 `confirmed`），所以它不会变成模型的自引用回路（「我记得你说过」而用户从没点过头）。
+⚠ 写 `proposed` 那一跳**失败不阻塞**：卡照旧可存可弃，存时回落成直接建一行 `confirmed`。
 
 ### 8.2 上下文卡数据模型
 
@@ -711,7 +714,7 @@
 | 11  | `feat(assistant): 每轮结账数据模型`           | prisma → constants → types → services                             | `prisma/schema.prisma`（`rounds`）+ migration · `assistant-operator.service.ts`（结账 + `done.roundSummary`）· `ResearchRun` 编号                                                                               | `vitest run src/services/kernel`                                                      | §7.2–§7.5 落地；`done` 帧带 `roundSummary`                                                                                  |
 | 12  | `feat(assistant): 结论注入与 recall_evidence` | constants → types → services → hooks                              | 五入口的「查」组加 `recall_evidence` · 系统提示新段 · 删 `request.workingMemory`                                                                                                                                | `vitest run src/services/kernel src/hooks src/lib`                                    | §7.6 落地；`workingMemory` 在请求 schema 与 hook 中零命中；`studio-operator-memory.ts` 三函数被服务端引用                   |
 | 13  | `feat(assistant): 结论记录时间线块`           | components → i18n                                                 | 新 `StudioOperatorRoundSummary.tsx` · `StudioOperatorPanel.tsx`                                                                                                                                                 | `vitest run .../StudioOperatorRoundSummary*` · `/i18n-check`                          | §7.7 三态（展开 / 折叠 / 编辑）实跑，编辑保存能回写                                                                         |
-| 14  | `feat(assistant): 上下文卡提议`               | prisma → types → services → components → i18n                     | `ContextCard.status` + migration · `propose_context_card` · `ContextCardDialog.tsx` 待确认区                                                                                                                    | `vitest run .../ContextCard*` · `/i18n-check`                                         | §8.1 全链路：提议不落库 → 面板确认 → 入库；设置页待确认区可见                                                               |
+| 14  | `feat(assistant): 上下文卡提议`               | prisma → types → services → components → i18n                     | `ContextCard.status` + migration · `propose_context_card` · `ContextCardDialog.tsx` 待确认区                                                                                                                    | `vitest run .../ContextCard*` · `/i18n-check`                                         | §8.1 全链路：服务端不落库 → 客户端写待确认 → 面板点头翻面 / 点「不用」删除；设置页待确认区可补点                            |
 | 15  | `feat(assistant): 用户偏好进系统提示`         | prisma → types → services → components → i18n                     | `AssistantPersona` 三列 + migration · 系统提示 `## 关于这位创作者` 段 · 设置弹层三个控件                                                                                                                        | `vitest run src/services/kernel .../AssistantSettingsDialog.test.tsx` · `/i18n-check` | §8.3 三项各自开关能在系统提示里看出差别                                                                                     |
 | 16  | `feat(assistant): 查证与找图两入口`           | constants → types → services → components → i18n                  | `research` 入口 `want` 两档 · 四步链路 · 证据卡两个新字段 · `StudioOperatorResearchCard.tsx`                                                                                                                    | `vitest run src/services/kernel .../StudioOperatorResearchCard*` · `/i18n-check`      | §9.1 四步在日志里可见；§9.2 两个新字段渲染                                                                                  |
 | 17  | `feat(assistant): 来源白黑名单`               | prisma → types → services → components → i18n                     | `ProjectRule.kind` + migration · `project-rule.service.ts` · 设置弹层规则页 · `StudioOperatorPlusMenu.tsx`「指定来源」菜单项（单轮临时白名单接入）                                                              | `vitest run src/services/kernel .../AssistantSettingsDialog.test.tsx` · `/i18n-check` | §9.3：白名单非空时只打名单内源，且打不到时如实说                                                                            |

@@ -27,6 +27,7 @@ import type {
 import type {
   AssistantOperatorAppliedStep,
   AssistantOperatorAskEvent,
+  AssistantOperatorContextCardDraft,
   AssistantOperatorCritiqueStep,
   AssistantOperatorGenerationRequest,
   AssistantOperatorPlanAnswer,
@@ -405,6 +406,23 @@ export type StudioOperatorConfirmPrompt = {
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
       request: AssistantOperatorGenerationRequest
+    }
+  /**
+   * 助手提议记一张上下文卡（v2 §8.1）—— 卡上摆的是**草稿本身**（档 / 名字 /
+   * 一句话 / 正文），两颗按钮是「存这张卡 / 不用」。
+   * ⚠ 服务端那一侧一行库都不写；**客户端**收到这一帧就把它写成一行
+   * `status: 'proposed'`（owner 2026-09-11：没当场点的提议要能在设置里补点）。
+   */
+  | {
+      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard
+      card: AssistantOperatorContextCardDraft
+      /**
+       * 那一行 `proposed` 的 id（§8.1）。
+       *
+       * ⚠ **可以缺席**：写 proposed 那一跳失败了卡照旧可存可弃 —— 缺席时
+       * 「存这张卡」回落成 `create confirmed`，「不用」什么都不用删。
+       */
+      cardId?: string
     }
 )
 

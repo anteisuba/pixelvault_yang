@@ -381,6 +381,12 @@ export function applyOperatorStep(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.listContextCards:
     case ASSISTANT_OPERATOR_TOOL_IDS.readContextCard:
+    /**
+     * ⚠ 提议一张卡（§8.1）在这条通道上什么都没动：写库整条链都在客户端那一侧
+     * （收到提议帧写一行 `proposed`，点「存这张卡」翻面），走的是
+     * `/api/context-cards`，⛔ 不在这条应用通道上（那条改的是工作台上的旋钮）。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard:
       return null
 
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:

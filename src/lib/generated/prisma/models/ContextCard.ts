@@ -41,6 +41,7 @@ export type ContextCardMinAggregateOutputType = {
   id: string | null
   userId: string | null
   kind: $Enums.ContextCardKind | null
+  status: $Enums.ContextCardStatus | null
   name: string | null
   summary: string | null
   body: string | null
@@ -53,6 +54,7 @@ export type ContextCardMaxAggregateOutputType = {
   id: string | null
   userId: string | null
   kind: $Enums.ContextCardKind | null
+  status: $Enums.ContextCardStatus | null
   name: string | null
   summary: string | null
   body: string | null
@@ -65,6 +67,7 @@ export type ContextCardCountAggregateOutputType = {
   id: number
   userId: number
   kind: number
+  status: number
   name: number
   summary: number
   body: number
@@ -81,6 +84,7 @@ export type ContextCardMinAggregateInputType = {
   id?: true
   userId?: true
   kind?: true
+  status?: true
   name?: true
   summary?: true
   body?: true
@@ -93,6 +97,7 @@ export type ContextCardMaxAggregateInputType = {
   id?: true
   userId?: true
   kind?: true
+  status?: true
   name?: true
   summary?: true
   body?: true
@@ -105,6 +110,7 @@ export type ContextCardCountAggregateInputType = {
   id?: true
   userId?: true
   kind?: true
+  status?: true
   name?: true
   summary?: true
   body?: true
@@ -192,6 +198,7 @@ export type ContextCardGroupByOutputType = {
   id: string
   userId: string
   kind: $Enums.ContextCardKind
+  status: $Enums.ContextCardStatus
   name: string
   summary: string
   body: string
@@ -227,6 +234,7 @@ export type ContextCardWhereInput = {
   id?: Prisma.StringFilter<"ContextCard"> | string
   userId?: Prisma.StringFilter<"ContextCard"> | string
   kind?: Prisma.EnumContextCardKindFilter<"ContextCard"> | $Enums.ContextCardKind
+  status?: Prisma.EnumContextCardStatusFilter<"ContextCard"> | $Enums.ContextCardStatus
   name?: Prisma.StringFilter<"ContextCard"> | string
   summary?: Prisma.StringFilter<"ContextCard"> | string
   body?: Prisma.StringFilter<"ContextCard"> | string
@@ -242,6 +250,7 @@ export type ContextCardOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   kind?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   name?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   body?: Prisma.SortOrder
@@ -260,6 +269,7 @@ export type ContextCardWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.ContextCardWhereInput | Prisma.ContextCardWhereInput[]
   userId?: Prisma.StringFilter<"ContextCard"> | string
   kind?: Prisma.EnumContextCardKindFilter<"ContextCard"> | $Enums.ContextCardKind
+  status?: Prisma.EnumContextCardStatusFilter<"ContextCard"> | $Enums.ContextCardStatus
   name?: Prisma.StringFilter<"ContextCard"> | string
   summary?: Prisma.StringFilter<"ContextCard"> | string
   body?: Prisma.StringFilter<"ContextCard"> | string
@@ -275,6 +285,7 @@ export type ContextCardOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   kind?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   name?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   body?: Prisma.SortOrder
@@ -295,6 +306,7 @@ export type ContextCardScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"ContextCard"> | string
   userId?: Prisma.StringWithAggregatesFilter<"ContextCard"> | string
   kind?: Prisma.EnumContextCardKindWithAggregatesFilter<"ContextCard"> | $Enums.ContextCardKind
+  status?: Prisma.EnumContextCardStatusWithAggregatesFilter<"ContextCard"> | $Enums.ContextCardStatus
   name?: Prisma.StringWithAggregatesFilter<"ContextCard"> | string
   summary?: Prisma.StringWithAggregatesFilter<"ContextCard"> | string
   body?: Prisma.StringWithAggregatesFilter<"ContextCard"> | string
@@ -308,6 +320,7 @@ export type ContextCardScalarWhereWithAggregatesInput = {
 export type ContextCardCreateInput = {
   id?: string
   kind: $Enums.ContextCardKind
+  status?: $Enums.ContextCardStatus
   name: string
   summary: string
   body: string
@@ -323,6 +336,7 @@ export type ContextCardUncheckedCreateInput = {
   id?: string
   userId: string
   kind: $Enums.ContextCardKind
+  status?: $Enums.ContextCardStatus
   name: string
   summary: string
   body: string
@@ -336,6 +350,7 @@ export type ContextCardUncheckedCreateInput = {
 export type ContextCardUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   kind?: Prisma.EnumContextCardKindFieldUpdateOperationsInput | $Enums.ContextCardKind
+  status?: Prisma.EnumContextCardStatusFieldUpdateOperationsInput | $Enums.ContextCardStatus
   name?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   body?: Prisma.StringFieldUpdateOperationsInput | string
@@ -351,6 +366,7 @@ export type ContextCardUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   kind?: Prisma.EnumContextCardKindFieldUpdateOperationsInput | $Enums.ContextCardKind
+  status?: Prisma.EnumContextCardStatusFieldUpdateOperationsInput | $Enums.ContextCardStatus
   name?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   body?: Prisma.StringFieldUpdateOperationsInput | string
@@ -365,6 +381,7 @@ export type ContextCardCreateManyInput = {
   id?: string
   userId: string
   kind: $Enums.ContextCardKind
+  status?: $Enums.ContextCardStatus
   name: string
   summary: string
   body: string
@@ -378,6 +395,7 @@ export type ContextCardCreateManyInput = {
 export type ContextCardUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   kind?: Prisma.EnumContextCardKindFieldUpdateOperationsInput | $Enums.ContextCardKind
+  status?: Prisma.EnumContextCardStatusFieldUpdateOperationsInput | $Enums.ContextCardStatus
   name?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   body?: Prisma.StringFieldUpdateOperationsInput | string
@@ -392,6 +410,7 @@ export type ContextCardUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   kind?: Prisma.EnumContextCardKindFieldUpdateOperationsInput | $Enums.ContextCardKind
+  status?: Prisma.EnumContextCardStatusFieldUpdateOperationsInput | $Enums.ContextCardStatus
   name?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   body?: Prisma.StringFieldUpdateOperationsInput | string
@@ -416,6 +435,7 @@ export type ContextCardCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   kind?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   name?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   body?: Prisma.SortOrder
@@ -430,6 +450,7 @@ export type ContextCardMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   kind?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   name?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   body?: Prisma.SortOrder
@@ -442,6 +463,7 @@ export type ContextCardMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   userId?: Prisma.SortOrder
   kind?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   name?: Prisma.SortOrder
   summary?: Prisma.SortOrder
   body?: Prisma.SortOrder
@@ -500,6 +522,10 @@ export type EnumContextCardKindFieldUpdateOperationsInput = {
   set?: $Enums.ContextCardKind
 }
 
+export type EnumContextCardStatusFieldUpdateOperationsInput = {
+  set?: $Enums.ContextCardStatus
+}
+
 export type ContextCardUpdatepinnedScopesInput = {
   set?: string[]
   push?: string | string[]
@@ -508,6 +534,7 @@ export type ContextCardUpdatepinnedScopesInput = {
 export type ContextCardCreateWithoutUserInput = {
   id?: string
   kind: $Enums.ContextCardKind
+  status?: $Enums.ContextCardStatus
   name: string
   summary: string
   body: string
@@ -521,6 +548,7 @@ export type ContextCardCreateWithoutUserInput = {
 export type ContextCardUncheckedCreateWithoutUserInput = {
   id?: string
   kind: $Enums.ContextCardKind
+  status?: $Enums.ContextCardStatus
   name: string
   summary: string
   body: string
@@ -564,6 +592,7 @@ export type ContextCardScalarWhereInput = {
   id?: Prisma.StringFilter<"ContextCard"> | string
   userId?: Prisma.StringFilter<"ContextCard"> | string
   kind?: Prisma.EnumContextCardKindFilter<"ContextCard"> | $Enums.ContextCardKind
+  status?: Prisma.EnumContextCardStatusFilter<"ContextCard"> | $Enums.ContextCardStatus
   name?: Prisma.StringFilter<"ContextCard"> | string
   summary?: Prisma.StringFilter<"ContextCard"> | string
   body?: Prisma.StringFilter<"ContextCard"> | string
@@ -577,6 +606,7 @@ export type ContextCardScalarWhereInput = {
 export type ContextCardCreateManyUserInput = {
   id?: string
   kind: $Enums.ContextCardKind
+  status?: $Enums.ContextCardStatus
   name: string
   summary: string
   body: string
@@ -590,6 +620,7 @@ export type ContextCardCreateManyUserInput = {
 export type ContextCardUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   kind?: Prisma.EnumContextCardKindFieldUpdateOperationsInput | $Enums.ContextCardKind
+  status?: Prisma.EnumContextCardStatusFieldUpdateOperationsInput | $Enums.ContextCardStatus
   name?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   body?: Prisma.StringFieldUpdateOperationsInput | string
@@ -603,6 +634,7 @@ export type ContextCardUpdateWithoutUserInput = {
 export type ContextCardUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   kind?: Prisma.EnumContextCardKindFieldUpdateOperationsInput | $Enums.ContextCardKind
+  status?: Prisma.EnumContextCardStatusFieldUpdateOperationsInput | $Enums.ContextCardStatus
   name?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   body?: Prisma.StringFieldUpdateOperationsInput | string
@@ -616,6 +648,7 @@ export type ContextCardUncheckedUpdateWithoutUserInput = {
 export type ContextCardUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   kind?: Prisma.EnumContextCardKindFieldUpdateOperationsInput | $Enums.ContextCardKind
+  status?: Prisma.EnumContextCardStatusFieldUpdateOperationsInput | $Enums.ContextCardStatus
   name?: Prisma.StringFieldUpdateOperationsInput | string
   summary?: Prisma.StringFieldUpdateOperationsInput | string
   body?: Prisma.StringFieldUpdateOperationsInput | string
@@ -632,6 +665,7 @@ export type ContextCardSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   id?: boolean
   userId?: boolean
   kind?: boolean
+  status?: boolean
   name?: boolean
   summary?: boolean
   body?: boolean
@@ -647,6 +681,7 @@ export type ContextCardSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   id?: boolean
   userId?: boolean
   kind?: boolean
+  status?: boolean
   name?: boolean
   summary?: boolean
   body?: boolean
@@ -662,6 +697,7 @@ export type ContextCardSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   id?: boolean
   userId?: boolean
   kind?: boolean
+  status?: boolean
   name?: boolean
   summary?: boolean
   body?: boolean
@@ -677,6 +713,7 @@ export type ContextCardSelectScalar = {
   id?: boolean
   userId?: boolean
   kind?: boolean
+  status?: boolean
   name?: boolean
   summary?: boolean
   body?: boolean
@@ -687,7 +724,7 @@ export type ContextCardSelectScalar = {
   updatedAt?: boolean
 }
 
-export type ContextCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "kind" | "name" | "summary" | "body" | "images" | "negative" | "pinnedScopes" | "createdAt" | "updatedAt", ExtArgs["result"]["contextCard"]>
+export type ContextCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "kind" | "status" | "name" | "summary" | "body" | "images" | "negative" | "pinnedScopes" | "createdAt" | "updatedAt", ExtArgs["result"]["contextCard"]>
 export type ContextCardInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -707,6 +744,10 @@ export type $ContextCardPayload<ExtArgs extends runtime.Types.Extensions.Interna
     id: string
     userId: string
     kind: $Enums.ContextCardKind
+    /**
+     * 待确认 / 已确认（v2 §8.1）。⚠ 默认已确认：存量行与用户自己建的卡都是它。
+     */
+    status: $Enums.ContextCardStatus
     /**
      * 卡名（@ 面板上那行字，也是 chip 上的名字）。
      */
@@ -1162,6 +1203,7 @@ export interface ContextCardFieldRefs {
   readonly id: Prisma.FieldRef<"ContextCard", 'String'>
   readonly userId: Prisma.FieldRef<"ContextCard", 'String'>
   readonly kind: Prisma.FieldRef<"ContextCard", 'ContextCardKind'>
+  readonly status: Prisma.FieldRef<"ContextCard", 'ContextCardStatus'>
   readonly name: Prisma.FieldRef<"ContextCard", 'String'>
   readonly summary: Prisma.FieldRef<"ContextCard", 'String'>
   readonly body: Prisma.FieldRef<"ContextCard", 'String'>

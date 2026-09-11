@@ -51,6 +51,20 @@ vi.mock('@/lib/api-client/assistant-operator', () => ({
 }))
 
 /**
+ * 上下文卡那三跳（v2 §8.1）—— 写库**整条链都在客户端**：提议到达写一行
+ * `proposed`、「存这张卡」PATCH 翻面、「不用」DELETE 删掉。桩这三个就足以验
+ * 「谁写了库、什么时候写的」。
+ */
+const createContextCardAPI = vi.hoisted(() => vi.fn())
+const updateContextCardAPI = vi.hoisted(() => vi.fn())
+const deleteContextCardAPI = vi.hoisted(() => vi.fn())
+vi.mock('@/lib/api-client/context-cards', () => ({
+  createContextCardAPI,
+  updateContextCardAPI,
+  deleteContextCardAPI,
+}))
+
+/**
  * 词表桩回键名 —— 错误文案映射（bug 5）那几条断言按键名读。
  * ⚠ `has` 必须在：`getGenerationErrorMessage` 收的是带 `.has()` 的翻译器
  *   （`lib/api-error-message.ts` 的 `ErrorTranslator`）。这里一律答「没有这个键」，
@@ -818,6 +832,156 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     expect(
       streamAssistantOperatorAPI.mock.calls[2]?.[0].planApproved,
     ).toBeUndefined()
+  })
+})
+
+/**
+ * **上下文卡提议**（v2 §8.1，commit #14 + owner 2026-09-11）——
+ * 提议到达即写「待确认」 → 面板上点「存这张卡」翻成「已确认」 / 点「不用」删掉。
+ */
+describe('上下文卡提议（v2 §8.1）', () => {
+  const DRAFT = {
+    kind: 'character' as const,
+    name: '西格莉卡',
+    summary: '银发金瞳',
+    body: '## 外貌\n银发、金瞳。',
+    negative: '空气涟漪',
+  }
+
+  function proposeEvent(): AssistantOperatorEvent {
+    return {
+      type: ASSISTANT_OPERATOR_EVENTS.confirm,
+      confirm: { kind: 'contextCard', card: DRAFT },
+    }
+  }
+
+  /** 摆到一张「提议卡在面板上、proposed 已写进库」的现场。 */
+  async function propose(): Promise<ReturnType<typeof render>['result']> {
+    const { result } = render()
+    act(() => {
+      result.current.send('她就长这样')
+    })
+    await settle()
+    streams[0].emit(proposeEvent())
+    await settle()
+    return result
+  }
+
+  beforeEach(() => {
+    createContextCardAPI.mockResolvedValue({
+      success: true,
+      data: { id: 'card-9', name: DRAFT.name },
+    })
+    updateContextCardAPI.mockResolvedValue({
+      success: true,
+      data: { id: 'card-9', name: DRAFT.name },
+    })
+    deleteContextCardAPI.mockResolvedValue({ success: true, data: null })
+  })
+
+  it('提议一到就写一行 proposed，⛔ 不等用户点', async () => {
+    await propose()
+
+    expect(createContextCardAPI).toHaveBeenCalledTimes(1)
+    expect(createContextCardAPI).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'character',
+        name: '西格莉卡',
+        status: 'proposed',
+        pinnedScopes: [],
+      }),
+    )
+    const pending = store.getOperatorState().confirm
+    expect(pending?.kind).toBe('contextCard')
+    expect(pending?.status).toBe('idle')
+  })
+
+  it('「存这张卡」= 把那一行翻成 confirmed，并落一行系统行', async () => {
+    const result = await propose()
+
+    await act(async () => {
+      await result.current.saveContextCard()
+    })
+
+    expect(updateContextCardAPI).toHaveBeenCalledWith('card-9', {
+      status: 'confirmed',
+    })
+    // ⛔ 不再建第二行：那一行提议时就已经在库里了。
+    expect(createContextCardAPI).toHaveBeenCalledTimes(1)
+    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+    const line = store
+      .getOperatorState()
+      .entries.find(
+        (entry) => entry.kind === 'system' && entry.code === 'contextCardSaved',
+      )
+    expect(line).toBeDefined()
+    // ⛔ 不重发一轮：存卡是客户端一次写库，不是新一轮对话。
+    expect(streams).toHaveLength(1)
+  })
+
+  it('「不用」把那一行删掉', async () => {
+    const result = await propose()
+
+    await act(async () => {
+      await result.current.dismissContextCard()
+    })
+
+    expect(deleteContextCardAPI).toHaveBeenCalledWith('card-9')
+    expect(updateContextCardAPI).not.toHaveBeenCalled()
+    expect(store.getOperatorState().confirm?.status).toBe('cancelled')
+  })
+
+  /** ⭐ 写 proposed 失败不该让用户存不下：那一跳只决定走翻面还是走新建。 */
+  it('写 proposed 失败时卡照旧可存 —— 回落成 create confirmed', async () => {
+    createContextCardAPI.mockResolvedValueOnce({
+      success: false,
+      error: 'nope',
+    })
+    const result = await propose()
+    expect(store.getOperatorState().confirm?.status).toBe('idle')
+
+    await act(async () => {
+      await result.current.saveContextCard()
+    })
+
+    expect(updateContextCardAPI).not.toHaveBeenCalled()
+    expect(createContextCardAPI).toHaveBeenLastCalledWith(
+      expect.objectContaining({ name: '西格莉卡', status: 'confirmed' }),
+    )
+    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+  })
+
+  /** ⛔ 存不下去不静默：用户以为记住了，而库里那一行还停在「待确认」。 */
+  it('翻面失败时卡转回 idle 并落一行失败系统行', async () => {
+    updateContextCardAPI.mockResolvedValue({ success: false, error: 'nope' })
+    const result = await propose()
+
+    await act(async () => {
+      await result.current.saveContextCard()
+    })
+
+    expect(store.getOperatorState().confirm?.status).toBe('idle')
+    expect(
+      store
+        .getOperatorState()
+        .entries.some(
+          (entry) =>
+            entry.kind === 'system' && entry.code === 'contextCardSaveFailed',
+        ),
+    ).toBe(true)
+
+    // 再点一次仍是**翻同一行的面**，⛔ 不会变成新建第二行。
+    updateContextCardAPI.mockResolvedValue({
+      success: true,
+      data: { id: 'card-9', name: DRAFT.name },
+    })
+    await act(async () => {
+      await result.current.saveContextCard()
+    })
+    expect(updateContextCardAPI).toHaveBeenLastCalledWith('card-9', {
+      status: 'confirmed',
+    })
+    expect(createContextCardAPI).toHaveBeenCalledTimes(1)
   })
 })
 

@@ -4831,6 +4831,7 @@ export const ContextCardScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
   kind: 'kind',
+  status: 'status',
   name: 'name',
   summary: 'summary',
   body: 'body',
@@ -5182,6 +5183,20 @@ export type EnumContextCardKindFieldRefInput<$PrismaModel> = FieldRefInputType<$
  * Reference to a field of type 'ContextCardKind[]'
  */
 export type ListEnumContextCardKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ContextCardKind[]'>
+    
+
+
+/**
+ * Reference to a field of type 'ContextCardStatus'
+ */
+export type EnumContextCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ContextCardStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'ContextCardStatus[]'
+ */
+export type ListEnumContextCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ContextCardStatus[]'>
     
 
 /**

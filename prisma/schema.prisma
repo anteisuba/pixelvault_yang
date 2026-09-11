@@ -36,6 +36,22 @@ enum GenerationSourceSurface {
 /// ⚠ 三档是**同一件事的三个对象**：一张账号级、可 @ 注入、可常挂的持久上下文。
 /// ⛔ 不拆三张表 —— 它们的列一模一样（名字 / 摘要 / 正文 / 参考图 / 硬否定 /
 /// 常挂域），拆开只会让「列出这个用户的全部卡」变成三次查询再归并。
+/// 一张上下文卡**进没进用户的长期记忆**（v2 §8.2）。
+///
+/// ⭐ 只有两态，且默认是**已确认**：存量的每一行都是用户自己在设置里写下的卡，
+/// 加这一列不改变它们的语义。
+/// ⚠ `PROPOSED` = 助手提议、用户还没点头的草稿：它**不进系统提示、也不进
+/// `list_context_cards` 的名单**（不然模型会读到自己刚编的东西，还以为是用户的
+/// 设定）。⛔ 这一列不是给助手的「先写了再说」后门 —— 服务端在提议那一跳一行库
+/// 都不写（v2 §8.1），它存在的意义是「用户在面板上没点、后来在设置里补点」这条
+/// 路走得通。
+enum ContextCardStatus {
+  /// 助手提议的草稿，等用户在待确认区点头。
+  PROPOSED
+  /// 用户认下的卡 —— 可 @ 注入、可常挂。
+  CONFIRMED
+}
+
 enum ContextCardKind {
   /// 角色：外貌 / 服饰 / 性格，正文进系统提示，参考图供 `mount_reference` 直接挂。
   CHARACTER
@@ -1492,6 +1508,9 @@ model ContextCard {
 
   kind ContextCardKind
 
+  /// 待确认 / 已确认（v2 §8.1）。⚠ 默认已确认：存量行与用户自己建的卡都是它。
+  status ContextCardStatus @default(CONFIRMED)
+
   /// 卡名（@ 面板上那行字，也是 chip 上的名字）。
   name    String
   /// 一句话摘要 —— **它才是进系统提示的那一行**，正文靠 `read_context_card` 拉。
@@ -1515,4 +1534,6 @@ model ContextCard {
 
   @@index([userId, updatedAt(sort: Desc)])
   @@index([userId, kind, updatedAt(sort: Desc)])
+  /// 待确认区那一次查询（`status = PROPOSED`）走它。
+  @@index([userId, status, updatedAt(sort: Desc)])
 }

@@ -4,6 +4,7 @@ import {
   CONTEXT_CARD_IMAGE_ROLE_IDS,
   CONTEXT_CARD_KIND_IDS,
   CONTEXT_CARD_LIMITS,
+  CONTEXT_CARD_STATUS_IDS,
 } from '@/constants/context-cards'
 
 // ─── Mocks ──────────────────────────────────────────────────────
@@ -51,6 +52,7 @@ const SHEET = {
 const ROW = {
   id: 'card-1',
   kind: 'CHARACTER' as const,
+  status: 'CONFIRMED' as const,
   name: 'Sigrika',
   summary: 'Silver hair, gold eyes.',
   body: '## Appearance\nSilver hair.',
@@ -81,13 +83,15 @@ describe('context card service', () => {
         images: [SHEET],
         negative: 'air ripples',
         pinnedScopes: ['video'],
+        status: CONTEXT_CARD_STATUS_IDS.confirmed,
         createdAt: '2026-09-07T10:00:00.000Z',
         updatedAt: '2026-09-07T11:00:00.000Z',
       },
     ])
     expect(mockFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { userId: 'db_user_1' },
+        // ⚠ 默认只要已确认的：助手提议的草稿不该出现在任何一张卡表里。
+        where: { userId: 'db_user_1', status: 'CONFIRMED' },
         orderBy: { updatedAt: 'desc' },
       }),
     )
@@ -105,6 +109,7 @@ describe('context card service', () => {
       expect.objectContaining({
         where: {
           userId: 'db_user_1',
+          status: 'CONFIRMED',
           kind: 'STYLE',
           pinnedScopes: { has: 'image' },
         },
@@ -123,6 +128,53 @@ describe('context card service', () => {
     const [card] = await listContextCards('db_user_1')
 
     expect(card.images).toEqual([SHEET])
+  })
+
+  /**
+   * **待确认区那一次查询**（v2 §8.1）—— 唯一显式要 `proposed` 的地方。
+   * ⚠ 默认那条（上面两例）与它是**两份结果**：模型与系统提示读的永远是已确认的
+   * 那一份，⛔ 提议的草稿一条都进不去。
+   */
+  it('显式要 proposed 时才列出待确认的卡', async () => {
+    mockFindMany.mockResolvedValue([])
+
+    await listContextCards('db_user_1', {
+      status: CONTEXT_CARD_STATUS_IDS.proposed,
+    })
+
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId: 'db_user_1', status: 'PROPOSED' },
+      }),
+    )
+  })
+
+  /** 待确认 → 已确认：待确认区那颗「存下」走的就是这一格。 */
+  it('status 翻面写进 update，其余字段一个都不带', async () => {
+    mockFindFirst.mockResolvedValue({ id: 'card-1', pinnedScopes: [] })
+    mockUpdate.mockResolvedValue(ROW)
+
+    const card = await updateContextCard('db_user_1', 'card-1', {
+      status: CONTEXT_CARD_STATUS_IDS.confirmed,
+    })
+
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'card-1' },
+        data: { status: 'CONFIRMED' },
+      }),
+    )
+    expect(card?.status).toBe(CONTEXT_CARD_STATUS_IDS.confirmed)
+  })
+
+  /** 待确认区那颗「删掉」= 真删，⛔ 不是翻回某个中间态。 */
+  it('删一张待确认的卡照旧按 userId 收敛', async () => {
+    mockDeleteMany.mockResolvedValue({ count: 1 })
+
+    await expect(deleteContextCard('db_user_1', 'card-1')).resolves.toBe(true)
+    expect(mockDeleteMany).toHaveBeenCalledWith({
+      where: { id: 'card-1', userId: 'db_user_1' },
+    })
   })
 
   it('images 不是数组时读成空数组', () => {
@@ -163,6 +215,8 @@ describe('context card service', () => {
         data: expect.objectContaining({
           userId: 'db_user_1',
           kind: 'CHARACTER',
+          // ⚠ 没给 `status` = 已确认（用户自己建的卡与面板上「存这张卡」都是它）。
+          status: 'CONFIRMED',
           images: [],
           // 同一个域挂两遍是个 no-op，⛔ 不在数组里堆两条。
           pinnedScopes: ['video'],

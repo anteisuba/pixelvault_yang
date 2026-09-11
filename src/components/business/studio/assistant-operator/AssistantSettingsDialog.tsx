@@ -3,7 +3,15 @@
 import { useCallback, useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import { AlertCircle, Pencil, Plus, Upload, X } from 'lucide-react'
+import {
+  AlertCircle,
+  Check,
+  Pencil,
+  Plus,
+  Trash2,
+  Upload,
+  X,
+} from 'lucide-react'
 
 import {
   ASSISTANT_AVATAR_PRESET_IDS,
@@ -19,6 +27,7 @@ import {
   type AssistantPersonaVerbosity,
 } from '@/constants/assistant-persona'
 import { PROFILE } from '@/constants/config'
+import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useContextCards } from '@/hooks/use-context-cards'
 import { useProjectRules } from '@/hooks/use-project-rules'
@@ -209,6 +218,19 @@ export function AssistantSettingsDialog({
    */
   const cards = useContextCards({
     enabled: open && tab === ASSISTANT_SETTINGS_SECTIONS.cards,
+  })
+  /**
+   * **助手提议、还没点头的那几张**（v2 §8.1 待确认区）。
+   *
+   * ⭐ 单独一次查询而不是从上面那份里过滤：上面那份**看不见**待确认的卡 ——
+   * 服务端默认只回已确认的（`list_context_cards` 与系统提示注入走的是同一条
+   * 默认），⛔ 别为了这一个区块把默认放开。
+   * ⚠ 空的时候整块不渲染（下面那个 `length > 0`）：一个常年空着的区块只会把
+   * 真正的卡表往下挤。
+   */
+  const proposedCards = useContextCards({
+    enabled: open && tab === ASSISTANT_SETTINGS_SECTIONS.cards,
+    status: CONTEXT_CARD_STATUS_IDS.proposed,
   })
   /**
    * 编辑器开在哪张卡上 —— `'new'` 是新建，`null` 是没开。
@@ -696,6 +718,83 @@ export function AssistantSettingsDialog({
                 data-testid="assistant-context-cards"
                 className="flex flex-col gap-2"
               >
+                {/* ── 待确认区（v2 §8.1）：助手提议的卡在**卡表之上** ──────
+                    ⚠ 它排在最前是因为它是**待办**：卡表是已经成立的东西，
+                      而这几张在等一个决定。⛔ 没有提议时整块不画。 */}
+                {proposedCards.cards.length > 0 ? (
+                  <section
+                    data-testid="assistant-context-cards-proposed"
+                    className="flex flex-col gap-2 rounded-md border border-border bg-muted/30 p-2.5"
+                  >
+                    <p className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground">
+                      {t('cardsProposedTitle', {
+                        count: proposedCards.cards.length,
+                      })}
+                    </p>
+                    <p className="text-md text-muted-foreground">
+                      {t('cardsProposedHint')}
+                    </p>
+                    {proposedCards.cards.map((card) => (
+                      <div
+                        key={card.id}
+                        data-testid="assistant-context-card-proposed-item"
+                        className="flex items-start gap-2 rounded-md bg-card px-3 py-2"
+                      >
+                        <div className="flex min-w-0 flex-1 flex-col gap-1">
+                          <p className="truncate text-sm leading-snug text-foreground">
+                            <span className="font-mono text-2xs uppercase tracking-nav text-muted-foreground">
+                              {tCards(`kind.${card.kind}`)}
+                            </span>{' '}
+                            {card.name}
+                          </p>
+                          {card.summary ? (
+                            <p className="truncate text-md text-muted-foreground">
+                              {card.summary}
+                            </p>
+                          ) : null}
+                        </div>
+                        {/* ⚠ 「存下」= 翻面成已确认（⛔ 不再建一行：这一行已经
+                            在库里了），「删掉」= 真删。两件事各自一颗按钮。 */}
+                        <button
+                          type="button"
+                          data-testid="assistant-context-card-confirm"
+                          aria-label={t('cardConfirm', { name: card.name })}
+                          title={t('cardConfirm', { name: card.name })}
+                          onClick={() =>
+                            void proposedCards
+                              .update(card.id, {
+                                status: CONTEXT_CARD_STATUS_IDS.confirmed,
+                              })
+                              .then((saved) => {
+                                if (!saved) return
+                                // 翻面之后它属于卡表那一份，两份各自重拉。
+                                void proposedCards.reload()
+                                void cards.reload()
+                              })
+                          }
+                          className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                          <Check className="size-3.5" aria-hidden />
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="assistant-context-card-reject"
+                          aria-label={t('cardReject', { name: card.name })}
+                          title={t('cardReject', { name: card.name })}
+                          onClick={() => void proposedCards.remove(card.id)}
+                          className="shrink-0 rounded-md p-1 text-muted-foreground transition-colors duration-fast ease-standard hover:text-status-risk focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                        >
+                          <Trash2 className="size-3.5" aria-hidden />
+                        </button>
+                      </div>
+                    ))}
+                    {proposedCards.error ? (
+                      <p role="alert" className="text-md text-status-risk">
+                        {proposedCards.error}
+                      </p>
+                    ) : null}
+                  </section>
+                ) : null}
                 <p className="text-md text-muted-foreground">
                   {t('cardsHint')}
                 </p>

@@ -64,6 +64,10 @@ interface StudioOperatorConfirmCardProps {
   onConfirm(): void
   /** 生成「先不要」。 */
   onCancel(): void
+  /** 上下文卡「存这张卡」（§8.1）—— 翻面那一跳在 hook 里。 */
+  onSaveCard(): void
+  /** 上下文卡「不用」—— hook 把那一行待确认删掉。 */
+  onDismissCard(): void
   /** 「已取消」态上的「再来一次」。 */
   onRetry(): void
   /** 「已确认 · 11:24」里那个时刻怎么写 —— 面板给（`useFormatter` 在那一层）。 */
@@ -111,12 +115,16 @@ export function StudioOperatorConfirmCard({
   onDecline,
   onConfirm,
   onCancel,
+  onSaveCard,
+  onDismissCard,
   onRetry,
   formatTime,
   controls,
   onAdjust,
 }: StudioOperatorConfirmCardProps) {
   const t = useTranslations('StudioOperator')
+  /** 卡的档名（角色 / 风格 / 品牌）与编辑器共用一份词表，⛔ 不抄第二份。 */
+  const tCards = useTranslations('ContextCards')
   /**
    * 哪一颗的下拉开着 —— 一次只开一颗（画板「模型下拉展开」那一张）。
    * ⚠ 这是**弹层开合**，不是参数：参数一个字都不住在卡里（见文件头注）。
@@ -136,6 +144,14 @@ export function StudioOperatorConfirmCard({
 
   const generate =
     confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
+      ? confirm
+      : null
+  /**
+   * 提议记一张卡那一支（§8.1）—— 卡上摆的是草稿本身。
+   * ⚠ 它没有旋钮、也没有步骤清单：下面那两处分支因此各自早退。
+   */
+  const contextCard =
+    confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard
       ? confirm
       : null
   /**
@@ -246,7 +262,10 @@ export function StudioOperatorConfirmCard({
         count:
           confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
             ? confirm.steps.length
-            : confirm.request.count,
+            : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
+              ? confirm.request.count
+              : 1,
+        name: contextCard ? contextCard.card.name : '',
       })}
       className={cn(
         'overflow-hidden rounded-xl border border-border bg-card',
@@ -265,17 +284,27 @@ export function StudioOperatorConfirmCard({
             })}
           </span>
           <span className="min-w-0 flex-1 truncate text-2sm text-muted-foreground">
-            {confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
-              ? `${generateSummary(
-                  confirm,
-                  t('confirm.generate.count', { count: confirm.request.count }),
-                )} · ${
+            {/* ⚠ 卡那一支写的是**卡名 + 存没存下**：状态那一格只说得出时刻。 */}
+            {confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard
+              ? `${confirm.card.name} · ${
                   confirm.status ===
                   STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed
-                    ? t('confirm.generate.handedOff')
-                    : t('confirm.generate.notRun')
+                    ? t('confirm.contextCard.saved')
+                    : t('confirm.contextCard.notSaved')
                 }`
-              : t('confirm.multistep.title', { count: confirm.steps.length })}
+              : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
+                ? `${generateSummary(
+                    confirm,
+                    t('confirm.generate.count', {
+                      count: confirm.request.count,
+                    }),
+                  )} · ${
+                    confirm.status ===
+                    STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed
+                      ? t('confirm.generate.handedOff')
+                      : t('confirm.generate.notRun')
+                  }`
+                : t('confirm.multistep.title', { count: confirm.steps.length })}
           </span>
           {/* 「再来一次」只长在**生成 · 已取消**那一格上：多步取消之后要写的是
               下一句话（输入框已经预填好了），⛔ 不是把同一份计划再摆一遍。 */}
@@ -300,13 +329,51 @@ export function StudioOperatorConfirmCard({
             >
               {confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
                 ? t('confirm.multistep.title', { count: confirm.steps.length })
-                : t('confirm.generate.title', {
-                    count: confirm.request.count,
-                  })}
+                : confirm.kind ===
+                    ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard
+                  ? t('confirm.contextCard.title')
+                  : t('confirm.generate.title', {
+                      count: confirm.request.count,
+                    })}
             </p>
           </div>
 
-          {confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep ? (
+          {contextCard ? (
+            /* ⭐ 卡的**预览**（§8.1 「客户端」那一行）：档 + 名字 + 一句话摘要
+               + 正文。⚠ 正文截几行就够 —— 这张卡是让用户认出「说的是这件事」，
+               ⛔ 不是编辑器（要改字去设置里那张卡上改）。 */
+            <div
+              data-testid="operator-confirm-context-card"
+              data-card-kind={contextCard.card.kind}
+              className="flex flex-col gap-1 px-3 py-2"
+            >
+              <p className="flex items-baseline gap-1.5">
+                <span className="shrink-0 font-mono text-2xs uppercase tracking-nav text-muted-foreground">
+                  {tCards(`kind.${contextCard.card.kind}`)}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-md font-semibold text-foreground">
+                  {contextCard.card.name}
+                </span>
+              </p>
+              {contextCard.card.summary ? (
+                <p className="text-2sm text-muted-foreground">
+                  {contextCard.card.summary}
+                </p>
+              ) : null}
+              {contextCard.card.body ? (
+                <p className="line-clamp-4 whitespace-pre-wrap text-2sm leading-relaxed text-muted-foreground">
+                  {contextCard.card.body}
+                </p>
+              ) : null}
+              {contextCard.card.negative ? (
+                <p className="truncate text-2xs text-muted-foreground">
+                  {t('confirm.contextCard.negative', {
+                    value: contextCard.card.negative,
+                  })}
+                </p>
+              ) : null}
+            </div>
+          ) : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep ? (
             /* ⭐ 多步摆的是**一行动作串**而不是一张清单（画板「多步」那一态）：
                这张卡要回答的只有「一共几步、大致做什么」，摊开的清单会让用户以为
                每一步都要他确认一遍。 */
@@ -466,15 +533,20 @@ export function StudioOperatorConfirmCard({
               data-testid="operator-confirm-secondary"
               disabled={busy}
               onClick={
-                confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
-                  ? onDecline
-                  : onCancel
+                contextCard
+                  ? onDismissCard
+                  : confirm.kind ===
+                      ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+                    ? onDecline
+                    : onCancel
               }
               className="rounded-md px-1.5 py-0.5 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50"
             >
-              {confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
-                ? t('confirm.multistep.stepByStep')
-                : t('confirm.generate.cancel')}
+              {contextCard
+                ? t('confirm.contextCard.dismiss')
+                : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+                  ? t('confirm.multistep.stepByStep')
+                  : t('confirm.generate.cancel')}
             </button>
             <button
               type="button"
@@ -482,9 +554,12 @@ export function StudioOperatorConfirmCard({
               disabled={busy}
               aria-busy={busy}
               onClick={
-                confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
-                  ? onApprove
-                  : onConfirm
+                contextCard
+                  ? onSaveCard
+                  : confirm.kind ===
+                      ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+                    ? onApprove
+                    : onConfirm
               }
               className="rounded-md bg-primary px-2 py-1 text-2sm text-primary-foreground transition-opacity duration-(--duration-fast) ease-standard hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
             >
@@ -492,9 +567,12 @@ export function StudioOperatorConfirmCard({
                   态）：那一刻用户的眼睛就在这颗按钮上，写在别处等于没写。 */}
               {busy
                 ? t('confirm.state.submitting')
-                : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
-                  ? t('confirm.multistep.start')
-                  : t('confirm.generate.confirm')}
+                : contextCard
+                  ? t('confirm.contextCard.save')
+                  : confirm.kind ===
+                      ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+                    ? t('confirm.multistep.start')
+                    : t('confirm.generate.confirm')}
             </button>
           </div>
         </>

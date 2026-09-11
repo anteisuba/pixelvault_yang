@@ -42,6 +42,7 @@ const CARD = {
   images: [],
   negative: null,
   pinnedScopes: ['video'],
+  status: 'confirmed' as const,
   createdAt: '2026-09-07T10:00:00.000Z',
   updatedAt: '2026-09-07T10:00:00.000Z',
 }
@@ -69,6 +70,8 @@ describe('GET /api/context-cards', () => {
     })
     expect(mockList).toHaveBeenCalledWith('clerk_test_user', {
       kind: null,
+      // ⚠ 缺席 = 只要已确认的（服务端默认）—— 待确认区显式传 `proposed`。
+      status: null,
       pinnedScope: null,
     })
   })
@@ -79,8 +82,25 @@ describe('GET /api/context-cards', () => {
     )
     expect(mockList).toHaveBeenCalledWith('clerk_test_user', {
       kind: 'style',
+      status: null,
       pinnedScope: 'image',
     })
+  })
+
+  /** 待确认区那一次查询（v2 §8.1）—— 唯一会传 `status` 的调用方。 */
+  it('status=proposed 透传给 service', async () => {
+    await GET(createGET('/api/context-cards', { status: 'proposed' }))
+    expect(mockList).toHaveBeenCalledWith('clerk_test_user', {
+      kind: null,
+      status: 'proposed',
+      pinnedScope: null,
+    })
+  })
+
+  it('词表外的 status 400', async () => {
+    const res = await GET(createGET('/api/context-cards', { status: 'draft' }))
+    expect(res.status).toBe(400)
+    expect(mockList).not.toHaveBeenCalled()
   })
 
   it('词表外的 kind 400', async () => {

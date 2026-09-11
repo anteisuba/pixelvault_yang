@@ -7576,6 +7576,14 @@
         "submitting": "确认中…",
         "confirmed": "已确认 · {time}",
         "cancelled": "已取消 · {time}"
+      },
+      "contextCard": {
+        "title": "记住这张卡？",
+        "save": "存这张卡",
+        "dismiss": "不用",
+        "saved": "已存下",
+        "notSaved": "没有存",
+        "negative": "硬否定：{value}"
       }
     },
     "system": {
@@ -7593,7 +7601,9 @@
       "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
       "videoFramesFailed": "这段片子没能抽出帧 —— 助手这一轮看不了它（{subject}）",
       "checkpointRestored": "已恢复到所选步骤的配置，后续操作以当前表单为准。",
-      "questionAnswered": "你选了：{subject}"
+      "questionAnswered": "你选了：{subject}",
+      "contextCardSaved": "已存上下文卡：{subject}",
+      "contextCardSaveFailed": "没能存下「{subject}」—— 再试一次？"
     },
     "suggestion": {
       "setupShot": "帮我配好这张图",
@@ -7772,7 +7782,11 @@
       "cardsEmpty": "还没有卡 —— 建一张角色卡，助手下一轮就认得它。",
       "cardNew": "新建卡",
       "cardEdit": "编辑「{name}」",
-      "cardPinnedHere": "常挂在这台工作台"
+      "cardPinnedHere": "常挂在这台工作台",
+      "cardsProposedTitle": "助手提议的卡（{count}）",
+      "cardsProposedHint": "它提议记下来的，存下才会进以后的对话。",
+      "cardConfirm": "存下「{name}」",
+      "cardReject": "删掉「{name}」"
     },
     "rule": {
       "recordedOn": "记于 {date}",

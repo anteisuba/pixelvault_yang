@@ -414,6 +414,18 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   readContextCard: 'read_context_card',
   /**
+   * **提议**一张上下文卡（v2 §8.1）——「这套设定要不要我记下来？」
+   *
+   * ⭐ 它归「问」组而不是「改」组：它问的是一句话，产出是**用户的一个决定**。
+   * 服务端在这一步**一行库都不写** —— 只吐一帧确认，卡的草稿随帧下发。客户端
+   * 收到那一帧会替用户留一行 `status: 'proposed'`，点「存这张卡」才翻成
+   * `confirmed`、真正进长期记忆（§8.1）。
+   * ⛔ 别把它改成直接写库：落了就等于助手能往用户的长期记忆里写字而不经过人，
+   * 而那正是 `ContextCard.status` 那一列**不**是为它准备的原因。
+   * ⚠ 它因此也没有 `inverse`：什么都没发生，撤无可撤。
+   */
+  proposeContextCard: 'propose_context_card',
+  /**
    * 把一张产物标成 **待定 / 采用 / 判失败**（第三期 · 切片 X）。
    *
    * ⭐ 起因是 owner 的一句话：「禁止用失败的旧图」。在这之前系统里没有任何地方
@@ -491,6 +503,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
   ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
   ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
+  ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
   ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
 ] as const
 
@@ -553,6 +566,13 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
    */
   ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
   ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
+  /**
+   * ⚠ **提议一张卡也归这一档**（v2 §8.1）：服务端一行库都不写、表单一个字都不改 ——
+   * 它做的全部事情是把一份草稿摆到用户面前问一句。⛔ 别因为「听起来像写入」
+   * 就把它挪进改动型：那一档的全部意义是「每一条都撤得掉」，而这条根本没有
+   * 东西可撤（真正入库那一跳是用户在卡上点下去的）。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
 ] as const
 
 /**
@@ -696,6 +716,12 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.listContextCards]:
     ASSISTANT_OPERATOR_VERB_IDS.research,
+  /**
+   * ⚠ 提议一张卡归**问**（§2.1「新增进「问」组的」那一行）：它本质是「问一句
+   * 要不要记住」，停下来等用户拍一个板，产出是「决定」。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]:
+    ASSISTANT_OPERATOR_VERB_IDS.ask,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl]:
@@ -767,8 +793,9 @@ export function isAssistantOperatorEntryTool(
  *
  * ⭐ 现算而不是手抄第二份：手抄的那份会在工具表加一条时静默漏掉，而漏掉的表现是
  * 「这条工具在系统提示里看得见、模型一调就说不存在」。⛔ 别改成字面量表。
- * ⚠ `ask` 组是空的：v1 里没有对应工具，反问的形状写在入口自己的 schema 里
- * （`types/assistant-operator.ts`）。
+ * ⚠ `ask` 组里**只有 `propose_context_card` 一条**（v2 §8.1）：反问本身没有
+ * 工具 —— 它的形状写在入口自己的 schema 里（`types/assistant-operator.ts`），
+ * 不写 `action` 就是「问一道题」。
  */
 export const ASSISTANT_OPERATOR_ENTRY_ACTIONS: Record<
   AssistantOperatorEntryTool,
@@ -783,7 +810,10 @@ export const ASSISTANT_OPERATOR_ENTRY_ACTIONS: Record<
       ASSISTANT_OPERATOR_TOOL_VERBS[tool] ===
       ASSISTANT_OPERATOR_VERB_IDS.research,
   ),
-  ask: [],
+  ask: ASSISTANT_OPERATOR_TOOLS.filter(
+    (tool) =>
+      ASSISTANT_OPERATOR_TOOL_VERBS[tool] === ASSISTANT_OPERATOR_VERB_IDS.ask,
+  ),
   apply: ASSISTANT_OPERATOR_TOOLS.filter(
     (tool) =>
       ASSISTANT_OPERATOR_TOOL_VERBS[tool] === ASSISTANT_OPERATOR_VERB_IDS.apply,
@@ -825,17 +855,29 @@ export function isRevertibleAssistantOperatorTool(tool: string): boolean {
  * | `multistep` | 本轮计划步数多                    | 一行动作串 + 「开始 / 一步一步来」        |
  * | `generate`  | `request_generation`              | 模型 / 比例 / 张数 / 分辨率 + 「确认生成」 |
  *
- * ⛔ **没有第三种**：花费确认删除（决策 8），覆盖手写降级成 `ask` 帧（§3.1）。
+ * | `contextCard`| `propose_context_card`（§8.1）    | 一张卡的草稿 + 「存这张卡 / 不用」        |
+ *
+ * ⛔ **没有花费确认那一支**：它随决策 8 删了，覆盖手写降级成 `ask` 帧（§3.1）。
  * ⛔ 也没有「本会话此类不再问」那张条子了 —— 它是花费确认的配件，一起走。
  */
 export const ASSISTANT_OPERATOR_CONFIRM_KIND_IDS = {
   multistep: 'multistep',
   generate: 'generate',
+  /**
+   * 助手提议记一张上下文卡（v2 §8.1，commit #14）。
+   *
+   * ⭐ 它进这张表而不是另立一张卡，判据与上面两支逐字同源：用户看的是同一件事
+   * ——「有一件事等你拍板才算数」。⛔ 它**不是**决策 8 删掉的那张花费确认卡的
+   * 变体：这一支一分钱都不花，它花的是用户的长期记忆。
+   * ⚠ 服务端到这一帧为止一行库都没写（§8.1）：入库那一跳由用户点下去。
+   */
+  contextCard: 'contextCard',
 } as const
 
 export const ASSISTANT_OPERATOR_CONFIRM_KINDS = [
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard,
 ] as const
 
 export type AssistantOperatorConfirmKind =
@@ -1066,6 +1108,11 @@ const COMMON_DOMAIN_TOOLS = [
    */
   ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
   ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
+  /**
+   * 提议一张卡也**全域可用**（§8.1）：用户在视频工作台上讲出来的一套角色设定，
+   * 与在图片工作台上讲的是同一套。⛔ 别按域裁。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
   /**
    * 审核态**全域可用**（切片 X）：「这张不行」在图片、视频、LoRA 三台工作台上
    * 说的是同一件事，而被否掉的那张图恰恰最容易在换一台工作台之后被重新挂上。
@@ -1929,6 +1976,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'list the context cards this creator keeps — characters, styles and brand kits they wrote down once and reuse. Each entry gives an id, its kind, its name and a one-line summary. The ones pinned to this workbench are already quoted in your instructions; call this when they mention a character, a look or a brand you do not have in front of you. Filter by kind when you know which sort you are after.',
   [ASSISTANT_OPERATOR_TOOL_IDS.readContextCard]:
     'read one context card in full: the body the creator wrote (appearance, outfit, personality — or the style rules, or the brand spec), the hard negatives that card carries, and the URLs of its reference images with what each one is for. The card id comes from list_context_cards or from your instructions — never invent one. A sheet image is identity evidence: the look is decided by it. Mount the images you actually need with mount_reference; reading a card mounts nothing on its own.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]:
+    "OFFER to remember a character, a look or a brand spec the creator just described, as a context card they can reuse later. This SAVES NOTHING on its own: the app shows them the draft card and they decide. It ends your turn. Use it when they have just settled a set of details that will obviously come back — a character's appearance and outfit, a style they keep asking for, their brand colours — never for a one-off instruction about this run. Write the summary as the one line that gets quoted back to you every turn, and the body as the full description in THEIR words. One card at a time, and never offer the same card twice in a session.",
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
     'write down ONE standing rule the creator just stated — something that should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
@@ -1952,7 +2001,7 @@ export const ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research]:
     "GO AND FIND something that is not here yet — on the web, or in the creator's own library. It produces candidates and evidence, and files nothing.",
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask]:
-    'STOP AND ASK the creator to settle one thing you genuinely cannot settle yourself. It ends your turn: the app shows one question and waits for their tap.',
+    'STOP AND ASK the creator to settle one thing you genuinely cannot settle yourself. It ends your turn: the app shows one question and waits for their tap. Leave "action" out for a plain question; the one "action" listed below offers them something to keep instead of asking a question.',
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply]:
     'TURN A KNOB on the workbench in front of them. Every one of these is undoable and shows up on their screen immediately.',
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration]:

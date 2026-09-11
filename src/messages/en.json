@@ -7576,6 +7576,14 @@
         "submitting": "Confirming…",
         "confirmed": "Confirmed · {time}",
         "cancelled": "Cancelled · {time}"
+      },
+      "contextCard": {
+        "title": "Keep this card?",
+        "save": "Keep it",
+        "dismiss": "No thanks",
+        "saved": "Kept",
+        "notSaved": "Not kept",
+        "negative": "Hard negatives: {value}"
       }
     },
     "system": {
@@ -7593,7 +7601,9 @@
       "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
       "videoFramesFailed": "No frames could be taken from this clip — the assistant cannot look at it this turn ({subject})",
       "checkpointRestored": "Restored the selected step’s configuration. Use the current form for subsequent actions.",
-      "questionAnswered": "You picked: {subject}"
+      "questionAnswered": "You picked: {subject}",
+      "contextCardSaved": "Context card kept: {subject}",
+      "contextCardSaveFailed": "Could not keep “{subject}” — try again?"
     },
     "suggestion": {
       "setupShot": "Set this shot up for me",
@@ -7772,7 +7782,11 @@
       "cardsEmpty": "No cards yet — make a character card and the assistant knows it next turn.",
       "cardNew": "New card",
       "cardEdit": "Edit “{name}”",
-      "cardPinnedHere": "Always on in this workbench"
+      "cardPinnedHere": "Always on in this workbench",
+      "cardsProposedTitle": "Proposed by the assistant ({count})",
+      "cardsProposedHint": "It offered to remember these. They count only once you keep them.",
+      "cardConfirm": "Keep “{name}”",
+      "cardReject": "Delete “{name}”"
     },
     "rule": {
       "recordedOn": "recorded {date}",

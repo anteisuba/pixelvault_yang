@@ -1,6 +1,9 @@
 import { API_ENDPOINTS } from '@/constants/config'
 import { getErrorPayload } from '@/lib/api-client/shared'
-import type { ContextCardKindId } from '@/constants/context-cards'
+import type {
+  ContextCardKindId,
+  ContextCardStatusId,
+} from '@/constants/context-cards'
 import type {
   AddContextCardImageRequest,
   ContextCard,
@@ -57,12 +60,21 @@ function cardUrl(cardId: string, suffix = ''): string {
   return `${API_ENDPOINTS.CONTEXT_CARDS}/${encodeURIComponent(cardId)}${suffix}`
 }
 
+/**
+ * ⚠ `status` 缺席 = **只要已确认的**（服务端默认）。待确认区那一次查询显式传
+ * `proposed`，⛔ 别让草稿混进「我的卡」那张列表。
+ */
 export async function listContextCardsAPI(
-  filter: { kind?: ContextCardKindId; pinnedScope?: string } = {},
+  filter: {
+    kind?: ContextCardKindId
+    status?: ContextCardStatusId
+    pinnedScope?: string
+  } = {},
 ): Promise<ApiResult<ContextCard[]>> {
   try {
     const params = new URLSearchParams()
     if (filter.kind) params.set('kind', filter.kind)
+    if (filter.status) params.set('status', filter.status)
     if (filter.pinnedScope) params.set('pinnedScope', filter.pinnedScope)
     const query = params.toString()
     const response = await fetch(

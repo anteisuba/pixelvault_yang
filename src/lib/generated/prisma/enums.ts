@@ -38,6 +38,14 @@ export const GenerationSourceSurface = {
 export type GenerationSourceSurface = (typeof GenerationSourceSurface)[keyof typeof GenerationSourceSurface]
 
 
+export const ContextCardStatus = {
+  PROPOSED: 'PROPOSED',
+  CONFIRMED: 'CONFIRMED'
+} as const
+
+export type ContextCardStatus = (typeof ContextCardStatus)[keyof typeof ContextCardStatus]
+
+
 export const ContextCardKind = {
   CHARACTER: 'CHARACTER',
   STYLE: 'STYLE',

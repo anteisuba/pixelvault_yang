@@ -95,6 +95,20 @@ const GENERATE: StudioOperatorConfirmPrompt = {
   },
 }
 
+/** 助手提议记一张卡（v2 §8.1）—— 第三支。 */
+const CONTEXT_CARD: StudioOperatorConfirmPrompt = {
+  id: 'c3',
+  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard,
+  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+  card: {
+    kind: 'character',
+    name: '西格莉卡',
+    summary: '银发金瞳，控制室机甲服',
+    body: '## 外貌\n银发、金瞳。',
+    negative: '空气涟漪',
+  },
+}
+
 /**
  * 工作台那份真值视图（§5.2）—— ⚠ 与 `GENERATE.request` **故意不同**：
  * 卡有 `controls` 时必须读它而不是读载荷，不同才验得出来。
@@ -133,6 +147,8 @@ function renderCard(
     onDecline: vi.fn(),
     onConfirm: vi.fn(),
     onCancel: vi.fn(),
+    onSaveCard: vi.fn(),
+    onDismissCard: vi.fn(),
     onRetry: vi.fn(),
   }
   render(
@@ -156,6 +172,67 @@ function openKnob(knob: StudioOperatorGenerateKnob): HTMLElement[] {
 }
 
 describe('StudioOperatorConfirmCard', () => {
+  /**
+   * **上下文卡提议**（v2 §8.1）—— 卡上摆草稿预览，两颗按钮各走各的回调。
+   * ⛔ 它不该长出生成那几颗旋钮：这一支一分钱都不花。
+   */
+  it('上下文卡：档 + 名字 + 摘要 + 正文，两颗按钮各走各的', () => {
+    const handlers = renderCard(CONTEXT_CARD)
+    expect(screen.getByTestId('operator-confirm-card').dataset.kind).toBe(
+      'contextCard',
+    )
+    expect(screen.getByTestId('operator-confirm-title')).toHaveTextContent(
+      'confirm.contextCard.title',
+    )
+    const preview = screen.getByTestId('operator-confirm-context-card')
+    expect(preview.dataset.cardKind).toBe('character')
+    expect(preview).toHaveTextContent('西格莉卡')
+    expect(preview).toHaveTextContent('银发金瞳，控制室机甲服')
+    expect(preview).toHaveTextContent('银发、金瞳。')
+    expect(screen.queryByTestId('operator-confirm-knobs')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('operator-confirm-primary'))
+    expect(handlers.onSaveCard).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByTestId('operator-confirm-secondary'))
+    expect(handlers.onDismissCard).toHaveBeenCalledTimes(1)
+    // ⛔ 另外两支的回调一条都不该被碰到。
+    expect(handlers.onConfirm).not.toHaveBeenCalled()
+    expect(handlers.onApprove).not.toHaveBeenCalled()
+  })
+
+  /** 存下之后就地收成一行「已确认 · 11:24 · 卡名 · 已存下」，⛔ 不离开时间线。 */
+  it('上下文卡 · 已确认：收成一行，带卡名，⛔ 两颗按钮不画', () => {
+    renderCard({
+      ...CONTEXT_CARD,
+      status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed,
+      decidedAt: '2026-09-11T03:24:00.000Z',
+    })
+    expect(screen.getByTestId('operator-confirm-state')).toHaveTextContent(
+      'confirm.state.confirmed:11:24',
+    )
+    expect(screen.getByTestId('operator-confirm-card')).toHaveTextContent(
+      '西格莉卡',
+    )
+    expect(screen.getByTestId('operator-confirm-card')).toHaveTextContent(
+      'confirm.contextCard.saved',
+    )
+    expect(screen.queryByTestId('operator-confirm-primary')).toBeNull()
+    // ⛔ 「再来一次」只长在生成 · 已取消那一格上。
+    expect(screen.queryByTestId('operator-confirm-retry')).toBeNull()
+  })
+
+  it('上下文卡 · 已取消：写「没有存」', () => {
+    renderCard({
+      ...CONTEXT_CARD,
+      status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled,
+      decidedAt: '2026-09-11T03:22:00.000Z',
+    })
+    expect(screen.getByTestId('operator-confirm-card')).toHaveTextContent(
+      'confirm.contextCard.notSaved',
+    )
+    expect(screen.queryByTestId('operator-confirm-retry')).toBeNull()
+  })
+
   it('多步：一行动作串 + 开始 / 一步一步来', () => {
     const handlers = renderCard(MULTISTEP)
     expect(screen.getByTestId('operator-confirm-card').dataset.kind).toBe(

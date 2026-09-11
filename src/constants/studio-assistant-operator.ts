@@ -272,6 +272,17 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    *   会让用户去试那条唯一无效的（换个视频）。
    */
   'videoFramesFailed',
+  /**
+   * **存下了助手提议的那张上下文卡**（v2 §8.1，commit #14）——「已存上下文卡 X」。
+   *
+   * ⭐ 判据与 `questionAnswered` 逐字同源：确认卡就地换成「已确认 · 11:24」之后，
+   * 「到底存下来没有」在时间线上要有一句话说得出来 —— 那张卡收成一行之后只剩
+   * 状态与时刻，说不出卡名。
+   * ⛔ 「不用」那一支**不落这一行**：什么都没发生，不必在时间线上记一笔。
+   */
+  'contextCardSaved',
+  /** 存卡那一跳没成（网络 / 卡表满了）——⛔ 不静默：用户以为已经记下了。 */
+  'contextCardSaveFailed',
 ] as const
 
 export type StudioOperatorSystemCode =

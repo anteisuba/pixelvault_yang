@@ -1233,6 +1233,46 @@ export type AssistantOperatorWriteMode =
 export const ASSISTANT_OPERATOR_APPEND_SEPARATOR = ', '
 
 /**
+ * **用户自己已经说了「覆盖」**的那几个说法（2026-09-12 实测，三跑三次多余三选）。
+ *
+ * ⭐ 判据：覆盖三选问的是「你写的那一段怎么办」—— 用户本轮原话里已经答过这道题
+ * 时，再弹一次卡是纯粹的打断（实测 #6 / #7 连着两次「直接覆盖」仍被问）。
+ * ⚠ 词表**只收明确的写入/替换动作**，⛔ 不收「优化一下」「改得好看点」这种没有
+ * 指定去处的说法 —— 误判成「他同意覆盖」会静默吃掉用户手写的那一段。
+ * ⚠ 匹配是**原样子串**（中日无词边界），英文那一组由调用方按词边界比 ——
+ * 「replace」落在「irreplaceable」里不算他说过话。
+ */
+export const ASSISTANT_OPERATOR_OVERWRITE_INTENT_WORDS = {
+  /** 子串匹配（中文 / 日文）。 */
+  substring: [
+    '覆盖',
+    '覆寫',
+    '盖掉',
+    '蓋掉',
+    '直接写',
+    '直接寫',
+    '写进',
+    '寫進',
+    '写入',
+    '寫入',
+    '换成',
+    '換成',
+    '改成',
+    '替换',
+    '替換',
+    '重写',
+    '重寫',
+    '上書き',
+    '書き換え',
+    '書き替え',
+    '置き換え',
+    '差し替え',
+  ],
+  /** 词边界匹配（英文）。 */
+  word: ['overwrite', 'overwrites', 'replace', 'rewrite', 'override'],
+} as const
+
+/**
  * P1 的域 —— 工作台三域，**取值来自 `ASSISTANT_PROTOCOL_DOMAINS`**（域简报已分域，
  * 复用不重造）。`canvas` 有意不在这里：画布对齐是 P4，那之前它走自己的 ops。
  * `satisfies` 保证有人改域词表时这里编译期就红。
@@ -2128,7 +2168,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]:
     'switch the generation model. The id must be copied verbatim from availableModels in the state.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]:
-    'write the positive prompt. If the creator already hand-wrote something there, you will be asked which they want (append / overwrite / keep) before it lands.',
+    'write the positive prompt. If the creator hand-wrote something there themselves, you will be asked which they want (append / overwrite / keep) before it lands. Pass "overwrite":true when they already told you to replace what is there ("覆盖", "直接写进去", "改成…", "replace it") — then it lands straight away and you say you overwrote it as asked. Text you wrote on an earlier turn is not theirs and never triggers that question.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setNegative]:
     'write the negative prompt. Only exists on workbenches that actually have that field.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setSpecs]:

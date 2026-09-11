@@ -1671,6 +1671,108 @@ describe('就地确认往返（拍板 3）', () => {
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
   })
 
+  /**
+   * ⭐ **三条免问路**（2026-09-12 实测：三跑三次全是多余的三选）。
+   * 三条各自消掉一种「其实不是他手写的 / 他已经答过了」，⛔ 都只关掉问句本身。
+   */
+  it('⭐ 用户本轮原话已经说了「直接覆盖」→ 不出三选，整段换掉', async () => {
+    queueTurns(OVERWRITE_TURN, { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: HAND_WRITTEN,
+          messages: [{ role: 'user', content: '把提示词直接覆盖成夜景' }],
+        }),
+      ),
+    )
+
+    expect(typesOf(events)).not.toContain(ASSISTANT_OPERATOR_EVENTS.ask)
+    const done = stepsOf(events).find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(done?.payload).toEqual({
+      value: '助手写的新提示词',
+      mode: 'replace',
+    })
+    // 撤销的本钱照旧是他那一版。
+    expect(done?.inverse).toEqual({ value: '我自己写的一段提示词' })
+  })
+
+  it('⭐ 英文 overwrite 按词边界认，"irreplaceable" 不算他说过话', async () => {
+    queueTurns(OVERWRITE_TURN, { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: HAND_WRITTEN,
+          messages: [
+            { role: 'user', content: 'this look is irreplaceable, polish it' },
+          ],
+        }),
+      ),
+    )
+    expect(typesOf(events)).toContain(ASSISTANT_OPERATOR_EVENTS.ask)
+  })
+
+  it('⭐ 模型自己写了 overwrite:true 也免问', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: 'rewrite the prompt',
+          args: { value: '助手写的新提示词', overwrite: true },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest({ snapshot: HAND_WRITTEN })),
+    )
+    expect(typesOf(events)).not.toContain(ASSISTANT_OPERATOR_EVENTS.ask)
+    expect(
+      stepsOf(events).find(
+        (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      )?.payload,
+    ).toMatchObject({ mode: 'replace' })
+  })
+
+  it('⭐ 那一格是助手上一轮写的（客户端登记簿说的）→ 不算「你已经自己写过了」', async () => {
+    queueTurns(OVERWRITE_TURN, { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: HAND_WRITTEN,
+          authoredByAssistant: [ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt],
+        }),
+      ),
+    )
+    expect(typesOf(events)).not.toContain(ASSISTANT_OPERATOR_EVENTS.ask)
+    expect(
+      stepsOf(events).find(
+        (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      )?.payload,
+    ).toMatchObject({ mode: 'replace' })
+  })
+
+  it('⭐ 用户手写、且这一轮一个字没提覆盖 → 照旧问（唯一保留的那一种）', async () => {
+    queueTurns(OVERWRITE_TURN, { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: HAND_WRITTEN,
+          messages: [{ role: 'user', content: '帮我把这张海报配好' }],
+        }),
+      ),
+    )
+    expect(typesOf(events)).toEqual([
+      ASSISTANT_OPERATOR_EVENTS.ask,
+      ASSISTANT_OPERATOR_EVENTS.stopped,
+    ])
+  })
+
   it('确认卡完整保留超过 200 字的当前文本和建议', async () => {
     const have = '手写提示词'.repeat(100)
     const proposed = '助手建议'.repeat(100)
@@ -9334,6 +9436,114 @@ describe('每轮结账', () => {
 
     expect(checkoutPrompt()).toBeNull()
     expect(doneEvent(events).roundSummary).toBeUndefined()
+    expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
+  })
+
+  /**
+   * ⭐ **以确认卡 / 问题卡结束的那一轮也结账**（2026-09-12 实测第 2 组 ①）。
+   *
+   * 由来：`request_generation` 出确认卡之后这条流以 `stopped` 结束，而用户点
+   * 「确认生成」不再新开一轮 —— 整个生成轮次因此一条结论记录都没有（实测 #5：
+   * 结论块数不变）。
+   */
+  function stoppedEvent(events: AssistantOperatorEvent[]) {
+    return events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.stopped,
+    ) as { roundSummary?: { todos: string[] } }
+  }
+
+  it('⭐ 以 confirm(generate) 结尾的轮次照样结账，「待办」里写着等谁点什么', async () => {
+    queueTurns(searchStep, {
+      tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration, args: {} },
+    })
+    queueCheckout({
+      facts: ['库里有三张夜景'],
+      decisions: [],
+      todos: ['等你确认生成 1 张'],
+    })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, prompt: '一只在雨里的猫' },
+          conversationId: '55555555-5555-4555-8555-555555555555',
+        }),
+      ),
+    )
+
+    expect(typesOf(events)).toContain(ASSISTANT_OPERATOR_EVENTS.confirm)
+    expect(typesOf(events)).not.toContain(ASSISTANT_OPERATOR_EVENTS.done)
+    expect(stoppedEvent(events).roundSummary?.todos).toEqual([
+      '等你确认生成 1 张',
+    ])
+    // 那条待办由服务端压进原料 —— ⛔ 不指望压缩那一跳自己想出来。
+    expect(checkoutPrompt()).toContain('等你确认生成 1 张')
+    expect(mockAppendAssistantConversationRound).toHaveBeenCalledTimes(1)
+  })
+
+  it('⭐ 以 ask 结尾、但本轮已经跑过步的轮次也结账', async () => {
+    queueTurns(searchStep, {
+      tool: {
+        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+        args: {
+          question: '走哪种风格？',
+          header: '风格',
+          options: [
+            { label: '2D 手绘', description: '线稿加平涂。' },
+            { label: '3D 渲染', description: '引擎质感。' },
+          ],
+        },
+      },
+    })
+    queueCheckout({ facts: ['库里有三张夜景'], decisions: [], todos: [] })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '66666666-6666-4666-8666-666666666666',
+        }),
+      ),
+    )
+
+    expect(typesOf(events)).toContain(ASSISTANT_OPERATOR_EVENTS.ask)
+    expect(
+      (stoppedEvent(events).roundSummary as { facts: string[] } | undefined)
+        ?.facts,
+    ).toEqual(['库里有三张夜景'])
+  })
+
+  it('⛔ 一步都没跑成、直接出问题卡的那一轮不结账（也不烧那一次往返）', async () => {
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+        args: {
+          question: '走哪种风格？',
+          header: '风格',
+          options: [
+            { label: '2D 手绘', description: '线稿加平涂。' },
+            { label: '3D 渲染', description: '引擎质感。' },
+          ],
+        },
+      },
+    })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '77777777-7777-4777-8777-777777777777',
+          // ⚠ 用户点过的那几下开跑时就在「决定」栏里 —— 它**不算**本轮有料。
+          planAnswers: [
+            { questionId: 'question-1', optionIds: ['option-1-1'] },
+          ],
+        }),
+      ),
+    )
+
+    expect(stoppedEvent(events).roundSummary).toBeUndefined()
+    expect(checkoutPrompt()).toBeNull()
     expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
   })
 

@@ -16,6 +16,7 @@ import {
 import {
   ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION,
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
+  ASSISTANT_OPERATOR_OVERWRITE_INTENT_WORDS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
@@ -667,6 +668,17 @@ interface OperatorRun {
    * `apply` 一栏都不进 —— 表单被改成什么样，下一轮的快照自己会说。
    */
   roundLedger: RoundLedger
+  /**
+   * 本轮**真的跑成了几步**（`recordLedgerStep` 的调用次数，⛔ 不含被拒的）。
+   *
+   * ⭐ 它是「以确认卡 / 问题卡结束的轮次要不要结账」那一道闸：一步没跑的轮次
+   * （纯问句）没有结论可结 —— ⛔ 别按 `roundLedger` 非空判，那几摞开跑时就被
+   * `seedLedgerDecisions` 填过（用户点的那几下），于是纯问句轮也会写出一条
+   * 只有「决定」栏的空记录。
+   */
+  ledgerSteps: number
+  /** 本轮已经结过账了 —— ⛔ 一次运行只写一条记录（同一 roundIndex 不重复写）。 */
+  roundClosed: boolean
 }
 
 /** 见 `OperatorRun.roundLedger`。每摞都有硬上限，⛔ 别让一轮八步撑爆收尾那一跳。 */
@@ -702,6 +714,7 @@ function recordLedgerStep(
   title: string,
   digest: string,
 ): void {
+  run.ledgerSteps += 1
   const line = `${title}: ${digest}`
   if (verb === VERB.look || verb === VERB.research) {
     pushLedgerLine(run.roundLedger.facts, line)
@@ -2585,6 +2598,37 @@ function referenceCreatorContext(run: OperatorRun): string {
   return `CURRENT PROMPT:\n${run.state.prompt}\n${answered}CONVERSATION (latest explicit user instruction wins):\n${buildAssistantConversation(run.request.messages)}`
 }
 
+/**
+ * **创作者这一轮已经说了「覆盖」没有**（2026-09-12 实测第 1 条）。
+ *
+ * ⭐ 读的是**本轮那一段**用户原话：最后一条助手消息之后的那几条 user 消息。
+ * ⚠ 取「一段」而不是「最后一条」的理由：答完问题卡之后客户端会把答案落成一条
+ *   user 消息再重发（b4b0880c），那时最后一条是「你选了 X」，而他那句「直接覆盖」
+ *   在它前面一条 —— 只看最后一条就会把同一轮里说过的话当成没说过。
+ * ⛔ 不往前翻到更早的轮次：三周前说过一次「覆盖」不该变成此后每一轮的默许。
+ */
+function creatorAskedToOverwrite(request: AssistantOperatorRequest): boolean {
+  const said: string[] = []
+  for (const message of [...request.messages].reverse()) {
+    if (message.role !== 'user') break
+    said.push(message.content)
+  }
+  const text = said.join('\n')
+  if (!text.trim()) return false
+  if (
+    ASSISTANT_OPERATOR_OVERWRITE_INTENT_WORDS.substring.some((word) =>
+      text.includes(word),
+    )
+  ) {
+    return true
+  }
+  // ⚠ 英文按词边界：`replace` 落在 `irreplaceable` 里不算他说过话。
+  const lower = text.toLowerCase()
+  return ASSISTANT_OPERATOR_OVERWRITE_INTENT_WORDS.word.some((word) =>
+    new RegExp(`\\b${word}\\b`).test(lower),
+  )
+}
+
 /** 创作者自己点名的参考图（这一跳要写的提示词 + 他说过的话，中英写法都算）。 */
 function creatorNamedReferenceIndices(
   run: OperatorRun,
@@ -2729,7 +2773,7 @@ async function planAnalyzeReferences(
 async function planSetText(
   run: OperatorRun,
   field: AssistantOperatorConfirmField,
-  args: { value: string; mode?: string },
+  args: { value: string; mode?: string; overwrite?: boolean },
 ): Promise<ToolPlan> {
   const isPrompt = field === ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt
   if (!isPrompt && !run.state.hasNegativeControl) {
@@ -2843,7 +2887,25 @@ async function planSetText(
     (entry) => entry.field === field,
   )?.choice
 
-  if (current.trim() && !run.assistantWrittenFields.has(field)) {
+  /**
+   * **这道三选什么时候不该问**（2026-09-12 实测：三跑全部多余）。
+   *
+   * 它问的是「你**手写**的那一段怎么办」，所以三条路各自消掉一种「其实不是他手写
+   * 的 / 他已经答过了」：
+   *  ① 本轮助手自己刚写过（`assistantWrittenFields`，同一次运行内）；
+   *  ② **上一轮**助手写的、用户之后没手改（`authoredByAssistant`，客户端登记簿
+   *     上送 —— 服务端零会话态，跨轮那一半的真值只在客户端手里）；
+   *  ③ 创作者本轮原话里已经说了要换掉（词表 + 模型显式 `overwrite:true`）。
+   * ⚠ 三条只关掉**问句**，⛔ 不放宽任何别的闸：参考图复核照跑，`inverse` 照旧是
+   *   改前的完整原文（撤销一路回到用户自己那一版）。
+   */
+  const alreadyAssistantWritten =
+    run.assistantWrittenFields.has(field) ||
+    (run.request.authoredByAssistant ?? []).includes(field)
+  const creatorSaidOverwrite =
+    args.overwrite === true || creatorAskedToOverwrite(run.request)
+
+  if (current.trim() && !alreadyAssistantWritten && !creatorSaidOverwrite) {
     if (!decision) {
       return {
         kind: 'confirm',
@@ -2861,8 +2923,9 @@ async function planSetText(
   }
 
   const appendRequested =
-    args.mode === ASSISTANT_OPERATOR_WRITE_MODES.append ||
-    decision === ASSISTANT_OPERATOR_CONFIRM_CHOICES.append
+    !creatorSaidOverwrite &&
+    (args.mode === ASSISTANT_OPERATOR_WRITE_MODES.append ||
+      decision === ASSISTANT_OPERATOR_CONFIRM_CHOICES.append)
   // 空框追加什么都追加不到，退回整段写入 —— 免得 inverse 里存一个假的「原文」。
   const mode =
     appendRequested && current.trim()
@@ -2925,6 +2988,10 @@ async function planSetText(
       next,
       LIMITS.maxPriorStepSummaryChars,
     )}"${
+      current.trim() && creatorSaidOverwrite
+        ? ' The creator had already asked for this to be overwritten, so it was replaced without asking again. Tell them plainly that you overwrote it as they asked; do not ask whether to keep or append.'
+        : ''
+    }${
       needsReferenceReview && run.referenceBriefDegraded
         ? ' The source-role brief failed schema validation, so this was written from the verified visual facts and the sources the creator named. Tell the creator the prompt is in, which source you used for what, and that they can correct the split in one sentence. Do not rebuild the brief or ask them to re-upload anything.'
         : ''
@@ -5008,13 +5075,13 @@ async function planTool(
       return planSetText(
         run,
         ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
-        parsed.data as { value: string; mode?: string },
+        parsed.data as { value: string; mode?: string; overwrite?: boolean },
       )
     case TOOL.setNegative:
       return planSetText(
         run,
         ASSISTANT_OPERATOR_CONFIRM_FIELDS.negative,
-        parsed.data as { value: string; mode?: string },
+        parsed.data as { value: string; mode?: string; overwrite?: boolean },
       )
     case TOOL.setSpecs:
       return planSetSpecs(
@@ -5687,7 +5754,7 @@ HARD RULES — these are structural, not stylistic:
 - EVIDENCE ABOUT THE WORK IS NOT EVIDENCE ABOUT THE CHARACTER. research tells you, per piece, whether it is character-level or work-level, and how credible the domain is (official / officialMirror / reference / communityDigest). Ten work-level pieces answer nothing about how a person looks — treat that as an empty result and go again with the character name in its own language, or read_url the page most likely to carry the character section.
 - FINISH ON A CONCLUSION, NEVER ON A PROGRESSIVE. The last thing you say cannot be "I am searching…", "正在检索…", or an empty message. When you could not confirm something, that IS the conclusion: say the official design has not been published (or that you could not find it), name where you looked, and offer one concrete next step — a different name spelling, a look you can build from what IS known, or a question for the creator. The app will hand a half-finished closing line back to you and ask for the conclusion.
 ${domainRules}
-- If the creator already hand-wrote a prompt, writing over it needs their say-so — call the tool anyway and the app will ask them; do not ask in prose.
+- If the creator hand-wrote a prompt themselves, writing over it needs their say-so — call the tool anyway and the app will ask them; do not ask in prose. Two cases where it is ALREADY said and the app will not ask: they told you to overwrite it ("覆盖", "直接写进去", "改成…", "replace it") — pass "overwrite":true on that set_prompt and say plainly afterwards that you overwrote it as asked; or the text in the field is what YOU wrote on an earlier turn, which is yours to revise, not theirs to defend.
 - Reply in ${language}.${buildModelDialectSection(request)}
 
 HOW YOU TALK — the creator hired an operator, not a rulebook:
@@ -6277,6 +6344,9 @@ async function closeRound(
     // 这一轮只说了句话 —— 没有任何结论可结，⛔ 别为它烧一次 LLM 往返。
     return undefined
   }
+  // ⛔ 一次运行只结一次账：同一 roundIndex 写两条的下场是时间线上两个结论块。
+  if (run.roundClosed) return undefined
+  run.roundClosed = true
 
   const conversationId = run.request.conversationId
   let evidenceRefs: string[] = []
@@ -6344,6 +6414,28 @@ async function closeRound(
       1,
   )
   return { ...body, roundIndex }
+}
+
+/**
+ * **以确认卡 / 问题卡结束的那一轮也结账**（2026-09-12 实测第 2 组）。
+ *
+ * ⭐ 由来：`request_generation` 出确认卡之后这条流以 `stopped(awaiting_confirm)`
+ * 结束，而用户点「确认生成」**不再新开一轮**（扳机在客户端，§5）—— 整个生成轮次
+ * 因此一条结论记录都没有（实测 #5：结论块数不变）。
+ *
+ * ⚠ 与 `done` 那一条的唯一差别是**多一道闸**：本轮一步都没跑成就不结
+ * （`ledgerSteps === 0`）。纯问句轮没有结论可结，而 `roundLedger.decisions` 开跑
+ * 时就被用户点过的那几下填过 —— 只看它非空会写出一条没有事实的空记录。
+ * ⚠ `todo` 是**这一帧自己带的那条待办**（确认卡那一支：「等你确认生成 N 张」），
+ *   ⛔ 不在这里凭空写别的栏。
+ */
+async function closeRoundBeforeStop(
+  run: OperatorRun,
+  args: { clerkId: string; userId: string; todo?: string },
+): Promise<AssistantOperatorRoundSummary | undefined> {
+  if (run.roundClosed || run.ledgerSteps === 0) return undefined
+  if (args.todo) pushLedgerLine(run.roundLedger.todos, args.todo)
+  return closeRound(run, { clerkId: args.clerkId, userId: args.userId })
 }
 
 /**
@@ -6594,6 +6686,8 @@ export async function* runAssistantOperator(
       todos: [],
       evidence: [],
     },
+    ledgerSteps: 0,
+    roundClosed: false,
   }
 
   const systemPrompt = buildOperatorSystemPrompt(
@@ -6831,9 +6925,20 @@ export async function* runAssistantOperator(
                 })
               }
               yield { type: ASSISTANT_OPERATOR_EVENTS.ask, question }
+              /**
+               * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
+               * 本轮已经发生的看 / 查 / 改都有料，而用户点完那张卡不再新开一轮 ——
+               * 不在这里结，这一轮就永远没有结论块。
+               * ⚠ 一步都没跑成就不结（见 `closeRoundBeforeStop`）。
+               */
+              const roundSummary = await closeRoundBeforeStop(run, {
+                clerkId,
+                userId: user.id,
+              })
               yield {
                 type: ASSISTANT_OPERATOR_EVENTS.stopped,
                 reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+                ...(roundSummary ? { roundSummary } : {}),
               }
               completed = true
               return
@@ -6859,9 +6964,20 @@ export async function* runAssistantOperator(
                   steps,
                 },
               }
+              /**
+               * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
+               * 本轮已经发生的看 / 查 / 改都有料，而用户点完那张卡不再新开一轮 ——
+               * 不在这里结，这一轮就永远没有结论块。
+               * ⚠ 一步都没跑成就不结（见 `closeRoundBeforeStop`）。
+               */
+              const roundSummary = await closeRoundBeforeStop(run, {
+                clerkId,
+                userId: user.id,
+              })
               yield {
                 type: ASSISTANT_OPERATOR_EVENTS.stopped,
                 reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+                ...(roundSummary ? { roundSummary } : {}),
               }
               completed = true
               return
@@ -7024,9 +7140,20 @@ export async function* runAssistantOperator(
           continue
         }
         yield { type: ASSISTANT_OPERATOR_EVENTS.ask, question }
+        /**
+         * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
+         * 本轮已经发生的看 / 查 / 改都有料，而用户点完那张卡不再新开一轮 ——
+         * 不在这里结，这一轮就永远没有结论块。
+         * ⚠ 一步都没跑成就不结（见 `closeRoundBeforeStop`）。
+         */
+        const roundSummary = await closeRoundBeforeStop(run, {
+          clerkId,
+          userId: user.id,
+        })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
           reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+          ...(roundSummary ? { roundSummary } : {}),
         }
         completed = true
         return
@@ -7135,9 +7262,20 @@ export async function* runAssistantOperator(
             proposed: plan.proposed,
           },
         }
+        /**
+         * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
+         * 本轮已经发生的看 / 查 / 改都有料，而用户点完那张卡不再新开一轮 ——
+         * 不在这里结，这一轮就永远没有结论块。
+         * ⚠ 一步都没跑成就不结（见 `closeRoundBeforeStop`）。
+         */
+        const roundSummary = await closeRoundBeforeStop(run, {
+          clerkId,
+          userId: user.id,
+        })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
           reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+          ...(roundSummary ? { roundSummary } : {}),
         }
         completed = true
         return
@@ -7171,9 +7309,20 @@ export async function* runAssistantOperator(
               })),
           },
         }
+        /**
+         * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
+         * 本轮已经发生的看 / 查 / 改都有料，而用户点完那张卡不再新开一轮 ——
+         * 不在这里结，这一轮就永远没有结论块。
+         * ⚠ 一步都没跑成就不结（见 `closeRoundBeforeStop`）。
+         */
+        const roundSummary = await closeRoundBeforeStop(run, {
+          clerkId,
+          userId: user.id,
+        })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
           reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+          ...(roundSummary ? { roundSummary } : {}),
         }
         completed = true
         return
@@ -7192,9 +7341,22 @@ export async function* runAssistantOperator(
             request: plan.request,
           },
         }
+        /**
+         * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
+         * 本轮已经发生的看 / 查 / 改都有料，而用户点完那张卡不再新开一轮 ——
+         * 不在这里结，这一轮就永远没有结论块。
+         * ⚠ 一步都没跑成就不结（见 `closeRoundBeforeStop`）。
+         */
+        const roundSummary = await closeRoundBeforeStop(run, {
+          clerkId,
+          userId: user.id,
+          // 这一轮唯一的待办就是它：扳机在用户手上（§5）。
+          todo: `等你确认生成 ${plan.request.count} 张`,
+        })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
           reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+          ...(roundSummary ? { roundSummary } : {}),
         }
         completed = true
         return
@@ -7213,9 +7375,20 @@ export async function* runAssistantOperator(
             card: plan.card,
           },
         }
+        /**
+         * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
+         * 本轮已经发生的看 / 查 / 改都有料，而用户点完那张卡不再新开一轮 ——
+         * 不在这里结，这一轮就永远没有结论块。
+         * ⚠ 一步都没跑成就不结（见 `closeRoundBeforeStop`）。
+         */
+        const roundSummary = await closeRoundBeforeStop(run, {
+          clerkId,
+          userId: user.id,
+        })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
           reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+          ...(roundSummary ? { roundSummary } : {}),
         }
         completed = true
         return

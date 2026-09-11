@@ -7,6 +7,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_STREAMING } from '@/constants/studio-assistant-operator'
+import { nextResumeStepNumber } from '@/lib/studio-operator-resume'
 import type {
   AssistantOperatorAskEvent,
   AssistantOperatorEvent,
@@ -92,10 +93,18 @@ const generationControls = vi.hoisted(() => ({
   current: null as unknown,
 }))
 
+/**
+ * 宿主这一刻的表单快照 —— **可写**，因为「覆盖三选免问」那一组要让工作台上
+ * 真的躺着一段字（写死成空串的话那道闸根本走不到）。
+ */
+const hostSnapshot = vi.hoisted(() => ({
+  current: { prompt: '', availableModels: [] } as Record<string, unknown>,
+}))
+
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
     domain: 'image' as const,
-    buildSnapshot: () => ({ prompt: '', availableModels: [] }),
+    buildSnapshot: () => hostSnapshot.current,
     results: [],
     referenceLimit: 4,
     open: true,
@@ -217,6 +226,7 @@ beforeEach(async () => {
   vi.resetModules()
   vi.clearAllMocks()
   generationControls.current = null
+  hostSnapshot.current = { prompt: '', availableModels: [] }
   streams.length = 0
   streamAssistantOperatorAPI.mockImplementation(
     (_request: unknown, options: { signal?: AbortSignal } = {}) => {
@@ -1745,6 +1755,81 @@ describe('正文流式累积与占位行', () => {
 })
 
 /**
+ * **覆盖三选免问**（2026-09-12 实测第 1 组 ②）—— 客户端这一半。
+ *
+ * ⭐ 服务端的 `assistantWrittenFields` 只活一轮，跨轮那一半的真值在**改动登记簿
+ * 与时间线**里：这一组钉的是「助手上一轮写的字还原样躺在表单上」时请求体带
+ * `authoredByAssistant`，而用户手改过一个字之后**不带**。
+ */
+describe('覆盖三选 · authoredByAssistant', () => {
+  function setPromptStepEvent(value: string): AssistantOperatorEvent {
+    return {
+      type: ASSISTANT_OPERATOR_EVENTS.step,
+      step: {
+        id: 'step-1',
+        title: '写提示词',
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        verb: 'apply',
+        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+        payload: { value, mode: 'replace' },
+        inverse: { value: '' },
+      },
+    }
+  }
+
+  it('⭐ 表单上那段字与助手写的逐字相同 → 下一轮请求带上它', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词写成夜景')
+    })
+    await settle()
+    streams[0].emit(setPromptStepEvent('夜景，霓虹，湿地面'))
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
+    streams[0].close()
+    await settle()
+
+    // 宿主表单此刻就是助手写下的那一段。
+    hostSnapshot.current = {
+      prompt: '夜景，霓虹，湿地面',
+      availableModels: [],
+    }
+    act(() => {
+      result.current.send('再加点雨')
+    })
+    await settle()
+
+    expect(
+      streamAssistantOperatorAPI.mock.calls[1]?.[0].authoredByAssistant,
+    ).toEqual(['prompt'])
+  })
+
+  it('⛔ 用户之后手改过一个字 → 不带（那一段重新算他手写的）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词写成夜景')
+    })
+    await settle()
+    streams[0].emit(setPromptStepEvent('夜景，霓虹，湿地面'))
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
+    streams[0].close()
+    await settle()
+
+    hostSnapshot.current = {
+      prompt: '夜景，霓虹，湿地面，加一只猫',
+      availableModels: [],
+    }
+    act(() => {
+      result.current.send('再加点雨')
+    })
+    await settle()
+
+    expect(streamAssistantOperatorAPI.mock.calls[1]?.[0]).not.toHaveProperty(
+      'authoredByAssistant',
+    )
+  })
+})
+
+/**
  * **断点续跑**（第三期）—— 这一组钉的是**接线**：计划一开跑就落记录、
  * 一步有结论就改记录、点「继续」发的是 `resumeFrom` + `planApproved: true`。
  *
@@ -1822,6 +1907,46 @@ describe('断点续跑', () => {
     })
     await settle()
     expect(streamAssistantOperatorAPI.mock.calls).toHaveLength(1)
+  })
+
+  /**
+   * ⭐ **`done` 就清盘**（2026-09-12 实测第 2 组 ②）：查证轮正常收尾之后，
+   * 计划里剩下的几格永远停在 `pending`（模型自己决定不做了），而续跑 chip 照
+   * 「第一个没做完的」算，于是屏幕上挂着一颗「从第 2 步继续」的假按钮。
+   */
+  it('⭐ 收到 done 就清盘 —— 计划里还有 pending 也不留续跑 chip', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('查一下这种画风怎么描述')
+    })
+    await settle()
+    startPlan(3)
+    streams[0].emit(doneStepEvent('step-1'))
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
+    streams[0].close()
+    await settle()
+
+    expect(store.getOperatorState().resume).toBeNull()
+  })
+
+  it('⛔ 以 stopped 收尾、且计划没跑完时**留着**（那正是它存在的理由）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('分三步做')
+    })
+    await settle()
+    startPlan(3)
+    streams[0].emit(doneStepEvent('step-1'))
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: 'awaiting_confirm',
+    })
+    streams[0].close()
+    await settle()
+
+    const resume = store.getOperatorState().resume
+    expect(resume).not.toBeNull()
+    expect(nextResumeStepNumber(resume!)).toBe(2)
   })
 
   it('⭐ 每一步都跑完之后记录整条清掉（⛔ 不留一颗点了会重做的按钮）', async () => {

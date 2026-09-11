@@ -1019,6 +1019,22 @@ export const AssistantOperatorRequestSchema = z.object({
     .max(Object.keys(ASSISTANT_OPERATOR_CONFIRM_FIELDS).length)
     .optional(),
   /**
+   * **这两格现在的字是助手自己上一轮写的**（2026-09-12 实测第 2 条）。
+   *
+   * ⭐ 覆盖三选问的是「你手写的那一段怎么办」。助手上一轮 `set_prompt` 落下的字
+   * 不是「他手写的」—— 对着自己的上一版再问一次，用户读到的是「你已经自己写过
+   * 了」而他一个字都没打过（实测 #6）。服务端的 `assistantWrittenFields` 只活
+   * 一轮，跨轮那一半的真值在客户端的改动登记簿里，所以由它上送。
+   * ⚠ 它**只关掉那道问句**，⛔ 不放宽别的任何闸：写入照旧过参考图复核、照旧记
+   * `inverse`（撤销仍然一路回到用户自己那一版）。
+   * ⚠ 客户端只在**当前表单里的字与助手那一步写出来的字逐字相同**时才报 ——
+   * 用户之后手改过一个字，这一格就不该出现（他改过的字重新算他手写的）。
+   */
+  authoredByAssistant: z
+    .array(AssistantOperatorConfirmFieldSchema)
+    .max(Object.keys(ASSISTANT_OPERATOR_CONFIRM_FIELDS).length)
+    .optional(),
+  /**
    * 助手备的那一枪刚打完（P3-C）。缺席 = 这一轮没有东西可看，
    * `critique_result` 按 `noResultToCritique` 拒。见 schema 头注。
    */
@@ -1316,10 +1332,20 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]: z.object({
     value: z.string().trim().max(LIMITS.maxPromptChars),
     mode: AssistantOperatorWriteModeSchema.optional(),
+    /**
+     * **创作者这一轮已经说了「覆盖」**（2026-09-12）。
+     *
+     * ⚠ 它只跳过那道三选问句，⛔ 不是「强制写」：前置校验、参考图复核、`inverse`
+     * 一条都不动。⛔ 模型不许拿它当默认值 —— 只有创作者本轮原话里说过要换掉现有
+     * 那一段时才置 true（服务端自己也从原话里认一遍，两条判据是或的关系）。
+     */
+    overwrite: z.boolean().optional(),
   }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setNegative]: z.object({
     value: z.string().trim().max(LIMITS.maxPromptChars),
     mode: AssistantOperatorWriteModeSchema.optional(),
+    /** 同 `set_prompt` 的那一格。 */
+    overwrite: z.boolean().optional(),
   }),
   /** ⚠ 台账 AE/BG/BS：两个字段一起下，缺一个就不是真比例。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.setSpecs]: z.object({
@@ -2880,6 +2906,17 @@ export const AssistantOperatorDoneEventSchema = z.object({
 export const AssistantOperatorStoppedEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.stopped),
   reason: AssistantOperatorStopReasonSchema,
+  /**
+   * **以确认卡 / 问题卡结束的那一轮也结账**（2026-09-12 实测第 2 组）。
+   *
+   * ⭐ 由来：`request_generation` 出确认卡之后这条流以 `stopped` 结束，而用户点
+   * 「确认生成」⛔ 不再新开一轮（扳机在客户端，§5）—— 于是整个生成轮次一条结论
+   * 记录都没有。判据与 `done` 那一帧逐字相同：本轮跑过步就结账，随帧下发，客户端
+   * 直接渲染。
+   * ⚠ **缺席仍是常态**：本轮一步没跑（纯问句 / 纯说话）、或压缩那一跳失败，都
+   * 照常收尾。⛔ 一轮只写一条：同一次运行里不会结两次账。
+   */
+  roundSummary: AssistantOperatorRoundSummarySchema.optional(),
 })
 
 /** 形态与 `AssistantStreamErrorFrame` 逐字一致 —— 客户端两条流共用一个错误渲染。 */

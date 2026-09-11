@@ -38,16 +38,20 @@ import { useCallback, useEffect, useRef } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 
 import {
+  ASSISTANT_OPERATOR_APPEND_SEPARATOR,
+  ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  ASSISTANT_OPERATOR_WRITE_MODES,
   GENERATION_REVIEW_STATE_IDS,
   isAssistantOperatorToolInDomain,
   overwriteAnswerId,
   type AssistantOperatorConfirmChoice,
+  type AssistantOperatorConfirmField,
   type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
@@ -127,6 +131,7 @@ import type {
   AssistantOperatorPriorStep,
   AssistantOperatorRequest,
   AssistantOperatorResult,
+  AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type {
   StudioOperatorAttachment,
@@ -253,6 +258,71 @@ function buildPriorSteps(
     })
   }
   return steps.slice(-ASSISTANT_OPERATOR_LIMITS.maxPriorSteps)
+}
+
+/**
+ * **这两格现在的字是不是助手自己写的**（2026-09-12 实测第 1 组 ②）。
+ *
+ * ⭐ 它答的是覆盖三选那道题的前提：那道题问「你**手写**的那一段怎么办」，而助手
+ * 上一轮 `set_prompt` 落下的字不是用户手写的 —— 对着自己的上一版再问一次，用户
+ * 读到的是「你已经自己写过了」而他一个字都没打过（实测 #6 / #7）。
+ * 服务端的 `assistantWrittenFields` 只活一轮，跨轮那一半的真值在客户端手里。
+ *
+ * ⚠ 判据是**逐字相同**，不是「登记簿里有这个字段」：登记簿的 ✦ 在用户手改之后
+ *   仍然挂着（它记的是「助手碰过这一格」），拿它当判据等于把用户改过的字也算成
+ *   助手的，那才是真正会吃掉手写内容的那一种错。
+ * ⚠ 撤销过的那一步不算（`entry.undone`）：撤销之后表单回到的是用户那一版。
+ * ⚠ 只读本次会话的条目 —— 载回来的历史条目类型上就没有 `payload`
+ *   （见 `types/studio-operator-history.ts`），刷新之后退回「照问一次」。
+ */
+function buildAuthoredByAssistant(
+  entries: readonly StudioOperatorThreadEntry[],
+  snapshot: AssistantOperatorRequest['snapshot'],
+): AssistantOperatorConfirmField[] {
+  const fields: {
+    field: AssistantOperatorConfirmField
+    tool: AssistantOperatorStep['tool']
+    current: string
+  }[] = [
+    {
+      field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      current: snapshot.prompt,
+    },
+    {
+      field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.negative,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setNegative,
+      current: snapshot.negativePrompt ?? '',
+    },
+  ]
+  const out: AssistantOperatorConfirmField[] = []
+  for (const { field, tool, current } of fields) {
+    if (!current.trim()) continue
+    for (let index = entries.length - 1; index >= 0; index -= 1) {
+      const entry = entries[index]
+      if (entry?.kind !== 'step') continue
+      const step = entry.step
+      if (step.tool !== tool) continue
+      if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) continue
+      if (entry.undone) break
+      if (
+        step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+        step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.setNegative
+      ) {
+        break
+      }
+      // ⚠ 追加那一支要拼回**它写完之后的完整原文**：`payload.value` 只是接在
+      //   后面的那一截，拿它去比永远比不中。分隔符复用协议里那个。
+      const written =
+        step.payload.mode === ASSISTANT_OPERATOR_WRITE_MODES.append &&
+        step.inverse.value
+          ? `${step.inverse.value}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${step.payload.value}`
+          : step.payload.value
+      if (written === current) out.push(field)
+      break
+    }
+  }
+  return out
 }
 
 /**
@@ -675,6 +745,15 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * 多步确认帧判定去向。⚠ 判定之外还有两条出口：流以别的方式收尾
        * （服务端压根没摆确认卡）时也要把它落下去，⛔ 不能凭空吞掉一份计划。
        */
+      /**
+       * 这一轮是以 `done` 收的吗（2026-09-12 实测第 2 组 ②）。
+       *
+       * ⭐ 续跑 chip 的去留只认它：`done` 之后再显示「从第 N 步继续」是**假的**
+       * ——实测查证轮正常收尾仍挂着那颗按钮（模型自己收尾、计划里剩下的几格永远
+       * 停在 `pending`，而那几步它已经决定不做了）。
+       * ⛔ `stopped` / 报错那两支不置：那正是续跑存在的理由。
+       */
+      let roundFinished = false
       let pendingPlanSteps: readonly string[] | null = null
       const flushPlanEntry = () => {
         if (!pendingPlanSteps) return
@@ -792,6 +871,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         if (controller.signal.aborted) return
       }
 
+      const snapshot = buildSnapshot()
+      const authoredByAssistant = buildAuthoredByAssistant(entries, snapshot)
+
       const result = await streamAssistantOperatorAPI(
         {
           messages,
@@ -807,8 +889,14 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               label,
             })),
           domain,
-          snapshot: buildSnapshot(),
+          snapshot,
           referenceProfiles: readOperatorReferenceProfiles(entries, history),
+          /**
+           * ⭐ **这两格现在的字是助手自己上一轮写的**（2026-09-12 实测第 1 组 ②）：
+           * 服务端据此跳过覆盖三选 —— 它只活一轮，跨轮那一半的真值在这里。
+           * ⚠ 空数组不发：一个恒在的空键读起来像「我查过了，两格都是他写的」。
+           */
+          ...(authoredByAssistant.length ? { authoredByAssistant } : {}),
           /**
            * ⚠ 历史里的步也算「刚才做过什么」，⛔ 别只给本次会话的：刷新之后
            * 助手会把用户上次撤销掉的改动原样再做一遍（拍板 18 的反面）。
@@ -1167,6 +1255,15 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              * 完全不同（见 `StudioOperatorStatus` 的头注）。
              */
             case ASSISTANT_OPERATOR_EVENTS.stopped: {
+              /**
+               * ⭐ **停在确认卡 / 问题卡上的那一轮也带结论**（2026-09-12 实测
+               * 第 2 组）：生成确认之后用户点的是生成键，⛔ 不再开一轮 —— 不收
+               * 这一份，整个生成轮次在时间线上就没有结论块。
+               * ⚠ 判据与 `done` 那一支逐字相同：缺席是常态，⛔ 不画空块。
+               */
+              if (event.roundSummary) {
+                appendOperatorRoundSummary(event.roundSummary)
+              }
               if (getOperatorState().status === 'awaitingPlan') break
               setOperatorStatus(
                 event.reason === ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm
@@ -1187,6 +1284,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               if (event.roundSummary) {
                 appendOperatorRoundSummary(event.roundSummary)
               }
+              // ⭐ 见下面清盘那一段：`done` = 这一轮**跑完了**，续跑无从谈起。
+              roundFinished = true
               break
             case ASSISTANT_OPERATOR_EVENTS.error:
               setOperatorStatus('error', describeError(event))
@@ -1221,13 +1320,18 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       /**
        * ⭐ **跑完了就把续跑记录清掉**（第三期）。
        *
-       * ⚠ 判据是「每一步都 done」而不是「这一轮没报错」：一轮跑完不等于计划跑完
-       * （工具步 8 个上限撞到过、模型自己收尾过）。留着那颗按钮的表现是用户点
-       * 「从第 4 步继续」，而第 4 步早就做完了 —— 助手把同一件事又做一遍。
-       * ⛔ 报错 / 被 ⏹ 掐掉的那一支**不清**：那正是它存在的理由。
+       * ⚠ 两条判据取或（2026-09-12 实测第 2 组 ②）：
+       *  · **这一轮以 `done` 收尾** —— 服务端说这一轮做完了，剩下几格 `pending`
+       *    是模型自己决定不做的（查证轮正常收尾仍挂着「从第 2 步继续」就是它）；
+       *  · **每一步都 done** —— 计划真的跑完了。
+       * 留着那颗按钮的表现是用户点「从第 4 步继续」，而第 4 步早就做完了 ——
+       * 助手把同一件事又做一遍。
+       * ⛔ `stopped`（等你定 / 撞上限）与报错那两支**不清**：那正是它存在的理由。
        */
       const finished = getOperatorState().resume
-      if (finished && !hasUnfinishedSteps(finished)) clearOperatorResumePlan()
+      if (finished && (roundFinished || !hasUnfinishedSteps(finished))) {
+        clearOperatorResumePlan()
+      }
       /**
        * 一步都没跑就收尾的那种轮次（纯说话、或最后一步之后才排上队）——
        * 停顿点没来过，队列会在这里被接住。

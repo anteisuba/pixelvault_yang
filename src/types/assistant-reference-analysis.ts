@@ -9,10 +9,32 @@ const SourceSchema = z
   .url()
   .refine((url) => /^https?:\/\//.test(url))
 
+/**
+ * ⭐ **成像介质是一个判别题不是一句形容**（2026-09-12 真机 bug）：一张平涂赛璐珞
+ * 少女图被写成「次世代 3D 卡通渲染」，因为 `rendering` 是自由文本 —— 模型可以
+ * 把「动漫脸 + 硬边阴影」顺手说成 3D，而下游的简报与提示词复核读的就是这句话。
+ * 收成枚举后，2D / 3D 是一次显式选择，复核也能直接比对。
+ * ⚠ 旧 profile 没有这一项（缓存里躺着上一版的分析），所以在 profile 上是可选的；
+ * ⛔ 但 vision 那一跳的输出**必须**给 —— 缺省只允许来自历史，不允许来自偷懒。
+ */
+export const REFERENCE_RENDERING_MEDIUMS = [
+  '2d_flat',
+  '2d_painterly',
+  '3d_stylized',
+  '3d_realistic',
+  'photo',
+  'mixed',
+] as const
+
+export const ReferenceRenderingMediumSchema = z.enum(
+  REFERENCE_RENDERING_MEDIUMS,
+)
+
 export const ReferenceVisualFactsSchema = z.object({
   identity: NoteSchema,
   pose: NoteSchema,
   style: z.object({
+    renderingMedium: ReferenceRenderingMediumSchema.optional(),
     rendering: NoteSchema.optional(),
     proportions: NoteSchema,
     contours: NoteSchema,
@@ -70,6 +92,7 @@ export const ReferenceVisionOutputSchema = z.object({
     .array(
       ReferenceVisualFactsSchema.extend({
         style: ReferenceVisualFactsSchema.shape.style.extend({
+          renderingMedium: ReferenceRenderingMediumSchema,
           rendering: NoteSchema.min(1),
         }),
         imageIndex: z.number().int().nonnegative(),

@@ -17,6 +17,7 @@ const profiles: ReferenceVisualProfile[] = urls.map((url, index) => ({
   pose: 'Standing',
   scene: 'White backdrop',
   style: {
+    renderingMedium: '3d_stylized' as const,
     rendering:
       'Stylized 3D NPR with volumetric hair and material-specific reflections',
     proportions: 'Stylized',
@@ -84,6 +85,59 @@ describe('reference analysis', () => {
       stage: 'vision',
       reason: 'schema',
     })
+  })
+
+  it('forces a 2D/3D medium enum and spells out the discriminating evidence', async () => {
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        images: profiles.map((facts, imageIndex) => ({ ...facts, imageIndex })),
+      }),
+    )
+    await analyzeOperatorReferences({ ...input, complete })
+    const system = complete.mock.calls[0]?.[0] as string
+    expect(system).toContain('renderingMedium')
+    expect(system).toContain('2d_flat, 2d_painterly, 3d_stylized')
+    // 判据本身必须在提示里：3D 看法线高光 / 连续曲面阴影，2D 看阶梯平涂 + 线稿。
+    expect(system).toContain('follow surface normals')
+    expect(system).toContain('stepped cel bands')
+    // ⭐ 真机 bug 那一句：动漫脸 + 角色设定图版式**不**足以判成 3D。
+    expect(system).toContain('anime face')
+  })
+
+  it('rejects fresh visual evidence whose renderingMedium is missing or off the enum', async () => {
+    for (const renderingMedium of [undefined, 'cel_shaded']) {
+      const complete = vi.fn().mockResolvedValue(
+        JSON.stringify({
+          images: profiles.map((profile, imageIndex) => ({
+            ...profile,
+            imageIndex,
+            style: { ...profile.style, renderingMedium },
+          })),
+        }),
+      )
+      await expect(
+        analyzeOperatorReferences({ ...input, complete }),
+      ).rejects.toMatchObject({ stage: 'vision', reason: 'schema' })
+    }
+  })
+
+  it('keeps a legacy cached profile that predates renderingMedium', async () => {
+    const legacy = {
+      ...profiles[1]!,
+      style: { ...profiles[1]!.style, renderingMedium: undefined },
+    }
+    const complete = vi
+      .fn()
+      .mockResolvedValue(
+        JSON.stringify({ images: [{ ...profiles[0], imageIndex: 0 }] }),
+      )
+    const result = await analyzeOperatorReferences({
+      ...input,
+      cached: [legacy],
+      complete,
+    })
+    expect(complete.mock.calls[0]?.[2]).toEqual([urls[0]])
+    expect(result.profiles[1]).toEqual(legacy)
   })
 
   it('returns verified visual evidence without requiring a creative brief', async () => {
@@ -197,6 +251,9 @@ describe('reference analysis', () => {
     })
     expect(result.assignments).toEqual([...brief.assignments].reverse())
     expect(complete.mock.calls[0]?.[1]).not.toContain(urls[0])
+    // 事实段带着判定过的成像介质：简报读的就是它，⛔ 不靠 rendering 那句自由文本猜。
+    expect(complete.mock.calls[0]?.[1]).toContain('3d_stylized')
+    expect(complete.mock.calls[0]?.[0]).toContain('style.renderingMedium')
   })
 
   /**

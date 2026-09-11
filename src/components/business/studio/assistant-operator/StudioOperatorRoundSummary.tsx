@@ -10,13 +10,15 @@
  *
  * ── 三态（画板 BCards）────────────────────────────────────────────
  *  · **默认展开**：三栏（事实 / 决定 / 待办）+ 证据编号 chip 行；
- *  · **折叠一行**：`本轮记住 N 件事 ▾`（N = 三栏条目总数，⛔ 不含证据编号 ——
+ *  · **折叠一行**：`本轮记住 N 件事  改 ▾`（N = 三栏条目总数，⛔ 不含证据编号 ——
  *    编号是出处不是「记住的事」，数进去会让一条只查了资料的轮次写着「记住 5 件事」）；
  *  · **编辑态**：三栏变文本框 + 取消 / 保存。
  *
  * ── 为什么给「改」（§7.7）──────────────────────────────────────────
  * 结论是模型压缩出来的，压错一句会一路错下去八轮（下一轮注入读的就是它）。
  * 给一个 10 秒能改完的入口，比让用户在下一轮用一整段话去纠正便宜得多。
+ * ⚠ **折叠态也摆这一颗**：折起来才是这块的常驻形态（旧轮次载回来就是折的），
+ * 入口只长在展开态等于把 10 秒的纠错变成「先展开、再找、再点」。
  * ⚠ 保存写回的是**库里那一列**并标 `editedByUser`，⛔ 不是只改屏幕上这一份：
  * 回写链路见 `updateAssistantConversationRound`。
  *
@@ -112,6 +114,15 @@ export function StudioOperatorRoundSummary({
     string
   > | null>(null)
 
+  const openDraft = () => {
+    setCollapsed(false)
+    setDraft({
+      facts: toColumnText(summary.facts),
+      decisions: toColumnText(summary.decisions),
+      todos: toColumnText(summary.todos),
+    })
+  }
+
   const count =
     summary.facts.length + summary.decisions.length + summary.todos.length
   const time = format.dateTime(new Date(summary.createdAt), {
@@ -134,23 +145,36 @@ export function StudioOperatorRoundSummary({
         data-testid="operator-round-summary"
         data-state="collapsed"
         data-round={summary.roundIndex}
-        className="border-y border-border bg-muted/40"
+        className="flex items-center border-y border-border bg-muted/40"
       >
+        {/* ⚠ 「改」与展开是**并排两颗按钮**不是嵌套：折叠态下要改一句结论，点
+            一下展开再点一下「改」是两步，而这块本来就是给 10 秒纠错用的（§7.7）。
+            ⛔ 别把它塞进展开那颗里 —— 按钮套按钮的 DOM 本身就是坏的。 */}
         <button
           type="button"
           data-testid="operator-round-expand"
           onClick={() => setCollapsed(false)}
-          className="flex w-full items-center gap-2 px-0.5 py-2.5 text-left transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex min-w-0 flex-1 items-center gap-2 px-0.5 py-2.5 text-left transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           {icon}
           <span className="min-w-0 flex-1 text-2sm text-muted-foreground">
             {t('collapsed', { count })}
           </span>
-          <ChevronDown
-            className="size-4 shrink-0 text-muted-foreground"
-            aria-hidden
-          />
         </button>
+        {onSave ? (
+          <button
+            type="button"
+            data-testid="operator-round-edit"
+            onClick={openDraft}
+            className="shrink-0 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {t('edit')}
+          </button>
+        ) : null}
+        <ChevronDown
+          className="ml-1 mr-0.5 size-4 shrink-0 text-muted-foreground"
+          aria-hidden
+        />
       </div>
     )
   }
@@ -253,13 +277,7 @@ export function StudioOperatorRoundSummary({
           <button
             type="button"
             data-testid="operator-round-edit"
-            onClick={() =>
-              setDraft({
-                facts: toColumnText(summary.facts),
-                decisions: toColumnText(summary.decisions),
-                todos: toColumnText(summary.todos),
-              })
-            }
+            onClick={openDraft}
             className="shrink-0 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('edit')}

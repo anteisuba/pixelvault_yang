@@ -78,6 +78,15 @@ describe('StudioOperatorRoundSummary', () => {
     )
   })
 
+  it('折叠态也有「改」：点它直接落到编辑态，⛔ 不用先展开再点一次', () => {
+    renderBlock({ defaultCollapsed: true })
+    fireEvent.click(screen.getByTestId('operator-round-edit'))
+    expect(screen.getByTestId('operator-round-summary').dataset.state).toBe(
+      'editing',
+    )
+    expect(screen.getAllByTestId('operator-round-input')).toHaveLength(3)
+  })
+
   it('「改」→ 三栏可编辑，保存交出收窄过的三栏', () => {
     const { onSave } = renderBlock()
     fireEvent.click(screen.getByTestId('operator-round-edit'))

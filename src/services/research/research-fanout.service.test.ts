@@ -55,7 +55,9 @@ import type { EvidenceItem } from '@/types/research'
 import {
   buildResearchQueryPlan,
   confidenceOfCredibility,
+  countCorroboration,
   runAssistantResearch,
+  summarizeResearchConclusion,
   scopeOfEvidence,
   toAssistantEvidence,
 } from '@/services/research/research-fanout.service'
@@ -484,5 +486,121 @@ describe('runAssistantResearch · 角色级（2026-09-07）', () => {
       sources: ['danbooru'],
     })
     expect(outcome.evidence[0]?.scope).toBe('character')
+  })
+})
+
+/**
+ * ⭐ **并发印证**（assistant-shell-v2 §9.1 ③ / §9.2，commit #16）——
+ * 「几个源说了同一件事」由服务端算，印证多的排前，单源如实打标。
+ */
+describe('印证与结论（§9，commit #16）', () => {
+  it('⭐ 同一事实两个域名说过 = 2 源印证；同一个站说两遍仍是单源', () => {
+    const counts = countCorroboration([
+      textItem(),
+      textItem({
+        id: 'zhwiki:时夜',
+        sourceId: RESEARCH_SOURCE_IDS.wikipediaZh,
+        url: 'https://zh.wikipedia.org/wiki/shiye',
+      }),
+      // 同一个域名的第二页 —— 一个站自己说两遍⛔ 不算印证。
+      textItem({
+        id: 'moegirl:时夜2',
+        title: '独家：另一件事',
+        url: 'https://zh.moegirl.org.cn/other',
+      }),
+    ])
+    // ⚠ 键去掉了「萌娘百科 · 」这类**源前缀**：它是连接器加的装饰，不是标题。
+    expect(counts.get('时夜')).toBe(2)
+    expect(counts.get('独家另一件事')).toBe(1)
+  })
+
+  it('⭐ 印证多的排前，且每条都带 corroboration（⛔ 不由模型写）', async () => {
+    mockFetchMediaWikiEvidence.mockResolvedValue({
+      items: [
+        textItem({
+          id: 'a',
+          title: '只有一个人这么说',
+          url: 'https://a.test/x',
+        }),
+        textItem(),
+      ],
+    })
+    mockFetchWebSearchEvidence.mockResolvedValue({
+      items: [
+        textItem({
+          id: 'b',
+          sourceId: RESEARCH_SOURCE_IDS.webSearch,
+          url: 'https://zh.wikipedia.org/wiki/shiye',
+        }),
+      ],
+    })
+
+    const outcome = await runAssistantResearch({
+      goal: '外貌',
+      entities: ['无限大', '时夜'],
+    })
+
+    expect(outcome.evidence[0]?.corroboration).toBe(2)
+    expect(outcome.evidence.at(-1)?.corroboration).toBe(1)
+  })
+
+  it('⭐ 结论取印证最多、层级最高的那一条；一条可读的都没有就缺席', () => {
+    const conclusion = summarizeResearchConclusion([
+      {
+        title: '个人博客',
+        publisher: 'blog.test',
+        snippet: '我猜是黑发。',
+        kind: 'text',
+        confidence: 'low',
+        credibility: 'communityDigest',
+        scope: 'character',
+        corroboration: 1,
+      },
+      {
+        title: '官方设定集',
+        publisher: 'official.test',
+        snippet: '黑色长发，金色瞳孔。',
+        kind: 'text',
+        confidence: 'high',
+        credibility: 'official',
+        scope: 'character',
+        corroboration: 3,
+      },
+    ])
+    expect(conclusion).toBe('黑色长发，金色瞳孔。')
+
+    // ⚠ 标签串与图片占位不是一句可以读的话 —— ⛔ 不拿它们当结论。
+    expect(
+      summarizeResearchConclusion([
+        {
+          title: 'danbooru',
+          publisher: 'danbooru.donmai.us',
+          snippet: 'black_hair, yellow_eyes',
+          kind: 'tags',
+          confidence: 'medium',
+          credibility: 'reference',
+          scope: 'character',
+          corroboration: 2,
+        },
+      ]),
+    ).toBeUndefined()
+  })
+
+  it('⭐ 改写那一步给了查询就顶掉确定性那几条，wiki 腿照旧吃页名', async () => {
+    await runAssistantResearch({
+      goal: '外貌',
+      entities: ['无限大', '时夜'],
+      queries: ['无限大 时夜 设定', 'Ananta Shiye design'],
+    })
+
+    expect(mockFetchWebSearchEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queries: ['无限大 时夜 设定', 'Ananta Shiye design'],
+      }),
+    )
+    // wiki 吃的仍然是「作品 + 角色」那条页名，⛔ 不是改写出来的长查询。
+    expect(mockFetchMediaWikiEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({ query: '无限大 时夜' }),
+    )
   })
 })

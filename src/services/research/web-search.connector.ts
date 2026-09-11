@@ -76,6 +76,7 @@ export async function fetchWebSearchEvidence(params: {
         title: result.title,
         url: result.url,
         // 结果日期是内容的日期，`retrievedAt` 是抓取的时刻 —— 两件事，都留着。
+        ...(result.date ? { publishedAt: result.date } : {}),
         excerpt: clampExcerpt(
           result.date ? `（${result.date}）${result.snippet}` : result.snippet,
         ),

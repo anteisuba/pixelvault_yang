@@ -50,6 +50,7 @@ const RESEARCH: StudioOperatorStepEntry = {
     },
     result: {
       totalFound: 2,
+      conclusion: '粉发、金瞳、下双马尾。',
       evidence: [
         {
           title: '官方设定集',
@@ -58,6 +59,9 @@ const RESEARCH: StudioOperatorStepEntry = {
           snippet: '粉发、金瞳、下双马尾。',
           kind: 'text',
           confidence: 'high',
+          corroboration: 2,
+          publishedAt: '2024-05-12',
+          evidenceRef: '#e12',
         },
         {
           title: '共现标签',
@@ -65,6 +69,7 @@ const RESEARCH: StudioOperatorStepEntry = {
           snippet: 'pink_hair · yellow_eyes',
           kind: 'tags',
           confidence: 'medium',
+          corroboration: 1,
         },
       ],
     },
@@ -149,7 +154,15 @@ function manyTextEvidence(count: number): StudioOperatorStepEntry {
   } as unknown as StudioOperatorStepEntry
 }
 
-function renderCard(steps: StudioOperatorStepEntry[], children?: string) {
+function renderCard(
+  steps: StudioOperatorStepEntry[],
+  children?: string,
+  overrides: {
+    pinned?: boolean
+    onTogglePin?: () => void
+    onExpandSources?: () => void
+  } = {},
+) {
   const onToggleWebImage = vi.fn()
   render(
     <StudioOperatorResearchCard
@@ -157,6 +170,7 @@ function renderCard(steps: StudioOperatorStepEntry[], children?: string) {
       webImportStates={{}}
       webImportLimit={4}
       onToggleWebImage={onToggleWebImage}
+      {...overrides}
     >
       {children ? <span data-testid="process-row">{children}</span> : null}
     </StudioOperatorResearchCard>,
@@ -264,6 +278,90 @@ describe('StudioOperatorResearchCard', () => {
     expect(
       screen.queryByTestId('operator-research-evidence-snippet'),
     ).toBeNull()
+  })
+
+  /**
+   * ⭐ **查证卡三态**（v2 §3.2 / 画板 BCards「证据」组，commit #16）。
+   * 展开（结论 + 来源 + 印证标 + 日期 + 钉住）/ 折叠（一行 N 个来源）/ 已钉住。
+   */
+  describe('三态（§3.2 证据卡）', () => {
+    it('⭐ 展开态：结论一句 + 印证标 + 日期，⛔ 结论不由客户端拼', () => {
+      renderCard([RESEARCH])
+      expect(screen.getByTestId('operator-research-card').dataset.state).toBe(
+        'expanded',
+      )
+      expect(
+        screen.getByTestId('operator-research-conclusion').textContent,
+      ).toContain('粉发')
+      const marks = screen.getAllByTestId(
+        'operator-research-evidence-corroboration',
+      )
+      expect(marks[0]?.dataset.corroborated).toBe('true')
+      expect(marks[0]?.textContent).toContain('research.corroborated:2')
+      expect(
+        screen.getAllByTestId('operator-research-evidence-date')[0]
+          ?.textContent,
+      ).toBe('2024-05-12')
+    })
+
+    it('⭐ 单源那一条打「单源」标（⛔ 不软化成「暂未印证」）', () => {
+      renderCard([RESEARCH])
+      fireEvent.click(screen.getByTestId('operator-research-evidence-toggle'))
+      const marks = screen.getAllByTestId(
+        'operator-research-evidence-corroboration',
+      )
+      expect(marks[1]?.dataset.corroborated).toBe('false')
+      expect(marks[1]?.textContent).toBe('research.singleSource')
+      // 上游没给发布时间的那条⛔ 整栏不画。
+      expect(
+        screen.getAllByTestId('operator-research-evidence-date'),
+      ).toHaveLength(1)
+    })
+
+    it('⭐ 折叠态：整张卡收成一行「N 个来源」，点它回到展开', () => {
+      renderCard([RESEARCH])
+      fireEvent.click(screen.getByTestId('operator-research-fold'))
+      const card = screen.getByTestId('operator-research-card')
+      expect(card.dataset.state).toBe('collapsed')
+      expect(
+        screen.getByTestId('operator-research-collapsed').textContent,
+      ).toBe('research.collapsed:2')
+      expect(screen.queryByTestId('operator-research-evidence')).toBeNull()
+
+      fireEvent.click(card)
+      expect(screen.getByTestId('operator-research-card').dataset.state).toBe(
+        'expanded',
+      )
+    })
+
+    it('⭐ 已钉住态：结论留着、来源列表收掉，再点一次取消', () => {
+      const onTogglePin = vi.fn()
+      renderCard([RESEARCH], undefined, { pinned: true, onTogglePin })
+      const card = screen.getByTestId('operator-research-card')
+      expect(card.dataset.state).toBe('pinned')
+      expect(
+        screen.getByTestId('operator-research-conclusion').textContent,
+      ).toContain('粉发')
+      expect(screen.queryByTestId('operator-research-evidence')).toBeNull()
+
+      fireEvent.click(screen.getByTestId('operator-research-pin'))
+      expect(onTogglePin).toHaveBeenCalledTimes(1)
+    })
+
+    it('⛔ 没给钉住去处就不画那颗按钮；「再多找几个源」同理', () => {
+      renderCard([RESEARCH])
+      expect(screen.queryByTestId('operator-research-pin')).toBeNull()
+      expect(
+        screen.queryByTestId('operator-research-expand-sources'),
+      ).toBeNull()
+    })
+
+    it('⭐ 「再多找几个源」点一次只回调一次（加源，不是换查询）', () => {
+      const onExpandSources = vi.fn()
+      renderCard([RESEARCH], undefined, { onExpandSources })
+      fireEvent.click(screen.getByTestId('operator-research-expand-sources'))
+      expect(onExpandSources).toHaveBeenCalledTimes(1)
+    })
   })
 
   it('⭐ 超过前 N 条时只铺 N 条，其余进「还有 M 条」（点它 = 同一个开关）', () => {

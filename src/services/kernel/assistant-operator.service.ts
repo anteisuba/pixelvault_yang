@@ -28,10 +28,11 @@ import {
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_ENTRY_ACTIONS,
   ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN,
+  ASSISTANT_OPERATOR_ENTRY_ACTION_HINTS,
   ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS,
   ASSISTANT_OPERATOR_ENTRY_TOOLS,
   ASSISTANT_OPERATOR_ENTRY_TOOL_IDS as ENTRY,
-  ASSISTANT_OPERATOR_TOOL_HINTS,
+  ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS as RESEARCH_ACTION,
   ASSISTANT_OPERATOR_TOOL_IDS as TOOL,
   ASSISTANT_OPERATOR_TOOL_VERBS,
   ASSISTANT_OPERATOR_TOOLS,
@@ -41,8 +42,11 @@ import {
   ASSISTANT_OPERATOR_WRITE_MODES,
   type AssistantOperatorVerdictSeverity,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
+  ASSISTANT_EVIDENCE_REF_PREFIX as EVIDENCE_REF_PREFIX,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   ASSISTANT_RESEARCH_SCOPE_IDS,
+  ASSISTANT_RESEARCH_SOURCE_IDS,
+  ASSISTANT_RESEARCH_SOURCES,
   ASSISTANT_ROUND_SUMMARY_LIMITS as ROUND_LIMITS,
   ASSISTANT_OPERATOR_VERB_IDS as VERB,
   ASSISTANT_WORKING_MEMORY as MEMORY_LIMITS,
@@ -50,10 +54,13 @@ import {
   assistantOperatorEntryToolsInDomain,
   isAssistantOperatorEntryTool,
   isAssistantOperatorToolInDomain,
+  isInternalAssistantOperatorTool,
+  resolveAssistantOperatorEntryAction,
   isUnfinishedClosingMessage,
   type AssistantOperatorConfirmChoice,
   type AssistantOperatorConfirmField,
   type AssistantOperatorDomain,
+  type AssistantOperatorEntryAction,
   type AssistantOperatorEntryTool,
   type AssistantOperatorReferenceSlot,
   type AssistantOperatorRejectReason,
@@ -237,9 +244,25 @@ import {
  * 所以这段注释里不复述它：那份测试扫的是源码文本，注释也算数）。
  * 扇出那一段因此单独住在 `research-fanout.service`，它一行库都不碰。
  */
-import { runAssistantResearch } from '@/services/research/research-fanout.service'
+import {
+  runAssistantResearch,
+  summarizeResearchConclusion,
+} from '@/services/research/research-fanout.service'
+/**
+ * **查证的改写 + 选源那一步**（v2 §9.1 ① ②，commit #16）。⭐ 判据与上一条同源：
+ * 它调的是一次**便宜 LLM 的结构化输出**（把一句话磨成几条搜索词、判内容类型），
+ * 出的是几个字符串 —— 不建 generation、不扣 credit、不落任何字节，也一行库都不碰。
+ * ⛔ 别顺手把 `research-run.service` 换进来「一次把配额也读了」：那条会写库。
+ */
+import { planResearchWithLlm } from '@/services/research/research-planner.service'
+import { planResearchHeuristically } from '@/lib/research-intent'
+import {
+  RESEARCH_SOURCE_GROUPS,
+  type ResearchSourceGroup,
+} from '@/constants/research'
 import {
   appendAssistantEvidenceBook,
+  peekAssistantEvidenceRefSeq,
   recallAssistantEvidence,
   type AssistantEvidenceBookEntry,
 } from '@/services/research/assistant-evidence-book.service'
@@ -522,6 +545,15 @@ interface OperatorRun {
    * 轮次上限管的是「一共能打几次外部源」，与「别原地打转」是两件事。
    */
   researchRounds: number
+  /**
+   * **证据本号段**（§9.2 `evidenceRef`，commit #16）——本轮下一条证据该拿几号。
+   *
+   * ⚠ 本轮第一次查证时从库里现取一次（`peekAssistantEvidenceRefSeq`），之后在
+   * 内存里顺延：号是**会话内自增**的，而一轮里没有第二条往证据本写的路，所以
+   * 这里顺延出来的号与结账时现算出来的号逐条对得上。
+   * ⚠ `null` = 取不到（没有会话 id / 库读不出来）→ 这一轮的证据不带编号。
+   */
+  evidenceRefSeq: number | null | undefined
   /** 讲给模型听的「刚才发生了什么」。 */
   observations: string[]
   /** 本轮里助手自己写过的字段 —— 覆写自己的东西不需要再问用户一次。 */
@@ -738,10 +770,21 @@ function unwrapEntryToolCall(name: string, rawArgs: unknown): EntryUnwrap {
     if ((ASSISTANT_OPERATOR_TOOLS as readonly string[]).includes(name)) {
       const legacyTool = name as AssistantOperatorTool
       const entry = ASSISTANT_OPERATOR_TOOL_VERBS[legacyTool]
+      /**
+       * ⚠ 网侧那四条（§9，commit #16）**连 `action` 都不再是它自己的名字**：
+       * 它们退成了 `verify` / `find_images` 的内部步骤。指路必须指到新名字上，
+       * ⛔ 不能照旧说「写 {"action":"search_web"}」—— 那个值已经不在枚举里，
+       * 模型照做一次就白烧一步。
+       */
+      const action = isInternalAssistantOperatorTool(legacyTool)
+        ? legacyTool === TOOL.searchWebImages
+          ? RESEARCH_ACTION.findImages
+          : RESEARCH_ACTION.verify
+        : legacyTool
       return {
         ok: false,
         legacyTool,
-        observation: `"${legacyTool}" is not a tool you can call directly any more. Call "${entry}" with {"action":"${legacyTool}", …the same arguments}. There are only five tools: ${ASSISTANT_OPERATOR_ENTRY_TOOLS.join(' / ')}.`,
+        observation: `"${legacyTool}" is not a tool you can call directly any more. Call "${entry}" with {"action":"${action}", …the same arguments}. There are only five tools: ${ASSISTANT_OPERATOR_ENTRY_TOOLS.join(' / ')}.`,
       }
     }
     return {
@@ -757,12 +800,21 @@ function unwrapEntryToolCall(name: string, rawArgs: unknown): EntryUnwrap {
    * 只可能指它自己那条同名工具。⛔ 别把这条推广到别的入口：`apply` 漏了 action
    * 是真的不知道要改哪颗旋钮，该拒。
    */
+  const missingAction =
+    rawArgs && typeof rawArgs === 'object' && !('action' in rawArgs)
+  /**
+   * ⚠ `research` 入口漏写 `action` 时补的是 **`verify`**（§9，commit #16）：
+   * 「查」组的默认意图是要一个答案，而 `research` 这个旧工具名已经不是枚举值了。
+   */
+  const impliedAction =
+    entry === ENTRY.research
+      ? RESEARCH_ACTION.verify
+      : (ASSISTANT_OPERATOR_TOOLS as readonly string[]).includes(entry)
+        ? entry
+        : undefined
   const entryArgs =
-    rawArgs &&
-    typeof rawArgs === 'object' &&
-    !('action' in rawArgs) &&
-    (ASSISTANT_OPERATOR_TOOLS as readonly string[]).includes(entry)
-      ? { ...(rawArgs as Record<string, unknown>), action: entry }
+    missingAction && impliedAction
+      ? { ...(rawArgs as Record<string, unknown>), action: impliedAction }
       : rawArgs
   const parsed =
     ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS[entry].safeParse(entryArgs)
@@ -799,9 +851,13 @@ function unwrapEntryToolCall(name: string, rawArgs: unknown): EntryUnwrap {
   }
 
   const { action, ...args } = parsed.data as {
-    action: AssistantOperatorTool
+    action: AssistantOperatorEntryAction
   } & Record<string, unknown>
-  return { ok: true, tool: action, args }
+  /**
+   * ⭐ **入口名 → 内部实现**（§9）：`verify` 落在 `research` 的扇出上、
+   * `find_images` 落在 `search_web_images` 上。这一行往下，引擎照旧只认旧工具名。
+   */
+  return { ok: true, tool: resolveAssistantOperatorEntryAction(action), args }
 }
 
 function reject(
@@ -1629,13 +1685,84 @@ function planSearchWeb(
  * ⛔ 与 `search_web_images` 同一条纪律：它一个字节都不落。证据里那些 URL 是给
  * 用户点开看的、给模型引用出处的，⛔ **不是**可以挂上去的图。
  */
+/**
+ * **选源**（§9.1 ②）——规划器判出来的内容类型 → 真的去打哪几组连接器。
+ *
+ * ⚠ 这张表是 v1 那次实测失败的根因的正面答案：模型「想不起来」该去哪查，
+ * 所以这件事不问它 —— 角色 / 作品类的题必打百科与标签库（外观词只有那里有），
+ * AI 生态的题只打网搜（百科里没有 provider 的定价页）。
+ * ⚠ `none` 也给一组默认：规划器说「不用查」时用户已经点了查证，⛔ 不空手回去。
+ */
+const VERIFY_SOURCES_BY_GROUP: Record<
+  ResearchSourceGroup,
+  readonly AssistantResearchSource[]
+> = {
+  [RESEARCH_SOURCE_GROUPS.ipCharacter]: [
+    ASSISTANT_RESEARCH_SOURCE_IDS.wiki,
+    ASSISTANT_RESEARCH_SOURCE_IDS.danbooru,
+    ASSISTANT_RESEARCH_SOURCE_IDS.web,
+  ],
+  [RESEARCH_SOURCE_GROUPS.aiEcosystem]: [ASSISTANT_RESEARCH_SOURCE_IDS.web],
+  [RESEARCH_SOURCE_GROUPS.general]: [
+    ASSISTANT_RESEARCH_SOURCE_IDS.web,
+    ASSISTANT_RESEARCH_SOURCE_IDS.wiki,
+  ],
+  [RESEARCH_SOURCE_GROUPS.none]: [
+    ASSISTANT_RESEARCH_SOURCE_IDS.web,
+    ASSISTANT_RESEARCH_SOURCE_IDS.wiki,
+  ],
+}
+
+/**
+ * **改写 + 选源**（§9.1 的第 ① ② 步，commit #16）——一次结构化输出。
+ *
+ * ⭐ 为什么这两步合成一次 LLM 往返：它们问的是同一件事的两面（「这题该用哪几个
+ * 词、去哪儿问」），而每多一次往返就少一步可用的 `maxSteps`。规划器本来就同时
+ * 吐 `queries`（带 `lang`）与 `sourceGroup`，⛔ 别为了「一步一件事」拆成两次。
+ * ⚠ **任何一步不成就用确定性那份**（规划器自己就是这条契约）：拿不到路由、超时、
+ * 吐了非 JSON 全都回落，⛔ 一个加分项挂了不该让整条查证线挂。
+ */
+async function rewriteVerifyQueries(
+  run: OperatorRun,
+  userId: string,
+  goal: string,
+  entities: readonly string[],
+): Promise<{
+  queries: string[]
+  langs: string[]
+  sources: AssistantResearchSource[]
+}> {
+  const text = [...entities, goal].filter(Boolean).join(' ')
+  const heuristic = planResearchHeuristically(text)
+  const plan = await planResearchWithLlm({
+    userId,
+    ...(run.apiKeyId ? { apiKeyId: run.apiKeyId } : {}),
+    text,
+    heuristic,
+    forced: true,
+  })
+  return {
+    queries: plan.queries.map((query) => query.text),
+    langs: [
+      ...new Set(
+        plan.queries
+          .map((query) => query.lang)
+          .filter((lang): lang is 'zh' | 'en' | 'ja' => Boolean(lang)),
+      ),
+    ],
+    sources: [...VERIFY_SOURCES_BY_GROUP[plan.sourceGroup]],
+  }
+}
+
 async function planResearch(
   run: OperatorRun,
   args: {
     goal: string
     entities?: string[]
     sources?: AssistantResearchSource[]
+    expandSources?: boolean
   },
+  userId: string,
 ): Promise<ToolPlan> {
   /**
    * ⛔ **这里没有 `isWebSearchConfigured()` 闸**（2026-09-06 拆）。
@@ -1659,10 +1786,26 @@ async function planResearch(
     .map((entity) => clamp(entity, RESEARCH_LIMITS.maxEntityChars))
     .filter((entity) => entity.length > 0)
 
+  /** ① 改写 + ② 选源 —— 一次结构化输出，挂了就回落到确定性那份。 */
+  const rewrite = await rewriteVerifyQueries(run, userId, args.goal, entities)
+  /**
+   * ⚠ 优先级是硬的：模型自己指定的 `sources` > 「再多找几个源」> 规划器选的。
+   * `expandSources` 打**全部**源组（含默认里没有的 B站）—— 用户按那颗按钮说的是
+   * 「这几条来源不够」，答案是加源（§9.1 ③ / 证据卡）。
+   */
+  const sources: readonly AssistantResearchSource[] = args.sources?.length
+    ? args.sources
+    : args.expandSources
+      ? ASSISTANT_RESEARCH_SOURCES
+      : rewrite.sources
+
+  /** ③ 并发印证 —— 扇出、去重、印证多的排前、单源打标（都在 fanout 里）。 */
   const outcome = await runAssistantResearch({
     goal: args.goal,
     entities,
-    ...(args.sources?.length ? { sources: args.sources } : {}),
+    sources,
+    ...(rewrite.queries.length > 0 ? { queries: rewrite.queries } : {}),
+    ...(args.expandSources ? { limit: RESEARCH_LIMITS.maxEvidenceItems } : {}),
   })
   /**
    * ⚠ **打过就算一轮**，不管有没有收获：这一轮确实打了外部源（也确实花了
@@ -1683,6 +1826,30 @@ async function planResearch(
       receipts: outcome.receipts,
     })
   }
+
+  /**
+   * ④ **给证据**（§9.1）——结论 + 来源列表 + 编号。
+   *
+   * ⚠ 编号在这里就分配（见 `OperatorRun.evidenceRefSeq`）：卡上那颗「钉住」钉的
+   * 就是它，而卡比结账早得多。取不到号段时这几条证据不带编号，⛔ 不编一个。
+   */
+  const conversationId = run.request.conversationId
+  if (run.evidenceRefSeq === undefined && conversationId) {
+    run.evidenceRefSeq = await peekAssistantEvidenceRefSeq({
+      userId,
+      conversationId,
+    })
+  }
+  const evidence = outcome.evidence.map((item, index) => {
+    const seq = run.evidenceRefSeq
+    if (seq === null || seq === undefined) return item
+    return { ...item, evidenceRef: `${EVIDENCE_REF_PREFIX}${seq + index}` }
+  })
+  if (typeof run.evidenceRefSeq === 'number') {
+    run.evidenceRefSeq += outcome.items.length
+  }
+  /** 结论一行 —— 印证最多、层级最高的那一条怎么说（⛔ 不另烧一次 LLM）。 */
+  const conclusion = summarizeResearchConclusion(evidence)
   const roundsLeft = RESEARCH_LIMITS.maxRoundsPerTurn - round
   /**
    * ⚠ 回执逐源列出来（`ok` / `empty` / `failed` / `circuit_open`）：「打了但没料」
@@ -1707,10 +1874,10 @@ async function planResearch(
    * 而是两个：总数，以及**其中几条真的在说这个人**。
    * ⚠ `scope` 由服务端算（`research-fanout` 的 `scopeOfEvidence`），⛔ 不由模型写。
    */
-  const characterEvidence = outcome.evidence.filter(
+  const characterEvidence = evidence.filter(
     (item) => item.scope === ASSISTANT_RESEARCH_SCOPE_IDS.character,
   )
-  const scopedCount = outcome.evidence.filter(
+  const scopedCount = evidence.filter(
     (item) => item.scope !== ASSISTANT_RESEARCH_SCOPE_IDS.unknown,
   ).length
   /**
@@ -1730,19 +1897,27 @@ async function planResearch(
           )}), and offer the creator a concrete next step. Do NOT end on "I am searching…" and do NOT invent an appearance.`
       : ''
 
+  /**
+   * ⭐ **四步各自留一行**（§9.1 的完成判据「四步在日志里可见」）：改写成了哪几条
+   * 词、铺了哪几种语言、选了哪几组源。⛔ 别把它并进证据那一段 —— 查不到东西时
+   * 要答的第一个问题正是「它到底拿什么词、去哪儿查的」。
+   */
+  const chainLine = `verify("${args.goal}") · rewrote into ${outcome.queries.length} phrase(s) [${outcome.queries.join(' | ')}] in ${rewrite.langs.join('/') || 'zh'} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''}`
   const observation =
-    outcome.evidence.length === 0
-      ? `research("${args.goal}") found nothing. Sources: ${receiptLine}.${
+    evidence.length === 0
+      ? `${chainLine}\nfound nothing. Sources: ${receiptLine}.${
           roundsLeft > 0
             ? ' Do NOT give up and do NOT invent details. Go again from a different angle: the name written in its own language, the work\'s official title instead of a fan translation, or a different source mix (sources:["web"] reaches sites the encyclopedias do not).'
             : ' You are out of research rounds. Say plainly which parts you could not confirm instead of inventing them — a plain "the official design is not published" is a real answer; "I am still searching" is not.'
         }`
-      : `research("${args.goal}") → ${outcome.evidence.length} piece(s) of evidence (round ${round}/${RESEARCH_LIMITS.maxRoundsPerTurn}), ${characterEvidence.length} of them about the character itself. Sources: ${receiptLine}.\n${outcome.evidence
+      : `${chainLine}\n→ ${evidence.length} piece(s) of evidence (round ${round}/${RESEARCH_LIMITS.maxRoundsPerTurn}), ${characterEvidence.length} of them about the character itself. Sources: ${receiptLine}.\n${evidence
           .map(
             (item, index) =>
-              `  ${index + 1}. [${item.publisher} · ${item.credibility} · ${item.scope}-level · ${item.kind}] ${item.title}\n     ${item.snippet}`,
+              `  ${index + 1}. ${item.evidenceRef ? `${item.evidenceRef} ` : ''}[${item.publisher} · ${item.credibility} · ${item.scope}-level · ${item.kind} · ${item.corroboration > 1 ? `${item.corroboration} sources agree` : 'SINGLE SOURCE'}${item.publishedAt ? ` · ${item.publishedAt}` : ''}] ${item.title}\n     ${item.snippet}`,
           )
-          .join('\n')}${characterGap}\n${
+          .join(
+            '\n',
+          )}${characterGap}\nEvidence marked SINGLE SOURCE is exactly that: say so when you use it, never state it as settled fact.\n${
           roundsLeft > 0
             ? 'If this pinned down the official name or the site of record but not the details you need, research ONE more time with a narrower goal, or read_url the best page above. Tag-kind evidence is already prompt-ready vocabulary — use those words.'
             : 'This was your last research round. Use it, name the source when it matters, and say plainly what is still unconfirmed.'
@@ -1762,8 +1937,9 @@ async function planResearch(
     },
     run: async () => ({
       result: {
-        totalFound: outcome.evidence.length,
-        evidence: outcome.evidence,
+        totalFound: evidence.length,
+        ...(conclusion ? { conclusion } : {}),
+        evidence,
       },
       observation,
     }),
@@ -4368,7 +4544,9 @@ async function planTool(
           goal: string
           entities?: string[]
           sources?: AssistantResearchSource[]
+          expandSources?: boolean
         },
+        userId,
       )
     case TOOL.readUrl:
       return planReadUrl(run, parsed.data as { url: string; focus?: string })
@@ -4904,8 +5082,8 @@ function buildOperatorSystemPrompt(
       const table = actions.length
         ? `\n    "action" is one of:\n${actions
             .map(
-              (tool) =>
-                `      · ${tool} — ${ASSISTANT_OPERATOR_TOOL_HINTS[tool]}`,
+              (action) =>
+                `      · ${action} — ${ASSISTANT_OPERATOR_ENTRY_ACTION_HINTS[action]}`,
             )
             .join('\n')}`
         : ''
@@ -5865,6 +6043,7 @@ export async function* runAssistantOperator(
     modelId,
     webImageIndex: new Map(),
     researchRounds: 0,
+    evidenceRefSeq: undefined,
     searchIndex: new Map(),
     folderIndex: new Map(),
     loraIndex: new Map(),

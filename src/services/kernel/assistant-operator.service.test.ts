@@ -113,9 +113,34 @@ vi.mock('@/services/web-research.service', async () => {
  * 而这一层要验的是「几轮、怎么讲给模型听」，不是上游返回什么。
  */
 const mockRunAssistantResearch = vi.fn()
-vi.mock('@/services/research/research-fanout.service', () => ({
-  runAssistantResearch: (...args: unknown[]) =>
-    mockRunAssistantResearch(...args),
+vi.mock(
+  '@/services/research/research-fanout.service',
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import('@/services/research/research-fanout.service')
+      >()
+    return {
+      ...actual,
+      // ⚠ 只桩掉**打源**那一支：结论压缩（§9.1 ④）是纯函数，桩掉它等于把要验的
+      //   东西一起桩掉。
+      runAssistantResearch: (...args: unknown[]) =>
+        mockRunAssistantResearch(...args),
+    }
+  },
+)
+
+/**
+ * **查证的改写 + 选源**（§9.1 ① ②，commit #16）。桩掉理由与扇出同源：它真的会
+ * 去查库找 key、真的会调一次 LLM，而这一层要验的是「四步怎么串、讲给模型听的是
+ * 什么」。⚠ 默认**回落**（返回启发式那份），单独的用例再验改写生效那一支。
+ */
+const mockPlanResearchWithLlm = vi.fn(
+  async (params: { heuristic: unknown }) => params.heuristic,
+)
+vi.mock('@/services/research/research-planner.service', () => ({
+  planResearchWithLlm: (...args: unknown[]) =>
+    mockPlanResearchWithLlm(...(args as [{ heuristic: unknown }])),
 }))
 
 /**
@@ -151,9 +176,13 @@ const mockRecallAssistantEvidence = vi.fn(async (..._args: unknown[]) => ({
   items: [] as Record<string, unknown>[],
   missing: [] as string[],
 }))
+/** 号段预取（§9.2 `evidenceRef`）—— 桩成固定起点，编号才断言得了。 */
+const mockPeekAssistantEvidenceRefSeq = vi.fn(async (..._args: unknown[]) => 12)
 vi.mock('@/services/research/assistant-evidence-book.service', () => ({
   appendAssistantEvidenceBook: (...args: unknown[]) =>
     mockAppendAssistantEvidenceBook(...args),
+  peekAssistantEvidenceRefSeq: (...args: unknown[]) =>
+    mockPeekAssistantEvidenceRefSeq(...args),
   recallAssistantEvidence: (...args: unknown[]) =>
     mockRecallAssistantEvidence(...args),
 }))
@@ -273,6 +302,8 @@ import {
   ASSISTANT_ROUND_SUMMARY_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_ENTRY_TOOL_IDS,
+  ASSISTANT_OPERATOR_INTERNAL_TOOLS,
+  ASSISTANT_RESEARCH_SOURCES,
   ASSISTANT_OPERATOR_ENTRY_TOOLS,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_EVENTS,
@@ -370,6 +401,11 @@ function wrapEntryToolCall(turn: unknown): unknown {
     tool: {
       ...call,
       name: ASSISTANT_OPERATOR_TOOL_VERBS[legacyTool],
+      /**
+       * ⚠ 网侧那四条（§9，commit #16）退成了内部名：提示词里它们已经不出现，
+       * 但 schema 照旧收（`ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES`），所以这些
+       * 逐工具的用例仍然直指它们自己那条实现。两入口本身的行为有自己的用例。
+       */
       args: { action: legacyTool, ...args },
     },
   }
@@ -5737,6 +5773,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       confidence: 'medium' as const,
       credibility: 'reference' as const,
       scope: 'character' as const,
+      corroboration: 2,
     },
     {
       title: 'danbooru tags',
@@ -5746,6 +5783,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       confidence: 'medium' as const,
       credibility: 'reference' as const,
       scope: 'character' as const,
+      corroboration: 2,
     },
   ]
 
@@ -5935,6 +5973,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
           confidence: 'medium' as const,
           credibility: 'reference' as const,
           scope: 'work' as const,
+          corroboration: 1,
         },
       ],
       items: [ITEMS[0]],
@@ -5965,6 +6004,240 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
 
     await collect(runAssistantOperator('clerk-1', buildRequest()))
     expect(mockRunAssistantResearch).toHaveBeenCalledTimes(2)
+  })
+})
+
+/**
+ * ⭐ **查证与找图两入口**（v2 §9，commit #16）。
+ *
+ * 钉五件事：两个 `action` 各自落到哪条实现、改写那一步的三语查询真的发了出去、
+ * 印证 / 单源与证据编号进得了观察与结果、「再多找几个源」是**加源**、配额照旧。
+ */
+describe('查证与找图两入口（§9，commit #16）', () => {
+  const ITEM = {
+    id: 'moegirl:shiye',
+    sourceId: 'moegirl' as const,
+    sourceTier: 'community' as const,
+    retrievedAt: '2026-09-11T00:00:00.000Z',
+    title: '萌娘百科 · 时夜',
+    url: 'https://zh.moegirl.org.cn/shiye',
+    kind: 'text' as const,
+    excerpt: '黑色长发，金色瞳孔。',
+  }
+
+  function verifyTurn(args: Record<string, unknown>) {
+    return {
+      tool: {
+        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research,
+        title: 'check the design',
+        args: { action: 'verify', ...args },
+      },
+    }
+  }
+
+  function queueOutcome(
+    evidence: Record<string, unknown>[],
+    items: unknown[] = [ITEM],
+  ) {
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: ['无限大 时夜', 'Ananta Shiye', 'アナンタ 時夜'],
+      sources: ['wiki', 'web', 'danbooru'],
+      evidence,
+      items,
+      receipts: [{ sourceId: 'moegirl', status: 'ok', count: 1, tookMs: 9 }],
+    })
+  }
+
+  const CORROBORATED = {
+    title: '萌娘百科 · 时夜',
+    url: 'https://zh.moegirl.org.cn/shiye',
+    publisher: 'zh.moegirl.org.cn',
+    snippet: '黑色长发，金色瞳孔。',
+    kind: 'text' as const,
+    confidence: 'medium' as const,
+    credibility: 'reference' as const,
+    scope: 'character' as const,
+    corroboration: 2,
+    publishedAt: '2024-05-12',
+  }
+
+  it('⭐ verify 落在检索那条实现上，find_images 落在搜图那条上', async () => {
+    queueOutcome([CORROBORATED])
+    mockWebImageSearchMulti.mockResolvedValue([])
+    queueTurns(
+      verifyTurn({ goal: '外貌与服饰', entities: ['无限大', '时夜'] }),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research,
+          title: 'find pictures',
+          args: { action: 'find_images', query: 'shiye official art' },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const tools = steps.map((step) => step.tool)
+    expect(tools).toContain(ASSISTANT_OPERATOR_TOOL_IDS.research)
+    expect(tools).toContain(ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages)
+  })
+
+  it('⭐ 改写那一步的三语查询真的发出去了，且四步在日志里看得见', async () => {
+    queueOutcome([CORROBORATED])
+    mockPlanResearchWithLlm.mockResolvedValueOnce({
+      shouldSearch: true,
+      sourceGroup: 'ip_character',
+      goal: 'reference',
+      urls: [],
+      queries: [
+        { text: '无限大 时夜 设定', lang: 'zh' },
+        { text: 'Ananta Shiye character design', lang: 'en' },
+        { text: 'アナンタ 時夜 キャラクター', lang: 'ja' },
+      ],
+      freshness: 'none',
+      reason: 'character lookup',
+    })
+    queueTurns(
+      verifyTurn({ goal: '外貌与服饰', entities: ['无限大', '时夜'] }),
+      { finished: true },
+    )
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    // ① 改写：三条词进了扇出的入参；② 选源：ip_character → wiki + danbooru + web。
+    expect(mockRunAssistantResearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        queries: [
+          '无限大 时夜 设定',
+          'Ananta Shiye character design',
+          'アナンタ 時夜 キャラクター',
+        ],
+        sources: ['wiki', 'danbooru', 'web'],
+      }),
+    )
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('rewrote into')
+    expect(prompt).toContain('zh/en/ja')
+    expect(prompt).toContain('sources wiki, danbooru, web')
+  })
+
+  it('⭐ 证据带编号与印证标；单源那条在观察里点名', async () => {
+    queueOutcome(
+      [CORROBORATED, { ...CORROBORATED, title: '个人整理', corroboration: 1 }],
+      [ITEM, { ...ITEM, id: 'blog:1' }],
+    )
+    queueTurns(verifyTurn({ goal: '外貌', entities: ['无限大', '时夜'] }), {
+      finished: true,
+    })
+
+    // ⚠ 编号是**会话内**自增的，所以这一条必须带 `conversationId`：没有会话 id
+    //   就没有证据本，这一轮的证据于是不带编号（⛔ 不编一个）。
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            conversationId: '22222222-2222-4222-8222-222222222222',
+          }),
+        ),
+      ),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    const result = done?.result as {
+      conclusion?: string
+      evidence: { evidenceRef?: string; corroboration: number }[]
+    }
+    // 号段预取桩在 12 —— 逐条顺延，⛔ 不跳号。
+    expect(result.evidence.map((item) => item.evidenceRef)).toEqual([
+      '#e12',
+      '#e13',
+    ])
+    expect(result.conclusion).toContain('黑色长发')
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('#e12')
+    expect(prompt).toContain('2 sources agree')
+    expect(prompt).toContain('SINGLE SOURCE')
+  })
+
+  it('⭐ 「再多找几个源」= 加源（打全部源组），⛔ 不是换一句查询重来', async () => {
+    queueOutcome([CORROBORATED])
+    queueTurns(
+      verifyTurn({
+        goal: '外貌',
+        entities: ['无限大', '时夜'],
+        expandSources: true,
+      }),
+      { finished: true },
+    )
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(mockRunAssistantResearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sources: [...ASSISTANT_RESEARCH_SOURCES],
+      }),
+    )
+    expect(lastUserPrompt()).toContain('(expanded)')
+  })
+
+  it('⚠ 配额照旧：一轮里查证两次之后第三次按轮次上限拒', async () => {
+    queueOutcome([CORROBORATED])
+    queueTurns(
+      verifyTurn({ goal: 'a' }),
+      verifyTurn({ goal: 'b' }),
+      verifyTurn({ goal: 'c' }),
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(mockRunAssistantResearch).toHaveBeenCalledTimes(2)
+    const rejected = steps.find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+    )
+    expect((rejected?.error as { reason: string }).reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.researchRoundsExhausted,
+    )
+  })
+
+  it('⭐ 模型照旧写旧工具名时，指的路是 verify / find_images 而不是旧 action', async () => {
+    mockLlmTextCompletion.mockReset()
+    mockLlmTextCompletion.mockResolvedValueOnce(
+      JSON.stringify({
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+          title: 'search',
+          args: { query: '时夜' },
+        },
+      }),
+    )
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify({ finished: true }))
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('"action":"verify"')
+  })
+
+  it('⭐ 系统提示里「查」组只剩两个入口名，⛔ 四条内部名一个都不出现', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const systemPrompt = (
+      mockLlmTextCompletion.mock.calls[0]?.[0] as { systemPrompt: string }
+    ).systemPrompt
+    const toolSection = systemPrompt.slice(
+      systemPrompt.indexOf('- research:'),
+      systemPrompt.indexOf('- apply:'),
+    )
+    expect(toolSection).toContain('· verify —')
+    expect(toolSection).toContain('· find_images —')
+    for (const internal of ASSISTANT_OPERATOR_INTERNAL_TOOLS) {
+      expect(toolSection).not.toContain(`· ${internal} —`)
+    }
   })
 })
 
@@ -8355,6 +8628,7 @@ describe('每轮结账', () => {
           confidence: 'medium' as const,
           credibility: 'reference' as const,
           scope: 'character' as const,
+          corroboration: 1,
         },
       ],
       items: [

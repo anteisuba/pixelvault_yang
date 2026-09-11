@@ -8,6 +8,10 @@ import {
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_ENTRY_ACTIONS,
   ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN,
+  ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES,
+  ASSISTANT_OPERATOR_INTERNAL_TOOLS,
+  ASSISTANT_OPERATOR_RESEARCH_ACTIONS,
+  ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS,
   ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS,
   ASSISTANT_OPERATOR_ENTRY_TOOL_IDS,
   ASSISTANT_OPERATOR_ENTRY_TOOLS,
@@ -29,7 +33,10 @@ import {
   ASSISTANT_OPERATOR_VERBS,
   assistantOperatorEntryToolsInDomain,
   isAssistantOperatorEntryTool,
+  isAssistantOperatorResearchAction,
+  isInternalAssistantOperatorTool,
   isMutatingAssistantOperatorTool,
+  resolveAssistantOperatorEntryAction,
   isRevertibleAssistantOperatorTool,
   isSpendAssistantOperatorTool,
   type AssistantOperatorTool,
@@ -184,6 +191,7 @@ const STEP_FIXTURES: Record<
     },
     result: {
       totalFound: 2,
+      conclusion: '黑色长发，金色瞳孔，身着改良中式长衫…',
       evidence: [
         {
           title: '萌娘百科 · 时夜',
@@ -194,6 +202,10 @@ const STEP_FIXTURES: Record<
           confidence: 'medium',
           credibility: 'reference',
           scope: 'character',
+          // §9.2 的两个新字段：会话内编号 + 印证源数（都由服务端给）。
+          evidenceRef: '#e12',
+          corroboration: 2,
+          publishedAt: '2024-05-12',
         },
         {
           // ⚠ 标签档**没有 url** —— danbooru 的共现标签不指向单一页面。
@@ -204,6 +216,8 @@ const STEP_FIXTURES: Record<
           confidence: 'medium',
           credibility: 'reference',
           scope: 'character',
+          evidenceRef: '#e13',
+          corroboration: 1,
         },
       ],
     },
@@ -708,12 +722,65 @@ describe('五动词入口', () => {
     ).toBe(false)
   })
 
+  /**
+   * ⚠ commit #16 之后这条断的是**两张表**：广告出去的那张里，网侧四条换成了
+   * `verify` / `find_images`（§9）；schema 收的那张（`…ENTRY_ACTION_VALUES`）
+   * 仍然覆盖全部 33 条工具 —— 引擎与已经落盘的步帧照旧认内部名。
+   */
   it('⭐ 五个入口的 action 枚举合起来恰好是全部工具，且两两不重叠', () => {
-    const all = ASSISTANT_OPERATOR_ENTRY_TOOLS.flatMap(
+    const advertised = ASSISTANT_OPERATOR_ENTRY_TOOLS.flatMap(
       (entry) => ASSISTANT_OPERATOR_ENTRY_ACTIONS[entry],
     )
-    expect([...all].sort()).toEqual([...ASSISTANT_OPERATOR_TOOLS].sort())
+    expect([...advertised].sort()).toEqual(
+      [
+        ...ASSISTANT_OPERATOR_TOOLS.filter(
+          (tool) => !isInternalAssistantOperatorTool(tool),
+        ),
+        ...ASSISTANT_OPERATOR_RESEARCH_ACTIONS,
+      ].sort(),
+    )
+    expect(new Set(advertised).size).toBe(advertised.length)
+
+    const all = ASSISTANT_OPERATOR_ENTRY_TOOLS.flatMap(
+      (entry) => ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[entry],
+    )
+    expect(
+      [...all]
+        .filter((action) => !isAssistantOperatorResearchAction(action))
+        .sort(),
+    ).toEqual([...ASSISTANT_OPERATOR_TOOLS].sort())
     expect(new Set(all).size).toBe(all.length)
+
+    /**
+     * ⭐ **「查」组只剩两个网侧入口**（§9 的完成判据）：四条内部名一条都不在
+     * 广告出去的那张表里，而两个入口各自落在自己那条实现上。
+     */
+    const research =
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS[
+        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
+      ]
+    for (const internal of ASSISTANT_OPERATOR_INTERNAL_TOOLS) {
+      expect(research).not.toContain(internal)
+    }
+    expect(research.slice(0, 2)).toEqual([
+      ...ASSISTANT_OPERATOR_RESEARCH_ACTIONS,
+    ])
+    expect(
+      resolveAssistantOperatorEntryAction(
+        ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.verify,
+      ),
+    ).toBe(ASSISTANT_OPERATOR_TOOL_IDS.research)
+    expect(
+      resolveAssistantOperatorEntryAction(
+        ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.findImages,
+      ),
+    ).toBe(ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages)
+    // 旧工具名原样返回 —— 这条映射只对「查」组那两个入口成立。
+    expect(
+      resolveAssistantOperatorEntryAction(
+        ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      ),
+    ).toBe(ASSISTANT_OPERATOR_TOOL_IDS.setPrompt)
     /**
      * `ask` 组里**只有提议卡那一条**（v2 §8.1）：反问本身没有工具，它的形状写在
      * 入口自己的 schema 里（不写 `action` 就是「问一道题」）。
@@ -816,8 +883,19 @@ describe('五动词入口', () => {
       const flat = ASSISTANT_OPERATOR_ENTRY_TOOLS.flatMap(
         (entry) => ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN[domain][entry],
       )
-      expect([...flat].sort()).toEqual(
-        [...ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[domain]].sort(),
+      /**
+       * ⚠ commit #16：网侧那四条在广告出去的表里是 `verify` / `find_images`，
+       * 所以两边比之前先把枚举值折回**内部实现**（§9 的裁剪判据就落在这上面）。
+       */
+      expect([...flat.map(resolveAssistantOperatorEntryAction)].sort()).toEqual(
+        [...ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[domain]]
+          .filter(
+            (tool) =>
+              !isInternalAssistantOperatorTool(tool) ||
+              tool === ASSISTANT_OPERATOR_TOOL_IDS.research ||
+              tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          )
+          .sort(),
       )
     }
   })
@@ -938,7 +1016,13 @@ describe('step 契约 · inverse 完备性', () => {
   it('每条工具的 verb 与它所属入口的 action 枚举对得上', () => {
     for (const tool of ASSISTANT_OPERATOR_TOOLS) {
       const verb = ASSISTANT_OPERATOR_TOOL_VERBS[tool]
+      // ⚠ 网侧四条只在 schema 收的那张表里（广告出去的是两个入口，§9）。
+      expect(ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[verb]).toContain(tool)
+      if (isInternalAssistantOperatorTool(tool)) continue
       expect(ASSISTANT_OPERATOR_ENTRY_ACTIONS[verb]).toContain(tool)
+    }
+    for (const action of ASSISTANT_OPERATOR_RESEARCH_ACTIONS) {
+      expect(isAssistantOperatorResearchAction(action)).toBe(true)
     }
   })
 

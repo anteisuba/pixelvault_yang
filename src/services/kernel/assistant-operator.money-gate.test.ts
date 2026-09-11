@@ -73,6 +73,15 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    */
   '@/services/research/research-fanout.service',
   /**
+   * **查证的改写 + 选源那一步**（assistant-shell-v2 §9.1 ① ②，commit #16）。
+   * ⭐ 判据与扇出那条同源：它跑一次便宜 LLM 的结构化输出（把一句话磨成几条搜索
+   * 词、判内容类型），出的是几个字符串 —— 不建 generation、不扣 credit、不落字节，
+   * 也不 import 库客户端。它花的是助手线自己的 token，与 `critique_result` 的视觉
+   * 那一跳同源。
+   * ⛔ `research-run.service` 仍然不在名单里：那条会读配额、写 `ResearchRun`。
+   */
+  '@/services/research/research-planner.service',
+  /**
    * 看图闭环的**路由解析**（P3-C）。⭐ 判据与上一条同源：它产出的是
    * 「用哪把 key、走哪个 adapter」，一个字节都不落、一分钱都不扣。真正看图的那次
    * 补全走的仍是 `assistant-completion.service`（本名单里早就有的那条）。

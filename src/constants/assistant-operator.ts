@@ -789,6 +789,91 @@ export function isAssistantOperatorEntryTool(
 }
 
 /**
+ * 「查」组的**两个网侧入口**（v2 §9，commit #16）。
+ *
+ * ── 为什么是两条而不是四条 ────────────────────────────────────────
+ * v1 的网侧有四条（`search_web` / `research` / `read_url` / `search_web_images`），
+ * 而模型要在它们之间挑的那个判断**它做不对**：`search_web` 与 `research` 的分工
+ * 是「一句话还是一段描述」，`read_url` 是「摘要不够时再读一页」——这些都是过程，
+ * 不是意图。用户那一侧只有两种意图：**我要一个答案**（查证），或**我要参考图**
+ * （找图）。所以模型只见这两条，四条旧实现退到 `verify` 背后当内部步骤。
+ *
+ * ⚠ 两者⛔**不合并**（§9.1 那条 ⛔）：产出形态（证据列表 vs 候选网格）与后续动作
+ * （引用 vs 挂参考）都不同。
+ */
+export const ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS = {
+  /** 查证：改写（三语）→ 选源 → 并发印证 → 证据（§9.1 四步）。 */
+  verify: 'verify',
+  /** 找图：官方优先搜图，出候选网格。⛔ 它不出结论，也不落任何字节。 */
+  findImages: 'find_images',
+} as const
+
+export const ASSISTANT_OPERATOR_RESEARCH_ACTIONS = [
+  ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.verify,
+  ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.findImages,
+] as const
+
+export type AssistantOperatorResearchAction =
+  (typeof ASSISTANT_OPERATOR_RESEARCH_ACTIONS)[number]
+
+/**
+ * 两个入口各自落到哪条**内部实现**上。
+ *
+ * ⚠ 旧实现一条不少地留着（v2 §0 非目标：不拆引擎）——收的是模型看得见的那张表。
+ * `verify` 落在 `research` 那条扇出上（`search_web` / `read_url` 是它内部的源），
+ * `find_images` 落在 `search_web_images` 上。步帧、日志条、撤销链路照旧读内部名。
+ */
+export const ASSISTANT_OPERATOR_RESEARCH_ACTION_TOOLS: Record<
+  AssistantOperatorResearchAction,
+  AssistantOperatorTool
+> = {
+  [ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.verify]:
+    ASSISTANT_OPERATOR_TOOL_IDS.research,
+  [ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.findImages]:
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+}
+
+/**
+ * **模型不再直接见到的那四条**（§9，commit #16）——它们退成 `verify` / `find_images`
+ * 背后的内部步骤。⛔ 别把它们从工具表里删掉：步帧、日志条、时间线分组、撤销
+ * 链路读的都是这几个名字，删掉等于把已经落盘的历史记录变成读不出来的东西。
+ */
+export const ASSISTANT_OPERATOR_INTERNAL_TOOLS = [
+  ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+  ASSISTANT_OPERATOR_TOOL_IDS.research,
+  ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
+  ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+] as const
+
+export function isInternalAssistantOperatorTool(tool: string): boolean {
+  return (ASSISTANT_OPERATOR_INTERNAL_TOOLS as readonly string[]).includes(tool)
+}
+
+/**
+ * 模型能写进 `action` 的值：组内旧工具名，**或**「查」组那两个入口名。
+ */
+export type AssistantOperatorEntryAction =
+  | AssistantOperatorTool
+  | AssistantOperatorResearchAction
+
+export function isAssistantOperatorResearchAction(
+  action: string,
+): action is AssistantOperatorResearchAction {
+  return (ASSISTANT_OPERATOR_RESEARCH_ACTIONS as readonly string[]).includes(
+    action,
+  )
+}
+
+/** `action` → 真正要跑的那条工具。旧工具名原样返回。 */
+export function resolveAssistantOperatorEntryAction(
+  action: AssistantOperatorEntryAction,
+): AssistantOperatorTool {
+  return isAssistantOperatorResearchAction(action)
+    ? ASSISTANT_OPERATOR_RESEARCH_ACTION_TOOLS[action]
+    : action
+}
+
+/**
  * 每个入口的 `action` 枚举 —— **从 `ASSISTANT_OPERATOR_TOOL_VERBS` 现算**。
  *
  * ⭐ 现算而不是手抄第二份：手抄的那份会在工具表加一条时静默漏掉，而漏掉的表现是
@@ -799,17 +884,27 @@ export function isAssistantOperatorEntryTool(
  */
 export const ASSISTANT_OPERATOR_ENTRY_ACTIONS: Record<
   AssistantOperatorEntryTool,
-  readonly AssistantOperatorTool[]
+  readonly AssistantOperatorEntryAction[]
 > = {
   look: ASSISTANT_OPERATOR_TOOLS.filter(
     (tool) =>
       ASSISTANT_OPERATOR_TOOL_VERBS[tool] === ASSISTANT_OPERATOR_VERB_IDS.look,
   ),
-  research: ASSISTANT_OPERATOR_TOOLS.filter(
-    (tool) =>
-      ASSISTANT_OPERATOR_TOOL_VERBS[tool] ===
-      ASSISTANT_OPERATOR_VERB_IDS.research,
-  ),
+  /**
+   * ⚠ 「查」组是**唯一**枚举值不等于工具 id 的一组（§9）：网侧四条收成
+   * `verify` / `find_images` 两个入口名，库侧那几条（素材 / 文件夹 / 卡 / LoRA /
+   * 证据本）**原样保留** —— §9 收的是网侧，库侧的四条各自答一个不同的问题，
+   * 硬并进「查证」只会让模型拿一条外网查证去翻自己的素材库。
+   */
+  research: [
+    ...ASSISTANT_OPERATOR_RESEARCH_ACTIONS,
+    ...ASSISTANT_OPERATOR_TOOLS.filter(
+      (tool) =>
+        ASSISTANT_OPERATOR_TOOL_VERBS[tool] ===
+          ASSISTANT_OPERATOR_VERB_IDS.research &&
+        !isInternalAssistantOperatorTool(tool),
+    ),
+  ],
   ask: ASSISTANT_OPERATOR_TOOLS.filter(
     (tool) =>
       ASSISTANT_OPERATOR_TOOL_VERBS[tool] === ASSISTANT_OPERATOR_VERB_IDS.ask,
@@ -824,6 +919,39 @@ export const ASSISTANT_OPERATOR_ENTRY_ACTIONS: Record<
       ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
   ),
 }
+
+/**
+ * **schema 收的值域** —— 广告出去的那几个（上表）**加上**退到入口背后的那四条
+ * 内部名（§9，commit #16）。
+ *
+ * ⭐ 两张表分开的判据只有一条：**提示词是提示词，闸是闸**。模型的先验里全是
+ * `search_web` / `read_url`，它偶尔照旧写一个出来 —— 那时候把它派发到同一条实现上，
+ * 比回一句「没这个 action」再烧一步往返便宜得多，而它下一轮读到的提示里照旧只有
+ * `verify` / `find_images` 两条。
+ * ⛔ 这**不是**把枚举放开成自由字符串（§2.2 的那条 ⛔ 仍然成立）：能写的值仍然
+ * 是一张闭表，只是这张表比广告出去的那张长四条。
+ */
+export const ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES: Record<
+  AssistantOperatorEntryTool,
+  readonly AssistantOperatorEntryAction[]
+> = ASSISTANT_OPERATOR_ENTRY_TOOLS.reduce(
+  (byEntry, entry) => {
+    byEntry[entry] = [
+      ...ASSISTANT_OPERATOR_ENTRY_ACTIONS[entry],
+      ...ASSISTANT_OPERATOR_TOOLS.filter(
+        (tool) =>
+          isInternalAssistantOperatorTool(tool) &&
+          // ⚠ 入口名与动词 id 逐字相同（见 `ASSISTANT_OPERATOR_ENTRY_TOOL_IDS`）。
+          ASSISTANT_OPERATOR_TOOL_VERBS[tool] === entry,
+      ),
+    ]
+    return byEntry
+  },
+  {} as Record<
+    AssistantOperatorEntryTool,
+    readonly AssistantOperatorEntryAction[]
+  >,
+)
 
 export function isMutatingAssistantOperatorTool(
   tool: AssistantOperatorTool,
@@ -1271,26 +1399,31 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
  */
 export const ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN: Record<
   AssistantOperatorDomain,
-  Record<AssistantOperatorEntryTool, readonly AssistantOperatorTool[]>
+  Record<AssistantOperatorEntryTool, readonly AssistantOperatorEntryAction[]>
 > = ASSISTANT_OPERATOR_DOMAINS.reduce(
   (byDomain, domain) => {
     byDomain[domain] = ASSISTANT_OPERATOR_ENTRY_TOOLS.reduce(
       (byEntry, entry) => {
+        // ⚠ 裁的判据落在**内部实现**上：`verify` 在不在这个域，问的是
+        //   `research` 在不在（§9 的两入口本身不是域表里的条目）。
         byEntry[entry] = ASSISTANT_OPERATOR_ENTRY_ACTIONS[entry].filter(
-          (tool) => ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[domain].includes(tool),
+          (action) =>
+            ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[domain].includes(
+              resolveAssistantOperatorEntryAction(action),
+            ),
         )
         return byEntry
       },
       {} as Record<
         AssistantOperatorEntryTool,
-        readonly AssistantOperatorTool[]
+        readonly AssistantOperatorEntryAction[]
       >,
     )
     return byDomain
   },
   {} as Record<
     AssistantOperatorDomain,
-    Record<AssistantOperatorEntryTool, readonly AssistantOperatorTool[]>
+    Record<AssistantOperatorEntryTool, readonly AssistantOperatorEntryAction[]>
   >,
 )
 
@@ -2006,6 +2139,24 @@ export const ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS: Record<
     'TURN A KNOB on the workbench in front of them. Every one of these is undoable and shows up on their screen immediately.',
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration]:
     'ASK FOR THE GENERATION to be set up. You never spend their credits: the most this does is arm the button, and they press it.',
+}
+
+/**
+ * 逐条 `action` 的说明 —— 旧工具照旧读 `ASSISTANT_OPERATOR_TOOL_HINTS`，
+ * 「查」组那两个入口在这里补上（§9，commit #16）。
+ *
+ * ⚠ 两段话的全部工作是把它们**分开**：一个要的是答案，一个要的是图。
+ * 合并那道坎在 v1 上就摔过（模型拿 `search_web` 去找参考图，回来一串标题）。
+ */
+export const ASSISTANT_OPERATOR_ENTRY_ACTION_HINTS: Record<
+  AssistantOperatorEntryAction,
+  string
+> = {
+  ...ASSISTANT_OPERATOR_TOOL_HINTS,
+  [ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.verify]:
+    'CHECK A FACT you are not certain of, properly. Give it a goal in one line ("what Shiye officially looks like") plus the entities it turns on ("Ananta", "Shiye"), first the work and last the character. The app rewrites it into two or three search phrases in Chinese, English and Japanese, picks the right kinds of source (encyclopedias, tag libraries, video, general web), hits them at once and hands you back a conclusion plus the sources behind it — what was said, who published it, and how many independent sources agree. Use it whenever the creator\'s request turns on a detail you would otherwise guess: an official name, a character\'s design, a platform rule, a studio\'s own terminology. Evidence marked "single source" is exactly that — say so instead of stating it as fact. You may verify a SECOND time with a narrower goal once the first round tells you the official name or the site of record; that second round is where the real answer usually is. ⚠ This is NOT how you find reference pictures — that is find_images.',
+  [ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.findImages]:
+    'FIND REFERENCE PICTURES on the web. Takes three or four words in English plus "subject" (the work and the character) and, for character designs, preferOfficial:true. It puts candidates on screen as previews and files NOTHING: the creator picks the ones they want and the app imports those. ⛔ Never describe these pictures as if you had looked at them, and never write one of their addresses into the form. ⚠ This does not answer questions — that is verify.',
 }
 
 /**

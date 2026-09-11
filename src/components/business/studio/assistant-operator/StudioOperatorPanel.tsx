@@ -425,6 +425,15 @@ export function StudioOperatorPanel({
   const inputRef = useRef<MentionInputHandle>(null)
   const inputAreaRef = useRef<HTMLDivElement>(null)
   const [dragOver, setDragOver] = useState(false)
+  /**
+   * **钉住的证据卡**（v2 §3.2 / §9，commit #16）——按轮记，`runKey` 就是一张卡。
+   *
+   * ⚠ 状态留在面板里：钉住本身不是一次请求 —— 那一轮的证据编号（§7.3）在结账时
+   * 已经进了结论记录，钉住决定的只是「它还留不留在眼前」。
+   * ⛔ 别把它写进会话：钉住是「这一屏我还要看着它」，跨会话恢复一屏钉住的旧证据
+   * 只会让用户以为助手还在查。
+   */
+  const [pinnedResearch, setPinnedResearch] = useState<readonly string[]>([])
 
   /**
    * 「最近生成」那一批（§3.3：@ 选择器最近生成在前 · §3.1 ⑱ 结果行卡）。
@@ -1084,6 +1093,17 @@ export function StudioOperatorPanel({
             {showResearchCard ? (
               <StudioOperatorResearchCard
                 steps={researchSteps}
+                pinned={pinnedResearch.includes(block.runKey)}
+                onTogglePin={() =>
+                  setPinnedResearch((current) =>
+                    current.includes(block.runKey)
+                      ? current.filter((key) => key !== block.runKey)
+                      : [...current, block.runKey],
+                  )
+                }
+                /* 「再多找几个源」= 再跑一次查证并加源（§9.1 ③）。⚠ 走的是**普通
+                   一轮**（发一句话），⛔ 不另开一条绕过工具环的客户端检索路径。 */
+                onExpandSources={() => submit(t('research.expandPrompt'))}
                 webImportStates={webImport.states}
                 webImportLimit={webImport.limit}
                 onToggleWebImage={webImport.toggleCandidate}

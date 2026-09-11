@@ -7880,7 +7880,17 @@
       "count": "{count} sources",
       "process": "How it looked",
       "evidenceMore": "{count} more",
-      "evidenceLess": "Show less"
+      "evidenceLess": "Show less",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "pinned": "Pinned",
+      "fold": "Collapse",
+      "collapsed": "Checked · {count} sources",
+      "sourceCount": "{count} sources",
+      "corroborated": "{count} sources agree",
+      "singleSource": "Single source",
+      "expandSources": "Look in more places",
+      "expandPrompt": "Check that again and look in more places — I want more than these sources."
     },
     "message": {
       "expand": "Show all",

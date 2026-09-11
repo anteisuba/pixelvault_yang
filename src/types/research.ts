@@ -37,6 +37,16 @@ const EvidenceBaseSchema = z.object({
   /** 该证据的语言，规划器按源选语言时用（萌百中文、danbooru 英文）。 */
   lang: z.enum(['zh', 'en', 'ja']).optional(),
   /**
+   * 这条内容**什么时候发布的**（证据卡那一栏，assistant-shell-v2 §9.1 ④）。
+   *
+   * ⚠ 与 `retrievedAt` 是两件事，⛔ 不许互相回落：一个是「它什么时候说的」，
+   * 一个是「我什么时候看见的」。上游给不出发布时间就缺席 —— 卡上少一栏，
+   * 比写一个今天的日期在一篇 2019 年的访谈上诚实得多。
+   * ⚠ 原样透传上游那串字（Serper 的 `Jul 19, 2019`、B站的 `2019-07-19`），
+   * ⛔ 不在这一层统一格式：格式化是渲染的事，而解析一个格式不明的日期会失败。
+   */
+  publishedAt: z.string().trim().max(60).optional(),
+  /**
    * 命中 `prompt-guard` 注入模式 → 标记并降级（excerpt 换成警示占位），
    * **不整体丢弃**：一条 wiki 页面里混进一句「ignore previous instructions」
    * 不代表这个页面没有事实价值，但也不能原样喂进去。

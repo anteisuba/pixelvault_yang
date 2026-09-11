@@ -72,6 +72,18 @@ export interface AssistantResearchEvidence {
   credibility: EvidenceCredibility
   /** 这一条答的是**这个角色**还是只答了作品。⛔ 不由模型写。 */
   scope: AssistantResearchScope
+  /**
+   * **几个互相独立的源说了同一件事**（§9.1 ③，commit #16）。⛔ 不由模型写。
+   * `1` 就是「单源」——卡上要打标，模型引用时也该说「只有一个来源这么说」。
+   */
+  corroboration: number
+  /** 上游给得出发布时间时原样带上（⛔ 不回落成 `retrievedAt`）。 */
+  publishedAt?: string
+  /**
+   * **证据本编号**（§9.2）——扇出这一层给不出来（它一行库都不碰），由工具环在
+   * 拿到号段之后补上。⛔ 别在这个文件里去查号：那就是把库拖进扇出层。
+   */
+  evidenceRef?: string
 }
 
 export interface AssistantResearchOutcome {
@@ -100,6 +112,16 @@ export interface RunAssistantResearchParams {
   sources?: readonly AssistantResearchSource[]
   /** 最多回几条证据。缺省走 `ASSISTANT_RESEARCH_LIMITS.maxEvidenceItems`。 */
   limit?: number
+  /**
+   * **改写那一步给的查询词**（§9.1 ①，commit #16）——中 / 英 / 日各一条。
+   *
+   * ⚠ 给了就**顶掉**确定性查询表里的那几条，⛔ 不是追加：那张表按「作品 + 角色」
+   * 拼出来的三条与改写出来的三条问的是同一件事，两份并进去只会把每条查询的名额
+   * 摊薄一半（`fetchOne` 按名次轮转取前 N）。
+   * ⚠ `wikiQuery` / `character` / `work` **仍旧由确定性那条路算**：wiki 吃的是页名、
+   * danbooru 吃的是角色 tag，改写出来的长查询喂给它们只会一条都命不中。
+   */
+  queries?: readonly string[]
 }
 
 // ─── 源分组 ─────────────────────────────────────────────────────
@@ -471,6 +493,8 @@ export function toAssistantEvidence(
     character?: string
     /** 连接器已经确认过是角色级时钉死（danbooru 命中角色 tag 那一支）。 */
     forcedScope?: AssistantResearchScope
+    /** 几个源说了同一件事（§9.1 ③）。缺省 `1` = 单源。 */
+    corroboration?: number
   } = {},
 ): AssistantResearchEvidence {
   const publisher = hostnameOf(item.url) ?? item.sourceId.replace(/_/g, ' ')
@@ -497,7 +521,89 @@ export function toAssistantEvidence(
     confidence: confidenceOfCredibility(credibility),
     credibility,
     scope: scopeOfEvidence(item, options.character, options.forcedScope),
+    corroboration: Math.max(1, options.corroboration ?? 1),
+    ...(item.publishedAt ? { publishedAt: item.publishedAt } : {}),
   }
+}
+
+/**
+ * 一条证据的**事实键** —— 判「两条说的是不是同一件事」。
+ *
+ * ⚠ 判据是**标题**，而且刻意保守：宁可把真的互相印证的两条判成两件事（各写
+ * 「单源」），也不能把两条不相干的判成印证 —— 卡上那个「2 源印证」是用户拿来
+ * 决定信不信的，虚高一次就再也不值钱了。
+ * ⚠ 去掉 `bilibili · ` 这类源前缀：它是连接器加的装饰，不是标题的一部分。
+ */
+function factKeyOf(item: EvidenceItem): string {
+  const stripped = item.title.replace(/^[^·]{1,16}·\s*/, '')
+  return normalizeResearchTerm(stripped)
+}
+
+/**
+ * **印证源数**（§9.1 ③）——同一事实被几个**互相独立的源**说过。
+ *
+ * ⚠ 数的是**去重前**的那一堆：`dedupe` 的全部工作就是把同一条留一份，在它之后
+ * 数永远数出 1。
+ * ⚠ 「独立」的判据是**域名**（取不到时退回 `sourceId`）：萌百与中文维基是两个域名
+ * 所以算两个，同一个站的两页只算一个 —— 一个站自己说两遍不是印证。
+ */
+export function countCorroboration(
+  items: readonly EvidenceItem[],
+): Map<string, number> {
+  const sourcesByKey = new Map<string, Set<string>>()
+  for (const item of items) {
+    const key = factKeyOf(item)
+    if (!key) continue
+    const source = hostnameOf(item.url) ?? item.sourceId
+    const bucket = sourcesByKey.get(key)
+    if (bucket) bucket.add(source)
+    else sourcesByKey.set(key, new Set([source]))
+  }
+  return new Map(
+    [...sourcesByKey.entries()].map(([key, sources]) => [key, sources.size]),
+  )
+}
+
+/**
+ * **结论一行**（§9.1 ④）——印证最多、层级最高的那一条怎么说。
+ *
+ * ⛔ **不另烧一次 LLM**：卡上那句话必须与下面列出来的来源逐字对得上，而一次
+ * 自由生成对不上（同一份证据两次给出两句不同的结论，用户会以为查了两次）。
+ * ⚠ 只从 `text` 档里挑：标签串（`粉发, 金瞳`）与图片占位不是一句可以读的话。
+ */
+export function summarizeResearchConclusion(
+  evidence: readonly AssistantResearchEvidence[],
+): string | undefined {
+  const readable = evidence.filter(
+    (item) => item.kind === 'text' && item.snippet.trim().length > 0,
+  )
+  if (readable.length === 0) return undefined
+  const best = [...readable].sort((a, b) => {
+    if (a.corroboration !== b.corroboration) {
+      return b.corroboration - a.corroboration
+    }
+    return (
+      CONFIDENCE_RANK[a.confidence] - CONFIDENCE_RANK[b.confidence] ||
+      SCOPE_RANK[a.scope] - SCOPE_RANK[b.scope]
+    )
+  })[0]
+  return best?.snippet.slice(
+    0,
+    ASSISTANT_RESEARCH_LIMITS.maxEvidenceSnippetChars,
+  )
+}
+
+/** 排序用的权重表（小 = 排前）。⛔ 不参与任何显示。 */
+const CONFIDENCE_RANK: Record<AssistantResearchConfidence, number> = {
+  [ASSISTANT_RESEARCH_CONFIDENCE_IDS.high]: 0,
+  [ASSISTANT_RESEARCH_CONFIDENCE_IDS.medium]: 1,
+  [ASSISTANT_RESEARCH_CONFIDENCE_IDS.low]: 2,
+}
+
+const SCOPE_RANK: Record<AssistantResearchScope, number> = {
+  [ASSISTANT_RESEARCH_SCOPE_IDS.character]: 0,
+  [ASSISTANT_RESEARCH_SCOPE_IDS.work]: 1,
+  [ASSISTANT_RESEARCH_SCOPE_IDS.unknown]: 2,
 }
 
 // ─── 入口 ───────────────────────────────────────────────────────
@@ -513,7 +619,21 @@ export async function runAssistantResearch(
     params.sources && params.sources.length > 0
       ? [...new Set(params.sources)]
       : [...DEFAULT_SOURCES]
-  const plan = buildResearchQueryPlan(params.goal, params.entities ?? [])
+  const deterministic = buildResearchQueryPlan(
+    params.goal,
+    params.entities ?? [],
+  )
+  /**
+   * ⚠ 改写那一步给的查询**顶掉**确定性那几条，其余（wiki 页名、角色、作品）
+   * 原样留着 —— 见 `RunAssistantResearchParams.queries` 的头注。
+   */
+  const plan: ResearchQueryPlan =
+    params.queries && params.queries.length > 0
+      ? {
+          ...deterministic,
+          queries: [...params.queries].slice(0, RESEARCH_LIMITS.maxQueries),
+        }
+      : deterministic
   const sourceIds = [
     ...new Set(groups.flatMap((group) => SOURCE_GROUP_MEMBERS[group])),
   ]
@@ -529,7 +649,18 @@ export async function runAssistantResearch(
     ASSISTANT_RESEARCH_LIMITS.maxEvidenceItems,
   )
 
-  const items = dedupe(settled.flatMap((entry) => entry.items)).slice(0, limit)
+  const fetched = settled.flatMap((entry) => entry.items)
+  /**
+   * ⭐ **印证多的排前**（§9.1 ③）——排序本身就是判断力，不该交给用户逐条读。
+   * ⚠ 印证数在**去重前**算，排序在去重后做，截断（`slice`）落在最后：⛔ 别先截
+   * 再排，那会让第 9 条的「3 源印证」被一条单源的挤掉。
+   */
+  const corroboration = countCorroboration(fetched)
+  const corroborationOf = (item: EvidenceItem): number =>
+    corroboration.get(factKeyOf(item)) ?? 1
+  const items = dedupe(fetched)
+    .sort((a, b) => corroborationOf(b) - corroborationOf(a))
+    .slice(0, limit)
 
   return {
     queries: plan.queries,
@@ -546,6 +677,7 @@ export async function runAssistantResearch(
         ...(plan.character && item.sourceId === RESEARCH_SOURCE_IDS.danbooru
           ? { forcedScope: ASSISTANT_RESEARCH_SCOPE_IDS.character }
           : {}),
+        corroboration: corroborationOf(item),
       }),
     ),
     receipts: settled.map((entry) => entry.receipt),

@@ -7880,7 +7880,17 @@
       "count": "{count} 条证据",
       "process": "调查过程",
       "evidenceMore": "还有 {count} 条",
-      "evidenceLess": "收起证据"
+      "evidenceLess": "收起证据",
+      "pin": "钉住",
+      "unpin": "取消钉住",
+      "pinned": "已钉住",
+      "fold": "折叠",
+      "collapsed": "查证 · {count} 个来源",
+      "sourceCount": "{count} 个来源",
+      "corroborated": "{count} 源印证",
+      "singleSource": "单源",
+      "expandSources": "再多找几个源",
+      "expandPrompt": "再查证一次，多找几个来源——这几条不够。"
     },
     "message": {
       "expand": "展开全文",

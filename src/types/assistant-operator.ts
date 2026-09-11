@@ -32,7 +32,7 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_DOMAINS,
-  ASSISTANT_OPERATOR_ENTRY_ACTIONS,
+  ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES,
   ASSISTANT_OPERATOR_ENTRY_TOOL_IDS,
   ASSISTANT_OPERATOR_ENTRY_TOOLS,
   type AssistantOperatorEntryTool,
@@ -1138,6 +1138,14 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
       .array(z.enum(ASSISTANT_RESEARCH_SOURCES))
       .max(ASSISTANT_RESEARCH_SOURCES.length)
       .optional(),
+    /**
+     * **再多找几个源**（§9.1 ③ / 证据卡上那颗按钮，commit #16）。
+     *
+     * ⚠ 它不是「再查一次」的同义词：`true` 时服务端打**全部**源组（含默认里
+     * 没有的 B站），⛔ 而不是换一句查询重来 —— 用户按那颗按钮说的是「这几条
+     * 来源不够」，答案是加源，不是加轮。
+     */
+    expandSources: z.boolean().optional(),
   }),
   /**
    * 读一页正文（2026-09-06）。
@@ -1469,12 +1477,14 @@ export const ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS: Record<
 > = {
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look]: z.looseObject({
     action: z.enum(
-      ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look],
+      ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[
+        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look
+      ],
     ),
   }),
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research]: z.looseObject({
     action: z.enum(
-      ASSISTANT_OPERATOR_ENTRY_ACTIONS[
+      ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
       ],
     ),
@@ -1488,19 +1498,23 @@ export const ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS: Record<
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask]: z.union([
     z.looseObject({
       action: z.enum(
-        ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask],
+        ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[
+          ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask
+        ],
       ),
     }),
     AssistantOperatorAskArgsSchema,
   ]),
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply]: z.looseObject({
     action: z.enum(
-      ASSISTANT_OPERATOR_ENTRY_ACTIONS[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply],
+      ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[
+        ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply
+      ],
     ),
   }),
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration]: z.looseObject({
     action: z.enum(
-      ASSISTANT_OPERATOR_ENTRY_ACTIONS[
+      ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration
       ],
     ),
@@ -1820,6 +1834,35 @@ export const AssistantOperatorEvidenceSchema = z.object({
    */
   credibility: z.enum(EVIDENCE_CREDIBILITY_VALUES),
   /**
+   * **证据本编号**（§9.2 新增的两项之一）——`#e12` 这种，会话内自增。
+   *
+   * ⭐ 它在**这一步就给得出来**：号段在本轮第一次查证时从证据本现取一次
+   * （`peekAssistantEvidenceRefSeq`），之后在内存里顺延，收尾落库时用同一段号。
+   * 没有它这条卡上的「钉住」就钉不住 —— 钉住写进结论记录的正是这个号（§7.3）。
+   * ⚠ 可选：没有 `conversationId`（第一轮 / 老客户端）或号段取不到时就是没有，
+   * ⛔ 不编一个指不回任何东西的号。
+   */
+  evidenceRef: AssistantOperatorEvidenceRefSchema.optional(),
+  /**
+   * **印证源数**（§9.2 新增的两项之二）——几个**互相独立的源**说了同一件事。
+   *
+   * ⚠ 由服务端算（`research-fanout` 的 `countCorroboration`），⛔ 不由模型写：
+   * 与 `confidence` 同一条理由 —— 让模型给自己找的东西打分，它给的永远是满分。
+   * ⚠ `1` 就是「单源」，卡上要打标；⛔ 别把它软化成「暂未印证」。
+   */
+  corroboration: z.number().int().positive(),
+  /**
+   * 这条证据**什么时候说的**（§9.1 ④「谁说的、什么时候说的」）。
+   *
+   * ⚠ 可选而且**不回落成抓取时间**：`retrievedAt` 答的是「我什么时候看见它」，
+   * 与「它什么时候发布」是两件事，混用会让一篇 2019 年的访谈在卡上写着今天。
+   * 取不到就不显示那一栏。
+   */
+  publishedAt: z
+    .string()
+    .max(RESEARCH_LIMITS.maxEvidencePublisherChars)
+    .optional(),
+  /**
    * 这一条答的是**这个角色**还是只答了作品。
    * 🔬 owner 真机的 10 条证据条条「相关」而条条只讲游戏本身 —— 「有没有证据」
    * 分不出这件事，所以判据独立成一个字段，由服务端算，⛔ 不由模型写。
@@ -2027,6 +2070,18 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     }),
     z.object({
       totalFound: z.number().int().nonnegative(),
+      /**
+       * **结论一行**（§3.2 证据卡的第一栏，§9.1 ④）。
+       *
+       * ⚠ 它由服务端从**印证最多、层级最高**的那一条压出来，⛔ 不另烧一次 LLM：
+       * 设置弹层那条「同一份输入两次给出不同示例」的论据在这里同样成立 ——
+       * 卡上那句话必须与下面列出来的来源对得上，而一次自由生成对不上。
+       * ⚠ 一条证据都没有时缺席：⛔ 不写「未找到」当结论（那不是结论，是状态）。
+       */
+      conclusion: z
+        .string()
+        .max(RESEARCH_LIMITS.maxEvidenceSnippetChars)
+        .optional(),
       evidence: z
         .array(AssistantOperatorEvidenceSchema)
         .max(RESEARCH_LIMITS.maxEvidenceItems),

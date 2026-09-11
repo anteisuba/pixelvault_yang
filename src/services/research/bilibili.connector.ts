@@ -121,6 +121,13 @@ async function fetchByBvid(bvid: string): Promise<EvidenceItem[]> {
       title: `bilibili · ${data.title}`,
       url,
       lang: 'zh',
+      ...(data.pubdate
+        ? {
+            publishedAt: new Date(data.pubdate * 1000)
+              .toISOString()
+              .slice(0, 10),
+          }
+        : {}),
       // ⚠ 只写元数据。时长是接口给的秒数换算，不是看视频推断的 —— 这条管线
       //   不假装看过图/视频（边界 18：检索线与视觉线硬分界）。
       excerpt: metadataExcerpt([

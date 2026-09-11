@@ -83,6 +83,33 @@ async function nextRefSeq(
 }
 
 /**
+ * **号段预取**（§9.1 ④ / §9.2 `evidenceRef`，commit #16）——这一轮的证据会拿到
+ * 哪几个号，在**查到的那一刻**就说得出来。
+ *
+ * ⭐ 为什么要在落库之前就给号：证据卡上的「钉住」钉的是号（钉住 = 进本轮结论
+ * 记录的 `evidenceRefs`，§7.3），而卡在 `done` 那一帧就画出来了，比结账早得多。
+ * ⚠ 它**只读不写**：号段照旧由 `appendAssistantEvidenceBook` 在结账时从库里现算
+ * 分配 —— 两处算的是同一件事（`max + 1`），中途没有第二条写路，所以号对得上。
+ * ⛔ 别在这里改成「预留号段」：预留就是一个会与实际条目失同步的计数器，而那正是
+ * `nextRefSeq` 头注里拒绝过的东西。
+ * ⚠ 读不出来（库挂了）就返回 `null` —— 这一轮的证据于是不带编号，⛔ 不编号。
+ */
+export async function peekAssistantEvidenceRefSeq(args: {
+  userId: string
+  conversationId: string
+}): Promise<number | null> {
+  try {
+    return await nextRefSeq(args.userId, args.conversationId)
+  } catch (error) {
+    logger.warn('assistant evidence book ref peek failed', {
+      conversationId: args.conversationId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return null
+  }
+}
+
+/**
  * 把本轮查到的证据写进证据本，逐条分配编号。
  *
  * ⚠ **失败不抛**：它跑在每轮结账那一步，而结账失败不许阻塞 `done`（§7.5）。

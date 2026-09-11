@@ -7880,7 +7880,17 @@
       "count": "根拠 {count} 件",
       "process": "調べた過程",
       "evidenceMore": "他 {count} 件",
-      "evidenceLess": "閉じる"
+      "evidenceLess": "閉じる",
+      "pin": "ピン留め",
+      "unpin": "ピンを外す",
+      "pinned": "ピン留め済み",
+      "fold": "折りたたむ",
+      "collapsed": "裏取り · 出典 {count} 件",
+      "sourceCount": "出典 {count} 件",
+      "corroborated": "{count} 件で裏取り",
+      "singleSource": "単一出典",
+      "expandSources": "もっと出典を探す",
+      "expandPrompt": "もう一度裏取りして、出典をもっと探してください。これだけでは足りません。"
     },
     "message": {
       "expand": "全文を表示",

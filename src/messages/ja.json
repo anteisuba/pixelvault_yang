@@ -7451,7 +7451,7 @@
     },
     "mobile": {
       "sheetTitle": "アシスタント",
-      "sheetDescription": "全画面アシスタントパネル — やりたいことを話すか、素材を添付してください。",
+      "sheetDescription": "半分の高さのアシスタントシート — ハンドルを上にドラッグで全画面、下で閉じます。",
       "open": "アシスタントを開く"
     },
     "researchDetails": "調査の詳細",

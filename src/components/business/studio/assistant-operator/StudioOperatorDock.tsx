@@ -15,7 +15,7 @@
  *
  * ## 手机（本片）
  * 同一颗外壳两种容器：`≥lg` 是右侧那颗 `<aside>`（两态 + 拖宽），`<lg` 是
- * `StudioOperatorMobileSheet`（全屏底部 Sheet）+ `StudioOperatorMobileFab`
+ * `StudioOperatorMobileSheet`（半屏可拖底部 Sheet）+ `StudioOperatorMobileFab`
  * （右下浮标，替代微状态卡）。⭐ **面板与 props 两条分支共用同一个元素**，⛔ 手机
  * 上没有第二套面板内容 —— 疏密由面板自己的 `@container` 收。
  * ⚠ 手机上**不渲染微状态卡、不记宽**：那两样都是「拖得动的浮层」才有的概念。
@@ -550,24 +550,33 @@ export function StudioOperatorDock() {
   if (isMobile && !hasMobileShell) return null
 
   /**
-   * ── 手机：全屏 Sheet + 右下浮标（`ui-defaults.md §6`）─────────────────
+   * ── 手机：半屏可拖 Sheet + 右下浮标（v2 §4.6 · `ui-defaults.md §6`）───────
    *
+   * ⚠ **浮标只在收起档画**（`!open`）：半屏 Sheet 露着上半截工作台，浮标再挂在
+   *   那儿就是「开着的助手旁边还浮着一颗打开助手」，而且正好压在露出来的结果图
+   *   上。⛔ 别改回「一直挂着让 Sheet 盖住它」—— 半屏盖不住。
+   * ⚠ 微状态那句话从**同一个 hook** 来（`statusWord`，桌面收起态的微状态卡读的
+   *   也是它）：收起档唯一还看得见的进度就剩这一句。
    * ⚠ 收放法则（拍板 7）在手机上**只剩一半**：Sheet 关闭即收，⛔ 没有「点工作台
-   * 收起」那条 —— 全屏 Sheet 底下根本没有工作台可点（实现上也自动成立：那条
-   * `pointerdown` 监听本来就 `isMobile` 时不挂）。
+   *   收起」那条 —— 半屏底下那半截工作台是给用户**看改动**的，点一下就收等于把
+   *   刚才的对话丢了（实现上也自动成立：那条 `pointerdown` 监听本来就 `isMobile`
+   *   时不挂，Sheet 那边 `modal={false}` 又把 `onPointerDownOutside` 拦掉了）。
    * ⚠ **宽度记忆整套在手机上不参与**：没有把手、不写 `storageKey` —— 手机上拖不
    *   出宽度，往那个键里写数会污染用户在桌面拖出来的那一份。
    */
   if (isMobile) {
     return (
       <>
-        <StudioOperatorMobileFab
-          status={status}
-          primed={primed}
-          stepsDone={stepsDone}
-          plannedSteps={plannedSteps}
-          onOpen={() => setOpen(true)}
-        />
+        {open ? null : (
+          <StudioOperatorMobileFab
+            status={status}
+            statusText={statusWord}
+            primed={primed}
+            stepsDone={stepsDone}
+            plannedSteps={plannedSteps}
+            onOpen={() => setOpen(true)}
+          />
+        )}
         <StudioOperatorMobileSheet open={open} onOpenChange={setOpen}>
           {panel}
         </StudioOperatorMobileSheet>

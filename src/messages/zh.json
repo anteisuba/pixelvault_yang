@@ -7451,7 +7451,7 @@
     },
     "mobile": {
       "sheetTitle": "助手",
-      "sheetDescription": "全屏助手面板 —— 说一句你想要什么，或把素材挂进来。",
+      "sheetDescription": "半屏助手面板 —— 把手向上拖是全屏，向下拖关闭。",
       "open": "打开助手"
     },
     "researchDetails": "调查过程",

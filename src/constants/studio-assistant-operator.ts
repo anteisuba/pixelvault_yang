@@ -563,14 +563,33 @@ export const STUDIO_OPERATOR_RESULT_STAGGER = {
  * 移动端外壳的几何（`ui-defaults.md §6` 移动端配方 · `assistant-shell.md` §11.1）。
  *
  * ⚠ 与 `STUDIO_OPERATOR_SHELL` **分开一份**：那份描述的是桌面那颗浮层
- * （宽度记忆 / 48px 图标轨 / inset 24），手机上一个都不成立 —— 手机是全屏
- * Sheet + 一颗浮标，既不记宽也没有轨。混进同一个对象只会让「面板宽」这类
- * 在手机上根本没有意义的字段跟着到处传。
+ * （宽度记忆 / 48px 图标轨 / inset 24），手机上一个都不成立 —— 手机是半屏
+ * 可拖 Sheet + 一颗浮标，既不记宽也没有轨。混进同一个对象只会让「面板宽」
+ * 这类在手机上根本没有意义的字段跟着到处传。
  */
 export const STUDIO_OPERATOR_MOBILE_SHELL = {
   /**
-   * 全屏 Sheet 的高度。
+   * Sheet 的**三档吸附**（v2 §4.6）：半屏 / 全屏 / 关闭。
    *
+   * ⚠ 这里只列「开着」的两档 —— 第三档「关闭」不是一个 snap point，它是
+   * `Drawer` 的 `open=false`（面板整颗卸载，手机上的「收起」就是这个）。把
+   * 关闭也写成一个 0 的 snap 会留下一张高度为 0、却仍然吃着焦点的 Sheet。
+   * ⚠ 数值是**视口比例**不是 px：vaul 的 snap point 收 0–1 的小数时按
+   * `window.innerHeight` 折算，而手机高度从 667 到 932 都有 —— 写死 px 会让
+   * 小屏上「半屏」盖住大半个工作台。
+   * ⚠ 半屏这一档是 §4.6 的「约 55dvh」：再低就装不下「最近一条消息 + 问题卡
+   * + 两行输入区」（画板 BMobile 那一屏），而问题卡钉在输入框上方、半屏内
+   * 必须看得见是这一档的全部意义。
+   */
+  halfSnapPoint: 0.55,
+  /** 全屏档 —— 1 = 整个视口高（Sheet 自身高度就是 `sheetHeight`）。 */
+  fullSnapPoint: 1,
+  /**
+   * Sheet 自身的高度 = **最大那一档**。
+   *
+   * ⚠ 半屏不是靠改高度实现的：vaul 把 Sheet 按 `snapPointsOffset` 整体
+   * `translateY` 下移，露出来多少就是哪一档。⛔ 别改成 55dvh 再去拖 ——
+   * 那样拖到全屏时下半截是空的。
    * ⚠ `dvh` 不是 `vh`（`ui-defaults.md §6`）：iOS 上地址栏收放会让 `100vh` 比
    * 可视区高出一截，表现是输入区被顶到屏幕外面去。软键盘那一段由
    * `--keyboard-inset` 从 `maxHeight` 里再扣（`KeyboardInsetBridge` 供值）。

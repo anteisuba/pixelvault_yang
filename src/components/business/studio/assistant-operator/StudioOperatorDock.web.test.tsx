@@ -82,6 +82,11 @@ vi.mock('@/hooks/use-assistant-operator', () => ({
 vi.mock('@/hooks/use-studio-operator-critique', () => ({
   useStudioOperatorCritique: () => undefined,
 }))
+// 收起档那句微状态（§3.6）—— 手机浮标与桌面微状态卡读的是**同一个 hook**，
+// 这里给一句固定的，好让「传下去了没有」这件事有机器守着。
+vi.mock('@/hooks/use-studio-operator-status-word', () => ({
+  useStudioOperatorStatusWord: () => '正在查 3 个来源…',
+}))
 // 助手设置 persona（§8）—— 外壳拉一次往下传，这里给一份不发请求的默认值。
 vi.mock('@/hooks/use-assistant-persona', () => ({
   useAssistantPersona: () => ({
@@ -245,11 +250,15 @@ describe('StudioOperatorDock', () => {
 })
 
 describe('StudioOperatorDock · 手机档', () => {
-  it('渲染全屏 Sheet + 浮标，⛔ 没有微状态卡、没有桌面 aside', () => {
+  /**
+   * ⚠ v2 §4.6 起 Sheet 是**半屏**的：上半截工作台露着 —— 所以 Sheet 一开，
+   * 浮标就整颗不渲染（⛔ 不再是「浮标一直挂着、被全屏 Sheet 盖住」）。
+   */
+  it('渲染半屏 Sheet；开着时⛔ 不画浮标，也没有微状态卡与桌面 aside', () => {
     mobile = true
     render(<StudioOperatorDock />)
     expect(screen.getByTestId('operator-mobile-sheet')).toBeTruthy()
-    expect(screen.getByTestId('operator-mobile-fab')).toBeTruthy()
+    expect(screen.queryByTestId('operator-mobile-fab')).toBeNull()
     expect(screen.queryByTestId('operator-collapsed')).toBeNull()
     expect(screen.queryByTestId('operator-panel')).toBeNull()
   })
@@ -274,6 +283,18 @@ describe('StudioOperatorDock · 手机档', () => {
     render(<StudioOperatorDock />)
     fireEvent.click(screen.getByTestId('operator-mobile-fab'))
     expect(setOpen).toHaveBeenCalledWith(true)
+  })
+
+  it('收起档浮标带微状态 —— 与桌面微状态卡同一个 hook 供值', () => {
+    mobile = true
+    hostOpen = false
+    render(<StudioOperatorDock />)
+    expect(screen.getByTestId('operator-mobile-fab-status').textContent).toBe(
+      '正在查 3 个来源…',
+    )
+    expect(
+      screen.getByTestId('operator-mobile-fab').getAttribute('aria-label'),
+    ).toContain('正在查 3 个来源…')
   })
 
   it('LoRA 域在手机上整颗不渲染（装配台仍走 LoraAssistantDock）', () => {

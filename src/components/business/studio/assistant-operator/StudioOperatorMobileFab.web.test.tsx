@@ -84,6 +84,26 @@ describe('StudioOperatorMobileFab', () => {
     expect(fab.getAttribute('aria-label')).toContain('rail.primed')
   })
 
+  it('收起档带微状态药丸：给了状态词就画，且 aria-label 读的是那一句', () => {
+    render(
+      <StudioOperatorMobileFab
+        {...base}
+        status="working"
+        statusText="正在查 3 个来源…"
+      />,
+    )
+    const fab = screen.getByTestId('operator-mobile-fab')
+    expect(screen.getByTestId('operator-mobile-fab-status').textContent).toBe(
+      '正在查 3 个来源…',
+    )
+    expect(fab.getAttribute('aria-label')).toContain('正在查 3 个来源…')
+  })
+
+  it('空闲（statusText 为 null）时那颗药丸整颗不画', () => {
+    render(<StudioOperatorMobileFab {...base} status="idle" />)
+    expect(screen.queryByTestId('operator-mobile-fab-status')).toBeNull()
+  })
+
   it('底部留白清过 safe-area / 软键盘 / 钉底 composer', () => {
     render(<StudioOperatorMobileFab {...base} status="idle" />)
     const fab = screen.getByTestId('operator-mobile-fab')

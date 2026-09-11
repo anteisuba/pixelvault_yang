@@ -7451,7 +7451,7 @@
     },
     "mobile": {
       "sheetTitle": "Assistant",
-      "sheetDescription": "Full-screen assistant panel — say what you want, or attach your assets.",
+      "sheetDescription": "Half-height assistant sheet — drag the handle up for full screen, down to close.",
       "open": "Open assistant"
     },
     "researchDetails": "Research details",

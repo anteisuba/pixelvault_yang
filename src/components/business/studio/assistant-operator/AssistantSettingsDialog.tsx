@@ -274,6 +274,10 @@ export function AssistantSettingsDialog({
        * 悄悄打回「自动」。
        */
       routeModel: persona.routeModel,
+      /** v2 §11.3 的三项 —— 控件在「说话方式」那一列的末尾。 */
+      nextStepHint: persona.nextStepHint,
+      useMyWords: persona.useMyWords,
+      addressUserAs: persona.addressUserAs,
       ...touched,
     }),
     [persona, touched],
@@ -649,6 +653,50 @@ export function AssistantSettingsDialog({
                       patch({ language: value as AssistantPersonaLanguage })
                     }
                   />
+
+                  {/* ── v2 §11.3 的三项 ────────────────────────────
+                      它们改的都是**说话方式**，所以接在语气 / 长度 / 语言后面，
+                      而不是自成一块 —— 同一件事分两处摆，用户要找两遍。 */}
+                  <label className="flex items-center justify-between gap-3 text-md">
+                    <span>{t('nextStepHintLabel')}</span>
+                    <Switch
+                      data-testid="assistant-next-step-hint"
+                      checked={draft.nextStepHint}
+                      onCheckedChange={(next) => patch({ nextStepHint: next })}
+                    />
+                  </label>
+
+                  <label className="flex items-center justify-between gap-3 text-md">
+                    <span>{t('useMyWordsLabel')}</span>
+                    <Switch
+                      data-testid="assistant-use-my-words"
+                      checked={draft.useMyWords}
+                      onCheckedChange={(next) => patch({ useMyWords: next })}
+                    />
+                  </label>
+
+                  <div className="flex flex-col gap-1.5">
+                    <Label
+                      htmlFor="assistant-address-user-as"
+                      className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground"
+                    >
+                      {t('addressUserAsLabel')}
+                    </Label>
+                    <Input
+                      id="assistant-address-user-as"
+                      data-testid="assistant-address-user-as"
+                      value={draft.addressUserAs ?? ''}
+                      maxLength={ASSISTANT_PERSONA_LIMITS.maxAddressUserAsChars}
+                      placeholder={t('addressUserAsPlaceholder')}
+                      onChange={(event) =>
+                        patch({
+                          addressUserAs: event.target.value.trim()
+                            ? event.target.value
+                            : null,
+                        })
+                      }
+                    />
+                  </div>
                 </section>
               </div>
             </TabsContent>

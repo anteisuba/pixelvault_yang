@@ -67,6 +67,41 @@ export async function getUserPreference(
   })
 }
 
+/**
+ * 系统提示要的那几格（assistant-shell-v2 §8.3）—— 「这位创作者平时喜欢什么」。
+ *
+ * ⚠ 这张表是系统**学出来的**（五列全 Json，由行为推断并覆写），所以读回来的
+ * 每一列都过一次 `parseStringArray`：存量行里那几列可能是任何形状，而它们直连
+ * 系统提示。⛔ 不改这张表的 schema，也⛔ 不在这里写回任何东西。
+ * ⚠ 只取**词**（风格 / 否定标签 / 比例），⛔ 不取 `preferredModelsByTask`：
+ * 模型该选哪个由工作台状态块决定，把一份学出来的偏好摆进提示只会让助手去推翻
+ * 用户当下选的那个。
+ */
+export interface CreativePreferenceDigest {
+  favoriteStyles: string[]
+  rejectedStyles: string[]
+  commonNegativeTags: string[]
+  preferredAspectRatios: string[]
+}
+
+export async function getCreativePreferenceDigest(
+  userId: string,
+): Promise<CreativePreferenceDigest | null> {
+  const row = await getUserPreference(userId)
+  if (!row) return null
+
+  const digest: CreativePreferenceDigest = {
+    favoriteStyles: parseStringArray(row.favoriteStyles),
+    rejectedStyles: parseStringArray(row.rejectedStyles),
+    commonNegativeTags: parseStringArray(row.commonNegativeTags),
+    preferredAspectRatios: parseStringArray(row.preferredAspectRatios),
+  }
+  /** 四格全空的一行等于没有偏好 —— ⛔ 别为它拼一个空段出来。 */
+  return Object.values(digest).some((values) => values.length > 0)
+    ? digest
+    : null
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }

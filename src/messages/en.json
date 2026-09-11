@@ -7770,6 +7770,10 @@
         "chinese": "Chinese",
         "english": "English"
       },
+      "nextStepHintLabel": "Suggest a next step",
+      "useMyWordsLabel": "Use my words",
+      "addressUserAsLabel": "What to call you",
+      "addressUserAsPlaceholder": "Leave empty to use your account name",
       "tabPersona": "Assistant",
       "tabRules": "Project rules",
       "rulesHint": "Standing rules the assistant reads before it touches anything. It writes them down when you tell it something worth keeping.",

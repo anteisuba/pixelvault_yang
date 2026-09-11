@@ -157,7 +157,75 @@ describe('AssistantSettingsDialog', () => {
       // ⚠ 设置里没有这一格的控件（模型选在输入区的 chip 上），但保存必须原样
       //   带上它 —— 不带的话在设置里点一次保存就把用户选的模型打回「自动」。
       routeModel: ASSISTANT_PERSONA_DEFAULTS.routeModel,
+      // v2 §11.3 的三项 —— 没动过就是默认值，照样原样发出去。
+      nextStepHint: ASSISTANT_PERSONA_DEFAULTS.nextStepHint,
+      useMyWords: ASSISTANT_PERSONA_DEFAULTS.useMyWords,
+      addressUserAs: ASSISTANT_PERSONA_DEFAULTS.addressUserAs,
     })
+  })
+
+  /**
+   * v2 §11.3 的三项控件（commit #15）。⚠ 与上面那条的判据逐字同源：界面画出来
+   * 了、保存的却是旧值，是这颗组件最容易坏的方式。
+   */
+  it('三项用户偏好：两个开关 + 称呼各自落进那一次保存', async () => {
+    renderDialog()
+
+    fireEvent.click(screen.getByTestId('assistant-next-step-hint'))
+    fireEvent.click(screen.getByTestId('assistant-use-my-words'))
+    fireEvent.change(screen.getByTestId('assistant-address-user-as'), {
+      target: { value: '阿羊' },
+    })
+    fireEvent.click(screen.getByText('save'))
+
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1))
+    expect(mockSave.mock.calls[0][0]).toMatchObject({
+      // 默认 false → 点一下变 true
+      nextStepHint: true,
+      // 默认 true → 点一下变 false
+      useMyWords: false,
+      addressUserAs: '阿羊',
+    })
+  })
+
+  /** 称呼清空 = 回到「用账号名」，所以落的是 `null` ⛔ 不是空串。 */
+  it('称呼清空时发 null', async () => {
+    personaState = {
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      addressUserAs: '阿羊',
+    }
+    renderDialog()
+
+    fireEvent.change(screen.getByTestId('assistant-address-user-as'), {
+      target: { value: '  ' },
+    })
+    fireEvent.click(screen.getByText('save'))
+
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1))
+    expect(mockSave.mock.calls[0][0].addressUserAs).toBeNull()
+  })
+
+  it('三项的初始态读的是 persona 那一份', () => {
+    personaState = {
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      nextStepHint: true,
+      useMyWords: false,
+      addressUserAs: '阿羊',
+    }
+    renderDialog()
+
+    expect(
+      screen.getByTestId('assistant-next-step-hint').getAttribute('data-state'),
+    ).toBe('checked')
+    expect(
+      screen.getByTestId('assistant-use-my-words').getAttribute('data-state'),
+    ).toBe('unchecked')
+    expect(
+      (screen.getByTestId('assistant-address-user-as') as HTMLInputElement)
+        .value,
+    ).toBe('阿羊')
   })
 
   it('换预设头像后保存带上新的 preset id', async () => {

@@ -213,6 +213,9 @@ describe('StudioOperatorTimelineRow', () => {
           routeModel: 'auto',
           planMode: 'auto',
           language: 'ui',
+          nextStepHint: false,
+          useMyWords: true,
+          addressUserAs: null,
         }}
       >
         <span />

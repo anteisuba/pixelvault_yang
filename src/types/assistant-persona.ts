@@ -75,6 +75,23 @@ const AssistantPersonaShapeSchema = z.object({
   language: AssistantPersonaLanguageSchema,
   /** `auto` = 服务端自己挑（库里存 null）。⛔ 不做成可空：读回来永远是个词。 */
   routeModel: AssistantRouteModelSchema,
+  /**
+   * v2 §11.3 的三项 —— 它们只改**说话方式**，注入点在系统提示的
+   * 「关于这位创作者」那一段（§8.3）。
+   *
+   * ⛔ 两个开关有意**不可空**：`null` 与 `false` 在开关上是同一件事，而多一个
+   * 值就要多回答一次「没设过和关掉有什么不同」。缺行时走
+   * `ASSISTANT_PERSONA_DEFAULTS`，与库上的 `@default` 逐字一致。
+   */
+  nextStepHint: z.boolean(),
+  useMyWords: z.boolean(),
+  /** null = 用账号名。⚠ 它原样拼进系统提示，所以上限是硬的。 */
+  addressUserAs: z
+    .string()
+    .trim()
+    .min(1)
+    .max(ASSISTANT_PERSONA_LIMITS.maxAddressUserAsChars)
+    .nullable(),
 })
 
 /**

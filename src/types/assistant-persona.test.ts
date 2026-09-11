@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ASSISTANT_PERSONA_DEFAULTS,
+  ASSISTANT_PERSONA_LIMITS,
   ASSISTANT_ROUTE_MODEL_AUTO,
   getAssistantRouteModelEntry,
 } from '@/constants/assistant-persona'
@@ -23,6 +24,9 @@ const BASE = {
   verbosity: ASSISTANT_PERSONA_DEFAULTS.verbosity,
   planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
   language: ASSISTANT_PERSONA_DEFAULTS.language,
+  nextStepHint: ASSISTANT_PERSONA_DEFAULTS.nextStepHint,
+  useMyWords: ASSISTANT_PERSONA_DEFAULTS.useMyWords,
+  addressUserAs: ASSISTANT_PERSONA_DEFAULTS.addressUserAs,
 }
 
 describe('AssistantPersona.routeModel', () => {
@@ -64,5 +68,67 @@ describe('AssistantPersona.routeModel', () => {
     expect(getAssistantRouteModelEntry(ASSISTANT_ROUTE_MODEL_AUTO)).toBeNull()
     expect(getAssistantRouteModelEntry(null)).toBeNull()
     expect(getAssistantRouteModelEntry('qwen3-max')).toBeNull()
+  })
+})
+
+/**
+ * v2 §11.3 的三项（commit #15）—— 两个开关**不可空**、称呼是可空短字符串。
+ */
+describe('AssistantPersona 的三项用户偏好', () => {
+  const WITH_MODEL = { ...BASE, routeModel: ASSISTANT_ROUTE_MODEL_AUTO }
+
+  it('两个开关缺席即拒 —— 少递一列会把用户的选择打回默认', () => {
+    for (const key of ['nextStepHint', 'useMyWords'] as const) {
+      const payload: Record<string, unknown> = { ...WITH_MODEL }
+      delete payload[key]
+      expect(UpdateAssistantPersonaSchema.safeParse(payload).success).toBe(
+        false,
+      )
+    }
+  })
+
+  it('开关只收布尔，⛔ 不收 null / 字符串', () => {
+    for (const bad of [null, 'true', 1]) {
+      expect(
+        UpdateAssistantPersonaSchema.safeParse({
+          ...WITH_MODEL,
+          nextStepHint: bad,
+        }).success,
+      ).toBe(false)
+    }
+  })
+
+  it('称呼：null 收，正常短串收，空串与超长拒', () => {
+    expect(
+      UpdateAssistantPersonaSchema.safeParse({
+        ...WITH_MODEL,
+        addressUserAs: null,
+      }).success,
+    ).toBe(true)
+    expect(
+      UpdateAssistantPersonaSchema.safeParse({
+        ...WITH_MODEL,
+        addressUserAs: '阿羊',
+      }).success,
+    ).toBe(true)
+    for (const bad of [
+      '',
+      '   ',
+      'x'.repeat(ASSISTANT_PERSONA_LIMITS.maxAddressUserAsChars + 1),
+    ]) {
+      expect(
+        UpdateAssistantPersonaSchema.safeParse({
+          ...WITH_MODEL,
+          addressUserAs: bad,
+        }).success,
+      ).toBe(false)
+    }
+  })
+
+  /** ⚠ 代码默认值与库上的 `@default` 必须逐字一致（两处漂 = 两个助手）。 */
+  it('默认值：下一步建议关、用我的词开、称呼为空', () => {
+    expect(ASSISTANT_PERSONA_DEFAULTS.nextStepHint).toBe(false)
+    expect(ASSISTANT_PERSONA_DEFAULTS.useMyWords).toBe(true)
+    expect(ASSISTANT_PERSONA_DEFAULTS.addressUserAs).toBeNull()
   })
 })

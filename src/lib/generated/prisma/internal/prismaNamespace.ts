@@ -4319,6 +4319,9 @@ export const AssistantPersonaScalarFieldEnum = {
   verbosity: 'verbosity',
   planMode: 'planMode',
   language: 'language',
+  nextStepHint: 'nextStepHint',
+  useMyWords: 'useMyWords',
+  addressUserAs: 'addressUserAs',
   routeModel: 'routeModel',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

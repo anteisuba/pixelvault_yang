@@ -199,11 +199,28 @@ export const ASSISTANT_PERSONA_DEFAULTS = {
   language: ASSISTANT_PERSONA_LANGUAGE_IDS.ui,
   /** §4.5：默认「自动」= 库里 `routeModel` 为 null 时的语义，两处必须一致。 */
   routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
+  /**
+   * v2 §11.3 的三项。⚠ 与 `prisma/schema.prisma` 上的 `@default` 逐字一致。
+   *
+   * ⭐ `nextStepHint` **默认关**：助手多数轮次本来就在说下一步（`concise` 那一档
+   * 的两句话，第二句就是它），强制再加一行等于让它说两遍。
+   * ⭐ `useMyWords` **默认开**：用户在提示词和卡上用过的说法就是这段对话的词表，
+   * 助手把「黄昏光」换个词转述，成本落在用户身上。
+   */
+  nextStepHint: false,
+  useMyWords: true,
+  /** null = 用账号名（§8.3）。 */
+  addressUserAs: null,
 } as const
 
 export const ASSISTANT_PERSONA_LIMITS = {
   /** 助手名字（§8.2）。 */
   maxNameChars: 24,
+  /**
+   * 「怎么称呼你」那一格（§11.3）。与助手名字同一档上限 —— 它同样只是一个称呼，
+   * 而它同样原样拼进系统提示。
+   */
+  maxAddressUserAsChars: 24,
   /**
    * 语气自定义那一句（§8.2 / §8.5）。
    * ⚠ 这条上限是**硬的**：它原样拼进系统提示，而风格段整段要压在 ~400 字符内。
@@ -211,6 +228,13 @@ export const ASSISTANT_PERSONA_LIMITS = {
   maxToneCustomChars: 80,
   /** 风格段拼完之后的长度上限（§8.5）。超出即截断，⛔ 不静默放行。 */
   maxStyleSectionChars: 400,
+  /**
+   * 「用我的词」那一段最多列几个词（§8.3）。取的是上下文卡的**名称**与学出来的
+   * 几个风格 / 标签词 —— 再多就不是词表而是一篇正文了，而正文在卡里。
+   */
+  maxMyWords: 12,
+  /** 「关于这位创作者」整段的长度上限（§8.3）。判据与风格段同一条。 */
+  maxCreatorSectionChars: 600,
 } as const
 
 /** 自定义头像在 R2 上的 key 前缀段（`generateProfileImageKey` 的 `type` 入参）。 */

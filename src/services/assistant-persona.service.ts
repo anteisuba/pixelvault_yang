@@ -45,6 +45,9 @@ function toPersona(
     planMode: string
     language: string
     routeModel: string | null
+    nextStepHint: boolean
+    useMyWords: boolean
+    addressUserAs: string | null
   } | null,
 ): AssistantPersona {
   if (!row) {
@@ -92,6 +95,9 @@ const PERSONA_SELECT = {
   planMode: true,
   language: true,
   routeModel: true,
+  nextStepHint: true,
+  useMyWords: true,
+  addressUserAs: true,
 } as const
 
 export async function getAssistantPersona(
@@ -131,6 +137,20 @@ export function sanitizeToneCustom(persona: AssistantPersona): string | null {
 }
 
 /**
+ * 「怎么称呼你」那一格（§11.3）—— 与 `sanitizeToneCustom` 逐字同一条判据：
+ * 它是 persona 里第二段直连系统提示的自由文本，所以**读的这一跳过
+ * `prompt-guard`**，⛔ 不在写入时清洗（用户会看不见自己被改了什么）。
+ */
+export function sanitizeAddressUserAs(
+  persona: AssistantPersona,
+): string | null {
+  if (!persona.addressUserAs) return null
+  const cleaned = sanitizePrompt(persona.addressUserAs).trim()
+  if (!cleaned) return null
+  return cleaned.slice(0, ASSISTANT_PERSONA_LIMITS.maxAddressUserAsChars)
+}
+
+/**
  * 写一份 persona（保存即写，§8.1）。
  *
  * ⚠ 头像那两列**不在这条路上**：它们由上传/移除那条腿写，客户端递一条 URL
@@ -160,6 +180,10 @@ export async function upsertAssistantPersona(
      */
     routeModel:
       input.routeModel === ASSISTANT_ROUTE_MODEL_AUTO ? null : input.routeModel,
+    /** v2 §11.3 的三项 —— 两个开关照原样落，称呼留空即 null（= 用账号名）。 */
+    nextStepHint: input.nextStepHint,
+    useMyWords: input.useMyWords,
+    addressUserAs: input.addressUserAs,
   }
 
   const row = await db.assistantPersona.upsert({

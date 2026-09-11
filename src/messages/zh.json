@@ -7770,6 +7770,10 @@
         "chinese": "中文",
         "english": "英文"
       },
+      "nextStepHintLabel": "下一步建议",
+      "useMyWordsLabel": "用我的词",
+      "addressUserAsLabel": "怎么称呼你",
+      "addressUserAsPlaceholder": "留空时用你的账号名",
       "tabPersona": "助手",
       "tabRules": "项目规则",
       "rulesHint": "助手动手之前会先读这些规则。你说了值得记下来的事，它就记一条。",

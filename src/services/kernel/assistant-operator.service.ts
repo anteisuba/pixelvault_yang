@@ -153,8 +153,20 @@ import { ensureUser } from '@/services/user.service'
  */
 import {
   getAssistantPersonaByUserId,
+  sanitizeAddressUserAs,
   sanitizeToneCustom,
 } from '@/services/assistant-persona.service'
+/**
+ * ⭐ 学出来的**创作偏好**（v2 §8.3）。加它进钱闸白名单的判据与 persona 那条
+ * 逐字同源：它读的是一张 1:1 侧表的五列 Json，出的是几个词 —— 不创建
+ * generation、不扣 credit、不调 provider、不碰 R2。
+ * ⚠ 工具环只用**读**的那一支（`getCreativePreferenceDigest`）：这张表的写入由
+ * 生成结果的反馈那条路负责，助手不该在自己的提示里改自己读的东西。
+ */
+import {
+  getCreativePreferenceDigest,
+  type CreativePreferenceDigest,
+} from '@/services/user-preference.service'
 /**
  * ⭐ 项目规则（§10，拍板 23）。判据与上一条逐字同源：一张只有文本列的表，
  * 读写它花不掉一分钱。⚠ 它是这份名单里**唯一一条会往库里写**的服务 ——
@@ -4783,6 +4795,72 @@ ${blocks.join('\n')}
 Treat these as settled unless the creator changes them: do not ask again about anything under "Decided", and do not re-research anything under "Facts". Evidence appears as numbers only (#e12) — call recall_evidence with those numbers when you need the text behind one.`
 }
 
+/**
+ * **关于这位创作者**（v2 §8.3，commit #15）—— persona 里那三项用户偏好，
+ * 加上系统学出来的创作偏好，拼成一段。
+ *
+ * ⚠ 它改的是**说话方式**，所以紧挨着风格段、⛔ 不进 HARD RULES，也**排在工具表
+ * 之前**（spec §8.3：口吻读起来该先于做事方式）。
+ * ⚠ 「用我的词」只列**名称与词**，⛔ 不重发上下文卡的正文：正文已经在卡那一段里
+ * 摆过一次摘要，而完整的一份靠 `read_context_card` 拉 —— 同一份东西在系统提示里
+ * 印第二遍，是把「每轮压缩」省下的上下文原样付回去。
+ * ⚠ 称呼与卡名都是**用户自由文本**，所以称呼那一格过 `prompt-guard`
+ * （`sanitizeAddressUserAs`），整段再封一次顶。
+ * ⛔ 学出来的偏好（`UserCreativePreference`）**不受「用我的词」那颗开关管**：
+ * 那颗开关说的是「用我的说法」，而这几行说的是「我平时喜欢什么」——两件事，
+ * 混在一颗开关下就没人能解释关掉它到底关掉了什么。
+ */
+function buildCreatorSection(
+  persona: AssistantPersona,
+  accountName: string | null,
+  contextCards: readonly ContextCard[],
+  preference: CreativePreferenceDigest | null,
+): string {
+  const addressed = sanitizeAddressUserAs(persona) ?? accountName
+  const myWords = persona.useMyWords
+    ? [
+        ...contextCards.map((card) => card.name),
+        ...(preference?.favoriteStyles ?? []),
+      ]
+        .map((word) => word.trim())
+        .filter((word) => word.length > 0)
+        .slice(0, PERSONA_LIMITS.maxMyWords)
+    : []
+
+  const lines = [
+    addressed ? `- Address them as ${addressed}.` : null,
+    persona.useMyWords
+      ? `- Use THEIR words. When they already have a name for something — a character, a look, a shot — say it their way instead of translating it into yours.${
+          myWords.length > 0 ? ` Their words: ${myWords.join(' · ')}` : ''
+        }`
+      : null,
+    persona.nextStepHint
+      ? '- End every reply with ONE concrete next step, on its own last line. One, never a menu, and never a question they already answered.'
+      : null,
+    preference && preference.favoriteStyles.length > 0
+      ? `- They usually like: ${preference.favoriteStyles.join(' · ')}`
+      : null,
+    preference && preference.rejectedStyles.length > 0
+      ? `- They usually reject: ${preference.rejectedStyles.join(' · ')}`
+      : null,
+    preference && preference.commonNegativeTags.length > 0
+      ? `- They usually keep out of the picture: ${preference.commonNegativeTags.join(' · ')}`
+      : null,
+    preference && preference.preferredAspectRatios.length > 0
+      ? `- They usually shoot at: ${preference.preferredAspectRatios.join(' · ')}`
+      : null,
+  ].filter((line): line is string => line !== null)
+
+  if (lines.length === 0) return ''
+
+  return clamp(
+    `\n\nABOUT THIS CREATOR — this is how you speak to them, not what you are allowed to do:\n${lines.join(
+      '\n',
+    )}`,
+    PERSONA_LIMITS.maxCreatorSectionChars,
+  )
+}
+
 function buildPlanVisualSection(): string {
   return `
 - Each option may carry "visual" — a small picture hint the app draws beside its label.
@@ -4801,6 +4879,11 @@ function buildOperatorSystemPrompt(
   artifacts: readonly AssistantOperatorWorkingMemoryArtifact[],
   /** 这段会话最近几条结论记录（§7.6 的注入段）。 */
   rounds: readonly AssistantConversationRoundStored[],
+  /** 「关于这位创作者」那一段要的两样（§8.3）：账号名 + 学出来的创作偏好。 */
+  creator: {
+    accountName: string | null
+    preference: CreativePreferenceDigest | null
+  },
 ): string {
   const brief = ASSISTANT_DOMAIN_BRIEFS[request.domain]
   const language =
@@ -4946,7 +5029,12 @@ HOW YOU TALK — the creator hired an operator, not a rulebook:
 - NEVER recite your own constraints to them. Not what you cannot do, not why, not "as I mentioned". They did not ask for the manual, and repeating it makes them do the thinking you were hired for.
 - If a tool in your list can do a thing, DO IT. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The one exception is the generate button itself, which is theirs by design.
 - When a call is refused, change the approach silently. Say what you are doing next, not which rule stopped you. Never explain the same rule twice.
-- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.${buildPersonaStyleSection(persona)}${buildProjectRulesSection(rules)}${buildContextCardsSection(contextCards)}${buildWorkingMemorySection(artifacts)}${buildRoundMemorySection(rounds)}
+- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.${buildPersonaStyleSection(persona)}${buildCreatorSection(
+    persona,
+    creator.accountName,
+    contextCards,
+    creator.preference,
+  )}${buildProjectRulesSection(rules)}${buildContextCardsSection(contextCards)}${buildWorkingMemorySection(artifacts)}${buildRoundMemorySection(rounds)}
 
 TOOLS:
 ${tools}
@@ -5684,33 +5772,40 @@ export async function* runAssistantOperator(
    * ⭐ 它排在路由解析**之前**（v2 §4.5）：文本模型选哪一档现在住在
    * `persona.routeModel`，路由要等它读回来才知道该找哪把 key。
    */
-  const [persona, rules, contextCards, priorRounds] = await Promise.all([
-    getAssistantPersonaByUserId(user.id),
-    listProjectRules(user.id, {
-      scope: request.domain,
-      limit: RULE_LIMITS.maxInPrompt,
-    }),
-    /**
-     * 常挂在**当前域**上的上下文卡（K1）。⚠ 按 `pinnedScopes` 命中收敛，
-     * ⛔ 不把用户全部的卡拼进提示 —— 常挂那颗开关的全部意义就是「这台工作台上
-     * 带哪几张」，全带等于没有这颗开关。没挂的那些靠 `list_context_cards` 翻。
-     */
-    listContextCards(user.id, {
-      pinnedScope: request.domain,
-      limit: CARD_LIMITS.maxInPrompt,
-    }),
-    /**
-     * ⭐ **之前几轮记住的事**（§7.6）—— 与 persona / 规则 / 卡同一档：开跑前读
-     * 一次，⛔ 不在每一步重读（系统提示每一步都重发，但它每一步都是同一份）。
-     * ⚠ 没有 `conversationId`（这条线程还没落过库 / 老客户端）时就是空的 ——
-     * 那一轮照常跑，只是没有跨轮记忆可注入。
-     */
-    request.conversationId
-      ? listAssistantConversationRounds(user.id, request.conversationId, {
-          limit: ROUND_LIMITS.maxRoundsInPrompt,
-        })
-      : [],
-  ])
+  const [persona, rules, contextCards, priorRounds, creativePreference] =
+    await Promise.all([
+      getAssistantPersonaByUserId(user.id),
+      listProjectRules(user.id, {
+        scope: request.domain,
+        limit: RULE_LIMITS.maxInPrompt,
+      }),
+      /**
+       * 常挂在**当前域**上的上下文卡（K1）。⚠ 按 `pinnedScopes` 命中收敛，
+       * ⛔ 不把用户全部的卡拼进提示 —— 常挂那颗开关的全部意义就是「这台工作台上
+       * 带哪几张」，全带等于没有这颗开关。没挂的那些靠 `list_context_cards` 翻。
+       */
+      listContextCards(user.id, {
+        pinnedScope: request.domain,
+        limit: CARD_LIMITS.maxInPrompt,
+      }),
+      /**
+       * ⭐ **之前几轮记住的事**（§7.6）—— 与 persona / 规则 / 卡同一档：开跑前读
+       * 一次，⛔ 不在每一步重读（系统提示每一步都重发，但它每一步都是同一份）。
+       * ⚠ 没有 `conversationId`（这条线程还没落过库 / 老客户端）时就是空的 ——
+       * 那一轮照常跑，只是没有跨轮记忆可注入。
+       */
+      request.conversationId
+        ? listAssistantConversationRounds(user.id, request.conversationId, {
+            limit: ROUND_LIMITS.maxRoundsInPrompt,
+          })
+        : [],
+      /**
+       * ⭐ 学出来的创作偏好（§8.3）—— 与上面四样同一档：开跑前读一次。
+       * ⚠ 这张表**多数用户是空的**（它由生成反馈那条路慢慢喂），缺行时是 `null`，
+       * 「关于这位创作者」那一段照样拼得出来（只是少那几行）。
+       */
+      getCreativePreferenceDigest(user.id),
+    ])
 
   /**
    * ⭐ **这一轮用哪个脑子，唯一真值是 persona**（v2 §4.5，commit #8）。
@@ -5814,6 +5909,15 @@ export async function* runAssistantOperator(
     contextCards,
     initialMemoryArtifacts(request),
     priorRounds,
+    {
+      /**
+       * 没设称呼时用账号名（§8.3）。⚠ 顺序是 `displayName` → `username`：
+       * 前者是用户自己写下的那个名字，后者只是登录用的 handle。两个都没有时
+       * 那一行整条不出现 —— ⛔ 不拿邮箱当称呼。
+       */
+      accountName: user.displayName ?? user.username ?? null,
+      preference: creativePreference,
+    },
   )
   let planEmitted = false
   /** 本轮已经吐过薄卡的规则 —— 同一条不重复贴（见下面那段）。 */

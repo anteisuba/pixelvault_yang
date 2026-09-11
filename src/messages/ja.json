@@ -7770,6 +7770,10 @@
         "chinese": "中国語",
         "english": "英語"
       },
+      "nextStepHintLabel": "次の一手を提案",
+      "useMyWordsLabel": "自分の言葉を使う",
+      "addressUserAsLabel": "呼び方",
+      "addressUserAsPlaceholder": "空欄の場合はアカウント名を使います",
       "tabPersona": "アシスタント",
       "tabRules": "プロジェクトのルール",
       "rulesHint": "アシスタントが手を動かす前に読む決めごとです。残す価値のあることを伝えると書き留めます。",

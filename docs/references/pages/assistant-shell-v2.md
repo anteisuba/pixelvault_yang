@@ -437,16 +437,16 @@
 
 其余 Prisma 变更（一并落在同一个 migration）：
 
-| 表                      | 列                                      | 用途  |
-| ----------------------- | --------------------------------------- | ----- |
-| `AssistantConversation` | `rounds Json @default("[]")`            | §7.2  |
-| `AssistantPersona`      | `routeModel String?`                    | §4.5  |
-| `AssistantPersona`      | `nextStepHint Boolean @default(false)`  | §11.3 |
-| `AssistantPersona`      | `useMyWords Boolean @default(false)`    | §11.3 |
-| `AssistantPersona`      | `addressUserAs String?`                 | §11.3 |
-| `AssistantPersona`      | `archetype String @default("balanced")` | §11.1 |
-| `ContextCard`           | `status String @default("confirmed")`   | §8.1  |
-| `ProjectRule`           | `kind String @default("note")`          | §9.3  |
+| 表                      | 列                                                                                          | 用途  |
+| ----------------------- | ------------------------------------------------------------------------------------------- | ----- |
+| `AssistantConversation` | `rounds Json @default("[]")`                                                                | §7.2  |
+| `AssistantPersona`      | `routeModel String?`                                                                        | §4.5  |
+| `AssistantPersona`      | `nextStepHint Boolean @default(false)`                                                      | §11.3 |
+| `AssistantPersona`      | `useMyWords Boolean @default(true)`（默认开：用用户自己的词是零成本的礼貌，关掉才需要理由） | §11.3 |
+| `AssistantPersona`      | `addressUserAs String?`                                                                     | §11.3 |
+| `AssistantPersona`      | `archetype String @default("balanced")`                                                     | §11.1 |
+| `ContextCard`           | `status String @default("confirmed")`                                                       | §8.1  |
+| `ProjectRule`           | `kind String @default("note")`                                                              | §9.3  |
 
 ### 7.5 服务端生成时机
 

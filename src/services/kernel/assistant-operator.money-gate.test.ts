@@ -161,6 +161,16 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * 写下去」。哪天有人往那个文件里加一条打源的腿，这条判据当场就破了。
    */
   '@/services/research/assistant-evidence-book.service',
+  /**
+   * **学出来的创作偏好**（v2 §8.3，「关于这位创作者」那一段）。⭐ 判据与
+   * `assistant-persona.service` 那条逐字同源：一张 1:1 侧表，读回来是几个词。
+   * ⚠ 工具环只用它的**读**那一支（`getCreativePreferenceDigest`）——
+   * 那个模块里的写入路径由生成反馈那条普通 API 路由触发，助手够不着：它们要的
+   * 入参是一条 `GenerationRecord` / `Recipe`，而这个文件里一条都拿不到。
+   * ⛔ 哪天有人想在工具环里调它的 `updatePreferenceOn*`「顺路学一下」，
+   * 那就是助手开始改自己读的东西的那一天 —— 这条名单就是那个看得见的动作。
+   */
+  '@/services/user-preference.service',
 ])
 
 /** 出现即失败的标识符 —— 每一条都是一条能花掉用户钱的路。 */

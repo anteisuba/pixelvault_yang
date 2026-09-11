@@ -43,6 +43,9 @@ export type AssistantPersonaMinAggregateOutputType = {
   verbosity: string | null
   planMode: string | null
   language: string | null
+  nextStepHint: boolean | null
+  useMyWords: boolean | null
+  addressUserAs: string | null
   routeModel: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -60,6 +63,9 @@ export type AssistantPersonaMaxAggregateOutputType = {
   verbosity: string | null
   planMode: string | null
   language: string | null
+  nextStepHint: boolean | null
+  useMyWords: boolean | null
+  addressUserAs: string | null
   routeModel: string | null
   createdAt: Date | null
   updatedAt: Date | null
@@ -77,6 +83,9 @@ export type AssistantPersonaCountAggregateOutputType = {
   verbosity: number
   planMode: number
   language: number
+  nextStepHint: number
+  useMyWords: number
+  addressUserAs: number
   routeModel: number
   createdAt: number
   updatedAt: number
@@ -96,6 +105,9 @@ export type AssistantPersonaMinAggregateInputType = {
   verbosity?: true
   planMode?: true
   language?: true
+  nextStepHint?: true
+  useMyWords?: true
+  addressUserAs?: true
   routeModel?: true
   createdAt?: true
   updatedAt?: true
@@ -113,6 +125,9 @@ export type AssistantPersonaMaxAggregateInputType = {
   verbosity?: true
   planMode?: true
   language?: true
+  nextStepHint?: true
+  useMyWords?: true
+  addressUserAs?: true
   routeModel?: true
   createdAt?: true
   updatedAt?: true
@@ -130,6 +145,9 @@ export type AssistantPersonaCountAggregateInputType = {
   verbosity?: true
   planMode?: true
   language?: true
+  nextStepHint?: true
+  useMyWords?: true
+  addressUserAs?: true
   routeModel?: true
   createdAt?: true
   updatedAt?: true
@@ -220,6 +238,9 @@ export type AssistantPersonaGroupByOutputType = {
   verbosity: string
   planMode: string
   language: string
+  nextStepHint: boolean
+  useMyWords: boolean
+  addressUserAs: string | null
   routeModel: string | null
   createdAt: Date
   updatedAt: Date
@@ -258,6 +279,9 @@ export type AssistantPersonaWhereInput = {
   verbosity?: Prisma.StringFilter<"AssistantPersona"> | string
   planMode?: Prisma.StringFilter<"AssistantPersona"> | string
   language?: Prisma.StringFilter<"AssistantPersona"> | string
+  nextStepHint?: Prisma.BoolFilter<"AssistantPersona"> | boolean
+  useMyWords?: Prisma.BoolFilter<"AssistantPersona"> | boolean
+  addressUserAs?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   routeModel?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   createdAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
@@ -276,6 +300,9 @@ export type AssistantPersonaOrderByWithRelationInput = {
   verbosity?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
+  nextStepHint?: Prisma.SortOrder
+  useMyWords?: Prisma.SortOrder
+  addressUserAs?: Prisma.SortOrderInput | Prisma.SortOrder
   routeModel?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -297,6 +324,9 @@ export type AssistantPersonaWhereUniqueInput = Prisma.AtLeast<{
   verbosity?: Prisma.StringFilter<"AssistantPersona"> | string
   planMode?: Prisma.StringFilter<"AssistantPersona"> | string
   language?: Prisma.StringFilter<"AssistantPersona"> | string
+  nextStepHint?: Prisma.BoolFilter<"AssistantPersona"> | boolean
+  useMyWords?: Prisma.BoolFilter<"AssistantPersona"> | boolean
+  addressUserAs?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   routeModel?: Prisma.StringNullableFilter<"AssistantPersona"> | string | null
   createdAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"AssistantPersona"> | Date | string
@@ -315,6 +345,9 @@ export type AssistantPersonaOrderByWithAggregationInput = {
   verbosity?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
+  nextStepHint?: Prisma.SortOrder
+  useMyWords?: Prisma.SortOrder
+  addressUserAs?: Prisma.SortOrderInput | Prisma.SortOrder
   routeModel?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -338,6 +371,9 @@ export type AssistantPersonaScalarWhereWithAggregatesInput = {
   verbosity?: Prisma.StringWithAggregatesFilter<"AssistantPersona"> | string
   planMode?: Prisma.StringWithAggregatesFilter<"AssistantPersona"> | string
   language?: Prisma.StringWithAggregatesFilter<"AssistantPersona"> | string
+  nextStepHint?: Prisma.BoolWithAggregatesFilter<"AssistantPersona"> | boolean
+  useMyWords?: Prisma.BoolWithAggregatesFilter<"AssistantPersona"> | boolean
+  addressUserAs?: Prisma.StringNullableWithAggregatesFilter<"AssistantPersona"> | string | null
   routeModel?: Prisma.StringNullableWithAggregatesFilter<"AssistantPersona"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantPersona"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"AssistantPersona"> | Date | string
@@ -354,6 +390,9 @@ export type AssistantPersonaCreateInput = {
   verbosity?: string
   planMode?: string
   language?: string
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: string | null
   routeModel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -372,6 +411,9 @@ export type AssistantPersonaUncheckedCreateInput = {
   verbosity?: string
   planMode?: string
   language?: string
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: string | null
   routeModel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -388,6 +430,9 @@ export type AssistantPersonaUpdateInput = {
   verbosity?: Prisma.StringFieldUpdateOperationsInput | string
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
+  nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  useMyWords?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -406,6 +451,9 @@ export type AssistantPersonaUncheckedUpdateInput = {
   verbosity?: Prisma.StringFieldUpdateOperationsInput | string
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
+  nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  useMyWords?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -423,6 +471,9 @@ export type AssistantPersonaCreateManyInput = {
   verbosity?: string
   planMode?: string
   language?: string
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: string | null
   routeModel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -439,6 +490,9 @@ export type AssistantPersonaUpdateManyMutationInput = {
   verbosity?: Prisma.StringFieldUpdateOperationsInput | string
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
+  nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  useMyWords?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -456,6 +510,9 @@ export type AssistantPersonaUncheckedUpdateManyInput = {
   verbosity?: Prisma.StringFieldUpdateOperationsInput | string
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
+  nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  useMyWords?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -478,6 +535,9 @@ export type AssistantPersonaCountOrderByAggregateInput = {
   verbosity?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
+  nextStepHint?: Prisma.SortOrder
+  useMyWords?: Prisma.SortOrder
+  addressUserAs?: Prisma.SortOrder
   routeModel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -495,6 +555,9 @@ export type AssistantPersonaMaxOrderByAggregateInput = {
   verbosity?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
+  nextStepHint?: Prisma.SortOrder
+  useMyWords?: Prisma.SortOrder
+  addressUserAs?: Prisma.SortOrder
   routeModel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -512,6 +575,9 @@ export type AssistantPersonaMinOrderByAggregateInput = {
   verbosity?: Prisma.SortOrder
   planMode?: Prisma.SortOrder
   language?: Prisma.SortOrder
+  nextStepHint?: Prisma.SortOrder
+  useMyWords?: Prisma.SortOrder
+  addressUserAs?: Prisma.SortOrder
   routeModel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
@@ -560,6 +626,9 @@ export type AssistantPersonaCreateWithoutUserInput = {
   verbosity?: string
   planMode?: string
   language?: string
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: string | null
   routeModel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -576,6 +645,9 @@ export type AssistantPersonaUncheckedCreateWithoutUserInput = {
   verbosity?: string
   planMode?: string
   language?: string
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: string | null
   routeModel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -608,6 +680,9 @@ export type AssistantPersonaUpdateWithoutUserInput = {
   verbosity?: Prisma.StringFieldUpdateOperationsInput | string
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
+  nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  useMyWords?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -624,6 +699,9 @@ export type AssistantPersonaUncheckedUpdateWithoutUserInput = {
   verbosity?: Prisma.StringFieldUpdateOperationsInput | string
   planMode?: Prisma.StringFieldUpdateOperationsInput | string
   language?: Prisma.StringFieldUpdateOperationsInput | string
+  nextStepHint?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  useMyWords?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  addressUserAs?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   routeModel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -643,6 +721,9 @@ export type AssistantPersonaSelect<ExtArgs extends runtime.Types.Extensions.Inte
   verbosity?: boolean
   planMode?: boolean
   language?: boolean
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: boolean
   routeModel?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -661,6 +742,9 @@ export type AssistantPersonaSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   verbosity?: boolean
   planMode?: boolean
   language?: boolean
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: boolean
   routeModel?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -679,6 +763,9 @@ export type AssistantPersonaSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   verbosity?: boolean
   planMode?: boolean
   language?: boolean
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: boolean
   routeModel?: boolean
   createdAt?: boolean
   updatedAt?: boolean
@@ -697,12 +784,15 @@ export type AssistantPersonaSelectScalar = {
   verbosity?: boolean
   planMode?: boolean
   language?: boolean
+  nextStepHint?: boolean
+  useMyWords?: boolean
+  addressUserAs?: boolean
   routeModel?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type AssistantPersonaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "avatarPreset" | "avatarUrl" | "avatarStorageKey" | "tone" | "toneCustom" | "verbosity" | "planMode" | "language" | "routeModel" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantPersona"]>
+export type AssistantPersonaOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "avatarPreset" | "avatarUrl" | "avatarStorageKey" | "tone" | "toneCustom" | "verbosity" | "planMode" | "language" | "nextStepHint" | "useMyWords" | "addressUserAs" | "routeModel" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantPersona"]>
 export type AssistantPersonaInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -754,6 +844,20 @@ export type $AssistantPersonaPayload<ExtArgs extends runtime.Types.Extensions.In
      * ui / chinese / english —— 覆盖请求里的 responseLanguage。
      */
     language: string
+    /**
+     * 每条回复末尾给一条「下一步建议」（v2 §11.3）。默认关：多数轮次助手本来就
+     * 在说下一步，强制加一行会把它说两遍。
+     */
+    nextStepHint: boolean
+    /**
+     * 优先使用创作者自己用过的说法与角色名（v2 §11.3）。默认开：用户的词本来就
+     * 是这段对话的词表，助手把「黄昏光」改叫「暖色调逆光」是在制造翻译成本。
+     */
+    useMyWords: boolean
+    /**
+     * 怎么称呼这位创作者，≤24 字。null = 用账号名。
+     */
+    addressUserAs: string | null
     /**
      * 输入区文本模型 chip 选的那一档（`NODE_STUDIO_ASSISTANT_ROUTE_MODELS` 的
      * modelId）。null = 「自动」——服务端按 resolveLlmTextRoute 的优先级自己挑。
@@ -1197,6 +1301,9 @@ export interface AssistantPersonaFieldRefs {
   readonly verbosity: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly planMode: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly language: Prisma.FieldRef<"AssistantPersona", 'String'>
+  readonly nextStepHint: Prisma.FieldRef<"AssistantPersona", 'Boolean'>
+  readonly useMyWords: Prisma.FieldRef<"AssistantPersona", 'Boolean'>
+  readonly addressUserAs: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly routeModel: Prisma.FieldRef<"AssistantPersona", 'String'>
   readonly createdAt: Prisma.FieldRef<"AssistantPersona", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"AssistantPersona", 'DateTime'>

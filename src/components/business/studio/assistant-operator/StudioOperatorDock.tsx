@@ -238,6 +238,9 @@ export function StudioOperatorDock() {
         planMode: persona.planMode,
         language: persona.language,
         routeModel,
+        nextStepHint: persona.nextStepHint,
+        useMyWords: persona.useMyWords,
+        addressUserAs: persona.addressUserAs,
       }),
     [persona, savePersona],
   )

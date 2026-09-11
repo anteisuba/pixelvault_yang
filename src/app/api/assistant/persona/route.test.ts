@@ -39,6 +39,10 @@ const VALID_BODY = {
   planMode: 'auto',
   language: 'ui',
   routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
+  /** v2 §11.3 的三项 —— `PUT` 收的是完整形状，少递一列就是 400。 */
+  nextStepHint: false,
+  useMyWords: true,
+  addressUserAs: null,
 }
 
 describe('GET /api/assistant/persona', () => {

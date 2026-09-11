@@ -5422,7 +5422,36 @@ describe('计划协议 · plan / ask / confirm', () => {
     )
     const prompt = lastUserPrompt()
     expect(prompt).toContain('WANTS A DIFFERENT PLAN')
-    expect(prompt).toContain('question-1: option-1-2')
+    expect(prompt).toContain('"question-1" → option-1-2')
+  })
+
+  /**
+   * ⭐ **答复自带原话**（v2 §3.4 落账规则，2026-09-12 真机 bug）——
+   * 合成 id 在下一轮反查不回题面与选项文案，模型于是重问同一件事。
+   */
+  it('⭐ 上一轮问题卡的答复在本轮提示里是人话，并明说不许再问', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          planApproved: true,
+          planAnswers: [
+            {
+              questionId: 'question-1',
+              optionIds: ['option-1-1'],
+              question: '画面以哪位角色为主体？',
+              optionLabels: ['角色设计展示立绘'],
+            },
+          ],
+        }),
+      ),
+    )
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('"画面以哪位角色为主体？" → 角色设计展示立绘')
+    expect(prompt).toContain('do not ask about them again')
+    // ⛔ 只印合成 id 的那一版正是 bug 本身。
+    expect(prompt).not.toContain('- question-1: option-1-1')
   })
 
   it('planApproved=true 时答复是既定事实，⛔ 不要求重新规划', async () => {
@@ -5446,7 +5475,7 @@ describe('计划协议 · plan / ask / confirm', () => {
     expect(prompt).toContain('APPROVED YOUR PLAN')
     expect(prompt).not.toContain('WANTS A DIFFERENT PLAN')
     // ⭐ 多选题答了两项就喂回两项 —— ⛔ 不许只渲染第一个。
-    expect(prompt).toContain('question-1: option-1-1, option-1-3')
+    expect(prompt).toContain('"question-1" → option-1-1, option-1-3')
     expect(prompt).toContain('other: "再暗一点"')
   })
 
@@ -5479,7 +5508,7 @@ describe('计划协议 · plan / ask / confirm', () => {
     // ⚠ `plan` 帧照旧 —— 进度带要用。
     expect(typesOf(events)[0]).toBe(ASSISTANT_OPERATOR_EVENTS.plan)
     // ⚠ 用户选的答复照旧进上下文。
-    expect(lastUserPrompt()).toContain('question-1: option-1-1')
+    expect(lastUserPrompt()).toContain('"question-1" → option-1-1')
   })
 
   /**
@@ -7755,6 +7784,57 @@ describe('current reference image bindings', () => {
         input.systemPrompt.includes('Build a reference-use brief'),
       ),
     ).toBe(false)
+  })
+
+  /**
+   * ⭐ **答过的那道题对分工简报也要可见**（2026-09-12 真机 bug 的另一半）。
+   *
+   * 简报吐 `uncertainties` 时 `set_prompt` 一律被 `promptConflict` 拒，而简报那一跳
+   * 读的是 `referenceCreatorContext`。用户在问题卡上答完的那件事如果进不了这一段，
+   * 简报会照旧提同一个疑问 → 提示词永远写不进去（真机连挂四轮，时间线上只留
+   * 两条「写入正向提示词」）。
+   */
+  it('⭐ 上一轮答过的问题进参考图分工简报的上下文（⛔ 否则提示词永远卡在 promptConflict）', async () => {
+    queueTurns(
+      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '写入正向提示词',
+          args: { value: 'A hug on white' },
+        },
+      },
+      brief,
+      { issues: [] },
+      { finished: true, message: '已写入。' },
+    )
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [
+            { role: 'user', content: '把提示词按你说的方向写进工作台' },
+          ],
+          planApproved: true,
+          planAnswers: [
+            {
+              questionId: 'question-1',
+              optionIds: ['option-1-1'],
+              question: '画面以哪位角色为主体？',
+              optionLabels: ['角色设计展示立绘'],
+            },
+          ],
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    const briefCall = mockLlmTextCompletion.mock.calls.find(([input]) =>
+      String(input.systemPrompt).includes('Build a reference-use brief'),
+    )
+    expect(String(briefCall?.[0].userPrompt)).toContain(
+      '"画面以哪位角色为主体？" → 角色设计展示立绘',
+    )
+    expect(String(briefCall?.[0].userPrompt)).toContain('ALREADY SETTLED')
   })
 
   it('keeps inspected evidence when the source-role brief fails and never writes the prompt', async () => {

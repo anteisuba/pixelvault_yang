@@ -1263,6 +1263,77 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     await settle()
     expect(store.getOperatorState().confirm).toBeNull()
   })
+
+  /**
+   * ⭐ **答复必须自带题面与选项文案**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
+   *
+   * `question-1` / `option-1-1` 是上一条流现编的合成 id，而服务端零会话态 ——
+   * 只回 id 的那一版里，模型在下一轮根本读不到「用户选了什么」，真机连着四轮
+   * 重问同一件事。这条用例钉的就是「请求体里有原话」。
+   */
+  it('⭐ 答问题卡 → 请求体里的 planAnswers 带着题面与选项文案（⛔ 不只有合成 id）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我定一下取景')
+    })
+    await settle()
+    streams[0].emit(askEvent())
+    await settle()
+
+    const picked = store.getOperatorState().question!.question.options[0]!
+    act(() => {
+      result.current.answerQuestion(
+        { questionId: 'q1', optionIds: [picked.id] },
+        { label: picked.label },
+      )
+    })
+    await settle()
+
+    expect(streamAssistantOperatorAPI.mock.calls[1]?.[0].planAnswers).toEqual([
+      {
+        questionId: 'q1',
+        optionIds: ['half'],
+        question: '取多少身？',
+        optionLabels: ['半身'],
+      },
+    ])
+  })
+
+  /**
+   * ⭐ **一条 `apply` 步落到工作台上**（v2 §2.1「改」组）—— 入口收口（#5）之后
+   * 帧上多了 `verb`，而派发照旧按 `tool`（旧工具名）。这条用例钉住那一格：
+   * `verb` 换了写法也好、面板改了状态词也好，⛔ 都不许把「谁去改表单」这条线
+   * 改成读 `verb`（真机表现是「步骤跑了、提示词还是空的」）。
+   */
+  it('⭐ step{tool:set_prompt, verb:apply, status:done} → 宿主收到 SET_PROMPT', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词写进工作台')
+    })
+    await settle()
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.step,
+      step: {
+        id: 'step-1',
+        title: '写入正向提示词',
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        verb: 'apply',
+        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+        payload: { mode: 'replace', value: '雨夜里的红伞' },
+        inverse: { value: '' },
+      },
+    })
+    await settle()
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'SET_PROMPT',
+      payload: '雨夜里的红伞',
+    })
+    // ⭐ 归属标记（✦）同一跳记账 —— 少了它参数栏上看不出这一格是谁改的。
+    expect(store.getOperatorState().changes.prompt).toMatchObject({
+      field: 'prompt',
+    })
+  })
 })
 
 /**

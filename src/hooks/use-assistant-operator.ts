@@ -1396,7 +1396,33 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         })
         return
       }
-      void run({ planAnswers: [answer], planApproved: true })
+      /**
+       * ⭐ **答复自带题面与选项文案**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
+       *
+       * `questionId` / `optionIds` 是上一条流现编的合成 id（`question-1` /
+       * `option-1-1`），而服务端零会话态 —— 下一轮它反查不回这道题问的是什么、
+       * 那个选项写的是什么，于是「用户已经选过了」这件事对模型不存在。真机表现：
+       * 点完「角色设计展示立绘」，模型连着四轮重问「画面以哪位角色为主体」，
+       * 顺带把 `set_prompt` 卡在 `promptConflict` 上（提示词一个字都没写进去）。
+       * ⚠ 题面与文案**只在这里取一次**：卡在 store 里的这一份是唯一有原文的地方
+       *   （面板那一层只有 i18n 文案，⛔ 不在那儿拼第二份）。
+       */
+      const labels = answer.optionIds.flatMap((optionId) => {
+        const option = question.question.options.find(
+          (candidate) => candidate.id === optionId,
+        )
+        return option ? [option.label] : []
+      })
+      void run({
+        planAnswers: [
+          {
+            ...answer,
+            question: question.question.question,
+            ...(labels.length ? { optionLabels: labels } : {}),
+          },
+        ],
+        planApproved: true,
+      })
     },
     [run],
   )

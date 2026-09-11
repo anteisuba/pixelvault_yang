@@ -2497,8 +2497,46 @@ function planSetModel(run: OperatorRun, args: { modelId: string }): ToolPlan {
  * 助手还没写过它、用户也还没就这个字段表过态 → 返回 `confirm`，流就停在这儿。
  * 「助手自己刚写的」不再问 —— 覆盖自己的草稿不需要用户点三次头。
  */
+/**
+ * 用户在问题卡上答过的那几道 → **自带题面与文案的一行**（v2 §3.4 落账规则）。
+ *
+ * ⭐ **唯一一份渲染**（2026-09-12 真机 bug）：同一句话要在三个地方被读到 ——
+ * 工具环的提示词、参考图分工简报的上下文、本轮结账的「决定」栏。三处各写一遍
+ * 的下场就是这次的 bug 的另一半：有的地方看得见答案、有的地方看不见，而模型
+ * 只要在**任何一处**看不见就会重问。
+ * ⚠ 题面与选项文案是**客户端带上来的**（`AssistantOperatorPlanAnswerSchema` 的
+ * `question` / `optionLabels`）：合成 id 是上一条流现编的，服务端零会话态，这里
+ * 反查不回去。缺席（老客户端 / 覆盖三选那一支）就退回 id —— ⛔ 不猜一个题面。
+ */
+const NO_PLAN_ANSWER = '(no answer)'
+
+function describePlanAnswers(request: AssistantOperatorRequest): string[] {
+  return (request.planAnswers ?? []).map((entry) => {
+    const labels = entry.optionLabels?.length
+      ? entry.optionLabels
+      : entry.optionIds
+    const picked = labels.join(', ')
+    const other = entry.otherText?.trim()
+    const said = [picked, other ? `other: "${other}"` : null]
+      .filter((part): part is string => Boolean(part))
+      .join(' + ')
+    const asked = entry.question?.trim() || entry.questionId
+    return `- "${asked}" → ${said || NO_PLAN_ANSWER}`
+  })
+}
+
 function referenceCreatorContext(run: OperatorRun): string {
-  return `CURRENT PROMPT:\n${run.state.prompt}\nCONVERSATION (latest explicit user instruction wins):\n${buildAssistantConversation(run.request.messages)}`
+  /**
+   * ⭐ **答过的那几道也是「创作者说过的话」**（2026-09-12 真机 bug）：分工简报
+   * 那一跳会吐 `uncertainties`，而 `uncertainties` 非空时 `set_prompt` 一律被
+   * `promptConflict` 拒。少了这一段，用户在问题卡上答完的那件事对这一跳仍然
+   * 不存在 → 简报照旧提同一个疑问 → 提示词永远写不进去（真机连挂四轮）。
+   */
+  const settled = describePlanAnswers(run.request)
+  const answered = settled.length
+    ? `ALREADY SETTLED WITH THE CREATOR (do not raise these as uncertainties again):\n${settled.join('\n')}\n`
+    : ''
+  return `CURRENT PROMPT:\n${run.state.prompt}\n${answered}CONVERSATION (latest explicit user instruction wins):\n${buildAssistantConversation(run.request.messages)}`
 }
 
 async function completeReferenceAnalysisText(
@@ -5716,19 +5754,14 @@ ${run.request.priorSteps
     /**
      * ⚠ 一题的答复是**一串** option id（多选）外加可选的一句「其他」——
      * ⛔ 别只渲染第一个：多选题答了三项只喂回一项，模型下一步就当另外两项不存在。
+     * ⚠ 渲染走 `describePlanAnswers`（一处真值）：题面与选项文案由客户端自带，
+     *   ⛔ 别在这里退回「只印 id」—— 那正是模型重问同一件事的原因。
      */
-    const answers = (run.request.planAnswers ?? []).map((entry) => {
-      const picked = entry.optionIds.join(', ')
-      const other = entry.otherText?.trim()
-      const said = [picked, other ? `other: "${other}"` : null]
-        .filter((part): part is string => Boolean(part))
-        .join(' + ')
-      return `- ${entry.questionId}: ${said || '(no answer)'}`
-    })
+    const answers = describePlanAnswers(run.request)
     const heading =
       run.request.planApproved === false
         ? 'THE CREATOR WANTS A DIFFERENT PLAN. Re-plan from scratch this turn: send a NEW "plan" (and new "questions" if anything is still open) BEFORE calling any tool, and fold their answers below into it.'
-        : 'THE CREATOR APPROVED YOUR PLAN AND ANSWERED THE OPEN QUESTIONS. Treat these answers as settled facts — do not ask again.'
+        : 'THE CREATOR APPROVED YOUR PLAN AND ANSWERED THE OPEN QUESTIONS. Each line below is the question you asked and what the creator picked. Treat them as settled facts: do not ask about them again, in any wording, and do not stall on them — act on them this turn.'
     sections.push(
       [
         heading,
@@ -6244,18 +6277,16 @@ async function closeRound(
 /**
  * 用户这一轮点过的那几下 → 「决定」栏的原话（§7.5 ①「问」组）。
  *
- * ⚠ 只写得出 id：问题卡是上一条流吐的，服务端零会话态，选项的原文早就不在手上。
- * 压缩那一跳会连着本轮对话一起读，写得出人话的是它 —— 这里只负责**不丢事实**。
+ * ⚠ 题面与选项文案由**客户端自带**（`describePlanAnswers`，2026-09-12 起）：
+ * 问题卡是上一条流吐的，服务端零会话态，合成 id 在这里反查不回去。客户端没带
+ * （老客户端）才退回 id —— 那时这一行只负责**不丢事实**。
  */
 function seedLedgerDecisions(request: AssistantOperatorRequest): string[] {
   const lines: string[] = []
-  for (const answer of request.planAnswers ?? []) {
-    const picked = answer.optionIds.join(', ')
-    const other = answer.otherText?.trim()
-    const said = [picked, other ? `其他："${other}"` : null]
-      .filter((part): part is string => Boolean(part))
-      .join(' + ')
-    if (said) pushLedgerLine(lines, `问题卡 ${answer.questionId} 选了 ${said}`)
+  for (const said of describePlanAnswers(request)) {
+    // ⚠ 一道没答的题不是一条「决定」—— ⛔ 别把「(no answer)」记成结论。
+    if (said.endsWith(NO_PLAN_ANSWER)) continue
+    pushLedgerLine(lines, `问题卡 ${said.replace(/^- /, '')}`)
   }
   for (const confirmation of request.confirmations ?? []) {
     pushLedgerLine(

@@ -740,6 +740,24 @@ export const AssistantOperatorPlanAnswerSchema = z.object({
   questionId: IdSchema,
   optionIds: z.array(IdSchema).max(PLAN_LIMITS.maxOptions),
   otherText: z.string().trim().max(PLAN_LIMITS.maxOtherTextChars).optional(),
+  /**
+   * ⭐ **这道题原本问的是什么**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
+   *
+   * `questionId` / `optionIds` 是**上一条流现编的合成 id**（`question-1` /
+   * `option-1-1`，见 `normalizePlanQuestions` 的头注），而服务端零会话态 ——
+   * 下一轮手上只有这几个 id，谁都反查不回题面与选项文案。真机表现很具体：
+   * 用户在卡上点完「角色设计展示立绘」，模型连着四轮重问「画面以哪位角色为主体」。
+   * 所以答复必须**自带文本**：这两格在，下一轮的提示词里才写得出一句
+   * 「用户对『…』的回答是『…』」。
+   * ⚠ 可选是为了老客户端与覆盖三选那一支（它走 `confirmations`）：缺席时照旧
+   *   只渲染 id，⛔ 不为此拒掉整条请求。
+   */
+  question: z.string().trim().max(PLAN_LIMITS.maxQuestionChars).optional(),
+  /** 被点中的那几个选项的**文案**（与 `optionIds` 同序）。 */
+  optionLabels: z
+    .array(z.string().trim().max(PLAN_LIMITS.maxOptionLabelChars))
+    .max(PLAN_LIMITS.maxOptions)
+    .optional(),
 })
 
 export type AssistantOperatorPlanAnswer = z.infer<

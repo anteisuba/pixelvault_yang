@@ -44,6 +44,7 @@ import {
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
 import { AdvancedParamsSchema } from '@/types'
 import type {
+  AssistantAssetWriteRevert,
   AssistantOperatorAppliedStep,
   AssistantOperatorGenerationRequest,
   AssistantOperatorStep,
@@ -204,6 +205,17 @@ export interface StudioOperatorApplyContext {
    * 少一个可选的手不该让整条撤销链断掉。
    */
   deleteProjectRule?(ruleId: string): void
+  /**
+   * 撤销一条**素材库写操作**（v2 §10）—— 打标签 / 收藏 / 建夹 / 移动那四条。
+   *
+   * ⚠ 与 `deleteProjectRule` 同一条论据，只是四条共用一只手：这四条的后果**在库里**
+   * （表单一个字都没动），所以「应用」在客户端是空操作，撤销才要真的做一件事 ——
+   * 把 step 上那份 `inverse` 原样交回服务端（走 `revertAssistantAssetWriteAPI`）。
+   * ⛔ 别在这一侧重新算一份 inverse：算第二遍就有第二份判据，而应用与撤销必须是
+   * 同一份判据的两侧（本文件头注）。
+   * ⚠ 缺席 = 这个宿主还没接素材库那条线；缺席时撤销**静默不做**，⛔ 不抛。
+   */
+  revertAssetWrite?(input: AssistantAssetWriteRevert): void
 }
 
 /** 清晰度的收窄 —— 直接问 schema，不在这里抄一份 `['auto','1K','2K','4K']`。 */
@@ -387,6 +399,17 @@ export function applyOperatorStep(
      * `/api/context-cards`，⛔ 不在这条应用通道上（那条改的是工作台上的旋钮）。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard:
+    /**
+     * ⚠ 素材库四条（§10）也**不动表单**：它们改的是用户库里那几件东西的标签 /
+     * 星 / 归属夹，工作台上一格旋钮都没动。返回 null = 登记簿不记账、归属标记（✦）
+     * 不会亮在一个它没改过的字段上 —— 与规则那条逐字同源。
+     * ⛔ 但它们**照旧可撤销**：撤销那一跳走 `revertAssetWrite`（后果在库里），
+     * 不靠登记簿。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.tagAsset:
+    case ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset:
+    case ASSISTANT_OPERATOR_TOOL_IDS.createFolder:
+    case ASSISTANT_OPERATOR_TOOL_IDS.moveAssets:
       return null
 
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
@@ -581,6 +604,18 @@ export function applyOperatorStep(
     }
 
     /**
+     * 素材库四条（§10）—— **后果已经落在库里了**，客户端这一步什么都不做。
+     *
+     * ⚠ 返回 `null`：一格旋钮都没动，所以不进登记簿。撤销不走登记簿而走
+     * `revertAssetWrite`（见 `revertOperatorStep`）—— 与 `add_project_rule` 同形。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.tagAsset:
+    case ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset:
+    case ASSISTANT_OPERATOR_TOOL_IDS.createFolder:
+    case ASSISTANT_OPERATOR_TOOL_IDS.moveAssets:
+      return null
+
+    /**
      * 请求发送（§6 花钱档）—— 这一跳就是「客户端扣扳机」本身。
      *
      * ⚠ 返回 `null`：它没有动表单的任何一格，因此不进登记簿、不算进 checkpoint
@@ -773,6 +808,40 @@ export function revertOperatorStep(
      * ⚠ 空分支照旧写出来（同上一条的理由：本仓没开 `noImplicitReturns`）。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
+      return
+
+    /**
+     * 素材库四条（§10）—— 撤销要**打一次网络**：后果在库里，客户端手上没有任何
+     * 东西可以往回改。交出去的是 step 上那份 `inverse` **原样**（逐条原值），
+     * ⛔ 这一侧不重算。
+     * ⚠ 宿主没接这条线时静默不做（同 `deleteProjectRule` 的判据）。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.tagAsset:
+      ctx.revertAssetWrite?.({
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+        entries: step.inverse.entries,
+      })
+      return
+
+    case ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset:
+      ctx.revertAssetWrite?.({
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+        entries: step.inverse.entries,
+      })
+      return
+
+    case ASSISTANT_OPERATOR_TOOL_IDS.createFolder:
+      ctx.revertAssetWrite?.({
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
+        folderId: step.inverse.folderId,
+      })
+      return
+
+    case ASSISTANT_OPERATOR_TOOL_IDS.moveAssets:
+      ctx.revertAssetWrite?.({
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+        entries: step.inverse.entries,
+      })
       return
   }
 }

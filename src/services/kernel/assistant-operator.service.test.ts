@@ -290,6 +290,30 @@ vi.mock('@/services/project-rule.service', async () => {
   }
 })
 
+/**
+ * 素材库四条写操作（v2 §10，commit #18）—— 与规则那一份同形。
+ *
+ * ⚠ 真实实现的「做 → 撤 → 回到原状」由 `asset-library-write.service.test.ts`
+ * 用一份内存假库验；这一层验的是**入口派发与协议**：`apply` 的四个 action
+ * 落到哪个函数、`inverse` 有没有原样带出去、够不着时拒得对不对。
+ */
+const mockTagAssets = vi.fn()
+const mockSetAssetFavorites = vi.fn()
+const mockCreateAssetFolder = vi.fn()
+const mockMoveAssetsToFolder = vi.fn()
+vi.mock('@/services/asset-library-write.service', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/services/asset-library-write.service')
+  >('@/services/asset-library-write.service')
+  return {
+    AssetFolderLimitError: actual.AssetFolderLimitError,
+    tagAssets: (...args: unknown[]) => mockTagAssets(...args),
+    setAssetFavorites: (...args: unknown[]) => mockSetAssetFavorites(...args),
+    createAssetFolder: (...args: unknown[]) => mockCreateAssetFolder(...args),
+    moveAssetsToFolder: (...args: unknown[]) => mockMoveAssetsToFolder(...args),
+  }
+})
+
 /** 上下文卡（第三期 K1）—— 与规则那一份同形，一行库都不碰。 */
 const mockListContextCards = vi.fn(
   async (..._args: unknown[]) => [] as unknown[],
@@ -301,7 +325,9 @@ vi.mock('@/services/context-cards.service', () => ({
 }))
 
 import {
+  ASSISTANT_ASSET_WRITE_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
+  ASSISTANT_OPERATOR_VERB_IDS,
   ASSISTANT_EVIDENCE_RECALL_LIMITS,
   ASSISTANT_ROUND_SUMMARY_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
@@ -4910,6 +4936,218 @@ describe('项目规则（§10，拍板 23）', () => {
  * ⚠ 判**在服务端**（v1 那条客户端 `shouldShowPlanCard` 随计划请求帧一起删了）：
  * 有题就问一题，没题而步数够多就出多步确认卡，两条路都当场停流。
  */
+/**
+ * **素材库四条写操作**（v2 §10，commit #18）。
+ *
+ * ⚠ 这一层验的是**入口派发与协议**：模型写的是 `{name:'apply', action:'tag_asset'}`，
+ * 落到哪个函数、`inverse` 有没有原样带出去、够不着的时候拒得对不对。
+ * 真实的「做 → 撤 → 回到原状」在 `asset-library-write.service.test.ts` 里用一份
+ * 内存假库验 —— 两层各验一半，⛔ 别在这里再 mock 一份库出来。
+ */
+describe('素材库四条写操作（§10）', () => {
+  beforeEach(() => {
+    mockTagAssets.mockResolvedValue({ entries: [], skipped: 0 })
+    mockSetAssetFavorites.mockResolvedValue({ entries: [] })
+    mockCreateAssetFolder.mockResolvedValue({
+      folderId: 'folder-9',
+      name: '角色参考',
+      parentId: null,
+    })
+    mockMoveAssetsToFolder.mockResolvedValue({
+      folderName: '角色参考',
+      entries: [],
+    })
+  })
+
+  /** ⭐ 五动词收口之后模型只写 `apply`——这条验的是 §2.1 那张映射表真的通了。 */
+  it('⭐ 四条都从 apply 入口派发，且按 userId 调服务', async () => {
+    mockTagAssets.mockResolvedValue({
+      entries: [{ assetId: 'a1', tags: ['线稿'] }],
+      skipped: 0,
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
+          title: 'Tag them',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+            assetIds: ['a1'],
+            tags: ['线稿'],
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.tagAsset &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(done).toBeDefined()
+    expect(done?.verb).toBe(ASSISTANT_OPERATOR_VERB_IDS.apply)
+    expect(mockTagAssets).toHaveBeenCalledWith('user-db-1', ['a1'], ['线稿'])
+    // 撤销的本钱：真的新加上去的那几个标签，逐件。
+    expect(done?.inverse).toEqual({
+      entries: [{ assetId: 'a1', tags: ['线稿'] }],
+    })
+  })
+
+  /**
+   * ⭐ §10 那条 ⚠ 的协议侧落点：一批里原值混合时，`inverse` 必须原样带出去 ——
+   * 服务端在这一层**不加工**它（加工过一次就不再是原值了）。
+   */
+  it('⭐ favorite_asset 的 inverse 是逐件原值，⛔ 不是取反', async () => {
+    mockSetAssetFavorites.mockResolvedValue({
+      entries: [
+        { assetId: 'a1', value: false },
+        { assetId: 'a2', value: true },
+      ],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+            assetIds: ['a1', 'a2'],
+            value: true,
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const done = steps.find(
+      (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+    )
+    expect(done?.inverse).toEqual({
+      entries: [
+        { assetId: 'a1', value: false },
+        { assetId: 'a2', value: true },
+      ],
+    })
+    expect(done?.payload).toMatchObject({ value: true })
+  })
+
+  /** 所有权：一件都够不着 → `unknownAsset`，⛔ 不出一条假装成功的 step。 */
+  it('一件都不是他的 → 按 unknownAsset 拒', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+            assetIds: ['not-mine'],
+            value: true,
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const rejected = steps.find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+    )
+    expect((rejected?.error as { reason: string } | undefined)?.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownAsset,
+    )
+  })
+
+  /** 目标夹不是他的 → `unknownFolder`（与「id 编错了」分开说）。 */
+  it('move_assets 的目标夹不是他的 → 按 unknownFolder 拒', async () => {
+    mockMoveAssetsToFolder.mockResolvedValue(null)
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+            assetIds: ['a1'],
+            targetFolderId: 'folder-theirs',
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const rejected = steps.find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+    )
+    expect((rejected?.error as { reason: string } | undefined)?.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownFolder,
+    )
+  })
+
+  /** 撞文件夹上限 → `folderLimitReached`，⛔ 不挤掉最老的那个。 */
+  it('create_folder 撞上限 → 按 folderLimitReached 拒', async () => {
+    const { AssetFolderLimitError } =
+      await import('@/services/asset-library-write.service')
+    mockCreateAssetFolder.mockRejectedValue(new AssetFolderLimitError(50))
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
+            name: '再来一个',
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const rejected = steps.find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+    )
+    expect((rejected?.error as { reason: string } | undefined)?.reason).toBe(
+      ASSISTANT_OPERATOR_REJECT_REASON_IDS.folderLimitReached,
+    )
+  })
+
+  /**
+   * ⛔ 一次动 20 件以上**在 schema 层就不合法**（§10：助手不是批处理器）——
+   * 表现是那一步整个读不出来，服务什么都没调。
+   */
+  it('⛔ 超过批量上限的一步压根跑不起来', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+            assetIds: Array.from(
+              { length: ASSISTANT_ASSET_WRITE_LIMITS.maxAssetsPerWrite + 1 },
+              (_unused, index) => `a${index}`,
+            ),
+            value: true,
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(mockSetAssetFavorites).not.toHaveBeenCalled()
+  })
+})
+
 describe('计划协议 · plan / ask / confirm', () => {
   it('⭐ 模型写了 confirmPlan：plan 之后紧跟 confirm(multistep) 并停流，⛔ 一步都不落', async () => {
     queueTurns(

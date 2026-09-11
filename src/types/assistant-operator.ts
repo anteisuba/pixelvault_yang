@@ -52,6 +52,7 @@ import {
   ASSISTANT_OPERATOR_WRITE_MODES,
   ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
+  ASSISTANT_ASSET_WRITE_LIMITS as ASSET_WRITE_LIMITS,
   ASSISTANT_RESEARCH_CONFIDENCES,
   ASSISTANT_RESEARCH_EVIDENCE_KINDS,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
@@ -103,6 +104,60 @@ const LabelSchema = z.string().trim().min(1).max(LIMITS.maxLabelChars)
 const ParamValueSchema = z.string().trim().min(1).max(LIMITS.maxParamValueChars)
 /** ⚠ 允许空串：它是「这个框现在是空的」，与「没有这个框」（字段缺席）不是一回事。 */
 const TextValueSchema = z.string().max(LIMITS.maxPromptChars)
+
+/**
+ * 素材库四条写操作共用的三块（v2 §10）。
+ *
+ * ⚠ 一次最多 20 件写在**这里**（schema 层）而不是规划器：它是结构护栏不是值域
+ * —— 模型写 50 个 id 不是「挑错了一个值」，是它把助手当批处理器用了，而 §10
+ * 的原话就是「一次动更多就该让用户去素材库自己框选」。
+ */
+const AssetIdListSchema = z
+  .array(IdSchema)
+  .min(1)
+  .max(ASSET_WRITE_LIMITS.maxAssetsPerWrite)
+
+/** 一个标签就是一个词。⚠ 去重留给服务端：模型写重不该整轮作废。 */
+const AssetTagSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(ASSET_WRITE_LIMITS.maxTagChars)
+
+/**
+ * `inverse` 里那几张**逐条记下的原值**（§10 那条 ⚠）。
+ *
+ * ⛔ 别把它简化成「一个布尔 / 一个文件夹 id 配一串 assetId」：一批 20 张里
+ * 各自的原值不同，共用一个值撤销出来的是一个**从没存在过的状态**。
+ */
+const AssetTagEntrySchema = z.object({
+  assetId: IdSchema,
+  tags: z.array(AssetTagSchema).max(ASSET_WRITE_LIMITS.maxTagsPerWrite),
+})
+
+const AssetFavoriteEntrySchema = z.object({
+  assetId: IdSchema,
+  value: z.boolean(),
+})
+
+const AssetFolderEntrySchema = z.object({
+  assetId: IdSchema,
+  /** `null` = 它原来不在任何文件夹里（素材库里的「未归档」）。 */
+  folderId: IdSchema.nullable(),
+})
+
+export const AssistantOperatorAssetTagEntrySchema = AssetTagEntrySchema
+export const AssistantOperatorAssetFavoriteEntrySchema =
+  AssetFavoriteEntrySchema
+export const AssistantOperatorAssetFolderEntrySchema = AssetFolderEntrySchema
+
+export type AssistantOperatorAssetTagEntry = z.infer<typeof AssetTagEntrySchema>
+export type AssistantOperatorAssetFavoriteEntry = z.infer<
+  typeof AssetFavoriteEntrySchema
+>
+export type AssistantOperatorAssetFolderEntry = z.infer<
+  typeof AssetFolderEntrySchema
+>
 
 export const AssistantOperatorDomainSchema = z.enum(ASSISTANT_OPERATOR_DOMAINS)
 export const AssistantOperatorToolSchema = z.enum(ASSISTANT_OPERATOR_TOOLS)
@@ -1436,6 +1491,40 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     state: GenerationReviewStateSchema,
     reason: z.string().trim().max(LIMITS.maxReviewReasonChars).optional(),
   }),
+  /**
+   * 素材库四条（v2 §10）。
+   *
+   * ⚠ 准入（这几件是不是这个用户的）**在服务端按 userId 查库**，⛔ 不是本轮
+   * 检索名单 —— 与 `set_review_state` 逐字同源：这四条一个字都改不了别人的东西
+   * （不是他的行 → 服务返回空 → 规划器按 `unknownAsset` 拒），而「上一轮那几张
+   * 收藏一下」恰恰是最常见的用法。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]: z.object({
+    assetIds: AssetIdListSchema,
+    tags: z
+      .array(AssetTagSchema)
+      .min(1)
+      .max(ASSET_WRITE_LIMITS.maxTagsPerWrite),
+  }),
+  /** ⚠ `value` **必填**：没有「切换」这个选项 —— 一批里各自的现值不同，切换出来的是一盘乱棋。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]: z.object({
+    assetIds: AssetIdListSchema,
+    value: z.boolean(),
+  }),
+  /** ⚠ 一次只建一个：建两个夹子是两个决定，撤销也该分两次。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]: z.object({
+    name: z.string().trim().min(1).max(ASSET_WRITE_LIMITS.maxFolderNameChars),
+    parentId: IdSchema.optional(),
+  }),
+  /**
+   * ⚠ `targetFolderId` **必填且不可为 null**：「挪出文件夹」不是这条工具的活
+   * （那是用户在素材库里自己拖的），而一个可空的目标会让模型把「不确定放哪」
+   * 写成 `null`，结果是一批素材被静默地从文件夹里拿出来。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]: z.object({
+    assetIds: AssetIdListSchema,
+    targetFolderId: IdSchema,
+  }),
 }
 
 // ─── ②′ 五个入口工具（v2 §2.1 / §2.2）────────────────────────────
@@ -2511,6 +2600,66 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     }),
     z.object({ assetId: IdSchema, state: GenerationReviewStateSchema }),
   ),
+  /**
+   * **素材库四条**（v2 §10）—— 与 `add_project_rule` / `set_review_state` 同一档：
+   * 后果落在服务端，所以 `inverse` 里放的是**服务端刚读到 / 刚写下的那些原值**，
+   * ⛔ 不是客户端要反查的对照表。
+   *
+   * ⚠ 每一条的 `inverse` 都是**逐条**的（§10 那条 ⚠ 的结构表达）：
+   *  · 打标签 → 这一步**真的新加上去**的那几个（本来就有的不动）；
+   *  · 收藏   → 每张的**原收藏态**（⛔ 不是取反）；
+   *  · 建夹子 → 刚建那个的 id（删它时服务端还要再确认一次它是空的）；
+   *  · 移动   → 每张的**原文件夹**（`null` = 原来没归档）。
+   * ⚠ 载荷里带 `count` / `name` 这类给人看的字段：日志条要写得出「它替你动了
+   * 几张、放进了哪个夹子」，而客户端此刻未必手上有这几条素材。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+    z.object({
+      tags: z.array(AssetTagSchema).max(ASSET_WRITE_LIMITS.maxTagsPerWrite),
+      /** 真的被动到的那几件（跳过的不算）。 */
+      assetIds: z.array(IdSchema).max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
+    }),
+    z.object({
+      entries: z
+        .array(AssetTagEntrySchema)
+        .max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
+    }),
+  ),
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+    z.object({
+      value: z.boolean(),
+      assetIds: z.array(IdSchema).max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
+    }),
+    z.object({
+      entries: z
+        .array(AssetFavoriteEntrySchema)
+        .max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
+    }),
+  ),
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
+    z.object({
+      folderId: IdSchema,
+      name: LabelSchema,
+      parentId: IdSchema.nullable(),
+    }),
+    z.object({ folderId: IdSchema }),
+  ),
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+    z.object({
+      targetFolderId: IdSchema,
+      targetFolderName: LabelSchema,
+      assetIds: z.array(IdSchema).max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
+    }),
+    z.object({
+      entries: z
+        .array(AssetFolderEntrySchema)
+        .max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
+    }),
+  ),
 ])
 
 /**
@@ -2758,3 +2907,58 @@ export type AssistantOperatorConfirmDecision = z.infer<
 export type AssistantOperatorMessage = z.infer<
   typeof AssistantOperatorMessageSchema
 >
+
+// ─── 素材库写操作的撤销载荷（v2 §10）──────────────────────────────
+
+/**
+ * **撤销一条素材库写操作**的请求体（`POST /api/assistant/asset-writes/revert`）。
+ *
+ * ⭐ 为什么撤销要走一条路由，而其余改动型工具不用：那些改的是**工作台上的旋钮**
+ * （客户端 state 里的一格），撤销就是往回 dispatch 一次；这四条的后果**在库里**，
+ * 客户端手上没有任何东西可以往回改。形状与 `add_project_rule` 的撤销逐字同源
+ * （那条走 `deleteProjectRuleAPI`），只是这里四条共用一个入口 —— 判据是它们撤销时
+ * 都只需要「把那份 `inverse` 原样交回服务端」，四条路由只会把同一件事抄四遍。
+ *
+ * ⚠ 它收的**就是 step 上那份 `inverse`**（加一个 `tool` 判别键），⛔ 别让客户端
+ * 在这里重新算一份：算第二遍就会有第二份判据，而撤销与应用必须是同一份判据的两侧。
+ */
+export const AssistantAssetWriteRevertSchema = z.discriminatedUnion('tool', [
+  z.object({
+    tool: z.literal(ASSISTANT_OPERATOR_TOOL_IDS.tagAsset),
+    entries: z
+      .array(AssistantOperatorAssetTagEntrySchema)
+      .max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
+  }),
+  z.object({
+    tool: z.literal(ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset),
+    entries: z
+      .array(AssistantOperatorAssetFavoriteEntrySchema)
+      .max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
+  }),
+  z.object({
+    tool: z.literal(ASSISTANT_OPERATOR_TOOL_IDS.createFolder),
+    folderId: z.string().trim().min(1).max(LIMITS.maxIdChars),
+  }),
+  z.object({
+    tool: z.literal(ASSISTANT_OPERATOR_TOOL_IDS.moveAssets),
+    entries: z
+      .array(AssistantOperatorAssetFolderEntrySchema)
+      .max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
+  }),
+])
+
+export type AssistantAssetWriteRevert = z.infer<
+  typeof AssistantAssetWriteRevertSchema
+>
+
+/**
+ * 撤销的回执。
+ *
+ * ⚠ `revertedCount` 与 `skipped` 分开：「文件夹里后来被放进了东西所以没删」
+ * 与「删掉了」是两句不同的话，而用户回头要读的正是前者（§10 的 `inverse` 那条
+ * ⚠：撤销只撤得掉它自己做过的事）。
+ */
+export interface AssistantAssetWriteRevertResult {
+  revertedCount: number
+  skipped: number
+}

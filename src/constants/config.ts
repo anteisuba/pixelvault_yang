@@ -151,6 +151,8 @@ export const API_ENDPOINTS = {
   ASSISTANT_PERSONA_AVATAR: '/api/assistant/persona/avatar',
   /** Standing project rules the assistant reads and records */
   ASSISTANT_RULES: '/api/assistant/rules',
+  /** 撤销一条素材库写操作（v2 §10 四条工具共用的撤销入口）。 */
+  ASSISTANT_ASSET_WRITE_REVERT: '/api/assistant/asset-writes/revert',
   /**
    * Context cards — account-level character / style / brand context the creator
    * can @-mention or pin to a workbench. Images live under `<id>/images`.

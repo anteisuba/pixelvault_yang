@@ -21,6 +21,7 @@ import {
   setOperatorReviewState,
 } from '@/hooks/use-studio-operator-store'
 import { resolveGenerationDisplayName } from '@/lib/generation-name'
+import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import {
   buildImageGenerationControls,
@@ -323,6 +324,17 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
        *   （`set_review_state` 是服务端工具），客户端再打一次就是同一件事两次写入。
        */
       setReviewState: setOperatorReviewState,
+      /**
+       * 撤销一条素材库写操作（v2 §10）—— 交出去的是 step 上那份 `inverse` 原样。
+       *
+       * ⚠ 与 `setReviewState` 那条**方向相反**：那一条的服务端落库在助手那一步
+       * 就做完了，客户端只同步一下 store；这四条的撤销服务端没有任何触发点，
+       * 所以撤销这一跳必须由客户端打一次（同 `deleteProjectRule` 的判据）。
+       * ⚠ `void`：撤销是「交出去就不管」，`revertOperatorStep` 是同步纯函数。
+       */
+      revertAssetWrite: (input) => {
+        void revertAssistantAssetWriteAPI(input)
+      },
       /**
        * ⛔ **工作台没有 `lora`**：`LoraStackProvider` 只包 `/studio/lora`，这里
        * 结构性拿不到挂载栈。缺席是诚实 —— 实现成空函数才是那种「点了没反应、

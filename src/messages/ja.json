@@ -7507,6 +7507,7 @@
       "urlNotFromUser": "そのリンクはあなたが渡したものではないため、そのまま取り込めません",
       "repeatedStep": "同じ手順をすでに実行済みのため、見送りました",
       "ruleLimitReached": "ルールの上限に達しました。新しく追加する前に古いプロジェクトルールを削除してください。",
+      "folderLimitReached": "フォルダ数が上限に達しました。新規作成の前に古いフォルダを削除してください。",
       "unknownLora": "その LoRA は今回の検索結果にありません",
       "loraNotMounted": "その LoRA はベンチに載っていません",
       "loraNotImportable": "その LoRA はライブラリに取り込めません。配布元ページでのみ確認できます",

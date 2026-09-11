@@ -80,6 +80,7 @@ import {
 } from '@/constants/assistant-persona'
 import {
   ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
+  ASSISTANT_ASSET_WRITE_LIMITS as ASSET_WRITE_LIMITS,
   PROJECT_RULE_KIND_IDS,
   PROJECT_RULE_SOURCE_IDS,
   type ProjectRuleKindId,
@@ -181,6 +182,21 @@ import {
  * 读写它花不掉一分钱。⚠ 它是这份名单里**唯一一条会往库里写**的服务 ——
  * 写的是用户自己说过的一句话，与「创建 generation」不是一回事。
  */
+/**
+ * **素材库四条写操作**（v2 §10）—— 打标签 / 收藏 / 建夹 / 移动。
+ *
+ * ⭐ 判据与 `project-rule.service` 那条逐字同源，而且是它的第二次应用：这个模块
+ * 动的全是**用户自己库里已有的东西**（一个标签、一颗星、一个文件夹、一次归档）——
+ * ⛔ 不创建 generation、不扣 credit、不调 provider、不碰 R2、不删任何素材。
+ * ⚠ 每个正操作都返回**逐条记下的原值**，那就是 `inverse`（§10：撤销要撤得干净）。
+ */
+import {
+  AssetFolderLimitError,
+  createAssetFolder,
+  moveAssetsToFolder,
+  setAssetFavorites,
+  tagAssets,
+} from '@/services/asset-library-write.service'
 import {
   ProjectRuleLimitError,
   addProjectRule,
@@ -4414,6 +4430,178 @@ async function planSetReviewState(
   }
 }
 
+// ─── 素材库四条写操作（v2 §10）──────────────────────────────────
+
+/**
+ * 这四条**为什么长得和其余改动型工具不一样**（v2 §10）。
+ *
+ * ⚠ 后果落在**服务端**（库里），与 `add_project_rule` / `set_review_state` 同一档：
+ * 所以写发生在**规划期**（`payload` 里那几个 id 必须在第一个 `running` 帧里就是真的），
+ * `apply()` 是空操作，撤销那一跳要打一次网络（客户端走
+ * `revertAssistantAssetWriteAPI`，见 `lib/studio-operator-apply.ts`）。
+ * ⚠ `inverse` 一律是**逐条记下的原值**，⛔ 不是「取反」：一批 20 张里本来就
+ * 收藏着的那几张，取反会把它们误清（§10 那条 ⚠）。
+ * ⚠ 准入是**库**（按 userId），⛔ 不是本轮检索名单 —— 与 `set_review_state` 同源：
+ * 这四条一个字都改不了别人的东西，而「上一轮那几张收一下」恰恰是最常见的用法。
+ * 一件都够不着时按 `unknownAsset` 拒；够得着一部分就动那一部分并**如实说出来**。
+ */
+async function planTagAsset(
+  args: { assetIds: string[]; tags: string[] },
+  userId: string,
+): Promise<ToolPlan> {
+  const { entries, skipped } = await tagAssets(userId, args.assetIds, args.tags)
+
+  if (entries.length === 0) {
+    return reject(
+      REJECT.unknownAsset,
+      skipped > 0
+        ? 'None of those ids belong to this creator, or every one of them is already carrying those tags. Use ids that came back from search_assets, or say plainly that the tags were already there.'
+        : 'They already carry those tags — say so instead of tagging again.',
+    )
+  }
+
+  const tags = dedupeStrings(args.tags.map((tag) => tag.trim()).filter(Boolean))
+  return {
+    kind: 'mutate',
+    payload: {
+      tags,
+      assetIds: entries.map((entry) => entry.assetId),
+    },
+    inverse: { entries },
+    observation: `tag_asset put ${tags.map((tag) => `"${tag}"`).join(', ')} on ${entries.length} asset(s)${
+      skipped > 0
+        ? `; ${skipped} were skipped (not this creator's, or already at the tag limit) — say so`
+        : ''
+    }. Do not tag them again.`,
+    // 后果已经落在库里了 —— 客户端这一步没有任何表单字段要改。
+    apply: () => {},
+  }
+}
+
+async function planFavoriteAsset(
+  args: { assetIds: string[]; value: boolean },
+  userId: string,
+): Promise<ToolPlan> {
+  const { entries } = await setAssetFavorites(userId, args.assetIds, args.value)
+
+  if (entries.length === 0) {
+    return reject(
+      REJECT.unknownAsset,
+      'None of those ids belong to this creator. Use ids that came back from search_assets, or ones you produced earlier in this session.',
+    )
+  }
+
+  const changed = entries.filter((entry) => entry.value !== args.value).length
+  return {
+    kind: 'mutate',
+    payload: {
+      value: args.value,
+      assetIds: entries.map((entry) => entry.assetId),
+    },
+    // ⚠ 原值**逐条**在这里，⛔ 不是一个「取反」的开关（§10）。
+    inverse: { entries },
+    observation: `favorite_asset ${args.value ? 'starred' : 'unstarred'} ${changed} asset(s)${
+      changed < entries.length
+        ? `; ${entries.length - changed} were already that way`
+        : ''
+    }. Do not set them again.`,
+    apply: () => {},
+  }
+}
+
+/**
+ * 建一个素材文件夹（§10）。
+ *
+ * ⚠ 它建的是一个**空夹子** —— 往里放东西是 `move_assets` 的事。合成一条工具的
+ * 代价是撤销没有粒度：撤一次到底该删夹子还是把素材挪回去？
+ */
+async function planCreateFolder(
+  args: { name: string; parentId?: string },
+  userId: string,
+): Promise<ToolPlan> {
+  const name = args.name.trim()
+  if (!name) {
+    return reject(REJECT.emptyValue, 'A folder needs a name.')
+  }
+
+  let folder: Awaited<ReturnType<typeof createAssetFolder>>
+  try {
+    folder = await createAssetFolder(userId, {
+      name: clamp(name, ASSET_WRITE_LIMITS.maxFolderNameChars),
+      parentId: args.parentId ?? null,
+    })
+  } catch (error) {
+    if (error instanceof AssetFolderLimitError) {
+      return reject(
+        REJECT.folderLimitReached,
+        `The creator already has ${error.limit} folders — the most this app keeps. Tell them plainly that an old one has to go before a new one fits; do not pick which.`,
+      )
+    }
+    throw error
+  }
+
+  return {
+    kind: 'mutate',
+    payload: {
+      folderId: folder.folderId,
+      name: folder.name,
+      parentId: folder.parentId,
+    },
+    inverse: { folderId: folder.folderId },
+    observation: `create_folder made an EMPTY folder "${folder.name}" (id=${folder.folderId})${
+      args.parentId && !folder.parentId
+        ? ' at the top level — the parent id you gave is not one of theirs'
+        : ''
+    }. Use move_assets with that id to actually file anything into it.`,
+    apply: () => {},
+  }
+}
+
+async function planMoveAssets(
+  args: { assetIds: string[]; targetFolderId: string },
+  userId: string,
+): Promise<ToolPlan> {
+  const moved = await moveAssetsToFolder(
+    userId,
+    args.assetIds,
+    args.targetFolderId,
+  )
+  if (!moved) {
+    return reject(
+      REJECT.unknownFolder,
+      'No folder of theirs has that id. Call list_asset_folders to get a real one, or make one with create_folder first.',
+    )
+  }
+
+  if (moved.entries.length === 0) {
+    return reject(
+      REJECT.unknownAsset,
+      `None of those ids belong to this creator, or every one of them is already in "${moved.folderName}". Say which it is instead of moving again.`,
+    )
+  }
+
+  return {
+    kind: 'mutate',
+    payload: {
+      targetFolderId: args.targetFolderId,
+      targetFolderName: moved.folderName,
+      assetIds: moved.entries.map((entry) => entry.assetId),
+    },
+    // ⚠ 原文件夹**逐条**（`null` = 原来没归档），撤销 = 各回各家（§10）。
+    inverse: { entries: moved.entries },
+    observation: `move_assets filed ${moved.entries.length} asset(s) into "${moved.folderName}"${
+      moved.entries.length < args.assetIds.length
+        ? `; ${args.assetIds.length - moved.entries.length} were skipped (not this creator's, or already there) — say so`
+        : ''
+    }. Their tags and stars are untouched.`,
+    apply: () => {},
+  }
+}
+
+function dedupeStrings(values: readonly string[]): string[] {
+  return [...new Set(values)]
+}
+
 function planListContextCards(
   run: OperatorRun,
   args: { kind?: ContextCardKindId },
@@ -4803,6 +4991,30 @@ async function planTool(
           state: GenerationReviewState
           reason?: string
         },
+        userId,
+      )
+    /**
+     * 素材库四条（§10）—— 它们**不吃 `run`**：准入是库（按 userId），⛔ 不是本轮
+     * 检索名单，判据与 `set_review_state` 逐字同源（见那四个函数的组头注）。
+     */
+    case TOOL.tagAsset:
+      return planTagAsset(
+        parsed.data as { assetIds: string[]; tags: string[] },
+        userId,
+      )
+    case TOOL.favoriteAsset:
+      return planFavoriteAsset(
+        parsed.data as { assetIds: string[]; value: boolean },
+        userId,
+      )
+    case TOOL.createFolder:
+      return planCreateFolder(
+        parsed.data as { name: string; parentId?: string },
+        userId,
+      )
+    case TOOL.moveAssets:
+      return planMoveAssets(
+        parsed.data as { assetIds: string[]; targetFolderId: string },
         userId,
       )
     default:

@@ -20,6 +20,8 @@ import {
   BookUser,
   CircleDollarSign,
   Eye,
+  FolderInput,
+  FolderPlus,
   FolderSearch,
   Globe,
   ImagePlus,
@@ -38,6 +40,8 @@ import {
   ScanText,
   SlidersHorizontal,
   Sparkles,
+  Star,
+  Tags,
   TextSearch,
   CheckCheck,
   Unplug,
@@ -154,6 +158,15 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
    * 记号长得一样，而这一条说的是「它替你把那张标了」——两件事。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]: CheckCheck,
+  /**
+   * 素材库四条（§10）。⚠ 四枚**各不相同**，与上面挂/摘 LoRA 那一对同一条论据：
+   * 这四条在日志流里常常一串出现（建个夹子 → 挪进去 → 打标签 → 收藏），
+   * 长一样就分不出哪条是哪条。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]: Tags,
+  [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]: Star,
+  [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]: FolderPlus,
+  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]: FolderInput,
 }
 
 interface StudioOperatorLogItemProps {

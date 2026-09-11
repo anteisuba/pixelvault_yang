@@ -20,6 +20,8 @@ import { getErrorPayload } from '@/lib/api-client/shared'
 import { parseSseStream } from '@/lib/sse'
 import {
   AssistantOperatorEventSchema,
+  type AssistantAssetWriteRevert,
+  type AssistantAssetWriteRevertResult,
   type AssistantOperatorEvent,
   type AssistantOperatorRequest,
 } from '@/types/assistant-operator'
@@ -102,5 +104,34 @@ export async function streamAssistantOperatorAPI(
       error:
         error instanceof Error ? error.message : 'An unexpected error occurred',
     }
+  }
+}
+
+/**
+ * **撤销一条素材库写操作**（v2 §10）—— 四条工具共用的那个入口。
+ *
+ * ⚠ 交出去的是 step 上那份 `inverse` **原样**（`lib/studio-operator-apply.ts`
+ * 的 `revertOperatorStep` 从 step 上取的那一份），⛔ 客户端不重算原值：算第二遍
+ * 就有第二份判据，而应用与撤销必须是同一份判据的两侧。
+ * ⚠ 失败**只回一个布尔**：撤销失败的落点在调用方的 toast 上，⛔ 别在这里抛 ——
+ * 一条撤不掉的步不该让整条撤销链断掉（同 `deleteProjectRuleAPI` 的判据）。
+ */
+export async function revertAssistantAssetWriteAPI(
+  input: AssistantAssetWriteRevert,
+): Promise<AssistantAssetWriteRevertResult | null> {
+  try {
+    const response = await fetch(API_ENDPOINTS.ASSISTANT_ASSET_WRITE_REVERT, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    })
+    if (!response.ok) return null
+    const body = (await response.json()) as {
+      success?: boolean
+      data?: AssistantAssetWriteRevertResult
+    }
+    return body.success && body.data ? body.data : null
+  } catch {
+    return null
   }
 }

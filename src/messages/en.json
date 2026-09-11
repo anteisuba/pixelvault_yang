@@ -7507,6 +7507,7 @@
       "urlNotFromUser": "That link did not come from you, so it cannot be taken directly",
       "repeatedStep": "It already ran this exact step — skipped",
       "ruleLimitReached": "Rule limit reached — delete an old project rule before adding another.",
+      "folderLimitReached": "Folder limit reached — delete an old folder before making another.",
       "unknownLora": "That LoRA was not in this run's search results",
       "loraNotMounted": "That LoRA is not on the bench",
       "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page",

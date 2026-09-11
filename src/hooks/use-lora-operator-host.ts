@@ -35,6 +35,7 @@ import {
   setOperatorReviewState,
 } from '@/hooks/use-studio-operator-store'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
+import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import { buildLoraOperatorSnapshot } from '@/lib/studio-operator-snapshot'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
@@ -309,6 +310,15 @@ export function useLoraOperatorHost(
        *   接一只取不到的手就是那种「点了没反应、三绿」的失败。
        */
       setReviewState: setOperatorReviewState,
+      /**
+       * 撤销一条素材库写操作（v2 §10）—— 与工作台宿主逐字同源（素材库只有一个，
+       * 换台工作台它还是同一个库）。⛔ 别只给工作台接：域工具表把这四条写进了
+       * `COMMON_DOMAIN_TOOLS`，装配台上照样调得到，少接这只手的表现是那里点撤销
+       * 没反应。
+       */
+      revertAssetWrite: (input) => {
+        void revertAssistantAssetWriteAPI(input)
+      },
       lora: {
         /**
          * 挂一把：**先过下载闸，再走既有的一次确认链**。

@@ -271,6 +271,19 @@ export function describeOperatorStepDetail(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.setReviewState:
       return step.payload.reason ?? null
+    /**
+     * 素材库四条（§10）—— 详情写**这一步动了什么、动了几件**，⛔ 不写那一串
+     * assetId：uuid 用户核对不了，而「它把 12 张收藏了」正是他事后要读的那句。
+     * ⚠ 建夹子写**夹子名**（同上一条的理由：用户认的是名字，不是 id）。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.tagAsset:
+      return `${step.payload.tags.join(', ')} · ${step.payload.assetIds.length}`
+    case ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset:
+      return `${step.payload.value ? '★' : '☆'} ${step.payload.assetIds.length}`
+    case ASSISTANT_OPERATOR_TOOL_IDS.createFolder:
+      return step.payload.name
+    case ASSISTANT_OPERATOR_TOOL_IDS.moveAssets:
+      return `${step.payload.targetFolderName} · ${step.payload.assetIds.length}`
   }
 }
 

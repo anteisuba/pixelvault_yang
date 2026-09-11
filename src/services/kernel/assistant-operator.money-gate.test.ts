@@ -29,6 +29,11 @@ const FOLDER_VISION_SERVICE_PATH = join(
   'src/services/kernel/assistant-asset-folder-vision.service.ts',
 )
 const FOLDER_VISION_SOURCE = readFileSync(FOLDER_VISION_SERVICE_PATH, 'utf8')
+const ASSET_WRITE_SERVICE_PATH = join(
+  process.cwd(),
+  'src/services/asset-library-write.service.ts',
+)
+const ASSET_WRITE_SOURCE = readFileSync(ASSET_WRITE_SERVICE_PATH, 'utf8')
 
 /**
  * 工具环允许 import 的服务，逐条写明为什么。
@@ -186,6 +191,30 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * 那就是助手开始改自己读的东西的那一天 —— 这条名单就是那个看得见的动作。
    */
   '@/services/user-preference.service',
+  /**
+   * **素材库四条写操作**（assistant-shell-v2 §10）。⭐ 这是第七次值得复核的改动，
+   * 也是名单里**第四条会往库里写**的服务（前三条：`project-rule.service` 写一行
+   * 文本、`assistant-conversation.service` 写一条结账摘要、`video-frame-set.service`
+   * 写三张帧）。
+   *
+   * ── 判据，逐条 ─────────────────────────────────────────────────
+   *  · **写的是什么** —— 一个标签（`Generation.snapshot->'tags'`，零迁移）、
+   *    一颗星（`UserLike` 一行）、一个文件夹（`Project` 一行）、一次归档
+   *    （`Generation.projectId`）。全是**用户自己库里已有东西的整理动作**。
+   *  · **不建 generation** —— 这个模块里没有 `createGeneration`，一条都建不出来；
+   *    它能写的四个落点都要求那一行**已经存在且属于这个用户**。
+   *  · **不扣 credit、不调 provider、不碰 R2** —— 没有 credit policy、没有 adapter、
+   *    没有上传。
+   *  · **不删素材** —— 唯一一条删除是「删掉刚建的那个**空**文件夹」（撤销），
+   *    非空即拒（`deleteEmptyAssetFolder`）。⛔ 它**有意不复用** `deleteProject`：
+   *    那条会把夹子里的素材倒出来再软删，而那不是「撤销一次建夹」。
+   *  · **为什么非写不可** —— owner 的「素材库开放打标签 / 收藏 / 建夹 / 移动」
+   *    （决策 32）本来就要求后果落在库里，而这条链没有服务端会话态：不落库就只能
+   *    让用户自己去素材库再做一遍。
+   * ⛔ 哪天有人想在这个模块上挂一条「顺路生成一张封面」或者「顺路删掉重复的」，
+   * 那就是这条判据破的那一天 —— 这份名单就是那个看得见的动作。
+   */
+  '@/services/asset-library-write.service',
 ])
 
 /** 出现即失败的标识符 —— 每一条都是一条能花掉用户钱的路。 */
@@ -328,6 +357,58 @@ describe('⛔ 助手工具环的钱闸', () => {
     // ……禁字表那条用例逐条扫着同一份源码；这里再补两条它绝不该碰的：
     expect(SOURCE).not.toContain('deleteGeneration')
     expect(SOURCE).not.toContain('deleteManyFromR2')
+  })
+
+  /**
+   * ⭐ **第七次值得复核的改动**（commit #18，v2 §10）：素材库四条写操作让助手
+   * 第一次动得了用户**素材本身**的归属与标记。
+   *
+   * ── 这道闸为什么仍然成立 ────────────────────────────────────────
+   *  · 四条全是**可逆的整理动作**（§10 的判据原话），每一条都带 `inverse`，
+   *    所以它们进的是改动型那一档，⛔ 不是花钱档。
+   *  · 服务端这一侧写的是标签 / 星 / 文件夹 / 归属四格，⛔ 不建 generation、
+   *    不扣 credit、不调 provider、不碰 R2 —— 允许名单里那条的头注逐条写着判据。
+   *  · 禁字表一条都没松：下面这几条断言逐字扫同一份源码。
+   * ⛔ 下一个人想给这四条里任何一条补一条「顺手删掉重复的」，撞的是同一份禁字表。
+   */
+  it('⭐ 素材库四条写操作是改动型，且服务端仍然只整理不生成', () => {
+    for (const tool of [
+      'tag_asset',
+      'favorite_asset',
+      'create_folder',
+      'move_assets',
+    ]) {
+      expect(ASSISTANT_OPERATOR_TOOLS).toContain(tool)
+      // 每一条都必须撤得掉（schema 层把 `inverse` 写成必填）。
+      expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).toContain(tool)
+      expect(ASSISTANT_OPERATOR_SPEND_TOOLS).not.toContain(tool)
+    }
+    // 服务端确实接了这四条，而且走的是那一个模块……
+    expect(SOURCE).toContain('planTagAsset')
+    expect(SOURCE).toContain('planFavoriteAsset')
+    expect(SOURCE).toContain('planCreateFolder')
+    expect(SOURCE).toContain('planMoveAssets')
+    expect(SOURCE).toContain('@/services/asset-library-write.service')
+    // ……而那个模块里没有任何一条能花钱 / 毁数据的路。
+    for (const identifier of [
+      'createGeneration',
+      'generateImage',
+      'generateVideo',
+      'generateAudio',
+      'deductCredits',
+      'submitGeneration',
+      'uploadToR2',
+      'uploadFromHttpToR2',
+      'deleteGeneration',
+      'deleteManyFromR2',
+      'db.generation.delete',
+      'deleteProject(',
+    ]) {
+      expect(
+        ASSET_WRITE_SOURCE.includes(identifier),
+        `素材库写服务里出现了 ${identifier}`,
+      ).toBe(false)
+    }
   })
 
   /**

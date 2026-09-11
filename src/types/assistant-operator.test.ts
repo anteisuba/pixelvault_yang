@@ -532,6 +532,48 @@ const STEP_FIXTURES: Record<
     },
     inverse: { assetId: 'gen-1', state: 'pending' },
   },
+  /**
+   * 素材库四条（§10）—— 每一条的 `inverse` 都是**逐条原值**。
+   *
+   * ⚠ 收藏那条的固定件**故意混着** `true` / `false`：§10 那条 ⚠ 说的正是这一例
+   * （一批里本来就收藏着的那几张，取反会误清），而只有混合的固定件才验得出
+   * 「记的是原值」而不是「记的是取反」。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]: {
+    payload: { tags: ['线稿'], assetIds: ['gen-1', 'gen-2'] },
+    inverse: {
+      entries: [
+        { assetId: 'gen-1', tags: ['线稿'] },
+        { assetId: 'gen-2', tags: ['线稿'] },
+      ],
+    },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]: {
+    payload: { value: true, assetIds: ['gen-1', 'gen-2'] },
+    inverse: {
+      entries: [
+        { assetId: 'gen-1', value: false },
+        { assetId: 'gen-2', value: true },
+      ],
+    },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]: {
+    payload: { folderId: 'folder-1', name: '角色参考', parentId: null },
+    inverse: { folderId: 'folder-1' },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]: {
+    payload: {
+      targetFolderId: 'folder-1',
+      targetFolderName: '角色参考',
+      assetIds: ['gen-1', 'gen-2'],
+    },
+    inverse: {
+      entries: [
+        { assetId: 'gen-1', folderId: null },
+        { assetId: 'gen-2', folderId: 'folder-9' },
+      ],
+    },
+  },
 }
 
 function buildStep(tool: AssistantOperatorTool, omitInverse = false) {
@@ -683,8 +725,9 @@ describe('五动词入口', () => {
    * 断的是「没有孤儿、没有分身」，断不出「有人悄悄加了一条工具」——
    * 而模型看得见的工具多一条，就是它多一条挑错的路。
    */
-  it('⭐ 工具表是 33 条，recall_evidence 归「查」组（§7.3）', () => {
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(33)
+  it('⭐ 工具表是 37 条，recall_evidence 归「查」组（§7.3）', () => {
+    // commit #18 把 33 变成 37（素材库四条写操作，v2 §10）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(37)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research

@@ -439,6 +439,39 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * 库里那张照旧在、照旧搜得到、照旧能拿去评价。
    */
   setReviewState: 'set_review_state',
+  /**
+   * 给素材打标签（v2 §10）—— 素材库四条写操作的第一条。
+   *
+   * ⚠ 它与下面三条是**同一档**：后果落在服务端（库里），表单一个字都没动，
+   * 而且每一条都**必须撤得干净** —— 这是 §10 的判据原话。
+   * ⚠ `inverse` 里放的是**这一步真的新加上去的那几个标签**，⛔ 不是入参里那几个：
+   * 一批 20 张里可能有 3 张早就打过「线稿」，撤销时把它们的旧标签一起摘掉
+   * 就是在删用户自己的数据。
+   * ⛔ 不生成、不删除、不上传 —— 四条全是可逆的整理动作。
+   */
+  tagAsset: 'tag_asset',
+  /**
+   * 收藏 / 取消收藏（§10）。
+   *
+   * ⚠ `inverse` **逐张记原值**，⛔ 不是「取反」：一批里本来就收藏着的那几张，
+   * 统一取反会把它们误清（§10 那条 ⚠ 的原话）。
+   */
+  favoriteAsset: 'favorite_asset',
+  /**
+   * 建一个素材文件夹（§10）—— 落的是 `Project` 那张表（素材库右栏的文件夹树
+   * 就是它，见 `AssetFolderTree`）。
+   *
+   * ⚠ `inverse` = 删掉刚建的那个，**且仅当它是空的**：撤销发生在几步之后，
+   * 中间用户可能已经往里丢了东西，那时删掉就不是「撤销」而是「毁数据」。
+   */
+  createFolder: 'create_folder',
+  /**
+   * 把素材挪进一个文件夹（§10）。
+   *
+   * ⚠ `inverse` **逐张记原文件夹**（`null` = 原来没归档），理由与 `favorite_asset`
+   * 逐字同源：一批里各自来处不同，统一挪回一个地方就是在重排用户的库。
+   */
+  moveAssets: 'move_assets',
 } as const
 
 /**
@@ -505,6 +538,10 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
   ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
   ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+  ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+  ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+  ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
+  ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
 ] as const
 
 export type AssistantOperatorTool = (typeof ASSISTANT_OPERATOR_TOOLS)[number]
@@ -622,6 +659,20 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
    * 放一个客户端要自己反查的候选 id —— 这里没有「落地值在客户端才产生」那回事。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+  /**
+   * **素材库四条**（v2 §10）—— 第三到第六条后果落在服务端的改动型工具。
+   *
+   * ⚠ 它们进这一档的判据就是 §10 的那一句：「四条全是可逆的整理动作，判据就是
+   * 撤销能撤干净」。所以每一条的 `inverse` 里放的都是**逐条记下的原值**
+   * （新加的标签 / 原收藏态 / 刚建的夹子 / 原文件夹），⛔ 不是「取反」那种
+   * 看起来对、批量时必错的写法。
+   * ⚠ 撤销这一跳要**打一次网络**（后果在库里），与 `add_project_rule` 同形：
+   * 客户端走 `revertAssistantAssetWriteAPI`，见 `lib/studio-operator-apply.ts`。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+  ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+  ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
+  ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
 ] as const
 
 /**
@@ -744,6 +795,15 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
+  /**
+   * ⚠ 素材库四条归**改**组（v2 §2.1「新增进「改」组的」那一行）：它们动的是
+   * 用户库里已有的东西，产出是「改完了」——⛔ 不是「事实」也不是「候选」。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]: ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]:
     ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
   [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]:
@@ -1247,6 +1307,15 @@ const COMMON_DOMAIN_TOOLS = [
    * ⛔ 别按域裁 —— 那等于让用户在每台工作台上把同一张图再否一遍。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+  /**
+   * 素材库四条**全域可用**（§10）：素材库只有一个，在图片 / 视频 / LoRA 三台
+   * 工作台上「把这几张收藏起来」说的是同一件事。⛔ 别按域裁 —— 那等于让用户
+   * 换个工作台就整理不了自己的库。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+  ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+  ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
+  ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
 ] as const satisfies readonly AssistantOperatorTool[]
 
 /**
@@ -1874,6 +1943,14 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    */
   ruleLimitReached: 'ruleLimitReached',
   /**
+   * 文件夹数量撞到上限（`PROJECT.MAX_PROJECTS_PER_USER`）—— `create_folder` 拒。
+   *
+   * ⚠ 与 `ruleLimitReached` 分开而不是合成一条「什么东西满了」：两条给用户的
+   * 下一步动作不同（一条去删规则、一条去删文件夹），合起来说的那句话两边都不对。
+   * ⛔ 撞上限时**不挤掉最老的那个** —— 那是用户的文件夹，不是缓存。
+   */
+  folderLimitReached: 'folderLimitReached',
+  /**
    * 这条地址的来源站**不能当生成输入**（切片 3b）。
    *
    * 判据是域名判定表（`constants/web-image-sources.ts`）里的 `blocked` 一档：
@@ -2113,6 +2190,14 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     "OFFER to remember a character, a look or a brand spec the creator just described, as a context card they can reuse later. This SAVES NOTHING on its own: the app shows them the draft card and they decide. It ends your turn. Use it when they have just settled a set of details that will obviously come back — a character's appearance and outfit, a style they keep asking for, their brand colours — never for a one-off instruction about this run. Write the summary as the one line that gets quoted back to you every turn, and the body as the full description in THEIR words. One card at a time, and never offer the same card twice in a session.",
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
     'write down ONE standing rule the creator just stated — something that should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice. "kind" picks which sort of rule it is: "note" (the default, their own words), "sourceAllow" ("only trust these sources from now on") or "sourceDeny" ("never use this site again"). Those last two hold ONE search source id (the same ids the verify tool takes) or ONE domain — ask which site they mean rather than writing a sentence, and use them only when they asked for a standing source list, not for this one search.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]:
+    "put one or more short tags on the creator's own assets so they can find them again — up to 20 assets and 5 tags in one call. Tags they already carry are left alone. Use the creator's own words for a tag, keep it to a word or two, and only tag what they actually asked you to; this writes to their library. Undoing this removes exactly the tags this call added, nothing they had before.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]:
+    'star or unstar the creator\'s own assets — up to 20 in one call. Pass value true to favourite, false to remove the star. Anything already in the wanted state is left alone. Use it when they say "keep these" or "these are the good ones"; never unstar in bulk unless they asked for exactly that.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]:
+    "make ONE new folder in the creator's asset library. Give it a name in their words; pass parentId (a real folder id from list_asset_folders) only when they asked for it to sit inside another folder. This creates an EMPTY folder — putting things in it is a separate move_assets call. Never make a folder they did not ask for, and never make a second one with the same name.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]:
+    "file up to 20 of the creator's own assets into one folder. targetFolderId is a real folder id — from list_asset_folders, or from a create_folder you just made. Assets keep their tags and stars; this only changes which folder they live in. Undoing puts each one back exactly where it came from, so a wrong move is cheap — but a move the creator did not ask for is still a mess in their library.",
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
     'mark one of the creator\'s own assets as approved or blocked, so the verdict survives this turn. Use "blocked" when they say a picture did not work ("the hands are wrong", "not this one") — a blocked asset can never be used as a first or last frame again, on any workbench, and you should stop offering it. Use "approved" when they settle on one. The assetId comes from search_assets, from what they handed you, or from what you produced earlier this session — never invent one. Blocking deletes nothing: the picture stays in their library and you can still review it. Give a short reason in their words.',
 }
@@ -2176,6 +2261,28 @@ export const ASSISTANT_PROJECT_RULE_LIMITS = {
   maxInPrompt: 12,
   /** 一次 `read_project_rules` 最多返回几条。 */
   maxReadResults: 50,
+} as const
+
+/**
+ * **素材库四条写操作的上限**（v2 §10）。
+ *
+ * ⚠ 单独一张表，判据与 `ASSISTANT_RESEARCH_LIMITS` 那条同源：这里的数管的不是
+ * 「一条 op 能有多大」，而是**助手一次能动用户多少东西**。混进
+ * `ASSISTANT_OPERATOR_LIMITS` 的下场是下一个人为了「让它一次能整理完」把 20
+ * 调到 200，而那时候出错的是用户的整个素材库。
+ * ⚠ 20 是 §10 的原话：「一次动更多就该让用户去素材库自己框选，助手不是批处理器」。
+ */
+export const ASSISTANT_ASSET_WRITE_LIMITS = {
+  /** 一次最多动几件素材（打标签 / 收藏 / 移动共用这一个数）。 */
+  maxAssetsPerWrite: 20,
+  /** 一次最多打几个标签。 */
+  maxTagsPerWrite: 5,
+  /** 一个标签多长 —— 它是个词，不是一句话。 */
+  maxTagChars: 40,
+  /** 一件素材上最多累计多少个标签，⛔ 撞上限时拒，不挤掉最老的那个。 */
+  maxTagsPerAsset: 20,
+  /** 文件夹名长度，与 `Project.name` 同尺度。 */
+  maxFolderNameChars: 120,
 } as const
 
 /**

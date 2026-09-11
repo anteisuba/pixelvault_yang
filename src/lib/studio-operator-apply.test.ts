@@ -14,6 +14,7 @@ import {
   type StudioOperatorApplyContext,
 } from '@/lib/studio-operator-apply'
 import type {
+  AssistantAssetWriteRevert,
   AssistantOperatorAppliedStep,
   AssistantOperatorGenerationRequest,
 } from '@/types/assistant-operator'
@@ -39,6 +40,8 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
   /** 切片 Y：助手起的名字与它标过的审核态。 */
   labels: string[]
   reviewed: { assetId: string; state: string }[]
+  /** commit #18：素材库四条写操作的**撤销**交出去的那份 inverse。 */
+  assetWriteReverts: AssistantAssetWriteRevert[]
 } {
   const state = {
     prompt: '',
@@ -71,6 +74,7 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
 
   const labels: string[] = []
   const reviewed: { assetId: string; state: string }[] = []
+  const assetWriteReverts: AssistantAssetWriteRevert[] = []
   const ctx: StudioOperatorApplyContext = {
     getState: () => state,
     dispatch: (action) => {
@@ -129,6 +133,13 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
     setReviewState: (assetId, reviewState) => {
       reviewed.push({ assetId, state: reviewState })
     },
+    /**
+     * §10：这一层只记账 —— 要验的是「撤销交出去的是不是 step 上那份 inverse
+     * **原样**」，⛔ 不是网络。
+     */
+    revertAssetWrite: (input) => {
+      assetWriteReverts.push(input)
+    },
   }
 
   return {
@@ -145,6 +156,7 @@ function makeContext(overrides: Partial<StudioFormState> = {}): {
     triggered,
     labels,
     reviewed,
+    assetWriteReverts,
   }
 }
 
@@ -1246,5 +1258,118 @@ describe('buildGenerationKnobSteps（§5.2 第二行：卡上改一项 → 写�
     })
     revertOperatorStep(steps[0]!, ctx)
     expect(state.aspectRatio).toBe('4:3')
+  })
+})
+
+/**
+ * **素材库四条写操作**（v2 §10，commit #18）。
+ *
+ * ⭐ 这一层要验的只有两件事，而它们正是这四条与其余改动型工具的全部区别：
+ *  ① **应用是空操作**（后果已经落在服务端），所以表单一格都不动、登记簿不记账；
+ *  ② **撤销交出去的是 step 上那份 `inverse` 原样** —— ⛔ 客户端不重算原值，
+ *    算第二遍就有第二份判据（`studio-operator-apply.ts` 头注）。
+ */
+describe('素材库四条写操作（§10）', () => {
+  const STEPS = [
+    {
+      ...BASE,
+      verb: 'apply',
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+      payload: { tags: ['线稿'], assetIds: ['a1', 'a2'] },
+      inverse: {
+        entries: [
+          { assetId: 'a1', tags: ['线稿'] },
+          { assetId: 'a2', tags: ['线稿'] },
+        ],
+      },
+    },
+    {
+      ...BASE,
+      verb: 'apply',
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+      payload: { value: true, assetIds: ['a1', 'a2'] },
+      inverse: {
+        entries: [
+          { assetId: 'a1', value: false },
+          { assetId: 'a2', value: true },
+        ],
+      },
+    },
+    {
+      ...BASE,
+      verb: 'apply',
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
+      payload: { folderId: 'folder-1', name: '角色参考', parentId: null },
+      inverse: { folderId: 'folder-1' },
+    },
+    {
+      ...BASE,
+      verb: 'apply',
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+      payload: {
+        targetFolderId: 'folder-1',
+        targetFolderName: '角色参考',
+        assetIds: ['a1', 'a2'],
+      },
+      inverse: {
+        entries: [
+          { assetId: 'a1', folderId: null },
+          { assetId: 'a2', folderId: 'folder-9' },
+        ],
+      },
+    },
+  ] as unknown as AssistantOperatorAppliedStep[]
+
+  it('应用是空操作：表单一格都不动，登记簿不记账', () => {
+    for (const step of STEPS) {
+      const { ctx, dispatched } = makeContext()
+      expect(applyOperatorStep(step, ctx)).toBeNull()
+      expect(getOperatorStepField(step)).toBeNull()
+      expect(dispatched).toEqual([])
+    }
+  })
+
+  it('⭐ 撤销把 step 上那份 inverse 原样交回服务端（含混合原值那一例）', () => {
+    const { ctx, assetWriteReverts } = makeContext()
+    for (const step of STEPS) revertOperatorStep(step, ctx)
+
+    expect(assetWriteReverts).toEqual([
+      {
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+        entries: [
+          { assetId: 'a1', tags: ['线稿'] },
+          { assetId: 'a2', tags: ['线稿'] },
+        ],
+      },
+      {
+        // ⭐ 一批里 a1 原来没收藏、a2 原来收藏着 —— 交出去的必须是这两个**原值**，
+        //   ⛔ 不是一个「取反」的开关（§10 那条 ⚠）。
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+        entries: [
+          { assetId: 'a1', value: false },
+          { assetId: 'a2', value: true },
+        ],
+      },
+      {
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
+        folderId: 'folder-1',
+      },
+      {
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+        entries: [
+          { assetId: 'a1', folderId: null },
+          { assetId: 'a2', folderId: 'folder-9' },
+        ],
+      },
+    ])
+  })
+
+  /** ⚠ 宿主没接这只手时**静默不做**，⛔ 不抛：少一只手不该让整条撤销链断掉。 */
+  it('宿主没接这只手时静默不做', () => {
+    const { ctx } = makeContext()
+    delete (ctx as { revertAssetWrite?: unknown }).revertAssetWrite
+    for (const step of STEPS) {
+      expect(() => revertOperatorStep(step, ctx)).not.toThrow()
+    }
   })
 })

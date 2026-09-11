@@ -13,7 +13,7 @@ import {
   renderHook,
   screen,
 } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // cmdk 挂 ResizeObserver；jsdom 没有，补一个空壳（⛔ 不为此把面板换成手写列表）。
 class ResizeObserverStub {
@@ -90,7 +90,13 @@ import {
   CANVAS_SHELL_PANEL_IDS,
 } from '@/constants/canvas-shell'
 import { NODE_STUDIO_TOOL_MODE_IDS } from '@/constants/node-studio'
+import { fetchGalleryImages } from '@/lib/api-client'
+import {
+  notifyGalleryChanged,
+  resetGalleryRevision,
+} from '@/lib/gallery-revision'
 import type { NodeGraphV4 } from '@/hooks/node/use-node-graph-v4'
+import type { GenerationRecord } from '@/types'
 import type { NodeWorkflowProjectSummary } from '@/types/node-workflow'
 
 import { useWorkbenchShortcutsV4 } from '../WorkbenchShortcutsV4'
@@ -177,6 +183,7 @@ describe('ShellSidePanels · 四面板', () => {
       nodeQuery: '',
       onNodeQueryChange: vi.fn(),
       onUpload: vi.fn(),
+      onPlaceMedia: vi.fn(),
     }
     const view = render(<ShellSidePanels {...props} />)
     return { props, view }
@@ -445,5 +452,158 @@ describe('快捷键 · T/I/A/V · ⇧1 · ⌘K · ⌘N', () => {
 
     press({ key: 'u', code: 'KeyU', metaKey: true })
     expect(onOpenUpload).toHaveBeenCalled()
+  })
+})
+
+/**
+ * owner 2026-09-12 真机报的三条：翻不到更多、素材放不进画布、传完库里不变。
+ *
+ * ⚠ 这里只证**行为**：拉了第几页、点了调什么、库变了会不会重拉。HTML5 拖投不在
+ * jsdom 里验（`dragstart` 的原生接管正是那条路不可靠的原因，也是加「点一下」的
+ * 理由）—— 拖投由真机目检。
+ */
+describe('素材库面板 · 翻页 / 点一下落卡 / 传完就变', () => {
+  function libraryRecord(id: string): GenerationRecord {
+    return {
+      id,
+      createdAt: new Date('2026-09-10T00:00:00.000Z'),
+      outputType: 'IMAGE',
+      status: 'COMPLETED',
+      url: `https://cdn.example.com/${id}.png`,
+      storageKey: `k/${id}`,
+      mimeType: 'image/png',
+      width: 1024,
+      height: 1024,
+      prompt: '一段提示词',
+      model: 'gpt-image-2',
+      provider: 'user-upload',
+      requestCount: 1,
+      isPublic: false,
+      isPromptPublic: false,
+    }
+  }
+
+  function galleryPage(ids: readonly string[], hasMore: boolean) {
+    return {
+      success: true,
+      data: {
+        generations: ids.map(libraryRecord),
+        page: 1,
+        limit: 24,
+        total: null,
+        hasMore,
+        nextCursor: null,
+      },
+    }
+  }
+
+  function renderLibrary() {
+    const props = {
+      activePanel: CANVAS_SHELL_PANEL_IDS.library,
+      onActivePanelChange: vi.fn(),
+      nodeQuery: '',
+      onNodeQueryChange: vi.fn(),
+      onUpload: vi.fn(),
+      onPlaceMedia: vi.fn(),
+    }
+    render(<ShellSidePanels {...props} />)
+    return props
+  }
+
+  /** 面板的拉取走 `deferEffectTask`（setTimeout 0）＋ 一个 Promise。 */
+  async function settle() {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+  }
+
+  beforeEach(() => {
+    resetGalleryRevision()
+    vi.mocked(fetchGalleryImages).mockClear()
+  })
+
+  it('点一格素材 = 落到画布（⛔ 不只有拖投那一条路）', async () => {
+    vi.mocked(fetchGalleryImages).mockResolvedValue(
+      galleryPage(['a', 'b', 'c'], false),
+    )
+    const props = renderLibrary()
+    await settle()
+
+    const tiles = screen.getAllByTestId('shell-library-tile')
+    expect(tiles).toHaveLength(3)
+    fireEvent.click(tiles[0] as HTMLElement)
+    expect(props.onPlaceMedia).toHaveBeenCalledWith(
+      expect.objectContaining({ url: 'https://cdn.example.com/a.png' }),
+    )
+  })
+
+  it('落卡带上真实像素（⛔ 不让竖图退回 16:9 被裁）', async () => {
+    vi.mocked(fetchGalleryImages).mockResolvedValue(galleryPage(['a'], false))
+    const props = renderLibrary()
+    await settle()
+
+    fireEvent.click(screen.getByTestId('shell-library-tile'))
+    expect(props.onPlaceMedia).toHaveBeenCalledWith(
+      expect.objectContaining({ width: 1024, height: 1024 }),
+    )
+  })
+
+  /**
+   * owner 2026-09-12：「图片移动的时候出现的这个小图删掉」—— 那是浏览器给拖拽画的
+   * 默认拖影（源元素的截图）。载荷照旧上车，只是不再画那张小图。
+   */
+  it('拖起来不画默认拖影，载荷照旧带全', async () => {
+    vi.mocked(fetchGalleryImages).mockResolvedValue(galleryPage(['a'], false))
+    renderLibrary()
+    await settle()
+
+    const setData = vi.fn()
+    const setDragImage = vi.fn()
+    fireEvent.dragStart(screen.getByTestId('shell-library-tile'), {
+      dataTransfer: { setData, setDragImage, effectAllowed: 'none' },
+    })
+
+    expect(setDragImage).toHaveBeenCalled()
+    const payload: unknown = JSON.parse(String(setData.mock.calls[0]?.[1]))
+    expect(payload).toMatchObject({
+      url: 'https://cdn.example.com/a.png',
+      width: 1024,
+      height: 1024,
+    })
+  })
+
+  it('还有下一页就出「加载更多」，点了往后接（⛔ 不重头替换）', async () => {
+    vi.mocked(fetchGalleryImages)
+      .mockResolvedValueOnce(galleryPage(['a', 'b'], true))
+      .mockResolvedValueOnce(galleryPage(['c'], false))
+    renderLibrary()
+    await settle()
+    expect(screen.getAllByTestId('shell-library-tile')).toHaveLength(2)
+
+    fireEvent.click(screen.getByTestId('shell-library-more'))
+    await settle()
+
+    expect(screen.getAllByTestId('shell-library-tile')).toHaveLength(3)
+    expect(vi.mocked(fetchGalleryImages).mock.calls[1]?.[0]).toBe(2)
+    // 拉到底了就不再摆那颗键。
+    expect(screen.queryByTestId('shell-library-more')).toBeNull()
+  })
+
+  it('传完东西库里跟着变（`notifyGalleryChanged` 回到第一页重拉）', async () => {
+    vi.mocked(fetchGalleryImages).mockResolvedValue(galleryPage(['a'], false))
+    renderLibrary()
+    await settle()
+    expect(screen.getAllByTestId('shell-library-tile')).toHaveLength(1)
+
+    vi.mocked(fetchGalleryImages).mockResolvedValue(
+      galleryPage(['a', 'b'], false),
+    )
+    await act(async () => {
+      notifyGalleryChanged()
+    })
+    await settle()
+
+    expect(screen.getAllByTestId('shell-library-tile')).toHaveLength(2)
+    expect(vi.mocked(fetchGalleryImages)).toHaveBeenCalledTimes(2)
   })
 })

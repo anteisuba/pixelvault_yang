@@ -25,6 +25,7 @@ import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
 import { uploadImageFileAPI, uploadReferenceVideoAPI } from '@/lib/api-client'
 import { uploadReferenceAudioAPI } from '@/lib/api-client/voices'
 import { compressImageToLimit } from '@/lib/compress-image'
+import { notifyGalleryChanged } from '@/lib/gallery-revision'
 import { captureVideoThumbnail } from '@/lib/video-thumbnail'
 import type { NodeV4MediaPatch } from '@/components/business/node/nodes/v4/NodeV4Context'
 
@@ -92,6 +93,9 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
             setCanRetry(true)
             return null
           }
+          // 传上去的这一份**也是一件产物**（服务端建了 Generation），素材库与
+          // 历史两个面板据此重拉 —— ⛔ 不让用户自己去点刷新（owner 2026-09-12）。
+          notifyGalleryChanged()
           return {
             url,
             sizeBytes: compressed.size,
@@ -106,6 +110,7 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
             setCanRetry(true)
             return null
           }
+          notifyGalleryChanged()
           return {
             url: response.data.url,
             sizeBytes: response.data.sizeBytes,
@@ -121,6 +126,7 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
           setCanRetry(true)
           return null
         }
+        notifyGalleryChanged()
         return {
           url: response.data.url,
           sizeBytes: response.data.sizeBytes,

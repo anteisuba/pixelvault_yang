@@ -6045,6 +6045,8 @@
         "libraryVideo": "動画",
         "libraryAudio": "音声",
         "historyHint": "最近の生成 · ドラッグで戻す",
+        "loadMore": "もっと読み込む",
+        "placeHint": "クリックで中央に配置 · ドラッグでも可",
         "empty": "まだ何もありません",
         "loading": "読み込み中…",
         "close": "パネルを閉じる"

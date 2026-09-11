@@ -10,8 +10,12 @@
  * · 节点一览 → 复用 `CastDock`（搜索 + 四类分组 + 缩略/名/子型/引用数 + `focusNode`），
  *   ⛔ 不再写第二个定位器。
  * · 角色 / 风格卡 → `useContextCards()`，拖进画布或在提示词里 `@`。
- * · 素材库 → `fetchGalleryImages` 的用户上传那一档，按类型筛。
+ * · 素材库 → `fetchGalleryImages` 的用户上传那一档，按类型筛、一页一页往下翻。
  * · 历史 → 最近的生成记录，拖回画布。
+ *
+ * ⚠ 三个列表面板落卡都有**两只手**：拖进画布，或**点一下**落到视口中央。后者不是
+ * 冗余 —— 触屏上根本没有 `dragstart`，桌面上从缩略图起手的拖拽也常被浏览器接管成
+ * 「拖一张图片」（owner 2026-09-12 真机：素材拖不进画布）。
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -44,6 +48,7 @@ import {
 import { useContextCards } from '@/hooks/use-context-cards'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
+import { useGalleryRevision } from '@/lib/gallery-revision'
 import { resolveGenerationDisplayName } from '@/lib/generation-name'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord, OutputTypeValue } from '@/types'
@@ -92,13 +97,41 @@ const OUTPUT_TYPE_BY_FILTER: Record<
   [CANVAS_SHELL_LIBRARY_FILTER_IDS.audio]: ['audio'],
 }
 
-/** 拖投载荷 —— 一处生成，两个面板共用。 */
-function mediaDragProps(payload: {
-  kind: NodeV4Data['kind']
-  subtype: NodeV4Data['subtype']
-  url: string
-  name: string
-}) {
+/** 面板里一格素材的身份 —— 拖投与点击落卡带的是同一份。 */
+interface ShellMediaPayload {
+  readonly kind: NodeV4Data['kind']
+  readonly subtype: NodeV4Data['subtype']
+  readonly url: string
+  readonly name: string
+  /** 真实像素 —— 卡靠它算自己的高，不给就退回 16:9 把竖图裁成横的。 */
+  readonly width?: number
+  readonly height?: number
+}
+
+/**
+ * 拖起来时**不画那张小图**（owner 2026-09-12：「图片移动的时候出现的这个小图删掉」）。
+ *
+ * ⚠ 浏览器的默认拖影是源元素的截图，跟着光标飘在画布上，与卡片本身的落点提示是
+ * 两套语言。给它一张 1×1 透明图就没了。⛔ 不能传一个没进 DOM 的元素：那在
+ * Chrome 里会被忽略、拖影照旧。
+ */
+let transparentGhost: HTMLImageElement | null = null
+function dragGhost(): HTMLImageElement | null {
+  if (typeof window === 'undefined') return null
+  if (!transparentGhost) {
+    const image = new window.Image()
+    image.src =
+      'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'
+    transparentGhost = image
+  }
+  return transparentGhost
+}
+
+/** 落卡的两只手 —— 三个面板共用。 */
+function mediaTileProps(
+  payload: ShellMediaPayload,
+  onPlace: (payload: ShellMediaPayload) => void,
+) {
   return {
     draggable: true,
     onDragStart: (event: React.DragEvent) => {
@@ -107,48 +140,115 @@ function mediaDragProps(payload: {
         JSON.stringify(payload),
       )
       event.dataTransfer.effectAllowed = 'copy'
+      const ghost = dragGhost()
+      if (ghost) event.dataTransfer.setDragImage(ghost, 0, 0)
+    },
+    onClick: () => onPlace(payload),
+    // 挂了 onClick 的 div 就得当按钮用（角色 / 焦点 / 回车空格），
+    // ⛔ 不留一个只有鼠标点得动的东西。
+    role: 'button' as const,
+    tabIndex: 0,
+    onKeyDown: (event: React.KeyboardEvent) => {
+      if (event.key !== 'Enter' && event.key !== ' ') return
+      event.preventDefault()
+      onPlace(payload)
     },
   }
 }
 
-/** 一次拉取用户最近的产物。素材库与历史两个面板共用一条读法。 */
+/**
+ * 用户最近的产物，**一页一页**拉。素材库与历史两个面板共用一条读法。
+ *
+ * ⚠ 翻页是 owner 2026-09-12 的真机结论：只拉第一页时列表到底就没了，用户以为
+ * 「素材库只有这些」。追加的判据用服务端的 `hasMore`，⛔ 不拿「这一批够不够一页」
+ * 猜（最后一页恰好满页时会多出一次空拉）。
+ *
+ * ⚠ `resetKey` 一变就**回到第一页、清空列表**：换筛之后还接在旧的后面，用户会看到
+ * 一屏筛不掉的东西；库变了（`useGalleryRevision`）之后原地追加则会把同一批接两遍。
+ * 这里用的是 React 官方的「渲染中调整 state」，⛔ 不为它再写一个会触发 lint 的
+ * reset effect。
+ */
 function useRecentGenerations(options: {
-  readonly enabled: boolean
   readonly types: readonly OutputTypeValue[]
   readonly uploadsOnly: boolean
 }) {
-  const { enabled, types, uploadsOnly } = options
-  const [records, setRecords] = useState<readonly GenerationRecord[]>([])
-  const [isLoading, setIsLoading] = useState(false)
+  const { types, uploadsOnly } = options
+  const revision = useGalleryRevision()
   const typeKey = types.join(',')
+  const resetKey = `${typeKey}|${String(uploadsOnly)}|${String(revision)}`
+
+  const [records, setRecords] = useState<readonly GenerationRecord[]>([])
+  const [page, setPage] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
+  const [exhausted, setExhausted] = useState(false)
+  const [lastResetKey, setLastResetKey] = useState(resetKey)
+
+  if (lastResetKey !== resetKey) {
+    setLastResetKey(resetKey)
+    setPage(1)
+    setRecords([])
+    setExhausted(false)
+  }
 
   useEffect(() => {
-    if (!enabled) return
     let alive = true
     // ⚠ 走 `deferEffectTask`：React 19 的 lint 不允许在 effect 体里同步启动会
     // setState 的活（`react-hooks/set-state-in-effect`），与 `use-context-cards`
     // 同一套约定，⛔ 别在这里另发明一份。
     const cancel = deferEffectTask(() => {
       setIsLoading(true)
-      void fetchGalleryImages(1, CANVAS_SHELL_LIST_PAGE_SIZE, {
+      void fetchGalleryImages(page, CANVAS_SHELL_LIST_PAGE_SIZE, {
         mine: true,
         ...(typeKey ? { type: typeKey.split(',') as OutputTypeValue[] } : {}),
         ...(uploadsOnly ? { provider: 'user-upload' } : {}),
       }).then((response) => {
         if (!alive) return
         setIsLoading(false)
-        if (response.success && response.data) {
-          setRecords(response.data.generations)
-        }
+        if (!response.success || !response.data) return
+        const batch = response.data.generations
+        setExhausted(!response.data.hasMore)
+        setRecords((current) => (page === 1 ? batch : [...current, ...batch]))
       })
     })
     return () => {
       alive = false
       cancel()
     }
-  }, [enabled, typeKey, uploadsOnly])
+  }, [page, resetKey, typeKey, uploadsOnly])
 
-  return { records, isLoading }
+  return {
+    records,
+    isLoading,
+    exhausted,
+    loadMore: useCallback(() => setPage((current) => current + 1), []),
+  }
+}
+
+/** 列表底部那颗「加载更多」—— 素材库与历史同一颗。 */
+function ShellLoadMore({
+  visible,
+  isLoading,
+  onLoadMore,
+  testId,
+}: {
+  readonly visible: boolean
+  readonly isLoading: boolean
+  onLoadMore(): void
+  readonly testId: string
+}) {
+  const t = useTranslations('StudioNode.shell.panels')
+  if (!visible) return null
+  return (
+    <button
+      type="button"
+      data-testid={testId}
+      disabled={isLoading}
+      onClick={onLoadMore}
+      className="mt-1 self-center rounded-md px-2 py-1 text-2xs text-node-muted transition-colors hover:text-node-foreground disabled:opacity-50"
+    >
+      {isLoading ? t('loading') : t('loadMore')}
+    </button>
+  )
 }
 
 interface ShellPanelFrameProps {
@@ -189,7 +289,11 @@ function ShellPanelFrame({
   )
 }
 
-function ShellCardsPanel() {
+function ShellCardsPanel({
+  onPlace,
+}: {
+  onPlace(payload: ShellMediaPayload): void
+}) {
   const t = useTranslations('StudioNode.shell.panels')
   const { cards, isLoading } = useContextCards()
   const groups = useMemo(
@@ -247,15 +351,18 @@ function ShellCardsPanel() {
                   style={{ height: CANVAS_SHELL_LAYOUT.nodeRowHeightPx }}
                   className="flex cursor-grab items-center gap-2.5 rounded-lg px-2 transition-colors hover:bg-node-panel-inner"
                   {...(url
-                    ? mediaDragProps({
-                        kind: NODE_MEDIA_KIND_IDS.image,
-                        subtype:
-                          card.kind === CONTEXT_CARD_KIND_IDS.character
-                            ? NODE_V4_IMAGE_SUBTYPE_IDS.character
-                            : NODE_V4_IMAGE_SUBTYPE_IDS.background,
-                        url,
-                        name: card.name,
-                      })
+                    ? mediaTileProps(
+                        {
+                          kind: NODE_MEDIA_KIND_IDS.image,
+                          subtype:
+                            card.kind === CONTEXT_CARD_KIND_IDS.character
+                              ? NODE_V4_IMAGE_SUBTYPE_IDS.character
+                              : NODE_V4_IMAGE_SUBTYPE_IDS.background,
+                          url,
+                          name: card.name,
+                        },
+                        onPlace,
+                      )
                     : {})}
                 >
                   <span
@@ -272,6 +379,7 @@ function ShellCardsPanel() {
                       <img
                         src={url}
                         alt=""
+                        draggable={false}
                         className="size-full object-cover"
                       />
                     ) : null}
@@ -298,13 +406,18 @@ function ShellCardsPanel() {
   )
 }
 
-function ShellLibraryPanel({ onUpload }: { onUpload(): void }) {
+function ShellLibraryPanel({
+  onUpload,
+  onPlace,
+}: {
+  onUpload(): void
+  onPlace(payload: ShellMediaPayload): void
+}) {
   const t = useTranslations('StudioNode.shell.panels')
   const [filter, setFilter] = useState<CanvasShellLibraryFilter>(
     CANVAS_SHELL_LIBRARY_FILTER_IDS.all,
   )
-  const { records, isLoading } = useRecentGenerations({
-    enabled: true,
+  const { records, isLoading, exhausted, loadMore } = useRecentGenerations({
     types: OUTPUT_TYPE_BY_FILTER[filter],
     uploadsOnly: true,
   })
@@ -362,16 +475,24 @@ function ShellLibraryPanel({ onUpload }: { onUpload(): void }) {
                 key={record.id}
                 data-testid="shell-library-tile"
                 className="aspect-square cursor-grab overflow-hidden rounded-lg bg-node-panel-soft"
-                {...mediaDragProps({
-                  ...plan,
-                  url: record.url,
-                  name: resolveGenerationDisplayName(record),
-                })}
+                {...mediaTileProps(
+                  {
+                    ...plan,
+                    url: record.url,
+                    name: resolveGenerationDisplayName(record),
+                    width: record.width,
+                    height: record.height,
+                  },
+                  onPlace,
+                )}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={record.thumbnailUrl ?? record.url}
                   alt=""
+                  // ⚠ 缩略图自己是可拖的：不关掉它，从图上起手的拖拽会被浏览器
+                  // 接管成「拖一张图片」，我们的载荷压根没上车。
+                  draggable={false}
                   className="size-full object-cover"
                 />
               </div>
@@ -379,11 +500,24 @@ function ShellLibraryPanel({ onUpload }: { onUpload(): void }) {
           })}
         </div>
       )}
+      <ShellLoadMore
+        visible={records.length > 0 && !exhausted}
+        isLoading={isLoading}
+        onLoadMore={loadMore}
+        testId="shell-library-more"
+      />
+      {records.length > 0 ? (
+        <p className="px-1 pt-1 text-2xs text-node-muted">{t('placeHint')}</p>
+      ) : null}
     </div>
   )
 }
 
-function ShellHistoryPanel() {
+function ShellHistoryPanel({
+  onPlace,
+}: {
+  onPlace(payload: ShellMediaPayload): void
+}) {
   const t = useTranslations('StudioNode.shell.panels')
   const format = useFormatter()
   /**
@@ -392,8 +526,7 @@ function ShellHistoryPanel() {
    * 存住 —— 这是弹开看一眼的列表，⛔ 不为它上一个每秒走的钟。
    */
   const [now] = useState(() => new Date())
-  const { records, isLoading } = useRecentGenerations({
-    enabled: true,
+  const { records, isLoading, exhausted, loadMore } = useRecentGenerations({
     types: [],
     uploadsOnly: false,
   })
@@ -423,11 +556,16 @@ function ShellHistoryPanel() {
             data-testid="shell-history-row"
             style={{ height: CANVAS_SHELL_LAYOUT.nodeRowHeightPx }}
             className="flex cursor-grab items-center gap-2.5 rounded-lg px-2 transition-colors hover:bg-node-panel-inner"
-            {...mediaDragProps({
-              ...plan,
-              url: record.url,
-              name: resolveGenerationDisplayName(record),
-            })}
+            {...mediaTileProps(
+              {
+                ...plan,
+                url: record.url,
+                name: resolveGenerationDisplayName(record),
+                width: record.width,
+                height: record.height,
+              },
+              onPlace,
+            )}
           >
             <span
               aria-hidden
@@ -441,6 +579,7 @@ function ShellHistoryPanel() {
               <img
                 src={record.thumbnailUrl ?? record.url}
                 alt=""
+                draggable={false}
                 className="size-full object-cover"
               />
             </span>
@@ -457,6 +596,12 @@ function ShellHistoryPanel() {
           </div>
         )
       })}
+      <ShellLoadMore
+        visible={records.length > 0 && !exhausted}
+        isLoading={isLoading}
+        onLoadMore={loadMore}
+        testId="shell-history-more"
+      />
     </div>
   )
 }
@@ -470,6 +615,8 @@ export interface ShellSidePanelsProps {
   onNodeQueryChange(value: string): void
   /** 素材库面板的「上传」—— 弹系统文件选择器，落法与拖入同一条。 */
   onUpload(): void
+  /** 点一下某份素材 —— 落到视口中央（拖投之外的第二只手）。 */
+  onPlaceMedia(payload: ShellMediaPayload): void
 }
 
 export function ShellSidePanels({
@@ -478,6 +625,7 @@ export function ShellSidePanels({
   nodeQuery,
   onNodeQueryChange,
   onUpload,
+  onPlaceMedia,
 }: ShellSidePanelsProps) {
   const t = useTranslations('StudioNode.shell.panels')
   const close = useCallback(
@@ -547,11 +695,11 @@ export function ShellSidePanels({
             {activePanel === CANVAS_SHELL_PANEL_IDS.nodes ? (
               <CastDock query={nodeQuery} onQueryChange={onNodeQueryChange} />
             ) : activePanel === CANVAS_SHELL_PANEL_IDS.cards ? (
-              <ShellCardsPanel />
+              <ShellCardsPanel onPlace={onPlaceMedia} />
             ) : activePanel === CANVAS_SHELL_PANEL_IDS.library ? (
-              <ShellLibraryPanel onUpload={onUpload} />
+              <ShellLibraryPanel onUpload={onUpload} onPlace={onPlaceMedia} />
             ) : (
-              <ShellHistoryPanel />
+              <ShellHistoryPanel onPlace={onPlaceMedia} />
             )}
           </ShellPanelFrame>
         </div>

@@ -67,11 +67,18 @@ function resolveDropKind(file: File): {
  * 左侧面板（角色卡 / 素材库 / 历史）拖进画布的那一份载荷。媒体已经在 R2 上，
  * 落法因此是「建节点 + `setMedia`」，⛔ 不再走一次上传。
  */
-interface ShellMediaDragPayload {
+export interface ShellMediaDragPayload {
   readonly kind: NodeV4Data['kind']
   readonly subtype: NodeV4Data['subtype']
   readonly url: string
   readonly name?: string
+  /**
+   * 素材的真实像素。⚠ 带上它卡才知道自己多高 —— 不带的话 `collapsedImageHeight`
+   * 退回 16:9，一张竖图落进画布会被 `object-cover` 裁成横的（owner 2026-09-12
+   * 真机实测 720×1280 落成 640×408）。
+   */
+  readonly width?: number
+  readonly height?: number
 }
 
 /** 读拖投载荷。形状不对就当没有 —— ⛔ 不为一条坏 JSON 建一张空卡。 */
@@ -97,6 +104,12 @@ function readShellMediaPayload(
       subtype: candidate.subtype as NodeV4Data['subtype'],
       url: candidate.url,
       ...(typeof candidate.name === 'string' ? { name: candidate.name } : {}),
+      ...(typeof candidate.width === 'number'
+        ? { width: candidate.width }
+        : {}),
+      ...(typeof candidate.height === 'number'
+        ? { height: candidate.height }
+        : {}),
     }
   } catch {
     return null
@@ -115,6 +128,17 @@ export interface WorkbenchDndV4Value {
    */
   dropFilesAtFlow(
     files: readonly File[],
+    flowPoint: { x: number; y: number },
+  ): void
+  /**
+   * 已经在 R2 上的一份素材，落到给定的**画布坐标**。
+   *
+   * ⚠ 存在理由：左侧面板里**点一下**也要能落卡 —— HTML5 拖放在触屏上根本不发
+   * `dragstart`，而在桌面上从缩略图起手又常被浏览器接管成「拖一张图片」。落卡
+   * 这件事与拖投完全一样，所以只把「怎么触发」让出来，⛔ 不另写一条落卡路径。
+   */
+  placeMediaAtFlow(
+    payload: ShellMediaDragPayload,
     flowPoint: { x: number; y: number },
   ): void
   readonly isUploading: boolean
@@ -198,6 +222,43 @@ export function useWorkbenchDndV4({
     [dropFilesAtFlow],
   )
 
+  const placeMediaAtFlow = useCallback(
+    (
+      payload: ShellMediaDragPayload,
+      position: { x: number; y: number },
+    ): void => {
+      const nodeId = latest.current.graph.addNode(
+        payload.kind,
+        payload.subtype,
+        { position },
+      )
+      if (!nodeId) return
+      /**
+       * ⚠ 回填必须用**建卡之后**那份图：`setMedia` 闭包着调用时的图，同一 tick 拿
+       * 建卡之前那份写回去，等于把刚建出来的卡一起抹掉 —— 卡片闪都不闪一下，看起来
+       * 就是「素材放不进画布」（owner 2026-09-12 真机，两条路都中招）。
+       *
+       * 与 `use-video-rail-binding.backfillMedia` 同一条等法（等新卡出现在图上，
+       * 最多等 10 帧），⛔ 不另发明第二种。
+       */
+      const backfill = (attempt: number): void => {
+        const fresh = latest.current.graph
+        if (fresh.nodes.some((item) => item.id === nodeId) || attempt >= 10) {
+          fresh.setMedia(nodeId, {
+            url: payload.url,
+            ...(payload.width && payload.height
+              ? { mediaWidth: payload.width, mediaHeight: payload.height }
+              : {}),
+          })
+          return
+        }
+        requestAnimationFrame(() => backfill(attempt + 1))
+      }
+      backfill(0)
+    },
+    [],
+  )
+
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault()
     event.dataTransfer.dropEffect = 'copy'
@@ -208,16 +269,13 @@ export function useWorkbenchDndV4({
       const payload = readShellMediaPayload(event)
       if (payload) {
         event.preventDefault()
-        const position = latest.current.screenToFlowPosition({
-          x: event.clientX,
-          y: event.clientY,
-        })
-        const nodeId = latest.current.graph.addNode(
-          payload.kind,
-          payload.subtype,
-          { position },
+        placeMediaAtFlow(
+          payload,
+          latest.current.screenToFlowPosition({
+            x: event.clientX,
+            y: event.clientY,
+          }),
         )
-        if (nodeId) latest.current.graph.setMedia(nodeId, { url: payload.url })
         return
       }
       const files = Array.from(event.dataTransfer?.files ?? [])
@@ -225,7 +283,7 @@ export function useWorkbenchDndV4({
       event.preventDefault()
       dropFiles(files, { x: event.clientX, y: event.clientY })
     },
-    [dropFiles],
+    [dropFiles, placeMediaAtFlow],
   )
 
   useEffect(() => {
@@ -245,6 +303,7 @@ export function useWorkbenchDndV4({
     onDragOver,
     dropFiles,
     dropFilesAtFlow,
+    placeMediaAtFlow,
     isUploading: upload.isUploading,
   }
 }

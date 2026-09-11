@@ -118,7 +118,7 @@ import type { NodeTextDeriveAction } from '../nodes/v4/NodeV4Context'
 import { NodeV4Provider } from '../nodes/v4/NodeV4Provider'
 import { CanvasV4 } from './CanvasV4'
 import { WorkbenchAssistantDockV4, WorkbenchDocksV4 } from './WorkbenchDocksV4'
-import { useWorkbenchDndV4 } from './WorkbenchDndV4'
+import { useWorkbenchDndV4, type ShellMediaDragPayload } from './WorkbenchDndV4'
 import { useWorkbenchShortcutsV4 } from './WorkbenchShortcutsV4'
 import { useWorkbenchRosterDropV4 } from './WorkbenchRosterDropV4'
 import { ShellApiKeysProvider, useOpenApiKeys } from './shell/ShellApiKeys'
@@ -593,6 +593,30 @@ function NodeWorkbenchV4Inner() {
       addNodeFromIntent(intentId, center)
     },
     [addNodeFromIntent, screenToFlowPosition],
+  )
+
+  /**
+   * 左侧面板里**点一下**素材 —— 落到视口中央（与键盘 T/I/A/V 同一个落点）。
+   *
+   * ⚠ 面板里已有拖投，这一条是**另一只手**：触屏没有 `dragstart`，桌面上从缩略图
+   * 起手的拖拽又常被浏览器接管成「拖一张图片」（owner 2026-09-12 真机：拖不进去）。
+   */
+  const placeMediaAtViewportCenter = useCallback(
+    (payload: ShellMediaDragPayload) => {
+      const rect = canvasRef.current?.getBoundingClientRect()
+      dnd.placeMediaAtFlow(
+        payload,
+        screenToFlowPosition(
+          rect
+            ? {
+                x: rect.left + rect.width / 2,
+                y: rect.top + rect.height / 2,
+              }
+            : { x: 0, y: 0 },
+        ),
+      )
+    },
+    [dnd, screenToFlowPosition],
   )
 
   /**
@@ -1239,6 +1263,7 @@ function NodeWorkbenchV4Inner() {
                   nodeQuery={nodeQuery}
                   onNodeQueryChange={setNodeQuery}
                   onUpload={() => openUpload()}
+                  onPlaceMedia={placeMediaAtViewportCenter}
                 />
                 <ShellBottomBar
                   toolMode={toolMode}

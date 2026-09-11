@@ -6045,6 +6045,8 @@
         "libraryVideo": "Video",
         "libraryAudio": "Audio",
         "historyHint": "Recent generations · drag back",
+        "loadMore": "Load more",
+        "placeHint": "Click to drop it in the middle · or drag it in",
         "empty": "Nothing here yet",
         "loading": "Loading…",
         "close": "Collapse panel"

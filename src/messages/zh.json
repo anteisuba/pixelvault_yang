@@ -6045,6 +6045,8 @@
         "libraryVideo": "视频",
         "libraryAudio": "音频",
         "historyHint": "最近生成 · 拖回画布",
+        "loadMore": "加载更多",
+        "placeHint": "点一下落到画布中央 · 或拖进去",
         "empty": "这里还什么都没有",
         "loading": "加载中…",
         "close": "收起面板"

@@ -4,6 +4,7 @@ vi.mock('server-only', () => ({}))
 
 import {
   analyzeOperatorReferences,
+  buildDefaultReferenceBrief,
   buildOperatorReferenceBrief,
   reviewOperatorReferencePrompt,
 } from './assistant-reference-analysis.service'
@@ -196,6 +197,85 @@ describe('reference analysis', () => {
     })
     expect(result.assignments).toEqual([...brief.assignments].reverse())
     expect(complete.mock.calls[0]?.[1]).not.toContain(urls[0])
+  })
+
+  /**
+   * ⭐ **真机复现（2026-09-12）**：简报那一跳的 JSON 走形 —— roles 写成
+   * 「character / art style」这种自然语言、`uncertainties` 吐成一个字符串 ——
+   * 原来一次没过就整轮抛，用户看到「提示词未修改」。现在先把 issue 回喂一次。
+   */
+  it('repairs a brief whose roles and uncertainties drifted off the schema', async () => {
+    const indexed = brief.assignments.map(
+      ({ url: _url, ...rest }, imageIndex) => ({
+        ...rest,
+        imageIndex,
+      }),
+    )
+    const complete = vi
+      .fn()
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          ...brief,
+          assignments: indexed.map((item, index) => ({
+            ...item,
+            roles: [index ? 'art style' : 'character'],
+          })),
+          uncertainties: 'none',
+        }),
+      )
+      .mockResolvedValueOnce(JSON.stringify({ ...brief, assignments: indexed }))
+    const result = await buildOperatorReferenceBrief({
+      ...input,
+      profiles,
+      complete,
+    })
+    expect(complete).toHaveBeenCalledTimes(2)
+    const repair = String(complete.mock.calls[1]?.[1])
+    expect(repair).toContain('PREVIOUS REPLY REJECTED (schema)')
+    expect(repair).toContain('assignments.0.roles.0')
+    expect(repair).toContain('uncertainties')
+    expect(result.assignments).toEqual(brief.assignments)
+  })
+
+  it('reports the rejected sample when the repair attempt also fails', async () => {
+    const complete = vi
+      .fn()
+      .mockResolvedValue(JSON.stringify({ assignments: [] }))
+    await expect(
+      buildOperatorReferenceBrief({ ...input, profiles, complete }),
+    ).rejects.toMatchObject({
+      stage: 'brief',
+      reason: 'schema',
+      sample: expect.stringContaining('assignments'),
+    })
+    expect(complete).toHaveBeenCalledTimes(2)
+  })
+
+  it('falls back to the sources the creator named, with no uncertainties to block the write', () => {
+    expect(
+      buildDefaultReferenceBrief({ profiles, activeIndices: [0] }),
+    ).toMatchObject({
+      uncertainties: [],
+      requirements: [],
+      assignments: [
+        { url: urls[0], roles: ['content'], exclude: [] },
+        {
+          url: urls[1],
+          roles: ['content'],
+          exclude: ['Not named by the creator for this edit'],
+        },
+      ],
+    })
+    expect(
+      buildDefaultReferenceBrief({ profiles, activeIndices: [] }).assignments,
+    ).toEqual(
+      profiles.map(({ url }) => ({
+        url,
+        roles: ['content'],
+        preserve: [],
+        exclude: [],
+      })),
+    )
   })
 
   it.each([[0, 0], [0], [0, 2]])(

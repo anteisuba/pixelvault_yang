@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { z } from 'zod'
+
 import {
   ReferenceBriefOutputSchema,
   ReferencePromptReviewSchema,
@@ -15,6 +17,11 @@ export class ReferenceAnalysisValidationError extends Error {
     readonly reason: 'json' | 'schema' | 'image_mapping',
     readonly paths: string[] = [],
     mapping?: { expected: number[]; received: number[] },
+    /**
+     * ⚠ 只有 brief 那一跳传样本：它的输入是服务端自己拼的结构化事实 + 创作者
+     * 上下文，没有图片像素。vision 那一跳照旧只记 issue 路径。
+     */
+    readonly sample?: string,
   ) {
     super(`Reference analysis ${stage} validation failed: ${reason}`)
     this.name = 'ReferenceAnalysisValidationError'
@@ -23,6 +30,7 @@ export class ReferenceAnalysisValidationError extends Error {
       reason,
       paths,
       ...mapping,
+      ...(sample ? { sample } : {}),
     })
   }
 }
@@ -119,6 +127,51 @@ export async function analyzeOperatorReferences({
   return { profiles, brief: null }
 }
 
+type BriefParse =
+  | { ok: true; data: z.infer<typeof ReferenceBriefOutputSchema> }
+  | {
+      ok: false
+      reason: 'json' | 'schema' | 'image_mapping'
+      paths: string[]
+      mapping?: { expected: number[]; received: number[] }
+    }
+
+function parseReferenceBrief(raw: string, sources: number): BriefParse {
+  const json = readJson(raw)
+  if (json === null) return { ok: false, reason: 'json', paths: [] }
+  const parsed = ReferenceBriefOutputSchema.safeParse(json)
+  if (!parsed.success)
+    return {
+      ok: false,
+      reason: 'schema',
+      paths: parsed.error.issues.map(
+        (issue) => `${issue.path.join('.')}:${issue.code}`,
+      ),
+    }
+  const received = parsed.data.assignments.map((item) => item.imageIndex)
+  if (
+    received.length !== sources ||
+    new Set(received).size !== sources ||
+    received.some((index) => index >= sources)
+  )
+    return {
+      ok: false,
+      reason: 'image_mapping',
+      paths: [],
+      mapping: {
+        expected: Array.from({ length: sources }, (_, index) => index),
+        received,
+      },
+    }
+  return { ok: true, data: parsed.data }
+}
+
+/**
+ * ⭐ **结构化输出失败不该让整轮失效**（2026-09-12 真机 bug）：分工简报是一次纯
+ * 文本模型跳，字段名、roles 枚举、空数组任意一处走形就整轮抛，用户拿到的是
+ * 「提示词未修改」外加零个可操作的下一步。所以先把 issue 回喂给模型要一次修正
+ * 后的 JSON；⛔ 这是**重试**不是放宽 —— schema 一个字都没松，vision 那一跳不碰。
+ */
 export async function buildOperatorReferenceBrief({
   profiles,
   context,
@@ -130,29 +183,29 @@ export async function buildOperatorReferenceBrief({
   language: string
   complete: Complete
 }): Promise<NonNullable<ReferenceAnalysis['brief']>> {
-  const raw = await complete(
-    `Build a reference-use brief for this image task in ${language}. You have verified visual descriptions; do not invent unseen features. Use only the supplied zero-based imageIndex to identify sources; @ImageN = imageIndex + 1. Never output URLs. Follow the latest explicit creator assignments and corrections. Separate what to preserve from what to exclude for every source. A pose reference must not supply identity, clothing, style or background. A style reference must not force its subject or scene into the new image. Identity features must survive rendering-style changes. Use one primary style source unless the creator requested blending. If source roles remain ambiguous, put a focused question in uncertainties instead of guessing. Do not reinterpret explicit choices as uncertainty. Preserve settled creator requirements. The current prompt is an editable draft, not evidence of what source images look like. If the latest creator-selected style source conflicts with older draft wording (for example a stylized 3D source versus a flat 2D or exclude-CG draft), preserve the new source rendering mode and replace the conflicting draft instructions. Preserve volume, geometry, material response and lighting from a style source, not just its colours and outlines. Creator-provided source provenance is authoritative unless explicitly corrected. Return JSON only: {"summary":"...","assignments":[{"imageIndex":0,"roles":["identity"],"preserve":[],"exclude":[]}],"requirements":[],"avoid":[],"uncertainties":[]}. roles may contain identity, pose, style, content. Cover every source exactly once; excluded sources must say so in exclude.`,
-    `CURRENT REFERENCES (imageIndex is zero-based; @ImageN = imageIndex + 1):\n${JSON.stringify(profiles.map(({ identity, pose, style, scene, uncertainties }, imageIndex) => ({ imageIndex, identity, pose, style, scene, uncertainties })))}\nCREATOR CONTEXT:\n${context}`,
-  )
-  const brief = ReferenceBriefOutputSchema.safeParse(readJson(raw, 'brief'))
-  if (!brief.success)
+  const system = `Build a reference-use brief for this image task in ${language}. You have verified visual descriptions; do not invent unseen features. Use only the supplied zero-based imageIndex to identify sources; @ImageN = imageIndex + 1. Never output URLs. Follow the latest explicit creator assignments and corrections. Separate what to preserve from what to exclude for every source. A pose reference must not supply identity, clothing, style or background. A style reference must not force its subject or scene into the new image. Identity features must survive rendering-style changes. Use one primary style source unless the creator requested blending. If source roles remain ambiguous, put a focused question in uncertainties instead of guessing. Do not reinterpret explicit choices as uncertainty. Preserve settled creator requirements. The current prompt is an editable draft, not evidence of what source images look like. If the latest creator-selected style source conflicts with older draft wording (for example a stylized 3D source versus a flat 2D or exclude-CG draft), preserve the new source rendering mode and replace the conflicting draft instructions. Preserve volume, geometry, material response and lighting from a style source, not just its colours and outlines. Creator-provided source provenance is authoritative unless explicitly corrected. Return JSON only: {"summary":"...","assignments":[{"imageIndex":0,"roles":["identity"],"preserve":[],"exclude":[]}],"requirements":[],"avoid":[],"uncertainties":[]}. roles may contain identity, pose, style, content. Cover every source exactly once; excluded sources must say so in exclude.`
+  const user = `CURRENT REFERENCES (imageIndex is zero-based; @ImageN = imageIndex + 1):\n${JSON.stringify(profiles.map(({ identity, pose, style, scene, uncertainties }, imageIndex) => ({ imageIndex, identity, pose, style, scene, uncertainties })))}\nCREATOR CONTEXT:\n${context}`
+  let raw = await complete(system, user)
+  let brief = parseReferenceBrief(raw, profiles.length)
+  if (!brief.ok) {
+    const issues =
+      brief.reason === 'image_mapping'
+        ? `expected imageIndex ${JSON.stringify(brief.mapping?.expected)}, received ${JSON.stringify(brief.mapping?.received)}`
+        : brief.paths.join('\n') || 'the reply was not JSON'
+    raw = await complete(
+      `${system}\nYour previous reply was rejected by a strict schema. Return the corrected JSON object only: no prose, no markdown fence, no extra keys. summary is a string; assignments holds exactly one entry per source, each {"imageIndex":<number>,"roles":[one or more of identity|pose|style|content],"preserve":[strings],"exclude":[strings]}; requirements, avoid and uncertainties are arrays of strings and must be [] when empty. Keep the substance of your previous answer and fix only its shape.`,
+      `${user}\nPREVIOUS REPLY REJECTED (${brief.reason}):\n${raw.slice(0, 2000)}\nVALIDATION ISSUES:\n${issues}`,
+    )
+    brief = parseReferenceBrief(raw, profiles.length)
+  }
+  if (!brief.ok)
     throw new ReferenceAnalysisValidationError(
       'brief',
-      'schema',
-      brief.error.issues.map(
-        (issue) => `${issue.path.join('.')}:${issue.code}`,
-      ),
+      brief.reason,
+      brief.paths,
+      brief.mapping,
+      raw.slice(0, 500),
     )
-  if (
-    brief.data.assignments.length !== profiles.length ||
-    new Set(brief.data.assignments.map((item) => item.imageIndex)).size !==
-      profiles.length ||
-    brief.data.assignments.some((item) => item.imageIndex >= profiles.length)
-  )
-    throw new ReferenceAnalysisValidationError('brief', 'image_mapping', [], {
-      expected: profiles.map((_, index) => index),
-      received: brief.data.assignments.map((item) => item.imageIndex),
-    })
   return {
     ...brief.data,
     assignments: brief.data.assignments.map(
@@ -161,6 +214,40 @@ export async function buildOperatorReferenceBrief({
         url: profiles[imageIndex]!.url,
       }),
     ),
+  }
+}
+
+/**
+ * 简报两次都没过 schema 时的兜底分工：**看到的事实全留着，分工退到创作者自己
+ * 点名的那一份**（用户说了 @Image1 就按点名的来，没点名的标成本次不用）。
+ * ⛔ 它有意不含 `uncertainties` —— 校验失败不是「有待创作者澄清的疑问」，
+ * 拿它去拦 `set_prompt` 只会复现整轮零产出的那个 bug。
+ */
+export function buildDefaultReferenceBrief({
+  profiles,
+  activeIndices,
+}: {
+  profiles: ReferenceVisualProfile[]
+  activeIndices: number[]
+}): NonNullable<ReferenceAnalysis['brief']> {
+  const active = new Set(
+    activeIndices.filter((index) => index >= 0 && index < profiles.length),
+  )
+  return {
+    summary:
+      'Default source roles: the role brief failed schema validation twice, so every source keeps its verified visual facts and the creator instruction decides how it is used.',
+    assignments: profiles.map((profile, index) => ({
+      url: profile.url,
+      roles: ['content' as const],
+      preserve: [],
+      exclude:
+        active.size && !active.has(index)
+          ? ['Not named by the creator for this edit']
+          : [],
+    })),
+    requirements: [],
+    avoid: [],
+    uncertainties: [],
   }
 }
 

@@ -7986,7 +7986,71 @@ describe('current reference image bindings', () => {
     expect(String(briefCall?.[0].userPrompt)).toContain('ALREADY SETTLED')
   })
 
-  it('keeps inspected evidence when the source-role brief fails and never writes the prompt', async () => {
+  /**
+   * ⭐ **真机 bug（2026-09-12）**：两张参考图 + 一句「把图1的男角色转成 2D 插画，
+   * 提示词直接覆盖」，分工简报的 JSON 没过 schema，`set_prompt` 连拒两次，整轮
+   * 零产出。⛔ 修的是**不阻断**：看到的事实全留着，分工退到创作者点名的那份，
+   * 提示词照写，观察里说清楚按的是兜底分工。
+   */
+  it('⭐ 简报两次没过 schema 时降级写入提示词（⛔ 不再整轮零产出）', async () => {
+    queueTurns(
+      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '写提示词',
+          args: { value: '把@Image1的男角色画成纯2D日系手绘插画' },
+        },
+      },
+      { assignments: [] },
+      { assignments: [] },
+      { issues: [] },
+      { finished: true, message: '提示词已写入。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [
+            {
+              role: 'user',
+              content: '把图1的男角色转成纯2D日系手绘插画，提示词直接覆盖',
+            },
+          ],
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).findLast(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status !== 'running',
+      ),
+    ).toMatchObject({
+      status: 'done',
+      payload: { value: '把@Image1的男角色画成纯2D日系手绘插画' },
+    })
+    const briefCalls = mockLlmTextCompletion.mock.calls.filter(([input]) =>
+      String(input.systemPrompt).includes('Build a reference-use brief'),
+    )
+    expect(briefCalls).toHaveLength(2)
+    expect(String(briefCalls[1]?.[0].userPrompt)).toContain(
+      'PREVIOUS REPLY REJECTED',
+    )
+    // 兜底分工里，创作者点名的那张不排除，另一张标成本次不用。
+    const reviewCall = mockLlmTextCompletion.mock.calls.find(([input]) =>
+      String(input.systemPrompt).includes(
+        'Check an image-generation prompt against',
+      ),
+    )
+    expect(String(reviewCall?.[0].userPrompt)).toContain(
+      'Not named by the creator for this edit',
+    )
+    expect(lastUserPrompt()).toContain('The source-role brief failed schema')
+  })
+
+  it('does not rebuild the failed brief when set_prompt is retried in the same turn', async () => {
     queueTurns(
       ...analysisTurns(),
       {
@@ -7997,7 +8061,17 @@ describe('current reference image bindings', () => {
         },
       },
       { assignments: [] },
-      { finished: true, message: '看图已完成，分工整理失败。' },
+      { assignments: [] },
+      { issues: ['White background is missing.'] },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '再写一次',
+          args: { value: 'A hug on a white background' },
+        },
+      },
+      { issues: [] },
+      { finished: true, message: '已写入。' },
     )
     const events = await collect(
       runAssistantOperator(
@@ -8008,18 +8082,10 @@ describe('current reference image bindings', () => {
       ),
     )
     expect(
-      stepsOf(events).findLast(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
-          step.status !== 'running',
+      mockLlmTextCompletion.mock.calls.filter(([input]) =>
+        String(input.systemPrompt).includes('Build a reference-use brief'),
       ),
-    ).toMatchObject({
-      status: 'done',
-      result: {
-        profiles: refs.map(({ url }) => ({ url, ...facts })),
-        brief: null,
-      },
-    })
+    ).toHaveLength(2)
     expect(
       stepsOf(events).findLast(
         (step) =>
@@ -8027,17 +8093,9 @@ describe('current reference image bindings', () => {
           step.status !== 'running',
       ),
     ).toMatchObject({
-      status: 'error',
-      error: {
-        reason: 'referenceBriefFailed',
-        detail: expect.stringContaining(
-          'Do not claim the images are unreadable',
-        ),
-      },
+      status: 'done',
+      payload: { value: 'A hug on a white background' },
     })
-    expect(
-      mockLlmTextCompletion.mock.calls.filter(([input]) => input.imageData),
-    ).toHaveLength(1)
   })
 
   it('rejects malformed visual fields without exceeding the error event limit', async () => {

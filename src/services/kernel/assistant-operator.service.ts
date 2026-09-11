@@ -1,6 +1,7 @@
 import 'server-only'
 import {
   analyzeOperatorReferences,
+  buildDefaultReferenceBrief,
   buildOperatorReferenceBrief,
   ReferenceAnalysisValidationError,
   reviewOperatorReferencePrompt,
@@ -523,6 +524,8 @@ interface OperatorRun {
   referenceAnalysis: ReferenceAnalysis | null
   promptReviewFailures: number
   referencePromptWritten: boolean
+  /** 分工简报两次都没过 schema，这一轮是按兜底分工写的。 */
+  referenceBriefDegraded: boolean
   request: AssistantOperatorRequest
   state: OperatorWorkingState
   /**
@@ -2582,6 +2585,20 @@ function referenceCreatorContext(run: OperatorRun): string {
   return `CURRENT PROMPT:\n${run.state.prompt}\n${answered}CONVERSATION (latest explicit user instruction wins):\n${buildAssistantConversation(run.request.messages)}`
 }
 
+/** 创作者自己点名的参考图（这一跳要写的提示词 + 他说过的话，中英写法都算）。 */
+function creatorNamedReferenceIndices(
+  run: OperatorRun,
+  value: string,
+): number[] {
+  const said = run.request.messages
+    .filter((message) => message.role === 'user')
+    .map((message) => message.content)
+    .join('\n')
+  return getReferenceMentionIndices(
+    normalizeReferenceMentions(`${value}\n${said}`),
+  ).filter((index) => index < run.state.referenceUrls.length)
+}
+
 async function completeReferenceAnalysisText(
   run: OperatorRun,
   system: string,
@@ -2799,12 +2816,20 @@ async function planSetText(
           modelId: run.modelId,
           errorName: error instanceof Error ? error.name : 'UnknownError',
         })
-        if (error instanceof ReferenceAnalysisValidationError)
-          return reject(
-            REJECT.referenceBriefFailed,
-            `Visual inspection succeeded; source-role brief validation failed (${error.reason}). The verified visual facts remain available. Do not claim the images are unreadable or ask for re-upload. The prompt was not changed.`,
-          )
-        throw error
+        /**
+         * ⭐ **校验挂了不能让整轮没产出**（2026-09-12 真机 bug）：原来这里直接
+         * 拒，用户看到的是「提示词未修改」加零个下一步 —— 看图明明成了，卡住的
+         * 只是一份服务端自己要的分工 JSON。改成**降级不阻断**：事实全留着，分工
+         * 退到创作者点名的那一份，提示词照写，观察里说清楚是按兜底分工写的。
+         * ⚠ 钱闸和「先看后写」都没动：vision 照旧必须先过，写完照旧过提示词复核。
+         */
+        if (error instanceof ReferenceAnalysisValidationError) {
+          analysis.brief = buildDefaultReferenceBrief({
+            profiles: analysis.profiles,
+            activeIndices: creatorNamedReferenceIndices(run, value),
+          })
+          run.referenceBriefDegraded = true
+        } else throw error
       }
     }
     if (analysis.brief.uncertainties.length) {
@@ -2899,7 +2924,11 @@ async function planSetText(
     observation: `${isPrompt ? 'Positive' : 'Negative'} prompt (${mode}) is now: "${clamp(
       next,
       LIMITS.maxPriorStepSummaryChars,
-    )}"`,
+    )}"${
+      needsReferenceReview && run.referenceBriefDegraded
+        ? ' The source-role brief failed schema validation, so this was written from the verified visual facts and the sources the creator named. Tell the creator the prompt is in, which source you used for what, and that they can correct the split in one sentence. Do not rebuild the brief or ask them to re-upload anything.'
+        : ''
+    }`,
     apply: () => {
       if (isPrompt) run.state.prompt = next
       else run.state.negativePrompt = next
@@ -6507,6 +6536,7 @@ export async function* runAssistantOperator(
     referenceAnalysis: null,
     promptReviewFailures: 0,
     referencePromptWritten: false,
+    referenceBriefDegraded: false,
     request,
     persona,
     // 进了系统提示的那几条一开始就在索引里 —— 引用它们不必先调一次工具。

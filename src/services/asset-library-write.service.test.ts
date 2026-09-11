@@ -33,6 +33,28 @@ const store = {
   projects: [] as FakeProject[],
   likes: new Set<string>(),
   projectSeq: 0,
+  /**
+   * ⭐ 并发交错的钩子：**第一条 raw 语句跑完之后**放另一个请求进来跑到底。
+   *
+   * 这个落点是这四条用例的全部力气所在 —— 「读出来、在 Node 里算、再整组写回去」
+   * 的实现，它的读正是第一条 raw 语句，钩子就正好落在「读完了、还没写」那一格；
+   * 原子语句的实现则在第一条语句里就把事办完了，钩子落在它之后。同一个钩子，
+   * 前者丢更新、后者不丢。⛔ 别把它挪到语句之前：那样两种实现都过。
+   */
+  onceAfterRaw: null as null | (() => Promise<void>),
+}
+
+async function fireOnceAfterRaw() {
+  const hook = store.onceAfterRaw
+  if (!hook) return
+  store.onceAfterRaw = null
+  await hook()
+}
+
+/** 与服务里的 `normalizeTags` 同一条：`snapshot->'tags'` 只认字符串数组。 */
+function fakeNormalizeTags(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((tag): tag is string => typeof tag === 'string')
 }
 
 const likeKey = (userId: string, generationId: string) =>
@@ -236,41 +258,57 @@ vi.mock('@/lib/db', () => {
       generation,
       project,
       userLike,
-      /** `readAssetTags` 那一条：values = [userId, ids]。 */
-      $queryRaw: async (
-        _strings: TemplateStringsArray,
-        ...values: unknown[]
-      ) => {
-        const [userId, ids] = values as [string, string[]]
-        return store.generations
-          .filter((row) => row.userId === userId && ids.includes(row.id))
-          .map((row) => ({ id: row.id, tags: row.snapshot?.tags ?? null }))
-      },
       /**
-       * `writeAssetTags` 两条。
-       *  · 有标签：values = [patchJson, assetId, userId]；
-       *  · 清空：`- 'tags'`，values = [assetId, userId]（⚠ 删键不是写空数组）。
+       * `applyTagUnion` / `applyTagRemoval` 那两条 —— 都是「锁行 → 算 → 写 →
+       * RETURNING」的**一条语句**，所以这里也一步办完，⛔ 不拆成读和写两格：
+       * 拆开就等于在假库里把被修掉的那个缺陷又造了一遍。
+       *  · 并集：values = [assetId, userId, wantedJson, limit]，返回 [{prev, next}]；
+       *  · 摘除：values = [assetId, userId, tags]，返回 [{next}]（没摘到 → []）。
        */
-      $executeRaw: async (
-        _strings: TemplateStringsArray,
+      $queryRaw: async (
+        strings: TemplateStringsArray,
         ...values: unknown[]
       ) => {
-        const clearing = values.length === 2
-        const [patch, assetId, userId] = clearing
-          ? ([null, ...(values as [string, string])] as [null, string, string])
-          : (values as [string, string, string])
+        const sql = strings.join('?')
+        const removing = sql.includes("- 'tags'")
+        const [assetId, userId] = values as [string, string]
         const row = store.generations.find(
           (item) => item.id === assetId && item.userId === userId,
         )
-        if (!row) return 0
-        if (clearing) {
-          const next = { ...(row.snapshot ?? {}) }
-          delete next.tags
-          row.snapshot = next
-        } else {
-          row.snapshot = { ...(row.snapshot ?? {}), ...JSON.parse(patch!) }
+
+        let rows: unknown[] = []
+        // `jsonb_typeof(COALESCE(snapshot, '{}')) = 'object'` 那道守卫。
+        const isObject =
+          row !== undefined &&
+          (row.snapshot === null ||
+            (typeof row.snapshot === 'object' && !Array.isArray(row.snapshot)))
+
+        if (row && isObject) {
+          const prev = fakeNormalizeTags(row.snapshot?.tags)
+          if (removing) {
+            const drop = values[2] as string[]
+            const next = prev.filter((tag) => !drop.includes(tag))
+            if (next.length !== prev.length) {
+              const snapshot = { ...(row.snapshot ?? {}) }
+              // ⚠ 摘空了删键，⛔ 不留一个 `tags: []`。
+              if (next.length === 0) delete snapshot.tags
+              else snapshot.tags = next
+              row.snapshot = snapshot
+              rows = [{ next }]
+            }
+          } else {
+            const wanted = JSON.parse(values[2] as string) as string[]
+            const limit = values[3] as number
+            const next = [...new Set([...prev, ...wanted])]
+            if (next.length <= limit || next.length === prev.length) {
+              row.snapshot = { ...(row.snapshot ?? {}), tags: next }
+              rows = [{ prev, next }]
+            }
+          }
         }
-        return 1
+
+        await fireOnceAfterRaw()
+        return rows
       },
     },
   }
@@ -330,6 +368,7 @@ beforeEach(() => {
   ]
   store.likes = new Set([likeKey(USER, 'a2')])
   store.projectSeq = 0
+  store.onceAfterRaw = null
 })
 
 describe('tag_asset', () => {
@@ -360,6 +399,67 @@ describe('tag_asset', () => {
     expect(entries).toEqual([{ assetId: 'a3', tags: ['草稿'] }])
     expect(skipped).toBe(1)
     expect(store.generations[3].snapshot).toEqual({})
+  })
+
+  /**
+   * ⭐ 丢更新的那一格：两次打标签交错，**两组标签都得在**。
+   *
+   * 交错点见 `store.onceAfterRaw` 的注释 —— 「读出来、在 Node 里算、再整组写
+   * 回去」的实现在这里必挂：第二次写的是它自己读到的那份旧数组，覆盖上去就把
+   * 第一次刚加的抹掉了。
+   */
+  it('两次打标签交错 → 两组标签都在（⛔ 后写的不覆盖先写的）', async () => {
+    store.onceAfterRaw = async () => {
+      await tagAssets(USER, ['a1'], ['并发'])
+    }
+
+    const { entries } = await tagAssets(USER, ['a1'], ['线稿'])
+
+    expect(entries).toEqual([{ assetId: 'a1', tags: ['线稿'] }])
+    expect(store.generations[0].snapshot).toEqual({ tags: ['线稿', '并发'] })
+  })
+})
+
+describe('untag（撤销打标签）', () => {
+  /**
+   * ⭐ 撤销与并发的打标签交错 —— **别人刚加上的那个不该被抹掉**。
+   *
+   * 撤销只该摘掉 entries 里那几个（`线稿`）；整组写回去的实现会拿着「读到的
+   * 那份减掉 entries」当成最终值，把交错期间加上的 `并发` 一起抹平。
+   */
+  it('撤销与并发打标签交错 → 新加的那个还在', async () => {
+    store.onceAfterRaw = async () => {
+      await tagAssets(USER, ['a2'], ['并发'])
+    }
+
+    const result = await revertAssistantAssetWrite(USER, {
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+      entries: [{ assetId: 'a2', tags: ['线稿'] }],
+    })
+
+    expect(result).toEqual({ revertedCount: 1, skipped: 0 })
+    expect(store.generations[1].snapshot).toEqual({ tags: ['并发'] })
+  })
+
+  /** 摘到最后一个 → **删键**，⛔ 不留 `tags: []`（那是捏造出来的历史）。 */
+  it('摘光之后 snapshot 里没有 tags 这个键', async () => {
+    await revertAssistantAssetWrite(USER, {
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+      entries: [{ assetId: 'a2', tags: ['线稿'] }],
+    })
+
+    expect(store.generations[1].snapshot).toEqual({})
+  })
+
+  /** 一个都没命中 → 不写、按 `skipped` 如实回报。 */
+  it('要摘的标签本来就不在 → skipped', async () => {
+    const result = await revertAssistantAssetWrite(USER, {
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+      entries: [{ assetId: 'a2', tags: ['不存在'] }],
+    })
+
+    expect(result).toEqual({ revertedCount: 0, skipped: 1 })
+    expect(store.generations[1].snapshot).toEqual({ tags: ['线稿'] })
   })
 })
 

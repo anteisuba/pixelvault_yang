@@ -38,33 +38,14 @@ import type {
  * 不该让一次整理整个失败，而「真的动了几件」由返回值如实说出来。
  */
 
-/** 一件素材当下带着的标签。⚠ 读的是 `snapshot->'tags'`，零迁移。 */
-export async function readAssetTags(
-  userId: string,
-  assetIds: readonly string[],
-): Promise<Map<string, string[]>> {
-  const byAsset = new Map<string, string[]>()
-  if (assetIds.length === 0) return byAsset
-
-  const rows = await db.$queryRaw<{ id: string; tags: unknown }[]>`
-    SELECT "id", "snapshot"->'tags' AS "tags"
-      FROM "Generation"
-     WHERE "userId" = ${userId} AND "id" = ANY(${[...assetIds]})`
-
-  for (const row of rows) {
-    byAsset.set(row.id, normalizeTags(row.tags))
-  }
-  return byAsset
-}
-
 /**
  * 打标签 —— 返回**这一步真的新加上去的那几个**（逐件）。
  *
- * ⚠ 写法是 `snapshot || patch` 的**浅合并**，⛔ 不是读出来改完写回去：后者要把
- * 整份快照拉进 Node 再推回去，两次并发写还会互相抹掉。判据与
- * `setGenerationReviewState` 逐字同源，连那道 `jsonb_typeof = 'object'` 守卫都是
- * 同一条（历史上有调用方往 snapshot 里塞过数组，`||` 碰上数组是**追加一个元素**）。
- * ⚠ 已经有的标签**不算**：它不是这一步的后果，撤销时不该被摘掉。
+ * ⚠ 并集在 **Postgres 里一条语句内**算完（`applyTagUnion`），⛔ 不是「读出来、
+ * 在 Node 里算、再整组写回去」：后者两次并发打标签会互相抹掉 —— 后写的那次
+ * 带着的是它读到的旧数组，覆盖上去就把前一次刚加的标签丢了。
+ * ⚠ 已经有的标签**不算**：它不是这一步的后果，撤销时不该被摘掉 —— 所以那条
+ * 语句把**更新前**的数组一并 `RETURNING` 出来，`added` 由前后差集得出。
  * ⚠ 撞到单件标签上限的那几件跳过（`skipped`），⛔ 不挤掉最老的那个。
  */
 export async function tagAssets(
@@ -73,30 +54,22 @@ export async function tagAssets(
   tags: readonly string[],
 ): Promise<{ entries: AssistantOperatorAssetTagEntry[]; skipped: number }> {
   const wanted = dedupe(tags.map((tag) => tag.trim()).filter(Boolean))
-  const existing = await readAssetTags(userId, assetIds)
 
   const entries: AssistantOperatorAssetTagEntry[] = []
   let skipped = 0
 
+  // 一个标签都没给 → 这一步什么都不该落（⛔ 尤其不该凭空写出一个 `tags: []`）。
+  if (wanted.length === 0) return { entries, skipped }
+
   for (const assetId of dedupe(assetIds)) {
-    const current = existing.get(assetId)
-    // 不是他的（或者根本没这一行）→ 静默跳过，见文件头注。
-    if (!current) {
+    const result = await applyTagUnion(userId, assetId, wanted)
+    // 不是他的（或者根本没这一行）、快照不是对象、撞上限 → 静默跳过，见文件头注。
+    if (!result) {
       skipped += 1
       continue
     }
-    const added = wanted.filter((tag) => !current.includes(tag))
+    const added = result.next.filter((tag) => !result.prev.includes(tag))
     if (added.length === 0) continue
-    const next = [...current, ...added]
-    if (next.length > ASSISTANT_ASSET_WRITE_LIMITS.maxTagsPerAsset) {
-      skipped += 1
-      continue
-    }
-    const written = await writeAssetTags(userId, assetId, next)
-    if (!written) {
-      skipped += 1
-      continue
-    }
     entries.push({ assetId, tags: added })
   }
 
@@ -107,31 +80,18 @@ export async function tagAssets(
  * 撤销打标签 —— **只摘掉 entries 里那几个**（那是正操作真的加上去的）。
  *
  * ⛔ 不按「入参里那几个标签」摘：那会连用户自己早就打过的一起摘掉。
+ * ⚠ 同样一条语句内过滤重建（`applyTagRemoval`），⛔ 不读回来再整组写：撤销与
+ * 并发的打标签交错时，整组写回会把别人刚加上的那几个一起抹掉。
  */
 export async function untagAssets(
   userId: string,
   entries: readonly AssistantOperatorAssetTagEntry[],
 ): Promise<{ revertedCount: number; skipped: number }> {
-  const current = await readAssetTags(
-    userId,
-    entries.map((entry) => entry.assetId),
-  )
-
   let revertedCount = 0
   let skipped = 0
   for (const entry of entries) {
-    const have = current.get(entry.assetId)
-    if (!have) {
-      skipped += 1
-      continue
-    }
-    const next = have.filter((tag) => !entry.tags.includes(tag))
-    if (next.length === have.length) {
-      skipped += 1
-      continue
-    }
-    const written = await writeAssetTags(userId, entry.assetId, next)
-    if (written) revertedCount += 1
+    const removed = await applyTagRemoval(userId, entry.assetId, entry.tags)
+    if (removed) revertedCount += 1
     else skipped += 1
   }
   return { revertedCount, skipped }
@@ -416,35 +376,123 @@ async function ownedAssetIds(
 }
 
 /**
- * 把一件素材的标签整组写回去。
+ * 并集写入：**一条语句**里锁行、算并集、判上限、写回，并把更新前后的标签一起
+ * 带出来。返回 `null` = 这一件没动（够不着 / 快照不是对象 / 撞上限）。
  *
- * ⚠ `jsonb_typeof = 'object'` 那道守卫见本文件头注的 `tagAssets` 段 —— 改不动的
- * 行返回 `false`，⛔ 不悄悄把它重写成对象（那是在改别人的数据结构）。
+ * ⚠ `FOR UPDATE` 那个 CTE 是这条语句抗并发的全部理由：READ COMMITTED 下它会
+ * 等住并发事务、然后读到**最新**那版行，随后的 UPDATE 因为锁已在手，中间不可能
+ * 再被塞进一次写。⛔ 不能把并集挪到 Node 里算 —— 那就又回到「读—算—覆盖」。
+ * ⚠ `jsonb_typeof = 'object'` 那道守卫与 `setGenerationReviewState` 逐字同源：
+ * 历史上有调用方往 snapshot 里塞过数组，改不动的行返回 `null`，⛔ 不悄悄把它
+ * 重写成对象（那是在改别人的数据结构）。
+ * ⚠ 并集**保序**：原有的在前、这次新加的按给定顺序接在后面，⛔ 不用
+ * `jsonb_agg(DISTINCT …)`（那会按字典序重排，撤销读起来像换了一份数据）。
+ * ⚠ `m.next = m.prev` 那条或分支：一件已经满员的素材被打上它早就有的标签时
+ * 不算跳过 —— 这一步本来就没有后果。
  */
-async function writeAssetTags(
+async function applyTagUnion(
+  userId: string,
+  assetId: string,
+  wanted: readonly string[],
+): Promise<{ prev: string[]; next: string[] } | null> {
+  const rows = await db.$queryRaw<{ prev: unknown; next: unknown }[]>`
+    WITH locked AS (
+      SELECT "id",
+             CASE WHEN jsonb_typeof("snapshot"->'tags') = 'array'
+                  THEN "snapshot"->'tags'
+                  ELSE '[]'::jsonb END AS raw
+        FROM "Generation"
+       WHERE "id" = ${assetId}
+         AND "userId" = ${userId}
+         AND jsonb_typeof(COALESCE("snapshot", '{}'::jsonb)) = 'object'
+         FOR UPDATE
+    ),
+    merged AS (
+      SELECT l."id",
+             (SELECT COALESCE(jsonb_agg(d.v ORDER BY d.ord), '[]'::jsonb)
+                FROM (SELECT DISTINCT ON (e.v) e.v, e.ord
+                        FROM jsonb_array_elements(l.raw)
+                             WITH ORDINALITY AS e(v, ord)
+                       WHERE jsonb_typeof(e.v) = 'string'
+                       ORDER BY e.v, e.ord) AS d) AS prev,
+             (SELECT COALESCE(jsonb_agg(d.v ORDER BY d.ord), '[]'::jsonb)
+                FROM (SELECT DISTINCT ON (e.v) e.v, e.ord
+                        FROM jsonb_array_elements(
+                               l.raw || ${JSON.stringify(wanted)}::jsonb)
+                             WITH ORDINALITY AS e(v, ord)
+                       WHERE jsonb_typeof(e.v) = 'string'
+                       ORDER BY e.v, e.ord) AS d) AS next
+        FROM locked l
+    )
+    UPDATE "Generation" g
+       SET "snapshot" =
+             jsonb_set(COALESCE(g."snapshot", '{}'::jsonb), '{tags}', m.next, true)
+      FROM merged m
+     WHERE g."id" = m."id"
+       AND (jsonb_array_length(m.next)
+              <= ${ASSISTANT_ASSET_WRITE_LIMITS.maxTagsPerAsset}
+            OR m.next = m.prev)
+    RETURNING m.prev AS "prev", m.next AS "next"`
+
+  const row = rows[0]
+  if (!row) return null
+  return { prev: normalizeTags(row.prev), next: normalizeTags(row.next) }
+}
+
+/**
+ * 摘标签：同样一条语句里锁行、过滤重建、写回。返回真的摘掉了没有。
+ *
+ * ⚠ 摘空之后**把整个键删掉**（`- 'tags'`），⛔ 不写一个 `"tags": []`：撤销的判据
+ * 是「回到原状」，而一件从没打过标签的素材的原状是**没有这个键**。留一个空数组
+ * 在快照里，下一个读 snapshot 的人就会看到一件「标签被清空过」的素材 ——
+ * 那是这一步捏造出来的历史。
+ * ⚠ `m.next <> m.prev` 决定了「真的摘掉了」：一个都没命中就不写、按 `skipped` 回报。
+ */
+async function applyTagRemoval(
   userId: string,
   assetId: string,
   tags: readonly string[],
 ): Promise<boolean> {
-  /**
-   * ⚠ 空列表**把整个键删掉**（`- 'tags'`），⛔ 不写一个 `"tags": []`：撤销的判据是
-   * 「回到原状」，而一件从没打过标签的素材的原状是**没有这个键**。留一个空数组
-   * 在快照里，下一个读 snapshot 的人就会看到一件「标签被清空过」的素材 ——
-   * 那是这一步捏造出来的历史。
-   */
-  const updated =
-    tags.length === 0
-      ? await db.$executeRaw`
-    UPDATE "Generation"
-       SET "snapshot" = COALESCE("snapshot", '{}'::jsonb) - 'tags'
-     WHERE "id" = ${assetId}
-       AND "userId" = ${userId}
-       AND jsonb_typeof(COALESCE("snapshot", '{}'::jsonb)) = 'object'`
-      : await db.$executeRaw`
-    UPDATE "Generation"
-       SET "snapshot" = COALESCE("snapshot", '{}'::jsonb) || ${JSON.stringify({ tags })}::jsonb
-     WHERE "id" = ${assetId}
-       AND "userId" = ${userId}
-       AND jsonb_typeof(COALESCE("snapshot", '{}'::jsonb)) = 'object'`
-  return updated > 0
+  const rows = await db.$queryRaw<{ next: unknown }[]>`
+    WITH locked AS (
+      SELECT "id",
+             CASE WHEN jsonb_typeof("snapshot"->'tags') = 'array'
+                  THEN "snapshot"->'tags'
+                  ELSE '[]'::jsonb END AS raw
+        FROM "Generation"
+       WHERE "id" = ${assetId}
+         AND "userId" = ${userId}
+         AND jsonb_typeof(COALESCE("snapshot", '{}'::jsonb)) = 'object'
+         FOR UPDATE
+    ),
+    merged AS (
+      SELECT l."id",
+             (SELECT COALESCE(jsonb_agg(d.v ORDER BY d.ord), '[]'::jsonb)
+                FROM (SELECT DISTINCT ON (e.v) e.v, e.ord
+                        FROM jsonb_array_elements(l.raw)
+                             WITH ORDINALITY AS e(v, ord)
+                       WHERE jsonb_typeof(e.v) = 'string'
+                       ORDER BY e.v, e.ord) AS d) AS prev,
+             (SELECT COALESCE(jsonb_agg(d.v ORDER BY d.ord), '[]'::jsonb)
+                FROM (SELECT DISTINCT ON (e.v) e.v, e.ord
+                        FROM jsonb_array_elements(l.raw)
+                             WITH ORDINALITY AS e(v, ord)
+                       WHERE jsonb_typeof(e.v) = 'string'
+                         AND NOT ((e.v #>> '{}') = ANY(${[...tags]}::text[]))
+                       ORDER BY e.v, e.ord) AS d) AS next
+        FROM locked l
+    )
+    UPDATE "Generation" g
+       SET "snapshot" =
+             CASE WHEN jsonb_array_length(m.next) = 0
+                  THEN COALESCE(g."snapshot", '{}'::jsonb) - 'tags'
+                  ELSE jsonb_set(
+                         COALESCE(g."snapshot", '{}'::jsonb), '{tags}', m.next, true)
+             END
+      FROM merged m
+     WHERE g."id" = m."id"
+       AND m.next <> m.prev
+    RETURNING m.next AS "next"`
+
+  return rows.length > 0
 }

@@ -70,6 +70,18 @@ FISH_AUDIO_S2_PRO / FISH_AUDIO_S2_PRO_FREE（s2.1-pro / s2.1-pro-free，Fish 直
 
 RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全 fal 系）；HUNYUAN3D_2_1 已 false（被 v3.1 上位替代）。
 
+## 本月发现（2026-09-11 · 图片用途分类）
+
+视频（系列 → 型号 → 渠道）、音频（`audioKind`）、3D 的分类都够用；只有图片缺「用途」维度，LoRA 底模与编辑端点混在 Image 选择器里。owner 拍板后新增 `ModelOption.imageKind`：
+
+- `lora-base`（为挂 LoRA 而存在）：FLUX_LORA、ILLUSTRIOUS_XL（实为 NoobAI-XL）、ANIMA_PENCIL_XL、Runner ×5 —— **只在 LoRA 工作台出现**
+- `edit`（必须带图）：FLUX_2_PRO_EDIT、FLUX_KONTEXT_MAX —— **只归编辑入口**：挂在「物体替换」的模型下拉（默认仍是 Gemini 3 Pro Image），走 fal 的 `image_urls` 载荷，见 `pages/studio-image-edit.md` §5；multiview 仍内部调用 Kontext Max
+- `generate`（缺省）：其余。Image 工作台、画布图片节点、画布助手目录、自动选型（`routeModelsForIntent`）、画风卡都只取这一类；画廊按模型筛选与 LoRA 工作台仍看全部
+
+**卡片 LoRA 一并停用（owner 同日拍板）**：画风卡去掉 LoRA 模式、背景卡表单去掉 LoRA 配置（本就没保存过），卡片编译不再合并三种卡上的 LoRA。库里已存的 `loras` 不删，只是不再发送；模型仍指向 LoRA 底模或编辑端点的旧画风卡，编译时报 `MISSING_MODEL_IN_STYLE`，让用户重选模型。
+
+顺带修正：Kontext Max 虚标 LoRA（fal `kontext/max/multi` 的 OpenAPI 无 `loras`、`image_urls` 必填，2026-09-11 核验）→ 去掉 `supportsLora` / `maxLoras`，补 `requiresReferenceImage`。`models.test.ts` 钉住「`supportsLora` ⇔ `lora-base`」与「工作流推荐的图片模型必须是 `generate`」。
+
 ## 本月发现（2026-09-09 · GPT Image 2.5）
 
 - 新增 [Flare](https://developers.openai.com/api/docs/models/gpt-image-2.5-flare) 与 [Sunburst](https://developers.openai.com/api/docs/models/gpt-image-2.5-sunburst)，分别面向快速日常生成与精细创作/编辑。沿用 OpenAI BYOK 和 Worker 的 `images/generations`、JSON `images/edits` 路径；16 张参考图、32,000 字符提示词，新增 `xhigh/max` 画质。GPT Image 2 保留。

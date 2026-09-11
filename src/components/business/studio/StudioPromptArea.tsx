@@ -39,7 +39,6 @@ import {
 } from '@/contexts/studio-context'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
-import { modelSupportsLora } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
@@ -115,7 +114,7 @@ const STUDIO_FLOATING_SURFACE_SELECTOR = [
  */
 export const StudioPromptArea = memo(function StudioPromptArea() {
   const { state, dispatch } = useStudioForm()
-  const { styles, imageUpload } = useStudioData()
+  const { imageUpload } = useStudioData()
   const t = useTranslations('StudioV2')
   const tForm = useTranslations('StudioForm')
   const tPromptArea = useTranslations('StudioPromptArea')
@@ -145,7 +144,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const selectedStyleCard = styles.activeCard
   const isAudioMode = state.outputType === 'audio'
   const isVideoMode = state.outputType === 'video'
   /**
@@ -440,11 +438,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     ? state.audioKind === AUDIO_KIND.SFX
       ? tStudio('sfxPlaceholder')
       : tStudio('audioPlaceholder')
-    : state.workflowMode === 'card' &&
-        selectedStyleCard?.modelId &&
-        modelSupportsLora(selectedStyleCard.modelId)
-      ? t('freePromptPlaceholderLora')
-      : t('freePromptPlaceholder')
+    : t('freePromptPlaceholder')
 
   return (
     <>

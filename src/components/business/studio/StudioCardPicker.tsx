@@ -12,7 +12,6 @@ import {
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { modelSupportsLora } from '@/constants/models'
 import { cardManagementPath, type CardManagementTab } from '@/constants/routes'
 import { NO_STYLE_PRESET_ID, STYLE_PRESETS } from '@/constants/style-presets'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
@@ -64,7 +63,6 @@ export function StudioCardPicker() {
   const { characters, backgrounds, styles, projects } = useStudioData()
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioV2')
-  const tV3 = useTranslations('StudioV3')
   const tPresets = useTranslations('StylePresets')
   const activePresetId = state.stylePresetId
   const presetActive = activePresetId !== NO_STYLE_PRESET_ID
@@ -113,13 +111,7 @@ export function StudioCardPicker() {
       icon: <Palette className="size-4" />,
       cards: styles.cards.map((card) => ({
         id: card.id,
-        name: card.modelId
-          ? `${card.name} · ${
-              modelSupportsLora(card.modelId)
-                ? tV3('loraBadge')
-                : tV3('referenceBadge')
-            }`
-          : card.name,
+        name: card.name,
         sourceImageUrl: card.sourceImageUrl ?? null,
         tags: card.tags,
         createdAt: card.createdAt,

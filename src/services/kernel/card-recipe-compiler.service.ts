@@ -4,12 +4,11 @@ import crypto from 'crypto'
 import { db } from '@/lib/db'
 import { CARD_RECIPE } from '@/constants/cards/card-types'
 import { ADAPTER_PROMPT_HINTS } from '@/constants/model-strengths'
+import { getModelById, IMAGE_KIND, resolveImageKind } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { z } from 'zod'
 import {
   BackgroundAttributesSchema,
   StyleAttributesSchema,
-  LoraSchema,
   type RecipeSnapshot,
   type AdvancedParams,
   type BackgroundAttributes,
@@ -21,10 +20,6 @@ import {
 } from '@/services/llm-text.service'
 import { logger } from '@/lib/logger'
 import { validateRecipeFusion } from '@/lib/llm-output-validator'
-import {
-  getCivitaiTokenByInternalUserId,
-  injectCivitaiToken,
-} from '@/services/civitai-token.service'
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -162,6 +157,18 @@ function setCachedPrompt(key: string, prompt: string): void {
   })
 }
 
+/**
+ * Card LoRAs are not applied (owner 2026-09-11): LoRA mounting lives in the
+ * LoRA workbench. Rows keep whatever they stored — this only stops sending it,
+ * including a legacy `advancedParams.loras` on style cards.
+ */
+function withoutLoras(params: AdvancedParams | null): AdvancedParams | null {
+  if (!params?.loras) return params
+  const rest = { ...params }
+  delete rest.loras
+  return rest
+}
+
 // ─── Card Loaders ───────────────────────────────────────────────
 
 async function loadCharacterCard(id: string, userId: string) {
@@ -173,7 +180,6 @@ async function loadCharacterCard(id: string, userId: string) {
       characterPrompt: true,
       sourceImageUrl: true,
       referenceImages: true,
-      loras: true,
     },
   })
 }
@@ -186,7 +192,6 @@ async function loadBackgroundCard(id: string, userId: string) {
       name: true,
       backgroundPrompt: true,
       sourceImageUrl: true,
-      loras: true,
     },
   })
 }
@@ -199,7 +204,6 @@ async function loadStyleCard(id: string, userId: string) {
       name: true,
       stylePrompt: true,
       attributes: true,
-      loras: true,
       modelId: true,
       adapterType: true,
       advancedParams: true,
@@ -350,6 +354,16 @@ export async function compileRecipe(
   if (!modelId || !adapterType) {
     throw new Error('MISSING_MODEL_IN_STYLE: 请在画风卡中选择一个模型')
   }
+  // A card saved on a LoRA base (or an edit-only endpoint) can't run here —
+  // make the user re-pick a generation model instead of quietly rendering a
+  // different picture without its LoRAs.
+  const catalogModel = getModelById(modelId)
+  if (
+    catalogModel?.outputType === 'IMAGE' &&
+    resolveImageKind(catalogModel) !== IMAGE_KIND.GENERATE
+  ) {
+    throw new Error('MISSING_MODEL_IN_STYLE: 请在画风卡中选择一个模型')
+  }
 
   // Collect prompt parts (include style attributes for LLM harmonization)
   const parts = {
@@ -438,59 +452,9 @@ export async function compileRecipe(
     compiledAt: new Date().toISOString(),
   }
 
-  // Merge LoRAs from all card types (character → style → background)
-  // Deduplicate by URL — no count cap, see below
-  type Lora = z.infer<typeof LoraSchema>
-  const baseAdvancedParams =
-    (styleCard?.advancedParams as AdvancedParams) ?? null
-  const charLoras = (charCard?.loras as Lora[] | null) ?? []
-  const bgLoras = (bgCard?.loras as Lora[] | null) ?? []
-  const styleLoras = (styleCard?.loras as Lora[] | null) ?? []
-  const styleParamLoras = baseAdvancedParams?.loras ?? []
-
-  const seenUrls = new Set<string>()
-  const mergedLoras: Lora[] = []
-  for (const lora of [
-    ...charLoras,
-    ...styleLoras,
-    ...styleParamLoras,
-    ...bgLoras,
-  ]) {
-    if (!seenUrls.has(lora.url)) {
-      seenUrls.add(lora.url)
-      mergedLoras.push(lora)
-    }
-  }
-  // 这里**不设**挂载上限（owner 2026-08-07）——合并去重后有几个就送几个。
-  //
-  // ⚠ 2026-08-07 之前这里写死 `maxLoras = Replicate ? 1 : 5` 再 slice：装配台让
-  // 用户挂满 3 个，编译进生成请求时被砍到 1 个——「做同款」的多挂载在服务端悄悄
-  // 失效，UI 上看不出任何异常。修法不是把这个数改对、也不是改读能力位表的
-  // maxLoras，而是整条截断退役：三个后端本来都不限（fal 文档「any number of
-  // LoRAs」· Replicate `delta-lock/noobai-xl` 的 `loras` 是不限长度的列表 ·
-  // runner 是自家 ComfyUI，一个 LoRA 串一个 LoraLoader），上限从来只是界面上
-  // 「清爽」拍的数。同批退役的还有 use-active-lora-stack 的 MAX_STACK。
-  //
-  // 真吃不下时由 provider 报错——大声失败好过服务端静默丢弃用户挂的东西。
-
-  // Inject Civitai token into LoRA URLs that need it
-  let lorasWithToken = mergedLoras
-  if (mergedLoras.some((l) => l.url.includes('civitai.com'))) {
-    const civitaiToken = await getCivitaiTokenByInternalUserId(userId).catch(
-      () => null,
-    )
-    if (civitaiToken) {
-      lorasWithToken = mergedLoras.map((l) => ({
-        ...l,
-        url: injectCivitaiToken(l.url, civitaiToken),
-      }))
-    }
-  }
-
-  const finalAdvancedParams: AdvancedParams | null =
-    lorasWithToken.length > 0
-      ? { ...baseAdvancedParams, loras: lorasWithToken }
-      : baseAdvancedParams
+  const finalAdvancedParams = withoutLoras(
+    (styleCard?.advancedParams as AdvancedParams) ?? null,
+  )
 
   return {
     compiledPrompt,

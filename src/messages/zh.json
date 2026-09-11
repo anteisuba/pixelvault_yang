@@ -4248,7 +4248,6 @@
     "extracting": "正在提取画风属性...",
     "prompt": "画风描述",
     "promptPlaceholder": "描述艺术风格、介质或美学...",
-    "loraUrlPlaceholder": "LoRA URL（Civitai / HuggingFace）",
     "sourceImage": "源图片",
     "sourceImageHint": "上传图片自动提取画风属性",
     "empty": "还没有画风卡",
@@ -4256,11 +4255,7 @@
     "name": "名称",
     "namePlaceholder": "画风卡名称",
     "selectModel": "选择模型",
-    "selectModelPlaceholder": "— 不指定模型 —",
-    "generateMethod": "生成方式",
-    "loraMode": "LoRA 模式",
-    "referenceMode": "参考图模式",
-    "promptPlaceholderLora": "anime style, cel shading, vibrant colors..."
+    "selectModelPlaceholder": "— 不指定模型 —"
   },
   "CardRecipe": {
     "title": "配方",
@@ -4296,9 +4291,6 @@
     "promptLabel": "提示词",
     "duplicate": "复制",
     "delete": "删除",
-    "loraLabel": "LoRA",
-    "addLora": "添加 LoRA",
-    "loraEmptyHint": "添加一个 LoRA 开始配置。",
     "copySuffix": "副本",
     "viewDetails": "查看详情"
   },
@@ -6417,7 +6409,6 @@
       "4K": "4K"
     },
     "freePromptPlaceholder": "描述动作、场景或表情...",
-    "freePromptPlaceholderLora": "在雨中撑伞行走，回头微笑...",
     "enhance": "助手",
     "reverse": "反向工程",
     "advanced": "高级",
@@ -6518,8 +6509,6 @@
     "quickModePlaceholder": "模型选择器即将推出 — 请先使用卡片模式",
     "selectModel": "选择模型",
     "useAsReference": "用作参考图",
-    "loraBadge": "LoRA",
-    "referenceBadge": "参考",
     "addedAsReference": "已添加为参考图",
     "refImageLimitReached": "参考图数量已达上限",
     "openDetail": "查看详情",

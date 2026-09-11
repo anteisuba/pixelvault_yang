@@ -588,10 +588,6 @@ export function groupModelsByStyle(
 export const getModelTimeout = (modelId: string): number =>
   getModelById(modelId)?.timeoutMs ?? 45_000
 
-/** Check if a model supports LoRA adapters. */
-export const modelSupportsLora = (modelId: string): boolean =>
-  getModelById(modelId)?.supportsLora === true
-
 /** Check if a model supports long video extension. */
 export const supportsLongVideo = (modelId: string): boolean =>
   getModelById(modelId)?.videoExtension != null

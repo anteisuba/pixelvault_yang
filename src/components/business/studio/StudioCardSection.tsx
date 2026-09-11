@@ -18,7 +18,6 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet'
 import { Button } from '@/components/ui/button'
-import { modelSupportsLora } from '@/constants/models'
 import { buildStudioCardUsageMap } from '@/lib/studio-history'
 
 import { StudioApiRoutesSection } from '@/components/business/studio-shared/setup/StudioApiRoutesSection'
@@ -32,7 +31,6 @@ export const StudioCardSection = memo(function StudioCardSection() {
   const { state, dispatch } = useStudioForm()
   const { characters, backgrounds, styles, projects } = useStudioData()
   const t = useTranslations('StudioV2')
-  const tV3 = useTranslations('StudioV3')
   const tBg = useTranslations('BackgroundCard')
   const tCommon = useTranslations('Common')
   const projectHistory = projects.history
@@ -67,13 +65,7 @@ export const StudioCardSection = memo(function StudioCardSection() {
           label={t('style')}
           cards={styles.cards.map((c) => ({
             id: c.id,
-            name: c.modelId
-              ? `${c.name} · ${
-                  modelSupportsLora(c.modelId)
-                    ? tV3('loraBadge')
-                    : tV3('referenceBadge')
-                }`
-              : c.name,
+            name: c.name,
             sourceImageUrl: c.sourceImageUrl ?? null,
             tags: c.tags,
             createdAt: c.createdAt,
@@ -173,7 +165,6 @@ export const StudioCardSection = memo(function StudioCardSection() {
                 }
                 onDelete={backgrounds.remove}
                 supportsImageExtraction
-                showLoraConfig
                 promptLabel={tBg('prompt')}
                 promptPlaceholder={tBg('promptPlaceholder')}
               />

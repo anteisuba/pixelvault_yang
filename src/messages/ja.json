@@ -4248,7 +4248,6 @@
     "extracting": "画風属性を抽出中...",
     "prompt": "画風の説明",
     "promptPlaceholder": "アートスタイル、メディア、美学を説明してください...",
-    "loraUrlPlaceholder": "LoRA URL（Civitai / HuggingFace）",
     "sourceImage": "ソース画像",
     "sourceImageHint": "画像をアップロードして画風属性を自動抽出",
     "empty": "画風カードがありません",
@@ -4256,11 +4255,7 @@
     "name": "名前",
     "namePlaceholder": "スタイルカード名",
     "selectModel": "モデル選択",
-    "selectModelPlaceholder": "— モデル指定なし —",
-    "generateMethod": "生成方式",
-    "loraMode": "LoRAモード",
-    "referenceMode": "参照画像モード",
-    "promptPlaceholderLora": "anime style, cel shading, vibrant colors..."
+    "selectModelPlaceholder": "— モデル指定なし —"
   },
   "CardRecipe": {
     "title": "レシピ",
@@ -4296,9 +4291,6 @@
     "promptLabel": "プロンプト",
     "duplicate": "複製",
     "delete": "削除",
-    "loraLabel": "LoRA",
-    "addLora": "LoRA を追加",
-    "loraEmptyHint": "LoRA を追加して設定してください。",
     "copySuffix": "コピー",
     "viewDetails": "詳細を表示"
   },
@@ -6409,7 +6401,6 @@
       "4K": "4K"
     },
     "freePromptPlaceholder": "アクション、シーン、または表情を説明...",
-    "freePromptPlaceholderLora": "雨の中で傘をさして歩き、振り返って微笑む...",
     "enhance": "アシスタント",
     "reverse": "リバース",
     "advanced": "詳細",
@@ -6518,8 +6509,6 @@
     "quickModePlaceholder": "モデルセレクターは近日公開 — 今はカードモードをご利用ください",
     "selectModel": "モデルを選択",
     "useAsReference": "参照画像として使用",
-    "loraBadge": "LoRA",
-    "referenceBadge": "参照",
     "addedAsReference": "参照画像として追加しました",
     "refImageLimitReached": "参照画像の上限に達しました",
     "openDetail": "詳細を表示",

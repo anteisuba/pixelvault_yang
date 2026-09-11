@@ -58,7 +58,6 @@ interface SimpleCardManagerProps {
     prompt: string
     sourceImageData?: string
     tags?: string[]
-    loras?: { url: string; scale: number }[]
   }) => Promise<unknown>
   onUpdate: (
     id: string,
@@ -67,14 +66,10 @@ interface SimpleCardManagerProps {
   onDelete: (id: string) => Promise<boolean>
   /** Whether this card type supports image extraction */
   supportsImageExtraction?: boolean
-  /** Extra content to render inside the create form (e.g. model selector, LoRA) */
+  /** Extra content to render inside the create form (e.g. model selector) */
   createFormExtra?: React.ReactNode
   /** Hide the prompt textarea in create form (for model cards where prompt is replaced by selector) */
   hidePromptInput?: boolean
-  /** Show LoRA configuration in create form */
-  showLoraConfig?: boolean
-  /** Max LoRAs allowed */
-  maxLoras?: number
   /** Placeholder for the prompt field */
   promptPlaceholder?: string
   /** Label for the prompt field */
@@ -122,8 +117,6 @@ export function SimpleCardManager({
   supportsImageExtraction = false,
   createFormExtra,
   hidePromptInput = false,
-  showLoraConfig = false,
-  maxLoras = 5,
   promptPlaceholder,
   promptLabel,
 }: SimpleCardManagerProps) {
@@ -140,7 +133,6 @@ export function SimpleCardManager({
   const [newPrompt, setNewPrompt] = useState('')
   const [newImageData, setNewImageData] = useState<string | null>(null)
   const [newImagePreview, setNewImagePreview] = useState<string | null>(null)
-  const [newLoras, setNewLoras] = useState<{ url: string; scale: number }[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const t = useTranslations('CardSlot')
@@ -195,23 +187,20 @@ export function SimpleCardManager({
     if (!newName.trim()) return
     setIsCreating(true)
     try {
-      const validLoras = newLoras.filter((l) => l.url.trim())
       await onCreate({
         name: newName.trim(),
         prompt: newPrompt.trim() || newName.trim(),
         sourceImageData: newImageData ?? undefined,
-        loras: validLoras.length > 0 ? validLoras : undefined,
       })
       setNewName('')
       setNewPrompt('')
       setNewImageData(null)
       setNewImagePreview(null)
-      setNewLoras([])
       setShowCreateForm(false)
     } finally {
       setIsCreating(false)
     }
-  }, [newName, newPrompt, newImageData, newLoras, onCreate])
+  }, [newName, newPrompt, newImageData, onCreate])
 
   // ── Edit Prompt ──────────────────────────────────────────────
   const handleStartEdit = useCallback((card: CardItem) => {
@@ -338,89 +327,6 @@ export function SimpleCardManager({
                 />
               )}
 
-            {/* LoRA configuration (optional) */}
-            {showLoraConfig && (
-              <div className="space-y-2 rounded-md border border-primary/20 bg-primary/5 p-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium text-primary">
-                    {t('loraLabel')}
-                  </span>
-                  {newLoras.length < maxLoras && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setNewLoras((prev) => [
-                          ...prev,
-                          { url: '', scale: 1.0 },
-                        ])
-                      }
-                      className="text-xs text-primary hover:text-primary/80"
-                    >
-                      + {t('addLora')}
-                    </button>
-                  )}
-                </div>
-                {newLoras.map((lora, i) => (
-                  <div
-                    key={i}
-                    className="space-y-1 rounded border border-border/40 bg-background p-2"
-                  >
-                    <div className="flex items-center gap-1">
-                      <input
-                        type="text"
-                        value={lora.url}
-                        onChange={(e) =>
-                          setNewLoras((prev) =>
-                            prev.map((l, j) =>
-                              j === i ? { ...l, url: e.target.value } : l,
-                            ),
-                          )
-                        }
-                        placeholder="https://civitai.com/api/download/models/..."
-                        className="flex-1 rounded border border-border/60 bg-background px-2 py-1 text-base md:text-xs font-mono focus:border-primary/40 focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setNewLoras((prev) => prev.filter((_, j) => j !== i))
-                        }
-                        className="shrink-0 p-1 text-red-400 hover:text-red-500"
-                      >
-                        <X className="size-3" />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-muted-foreground w-12">
-                        {lora.scale.toFixed(2)}
-                      </span>
-                      <input
-                        type="range"
-                        min="0.1"
-                        max="2"
-                        step="0.05"
-                        value={lora.scale}
-                        onChange={(e) =>
-                          setNewLoras((prev) =>
-                            prev.map((l, j) =>
-                              j === i
-                                ? { ...l, scale: parseFloat(e.target.value) }
-                                : l,
-                            ),
-                          )
-                        }
-                        className="flex-1"
-                      />
-                    </div>
-                  </div>
-                ))}
-                {newLoras.length === 0 && (
-                  <p className="text-[10px] text-muted-foreground/60 text-center py-1">
-                    {t('loraEmptyHint')}
-                  </p>
-                )}
-              </div>
-            )}
-
             {/* Extra form content (model selector, etc.) */}
             {createFormExtra}
 
@@ -446,7 +352,6 @@ export function SimpleCardManager({
                   setNewPrompt('')
                   setNewImageData(null)
                   setNewImagePreview(null)
-                  setNewLoras([])
                 }}
                 className="rounded-md border border-border/60 px-3 py-1 text-xs text-muted-foreground"
               >

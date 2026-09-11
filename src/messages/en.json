@@ -4248,7 +4248,6 @@
     "extracting": "Extracting style attributes...",
     "prompt": "Style Description",
     "promptPlaceholder": "Describe the art style, medium, or aesthetic...",
-    "loraUrlPlaceholder": "LoRA URL (Civitai / HuggingFace)",
     "sourceImage": "Source Image",
     "sourceImageHint": "Upload an image to automatically extract style attributes",
     "empty": "No style cards yet",
@@ -4256,11 +4255,7 @@
     "name": "Name",
     "namePlaceholder": "Style card name",
     "selectModel": "Select model",
-    "selectModelPlaceholder": "— No model —",
-    "generateMethod": "Generate method",
-    "loraMode": "LoRA Mode",
-    "referenceMode": "Reference Mode",
-    "promptPlaceholderLora": "anime style, cel shading, vibrant colors..."
+    "selectModelPlaceholder": "— No model —"
   },
   "CardRecipe": {
     "title": "Recipes",
@@ -4296,9 +4291,6 @@
     "promptLabel": "Prompt",
     "duplicate": "Duplicate",
     "delete": "Delete",
-    "loraLabel": "LoRA",
-    "addLora": "Add LoRA",
-    "loraEmptyHint": "Add a LoRA to configure it.",
     "copySuffix": "Copy",
     "viewDetails": "View details"
   },
@@ -6417,7 +6409,6 @@
       "4K": "4K"
     },
     "freePromptPlaceholder": "Describe the action, scene, or expression...",
-    "freePromptPlaceholderLora": "In the rain holding an umbrella, turning back to smile...",
     "enhance": "Assistant",
     "reverse": "Reverse",
     "advanced": "Advanced",
@@ -6518,8 +6509,6 @@
     "quickModePlaceholder": "Model selector coming soon — use Card mode for now",
     "selectModel": "Select a model",
     "useAsReference": "Use as reference",
-    "loraBadge": "LoRA",
-    "referenceBadge": "Ref",
     "addedAsReference": "Added as reference image",
     "refImageLimitReached": "Reference image limit reached",
     "openDetail": "View details",

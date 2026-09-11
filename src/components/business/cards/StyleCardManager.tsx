@@ -60,7 +60,6 @@ export function StyleCardManager({
   const t = useTranslations('StudioV2')
   const tStyle = useTranslations('StyleCard')
   const tCard = useTranslations('CardSlot')
-  const tV3 = useTranslations('StudioV3')
 
   const [view, setView] = useState<ManagerView>({ type: 'list' })
   const [isSaving, setIsSaving] = useState(false)
@@ -241,13 +240,7 @@ export function StyleCardManager({
         {visibleCards.length > 0 && (
           <div className="grid grid-cols-3 gap-3">
             {visibleCards.map((card) => {
-              const subtitle = card.modelId
-                ? `${card.modelId}${
-                    card.advancedParams?.loras?.length
-                      ? ` · ${card.advancedParams.loras.length} ${tV3('loraBadge')}`
-                      : ''
-                  }`
-                : t('noModel')
+              const subtitle = card.modelId ?? t('noModel')
               return (
                 <MediaCardTile
                   key={card.id}
@@ -285,13 +278,6 @@ export function StyleCardManager({
                     <span className="text-foreground">
                       {detailCard.modelId}
                     </span>
-                    {detailCard.advancedParams?.loras?.length ? (
-                      <span>
-                        {' '}
-                        · {detailCard.advancedParams.loras.length}{' '}
-                        {tV3('loraBadge')}
-                      </span>
-                    ) : null}
                   </div>
                 ) : (
                   <p className="text-xs text-status-warning">{t('noModel')}</p>

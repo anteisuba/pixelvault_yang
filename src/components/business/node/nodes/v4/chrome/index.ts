@@ -75,3 +75,9 @@ export {
   resetNodeCardFlash,
   useNodeCardFlash,
 } from './node-card-flash'
+export { NodeModelChip, type NodeModelChipProps } from './NodeModelChip'
+export {
+  useNodeGenerateDraft,
+  type NodeGenerateDraft,
+  type NodeGenerateDraftOptions,
+} from './use-node-generate-draft'

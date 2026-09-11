@@ -2,7 +2,7 @@ import { API_ENDPOINTS } from '@/constants/config'
 import { getErrorPayload } from '@/lib/api-client/shared'
 import type {
   AssistantPersona,
-  CreateProjectRuleRequest,
+  CreateProjectRuleInput,
   ProjectRule,
   UpdateAssistantPersonaRequest,
 } from '@/types/assistant-persona'
@@ -128,7 +128,7 @@ export async function listProjectRulesAPI(
 }
 
 export async function createProjectRuleAPI(
-  input: CreateProjectRuleRequest,
+  input: CreateProjectRuleInput,
 ): Promise<ApiResult<ProjectRule>> {
   try {
     const response = await fetch(API_ENDPOINTS.ASSISTANT_RULES, {

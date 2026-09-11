@@ -7629,10 +7629,22 @@
         "contextCard": "コンテキストカード",
         "source": "参照元を指定"
       },
-      "soon": "近日対応",
       "back": "戻る",
       "cardsEmpty": "キャラ / スタイル / ブランドカードはまだありません",
-      "cardsCreate": "カードを新規作成"
+      "cardsCreate": "カードを新規作成",
+      "sourcesHint": "このターンのみ有効で、ルールにはなりません",
+      "sourcesPicked": "{count} 件選択中",
+      "sources": {
+        "web": "ウェブ検索",
+        "wiki": "百科事典（萌娘 / Wikipedia / Fandom）",
+        "bilibili": "ビリビリ",
+        "danbooru": "danbooru タグ"
+      },
+      "sourcesRemove": "{source} を外す",
+      "sourcesDomainLabel": "ドメインを追加",
+      "sourcesDomainPlaceholder": "ドメイン（例：danbooru.donmai.us）",
+      "sourcesDomainAdd": "追加",
+      "sourcesClear": "このターンの情報源をクリア"
     },
     "modelChip": {
       "label": "テキストモデル",
@@ -7779,7 +7791,16 @@
       "cardsProposedTitle": "アシスタントの提案（{count}）",
       "cardsProposedHint": "覚えておこうと提案されたものです。保存して初めて反映されます。",
       "cardConfirm": "「{name}」を保存",
-      "cardReject": "「{name}」を削除"
+      "cardReject": "「{name}」を削除",
+      "ruleAdd": "追加",
+      "ruleAddLabel": "ルールを追加",
+      "rulePlaceholderNote": "常に効くルールを書く",
+      "rulePlaceholderSource": "ソース ID かドメイン（例：danbooru.donmai.us）",
+      "ruleKind": {
+        "note": "通常のルール",
+        "sourceAllow": "この情報源だけ",
+        "sourceDeny": "この情報源を除外"
+      }
     },
     "rule": {
       "recordedOn": "{date} に記録",

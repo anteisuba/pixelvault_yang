@@ -60,6 +60,7 @@ import {
   ASSISTANT_EVIDENCE_REF_PATTERN,
   ASSISTANT_EVIDENCE_RECALL_LIMITS as EVIDENCE_RECALL_LIMITS,
   ASSISTANT_ROUND_SUMMARY_LIMITS as ROUND_LIMITS,
+  ASSISTANT_SOURCE_ALLOWLIST_LIMITS as SOURCE_ALLOWLIST_LIMITS,
   GENERATION_REVIEW_STATES,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
@@ -84,9 +85,15 @@ import {
   ContextCardKindSchema,
   ContextCardSchema,
 } from '@/types/context-cards'
+/**
+ * ⚠ 来源 token 的那把刀只有一份（§9.3）：临时名单与库里的来源规则收的是同一种
+ * 东西，⛔ 不在这里另写一个正则。
+ */
 import {
+  ProjectRuleKindSchema,
   ProjectRuleSchema,
   ProjectRuleScopeSchema,
+  ProjectRuleSourceTokenSchema,
 } from '@/types/assistant-persona'
 
 // ─── 小件 ────────────────────────────────────────────────────────
@@ -1021,6 +1028,20 @@ export const AssistantOperatorRequestSchema = z.object({
    * 服务端 ffmpeg 要往 Vercel 包里塞几十 MB）。
    */
   videoFrames: AssistantOperatorVideoFramesSchema.optional(),
+  /**
+   * **这一轮只信这几个来源**（v2 §9.3 · 输入区「+」菜单的「指定来源」）。
+   *
+   * ⭐ 它与库里的来源白名单是**同一个闸的两条命**：这一条只作用于本轮、⛔ 不写库
+   * （用户为一个问题临时指了几个源，不该变成他此后每一轮的规矩）。服务端把两份
+   * 并起来时**临时的优先**：用户刚在菜单里点的那几个，比他三周前写下的名单更能
+   * 说明这一轮要什么。
+   * ⚠ 每一条是**来源 id 或域名**，与 `ProjectRule.text` 逐字同形；⛔ 不收一句话。
+   * ⚠ 缺席 = 这一轮没有临时名单（常态），库里那份照常生效。
+   */
+  sourceAllowlist: z
+    .array(ProjectRuleSourceTokenSchema)
+    .max(SOURCE_ALLOWLIST_LIMITS.maxPerTurn)
+    .optional(),
 })
 
 export type AssistantOperatorRequest = z.infer<
@@ -1372,6 +1393,14 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]: z.object({
     text: z.string().trim().min(1).max(RULE_LIMITS.maxTextChars),
     scope: ProjectRuleScopeSchema.optional(),
+    /**
+     * 哪一种规则（§9.3）。缺省 = 普通规则。
+     *
+     * ⚠ 来源名单那两种的 `text` 必须是来源 id 或域名 —— 值域在规划器收
+     * （`planAddProjectRule`），⛔ 不在这里拒：schema 拒 = 模型这一轮整个作废，
+     * 规划器拒 = 它读得到理由还能改口（文件头注 ②）。
+     */
+    kind: ProjectRuleKindSchema.optional(),
   }),
   /**
    * 上下文卡两条（K1）。

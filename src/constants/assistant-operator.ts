@@ -2112,7 +2112,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]:
     "OFFER to remember a character, a look or a brand spec the creator just described, as a context card they can reuse later. This SAVES NOTHING on its own: the app shows them the draft card and they decide. It ends your turn. Use it when they have just settled a set of details that will obviously come back — a character's appearance and outfit, a style they keep asking for, their brand colours — never for a one-off instruction about this run. Write the summary as the one line that gets quoted back to you every turn, and the body as the full description in THEIR words. One card at a time, and never offer the same card twice in a session.",
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
-    'write down ONE standing rule the creator just stated — something that should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice.',
+    'write down ONE standing rule the creator just stated — something that should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice. "kind" picks which sort of rule it is: "note" (the default, their own words), "sourceAllow" ("only trust these sources from now on") or "sourceDeny" ("never use this site again"). Those last two hold ONE search source id (the same ids the verify tool takes) or ONE domain — ask which site they mean rather than writing a sentence, and use them only when they asked for a standing source list, not for this one search.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
     'mark one of the creator\'s own assets as approved or blocked, so the verdict survives this turn. Use "blocked" when they say a picture did not work ("the hands are wrong", "not this one") — a blocked asset can never be used as a first or last frame again, on any workbench, and you should stop offering it. Use "approved" when they settle on one. The assetId comes from search_assets, from what they handed you, or from what you produced earlier this session — never invent one. Blocking deletes nothing: the picture stays in their library and you can still review it. Give a short reason in their words.',
 }
@@ -2377,3 +2377,56 @@ export const PROJECT_RULE_SOURCES = [
 ] as const
 
 export type ProjectRuleSourceId = (typeof PROJECT_RULE_SOURCES)[number]
+
+/**
+ * 一条规则**是哪一种**（v2 §9.3）。⚠ 值逐字对应 `prisma/schema.prisma` 的
+ * `enum ProjectRuleKind`（那边是 SCREAMING_SNAKE，这里是协议侧的形态）。
+ *
+ * ⭐ 来源名单复用项目规则表而不是另开一张：它已经有 `userId` / `scope`（域）/
+ * `source`（谁记的）三个维度，而名单要的正是这三个。
+ */
+export const PROJECT_RULE_KIND_IDS = {
+  /** 普通项目规则（v1 现状）——`text` 是规则原文。 */
+  note: 'note',
+  /** 只信这些来源 ——`text` 是一个来源 id 或域名。 */
+  sourceAllow: 'sourceAllow',
+  /** 永远屏蔽这些来源 ——`text` 同上。 */
+  sourceDeny: 'sourceDeny',
+} as const
+
+export const PROJECT_RULE_KINDS = [
+  PROJECT_RULE_KIND_IDS.note,
+  PROJECT_RULE_KIND_IDS.sourceAllow,
+  PROJECT_RULE_KIND_IDS.sourceDeny,
+] as const
+
+export type ProjectRuleKindId = (typeof PROJECT_RULE_KINDS)[number]
+
+/** 两种来源名单 —— 读名单那条查询按它收敛。 */
+export const PROJECT_RULE_SOURCE_KINDS = [
+  PROJECT_RULE_KIND_IDS.sourceAllow,
+  PROJECT_RULE_KIND_IDS.sourceDeny,
+] as const
+
+/**
+ * 来源名单一条里能装什么（§9.3）：**一个来源 id 或一个域名**，⛔ 不是一句话。
+ *
+ * ⚠ 域名判据故意宽松（`example.com` / `zh.moegirl.org.cn`）：站点域名的形态五花
+ * 八门，卡太严的表现是用户写下的名单里有一条静默不生效 —— 而名单不生效时助手
+ * 会照常去打那个站，用户永远不会知道。
+ */
+export const PROJECT_RULE_SOURCE_TOKEN_PATTERN =
+  /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/
+
+/**
+ * 单轮临时白名单（§9.3 的「+」菜单「指定来源」）最多几条。
+ *
+ * ⚠ 它与库里的名单**不是同一条命**：临时名单只作用于本轮、⛔ 不写库。
+ * 上限存在的理由与规则表那条一样 —— 它会拼进系统提示。
+ */
+export const ASSISTANT_SOURCE_ALLOWLIST_LIMITS = {
+  /** 一轮最多指定几个来源。 */
+  maxPerTurn: 8,
+  /** 一条最长多少字（域名足够长，⛔ 不是给一句话用的）。 */
+  maxTokenChars: 120,
+} as const

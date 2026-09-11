@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import {
   ASSISTANT_PROJECT_RULE_LIMITS,
+  PROJECT_RULE_KIND_IDS,
   PROJECT_RULE_SOURCE_IDS,
 } from '@/constants/assistant-operator'
 
@@ -32,12 +33,14 @@ import {
   addProjectRule,
   deleteProjectRule,
   listProjectRules,
+  listProjectSourceRules,
 } from '@/services/project-rule.service'
 
 const ROW = {
   id: 'rule-1',
   scope: null,
   text: 'Never put text inside the picture.',
+  kind: 'NOTE' as const,
   source: 'CREATOR' as const,
   createdAt: new Date('2026-09-01T10:00:00.000Z'),
 }
@@ -57,6 +60,7 @@ describe('project rule service', () => {
         id: 'rule-1',
         scope: null,
         text: ROW.text,
+        kind: PROJECT_RULE_KIND_IDS.note,
         source: PROJECT_RULE_SOURCE_IDS.creator,
         createdAt: '2026-09-01T10:00:00.000Z',
       },
@@ -121,5 +125,67 @@ describe('project rule service', () => {
     expect(mockDeleteMany).toHaveBeenCalledWith({
       where: { id: 'rule-x', userId: 'db_user_1' },
     })
+  })
+})
+
+describe('来源白 / 黑名单（v2 §9.3）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('kind 在协议侧与库里的枚举之间双向翻译', async () => {
+    mockFindMany.mockResolvedValue([
+      { ...ROW, text: 'danbooru.donmai.us', kind: 'SOURCE_ALLOW' as const },
+      {
+        ...ROW,
+        id: 'rule-2',
+        text: 'pinterest.com',
+        kind: 'SOURCE_DENY' as const,
+      },
+    ])
+
+    const rules = await listProjectRules('db_user_1')
+
+    expect(rules.map((rule) => rule.kind)).toEqual([
+      PROJECT_RULE_KIND_IDS.sourceAllow,
+      PROJECT_RULE_KIND_IDS.sourceDeny,
+    ])
+  })
+
+  /** 名单一条都不能少 —— ⛔ 不按系统提示那条的 maxInPrompt 截。 */
+  it('读名单时按 kind 收敛，且取满每用户上限', async () => {
+    mockFindMany.mockResolvedValue([])
+
+    await listProjectSourceRules('db_user_1', { scope: 'image' })
+
+    const args = mockFindMany.mock.calls[0][0] as {
+      where: { kind: { in: string[] } }
+      take: number
+    }
+    expect(args.where.kind.in).toEqual(['SOURCE_ALLOW', 'SOURCE_DENY'])
+    expect(args.take).toBe(ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser)
+  })
+
+  it('写入时把 kind 翻成库里的枚举；缺省是普通规则', async () => {
+    mockCount.mockResolvedValue(0)
+    mockCreate.mockResolvedValue({
+      ...ROW,
+      text: 'danbooru.donmai.us',
+      kind: 'SOURCE_ALLOW' as const,
+    })
+
+    const rule = await addProjectRule('db_user_1', {
+      text: 'danbooru.donmai.us',
+      kind: PROJECT_RULE_KIND_IDS.sourceAllow,
+    })
+
+    const args = mockCreate.mock.calls[0][0] as { data: { kind: string } }
+    expect(args.data.kind).toBe('SOURCE_ALLOW')
+    expect(rule.kind).toBe(PROJECT_RULE_KIND_IDS.sourceAllow)
+
+    mockCreate.mockResolvedValue(ROW)
+    await addProjectRule('db_user_1', { text: ROW.text })
+    const plain = mockCreate.mock.calls[1][0] as { data: { kind: string } }
+    expect(plain.data.kind).toBe('NOTE')
   })
 })

@@ -9,7 +9,7 @@ import {
   listProjectRulesAPI,
 } from '@/lib/api-client'
 import type {
-  CreateProjectRuleRequest,
+  CreateProjectRuleInput,
   ProjectRule,
 } from '@/types/assistant-persona'
 
@@ -24,7 +24,7 @@ export interface UseProjectRulesValue {
   rules: ProjectRule[]
   isLoading: boolean
   error: string | null
-  add(input: CreateProjectRuleRequest): Promise<boolean>
+  add(input: CreateProjectRuleInput): Promise<boolean>
   remove(ruleId: string): Promise<boolean>
   reload(): Promise<void>
 }
@@ -71,7 +71,7 @@ export function useProjectRules(
     })
   }, [enabled, reload])
 
-  const add = useCallback(async (input: CreateProjectRuleRequest) => {
+  const add = useCallback(async (input: CreateProjectRuleInput) => {
     const result = await createProjectRuleAPI(input)
     if (!aliveRef.current) return result.success
     if (result.success) {

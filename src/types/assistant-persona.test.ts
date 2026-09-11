@@ -7,7 +7,16 @@ import {
   getAssistantRouteModelEntry,
 } from '@/constants/assistant-persona'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
-import { UpdateAssistantPersonaSchema } from '@/types/assistant-persona'
+import {
+  ASSISTANT_SOURCE_ALLOWLIST_LIMITS,
+  PROJECT_RULE_KIND_IDS,
+} from '@/constants/assistant-operator'
+import {
+  CreateProjectRuleSchema,
+  ProjectRuleSchema,
+  UpdateAssistantPersonaSchema,
+} from '@/types/assistant-persona'
+import { AssistantOperatorRequestSchema } from '@/types/assistant-operator'
 
 /**
  * 文本模型 chip 的持久化字段（v2 §4.5）。
@@ -130,5 +139,92 @@ describe('AssistantPersona 的三项用户偏好', () => {
     expect(ASSISTANT_PERSONA_DEFAULTS.nextStepHint).toBe(false)
     expect(ASSISTANT_PERSONA_DEFAULTS.useMyWords).toBe(true)
     expect(ASSISTANT_PERSONA_DEFAULTS.addressUserAs).toBeNull()
+  })
+})
+
+/**
+ * **来源白 / 黑名单**的 schema 那一半（assistant-shell-v2 §9.3）。
+ *
+ * ⚠ 钉的是「来源类规则收的是来源 id 或域名，⛔ 不是一句话」——收下一句话的表现
+ * 是名单里永远有一条匹配不到任何东西，而用户以为自己设了闸。
+ */
+describe('项目规则 · kind 与来源 token（v2 §9.3）', () => {
+  it('缺省 kind = 普通规则，原文一个字都不动', () => {
+    const parsed = CreateProjectRuleSchema.safeParse({
+      text: '  画面里不要出现文字  ',
+    })
+    expect(parsed.success).toBe(true)
+    expect(parsed.success && parsed.data.kind).toBe(PROJECT_RULE_KIND_IDS.note)
+    expect(parsed.success && parsed.data.text).toBe('画面里不要出现文字')
+  })
+
+  it('来源类规则把地址收成域名：协议头 / 路径 / www 都剥掉', () => {
+    const parsed = CreateProjectRuleSchema.safeParse({
+      text: 'https://WWW.Danbooru.donmai.us/posts?tags=x',
+      kind: PROJECT_RULE_KIND_IDS.sourceAllow,
+    })
+    expect(parsed.success && parsed.data.text).toBe('danbooru.donmai.us')
+  })
+
+  it('来源类规则收不下一句话', () => {
+    for (const kind of [
+      PROJECT_RULE_KIND_IDS.sourceAllow,
+      PROJECT_RULE_KIND_IDS.sourceDeny,
+    ]) {
+      expect(
+        CreateProjectRuleSchema.safeParse({ text: '只信官方设定集', kind })
+          .success,
+      ).toBe(false)
+    }
+  })
+
+  it('读回来的规则缺 kind 时当普通规则，⛔ 不判成读不出来', () => {
+    const parsed = ProjectRuleSchema.safeParse({
+      id: 'rule-1',
+      scope: null,
+      text: '画面里不要出现文字',
+      source: 'creator',
+      createdAt: '2026-09-10T00:00:00.000Z',
+    })
+    expect(parsed.success && parsed.data.kind).toBe(PROJECT_RULE_KIND_IDS.note)
+  })
+})
+
+/** 单轮临时白名单（§9.3 的「+」菜单那一半）走的是同一把刀。 */
+describe('请求体 · sourceAllowlist（v2 §9.3）', () => {
+  const BASE = {
+    messages: [{ role: 'user' as const, content: '查一下' }],
+    domain: 'image' as const,
+    snapshot: { prompt: '', availableModels: [] },
+  }
+
+  it('每一条收成域名或来源 id；⛔ 一句话进不来', () => {
+    const ok = AssistantOperatorRequestSchema.safeParse({
+      ...BASE,
+      sourceAllowlist: ['wiki', 'https://Danbooru.donmai.us/posts'],
+    })
+    expect(ok.success && ok.data.sourceAllowlist).toEqual([
+      'wiki',
+      'danbooru.donmai.us',
+    ])
+
+    expect(
+      AssistantOperatorRequestSchema.safeParse({
+        ...BASE,
+        sourceAllowlist: ['只信官方设定集'],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('超过上限整条拒，⛔ 不静默截断', () => {
+    expect(
+      AssistantOperatorRequestSchema.safeParse({
+        ...BASE,
+        sourceAllowlist: Array.from(
+          { length: ASSISTANT_SOURCE_ALLOWLIST_LIMITS.maxPerTurn + 1 },
+          (_, index) => `site${index}.example`,
+        ),
+      }).success,
+    ).toBe(false)
   })
 })

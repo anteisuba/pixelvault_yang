@@ -133,7 +133,7 @@ export interface RunAssistantResearchParams {
  * 繁体条目、在 Fandom 是英文页 —— 让模型去猜「哪个站收录了它」是让它猜一件它
  * 不可能知道的事，而三个站并行只多两次 HTTP，一个 credit 都不花。
  */
-const SOURCE_GROUP_MEMBERS: Record<
+export const SOURCE_GROUP_MEMBERS: Record<
   AssistantResearchSource,
   readonly ResearchSourceId[]
 > = {

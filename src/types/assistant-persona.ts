@@ -25,6 +25,10 @@ import {
 import {
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_PROJECT_RULE_LIMITS,
+  PROJECT_RULE_KIND_IDS,
+  PROJECT_RULE_KINDS,
+  PROJECT_RULE_SOURCE_KINDS,
+  PROJECT_RULE_SOURCE_TOKEN_PATTERN,
   PROJECT_RULE_SOURCES,
 } from '@/constants/assistant-operator'
 
@@ -151,6 +155,38 @@ export const ProjectRuleSourceSchema = z.enum(PROJECT_RULE_SOURCES)
 /** null = 全域。非空时是一个工作台域 id。 */
 export const ProjectRuleScopeSchema = z.enum(ASSISTANT_OPERATOR_DOMAINS)
 
+/**
+ * 普通规则 / 只信这些来源 / 屏蔽这些来源（§9.3）。
+ *
+ * ⚠ 存量行读回来时**没有 kind** 的可能性不存在（库里带默认），但客户端老缓存
+ * 里有 —— 所以读端给默认值 `note`，⛔ 不把一条老规则判成读不出来。
+ */
+export const ProjectRuleKindSchema = z.enum(PROJECT_RULE_KINDS)
+
+export type ProjectRuleKind = z.infer<typeof ProjectRuleKindSchema>
+
+/**
+ * 来源名单一条里装的东西：**来源 id 或域名**（§9.3）。
+ *
+ * ⚠ 统一小写 + 砍掉协议头与末尾斜杠：用户会原样贴一条 `https://Danbooru.donmai.us/`
+ * 进来，而名单是拿来逐字比对域名的。
+ */
+export const ProjectRuleSourceTokenSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(ASSISTANT_PROJECT_RULE_LIMITS.maxTextChars)
+  .transform((value) =>
+    value
+      .toLowerCase()
+      .replace(/^[a-z][a-z0-9+.-]*:\/\//, '')
+      .replace(/\/.*$/, '')
+      .replace(/^www\./, ''),
+  )
+  .refine((value) => PROJECT_RULE_SOURCE_TOKEN_PATTERN.test(value), {
+    message: 'Source rules take a source id or a domain, not a sentence',
+  })
+
 export const ProjectRuleSchema = z.object({
   id: z.string().min(1),
   scope: ProjectRuleScopeSchema.nullable(),
@@ -159,6 +195,7 @@ export const ProjectRuleSchema = z.object({
     .trim()
     .min(1)
     .max(ASSISTANT_PROJECT_RULE_LIMITS.maxTextChars),
+  kind: ProjectRuleKindSchema.default(PROJECT_RULE_KIND_IDS.note),
   source: ProjectRuleSourceSchema,
   /** ISO 串。规则薄卡上那行「记于 YYYY-MM-DD」取它的日期段。 */
   createdAt: z.string(),
@@ -166,21 +203,74 @@ export const ProjectRuleSchema = z.object({
 
 export type ProjectRule = z.infer<typeof ProjectRuleSchema>
 
-export const CreateProjectRuleSchema = z.object({
-  text: z
-    .string()
+/** 这一种规则装的是来源名单吗（§9.3）。 */
+export function isProjectRuleSourceKind(
+  kind: ProjectRuleKind | undefined,
+): boolean {
+  return PROJECT_RULE_SOURCE_KINDS.some((candidate) => candidate === kind)
+}
+
+/**
+ * 把用户贴进来的一串收成**一个可比对的来源 token**。
+ *
+ * ⚠ 与 `ProjectRuleSourceTokenSchema` 的那几刀逐字同源：schema 是闸，这个函数
+ * 是同一把刀给 UI 预览用的，⛔ 不许两边长得不一样。
+ */
+export function normalizeProjectRuleSourceToken(value: string): string {
+  return value
     .trim()
-    .min(1)
-    .max(ASSISTANT_PROJECT_RULE_LIMITS.maxTextChars),
-  scope: ProjectRuleScopeSchema.nullish(),
+    .toLowerCase()
+    .replace(/^[a-z][a-z0-9+.-]*:\/\//, '')
+    .replace(/\/.*$/, '')
+    .replace(/^www\./, '')
+}
+
+export const CreateProjectRuleSchema = z
+  .object({
+    text: z
+      .string()
+      .trim()
+      .min(1)
+      .max(ASSISTANT_PROJECT_RULE_LIMITS.maxTextChars),
+    scope: ProjectRuleScopeSchema.nullish(),
+    /** 缺省 = 普通规则（§9.3）。 */
+    kind: ProjectRuleKindSchema.optional(),
+    /**
+     * 缺省 = `creator`（用户自己在设置里写的）。助手那条路由服务端写死
+     * `assistant`，⛔ 不从模型收 —— 让它自己声明来源，来源就不再是证据。
+     */
+    source: ProjectRuleSourceSchema.optional(),
+  })
+  .transform((input) => {
+    const kind = input.kind ?? PROJECT_RULE_KIND_IDS.note
+    return {
+      ...input,
+      kind,
+      text: isProjectRuleSourceKind(kind)
+        ? normalizeProjectRuleSourceToken(input.text)
+        : input.text,
+    }
+  })
   /**
-   * 缺省 = `creator`（用户自己在设置里写的）。助手那条路由服务端写死
-   * `assistant`，⛔ 不从模型收 —— 让它自己声明来源，来源就不再是证据。
+   * ⚠ 来源名单那两种 kind 的 `text` **必须是来源 id 或域名**：收下一句
+   * 「只信官方站」的下场是名单里永远有一条匹配不到任何东西，而助手会照常去打
+   * 那些站 —— 用户以为自己设了闸，闸却不在。
    */
-  source: ProjectRuleSourceSchema.optional(),
-})
+  .refine(
+    (input) =>
+      !isProjectRuleSourceKind(input.kind) ||
+      PROJECT_RULE_SOURCE_TOKEN_PATTERN.test(input.text),
+    { message: 'Source rules take a source id or a domain, not a sentence' },
+  )
 
 export type CreateProjectRuleRequest = z.infer<typeof CreateProjectRuleSchema>
+
+/**
+ * 客户端**递进来**的那一份（`kind` 可缺省）。⚠ 与上面那个类型分开：上面是过完
+ * schema 之后的形态（`kind` 一定在），⛔ 别让 UI 为了满足类型给每一条都手填
+ * 一个 `note`。
+ */
+export type CreateProjectRuleInput = z.input<typeof CreateProjectRuleSchema>
 
 /** GET `/api/assistant/rules` 的查询串。`scope` 缺省 = 全都要（含全域那些）。 */
 export const ListProjectRulesQuerySchema = z.object({

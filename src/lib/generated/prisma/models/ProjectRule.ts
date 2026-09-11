@@ -35,6 +35,7 @@ export type ProjectRuleMinAggregateOutputType = {
   scope: string | null
   text: string | null
   source: $Enums.ProjectRuleSource | null
+  kind: $Enums.ProjectRuleKind | null
   createdAt: Date | null
 }
 
@@ -44,6 +45,7 @@ export type ProjectRuleMaxAggregateOutputType = {
   scope: string | null
   text: string | null
   source: $Enums.ProjectRuleSource | null
+  kind: $Enums.ProjectRuleKind | null
   createdAt: Date | null
 }
 
@@ -53,6 +55,7 @@ export type ProjectRuleCountAggregateOutputType = {
   scope: number
   text: number
   source: number
+  kind: number
   createdAt: number
   _all: number
 }
@@ -64,6 +67,7 @@ export type ProjectRuleMinAggregateInputType = {
   scope?: true
   text?: true
   source?: true
+  kind?: true
   createdAt?: true
 }
 
@@ -73,6 +77,7 @@ export type ProjectRuleMaxAggregateInputType = {
   scope?: true
   text?: true
   source?: true
+  kind?: true
   createdAt?: true
 }
 
@@ -82,6 +87,7 @@ export type ProjectRuleCountAggregateInputType = {
   scope?: true
   text?: true
   source?: true
+  kind?: true
   createdAt?: true
   _all?: true
 }
@@ -164,6 +170,7 @@ export type ProjectRuleGroupByOutputType = {
   scope: string | null
   text: string
   source: $Enums.ProjectRuleSource
+  kind: $Enums.ProjectRuleKind
   createdAt: Date
   _count: ProjectRuleCountAggregateOutputType | null
   _min: ProjectRuleMinAggregateOutputType | null
@@ -194,6 +201,7 @@ export type ProjectRuleWhereInput = {
   scope?: Prisma.StringNullableFilter<"ProjectRule"> | string | null
   text?: Prisma.StringFilter<"ProjectRule"> | string
   source?: Prisma.EnumProjectRuleSourceFilter<"ProjectRule"> | $Enums.ProjectRuleSource
+  kind?: Prisma.EnumProjectRuleKindFilter<"ProjectRule"> | $Enums.ProjectRuleKind
   createdAt?: Prisma.DateTimeFilter<"ProjectRule"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }
@@ -204,6 +212,7 @@ export type ProjectRuleOrderByWithRelationInput = {
   scope?: Prisma.SortOrderInput | Prisma.SortOrder
   text?: Prisma.SortOrder
   source?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
 }
@@ -217,6 +226,7 @@ export type ProjectRuleWhereUniqueInput = Prisma.AtLeast<{
   scope?: Prisma.StringNullableFilter<"ProjectRule"> | string | null
   text?: Prisma.StringFilter<"ProjectRule"> | string
   source?: Prisma.EnumProjectRuleSourceFilter<"ProjectRule"> | $Enums.ProjectRuleSource
+  kind?: Prisma.EnumProjectRuleKindFilter<"ProjectRule"> | $Enums.ProjectRuleKind
   createdAt?: Prisma.DateTimeFilter<"ProjectRule"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
 }, "id">
@@ -227,6 +237,7 @@ export type ProjectRuleOrderByWithAggregationInput = {
   scope?: Prisma.SortOrderInput | Prisma.SortOrder
   text?: Prisma.SortOrder
   source?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   _count?: Prisma.ProjectRuleCountOrderByAggregateInput
   _max?: Prisma.ProjectRuleMaxOrderByAggregateInput
@@ -242,6 +253,7 @@ export type ProjectRuleScalarWhereWithAggregatesInput = {
   scope?: Prisma.StringNullableWithAggregatesFilter<"ProjectRule"> | string | null
   text?: Prisma.StringWithAggregatesFilter<"ProjectRule"> | string
   source?: Prisma.EnumProjectRuleSourceWithAggregatesFilter<"ProjectRule"> | $Enums.ProjectRuleSource
+  kind?: Prisma.EnumProjectRuleKindWithAggregatesFilter<"ProjectRule"> | $Enums.ProjectRuleKind
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ProjectRule"> | Date | string
 }
 
@@ -250,6 +262,7 @@ export type ProjectRuleCreateInput = {
   scope?: string | null
   text: string
   source: $Enums.ProjectRuleSource
+  kind?: $Enums.ProjectRuleKind
   createdAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutProjectRulesInput
 }
@@ -260,6 +273,7 @@ export type ProjectRuleUncheckedCreateInput = {
   scope?: string | null
   text: string
   source: $Enums.ProjectRuleSource
+  kind?: $Enums.ProjectRuleKind
   createdAt?: Date | string
 }
 
@@ -268,6 +282,7 @@ export type ProjectRuleUpdateInput = {
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
+  kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutProjectRulesNestedInput
 }
@@ -278,6 +293,7 @@ export type ProjectRuleUncheckedUpdateInput = {
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
+  kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -287,6 +303,7 @@ export type ProjectRuleCreateManyInput = {
   scope?: string | null
   text: string
   source: $Enums.ProjectRuleSource
+  kind?: $Enums.ProjectRuleKind
   createdAt?: Date | string
 }
 
@@ -295,6 +312,7 @@ export type ProjectRuleUpdateManyMutationInput = {
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
+  kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -304,6 +322,7 @@ export type ProjectRuleUncheckedUpdateManyInput = {
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
+  kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -323,6 +342,7 @@ export type ProjectRuleCountOrderByAggregateInput = {
   scope?: Prisma.SortOrder
   text?: Prisma.SortOrder
   source?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -332,6 +352,7 @@ export type ProjectRuleMaxOrderByAggregateInput = {
   scope?: Prisma.SortOrder
   text?: Prisma.SortOrder
   source?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -341,6 +362,7 @@ export type ProjectRuleMinOrderByAggregateInput = {
   scope?: Prisma.SortOrder
   text?: Prisma.SortOrder
   source?: Prisma.SortOrder
+  kind?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
 }
 
@@ -390,11 +412,16 @@ export type EnumProjectRuleSourceFieldUpdateOperationsInput = {
   set?: $Enums.ProjectRuleSource
 }
 
+export type EnumProjectRuleKindFieldUpdateOperationsInput = {
+  set?: $Enums.ProjectRuleKind
+}
+
 export type ProjectRuleCreateWithoutUserInput = {
   id?: string
   scope?: string | null
   text: string
   source: $Enums.ProjectRuleSource
+  kind?: $Enums.ProjectRuleKind
   createdAt?: Date | string
 }
 
@@ -403,6 +430,7 @@ export type ProjectRuleUncheckedCreateWithoutUserInput = {
   scope?: string | null
   text: string
   source: $Enums.ProjectRuleSource
+  kind?: $Enums.ProjectRuleKind
   createdAt?: Date | string
 }
 
@@ -441,6 +469,7 @@ export type ProjectRuleScalarWhereInput = {
   scope?: Prisma.StringNullableFilter<"ProjectRule"> | string | null
   text?: Prisma.StringFilter<"ProjectRule"> | string
   source?: Prisma.EnumProjectRuleSourceFilter<"ProjectRule"> | $Enums.ProjectRuleSource
+  kind?: Prisma.EnumProjectRuleKindFilter<"ProjectRule"> | $Enums.ProjectRuleKind
   createdAt?: Prisma.DateTimeFilter<"ProjectRule"> | Date | string
 }
 
@@ -449,6 +478,7 @@ export type ProjectRuleCreateManyUserInput = {
   scope?: string | null
   text: string
   source: $Enums.ProjectRuleSource
+  kind?: $Enums.ProjectRuleKind
   createdAt?: Date | string
 }
 
@@ -457,6 +487,7 @@ export type ProjectRuleUpdateWithoutUserInput = {
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
+  kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -465,6 +496,7 @@ export type ProjectRuleUncheckedUpdateWithoutUserInput = {
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
+  kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -473,6 +505,7 @@ export type ProjectRuleUncheckedUpdateManyWithoutUserInput = {
   scope?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   text?: Prisma.StringFieldUpdateOperationsInput | string
   source?: Prisma.EnumProjectRuleSourceFieldUpdateOperationsInput | $Enums.ProjectRuleSource
+  kind?: Prisma.EnumProjectRuleKindFieldUpdateOperationsInput | $Enums.ProjectRuleKind
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
@@ -484,6 +517,7 @@ export type ProjectRuleSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   scope?: boolean
   text?: boolean
   source?: boolean
+  kind?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["projectRule"]>
@@ -494,6 +528,7 @@ export type ProjectRuleSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   scope?: boolean
   text?: boolean
   source?: boolean
+  kind?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["projectRule"]>
@@ -504,6 +539,7 @@ export type ProjectRuleSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   scope?: boolean
   text?: boolean
   source?: boolean
+  kind?: boolean
   createdAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["projectRule"]>
@@ -514,10 +550,11 @@ export type ProjectRuleSelectScalar = {
   scope?: boolean
   text?: boolean
   source?: boolean
+  kind?: boolean
   createdAt?: boolean
 }
 
-export type ProjectRuleOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "scope" | "text" | "source" | "createdAt", ExtArgs["result"]["projectRule"]>
+export type ProjectRuleOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "scope" | "text" | "source" | "kind" | "createdAt", ExtArgs["result"]["projectRule"]>
 export type ProjectRuleInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -541,13 +578,17 @@ export type $ProjectRulePayload<ExtArgs extends runtime.Types.Extensions.Interna
      */
     scope: string | null
     /**
-     * 规则原文，规则薄卡上逐字展示。
+     * 规则原文，规则薄卡上逐字展示。来源名单那两种 kind 里装的是来源 id 或域名。
      */
     text: string
     /**
      * 这条规则是谁记下来的 —— 助手在对话里记的，还是用户自己写的。
      */
     source: $Enums.ProjectRuleSource
+    /**
+     * 普通规则 / 来源白名单 / 来源黑名单（§9.3）。存量行一律是普通规则。
+     */
+    kind: $Enums.ProjectRuleKind
     createdAt: Date
   }, ExtArgs["result"]["projectRule"]>
   composites: {}
@@ -978,6 +1019,7 @@ export interface ProjectRuleFieldRefs {
   readonly scope: Prisma.FieldRef<"ProjectRule", 'String'>
   readonly text: Prisma.FieldRef<"ProjectRule", 'String'>
   readonly source: Prisma.FieldRef<"ProjectRule", 'ProjectRuleSource'>
+  readonly kind: Prisma.FieldRef<"ProjectRule", 'ProjectRuleKind'>
   readonly createdAt: Prisma.FieldRef<"ProjectRule", 'DateTime'>
 }
     

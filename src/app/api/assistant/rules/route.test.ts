@@ -103,7 +103,34 @@ describe('POST /api/assistant/rules', () => {
     expect(res.status).toBe(200)
     expect(mockAdd).toHaveBeenCalledWith('clerk_test_user', {
       text: RULE.text,
+      // 缺省是普通规则（v2 §9.3）。
+      kind: 'note',
     })
+  })
+
+  /** 来源名单那两种（v2 §9.3）——`text` 收成域名，⛔ 一句话 400。 */
+  it('来源类规则把地址收成域名；一句话 400', async () => {
+    const res = await POST(
+      createPOST('/api/assistant/rules', {
+        text: 'https://WWW.Danbooru.donmai.us/posts',
+        kind: 'sourceAllow',
+      }),
+    )
+    expect(res.status).toBe(200)
+    expect(mockAdd).toHaveBeenCalledWith('clerk_test_user', {
+      text: 'danbooru.donmai.us',
+      kind: 'sourceAllow',
+    })
+
+    mockAdd.mockClear()
+    const bad = await POST(
+      createPOST('/api/assistant/rules', {
+        text: '只信官方设定集',
+        kind: 'sourceDeny',
+      }),
+    )
+    expect(bad.status).toBe(400)
+    expect(mockAdd).not.toHaveBeenCalled()
   })
 
   /** 上限是一条真的会拒的闸 —— 用户读得到一句话，⛔ 不静默丢弃。 */

@@ -15,12 +15,15 @@
  * 并关掉菜单，与 chip 的摘除钮是同一排。一张都没有时给的是「新建一张」这条
  * 下一步（`ContextCardDialog`），⛔ 不摆白板。
  *
- * ⚠ **指定来源本轮不可点**：白 / 黑名单是 commit #17 的事（v2 §9.3）。它带着
- * 「即将支持」的说明停用，⛔ 不做点了没反应的死按钮。
+ * ⭐ **指定来源就地选**（v2 §9.3，commit #17）：四个连接器 + 一个域名框，
+ * 选中的那几个**只作用于本轮**（随请求上送，⛔ 不写库）。要一直生效的那份住在
+ * 设置弹层的规则页里 —— 这一页有意不提供「保存为规则」：临时与常设是两个决定，
+ * 一颗按钮同时干两件事的表现是用户以为自己只指了这一轮，结果改了往后每一轮。
+ * ⚠ 服务端把它与库里的名单并起来时**临时的优先**，黑名单照旧永远生效。
  */
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { AtSign, IdCard, Plus, Search } from 'lucide-react'
+import { AtSign, Check, IdCard, Plus, Search } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
@@ -30,6 +33,15 @@ import {
   STUDIO_OPERATOR_PLUS_MENU_ITEMS,
   type StudioOperatorPlusMenuId,
 } from '@/constants/studio-assistant-operator'
+import {
+  ASSISTANT_RESEARCH_SOURCES,
+  ASSISTANT_SOURCE_ALLOWLIST_LIMITS,
+} from '@/constants/assistant-operator'
+import {
+  setOperatorSourceAllowlist,
+  useStudioOperatorState,
+} from '@/hooks/use-studio-operator-store'
+import { normalizeProjectRuleSourceToken } from '@/types/assistant-persona'
 import { ContextCardChip } from '@/components/business/studio/assistant-operator/ContextCardChip'
 import { ContextCardDialog } from '@/components/business/studio/assistant-operator/ContextCardDialog'
 import { useContextCards } from '@/hooks/use-context-cards'
@@ -77,7 +89,13 @@ export function StudioOperatorPlusMenu({
   const t = useTranslations('StudioOperator')
   const reduceMotion = useReducedMotion()
   const menuRef = useRef<HTMLDivElement>(null)
-  const [view, setView] = useState<'root' | 'cards'>('root')
+  const [view, setView] = useState<'root' | 'cards' | 'sources'>('root')
+  /**
+   * ⚠ 名单的真值在 store（它要跟着**这条还没发出去的消息**走，而菜单一关就卸载）；
+   * 这里只存域名框里正在打的那几个字。
+   */
+  const { sourceAllowlist } = useStudioOperatorState()
+  const [domainDraft, setDomainDraft] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
   /**
    * ⚠ `enabled` 跟着 `view`：菜单一打开就拉一遍卡表，等于每点一次「+」都打一发
@@ -157,15 +175,15 @@ export function StudioOperatorPlusMenu({
         <div className="flex flex-col gap-0.5">
           {STUDIO_OPERATOR_PLUS_MENU_ITEMS.map((id) => {
             const Icon = MENU_ICONS[id]
-            // 「指定来源」本轮只到菜单项为止（commit #17 接白 / 黑名单）。
-            const disabled = id === STUDIO_OPERATOR_PLUS_MENU_IDS.source
+            const picked =
+              id === STUDIO_OPERATOR_PLUS_MENU_IDS.source
+                ? sourceAllowlist.length
+                : 0
             return (
               <button
                 key={id}
                 type="button"
                 data-testid={`operator-plus-item-${id}`}
-                disabled={disabled}
-                title={disabled ? t('plusMenu.soon') : undefined}
                 onClick={() => {
                   if (id === STUDIO_OPERATOR_PLUS_MENU_IDS.mention) {
                     onPickMention()
@@ -174,23 +192,154 @@ export function StudioOperatorPlusMenu({
                   }
                   if (id === STUDIO_OPERATOR_PLUS_MENU_IDS.contextCard) {
                     setView('cards')
+                    return
                   }
+                  setView('sources')
                 }}
-                className={cn(
-                  'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                  disabled && 'pointer-events-none opacity-50',
-                )}
+                className="flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
                 <Icon className="size-4 text-muted-foreground" aria-hidden />
                 <span className="flex-1">{t(`plusMenu.items.${id}`)}</span>
-                {disabled ? (
-                  <span className="text-3xs text-muted-foreground">
-                    {t('plusMenu.soon')}
+                {picked > 0 ? (
+                  <span
+                    data-testid="operator-plus-source-count"
+                    className="text-3xs text-muted-foreground"
+                  >
+                    {t('plusMenu.sourcesPicked', { count: picked })}
                   </span>
                 ) : null}
               </button>
             )
           })}
+        </div>
+      ) : view === 'sources' ? (
+        /*
+          ⭐ **单轮临时白名单**（§9.3）：四个连接器 + 一个域名框。
+          ⚠ 一条都没选 = 不限来源（助手照常按题选源），⛔ 不是「什么都不许打」——
+            一个空名单在用户眼里就是「我还没指定」。
+        */
+        <div
+          data-testid="operator-plus-sources"
+          className="flex flex-col gap-1.5"
+        >
+          <button
+            type="button"
+            data-testid="operator-plus-sources-back"
+            onClick={() => setView('root')}
+            className="self-start rounded-md px-1.5 py-1 text-3xs uppercase tracking-nav text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground"
+          >
+            {t('plusMenu.back')}
+          </button>
+          <p className="px-1.5 text-3xs text-muted-foreground">
+            {t('plusMenu.sourcesHint')}
+          </p>
+          {ASSISTANT_RESEARCH_SOURCES.map((source) => {
+            const checked = sourceAllowlist.includes(source)
+            return (
+              <button
+                key={source}
+                type="button"
+                role="checkbox"
+                aria-checked={checked}
+                data-testid={`operator-plus-source-${source}`}
+                onClick={() =>
+                  setOperatorSourceAllowlist(
+                    checked
+                      ? sourceAllowlist.filter((item) => item !== source)
+                      : [...sourceAllowlist, source],
+                  )
+                }
+                className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span
+                  className={cn(
+                    'flex size-4 items-center justify-center rounded-sm border border-border',
+                    checked &&
+                      'border-primary bg-primary text-primary-foreground',
+                  )}
+                  aria-hidden
+                >
+                  {checked ? <Check className="size-3" /> : null}
+                </span>
+                <span className="flex-1">
+                  {t(`plusMenu.sources.${source}`)}
+                </span>
+              </button>
+            )
+          })}
+          {/* 名单里那些**域名** —— 与四个连接器同一份名单，只是来源不同。 */}
+          {sourceAllowlist
+            .filter(
+              (item) =>
+                !ASSISTANT_RESEARCH_SOURCES.some((source) => source === item),
+            )
+            .map((domain) => (
+              <button
+                key={domain}
+                type="button"
+                data-testid={`operator-plus-source-domain-${domain}`}
+                aria-label={t('plusMenu.sourcesRemove', { source: domain })}
+                onClick={() =>
+                  setOperatorSourceAllowlist(
+                    sourceAllowlist.filter((item) => item !== domain),
+                  )
+                }
+                className="flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span
+                  className="flex size-4 items-center justify-center rounded-sm border border-primary bg-primary text-primary-foreground"
+                  aria-hidden
+                >
+                  <Check className="size-3" />
+                </span>
+                <span className="flex-1 truncate">{domain}</span>
+              </button>
+            ))}
+          <form
+            className="flex items-center gap-1.5 px-1.5 pb-1"
+            onSubmit={(event) => {
+              event.preventDefault()
+              const token = normalizeProjectRuleSourceToken(domainDraft)
+              if (!token) return
+              setDomainDraft('')
+              if (
+                sourceAllowlist.length >=
+                ASSISTANT_SOURCE_ALLOWLIST_LIMITS.maxPerTurn
+              ) {
+                return
+              }
+              setOperatorSourceAllowlist([...sourceAllowlist, token])
+            }}
+          >
+            <input
+              type="text"
+              inputMode="url"
+              data-testid="operator-plus-source-domain-input"
+              aria-label={t('plusMenu.sourcesDomainLabel')}
+              placeholder={t('plusMenu.sourcesDomainPlaceholder')}
+              value={domainDraft}
+              maxLength={ASSISTANT_SOURCE_ALLOWLIST_LIMITS.maxTokenChars}
+              onChange={(event) => setDomainDraft(event.target.value)}
+              className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1 text-2sm text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <button
+              type="submit"
+              data-testid="operator-plus-source-domain-add"
+              className="rounded-md px-2 py-1 text-3xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {t('plusMenu.sourcesDomainAdd')}
+            </button>
+          </form>
+          {sourceAllowlist.length > 0 ? (
+            <button
+              type="button"
+              data-testid="operator-plus-sources-clear"
+              onClick={() => setOperatorSourceAllowlist([])}
+              className="self-start rounded-md px-1.5 py-1 text-3xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              {t('plusMenu.sourcesClear')}
+            </button>
+          ) : null}
         </div>
       ) : (
         <div className="flex flex-col gap-1.5">

@@ -61,6 +61,20 @@ enum ContextCardKind {
   BRAND
 }
 
+/// 一条项目规则**是哪一种**（assistant-shell-v2 §9.3）。
+///
+/// ⚠ 来源白 / 黑名单复用这张表而不是另开一张：它已经有 userId / scope / source
+/// 三个维度，而来源名单要的正是这三个，且「这个项目只信官方设定集」本来就是
+/// 用户心里的一条项目规则。
+enum ProjectRuleKind {
+  /// 普通项目规则（v1 现状）—— text 是规则原文。
+  NOTE
+  /// 来源白名单 —— text 是一个来源 id（web / wiki / bilibili / danbooru）或域名。
+  SOURCE_ALLOW
+  /// 来源黑名单 —— text 同上，任何时候都过滤掉。
+  SOURCE_DENY
+}
+
 /// 一条项目规则是谁记下来的（规则薄卡上那行「来源：××」）。
 enum ProjectRuleSource {
   /// 助手在对话里通过 add_project_rule 记的。
@@ -766,14 +780,17 @@ model ProjectRule {
 
   /// null = 全域。非空时是一个域 id（image / video / lora）。
   scope  String?
-  /// 规则原文，规则薄卡上逐字展示。
+  /// 规则原文，规则薄卡上逐字展示。来源名单那两种 kind 里装的是来源 id 或域名。
   text   String            @db.Text
   /// 这条规则是谁记下来的 —— 助手在对话里记的，还是用户自己写的。
   source ProjectRuleSource
+  /// 普通规则 / 来源白名单 / 来源黑名单（§9.3）。存量行一律是普通规则。
+  kind   ProjectRuleKind   @default(NOTE)
 
   createdAt DateTime @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
+  @@index([userId, kind])
 }
 
 model ImageAnalysis {

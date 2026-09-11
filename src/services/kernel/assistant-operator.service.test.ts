@@ -274,6 +274,8 @@ function usePlanAlwaysPersona(): void {
 }
 
 const mockListProjectRules = vi.fn()
+/** 来源白 / 黑名单（v2 §9.3）—— 与上面那条分开：它是**另一条查询**。 */
+const mockListProjectSourceRules = vi.fn()
 const mockAddProjectRule = vi.fn()
 vi.mock('@/services/project-rule.service', async () => {
   const actual = await vi.importActual<
@@ -282,6 +284,8 @@ vi.mock('@/services/project-rule.service', async () => {
   return {
     ProjectRuleLimitError: actual.ProjectRuleLimitError,
     listProjectRules: (...args: unknown[]) => mockListProjectRules(...args),
+    listProjectSourceRules: (...args: unknown[]) =>
+      mockListProjectSourceRules(...args),
     addProjectRule: (...args: unknown[]) => mockAddProjectRule(...args),
   }
 })
@@ -513,6 +517,8 @@ beforeEach(() => {
     avatarUrl: null,
   })
   mockListProjectRules.mockResolvedValue([])
+  // 绝大多数用户没有来源名单 —— 默认空闸，要验名单的用例自己塞。
+  mockListProjectSourceRules.mockResolvedValue([])
   /**
    * ⚠ `clearAllMocks` 不清实现 —— 上一条用例桩过的卡表会漏进下一条
    * （表现是「一张常挂卡都没有」那条用例里印出了卡段）。与规则那一行同一条判据。
@@ -4843,6 +4849,8 @@ describe('项目规则（§10，拍板 23）', () => {
     expect(mockAddProjectRule).toHaveBeenCalledWith('user-db-1', {
       text: 'Skin tones stay warm.',
       scope: 'image',
+      // 缺省是普通规则（v2 §9.3）——来源名单要模型明说 kind。
+      kind: 'note',
       source: 'assistant',
     })
   })
@@ -9008,5 +9016,246 @@ describe('结论注入与 recall_evidence', () => {
         reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.evidenceRecallsExhausted,
       },
     })
+  })
+})
+
+/**
+ * **来源白 / 黑名单**（v2 §9.3，commit #17）。
+ *
+ * ⚠ 三条硬纪律逐条钉住：白名单非空时只打名单内的源、黑名单永远剔除、打不到时
+ * 如实说。⛔ 最容易「三绿而闸没了」的是第三条 —— 闸生效但助手把它讲成
+ * 「网上查不到」，而那句话是假的。
+ */
+describe('来源白 / 黑名单（v2 §9.3）', () => {
+  const SOURCE_ITEM = {
+    id: 'moegirl:shiye',
+    sourceId: 'moegirl' as const,
+    sourceTier: 'community' as const,
+    retrievedAt: '2026-09-11T00:00:00.000Z',
+    title: '萌娘百科 · 时夜',
+    url: 'https://zh.moegirl.org.cn/shiye',
+    kind: 'text' as const,
+    excerpt: '黑色长发。',
+  }
+  const PINTEREST_ITEM = {
+    ...SOURCE_ITEM,
+    id: 'web:pin',
+    sourceId: 'web_search' as const,
+    title: 'pin',
+    url: 'https://www.pinterest.com/pin/1',
+  }
+  const evidenceOf = (url: string) => ({
+    title: 'e',
+    url,
+    publisher: new URL(url).hostname,
+    snippet: 's',
+    kind: 'text' as const,
+    confidence: 'medium' as const,
+    credibility: 'reference' as const,
+    scope: 'character' as const,
+    corroboration: 1,
+  })
+
+  function rule(kind: string, text: string, id = `rule-${text}`) {
+    return {
+      id,
+      scope: null,
+      text,
+      kind,
+      source: 'creator',
+      createdAt: '2026-09-10T00:00:00.000Z',
+    }
+  }
+
+  function verifyTurn() {
+    return {
+      tool: {
+        name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research,
+        title: 'check the design',
+        args: { action: 'verify', goal: '外貌与服饰', entities: ['时夜'] },
+      },
+    }
+  }
+
+  it('白名单非空时只打名单内的源，⛔ 名单外的一个都不打', async () => {
+    mockListProjectSourceRules.mockResolvedValue([rule('sourceAllow', 'wiki')])
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: [],
+      sources: ['wiki'],
+      evidence: [evidenceOf('https://zh.moegirl.org.cn/shiye')],
+      items: [SOURCE_ITEM],
+      receipts: [{ sourceId: 'moegirl', status: 'ok', count: 1, tookMs: 3 }],
+    })
+    queueTurns(verifyTurn(), { finished: true })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    expect(mockRunAssistantResearch).toHaveBeenCalledWith(
+      expect.objectContaining({ sources: ['wiki'] }),
+    )
+  })
+
+  /** 「再多找几个源」也不例外：那颗按钮不是「我收回我设的名单」。 */
+  it('黑名单里的源与域名都被剔除（结果那一层也滤）', async () => {
+    mockListProjectSourceRules.mockResolvedValue([
+      rule('sourceDeny', 'pinterest.com'),
+      rule('sourceDeny', 'bilibili'),
+    ])
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: [],
+      sources: ['wiki', 'web'],
+      evidence: [
+        evidenceOf('https://zh.moegirl.org.cn/shiye'),
+        evidenceOf('https://www.pinterest.com/pin/1'),
+      ],
+      items: [SOURCE_ITEM, PINTEREST_ITEM],
+      receipts: [{ sourceId: 'moegirl', status: 'ok', count: 2, tookMs: 3 }],
+    })
+    queueTurns(verifyTurn(), { finished: true })
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    const result = done?.result as { totalFound: number; evidence: unknown[] }
+    expect(result.totalFound).toBe(1)
+    expect(result.evidence).toEqual([
+      expect.objectContaining({ publisher: 'zh.moegirl.org.cn' }),
+    ])
+    // 打源那一步就没带 bilibili（它在黑名单里）。
+    const call = mockRunAssistantResearch.mock.calls[0][0] as {
+      sources: string[]
+    }
+    expect(call.sources).not.toContain('bilibili')
+  })
+
+  it('名单把该打的源全滤光时如实说，⛔ 一个外部请求都不发', async () => {
+    mockListProjectSourceRules.mockResolvedValue([
+      rule('sourceAllow', 'bilibili'),
+    ])
+    queueTurns(verifyTurn(), { finished: true })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    expect(mockRunAssistantResearch).not.toHaveBeenCalled()
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('source list rules out every source')
+    expect(prompt).toContain('Do NOT search other sources anyway')
+  })
+
+  it('「+」菜单这一轮临时指的名单**顶掉**库里那份白名单', async () => {
+    mockListProjectSourceRules.mockResolvedValue([
+      rule('sourceAllow', 'bilibili'),
+    ])
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: [],
+      sources: ['wiki'],
+      evidence: [evidenceOf('https://zh.moegirl.org.cn/shiye')],
+      items: [SOURCE_ITEM],
+      receipts: [],
+    })
+    queueTurns(verifyTurn(), { finished: true })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ sourceAllowlist: ['wiki'] }),
+      ),
+    )
+
+    expect(mockRunAssistantResearch).toHaveBeenCalledWith(
+      expect.objectContaining({ sources: ['wiki'] }),
+    )
+  })
+
+  /** 黑名单顶不掉：屏蔽是「永远别给我这个站」，不是「这一轮先不要」。 */
+  it('临时名单不放宽黑名单', async () => {
+    mockListProjectSourceRules.mockResolvedValue([
+      rule('sourceDeny', 'danbooru'),
+    ])
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: [],
+      sources: ['wiki'],
+      evidence: [],
+      items: [],
+      receipts: [],
+    })
+    queueTurns(verifyTurn(), { finished: true })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ sourceAllowlist: ['wiki', 'danbooru'] }),
+      ),
+    )
+
+    const call = mockRunAssistantResearch.mock.calls[0][0] as {
+      sources: string[]
+    }
+    expect(call.sources).toEqual(['wiki'])
+  })
+
+  it('找图那一条同一个闸：黑名单里的站不出现在候选里', async () => {
+    mockListProjectSourceRules.mockResolvedValue([
+      rule('sourceDeny', 'pinterest.com'),
+    ])
+    mockIsWebImageSearchConfigured.mockReturnValue(true)
+    mockWebImageSearchMulti.mockResolvedValue([
+      {
+        imageUrl: 'https://i.pinimg.com/a.jpg',
+        pageUrl: 'https://www.pinterest.com/pin/1',
+        domain: 'pinterest.com',
+      },
+      {
+        imageUrl: 'https://zh.moegirl.org.cn/b.jpg',
+        pageUrl: 'https://zh.moegirl.org.cn/shiye',
+        domain: 'zh.moegirl.org.cn',
+      },
+    ])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research,
+          title: 'find pictures',
+          args: { action: 'find_images', query: 'shiye official art' },
+        },
+      },
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages &&
+        step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    const result = done?.result as {
+      totalFound: number
+      images: { domain?: string }[]
+    }
+    expect(result.totalFound).toBe(1)
+    expect(result.images[0].domain).toBe('zh.moegirl.org.cn')
+    expect(lastUserPrompt()).toContain('Source list in force')
+  })
+
+  it('名单进系统提示：模型看得见它，才说得出「是名单挡住的」', async () => {
+    mockListProjectSourceRules.mockResolvedValue([
+      rule('sourceAllow', 'wiki'),
+      rule('sourceDeny', 'pinterest.com'),
+    ])
+    queueTurns({ finished: true })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain('SOURCE LIST THIS CREATOR SET')
+    expect(prompt).toContain('only these sources: wiki')
+    expect(prompt).toContain('never these: pinterest.com')
   })
 })

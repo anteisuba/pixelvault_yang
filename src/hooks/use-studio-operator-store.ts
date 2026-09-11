@@ -147,6 +147,15 @@ export interface StudioOperatorState {
    */
   cardMentions: readonly StudioOperatorCardMention[]
   /**
+   * **这一轮只信这几个来源**（v2 §9.3 ·「+」菜单的「指定来源」）。
+   *
+   * ⚠ 与 `mentions` 同命：它属于用户此刻正在写的那条消息 —— 发出去就清，⛔ 不
+   * 写库。用户为一个问题临时指了几个源，不该变成他此后每一轮的规矩；要一直生效
+   * 的那份住在设置弹层的规则页里（`ProjectRule.kind`）。
+   * ⚠ 每一条是**来源 id 或域名**，与服务端收的是同一种东西。
+   */
+  sourceAllowlist: readonly string[]
+  /**
    * 结果行卡上被点中的那一格（§4.2「结果行卡：未选 / 已选 / 被 @」）。
    *
    * ⚠ 存 id 不存整条：那一批的内容来自宿主的在飞回流，每次轮询都是新对象，
@@ -259,6 +268,7 @@ const INITIAL_STATE: StudioOperatorState = {
   queue: [],
   mentions: [],
   cardMentions: [],
+  sourceAllowlist: [],
   selectedResultId: null,
   pendingResultId: null,
   planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
@@ -780,9 +790,33 @@ export function removeOperatorMention(id: string): void {
 
 /** 发出去之后清空 —— chip 属于**那一条消息**，不是一直挂着的设置。 */
 export function clearOperatorMentions(): void {
-  if (state.mentions.length === 0 && state.cardMentions.length === 0) return
-  // ⚠ 两排一起清：卡与图都属于刚发出去的那一条消息。
-  emit({ ...state, mentions: [], cardMentions: [] })
+  if (
+    state.mentions.length === 0 &&
+    state.cardMentions.length === 0 &&
+    state.sourceAllowlist.length === 0
+  ) {
+    return
+  }
+  // ⚠ 三排一起清：卡、图与这一轮指的来源都属于刚发出去的那一条消息。
+  emit({ ...state, mentions: [], cardMentions: [], sourceAllowlist: [] })
+}
+
+/**
+ * **这一轮只信这几个来源**（§9.3）——「+」菜单那一页按一下就整份换掉。
+ *
+ * ⚠ 收的是**整份名单**而不是逐条加：那一页本身就是一组多选，逐条加/减会让
+ * 「全清」变成一串 remove 调用。⛔ 不去重之外做任何清洗：token 的那把刀在
+ * schema 层（服务端照样再过一遍）。
+ */
+export function setOperatorSourceAllowlist(sources: readonly string[]): void {
+  const next = [...new Set(sources)]
+  if (
+    next.length === state.sourceAllowlist.length &&
+    next.every((item, index) => item === state.sourceAllowlist[index])
+  ) {
+    return
+  }
+  emit({ ...state, sourceAllowlist: next })
 }
 
 /**

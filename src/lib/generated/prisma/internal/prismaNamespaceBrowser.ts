@@ -485,6 +485,7 @@ export const ProjectRuleScalarFieldEnum = {
   scope: 'scope',
   text: 'text',
   source: 'source',
+  kind: 'kind',
   createdAt: 'createdAt'
 } as const
 

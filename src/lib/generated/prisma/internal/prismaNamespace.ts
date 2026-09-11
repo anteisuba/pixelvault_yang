@@ -4336,6 +4336,7 @@ export const ProjectRuleScalarFieldEnum = {
   scope: 'scope',
   text: 'text',
   source: 'source',
+  kind: 'kind',
   createdAt: 'createdAt'
 } as const
 
@@ -5088,6 +5089,20 @@ export type EnumProjectRuleSourceFieldRefInput<$PrismaModel> = FieldRefInputType
  * Reference to a field of type 'ProjectRuleSource[]'
  */
 export type ListEnumProjectRuleSourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProjectRuleSource[]'>
+    
+
+
+/**
+ * Reference to a field of type 'ProjectRuleKind'
+ */
+export type EnumProjectRuleKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProjectRuleKind'>
+    
+
+
+/**
+ * Reference to a field of type 'ProjectRuleKind[]'
+ */
+export type ListEnumProjectRuleKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ProjectRuleKind[]'>
     
 
 

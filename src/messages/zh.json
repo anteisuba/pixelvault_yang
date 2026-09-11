@@ -7629,10 +7629,22 @@
         "contextCard": "上下文卡",
         "source": "指定来源"
       },
-      "soon": "即将支持",
       "back": "返回",
       "cardsEmpty": "还没有角色 / 风格 / 品牌卡",
-      "cardsCreate": "新建一张卡"
+      "cardsCreate": "新建一张卡",
+      "sourcesHint": "只作用于这一轮，不会变成规则",
+      "sourcesPicked": "已选 {count} 个",
+      "sources": {
+        "web": "网络搜索",
+        "wiki": "百科（萌娘 / 维基 / Fandom）",
+        "bilibili": "B站",
+        "danbooru": "danbooru 标签库"
+      },
+      "sourcesRemove": "移除 {source}",
+      "sourcesDomainLabel": "添加一个域名",
+      "sourcesDomainPlaceholder": "域名，如 danbooru.donmai.us",
+      "sourcesDomainAdd": "添加",
+      "sourcesClear": "清空这一轮的来源"
     },
     "modelChip": {
       "label": "文本模型",
@@ -7779,7 +7791,16 @@
       "cardsProposedTitle": "助手提议的卡（{count}）",
       "cardsProposedHint": "它提议记下来的，存下才会进以后的对话。",
       "cardConfirm": "存下「{name}」",
-      "cardReject": "删掉「{name}」"
+      "cardReject": "删掉「{name}」",
+      "ruleAdd": "添加",
+      "ruleAddLabel": "新增一条规则",
+      "rulePlaceholderNote": "写一条一直生效的规矩",
+      "rulePlaceholderSource": "来源 id 或域名，如 danbooru.donmai.us",
+      "ruleKind": {
+        "note": "普通规则",
+        "sourceAllow": "只信这些来源",
+        "sourceDeny": "屏蔽这些来源"
+      }
     },
     "rule": {
       "recordedOn": "记于 {date}",

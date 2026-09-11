@@ -26,6 +26,12 @@ import {
   type AssistantPersonaTone,
   type AssistantPersonaVerbosity,
 } from '@/constants/assistant-persona'
+import {
+  PROJECT_RULE_KINDS,
+  PROJECT_RULE_KIND_IDS,
+  ASSISTANT_PROJECT_RULE_LIMITS,
+  type ProjectRuleKindId,
+} from '@/constants/assistant-operator'
 import { PROFILE } from '@/constants/config'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
@@ -92,9 +98,11 @@ import { ContextCardDialog } from '@/components/business/studio/assistant-operat
  *
  * ⚠ **不是「tab 只是装饰」**：规则薄卡上那颗「查看规则」要直接落到规则页
  * （§10「查看规则」），所以开哪一页必须是入参而不是内部 state。
- * ⚠ 规则页是**只读列表 + 删除**：新增规则的入口是助手那两条工具（`record_project_rule`）
- * 与用户在对话里说的话 —— ⛔ 这里不做「手写一条规则」的表单：规则的价值在于
- * 「它是从真实工作里长出来的」，一个空表单只会长出一堆想当然的条目。
+ * ⚠ 规则页此前是**只读列表 + 删除**，理由是「规则的价值在于它从真实工作里长
+ * 出来」——那条理由**对普通规则仍然成立**（它们照旧由助手在对话里记）。
+ * ⭐ v2 §9.3 加了新增那一行，判据是来源名单不一样：「只信官方设定集」是用户
+ * 自己的决定，没有哪句对话会让助手替他做，而它又必须是一条能一直生效的规则。
+ * ⛔ 新增那一行**必须带类型**：三种规则的后果完全不同。
  */
 export const ASSISTANT_SETTINGS_SECTIONS = {
   persona: 'persona',
@@ -210,9 +218,28 @@ export function AssistantSettingsDialog({
   const [tabOverride, setTabOverride] =
     useState<AssistantSettingsSection | null>(null)
   const tab = tabOverride ?? section
+  /** 新增那一行的两格状态（§9.3）。⚠ 类型默认普通规则 —— 最常见的那一种。 */
+  const [ruleDraft, setRuleDraft] = useState('')
+  const [ruleKind, setRuleKind] = useState<ProjectRuleKindId>(
+    PROJECT_RULE_KIND_IDS.note,
+  )
   const rules = useProjectRules({
     enabled: open && tab === ASSISTANT_SETTINGS_SECTIONS.rules,
   })
+  /**
+   * 同类相邻，组内仍是「最新的在前」（服务端那份排序）。
+   * ⚠ 稳定排序：`PROJECT_RULE_KINDS` 的次序就是显示次序，⛔ 不按字母排 ——
+   * 「普通规则」必须排第一，它是绝大多数用户唯一有的那一类。
+   */
+  const sortedRules = useMemo(
+    () =>
+      [...rules.rules].sort(
+        (a, b) =>
+          PROJECT_RULE_KINDS.indexOf(a.kind) -
+          PROJECT_RULE_KINDS.indexOf(b.kind),
+      ),
+    [rules.rules],
+  )
   /**
    * ⚠ 判据与规则页逐字同源：只在这一页开着时才拉一遍卡表。
    */
@@ -709,6 +736,68 @@ export function AssistantSettingsDialog({
                 <p className="text-md text-muted-foreground">
                   {t('rulesHint')}
                 </p>
+                {/*
+                  ⭐ **新增一条**（v2 §9.3）：这一页此前是只读的，因为普通规则从
+                    工作里长出来（助手记）。来源名单不一样 —— 「只信官方设定集」
+                    是用户自己的决定，没有哪句对话会让助手替他做。所以新增在这里，
+                    且**必须选类型**：三种规则的后果完全不同。
+                */}
+                <form
+                  data-testid="assistant-rule-add"
+                  className="flex flex-col gap-1.5"
+                  onSubmit={(event) => {
+                    event.preventDefault()
+                    const text = ruleDraft.trim()
+                    if (!text) return
+                    void rules.add({ text, kind: ruleKind }).then((ok) => {
+                      if (ok) setRuleDraft('')
+                    })
+                  }}
+                >
+                  <ToggleGroup
+                    type="single"
+                    value={ruleKind}
+                    onValueChange={(value) => {
+                      if (value) setRuleKind(value as ProjectRuleKindId)
+                    }}
+                    className="justify-start"
+                  >
+                    {PROJECT_RULE_KINDS.map((kind) => (
+                      <ToggleGroupItem
+                        key={kind}
+                        value={kind}
+                        data-testid={`assistant-rule-kind-${kind}`}
+                        aria-label={t(`ruleKind.${kind}`)}
+                        className="text-md"
+                      >
+                        {t(`ruleKind.${kind}`)}
+                      </ToggleGroupItem>
+                    ))}
+                  </ToggleGroup>
+                  <div className="flex items-center gap-1.5">
+                    <Input
+                      value={ruleDraft}
+                      data-testid="assistant-rule-input"
+                      aria-label={t('ruleAddLabel')}
+                      maxLength={ASSISTANT_PROJECT_RULE_LIMITS.maxTextChars}
+                      placeholder={
+                        ruleKind === PROJECT_RULE_KIND_IDS.note
+                          ? t('rulePlaceholderNote')
+                          : t('rulePlaceholderSource')
+                      }
+                      onChange={(event) => setRuleDraft(event.target.value)}
+                    />
+                    <Button
+                      type="submit"
+                      size="sm"
+                      variant="secondary"
+                      data-testid="assistant-rule-add-submit"
+                      disabled={!ruleDraft.trim()}
+                    >
+                      {t('ruleAdd')}
+                    </Button>
+                  </div>
+                </form>
                 {rules.isLoading ? (
                   <p className="flex items-center gap-1.5 text-md text-muted-foreground">
                     <Spinner size="sm" />
@@ -720,10 +809,17 @@ export function AssistantSettingsDialog({
                     {t('rulesEmpty')}
                   </p>
                 ) : null}
-                {rules.rules.map((rule) => (
+                {/*
+                  ⚠ **同类相邻 + 每条带类型标签**（§9.3）：三种规则的后果完全不同
+                    （一句话的约束 / 只打这几个源 / 永远不打这个源），乱序混成一列
+                    的表现是用户看不出自己到底设了一个多硬的闸。⛔ 不做成三段折叠：
+                    绝大多数用户只有普通规则那一段，两段空标题比乱序更吵。
+                */}
+                {sortedRules.map((rule) => (
                   <div
                     key={rule.id}
                     data-testid="assistant-rule-item"
+                    data-rule-kind={rule.kind}
                     className="flex items-start gap-2 rounded-r-md border-l-2 border-border bg-muted/40 px-3 py-2"
                   >
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
@@ -731,9 +827,16 @@ export function AssistantSettingsDialog({
                         {rule.text}
                       </p>
                       <p className="text-md text-muted-foreground">
-                        {tRule('recordedOn', {
-                          date: rule.createdAt.slice(0, 10),
-                        })}
+                        {rule.kind === PROJECT_RULE_KIND_IDS.note
+                          ? tRule('recordedOn', {
+                              date: rule.createdAt.slice(0, 10),
+                            })
+                          : `${t(`ruleKind.${rule.kind}`)} · ${tRule(
+                              'recordedOn',
+                              {
+                                date: rule.createdAt.slice(0, 10),
+                              },
+                            )}`}
                       </p>
                     </div>
                     {/* ⛔ 没有「编辑」：改一条规则 = 删掉再让助手记一条新的。

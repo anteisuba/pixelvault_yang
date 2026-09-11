@@ -80,7 +80,9 @@ import {
 } from '@/constants/assistant-persona'
 import {
   ASSISTANT_PROJECT_RULE_LIMITS as RULE_LIMITS,
+  PROJECT_RULE_KIND_IDS,
   PROJECT_RULE_SOURCE_IDS,
+  type ProjectRuleKindId,
 } from '@/constants/assistant-operator'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
 import { planVideoEndpointFrames } from '@/lib/video-frame-plan'
@@ -183,6 +185,7 @@ import {
   ProjectRuleLimitError,
   addProjectRule,
   listProjectRules,
+  listProjectSourceRules,
 } from '@/services/project-rule.service'
 /**
  * ⭐ 上下文卡（第三期 K1）。判据与上面两条逐字同源：一张只有文本列与一列 Json
@@ -248,6 +251,21 @@ import {
   runAssistantResearch,
   summarizeResearchConclusion,
 } from '@/services/research/research-fanout.service'
+/**
+ * **来源白 / 黑名单**（v2 §9.3）—— 名单在库里（上面那条 import），打源在扇出层，
+ * 「名单怎么变成一份源清单」这条判断住在这个纯函数模块里。
+ * ⛔ 别把它抄进查证与找图两处：那两处必须得出同一个答案，抄两份的表现是
+ * 「屏蔽掉的站在查证里不见了、在找图里照样出现」。
+ */
+import {
+  buildSourceRuleFilter,
+  describeSourceRules,
+  filterEvidenceIndices,
+  filterResearchSources,
+  hasSourceRules,
+  isWebImageAllowed,
+  type SourceRuleFilter,
+} from '@/services/research/research-source-rules.service'
 /**
  * **查证的改写 + 选源那一步**（v2 §9.1 ① ②，commit #16）。⭐ 判据与上一条同源：
  * 它调的是一次**便宜 LLM 的结构化输出**（把一句话磨成几条搜索词、判内容类型），
@@ -316,7 +334,12 @@ import {
 } from '@/types/assistant-operator'
 import type { AssistantConversationRoundStored } from '@/types/assistant-conversation'
 import type { OutputType, PromptAssistantResponseLanguage } from '@/types'
-import type { AssistantPersona, ProjectRule } from '@/types/assistant-persona'
+import {
+  ProjectRuleSourceTokenSchema,
+  isProjectRuleSourceKind,
+  type AssistantPersona,
+  type ProjectRule,
+} from '@/types/assistant-persona'
 import { toContextCardDigest, type ContextCard } from '@/types/context-cards'
 import type { ContextCardKindId } from '@/constants/context-cards'
 import { CONTEXT_CARD_LIMITS as CARD_LIMITS } from '@/constants/context-cards'
@@ -580,6 +603,14 @@ interface OperatorRun {
    * ⚠ 开跑前就把进系统提示的那几条塞进来（模型引用它们时不必先调工具）。
    */
   ruleIndex: Map<string, ProjectRule>
+  /**
+   * **这一轮只能打谁**（v2 §9.3）—— 库里的来源白 / 黑名单，并上「+」菜单这一轮
+   * 临时指的那几个（临时优先）。
+   *
+   * ⚠ 开跑前算一次就定死：名单是用户的决定，⛔ 不该在一轮里跟着模型改主意。
+   * 绝大多数用户这里是空闸（名单一条都没有），每一条过滤都短路。
+   */
+  sourceRules: SourceRuleFilter
   /**
    * 本轮见过的上下文卡（K1）。⚠ 与 `ruleIndex` 同一个用途：常挂那几张一开始就在
    * 索引里，模型引用它们不必先调一次工具。
@@ -1536,7 +1567,16 @@ function planSearchWebImages(
             )
             .map((entry) => entry.image)
         : found
-      const images = ordered.slice(0, limit).map((image) => {
+      /**
+       * ⭐ **来源白 / 黑名单同样管找图**（§9.3）：它整条就是网搜，所以只有域名
+       * 判据。⛔ 与查证共用同一个闸，不在这里另写一份 —— 两份的表现是
+       * 「屏蔽掉的站在查证里不见了、在找图里照样出现」。
+       */
+      const allowed = ordered.filter((image) =>
+        isWebImageAllowed(image.domain ?? image.pageUrl, run.sourceRules),
+      )
+      const blockedByRules = ordered.length - allowed.length
+      const images = allowed.slice(0, limit).map((image) => {
         /**
          * ⭐ 三字段在**服务端**算（切片 3b）：判定表是一份会长的常量，客户端算的
          * 表现是「同一张图在面板里说可用、在服务端拒了」——而那两句话用户都读得到。
@@ -1566,9 +1606,17 @@ function planSearchWebImages(
 
       // ⭐ 观察里**每次都要重申一遍「这只是预览」**：模型看到一串 URL 的第一反应
       //    是拿去用（挂参考 / 写进提示词），而那些地址在本仓里还不存在任何东西。
+      /** 被名单挡掉的那几张要说出来 —— 逐字同查证那条：静默的过滤等于没有闸。 */
+      const ruleLine = hasSourceRules(run.sourceRules)
+        ? `\nSource list in force — ${describeSourceRules(run.sourceRules)}${blockedByRules > 0 ? `; it ruled out ${blockedByRules} candidate(s) this search` : ''}. ⛔ Do not go looking for the same picture somewhere else.`
+        : ''
       const observation =
         images.length === 0
-          ? `search_web_images ran ${queries.length} quer${queries.length === 1 ? 'y' : 'ies'} (${queries.map((query) => `"${query}"`).join(' · ')}) and came back empty. Do not invent image URLs. One empty search is not an answer: change the wording — the character's name in its own language, the work's official title, or "subject" plus preferOfficial — and try once more before you tell the creator there is nothing.`
+          ? `search_web_images ran ${queries.length} quer${queries.length === 1 ? 'y' : 'ies'} (${queries.map((query) => `"${query}"`).join(' · ')}) and came back empty.${
+              blockedByRules > 0
+                ? ` ${blockedByRules} candidate(s) came back but the creator's source list rules them out — tell them plainly and offer to widen the list.`
+                : ''
+            }${ruleLine} Do not invent image URLs. One empty search is not an answer: change the wording — the character's name in its own language, the work's official title, or "subject" plus preferOfficial — and try once more before you tell the creator there is nothing.`
           : `search_web_images("${args.query}") → ${images.length} PREVIEW candidate(s) shown to the creator:\n${images
               .map(
                 (image, index) =>
@@ -1578,7 +1626,7 @@ function planSearchWebImages(
               )
               .join(
                 '\n',
-              )}\nThese are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the candidate (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url on the ones above that are not marked REFERENCE ONLY. ⛔ Never paste one of these URLs into a prompt, and never import one they did not ask for.`
+              )}\nThese are previews only — nothing was saved yet, so never say you did. Two ways one becomes a real reference: the creator presses "use this" on the candidate (that is the normal path — say which ones are worth keeping and let them pick), or, if they have ALREADY told you to attach them, you call import_user_url on the ones above that are not marked REFERENCE ONLY. ⛔ Never paste one of these URLs into a prompt, and never import one they did not ask for.${ruleLine}`
 
       /**
        * ⭐ 进准入名单（2026-09-06）：用户说「挂上」时，助手得有办法指着屏幕上
@@ -1793,11 +1841,49 @@ async function planResearch(
    * `expandSources` 打**全部**源组（含默认里没有的 B站）—— 用户按那颗按钮说的是
    * 「这几条来源不够」，答案是加源（§9.1 ③ / 证据卡）。
    */
-  const sources: readonly AssistantResearchSource[] = args.sources?.length
+  const requestedSources: readonly AssistantResearchSource[] = args.sources
+    ?.length
     ? args.sources
     : args.expandSources
       ? ASSISTANT_RESEARCH_SOURCES
       : rewrite.sources
+
+  /**
+   * ⭐ **来源白 / 黑名单压在最后**（§9.3）——它比上面那三条优先级都高，
+   * 「再多找几个源」也不例外：那颗按钮说的是「这几条不够」，⛔ 不是
+   * 「我收回我设的名单」。名单在这里就是硬闸。
+   */
+  const gate = filterResearchSources(requestedSources, run.sourceRules)
+  const sources = gate.sources
+  const ruleLine = hasSourceRules(run.sourceRules)
+    ? `\nSource list in force — ${describeSourceRules(run.sourceRules)}.`
+    : ''
+
+  /**
+   * 名单把这一题该打的源全滤光了。⭐ **如实说**（§9.3）：⛔ 不偷偷扩源、
+   * ⛔ 也不静默返回一份空结果 —— 空结果会让模型以为「这个问题查不到」然后开始编，
+   * 而真相是「你自己设的名单里没有能答这题的源」，那是用户一句话就能改的事。
+   * ⚠ 这一轮**不计数**：它一个外部请求都没发出去。
+   */
+  if (sources.length === 0) {
+    return {
+      kind: 'read',
+      payload: {
+        goal: clamp(args.goal, RESEARCH_LIMITS.maxGoalChars),
+        entities,
+        sources: [],
+        /**
+         * ⚠ 号是「本来会是第几轮」，而 `run.researchRounds` **不加** ——
+         * 这一轮一个外部请求都没发出去，⛔ 不该占掉用户的检索额度。
+         */
+        round,
+      },
+      run: async () => ({
+        result: { totalFound: 0, evidence: [] },
+        observation: `verify("${args.goal}") searched NOTHING: this creator's source list rules out every source this question needs (would have used ${gate.dropped.join(', ') || 'none'}).${ruleLine}\nSay this plainly — name the sources their list rules out and offer to look again if they widen it. ⛔ Do NOT search other sources anyway, and do NOT invent the answer.`,
+      }),
+    }
+  }
 
   /** ③ 并发印证 —— 扇出、去重、印证多的排前、单源打标（都在 fanout 里）。 */
   const outcome = await runAssistantResearch({
@@ -1818,11 +1904,22 @@ async function planResearch(
    * 等于让一条被用户打断的流在库里留下半份证据本，而打断即转向的前提正是
    * 「跑到一半的一轮不留痕」。
    */
-  if (outcome.items.length > 0) {
+  /**
+   * ⭐ **结果再按域名滤一遍**（§9.3 的另一半）：选源那一步管得住「打谁」，管不住
+   * 「打回来的是谁」—— 一次网搜的十条结果里可能有三条来自用户明确屏蔽的站。
+   * ⚠ 投影与原件**逐项同序**（`research-fanout` 的契约），所以按下标滤两份，
+   * ⛔ 不各滤各的：两边错位的表现是证据卡上的编号指到另一条证据上。
+   */
+  const keptIndices = filterEvidenceIndices(outcome.items, run.sourceRules)
+  const blockedByRules = outcome.items.length - keptIndices.length
+  const keptItems = keptIndices.map((index) => outcome.items[index]!)
+  const keptEvidence = keptIndices.map((index) => outcome.evidence[index]!)
+
+  if (keptItems.length > 0) {
     run.roundLedger.evidence.push({
       goal: clamp(args.goal, RESEARCH_LIMITS.maxGoalChars),
       queries: outcome.queries,
-      items: outcome.items,
+      items: keptItems,
       receipts: outcome.receipts,
     })
   }
@@ -1840,13 +1937,13 @@ async function planResearch(
       conversationId,
     })
   }
-  const evidence = outcome.evidence.map((item, index) => {
+  const evidence = keptEvidence.map((item, index) => {
     const seq = run.evidenceRefSeq
     if (seq === null || seq === undefined) return item
     return { ...item, evidenceRef: `${EVIDENCE_REF_PREFIX}${seq + index}` }
   })
   if (typeof run.evidenceRefSeq === 'number') {
-    run.evidenceRefSeq += outcome.items.length
+    run.evidenceRefSeq += keptItems.length
   }
   /** 结论一行 —— 印证最多、层级最高的那一条怎么说（⛔ 不另烧一次 LLM）。 */
   const conclusion = summarizeResearchConclusion(evidence)
@@ -1902,12 +1999,26 @@ async function planResearch(
    * 词、铺了哪几种语言、选了哪几组源。⛔ 别把它并进证据那一段 —— 查不到东西时
    * 要答的第一个问题正是「它到底拿什么词、去哪儿查的」。
    */
-  const chainLine = `verify("${args.goal}") · rewrote into ${outcome.queries.length} phrase(s) [${outcome.queries.join(' | ')}] in ${rewrite.langs.join('/') || 'zh'} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''}`
+  /**
+   * ⚠ 被名单挡掉的那几条**写进链路行**：不写的表现是「打回来 10 条、屏幕上 4 条」
+   * 而谁都说不出另外 6 条去哪了 —— 而那正是用户自己设的闸在生效的唯一证据。
+   */
+  const gateLine =
+    gate.dropped.length > 0 || blockedByRules > 0
+      ? ` · source list dropped ${gate.dropped.length} source(s)${gate.dropped.length > 0 ? ` (${gate.dropped.join(', ')})` : ''} and ${blockedByRules} result(s)`
+      : ''
+  const chainLine = `verify("${args.goal}") · rewrote into ${outcome.queries.length} phrase(s) [${outcome.queries.join(' | ')}] in ${rewrite.langs.join('/') || 'zh'} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''}${gateLine}${ruleLine}`
   const observation =
     evidence.length === 0
       ? `${chainLine}\nfound nothing. Sources: ${receiptLine}.${
+          blockedByRules > 0
+            ? ` ${blockedByRules} result(s) came back but the creator's source list rules them out — say so plainly, ⛔ do not quote them.`
+            : ''
+        }${
           roundsLeft > 0
-            ? ' Do NOT give up and do NOT invent details. Go again from a different angle: the name written in its own language, the work\'s official title instead of a fan translation, or a different source mix (sources:["web"] reaches sites the encyclopedias do not).'
+            ? hasSourceRules(run.sourceRules)
+              ? " Do NOT give up and do NOT invent details. Go again from a different angle (the name written in its own language, the official title instead of a fan translation) — but ⛔ stay inside the creator's source list: if the answer is not in there, say so and offer to widen it."
+              : ' Do NOT give up and do NOT invent details. Go again from a different angle: the name written in its own language, the work\'s official title instead of a fan translation, or a different source mix (sources:["web"] reaches sites the encyclopedias do not).'
             : ' You are out of research rounds. Say plainly which parts you could not confirm instead of inventing them — a plain "the official design is not published" is a real answer; "I am still searching" is not.'
         }`
       : `${chainLine}\n→ ${evidence.length} piece(s) of evidence (round ${round}/${RESEARCH_LIMITS.maxRoundsPerTurn}), ${characterEvidence.length} of them about the character itself. Sources: ${receiptLine}.\n${evidence
@@ -4155,11 +4266,32 @@ function planReadProjectRules(
  */
 async function planAddProjectRule(
   run: OperatorRun,
-  args: { text: string; scope?: AssistantOperatorDomain },
+  args: {
+    text: string
+    scope?: AssistantOperatorDomain
+    kind?: ProjectRuleKindId
+  },
   userId: string,
 ): Promise<ToolPlan> {
   const scope = args.scope ?? null
-  const text = args.text.trim()
+  const kind = args.kind ?? PROJECT_RULE_KIND_IDS.note
+  /**
+   * ⭐ 来源名单那两种的 `text` 是**来源 id 或域名**（§9.3），所以过的是同一把刀
+   * （`ProjectRuleSourceTokenSchema`）。⚠ 在**规划器**拒而不是 schema 拒：
+   * 规划器拒 = 模型读得到理由还能改口（「只信官方站」→ 问用户要那个域名），
+   * schema 拒 = 这一轮整个作废（文件头注 ②）。
+   */
+  let text = args.text.trim()
+  if (isProjectRuleSourceKind(kind)) {
+    const token = ProjectRuleSourceTokenSchema.safeParse(text)
+    if (!token.success) {
+      return reject(
+        REJECT.unknownValue,
+        `A ${kind} rule holds ONE source id (${ASSISTANT_RESEARCH_SOURCES.join(' / ')}) or ONE domain (e.g. danbooru.donmai.us) — not a sentence. Ask the creator which site they mean, or record it as a plain rule instead.`,
+      )
+    }
+    text = token.data
+  }
 
   /**
    * ⚠ 同一句话记两遍**在这里拒**：`executedStepKeys` 按参数比对，模型换一个标点
@@ -4179,6 +4311,7 @@ async function planAddProjectRule(
     rule = await addProjectRule(userId, {
       text,
       scope,
+      kind,
       source: PROJECT_RULE_SOURCE_IDS.assistant,
     })
   } catch (error) {
@@ -4199,11 +4332,16 @@ async function planAddProjectRule(
       ruleId: rule.id,
       scope: rule.scope,
       text: rule.text,
+      kind: rule.kind,
       source: rule.source,
       createdAt: rule.createdAt,
     },
     inverse: { ruleId: rule.id },
-    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}). It now applies to ${rule.scope ?? 'every workbench'}. Do not record it again.`,
+    observation: `add_project_rule recorded "${rule.text}" (id=${rule.id}) as ${rule.kind}. It now applies to ${rule.scope ?? 'every workbench'}.${
+      isProjectRuleSourceKind(rule.kind)
+        ? ' Source lists take effect from the NEXT turn (this turn already picked its sources) — say so instead of promising it applies right now.'
+        : ''
+    } Do not record it again.`,
     // 后果已经落在库里了 —— 客户端这一步没有任何表单字段要改。
     apply: () => {},
   }
@@ -4837,9 +4975,15 @@ function buildPersonaStyleSection(persona: AssistantPersona): string {
  * 而模型只给 id —— 原文由服务端从这张表里查出来填（转述过的规则就不是规则了）。
  */
 function buildProjectRulesSection(rules: readonly ProjectRule[]): string {
-  if (rules.length === 0) return ''
+  /**
+   * ⚠ 来源名单那两种**不在这一段里**（§9.3）：它们的 `text` 是一个域名，摆进
+   * 「用户写下的规矩」里读起来是一条没头没脑的规则，而它真正该说的事
+   * （「只打这几个源」）由 `buildSourceRulesSection` 说。
+   */
+  const notes = rules.filter((rule) => !isProjectRuleSourceKind(rule.kind))
+  if (notes.length === 0) return ''
 
-  const lines = rules
+  const lines = notes
     .map(
       (rule) =>
         `  - [${rule.id}] (${rule.scope ?? 'all workbenches'}, recorded ${rule.createdAt.slice(0, 10)}) ${rule.text}`,
@@ -4851,6 +4995,25 @@ ${lines}
 - Whenever one of these actually shaped what you did or said, put its id in "ruleHits" for that turn. The app shows the creator the rule you followed, in their own words.
 - Cite only ids from the list above (or from a read_project_rules result this turn). Never invent one, and never re-word a rule — quote it by id and let the app print it.
 - When the creator states a NEW standing rule, record it with add_project_rule. A one-off instruction for this run is not a standing rule.`
+}
+
+/**
+ * **来源白 / 黑名单**段（v2 §9.3）—— 这一轮查证与找图能打谁。
+ *
+ * ⭐ **为什么进系统提示而不是只做服务端的闸**：闸只能让它打不到，而用户要的是
+ * 「打不到时如实说」。模型看不见名单的表现是它把一次被名单挡住的检索讲成
+ * 「网上查不到」—— 那句话是假的，而用户改一下名单就能查到。
+ */
+function buildSourceRulesSection(filter: SourceRuleFilter): string {
+  if (!hasSourceRules(filter)) return ''
+
+  return `\n\nSOURCE LIST THIS CREATOR SET — ${describeSourceRules(filter)}.
+- verify and find_images obey it on the server: sources outside the list are never searched, and results from them are dropped before you see them.
+- ⛔ Never work around it. If the answer is not reachable inside the list, say exactly that — name the list, say what you could not confirm, and offer to look again if they widen it. "I could not find it" alone is a lie when the list is what blocked it.${
+    filter.allowlistIsTemporary
+      ? '\n- This allowlist was chosen for THIS turn from the "+" menu, so it is not saved. Do not tell the creator it is now a standing rule.'
+      : ''
+  }`
 }
 
 /**
@@ -5052,6 +5215,8 @@ function buildOperatorSystemPrompt(
   request: AssistantOperatorRequest,
   persona: AssistantPersona,
   rules: readonly ProjectRule[],
+  /** 这一轮的来源白 / 黑名单（§9.3）—— 库里那份并上「+」菜单临时指的那几个。 */
+  sourceRules: SourceRuleFilter,
   contextCards: readonly ContextCard[],
   /** 开跑那一刻手上的那几件（§7.6：服务端派生，⛔ 不再由客户端上送）。 */
   artifacts: readonly AssistantOperatorWorkingMemoryArtifact[],
@@ -5212,7 +5377,7 @@ HOW YOU TALK — the creator hired an operator, not a rulebook:
     creator.accountName,
     contextCards,
     creator.preference,
-  )}${buildProjectRulesSection(rules)}${buildContextCardsSection(contextCards)}${buildWorkingMemorySection(artifacts)}${buildRoundMemorySection(rounds)}
+  )}${buildProjectRulesSection(rules)}${buildSourceRulesSection(sourceRules)}${buildContextCardsSection(contextCards)}${buildWorkingMemorySection(artifacts)}${buildRoundMemorySection(rounds)}
 
 TOOLS:
 ${tools}
@@ -5950,40 +6115,54 @@ export async function* runAssistantOperator(
    * ⭐ 它排在路由解析**之前**（v2 §4.5）：文本模型选哪一档现在住在
    * `persona.routeModel`，路由要等它读回来才知道该找哪把 key。
    */
-  const [persona, rules, contextCards, priorRounds, creativePreference] =
-    await Promise.all([
-      getAssistantPersonaByUserId(user.id),
-      listProjectRules(user.id, {
-        scope: request.domain,
-        limit: RULE_LIMITS.maxInPrompt,
-      }),
-      /**
-       * 常挂在**当前域**上的上下文卡（K1）。⚠ 按 `pinnedScopes` 命中收敛，
-       * ⛔ 不把用户全部的卡拼进提示 —— 常挂那颗开关的全部意义就是「这台工作台上
-       * 带哪几张」，全带等于没有这颗开关。没挂的那些靠 `list_context_cards` 翻。
-       */
-      listContextCards(user.id, {
-        pinnedScope: request.domain,
-        limit: CARD_LIMITS.maxInPrompt,
-      }),
-      /**
-       * ⭐ **之前几轮记住的事**（§7.6）—— 与 persona / 规则 / 卡同一档：开跑前读
-       * 一次，⛔ 不在每一步重读（系统提示每一步都重发，但它每一步都是同一份）。
-       * ⚠ 没有 `conversationId`（这条线程还没落过库 / 老客户端）时就是空的 ——
-       * 那一轮照常跑，只是没有跨轮记忆可注入。
-       */
-      request.conversationId
-        ? listAssistantConversationRounds(user.id, request.conversationId, {
-            limit: ROUND_LIMITS.maxRoundsInPrompt,
-          })
-        : [],
-      /**
-       * ⭐ 学出来的创作偏好（§8.3）—— 与上面四样同一档：开跑前读一次。
-       * ⚠ 这张表**多数用户是空的**（它由生成反馈那条路慢慢喂），缺行时是 `null`，
-       * 「关于这位创作者」那一段照样拼得出来（只是少那几行）。
-       */
-      getCreativePreferenceDigest(user.id),
-    ])
+  const [
+    persona,
+    rules,
+    sourceRules,
+    contextCards,
+    priorRounds,
+    creativePreference,
+  ] = await Promise.all([
+    getAssistantPersonaByUserId(user.id),
+    listProjectRules(user.id, {
+      scope: request.domain,
+      limit: RULE_LIMITS.maxInPrompt,
+    }),
+    /**
+     * ⭐ **来源白 / 黑名单单独读一次**（v2 §9.3）。
+     *
+     * ⚠ ⛔ 不并进上面那条：那一条按 `maxInPrompt` 截最近 12 条，而名单一条都不
+     * 能少 —— 被截掉的那一条在用户眼里仍然是「我设过的闸」，静默失效的表现是
+     * 助手照常去打那个站，而用户永远不会知道。
+     */
+    listProjectSourceRules(user.id, { scope: request.domain }),
+    /**
+     * 常挂在**当前域**上的上下文卡（K1）。⚠ 按 `pinnedScopes` 命中收敛，
+     * ⛔ 不把用户全部的卡拼进提示 —— 常挂那颗开关的全部意义就是「这台工作台上
+     * 带哪几张」，全带等于没有这颗开关。没挂的那些靠 `list_context_cards` 翻。
+     */
+    listContextCards(user.id, {
+      pinnedScope: request.domain,
+      limit: CARD_LIMITS.maxInPrompt,
+    }),
+    /**
+     * ⭐ **之前几轮记住的事**（§7.6）—— 与 persona / 规则 / 卡同一档：开跑前读
+     * 一次，⛔ 不在每一步重读（系统提示每一步都重发，但它每一步都是同一份）。
+     * ⚠ 没有 `conversationId`（这条线程还没落过库 / 老客户端）时就是空的 ——
+     * 那一轮照常跑，只是没有跨轮记忆可注入。
+     */
+    request.conversationId
+      ? listAssistantConversationRounds(user.id, request.conversationId, {
+          limit: ROUND_LIMITS.maxRoundsInPrompt,
+        })
+      : [],
+    /**
+     * ⭐ 学出来的创作偏好（§8.3）—— 与上面四样同一档：开跑前读一次。
+     * ⚠ 这张表**多数用户是空的**（它由生成反馈那条路慢慢喂），缺行时是 `null`，
+     * 「关于这位创作者」那一段照样拼得出来（只是少那几行）。
+     */
+    getCreativePreferenceDigest(user.id),
+  ])
 
   /**
    * ⭐ **这一轮用哪个脑子，唯一真值是 persona**（v2 §4.5，commit #8）。
@@ -6035,6 +6214,15 @@ export async function* runAssistantOperator(
     persona,
     // 进了系统提示的那几条一开始就在索引里 —— 引用它们不必先调一次工具。
     ruleIndex: new Map(rules.map((rule) => [rule.id, rule])),
+    /**
+     * ⭐ **名单在开跑前就并好**（§9.3）：库里那份 + 这一轮临时指的那几个。
+     * ⛔ 临时那份不写库 —— 用户为一个问题临时指了几个源，不该变成他此后每一轮
+     * 的规矩。
+     */
+    sourceRules: buildSourceRuleFilter(
+      sourceRules,
+      request.sourceAllowlist ?? [],
+    ),
     // 进了系统提示的那几张卡一开始就在索引里 —— 引用它们不必先调一次工具。
     contextCardIndex: new Map(contextCards.map((card) => [card.id, card])),
     state: toWorkingState(request.snapshot),
@@ -6085,6 +6273,7 @@ export async function* runAssistantOperator(
     request,
     persona,
     rules,
+    run.sourceRules,
     contextCards,
     initialMemoryArtifacts(request),
     priorRounds,

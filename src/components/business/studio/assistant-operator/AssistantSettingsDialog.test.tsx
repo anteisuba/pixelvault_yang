@@ -45,13 +45,20 @@ vi.mock('@/hooks/use-assistant-persona', () => ({
   }),
 }))
 
-/** 规则页在本文件里只是「另一页」，拉不拉规则跟这几条断言无关。 */
+/**
+ * 规则页（§10 + v2 §9.3 的来源名单）—— 规则表与两条写腿都桩住：
+ * 这一层要验的是「新增那一行发出去的是什么、列表怎么摆」，不是那条 fetch。
+ */
+const addRule = vi.hoisted(() => vi.fn(async () => true))
+const removeRule = vi.hoisted(() => vi.fn(async () => true))
+const rulesState = vi.hoisted(() => ({ current: [] as unknown[] }))
 vi.mock('@/hooks/use-project-rules', () => ({
   useProjectRules: () => ({
-    rules: [],
+    rules: rulesState.current,
     isLoading: false,
     error: null,
-    remove: vi.fn(),
+    add: addRule,
+    remove: removeRule,
     reload: vi.fn(),
   }),
 }))
@@ -449,5 +456,73 @@ describe('助手设置 · 上下文卡页（切片 Y）', () => {
       />,
     )
     expect(screen.queryByTestId('assistant-context-card-pin')).toBeNull()
+  })
+})
+
+/**
+ * 来源白 / 黑名单在**设置弹层**这一侧（v2 §9.3）：新增时能选类型，列表上同类
+ * 相邻且每条印着自己的类型。
+ */
+describe('助手设置 · 项目规则页的来源名单（v2 §9.3）', () => {
+  beforeEach(() => {
+    rulesState.current = []
+    addRule.mockClear()
+    removeRule.mockClear()
+  })
+
+  it('新增一条来源白名单：类型随着那一次 add 一起发出去', async () => {
+    render(
+      <AssistantSettingsDialog
+        open
+        onOpenChange={vi.fn()}
+        section={ASSISTANT_SETTINGS_SECTIONS.rules}
+      />,
+    )
+
+    fireEvent.click(screen.getByTestId('assistant-rule-kind-sourceAllow'))
+    fireEvent.change(screen.getByTestId('assistant-rule-input'), {
+      target: { value: 'danbooru.donmai.us' },
+    })
+    fireEvent.click(screen.getByTestId('assistant-rule-add-submit'))
+
+    await waitFor(() => expect(addRule).toHaveBeenCalledTimes(1))
+    expect(addRule).toHaveBeenCalledWith({
+      text: 'danbooru.donmai.us',
+      kind: 'sourceAllow',
+    })
+  })
+
+  /** 乱序混成一列时用户看不出自己设了多硬的闸 —— 普通规则排第一。 */
+  it('列表同类相邻，每条带自己的类型', () => {
+    rulesState.current = [
+      {
+        id: 'rule-deny',
+        scope: null,
+        text: 'pinterest.com',
+        kind: 'sourceDeny',
+        source: 'creator',
+        createdAt: '2026-09-10T00:00:00.000Z',
+      },
+      {
+        id: 'rule-note',
+        scope: null,
+        text: '画面里不要出现文字',
+        kind: 'note',
+        source: 'assistant',
+        createdAt: '2026-09-09T00:00:00.000Z',
+      },
+    ]
+    render(
+      <AssistantSettingsDialog
+        open
+        onOpenChange={vi.fn()}
+        section={ASSISTANT_SETTINGS_SECTIONS.rules}
+      />,
+    )
+
+    const kinds = screen
+      .getAllByTestId('assistant-rule-item')
+      .map((item) => item.getAttribute('data-rule-kind'))
+    expect(kinds).toEqual(['note', 'sourceDeny'])
   })
 })

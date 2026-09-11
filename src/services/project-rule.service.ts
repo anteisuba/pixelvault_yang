@@ -3,14 +3,20 @@ import 'server-only'
 import { db } from '@/lib/db'
 import {
   ASSISTANT_PROJECT_RULE_LIMITS,
+  PROJECT_RULE_KIND_IDS,
   PROJECT_RULE_SOURCE_IDS,
+  PROJECT_RULE_SOURCE_KINDS,
+  type ProjectRuleKindId,
   type ProjectRuleSourceId,
 } from '@/constants/assistant-operator'
 import { ensureUser } from '@/services/user.service'
-import type { ProjectRuleSource } from '@/lib/generated/prisma/client'
+import type {
+  ProjectRuleKind as DbProjectRuleKind,
+  ProjectRuleSource,
+} from '@/lib/generated/prisma/client'
 import {
   ProjectRuleSchema,
-  type CreateProjectRuleRequest,
+  type CreateProjectRuleInput,
   type ProjectRule,
 } from '@/types/assistant-persona'
 
@@ -40,10 +46,24 @@ const ID_BY_DB_SOURCE: Record<ProjectRuleSource, ProjectRuleSourceId> = {
   CREATOR: PROJECT_RULE_SOURCE_IDS.creator,
 }
 
+/** 同上，规则**是哪一种**那一列（§9.3）。⛔ 两处都不许写字面量。 */
+const DB_KIND_BY_ID: Record<ProjectRuleKindId, DbProjectRuleKind> = {
+  [PROJECT_RULE_KIND_IDS.note]: 'NOTE',
+  [PROJECT_RULE_KIND_IDS.sourceAllow]: 'SOURCE_ALLOW',
+  [PROJECT_RULE_KIND_IDS.sourceDeny]: 'SOURCE_DENY',
+}
+
+const ID_BY_DB_KIND: Record<DbProjectRuleKind, ProjectRuleKindId> = {
+  NOTE: PROJECT_RULE_KIND_IDS.note,
+  SOURCE_ALLOW: PROJECT_RULE_KIND_IDS.sourceAllow,
+  SOURCE_DENY: PROJECT_RULE_KIND_IDS.sourceDeny,
+}
+
 function toRule(row: {
   id: string
   scope: string | null
   text: string
+  kind: DbProjectRuleKind
   source: ProjectRuleSource
   createdAt: Date
 }): ProjectRule | null {
@@ -57,6 +77,7 @@ function toRule(row: {
     id: row.id,
     scope: row.scope,
     text: row.text,
+    kind: ID_BY_DB_KIND[row.kind],
     source: ID_BY_DB_SOURCE[row.source],
     createdAt: row.createdAt.toISOString(),
   })
@@ -67,6 +88,7 @@ const RULE_SELECT = {
   id: true,
   scope: true,
   text: true,
+  kind: true,
   source: true,
   createdAt: true,
 } as const
@@ -80,13 +102,21 @@ const RULE_SELECT = {
  */
 export async function listProjectRules(
   userId: string,
-  options: { scope?: string | null; limit?: number } = {},
+  options: {
+    scope?: string | null
+    limit?: number
+    /** 只要这几种（§9.3）。缺省 = 全都要。 */
+    kinds?: readonly ProjectRuleKindId[]
+  } = {},
 ): Promise<ProjectRule[]> {
   const rows = await db.projectRule.findMany({
     where: {
       userId,
       ...(options.scope
         ? { OR: [{ scope: options.scope }, { scope: null }] }
+        : {}),
+      ...(options.kinds?.length
+        ? { kind: { in: options.kinds.map((kind) => DB_KIND_BY_ID[kind]) } }
         : {}),
     },
     orderBy: { createdAt: 'desc' },
@@ -126,7 +156,7 @@ export class ProjectRuleLimitError extends Error {
  */
 export async function addProjectRule(
   userId: string,
-  input: CreateProjectRuleRequest,
+  input: CreateProjectRuleInput,
 ): Promise<ProjectRule> {
   const count = await db.projectRule.count({ where: { userId } })
   if (count >= ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser) {
@@ -138,6 +168,7 @@ export async function addProjectRule(
       userId,
       scope: input.scope ?? null,
       text: input.text,
+      kind: DB_KIND_BY_ID[input.kind ?? PROJECT_RULE_KIND_IDS.note],
       source: DB_SOURCE_BY_ID[input.source ?? PROJECT_RULE_SOURCE_IDS.creator],
     },
     select: RULE_SELECT,
@@ -155,7 +186,7 @@ export async function addProjectRule(
 /** 同上，但从 clerkId 起跳。 */
 export async function addProjectRuleForClerkId(
   clerkId: string,
-  input: CreateProjectRuleRequest,
+  input: CreateProjectRuleInput,
 ): Promise<ProjectRule> {
   const user = await ensureUser(clerkId)
   return addProjectRule(user.id, input)
@@ -174,4 +205,23 @@ export async function deleteProjectRule(
     where: { id: ruleId, userId: user.id },
   })
   return count > 0
+}
+
+/**
+ * **来源白 / 黑名单**那两种规则（§9.3）。
+ *
+ * ⚠ 与系统提示那次读**分开一条查询**：那一次按 `maxInPrompt` 截最近 12 条，而
+ * 名单一条都不能少 —— 被截掉的那一条在用户眼里仍然是「我设过的闸」，静默失效
+ * 的表现是助手照常去打那个站，而用户永远不会知道。
+ * ⚠ `scope` 的语义与上面那条逐字同源：该域的 + 全域的。
+ */
+export async function listProjectSourceRules(
+  userId: string,
+  options: { scope?: string | null } = {},
+): Promise<ProjectRule[]> {
+  return listProjectRules(userId, {
+    ...options,
+    kinds: PROJECT_RULE_SOURCE_KINDS,
+    limit: ASSISTANT_PROJECT_RULE_LIMITS.maxPerUser,
+  })
 }

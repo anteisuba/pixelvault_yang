@@ -55,6 +55,15 @@ export const ContextCardKind = {
 export type ContextCardKind = (typeof ContextCardKind)[keyof typeof ContextCardKind]
 
 
+export const ProjectRuleKind = {
+  NOTE: 'NOTE',
+  SOURCE_ALLOW: 'SOURCE_ALLOW',
+  SOURCE_DENY: 'SOURCE_DENY'
+} as const
+
+export type ProjectRuleKind = (typeof ProjectRuleKind)[keyof typeof ProjectRuleKind]
+
+
 export const ProjectRuleSource = {
   ASSISTANT: 'ASSISTANT',
   CREATOR: 'CREATOR'

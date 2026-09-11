@@ -73,6 +73,12 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    */
   '@/services/research/research-fanout.service',
   /**
+   * **来源白 / 黑名单的那把闸**（v2 §9.3）。判据是这份名单里最干净的一条：它是
+   * **纯函数** —— 名单进去、一份源清单出来。不读库（名单由 `project-rule.service`
+   * 读）、不打任何源（打源在扇出层）、不下载一个字节。
+   */
+  '@/services/research/research-source-rules.service',
+  /**
    * **查证的改写 + 选源那一步**（assistant-shell-v2 §9.1 ① ②，commit #16）。
    * ⭐ 判据与扇出那条同源：它跑一次便宜 LLM 的结构化输出（把一句话磨成几条搜索
    * 词、判内容类型），出的是几个字符串 —— 不建 generation、不扣 credit、不落字节，

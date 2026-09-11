@@ -4,6 +4,11 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useRef, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import {
+  getOperatorState,
+  setOperatorSourceAllowlist,
+} from '@/hooks/use-studio-operator-store'
+
 import { StudioOperatorPlusMenu } from './StudioOperatorPlusMenu'
 
 /**
@@ -12,8 +17,9 @@ import { StudioOperatorPlusMenu } from './StudioOperatorPlusMenu'
  * ⚠ 最容易以「三绿而功能没了」的方式回退的是「提及素材」——它不弹自己的选择器，
  * 而是插一个 `@` 把 `MentionInput` 现有那颗唤出来。断言钉的是**回调真的被调到**，
  * 不是「这块 DOM 还在」。
- * ⚠ 「指定来源」本轮**必须是停用**的：白 / 黑名单是 commit #17。可点但什么都不
- * 发生就是本仓明令不许的死按钮。
+ * ⚠ 「指定来源」（commit #17）落的是**单轮临时白名单**：选中的那几个进 store，
+ * 随这一轮的请求上送、发完即清。断言钉的是 store 真的被写进去了，⛔ 不是
+ * 「这块 DOM 还在」。
  */
 
 /**
@@ -110,6 +116,8 @@ describe('StudioOperatorPlusMenu · v2 §4.4「+」菜单三项', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockUseContextCards.mockImplementation(stubContextCards([CARD]))
+    // ⚠ 名单是 module 级 store —— 用例之间不清会互相串。
+    setOperatorSourceAllowlist([])
   })
 
   it('只有三项：提及素材 / 上下文卡 / 指定来源，⛔ 没有「附件」', () => {
@@ -142,13 +150,45 @@ describe('StudioOperatorPlusMenu · v2 §4.4「+」菜单三项', () => {
     expect(onDismiss).toHaveBeenCalledTimes(1)
   })
 
-  it('「指定来源」本轮停用（commit #17 才接白 / 黑名单）—— ⛔ 不是死按钮', () => {
+  it('「指定来源」打开单轮名单页：勾一个源 = 进 store（⛔ 不写库）', () => {
     render(<StudioOperatorPlusMenu {...defaultProps} />)
 
-    const item = screen.getByTestId(
-      'operator-plus-item-source',
-    ) as HTMLButtonElement
-    expect(item.disabled).toBe(true)
+    fireEvent.click(screen.getByTestId('operator-plus-item-source'))
+    fireEvent.click(screen.getByTestId('operator-plus-source-danbooru'))
+
+    expect(getOperatorState().sourceAllowlist).toEqual(['danbooru'])
+    expect(
+      screen
+        .getByTestId('operator-plus-source-danbooru')
+        .getAttribute('aria-checked'),
+    ).toBe('true')
+  })
+
+  it('域名框收的是**域名**：协议头与路径被剥掉，再点一下移除', () => {
+    render(<StudioOperatorPlusMenu {...defaultProps} />)
+
+    fireEvent.click(screen.getByTestId('operator-plus-item-source'))
+    fireEvent.change(screen.getByTestId('operator-plus-source-domain-input'), {
+      target: { value: 'https://Danbooru.donmai.us/posts' },
+    })
+    fireEvent.click(screen.getByTestId('operator-plus-source-domain-add'))
+
+    expect(getOperatorState().sourceAllowlist).toEqual(['danbooru.donmai.us'])
+
+    fireEvent.click(
+      screen.getByTestId('operator-plus-source-domain-danbooru.donmai.us'),
+    )
+    expect(getOperatorState().sourceAllowlist).toEqual([])
+  })
+
+  it('「清空这一轮的来源」把名单整份清掉', () => {
+    setOperatorSourceAllowlist(['web', 'example.com'])
+    render(<StudioOperatorPlusMenu {...defaultProps} />)
+
+    fireEvent.click(screen.getByTestId('operator-plus-item-source'))
+    fireEvent.click(screen.getByTestId('operator-plus-sources-clear'))
+
+    expect(getOperatorState().sourceAllowlist).toEqual([])
   })
 
   it('「上下文卡」列出卡表，点一张 = 挂上并收起', async () => {

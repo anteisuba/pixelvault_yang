@@ -723,7 +723,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * 旧助手线（`use-assistant-conversation`）也是把历史原样带回上下文的。
        * ⚠ 只带最后几条对白（`historyToOperatorMessages` 自己截），显示是全部。
        */
-      const { entries, history, sessionId } = getOperatorState()
+      const { entries, history, sessionId, sourceAllowlist } =
+        getOperatorState()
       const mentionedAssets = buildMentionedAssets(entries, domain)
       const messages = [
         ...historyToOperatorMessages(history),
@@ -827,6 +828,14 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            */
           ...(sessionId ? { conversationId: sessionId } : {}),
           ...(videoFrames ? { videoFrames } : {}),
+          /**
+           * ⭐ **这一轮指定的来源**（v2 §9.3）——「+」菜单点的那几个，只作用于
+           * 本轮。⚠ 服务端把它与库里那份白名单并起来时**临时的优先**；⛔ 客户端
+           * 不写库，也不替服务端做合并：名单是闸，闸只有一个地方说了算。
+           */
+          ...(sourceAllowlist.length
+            ? { sourceAllowlist: [...sourceAllowlist] }
+            : {}),
           ...(confirmations?.length ? { confirmations } : {}),
           ...(planAnswers?.length ? { planAnswers } : {}),
           ...(planApproved === undefined ? {} : { planApproved }),

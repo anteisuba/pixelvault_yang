@@ -6,6 +6,8 @@
 @source not "../../.codex-dev.err.log";
 @source not "../../.codex-dev.out.log";
 @source not "../../.gstack";
+@source not "../../workers";
+@source not "../../.playwright-cli";
 
 @custom-variant dark (&:is(.dark *));
 

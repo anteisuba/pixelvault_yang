@@ -4,32 +4,30 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useRef, useState } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { buildGenerationDisplayName } from '@/lib/generation-name'
 import { StudioOperatorAttachMenu } from './StudioOperatorAttachMenu'
 
-const defaultProps = {
-  onAttach: vi.fn(),
-  onDismiss: vi.fn(),
-  onUploadFiles: vi.fn(),
-  triggerRef: { current: null },
-}
-
 /**
- * 拍板 20 的回归闸：📎 面板的「打开完整素材库」**就地开弹层，不跳页**。
+ * v2 §4.4 的回归闸：输入区「+」菜单**三项，不多不少**。
  *
- * ⚠ 这条最容易以「三绿而功能没了」的方式回退 —— 把 `<button>` 换回
- * `<Link href={ROUTES.ASSETS}>` 编译期一个字都不红，只有真机点下去才发现整个
- * 工作台没了。所以这里同时钉住**没有指向 /assets 的链接**这一面。
+ * ⚠ 最容易以「三绿而功能没了」的方式回退的是「提及素材」——它不弹自己的选择器，
+ * 而是插一个 `@` 把 `MentionInput` 现有那颗唤出来。断言钉的是**回调真的被调到**，
+ * 不是「这块 DOM 还在」。
+ * ⚠ 「指定来源」本轮**必须是停用**的：白 / 黑名单是 commit #17。可点但什么都不
+ * 发生就是本仓明令不许的死按钮。
  */
 
-const mockFetchGalleryImages = vi.hoisted(() => vi.fn())
+/**
+ * ⚠ 挡在 **hook** 这一层而不是 `@/lib/api-client` 的桶文件：桶文件一 mock 就要
+ * 把整份导出补齐，而这颗组件只认 `useContextCards()` 给的那三格。
+ */
+const mockUseContextCards = vi.hoisted(() => vi.fn())
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-vi.mock('@/lib/api-client/gallery', () => ({
-  fetchGalleryImages: mockFetchGalleryImages,
+vi.mock('@/hooks/use-context-cards', () => ({
+  useContextCards: mockUseContextCards,
 }))
 
 vi.mock('next/image', () => ({
@@ -43,58 +41,41 @@ vi.mock('@/components/ui/spinner', () => ({
   Spinner: () => <span data-testid="spinner" />,
 }))
 
-interface DialogMockProps {
-  open: boolean
-  onSelect?: (generation: unknown) => void
+vi.mock(
+  '@/components/business/studio/assistant-operator/ContextCardDialog',
+  () => ({
+    ContextCardDialog: ({ open }: { open: boolean }) =>
+      open ? (
+        <div data-testid="context-card-dialog" data-slot="dialog-content" />
+      ) : null,
+  }),
+)
+
+const defaultProps = {
+  onDismiss: vi.fn(),
+  onPickMention: vi.fn(),
+  onPickCard: vi.fn(),
+  triggerRef: { current: null },
 }
 
-vi.mock('@/components/business/AssetSelectorDialog', () => ({
-  AssetSelectorDialog: ({ open, onSelect }: DialogMockProps) =>
-    open ? (
-      <div data-testid="asset-selector-dialog" data-slot="dialog-content">
-        <button
-          type="button"
-          onClick={() =>
-            onSelect?.({
-              id: 'gen-video',
-              url: 'https://cdn.example.com/clip.mp4',
-              thumbnailUrl: null,
-              prompt: '借伞 30 秒',
-              model: 'seedance',
-              outputType: 'VIDEO',
-              // 库里那个真计数器（切片 N1）——名字与 `@` 指认都只认它。
-              seq: 42,
-            })
-          }
-        >
-          pick-video
-        </button>
-      </div>
-    ) : null,
-}))
+const CARD = {
+  id: 'card-1',
+  name: '阿岚',
+  kind: 'character',
+  summary: '',
+  body: '',
+  negative: '',
+  images: [],
+  pinnedScopes: [],
+}
 
-function galleryResponse() {
-  return {
-    success: true,
-    data: {
-      generations: [
-        {
-          id: 'gen-image',
-          url: 'https://cdn.example.com/a.png',
-          thumbnailUrl: null,
-          prompt: '角色立绘',
-          model: 'seedream',
-          outputType: 'IMAGE',
-          seq: 7,
-        },
-      ],
-      page: 1,
-      limit: 6,
-      total: 1,
-      hasMore: false,
-      nextCursor: null,
-    },
-  }
+/** `useContextCards({ enabled })` 的最小替身 —— 记下它被怎么调的。 */
+function stubContextCards(cards: readonly unknown[]) {
+  return (options: { enabled?: boolean } = {}) => ({
+    cards: options.enabled === false ? [] : cards,
+    isLoading: false,
+    error: null,
+  })
 }
 
 function KeyboardDismissHarness({ onDismiss }: { onDismiss(): void }) {
@@ -116,7 +97,7 @@ function KeyboardDismissHarness({ onDismiss }: { onDismiss(): void }) {
       <button
         ref={triggerRef}
         type="button"
-        data-operator-attach-trigger
+        data-operator-plus-trigger
         onClick={() => setOpen(true)}
       >
         trigger
@@ -125,80 +106,102 @@ function KeyboardDismissHarness({ onDismiss }: { onDismiss(): void }) {
   )
 }
 
-describe('StudioOperatorAttachMenu · 拍板 20 就地素材库弹层', () => {
+describe('StudioOperatorAttachMenu · v2 §4.4「+」菜单三项', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockFetchGalleryImages.mockResolvedValue(galleryResponse())
+    mockUseContextCards.mockImplementation(stubContextCards([CARD]))
   })
 
-  it('「打开完整素材库」是就地弹层，不是跳去 /assets 的链接', async () => {
+  it('只有三项：提及素材 / 上下文卡 / 指定来源，⛔ 没有「附件」', () => {
     render(<StudioOperatorAttachMenu {...defaultProps} />)
 
-    const trigger = await screen.findByTestId('operator-attach-open-library')
-    // ⛔ 任何 <a href> 都算跳页 —— 这就是 owner 真机点验时打回的那个形态。
-    expect(document.querySelectorAll('a[href]')).toHaveLength(0)
-    expect(screen.queryByTestId('asset-selector-dialog')).toBeNull()
-
-    fireEvent.click(trigger)
-    expect(screen.getByTestId('asset-selector-dialog')).toBeTruthy()
+    expect(screen.getByTestId('operator-plus-item-mention')).toBeTruthy()
+    expect(screen.getByTestId('operator-plus-item-contextCard')).toBeTruthy()
+    expect(screen.getByTestId('operator-plus-item-source')).toBeTruthy()
+    // 上传有自己那颗回形针按钮，⛔ 不在菜单里
+    expect(screen.queryByTestId('operator-attach-upload')).toBeNull()
+    expect(screen.queryByTestId('operator-attach-file-input')).toBeNull()
+    expect(
+      screen.getByTestId('operator-plus-menu').querySelectorAll('button'),
+    ).toHaveLength(3)
   })
 
-  it('弹层里选中 = 挂载为附件（与 6 格「点即挂」同一语义），且视频不拿 url 当缩略图', async () => {
-    const onAttach = vi.fn()
-    render(<StudioOperatorAttachMenu {...defaultProps} onAttach={onAttach} />)
+  it('「提及素材」唤出 @ 选择器并收起菜单（⛔ 不在这里再画一份选择器）', () => {
+    const onPickMention = vi.fn()
+    const onDismiss = vi.fn()
+    render(
+      <StudioOperatorAttachMenu
+        {...defaultProps}
+        onPickMention={onPickMention}
+        onDismiss={onDismiss}
+      />,
+    )
 
-    fireEvent.click(await screen.findByTestId('operator-attach-open-library'))
-    fireEvent.click(screen.getByText('pick-video'))
+    fireEvent.click(screen.getByTestId('operator-plus-item-mention'))
+    expect(onPickMention).toHaveBeenCalledTimes(1)
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+  })
 
-    expect(onAttach).toHaveBeenCalledTimes(1)
-    expect(onAttach.mock.calls[0]?.[0]).toEqual({
-      id: 'gen-video',
-      url: 'https://cdn.example.com/clip.mp4',
-      // ⭐ 切片 N1：附件 label 是产物名（`视频_042·借伞 30 秒`），身份段来自
-      //   库里那个真计数器 —— ⛔ 不是从 id 派生的号。
-      label: buildGenerationDisplayName({
-        seq: 42,
-        outputType: 'VIDEO',
-        prompt: '借伞 30 秒',
-      }),
-      kind: 'video',
-      seq: 42,
+  it('「指定来源」本轮停用（commit #17 才接白 / 黑名单）—— ⛔ 不是死按钮', () => {
+    render(<StudioOperatorAttachMenu {...defaultProps} />)
+
+    const item = screen.getByTestId(
+      'operator-plus-item-source',
+    ) as HTMLButtonElement
+    expect(item.disabled).toBe(true)
+  })
+
+  it('「上下文卡」列出卡表，点一张 = 挂上并收起', async () => {
+    const onPickCard = vi.fn()
+    const onDismiss = vi.fn()
+    render(
+      <StudioOperatorAttachMenu
+        {...defaultProps}
+        onPickCard={onPickCard}
+        onDismiss={onDismiss}
+      />,
+    )
+
+    // ⚠ 进了卡片档才拉卡表：一打开就拉等于每点一次「+」都打一发请求。
+    expect(mockUseContextCards.mock.calls[0]?.[0]).toEqual({ enabled: false })
+    fireEvent.click(screen.getByTestId('operator-plus-item-contextCard'))
+    await waitFor(() =>
+      expect(
+        mockUseContextCards.mock.calls.some(
+          (call: unknown[]) =>
+            (call[0] as { enabled?: boolean } | undefined)?.enabled === true,
+        ),
+      ).toBe(true),
+    )
+
+    const chip = await screen.findByText('阿岚')
+    fireEvent.click(chip)
+
+    expect(onPickCard).toHaveBeenCalledTimes(1)
+    expect(onPickCard.mock.calls[0]?.[0]).toEqual({
+      cardId: 'card-1',
+      name: '阿岚',
+      kind: 'character',
     })
-    // 视频没有缩略图时**不给** thumbnailUrl —— 回落到 url 会让 next/image 碎掉。
-    expect(onAttach.mock.calls[0]?.[0]).not.toHaveProperty('thumbnailUrl')
+    expect(onDismiss).toHaveBeenCalledTimes(1)
   })
 
-  it('6 格瓦片点一下就挂（图片自己当缩略图）', async () => {
-    const onAttach = vi.fn()
-    render(<StudioOperatorAttachMenu {...defaultProps} onAttach={onAttach} />)
+  it('一张卡都没有时给的是「新建一张」这条下一步，⛔ 不摆白板', async () => {
+    mockUseContextCards.mockImplementation(stubContextCards([]))
+    render(<StudioOperatorAttachMenu {...defaultProps} />)
 
-    const tiles = await screen.findAllByTestId('operator-attach-tile')
-    fireEvent.click(tiles[0]!)
+    fireEvent.click(screen.getByTestId('operator-plus-item-contextCard'))
+    const create = await screen.findByTestId('operator-plus-card-create')
 
-    await waitFor(() => expect(onAttach).toHaveBeenCalledTimes(1))
-    expect(onAttach.mock.calls[0]?.[0]).toEqual({
-      id: 'gen-image',
-      url: 'https://cdn.example.com/a.png',
-      label: buildGenerationDisplayName({
-        seq: 7,
-        outputType: 'IMAGE',
-        prompt: '角色立绘',
-      }),
-      kind: 'image',
-      thumbnailUrl: 'https://cdn.example.com/a.png',
-      seq: 7,
-    })
+    fireEvent.click(create)
+    expect(screen.getByTestId('context-card-dialog')).toBeTruthy()
   })
 
-  it('点击附件面板外会收起，面板内部与素材库弹层内部不会误关', async () => {
+  it('点击菜单外会收起，菜单内与卡片弹层内不会误关', async () => {
     const onDismiss = vi.fn()
     render(
       <div>
-        <button
-          type="button"
-          data-testid="trigger"
-          data-operator-attach-trigger
-        >
+        <button type="button" data-testid="trigger" data-operator-plus-trigger>
           trigger
         </button>
         <button type="button" data-testid="outside">
@@ -208,14 +211,15 @@ describe('StudioOperatorAttachMenu · 拍板 20 就地素材库弹层', () => {
       </div>,
     )
 
-    fireEvent.pointerDown(screen.getByTestId('operator-attach-menu'))
+    fireEvent.pointerDown(screen.getByTestId('operator-plus-menu'))
     expect(onDismiss).not.toHaveBeenCalled()
 
     fireEvent.pointerDown(screen.getByTestId('trigger'))
     expect(onDismiss).not.toHaveBeenCalled()
 
-    fireEvent.click(await screen.findByTestId('operator-attach-open-library'))
-    fireEvent.pointerDown(screen.getByTestId('asset-selector-dialog'))
+    fireEvent.click(screen.getByTestId('operator-plus-item-contextCard'))
+    fireEvent.click(await screen.findByTestId('operator-plus-card-create'))
+    fireEvent.pointerDown(screen.getByTestId('context-card-dialog'))
     expect(onDismiss).not.toHaveBeenCalled()
 
     fireEvent.pointerDown(screen.getByTestId('outside'))
@@ -229,12 +233,12 @@ describe('StudioOperatorAttachMenu · 拍板 20 就地素材库弹层', () => {
     fireEvent.click(screen.getByText('trigger'))
 
     expect(document.activeElement).toBe(
-      screen.getByTestId('operator-attach-upload'),
+      screen.getByTestId('operator-plus-item-mention'),
     )
 
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(onDismiss).toHaveBeenCalledTimes(1)
-    expect(screen.queryByTestId('operator-attach-menu')).toBeNull()
+    expect(screen.queryByTestId('operator-plus-menu')).toBeNull()
     await waitFor(() =>
       expect(document.activeElement).toBe(screen.getByText('trigger')),
     )
@@ -253,83 +257,5 @@ describe('StudioOperatorAttachMenu · 拍板 20 就地素材库弹层', () => {
     } finally {
       window.removeEventListener('keydown', studioEscapeLadder)
     }
-  })
-})
-
-/**
- * P3-A 的回归闸：上传区**不是装饰**。
- *
- * ⚠ owner 2026-08-30 真机点验时打回的就是这一条 —— 「拖进来，或点击上传」
- * 长得完全正常，点下去什么都不发生。它在编译期与测试里都不会红（一个没有
- * `onClick` 的 `<div>` 是完全合法的），所以这里钉的是**两个手势各自真的接到了
- * 那一个函数**，而不是「这块 DOM 还在」。
- */
-describe('StudioOperatorAttachMenu · P3-A 上传三通道', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockFetchGalleryImages.mockResolvedValue(galleryResponse())
-  })
-
-  it('点击上传区 = 打开文件选择器（owner 打回的那条：点了没反应）', async () => {
-    render(<StudioOperatorAttachMenu {...defaultProps} />)
-
-    const input = screen.getByTestId('operator-attach-file-input')
-    const openPicker = vi.spyOn(input, 'click')
-
-    fireEvent.click(screen.getByTestId('operator-attach-upload'))
-    expect(openPicker).toHaveBeenCalledTimes(1)
-  })
-
-  it('选中文件 → 交给同一条上传通道，并清空 input（否则同一个文件选第二次没反应）', () => {
-    const onUploadFiles = vi.fn()
-    render(
-      <StudioOperatorAttachMenu
-        {...defaultProps}
-        onUploadFiles={onUploadFiles}
-      />,
-    )
-
-    const input = screen.getByTestId(
-      'operator-attach-file-input',
-    ) as HTMLInputElement
-    const file = new File(['x'], 'shot.png', { type: 'image/png' })
-    fireEvent.change(input, { target: { files: [file] } })
-
-    expect(onUploadFiles).toHaveBeenCalledTimes(1)
-    expect(onUploadFiles.mock.calls[0]?.[0]).toHaveLength(1)
-    expect(onUploadFiles.mock.calls[0]?.[0][0].name).toBe('shot.png')
-    expect(input.value).toBe('')
-  })
-
-  it('拖进来 = 同一条通道（accept 不参与判定，类型闸在通道里按 MIME 走）', () => {
-    const onUploadFiles = vi.fn()
-    render(
-      <StudioOperatorAttachMenu
-        {...defaultProps}
-        onUploadFiles={onUploadFiles}
-      />,
-    )
-
-    const zone = screen.getByTestId('operator-attach-upload')
-    const file = new File(['x'], 'clip.mp4', { type: 'video/mp4' })
-    fireEvent.drop(zone, { dataTransfer: { files: [file] } })
-
-    expect(onUploadFiles).toHaveBeenCalledTimes(1)
-    expect(onUploadFiles.mock.calls[0]?.[0][0].name).toBe('clip.mp4')
-  })
-
-  it('空的 drop 不触发上传（拖一段文字进来不该凭空冒出一件上传）', () => {
-    const onUploadFiles = vi.fn()
-    render(
-      <StudioOperatorAttachMenu
-        {...defaultProps}
-        onUploadFiles={onUploadFiles}
-      />,
-    )
-
-    fireEvent.drop(screen.getByTestId('operator-attach-upload'), {
-      dataTransfer: { files: [] },
-    })
-    expect(onUploadFiles).not.toHaveBeenCalled()
   })
 })

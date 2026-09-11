@@ -7602,15 +7602,7 @@
       "checkStyle": "查一下这个画风"
     },
     "attach": {
-      "label": "附件：上传 / 素材库 / 粘贴",
-      "uploadTitle": "拖进来，或点击上传",
-      "uploadHint": "图片 · 音频 · 视频",
-      "libraryLabel": "素材库 · 最近",
-      "openLibrary": "打开完整素材库",
-      "libraryDialogTitle": "从素材库挑一条挂上",
-      "libraryDialogDescription": "点一下就挂到下一条消息上，不离开工作台。",
-      "libraryEmpty": "素材库还是空的",
-      "pasteHint": "也可以把图片直接粘贴到输入框 — 会以附件形式出现在上面",
+      "label": "上传图片 / 音频 / 视频",
       "remove": "摘掉这个附件",
       "upload": {
         "compressing": "图太大，正在压到能传的尺寸…",
@@ -7624,6 +7616,18 @@
         "retry": "重试这次上传",
         "waiting": "还有文件在传 —— 传完就能发"
       }
+    },
+    "plusMenu": {
+      "label": "更多：提及素材 / 上下文卡 / 指定来源",
+      "items": {
+        "mention": "提及素材",
+        "contextCard": "上下文卡",
+        "source": "指定来源"
+      },
+      "soon": "即将支持",
+      "back": "返回",
+      "cardsEmpty": "还没有角色 / 风格 / 品牌卡",
+      "cardsCreate": "新建一张卡"
     },
     "web": {
       "candidates": "联网候选 · 预览，还没进你的库",
@@ -7661,11 +7665,6 @@
         "end": "末"
       }
     },
-    "askFirst": {
-      "label": "先问我",
-      "hint": "本轮先出计划卡，等你确认再动手"
-    },
-    "placeholderAskFirst": "说一句你想要什么 —— 本轮先出计划卡",
     "queue": {
       "badge": "已排队",
       "hint": "下一个停顿点处理",

@@ -894,8 +894,6 @@ export const AssistantOperatorRequestSchema = z.object({
    *  · 缺席    = 这一轮压根没出过计划卡。
    */
   planApproved: z.boolean().optional(),
-  /** 输入区那颗「先问我」（§3.3）。开着 = 本轮无条件先出计划卡。 */
-  forcePlan: z.boolean().optional(),
   /**
    * 从上一份没跑完的计划**接着跑**（第三期）。见 schema 头注。
    *

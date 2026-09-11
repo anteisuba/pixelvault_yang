@@ -39,8 +39,33 @@ export const STUDIO_OPERATOR_PANEL_RESIZE = {
  */
 export const STUDIO_OPERATOR_CLEAR_CONFIRM_MS = 3000
 
-/** 📎 附件面板里素材库就地预览摆几格（拍板 16：一屏 6 格，不做「按钮→弹窗」两跳）。 */
-export const STUDIO_OPERATOR_ATTACH_TILE_COUNT = 6
+/**
+ * 输入区「+」菜单的三项（v2 §4.4）。
+ *
+ * ⚠ **「附件」不在这张表里**：上传有自己那颗回形针按钮，塞进菜单等于把最常用的
+ * 那一下藏到两跳之后。
+ * ⚠ 顺序就是菜单从上到下的顺序（画板 BCards「+」展开态），⛔ 别在组件里再排一次。
+ */
+export const STUDIO_OPERATOR_PLUS_MENU_IDS = {
+  /** 唤出 `@` 选择器 —— 插一个 `@` 并把焦点还给输入框。 */
+  mention: 'mention',
+  /** 挂一张角色 / 风格 / 品牌卡。 */
+  contextCard: 'contextCard',
+  /** 本轮限定检索来源（白 / 黑名单接在 v2 §9.3，commit #17）。 */
+  source: 'source',
+} as const
+
+export const STUDIO_OPERATOR_PLUS_MENU_ITEMS = [
+  STUDIO_OPERATOR_PLUS_MENU_IDS.mention,
+  STUDIO_OPERATOR_PLUS_MENU_IDS.contextCard,
+  STUDIO_OPERATOR_PLUS_MENU_IDS.source,
+] as const
+
+export type StudioOperatorPlusMenuId =
+  (typeof STUDIO_OPERATOR_PLUS_MENU_ITEMS)[number]
+
+/** 「+」菜单里那份上下文卡列表最多摆几张（再多就滚，⛔ 不做分页）。 */
+export const STUDIO_OPERATOR_PLUS_CARD_LIMIT = 12
 
 /**
  * 归属票的保质期（P3-C，拍板 4）—— 领了票多久还没等到新的一批就作废。

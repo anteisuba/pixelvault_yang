@@ -1,134 +1,99 @@
 'use client'
 
 /**
- * 📎 附件面板（拍板 16）。
+ * 输入区「+」菜单（v2 §4.4 · 画板 BCards「+」展开态）。
  *
- * ⭐ **素材库就地预览，不做「按钮→弹窗」两跳**（台账 B 条的教训）：一屏 6 格，
- * 点一下就挂到下一条消息上。
+ * ⭐ **三项，不多不少**：提及素材 / 上下文卡 / 指定来源。
+ * ⛔ **「附件」不在这里**：上传搬到了下行那颗回形针按钮上（v2 §4.4 的「上行文本框 /
+ * 下行 `+` · 上传 · 模型 chip · 发送」）—— 最常用的一下不该藏在两跳之后。
  *
- * ⭐ **「打开完整素材库」也不跳页**（拍板 20，owner 2026-08-30 真机点验后定）：
- * 它开的是现有的 `AssetSelectorDialog`（工作台参考图入口今天用的就是这一颗），
- * 单选模式 —— 点一张瓦片 = 立刻挂上并关闭，与 6 格「点即挂」是同一个手势。
- * 6 格是「最近」，弹层是「全部」，两者列的东西不同、语义完全一致。
- * ⛔ 不 `Link` 去 `/assets`：跳走等于把用户正在写的这一轮对话扔掉。
+ * ⭐ **提及素材不另造选择器**：它插一个 `@` 再把焦点还给输入框，弹出来的是
+ * `MentionInput` 现有的那一颗（v1 的五入口一条管线，见 `use-studio-operator-mention`）。
+ * 在这里再画一份「挑一张图」的界面，就是第二条会分叉的引用链。
  *
- * ⭐ **上传区是真的**（P3-A）：点它开文件选择器、往它上面拖也算数，两条路
- * 与输入框的粘贴一起，落点都是 `useStudioOperatorUpload().uploadFiles` 那一个
- * 函数 —— 三个手势一条通道。⛔ 别在这里另起一条 fetch：请求体里不许出现文件
- * 字节（台账 BG）。
+ * ⭐ **上下文卡就地列**：`useContextCards()` 的那一份，点一张 = `pickCard` 挂上
+ * 并关掉菜单，与 chip 的摘除钮是同一排。一张都没有时给的是「新建一张」这条
+ * 下一步（`ContextCardDialog`），⛔ 不摆白板。
  *
- * ⚠ 上传状态**不住在这里**：这块面板挑完就关（`onAttach` 会让宿主收起它），
- * 而一次视频上传可能跑几分钟。进行中 / 失败的 chip 长在输入框上方，state 在
- * dock 层 —— 与草稿、附件同一个理由（P2 收尾修的那个真 bug）。
+ * ⚠ **指定来源本轮不可点**：白 / 黑名单是 commit #17 的事（v2 §9.3）。它带着
+ * 「即将支持」的说明停用，⛔ 不做点了没反应的死按钮。
  */
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  type DragEvent,
-  type RefObject,
-} from 'react'
-import { Box, ClipboardPaste, Images, Music, Play, Upload } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
+import { AtSign, IdCard, Plus, Search } from 'lucide-react'
 import { motion, useReducedMotion } from 'motion/react'
-import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
 import {
-  STUDIO_OPERATOR_ATTACH_TILE_COUNT,
-  STUDIO_OPERATOR_UPLOAD_ACCEPT,
+  STUDIO_OPERATOR_PLUS_CARD_LIMIT,
+  STUDIO_OPERATOR_PLUS_MENU_IDS,
+  STUDIO_OPERATOR_PLUS_MENU_ITEMS,
+  type StudioOperatorPlusMenuId,
 } from '@/constants/studio-assistant-operator'
-import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
-import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
-import { fetchGalleryImages } from '@/lib/api-client/gallery'
+import { ContextCardChip } from '@/components/business/studio/assistant-operator/ContextCardChip'
+import { ContextCardDialog } from '@/components/business/studio/assistant-operator/ContextCardDialog'
+import { useContextCards } from '@/hooks/use-context-cards'
 import { Spinner } from '@/components/ui/spinner'
-import { Button } from '@/components/ui/button'
 import { motionTransition } from '@/constants/motion'
 import { cn } from '@/lib/utils'
-import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
+import type { ContextCard } from '@/types/context-cards'
+import type { StudioOperatorCardMention } from '@/types/studio-assistant-operator'
 
-/**
- * 没有缩略图时画的那枚字形 —— 碎图标比没有图更糟。
- * 6 格与输入区上方的附件 chip 共用它（两处画法不一致就是两处各写一遍的味道）。
- */
-export function AttachKindGlyph({
-  kind,
-}: {
-  kind: StudioOperatorAttachment['kind']
-}) {
-  if (kind === 'audio') return <Music className="size-3.5" aria-hidden />
-  if (kind === 'model3d') return <Box className="size-3.5" aria-hidden />
-  return <Play className="size-3.5" aria-hidden />
+export const STUDIO_OPERATOR_PLUS_MENU_ID = 'studio-operator-plus-menu'
+
+const MENU_ICONS: Record<StudioOperatorPlusMenuId, typeof AtSign> = {
+  [STUDIO_OPERATOR_PLUS_MENU_IDS.mention]: AtSign,
+  [STUDIO_OPERATOR_PLUS_MENU_IDS.contextCard]: IdCard,
+  [STUDIO_OPERATOR_PLUS_MENU_IDS.source]: Search,
 }
 
 interface StudioOperatorAttachMenuProps {
-  onAttach(attachment: StudioOperatorAttachment): void
   onDismiss(): void
   triggerRef: RefObject<HTMLButtonElement | null>
-  /**
-   * 上传三通道的入口。
-   *
-   * ⚠ **必传，不是可选** —— 可选 prop 漏传的表现是「编译全绿、测试全过、
-   * 点上传区没反应」，也就是 owner 2026-08-30 真机点验时打回的那个形态。
-   * 让编译器替我们盯着它。
-   */
-  onUploadFiles(files: readonly File[]): void
+  /** 唤出 `@` 选择器（插 `@` + 聚焦输入框）。 */
+  onPickMention(): void
+  /** 挂一张上下文卡 —— 落到 `useStudioOperatorMention().pickCard` 那一条。 */
+  onPickCard(card: StudioOperatorCardMention): void
+  /** 当前工作台的域 id —— 新建卡时的「常挂到这里」认它。 */
+  scope?: string
 }
 
-export const STUDIO_OPERATOR_ATTACH_MENU_ID = 'studio-operator-attach-menu'
+function toCardMention(card: ContextCard): StudioOperatorCardMention {
+  return {
+    cardId: card.id,
+    name: card.name,
+    kind: card.kind,
+    ...(card.images?.length ? { images: card.images } : {}),
+  }
+}
 
 export function StudioOperatorAttachMenu({
-  onAttach,
   onDismiss,
   triggerRef,
-  onUploadFiles,
+  onPickMention,
+  onPickCard,
+  scope,
 }: StudioOperatorAttachMenuProps) {
   const t = useTranslations('StudioOperator')
   const reduceMotion = useReducedMotion()
-  const [tiles, setTiles] = useState<StudioOperatorAttachment[] | null>(null)
-  const [libraryOpen, setLibraryOpen] = useState(false)
-  const [dragging, setDragging] = useState(false)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const menuRef = useRef<HTMLDivElement>(null)
-  // 拖拽进/出会在子元素上反复触发 —— 计数而不是布尔量，否则划过里面那行小字
-  // 高亮就掉了（经典的 dragleave 抖动）。
-  const dragDepth = useRef(0)
-
-  const handleDrop = (event: DragEvent<HTMLElement>) => {
-    event.preventDefault()
-    dragDepth.current = 0
-    setDragging(false)
-    const files = [...(event.dataTransfer?.files ?? [])]
-    if (files.length > 0) onUploadFiles(files)
-  }
-
+  const [view, setView] = useState<'root' | 'cards'>('root')
+  const [createOpen, setCreateOpen] = useState(false)
   /**
-   * ⚠ 端点是 `/api/images`（`fetchGalleryImages`），**不是 `/api/generations`**：
-   * 后者会打断正在跑的生成（本仓踩过）。`mine: true` 才是「我的素材库」。
+   * ⚠ `enabled` 跟着 `view`：菜单一打开就拉一遍卡表，等于每点一次「+」都打一发
+   * 请求，而绝大多数点开只是为了 `@`。进了卡片档再拉。
    */
-  useEffect(() => {
-    let cancelled = false
-    void fetchGalleryImages(1, STUDIO_OPERATOR_ATTACH_TILE_COUNT, {
-      mine: true,
-      type: ['image', 'video'],
-    }).then((result) => {
-      if (cancelled) return
-      setTiles(
-        (result.data?.generations ?? [])
-          .filter((item) => Boolean(item.url))
-          .map((item) => toOperatorAttachment(item)),
-      )
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
+  const cards = useContextCards({ enabled: view === 'cards' })
+  const visibleCards = useMemo(
+    () => cards.cards.slice(0, STUDIO_OPERATOR_PLUS_CARD_LIMIT),
+    [cards.cards],
+  )
 
   useEffect(() => {
     menuRef.current
       ?.querySelector<HTMLElement>('button:not(:disabled), [href], [tabindex]')
       ?.focus()
-  }, [])
+  }, [view])
 
   useEffect(() => {
     const handleOutsidePointerDown = (event: PointerEvent) => {
@@ -137,7 +102,7 @@ export function StudioOperatorAttachMenu({
       if (menuRef.current?.contains(target)) return
       if (
         target instanceof Element &&
-        (target.closest('[data-operator-attach-trigger]') ||
+        (target.closest('[data-operator-plus-trigger]') ||
           target.closest('[data-slot^="dialog-"]'))
       ) {
         return
@@ -149,7 +114,7 @@ export function StudioOperatorAttachMenu({
       if (event.key !== 'Escape' || event.isComposing) return
       event.preventDefault()
       // Studio 在 window 上还有一层 Escape 快捷键；这里已经消费了这一下，
-      // 必须截断冒泡，否则会关完附件面板后顺手把整个助手也收起。
+      // 必须截断冒泡，否则会关完菜单后顺手把整个助手也收起。
       event.stopPropagation()
       onDismiss()
       // 等宿主完成浮层卸载后再聚焦，避免焦点跟着已移除节点一起掉回 body。
@@ -157,7 +122,7 @@ export function StudioOperatorAttachMenu({
         const trigger =
           triggerRef.current ??
           document.querySelector<HTMLButtonElement>(
-            '[data-operator-attach-trigger]',
+            '[data-operator-plus-trigger]',
           )
         trigger?.focus()
       }, 0)
@@ -178,158 +143,116 @@ export function StudioOperatorAttachMenu({
   return (
     <motion.div
       ref={menuRef}
-      id={STUDIO_OPERATOR_ATTACH_MENU_ID}
+      id={STUDIO_OPERATOR_PLUS_MENU_ID}
       role="dialog"
-      aria-label={t('attach.label')}
-      data-testid="operator-attach-menu"
+      aria-label={t('plusMenu.label')}
+      data-testid="operator-plus-menu"
+      data-view={view}
       initial={reduceMotion ? false : { opacity: 0, y: 8, scale: 0.985 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={motionTransition('base', reduceMotion)}
-      className="absolute inset-x-3 bottom-24 z-20 origin-bottom rounded-xl border border-border/70 bg-background p-2.5 shadow-lg"
+      className="absolute bottom-24 left-3 z-20 w-56 origin-bottom-left rounded-xl border border-border/70 bg-popover/95 p-1.5 shadow-lg backdrop-blur-md"
     >
-      {/*
-        上传区：**点击 = 开文件选择器，拖进来 = 同一条处理链**（拍板 16）。
-        ⚠ 用 `<button>` 而不是带 onClick 的 `<div>`：键盘要能到得了它，
-          而且屏幕阅读器读得出这是个能按的东西。
-        ⚠ `onDragOver` 必须 `preventDefault()`，否则浏览器根本不派发 drop
-          （它会当成「导航到这个文件」）—— 这是拖拽失效最常见的一条。
-      */}
-      <button
-        type="button"
-        data-testid="operator-attach-upload"
-        onClick={() => fileInputRef.current?.click()}
-        onDragEnter={(event) => {
-          event.preventDefault()
-          dragDepth.current += 1
-          setDragging(true)
-        }}
-        onDragOver={(event) => event.preventDefault()}
-        onDragLeave={(event) => {
-          event.preventDefault()
-          dragDepth.current = Math.max(0, dragDepth.current - 1)
-          if (dragDepth.current === 0) setDragging(false)
-        }}
-        onDrop={handleDrop}
-        className={cn(
-          'flex w-full flex-col items-center gap-0.5 rounded-lg border border-dashed border-border bg-muted/30 px-3 py-3 text-center transition-colors duration-fast ease-standard hover:border-primary/50 hover:text-primary',
-          dragging && 'border-primary bg-primary/10 text-primary',
-        )}
-      >
-        <Upload
-          className={cn(
-            'size-4 text-muted-foreground',
-            dragging && 'text-primary',
-          )}
-          aria-hidden
-        />
-        <span className="text-2sm text-muted-foreground">
-          {t('attach.uploadTitle')}
-        </span>
-        <span className="text-2sm text-muted-foreground/70">
-          {t('attach.uploadHint')}
-        </span>
-      </button>
-      {/*
-        ⚠ `accept` 从 `constants/uploads.ts` 现算（见常量的头注）。
-        ⚠ 选完必须把 `value` 清空：不清的话「同一个文件选第二次」不触发
-          `change`，表现是「第一次能传，删掉重选就没反应了」。
-      */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        multiple
-        accept={STUDIO_OPERATOR_UPLOAD_ACCEPT}
-        data-testid="operator-attach-file-input"
-        className="hidden"
-        onChange={(event) => {
-          const files = [...(event.target.files ?? [])]
-          event.target.value = ''
-          if (files.length > 0) onUploadFiles(files)
-        }}
-      />
-
-      <div className="mb-1.5 mt-2.5 flex items-center gap-2 px-0.5">
-        <span className="text-2sm text-muted-foreground">
-          {t('attach.libraryLabel')}
-        </span>
-        {/* 拍板 20：就地开弹层，不跳页。 */}
-        <Button
-          type="button"
-          data-testid="operator-attach-open-library"
-          onClick={() => setLibraryOpen(true)}
-          className="ml-auto min-h-11 rounded-lg px-3 text-sm font-semibold shadow-sm"
-        >
-          <Images className="size-4" aria-hidden />
-          {t('attach.openLibrary')}
-        </Button>
-      </div>
-
-      {tiles === null ? (
-        <div className="flex h-16 items-center justify-center">
-          <Spinner size="sm" className="text-muted-foreground" />
+      {view === 'root' ? (
+        <div className="flex flex-col gap-0.5">
+          {STUDIO_OPERATOR_PLUS_MENU_ITEMS.map((id) => {
+            const Icon = MENU_ICONS[id]
+            // 「指定来源」本轮只到菜单项为止（commit #17 接白 / 黑名单）。
+            const disabled = id === STUDIO_OPERATOR_PLUS_MENU_IDS.source
+            return (
+              <button
+                key={id}
+                type="button"
+                data-testid={`operator-plus-item-${id}`}
+                disabled={disabled}
+                title={disabled ? t('plusMenu.soon') : undefined}
+                onClick={() => {
+                  if (id === STUDIO_OPERATOR_PLUS_MENU_IDS.mention) {
+                    onPickMention()
+                    onDismiss()
+                    return
+                  }
+                  if (id === STUDIO_OPERATOR_PLUS_MENU_IDS.contextCard) {
+                    setView('cards')
+                  }
+                }}
+                className={cn(
+                  'flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  disabled && 'pointer-events-none opacity-50',
+                )}
+              >
+                <Icon className="size-4 text-muted-foreground" aria-hidden />
+                <span className="flex-1">{t(`plusMenu.items.${id}`)}</span>
+                {disabled ? (
+                  <span className="text-3xs text-muted-foreground">
+                    {t('plusMenu.soon')}
+                  </span>
+                ) : null}
+              </button>
+            )
+          })}
         </div>
-      ) : tiles.length === 0 ? (
-        <p className="px-0.5 py-3 text-center text-2sm text-muted-foreground">
-          {t('attach.libraryEmpty')}
-        </p>
       ) : (
-        <div className="grid grid-cols-6 gap-1.5">
-          {tiles.map((tile) => (
-            <button
-              key={tile.id}
-              type="button"
-              data-testid="operator-attach-tile"
-              title={tile.label}
-              onClick={() => onAttach(tile)}
-              className="relative aspect-[3/4] overflow-hidden rounded-md border border-border/70 transition-shadow duration-fast ease-standard hover:ring-2 hover:ring-primary"
-            >
-              {tile.thumbnailUrl ? (
-                <Image
-                  src={tile.thumbnailUrl}
-                  alt={tile.label}
-                  fill
-                  className="object-cover"
+        <div className="flex flex-col gap-1.5">
+          <button
+            type="button"
+            data-testid="operator-plus-cards-back"
+            onClick={() => setView('root')}
+            className="self-start rounded-md px-1.5 py-1 text-3xs uppercase tracking-nav text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground"
+          >
+            {t('plusMenu.back')}
+          </button>
+          {cards.isLoading ? (
+            <div className="flex h-16 items-center justify-center">
+              <Spinner size="sm" className="text-muted-foreground" />
+            </div>
+          ) : visibleCards.length === 0 ? (
+            <p className="px-1.5 pb-1 text-2sm text-muted-foreground">
+              {t('plusMenu.cardsEmpty')}
+            </p>
+          ) : (
+            <div className="flex max-h-56 flex-col items-start gap-1 overflow-y-auto">
+              {visibleCards.map((card) => (
+                <ContextCardChip
+                  key={card.id}
+                  cardId={card.id}
+                  name={card.name}
+                  kind={card.kind}
+                  images={card.images}
+                  onSelect={() => {
+                    onPickCard(toCardMention(card))
+                    onDismiss()
+                  }}
                 />
-              ) : (
-                <span className="grid size-full place-items-center bg-muted text-muted-foreground">
-                  <AttachKindGlyph kind={tile.kind} />
-                </span>
-              )}
-              {tile.kind === 'video' && tile.thumbnailUrl ? (
-                <span className="absolute right-0.5 top-0.5 rounded bg-foreground/70 p-0.5 text-background">
-                  <Play className="size-2" aria-hidden />
-                </span>
-              ) : null}
-            </button>
-          ))}
+              ))}
+            </div>
+          )}
+          <button
+            type="button"
+            data-testid="operator-plus-card-create"
+            onClick={() => setCreateOpen(true)}
+            className="flex items-center gap-2 rounded-lg px-2.5 py-2 text-left text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <Plus className="size-4 text-muted-foreground" aria-hidden />
+            {t('plusMenu.cardsCreate')}
+          </button>
+          {/*
+            ⚠ 先挂上再关菜单：`onPickCard` 会让宿主把整块菜单收掉，连带卸载这颗
+              弹层 —— 反过来写的话，弹层内部随后那句 `onOpenChange(false)` 落在
+              一个已经卸载的组件上。
+          */}
+          <ContextCardDialog
+            open={createOpen}
+            onOpenChange={setCreateOpen}
+            {...(scope ? { scope } : {})}
+            onSaved={(card) => {
+              setCreateOpen(false)
+              onPickCard(toCardMention(card))
+              onDismiss()
+            }}
+          />
         </div>
       )}
-
-      <p className="mt-2 flex items-center gap-1.5 border-t border-dashed border-border/70 pt-2 text-2sm text-muted-foreground">
-        <ClipboardPaste className="size-3 shrink-0" aria-hidden />
-        {t('attach.pasteHint')}
-      </p>
-
-      {/*
-        完整素材库（拍板 20）—— **现有组件，零新造**。
-        ⚠ 不锁 `mediaType`：锁 = 不渲染（picker 的契约），锁成图片会让 6 格里
-          看得见的视频在「完整素材库」里凭空消失。
-        ⚠ 单选（`onSelect`）而不是多选：多选要先勾再点「添加 N 张」，那是两击，
-          与 6 格的「点即挂」就不是同一个手势了（拍板 20 原话）。
-        ⚠ 先关自己再挂：`onAttach` 会让宿主把整块 📎 面板收掉，连带卸载这颗
-          弹层 —— 反过来写的话，弹层内部随后那句 `onOpenChange(false)` 落在一个
-          已经卸载的组件上。
-      */}
-      <AssetSelectorDialog
-        open={libraryOpen}
-        onOpenChange={setLibraryOpen}
-        onSelect={(generation) => {
-          setLibraryOpen(false)
-          onAttach(toOperatorAttachment(generation))
-        }}
-        title={t('attach.libraryDialogTitle')}
-        description={t('attach.libraryDialogDescription')}
-      />
     </motion.div>
   )
 }

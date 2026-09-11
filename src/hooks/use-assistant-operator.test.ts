@@ -637,34 +637,28 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     expect(store.getOperatorState().status).toBe('working')
   })
 
-  it('「先问我」开着 → 请求带 forcePlan，且发完自动复位', async () => {
+  /**
+   * ⭐ **「先问我」开关已删（v2 决策 6 / §4.4）**：请求里不再有 `forcePlan`，
+   * 「每轮先出计划」整条语义搬到人设的 `planMode: always`（v2 §11.1），由服务端
+   * 判。⛔ 输入区不许再出现一个跟它打架的单轮开关。
+   */
+  it('⛔ 请求体不再带 forcePlan —— 哪怕 persona 是「总是先出计划」', async () => {
     const { result } = render()
-    act(() => store.setOperatorAskFirst(true))
+    act(() => store.setOperatorPlanMode('always'))
     act(() => {
       result.current.send('随便改一个字')
     })
     await settle()
 
-    expect(streamAssistantOperatorAPI.mock.calls[0]?.[0].forcePlan).toBe(true)
-    // ⚠ 复位发生在**请求发出去之后**，⛔ 不是在计划帧到达之后。
-    expect(store.getOperatorState().askFirst).toBe(false)
-
+    const sent = streamAssistantOperatorAPI.mock.calls[0]?.[0] as Record<
+      string,
+      unknown
+    >
+    expect(sent).not.toHaveProperty('forcePlan')
+    // 服务端照样把计划确认卡摆出来 —— 语义没丢，只是换了出口。
     streams[0].emit(multistepConfirmEvent(1))
     await settle()
     expect(store.getOperatorState().status).toBe('awaitingPlan')
-  })
-
-  it('persona 的「默认行为 = 总是先出计划」→ 发完**不复位**（它是长期设置）', async () => {
-    const { result } = render()
-    act(() => store.setOperatorPlanMode('always'))
-    // 设成 always 时开关自己就开了（§3.4）。
-    expect(store.getOperatorState().askFirst).toBe(true)
-
-    act(() => {
-      result.current.send('随便改一个字')
-    })
-    await settle()
-    expect(store.getOperatorState().askFirst).toBe(true)
   })
 
   it('⭐ 出卡的那一轮 ⛔ 不再落 `plan` 条目 —— 同一份阶段只出现一次（第 2 件）', async () => {
@@ -708,7 +702,7 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     )
   })
 
-  it('「开始」带 planApproved 重发，并把卡换成「已确认」（⛔ 不再 forcePlan）', async () => {
+  it('「开始」带 planApproved 重发，并把卡换成「已确认」', async () => {
     const { result } = render()
     act(() => {
       result.current.send('分三步做')
@@ -724,9 +718,9 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
 
     expect(streams).toHaveLength(2)
     const sent = streamAssistantOperatorAPI.mock.calls[1]?.[0]
+    // ⚠ `planApproved` 是这一轮不再被服务端拦一次的唯一依据：少了它，用户点完
+    //   「开始」看到的是同一张卡又回来（一个自己喂自己的环）。
     expect(sent.planApproved).toBe(true)
-    // ⛔ 不带 forcePlan：带了会让服务端再摆一帧，用户点完「开始」看到同一张卡又回来。
-    expect(sent.forcePlan).toBeUndefined()
     expect(store.getOperatorState().confirm?.status).toBe('confirmed')
     expect(store.getOperatorState().status).toBe('working')
   })
@@ -1379,7 +1373,7 @@ describe('断点续跑', () => {
     ])
   })
 
-  it('⭐ 点「继续」发 resumeFrom + planApproved:true，⛔ 不再带 forcePlan', async () => {
+  it('⭐ 点「继续」发 resumeFrom + planApproved:true', async () => {
     const { result } = render()
     act(() => {
       result.current.send('分三步做')
@@ -1398,7 +1392,6 @@ describe('断点续跑', () => {
 
     const sent = streamAssistantOperatorAPI.mock.calls[1]?.[0]
     expect(sent.planApproved).toBe(true)
-    expect(sent.forcePlan).toBeUndefined()
     expect(sent.resumeFrom.completedSteps).toHaveLength(1)
     expect(sent.resumeFrom.completedSteps[0].label).toBe('第 1 步')
   })

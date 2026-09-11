@@ -34,7 +34,11 @@ import {
   type ReactNode,
 } from 'react'
 import {
+  Box,
+  Music,
   Paperclip,
+  Play,
+  Plus,
   RotateCw,
   Send,
   Square,
@@ -63,12 +67,12 @@ import {
   STUDIO_OPERATOR_MENTION,
   STUDIO_OPERATOR_SUGGESTIONS,
   STUDIO_OPERATOR_TIMELINE,
+  STUDIO_OPERATOR_UPLOAD_ACCEPT,
 } from '@/constants/studio-assistant-operator'
 import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
 import { CanvasAssistantRouteSelector } from '@/components/business/node/CanvasAssistantRouteSelector'
 import {
-  AttachKindGlyph,
-  STUDIO_OPERATOR_ATTACH_MENU_ID,
+  STUDIO_OPERATOR_PLUS_MENU_ID,
   StudioOperatorAttachMenu,
 } from '@/components/business/studio/assistant-operator/StudioOperatorAttachMenu'
 import {
@@ -124,7 +128,6 @@ import {
   hydrateOperatorResume,
   getOperatorState,
   restoreOperatorThreadCheckpoint,
-  setOperatorAskFirst,
   setOperatorResumeScope,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
@@ -246,6 +249,16 @@ interface StudioOperatorPanelProps {
   onCollapse(): void
 }
 
+/**
+ * 没有缩略图时画的那枚字形 —— 碎图标比没有图更糟。
+ * 附件 chip 与 @chip 共用它（两处画法不一致就是两处各写一遍的味道）。
+ */
+function AttachKindGlyph({ kind }: { kind: StudioOperatorAttachment['kind'] }) {
+  if (kind === 'audio') return <Music className="size-3.5" aria-hidden />
+  if (kind === 'model3d') return <Box className="size-3.5" aria-hidden />
+  return <Play className="size-3.5" aria-hidden />
+}
+
 export function StudioOperatorPanel({
   operator,
   draft,
@@ -270,7 +283,6 @@ export function StudioOperatorPanel({
     errorText,
     history: allHistoryEntries,
     queue,
-    askFirst,
     question,
     confirm,
     resume,
@@ -351,9 +363,11 @@ export function StudioOperatorPanel({
   } = useStudioOperatorRevert()
   const { route, setRoute } = useStudioAssistantControls()
 
-  // 📎 面板开着与否**是**局部态：它是一次性的挑选动作，收起再展开时它该是关的。
+  // 「+」菜单开着与否**是**局部态：它是一次性的挑选动作，收起再展开时它该是关的。
   const [attachOpen, setAttachOpen] = useState(false)
   const attachTriggerRef = useRef<HTMLButtonElement>(null)
+  /** 回形针那颗按钮背后的文件选择器（上传三通道的第一条）。 */
+  const uploadInputRef = useRef<HTMLInputElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
   /**
    * 用户此刻**贴着底**没有 —— 决定新条目要不要把视图拽到底（2026-09-07 真机）。
@@ -1609,72 +1623,7 @@ export function StudioOperatorPanel({
               : 'border-border',
           )}
         >
-          <div
-            data-testid="operator-toolbar"
-            className="flex items-center gap-2"
-          >
-            <button
-              ref={attachTriggerRef}
-              type="button"
-              data-testid="operator-attach-toggle"
-              aria-label={t('attach.label')}
-              aria-expanded={attachOpen}
-              aria-controls={
-                attachOpen ? STUDIO_OPERATOR_ATTACH_MENU_ID : undefined
-              }
-              data-operator-attach-trigger
-              onClick={() => setAttachOpen((open) => !open)}
-              className={cn(
-                'grid size-7 place-items-center rounded-lg border border-border/70 text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground',
-                attachOpen && 'border-primary/40 bg-primary/10 text-primary',
-              )}
-            >
-              <Paperclip className="size-3.5" aria-hidden />
-            </button>
-            {/* ⭐ 模型 chip = 现有「自动路由」组件（拍板 11），不另行设计。
-              `emptyRouteLabel` 必须由调用方给：studio 没有 gateway 分支，
-              写死任何一个具体型号都是在说谎（2026-08-19 生产事故）。 */}
-            <span data-testid="operator-model-chip">
-              <CanvasAssistantRouteSelector
-                value={route}
-                onChange={setRoute}
-                emptyRouteLabel={tPrompt('routeAuto')}
-              />
-            </span>
-            {/* ── 「先问我」（§3.3 后两行）────────────────────────────
-              ⚠ 本片**只做开关与状态**：开着时占位语加一句「本轮先出计划卡」，
-                真正强制出卡的那一半由计划卡片那一片接（§5 的客户端硬判）。
-                ⛔ 但它不是假开关 —— 值真的存进 store，接线那片读它即可。 */}
-            <button
-              type="button"
-              data-testid="operator-ask-first"
-              aria-pressed={askFirst}
-              title={t('askFirst.hint')}
-              onClick={() => setOperatorAskFirst(!askFirst)}
-              className={cn(
-                'rounded-lg border px-2 py-1 text-2sm transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-                askFirst
-                  ? 'border-primary bg-primary text-primary-foreground'
-                  : 'border-border/70 text-muted-foreground hover:text-foreground',
-              )}
-            >
-              {t('askFirst.label')}
-            </button>
-            <span className="flex-1" />
-            {working ? (
-              <button
-                type="button"
-                data-testid="operator-stop"
-                aria-label={t('stop')}
-                title={t('stop')}
-                onClick={stop}
-                className="grid size-7 place-items-center rounded-lg border border-destructive/40 bg-destructive/5 text-destructive transition-colors duration-(--duration-fast) ease-standard hover:bg-destructive/10"
-              >
-                <Square className="size-3" aria-hidden />
-              </button>
-            ) : null}
-          </div>
-          <div className="flex items-end gap-2">
+          <div className="flex flex-col gap-2">
             <MentionInput
               ref={inputRef}
               portalContainerRef={inputAreaRef}
@@ -1721,38 +1670,114 @@ export function StudioOperatorPanel({
                    默认那句「写点什么…」会让人以为必须先答上面那张卡。 */
                 question
                   ? t('placeholderQuestion')
-                  : askFirst
-                    ? t('placeholderAskFirst')
-                    : working
-                      ? t('placeholderWorking')
-                      : t('placeholderIdle')
+                  : working
+                    ? t('placeholderWorking')
+                    : t('placeholderIdle')
               }
-              className="max-h-24 min-h-9 flex-1 resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-md outline-none transition-colors duration-(--duration-fast) ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+              className="max-h-24 min-h-9 w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-md outline-none transition-colors duration-(--duration-fast) ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
             />
-            <button
-              type="button"
-              data-testid="operator-send"
-              /**
-               * ⚠ 工作态下发送 = **排队**（§3.1 ㉒，拍板 13 改口）：`send()` 把这一句
-               * 放进队列，到下一个工具步跑完才接住。⛔ 「发送即插话」那条分支已删
-               * （§14「删掉什么」）—— 它此前的实现是 abort + 重发，代价是用户想补
-               * 一句「顺便把比例改成 3:4」会把已经付过钱的三步整个掐掉重跑一遍。
-               * 真要掐掉走 ⏹（`operator-stop`）。
-               * 等上传是**说出来的**等待：停用 + 一句「还有文件在传」，
-               * ⛔ 不做「点了没反应」。
-               */
-              disabled={uploading}
-              title={sendLabel}
-              aria-label={sendLabel}
-              onClick={() => submit(draft)}
-              className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            {/* ── 下行：+ · 上传 · 文本模型 chip ……… 发送（v2 §4.4）───── */}
+            <div
+              data-testid="operator-toolbar"
+              className="flex items-center gap-2"
             >
-              {uploading ? (
-                <Spinner size="sm" className="text-primary-foreground" />
-              ) : (
-                <Send className="size-4" aria-hidden />
-              )}
-            </button>
+              <button
+                ref={attachTriggerRef}
+                type="button"
+                data-testid="operator-plus-toggle"
+                aria-label={t('plusMenu.label')}
+                aria-expanded={attachOpen}
+                aria-controls={
+                  attachOpen ? STUDIO_OPERATOR_PLUS_MENU_ID : undefined
+                }
+                data-operator-plus-trigger
+                onClick={() => setAttachOpen((open) => !open)}
+                className={cn(
+                  'grid size-7 shrink-0 place-items-center rounded-lg border border-border/70 text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  attachOpen &&
+                    'border-primary bg-primary text-primary-foreground',
+                )}
+              >
+                <Plus className="size-4" aria-hidden />
+              </button>
+              {/*
+                ⭐ 上传从「+」菜单搬到了这颗独立按钮上（v2 §4.4「附件不进菜单」）。
+                ⚠ 三个手势仍是**一条通道**（拍板 16）：选文件 / 拖进输入框 / 粘贴，
+                  全落到 `handleUploadFiles`。⛔ 别在这里另起一条 fetch。
+                ⚠ 选完必须清 `value`：不清的话「同一个文件选第二次」不触发 change，
+                  表现是「第一次能传，删掉重选就没反应了」。
+              */}
+              <button
+                type="button"
+                data-testid="operator-attach-toggle"
+                aria-label={t('attach.label')}
+                onClick={() => uploadInputRef.current?.click()}
+                className="grid size-7 shrink-0 place-items-center rounded-lg border border-border/70 text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <Paperclip className="size-3.5" aria-hidden />
+              </button>
+              <input
+                ref={uploadInputRef}
+                type="file"
+                multiple
+                accept={STUDIO_OPERATOR_UPLOAD_ACCEPT}
+                data-testid="operator-attach-file-input"
+                className="hidden"
+                onChange={(event) => {
+                  const files = [...(event.target.files ?? [])]
+                  event.target.value = ''
+                  if (files.length > 0) handleUploadFiles(files)
+                }}
+              />
+              {/* ⭐ 文本模型 chip = 现有「自动路由」组件（拍板 11），本轮位置不变、
+                行为不变；换成 §4.5 的九条模型表是 commit #8 的事。
+                `emptyRouteLabel` 必须由调用方给：studio 没有 gateway 分支，
+                写死任何一个具体型号都是在说谎（2026-08-19 生产事故）。 */}
+              <span data-testid="operator-model-chip">
+                <CanvasAssistantRouteSelector
+                  value={route}
+                  onChange={setRoute}
+                  emptyRouteLabel={tPrompt('routeAuto')}
+                />
+              </span>
+              <span className="flex-1" />
+              {working ? (
+                <button
+                  type="button"
+                  data-testid="operator-stop"
+                  aria-label={t('stop')}
+                  title={t('stop')}
+                  onClick={stop}
+                  className="grid size-7 shrink-0 place-items-center rounded-lg border border-destructive/40 bg-destructive/5 text-destructive transition-colors duration-(--duration-fast) ease-standard hover:bg-destructive/10"
+                >
+                  <Square className="size-3" aria-hidden />
+                </button>
+              ) : null}
+              <button
+                type="button"
+                data-testid="operator-send"
+                /**
+                 * ⚠ 工作态下发送 = **排队**（§3.1 ㉒，拍板 13 改口）：`send()` 把这一句
+                 * 放进队列，到下一个工具步跑完才接住。⛔ 「发送即插话」那条分支已删
+                 * （§14「删掉什么」）—— 它此前的实现是 abort + 重发，代价是用户想补
+                 * 一句「顺便把比例改成 3:4」会把已经付过钱的三步整个掐掉重跑一遍。
+                 * 真要掐掉走 ⏹（`operator-stop`）。
+                 * 等上传是**说出来的**等待：停用 + 一句「还有文件在传」，
+                 * ⛔ 不做「点了没反应」。
+                 */
+                disabled={uploading}
+                title={sendLabel}
+                aria-label={sendLabel}
+                onClick={() => submit(draft)}
+                className="grid size-9 shrink-0 place-items-center rounded-lg bg-primary text-primary-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {uploading ? (
+                  <Spinner size="sm" className="text-primary-foreground" />
+                ) : (
+                  <Send className="size-4" aria-hidden />
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1760,15 +1785,16 @@ export function StudioOperatorPanel({
       {attachOpen && !history.loadingSessionId ? (
         <StudioOperatorAttachMenu
           triggerRef={attachTriggerRef}
-          onUploadFiles={handleUploadFiles}
           onDismiss={() => setAttachOpen(false)}
-          onAttach={(attachment) => {
-            onAttachmentsChange(
-              attachments.some((item) => item.id === attachment.id)
-                ? attachments
-                : [...attachments, attachment],
-            )
-            setAttachOpen(false)
+          {...(domain ? { scope: domain } : {})}
+          /**
+           * 「提及素材」= 插一个 `@` 再把焦点还给输入框 —— 弹出来的是
+           * `MentionInput` 现有的那一颗选择器，⛔ 菜单里不另造一份。
+           */
+          onPickMention={() => inputRef.current?.insertText('@')}
+          onPickCard={(card) => {
+            onDraftChange(mention.pickCard(draft, card))
+            inputRef.current?.focus()
           }}
         />
       ) : null}

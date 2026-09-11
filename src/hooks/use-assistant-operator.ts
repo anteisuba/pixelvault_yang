@@ -49,7 +49,6 @@ import {
   type AssistantOperatorConfirmChoice,
   type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
-import { ASSISTANT_PERSONA_PLAN_MODE_IDS } from '@/constants/assistant-persona'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
@@ -75,7 +74,6 @@ import {
   removeOperatorQueued,
   resetOperatorThread,
   resolveOperatorConfirm,
-  setOperatorAskFirst,
   setOperatorCapturingFrames,
   setOperatorConfirm,
   setOperatorQuestion,
@@ -338,8 +336,6 @@ interface RunOptions {
   /** 反问卡那一份答复（`{questionId, optionIds, otherText}`）。 */
   planAnswers?: AssistantOperatorPlanAnswer[]
   planApproved?: boolean
-  /** 缺省读 store 的「先问我」；计划卡续跑时显式给 `false`（那张卡已经问过了）。 */
-  forcePlan?: boolean
   /**
    * **断点续跑**（第三期）—— 从上一份没跑完的计划接着跑。
    *
@@ -664,12 +660,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       }
 
       /**
-       * 「先问我」（§3.3）—— **本轮的值先定下来，⛔ 别在事件里现读**：计划帧到达
-       * 时用户可能已经把开关关了，而这一轮的判定该用发出去的那一份
-       * （`shouldShowPlanCard` 与服务端收到的 `forcePlan` 必须是同一个值）。
-       */
-      const forcePlan = options.forcePlan ?? getOperatorState().askFirst
-      /**
        * ⭐ 用户这一轮 `@` / 📎 上来的那几件先记进**这一轮**的工作记忆，再读整份
        * 带走：顺序反过来的话，助手在下一轮才「记得」用户刚才指的是哪张。
        * ⚠ 记的是最后一条用户消息上的那些（判据与 `mentionedAssets` 同源）：
@@ -803,7 +793,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           ...(confirmations?.length ? { confirmations } : {}),
           ...(planAnswers?.length ? { planAnswers } : {}),
           ...(planApproved === undefined ? {} : { planApproved }),
-          ...(forcePlan ? { forcePlan: true } : {}),
           /**
            * ⭐ **断点续跑**（第三期）：前几步的既成事实。⛔ 它不放宽钱闸 ——
            * 剩下的步里但凡有一步要生成，`confirm` 照出（owner 定）。
@@ -815,20 +804,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         },
         { signal: controller.signal },
       )
-
-      /**
-       * 发出去了才复位「先问我」（§3.3 最后两行）。
-       *
-       * ⚠ persona 的「默认行为 = 总是先出计划」时**不复位**（§3.4）：那是一条
-       * 长期设置，每轮自己关掉等于让设置只生效一次。单轮想跳过仍然可以手动关，
-       * 关只对那一轮生效 —— 下一轮它自己回来。
-       */
-      if (
-        forcePlan &&
-        getOperatorState().planMode !== ASSISTANT_PERSONA_PLAN_MODE_IDS.always
-      ) {
-        setOperatorAskFirst(false)
-      }
 
       if (!result.success) {
         cancelPendingAfterStep()
@@ -1285,7 +1260,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   /**
    * **问题卡答复**（v2 §3.4 落账规则）—— 三条路一个入口。
    *
-   * ⭐ 三件事，缺一不可：
+   * ⭐ 两件事，缺一不可：
    *  ① 卡消失（钉住区清空）；
    *  ② 时间线落一行「问题 · 你选了 X」（系统行）——⛔ 不把卡留在时间线里代替
    *     它：卡钉在输入框上方就是为了不随时间线滚走，留一张滚得走的复本等于
@@ -1328,7 +1303,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           text: options.label,
           attachments: [options.asset],
         })
-        void run({ forcePlan: false })
+        void run({})
         return
       }
       appendOperatorEntry({
@@ -1346,11 +1321,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         })
         return
       }
-      void run({
-        planAnswers: [answer],
-        planApproved: true,
-        forcePlan: false,
-      })
+      void run({ planAnswers: [answer], planApproved: true })
     },
     [run],
   )
@@ -1358,9 +1329,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   /**
    * **多步确认卡「开始」**（§3.3）—— 带 `planApproved: true` 重发。
    *
-   * ⚠ `forcePlan: false` 是硬要求：这一轮的卡**已经问过了**，再带一次「先问我」
-   * 会让服务端再摆一帧、客户端再出一张卡 —— 用户点「开始」之后看到的是同一张卡
-   * 又回来了（一个自己喂自己的环）。
+   * ⚠ `planApproved: true` 是硬要求：它让服务端跳过「问题 / 多步确认」那一整段，
+   * 否则用户点「开始」之后看到的是同一张卡又回来了（一个自己喂自己的环）。
    * ⚠ 已经定过的直接返回：连点两下发的是两轮请求，而第二轮会把第一轮 abort 掉
    * 再从头跑一遍。
    */
@@ -1379,7 +1349,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       labels: confirm.steps.map((step) => step.label),
     })
     resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
-    void run({ planApproved: true, forcePlan: false })
+    void run({ planApproved: true })
   }, [run])
 
   /**
@@ -1471,10 +1441,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   /**
    * **从断点接着跑**（第三期 · 断点续跑）。
    *
-   * ⭐ 三件事，缺一不可：
+   * ⭐ 两件事，缺一不可：
    *  ① `resumeFrom` —— 已经做完的那几步（服务端据此不重跑、不重规划）；
-   *  ② `planApproved: true` —— ⛔ 不再弹一次确认卡（那份计划批过了）；
-   *  ③ `forcePlan: false` —— 同一条论据：「先问我」在续跑这一轮里会把卡叫回来。
+   *  ② `planApproved: true` —— ⛔ 不再弹一次确认卡（那份计划批过了）。
    *
    * ⛔ **钱闸一个字都不动**：剩下的步里有生成，`confirm` 照出、确认卡
    * 照钉。判据不在这里，在服务端的工具表 —— 这里连「这一步要不要花钱」都不知道。
@@ -1485,7 +1454,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     const resumeFrom = toResumeFrom(resume)
     // ⚠ 一步都没做完 = 这不是续跑而是重跑，⛔ 别发一份服务端会拒的空清单。
     if (!resumeFrom) return
-    void run({ resumeFrom, planApproved: true, forcePlan: false })
+    void run({ resumeFrom, planApproved: true })
   }, [run])
 
   /**

@@ -869,3 +869,75 @@ it.each(['append', 'overwrite', 'keep'] as const)(
     expect(answerQuestion.mock.calls[0]?.[1]).toMatchObject({ choice })
   },
 )
+
+/**
+ * v2 §4.4 输入区**两行**（画板 Main「输入区」/ BCards 三态）。
+ *
+ * ⭐ 钉的是**结构与接线**，不是皮肤（皮肤归 commit #21）：
+ *  ① 上行是文本框、下行是工具条，⛔ 不是 v1 的「上行工具条 / 下行文本框」；
+ *  ② 下行从左到右 `+` · 上传 · 文本模型 chip ……… 发送；
+ *  ③ 上传按钮真的开文件选择器，并把文件交回上传那一条通道（owner 打回过
+ *     「点了没反应」那个形态，判据同 P3-A）；
+ *  ④ 「先问我」开关**整颗消失**（v2 决策 6）。
+ */
+describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
+  it('上行文本框、下行工具条 —— 顺序是文本框在前', () => {
+    renderPanel()
+    const area = screen.getByTestId('operator-input-area')
+    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+    const toolbar = screen.getByTestId('operator-toolbar')
+
+    expect(area).toContainElement(toolbar)
+    // ⚠ DOCUMENT_POSITION_FOLLOWING = 工具条排在文本框**后面**。
+    expect(
+      editor.compareDocumentPosition(toolbar) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+
+  it('下行四颗：+ · 上传 · 文本模型 chip ……… 发送', () => {
+    renderPanel()
+    const toolbar = within(screen.getByTestId('operator-toolbar'))
+    expect(toolbar.getByTestId('operator-plus-toggle')).toBeTruthy()
+    expect(toolbar.getByTestId('operator-attach-toggle')).toBeTruthy()
+    expect(toolbar.getByTestId('operator-model-chip')).toBeTruthy()
+    expect(toolbar.getByTestId('operator-send')).toBeTruthy()
+  })
+
+  it('上传按钮 = 开文件选择器，选完交回上传通道（⛔ 不是装饰）', () => {
+    renderPanel()
+    const input = screen.getByTestId(
+      'operator-attach-file-input',
+    ) as HTMLInputElement
+    const openPicker = vi.spyOn(input, 'click')
+
+    fireEvent.click(screen.getByTestId('operator-attach-toggle'))
+    expect(openPicker).toHaveBeenCalledTimes(1)
+
+    const file = new File(['x'], 'shot.png', { type: 'image/png' })
+    fireEvent.change(input, { target: { files: [file] } })
+    expect(UPLOAD.uploadFiles).toHaveBeenCalledTimes(1)
+    expect(input.value).toBe('')
+  })
+
+  it('「+」展开三项菜单；⛔ 「先问我」开关零命中', () => {
+    renderPanel()
+    expect(screen.queryByTestId('operator-ask-first')).toBeNull()
+    expect(screen.queryByTestId('operator-plus-menu')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('operator-plus-toggle'))
+    expect(screen.getByTestId('operator-plus-item-mention')).toBeTruthy()
+    expect(screen.getByTestId('operator-plus-item-contextCard')).toBeTruthy()
+    expect(screen.getByTestId('operator-plus-item-source')).toBeTruthy()
+  })
+
+  it('「提及素材」把 @ 插进输入框（唤出现有那颗选择器）', () => {
+    renderPanel()
+    fireEvent.click(screen.getByTestId('operator-plus-toggle'))
+    fireEvent.click(screen.getByTestId('operator-plus-item-mention'))
+
+    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+    expect(editor.textContent).toContain('@')
+    expect(screen.queryByTestId('operator-plus-menu')).toBeNull()
+  })
+})

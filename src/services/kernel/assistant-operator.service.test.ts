@@ -172,6 +172,18 @@ vi.mock('@/services/assistant-persona.service', async () => {
   }
 })
 
+/**
+ * 人设「谨慎」档（v2 §11.1 的 `planMode: always`）—— 被删掉的那颗「先问我」开关
+ * 的唯一语义去处（决策 6）。⛔ 别再找 `forcePlan`：请求字段已整条删除。
+ */
+function usePlanAlwaysPersona(): void {
+  mockGetAssistantPersonaByUserId.mockResolvedValue({
+    ...ASSISTANT_PERSONA_DEFAULTS,
+    avatarUrl: null,
+    planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.always,
+  })
+}
+
 const mockListProjectRules = vi.fn()
 const mockAddProjectRule = vi.fn()
 vi.mock('@/services/project-rule.service', async () => {
@@ -696,8 +708,9 @@ describe('工具环 · 逐事件顺序', () => {
       }),
     )
 
+    usePlanAlwaysPersona()
     const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest({ forcePlan: true })),
+      runAssistantOperator('clerk-1', buildRequest()),
     )
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
     expect(events).toContainEqual(
@@ -4863,10 +4876,11 @@ describe('计划协议 · plan / ask / confirm', () => {
     expect(frame.question.header.length).toBeLessThanOrEqual(12)
   })
 
-  it('⭐ 「先问我」开着时，哪怕只有一步也出多步确认卡', async () => {
+  it('⭐ 人设「谨慎」档（planMode=always）下，哪怕只有一步也出多步确认卡', async () => {
+    usePlanAlwaysPersona()
     queueTurns({ plan: ['写提示词'] }, { finished: true })
     const forced = await collect(
-      runAssistantOperator('clerk-1', buildRequest({ forcePlan: true })),
+      runAssistantOperator('clerk-1', buildRequest()),
     )
     expect(typesOf(forced)).toEqual([
       ASSISTANT_OPERATOR_EVENTS.plan,
@@ -5087,24 +5101,6 @@ describe('计划协议 · plan / ask / confirm', () => {
       expect.objectContaining({ questionCount: 1 }),
     )
     warn.mockRestore()
-  })
-
-  it('⭐ 「先问我」开着时系统提示要求这一轮必须先出计划', async () => {
-    queueTurns({ finished: true })
-    await collect(
-      runAssistantOperator('clerk-1', buildRequest({ forcePlan: true })),
-    )
-    const forced = (
-      mockLlmTextCompletion.mock.calls.at(-1)?.[0] as { systemPrompt: string }
-    ).systemPrompt
-    expect(forced).toContain('ask me first')
-
-    queueTurns({ finished: true })
-    await collect(runAssistantOperator('clerk-1', buildRequest()))
-    const normal = (
-      mockLlmTextCompletion.mock.calls.at(-1)?.[0] as { systemPrompt: string }
-    ).systemPrompt
-    expect(normal).not.toContain('ask me first')
   })
 
   it('系统提示逐项列全 32 个图示 id（⛔ 不是一句「从词表里选」）', async () => {
@@ -5487,8 +5483,9 @@ describe('收尾闸 · 半句话不算收尾', () => {
       finished: true,
     })
 
+    usePlanAlwaysPersona()
     const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest({ forcePlan: true })),
+      runAssistantOperator('clerk-1', buildRequest()),
     )
     // ⛔ 没有把这一轮退回去再要一次结论（那会是第二次 LLM 往返）。
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)

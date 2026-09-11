@@ -19,10 +19,7 @@
 import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import { useSyncExternalStore } from 'react'
 
-import {
-  ASSISTANT_PERSONA_DEFAULTS,
-  ASSISTANT_PERSONA_PLAN_MODE_IDS,
-} from '@/constants/assistant-persona'
+import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { AssistantPersonaPlanMode } from '@/constants/assistant-persona'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
@@ -158,15 +155,6 @@ export interface StudioOperatorState {
    */
   selectedResultId: string | null
   /**
-   * 「先问我」开关（§3.3 后两行）—— 本轮强制先出计划卡。
-   *
-   * ⚠ **本片只到状态为止**：真正「强制出卡」的那一半由计划卡片那一片接
-   * （客户端硬判在 §5 的流程图里）。⛔ 但开关不能因此做成假的 —— 它此刻就真的
-   * 在存值，接线那一片读它即可，形状一行不用改。
-   * ⚠ 跨域不分槽：它说的是「这个助手这一轮先问不问我」，与站在哪台工作台无关。
-   */
-  askFirst: boolean
-  /**
    * persona 的「默认行为」（§8.2 `planMode`）—— **store 里存一份的唯一理由**是
    * 驱动 hook 要在事件处理器里同步读它（`getOperatorState()`），而 persona 是
    * 一次异步拉取的结果。
@@ -174,7 +162,6 @@ export interface StudioOperatorState {
    * ⚠ ⛔ 别在驱动 hook 里再调一次 `useAssistantPersona()`：那会在同一棵树上开出
    * 第二个 `GET /api/assistant/persona`，两份数据还会各说各话。外壳拉一次、
    * 写进来一次，读的人都读这一个。
-   * ⚠ `always` 时「先问我」发完**不复位**（§3.3 / 拍板：单轮关掉只对本轮生效）。
    */
   planMode: AssistantPersonaPlanMode
   /**
@@ -255,7 +242,6 @@ const INITIAL_STATE: StudioOperatorState = {
   mentions: [],
   cardMentions: [],
   selectedResultId: null,
-  askFirst: false,
   planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
   question: null,
   confirm: null,
@@ -785,27 +771,16 @@ export function setOperatorSelectedResult(id: string | null): void {
 }
 
 /**
- * 「先问我」（§3.3）—— 开着时下一条消息带 `forcePlan: true`。
- *
- * ⚠ 发完之后由驱动 hook 复位，**除非** persona 的 `planMode === 'always'`
- * （§3.4「单轮仍可关，关只对本轮生效」的另一半）。
- */
-export function setOperatorAskFirst(askFirst: boolean): void {
-  if (state.askFirst === askFirst) return
-  emit({ ...state, askFirst })
-}
-
-/**
  * persona 的「默认行为」落进 store（§8.2）。
  *
- * ⚠ **顺手把「先问我」的初始态定下来**（§3.4「『默认行为』= 总是先出计划 →
- * 『先问我』开关默认开」）：⛔ 只在 `always` 这一档写，别在 `auto` / `direct` 时
- * 顺手把它关掉 —— 用户可能刚刚亲手打开了它，而 persona 是异步到达的。
+ * ⚠ 「先问我」开关已随 v2 决策 6 删掉，`planMode` 就是它的**唯一**语义来源：
+ * `always` 让服务端每轮先摆一张计划确认卡（`assistant-operator.service.ts` 的
+ * 多步确认闸 + 系统提示 `PLAN_MODE_DIRECTIVES`）。⛔ 别在输入区再造一个跟它
+ * 打架的单轮开关（v2 §11.1）。
  */
 export function setOperatorPlanMode(planMode: AssistantPersonaPlanMode): void {
   if (state.planMode === planMode) return
-  const askFirst = planMode === ASSISTANT_PERSONA_PLAN_MODE_IDS.always
-  emit({ ...state, planMode, askFirst: askFirst || state.askFirst })
+  emit({ ...state, planMode })
 }
 
 // ─── 两张「等你定」的卡（v2 §3.2：问题 / 确认）────────────────────

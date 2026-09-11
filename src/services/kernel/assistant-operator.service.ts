@@ -4371,9 +4371,10 @@ const VERBOSITY_DIRECTIVES: Record<AssistantPersona['verbosity'], string> = {
 }
 
 /**
- * 默认行为（「先问我」的初始态）。
+ * 默认行为（v2 §11.1 的 `planMode` 一列）。
  * ⚠ `auto` **什么都不写** —— 那就是今天的行为，写一句反而是在改它。
- * ⚠ 单轮的「先问我」永远压过 persona，那道闸在面板那一侧，不在这里。
+ * ⚠ `always` 除了这句提示词，还有一道**硬闸**在多步确认那里（每轮先摆计划卡）：
+ *   提示词是请求，闸才是保证。被删掉的「先问我」开关的语义全在这两处。
  */
 const PLAN_MODE_DIRECTIVES: Record<
   AssistantPersona['planMode'],
@@ -4681,11 +4682,7 @@ OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outsi
 - "confirmPlan":true on your FIRST turn when what you are about to do is a run the creator would want to green-light first — a string of moves, or one that writes over something of theirs. The app shows the plan and waits. Leave it out otherwise; a card in front of a single obvious edit is pure interruption.
 
 - "plan" only on your FIRST turn, at most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
-${
-  request.forcePlan
-    ? '- THE CREATOR TURNED ON "ask me first" FOR THIS MESSAGE. Your FIRST turn must carry a "plan" (and "questions" for anything genuinely open) — the app shows it to them and waits. Do not skip straight to a tool.\n'
-    : ''
-}- "questions" rides along with that first "plan" and ONLY there: 1–${PLAN_LIMITS.maxQuestions} questions about things you genuinely cannot settle from what they told you. The app turns each into one tap. Leave it out when you can settle everything yourself — a question you already know the answer to costs them a round trip. Never ask about something the state block already answers.
+- "questions" rides along with that first "plan" and ONLY there: 1–${PLAN_LIMITS.maxQuestions} questions about things you genuinely cannot settle from what they told you. The app turns each into one tap. Leave it out when you can settle everything yourself — a question you already know the answer to costs them a round trip. Never ask about something the state block already answers.
 - ASK LIKE A PERSON, NOT LIKE A FORM. Every question is a real question ("Which look are you after?"), and every option carries a one-line description saying what that choice actually does — the description IS the difference between the options, so an option without one is useless and the server drops it. Put your recommendation FIRST and mark it "recommended":true — they hired you for an opinion, not a quiz. Say explicitly whether more than one answer is allowed with "multiSelect".
 - Shape: {"header":"Look","question":"Which look are you after?","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}. "header" is the ${PLAN_LIMITS.maxHeaderChars}-character label the app shows once the card is collapsed; "question" is the full sentence. ${PLAN_LIMITS.minOptions}–${PLAN_LIMITS.maxOptions} options each, question within ${PLAN_LIMITS.maxQuestionChars} characters, option labels within ${PLAN_LIMITS.maxOptionLabelChars} and descriptions within ${PLAN_LIMITS.maxOptionDescriptionChars}. All of it in the creator's language. "allowOther" defaults to true — leave it on unless the choice is a closed set. "id" fields are optional; the server assigns them.${buildPlanVisualSection()}
 - "message" is optional; use it to say something worth saying, not to narrate every step.
@@ -5471,9 +5468,14 @@ export async function* runAssistantOperator(
              * ⚠ **模型判，不设死阈值**（决策 4）：步数答不了用户真正在问的那件事
              * ——「它接下来要做的事里，有没有一步是我不想让它自己做的」。模型把
              * `confirmPlan` 写成 true 才出卡，⛔ 服务端不按步数补判。
-             * ⚠ 「先问我」（`forcePlan`）照旧无条件拦。
+             * ⚠ **人设「谨慎」档无条件拦**（v2 §11.1）：`planMode === 'always'`
+             *   就是被删掉的那颗「先问我」开关的唯一语义去处（决策 6）——
+             *   ⛔ 别在输入区再造一个跟它打架的单轮开关。
              */
-            if (request.forcePlan === true || turn.confirmPlan === true) {
+            if (
+              persona.planMode === ASSISTANT_PERSONA_PLAN_MODE_IDS.always ||
+              turn.confirmPlan === true
+            ) {
               yield {
                 type: ASSISTANT_OPERATOR_EVENTS.confirm,
                 confirm: {

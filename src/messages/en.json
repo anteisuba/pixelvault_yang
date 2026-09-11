@@ -7602,15 +7602,7 @@
       "checkStyle": "Look up this art style"
     },
     "attach": {
-      "label": "Attach: upload / library / paste",
-      "uploadTitle": "Drop it here, or click to upload",
-      "uploadHint": "Image · audio · video",
-      "libraryLabel": "Library · recent",
-      "openLibrary": "Open the full library",
-      "libraryDialogTitle": "Pick something from your library",
-      "libraryDialogDescription": "One click attaches it to your next message — you stay on the workbench.",
-      "libraryEmpty": "Your library is still empty",
-      "pasteHint": "You can also paste an image straight into the box — it shows up as an attachment above",
+      "label": "Upload image / audio / video",
       "remove": "Remove this attachment",
       "upload": {
         "compressing": "Too big — squeezing it down to fit…",
@@ -7624,6 +7616,18 @@
         "retry": "Retry this upload",
         "waiting": "Still uploading — you can send once it lands"
       }
+    },
+    "plusMenu": {
+      "label": "More: mention assets / context card / pick sources",
+      "items": {
+        "mention": "Mention assets",
+        "contextCard": "Context card",
+        "source": "Pick sources"
+      },
+      "soon": "Coming soon",
+      "back": "Back",
+      "cardsEmpty": "No character / style / brand cards yet",
+      "cardsCreate": "New card"
     },
     "web": {
       "candidates": "From the web · previews, not in your library yet",
@@ -7661,11 +7665,6 @@
         "end": "Last"
       }
     },
-    "askFirst": {
-      "label": "Ask me first",
-      "hint": "This round starts with a plan card for you to confirm"
-    },
-    "placeholderAskFirst": "Say what you want — this round starts with a plan card",
     "queue": {
       "badge": "Queued",
       "hint": "handled at the next pause point",

@@ -738,25 +738,33 @@ model AssistantPersona {
   avatarStorageKey String?
 
   /// professional / friendly / terse / custom（`ASSISTANT_PERSONA_TONES`）。
-  tone       String  @default("terse")
+  tone       String  @default("friendly")
   /// tone = custom 时那一句话，≤80 字；其余档位为 null。
   toneCustom String?
 
   /// concise / standard / detailed —— 落到系统提示里是**字数区间**，不是形容词。
-  verbosity String @default("concise")
+  verbosity String @default("standard")
   /// always / auto / direct —— 「先问我」开关的初始态 + 出卡判据。
   planMode  String @default("auto")
   /// ui / chinese / english —— 覆盖请求里的 responseLanguage。
   language  String @default("ui")
 
-  /// 每条回复末尾给一条「下一步建议」（v2 §11.3）。默认关：多数轮次助手本来就
-  /// 在说下一步，强制加一行会把它说两遍。
-  nextStepHint  Boolean @default(false)
+  /// 每条回复末尾给一条「下一步建议」（v2 §11.3）。默认开：默认档就是「平衡」，
+  /// 而那张卡第三行写的正是「附一条下一步」。
+  nextStepHint  Boolean @default(true)
   /// 优先使用创作者自己用过的说法与角色名（v2 §11.3）。默认开：用户的词本来就
   /// 是这段对话的词表，助手把「黄昏光」改叫「暖色调逆光」是在制造翻译成本。
   useMyWords    Boolean @default(true)
   /// 怎么称呼这位创作者，≤24 字。null = 用账号名。
   addressUserAs String?
+
+  /// 三档人设（v2 §11.1）：cautious / balanced / handsOff。默认 balanced ——
+  /// 上面那几列的默认值逐格等于「平衡」档（owner 2026-09-11）。
+  /// NULL = 自定义 —— 用户改过某个高级项，这一份不再完全对上任何一档；
+  /// 存量行同样是 NULL，读的那一跳按 `matchAssistantPersonaArchetype` 回推，
+  /// ⛔ 不写迁移去改存量数据。
+  /// ⛔ 不做成 Prisma 枚举：词表住 constants（同 tone / verbosity），边界校验交给 Zod。
+  archetype String? @default("balanced")
 
   /// 输入区文本模型 chip 选的那一档（`NODE_STUDIO_ASSISTANT_ROUTE_MODELS` 的
   /// modelId）。null = 「自动」——服务端按 resolveLlmTextRoute 的优先级自己挑。

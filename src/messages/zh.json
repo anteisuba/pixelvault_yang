@@ -7759,13 +7759,6 @@
         "standard": "标准",
         "detailed": "详细"
       },
-      "planModeLabel": "默认行为",
-      "planModeHint": "单轮勾了「先问我」永远压过这一档。",
-      "planMode": {
-        "always": "先问我",
-        "auto": "自动",
-        "direct": "直接做"
-      },
       "languageLabel": "回复语言",
       "language": {
         "ui": "跟界面",
@@ -7776,6 +7769,47 @@
       "useMyWordsLabel": "用我的词",
       "addressUserAsLabel": "怎么称呼你",
       "addressUserAsPlaceholder": "留空时用你的账号名",
+      "nextStepHintHint": "每条回复末尾给一条建议",
+      "useMyWordsHint": "沿用我在提示词里的说法",
+      "advancedLabel": "高级",
+      "archetypeCustom": "自定义",
+      "archetypeCustomHint": "你在高级里改过，这份设置不再对上任何一档。",
+      "archetype": {
+        "cautious": {
+          "name": "谨慎",
+          "askLine": "动手前多问两句",
+          "confirmLine": "每一步都要你点头",
+          "lengthLine": "回复偏短，只说结论"
+        },
+        "balanced": {
+          "name": "平衡",
+          "askLine": "拿不准才问，一次一个",
+          "confirmLine": "多步和生成才确认",
+          "lengthLine": "正常长度，附一条下一步"
+        },
+        "handsOff": {
+          "name": "放手",
+          "askLine": "基本不问，直接做",
+          "confirmLine": "只在多步之前打个招呼",
+          "lengthLine": "回复很短，只报结果"
+        }
+      },
+      "previewTitle": "这样设定后 {name} 会这么说",
+      "previewHint": "改上面任何一项，这段示例会实时跟着变。",
+      "preview": {
+        "address": "{name}，",
+        "opener": {
+          "professional": "看过了。三张里第二张的逆光散射最接近你要的黄昏光，另外两张暖色压得太满。",
+          "friendly": "看过啦——三张里第二张最接近你要的黄昏光，另外两张暖色压得有点满。",
+          "terse": "第二张最接近。另外两张暖色过满。",
+          "custom": "按你写的那句话来说：三张里第二张最接近你要的黄昏光。"
+        },
+        "body": {
+          "second": "第二张的逆光散射保住了云层细节，可以直接拿它当基底。",
+          "third": "另外两张要救的话，得把暖色降一档、曝光收半格；值不值得看你赶不赶时间。"
+        },
+        "nextStep": "下一步：要我按第二张再来一组吗？"
+      },
       "tabPersona": "助手",
       "tabRules": "项目规则",
       "rulesHint": "助手动手之前会先读这些规则。你说了值得记下来的事，它就记一条。",

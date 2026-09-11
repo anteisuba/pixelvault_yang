@@ -215,6 +215,7 @@ describe('StudioOperatorTimelineRow', () => {
           language: 'ui',
           nextStepHint: false,
           useMyWords: true,
+          archetype: null,
           addressUserAs: null,
         }}
       >

@@ -5132,9 +5132,9 @@ const TONE_DIRECTIVES: Record<
  * 长度三档 → **句数区间**。
  * ⛔ 不给「简短点」这类无边界形容词：模型对它的解读每一轮都不一样。
  *
- * ⭐ `concise` 是**默认档**（`ASSISTANT_PERSONA_DEFAULTS`，owner 2026-09-06），
- * 所以它不能只说「短一点」—— 那样模型会靠删掉「下一步」来达标，而那句恰恰是
- * 用户唯一要读的。写成**两句各自的职责**（结论一句 + 下一步一句），并把理由指到
+ * ⭐ 默认档是 `standard`（「平衡」那一档，owner 2026-09-11）。`concise` 依然
+ * 不能只说「短一点」—— 那样模型会靠删掉「下一步」来达标，而那句恰恰是用户唯一
+ * 要读的。写成**两句各自的职责**（结论一句 + 下一步一句），并把理由指到
  * `detail` 去：不给解释一个去处，它只会挤回正文。
  */
 const VERBOSITY_DIRECTIVES: Record<AssistantPersona['verbosity'], string> = {

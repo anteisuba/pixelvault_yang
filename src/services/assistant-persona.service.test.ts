@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import {
   ASSISTANT_AVATAR_PRESET_IDS,
+  ASSISTANT_PERSONA_ARCHETYPE_IDS,
+  ASSISTANT_PERSONA_ARCHETYPE_PRESETS,
   ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_ROUTE_MODEL_AUTO,
@@ -45,6 +47,8 @@ const STORED_ROW = {
   routeModel: null,
   nextStepHint: true,
   useMyWords: false,
+  /** ⚠ 这一行五格对不上任何一档（§11.1）→ 读回来是 `null` = 自定义。 */
+  archetype: null,
   addressUserAs: '阿羊',
 }
 
@@ -115,6 +119,7 @@ describe('assistant persona service', () => {
       routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
       nextStepHint: true,
       useMyWords: false,
+      archetype: null,
       addressUserAs: '阿羊',
     })
 
@@ -165,6 +170,7 @@ describe('assistant persona service', () => {
       language: 'ui',
       nextStepHint: false,
       useMyWords: true,
+      archetype: null,
       addressUserAs: null,
     } as const
 
@@ -199,6 +205,7 @@ describe('assistant persona service', () => {
       routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
       nextStepHint: false,
       useMyWords: true,
+      archetype: null,
       addressUserAs: null,
     })
 
@@ -206,6 +213,86 @@ describe('assistant persona service', () => {
       update: { toneCustom: string | null }
     }
     expect(call.update.toneCustom).toBeNull()
+  })
+
+  /**
+   * 三档人设（v2 §11.1）——⚠ 这一列是**算出来的**，两头都不信现成的字符串：
+   * 读回来按五格回推（存量行里它是 NULL），写进去按五格重算（⛔ 不落客户端
+   * 递来的那个名字）。两头共用 `matchAssistantPersonaArchetype` 一个函数。
+   */
+  describe('archetype（三档人设）', () => {
+    const CAUTIOUS =
+      ASSISTANT_PERSONA_ARCHETYPE_PRESETS[
+        ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious
+      ]
+
+    it('存量行里这一列是 NULL 时按五格回推出那一档', async () => {
+      mockFindUnique.mockResolvedValue({
+        ...STORED_ROW,
+        ...CAUTIOUS,
+        archetype: null,
+      })
+
+      const persona = await getAssistantPersona('clerk_1')
+
+      expect(persona.archetype).toBe(ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious)
+    })
+
+    it('五格对不上任何一档时读回 null（= 自定义）', async () => {
+      mockFindUnique.mockResolvedValue({
+        ...STORED_ROW,
+        ...CAUTIOUS,
+        // 只差一格 —— 卡上那三行就已经不成立了。
+        nextStepHint: !CAUTIOUS.nextStepHint,
+        archetype: ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious,
+      })
+
+      const persona = await getAssistantPersona('clerk_1')
+
+      expect(persona.archetype).toBeNull()
+    })
+
+    it('写入按五格重算，⛔ 不信客户端递来的那个名字', async () => {
+      mockUpsert.mockResolvedValue({ ...STORED_ROW, ...CAUTIOUS })
+
+      await upsertAssistantPersona('clerk_1', {
+        name: null,
+        avatarPreset: null,
+        toneCustom: null,
+        language: 'ui',
+        routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
+        addressUserAs: null,
+        ...CAUTIOUS,
+        // 客户端谎报成「平衡」——落库的必须还是「谨慎」。
+        archetype: ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced,
+      })
+
+      expect(
+        (mockUpsert.mock.calls[0][0] as { update: { archetype: unknown } })
+          .update.archetype,
+      ).toBe(ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious)
+    })
+
+    it('五格对不上时落 null，哪怕客户端递了一个档名', async () => {
+      mockUpsert.mockResolvedValue(STORED_ROW)
+
+      await upsertAssistantPersona('clerk_1', {
+        name: null,
+        avatarPreset: null,
+        toneCustom: null,
+        language: 'ui',
+        routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
+        addressUserAs: null,
+        ...CAUTIOUS,
+        useMyWords: !CAUTIOUS.useMyWords,
+        archetype: ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious,
+      })
+
+      expect(
+        (mockUpsert.mock.calls[0][0] as { update: { archetype: unknown } })
+          .update.archetype,
+      ).toBeNull()
+    })
   })
 
   describe('sanitizeToneCustom（拼进系统提示之前的那一道）', () => {
@@ -246,11 +333,12 @@ describe('persona 的三项用户偏好', () => {
     await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
       nextStepHint: true,
       useMyWords: false,
+      archetype: null,
       addressUserAs: '阿羊',
     })
   })
 
-  it('缺行时走代码默认值（关 / 开 / 空）', async () => {
+  it('缺行时走代码默认值（开 / 开 / 空）', async () => {
     mockFindUnique.mockResolvedValue(null)
 
     await expect(getAssistantPersona('clerk_1')).resolves.toMatchObject({
@@ -274,6 +362,7 @@ describe('persona 的三项用户偏好', () => {
       routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
       nextStepHint: true,
       useMyWords: false,
+      archetype: null,
       addressUserAs: '阿羊',
     })
 
@@ -283,6 +372,7 @@ describe('persona 的三项用户偏好', () => {
     ).toMatchObject({
       nextStepHint: true,
       useMyWords: false,
+      archetype: null,
       addressUserAs: '阿羊',
     })
   })

@@ -7759,13 +7759,6 @@
         "standard": "標準",
         "detailed": "詳しく"
       },
-      "planModeLabel": "既定の動き",
-      "planModeHint": "その回だけ「先に聞いて」を指定した場合はそちらが優先されます。",
-      "planMode": {
-        "always": "先に聞く",
-        "auto": "自動",
-        "direct": "すぐ実行"
-      },
       "languageLabel": "返答の言語",
       "language": {
         "ui": "画面に合わせる",
@@ -7776,6 +7769,47 @@
       "useMyWordsLabel": "自分の言葉を使う",
       "addressUserAsLabel": "呼び方",
       "addressUserAsPlaceholder": "空欄の場合はアカウント名を使います",
+      "nextStepHintHint": "返信の最後に次の一手を一つ添える",
+      "useMyWordsHint": "プロンプトで使った言い方をそのまま使う",
+      "advancedLabel": "詳細設定",
+      "archetypeCustom": "カスタム",
+      "archetypeCustomHint": "詳細設定を変更したため、どの型にも一致しなくなりました。",
+      "archetype": {
+        "cautious": {
+          "name": "慎重",
+          "askLine": "着手前に二言三言確認する",
+          "confirmLine": "どの手順もあなたの了承を取る",
+          "lengthLine": "返信は短め、結論だけ"
+        },
+        "balanced": {
+          "name": "バランス",
+          "askLine": "迷ったときだけ、一度に一つ聞く",
+          "confirmLine": "複数手順と生成のときだけ確認",
+          "lengthLine": "普通の長さ＋次の一手を一つ"
+        },
+        "handsOff": {
+          "name": "おまかせ",
+          "askLine": "ほとんど聞かずに進める",
+          "confirmLine": "複数手順の前に一声かけるだけ",
+          "lengthLine": "とても短く、結果だけ"
+        }
+      },
+      "previewTitle": "この設定だと {name} はこう話します",
+      "previewHint": "上のどれかを変えると、この例もその場で変わります。",
+      "preview": {
+        "address": "{name}さん、",
+        "opener": {
+          "professional": "確認しました。3 枚のうち 2 枚目の逆光の散り方が、ご希望の夕暮れの光に最も近いです。残り 2 枚は暖色が強すぎます。",
+          "friendly": "見てみました——3 枚のうち 2 枚目がご希望の夕暮れの光に一番近いですね。あとの 2 枚は少し暖色が強めです。",
+          "terse": "2 枚目が最も近いです。他の 2 枚は暖色が強すぎます。",
+          "custom": "ご指定の言い方でいうと、2 枚目がご希望の夕暮れの光に一番近いです。"
+        },
+        "body": {
+          "second": "2 枚目は逆光の散りで雲のディテールが残っているので、そのままベースに使えます。",
+          "third": "残り 2 枚を活かすなら暖色を一段下げ、露出を半段戻す必要があります。時間に余裕があるかどうか次第です。"
+        },
+        "nextStep": "次は、2 枚目をもとにもう一組つくりましょうか？"
+      },
       "tabPersona": "アシスタント",
       "tabRules": "プロジェクトのルール",
       "rulesHint": "アシスタントが手を動かす前に読む決めごとです。残す価値のあることを伝えると書き留めます。",

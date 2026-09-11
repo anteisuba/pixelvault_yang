@@ -152,6 +152,124 @@ export type AssistantPersonaPlanMode =
   (typeof ASSISTANT_PERSONA_PLAN_MODES)[number]
 
 /**
+ * 三档人设（v2 §11.1）—— 设置弹层第一屏那三张卡。
+ *
+ * ⭐ 它是**一整份设置的名字**，不是第四个偏好档：选一张卡 = 把下面
+ * `ASSISTANT_PERSONA_ARCHETYPE_PRESETS` 那五个值整份填进去。用户随后改动任一
+ * 高级项，这一份就不再对上任何一档，`archetype` 变成 `null`（= 自定义）。
+ *
+ * ⚠ id 逐字存在 `AssistantPersona.archetype` 列里，⛔ 不能改名。
+ */
+export const ASSISTANT_PERSONA_ARCHETYPE_IDS = {
+  cautious: 'cautious',
+  balanced: 'balanced',
+  handsOff: 'handsOff',
+} as const
+
+/** 卡的显示次序 = 谨慎 → 平衡 → 放手（从「问得最多」到「问得最少」）。 */
+export const ASSISTANT_PERSONA_ARCHETYPES = [
+  ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious,
+  ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced,
+  ASSISTANT_PERSONA_ARCHETYPE_IDS.handsOff,
+] as const
+
+export type AssistantPersonaArchetype =
+  (typeof ASSISTANT_PERSONA_ARCHETYPES)[number]
+
+/** 一档人设整份填的那几格 —— ⛔ 与卡上那三行副文案逐条对得上，别各说各的。 */
+export interface AssistantPersonaArchetypePreset {
+  tone: AssistantPersonaTone
+  verbosity: AssistantPersonaVerbosity
+  planMode: AssistantPersonaPlanMode
+  nextStepHint: boolean
+  useMyWords: boolean
+}
+
+/**
+ * 三档 → 五个值的**唯一一张映射表**（§11.1）。
+ *
+ * ⚠ 「谨慎」的「每一步都要你点头」= `planMode: always`（每轮先出计划确认），
+ * **不是**恢复花钱确认 —— 决策 8 已把花钱确认整条删掉，⛔ 别从这里绕回来。
+ * ⚠ `nextStepHint` 逐档取自卡上第三行：谨慎「只说结论」/ 平衡「附一条下一步」/
+ * 放手「只报结果」—— 三档里只有平衡那一档要末尾那行。
+ * ⚠ `useMyWords` 三档**都是开**：它说的是「用谁的词」，与「问多少 / 确不确认 /
+ * 说多长」这三条轴无关，⛔ 不为了让三档看起来不一样而把它掰开。
+ */
+export const ASSISTANT_PERSONA_ARCHETYPE_PRESETS: Record<
+  AssistantPersonaArchetype,
+  AssistantPersonaArchetypePreset
+> = {
+  [ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious]: {
+    tone: ASSISTANT_PERSONA_TONE_IDS.professional,
+    verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.concise,
+    planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.always,
+    nextStepHint: false,
+    useMyWords: true,
+  },
+  [ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced]: {
+    tone: ASSISTANT_PERSONA_TONE_IDS.friendly,
+    verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.standard,
+    planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.auto,
+    nextStepHint: true,
+    useMyWords: true,
+  },
+  [ASSISTANT_PERSONA_ARCHETYPE_IDS.handsOff]: {
+    tone: ASSISTANT_PERSONA_TONE_IDS.terse,
+    verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.concise,
+    planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.direct,
+    nextStepHint: false,
+    useMyWords: true,
+  },
+}
+
+/**
+ * 一份设置**正好**对上哪一档（对不上就是 `null` = 自定义）。
+ *
+ * ⭐ 两处共用这一跳：客户端拿它画「哪张卡亮着」，服务端拿它给**存量行**回推
+ * （那一列是后加的，老行里是 NULL），⛔ 不写一条迁移去改存量数据。
+ * ⚠ 判据是**五格全中**：差一格就已经不是那一档了 —— 卡上写的三行副文案是承诺，
+ * 只对上两行的那一份不该顶着「平衡」的名字。
+ */
+export function matchAssistantPersonaArchetype(values: {
+  /**
+   * ⚠ 入参**收宽的 `string`** 而不是词表类型：调用方之一是服务端读库那一跳，
+   * 而库里那几列就是 `String`（词表住这里，⛔ 不做第二份 Prisma 枚举）。
+   * 词表外的值自然对不上任何一档 → `null` = 自定义，正是该有的答案。
+   */
+  tone: string
+  verbosity: string
+  planMode: string
+  nextStepHint: boolean
+  useMyWords: boolean
+}): AssistantPersonaArchetype | null {
+  return (
+    ASSISTANT_PERSONA_ARCHETYPES.find((archetype) => {
+      const preset = ASSISTANT_PERSONA_ARCHETYPE_PRESETS[archetype]
+      return (
+        preset.tone === values.tone &&
+        preset.verbosity === values.verbosity &&
+        preset.planMode === values.planMode &&
+        preset.nextStepHint === values.nextStepHint &&
+        preset.useMyWords === values.useMyWords
+      )
+    }) ?? null
+  )
+}
+
+/**
+ * 实时示例（§11.5）里**正文有几段**——很短 1 句 / 正常 2 段 / 详细 3 段。
+ * 第 1 段就是随语气变的那句开场，⛔ 不在它之外再多算一段。
+ */
+export const ASSISTANT_PERSONA_PREVIEW_PARAGRAPHS: Record<
+  AssistantPersonaVerbosity,
+  number
+> = {
+  [ASSISTANT_PERSONA_VERBOSITY_IDS.concise]: 1,
+  [ASSISTANT_PERSONA_VERBOSITY_IDS.standard]: 2,
+  [ASSISTANT_PERSONA_VERBOSITY_IDS.detailed]: 3,
+}
+
+/**
  * 回复语言三档。`ui` = 跟界面语言走（即请求里带上来的 `responseLanguage`），
  * 另外两档**覆盖**它。
  *
@@ -184,33 +302,45 @@ export const ASSISTANT_PERSONA_DEFAULTS = {
   avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[0],
   avatarUrl: null,
   /**
-   * ⭐ **默认是「简短直接 · 简洁」**（owner 2026-09-06 定）。
+   * ⭐ **默认整份就是「平衡」这一档**（owner 2026-09-11 定，取代 2026-09-06 的
+   * 「简短直接 · 简洁」）：新用户打开设置就看到一张卡亮着，⛔ 不是三张都灰、
+   * 顶上写着「自定义」。
    *
-   * 🔬 换掉的是 `professional` + `standard`。那一档跑出来的每一轮回复都是一段
-   * 三四句的小作文，而助手多数轮次要说的其实只有两句：**做了什么 / 下一步是什么**。
-   * 理由现在有地方放了（`turn.detail`，客户端折起来），所以正文不必再兼职解释。
-   * ⚠ 这两个值必须与 `prisma/schema.prisma` 上 `AssistantPersona` 的 `@default`
-   * 逐字一致 —— 漂了，「没存过」和「存了默认值」就是两个不同的助手。
+   * 🔬 下面这五格逐字抄自 `ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced`
+   * （`friendly` + `standard` + `auto` + 下一步开 + 用我的词开）——⛔ 不在这里
+   * 手写第二份：漂了就是卡上亮着「平衡」而助手按别的档说话。
+   * ⚠ 这几个值同时必须与 `prisma/schema.prisma` 上 `AssistantPersona` 的
+   * `@default` 逐字一致 —— 漂了，「没存过」和「存了默认值」就是两个不同的助手。
    */
-  tone: ASSISTANT_PERSONA_TONE_IDS.terse,
+  tone: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.tone,
   toneCustom: null,
-  verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.concise,
-  planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.auto,
+  verbosity: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.verbosity,
+  planMode: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.planMode,
   language: ASSISTANT_PERSONA_LANGUAGE_IDS.ui,
   /** §4.5：默认「自动」= 库里 `routeModel` 为 null 时的语义，两处必须一致。 */
   routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
   /**
    * v2 §11.3 的三项。⚠ 与 `prisma/schema.prisma` 上的 `@default` 逐字一致。
    *
-   * ⭐ `nextStepHint` **默认关**：助手多数轮次本来就在说下一步（`concise` 那一档
-   * 的两句话，第二句就是它），强制再加一行等于让它说两遍。
+   * ⭐ 两个开关同样取自「平衡」那一档：`nextStepHint` **默认开** —— 卡上第三行
+   * 写的就是「附一条下一步」，默认值不兑现它这张卡就是假话。
    * ⭐ `useMyWords` **默认开**：用户在提示词和卡上用过的说法就是这段对话的词表，
    * 助手把「黄昏光」换个词转述，成本落在用户身上。
    */
-  nextStepHint: false,
-  useMyWords: true,
+  nextStepHint: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.nextStepHint,
+  useMyWords: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.useMyWords,
   /** null = 用账号名（§8.3）。 */
   addressUserAs: null,
+  /**
+   * ⭐ **默认是「平衡」**（owner 2026-09-11 定）——⛔ 不再是 `null`（自定义）。
+   *
+   * 🔬 它不是一个独立的第六格：上面那五格逐字等于
+   * `ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced`，所以
+   * `matchAssistantPersonaArchetype(ASSISTANT_PERSONA_DEFAULTS)` 本来就回
+   * `balanced` —— 这里写死同一个答案只是为了让「缺行」那一跳不必先算一遍。
+   * ⚠ 存量行照旧留 NULL，读的那一跳按五格回推，⛔ 不写迁移回填历史数据。
+   */
+  archetype: ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced,
 } as const
 
 export const ASSISTANT_PERSONA_LIMITS = {

@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import {
   AlertCircle,
   Check,
+  ChevronDown,
   Pencil,
   Plus,
   Trash2,
@@ -15,14 +16,15 @@ import {
 
 import {
   ASSISTANT_AVATAR_PRESET_IDS,
+  ASSISTANT_PERSONA_ARCHETYPES,
+  ASSISTANT_PERSONA_ARCHETYPE_PRESETS,
   ASSISTANT_PERSONA_LANGUAGES,
   ASSISTANT_PERSONA_LIMITS,
-  ASSISTANT_PERSONA_PLAN_MODES,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_TONES,
   ASSISTANT_PERSONA_VERBOSITIES,
+  matchAssistantPersonaArchetype,
   type AssistantPersonaLanguage,
-  type AssistantPersonaPlanMode,
   type AssistantPersonaTone,
   type AssistantPersonaVerbosity,
 } from '@/constants/assistant-persona'
@@ -56,6 +58,7 @@ import {
   ResponsiveDialogTitle,
 } from '@/components/ui/responsive-dialog'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
+import { AssistantPersonaPreview } from '@/components/business/studio/assistant-operator/AssistantPersonaPreview'
 import { ContextCardDialog } from '@/components/business/studio/assistant-operator/ContextCardDialog'
 
 /**
@@ -91,6 +94,26 @@ import { ContextCardDialog } from '@/components/business/studio/assistant-operat
  *
  * ⚠ 头像那两条腿（传 / 撤）走的是**另一条路由**，不跟着「保存」走 ——
  * 它们改的是 R2 上的对象，攒着等保存等于让「取消」变成一句谎话。
+ *
+ * ── 2026-09-11 v2 §11 改版（画板 BSettings）────────────────────────
+ * 助手页从「身份 + 四组分段控件」改成**三层**：
+ *
+ *  ① **三张人设卡**（§11.1）占第一屏 —— 用户要决定的其实只有「它该问我多少」，
+ *     而旧版把这件事拆成四个专业名词（语气 / 长度 / 默认行为 / 语言）让他自己拼。
+ *     选一张卡 = 整份填好（`ASSISTANT_PERSONA_ARCHETYPE_PRESETS`）。
+ *  ② **身份区**：头像 + 名字 + 怎么称呼你，一行装完。
+ *  ③ **「高级」折叠区**：语气 / 回复长度 / 语言 / 下一步建议 / 用我的词。
+ *     ⛔ **默认收起** —— 三张卡才是第一屏，展开的一列专业名词会把它们顶下去。
+ *     ⛔ 「默认行为」那一组分段控件**整块删掉**：它现在由卡那一层决定
+ *     （谨慎 = 每轮先出计划），再摆一颗就是两个地方改同一件事。
+ *  ④ 右侧 **实时示例**（§11.5，`AssistantPersonaPreview`）：本地模板，⛔ 不调 LLM。
+ *
+ * ⚠ **「哪张卡亮着」是算出来的，⛔ 不是存着的一个 flag**：
+ * `matchAssistantPersonaArchetype(draft)` 按五格逐格比对。这样「改了高级项就变
+ * 自定义」不需要在每一个 `patch` 里手动清一次（漏一处就会有一张亮着的假卡），
+ * 而服务端落库用的是**同一个函数**，两边永远给同一个答案。
+ * ⚠ 因此**语言与默认模型不影响这一档**：它们不在 §11.1 那张映射表里，
+ * 卡上写的三行副文案也没有一行在说语言。
  */
 
 /**
@@ -144,12 +167,13 @@ function readFileAsDataUrl(file: File): Promise<string> {
 }
 
 /**
- * 一组「小标题 + 分段控件」（§8.2 的四档偏好共用这一颗）。
+ * 「高级」折叠区里的一行：**左标题 + 右分段控件**（画板 BSettings 的高级区）。
  *
  * ⚠ 走**现有** `ToggleGroup` 原语（radix roving focus + `aria-pressed` 都在里面），
  * ⛔ 不自己写一套按钮组：那样键盘可达性得重新证一遍。
- * ⚠ `onValueChange` 收到空串 = radix 的「再点一次取消选中」——这四档都是必选，
+ * ⚠ `onValueChange` 收到空串 = radix 的「再点一次取消选中」——这几档都是必选，
  * 空串直接丢掉（⛔ 别让用户点出一个「什么都没选」的语气）。
+ * ⚠ 窄档（<640）退回上下两行：92px 的标题栏在 375 上会把三颗 chip 挤成竖条。
  */
 function PersonaSegment({
   label,
@@ -163,8 +187,8 @@ function PersonaSegment({
   onChange(next: string): void
 }) {
   return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground">
+    <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:gap-3">
+      <span className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground sm:w-24 sm:shrink-0">
         {label}
       </span>
       <ToggleGroup
@@ -175,7 +199,7 @@ function PersonaSegment({
         }}
         aria-label={label}
         className={cn(
-          'grid w-full gap-1.5 rounded-lg border-transparent bg-muted p-1',
+          'grid w-full gap-1.5 rounded-lg border-transparent bg-muted p-1 sm:flex-1',
           options.length === 4 ? 'grid-cols-4' : 'grid-cols-3',
         )}
       >
@@ -190,6 +214,40 @@ function PersonaSegment({
         ))}
       </ToggleGroup>
     </div>
+  )
+}
+
+/**
+ * 高级区里的一颗开关行（下一步建议 / 用我的词）——与 `PersonaSegment` 同一套
+ * 左标题栏宽度，⛔ 别让同一列里的两种行各自对齐到不同的位置。
+ */
+function PersonaSwitchRow({
+  label,
+  hint,
+  checked,
+  onChange,
+  testId,
+}: {
+  label: string
+  hint: string
+  checked: boolean
+  onChange(next: boolean): void
+  testId: string
+}) {
+  return (
+    <label className="flex items-center gap-3">
+      <span className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground sm:w-24 sm:shrink-0">
+        {label}
+      </span>
+      <span className="flex min-w-0 flex-1 items-center justify-between gap-3">
+        <span className="min-w-0 text-md text-muted-foreground">{hint}</span>
+        <Switch
+          data-testid={testId}
+          checked={checked}
+          onCheckedChange={onChange}
+        />
+      </span>
+    </label>
   )
 }
 
@@ -286,8 +344,14 @@ export function AssistantSettingsDialog({
   const [saveFailed, setSaveFailed] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const draft: PersonaDraft = useMemo(
-    () => ({
+  /**
+   * 「高级」折叠区的开合（§11.2）。⛔ **默认收起**：第一屏该是三张人设卡，
+   * 一展开那五行专业名词就把卡顶出视口 —— 而卡才是绝大多数用户要动的东西。
+   */
+  const [advancedOpen, setAdvancedOpen] = useState(false)
+
+  const draft: PersonaDraft = useMemo(() => {
+    const merged = {
       name: persona.name,
       avatarPreset: persona.avatarPreset,
       tone: persona.tone,
@@ -305,10 +369,20 @@ export function AssistantSettingsDialog({
       nextStepHint: persona.nextStepHint,
       useMyWords: persona.useMyWords,
       addressUserAs: persona.addressUserAs,
+      /**
+       * ⚠ 占位而已，下面那一行会把它盖掉 —— `PersonaDraft` 要求这一格在场，
+       * 而它的真值永远是**算出来的**（见下）。
+       */
+      archetype: persona.archetype,
       ...touched,
-    }),
-    [persona, touched],
-  )
+    }
+    /**
+     * 「哪张卡亮着」= 五格逐格比对的结果（§11.1），⛔ 不是 `touched` 里存的一个
+     * flag：存 flag 就要在每一个动高级项的地方手动清一次，漏一处就会留下一张
+     * 亮着的假卡。服务端落库走的是**同一个函数**，所以保存前后不会跳。
+     */
+    return { ...merged, archetype: matchAssistantPersonaArchetype(merged) }
+  }, [persona, touched])
 
   const patch = useCallback((next: Partial<PersonaDraft>) => {
     // 动过一格就把上一次的失败提示收掉 —— 那条红字说的是上一次那个草稿。
@@ -382,10 +456,6 @@ export function AssistantSettingsDialog({
     value: verbosity,
     label: t(`verbosity.${verbosity}`),
   }))
-  const planModeOptions = ASSISTANT_PERSONA_PLAN_MODES.map((planMode) => ({
-    value: planMode,
-    label: t(`planMode.${planMode}`),
-  }))
   const languageOptions = ASSISTANT_PERSONA_LANGUAGES.map((language) => ({
     value: language,
     label: t(`language.${language}`),
@@ -451,47 +521,202 @@ export function AssistantSettingsDialog({
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 pb-4 lg:px-6">
             <TabsContent value={ASSISTANT_SETTINGS_SECTIONS.persona}>
-              {/* 两栏：左「身份」/ 右「说话方式」。⚠ `lg:` 起才分栏 —— 抽屉档
-                  只有 375 宽，两栏在那里等于两条挤扁的窄柱。 */}
-              <div className="grid gap-6 lg:grid-cols-5">
-                {/* ── 左：身份 ─────────────────────────────────── */}
-                <section className="flex flex-col gap-3 lg:col-span-2">
-                  <span className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground">
-                    {t('avatarLabel')}
-                  </span>
-
-                  <div className="flex items-center gap-3">
-                    {/* 64px 大预览 —— 旧版根本没有预览，用户选完只能靠 34px
-                        小图猜自己选了什么。 */}
-                    <span
-                      data-testid="assistant-avatar-preview"
-                      className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-muted"
-                    >
-                      {persona.avatarUrl ? (
-                        <Image
-                          src={persona.avatarUrl}
-                          alt={t('avatarLabel')}
-                          width={128}
-                          height={128}
-                          unoptimized
-                          className="size-full object-cover"
-                        />
-                      ) : (
-                        <AssistantAvatarGlyph
-                          presetId={draft.avatarPreset}
-                          name={
-                            draft.name?.trim() || tTimeline('assistantFallback')
+              {/* 三行两栏（`lg:` 起）：左上「人设卡 + 身份」· 左下「高级」·
+                  右侧实时示例跨两行。⚠ 手机档单列，**DOM 次序就是阅读次序**：
+                  卡 → 身份 → 示例 → 高级。示例排在折叠区之前，因为它解释的正是
+                  上面那三张卡的后果；折叠着的东西不该挡在解释前面。 */}
+              <div className="grid gap-4 lg:grid-cols-5">
+                {/* ── 左上：三张人设卡 + 身份区 ─────────────────── */}
+                <section className="flex flex-col gap-3 lg:col-span-3 lg:col-start-1 lg:row-start-1">
+                  {/* ⚠ 375 档一列到底：三张卡各带三行副文案，横排在窄屏上会把
+                      每行压成两个字。 */}
+                  <div
+                    data-testid="assistant-archetype-cards"
+                    className="grid gap-2 sm:grid-cols-3"
+                  >
+                    {ASSISTANT_PERSONA_ARCHETYPES.map((archetype) => {
+                      const selected = draft.archetype === archetype
+                      return (
+                        <button
+                          key={archetype}
+                          type="button"
+                          data-testid={`assistant-archetype-${archetype}`}
+                          aria-pressed={selected}
+                          onClick={() =>
+                            patch(
+                              ASSISTANT_PERSONA_ARCHETYPE_PRESETS[archetype],
+                            )
                           }
-                          className="size-full"
-                        />
-                      )}
-                    </span>
+                          className={cn(
+                            'flex flex-col gap-2 rounded-xl border-2 p-3 text-left transition-[border-color,background-color,transform] duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none active:scale-95 motion-reduce:transition-none',
+                            selected
+                              ? 'border-primary bg-muted'
+                              : 'border-border bg-card hover:border-primary/40',
+                          )}
+                        >
+                          <span className="flex items-center gap-1.5">
+                            <span className="text-sm font-semibold text-foreground">
+                              {t(`archetype.${archetype}.name`)}
+                            </span>
+                            {/* ⚠ 选中**不只靠边框**：一颗勾是文本/图形冗余表达
+                                （forbidden：⛔ 只靠颜色表达状态）。 */}
+                            {selected ? (
+                              <Check
+                                className="ml-auto size-3.5 text-foreground"
+                                aria-hidden
+                              />
+                            ) : null}
+                          </span>
+                          <span className="flex flex-col gap-0.5 text-md leading-relaxed text-muted-foreground">
+                            <span>{t(`archetype.${archetype}.askLine`)}</span>
+                            <span>
+                              {t(`archetype.${archetype}.confirmLine`)}
+                            </span>
+                            <span>
+                              {t(`archetype.${archetype}.lengthLine`)}
+                            </span>
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                  {/* 一张卡都没亮 = 用户在高级区改出了自己的一份。⛔ 不做成第四张
+                      卡：它不是一个能点的选项，而是「你已经不在这三档里」这条事实。 */}
+                  {draft.archetype === null ? (
+                    <p
+                      data-testid="assistant-archetype-custom"
+                      className="text-md text-muted-foreground"
+                    >
+                      <span className="mr-1.5 rounded-md bg-muted px-1.5 py-0.5 text-2sm font-semibold uppercase tracking-nav text-foreground">
+                        {t('archetypeCustom')}
+                      </span>
+                      {t('archetypeCustomHint')}
+                    </p>
+                  ) : null}
 
-                    <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  {/* ── 身份区（§11.4）：头像 + 名字 + 怎么称呼你 ──── */}
+                  <div className="flex flex-col gap-3 rounded-xl border border-border bg-card p-3">
+                    <div className="flex items-center gap-3">
+                      {/* 52px 预览 —— 旧版根本没有预览，用户选完只能靠小图猜。 */}
+                      <span
+                        data-testid="assistant-avatar-preview"
+                        className="grid size-13 shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-muted"
+                      >
+                        {persona.avatarUrl ? (
+                          <Image
+                            src={persona.avatarUrl}
+                            alt={t('avatarLabel')}
+                            width={128}
+                            height={128}
+                            unoptimized
+                            className="size-full object-cover"
+                          />
+                        ) : (
+                          <AssistantAvatarGlyph
+                            presetId={draft.avatarPreset}
+                            name={
+                              draft.name?.trim() ||
+                              tTimeline('assistantFallback')
+                            }
+                            className="size-full"
+                          />
+                        )}
+                      </span>
+
+                      <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:gap-3">
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                          <Label
+                            htmlFor="assistant-persona-name"
+                            className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground"
+                          >
+                            {t('nameLabel')}
+                          </Label>
+                          <Input
+                            id="assistant-persona-name"
+                            value={draft.name ?? ''}
+                            maxLength={ASSISTANT_PERSONA_LIMITS.maxNameChars}
+                            placeholder={t('namePlaceholder')}
+                            onChange={(event) =>
+                              patch({
+                                name: event.target.value.trim()
+                                  ? event.target.value
+                                  : null,
+                              })
+                            }
+                          />
+                        </div>
+                        {/* 「怎么称呼你」（§11.3）搬进身份区 —— 它与「它叫什么」
+                            是同一个问题的两半，⛔ 别再摆回说话方式那一列。 */}
+                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                          <Label
+                            htmlFor="assistant-address-user-as"
+                            className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground"
+                          >
+                            {t('addressUserAsLabel')}
+                          </Label>
+                          <Input
+                            id="assistant-address-user-as"
+                            data-testid="assistant-address-user-as"
+                            value={draft.addressUserAs ?? ''}
+                            maxLength={
+                              ASSISTANT_PERSONA_LIMITS.maxAddressUserAsChars
+                            }
+                            placeholder={t('addressUserAsPlaceholder')}
+                            onChange={(event) =>
+                              patch({
+                                addressUserAs: event.target.value.trim()
+                                  ? event.target.value
+                                  : null,
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 两款预设 + 传 / 撤，一行装完。⚠ 每颗 `h-11`（44px 触屏
+                        命中区，`ui-defaults.md §5`）。
+                        🔬 contrast-check（2026-09-07，浅 / 暗）：品牌标
+                        `text-foreground` 对卡背 19.80 / 17.18，未选 `text-muted-
+                        foreground` 5.49 / 6.94，选中 `text-primary` 21.00 / 17.93。
+                        ⚠ `ring-ring` 对卡背只有 2.58（浅档）—— 所以选中态**同时**
+                        换 `border-primary`（21.00），⛔ 别把「选中了没有」单独押
+                        在那圈 ring 上。 */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {ASSISTANT_AVATAR_PRESET_IDS.map((presetId) => {
+                        const selected =
+                          !persona.avatarUrl && draft.avatarPreset === presetId
+                        return (
+                          <button
+                            key={presetId}
+                            type="button"
+                            aria-pressed={selected}
+                            aria-label={t(`avatarPreset.${presetId}`)}
+                            title={t(`avatarPreset.${presetId}`)}
+                            onClick={() => patch({ avatarPreset: presetId })}
+                            className={cn(
+                              'grid h-11 w-14 place-items-center rounded-md border p-2 transition-[border-color,color,transform] duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95 motion-reduce:transition-none',
+                              selected
+                                ? 'border-primary text-primary ring-2 ring-ring'
+                                : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
+                            )}
+                          >
+                            <AssistantAvatarGlyph
+                              presetId={presetId}
+                              name={
+                                draft.name?.trim() ||
+                                tTimeline('assistantFallback')
+                              }
+                              className="size-7"
+                            />
+                          </button>
+                        )
+                      })}
                       <Button
                         type="button"
                         variant="outline"
                         size="sm"
+                        className="h-11"
                         onClick={() => fileInputRef.current?.click()}
                         disabled={isSaving}
                       >
@@ -503,6 +728,7 @@ export function AssistantSettingsDialog({
                           type="button"
                           variant="ghost"
                           size="sm"
+                          className="h-11"
                           onClick={() => void removeAvatar()}
                           disabled={isSaving}
                         >
@@ -511,219 +737,160 @@ export function AssistantSettingsDialog({
                         </Button>
                       ) : null}
                     </div>
-                  </div>
 
-                  {/* 两款预设（owner 2026-09-07：「只给一两张预设图」）——
-                      ① 项目品牌标 ② 首字母圆标。⚠ 格子 `h-11`（44px 触屏命中
-                      区，`ui-defaults.md §5`），选中态 `ring-2 ring-ring`。
-                      🔬 contrast-check（2026-09-07，浅 / 暗）：品牌标
-                      `text-foreground` 对卡背 19.80 / 17.18，未选 `text-muted-
-                      foreground` 5.49 / 6.94，选中 `text-primary` 21.00 / 17.93；
-                      首字母 `fill-muted-foreground` 对 `fill-muted` 圆底
-                      5.04 / 5.86。⚠ `ring-ring` 对卡背只有 2.58（浅档）——
-                      所以选中态**同时**换 `border-primary`（21.00），⛔ 别把
-                      「选中了没有」单独押在那圈 ring 上。 */}
-                  <div className="grid grid-cols-2 gap-2">
-                    {ASSISTANT_AVATAR_PRESET_IDS.map((presetId) => {
-                      const selected =
-                        !persona.avatarUrl && draft.avatarPreset === presetId
-                      return (
-                        <button
-                          key={presetId}
-                          type="button"
-                          aria-pressed={selected}
-                          aria-label={t(`avatarPreset.${presetId}`)}
-                          title={t(`avatarPreset.${presetId}`)}
-                          onClick={() => patch({ avatarPreset: presetId })}
-                          className={cn(
-                            'grid h-11 place-items-center rounded-md border p-2 transition-[border-color,color,transform] duration-fast ease-standard focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none active:scale-95 motion-reduce:transition-none',
-                            selected
-                              ? 'border-primary text-primary ring-2 ring-ring'
-                              : 'border-border text-muted-foreground hover:border-primary/40 hover:text-foreground',
-                          )}
-                        >
-                          <AssistantAvatarGlyph
-                            presetId={presetId}
-                            name={
-                              draft.name?.trim() ||
-                              tTimeline('assistantFallback')
-                            }
-                            className="size-7"
-                          />
-                        </button>
-                      )
-                    })}
-                  </div>
-
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept={PROFILE.SUPPORTED_IMAGE_TYPES.join(',')}
-                    className="hidden"
-                    onChange={(event) => {
-                      void handleFile(event.target.files?.[0])
-                      // 同一张图连传两次也要触发 change —— ⛔ 别忘了清值。
-                      event.target.value = ''
-                    }}
-                  />
-
-                  {isSaving ? (
-                    <p className="flex items-center gap-1.5 text-md text-muted-foreground">
-                      <Spinner size="sm" />
-                      {t('avatarUploading')}
-                    </p>
-                  ) : null}
-                  {avatarError ? (
-                    <p
-                      role="alert"
-                      className="flex items-center gap-1.5 text-md text-status-risk"
-                    >
-                      <AlertCircle className="size-3.5 shrink-0" aria-hidden />
-                      {avatarError}
-                    </p>
-                  ) : null}
-
-                  <div className="flex flex-col gap-1.5">
-                    <Label
-                      htmlFor="assistant-persona-name"
-                      className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground"
-                    >
-                      {t('nameLabel')}
-                    </Label>
-                    <Input
-                      id="assistant-persona-name"
-                      value={draft.name ?? ''}
-                      maxLength={ASSISTANT_PERSONA_LIMITS.maxNameChars}
-                      placeholder={t('namePlaceholder')}
-                      onChange={(event) =>
-                        patch({
-                          name: event.target.value.trim()
-                            ? event.target.value
-                            : null,
-                        })
-                      }
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={PROFILE.SUPPORTED_IMAGE_TYPES.join(',')}
+                      className="hidden"
+                      onChange={(event) => {
+                        void handleFile(event.target.files?.[0])
+                        // 同一张图连传两次也要触发 change —— ⛔ 别忘了清值。
+                        event.target.value = ''
+                      }}
                     />
+
+                    {isSaving ? (
+                      <p className="flex items-center gap-1.5 text-md text-muted-foreground">
+                        <Spinner size="sm" />
+                        {t('avatarUploading')}
+                      </p>
+                    ) : null}
+                    {avatarError ? (
+                      <p
+                        role="alert"
+                        className="flex items-center gap-1.5 text-md text-status-risk"
+                      >
+                        <AlertCircle
+                          className="size-3.5 shrink-0"
+                          aria-hidden
+                        />
+                        {avatarError}
+                      </p>
+                    ) : null}
                   </div>
                 </section>
 
-                {/* ── 右：说话方式 ─────────────────────────────── */}
-                <section className="flex flex-col gap-4 lg:col-span-3">
-                  <PersonaSegment
-                    label={t('toneLabel')}
-                    options={toneOptions}
-                    value={draft.tone}
-                    onChange={(value) =>
-                      patch({ tone: value as AssistantPersonaTone })
-                    }
+                {/* ── 右：实时示例（§11.5，本地模板，⛔ 不调 LLM）────── */}
+                <div className="lg:col-span-2 lg:col-start-4 lg:row-span-2 lg:row-start-1">
+                  <AssistantPersonaPreview
+                    name={draft.name?.trim() || tTimeline('assistantFallback')}
+                    avatarPreset={draft.avatarPreset}
+                    avatarUrl={persona.avatarUrl}
+                    tone={draft.tone}
+                    verbosity={draft.verbosity}
+                    nextStepHint={draft.nextStepHint}
+                    addressUserAs={draft.addressUserAs}
                   />
-                  {/* 自定义那一句**只在选中 custom 时**长出来 —— 常驻一个空框会
-                      让另外三档看起来也缺了点什么。 */}
-                  {draft.tone === ASSISTANT_PERSONA_TONE_IDS.custom ? (
-                    <div className="flex flex-col gap-1.5">
-                      <Input
-                        value={draft.toneCustom ?? ''}
-                        maxLength={ASSISTANT_PERSONA_LIMITS.maxToneCustomChars}
-                        placeholder={t('toneCustomPlaceholder')}
-                        aria-invalid={showToneCustomError}
-                        onChange={(event) =>
+                </div>
+
+                {/* ── 左下：「高级」折叠区（§11.2 + §11.3）──────────── */}
+                <section className="flex flex-col gap-3 lg:col-span-3 lg:col-start-1 lg:row-start-2">
+                  <button
+                    type="button"
+                    data-testid="assistant-advanced-toggle"
+                    aria-expanded={advancedOpen}
+                    aria-controls="assistant-advanced"
+                    onClick={() => setAdvancedOpen((current) => !current)}
+                    className="flex items-center gap-2 rounded-md text-md text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                  >
+                    <ChevronDown
+                      className={cn(
+                        'size-3.5 shrink-0 transition-transform duration-fast ease-standard motion-reduce:transition-none',
+                        advancedOpen && 'rotate-180',
+                      )}
+                      aria-hidden
+                    />
+                    <span>{t('advancedLabel')}</span>
+                    <span className="h-px flex-1 bg-border" aria-hidden />
+                  </button>
+
+                  {advancedOpen ? (
+                    <div
+                      id="assistant-advanced"
+                      data-testid="assistant-advanced"
+                      className="flex flex-col gap-3"
+                    >
+                      <PersonaSegment
+                        label={t('toneLabel')}
+                        options={toneOptions}
+                        value={draft.tone}
+                        onChange={(value) =>
+                          patch({ tone: value as AssistantPersonaTone })
+                        }
+                      />
+                      {/* 自定义那一句**只在选中 custom 时**长出来 —— 常驻一个空框
+                          会让另外三档看起来也缺了点什么。 */}
+                      {draft.tone === ASSISTANT_PERSONA_TONE_IDS.custom ? (
+                        <div className="flex flex-col gap-1.5 sm:pl-27">
+                          <Input
+                            value={draft.toneCustom ?? ''}
+                            maxLength={
+                              ASSISTANT_PERSONA_LIMITS.maxToneCustomChars
+                            }
+                            placeholder={t('toneCustomPlaceholder')}
+                            aria-invalid={showToneCustomError}
+                            onChange={(event) =>
+                              patch({
+                                toneCustom: event.target.value.trim()
+                                  ? event.target.value
+                                  : null,
+                              })
+                            }
+                          />
+                          {showToneCustomError ? (
+                            <p
+                              role="alert"
+                              className="flex items-center gap-1.5 text-md text-status-risk"
+                            >
+                              <AlertCircle
+                                className="size-3.5 shrink-0"
+                                aria-hidden
+                              />
+                              {t('toneCustomRequired')}
+                            </p>
+                          ) : null}
+                        </div>
+                      ) : null}
+
+                      <PersonaSegment
+                        label={t('verbosityLabel')}
+                        options={verbosityOptions}
+                        value={draft.verbosity}
+                        onChange={(value) =>
                           patch({
-                            toneCustom: event.target.value.trim()
-                              ? event.target.value
-                              : null,
+                            verbosity: value as AssistantPersonaVerbosity,
                           })
                         }
                       />
-                      {showToneCustomError ? (
-                        <p
-                          role="alert"
-                          className="flex items-center gap-1.5 text-md text-status-risk"
-                        >
-                          <AlertCircle
-                            className="size-3.5 shrink-0"
-                            aria-hidden
-                          />
-                          {t('toneCustomRequired')}
-                        </p>
-                      ) : null}
+
+                      <PersonaSegment
+                        label={t('languageLabel')}
+                        options={languageOptions}
+                        value={draft.language}
+                        onChange={(value) =>
+                          patch({ language: value as AssistantPersonaLanguage })
+                        }
+                      />
+
+                      {/* §11.3 的两个开关 —— 它们同样改**说话方式**，所以与语气
+                          长度同列，⛔ 不自成一块（同一件事分两处摆要找两遍）。 */}
+                      <PersonaSwitchRow
+                        label={t('nextStepHintLabel')}
+                        hint={t('nextStepHintHint')}
+                        checked={draft.nextStepHint}
+                        onChange={(next) => patch({ nextStepHint: next })}
+                        testId="assistant-next-step-hint"
+                      />
+                      <PersonaSwitchRow
+                        label={t('useMyWordsLabel')}
+                        hint={t('useMyWordsHint')}
+                        checked={draft.useMyWords}
+                        onChange={(next) => patch({ useMyWords: next })}
+                        testId="assistant-use-my-words"
+                      />
                     </div>
                   ) : null}
-
-                  <PersonaSegment
-                    label={t('verbosityLabel')}
-                    options={verbosityOptions}
-                    value={draft.verbosity}
-                    onChange={(value) =>
-                      patch({ verbosity: value as AssistantPersonaVerbosity })
-                    }
-                  />
-
-                  <PersonaSegment
-                    label={t('planModeLabel')}
-                    options={planModeOptions}
-                    value={draft.planMode}
-                    onChange={(value) =>
-                      patch({ planMode: value as AssistantPersonaPlanMode })
-                    }
-                  />
-                  {/* 全弹层**唯一**一句辅助说明（`ui-defaults.md`：辅助文字
-                      `text-md text-muted-foreground`，只留一句）。它挂在「默认
-                      行为」下面而不是弹层末尾，因为它解释的就是这一档。 */}
-                  <p className="-mt-2.5 text-md text-muted-foreground">
-                    {t('planModeHint')}
-                  </p>
-
-                  <PersonaSegment
-                    label={t('languageLabel')}
-                    options={languageOptions}
-                    value={draft.language}
-                    onChange={(value) =>
-                      patch({ language: value as AssistantPersonaLanguage })
-                    }
-                  />
-
-                  {/* ── v2 §11.3 的三项 ────────────────────────────
-                      它们改的都是**说话方式**，所以接在语气 / 长度 / 语言后面，
-                      而不是自成一块 —— 同一件事分两处摆，用户要找两遍。 */}
-                  <label className="flex items-center justify-between gap-3 text-md">
-                    <span>{t('nextStepHintLabel')}</span>
-                    <Switch
-                      data-testid="assistant-next-step-hint"
-                      checked={draft.nextStepHint}
-                      onCheckedChange={(next) => patch({ nextStepHint: next })}
-                    />
-                  </label>
-
-                  <label className="flex items-center justify-between gap-3 text-md">
-                    <span>{t('useMyWordsLabel')}</span>
-                    <Switch
-                      data-testid="assistant-use-my-words"
-                      checked={draft.useMyWords}
-                      onCheckedChange={(next) => patch({ useMyWords: next })}
-                    />
-                  </label>
-
-                  <div className="flex flex-col gap-1.5">
-                    <Label
-                      htmlFor="assistant-address-user-as"
-                      className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground"
-                    >
-                      {t('addressUserAsLabel')}
-                    </Label>
-                    <Input
-                      id="assistant-address-user-as"
-                      data-testid="assistant-address-user-as"
-                      value={draft.addressUserAs ?? ''}
-                      maxLength={ASSISTANT_PERSONA_LIMITS.maxAddressUserAsChars}
-                      placeholder={t('addressUserAsPlaceholder')}
-                      onChange={(event) =>
-                        patch({
-                          addressUserAs: event.target.value.trim()
-                            ? event.target.value
-                            : null,
-                        })
-                      }
-                    />
-                  </div>
                 </section>
               </div>
             </TabsContent>

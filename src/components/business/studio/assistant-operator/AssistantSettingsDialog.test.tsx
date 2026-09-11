@@ -5,8 +5,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   ASSISTANT_AVATAR_PRESET_IDS,
+  ASSISTANT_PERSONA_ARCHETYPE_IDS,
+  ASSISTANT_PERSONA_ARCHETYPE_PRESETS,
   ASSISTANT_PERSONA_DEFAULTS,
-  ASSISTANT_PERSONA_PLAN_MODE_IDS,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_PERSONA_VERBOSITY_IDS,
 } from '@/constants/assistant-persona'
@@ -132,6 +133,15 @@ function clickOption(key: string) {
   fireEvent.click(screen.getByText(key))
 }
 
+/**
+ * 「高级」折叠区**默认收起**（v2 §11.2）——语气 / 长度 / 语言 / 两个开关都住在
+ * 里面，所以动它们之前得先展开。⛔ 别把这一下省掉：省掉的表现是
+ * `getByText` 抓不到东西，而那恰恰是这个折叠区在起作用的证据。
+ */
+function openAdvanced() {
+  fireEvent.click(screen.getByTestId('assistant-advanced-toggle'))
+}
+
 describe('AssistantSettingsDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -146,9 +156,9 @@ describe('AssistantSettingsDialog', () => {
     fireEvent.change(screen.getByLabelText('nameLabel'), {
       target: { value: 'Mika' },
     })
+    openAdvanced()
     clickOption(`tone.${ASSISTANT_PERSONA_TONE_IDS.friendly}`)
     clickOption(`verbosity.${ASSISTANT_PERSONA_VERBOSITY_IDS.detailed}`)
-    clickOption(`planMode.${ASSISTANT_PERSONA_PLAN_MODE_IDS.always}`)
     clickOption('language.chinese')
     fireEvent.click(screen.getByText('save'))
 
@@ -159,7 +169,9 @@ describe('AssistantSettingsDialog', () => {
       tone: ASSISTANT_PERSONA_TONE_IDS.friendly,
       toneCustom: null,
       verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.detailed,
-      planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.always,
+      // ⚠ 「默认行为」那一组控件随 v2 §11.1 删掉（它由人设卡决定）——
+      //   没人动过，所以原样带默认值发出去。
+      planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
       language: 'chinese',
       // ⚠ 设置里没有这一格的控件（模型选在输入区的 chip 上），但保存必须原样
       //   带上它 —— 不带的话在设置里点一次保存就把用户选的模型打回「自动」。
@@ -167,6 +179,8 @@ describe('AssistantSettingsDialog', () => {
       // v2 §11.3 的三项 —— 没动过就是默认值，照样原样发出去。
       nextStepHint: ASSISTANT_PERSONA_DEFAULTS.nextStepHint,
       useMyWords: ASSISTANT_PERSONA_DEFAULTS.useMyWords,
+      // 五格对不上任何一档（§11.1）→ 自定义。
+      archetype: null,
       addressUserAs: ASSISTANT_PERSONA_DEFAULTS.addressUserAs,
     })
   })
@@ -178,6 +192,7 @@ describe('AssistantSettingsDialog', () => {
   it('三项用户偏好：两个开关 + 称呼各自落进那一次保存', async () => {
     renderDialog()
 
+    openAdvanced()
     fireEvent.click(screen.getByTestId('assistant-next-step-hint'))
     fireEvent.click(screen.getByTestId('assistant-use-my-words'))
     fireEvent.change(screen.getByTestId('assistant-address-user-as'), {
@@ -187,8 +202,8 @@ describe('AssistantSettingsDialog', () => {
 
     await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1))
     expect(mockSave.mock.calls[0][0]).toMatchObject({
-      // 默认 false → 点一下变 true
-      nextStepHint: true,
+      // 默认 true（「平衡」档）→ 点一下变 false
+      nextStepHint: false,
       // 默认 true → 点一下变 false
       useMyWords: false,
       addressUserAs: '阿羊',
@@ -222,6 +237,7 @@ describe('AssistantSettingsDialog', () => {
       addressUserAs: '阿羊',
     }
     renderDialog()
+    openAdvanced()
 
     expect(
       screen.getByTestId('assistant-next-step-hint').getAttribute('data-state'),
@@ -281,6 +297,7 @@ describe('AssistantSettingsDialog', () => {
   it('tone=custom 而那句话是空的时候不发保存', async () => {
     renderDialog()
 
+    openAdvanced()
     clickOption(`tone.${ASSISTANT_PERSONA_TONE_IDS.custom}`)
     fireEvent.click(screen.getByText('save'))
 
@@ -293,6 +310,7 @@ describe('AssistantSettingsDialog', () => {
   it('写了自定义语气之后保存把那一句一起带上', async () => {
     renderDialog()
 
+    openAdvanced()
     clickOption(`tone.${ASSISTANT_PERSONA_TONE_IDS.custom}`)
     fireEvent.change(screen.getByPlaceholderText('toneCustomPlaceholder'), {
       target: { value: 'Talk like a film editor' },
@@ -360,7 +378,9 @@ describe('AssistantSettingsDialog', () => {
       ).toHaveTextContent('saveFailed'),
     )
 
-    clickOption(`tone.${ASSISTANT_PERSONA_TONE_IDS.friendly}`)
+    openAdvanced()
+    // ⚠ 换成**与默认不同**的那一档（默认是 friendly）——点回原值不算改一格。
+    clickOption(`tone.${ASSISTANT_PERSONA_TONE_IDS.terse}`)
     // ⚠ 槽本身**留着**（live region 得常驻），空的是它的内容。
     expect(
       screen.getByTestId('assistant-persona-save-error'),
@@ -375,6 +395,251 @@ describe('AssistantSettingsDialog', () => {
     const button = screen.getByText('save').closest('button')
     expect(button).toBeDisabled()
     expect(button?.querySelector('[role="status"]')).not.toBeNull()
+  })
+})
+
+/**
+ * 三档人设与实时示例（v2 §11.1 / §11.2 / §11.5，commit #19）。
+ *
+ * ⚠ 这一组要锁死的是**因果**：选一张卡 = 整份填好；动一个高级项 = 那张卡不再
+ * 亮着；示例随每一项当场变。三条里任何一条断了，用户看到的都是一句假承诺
+ * （卡上写着「附一条下一步」，实际却没有）。
+ */
+describe('助手设置 · 三档人设（v2 §11.1）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    personaState = { ...ASSISTANT_PERSONA_DEFAULTS, avatarUrl: null }
+    isSavingState = false
+    mockSave.mockResolvedValue(true)
+  })
+
+  it('第一屏就是三张卡，⛔ 不藏在折叠区里', () => {
+    renderDialog()
+
+    for (const archetype of ['cautious', 'balanced', 'handsOff'] as const) {
+      expect(
+        screen.getByTestId(`assistant-archetype-${archetype}`),
+      ).toBeTruthy()
+    }
+    // 「高级」默认收起 —— 展开的一列专业名词会把三张卡顶出视口。
+    expect(screen.queryByTestId('assistant-advanced')).toBeNull()
+    expect(screen.getByTestId('assistant-advanced-toggle')).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+  })
+
+  it('点「高级」展开，再点一次收起', () => {
+    renderDialog()
+
+    openAdvanced()
+    expect(screen.getByTestId('assistant-advanced')).toBeTruthy()
+    expect(screen.getByTestId('assistant-advanced-toggle')).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+
+    openAdvanced()
+    expect(screen.queryByTestId('assistant-advanced')).toBeNull()
+  })
+
+  /** 选卡 = **整份**填好（⛔ 不是只填语气那一格），且 `archetype` 一起发出去。 */
+  it.each(['cautious', 'balanced', 'handsOff'] as const)(
+    '选「%s」卡把五个值整份填进那一次保存',
+    async (archetype) => {
+      renderDialog()
+
+      fireEvent.click(screen.getByTestId(`assistant-archetype-${archetype}`))
+      fireEvent.click(screen.getByText('save'))
+
+      await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1))
+      expect(mockSave.mock.calls[0][0]).toMatchObject({
+        ...ASSISTANT_PERSONA_ARCHETYPE_PRESETS[archetype],
+        archetype,
+      })
+    },
+  )
+
+  it('选中的那张卡 aria-pressed，其余两张不是', () => {
+    renderDialog()
+
+    fireEvent.click(
+      screen.getByTestId(
+        `assistant-archetype-${ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced}`,
+      ),
+    )
+
+    expect(
+      screen.getByTestId(
+        `assistant-archetype-${ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced}`,
+      ),
+    ).toHaveAttribute('aria-pressed', 'true')
+    expect(
+      screen.getByTestId(
+        `assistant-archetype-${ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious}`,
+      ),
+    ).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByTestId('assistant-archetype-custom')).toBeNull()
+  })
+
+  /** ⭐ 改任一高级项 → 那张卡不再亮着，`archetype` 落 `null`（= 自定义）。 */
+  it('选完卡再改一个高级项：archetype 置 null 并显示「自定义」', async () => {
+    renderDialog()
+
+    fireEvent.click(
+      screen.getByTestId(
+        `assistant-archetype-${ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced}`,
+      ),
+    )
+    openAdvanced()
+    clickOption(`verbosity.${ASSISTANT_PERSONA_VERBOSITY_IDS.detailed}`)
+
+    expect(screen.getByTestId('assistant-archetype-custom')).toBeTruthy()
+    expect(
+      screen.getByTestId(
+        `assistant-archetype-${ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced}`,
+      ),
+    ).toHaveAttribute('aria-pressed', 'false')
+
+    fireEvent.click(screen.getByText('save'))
+    await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1))
+    expect(mockSave.mock.calls[0][0].archetype).toBeNull()
+  })
+
+  /**
+   * 开关也在那五格里 —— 「平衡」承诺「附一条下一步」，关掉它就不再是平衡。
+   */
+  it('关掉「下一步建议」同样让那张卡熄掉', () => {
+    renderDialog()
+
+    fireEvent.click(
+      screen.getByTestId(
+        `assistant-archetype-${ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced}`,
+      ),
+    )
+    openAdvanced()
+    fireEvent.click(screen.getByTestId('assistant-next-step-hint'))
+
+    expect(screen.getByTestId('assistant-archetype-custom')).toBeTruthy()
+  })
+
+  /** 库里存着一份正好对上某一档的设置时，打开设置该看到那张卡亮着。 */
+  it('persona 的值正好对上某一档时那张卡开着就是亮的', () => {
+    personaState = {
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      ...ASSISTANT_PERSONA_ARCHETYPE_PRESETS[
+        ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious
+      ],
+      archetype: ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious,
+    }
+    renderDialog()
+
+    expect(
+      screen.getByTestId(
+        `assistant-archetype-${ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious}`,
+      ),
+    ).toHaveAttribute('aria-pressed', 'true')
+  })
+})
+
+/**
+ * 实时示例（§11.5）——**本地模板**：改一项当场变，⛔ 全程零网络请求。
+ */
+describe('助手设置 · 实时示例（v2 §11.5）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    personaState = { ...ASSISTANT_PERSONA_DEFAULTS, avatarUrl: null }
+    isSavingState = false
+    mockSave.mockResolvedValue(true)
+  })
+
+  it('语气换一档，开场那句就换一句模板', () => {
+    renderDialog()
+
+    expect(screen.getByTestId('assistant-persona-preview')).toHaveTextContent(
+      `preview.opener.${ASSISTANT_PERSONA_DEFAULTS.tone}`,
+    )
+
+    openAdvanced()
+    clickOption(`tone.${ASSISTANT_PERSONA_TONE_IDS.friendly}`)
+    expect(screen.getByTestId('assistant-persona-preview')).toHaveTextContent(
+      `preview.opener.${ASSISTANT_PERSONA_TONE_IDS.friendly}`,
+    )
+  })
+
+  it('回复长度决定段数：很短 1 段 / 正常 2 段 / 详细 3 段', () => {
+    renderDialog()
+    openAdvanced()
+
+    clickOption(`verbosity.${ASSISTANT_PERSONA_VERBOSITY_IDS.concise}`)
+    expect(screen.getAllByTestId('assistant-preview-paragraph')).toHaveLength(1)
+
+    clickOption(`verbosity.${ASSISTANT_PERSONA_VERBOSITY_IDS.standard}`)
+    expect(screen.getAllByTestId('assistant-preview-paragraph')).toHaveLength(2)
+
+    clickOption(`verbosity.${ASSISTANT_PERSONA_VERBOSITY_IDS.detailed}`)
+    expect(screen.getAllByTestId('assistant-preview-paragraph')).toHaveLength(3)
+  })
+
+  it('「下一步建议」开着才有末尾那一行', () => {
+    renderDialog()
+    openAdvanced()
+
+    // 默认开（「平衡」档）—— 那一行在。
+    expect(screen.getByTestId('assistant-preview-next-step')).toBeTruthy()
+    fireEvent.click(screen.getByTestId('assistant-next-step-hint'))
+    expect(screen.queryByTestId('assistant-preview-next-step')).toBeNull()
+  })
+
+  it('填了称呼，示例开头就带上它；清空就没有', () => {
+    renderDialog()
+
+    expect(screen.queryByTestId('assistant-preview-address')).toBeNull()
+    fireEvent.change(screen.getByTestId('assistant-address-user-as'), {
+      target: { value: '阿羊' },
+    })
+    expect(screen.getByTestId('assistant-preview-address')).toBeTruthy()
+
+    fireEvent.change(screen.getByTestId('assistant-address-user-as'), {
+      target: { value: '  ' },
+    })
+    expect(screen.queryByTestId('assistant-preview-address')).toBeNull()
+  })
+
+  /** 选一张卡就同时换了语气与长度 —— 示例必须两处都跟着动。 */
+  it('选「谨慎」卡后示例换成那一档的开场与段数', () => {
+    renderDialog()
+
+    fireEvent.click(
+      screen.getByTestId(
+        `assistant-archetype-${ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious}`,
+      ),
+    )
+    const preset =
+      ASSISTANT_PERSONA_ARCHETYPE_PRESETS[
+        ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious
+      ]
+    expect(screen.getByTestId('assistant-persona-preview')).toHaveTextContent(
+      `preview.opener.${preset.tone}`,
+    )
+    expect(screen.getAllByTestId('assistant-preview-paragraph')).toHaveLength(1)
+  })
+
+  /** ⛔ 本地模板：这颗弹层不许因为示例而发任何请求（§11.5 的理由全在这里）。 */
+  it('⛔ 连点七八下也不发任何 fetch', () => {
+    const fetchSpy = vi.fn()
+    vi.stubGlobal('fetch', fetchSpy)
+    renderDialog()
+    openAdvanced()
+
+    clickOption(`tone.${ASSISTANT_PERSONA_TONE_IDS.friendly}`)
+    clickOption(`verbosity.${ASSISTANT_PERSONA_VERBOSITY_IDS.detailed}`)
+    clickOption(`tone.${ASSISTANT_PERSONA_TONE_IDS.terse}`)
+    fireEvent.click(screen.getByTestId('assistant-next-step-hint'))
+
+    expect(fetchSpy).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
   })
 })
 

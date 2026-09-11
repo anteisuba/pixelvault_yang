@@ -42,6 +42,8 @@ const VALID_BODY = {
   /** v2 §11.3 的三项 —— `PUT` 收的是完整形状，少递一列就是 400。 */
   nextStepHint: false,
   useMyWords: true,
+  /** v2 §11.1 的人设档 —— null = 自定义，同样是完整形状的一格。 */
+  archetype: null,
   addressUserAs: null,
 }
 

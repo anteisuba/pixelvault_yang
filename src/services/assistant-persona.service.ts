@@ -6,6 +6,7 @@ import {
   ASSISTANT_PERSONA_LIMITS,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_ROUTE_MODEL_AUTO,
+  matchAssistantPersonaArchetype,
   normalizeAvatarPreset,
   normalizeRouteModel,
 } from '@/constants/assistant-persona'
@@ -47,6 +48,7 @@ function toPersona(
     routeModel: string | null
     nextStepHint: boolean
     useMyWords: boolean
+    archetype: string | null
     addressUserAs: string | null
   } | null,
 ): AssistantPersona {
@@ -79,6 +81,14 @@ function toPersona(
      * 一起退回默认值（用户的语气和长度不该因为换了模型表就丢）。
      */
     routeModel: normalizeRouteModel(row.routeModel),
+    /**
+     * ⚠ 人设那一档**按值回推，⛔ 不信库里那个名字**（§11.1）：
+     *  · 存量行里它是 NULL（列是后加的），回推让老用户一打开就看到自己那张卡；
+     *  · 映射表将来改一格时，库里那个名字会指向一份已经不是它的设置 ——
+     *    回推让「卡上写的三行」永远是这份设置真正的行为。
+     * 对不上任何一档就是 `null` = 自定义，这正是那一档真正的值。
+     */
+    archetype: matchAssistantPersonaArchetype(row),
   })
   return parsed.success
     ? parsed.data
@@ -97,6 +107,7 @@ const PERSONA_SELECT = {
   routeModel: true,
   nextStepHint: true,
   useMyWords: true,
+  archetype: true,
   addressUserAs: true,
 } as const
 
@@ -183,6 +194,13 @@ export async function upsertAssistantPersona(
     /** v2 §11.3 的三项 —— 两个开关照原样落，称呼留空即 null（= 用账号名）。 */
     nextStepHint: input.nextStepHint,
     useMyWords: input.useMyWords,
+    /**
+     * 三档人设（§11.1）——⚠ **服务端自己算，⛔ 不落客户端递来的那个名字**。
+     * 递上来的 `archetype` 只是界面上亮着哪张卡，而库里这一列要为「卡上那三行
+     * 副文案」背书：只有五格逐格对得上时它才是那一档，对不上就落 `null`
+     * （= 自定义）。这样客户端漏清一次也不会让用户看到一句假承诺。
+     */
+    archetype: matchAssistantPersonaArchetype(input),
     addressUserAs: input.addressUserAs,
   }
 

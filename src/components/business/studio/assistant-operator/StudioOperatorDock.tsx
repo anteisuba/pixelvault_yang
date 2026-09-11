@@ -240,6 +240,8 @@ export function StudioOperatorDock() {
         routeModel,
         nextStepHint: persona.nextStepHint,
         useMyWords: persona.useMyWords,
+        /** 换模型不动人设档（§11.1）——⚠ 原样带上，⛔ 不让它被默认值打回。 */
+        archetype: persona.archetype,
         addressUserAs: persona.addressUserAs,
       }),
     [persona, savePersona],

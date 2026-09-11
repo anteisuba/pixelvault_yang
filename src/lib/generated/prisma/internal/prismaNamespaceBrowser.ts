@@ -471,6 +471,7 @@ export const AssistantPersonaScalarFieldEnum = {
   nextStepHint: 'nextStepHint',
   useMyWords: 'useMyWords',
   addressUserAs: 'addressUserAs',
+  archetype: 'archetype',
   routeModel: 'routeModel',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

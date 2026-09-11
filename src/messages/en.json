@@ -7759,13 +7759,6 @@
         "standard": "Standard",
         "detailed": "Detailed"
       },
-      "planModeLabel": "Default behaviour",
-      "planModeHint": "Asking first for a single turn always wins over this.",
-      "planMode": {
-        "always": "Ask first",
-        "auto": "Auto",
-        "direct": "Go ahead"
-      },
       "languageLabel": "Reply language",
       "language": {
         "ui": "Interface",
@@ -7776,6 +7769,47 @@
       "useMyWordsLabel": "Use my words",
       "addressUserAsLabel": "What to call you",
       "addressUserAsPlaceholder": "Leave empty to use your account name",
+      "nextStepHintHint": "End every reply with one suggestion",
+      "useMyWordsHint": "Keep the wording I use in my prompts",
+      "advancedLabel": "Advanced",
+      "archetypeCustom": "Custom",
+      "archetypeCustomHint": "You changed something under Advanced, so this no longer matches any preset.",
+      "archetype": {
+        "cautious": {
+          "name": "Cautious",
+          "askLine": "Asks a couple of questions first",
+          "confirmLine": "Every step needs your nod",
+          "lengthLine": "Short replies, conclusions only"
+        },
+        "balanced": {
+          "name": "Balanced",
+          "askLine": "Asks only when unsure, one at a time",
+          "confirmLine": "Confirms multi-step work and generations",
+          "lengthLine": "Normal length, plus one next step"
+        },
+        "handsOff": {
+          "name": "Hands off",
+          "askLine": "Barely asks, just does it",
+          "confirmLine": "Only flags multi-step work up front",
+          "lengthLine": "Very short, results only"
+        }
+      },
+      "previewTitle": "How {name} will sound",
+      "previewHint": "Change anything above and this sample updates right away.",
+      "preview": {
+        "address": "{name}, ",
+        "opener": {
+          "professional": "Reviewed. Of the three, the second has the backlit scatter closest to the dusk light you asked for; the other two push the warm tones too far.",
+          "friendly": "Had a look — the second one is closest to the dusk light you wanted, the other two lean a bit too warm.",
+          "terse": "Second one is closest. The other two are too warm.",
+          "custom": "Putting it the way you asked: the second one is closest to the dusk light you wanted."
+        },
+        "body": {
+          "second": "The backlit scatter in the second shot keeps the cloud detail, so it works as a base straight away.",
+          "third": "Rescuing the other two means dropping the warmth one notch and pulling exposure back half a stop — worth it only if you are not in a hurry."
+        },
+        "nextStep": "Next: want another set based on the second one?"
+      },
       "tabPersona": "Assistant",
       "tabRules": "Project rules",
       "rulesHint": "Standing rules the assistant reads before it touches anything. It writes them down when you tell it something worth keeping.",

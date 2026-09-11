@@ -4522,21 +4522,20 @@ describe('目标模型的提示词方言进系统提示', () => {
 // ─── persona 风格段（§8.5）与项目规则段（§10）────────────────────
 
 describe('persona 风格段', () => {
-  it('⭐ 默认 persona = 简短直接 · 简洁：风格段是「结论一句 + 下一步一句」', async () => {
+  it('⭐ 默认 persona = 「平衡」档：友好语气 · 正常长度 · 末尾一条下一步', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
     const prompt = systemPrompt()
     expect(prompt).toContain("You are PixelVault's workbench operator.")
-    // terse 档（默认）
-    expect(prompt).toContain('Be terse.')
-    // concise 档（默认）——**两句各自的职责**，理由指到 detail 去。
-    expect(prompt).toContain(
-      'Two sentences: what you concluded, then what happens next.',
-    )
-    expect(prompt).toContain('Reasoning goes in "detail", never in "message".')
-    // ⛔ 换掉的那两句一个字都不该再出现。
-    expect(prompt).not.toContain('Answer in 2–4 sentences.')
+    // friendly 档（默认，owner 2026-09-11）
+    expect(prompt).toContain('Be warm and conversational')
+    // standard 档（默认）
+    expect(prompt).toContain('Answer in 2–4 sentences.')
+    // nextStepHint 默认开 —— 卡上第三行写的就是它。
+    expect(prompt).toContain('End every reply with ONE concrete next step')
+    // ⛔ 换掉的那两档一个字都不该再出现。
+    expect(prompt).not.toContain('Be terse.')
     expect(prompt).not.toContain('Keep it professional and even')
     // auto 档什么都不写 —— 那就是今天的行为
     expect(prompt).not.toContain('Always open with a plan card')
@@ -4625,7 +4624,7 @@ describe('persona 风格段', () => {
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
     const prompt = systemPrompt()
-    const style = 'Two sentences: what you concluded, then what happens next.'
+    const style = 'Answer in 2–4 sentences.'
     expect(prompt.indexOf('HOW YOU TALK')).toBeLessThan(prompt.indexOf(style))
     expect(prompt.indexOf(style)).toBeLessThan(prompt.indexOf('TOOLS:'))
   })

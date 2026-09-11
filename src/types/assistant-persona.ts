@@ -14,6 +14,7 @@ import { z } from 'zod'
 
 import {
   ASSISTANT_AVATAR_PRESET_IDS,
+  ASSISTANT_PERSONA_ARCHETYPES,
   ASSISTANT_PERSONA_LANGUAGES,
   ASSISTANT_PERSONA_LIMITS,
   ASSISTANT_PERSONA_PLAN_MODES,
@@ -45,6 +46,19 @@ export const AssistantPersonaPlanModeSchema = z.enum(
 export const AssistantPersonaLanguageSchema = z.enum(
   ASSISTANT_PERSONA_LANGUAGES,
 )
+/**
+ * 三档人设（§11.1）。⚠ **可空**：`null` 是「自定义」这一档真正的值 ——
+ * 用户改过某个高级项，这一份不再完全对上任何一档。⛔ 不补一个 `custom`
+ * 字面量：那样「没存过」「存了 custom」「对不上任何一档」会变成三个值，
+ * 而它们是同一件事。
+ */
+export const AssistantPersonaArchetypeSchema = z.enum(
+  ASSISTANT_PERSONA_ARCHETYPES,
+)
+
+export type AssistantPersonaArchetype = z.infer<
+  typeof AssistantPersonaArchetypeSchema
+>
 /**
  * 文本模型 chip 选的那一档（§4.5）。词表 = 「自动」+ 路由表的九条 ——
  * ⚠ 名单从 `NODE_STUDIO_ASSISTANT_ROUTE_MODELS` 摊出来，⛔ 不在这里复制一份：
@@ -89,6 +103,14 @@ const AssistantPersonaShapeSchema = z.object({
    */
   nextStepHint: z.boolean(),
   useMyWords: z.boolean(),
+  /**
+   * 选的是哪一张人设卡（§11.1）。`null` = 自定义。
+   *
+   * ⚠ 它**不是**第六个独立偏好：服务端只在它与上面那五格（tone / verbosity /
+   * planMode / nextStepHint / useMyWords）逐格对得上时才落库，对不上就落 `null`
+   * —— ⛔ 不信客户端递来的那个名字，否则卡上写的三行副文案随时可能是假话。
+   */
+  archetype: AssistantPersonaArchetypeSchema.nullable(),
   /** null = 用账号名。⚠ 它原样拼进系统提示，所以上限是硬的。 */
   addressUserAs: z
     .string()

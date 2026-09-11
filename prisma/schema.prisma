@@ -197,6 +197,14 @@ model AssistantConversation {
   title     String?
   /// [{ id?, role, content, createdAt? }]
   messages  Json
+  /// 每轮结账的结论记录（assistant-shell-v2 §7.2）：
+  /// [{ roundIndex, createdAt, facts[], decisions[], todos[], evidenceRefs[], editedByUser? }]
+  ///
+  /// ⚠ 证据**正文不在这里**（它在 `ResearchRun.evidence`，§7.3），这一列只装
+  /// `#e12` 形态的编号。同列存正文的代价与 `messages` 那条一字不差：每次读写
+  /// 会话都拖着几十 KB 走，而同一份证据会在历史里复制 N 份。
+  /// ⚠ 与会话同生共死，所以是同表的一列而不是一张侧表（§7.4 四条判据）。
+  rounds    Json                         @default("[]")
   shares    AssistantConversationShare[]
   createdAt DateTime                     @default(now())
   updatedAt DateTime                     @updatedAt

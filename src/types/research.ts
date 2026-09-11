@@ -1,5 +1,6 @@
 import { z } from 'zod'
 
+import { ASSISTANT_EVIDENCE_REF_PATTERN } from '@/constants/assistant-operator'
 import {
   EVIDENCE_SOURCE_TIER_VALUES,
   RESEARCH_CONCLUSION_BASIS_VALUES,
@@ -41,6 +42,15 @@ const EvidenceBaseSchema = z.object({
    * 不代表这个页面没有事实价值，但也不能原样喂进去。
    */
   untrusted: z.boolean().optional(),
+  /**
+   * **证据本编号**（assistant-shell-v2 §7.3）—— `#e12` 这种，会话内自增。
+   *
+   * ⚠ 与上面那条 `id` 不是一回事：`id` 是 run 内的去重键，这一条是**跨轮指认**
+   * 用的稳定编号 —— 结论记录里只写它，下一轮模型想看正文就按它调 `recall_evidence`。
+   * ⚠ 可选：检索线（`research-run.service`）写的行没有编号，编号只在助手工具环
+   * 的证据本那条路上分配。⛔ 别改成必填，那会让存量行读出来全被判非法。
+   */
+  ref: z.string().trim().regex(ASSISTANT_EVIDENCE_REF_PATTERN).optional(),
 })
 
 export const EvidenceTextItemSchema = EvidenceBaseSchema.extend({

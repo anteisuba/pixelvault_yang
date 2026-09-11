@@ -57,6 +57,8 @@ import {
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   ASSISTANT_RESEARCH_SCOPES,
   ASSISTANT_RESEARCH_SOURCES,
+  ASSISTANT_EVIDENCE_REF_PATTERN,
+  ASSISTANT_ROUND_SUMMARY_LIMITS as ROUND_LIMITS,
   ASSISTANT_WORKING_MEMORY as MEMORY_LIMITS,
   GENERATION_REVIEW_STATES,
   type AssistantOperatorTool,
@@ -787,6 +789,82 @@ export type AssistantOperatorWorkingMemoryArtifact = z.infer<
 >
 
 /**
+ * 一条证据的**编号**（§7.3）—— `#e12` 这种。
+ *
+ * ⚠ 它是**会话内**的稳定串：结论记录里只出现它，正文留在 `ResearchRun.evidence`
+ * 的同名字段旁边。⛔ 别把它做成数组下标：下一轮再查一次，下标就指向别人了。
+ */
+export const AssistantOperatorEvidenceRefSchema = z
+  .string()
+  .trim()
+  .regex(ASSISTANT_EVIDENCE_REF_PATTERN)
+
+export type AssistantOperatorEvidenceRef = z.infer<
+  typeof AssistantOperatorEvidenceRefSchema
+>
+
+/**
+ * **本轮结论**（§7.2）—— 每轮结账写下的那一条，四栏 + 三个元字段。
+ *
+ * ⭐ 它答的是 §7.1 那张断点表：证据、评审理由、问题卡选了什么、上一轮的计划，
+ * 下一轮**一条都看不见**。四栏各有明确出处（§7.5 ①）：
+ *  · `facts`     —— 「看 / 查」组产出的事实；
+ *  · `decisions` —— 「问」组的答案与用户在确认卡上拍的板；
+ *  · `todos`     —— 「请求生成」组挂起的事；
+ *  · `evidenceRefs` —— 证据编号，**只有编号**（正文在 `ResearchRun`）。
+ *
+ * ⚠ 三条纪律，逐条对应一种走样：
+ *  ① **每栏 ≤3 条、每条 ≤60 字**（`ROUND_LIMITS`）—— 它下一轮要整段进系统提示，
+ *     放宽等于每一步 LLM 往返都多付一次；
+ *  ② **服务端写，客户端只渲染**（§7.5 ④）—— 随 `done` 帧下发，⛔ 不再请求一次；
+ *  ③ `editedByUser` 是**用户改过的标记**（§7.7）：改过的那版才是下一轮注入的
+ *     那版，⛔ 不许被下一次结账悄悄覆盖回模型写的版本。
+ */
+export const AssistantOperatorRoundSummarySchema = z.object({
+  /** 这条记录是这段会话的第几轮（0-based）。 */
+  roundIndex: z.number().int().nonnegative(),
+  /** ISO 串。 */
+  createdAt: z.string(),
+  facts: z
+    .array(z.string().trim().min(1).max(ROUND_LIMITS.maxEntryChars))
+    .max(ROUND_LIMITS.maxEntriesPerColumn),
+  decisions: z
+    .array(z.string().trim().min(1).max(ROUND_LIMITS.maxEntryChars))
+    .max(ROUND_LIMITS.maxEntriesPerColumn),
+  todos: z
+    .array(z.string().trim().min(1).max(ROUND_LIMITS.maxEntryChars))
+    .max(ROUND_LIMITS.maxEntriesPerColumn),
+  evidenceRefs: z
+    .array(AssistantOperatorEvidenceRefSchema)
+    .max(ROUND_LIMITS.maxEvidenceRefs),
+  /** 用户就地改过这条记录（§7.7）。⚠ 缺席 = 没改过，⛔ 别写成必填。 */
+  editedByUser: z.boolean().optional(),
+})
+
+export type AssistantOperatorRoundSummary = z.infer<
+  typeof AssistantOperatorRoundSummarySchema
+>
+
+/**
+ * 压缩那一跳（§7.5 ③）问模型要的那份草稿 —— **模型 → 服务端**，所以它宽松：
+ * 长度与条数在服务端收窄（`tidyColumn`），⛔ 不在 schema 里拒。判据与
+ * `AssistantOperatorTurnSchema` 逐字同源：schema 拒 = 整条记录作废，
+ * 服务端收窄 = 长了就截、多了就丢。
+ *
+ * ⚠ **没有 `evidenceRefs`**：编号是服务端按证据本分配的，让模型写就是让它编一个
+ * 指不回任何东西的号。
+ */
+export const AssistantOperatorRoundSummaryDraftSchema = z.object({
+  facts: z.array(z.string()),
+  decisions: z.array(z.string()),
+  todos: z.array(z.string()),
+})
+
+export type AssistantOperatorRoundSummaryDraft = z.infer<
+  typeof AssistantOperatorRoundSummaryDraftSchema
+>
+
+/**
  * **断点续跑**的续跑凭据（客户端 → 服务端，第三期）。
  *
  * ⭐ 它答的是一个具体的失败：一份六步的计划跑到第四步断了（网络掉线 / 刷新 /
@@ -852,6 +930,18 @@ export const AssistantOperatorRequestSchema = z.object({
     .max(LIMITS.maxSnapshotReferences)
     .optional(),
   domain: AssistantOperatorDomainSchema,
+  /**
+   * 这一轮属于哪段会话（§7.5）。
+   *
+   * ⭐ 它是**结账写库唯一的落点**：结论记录住在 `AssistantConversation.rounds`，
+   * 而服务端不认得「当前是哪段会话」—— 会话的身份一直由客户端持有（它是
+   * `upsertAssistantConversation` 返回的那个 id）。
+   * ⚠ 它**不放宽任何东西**：服务端照旧按 `userId` 核对这段会话归不归他，不归就
+   * 不写（⛔ 不抛错、⛔ 不阻塞 `done`）。
+   * ⚠ 缺席 = 这段会话还没落过库（第一轮）/ 老客户端：结账照旧算、照旧随 `done`
+   * 下发，只是不落库。⛔ 别因此把它做成必填 —— 那会让第一轮直接 400。
+   */
+  conversationId: z.string().uuid().optional(),
   snapshot: AssistantOperatorSnapshotSchema,
   priorSteps: z
     .array(AssistantOperatorPriorStepSchema)
@@ -2407,8 +2497,17 @@ export const AssistantOperatorConfirmEventSchema = z.object({
   ]),
 })
 
+/**
+ * 这一轮到此为止。
+ *
+ * ⚠ `roundSummary` 是**本轮结账**（§7.2 / §7.5 ④）：服务端在发这一帧之前把本轮
+ * 压成一条结论记录，随帧下发，客户端**直接渲染，不再请求一次**。
+ * ⚠ **缺席是正常形态**，⛔ 别写成必填：这一轮什么都没产出（只说了句话）、
+ * 或者压缩那一跳失败了，都该照常收尾 —— 结账失败不许阻塞 `done`（§7.5）。
+ */
 export const AssistantOperatorDoneEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.done),
+  roundSummary: AssistantOperatorRoundSummarySchema.optional(),
 })
 
 export const AssistantOperatorStoppedEventSchema = z.object({

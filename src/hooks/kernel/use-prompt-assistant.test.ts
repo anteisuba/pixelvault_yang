@@ -435,6 +435,7 @@ describe('usePromptAssistant · LoRA 推荐（切片 3）', () => {
         title: null,
         createdAt: '2026-08-21T09:00:00.000Z',
         updatedAt: '2026-08-21T09:00:00.000Z',
+        rounds: [],
         messages: [
           { role: 'user', content: '给我找个长离的 LoRA' },
           {

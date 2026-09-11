@@ -6,10 +6,14 @@ import { Prisma, type AssistantSurface } from '@/lib/generated/prisma/client'
 
 import { db } from '@/lib/db'
 import { ensureUser } from '@/services/user.service'
+import { ASSISTANT_ROUND_SUMMARY_LIMITS } from '@/constants/assistant-operator'
+import { logger } from '@/lib/logger'
 import {
   ASSISTANT_CONVERSATION_LIMITS,
   ASSISTANT_SURFACE_IDS,
   AssistantConversationMessageSchema,
+  AssistantConversationRoundSchema,
+  type AssistantConversationRoundStored,
   type AssistantConversationMessageStored,
   type AssistantConversationRecord,
   type AssistantConversationSummary,
@@ -54,12 +58,34 @@ function sanitizeMessages(
     .slice(-ASSISTANT_CONVERSATION_LIMITS.maxMessages)
 }
 
+/**
+ * 结论记录那一列（§7.2）。
+ *
+ * ⚠ **逐条 safeParse，坏的那条丢掉**，⛔ 不整列作废 —— 判据与消息上的 `operator`
+ * 那一格逐字同源：少一条结账记录是小事，整段会话读不出来是大事。
+ * ⚠ 只留最近 `maxRoundsPerConversation` 条：更旧的那些没有任何读者（注入只带
+ * 最近 8 轮，§7.6），留着只会让每次读写会话都拖着它们走。
+ */
+function sanitizeRounds(rounds: unknown): AssistantConversationRoundStored[] {
+  if (!Array.isArray(rounds)) return []
+  return rounds
+    .map((round) => {
+      const parsed = AssistantConversationRoundSchema.safeParse(round)
+      return parsed.success ? parsed.data : null
+    })
+    .filter((round): round is AssistantConversationRoundStored =>
+      Boolean(round),
+    )
+    .slice(-ASSISTANT_ROUND_SUMMARY_LIMITS.maxRoundsPerConversation)
+}
+
 function toRecord(row: {
   id: string
   surface: AssistantSurface
   projectId: string | null
   title: string | null
   messages: Prisma.JsonValue
+  rounds?: Prisma.JsonValue
   createdAt: Date
   updatedAt: Date
 }): AssistantConversationRecord {
@@ -73,6 +99,7 @@ function toRecord(row: {
     projectId: row.projectId,
     title: row.title,
     messages,
+    rounds: sanitizeRounds(row.rounds),
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
   }
@@ -268,4 +295,54 @@ export async function renameAssistantConversation(
     data: { title: input.title },
   })
   return result.count > 0 ? { title: input.title } : null
+}
+
+/**
+ * **每轮结账**把一条结论记录追加进这段会话（v2 §7.2 / §7.5）。
+ *
+ * ⭐ 这是服务端**唯一**一条往会话里写非消息内容的路，owner 2026-09-09 定：
+ * 「服务端零会话态」管的是**运行中的一轮不许留痕**（打断即转向的前提），
+ * 而结账是一轮**已经结束**之后写下的事实 —— 两件事不冲突。
+ *
+ * ⚠ 三条纪律：
+ *  ① **所有权服务端核**：`userId` 不匹配就当没这段会话（返回 null），
+ *     ⛔ 不抛错 —— 调用方是流里的收尾那一步，抛错会把 `done` 一起带走。
+ *  ② **`roundIndex` 由服务端定**（追加位置就是它），⛔ 不收客户端给的号：
+ *     两个客户端并发时收上来的号会撞。
+ *  ③ **一轮只写一条**：一轮里被问题卡停过几次都不算新的一轮 —— 结账只发生在
+ *     `done` 那一刻，而 `ask` 之后这条流是以 `stopped` 结束的。
+ *
+ * @returns 写下去的那条（带服务端定的 `roundIndex`）；会话不存在 / 不归他时 null。
+ */
+export async function appendAssistantConversationRound(
+  clerkId: string,
+  conversationId: string,
+  round: Omit<AssistantConversationRoundStored, 'roundIndex'>,
+): Promise<AssistantConversationRoundStored | null> {
+  const user = await ensureUser(clerkId)
+  const existing = await db.assistantConversation.findFirst({
+    where: { id: conversationId, userId: user.id },
+    select: { id: true, rounds: true },
+  })
+  if (!existing) return null
+
+  const rounds = sanitizeRounds(existing.rounds)
+  const stored: AssistantConversationRoundStored = {
+    ...round,
+    roundIndex: rounds.length,
+  }
+  const next = [...rounds, stored].slice(
+    -ASSISTANT_ROUND_SUMMARY_LIMITS.maxRoundsPerConversation,
+  )
+
+  await db.assistantConversation.update({
+    where: { id: existing.id },
+    data: { rounds: next as unknown as Prisma.InputJsonValue },
+  })
+  logger.info('assistant round summary stored', {
+    conversationId: existing.id,
+    roundIndex: stored.roundIndex,
+    evidenceRefs: stored.evidenceRefs.length,
+  })
+  return stored
 }

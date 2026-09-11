@@ -119,6 +119,33 @@ vi.mock('@/services/research/research-fanout.service', () => ({
 }))
 
 /**
+ * 每轮结账的两条落库腿（v2 §7.2 / §7.3）。⚠ **必须桩掉**：它们真的会写库，
+ * 而这一层要验的是「结账写了什么、失败了会怎样」，不是那两条 SQL。
+ */
+const mockAppendAssistantConversationRound = vi.fn(
+  async (
+    _clerkId: string,
+    _conversationId: string,
+    round: Record<string, unknown>,
+  ) => ({ ...round, roundIndex: 3 }),
+)
+vi.mock('@/services/assistant-conversation.service', () => ({
+  appendAssistantConversationRound: (...args: unknown[]) =>
+    mockAppendAssistantConversationRound(
+      ...(args as [string, string, Record<string, unknown>]),
+    ),
+}))
+
+const mockAppendAssistantEvidenceBook = vi.fn(async (..._args: unknown[]) => ({
+  refs: [] as string[],
+  researchRunIds: [] as string[],
+}))
+vi.mock('@/services/research/assistant-evidence-book.service', () => ({
+  appendAssistantEvidenceBook: (...args: unknown[]) =>
+    mockAppendAssistantEvidenceBook(...args),
+}))
+
+/**
  * 看图那一跳的**借路**（P3-C）。桩掉是因为它真的会去查库找 key ——
  * 而这一层要验的是「什么时候借、借不到怎么办」，不是 key 表本身。
  */
@@ -352,11 +379,37 @@ function stepsOf(events: AssistantOperatorEvent[]) {
     .map((event) => (event as { step: Record<string, unknown> }).step)
 }
 
+/**
+ * 最后一次**工具环**往返喂进去的用户提示。
+ *
+ * ⚠ **跳过结账那一跳**（v2 §7.5）：每轮 `done` 之前还有一次轻量往返在压缩本轮
+ * 结论，它排在最后，而这个助手函数问的从来是「工具环看到了什么」。不跳的表现是
+ * 本文件几十条断言全部去读结账的提示词。判据用系统提示词的头一句 —— 它是那一跳
+ * 专有的，⛔ 别按调用次数倒数第二个数：结账**可能不发生**（没料可结的轮次）。
+ */
+/** 工具环那几次往返（⛔ 不含结账那一跳，见 `lastUserPrompt` 的头注）。 */
+function toolRingCalls(): { userPrompt: string; systemPrompt?: string }[] {
+  return mockLlmTextCompletion.mock.calls
+    .map((entry) => entry[0] as { userPrompt: string; systemPrompt?: string })
+    .filter(
+      (entry) =>
+        !entry.systemPrompt?.startsWith(
+          'You write the creator-facing closing record',
+        ),
+    )
+}
+
 function lastUserPrompt(): string {
-  const call = mockLlmTextCompletion.mock.calls.at(-1)?.[0] as {
-    userPrompt: string
-  }
-  return call.userPrompt
+  const call = [...mockLlmTextCompletion.mock.calls]
+    .reverse()
+    .map((entry) => entry[0] as { userPrompt: string; systemPrompt?: string })
+    .find(
+      (entry) =>
+        !entry.systemPrompt?.startsWith(
+          'You write the creator-facing closing record',
+        ),
+    )
+  return call?.userPrompt ?? ''
 }
 
 beforeEach(() => {
@@ -446,6 +499,7 @@ beforeEach(() => {
     queries: [],
     sources: ['wiki', 'web', 'danbooru'],
     evidence: [],
+    items: [],
     receipts: [],
   })
   mockIsWebSearchConfigured.mockReturnValue(true)
@@ -2333,7 +2387,8 @@ describe('重复步护栏（P3-D）', () => {
     ) as { text: string }
     expect(message.text.length).toBeGreaterThan(0)
     // 第四轮压根没被问 —— 三次 LLM 往返之后就收尾了。
-    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(3)
+    // ⚠ 只数工具环那几次：结账（§7.5）自己还有一次轻量往返排在 `done` 之前。
+    expect(toolRingCalls()).toHaveLength(3)
   })
 
   it('⛔ 不堵**被拒**的那一步：条件可能已经变了，重试是对的行为', async () => {
@@ -5525,6 +5580,33 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
     },
   ]
 
+  /**
+   * 上面那两条证据的**原件**（§7.3 证据本存的就是它）。⚠ 与 `EVIDENCE` 同序：
+   * 扇出那一层的契约就是「投影与原件逐项对得上」。
+   */
+  const ITEMS = [
+    {
+      id: 'moegirl:shiye',
+      sourceId: 'moegirl' as const,
+      sourceTier: 'community' as const,
+      retrievedAt: '2026-09-11T00:00:00.000Z',
+      title: '萌娘百科 · 时夜',
+      url: 'https://zh.moegirl.org.cn/shiye',
+      kind: 'text' as const,
+      excerpt: '黑色长发，金色瞳孔，改良中式长衫。',
+    },
+    {
+      id: 'danbooru:tokiya',
+      sourceId: 'danbooru' as const,
+      sourceTier: 'community' as const,
+      retrievedAt: '2026-09-11T00:00:00.000Z',
+      title: 'danbooru tags',
+      kind: 'tags' as const,
+      tags: ['black_hair', 'yellow_eyes', 'chinese_clothes'],
+      provenance: 'danbooru 100 张样本共现',
+    },
+  ]
+
   function researchTurn(goal: string, entities: string[] = ['无限大', '时夜']) {
     return {
       tool: {
@@ -5540,6 +5622,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       queries: ['无限大 时夜 外貌'],
       sources: ['wiki', 'web', 'danbooru'],
       evidence: EVIDENCE,
+      items: ITEMS,
       receipts: [{ sourceId: 'moegirl', status: 'ok', count: 1, tookMs: 12 }],
     })
     queueTurns(researchTurn('外貌与服饰'), { finished: true })
@@ -5571,6 +5654,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       queries: [],
       sources: ['wiki'],
       evidence: EVIDENCE,
+      items: ITEMS,
       receipts: [{ sourceId: 'moegirl', status: 'ok', count: 1, tookMs: 5 }],
     })
     queueTurns(researchTurn('外貌与服饰'), { finished: true })
@@ -5589,6 +5673,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       queries: [],
       sources: ['wiki'],
       evidence: EVIDENCE,
+      items: ITEMS,
       receipts: [],
     })
     queueTurns(
@@ -5621,6 +5706,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       queries: [],
       sources: ['wiki'],
       evidence: [],
+      items: [],
       receipts: [{ sourceId: 'moegirl', status: 'empty', count: 0, tookMs: 5 }],
     })
     queueTurns(researchTurn('nobody wrote about this'), { finished: true })
@@ -5637,6 +5723,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       queries: ['无限大 时夜'],
       sources: ['wiki'],
       evidence: EVIDENCE,
+      items: ITEMS,
       receipts: [
         { sourceId: 'moegirl', status: 'ok', count: 1, tookMs: 5 },
         {
@@ -5681,6 +5768,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
           scope: 'work' as const,
         },
       ],
+      items: [ITEMS[0]],
       receipts: [{ sourceId: 'moegirl', status: 'ok', count: 1, tookMs: 5 }],
     })
     queueTurns(researchTurn('外貌'), { finished: true, message: '查不到。' })
@@ -5697,6 +5785,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
       queries: [],
       sources: ['web'],
       evidence: [],
+      items: [],
       receipts: [
         { sourceId: 'web_search', status: 'failed', count: 0, tookMs: 1 },
       ],
@@ -6821,7 +6910,8 @@ describe('current reference image bindings', () => {
         }),
       ),
     )
-    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+    // ⚠ 只数工具环那几次：结账（§7.5）自己还有一次轻量往返排在 `done` 之前。
+    expect(toolRingCalls()).toHaveLength(2)
     expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
       adapterType: AI_ADAPTER_TYPES.GEMINI,
       imageData: [refs[2]!.url],
@@ -7935,5 +8025,193 @@ describe('文本模型路由 · persona 说了算', () => {
         (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
       )!.modelId,
     )
+  })
+})
+
+// ─── 每轮结账（v2 §7.2–§7.5）──────────────────────────────────────
+
+describe('每轮结账', () => {
+  /** 结账那一跳喂进去的提示（⛔ 与工具环那几次分开，见 `lastUserPrompt`）。 */
+  function checkoutPrompt(): string | null {
+    const call = mockLlmTextCompletion.mock.calls
+      .map((entry) => entry[0] as { userPrompt: string; systemPrompt?: string })
+      .find((entry) =>
+        entry.systemPrompt?.startsWith(
+          'You write the creator-facing closing record',
+        ),
+      )
+    return call?.userPrompt ?? null
+  }
+
+  function doneEvent(events: AssistantOperatorEvent[]) {
+    return events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.done,
+    ) as { roundSummary?: { decisions: string[]; evidenceRefs: string[] } }
+  }
+
+  const searchStep = {
+    tool: {
+      name: ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+      title: '翻素材库',
+      args: { query: 'cat poster' },
+    },
+  }
+
+  function queueCheckout(draft: unknown): void {
+    mockLlmTextCompletion.mockResolvedValue(JSON.stringify(draft))
+  }
+
+  it('⭐ 问题卡选了什么 → 进「决定」栏，并随 done 帧下发', async () => {
+    queueTurns(searchStep, { finished: true, message: '挑好了。' })
+    queueCheckout({
+      facts: ['库里有三张夜景'],
+      decisions: ['用 16:9'],
+      todos: [],
+    })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '11111111-1111-4111-8111-111111111111',
+          planAnswers: [
+            { questionId: 'question-1', optionIds: ['option-1-2'] },
+          ],
+        }),
+      ),
+    )
+
+    // 用户点的那一下进了结账的原料 —— 少了它，压缩那一跳写不出「决定」。
+    expect(checkoutPrompt()).toContain('question-1')
+    expect(checkoutPrompt()).toContain('option-1-2')
+    expect(doneEvent(events).roundSummary?.decisions).toEqual(['用 16:9'])
+    // 轮次号由落库那一跳说了算（这里桩成 3），⛔ 不是客户端给的。
+    expect(mockAppendAssistantConversationRound).toHaveBeenCalledTimes(1)
+    expect(mockAppendAssistantConversationRound.mock.calls[0]?.[1]).toBe(
+      '11111111-1111-4111-8111-111111111111',
+    )
+  })
+
+  it('⭐ 查到的证据进证据本换回编号，结论记录里只有编号', async () => {
+    mockAppendAssistantEvidenceBook.mockResolvedValueOnce({
+      refs: ['#e1', '#e2'],
+      researchRunIds: ['run-1'],
+    })
+    mockRunAssistantResearch.mockResolvedValue({
+      queries: ['时夜 外貌'],
+      sources: ['wiki'],
+      evidence: [
+        {
+          title: '萌娘百科 · 时夜',
+          publisher: 'zh.moegirl.org.cn',
+          snippet: '黑色长发。',
+          kind: 'text' as const,
+          confidence: 'medium' as const,
+          credibility: 'reference' as const,
+          scope: 'character' as const,
+        },
+      ],
+      items: [
+        {
+          id: 'moegirl:shiye',
+          sourceId: 'moegirl' as const,
+          sourceTier: 'community' as const,
+          retrievedAt: '2026-09-11T00:00:00.000Z',
+          title: '萌娘百科 · 时夜',
+          kind: 'text' as const,
+          excerpt: '黑色长发。',
+        },
+      ],
+      receipts: [{ sourceId: 'moegirl', status: 'ok', count: 1, tookMs: 5 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.research,
+          title: '查角色',
+          args: { goal: '外貌', entities: ['时夜'] },
+        },
+      },
+      { finished: true, message: '查到了。' },
+    )
+    queueCheckout({ facts: ['时夜是黑长发'], decisions: [], todos: [] })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '22222222-2222-4222-8222-222222222222',
+        }),
+      ),
+    )
+
+    const written = mockAppendAssistantEvidenceBook.mock.calls[0]?.[0] as {
+      conversationId: string
+      entries: { items: unknown[] }[]
+    }
+    expect(written.conversationId).toBe('22222222-2222-4222-8222-222222222222')
+    // 存的是**原件**（点得回原文的那一份），⛔ 不是给模型读的那份投影。
+    expect(written.entries[0]?.items).toHaveLength(1)
+    expect(doneEvent(events).roundSummary?.evidenceRefs).toEqual(['#e1', '#e2'])
+  })
+
+  it('⚠ 压缩那一跳失败：done 照发、⛔ 不带结论记录、⛔ 不抛', async () => {
+    queueTurns(searchStep, { finished: true })
+    // ⚠ 只让**结账**那一跳挂：工具环那几次照跑，否则验的就不是这件事了。
+    mockLlmTextCompletion.mockImplementation(
+      async (args: { systemPrompt?: string }) => {
+        if (
+          args.systemPrompt?.startsWith(
+            'You write the creator-facing closing record',
+          )
+        ) {
+          throw new Error('upstream down')
+        }
+        return JSON.stringify({ finished: true })
+      },
+    )
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '33333333-3333-4333-8333-333333333333',
+        }),
+      ),
+    )
+
+    expect(typesOf(events)).toContain(ASSISTANT_OPERATOR_EVENTS.done)
+    expect(doneEvent(events).roundSummary).toBeUndefined()
+    expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
+  })
+
+  it('⛔ 没料可结的轮次不烧那一次往返（也不落库）', async () => {
+    queueTurns({ finished: true, message: '你想要什么风格？' })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '44444444-4444-4444-8444-444444444444',
+        }),
+      ),
+    )
+
+    expect(checkoutPrompt()).toBeNull()
+    expect(doneEvent(events).roundSummary).toBeUndefined()
+    expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
+  })
+
+  it('⚠ 没有会话 id（第一轮）：照旧算、照旧下发，只是不落库', async () => {
+    queueTurns(searchStep, { finished: true })
+    queueCheckout({ facts: ['库里有三张夜景'], decisions: [], todos: [] })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+
+    expect(doneEvent(events).roundSummary?.evidenceRefs).toEqual([])
+    expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
+    expect(mockAppendAssistantEvidenceBook).not.toHaveBeenCalled()
   })
 })

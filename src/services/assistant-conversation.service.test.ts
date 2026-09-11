@@ -1,5 +1,7 @@
 import { beforeEach, expect, it, vi } from 'vitest'
 import {
+  appendAssistantConversationRound,
+  getAssistantConversation,
   listAssistantConversations,
   renameAssistantConversation,
   deleteAssistantConversation,
@@ -9,6 +11,8 @@ const mocks = vi.hoisted(() => ({
   queryRaw: vi.fn(),
   updateMany: vi.fn(),
   deleteMany: vi.fn(),
+  findFirst: vi.fn(),
+  update: vi.fn(),
   ensureUser: vi.fn(),
 }))
 vi.mock('server-only', () => ({}))
@@ -18,6 +22,8 @@ vi.mock('@/lib/db', () => ({
     assistantConversation: {
       updateMany: mocks.updateMany,
       deleteMany: mocks.deleteMany,
+      findFirst: mocks.findFirst,
+      update: mocks.update,
     },
   },
 }))
@@ -107,4 +113,83 @@ it('keeps canvas lists scoped to their project', async () => {
   const query = mocks.queryRaw.mock.calls[0][0]
   expect(query.values).toEqual(['owner-id', 'NODE_CANVAS', 'project-one', 20])
   expect(query.sql).toContain('AND "projectId" =')
+})
+
+// ─── 每轮结账（assistant-shell-v2 §7.2 / §7.5）────────────────────
+
+const ROUND = {
+  createdAt: '2026-09-11T00:00:00.000Z',
+  facts: ['夜景配色定为冷蓝'],
+  decisions: ['用 16:9'],
+  todos: [],
+  evidenceRefs: ['#e1'],
+}
+
+it('结账记录追加进这段会话，轮次号由服务端按已有条数定', async () => {
+  mocks.findFirst.mockResolvedValue({ id: 'conv-1', rounds: [] })
+  mocks.update.mockResolvedValue({})
+
+  const stored = await appendAssistantConversationRound(
+    'clerk-owner',
+    'conv-1',
+    ROUND,
+  )
+
+  expect(stored).toEqual({ ...ROUND, roundIndex: 0 })
+  expect(mocks.findFirst).toHaveBeenCalledWith({
+    where: { id: 'conv-1', userId: 'owner-id' },
+    select: { id: true, rounds: true },
+  })
+  expect(mocks.update.mock.calls[0]?.[0]).toEqual({
+    where: { id: 'conv-1' },
+    data: { rounds: [{ ...ROUND, roundIndex: 0 }] },
+  })
+})
+
+it('轮次号接着已有的那几条数，⛔ 不从零开始', async () => {
+  mocks.findFirst.mockResolvedValue({
+    id: 'conv-1',
+    rounds: [{ ...ROUND, roundIndex: 0 }],
+  })
+  mocks.update.mockResolvedValue({})
+
+  const stored = await appendAssistantConversationRound(
+    'clerk-owner',
+    'conv-1',
+    ROUND,
+  )
+
+  expect(stored?.roundIndex).toBe(1)
+})
+
+it('会话不归这个用户时不写，也不抛 —— 结账不许阻塞 done', async () => {
+  mocks.findFirst.mockResolvedValue(null)
+
+  expect(
+    await appendAssistantConversationRound('clerk-owner', 'conv-other', ROUND),
+  ).toBeNull()
+  expect(mocks.update).not.toHaveBeenCalled()
+})
+
+it('读回来时坏掉的那一条丢掉，⛔ 不作废整段会话', async () => {
+  mocks.findFirst.mockResolvedValue({
+    id: 'conv-1',
+    surface: 'IMAGE_STUDIO',
+    projectId: null,
+    title: null,
+    messages: [{ role: 'user', content: '你好' }],
+    rounds: [
+      { ...ROUND, roundIndex: 0 },
+      { roundIndex: 1, facts: 'not-an-array' },
+    ],
+    createdAt: new Date('2026-09-11T00:00:00Z'),
+    updatedAt: new Date('2026-09-11T00:00:00Z'),
+  })
+
+  const record = await getAssistantConversation('clerk-owner', {
+    id: 'conv-1',
+  })
+
+  expect(record?.rounds).toEqual([{ ...ROUND, roundIndex: 0 }])
+  expect(record?.messages).toHaveLength(1)
 })

@@ -7,6 +7,7 @@ import {
   type AssistantProtocolDomain,
 } from '@/constants/assistant-protocol'
 import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
+import { AssistantOperatorRoundSummarySchema } from '@/types/assistant-operator'
 import {
   AssistantLoraPickSchema,
   AssistantPromptBlockSchema,
@@ -185,12 +186,31 @@ export type GetAssistantConversationQuery = z.infer<
   typeof GetAssistantConversationQuerySchema
 >
 
+/**
+ * 落在 `AssistantConversation.rounds` 那一列里的东西（v2 §7.2 / §7.4）。
+ *
+ * ⚠ 形状**直接复用协议那一份**（`AssistantOperatorRoundSummarySchema`），⛔ 不另
+ * 写一份「存储版」：两边但凡差一个字段，就会出现「发给客户端的那条」与「存下来的
+ * 那条」不是同一件事 —— 而 §7.7 的编辑要把改过的那条原样写回这一列。
+ * ⚠ 读出来时**逐条 `safeParse`、读不出来的那条丢掉**（服务端 `sanitizeRounds`），
+ * 判据与消息上的 `operator` 那一格逐字同源：这一列是只读装饰，某一条读不出来
+ * （旧版本写的 / 协议改过）⛔ 不该让整段会话读不出来。
+ */
+export const AssistantConversationRoundSchema =
+  AssistantOperatorRoundSummarySchema
+
+export type AssistantConversationRoundStored = z.infer<
+  typeof AssistantConversationRoundSchema
+>
+
 export interface AssistantConversationRecord {
   id: string
   surface: AssistantSurfaceId
   projectId: string | null
   title: string | null
   messages: AssistantConversationMessageStored[]
+  /** 每轮结账的结论记录（§7.2）。⚠ 读不出来的条目按丢弃处理，⛔ 不作废整段会话。 */
+  rounds: AssistantConversationRoundStored[]
   createdAt: string
   updatedAt: string
 }

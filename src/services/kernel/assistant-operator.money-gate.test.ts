@@ -140,6 +140,27 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    * 「复用现成的视频分析入口」把它换进来，这份名单就是那个看得见的动作。
    */
   '@/services/video-frames/video-frame-set.service',
+  /**
+   * **每轮结账落库**（assistant-shell-v2 §7.2 / §7.5）。⭐ 这是名单里**第三条会
+   * 往库里写**的服务，判据与 `project-rule.service` 那条逐字同源：它写的是**文本**
+   * —— 一条「本轮得出了什么」的四栏摘要，写进 `AssistantConversation.rounds`。
+   * 没有 provider、没有 credit、没有字节落地，更没有 generation。
+   *
+   * ⚠ **它与「服务端零会话态」不冲突**：零会话态管的是**运行中的一轮不许留痕**
+   * （打断即转向的前提就是「断在半路的一轮不留下任何东西」），而结账发生在一轮
+   * **已经结束**之后，写的是既成事实。owner 2026-09-09 定。
+   * ⛔ 哪天有人想借这条 import 在**流中途**写会话状态（挂起的问题卡、半份计划），
+   * 那就是打断语义破的那一天 —— 这条名单就是那个看得见的动作。
+   */
+  '@/services/assistant-conversation.service',
+  /**
+   * **证据本**（§7.3）。⭐ 判据：它把工具环**已经拿到手的**证据按编号写进
+   * `ResearchRun` —— 不打源、不调模型、不下载、不建 generation、不扣 credit。
+   * ⛔ `@/services/research/research-run.service` 仍然**有意不在名单里**：那条会读
+   * 配额、跑规划器、打源。证据本因此单独住一个文件，它能做的只有「把手上这几条
+   * 写下去」。哪天有人往那个文件里加一条打源的腿，这条判据当场就破了。
+   */
+  '@/services/research/assistant-evidence-book.service',
 ])
 
 /** 出现即失败的标识符 —— 每一条都是一条能花掉用户钱的路。 */

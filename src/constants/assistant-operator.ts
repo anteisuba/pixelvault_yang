@@ -1446,6 +1446,41 @@ export const ASSISTANT_WORKING_MEMORY = {
 } as const
 
 /**
+ * **每轮结账**的上限与编号规则（v2 §7.2 / §7.3）。
+ *
+ * ⭐ 它答的是 §7.1 那张断点表：上一轮查到的证据、评审得出的结论、用户在问题卡上
+ * 选的那一项，下一轮**一条都看不见**。结账把一轮压成四栏（事实 / 决定 / 待办 /
+ * 证据编号），记录随会话落库，⛔ 证据正文不进这一列（它在 `ResearchRun`）。
+ *
+ * ⚠ `maxEntriesPerColumn` / `maxEntryChars` 是**产品口径**，不是 DoS 护栏：
+ * 一栏三条、一条 60 字是「下一轮把它整段塞进系统提示还付得起」的那个数（§7.6
+ * 带最近 8 轮 = 最多 72 条短句）。放宽它等于让每一步 LLM 往返都多付一次。
+ */
+export const ASSISTANT_ROUND_SUMMARY_LIMITS = {
+  maxEntriesPerColumn: 3,
+  maxEntryChars: 60,
+  /** 一条记录最多挂几个证据编号 —— 它只是编号，正文按需靠 `recall_evidence` 翻。 */
+  maxEvidenceRefs: 12,
+  /**
+   * 一条会话最多留几条结账记录（纯 DoS 护栏，⛔ 不是产品上限）。
+   * 超了从最旧的那头丢 —— 注入只带最近 8 轮（§7.6），更旧的那些没人读。
+   */
+  maxRoundsPerConversation: 100,
+} as const
+
+/**
+ * 证据编号的前缀（§7.3）。`#e` + **会话内自增序号**，落在 `ResearchRun.evidence`
+ * 的每一项上，结论记录里只出现编号。
+ *
+ * ⚠ 序号按**会话**自增而不是按 run：用户读到的是「#e12 说的」，而同一条会话里
+ * 两次检索各自从 1 数起会让同一个编号指向两件事。
+ */
+export const ASSISTANT_EVIDENCE_REF_PREFIX = '#e'
+
+/** `#e12` 的形状。⛔ 别在别处重写一份正则。 */
+export const ASSISTANT_EVIDENCE_REF_PATTERN = /^#e[1-9]\d*$/
+
+/**
  * **断点续跑**的载荷上限（第三期）。
  *
  * ⭐ 它在协议侧而不是面板侧：`resumeFrom` 是客户端发上来、服务端 zod 要卡住的

@@ -80,6 +80,16 @@ export interface AssistantResearchOutcome {
   /** 服务端真的打了哪几组源（模型没指定时由这里挑）。 */
   sources: AssistantResearchSource[]
   evidence: AssistantResearchEvidence[]
+  /**
+   * 上面那几条证据的**原件**，逐项同序（assistant-shell-v2 §7.3 证据本）。
+   *
+   * ⭐ 加它的判据只有一条：`evidence` 是**投影**（给模型读的那几栏），而证据本要
+   * 存的是能点回原文的那一份 —— `sourceId` / `retrievedAt` / 全文摘录都在原件上，
+   * 投影里一个都没有。⛔ 别让证据本去存投影：那样存下来的「证据」下一轮翻出来
+   * 与模型这一轮看到的是同一段摘要，翻它就没有意义了。
+   * ⚠ 这里仍然**一行库都不碰**：落库那一跳在 `assistant-evidence-book.service`。
+   */
+  items: EvidenceItem[]
   /** 每个源一条回执。⚠ 「打了但没料」与「源挂了」是两件事，都要说得出来。 */
   receipts: ResearchSourceReceipt[]
 }
@@ -519,24 +529,25 @@ export async function runAssistantResearch(
     ASSISTANT_RESEARCH_LIMITS.maxEvidenceItems,
   )
 
+  const items = dedupe(settled.flatMap((entry) => entry.items)).slice(0, limit)
+
   return {
     queries: plan.queries,
     sources: groups,
+    items,
     /**
      * ⚠ danbooru 那一支**钉死角色级**：它现在只在确认到角色 tag（且该 tag 与
      * 作品共现）时才出证据，而那些证据的字面是英文 tag（`ichinose_tokiya`），
      * 中文角色名永远匹配不上 —— 让文本判据去判它只会把真的角色证据判成作品级。
      */
-    evidence: dedupe(settled.flatMap((entry) => entry.items))
-      .slice(0, limit)
-      .map((item) =>
-        toAssistantEvidence(item, {
-          ...(plan.character ? { character: plan.character } : {}),
-          ...(plan.character && item.sourceId === RESEARCH_SOURCE_IDS.danbooru
-            ? { forcedScope: ASSISTANT_RESEARCH_SCOPE_IDS.character }
-            : {}),
-        }),
-      ),
+    evidence: items.map((item) =>
+      toAssistantEvidence(item, {
+        ...(plan.character ? { character: plan.character } : {}),
+        ...(plan.character && item.sourceId === RESEARCH_SOURCE_IDS.danbooru
+          ? { forcedScope: ASSISTANT_RESEARCH_SCOPE_IDS.character }
+          : {}),
+      }),
+    ),
     receipts: settled.map((entry) => entry.receipt),
   }
 }

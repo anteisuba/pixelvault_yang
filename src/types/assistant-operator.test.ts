@@ -12,6 +12,7 @@ import {
   ASSISTANT_OPERATOR_ENTRY_TOOLS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_ROUND_SUMMARY_LIMITS,
   ASSISTANT_OPERATOR_MUTATING_TOOLS,
   ASSISTANT_OPERATOR_READ_TOOLS,
   ASSISTANT_OPERATOR_SPEND_TOOLS,
@@ -39,6 +40,8 @@ import {
   AssistantOperatorAskArgsSchema,
   AssistantOperatorEventSchema,
   AssistantOperatorRequestSchema,
+  AssistantOperatorRoundSummarySchema,
+  AssistantOperatorRoundSummaryDraftSchema,
   AssistantOperatorSnapshotSchema,
   AssistantOperatorStepSchema,
   AssistantOperatorTurnSchema,
@@ -1281,5 +1284,101 @@ describe('research / read_url 的入参形状（2026-09-06）', () => {
       expect(isSpendAssistantOperatorTool(tool)).toBe(false)
       expect(isRevertibleAssistantOperatorTool(tool)).toBe(false)
     }
+  })
+})
+
+// ─── 每轮结账（v2 §7.2 / §7.5）────────────────────────────────────
+
+describe('本轮结论记录', () => {
+  const RECORD = {
+    roundIndex: 0,
+    createdAt: '2026-09-11T00:00:00.000Z',
+    facts: ['夜景配色定为冷蓝'],
+    decisions: ['用 16:9'],
+    todos: [],
+    evidenceRefs: ['#e12'],
+  }
+
+  it('四栏 + 轮次号 + 时间；`editedByUser` 可选', () => {
+    expect(AssistantOperatorRoundSummarySchema.safeParse(RECORD).success).toBe(
+      true,
+    )
+    expect(
+      AssistantOperatorRoundSummarySchema.safeParse({
+        ...RECORD,
+        editedByUser: true,
+      }).success,
+    ).toBe(true)
+  })
+
+  it('每栏最多三条、每条 60 字 —— 它下一轮要整段进系统提示', () => {
+    expect(
+      AssistantOperatorRoundSummarySchema.safeParse({
+        ...RECORD,
+        facts: Array.from(
+          { length: ASSISTANT_ROUND_SUMMARY_LIMITS.maxEntriesPerColumn + 1 },
+          () => 'a',
+        ),
+      }).success,
+    ).toBe(false)
+    expect(
+      AssistantOperatorRoundSummarySchema.safeParse({
+        ...RECORD,
+        facts: ['x'.repeat(ASSISTANT_ROUND_SUMMARY_LIMITS.maxEntryChars + 1)],
+      }).success,
+    ).toBe(false)
+  })
+
+  it('证据编号只认 `#e<正整数>` —— 它要点得回证据本里那一条', () => {
+    for (const ref of ['#e', '#e0', 'e12', '#E12', '12']) {
+      expect(
+        AssistantOperatorRoundSummarySchema.safeParse({
+          ...RECORD,
+          evidenceRefs: [ref],
+        }).success,
+      ).toBe(false)
+    }
+  })
+
+  it('⭐ `done` 帧带得上它，也照旧允许不带（结账失败不阻塞收尾）', () => {
+    expect(
+      AssistantOperatorEventSchema.safeParse({
+        type: ASSISTANT_OPERATOR_EVENTS.done,
+        roundSummary: RECORD,
+      }).success,
+    ).toBe(true)
+    expect(
+      AssistantOperatorEventSchema.safeParse({
+        type: ASSISTANT_OPERATOR_EVENTS.done,
+      }).success,
+    ).toBe(true)
+  })
+
+  it('⛔ 草稿里没有 `evidenceRefs`：编号是服务端分配的，不让模型写', () => {
+    const parsed = AssistantOperatorRoundSummaryDraftSchema.safeParse({
+      facts: ['a'],
+      decisions: [],
+      todos: [],
+      evidenceRefs: ['#e9'],
+    })
+    expect(parsed.success).toBe(true)
+    expect(parsed.success && 'evidenceRefs' in parsed.data).toBe(false)
+  })
+
+  it('请求可以带会话 id（结账落库的落点），⛔ 但不是必填', () => {
+    const base = AssistantOperatorRequestSchema.safeParse({
+      domain: 'image',
+      messages: [{ role: 'user', content: '嗨' }],
+      snapshot: { prompt: '' },
+    })
+    expect(base.success).toBe(true)
+    expect(
+      AssistantOperatorRequestSchema.safeParse({
+        domain: 'image',
+        messages: [{ role: 'user', content: '嗨' }],
+        snapshot: { prompt: '' },
+        conversationId: 'not-a-uuid',
+      }).success,
+    ).toBe(false)
   })
 })

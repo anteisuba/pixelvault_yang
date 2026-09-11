@@ -94,12 +94,52 @@ describe('StudioOperatorTimelineRow', () => {
       </StudioOperatorTimelineRow>,
     )
     expect(screen.getByTestId('operator-speaker-name')).toHaveTextContent('Fl')
-    expect(screen.getByTestId('operator-timeline-content')).toHaveClass(
-      'col-start-2',
-    )
     expect(
       screen.getByTestId('operator-timeline-content'),
     ).not.toContainElement(screen.getByTestId('operator-speaker-name'))
+  })
+
+  /**
+   * 用户消息靠右（画板 Main / BCards「消息 · 用户」）——⛔ 它不再占左沟：
+   * 行上没有 `gridTemplateColumns`，头像排在气泡**后面**（DOM 序 = 视觉序）。
+   */
+  it('用户消息整行靠右，头像在气泡右侧；其余行仍靠左沟', () => {
+    const { rerender } = render(
+      <StudioOperatorTimelineRow
+        card={STUDIO_OPERATOR_CARD_KINDS.message}
+        speaker={STUDIO_OPERATOR_SPEAKERS.user}
+      >
+        <p>保留三图分工，只修改背景。</p>
+      </StudioOperatorTimelineRow>,
+    )
+    const userRow = screen.getByTestId('operator-timeline-row')
+    expect(userRow.dataset.align).toBe('end')
+    expect(userRow.className).toContain('justify-end')
+    expect(userRow.style.gridTemplateColumns).toBe('')
+    const avatar = screen.getByTestId('operator-timeline-avatar')
+    expect(avatar.dataset.speaker).toBe('user')
+    // 头像在内容之后 = 视觉上在气泡右侧。
+    expect(
+      screen
+        .getByTestId('operator-timeline-content')
+        .compareDocumentPosition(avatar) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    // 气泡列限宽在面板 80%，⛔ 不是任意值。
+    expect(
+      screen.getByTestId('operator-timeline-content').parentElement?.className,
+    ).toContain('w-4/5')
+
+    rerender(
+      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.message}>
+        <p>已更新分工。</p>
+      </StudioOperatorTimelineRow>,
+    )
+    expect(screen.getByTestId('operator-timeline-row').dataset.align).toBe(
+      'start',
+    )
+    expect(screen.getByTestId('operator-timeline-content')).toHaveClass(
+      'col-start-2',
+    )
   })
 
   it('沟宽 24px，五档 data-node 都落在行上', () => {

@@ -14,6 +14,8 @@
  *
  * ⭐ **层级靠形状与缩进，不靠颜色和底色块**：会说话的两方（用户 / 助手）挂 32px
  * 头像，其余按「大节点 8px 实心 / 工具步 6px 空心 / 系统行 8×2 短横」分级。
+ * ⚠ **用户消息是唯一靠右的一档**（`data-align="end"`，画板 Main / BCards）：它整行
+ * 离开左沟、头像走到气泡右侧，⛔ 不在沟里再压一个节点。其余全部靠左沟。
  * 五种形态共用**同一条沟**（`STUDIO_OPERATOR_TIMELINE.gutterPx`），节点与贯穿
  * 竖线同轴 —— 沟宽一格不动是这条线读得下去的前提。
  *
@@ -106,9 +108,11 @@ function nodeShapeOf(
   }
 }
 
-/** 头像档 = 会说话的那两方。 */
+/**
+ * 沟里挂头像的那一档 —— ⚠ **只剩助手**：用户消息整行靠右、不进沟（见下方分支）。
+ */
 function isAvatarNode(node: StudioOperatorNodeShape): boolean {
-  return node === NODE_SHAPES.user || node === NODE_SHAPES.assistant
+  return node === NODE_SHAPES.assistant
 }
 
 /**
@@ -165,6 +169,16 @@ interface StudioOperatorTimelineRowProps {
   children: ReactNode
 }
 
+/**
+ * **对齐档**（画板 Main / BCards「消息 · 用户」）—— 用户消息靠右，其余靠左。
+ *
+ * ⚠ 值是 `data-align` 的取值：真机目检与组件测试按它取行。
+ */
+const ROW_ALIGNS = {
+  start: 'start',
+  end: 'end',
+} as const
+
 function TimelineSpeakerName({
   node,
   assistantName,
@@ -212,11 +226,48 @@ export function StudioOperatorTimelineRow({
     name: assistantName,
   })
 
+  /**
+   * ── 用户消息靠右（画板 Main / BCards「消息 · 用户」）─────────────────
+   *
+   * ⭐ **用户行整行离开时间线沟**：气泡靠右、头像在气泡右侧、右下角收成小圆角
+   * （气泡壳在 `StudioOperatorUserText`）。画板上用户那一行本来就不出节点 ——
+   * 让它继续占着左沟只会得到「一个头像左、一个气泡右」的两套轴。
+   * ⚠ 左缘那条贯穿竖线**照旧贯穿**（它是流容器的一条 `absolute` span，不逐行画）：
+   * 用户行只是不往它上面压节点，线本身不断。
+   * ⚠ 宽度上限走 `w-4/5` 的外列而不是气泡上的百分比上限：Hard Rule 5 禁任意值，
+   * 而 80% 这一档是面板私有的，不配进 `globals.css` 的 `@theme inline`。
+   */
+  if (node === NODE_SHAPES.user) {
+    return (
+      <div
+        data-testid="operator-timeline-row"
+        data-card={card}
+        data-node={node}
+        data-align={ROW_ALIGNS.end}
+        role="article"
+        aria-label={rowLabel}
+        className="group mt-4 flex min-h-8 items-start justify-end gap-2 first:mt-0"
+      >
+        <div className="flex w-4/5 min-w-0 flex-col items-end">
+          <TimelineSpeakerName node={node} assistantName={assistantName} />
+          <div
+            data-testid="operator-timeline-content"
+            className="mt-1.5 flex min-w-0 flex-col items-end gap-1"
+          >
+            {children}
+          </div>
+        </div>
+        <TimelineAvatar speaker="user" />
+      </div>
+    )
+  }
+
   return (
     <div
       data-testid="operator-timeline-row"
       data-card={card}
       data-node={node}
+      data-align={ROW_ALIGNS.start}
       role="article"
       aria-label={rowLabel}
       style={{
@@ -235,7 +286,7 @@ export function StudioOperatorTimelineRow({
         <span className="relative grid h-4 w-2 shrink-0 place-items-center">
           {avatar ? (
             <TimelineAvatar
-              speaker={node === NODE_SHAPES.user ? 'user' : 'assistant'}
+              speaker="assistant"
               {...(persona ? { persona } : {})}
               // 头像比节点盒宽，靠绝对定位回到同一条轴上。
               className="absolute left-1/2 top-0 -translate-x-1/2"

@@ -328,6 +328,23 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       expect(screen.getByTestId('operator-user-text')).toHaveTextContent(
         'reference image 4',
       )
+      /* 用户消息靠右 —— 实时与历史回放同一套对齐（画板 Main / BCards）：
+         行标 `data-align="end"`，头像排在气泡之后 = 视觉上在右侧。 */
+      const userRow = screen
+        .getByTestId('operator-user-text')
+        .closest('[data-testid="operator-timeline-row"]')
+      expect(userRow).not.toBeNull()
+      expect((userRow as HTMLElement).dataset.align).toBe('end')
+      const userAvatar = within(userRow as HTMLElement).getByTestId(
+        'operator-timeline-avatar',
+      )
+      expect(userAvatar.dataset.speaker).toBe('user')
+      expect(
+        within(userRow as HTMLElement)
+          .getByTestId('operator-timeline-content')
+          .compareDocumentPosition(userAvatar) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
     },
   )
 

@@ -56,7 +56,9 @@ export function StudioOperatorHistoryItem({
   switch (entry.kind) {
     case 'user':
       return (
-        <div className="flex flex-col gap-1">
+        // ⚠ `items-end`：用户消息靠右（画板 Main / BCards「消息 · 用户」）——
+        //   历史回放与实时线程是同一套对齐，⛔ 不让刷新之后换一边。
+        <div className="flex flex-col items-end gap-1">
           <StudioOperatorUserText
             text={entry.text}
             attachments={entry.attachments}

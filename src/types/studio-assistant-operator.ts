@@ -125,6 +125,19 @@ export interface StudioOperatorSystemEntry {
   /** 填进文案的那个名字（被撤销的那一步 / 字段）。 */
   subject?: string
   count?: number
+  /**
+   * ⭐ **这一行同时是一条 user 消息**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
+   *
+   * 问题卡答完之后时间线上只有一行「你选了 X」，而那一行不进 `messages`；
+   * `planAnswers` 又只跟着**当次**请求走 —— 于是第三轮开始，「用户已经答过」
+   * 这件事对模型彻底不存在（真机：2D 手绘 vs 3D 渲染被问了三遍）。
+   * 这一格写的是**自带题面的那句话**（`已选择「X」（针对问题「Y」）`），它
+   * 进 `messages`、进库、刷新之后还在；渲染照旧是那一行系统行（⛔ 不画成气泡）。
+   * ⚠ 缺席 = 普通系统行。
+   */
+  userText?: string
+  /** 同一件事的结构化那一半 —— 服务端用它渲染「已经定下来的」那一段。 */
+  answered?: AssistantOperatorPlanAnswer
 }
 
 /**

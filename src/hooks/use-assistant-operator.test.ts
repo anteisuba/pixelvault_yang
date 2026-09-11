@@ -11,6 +11,7 @@ import type {
   AssistantOperatorAskEvent,
   AssistantOperatorEvent,
   AssistantOperatorGenerationRequest,
+  AssistantOperatorMessage,
 } from '@/types/assistant-operator'
 
 /**
@@ -1297,6 +1298,80 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
         optionLabels: ['半身'],
       },
     ])
+  })
+
+  /**
+   * ⭐ **答复同时是一条会话里的 user 消息**（2026-09-12 第二次真机 bug）。
+   *
+   * 第一版修法只让答复随**当次**请求上送（`planAnswers`）：再下一轮那道题的答案
+   * 在请求里一个字都不剩 —— 时间线那一行不进 `messages`，问答轮又以
+   * `stopped(awaiting_confirm)` 收尾不结账。真机：答「2D 日系手绘插画」→ 答
+   * 「覆盖」→ 模型第三次问「2D 手绘还是 3D 渲染」。
+   */
+  it('⭐ 答问题卡 → 下一轮 messages 里有一条自带题面的 user 消息（时间线仍是系统行）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我定一下取景')
+    })
+    await settle()
+    streams[0].emit(askEvent())
+    await settle()
+
+    const picked = store.getOperatorState().question!.question.options[0]!
+    act(() => {
+      result.current.answerQuestion(
+        { questionId: 'q1', optionIds: [picked.id] },
+        { label: picked.label },
+      )
+    })
+    await settle()
+
+    // ⭐ 渲染那一侧不变：它仍然是一行系统行（⛔ 不是气泡）。
+    const line = store
+      .getOperatorState()
+      .entries.find((entry) => entry.kind === 'system')
+    expect(line).toMatchObject({
+      code: 'questionAnswered',
+      subject: '半身',
+      userText: '已选择「半身」（针对问题「取多少身？」）',
+    })
+
+    // ⭐ 而它同时是这一轮请求里的一条 user 消息（自包含：带着题面）。
+    // ⚠ 末尾那条是这一轮的助手占位行 —— 找的是最后一条**用户消息**。
+    const messages: AssistantOperatorMessage[] =
+      streamAssistantOperatorAPI.mock.calls[1]?.[0].messages
+    expect(
+      messages.filter((message) => message.role === 'user').at(-1),
+    ).toEqual({
+      role: 'user',
+      content: '已选择「半身」（针对问题「取多少身？」）',
+      answered: {
+        questionId: 'q1',
+        optionIds: ['half'],
+        question: '取多少身？',
+        optionLabels: ['半身'],
+      },
+    })
+
+    // ⭐ 再下一轮（用户又说了句别的）那句话**还在**：这正是 bug 的那一半。
+    // ⚠ 先把这一轮收掉，否则新消息进的是排队而不是一次请求。
+    streams[1]?.emit({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: 'awaiting_confirm',
+    })
+    await settle()
+    act(() => {
+      result.current.send('就这样')
+    })
+    await settle()
+    const later = streamAssistantOperatorAPI.mock.calls[2]?.[0]
+    expect(later?.planAnswers).toBeUndefined()
+    const laterMessages: AssistantOperatorMessage[] = later?.messages ?? []
+    expect(
+      laterMessages.some((message) =>
+        message.content.includes('已选择「半身」（针对问题「取多少身？」）'),
+      ),
+    ).toBe(true)
   })
 
   /**

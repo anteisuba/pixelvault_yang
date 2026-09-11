@@ -288,6 +288,25 @@ export function describeOperatorStepDetail(
 }
 
 /**
+ * 问题卡答复那一行的**自包含正文**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
+ *
+ * ⭐ 题面写在句子里，⛔ 不是「你选了 X」：那句话只有在**紧跟着问题卡**时才读
+ * 得懂，而它要去的地方是三轮之后的一段对话 —— 那里没有卡，只有这一句。
+ * ⚠ 这是**给模型与库看的那一份**：界面上那一行照旧走 i18n 词表
+ * （`StudioOperator.system.questionAnswered`），两边有意不共用一句话。
+ */
+export function describeQuestionAnswerText(
+  question: string,
+  label: string,
+): string {
+  const asked = question.trim()
+  const picked = label.trim()
+  return asked
+    ? `已选择「${picked}」（针对问题「${asked}」）`
+    : `已选择「${picked}」`
+}
+
+/**
  * 这条地址进得了库吗 —— **只有 http(s)**。
  *
  * ⛔ `data:` 与 `blob:` 一律挡掉：前者是 base64 本体（schema 注释明令 messages
@@ -403,6 +422,16 @@ export function toOperatorHistoryEntry(
         ...(typeof entry.count === 'number' && entry.count >= 0
           ? { count: entry.count }
           : {}),
+        /**
+         * ⭐ 答题那一行**带着它的自包含正文进库**（§3.4 落账规则）：这一格不在
+         * 的话，刷新之后模型又会把用户两轮前答过的题重问一遍。
+         */
+        ...(entry.userText?.trim()
+          ? {
+              userText: truncate(entry.userText.trim(), LIMITS.maxMessageChars),
+            }
+          : {}),
+        ...(entry.answered ? { answered: entry.answered } : {}),
       }
     /**
      * ⚠ 线程里的 `domain` 是**自由字符串**（视图模型那边没收窄），而历史 schema
@@ -570,7 +599,15 @@ export function toStoredOperatorMessages(
     .slice(-ASSISTANT_CONVERSATION_LIMITS.maxMessages)
     .map((entry) => ({
       id: truncate(entry.id, 160),
-      role: entry.kind === 'user' ? ('user' as const) : ('assistant' as const),
+      /**
+       * ⭐ 答题那一行**落成 `user`**（§3.4 落账规则）：它是用户说的话，而不是
+       * 一条 UI 通报。落成 `assistant` 的下场是下一轮读回来时它站在助手那一边，
+       * 「用户已经答过」这件事仍然没有人说得出口。
+       */
+      role:
+        entry.kind === 'user' || (entry.kind === 'system' && entry.userText)
+          ? ('user' as const)
+          : ('assistant' as const),
       content: truncate(
         operatorEntryPlainText(entry),
         ASSISTANT_CONVERSATION_LIMITS.maxContentLength,
@@ -589,7 +626,12 @@ function operatorEntryPlainText(entry: StudioOperatorHistoryEntry): string {
     case 'step':
       return entry.title
     case 'system':
-      return `[${entry.code}${entry.subject ? `: ${entry.subject}` : ''}]`
+      // ⚠ 答题那一行的正文就是**那句自包含的话**：分享页 / 旧面板读到的是
+      //   「已选择『半身』（针对问题『取多少身？』）」，而不是一个码。
+      return (
+        entry.userText ??
+        `[${entry.code}${entry.subject ? `: ${entry.subject}` : ''}]`
+      )
     case 'domainMark':
       return `[domain: ${entry.domain}]`
   }
@@ -644,6 +686,16 @@ export function historyToOperatorMessages(
       messages.push({ role: 'user', content: `${entry.text}${attachmentNote}` })
     } else if (entry.kind === 'message') {
       messages.push({ role: 'assistant', content: entry.text })
+    } else if (entry.kind === 'system' && entry.userText) {
+      /**
+       * ⭐ 答过的题**回到对话里**（§3.4 落账规则）—— 与 `buildMessages` 逐字
+       * 同一条判据：`planAnswers` 只跟着当次请求走，历史里的答案只有这一条路。
+       */
+      messages.push({
+        role: 'user',
+        content: entry.userText,
+        ...(entry.answered ? { answered: entry.answered } : {}),
+      })
     } else if (entry.kind === 'system' && entry.code === 'checkpointRestored') {
       messages.push({
         role: 'assistant',

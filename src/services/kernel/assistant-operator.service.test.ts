@@ -5454,6 +5454,99 @@ describe('计划协议 · plan / ask / confirm', () => {
     expect(prompt).not.toContain('- question-1: option-1-1')
   })
 
+  /**
+   * ⭐ **两轮前答过的题这一轮还在**（2026-09-12 第二次真机 bug）。
+   *
+   * 第一版修法只把答案挂在 `planAnswers` 上 —— 那只覆盖**当次**请求：用户答完
+   * 第二张卡之后，第一张卡的答案在请求里一个字都不剩，而问答轮以 `stopped`
+   * 收尾又不结账。真机表现：答了「2D 日系手绘插画」→ 答「覆盖」→ 模型第三次问
+   * 「2D 手绘还是 3D 渲染」。答复现在同时是一条自带题面的 user 消息，这条用例
+   * 钉的就是「上上轮那道题仍然在本轮的提示里，且明说不许再问」。
+   */
+  it('⭐ 两轮前问题卡的答案在本轮提示里仍然读得到（⛔ 不许再问一遍）', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [
+            { role: 'user', content: '帮我画一张' },
+            {
+              role: 'user',
+              content:
+                '已选择「2D 日系手绘插画」（针对问题「画风走哪一路？」）',
+              answered: {
+                questionId: 'question-1',
+                optionIds: ['option-1-1'],
+                question: '画风走哪一路？',
+                optionLabels: ['2D 日系手绘插画'],
+              },
+            },
+            {
+              role: 'user',
+              content: '已选择「覆盖」（针对问题「提示词框里有手写内容」）',
+              answered: {
+                questionId: 'overwrite:prompt',
+                optionIds: ['overwrite'],
+                question: '提示词框里有手写内容',
+                optionLabels: ['覆盖'],
+              },
+            },
+          ],
+          planApproved: true,
+          planAnswers: [
+            {
+              questionId: 'question-1',
+              optionIds: ['option-1-1'],
+              question: '要多少张？',
+              optionLabels: ['两张'],
+            },
+          ],
+        }),
+      ),
+    )
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('"画风走哪一路？" → 2D 日系手绘插画')
+    expect(prompt).toContain('"提示词框里有手写内容" → 覆盖')
+    expect(prompt).toContain('"要多少张？" → 两张')
+    expect(prompt).toContain('do not ask about them again')
+  })
+
+  /**
+   * ⚠ 去重按**渲染出来的那一行**：本轮那道题同时在 `messages[].answered`
+   * （客户端答完就把它落成一条 user 消息）与 `planAnswers` 里。
+   */
+  it('⭐ 同一次选择只渲染一行（messages 与 planAnswers 重合时去重）', async () => {
+    queueTurns({ finished: true })
+    const answer = {
+      questionId: 'question-1',
+      optionIds: ['option-1-1'],
+      question: '画风走哪一路？',
+      optionLabels: ['2D 日系手绘插画'],
+    }
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [
+            { role: 'user', content: '帮我画一张' },
+            {
+              role: 'user',
+              content:
+                '已选择「2D 日系手绘插画」（针对问题「画风走哪一路？」）',
+              answered: answer,
+            },
+          ],
+          planApproved: true,
+          planAnswers: [answer],
+        }),
+      ),
+    )
+    const prompt = lastUserPrompt()
+    const line = '"画风走哪一路？" → 2D 日系手绘插画'
+    expect(prompt.split(line).length - 1).toBe(1)
+  })
+
   it('planApproved=true 时答复是既定事实，⛔ 不要求重新规划', async () => {
     queueTurns({ plan: ['照计划走'] }, { finished: true })
     await collect(
@@ -8990,6 +9083,89 @@ describe('每轮结账', () => {
     expect(mockAppendAssistantConversationRound.mock.calls[0]?.[1]).toBe(
       '11111111-1111-4111-8111-111111111111',
     )
+  })
+
+  /**
+   * ⭐ **上一轮以 `stopped` 收尾的那道题，这一轮结账时补上**（§7.5 ②）。
+   *
+   * 问答轮不结账，所以那道题的答案只能等到下一次 `done` 才进「决定」栏 ——
+   * 而它此刻只活在对话里（`messages[].answered`）。⛔ 别只读 `planAnswers`：
+   * 那格里只有**本轮**那一道。
+   */
+  it('⭐ 两轮前答的那道题，这一轮 done 时补进「决定」栏的原料', async () => {
+    queueTurns(searchStep, { finished: true, message: '挑好了。' })
+    queueCheckout({ facts: [], decisions: ['走 2D 手绘'], todos: [] })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '11111111-1111-4111-8111-111111111111',
+          messages: [
+            { role: 'user', content: '帮我画一张' },
+            {
+              role: 'user',
+              content:
+                '已选择「2D 日系手绘插画」（针对问题「画风走哪一路？」）',
+              answered: {
+                questionId: 'question-1',
+                optionIds: ['option-1-1'],
+                question: '画风走哪一路？',
+                optionLabels: ['2D 日系手绘插画'],
+              },
+            },
+          ],
+          planAnswers: [
+            {
+              questionId: 'question-2',
+              optionIds: ['option-2-1'],
+              question: '要多少张？',
+              optionLabels: ['两张'],
+            },
+          ],
+        }),
+      ),
+    )
+
+    expect(checkoutPrompt()).toContain('画风走哪一路？')
+    expect(checkoutPrompt()).toContain('2D 日系手绘插画')
+    expect(checkoutPrompt()).toContain('要多少张？')
+  })
+
+  /**
+   * ⚠ 覆盖三选**只记一条**：它同时以 `confirmations` 与一条对话消息到达
+   * （合成 id `overwrite:<field>`），而「决定」栏一共只有三行。
+   */
+  it('⭐ 覆盖三选不记成两条「决定」', async () => {
+    queueTurns(searchStep, { finished: true, message: '写好了。' })
+    queueCheckout({ facts: [], decisions: ['覆盖提示词'], todos: [] })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '11111111-1111-4111-8111-111111111111',
+          messages: [
+            { role: 'user', content: '换个提示词' },
+            {
+              role: 'user',
+              content: '已选择「覆盖」（针对问题「提示词框里有手写内容」）',
+              answered: {
+                questionId: 'overwrite:prompt',
+                optionIds: ['overwrite'],
+                question: '提示词框里有手写内容',
+                optionLabels: ['覆盖'],
+              },
+            },
+          ],
+          confirmations: [{ field: 'prompt', choice: 'overwrite' }],
+        }),
+      ),
+    )
+
+    const prompt = checkoutPrompt() ?? ''
+    expect(prompt).toContain('覆盖确认 prompt：overwrite')
+    expect(prompt).not.toContain('问题卡 "提示词框里有手写内容"')
   })
 
   it('⭐ 查到的证据进证据本换回编号，结论记录里只有编号', async () => {

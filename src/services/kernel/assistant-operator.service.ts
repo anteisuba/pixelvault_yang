@@ -83,6 +83,7 @@ import {
   ASSISTANT_ASSET_WRITE_LIMITS as ASSET_WRITE_LIMITS,
   PROJECT_RULE_KIND_IDS,
   PROJECT_RULE_SOURCE_IDS,
+  overwriteAnswerId,
   type ProjectRuleKindId,
 } from '@/constants/assistant-operator'
 import { assistantAdapterSupportsImage } from '@/constants/assistant'
@@ -337,6 +338,7 @@ import {
   type AssistantOperatorVideoCritique,
   type AssistantOperatorEvent,
   type AssistantOperatorGenerationRequest,
+  type AssistantOperatorPlanAnswer,
   type AssistantOperatorPlanQuestion,
   type AssistantOperatorRequest,
   type AssistantOperatorResult,
@@ -2519,19 +2521,51 @@ function planSetModel(run: OperatorRun, args: { modelId: string }): ToolPlan {
  */
 const NO_PLAN_ANSWER = '(no answer)'
 
+function describeOneAnswer(entry: AssistantOperatorPlanAnswer): string {
+  const labels = entry.optionLabels?.length
+    ? entry.optionLabels
+    : entry.optionIds
+  const picked = labels.join(', ')
+  const other = entry.otherText?.trim()
+  const said = [picked, other ? `other: "${other}"` : null]
+    .filter((part): part is string => Boolean(part))
+    .join(' + ')
+  const asked = entry.question?.trim() || entry.questionId
+  return `- "${asked}" → ${said || NO_PLAN_ANSWER}`
+}
+
+/**
+ * 这条会话里**已经定下来的那几道**（v2 §3.4 落账规则，2026-09-12 第二次真机）。
+ *
+ * ⭐ 两条来源，缺一不可：
+ *  · `messages[].answered` —— 问题卡的答复现在同时是一条自带题面的 user 消息，
+ *    所以**两轮前**答的那道题今天还在（这正是第一版修法漏掉的一半：`planAnswers`
+ *    只跟着当次请求走，问答轮又以 `stopped` 收尾不结账，于是同一道题被问第三次）；
+ *  · `request.planAnswers` —— 本轮那一道，外加老客户端（它不带 `answered`）。
+ * ⚠ 去重按**渲染出来的那一行**：两条来源用的是同一个渲染器，同一次选择必然逐字
+ *   相同 —— ⛔ 别按 `questionId` 去重，合成 id（`question-1`）每一轮都重头编号。
+ */
+function collectSettledAnswers(
+  request: AssistantOperatorRequest,
+): AssistantOperatorPlanAnswer[] {
+  const settled: AssistantOperatorPlanAnswer[] = []
+  const seen = new Set<string>()
+  for (const entry of [
+    ...request.messages.flatMap((message) =>
+      message.answered ? [message.answered] : [],
+    ),
+    ...(request.planAnswers ?? []),
+  ]) {
+    const line = describeOneAnswer(entry)
+    if (seen.has(line)) continue
+    seen.add(line)
+    settled.push(entry)
+  }
+  return settled
+}
+
 function describePlanAnswers(request: AssistantOperatorRequest): string[] {
-  return (request.planAnswers ?? []).map((entry) => {
-    const labels = entry.optionLabels?.length
-      ? entry.optionLabels
-      : entry.optionIds
-    const picked = labels.join(', ')
-    const other = entry.otherText?.trim()
-    const said = [picked, other ? `other: "${other}"` : null]
-      .filter((part): part is string => Boolean(part))
-      .join(' + ')
-    const asked = entry.question?.trim() || entry.questionId
-    return `- "${asked}" → ${said || NO_PLAN_ANSWER}`
-  })
+  return collectSettledAnswers(request).map(describeOneAnswer)
 }
 
 function referenceCreatorContext(run: OperatorRun): string {
@@ -6292,7 +6326,18 @@ async function closeRound(
  */
 function seedLedgerDecisions(request: AssistantOperatorRequest): string[] {
   const lines: string[] = []
-  for (const said of describePlanAnswers(request)) {
+  /**
+   * ⚠ 覆盖三选那一支**只记一次**：它同时以 `confirmations`（下面那段）和一条
+   * 对话消息（`overwrite:<field>` 那个合成 id）到达，两条说的是同一次选择。
+   */
+  const coveredByConfirmations = new Set(
+    (request.confirmations ?? []).map((entry) =>
+      overwriteAnswerId(entry.field),
+    ),
+  )
+  for (const answer of collectSettledAnswers(request)) {
+    if (coveredByConfirmations.has(answer.questionId)) continue
+    const said = describeOneAnswer(answer)
     // ⚠ 一道没答的题不是一条「决定」—— ⛔ 别把「(no answer)」记成结论。
     if (said.endsWith(NO_PLAN_ANSWER)) continue
     pushLedgerLine(lines, `问题卡 ${said.replace(/^- /, '')}`)

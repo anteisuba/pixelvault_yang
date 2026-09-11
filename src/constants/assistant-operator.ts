@@ -2537,3 +2537,17 @@ export const ASSISTANT_SOURCE_ALLOWLIST_LIMITS = {
   /** 一条最长多少字（域名足够长，⛔ 不是给一句话用的）。 */
   maxTokenChars: 120,
 } as const
+
+/**
+ * 覆盖三选（追加 / 覆盖 / 保留）那一支答复在**对话里**的合成 id（§3.4 落账规则）。
+ *
+ * ⭐ 它的全部工作是**连起两条通道**：那一支的回执走 `confirmations`（服务端据此
+ * 改表单），而同一次选择又要以一条自带题面的 user 消息留在对话里（否则再下一轮
+ * 模型就看不到它了）。结账那一跳按这个 id 认出「这两条说的是同一件事」，⛔ 不把
+ * 一次选择记成两条「决定」—— 结论栏只有三行，重复一条就挤掉一条真的。
+ */
+export const OPERATOR_OVERWRITE_ANSWER_ID_PREFIX = 'overwrite:'
+
+export function overwriteAnswerId(field: string): string {
+  return `${OPERATOR_OVERWRITE_ANSWER_ID_PREFIX}${field}`
+}

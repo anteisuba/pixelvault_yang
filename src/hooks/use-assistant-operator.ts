@@ -46,6 +46,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   GENERATION_REVIEW_STATE_IDS,
   isAssistantOperatorToolInDomain,
+  overwriteAnswerId,
   type AssistantOperatorConfirmChoice,
   type AssistantOperatorDomain,
 } from '@/constants/assistant-operator'
@@ -105,6 +106,7 @@ import {
   describeOperatorInverse,
 } from '@/lib/studio-operator-apply'
 import {
+  describeQuestionAnswerText,
   historyToOperatorMessages,
   historyToPriorSteps,
   readOperatorReferenceProfiles,
@@ -191,6 +193,20 @@ function buildMessages(
       messages.push({ role: 'user', content: `${entry.text}${attachmentNote}` })
     } else if (entry.kind === 'message') {
       messages.push({ role: 'assistant', content: entry.text })
+    } else if (entry.kind === 'system' && entry.userText) {
+      /**
+       * ⭐ **答过的题也是用户说过的话**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
+       *
+       * 从前这一行只是 UI 上的「你选了 X」，而结构化答复只跟着**当次**请求走
+       * （`planAnswers`）。于是用户答了第二张卡之后，第一张卡的答案在请求里
+       * 一个字都不剩 —— 模型第三次问「2D 手绘还是 3D 渲染」。
+       * ⚠ 渲染那一侧不变：它照旧是一行系统行（⛔ 不画成气泡）。
+       */
+      messages.push({
+        role: 'user',
+        content: entry.userText,
+        ...(entry.answered ? { answered: entry.answered } : {}),
+      })
     } else if (entry.kind === 'system' && entry.code === 'checkpointRestored') {
       messages.push({
         role: 'assistant',
@@ -1362,6 +1378,49 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       if (!question) return
       setOperatorQuestion(null)
       /**
+       * ⭐ **答复自带题面与选项文案**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
+       *
+       * `questionId` / `optionIds` 是上一条流现编的合成 id（`question-1` /
+       * `option-1-1`），而服务端零会话态 —— 下一轮它反查不回这道题问的是什么、
+       * 那个选项写的是什么，于是「用户已经选过了」这件事对模型不存在。真机表现：
+       * 点完「角色设计展示立绘」，模型连着四轮重问「画面以哪位角色为主体」，
+       * 顺带把 `set_prompt` 卡在 `promptConflict` 上（提示词一个字都没写进去）。
+       * ⚠ 题面与文案**只在这里取一次**：卡在 store 里的这一份是唯一有原文的地方
+       *   （面板那一层只有 i18n 文案，⛔ 不在那儿拼第二份）。
+       * ⚠ 三条路（缩略图 / 覆盖三选 / 普通）**共用这一份**：三条都要在对话里留下
+       *   同一句自包含的话，否则「用户是从哪条路答的」会决定模型记不记得住。
+       */
+      const labels = answer.optionIds.flatMap((optionId) => {
+        const option = question.question.options.find(
+          (candidate) => candidate.id === optionId,
+        )
+        return option ? [option.label] : []
+      })
+      const answered: AssistantOperatorPlanAnswer = {
+        ...answer,
+        /**
+         * ⚠ 覆盖三选那一支换成**合成 id**（`overwrite:<field>`）：它的回执走
+         * `confirmations`，而这条 user 消息走对话 —— 结账那一跳按这个 id 认出
+         * 两者说的是同一次选择，⛔ 不把一次覆盖记成两条「决定」。
+         */
+        ...(question.overwrite
+          ? { questionId: overwriteAnswerId(question.overwrite.field) }
+          : {}),
+        question: question.question.question,
+        ...(labels.length ? { optionLabels: labels } : {}),
+      }
+      /**
+       * ⭐ **这一行同时是一条 user 消息**（2026-09-12 真机 bug 的根）：从前答复
+       * 只以 `planAnswers` 随**当次**请求上送，再下一轮就什么都不剩了 —— 时间线
+       * 那一行不进 `messages`、结账又只在 `done` 那一轮写，于是三轮之后
+       * 「用户已经答过」这件事在系统里没有任何一处说得出口（真机：同一道
+       * 「2D 手绘还是 3D 渲染」被问了三遍）。
+       */
+      const userText = describeQuestionAnswerText(
+        question.question.question,
+        options.label,
+      )
+      /**
        * ⚠ 缩略图那一支落的是**用户行**而不是系统行：服务端的准入名单
        * （`mentionedAssets`）读的是**最后一条用户消息的附件**（见
        * `buildMentionedAssets`）—— 落成系统行的话那张图根本到不了服务端，
@@ -1375,7 +1434,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         appendOperatorEntry({
           kind: 'user',
           id: nextOperatorEntryId('user'),
-          text: options.label,
+          // ⚠ 正文自包含（`已选择「X」（针对问题「Y」）`）：三轮之后读到这一行
+          //   的地方没有那张卡，只有这句话。
+          text: userText,
           attachments: [options.asset],
         })
         void run({})
@@ -1386,6 +1447,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         id: nextOperatorEntryId('sys'),
         code: 'questionAnswered',
         subject: options.label,
+        userText,
+        answered,
       })
 
       if (question.overwrite && options.choice) {
@@ -1396,33 +1459,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         })
         return
       }
-      /**
-       * ⭐ **答复自带题面与选项文案**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
-       *
-       * `questionId` / `optionIds` 是上一条流现编的合成 id（`question-1` /
-       * `option-1-1`），而服务端零会话态 —— 下一轮它反查不回这道题问的是什么、
-       * 那个选项写的是什么，于是「用户已经选过了」这件事对模型不存在。真机表现：
-       * 点完「角色设计展示立绘」，模型连着四轮重问「画面以哪位角色为主体」，
-       * 顺带把 `set_prompt` 卡在 `promptConflict` 上（提示词一个字都没写进去）。
-       * ⚠ 题面与文案**只在这里取一次**：卡在 store 里的这一份是唯一有原文的地方
-       *   （面板那一层只有 i18n 文案，⛔ 不在那儿拼第二份）。
-       */
-      const labels = answer.optionIds.flatMap((optionId) => {
-        const option = question.question.options.find(
-          (candidate) => candidate.id === optionId,
-        )
-        return option ? [option.label] : []
-      })
-      void run({
-        planAnswers: [
-          {
-            ...answer,
-            question: question.question.question,
-            ...(labels.length ? { optionLabels: labels } : {}),
-          },
-        ],
-        planApproved: true,
-      })
+      void run({ planAnswers: [answered], planApproved: true })
     },
     [run],
   )

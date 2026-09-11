@@ -493,9 +493,56 @@ export type AssistantOperatorSnapshot = z.infer<
 
 // ─── ① 请求 ─────────────────────────────────────────────────────
 
+/**
+ * 用户在反问卡上的一次回答。
+ *
+ * ⚠ `optionIds` 是**数组**而不是单值 —— 单选也是长度 1 的数组：两种形状会在
+ * 「多选题改成单选题」这种服务端改口时静默漂掉一半答案。
+ * ⚠ `otherText` 与 `optionIds` **并存**：多选题里可以既选 A 又补一句其他；
+ * 单选题选了「其他」时 `optionIds` 为空、只有这一句。
+ */
+export const AssistantOperatorPlanAnswerSchema = z.object({
+  questionId: IdSchema,
+  optionIds: z.array(IdSchema).max(PLAN_LIMITS.maxOptions),
+  otherText: z.string().trim().max(PLAN_LIMITS.maxOtherTextChars).optional(),
+  /**
+   * ⭐ **这道题原本问的是什么**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
+   *
+   * `questionId` / `optionIds` 是**上一条流现编的合成 id**（`question-1` /
+   * `option-1-1`，见 `normalizePlanQuestions` 的头注），而服务端零会话态 ——
+   * 下一轮手上只有这几个 id，谁都反查不回题面与选项文案。真机表现很具体：
+   * 用户在卡上点完「角色设计展示立绘」，模型连着四轮重问「画面以哪位角色为主体」。
+   * 所以答复必须**自带文本**：这两格在，下一轮的提示词里才写得出一句
+   * 「用户对『…』的回答是『…』」。
+   * ⚠ 可选是为了老客户端与覆盖三选那一支（它走 `confirmations`）：缺席时照旧
+   *   只渲染 id，⛔ 不为此拒掉整条请求。
+   */
+  question: z.string().trim().max(PLAN_LIMITS.maxQuestionChars).optional(),
+  /** 被点中的那几个选项的**文案**（与 `optionIds` 同序）。 */
+  optionLabels: z
+    .array(z.string().trim().max(PLAN_LIMITS.maxOptionLabelChars))
+    .max(PLAN_LIMITS.maxOptions)
+    .optional(),
+})
+
+export type AssistantOperatorPlanAnswer = z.infer<
+  typeof AssistantOperatorPlanAnswerSchema
+>
+
 export const AssistantOperatorMessageSchema = z.object({
   role: z.enum(['user', 'assistant']),
   content: z.string(),
+  /**
+   * ⭐ **这条 user 消息是问题卡上的一次选择**（v2 §3.4 落账规则，2026-09-12）。
+   *
+   * `planAnswers` 只覆盖**当次请求**：再下一轮它就不在请求里了，而对话里当时
+   * 也只有一行 UI 系统行（不进 `messages`）—— 于是「两轮前用户已经答过」这件事
+   * 对模型不存在，真机表现是同一道题被问第三次。所以答复现在**同时**是一条
+   * 自带题面的 user 消息，这一格是它的结构化那一半：服务端据此把历史里的答案
+   * 与本轮的 `planAnswers` 用同一个渲染器合并（见 `collectSettledAnswers`）。
+   * ⚠ 缺席 = 普通对白。⛔ 不靠正文做模式匹配去认它。
+   */
+  answered: AssistantOperatorPlanAnswerSchema.optional(),
 })
 
 /**
@@ -726,42 +773,6 @@ export type AssistantOperatorPlanQuestion = z.infer<
 >
 export type AssistantOperatorPlanOption = z.infer<
   typeof AssistantOperatorPlanOptionSchema
->
-
-/**
- * 用户在反问卡上的一次回答。
- *
- * ⚠ `optionIds` 是**数组**而不是单值 —— 单选也是长度 1 的数组：两种形状会在
- * 「多选题改成单选题」这种服务端改口时静默漂掉一半答案。
- * ⚠ `otherText` 与 `optionIds` **并存**：多选题里可以既选 A 又补一句其他；
- * 单选题选了「其他」时 `optionIds` 为空、只有这一句。
- */
-export const AssistantOperatorPlanAnswerSchema = z.object({
-  questionId: IdSchema,
-  optionIds: z.array(IdSchema).max(PLAN_LIMITS.maxOptions),
-  otherText: z.string().trim().max(PLAN_LIMITS.maxOtherTextChars).optional(),
-  /**
-   * ⭐ **这道题原本问的是什么**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
-   *
-   * `questionId` / `optionIds` 是**上一条流现编的合成 id**（`question-1` /
-   * `option-1-1`，见 `normalizePlanQuestions` 的头注），而服务端零会话态 ——
-   * 下一轮手上只有这几个 id，谁都反查不回题面与选项文案。真机表现很具体：
-   * 用户在卡上点完「角色设计展示立绘」，模型连着四轮重问「画面以哪位角色为主体」。
-   * 所以答复必须**自带文本**：这两格在，下一轮的提示词里才写得出一句
-   * 「用户对『…』的回答是『…』」。
-   * ⚠ 可选是为了老客户端与覆盖三选那一支（它走 `confirmations`）：缺席时照旧
-   *   只渲染 id，⛔ 不为此拒掉整条请求。
-   */
-  question: z.string().trim().max(PLAN_LIMITS.maxQuestionChars).optional(),
-  /** 被点中的那几个选项的**文案**（与 `optionIds` 同序）。 */
-  optionLabels: z
-    .array(z.string().trim().max(PLAN_LIMITS.maxOptionLabelChars))
-    .max(PLAN_LIMITS.maxOptions)
-    .optional(),
-})
-
-export type AssistantOperatorPlanAnswer = z.infer<
-  typeof AssistantOperatorPlanAnswerSchema
 >
 
 /**

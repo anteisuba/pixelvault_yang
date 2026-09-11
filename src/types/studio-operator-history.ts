@@ -6,7 +6,10 @@ import {
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
 } from '@/constants/assistant-operator'
-import { AssistantOperatorVerdictSeveritySchema } from '@/types/assistant-operator'
+import {
+  AssistantOperatorPlanAnswerSchema,
+  AssistantOperatorVerdictSeveritySchema,
+} from '@/types/assistant-operator'
 import { STUDIO_OPERATOR_SYSTEM_CODES } from '@/constants/studio-assistant-operator'
 
 /**
@@ -121,6 +124,16 @@ export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [
     code: z.enum(STUDIO_OPERATOR_SYSTEM_CODES),
     subject: z.string().trim().max(LIMITS.maxTitleChars).optional(),
     count: z.number().int().nonnegative().optional(),
+    /**
+     * ⭐ **答题那一行同时是一条 user 消息**（v2 §3.4 落账规则，2026-09-12）。
+     *
+     * 落库的理由与 `domainMark` 同一条：刷新之后这句话如果不在，模型又会把
+     * 用户两轮前就答过的题重问一遍。渲染仍是那一行系统行 —— 这一格只在
+     * 「进不进下一轮对话」那条线上被读到（`historyToOperatorMessages`）。
+     */
+    userText: HistoryTextSchema.optional(),
+    /** 同一件事的结构化那一半（服务端合并历史答案与本轮 `planAnswers`）。 */
+    answered: AssistantOperatorPlanAnswerSchema.optional(),
   }),
   /**
    * 切域标记（拍板 8）—— **跨域线程在库里唯一的痕迹**。

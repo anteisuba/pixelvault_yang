@@ -363,6 +363,77 @@ describe('历史 ↔ 库里的 messages', () => {
   })
 })
 
+/**
+ * ⭐ **问题卡答复：同一条条目既是系统行又是 user 消息**（v2 §3.4 落账规则，
+ * 2026-09-12 第二次真机 bug）。
+ *
+ * 只把答复挂在 `planAnswers` 上的那一版只覆盖**当次**请求：再下一轮它不在请求
+ * 里、`messages` 里也没有它（时间线那一行不进对话），于是模型第三次问同一道题。
+ */
+describe('问题卡答复落账', () => {
+  const answered: StudioOperatorThreadEntry = {
+    kind: 'system',
+    id: 'sys-ans',
+    code: 'questionAnswered',
+    subject: '2D 日系手绘插画',
+    userText: '已选择「2D 日系手绘插画」（针对问题「画风走哪一路？」）',
+    answered: {
+      questionId: 'question-1',
+      optionIds: ['option-1-1'],
+      question: '画风走哪一路？',
+      optionLabels: ['2D 日系手绘插画'],
+    },
+  }
+
+  it('⭐ 自包含正文与结构化答复一起进历史，落库时是一条 user 消息', () => {
+    const history = toOperatorHistory([answered])
+    expect(history).toEqual([
+      {
+        kind: 'system',
+        id: 'sys-ans',
+        code: 'questionAnswered',
+        subject: '2D 日系手绘插画',
+        userText: '已选择「2D 日系手绘插画」（针对问题「画风走哪一路？」）',
+        answered: {
+          questionId: 'question-1',
+          optionIds: ['option-1-1'],
+          question: '画风走哪一路？',
+          optionLabels: ['2D 日系手绘插画'],
+        },
+      },
+    ])
+
+    const stored = toStoredOperatorMessages(history)
+    expect(stored[0]?.role).toBe('user')
+    expect(stored[0]?.content).toBe(
+      '已选择「2D 日系手绘插画」（针对问题「画风走哪一路？」）',
+    )
+    // ⑤ 服务端那道 `sanitizeMessages` 认得它 —— 过不了就是整段历史静默消失。
+    expect(
+      AssistantConversationMessageSchema.safeParse(stored[0]).success,
+    ).toBe(true)
+  })
+
+  it('⭐ 回放之后仍在：读回来还是系统行，进对话还是 user 消息', () => {
+    const stored = toStoredOperatorMessages(toOperatorHistory([answered]))
+    const replayed = fromStoredOperatorMessages(stored)
+    // 渲染那一侧读的是这一格：它仍然是系统行（⛔ 不画成气泡）。
+    expect(replayed[0]?.kind).toBe('system')
+    expect(historyToOperatorMessages(replayed)).toEqual([
+      {
+        role: 'user',
+        content: '已选择「2D 日系手绘插画」（针对问题「画风走哪一路？」）',
+        answered: {
+          questionId: 'question-1',
+          optionIds: ['option-1-1'],
+          question: '画风走哪一路？',
+          optionLabels: ['2D 日系手绘插画'],
+        },
+      },
+    ])
+  })
+})
+
 describe('历史 → 下一轮的语境', () => {
   const history: StudioOperatorHistoryEntry[] = [
     { kind: 'user', id: 'u1', text: '第一句', attachments: [] },

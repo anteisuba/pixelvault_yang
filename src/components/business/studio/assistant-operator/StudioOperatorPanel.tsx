@@ -2279,7 +2279,7 @@ export function StudioOperatorPanel({
                     ? t('placeholderWorking')
                     : t('placeholderIdle')
               }
-              className="max-h-24 min-h-9 w-full resize-none rounded-lg border border-border bg-background px-2.5 py-2 text-md outline-none transition-colors duration-(--duration-fast) ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
+              className="max-h-40 min-h-9 w-full resize-none overflow-y-auto overscroll-contain rounded-lg border border-border bg-background px-2.5 py-2 text-md outline-none transition-colors duration-(--duration-fast) ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
             />
             {/* ── 下行：+ · 上传 · 文本模型 chip ……… 发送（v2 §4.4）───── */}
             <div

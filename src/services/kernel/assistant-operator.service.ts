@@ -364,6 +364,8 @@ import {
   type AssistantOperatorVideoCritique,
   type AssistantOperatorEvent,
   type AssistantOperatorGenerationRequest,
+  type AssistantOperatorLoraCandidate,
+  type AssistantOperatorLoraPickConfirm,
   type AssistantOperatorPlanAnswer,
   type AssistantOperatorPlanQuestion,
   type AssistantOperatorRequest,
@@ -842,6 +844,17 @@ type ToolPlan =
   | {
       kind: 'confirmContextCard'
       card: AssistantOperatorContextCardDraft
+    }
+  /**
+   * **把本轮 LoRA 候选摆给创作者挑**（lora-assistant §10.1 / §10.2.2）—— 与
+   * `confirmContextCard` 逐字同构：吐一帧确认、停流，⛔ 服务端一把都没挂。
+   *
+   * ⚠ 它同样不是 `mutate`：到这一帧为止没有任何后果可撤。挂载那几条 step 是
+   * 创作者点「挂载所选」之后那一轮各自独立的 `mount_lora`，撤销撤在它们身上。
+   */
+  | {
+      kind: 'confirmLoraPick'
+      pick: AssistantOperatorLoraPickConfirm
     }
   /**
    * **歧义反问**（§3.3 第 5 行 / §7，切片 3a）—— 「你说的是哪一张？」
@@ -3896,6 +3909,112 @@ function recomputeLoraAvailableBases(run: OperatorRun): void {
   }))
 }
 
+/**
+ * **把本轮候选摆给创作者挑**（lora-assistant §10.2.2，`plan_lora_pick`）。
+ *
+ * ⭐ 它一把都不挂：产出是一帧 `confirm(loraPick)` 加停流，挂载发生在创作者点
+ * 「挂载所选」之后那一轮（逐把过 `planMountLora` 的全部闸）。⛔ 因此这里没有
+ * `inverse` —— 什么都没发生，撤无可撤。
+ * ⚠ **只认本轮 `search_loras` 回过的 candidateId**（`run.loraIndex` 查得到），
+ * 与 `mount_lora` 那条逐字同源：模型绝不自己写 LoRA 的 id。
+ * ⚠ **装不上的候选照样进卡**（策略 C）：`compatible:false` / `importable:false`
+ * 的那几行由客户端灰掉并把理由写在行里。⛔ 别在这里滤掉 —— 滤掉之后创作者看到的
+ * 是「没搜到」，而真相是「搜到了但要换底模」。
+ * ⚠ **候选本体跟着帧走**：`candidateId → 候选` 的索引只活一轮，而「挂载所选」
+ * 那一下发生在流结束之后。
+ */
+function planLoraPick(
+  run: OperatorRun,
+  args: {
+    question: string
+    groups: { title?: string; candidateIds: string[] }[]
+    recommendedCandidateId?: string
+  },
+): ToolPlan {
+  if (!run.state.hasLoraControl) return reject(REJECT.noSuchControl)
+
+  const unknownLoraDetail = (candidateId: string): string =>
+    `"${clamp(candidateId, LIMITS.maxLabelChars)}" is not one of the candidates ${TOOL.searchLoras} returned this turn, so it cannot go on the card. Only ids from this turn's search results can — search again if the one you have in mind is not among them.`
+
+  const recommendedId = args.recommendedCandidateId ?? null
+  if (recommendedId !== null && !run.loraIndex.has(recommendedId)) {
+    return reject(REJECT.unknownLora, unknownLoraDetail(recommendedId))
+  }
+
+  const baseFamily = run.state.loraBaseFamily
+  /**
+   * ⚠ 去重按**第一次出现的位置**留：同一把被模型写进两个组时，卡上画两行、
+   * 勾一行另一行不动，读起来就是两把不同的 LoRA。
+   */
+  const picked = new Set<string>()
+  const candidates: AssistantOperatorLoraCandidate[] = []
+  const groups: { title?: string; candidateIds: string[] }[] = []
+  for (const group of args.groups) {
+    const candidateIds: string[] = []
+    for (const candidateId of group.candidateIds) {
+      const candidate = run.loraIndex.get(candidateId)
+      if (!candidate) {
+        return reject(REJECT.unknownLora, unknownLoraDetail(candidateId))
+      }
+      if (picked.has(candidateId)) continue
+      // ⚠ 上限沿用 `search_loras` 一轮能回的条数（§10.1），⛔ 不另立一个。
+      if (candidates.length >= LIMITS.maxLoraResults) break
+      picked.add(candidateId)
+      candidateIds.push(candidateId)
+      candidates.push({
+        ...(toLoraCandidateProjection(
+          candidate,
+          baseFamily,
+        ) as AssistantOperatorLoraCandidate),
+        /**
+         * ⚠ 标「推荐」是**模型这一步**的判断，一张卡最多一个 —— 判据与
+         * `PLAN_LIMITS` 那条逐字同源：两项都标推荐等于没有推荐。
+         */
+        recommended: candidateId === recommendedId,
+      })
+    }
+    if (candidateIds.length === 0) continue
+    groups.push({
+      ...(group.title ? { title: group.title } : {}),
+      candidateIds,
+    })
+  }
+
+  if (groups.length === 0 || candidates.length === 0) {
+    return reject(
+      REJECT.malformedArgs,
+      'plan_lora_pick needs at least one candidate to put in front of the creator.',
+    )
+  }
+
+  /**
+   * 底部那行读数（§10.3.1）：X = 当前栈里**启用中**的权重之和，Y = 这条底模的
+   * 阈值。⚠ 底模未定 → 整块缺席，⛔ 别回落成一个写死的分母（同
+   * `loraStackBudgetNote` 在底模未定时不判）。
+   */
+  const limit = resolveLoraStackWeightBudget(
+    baseFamily ? getDefaultBase(baseFamily) : null,
+  )
+  const total = run.state.loras.reduce(
+    (sum, item) => (item.enabled === false ? sum : sum + item.weight),
+    0,
+  )
+
+  return {
+    kind: 'confirmLoraPick',
+    pick: {
+      question: args.question,
+      baseFamilyLabel: baseFamily
+        ? clamp(baseFamily, LIMITS.maxLabelChars)
+        : null,
+      budget:
+        limit === null ? null : { total: Math.round(total * 100) / 100, limit },
+      groups,
+      candidates,
+    },
+  }
+}
+
 function planMountLora(
   run: OperatorRun,
   args: { candidateId: string; weight?: number },
@@ -5673,16 +5792,14 @@ async function planTool(
       )
     case TOOL.readContextCard:
       return planReadContextCard(run, parsed.data as { cardId: string }, userId)
-    /**
-     * ⚠ **占位（lora-assistant §10.5 commit #1 只做协议层）**：真正的 `planLoraPick`
-     * 随 commit #2 落地（校验 candidateId 属于本轮 `run.loraIndex`、吐
-     * `confirm(loraPick)` 帧、停流）。在那之前这条工具已经在 LoRA 域的枚举里，
-     * 所以这里必须有一条分支——⛔ 不让判别联合的穷举闸落空。
-     */
     case TOOL.planLoraPick:
-      return reject(
-        REJECT.malformedArgs,
-        'plan_lora_pick is not wired up yet in this build.',
+      return planLoraPick(
+        run,
+        parsed.data as {
+          question: string
+          groups: { title?: string; candidateIds: string[] }[]
+          recommendedCandidateId?: string
+        },
       )
     case TOOL.proposeContextCard:
       return planProposeContextCard(
@@ -6485,6 +6602,8 @@ function buildOperatorSystemPrompt(
       ? `- A mounted LoRA already owns part of the picture — the character's face, hair and body type are decided by it. Help the creator change the layer they are actually changing (outfit, scene, light, pose), and say plainly when a request fights the mounted LoRA.
 - Never recommend a LoRA the creator cannot actually use without saying so in the same sentence. Two things make one unusable and search_loras tells you both: it cannot be filed into the library at all, or it was built for a different base-model architecture and will not load on the base that is selected. "Switch the base model" is a legitimate suggestion; quietly recommending an incompatible one is not.
 - There is NO limit on how many LoRAs can be stacked here. Never tell the creator to remove one to make room, and never imply a maximum.
+- ALWAYS put the candidates in front of the creator before anything is mounted: once ${TOOL.searchLoras} comes back, go through ${TOOL.planLoraPick} and let them tick what to mount. Do this even when only one candidate came back, and even when they named a LoRA themselves — they have not laid eyes on it yet, and a wrong one only surfaces when they undo it. NEVER list the candidates in your reply and ask them to answer in words.
+- Three things on that card are your call: the one line above the list (say why these ones), the grouping by what they are for (characters and styles do not belong in one pile), and at most one marked as recommended. Candidates that cannot be mounted on the selected base go on the card too — the app greys them out and says why; filtering them out reads as "nothing found".
 - Trigger words matter: they come back with each candidate and land in the prompt when you mount. Keep tag vocabulary in English (danbooru-style) even when you are talking in another language — the tag library is English-normalised.
 - Trigger words are compiled by their chips (chips → tray tags → the prompt). NEVER write a trigger word into the prompt text yourself — a repeat sends the same word through the compile chain twice.
 - A MUTED chip was muted on purpose: creators mute a style LoRA's trigger when it fights what they are writing. When this turn needs that trigger to land, say so in one line — never turn it back on.
@@ -8203,6 +8322,40 @@ export async function* runAssistantOperator(
           userId: user.id,
           // 这一轮唯一的待办就是它：卡存不存在用户手上（§8.1）。
           todo: `等你决定要不要记住上下文卡「${plan.card.name}」`,
+        })
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+          ...(roundSummary ? { roundSummary } : {}),
+        }
+        completed = true
+        return
+      }
+
+      if (plan.kind === 'confirmLoraPick') {
+        /**
+         * **LoRA 推荐卡**（lora-assistant §10.1）—— 形态与上下文卡确认逐字同构：
+         * 吐一帧、停流。
+         * ⚠ 到这一帧为止**一把都没挂、一行库都没写**：创作者点「挂载所选」之后
+         * 那一轮才逐把过 `planMountLora`。
+         */
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.confirm,
+          confirm: {
+            kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick,
+            pick: plan.pick,
+          },
+        }
+        /**
+         * ⭐ **停在确认卡上的轮次也结账**（2026-09-12 实测第 2 组）：本轮的检索
+         * 有料，而创作者勾完不再新开一轮 —— 不在这里结，这一轮就永远没有结论块。
+         * ⚠ 一步都没跑成就不结（见 `closeRoundBeforeStop`）。
+         */
+        const roundSummary = await closeRoundBeforeStop(run, {
+          clerkId,
+          userId: user.id,
+          // 这一轮唯一的待办就是它：挂哪几把在创作者手上（§10.1）。
+          todo: '等你挑要挂的 LoRA',
         })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,

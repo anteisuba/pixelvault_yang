@@ -23,7 +23,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 
-import { EASE_SOFT_RETURN_CSS, INGEST_MOTION } from '@/constants/motion'
+import { INGEST_MOTION } from '@/constants/motion'
 import {
   NODE_STUDIO_INGEST_MAGNET,
   NODE_STUDIO_INGEST_QUICK_THROW,
@@ -40,7 +40,6 @@ import {
   findNodeCardElement,
   playTargetGulpAnimation,
   playTargetRejectShakeAnimation,
-  prefersReducedMotion,
 } from './node-ingest-dom'
 import {
   planV4IngestDrop,
@@ -51,15 +50,6 @@ import {
 /** 拖起来的那张卡。⚠ 带整个 `NodeV4` —— 合法性判据要读 kind/subtype/媒体。 */
 export interface V4IngestSourceInfo {
   readonly node: NodeV4
-  readonly label: string
-  readonly thumbnailUrl?: string
-}
-
-export interface V4IngestGhostState {
-  readonly originX: number
-  readonly originY: number
-  readonly width: number
-  readonly height: number
   readonly label: string
   readonly thumbnailUrl?: string
 }
@@ -84,7 +74,6 @@ export interface V4IngestPendingChoice {
 export interface V4IngestDragState {
   readonly active: boolean
   readonly sourceNodeId: string | null
-  readonly ghost: V4IngestGhostState | null
   readonly reason: V4IngestReasonBubble | null
   /** `null` = 没有待用户挑的落点。 */
   readonly pendingChoice: V4IngestPendingChoice | null
@@ -93,7 +82,6 @@ export interface V4IngestDragState {
 const EMPTY_DRAG_STATE: V4IngestDragState = {
   active: false,
   sourceNodeId: null,
-  ghost: null,
   reason: null,
   pendingChoice: null,
 }
@@ -170,15 +158,10 @@ export interface CastIngestEngineV4 {
    * 误点不会错投。多口都收得下时不替用户挑 —— 走与拖投**同一个**候选面板。
    */
   feedQuickThrow(targetId: string): void
-  registerGhostElement(el: HTMLDivElement | null): void
   /** 用户在候选里点了一个槽 —— 这一投就落它。 */
   resolveChoice(slot: NodeSlotId): void
   /** 用户点了别处 / 按了 Esc —— 这一投作废，⛔ 不替他挑一个默认。 */
   cancelChoice(): void
-}
-
-function canAnimate(el: Element | null): el is Element {
-  return Boolean(el) && !prefersReducedMotion()
 }
 
 export function useCastIngestEngineV4({
@@ -212,12 +195,7 @@ export function useCastIngestEngineV4({
   }, [nodes, edges, onConnect, translateReason, onBiteChange, capacityBySlot])
 
   const pendingRef = useRef<PendingDrag | null>(null)
-  const ghostElRef = useRef<HTMLDivElement | null>(null)
   const reasonTimeoutRef = useRef<number | null>(null)
-
-  const registerGhostElement = useCallback((el: HTMLDivElement | null) => {
-    ghostElRef.current = el
-  }, [])
 
   const plan = useCallback(
     (source: NodeV4, target: NodeV4): V4IngestDropPlan =>
@@ -245,11 +223,11 @@ export function useCastIngestEngineV4({
   }, [])
 
   /**
-   * 收尾 = 只收**手势**那部分（ghost / 磁吸 / 源）。
+   * 收尾 = 只收**手势**那部分（磁吸 / 源）。
    *
    * ⚠ `pendingChoice` 与 `reason` 都要留下：前者是「手势结束了但这一投还没落地」，
    * 清掉等于用户松手之后候选面板当场消失（那正是「替他挑了 null」）；后者由
-   * `clearReasonSoon` 定时收走 —— 跟着 ghost 一起清的话，拒绝理由会在拒绝动画
+   * `clearReasonSoon` 定时收走 —— 跟着手势一起清的话，拒绝理由会在拒绝动画
    * 结束的同一帧消失，用户根本读不到（v3 那台引擎靠动画时长掩盖了这一点，
    * reduced-motion 下就露馅）。
    */
@@ -292,24 +270,9 @@ export function useCastIngestEngineV4({
         setDragState({
           active: true,
           sourceNodeId: pending.source.node.id,
-          ghost: {
-            originX: pending.originRect.left,
-            originY: pending.originRect.top,
-            width: pending.originRect.width,
-            height: pending.originRect.height,
-            label: pending.source.label,
-            ...(pending.source.thumbnailUrl
-              ? { thumbnailUrl: pending.source.thumbnailUrl }
-              : {}),
-          },
           reason: null,
           pendingChoice: null,
         })
-      }
-
-      const ghostEl = ghostElRef.current
-      if (ghostEl) {
-        ghostEl.style.transform = `translate(${pending.originRect.left + dx}px, ${pending.originRect.top + dy}px)`
       }
 
       const hitElement = document.elementFromPoint(event.clientX, event.clientY)
@@ -369,57 +332,17 @@ export function useCastIngestEngineV4({
     [plan],
   )
 
+  /**
+   * 吞噬 = **目标卡咬一口**（owner 2026-09-12：拖动时跟着光标的那张小图删掉）。
+   *
+   * ⚠ 原本还有一张浮影从起点飞进目标卡；那张小图正是 owner 两次点名要去掉的东西，
+   * 所以连同它的跟随与飞行动画一起拆了。落点反馈没有变少 —— 收得下的目标本来就
+   * 会亮（磁吸高亮），咬不动的会弹理由气泡。
+   */
   const playSwallow = useCallback(
-    (pending: PendingDrag, targetNodeId: string) => {
-      const ghostEl = ghostElRef.current
-      const targetEl = findNodeCardElement(targetNodeId)
-      if (!canAnimate(ghostEl)) {
-        playTargetGulpAnimation(targetEl)
-        finishDrag()
-        return
-      }
-      const targetRect = targetEl?.getBoundingClientRect() ?? null
-      const startRect = ghostEl.getBoundingClientRect()
-      const startX = startRect.left
-      const startY = startRect.top
-      const endX = targetRect
-        ? targetRect.left + targetRect.width / 2 - startRect.width / 2
-        : startX
-      const endY = targetRect
-        ? targetRect.top + targetRect.height / 2 - startRect.height / 2
-        : startY
-      const midX = (startX + endX) / 2
-      const midY =
-        Math.min(startY, endY) -
-        pending.originRect.height * INGEST_MOTION.swallowArcRiseRatio
-
-      ghostEl
-        .animate(
-          [
-            {
-              transform: `translate(${startX}px, ${startY}px) scale(1, 1) rotate(0deg)`,
-              offset: 0,
-            },
-            {
-              transform: `translate(${midX}px, ${midY}px) scale(${INGEST_MOTION.swallowSquashScaleX}, ${INGEST_MOTION.swallowSquashScaleY}) rotate(6deg)`,
-              offset: 0.55,
-            },
-            {
-              transform: `translate(${endX}px, ${endY}px) scale(${INGEST_MOTION.swallowEndScale}, ${INGEST_MOTION.swallowEndScale}) rotate(${INGEST_MOTION.swallowEndRotateDeg}deg)`,
-              offset: 1,
-            },
-          ],
-          {
-            duration: INGEST_MOTION.swallowDurationMs,
-            easing: EASE_SOFT_RETURN_CSS,
-            fill: 'forwards',
-          },
-        )
-        .finished.catch(() => undefined)
-        .finally(() => {
-          playTargetGulpAnimation(targetEl)
-          finishDrag()
-        })
+    (targetNodeId: string) => {
+      playTargetGulpAnimation(findNodeCardElement(targetNodeId))
+      finishDrag()
     },
     [finishDrag],
   )
@@ -432,8 +355,7 @@ export function useCastIngestEngineV4({
     ) => {
       const targetEl = findNodeCardElement(targetNodeId)
       const targetRect = targetEl?.getBoundingClientRect() ?? null
-      const startRect =
-        ghostElRef.current?.getBoundingClientRect() ?? pending.originRect
+      const startRect = pending.originRect
       setDragState((current) => ({
         ...current,
         reason: {
@@ -494,7 +416,7 @@ export function useCastIngestEngineV4({
         return
       }
       if (dropPlan.kind === 'single') {
-        playSwallow(pending, targetNode.id)
+        playSwallow(targetNode.id)
         onConnectRef.current(
           pending.source.node.id,
           targetNode.id,
@@ -712,7 +634,6 @@ export function useCastIngestEngineV4({
   return {
     dragState,
     beginDrag,
-    registerGhostElement,
     resolveChoice,
     cancelChoice,
     quickThrowSource,

@@ -117,13 +117,6 @@ export const INGEST_MOTION = {
   biteTiltDeg: 1.5,
   biteOutlineWidthPx: 2,
   biteOutlineOffsetPx: 4,
-  /** 吸入：松手后副本沿弧线飞入目标。 */
-  swallowDurationMs: 620,
-  swallowArcRiseRatio: 0.22,
-  swallowSquashScaleX: 1.18,
-  swallowSquashScaleY: 0.9,
-  swallowEndScale: 0.16,
-  swallowEndRotateDeg: 12,
   /** 消化落定：目标 gulp overshoot + 成分 chip pop。 */
   gulpDurationMs: 480,
   gulpOvershootScaleX: 0.98,

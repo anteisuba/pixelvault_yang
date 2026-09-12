@@ -153,10 +153,7 @@ export function IngestDragProviderV4({
   return (
     <IngestDragV4Context.Provider value={value}>
       {children}
-      <IngestGhostPortalV4
-        dragState={engine.dragState}
-        registerGhostElement={engine.registerGhostElement}
-      />
+      <IngestGhostPortalV4 dragState={engine.dragState} />
       <IngestSlotChooserV4
         choice={engine.dragState.pendingChoice}
         slotLabel={(slot) => t(`slots.${slot}`)}
@@ -170,59 +167,30 @@ export function IngestDragProviderV4({
 }
 
 /**
- * 拖起来的那张卡的浮影 + 咬不动的理由气泡。
+ * 咬不动时的**理由气泡**。
  *
- * ⚠ portal 到 `document.body`：ghost 的逐帧位置由引擎**直接写 DOM**
- * （`registerGhostElement` 把节点交出去），React 只在离散跳变时重渲染，
- * ⛔ 不让 60fps 的跟随去和一次 React 重渲染抢帧。
+ * ⚠ portal 到 `document.body`：逃出 RF 的缩放视口与 `overflow:hidden` 祖先。
+ *
+ * ⚠ 这里原本还画一张跟着光标飞的浮影（拖起来那张卡的缩略）——owner 2026-09-12
+ * 两次点名「那个小图删掉」，连同引擎里的跟随与吞噬飞行一起拆了。⛔ 别再加回来：
+ * 落点反馈由磁吸高亮与这颗气泡承担。
  */
 function IngestGhostPortalV4({
   dragState,
-  registerGhostElement,
 }: {
   readonly dragState: V4IngestDragState
-  registerGhostElement(el: HTMLDivElement | null): void
 }) {
   if (typeof document === 'undefined') return null
+  if (!dragState.reason) return null
 
   return createPortal(
-    <>
-      {dragState.ghost ? (
-        <div
-          ref={registerGhostElement}
-          aria-hidden
-          className="pointer-events-none fixed left-0 top-0 z-canvas-drag flex items-center justify-center overflow-hidden rounded-node border bg-card shadow-node-card"
-          style={{
-            width: dragState.ghost.width,
-            height: dragState.ghost.height,
-            transform: `translate(${dragState.ghost.originX}px, ${dragState.ghost.originY}px)`,
-          }}
-        >
-          {dragState.ghost.thumbnailUrl ? (
-            // 与卡片自身缩略同一条约定：任意 R2 / 三方主机，不是固定资产集。
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={dragState.ghost.thumbnailUrl}
-              alt=""
-              className="size-full object-cover"
-            />
-          ) : (
-            <span className="px-1 text-center text-2xs font-semibold text-card-foreground">
-              {dragState.ghost.label}
-            </span>
-          )}
-        </div>
-      ) : null}
-      {dragState.reason ? (
-        <div
-          role="status"
-          className="pointer-events-none fixed z-canvas-drag -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-full border border-node-status-failed/60 bg-card px-3 py-1.5 text-xs font-semibold text-node-status-failed shadow-node-card"
-          style={{ left: dragState.reason.x, top: dragState.reason.y - 8 }}
-        >
-          {dragState.reason.text}
-        </div>
-      ) : null}
-    </>,
+    <div
+      role="status"
+      className="pointer-events-none fixed z-canvas-drag -translate-x-1/2 -translate-y-full whitespace-nowrap rounded-full border border-node-status-failed/60 bg-card px-3 py-1.5 text-xs font-semibold text-node-status-failed shadow-node-card"
+      style={{ left: dragState.reason.x, top: dragState.reason.y - 8 }}
+    >
+      {dragState.reason.text}
+    </div>,
     document.body,
   )
 }

@@ -320,9 +320,14 @@ import {
   resolveLoraStackWeightBudget,
 } from '@/constants/lora-base-models'
 import {
+  findForbiddenDialectHits,
   LORA_PROMPT_DIALECTS,
   type LoraPromptDialect,
 } from '@/constants/lora-prompt-dialects'
+import {
+  buildSourceMatchedLoraPrompt,
+  mergeNegativePrompt,
+} from '@/lib/lora-source-match-prompt'
 /**
  * ⭐ **产物提取的三个纯函数**（v2 §7.6：「原样搬到服务端复用，不重写」）。
  *
@@ -484,6 +489,8 @@ interface OperatorWorkingState {
     compatible: boolean
     triggerWord: string | null
     triggerEnabled: boolean
+    /** 作者推荐提示词（快照来的那一格）—— `set_prompt` 的取材阶梯第一档。 */
+    recommendedPrompt: string | null
   }[]
   hasLoraControl: boolean
   loraBaseFamily: string | null
@@ -782,6 +789,9 @@ type ToolPlan =
       field: AssistantOperatorConfirmField
       have: string
       proposed: string
+      /** LoRA 域的取材标注与负面增量（§7.2）—— 别的域一格都不带。 */
+      sourceNotes?: string[]
+      negativeDiff?: string[]
     }
   | {
       kind: 'read'
@@ -3060,6 +3070,16 @@ async function planSetText(
       )
     }
   }
+  /**
+   * **LoRA 域的取材与方言纠错**（§7.1–§7.4）—— 与上面那支图片域的参考图复核
+   * **并列**，⛔ 不混进去：那一支问的是「这几张图上到底有什么」，这一支说的是
+   * 「这段字的料从哪儿来」，两者的闸、失败形态和产出都不是一回事。
+   */
+  const loraMaterial =
+    isPrompt && run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.lora
+      ? buildLoraPromptMaterial(run, value)
+      : null
+
   const decision = run.request.confirmations?.find(
     (entry) => entry.field === field,
   )?.choice
@@ -3089,6 +3109,12 @@ async function planSetText(
         field,
         have: clamp(current, LIMITS.maxPromptChars),
         proposed: clamp(value, LIMITS.maxPromptChars),
+        ...(loraMaterial?.sourceNotes.length
+          ? { sourceNotes: loraMaterial.sourceNotes }
+          : {}),
+        ...(loraMaterial?.negativeDiff.length
+          ? { negativeDiff: loraMaterial.negativeDiff }
+          : {}),
       }
     }
     if (decision === ASSISTANT_OPERATOR_CONFIRM_CHOICES.keep) {
@@ -3168,7 +3194,7 @@ async function planSetText(
       current.trim() && creatorSaidOverwrite
         ? ' The creator had already asked for this to be overwritten, so it was replaced without asking again. Tell them plainly that you overwrote it as they asked; do not ask whether to keep or append.'
         : ''
-    }${
+    }${loraMaterialObservation(loraMaterial)}${
       needsReferenceReview && run.referenceBriefDegraded
         ? ' The source-role brief failed schema validation, so this was written from the verified visual facts and the sources the creator named. Tell the creator the prompt is in, which source you used for what, and that they can correct the split in one sentence. Do not rebuild the brief or ask them to re-upload anything.'
         : ''
@@ -3897,6 +3923,9 @@ function planMountLora(
         compatible,
         triggerWord: candidate.triggerWords[0] ?? null,
         triggerEnabled: true,
+        // ⚠ 检索候选身上没有作者推荐提示词这一格（那是库记录的字段，导入之后
+        //   才有），⛔ 别拿候选的描述凑一个：取材阶梯会把它当作者推荐报出去。
+        recommendedPrompt: null,
       })
     },
   }
@@ -5975,6 +6004,191 @@ function resolveLoraDialect(
 }
 
 /**
+ * `set_prompt` 在 LoRA 域的**取材阶梯**产出（§7.1–§7.4）。
+ *
+ * ⚠ 素材只来自**快照**：⛔ 不新增 DB 读、⛔ 不新增工具。于是阶梯 ② 的
+ * `buildSourceMatchedLoraPrompt` 在这里只有快照喂得动的那部分输入（家族 +
+ * 触发词 + 作者推荐）—— Civitai 来源图那一份要一次库读，本片不加。它因此在
+ * `reliable === false` 时**不当素材用**，如实落第 ③ 档并说一句为什么。
+ */
+interface LoraPromptMaterial {
+  sourceNotes: string[]
+  negativeDiff: string[]
+}
+
+const LORA_SOURCE_NOTE_TEXTS: Record<
+  PromptAssistantResponseLanguage,
+  {
+    role: { subject: string; style: string }
+    unknownFamily: string
+    author: (role: string, name: string) => string
+    sourceRecipe: (role: string, name: string) => string
+    thinSource: (role: string, name: string, family: string) => string
+    skeleton: (role: string, name: string, family: string) => string
+    dialectFix: (family: string, why: string) => string
+  }
+> = {
+  english: {
+    role: { subject: 'Subject', style: 'Look' },
+    unknownFamily: 'an unsettled base',
+    author: (role, name) => `${role} — the author's own prompt for "${name}"`,
+    sourceRecipe: (role, name) =>
+      `${role} — the source-image recipe for "${name}"`,
+    thinSource: (role, name, family) =>
+      `${role} — "${name}" has too little source description, so this follows the ${family} family skeleton`,
+    skeleton: (role, name, family) =>
+      `${role} — no author prompt and no source recipe for "${name}", so this follows the ${family} family skeleton`,
+    dialectFix: (family, why) => `Fix for ${family}: ${why}`,
+  },
+  japanese: {
+    role: { subject: '主題', style: '画風' },
+    unknownFamily: '未確定のベース',
+    author: (role, name) => `${role} — 「${name}」の作者推奨プロンプト`,
+    sourceRecipe: (role, name) => `${role} — 「${name}」の元画像レシピ`,
+    thinSource: (role, name, family) =>
+      `${role} — 「${name}」は元画像の説明が足りないので ${family} のひな形で書きました`,
+    skeleton: (role, name, family) =>
+      `${role} — 「${name}」には作者推奨も元画像レシピもないので ${family} のひな形で書きました`,
+    dialectFix: (family, why) => `${family} 向けの修正：${why}`,
+  },
+  chinese: {
+    role: { subject: '主体', style: '画风' },
+    unknownFamily: '尚未定下的底模',
+    author: (role, name) => `${role} — 来自《${name}》的作者推荐`,
+    sourceRecipe: (role, name) => `${role} — 来自《${name}》的来源图配方`,
+    thinSource: (role, name, family) =>
+      `${role} — 《${name}》的来源图描述不够，按家族骨架写（${family}）`,
+    skeleton: (role, name, family) =>
+      `${role} — 《${name}》既没有作者推荐也没有来源配方，按家族骨架写（${family}）`,
+    dialectFix: (family, why) => `${family} 的修正：${why}`,
+  },
+}
+
+/**
+ * 逐条挂载走一遍取材阶梯，产出确认卡上那几行（§7.1 / §7.2）。
+ *
+ * ⚠ 角色按**挂载顺序**定：第一把当主体，其余当画风 —— 快照上没有 LoRA 的
+ * `type` 那一格，⛔ 而按名字猜「这把是不是画风」正是本文档反复禁掉的那种猜。
+ * ⚠ 自训那一档（`source === 'trained'`）快照里没有来源位，判据用它的等价形式：
+ * **没有作者推荐、来源配方也不可靠** —— 如实说没有料，⛔ 不编一段来源配方。
+ */
+function buildLoraPromptMaterial(
+  run: OperatorRun,
+  proposed: string,
+): LoraPromptMaterial | null {
+  if (!run.state.hasLoraControl) return null
+
+  const texts =
+    LORA_SOURCE_NOTE_TEXTS[resolveResponseLanguage(run.request, run.persona)]
+  const family = run.state.loraBaseFamily
+    ? normalizeToLoraBaseFamily(run.state.loraBaseFamily)
+    : null
+  const familyLabel = run.state.loraBaseFamily ?? texts.unknownFamily
+  const notes: string[] = []
+
+  run.state.loras
+    // ⚠ 静音的那把不进出图，也就不是这段字的料（同权重预算那条口径）。
+    .filter((item) => item.enabled)
+    // 留一格给方言纠错那一行 —— 条目数 ≤ 挂载数 + 1。
+    .slice(0, LIMITS.maxSourceNotes - 1)
+    .forEach((mount, index) => {
+      const role = index === 0 ? texts.role.subject : texts.role.style
+      // ① 作者自己写的那一版。
+      if (mount.recommendedPrompt) {
+        notes.push(texts.author(role, mount.name))
+        return
+      }
+      /**
+       * ② 来源配方。⚠ 快照上喂得动它的只有触发词与家族；连触发词都没有就
+       *   **跳过这一档**（它拿不到任何可辨认的输入，硬调只会得到一句空话）。
+       */
+      const recipe = mount.triggerWord
+        ? buildSourceMatchedLoraPrompt({
+            baseModelFamily: mount.family ?? '',
+            recommendedPrompt: mount.recommendedPrompt,
+            recommendedPromptAlternates: undefined,
+            triggerWord: mount.triggerWord,
+            type: index === 0 ? 'subject' : 'style',
+          })
+        : null
+      if (recipe?.reliable) {
+        notes.push(texts.sourceRecipe(role, mount.name))
+        return
+      }
+      // ③ 家族骨架。来源配方试过但不可靠时，说清是为什么落到这一档。
+      notes.push(
+        recipe
+          ? texts.thinSource(role, mount.name, familyLabel)
+          : texts.skeleton(role, mount.name, familyLabel),
+      )
+    })
+
+  /**
+   * §7.4 方言纠错：判据是方言表的 `forbidden`，⛔ 不让模型自由发挥。命中就把
+   * 修正放进**同一张确认卡**（⛔ 不另开一轮、⛔ 不静默替换）。
+   */
+  if (family) {
+    const [hit] = findForbiddenDialectHits(family, proposed)
+    if (hit) notes.push(texts.dialectFix(familyLabel, hit.why))
+  }
+
+  return {
+    sourceNotes: notes.map((note) => clamp(note, LIMITS.maxSourceNoteChars)),
+    negativeDiff: family
+      ? loraNegativeDiff(
+          run.state.negativePrompt ?? '',
+          LORA_PROMPT_DIALECTS[family].negative,
+        )
+      : [],
+  }
+}
+
+/**
+ * 这一族的负面主力里，用户负面框**还没有**的那几个（§7.3）。
+ *
+ * ⚠ 去重口径沿用 `mergeNegativePrompt`，⛔ 不在这里另写一套归一：两套归一的
+ * 表现是卡上说「补 3 个词」而写进去只多了 2 个。
+ */
+function loraNegativeDiff(
+  current: string,
+  recommended: readonly string[],
+): string[] {
+  if (recommended.length === 0) return []
+  const normalize = (tag: string) =>
+    tag.trim().toLowerCase().replace(/\s+/g, ' ')
+  const existing = new Set(current.split(',').map(normalize).filter(Boolean))
+  return mergeNegativePrompt(current, recommended.join(', '))
+    .split(',')
+    .map((tag) => tag.trim())
+    .filter((tag) => tag && !existing.has(normalize(tag)))
+    .slice(0, LIMITS.maxNegativeDiffTags)
+}
+
+/**
+ * 取材标注进**没有确认卡那一支**的观察（§7.2 的 ⚠）——提示词框是空的时候不出
+ * 覆盖三选，同一份出处由模型在正文里复述。⛔ 不为了「让卡出现」伪造一次确认。
+ */
+function loraMaterialObservation(material: LoraPromptMaterial | null): string {
+  if (!material) return ''
+  const parts: string[] = []
+  if (material.sourceNotes.length > 0) {
+    parts.push(
+      ` Where this text's material came from: ${material.sourceNotes.join(
+        ' / ',
+      )}. Say that provenance in your own words.`,
+    )
+  }
+  if (material.negativeDiff.length > 0) {
+    parts.push(
+      ` This base family's negative staples are still missing from the negative box: ${material.negativeDiff.join(
+        ', ',
+      )}. Offer set_negative in this same turn with those ADDED to what the creator already wrote — never replacing it.`,
+    )
+  }
+  return parts.join('')
+}
+
+/**
  * LoRA 域系统提示里的方言段。
  *
  * ⛔ **只注入当前那一族**：六族全倒进上下文的下场是模型在 FLUX 上写 score 前缀
@@ -7681,6 +7895,9 @@ export async function* runAssistantOperator(
             field: plan.field,
             have: plan.have,
             proposed: plan.proposed,
+            // LoRA 域才有的两格（§7.2）：缺席就是这道题不是取材那一支。
+            ...(plan.sourceNotes ? { sourceNotes: plan.sourceNotes } : {}),
+            ...(plan.negativeDiff ? { negativeDiff: plan.negativeDiff } : {}),
           },
         }
         /**

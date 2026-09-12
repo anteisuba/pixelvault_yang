@@ -7978,7 +7978,9 @@
       "pinnedTitle": "{name} wants to confirm first",
       "current": "Current prompt",
       "proposed": "Suggested prompt",
-      "send": "Send"
+      "send": "Send",
+      "sourceNotes": "Where this text came from",
+      "negativeDiff": "To add to the negative prompt:"
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "this environment cannot read video",

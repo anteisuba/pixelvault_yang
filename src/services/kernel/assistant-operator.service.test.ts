@@ -10791,3 +10791,216 @@ describe('LoRA 域方言与触发词规矩', () => {
     expect(digest).not.toContain('dialect:')
   })
 })
+
+/**
+ * `set_prompt` 的取材阶梯与确认卡两格（spec §7.1–§7.4）。
+ *
+ * ⚠ 素材只来自快照：阶梯 ② 的来源配方在这里拿不到 Civitai 来源图（那要一次库读，
+ * 本片不加），所以它只在「快照喂得动」时被试一次，`reliable === false` 就如实落
+ * 第 ③ 档并说清为什么。
+ */
+describe('LoRA 域 set_prompt 的取材阶梯', () => {
+  const WRITTEN = '我自己写的一段提示词'
+  const SET_PROMPT_TURN = {
+    tool: {
+      name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      title: 'rewrite the prompt',
+      args: { value: 'ink lines, a girl on a rooftop' },
+    },
+  }
+
+  function snapshotWith(
+    mount: Partial<NonNullable<typeof LORA_SNAPSHOT.loras>['items'][number]>,
+    over: Partial<NonNullable<typeof LORA_SNAPSHOT.loras>> = {},
+    prompt = WRITTEN,
+  ): AssistantOperatorRequest['snapshot'] {
+    return {
+      ...LORA_SNAPSHOT,
+      prompt,
+      loras: {
+        ...LORA_SNAPSHOT.loras!,
+        items: [{ ...LORA_SNAPSHOT.loras!.items[0], ...mount }],
+        ...over,
+      },
+    }
+  }
+
+  async function askFor(
+    snapshot: AssistantOperatorRequest['snapshot'],
+    turn: unknown = SET_PROMPT_TURN,
+  ) {
+    queueTurns(turn, { finished: true })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildLoraRequest({ snapshot })),
+    )
+    return events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+    ) as Extract<AssistantOperatorEvent, { type: 'ask' }>
+  }
+
+  it('第 ① 档：有作者推荐就报「来自这把的作者推荐」', async () => {
+    const ask = await askFor(
+      snapshotWith({ recommendedPrompt: 'ink lines, rooftop, dusk' }),
+    )
+
+    expect(ask.overwrite?.sourceNotes).toEqual([
+      `Subject — the author's own prompt for "Ink Lines"`,
+    ])
+  })
+
+  it('第 ② 档：快照喂得动来源配方就试一次，reliable=false 落第 ③ 档并说清为什么', async () => {
+    const ask = await askFor(snapshotWith({ recommendedPrompt: null }))
+
+    expect(ask.overwrite?.sourceNotes?.[0]).toContain(
+      'too little source description',
+    )
+    expect(ask.overwrite?.sourceNotes?.[0]).toContain('family skeleton')
+    // ⛔ 不可靠的来源配方不当素材用 —— 一个字都不许说成「来自来源图」。
+    expect(ask.overwrite?.sourceNotes?.[0]).not.toContain('source-image recipe')
+  })
+
+  it('第 ③ 档：连触发词都没有就跳过来源配方那一档，直接按家族骨架', async () => {
+    const ask = await askFor(
+      snapshotWith({ recommendedPrompt: null, triggerWord: null }),
+    )
+
+    expect(ask.overwrite?.sourceNotes).toEqual([
+      `Subject — no author prompt and no source recipe for "Ink Lines", so this follows the illustrious family skeleton`,
+    ])
+  })
+
+  it('自训那一档如实说没有料，⛔ 不编一段作者推荐或来源配方', async () => {
+    const ask = await askFor(
+      snapshotWith({ recommendedPrompt: null, triggerWord: 'my-own-face' }),
+    )
+
+    const [note] = ask.overwrite?.sourceNotes ?? []
+    expect(note).toContain('family skeleton')
+    expect(note).not.toContain(`author's own prompt`)
+    expect(note).not.toContain('source-image recipe')
+  })
+
+  it('静音的那把不算料，条目数 ≤ 挂载数 + 1', async () => {
+    const ask = await askFor(
+      snapshotWith(
+        { recommendedPrompt: 'ink lines, rooftop' },
+        {
+          items: [
+            {
+              ...LORA_SNAPSHOT.loras!.items[0],
+              recommendedPrompt: 'ink lines, rooftop',
+            },
+            {
+              ...LORA_SNAPSHOT.loras!.items[0],
+              id: 'lora-asset-2',
+              name: 'Muted One',
+              enabled: false,
+            },
+          ],
+        },
+      ),
+    )
+
+    expect(ask.overwrite?.sourceNotes).toHaveLength(1)
+    expect(ask.overwrite?.sourceNotes?.[0]).toContain('Ink Lines')
+  })
+
+  it('方言禁忌命中时修正进同一张卡（⛔ 不另开一轮、⛔ 不静默替换）', async () => {
+    const ask = await askFor(
+      snapshotWith({ recommendedPrompt: 'ink lines, rooftop' }),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: 'rewrite',
+          args: { value: 'score_9, score_8_up, ink lines, a girl' },
+        },
+      },
+    )
+
+    const notes = ask.overwrite?.sourceNotes ?? []
+    expect(notes).toHaveLength(2)
+    expect(notes[1]).toContain('illustrious')
+    expect(notes[1]).toContain('Pony convention')
+    // 正文一个字没被替换 —— 改法由用户在这张卡上定。
+    expect(ask.overwrite?.proposed).toBe(
+      'score_9, score_8_up, ink lines, a girl',
+    )
+  })
+
+  it('负面增量只给「还没有的那几个」，⛔ 不覆盖用户已写的负面词', async () => {
+    const ask = await askFor({
+      ...snapshotWith({ recommendedPrompt: 'ink lines, rooftop' }),
+      negativePrompt: 'lowres, my own word',
+    })
+
+    const diff = ask.overwrite?.negativeDiff ?? []
+    expect(diff).not.toContain('lowres')
+    expect(diff).not.toContain('my own word')
+    expect(diff).toContain('worst quality')
+    expect(diff).toEqual(
+      LORA_PROMPT_DIALECTS.illustrious.negative.filter(
+        (tag) => tag !== 'lowres',
+      ),
+    )
+  })
+
+  it('底模未定时不判方言：没有负面增量，骨架那一行也不认任何一族', async () => {
+    const ask = await askFor(
+      snapshotWith(
+        { recommendedPrompt: null, triggerWord: null },
+        { baseFamily: null },
+      ),
+    )
+
+    expect(ask.overwrite?.negativeDiff).toBeUndefined()
+    expect(ask.overwrite?.sourceNotes?.[0]).toContain('an unsettled base')
+  })
+
+  it('⛔ 图片域的覆盖三选一格都不带（取材阶梯只在 LoRA 域生效）', async () => {
+    queueTurns(SET_PROMPT_TURN, { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ snapshot: { ...SNAPSHOT, prompt: WRITTEN } }),
+      ),
+    )
+    const ask = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+    ) as Extract<AssistantOperatorEvent, { type: 'ask' }>
+
+    expect(ask.overwrite?.sourceNotes).toBeUndefined()
+    expect(ask.overwrite?.negativeDiff).toBeUndefined()
+  })
+
+  it('提示词框是空的那一支：不出确认卡，同一份取材进 observation', async () => {
+    queueTurns(
+      SET_PROMPT_TURN,
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          title: 'look',
+          args: {},
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({
+          snapshot: snapshotWith(
+            { recommendedPrompt: 'ink lines, rooftop' },
+            {},
+            '',
+          ),
+        }),
+      ),
+    )
+
+    expect(typesOf(events)).not.toContain(ASSISTANT_OPERATOR_EVENTS.ask)
+    const digest = lastUserPrompt()
+    expect(digest).toContain(`Where this text's material came from`)
+    expect(digest).toContain(`the author's own prompt for "Ink Lines"`)
+    expect(digest).toContain('never replacing it')
+  })
+})

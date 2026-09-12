@@ -80,6 +80,20 @@ const OVERWRITE_PROMPT: StudioOperatorQuestionPrompt = {
   },
 }
 
+/** LoRA 域的覆盖三选：同一张卡上多几行取材标注与负面增量（lora §7.2）。 */
+const SOURCED_OVERWRITE_PROMPT: StudioOperatorQuestionPrompt = {
+  ...OVERWRITE_PROMPT,
+  id: 'ask-2b',
+  overwrite: {
+    ...OVERWRITE_PROMPT.overwrite!,
+    sourceNotes: [
+      '主体 — 来自《Ink Lines》的作者推荐',
+      '画风 — 家族骨架（illustrious）',
+    ],
+    negativeDiff: ['worst quality', 'bad hands'],
+  },
+}
+
 const ASSET_PROMPT: StudioOperatorQuestionPrompt = {
   id: 'ask-3',
   question: {
@@ -186,6 +200,30 @@ describe('StudioOperatorQuestionCard', () => {
       label: '覆盖',
       choice: 'overwrite',
     })
+  })
+
+  it('取材标注与负面增量长在同一张卡上（⛔ 不新造卡型）', () => {
+    renderCard(SOURCED_OVERWRITE_PROMPT)
+    const block = screen.getByTestId('operator-question-overwrite')
+    const notes = screen.getByTestId('operator-question-source-notes')
+    // 两格都住在覆盖那一块里 —— 卡型、布局一个都没变。
+    expect(block).toContainElement(notes)
+    expect(notes).toHaveTextContent('主体 — 来自《Ink Lines》的作者推荐')
+    expect(notes).toHaveTextContent('画风 — 家族骨架（illustrious）')
+    expect(
+      screen.getByTestId('operator-question-negative-diff'),
+    ).toHaveTextContent('worst quality, bad hands')
+  })
+
+  it('两格缺席时一行都不画（图片 / 视频域的覆盖三选就是这一态）', () => {
+    renderCard(OVERWRITE_PROMPT)
+    expect(screen.getByTestId('operator-question-overwrite')).toBeVisible()
+    expect(
+      screen.queryByTestId('operator-question-source-notes'),
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByTestId('operator-question-negative-diff'),
+    ).not.toBeInTheDocument()
   })
 
   it('缩略图那一支：四格网格，答复带 assetOptionId', () => {

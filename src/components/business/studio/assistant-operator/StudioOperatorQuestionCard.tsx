@@ -193,6 +193,34 @@ export function StudioOperatorQuestionCard({
             <p className="max-h-52 overflow-y-auto whitespace-pre-wrap break-words text-foreground">
               {prompt.overwrite.proposed}
             </p>
+            {/* ── 取材标注与负面增量（LoRA §7.2）───────────────────────
+                ⚠ 长在**同一张卡**上，只是多几行字：⛔ 不新造卡型、⛔ 不加图标、
+                ⛔ 不改布局。缺席就整块不画（同「无数据不渲染」那条判据）。 */}
+            {prompt.overwrite.sourceNotes?.length ? (
+              <div
+                data-testid="operator-question-source-notes"
+                className="flex flex-col gap-0.5"
+              >
+                <p className="text-muted-foreground">
+                  {t('question.sourceNotes')}
+                </p>
+                {prompt.overwrite.sourceNotes.map((note) => (
+                  <p key={note} className="break-words text-foreground">
+                    {note}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+            {prompt.overwrite.negativeDiff?.length ? (
+              <p data-testid="operator-question-negative-diff">
+                <span className="text-muted-foreground">
+                  {t('question.negativeDiff')}
+                </span>{' '}
+                <span className="break-words text-foreground">
+                  {prompt.overwrite.negativeDiff.join(', ')}
+                </span>
+              </p>
+            ) : null}
           </div>
         ) : null}
 

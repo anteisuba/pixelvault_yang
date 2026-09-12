@@ -7978,7 +7978,9 @@
       "pinnedTitle": "{name} が先に確認したいこと",
       "current": "現在のプロンプト",
       "proposed": "提案されたプロンプト",
-      "send": "送信"
+      "send": "送信",
+      "sourceNotes": "この文の素材の出どころ",
+      "negativeDiff": "ネガティブに足す語："
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "この環境では動画を読めません",

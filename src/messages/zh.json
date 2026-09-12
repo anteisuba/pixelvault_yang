@@ -7978,7 +7978,9 @@
       "pinnedTitle": "{name} 想先确认",
       "current": "当前提示词",
       "proposed": "助手建议的提示词",
-      "send": "发送"
+      "send": "发送",
+      "sourceNotes": "这段字的料从哪儿来",
+      "negativeDiff": "负面提示词要补的词："
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "这个环境读不了视频",

@@ -2994,6 +2994,27 @@ export const AssistantOperatorAskEventSchema = z.object({
       have: z.string().max(LIMITS.maxPromptChars),
       /** 助手建议的完整文本。 */
       proposed: z.string().max(LIMITS.maxPromptChars),
+      /**
+       * **这段字的料从哪儿来**（LoRA §7.2）—— 逐段一行「主体 — 来自《XX》的
+       * 作者推荐」/「画风 — 家族骨架（Illustrious）」，最后可以多一行方言纠错。
+       *
+       * ⚠ 缺席 = 这道题不是 LoRA 域的取材（图片 / 视频域一行都不给）。⛔ 别写成
+       * 必填：覆盖三选在三个域里是同一张卡，必填会让另外两个域去编一句出处。
+       */
+      sourceNotes: z
+        .array(z.string().trim().min(1).max(LIMITS.maxSourceNoteChars))
+        .max(LIMITS.maxSourceNotes)
+        .optional(),
+      /**
+       * 这一次要往负面框**补**的词（§7.3）。
+       *
+       * ⚠ 它是**增量**不是整段：用户已经写下的负面词一个都不动（去重口径沿用
+       * `mergeNegativePrompt`）。没有要补的就整格缺席，⛔ 不给一个空数组。
+       */
+      negativeDiff: z
+        .array(z.string().trim().min(1).max(LIMITS.maxLabelChars))
+        .max(LIMITS.maxNegativeDiffTags)
+        .optional(),
     })
     .optional(),
 })

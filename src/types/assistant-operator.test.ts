@@ -1242,6 +1242,57 @@ describe('事件契约', () => {
     ).toBe(false)
   })
 
+  /** LoRA 域才有的两格（§7.2）：可选、有上限、⛔ 不收空串。 */
+  it('ask.overwrite 的取材标注与负面增量：可选，且各有上限', () => {
+    const overwrite = {
+      field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
+      have: '我自己写的一段',
+      proposed: '助手想写的一段',
+    }
+    const parse = (extra: Record<string, unknown>) =>
+      AssistantOperatorEventSchema.safeParse({
+        type: ASSISTANT_OPERATOR_EVENTS.ask,
+        question: askQuestion,
+        overwrite: { ...overwrite, ...extra },
+      }).success
+
+    expect(
+      parse({
+        sourceNotes: ['主体 — 来自《Ink Lines》的作者推荐'],
+        negativeDiff: ['worst quality'],
+      }),
+    ).toBe(true)
+    // 两格都缺席仍然合法 —— 别的域一格都不给。
+    expect(parse({})).toBe(true)
+    // 条目数上限（挂载数 + 1 那条判据的护栏）。
+    expect(
+      parse({
+        sourceNotes: Array.from(
+          { length: ASSISTANT_OPERATOR_LIMITS.maxSourceNotes + 1 },
+          (_, index) => `note ${index}`,
+        ),
+      }),
+    ).toBe(false)
+    expect(
+      parse({
+        sourceNotes: [
+          'a'.repeat(ASSISTANT_OPERATOR_LIMITS.maxSourceNoteChars + 1),
+        ],
+      }),
+    ).toBe(false)
+    expect(
+      parse({
+        negativeDiff: Array.from(
+          { length: ASSISTANT_OPERATOR_LIMITS.maxNegativeDiffTags + 1 },
+          (_, index) => `tag ${index}`,
+        ),
+      }),
+    ).toBe(false)
+    // ⛔ 空串不是一条标注。
+    expect(parse({ sourceNotes: [''] })).toBe(false)
+    expect(parse({ negativeDiff: ['  '] })).toBe(false)
+  })
+
   /** ⚠ 覆盖那一块只认那两格字段：`aspectRatio` 不是「你手写的字」。 */
   it('ask.overwrite 的 field 是封闭枚举', () => {
     expect(

@@ -1084,10 +1084,14 @@ export type AssistantOperatorResumeFrom = z.infer<
  *  ① `LoraCandidate` 上挂着 `importPayload`（来源快照 + 权重文件地址 + 落库入参）。
  *    那份对象**不跟着 `search_loras` 的步结果走** —— 步结果要进会话历史，每条候选
  *    背一份落库入参就是让每条消息多背几 KB，而那一刻还没有任何一把要挂。
- *    ⚠ **推荐卡那一帧是例外**（lora-assistant §10.1）：它是「真的要挂那几把」的
- *    前一刻，而 `candidateId → 候选` 的索引只活一轮（用户点「挂载所选」发生在流
- *    结束之后），所以候选本体必须跟着帧走。⛔ 别因此把它加回步结果，也⛔ 别改成
- *    「确认时按 id 再搜一次」：上游随时会改，用户看到的卡与实际导入的就不是同一版。
+ *    ⚠ 这条边界**就落在 `importPayload` 是不是可选上**：这份基础 schema 留它
+ *    `.optional()`，步结果那条路（`toLoraCandidateProjection`）压根不填；推荐卡那
+ *    一帧与勾选回传走的是派生出来的 `AssistantOperatorLoraPickCandidateSchema`，
+ *    那里它是**必填**（`null` = 这把本来就导不进来）。理由见 lora-assistant §10.1：
+ *    推荐卡是「真的要挂那几把」的前一刻，而 `candidateId → 候选` 的索引只活一轮
+ *    （用户点「挂载所选」发生在流结束之后），所以候选本体必须跟着帧走。⛔ 别因此
+ *    把它加回步结果，也⛔ 别改成「确认时按 id 再搜一次」：上游随时会改，用户看到
+ *    的卡与实际导入的就不是同一版。
  *  ② 这里多出两位是**本工作台此刻**才算得出来的：`compatible`（与当前底模架构对
  *    不对得上）。检索层不知道用户选了哪个底模，那是快照的事。
  *
@@ -1136,10 +1140,38 @@ export const AssistantOperatorLoraCandidateSchema = z.object({
    * 逐字同源 —— 两项都标推荐等于没有推荐。
    */
   recommended: z.boolean(),
+  /**
+   * 一次确认之后要发给导入链的那份载荷（来源快照 + 权重文件地址 + 落库入参）。
+   *
+   * ⚠ **可选只对步结果那条路而言**（头注 ①）：`search_loras` 的步结果要进会话
+   * 历史，⛔ 不填它。推荐卡与勾选回传用的是
+   * `AssistantOperatorLoraPickCandidateSchema`，那边它是必填。
+   * ⚠ `null` = 这把导不进来（与 `importable:false` 同一件事的两侧）—— 那几条
+   * **照样进卡**（策略 C），只是挂不上。
+   */
+  importPayload: LoraCandidateImportPayloadSchema.nullable().optional(),
 })
 
 export type AssistantOperatorLoraCandidate = z.infer<
   typeof AssistantOperatorLoraCandidateSchema
+>
+
+/**
+ * **推荐卡上（与勾选回传时）的那一条候选** —— 与上面同一份投影，只是把
+ * `importPayload` 收成**必填**（lora-assistant §10.1）。
+ *
+ * ⭐ 派生而不是「一份可选到底」：可选到底的表现是卡上少一格没人发现，直到用户
+ * 点了「挂载所选」才在服务端拒成 `loraNotImportable` —— 那时他已经等过一轮了。
+ * ⚠ 必填的是**这一格在不在**，不是它非得有值：导不进来的候选照样进卡，那一格
+ * 写 `null`。
+ */
+export const AssistantOperatorLoraPickCandidateSchema =
+  AssistantOperatorLoraCandidateSchema.extend({
+    importPayload: LoraCandidateImportPayloadSchema.nullable(),
+  })
+
+export type AssistantOperatorLoraPickCandidate = z.infer<
+  typeof AssistantOperatorLoraPickCandidateSchema
 >
 
 export const AssistantOperatorRequestSchema = z.object({
@@ -1326,7 +1358,7 @@ export const AssistantOperatorRequestSchema = z.object({
       z.object({
         candidateId: IdSchema,
         weight: z.number().optional(),
-        candidate: AssistantOperatorLoraCandidateSchema,
+        candidate: AssistantOperatorLoraPickCandidateSchema,
       }),
     )
     .max(LIMITS.maxLoraResults)
@@ -3156,9 +3188,13 @@ export const AssistantOperatorLoraPickConfirmSchema = z
       )
       .min(1)
       .max(LIMITS.maxLoraResults),
-    /** ⚠ 上限沿用 `search_loras` 一轮能回的条数，⛔ 不另立一个。 */
+    /**
+     * ⚠ 上限沿用 `search_loras` 一轮能回的条数，⛔ 不另立一个。
+     * ⚠ 用的是**收紧过的那一支**（`importPayload` 必填）：卡上这几条正是「下一
+     * 刻要挂的那几把」，载荷缺席就得回头再搜一次。
+     */
     candidates: z
-      .array(AssistantOperatorLoraCandidateSchema)
+      .array(AssistantOperatorLoraPickCandidateSchema)
       .min(1)
       .max(LIMITS.maxLoraResults),
   })

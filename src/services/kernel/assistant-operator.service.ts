@@ -250,6 +250,7 @@ import { persistVideoFrameSet } from '@/services/video-frames/video-frame-set.se
  * 所以这段注释里也不写出来（那份测试扫的是源码文本，注释也算数）。
  * 挂载那一跳留在客户端（与拍板 22 同构）。
  */
+import { LORA_METADATA_COMPLETENESS } from '@/constants/lora-candidate'
 import { searchLoraCandidates } from '@/services/lora/lora-candidates.service'
 import {
   extractFocusedExcerpt,
@@ -365,6 +366,7 @@ import {
   type AssistantOperatorEvent,
   type AssistantOperatorGenerationRequest,
   type AssistantOperatorLoraCandidate,
+  type AssistantOperatorLoraPickCandidate,
   type AssistantOperatorLoraPickConfirm,
   type AssistantOperatorPlanAnswer,
   type AssistantOperatorPlanQuestion,
@@ -616,6 +618,18 @@ interface OperatorRun {
    * 换了 `weight` 就绕过去了，而那正是模型「上一步好像没生效，再来一次」的形状）。
    */
   mountedLoraCandidateIds: Set<string>
+  /**
+   * **本轮创作者真的勾过的那几把**（lora-assistant §10.2.1）—— `mount_lora` 的
+   * 准入闸。
+   *
+   * ⭐ 服务端从 `request.loraPicks` **现算**（`hydrateLoraIndexFromPicks`），
+   * ⛔ 不接受模型在入参里自称「用户已经确认过了」：候选是模型从两个上游里挑的，
+   * 创作者一眼都没看过就挂上去，错的那一次要靠撤销才发现。
+   * ⚠ 与 `loraIndex` **分开一个集合**：那张表管「这个 id 本轮存在过吗」（模型绝
+   * 不自己写 LoRA 的 id），这个集合管「有没有那一下勾选」。合成一个的表现是
+   * `search_loras` 刚回来的候选就算「确认过」—— 整道闸等于没有。
+   */
+  confirmedLoraPickIds: Set<string>
   /**
    * 本轮 `search_web_images` **真的展示给用户看过**的那些候选（2026-09-06）。
    *
@@ -3666,6 +3680,9 @@ function isLoraCompatibleWithBase(
  * ⛔ **`importPayload` 不进这里**：它只在真的要挂那一把时才需要，所以住在
  * `mount_lora` 的载荷上。让每条候选都驮着它，等于把一串权重文件地址塞进日志、
  * 塞进上下文、再塞进历史。
+ * ⚠ 推荐卡那一帧是唯一的例外，而且**由 `planLoraPick` 自己补上那一格**（§10.1）
+ * —— 它是「真的要挂那几把」的前一刻。⛔ 别因此把它挪进这个函数：这里的另一个
+ * 调用方正是 `search_loras` 的步结果。
  */
 function toLoraCandidateProjection(
   candidate: LoraCandidate,
@@ -3910,6 +3927,80 @@ function recomputeLoraAvailableBases(run: OperatorRun): void {
 }
 
 /**
+ * **把创作者勾中的那几把灌回本轮索引**（lora-assistant §10.2.1）。
+ *
+ * ⭐ 两件事一起做，缺一不可：
+ *  ① `run.loraIndex` 补上这几条 —— 勾选那一下发生在**上一轮流结束之后**，那一轮
+ *    的索引早没了；灌回去之后 `planMountLora` 取候选那一段一个字都不用改。
+ *  ② `run.confirmedLoraPickIds` 记下「这一轮有人点过头的是哪几个」—— 那才是闸。
+ *
+ * ⛔ **不按 id 再搜一次**：上游随时会改（创作者看到的卡与实际导入的就不是同一
+ * 版），而且一次确认要等两次外部请求。候选本体跟着请求回来，判据见
+ * `LoraCandidateImportPayloadSchema` 的头注。
+ * ⚠ `importPayload` 服务端**一个字都不信任地用**：它只是原样填进 `mount_lora`
+ * 的 step 载荷，取图 / 落 R2 / 落库那一跳照旧在客户端。
+ * ⚠ 导不进来的那几把（`importPayload: null`）**照样灌**：它们在卡上是灰行，真被
+ * 勾回来时该按 `loraNotImportable` 拒 —— 不灌的话拒出来的是 `unknownLora`，
+ * 那句话说的是「没这个 id」，而真相是「有，但导不进来」。
+ */
+function hydrateLoraIndexFromPicks(
+  run: OperatorRun,
+  picks: NonNullable<AssistantOperatorRequest['loraPicks']>,
+): void {
+  for (const pick of picks) {
+    const projection = pick.candidate
+    const snapshot = projection.importPayload?.sourceSnapshot ?? null
+    run.confirmedLoraPickIds.add(projection.candidateId)
+    run.loraIndex.set(projection.candidateId, {
+      candidateId: projection.candidateId,
+      source: projection.source,
+      name: projection.name,
+      author: projection.author,
+      /**
+       * ⚠ 有载荷时用**来源快照那一份**（五格齐全），没有时只拿投影上的三格，
+       * 剩下两格写 `null` —— ⛔ 不填 `false`：那会被读成「作者禁止」，而真相
+       * 是「不知道」（同头注那条「不知道不软化」）。
+       */
+      license: snapshot?.license ?? {
+        label: projection.licenseLabel,
+        commercialUse: projection.commercialUse,
+        allowDerivatives: null,
+        allowNoCredit: null,
+        known: projection.licenseKnown,
+      },
+      baseModelFamily: projection.family,
+      /**
+       * ⚠ 用途（主体 / 画风）只在**导入那一跳**有消费者，而那一跳读的是
+       * `importPayload.type` 本身。载荷缺席时这一位没有任何读者，写死
+       * `'style'` 只是为了让这份对象成立。
+       */
+      type: projection.importPayload?.type ?? 'style',
+      triggerWords: projection.triggerWords,
+      ...(projection.defaultWeight > 0
+        ? { recommendedWeight: projection.defaultWeight }
+        : {}),
+      sampleImageUrls: projection.thumbnailUrl ? [projection.thumbnailUrl] : [],
+      fileSizeBytes: snapshot?.fileSizeBytes ?? null,
+      pageUrl: projection.pageUrl ?? snapshot?.pageUrl ?? '',
+      downloads: projection.downloads,
+      /**
+       * ⚠ 没有来源快照时如实写 `minimal`（「这条我们知道的不多」），
+       * ⛔ 不回落成 `partial` —— 那一档是有据可依才给的。
+       */
+      metadataCompleteness:
+        snapshot?.metadataCompleteness ?? LORA_METADATA_COMPLETENESS.minimal,
+      importable: projection.importable,
+      ...(projection.notImportableReason
+        ? { notImportableReason: projection.notImportableReason }
+        : {}),
+      alreadyMounted: projection.alreadyMounted,
+      alreadyImported: projection.alreadyImported,
+      importPayload: projection.importPayload ?? null,
+    })
+  }
+}
+
+/**
  * **把本轮候选摆给创作者挑**（lora-assistant §10.2.2，`plan_lora_pick`）。
  *
  * ⭐ 它一把都不挂：产出是一帧 `confirm(loraPick)` 加停流，挂载发生在创作者点
@@ -3947,7 +4038,7 @@ function planLoraPick(
    * 勾一行另一行不动，读起来就是两把不同的 LoRA。
    */
   const picked = new Set<string>()
-  const candidates: AssistantOperatorLoraCandidate[] = []
+  const candidates: AssistantOperatorLoraPickCandidate[] = []
   const groups: { title?: string; candidateIds: string[] }[] = []
   for (const group of args.groups) {
     const candidateIds: string[] = []
@@ -3966,6 +4057,13 @@ function planLoraPick(
           candidate,
           baseFamily,
         ) as AssistantOperatorLoraCandidate),
+        /**
+         * ⭐ **导入载荷跟着帧走**（§10.1）：`candidateId → 候选` 的索引只活一轮，
+         * 而「挂载所选」那一下发生在流结束之后。⛔ 不许改成「确认时按 id 再搜
+         * 一次」：上游随时会改，创作者看到的卡与实际导入的就不是同一版。
+         * ⚠ `null` = 这把导不进来 —— 那一行照样进卡（策略 C），只是勾不上。
+         */
+        importPayload: candidate.importPayload,
         /**
          * ⚠ 标「推荐」是**模型这一步**的判断，一张卡最多一个 —— 判据与
          * `PLAN_LIMITS` 那条逐字同源：两项都标推荐等于没有推荐。
@@ -4026,6 +4124,24 @@ function planMountLora(
     return reject(
       REJECT.unknownLora,
       'Only candidateIds returned by search_loras in this run can be mounted. Mounted-item ids from the state block are a different list — those are for unmount_lora / set_lora_weight.',
+    )
+  }
+  /**
+   * ⭐ **前置闸：这把创作者勾过没有**（lora-assistant §10.2.1）。
+   *
+   * 判的是**有没有那一下勾选** —— 服务端从 `request.loraPicks` 现算的那个集合，
+   * ⛔ 不是模型在正文或入参里自称「用户已经确认过了」。候选是模型从两个上游里
+   * 挑的，创作者一眼都没看过就挂上去，错的那一次要靠撤销才发现。
+   * ⚠ 闸在 `unknownLora` **之后**、其余四道闸**之前**：那一条说的是「这个 id 本
+   * 轮不存在」，这一条说的是「存在，但没人点过头」，两句给模型的下一步不一样。
+   * ⚠ 拒绝理由里把**本轮可选的 candidateId 原样列回去** —— 助手读完该去调
+   * `plan_lora_pick` 出卡，⛔ 不是换个参数再挂一次。
+   */
+  if (!run.confirmedLoraPickIds.has(candidate.candidateId)) {
+    const offerable = [...run.loraIndex.keys()].slice(0, LIMITS.maxLoraResults)
+    return reject(
+      REJECT.loraPickRequired,
+      `Nobody has ticked "${clamp(candidate.name, LIMITS.maxLabelChars)}" yet. Put the candidates in front of the creator with ${TOOL.planLoraPick} first and mount only what they tick — never pick for them. Candidates you can put on that card this turn: ${offerable.join(', ')}.`,
     )
   }
   /**
@@ -7588,6 +7704,7 @@ export async function* runAssistantOperator(
     folderIndex: new Map(),
     loraIndex: new Map(),
     mountedLoraCandidateIds: new Set(),
+    confirmedLoraPickIds: new Set(),
     observations: [],
     assistantWrittenFields: new Set(),
     executedStepKeys: new Set(),
@@ -7622,6 +7739,12 @@ export async function* runAssistantOperator(
     ledgerSteps: 0,
     roundClosed: false,
   }
+
+  /**
+   * ⭐ **勾中的那几把先灌回索引**（lora-assistant §10.2.1）—— 必须在开跑之前：
+   * `planMountLora` 取候选与那道准入闸读的都是它。
+   */
+  hydrateLoraIndexFromPicks(run, request.loraPicks ?? [])
 
   const systemPrompt = buildOperatorSystemPrompt(
     request,

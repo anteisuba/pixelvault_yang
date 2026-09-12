@@ -47,6 +47,8 @@ import {
   ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS,
   AssistantOperatorAskArgsSchema,
   AssistantOperatorEventSchema,
+  AssistantOperatorLoraCandidateSchema,
+  AssistantOperatorLoraPickCandidateSchema,
   AssistantOperatorRequestSchema,
   AssistantOperatorRoundSummarySchema,
   AssistantOperatorRoundSummaryDraftSchema,
@@ -1349,6 +1351,41 @@ describe('事件契约', () => {
       recommended: false,
     })
 
+    /**
+     * **卡上（与勾选回传时）的那一条** —— 与上面同一份投影外加 `importPayload`。
+     *
+     * ⭐ 两档的差别只有这一格：`search_loras` 的**步结果**不带（它要进会话历史，
+     * 每条候选背一份落库入参就是让每条消息多背几 KB），推荐卡这一帧必须带
+     * （`candidateId → 候选` 的索引只活一轮，勾选那一下发生在流结束之后）。
+     */
+    const pickCandidate = (candidateId: string) => ({
+      ...loraCandidate(candidateId),
+      importPayload: {
+        name: `LoRA ${candidateId}`,
+        triggerWord: 'qingxiao',
+        loraUrl: 'https://civitai.com/api/download/models/67890',
+        type: 'style',
+        baseModelFamily: 'illustrious',
+        provider: 'civitai',
+        sourceSnapshot: {
+          source: 'civitai',
+          author: 'someone',
+          license: {
+            label: null,
+            commercialUse: null,
+            allowDerivatives: null,
+            allowNoCredit: null,
+            known: false,
+          },
+          pageUrl: 'https://civitai.com/models/12345',
+          revision: null,
+          retrievedAt: '2026-09-12T00:00:00.000Z',
+          fileSizeBytes: null,
+          metadataCompleteness: 'partial',
+        },
+      },
+    })
+
     const pickFrame = (pick: Record<string, unknown>) => ({
       type: ASSISTANT_OPERATOR_EVENTS.confirm,
       confirm: { kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick, pick },
@@ -1359,7 +1396,7 @@ describe('事件契约', () => {
       baseFamilyLabel: 'Illustrious',
       budget: { total: 1.4, limit: 2.5 },
       groups: [{ title: '古风', candidateIds: ['a', 'b'] }],
-      candidates: [loraCandidate('a'), loraCandidate('b')],
+      candidates: [pickCandidate('a'), pickCandidate('b')],
     }
 
     it('一张完整的推荐卡解析得过', () => {
@@ -1385,7 +1422,7 @@ describe('事件契约', () => {
     /** ⭐ 候选那两格是**新增的必填**：少一格整帧不成立。 */
     it('候选缺 defaultWeight / recommended 就不成立', () => {
       for (const missing of ['defaultWeight', 'recommended'] as const) {
-        const candidate: Record<string, unknown> = loraCandidate('a')
+        const candidate: Record<string, unknown> = pickCandidate('a')
         delete candidate[missing]
         expect(
           AssistantOperatorEventSchema.safeParse(
@@ -1397,6 +1434,59 @@ describe('事件契约', () => {
           ).success,
         ).toBe(false)
       }
+    })
+
+    /**
+     * **`importPayload` 两档**（lora-assistant §10.1）：
+     *  · `search_loras` 的**步结果**那一档不带 —— 基础 schema 留它可选；
+     *  · 推荐卡这一帧与勾选回传那一档**必填** —— 缺了整帧不成立。
+     *
+     * ⭐ 这一格就是「⛔ 不许确认时按 id 再搜一次」那条规矩落地的地方：卡上少一格
+     * 没人发现，直到创作者点了「挂载所选」才在服务端拒掉，那时他已经等过一轮了。
+     */
+    it('importPayload 在卡上必填，在步结果投影上可缺', () => {
+      const withoutPayload: Record<string, unknown> = pickCandidate('a')
+      delete withoutPayload.importPayload
+      expect(
+        AssistantOperatorEventSchema.safeParse(
+          pickFrame({
+            ...basePick,
+            groups: [{ candidateIds: ['a'] }],
+            candidates: [withoutPayload],
+          }),
+        ).success,
+      ).toBe(false)
+      // ⛔ 步结果那一档照旧不带它 —— 基础投影 schema 必须收得下。
+      expect(
+        AssistantOperatorLoraCandidateSchema.safeParse(withoutPayload).success,
+      ).toBe(true)
+      expect(
+        AssistantOperatorLoraPickCandidateSchema.safeParse(withoutPayload)
+          .success,
+      ).toBe(false)
+    })
+
+    /**
+     * ⚠ 必填的是**这一格在不在**，不是它非得有值：导不进来的候选照样进卡
+     * （策略 C），那一格写 `null`。
+     */
+    it('导不进来的那把带着 null 载荷照样进卡', () => {
+      expect(
+        AssistantOperatorEventSchema.safeParse(
+          pickFrame({
+            ...basePick,
+            groups: [{ candidateIds: ['a'] }],
+            candidates: [
+              {
+                ...pickCandidate('a'),
+                importable: false,
+                notImportableReason: 'gated_repo',
+                importPayload: null,
+              },
+            ],
+          }),
+        ).success,
+      ).toBe(true)
     })
 
     /** ⭐ 分组引用的是**卡上真有的那几把**：编一个 id 出来整帧不成立。 */
@@ -1422,7 +1512,7 @@ describe('事件契约', () => {
           pickFrame({
             ...basePick,
             groups: [{ candidateIds: ids.slice(0, 1) }],
-            candidates: ids.map(loraCandidate),
+            candidates: ids.map(pickCandidate),
           }),
         ).success,
       ).toBe(false)
@@ -1451,8 +1541,8 @@ describe('事件契约', () => {
         AssistantOperatorRequestSchema.safeParse({
           ...base,
           loraPicks: [
-            { candidateId: 'a', weight: 0.9, candidate: loraCandidate('a') },
-            { candidateId: 'b', candidate: loraCandidate('b') },
+            { candidateId: 'a', weight: 0.9, candidate: pickCandidate('a') },
+            { candidateId: 'b', candidate: pickCandidate('b') },
           ],
         }).success,
       ).toBe(true)

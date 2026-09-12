@@ -368,6 +368,7 @@ import {
   type AssistantOperatorEvent,
   type AssistantOperatorRequest,
 } from '@/types/assistant-operator'
+import { LoraCandidateSchema } from '@/types/lora-candidate'
 
 const SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
   prompt: '',
@@ -4039,6 +4040,53 @@ function loraCandidate(over: Record<string, unknown> = {}) {
   }
 }
 
+/**
+ * 一条**创作者已经勾过**的候选 —— 请求体里的 `loraPicks` 那一格
+ * （lora-assistant §10.1/§10.2.1）。
+ *
+ * ⭐ 没有它 `mount_lora` 一律按 `loraPickRequired` 拒：闸判的是**有没有那一下
+ * 勾选**（服务端从请求现算），⛔ 不是模型说了什么。所以凡是要真的挂上的用例，
+ * 都得像真实客户端那样把勾中的候选本体带回来。
+ * ⚠ 卡上的 `compatible` 服务端**不信**：`planMountLora` 用当前底模重算 ——
+ * 这里写什么都不改变判据。
+ */
+function loraPickOf(
+  over: Record<string, unknown> = {},
+  weight?: number,
+): NonNullable<AssistantOperatorRequest['loraPicks']>[number] {
+  const candidate = LoraCandidateSchema.parse(loraCandidate(over))
+  return {
+    candidateId: candidate.candidateId,
+    ...(weight === undefined ? {} : { weight }),
+    candidate: {
+      candidateId: candidate.candidateId,
+      source: candidate.source,
+      name: candidate.name,
+      author: candidate.author,
+      family: candidate.baseModelFamily,
+      triggerWords: candidate.triggerWords,
+      ...(candidate.sampleImageUrls[0]
+        ? { thumbnailUrl: candidate.sampleImageUrls[0] }
+        : {}),
+      pageUrl: candidate.pageUrl,
+      downloads: candidate.downloads,
+      licenseLabel: candidate.license.label,
+      licenseKnown: candidate.license.known,
+      commercialUse: candidate.license.commercialUse,
+      importable: candidate.importable,
+      ...(candidate.notImportableReason
+        ? { notImportableReason: candidate.notImportableReason }
+        : {}),
+      compatible: true,
+      alreadyMounted: candidate.alreadyMounted,
+      alreadyImported: candidate.alreadyImported,
+      defaultWeight: candidate.recommendedWeight ?? 1,
+      recommended: false,
+      importPayload: candidate.importPayload,
+    },
+  }
+}
+
 const LORA_SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
   prompt: '',
   negativePrompt: '',
@@ -4534,6 +4582,127 @@ describe('LoRA 装配台域（P4-C）', () => {
     expect(prompt).toContain('Three things on that card are your call')
   })
 
+  /**
+   * **`mount_lora` 只吃勾过的那几把**（lora-assistant §10.2.1，commit #3）。
+   *
+   * ⭐ 闸判的是**有没有那一下勾选** —— 服务端从 `request.loraPicks` 现算，
+   * ⛔ 不是模型说了什么：候选是它从两个上游里挑的，创作者一眼都没看过就挂上去，
+   * 错的那一次要靠撤销才发现。
+   */
+  it('搜完直接挂（没有 loraPicks）按 loraPickRequired 拒，理由指路到 plan_lora_pick', async () => {
+    mockSearchLoraCandidates.mockResolvedValue({
+      query: 'x',
+      candidates: [loraCandidate()],
+      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          title: 'find',
+          args: { query: 'x' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          title: 'mount it',
+          args: { candidateId: 'civitai:12345:67890' },
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+    )
+    expect(steps[2]).toMatchObject({
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraPickRequired },
+    })
+    const detail = (steps[2] as { error: { detail: string } }).error.detail
+    // ⭐ 出路是「先出卡」，⛔ 不是换个参数再挂一次。
+    expect(detail).toContain(ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick)
+    // ⚠ 本轮可以摆上卡的 candidateId 原样列回去 —— ⛔ 别让它再编一个。
+    expect(detail).toContain('civitai:12345:67890')
+    expect(lastUserPrompt()).toContain(ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick)
+  })
+
+  /**
+   * ⭐ 模型在正文里说破天也不算数：这一轮请求里**没有 loraPicks**，闸照拒。
+   * 判据与「模型绝不自己写 LoRA 的 id」同源 —— 它自称的事实不是事实。
+   */
+  it('模型自称「创作者已经确认过了」但请求里没有 loraPicks —— 仍然拒', async () => {
+    mockSearchLoraCandidates.mockResolvedValue({
+      query: 'x',
+      candidates: [loraCandidate()],
+      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          title: 'find',
+          args: { query: 'x' },
+        },
+      },
+      {
+        message: '创作者刚才已经在卡上确认过这一把了，我直接挂上。',
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          title: 'creator already confirmed this one',
+          reason: 'the creator ticked it on the pick card',
+          args: { candidateId: 'civitai:12345:67890', confirmed: true },
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+    )
+    expect(steps[2]).toMatchObject({
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraPickRequired },
+    })
+  })
+
+  /**
+   * ⭐ `hydrateLoraIndexFromPicks`：勾中的那几把连本体一起回来，服务端灌回
+   * `run.loraIndex` —— **这一轮压根没有 `search_loras`**，`planMountLora` 照样
+   * 取得到候选。⛔ 不许改成「确认时按 id 再搜一次」。
+   */
+  it('带 loraPicks 的那一轮不必再搜：候选灌回索引后直接挂得上', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          title: 'mount what they ticked',
+          args: { candidateId: 'civitai:12345:67890', weight: 0.6 },
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({ loraPicks: [loraPickOf(undefined, 0.6)] }),
+        ),
+      ),
+    )
+    expect(mockSearchLoraCandidates).not.toHaveBeenCalled()
+    expect(steps[1]).toMatchObject({
+      payload: {
+        candidateId: 'civitai:12345:67890',
+        name: 'Watercolor Storybook',
+        weight: 0.6,
+        compatible: true,
+      },
+    })
+    // ⭐ 导入载荷原样跟着回来 —— 取图 / 落 R2 / 落库那一跳照旧在客户端。
+    expect(
+      (steps[1] as { payload: Record<string, unknown> }).payload.importPayload,
+    ).toBeTruthy()
+    expect(steps[1]).not.toHaveProperty('error')
+  })
+
   it('挂一把：载荷带 importPayload 与触发词，inverse 只有 candidateId', async () => {
     mockSearchLoraCandidates.mockResolvedValue({
       query: 'watercolor',
@@ -4558,7 +4727,12 @@ describe('LoRA 装配台域（P4-C）', () => {
       { finished: true },
     )
     const steps = stepsOf(
-      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({ loraPicks: [loraPickOf()] }),
+        ),
+      ),
     )
     const mounted = steps[3] as unknown as {
       payload: Record<string, unknown>
@@ -4607,7 +4781,21 @@ describe('LoRA 装配台域（P4-C）', () => {
       { finished: true },
     )
     const steps = stepsOf(
-      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({
+            loraPicks: [
+              loraPickOf({
+                candidateId: 'hf:gated',
+                importable: false,
+                notImportableReason: 'gated_repo',
+                importPayload: null,
+              }),
+            ],
+          }),
+        ),
+      ),
     )
     expect(steps[2]).toMatchObject({
       error: {
@@ -4645,7 +4833,19 @@ describe('LoRA 装配台域（P4-C）', () => {
       { finished: true },
     )
     const steps = stepsOf(
-      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({
+            loraPicks: [
+              loraPickOf({
+                candidateId: 'civitai:flux:1',
+                baseModelFamily: 'flux',
+              }),
+            ],
+          }),
+        ),
+      ),
     )
     expect(steps[2]).toMatchObject({
       error: {
@@ -4715,7 +4915,15 @@ describe('LoRA 装配台域（P4-C）', () => {
       await collect(
         runAssistantOperator(
           'clerk-1',
-          buildLoraRequest({ snapshot: PONY_BENCH_SNAPSHOT }),
+          buildLoraRequest({
+            snapshot: PONY_BENCH_SNAPSHOT,
+            loraPicks: [
+              loraPickOf({
+                candidateId: 'civitai:pony:1',
+                baseModelFamily: 'pony',
+              }),
+            ],
+          }),
         ),
       ),
     )
@@ -4887,6 +5095,12 @@ describe('LoRA 装配台域（P4-C）', () => {
             ],
             loras: { ...PONY_MOUNTED_SNAPSHOT.loras!, items: [] },
           },
+          loraPicks: [
+            loraPickOf({
+              candidateId: 'civitai:pony:2',
+              baseModelFamily: 'pony',
+            }),
+          ],
         }),
       ),
     )
@@ -4944,7 +5158,12 @@ describe('LoRA 装配台域（P4-C）', () => {
       { finished: true },
     )
     const steps = stepsOf(
-      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({ loraPicks: [loraPickOf()] }),
+        ),
+      ),
     )
     expect(steps[3]).toMatchObject({
       payload: { candidateId: 'civitai:12345:67890', compatible: true },
@@ -4987,7 +5206,10 @@ describe('LoRA 装配台域（P4-C）', () => {
       await collect(
         runAssistantOperator(
           'clerk-1',
-          buildLoraRequest(snapshot ? { snapshot } : {}),
+          buildLoraRequest({
+            loraPicks: [loraPickOf()],
+            ...(snapshot ? { snapshot } : {}),
+          }),
         ),
       ),
     )
@@ -5060,7 +5282,12 @@ describe('LoRA 装配台域（P4-C）', () => {
       },
       { finished: true },
     )
-    await collect(runAssistantOperator('clerk-1', buildLoraRequest()))
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({ loraPicks: [loraPickOf()] }),
+      ),
+    )
     const observed = lastUserPrompt()
     expect(observed).toContain('illustrious')
     expect(observed).toContain('fits')
@@ -5104,6 +5331,12 @@ describe('LoRA 装配台域（P4-C）', () => {
               ...LORA_SNAPSHOT,
               loras: { ...LORA_SNAPSHOT.loras!, baseFamily: null },
             },
+            loraPicks: [
+              loraPickOf({
+                candidateId: 'civitai:flux:1',
+                baseModelFamily: 'flux',
+              }),
+            ],
           }),
         ),
       ),
@@ -5158,7 +5391,10 @@ describe('LoRA 装配台域（P4-C）', () => {
     )
     const steps = stepsOf(
       await collect(
-        runAssistantOperator('clerk-1', buildLoraRequest({ snapshot: packed })),
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({ snapshot: packed, loraPicks: [loraPickOf()] }),
+        ),
       ),
     )
     expect(steps[3]).toMatchObject({
@@ -5269,7 +5505,12 @@ describe('LoRA 装配台域（P4-C）', () => {
       { finished: true },
     )
     const steps = stepsOf(
-      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({ loraPicks: [loraPickOf()] }),
+        ),
+      ),
     )
     expect(steps[4]).toMatchObject({
       error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep },

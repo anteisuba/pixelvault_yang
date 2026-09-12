@@ -12,11 +12,36 @@ import type { LoraBaseFamily } from '@/constants/lora-base-models'
 export interface LoraPromptDialect {
   skeleton: { subject: string; style: string }
   weightedParens: boolean
+  /** Tags appended to a source-matched recipe so it keeps the family's look. */
+  sourceMatchTags: readonly string[]
+  /** Negative tags only a source-matched recipe adds (keeps an anime source from drifting 3D). */
+  sourceMatchNegative: readonly string[]
   negative: readonly string[]
   forbidden: readonly { pattern: RegExp | string; why: string }[]
 }
 
 const SCORE_PREFIX_PATTERN = /\bscore_\d(?:_up)?\b/i
+
+const ANIME_SOURCE_MATCH_TAGS = [
+  '2d style',
+  'anime illustration',
+  'clean lineart',
+  'cel shading',
+] as const
+
+const ANIME_SOURCE_MATCH_NEGATIVE = [
+  '3d',
+  '3d render',
+  'cgi',
+  'blender',
+  'realistic',
+  'photorealistic',
+  'doll',
+  'plastic skin',
+  'shiny skin',
+  'smooth face',
+  'game render',
+] as const
 
 const SDXL_QUALITY_NEGATIVE = [
   'lowres',
@@ -44,6 +69,8 @@ const SDXL_DIALECT: LoraPromptDialect = {
       '{trigger}, {style}, beautiful scenery, soft cinematic lighting, highly detailed, masterpiece, best quality',
   },
   weightedParens: true,
+  sourceMatchTags: ANIME_SOURCE_MATCH_TAGS,
+  sourceMatchNegative: ANIME_SOURCE_MATCH_NEGATIVE,
   negative: SDXL_QUALITY_NEGATIVE,
   forbidden: SDXL_FORBIDDEN,
 }
@@ -57,6 +84,8 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
         '{trigger}, a wide scenic view rendered in {style}, soft cinematic lighting, richly detailed',
     },
     weightedParens: false,
+    sourceMatchTags: [],
+    sourceMatchNegative: [],
     negative: ['blurry', 'lowres', 'watermark'],
     forbidden: [
       {
@@ -83,10 +112,17 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
         'score_9, score_8_up, score_7_up, {trigger}, {style}, beautiful scenery, soft cinematic lighting, highly detailed',
     },
     weightedParens: true,
+    sourceMatchTags: ANIME_SOURCE_MATCH_TAGS,
+    sourceMatchNegative: ANIME_SOURCE_MATCH_NEGATIVE,
     negative: SDXL_QUALITY_NEGATIVE,
     forbidden: [],
   },
-  sd15: { ...SDXL_DIALECT, forbidden: [] },
+  sd15: {
+    ...SDXL_DIALECT,
+    sourceMatchTags: [],
+    sourceMatchNegative: [],
+    forbidden: [],
+  },
   anima: SDXL_DIALECT,
   'anima-dit': {
     skeleton: {
@@ -96,6 +132,8 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
         '{trigger}, {style}, beautiful scenery, soft cinematic lighting, highly detailed',
     },
     weightedParens: false,
+    sourceMatchTags: ANIME_SOURCE_MATCH_TAGS,
+    sourceMatchNegative: ANIME_SOURCE_MATCH_NEGATIVE,
     negative: ['blurry', 'lowres', 'worst quality', 'watermark'],
     forbidden: [
       {

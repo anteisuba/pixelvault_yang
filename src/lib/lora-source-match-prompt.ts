@@ -1,30 +1,11 @@
+import { normalizeToLoraBaseFamily } from '@/constants/lora-base-models'
+import { LORA_PROMPT_DIALECTS } from '@/constants/lora-prompt-dialects'
 import type { CivitaiMinedPromptsResult, LoraAssetRecord } from '@/types'
 
 import { buildLoraPromptTemplate } from './lora-prompt-template'
 import { promptIncludesTrigger } from './prompt-text'
 
 export const LORA_SOURCE_MATCH_SCALE = 0.85
-
-const ANIME_SOURCE_MATCH_TAGS = [
-  '2d style',
-  'anime illustration',
-  'clean lineart',
-  'cel shading',
-] as const
-
-const ANIME_SOURCE_MATCH_NEGATIVE_TAGS = [
-  '3d',
-  '3d render',
-  'cgi',
-  'blender',
-  'realistic',
-  'photorealistic',
-  'doll',
-  'plastic skin',
-  'shiny skin',
-  'smooth face',
-  'game render',
-] as const
 
 type SourceMatchedPromptSource =
   | 'author'
@@ -111,15 +92,22 @@ export function buildSourceMatchedLoraPrompt(
     reliable = false
   }
 
+  // The recipe follows the base-model family's dialect: its look tags keep the
+  // output in the family's idiom, its negative is the family's own plus the
+  // source-match extras (an anime source must not drift 3D). A family we
+  // can't normalize gets neither — we don't guess a dialect.
+  const family = normalizeToLoraBaseFamily(asset.baseModelFamily)
+  const dialect = family ? LORA_PROMPT_DIALECTS[family] : null
+
   const promptWithTrigger = ensureTrigger(basePrompt, asset.triggerWord)
-  const prompt = isAnimeLikeLora(asset.baseModelFamily)
-    ? appendMissingTags(promptWithTrigger, ANIME_SOURCE_MATCH_TAGS)
+  const prompt = dialect
+    ? appendMissingTags(promptWithTrigger, dialect.sourceMatchTags)
     : promptWithTrigger
 
   return {
     prompt,
-    negativePrompt: isAnimeLikeLora(asset.baseModelFamily)
-      ? ANIME_SOURCE_MATCH_NEGATIVE_TAGS.join(', ')
+    negativePrompt: dialect
+      ? [...dialect.negative, ...dialect.sourceMatchNegative].join(', ')
       : '',
     scale: LORA_SOURCE_MATCH_SCALE,
     source,
@@ -181,16 +169,4 @@ function splitTags(value: string): string[] {
 
 function normalizeTag(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, ' ')
-}
-
-function isAnimeLikeLora(baseModelFamily: string): boolean {
-  const value = baseModelFamily.toLowerCase()
-  return (
-    value.includes('illustrious') ||
-    value.includes('noobai') ||
-    value.includes('pony') ||
-    value.includes('anima') ||
-    value.includes('anime') ||
-    value.includes('sdxl')
-  )
 }

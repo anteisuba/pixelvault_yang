@@ -55,7 +55,15 @@ import type {
 } from '@/types/studio-assistant-operator'
 
 interface StudioOperatorConfirmCardProps {
-  confirm: StudioOperatorConfirmPrompt
+  /**
+   * ⚠ **推荐卡那一支不走这里**（lora-assistant §10.3.1）：它是多选 + 一颗提交键
+   * 的另一张卡（`StudioOperatorLoraPickCard`），与这三支一个字段都不共用。
+   * ⛔ 别把它加回这份联合去换几行分支 —— 那正是 commit #1 那两个占位分支的下场。
+   */
+  confirm: Exclude<
+    StudioOperatorConfirmPrompt,
+    { kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick }
+  >
   /** 多步「开始」。 */
   onApprove(): void
   /** 多步「一步一步来」。 */
@@ -319,13 +327,9 @@ export function StudioOperatorConfirmCard({
                       ? t('confirm.generate.handedOff')
                       : t('confirm.generate.notRun')
                   }`
-                : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
-                  ? t('confirm.multistep.title', {
-                      count: confirm.steps.length,
-                    })
-                  : /* ⚠ 占位（lora-assistant §10.5 commit #1 只做协议层）：推荐卡
-                       那一支的卡面随 commit #6 落地（`StudioOperatorLoraPickCard`）。 */
-                    null}
+                : t('confirm.multistep.title', {
+                    count: confirm.steps.length,
+                  })}
           </span>
           {/* 「再来一次」只长在**生成 · 已取消**那一格上：多步取消之后要写的是
               下一句话（输入框已经预填好了），⛔ 不是把同一份计划再摆一遍。 */}
@@ -353,13 +357,9 @@ export function StudioOperatorConfirmCard({
                 : confirm.kind ===
                     ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard
                   ? t('confirm.contextCard.title')
-                  : confirm.kind ===
-                      ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
-                    ? t('confirm.generate.title', {
-                        count: confirm.request.count,
-                      })
-                    : /* ⚠ 占位：推荐卡那一支随 commit #6 落地。 */
-                      null}
+                  : t('confirm.generate.title', {
+                      count: confirm.request.count,
+                    })}
             </p>
           </div>
 

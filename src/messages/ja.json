@@ -7591,6 +7591,28 @@
         "saved": "保存済み",
         "notSaved": "未保存",
         "negative": "ハードネガティブ：{value}"
+      },
+      "loraPick": {
+        "header": "{name} が {count} 件見つけました · 付けるものを選んでください",
+        "mount": "選んだものを付ける",
+        "mounted": "{count} 件を付けました · {time}",
+        "dismiss": "これらは今は付けない",
+        "searchAgain": "別の語で探す",
+        "searchAgainPrefill": "別の語で探す：",
+        "tally": "{count} 件選択中 · 合計ウェイト",
+        "tallyNoBudget": "{count} 件選択中",
+        "overBudget": "合計ウェイトが {limit} を超えています —— 絵が崩れるかもしれません。1 つ外すか、ウェイトを下げますか？",
+        "compatible": "{family} · 付けられます",
+        "incompatible": "{family} · 付けられません。ベースモデルを変えてください",
+        "familyUnknown": "ベースモデル不明",
+        "downloads": "{count} ダウンロード",
+        "viewDetail": "詳細を見る",
+        "noThumbnail": "カバーなし",
+        "notImportable": {
+          "unknownBaseModel": "ベースモデルが特定できず、取り込めません",
+          "noWeightFile": "リポジトリに重みファイルがなく、取り込めません",
+          "gatedRepo": "制限付きリポジトリのため重みを取得できません"
+        }
       }
     },
     "system": {

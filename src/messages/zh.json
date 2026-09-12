@@ -7591,6 +7591,28 @@
         "saved": "已存下",
         "notSaved": "没有存",
         "negative": "硬否定：{value}"
+      },
+      "loraPick": {
+        "header": "{name} 找到 {count} 把 · 选要挂的",
+        "mount": "挂载所选",
+        "mounted": "已挂 {count} 把 · {time}",
+        "dismiss": "这几把我先不挂",
+        "searchAgain": "换个词再搜",
+        "searchAgainPrefill": "换个词再搜：",
+        "tally": "已选 {count} 把 · 总权重",
+        "tallyNoBudget": "已选 {count} 把",
+        "overBudget": "总权重超过 {limit} 了 —— 画面可能糊，要不要少挂一把或把权重调低？",
+        "compatible": "{family} · 装得上",
+        "incompatible": "{family} · 装不上，要换底模",
+        "familyUnknown": "底模未知",
+        "downloads": "{count} 下载",
+        "viewDetail": "看详情",
+        "noThumbnail": "无封面",
+        "notImportable": {
+          "unknownBaseModel": "底模定不出来，导不进来",
+          "noWeightFile": "仓库里没有权重文件，导不进来",
+          "gatedRepo": "仓库受限，取不到权重"
+        }
       }
     },
     "system": {

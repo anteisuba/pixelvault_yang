@@ -68,7 +68,13 @@ vi.mock('@/components/ui/responsive-popover', async () => {
   }
 })
 
-const MULTISTEP: StudioOperatorConfirmPrompt = {
+/* ⚠ 推荐卡那一支不走这张卡（见 `StudioOperatorConfirmCardProps` 头注）。 */
+type ConfirmCardPrompt = Exclude<
+  StudioOperatorConfirmPrompt,
+  { kind: 'loraPick' }
+>
+
+const MULTISTEP: ConfirmCardPrompt = {
   id: 'c1',
   kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep,
   steps: [
@@ -79,7 +85,7 @@ const MULTISTEP: StudioOperatorConfirmPrompt = {
   status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
 }
 
-const GENERATE: StudioOperatorConfirmPrompt = {
+const GENERATE: ConfirmCardPrompt = {
   id: 'c2',
   kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate,
   status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
@@ -96,7 +102,7 @@ const GENERATE: StudioOperatorConfirmPrompt = {
 }
 
 /** 助手提议记一张卡（v2 §8.1）—— 第三支。 */
-const CONTEXT_CARD: StudioOperatorConfirmPrompt = {
+const CONTEXT_CARD: ConfirmCardPrompt = {
   id: 'c3',
   kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard,
   status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
@@ -133,7 +139,8 @@ const CONTROLS: StudioOperatorGenerationControls = {
 }
 
 function renderCard(
-  confirm: StudioOperatorConfirmPrompt,
+  /* ⚠ 推荐卡那一支不走这张卡（见 `StudioOperatorConfirmCardProps` 头注）。 */
+  confirm: ConfirmCardPrompt,
   extra: {
     controls?: StudioOperatorGenerationControls
     onAdjust?: (
@@ -330,7 +337,7 @@ describe('StudioOperatorConfirmCard', () => {
             durationSeconds: null,
           },
         },
-      } as StudioOperatorConfirmPrompt,
+      } as ConfirmCardPrompt,
       { controls: CONTROLS },
     )
     const knobs = screen.getAllByTestId('operator-confirm-knob')

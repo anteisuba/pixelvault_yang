@@ -21,6 +21,7 @@ import { StudioOperatorReferenceAnalysisCard } from './StudioOperatorReferenceAn
  */
 
 import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
+import { StudioOperatorLoraPickCard } from './StudioOperatorLoraPickCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
 import { StudioOperatorRestoreButton } from './StudioOperatorRestoreButton'
 import { isRevertibleAssistantOperatorTool } from '@/constants/assistant-operator'
@@ -64,6 +65,7 @@ import { useFormatter, useTranslations } from 'next-intl'
 
 import {
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
+  ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
@@ -355,6 +357,8 @@ export function StudioOperatorPanel({
     confirmGeneration,
     saveContextCard,
     dismissContextCard,
+    submitLoraPicks,
+    dismissLoraPick,
     cancelGeneration,
     retryGeneration,
     rerunGeneration,
@@ -998,6 +1002,18 @@ export function StudioOperatorPanel({
     if (!draft.trim()) onDraftChange(t('plan.revisePrefill'))
     inputRef.current?.focus()
   }, [draft, onDraftChange, revisePlan, t])
+
+  /**
+   * 「换个词再搜」（lora-assistant §10.3.1）—— 预填「换个词再搜：」并聚焦，
+   * ⛔ **不发请求**。
+   *
+   * ⚠ 判据与上面那颗逐字同源：新词只有用户说得出，替他发一句「再搜一次」只会
+   * 让模型拿同一串词再跑一轮。⛔ 不调 `revisePlan()`：这张卡上没有计划要改。
+   */
+  const searchLoraAgainPrompt = useCallback(() => {
+    if (!draft.trim()) onDraftChange(t('confirm.loraPick.searchAgainPrefill'))
+    inputRef.current?.focus()
+  }, [draft, onDraftChange, t])
 
   /**
    * 「已确认 · 11:24」里那个时刻 —— ⚠ 词表在这一层，卡只收一个 `formatTime`。
@@ -1825,30 +1841,50 @@ export function StudioOperatorPanel({
                 card={STUDIO_OPERATOR_CARD_KINDS.confirm}
                 {...(persona ? { persona } : {})}
               >
-                <StudioOperatorConfirmCard
-                  confirm={confirm}
-                  onApprove={approvePlan}
-                  /* 「一步一步来」= 预填「修改计划：」并聚焦（§3.1 ⑤）——
+                {confirm.kind ===
+                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick ? (
+                  /* ── LoRA 推荐卡（lora-assistant §10.3.1）───────────────
+                     ⚠ 与其余三支同一个槽位（帧到即插、不离场、就地换态），
+                       ⛔ 不钉到输入框上方 —— 那是问题卡「一次只问一个」的位置，
+                       而这张卡是多选 + 一颗「挂载所选」。 */
+                  <StudioOperatorLoraPickCard
+                    prompt={confirm}
+                    assistantName={
+                      persona?.name?.trim() || t('timeline.assistantFallback')
+                    }
+                    onSubmit={submitLoraPicks}
+                    onDismiss={dismissLoraPick}
+                    /* 「换个词再搜」= 预填一句并聚焦，⛔ 不发请求（判据与确认卡
+                       「一步一步来」逐字同源：新词还得用户自己打出来）。 */
+                    onSearchAgain={searchLoraAgainPrompt}
+                    formatTime={formatDecidedAt}
+                  />
+                ) : (
+                  <StudioOperatorConfirmCard
+                    confirm={confirm}
+                    onApprove={approvePlan}
+                    /* 「一步一步来」= 预填「修改计划：」并聚焦（§3.1 ⑤）——
                      ⛔ 不发请求，下一条消息才带 `planApproved: false`。 */
-                  onDecline={() => {
-                    declinePlan()
-                    revisePrompt()
-                  }}
-                  onConfirm={confirmGeneration}
-                  onCancel={cancelGeneration}
-                  /* 上下文卡提议那一支（§8.1）：提议到达时已写成一行「待确认」，
+                    onDecline={() => {
+                      declinePlan()
+                      revisePrompt()
+                    }}
+                    onConfirm={confirmGeneration}
+                    onCancel={cancelGeneration}
+                    /* 上下文卡提议那一支（§8.1）：提议到达时已写成一行「待确认」，
                      「存这张卡」把它翻面，「不用」把它删掉。 */
-                  onSaveCard={() => void saveContextCard()}
-                  onDismissCard={() => void dismissContextCard()}
-                  onRetry={retryGeneration}
-                  formatTime={formatDecidedAt}
-                  /* 四颗旋钮的真值 —— 宿主现算的那一份（§5.2）。缺席时卡退回
+                    onSaveCard={() => void saveContextCard()}
+                    onDismissCard={() => void dismissContextCard()}
+                    onRetry={retryGeneration}
+                    formatTime={formatDecidedAt}
+                    /* 四颗旋钮的真值 —— 宿主现算的那一份（§5.2）。缺席时卡退回
                      只读读数（LoRA 装配台就是这一档）。 */
-                  {...(operatorHost.generationControls
-                    ? { controls: operatorHost.generationControls }
-                    : {})}
-                  onAdjust={adjustGeneration}
-                />
+                    {...(operatorHost.generationControls
+                      ? { controls: operatorHost.generationControls }
+                      : {})}
+                    onAdjust={adjustGeneration}
+                  />
+                )}
               </StudioOperatorTimelineRow>
             ) : null}
 

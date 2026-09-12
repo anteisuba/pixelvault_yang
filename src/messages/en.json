@@ -7591,6 +7591,28 @@
         "saved": "Kept",
         "notSaved": "Not kept",
         "negative": "Hard negatives: {value}"
+      },
+      "loraPick": {
+        "header": "{name} found {count} · pick what to mount",
+        "mount": "Mount selected",
+        "mounted": "Mounted {count} · {time}",
+        "dismiss": "Not mounting these for now",
+        "searchAgain": "Search other words",
+        "searchAgainPrefill": "Search other words: ",
+        "tally": "{count} selected · total weight",
+        "tallyNoBudget": "{count} selected",
+        "overBudget": "Total weight is over {limit} — the image may go mushy. Drop one, or dial a weight down?",
+        "compatible": "{family} · fits",
+        "incompatible": "{family} · needs a different base model",
+        "familyUnknown": "Base model unknown",
+        "downloads": "{count} downloads",
+        "viewDetail": "View details",
+        "noThumbnail": "No cover",
+        "notImportable": {
+          "unknownBaseModel": "Base model could not be resolved — cannot import",
+          "noWeightFile": "No weight file in the repo — cannot import",
+          "gatedRepo": "Gated repo — the weights cannot be fetched"
+        }
       }
     },
     "system": {

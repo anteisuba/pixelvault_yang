@@ -382,3 +382,89 @@ describe('searchLoraCandidates — 合并', () => {
     expect(mockSearchHuggingFaceLoras).not.toHaveBeenCalled()
   })
 })
+
+describe('searchLoraCandidates — 底模家族下推给上游（2026-09-12 真机 bug）', () => {
+  it('家族已知：Civitai 发两次，其中一次带 baseModel', async () => {
+    mockListCivitaiLoras.mockResolvedValue({ items: [] })
+
+    await searchLoraCandidates({ ...INPUT, baseModelFamily: 'anima-dit' })
+
+    expect(mockListCivitaiLoras).toHaveBeenCalledTimes(2)
+    const baseModels = mockListCivitaiLoras.mock.calls.map(
+      ([args]) => (args as { baseModel?: string }).baseModel,
+    )
+    expect(baseModels).toContain('Anima')
+    expect(baseModels).toContain(undefined)
+    // HF 支持家族参数 —— 同一个家族一起传下去。
+    expect(mockSearchHuggingFaceLoras).toHaveBeenCalledWith(
+      expect.objectContaining({ baseModelFamily: 'anima-dit' }),
+    )
+  })
+
+  it('同族排在异族前，异族仍然返回（软偏好不是过滤）', async () => {
+    mockListCivitaiLoras.mockImplementation(
+      async (args: { baseModel?: string }) =>
+        args.baseModel === 'Anima'
+          ? {
+              items: [
+                civitaiItem({
+                  id: 'civitai:1:1',
+                  name: 'Changli Anima',
+                  baseModelFamily: 'Anima',
+                }),
+              ],
+            }
+          : {
+              items: [
+                civitaiItem({
+                  id: 'civitai:2:2',
+                  name: 'Changli Illustrious',
+                  baseModelFamily: 'Illustrious',
+                }),
+              ],
+            },
+    )
+
+    const { candidates } = await searchLoraCandidates({
+      ...INPUT,
+      baseModelFamily: 'anima-dit',
+    })
+
+    expect(candidates.map((c) => c.baseModelFamily)).toEqual([
+      'Anima',
+      'Illustrious',
+    ])
+  })
+
+  it('两次拿到同一条时按 candidateId 去重', async () => {
+    mockListCivitaiLoras.mockResolvedValue({ items: [civitaiItem()] })
+
+    const { candidates } = await searchLoraCandidates({
+      ...INPUT,
+      baseModelFamily: 'illustrious',
+    })
+
+    expect(candidates).toHaveLength(1)
+  })
+
+  it('不给家族：只发一次，行为与现状一致', async () => {
+    await searchLoraCandidates(INPUT)
+
+    expect(mockListCivitaiLoras).toHaveBeenCalledTimes(1)
+    expect(mockListCivitaiLoras.mock.calls[0]?.[0]).not.toHaveProperty(
+      'baseModel',
+    )
+    expect(mockSearchHuggingFaceLoras.mock.calls[0]?.[0]).toMatchObject({
+      baseModelFamily: 'all',
+    })
+  })
+
+  it('家族映射不到上游筛选值时只发一次（不猜一个值下推）', async () => {
+    await searchLoraCandidates({ ...INPUT, baseModelFamily: 'krea2' })
+
+    expect(mockListCivitaiLoras).toHaveBeenCalledTimes(1)
+    expect(mockSearchHuggingFaceLoras.mock.calls[0]?.[0]).toMatchObject({
+      baseModelFamily: 'all',
+    })
+  })
+})

@@ -29,6 +29,14 @@ import {
   LORA_CANDIDATE_SOURCE_IDS,
   LORA_CANDIDATE_SOURCE_STATUSES,
 } from '@/constants/lora-candidate'
+import {
+  familySlugToCivitaiBaseModel,
+  familySlugToHuggingFaceFamily,
+  parseLoraLibraryFamilyParam,
+  HUGGINGFACE_LORA_DEFAULT_FAMILY,
+  type CivitaiLoraBaseModel,
+  type HuggingFaceLoraFamily,
+} from '@/constants/lora'
 import { normalizeToLoraBaseFamily } from '@/constants/lora-base-models'
 import { CircuitOpenError, getCircuitBreaker } from '@/lib/circuit-breaker'
 import { db } from '@/lib/db'
@@ -391,6 +399,44 @@ function interleave(
   return out
 }
 
+/**
+ * 工作台底模家族 → 上游可用的筛选值。
+ *
+ * ⚠ **2026-09-12 真机 bug 的根因就在这里缺了一环**：底模是 Anima（`anima-dit`）
+ * 时 `search_loras("Wuthering Waves")` 全是 Illustrious/Pony ——
+ * Civitai 侧根本没传 `baseModel`，`preferFamily` 只能在那一页里排序，而同族的
+ * 12 条鸣潮 LoRA 压根不在那一页上。对照实测：`&baseModel=Anima` 有 12 条。
+ *
+ * ⛔ 不新写第二张映射表：`normalizeToLoraBaseFamily` →
+ * `parseLoraLibraryFamilyParam` → `familySlugToCivitaiBaseModel` 全是现成的。
+ *
+ * 回环校验（下推值再归一回来必须还是同一个家族）保证**下推用的尺子与
+ * `preferFamily` 排序用的是同一把**：`'other'` / `'all'` 这类没有真实家族语义的
+ * slug 会在这里被挡掉 —— 宁可只发不带筛选的那一次，也不下推一个排序端认不出
+ * 的值。
+ */
+function resolveUpstreamFamilyFilters(rawFamily: string | undefined): {
+  civitaiBaseModel: CivitaiLoraBaseModel | null
+  huggingFaceFamily: HuggingFaceLoraFamily | null
+} {
+  const none = { civitaiBaseModel: null, huggingFaceFamily: null }
+  if (!rawFamily) return none
+  const family = normalizeToLoraBaseFamily(rawFamily)
+  if (!family) return none
+  const slug = parseLoraLibraryFamilyParam(family)
+  if (slug === 'all') return none
+  const civitaiBaseModel = familySlugToCivitaiBaseModel(slug)
+  if (normalizeToLoraBaseFamily(civitaiBaseModel) !== family) return none
+  const huggingFaceFamily = familySlugToHuggingFaceFamily(slug)
+  return {
+    civitaiBaseModel,
+    huggingFaceFamily:
+      huggingFaceFamily === HUGGINGFACE_LORA_DEFAULT_FAMILY
+        ? null
+        : huggingFaceFamily,
+  }
+}
+
 /** 家族匹配的排前面。匹配不上的**不删** —— 见 `SearchLoraCandidatesInput`。 */
 function preferFamily(
   candidates: readonly LoraCandidate[],
@@ -495,18 +541,49 @@ export async function searchLoraCandidates(
     return { candidates: [], query: '', sources: [] }
   }
 
+  const { civitaiBaseModel, huggingFaceFamily } = resolveUpstreamFamilyFilters(
+    input.baseModelFamily,
+  )
+
   const [civitai, huggingface] = await Promise.all([
     runCandidateSource(LORA_CANDIDATE_SOURCE_IDS.civitai, async () => {
-      const result = await listCivitaiLoras({
-        search: query,
-        pageSize: LORA_CANDIDATE_LIMITS.perSourcePageSize,
-      })
-      return result.items.map((item) => civitaiToCandidate(item, retrievedAt))
+      /**
+       * 家族已知时**并行发两次**：一次带 `baseModel` 把同族那一页捞上来，一次
+       * 保持现状不带。⛔ 不能只发带筛选的那一次 —— 那就把软偏好做成硬过滤，
+       * 「你该换个底模」这句真话再也说不出口（见 `SearchLoraCandidatesInput`）。
+       * 两次算**同一个源**：任一次挂了整源按现有规则翻成回执。
+       */
+      const pages = await Promise.all([
+        ...(civitaiBaseModel
+          ? [
+              listCivitaiLoras({
+                search: query,
+                baseModel: civitaiBaseModel,
+                pageSize: LORA_CANDIDATE_LIMITS.perSourcePageSize,
+              }),
+            ]
+          : []),
+        listCivitaiLoras({
+          search: query,
+          pageSize: LORA_CANDIDATE_LIMITS.perSourcePageSize,
+        }),
+      ])
+      // 带筛选的那一页在前，按 candidateId 去重后再交给 preferFamily 排序。
+      const seen = new Set<string>()
+      return pages
+        .flatMap((page) => page.items)
+        .filter((item) => {
+          if (seen.has(item.id)) return false
+          seen.add(item.id)
+          return true
+        })
+        .map((item) => civitaiToCandidate(item, retrievedAt))
     }),
     runCandidateSource(LORA_CANDIDATE_SOURCE_IDS.huggingface, async () => {
       const result = await searchHuggingFaceLoras(
         HuggingFaceLoraSearchQuerySchema.parse({
           search: query,
+          ...(huggingFaceFamily ? { baseModelFamily: huggingFaceFamily } : {}),
           limit: LORA_CANDIDATE_LIMITS.perSourcePageSize,
         }),
       )

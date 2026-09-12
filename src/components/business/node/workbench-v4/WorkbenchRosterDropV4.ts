@@ -28,7 +28,6 @@ import type { NodeV4 } from '@/types/node-workflow'
 const ROSTER_CARD_ATTR = 'data-roster-card-id'
 /** 悬停高亮的类（纯视觉，⛔ 不进 React state —— 每帧 setState 会重渲整棵画布）。 */
 const ROSTER_CARD_HOVER_CLASS = 'canvas-roster-card-hover'
-const ROSTER_GHOST_SIZE_PX = 72
 
 function findRosterCardAt(
   clientX: number,
@@ -42,59 +41,9 @@ function findRosterCardAt(
   return null
 }
 
-/**
- * 拖拽替身。
- *
- * ⚠ **必须是 portal 到 body 的替身，不能把被拖的节点提上来**：节点住在
- * `.react-flow__viewport` 里，那个元素带 `transform` —— 它是一个独立层叠上下文，
- * 里面的任何 z-index 都翻不出去，而左栏面板在它外面。所以只要落点在面板上，被拖
- * 的图**必然被面板盖住**（owner 2026-08-10 实拍「图片在下层」就是这个）。
- * ⚠ 用命令式 DOM 而不是 React state：拖拽每帧都要挪它。
- */
-function createRosterDragGhost(url: string | undefined): HTMLElement {
-  const ghost = document.createElement('div')
-  ghost.style.cssText = [
-    'position:fixed',
-    'left:0',
-    'top:0',
-    `width:${ROSTER_GHOST_SIZE_PX}px`,
-    `height:${ROSTER_GHOST_SIZE_PX}px`,
-    'border-radius:12px',
-    'overflow:hidden',
-    'pointer-events:none',
-    'opacity:0.92',
-    'box-shadow:var(--shadow-node-panel)',
-    'z-index:var(--z-index-canvas-drag)',
-  ].join(';')
-  if (url) {
-    const img = document.createElement('img')
-    img.src = url
-    img.alt = ''
-    img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block'
-    ghost.appendChild(img)
-  } else {
-    // 没有封面的音色 —— 给一块中性面而不是一个破图框（音色本来就不一定有脸）。
-    ghost.style.background = 'var(--node-panel-inner)'
-  }
-  document.body.appendChild(ghost)
-  return ghost
-}
-
-function moveRosterDragGhost(
-  ghost: HTMLElement | null,
-  clientX: number,
-  clientY: number,
-): void {
-  if (!ghost) return
-  const half = ROSTER_GHOST_SIZE_PX / 2
-  ghost.style.transform = `translate(${clientX - half}px, ${clientY - half}px)`
-}
-
 interface RosterDropIntent {
   /** 落进卡的哪个具名槽。 */
   readonly slot: NodeSlotId
-  /** 替身的脸。音色可以没有。 */
-  readonly previewUrl?: string
 }
 
 /**
@@ -107,17 +56,22 @@ function resolveRosterDropIntent(node: NodeV4): RosterDropIntent | undefined {
   if (node.data.kind === NODE_MEDIA_KIND_IDS.image) {
     const url = node.data.url
     if (!url) return undefined
-    return { slot: NODE_SLOT_IDS.reference, previewUrl: url }
+    return { slot: NODE_SLOT_IDS.reference }
   }
   if (node.data.kind === NODE_MEDIA_KIND_IDS.audio) {
     return {
       slot: NODE_SLOT_IDS.voice,
-      ...(node.data.url ? { previewUrl: node.data.url } : {}),
     }
   }
   return undefined
 }
 
+/**
+ * ⚠ 这条手势**没有拖拽替身**（owner 2026-09-12 连着两次点名「那个小图删掉」）：
+ * 原本有一张 72px 的缩略跟着光标，为的是让被拖的图翻出 `.react-flow__viewport`
+ * 那个层叠上下文、落到左栏面板上方。现在靠**目标卡高亮**（`canvas-roster-card-hover`）
+ * 指落点，⛔ 别再把那张小图加回来。
+ */
 export interface WorkbenchRosterDropV4 {
   onNodeDragStart(node: NodeV4): void
   onNodeDrag(node: NodeV4, clientX: number, clientY: number): void
@@ -131,7 +85,6 @@ export function useWorkbenchRosterDropV4(
   /** 拖拽起点 —— 落进卡之后本体要弹回来，所以起点先记下。 */
   const dragStartRef = useRef(new Map<string, { x: number; y: number }>())
   const hoverElRef = useRef<HTMLElement | null>(null)
-  const ghostElRef = useRef<HTMLElement | null>(null)
 
   // 回调只注册一次，而 `graph` 每次图变都是新对象 —— 从 ref 读，⛔ 不进依赖数组。
   const latest = useRef(graph)
@@ -140,20 +93,16 @@ export function useWorkbenchRosterDropV4(
   }, [graph])
 
   const onNodeDragStart = useCallback((node: NodeV4) => {
-    const intent = resolveRosterDropIntent(node)
-    if (!intent) return
+    if (!resolveRosterDropIntent(node)) return
     dragStartRef.current.set(node.id, {
       x: node.position.x,
       y: node.position.y,
     })
-    ghostElRef.current?.remove()
-    ghostElRef.current = createRosterDragGhost(intent.previewUrl)
   }, [])
 
   const onNodeDrag = useCallback(
     (node: NodeV4, clientX: number, clientY: number) => {
       if (!resolveRosterDropIntent(node)) return
-      moveRosterDragGhost(ghostElRef.current, clientX, clientY)
       const hit = findRosterCardAt(clientX, clientY)
       if (hit === hoverElRef.current) return
       hoverElRef.current?.classList.remove(ROSTER_CARD_HOVER_CLASS)
@@ -165,8 +114,6 @@ export function useWorkbenchRosterDropV4(
 
   const onNodeDragStop = useCallback(
     (node: NodeV4, clientX: number, clientY: number): boolean => {
-      ghostElRef.current?.remove()
-      ghostElRef.current = null
       // 拖拽结束，悬停高亮无论如何都要摘掉 —— 一个留在原地的高亮框比没有更糟。
       hoverElRef.current?.classList.remove(ROSTER_CARD_HOVER_CLASS)
       hoverElRef.current = null

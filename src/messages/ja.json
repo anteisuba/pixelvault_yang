@@ -7809,7 +7809,7 @@
         }
       },
       "previewTitle": "この設定だと {name} はこう話します",
-      "previewHint": "上のどれかを変えると、この例もその場で変わります。",
+      "previewHint": "左のどれかを変えると、この例もその場で変わります。",
       "preview": {
         "address": "{name}さん、",
         "opener": {

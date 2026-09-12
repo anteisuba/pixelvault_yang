@@ -7809,7 +7809,7 @@
         }
       },
       "previewTitle": "How {name} will sound",
-      "previewHint": "Change anything above and this sample updates right away.",
+      "previewHint": "Change anything on the left and this sample updates right away.",
       "preview": {
         "address": "{name}, ",
         "opener": {

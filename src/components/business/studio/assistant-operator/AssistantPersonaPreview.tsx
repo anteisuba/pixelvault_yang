@@ -61,8 +61,11 @@ export function AssistantPersonaPreview({
     <aside
       data-testid="assistant-persona-preview"
       /* 画板 BSettings 右栏：示例区是**浅底的一格**，示例本身是浮在它上面的白卡
-         —— 两层靠明度分（§12.1），⛔ 不靠阴影。 */
-      className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/40 p-3"
+         —— 两层靠明度分（§12.1），⛔ 不靠阴影。
+         ⚠ `h-full`：桌面档这一格跨满左栏两行（人设卡+身份 / 高级），画板里右栏
+         是与左栏等高的一整条浅底。不填满的话「高级」一展开，右边就空出一大块
+         白 —— 那读起来像少画了一块，而不是「示例只有这么长」。 */
+      className="flex h-full flex-col gap-2.5 rounded-xl border border-border bg-muted/40 p-3"
     >
       <span className="text-2sm font-semibold uppercase tracking-nav text-muted-foreground">
         {t('previewTitle', { name })}

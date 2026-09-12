@@ -173,7 +173,10 @@ function readFileAsDataUrl(file: File): Promise<string> {
  * ⛔ 不自己写一套按钮组：那样键盘可达性得重新证一遍。
  * ⚠ `onValueChange` 收到空串 = radix 的「再点一次取消选中」——这几档都是必选，
  * 空串直接丢掉（⛔ 别让用户点出一个「什么都没选」的语气）。
- * ⚠ 窄档（<640）退回上下两行：92px 的标题栏在 375 上会把三颗 chip 挤成竖条。
+ * ⚠ 窄档（<640）退回上下两行：92px 的标题栏在 375 上会把三颗 chip 挤成竖条；
+ * 四档那一组（语气）在窄档再退成 **2×2 等分**，`sm:` 起回到桌面要求的一行四档
+ * （画板 BSettings 高级区）——375 上四等分只有 ~80px，`自定义` / `Professional`
+ * 一定折行。
  */
 function PersonaSegment({
   label,
@@ -200,14 +203,18 @@ function PersonaSegment({
         aria-label={label}
         className={cn(
           'grid w-full gap-1.5 rounded-lg border-transparent bg-muted p-1 sm:flex-1',
-          options.length === 4 ? 'grid-cols-4' : 'grid-cols-3',
+          options.length === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-3',
         )}
       >
         {options.map((option) => (
           <ToggleGroupItem
             key={option.value}
             value={option.value}
-            className="flex h-8 items-center justify-center rounded-md px-2 py-0 text-sm text-muted-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            /* 画板 BSettings 高级区：chip 是 12px / 28-32px 高。`text-xs` 而不是
+               `text-sm` 是这一行四档能并排的前提（`Professional` 在 14px 下就
+               撑破格子）。`min-h-8` 而不是 `h-8`：ja 的长档名（`プロフェッショ
+               ナル`）宁可让格子长高一行，也不裁字。 */
+            className="flex min-h-8 items-center justify-center rounded-md px-2 py-1 text-center text-xs leading-tight text-muted-foreground data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
           >
             {option.label}
           </ToggleGroupItem>
@@ -467,12 +474,15 @@ export function AssistantSettingsDialog({
         /**
          * **bug 3**：桌面档 `DialogContent` 本身没有高度上限，弹层长到 806px 就
          * 在 757px 的视口上被上下裁掉。这里把它封进视口内，滚动交给身体那一格。
-         * ⚠ `lg:max-w-2xl` 而不是 `sm:` —— `ResponsiveDialog` 在 <1024 走的是
+         * ⚠ `lg:max-w-4xl` 而不是 `sm:` —— `ResponsiveDialog` 在 <1024 走的是
          * vaul 抽屉（`fixed inset-x-0`），给它一个 `max-w` 会把抽屉挤成左对齐
          * 的一条。`lg` 正好是抽屉/弹层的分界。
+         * ⚠ 2026-09-12 由 `2xl`(672) 抬到 `4xl`(896)：画板 BSettings 的桌面档
+         * 是 960 宽的两栏（左 618 / 右 342），672 上左栏只剩 ~365px，语气那四档
+         * 必折行。`DialogContent` 自带 `max-w-[calc(100%-2rem)]`，窄视口不会溢出。
          */
         /* 画板 BSettings：弹层圆角与面板同一档（18px，§12.3 上限）。 */
-        className="flex flex-col gap-0 overflow-hidden p-0 lg:max-w-2xl lg:rounded-2xl"
+        className="flex flex-col gap-0 overflow-hidden p-0 lg:max-w-4xl lg:rounded-2xl"
         style={{
           /**
            * 三项取最小：
@@ -772,7 +782,10 @@ export function AssistantSettingsDialog({
                   </div>
                 </section>
 
-                {/* ── 右：实时示例（§11.5，本地模板，⛔ 不调 LLM）────── */}
+                {/* ── 右：实时示例（§11.5，本地模板，⛔ 不调 LLM）──────
+                    ⚠ 跨满左栏两行（人设卡 + 身份 / 高级），栅格默认 `stretch`，
+                    示例卡自己 `h-full` 把这一格填满 —— 高级展开后右边不再空出
+                    一大块（画板 BSettings：右栏是一整条与左栏等高的浅底）。 */}
                 <div className="lg:col-span-2 lg:col-start-4 lg:row-span-2 lg:row-start-1">
                   <AssistantPersonaPreview
                     name={draft.name?.trim() || tTimeline('assistantFallback')}

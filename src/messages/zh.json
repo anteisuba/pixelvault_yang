@@ -7809,7 +7809,7 @@
         }
       },
       "previewTitle": "这样设定后 {name} 会这么说",
-      "previewHint": "改上面任何一项，这段示例会实时跟着变。",
+      "previewHint": "改左边任何一项，这段示例会实时跟着变。",
       "preview": {
         "address": "{name}，",
         "opener": {

@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl'
 import { PLATFORM_GENERATION_GUARD } from '@/constants/config'
 import { STUDIO_MOBILE_QUEUE_PROGRESS_CAP } from '@/constants/studio-mobile'
 import {
-  getGeneratingStageKey,
+  resolveGeneratingStageKey,
   resolveGenerationProgress,
 } from '@/lib/generation-progress'
 import type { RunItem } from '@/types'
@@ -108,7 +108,10 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
               ? 100
               : 0
           const stageLabel = tStages(
-            `generatingOverlayStages.${getGeneratingStageKey(elapsed)}` as const,
+            `generatingOverlayStages.${resolveGeneratingStageKey(
+              elapsed,
+              item.status === 'generating' ? item.executionStage : undefined,
+            )}` as const,
           )
 
           return (

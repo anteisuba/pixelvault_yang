@@ -38,7 +38,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { downloadRemoteAsset } from '@/lib/api-client/generation'
 import { getGenerationAudioSegments } from '@/lib/generation-media'
-import { getGeneratingStageKey } from '@/lib/generation-progress'
+import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import type { GenerationRecord } from '@/types'
 import { useStudioDraggable } from '@/hooks/use-studio-draggable'
@@ -124,7 +124,18 @@ export const GenerationPreview = memo(function GenerationPreview({
     [generation?.id],
   )
   const [toolDrawerOpen, setToolDrawerOpen] = useState(false)
-  const generatingStageKey = getGeneratingStageKey(elapsedSeconds)
+  // 单条批次时取当前 pending 项的 `executionStage`（runner 冷启动排队 /
+  // GPU 出图中）压过按已用时长猜的阶段词，见 `resolveGeneratingStageKey`。
+  const activeGenerateItem =
+    activeRun?.mode === 'single' ? activeRun.items[0] : undefined
+  const activeExecutionStage =
+    activeGenerateItem && 'executionStage' in activeGenerateItem
+      ? activeGenerateItem.executionStage
+      : undefined
+  const generatingStageKey = resolveGeneratingStageKey(
+    elapsedSeconds,
+    activeExecutionStage,
+  )
   const generatingStageLabel = t(
     `generatingOverlayStages.${generatingStageKey}` as const,
   )

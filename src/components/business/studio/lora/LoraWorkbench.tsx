@@ -130,7 +130,7 @@ import { Switch } from '@/components/ui/switch'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { buildSourceMatchedLoraPrompt } from '@/lib/lora-source-match-prompt'
 import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
-import { getGeneratingStageKey } from '@/lib/generation-progress'
+import { resolveGeneratingStageKey } from '@/lib/generation-progress'
 import {
   applyRecipePlanToAdvancedParams,
   buildCivitaiRecipeGenerationPlan,
@@ -726,8 +726,20 @@ function GenerateBranch({
   } = useUnifiedGenerate()
   const tStudioV3 = useTranslations('StudioV3')
   const tCancel = useTranslations('GenerationCancel')
+  // LoRA 出图是单次无批次，`activeRun.items[0]` 即这次请求的 pending 项——
+  // 有值时它的 `executionStage`（runner 冷启动排队 / GPU 出图中）压过按
+  // 已用时长猜的阶段词，见 `resolveGeneratingStageKey`。
+  const activeGenerateItem =
+    activeRun?.mode === 'single' ? activeRun.items[0] : undefined
+  const activeExecutionStage =
+    activeGenerateItem && 'executionStage' in activeGenerateItem
+      ? activeGenerateItem.executionStage
+      : undefined
   const generatingStageLabel = tStudioV3(
-    `generatingOverlayStages.${getGeneratingStageKey(elapsedSeconds)}` as const,
+    `generatingOverlayStages.${resolveGeneratingStageKey(
+      elapsedSeconds,
+      activeExecutionStage,
+    )}` as const,
   )
 
   // 完成节拍：isGenerating→false 后把裱框显影多留一拍,播 close→hold→fade

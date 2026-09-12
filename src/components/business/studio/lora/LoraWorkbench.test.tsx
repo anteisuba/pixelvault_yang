@@ -256,7 +256,10 @@ let mockIsGenerating = false
 // 取消交互测试专用：默认 null（无批次），单张出图测试按需把它设成单条
 // single-item 批次，镜像 use-unified-generate 真实的 generateImage 分支
 // （单次提交即建单 item activeRun 并登记 jobId，见 hook 正文）。
-let mockActiveRun: { mode: 'single'; items: { id: string }[] } | null = null
+let mockActiveRun: {
+  mode: 'single'
+  items: { id: string; executionStage?: string }[]
+} | null = null
 const mockCancelRunItem = vi.hoisted(() => vi.fn())
 vi.mock('@/hooks/use-unified-generate', () => ({
   useUnifiedGenerate: () => ({
@@ -1680,6 +1683,23 @@ describe('LoraWorkbench GenerateBranch — generating state and ETA hint', () =>
     // 桌面上整块生成中态塌成 0 高，就是 owner 报的那个 bug。
     expect(resultMedia().className).toContain('lora-result-media--running')
     expect(resultMedia().className).not.toContain('lora-result-media--empty')
+  })
+
+  // b06968a2：worker 回报 executionStage 时压过按已用时长猜的阶段词——
+  // Runner 冷启动排队应该显示 runnerQueued 文案，不是按 elapsedSeconds 猜的词。
+  it('shows the runnerQueued stage label when the active run item reports executionStage', () => {
+    mockIsGenerating = true
+    mockActiveRun = {
+      mode: 'single',
+      items: [{ id: 'run-item-1', executionStage: 'runnerQueued' }],
+    }
+
+    render(<LoraWorkbench />)
+
+    expect(screen.getByRole('progressbar')).toHaveAttribute(
+      'aria-label',
+      'StudioV3:generatingOverlayStages.runnerQueued',
+    )
   })
 
   it('keeps the running height floor off the idle empty state', () => {

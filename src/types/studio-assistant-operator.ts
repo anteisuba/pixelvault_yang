@@ -30,6 +30,7 @@ import type {
   AssistantOperatorContextCardDraft,
   AssistantOperatorCritiqueStep,
   AssistantOperatorGenerationRequest,
+  AssistantOperatorLoraPickConfirm,
   AssistantOperatorPlanAnswer,
   AssistantOperatorPlanOption,
   AssistantOperatorPlanQuestion,
@@ -436,6 +437,20 @@ export type StudioOperatorConfirmPrompt = {
        * 「存这张卡」回落成 `create confirmed`，「不用」什么都不用删。
        */
       cardId?: string
+    }
+  /**
+   * 助手把本轮 LoRA 候选摆出来等创作者勾（lora-assistant §10.1）—— 卡上摆的是
+   * **候选本体**（一把一行：封面 / 名字 / 家族圆点 / 默认权重 / 触发词），
+   * 一颗主按钮是「挂载所选」。
+   * ⚠ 与 `contextCard` 那支同构：服务端到这一帧为止一把都没挂，挂载发生在带
+   * `loraPicks` 重发的下一轮。
+   * ⚠ 勾中的是哪几把由**卡自己的组件态**持有，⛔ 不进这份 prompt：这份是
+   * 「帧带来的东西 + 已决没决」，而勾选是一次还没提交的编辑（与生成确认卡
+   * 那四颗旋钮不存自己的参数同一条判据）。
+   */
+  | {
+      kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick
+      pick: AssistantOperatorLoraPickConfirm
     }
 )
 

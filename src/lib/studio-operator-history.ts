@@ -266,6 +266,12 @@ export function describeOperatorStepDetail(
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard:
       return step.payload.name
     /**
+     * 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）—— 详情写**摆了几把**：这一步
+     * 通常不出 step（产出是确认卡那一帧），落进历史时该说得出摆了多少个候选。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick:
+      return `${step.payload.candidateIds.length}`
+    /**
      * 标审核态（切片 Y）—— 详情写**理由**，⛔ 不写 assetId：那串 uuid 用户核对
      * 不了，而「为什么否掉」正是他事后要读的那一句。没给理由时不画详情行。
      */

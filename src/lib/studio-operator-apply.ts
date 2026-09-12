@@ -400,6 +400,12 @@ export function applyOperatorStep(
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard:
     /**
+     * ⚠ 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）同理：它只是把候选摆出来，
+     * 装配台一格都没动。真正挂上那几把是下一轮各自独立的 `mount_lora`，
+     * 应用与撤销都发生在那条上。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick:
+    /**
      * ⚠ 素材库四条（§10）也**不动表单**：它们改的是用户库里那几件东西的标签 /
      * 星 / 归属夹，工作台上一格旋钮都没动。返回 null = 登记簿不记账、归属标记（✦）
      * 不会亮在一个它没改过的字段上 —— 与规则那条逐字同源。

@@ -319,7 +319,13 @@ export function StudioOperatorConfirmCard({
                       ? t('confirm.generate.handedOff')
                       : t('confirm.generate.notRun')
                   }`
-                : t('confirm.multistep.title', { count: confirm.steps.length })}
+                : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+                  ? t('confirm.multistep.title', {
+                      count: confirm.steps.length,
+                    })
+                  : /* ⚠ 占位（lora-assistant §10.5 commit #1 只做协议层）：推荐卡
+                       那一支的卡面随 commit #6 落地（`StudioOperatorLoraPickCard`）。 */
+                    null}
           </span>
           {/* 「再来一次」只长在**生成 · 已取消**那一格上：多步取消之后要写的是
               下一句话（输入框已经预填好了），⛔ 不是把同一份计划再摆一遍。 */}
@@ -347,9 +353,13 @@ export function StudioOperatorConfirmCard({
                 : confirm.kind ===
                     ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard
                   ? t('confirm.contextCard.title')
-                  : t('confirm.generate.title', {
-                      count: confirm.request.count,
-                    })}
+                  : confirm.kind ===
+                      ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
+                    ? t('confirm.generate.title', {
+                        count: confirm.request.count,
+                      })
+                    : /* ⚠ 占位：推荐卡那一支随 commit #6 落地。 */
+                      null}
             </p>
           </div>
 

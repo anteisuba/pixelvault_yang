@@ -30,6 +30,7 @@ import {
   BookOpen,
   Library,
   Link2,
+  ListChecks,
   Music2,
   NotebookPen,
   Pencil,
@@ -134,6 +135,11 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
    * 这两条，长一样就分不出哪条是哪条。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.searchLoras]: Search,
+  /**
+   * 摆一张 LoRA 推荐卡（lora-assistant §10.2.2）—— 「这几把你要哪几把」，
+   * 所以是一张勾选清单。⚠ 与上面的搜索放一对：日志流里这两条前后脚出现。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick]: ListChecks,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]: Blocks,
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]: Unplug,
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]: SlidersHorizontal,

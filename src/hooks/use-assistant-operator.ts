@@ -1131,6 +1131,18 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 )
                 break
               }
+              /**
+               * ⚠ **占位（lora-assistant §10.5 commit #1 只做协议层）**：推荐卡
+               * 那一支的落卡与落账三件套随 commit #5 接线。在那之前这一帧被认下来
+               * 但不落卡 —— ⛔ 不让它掉进下面生成那一支（那会拿一张没有 `request`
+               * 的帧去画生成确认卡）。
+               */
+              if (
+                event.confirm.kind ===
+                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick
+              ) {
+                break
+              }
               flushPlanEntry()
               setOperatorConfirm({
                 id: nextOperatorEntryId('confirm'),

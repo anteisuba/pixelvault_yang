@@ -3693,6 +3693,17 @@ function toLoraCandidateProjection(
     compatible: isLoraCompatibleWithBase(candidate.baseModelFamily, baseFamily),
     alreadyMounted: candidate.alreadyMounted,
     alreadyImported: candidate.alreadyImported,
+    /**
+     * 这一把该用多大权重（lora-assistant §10.1）—— 与 `planMountLora` 取权重那一行
+     * **同一份回落**（作者推荐 → 1.0）。⛔ 别在推荐卡上另算一次：两处分叉的表现是
+     * 「卡上写 0.8、挂上去变成 1.0」，而用户以为自己确认过那个数。
+     */
+    defaultWeight: candidate.recommendedWeight ?? 1,
+    /**
+     * ⚠ 检索结果里**永远是 false**：标哪一把「推荐」是模型在 `plan_lora_pick`
+     * 那一步的判断（`recommendedCandidateId`，一张卡最多一个），⛔ 不是检索层的事。
+     */
+    recommended: false,
   }
 }
 
@@ -5662,6 +5673,17 @@ async function planTool(
       )
     case TOOL.readContextCard:
       return planReadContextCard(run, parsed.data as { cardId: string }, userId)
+    /**
+     * ⚠ **占位（lora-assistant §10.5 commit #1 只做协议层）**：真正的 `planLoraPick`
+     * 随 commit #2 落地（校验 candidateId 属于本轮 `run.loraIndex`、吐
+     * `confirm(loraPick)` 帧、停流）。在那之前这条工具已经在 LoRA 域的枚举里，
+     * 所以这里必须有一条分支——⛔ 不让判别联合的穷举闸落空。
+     */
+    case TOOL.planLoraPick:
+      return reject(
+        REJECT.malformedArgs,
+        'plan_lora_pick is not wired up yet in this build.',
+      )
     case TOOL.proposeContextCard:
       return planProposeContextCard(
         run,

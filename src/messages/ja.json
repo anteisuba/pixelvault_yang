@@ -7608,6 +7608,8 @@
         "downloads": "{count} ダウンロード",
         "viewDetail": "詳細を見る",
         "noThumbnail": "カバーなし",
+        "detailPick": "これを選ぶ",
+        "detailUnpick": "選択を外す",
         "notImportable": {
           "unknownBaseModel": "ベースモデルが特定できず、取り込めません",
           "noWeightFile": "リポジトリに重みファイルがなく、取り込めません",

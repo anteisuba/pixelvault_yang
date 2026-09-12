@@ -425,6 +425,16 @@ export function StudioOperatorPanel({
    * （首屏 10 张、文件夹分类、往下拉继续翻）。
    */
   const [libraryOpen, setLibraryOpen] = useState(false)
+  /**
+   * LoRA 推荐卡上点开的那条候选（§10.3.2）—— 抽屉的**开合态**归这里，
+   * 勾选态仍留在推荐卡内部（那是一次还没提交的编辑）。
+   *
+   * ⚠ 存的是 candidateId 而不是候选本体：帧一换，卡里认不出这个 id 就当没开，
+   * ⛔ 不会留下一份过期的候选画在屏幕上。
+   */
+  const [loraDetailCandidateId, setLoraDetailCandidateId] = useState<
+    string | null
+  >(null)
   const attachTriggerRef = useRef<HTMLButtonElement>(null)
   /** 回形针那颗按钮背后的文件选择器（上传三通道的第一条）。 */
   const uploadInputRef = useRef<HTMLInputElement>(null)
@@ -1858,6 +1868,12 @@ export function StudioOperatorPanel({
                        「一步一步来」逐字同源：新词还得用户自己打出来）。 */
                     onSearchAgain={searchLoraAgainPrompt}
                     formatTime={formatDecidedAt}
+                    /* 缩略图点开 = 库里那张详情抽屉（§10.3.2）：这里只管
+                       「开在哪一条上」，抽屉里那颗「勾上这把」改的是卡自己的
+                       勾选态 —— ⛔ 别把勾选态也提上来。 */
+                    onOpenDetail={setLoraDetailCandidateId}
+                    detailCandidateId={loraDetailCandidateId}
+                    onCloseDetail={() => setLoraDetailCandidateId(null)}
                   />
                 ) : (
                   <StudioOperatorConfirmCard

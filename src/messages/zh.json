@@ -7608,6 +7608,8 @@
         "downloads": "{count} 下载",
         "viewDetail": "看详情",
         "noThumbnail": "无封面",
+        "detailPick": "勾上这把",
+        "detailUnpick": "取消勾选",
         "notImportable": {
           "unknownBaseModel": "底模定不出来，导不进来",
           "noWeightFile": "仓库里没有权重文件，导不进来",

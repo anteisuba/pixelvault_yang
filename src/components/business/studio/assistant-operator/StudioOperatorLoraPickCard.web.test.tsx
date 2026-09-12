@@ -9,14 +9,17 @@ import type { AssistantOperatorLoraPickCandidate } from '@/types/assistant-opera
 /**
  * **LoRA 推荐卡**的回归闸（lora-assistant §10.4 第 9 条 / 画板 `LoraPickA`）。
  *
- * 钉七件事：
+ * 钉十件事：
  *  ① 勾选 / 取消实时改底部读数（已选 N 把 · 总权重 X / Y）；
  *  ② 超预算把读数标红并出一行提醒，**但主按钮照旧可点**（§5「只提醒不动手」）；
  *  ③ 底模未定（`budget === null`）→ 只画「已选 N 把」，⛔ 没有分母；
  *  ④ 装不上的行不可勾（`aria-disabled` + checkbox `disabled`）且理由写在行里；
  *  ⑤ 连点两下只调一次 `onSubmit`（第二下撞在 `submitting` 上）；
  *  ⑥ 关掉不点调 `onDismiss`、「换个词再搜」调 `onSearchAgain`；
- *  ⑦ 缩略图缺席时画占位块（⛔ 不留白），那颗按钮带「看详情」。
+ *  ⑦ 缩略图缺席时画占位块（⛔ 不留白），那颗按钮带「看详情」；
+ *  ⑧ 点缩略图把 candidateId 报给宿主（抽屉开合归 Panel，§10.3.2）；
+ *  ⑨ 抽屉里那颗「勾上这把」改的就是卡上那一行的勾选态（同一份 state）；
+ *  ⑩ 装不上的那把在抽屉里也不给勾。
  */
 
 vi.mock('next-intl', () => ({
@@ -265,6 +268,89 @@ describe('StudioOperatorLoraPickCard', () => {
     ).toBe('confirm.loraPick.viewDetail')
     // 作者缺席时退回下载量（⛔ 不留白、⛔ 不写「作者未知」占一格）。
     expect(row?.textContent).toContain('confirm.loraPick.downloads:13200')
+  })
+
+  it('点缩略图把 candidateId 报给宿主（抽屉开合归 Panel）', () => {
+    const onOpenDetail: Mock<(candidateId: string) => void> = vi.fn()
+    render(
+      <StudioOperatorLoraPickCard
+        prompt={prompt()}
+        assistantName="ANTI"
+        onSubmit={vi.fn()}
+        onDismiss={vi.fn()}
+        onSearchAgain={vi.fn()}
+        formatTime={() => '11:24'}
+        onOpenDetail={onOpenDetail}
+      />,
+    )
+    const row = screen
+      .getAllByTestId('operator-lora-pick-row')
+      .find((one) => one.dataset.candidateId === QINGXIAO.candidateId)
+    fireEvent.click(
+      row?.querySelector(
+        '[data-testid="operator-lora-pick-thumb"]',
+      ) as HTMLButtonElement,
+    )
+    expect(onOpenDetail).toHaveBeenCalledWith(QINGXIAO.candidateId)
+  })
+
+  it('抽屉里那颗「勾上这把」改的就是卡上那一行的勾选态', () => {
+    render(
+      <StudioOperatorLoraPickCard
+        prompt={prompt()}
+        assistantName="ANTI"
+        onSubmit={vi.fn()}
+        onDismiss={vi.fn()}
+        onSearchAgain={vi.fn()}
+        formatTime={() => '11:24'}
+        detailCandidateId={QINGXIAO.candidateId}
+        onCloseDetail={vi.fn()}
+      />,
+    )
+
+    // 抽屉装的是库里那份详情的候选支（⛔ 不是另做的一份预览）。
+    expect(screen.getByTestId('lora-candidate-detail-cover')).toBeTruthy()
+
+    const row = () =>
+      screen
+        .getAllByTestId('operator-lora-pick-row')
+        .find((one) => one.dataset.candidateId === QINGXIAO.candidateId)
+    const box = () =>
+      row()?.querySelector(
+        '[data-testid="operator-lora-pick-checkbox"]',
+      ) as HTMLInputElement
+    expect(box().checked).toBe(false)
+
+    fireEvent.click(screen.getByText('confirm.loraPick.detailPick'))
+    expect(box().checked).toBe(true)
+    // 勾上之后读数跟着走，且抽屉没关（主按钮翻成「取消勾选」）。
+    expect(
+      screen.getByTestId('operator-lora-pick-tally').textContent,
+    ).toContain('confirm.loraPick.tally:1')
+    expect(screen.getByText('confirm.loraPick.detailUnpick')).toBeTruthy()
+  })
+
+  it('装不上的那把：抽屉里也不给勾', () => {
+    render(
+      <StudioOperatorLoraPickCard
+        prompt={prompt()}
+        assistantName="ANTI"
+        onSubmit={vi.fn()}
+        onDismiss={vi.fn()}
+        onSearchAgain={vi.fn()}
+        formatTime={() => '11:24'}
+        detailCandidateId={GAME3D.candidateId}
+        onCloseDetail={vi.fn()}
+      />,
+    )
+    const pick = screen
+      .getByText('confirm.loraPick.detailPick')
+      .closest('button') as HTMLButtonElement
+    expect(pick.hasAttribute('disabled')).toBe(true)
+    fireEvent.click(pick)
+    expect(
+      screen.getByTestId('operator-lora-pick-tally').textContent,
+    ).toContain('confirm.loraPick.tally:0')
   })
 
   it('已挂那一态整卡收成一行「已挂 N 把 · 时刻」', () => {

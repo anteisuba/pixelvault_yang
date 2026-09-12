@@ -7608,6 +7608,8 @@
         "downloads": "{count} downloads",
         "viewDetail": "View details",
         "noThumbnail": "No cover",
+        "detailPick": "Pick this one",
+        "detailUnpick": "Unpick this one",
         "notImportable": {
           "unknownBaseModel": "Base model could not be resolved — cannot import",
           "noWeightFile": "No weight file in the repo — cannot import",

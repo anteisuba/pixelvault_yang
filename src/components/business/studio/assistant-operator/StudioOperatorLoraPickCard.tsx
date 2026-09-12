@@ -32,6 +32,8 @@ import { LORA_CANDIDATE_NOT_IMPORTABLE_REASONS } from '@/constants/lora-candidat
 import { cn } from '@/lib/utils'
 import type { AssistantOperatorLoraPickCandidate } from '@/types/assistant-operator'
 import type { StudioOperatorConfirmPrompt } from '@/types/studio-assistant-operator'
+import { LoraLibraryDetailDrawer } from '@/components/business/studio/lora/library/LoraLibraryDetailDrawer'
+import { LoraLibraryRowDetail } from '@/components/business/studio/lora/library/LoraLibraryRowDetail'
 
 export type StudioOperatorLoraPickPrompt = Extract<
   StudioOperatorConfirmPrompt,
@@ -89,6 +91,16 @@ interface StudioOperatorLoraPickCardProps {
    * 它是 `LoraLibraryDetailDrawer`。
    */
   onOpenDetail?(candidateId: string): void
+  /**
+   * 抽屉此刻开在哪一条候选上（`null` / 缺席 = 没开）——**开合态归宿主 Panel**，
+   * 而**勾选态留在这颗卡里**（见文件头注）。
+   *
+   * ⭐ 为什么这么切：抽屉里那颗「勾上这把」要改的正是卡上那一行的勾选态。
+   * 把勾选态提升到 Panel 等于让一次还没提交的编辑离开这张卡；反过来把开合态
+   * 也塞进卡里，Panel 就没有任何抓手在别处（比如收起面板）关掉它。
+   */
+  detailCandidateId?: string | null
+  onCloseDetail?(): void
 }
 
 export function StudioOperatorLoraPickCard({
@@ -99,6 +111,8 @@ export function StudioOperatorLoraPickCard({
   onSearchAgain,
   formatTime,
   onOpenDetail,
+  detailCandidateId,
+  onCloseDetail,
 }: StudioOperatorLoraPickCardProps) {
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
@@ -137,6 +151,11 @@ export function StudioOperatorLoraPickCard({
     status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed ||
     status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled
   const submitting = status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting
+
+  /** 抽屉装的那一条 —— 认不出这个 id（换了一帧）就当没开。 */
+  const detailCandidate = detailCandidateId
+    ? (byId.get(detailCandidateId) ?? null)
+    : null
 
   const toggle = (candidateId: string) => {
     setSelectedIds((ids) =>
@@ -479,6 +498,34 @@ export function StudioOperatorLoraPickCard({
           {t('confirm.loraPick.dismiss')}
         </button>
       </fieldset>
+
+      {/* 缩略图点开 = **库里那张详情抽屉**（§10.3.2）：外壳 `LoraLibraryDetailDrawer`
+          + 内容 `LoraLibraryRowDetail` 的候选支，⛔ 不新做一份详情。桌面也用抽屉
+          —— 助手面板那点宽度装不下库里桌面版的原位三栏。
+          ⚠ 「勾上这把」走的就是行里那个 `toggle`：抽屉与卡上的勾选**是同一份
+          state**，关掉抽屉勾选态不变。 */}
+      {detailCandidate ? (
+        <LoraLibraryDetailDrawer
+          open
+          onOpenChange={(next) => {
+            if (!next) onCloseDetail?.()
+          }}
+          title={detailCandidate.name}
+        >
+          <LoraLibraryRowDetail
+            source="candidate"
+            candidate={detailCandidate}
+            checked={selectedIds.includes(detailCandidate.candidateId)}
+            /* ⚠ 第二道闸（与行里那颗 checkbox 逐字同源）：装不上的那把连事件
+               都不认 —— 详情里那颗按钮已经 disabled，但程序派发的 click 照样
+               进得来，而那会让一把挂不上的 LoRA 算进底部读数。 */
+            onToggle={(candidateId) => {
+              if (!isMountable(detailCandidate) || submitting) return
+              toggle(candidateId)
+            }}
+          />
+        </LoraLibraryDetailDrawer>
+      ) : null}
     </section>
   )
 }

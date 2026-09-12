@@ -28,6 +28,7 @@ import {
   parseModel3DRunContext,
   parseWorkerRunContext,
   pollAndPersistRunnerImageJob,
+  recycleRunnerEndpointWorkers,
   reportExecutionStage,
   reportProviderJobId,
   resolveFalImageModelId,
@@ -2421,5 +2422,412 @@ describe('reportExecutionStage', () => {
       .map((body) => body.data?.executionStage)
       .filter((stage) => stage !== undefined)
     expect(stages).toEqual(['runnerQueued', 'runnerRunning'])
+  })
+})
+
+/**
+ * Runner 幻影名额自愈（2026-09-12，owner 拍板）。
+ *
+ * 在此之前，判定幻影 = 直接取消出图并报 `runner_queue_stuck` —— 用户拿到的是一条
+ * 「端点需要人工看一眼」的失败，而实测里真正要做的事只是把占着名额的僵尸 worker
+ * 踢掉（REST `workersMax` 0 → 原值）再重排一次，端点就恢复了。这一节锁的是那条
+ * 自愈路径的每一个硬约束：
+ * - REST 请求形状（只能打 rest.runpod.io/v1，PATCH 只带 workersMax）；
+ * - 失败也必须把 `workersMax` 恢复原值 —— 漏恢复 = 端点被永久缩到 0，比卡死更糟；
+ * - 自愈只给一次，第二次幻影照旧取消（文案不变），否则一个真坏掉的端点会让
+ *   同一单在回收/重排之间无限打转。
+ */
+const RUNNER_REST_ENDPOINT_URL =
+  'https://rest.runpod.io/v1/endpoints/runner-endpoint'
+
+interface RunnerRecycleHarnessOptions {
+  /** GET /endpoints/<id> 的返回体；缺省报 workersMax=2。 */
+  endpointBody?: Record<string, unknown>
+  /** GET /endpoints/<id> 的状态码。 */
+  endpointStatus?: number
+  /** PATCH workersMax=0 的状态码（用来造「缩容失败」）。 */
+  scaleDownStatus?: number
+  /** 第二次轮询 /health 时是否已排空（缺省真）。 */
+  drains?: boolean
+}
+
+interface RunnerRecycleHarness {
+  fetchMock: ReturnType<typeof vi.fn>
+  patchBodies: () => unknown[]
+  patchCalls: () => RequestInit[]
+  submittedJobIds: () => string[]
+  cancelledJobIds: () => string[]
+  stages: () => (string | undefined)[]
+  callbackBodies: () => CallbackBody[]
+  put: ReturnType<typeof vi.fn>
+}
+
+/**
+ * 一个「永远卡在 IN_QUEUE 且 /health 报幻影签名」的端点。回收（PATCH 0）之后
+ * /health 转为全 0，重排出来的第二个 job 立刻 COMPLETED。
+ */
+function stubRunnerRecycleEndpoint(
+  options: RunnerRecycleHarnessOptions = {},
+): RunnerRecycleHarness {
+  const {
+    endpointBody = { workersMax: 2 },
+    endpointStatus = 200,
+    scaleDownStatus = 200,
+    drains = true,
+  } = options
+  const put = vi.fn().mockResolvedValue(undefined)
+  let scaledDown = false
+  let submitCount = 0
+
+  const fetchMock = vi
+    .fn()
+    .mockImplementation(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input)
+        const method = init?.method ?? 'GET'
+
+        if (url === 'https://resolve.example.com')
+          return Response.json({
+            success: true,
+            data: { apiKey: 'runpod-key' },
+          })
+        if (url === 'https://cb.example.com')
+          return Response.json({ success: true })
+
+        if (url === 'https://api.runpod.ai/v2/runner-endpoint/run') {
+          submitCount += 1
+          return Response.json({ id: `runpod-job-${submitCount}` })
+        }
+        if (
+          url.startsWith('https://api.runpod.ai/v2/runner-endpoint/status/')
+        ) {
+          // 第一单永远排队（幻影），回收后重排的第二单立刻出图。
+          if (url.endsWith('/runpod-job-1'))
+            return Response.json({ status: 'IN_QUEUE' })
+          return Response.json({
+            status: 'COMPLETED',
+            output: {
+              images: [{ data: bytesToBase64(new Uint8Array([1, 2, 3])) }],
+            },
+          })
+        }
+        if (url.startsWith('https://api.runpod.ai/v2/runner-endpoint/cancel/'))
+          return Response.json({ status: 'CANCELLED' })
+
+        if (url === 'https://api.runpod.ai/v2/runner-endpoint/health') {
+          // 幻影签名：声称有 worker（idle 1）却零活跃。缩容后全 0 = 排空。
+          const drained = scaledDown && drains
+          return Response.json({
+            workers: {
+              idle: drained ? 0 : 1,
+              ready: 0,
+              running: 0,
+              initializing: 0,
+              throttled: 0,
+            },
+          })
+        }
+
+        if (url === RUNNER_REST_ENDPOINT_URL) {
+          if (method === 'GET') {
+            if (endpointStatus !== 200)
+              return new Response(null, { status: endpointStatus })
+            return Response.json(endpointBody)
+          }
+          if (method === 'PATCH') {
+            const body = JSON.parse(String(init?.body)) as {
+              workersMax: number
+            }
+            if (body.workersMax === 0) {
+              if (scaleDownStatus !== 200)
+                return new Response(null, { status: scaleDownStatus })
+              scaledDown = true
+            } else {
+              scaledDown = false
+            }
+            return Response.json({ id: 'runner-endpoint' })
+          }
+        }
+
+        throw new Error(`Unexpected fetch: ${method} ${url}`)
+      },
+    )
+
+  vi.stubGlobal('fetch', fetchMock)
+  // 回收的排空轮询是 5s 一次、上限 90s。测试里把等待折叠成同步，逻辑一字不改。
+  vi.stubGlobal('setTimeout', (callback: () => void) => {
+    callback()
+    return 0 as unknown as ReturnType<typeof setTimeout>
+  })
+
+  const restCalls = (method: string) =>
+    fetchMock.mock.calls.filter(
+      ([input, init]) =>
+        String(input) === RUNNER_REST_ENDPOINT_URL &&
+        ((init as RequestInit | undefined)?.method ?? 'GET') === method,
+    )
+
+  const callbackBodies = () =>
+    fetchMock.mock.calls
+      .filter(([input]) => String(input) === 'https://cb.example.com')
+      .map(([, init]) => readCallbackBody(init as RequestInit))
+
+  return {
+    fetchMock,
+    put,
+    patchCalls: () => restCalls('PATCH').map(([, init]) => init as RequestInit),
+    patchBodies: () =>
+      restCalls('PATCH').map(([, init]) =>
+        JSON.parse(String((init as RequestInit).body)),
+      ),
+    submittedJobIds: () =>
+      fetchMock.mock.calls
+        .filter(
+          ([input]) =>
+            String(input) === 'https://api.runpod.ai/v2/runner-endpoint/run',
+        )
+        .map((_call, index) => `runpod-job-${index + 1}`),
+    cancelledJobIds: () =>
+      fetchMock.mock.calls
+        .map(([input]) => String(input))
+        .filter((url) =>
+          url.startsWith('https://api.runpod.ai/v2/runner-endpoint/cancel/'),
+        )
+        .map((url) => url.split('/').pop() as string),
+    stages: () =>
+      callbackBodies()
+        .map((body) => body.data?.executionStage)
+        .filter((stage) => stage !== undefined),
+    callbackBodies,
+  }
+}
+
+async function runRunnerImageWorkflow(
+  put: ReturnType<typeof vi.fn>,
+): Promise<unknown> {
+  class TestWorkflow extends ImageQueueWorkflow {
+    setEnv(env: unknown) {
+      this.env = env as never
+    }
+  }
+  const workflow = new TestWorkflow()
+  workflow.setEnv({
+    INTERNAL_CALLBACK_SECRET: 'secret-1',
+    STATE_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+    RUNPOD_ENDPOINT: 'runner-endpoint',
+    R2_PUBLIC_URL: 'https://cdn.example.com',
+    GENERATION_BUCKET: { put },
+  })
+
+  const context = {
+    ...makeFalImageContext({
+      externalModelId: 'waiIllustriousSDXL_v150',
+      aspectRatio: '1:1',
+    }),
+    providerId: 'runner',
+    // 幻影探测每 60 攻一次、连续两次才判定 → 第 120 攻命中。留足余量到第二轮。
+    maxAttempts: 300,
+    pollIntervalMs: 1,
+  }
+  return workflow.run(
+    { payload: context, instanceId: 'instance-1' } as never,
+    {
+      do: vi.fn(async (_name: string, ...args: unknown[]) => {
+        const callback = args[args.length - 1] as () => Promise<unknown>
+        return callback()
+      }),
+      sleep: vi.fn(),
+    } as never,
+  )
+}
+
+describe('recycleRunnerEndpointWorkers', () => {
+  const env = { RUNPOD_ENDPOINT: 'runner-endpoint' } as Parameters<
+    typeof recycleRunnerEndpointWorkers
+  >[0]
+
+  it('打的是 REST v1：GET 读原值 → PATCH 0 → PATCH 回原值，body 只带 workersMax', async () => {
+    const harness = stubRunnerRecycleEndpoint()
+
+    const result = await recycleRunnerEndpointWorkers(env, 'runpod-key')
+
+    expect(result.ok).toBe(true)
+    const restCalls = harness.fetchMock.mock.calls.filter(
+      ([input]) => String(input) === RUNNER_REST_ENDPOINT_URL,
+    )
+    expect(restCalls).toHaveLength(3)
+    expect((restCalls[0][1] as RequestInit | undefined)?.method ?? 'GET').toBe(
+      'GET',
+    )
+    expect(restCalls[0][1]?.headers).toMatchObject({
+      Authorization: 'Bearer runpod-key',
+    })
+    expect(harness.patchCalls().every((init) => init.method === 'PATCH')).toBe(
+      true,
+    )
+    // ⛔ workersStandby 不在 PATCH schema 里（传了 400）—— body 必须只有这一个键。
+    expect(harness.patchBodies()).toEqual([
+      { workersMax: 0 },
+      { workersMax: 2 },
+    ])
+  })
+
+  it('缩容失败也把 workersMax 恢复原值，并返回失败原因（绝不抛）', async () => {
+    const harness = stubRunnerRecycleEndpoint({ scaleDownStatus: 500 })
+
+    const result = await recycleRunnerEndpointWorkers(env, 'runpod-key')
+
+    expect(result.ok).toBe(false)
+    expect(harness.patchBodies()).toEqual([
+      { workersMax: 0 },
+      { workersMax: 2 },
+    ])
+  })
+
+  it('读不到端点（非 200）时不动 workersMax，直接报失败', async () => {
+    const harness = stubRunnerRecycleEndpoint({ endpointStatus: 404 })
+
+    const result = await recycleRunnerEndpointWorkers(env, 'runpod-key')
+
+    expect(result).toMatchObject({ ok: false })
+    expect(harness.patchBodies()).toEqual([])
+  })
+
+  it('没配端点 id 时不发任何请求', async () => {
+    const harness = stubRunnerRecycleEndpoint()
+
+    const result = await recycleRunnerEndpointWorkers(
+      {} as Parameters<typeof recycleRunnerEndpointWorkers>[0],
+      'runpod-key',
+    )
+
+    expect(result).toMatchObject({ ok: false })
+    expect(harness.fetchMock).not.toHaveBeenCalled()
+  })
+})
+
+describe('runner 幻影名额自愈（工作流）', () => {
+  it('幻影 → 回收 → 重排 → 完成，阶段序列里出现 runnerRecycling', async () => {
+    const harness = stubRunnerRecycleEndpoint()
+
+    const result = await runRunnerImageWorkflow(harness.put)
+
+    expect(result).toMatchObject({ status: 'COMPLETED' })
+    expect(harness.stages()).toEqual([
+      'runnerQueued',
+      'runnerRecycling',
+      'runnerQueued',
+    ])
+    // 卡住的那一单被撤掉，重排换了新 job id。
+    expect(harness.cancelledJobIds()).toEqual(['runpod-job-1'])
+    expect(harness.submittedJobIds()).toEqual(['runpod-job-1', 'runpod-job-2'])
+    expect(harness.patchBodies()).toEqual([
+      { workersMax: 0 },
+      { workersMax: 2 },
+    ])
+    expect(harness.put).toHaveBeenCalled()
+  })
+
+  it('回收失败：workersMax 仍恢复原值，且照旧走取消 + runner_queue_stuck', async () => {
+    const harness = stubRunnerRecycleEndpoint({ scaleDownStatus: 500 })
+
+    const result = await runRunnerImageWorkflow(harness.put)
+
+    expect(result).toMatchObject({ status: 'FAILED' })
+    expect(harness.patchBodies()).toEqual([
+      { workersMax: 0 },
+      { workersMax: 2 },
+    ])
+    // 重排一次都没发生。
+    expect(harness.submittedJobIds()).toEqual(['runpod-job-1'])
+    const failure = harness
+      .callbackBodies()
+      .map((body) => JSON.stringify(body))
+      .join('\n')
+    expect(failure).toContain('runner_queue_stuck')
+  })
+
+  it('第二次幻影不再回收，直接取消（自愈每单只给一次）', async () => {
+    // 重排出来的第二单同样卡在 IN_QUEUE，且端点恢复后 /health 又是幻影签名。
+    const put = vi.fn().mockResolvedValue(undefined)
+    let submitCount = 0
+    let scaledDown = false
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async (input: RequestInfo | URL, init?: RequestInit) => {
+          const url = String(input)
+          const method = init?.method ?? 'GET'
+          if (url === 'https://resolve.example.com')
+            return Response.json({
+              success: true,
+              data: { apiKey: 'runpod-key' },
+            })
+          if (url === 'https://cb.example.com')
+            return Response.json({ success: true })
+          if (url === 'https://api.runpod.ai/v2/runner-endpoint/run') {
+            submitCount += 1
+            return Response.json({ id: `runpod-job-${submitCount}` })
+          }
+          if (
+            url.startsWith('https://api.runpod.ai/v2/runner-endpoint/status/')
+          )
+            return Response.json({ status: 'IN_QUEUE' })
+          if (
+            url.startsWith('https://api.runpod.ai/v2/runner-endpoint/cancel/')
+          )
+            return Response.json({ status: 'CANCELLED' })
+          if (url === 'https://api.runpod.ai/v2/runner-endpoint/health')
+            return Response.json({
+              workers: {
+                idle: scaledDown ? 0 : 1,
+                ready: 0,
+                running: 0,
+                initializing: 0,
+                throttled: 0,
+              },
+            })
+          if (url === RUNNER_REST_ENDPOINT_URL) {
+            if (method === 'GET') return Response.json({ workersMax: 2 })
+            const body = JSON.parse(String(init?.body)) as {
+              workersMax: number
+            }
+            scaledDown = body.workersMax === 0
+            return Response.json({ id: 'runner-endpoint' })
+          }
+          throw new Error(`Unexpected fetch: ${method} ${url}`)
+        },
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('setTimeout', (callback: () => void) => {
+      callback()
+      return 0 as unknown as ReturnType<typeof setTimeout>
+    })
+
+    const result = await runRunnerImageWorkflow(put)
+
+    expect(result).toMatchObject({ status: 'FAILED' })
+    // 只回收过一次（一对 PATCH），只重排过一次。
+    expect(
+      fetchMock.mock.calls.filter(
+        ([input, init]) =>
+          String(input) === RUNNER_REST_ENDPOINT_URL &&
+          (init as RequestInit | undefined)?.method === 'PATCH',
+      ),
+    ).toHaveLength(2)
+    expect(submitCount).toBe(2)
+    const cancelled = fetchMock.mock.calls
+      .map(([input]) => String(input))
+      .filter((url) =>
+        url.startsWith('https://api.runpod.ai/v2/runner-endpoint/cancel/'),
+      )
+      .map((url) => url.split('/').pop())
+    // 第一单在回收前撤掉，第二单在第二次判定幻影时撤掉。
+    expect(cancelled).toEqual(['runpod-job-1', 'runpod-job-2'])
+    const failure = fetchMock.mock.calls
+      .filter(([input]) => String(input) === 'https://cb.example.com')
+      .map(([, init]) => String((init as RequestInit).body))
+      .join('\n')
+    expect(failure).toContain('runner_queue_stuck')
   })
 })

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
+import { EXECUTION_PROGRESS_STAGE_VALUES } from '@/constants/generation-progress'
+import enMessages from '@/messages/en.json'
+import jaMessages from '@/messages/ja.json'
+import zhMessages from '@/messages/zh.json'
+
 import {
   computeEstimatedGenerationProgress,
   getGeneratingStageKey,
@@ -108,6 +113,11 @@ describe('resolveGeneratingStageKey', () => {
     expect(resolveGeneratingStageKey(1, 'runnerQueued')).toBe('runnerQueued')
     expect(resolveGeneratingStageKey(120, 'runnerQueued')).toBe('runnerQueued')
     expect(resolveGeneratingStageKey(3, 'runnerRunning')).toBe('runnerRunning')
+    // 幻影名额自愈窗口（worker 回收端点 worker 再重排）——此时界面必须说
+    // 「正在重启」，而不是继续显示 runnerQueued 那句「首次要加载底模」。
+    expect(resolveGeneratingStageKey(200, 'runnerRecycling')).toBe(
+      'runnerRecycling',
+    )
   })
 
   it('falls back to the elapsed-time stage without a reported stage', () => {
@@ -142,5 +152,45 @@ describe('resolveGenerationProgress with an execution stage', () => {
         executionStage: 'runnerRunning',
       }),
     ).toEqual({ percent: 63, stageKey: 'runnerRunning' })
+  })
+})
+
+/**
+ * 阶段值本身就是 `StudioV3.generatingOverlayStages.*` 的 message key —— 漏一条
+ * 翻译，next-intl 会把 key 路径当文案渲染，用户看到的是一行
+ * 「generatingOverlayStages.runnerRecycling」。所以键集合必须三语相等。
+ */
+describe('执行阶段 × 三语文案', () => {
+  const LOCALES = { zh: zhMessages, en: enMessages, ja: jaMessages } as const
+
+  function overlayStages(
+    messages: (typeof LOCALES)[keyof typeof LOCALES],
+  ): Record<string, string> {
+    return (
+      messages as unknown as {
+        StudioV3: { generatingOverlayStages: Record<string, string> }
+      }
+    ).StudioV3.generatingOverlayStages
+  }
+
+  it('每个 worker 回报阶段都有三语非空文案', () => {
+    for (const [locale, messages] of Object.entries(LOCALES)) {
+      for (const stage of EXECUTION_PROGRESS_STAGE_VALUES) {
+        expect(
+          overlayStages(messages as (typeof LOCALES)[keyof typeof LOCALES])[
+            stage
+          ],
+          `${locale}.${stage}`,
+        ).toBeTruthy()
+      }
+    }
+  })
+
+  it('三语的阶段键集合完全相等', () => {
+    const keys = Object.values(LOCALES).map((messages) =>
+      Object.keys(overlayStages(messages)).sort(),
+    )
+    expect(keys[1]).toEqual(keys[0])
+    expect(keys[2]).toEqual(keys[0])
   })
 })

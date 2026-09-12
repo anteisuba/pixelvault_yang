@@ -6500,7 +6500,8 @@
       "rendering": "Generating image",
       "waiting": "Still generating, please wait",
       "runnerQueued": "Runner is starting up — the first run loads the base model, usually 1-3 minutes",
-      "runnerRunning": "GPU is rendering"
+      "runnerRunning": "GPU is rendering",
+      "runnerRecycling": "Runner is not responding — restarting it, hold on"
     },
     "generateFailed": "Generation failed",
     "elapsed": "Elapsed: {seconds}",

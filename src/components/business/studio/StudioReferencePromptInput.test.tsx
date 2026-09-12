@@ -96,16 +96,23 @@ describe('StudioReferencePromptInput', () => {
     expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
   })
 
-  it('keeps the reference picker inside its containing dialog', () => {
+  it('portals the reference picker to the body, not the surrounding box', () => {
+    /**
+     * ⚠ 这条从前反过来断言「浮层留在外框里」（64b68e3a）。12ecc51c 把浮层改成
+     * **只 portal 到 `document.body`**：它是 `position: fixed`，而 fixed 只在没有
+     * transform / backdrop-filter 祖先时才以视口为参照 —— 留在外框里的表现是浮层
+     * 被裁掉或飞出视口（见 `mention-input.tsx` 那段头注）。
+     * ⛔ 别改回 `toContainElement`：那是把已经修掉的裁切 bug 重新钉死。
+     */
     render(
       <div role="dialog">
         <StudioReferencePromptInput onSubmit={fixture.submit} />
       </div>,
     )
     typePrompt('@')
-    expect(screen.getByRole('dialog')).toContainElement(
-      screen.getByRole('listbox'),
-    )
+    const listbox = screen.getByRole('listbox')
+    expect(listbox.parentElement).toBe(document.body)
+    expect(screen.getByRole('dialog')).not.toContainElement(listbox)
   })
 
   it('supports pointer selection without replacing surrounding text', () => {

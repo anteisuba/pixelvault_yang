@@ -22,6 +22,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOLS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
+  ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   type AssistantOperatorDomain,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
@@ -337,6 +338,55 @@ export function describeContextCardDecisionText(
   const picked = label.trim()
   return named
     ? `已选择「${picked}」（针对${describeContextCardProposalText(named)}）`
+    : `已选择「${picked}」`
+}
+
+/**
+ * LoRA 推荐卡那一下的**题面**（lora-assistant §10.1 落账三件套）。
+ *
+ * ⭐ 判据与 `describeContextCardProposalText` 逐字同源：这句话要去的地方是三轮
+ * 之后的一段对话，那里没有那张卡 —— 「创作者对哪张卡表过态」必须自包含。一次
+ * 检索一张卡，题面就是它的身份。
+ */
+export function describeLoraPickProposalText(question: string): string {
+  return `推荐卡「${question.trim()}」`
+}
+
+/**
+ * 勾中的那几把在**对话里**的选项文案 —— 「清宵 ×0.8、overwatch_3d_anima ×0.8」。
+ *
+ * ⚠ 权重印在名字后面：同一把挂 0.4 与挂 1.2 是两个决定，只写名字的话模型下一轮
+ *   说不出创作者定的是哪个数。
+ * ⚠ 超过协议那格上限（`maxOptionLabelChars`）时收成「已选 N 把」：⛔ 不截断名字
+ *   —— 半个名字比一个数目更没用，而完整名单在正文（`userText`）里一个字不少。
+ */
+export function describeLoraPickSelectionLabel(
+  picks: readonly { name: string; weight: number }[],
+): string {
+  const label = picks
+    .map(
+      (pick) => `${pick.name.trim()} ×${Math.round(pick.weight * 100) / 100}`,
+    )
+    .join('、')
+  return label.length <= PLAN_LIMITS.maxOptionLabelChars
+    ? label
+    : `已选 ${picks.length} 把`
+}
+
+/**
+ * 「挂载所选」/ 关掉不点那一行的**自包含正文**。
+ *
+ * ⭐ 判据与 `describeContextCardDecisionText` 逐字同源：那一行不进 `messages` 的
+ * 下场是模型读到一张从未被回应的推荐卡，于是下一轮重提同一张（b9b6990a 的教训）。
+ */
+export function describeLoraPickDecisionText(
+  question: string,
+  label: string,
+): string {
+  const asked = question.trim()
+  const picked = label.trim()
+  return asked
+    ? `已选择「${picked}」（针对${describeLoraPickProposalText(asked)}）`
     : `已选择「${picked}」`
 }
 

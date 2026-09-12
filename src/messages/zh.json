@@ -7612,7 +7612,9 @@
       "questionAnswered": "你选了：{subject}",
       "contextCardSaved": "已存上下文卡：{subject}",
       "contextCardDeclined": "没记这张上下文卡：{subject}",
-      "contextCardSaveFailed": "没能存下「{subject}」—— 再试一次？"
+      "contextCardSaveFailed": "没能存下「{subject}」—— 再试一次？",
+      "loraPickMounted": "已选要挂的 LoRA：{subject}",
+      "loraPickDismissed": "这几把 LoRA 先不挂（{subject}）"
     },
     "suggestion": {
       "setupShot": "帮我配好这张图",

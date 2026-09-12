@@ -50,8 +50,11 @@ import {
   GENERATION_REVIEW_STATE_IDS,
   contextCardAnswerId,
   isAssistantOperatorToolInDomain,
+  loraPickAnswerId,
   OPERATOR_CONTEXT_CARD_CHOICE_IDS,
   OPERATOR_CONTEXT_CARD_CHOICE_LABELS,
+  OPERATOR_LORA_PICK_CHOICE_IDS,
+  OPERATOR_LORA_PICK_DISMISS_LABEL,
   overwriteAnswerId,
   type AssistantOperatorConfirmChoice,
   type AssistantOperatorConfirmField,
@@ -115,6 +118,8 @@ import {
 import {
   describeContextCardDecisionText,
   describeContextCardProposalText,
+  describeLoraPickDecisionText,
+  describeLoraPickSelectionLabel,
   describeQuestionAnswerText,
   historyToOperatorMessages,
   historyToPriorSteps,
@@ -458,6 +463,31 @@ function contextCardDecision(
 }
 
 /**
+ * LoRA 推荐卡那一下的**落账两件套**（lora-assistant §10.1，b9b6990a 的同一条路）。
+ *
+ * ⭐ 一条自带题面的正文 + 同一件事的结构化那一半：少了它们，「创作者已经在这张卡
+ * 上表过态」在下一轮的请求里一个字都不剩，模型于是重提同一张推荐卡。
+ * ⚠ `question` 那一格填的是**题面原文**而不是「推荐卡「X」」：它有
+ * `maxQuestionChars` 的上限，再套一层前缀就可能顶出去（整条请求会被 schema 拒）。
+ * 「针对哪张卡」写在正文里。
+ */
+function loraPickDecision(
+  question: string,
+  choice: (typeof OPERATOR_LORA_PICK_CHOICE_IDS)[keyof typeof OPERATOR_LORA_PICK_CHOICE_IDS],
+  label: string,
+): { userText: string; answered: AssistantOperatorPlanAnswer } {
+  return {
+    userText: describeLoraPickDecisionText(question, label),
+    answered: {
+      questionId: loraPickAnswerId(question),
+      optionIds: [choice],
+      question,
+      optionLabels: [label],
+    },
+  }
+}
+
+/**
  * **提议一到就写成一行「待确认」**（v2 §8.1，owner 2026-09-11）。
  *
  * ⭐ 为什么客户端写而不是服务端写：写库这一跳必须**长在用户那一侧**——服务端
@@ -504,6 +534,14 @@ interface RunOptions {
   confirmations?: AssistantOperatorConfirmDecision[]
   /** 反问卡那一份答复（`{questionId, optionIds, otherText}`）。 */
   planAnswers?: AssistantOperatorPlanAnswer[]
+  /**
+   * **推荐卡上勾中的那几把**（lora-assistant §10.1）—— 与 `confirmations` /
+   * `planAnswers` 同一条「带上下文重发」的通道。
+   *
+   * ⚠ **候选本体跟着回去**：服务端那一轮的 `loraIndex` 只活一轮，而勾选那一下
+   * 发生在流结束之后。⛔ 不许改成「回一串 id 让服务端再搜一次」。
+   */
+  loraPicks?: NonNullable<AssistantOperatorRequest['loraPicks']>
   planApproved?: boolean
   /**
    * **断点续跑**（第三期）—— 从上一份没跑完的计划接着跑。
@@ -581,6 +619,18 @@ export interface UseAssistantOperatorResult {
   saveContextCard(): Promise<void>
   /** 上下文卡确认卡「不用」—— 卡收成已取消，那一行 `proposed` 真删。 */
   dismissContextCard(): Promise<void>
+  /**
+   * **推荐卡「挂载所选」**（lora-assistant §10.1）—— 勾中的那几把连本体发下一轮。
+   *
+   * ⚠ 只给 `candidateId` 与可选的 `weight`：候选本体由 hook 从卡的载荷里取
+   *   （卡上摆的才是创作者看过的那一版）。`weight` 缺席 = 用候选的 `defaultWeight`。
+   * ⚠ 连点两下只发一轮（第二下撞在「卡已经不是 idle」上）。
+   */
+  submitLoraPicks(
+    selected: readonly { candidateId: string; weight?: number }[],
+  ): void
+  /** **推荐卡关掉不点** —— ⛔ 不发请求，但照样落一行「都不挂」的账。 */
+  dismissLoraPick(): void
   /** 「已取消」那一态上的「再来一次」—— 摆一张新的 `idle` 卡。 */
   retryGeneration(): void
   /**
@@ -743,7 +793,13 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    */
   const run = useCallback(
     async (options: RunOptions = {}) => {
-      const { confirmations, planAnswers, planApproved, resumeFrom } = options
+      const {
+        confirmations,
+        loraPicks,
+        planAnswers,
+        planApproved,
+        resumeFrom,
+      } = options
       abortRef.current?.abort()
       const controller = new AbortController()
       abortRef.current = controller
@@ -976,6 +1032,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             ? { sourceAllowlist: [...sourceAllowlist] }
             : {}),
           ...(confirmations?.length ? { confirmations } : {}),
+          ...(loraPicks?.length ? { loraPicks } : {}),
           ...(planAnswers?.length ? { planAnswers } : {}),
           ...(planApproved === undefined ? {} : { planApproved }),
           /**
@@ -1132,15 +1189,28 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 break
               }
               /**
-               * ⚠ **占位（lora-assistant §10.5 commit #1 只做协议层）**：推荐卡
-               * 那一支的落卡与落账三件套随 commit #5 接线。在那之前这一帧被认下来
-               * 但不落卡 —— ⛔ 不让它掉进下面生成那一支（那会拿一张没有 `request`
-               * 的帧去画生成确认卡）。
+               * **摆一张 LoRA 推荐卡**（lora-assistant §10.1）——候选一把一行，
+               * 等创作者勾了哪几把才挂哪几把。
+               *
+               * ⚠ 卡上**不存勾选态**（`StudioOperatorConfirmPrompt` 第四支的头注）：
+               *   勾选是一次还没提交的编辑，它住在卡自己的组件态里。这里落的只有
+               *   「帧带来的东西 + 已决没决」。
+               * ⚠ 服务端到这一帧为止**一把都没挂**：挂载发生在带 `loraPicks` 重发
+               *   的下一轮（`submitLoraPicks`）。
                */
               if (
                 event.confirm.kind ===
                 ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick
               ) {
+                flushPlanEntry()
+                setOpen(true)
+                setOperatorConfirm({
+                  id: nextOperatorEntryId('confirm'),
+                  kind: ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick,
+                  pick: event.confirm.pick,
+                  status: STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle,
+                })
+                setOperatorStatus('awaitingConfirm')
                 break
               }
               flushPlanEntry()
@@ -1901,6 +1971,109 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     if (confirm.cardId) await deleteContextCardAPI(confirm.cardId)
   }, [])
 
+  /**
+   * **推荐卡「挂载所选」**（lora-assistant §10.1 / §10.3.1）—— 勾中的那几把
+   * **连本体**发下一轮，服务端在模型开口之前逐把挂上。
+   *
+   * ⭐ 三件事，缺一不可：
+   *  ① 带 `loraPicks` 重发（照 `confirmations` / `planAnswers` 那条通道）——
+   *     ⚠ 送的是**候选本体**（含 `importPayload`）：服务端那一轮的 `loraIndex`
+   *     只活一轮，而这一下发生在流结束之后；⛔ 不许退化成「回一串 id 再搜一次」。
+   *  ② 落账三件套（系统行 + 折成 user 消息的正文 + 结构化 `answered`）——
+   *     少了它们，模型下一轮读到的是一张没人回应的卡，于是重提同一张（b9b6990a）。
+   *  ③ 卡就地换成「已挂 N 把 · 11:24」。
+   * ⚠ **一把都没勾时不发**：那一轮除了让模型重说一遍什么都不会发生（按钮那一侧
+   *   也是禁用的，这里是第二道）。
+   * ⚠ **连点两下只发一轮**：第二下撞在 `status !== idle` 上返回 —— 不拦的话第二轮
+   *   会把第一轮 abort 掉再从头跑一遍（同 `approvePlan` 的那条）。
+   * ⚠ `planApproved: true`：创作者刚按下的就是一颗「照这个做」的按钮，再回一张
+   *   计划卡就是那个自己喂自己的环（判据与 `answerQuestion` 逐字同源）。
+   */
+  const submitLoraPicks = useCallback(
+    (selected: readonly { candidateId: string; weight?: number }[]) => {
+      const confirm = getOperatorState().confirm
+      if (
+        !confirm ||
+        confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick ||
+        confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+      ) {
+        return
+      }
+      /**
+       * ⚠ 候选本体从**卡的载荷**里取，⛔ 不信调用方递来的那一份：卡上摆的才是
+       * 创作者看过的那一版（候选是那一刻的上游快照）。认不出的 id 直接丢掉。
+       */
+      const picks = selected.flatMap((one) => {
+        const candidate = confirm.pick.candidates.find(
+          (item) => item.candidateId === one.candidateId,
+        )
+        if (!candidate) return []
+        return [
+          {
+            candidateId: one.candidateId,
+            ...(one.weight === undefined ? {} : { weight: one.weight }),
+            candidate,
+          },
+        ]
+      })
+      if (picks.length === 0) return
+      resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting)
+      const label = describeLoraPickSelectionLabel(
+        picks.map((pick) => ({
+          name: pick.candidate.name,
+          weight: pick.weight ?? pick.candidate.defaultWeight,
+        })),
+      )
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'loraPickMounted',
+        // ⚠ 这一行上只写名字：权重在正文里，⛔ 不把两个数挤进一行读不完的话。
+        subject: picks.map((pick) => pick.candidate.name).join('、'),
+        ...loraPickDecision(
+          confirm.pick.question,
+          OPERATOR_LORA_PICK_CHOICE_IDS.mount,
+          label,
+        ),
+      })
+      resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
+      void run({ loraPicks: picks, planApproved: true })
+    },
+    [run],
+  )
+
+  /**
+   * **推荐卡关掉不点**（§10.3.1「关掉不点」）—— ⛔ **不发请求**，但**落账**。
+   *
+   * ⚠ 与「挂载所选」不是一对反义词：那一下要跑一轮，这一下只是一次表态。但它
+   * 照样折成一条 user 消息 —— 不说出口的下场是模型下一轮重提同一张卡（b9b6990a
+   * 的教训：上下文卡的「不用」当初就是这么静默掉的）。
+   * ⚠ 卡**留在时间线上**就地换成「已取消」（确认卡不离场，v2 §3.2 进离场表）。
+   */
+  const dismissLoraPick = useCallback(() => {
+    const confirm = getOperatorState().confirm
+    if (
+      !confirm ||
+      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick ||
+      confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+    ) {
+      return
+    }
+    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
+    setOperatorStatus('idle')
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      code: 'loraPickDismissed',
+      subject: confirm.pick.question,
+      ...loraPickDecision(
+        confirm.pick.question,
+        OPERATOR_LORA_PICK_CHOICE_IDS.dismiss,
+        OPERATOR_LORA_PICK_DISMISS_LABEL,
+      ),
+    })
+  }, [])
+
   /** 生成确认卡「先不要」—— 流已经停了，什么都不用发；卡就地转「已取消」。 */
   const cancelGeneration = useCallback(() => {
     resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
@@ -2039,6 +2212,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     cancelGeneration,
     saveContextCard,
     dismissContextCard,
+    submitLoraPicks,
+    dismissLoraPick,
     retryGeneration,
     rerunGeneration,
     critique,

@@ -25,12 +25,17 @@ vi.mock('next-intl', () => ({
  * 要验的东西本身，桩掉 hook 等于把它跳过去。
  */
 const mineCivitaiLoraPromptsAPI = vi.fn()
+/**
+ * ⚠ 导入那一跳（一次确认链的第一步）也要桩：批收敛那一组验的正是「三次导入并发
+ * 在飞、各自落地」，而真的去打 Civitai 既慢又拿不到可控的时序。
+ */
+const favoriteLoraAPI = vi.fn()
 vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => ({
-  // ⚠ 只换这一只：同一个模块里还有导入链路真的在用的那几只（`favoriteLoraAPI`
-  // 走在一次确认链上），整只桩掉的表现是别的用例在别处炸。
+  // ⚠ 只换这两只：同一个模块里其余那些别的用例还在真的用。
   ...(await importOriginal<object>()),
   mineCivitaiLoraPromptsAPI: (...args: unknown[]) =>
     mineCivitaiLoraPromptsAPI(...args),
+  favoriteLoraAPI: (...args: unknown[]) => favoriteLoraAPI(...args),
 }))
 
 /**
@@ -427,5 +432,189 @@ describe('useLoraOperatorHost 的来源图提示词', () => {
     expect(
       result.current.buildSnapshot().loras?.items[0]?.sourcePrompts,
     ).toEqual([])
+  })
+})
+
+/**
+ * **推荐卡确认回来的那一批挂载：超预算只念一次**（lora-assistant §10.2.3
+ * 客户端那一半）。
+ *
+ * 🔬 回归的形状：服务端在模型开口之前一口气发三条 `mount_lora` step，客户端逐条
+ * 交给导入链 —— 三次导入并发在飞，从前各自落地时各报一行，而且前两行的总和比真相
+ * 小（后面那几把还没落地）。一条日志说谎比没日志坏。
+ */
+describe('useLoraOperatorHost 的一批挂载只报一次超预算', () => {
+  function asset(id: string, defaultScale: number): LoraAssetRecord {
+    return {
+      id,
+      styleCode: id,
+      name: `LoRA ${id}`,
+      source: 'imported',
+      type: 'style',
+      baseModelFamily: 'illustrious',
+      provider: 'civitai',
+      triggerWord: '',
+      loraUrl: `https://cdn.test/${id}.safetensors`,
+      coverImageUrl: null,
+      previewImageUrls: [],
+      defaultScale,
+      isPublic: false,
+      isOwn: false,
+      createdAt: '2026-09-12T00:00:00.000Z',
+    }
+  }
+
+  /**
+   * ⚠ **不带 `modelVersionId`**：那一格在就要先过 Civitai 下载闸，而这一组验的是
+   * 批收敛，不是那道闸。
+   */
+  function importPayload(id: string) {
+    return {
+      name: `LoRA ${id}`,
+      triggerWord: '',
+      loraUrl: `https://cdn.test/${id}.safetensors`,
+      type: 'style' as const,
+      baseModelFamily: 'illustrious' as const,
+      provider: 'civitai',
+      sourceSnapshot: {
+        source: 'civitai' as const,
+        author: 'someone',
+        license: {
+          label: null,
+          commercialUse: null,
+          allowDerivatives: null,
+          allowNoCredit: null,
+          known: false,
+        },
+        pageUrl: `https://civitai.com/models/${id}`,
+        revision: null,
+        retrievedAt: '2026-09-12T00:00:00.000Z',
+        fileSizeBytes: 1024,
+        metadataCompleteness: 'complete' as const,
+      },
+    }
+  }
+
+  function hostInput(
+    items: readonly LoraOperatorHostMount[],
+  ): UseLoraOperatorHostInput {
+    return {
+      prompt: '',
+      setPrompt: () => {},
+      appendPrompt: () => {},
+      negativePrompt: '',
+      setNegativePrompt: () => {},
+      base: {
+        id: 'illustrious-hosted',
+        label: 'Illustrious · NoobAI-XL',
+        family: 'illustrious',
+      },
+      availableBases: [
+        { id: 'illustrious-hosted', label: 'Illustrious · NoobAI-XL' },
+      ],
+      selectBase: () => {},
+      stack: { items, push: () => {}, setScale: () => {}, remove: () => {} },
+      imageUpload: {
+        referenceEntries: [],
+        maxImages: 2,
+        addReferenceImage: () => {},
+        removeReferenceImage: () => {},
+      },
+      open: false,
+      setOpen: () => {},
+    }
+  }
+
+  function mount(
+    host: ReturnType<typeof useLoraOperatorHost>,
+    candidateId: string,
+    weight: number,
+  ) {
+    const lora = host.apply.lora
+    if (!lora) throw new Error('装配台宿主缺 apply.lora')
+    lora.mount({
+      candidateId,
+      name: `LoRA ${candidateId}`,
+      weight,
+      triggerWords: [],
+      importPayload: importPayload(candidateId),
+    })
+  }
+
+  function budgetLines() {
+    return getOperatorState().entries.flatMap((entry) =>
+      entry.kind === 'system' && entry.code === 'loraWeightOverBudget'
+        ? [entry.subject]
+        : [],
+    )
+  }
+
+  beforeEach(() => {
+    resetOperatorThread()
+    favoriteLoraAPI.mockReset()
+    favoriteLoraAPI.mockImplementation(
+      async (payload: { loraUrl: string; name: string }) => {
+        const id = payload.loraUrl.split('/').pop()?.split('.')[0] ?? 'x'
+        return { success: true, data: asset(id, 0.8) }
+      },
+    )
+  })
+
+  /** ⭐ 三把一起挂 = 一行，且那个数是**整批**的和（⛔ 不是最后一把 + 旧栈）。 */
+  it('一轮三把只插一条超预算行，且总权重是三把之和', async () => {
+    const { result } = renderHook(() => useLoraOperatorHost(hostInput([])))
+
+    mount(result.current, 'c-1', 0.6)
+    mount(result.current, 'c-2', 0.6)
+    mount(result.current, 'c-3', 0.6)
+    await waitFor(() => expect(budgetLines()).toHaveLength(1))
+
+    // 0.6 × 3 = 1.8，非蒸馏底模的预算是 1.5。
+    expect(budgetLines()).toEqual(['1.8 / 1.5'])
+  })
+
+  /** ⚠ 整批算完还在预算内就一行都不插（⛔ 不逢挂必念）。 */
+  it('整批加起来没超时一行都不插', async () => {
+    const { result } = renderHook(() => useLoraOperatorHost(hostInput([])))
+
+    mount(result.current, 'c-1', 0.6)
+    mount(result.current, 'c-2', 0.6)
+    await waitFor(() => expect(favoriteLoraAPI).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(budgetLines()).toEqual([]))
+  })
+
+  /** ⚠ 挂不上的那几把不进总数：它们各自已经落了一行 `loraMountFailed`。 */
+  it('导入失败的那一把不算进总权重', async () => {
+    favoriteLoraAPI.mockImplementationOnce(async () => ({
+      success: false,
+      error: 'nope',
+    }))
+    const { result } = renderHook(() => useLoraOperatorHost(hostInput([])))
+
+    mount(result.current, 'c-1', 1.2)
+    mount(result.current, 'c-2', 1.2)
+    await waitFor(() =>
+      expect(
+        getOperatorState().entries.some(
+          (entry) =>
+            entry.kind === 'system' && entry.code === 'loraMountFailed',
+        ),
+      ).toBe(true),
+    )
+    // 只剩落地的那一把（1.2）—— 还在预算内，⛔ 不拿一个没发生的权重凑超预算。
+    expect(budgetLines()).toEqual([])
+  })
+
+  /** ⚠ 已经在台上的那几把照旧算进去（口径与出图一致）。 */
+  it('栈上原有的那几把照样进总数', async () => {
+    const { result } = renderHook(() =>
+      useLoraOperatorHost(
+        hostInput([{ asset: asset('lora-old', 0.8), scale: 1 }]),
+      ),
+    )
+
+    mount(result.current, 'c-1', 0.6)
+    await waitFor(() => expect(budgetLines()).toHaveLength(1))
+    expect(budgetLines()).toEqual(['1.6 / 1.5'])
   })
 })

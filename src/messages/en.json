@@ -7612,7 +7612,9 @@
       "questionAnswered": "You picked: {subject}",
       "contextCardSaved": "Context card kept: {subject}",
       "contextCardDeclined": "Context card not kept: {subject}",
-      "contextCardSaveFailed": "Could not keep “{subject}” — try again?"
+      "contextCardSaveFailed": "Could not keep “{subject}” — try again?",
+      "loraPickMounted": "LoRAs you picked to mount: {subject}",
+      "loraPickDismissed": "Not mounting any of these LoRAs ({subject})"
     },
     "suggestion": {
       "setupShot": "Set this shot up for me",

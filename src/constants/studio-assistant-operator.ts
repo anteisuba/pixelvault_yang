@@ -335,6 +335,25 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'contextCardDeclined',
   /** 存卡那一跳没成（网络 / 卡表满了）——⛔ 不静默：用户以为已经记下了。 */
   'contextCardSaveFailed',
+  /**
+   * **在 LoRA 推荐卡上勾了几把并点了「挂载所选」**（lora-assistant §10.1 落账
+   * 三件套）——「已选要挂的 LoRA：清宵、overwatch_3d_anima」。
+   *
+   * ⭐ 判据与 `contextCardSaved` 逐字同源：卡就地收成「已挂 2 把 · 11:24」之后，
+   * 时间线上只剩状态与时刻，说不出勾的是哪几把；而这一行同时是一条自带题面的
+   * user 消息（`userText` + `answered`），少了它模型下一轮读到的是一张没人回应
+   * 的推荐卡，于是重提同一张。
+   * ⚠ `subject` 是**名字列表**（权重在 `userText` 里）：这一行要一眼读得出挂的是
+   *   哪几把，⛔ 不写 candidateId（那串 id 用户核对不了）。
+   */
+  'loraPickMounted',
+  /**
+   * **把推荐卡关掉、一把都不挂**（lora-assistant §10.3.1「关掉不点」）。
+   *
+   * ⭐ 与 `contextCardDeclined` 同一条教训：不说出口，模型下一轮照旧提同一张卡。
+   * ⚠ `subject` 是那张卡的**题面**：一次检索一张卡，题面是它在时间线上的身份。
+   */
+  'loraPickDismissed',
 ] as const
 
 export type StudioOperatorSystemCode =

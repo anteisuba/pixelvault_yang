@@ -183,6 +183,28 @@ export function useLoraOperatorHost(
   const mountedByCandidate = useRef(new Map<string, LoraAssetRecord>())
   const detachedById = useRef(new Map<string, LoraAssetRecord>())
 
+  /**
+   * **同一批挂载只念一次超预算**（lora-assistant §10.2.3 客户端那一半）。
+   *
+   * 🔬 bug 的形状：推荐卡确认回来的那一轮，服务端在模型开口之前一口气发三条
+   * `mount_lora` step，客户端逐条交给导入链 —— 三次导入**并发**在飞，各自落地时
+   * 各报一次。于是线程里冒出三行「总权重超了」，而且每一行算的都是「我这一把 +
+   * 界面上已经有的」：前两行的数比真相小（第三把还没落地），只有最后一行是对的。
+   * 一条日志说谎比没日志坏（同 `loraMountFailed` 的那条）。
+   *
+   * ⭐ **批的判据 = 这一刻还有没有在飞的挂载**：`inFlight > 0` 时新来的那一把并进
+   * 同一批，归零时整批一起算一遍、只插一行。⛔ 不去认 SSE 的轮次 —— 宿主手上没有
+   * 轮次这个东西（它只收得到一只只手），而「同一轮那一批」在时间上的表现正是
+   * 「前一把还没落地下一把就交进来了」：服务端那几条 step 是同步连着发的，导入却
+   * 隔着网络。单独挂一把时它自然退化成一批一条，与从前逐把报一模一样。
+   * ⚠ 只收**真的挂上去**的那几把：被下载闸挡掉 / 导入失败的那几把自己会落一行
+   *   `loraMountFailed`，⛔ 不该再把一个没发生的权重算进总数。
+   */
+  const mountBatch = useRef<{
+    inFlight: number
+    landed: { id: string; weight: number }[]
+  }>({ inFlight: 0, landed: [] })
+
   const appendPrompt = useCallback((text: string) => {
     latest.current.appendPrompt(text)
   }, [])
@@ -299,7 +321,10 @@ export function useLoraOperatorHost(
      * 这一拍 `items` 还是旧的 —— 所以那一条按 `pending` 顶替 / 追加，⛔ 不读回
      * 界面再算一次（读回来的是上一拍，那句话会晚一步）。
      */
-    const reportOverBudget = (pending: { id: string; weight: number }) => {
+    const reportOverBudget = (
+      pending: readonly { id: string; weight: number }[],
+    ) => {
+      if (pending.length === 0) return
       const current = latest.current
       const base = current.base
       const entry = base
@@ -309,10 +334,14 @@ export function useLoraOperatorHost(
       if (budget === null) return
 
       const items = current.stack?.items ?? []
-      let total = pending.weight
+      const pendingIds = new Set(pending.map((one) => one.id))
+      let total = pending.reduce((sum, one) => sum + one.weight, 0)
       for (const item of items) {
         if (item.enabled === false) continue
-        if (item.asset.id === pending.id) continue
+        // ⚠ 这一批里的那几把按 `pending` 的值算：界面上那一份可能是上一拍的
+        //   （`push` / `setScale` 是 setState），也可能已经追上了 —— 按 id 排掉
+        //   之后两种情形都只算一次。
+        if (pendingIds.has(item.asset.id)) continue
         total += item.scale ?? item.asset.defaultScale
       }
       const rounded = Math.round(total * 100) / 100
@@ -407,6 +436,10 @@ export function useLoraOperatorHost(
          * ⚠ 「交出去就不管」而不是 Promise —— `applyOperatorStep` 是同步纯函数。
          */
         mount: ({ candidateId, name, weight, triggerWords, importPayload }) => {
+          // ⚠ **报数在交出去的这一刻就 +1**：导入是异步的，等它回来再计数的话
+          //   同一批的第二把会赶在第一把落地之前发现「没有在飞的」，于是又各报
+          //   一行（见 `mountBatch` 头注）。
+          mountBatch.current.inFlight += 1
           void (async () => {
             const versionId = importPayload.modelVersionId
             if (versionId !== undefined) {
@@ -429,11 +462,19 @@ export function useLoraOperatorHost(
               return
             }
             mountedByCandidate.current.set(candidateId, outcome.asset)
-            reportOverBudget({
+            mountBatch.current.landed.push({
               id: outcome.asset.id,
               weight: weight ?? outcome.asset.defaultScale,
             })
-          })()
+          })().finally(() => {
+            const batch = mountBatch.current
+            batch.inFlight -= 1
+            // ⚠ 还有在飞的就等着：这一批的数还没齐，现在念出来的那个总和偏小。
+            if (batch.inFlight > 0) return
+            const landed = batch.landed
+            batch.landed = []
+            reportOverBudget(landed)
+          })
         },
         unmountByCandidateId: (candidateId) => {
           const asset = mountedByCandidate.current.get(candidateId)
@@ -460,7 +501,9 @@ export function useLoraOperatorHost(
         },
         setWeight: (loraId, weight) => {
           latest.current.stack?.setScale(loraId, weight)
-          reportOverBudget({ id: loraId, weight })
+          // ⚠ 调权重是**一手一次**（模型一步只改一把），⛔ 不进批：攒着它只会
+          //   让那句提醒晚一步说出口。
+          reportOverBudget([{ id: loraId, weight }])
         },
       },
     }

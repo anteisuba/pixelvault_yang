@@ -7612,7 +7612,9 @@
       "questionAnswered": "選んだのは：{subject}",
       "contextCardSaved": "コンテキストカードを保存しました：{subject}",
       "contextCardDeclined": "コンテキストカードは保存しませんでした：{subject}",
-      "contextCardSaveFailed": "「{subject}」を保存できませんでした —— もう一度試しますか？"
+      "contextCardSaveFailed": "「{subject}」を保存できませんでした —— もう一度試しますか？",
+      "loraPickMounted": "載せる LoRA を選びました：{subject}",
+      "loraPickDismissed": "この LoRA はどれも載せません（{subject}）"
     },
     "suggestion": {
       "setupShot": "この一枚を組み立てて",

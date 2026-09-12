@@ -2845,3 +2845,19 @@ export const OPERATOR_CONTEXT_CARD_CHOICE_LABELS = {
   save: '存这张卡',
   decline: '不用',
 } as const
+
+/**
+ * 推荐卡那两下（「挂载所选」/ 关掉不点）在**对话里**的合成选项 id
+ * （lora-assistant §10.1 落账三件套）。
+ *
+ * ⛔ **不拿 candidateId 当选项 id**：`ASSISTANT_PLAN_CARD_LIMITS.maxOptions` 是 4，
+ * 而一张卡最多摆 6 把 —— 勾满六把的那一次整条请求会被 schema 拒掉（用户点了没
+ * 反应，且错在客户端）。勾的是哪几把写在正文（`userText`）与 `optionLabels` 里。
+ */
+export const OPERATOR_LORA_PICK_CHOICE_IDS = {
+  mount: 'mount',
+  dismiss: 'dismiss',
+} as const
+
+/** 关掉不点那一下的**选项文案**（进对话与库的那一份，⛔ 不随界面语言变形）。 */
+export const OPERATOR_LORA_PICK_DISMISS_LABEL = '都不挂'

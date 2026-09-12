@@ -2123,3 +2123,261 @@ describe('断点续跑', () => {
     ).toBeNull()
   })
 })
+
+/**
+ * **LoRA 推荐卡那一下**（lora-assistant §10.1 落账三件套 / §10.4 第 8 条）。
+ *
+ * ⭐ 这一组钉的是「那一下在下一轮还在不在」：卡上勾完 / 关掉不点之后，请求里必须
+ * 同时有**候选本体**（服务端的 `loraIndex` 只活一轮）与一条**折成 user 消息**的
+ * 自包含正文（b9b6990a 的教训：不说出口，模型下一轮重提同一张卡）。
+ */
+describe('LoRA 推荐卡（lora-assistant §10.1）', () => {
+  const importPayload = (candidateId: string) => ({
+    name: `LoRA ${candidateId}`,
+    triggerWord: 'qingxiao',
+    loraUrl: `https://cdn.test/${candidateId}.safetensors`,
+    type: 'style' as const,
+    baseModelFamily: 'illustrious' as const,
+    provider: 'civitai',
+    sourceSnapshot: {
+      source: 'civitai' as const,
+      author: 'someone',
+      license: {
+        label: null,
+        commercialUse: null,
+        allowDerivatives: null,
+        allowNoCredit: null,
+        known: false,
+      },
+      pageUrl: 'https://civitai.com/models/1',
+      revision: null,
+      retrievedAt: '2026-09-12T00:00:00.000Z',
+      fileSizeBytes: 1024,
+      metadataCompleteness: 'complete' as const,
+    },
+  })
+
+  const candidate = (candidateId: string, name: string) => ({
+    candidateId,
+    source: 'civitai' as const,
+    name,
+    author: 'someone',
+    family: 'Illustrious',
+    triggerWords: ['qingxiao'],
+    downloads: 1200,
+    licenseLabel: null,
+    licenseKnown: false,
+    commercialUse: null,
+    importable: true,
+    compatible: true,
+    alreadyMounted: false,
+    alreadyImported: false,
+    defaultWeight: 0.8,
+    recommended: false,
+    importPayload: importPayload(candidateId),
+  })
+
+  const QUESTION = '这两把里你要挂哪几把？'
+
+  function pickEvent(): AssistantOperatorEvent {
+    return {
+      type: ASSISTANT_OPERATOR_EVENTS.confirm,
+      confirm: {
+        kind: 'loraPick',
+        pick: {
+          question: QUESTION,
+          baseFamilyLabel: 'Illustrious',
+          budget: { total: 0.8, limit: 1.5 },
+          groups: [{ candidateIds: ['civitai:1', 'civitai:2'] }],
+          candidates: [
+            candidate('civitai:1', '清宵'),
+            candidate('civitai:2', 'overwatch_3d_anima'),
+          ],
+        },
+      },
+    }
+  }
+
+  /** 摆到一张「推荐卡在面板上、流已经停了」的现场。 */
+  async function raiseCard(): Promise<ReturnType<typeof render>['result']> {
+    const { result } = render()
+    act(() => {
+      result.current.send('找两把古风的 LoRA')
+    })
+    await settle()
+    streams[0].emit(pickEvent())
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: 'awaiting_confirm',
+    })
+    streams[0].close()
+    await settle()
+    return result
+  }
+
+  it('confirm(loraPick) → 卡就位、状态是「等你拍板」', async () => {
+    await raiseCard()
+
+    const confirm = store.getOperatorState().confirm
+    expect(confirm?.kind).toBe('loraPick')
+    expect(confirm?.status).toBe('idle')
+    expect(store.getOperatorState().status).toBe('awaitingConfirm')
+  })
+
+  it('⭐ 「挂载所选」把候选本体（含 importPayload）发下一轮', async () => {
+    const result = await raiseCard()
+
+    act(() => {
+      result.current.submitLoraPicks([
+        { candidateId: 'civitai:1' },
+        { candidateId: 'civitai:2', weight: 1.1 },
+      ])
+    })
+    await settle()
+
+    expect(streams).toHaveLength(2)
+    const request = streamAssistantOperatorAPI.mock.calls[1]?.[0]
+    expect(request.planApproved).toBe(true)
+    expect(request.loraPicks).toEqual([
+      {
+        candidateId: 'civitai:1',
+        candidate: candidate('civitai:1', '清宵'),
+      },
+      {
+        candidateId: 'civitai:2',
+        weight: 1.1,
+        candidate: candidate('civitai:2', 'overwatch_3d_anima'),
+      },
+    ])
+    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+  })
+
+  it('⭐ 落账三件套：系统行 + 折成 user 消息 + 结构化 answered', async () => {
+    const result = await raiseCard()
+
+    act(() => {
+      result.current.submitLoraPicks([
+        { candidateId: 'civitai:1' },
+        { candidateId: 'civitai:2' },
+      ])
+    })
+    await settle()
+
+    const userText =
+      '已选择「清宵 ×0.8、overwatch_3d_anima ×0.8」（针对推荐卡「这两把里你要挂哪几把？」）'
+    const answered = {
+      questionId: 'loraPick:这两把里你要挂哪几把？',
+      optionIds: ['mount'],
+      question: QUESTION,
+      optionLabels: ['清宵 ×0.8、overwatch_3d_anima ×0.8'],
+    }
+    expect(
+      store
+        .getOperatorState()
+        .entries.find(
+          (entry) =>
+            entry.kind === 'system' && entry.code === 'loraPickMounted',
+        ),
+    ).toMatchObject({
+      subject: '清宵、overwatch_3d_anima',
+      userText,
+      answered,
+    })
+
+    // ⚠ 先把勾选那一轮收掉：干活时说话进的是队列（§3.1 ㉓），⛔ 不是新一轮。
+    streams[1].close()
+    await settle()
+    // ⭐ 再下一轮它还在：那一行是一条自带题面的 user 消息，⛔ 不只活在当次请求里。
+    act(() => {
+      result.current.send('再帮我配一句提示词')
+    })
+    await settle()
+    const messages: AssistantOperatorMessage[] =
+      streamAssistantOperatorAPI.mock.calls[2]?.[0].messages ?? []
+    expect(messages.find((message) => message.content === userText)).toEqual({
+      role: 'user',
+      content: userText,
+      answered,
+    })
+  })
+
+  /** ⛔ 关掉不点也要落账：「都不挂」与「还没看见」对模型是两件完全不同的事。 */
+  it('⭐ 关掉不点：不发请求，但落一行「都不挂」并折成 user 消息', async () => {
+    const result = await raiseCard()
+
+    act(() => {
+      result.current.dismissLoraPick()
+    })
+    await settle()
+
+    // ⛔ 不发请求：用户什么都没让它做。
+    expect(streams).toHaveLength(1)
+    expect(store.getOperatorState().confirm?.status).toBe('cancelled')
+    expect(
+      store
+        .getOperatorState()
+        .entries.find(
+          (entry) =>
+            entry.kind === 'system' && entry.code === 'loraPickDismissed',
+        ),
+    ).toMatchObject({
+      subject: QUESTION,
+      userText: '已选择「都不挂」（针对推荐卡「这两把里你要挂哪几把？」）',
+      answered: {
+        questionId: 'loraPick:这两把里你要挂哪几把？',
+        optionIds: ['dismiss'],
+        question: QUESTION,
+        optionLabels: ['都不挂'],
+      },
+    })
+
+    act(() => {
+      result.current.send('那算了，说说别的')
+    })
+    await settle()
+    const messages: AssistantOperatorMessage[] =
+      streamAssistantOperatorAPI.mock.calls[1]?.[0].messages ?? []
+    expect(
+      messages.some(
+        (message) =>
+          message.role === 'user' &&
+          message.content ===
+            '已选择「都不挂」（针对推荐卡「这两把里你要挂哪几把？」）',
+      ),
+    ).toBe(true)
+  })
+
+  /** ⚠ 连点两下发两轮的表现是第二轮把第一轮 abort 掉再从头跑一遍。 */
+  it('⭐ 连点两下只发一轮', async () => {
+    const result = await raiseCard()
+
+    act(() => {
+      result.current.submitLoraPicks([{ candidateId: 'civitai:1' }])
+      result.current.submitLoraPicks([{ candidateId: 'civitai:1' }])
+    })
+    await settle()
+
+    expect(streams).toHaveLength(2)
+    expect(
+      store
+        .getOperatorState()
+        .entries.filter(
+          (entry) =>
+            entry.kind === 'system' && entry.code === 'loraPickMounted',
+        ),
+    ).toHaveLength(1)
+  })
+
+  it('一把都没勾 / 认不出的 id 不发请求', async () => {
+    const result = await raiseCard()
+
+    act(() => {
+      result.current.submitLoraPicks([])
+      result.current.submitLoraPicks([{ candidateId: 'civitai:ghost' }])
+    })
+    await settle()
+
+    expect(streams).toHaveLength(1)
+    expect(store.getOperatorState().confirm?.status).toBe('idle')
+  })
+})

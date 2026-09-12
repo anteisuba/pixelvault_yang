@@ -740,6 +740,17 @@ interface OperatorRun {
   ledgerSteps: number
   /** 本轮已经结过账了 —— ⛔ 一次运行只写一条记录（同一 roundIndex 不重复写）。 */
   roundClosed: boolean
+  /**
+   * **开跑段那一批挂载的回执**（lora-assistant §10.2.3）—— 模型开口之前服务端
+   * 已经替创作者挂完的那几把，连同被拒的那几把和拒的理由。
+   *
+   * ⭐ 它**不进 `observations`**：观察那一摞答的是「你刚才那一步的结果」，而这
+   * 一段答的是「你还没说话之前就已经既成的事实」—— 与 `planAnswers` 那段同一
+   * 等级（本轮开跑前创作者已经拍过的板）。混进观察里的表现是模型把它读成自己
+   * 刚做的事，于是在正文里道歉「我重复挂了」。
+   * ⚠ 一轮只有一段，⛔ 不逐把往这里追加第二段 —— 超预算那句也只算一次（§5.2）。
+   */
+  confirmedPickNote: string | null
 }
 
 /** 见 `OperatorRun.roundLedger`。每摞都有硬上限，⛔ 别让一轮八步撑爆收尾那一跳。 */
@@ -4001,6 +4012,128 @@ function hydrateLoraIndexFromPicks(
 }
 
 /**
+ * **确认回来的那一轮：先挂，再让模型说话**（lora-assistant §10.2.3）。
+ *
+ * ⭐ **勾选那一下就是拍板**，所以这一批不经过模型：把它交回模型重判，会出现
+ * 「创作者勾了 3 把、模型挂了 2 把」这种没人解释得清的偏差，而按钮他已经点过了。
+ * 本仓头一处「服务端先发 step、模型后开口」，于是三件事必须逐条对上普通那条路：
+ *  ① **步号同一条流水**（`run.stepSeq`）—— 客户端下一轮用 `priorSteps` 把这几步
+ *    原样带回来，编号错开的表现是日志里两条 `step-1`；
+ *  ② **每一把是一条独立的 `mount_lora` step**，带自己的 `inverse` —— 撤销与
+ *    change rail 一个字不变（⛔ 不合并成一条「挂了 3 把」的复合步：那一条撤下去
+ *    要么全撤要么撤不干净）；
+ *  ③ **闸一道不少**：逐把仍然走 `planMountLora` 的全部判据，被拒的那一把变成一条
+ *    rejected step（跨族 / 导不进来 / 权重越界），⛔ 不静默跳过。
+ * ⚠ 权重用创作者在卡上带回来的那个数；没带就交给 `planMountLora` 回落到候选的
+ *   推荐值（卡上印的 `defaultWeight` 就是它）。
+ * ⚠ 超预算那句（§5.2）**整批只算一次**：逐把抑制，全挂完之后按最后一把的栈算一
+ *   遍接在回执末尾。⛔ 不每把都念一遍 —— 三把里念三遍，创作者只会读到最后那个数。
+ * ⚠ 这几步**不进 `executedStepKeys`**：模型这一轮再挂同一把时该撞上
+ *   `planMountLora` 自己那条「刚做过了」的拒绝（它说得出是哪一把在台上），
+ *   ⛔ 不是规划器那条「同一次调用」的通用护栏 —— 后者还会记一次打转。
+ */
+function* emitConfirmedLoraPickMounts(
+  run: OperatorRun,
+  picks: NonNullable<AssistantOperatorRequest['loraPicks']>,
+): Generator<AssistantOperatorEvent> {
+  if (picks.length === 0) return
+
+  const lines: string[] = []
+  const mounted: { name: string; weight: number }[] = []
+  const refused: { name: string; reason: AssistantOperatorRejectReason }[] = []
+  /** 算超预算那句时用的「最后落下的那一手」——⚠ 全批挂完之后才算一遍。 */
+  let lastMounted: { id: string; weight: number } | null = null
+
+  for (const pick of picks) {
+    const candidate = run.loraIndex.get(pick.candidateId)
+    const name = candidate?.name ?? pick.candidateId
+    run.stepSeq += 1
+    const base = {
+      id: `step-${run.stepSeq}`,
+      /**
+       * ⚠ 标题用工具名，与另一处服务端自发的步（`analyze_references` 那一段）
+       * 同一个写法：这一步没有模型写的标题，而详情行本来就印着名字 · 家族 ·
+       * 兼容 · 权重（`describeStepDetail`）—— ⛔ 别把名字再当标题印一遍。
+       */
+      title: TOOL.mountLora,
+      verb: ASSISTANT_OPERATOR_TOOL_VERBS[TOOL.mountLora],
+      tool: TOOL.mountLora,
+      reason: 'the creator ticked this one on the pick card',
+    }
+    const plan = planMountLora(
+      run,
+      {
+        candidateId: pick.candidateId,
+        ...(pick.weight === undefined ? {} : { weight: pick.weight }),
+      },
+      { budgetNote: false },
+    )
+    if (plan.kind === 'rejected') {
+      yield toStepEvent({
+        ...base,
+        status: STATUS.error,
+        error: {
+          reason: plan.reason,
+          ...(plan.detail ? { detail: plan.detail } : {}),
+        },
+      })
+      refused.push({ name, reason: plan.reason })
+      lines.push(
+        `- The creator ticked "${name}" but it could NOT be mounted (${plan.reason})${
+          plan.detail ? `: ${plan.detail}` : ''
+        } Say so in your reply — they are looking at a card that says they picked it.`,
+      )
+      continue
+    }
+    if (plan.kind === 'mutate') {
+      const applied = { ...base, payload: plan.payload, inverse: plan.inverse }
+      yield toStepEvent({ ...applied, status: STATUS.running })
+      plan.apply()
+      yield toStepEvent({ ...applied, status: STATUS.done })
+      // ⚠ 与主循环那条改动型步逐字同源 —— 这几步照样算「本轮真的跑成了几步」。
+      recordLedgerStep(run, base.verb, base.title, plan.observation)
+      const weight = (plan.payload as { weight: number }).weight
+      mounted.push({ name, weight })
+      lastMounted = { id: pick.candidateId, weight }
+      lines.push(`- ${plan.observation}`)
+    }
+  }
+
+  if (lastMounted) lines.push(loraStackBudgetNote(run, lastMounted).trim())
+
+  /**
+   * ⚠ 一把都没挂上时**换一句话**：顶着「已经挂好了」的抬头念三条拒绝理由，
+   * 模型会照着抬头在正文里说「都挂好了」—— ⛔ 提示词里不留一句与事实相反的话。
+   */
+  run.confirmedPickNote = [
+    mounted.length > 0
+      ? 'THE CREATOR TICKED THESE ON THE PICK CARD AND THE SERVER ALREADY MOUNTED THEM, step by step, before this turn started. It is done, it is on the bench, and every step is undoable from the log. Treat it as a settled fact: tell them what is mounted now and carry on with what they asked for. Do NOT call mount_lora again for any line below that starts with "Mounted" — that call is refused as a repeat. A line that says it could NOT be mounted is the only one worth another try, and only after you have removed the cause (for example set_model to that family).'
+      : 'THE CREATOR TICKED THESE ON THE PICK CARD AND NOT ONE OF THEM COULD BE MOUNTED. The server tried each one before this turn started; the reasons are below, and nothing changed on the bench. Tell them plainly which one failed and why. Retrying mount_lora on the same id only helps once you have removed the cause (for example set_model to that family) — otherwise offer them something else.',
+    ...lines.filter((line) => line.length > 0),
+  ].join('\n')
+
+  /**
+   * 结账的「决定」栏（§7.5 ②）—— 勾选是创作者的决定，挂载是它的结果，
+   * **一条写完**：⛔ 拆成两条之后，记录里会出现一条没有下文的「他勾了 3 把」。
+   */
+  pushLedgerLine(
+    run.roundLedger.decisions,
+    [
+      `挂了 ${mounted.length} 把：${
+        mounted.map((item) => `${item.name}×${item.weight}`).join('、') || '—'
+      }`,
+      ...(refused.length > 0
+        ? [
+            `没挂上 ${refused.length} 把：${refused
+              .map((item) => `${item.name}（${item.reason}）`)
+              .join('、')}`,
+          ]
+        : []),
+    ].join('；'),
+  )
+}
+
+/**
  * **把本轮候选摆给创作者挑**（lora-assistant §10.2.2，`plan_lora_pick`）。
  *
  * ⭐ 它一把都不挂：产出是一帧 `confirm(loraPick)` 加停流，挂载发生在创作者点
@@ -4116,6 +4249,12 @@ function planLoraPick(
 function planMountLora(
   run: OperatorRun,
   args: { candidateId: string; weight?: number },
+  /**
+   * ⚠ 只有开跑段那一批（`emitConfirmedLoraPickMounts`）关掉超预算那句：整批算
+   * 一次接在回执末尾（§10.2.3）。⛔ 模型那条路一个字不变 —— 它一次只挂一把，
+   * 那句话就该跟在那一把的观察里。
+   */
+  options: { budgetNote?: boolean } = {},
 ): ToolPlan {
   if (!run.state.hasLoraControl) return reject(REJECT.noSuchControl)
 
@@ -4232,10 +4371,14 @@ function planMountLora(
       compatible ? 'fits' : 'does not fit'
     } the base on the bench, at weight ${weight ?? 1}. The bench now has ${
       run.state.loras.length + 1
-    } LoRA(s) — there is no limit, so never ask the creator to remove one to make room.${loraStackBudgetNote(
-      run,
-      { id: candidate.candidateId, weight: weight ?? 1 },
-    )}`,
+    } LoRA(s) — there is no limit, so never ask the creator to remove one to make room.${
+      options.budgetNote === false
+        ? ''
+        : loraStackBudgetNote(run, {
+            id: candidate.candidateId,
+            weight: weight ?? 1,
+          })
+    }`,
     apply: () => {
       run.mountedLoraCandidateIds.add(candidate.candidateId)
       run.state.loras.push({
@@ -6926,6 +7069,15 @@ ${run.request.priorSteps
     )
   }
 
+  /**
+   * **推荐卡那一下的回执**（lora-assistant §10.2.3）—— 服务端在模型开口之前挂完
+   * 的那几把，连同被拒的那几把。
+   *
+   * ⚠ 位置在观察**之前**、与计划答复那段并列：两段都是「本轮开跑前已经拍过的
+   * 板」，⛔ 不是「你刚才那一步的结果」。
+   */
+  if (run.confirmedPickNote) sections.push(run.confirmedPickNote)
+
   if (run.request.confirmations?.length) {
     sections.push(`THE CREATOR ANSWERED YOUR OVERWRITE QUESTION:
 ${run.request.confirmations
@@ -7738,6 +7890,7 @@ export async function* runAssistantOperator(
     },
     ledgerSteps: 0,
     roundClosed: false,
+    confirmedPickNote: null,
   }
 
   /**
@@ -7775,6 +7928,16 @@ export async function* runAssistantOperator(
   let completed = false
 
   try {
+    /**
+     * ⭐ **创作者勾中的那几把先挂上，然后模型才开口**（lora-assistant §10.2.3）。
+     *
+     * 位置有两条判据：
+     *  · 在**第一次调模型之前** —— 勾选那一下就是拍板，模型读到的第一份状态块里
+     *    它们就该已经在台上（⛔ 不是「模型说完了才发现台上多了三把」）；
+     *  · 在参考图复核**之前** —— 日志的第一屏该是创作者刚点的那一下的回执。
+     */
+    yield* emitConfirmedLoraPickMounts(run, request.loraPicks ?? [])
+
     const pointedReferences = currentConversationReferences(run)
     if (
       !options.signal?.aborted &&

@@ -4669,16 +4669,7 @@ describe('LoRA 装配台域（P4-C）', () => {
    * 取得到候选。⛔ 不许改成「确认时按 id 再搜一次」。
    */
   it('带 loraPicks 的那一轮不必再搜：候选灌回索引后直接挂得上', async () => {
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount what they ticked',
-          args: { candidateId: 'civitai:12345:67890', weight: 0.6 },
-        },
-      },
-      { finished: true },
-    )
+    queueTurns({ finished: true })
     const steps = stepsOf(
       await collect(
         runAssistantOperator(
@@ -4704,37 +4695,16 @@ describe('LoRA 装配台域（P4-C）', () => {
   })
 
   it('挂一把：载荷带 importPayload 与触发词，inverse 只有 candidateId', async () => {
-    mockSearchLoraCandidates.mockResolvedValue({
-      query: 'watercolor',
-      candidates: [loraCandidate()],
-      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
-    })
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-          title: 'find',
-          args: { query: 'watercolor' },
-        },
-      },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount it',
-          args: { candidateId: 'civitai:12345:67890', weight: 0.7 },
-        },
-      },
-      { finished: true },
-    )
+    queueTurns({ finished: true })
     const steps = stepsOf(
       await collect(
         runAssistantOperator(
           'clerk-1',
-          buildLoraRequest({ loraPicks: [loraPickOf()] }),
+          buildLoraRequest({ loraPicks: [loraPickOf(undefined, 0.7)] }),
         ),
       ),
     )
-    const mounted = steps[3] as unknown as {
+    const mounted = steps[1] as unknown as {
       payload: Record<string, unknown>
       inverse: Record<string, unknown>
     }
@@ -4751,35 +4721,7 @@ describe('LoRA 装配台域（P4-C）', () => {
   })
 
   it('导入不了的那把按 loraNotImportable 拒，⛔ 不静默跳过', async () => {
-    mockSearchLoraCandidates.mockResolvedValue({
-      query: 'x',
-      candidates: [
-        loraCandidate({
-          candidateId: 'hf:gated',
-          importable: false,
-          notImportableReason: 'gated_repo',
-          importPayload: null,
-        }),
-      ],
-      sources: [{ source: 'huggingface', status: 'ok', count: 1, tookMs: 3 }],
-    })
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-          title: 'find',
-          args: { query: 'x' },
-        },
-      },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount it',
-          args: { candidateId: 'hf:gated' },
-        },
-      },
-      { finished: true },
-    )
+    queueTurns({ finished: true })
     const steps = stepsOf(
       await collect(
         runAssistantOperator(
@@ -4797,7 +4739,7 @@ describe('LoRA 装配台域（P4-C）', () => {
         ),
       ),
     )
-    expect(steps[2]).toMatchObject({
+    expect(steps[0]).toMatchObject({
       error: {
         reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraNotImportable,
       },
@@ -4805,33 +4747,7 @@ describe('LoRA 装配台域（P4-C）', () => {
   })
 
   it('跨族的那把按 loraIncompatibleBase 拒，理由里有两个 family 与「去搜同族」', async () => {
-    mockSearchLoraCandidates.mockResolvedValue({
-      query: 'x',
-      candidates: [
-        loraCandidate({
-          candidateId: 'civitai:flux:1',
-          baseModelFamily: 'flux',
-        }),
-      ],
-      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
-    })
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-          title: 'find',
-          args: { query: 'x' },
-        },
-      },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount it',
-          args: { candidateId: 'civitai:flux:1' },
-        },
-      },
-      { finished: true },
-    )
+    queueTurns({ finished: true })
     const steps = stepsOf(
       await collect(
         runAssistantOperator(
@@ -4847,12 +4763,12 @@ describe('LoRA 装配台域（P4-C）', () => {
         ),
       ),
     )
-    expect(steps[2]).toMatchObject({
+    expect(steps[0]).toMatchObject({
       error: {
         reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraIncompatibleBase,
       },
     })
-    const detail = (steps[2] as { error: { detail: string } }).error.detail
+    const detail = (steps[0] as { error: { detail: string } }).error.detail
     // ⭐ 两个 family 都来自服务端数据，⛔ 不让模型按名字猜。
     expect(detail).toContain('flux')
     expect(detail).toContain('illustrious')
@@ -4927,11 +4843,26 @@ describe('LoRA 装配台域（P4-C）', () => {
         ),
       ),
     )
-    const mounted = steps.find(
+    const mountSteps = steps.filter(
       (step) =>
         (step as { tool?: string }).tool ===
         ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
     )
+    /**
+     * ⭐ 开跑段那一把先被拒：创作者勾的是 pony，而台上还是 anima-dit
+     * （§10.2.3「闸一道不少」）。
+     */
+    expect(mountSteps[0]).toMatchObject({
+      error: {
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraIncompatibleBase,
+      },
+    })
+    /**
+     * ⭐ 而这一条才是本例要钉的：模型换完底模**同一轮**再挂那一把，家族已经跟着
+     * `set_model` 走了 —— ⛔ 不停在开跑那份快照上。勾选那一下仍然算数（准入闸
+     * 认的是 `confirmedLoraPickIds`），开跑段拒过一次也不妨碍它重挂一次。
+     */
+    const mounted = mountSteps.at(-1)
     expect(mounted).toMatchObject({
       payload: { candidateId: 'civitai:pony:1' },
     })
@@ -5069,13 +5000,6 @@ describe('LoRA 装配台域（P4-C）', () => {
       },
       {
         tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount it',
-          args: { candidateId: 'civitai:pony:2' },
-        },
-      },
-      {
-        tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
           title: 'look',
           args: {},
@@ -5135,28 +5059,7 @@ describe('LoRA 装配台域（P4-C）', () => {
   })
 
   it('同族的那把照旧挂得上：⛔ 改判只收紧跨族那一支', async () => {
-    mockSearchLoraCandidates.mockResolvedValue({
-      query: 'x',
-      candidates: [loraCandidate()],
-      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
-    })
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-          title: 'find',
-          args: { query: 'x' },
-        },
-      },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount it',
-          args: { candidateId: 'civitai:12345:67890' },
-        },
-      },
-      { finished: true },
-    )
+    queueTurns({ finished: true })
     const steps = stepsOf(
       await collect(
         runAssistantOperator(
@@ -5165,7 +5068,7 @@ describe('LoRA 装配台域（P4-C）', () => {
         ),
       ),
     )
-    expect(steps[3]).toMatchObject({
+    expect(steps[1]).toMatchObject({
       payload: { candidateId: 'civitai:12345:67890', compatible: true },
     })
   })
@@ -5180,34 +5083,15 @@ describe('LoRA 装配台域（P4-C）', () => {
     weight: number,
     snapshot?: AssistantOperatorRequest['snapshot'],
   ) {
-    mockSearchLoraCandidates.mockResolvedValue({
-      query: 'x',
-      candidates: [loraCandidate()],
-      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
-    })
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-          title: 'find',
-          args: { query: 'x' },
-        },
-      },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount it',
-          args: { candidateId: 'civitai:12345:67890', weight },
-        },
-      },
-      { finished: true },
-    )
+    queueTurns({ finished: true })
     return stepsOf(
       await collect(
         runAssistantOperator(
           'clerk-1',
           buildLoraRequest({
-            loraPicks: [loraPickOf()],
+            // ⚠ 挂载那一下现在发生在**模型开口之前**（§10.2.3）—— 权重从卡上
+            //   勾选那一下带回来，⛔ 不再由模型写一条 mount_lora。
+            loraPicks: [loraPickOf(undefined, weight)],
             ...(snapshot ? { snapshot } : {}),
           }),
         ),
@@ -5218,7 +5102,7 @@ describe('LoRA 装配台域（P4-C）', () => {
   it('超预算时 observation 多一句，⛔ 权重一个字没改', async () => {
     // 栈上 0.8 + 这一把 0.9 = 1.7，非蒸馏底模的预算是 1.5。
     const steps = await mountWithWeight(0.9)
-    expect(steps[3]).toMatchObject({ payload: { weight: 0.9 } })
+    expect(steps[1]).toMatchObject({ payload: { weight: 0.9 } })
     const observed = lastUserPrompt()
     expect(observed).toContain('1.7')
     expect(observed).toContain('1.5')
@@ -5260,24 +5144,12 @@ describe('LoRA 装配台域（P4-C）', () => {
   })
 
   it('挂载 observation 里有三件事：家族 / 兼容 / 权重', async () => {
-    mockSearchLoraCandidates.mockResolvedValue({
-      query: 'x',
-      candidates: [loraCandidate()],
-      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
-    })
     queueTurns(
       {
         tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-          title: 'find',
-          args: { query: 'x' },
-        },
-      },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount it',
-          args: { candidateId: 'civitai:12345:67890', weight: 0.8 },
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          title: 'look',
+          args: {},
         },
       },
       { finished: true },
@@ -5285,43 +5157,17 @@ describe('LoRA 装配台域（P4-C）', () => {
     await collect(
       runAssistantOperator(
         'clerk-1',
-        buildLoraRequest({ loraPicks: [loraPickOf()] }),
+        buildLoraRequest({ loraPicks: [loraPickOf(undefined, 0.7)] }),
       ),
     )
     const observed = lastUserPrompt()
     expect(observed).toContain('illustrious')
     expect(observed).toContain('fits')
-    expect(observed).toContain('0.8')
+    expect(observed).toContain('at weight 0.7')
   })
 
   it('底模未定时不判：跨族那把照样挂得上（与界面同一条语义）', async () => {
-    mockSearchLoraCandidates.mockResolvedValue({
-      query: 'x',
-      candidates: [
-        loraCandidate({
-          candidateId: 'civitai:flux:1',
-          baseModelFamily: 'flux',
-        }),
-      ],
-      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
-    })
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-          title: 'find',
-          args: { query: 'x' },
-        },
-      },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount it',
-          args: { candidateId: 'civitai:flux:1' },
-        },
-      },
-      { finished: true },
-    )
+    queueTurns({ finished: true })
     const steps = stepsOf(
       await collect(
         runAssistantOperator(
@@ -5341,7 +5187,7 @@ describe('LoRA 装配台域（P4-C）', () => {
         ),
       ),
     )
-    expect(steps[3]).toMatchObject({
+    expect(steps[1]).toMatchObject({
       payload: { candidateId: 'civitai:flux:1', compatible: true },
     })
   })
@@ -5367,28 +5213,7 @@ describe('LoRA 装配台域（P4-C）', () => {
         })),
       },
     }
-    mockSearchLoraCandidates.mockResolvedValue({
-      query: 'x',
-      candidates: [loraCandidate()],
-      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
-    })
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-          title: 'find',
-          args: { query: 'x' },
-        },
-      },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount it',
-          args: { candidateId: 'civitai:12345:67890' },
-        },
-      },
-      { finished: true },
-    )
+    queueTurns({ finished: true })
     const steps = stepsOf(
       await collect(
         runAssistantOperator(
@@ -5397,7 +5222,8 @@ describe('LoRA 装配台域（P4-C）', () => {
         ),
       ),
     )
-    expect(steps[3]).toMatchObject({
+    expect(steps[1]).toMatchObject({
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
       status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
     })
   })
@@ -5474,27 +5300,12 @@ describe('LoRA 装配台域（P4-C）', () => {
     })
   })
 
+  /**
+   * ⭐ 开跑段已经挂过的那一把，模型这一轮**再挂一次就被去重挡下**（§10.2.3）——
+   * 换个权重也绕不过去：护栏认的是候选 id，⛔ 不是这一次调用的参数。
+   */
   it('同一把候选换个权重再挂一次仍算重复（换参数绕不过去）', async () => {
-    mockSearchLoraCandidates.mockResolvedValue({
-      query: 'x',
-      candidates: [loraCandidate()],
-      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
-    })
     queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-          title: 'find',
-          args: { query: 'x' },
-        },
-      },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount',
-          args: { candidateId: 'civitai:12345:67890', weight: 0.8 },
-        },
-      },
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
@@ -5508,11 +5319,16 @@ describe('LoRA 装配台域（P4-C）', () => {
       await collect(
         runAssistantOperator(
           'clerk-1',
-          buildLoraRequest({ loraPicks: [loraPickOf()] }),
+          buildLoraRequest({ loraPicks: [loraPickOf(undefined, 0.8)] }),
         ),
       ),
     )
-    expect(steps[4]).toMatchObject({
+    // 开跑段那一把照挂（0.8），模型那一把被拒 —— 台上仍然只有一条挂载 step。
+    expect(steps[1]).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      payload: { weight: 0.8 },
+    })
+    expect(steps[2]).toMatchObject({
       error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep },
     })
   })
@@ -5540,6 +5356,151 @@ describe('LoRA 装配台域（P4-C）', () => {
     )
     expect(steps[0]).toMatchObject({
       error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
+    })
+  })
+
+  /**
+   * **确认回来的那一轮：先挂，再让模型说话**（lora-assistant §10.2.3，commit #4）。
+   *
+   * ⭐ 本仓头一处「服务端先发 step、模型后开口」—— 勾选那一下就是拍板，⛔ 不交回
+   * 模型重判（「创作者勾了 3 把、模型挂了 2 把」这种偏差没人解释得清，而按钮他
+   * 已经点过了）。
+   */
+  describe('勾选回来那一轮：模型开口之前逐把挂上', () => {
+    /** 结账那一跳喂进去的提示（⛔ 与工具环那几次分开，见 `lastUserPrompt`）。 */
+    function checkoutPrompt(): string {
+      const call = mockLlmTextCompletion.mock.calls
+        .map(
+          (entry) => entry[0] as { userPrompt: string; systemPrompt?: string },
+        )
+        .find((entry) =>
+          entry.systemPrompt?.startsWith(
+            'You write the creator-facing closing record',
+          ),
+        )
+      return call?.userPrompt ?? ''
+    }
+
+    const INK = { candidateId: 'civitai:222:333', name: 'Ink Lines' }
+    const FLUX = { candidateId: 'civitai:flux:1', baseModelFamily: 'flux' }
+
+    it('⭐ 两把勾选 → 先吐两条 mount step，模型第一次开口时它们已经在台上', async () => {
+      queueTurns({ finished: true, message: '两把都挂好了。' })
+      const steps = stepsOf(
+        await collect(
+          runAssistantOperator(
+            'clerk-1',
+            buildLoraRequest({
+              loraPicks: [loraPickOf(undefined, 0.4), loraPickOf(INK, 0.2)],
+            }),
+          ),
+        ),
+      )
+      // 一把一条独立的 step（running + done），⛔ 不合成一条「挂了 2 把」。
+      expect(steps.map((step) => [step.id, step.tool, step.status])).toEqual([
+        ['step-1', ASSISTANT_OPERATOR_TOOL_IDS.mountLora, 'running'],
+        ['step-1', ASSISTANT_OPERATOR_TOOL_IDS.mountLora, 'done'],
+        ['step-2', ASSISTANT_OPERATOR_TOOL_IDS.mountLora, 'running'],
+        ['step-2', ASSISTANT_OPERATOR_TOOL_IDS.mountLora, 'done'],
+      ])
+      // ⭐ 撤销照旧：每一把自己的 inverse。
+      expect(steps[1]).toMatchObject({
+        payload: { candidateId: 'civitai:12345:67890', weight: 0.4 },
+        inverse: { candidateId: 'civitai:12345:67890' },
+      })
+      expect(steps[3]).toMatchObject({
+        payload: { candidateId: INK.candidateId, weight: 0.2 },
+        inverse: { candidateId: INK.candidateId },
+      })
+      /**
+       * ⭐ 「模型开口之前」那一半的实锤：**第一次**工具环往返的提示里，两把就
+       * 已经是既成事实了。
+       */
+      const first = toolRingCalls()[0]?.userPrompt ?? ''
+      expect(first).toContain('ALREADY MOUNTED')
+      expect(first).toContain('Watercolor Storybook')
+      expect(first).toContain('Ink Lines')
+      expect(first).toContain('Do NOT call mount_lora')
+    })
+
+    /**
+     * ⚠ **闸一道不少**：勾中的那把跨了族照样被拒（§4.2），其余照挂 —— ⛔ 不因为
+     * 「创作者已经点过头」就放行，也 ⛔ 不因为一把挂不上就整批不挂。
+     */
+    it('跨族那把变 rejected step，其余照挂且 inverse 齐', async () => {
+      queueTurns({ finished: true })
+      const steps = stepsOf(
+        await collect(
+          runAssistantOperator(
+            'clerk-1',
+            buildLoraRequest({
+              loraPicks: [
+                loraPickOf(undefined, 0.3),
+                loraPickOf(FLUX, 0.3),
+                loraPickOf(INK, 0.3),
+              ],
+            }),
+          ),
+        ),
+      )
+      expect(steps.map((step) => step.status)).toEqual([
+        'running',
+        'done',
+        'error',
+        'running',
+        'done',
+      ])
+      expect(steps[2]).toMatchObject({
+        error: {
+          reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraIncompatibleBase,
+        },
+      })
+      expect(steps[1]).toHaveProperty('inverse')
+      expect(steps[4]).toHaveProperty('inverse')
+      // ⭐ 被拒的那一把要在正文里交代 —— ⛔ 不静默跳过。
+      const prompt = lastUserPrompt()
+      expect(prompt).toContain('could NOT be mounted')
+      expect(prompt).toContain('flux')
+    })
+
+    /**
+     * 超预算那一句（§5.2）**整批只念一次**：三把里念三遍，创作者只会读到最后
+     * 那个数。⛔ 而且一个权重都没动 —— 自动归一是这条护栏最容易长出来的错。
+     */
+    it('超预算那句只出现一次，且权重一个字没改', async () => {
+      queueTurns({ finished: true })
+      const steps = stepsOf(
+        await collect(
+          runAssistantOperator(
+            'clerk-1',
+            buildLoraRequest({
+              // 栈上 0.8 + 0.5 + 0.6 = 1.9，非蒸馏底模的预算是 1.5。
+              loraPicks: [loraPickOf(undefined, 0.5), loraPickOf(INK, 0.6)],
+            }),
+          ),
+        ),
+      )
+      expect(steps[1]).toMatchObject({ payload: { weight: 0.5 } })
+      expect(steps[3]).toMatchObject({ payload: { weight: 0.6 } })
+      const prompt = lastUserPrompt()
+      expect(prompt.split('I did not touch any weight')).toHaveLength(2)
+      expect(prompt).toContain('1.9')
+      expect(prompt).toContain('1.5')
+    })
+
+    it('结账的「决定」栏落「挂了 X 把：名字×权重」，没挂上的那把也写清楚', async () => {
+      queueTurns({ finished: true, message: '挂好了。' })
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({
+            loraPicks: [loraPickOf(undefined, 0.4), loraPickOf(FLUX, 0.3)],
+          }),
+        ),
+      )
+      const closing = checkoutPrompt()
+      expect(closing).toContain('挂了 1 把：Watercolor Storybook×0.4')
+      expect(closing).toContain('没挂上 1 把')
     })
   })
 })

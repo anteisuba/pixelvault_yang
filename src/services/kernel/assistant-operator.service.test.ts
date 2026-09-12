@@ -4348,6 +4348,92 @@ describe('LoRA 装配台域（P4-C）', () => {
     })
   })
 
+  /**
+   * 栈总权重护栏（§5.2）：**只提醒，不动手**。
+   *
+   * ⚠ 钉的是「权重没被改」那一半：自动归一是这条护栏最容易长出来的错 ——
+   * 助手在正文里说「设成 1.2 了」而表单上是 0.9，用户会以为自己记错了。
+   */
+  async function mountWithWeight(
+    weight: number,
+    snapshot?: AssistantOperatorRequest['snapshot'],
+  ) {
+    mockSearchLoraCandidates.mockResolvedValue({
+      query: 'x',
+      candidates: [loraCandidate()],
+      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          title: 'find',
+          args: { query: 'x' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          title: 'mount it',
+          args: { candidateId: 'civitai:12345:67890', weight },
+        },
+      },
+      { finished: true },
+    )
+    return stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest(snapshot ? { snapshot } : {}),
+        ),
+      ),
+    )
+  }
+
+  it('超预算时 observation 多一句，⛔ 权重一个字没改', async () => {
+    // 栈上 0.8 + 这一把 0.9 = 1.7，非蒸馏底模的预算是 1.5。
+    const steps = await mountWithWeight(0.9)
+    expect(steps[3]).toMatchObject({ payload: { weight: 0.9 } })
+    const observed = lastUserPrompt()
+    expect(observed).toContain('1.7')
+    expect(observed).toContain('1.5')
+    expect(observed).toContain('I did not touch any weight')
+  })
+
+  it('不超预算时不出这句（⛔ 不逢挂必念）', async () => {
+    // 0.8 + 0.5 = 1.3，还在 1.5 以内。
+    await mountWithWeight(0.5)
+    expect(lastUserPrompt()).not.toContain('I did not touch any weight')
+  })
+
+  it('底模未定时不判：没有底模就没有预算', async () => {
+    await mountWithWeight(2, {
+      ...LORA_SNAPSHOT,
+      loras: { ...LORA_SNAPSHOT.loras!, baseFamily: null },
+    })
+    expect(lastUserPrompt()).not.toContain('I did not touch any weight')
+  })
+
+  it('set_lora_weight 超预算同样只提醒，设的还是那个值', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+          title: 'tune',
+          args: { loraId: 'lora-asset-1', weight: 1.8 },
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+    )
+    expect(steps[1]).toMatchObject({ payload: { weight: 1.8 } })
+    const observed = lastUserPrompt()
+    expect(observed).toContain('1.8')
+    expect(observed).toContain('I did not touch any weight')
+  })
+
   it('挂载 observation 里有三件事：家族 / 兼容 / 权重', async () => {
     mockSearchLoraCandidates.mockResolvedValue({
       query: 'x',

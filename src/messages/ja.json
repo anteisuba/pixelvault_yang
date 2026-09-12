@@ -7601,6 +7601,7 @@
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
       "generationFailed": "この回は一枚も出ませんでした —— アシスタントは確認しません",
       "loraMountFailed": "{subject} を載せられませんでした（ベンチには何も追加されていません）",
+      "loraWeightOverBudget": "合計ウェイト {subject} — このベースモデルの上限を超えています。絵がぼやけたり画風が混ざりやすくなります。ウェイトは一切変更していません。下げるものを教えてください。",
       "videoFramesFailed": "このクリップからフレームを取り出せませんでした —— 今回アシスタントは見られません（{subject}）",
       "checkpointRestored": "選択したステップの設定を復元しました。以後は現在のフォームに従って操作してください。",
       "questionAnswered": "選んだのは：{subject}",

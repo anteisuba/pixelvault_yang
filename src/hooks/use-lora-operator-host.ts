@@ -34,6 +34,10 @@ import {
   setOperatorPrimed,
   setOperatorReviewState,
 } from '@/hooks/use-studio-operator-store'
+import {
+  LORA_BASE_MODELS,
+  resolveLoraStackWeightBudget,
+} from '@/constants/lora-base-models'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import { revertAssistantAssetWriteAPI } from '@/lib/api-client/assistant-operator'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
@@ -256,6 +260,42 @@ export function useLoraOperatorHost(
       })
     }
 
+    /**
+     * 栈总权重护栏（§5.2）：**只提醒，不动手**。口径与服务端逐字一致 ——
+     * 启用中（`enabled !== false`）的权重之和（含这一次操作后的值），阈值取当前
+     * 底模那一条的 `distilled` 档；底模未定时不判。
+     *
+     * ⚠ 算的是**这一手落下之后**的栈：`stack.setScale` / `push` 是 setState，
+     * 这一拍 `items` 还是旧的 —— 所以那一条按 `pending` 顶替 / 追加，⛔ 不读回
+     * 界面再算一次（读回来的是上一拍，那句话会晚一步）。
+     */
+    const reportOverBudget = (pending: { id: string; weight: number }) => {
+      const current = latest.current
+      const base = current.base
+      const entry = base
+        ? (LORA_BASE_MODELS.find((model) => model.id === base.id) ?? null)
+        : null
+      const budget = resolveLoraStackWeightBudget(entry)
+      if (budget === null) return
+
+      const items = current.stack?.items ?? []
+      let total = pending.weight
+      for (const item of items) {
+        if (item.enabled === false) continue
+        if (item.asset.id === pending.id) continue
+        total += item.scale ?? item.asset.defaultScale
+      }
+      const rounded = Math.round(total * 100) / 100
+      if (rounded <= budget) return
+
+      appendOperatorEntry({
+        kind: 'system',
+        id: nextOperatorEntryId('sys'),
+        code: 'loraWeightOverBudget',
+        subject: `${rounded} / ${budget}`,
+      })
+    }
+
     return {
       /**
        * ⚠ 只有这两格：`applyOperatorStep` 在 LoRA 域用得到的就是提示词与负面框的
@@ -359,6 +399,10 @@ export function useLoraOperatorHost(
               return
             }
             mountedByCandidate.current.set(candidateId, outcome.asset)
+            reportOverBudget({
+              id: outcome.asset.id,
+              weight: weight ?? outcome.asset.defaultScale,
+            })
           })()
         },
         unmountByCandidateId: (candidateId) => {
@@ -386,6 +430,7 @@ export function useLoraOperatorHost(
         },
         setWeight: (loraId, weight) => {
           latest.current.stack?.setScale(loraId, weight)
+          reportOverBudget({ id: loraId, weight })
         },
       },
     }

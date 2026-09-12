@@ -314,6 +314,10 @@ import {
 } from '@/services/assistant-conversation.service'
 import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
+import {
+  getDefaultBase,
+  resolveLoraStackWeightBudget,
+} from '@/constants/lora-base-models'
 /**
  * ⭐ **产物提取的三个纯函数**（v2 §7.6：「原样搬到服务端复用，不重写」）。
  *
@@ -3718,6 +3722,46 @@ function planSearchLoras(
   }
 }
 
+/**
+ * 栈总权重护栏（§5.2）：**只提醒，不动手**。
+ *
+ * 总权重 = **启用中**（`enabled !== false`）的挂载权重之和，含本次操作后的值 ——
+ * 与 `handleGenerate` 的过滤口径逐字一致：静音的那把不进出图，也就不进预算。
+ * 阈值取当前底模那一条的 `distilled` 档；底模未定时**不判**（没有底模就没有预算，
+ * 同 `isLoraCompatibleWithBase` 在底模未定时不下判断）。
+ *
+ * ⛔ 不自动归一、⛔ 不改任何权重、⛔ 不拒这一步 —— 超预算是一句提醒，不是一道闸。
+ */
+function loraStackBudgetNote(
+  run: OperatorRun,
+  pending: { id: string; weight: number },
+): string {
+  const budget = resolveLoraStackWeightBudget(
+    run.state.loraBaseFamily ? getDefaultBase(run.state.loraBaseFamily) : null,
+  )
+  if (budget === null) return ''
+
+  let total = 0
+  let counted = false
+  for (const item of run.state.loras) {
+    if (item.enabled === false) continue
+    if (item.id === pending.id) {
+      counted = true
+      total += pending.weight
+      continue
+    }
+    total += item.weight
+  }
+  // 挂载那一支此刻还不在栈上（`apply()` 在观察之后才跑）。
+  if (!counted && !run.state.loras.some((item) => item.id === pending.id)) {
+    total += pending.weight
+  }
+
+  const rounded = Math.round(total * 100) / 100
+  if (rounded <= budget) return ''
+  return ` The enabled LoRAs now add up to ${rounded}, over this base's budget of ${budget} — stacking past it tends to smear the image or bleed styles into each other. I did not touch any weight; tell me which one to dial back if you want it lower.`
+}
+
 function planMountLora(
   run: OperatorRun,
   args: { candidateId: string; weight?: number },
@@ -3819,7 +3863,10 @@ function planMountLora(
       compatible ? 'fits' : 'does not fit'
     } the base on the bench, at weight ${weight ?? 1}. The bench now has ${
       run.state.loras.length + 1
-    } LoRA(s) — there is no limit, so never ask the creator to remove one to make room.`,
+    } LoRA(s) — there is no limit, so never ask the creator to remove one to make room.${loraStackBudgetNote(
+      run,
+      { id: candidate.candidateId, weight: weight ?? 1 },
+    )}`,
     apply: () => {
       run.mountedLoraCandidateIds.add(candidate.candidateId)
       run.state.loras.push({
@@ -3890,7 +3937,10 @@ function planSetLoraWeight(
     kind: 'mutate',
     payload: { loraId: mounted.id, name: mounted.name, weight: args.weight },
     inverse: { loraId: mounted.id, weight: previous },
-    observation: `"${mounted.name}" is now at weight ${args.weight} (was ${previous}).`,
+    observation: `"${mounted.name}" is now at weight ${args.weight} (was ${previous}).${loraStackBudgetNote(
+      run,
+      { id: mounted.id, weight: args.weight },
+    )}`,
     apply: () => {
       mounted.weight = args.weight
     },

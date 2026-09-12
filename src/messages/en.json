@@ -7601,6 +7601,7 @@
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
       "generationFailed": "Nothing came out of that run — the assistant will not look at it",
       "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
+      "loraWeightOverBudget": "Stack weight {subject} — past this base's budget, so the image may smear or styles may bleed. No weight was changed; tell me which one to dial back.",
       "videoFramesFailed": "No frames could be taken from this clip — the assistant cannot look at it this turn ({subject})",
       "checkpointRestored": "Restored the selected step’s configuration. Use the current form for subsequent actions.",
       "questionAnswered": "You picked: {subject}",

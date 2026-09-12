@@ -15,11 +15,14 @@ import {
   RESEARCH_CHARACTER_QUERY_SUFFIXES,
   RESEARCH_FRESHNESS,
   RESEARCH_LIMITS,
+  RESEARCH_QUESTION_TYPES,
   RESEARCH_SOURCE_IDS,
   RESEARCH_SOURCE_META,
   RESEARCH_SOURCE_STATUSES,
   judgeEvidenceCredibility,
+  scoreQuestionTypeBias,
   type EvidenceCredibility,
+  type ResearchQuestionType,
   type ResearchSourceId,
 } from '@/constants/research'
 import type { EvidenceItem, ResearchSourceReceipt } from '@/types/research'
@@ -122,6 +125,11 @@ export interface RunAssistantResearchParams {
    * danbooru 吃的是角色 tag，改写出来的长查询喂给它们只会一条都命不中。
    */
   queries?: readonly string[]
+  /**
+   * **题型**（§9.1，2026-09-12）——只影响**排序**：画风/技法题把生平向条目压后、
+   * 把技法/术语向条目提前。⛔ 不影响打哪些源（那一层在工具环里选）。
+   */
+  questionType?: ResearchQuestionType
 }
 
 // ─── 源分组 ─────────────────────────────────────────────────────
@@ -440,6 +448,19 @@ function hostnameOf(url: string | undefined): string | undefined {
   }
 }
 
+/**
+ * 题型排序看的那段文字。
+ *
+ * ⚠ **不复用 `evidenceText`**：那一份过 `normalizeResearchTerm`，空格被抹掉，
+ * 于是 `art style` / `early life` 这类词永远匹配不上。这里要的是原样小写。
+ */
+function questionTypeRankText(item: EvidenceItem): string {
+  const parts = [item.title, item.url ?? '']
+  if (item.kind === 'text') parts.push(item.excerpt)
+  if (item.kind === 'tags') parts.push(item.tags.join(' '), item.provenance)
+  return parts.join(' ').toLowerCase()
+}
+
 /** 一条证据身上所有可以拿来判「说的是不是这个人」的文字。 */
 function evidenceText(item: EvidenceItem): string {
   const parts = [item.title, item.url ? safeDecode(item.url) : '']
@@ -660,8 +681,23 @@ export async function runAssistantResearch(
   const corroboration = countCorroboration(fetched)
   const corroborationOf = (item: EvidenceItem): number =>
     corroboration.get(factKeyOf(item)) ?? 1
+  /**
+   * ⭐ **题型加权**（2026-09-12）——印证数仍是主序，题型是它下面的次序。
+   *
+   * 🔬 owner 真机：查「新海诚式黄昏光怎么描述」，维基与百度百科的同一段**生平**
+   * 互相印证成 2 源，于是稳稳排在第一，而唯一一条讲逆光与云层的技法文排在后面
+   * 被截掉。所以画风/技法题在同印证数内按「这条是技法页还是人物条目」再排一次。
+   * ⚠ **不越过印证数**：3 源印证的条目不该被一条单源的教程挤掉 —— 那是把这次
+   * 偏置做成了另一种偏见。其它题型恒 `0`，排序逐字与改动前一致。
+   */
+  const questionType = params.questionType ?? RESEARCH_QUESTION_TYPES.general
+  const biasOf = (item: EvidenceItem): number =>
+    scoreQuestionTypeBias(questionType, questionTypeRankText(item))
   const items = dedupe(fetched)
-    .sort((a, b) => corroborationOf(b) - corroborationOf(a))
+    .sort(
+      (a, b) =>
+        corroborationOf(b) - corroborationOf(a) || biasOf(b) - biasOf(a),
+    )
     .slice(0, limit)
 
   return {

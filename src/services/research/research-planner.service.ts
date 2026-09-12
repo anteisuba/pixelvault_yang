@@ -1,8 +1,14 @@
 import 'server-only'
 
 import {
+  RESEARCH_BIOGRAPHY_QUERY_TERMS,
   RESEARCH_LIMITS,
+  RESEARCH_QUESTION_TYPES,
+  RESEARCH_QUESTION_TYPE_VALUES,
   RESEARCH_SOURCE_GROUP_VALUES,
+  RESEARCH_STYLE_QUERY_MODIFIERS,
+  biasQueriesForQuestionType,
+  detectResearchQuestionType,
 } from '@/constants/research'
 import { SCRIPT_PLANNER_PROVIDER_IDS } from '@/constants/script-breakdown'
 import { logger } from '@/lib/logger'
@@ -33,6 +39,7 @@ const PLANNER_SYSTEM_PROMPT = `You plan retrieval for a creative AI workbench. O
 {
   "shouldSearch": boolean,
   "sourceGroup": ${RESEARCH_SOURCE_GROUP_VALUES.map((value) => `"${value}"`).join(' | ')},
+  "questionType": ${RESEARCH_QUESTION_TYPE_VALUES.map((value) => `"${value}"`).join(' | ')},
   "queries": [{ "text": string, "lang": "zh" | "en" | "ja" }],
   "freshness": "none" | "day" | "week" | "month" | "year",
   "reason": string
@@ -43,7 +50,9 @@ RULES:
 - Pick the language per source, not per user: Chinese wikis (萌娘百科 / 维基百科) need Chinese terms; danbooru and Fandom need the English name. When the subject is an anime/game character, emit BOTH a Chinese query and an English one.
 - "ip_character" for characters, franchises, official designs, appearance and lore. "ai_ecosystem" for models, LoRA, licences, providers. "general" otherwise.
 - freshness other than "none" ONLY when the question is explicitly about what is newest/current/today.
-- shouldSearch=false when the answer is stable, well-known ecosystem knowledge, or a pure writing request.`
+- shouldSearch=false when the answer is stable, well-known ecosystem knowledge, or a pure writing request.
+- "${RESEARCH_QUESTION_TYPES.styleTechnique}" when the user asks HOW something LOOKS or HOW TO DESCRIBE / PAINT it — art style, lighting, colour, material, composition, technique, prompt wording. "${RESEARCH_QUESTION_TYPES.entityFacts}" when the user asks WHAT / WHO something is — a work, a character, a setting, a person. "${RESEARCH_QUESTION_TYPES.general}" otherwise.
+- For "${RESEARCH_QUESTION_TYPES.styleTechnique}": every query must carry a craft modifier (zh: ${RESEARCH_STYLE_QUERY_MODIFIERS.zh.join(' / ')}; en: ${RESEARCH_STYLE_QUERY_MODIFIERS.en.join(' / ')}; ja: ${RESEARCH_STYLE_QUERY_MODIFIERS.ja.join(' / ')}), and NEVER use biography words (${RESEARCH_BIOGRAPHY_QUERY_TERMS.join(' / ')}) — an artist's life story does not answer "how is this light described".`
 
 function buildPlannerUserPrompt(text: string, heuristic: ResearchPlan): string {
   return [
@@ -52,6 +61,8 @@ function buildPlannerUserPrompt(text: string, heuristic: ResearchPlan): string {
       {
         shouldSearch: heuristic.shouldSearch,
         sourceGroup: heuristic.sourceGroup,
+        questionType:
+          heuristic.questionType ?? detectResearchQuestionType(text),
         freshness: heuristic.freshness,
         queries: heuristic.queries.map((query) => query.text),
       },
@@ -97,6 +108,22 @@ async function withTimeout<T>(
   }
 }
 
+/**
+ * 确定性题型 + 改写偏置 —— **回落路径也走它**。
+ *
+ * ⚠ 规划器挂了不该顺带把偏置也挂掉：实测那条失败链（改写词命中人物条目）在
+ * 规划器可用时发生，但规划器超时的那一支走的是同一份启发式查询词，同样会撞上
+ * 人物条目。⛔ 别只在成功分支上偏置。
+ */
+function withQuestionTypeBias(plan: ResearchPlan, text: string): ResearchPlan {
+  const questionType = plan.questionType ?? detectResearchQuestionType(text)
+  return {
+    ...plan,
+    questionType,
+    queries: biasQueriesForQuestionType(plan.queries, questionType),
+  }
+}
+
 export async function planResearchWithLlm(params: {
   userId: string
   apiKeyId?: string
@@ -104,7 +131,7 @@ export async function planResearchWithLlm(params: {
   heuristic: ResearchPlan
   forced: boolean
 }): Promise<ResearchPlan> {
-  const { heuristic } = params
+  const heuristic = withQuestionTypeBias(params.heuristic, params.text)
 
   let route: NodePlannerRoute
   try {
@@ -166,9 +193,25 @@ export async function planResearchWithLlm(params: {
   }
 
   const output = validation.data
-  const queries = output.queries.length > 0 ? output.queries : heuristic.queries
+  /**
+   * **题型偏置**（§9.1 ①，2026-09-12）——模型标出来的题型只是一半，另一半是
+   * 这里**确定性地**把技法限定词补上、把生平词删掉。
+   *
+   * ⚠ 为什么不只靠提示词：实测里模型认得出「这是画风题」，写出来的词却仍是
+   * 「新海诚 黄昏」——一条裸查询的首屏就是人物条目。模型标类型、代码改词，
+   * 两件事分开做，哪一半挂了另一半照样生效。
+   */
+  const questionType =
+    output.questionType ??
+    heuristic.questionType ??
+    detectResearchQuestionType(params.text)
+  const queries = biasQueriesForQuestionType(
+    output.queries.length > 0 ? output.queries : heuristic.queries,
+    questionType,
+  )
 
   return {
+    questionType,
     // 强制模式下用户已经说了「去联网」，规划器无权否决。
     shouldSearch: params.forced ? true : output.shouldSearch,
     sourceGroup: output.sourceGroup,

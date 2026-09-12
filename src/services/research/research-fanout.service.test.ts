@@ -402,6 +402,79 @@ describe('runAssistantResearch', () => {
   })
 })
 
+/**
+ * **题型排序偏置**（2026-09-12）。🔬 实测：查「新海诚式黄昏光怎么描述」，
+ * 维基与百度百科的同一段**生平**互相印证排到第一，唯一一条讲逆光与云层的技法文
+ * 被挤到后面截掉。
+ */
+describe('runAssistantResearch · 题型排序（2026-09-12）', () => {
+  const BIO = textItem({
+    id: 'web:bio',
+    sourceId: RESEARCH_SOURCE_IDS.webSearch,
+    title: '新海诚 - 维基百科：生平',
+    url: 'https://zh.wikipedia.org/wiki/新海诚',
+    excerpt: '新海诚，日本动画导演，1973 年出生于长野县。',
+  } as Partial<EvidenceItem>)
+  const CRAFT = textItem({
+    id: 'web:craft',
+    sourceId: RESEARCH_SOURCE_IDS.webSearch,
+    title: '新海诚光影技法解析：逆光与云层',
+    url: 'https://example.com/shinkai-lighting',
+    excerpt: '他的黄昏用高饱和的橙紫渐变与强逆光。',
+  } as Partial<EvidenceItem>)
+
+  it('⭐ style_technique：技法页排到生平条目前面', async () => {
+    mockFetchWebSearchEvidence.mockResolvedValue({ items: [BIO, CRAFT] })
+
+    const outcome = await runAssistantResearch({
+      goal: '黄昏光怎么描述',
+      sources: ['web'],
+      questionType: 'style_technique',
+    })
+
+    expect(outcome.evidence[0]?.title).toBe(CRAFT.title)
+  })
+
+  it('⚠ 不给题型（或别的题型）时排序**逐字与改动前一致**', async () => {
+    mockFetchWebSearchEvidence.mockResolvedValue({ items: [BIO, CRAFT] })
+
+    const outcome = await runAssistantResearch({
+      goal: '新海诚是谁',
+      sources: ['web'],
+      questionType: 'entity_facts',
+    })
+    expect(outcome.evidence[0]?.title).toBe(BIO.title)
+
+    mockFetchWebSearchEvidence.mockResolvedValue({ items: [BIO, CRAFT] })
+    const untyped = await runAssistantResearch({
+      goal: '新海诚是谁',
+      sources: ['web'],
+    })
+    expect(untyped.evidence[0]?.title).toBe(BIO.title)
+  })
+
+  it('⛔ 题型不许越过印证数：3 源印证的生平仍排在单源技法文之前', async () => {
+    // 同名 = 同一事实（`factKeyOf` 判标题），三个不同域名 = 3 源印证。
+    mockFetchWebSearchEvidence.mockResolvedValue({
+      items: [
+        BIO,
+        { ...BIO, id: 'web:bio2', url: 'https://baike.baidu.com/新海诚' },
+        { ...BIO, id: 'web:bio3', url: 'https://www.sohu.com/a/1' },
+        CRAFT,
+      ],
+    })
+
+    const outcome = await runAssistantResearch({
+      goal: '黄昏光怎么描述',
+      sources: ['web'],
+      questionType: 'style_technique',
+    })
+
+    expect(outcome.evidence[0]?.title).toBe(BIO.title)
+    expect(outcome.evidence[0]?.corroboration).toBe(3)
+  })
+})
+
 describe('runAssistantResearch · 角色级（2026-09-07）', () => {
   it('⭐ danbooru 收到的是**角色名 + 作品名**，⛔ 不再是 queries[0]（作品名）', async () => {
     await runAssistantResearch({

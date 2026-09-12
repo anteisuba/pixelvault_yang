@@ -7,6 +7,7 @@ import {
   RESEARCH_FRESHNESS_VALUES,
   RESEARCH_GOAL_VALUES,
   RESEARCH_LIMITS,
+  RESEARCH_QUESTION_TYPE_VALUES,
   RESEARCH_RUN_STATUS_VALUES,
   RESEARCH_SOURCE_GROUP_VALUES,
   RESEARCH_SOURCE_ID_VALUES,
@@ -153,6 +154,13 @@ export type ResearchQuery = z.infer<typeof ResearchQuerySchema>
 export const ResearchPlanSchema = z.object({
   shouldSearch: z.boolean(),
   sourceGroup: z.enum(RESEARCH_SOURCE_GROUP_VALUES),
+  /**
+   * **这一题问的是「怎么描述 / 怎么画」还是「这个东西是什么」**（2026-09-12）。
+   *
+   * ⚠ 可选：确定性启发不填它时，下游按 `detectResearchQuestionType` 现算 ——
+   * ⛔ 别为了让它必填而在 `research-intent` 的每个分支上手写一遍。
+   */
+  questionType: z.enum(RESEARCH_QUESTION_TYPE_VALUES).optional(),
   goal: z.enum(RESEARCH_GOAL_VALUES),
   queries: z.array(ResearchQuerySchema).max(RESEARCH_LIMITS.maxQueries),
   freshness: z.enum(RESEARCH_FRESHNESS_VALUES),
@@ -171,6 +179,8 @@ export type ResearchPlan = z.infer<typeof ResearchPlanSchema>
 export const ResearchPlannerOutputSchema = z.object({
   shouldSearch: z.boolean(),
   sourceGroup: z.enum(RESEARCH_SOURCE_GROUP_VALUES),
+  /** 题型（§9.1 ①）。模型不填 / 填错就回落到确定性识别。 */
+  questionType: z.enum(RESEARCH_QUESTION_TYPE_VALUES).optional(),
   queries: z
     .array(
       z.object({

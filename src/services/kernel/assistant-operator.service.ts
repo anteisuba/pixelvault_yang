@@ -296,7 +296,10 @@ import {
 import { planResearchWithLlm } from '@/services/research/research-planner.service'
 import { planResearchHeuristically } from '@/lib/research-intent'
 import {
+  RESEARCH_QUESTION_TYPES,
   RESEARCH_SOURCE_GROUPS,
+  detectResearchQuestionType,
+  type ResearchQuestionType,
   type ResearchSourceGroup,
 } from '@/constants/research'
 import {
@@ -1820,6 +1823,30 @@ const VERIFY_SOURCES_BY_GROUP: Record<
 }
 
 /**
+ * **题型 → 源顺序**（2026-09-12）——压在 `VERIFY_SOURCES_BY_GROUP` 之上的一层。
+ *
+ * 🔬 owner 真机：「新海诚式黄昏光怎么描述」走 `general` 组 → 网搜 + 百科，
+ * 回来的前几条全是维基/百科的**人物条目**（导演生平、从业背景），归纳只能说
+ * 「来源未覆盖黄昏光的视觉特征与提示词术语」。
+ *
+ * ⚠ 所以画风/光影/技法题**换一套源**：网搜（技法博客 / 教程 / 提示词站）打头、
+ * danbooru 当**术语表**（它的标签就是提示词词汇）、B站给教程视频，百科排最后
+ * ——不是删掉它：作者与作品条目里仍然有「以逆光与云层著称」这类句子。
+ * ⚠ `entity_facts` 与 `general` **不改**：那是 `VERIFY_SOURCES_BY_GROUP` 已经
+ * 验过的路，⛔ 这次偏置不许顺手动它。
+ */
+const VERIFY_SOURCES_BY_QUESTION_TYPE: Partial<
+  Record<ResearchQuestionType, readonly AssistantResearchSource[]>
+> = {
+  [RESEARCH_QUESTION_TYPES.styleTechnique]: [
+    ASSISTANT_RESEARCH_SOURCE_IDS.web,
+    ASSISTANT_RESEARCH_SOURCE_IDS.danbooru,
+    ASSISTANT_RESEARCH_SOURCE_IDS.bilibili,
+    ASSISTANT_RESEARCH_SOURCE_IDS.wiki,
+  ],
+}
+
+/**
  * **改写 + 选源**（§9.1 的第 ① ② 步，commit #16）——一次结构化输出。
  *
  * ⭐ 为什么这两步合成一次 LLM 往返：它们问的是同一件事的两面（「这题该用哪几个
@@ -1837,6 +1864,7 @@ async function rewriteVerifyQueries(
   queries: string[]
   langs: string[]
   sources: AssistantResearchSource[]
+  questionType: ResearchQuestionType
 }> {
   const text = [...entities, goal].filter(Boolean).join(' ')
   const heuristic = planResearchHeuristically(text)
@@ -1847,6 +1875,7 @@ async function rewriteVerifyQueries(
     heuristic,
     forced: true,
   })
+  const questionType = plan.questionType ?? detectResearchQuestionType(text)
   return {
     queries: plan.queries.map((query) => query.text),
     langs: [
@@ -1856,7 +1885,12 @@ async function rewriteVerifyQueries(
           .filter((lang): lang is 'zh' | 'en' | 'ja' => Boolean(lang)),
       ),
     ],
-    sources: [...VERIFY_SOURCES_BY_GROUP[plan.sourceGroup]],
+    /** ⚠ 题型那一层压在源组之上（见 `VERIFY_SOURCES_BY_QUESTION_TYPE`）。 */
+    sources: [
+      ...(VERIFY_SOURCES_BY_QUESTION_TYPE[questionType] ??
+        VERIFY_SOURCES_BY_GROUP[plan.sourceGroup]),
+    ],
+    questionType,
   }
 }
 
@@ -1948,6 +1982,7 @@ async function planResearch(
     goal: args.goal,
     entities,
     sources,
+    questionType: rewrite.questionType,
     ...(rewrite.queries.length > 0 ? { queries: rewrite.queries } : {}),
     ...(args.expandSources ? { limit: RESEARCH_LIMITS.maxEvidenceItems } : {}),
   })
@@ -2019,6 +2054,7 @@ async function planResearch(
       ? ((await synthesizeResearchConclusion(run, {
           goal: args.goal,
           evidence,
+          questionType: rewrite.questionType,
         })) ?? excerpted)
       : excerpted
   const roundsLeft = RESEARCH_LIMITS.maxRoundsPerTurn - round
@@ -2154,15 +2190,29 @@ Rules:
  */
 async function synthesizeResearchConclusion(
   run: OperatorRun,
-  args: { goal: string; evidence: readonly AssistantResearchEvidence[] },
+  args: {
+    goal: string
+    evidence: readonly AssistantResearchEvidence[]
+    questionType?: ResearchQuestionType
+  },
 ): Promise<string | undefined> {
   const top = args.evidence.slice(0, RESEARCH_LIMITS.maxConclusionEvidence)
   if (top.length === 0) return undefined
   const language =
     RESPONSE_LANGUAGE_LABELS[resolveResponseLanguage(run.request, run.persona)]
+  /**
+   * ⭐ **画风/技法题要的是「能抄进提示词的短语」**（2026-09-12）。
+   * 🔬 实测那一轮归纳出的是「新海诚是日本动画导演」——一句没错但没用的话。
+   * ⚠ 仍然只许基于证据：这条只改**挑哪句**，⛔ 不放宽「不许编」。
+   */
+  const questionTypeLine =
+    args.questionType === RESEARCH_QUESTION_TYPES.styleTechnique
+      ? 'THIS IS A CRAFT QUESTION: lead with the reusable descriptive wording the evidence gives — the words for the look, the light, the colour, the material — not with who made it or when. If the evidence only carries biography, say so plainly.'
+      : undefined
   const sections = [
     `GOAL:\n${clamp(args.goal, RESEARCH_LIMITS.maxGoalChars)}`,
     `WRITE IN: ${language}`,
+    ...(questionTypeLine ? [questionTypeLine] : []),
     `EVIDENCE:\n${top
       .map(
         (item, index) =>

@@ -627,6 +627,269 @@ export const RESEARCH_CHARACTER_QUERY_SUFFIXES = {
   ja: 'キャラクター',
 } as const
 
+// ─── 题型偏置（2026-09-12）───────────────────────────────────────
+
+/**
+ * **这一题问的是「怎么描述 / 怎么画」，还是「这个东西是什么」**。
+ *
+ * 🔬 owner 真机：查「新海诚式黄昏光怎么描述」，改写出来的词与选源命中的全是
+ * **人物生平条目**（维基/百科的「新海诚 · 导演 · 从业经历」），归纳只能说
+ * 「来源未覆盖黄昏光的视觉特征与提示词术语」——查了，但查的是另一个问题。
+ *
+ * ⚠ 根因不在某一个源：改写词里没有技法向的限定词，选源又把百科排在最前，
+ * 排序还按印证数把两个百科站的同一段生平推到第一。所以偏置要**同时**落在
+ * 改写 / 选源 / 排序 / 归纳四处，任何一处漏掉都能让整条链回到人物条目。
+ */
+export const RESEARCH_QUESTION_TYPES = {
+  /** 画风 / 光影 / 材质 / 构图 / 技法 / 提示词怎么写 —— 要的是作品分析与术语。 */
+  styleTechnique: 'style_technique',
+  /** 某作品 / 人物 / 设定是什么 —— 要的是条目型事实。 */
+  entityFacts: 'entity_facts',
+  /** 两头都不像。 */
+  general: 'general',
+} as const
+
+export const RESEARCH_QUESTION_TYPE_VALUES = [
+  RESEARCH_QUESTION_TYPES.styleTechnique,
+  RESEARCH_QUESTION_TYPES.entityFacts,
+  RESEARCH_QUESTION_TYPES.general,
+] as const
+
+export type ResearchQuestionType =
+  (typeof RESEARCH_QUESTION_TYPE_VALUES)[number]
+
+export type ResearchQueryLang = 'zh' | 'en' | 'ja'
+
+/** 「怎么描述、怎么画」的信号词。⚠ 三语并列：日文圈的技法文用的是「描き方」。 */
+const STYLE_TECHNIQUE_SIGNAL_TERMS: readonly string[] = [
+  '画风',
+  '画風',
+  '风格',
+  '光影',
+  '打光',
+  '逆光',
+  '配色',
+  '色调',
+  '构图',
+  '材质',
+  '质感',
+  '笔触',
+  '渲染',
+  '技法',
+  '画法',
+  '怎么画',
+  '如何画',
+  '怎么描述',
+  '如何描述',
+  '提示词',
+  '关键词',
+  'art style',
+  'style of',
+  'lighting',
+  'shading',
+  'color palette',
+  'composition',
+  'texture',
+  'brushwork',
+  'render',
+  'technique',
+  'how to paint',
+  'how to draw',
+  'how to describe',
+  'prompt',
+  'キャラデザ',
+  'ライティング',
+  '描き方',
+  '塗り方',
+  'プロンプト',
+]
+
+/** 「这个东西是什么」的信号词。⚠ 只在没命中技法词时才看。 */
+const ENTITY_FACTS_SIGNAL_TERMS: readonly string[] = [
+  '是谁',
+  '是什么',
+  '哪一年',
+  '什么时候',
+  '剧情',
+  '声优',
+  '设定集',
+  '生平',
+  'who is',
+  'what is',
+  'when did',
+  'biography',
+  'plot',
+  '誰',
+  'いつ',
+]
+
+/**
+ * `style_technique` 时改写词必须带上的限定词。
+ *
+ * ⚠ 这是**限定词**不是同义词表：一条裸的「新海诚 黄昏」首屏是人物条目，
+ * 而「新海诚 画风 特征」「Makoto Shinkai lighting breakdown」命中的才是
+ * 作品分析与提示词术语页。⛔ 别在这里续第五条：`maxQueries` 是 3。
+ */
+export const RESEARCH_STYLE_QUERY_MODIFIERS: Record<
+  ResearchQueryLang,
+  readonly string[]
+> = {
+  zh: ['画风 特征', '光影 分析', '提示词', '怎么画'],
+  en: [
+    'art style analysis',
+    'lighting breakdown',
+    'prompt keywords',
+    'how to paint',
+  ],
+  ja: ['画風 特徴', 'ライティング 解説', 'プロンプト', '描き方'],
+} as const
+
+/**
+ * `style_technique` 时**从改写词里删掉**的生平向词。
+ *
+ * ⚠ 删而不是降权：这些词进了查询串就是在向搜索引擎要人物条目，而那正是
+ * 实测里回来的那一堆。
+ */
+export const RESEARCH_BIOGRAPHY_QUERY_TERMS: readonly string[] = [
+  'biography',
+  'filmography',
+  'early life',
+  '生平',
+  '人物',
+  '简介',
+  '履历',
+  '経歴',
+  '略歴',
+  'プロフィール',
+]
+
+/** 结果排序的题型词表（`style_technique` 专用）。⛔ 不参与任何显示。 */
+export const RESEARCH_STYLE_RANK_TERMS = {
+  /** 命中即降权：这是人物条目的说法。 */
+  demote: [
+    '生平',
+    '人物经历',
+    '早年经历',
+    '出生',
+    '导演简介',
+    '个人简介',
+    'biography',
+    'filmography',
+    'early life',
+    'born in',
+    '経歴',
+    '略歴',
+    'プロフィール',
+  ],
+  /** 命中即升权：这是技法/术语页的说法。 */
+  promote: [
+    '画风',
+    '画風',
+    '光影',
+    '打光',
+    '技法',
+    '构图',
+    '材质',
+    '笔触',
+    '提示词',
+    '关键词',
+    '教程',
+    '解析',
+    'art style',
+    'lighting',
+    'technique',
+    'breakdown',
+    'prompt',
+    'tutorial',
+    '描き方',
+    '解説',
+    '講座',
+  ],
+} as const
+
+/** 升 / 降权各算几分。⚠ 与印证数同量级：印证仍是主序，题型只在同分时翻盘。 */
+export const RESEARCH_QUESTION_TYPE_RANK_WEIGHTS = {
+  promote: 1,
+  demote: -1,
+} as const
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+function includesAnyTerm(lowered: string, terms: readonly string[]): boolean {
+  return terms.some((term) => lowered.includes(term.toLowerCase()))
+}
+
+/**
+ * 确定性题型识别 —— 规划器拿不到路由 / 输出不合法时用它，⛔ 不硬失败。
+ * ⚠ 技法词优先：一句「新海诚的黄昏光怎么描述」两组词都命中，而它要的是技法。
+ */
+export function detectResearchQuestionType(text: string): ResearchQuestionType {
+  const lowered = text.toLowerCase()
+  if (includesAnyTerm(lowered, STYLE_TECHNIQUE_SIGNAL_TERMS)) {
+    return RESEARCH_QUESTION_TYPES.styleTechnique
+  }
+  if (includesAnyTerm(lowered, ENTITY_FACTS_SIGNAL_TERMS)) {
+    return RESEARCH_QUESTION_TYPES.entityFacts
+  }
+  return RESEARCH_QUESTION_TYPES.general
+}
+
+/**
+ * 按题型改写查询词（§9.1 ①）。
+ *
+ * `style_technique`：删掉生平向词、补上一条技法限定词（按查询语言、逐条轮转，
+ * 三条查询就是「特征 / 光影 / 提示词」三个切面）。其余题型**原样返回** ——
+ * 「某角色穿什么」那条链一个字都不该被这次偏置动到。
+ */
+export function biasQueriesForQuestionType<
+  T extends { text: string; lang?: ResearchQueryLang },
+>(queries: readonly T[], questionType: ResearchQuestionType): T[] {
+  if (questionType !== RESEARCH_QUESTION_TYPES.styleTechnique) {
+    return [...queries]
+  }
+  return queries.map((query, index) => {
+    const lang: ResearchQueryLang = query.lang ?? 'zh'
+    const modifiers = RESEARCH_STYLE_QUERY_MODIFIERS[lang]
+    const modifier = modifiers[index % modifiers.length] ?? modifiers[0]!
+    let text = query.text
+    for (const term of RESEARCH_BIOGRAPHY_QUERY_TERMS) {
+      text = text.replace(new RegExp(escapeRegExp(term), 'gi'), ' ')
+    }
+    text = text.replace(/\s+/g, ' ').trim()
+    const lowered = text.toLowerCase()
+    const alreadyBiased = modifiers.some((candidate) =>
+      lowered.includes(candidate.toLowerCase()),
+    )
+    const biased = alreadyBiased ? text : `${text} ${modifier}`.trim()
+    return {
+      ...query,
+      text: biased.slice(0, RESEARCH_LIMITS.maxQueryLength),
+    }
+  })
+}
+
+/**
+ * 结果排序的题型加权（§9.1 ③）。`style_technique` 之外恒 `0` ——
+ * ⛔ 这次偏置不许改动其它题型已经验过的排序。
+ */
+export function scoreQuestionTypeBias(
+  questionType: ResearchQuestionType,
+  text: string,
+): number {
+  if (questionType !== RESEARCH_QUESTION_TYPES.styleTechnique) return 0
+  const lowered = text.toLowerCase()
+  let score = 0
+  if (includesAnyTerm(lowered, RESEARCH_STYLE_RANK_TERMS.promote)) {
+    score += RESEARCH_QUESTION_TYPE_RANK_WEIGHTS.promote
+  }
+  if (includesAnyTerm(lowered, RESEARCH_STYLE_RANK_TERMS.demote)) {
+    score += RESEARCH_QUESTION_TYPE_RANK_WEIGHTS.demote
+  }
+  return score
+}
+
 // ─── 证据的可信度分级（2026-09-07）───────────────────────────────
 
 /**

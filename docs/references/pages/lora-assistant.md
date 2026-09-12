@@ -22,13 +22,15 @@
 | 5   | 家族方言表进常量，两个消费者（系统提示 / `buildLoraPromptTemplate`） | §6   |
 | 6   | `set_prompt` 在 LoRA 域多一步取材，确认卡逐段标注来源 + 负面改动段   | §7   |
 | 7   | 换底模后旧提示词带错方言 → 助手在同一张确认卡里提修正                | §7.4 |
+| 8   | **一律先出「LoRA 推荐卡」让创作者挑，勾选后才挂**（当日追加）        | §10  |
 
 ### 不做（明确排除）
 
-- ❌ **UI 不动**。§4 的三行落在**已有**的挂载日志条详情上（`describeStepDetail`），§5 的提醒行落在**已有**的系统行卡型上，§7 的来源标注落在**已有**的覆盖三选卡上。⛔ 本轮不新增任何一种卡片、不改任何一处版式、不加 token。
+- ❌ **§1–§9 那一段 UI 不动**。§4 的三行落在**已有**的挂载日志条详情上（`describeStepDetail`），§5 的提醒行落在**已有**的系统行卡型上，§7 的来源标注落在**已有**的覆盖三选卡上。⛔ 那九片不新增任何一种卡片、不改任何一处版式、不加 token。
+  ⚠ **例外只有一处，且是 owner 当日追加的第 8 条**：§10 的「LoRA 推荐卡」是一张**新卡**（`confirm` 帧的第四支 + 一颗新组件）。它不推翻上面那句——那九片仍然一张卡都不加。
 - ❌ **手机端不做**。`/studio/lora` 的小屏宿主仍是旧面板（`LoraAssistantDock` → `PromptAssistantPanel`，见 `LoraWorkbench.tsx:3166`）。本文所有改动都只经过 Operator 那条路，小屏行为一个字不变。
 - ❌ **不动训练流程**、不动计费、不动归档。
-- ❌ **不加新工具**。LoRA 域工具表（`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[lora]`，`constants/assistant-operator.ts:1488`）本轮**条目数不变**。特别地：⛔ 不加 `set_trigger_chips`（触发词只读，§3.3），⛔ 不加 `request_generation`（装配台仍然不出图，理由见 `use-lora-operator-host.ts:382` 的头注，一个字没变）。
+- ❌ **不加新工具**（§1–§9 那一段）。LoRA 域工具表（`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[lora]`，`constants/assistant-operator.ts:1488`）在那九片里**条目数不变**；§10 加**一条** `plan_lora_pick`（§10.2.2），仅此一条。特别地：⛔ 不加 `set_trigger_chips`（触发词只读，§3.3），⛔ 不加 `request_generation`（装配台仍然不出图，理由见 `use-lora-operator-host.ts:382` 的头注，一个字没变）。
 - ❌ 不拆 `assistant-operator.service.ts`（同 v2 §0 的判据）。
 
 ---
@@ -296,15 +298,175 @@ LORA_STACK_WEIGHT_BUDGET = { default: 1.5, distilled: 1.0 }
 
 ---
 
+## 10. LoRA 推荐卡（owner 2026-09-12 追加）
+
+**一句话**：`search_loras` 之后助手**不再直接挂**——一律先出一张「LoRA 推荐卡」，创作者勾了哪几把才挂哪几把。**哪怕只搜到一把、哪怕用户指名要某一把，也先出卡**：候选是模型从两个上游里挑的，用户一眼都没看过就挂上去，错的那一次要靠撤销才发现。
+
+方向已选 **A 行式清单**（画板第三页 `LoraPickA`，源文件 `design/LoraPickA.dc.html`）：卡宽 = 面板内宽；头部一行「ANTI 找到 N 把 · 选要挂的」+ 右侧当前底模（mono）；题面一句；一把一行 = 勾选框 + 52×68 封面 + 名字（+「推荐」标）+ 家族圆点「装得上 / 装不上」+ 作者（或下载量）+ 默认权重（mono）+ 触发词 chip；按题材分组时组间一条细线 + 小标题；装不上的行变灰 + 虚线框 + 不可勾 + 理由写在行里；底部「已选 N 把 · 总权重 X / Y」+「换个词再搜」+ 主按钮「挂载所选」。
+
+### 10.1 协议：`confirm` 帧加第四种 kind `loraPick`
+
+**落在 `confirm` 而不是 `ask`**（v2 §3.2 / §3.3）：`ask` 是「一次只问一个、点一项就是提交」的单选题（`StudioOperatorQuestionCard` 的头注写死了这条），而这张卡是**多选 + 一颗提交键 + 之后就地换成「已挂 2 把 · 11:24」**。三件事逐条对上的是确认卡：帧到即插、不离开时间线、就地换态（v2 §3.2 进离场表）。
+
+⚠ `ASSISTANT_OPERATOR_CONFIRM_KIND_IDS` 的头注与 v2 §3.3 那句「确认卡只剩**两种**来源」已经被 `contextCard` 破过一次，本轮再加一支——**那段注释要跟着改**（⛔ 不留「没有第三种」的旧话，它挂在一张四支的判别联合上就是下一个人踩的坑）。判据仍然是同一条：**有一件事等你拍板才算数**，四支都满足。
+
+| 项       | 值                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 帧       | `confirm`，`confirm.kind = 'loraPick'`（`constants/assistant-operator.ts:1051` 那张表加第四条 + `ASSISTANT_OPERATOR_CONFIRM_KINDS` 补一条）                                                                                                                                                                                                                                                                         |
+| 载荷     | `question`（题面一句，模型写）· `baseFamilyLabel`（当前底模，服务端填，`null` = 底模未定）· `budget: { total, limit } \| null`（当前栈总权重与阈值，§5.1；底模未定时 `null`）· `groups: { title?: string; candidateIds: string[] }[]`（模型给的题材分组；不分组时一个无 `title` 的组）· `candidates: AssistantOperatorLoraPickCandidate[]`                                                                          |
+| 候选形状 | `AssistantOperatorLoraCandidateSchema`（`types/assistant-operator.ts:2251`，已有 candidateId / name / author / family / compatible / thumbnailUrl / triggerWords / downloads / importable / license…）**扩两格**：`defaultWeight: number`（三段回落的结果，与 `planMountLora` 同一份）· `recommended: boolean`（模型标的那一把，⚠ 一张卡只留第一个，判据与 `PLAN_LIMITS` 那条「两项都标推荐等于没有推荐」逐字同源） |
+| 上限     | `LIMITS.maxLoraResults`（6）——与 `search_loras` 一轮能回的条数同一份，⛔ 不另立一个                                                                                                                                                                                                                                                                                                                                 |
+| 停流     | 吐完这一帧流结束，`stopped` 的原因是 `awaiting_confirm`（与 `confirmGenerate` / `confirmContextCard` 逐字同构：服务端没有挂起态，续跑靠客户端带答复重发）                                                                                                                                                                                                                                                           |
+| 结账     | 这一轮**以卡结束**，按 v2 §7.5 ⑤ 照样结账；勾选那一下发生在流之后，按 §7.5 ② 补写进上一条记录的 `decisions`                                                                                                                                                                                                                                                                                                         |
+
+**⭐ 候选本体必须跟着帧走（含 `importPayload`）**，这是与 `search_loras` 步结果**不一样**的一处，理由三条：
+
+1. `candidateId → LoraCandidate` 的索引（`run.loraIndex`）**只活一轮**。用户点「挂载所选」是在流结束之后，那一轮的索引已经没了。
+2. ⛔ **不许「确认时按 id 再搜一次」**——`types/lora-candidate.ts` 的 `LoraCandidateImportPayloadSchema` 头注把这条否掉了：上游随时会改（用户看到的卡与实际导入的不是同一版），且一次确认要等两次外部请求。
+3. 旧面板早有先例：`AssistantConversationMessageSchema.loraCandidates`（`types/assistant-conversation.ts:130`）存的就是**被挑中的那几条本体**，理由逐字相同（「候选是那一刻的上游快照，重搜一次拿到的不是同一份」）。
+
+⚠ 于是 `AssistantOperatorLoraCandidateSchema` 头注里那句「`importPayload` 不该跟着每条候选流到客户端」**要改写成有边界的一句**：它说的是 `search_loras` 的**步结果**（那份要进会话历史）；推荐卡这一帧是「真的要挂那几把」的前一刻，载荷必须在手上。⛔ 别把它加回步结果。
+⚠ **回传的 `importPayload` 服务端一个字都不信任地用**：它原样填进 `mount_lora` 的 step 载荷，取图 / 落 R2 / 落库那一跳照旧在客户端（与 `mount_lora` 今天的契约逐字一致，服务端一个字节都没碰）。
+
+**用户回答怎么回来**（请求体，`AssistantOperatorRequestSchema`）：
+
+```
+loraPicks?: { candidateId, weight?, candidate: AssistantOperatorLoraPickCandidate }[]   // ≤ maxLoraResults
+```
+
+⚠ **只回传勾中的那几条**，⛔ 不回整轮候选（同 `loraCandidates` 那条「没被挑中的存了只是让每条消息多背几 KB」）。
+⚠ 跨轮落账走 **b9b6990a 那一套**（上下文卡那两下的同一条路）：勾选那一下同时产出 ① 一行系统行（新码 `loraPickMounted` / `loraPickDismissed`）；② 一条**折成 user 消息**的正文（「我挂了《清宵》和 overwatch_3d_anima」）；③ 一条结构化 `planAnswers`（`questionId` = `loraPickAnswerId(query)`，新前缀 `loraPick:`，与 `contextCardAnswerId` 同构）。少了它们，模型下一轮读到的是一张没人回应的卡，于是重提同一张。
+
+### 10.2 服务端
+
+#### 10.2.1 `search_loras` 之后不能直接 `mount_lora`
+
+`planMountLora`（`assistant-operator.service.ts:3888`）**加一道前置闸**：只接受「来自推荐卡确认」的 candidateId。
+
+| 情形                                                | 处置                                                                                                                                                          |
+| --------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| candidateId 在本轮 `request.loraPicks` 里（带标记） | 照旧往下跑（importable / 权重值域 / 跨族 §4.2 / 本轮重复 四道闸一个不少）                                                                                     |
+| 模型自己写了一个 candidateId（无标记）              | `reject(REJECT.loraPickRequired)`，observation：**先出推荐卡**——「用 ask/plan_lora_pick 把这几把摆给创作者，他勾了你再挂」，并把可选的 candidateId 原样列回去 |
+
+⚠ **闸是「有没有那一下勾选」，不是「模型说了什么」**：标记由服务端从 `request.loraPicks` 现算（一个 `Set<candidateId>`），⛔ 不接受模型在入参里自称「用户已经确认过了」。
+⚠ `run.loraIndex` 在有 `loraPicks` 的那一轮由服务端**先灌回去**（`hydrateLoraIndexFromPicks`），于是 `planMountLora` 取候选那一段**一个字不用改**。
+
+#### 10.2.2 卡从哪来：新 action `plan_lora_pick`（不走「结果自动转卡」）
+
+两条落法只能选一条，**选 `plan_lora_pick`**（归「问」组，与 `propose_context_card` 同组同形制：吐一帧确认、停流、服务端一行库都不写）。入参：`question`（题面）· `groups: { title?, candidateIds[] }[]` · `recommendedCandidateId?`。
+
+⛔ **不让 `search_loras` 的结果自动转卡**，两条理由都可验证：
+
+1. **卡上那三样东西是模型的判断**：题面一句、按题材分组、哪一把标「推荐」。服务端自动转卡只能给出一句通用题面和一个平铺列表——那正是画板方案 A 里最不像样的那一版。
+2. **自动转卡会把流停死在第一轮**。`search_loras` 今天是 `readStep`，模型常常要连搜两轮（换词、按当前底模家族再搜一次，见 `9f280274`），也常常只是为了回答「有没有这把」而搜。一搜就停流等于把这些路全掐掉。
+
+⚠ `plan_lora_pick` 只接受**本轮 `search_loras` 回过的** candidateId（`run.loraIndex` 查得到），查不到就 `reject(REJECT.unknownLora)`——与 `mount_lora` 今天那条逐字同源（模型绝不自己写 LoRA 的 id）。
+⚠ 装不上的候选（`compatible === false` / `importable === false`）**照样进卡**（策略 C：不阻断展示），只是行变灰、不可勾、理由写在行里。⛔ 别在这里把它们滤掉：滤掉之后用户看到的是「没搜到」，而真相是「搜到了但要换底模」。
+⚠ 本轮工具表条目数 **+1**（`plan_lora_pick`）。⛔ 仍然不加 `set_trigger_chips`、仍然不加 `request_generation`（§1「不做」里那两条一个字没变）。
+
+#### 10.2.3 确认回来的那一轮：先挂，再说话
+
+收到 `request.loraPicks` 的那一轮，服务端**在模型开口之前**逐把过 `planMountLora` 并发 `step` 帧，然后模型照常开跑（正文里复述挂了哪几把）。
+
+⭐ **为什么不让模型再调一遍 `mount_lora`**：勾选那一下就是拍板。把它交回模型重判，会出现「用户勾了 3 把、模型挂了 2 把」这种没人解释得清的偏差，而用户已经点过按钮了。
+⚠ **闸一道不少**：逐把仍然走 `planMountLora` 的全部判据，被拒的那一把变成一条 rejected step（跨族 / 不可导入 / 权重越界），并在系统提示里如实告诉模型「这一把创作者勾了但挂不上，原因 X」，让它在正文里交代。
+⚠ 撤销照旧：每一把是一条独立的 `mount_lora` step，`inverse` 与 change rail 一个字不变。
+⚠ 超预算那一句（§5.2）照旧只提醒不动手，逐把累加后在最后一把的 observation 上出现一次即可，⛔ 别每把都念一遍。
+
+#### 10.2.4 LoRA 域系统提示加两句
+
+`assistant-operator.service.ts:6414` 那块 LoRA 域硬规矩追加（英文，与同段其余规矩同一档）：
+
+- 找到候选之后**永远先出卡**：`plan_lora_pick` 把候选摆给创作者，他勾了你才挂。哪怕只找到一把、哪怕他点名要某一把——⛔ 不许自己替他挑。
+- 卡上那三样由你判：一句题面（说清你为什么摆这几把）、按题材分组（角色 / 画风分开）、最多标一把「推荐」。装不上的那几把照摆不误，理由你已经从 `search_loras` 拿到了。
+
+### 10.3 客户端
+
+#### 10.3.1 新组件 `StudioOperatorLoraPickCard.tsx`
+
+落在 `components/business/studio/assistant-operator/`，渲染槽位是 `StudioOperatorPanel.tsx:1823` 那块确认卡（帧到即插，⛔ 不钉到输入框上方——那是问题卡「一次只问一个」的位置）。
+
+| 项             | 规则                                                                                                                                                                                                                                                   |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 骨架           | 与 `StudioOperatorQuestionCard` 同一套：`fieldset` / `legend`（题面就是 legend）、行式选项、推荐项排第一。⚠ 但**勾选框是 checkbox 不是按钮**：这张卡是多选 + 一颗提交键，点一项不提交                                                                  |
+| 卡宽           | 面板内宽（画板 A：卡宽 = 容器宽）。⛔ 不写死 440px                                                                                                                                                                                                     |
+| 行             | 勾选框 · 52×68 封面（`thumbnailUrl`，缺席时画占位块，⛔ 不留白） · 名字（+「推荐」标） · 家族圆点 +「装得上 / 装不上」· 作者（`author` 为 null 时退回下载量，两个都没有就整段不画）· 默认权重（mono）· 触发词 chip（≤2 行）                            |
+| 分组           | `groups[i].title` 存在时画一条细线 + 小标题；只有一组且无 title 时不画                                                                                                                                                                                 |
+| 装不上的行     | 变灰 + 虚线框 + `disabled`，理由直接写在行里（`compatible === false` → 「<family> · 装不上，要换底模」；`importable === false` → 按 `notImportableReason` 出词）。⛔ 不藏、⛔ 不只给一个 tooltip                                                       |
+| 底部读数       | 「已选 N 把 · 总权重 X / Y」，X = **当前栈里启用中的** + **本次勾中的** 权重之和，Y = `resolveLoraStackWeightBudget`（`constants/lora-base-models.ts:325`，客户端可直接调）。超了把读数标红并给一行提醒，⛔ 不禁用主按钮（§5「只提醒不动手」逐字同源） |
+| 底模未定       | `budget === null` → 只画「已选 N 把」，⛔ 不画一个编出来的分母                                                                                                                                                                                         |
+| 「挂载所选」   | 一把都没勾时禁用；点下去 = 带 `loraPicks` 重发 + 落账三件套（§10.1）+ 卡就地换成「已挂 N 把 · 11:24」。⚠ 点过一次就不可再点（同 `StudioOperatorQuestionCard` 的 `submitted`：连点两下会把第一轮 abort 掉再跑一遍）                                     |
+| 「换个词再搜」 | **预填输入框「换个词再搜：」+ 聚焦，⛔ 不发请求**——判据与确认卡「一步一步来」（`onDecline` → `revisePrompt`）逐字同源：用户还得把新词打出来，替他发一句空话只会多跑一轮                                                                                |
+| 关掉不点       | 卡留在时间线上（确认卡不离开），落一条 `loraPickDismissed` 系统行 + 折成 user 消息的「这几把我先不挂」——⛔ 不静默（b9b6990a 的教训：不说出口，模型下一轮重提同一张卡）                                                                                 |
+| 移动端         | **本轮不做**（同 v2 §0 / §1「手机端不做」）：`/studio/lora` 小屏宿主仍是旧面板，那边本来就有一张 `PromptAssistantLoraPickCard`                                                                                                                         |
+
+#### 10.3.2 缩略图点开 = 库里那张详情抽屉
+
+**外壳**复用 `LoraLibraryDetailDrawer`（`lora/library/LoraLibraryDetailDrawer.tsx`，vaul 底部抽屉 ~92%），**内容**复用 `LoraLibraryRowDetail` 的 `layout="drawer"` 形态。⛔ 不新做一份详情。桌面也用抽屉：助手面板那点宽度装不下库里桌面版的原位三栏。
+
+⚠ **`LoraLibraryRowDetail` 今天吃不下候选，这是本节唯一的实现代价**：它的 props 是一个两支判别联合（`CivitaiLoraLibraryItem` / `HuggingFaceLoraSearchItem`），而 `CivitaiLoraLibraryItem` 是 `LoraAssetRecord` 再 extend 二十来格**必填**字段（`versionName` / `creatorAvatarUrl` / `thumbsUpCount` / `allowDerivatives` / `tags` / `triggerAlternates`…）。检索候选身上没有这些格。
+
+于是**落法是给它加第三支 `source: 'candidate'`**，⛔ **不写「候选 → Civitai item」的适配器**：适配器要给二十来格必填字段编值，而编出来的 `thumbsUpCount: 0` / `allowDerivatives: false` 会被当成事实画到徽章上——那正是本域最忌讳的那一类谎（`PromptAssistantLoraPickCard` 头注的三条「宁可说不知道也不留白」）。
+
+| 项           | 规则                                                                                                                                                                                                                                                                                                                                               |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 共享的部分   | `DetailShell` / 封面 / 判断字段块 / 样例带 / 动作条**一份不动**（那段头注写死了「只有外壳分叉，别为抽屉再抄一遍」）                                                                                                                                                                                                                                |
+| 这一支有什么 | 大图与样例（`candidate.sampleImageUrls`）· 触发词 · 底模家族 + 兼容判定 · 来源（`source` + `pageUrl`）· 许可（`license.known === false` 就写「许可未知」）· 作者 · 下载量 · 描述（Civitai 候选可按 candidateId 里的 modelId/versionId 走既有的 `useCivitaiModelDescription` / `useCivitaiMinedPrompts` 懒加载；HF 候选没有这条路，那一块整块不画） |
+| 没有的字段   | **整块不画**，⛔ 不画一个空壳、⛔ 不填 0                                                                                                                                                                                                                                                                                                           |
+| 动作条       | 主 = 「勾上这把 / 取消勾选」（回到卡上那一行，⛔ **不是**库里的「使用此 LoRA」——那一颗直接挂，会绕过整张卡）· 次 = 「打开来源」。⛔ 不给「收藏」（这一刻它还没进库）                                                                                                                                                                               |
+| 关闭         | 回到卡上原位，卡的勾选态不变                                                                                                                                                                                                                                                                                                                       |
+
+### 10.4 测试清单
+
+| #   | 验的是                                                                                                | 文件                                                                   |
+| --- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 1   | `confirm` 帧第四支 schema：候选两格新字段、`groups` 里的 id 必须在 `candidates` 里、上限 6            | `src/types/assistant-operator.test.ts`                                 |
+| 2   | 模型直接 `mount_lora`（无 `loraPicks`）被拒且 observation 里指路到 `plan_lora_pick`                   | `src/services/kernel/assistant-operator.service.test.ts`               |
+| 3   | `plan_lora_pick` 吐确认帧 + 停流；引用本轮没搜到的 candidateId 被拒；装不上的候选照样进卡             | 同上                                                                   |
+| 4   | 只搜到一把 / 用户指名时**照样出卡**（⛔ 不走捷径）                                                    | 同上                                                                   |
+| 5   | 带 `loraPicks` 的那一轮：逐把发 `mount_lora` step、`inverse` 齐、跨族那一把变 rejected step、其余照挂 | 同上                                                                   |
+| 6   | `hydrateLoraIndexFromPicks` 之后 `planMountLora` 取得到候选；模型自称确认过不算数                     | 同上                                                                   |
+| 7   | 超预算那一句只出现一次且没动过任何权重                                                                | 同上                                                                   |
+| 8   | 勾选落账三件套：系统行 + 折成 user 消息 + `planAnswers`；关掉不点也落账                               | `src/hooks/use-assistant-operator.test.ts`                             |
+| 9   | 卡：勾选/取消改读数、超预算标红但按钮不禁用、底模未定不画分母、装不上的行不可勾、连点两下只发一轮     | `.../assistant-operator/StudioOperatorLoraPickCard.web.test.tsx`（新） |
+| 10  | 「换个词再搜」只预填不发请求                                                                          | 同上                                                                   |
+| 11  | 详情抽屉候选支：缺字段整块不画、许可未知如实写、动作条是「勾上这把 / 打开来源」                       | `.../lora/library/LoraLibraryRowDetail` 的 web 测试                    |
+| 12  | 三语键齐                                                                                              | `/i18n-check`                                                          |
+
+⚠ 触及共享类型（`types/assistant-operator.ts`）与 kernel 服务：合并前跑**全量 Vitest + 全量 typecheck**（`full-gate`）。
+
+### 10.5 commit 计划
+
+> 一动作一 commit，顺序按 constants/types → services → hooks → components。
+> 每个 commit 的机器门都含 `npm run typecheck` · `npm run lint`；下表只列**额外**的定向验证。
+
+| #   | commit                                                           | 改动文件（要点）                                                                                                                                                                                                                                                                                                                                           | 额外验证                                                                  |
+| --- | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| 1   | `feat(assistant): lora pick confirm kind`                        | `constants/assistant-operator.ts`（`CONFIRM_KIND_IDS.loraPick` + KINDS + `plan_lora_pick` 进「问」组 + `REJECT.loraPickRequired` + `loraPickAnswerId` 前缀，**重写那段「只剩两种来源」的注释**）· `types/assistant-operator.ts`（帧第四支 + 候选两格 + `request.loraPicks`）· `types/studio-assistant-operator.ts`（`StudioOperatorConfirmPrompt` 第四支） | `vitest run src/types src/constants`                                      |
+| 2   | `feat(assistant): plan_lora_pick raises the pick card`           | `services/kernel/assistant-operator.service.ts`（`planLoraPick` + `ToolPlan` 新支 `confirmLoraPick` + 停流接线 + LoRA 域系统提示两句）                                                                                                                                                                                                                     | `vitest run src/services/kernel`                                          |
+| 3   | `feat(assistant): mount_lora only takes confirmed picks`         | 同一文件（`planMountLora` 前置闸 + `hydrateLoraIndexFromPicks`；`AssistantOperatorLoraCandidateSchema` 头注那句「importPayload 不流到客户端」**改写成有边界的一句**）                                                                                                                                                                                      | `vitest run src/services/kernel`                                          |
+| 4   | `feat(assistant): confirmed picks mount before the model speaks` | 同一文件（开跑段逐把发 step + 被拒那把进系统提示 + 超预算那句只出一次 + 结账落 `decisions`）                                                                                                                                                                                                                                                               | `vitest run src/services/kernel`                                          |
+| 5   | `feat(assistant): the pick answer lands in the next round`       | `hooks/use-assistant-operator.ts`（帧 → prompt、勾选提交、落账三件套、关掉不点那一支）· `constants/studio-assistant-operator.ts`（`loraPickMounted` / `loraPickDismissed`）· `lib/studio-operator-history.ts`（两句描述）· `messages/{en,ja,zh}.json`                                                                                                      | `vitest run src/hooks src/lib` · `/i18n-check`                            |
+| 6   | `feat(assistant): lora pick card`                                | `.../assistant-operator/StudioOperatorLoraPickCard.tsx`（新）+ 同名 web 测试 · `StudioOperatorPanel.tsx` 接线 · `messages/{en,ja,zh}.json`                                                                                                                                                                                                                 | `vitest run .../assistant-operator` · `/i18n-check` · 1440 目检对稿画板 A |
+| 7   | `feat(lora): library detail opens on a search candidate`         | `lora/library/LoraLibraryRowDetail.tsx`（第三支 `source: 'candidate'`）· `StudioOperatorLoraPickCard.tsx`（缩略图 → `LoraLibraryDetailDrawer`）· `messages/{en,ja,zh}.json`                                                                                                                                                                                | `vitest run .../lora/library` · `/i18n-check` · 1440 目检                 |
+
+**顺序判据**：1 是协议（往下每一片都依赖它）；2–3 是服务端那道闸的两半（**先有出卡的路，再把直挂的路堵上**——反过来会有一版助手既不能直挂也没有卡可出）；4 让确认真的落地（它读 1 的请求格、走 3 灌回去的索引）；5 把答复送回服务端（没有它，4 永远收不到东西）；6 才是卡本身（前面五片一到位它就有真数据可画）；7 最后——抽屉挂在卡上，卡不在就没有落点。
+
+**合并前**：`npm run test:run`（`full-gate`）一次，改动触及共享类型与 kernel 服务。
+
+---
+
 ## Source of Truth / Last Verified
 
 ### Source of Truth
 
-- **决策**：owner 2026-09-12 拍板（范围、七条、UI 不动、手机端不做、不加新工具）
+- **决策**：owner 2026-09-12 拍板（范围、七条、§1–§9 那一段 UI 不动、手机端不做、不加新工具）+ **当日追加第 8 条**「一律先出 LoRA 推荐卡」，方向 **A 行式清单**（§10）
 - **上游契约**：[`../domains/lora.md`](../domains/lora.md) §7.1.1（family 方言 · 跨族拦截 2026-09-11 拍板）
 - **页面**：[`lora-generate.md`](lora-generate.md)（助手是按需辅助层，不重排主台）· [`lora-workbench.md`](lora-workbench.md) §4.3（触发词 chips 与编译顺序）
-- **协议**：[`assistant-shell-v2.md`](assistant-shell-v2.md)（五动词 / 十帧 / 五类卡片 / 钱闸）
-- **代码**：`src/constants/lora-base-models.ts` · `src/constants/assistant-operator.ts` · `src/constants/studio-assistant-operator.ts` · `src/types/assistant-operator.ts` · `src/services/kernel/assistant-operator.service.ts` · `src/lib/lora-model-compatibility.ts` · `src/lib/lora-prompt-template.ts` · `src/lib/lora-source-match-prompt.ts` · `src/lib/studio-operator-snapshot.ts` · `src/lib/studio-operator-history.ts` · `src/hooks/use-lora-operator-host.ts` · `src/components/business/studio/lora/LoraWorkbench.tsx`
+- **协议**：[`assistant-shell-v2.md`](assistant-shell-v2.md)（五动词 / 十帧 / 五类卡片 / 钱闸 · §3.2 进离场表 · §7.5 以卡结束的轮次也结账）
+- **设计画板**：<https://claude.ai/code/artifact/7003a63a-b804-4937-8c65-18235f886843> 第三页「LoRA 推荐卡」的 `LoraPickA`（源文件 `design/LoraPickA.dc.html`）
+- **详情抽屉**：[`lora-library.md`](lora-library.md)（§3 展开详情 · 移动端抽屉）· `src/components/business/studio/lora/library/LoraLibraryDetailDrawer.tsx` + `LoraLibraryRowDetail.tsx`
+- **代码**：`src/constants/lora-base-models.ts` · `src/constants/assistant-operator.ts` · `src/constants/studio-assistant-operator.ts` · `src/types/assistant-operator.ts` · `src/services/kernel/assistant-operator.service.ts` · `src/lib/lora-model-compatibility.ts` · `src/lib/lora-prompt-template.ts` · `src/lib/lora-source-match-prompt.ts` · `src/lib/studio-operator-snapshot.ts` · `src/lib/studio-operator-history.ts` · `src/hooks/use-lora-operator-host.ts` · `src/hooks/use-assistant-operator.ts` · `src/types/lora-candidate.ts` · `src/types/assistant-conversation.ts` · `src/components/business/studio/lora/LoraWorkbench.tsx` · `src/components/business/studio/assistant-operator/**`
 
 ### Last Verified
 
@@ -312,3 +474,7 @@ LORA_STACK_WEIGHT_BUDGET = { default: 1.5, distilled: 1.0 }
   - **底模目录上没有蒸馏这一位**：11 条里没有蒸馏底模，`LoraBaseModel` 上也没有字段；Turbo 字样只在 `constants/lora.ts:443`–`:458` 的 Civitai 浏览分桶里（那是 LoRA 的 baseModel 值）。→ 加**必填** `distilled: boolean`（今天全 `false`），两档阈值逻辑一次到位；接 Z-Image Turbo / FLUX schnell 时只改那一条的值（§5.1）。
   - **Operator 的 `mount_lora` 没有确认卡**：它是 step + 日志条 + change rail 撤销；带确认按钮的 LoRA 卡属于旧面板（只活在小屏）。→ 三行落在 `describeStepDetail` 的 mount_lora 详情与 observation 上（§4.1），来源标注落在覆盖三选卡上（§7.2），**不新增卡型**。
   - **跨族挂载今天是「不拒只警告」**（`planMountLora:3776` 的注释块写明了判据）。→ 改成 `reject`；那段注释**重写**，两半论据分别搬进新注释（界面不拦）与拒绝理由（换底模 / 按同族再搜），⛔ 不留旧话（§4.2）。**界面侧一个字不变。**
+- **2026-09-12（当日第二轮）· §10 追加**，owner 拍板「`search_loras` 之后一律先出推荐卡，勾选后才挂」+ 方向 A + 「缩略图点开复用库详情抽屉」。同样**只写文档，代码未动**。三处读码结论直接改变了实现选择：
+  - **`confirm` 帧已经有三支不是两支**（`multistep` / `generate` / `contextCard`），而 `ASSISTANT_OPERATOR_CONFIRM_KIND_IDS` 的头注与 v2 §3.3 还写着「只剩两种来源」。→ 推荐卡进**第四支** `loraPick`，那段注释跟着重写（§10.1）。
+  - **`run.loraIndex` 只活一轮，而勾选发生在流结束之后**。「确认时按 id 再搜一次」已被 `types/lora-candidate.ts` 的头注否掉（上游会漂 + 两次外部请求），旧面板的 `AssistantConversationMessageSchema.loraCandidates` 存的正是**被挑中的候选本体**。→ 候选本体（含 `importPayload`）随推荐卡这一帧走、只回传勾中的那几条；`AssistantOperatorLoraCandidateSchema` 里那句「不流到客户端」改写成有边界的一句（它说的是 `search_loras` 的步结果）（§10.1 / §10.2.1）。
+  - **库详情组件吃不下检索候选**：`LoraLibraryRowDetail` 是 `CivitaiLoraLibraryItem` / `HuggingFaceLoraSearchItem` 两支判别联合，而 `CivitaiLoraLibraryItem` 是 `LoraAssetRecord` 再 extend 二十来格必填字段（`thumbsUpCount` / `allowDerivatives` / `versionName`…），候选身上一格都没有。→ **给它加第三支 `source: 'candidate'`**，⛔ 不写「候选 → Civitai item」的适配器（适配器要给必填格编值，编出来的 0 / false 会被当成事实画到徽章上）（§10.3.2）。

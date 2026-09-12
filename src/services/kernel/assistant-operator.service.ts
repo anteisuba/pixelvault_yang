@@ -316,6 +316,8 @@ import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import {
   LORA_BASE_MODELS,
+  getBaseOnlyGenerationBases,
+  getCompatibleBases,
   getDefaultBase,
   normalizeToLoraBaseFamily,
   resolveLoraStackWeightBudget,
@@ -431,6 +433,14 @@ interface OperatorWorkingState {
   modelId: string | null
   modelLabel: string | null
   hasModelControl: boolean
+  /**
+   * 现在**能切**到哪些模型（快照那一份的可变副本）。
+   *
+   * ⚠ 可变是判据的一部分（2026-09-12 真机 bug）：LoRA 域里这份列表是「与当前挂载栈
+   * 兼容的底模」，同一轮 `unmount_lora` / `mount_lora` 之后它就过期了 —— 卸掉最后
+   * 一把 pony LoRA，助手却还照着开跑那份快照说「只有 Pony Diffusion V6 可选」。
+   */
+  availableModels: { id: string; label: string }[]
   aspectRatio: string | null
   resolution: string | null
   quality: AdvancedParams['quality']
@@ -510,6 +520,8 @@ function toWorkingState(
     modelId: snapshot.model?.id ?? null,
     modelLabel: snapshot.model?.label ?? null,
     hasModelControl: snapshot.model !== undefined,
+    // ⚠ 拷一份可变副本（同 `loras` 那条）：LoRA 域会在挂载栈变动后重算它。
+    availableModels: snapshot.availableModels.map((model) => ({ ...model })),
     aspectRatio: snapshot.specs?.aspectRatio ?? null,
     resolution: snapshot.specs?.resolution ?? null,
     quality: snapshot.specs?.quality ?? undefined,
@@ -1081,10 +1093,7 @@ function renderState(run: OperatorRun): string {
     )
   }
 
-  const models = request.snapshot.availableModels.slice(
-    0,
-    LIMITS.maxAvailableModels,
-  )
+  const models = state.availableModels.slice(0, LIMITS.maxAvailableModels)
   lines.push(
     models.length > 0
       ? `- Models you can switch to (copy the id verbatim): ${models
@@ -2672,7 +2681,7 @@ async function planMountReference(
 function planSetModel(run: OperatorRun, args: { modelId: string }): ToolPlan {
   if (!run.state.hasModelControl) return reject(REJECT.noSuchControl)
 
-  const match = run.request.snapshot.availableModels.find(
+  const match = run.state.availableModels.find(
     (model) => model.id === args.modelId,
   )
   if (!match) {
@@ -3816,6 +3825,37 @@ function loraStackBudgetNote(
   return ` The enabled LoRAs now add up to ${rounded}, over this base's budget of ${budget} — stacking past it tends to smear the image or bleed styles into each other. I did not touch any weight; tell me which one to dial back if you want it lower.`
 }
 
+/**
+ * 挂载栈变了 → **重算「现在能切到哪些底模」**（2026-09-12 真机 bug）。
+ *
+ * LoRA 域的 `availableModels` 是「与挂载栈兼容的底模」，开跑时从快照取一次；同一轮
+ * `unmount_lora` 之后它还停在旧栈上 —— 用户说「卸掉这把 LoRA，底模换回 Anima Base」，
+ * 助手卸完却回「可用的底模仅有 Pony Diffusion V6」。
+ *
+ * ⭐ 判据与装配台底模选择器**逐字同源**（`LoraWorkbench.tsx` 的 `compatibleBases`）：
+ * 栈非空按**第一把**的 baseModel 取 `getCompatibleBases`，栈空退回
+ * `getBaseOnlyGenerationBases()`。⛔ 不另写一套（界面上点不到的选项不该出现在这里，
+ * 反之亦然）。⛔ 也不按 `available` 再筛一道 —— 宿主送来的那份就没筛，筛了等于同一
+ * 轮里列表换了语义。
+ * ⚠ 标签优先沿用快照里那一份（界面上那一行，可能是 i18n 过的），目录名只兜底。
+ */
+function recomputeLoraAvailableBases(run: OperatorRun): void {
+  if (run.request.domain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.lora) return
+  if (!run.state.hasModelControl) return
+
+  const loraFamily = run.state.loras[0]?.family ?? null
+  const bases = loraFamily
+    ? getCompatibleBases(loraFamily)
+    : getBaseOnlyGenerationBases()
+  const labelById = new Map(
+    run.state.availableModels.map((model) => [model.id, model.label]),
+  )
+  run.state.availableModels = bases.map((base) => ({
+    id: base.id,
+    label: labelById.get(base.id) ?? base.displayName,
+  }))
+}
+
 function planMountLora(
   run: OperatorRun,
   args: { candidateId: string; weight?: number },
@@ -3939,6 +3979,7 @@ function planMountLora(
         //   才有），⛔ 别拿候选的描述凑一个：取材阶梯会把它当作者推荐报出去。
         recommendedPrompt: null,
       })
+      recomputeLoraAvailableBases(run)
     },
   }
 }
@@ -3963,6 +4004,7 @@ function planUnmountLora(run: OperatorRun, args: { loraId: string }): ToolPlan {
     observation: `Took "${mounted.name}" off the bench. ${run.state.loras.length - 1} LoRA(s) left.`,
     apply: () => {
       run.state.loras.splice(index, 1)
+      recomputeLoraAvailableBases(run)
     },
   }
 }
@@ -5354,6 +5396,25 @@ async function planRecallEvidence(
   }
 }
 
+/**
+ * `unmount_lora` / `set_lora_weight` 被 `malformedArgs` 拒时，**把现在挂着的那些列出来**
+ * （2026-09-12 真机：两条各首发一次 `loraId: expected string, received undefined`，
+ * 模型第二次才带上 id）。一句「loraId: Required」不可教 —— 它缺的不是形状是**那个 id**。
+ * ⛔ 只给这两条工具：别的工具的参数与挂载栈无关。
+ */
+function loraMountedIdsHint(
+  run: OperatorRun,
+  tool: AssistantOperatorTool,
+): string {
+  if (tool !== TOOL.unmountLora && tool !== TOOL.setLoraWeight) return ''
+  if (run.state.loras.length === 0) {
+    return ' Nothing is on the bench right now — there is no loraId to pass.'
+  }
+  return ` On the bench right now (copy the id verbatim): ${run.state.loras
+    .map((item) => `${item.id} · ${clamp(item.name, LIMITS.maxLabelChars)}`)
+    .join(' | ')}.`
+}
+
 async function planTool(
   run: OperatorRun,
   tool: AssistantOperatorTool,
@@ -5399,7 +5460,11 @@ async function planTool(
     const issues = parsed.error.issues
       .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
       .join('; ')
-    return reject(REJECT.malformedArgs, shape ? `${shape} (${issues})` : issues)
+    const mounted = loraMountedIdsHint(run, tool)
+    return reject(
+      REJECT.malformedArgs,
+      `${shape ? `${shape} (${issues})` : issues}${mounted}`,
+    )
   }
 
   // ⚠ `switch` 上的穷举：工具表加一条而这里没接，编译期就红（见文件末尾的

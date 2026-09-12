@@ -4417,6 +4417,165 @@ describe('LoRA 装配台域（P4-C）', () => {
     expect(digest).not.toContain('Base model family: anima-dit')
   })
 
+  /**
+   * 2026-09-12 真机 bug（同一天的第二条）：挂着一把 pony LoRA 时，`availableModels`
+   * 是「与挂载栈兼容的底模」＝只有 Pony；同一轮 `unmount_lora` 之后它没重算，助手
+   * 于是回「当前工作台可用的底模仅有 Pony Diffusion V6，无法切换」。
+   */
+  const PONY_MOUNTED_SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
+    ...LORA_SNAPSHOT,
+    model: { id: 'pony-runner', label: 'Pony Diffusion V6' },
+    availableModels: [{ id: 'pony-runner', label: 'Pony Diffusion V6' }],
+    loras: {
+      ...LORA_SNAPSHOT.loras!,
+      baseFamily: 'pony',
+      items: [
+        {
+          id: 'lora-pony-1',
+          name: 'Pony Lines',
+          weight: 0.8,
+          enabled: true,
+          family: 'pony',
+          compatible: true,
+          triggerWord: 'pony lines',
+          triggerEnabled: true,
+          recommendedPrompt: null,
+        },
+      ],
+    },
+  }
+
+  it('卸掉那把 pony 之后，底模换得回 Anima Base（⛔ 可选底模不停在开跑那份快照）', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          title: 'look',
+          args: {},
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
+          title: 'take it off',
+          args: { loraId: 'lora-pony-1' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+          title: 'back to Anima',
+          args: { modelId: 'anima-dit-base-v10-runner' },
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({ snapshot: PONY_MOUNTED_SNAPSHOT }),
+        ),
+      ),
+    )
+
+    // ① 挂着 pony 的时候，可选底模确实只有 pony 那一条（装配台选择器的口径）。
+    const firstDigest = toolRingCalls()[1]?.userPrompt ?? ''
+    expect(firstDigest).toContain('pony-runner')
+    expect(firstDigest).not.toContain('anima-dit-base-v10-runner')
+
+    // ② 卸完之后那条路通了。
+    const switched = steps.find(
+      (step) =>
+        (step as { tool?: string }).tool ===
+        ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+    )
+    expect(switched).toMatchObject({
+      payload: { modelId: 'anima-dit-base-v10-runner' },
+    })
+    expect(switched).not.toHaveProperty('error')
+  })
+
+  it('挂上一把 pony 之后，可选底模收窄到 pony', async () => {
+    mockSearchLoraCandidates.mockResolvedValue({
+      query: 'pony style',
+      candidates: [
+        loraCandidate({
+          candidateId: 'civitai:pony:2',
+          baseModelFamily: 'pony',
+        }),
+      ],
+      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          title: 'find',
+          args: { query: 'pony style' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          title: 'mount it',
+          args: { candidateId: 'civitai:pony:2' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          title: 'look',
+          args: {},
+        },
+      },
+      { finished: true },
+    )
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({
+          snapshot: {
+            ...PONY_MOUNTED_SNAPSHOT,
+            availableModels: [
+              { id: 'pony-runner', label: 'Pony Diffusion V6' },
+              { id: 'anima-dit-base-v10-runner', label: 'Anima Base v1.0' },
+            ],
+            loras: { ...PONY_MOUNTED_SNAPSHOT.loras!, items: [] },
+          },
+        }),
+      ),
+    )
+
+    const digest = lastUserPrompt()
+    expect(digest).toContain('pony-runner')
+    expect(digest).not.toContain('anima-dit-base-v10-runner')
+  })
+
+  it('set_lora_weight 少给 loraId 时，观察里带上现在挂着的 id 与名字', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+          title: 'dial it',
+          args: { weight: 0.6 },
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({ snapshot: PONY_MOUNTED_SNAPSHOT }),
+        ),
+      ),
+    )
+    const detail = (steps[0] as { error: { detail: string } }).error.detail
+    expect(detail).toContain('lora-pony-1')
+    expect(detail).toContain('Pony Lines')
+  })
+
   it('同族的那把照旧挂得上：⛔ 改判只收紧跨族那一支', async () => {
     mockSearchLoraCandidates.mockResolvedValue({
       query: 'x',

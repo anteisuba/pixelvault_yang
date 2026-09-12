@@ -90,7 +90,7 @@ export interface VideoRailBinding {
   /** 参考轨的整份 props —— 桌面栏、画中框、手机抽屉摆的是同一个组件。 */
   readonly railProps: Omit<VideoRefRailProps, 'className'>
   readonly capacity: ReturnType<typeof videoRailCapacity>
-  candidatesOf(group: VideoRailGroupId): readonly { id: string; name: string }[]
+  candidatesOf: VideoRefRailProps['candidatesOf']
   /** 上传：`null` 组 = 换这张卡自己的成片。 */
   runUpload(file: File, group: VideoRailGroupId | null): void
   openFilePicker(group: VideoRailGroupId | null): void
@@ -275,7 +275,16 @@ export function useVideoRailBinding({
           'url' in item.data &&
           Boolean(item.data.url),
       )
-      .map((item) => ({ id: item.id, name: item.data.name }))
+      .map((item) => ({
+        id: item.id,
+        name: item.data.name,
+        thumbnailUrl:
+          item.data.kind === NODE_MEDIA_KIND_IDS.image
+            ? item.data.url
+            : item.data.kind === NODE_MEDIA_KIND_IDS.video
+              ? item.data.videoThumbnailUrl
+              : undefined,
+      }))
   }
 
   const pending: readonly VideoRailPendingItem[] = pendingUploads.map(

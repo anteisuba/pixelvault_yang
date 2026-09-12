@@ -15,14 +15,18 @@
  * 那会把一颗纯呈现件绑死在画布宿主上。
  */
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { EditorContent } from '@tiptap/react'
 
 import { NODE_V4_CARD } from '@/constants/node-studio'
 import { Markdown } from '@/components/ui/markdown'
 import { cn } from '@/lib/utils'
+import { readTextDocMarkdown, useTextDocEditor } from './TextDocEditor'
 
 export interface TextCardBodyProps {
   readonly body: string
+  onSave(body: string): void
+  readonly editAriaLabel: string
   /** 正文为空时那句提示。 */
   readonly emptyLabel: string
   /** 当前高（已经含拖拽中的临时值）。 */
@@ -43,6 +47,8 @@ function clampHeight(value: number): number {
 
 export function TextCardBody({
   body,
+  onSave,
+  editAriaLabel,
   emptyLabel,
   height,
   onHeightPreview,
@@ -56,6 +62,7 @@ export function TextCardBody({
     scale: number
   } | null>(null)
   const [dragging, setDragging] = useState(false)
+  const [editing, setEditing] = useState(false)
   const text = body.trim()
 
   const readScale = (): number => {
@@ -69,10 +76,23 @@ export function TextCardBody({
     <div ref={boxRef} data-text-collapsed className="relative h-full">
       <div
         data-text-scroll
+        onDoubleClick={(event) => {
+          event.stopPropagation()
+          setEditing(true)
+        }}
         // `nowheel` = 卡内滚动时画布不跟着缩放（ReactFlow 的约定类）。
         className="nodrag nowheel h-full overflow-y-auto px-5 py-4.5"
       >
-        {text.length === 0 ? (
+        {editing ? (
+          <TextCardEditor
+            body={body}
+            ariaLabel={editAriaLabel}
+            onSave={(next) => {
+              if (next !== body) onSave(next)
+              setEditing(false)
+            }}
+          />
+        ) : text.length === 0 ? (
           <p className="text-md leading-relaxed tracking-node-body text-muted-foreground">
             {emptyLabel}
           </p>
@@ -144,6 +164,46 @@ export function TextCardBody({
           onHeightPreview(drag.height)
         }}
       />
+    </div>
+  )
+}
+
+function TextCardEditor({
+  body,
+  ariaLabel,
+  onSave,
+}: {
+  readonly body: string
+  readonly ariaLabel: string
+  onSave(body: string): void
+}) {
+  const editor = useTextDocEditor({
+    body,
+    ariaLabel,
+    onBlurSave: onSave,
+    onEditorChange: () => {},
+  })
+
+  useEffect(() => {
+    editor?.commands.focus('end', { scrollIntoView: false })
+  }, [editor])
+
+  useEffect(() => {
+    if (editor && body !== readTextDocMarkdown(editor)) {
+      editor.commands.setContent(body, { emitUpdate: false })
+    }
+  }, [body, editor])
+
+  return (
+    <div
+      className="nodrag nopan nowheel min-h-full text-md leading-relaxed tracking-node-body"
+      onKeyDown={(event) => {
+        if (event.key !== 'Escape') return
+        event.stopPropagation()
+        onSave(readTextDocMarkdown(editor))
+      }}
+    >
+      <EditorContent editor={editor} />
     </div>
   )
 }

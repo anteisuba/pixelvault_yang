@@ -110,13 +110,21 @@ describe('VideoRefRail', () => {
     expect(onRetryPending).toHaveBeenCalledWith('p2')
   })
 
-  it('占位项算进已挂数，满了这一组的加号就灰掉', () => {
+  it('统一添加入口中，上传占位也占用该类素材容量', () => {
     const { container } = setup({
       capacity: { images: 2, videos: 3, voices: 3 },
       pending: [{ id: 'p1', group: 'image', name: 'a.png', progress: 10 }],
     })
+    expect(container.querySelectorAll('[data-video-rail-add]')).toHaveLength(1)
+    fireEvent.pointerDown(
+      container.querySelector('[data-video-rail-add="all"]')!,
+      {
+        button: 0,
+        ctrlKey: false,
+      },
+    )
     expect(
-      container
+      document
         .querySelector('[data-video-rail-add="image"]')
         ?.getAttribute('data-video-rail-add-blocked'),
     ).toBe('true')

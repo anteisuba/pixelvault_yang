@@ -339,7 +339,11 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
           prompt: draft,
           onJobCreated: (jobId) => canvas.onSetMedia(id, { mediaJobId: jobId }),
           onEach: (result) => {
-            if (!result.success) return
+            if (!result.success) {
+              if (!result.pending)
+                canvas.onSetMedia(id, { mediaJobId: undefined })
+              return
+            }
             canvas.onSetMedia(id, {
               url: result.mediaUrl,
               generationId: result.generation.id,

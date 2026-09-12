@@ -166,3 +166,46 @@ describe('useNodeGenerationReconcileV4', () => {
     ])
   })
 })
+
+it('CANCELLED 清任务并恢复 idle，不报告生成失败', async () => {
+  mockCheckVideo.mockResolvedValue({
+    success: true,
+    data: { status: 'CANCELLED' },
+  })
+  const { setMedia, setRunState, reportFailure } = mount([
+    node('v', { kind: 'video', mediaJobId: 'job' }),
+  ])
+  await waitFor(() =>
+    expect(setMedia).toHaveBeenCalledWith('v', { mediaJobId: undefined }),
+  )
+  expect(setRunState).toHaveBeenCalledWith('v', 'idle')
+  expect(reportFailure).not.toHaveBeenCalled()
+})
+
+it('旧任务迟到的失败回包不清除新任务', async () => {
+  let resolve!: (value: unknown) => void
+  mockCheckVideo.mockReturnValueOnce(
+    new Promise((done) => {
+      resolve = done
+    }),
+  )
+  const setMedia = vi.fn()
+  const setRunState = vi.fn()
+  const reportFailure = vi.fn()
+  const view = renderHook(
+    ({ jobId }) =>
+      useNodeGenerationReconcileV4({
+        nodes: [node('v', { kind: 'video', mediaJobId: jobId })],
+        setMedia,
+        setRunState,
+        reportFailure,
+      }),
+    { initialProps: { jobId: 'old' } },
+  )
+  view.rerender({ jobId: 'new' })
+  resolve({ success: true, data: { status: 'FAILED' } })
+  await waitFor(() => expect(mockCheckVideo).toHaveBeenCalledWith('old'))
+  await Promise.resolve()
+  expect(setMedia).not.toHaveBeenCalled()
+  expect(setRunState).not.toHaveBeenCalled()
+})

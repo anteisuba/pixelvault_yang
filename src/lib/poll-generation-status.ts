@@ -95,7 +95,7 @@ export async function pollGenerationStatus(
       return { status: 'completed', generation: data.generation }
     }
 
-    if (data.status === 'FAILED') {
+    if (data.status === 'FAILED' || data.status === 'CANCELLED') {
       return {
         status: 'failed',
         error: data.error ?? config.fallbackError,

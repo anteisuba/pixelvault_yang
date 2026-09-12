@@ -91,7 +91,11 @@ export function useNodeGenerateDraft({
           onJobCreated: (jobId) => canvas.onSetMedia(id, { mediaJobId: jobId }),
           // ⚠ 回填写在 `onEach` 而不是 `.then`：张数 > 1 时是顺序发的 N 枪。
           onEach: (result) => {
-            if (!result.success) return
+            if (!result.success) {
+              if (!result.pending)
+                canvas.onSetMedia(id, { mediaJobId: undefined })
+              return
+            }
             canvas.onSetMedia(
               id,
               buildMediaPatch?.(result) ?? {

@@ -31,7 +31,7 @@
  * 的旧写法已删 —— 两份栈会让「卡里点的」和「工具栏点的」各撤各的。
  */
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { applyNodeChanges, type NodeChange } from '@xyflow/react'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
@@ -312,12 +312,22 @@ function computeNeighborOffsets(
 
 export function useNodeGraphV4({
   state,
-  onStateChange,
+  onStateChange: reportStateChange,
   resolveModel,
   onOpFailed,
   selectedNodeIds: selectedNodeIdsOverride,
   castCards,
 }: UseNodeGraphV4Options): NodeGraphV4 {
+  const stateRef = useRef(state)
+  const reportStateChangeRef = useRef(reportStateChange)
+  useLayoutEffect(() => {
+    stateRef.current = state
+    reportStateChangeRef.current = reportStateChange
+  }, [state, reportStateChange])
+  const onStateChange = useCallback((next: NodeWorkflowStateV4) => {
+    stateRef.current = next
+    reportStateChangeRef.current(next)
+  }, [])
   const [expandedNodeId, setExpandedNodeId] = useState<string | null>(null)
   const [undoStack, setUndoStack] = useState<
     readonly NodeGraphV4HistoryEntry[]
@@ -397,7 +407,7 @@ export function useNodeGraphV4({
 
   const dispatch = useCallback(
     (op: NodeAssistantOpV4): boolean => {
-      const result = applyNodeAssistantOpV4(state, op, {
+      const result = applyNodeAssistantOpV4(stateRef.current, op, {
         mintId,
         ...(resolveModel ? { resolveModel } : {}),
         ...(castCards ? { castCards } : {}),
@@ -421,23 +431,21 @@ export function useNodeGraphV4({
       onStateChange(next)
       return true
     },
-    [state, resolveModel, onOpFailed, onStateChange, castCards],
+    [resolveModel, onOpFailed, onStateChange, castCards],
   )
 
   /**
    * 一批 op 一次落图（③e，助手提案的执行口）。
    *
-   * ⚠ ⛔ 不能拿 `dispatch` 循环：它读的是闭包里的 `state`，同一 tick 内第二条 op
-   * 看到的还是这一批开始前的那份图 —— 「新建角色 → 连到镜头」里的 connect 会
-   * 找不到那个刚建出来的节点。这里与 `deleteNodes` 同一条纪律：在本地 `working`
-   * 上串行推进，收成**一个**撤销条目（助手的一轮 = 一步撤销，§7）。
+   * 在本地 `working` 上串行推进，收成**一个**撤销条目
+   * （助手的一轮 = 一步撤销，§7），不通过逐条 dispatch 拆散撤销。
    *
    * `refs` 是批内别名表（`add_node.ref`）——执行器自己往里写，后面的 op 因此认得
    * 出这一批刚建的节点。
    */
   const dispatchBatch = useCallback(
     (ops: readonly NodeAssistantOpV4[]): NodeGraphV4BatchResult => {
-      let working = state
+      let working = stateRef.current
       const inverses: NodeV4Inverse[] = []
       const refs = new Map<string, string>()
       const createdNodeIds: string[] = []
@@ -493,7 +501,7 @@ export function useNodeGraphV4({
       onStateChange(next)
       return { applied, skipped, failedConnects, createdNodeIds }
     },
-    [state, resolveModel, onOpFailed, onStateChange, castCards],
+    [resolveModel, onOpFailed, onStateChange, castCards],
   )
 
   /**
@@ -785,6 +793,7 @@ export function useNodeGraphV4({
       // 顶层 `url` / 尺寸 / 封面从此是 `outputs.versions[cur]` 的派生镜像，
       // 由 `applyMediaPatchOutputs` 一处写 —— 全仓十几个读 `data.url` 的地方
       // 因此一个字都不用改。
+      const state = stateRef.current
       const now = new Date().toISOString()
       commitWithoutHistory({
         ...state,
@@ -801,11 +810,12 @@ export function useNodeGraphV4({
         ),
       })
     },
-    [state, commitWithoutHistory],
+    [commitWithoutHistory],
   )
 
   const setRunState = useCallback(
     (nodeId: string, status: NodeV4Data['status']) => {
+      const state = stateRef.current
       commitWithoutHistory({
         ...state,
         nodes: state.nodes.map((node) =>
@@ -815,7 +825,7 @@ export function useNodeGraphV4({
         ),
       })
     },
-    [state, commitWithoutHistory],
+    [commitWithoutHistory],
   )
 
   /* ── 展开 ──────────────────────────────────────────────────────────── */

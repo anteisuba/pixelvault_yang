@@ -3,8 +3,8 @@
 /**
  * 视频节点的**参考轨**（spec §5，画板 `VideoRefs.dc.html` 方向 A 定稿）。
  *
- * 提示词栏首行 = 三组（图 · 视频 · 语音）以细分隔线分开，每项 48px 编号缩略
- * （图角标写 首 / 尾）**加一行 11px 的来源卡名**，每组末尾一个虚线加号。展开态的
+ * 提示词栏首行 = 图 / 视频 / 语音横向排列，每项 48px 编号缩略
+ * （图角标写 首 / 尾）加一行来源卡名，末尾统一加号按类型选择素材。展开态的
  * 画中框在播放器与说明之间摆**同一个组件**，⛔ 不做第二份。
  *
  * ── 三条纪律 ──────────────────────────────────────────────────────────
@@ -67,6 +67,7 @@ const IMAGE_ROLE_SLOTS = [
 export interface VideoRailCandidate {
   readonly id: string
   readonly name: string
+  readonly thumbnailUrl?: string | undefined
 }
 
 /**
@@ -198,26 +199,16 @@ export function VideoRefRail({
       data-video-ref-rail
       // 轨上双击（连点一张缩略）**不冒泡到卡片** —— 卡片的双击是展开。
       onDoubleClick={(event) => event.stopPropagation()}
-      className={cn('flex flex-wrap items-start gap-3', className)}
+      className={cn(
+        'nodrag nopan nowheel flex min-w-0 max-w-full items-start gap-2 overflow-x-auto py-1',
+        className,
+      )}
     >
-      {VIDEO_RAIL_GROUPS.map((group, groupIndex) => {
+      {VIDEO_RAIL_GROUPS.map((group) => {
         const groupItems = items.filter((item) => item.group === group)
         const groupPending = pending.filter((item) => item.group === group)
-        const blocked = blockedOf(group)
-        const candidates = candidatesOf(group)
         return (
-          <div
-            key={group}
-            data-video-rail-group={group}
-            className="flex flex-wrap items-start gap-2"
-          >
-            {groupIndex > 0 ? (
-              <span
-                aria-hidden
-                className="mr-1 block h-16 w-px shrink-0 bg-border"
-              />
-            ) : null}
-
+          <div key={group} data-video-rail-group={group} className="contents">
             {groupItems.map((item) => (
               <RailCell key={item.edgeId} name={item.sourceName}>
                 <DropdownMenu>
@@ -406,76 +397,90 @@ export function VideoRefRail({
                 </RailCell>
               ),
             )}
-
-            {/* 每组末尾的虚线加号。满了 / 模型没有参考变体时**灰掉不藏**
-                （Hard Rule 8），理由写在 title 上。 */}
-            <RailCell>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    type="button"
-                    data-video-rail-add={group}
-                    data-video-rail-add-blocked={blocked ? 'true' : 'false'}
-                    disabled={disabled || blocked !== null}
-                    title={blocked ?? undefined}
-                    aria-label={tVideo('rail.addLabel', {
-                      group: tVideo(`rail.group.${group}`),
-                    })}
-                    className={cn(
-                      'nodrag nopan flex size-12 shrink-0 items-center justify-center rounded-node-thumb border border-dashed border-border text-muted-foreground',
-                      'transition-colors duration-fast ease-standard hover:border-foreground/40 hover:text-foreground',
-                      'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-                      'disabled:pointer-events-none disabled:opacity-50',
-                    )}
-                  >
-                    <Plus aria-hidden className="size-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48">
-                  <DropdownMenuSub>
-                    <DropdownMenuSubTrigger data-video-rail-canvas={group}>
-                      {tVideo(`rail.fromCanvas.${group}`)}
-                    </DropdownMenuSubTrigger>
-                    <DropdownMenuSubContent>
-                      {candidates.length === 0 ? (
-                        <DropdownMenuItem disabled>
-                          {t('chrome.emptyHint')}
-                        </DropdownMenuItem>
-                      ) : (
-                        candidates.map((candidate) => (
-                          <DropdownMenuItem
-                            key={candidate.id}
-                            data-video-rail-candidate={candidate.id}
-                            onSelect={() =>
-                              onPickFromCanvas(group, candidate.id)
-                            }
-                          >
-                            {candidate.name}
-                          </DropdownMenuItem>
-                        ))
-                      )}
-                    </DropdownMenuSubContent>
-                  </DropdownMenuSub>
-                  <DropdownMenuItem
-                    data-video-rail-upload={group}
-                    onSelect={() => onUpload(group)}
-                  >
-                    <Upload aria-hidden className="size-4" />
-                    {tVideo('rail.upload')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    data-video-rail-library={group}
-                    onSelect={() => onLibrary(group)}
-                  >
-                    <Library aria-hidden className="size-4" />
-                    {tVideo('rail.library')}
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </RailCell>
           </div>
         )
       })}
+      <RailCell>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              data-video-rail-add="all"
+              disabled={disabled}
+              aria-label={tVideo('rail.title')}
+              className="nodrag nopan flex size-12 shrink-0 items-center justify-center rounded-node-thumb border border-border bg-muted text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:opacity-50"
+            >
+              <Plus aria-hidden className="size-5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-48">
+            {VIDEO_RAIL_GROUPS.map((group) => {
+              const blocked = blockedOf(group)
+              const candidates = candidatesOf(group)
+              return (
+                <DropdownMenuSub key={group}>
+                  <DropdownMenuSubTrigger
+                    data-video-rail-add={group}
+                    data-video-rail-add-blocked={blocked ? 'true' : 'false'}
+                    disabled={blocked !== null}
+                    title={blocked ?? undefined}
+                  >
+                    {tVideo(`rail.group.${group}`)}
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="max-h-80 overflow-y-auto">
+                    <DropdownMenuItem
+                      data-video-rail-upload={group}
+                      onSelect={() => onUpload(group)}
+                    >
+                      <Upload aria-hidden className="size-4" />
+                      {tVideo('rail.upload')}
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      data-video-rail-library={group}
+                      onSelect={() => onLibrary(group)}
+                    >
+                      <Library aria-hidden className="size-4" />
+                      {tVideo('rail.library')}
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    {candidates.length === 0 ? (
+                      <DropdownMenuItem disabled>
+                        {t('chrome.emptyHint')}
+                      </DropdownMenuItem>
+                    ) : (
+                      candidates.map((candidate) => (
+                        <DropdownMenuItem
+                          key={candidate.id}
+                          data-video-rail-candidate={candidate.id}
+                          onSelect={() => onPickFromCanvas(group, candidate.id)}
+                        >
+                          {candidate.thumbnailUrl ? (
+                            <Image
+                              src={candidate.thumbnailUrl}
+                              alt=""
+                              width={32}
+                              height={32}
+                              unoptimized
+                              className="size-8 shrink-0 rounded-md object-cover"
+                            />
+                          ) : group === VIDEO_RAIL_GROUP_IDS.voice ? (
+                            <WaveformGlyph />
+                          ) : (
+                            <Film aria-hidden className="size-4 shrink-0" />
+                          )}
+                          <span className="max-w-48 truncate">
+                            {candidate.name}
+                          </span>
+                        </DropdownMenuItem>
+                      ))
+                    )}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              )
+            })}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </RailCell>
     </div>
   )
 }

@@ -118,7 +118,11 @@ import type { NodeTextDeriveAction } from '../nodes/v4/NodeV4Context'
 import { NodeV4Provider } from '../nodes/v4/NodeV4Provider'
 import { CanvasV4 } from './CanvasV4'
 import { WorkbenchAssistantDockV4, WorkbenchDocksV4 } from './WorkbenchDocksV4'
-import { useWorkbenchDndV4, type ShellMediaDragPayload } from './WorkbenchDndV4'
+import {
+  useWorkbenchDndV4,
+  WorkbenchUploadStatus,
+  type ShellMediaDragPayload,
+} from './WorkbenchDndV4'
 import { useWorkbenchShortcutsV4 } from './WorkbenchShortcutsV4'
 import { useWorkbenchRosterDropV4 } from './WorkbenchRosterDropV4'
 import { ShellApiKeysProvider, useOpenApiKeys } from './shell/ShellApiKeys'
@@ -1091,6 +1095,7 @@ function NodeWorkbenchV4Inner() {
           onDeriveFromText={deriveFromText}
         >
           <div className="node-workbench-v4 relative size-full">
+            <WorkbenchUploadStatus items={dnd.pendingUploads} />
             <CanvasMobileRail
               key={store.currentProject.id}
               projectPill={
@@ -1198,6 +1203,7 @@ function NodeWorkbenchV4Inner() {
             onDeriveFromText={deriveFromText}
           >
             <div className="node-workbench-v4 contents">
+              <WorkbenchUploadStatus items={dnd.pendingUploads} />
               <CanvasV4
                 graph={graph}
                 toolMode={toolMode}

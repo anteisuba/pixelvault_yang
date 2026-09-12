@@ -397,3 +397,37 @@ describe('相对落位（S5d：派生卡落在本卡右侧，⛔ 不丢到默认
     })
   })
 })
+
+describe('异步生成回填', () => {
+  it('清理任务和失败状态连续提交不会恢复旧任务 ID', () => {
+    const { view } = renderGraph(
+      stateOf([
+        node('v', { kind: 'video', mediaJobId: 'job', status: 'running' }),
+      ]),
+    )
+    const graph = view.result.current
+    act(() => {
+      graph.setMedia('v', { mediaJobId: undefined })
+      graph.setRunState('v', 'failed')
+    })
+    expect(view.result.current.nodes[0]?.data).toMatchObject({
+      status: 'failed',
+      mediaJobId: undefined,
+    })
+  })
+
+  it('早先启动的媒体回填保留后来新增的节点', () => {
+    const { view } = renderGraph(stateOf([node('v', { kind: 'video' })]))
+    const backfill = view.result.current.setMedia
+    act(() => {
+      view.result.current.addNode('text', 'script')
+    })
+    act(() => {
+      backfill('v', { url: 'https://cdn/result.mp4' })
+    })
+    expect(view.result.current.nodes).toHaveLength(2)
+    expect(view.result.current.nodes[0]?.data).toMatchObject({
+      url: 'https://cdn/result.mp4',
+    })
+  })
+})

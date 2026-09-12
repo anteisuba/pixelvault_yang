@@ -676,8 +676,8 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               onCancel={cancelGeneration}
               placeholder={tVideo('promptPlaceholder')}
               ariaLabel={tVideo('promptLabel')}
-              // 轨换第二行时栏跟着长，最大 420（画板 `VideoRefs.dc.html` 的栏宽）。
-              className="w-fit min-w-95 max-w-105"
+              // 素材横向滚动，正文与参数留在同一块编辑面。
+              className="w-160 max-w-full"
               addMenu={
                 <VideoAddMenuItems
                   candidatesOf={railCandidatesOf}
@@ -697,7 +697,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               inputRef={promptInputRef}
               mentionOptions={mentionOptions}
               renderValue={renderPromptValue}
-              chips={[paramsChip, modelChip].filter(Boolean)}
+              chips={[modelChip, paramsChip].filter(Boolean)}
             />
           </div>
         </FlowNodeToolbar>
@@ -730,12 +730,15 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           versionCount={versions.length}
           versionIndex={versionIndex}
           onVersionChange={selectVersion}
-          body={currentPrompt}
-          onSave={(body) => canvas.onSetPrompt(id, body)}
+          body={draft}
+          onBodyChange={setDraft}
+          onSave={(body) => {
+            if (body !== currentPrompt) canvas.onSetPrompt(id, body)
+          }}
           onRegenerate={submitPrompt}
-          regenerateDisabled={generating || currentPrompt.trim().length === 0}
+          regenerateDisabled={generating || draft.trim().length === 0}
           footerReadout={tVideo('frame.readout', {
-            chars: currentPrompt.trim().length,
+            chars: draft.trim().length,
             slots: railItems.length,
           })}
           paramsChip={paramsChip}

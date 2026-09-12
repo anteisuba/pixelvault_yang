@@ -99,6 +99,9 @@ export function useNodeGenerationReconcileV4({
       return // 网络抖动 —— 留着 pending，下一轮再问
     }
 
+    const currentNode = nodesRef.current.find((item) => item.id === node.id)
+    if (!currentNode || readPendingJobId(currentNode) !== jobId) return
+
     const data = response?.success ? response.data : undefined
     if (!data) return // 空信封同上
 
@@ -115,6 +118,12 @@ export function useNodeGenerationReconcileV4({
           : {}),
       })
       setRunStateRef.current(node.id, NODE_STATUS_IDS.done)
+      return
+    }
+
+    if (data.status === 'CANCELLED') {
+      setMediaRef.current(node.id, { mediaJobId: undefined })
+      setRunStateRef.current(node.id, NODE_STATUS_IDS.idle)
       return
     }
 

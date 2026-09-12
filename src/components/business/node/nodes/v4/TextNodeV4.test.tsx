@@ -348,6 +348,21 @@ describe('S2b 文本节点 · 选中态', () => {
     expect(context.onDeriveFromText).toHaveBeenCalledWith('t_02', 'video')
   })
 
+  it('单击保持预览，双击正文原地编辑，失焦保存且不展开', async () => {
+    const { context, container } = selected()
+    const body = container.querySelector('[data-text-scroll]')!
+    fireEvent.click(body)
+    expect(body.querySelector('[contenteditable="true"]')).toBeNull()
+    fireEvent.doubleClick(body)
+    const editor = await screen.findByLabelText('editAriaLabel')
+    expect(editor).toHaveAttribute('contenteditable', 'true')
+    expect(context.onToggleExpanded).not.toHaveBeenCalled()
+    fireEvent.blur(editor)
+    expect(
+      container.querySelector('[data-text-scroll] [contenteditable="true"]'),
+    ).toBeNull()
+  })
+
   it('多选时两条浮层都收起来', () => {
     const { container } = selected({ selectedNodeIds: ['t_02', '莫宁'] })
     expect(screen.queryByTestId('node-toolbar')).toBeNull()

@@ -147,3 +147,13 @@ describe('pollGenerationStatus', () => {
     expect(probe).toHaveBeenCalledTimes(6)
   })
 })
+
+it('stops polling immediately when the server confirms cancellation', async () => {
+  const probe = vi
+    .fn()
+    .mockResolvedValue({ success: true, data: { status: 'CANCELLED' } })
+  expect(await pollGenerationStatus('job', probe, CONFIG)).toMatchObject({
+    status: 'failed',
+  })
+  expect(probe).toHaveBeenCalledTimes(1)
+})

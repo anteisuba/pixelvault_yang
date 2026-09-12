@@ -13,7 +13,8 @@
  * 走 op 表，所以撤销一次退掉的是「多了一张卡」，而不是「图没了但卡还在」。
  */
 
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { Loader2 } from 'lucide-react'
 import { useReactFlow } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -142,6 +143,7 @@ export interface WorkbenchDndV4Value {
     flowPoint: { x: number; y: number },
   ): void
   readonly isUploading: boolean
+  readonly pendingUploads: readonly { id: string; name: string }[]
 }
 
 export interface UseWorkbenchDndV4Options {
@@ -157,6 +159,9 @@ export function useWorkbenchDndV4({
   const t = useTranslations('StudioNode.ingest.looseImage')
   const { screenToFlowPosition } = useReactFlow()
   const upload = useNodeUploadV4()
+  const [pendingUploads, setPendingUploads] = useState<
+    { id: string; name: string }[]
+  >([])
 
   /**
    * 粘贴的落点 = 鼠标当前位置。⚠ paste 事件**不带坐标**，只能自己跟一份 —— 与 v3
@@ -201,6 +206,10 @@ export function useWorkbenchDndV4({
           { position },
         )
         if (!nodeId) return
+        setPendingUploads((items) => [
+          ...items,
+          { id: nodeId, name: entry.file.name },
+        ])
         void latest.current.upload
           .upload(entry.plan.upload, entry.file, entry.file.name)
           .then((patch) => {
@@ -210,6 +219,11 @@ export function useWorkbenchDndV4({
               return
             }
             latest.current.graph.setMedia(nodeId, patch)
+          })
+          .finally(() => {
+            setPendingUploads((items) =>
+              items.filter((item) => item.id !== nodeId),
+            )
           })
       })
     },
@@ -304,6 +318,36 @@ export function useWorkbenchDndV4({
     dropFiles,
     dropFilesAtFlow,
     placeMediaAtFlow,
-    isUploading: upload.isUploading,
+    isUploading: pendingUploads.length > 0,
+    pendingUploads,
   }
+}
+
+export function WorkbenchUploadStatus({
+  items,
+}: {
+  readonly items: WorkbenchDndV4Value['pendingUploads']
+}) {
+  const t = useTranslations('StudioNode.v4.video.rail')
+  if (items.length === 0) return null
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      data-canvas-upload-status
+      className="pointer-events-none fixed bottom-20 left-1/2 z-50 flex w-72 max-w-full -translate-x-1/2 flex-col gap-2 rounded-xl border bg-popover p-3 text-sm text-popover-foreground shadow-lg"
+    >
+      {items.map((item) => (
+        <div key={item.id} className="flex min-w-0 items-center gap-2">
+          <Loader2
+            aria-hidden
+            className="size-4 shrink-0 animate-spin motion-reduce:animate-none"
+          />
+          <span className="truncate">
+            {t('uploading', { name: item.name })}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
 }

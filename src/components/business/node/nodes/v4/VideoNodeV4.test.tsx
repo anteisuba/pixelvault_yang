@@ -61,7 +61,18 @@ vi.mock('@/hooks/node/use-video-reference-slots', () => ({
   }),
 }))
 
-const generateNode = vi.fn(async () => ({ success: false as const }))
+const cancelJobs = vi.fn()
+const checkVideo = vi.fn()
+vi.mock('@/lib/api-client', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/api-client')>()),
+  cancelGenerationsAPI: (...args: unknown[]) => cancelJobs(...args),
+  checkVideoStatusAPI: (...args: unknown[]) => checkVideo(...args),
+}))
+const generateNode = vi.fn<
+  ReturnType<
+    typeof import('@/hooks/node/use-node-media-generation-v4').useNodeMediaGenerationV4
+  >['generateNode']
+>(async () => ({ success: false as const, error: 'failed' }))
 vi.mock('@/hooks/node/use-node-media-generation-v4', () => ({
   useNodeMediaGenerationV4: () => ({ generateNode, isLoading: false }),
 }))
@@ -646,14 +657,21 @@ describe('参考轨（spec §5，画板 `VideoRefs.dc.html` 方向 A）', () => 
       'v_1',
       true,
     )
+    fireEvent.pointerDown(
+      document.querySelector('[data-video-rail-add="all"]')!,
+      {
+        button: 0,
+        ctrlKey: false,
+      },
+    )
     const addOf = (group: string) =>
       document.querySelector(
         `[data-video-rail-add="${group}"]`,
       ) as HTMLButtonElement
     expect(addOf('video')).not.toBeNull()
-    expect(addOf('video').disabled).toBe(true)
-    expect(addOf('voice').disabled).toBe(true)
-    expect(addOf('image').disabled).toBe(false)
+    expect(addOf('video')).toHaveAttribute('aria-disabled', 'true')
+    expect(addOf('voice')).toHaveAttribute('aria-disabled', 'true')
+    expect(addOf('image')).not.toHaveAttribute('aria-disabled', 'true')
   })
 })
 
@@ -731,6 +749,36 @@ describe('生成中（spec §1.9）', () => {
 })
 
 describe('画中框（spec §5 / §1.11）', () => {
+  it('未发送的草稿在展开和收起间保持一致，展开生成也读取最新编辑', () => {
+    const context = harness([
+      videoNode('v_1', { ...READY, prompt: '原始内容' }),
+    ])
+    const view = renderVideo(context, 'v_1', true)
+    fireEvent.change(document.querySelector('[data-prompt-bar-input]')!, {
+      target: { value: '收起时输入的新内容' },
+    })
+    const renderState = (expandedNodeId: string | null) => (
+      <NodeV4CanvasProvider value={{ ...context, expandedNodeId }}>
+        {/* @ts-expect-error NodeProps 的其余字段本组测试用不到 */}
+        <VideoNodeV4 id="v_1" data={context.nodes[0]!.data} selected />
+      </NodeV4CanvasProvider>
+    )
+    view.rerender(renderState('v_1'))
+    const editor = screen.getByRole('textbox', { name: 'frame.editAriaLabel' })
+    expect(editor).toHaveTextContent('收起时输入的新内容')
+    editor.textContent = '展开后继续输入'
+    fireEvent.input(editor)
+    fireEvent.click(document.querySelector('[data-video-regenerate]')!)
+    expect(generateNode).toHaveBeenLastCalledWith(
+      'v_1',
+      expect.anything(),
+      expect.objectContaining({ prompt: '展开后继续输入' }),
+    )
+    view.rerender(renderState(null))
+    expect(document.querySelector('[data-prompt-bar-input]')).toHaveValue(
+      '展开后继续输入',
+    )
+  })
   it('上半播放器 · 下半镜头说明 · 页脚生成行 · 最底写作助手栏', () => {
     renderVideo(
       harness([videoNode('v_1', { ...READY, prompt: '镜头缓慢推近' })], {
@@ -849,4 +897,127 @@ describe('别人连过来那一下高亮（spec §1.13 尾句）', () => {
     resetNodeCardFlash()
     await waitFor(() => expect(card()).toBe('false'))
   })
+})
+
+describe('取消服务端任务', () => {
+  it('调用取消 API，确认取消后才清理任务 ID', async () => {
+    cancelJobs.mockResolvedValueOnce({
+      success: true,
+      data: { cancelled: ['job_1'], alreadyFinished: [], notFound: [] },
+    })
+    const context = harness([
+      videoNode('v_1', { ...READY, mediaJobId: 'job_1' }),
+    ])
+    renderVideo(context, 'v_1', true)
+    fireEvent.click(screen.getByRole('button', { name: 'cancel' }))
+    await waitFor(() =>
+      expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
+        mediaJobId: undefined,
+      }),
+    )
+    expect(cancelJobs).toHaveBeenLastCalledWith(['job_1'])
+  })
+
+  it('服务端取消失败时保留任务 ID 和生成态', async () => {
+    cancelJobs.mockResolvedValueOnce({ success: false })
+    const context = harness([
+      videoNode('v_1', { ...READY, mediaJobId: 'job_1' }),
+    ])
+    renderVideo(context, 'v_1', true)
+    fireEvent.click(screen.getByRole('button', { name: 'cancel' }))
+    await waitFor(() => expect(cancelJobs).toHaveBeenLastCalledWith(['job_1']))
+    expect(context.onSetMedia).not.toHaveBeenCalled()
+    expect(screen.getByRole('progressbar')).toBeInTheDocument()
+  })
+
+  it('已完成的任务保留成功产物并退出残留生成态', async () => {
+    cancelJobs.mockResolvedValueOnce({
+      success: true,
+      data: { cancelled: [], alreadyFinished: ['job_1'], notFound: [] },
+    })
+    checkVideo.mockResolvedValueOnce({
+      success: true,
+      data: {
+        status: 'COMPLETED',
+        generation: { id: 'g', url: 'https://cdn/done.mp4' },
+      },
+    })
+    const context = harness([
+      videoNode('v_1', { ...READY, mediaJobId: 'job_1' }),
+    ])
+    renderVideo(context, 'v_1', true)
+    fireEvent.click(screen.getByRole('button', { name: 'cancel' }))
+    await waitFor(() =>
+      expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
+        mediaJobId: undefined,
+      }),
+    )
+    expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
+      url: 'https://cdn/done.mp4',
+      generationId: 'g',
+    })
+  })
+})
+
+it.each([false, true])(
+  '失败回包 pending=%s 时正确保留或清除任务 ID',
+  async (pending) => {
+    generateNode.mockImplementationOnce(async (_id, _graph, options) => {
+      options?.onJobCreated?.('job-failure')
+      const result = {
+        success: false as const,
+        error: 'failed',
+        ...(pending ? { pending: true as const, jobId: 'job-failure' } : {}),
+      }
+      options?.onEach?.(result)
+      return result
+    })
+    const context = harness([videoNode('v_1', { ...READY, prompt: 'a shot' })])
+    renderVideo(context, 'v_1', true)
+    fireEvent.click(screen.getByRole('button', { name: 'send' }))
+    await waitFor(() =>
+      expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
+        mediaJobId: 'job-failure',
+      }),
+    )
+    if (pending) {
+      expect(context.onSetMedia).not.toHaveBeenCalledWith('v_1', {
+        mediaJobId: undefined,
+      })
+    } else {
+      await waitFor(() =>
+        expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
+          mediaJobId: undefined,
+        }),
+      )
+    }
+  },
+)
+
+it('提交尚未取得任务 ID 时点击取消，在 ID 到达后取消服务端任务', async () => {
+  let options: Parameters<typeof generateNode>[2]
+  let finish!: () => void
+  generateNode.mockImplementationOnce(async (_id, _graph, supplied) => {
+    options = supplied
+    await new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    return { success: false, error: 'cancelled' }
+  })
+  cancelJobs.mockResolvedValueOnce({
+    success: true,
+    data: { cancelled: ['late-job'], alreadyFinished: [], notFound: [] },
+  })
+  const context = harness([videoNode('v_1', { ...READY, prompt: 'a shot' })])
+  renderVideo(context, 'v_1', true)
+  fireEvent.click(screen.getByRole('button', { name: 'send' }))
+  fireEvent.click(screen.getByRole('button', { name: 'cancel' }))
+  options?.onJobCreated?.('late-job')
+  await waitFor(() => expect(cancelJobs).toHaveBeenLastCalledWith(['late-job']))
+  await waitFor(() =>
+    expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
+      mediaJobId: undefined,
+    }),
+  )
+  finish()
 })

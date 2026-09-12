@@ -15,8 +15,9 @@
  * `use-video-rail-binding`（手机列表卡只要它，⛔ 不为一屏几十张卡各算一遍模型表）。
  */
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { toast } from 'sonner'
 import type { ReactNode } from 'react'
 
 import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
@@ -24,6 +25,7 @@ import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
+import { cancelGenerationsAPI, checkVideoStatusAPI } from '@/lib/api-client'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import { readSlotSources } from '@/lib/node-slot-payload'
@@ -119,6 +121,7 @@ export function useVideoComposer({
   candidates,
   mediaOf,
 }: VideoComposerOptions): VideoComposer {
+  const tCancel = useTranslations('GenerationCancel')
   const tVideo = useTranslations('StudioNode.v4.video')
   const tModels = useTranslations('Models')
   const canvas = useNodeV4Canvas()
@@ -128,6 +131,53 @@ export function useVideoComposer({
   const [syncedPrompt, setSyncedPrompt] = useState(videoData.prompt ?? '')
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState(0)
+  const runRef = useRef(0)
+  const jobRef = useRef(videoData.mediaJobId)
+  const cancelRequestedRef = useRef(false)
+  const cancellingRef = useRef(false)
+  useEffect(() => {
+    jobRef.current = videoData.mediaJobId
+  }, [videoData.mediaJobId])
+
+  const cancelGeneration = async () => {
+    cancelRequestedRef.current = true
+    const jobId = jobRef.current
+    if (!jobId || cancellingRef.current) return
+    cancellingRef.current = true
+    const run = runRef.current
+    try {
+      const response = await cancelGenerationsAPI([jobId])
+      if (run !== runRef.current || jobRef.current !== jobId) return
+      if (!response.success || !response.data) throw new Error('cancelFailed')
+      if (response.data.alreadyFinished.includes(jobId)) {
+        const probe = await checkVideoStatusAPI(jobId)
+        if (run !== runRef.current || jobRef.current !== jobId) return
+        const data = probe.success ? probe.data : undefined
+        if (data?.status === 'COMPLETED' && data.generation) {
+          canvas.onSetMedia(id, {
+            url: data.generation.url,
+            generationId: data.generation.id,
+            ...(data.generation.thumbnailUrl
+              ? { videoThumbnailUrl: data.generation.thumbnailUrl }
+              : {}),
+          })
+        } else if (data?.status !== 'FAILED' && data?.status !== 'CANCELLED') {
+          throw new Error('cancelFailed')
+        }
+      } else if (!response.data.cancelled.includes(jobId)) {
+        throw new Error('cancelFailed')
+      }
+      runRef.current += 1
+      jobRef.current = undefined
+      canvas.onSetMedia(id, { mediaJobId: undefined })
+      setStartedAt(null)
+    } catch {
+      cancelRequestedRef.current = false
+      toast.error(tCancel('cancelFailed'))
+    } finally {
+      cancellingRef.current = false
+    }
+  }
 
   // 助手 `set_prompt` 落下来时草稿跟上 —— 渲染期同步，⛔ 不放 effect 里。
   const currentPrompt = videoData.prompt ?? ''
@@ -330,6 +380,9 @@ export function useVideoComposer({
           } as NodeV4)
         : item,
     )
+    const run = ++runRef.current
+    jobRef.current = undefined
+    cancelRequestedRef.current = false
     setStartedAt(Date.now())
     void generation
       .generateNode(
@@ -337,9 +390,19 @@ export function useVideoComposer({
         { nodes, edges: canvas.edges },
         {
           prompt: draft,
-          onJobCreated: (jobId) => canvas.onSetMedia(id, { mediaJobId: jobId }),
+          onJobCreated: (jobId) => {
+            if (run !== runRef.current) return
+            jobRef.current = jobId
+            canvas.onSetMedia(id, { mediaJobId: jobId })
+            if (cancelRequestedRef.current) void cancelGeneration()
+          },
           onEach: (result) => {
-            if (!result.success) return
+            if (run !== runRef.current) return
+            if (!result.success) {
+              if (!result.pending)
+                canvas.onSetMedia(id, { mediaJobId: undefined })
+              return
+            }
             canvas.onSetMedia(id, {
               url: result.mediaUrl,
               generationId: result.generation.id,
@@ -351,7 +414,9 @@ export function useVideoComposer({
           },
         },
       )
-      .then(() => setStartedAt(null))
+      .finally(() => {
+        if (run === runRef.current) setStartedAt(null)
+      })
   }
 
   const railReadoutGroups = (
@@ -414,7 +479,7 @@ export function useVideoComposer({
     setDraft,
     currentPrompt,
     submitPrompt,
-    cancelGeneration: () => setStartedAt(null),
+    cancelGeneration: () => void cancelGeneration(),
     railProps: rail.railProps,
     railItems,
     railCandidatesOf: rail.candidatesOf,

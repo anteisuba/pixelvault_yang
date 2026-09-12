@@ -12,7 +12,7 @@
  * 在同一步里做（`syncMentionSlots`），⛔ 这里不自己连边。
  */
 
-import { useRef, useState, type ReactNode } from 'react'
+import { useRef, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -44,6 +44,7 @@ export interface VideoNodeFrameProps {
   onVersionChange(index: number): void
   /** 镜头说明（= 这张卡的提示词）。 */
   readonly body: string
+  onBodyChange(body: string): void
   onSave(body: string): void
   onRegenerate(): void
   readonly regenerateDisabled: boolean
@@ -81,6 +82,7 @@ export function VideoNodeFrame({
   versionIndex,
   onVersionChange,
   body,
+  onBodyChange,
   onSave,
   onRegenerate,
   regenerateDisabled,
@@ -94,19 +96,11 @@ export function VideoNodeFrame({
 }: VideoNodeFrameProps) {
   const t = useTranslations('StudioNode.v4')
   const tVideo = useTranslations('StudioNode.v4.video')
-  const [draft, setDraft] = useState(body)
   const editorRef = useRef<MentionInputHandle>(null)
-
-  // 助手 `set_prompt` 落下来时草稿跟上 —— 渲染期同步，⛔ 不放 effect 里。
-  const [syncedBody, setSyncedBody] = useState(body)
-  if (syncedBody !== body) {
-    setSyncedBody(body)
-    setDraft(body)
-  }
 
   /** 失焦即存（spec §2 / §5）。⛔ 不做「保存」按钮。 */
   const commit = () => {
-    if (draft !== body) onSave(draft)
+    onSave(body)
   }
 
   return (
@@ -207,6 +201,7 @@ export function VideoNodeFrame({
             if (!(event.metaKey || event.ctrlKey)) return
             if (event.key !== 'Enter') return
             event.preventDefault()
+            if (regenerateDisabled) return
             commit()
             onRegenerate()
           }}
@@ -215,8 +210,8 @@ export function VideoNodeFrame({
           <MentionInput
             variant="canvas"
             ref={editorRef}
-            value={draft}
-            onValueChange={setDraft}
+            value={body}
+            onValueChange={onBodyChange}
             tokens={[...tokens]}
             mentionCandidates={[...candidates]}
             placeholder={tVideo('frame.emptyNote')}

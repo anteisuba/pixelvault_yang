@@ -195,12 +195,11 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
           />
         }
       >
-        <div
-          className="h-full"
-          onDoubleClick={() => canvas.onToggleExpanded(id)}
-        >
+        <div className="h-full">
           <TextCardBody
             body={textData.body}
+            onSave={(body) => canvas.onEditText(id, body)}
+            editAriaLabel={tText('editAriaLabel')}
             emptyLabel={tText('empty')}
             height={cardHeight}
             onHeightPreview={setDragHeight}

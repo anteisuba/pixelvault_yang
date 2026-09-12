@@ -52,6 +52,8 @@ export interface LoraBaseModel {
   recommended?: boolean
   /** Local catalog artwork shared with the homepage model rail. */
   coverImage: string
+  /** 步数蒸馏（turbo / lightning / hyper / LCM / schnell）；FLUX.1-dev 的 guidance 蒸馏不算 */
+  distilled: boolean
 }
 
 /** hosted 底模可用性跟随 AI_MODELS 自身开关，避免双份维护。 */
@@ -79,6 +81,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     providerModelId: AI_MODELS.FLUX_LORA,
     recommended: true,
     coverImage: '/homepage/production/models/brand/flux.svg',
+    distilled: false,
   },
   {
     id: 'illustrious-hosted',
@@ -90,6 +93,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     providerModelId: AI_MODELS.ILLUSTRIOUS_XL,
     recommended: true,
     coverImage: '/homepage/production/models/image/illustrious-xl.webp',
+    distilled: false,
   },
   {
     id: 'illustrious-runner',
@@ -102,6 +106,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     runnerCheckpointId: 'waiIllustriousSDXL_v150',
     coverImage:
       '/homepage/production/models/image/illustrious-recipe-clone.webp',
+    distilled: false,
   },
   {
     id: 'sdxl-hosted',
@@ -113,6 +118,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     providerModelId: AI_MODELS.ILLUSTRIOUS_XL,
     recommended: true,
     coverImage: '/homepage/production/models/image/sdxl-10-runner.webp',
+    distilled: false,
   },
   {
     id: 'sdxl-runner',
@@ -124,6 +130,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     providerModelId: AI_MODELS.SDXL_10_RUNNER,
     runnerCheckpointId: 'sdXL_v10VAEFix',
     coverImage: '/homepage/production/models/image/sdxl-10-runner.webp',
+    distilled: false,
   },
   {
     id: 'pony-runner',
@@ -136,6 +143,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     runnerCheckpointId: 'ponyDiffusionV6XL',
     recommended: true,
     coverImage: '/homepage/production/models/image/pony-diffusion-v6.webp',
+    distilled: false,
   },
   {
     id: 'sd15-runner',
@@ -148,6 +156,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     available: false,
     recommended: true,
     coverImage: '/homepage/production/models/brand/stability.svg',
+    distilled: false,
   },
   {
     id: 'anima-hosted',
@@ -158,6 +167,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     available: hostedAvailable(AI_MODELS.ANIMA_PENCIL_XL),
     providerModelId: AI_MODELS.ANIMA_PENCIL_XL,
     coverImage: '/homepage/production/models/image/anima-pencil-xl-runner.webp',
+    distilled: false,
   },
   {
     id: 'anima-runner',
@@ -172,6 +182,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     runnerCheckpointId: 'animaPencilXL_v500',
     recommended: true,
     coverImage: '/homepage/production/models/image/anima-pencil-xl-runner.webp',
+    distilled: false,
   },
   // v4：DiT「Anima」（Cosmos-Predict2）的唯一出路——runner 的 Qwen-Image 工作流。
   // baseModel 值 "Anima" 的 LoRA（本月最热 ~47%，如心月狐）归此家族。
@@ -188,6 +199,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     recipeCheckpointMode: 'source',
     recommended: true,
     coverImage: '/homepage/production/models/image/anima-dit-runner.webp',
+    distilled: false,
   },
   {
     id: 'anima-dit-base-v10-runner',
@@ -200,6 +212,7 @@ export const LORA_BASE_MODELS: readonly LoraBaseModel[] = [
     runnerCheckpointId: 'animaBase_v10',
     recipeCheckpointMode: 'fixed',
     coverImage: '/homepage/production/models/image/anima-dit-runner.webp',
+    distilled: false,
   },
 ]
 
@@ -300,4 +313,20 @@ export function getLoraBaseArchitectureGroup(
   family: LoraBaseFamily,
 ): LoraBaseArchitectureGroup {
   return LORA_BASE_DIT_FAMILIES.includes(family) ? 'dit' : 'sdxl'
+}
+
+/** LoRA 栈总权重护栏：非蒸馏底模 1.5、蒸馏底模（turbo/lightning/hyper/LCM/schnell）1.0。 */
+export const LORA_STACK_WEIGHT_BUDGET = {
+  default: 1.5,
+  distilled: 1.0,
+} as const
+
+/** 底模未定（`base` 为 null）时不判——没有底模就没有预算。 */
+export function resolveLoraStackWeightBudget(
+  base: Pick<LoraBaseModel, 'distilled'> | null,
+): number | null {
+  if (!base) return null
+  return base.distilled
+    ? LORA_STACK_WEIGHT_BUDGET.distilled
+    : LORA_STACK_WEIGHT_BUDGET.default
 }

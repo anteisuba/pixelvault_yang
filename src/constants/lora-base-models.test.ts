@@ -7,12 +7,14 @@ import {
   LORA_BASE_FAMILIES,
   LORA_BASE_MODELS,
   LORA_BASE_ONLY_DEFAULT_ID,
+  LORA_STACK_WEIGHT_BUDGET,
   getBaseOnlyGenerationBases,
   getCompatibleBases,
   getDefaultBaseOnlyGenerationBase,
   getDefaultBase,
   getLoraBaseArchitectureGroup,
   normalizeToLoraBaseFamily,
+  resolveLoraStackWeightBudget,
 } from '@/constants/lora-base-models'
 
 describe('normalizeToLoraBaseFamily', () => {
@@ -178,5 +180,33 @@ describe('LORA_BASE_MODELS catalog', () => {
     expect(
       LORA_BASE_MODELS.find((base) => base.id === 'pony-runner')?.coverImage,
     ).toBe('/homepage/production/models/image/pony-diffusion-v6.webp')
+  })
+
+  it('carries a distilled flag on every entry, all false today', () => {
+    // 今天 11 条底模全非蒸馏；接入 Z-Image Turbo / FLUX schnell 这类蒸馏
+    // 底模时，把那一条置 true 即可，护栏自动走 1.0 档。
+    expect(LORA_BASE_MODELS.length).toBe(11)
+    for (const base of LORA_BASE_MODELS) {
+      expect(typeof base.distilled).toBe('boolean')
+      expect(base.distilled).toBe(false)
+    }
+  })
+})
+
+describe('resolveLoraStackWeightBudget', () => {
+  it('resolves the non-distilled budget (1.5)', () => {
+    expect(resolveLoraStackWeightBudget({ distilled: false })).toBe(
+      LORA_STACK_WEIGHT_BUDGET.default,
+    )
+  })
+
+  it('resolves the distilled budget (1.0) for a constructed distilled base', () => {
+    expect(resolveLoraStackWeightBudget({ distilled: true })).toBe(
+      LORA_STACK_WEIGHT_BUDGET.distilled,
+    )
+  })
+
+  it('does not judge when the base is undetermined (null)', () => {
+    expect(resolveLoraStackWeightBudget(null)).toBeNull()
   })
 })

@@ -130,6 +130,7 @@
   "overrides": {
     "@hono/node-server": "1.19.13",
     "postcss": "8.5.14",
-    "sharp": "$sharp"
+    "sharp": "$sharp",
+    "fast-uri": "^3.1.6"
   }
 }

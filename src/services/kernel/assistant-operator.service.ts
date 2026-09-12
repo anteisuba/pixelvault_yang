@@ -315,6 +315,7 @@ import {
 import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import {
+  LORA_BASE_MODELS,
   getDefaultBase,
   normalizeToLoraBaseFamily,
   resolveLoraStackWeightBudget,
@@ -2690,6 +2691,17 @@ function planSetModel(run: OperatorRun, args: { modelId: string }): ToolPlan {
     apply: () => {
       run.state.modelId = match.id
       run.state.modelLabel = match.label
+      /**
+       * LoRA 域换底模 = 换家族（2026-09-12 真机 bug）。`loraBaseFamily` 原本只在
+       * 开跑时从快照取一次，同一轮里 set_model 之后的兼容判定、权重预算、状态块
+       * 方言指纹全读到旧家族 —— 刚切到 pony 的底模会把一把 pony LoRA 拒掉。
+       * 口径与快照的 `loras.baseFamily` 一致：两边都是 `LoraBaseModel.family`。
+       * 目录里找不到这条 id 就不动（不猜）。
+       */
+      if (run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.lora) {
+        const base = LORA_BASE_MODELS.find((item) => item.id === match.id)
+        if (base) run.state.loraBaseFamily = base.family
+      }
       if (
         resolveAdapterType(match.id) === AI_ADAPTER_TYPES.OPENAI &&
         run.state.quality &&
@@ -3875,7 +3887,7 @@ function planMountLora(
     const baseFamily = run.state.loraBaseFamily ?? 'the current one'
     return reject(
       REJECT.loraIncompatibleBase,
-      `That LoRA was trained for ${loraFamily}; the base on the bench is ${baseFamily} — it will not load there. Run search_loras again for a ${baseFamily} LoRA, or offer set_model to move the base to ${loraFamily}.`,
+      `That LoRA was trained for ${loraFamily}; the base on the bench is ${baseFamily} — it will not load there. Run search_loras again within the ${baseFamily} family, or offer set_model to move the base to ${loraFamily}.`,
     )
   }
 

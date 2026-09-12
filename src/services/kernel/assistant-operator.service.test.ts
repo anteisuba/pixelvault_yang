@@ -4318,6 +4318,105 @@ describe('LoRA 装配台域（P4-C）', () => {
     expect(detail).toContain(ASSISTANT_OPERATOR_TOOL_IDS.setModel)
   })
 
+  /**
+   * 2026-09-12 真机 bug：同一轮里 set_model 换了底模，`loraBaseFamily` 还停在
+   * 开跑时那一份快照上 —— 助手刚把底模切到 pony，紧接着挂一把 pony LoRA 却被
+   * 自己按 loraIncompatibleBase 拒掉。
+   */
+  const PONY_BENCH_SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
+    ...LORA_SNAPSHOT,
+    model: { id: 'anima-dit-base-v10-runner', label: 'Anima Base v1.0' },
+    availableModels: [
+      { id: 'anima-dit-base-v10-runner', label: 'Anima Base v1.0' },
+      { id: 'pony-runner', label: 'Pony Diffusion V6' },
+    ],
+    loras: { ...LORA_SNAPSHOT.loras!, items: [], baseFamily: 'anima-dit' },
+  }
+
+  it('同一轮 set_model 切到 pony 后，pony 的那把挂得上（⛔ 家族不停在开跑那份快照）', async () => {
+    mockSearchLoraCandidates.mockResolvedValue({
+      query: 'pony style',
+      candidates: [
+        loraCandidate({
+          candidateId: 'civitai:pony:1',
+          baseModelFamily: 'pony',
+        }),
+      ],
+      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          title: 'find',
+          args: { query: 'pony style' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+          title: 'switch base',
+          args: { modelId: 'pony-runner' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          title: 'mount it',
+          args: { candidateId: 'civitai:pony:1' },
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({ snapshot: PONY_BENCH_SNAPSHOT }),
+        ),
+      ),
+    )
+    const mounted = steps.find(
+      (step) =>
+        (step as { tool?: string }).tool ===
+        ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+    )
+    expect(mounted).toMatchObject({
+      payload: { candidateId: 'civitai:pony:1' },
+    })
+    expect(mounted).not.toHaveProperty('error')
+  })
+
+  it('同一轮 set_model 切到 pony 后，状态块里的底模家族已经是 pony', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+          title: 'switch base',
+          args: { modelId: 'pony-runner' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          title: 'look',
+          args: {},
+        },
+      },
+      { finished: true },
+    )
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({ snapshot: PONY_BENCH_SNAPSHOT }),
+      ),
+    )
+
+    const digest = lastUserPrompt()
+    expect(digest).toContain('Base model family: pony')
+    expect(digest).not.toContain('Base model family: anima-dit')
+  })
+
   it('同族的那把照旧挂得上：⛔ 改判只收紧跨族那一支', async () => {
     mockSearchLoraCandidates.mockResolvedValue({
       query: 'x',

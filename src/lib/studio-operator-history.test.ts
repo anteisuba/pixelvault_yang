@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
 import {
+  clampPlanAnswer,
+  describeLoraPickOptionLabels,
   describeOperatorStepDetail,
   fromStoredOperatorMessages,
   historyToOperatorMessages,
@@ -551,5 +553,35 @@ describe('mount_lora 的详情行', () => {
         mountStep({ compatible: false, family: 'flux' }),
       ),
     ).toBe('Watercolor Storybook · flux · does not fit · 0.8')
+  })
+})
+
+describe('推荐卡答复的 schema 尺寸（2026-09-12 真机 400）', () => {
+  const longName = 'Qingxiao | 清宵 | Anima LoRA for Wuthering Waves Characters'
+  it('optionLabels 一把一条、每条不超 40 字、最多 4 条', () => {
+    const labels = describeLoraPickOptionLabels([
+      { name: longName, weight: 1.05 },
+      { name: longName, weight: 0.8 },
+      { name: longName, weight: 1 },
+      { name: longName, weight: 1 },
+      { name: longName, weight: 1 },
+    ])
+    expect(labels).toHaveLength(4)
+    for (const label of labels) expect(label.length).toBeLessThanOrEqual(40)
+    expect(labels[0]).toMatch(/… ×1\.05$/)
+    expect(labels[3]).toBe('等2把')
+  })
+  it('clampPlanAnswer 把历史里的旧值裁进上限', () => {
+    const clamped = clampPlanAnswer({
+      questionId: 'q',
+      optionIds: ['a', 'b', 'c', 'd', 'e'],
+      question: 'x'.repeat(120),
+      optionLabels: ['y'.repeat(90), 'ok', '1', '2', '3'],
+    })
+    expect(clamped.optionIds).toHaveLength(4)
+    expect(clamped.question).toHaveLength(80)
+    expect(clamped.optionLabels).toHaveLength(4)
+    expect(clamped.optionLabels?.[0]).toHaveLength(40)
+    expect(clamped.optionLabels?.[1]).toBe('ok')
   })
 })

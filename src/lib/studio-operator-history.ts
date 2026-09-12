@@ -22,6 +22,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOLS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
+  ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   type AssistantOperatorDomain,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
@@ -370,6 +371,59 @@ function truncateLoraPickName(name: string): string {
   return trimmed.length <= LORA_PICK_LABEL_MAX_NAME_CHARS
     ? trimmed
     : `${trimmed.slice(0, LORA_PICK_LABEL_MAX_NAME_CHARS)}…`
+}
+
+/**
+ * `answered.optionLabels` 那一半：**一把一条**，每条截到 `maxOptionLabelChars` 以内，
+ * 条数封在 `maxOptions`（最后一条收成「等 N 把」）。
+ *
+ * ⚠ 2026-09-12 真机事故：把三把名字拼进一条 40 字上限的标签，整条请求被 schema
+ * 拒，而那行系统行每轮都折进历史 —— 那条对话从此每次都 400。标签与正文分家：
+ * 正文（`describeLoraPickSelectionLabel`）尽管说人话，标签按 schema 尺寸裁。
+ */
+export function describeLoraPickOptionLabels(
+  picks: readonly { name: string; weight: number }[],
+): string[] {
+  const max = PLAN_LIMITS.maxOptions
+  const shownCount = picks.length > max ? max - 1 : picks.length
+  const labels = picks.slice(0, shownCount).map((pick) => {
+    const weight = ` ×${Math.round(pick.weight * 100) / 100}`
+    const room = PLAN_LIMITS.maxOptionLabelChars - weight.length
+    const name =
+      pick.name.length > room ? `${pick.name.slice(0, room - 1)}…` : pick.name
+    return `${name}${weight}`
+  })
+  const remaining = picks.length - shownCount
+  return remaining > 0 ? [...labels, `等${remaining}把`] : labels
+}
+
+/**
+ * 发送前把结构化答复裁进 schema 尺寸（题面 / 标签 / 条数）—— 历史里不管躺着
+ * 什么旧值，都不能再让一整条请求被拒。⛔ 只裁不改语义。
+ */
+export function clampPlanAnswer<
+  T extends {
+    question?: string
+    optionIds: readonly string[]
+    optionLabels?: readonly string[]
+  },
+>(answer: T): T {
+  const clip = (value: string, max: number) =>
+    value.length > max ? `${value.slice(0, max - 1)}…` : value
+  return {
+    ...answer,
+    optionIds: answer.optionIds.slice(0, PLAN_LIMITS.maxOptions),
+    ...(answer.question !== undefined
+      ? { question: clip(answer.question, PLAN_LIMITS.maxQuestionChars) }
+      : {}),
+    ...(answer.optionLabels
+      ? {
+          optionLabels: answer.optionLabels
+            .slice(0, PLAN_LIMITS.maxOptions)
+            .map((label) => clip(label, PLAN_LIMITS.maxOptionLabelChars)),
+        }
+      : {}),
+  }
 }
 
 export function describeLoraPickSelectionLabel(

@@ -118,7 +118,9 @@ import {
 import {
   describeContextCardDecisionText,
   describeContextCardProposalText,
+  clampPlanAnswer,
   describeLoraPickDecisionText,
+  describeLoraPickOptionLabels,
   describeLoraPickSelectionLabel,
   describeQuestionAnswerText,
   historyToOperatorMessages,
@@ -227,7 +229,9 @@ function buildMessages(
       messages.push({
         role: 'user',
         content: entry.userText,
-        ...(entry.answered ? { answered: entry.answered } : {}),
+        ...(entry.answered
+          ? { answered: clampPlanAnswer(entry.answered) }
+          : {}),
       })
     } else if (entry.kind === 'system' && entry.code === 'checkpointRestored') {
       messages.push({
@@ -475,15 +479,17 @@ function loraPickDecision(
   question: string,
   choice: (typeof OPERATOR_LORA_PICK_CHOICE_IDS)[keyof typeof OPERATOR_LORA_PICK_CHOICE_IDS],
   label: string,
+  /** 结构化那一半的标签：一把一条、按 schema 尺寸裁过（⛔ 不是正文那一句）。 */
+  optionLabels: readonly string[],
 ): { userText: string; answered: AssistantOperatorPlanAnswer } {
   return {
     userText: describeLoraPickDecisionText(question, label),
-    answered: {
+    answered: clampPlanAnswer({
       questionId: loraPickAnswerId(question),
       optionIds: [choice],
       question,
-      optionLabels: [label],
-    },
+      optionLabels: [...optionLabels],
+    }),
   }
 }
 
@@ -2018,12 +2024,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       })
       if (picks.length === 0) return
       resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting)
-      const label = describeLoraPickSelectionLabel(
-        picks.map((pick) => ({
-          name: pick.candidate.name,
-          weight: pick.weight ?? pick.candidate.defaultWeight,
-        })),
-      )
+      const picked = picks.map((pick) => ({
+        name: pick.candidate.name,
+        weight: pick.weight ?? pick.candidate.defaultWeight,
+      }))
+      const label = describeLoraPickSelectionLabel(picked)
+      const optionLabels = describeLoraPickOptionLabels(picked)
       appendOperatorEntry({
         kind: 'system',
         id: nextOperatorEntryId('sys'),
@@ -2034,6 +2040,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           confirm.pick.question,
           OPERATOR_LORA_PICK_CHOICE_IDS.mount,
           label,
+          optionLabels,
         ),
       })
       resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
@@ -2070,6 +2077,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         confirm.pick.question,
         OPERATOR_LORA_PICK_CHOICE_IDS.dismiss,
         OPERATOR_LORA_PICK_DISMISS_LABEL,
+        [OPERATOR_LORA_PICK_DISMISS_LABEL],
       ),
     })
   }, [])

@@ -2269,7 +2269,7 @@ describe('LoRA 推荐卡（lora-assistant §10.1）', () => {
       questionId: 'loraPick:这两把里你要挂哪几把？',
       optionIds: ['mount'],
       question: QUESTION,
-      optionLabels: ['清宵 ×0.8、overwatch_3d_anima ×0.8'],
+      optionLabels: ['清宵 ×0.8', 'overwatch_3d_anima ×0.8'],
     }
     expect(
       store

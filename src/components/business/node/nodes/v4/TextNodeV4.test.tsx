@@ -157,7 +157,9 @@ function node(
   }
 }
 
-function scene(textData: { cardHeight?: number } = {}): NodeWorkflowStateV4 {
+function scene(
+  textData: { cardHeight?: number; body?: string } = {},
+): NodeWorkflowStateV4 {
   return reconcileStateSlots(
     {
       version: 4,
@@ -391,55 +393,38 @@ describe('S2b 文本节点 · 展开 = 全屏文档', () => {
     expect(document.querySelector('[data-text-doc-download]')).not.toBeNull()
   })
 
-  it('正文可编辑，失焦即存（`set_text`）', () => {
-    const { context } = expanded()
-    const editor = document.querySelector<HTMLTextAreaElement>(
-      '[data-text-doc-input]',
-    )!
-    expect(editor.value).toBe(BODY)
-    fireEvent.change(editor, { target: { value: '改过的正文' } })
-    fireEvent.blur(editor)
-    expect(context.onEditText).toHaveBeenCalledWith('t_02', '改过的正文')
+  it('正文按 Markdown **渲染**出来：`# 标题` 是 h1，⛔ 不是一行带井号的字', () => {
+    const context = harness(scene({ body: '# 标题\n\n正文一段' }), {
+      expandedNodeId: 't_02',
+    })
+    renderText(context, true)
+
+    const doc = document.querySelector('[data-text-doc-editor]')!
+    expect(doc.querySelector('h1')?.textContent).toBe('标题')
+    // owner 2026-09-12 报的就是这一条：记号原样躺在正文里 = 「编辑没有效果」。
+    expect(doc.textContent).not.toContain('#')
   })
 
-  it('格式工具条只往正文插 Markdown 语法（⛔ 不引入富文本存储）', () => {
+  it('格式工具条九档都在场（命令本身在 `TextDocEditor.test.ts`）', () => {
     expanded()
-    const editor = document.querySelector<HTMLTextAreaElement>(
-      '[data-text-doc-input]',
-    )!
-    editor.setSelectionRange(0, 2)
-    fireEvent.select(editor)
-    fireEvent.click(document.querySelector('[data-text-format="bold"]')!)
-    expect(editor.value.startsWith('**夜色**')).toBe(true)
-
-    fireEvent.click(document.querySelector('[data-text-format="bulleted"]')!)
-    expect(editor.value.startsWith('- **夜色**')).toBe(true)
+    const bar = document.querySelector('[data-text-format-bar]')!
+    expect(bar.querySelector('[data-text-format="heading"]')).not.toBeNull()
+    for (const key of [
+      'bulleted',
+      'numbered',
+      'bold',
+      'strike',
+      'italic',
+      'underline',
+    ]) {
+      expect(bar.querySelector(`[data-text-format="${key}"]`)).not.toBeNull()
+    }
   })
 
-  it('关闭前把草稿存下来，再收起', () => {
+  it('收起时正文没改就不写一次空 op', () => {
     const { context } = expanded()
-    const editor = document.querySelector<HTMLTextAreaElement>(
-      '[data-text-doc-input]',
-    )!
-    fireEvent.change(editor, { target: { value: '收起前改的' } })
     fireEvent.click(document.querySelector('[data-node-frame-close]')!)
-    expect(context.onEditText).toHaveBeenCalledWith('t_02', '收起前改的')
+    expect(context.onEditText).not.toHaveBeenCalled()
     expect(context.onToggleExpanded).toHaveBeenCalledWith('t_02')
-  })
-
-  it('`@` 弹层复用 `MentionPicker`：文本节点粘原文、素材插 `@名字`', () => {
-    expanded()
-    const editor = document.querySelector<HTMLTextAreaElement>(
-      '[data-text-doc-input]',
-    )!
-    fireEvent.change(editor, { target: { value: '开场 @' } })
-    editor.setSelectionRange(4, 4)
-    fireEvent.keyUp(editor)
-    const picker = document.querySelector('[data-node-chrome="mention-picker"]')
-    expect(picker).not.toBeNull()
-    fireEvent.pointerDown(
-      document.querySelector('[data-mention-option="莫宁"]')!,
-    )
-    expect(editor.value).toContain('@莫宁')
   })
 })

@@ -4,8 +4,8 @@
  * 全屏文档中间那条**格式工具条**（spec §2，画板 `TextJimeng.dc.html`）：
  * 标题级下拉 · 无序 · 有序 ‖ 加粗 · 删除线 · 斜体 · 下划线。
  *
- * ⛔ **不引入富文本存储**：每一颗只是往正文里写 Markdown 语法，算术在
- * `text-markdown.ts`（纯函数）。这一层只有形状与「按下不抢焦点」。
+ * ⛔ **不引入富文本存储**：每一颗都是一条编辑器命令（`applyTextDocFormat`），
+ * 落库的仍是同一段 Markdown 纯文本。这一层只有形状与「按下不抢焦点」。
  *
  * ⚠ 每颗键都 `onMouseDown` 阻止默认：一旦 textarea 失焦，选区就没了，
  * 加粗会加到空气上（与 `MentionPicker` 不抢焦点是同一条理由）。
@@ -22,12 +22,14 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { cn } from '@/lib/utils'
 
-import type { TextMarkdownFormat } from './text-markdown'
+import type { TextDocFormat } from './TextDocEditor'
 
 const HEADING_FORMATS = ['h1', 'h2', 'h3'] as const
 
 export interface TextDocFormatBarProps {
-  onFormat(format: TextMarkdownFormat): void
+  onFormat(format: TextDocFormat): void
+  /** 光标所在处已经是哪几档 —— 按下去的那颗要看得出来。 */
+  readonly activeFormats: ReadonlySet<TextDocFormat>
 }
 
 const CELL_CLASS = cn(
@@ -36,27 +38,30 @@ const CELL_CLASS = cn(
   'hover:bg-surface-fill-hover focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
 )
 
-export function TextDocFormatBar({ onFormat }: TextDocFormatBarProps) {
+export function TextDocFormatBar({
+  onFormat,
+  activeFormats,
+}: TextDocFormatBarProps) {
   const t = useTranslations('StudioNode.v4.text')
 
-  const cell = (
-    format: TextMarkdownFormat,
-    label: string,
-    content: ReactNode,
-  ) => (
-    <button
-      key={format}
-      type="button"
-      aria-label={label}
-      title={label}
-      data-text-format={format}
-      onMouseDown={(event) => event.preventDefault()}
-      onClick={() => onFormat(format)}
-      className={CELL_CLASS}
-    >
-      {content}
-    </button>
-  )
+  const cell = (format: TextDocFormat, label: string, content: ReactNode) => {
+    const active = activeFormats.has(format)
+    return (
+      <button
+        key={format}
+        type="button"
+        aria-label={label}
+        aria-pressed={active}
+        title={label}
+        data-text-format={format}
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => onFormat(format)}
+        className={cn(CELL_CLASS, active && 'bg-surface-fill-hover')}
+      >
+        {content}
+      </button>
+    )
+  }
 
   return (
     <div
@@ -82,6 +87,7 @@ export function TextDocFormatBar({ onFormat }: TextDocFormatBarProps) {
             <DropdownMenuItem
               key={format}
               data-text-format-heading={format}
+              data-active={activeFormats.has(format)}
               onSelect={() => onFormat(format)}
             >
               {t(`doc.${format}`)}

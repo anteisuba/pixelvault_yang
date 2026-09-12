@@ -18,6 +18,7 @@
 import { useRef, useState } from 'react'
 
 import { NODE_V4_CARD } from '@/constants/node-studio'
+import { Markdown } from '@/components/ui/markdown'
 import { cn } from '@/lib/utils'
 
 export interface TextCardBodyProps {
@@ -71,14 +72,21 @@ export function TextCardBody({
         // `nowheel` = 卡内滚动时画布不跟着缩放（ReactFlow 的约定类）。
         className="nodrag nowheel h-full overflow-y-auto px-5 py-4.5"
       >
-        <p
-          className={cn(
-            'text-md leading-relaxed tracking-node-body whitespace-pre-wrap',
-            text.length === 0 && 'text-muted-foreground',
-          )}
-        >
-          {text.length === 0 ? emptyLabel : body}
-        </p>
+        {text.length === 0 ? (
+          <p className="text-md leading-relaxed tracking-node-body text-muted-foreground">
+            {emptyLabel}
+          </p>
+        ) : (
+          /* ⚠ 卡面也**渲染** Markdown（owner 2026-09-12）：正文里存的是 `#` 与
+             `**`，原样摊在卡上就是一堆记号 —— 与全屏文档同一套字号（`data-text-rich`），
+             ⛔ 卡上一套、文档里另一套的话，同一段话在两处长得不一样。 */
+          <div
+            data-text-rich
+            className="text-md leading-relaxed tracking-node-body"
+          >
+            <Markdown>{body}</Markdown>
+          </div>
+        )}
       </div>
       {/* 底部 40px 渐隐：从卡色渐到透明，⛔ 不挡滚动（`pointer-events-none`）。 */}
       <div

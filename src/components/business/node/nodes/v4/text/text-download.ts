@@ -5,8 +5,6 @@
  * 正文没有 URL，它只在浏览器内存里，所以这条走 Blob + objectURL，并**当场释放**。
  */
 
-import { textNodeFileName } from './text-markdown'
-
 export function downloadTextNodeBody(name: string, body: string): void {
   if (typeof document === 'undefined') return
   const blob = new Blob([body], { type: 'text/markdown;charset=utf-8' })
@@ -16,4 +14,13 @@ export function downloadTextNodeBody(name: string, body: string): void {
   anchor.download = textNodeFileName(name)
   anchor.click()
   URL.revokeObjectURL(url)
+}
+
+/**
+ * 下载文件名：`名字.md`。⚠ 路径分隔符与 Windows 保留字符换成 `-` —— 节点名是用户
+ * 自己打的，一个 `/` 会让浏览器把整个文件名当路径丢掉。
+ */
+export function textNodeFileName(name: string): string {
+  const safe = name.replace(/[\\/:*?"<>|]/g, '-').trim()
+  return `${safe.length > 0 ? safe : 'untitled'}.md`
 }

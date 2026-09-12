@@ -686,11 +686,19 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
           if (
             (statusData.status === 'IN_PROGRESS' ||
               statusData.status === 'IN_QUEUE') &&
-            statusData.previewUrl
+            (statusData.previewUrl || statusData.executionStage)
           ) {
             updateActiveRunItem(itemId, (item) =>
               item.status === 'generating'
-                ? { ...item, previewUrl: statusData.previewUrl }
+                ? {
+                    ...item,
+                    ...(statusData.previewUrl
+                      ? { previewUrl: statusData.previewUrl }
+                      : {}),
+                    ...(statusData.executionStage
+                      ? { executionStage: statusData.executionStage }
+                      : {}),
+                  }
                 : item,
             )
           }

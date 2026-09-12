@@ -1643,3 +1643,98 @@ describe('LoraWorkbench GenerateBranch — mobile generate layout', () => {
     ).not.toBeInTheDocument()
   })
 })
+
+// owner 反馈（2026-09-12）：点「出图」后按钮上只剩一个小转圈，页面中间的生成中
+// 状态整个消失。根因是结果盒在 ≥768 失去高度（详见 LoraWorkbench.tsx 那一段
+// `lora-result-media--running` 的注与 lora.css 的同名规则），所以这里锁两条：
+// ① 生成中态真的渲染出来了（进度 + 撑高类名）；② 耗时提示按首次/非首次分岔。
+describe('LoraWorkbench GenerateBranch — generating state and ETA hint', () => {
+  beforeEach(() => {
+    mockGenerate.mockReset()
+    mockLastGeneration = null
+    mockGenerateError = null
+    mockIsGenerating = false
+    mockIsMobile = false
+    mockStackItems = []
+    mockMinedRecipes = []
+    mockMinedPreviewImages = []
+    mockActiveRun = null
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+    sessionStorage.clear()
+  })
+
+  const resultMedia = () =>
+    screen
+      .getByTestId('lora-result-card')
+      .querySelector('.lora-result-media') as HTMLElement
+
+  it('renders the in-progress state inside the result card, with the height floor that keeps it visible', () => {
+    mockIsGenerating = true
+
+    render(<LoraWorkbench />)
+
+    // 裱框进度真的在结果卡里（不是只有出图按钮上那颗 spinner）。
+    const progress = screen.getByRole('progressbar')
+    expect(screen.getByTestId('lora-result-card')).toContainElement(progress)
+    // 进度/shimmer 都是 absolute，盒子只能靠这个类名拿到高度 —— 丢了它，
+    // 桌面上整块生成中态塌成 0 高，就是 owner 报的那个 bug。
+    expect(resultMedia().className).toContain('lora-result-media--running')
+    expect(resultMedia().className).not.toContain('lora-result-media--empty')
+  })
+
+  it('keeps the running height floor off the idle empty state', () => {
+    render(<LoraWorkbench />)
+
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(resultMedia().className).not.toContain('lora-result-media--running')
+    expect(resultMedia().className).toContain('lora-result-media--empty')
+    expect(screen.queryByTestId('lora-generating-eta')).not.toBeInTheDocument()
+  })
+
+  it('warns that the first Runner run loads the base model, then drops to the steady estimate', async () => {
+    // 出图一发起就把 hook 的 isGenerating 翻真 —— 镜像真实 hook 的行为，
+    // 这样同一次点击引发的重渲染就能画出生成中态。
+    mockGenerate.mockImplementation(() => {
+      mockIsGenerating = true
+      return Promise.resolve(null)
+    })
+
+    const first = render(<LoraWorkbench />)
+    fireEvent.change(
+      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+      { target: { value: 'sunset railway, anime girl' } },
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lora-generating-eta')).toHaveTextContent(
+        'LoraWorkbench:generate.etaColdStart',
+      )
+    })
+
+    // 第二次：同一底模、同一会话 —— worker 已经热了，回到常态估计。
+    // 重新挂载（真实场景是重进生成 tab），sessionStorage 里的「已跑过」还在。
+    first.unmount()
+    mockIsGenerating = false
+
+    const second = render(<LoraWorkbench />)
+    fireEvent.change(
+      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+      { target: { value: 'sunset railway, anime girl' } },
+    )
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+    // 这一轮 `isRunnerColdStart` 从 false 写回 false，没有 state 变化能把
+    // mock hook 新翻的 isGenerating 带进视图 —— 手动催一次重渲染。
+    second.rerender(<LoraWorkbench />)
+
+    await waitFor(() => {
+      expect(screen.getByTestId('lora-generating-eta')).toHaveTextContent(
+        /^LoraWorkbench:generate\.eta$/,
+      )
+    })
+  }, 45_000)
+})

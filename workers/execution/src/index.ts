@@ -13,6 +13,10 @@ export {
 } from '../../../src/lib/image-output-size'
 import { WorkflowEntrypoint } from 'cloudflare:workers'
 import { readOpenAIImageStream } from '../../../src/lib/openai-image-stream'
+import {
+  EXECUTION_PROGRESS_STAGES,
+  type ExecutionProgressStage,
+} from '../../../src/constants/generation-progress'
 import type {
   Workflow,
   WorkflowEvent,
@@ -3443,6 +3447,50 @@ export async function reportProviderJobId(
   }
 }
 
+/**
+ * Best-effort progress report: tells the app which execution stage a run is
+ * in, so the UI can tell "queued behind a cold GPU" apart from "the GPU is
+ * drawing". Runner-only today — every other image provider leaves the stage
+ * unset and the UI keeps its elapsed-time estimate.
+ *
+ * Reporting only. It never changes polling, wedge detection or timeouts, and
+ * — like `reportProviderJobId` — swallows every failure so a lost progress
+ * ping can never take down a healthy generation.
+ */
+export async function reportExecutionStage(
+  env: ExecutionEnv,
+  context: { runId: string; callbackUrl: string },
+  executionStage: ExecutionProgressStage,
+): Promise<void> {
+  if (!env.INTERNAL_CALLBACK_SECRET) return
+
+  try {
+    const response = await postSignedJson(
+      context.callbackUrl,
+      env.INTERNAL_CALLBACK_SECRET,
+      {
+        runId: context.runId,
+        kind: 'status',
+        ts: new Date().toISOString(),
+        data: { executionStage },
+      },
+    )
+    if (!response.ok) {
+      console.warn('reportExecutionStage: callback responded non-2xx', {
+        runId: context.runId,
+        executionStage,
+        status: response.status,
+      })
+    }
+  } catch (error) {
+    console.warn('reportExecutionStage: callback request failed', {
+      runId: context.runId,
+      executionStage,
+      error: error instanceof Error ? error.message : String(error),
+    })
+  }
+}
+
 export class CinematicShortVideoWorkflow extends WorkflowEntrypoint<
   ExecutionEnv,
   WorkerRunContext
@@ -6092,6 +6140,11 @@ export async function submitRunnerImageJob(
     throw new Error('Runner submit response did not include a job id.')
   }
   await reportProviderJobId(env, context, id)
+  await reportExecutionStage(
+    env,
+    context,
+    EXECUTION_PROGRESS_STAGES.RUNNER_QUEUED,
+  )
   const outputScale = upscaler?.scale ?? 1
   return {
     id,
@@ -6933,6 +6986,27 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           if (pollResult.status === 'COMPLETED') {
             completed = pollResult
           } else if (pollResult.status === 'IN_PROGRESS') {
+            // 首次离开队列才回报一次：之后的每一轮都还是 IN_PROGRESS，
+            // 重复回报只会刷同一个阶段。纯回报，不参与任何判据。
+            if (!leftQueue) {
+              await step.do(
+                'mark-runner-image-running',
+                {
+                  retries: {
+                    limit: 2,
+                    delay: '5 seconds',
+                    backoff: 'exponential',
+                  },
+                  timeout: '30 seconds',
+                },
+                () =>
+                  reportExecutionStage(
+                    this.env,
+                    context,
+                    EXECUTION_PROGRESS_STAGES.RUNNER_RUNNING,
+                  ),
+              )
+            }
             leftQueue = true
           }
 

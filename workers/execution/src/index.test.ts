@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   CinematicShortVideoWorkflow,
+  ImageQueueWorkflow,
   submitGeminiVideoQueue,
   pollGeminiVideoQueue,
   buildFalImageInput,
@@ -27,6 +28,7 @@ import {
   parseModel3DRunContext,
   parseWorkerRunContext,
   pollAndPersistRunnerImageJob,
+  reportExecutionStage,
   reportProviderJobId,
   resolveFalImageModelId,
   submitFalImageQueue,
@@ -2236,5 +2238,188 @@ describe('OpenAI image streaming execution', () => {
         previewUrl: 'https://cdn.example.com/image/previews/image-test/0.png',
       },
     })
+  })
+})
+
+/**
+ * Runner（自建 RunPod ComfyUI）是唯一会长时间停在 IN_QUEUE 的图片通道：冷启动
+ * 要载 6.9GB 底模。此前 worker 的图片路径不回报任何阶段，主站分不清「排队等
+ * GPU 冷启动」和「没人接单」，于是把两种情况显示成同一个「生成中」。
+ * 这一节锁的是回报本身：提交后一次 runnerQueued，首次离开队列一次
+ * runnerRunning，之后不再重复。判据/超时一律不参与。
+ */
+interface CallbackBody {
+  runId?: string
+  kind?: string
+  data?: { executionStage?: string; providerJobId?: string }
+}
+
+function readCallbackBody(init: RequestInit): CallbackBody {
+  return JSON.parse(String(init.body)) as CallbackBody
+}
+
+describe('reportExecutionStage', () => {
+  const context = { runId: 'run-1', callbackUrl: 'https://cb.example.com' }
+
+  it('posts a kind:status callback carrying the stage', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await reportExecutionStage(
+      { INTERNAL_CALLBACK_SECRET: 'secret-1' } as never,
+      context,
+      'runnerRunning',
+    )
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('https://cb.example.com')
+    const body = JSON.parse(String(init.body)) as Record<string, unknown>
+    expect(body.runId).toBe('run-1')
+    expect(body.kind).toBe('status')
+    expect(body.data).toEqual({ executionStage: 'runnerRunning' })
+  })
+
+  it('is a no-op when the callback secret is not configured', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    await reportExecutionStage({} as never, context, 'runnerQueued')
+
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('swallows transport and non-2xx failures, never throws', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValueOnce(new Response(null, { status: 500 }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const env = { INTERNAL_CALLBACK_SECRET: 'secret-1' } as never
+    await expect(
+      reportExecutionStage(env, context, 'runnerQueued'),
+    ).resolves.toBeUndefined()
+    await expect(
+      reportExecutionStage(env, context, 'runnerQueued'),
+    ).resolves.toBeUndefined()
+  })
+
+  it('runner submit reports runnerQueued right after the job id', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        if (String(input) === 'https://api.runpod.ai/v2/runner-endpoint/run') {
+          return Response.json({ id: 'runpod-job-1' })
+        }
+        return new Response(null, { status: 200 })
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    const context = makeFalImageContext({
+      externalModelId: 'waiIllustriousSDXL_v150',
+      aspectRatio: '1:1',
+    }) as Parameters<typeof submitRunnerImageJob>[0]
+
+    await submitRunnerImageJob(
+      { ...context, providerId: 'runner' },
+      {
+        INTERNAL_CALLBACK_SECRET: 'secret-1',
+        RUNPOD_ENDPOINT: 'runner-endpoint',
+      } as unknown as Parameters<typeof submitRunnerImageJob>[1],
+      'runpod-key',
+    )
+
+    const stageCallbacks = fetchMock.mock.calls
+      .filter(([input]) => String(input) === context.callbackUrl)
+      .map(([, init]) => readCallbackBody(init as RequestInit))
+      .filter((body) => body.data?.executionStage !== undefined)
+    expect(stageCallbacks).toHaveLength(1)
+    expect(stageCallbacks[0]).toMatchObject({
+      kind: 'status',
+      data: { executionStage: 'runnerQueued' },
+    })
+  })
+
+  it('runner image workflow reports runnerRunning once, on the first IN_PROGRESS poll', async () => {
+    const pollStatuses = ['IN_QUEUE', 'IN_PROGRESS', 'IN_PROGRESS', 'COMPLETED']
+    let pollIndex = 0
+    const put = vi.fn().mockResolvedValue(undefined)
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(async (input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url === 'https://resolve.example.com')
+          return Response.json({
+            success: true,
+            data: { apiKey: 'runpod-key' },
+          })
+        if (url === 'https://cb.example.com')
+          return Response.json({ success: true })
+        if (url === 'https://api.runpod.ai/v2/runner-endpoint/run')
+          return Response.json({ id: 'runpod-job-1' })
+        if (
+          url === 'https://api.runpod.ai/v2/runner-endpoint/status/runpod-job-1'
+        ) {
+          const status =
+            pollStatuses[Math.min(pollIndex, pollStatuses.length - 1)]
+          pollIndex += 1
+          if (status !== 'COMPLETED') return Response.json({ status })
+          return Response.json({
+            status,
+            output: {
+              images: [{ data: bytesToBase64(new Uint8Array([1, 2, 3])) }],
+            },
+          })
+        }
+        throw new Error(`Unexpected fetch: ${url}`)
+      })
+    vi.stubGlobal('fetch', fetchMock)
+
+    class TestWorkflow extends ImageQueueWorkflow {
+      setEnv(env: unknown) {
+        this.env = env as never
+      }
+    }
+    const workflow = new TestWorkflow()
+    workflow.setEnv({
+      INTERNAL_CALLBACK_SECRET: 'secret-1',
+      STATE_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+      RUNPOD_ENDPOINT: 'runner-endpoint',
+      R2_PUBLIC_URL: 'https://cdn.example.com',
+      GENERATION_BUCKET: { put },
+    })
+
+    const context = {
+      ...makeFalImageContext({
+        externalModelId: 'waiIllustriousSDXL_v150',
+        aspectRatio: '1:1',
+      }),
+      providerId: 'runner',
+      maxAttempts: 10,
+      pollIntervalMs: 1,
+    }
+    const runResult = await workflow.run(
+      { payload: context, instanceId: 'instance-1' } as never,
+      {
+        do: vi.fn(async (_name: string, ...args: unknown[]) => {
+          const callback = args[args.length - 1] as () => Promise<unknown>
+          return callback()
+        }),
+        sleep: vi.fn(),
+      } as never,
+    )
+
+    expect(runResult).toMatchObject({ status: 'COMPLETED' })
+    expect(put).toHaveBeenCalled()
+
+    const stages = fetchMock.mock.calls
+      .filter(([input]) => String(input) === 'https://cb.example.com')
+      .map(([, init]) => readCallbackBody(init as RequestInit))
+      .map((body) => body.data?.executionStage)
+      .filter((stage) => stage !== undefined)
+    expect(stages).toEqual(['runnerQueued', 'runnerRunning'])
   })
 })

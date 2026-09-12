@@ -473,6 +473,9 @@ export async function checkImageGenerationStatus(
     jobId: job.id,
     status: 'IN_PROGRESS',
     ...(metadata?.previewUrl ? { previewUrl: metadata.previewUrl } : {}),
+    ...(metadata?.executionStage
+      ? { executionStage: metadata.executionStage }
+      : {}),
   }
 }
 

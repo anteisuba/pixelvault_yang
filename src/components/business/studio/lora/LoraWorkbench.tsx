@@ -45,6 +45,9 @@ import {
   LORA_MOBILE_RESULT_SCROLL_OPTIONS,
   LORA_MOBILE_RESULT_SCROLL_OPTIONS_REDUCED,
   LORA_RESULT_HISTORY_MAX,
+  LORA_RUNNER_COLD_START_MINUTES,
+  LORA_RUNNER_ETA_SECONDS,
+  LORA_RUNNER_WARM_STORAGE_PREFIX,
   LORA_WORKBENCH_SEARCH_PARAM,
   LORA_WORKBENCH_SECTIONS,
   REDUCED_MOTION_MEDIA_QUERY,
@@ -592,6 +595,26 @@ function normalizeRecordSeed(
 
 const RUNNER_DEFAULT_SELECT_VALUE = '__model_default__'
 
+/**
+ * 本次 Runner 出图是不是这个底模在本会话里的**第一次**（= worker 多半是冷的，
+ * 要先把底模权重加载进 GPU）。读完就标记成已跑过——同一次点击里只调一次。
+ *
+ * 后端没有任何可用的 cold-start 信号（见 `LORA_RUNNER_WARM_STORAGE_PREFIX`
+ * 的注），所以这里是纯客户端判据；sessionStorage 在无痕/禁用存储下会抛，
+ * 抛了就按「不是首次」处理——宁可少提示一次，也不要让出图整条炸掉。
+ */
+function consumeRunnerColdStart(baseModelId: string): boolean {
+  if (typeof window === 'undefined') return false
+  const key = `${LORA_RUNNER_WARM_STORAGE_PREFIX}${baseModelId}`
+  try {
+    const warm = window.sessionStorage.getItem(key) === '1'
+    window.sessionStorage.setItem(key, '1')
+    return !warm
+  } catch {
+    return false
+  }
+}
+
 function parseOptionalRunnerNumber(value: string): number | undefined {
   if (!value.trim()) return undefined
   const parsed = Number(value)
@@ -719,6 +742,9 @@ function GenerateBranch({
     }
   }
   const showGeneratingOverlay = isGenerating || isCompletingGeneration
+  // 本轮是不是该底模在本会话的首次 Runner 出图（冷启动要先加载底模，明显更慢）。
+  // 在点「出图」那一刻定下来并锁住整轮——否则提示会在生成中途自己变脸。
+  const [isRunnerColdStart, setIsRunnerColdStart] = useState(false)
   // 「自己搭配」词库（docs/references/domains/lora.md）读写的就是
   // 这份共享的 prompt-tag stack——引擎（compiler/search/stack）本来就是
   // 全域共享的，只是此前唯一的宿主 UI（TagLibrary）被删了，这里是词库导入后
@@ -1776,6 +1802,10 @@ function GenerateBranch({
   const handleGenerate = useCallback(async () => {
     const providerModelId = selectedBase?.providerModelId
     if (!providerModelId) return
+    // 时间提示（owner 2026-09-12）：Runner 线路才有冷启动，hosted 线路不提。
+    setIsRunnerColdStart(
+      isRunnerBase ? consumeRunnerColdStart(selectedBase.id) : false,
+    )
     // 停用（enabled === false）的挂载留在栈里但不送去出图——启停开关的语义就是
     // "先按住这个 LoRA 不参与本次出图"，见 useActiveLoraStack.StoredEntry.enabled。
     const loras = stack.items
@@ -2717,6 +2747,16 @@ function GenerateBranch({
                   // 给进度卡留位置，完成/失败态那张图是主角，都还按上面那条 480
                   // 的上限走。判据与下面渲染分支同一条，改一处必须改两处。
                   isTrueResultEmptyState && 'lora-result-media--empty',
+                  // 生成中且还没有任何结果图时，这个盒子的**全部**子元素都是
+                  // absolute（shimmer 底 + 裱框进度），内容高度为 0。旧三栏
+                  // 布局里 `md:flex-1` 能从 flex 父级要到高，111bb8c8 重排成单
+                  // 卡流之后父级是普通块容器，`md:flex-1` 失效、`md:aspect-auto`
+                  // 又把比例撤了 → 桌面上整块塌成 0 高，进度卡直接看不见
+                  // （owner 2026-09-12 报「生成中状态没了」）。给这一态一个高度
+                  // 下限，结果到达后仍由图片比例接管，空态不受影响。
+                  showGeneratingOverlay &&
+                    !displayedResultUrl &&
+                    'lora-result-media--running',
                   // CD：结果图默认竖版 1024/1360，桌面锁高时 flex-1 吃满列高
                   // （不随列宽变高）；有出图快照时改用快照自身比例。
                   !displayedAspect && 'aspect-[1024/1360] md:aspect-auto',
@@ -2830,6 +2870,22 @@ function GenerateBranch({
                   </button>
                 ) : null}
               </div>
+
+              {/* 出图耗时提示（owner 2026-09-12）：Runner 是自托管 GPU worker，
+                    首次要先把底模加载进显存，比之后慢一个量级——不说清楚，用户
+                    会以为卡死了。常态给保守区间，首次换成「先加载底模」的说法。
+                    只在生成中出现，且只给 Runner 线路（hosted 没有冷启动）。 */}
+              {showGeneratingOverlay && isRunnerBase ? (
+                <p
+                  data-testid="lora-generating-eta"
+                  role="status"
+                  className="animate-in fade-in-0 text-center text-xs text-muted-foreground duration-(--duration-base) ease-standard motion-reduce:animate-none"
+                >
+                  {isRunnerColdStart
+                    ? t('generate.etaColdStart', LORA_RUNNER_COLD_START_MINUTES)
+                    : t('generate.eta', LORA_RUNNER_ETA_SECONDS)}
+                </p>
+              ) : null}
 
               {/* 已有旧图时新一轮失败：旧图保留在上面（还能看、还能问助手），
                     失败与重试排在图下。无旧图那一支画在框内（见上）。 */}

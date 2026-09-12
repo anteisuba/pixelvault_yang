@@ -3,6 +3,7 @@ import 'server-only'
 import { z } from 'zod'
 
 import { GENERATION_ERROR_CODES } from '@/constants/generation-errors'
+import { EXECUTION_PROGRESS_STAGE_VALUES } from '@/constants/generation-progress'
 import type { ExecutionCallbackPayload } from '@/types'
 import {
   executionCallbackStatusDataSchema,
@@ -96,6 +97,7 @@ const WorkerJobMetadataSchema = ExecutionCallbackResultDataSchema.pick({
   .extend({
     outputType: z.enum(['VIDEO', 'AUDIO', 'MODEL_3D', 'IMAGE']).optional(),
     previewUrl: z.string().url().optional(),
+    executionStage: z.enum(EXECUTION_PROGRESS_STAGE_VALUES).optional(),
     referenceImageUrl: z.string().url().optional(),
     referenceImages: z.array(z.string().url()).optional(),
     characterCardIds: z.array(z.string().min(1)).optional(),
@@ -249,6 +251,42 @@ async function persistProviderJobIdFromStatusCallback(
   })
 }
 
+/**
+ * Best-effort persist of the progress fields a worker `status` callback can
+ * carry for an IMAGE job — the streamed `previewUrl` and the worker-reported
+ * `executionStage` (runner queued / running). Same CAS guard as
+ * `persistProviderJobIdFromStatusCallback`, plus an `externalRequestId` match
+ * so two concurrent status callbacks cannot lose each other's field.
+ */
+async function persistImageStatusMetadata(
+  job: { id: string; externalRequestId: string | null },
+  data: unknown,
+): Promise<void> {
+  const statusData = executionCallbackStatusDataSchema.safeParse(data)
+  if (!statusData.success) return
+
+  const { previewUrl, executionStage } = statusData.data
+  if (!previewUrl && !executionStage) return
+
+  const metadata = parseWorkerJobMetadata(job.externalRequestId)
+  if (metadata?.outputType !== 'IMAGE') return
+
+  await db.generationJob.updateMany({
+    where: {
+      id: job.id,
+      status: { in: ['QUEUED', 'RUNNING'] },
+      externalRequestId: job.externalRequestId,
+    },
+    data: {
+      externalRequestId: JSON.stringify({
+        ...JSON.parse(job.externalRequestId ?? '{}'),
+        ...(previewUrl ? { previewUrl } : {}),
+        ...(executionStage ? { executionStage } : {}),
+      }),
+    },
+  })
+}
+
 export async function handleExecutionCallback(
   payload: ExecutionCallbackPayload,
 ): Promise<CallbackResult> {
@@ -312,27 +350,7 @@ export async function handleExecutionCallback(
         ts: payload.ts,
       })
       await persistProviderJobIdFromStatusCallback(job.id, payload.data)
-      const statusData = executionCallbackStatusDataSchema.safeParse(
-        payload.data,
-      )
-      if (statusData.success && statusData.data.previewUrl) {
-        const metadata = parseWorkerJobMetadata(job.externalRequestId)
-        if (metadata?.outputType === 'IMAGE') {
-          await db.generationJob.updateMany({
-            where: {
-              id: job.id,
-              status: { in: ['QUEUED', 'RUNNING'] },
-              externalRequestId: job.externalRequestId,
-            },
-            data: {
-              externalRequestId: JSON.stringify({
-                ...JSON.parse(job.externalRequestId ?? '{}'),
-                previewUrl: statusData.data.previewUrl,
-              }),
-            },
-          })
-        }
-      }
+      await persistImageStatusMetadata(job, payload.data)
       break
     case 'result':
       return finalizeExecutionResult(payload, job, jobStatus)

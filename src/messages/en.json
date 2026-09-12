@@ -2243,6 +2243,8 @@
       "runnerBudgetExhausted": "Runner's monthly budget is used up — resets next month, or use a hosted base model",
       "runnerUnavailable": "Runner generation is switched off (platform generation disabled) — generating will fail. Use a hosted base model, or ask the site admin to enable it",
       "resultEmptyHint": "Enter a prompt, then hit Generate",
+      "eta": "Runner usually takes {min}–{max}s per image",
+      "etaColdStart": "First run loads the base model — usually {min}–{max} minutes",
       "resultFailedRetry": "Retry",
       "resultFailedQuotaNote": "Quota counts jobs that were dispatched; failed runs are not refunded",
       "resultPreviewLabel": "Enlarge generation result",
@@ -6496,7 +6498,9 @@
       "preparing": "Preparing prompt",
       "connecting": "Connecting model",
       "rendering": "Generating image",
-      "waiting": "Still generating, please wait"
+      "waiting": "Still generating, please wait",
+      "runnerQueued": "Runner is starting up — the first run loads the base model, usually 1-3 minutes",
+      "runnerRunning": "GPU is rendering"
     },
     "generateFailed": "Generation failed",
     "elapsed": "Elapsed: {seconds}",

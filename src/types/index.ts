@@ -23,6 +23,10 @@ import {
   CARD_RECIPE,
 } from '@/constants/cards/card-types'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
+import {
+  EXECUTION_PROGRESS_STAGE_VALUES,
+  type ExecutionProgressStage,
+} from '@/constants/generation-progress'
 import { AI_MODELS, getModelById } from '@/constants/models'
 import { RECIPE_VISIBILITY_VALUES } from '@/constants/prompt-library'
 import { RESEARCH_MODE_VALUES } from '@/constants/research'
@@ -390,6 +394,11 @@ interface RunItemBase {
 
 export type PendingRunItem = RunItemBase & {
   previewUrl?: string
+  /**
+   * Worker 回报的执行阶段（今天只有 runner 会报：排队等冷启动 / GPU 出图中）。
+   * 有值时压过按已用时长猜的阶段词，见 `resolveGeneratingStageKey`。
+   */
+  executionStage?: ExecutionProgressStage
   status: 'pending' | 'generating'
   generation: GenerationRecord | null
   error: null
@@ -827,6 +836,7 @@ export type ImageStatusResponseData =
       jobId: string
       status: 'IN_QUEUE' | 'IN_PROGRESS'
       previewUrl?: string
+      executionStage?: ExecutionProgressStage
       generation?: never
       error?: never
     }
@@ -1667,6 +1677,8 @@ export type ExecutionCallbackErrorData = z.infer<
 export const executionCallbackStatusDataSchema = z.object({
   previewUrl: z.string().url().optional(),
   providerJobId: z.string().trim().min(1).optional(),
+  /** Worker-reported execution stage (runner queue / runner running). */
+  executionStage: z.enum(EXECUTION_PROGRESS_STAGE_VALUES).optional(),
 })
 
 export type ExecutionCallbackStatusData = z.infer<

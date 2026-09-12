@@ -9,14 +9,42 @@
  * out of scope, stays on shadcn `Progress`).
  */
 
+/**
+ * Worker-reported execution stages — a real backend signal, unlike the
+ * elapsed-time stages below. Today only the runner (self-hosted RunPod
+ * ComfyUI) path reports them: a runner job sitting in `IN_QUEUE` is waiting
+ * for a cold GPU + a 6.9GB checkpoint load, which elapsed time alone cannot
+ * tell apart from "nobody picked the job up".
+ *
+ * Values double as the `StudioV3.generatingOverlayStages.*` message keys.
+ */
+export const EXECUTION_PROGRESS_STAGES = {
+  RUNNER_QUEUED: 'runnerQueued',
+  RUNNER_RUNNING: 'runnerRunning',
+} as const
+
+export type ExecutionProgressStage =
+  (typeof EXECUTION_PROGRESS_STAGES)[keyof typeof EXECUTION_PROGRESS_STAGES]
+
+export const EXECUTION_PROGRESS_STAGE_VALUES = Object.values(
+  EXECUTION_PROGRESS_STAGES,
+) as [ExecutionProgressStage, ...ExecutionProgressStage[]]
+
+export function isExecutionProgressStage(
+  value: unknown,
+): value is ExecutionProgressStage {
+  return EXECUTION_PROGRESS_STAGE_VALUES.some((stage) => stage === value)
+}
+
 export type GeneratingStageKey =
   | 'preparing'
   | 'connecting'
   | 'rendering'
   | 'waiting'
+  | ExecutionProgressStage
 
 interface GenerationStageProgressStep {
-  key: Exclude<GeneratingStageKey, 'waiting'>
+  key: 'preparing' | 'connecting' | 'rendering'
   startSec: number
   endSec: number
   startPct: number

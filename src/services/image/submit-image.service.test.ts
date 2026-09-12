@@ -680,6 +680,24 @@ describe('checkImageGenerationStatus', () => {
     })
   })
 
+  it('surfaces the worker-reported execution stage while the job is running', async () => {
+    vi.mocked(db.generationJob.findUnique).mockResolvedValue({
+      id: 'job-1',
+      userId: 'user-1',
+      status: 'QUEUED',
+      generationId: null,
+      externalRequestId: JSON.stringify({
+        outputType: 'IMAGE',
+        executionStage: 'runnerQueued',
+      }),
+    } as never)
+    expect(await checkImageGenerationStatus('clerk-1', 'job-1')).toEqual({
+      jobId: 'job-1',
+      status: 'IN_PROGRESS',
+      executionStage: 'runnerQueued',
+    })
+  })
+
   it('lazily returns FAILED for a stale running job', async () => {
     vi.mocked(db.generationJob.findUnique).mockResolvedValue({
       id: 'job-1',

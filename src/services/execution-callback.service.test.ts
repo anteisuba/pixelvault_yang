@@ -251,6 +251,39 @@ describe('execution-callback.service', () => {
     expect(mockUpdateMany).not.toHaveBeenCalled()
   })
 
+  it('stores the worker-reported execution stage alongside existing metadata', async () => {
+    // runner 冷启动会在队列里停几分钟，阶段回报是主站唯一能分辨
+    // 「排队等 GPU」和「GPU 正在出图」的信号。
+    const metadata = {
+      outputType: 'IMAGE',
+      previewUrl: 'https://cdn.example.com/partial.png',
+    }
+    const externalRequestId = JSON.stringify(metadata)
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('QUEUED'),
+      externalRequestId,
+    })
+
+    await handleExecutionCallback({
+      ...buildPayload('status'),
+      data: { executionStage: 'runnerRunning' },
+    })
+
+    expect(mockUpdateMany).toHaveBeenCalledWith({
+      where: {
+        id: 'job-1',
+        status: { in: ['QUEUED', 'RUNNING'] },
+        externalRequestId,
+      },
+      data: {
+        externalRequestId: JSON.stringify({
+          ...metadata,
+          executionStage: 'runnerRunning',
+        }),
+      },
+    })
+  })
+
   it('persists providerJobId from a status callback for a non-terminal job', async () => {
     mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
 

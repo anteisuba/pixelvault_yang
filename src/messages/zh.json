@@ -2243,6 +2243,8 @@
       "runnerBudgetExhausted": "本月 Runner 生成额度已用完，下月重置或改用托管底模",
       "runnerUnavailable": "Runner 生成当前已关闭（平台生成未启用），出图会失败——改用托管底模，或联系站点管理员开启",
       "resultEmptyHint": "输入提示词后点「出图」",
+      "eta": "Runner 出图通常需要 {min}–{max} 秒",
+      "etaColdStart": "首次运行要先加载底模，通常 {min}–{max} 分钟",
       "resultFailedRetry": "重试",
       "resultFailedQuotaNote": "额度按已发起的任务计，失败不返还",
       "resultPreviewLabel": "放大查看生成结果",
@@ -6496,7 +6498,9 @@
       "preparing": "正在准备提示词",
       "connecting": "正在连接模型",
       "rendering": "正在生成图像",
-      "waiting": "仍在生成，请稍候"
+      "waiting": "仍在生成，请稍候",
+      "runnerQueued": "Runner 正在启动，首次要加载底模，通常 1–3 分钟",
+      "runnerRunning": "GPU 正在出图"
     },
     "generateFailed": "生成失败",
     "elapsed": "已等待 {seconds}",

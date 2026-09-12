@@ -1,11 +1,13 @@
 import {
   GENERATION_STAGE_PROGRESS,
+  isExecutionProgressStage,
   WAITING_ASYMPTOTE,
   WAITING_REDUCED_MOTION_PCT,
+  type ExecutionProgressStage,
   type GeneratingStageKey,
 } from '@/constants/generation-progress'
 
-export type { GeneratingStageKey }
+export type { ExecutionProgressStage, GeneratingStageKey }
 
 const LAST_STAGE =
   GENERATION_STAGE_PROGRESS[GENERATION_STAGE_PROGRESS.length - 1]
@@ -16,6 +18,21 @@ export function getGeneratingStageKey(
 ): GeneratingStageKey {
   const stage = GENERATION_STAGE_PROGRESS.find((s) => elapsedSeconds < s.endSec)
   return stage?.key ?? 'waiting'
+}
+
+/**
+ * Stage label to show for a running job: a worker-reported execution stage
+ * (runner queue / runner running) always wins over the elapsed-time guess,
+ * because it is the only signal that separates "waiting for a cold GPU" from
+ * "the GPU is drawing". Falls back to the time-derived stage when the job
+ * reports nothing (every non-runner provider).
+ */
+export function resolveGeneratingStageKey(
+  elapsedSeconds: number,
+  executionStage?: ExecutionProgressStage | null,
+): GeneratingStageKey {
+  if (isExecutionProgressStage(executionStage)) return executionStage
+  return getGeneratingStageKey(elapsedSeconds)
 }
 
 function easeOutQuad(x: number): number {
@@ -71,6 +88,8 @@ export interface ResolveGenerationProgressInput {
   elapsedSeconds: number
   /** 0-100 real progress signal (video polling, training jobs). Takes priority — zero visual fork. */
   realProgress?: number
+  /** Worker-reported stage (runner only today) — overrides the time-derived stage label. */
+  executionStage?: ExecutionProgressStage | null
   /** Forces the 100% "closing the frame" state regardless of elapsed/real values. */
   isComplete?: boolean
   reducedMotion?: boolean
@@ -84,6 +103,7 @@ export interface ResolveGenerationProgressInput {
 export function resolveGenerationProgress({
   elapsedSeconds,
   realProgress,
+  executionStage,
   isComplete,
   reducedMotion = false,
 }: ResolveGenerationProgressInput): {
@@ -97,9 +117,16 @@ export function resolveGenerationProgress({
   if (typeof realProgress === 'number' && Number.isFinite(realProgress)) {
     return {
       percent: Math.min(100, Math.max(0, realProgress)),
-      stageKey: getGeneratingStageKey(elapsedSeconds),
+      stageKey: resolveGeneratingStageKey(elapsedSeconds, executionStage),
     }
   }
 
-  return computeEstimatedGenerationProgress(elapsedSeconds, reducedMotion)
+  const estimated = computeEstimatedGenerationProgress(
+    elapsedSeconds,
+    reducedMotion,
+  )
+  return {
+    ...estimated,
+    stageKey: resolveGeneratingStageKey(elapsedSeconds, executionStage),
+  }
 }

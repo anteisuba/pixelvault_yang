@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   computeEstimatedGenerationProgress,
   getGeneratingStageKey,
+  resolveGeneratingStageKey,
   resolveGenerationProgress,
 } from './generation-progress'
 
@@ -94,5 +95,52 @@ describe('resolveGenerationProgress', () => {
     expect(stageKey).toBe('connecting')
     expect(percent).toBeGreaterThan(20)
     expect(percent).toBeLessThan(45)
+  })
+})
+
+/**
+ * Runner 冷启动能停在队列里好几分钟；只有 worker 回报的阶段能把「排队等 GPU」
+ * 和「GPU 正在出图」分开，所以它必须压过按时间猜的阶段词，而其他 provider
+ * （没有阶段回报）一个字都不能变。
+ */
+describe('resolveGeneratingStageKey', () => {
+  it('lets a worker-reported stage win over the elapsed-time guess', () => {
+    expect(resolveGeneratingStageKey(1, 'runnerQueued')).toBe('runnerQueued')
+    expect(resolveGeneratingStageKey(120, 'runnerQueued')).toBe('runnerQueued')
+    expect(resolveGeneratingStageKey(3, 'runnerRunning')).toBe('runnerRunning')
+  })
+
+  it('falls back to the elapsed-time stage without a reported stage', () => {
+    expect(resolveGeneratingStageKey(1)).toBe('preparing')
+    expect(resolveGeneratingStageKey(3, null)).toBe('connecting')
+    expect(resolveGeneratingStageKey(60, undefined)).toBe('waiting')
+  })
+
+  it('ignores an unknown stage value rather than rendering it as a label', () => {
+    expect(
+      resolveGeneratingStageKey(3, 'bogus' as unknown as 'runnerQueued'),
+    ).toBe('connecting')
+  })
+})
+
+describe('resolveGenerationProgress with an execution stage', () => {
+  it('swaps the stage label while keeping the time-based percent', () => {
+    const plain = resolveGenerationProgress({ elapsedSeconds: 3 })
+    const staged = resolveGenerationProgress({
+      elapsedSeconds: 3,
+      executionStage: 'runnerQueued',
+    })
+    expect(staged.percent).toBe(plain.percent)
+    expect(staged.stageKey).toBe('runnerQueued')
+  })
+
+  it('keeps the stage label alongside a real progress number', () => {
+    expect(
+      resolveGenerationProgress({
+        elapsedSeconds: 3,
+        realProgress: 63,
+        executionStage: 'runnerRunning',
+      }),
+    ).toEqual({ percent: 63, stageKey: 'runnerRunning' })
   })
 })

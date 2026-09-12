@@ -40,6 +40,11 @@
    * 完成/失败态那张图是主角，都仍走 `min(60svh, 30rem)`。 */
   --lora-result-empty-max-h: 40svh;
 
+  /* 生成中占位的高度下限（≥768，见下方 `.lora-result-media--running`）。
+   * 22rem = 352px，和移动端封顶（min(60svh, 30rem) = 480px）同量级，够放下
+   * 裱框进度的大字 + 阶段词 + 参数行，又不至于在结果到达前占满一屏。 */
+  --lora-result-running-min-h: 22rem;
+
   /* 6 · 动效（CD 四轴之四「柔顺连续」：220–280ms 柔缓·强调空间连续）。
    *    全局 prefers-reduced-motion 块会把它降成直切，无需在此重复。 */
   --lora-motion: 240ms;
@@ -214,6 +219,19 @@
    * 盒子内部本来就是 `flex items-center justify-center`，只是变矮。 */
   .domain-lora .lora-result-media--empty {
     max-height: var(--lora-result-empty-max-h);
+  }
+}
+
+/* 生成中占位高度下限（bug 修复 2026-09-12，owner 报「生成中状态没了」）：
+ * 还没有结果图时，结果盒里**只有** absolute 子元素（shimmer 底 + 裱框进度），
+ * 内容高度为 0。<768 靠 JSX 的 `aspect-[1024/1360]` 撑着所以一直是对的；
+ * ≥768 那条 `md:aspect-auto` 把比例撤掉，原本接手的 `md:flex-1` 在 111bb8c8
+ * 把三栏 grid 重排成单卡流之后失去了 flex 父级（父是 `space-y-3` 块容器）
+ * → 盒子塌成 0 高，整块进度卡在桌面上不可见，只剩按钮里那颗小转圈。
+ * 断点取 768 与 JSX 的 `md:` 前缀同界；与上面的移动端封顶不重叠。 */
+@media (min-width: 768px) {
+  .domain-lora .lora-result-media--running {
+    min-height: var(--lora-result-running-min-h);
   }
 }
 

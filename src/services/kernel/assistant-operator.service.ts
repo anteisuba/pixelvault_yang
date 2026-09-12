@@ -502,6 +502,8 @@ interface OperatorWorkingState {
     triggerEnabled: boolean
     /** 作者推荐提示词（快照来的那一格）—— `set_prompt` 的取材阶梯第一档。 */
     recommendedPrompt: string | null
+    /** 来源图提示词（快照来的那一格）—— 取材阶梯第二档唯一喂得动的料。 */
+    sourcePrompts: string[]
   }[]
   hasLoraControl: boolean
   loraBaseFamily: string | null
@@ -4003,6 +4005,9 @@ function planMountLora(
         // ⚠ 检索候选身上没有作者推荐提示词这一格（那是库记录的字段，导入之后
         //   才有），⛔ 别拿候选的描述凑一个：取材阶梯会把它当作者推荐报出去。
         recommendedPrompt: null,
+        // 同理：来源图配方是客户端挖来的，这一刻它还没被挖过 —— 空数组是实话，
+        // 下一轮快照（挂上之后）才会带上它。
+        sourcePrompts: [],
       })
       recomputeLoraAvailableBases(run)
     },
@@ -6108,10 +6113,11 @@ function resolveLoraDialect(
 /**
  * `set_prompt` 在 LoRA 域的**取材阶梯**产出（§7.1–§7.4）。
  *
- * ⚠ 素材只来自**快照**：⛔ 不新增 DB 读、⛔ 不新增工具。于是阶梯 ② 的
- * `buildSourceMatchedLoraPrompt` 在这里只有快照喂得动的那部分输入（家族 +
- * 触发词 + 作者推荐）—— Civitai 来源图那一份要一次库读，本片不加。它因此在
- * `reliable === false` 时**不当素材用**，如实落第 ③ 档并说一句为什么。
+ * ⚠ 素材只来自**快照**：⛔ 不新增 DB 读、⛔ 不新增工具。阶梯 ② 的
+ * `buildSourceMatchedLoraPrompt` 吃的是快照那格 `sourcePrompts` —— 客户端从
+ * 装配台「来源配方」的同一条通道挖来的 Civitai 来源图提示词。手上一条都没有
+ * （没 provenance / 还没取到 / 自训 LoRA）时它判 `reliable === false`，
+ * **不当素材用**，如实落第 ③ 档并说一句为什么。
  */
 interface LoraPromptMaterial {
   sourceNotes: string[]
@@ -6172,7 +6178,7 @@ const LORA_SOURCE_NOTE_TEXTS: Record<
  * ⚠ 角色按**挂载顺序**定：第一把当主体，其余当画风 —— 快照上没有 LoRA 的
  * `type` 那一格，⛔ 而按名字猜「这把是不是画风」正是本文档反复禁掉的那种猜。
  * ⚠ 自训那一档（`source === 'trained'`）快照里没有来源位，判据用它的等价形式：
- * **没有作者推荐、来源配方也不可靠** —— 如实说没有料，⛔ 不编一段来源配方。
+ * **没有作者推荐、来源图提示词也是空的** —— 如实说没有料，⛔ 不编一段来源配方。
  */
 function buildLoraPromptMaterial(
   run: OperatorRun,
@@ -6201,17 +6207,32 @@ function buildLoraPromptMaterial(
         return
       }
       /**
-       * ② 来源配方。⚠ 快照上喂得动它的只有触发词与家族；连触发词都没有就
-       *   **跳过这一档**（它拿不到任何可辨认的输入，硬调只会得到一句空话）。
+       * ② 来源配方。料是快照带上来的**来源图提示词**（`sourcePrompts`，客户端
+       *   从「来源配方」那条既有通道挖来的那一份）——它正是这一档 `reliable`
+       *   的全部本钱：只有触发词时 `buildSourceMatchedLoraPrompt` 恒判不可靠。
+       * ⚠ 两样都没有就**跳过这一档**：它拿不到任何可辨认的输入，硬调只会得到
+       *   一句空话，而那句空话会被标成「来自来源图」。
        */
-      const recipe = mount.triggerWord
-        ? buildSourceMatchedLoraPrompt({
-            baseModelFamily: mount.family ?? '',
-            recommendedPrompt: mount.recommendedPrompt,
-            recommendedPromptAlternates: undefined,
-            triggerWord: mount.triggerWord,
-            type: index === 0 ? 'subject' : 'style',
-          })
+      const hasMaterial =
+        mount.sourcePrompts.length > 0 || Boolean(mount.triggerWord)
+      const recipe = hasMaterial
+        ? buildSourceMatchedLoraPrompt(
+            {
+              baseModelFamily: mount.family ?? '',
+              recommendedPrompt: mount.recommendedPrompt,
+              recommendedPromptAlternates: undefined,
+              // 没有触发词时给空串：`ensureTrigger` 对空串是空转，⛔ 不拿名字凑一个。
+              triggerWord: mount.triggerWord ?? '',
+              type: index === 0 ? 'subject' : 'style',
+            },
+            // 形状适配：那只函数只读 `prompt` 与 `source`，⛔ 别为了凑形状伪造
+            // `source`（缺席 = 社区图，而我们确实不知道这条是不是作者示例图）。
+            mount.sourcePrompts.map((prompt, order) => ({
+              label: `source-${order + 1}`,
+              prompt,
+              sampleCount: 1,
+            })),
+          )
         : null
       if (recipe?.reliable) {
         notes.push(texts.sourceRecipe(role, mount.name))

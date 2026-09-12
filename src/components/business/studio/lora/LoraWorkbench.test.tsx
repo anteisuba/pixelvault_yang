@@ -324,6 +324,10 @@ vi.mock('@/hooks/prompts/use-civitai-mined-prompts', () => ({
     totalSampled: 0,
     isLoading: false,
   }),
+  // 助手宿主走的是同一个模块的另外两只（同步读缓存 / 取一次）——
+  // 这一层不验取数，桩成空转就够。
+  readCachedMinedPrompts: () => null,
+  primeMinedPrompts: () => {},
 }))
 
 vi.mock('@/hooks/prompts/use-civitai-model-description', () => ({

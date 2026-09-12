@@ -1377,7 +1377,7 @@ describe('请求与快照契约', () => {
     }
   })
 
-  it('挂载的三格必填：触发词 null 认、空串不认', () => {
+  it('挂载的四格必填：触发词 null 认、空串不认', () => {
     const mount = {
       id: 'lora-1',
       name: 'Ink Lines',
@@ -1388,6 +1388,7 @@ describe('请求与快照契约', () => {
       triggerWord: null,
       triggerEnabled: true,
       recommendedPrompt: null,
+      sourcePrompts: [],
     }
     const loras = {
       items: [mount],
@@ -1409,6 +1410,7 @@ describe('请求与快照契约', () => {
       'triggerWord',
       'triggerEnabled',
       'recommendedPrompt',
+      'sourcePrompts',
     ] as const) {
       const partial: Record<string, unknown> = { ...mount }
       delete partial[missing]
@@ -1419,6 +1421,53 @@ describe('请求与快照契约', () => {
         }).success,
       ).toBe(false)
     }
+  })
+
+  /**
+   * 来源图提示词那一格（取材阶梯第二档的料）。
+   *
+   * ⚠ 钉的是**两个上限都在 schema 上**：这份快照落进请求体，一把挖出几十条配方的
+   * LoRA 会把每一步的往返撑爆；而空串条目会让「有一条来源配方」变成一句空话。
+   */
+  it('来源图提示词：空数组认、空串不认、条数与长度都有上限', () => {
+    const mount = {
+      id: 'lora-1',
+      name: 'Ink Lines',
+      weight: 0.8,
+      enabled: true,
+      family: 'illustrious',
+      compatible: true,
+      triggerWord: 'ink lines',
+      triggerEnabled: true,
+      recommendedPrompt: null,
+      sourcePrompts: ['ink lines, rainy street'],
+    }
+    const parse = (sourcePrompts: string[]) =>
+      AssistantOperatorSnapshotSchema.safeParse({
+        ...SNAPSHOT,
+        loras: {
+          items: [{ ...mount, sourcePrompts }],
+          baseFamily: 'illustrious',
+          minWeight: 0.1,
+          maxWeight: 2,
+        },
+      }).success
+
+    expect(parse([])).toBe(true)
+    expect(parse(['ink lines, rainy street'])).toBe(true)
+    // ⛔ 空串不是一条配方。
+    expect(parse([''])).toBe(false)
+    expect(
+      parse(['a'.repeat(ASSISTANT_OPERATOR_LIMITS.maxPromptChars + 1)]),
+    ).toBe(false)
+    expect(
+      parse(
+        Array.from(
+          { length: ASSISTANT_OPERATOR_LIMITS.maxLoraSourcePrompts + 1 },
+          (_, i) => `outfit ${i}`,
+        ),
+      ),
+    ).toBe(false)
   })
 
   it('推荐提示词有长度上限（超了整条快照就不该过）', () => {
@@ -1434,6 +1483,7 @@ describe('请求与快照契约', () => {
       recommendedPrompt: 'a'.repeat(
         ASSISTANT_OPERATOR_LIMITS.maxPromptChars + 1,
       ),
+      sourcePrompts: [],
     }
     expect(
       AssistantOperatorSnapshotSchema.safeParse({

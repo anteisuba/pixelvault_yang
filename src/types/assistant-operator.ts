@@ -457,6 +457,18 @@ export const AssistantOperatorSnapshotLoraSchema = z.object({
     .min(1)
     .max(LIMITS.maxPromptChars)
     .nullable(),
+  /**
+   * 这把 LoRA 的**来源图提示词**（Civitai 挖来的那几条，装配台「来源配方」用的
+   * 同一份数据）。**空数组 = 手上没有**（没 provenance / 还没取到 / 真的一条都没挖到）。
+   *
+   * ⭐ 它是取材阶梯第二档（`buildSourceMatchedLoraPrompt`）唯一喂得动的料：没有它，
+   * 那一档拿到的只有触发词，于是永远 `reliable === false` 而每次都落第三档骨架。
+   * ⛔ 不是数组套对象：`label` / `sampleCount` / `source` 那几格取材阶梯一格都不读，
+   * 塞进快照只是让每一步的往返更贵。
+   */
+  sourcePrompts: z
+    .array(z.string().trim().min(1).max(LIMITS.maxPromptChars))
+    .max(LIMITS.maxLoraSourcePrompts),
 })
 
 /**

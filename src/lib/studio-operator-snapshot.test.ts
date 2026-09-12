@@ -410,6 +410,7 @@ describe('buildLoraOperatorSnapshot（P4-C）', () => {
         triggerWord: 'ink lines',
         triggerEnabled: true,
         recommendedPrompt: 'ink lines, rainy street',
+        sourcePrompts: ['ink lines, rainy street, neon signage'],
       },
     ],
     references: { items: [{ url: 'https://cdn.example.com/a.png' }], limit: 2 },
@@ -445,6 +446,7 @@ describe('buildLoraOperatorSnapshot（P4-C）', () => {
           triggerWord: 'ink lines',
           triggerEnabled: true,
           recommendedPrompt: 'ink lines, rainy street',
+          sourcePrompts: ['ink lines, rainy street, neon signage'],
         },
       ],
       baseFamily: 'illustrious',
@@ -515,6 +517,43 @@ describe('buildLoraOperatorSnapshot（P4-C）', () => {
       ],
     })
     expect(snapshot.loras?.items[0]?.recommendedPrompt).toHaveLength(max)
+  })
+
+  /**
+   * 来源图提示词（取材阶梯第二档的料）：**空白的丢掉、逐条截断、按条数封顶**。
+   *
+   * ⚠ 钉的是「顺序不能反」：先截条数的话，前几条恰好是空白时名额就被空白吃掉了，
+   * 表现是助手手上一条来源配方都没有，而缓存里明明有。
+   */
+  it('来源图提示词：空白丢掉、逐条截断、按条数封顶', () => {
+    const max = ASSISTANT_OPERATOR_LIMITS.maxPromptChars
+    const cap = ASSISTANT_OPERATOR_LIMITS.maxLoraSourcePrompts
+    const snapshot = buildLoraOperatorSnapshot({
+      ...BASE_INPUT,
+      loras: [
+        {
+          ...BASE_INPUT.loras[0],
+          sourcePrompts: [
+            '   ',
+            ' rainy street ',
+            'b'.repeat(max + 20),
+            ...Array.from({ length: cap }, (_, i) => `extra ${i}`),
+          ],
+        },
+      ],
+    })
+    const prompts = snapshot.loras?.items[0]?.sourcePrompts ?? []
+    expect(prompts).toHaveLength(cap)
+    expect(prompts[0]).toBe('rainy street')
+    expect(prompts[1]).toHaveLength(max)
+  })
+
+  it('一条来源图提示词都没有时给空数组（⛔ 不是缺席：那格恒在）', () => {
+    const snapshot = buildLoraOperatorSnapshot({
+      ...BASE_INPUT,
+      loras: [{ ...BASE_INPUT.loras[0], sourcePrompts: [] }],
+    })
+    expect(snapshot.loras?.items[0]?.sourcePrompts).toEqual([])
   })
 
   it('挂载栈是空的时候给空数组，⛔ 不是整节缺席（那是「没有挂载栈」）', () => {

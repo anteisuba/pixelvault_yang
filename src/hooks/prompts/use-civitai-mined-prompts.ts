@@ -67,7 +67,11 @@ const EMPTY: UseCivitaiMinedPromptsReturn = {
 interface CacheEntry {
   promise: Promise<CivitaiMinedPromptsResult | null>
   result?: CivitaiMinedPromptsResult
-  error?: string
+  /**
+   * 取失败了。`message` 为 `null` = 服务端没给理由 —— 翻译成哪句话由调用方按
+   * 自己的语境定（⛔ 别在缓存里存一句译文：助手宿主那条路没有 `useTranslations`）。
+   */
+  error?: { message: string | null }
 }
 const cache = new Map<string, CacheEntry>()
 
@@ -77,6 +81,66 @@ function cacheKey(
   fileHash: string,
 ): string {
   return `${modelId}|${versionId ?? ''}|${fileHash}`
+}
+
+/**
+ * **唯一的取数通道**：发一次、写进模块缓存、把在飞的那个 promise 交出去复用。
+ *
+ * ⭐ hook 与助手宿主（`use-lora-operator-host`）走的是这一个函数，所以同一把 LoRA
+ * 在装配台上被看过之后，助手再取就是缓存命中 —— ⛔ 不许谁再写第二条 fetch。
+ */
+function startMinedPromptsFetch(
+  key: string,
+  params: { modelId: number; modelVersionId: number; fileHash?: string },
+): Promise<CivitaiMinedPromptsResult | null> {
+  const existing = cache.get(key)
+  if (existing) return existing.promise
+  const promise = mineCivitaiLoraPromptsAPI(params).then((response) => {
+    const entry = cache.get(key)
+    if (response.success && response.data) {
+      if (entry) entry.result = response.data
+      return response.data
+    }
+    if (entry) entry.error = { message: response.error ?? null }
+    return null
+  })
+  cache.set(key, { promise })
+  return promise
+}
+
+/** 缓存里那份的 key —— `null` = 这条挂载没有 Civitai provenance，取不了。 */
+function resolveKey(item: MinedPromptsInputItem | null): string | null {
+  if (!item?.modelId || !item.modelVersionId) return null
+  return cacheKey(item.modelId, item.modelVersionId, item.fileHashAutoV3 ?? '')
+}
+
+/**
+ * 缓存里**已经有**的那份（同步读，⛔ 不发请求）。
+ *
+ * ⚠ `null` 有三个意思：没有 provenance / 还没取 / 取失败。三者对调用方是同一件事
+ * ——「这一刻手上没有来源图配方」，⛔ 别在这里把它们摊成三种返回值：助手那边对
+ * 三者的处置一模一样（如实落回家族骨架）。
+ */
+export function readCachedMinedPrompts(
+  item: MinedPromptsInputItem | null,
+): CivitaiMinedPromptsResult | null {
+  const key = resolveKey(item)
+  return (key && cache.get(key)?.result) || null
+}
+
+/**
+ * 没取过就取一次（取过 / 在飞 / 没 provenance 都是空转）。
+ *
+ * ⚠ **交出去就不管**：调用方要的是「下次同步读得到」，不是这一次的结果。
+ */
+export function primeMinedPrompts(item: MinedPromptsInputItem | null): void {
+  const key = resolveKey(item)
+  if (!key || cache.has(key) || !item?.modelId || !item.modelVersionId) return
+  void startMinedPromptsFetch(key, {
+    modelId: item.modelId,
+    modelVersionId: item.modelVersionId,
+    fileHash: item.fileHashAutoV3 ?? undefined,
+  })
 }
 
 /**
@@ -187,7 +251,10 @@ export function useCivitaiMinedPrompts(
       return
     }
     if (cached?.error) {
-      dispatch({ type: 'error', message: cached.error })
+      dispatch({
+        type: 'error',
+        message: cached.error.message ?? t('minedPromptsUnknownError'),
+      })
       return
     }
 
@@ -196,24 +263,11 @@ export function useCivitaiMinedPrompts(
     return deferEffectTask(() => {
       // Reuse in-flight promise if another consumer (or a strict-mode
       // double-mount) already started a fetch for the same key.
-      const existing = cache.get(key)
-      const inflight =
-        existing?.promise ??
-        mineCivitaiLoraPromptsAPI({
-          modelId,
-          modelVersionId,
-          fileHash: fileHashAutoV3 ?? undefined,
-        }).then((response) => {
-          const entry = cache.get(key)
-          if (response.success && response.data) {
-            if (entry) entry.result = response.data
-            return response.data
-          }
-          if (entry)
-            entry.error = response.error ?? t('minedPromptsUnknownError')
-          return null
-        })
-      if (!existing) cache.set(key, { promise: inflight })
+      const inflight = startMinedPromptsFetch(key, {
+        modelId,
+        modelVersionId,
+        fileHash: fileHashAutoV3 ?? undefined,
+      })
 
       void inflight.then((result) => {
         if (requestIdRef.current !== requestId) return
@@ -222,7 +276,7 @@ export function useCivitaiMinedPrompts(
         } else {
           dispatch({
             type: 'error',
-            message: cache.get(key)?.error ?? t('minedPromptsFailed'),
+            message: cache.get(key)?.error?.message ?? t('minedPromptsFailed'),
           })
         }
       })

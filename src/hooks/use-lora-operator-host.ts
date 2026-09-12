@@ -25,6 +25,10 @@ import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { ASSISTANT_LORA_PICK_LIMITS } from '@/constants/assistant-protocol'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
+import {
+  primeMinedPrompts,
+  readCachedMinedPrompts,
+} from '@/hooks/prompts/use-civitai-mined-prompts'
 import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useLoraCandidateConfirm } from '@/hooks/use-lora-candidate-confirm'
 import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
@@ -236,6 +240,17 @@ export function useLoraOperatorHost(
           // 缺省视为开着（没有 chip 可关的那些也落在这一档）。
           triggerEnabled: item.triggerEnabled !== false,
           recommendedPrompt: item.asset.recommendedPrompt ?? null,
+          /**
+           * 来源图提示词 —— **同步读装配台那份缓存**（`readCachedMinedPrompts`）。
+           *
+           * ⭐ 与「来源配方」strip 是同一条通道同一份缓存：用户看过哪把的源图，
+           * 助手这一刻就取得到；面板打开时下面那只 effect 已经把没取过的补上了。
+           * ⚠ 读不到就是**空数组**（没 provenance / 还在飞 / 取失败）—— 取材阶梯
+           * 会如实落回家族骨架，⛔ 不在这里等、⛔ 不拿作者推荐冒充来源配方。
+           */
+          sourcePrompts: (
+            readCachedMinedPrompts(item.asset)?.outfits ?? []
+          ).map((outfit) => outfit.prompt),
         }
       }),
       references: {
@@ -248,6 +263,21 @@ export function useLoraOperatorHost(
       maxWeight: ASSISTANT_LORA_PICK_LIMITS.maxWeight,
     })
   }, [])
+
+  /**
+   * 面板一开就把挂载栈上**没取过**的来源图配方各取一次（§7.1 第二档的料）。
+   *
+   * ⚠ 闸是 `open`：快照只有面板开着才建得起来，而没开面板的用户不该为助手多付
+   * 几条 Civitai 请求。⛔ 不在 `buildSnapshot` 里发请求 —— 那是个同步函数，发了
+   * 也赶不上这一次发送，用户看到的是「第一句没料、第二句才有」。
+   * ⚠ `primeMinedPrompts` 自己认缓存与在飞，所以这只 effect 重跑多少次都只取一次。
+   */
+  const stackItems = input.stack?.items
+  const assistantOpen = input.open
+  useEffect(() => {
+    if (!assistantOpen) return
+    for (const item of stackItems ?? []) primeMinedPrompts(item.asset)
+  }, [assistantOpen, stackItems])
 
   const apply = useMemo<StudioOperatorApplyContext>(() => {
     /** ⛔ 不静默：装配台上助手做砸的事，也在助手的线程里交代。 */

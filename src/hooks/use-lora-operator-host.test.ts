@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react'
+import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
@@ -8,6 +8,7 @@ import {
   toLoraOperatorResults,
   useLoraOperatorHost,
 } from '@/hooks/use-lora-operator-host'
+import { __resetMinedPromptsCacheForTests } from '@/hooks/prompts/use-civitai-mined-prompts'
 import {
   getOperatorState,
   resetOperatorThread,
@@ -17,6 +18,19 @@ import type { LoraAssetRecord } from '@/types'
 /** 这一层验的是快照形状，不是词表 —— 桩成「回 key」就够（同工作台宿主那份）。 */
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+}))
+
+/**
+ * 来源图配方那条通道**只桩到 API 客户端那一层**：中间的模块级缓存与去重是这一组
+ * 要验的东西本身，桩掉 hook 等于把它跳过去。
+ */
+const mineCivitaiLoraPromptsAPI = vi.fn()
+vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => ({
+  // ⚠ 只换这一只：同一个模块里还有导入链路真的在用的那几只（`favoriteLoraAPI`
+  // 走在一次确认链上），整只桩掉的表现是别的用例在别处炸。
+  ...(await importOriginal<object>()),
+  mineCivitaiLoraPromptsAPI: (...args: unknown[]) =>
+    mineCivitaiLoraPromptsAPI(...args),
 }))
 
 /**
@@ -281,5 +295,137 @@ describe('useLoraOperatorHost 的栈总权重护栏', () => {
     )
     setWeight(result.current, 'lora-1', 1.2)
     expect(systemCodes()).toEqual([])
+  })
+})
+
+/**
+ * 来源图提示词进快照（取材阶梯第二档的料）。
+ *
+ * ⭐ 钉的是**一条通道一份缓存**：装配台的「来源配方」与助手读的是同一个模块缓存，
+ * 所以用户看过的那把助手立刻取得到，没看过的也只多一次请求。两份缓存的表现是
+ * 同一把 LoRA 取两次，而助手拿到的那份可能比界面上看到的旧。
+ */
+describe('useLoraOperatorHost 的来源图提示词', () => {
+  function civitaiAsset(
+    overrides: Partial<LoraAssetRecord> = {},
+  ): LoraAssetRecord {
+    return {
+      id: 'lora-1',
+      styleCode: 'ink-lines',
+      name: 'Ink Lines',
+      source: 'imported',
+      type: 'style',
+      baseModelFamily: 'illustrious',
+      provider: 'civitai',
+      triggerWord: 'ink lines',
+      loraUrl: 'https://cdn.test/lora.safetensors',
+      coverImageUrl: null,
+      previewImageUrls: [],
+      defaultScale: 0.8,
+      isPublic: false,
+      isOwn: false,
+      createdAt: '2026-09-12T00:00:00.000Z',
+      modelId: 4242,
+      modelVersionId: 99,
+      fileHashAutoV3: 'abc123',
+      ...overrides,
+    }
+  }
+
+  function hostInput(
+    items: readonly LoraOperatorHostMount[],
+    open = true,
+  ): UseLoraOperatorHostInput {
+    return {
+      prompt: '',
+      setPrompt: () => {},
+      appendPrompt: () => {},
+      negativePrompt: '',
+      setNegativePrompt: () => {},
+      base: {
+        id: 'illustrious-xl',
+        label: 'Illustrious XL',
+        family: 'illustrious',
+      },
+      availableBases: [{ id: 'illustrious-xl', label: 'Illustrious XL' }],
+      selectBase: () => {},
+      stack: { items, push: () => {}, setScale: () => {}, remove: () => {} },
+      imageUpload: {
+        referenceEntries: [],
+        maxImages: 2,
+        addReferenceImage: () => {},
+        removeReferenceImage: () => {},
+      },
+      open,
+      setOpen: () => {},
+    }
+  }
+
+  beforeEach(() => {
+    __resetMinedPromptsCacheForTests()
+    mineCivitaiLoraPromptsAPI.mockReset()
+    mineCivitaiLoraPromptsAPI.mockResolvedValue({
+      success: true,
+      data: {
+        outfits: [
+          { label: 'Outfit 1', prompt: 'ink lines, rooftop', sampleCount: 3 },
+          { label: 'Outfit 2', prompt: 'ink lines, neon rain', sampleCount: 2 },
+        ],
+        totalSampled: 5,
+      },
+    })
+  })
+
+  it('没有缓存时取一次并缓存：重渲染 / 重新挂载都不再发第二次', async () => {
+    const items = [{ asset: civitaiAsset() }]
+    const first = renderHook(() => useLoraOperatorHost(hostInput(items)))
+    await waitFor(() =>
+      expect(mineCivitaiLoraPromptsAPI).toHaveBeenCalledTimes(1),
+    )
+    first.rerender()
+    first.unmount()
+
+    const { result } = renderHook(() => useLoraOperatorHost(hostInput(items)))
+    expect(mineCivitaiLoraPromptsAPI).toHaveBeenCalledTimes(1)
+    // 缓存命中 → 同步就读得到，⛔ 不等下一次往返。
+    expect(
+      result.current.buildSnapshot().loras?.items[0]?.sourcePrompts,
+    ).toEqual(['ink lines, rooftop', 'ink lines, neon rain'])
+  })
+
+  it('面板没开时一次都不取（⛔ 不为没在用助手的人多发 Civitai 请求）', () => {
+    renderHook(() =>
+      useLoraOperatorHost(hostInput([{ asset: civitaiAsset() }], false)),
+    )
+    expect(mineCivitaiLoraPromptsAPI).not.toHaveBeenCalled()
+  })
+
+  it('没有 Civitai provenance 的那把：不取、空数组，⛔ 不拿别的凑', () => {
+    const { result } = renderHook(() =>
+      useLoraOperatorHost(
+        hostInput([
+          {
+            asset: civitaiAsset({
+              provider: 'huggingface',
+              modelId: undefined,
+              modelVersionId: undefined,
+            }),
+          },
+        ]),
+      ),
+    )
+    expect(mineCivitaiLoraPromptsAPI).not.toHaveBeenCalled()
+    expect(
+      result.current.buildSnapshot().loras?.items[0]?.sourcePrompts,
+    ).toEqual([])
+  })
+
+  it('还没取回来的那一刻是空数组（⛔ 不阻塞发送、⛔ 不编一条）', () => {
+    const { result } = renderHook(() =>
+      useLoraOperatorHost(hostInput([{ asset: civitaiAsset() }])),
+    )
+    expect(
+      result.current.buildSnapshot().loras?.items[0]?.sourcePrompts,
+    ).toEqual([])
   })
 })

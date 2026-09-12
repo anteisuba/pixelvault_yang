@@ -474,6 +474,11 @@ export interface LoraOperatorSnapshotInput {
     triggerEnabled: boolean
     /** 作者推荐提示词；超长在这里 clamp。 */
     recommendedPrompt: string | null
+    /**
+     * 来源图提示词（Civitai 挖来的那几条）。条数与长度的上限都在这里落，
+     * ⛔ 不摊给宿主：宿主手上那份是缓存原样，截断口径只该有一处。
+     */
+    sourcePrompts: readonly string[]
   }[]
   references: StudioOperatorSnapshotReferences
   /** 权重值域 —— 与 `[[lora]]` 推荐块共用那一对数，⛔ 别在调用处抄一份。 */
@@ -536,6 +541,14 @@ export function buildLoraOperatorSnapshot({
             item.recommendedPrompt,
             ASSISTANT_OPERATOR_LIMITS.maxPromptChars,
           ),
+          // 空白的丢掉（⛔ 不留空串：schema 拒，而那也不是一条配方），逐条截断，
+          // 再按条数封顶 —— 顺序不能反，先截条数会把空白条算进名额。
+          sourcePrompts: item.sourcePrompts
+            .map((entry) =>
+              emptyToNull(entry, ASSISTANT_OPERATOR_LIMITS.maxPromptChars),
+            )
+            .filter((entry): entry is string => entry !== null)
+            .slice(0, ASSISTANT_OPERATOR_LIMITS.maxLoraSourcePrompts),
         })),
       baseFamily,
       minWeight,

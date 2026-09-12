@@ -4060,6 +4060,7 @@ const LORA_SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
         triggerWord: 'ink lines',
         triggerEnabled: true,
         recommendedPrompt: null,
+        sourcePrompts: [],
       },
     ],
     baseFamily: 'illustrious',
@@ -4508,6 +4509,7 @@ describe('LoRA 装配台域（P4-C）', () => {
           triggerWord: 'pony lines',
           triggerEnabled: true,
           recommendedPrompt: null,
+          sourcePrompts: [],
         },
       ],
     },
@@ -4854,6 +4856,7 @@ describe('LoRA 装配台域（P4-C）', () => {
           triggerWord: null,
           triggerEnabled: true,
           recommendedPrompt: null,
+          sourcePrompts: [],
         })),
       },
     }
@@ -11121,9 +11124,9 @@ describe('LoRA 域方言与触发词规矩', () => {
 /**
  * `set_prompt` 的取材阶梯与确认卡两格（spec §7.1–§7.4）。
  *
- * ⚠ 素材只来自快照：阶梯 ② 的来源配方在这里拿不到 Civitai 来源图（那要一次库读，
- * 本片不加），所以它只在「快照喂得动」时被试一次，`reliable === false` 就如实落
- * 第 ③ 档并说清为什么。
+ * ⚠ 素材只来自快照：阶梯 ② 的来源配方吃的是快照那格 `sourcePrompts`（客户端从
+ * 装配台「来源配方」那条既有通道挖来的 Civitai 来源图提示词）。有料就真的可达
+ * `reliable === true`；一条都没有时如实落第 ③ 档并说清为什么。
  */
 describe('LoRA 域 set_prompt 的取材阶梯', () => {
   const WRITTEN = '我自己写的一段提示词'
@@ -11174,8 +11177,40 @@ describe('LoRA 域 set_prompt 的取材阶梯', () => {
     ])
   })
 
-  it('第 ② 档：快照喂得动来源配方就试一次，reliable=false 落第 ③ 档并说清为什么', async () => {
-    const ask = await askFor(snapshotWith({ recommendedPrompt: null }))
+  /**
+   * ⭐ 这条是第 ② 档**真可达**的证据：快照带上来源图提示词，来源配方就 `reliable`，
+   * 标注说的是「来自来源图配方」而不是家族骨架。这一格空着的时候（第二条用例）
+   * 那一档永远判不可靠 —— 两条一起看才说得清这一格是干什么用的。
+   */
+  it('第 ② 档：快照带了来源图提示词 → reliable=true，标注写「来源配方」', async () => {
+    const ask = await askFor(
+      snapshotWith({
+        recommendedPrompt: null,
+        sourcePrompts: ['1girl, rooftop at dusk, neon signage, rain'],
+      }),
+    )
+
+    expect(ask.overwrite?.sourceNotes).toEqual([
+      `Subject — the source-image recipe for "Ink Lines"`,
+    ])
+  })
+
+  it('第 ② 档：没有触发词但有来源图提示词，照样 reliable', async () => {
+    const ask = await askFor(
+      snapshotWith({
+        recommendedPrompt: null,
+        triggerWord: null,
+        sourcePrompts: ['1girl, rooftop at dusk, neon signage, rain'],
+      }),
+    )
+
+    expect(ask.overwrite?.sourceNotes?.[0]).toContain('source-image recipe')
+  })
+
+  it('第 ② 档：来源图提示词是空的 → reliable=false 落第 ③ 档并说清为什么', async () => {
+    const ask = await askFor(
+      snapshotWith({ recommendedPrompt: null, sourcePrompts: [] }),
+    )
 
     expect(ask.overwrite?.sourceNotes?.[0]).toContain(
       'too little source description',
@@ -11185,9 +11220,13 @@ describe('LoRA 域 set_prompt 的取材阶梯', () => {
     expect(ask.overwrite?.sourceNotes?.[0]).not.toContain('source-image recipe')
   })
 
-  it('第 ③ 档：连触发词都没有就跳过来源配方那一档，直接按家族骨架', async () => {
+  it('第 ③ 档：触发词与来源图提示词都没有就跳过第 ② 档，直接按家族骨架', async () => {
     const ask = await askFor(
-      snapshotWith({ recommendedPrompt: null, triggerWord: null }),
+      snapshotWith({
+        recommendedPrompt: null,
+        triggerWord: null,
+        sourcePrompts: [],
+      }),
     )
 
     expect(ask.overwrite?.sourceNotes).toEqual([
@@ -11196,8 +11235,13 @@ describe('LoRA 域 set_prompt 的取材阶梯', () => {
   })
 
   it('自训那一档如实说没有料，⛔ 不编一段作者推荐或来源配方', async () => {
+    // 自训资产的等价形式：没有作者推荐，来源图提示词也是空的（它从没上过 Civitai）。
     const ask = await askFor(
-      snapshotWith({ recommendedPrompt: null, triggerWord: 'my-own-face' }),
+      snapshotWith({
+        recommendedPrompt: null,
+        triggerWord: 'my-own-face',
+        sourcePrompts: [],
+      }),
     )
 
     const [note] = ask.overwrite?.sourceNotes ?? []

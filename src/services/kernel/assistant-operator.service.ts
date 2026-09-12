@@ -50,6 +50,8 @@ import {
   ASSISTANT_RESEARCH_SCOPE_IDS,
   ASSISTANT_RESEARCH_SOURCE_IDS,
   ASSISTANT_RESEARCH_SOURCES,
+  ASSISTANT_ROUND_FACT_NEGATION_PATTERNS,
+  ASSISTANT_ROUND_RECHECK_PREFIX,
   ASSISTANT_ROUND_SUMMARY_LIMITS as ROUND_LIMITS,
   ASSISTANT_OPERATOR_VERB_IDS as VERB,
   ASSISTANT_WORKING_MEMORY as MEMORY_LIMITS,
@@ -6027,7 +6029,7 @@ function buildRoundMemorySection(
 
 WHAT EARLIER ROUNDS SETTLED — oldest first; this is what this conversation already established, not something you said:
 ${blocks.join('\n')}
-Treat these as settled unless the creator changes them: do not ask again about anything under "Decided", and do not re-research anything under "Facts". Evidence appears as numbers only (#e12) — call recall_evidence with those numbers when you need the text behind one.`
+Treat these as settled unless the creator changes them: do not ask again about anything under "Decided", and do not re-research anything under "Facts" — unless the creator asks for it again. When the creator asks you this turn to search, look at, or verify something an earlier round already covered, that IS a change: run the tools again and report what you find now. Never refuse a fresh request by quoting an earlier round back at the creator. Evidence appears as numbers only (#e12) — call recall_evidence with those numbers when you need the text behind one.`
 }
 
 /**
@@ -6995,7 +6997,8 @@ Return ONE JSON object and nothing else:
 Rules:
 - Write in the language the creator is speaking.
 - At most ${ROUND_LIMITS.maxEntriesPerColumn} entries per list, at most ${ROUND_LIMITS.maxEntryChars} characters each. Fewer is better; an empty list is correct when nothing belongs there.
-- "facts": what was ESTABLISHED this turn (what a lookup or a review actually showed). Not what tool ran.
+- "facts": what was ESTABLISHED this turn (what a lookup or a review actually showed). Not what tool ran. Record only POSITIVE observations — what was found, seen, read or written.
+- NEVER put a negative or a failed lookup in "facts": "nothing found", "not compatible", "does not exist", "cannot be used", "all of them are X so none work". A lookup returning nothing says the query or the tool failed this time, not that the thing does not exist. Put it in "todos" instead, phrased as work left to do ("no same-family LoRA found for Anima Base yet — try other wording").
 - "decisions": what was SETTLED — the option the creator picked, the overwrite they allowed.
 - "todos": what is left hanging — something staged and waiting for the creator to fire it, or explicitly deferred.
 - State outcomes, not activity: "夜景配色定为冷蓝" not "调用了检索工具".
@@ -7063,6 +7066,32 @@ async function compressRoundLedger(
   }
 }
 
+/**
+ * **否定性结论从「事实」栏搬去「待办」栏**（2026-09-12 真机，第二道闸）。
+ *
+ * ⚠ 提示里已经让模型别写（`ROUND_SUMMARY_SYSTEM_PROMPT`），这一道是**写了也搬走**：
+ * 一条「均为 SDXL/FLUX 架构，不兼容 Anima Base」留在事实栏，下一轮注入段会把它
+ * 当成已定的事，模型就再也不去搜第二次了。
+ * ⛔ 只对**事实**栏用：决定栏里的「不要 score 前缀」是用户拍的板，不是没查到。
+ */
+function partitionNegativeFacts(entries: readonly string[]): {
+  facts: string[]
+  recheck: string[]
+} {
+  const facts: string[] = []
+  const recheck: string[] = []
+  for (const entry of entries) {
+    const trimmed = entry.trim()
+    if (trimmed.length === 0) continue
+    if (ASSISTANT_ROUND_FACT_NEGATION_PATTERNS.some((rx) => rx.test(trimmed))) {
+      recheck.push(`${ASSISTANT_ROUND_RECHECK_PREFIX}${trimmed}`)
+    } else {
+      facts.push(trimmed)
+    }
+  }
+  return { facts, recheck }
+}
+
 /** 一栏原话 → 落库那一份：去空、截断、封顶三条。 */
 function tidyColumn(entries: readonly string[]): string[] {
   return entries
@@ -7128,11 +7157,16 @@ async function closeRound(
     return undefined
   }
 
+  /**
+   * ⚠ 先分栏再封顶：否定条**先**从事实里摘出去，再各自截三条 ——
+   * 反过来做的话，一条被封顶挤掉的否定条会连待办都进不去。
+   */
+  const partitioned = partitionNegativeFacts(draft.facts)
   const body = {
     createdAt: new Date().toISOString(),
-    facts: tidyColumn(draft.facts),
+    facts: tidyColumn(partitioned.facts),
     decisions: tidyColumn(draft.decisions),
-    todos: tidyColumn(draft.todos),
+    todos: tidyColumn([...draft.todos, ...partitioned.recheck]),
     evidenceRefs,
   }
   if (

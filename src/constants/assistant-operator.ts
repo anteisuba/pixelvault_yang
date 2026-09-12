@@ -1806,6 +1806,52 @@ export const ASSISTANT_ROUND_SUMMARY_LIMITS = {
 } as const
 
 /**
+ * **否定性结论的词表**（2026-09-12 真机：LoRA 页助手）。
+ *
+ * ⭐ 由来：某一轮检索层有 bug，`search_loras` 在 Anima 底模上一条同族都没搜到，
+ * 结账把「鸣潮角色与 3D 渲染 LoRA 均基于 SDXL/FLUX 架构，不兼容 Anima Base」
+ * 写进了**事实**栏。下一轮用户再说「在 Anima Base 上搜鸣潮的角色 LoRA」，模型
+ * 一步工具都没调 —— 因为注入段写着「Facts 里的事别重查」。
+ *
+ * ⚠ 「没找到」不是事实，是**这一次没找到**：工具挂了、词没对上、检索层有 bug，
+ * 三种都长这个样。它该进「待办」（换个词再搜），⛔ 不该进「事实」（从此别再查）。
+ * ⚠ 这道闸是**确定性的第二道**：第一道在提示里（让模型别写），这一道在服务端
+ * （模型仍然写了就搬走）。
+ * ⛔ 只对**事实**栏用：「不要 score 前缀」这类是用户拍的板，它在「决定」栏，
+ * 搬走等于把用户说过的话改成待复查。
+ * ⚠ 英文那几条带词边界（`\b`）：`no` 不加边界会命中 `north` / `know`。
+ */
+export const ASSISTANT_ROUND_FACT_NEGATION_PATTERNS: readonly RegExp[] = [
+  // 中
+  /没有/,
+  /没找到/,
+  /未找到/,
+  /找不到/,
+  /不存在/,
+  /无法/,
+  /不兼容/,
+  /暂无/,
+  // 英
+  /\bno\b/i,
+  /\bnone\b/i,
+  /\bnot found\b/i,
+  /\bcannot\b/i,
+  /\bcan['’]t\b/i,
+  /\bunavailable\b/i,
+  /\bincompatible\b/i,
+  // 日
+  /ない/,
+  /見つから/,
+  /不可/,
+]
+
+/**
+ * 被搬去「待办」栏的那一条前缀 —— 读起来得是「这件事还没定论」，
+ * ⛔ 不是「这件事是这样」。
+ */
+export const ASSISTANT_ROUND_RECHECK_PREFIX = '待复查：'
+
+/**
  * **按编号翻证据本**的上限（§7.3，commit #12）。
  *
  * ⚠ 它不是省钱闸（这一跳一分钱不花、一个外部源不打），是**上下文闸**：一轮只有

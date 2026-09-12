@@ -10475,6 +10475,105 @@ describe('每轮结账', () => {
     expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
     expect(mockAppendAssistantEvidenceBook).not.toHaveBeenCalled()
   })
+
+  /**
+   * ⭐ **否定性结论不进「事实」栏**（2026-09-12 真机：LoRA 页助手）。
+   *
+   * 由来：`search_loras` 当时因检索层的 bug 一条同族都没搜到，结账把「均为
+   * SDXL/FLUX 架构，不兼容 Anima Base」写成了事实 —— 下一轮注入段把它当成已定的
+   * 事，模型于是一步工具都不调就拒绝了用户的再次请求。
+   */
+  it('⭐ 否定性事实搬去「待办」栏并带「待复查」前缀，正向事实留在原处', async () => {
+    queueTurns(searchStep, { finished: true, message: '搜过了。' })
+    queueCheckout({
+      facts: [
+        '鸣潮角色 LoRA 均为 SDXL/FLUX 架构，不兼容 Anima Base',
+        'Anima Base 已挂在底模位',
+      ],
+      decisions: [],
+      todos: [],
+    })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '11111111-1111-4111-8111-111111111111',
+        }),
+      ),
+    )
+
+    const summary = (
+      doneEvent(events) as unknown as {
+        roundSummary?: { facts: string[]; todos: string[] }
+      }
+    ).roundSummary
+    expect(summary?.facts).toEqual(['Anima Base 已挂在底模位'])
+    expect(summary?.todos).toEqual([
+      '待复查：鸣潮角色 LoRA 均为 SDXL/FLUX 架构，不兼容 Anima Base',
+    ])
+    // 落库那一份与下发的是同一份 —— ⛔ 别只在下发那条路上搬。
+    const stored = mockAppendAssistantConversationRound.mock.calls[0]?.[2] as {
+      facts: string[]
+      todos: string[]
+    }
+    expect(stored.facts).toEqual(['Anima Base 已挂在底模位'])
+    expect(stored.todos[0]).toContain('待复查：')
+  })
+
+  /** ⛔ 别过滤过头：用户拍的板在「决定」栏，含否定词也不动它。 */
+  it('⛔ 「决定」栏的否定句不被搬走', async () => {
+    queueTurns(searchStep, { finished: true, message: '好。' })
+    queueCheckout({
+      facts: [],
+      decisions: ['不要 score 前缀'],
+      todos: [],
+    })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '11111111-1111-4111-8111-111111111111',
+        }),
+      ),
+    )
+
+    const summary = (
+      doneEvent(events) as unknown as {
+        roundSummary?: { decisions: string[]; todos: string[] }
+      }
+    ).roundSummary
+    expect(summary?.decisions).toEqual(['不要 score 前缀'])
+    expect(summary?.todos).toEqual([])
+  })
+
+  /** 第一道闸在提示里：让模型一开始就别把「没找到」写成事实。 */
+  it('结账那一跳的系统提示写明否定结论不进 facts', async () => {
+    queueTurns(searchStep, { finished: true, message: '搜过了。' })
+    queueCheckout({ facts: ['库里有三张夜景'], decisions: [], todos: [] })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '11111111-1111-4111-8111-111111111111',
+        }),
+      ),
+    )
+
+    const systemPromptOfCheckout = mockLlmTextCompletion.mock.calls
+      .map((entry) => entry[0] as { systemPrompt?: string })
+      .find((entry) =>
+        entry.systemPrompt?.startsWith(
+          'You write the creator-facing closing record',
+        ),
+      )?.systemPrompt
+    expect(systemPromptOfCheckout).toContain(
+      'NEVER put a negative or a failed lookup in "facts"',
+    )
+    expect(systemPromptOfCheckout).toContain('Put it in "todos" instead')
+  })
 })
 
 /**
@@ -10538,6 +10637,32 @@ describe('结论注入与 recall_evidence', () => {
     expect(prompt).toContain('Evidence: #e1 #e2')
     // ⛔ 编号旁边**没有正文**：要看就调 recall_evidence（§7.6）。
     expect(prompt).toContain('recall_evidence')
+  })
+
+  /**
+   * ⭐ **用户重提同一请求 = 创作者改了**（2026-09-12 真机：LoRA 页助手）。
+   *
+   * 由来：上一轮把「没搜到」写成了事实，下一轮用户明确再说「在 Anima Base 上搜
+   * 鸣潮的角色 LoRA」，模型一步工具都没调就引用旧结论推辞 —— 因为这一段当时只
+   * 写着「Facts 里的事别重查」。
+   */
+  it('⭐ 注入段说明：创作者再次开口要同一件事时照做，⛔ 不拿旧结论推辞', async () => {
+    mockListAssistantConversationRounds.mockResolvedValueOnce([round(0)])
+    queueTurns({ finished: true, message: '好的' })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain('unless the creator asks for it again')
+    expect(prompt).toContain('run the tools again')
+    expect(prompt).toContain(
+      'Never refuse a fresh request by quoting an earlier round back at the creator',
+    )
   })
 
   it('空栏写 `—`，没有证据编号时不印那一行', async () => {

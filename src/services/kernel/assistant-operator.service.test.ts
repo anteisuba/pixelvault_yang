@@ -4348,6 +4348,36 @@ describe('LoRA 装配台域（P4-C）', () => {
     })
   })
 
+  it('挂载 observation 里有三件事：家族 / 兼容 / 权重', async () => {
+    mockSearchLoraCandidates.mockResolvedValue({
+      query: 'x',
+      candidates: [loraCandidate()],
+      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          title: 'find',
+          args: { query: 'x' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          title: 'mount it',
+          args: { candidateId: 'civitai:12345:67890', weight: 0.8 },
+        },
+      },
+      { finished: true },
+    )
+    await collect(runAssistantOperator('clerk-1', buildLoraRequest()))
+    const observed = lastUserPrompt()
+    expect(observed).toContain('illustrious')
+    expect(observed).toContain('fits')
+    expect(observed).toContain('0.8')
+  })
+
   it('底模未定时不判：跨族那把照样挂得上（与界面同一条语义）', async () => {
     mockSearchLoraCandidates.mockResolvedValue({
       query: 'x',

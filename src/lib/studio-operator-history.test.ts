@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
 import {
+  describeOperatorStepDetail,
   fromStoredOperatorMessages,
   historyToOperatorMessages,
   historyToPriorSteps,
@@ -506,5 +507,49 @@ describe('历史 → 下一轮的语境', () => {
         prior.tool.startsWith('retired'),
       ),
     ).toBe(false)
+  })
+})
+
+/**
+ * 挂载详情行（§4.1）：家族 / 兼容 / 权重**恒印**。
+ *
+ * ⭐ 跨族在 `planMountLora` 就被拒了，走到这里的必然兼容 —— 兼容那一行印出来
+ * 是为了留证，省掉之后日志里再也分不出「判过且通过」与「根本没判」。
+ */
+describe('mount_lora 的详情行', () => {
+  function mountStep(payload: Record<string, unknown>): AssistantOperatorStep {
+    return step({
+      tool: 'mount_lora',
+      status: 'done',
+      payload: {
+        candidateId: 'civitai:1:2',
+        name: 'Watercolor Storybook',
+        weight: 0.8,
+        triggerWords: ['watercolor'],
+        family: 'illustrious',
+        compatible: true,
+        ...payload,
+      },
+    })
+  }
+
+  it('兼容时也印家族与权重', () => {
+    expect(describeOperatorStepDetail(mountStep({}))).toBe(
+      'Watercolor Storybook · illustrious · fits · 0.8',
+    )
+  })
+
+  it('family 为 null 时印「未知底模」', () => {
+    expect(describeOperatorStepDetail(mountStep({ family: null }))).toBe(
+      'Watercolor Storybook · unknown base · fits · 0.8',
+    )
+  })
+
+  it('不兼容那一支照旧说得出来', () => {
+    expect(
+      describeOperatorStepDetail(
+        mountStep({ compatible: false, family: 'flux' }),
+      ),
+    ).toBe('Watercolor Storybook · flux · does not fit · 0.8')
   })
 })

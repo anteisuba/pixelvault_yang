@@ -3809,7 +3809,15 @@ function planMountLora(
       importPayload: candidate.importPayload,
     },
     inverse: { candidateId: candidate.candidateId },
-    observation: `Mounted "${candidate.name}" at weight ${weight ?? 1}. The bench now has ${
+    /**
+     * ⚠ 观察里写的是**日志详情行的同一份三件事**（家族 / 兼容 / 权重），
+     * 让模型在正文里有据可复述，⛔ 不让它按 LoRA 名字猜家族。
+     */
+    observation: `Mounted "${candidate.name}" — trained for ${
+      candidate.baseModelFamily ?? 'an unknown base'
+    }, ${
+      compatible ? 'fits' : 'does not fit'
+    } the base on the bench, at weight ${weight ?? 1}. The bench now has ${
       run.state.loras.length + 1
     } LoRA(s) — there is no limit, so never ask the creator to remove one to make room.`,
     apply: () => {

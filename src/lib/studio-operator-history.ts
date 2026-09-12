@@ -229,19 +229,19 @@ export function describeOperatorStepDetail(
         .join(' ')
     }
     /**
-     * ⚠ 挂载详情把**权重与兼容性一起印出来**：一把装不上的 LoRA 挂上去之后，
-     * 界面上只有一行橙字，而日志是用户回头复盘时唯一读得到「当时它就说过」的地方。
+     * ⚠ 挂载详情**恒印三件事**：底模家族 / 兼容判定 / 默认权重。
+     *
+     * ⭐ 兼容那一行不是报警，是**留证**：跨族挂载在 `planMountLora` 就被拒了，
+     * 走到日志的必然兼容 —— 正因为如此才要印，省掉之后日志里再也分不出
+     * 「判过且通过」与「根本没判」。
      */
     case ASSISTANT_OPERATOR_TOOL_IDS.mountLora:
       return [
         step.payload.name,
+        `· ${step.payload.family ?? 'unknown base'}`,
+        `· ${step.payload.compatible ? 'fits' : 'does not fit'}`,
         `· ${step.payload.weight}`,
-        step.payload.compatible
-          ? null
-          : `· ${step.payload.family ?? 'unknown base'} ✗`,
-      ]
-        .filter(Boolean)
-        .join(' ')
+      ].join(' ')
     case ASSISTANT_OPERATOR_TOOL_IDS.unmountLora:
       return step.payload.name
     case ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight:

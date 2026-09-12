@@ -3161,6 +3161,31 @@ async function planSetText(
       ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${value}`
       : value
 
+  /**
+   * **负面字段去重**（2026-09-12 真机 bug）：模型自己在 `value` 里写了重复的逗号
+   * 分词（如两遍 watermark），append 模式再和已有负面拼一次，工作台里就真的出现
+   * 三遍。只对 negative 去重——正向提示词里的重复词可能是有意加权，不动。
+   * 复用 `mergeNegativePrompt`（lib 层，`lora-source-match-prompt.ts` 已有的
+   * 同一口径去重）：按逗号分词、trim、大小写不敏感去重、保留首次出现顺序。
+   * 替换模式对 `value` 自身去重（`mergeNegativePrompt(undefined, value)` 的
+   * existing 为空，只在 recommendation 内部去重）；追加模式与已有负面合并去重。
+   * 去重后的完整文本直接作为 `payload.value` 下发，`payload.mode` 相应改成
+   * `replace`——客户端应用通道对 append 是 `current + 分隔符 + payload.value`
+   * 的简单拼接，不会再去重，所以这里必须把去重结果当整段替换文本传出去。
+   * `mode`（用于 observation 与 inverse 判据）继续反映创作者本来要的追加/替换
+   * 语义，不受影响。
+   */
+  const negativeDeduped = !isPrompt
+    ? mode === ASSISTANT_OPERATOR_WRITE_MODES.append
+      ? mergeNegativePrompt(current, value)
+      : mergeNegativePrompt(undefined, value)
+    : null
+  const finalText = negativeDeduped ?? next
+  const payloadValue = negativeDeduped ?? value
+  const payloadMode = negativeDeduped
+    ? ASSISTANT_OPERATOR_WRITE_MODES.replace
+    : mode
+
   if (isPrompt && run.request.domain === 'image') {
     const missing = getReferenceMentionIndices(next).find(
       (index) => !run.state.referenceUrls[index],
@@ -3205,11 +3230,11 @@ async function planSetText(
 
   return {
     kind: 'mutate',
-    payload: { value, mode },
+    payload: { value: payloadValue, mode: payloadMode },
     // ⚠ 逆操作永远是改前的完整原文，两种 mode 撤法因此完全一样。
     inverse: { value: current },
     observation: `${isPrompt ? 'Positive' : 'Negative'} prompt (${mode}) is now: "${clamp(
-      next,
+      finalText,
       LIMITS.maxPriorStepSummaryChars,
     )}"${
       current.trim() && creatorSaidOverwrite
@@ -3221,8 +3246,8 @@ async function planSetText(
         : ''
     }`,
     apply: () => {
-      if (isPrompt) run.state.prompt = next
-      else run.state.negativePrompt = next
+      if (isPrompt) run.state.prompt = finalText
+      else run.state.negativePrompt = finalText
       if (needsReferenceReview) run.referencePromptWritten = true
       run.assistantWrittenFields.add(field)
     },

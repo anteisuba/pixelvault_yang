@@ -1205,6 +1205,74 @@ describe('素材文件夹视觉检查', () => {
   })
 })
 
+describe('set_negative 去重（2026-09-12 真机：模型自己写出三遍 watermark）', () => {
+  it('replace 模式：value 里的重复词被去重，payload.value 顺序保持首次出现', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setNegative,
+          title: 'write negatives',
+          args: {
+            value:
+              'lowres, bad hands, watermark, text, watermark, logo, text, watermark, logo, signature',
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ snapshot: { ...SNAPSHOT, negativePrompt: '' } }),
+      ),
+    )
+    const done = stepsOf(events).find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(done?.payload).toEqual({
+      value: 'lowres, bad hands, watermark, text, logo, signature',
+      mode: 'replace',
+    })
+  })
+
+  it('append 模式：与已有负面 "text, logo" 合并后不重复', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setNegative,
+          title: 'add negatives',
+          args: { value: 'text, watermark, logo', mode: 'append' },
+        },
+      },
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, negativePrompt: 'text, logo' },
+          confirmations: [
+            {
+              field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.negative,
+              choice: ASSISTANT_OPERATOR_CONFIRM_CHOICES.append,
+            },
+          ],
+        }),
+      ),
+    )
+    const done = stepsOf(events).find(
+      (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    // 追加去重后拿到的是整段合并文本，协议层因此改成 replace 整段下发。
+    expect(done?.payload).toEqual({
+      value: 'text, logo, watermark',
+      mode: 'replace',
+    })
+  })
+})
+
 describe('规划器的拒绝', () => {
   it('没有负面框时 set_negative 被拒（拍板 19 / 台账 BJ 同一条闸）', async () => {
     queueTurns(

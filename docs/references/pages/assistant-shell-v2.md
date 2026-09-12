@@ -39,6 +39,7 @@
 - ❌ 不改生成模型 / 计费 / 归档 / LoRA 训练流程。
 - ❌ 不做音频域（`ASSISTANT_OPERATOR_DOMAINS` 里没有 `audio`，本轮也不加）。
 - ❌ 不做 LoRA 域与音频域的手机形态（沿用 v1 现状）。
+- ➡ LoRA 域这一侧的「挂载 + 专属提示词」另有施工基准：[`lora-assistant.md`](lora-assistant.md)（本文不重抄，两文的协议口径以本文为准）。
 
 ---
 

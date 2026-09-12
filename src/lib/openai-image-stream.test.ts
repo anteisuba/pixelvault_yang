@@ -53,4 +53,39 @@ describe('OpenAI image streams', () => {
     ).resolves.toMatchObject({ base64: 'final' })
     expect(preview).not.toHaveBeenCalled()
   })
+
+  it('rejects events missing b64_json', async () => {
+    await expect(
+      readOpenAIImageStream(
+        stream(
+          `data: ${JSON.stringify({ type: 'image_generation.completed' })}\n\n`,
+        ),
+        vi.fn(),
+      ),
+    ).rejects.toThrow('before the final image')
+  })
+
+  it('rejects an out-of-range partial_image_index', async () => {
+    const preview = vi.fn()
+    await expect(
+      readOpenAIImageStream(
+        stream(
+          `data: ${JSON.stringify({ type: 'image_generation.partial_image', b64_json: 'partial', partial_image_index: 3 })}\n\n`,
+        ),
+        preview,
+      ),
+    ).rejects.toThrow('before the final image')
+    expect(preview).not.toHaveBeenCalled()
+  })
+
+  it('rejects an unknown event type', async () => {
+    await expect(
+      readOpenAIImageStream(
+        stream(
+          `data: ${JSON.stringify({ type: 'image_generation.unknown', b64_json: 'final' })}\n\n`,
+        ),
+        vi.fn(),
+      ),
+    ).rejects.toThrow('before the final image')
+  })
 })

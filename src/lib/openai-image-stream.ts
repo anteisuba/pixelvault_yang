@@ -1,18 +1,65 @@
-import { z } from 'zod'
+// Referenced by the execution worker — keep zero third-party dependencies.
 
 import { parseSseStream } from './sse'
 
-const ImageEventSchema = z.object({
-  type: z.enum([
-    'image_generation.partial_image',
-    'image_generation.completed',
-    'image_edit.partial_image',
-    'image_edit.completed',
-  ]),
-  b64_json: z.string().min(1),
-  partial_image_index: z.number().int().min(0).max(2).optional(),
-  size: z.string().optional(),
-})
+const IMAGE_EVENT_TYPES = [
+  'image_generation.partial_image',
+  'image_generation.completed',
+  'image_edit.partial_image',
+  'image_edit.completed',
+] as const
+
+type ImageEventType = (typeof IMAGE_EVENT_TYPES)[number]
+
+interface ImageEvent {
+  type: ImageEventType
+  b64_json: string
+  partial_image_index?: number
+  size?: string
+}
+
+function isImageEventType(value: unknown): value is ImageEventType {
+  return (
+    typeof value === 'string' &&
+    (IMAGE_EVENT_TYPES as readonly string[]).includes(value)
+  )
+}
+
+function parseImageEvent(value: unknown): ImageEvent | null {
+  if (typeof value !== 'object' || value === null) return null
+  const record = value as Record<string, unknown>
+
+  if (!isImageEventType(record.type)) return null
+
+  if (typeof record.b64_json !== 'string' || record.b64_json.length === 0) {
+    return null
+  }
+
+  let partialImageIndex: number | undefined
+  if (record.partial_image_index !== undefined) {
+    const index = record.partial_image_index
+    if (
+      typeof index !== 'number' ||
+      !Number.isInteger(index) ||
+      index < 0 ||
+      index > 2
+    ) {
+      return null
+    }
+    partialImageIndex = index
+  }
+
+  if (record.size !== undefined && typeof record.size !== 'string') {
+    return null
+  }
+
+  return {
+    type: record.type,
+    b64_json: record.b64_json,
+    partial_image_index: partialImageIndex,
+    size: record.size,
+  }
+}
 
 export async function readOpenAIImageStream(
   body: ReadableStream<Uint8Array>,
@@ -21,8 +68,8 @@ export async function readOpenAIImageStream(
   for await (const frame of parseSseStream(body)) {
     if (frame.data === '[DONE]') continue
     const value: unknown = JSON.parse(frame.data)
-    const parsed = ImageEventSchema.safeParse(value)
-    if (!parsed.success) {
+    const event = parseImageEvent(value)
+    if (!event) {
       if (
         frame.event === 'error' ||
         (typeof value === 'object' && value !== null && 'error' in value)
@@ -31,7 +78,6 @@ export async function readOpenAIImageStream(
       }
       continue
     }
-    const event = parsed.data
     if (event.type.endsWith('.completed')) {
       return { base64: event.b64_json, size: event.size }
     }

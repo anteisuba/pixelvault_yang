@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  civitaiDisplayImageUrl,
   proxyCivitaiImageUrl,
   rewriteCivitaiImageUrl,
 } from './civitai-image-url'
@@ -156,5 +157,95 @@ describe('proxyCivitaiImageUrl', () => {
       'https://img.anteisuba.com',
     )
     expect(proxyCivitaiImageUrl('not a url')).toBe('not a url')
+  })
+})
+
+describe('civitaiDisplayImageUrl', () => {
+  // Civitai REST / meilisearch 给的 images[].url 恒为这个形态 —— 详情抽屉
+  // 「样例」带、来源配方 strip/modal 直接拿它渲染过 <img>，那正是 2026-09-12
+  // 生产上 9 张样例全坏（naturalWidth=0）的那批 URL。
+  const ORIGINAL =
+    'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/original=true/1917130.jpeg'
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('collapses original=true into a width tier and routes it through the proxy', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    expect(civitaiDisplayImageUrl(ORIGINAL, 256)).toBe(
+      'https://img.anteisuba.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/width=256,optimized=true/1917130.jpeg',
+    )
+  })
+
+  it('never emits original=true, at any width', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    for (const width of [96, 192, 256, 450, 1024]) {
+      expect(civitaiDisplayImageUrl(ORIGINAL, width)).not.toContain(
+        'original=true',
+      )
+    }
+  })
+
+  it('re-tiers a URL that already carries a different width', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    const card =
+      'https://image.civitai.com/abc/uuid/width=450,optimized=true/file.jpg'
+    expect(civitaiDisplayImageUrl(card, 1024)).toBe(
+      'https://img.anteisuba.com/abc/uuid/width=1024,optimized=true/file.jpg',
+    )
+  })
+
+  it('leaves an already-proxied URL on the proxy host (idempotent)', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    const once = civitaiDisplayImageUrl(ORIGINAL, 256)
+    expect(civitaiDisplayImageUrl(once, 256)).toBe(once)
+  })
+
+  it('preserves the query string', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    expect(civitaiDisplayImageUrl(`${ORIGINAL}?token=abc`, 256)).toBe(
+      'https://img.anteisuba.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/width=256,optimized=true/1917130.jpeg?token=abc',
+    )
+  })
+
+  it('still drops original=true when the proxy base is unset (direct fallback)', () => {
+    vi.stubEnv('NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE', '')
+    expect(civitaiDisplayImageUrl(ORIGINAL, 256)).toBe(
+      'https://image.civitai.com/xG1nkqKTMzGDvpLrqFT7WA/217179cb-87a0-4e96-8d77-e410f757aba0/width=256,optimized=true/1917130.jpeg',
+    )
+  })
+
+  it('leaves non-Civitai URLs (R2 / own uploads) untouched', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    const r2 = 'https://cdn.anteisuba.com/loras/cover/abc.jpg'
+    expect(civitaiDisplayImageUrl(r2, 256)).toBe(r2)
+  })
+
+  it('returns malformed / empty input unchanged', () => {
+    vi.stubEnv(
+      'NEXT_PUBLIC_CIVITAI_IMAGE_PROXY_BASE',
+      'https://img.anteisuba.com',
+    )
+    expect(civitaiDisplayImageUrl('', 256)).toBe('')
+    expect(civitaiDisplayImageUrl('not a url', 256)).toBe('not a url')
   })
 })

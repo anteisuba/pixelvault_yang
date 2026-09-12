@@ -140,3 +140,22 @@ export function proxyCivitaiImageUrl(url: string): string {
 
   return `${proxyBase}${parsed.pathname}${parsed.search}`
 }
+
+/**
+ * 展示用 Civitai 图片 URL 的**唯一**出口：先把 transform 段收敛到一个明确的
+ * 宽度档，再走自家代理。
+ *
+ * ⚠ 别单独调 {@link proxyCivitaiImageUrl} 渲染 `<img>`。Civitai REST /
+ * meilisearch 给我们的 `images[].url` 一律是 `original=true`（实测
+ * `/api/v1/model-versions/<id>` 与 `/api/v1/images` 都是），那是 1–8 MB 的
+ * 原始 PNG，塞进 96–256 px 的缩略格是 100× 级的流量浪费；而且 `original=true`
+ * 是唯一会被 image.civitai.com 301 到 `blobs-b2.civitai.com` 原始 blob 的形态，
+ * 那条路回的 content-type 常常是 `binary/octet-stream`，比任何 `width=` 变体
+ * （由 Cloudflare Images 转码，content-type 恒为 `image/*`）都脆弱。
+ *
+ * 所以展示路径一律走本函数；`original=true` 只允许留在数据字段里（下载 / 跳
+ * 原站），不允许进 `<img src>`。
+ */
+export function civitaiDisplayImageUrl(url: string, width: number): string {
+  return proxyCivitaiImageUrl(rewriteCivitaiImageUrl(url, { width }))
+}

@@ -5,11 +5,11 @@ import { Copy } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { LORA_CARD_SOURCE_IMAGE_WIDTH } from '@/constants/lora'
 import {
-  proxyCivitaiImageUrl,
-  rewriteCivitaiImageUrl,
-} from '@/lib/civitai-image-url'
+  LORA_CARD_SOURCE_IMAGE_WIDTH,
+  LORA_DETAIL_IMAGE_WIDTH,
+} from '@/constants/lora'
+import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -87,7 +87,10 @@ export function LoraSourceImagePreviewStrip({
                   onClick={(event) => {
                     previewTriggerRef.current = event.currentTarget
                     setPreview({
-                      url: proxyCivitaiImageUrl(image.imageUrl),
+                      url: civitaiDisplayImageUrl(
+                        image.imageUrl,
+                        LORA_DETAIL_IMAGE_WIDTH,
+                      ),
                       label: imageLabel,
                     })
                   }}
@@ -99,10 +102,9 @@ export function LoraSourceImagePreviewStrip({
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={proxyCivitaiImageUrl(
-                      rewriteCivitaiImageUrl(image.imageUrl, {
-                        width: LORA_CARD_SOURCE_IMAGE_WIDTH,
-                      }),
+                    src={civitaiDisplayImageUrl(
+                      image.imageUrl,
+                      LORA_CARD_SOURCE_IMAGE_WIDTH,
                     )}
                     alt=""
                     loading="lazy"

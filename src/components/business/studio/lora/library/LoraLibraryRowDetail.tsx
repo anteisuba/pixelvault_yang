@@ -19,11 +19,14 @@ import { toast } from 'sonner'
 import {
   isCivitaiBaseModelGeneratable,
   isCivitaiLoraCommerciallyUsable,
+  LORA_CARD_SOURCE_IMAGE_WIDTH,
+  LORA_DETAIL_IMAGE_WIDTH,
+  LORA_SAMPLE_THUMBNAIL_WIDTH,
 } from '@/constants/lora'
 import { getCompatibleBases } from '@/constants/lora-base-models'
 import { useCivitaiModelDescription } from '@/hooks/prompts/use-civitai-model-description'
 import { useCivitaiMinedPrompts } from '@/hooks/prompts/use-civitai-mined-prompts'
-import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
+import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
 import { cn } from '@/lib/utils'
 import { getLoraAssetSourceUrl } from '@/lib/lora-asset-source-url'
 import type {
@@ -383,7 +386,7 @@ function CivitaiRowDetail({
       {coverUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={proxyCivitaiImageUrl(coverUrl)}
+          src={civitaiDisplayImageUrl(coverUrl, LORA_DETAIL_IMAGE_WIDTH)}
           alt={item.name}
           width={512}
           height={640}
@@ -541,7 +544,10 @@ function CivitaiRowDetail({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={proxyCivitaiImageUrl(sample.url)}
+                src={civitaiDisplayImageUrl(
+                  sample.url,
+                  LORA_SAMPLE_THUMBNAIL_WIDTH,
+                )}
                 alt=""
                 loading="lazy"
                 decoding="async"
@@ -831,7 +837,10 @@ export function LoraAssetDetail({
         images[imageIndex] ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={proxyCivitaiImageUrl(images[imageIndex])}
+            src={civitaiDisplayImageUrl(
+              images[imageIndex],
+              LORA_DETAIL_IMAGE_WIDTH,
+            )}
             alt={asset.name}
             className="max-h-[45svh] w-full rounded-xl object-contain"
           />
@@ -887,7 +896,10 @@ export function LoraAssetDetail({
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={proxyCivitaiImageUrl(url)}
+                    src={civitaiDisplayImageUrl(
+                      url,
+                      LORA_CARD_SOURCE_IMAGE_WIDTH,
+                    )}
                     alt=""
                     className="h-20 w-16 object-cover"
                   />

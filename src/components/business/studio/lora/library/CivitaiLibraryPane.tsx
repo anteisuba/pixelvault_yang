@@ -39,6 +39,7 @@ import {
   isCivitaiBaseModelGeneratable,
   isCivitaiLoraSort,
   isLoraNsfwFilter,
+  LORA_DETAIL_IMAGE_WIDTH,
   parseLoraLibraryFamilyParam,
   parseLoraLibraryTypeParam,
   type CivitaiLoraBaseModel,
@@ -68,7 +69,7 @@ import {
   readSearchHistory,
   recordSearchTerm,
 } from '@/lib/civitai-search-history'
-import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
+import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import { cn } from '@/lib/utils'
 import { LoraSourceRecipeModal } from '@/components/business/studio/lora/LoraSourceRecipeModal'
@@ -477,7 +478,7 @@ export function CivitaiCommunityBranch({
       const sample = sampleImages[index]
       if (!sample) return
       setCoverPreview({
-        url: proxyCivitaiImageUrl(sample.url),
+        url: civitaiDisplayImageUrl(sample.url, LORA_DETAIL_IMAGE_WIDTH),
         name: library.selectedItem?.name ?? '',
       })
     },
@@ -822,11 +823,14 @@ export function CivitaiCommunityBranch({
             sampleImages={sampleImages}
             onSampleClick={handleSampleClick}
             onPreviewCover={(target) => {
+              // ⚠ 放大预览也走宽度档，不用 coverImageUrlOriginal。
+              // `original=true` 是唯一走 blobs-b2 原始 blob 的形态，1–8 MB
+              // 且 content-type 不可靠；1024 已经盖住弹窗最大展示尺寸。
               const fullUrl =
-                target.coverImageUrlOriginal ?? target.coverImageUrl
+                target.coverImageUrl ?? target.coverImageUrlOriginal
               if (fullUrl) {
                 setCoverPreview({
-                  url: proxyCivitaiImageUrl(fullUrl),
+                  url: civitaiDisplayImageUrl(fullUrl, LORA_DETAIL_IMAGE_WIDTH),
                   name: target.name,
                 })
               }
@@ -837,7 +841,9 @@ export function CivitaiCommunityBranch({
 
       <LoraCoverPreviewDialog
         key={coverPreview?.url ?? 'closed'}
-        images={sampleImages.map((image) => proxyCivitaiImageUrl(image.url))}
+        images={sampleImages.map((image) =>
+          civitaiDisplayImageUrl(image.url, LORA_DETAIL_IMAGE_WIDTH),
+        )}
         preview={coverPreview}
         onClose={() => setCoverPreview(null)}
       />

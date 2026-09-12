@@ -14,8 +14,11 @@ import {
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
-import { CIVITAI_MODEL_SEARCH_URL } from '@/constants/lora'
-import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
+import {
+  CIVITAI_MODEL_SEARCH_URL,
+  LORA_DETAIL_IMAGE_WIDTH,
+} from '@/constants/lora'
+import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
 import { toCivitaiModelSearchQuery } from '@/lib/civitai-lora-reference'
 import {
   extraLoraKey,
@@ -278,7 +281,10 @@ export function LoraSourceRecipeModal({
           {recipe ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
-              src={proxyCivitaiImageUrl(recipe.imageUrl)}
+              src={civitaiDisplayImageUrl(
+                recipe.imageUrl,
+                LORA_DETAIL_IMAGE_WIDTH,
+              )}
               alt={assetName}
               // ⚠ 不能用 `w-full` + 视口级 max-h：`w-full` 强制盒子铺满宽度，竖图
               // 的盒子高度就 = 宽度 × 高宽比，远超弹窗；而那个 max-h 又和整个弹窗

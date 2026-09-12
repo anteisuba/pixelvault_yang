@@ -93,6 +93,13 @@ export const LORA_LIBRARY_SHEET_OPTION_CLASS =
 export const LORA_CHIP_THUMBNAIL_WIDTH = 96
 // 详细卡片来源图横滚条：图块 48×64，192 宽留出 2x + 裁切余量。
 export const LORA_CARD_SOURCE_IMAGE_WIDTH = 192
+// 详情抽屉样例带：图块 128×96，256 宽覆盖 2x。
+export const LORA_SAMPLE_THUMBNAIL_WIDTH = 256
+// 详情大图 / 来源配方 modal / 放大预览的目标宽度。
+// ⛔ 这里不要退回 `original=true`：那是 1–8 MB 原图，且是唯一会被
+// image.civitai.com 301 到 blobs-b2 原始 blob 的形态（content-type 常为
+// binary/octet-stream，最脆弱的一条路）。1024 已覆盖弹窗最大展示尺寸。
+export const LORA_DETAIL_IMAGE_WIDTH = 1024
 // 挂载事件新鲜窗口：超过它的事件不再弹 toast（用户早已离开挂载现场）。
 export const LORA_MOUNT_EVENT_FRESH_MS = 5 * 60 * 1000
 // 挂载后触发按钮的高亮时长。
@@ -1248,3 +1255,22 @@ export const LORA_MOBILE_RESULT_SCROLL_OPTIONS_REDUCED = {
 export const REDUCED_MOTION_MEDIA_QUERY = '(prefers-reduced-motion: reduce)'
 
 export const LORA_PREVIEW_SWIPE_MIN_PX = 48
+
+// ── Runner 出图耗时提示（owner 2026-09-12）────────────────────────────────
+// Runner（Comfy/RunPod）出图前要把底模加载进 GPU worker：worker 还热着时只花
+// 推理时间，冷启动那一次要先拉底模。仓里没有任何实测耗时常量（execution 那边
+// 只有轮询窗口 200×3s=10min 的超时上限，不是期望值），所以这里给的是保守区间
+// 而不是精确估计——文案也按区间写，不承诺单个数字。
+/** 常态（worker 已热）单张出图的保守估计区间，秒。 */
+export const LORA_RUNNER_ETA_SECONDS = { min: 30, max: 90 } as const
+/** 首次冷启动（要先加载底模）的保守估计区间，分钟。 */
+export const LORA_RUNNER_COLD_START_MINUTES = { min: 1, max: 3 } as const
+/**
+ * 「这个底模本会话已经跑过一次 Runner」的 sessionStorage 键前缀。
+ *
+ * ⚠ 后端目前**没有**任何 cold-start 信号（worker 回调不带标记，也没有
+ * `use-*runner*` 的 warm 状态），所以首次判据只能落在客户端：按底模 id 记，
+ * 换底模 = 换一份要加载的权重 = 重新算首次；会话结束（关标签页）后 worker
+ * 大概率也已经冷下来，正好与 sessionStorage 的生命周期同步。
+ */
+export const LORA_RUNNER_WARM_STORAGE_PREFIX = 'pv:lora-runner-warm:'

@@ -5,10 +5,7 @@ import { Wand2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { LORA_CARD_SOURCE_IMAGE_WIDTH } from '@/constants/lora'
-import {
-  proxyCivitaiImageUrl,
-  rewriteCivitaiImageUrl,
-} from '@/lib/civitai-image-url'
+import { civitaiDisplayImageUrl } from '@/lib/civitai-image-url'
 import { Button } from '@/components/ui/button'
 import { LoraSourceRecipeModal } from '@/components/business/studio/lora/LoraSourceRecipeModal'
 import type { CivitaiImageRecipe, CivitaiRecipeExtraLora } from '@/types'
@@ -120,10 +117,9 @@ export function LoraSourceRecipeStrip({
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={proxyCivitaiImageUrl(
-                  rewriteCivitaiImageUrl(recipe.imageUrl, {
-                    width: LORA_CARD_SOURCE_IMAGE_WIDTH,
-                  }),
+                src={civitaiDisplayImageUrl(
+                  recipe.imageUrl,
+                  LORA_CARD_SOURCE_IMAGE_WIDTH,
                 )}
                 alt=""
                 loading="lazy"

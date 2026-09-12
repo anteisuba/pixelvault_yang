@@ -4272,6 +4272,128 @@ describe('LoRA 装配台域（P4-C）', () => {
     })
   })
 
+  it('跨族的那把按 loraIncompatibleBase 拒，理由里有两个 family 与「去搜同族」', async () => {
+    mockSearchLoraCandidates.mockResolvedValue({
+      query: 'x',
+      candidates: [
+        loraCandidate({
+          candidateId: 'civitai:flux:1',
+          baseModelFamily: 'flux',
+        }),
+      ],
+      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          title: 'find',
+          args: { query: 'x' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          title: 'mount it',
+          args: { candidateId: 'civitai:flux:1' },
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+    )
+    expect(steps[2]).toMatchObject({
+      error: {
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraIncompatibleBase,
+      },
+    })
+    const detail = (steps[2] as { error: { detail: string } }).error.detail
+    // ⭐ 两个 family 都来自服务端数据，⛔ 不让模型按名字猜。
+    expect(detail).toContain('flux')
+    expect(detail).toContain('illustrious')
+    // ⭐ 出路是「去搜同族的」，⛔ 不是一句「没有合适的」。
+    expect(detail).toContain(ASSISTANT_OPERATOR_TOOL_IDS.searchLoras)
+    expect(detail).toContain(ASSISTANT_OPERATOR_TOOL_IDS.setModel)
+  })
+
+  it('同族的那把照旧挂得上：⛔ 改判只收紧跨族那一支', async () => {
+    mockSearchLoraCandidates.mockResolvedValue({
+      query: 'x',
+      candidates: [loraCandidate()],
+      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          title: 'find',
+          args: { query: 'x' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          title: 'mount it',
+          args: { candidateId: 'civitai:12345:67890' },
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+    )
+    expect(steps[3]).toMatchObject({
+      payload: { candidateId: 'civitai:12345:67890', compatible: true },
+    })
+  })
+
+  it('底模未定时不判：跨族那把照样挂得上（与界面同一条语义）', async () => {
+    mockSearchLoraCandidates.mockResolvedValue({
+      query: 'x',
+      candidates: [
+        loraCandidate({
+          candidateId: 'civitai:flux:1',
+          baseModelFamily: 'flux',
+        }),
+      ],
+      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          title: 'find',
+          args: { query: 'x' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+          title: 'mount it',
+          args: { candidateId: 'civitai:flux:1' },
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({
+            snapshot: {
+              ...LORA_SNAPSHOT,
+              loras: { ...LORA_SNAPSHOT.loras!, baseFamily: null },
+            },
+          }),
+        ),
+      ),
+    )
+    expect(steps[3]).toMatchObject({
+      payload: { candidateId: 'civitai:flux:1', compatible: true },
+    })
+  })
+
   it('⛔ 不设数量上限：挂载栈已经很满时照样挂得上', async () => {
     const packed: AssistantOperatorRequest['snapshot'] = {
       ...LORA_SNAPSHOT,
@@ -4322,41 +4444,6 @@ describe('LoRA 装配台域（P4-C）', () => {
     expect(steps[3]).toMatchObject({
       status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
     })
-  })
-
-  it('装不上的那把**照样挂得上**，但观察里必须说出来（界面上用户也挂得上）', async () => {
-    mockSearchLoraCandidates.mockResolvedValue({
-      query: 'x',
-      candidates: [
-        loraCandidate({ candidateId: 'civitai:a:b', baseModelFamily: 'anima' }),
-      ],
-      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
-    })
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
-          title: 'find',
-          args: { query: 'x' },
-        },
-      },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-          title: 'mount it',
-          args: { candidateId: 'civitai:a:b' },
-        },
-      },
-      { finished: true },
-    )
-    const steps = stepsOf(
-      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
-    )
-    expect(steps[3]).toMatchObject({
-      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
-      payload: { compatible: false },
-    })
-    expect(lastUserPrompt()).toContain('will not load on the base')
   })
 
   it('调权重：越界按 unknownValue 拒，⛔ 不做就近夹取', async () => {

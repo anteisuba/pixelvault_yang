@@ -1987,6 +1987,16 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
    */
   loraNotImportable: 'loraNotImportable',
   /**
+   * 这把 LoRA 是**为另一族底模训的**，挂到当前底模上加载不了（lora-assistant §4.2）。
+   *
+   * 判据是界面与助手**共用**的那个谓词（`isLoraBaseModelMountCompatible`），⛔ 不让
+   * 模型按名字猜（`"Anima"` 是 DiT，而 `"Anima Pencil XL"` 报的是 `"SDXL 1.0"`）。
+   * ⚠ 拦的是**助手那只手**：界面侧一字不变，用户自己仍然挂得上一把不兼容的
+   * LoRA（装配台只画一行橙字、不禁用）。助手读到这条理由该按**当前底模家族**
+   * 再搜一轮同族的，或者提议换底模 —— ⛔ 不是回一句「没有合适的」。
+   */
+  loraIncompatibleBase: 'loraIncompatibleBase',
+  /**
    * 规则表满了（§10）。⛔ 不静默丢弃、也不悄悄挤掉最老的一条 —— 用户写下的
    * 每一条都是他自己的决定，该由他去删。助手读到这条理由该把话转给用户。
    */

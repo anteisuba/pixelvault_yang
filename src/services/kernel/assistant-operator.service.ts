@@ -3775,12 +3775,24 @@ function planMountLora(
     run.state.loraBaseFamily,
   )
   /**
-   * ⚠ 装不上**不拒**，而是挂上去 + 把话说出来。
+   * ⚠ 拦的是**助手那只手，不是用户那只手**。
    *
-   * 判据：界面上用户自己也挂得上一把不兼容的 LoRA（装配台只画一行橙色警示，
-   * 不禁用）—— 拍板 19 说的是「只动界面上存在的旋钮」，不是「比界面更严」。
-   * 而且真实的下一步常常是**换底模**，把挂载拒掉反而堵住那条路。
+   * 界面上用户自己仍然挂得上一把不兼容的 LoRA（装配台只画一行橙色警示、不禁用、
+   * 不弹窗）—— 这条改判**一个字都不动界面**，想硬挂的人去界面点。助手替他点的
+   * 那一下不一样：模型选的候选他没看过，挂上去的结果是一张糊图。
+   *
+   * ⛔ 别在这里重算兼容性：判据是界面与助手**共用**的那个谓词，两边拿到同一个
+   * `false` 之后各走各的。
    */
+  if (!compatible) {
+    const loraFamily = candidate.baseModelFamily ?? 'another family'
+    const baseFamily = run.state.loraBaseFamily ?? 'the current one'
+    return reject(
+      REJECT.loraIncompatibleBase,
+      `That LoRA was trained for ${loraFamily}; the base on the bench is ${baseFamily} — it will not load there. Run search_loras again for a ${baseFamily} LoRA, or offer set_model to move the base to ${loraFamily}.`,
+    )
+  }
+
   return {
     kind: 'mutate',
     payload: {
@@ -3799,11 +3811,7 @@ function planMountLora(
     inverse: { candidateId: candidate.candidateId },
     observation: `Mounted "${candidate.name}" at weight ${weight ?? 1}. The bench now has ${
       run.state.loras.length + 1
-    } LoRA(s) — there is no limit, so never ask the creator to remove one to make room.${
-      compatible
-        ? ''
-        : ` ⚠ It is built for ${candidate.baseModelFamily ?? 'another base'} and will not load on the base that is selected — say that plainly and offer to switch the base.`
-    }`,
+    } LoRA(s) — there is no limit, so never ask the creator to remove one to make room.`,
     apply: () => {
       run.mountedLoraCandidateIds.add(candidate.candidateId)
       run.state.loras.push({

@@ -7514,6 +7514,7 @@
       "unknownLora": "その LoRA は今回の検索結果にありません",
       "loraNotMounted": "その LoRA はベンチに載っていません",
       "loraNotImportable": "その LoRA はライブラリに取り込めません。配布元ページでのみ確認できます",
+      "loraIncompatibleBase": "その LoRA は別系統のベースモデル向けなので、アシスタントは今のベースには載せません",
       "sourceNotUsable": "このサイトは AI の入力に使わないよう求めているか、出所をたどれない転載です",
       "researchRoundsExhausted": "1 ターンで調べられる回数を使い切りました — 分かった範囲で進めます",
       "unknownEvidenceRef": "その証拠番号はこの会話にありません",

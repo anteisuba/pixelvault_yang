@@ -7514,6 +7514,7 @@
       "unknownLora": "That LoRA was not in this run's search results",
       "loraNotMounted": "That LoRA is not on the bench",
       "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page",
+      "loraIncompatibleBase": "That LoRA was trained for a different base model family, so the assistant won't mount it on the current base",
       "sourceNotUsable": "That site asks not to be used as AI input, or republishes work without a traceable source",
       "researchRoundsExhausted": "It already researched as much as one turn allows — it is working from what it found",
       "unknownEvidenceRef": "That evidence number is not in this conversation",

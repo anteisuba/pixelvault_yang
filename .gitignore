@@ -57,6 +57,7 @@ next-env.d.ts
 /blob-report/
 /playwright/.cache/
 /e2e/.auth/
+/.playwright-cli/
 
 # codex artifacts (browser profiles with LOCK files break Turbopack)
 .codex-artifacts/

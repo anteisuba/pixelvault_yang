@@ -6841,6 +6841,105 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     )
   })
 
+  /**
+   * **题型偏置**（2026-09-12）。🔬 实测缺口：「新海诚式黄昏光怎么描述」选源走
+   * 通用组（网搜 + 百科），回来的是导演**生平**条目，归纳只能说「来源未覆盖」。
+   */
+  it('⭐ 画风/技法题换一套源：网搜 + danbooru + B站打头，百科排最后', async () => {
+    queueOutcome([CORROBORATED])
+    mockPlanResearchWithLlm.mockResolvedValueOnce({
+      shouldSearch: true,
+      sourceGroup: 'general',
+      questionType: 'style_technique',
+      goal: 'reference',
+      urls: [],
+      queries: [{ text: '新海诚 画风 特征', lang: 'zh' }],
+      freshness: 'none',
+      reason: 'craft question',
+    })
+    queueTurns(
+      verifyTurn({ goal: '黄昏光怎么描述', entities: ['新海诚'] }),
+      CONCLUSION_TURN,
+      { finished: true },
+    )
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(mockRunAssistantResearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sources: ['web', 'danbooru', 'bilibili', 'wiki'],
+        questionType: 'style_technique',
+      }),
+    )
+  })
+
+  it('⚠ 「这个角色是谁」类的题**一个字都不动**：仍按源组选源', async () => {
+    queueOutcome([CORROBORATED])
+    mockPlanResearchWithLlm.mockResolvedValueOnce({
+      shouldSearch: true,
+      sourceGroup: 'ip_character',
+      questionType: 'entity_facts',
+      goal: 'reference',
+      urls: [],
+      queries: [{ text: '无限大 时夜', lang: 'zh' }],
+      freshness: 'none',
+      reason: 'entity lookup',
+    })
+    queueTurns(
+      verifyTurn({ goal: '她是谁', entities: ['无限大', '时夜'] }),
+      CONCLUSION_TURN,
+      { finished: true },
+    )
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(mockRunAssistantResearch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sources: ['wiki', 'danbooru', 'web'],
+        questionType: 'entity_facts',
+      }),
+    )
+  })
+
+  it('⭐ 归纳提示按题型走：画风题要「可复用的描述词」，别的题不加这句', async () => {
+    queueOutcome([CORROBORATED])
+    mockPlanResearchWithLlm.mockResolvedValueOnce({
+      shouldSearch: true,
+      sourceGroup: 'general',
+      questionType: 'style_technique',
+      goal: 'reference',
+      urls: [],
+      queries: [{ text: '新海诚 光影 分析', lang: 'zh' }],
+      freshness: 'none',
+      reason: 'craft question',
+    })
+    queueTurns(
+      verifyTurn({ goal: '黄昏光怎么描述', entities: ['新海诚'] }),
+      CONCLUSION_TURN,
+      { finished: true },
+    )
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(conclusionCalls()[0]?.userPrompt).toContain('CRAFT QUESTION')
+
+    queueOutcome([CORROBORATED])
+    mockPlanResearchWithLlm.mockResolvedValueOnce({
+      shouldSearch: true,
+      sourceGroup: 'ip_character',
+      questionType: 'entity_facts',
+      goal: 'reference',
+      urls: [],
+      queries: [{ text: '无限大 时夜', lang: 'zh' }],
+      freshness: 'none',
+      reason: 'entity lookup',
+    })
+    queueTurns(
+      verifyTurn({ goal: '她是谁', entities: ['无限大', '时夜'] }),
+      CONCLUSION_TURN,
+      { finished: true },
+    )
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(conclusionCalls()[0]?.userPrompt).not.toContain('CRAFT QUESTION')
+  })
+
   it('⭐ 归纳出来那一句也是结论块「事实」栏的原料（卡 / 钉住条 / 结论块同一句）', async () => {
     queueOutcome([CORROBORATED])
     queueTurns(
@@ -7961,6 +8060,7 @@ describe('current reference image bindings', () => {
     identity: 'Recognizable face and costume',
     pose: 'Visible limb positions',
     style: {
+      renderingMedium: '3d_stylized' as const,
       rendering:
         'Stylized 3D NPR with volumetric hair and material-specific reflections',
       proportions: 'Stylized',

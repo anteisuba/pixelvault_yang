@@ -7604,6 +7604,7 @@
       "checkpointRestored": "Restored the selected step’s configuration. Use the current form for subsequent actions.",
       "questionAnswered": "You picked: {subject}",
       "contextCardSaved": "Context card kept: {subject}",
+      "contextCardDeclined": "Context card not kept: {subject}",
       "contextCardSaveFailed": "Could not keep “{subject}” — try again?"
     },
     "suggestion": {

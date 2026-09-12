@@ -7564,6 +7564,47 @@ describe('上下文卡（第三期 K1）', () => {
     expect(mockListContextCards).toHaveBeenCalledTimes(1) // 只有系统提示那一次
   })
 
+  /**
+   * ⭐ **已经存过的那张卡不再提议**（2026-09-12 真机 bug）。
+   *
+   * 用户说「记一下：以后这个男主角固定穿藏青水手服」→ 点「存这张卡」→ 之后
+   * 每问一句别的，模型一开流又吐同一帧 `confirm(contextCard)`，不做规划、不查证。
+   * 同 `kind` 同名（trim 后不分大小写）且已确认时这一步回一条 observation
+   * 把它挡回去 —— ⛔ 不吐 confirm 帧、⛔ 也不停流。
+   */
+  it('⭐ 同名已确认卡已在手时 propose 回一条 observation，⛔ 不再吐 confirm 帧', async () => {
+    mockListContextCards.mockResolvedValue([CARD])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+          title: 'offer to remember her',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
+            kind: 'character',
+            // ⚠ 大小写与空格都不该让同一张卡算两张。
+            name: '  sigrika ',
+            summary: 'Silver hair, gold eyes.',
+            body: '## Appearance\nSilver hair.',
+          },
+        },
+      },
+      { finished: true },
+    )
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.confirm),
+    ).toBe(false)
+    const step = stepsOf(events).at(-1)!
+    expect(step.tool).toBe(ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard)
+    expect(step.result).toEqual({ offered: false })
+    // ⛔ 这一轮不停在确认卡上：模型接着办用户当前那句话。
+    expect(events.at(-1)?.type).not.toBe(ASSISTANT_OPERATOR_EVENTS.stopped)
+  })
+
   /** ⚠ `ask` 不写 `action` 照旧是「问一道题」——两形不能互相踩。 */
   it('ask 不带 action 时仍然是问题卡那一帧', async () => {
     queueTurns({

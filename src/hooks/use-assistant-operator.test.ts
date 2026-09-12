@@ -942,6 +942,101 @@ describe('上下文卡提议（v2 §8.1）', () => {
     expect(store.getOperatorState().confirm?.status).toBe('cancelled')
   })
 
+  /**
+   * ⭐ **卡上那一下也是用户说过的话**（2026-09-12 真机 bug）。
+   *
+   * 从前那两下只落一行 UI 系统行（「不用」那一支连行都不落），而那一行不进
+   * `messages` —— 模型看到的是一条从未被回应的「记一下」，于是之后每问一句别的，
+   * 它一开流就重提同一张卡，正事一件不办。
+   */
+  it('⭐ 「存这张卡」折成一条自带题面的 user 消息（下一轮还在）', async () => {
+    const result = await propose()
+
+    await act(async () => {
+      await result.current.saveContextCard()
+    })
+
+    const decision = {
+      questionId: 'contextCard:character:西格莉卡',
+      optionIds: ['save'],
+      question: '提议记住上下文卡「西格莉卡」',
+      optionLabels: ['存这张卡'],
+    }
+    // ⭐ 渲染那一侧不变：它仍然是一行系统行。
+    expect(
+      store
+        .getOperatorState()
+        .entries.find(
+          (entry) =>
+            entry.kind === 'system' && entry.code === 'contextCardSaved',
+        ),
+    ).toMatchObject({
+      subject: '西格莉卡',
+      userText: '已选择「存这张卡」（针对提议记住上下文卡「西格莉卡」）',
+      answered: decision,
+    })
+
+    act(() => {
+      result.current.send('查一下新海诚式黄昏光怎么描述')
+    })
+    await settle()
+    const messages: AssistantOperatorMessage[] =
+      streamAssistantOperatorAPI.mock.calls[1]?.[0].messages ?? []
+    expect(
+      messages.find(
+        (message) =>
+          message.content ===
+          '已选择「存这张卡」（针对提议记住上下文卡「西格莉卡」）',
+      ),
+    ).toEqual({
+      role: 'user',
+      content: '已选择「存这张卡」（针对提议记住上下文卡「西格莉卡」）',
+      answered: decision,
+    })
+  })
+
+  /** ⛔ 「不用」也要落账：「回绝过」与「还没看见」对模型是两件完全不同的事。 */
+  it('⭐ 「不用」落一行系统行，并折成一条 user 消息', async () => {
+    const result = await propose()
+
+    await act(async () => {
+      await result.current.dismissContextCard()
+    })
+
+    expect(
+      store
+        .getOperatorState()
+        .entries.find(
+          (entry) =>
+            entry.kind === 'system' && entry.code === 'contextCardDeclined',
+        ),
+    ).toMatchObject({
+      subject: '西格莉卡',
+      userText: '已选择「不用」（针对提议记住上下文卡「西格莉卡」）',
+      answered: {
+        questionId: 'contextCard:character:西格莉卡',
+        optionIds: ['decline'],
+        question: '提议记住上下文卡「西格莉卡」',
+        optionLabels: ['不用'],
+      },
+    })
+
+    act(() => {
+      result.current.send('查一下新海诚式黄昏光怎么描述')
+    })
+    await settle()
+    const messages: AssistantOperatorMessage[] =
+      streamAssistantOperatorAPI.mock.calls[1]?.[0].messages ?? []
+    expect(
+      messages.some(
+        (message) =>
+          message.role === 'user' &&
+          message.content ===
+            '已选择「不用」（针对提议记住上下文卡「西格莉卡」）',
+      ),
+    ).toBe(true)
+  })
+
   /** ⭐ 写 proposed 失败不该让用户存不下：那一跳只决定走翻面还是走新建。 */
   it('写 proposed 失败时卡照旧可存 —— 回落成 create confirmed', async () => {
     createContextCardAPI.mockResolvedValueOnce({
@@ -1411,6 +1506,38 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
         message.content.includes('已选择「半身」（针对问题「取多少身？」）'),
       ),
     ).toBe(true)
+  })
+
+  /**
+   * ⭐ **空助手行不进对话**（2026-09-12 真机 bug）。
+   *
+   * 出错 / 被打断的那一轮会在时间线上留一条正文为空的助手行。它进了 `messages`
+   * 之后模型读到的是「上一轮我已经答过了」—— 于是用户那句还没被回应的话被当成
+   * 翻过篇的（真机抓到的请求体尾部正是一条 `assistant: ""`）。
+   */
+  it('⭐ 正文为空的助手行不进下一轮 messages', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('记一下：男主角固定穿藏青水手服')
+    })
+    await settle()
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.message, text: '' })
+    await settle()
+    streams[0].close()
+    await settle()
+
+    act(() => {
+      result.current.send('查一下新海诚式黄昏光怎么描述')
+    })
+    await settle()
+    const messages: AssistantOperatorMessage[] =
+      streamAssistantOperatorAPI.mock.calls[1]?.[0].messages ?? []
+    expect(
+      messages.some(
+        (message) =>
+          message.role === 'assistant' && message.content.trim() === '',
+      ),
+    ).toBe(false)
   })
 
   /**

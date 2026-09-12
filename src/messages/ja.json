@@ -7604,6 +7604,7 @@
       "checkpointRestored": "選択したステップの設定を復元しました。以後は現在のフォームに従って操作してください。",
       "questionAnswered": "選んだのは：{subject}",
       "contextCardSaved": "コンテキストカードを保存しました：{subject}",
+      "contextCardDeclined": "コンテキストカードは保存しませんでした：{subject}",
       "contextCardSaveFailed": "「{subject}」を保存できませんでした —— もう一度試しますか？"
     },
     "suggestion": {

@@ -2665,3 +2665,37 @@ export const OPERATOR_OVERWRITE_ANSWER_ID_PREFIX = 'overwrite:'
 export function overwriteAnswerId(field: string): string {
   return `${OPERATOR_OVERWRITE_ANSWER_ID_PREFIX}${field}`
 }
+
+/**
+ * 上下文卡确认卡那两下（「存这张卡」/「不用」）在**对话里**的合成 id
+ * （§3.4 落账规则，2026-09-12 真机 bug）。
+ *
+ * ⭐ 判据与 `overwriteAnswerId` 逐字同源：那一下落的是一行系统行，而服务端零
+ * 会话态 —— 不给它一个自带身份的 id，下一轮就没人说得出「这张卡用户已经表过
+ * 态了」，于是模型每开一条流都重提同一张卡（真机：用户问别的事，回回先被
+ * 拦一张「记住这张卡？」）。
+ * ⚠ 名字 `trim` 后按小写入 id：同一张卡在两轮里大小写不同不该算两次表态。
+ */
+export const OPERATOR_CONTEXT_CARD_ANSWER_ID_PREFIX = 'contextCard:'
+
+export function contextCardAnswerId(kind: string, name: string): string {
+  return `${OPERATOR_CONTEXT_CARD_ANSWER_ID_PREFIX}${kind}:${name
+    .trim()
+    .toLowerCase()}`
+}
+
+/**
+ * 那两下的**选项文案**（给模型与库看的那一份）。
+ *
+ * ⚠ 界面上那两颗键照旧走词表（`StudioOperator.confirm.contextCard.*`）：这里
+ * 这一份要进对话与库，⛔ 不能随用户的界面语言变形。
+ */
+export const OPERATOR_CONTEXT_CARD_CHOICE_IDS = {
+  save: 'save',
+  decline: 'decline',
+} as const
+
+export const OPERATOR_CONTEXT_CARD_CHOICE_LABELS = {
+  save: '存这张卡',
+  decline: '不用',
+} as const

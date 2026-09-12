@@ -7604,6 +7604,7 @@
       "checkpointRestored": "已恢复到所选步骤的配置，后续操作以当前表单为准。",
       "questionAnswered": "你选了：{subject}",
       "contextCardSaved": "已存上下文卡：{subject}",
+      "contextCardDeclined": "没记这张上下文卡：{subject}",
       "contextCardSaveFailed": "没能存下「{subject}」—— 再试一次？"
     },
     "suggestion": {

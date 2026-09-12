@@ -307,6 +307,34 @@ export function describeQuestionAnswerText(
 }
 
 /**
+ * 上下文卡确认卡上那一下的**题面**（§3.4 落账规则，2026-09-12 真机 bug）。
+ *
+ * ⭐ 卡名写在句子里：这句话要去的地方是三轮之后的一段对话，那里没有那张确认卡，
+ * 只有这一句 —— 「用户对哪张卡表过态」必须自包含。
+ */
+export function describeContextCardProposalText(cardName: string): string {
+  return `提议记住上下文卡「${cardName.trim()}」`
+}
+
+/**
+ * 「存这张卡」/「不用」那一行的**自包含正文**。
+ *
+ * ⭐ 判据与 `describeQuestionAnswerText` 逐字同源：从前那一下只落一行「已存上下
+ * 文卡 X」，那一行不进 `messages` —— 于是模型看到的是一条从未被回应的「记一下」，
+ * 每开一条流就重提同一张卡（真机：用户问别的事，回回先被拦一张「记住这张卡？」）。
+ */
+export function describeContextCardDecisionText(
+  cardName: string,
+  label: string,
+): string {
+  const named = cardName.trim()
+  const picked = label.trim()
+  return named
+    ? `已选择「${picked}」（针对${describeContextCardProposalText(named)}）`
+    : `已选择「${picked}」`
+}
+
+/**
  * 这条地址进得了库吗 —— **只有 http(s)**。
  *
  * ⛔ `data:` 与 `blob:` 一律挡掉：前者是 base64 本体（schema 注释明令 messages

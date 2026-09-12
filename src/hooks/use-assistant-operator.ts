@@ -48,7 +48,10 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_WRITE_MODES,
   GENERATION_REVIEW_STATE_IDS,
+  contextCardAnswerId,
   isAssistantOperatorToolInDomain,
+  OPERATOR_CONTEXT_CARD_CHOICE_IDS,
+  OPERATOR_CONTEXT_CARD_CHOICE_LABELS,
   overwriteAnswerId,
   type AssistantOperatorConfirmChoice,
   type AssistantOperatorConfirmField,
@@ -110,6 +113,8 @@ import {
   describeOperatorInverse,
 } from '@/lib/studio-operator-apply'
 import {
+  describeContextCardDecisionText,
+  describeContextCardProposalText,
   describeQuestionAnswerText,
   historyToOperatorMessages,
   historyToPriorSteps,
@@ -197,6 +202,13 @@ function buildMessages(
           : ''
       messages.push({ role: 'user', content: `${entry.text}${attachmentNote}` })
     } else if (entry.kind === 'message') {
+      /**
+       * ⚠ **空助手行不进对话**（2026-09-12 真机 bug）：出错 / 被打断的那一轮会
+       * 在时间线上留一条正文为空的助手行，而它进了 `messages` 之后模型读到的是
+       * 「上一轮我已经答过了」—— 于是它把用户那句还没被回应的话当成翻过篇的。
+       * ⛔ 渲染那一侧不动：那一行归它自己判要不要画。
+       */
+      if (!entry.text.trim()) continue
       messages.push({ role: 'assistant', content: entry.text })
     } else if (entry.kind === 'system' && entry.userText) {
       /**
@@ -420,6 +432,29 @@ function resolveVideoCritiqueSource(
       (attachment) => attachment.kind === 'video',
     )?.url ?? null
   )
+}
+
+/**
+ * 上下文卡那一下的**落账两件套**（§3.4 落账规则，2026-09-12 真机 bug）。
+ *
+ * ⭐ 一条自带题面的正文 + 同一件事的结构化那一半 —— 判据与问题卡答复逐字同源：
+ * 少了它们，「用户对这张卡表过态」这件事在下一轮的请求里一个字都不剩，模型于是
+ * 每开一条流就重提同一张卡，用户当前那句话一件事都办不成。
+ */
+function contextCardDecision(
+  card: { kind: string; name: string },
+  choice: keyof typeof OPERATOR_CONTEXT_CARD_CHOICE_LABELS,
+): { userText: string; answered: AssistantOperatorPlanAnswer } {
+  const label = OPERATOR_CONTEXT_CARD_CHOICE_LABELS[choice]
+  return {
+    userText: describeContextCardDecisionText(card.name, label),
+    answered: {
+      questionId: contextCardAnswerId(card.kind, card.name),
+      optionIds: [choice],
+      question: describeContextCardProposalText(card.name),
+      optionLabels: [label],
+    },
+  }
 }
 
 /**
@@ -1812,6 +1847,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       id: nextOperatorEntryId('sys'),
       code: 'contextCardSaved',
       subject: result.data.name,
+      ...contextCardDecision(
+        { kind: confirm.card.kind, name: result.data.name },
+        OPERATOR_CONTEXT_CARD_CHOICE_IDS.save,
+      ),
     })
   }, [])
 
@@ -1832,6 +1871,21 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     }
     resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
     setOperatorStatus('idle')
+    /**
+     * ⚠ 这一行**落账而不是静默**（2026-09-12 真机 bug）：从前的判据是「什么都
+     * 没发生，不必记一笔」，但对模型而言「用户回绝过」与「用户还没看见」是两件
+     * 完全不同的事 —— 不说出口，它下一轮照旧提同一张卡。
+     */
+    appendOperatorEntry({
+      kind: 'system',
+      id: nextOperatorEntryId('sys'),
+      code: 'contextCardDeclined',
+      subject: confirm.card.name,
+      ...contextCardDecision(
+        confirm.card,
+        OPERATOR_CONTEXT_CARD_CHOICE_IDS.decline,
+      ),
+    })
     if (confirm.cardId) await deleteContextCardAPI(confirm.cardId)
   }, [])
 

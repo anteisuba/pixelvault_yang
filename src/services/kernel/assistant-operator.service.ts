@@ -371,6 +371,7 @@ import type { ContextCardKindId } from '@/constants/context-cards'
 import {
   CONTEXT_CARD_KIND_IDS as CARD_KIND,
   CONTEXT_CARD_LIMITS as CARD_LIMITS,
+  CONTEXT_CARD_STATUS_IDS,
 } from '@/constants/context-cards'
 import type { AssistantAssetFolderCandidate } from '@/types/asset-folder-vision'
 import type { LoraCandidate } from '@/types/lora-candidate'
@@ -5076,12 +5077,37 @@ function planListContextCards(
  * `/api/context-cards` 完成 —— 那条路上带着用户自己的 Clerk 会话。
  * ⛔ 别在这里「顺手」写一行 `status: proposed`：助手能往用户的长期记忆里写字
  * 而不经过人，正是 §8.1 那条 ⛔ 说的后门。
- * ⚠ 也不去查重：查重要先读一遍卡表，而这一步连读都不必 —— 同一张卡提议两次的
- * 代价是用户多点一次「不用」，⛔ 不值得为它再花一次库往返。
+ * ⚠ ⛔ 不为查重**另花一次库往返**：判据只读**本轮索引里已经在手的那几张**
+ * （系统提示带上来的常挂卡 + 这一轮 `list_context_cards` / `read_context_card`
+ * 读回来的），⛔ 不额外读一遍卡表。
+ * ⚠ 但**已经存过的那张不再提议**（2026-09-12 真机 bug）：用户说「记一下：以后
+ * 这个男主角固定穿…」→ 存下 → 之后每问一句别的，模型一开流又提同一张卡，正事
+ * 一件不办。同 `kind` 同名（trim 后不分大小写）且**已确认**时回一条 observation
+ * 把它挡回去，⛔ 不吐 confirm 帧、⛔ 也不停流。
  */
 function planProposeContextCard(
+  run: OperatorRun,
   card: AssistantOperatorContextCardDraft,
 ): ToolPlan {
+  const wanted = card.name.trim().toLowerCase()
+  const existing = [...run.contextCardIndex.values()].find(
+    (candidate) =>
+      candidate.kind === card.kind &&
+      candidate.status === CONTEXT_CARD_STATUS_IDS.confirmed &&
+      candidate.name.trim().toLowerCase() === wanted,
+  )
+  if (existing) {
+    return {
+      kind: 'read',
+      // ⚠ 载荷仍是那份草稿：这条工具的 step 契约只认它（`readStep` 那一格）。
+      payload: card,
+      run: async () => ({
+        // ⚠ `offered: false` = 这一下**没有**变成一张确认卡摆到用户面前。
+        result: { offered: false },
+        observation: `propose_context_card did NOT ask again: the creator already keeps a confirmed ${existing.kind} card named "${existing.name}" (id=${existing.id}). Do not propose it again in this conversation. Read it with read_context_card if you need its contents, and get on with what the creator just asked for.`,
+      }),
+    }
+  }
   return { kind: 'confirmContextCard', card }
 }
 
@@ -5416,6 +5442,7 @@ async function planTool(
       return planReadContextCard(run, parsed.data as { cardId: string }, userId)
     case TOOL.proposeContextCard:
       return planProposeContextCard(
+        run,
         parsed.data as AssistantOperatorContextCardDraft,
       )
     case TOOL.setReviewState:
@@ -7642,6 +7669,8 @@ export async function* runAssistantOperator(
         const roundSummary = await closeRoundBeforeStop(run, {
           clerkId,
           userId: user.id,
+          // 这一轮唯一的待办就是它：卡存不存在用户手上（§8.1）。
+          todo: `等你决定要不要记住上下文卡「${plan.card.name}」`,
         })
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,

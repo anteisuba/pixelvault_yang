@@ -94,6 +94,20 @@ function clampLabel(value: string): string {
   return value.length > max ? `${value.slice(0, Math.max(0, max - 1))}…` : value
 }
 
+/**
+ * 空白 = 没有（⛔ 不是「有一个空的」）。`max` 给了就顺手截断。
+ *
+ * ⚠ 空串与 `null` 在这一格上必须是同一档：schema 那边拒空串，而库记录里
+ * `triggerWord` 是个可以为空串的 `string` —— 归一放在这里，⛔ 不摊给每个调用点。
+ */
+function emptyToNull(value: string | null, max?: number): string | null {
+  const trimmed = value?.trim() ?? ''
+  if (!trimmed) return null
+  return max !== undefined && trimmed.length > max
+    ? trimmed.slice(0, max)
+    : trimmed
+}
+
 function buildReferencesNode(
   references: StudioOperatorSnapshotReferences,
 ): AssistantOperatorSnapshot['references'] {
@@ -446,7 +460,7 @@ export interface LoraOperatorSnapshotInput {
   availableBases: readonly { id: string; label: string }[]
   /** 当前底模的家族（`sdxl` / `anima-dit` / `flux`…）。 */
   baseFamily: string | null
-  /** 装配台上挂着的那些（含启停与兼容判定）。 */
+  /** 装配台上挂着的那些（含启停、兼容判定、触发词与推荐提示词）。 */
   loras: readonly {
     id: string
     name: string
@@ -454,6 +468,12 @@ export interface LoraOperatorSnapshotInput {
     enabled: boolean
     family: string | null
     compatible: boolean
+    /** 触发词。空白与 `null` 同义，这里统一归一成 `null`。 */
+    triggerWord: string | null
+    /** 触发词 chip 的开关现值 —— 由宿主传进来，⛔ 不在这里重算。 */
+    triggerEnabled: boolean
+    /** 作者推荐提示词；超长在这里 clamp。 */
+    recommendedPrompt: string | null
   }[]
   references: StudioOperatorSnapshotReferences
   /** 权重值域 —— 与 `[[lora]]` 推荐块共用那一对数，⛔ 别在调用处抄一份。 */
@@ -510,6 +530,12 @@ export function buildLoraOperatorSnapshot({
           enabled: item.enabled,
           family: item.family,
           compatible: item.compatible,
+          triggerWord: emptyToNull(item.triggerWord),
+          triggerEnabled: item.triggerEnabled,
+          recommendedPrompt: emptyToNull(
+            item.recommendedPrompt,
+            ASSISTANT_OPERATOR_LIMITS.maxPromptChars,
+          ),
         })),
       baseFamily,
       minWeight,

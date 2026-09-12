@@ -435,6 +435,28 @@ export const AssistantOperatorSnapshotLoraSchema = z.object({
    * `constants/lora-base-models.ts` 里是**精确相等**而不是 includes）。
    */
   compatible: z.boolean(),
+  /**
+   * 库记录上的触发词。`null` = 这把没有触发词。
+   *
+   * ⛔ **不是空串**：空串会被读成「有一个空的触发词」，于是状态块里印出一对空引号，
+   * 而模型会以为要把它写进正文。构造快照的人负责把空白归一成 `null`。
+   */
+  triggerWord: z.string().trim().min(1).max(LIMITS.maxLabelChars).nullable(),
+  /**
+   * 那枚触发词 chip 现在是**开**还是**关**（装配台上用户点得动它）。
+   *
+   * ⚠ 无触发词时恒 `true`（没有 chip 可关），语义上不参与判断。
+   * ⚠ 真值只在 `LoraWorkbench` 的 `disabledTriggerIds` 手里，沿宿主入参传下来 ——
+   * ⛔ 谁都不许照着挂载栈再算一份：用户点 chip 时只会更新其中一份。
+   */
+  triggerEnabled: z.boolean(),
+  /** 作者推荐提示词（`LoraAssetRecord.recommendedPrompt`）。`null` = 没有。 */
+  recommendedPrompt: z
+    .string()
+    .trim()
+    .min(1)
+    .max(LIMITS.maxPromptChars)
+    .nullable(),
 })
 
 /**

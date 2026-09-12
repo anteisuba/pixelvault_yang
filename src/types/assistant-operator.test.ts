@@ -1326,6 +1326,77 @@ describe('请求与快照契约', () => {
     }
   })
 
+  it('挂载的三格必填：触发词 null 认、空串不认', () => {
+    const mount = {
+      id: 'lora-1',
+      name: 'Ink Lines',
+      weight: 0.8,
+      enabled: true,
+      family: 'illustrious',
+      compatible: true,
+      triggerWord: null,
+      triggerEnabled: true,
+      recommendedPrompt: null,
+    }
+    const loras = {
+      items: [mount],
+      baseFamily: 'illustrious',
+      minWeight: 0.1,
+      maxWeight: 2,
+    }
+    expect(
+      AssistantOperatorSnapshotSchema.safeParse({ ...SNAPSHOT, loras }).success,
+    ).toBe(true)
+    // ⛔ 空串 = 「有一个空的触发词」，与 null 不是一回事。
+    expect(
+      AssistantOperatorSnapshotSchema.safeParse({
+        ...SNAPSHOT,
+        loras: { ...loras, items: [{ ...mount, triggerWord: '' }] },
+      }).success,
+    ).toBe(false)
+    for (const missing of [
+      'triggerWord',
+      'triggerEnabled',
+      'recommendedPrompt',
+    ] as const) {
+      const partial: Record<string, unknown> = { ...mount }
+      delete partial[missing]
+      expect(
+        AssistantOperatorSnapshotSchema.safeParse({
+          ...SNAPSHOT,
+          loras: { ...loras, items: [partial] },
+        }).success,
+      ).toBe(false)
+    }
+  })
+
+  it('推荐提示词有长度上限（超了整条快照就不该过）', () => {
+    const mount = {
+      id: 'lora-1',
+      name: 'Ink Lines',
+      weight: 0.8,
+      enabled: true,
+      family: 'illustrious',
+      compatible: true,
+      triggerWord: 'ink lines',
+      triggerEnabled: false,
+      recommendedPrompt: 'a'.repeat(
+        ASSISTANT_OPERATOR_LIMITS.maxPromptChars + 1,
+      ),
+    }
+    expect(
+      AssistantOperatorSnapshotSchema.safeParse({
+        ...SNAPSHOT,
+        loras: {
+          items: [mount],
+          baseFamily: 'illustrious',
+          minWeight: 0.1,
+          maxWeight: 2,
+        },
+      }).success,
+    ).toBe(false)
+  })
+
   it('canvas 不在 P1 的域里', () => {
     expect(
       AssistantOperatorRequestSchema.safeParse({

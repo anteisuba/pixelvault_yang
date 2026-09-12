@@ -1685,6 +1685,24 @@ function GenerateBranch({
     () => toLoraOperatorResults(resultHistory),
     [resultHistory],
   )
+  /**
+   * 挂载栈 → 宿主入参：逐条带上**那枚触发词 chip 现在开着没有**（§3.1）。
+   *
+   * ⭐ `disabledTriggerIds` 是这件事的唯一真相，只有这里够得着 —— 所以它沿入参
+   * 走一遍，⛔ 不让 hook 或快照照着挂载栈再算一份。
+   */
+  const operatorStack = useMemo(
+    () => ({
+      items: stack.items.map((item) => ({
+        ...item,
+        triggerEnabled: !disabledTriggerIds.has(item.asset.id),
+      })),
+      push: stack.push,
+      setScale: stack.setScale,
+      remove: stack.remove,
+    }),
+    [stack.items, stack.push, stack.setScale, stack.remove, disabledTriggerIds],
+  )
   const operatorHost = useLoraOperatorHost({
     prompt,
     setPrompt,
@@ -1700,7 +1718,7 @@ function GenerateBranch({
       : null,
     availableBases: operatorBases,
     selectBase: handleSelectBase,
-    stack,
+    stack: operatorStack,
     imageUpload,
     results: operatorResults,
     open: assistantOpen,

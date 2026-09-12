@@ -38,6 +38,7 @@ vi.mock('@/constants/provider-capabilities', () => ({
   getCapabilityConfig: (...args: unknown[]) => mockGetCapabilityConfig(...args),
 }))
 
+import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import {
@@ -406,6 +407,9 @@ describe('buildLoraOperatorSnapshot（P4-C）', () => {
         enabled: true,
         family: 'illustrious',
         compatible: true,
+        triggerWord: 'ink lines',
+        triggerEnabled: true,
+        recommendedPrompt: 'ink lines, rainy street',
       },
     ],
     references: { items: [{ url: 'https://cdn.example.com/a.png' }], limit: 2 },
@@ -438,6 +442,9 @@ describe('buildLoraOperatorSnapshot（P4-C）', () => {
           enabled: true,
           family: 'illustrious',
           compatible: true,
+          triggerWord: 'ink lines',
+          triggerEnabled: true,
+          recommendedPrompt: 'ink lines, rainy street',
         },
       ],
       baseFamily: 'illustrious',
@@ -458,6 +465,56 @@ describe('buildLoraOperatorSnapshot（P4-C）', () => {
     const snapshot = buildLoraOperatorSnapshot({ ...BASE_INPUT, base: null })
     expect(snapshot.model).toBeNull()
     expect('model' in snapshot).toBe(true)
+  })
+
+  /**
+   * ⚠ 空串与 `null` 必须落在同一档：库记录上的 `triggerWord` 是个可以为空串的
+   * `string`，原样带上去会被状态块印成一对空引号，而模型会照着往正文里写。
+   */
+  it('触发词空白归一成 null，⛔ 不把空串当「有一个空的触发词」', () => {
+    const snapshot = buildLoraOperatorSnapshot({
+      ...BASE_INPUT,
+      loras: [
+        { ...BASE_INPUT.loras[0], triggerWord: '' },
+        {
+          ...BASE_INPUT.loras[0],
+          id: 'lora-2',
+          triggerWord: '   ',
+          recommendedPrompt: '',
+        },
+        { ...BASE_INPUT.loras[0], id: 'lora-3', triggerWord: ' ink lines ' },
+      ],
+    })
+    expect(
+      snapshot.loras?.items.map((item) => [
+        item.triggerWord,
+        item.recommendedPrompt,
+      ]),
+    ).toEqual([
+      [null, 'ink lines, rainy street'],
+      [null, null],
+      ['ink lines', 'ink lines, rainy street'],
+    ])
+  })
+
+  /** chip 的开关**从入参照抄**，⛔ 不在这里按有没有触发词重算。 */
+  it('触发词 chip 关着时 triggerEnabled 是 false', () => {
+    const snapshot = buildLoraOperatorSnapshot({
+      ...BASE_INPUT,
+      loras: [{ ...BASE_INPUT.loras[0], triggerEnabled: false }],
+    })
+    expect(snapshot.loras?.items[0]?.triggerEnabled).toBe(false)
+  })
+
+  it('推荐提示词按 maxPromptChars 截断（⛔ 不让整条快照因为一把 LoRA 落不了库）', () => {
+    const max = ASSISTANT_OPERATOR_LIMITS.maxPromptChars
+    const snapshot = buildLoraOperatorSnapshot({
+      ...BASE_INPUT,
+      loras: [
+        { ...BASE_INPUT.loras[0], recommendedPrompt: 'a'.repeat(max + 20) },
+      ],
+    })
+    expect(snapshot.loras?.items[0]?.recommendedPrompt).toHaveLength(max)
   })
 
   it('挂载栈是空的时候给空数组，⛔ 不是整节缺席（那是「没有挂载栈」）', () => {

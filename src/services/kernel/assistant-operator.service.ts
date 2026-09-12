@@ -5836,6 +5836,17 @@ function loraMountedIdsHint(
     .join(' | ')}.`
 }
 
+/**
+ * `plan_lora_pick` 被 `malformedArgs` 拒时，钉一句 `groups` 的形状（2026-09-12
+ * 真机：首发常漏 `candidateIds`，报的是 `groups.0.candidateIds: expected array`）。
+ * 判据与 `loraMountedIdsHint` 同源：一句 issue 原文不可教，模型只会换个值再撞
+ * 一次，得点名缺的是哪一格。
+ */
+function loraPickGroupsHint(tool: AssistantOperatorTool): string {
+  if (tool !== TOOL.planLoraPick) return ''
+  return ' Each entry in "groups" must carry a "candidateIds" array with at least one id from this turn\'s search_loras.'
+}
+
 async function planTool(
   run: OperatorRun,
   tool: AssistantOperatorTool,
@@ -5882,9 +5893,10 @@ async function planTool(
       .map((issue) => `${issue.path.join('.') || 'root'}: ${issue.message}`)
       .join('; ')
     const mounted = loraMountedIdsHint(run, tool)
+    const groupsHint = loraPickGroupsHint(tool)
     return reject(
       REJECT.malformedArgs,
-      `${shape ? `${shape} (${issues})` : issues}${mounted}`,
+      `${shape ? `${shape} (${issues})` : issues}${mounted}${groupsHint}`,
     )
   }
 

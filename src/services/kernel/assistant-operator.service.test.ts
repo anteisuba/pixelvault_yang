@@ -4403,6 +4403,50 @@ describe('LoRA 装配台域（P4-C）', () => {
     ).toHaveLength(0)
   })
 
+  /**
+   * `plan_lora_pick` 首发漏 `groups[].candidateIds`（2026-09-12 真机：
+   * `malformedArgs: groups.0.candidateIds expected array`）—— 观察里得点名
+   * 缺的是哪一格，⛔ 一句 issue 原文不可教。
+   */
+  it('plan_lora_pick 漏 groups[].candidateIds 时，观察里点名缺的是哪一格', async () => {
+    mockSearchLoraCandidates.mockResolvedValue({
+      query: 'watercolor',
+      candidates: [loraCandidate()],
+      sources: [{ source: 'civitai', status: 'ok', count: 1, tookMs: 3 }],
+    })
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
+          title: 'find',
+          args: { query: 'watercolor' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask,
+          title: 'offer',
+          args: {
+            action: ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
+            question: '挂哪把？',
+            groups: [{ title: '画风' }],
+          },
+        },
+      },
+      { finished: true },
+    )
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildLoraRequest())),
+    )
+    const malformed = steps.find(
+      (step) =>
+        (step as { error?: { reason: string } }).error?.reason ===
+        ASSISTANT_OPERATOR_REJECT_REASON_IDS.malformedArgs,
+    )
+    const detail = (malformed as { error: { detail: string } }).error.detail
+    expect(detail).toContain('candidateIds')
+  })
+
   it('推荐卡引用本轮没搜到的 candidateId 按 unknownLora 拒，⛔ 不出卡', async () => {
     mockSearchLoraCandidates.mockResolvedValue({
       query: 'watercolor',

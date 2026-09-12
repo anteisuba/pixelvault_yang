@@ -22,7 +22,6 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_OPERATOR_TOOLS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
-  ASSISTANT_PLAN_CARD_LIMITS as PLAN_LIMITS,
   type AssistantOperatorDomain,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
@@ -357,20 +356,35 @@ export function describeLoraPickProposalText(question: string): string {
  *
  * ⚠ 权重印在名字后面：同一把挂 0.4 与挂 1.2 是两个决定，只写名字的话模型下一轮
  *   说不出创作者定的是哪个数。
- * ⚠ 超过协议那格上限（`maxOptionLabelChars`）时收成「已选 N 把」：⛔ 不截断名字
- *   —— 半个名字比一个数目更没用，而完整名单在正文（`userText`）里一个字不少。
+ * ⚠ 单把名字超过 `LORA_PICK_LABEL_MAX_NAME_CHARS` 就截到那个上限再加「…」：⛔
+ *   不整句收成「已选 N 把」—— 真机 2026-09-12：单把长名字曾经把这一句话直接吞成
+ *   「已选 1 把」，选了哪把、挂了多重全部消失。
+ * ⚠ 最多列 `LORA_PICK_LABEL_MAX_NAMES` 把，再多的收成一段「等 N 把」缀在后面 ——
+ *   逐把列全在多选场景下会把这句话拖成一整段读不完的话。
  */
+const LORA_PICK_LABEL_MAX_NAMES = 3
+const LORA_PICK_LABEL_MAX_NAME_CHARS = 24
+
+function truncateLoraPickName(name: string): string {
+  const trimmed = name.trim()
+  return trimmed.length <= LORA_PICK_LABEL_MAX_NAME_CHARS
+    ? trimmed
+    : `${trimmed.slice(0, LORA_PICK_LABEL_MAX_NAME_CHARS)}…`
+}
+
 export function describeLoraPickSelectionLabel(
   picks: readonly { name: string; weight: number }[],
 ): string {
-  const label = picks
+  const shown = picks
+    .slice(0, LORA_PICK_LABEL_MAX_NAMES)
     .map(
-      (pick) => `${pick.name.trim()} ×${Math.round(pick.weight * 100) / 100}`,
+      (pick) =>
+        `${truncateLoraPickName(pick.name)} ×${Math.round(pick.weight * 100) / 100}`,
     )
-    .join('、')
-  return label.length <= PLAN_LIMITS.maxOptionLabelChars
-    ? label
-    : `已选 ${picks.length} 把`
+  const remaining = picks.length - shown.length
+  return remaining > 0
+    ? [...shown, `等${remaining}把`].join('、')
+    : shown.join('、')
 }
 
 /**

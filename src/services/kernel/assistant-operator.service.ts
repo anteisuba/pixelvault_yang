@@ -316,8 +316,13 @@ import { ASSISTANT_SURFACE_BY_DOMAIN } from '@/types/assistant-conversation'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import {
   getDefaultBase,
+  normalizeToLoraBaseFamily,
   resolveLoraStackWeightBudget,
 } from '@/constants/lora-base-models'
+import {
+  LORA_PROMPT_DIALECTS,
+  type LoraPromptDialect,
+} from '@/constants/lora-prompt-dialects'
 /**
  * ⭐ **产物提取的三个纯函数**（v2 §7.6：「原样搬到服务端复用，不重写」）。
  *
@@ -477,6 +482,8 @@ interface OperatorWorkingState {
     enabled: boolean
     family: string | null
     compatible: boolean
+    triggerWord: string | null
+    triggerEnabled: boolean
   }[]
   hasLoraControl: boolean
   loraBaseFamily: string | null
@@ -1265,8 +1272,11 @@ function renderState(run: OperatorRun): string {
         '- LoRA stack: this workbench has no LoRA stack — mount_lora / unmount_lora / set_lora_weight will be refused.',
       )
     } else {
+      const dialect = resolveLoraDialect(state.loraBaseFamily)
       lines.push(
-        `- Base model family: ${state.loraBaseFamily ?? '(not resolved — pick a base model first)'}`,
+        `- Base model family: ${
+          state.loraBaseFamily ?? '(not resolved — pick a base model first)'
+        }${dialect ? ` — dialect: ${dialect.fingerprint}` : ''}`,
       )
       lines.push(
         state.loras.length === 0
@@ -1280,6 +1290,12 @@ function renderState(run: OperatorRun): string {
                     item.compatible
                       ? ''
                       : ` [⚠ built for ${item.family ?? 'an unknown base'} — will NOT load on the selected base]`
+                  }${
+                    item.triggerWord
+                      ? ` trigger "${item.triggerWord}"${
+                          item.triggerEnabled ? '' : ' [MUTED chip]'
+                        }`
+                      : ''
                   }`,
               )
               .join(' | ')}`,
@@ -3879,6 +3895,8 @@ function planMountLora(
         enabled: true,
         family: candidate.baseModelFamily,
         compatible,
+        triggerWord: candidate.triggerWords[0] ?? null,
+        triggerEnabled: true,
       })
     },
   }
@@ -5942,6 +5960,51 @@ function buildCreatorSection(
   )
 }
 
+/**
+ * 当前底模家族那一族的方言（§6.3 第 3 条）。
+ *
+ * ⚠ 家族值是快照里的**原始 baseModel 串**，归一走 `normalizeToLoraBaseFamily` ——
+ * ⛔ 别在这里按名字猜（"Anima Pencil XL" 报的是 `SDXL 1.0`，按子串猜必错）。
+ */
+function resolveLoraDialect(
+  rawBaseFamily: string | null,
+): LoraPromptDialect | null {
+  if (!rawBaseFamily) return null
+  const family = normalizeToLoraBaseFamily(rawBaseFamily)
+  return family ? LORA_PROMPT_DIALECTS[family] : null
+}
+
+/**
+ * LoRA 域系统提示里的方言段。
+ *
+ * ⛔ **只注入当前那一族**：六族全倒进上下文的下场是模型在 FLUX 上写 score 前缀
+ * 「因为上面也写着」—— 一段读得到的别族习惯就是一条它会去试的路。
+ * 底模未定时不猜，明说「先别按任何一族的习惯写」。
+ */
+function buildLoraDialectRule(rawBaseFamily: string | null): string {
+  const dialect = resolveLoraDialect(rawBaseFamily)
+  if (!dialect) {
+    return "- PROMPT DIALECT: no base model is settled yet, so do not write in any family's habits yet — settle the base first, then write in that family's dialect."
+  }
+  const lines = [
+    `- PROMPT DIALECT — the base on the bench is ${rawBaseFamily}, and this is the only dialect that applies here:`,
+    `  · a subject prompt reads like: ${dialect.skeleton.subject}`,
+    `  · a style prompt reads like: ${dialect.skeleton.style}`,
+    dialect.weightedParens
+      ? '  · (tag:1.2) parenthesis weighting works on this family.'
+      : '  · (tag:1.2) parenthesis weighting does NOT work on this family — write the word plainly instead.',
+  ]
+  if (dialect.negative.length > 0) {
+    lines.push(
+      `  · the negative staples here are: ${dialect.negative.join(', ')}`,
+    )
+  }
+  for (const rule of dialect.forbidden) {
+    lines.push(`  · never write that here: ${rule.why}`)
+  }
+  return lines.join('\n')
+}
+
 function buildPlanVisualSection(): string {
   return `
 - Each option may carry "visual" — a small picture hint the app draws beside its label.
@@ -6061,7 +6124,14 @@ function buildOperatorSystemPrompt(
       ? `- A mounted LoRA already owns part of the picture — the character's face, hair and body type are decided by it. Help the creator change the layer they are actually changing (outfit, scene, light, pose), and say plainly when a request fights the mounted LoRA.
 - Never recommend a LoRA the creator cannot actually use without saying so in the same sentence. Two things make one unusable and search_loras tells you both: it cannot be filed into the library at all, or it was built for a different base-model architecture and will not load on the base that is selected. "Switch the base model" is a legitimate suggestion; quietly recommending an incompatible one is not.
 - There is NO limit on how many LoRAs can be stacked here. Never tell the creator to remove one to make room, and never imply a maximum.
-- Trigger words matter: they come back with each candidate and land in the prompt when you mount. Keep tag vocabulary in English (danbooru-style) even when you are talking in another language — the tag library is English-normalised.`
+- Trigger words matter: they come back with each candidate and land in the prompt when you mount. Keep tag vocabulary in English (danbooru-style) even when you are talking in another language — the tag library is English-normalised.
+- Trigger words are compiled by their chips (chips → tray tags → the prompt). NEVER write a trigger word into the prompt text yourself — a repeat sends the same word through the compile chain twice.
+- A MUTED chip was muted on purpose: creators mute a style LoRA's trigger when it fights what they are writing. When this turn needs that trigger to land, say so in one line — never turn it back on.
+- You have no tool that toggles a trigger chip, and there will not be one. That switch belongs to the creator's hands.
+- Before you rewrite the prompt, look at the family first: when the current text carries something this family's dialect forbids, put the correction into the SAME confirmation card as the rewrite — never a separate round, never a silent swap, never a verbal note while you write it the old way anyway.`
+      : null,
+    isAssistantOperatorToolInDomain(TOOL.mountLora, request.domain)
+      ? buildLoraDialectRule(request.snapshot.loras?.baseFamily ?? null)
       : null,
   ]
     .filter((rule): rule is string => rule !== null)

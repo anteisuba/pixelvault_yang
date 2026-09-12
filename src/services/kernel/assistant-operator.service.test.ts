@@ -354,6 +354,7 @@ import {
   ASSISTANT_PERSONA_VERBOSITY_IDS,
   ASSISTANT_ROUTE_MODEL_AUTO,
 } from '@/constants/assistant-persona'
+import { LORA_PROMPT_DIALECTS } from '@/constants/lora-prompt-dialects'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { TAG_BASED_GENERATION_PROMPT_RULE } from '@/constants/model-strengths'
 import { ASSISTANT_PLAN_VISUALS } from '@/constants/assistant-plan-visuals'
@@ -10660,5 +10661,133 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
     expect(prompt).toContain('SOURCE LIST THIS CREATOR SET')
     expect(prompt).toContain('only these sources: wiki')
     expect(prompt).toContain('never these: pinterest.com')
+  })
+})
+
+/**
+ * LoRA 域的方言与触发词规矩（spec §3.2 / §3.3 / §6.3 第 3 条）。
+ */
+describe('LoRA 域方言与触发词规矩', () => {
+  function loraSnapshotWithBase(
+    baseFamily: string | null,
+  ): AssistantOperatorRequest['snapshot'] {
+    return {
+      ...LORA_SNAPSHOT,
+      loras: { ...LORA_SNAPSHOT.loras!, baseFamily },
+    }
+  }
+
+  async function promptForBase(baseFamily: string | null): Promise<string> {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({ snapshot: loraSnapshotWithBase(baseFamily) }),
+      ),
+    )
+    return systemPrompt()
+  }
+
+  it('底模是 pony 时注入 pony 方言，⛔ 别族的一个字都不进', async () => {
+    const prompt = await promptForBase('pony')
+
+    expect(prompt).toContain(LORA_PROMPT_DIALECTS.pony.skeleton.subject)
+    expect(prompt).toContain(LORA_PROMPT_DIALECTS.pony.skeleton.style)
+    expect(prompt).not.toContain(LORA_PROMPT_DIALECTS.flux.skeleton.subject)
+    expect(prompt).not.toContain(
+      'score_9 / score_8_up prefixes are a Pony convention and do nothing on FLUX.',
+    )
+  })
+
+  it('底模是 flux 时注入 flux 方言（含它的禁忌），⛔ 不带 pony 骨架', async () => {
+    const prompt = await promptForBase('flux')
+
+    expect(prompt).toContain(LORA_PROMPT_DIALECTS.flux.skeleton.subject)
+    expect(prompt).toContain(
+      'score_9 / score_8_up prefixes are a Pony convention and do nothing on FLUX.',
+    )
+    expect(prompt).toContain('parenthesis weighting does NOT work')
+    expect(prompt).not.toContain(LORA_PROMPT_DIALECTS.pony.skeleton.subject)
+  })
+
+  it('底模未定时不猜任何一族，只说「先别按任何一族的习惯写」', async () => {
+    const prompt = await promptForBase(null)
+
+    expect(prompt).toContain('no base model is settled yet')
+    expect(prompt).not.toContain(LORA_PROMPT_DIALECTS.pony.skeleton.subject)
+    expect(prompt).not.toContain(LORA_PROMPT_DIALECTS.flux.skeleton.subject)
+  })
+
+  it('触发词三句进系统提示（chip 编译 / 关着不自己开 / 没有这个工具）', async () => {
+    const prompt = await promptForBase('illustrious')
+
+    expect(prompt).toContain('NEVER write a trigger word into the prompt text')
+    expect(prompt).toContain('A MUTED chip was muted on purpose')
+    expect(prompt).toContain('no tool that toggles a trigger chip')
+    expect(prompt).toContain(
+      'put the correction into the SAME confirmation card',
+    )
+  })
+
+  async function stateBlockFor(
+    snapshot: AssistantOperatorRequest['snapshot'],
+  ): Promise<string> {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          title: 'look',
+          args: {},
+        },
+      },
+      { finished: true },
+    )
+    await collect(
+      runAssistantOperator('clerk-1', buildLoraRequest({ snapshot })),
+    )
+    return lastUserPrompt()
+  }
+
+  it('状态块印触发词与方言指纹；chip 开着不印 MUTED', async () => {
+    const digest = await stateBlockFor(LORA_SNAPSHOT)
+
+    expect(digest).toContain('trigger "ink lines"')
+    expect(digest).not.toContain('[MUTED chip]')
+    expect(digest).toContain(
+      `dialect: ${LORA_PROMPT_DIALECTS.illustrious.fingerprint}`,
+    )
+  })
+
+  it('chip 关着时印 [MUTED chip]', async () => {
+    const digest = await stateBlockFor({
+      ...LORA_SNAPSHOT,
+      loras: {
+        ...LORA_SNAPSHOT.loras!,
+        items: [{ ...LORA_SNAPSHOT.loras!.items[0], triggerEnabled: false }],
+      },
+    })
+
+    expect(digest).toContain('trigger "ink lines" [MUTED chip]')
+  })
+
+  it('没有触发词时什么都不印（同「无数据不渲染」）', async () => {
+    const digest = await stateBlockFor({
+      ...LORA_SNAPSHOT,
+      loras: {
+        ...LORA_SNAPSHOT.loras!,
+        items: [{ ...LORA_SNAPSHOT.loras!.items[0], triggerWord: null }],
+      },
+    })
+
+    expect(digest).toContain('Ink Lines')
+    expect(digest).not.toContain('trigger "')
+    expect(digest).not.toContain('[MUTED chip]')
+  })
+
+  it('底模未定时状态块不印方言指纹', async () => {
+    const digest = await stateBlockFor(loraSnapshotWithBase(null))
+
+    expect(digest).toContain('Base model family: (not resolved')
+    expect(digest).not.toContain('dialect:')
   })
 })

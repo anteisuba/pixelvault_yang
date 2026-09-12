@@ -10,6 +10,8 @@ import type { LoraBaseFamily } from '@/constants/lora-base-models'
  * `{style}` = the user's own content for that branch.
  */
 export interface LoraPromptDialect {
+  /** One short line naming this family's prompt habits, for the assistant state block. */
+  fingerprint: string
   skeleton: { subject: string; style: string }
   weightedParens: boolean
   /** Tags appended to a source-matched recipe so it keeps the family's look. */
@@ -62,6 +64,7 @@ const SDXL_FORBIDDEN = [
 ] as const
 
 const SDXL_DIALECT: LoraPromptDialect = {
+  fingerprint: 'Danbooru tags, (tag:1.2) weighting, no score prefix',
   skeleton: {
     subject:
       '{trigger}, {subject}, portrait, dynamic pose, soft cinematic lighting, masterpiece, best quality',
@@ -77,6 +80,8 @@ const SDXL_DIALECT: LoraPromptDialect = {
 
 export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
   flux: {
+    fingerprint:
+      'one natural-language sentence, no tag wall, no parenthesis weighting',
     skeleton: {
       subject:
         '{trigger}, a photograph of {subject}, natural pose, soft cinematic lighting, richly detailed',
@@ -105,6 +110,7 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
   sdxl: SDXL_DIALECT,
   illustrious: SDXL_DIALECT,
   pony: {
+    fingerprint: 'Danbooru tags, score prefix required',
     skeleton: {
       subject:
         'score_9, score_8_up, score_7_up, {trigger}, {subject}, portrait, dynamic pose, soft cinematic lighting',
@@ -125,6 +131,7 @@ export const LORA_PROMPT_DIALECTS: Record<LoraBaseFamily, LoraPromptDialect> = {
   },
   anima: SDXL_DIALECT,
   'anima-dit': {
+    fingerprint: 'Danbooru tags, no score prefix, no parenthesis weighting',
     skeleton: {
       subject:
         '{trigger}, {subject}, portrait, dynamic pose, soft cinematic lighting',

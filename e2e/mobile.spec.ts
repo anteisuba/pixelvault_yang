@@ -89,8 +89,10 @@ test.describe('Mobile Responsive', () => {
     })
 
     const pageIndex = page.getByRole('button', { name: 'Page index' })
+    await expect(page.locator('html')).toHaveClass(/home-v4-locked/)
     await expect(pageIndex).toBeVisible()
     await pageIndex.click()
+    await expect(page.locator('.mtoc')).toHaveClass(/\bon\b/)
 
     const loraPage = page
       .locator('.mtoc')

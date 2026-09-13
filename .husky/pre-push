@@ -4,6 +4,6 @@ echo "🔍 Pre-push check: tsc + lint + vitest..."
 
 npx tsc --noEmit || { echo "❌ Type check failed"; exit 1; }
 npm run lint || { echo "❌ Lint failed"; exit 1; }
-npx vitest run --reporter=verbose || { echo "❌ Tests failed"; exit 1; }
+npx vitest run --reporter=verbose --maxWorkers=2 || { echo "❌ Tests failed"; exit 1; }
 
 echo "✅ All checks passed"

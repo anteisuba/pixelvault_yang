@@ -148,7 +148,10 @@ describe('useNodeGenerationReconcileV4', () => {
       error: 'provider said no',
       errorCode: 'X',
     })
-    expect(setMedia).toHaveBeenCalledWith('a', { mediaJobId: undefined })
+    expect(setMedia).toHaveBeenCalledWith('a', {
+      mediaJobId: undefined,
+      generationFailure: { error: 'provider said no', errorCode: 'X' },
+    })
     expect(setRunState).toHaveBeenCalledWith('a', 'failed')
   })
 

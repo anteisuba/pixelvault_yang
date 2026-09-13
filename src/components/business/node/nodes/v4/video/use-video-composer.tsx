@@ -26,6 +26,7 @@ import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { cancelGenerationsAPI, checkVideoStatusAPI } from '@/lib/api-client'
+import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { readOutputIndex, readOutputVersions } from '@/lib/node-output-versions'
 import { readSlotSources } from '@/lib/node-slot-payload'
@@ -84,6 +85,7 @@ export interface VideoComposer extends Omit<
   VideoRailBinding,
   'items' | 'candidatesOf' | 'capacity'
 > {
+  readonly failureMessage: string | undefined
   readonly generating: boolean
   readonly elapsed: number
   readonly draft: string
@@ -121,6 +123,7 @@ export function useVideoComposer({
   candidates,
   mediaOf,
 }: VideoComposerOptions): VideoComposer {
+  const tErrors = useTranslations('Errors')
   const tCancel = useTranslations('GenerationCancel')
   const tVideo = useTranslations('StudioNode.v4.video')
   const tModels = useTranslations('Models')
@@ -145,6 +148,7 @@ export function useVideoComposer({
     if (!jobId || cancellingRef.current) return
     cancellingRef.current = true
     const run = runRef.current
+    let failure: NodeV4VideoData['generationFailure']
     try {
       const response = await cancelGenerationsAPI([jobId])
       if (run !== runRef.current || jobRef.current !== jobId) return
@@ -161,7 +165,13 @@ export function useVideoComposer({
               ? { videoThumbnailUrl: data.generation.thumbnailUrl }
               : {}),
           })
-        } else if (data?.status !== 'FAILED' && data?.status !== 'CANCELLED') {
+        } else if (data?.status === 'FAILED') {
+          failure = {
+            ...(data.error ? { error: data.error } : {}),
+            ...(data.errorCode ? { errorCode: data.errorCode } : {}),
+            ...(data.i18nKey ? { i18nKey: data.i18nKey } : {}),
+          }
+        } else if (data?.status !== 'CANCELLED') {
           throw new Error('cancelFailed')
         }
       } else if (!response.data.cancelled.includes(jobId)) {
@@ -169,7 +179,10 @@ export function useVideoComposer({
       }
       runRef.current += 1
       jobRef.current = undefined
-      canvas.onSetMedia(id, { mediaJobId: undefined })
+      canvas.onSetMedia(id, {
+        mediaJobId: undefined,
+        generationFailure: failure,
+      })
       setStartedAt(null)
     } catch {
       cancelRequestedRef.current = false
@@ -187,6 +200,15 @@ export function useVideoComposer({
   }
 
   const generating = Boolean(videoData.mediaJobId) || startedAt !== null
+  const failureMessage =
+    !generating &&
+    (videoData.generationFailure || videoData.status === 'failed')
+      ? getGenerationErrorMessage(
+          tErrors,
+          videoData.generationFailure ?? {},
+          tErrors('generation.unknown'),
+        )
+      : undefined
 
   useEffect(() => {
     if (!generating) return
@@ -399,8 +421,24 @@ export function useVideoComposer({
           onEach: (result) => {
             if (run !== runRef.current) return
             if (!result.success) {
-              if (!result.pending)
-                canvas.onSetMedia(id, { mediaJobId: undefined })
+              if (!result.pending) {
+                const failure = {
+                  error: result.error,
+                  ...(result.errorCode ? { errorCode: result.errorCode } : {}),
+                  ...(result.i18nKey ? { i18nKey: result.i18nKey } : {}),
+                }
+                canvas.onSetMedia(id, {
+                  mediaJobId: undefined,
+                  generationFailure: failure,
+                })
+                toast.error(
+                  getGenerationErrorMessage(
+                    tErrors,
+                    failure,
+                    tErrors('generation.unknown'),
+                  ),
+                )
+              }
               return
             }
             canvas.onSetMedia(id, {
@@ -414,6 +452,18 @@ export function useVideoComposer({
           },
         },
       )
+      .then((result) => {
+        if (
+          run === runRef.current &&
+          !result.success &&
+          result.error === 'noPlan'
+        ) {
+          canvas.onSetMedia(id, {
+            mediaJobId: undefined,
+            generationFailure: { error: tVideo('frame.pickModel') },
+          })
+        }
+      })
       .finally(() => {
         if (run === runRef.current) setStartedAt(null)
       })
@@ -473,6 +523,7 @@ export function useVideoComposer({
 
   return {
     node,
+    failureMessage,
     generating,
     elapsed,
     draft,

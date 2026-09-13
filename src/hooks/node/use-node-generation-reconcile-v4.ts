@@ -128,15 +128,16 @@ export function useNodeGenerationReconcileV4({
     }
 
     if (data.status === 'FAILED') {
-      // ⚠ 失败也要清 job id：留着的话下一轮 pass 会再查一次同一个死单，而卡上
-      // 的失败态永远退不出来。那句话交给调用方去说，⛔ 不塞进节点数据 ——
-      // v4 节点上没有报错字段，硬加一个就是加一个只有这里写的字段。
-      reportFailureRef.current(node.id, {
+      const failure = {
         ...(data.error ? { error: data.error } : {}),
         ...(data.errorCode ? { errorCode: data.errorCode } : {}),
         ...(data.i18nKey ? { i18nKey: data.i18nKey } : {}),
+      }
+      reportFailureRef.current(node.id, failure)
+      setMediaRef.current(node.id, {
+        mediaJobId: undefined,
+        generationFailure: failure,
       })
-      setMediaRef.current(node.id, { mediaJobId: undefined })
       setRunStateRef.current(node.id, NODE_STATUS_IDS.failed)
     }
     // IN_QUEUE / IN_PROGRESS → 还在跑，留着 pending。

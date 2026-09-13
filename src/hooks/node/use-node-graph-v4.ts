@@ -801,10 +801,31 @@ export function useNodeGraphV4({
           node.id === nodeId && node.data.kind !== NODE_MEDIA_KIND_IDS.text
             ? {
                 ...node,
-                data: applyMediaPatchOutputs(node.data, patch, {
-                  now,
-                  mintId: () => mintId(NODE_V4_OUTPUT_VERSION.idPrefix),
-                }),
+                data: applyMediaPatchOutputs(
+                  {
+                    ...node.data,
+                    ...(patch.mediaJobId || patch.url
+                      ? { generationFailure: undefined }
+                      : {}),
+                    ...(patch.generationFailure
+                      ? { status: 'failed' as const }
+                      : {}),
+                    ...(patch.mediaJobId ? { status: 'running' as const } : {}),
+                    ...(patch.url ? { status: 'done' as const } : {}),
+                    ...('generationFailure' in patch &&
+                    !patch.generationFailure &&
+                    !patch.mediaJobId &&
+                    !patch.url &&
+                    node.data.status !== 'done'
+                      ? { status: 'idle' as const }
+                      : {}),
+                  },
+                  patch,
+                  {
+                    now,
+                    mintId: () => mintId(NODE_V4_OUTPUT_VERSION.idPrefix),
+                  },
+                ),
               }
             : node,
         ),

@@ -29,6 +29,7 @@
 import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
+import { Button } from '@/components/ui/button'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Download,
@@ -163,6 +164,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
    */
   const {
     node,
+    failureMessage,
     generating,
     elapsed,
     draft,
@@ -525,7 +527,25 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           dragging: Boolean(dragSource) && dragSource?.id !== id,
         }}
       >
-        {videoData.url || generating || selfUploading ? (
+        {failureMessage && !videoData.url && !selfUploading ? (
+          <div
+            role="alert"
+            className="flex flex-col items-center justify-center gap-4 overflow-y-auto px-6 py-5 text-center"
+            style={{ height }}
+          >
+            <p className="text-sm leading-relaxed break-words">
+              {t('generateDesk.failed', { reason: failureMessage })}
+            </p>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={!draft.trim()}
+              onClick={submitPrompt}
+            >
+              {tVideo('frame.regenerate')}
+            </Button>
+          </div>
+        ) : videoData.url || generating || selfUploading ? (
           <div
             data-video-surface={videoData.url ? 'ready' : 'pending'}
             className="relative"
@@ -625,6 +645,15 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
                 {formatVideoSeconds(durationSeconds)}
               </span>
             ) : null}
+
+            {failureMessage && videoData.url && !selfUploading && (
+              <p
+                role="alert"
+                className="absolute inset-x-3 top-3 max-h-[60%] overflow-y-auto rounded-xl border border-destructive/30 bg-card/95 p-3 text-sm leading-relaxed break-words"
+              >
+                {t('generateDesk.failed', { reason: failureMessage })}
+              </p>
+            )}
 
             {generating && (
               <NodeFrameProgress
@@ -730,6 +759,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
           versionCount={versions.length}
           versionIndex={versionIndex}
           onVersionChange={selectVersion}
+          failureMessage={failureMessage}
           body={draft}
           onBodyChange={setDraft}
           onSave={(body) => {

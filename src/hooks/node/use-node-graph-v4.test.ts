@@ -431,3 +431,41 @@ describe('异步生成回填', () => {
     })
   })
 })
+
+it('失败原因经过项目序列化保留，开始新任务和上传成功时清除', async () => {
+  const { NodeWorkflowStateV4Schema } = await import('@/types/node-workflow')
+  const { view } = renderGraph(stateOf([shot]))
+  act(() =>
+    view.result.current.setMedia('shot1', {
+      mediaJobId: undefined,
+      generationFailure: {
+        error: 'copyright restriction',
+        errorCode: 'CONTENT_FILTERED',
+      },
+    }),
+  )
+  const restored = NodeWorkflowStateV4Schema.parse(
+    JSON.parse(JSON.stringify(stateOf(view.result.current.nodes))),
+  )
+  expect(restored.nodes[0]?.data).toMatchObject({
+    status: 'failed',
+    generationFailure: { error: 'copyright restriction' },
+  })
+  act(() => view.result.current.setMedia('shot1', { mediaJobId: 'retry-job' }))
+  expect(view.result.current.nodes[0]?.data).toMatchObject({
+    status: 'running',
+    generationFailure: undefined,
+  })
+  act(() =>
+    view.result.current.setMedia('shot1', {
+      generationFailure: { error: 'failed again' },
+    }),
+  )
+  act(() =>
+    view.result.current.setMedia('shot1', { url: 'https://cdn/success.mp4' }),
+  )
+  expect(view.result.current.nodes[0]?.data).toMatchObject({
+    status: 'done',
+    generationFailure: undefined,
+  })
+})

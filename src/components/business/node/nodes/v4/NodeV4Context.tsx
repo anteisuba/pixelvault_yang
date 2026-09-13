@@ -16,6 +16,7 @@ import type { NodeSlotId } from '@/constants/node-slots'
 import type { NodeWorkflowMediaKind } from '@/constants/node-types'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
+  NodeGenerationFailure,
   NodeV4,
   NodeV4GenerationParams,
   NodeWorkflowEdgeV4,
@@ -28,6 +29,7 @@ import type {
  * ⚠ 字段集与 `NodeV4MediaMetaShape` 同源，⛔ 不在 UI 层另发明字段。
  */
 export interface NodeV4MediaPatch {
+  readonly generationFailure?: NodeGenerationFailure | undefined
   readonly url?: string
   readonly videoThumbnailUrl?: string
   readonly sizeBytes?: number

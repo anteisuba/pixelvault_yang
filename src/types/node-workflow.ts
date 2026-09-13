@@ -964,6 +964,13 @@ export const NodeV4OutputsSchema = z.object({
   cur: z.number().int().min(0),
 })
 
+export const NodeGenerationFailureSchema = z.object({
+  error: z.string().optional(),
+  errorCode: z.string().optional(),
+  i18nKey: z.string().optional(),
+})
+export type NodeGenerationFailure = z.infer<typeof NodeGenerationFailureSchema>
+
 /**
  * 媒体元数据（上传 / 生成回填链，C3c-① A）。
  *
@@ -978,6 +985,7 @@ export const NodeV4OutputsSchema = z.object({
  * 打不开）。
  */
 const NodeV4MediaMetaShape = {
+  generationFailure: NodeGenerationFailureSchema.optional().catch(undefined),
   ...NodeV4MediaFactsShape,
   /**
    * 这张卡交付过的**产出版本表**（S3b，spec §1.8）。缺席 = 还没有版本表，读侧

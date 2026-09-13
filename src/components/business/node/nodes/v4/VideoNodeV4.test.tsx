@@ -11,8 +11,12 @@ class MockResizeObserver {
 vi.stubGlobal('ResizeObserver', MockResizeObserver)
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    values ? `${key}:${Object.values(values).join('/')}` : key,
+  useTranslations: () =>
+    Object.assign(
+      (key: string, values?: Record<string, unknown>) =>
+        values ? `${key}:${Object.values(values).join('/')}` : key,
+      { has: () => false },
+    ),
 }))
 
 vi.mock('@xyflow/react', () => ({
@@ -913,6 +917,7 @@ describe('取消服务端任务', () => {
     await waitFor(() =>
       expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
         mediaJobId: undefined,
+        generationFailure: undefined,
       }),
     )
     expect(cancelJobs).toHaveBeenLastCalledWith(['job_1'])
@@ -950,6 +955,7 @@ describe('取消服务端任务', () => {
     await waitFor(() =>
       expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
         mediaJobId: undefined,
+        generationFailure: undefined,
       }),
     )
     expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
@@ -983,11 +989,13 @@ it.each([false, true])(
     if (pending) {
       expect(context.onSetMedia).not.toHaveBeenCalledWith('v_1', {
         mediaJobId: undefined,
+        generationFailure: undefined,
       })
     } else {
       await waitFor(() =>
         expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
           mediaJobId: undefined,
+          generationFailure: { error: 'failed' },
         }),
       )
     }
@@ -1017,7 +1025,45 @@ it('提交尚未取得任务 ID 时点击取消，在 ID 到达后取消服务�
   await waitFor(() =>
     expect(context.onSetMedia).toHaveBeenCalledWith('v_1', {
       mediaJobId: undefined,
+      generationFailure: undefined,
     }),
   )
   finish()
+})
+
+it('失败原因在卡片与展开态持续显示，编辑提示词不会清除', () => {
+  const data = {
+    ...READY,
+    prompt: 'a shot',
+    status: 'failed',
+    generationFailure: {
+      error: 'Output rejected due to copyright restrictions',
+    },
+  }
+  const context = harness([videoNode('v_1', data)])
+  const view = renderVideo(context, 'v_1', true)
+  expect(screen.getByRole('alert')).toHaveTextContent('copyright restrictions')
+  expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  fireEvent.change(screen.getByRole('textbox', { name: 'promptLabel' }), {
+    target: { value: 'edited shot' },
+  })
+  expect(screen.getByRole('alert')).toHaveTextContent('copyright restrictions')
+  view.unmount()
+  renderVideo(harness([videoNode('v_1', data)], { expandedNodeId: 'v_1' }))
+  expect(
+    screen
+      .getAllByRole('alert')
+      .some((el) => el.textContent?.includes('copyright restrictions')),
+  ).toBe(true)
+})
+
+it('历史失败节点没有详情时也显示错误，而不是空上传卡', () => {
+  renderVideo(
+    harness([videoNode('v_1', { status: 'failed', prompt: 'shot' })]),
+    'v_1',
+    true,
+  )
+  expect(screen.getByRole('alert')).toHaveTextContent('generateDesk.failed')
+  expect(screen.getByRole('button', { name: 'frame.regenerate' })).toBeEnabled()
+  expect(screen.queryByText('chrome.emptyHint')).not.toBeInTheDocument()
 })

@@ -28,6 +28,7 @@ import { TextAssistantBar } from '../text/TextAssistantBar'
 import { VideoPlayer } from './VideoPlayer'
 
 export interface VideoNodeFrameProps {
+  readonly failureMessage?: string | undefined
   readonly open: boolean
   onClose(): void
   readonly nodeId: string
@@ -68,6 +69,7 @@ export interface VideoNodeFrameProps {
 }
 
 export function VideoNodeFrame({
+  failureMessage,
   open,
   onClose,
   nodeId,
@@ -152,6 +154,14 @@ export function VideoNodeFrame({
       assistantBar={<TextAssistantBar nodeId={nodeId} />}
     >
       <div className="flex flex-col gap-2.5">
+        {failureMessage && (
+          <p
+            role="alert"
+            className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm leading-relaxed break-words"
+          >
+            {t('generateDesk.failed', { reason: failureMessage })}
+          </p>
+        )}
         {url ? (
           <VideoPlayer
             url={url}

@@ -115,6 +115,14 @@ function VideoSheetBody({ node }: { readonly node: NodeV4 }) {
         versionIndex={composer.versionIndex}
         versionCount={composer.versions.length}
       />
+      {composer.failureMessage && (
+        <p
+          role="alert"
+          className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm leading-relaxed break-words"
+        >
+          {t('generateDesk.failed', { reason: composer.failureMessage })}
+        </p>
+      )}
       {composer.versions.length > 1 ? (
         <VersionDots
           count={composer.versions.length}

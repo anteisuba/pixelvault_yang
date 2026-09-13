@@ -444,7 +444,14 @@ function NodeWorkbenchV4Inner() {
             // 交给回填 hook —— ⛔ 不在这里把它标成 failed。
             if (result.pending) return
             toast.error(tV4('generateDesk.failed', { reason: result.error }))
-            graph.setMedia(nodeId, { mediaJobId: undefined })
+            graph.setMedia(nodeId, {
+              mediaJobId: undefined,
+              generationFailure: {
+                error: result.error,
+                ...(result.errorCode ? { errorCode: result.errorCode } : {}),
+                ...(result.i18nKey ? { i18nKey: result.i18nKey } : {}),
+              },
+            })
             graph.setRunState(nodeId, NODE_STATUS_IDS.failed)
           })
       }

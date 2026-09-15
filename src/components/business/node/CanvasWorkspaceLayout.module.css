@@ -25,12 +25,14 @@
 }
 
 @media (min-width: 1024px) {
+  /* 与 CANVAS_SHELL_ASSISTANT.defaultWidthPx = 380 对齐（旧 22.5rem = 360）。 */
   .workspace[data-assistant-mode='chat'] {
-    --canvas-assistant-width: 22.5rem;
+    --canvas-assistant-width: 23.75rem;
   }
 
+  /* 展开两列：与 expandedDefaultWidthPx = 720 对齐。旧 min(64rem, 72vw) 盖住半张画布。 */
   .workspace[data-assistant-mode='script'] {
-    --canvas-assistant-width: min(64rem, 72vw);
+    --canvas-assistant-width: 45rem;
   }
 
   .rail {

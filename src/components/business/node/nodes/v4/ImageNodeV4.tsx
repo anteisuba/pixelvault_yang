@@ -67,6 +67,8 @@ import {
   ConnectToShotPopover,
   flashNodeCard,
   useNodeCardFlash,
+  renderPromptMentions,
+  type MentionPickerOption,
   type NodeToolbarGroup,
 } from './chrome'
 import {
@@ -81,13 +83,18 @@ import {
 } from './image/ImageNodeMenus'
 import { readOutputIndex } from '@/lib/node-output-versions'
 
+import { ImageRefRail } from './image/ImageRefRail'
+import { useImageRefBinding } from './image/use-image-ref-binding'
 import {
   collapsedImageHeight,
   collapsedImageWidth,
   formatSizeBytes,
+  imageNodeAcceptsReferences,
   imageVersions,
   toStudioModelOption,
 } from './image/image-node-model'
+import { buildMentionCandidates, buildMentionTokens } from './NodeV4Mentions'
+import { videoRailMentionLabels } from '@/lib/video-node-rail'
 import { ModelPickerPopover } from '../../../studio-shared/pickers/ModelPickerPopover'
 import { useOpenApiKeys } from '../../workbench-v4/shell/ShellApiKeys'
 import { useNodeV4Canvas } from './NodeV4Context'
@@ -128,7 +135,15 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const [startedAt, setStartedAt] = useState<number | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const fileRef = useRef<HTMLInputElement>(null)
+  const promptInputRef = useRef<HTMLTextAreaElement>(null)
   const cardRef = useRef<HTMLDivElement>(null)
+  const acceptsRefs = imageNodeAcceptsReferences(imageData.subtype)
+  const refs = useImageRefBinding({
+    id,
+    displayName: imageData.name,
+    model: imageData.model,
+    disabled: Boolean(imageData.mediaJobId),
+  })
 
   // 助手 `set_prompt` 落下来时草稿跟上 —— 渲染期同步，⛔ 不放 effect 里
   const currentPrompt = imageData.prompt ?? ''
@@ -157,10 +172,44 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
    * `useNodeUploadV4()` 每次渲染都返回一个新对象，列进去等于每渲染一次就把粘贴
    * 监听拆装一遍（`WorkbenchDndV4` 里的同一条模式）。
    */
-  const latest = useRef({ upload, canvas, id, name: imageData.name })
-  useEffect(() => {
-    latest.current = { upload, canvas, id, name: imageData.name }
+  const latest = useRef({
+    upload,
+    canvas,
+    id,
+    name: imageData.name,
+    hasUrl: Boolean(imageData.url),
+    hasNaturalSize: Boolean(imageData.mediaWidth && imageData.mediaHeight),
+    acceptsRefs,
+    attachRef: refs.attachFile,
   })
+  useEffect(() => {
+    latest.current = {
+      upload,
+      canvas,
+      id,
+      name: imageData.name,
+      hasUrl: Boolean(imageData.url),
+      hasNaturalSize: Boolean(imageData.mediaWidth && imageData.mediaHeight),
+      acceptsRefs,
+      attachRef: refs.attachFile,
+    }
+  })
+  const sizeBackfillLock = useRef(false)
+  useEffect(() => {
+    sizeBackfillLock.current = false
+  }, [imageData.url])
+  const rememberImageSize = useCallback((image: HTMLImageElement) => {
+    const bound = latest.current
+    if (bound.hasNaturalSize || sizeBackfillLock.current) return
+    const width = image.naturalWidth
+    const height = image.naturalHeight
+    if (width <= 0 || height <= 0) return
+    sizeBackfillLock.current = true
+    bound.canvas.onSetMedia(bound.id, {
+      mediaWidth: width,
+      mediaHeight: height,
+    })
+  }, [])
   const runUpload = useCallback((file: File) => {
     const bound = latest.current
     void bound.upload.upload('image', file, bound.name).then((patch) => {
@@ -188,7 +237,11 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
       if (!file) return
       event.preventDefault()
       event.stopPropagation()
-      runUpload(file)
+      if (latest.current.acceptsRefs && latest.current.hasUrl) {
+        latest.current.attachRef(file)
+      } else {
+        runUpload(file)
+      }
     }
     window.addEventListener('paste', onPaste, true)
     return () => window.removeEventListener('paste', onPaste, true)
@@ -196,6 +249,69 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
 
   const node = canvas.nodes.find((item) => item.id === id) as NodeV4 | undefined
   if (!node) return null
+
+  const mentionTokens = buildMentionTokens(canvas.nodes, id).filter(
+    (token) => token.kind !== 'video' && token.kind !== 'voice',
+  )
+  const mentionCandidates = buildMentionCandidates(
+    canvas.nodes.filter(
+      (item) => item.id !== id && item.data.kind === NODE_MEDIA_KIND_IDS.image,
+    ),
+    id,
+    (item) => item.data.name,
+  )
+  const railMentionOptions: MentionPickerOption[] = acceptsRefs
+    ? [
+        ...refs.items.map((entry) => ({
+          id: `rail:${entry.edgeId}`,
+          name: `${tImage('rail.group')}${entry.index}`,
+          groupLabel: tImage('rail.mentionGroup'),
+          ...(entry.thumbnailUrl
+            ? {
+                media: {
+                  kind: 'image' as const,
+                  thumbnailUrl: entry.thumbnailUrl,
+                },
+              }
+            : {}),
+        })),
+        ...mentionCandidates.map((candidate) => {
+          const token = mentionTokens.find(
+            (item) => item.name === candidate.name,
+          )
+          return {
+            id: candidate.id,
+            name: candidate.name,
+            groupLabel: tImage('add.canvas'),
+            ...(token?.thumbnailUrl
+              ? {
+                  media: {
+                    kind: 'image' as const,
+                    thumbnailUrl: token.thumbnailUrl,
+                  },
+                }
+              : {}),
+          }
+        }),
+      ]
+    : []
+  const mentionNames = [
+    ...refs.items.flatMap((entry) => videoRailMentionLabels(entry)),
+    ...mentionTokens.map((token) => token.name),
+  ]
+  const mentionMediaOf = (name: string) => {
+    const rail = refs.items.find((entry) =>
+      videoRailMentionLabels(entry).includes(name),
+    )
+    if (rail?.thumbnailUrl) {
+      return { kind: 'image' as const, thumbnailUrl: rail.thumbnailUrl }
+    }
+    const token = mentionTokens.find((item) => item.name === name)
+    if (token?.thumbnailUrl) {
+      return { kind: 'image' as const, thumbnailUrl: token.thumbnailUrl }
+    }
+    return undefined
+  }
 
   const versions = imageVersions(imageData)
   // ⚠ 当前版**从数据读**（`outputs.cur`），⛔ 不在组件里存一份 useState：
@@ -414,7 +530,8 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
         if (!file) return
         event.preventDefault()
         event.stopPropagation()
-        runUpload(file)
+        if (acceptsRefs && imageData.url) refs.attachFile(file)
+        else runUpload(file)
       }}
       onDoubleClick={() => {
         if (imageData.url) setQuickLook(true)
@@ -454,6 +571,10 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               alt={imageData.name}
               draggable={false}
               className="size-full rounded-node object-cover corner-squircle"
+              onLoad={(event) => rememberImageSize(event.currentTarget)}
+              ref={(image) => {
+                if (image?.complete) rememberImageSize(image)
+              }}
             />
             {generating && (
               <NodeFrameProgress
@@ -503,12 +624,47 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               onCancel={() => setStartedAt(null)}
               placeholder={tImage('promptPlaceholder')}
               ariaLabel={tImage('promptLabel')}
-              className="w-90"
+              className={acceptsRefs ? 'w-160 max-w-full' : 'w-90'}
+              inputRef={promptInputRef}
+              leadingRow={
+                acceptsRefs ? <ImageRefRail {...refs.railProps} /> : null
+              }
+              mentionOptions={
+                acceptsRefs && railMentionOptions.length > 0
+                  ? railMentionOptions
+                  : undefined
+              }
+              renderValue={
+                acceptsRefs
+                  ? (value) =>
+                      renderPromptMentions(value, {
+                        names: mentionNames,
+                        mediaOf: mentionMediaOf,
+                      })
+                  : undefined
+              }
               addMenu={
                 <ImageAddMenuItems
-                  onUpload={() => fileRef.current?.click()}
-                  onMention={() => setDraft(`${draft}@`)}
-                  onLibrary={() => setAssetPicker(true)}
+                  onUpload={
+                    acceptsRefs
+                      ? refs.openFilePicker
+                      : () => fileRef.current?.click()
+                  }
+                  onMention={() => {
+                    setDraft(`${draft}@`)
+                    window.setTimeout(() => promptInputRef.current?.focus(), 0)
+                  }}
+                  onLibrary={
+                    acceptsRefs
+                      ? refs.railProps.onLibrary
+                      : () => setAssetPicker(true)
+                  }
+                  {...(acceptsRefs
+                    ? {
+                        canvasCandidates: refs.candidates,
+                        onPickCanvas: refs.railProps.onPickFromCanvas,
+                      }
+                    : {})}
                 />
               }
               chips={[
@@ -576,6 +732,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
           event.target.value = ''
         }}
       />
+      {acceptsRefs ? refs.overlays : null}
 
       {quickLook && imageData.url ? (
         <QuickLook

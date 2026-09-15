@@ -11,6 +11,7 @@ import {
   IMAGE_COUNT_OPTIONS,
   imageCostEstimate,
   imageFrameReadout,
+  imageNodeAcceptsReferences,
   imageQualityOptions,
   imageResolutionOptions,
   imageVersions,
@@ -120,5 +121,15 @@ describe('imageVersions：读的是产出版本表', () => {
         },
       } as never),
     ).toEqual(['https://cdn/a.png', 'https://cdn/b.png'])
+  })
+})
+
+describe('imageNodeAcceptsReferences', () => {
+  it('shot / character / background / result 能挂参考图，叶子参考图不能', () => {
+    expect(imageNodeAcceptsReferences('shot')).toBe(true)
+    expect(imageNodeAcceptsReferences('character')).toBe(true)
+    expect(imageNodeAcceptsReferences('background')).toBe(true)
+    expect(imageNodeAcceptsReferences('result')).toBe(true)
+    expect(imageNodeAcceptsReferences('reference')).toBe(false)
   })
 })

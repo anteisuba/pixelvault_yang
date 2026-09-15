@@ -2292,6 +2292,7 @@
         "cfgError": "CFG 必须在 0–30 之间。",
         "dimensionPairError": "宽度和高度需要同时填写。",
         "dimensionError": "尺寸必须在 512–{max} 之间，并且是 8 的倍数。",
+        "sourceHiresSummary": "来源精修：Latent ×{scale} · 降噪 {denoise} · {steps} 步 · CFG {cfg}",
         "postprocess": "后处理",
         "upscaler": "放大模型",
         "upscalerNone": "无",
@@ -2458,10 +2459,12 @@
     "sourceRecipeCopy": "复制",
     "sourceRecipeCopyRecipe": "复制配方",
     "sourceRecipeRemake": "做同款",
+    "sourceRecipeMounting": "正在补齐配方 LoRA，完成后即可出图。",
+    "sourceRecipeIncomplete": "配方 LoRA 尚未补齐。请重试补挂，或撤销配方后继续创作。",
     "sourceRecipeRestoreTitle": "做同款将还原到装配台",
     "sourceRecipeApplyHint": "只应用配方到主台，不直接生成；已有输入会进入搭配提醒审阅。",
     "sourceRecipeUseSeed": "用原图 seed",
-    "sourceRecipeRemakeHint": "做同款会应用本配方的提示词、参数与底模，并挂上其额外 LoRA。runner 暂不支持 hires/denoise 等精修，还原度可能与源图有差。",
+    "sourceRecipeRemakeHint": "做同款会应用本配方的提示词、参数与底模，并挂上其额外 LoRA。支持 SDXL 来源的 Latent 二次采样；未支持或缺失的配方参数会单独列出。",
     "sourceRecipeExtraLorasLabel": "额外",
     "sourceRecipeExtraLorasSummary": "还将尝试挂载 {count} 个额外 LoRA",
     "sourceRecipeExtraLorasSection": "额外挂载 · {count}",
@@ -5749,7 +5752,23 @@
         "add": {
           "upload": "上传",
           "mention": "@ 角色 / 风格",
-          "library": "从素材库"
+          "library": "从素材库",
+          "canvas": "画布上的图",
+          "canvasEmpty": "还没有能挂的图"
+        },
+        "rail": {
+          "title": "参考图",
+          "group": "图",
+          "open": "打开",
+          "remove": "移除",
+          "upload": "上传",
+          "library": "从素材库",
+          "itemLabel": "图{index}：{name}",
+          "full": "已满（上限 {limit}）",
+          "mentionGroup": "参考图",
+          "retry": "重试",
+          "uploading": "正在上传 {name}",
+          "uploadFailed": "{name} 上传失败"
         },
         "more": {
           "setCharacter": "设为角色卡",
@@ -6876,7 +6895,7 @@
       "unsupportedVolcengineReferenceImage": "Seedream 无法读取这张参考图。请使用 JPEG、PNG 或 WebP 等通用格式，并确认图片链接可被服务端直接访问。",
       "unsupportedReferenceImage": "该模型无法读取当前参考图格式。请改用 JPEG、PNG 或 WebP 后再生成。",
       "referenceImageTooLarge": "参考图文件过大，超出该模型限制。请压缩图片或换一张更小的图片后再试。",
-      "executionWorkerUnavailable": "生成请求没能送到执行服务。本地开发请先启动 workers/execution（等它打出 Ready on 8787）；线上请检查执行服务是否可达。",
+      "executionWorkerUnavailable": "生成服务暂时无法连接。请稍后重试；如果一直失败，请联系管理员。",
       "referenceImageUnreachable": "服务商无法下载这张参考图。请使用可直接访问的公开图片链接，或重新上传图片。",
       "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",
       "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。",
@@ -6885,22 +6904,22 @@
       "contextLimitExceeded": "PixelVault 已压缩较早历史并自动重试一次，但仍超过该模型的上下文上限。请新建对话或移除较大的参考内容。",
       "refused": "所选模型依据其内容政策拒绝了本次请求。请换个说法，或选择其他 Agent Key。",
       "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",
-      "callbackTimeout": "生成 Worker 没有按时回报结果。请重试，或检查 Worker 日志。",
+      "callbackTimeout": "暂时没有收到这次生成的结果。请先查看生成记录，确认结果后再决定是否重试。",
       "storageUploadFailed": "服务商已返回媒体，但保存失败。请重试。",
       "loraIncompatibleHosted": "这个 LoRA 的层格式托管模型不支持。如果有 PixelVault Runner 模型（忠实复刻）可用，试试切换过去。",
       "runnerMonthlyLimitExceeded": "PixelVault Runner 本月生成额度已用完。请下月再试，或改用托管模型。",
-      "runnerLoraUnavailable": "这个 LoRA 还没在 PixelVault Runner 上就绪（未预置）。请换一个 LoRA 或改用托管模型。",
+      "runnerLoraUnavailable": "当前生成服务还不能使用这个 LoRA。请更换 LoRA，或选择支持它的模型。",
       "loraDownloadDisabled": "这把 LoRA 的作者在 Civitai 关掉了下载，任何后端都取不到它的权重。请换一把 LoRA。"
     },
     "generation": {
-      "provider_timeout": "AI 服务商响应超时",
+      "provider_timeout": "这次生成等待时间过长。请稍后重试，或换一个模型。",
       "provider_rate_limit": "请求过于频繁，请稍后再试",
       "provider_overloaded": "该模型当前需求过高，服务商容量已满。请换个模型试试。",
-      "invalid_api_key": "你的 API Key 无效或已过期",
-      "content_filtered": "内容被服务商安全系统过滤",
-      "model_unavailable": "该模型暂时不可用",
+      "invalid_api_key": "当前服务商的 API Key 无效或已过期。请到设置中更新后再试。",
+      "content_filtered": "服务商的内容审核未通过。请检查提示词和参考素材是否符合其内容政策，再调整后提交。",
+      "model_unavailable": "这个模型暂时无法使用。请稍后重试，或选择其他模型。",
       "provider_no_output": "服务商没有返回可用媒体",
-      "callback_timeout": "生成 Worker 没有按时回报结果",
+      "callback_timeout": "暂时没有收到这次生成的结果。请先查看生成记录，确认结果后再决定是否重试。",
       "storage_upload_failed": "保存生成媒体失败",
       "provider_insufficient_balance": "服务商账户余额不足",
       "insufficient_credits": "今日免费生成次数已用完",
@@ -6910,13 +6929,13 @@
       "reference_image_limit_exceeded": "参考图数量超过该模型限制",
       "invalid_reference_image_dimensions": "参考图尺寸或比例不符合该模型要求",
       "provider_account_limit_reached": "服务商账号为该模型设置的用量上限已触顶，模型服务被暂停。重试无效，需到服务商控制台调整限额。",
-      "runner_queue_stuck": "Runner 收下了这次出图，但没有 GPU worker 来跑，已自动取消。重试只会再排一次队——先换用托管模型，或让站点管理员检查 Runner 端点。",
-      "execution_worker_unavailable": "生成请求没能送到执行服务。本地开发请先启动 workers/execution（等它打出 Ready on 8787）；线上请检查执行服务是否可达。",
-      "lora_incompatible_hosted": "这个托管模型的 LoRA 加载器读不了这把 LoRA 的层格式（LoRA 本身没问题）。换成 Runner 支持的模型再试——重试同一个托管模型不会有变化。",
+      "runner_queue_stuck": "这次生成因长时间未能开始而已取消。请换一个可用模型，或稍后再试。",
+      "execution_worker_unavailable": "生成服务暂时无法连接。请稍后重试；如果一直失败，请联系管理员。",
+      "lora_incompatible_hosted": "当前模型不支持这个 LoRA 的格式。请选择兼容的模型，或更换 LoRA。",
       "runner_monthly_limit_exceeded": "本月 Runner 的出图额度已经用完。可以先改用托管模型，或等下个月额度重置。",
-      "runner_lora_unavailable": "这把 LoRA 还没预置到 Runner 的存储卷上，Runner 跑不了它。换一把已预置的 LoRA，或改用托管模型。",
+      "runner_lora_unavailable": "当前生成服务还不能使用这个 LoRA。请更换 LoRA，或选择支持它的模型。",
       "lora_download_disabled": "这把 LoRA 的作者在 Civitai 关掉了下载，它只能在 Civitai 站内出图。这跟 API Key 无关，换任何 token 都取不到权重——请换一把 LoRA。",
-      "unknown": "发生了未知错误"
+      "unknown": "这次生成没有成功，暂时无法确定原因。请稍后重试；如果仍然失败，可将错误详情提供给管理员。"
     },
     "validation": {
       "invalidInput": "输入无效，请检查参数。",
@@ -7609,7 +7628,7 @@
       "loraPick": {
         "header": "{name} 找到 {count} 把 · 选要挂的",
         "mount": "挂载所选",
-        "mounted": "已挂 {count} 把 · {time}",
+        "mounted": "已处理 {count} 项 · {time}",
         "dismiss": "这几把我先不挂",
         "searchAgain": "换个词再搜",
         "searchAgainPrefill": "换个词再搜：",
@@ -8018,13 +8037,13 @@
     },
     "question": {
       "recommended": "推荐",
-      "other": "其他",
-      "otherPlaceholder": "写一句你想要的…",
+      "other": "你的看法",
+      "otherPlaceholder": "选项对不上时，写下你的判断…",
       "pinnedTitle": "{name} 想先确认",
       "current": "当前提示词",
       "proposed": "助手建议的提示词",
       "send": "发送",
-      "sourceNotes": "这段字的料从哪儿来",
+      "sourceNotes": "可参考的材料",
       "negativeDiff": "负面提示词要补的词："
     },
     "videoFrameCaptureReason": {
@@ -8149,5 +8168,18 @@
       "music": "配乐",
       "sfx": "音效"
     }
+  },
+  "NovelAiCharacters": {
+    "title": "多人构图",
+    "hint": "主提示词描述场景、风格与总人数；在这里分别描述角色。最多 22 个，顺序影响自动构图。空白角色请填写或移除。",
+    "manual": "手动定位（坐标以画面左上角为起点）",
+    "character": "角色 {number}",
+    "up": "上移",
+    "remove": "移除",
+    "prompt": "角色描述",
+    "negative": "角色负面描述",
+    "x": "水平位置",
+    "y": "垂直位置",
+    "add": "添加角色"
   }
 }

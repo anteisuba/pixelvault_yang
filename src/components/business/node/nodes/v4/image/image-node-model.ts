@@ -12,9 +12,12 @@ import {
   getCapabilityConfig,
 } from '@/constants/provider-capabilities'
 import { IMAGE_BATCH_COUNTS } from '@/constants/studio'
+import { NODE_SLOT_IDS, getNodeV4Ports } from '@/constants/node-slots'
+import { NODE_MEDIA_KIND_IDS, type NodeV4Subtype } from '@/constants/node-types'
 import {
   NODE_V4_CARD,
   NODE_V4_IMAGE_QUALITY_COST,
+  resolveReferenceAssetLimit,
 } from '@/constants/node-studio'
 import { readOutputVersions } from '@/lib/node-output-versions'
 import {
@@ -24,6 +27,7 @@ import {
 import type {
   NodeV4ImageData,
   NodeWorkflowModelOption,
+  NodeWorkflowModelSelection,
 } from '@/types/node-workflow'
 
 /** 画面弹层里的比例档 —— 直接取 `IMAGE_SIZES` 的键，⛔ 不另列一份。 */
@@ -218,4 +222,26 @@ export function toStudioModelOption(
     ...(option.maskedKey ? { maskedKey: option.maskedKey } : {}),
     ...(option.providerKeyId ? { providerKeyId: option.providerKeyId } : {}),
   }
+}
+
+/** 这张图片卡的端口表里有没有 `reference` 入口（叶子参考图没有）。 */
+export function imageNodeAcceptsReferences(subtype: string): boolean {
+  const ports = getNodeV4Ports(
+    NODE_MEDIA_KIND_IDS.image,
+    subtype as NodeV4Subtype,
+  )
+  return Boolean(
+    ports?.inputs.some((spec) => spec.slot === NODE_SLOT_IDS.reference),
+  )
+}
+
+/** 当前模型的参考图上限；没选模型时用角色卡默认档，加号不灰。 */
+export function imageRailCapacity(
+  model: NodeWorkflowModelSelection | undefined,
+): number {
+  return resolveReferenceAssetLimit(
+    model?.modelId && model.adapterType
+      ? { adapterType: model.adapterType, modelId: model.modelId }
+      : undefined,
+  )
 }

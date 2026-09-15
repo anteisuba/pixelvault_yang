@@ -334,6 +334,9 @@ function NodeWorkbenchV4Inner() {
   const [assistantWidth, setAssistantWidth] = useState<number>(
     CANVAS_SHELL_ASSISTANT.defaultWidthPx,
   )
+  const [assistantExpandedWidth, setAssistantExpandedWidth] = useState<number>(
+    CANVAS_SHELL_ASSISTANT.expandedDefaultWidthPx,
+  )
   /** 助手从没开过时右缘不留那一条（画板默认态右缘是空的）。 */
   const [assistantEverOpened, setAssistantEverOpened] = useState(false)
   const [paletteOpen, setPaletteOpen] = useState(false)
@@ -1178,8 +1181,17 @@ function NodeWorkbenchV4Inner() {
           <ShellAssistantFrame
             open={assistantOpen}
             showStrip={assistantEverOpened}
-            width={isMobile ? undefined : assistantWidth}
-            onWidthChange={setAssistantWidth}
+            expanded={assistantExpanded}
+            width={
+              isMobile
+                ? undefined
+                : assistantExpanded
+                  ? assistantExpandedWidth
+                  : assistantWidth
+            }
+            onWidthChange={
+              assistantExpanded ? setAssistantExpandedWidth : setAssistantWidth
+            }
             onOpen={() => setAssistantOpen(true)}
           >
             <WorkbenchAssistantDockV4

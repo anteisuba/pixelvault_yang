@@ -1,10 +1,17 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi, type Mock } from 'vitest'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, values?: Record<string, unknown>) =>
     values ? `${key}:${Object.values(values).join('/')}` : key,
+}))
+
+vi.mock('next/image', () => ({
+  default: (props: Record<string, unknown>) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={props.src as string} alt="" />
+  ),
 }))
 
 vi.mock('@xyflow/react', () => ({
@@ -190,6 +197,38 @@ describe('空卡 / 有图两态', () => {
     ).toBe('true')
     expect(document.querySelector('[data-node-card-add]')).not.toBeNull()
     expect(document.querySelector('img')).toBeNull()
+  })
+
+  it('有图但缺尺寸时，解码后按 naturalWidth/Height 回填当前版', () => {
+    const context = harness([
+      imageNode('i_1', { url: 'https://cdn.test/portrait.png' }),
+    ])
+    renderImage(context)
+    const img = document.querySelector('img')
+    expect(img).not.toBeNull()
+    Object.defineProperty(img, 'naturalWidth', { value: 1024 })
+    Object.defineProperty(img, 'naturalHeight', { value: 1792 })
+    fireEvent.load(img!)
+    expect(context.onSetMedia).toHaveBeenCalledWith('i_1', {
+      mediaWidth: 1024,
+      mediaHeight: 1792,
+    })
+  })
+
+  it('已有尺寸不再回填', () => {
+    const context = harness([
+      imageNode('i_1', {
+        url: 'https://cdn.test/a.png',
+        mediaWidth: 1600,
+        mediaHeight: 900,
+      }),
+    ])
+    renderImage(context)
+    const img = document.querySelector('img')
+    Object.defineProperty(img, 'naturalWidth', { value: 1024 })
+    Object.defineProperty(img, 'naturalHeight', { value: 1792 })
+    fireEvent.load(img!)
+    expect(context.onSetMedia).not.toHaveBeenCalled()
   })
 
   it('有图收起态卡即图，⛔ 无读数角标', () => {
@@ -470,5 +509,80 @@ describe('生成中 / 版本 / 快速看', () => {
       document.querySelector('[data-node-kind="image"]') as HTMLElement,
     )
     expect(document.querySelector('[data-node-chrome="quick-look"]')).toBeNull()
+  })
+})
+
+describe('提示词栏参考图轨', () => {
+  it('叶子参考图不显示轨（没有 reference 入口）', () => {
+    renderImage(
+      harness([imageNode('i_1', { url: 'https://cdn.test/a.png' })], {
+        selectedNodeIds: ['i_1'],
+      }),
+      'i_1',
+      true,
+    )
+    expect(document.querySelector('[data-image-ref-rail]')).toBeNull()
+  })
+
+  it('镜头图选中时显示参考轨，可把画布上已生成的图挂上去', async () => {
+    const onApplyOp = vi.fn()
+    renderImage(
+      harness(
+        [
+          imageNode('i_shot', {
+            subtype: 'shot',
+            url: 'https://cdn.test/shot.png',
+            prompt: '夜景',
+          }),
+          imageNode('i_gen', {
+            subtype: 'shot',
+            url: 'https://cdn.test/gen.png',
+            name: '成图 A',
+          }),
+        ],
+        { selectedNodeIds: ['i_shot'], onApplyOp },
+      ),
+      'i_shot',
+      true,
+    )
+    expect(document.querySelector('[data-image-ref-rail]')).not.toBeNull()
+    fireEvent.pointerDown(document.querySelector('[data-image-rail-add]')!, {
+      button: 0,
+    })
+    const candidate = await waitFor(
+      () =>
+        document.querySelector(
+          '[data-image-rail-candidate="i_gen"]',
+        ) as HTMLElement,
+    )
+    fireEvent.click(candidate)
+    expect(onApplyOp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        op: NODE_ASSISTANT_OP_V4_IDS.connect,
+        source: 'i_gen',
+        target: 'i_shot',
+        slot: 'reference',
+      }),
+    )
+  })
+
+  it('已有图的镜头图 ⌘V 进参考轨，不覆盖本卡', () => {
+    uploadFn.mockClear()
+    const context = harness(
+      [
+        imageNode('i_shot', {
+          subtype: 'shot',
+          url: 'https://cdn.test/shot.png',
+        }),
+      ],
+      { selectedNodeIds: ['i_shot'] },
+    )
+    renderImage(context, 'i_shot', true)
+    const file = new File(['x'], 'ref.png', { type: 'image/png' })
+    const event = new Event('paste', { bubbles: true }) as ClipboardEvent
+    Object.defineProperty(event, 'clipboardData', { value: { files: [file] } })
+    window.dispatchEvent(event)
+    expect(uploadFn).toHaveBeenCalledWith('image', file, 'i_shot')
+    expect(context.onSetMedia).not.toHaveBeenCalled()
   })
 })

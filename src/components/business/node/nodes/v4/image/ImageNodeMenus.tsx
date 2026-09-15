@@ -32,6 +32,9 @@ import {
 import {
   DropdownMenuItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
 } from '@/components/ui/dropdown-menu'
 import type { ReadyCanvasImageEditCapabilityId } from '@/types/canvas-image-edit'
 
@@ -140,12 +143,21 @@ export function ImageAddMenuItems({
   onUpload,
   onMention,
   onLibrary,
+  canvasCandidates,
+  onPickCanvas,
 }: {
   onUpload(): void
   onMention(): void
   onLibrary(): void
+  /** 画布上已有产物的图（生成的 / 上传的），挂进参考槽。 */
+  readonly canvasCandidates?: readonly {
+    readonly id: string
+    readonly name: string
+  }[]
+  onPickCanvas?(nodeId: string): void
 }) {
   const t = useTranslations('StudioNode.v4.image')
+  const canvas = canvasCandidates ?? []
   return (
     <>
       <DropdownMenuItem data-image-add="upload" onSelect={onUpload}>
@@ -160,6 +172,31 @@ export function ImageAddMenuItems({
         <Library aria-hidden className="size-4" />
         {t('add.library')}
       </DropdownMenuItem>
+      {onPickCanvas ? (
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger data-image-add="canvas">
+            <ImageIcon aria-hidden className="size-4" />
+            {t('add.canvas')}
+          </DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="max-h-80 overflow-y-auto">
+            {canvas.length === 0 ? (
+              <DropdownMenuItem disabled>
+                {t('add.canvasEmpty')}
+              </DropdownMenuItem>
+            ) : (
+              canvas.map((candidate) => (
+                <DropdownMenuItem
+                  key={candidate.id}
+                  data-image-add-canvas={candidate.id}
+                  onSelect={() => onPickCanvas(candidate.id)}
+                >
+                  {candidate.name}
+                </DropdownMenuItem>
+              ))
+            )}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+      ) : null}
     </>
   )
 }

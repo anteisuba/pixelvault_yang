@@ -2292,6 +2292,7 @@
         "cfgError": "CFG は 0〜30 の範囲で入力してください。",
         "dimensionPairError": "幅と高さは両方入力してください。",
         "dimensionError": "サイズは 512〜{max} の範囲かつ 8 の倍数にしてください。",
+        "sourceHiresSummary": "元の高解像度設定：Latent ×{scale} · ノイズ除去 {denoise} · {steps} ステップ · CFG {cfg}",
         "postprocess": "後処理",
         "upscaler": "アップスケールモデル",
         "upscalerNone": "なし",
@@ -2458,10 +2459,12 @@
     "sourceRecipeCopy": "コピー",
     "sourceRecipeCopyRecipe": "レシピをコピー",
     "sourceRecipeRemake": "同じものを作る",
+    "sourceRecipeMounting": "レシピの LoRA を読み込み中です。完了後に生成できます。",
+    "sourceRecipeIncomplete": "レシピの LoRA が揃っていません。追加を再試行するか、レシピを取り消して制作を続けてください。",
     "sourceRecipeRestoreTitle": "「同じものを作る」で組み立て台に復元されます",
     "sourceRecipeApplyHint": "レシピを台に適用するだけで、生成はしません。既存の入力は組み合わせレビューに入ります。",
     "sourceRecipeUseSeed": "元画像の seed を使う",
-    "sourceRecipeRemakeHint": "「同じものを作る」はこのレシピのプロンプト・パラメータ・ベースモデルを適用し、追加 LoRA も装着します。runner は hires/denoise を未対応のため、再現度はソースと異なる場合があります。",
+    "sourceRecipeRemakeHint": "元のレシピのプロンプト・パラメータ・ベースモデル・追加 LoRA を適用します。SDXL の Latent 二段階サンプリングに対応し、未対応・不足の項目は別途表示します。",
     "sourceRecipeExtraLorasLabel": "追加",
     "sourceRecipeExtraLorasSummary": "追加 LoRA を {count} 個マウント試行します",
     "sourceRecipeExtraLorasSection": "追加マウント · {count}",
@@ -5749,7 +5752,23 @@
         "add": {
           "upload": "アップロード",
           "mention": "@ キャラ / スタイル",
-          "library": "素材ライブラリから"
+          "library": "素材ライブラリから",
+          "canvas": "キャンバス上の画像",
+          "canvasEmpty": "まだ掛けられる画像がありません"
+        },
+        "rail": {
+          "title": "参考画像",
+          "group": "画像",
+          "open": "開く",
+          "remove": "外す",
+          "upload": "アップロード",
+          "library": "素材ライブラリから",
+          "itemLabel": "画像{index}：{name}",
+          "full": "上限です（{limit}）",
+          "mentionGroup": "参考画像",
+          "retry": "再試行",
+          "uploading": "{name} をアップロード中",
+          "uploadFailed": "{name} のアップロードに失敗"
         },
         "more": {
           "setCharacter": "キャラクターカードにする",
@@ -6876,7 +6895,7 @@
       "unsupportedVolcengineReferenceImage": "Seedream がこの参照画像を読み取れませんでした。JPEG、PNG、WebP など一般的な形式を使い、画像URLがサーバーから直接アクセスできることを確認してください。",
       "unsupportedReferenceImage": "このモデルは現在の参照画像形式を読み取れません。JPEG、PNG、WebP のいずれかに変更してから再生成してください。",
       "referenceImageTooLarge": "参照画像がこのモデルの上限を超えています。画像を圧縮するか、より小さい画像に変更してから再試行してください。",
-      "executionWorkerUnavailable": "生成リクエストが実行サービスに届きませんでした。ローカル開発では workers/execution を起動し「Ready on 8787」を待ってください。",
+      "executionWorkerUnavailable": "生成サービスに接続できません。しばらくして再試行し、解消しない場合は管理者にお問い合わせください。",
       "referenceImageUnreachable": "プロバイダーが参照画像をダウンロードできませんでした。直接アクセスできる公開画像URLを使うか、画像を再アップロードしてください。",
       "referenceImageLimitExceeded": "参照画像の数がこのモデルの上限を超えています。参照画像を減らしてから再試行してください。",
       "invalidReferenceImageDimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません。別のサイズの画像で再試行してください。",
@@ -6885,22 +6904,22 @@
       "contextLimitExceeded": "PixelVault が古い履歴を圧縮して一度再試行した後も、このモデルのコンテキスト上限を超えました。新しい会話を始めるか、大きな参照を削除してください。",
       "refused": "選択したモデルはコンテンツポリシーによりこのリクエストを拒否しました。言い換えるか、別の Agent Key を選んでください。",
       "noOutput": "プロバイダーは処理を完了しましたが、利用できるメディアを返しませんでした。プロンプトを調整するか、別のモデルを試してください。",
-      "callbackTimeout": "生成 Worker から時間内に結果が返りませんでした。もう一度試すか、Worker ログを確認してください。",
+      "callbackTimeout": "生成結果をまだ受信できていません。再試行する前に生成履歴を確認してください。",
       "storageUploadFailed": "プロバイダーはメディアを返しましたが、保存に失敗しました。もう一度試してください。",
       "loraIncompatibleHosted": "この LoRA のレイヤー形式はホスト型モデルではサポートされていません。可能であれば PixelVault Runner モデル（忠実なレシピ複製）をお試しください。",
       "runnerMonthlyLimitExceeded": "PixelVault Runner の月間生成上限に達しました。来月お試しいただくか、ホスト型モデルをご利用ください。",
-      "runnerLoraUnavailable": "この LoRA は PixelVault Runner でまだ利用できません（未読み込み）。別の LoRA かホスト型モデルをお試しください。",
+      "runnerLoraUnavailable": "現在の生成サービスではこの LoRA を利用できません。別の LoRA または対応モデルを選んでください。",
       "loraDownloadDisabled": "この LoRA は作者が Civitai でダウンロードを無効にしているため、どのバックエンドも重みを取得できません。別の LoRA を選んでください。"
     },
     "generation": {
-      "provider_timeout": "AIプロバイダーの応答がタイムアウトしました",
+      "provider_timeout": "生成に時間がかかりすぎました。しばらくして再試行するか、別のモデルを選んでください。",
       "provider_rate_limit": "リクエストが多すぎます。しばらくお待ちください",
       "provider_overloaded": "このモデルは現在混雑しています。別のモデルをお試しください。",
-      "invalid_api_key": "APIキーが無効または期限切れです",
-      "content_filtered": "プロバイダーの安全システムによりコンテンツがフィルタリングされました",
-      "model_unavailable": "このモデルは一時的に利用できません",
+      "invalid_api_key": "プロバイダーの API キーが無効か期限切れです。設定で更新してから再試行してください。",
+      "content_filtered": "プロバイダーのコンテンツ審査を通過しませんでした。プロンプトと参考素材がコンテンツポリシーに沿っているか確認し、修正して再送信してください。",
+      "model_unavailable": "このモデルは現在利用できません。しばらくして再試行するか、別のモデルを選んでください。",
       "provider_no_output": "プロバイダーが利用できるメディアを返しませんでした",
-      "callback_timeout": "生成 Worker から時間内に結果が返りませんでした",
+      "callback_timeout": "生成結果をまだ受信できていません。再試行する前に生成履歴を確認してください。",
       "storage_upload_failed": "生成メディアの保存に失敗しました",
       "provider_insufficient_balance": "プロバイダーアカウントの残高が不足しています",
       "insufficient_credits": "本日の無料生成上限に達しました",
@@ -6910,13 +6929,13 @@
       "reference_image_limit_exceeded": "参照画像の数がこのモデルの上限を超えています",
       "invalid_reference_image_dimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません",
       "provider_account_limit_reached": "プロバイダーのアカウントで設定された利用上限に達し、モデルサービスが停止されています。再試行しても解決しません。コンソールで上限を調整してください。",
-      "runner_queue_stuck": "Runner はジョブを受け付けましたが、実行する GPU ワーカーがいなかったため自動的にキャンセルされました。再試行しても再びキューに並ぶだけです。当面はホスト型モデルをご利用いただくか、サイト管理者に Runner エンドポイントの確認をご依頼ください。",
-      "execution_worker_unavailable": "生成リクエストが実行サービスに届きませんでした。ローカル開発では workers/execution を起動し「Ready on 8787」を待ってください。本番環境では実行サービスに到達できるかご確認ください。",
-      "lora_incompatible_hosted": "このホスト型モデルの LoRA ローダーは、この LoRA のレイヤー形式を読み込めません（LoRA 自体に問題はありません）。Runner 対応のモデルに切り替えてください。同じホスト型モデルで再試行しても結果は変わりません。",
+      "runner_queue_stuck": "生成を開始できない状態が続いたため、キャンセルされました。別の利用可能なモデルを選ぶか、後ほど再試行してください。",
+      "execution_worker_unavailable": "生成サービスに接続できません。しばらくして再試行し、解消しない場合は管理者にお問い合わせください。",
+      "lora_incompatible_hosted": "このモデルは LoRA の形式に対応していません。対応モデルまたは別の LoRA を選んでください。",
       "runner_monthly_limit_exceeded": "今月の Runner 生成クォータを使い切りました。当面はホスト型モデルに切り替えるか、来月のリセットをお待ちください。",
-      "runner_lora_unavailable": "この LoRA は Runner のストレージボリュームにまだ配置されていないため、Runner では使用できません。配置済みの LoRA を選ぶか、ホスト型モデルに切り替えてください。",
+      "runner_lora_unavailable": "現在の生成サービスではこの LoRA を利用できません。別の LoRA または対応モデルを選んでください。",
       "lora_download_disabled": "この LoRA は作者が Civitai でダウンロードを無効にしており、Civitai 内の生成でしか使えません。API キーの問題ではなく、どのトークンでも重みは取得できません。別の LoRA を選んでください。",
-      "unknown": "予期しないエラーが発生しました"
+      "unknown": "原因を特定できないエラーで生成に失敗しました。しばらくして再試行し、解消しない場合はエラー詳細を管理者にお伝えください。"
     },
     "validation": {
       "invalidInput": "入力が無効です。パラメータを確認してください。",
@@ -7609,7 +7628,7 @@
       "loraPick": {
         "header": "{name} が {count} 件見つけました · 付けるものを選んでください",
         "mount": "選んだものを付ける",
-        "mounted": "{count} 件を付けました · {time}",
+        "mounted": "{count} 件を処理済み · {time}",
         "dismiss": "これらは今は付けない",
         "searchAgain": "別の語で探す",
         "searchAgainPrefill": "別の語で探す：",
@@ -8018,13 +8037,13 @@
     },
     "question": {
       "recommended": "おすすめ",
-      "other": "その他",
-      "otherPlaceholder": "ほしいものを一言で…",
+      "other": "あなたの判断",
+      "otherPlaceholder": "候補になければ、自分の判断を書いてください…",
       "pinnedTitle": "{name} が先に確認したいこと",
       "current": "現在のプロンプト",
       "proposed": "提案されたプロンプト",
       "send": "送信",
-      "sourceNotes": "この文の素材の出どころ",
+      "sourceNotes": "参照できる資料",
       "negativeDiff": "ネガティブに足す語："
     },
     "videoFrameCaptureReason": {
@@ -8149,5 +8168,18 @@
       "music": "BGM",
       "sfx": "効果音"
     }
+  },
+  "NovelAiCharacters": {
+    "title": "複数キャラクターの構図",
+    "hint": "メインプロンプトには場面・画風・総人数を記述します。最大22人の特徴を個別に指定でき、順序は自動配置に影響します。空欄のキャラクターは入力または削除してください。",
+    "manual": "手動配置（左上を原点とする）",
+    "character": "キャラクター {number}",
+    "up": "上へ",
+    "remove": "削除",
+    "prompt": "キャラクターの説明",
+    "negative": "キャラクターの除外要素",
+    "x": "横の位置",
+    "y": "縦の位置",
+    "add": "キャラクターを追加"
   }
 }

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   compressImageToLimit,
   ImageCompressionError,
+  readImagePixelSize,
 } from '@/lib/compress-image'
 
 // jsdom does not implement createImageBitmap / canvas.toBlob, so each test
@@ -35,6 +36,37 @@ function makeFile(name: string, type: string, size: number): File {
 
 afterEach(() => {
   vi.restoreAllMocks()
+})
+
+describe('readImagePixelSize', () => {
+  it('returns bitmap width and height', async () => {
+    const file = makeFile('portrait.png', 'image/png', 1024)
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async () => ({
+        width: 1024,
+        height: 1792,
+        close: vi.fn(),
+      })),
+    )
+
+    await expect(readImagePixelSize(file)).resolves.toEqual({
+      width: 1024,
+      height: 1792,
+    })
+  })
+
+  it('returns null when decode fails so upload can still proceed', async () => {
+    const file = makeFile('broken.png', 'image/png', 1024)
+    vi.stubGlobal(
+      'createImageBitmap',
+      vi.fn(async () => {
+        throw new Error('bad image')
+      }),
+    )
+
+    await expect(readImagePixelSize(file)).resolves.toBeNull()
+  })
 })
 
 describe('compressImageToLimit', () => {

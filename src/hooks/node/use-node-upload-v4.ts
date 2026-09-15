@@ -24,7 +24,7 @@ import { CLIENT_UPLOAD_MAX_BYTES } from '@/constants/uploads'
 import { NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS } from '@/constants/node-studio'
 import { uploadImageFileAPI, uploadReferenceVideoAPI } from '@/lib/api-client'
 import { uploadReferenceAudioAPI } from '@/lib/api-client/voices'
-import { compressImageToLimit } from '@/lib/compress-image'
+import { compressImageToLimit, readImagePixelSize } from '@/lib/compress-image'
 import { notifyGalleryChanged } from '@/lib/gallery-revision'
 import { captureVideoThumbnail } from '@/lib/video-thumbnail'
 import type { NodeV4MediaPatch } from '@/components/business/node/nodes/v4/NodeV4Context'
@@ -82,6 +82,7 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
           const { file: compressed } = await compressImageToLimit(file, {
             maxBytes: CLIENT_UPLOAD_MAX_BYTES,
           })
+          const pixels = await readImagePixelSize(compressed)
           const response = await uploadImageFileAPI(compressed, {
             note,
             onProgress: setProgress,
@@ -100,6 +101,9 @@ export function useNodeUploadV4(): UseNodeUploadV4Value {
             url,
             sizeBytes: compressed.size,
             imageSource: NODE_STUDIO_IMAGE_OUTPUT_SOURCE_IDS.existing,
+            ...(pixels
+              ? { mediaWidth: pixels.width, mediaHeight: pixels.height }
+              : {}),
           }
         }
 

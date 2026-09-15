@@ -41,4 +41,22 @@ describe('CanvasWorkspaceLayout', () => {
     expect(rail).toHaveClass('domain-canvas')
     expect(workspace).not.toHaveClass('domain-canvas')
   })
+
+  it('script mode is the expanded two-column rail, not a second geometry owner', () => {
+    const stageRef = createRef<HTMLDivElement>()
+    render(
+      <CanvasWorkspaceLayout
+        assistantMode="script"
+        stageRef={stageRef}
+        assistant={<aside>Assistant</aside>}
+      >
+        <div>Canvas</div>
+      </CanvasWorkspaceLayout>,
+    )
+
+    expect(screen.getByTestId('canvas-workspace-layout')).toHaveAttribute(
+      'data-assistant-mode',
+      'script',
+    )
+  })
 })

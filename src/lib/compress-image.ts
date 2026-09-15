@@ -58,6 +58,29 @@ const SCALE_STEP = 0.8
 const QUALITY_STEP = 0.1
 const INITIAL_QUALITY = 0.92
 
+/**
+ * Best-effort pixel size for card aspect. Decode failure returns null so the
+ * caller can still upload — missing dims just fall back to 16:9.
+ */
+export async function readImagePixelSize(
+  file: Blob,
+): Promise<{ width: number; height: number } | null> {
+  let bitmap: ImageBitmap
+  try {
+    bitmap = await createImageBitmap(file)
+  } catch {
+    return null
+  }
+  try {
+    const width = bitmap.width
+    const height = bitmap.height
+    if (width > 0 && height > 0) return { width, height }
+    return null
+  } finally {
+    bitmap.close?.()
+  }
+}
+
 export async function compressImageToLimit(
   file: File,
   options: CompressImageOptions,

@@ -383,6 +383,33 @@ describe('ShellAssistantFrame · 收放与宽度', () => {
     expect(screen.queryByTestId('shell-assistant-strip')).toBeNull()
   })
 
+  it('展开态钉展开默认宽，拖宽钳在展开区间', () => {
+    const onWidthChange = vi.fn()
+    render(
+      <ShellAssistantFrame
+        open
+        showStrip
+        expanded
+        width={CANVAS_SHELL_ASSISTANT.expandedDefaultWidthPx}
+        onWidthChange={onWidthChange}
+        onOpen={vi.fn()}
+      >
+        <div data-testid="dock" />
+      </ShellAssistantFrame>,
+    )
+    expect(screen.getByTestId('shell-assistant-frame').style.width).toBe(
+      `${CANVAS_SHELL_ASSISTANT.expandedDefaultWidthPx}px`,
+    )
+
+    fireEvent.pointerDown(screen.getByTestId('shell-assistant-resize'), {
+      clientX: 900,
+    })
+    fireEvent.pointerMove(window, { clientX: 0 })
+    expect(onWidthChange).toHaveBeenCalledWith(
+      CANVAS_SHELL_ASSISTANT.expandedMaxWidthPx,
+    )
+  })
+
   it('手机档不钉宽（dock 自己是贴底抽屉）', () => {
     render(
       <ShellAssistantFrame

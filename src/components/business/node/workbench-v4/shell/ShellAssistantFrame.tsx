@@ -2,7 +2,7 @@
 
 /**
  * 助手 dock 的**几何外壳**（S7 §7 助手 · 画板 `ChromeAssistant.dc.html`）：
- * 右侧 dock 可拖宽（320–520）、可收成一条。
+ * 右侧 dock 可拖宽（对话 320–520 / 展开 560–800）、可收成一条。
  *
  * ⚠ 只管宽度与收放，⛔ 不碰会话：dock 本体仍是 `StudioNodeAssistantDock`，
  * 它作为 `children` 原样挂进来。
@@ -15,7 +15,7 @@ import { useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { ChevronLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
-import { CANVAS_SHELL_ASSISTANT } from '@/constants/canvas-shell'
+import { canvasAssistantWidthLimits } from '@/constants/canvas-shell'
 
 export interface ShellAssistantFrameProps {
   /** dock 开着。`false` 时只可能剩右缘那一条（`showStrip`）。 */
@@ -24,6 +24,8 @@ export interface ShellAssistantFrameProps {
   readonly showStrip: boolean
   /** `undefined` = 不钉宽（手机档）。 */
   readonly width: number | undefined
+  /** 展开态用更宽的钳制（对话 + 大纲两列）。 */
+  readonly expanded?: boolean
   onWidthChange(next: number): void
   onOpen(): void
   readonly children: ReactNode
@@ -33,16 +35,18 @@ export function ShellAssistantFrame({
   open,
   showStrip,
   width,
+  expanded = false,
   onWidthChange,
   onOpen,
   children,
 }: ShellAssistantFrameProps) {
   const t = useTranslations('StudioNode.shell.assistantDock')
+  const limits = canvasAssistantWidthLimits(expanded)
   const dragRef = useRef<{ startX: number; startWidth: number } | null>(null)
-  const latestWidth = useRef(width ?? CANVAS_SHELL_ASSISTANT.defaultWidthPx)
+  const latestWidth = useRef(width ?? limits.defaultWidthPx)
   useEffect(() => {
-    latestWidth.current = width ?? CANVAS_SHELL_ASSISTANT.defaultWidthPx
-  }, [width])
+    latestWidth.current = width ?? limits.defaultWidthPx
+  }, [width, limits.defaultWidthPx])
 
   const onPointerDown = useCallback(
     (event: React.PointerEvent<HTMLDivElement>) => {
@@ -58,8 +62,8 @@ export function ShellAssistantFrame({
         const next = drag.startWidth + (drag.startX - moveEvent.clientX)
         onWidthChange(
           Math.min(
-            CANVAS_SHELL_ASSISTANT.maxWidthPx,
-            Math.max(CANVAS_SHELL_ASSISTANT.minWidthPx, Math.round(next)),
+            limits.maxWidthPx,
+            Math.max(limits.minWidthPx, Math.round(next)),
           ),
         )
       }
@@ -71,7 +75,7 @@ export function ShellAssistantFrame({
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', onUp)
     },
-    [onWidthChange],
+    [limits.maxWidthPx, limits.minWidthPx, onWidthChange],
   )
 
   if (!open) {

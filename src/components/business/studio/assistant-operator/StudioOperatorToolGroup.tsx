@@ -1,47 +1,19 @@
 'use client'
 
-/**
- * **ToolGroup 折叠行**（§2.7 / §11.4）——连续的工具步收成一行「N 个操作 · 成功/失败」。
- *
- * ⭐ 方向 C 的全部意义就在这一颗上：**结果优先、过程自动折叠**。不收的话 20 行
- * 日志会把结论淹掉，而用户真正要读的是最后那两行。
- *
- * ⭐ 流式那一段**强制展开**（§3.1 ⑧）：正在跑的时候人是想看的；跑完停 1000ms
- * （`STUDIO_OPERATOR_TOOL_GROUP_COLLAPSE_MS`）再自己收起，标题换成「用时 Ns」。
- * ⛔ 不做「跑完立刻收」：那一瞬间的折叠会让用户以为刚才那几行是自己看花眼了。
- * ⚠ 用户**手动展开过**之后就不再自动收 —— 自动化压过一次显式意图，用户下次就
- * 不敢再点开了。
- * ⭐ **有失败步的组不自动收**（2026-09-06 面板轮，第 5 件）：折起来的那一行只
- * 写着「1 失败」，而用户那一刻唯一要看的就是它错在哪。
- * ⚠ **跳过不算失败**（2026-09-12 实测第 7 步）：同一轮里做过的那一步被去重时
- * 走「跳过 N」那一格，组照旧自动收 —— 那不是一件要用户去看的事。
- *
- * ⚠ 无卡框（§11.4）：它是沟里的一行，不是一张卡。加了框就和确认卡 / 结果卡
- * 抢同一档视觉重量。
- */
-
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useId, useState, type ReactNode } from 'react'
 import { ChevronDown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 import { Spinner } from '@/components/ui/spinner'
-import { STUDIO_OPERATOR_TOOL_GROUP_COLLAPSE_MS } from '@/constants/studio-assistant-operator'
 import { cn } from '@/lib/utils'
 
 interface StudioOperatorToolGroupProps {
-  /** 这一组里有几步。 */
   total: number
-  /** 其中失败了几步 —— >0 时计数套 `text-status-risk`（§11.2 的 risk 分工）。 */
   failed: number
-  /**
-   * 其中**跳过**了几步（2026-09-12 实测第 7 步）—— 同一轮里做过的那一步被去重。
-   * ⚠ 它既不是成功也不是失败：算成成功等于说「又写了一次」，算成失败等于给一轮
-   * 全做成了的操作扣一笔红字。⛔ 缺席 = 0，⛔ 别让它参与 `succeeded` 的减法之外
-   * 的任何计算。
-   */
   skipped?: number
-  /** 组里还有步在跑（流式）—— 为真时强制展开。 */
   running: boolean
+  runningTitle?: string
+  failure?: ReactNode
   children: ReactNode
 }
 
@@ -50,129 +22,70 @@ export function StudioOperatorToolGroup({
   failed,
   skipped = 0,
   running,
+  runningTitle,
+  failure,
   children,
 }: StudioOperatorToolGroupProps) {
   const t = useTranslations('StudioOperator')
-  /**
-   * 展开与否是**派生的**，只有用户亲手点过之后才变成受控值。
-   *
-   * ⚠ ⛔ 不在 effect 里同步 `setOpen`（`react-hooks/set-state-in-effect`）：
-   * 「跑着就展开」是一个能从 props 算出来的事实，写成级联渲染只会多一帧闪烁。
-   * 唯一真正异步的那件事（1000ms 之后自己收起）才走 effect + timer。
-   */
-  const [manualOpen, setManualOpen] = useState<boolean | null>(null)
-  /** 初值 = 挂载时就已经跑完的组直接收着（载回来的历史不该展开一屏日志）。 */
-  const [autoCollapsed, setAutoCollapsed] = useState(!running)
-  const [elapsedSeconds, setElapsedSeconds] = useState<number | null>(null)
-  /** 这一组**曾经**跑过 —— 没跑过就没有「用时」可言。 */
-  const sawRunningRef = useRef(running)
-  // ⚠ 懒初始化：`useRef(Date.now())` 会在每次 render 都求值一次（react-hooks/purity）。
-  const [startedAt] = useState(() => Date.now())
-
-  /**
-   * ⭐ **失败自动展开**（2026-09-06 面板轮，第 5 件）：一行「5 个操作 · 1 失败」
-   * 折着，用户得先点开才知道错在哪 —— 而错在哪正是那一刻唯一要紧的事。
-   * ⚠ 用户手动收起过仍然算数（`manualOpen` 在最前）：自动化压过一次显式意图，
-   * 用户下次就不敢再点了。
-   */
-  const open = manualOpen ?? (running || failed > 0 || !autoCollapsed)
-
-  useEffect(() => {
-    if (running) {
-      sawRunningRef.current = true
-      return
-    }
-    if (!sawRunningRef.current) return
-    const timer = window.setTimeout(() => {
-      setAutoCollapsed(true)
-      setElapsedSeconds(
-        Math.max(1, Math.round((Date.now() - startedAt) / 1000)),
-      )
-    }, STUDIO_OPERATOR_TOOL_GROUP_COLLAPSE_MS)
-    return () => window.clearTimeout(timer)
-  }, [running, startedAt])
-
-  const succeeded = total - failed - skipped
+  const [open, setOpen] = useState(false)
+  const detailsId = useId()
 
   return (
-    <div data-testid="operator-tool-group" data-open={open ? 'true' : 'false'}>
+    <div
+      data-testid="operator-tool-group"
+      data-open={String(open)}
+      className="min-w-0"
+    >
+      {running ? (
+        <div role="status" className="flex items-center gap-2 py-2 text-2sm">
+          <Spinner
+            size="sm"
+            role="presentation"
+            aria-hidden
+            data-testid="operator-tool-group-spinner"
+            className="shrink-0"
+          />
+          <span data-testid="operator-tool-group-running">
+            {runningTitle ?? t('toolGroup.running')}
+          </span>
+        </div>
+      ) : failure ? (
+        <div
+          data-testid="operator-tool-group-blocker"
+          className="my-2 border-l-2 border-status-risk pl-3 text-2sm"
+        >
+          {failure}
+        </div>
+      ) : null}
       <button
         type="button"
         data-testid="operator-tool-group-toggle"
         aria-expanded={open}
-        onClick={() => setManualOpen(!open)}
-        className="flex w-full items-center gap-2 py-0.5 text-left transition-colors duration-(--duration-fast) ease-standard"
+        aria-controls={detailsId}
+        onClick={() => setOpen(!open)}
+        className="flex min-h-9 w-full items-center gap-2 rounded-md py-1 text-left text-2sm text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring"
       >
-        {/* ⭐ 跑着的时候先给一颗 spinner（§4.1「ToolGroup pending」）——
-            这一组里已经有步在跑，但那一步要过好几秒才有结论。没有它的话，
-            「它到底在干什么」这个问题只能靠盯着不动的标题猜。
-            ⚠ 与「用时 Ns」占同一格：spinner 出现 / 消失时标题不换行也不移位。 */}
-        {running ? (
-          <Spinner
-            size="sm"
-            data-testid="operator-tool-group-spinner"
-            className="shrink-0 text-muted-foreground"
-          />
-        ) : null}
-        <span
-          data-testid="operator-tool-group-title"
-          className="min-w-0 truncate text-md text-foreground"
-        >
-          {elapsedSeconds !== null && !running
-            ? t('toolGroup.elapsed', { seconds: elapsedSeconds })
-            : t('toolGroup.title', { count: total })}
+        <span data-testid="operator-tool-group-title">
+          {t('toolGroup.details', { count: total })}
         </span>
-        {running ? (
-          <span
-            data-testid="operator-tool-group-running"
-            className="shrink-0 font-mono text-xs tracking-nav text-muted-foreground"
-          >
-            {t('toolGroup.running')}
-          </span>
-        ) : null}
-        <span
-          data-testid="operator-tool-group-succeeded"
-          className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground"
-        >
-          {t('toolGroup.succeeded', { count: succeeded })}
-        </span>
-        {/* 「跳过 N」——中性色（⛔ 不是 risk 橙）：它说的是「这一步不用做了」。 */}
-        {skipped > 0 ? (
-          <span
-            data-testid="operator-tool-group-skipped"
-            className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground"
-          >
-            {t('toolGroup.skipped', { count: skipped })}
-          </span>
-        ) : null}
         {failed > 0 ? (
-          <span
-            data-testid="operator-tool-group-failed"
-            className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-status-risk"
-          >
+          <span data-testid="operator-tool-group-failed">
             {t('toolGroup.failed', { count: failed })}
           </span>
         ) : null}
+        {skipped > 0 ? (
+          <span data-testid="operator-tool-group-skipped">
+            {t('toolGroup.skipped', { count: skipped })}
+          </span>
+        ) : null}
         <ChevronDown
-          className={cn(
-            'ml-auto size-3 shrink-0 text-muted-foreground transition-transform duration-(--duration-fast) ease-standard motion-reduce:transition-none',
-            open && 'rotate-180',
-          )}
+          className={cn('ml-auto size-3 shrink-0', open && 'rotate-180')}
           aria-hidden
         />
       </button>
-      {/* 折叠：`grid-template-rows` 0fr↔1fr 配方（`ui-defaults.md §4`）。 */}
-      <div
-        className={cn(
-          'grid transition-[grid-template-rows,opacity] duration-(--duration-base) ease-standard motion-reduce:transition-none',
-          open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0',
-        )}
-      >
-        <div className="min-h-0 overflow-hidden">
-          {/* 展开体缩进一级（§11.4）—— 一条 border 就够，⛔ 不再套一层底色块。 */}
-          <div className="ml-3.5 mt-1.5 flex flex-col gap-1.5 border-l border-border pl-2.5">
-            {children}
-          </div>
+      <div id={detailsId} hidden={!open}>
+        <div className="mt-1 flex min-w-0 flex-col gap-2 border-l border-border pl-3">
+          {children}
         </div>
       </div>
     </div>

@@ -244,8 +244,9 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
    * 摘要**（P4-B）。抄成两份的下场是刷新前后同一步的详情不一样 —— 而那种不一致
    * 没有任何人会去查。
    */
-  const detail =
-    !isRejected && step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done
+  const detail = isRejected
+    ? (step.error.detail ?? null)
+    : step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done
       ? describeOperatorStepDetail(step)
       : null
 

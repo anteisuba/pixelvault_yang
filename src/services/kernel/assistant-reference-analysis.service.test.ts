@@ -408,6 +408,7 @@ describe('reference analysis', () => {
       }),
     )
     const issues = await reviewOperatorReferencePrompt({
+      language: 'Chinese',
       analysis: { profiles, brief },
       prompt: 'Forest background, white background',
       context: input.context,
@@ -426,6 +427,7 @@ describe('reference analysis', () => {
     const complete = vi.fn().mockResolvedValue('Looks good!')
     expect(
       await reviewOperatorReferencePrompt({
+        language: 'Chinese',
         analysis: { profiles, brief },
         prompt: 'White background',
         context: input.context,

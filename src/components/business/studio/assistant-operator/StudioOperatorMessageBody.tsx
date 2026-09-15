@@ -98,7 +98,7 @@ export function StudioOperatorCollapsibleText({
       return (
         <p
           data-testid="operator-status-word"
-          className="flex h-6 items-center text-md leading-relaxed text-muted-foreground"
+          className="flex h-6 items-center text-md leading-relaxed text-muted-foreground animate-pulse motion-reduce:animate-none"
         >
           {statusText}
         </p>

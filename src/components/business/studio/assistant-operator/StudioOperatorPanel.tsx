@@ -52,6 +52,7 @@ import {
 import {
   collectOperatorResearchRefs,
   groupOperatorResearch,
+  groupOperatorHistoryTools,
   groupOperatorResearchRuns,
   hasOperatorResearchFindings,
   isOperatorResearchTool,
@@ -120,7 +121,6 @@ import {
   StudioOperatorPinnedEvidence,
   type StudioOperatorPinnedEvidenceItem,
 } from '@/components/business/studio/assistant-operator/StudioOperatorPinnedEvidence'
-import { StudioOperatorVerbStrip } from '@/components/business/studio/assistant-operator/StudioOperatorVerbStrip'
 import {
   StudioOperatorQuestionCard,
   type StudioOperatorQuestionAnswerPayload,
@@ -1222,17 +1222,7 @@ export function StudioOperatorPanel({
     return session ? format.dateTime(new Date(session.updatedAt)) : null
   }, [format, history.currentSessionId, history.sessions])
 
-  const historyGroups = groupOperatorResearch(
-    historyEntries.map((entry) =>
-      entry.kind === 'message'
-        ? 'message'
-        : entry.kind === 'step' &&
-            entry.status === 'done' &&
-            isOperatorResearchTool(entry.tool)
-          ? 'research'
-          : 'result',
-    ),
-  )
+  const historyGroups = groupOperatorHistoryTools(historyEntries)
   const liveGroups = groupOperatorResearch(
     blocks.map((block) =>
       block.kind === 'tools' &&
@@ -1286,6 +1276,23 @@ export function StudioOperatorPanel({
           ),
       ).length
       const failed = rejected.length - skipped
+      const roundSteps = entries.flatMap((entry) =>
+        entry.kind === 'step' && entry.runKey === block.runKey ? [entry] : [],
+      )
+      const blocker = roundSteps.findLast(
+        (item, index) =>
+          item.step.status === 'error' &&
+          !STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.includes(
+            item.step.error.reason,
+          ) &&
+          !roundSteps
+            .slice(index + 1)
+            .some(
+              (later) =>
+                later.step.tool === item.step.tool &&
+                later.step.status === 'done',
+            ),
+      )?.step
       const running = block.steps.some(
         (item) =>
           item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running,
@@ -1313,7 +1320,7 @@ export function StudioOperatorPanel({
        * 在明面上，翻页读页那一串折进「过程」。⛔ 不与 ToolGroup 并排画 —— 那会
        * 让同一轮检索在流里出现两次。
        * ⚠ 有失败步时**退回 ToolGroup**：卡上没有失败那一档的位置，而失败恰恰是
-       * 那一刻唯一要读的东西（ToolGroup 会自动展开它）。
+       * 那一刻唯一要读的东西（ToolGroup 单独呈现阻塞摘要）。
        */
       const researchSteps =
         failed === 0
@@ -1401,6 +1408,31 @@ export function StudioOperatorPanel({
                 failed={failed}
                 skipped={skipped}
                 running={running}
+                runningTitle={
+                  block.steps.findLast((item) => item.step.status === 'running')
+                    ?.step.title
+                }
+                failure={
+                  lastToolsBlock === block.steps[0]?.id &&
+                  blocker?.status === 'error' ? (
+                    <>
+                      <p className="font-medium">
+                        {blocker.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
+                          ? t('toolGroup.promptUnchanged')
+                          : t('toolGroup.blocked')}
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        {blocker.error.reason === 'promptConflict' &&
+                        blocker.error.detail
+                          ? blocker.error.detail
+                          : t(`reject.${blocker.error.reason}`)}
+                      </p>
+                      <p className="mt-1 text-muted-foreground">
+                        {t('toolGroup.inspectFailure')}
+                      </p>
+                    </>
+                  ) : null
+                }
               >
                 {logItems}
               </StudioOperatorToolGroup>
@@ -1686,12 +1718,8 @@ export function StudioOperatorPanel({
             })}
       />
 
-      {/* ── 五动词小标签条（画板 Main 头部正下方 / §4.6）——**桌面与手机都画**：
-          它说的是「五步里走到第几步」，与状态词那句「正在做什么」不重复。 */}
-      <StudioOperatorVerbStrip />
-
       {/* ── 钉住的证据常驻条（§3.2）——钉住之后在面板顶部留一份，可点回卡。
-          ⚠ 排在头部与动词条之下、时间线之上：它是「这一整轮都别忘了这句」，
+          ⚠ 排在头部之下、时间线之上：它是「这一整轮都别忘了这句」，
             不是一条时间线上的发言。⛔ 一条都没钉住时整条不渲染。 */}
       <StudioOperatorPinnedEvidence
         items={pinnedItems}
@@ -1762,7 +1790,10 @@ export function StudioOperatorPanel({
                 位置在这里是稳定的身份。
               ⚠ 历史行**不画时间戳**：库里那份没有逐条时刻，拿「现在」去填是编数据。 */}
             {(() => {
-              const renderHistoryEntry = (index: number) => {
+              const renderHistoryEntry = (
+                index: number,
+                includeSummary = true,
+              ) => {
                 const entry = historyEntries[index]!
                 const row = (
                   <StudioOperatorTimelineRow
@@ -1788,7 +1819,7 @@ export function StudioOperatorPanel({
                   </StudioOperatorTimelineRow>
                 )
                 const placed = historyRoundPlacement.byIndex.get(index)
-                if (!placed) return row
+                if (!placed || !includeSummary) return row
                 return (
                   <Fragment key={`hrw:${index}`}>
                     {row}
@@ -1796,6 +1827,89 @@ export function StudioOperatorPanel({
                   </Fragment>
                 )
               }
+              const renderHistoryGroups = (groups: typeof historyGroups) =>
+                groups.map((group) => {
+                  if (!group.tools) return renderHistoryEntry(group.indexes[0]!)
+                  const steps = group.indexes.flatMap((index) => {
+                    const entry = historyEntries[index]
+                    return entry?.kind === 'step' ? [entry] : []
+                  })
+                  const errors = steps.filter((step) => step.status === 'error')
+                  const skipped = errors.filter((step) =>
+                    STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
+                      (reason) => reason === step.rejectReason,
+                    ),
+                  ).length
+                  const roundGroups = historyGroups.filter(
+                    (item) => item.round === group.round && item.tools,
+                  )
+                  const roundSteps = roundGroups.flatMap((item) =>
+                    item.indexes.flatMap((index) => {
+                      const entry = historyEntries[index]
+                      return entry?.kind === 'step' ? [entry] : []
+                    }),
+                  )
+                  const blocker =
+                    roundGroups.at(-1) === group
+                      ? roundSteps.findLast(
+                          (step, index) =>
+                            step.status === 'error' &&
+                            !STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
+                              (reason) => reason === step.rejectReason,
+                            ) &&
+                            !roundSteps
+                              .slice(index + 1)
+                              .some(
+                                (later) =>
+                                  later.tool === step.tool &&
+                                  later.status === 'done',
+                              ),
+                        )
+                      : undefined
+                  return (
+                    <div
+                      key={`history-tools:${group.indexes[0]}`}
+                      className="ml-8"
+                    >
+                      <StudioOperatorToolGroup
+                        total={steps.length}
+                        failed={errors.length - skipped}
+                        skipped={skipped}
+                        running={false}
+                        failure={
+                          blocker ? (
+                            <>
+                              <p className="font-medium">
+                                {blocker.tool ===
+                                ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
+                                  ? t('toolGroup.promptUnchanged')
+                                  : t('toolGroup.blocked')}
+                              </p>
+                              <p className="text-muted-foreground">
+                                {blocker.rejectReason &&
+                                t.has(`reject.${blocker.rejectReason}`)
+                                  ? t(`reject.${blocker.rejectReason}`)
+                                  : blocker.title}
+                              </p>
+                              <p className="text-muted-foreground">
+                                {t('toolGroup.inspectFailure')}
+                              </p>
+                            </>
+                          ) : null
+                        }
+                      >
+                        {group.indexes.map((index) =>
+                          renderHistoryEntry(index, false),
+                        )}
+                      </StudioOperatorToolGroup>
+                      {group.indexes.flatMap((index) =>
+                        (historyRoundPlacement.byIndex.get(index) ?? []).map(
+                          renderHistoryRound,
+                        ),
+                      )}
+                    </div>
+                  )
+                })
               /* ⚠ 跨切点的那一组算「最近」——⛔ 不从一组研究步中间切一刀，
                那会把「查了什么」折进去、「查出什么」留在外面。 */
               const older = historyGroups.filter((group) =>
@@ -1817,10 +1931,10 @@ export function StudioOperatorPanel({
                       <summary className="cursor-pointer list-none py-1 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                         {t('history.earlierRounds', { count: historyCutoff })}
                       </summary>
-                      {renderGroups(older, renderHistoryEntry)}
+                      {renderHistoryGroups(older)}
                     </details>
                   ) : null}
-                  {renderGroups(recent, renderHistoryEntry)}
+                  {renderHistoryGroups(recent)}
                 </>
               )
             })()}

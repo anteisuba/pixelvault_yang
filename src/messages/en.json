@@ -7395,7 +7395,17 @@
       "shading": "Shading",
       "materials": "Materials",
       "palette": "Palette",
-      "lighting": "Lighting"
+      "lighting": "Lighting",
+      "evidence": "Reference evidence · {count} images",
+      "renderingMedium": "Rendering medium",
+      "medium": {
+        "2d_flat": "Flat 2D",
+        "2d_painterly": "Painterly 2D",
+        "3d_stylized": "Stylized 3D",
+        "3d_realistic": "Realistic 3D",
+        "photo": "Photography",
+        "mixed": "Mixed media"
+      }
     },
     "title": "Assistant",
     "domainName": {
@@ -7468,7 +7478,11 @@
       "succeeded": "{count} ok",
       "skipped": "{count} skipped",
       "failed": "{count} failed",
-      "running": "in progress"
+      "running": "in progress",
+      "details": "Execution details · {count} steps",
+      "promptUnchanged": "Prompt unchanged",
+      "blocked": "Action incomplete",
+      "inspectFailure": "Expand the execution details for the reason, or clarify your request below."
     },
     "checkpoint": {
       "summary": "Changed {count}: {fields}",

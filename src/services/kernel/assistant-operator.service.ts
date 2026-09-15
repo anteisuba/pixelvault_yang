@@ -572,7 +572,6 @@ function toWorkingState(
 
 interface OperatorRun {
   referenceAnalysis: ReferenceAnalysis | null
-  promptReviewFailures: number
   referencePromptWritten: boolean
   /** 分工简报两次都没过 schema，这一轮是按兜底分工写的。 */
   referenceBriefDegraded: boolean
@@ -2901,7 +2900,8 @@ async function completeReferenceAnalysisText(
   route = run.route,
   modelId = run.modelId,
 ): Promise<string> {
-  const result = await completeAssistantTextWithContextRetry({
+  let result = ''
+  for await (const chunk of streamAssistantTextWithContextRetry({
     systemPrompt: system,
     buildUserPrompt: () => prompt,
     contextCompactionTargetLength: OPERATOR_CONTEXT_COMPACTION_TARGET_LENGTH,
@@ -2909,7 +2909,9 @@ async function completeReferenceAnalysisText(
     modelId,
     ...(images?.length ? { imageData: images } : {}),
     responseFormat: 'json_object',
-  })
+  })) {
+    result += chunk
+  }
   return result
 }
 
@@ -3129,7 +3131,7 @@ async function planSetText(
     if (analysis.brief.uncertainties.length) {
       return reject(
         REJECT.promptConflict,
-        `Resolve these source-role questions with the creator before writing: ${analysis.brief.uncertainties.join('; ')}`,
+        analysis.brief.uncertainties.join('；'),
       )
     }
   }
@@ -3241,14 +3243,12 @@ async function planSetText(
   }
 
   if (needsReferenceReview && run.referenceAnalysis) {
-    if (run.promptReviewFailures >= 2) {
-      return reject(
-        REJECT.promptConflict,
-        'Two prompt checks failed. Stop rewriting; explain the unresolved conflict to the creator.',
-      )
-    }
     const issues = await reviewOperatorReferencePrompt({
       analysis: run.referenceAnalysis,
+      language:
+        RESPONSE_LANGUAGE_LABELS[
+          resolveResponseLanguage(run.request, run.persona)
+        ],
       prompt: next,
       context: referenceCreatorContext(run),
       modelHint:
@@ -3260,12 +3260,13 @@ async function planSetText(
         completeReferenceAnalysisText(run, system, prompt),
     })
     if (!issues || issues.length) {
-      run.promptReviewFailures += 1
       return reject(
         REJECT.promptConflict,
         issues
-          ? `Correct only these conflicts once, then retry set_prompt: ${issues.join('; ')}`
-          : 'Prompt review could not be read. Do not claim the prompt passed.',
+          ? issues.join('；')
+          : OPERATOR_PROMPT_REVIEW_UNAVAILABLE[
+              resolveResponseLanguage(run.request, run.persona)
+            ],
       )
     }
   }
@@ -6159,6 +6160,29 @@ function resolveResponseLanguage(
  * 文本」的分支，客户端两种渲染，为一句话不值。
  * ⛔ 也不要沉默收尾：一个自己停下来、什么都不说的助手是本仓最难查的那种失败。
  */
+const OPERATOR_PROMPT_CONFLICT_MESSAGES: Record<
+  PromptAssistantResponseLanguage,
+  string
+> = {
+  english:
+    'The prompt is unchanged. The corrected draft still failed the reference check, so I stopped. The remaining issue is below; clarify the source assignment or requirement you want to change before continuing.',
+  japanese:
+    'プロンプトは変更していません。修正後も参考画像との整合性を確認できなかったため、処理を停止しました。残っている問題は次のとおりです。続けるには、変更したい参考画像の役割や要望を補足してください。',
+  chinese:
+    '提示词尚未修改。连续两次未通过参考图检查，我已停止尝试。下面是尚未解决的问题；请补充需要调整的参考图分工或要求后再继续。',
+}
+
+const OPERATOR_PROMPT_REVIEW_UNAVAILABLE: Record<
+  PromptAssistantResponseLanguage,
+  string
+> = {
+  english:
+    'The prompt check did not return a readable result. This does not establish a conflict in your request. Try again later.',
+  japanese:
+    'プロンプトの確認結果を読み取れませんでした。要望に矛盾があると判明したわけではありません。時間をおいて再試行してください。',
+  chinese: '未能读取提示词检查结果，尚不能认定你的要求存在冲突。请稍后重试。',
+}
+
 const OPERATOR_STUCK_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
   {
     english:
@@ -7839,7 +7863,6 @@ export async function* runAssistantOperator(
 
   const run: OperatorRun = {
     referenceAnalysis: null,
-    promptReviewFailures: 0,
     referencePromptWritten: false,
     referenceBriefDegraded: false,
     request,
@@ -7935,6 +7958,7 @@ export async function* runAssistantOperator(
   let consecutiveParseFailures = 0
   /** 连着撞了几次「同一步重复」—— 执行成功一次就归零（见下面那段）。 */
   let repeatedStepStrikes = 0
+  let promptConflictStrikes = 0
   /** 收尾那句话已经被退回去要过一次结论了。⛔ 只退一次，不做开放循环。 */
   let conclusionRetried = false
   let completed = false
@@ -8679,6 +8703,32 @@ export async function* runAssistantOperator(
             plan.detail ? `: ${plan.detail}` : ''
           }.${plan.reason === REJECT.referenceAnalysisRequired ? '' : ' Do not retry it unchanged.'}`,
         )
+        if (name === TOOL.setPrompt && plan.reason === REJECT.promptConflict) {
+          promptConflictStrikes += 1
+          if (promptConflictStrikes >= 2) {
+            const language = resolveResponseLanguage(request, persona)
+            yield {
+              type: ASSISTANT_OPERATOR_EVENTS.message,
+              text: [OPERATOR_PROMPT_CONFLICT_MESSAGES[language], plan.detail]
+                .filter(Boolean)
+                .join('\n\n'),
+            }
+            const roundSummary = await closeRoundBeforeStop(run, {
+              clerkId,
+              userId: user.id,
+              todo: plan.detail ?? OPERATOR_PROMPT_CONFLICT_MESSAGES[language],
+            })
+            yield {
+              type: ASSISTANT_OPERATOR_EVENTS.done,
+              ...(roundSummary ? { roundSummary } : {}),
+            }
+            completed = true
+            return
+          }
+          run.observations.push(
+            'Correct only the named conflict once, then retry set_prompt. If source roles are uncertain, ask one focused question instead of guessing. Another prompt conflict will end this run. Explain the concrete issue in the creator language.',
+          )
+        }
         continue
       }
 

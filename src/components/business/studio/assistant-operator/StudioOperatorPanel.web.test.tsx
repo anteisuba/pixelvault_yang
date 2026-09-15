@@ -26,7 +26,7 @@ import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operat
 vi.mock('next-intl', () => ({
   useTranslations: () => {
     const t = (key: string) => key
-    return t
+    return Object.assign(t, { has: () => true })
   },
   useFormatter: () => ({ dateTime: () => '09-06 12:00' }),
 }))
@@ -522,14 +522,21 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       ],
     })
     renderPanel()
-    const disclosure = screen.getByTestId('operator-research')
-    expect(disclosure).not.toHaveAttribute('open')
-    expect(disclosure).toContainElement(screen.getByText('正在核实资料'))
-    expect(disclosure).toContainElement(screen.getByText('检索资料'))
-    expect(disclosure).not.toContainElement(
-      screen.getByText('已核实的最终结论'),
+    const groups = screen.getAllByTestId('operator-tool-group')
+    expect(groups).toHaveLength(2)
+    expect(groups.every((group) => group.dataset.open === 'false')).toBe(true)
+    expect(screen.getByText('正在核实资料')).toBeVisible()
+    expect(screen.getByText('已核实的最终结论')).toBeVisible()
+    expect(screen.getByText('检索资料')).not.toBeVisible()
+    expect(screen.getByTestId('operator-tool-group-blocker')).toHaveTextContent(
+      '搜索失败',
     )
-    expect(disclosure).not.toContainElement(screen.getByText('搜索失败'))
+    fireEvent.click(
+      within(groups[1]!).getByTestId('operator-tool-group-toggle'),
+    )
+    expect(
+      within(groups[1]!).getByTestId('operator-history-step'),
+    ).toBeVisible()
   })
 
   it('① 确认卡（多步）钉在流末尾 —— 一行动作串 +「开始」交给驱动 hook', () => {
@@ -890,6 +897,64 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     })
     renderPanel()
     expect(screen.getByTestId('operator-research-card')).toBeTruthy()
+  })
+
+  it('clears an earlier conflict after a successful write even across separate log blocks', () => {
+    pushStep('run-1', {
+      id: 'failed',
+      title: '写提示词',
+      tool: 'set_prompt',
+      verb: 'apply',
+      status: 'error',
+      error: { reason: 'promptConflict', detail: '人物来源颠倒' },
+    })
+    store.appendOperatorEntry({
+      kind: 'message',
+      id: 'fix',
+      text: '已校正人物来源。',
+    })
+    pushStep('run-1', {
+      id: 'fixed',
+      title: '修正提示词',
+      tool: 'set_prompt',
+      verb: 'apply',
+      status: 'done',
+      payload: { value: '图2人物，图1服装' },
+      inverse: { value: '' },
+    })
+    renderPanel()
+    expect(screen.queryByTestId('operator-tool-group-blocker')).toBeNull()
+    expect(screen.getAllByTestId('operator-tool-group')).toHaveLength(2)
+  })
+
+  it('shows one unresolved conflict per run while keeping all attempts available', () => {
+    pushStep('run-1', {
+      id: 'failed-1',
+      title: '写提示词',
+      tool: 'set_prompt',
+      verb: 'apply',
+      status: 'error',
+      error: { reason: 'promptConflict', detail: '人物来源颠倒' },
+    })
+    store.appendOperatorEntry({
+      kind: 'message',
+      id: 'fix',
+      text: '检查人物来源。',
+    })
+    pushStep('run-1', {
+      id: 'failed-2',
+      title: '修正提示词',
+      tool: 'set_prompt',
+      verb: 'apply',
+      status: 'error',
+      error: { reason: 'promptConflict', detail: '仍缺少保持身材的要求' },
+    })
+    renderPanel()
+    expect(screen.getAllByTestId('operator-tool-group-blocker')).toHaveLength(1)
+    expect(screen.getByTestId('operator-tool-group-blocker')).toHaveTextContent(
+      '仍缺少保持身材的要求',
+    )
+    expect(screen.getAllByTestId('operator-log-item')).toHaveLength(2)
   })
 
   it('⭐ 一轮被正文劈成两个工具块时，checkpoint 只出**一张**', () => {

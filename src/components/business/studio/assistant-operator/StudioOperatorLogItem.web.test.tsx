@@ -453,3 +453,21 @@ describe('日志条 · 读回来的正文（read_url，2026-09-06）', () => {
     )
   })
 })
+
+it('exposes the concrete rejection detail when the failed log is expanded', () => {
+  renderItem({
+    step: {
+      id: 'failed',
+      title: '改写提示词',
+      tool: 'set_prompt',
+      verb: 'apply',
+      status: 'error',
+      error: { reason: 'promptConflict', detail: '人物来源应为图2。' },
+    },
+  })
+  expect(screen.queryByTestId('operator-log-detail')).toBeNull()
+  fireEvent.click(screen.getByTestId('operator-log-title'))
+  expect(screen.getByTestId('operator-log-detail')).toHaveTextContent(
+    '人物来源应为图2。',
+  )
+})

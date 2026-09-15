@@ -17,6 +17,26 @@ export function isOperatorResearchTool(tool: string): boolean {
   )
 }
 
+export function groupOperatorHistoryTools(
+  entries: readonly {
+    kind: string
+    critique?: unknown
+    referenceAnalysis?: unknown
+  }[],
+) {
+  const groups: { tools: boolean; indexes: number[]; round: number }[] = []
+  let round = 0
+  entries.forEach((entry, index) => {
+    if (entry.kind === 'user') round += 1
+    const tools =
+      entry.kind === 'step' && !entry.critique && !entry.referenceAnalysis
+    const previous = groups.at(-1)
+    if (tools && previous?.tools) previous.indexes.push(index)
+    else groups.push({ tools, indexes: [index], round })
+  })
+  return groups
+}
+
 export type OperatorTimelinePresentation = 'research' | 'message' | 'result'
 
 export function groupOperatorResearch(

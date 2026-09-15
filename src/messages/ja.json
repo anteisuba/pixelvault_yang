@@ -7395,7 +7395,17 @@
       "shading": "陰影",
       "materials": "質感",
       "palette": "配色",
-      "lighting": "照明"
+      "lighting": "照明",
+      "evidence": "参考資料 · {count} 枚",
+      "renderingMedium": "表現媒体",
+      "medium": {
+        "2d_flat": "2Dフラット",
+        "2d_painterly": "2D絵画",
+        "3d_stylized": "様式化3D",
+        "3d_realistic": "写実的3D",
+        "photo": "写真",
+        "mixed": "混合媒体"
+      }
     },
     "title": "アシスタント",
     "domainName": {
@@ -7468,7 +7478,11 @@
       "succeeded": "{count} 成功",
       "skipped": "{count} スキップ",
       "failed": "{count} 失敗",
-      "running": "進行中"
+      "running": "進行中",
+      "details": "実行記録 · {count} ステップ",
+      "promptUnchanged": "プロンプトは未変更です",
+      "blocked": "操作が完了していません",
+      "inspectFailure": "実行記録で理由を確認するか、下で要望を補足・修正してください。"
     },
     "checkpoint": {
       "summary": "{count} 項目を変更：{fields}",

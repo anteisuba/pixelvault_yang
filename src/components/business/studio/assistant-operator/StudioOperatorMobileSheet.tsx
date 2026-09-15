@@ -125,6 +125,10 @@ export function StudioOperatorMobileSheet({
            不是可以赌的东西。行内 style 一定赢。 */
         style={{
           height: STUDIO_OPERATOR_MOBILE_SHELL.sheetHeight,
+          paddingBottom:
+            typeof activeSnap === 'number'
+              ? `calc(${STUDIO_OPERATOR_MOBILE_SHELL.sheetHeight} * (1 - ${activeSnap}))`
+              : undefined,
           maxHeight: `calc(${STUDIO_OPERATOR_MOBILE_SHELL.sheetHeight} - var(--keyboard-inset, 0px))`,
         }}
       >

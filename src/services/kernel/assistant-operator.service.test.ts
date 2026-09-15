@@ -9207,6 +9207,73 @@ describe('current reference image bindings', () => {
     ]
   }
 
+  it('collects reference JSON from the stream before accepting visual evidence', async () => {
+    let streamedEvidence = false
+    mockLlmTextStreamChunks.mockImplementation((raw) => {
+      if (!raw.includes('"images"')) return null
+      streamedEvidence = true
+      const midpoint = Math.floor(raw.length / 2)
+      return [raw.slice(0, midpoint), raw.slice(midpoint)]
+    })
+    queueTurns(...analysisTurns(), { finished: true, message: '分析完成。' })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(streamedEvidence).toBe(true)
+    expect(stepsOf(events)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+          status: 'done',
+        }),
+      ]),
+    )
+  })
+
+  it('does not accept partial reference evidence when its stream fails', async () => {
+    mockLlmTextStreamChunks.mockImplementation((raw) => {
+      if (!raw.includes('"images"')) return null
+      return {
+        *[Symbol.iterator]() {
+          yield raw.slice(0, Math.floor(raw.length / 2))
+          throw new ApiRequestError(
+            'PROVIDER_TIMEOUT',
+            504,
+            'errors.provider.timeout',
+            'Provider timed out during reference analysis',
+          )
+        },
+      }
+    })
+    queueTurns(...analysisTurns())
+    const events: AssistantOperatorEvent[] = []
+    await expect(
+      (async () => {
+        for await (const event of runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ))
+          events.push(event)
+      })(),
+    ).rejects.toMatchObject({ errorCode: 'PROVIDER_TIMEOUT' })
+    expect(stepsOf(events).some((step) => step.referenceAnalysis)).toBe(false)
+    expect(stepsOf(events)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+          status: 'error',
+        }),
+      ]),
+    )
+  })
+
   /**
    * ⭐ 真机缺口（2026-09-12）：挂着两张参考图，用户问「这两张分别是什么画风」，
    * 模型回「我无法直接查看这两张参考图的画面像素」。⛔ 修的是**提示**不是闸 ——
@@ -9634,6 +9701,118 @@ describe('current reference image bindings', () => {
       status: 'done',
       payload: { value: 'A hug on a white background' },
     })
+  })
+
+  it('ends the tool loop after one failed prompt correction and reports the concrete conflict', async () => {
+    const conflict = '图1被写成人物来源，但用户要求保留图2的脸部。'
+    queueTurns(
+      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '写提示词',
+          args: { value: 'First attempt' },
+        },
+      },
+      brief,
+      { issues: [conflict] },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '修正提示词',
+          args: { value: 'Second attempt' },
+        },
+      },
+      { issues: [conflict] },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '不应执行',
+          args: { value: 'Third attempt' },
+        },
+      },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          responseLanguage: 'chinese',
+          snapshot: {
+            ...SNAPSHOT,
+            prompt: '',
+            references: { items: refs, limit: 4 },
+          },
+        }),
+      ),
+    )
+    const writes = stepsOf(events).filter(
+      (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+    )
+    expect(writes).toHaveLength(2)
+    expect(writes.every((step) => step.status === 'error')).toBe(true)
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: ASSISTANT_OPERATOR_EVENTS.message,
+        text: expect.stringContaining('提示词尚未修改'),
+      }),
+    )
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: ASSISTANT_OPERATOR_EVENTS.message,
+        text: expect.stringContaining(conflict),
+      }),
+    )
+    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+  })
+
+  it('also bounds repeated source-role uncertainty before the prompt reviewer runs', async () => {
+    queueTurns(
+      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'First attempt' },
+        },
+      },
+      { ...brief, uncertainties: ['哪张图提供服装？'] },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Second attempt' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Third attempt' },
+        },
+      },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: {
+            ...SNAPSHOT,
+            prompt: '',
+            references: { items: refs, limit: 4 },
+          },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).filter(
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      ),
+    ).toHaveLength(2)
+    expect(
+      mockLlmTextCompletion.mock.calls.some(([input]) =>
+        String(input.systemPrompt).includes(
+          'Check an image-generation prompt against',
+        ),
+      ),
+    ).toBe(false)
+    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
   })
 
   it('rejects malformed visual fields without exceeding the error event limit', async () => {

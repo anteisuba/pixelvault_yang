@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
@@ -65,6 +65,12 @@ describe('StudioOperatorTimelineRow', () => {
           ],
         }}
       />,
+    )
+    expect(screen.getByText('Character features')).not.toBeVisible()
+    fireEvent.click(
+      screen
+        .getByTestId('operator-reference-analysis')
+        .querySelector('summary')!,
     )
     expect(screen.getByText('Character features')).toBeVisible()
     expect(screen.getByText('contours：Clean contours')).toBeVisible()

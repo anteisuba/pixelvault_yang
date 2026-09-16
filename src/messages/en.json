@@ -189,7 +189,7 @@
   },
   "PrivacyConsent": {
     "label": "Privacy notice",
-    "body": "We use cookies to keep you signed in and remember your language, and Sentry to report errors — that much ANTEI needs to run. Optional session replay records how you use the app, with every text masked, so we can see what broke.",
+    "body": "We use cookies to keep you signed in and remember your language, and Sentry to report errors. These are needed to run ANTEI. Optional session replay records how you use the app, with all text masked, to help us find the cause of problems.",
     "policyLink": "Privacy Policy",
     "rejectAction": "Essential only",
     "acceptAction": "Accept"
@@ -266,7 +266,7 @@
       "slides": {
         "model": {
           "title": "Choose the image model first",
-          "description": "Pick the model and frame before writing the final prompt so the run starts on the right route.",
+          "description": "Pick a model and aspect ratio before you finish your prompt.",
           "alt": "Hand-drawn Xiaohei guide showing a model selector machine preparing a blank image canvas"
         },
         "prompt": {
@@ -453,58 +453,58 @@
   },
   "Toasts": {
     "createSuccess": "Created successfully",
-    "createFailed": "Failed to create",
+    "createFailed": "Couldn't create",
     "updateSuccess": "Updated successfully",
-    "updateFailed": "Failed to update",
+    "updateFailed": "Couldn't update",
     "deleteSuccess": "Deleted successfully",
-    "deleteFailed": "Failed to delete",
+    "deleteFailed": "Couldn't delete",
     "visibilityUpdated": "Visibility updated",
-    "visibilityFailed": "Failed to update visibility",
+    "visibilityFailed": "Couldn't update visibility",
     "apiKeyCreated": "API key added successfully",
-    "apiKeyLoadFailed": "Failed to load API keys",
-    "apiKeyCreateFailed": "Failed to add API key",
+    "apiKeyLoadFailed": "Couldn't load API keys",
+    "apiKeyCreateFailed": "Couldn't add API key",
     "apiKeyUpdated": "API key updated",
-    "apiKeyUpdateFailed": "Failed to update API key",
+    "apiKeyUpdateFailed": "Couldn't update API key",
     "apiKeyDeleted": "API key deleted",
-    "apiKeyDeleteFailed": "Failed to delete API key",
+    "apiKeyDeleteFailed": "Couldn't delete API key",
     "storyDeleted": "Story deleted",
-    "storyDeleteFailed": "Failed to delete story",
+    "storyDeleteFailed": "Couldn't delete story",
     "storyCreated": "Story created",
     "narrativeGenerated": "Narrative generated",
-    "narrativeGenerateFailed": "Failed to generate narrative",
+    "narrativeGenerateFailed": "Couldn't generate narrative",
     "projectCreated": "Project created",
-    "projectLoadFailed": "Failed to load projects",
-    "projectCreateFailed": "Failed to create project",
+    "projectLoadFailed": "Couldn't load projects",
+    "projectCreateFailed": "Couldn't create project",
     "projectUpdated": "Project updated",
-    "projectUpdateFailed": "Failed to update project",
+    "projectUpdateFailed": "Couldn't update project",
     "projectDeleted": "Project deleted",
-    "projectDeleteFailed": "Failed to delete project",
+    "projectDeleteFailed": "Couldn't delete project",
     "characterCardCreated": "Character card created",
-    "characterCardLoadFailed": "Failed to load character cards",
-    "characterCardCreateFailed": "Failed to create character card",
+    "characterCardLoadFailed": "Couldn't load character cards",
+    "characterCardCreateFailed": "Couldn't create character card",
     "characterCardUpdated": "Character card updated",
-    "characterCardUpdateFailed": "Failed to update character card",
+    "characterCardUpdateFailed": "Couldn't update character card",
     "characterCardDeleted": "Character card deleted",
-    "characterCardDeleteFailed": "Failed to delete character card",
+    "characterCardDeleteFailed": "Couldn't delete character card",
     "characterCardStable": "Character card is now stable!",
     "characterCardRefineFailed": "Refinement failed",
     "featuredAdded": "Pinned to profile",
     "featuredRemoved": "Unpinned from profile",
-    "featuredFailed": "Failed to update pin status",
+    "featuredFailed": "Couldn't update pin status",
     "featuredLimitReached": "You can pin up to 9 works",
-    "collectionLoadFailed": "Failed to load collections",
+    "collectionLoadFailed": "Couldn't load collections",
     "collectionCreated": "Collection created",
-    "collectionCreateFailed": "Failed to create collection",
+    "collectionCreateFailed": "Couldn't create collection",
     "collectionUpdated": "Collection updated",
-    "collectionUpdateFailed": "Failed to update collection",
+    "collectionUpdateFailed": "Couldn't update collection",
     "collectionDeleted": "Collection deleted",
-    "collectionDeleteFailed": "Failed to delete collection",
-    "collectionAddItemsFailed": "Failed to add to collection",
-    "collectionRemoveItemFailed": "Failed to remove from collection",
-    "cardRecipeCompileFailed": "Compilation failed",
+    "collectionDeleteFailed": "Couldn't delete collection",
+    "collectionAddItemsFailed": "Couldn't add to collection",
+    "collectionRemoveItemFailed": "Couldn't remove from collection",
+    "cardRecipeCompileFailed": "Couldn't prepare the recipe",
     "loraTrainingSubmitted": "LoRA training started",
-    "loraTrainingSubmitFailed": "Failed to start LoRA training",
-    "loraTrainingComplete": "LoRA training complete! Model ready to use.",
+    "loraTrainingSubmitFailed": "Couldn't start LoRA training",
+    "loraTrainingComplete": "LoRA training is complete. Your model is ready to use.",
     "loraTrainingFailed": "LoRA training failed"
   },
   "Projects": {
@@ -565,7 +565,7 @@
     },
     "prompts": {
       "title": "Prompt Engineering — PixelVault",
-      "description": "Manage callable prompt templates and review every asset each template has produced."
+      "description": "Save reusable prompt templates and see what you've created with each one."
     },
     "profile": {
       "title": "Profile — PixelVault",
@@ -637,7 +637,7 @@
         "label": "Page navigation",
         "pageLabel": "Page index",
         "close": "Close",
-        "stationPages": "{count} pages",
+        "stationPages": "{count, plural, one {# page} other {# pages}}",
         "prevModel": "Previous model",
         "nextModel": "Next model"
       },
@@ -659,21 +659,21 @@
       },
       "fn": {
         "image": {
-          "workbench": "Image workbench",
-          "meta": "1024×1365 · 1 each · same prompt",
+          "workbench": "Image workspace",
+          "meta": "1024×1365 · 1 image per model · same prompt",
           "prompt": "Ginger cat curator in round glasses at a museum desk, framed art behind, warm light",
           "generate": "Generate",
-          "moreModels": "{count} models"
+          "moreModels": "{count, plural, one {# model} other {# models}}"
         },
         "lora": {
-          "workbench": "LoRA workbench",
-          "mounted": "<b>{count}</b> loaded · no cap",
-          "search": "Search Civitai / HuggingFace…",
-          "add": "Load",
-          "mountedKicker": "Loaded · weights",
-          "promptKicker": "PROMPT · trigger words arrive on their own",
+          "workbench": "LoRA workspace",
+          "mounted": "<b>{count}</b> added · no limit",
+          "search": "Search Civitai / Hugging Face…",
+          "add": "Add",
+          "mountedKicker": "Added LoRAs · weights",
+          "promptKicker": "PROMPT · trigger words are added automatically",
           "freeText": ", full body, standing, cream coat, holding a black book",
-          "outKicker": "One mount list · one seed · only the style weights move",
+          "outKicker": "Same LoRAs · same seed · only the style weights change",
           "outAlt": "The same character at flat-line weight {cel} and figure weight {solid}",
           "cards": {
             "flatline": {
@@ -736,7 +736,7 @@
           "generate": "Generate"
         },
         "video": {
-          "workbench": "Video workbench",
+          "workbench": "Video workspace",
           "meta": "Seedance 2.5 reference endpoint · 30s in one pass · 720p",
           "refs": {
             "shot": {
@@ -760,7 +760,7 @@
         "canvas": {
           "assistant": {
             "title": "Assistant",
-            "meta": "script brain",
+            "meta": "Script assistant",
             "meAvatar": "Me",
             "me": "Rainy season, a girl forgets her umbrella — turn it into a short.",
             "botAvatar": "AI",
@@ -809,7 +809,7 @@
           },
           "cells": {
             "cut": "05 · The Borrowed Umbrella",
-            "anchor": "04 · character anchor",
+            "anchor": "04 · character reference",
             "voice": "03 · line 0:03",
             "shotDeck": "Image",
             "shotPullback": "Image",
@@ -823,8 +823,8 @@
           "archived": "+ {count, number}",
           "reuseKicker": "REUSE",
           "slotEmpty": "Reference slot · empty",
-          "slotFilled": "Reference loaded · canvas",
-          "note": "Any one of these, dragged into the canvas or a workbench, is the reference for the next generation. A result is not the end, it is material.",
+          "slotFilled": "Reference added · canvas",
+          "note": "Drag anything from your library into the canvas or a workspace to use it as a reference for your next creation.",
           "cta": "Start creating"
         }
       },
@@ -834,15 +834,15 @@
         },
         "image": {
           "nav": "Image",
-          "title": "One line. Four models answer."
+          "title": "One prompt. Four AI models create."
         },
         "lora": {
           "nav": "LoRA",
-          "title": "Find one, load it. Load as many as you like."
+          "title": "Find a LoRA and add it. Combine as many as you like."
         },
         "audio": {
           "nav": "Audio",
-          "title": "Pick a voice, type, and it speaks."
+          "title": "Pick a voice, type a line, and hear it speak."
         },
         "video": {
           "nav": "Video",
@@ -850,7 +850,7 @@
         },
         "canvas": {
           "nav": "Canvas",
-          "title": "Talk out a script, grow it into nodes, wire it into a cut."
+          "title": "Chat to write a script. Connect the nodes to make a video."
         },
         "vault": {
           "nav": "Vault",
@@ -877,7 +877,7 @@
       },
       "modelPage": {
         "plus": "Strong at",
-        "minus": "Weak at",
+        "minus": "Limitations",
         "more": "Details · strengths and specs ↑",
         "close": "Close details",
         "want": "Backdrop pending · to be generated in-app",
@@ -910,14 +910,14 @@
           "routes": "On ANTEI · 3 routes",
           "src": "Made here · Gemini 3 Pro Image",
           "tags": {
-            "0": "Fast iteration",
+            "0": "Quick revisions",
             "1": "Local edits",
             "2": "Real places"
           },
           "plus": {
             "0": "2–5 seconds an image — editing never breaks your rhythm",
             "1": "Finest control over inpainting, relighting and camera moves",
-            "2": "Search-grounded: real landmarks and real light have a source"
+            "2": "Uses search results to ground real landmarks and lighting in reference material."
           },
           "minus": {
             "0": "Holds back on the surreal and the heavily stylised",
@@ -925,7 +925,7 @@
           }
         },
         "flux": {
-          "pos": "The texture one: skin and cloth without the plastic sheen, and rock-steady on long descriptions.",
+          "pos": "Natural textures: skin and fabric without a plastic sheen, with reliable results from long prompts.",
           "fare": "$0.03 / image · edit $0.04 · Flash $0.005",
           "routes": "On ANTEI · 5 routes",
           "src": "fal.ai official demo output",
@@ -945,7 +945,7 @@
           }
         },
         "seedream": {
-          "pos": "A designer's head: it understands layout and Chinese, and searches the web while it generates.",
+          "pos": "A designer's eye: understands layout and Chinese text, with web search during generation.",
           "fare": "$0.03–0.09 / image · three integrations",
           "routes": "On ANTEI · 5 routes",
           "src": "Made here · Seedream 5.0",
@@ -965,7 +965,7 @@
           }
         },
         "recraft": {
-          "pos": "The designer's tier: the only one that outputs native SVG, and it sets whole paragraphs.",
+          "pos": "Made for designers: the only option here with native SVG output and readable paragraphs.",
           "fare": "$0.21 / image",
           "routes": "On ANTEI · 1 route",
           "src": "Made here · Recraft V4 Pro",
@@ -1001,11 +1001,11 @@
           },
           "minus": {
             "0": "Anime-specialised; not for realistic scenes",
-            "1": "Not in the unlimited tier, and billed tighter than V4.5"
+            "1": "Not included in the unlimited tier; costs more than V4.5."
           }
         },
         "illustrious": {
-          "pos": "The leading open anime base: enormous character knowledge and the busiest fine-tuning scene.",
+          "pos": "A leading open anime model, with broad character knowledge and an active fine-tuning community.",
           "fare": "$0.14 / image (direct API)",
           "routes": "On ANTEI · 1 API route + its own entry in LoRA",
           "src": "Made here · Illustrious XL",
@@ -1016,28 +1016,28 @@
           },
           "plus": {
             "0": "Trained on all of Danbooru: the widest character recall here",
-            "1": "Far steadier structure — hands and feet — than its open-source generation",
-            "2": "The busiest fine-tune scene (WAI and others); you will meet it again in LoRA"
+            "1": "Much more consistent hands, feet, and body structure than other open models of its generation.",
+            "2": "An active fine-tuning community, including WAI. Also available in the LoRA workspace."
           },
           "minus": {
             "0": "Character knowledge stops mid-2024; it will not know a new season",
-            "1": "Realism and design work are not its race"
+            "1": "Less suited to photorealism and design work."
           }
         },
         "ill-b": {
-          "pos": "The base-model entry: the anime foundation with the liveliest LoRA scene.",
+          "pos": "An anime base model with an active LoRA community.",
           "fare": "$0.14 / image (direct API)",
           "routes": "On ANTEI · API and Runner, both",
           "src": "In-app base-model cover",
           "tags": {
             "0": "Anime base",
-            "1": "Liveliest scene",
+            "1": "Active community",
             "2": "Two routes"
           },
           "plus": {
             "0": "The largest Civitai scene: the fullest set of character and style LoRAs",
-            "1": "Full Danbooru grounding — character terms land straight away",
-            "2": "The API route needs no deployment; the Runner route mounts anything"
+            "1": "Trained on all of Danbooru, so character tags work directly.",
+            "2": "Use the API without deployment, or load your own LoRAs with Runner."
           },
           "minus": {
             "0": "Weak towards realism",
@@ -1057,7 +1057,7 @@
           "plus": {
             "0": "A fixture on the community charts — good-looking on default settings",
             "1": "Takes Illustrious-family LoRAs, so characters reproduce reliably",
-            "2": "Runs straight on the Runner with every parameter open"
+            "2": "Runs directly on Runner, with all parameters available."
           },
           "minus": {
             "0": "Leans sweet; not the one for hard realism",
@@ -1077,7 +1077,7 @@
           "plus": {
             "0": "A pencil and clean-line texture nothing else here has",
             "1": "Works for line art and for finished colour alike",
-            "2": "Runs straight on the Runner with every parameter open"
+            "2": "Runs directly on Runner, with all parameters available."
           },
           "minus": {
             "0": "Narrow subject range: illustration is the point",
@@ -1085,12 +1085,12 @@
           }
         },
         "pony": {
-          "pos": "The grandfather of the style universe: somebody has trained every look on it.",
+          "pos": "A long-standing base for a huge range of styles, with community models for almost any look.",
           "fare": "Usage-based (Runner)",
           "routes": "On ANTEI · self-hosted Runner",
           "src": "In-app base-model cover",
           "tags": {
-            "0": "Style scene",
+            "0": "Style variety",
             "1": "The elder",
             "2": "Broad support"
           },
@@ -1105,7 +1105,7 @@
           }
         },
         "sdxl": {
-          "pos": "The general-purpose veteran: realism through illustration, it takes it all.",
+          "pos": "A versatile classic for everything from photorealism to illustration.",
           "fare": "Usage-based (Runner)",
           "routes": "On ANTEI · self-hosted Runner",
           "src": "In-app base-model cover",
@@ -1125,7 +1125,7 @@
           }
         },
         "anima": {
-          "pos": "The new-architecture testbed: an anime newcomer on a DiT foundation.",
+          "pos": "A new anime model built on DiT, with room to experiment.",
           "fare": "Usage-based (Runner)",
           "routes": "On ANTEI · self-hosted Runner (v4 pipeline)",
           "src": "In-app base-model cover",
@@ -1135,7 +1135,7 @@
             "2": "Testbed"
           },
           "plus": {
-            "0": "A new DiT architecture with a high ceiling for detail",
+            "0": "A new DiT architecture with plenty of potential for fine detail.",
             "1": "The v4 pipeline is already deployed here",
             "2": "A fresh option on the anime side"
           },
@@ -1145,7 +1145,7 @@
           }
         },
         "seedance": {
-          "pos": "Reference generation in one go: the video workhorse, on 18 routes.",
+          "pos": "A versatile video model with reference input and 18 available routes.",
           "fare": "$0.12–0.30 / second",
           "routes": "On ANTEI · 18 routes (fal / VolcEngine / BytePlus / Ark)",
           "src": "Made here · Seedance 2.0 Fast",
@@ -1165,27 +1165,27 @@
           }
         },
         "minimax": {
-          "pos": "The value workhorse: two regions, and reference input on both.",
+          "pos": "Good value, with both international and China routes supporting reference input.",
           "fare": "$0.11–0.13 / second",
           "routes": "On ANTEI · 4 routes (overseas + China × reference)",
           "src": "Made here · MiniMax H3",
           "tags": {
-            "0": "Dual region",
+            "0": "Two regions",
             "1": "Value",
             "2": "Reference input"
           },
           "plus": {
             "0": "A reference endpoint even at the low tier",
-            "1": "The China routes are friendly on latency",
+            "1": "Low latency on the China routes.",
             "2": "Well regarded for natural human motion"
           },
           "minus": {
-            "0": "Few 1080p tiers",
+            "0": "Limited 1080p options",
             "1": "Weaker than Kling on stylised camera work"
           }
         },
         "wan30": {
-          "pos": "Alibaba's workhorse: shipped upstream, and we are still adding routes.",
+          "pos": "Alibaba's video model. Available now, with more routes being added to ANTEI.",
           "fare": "$0.10 / second",
           "routes": "On ANTEI · 2 routes (text-to-video / reference) · more to come",
           "src": "Made here · Wan 3.0",
@@ -1196,21 +1196,21 @@
           },
           "plus": {
             "0": "The lowest unit price on the whole site, at $0.10 a second",
-            "1": "The reference-to-video route is live",
-            "2": "Upstream keeps shipping endpoints and we keep adding them"
+            "1": "Generate videos from reference material.",
+            "2": "New options are being added as Alibaba releases them."
           },
           "minus": {
-            "0": "Plain camera language",
-            "1": "Only fair consistency over longer takes"
+            "0": "Limited camera movement",
+            "1": "Consistency can slip in longer shots."
           }
         },
         "horse": {
-          "pos": "The fast-tier dark horse: top-five value on the blind-test board.",
+          "pos": "A fast, affordable option in the blind-test top five.",
           "fare": "$0.14 / second",
           "routes": "On ANTEI · 1 route",
           "src": "Made here · HappyHorse 1.1",
           "tags": {
-            "0": "Fast tier",
+            "0": "Fast generation",
             "1": "Blind-test board",
             "2": "Value"
           },
@@ -1220,12 +1220,12 @@
             "2": "Friendly unit price"
           },
           "minus": {
-            "0": "Only fair style control",
+            "0": "Limited style control",
             "1": "Little written about it"
           }
         },
         "kling": {
-          "pos": "The camera one: the name people trust for movement and texture.",
+          "pos": "Known for expressive camera movement and convincing textures.",
           "fare": "$0.14–0.17 / second",
           "routes": "On ANTEI · 2 routes (3.0 Pro / O3 Pro Omni)",
           "src": "Made here · Kling 3.0 Pro",
@@ -1235,7 +1235,7 @@
             "2": "Omni"
           },
           "plus": {
-            "0": "First rank for camera movement and physical texture",
+            "0": "Leading quality for camera movement and physical textures.",
             "1": "O3 Pro Omni is the all-round endpoint",
             "2": "Delicate human performance"
           },
@@ -1257,15 +1257,15 @@
           "plus": {
             "0": "Text-to-video and image-to-video in one place",
             "1": "Fast and cheap — right for a rough pass",
-            "2": "Strong image understanding from the Google side"
+            "2": "Strong image understanding powered by Google."
           },
           "minus": {
-            "0": "A lower ceiling than the dedicated video models",
+            "0": "Quality falls short of dedicated video models.",
             "1": "Coarse style control"
           }
         },
         "fish": {
-          "pos": "The workhorse for lines: the name people trust for natural Chinese speech.",
+          "pos": "A reliable choice for dialogue, known for natural Chinese speech.",
           "fare": "Free tier $0; paid tier $15 / million UTF-8 bytes",
           "routes": "On ANTEI · S2.1 Pro free / paid tiers",
           "src": "fish.audio official artwork",
@@ -1295,24 +1295,24 @@
             "2": "Two routes"
           },
           "plus": {
-            "0": "SFX: one sentence, one foley take",
-            "1": "Music: the structure of a full cue stays under control",
+            "0": "SFX: describe a sound in a sentence to generate it.",
+            "1": "Music: control the structure of a complete track.",
             "2": "The industry benchmark for audio quality"
           },
           "minus": {
-            "0": "Only fair with Chinese lyrics",
+            "0": "Less reliable with Chinese lyrics",
             "1": "Billed per second, so length has to be watched"
           }
         },
         "rodin": {
-          "pos": "Multi-view control: up to 5 references feed a single model.",
+          "pos": "Shape your 3D model with up to 5 reference images.",
           "fare": "Usage-based",
           "routes": "On ANTEI · 1 route",
           "src": "hyper3d.ai official artwork",
           "tags": {
             "0": "Multi-view",
             "1": "Controllable",
-            "2": "Production feel"
+            "2": "Ready for editing"
           },
           "plus": {
             "0": "Up to 5 reference images (our cap)",
@@ -1320,12 +1320,12 @@
             "2": "A four-view workflow"
           },
           "minus": {
-            "0": "On the slow tier for generation",
-            "1": "Only fair texture ceiling"
+            "0": "Slower generation",
+            "1": "Limited texture detail"
           }
         },
         "hunyuan": {
-          "pos": "The polygon king: a 1.5-million-face ceiling for the detail-minded.",
+          "pos": "For detailed 3D work, with up to 1.5 million faces.",
           "fare": "Usage-based",
           "routes": "On ANTEI · 2 routes (v3.1 Pro / v3)",
           "src": "Made here · Hunyuan3D render",
@@ -1345,7 +1345,7 @@
           }
         },
         "trellis": {
-          "pos": "Every dial exposed: resolution, texture and decimation are all yours.",
+          "pos": "Fine-tune resolution, textures, and polygon reduction to suit your project.",
           "fare": "Usage-based",
           "routes": "On ANTEI · 1 route",
           "src": "microsoft.github.io/TRELLIS official teaser",
@@ -1357,15 +1357,15 @@
           "plus": {
             "0": "Three resolution tiers: 512 / 1024 / 1536",
             "1": "Textures from 1K to 4K",
-            "2": "Decimation from 5k to 2M drops straight into a game pipeline"
+            "2": "Adjust the face count from 5K to 2M to fit your game workflow."
           },
           "minus": {
-            "0": "Middling speed",
+            "0": "Average generation speed",
             "1": "Stylised input trips it up"
           }
         },
         "tripo": {
-          "pos": "The seconds tier: one image, one grey model, a few seconds.",
+          "pos": "Turn one image into an untextured 3D model in seconds.",
           "fare": "Usage-based",
           "routes": "On ANTEI · 1 route",
           "src": "tripo3d.ai official artwork",
@@ -1376,8 +1376,8 @@
           },
           "plus": {
             "0": "The fastest model here",
-            "1": "Light grey models, right for a mockup",
-            "2": "Open-source roots, friendly ecosystem"
+            "1": "Lightweight, untextured models for quick mockups.",
+            "2": "Open-source roots with accessible community tools."
           },
           "minus": {
             "0": "No texture detail",
@@ -1451,7 +1451,7 @@
     "voiceLibraryTitle": "Voices",
     "voiceLibraryDescription": "Search Fish Audio public voices, filter by language, audition samples, save favorites, or pick one of your cloned voices.",
     "voiceLibraryClose": "Close voices",
-    "voiceMyEmpty": "No custom voices yet. Clone one to get started!",
+    "voiceMyEmpty": "No custom voices yet. Upload a recording to create one.",
     "voiceFavoritesEmpty": "No favorite voices yet. Star voices from Voices to save them here.",
     "voiceClonedEmpty": "No cloned voices yet. Upload audio to create one.",
     "voiceNoResults": "No voices found",
@@ -1461,9 +1461,9 @@
     "voiceUnfavorite": "Remove favorite",
     "voiceFavoriteSaved": "Saved",
     "voiceClonedSaved": "Cloned",
-    "voiceLoadFailed": "Failed to load the public voice library. Please try again.",
-    "voiceFavoritesLoadFailed": "Failed to load favorite voices. Please try again.",
-    "voiceClonedLoadFailed": "Failed to load cloned voices. Please try again.",
+    "voiceLoadFailed": "Couldn't load the public voice library. Please try again.",
+    "voiceFavoritesLoadFailed": "Couldn't load favorite voices. Please try again.",
+    "voiceClonedLoadFailed": "Couldn't load cloned voices. Please try again.",
     "voiceFavoriteFailed": "Could not update favorite voice. Please try again.",
     "voiceDeleteFailed": "Could not delete voice. Please try again.",
     "voiceApiKeyRequired": "Add your own Fish Audio API key before using cloned voices, transcription, or generation.",
@@ -1499,27 +1499,27 @@
     "voiceTraining": "Creating voice...",
     "voiceTrainStageUploading": "Uploading samples...",
     "voiceTrainCreate": "Create Voice",
-    "voiceTrainSuccess": "Voice created successfully!",
-    "voiceTrainFailed": "Failed to create voice",
+    "voiceTrainSuccess": "Voice created",
+    "voiceTrainFailed": "Couldn't create voice",
     "voiceTrainTooManyFiles": "Maximum {max} files per clone.",
     "voiceTrainFileTooLarge": "{name} is larger than {maxMb} MB.",
     "voiceTranscribe": "Auto-transcribe",
     "voiceTranscribeFirst": "Auto-transcribe (first file)",
     "voiceTranscribeSuccess": "Transcript filled",
-    "voiceTranscribeFailed": "Failed to transcribe audio",
+    "voiceTranscribeFailed": "Couldn't transcribe audio",
     "voiceCards": "Voice Cards",
-    "voiceCardsLoadFailed": "Failed to load voice cards",
+    "voiceCardsLoadFailed": "Couldn't load voice cards",
     "voiceCardsEmpty": "No voice cards yet",
     "voiceCardSelected": "In use",
     "voiceCardFishAudio": "Fish Audio",
     "voiceCardFalF5Tts": "F5-TTS",
     "advancedOptions": "Advanced Options",
-    "freeQuota": "{remaining}/{limit} free today",
+    "freeQuota": "{remaining}/{limit} free uses left today",
     "toggleSidebar": "Toggle sidebar",
     "freeQuotaLow": "Almost out",
     "metrics": {
       "modelCoverageLabel": "Models",
-      "modelCoverageValue": "{modelCount} models · {providerCount} providers",
+      "modelCoverageValue": "{modelCount, plural, one {# model} other {# models}} · {providerCount, plural, one {# provider} other {# providers}}",
       "startingCostLabel": "Per run",
       "startingCostValue": "{creditCount}",
       "archiveBehaviorLabel": "Auto-archive",
@@ -1528,7 +1528,7 @@
   },
   "audioParams": {
     "style": "Reading style",
-    "styleHint": "Uses Fish S2-Pro [bracket] natural-language prompt tags; this is prompt control, not a separate emotion parameter.",
+    "styleHint": "Uses Fish S2-Pro's natural-language tags in [brackets] to guide delivery.",
     "pace": "Pace",
     "pauseMarkers": "Pause Markers",
     "styleNone": "Default",
@@ -1558,7 +1558,7 @@
     "paceSlow": "Slow",
     "paceNormal": "Normal",
     "paceFast": "Fast",
-    "paceHint": "Uses Fish Audio's speed parameter. Slow and fast now use wider steps so the difference is easier to hear.",
+    "paceHint": "Adjust how slowly or quickly the voice speaks.",
     "pauseAfterSentence1": "After sentence 1",
     "pauseAfterSentence2": "After sentence 2",
     "pauseAfterSentence3": "After sentence 3",
@@ -1600,7 +1600,7 @@
     "normalizeText": "Normalize text",
     "normalizeTextHint": "Lets Fish Audio clean punctuation and symbols before synthesis.",
     "withTimestamps": "Generate timestamps",
-    "withTimestampsHint": "Requests segment timing for subtitles and later sentence-level editing.",
+    "withTimestampsHint": "Adds timing information for subtitles and sentence-level editing.",
     "volume": "Volume",
     "volumeHint": "Applies a gain offset after synthesis. Keep it near 0 unless the take is too quiet.",
     "temperature": "Expression",
@@ -1631,13 +1631,13 @@
     "referenceFallbackName": "reference clip",
     "referenceText": "Reference transcript",
     "referenceTextPlaceholder": "Type exactly what the clip says…",
-    "referenceTextHint": "Match the speech word-for-word. Fish Audio uses this to lock the voice.",
+    "referenceTextHint": "Match the spoken words exactly to help Fish Audio reproduce the voice.",
     "referenceTextRequired": "Transcript is required when a reference clip is attached.",
     "referenceErrorTooLarge": "Reference audio is too large. Max {max}.",
     "referenceErrorNotAudio": "That file isn't audio. Try MP3, WAV, M4A, or FLAC.",
-    "referenceErrorFailed": "Failed to upload the reference clip.",
+    "referenceErrorFailed": "Couldn't upload the reference clip.",
     "readingLabel": "Delivery",
-    "musicDurationHint": "ElevenLabs Music accepts 3–600s; 5s is our floor because shorter than that is not a track."
+    "musicDurationHint": "Choose a music length from 5 to 600 seconds."
   },
   "audioFeedback": {
     "voiceMismatch": "Voice mismatch",
@@ -1679,12 +1679,12 @@
     "toastSuccess": "Video generated successfully!",
     "referenceRemoveLabel": "Remove reference image",
     "characterCard": {
-      "hintMulti": "Apply {count} characters' prompts and reference image",
-      "appliedMulti": "{count} character cards applied — base prompts auto-injected",
+      "hintMulti": "Apply {count, plural, one {# character} other {# characters}}' prompts and reference image",
+      "appliedMulti": "{count} character cards applied. Base prompts added automatically.",
       "applyButton": "Apply",
       "appliedButton": "Applied",
       "actionPromptLabel": "Action / Scene",
-      "actionPromptHint": "Describe the video scene — the characters' appearance is auto-injected.",
+      "actionPromptHint": "Describe the video scene. The characters' appearance is added automatically.",
       "actionPromptPlaceholder": "e.g. walking in a forest, smiling, wind blowing hair...",
       "imageWarning": "Only 1st card's image used for video"
     },
@@ -1709,12 +1709,12 @@
     "stageUploading": "Uploading",
     "elapsed": "Elapsed {seconds}",
     "prep3DLabel": "3D-friendly preprocessing",
-    "prep3DHint": "Upscales small images and white-pads to square before 3D. Recommended.",
+    "prep3DHint": "Upscales small images and adds white padding to make them square before 3D generation. Recommended.",
     "texturedMeshLabel": "Legacy PBR textures",
     "texturedMeshHint": "Hunyuan3D 2.1 only — generate mesh with PBR materials",
     "enablePbrLabel": "PBR materials",
     "enablePbrHint": "Generate metalness, roughness, and normal maps for game and product rendering.",
-    "faceCountLabel": "Face budget",
+    "faceCountLabel": "Target face count",
     "trellisResolutionLabel": "Structure resolution",
     "trellisTextureLabel": "Texture size",
     "trellisDecimationLabel": "Mesh vertices",
@@ -1729,11 +1729,11 @@
     "errorNoSourceImage": "Pick a source image first.",
     "toastSuccess": "3D model generated!",
     "viewerLoading": "Loading 3D model...",
-    "viewerError": "Failed to load 3D model.",
+    "viewerError": "Couldn't load 3D model.",
     "wireframePreviewLabel": "3D wireframe preview",
     "stageStepperLabel": "3D generation stages",
     "wireframePreviewLoading": "Loading mesh preview...",
-    "wireframePreviewError": "Failed to load mesh preview.",
+    "wireframePreviewError": "Couldn't load mesh preview.",
     "meshPreviewHint": "Hunyuan3D v3 / v3.1 Pro builds a geometry preview first, then automatically runs the final PBR model.",
     "downloadGlb": "Download GLB",
     "refineLabel": "Refine with Hunyuan3D v3.1",
@@ -1795,12 +1795,12 @@
     "uploadProgressUnknown": "Uploading…",
     "provisionalSavingLabel": "Rendered — saving to your asset library",
     "provisionalSavingHint": "The download button activates once saving completes.",
-    "stagedModeLabel": "Staged generation",
-    "stagedModeHint": "Pause after geometry so you can confirm before paying for texture. Cheap retries, no surprises.",
+    "stagedModeLabel": "Generate in stages",
+    "stagedModeHint": "Preview the geometry before paying for textures. You can retry the shape first if needed.",
     "stageMeshReadyTitle": "Geometry ready",
     "stageMeshReadyHint": "Check proportions, silhouette, and pose. Continuing to texture takes ~90s more.",
     "continueToTextureLabel": "Continue to texture",
-    "continueToTextureHint": "Submit the full Normal call — texture + PBR. About 90s.",
+    "continueToTextureHint": "Generate the full model with textures and PBR materials. Takes about 90 seconds.",
     "diagnoseRetryLabel": "Diagnose & retry",
     "diagnoseRetryTitle": "What's wrong with the geometry?",
     "diagnoseFace": "Face / head details",
@@ -1808,9 +1808,9 @@
     "diagnoseSilhouette": "Back / side has bumps",
     "diagnoseSilhouetteSuggestion": "Regenerate side views first, then reroll mesh",
     "diagnoseProportions": "Overall proportions / likeness",
-    "diagnoseProportionsSuggestion": "Mesh can't be saved — try a different source image",
+    "diagnoseProportionsSuggestion": "Try a different source image to improve the shape.",
     "diagnoseFaces": "Too coarse / not enough polygons",
-    "diagnoseFacesSuggestion": "Bump face count then re-run mesh",
+    "diagnoseFacesSuggestion": "Increase the face count and regenerate the mesh.",
     "diagnoseUnknown": "I can't pinpoint it",
     "diagnoseUnknownSuggestion": "Reroll with a fresh random seed",
     "executeRetryLabel": "Run retry",
@@ -1827,7 +1827,7 @@
     "rodinTierLabel": "Quality",
     "rodinTierHint": "Higher tiers produce denser geometry and finer detail at the cost of longer generation time.",
     "rodinMeshModeLabel": "Geometry Preset",
-    "rodinMeshModeHint": "Polygon budget × topology. Triangle (Raw) is denser; Quad is retopologized for animation.",
+    "rodinMeshModeHint": "Choose a polygon count and topology. Triangle (Raw) keeps a denser mesh; Quad is retopologized for animation.",
     "rodinTextureModeLabel": "Texture Quality",
     "rodinTextureModeHint": "Higher values produce sharper textures; legacy keeps the older pipeline.",
     "rodinMaterialLabel": "Material",
@@ -1869,7 +1869,7 @@
     "rodinMeshFirstLabel": "Mesh-first preview",
     "rodinMeshFirstHint": "Generate an untextured mesh first (faster, cheaper). After it lands you can decide whether to spend a second job on textures. Note: textured pass re-runs the model, so the final mesh may differ slightly.",
     "rodinContinueToTextureLabel": "Continue with textures",
-    "rodinKeepAsFinalLabel": "Keep as final",
+    "rodinKeepAsFinalLabel": "Use as final result",
     "rodinMeshOnlyPreviewBadge": "Mesh-only preview",
     "rodinApiKeyMissingTitle": "Hyper3D API key not configured",
     "rodinApiKeyMissingDescription": "Rodin Gen-2.5 requires a Hyper3D API key with a Business subscription. Add your key in Settings.",
@@ -1898,7 +1898,7 @@
   },
   "MultiViewGenerate": {
     "success": "Side views ready.",
-    "partialSuccess": "Only {count} side view(s) succeeded — the final 3D run can still use them.",
+    "partialSuccess": "{count, plural, one {# side view was generated} other {# side views were generated}}. You can still use the available views for 3D generation.",
     "failed": "Multi-view generation failed."
   },
   "LongVideo": {
@@ -1934,7 +1934,7 @@
     "download": "Download audio"
   },
   "AudioTranscribe": {
-    "description": "Upload an audio clip to extract its spoken text and seed your TTS prompt.",
+    "description": "Upload audio to transcribe it and use the text for speech generation.",
     "pickFile": "Click to upload an audio file",
     "limits": "MP3, WAV, M4A, or FLAC up to {max}",
     "uploadLabel": "Audio file",
@@ -1984,12 +1984,12 @@
     "feedLabel": "Public gallery feed",
     "itemFallbackLabel": "Gallery item",
     "feedCount": "Showing {shown} of {total}",
-    "emptyTitle": "The public archive is still quiet",
-    "emptyDescription": "Public generations will appear here once creators begin sharing work from the studio.",
+    "emptyTitle": "No public creations yet",
+    "emptyDescription": "Creations shared from the studio will appear here.",
     "emptyAction": "Open studio",
     "loadMore": "Load more images",
     "loadingMore": "Loading more images...",
-    "endOfArchive": "That is the current end of the public archive."
+    "endOfArchive": "You're all caught up."
   },
   "LibraryPage": {
     "cancelSelect": "Cancel",
@@ -2004,12 +2004,12 @@
     "projectCreateSubmit": "Create",
     "projectCreating": "Creating…",
     "projectCreated": "Project created",
-    "projectCreateFailed": "Failed to create project"
+    "projectCreateFailed": "Couldn't create project"
   },
   "LoraStack": {
     "regionLabel": "Active LoRA styles",
     "label": "LoRA:",
-    "resolving": "Resolving style…",
+    "resolving": "Loading style details…",
     "chipTitle": "Trigger: {trigger} · {code}",
     "removeAria": "Remove {name}",
     "manage": "Manage",
@@ -2017,7 +2017,7 @@
     "clear": "Clear all",
     "scaleLabel": "Strength",
     "scaleHint": "0 = off, 1 = full effect",
-    "alreadyHere": "{name} is already a LoRA tag in prompt",
+    "alreadyHere": "{name} is already added as a LoRA tag in your prompt.",
     "share": "Share",
     "shareCopied": "Link copied — opening it loads the same LoRA stack",
     "shareCopyFailed": "Couldn't copy",
@@ -2072,7 +2072,7 @@
       "lora_asset": "LoRA",
       "civitai": "Civitai",
       "model_keyword": "model-keyword",
-      "mined_prompt": "Mined",
+      "mined_prompt": "Extracted",
       "recent": "Recent",
       "user": "Custom"
     },
@@ -2099,7 +2099,7 @@
     "civitaiToken": "Civitai Token",
     "civitaiTokenConnected": "Connected",
     "civitaiTokenMissing": "Not connected",
-    "mountedToast": "Mounted \"{name}\"",
+    "mountedToast": "Added \"{name}\"",
     "mountedToastAction": "View",
     "tabs": {
       "generate": "LoRA",
@@ -2109,7 +2109,7 @@
       "sourceImagesLabel": "Source images ({count})",
       "sourceImagesModalHint": "Click to view full image & recipe",
       "previewOnlyHint": "The author didn't include recipe parameters — example images only, for reference",
-      "descriptionLabel": "Author's description (the recommended prompt is usually in here — copy what you need)",
+      "descriptionLabel": "Author's notes — you may find a suggested prompt here. Copy the parts you need.",
       "descriptionCopy": "Copy all",
       "descriptionCopied": "Copied the author's description",
       "descriptionCopyFailed": "Copy failed",
@@ -2124,17 +2124,17 @@
       "recipeWillApply": "One-click clone will apply: {params}",
       "recipeSourceModel": "Civitai source-image recipe",
       "recipeSourceCommunity": "Civitai community recipe",
-      "recipeExtraLoras": "This image stacked {count} other LoRA(s) — reproduction with only this one is limited",
-      "recipeExtraMount": "Mount",
+      "recipeExtraLoras": "This image uses {count, plural, one {# additional LoRA} other {# additional LoRAs}}. Using only this one may give different results.",
+      "recipeExtraMount": "Add",
       "recipeExtraResolving": "Locating…",
-      "recipeExtraMounted": "Mounted",
+      "recipeExtraMounted": "Added",
       "recipeExtraFailed": "Not found",
       "recipeExtraIncompatible": "Incompatible with base",
       "recipeExtraSearchLink": "Search on Civitai",
       "recipeExtraUnresolvable": "Name only — can't auto-locate",
       "recipeExtraStackFull": "LoRA stack is full ({max}) — remove one first",
-      "recipeExtraAutoMounted": "Auto-mounted {count} other LoRA(s).",
-      "recipeExtraApplyLimited": "{count} other LoRA(s) are still not mounted, so reproduction will be limited.",
+      "recipeExtraAutoMounted": "Automatically added {count, plural, one {# other LoRA} other {# other LoRAs}}.",
+      "recipeExtraApplyLimited": "{count, plural, one {# other LoRA is still missing} other {# other LoRAs are still missing}}, so the result may differ from the source image.",
       "recipeReferenceAttached": "Attached the current source image as a reference.",
       "recipeClose": "Collapse recipe",
       "recipeInferHint": "No reproducible recipe data exists for this LoRA. AI can draft a prompt from its cover image — prompt only, clearly marked as inferred.",
@@ -2165,11 +2165,11 @@
       "modelUnavailable": "{model} recommended, but no route is available",
       "sourceMatch": {
         "recipe": "Apply the current source image's full recipe: prompt, negative prompt, seed, steps, cfg, aspect ratio, and LoRA weight.",
-        "author": "Use the author-filled or description-parsed prompt, with anti-3D-drift settings added.",
-        "source_image": "Use the Civitai source-image prompt, with anti-3D-drift settings added.",
-        "community": "Use a community-tested prompt, with anti-3D-drift settings added.",
-        "mined": "Use a community source-image prompt, with anti-3D-drift settings added.",
-        "fallback": "Use a generic source-matching prompt, with anti-3D-drift settings added.",
+        "author": "Use the prompt from the author's notes, with settings to reduce an unwanted 3D look.",
+        "source_image": "Use the Civitai source-image prompt, with settings to reduce an unwanted 3D look.",
+        "community": "Use a community-tested prompt, with settings to reduce an unwanted 3D look.",
+        "mined": "Use a community source-image prompt, with settings to reduce an unwanted 3D look.",
+        "fallback": "Use a general prompt to match the source, with settings to reduce an unwanted 3D look.",
         "loading": "Looking up source prompt…",
         "unavailable": "No source prompt — the author and community didn't provide one for this LoRA"
       }
@@ -2181,7 +2181,7 @@
     "tabs": {
       "generate": "Generate",
       "library": "Library",
-      "mine": "Mine",
+      "mine": "My LoRAs",
       "favorites": "Favorites",
       "train": "Train",
       "community": "LoRA Library"
@@ -2189,31 +2189,31 @@
     "library": {
       "public": "Public",
       "use": "Use",
-      "mounted": "Mounted",
+      "mounted": "Added",
       "searchPlaceholder": "Search LoRAs, triggers, authors…",
       "safeMode": "Safe mode",
       "mineEmpty": "No favorited or trained LoRAs yet",
-      "mountedToast": "Mounted {name}",
-      "mountedNoBase": "Mounted {name} · no runnable base for this family yet",
-      "mountBlockedDownloadDisabled": "{name} can't be mounted — its creator turned off downloads on Civitai, so no backend can fetch the weights. It only works inside Civitai's own generator."
+      "mountedToast": "Added {name}",
+      "mountedNoBase": "Added {name}. There's no compatible base model available to generate with yet.",
+      "mountBlockedDownloadDisabled": "{name} can't be added because its creator has disabled downloads on Civitai. You can only use it in Civitai's generator."
     },
     "baseModal": {
       "title": "Change base model",
-      "subtitleConstrained": "Constrained by mounted LoRA families",
+      "subtitleConstrained": "Compatible with your added LoRAs",
       "subtitleFree": "No family constraint · all base models available",
-      "onlyCompatible": "Only show compatible with mounts",
-      "incompatible": "Incompatible with current mounts",
+      "onlyCompatible": "Only show compatible models",
+      "incompatible": "Incompatible with your added LoRAs",
       "channelRunner": "Runner",
-      "footer": "After mounting a LoRA the recommended compatible base is auto-selected; use this to change it. Faithful = native Runner checkpoint, Fast = cloud API.",
+      "footer": "A compatible base model is selected when you add a LoRA. You can change it here. Faithful uses a Runner checkpoint; Fast uses a cloud API.",
       "recommended": "Recommended"
     },
     "generate": {
       "placeholderTitle": "Generate with the base model",
-      "placeholderBody": "No LoRA is mounted. Generate directly with the base model, or add a LoRA from Library.",
+      "placeholderBody": "No LoRAs added yet. Generate with the base model, or add a LoRA from the library.",
       "run": "Generate",
       "promptLabel": "Prompt",
       "collocation": {
-        "label": "Collocation",
+        "label": "Combinations",
         "recipeApplied": "Source recipe applied",
         "triggerCount": "{count} trigger word(s) added",
         "view": "View",
@@ -2224,8 +2224,8 @@
         "rowPrompt": "Prompt",
         "rowParams": "Params",
         "rowKept": "Kept",
-        "addedWordCount": "({count} words)",
-        "triggerHint": "Trigger words · added automatically, removing is risky",
+        "addedWordCount": "({count, plural, one {# word} other {# words}})",
+        "triggerHint": "Trigger words · added automatically to help your LoRAs work",
         "keptUnchanged": "{items} unchanged",
         "keptAspectRatio": "Aspect ratio",
         "keptSize": "Size",
@@ -2241,12 +2241,12 @@
       "restore": "Faithful restore",
       "runnerBudgetRemaining": "Runner: {remaining}/{limit} left this month (shared)",
       "runnerBudgetExhausted": "Runner's monthly budget is used up — resets next month, or use a hosted base model",
-      "runnerUnavailable": "Runner generation is switched off (platform generation disabled) — generating will fail. Use a hosted base model, or ask the site admin to enable it",
+      "runnerUnavailable": "Runner generation is currently turned off. Choose a hosted base model, or ask the site admin to enable Runner.",
       "resultEmptyHint": "Enter a prompt, then hit Generate",
       "eta": "Runner usually takes {min}–{max}s per image",
       "etaColdStart": "First run loads the base model — usually {min}–{max} minutes",
       "resultFailedRetry": "Retry",
-      "resultFailedQuotaNote": "Quota counts jobs that were dispatched; failed runs are not refunded",
+      "resultFailedQuotaNote": "Each dispatched job uses one quota unit, even if it fails.",
       "resultPreviewLabel": "Enlarge generation result",
       "promptModeLabel": "Prompt source",
       "promptModeRecommend": "Recommended",
@@ -2261,7 +2261,7 @@
       "resultHistoryLabel": "This session's results",
       "resultHistoryMeta": "Strength ×{scale} · seed {seed}",
       "resultHistoryCount": "This session · {count}",
-      "metaLoraCount": "{count} LoRA",
+      "metaLoraCount": "{count, plural, one {# LoRA} other {# LoRAs}}",
       "resultMetaSize": "{width} × {height}",
       "resultMetaSteps": "{steps} Steps",
       "resultMetaSeed": "Seed {seed}",
@@ -2269,10 +2269,10 @@
       "recipeGroupActive": "Showing source images for \"{name}\"",
       "triggerChipRowLabel": "Trigger words",
       "triggerChipDisabledHint": "Disabled — won't be added to the prompt",
-      "incompatibleMountsWarning": "{n} mounted LoRA(s) don't match the current base and will be ignored",
+      "incompatibleMountsWarning": "{n, plural, one {# added LoRA is incompatible} other {# added LoRAs are incompatible}} with this base model and won't be used.",
       "switchToSuggestedBase": "Switch to {base}",
-      "mountsMutuallyExclusive": "Two mounted LoRA families are mutually exclusive — remove one of them",
-      "oftenMountedWith": "Often mounted with:",
+      "mountsMutuallyExclusive": "These two LoRA families can't be used together. Remove one to continue.",
+      "oftenMountedWith": "Often used with:",
       "autocompleteAriaLabel": "Tag suggestions",
       "advanced": {
         "title": "Runner parameters",
@@ -2312,7 +2312,7 @@
       "baseGroupRunner": "Runner · free platform quota",
       "baseGroupSdxl": "SDXL family",
       "baseGroupDit": "DiT family",
-      "empty": "None mounted (base only)",
+      "empty": "No LoRAs added (base model only)",
       "fast": "Fast",
       "faithful": "Faithful",
       "comingSoon": "Coming soon",
@@ -2329,12 +2329,12 @@
       "mountCount": "{current}/{max}",
       "addLora": "Add",
       "executorLabel": "Execution",
-      "executorRunner": "Runner · only channel",
+      "executorRunner": "Runner · only available route",
       "executorCloud": "Cloud API",
       "openAssembly": "Open assembly",
       "assemblyTitle": "Assembly",
       "stackTitle": "LoRA stack",
-      "mountedCount": "{count} mounted",
+      "mountedCount": "{count} added",
       "addLoraFull": "Add LoRA",
       "triggerWords": "Trigger words",
       "collapseAssembly": "Collapse assembly",
@@ -2431,8 +2431,8 @@
     "baseModelSearchEmpty": "No matching base model",
     "communitySource": "Source",
     "licenseLabel": "License",
-    "safetyLabel": "Safety",
-    "safetySafe": "Safe",
+    "safetyLabel": "Content rating",
+    "safetySafe": "General audience",
     "safetySensitive": "Sensitive",
     "detailAuthor": "By {name}",
     "useThisLora": "Use this LoRA",
@@ -2460,19 +2460,19 @@
     "sourceRecipeCopyRecipe": "Copy recipe",
     "sourceRecipeRemake": "Recreate",
     "sourceRecipeMounting": "Loading the recipe LoRAs. Generation will be ready when they finish.",
-    "sourceRecipeIncomplete": "Some recipe LoRAs are missing. Retry mounting them, or undo the recipe to continue creating.",
-    "sourceRecipeRestoreTitle": "Recreate restores this to the assembly console",
-    "sourceRecipeApplyHint": "Only applies the recipe to the console — it does not generate. Existing input goes to the collocation review.",
+    "sourceRecipeIncomplete": "Some recipe LoRAs are missing. Try adding them again, or undo the recipe to keep creating.",
+    "sourceRecipeRestoreTitle": "Recreate applies these settings to your workspace.",
+    "sourceRecipeApplyHint": "Applies the recipe without generating. You can review how it combines with your current input.",
     "sourceRecipeUseSeed": "Use original seed",
     "sourceRecipeRemakeHint": "Recreate applies the recipe prompt, parameters, checkpoint and extra LoRAs. SDXL source Latent hires is supported; unsupported or missing recipe parameters are listed separately.",
     "sourceRecipeExtraLorasLabel": "Extras",
-    "sourceRecipeExtraLorasSummary": "Will also try to mount {count} extra LoRA(s)",
-    "sourceRecipeExtraLorasSection": "Extra mounts · {count}",
+    "sourceRecipeExtraLorasSummary": "Will also try to add {count, plural, one {# extra LoRA} other {# extra LoRAs}}",
+    "sourceRecipeExtraLorasSection": "Additional LoRAs · {count}",
     "sourceRecipeExtraLoraLocateStrong": "Auto-locatable",
     "sourceRecipeExtraLoraLocateNameOnly": "Name only",
     "sourceRecipeExtraLoraSearchLink": "Search on Civitai",
-    "sourceRecipeExtraLoraInclude": "Mount “{name}” along with Recreate",
-    "sourceRecipeExtraLoraNameOnlyHint": "Some extra LoRAs only have a local file name (no hash / version id). Recreate may fail to auto-mount them — search and add manually if needed.",
+    "sourceRecipeExtraLoraInclude": "Add “{name}” when recreating",
+    "sourceRecipeExtraLoraNameOnlyHint": "Some extra LoRAs only have a filename, without a hash or version ID. They may not be found automatically. Search and add them manually if needed.",
     "sourceRecipePromptCopied": "Prompt copied",
     "sourceRecipeNegativeCopied": "Negative prompt copied",
     "sourceRecipeCopied": "Recipe copied",
@@ -2484,7 +2484,7 @@
     "typeSparseBodyHuggingFace": "Hugging Face community tagging is sparse — some similar LoRAs aren't tagged.",
     "typeSparseAction": "Search by \"{term}\"",
     "typeEmptyTitle": "Nothing filed under this type yet",
-    "typeEmptyBody": "Community tagging coverage is limited — it doesn't mean nothing exists.",
+    "typeEmptyBody": "Some LoRAs don't have type tags. Try a keyword search to find more.",
     "typeEmptySearch": "Search by keyword",
     "typeEmptyClear": "Clear type filter",
     "searchHistoryTitle": "Recent searches",
@@ -2501,10 +2501,10 @@
     "communitySearch": "Search LoRAs...",
     "communitySearchSubmit": "Search",
     "communitySortFilter": "Sort",
-    "communityLoadFailed": "Failed to load the Civitai LoRA library. Please try again.",
+    "communityLoadFailed": "Couldn't load the Civitai LoRA library. Please try again.",
     "staleSnapshotNotice": "Civitai search is temporarily unavailable — showing cached results from {time}.",
     "minedPromptsUnknownError": "Unknown error",
-    "minedPromptsFailed": "Failed to mine prompts",
+    "minedPromptsFailed": "Couldn't mine prompts",
     "communityUnknownCreator": "Unknown creator",
     "communityNoSelection": "Select a LoRA on the left to inspect it.",
     "communityDownloads": "Downloads",
@@ -2521,11 +2521,11 @@
     "sourceImageDefaultLabel": "Source image {n}",
     "communityPromptDefaultLabel": "Community {n}",
     "tryPromptSourceImageBadge": "Source image",
-    "tryPromptSourceImageHint": "From Civitai model-versions image meta.prompt. This is the closest prompt to the LoRA page reference image.",
+    "tryPromptSourceImageHint": "Taken from the Civitai source image's generation metadata. This is the prompt associated with the LoRA page's reference image.",
     "outfitDefaultLabel": "Outfit {n}",
     "tryPromptMinedBadge": "Community · {count}",
     "tryPromptMinedHint": "Reverse-engineered from {sampled} community generations on Civitai.",
-    "tryPromptMinedLoading": "Mining real activation prompts from community generations…",
+    "tryPromptMinedLoading": "Finding prompts used with this LoRA in community images…",
     "communityTags": "Tags",
     "communityUseInStudio": "Generate",
     "communityOpenSource": "Open source",
@@ -2540,7 +2540,7 @@
     "typeSubject": "Subject",
     "use": "Generate",
     "alreadyInUse": "Added",
-    "addedToStack": "Mounted {name}, opening generate",
+    "addedToStack": "Added {name}. Opening generation.",
     "copyCode": "Copy style code",
     "assetSourceShort": "Source",
     "codeCopied": "Style code copied",
@@ -2554,7 +2554,7 @@
     "favorite": "Favorite",
     "unfavorite": "Remove favorite",
     "favorited": "Favorited",
-    "favoriteAdded": "Added to favorites — find it under Mine → Favorites.",
+    "favoriteAdded": "Added to favorites. Find it under My LoRAs → Favorites.",
     "favoriteRemoved": "Removed from favorites",
     "favoriteFailed": "Couldn't add favorite",
     "recommendFavoriteTitle": "Recommended for you",
@@ -2570,7 +2570,7 @@
     "librarySourceCivitaiShort": "CIV",
     "librarySourceHfShort": "HF",
     "huggingFacePublic": "Public Hugging Face LoRAs",
-    "huggingFaceDescription": "Browse public Hugging Face image LoRAs and add an exact weight file to your library; generation bases are configured separately.",
+    "huggingFaceDescription": "Browse public image LoRAs on Hugging Face and add a weight file to your library. Choose the base model separately.",
     "huggingFaceSearchPlaceholder": "Search Hugging Face image LoRAs…",
     "huggingFaceNoResults": "No matching public LoRAs found.",
     "huggingFaceLoadFailed": "Couldn't load Hugging Face LoRAs.",
@@ -2606,8 +2606,8 @@
     "licenseAttributionRequiredHint": "Credit the author/source when you use this",
     "huggingFaceLicenseLabel": "License",
     "huggingFaceExternalInspectorHint": "{family} LoRAs don't have a working PixelVault inference endpoint yet. Use the button below to open the Hugging Face repository.",
-    "showcaseTitle": "Sample references",
-    "showcaseFillPrompt": "Fill into prompt",
+    "showcaseTitle": "Sample images",
+    "showcaseFillPrompt": "Add to prompt",
     "showcaseImageAlt": "{name} sample {n}"
   },
   "UseLoraButton": {
@@ -2711,20 +2711,20 @@
     "pickerConfirmAdd": "Add {count}",
     "pickerMaxReached": "Max {max} images",
     "bulkDelete": "Delete",
-    "bulkDeleteConfirm": "Delete {count} asset(s)? This cannot be undone.",
-    "bulkDeleteSuccess": "Deleted {count} asset(s)",
+    "bulkDeleteConfirm": "Delete {count, plural, one {# asset} other {# assets}}? This cannot be undone.",
+    "bulkDeleteSuccess": "Deleted {count, plural, one {# asset} other {# assets}}",
     "bulkDeleteFailed": "Delete failed",
     "bulkPublish": "Publish to gallery",
-    "bulkPublishConfirm": "Publish {count} asset(s) to the public gallery?",
-    "bulkPublishSuccess": "Published {count} asset(s) to gallery",
+    "bulkPublishConfirm": "Publish {count, plural, one {# asset} other {# assets}} to the public gallery?",
+    "bulkPublishSuccess": "Published {count, plural, one {# asset} other {# assets}} to gallery",
     "bulkPublishFailed": "Publish failed",
     "bulkFavorite": "Favorite",
-    "bulkFavoriteConfirm": "Add {count} asset(s) to favorites?",
-    "bulkFavoriteSuccess": "Added {count} asset(s) to favorites",
-    "bulkFavoriteFailed": "Favorite failed",
+    "bulkFavoriteConfirm": "Add {count, plural, one {# asset} other {# assets}} to favorites?",
+    "bulkFavoriteSuccess": "Added {count, plural, one {# asset} other {# assets}} to favorites",
+    "bulkFavoriteFailed": "Couldn't add to favorites",
     "bulkMove": "Move to folder",
     "bulkMoveUnassigned": "Move to unassigned",
-    "bulkMoveSuccess": "Moved {count} asset(s)",
+    "bulkMoveSuccess": "Moved {count, plural, one {# asset} other {# assets}}",
     "bulkMoveFailed": "Move failed",
     "emptyTitle": "No assets yet",
     "emptyDescription": "Your generations will appear here.",
@@ -2744,7 +2744,7 @@
     "detailMoveTo": "Move to folder",
     "detailMoveUnassigned": "Unassigned",
     "detailMoved": "Moved to folder",
-    "detailMoveFailed": "Failed to move this asset",
+    "detailMoveFailed": "Couldn't move this asset",
     "detailPrompt": "Prompt",
     "detailModel": "Model",
     "detailProvider": "Provider",
@@ -2778,7 +2778,7 @@
     "detailDeleteConfirmTitle": "Delete this asset?",
     "detailDeleteConfirmDescription": "This permanently removes the file from your archive and cannot be undone.",
     "detailDeleted": "Asset deleted",
-    "detailDeleteFailed": "Failed to delete this asset",
+    "detailDeleteFailed": "Couldn't delete this asset",
     "densityLabel": "Density",
     "densitySmall": "Small rows",
     "densityMedium": "Medium rows",
@@ -2815,7 +2815,7 @@
     "uploadQueueProgress": "Uploaded {percent}%",
     "uploadDropHintSub": "You can change the target folder later in the queue",
     "emptyFolderTitle": "Nothing in “{folder}” yet",
-    "emptyFolderHint": "Drag assets onto its plaque, or move them in from selection mode.",
+    "emptyFolderHint": "Drag assets onto the folder name, or select them and choose Move to folder.",
     "emptyFolderUpload": "Upload to this folder",
     "emptySearchTitle": "No assets match the current filters",
     "errorKeepsLoaded": "Loaded assets stay put — retrying resumes where it stopped.",
@@ -2838,9 +2838,9 @@
   },
   "PromptLibrary": {
     "title": "Prompt Engineering",
-    "description": "Save proven prompts as callable templates and review the assets each template produces.",
+    "description": "Save prompts that work well as reusable templates, and see what you create with each one.",
     "emptyTitle": "No prompt templates yet",
-    "emptyDescription": "Save strong prompts from asset details or generation results; they become reusable creative recipes.",
+    "emptyDescription": "Save prompts from asset details or generation results to use them again.",
     "openAssets": "Open assets",
     "openStudio": "Open Studio",
     "useInStudio": "Use in Studio",
@@ -2866,10 +2866,10 @@
     "deleteConfirmAction": "Delete",
     "deleteCancel": "Cancel",
     "deleteSuccess": "Template deleted",
-    "deleteFailed": "Failed to delete the template",
+    "deleteFailed": "Couldn't delete the template",
     "saveAsTemplate": "Save as prompt template",
     "saveTemplateSuccess": "Saved to Prompt Engineering",
-    "saveTemplateFailed": "Failed to save prompt",
+    "saveTemplateFailed": "Couldn't save prompt",
     "saveCurrentPrompt": "Save current prompt",
     "saveCurrentPromptEmpty": "Write a prompt first, then save it as a template.",
     "manageInPrompts": "Manage in Prompts",
@@ -2877,7 +2877,7 @@
     "loadingTemplates": "Loading templates...",
     "createAction": "New template",
     "createCollapse": "Collapse",
-    "createDescription": "Save proven prompts as reusable templates, then call them directly from Studio.",
+    "createDescription": "Save prompts that work well as templates and use them directly in Studio.",
     "createEyebrow": "Create",
     "createModelLabel": "Recommended model",
     "createNameLabel": "Template name",
@@ -2907,16 +2907,16 @@
     "recentTemplates": "Recent templates",
     "allTemplates": "All templates",
     "searchPlaceholder": "Search templates...",
-    "templateCount": "{count} templates",
+    "templateCount": "{count, plural, one {# template} other {# templates}}",
     "updateTemplateSuccess": "Prompt template updated",
-    "updateTemplateFailed": "Failed to update prompt template",
+    "updateTemplateFailed": "Couldn't update prompt template",
     "publishAction": "Publish to shared library",
     "unpublishAction": "Unpublish",
     "publishing": "Publishing...",
     "unpublishing": "Removing...",
     "publishSuccess": "Published to the shared prompt library",
     "unpublishSuccess": "Removed from the shared library",
-    "publishFailed": "Failed to update publish status",
+    "publishFailed": "Couldn't update publish status",
     "publishedBadge": "Published",
     "publishHint": "Once published, anyone can find and reuse this template in the shared prompt library.",
     "tabMine": "My templates",
@@ -2930,7 +2930,7 @@
     "inspirationDescription": "Browse prompts shared by the broader AI image community. Clone any prompt into your own library to remix and run.",
     "inspirationSearchPlaceholder": "Search prompts...",
     "inspirationSortLabel": "Sort",
-    "inspirationSortRank": "Editor's pick",
+    "inspirationSortRank": "Editor's picks",
     "inspirationSortLikes": "Most liked",
     "inspirationSortViews": "Most viewed",
     "inspirationSortRecent": "Most recent",
@@ -2938,8 +2938,8 @@
     "inspirationResultCount": "{count, plural, =0 {No results} one {# prompt} other {# prompts}}",
     "inspirationLoadMore": "Load more",
     "inspirationLoadingMore": "Loading...",
-    "inspirationLoadFailed": "Failed to load inspirations",
-    "inspirationLoadMoreFailed": "Failed to load more",
+    "inspirationLoadFailed": "Couldn't load inspirations",
+    "inspirationLoadMoreFailed": "Couldn't load more",
     "inspirationEmptyTitle": "No prompts match",
     "inspirationEmptyDescription": "Try removing a filter or searching different keywords.",
     "inspirationClone": "Clone to my library",
@@ -2948,7 +2948,7 @@
     "inspirationCloneFailed": "Could not clone this prompt",
     "inspirationImageUnavailable": "Preview unavailable",
     "placeholderTitle": "Fill in the prompt",
-    "placeholderDescription": "{count, plural, one {# placeholder needs a value before the prompt is ready.} other {# placeholders need values before the prompt is ready.}}",
+    "placeholderDescription": "{count, plural, one {Fill in # blank to use this prompt.} other {Fill in # blanks to use this prompt.}}",
     "placeholderDescriptionEmpty": "No placeholders to fill — review the prompt and apply it.",
     "placeholderInputPlaceholder": "Value for {name}",
     "placeholderPreviewLabel": "Preview",
@@ -3044,28 +3044,28 @@
     "toastSuccess": "Image generated successfully!",
     "errorCodes": {
       "NOVELAI_TIER_LIMIT": "Your NovelAI subscription only supports 1 reference image. Please select a single character card, or upgrade to Opus for multi-reference support.",
-      "FREE_LIMIT_EXCEEDED": "Free tier limit reached for today. Bind your own API key to continue.",
-      "MISSING_API_KEY": "Please bind your own API key for this model in API Routes settings."
+      "FREE_LIMIT_EXCEEDED": "You've used today's free quota. Add your own API key to keep creating.",
+      "MISSING_API_KEY": "Add your own API key for this model in API Routes settings."
     },
     "resultLabel": "Latest result",
     "resultDescription": "The newest image from this workspace appears here.",
     "resultEmptyTitle": "No generation yet",
-    "resultEmptyDescription": "Run the form to preview the newest image in this workspace.",
+    "resultEmptyDescription": "Generate an image to preview it here.",
     "resultPromptLabel": "Prompt",
     "resultModelLabel": "Model",
     "resultProviderLabel": "Provider",
-    "resultStorageNote": "Stored with its prompt and route context.",
+    "resultStorageNote": "Saved with its prompt and API route details.",
     "upgradeHint": "Want higher quality? Try GPT Image or FLUX Pro with your own API key.",
     "characterCard": {
       "hint": "Apply this character's prompt and reference images",
-      "applied": "Character card applied — base prompt auto-injected",
-      "hintMulti": "Apply {count} characters' prompts and reference images",
-      "appliedMulti": "{count} character cards applied — base prompts auto-injected",
+      "applied": "Character card applied. Base prompt added automatically.",
+      "hintMulti": "Apply {count, plural, one {# character} other {# characters}}' prompts and reference images",
+      "appliedMulti": "{count} character cards applied. Base prompts added automatically.",
       "applyButton": "Apply",
       "appliedButton": "Applied",
-      "basePromptLabel": "Character base prompt (auto-injected)",
+      "basePromptLabel": "Character base prompt (added automatically)",
       "actionPromptLabel": "Action / Scene",
-      "actionPromptHint": "Describe the pose, expression, background, or scene — the characters' appearance is auto-injected.",
+      "actionPromptHint": "Describe the pose, expression, background, or scene. The characters' appearance is added automatically.",
       "actionPromptPlaceholder": "e.g. standing in a field of flowers, smiling, wind blowing hair..."
     },
     "modelSelector": {
@@ -3107,8 +3107,8 @@
     "emptyModel": "No saved route for {model} yet.",
     "providers": {
       "huggingface": {
-        "label": "HuggingFace",
-        "description": "Use a HuggingFace-compatible adapter and endpoint shape."
+        "label": "Hugging Face",
+        "description": "Use a Hugging Face-compatible adapter and endpoint shape."
       },
       "gemini": {
         "label": "Gemini",
@@ -3144,11 +3144,11 @@
       },
       "minimax": {
         "label": "MiniMax",
-        "description": "MiniMax global station (api.minimax.io) for H3 video. Keys are not shared with the China station."
+        "description": "Use MiniMax's global API (api.minimax.io) for H3 video. Keys are separate from the China API."
       },
       "minimax_cn": {
         "label": "MiniMax (CN)",
-        "description": "MiniMax China station (api.minimaxi.com) for H3 video. Register separately — keys are not interchangeable with the global station."
+        "description": "Use MiniMax's China API (api.minimaxi.com) for H3 video. Register separately; global API keys won't work here."
       },
       "fish_audio": {
         "label": "Fish Audio",
@@ -3180,7 +3180,7 @@
       },
       "byteplus": {
         "label": "BytePlus",
-        "description": "Use the BytePlus ModelArk international station for Seedance video. Keys are separate from VolcEngine China."
+        "description": "Use the BytePlus ModelArk international API for Seedance video. Keys are separate from VolcEngine China."
       }
     },
     "summary": {
@@ -3254,7 +3254,7 @@
       "modelModes": {
         "preset": {
           "label": "Use a built-in model",
-          "description": "Expose a saved route for one of the models already available in Studio."
+          "description": "Add your own API route for a model already available in Studio."
         },
         "custom": {
           "label": "Use a custom model ID",
@@ -3294,11 +3294,11 @@
     "removingBackground": "Removing...",
     "editSuccess": "Done! Downloading the result.",
     "editFailed": "Editing failed",
-    "saveUpscaleToGallery": "Save upscaled to gallery",
+    "saveUpscaleToGallery": "Save upscaled image to gallery",
     "editSavedToGallery": "Saved to gallery!",
     "decomposing": "Decomposing layers...",
     "downloadFailed": "Download failed. Opening the original instead.",
-    "shareFailed": "Failed to copy the share link."
+    "shareFailed": "Couldn't copy the share link."
   },
   "GalleryCard": {
     "openImage": "Open image in a new tab",
@@ -3315,7 +3315,7 @@
     "privateLabel": "Private",
     "makePublicAction": "Make Public",
     "makePrivateAction": "Make Private",
-    "toggleError": "Failed to update visibility",
+    "toggleError": "Couldn't update visibility",
     "openVideo": "Open video",
     "promptPrivateHint": "Prompt hidden by the creator",
     "featuredLabel": "Pin",
@@ -3327,19 +3327,19 @@
     "unlike": "Unlike",
     "download": "Download",
     "downloadFailed": "Download failed",
-    "creatorProfileLabel": "View {name} profile",
+    "creatorProfileLabel": "View {name}'s profile",
     "copyPromptAction": "Copy prompt",
     "useInStudioAction": "Use in Studio",
     "promptCopiedToast": "Prompt copied"
   },
   "PromptEnhance": {
-    "button": "Enhance",
-    "failed": "Enhancement failed",
-    "comparisonTitle": "Prompt Enhancement",
+    "button": "Improve",
+    "failed": "Couldn't improve the prompt",
+    "comparisonTitle": "Improve your prompt",
     "originalLabel": "Original",
-    "enhancedLabel": "Enhanced",
-    "useEnhanced": "Use Enhanced",
-    "keepOriginal": "Keep Original",
+    "enhancedLabel": "Improved",
+    "useEnhanced": "Use improved prompt",
+    "keepOriginal": "Keep original",
     "styles": {
       "detailed": {
         "label": "Detailed",
@@ -3382,19 +3382,19 @@
       "logos": "Logos & vector design",
       "textInImage": "Text in images",
       "multimodal": "Prompt understanding & multimodal",
-      "cinematic": "Cinematic aesthetics & spatial",
+      "cinematic": "Cinematic style & spatial detail",
       "videoMotion": "Smooth motion & physics",
       "videoRealism": "Ultra-realism & audio sync",
       "videoCreative": "Creative expression & cinematography",
       "videoConsistency": "Character consistency & stability",
-      "videoSpeed": "Fast generation & cost-effective",
+      "videoSpeed": "Fast, cost-effective generation",
       "videoCinematic": "Cinematic feel & lighting"
     }
   },
   "StoryBoard": {
     "heroEyebrow": "Storyboard",
     "heroTitle": "Images to Stories",
-    "heroDescription": "Select images, AI writes the narrative.",
+    "heroDescription": "Pick your images and let AI write the story.",
     "createButton": "New Story",
     "titlePlaceholder": "Story title...",
     "panelPickerLabel": "Story images",
@@ -3412,7 +3412,7 @@
     "createAction": "Create Story",
     "empty": "No stories yet. Create your first visual story!",
     "emptySubtitle": "Combine your generations into a narrative sequence with AI-written captions.",
-    "panelCount": "{count} panels",
+    "panelCount": "{count, plural, one {# panel} other {# panels}}",
     "backToList": "All Stories",
     "storyEyebrow": "Story",
     "notFound": "Story not found",
@@ -3473,22 +3473,22 @@
       "natural": "Natural"
     },
     "lora": "LoRA Models",
-    "loraHint": "Apply custom LoRA models for style, character, or concept control. Paste a URL from Civitai or HuggingFace.",
+    "loraHint": "Apply custom LoRA models for style, character, or concept control. Paste a URL from Civitai or Hugging Face.",
     "loraAdd": "Add",
-    "loraUrlPlaceholder": "https://civitai.com/api/download/models/... or HuggingFace URL",
+    "loraUrlPlaceholder": "https://civitai.com/api/download/models/... or Hugging Face URL",
     "loraScale": "Weight",
     "noConfigurable": "This model has no configurable advanced settings",
     "technicalParams": "Technical parameters"
   },
   "ReverseEngineer": {
-    "title": "Reverse Engineer",
+    "title": "Image to prompt",
     "sourceDescription": "Upload or choose an image to extract its style, character, background, or tags.",
     "selectAsset": "Select asset",
     "analyzing": "Analyzing image with AI...",
     "generatedPromptLabel": "Generated Prompt",
     "generateVariations": "Generate Variations with All Models",
     "generatingVariations": "Generating variations...",
-    "variationsTitle": "{count} variations generated",
+    "variationsTitle": "{count, plural, one {# variation} other {# variations}} generated",
     "originalImage": "Original",
     "failedModels": "Failed: {models}",
     "analysisFailed": "Analysis failed",
@@ -3511,7 +3511,7 @@
       "customPlaceholder": "Or answer in your own words",
       "submitAnswers": "Send answers",
       "satisfiedPrefix": "Looks good — ",
-      "adjustFallback": "Need a change? Tell me the direction",
+      "adjustFallback": "Want to change something? Tell me what you'd like.",
       "askedTitle": "Already answered · {count}",
       "malformed": "The assistant meant to offer options here but the reply was unreadable. Ask again, or just answer in your own words."
     },
@@ -3519,7 +3519,7 @@
     "placeholder": "Describe what you want...",
     "send": "Send",
     "usePrompt": "Use as Prompt",
-    "useNegativePrompt": "Use as Negative",
+    "useNegativePrompt": "Use as negative prompt",
     "useAspectRatio": "Set {ratio}",
     "useModel": "Switch to {model}",
     "useBatchCount": "{count} per model",
@@ -3527,20 +3527,20 @@
     "undoApply": "Undo",
     "undoApplyAria": "Undo: {action}",
     "apply": "Apply",
-    "actionsHeading": "Also adjust the workbench",
+    "actionsHeading": "Also adjust the workspace",
     "rowPrompt": "Prompt",
     "rowNegative": "Negative",
     "rowRatio": "Aspect",
     "rowModel": "Model",
     "rowBatch": "Count",
-    "unavailableHere": "Not available in this workbench",
+    "unavailableHere": "Not available in this workspace",
     "modelAlreadyCompared": "Already in the compare list — switching drops one model from the run",
     "moreSuggestions": "{count} more setup suggestions",
     "appendPrompt": "Append",
     "copyPrompt": "Copy",
     "copied": "Copied",
     "clear": "Clear",
-    "failed": "Failed to generate prompt",
+    "failed": "Couldn't generate prompt",
     "loading": "Generating prompt...",
     "emptyHint": "Add an image to extract its style, or type an instruction to improve the prompt.",
     "starterA": "A cyberpunk street in neon rain, a girl holding a transparent umbrella",
@@ -3574,11 +3574,11 @@
       "modeAuto": "Auto",
       "modeAutoHint": "Searches only when the question needs live facts",
       "modeForced": "Always search",
-      "modeForcedHint": "Hits the sources every turn, no judgement call",
+      "modeForcedHint": "Searches the web with every reply",
       "modeOff": "Off",
       "modeOffHint": "Never searches — answers from the model's own knowledge",
       "searching": "Searching sources…",
-      "loading": "Loading evidence…",
+      "loading": "Loading sources…",
       "loadFailed": "This research run could not be loaded.",
       "historyLabel": "Sources behind this answer",
       "statusSucceeded": "Searched the web",
@@ -3586,10 +3586,10 @@
       "statusFailed": "Search failed",
       "statusQuotaExceeded": "Daily research limit reached",
       "noEvidenceNextSteps": "The sources came back empty. Try different keywords, paste a link, or upload a reference yourself.",
-      "failedHint": "The sources could not be reached, so this answer has no web evidence. Retry later, or paste a link.",
+      "failedHint": "Couldn't reach the sources, so this answer isn't backed by web results. Try again later or paste a link.",
       "quotaHint": "Today's research quota is used up — this answer comes from the model's own knowledge. It resets tomorrow.",
       "evidenceCount": "{count, plural, one {# item} other {# items}}",
-      "notGrounded": "No web evidence",
+      "notGrounded": "No web sources",
       "expand": "Show search details",
       "collapse": "Hide search details",
       "queriesLabel": "Queries",
@@ -3597,7 +3597,7 @@
       "viaFallback": "fallback",
       "sourceOk": "OK",
       "sourceEmpty": "No results",
-      "sourceUnrelated": "Off-topic hit",
+      "sourceUnrelated": "Unrelated result",
       "sourceFailed": "Failed",
       "sourceCircuitOpen": "Temporarily unavailable",
       "sourceSkipped": "Not used",
@@ -3614,12 +3614,12 @@
       "tierSocial": "Social",
       "retrievedAt": "Retrieved",
       "openSource": "Open original",
-      "imageEvidence": "Evidence image",
-      "untrusted": "Downgraded",
-      "untrustedHint": "This page contained instruction-like text, so the excerpt was withheld. Open the link and read it yourself.",
+      "imageEvidence": "Reference image",
+      "untrusted": "Lower confidence",
+      "untrustedHint": "This page contains text that could interfere with the assistant, so the excerpt isn't shown. You can still open the source link.",
       "citationAria": "Citation {index}",
-      "citationUnavailable": "The evidence behind this answer is no longer available.",
-      "citationMissing": "This citation points to evidence that does not exist."
+      "citationUnavailable": "The source material for this answer is no longer available.",
+      "citationMissing": "The source for this citation could not be found."
     },
     "imageButton": "Reference image",
     "imageDropHint": "Drag, paste, or click to upload",
@@ -3633,11 +3633,11 @@
     "dockDropHint": "Drop to set as assistant reference",
     "assistantResultPositive": "Positive",
     "assistantResultNegative": "Negative",
-    "assistantFreeWord": "Free word",
+    "assistantFreeWord": "Custom text",
     "assistantNormalized": "Normalized",
-    "assistantTriggerNote": "Trigger words are handled by the chip row above — they won't be repeated here.",
+    "assistantTriggerNote": "Trigger words appear in the row above and aren't repeated here.",
     "assistantRemoveChip": "Remove {tag}",
-    "assistantEmptyHint": "Describe what you want in your own words — mounted LoRAs, base model, and tray tags are read automatically.",
+    "assistantEmptyHint": "Describe what you'd like. Your LoRAs, base model, and selected tags are included automatically.",
     "assistantStarterA": "Silver-haired girl in the snow, dusk backlighting",
     "assistantStarterB": "Change the outfit to a rain-soaked trench coat, keep the pose",
     "assistantRefineLabel": "Keep tuning:",
@@ -3646,11 +3646,11 @@
     "assistantRefineStyle": "Lean harder into the LoRA's style",
     "assistantRetry": "Retry",
     "assistantEscapeToSelfBuild": "Switch to build-your-own",
-    "contextMounts": "Mounts ×{count}",
+    "contextMounts": "LoRAs ×{count}",
     "contextTriggers": "Triggers ×{count}",
     "contextBase": "Base",
-    "assistantStageForReview": "Add to collocation review",
-    "assistantStageHint": "Recommended over generating straight away — review the changes in the collocation bar before applying.",
+    "assistantStageForReview": "Review combination",
+    "assistantStageHint": "Review the suggested changes in the combination bar before applying them.",
     "referenceOnlyPrompt": "Analyze the attached reference and help me develop the idea.",
     "audioUnsupported": "This model cannot analyze audio. Select Gemini or remove the audio attachment.",
     "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
@@ -3665,22 +3665,22 @@
       "licenseUnknown": "Licence unknown",
       "licenseCommercial": "Commercial use",
       "licenseDerivatives": "Derivatives",
-      "licenseNoCredit": "No credit required",
+      "licenseNoCredit": "No attribution required",
       "permissionAllowed": "allowed",
       "permissionDenied": "not allowed",
       "permissionUnknown": "unknown",
       "downloads": "{count, plural, one {# download} other {# downloads}}",
-      "alreadyMounted": "Mounted",
+      "alreadyMounted": "Added",
       "alreadyImported": "In your library",
       "alreadyInStack": "Already in the stack",
-      "confirm": "Import and mount",
+      "confirm": "Import and add",
       "confirmImportOnly": "Import and add trigger words",
-      "confirmedMounted": "Imported, mounted, trigger words added",
+      "confirmedMounted": "Imported, added, and trigger words inserted",
       "confirmedImported": "Imported, trigger words added",
       "openSource": "Open source page",
-      "detailsTrimmed": "This turn's candidate details were too large to send in full, so this one cannot be imported from the card. Ask again to get a fresh set.",
-      "mountElsewhere": "This workbench has no LoRA stack, so nothing was mounted.",
-      "goToLoraWorkbench": "Mount it in the LoRA workbench",
+      "detailsTrimmed": "This candidate's details couldn't be loaded in full. Ask again for a new set of candidates to import.",
+      "mountElsewhere": "This workspace doesn't have a LoRA stack, so no LoRA was added.",
+      "goToLoraWorkbench": "Add it in the LoRA workspace",
       "type": {
         "subject": "Character",
         "style": "Style"
@@ -3697,8 +3697,8 @@
       },
       "failed": {
         "import": "Import failed — nothing was added to your library.",
-        "mount": "Imported, but mounting failed. It is in your library; mount it from the stack.",
-        "trigger_words": "Imported and mounted, but the trigger words could not be written into the prompt. Copy them from the card."
+        "mount": "Imported to your library, but couldn't add it to the workspace. Add it from the LoRA stack.",
+        "trigger_words": "Imported and added, but couldn't insert the trigger words. Copy them from the card."
       }
     }
   },
@@ -3710,11 +3710,11 @@
     "steps": {
       "welcome": {
         "title": "Welcome to PixelVault",
-        "description": "You can start for free — 5 generations/day with no API key. Bind your own keys later to unlock all models and unlimited usage."
+        "description": "Start for free with 5 generations a day and no API key. Add your own keys later to access all models and use your providers' quotas instead of the daily free limit."
       },
       "model": {
         "title": "Choose a model",
-        "description": "Models marked \"Free\" can be used without an API key — up to 5 times per day. Bind your own key to unlock all models."
+        "description": "Models marked Free work without an API key, up to 5 times a day. Add your own key to access all models."
       },
       "samplePrompt": {
         "title": "Sample prompt ready",
@@ -3733,7 +3733,7 @@
   "Models": {
     "geminiFlashImage": {
       "label": "Gemini 3.1 Flash Image",
-      "description": "Fast image exploration powered by Google's latest generation model."
+      "description": "Explore image ideas quickly with Google's latest-generation model."
     },
     "openaiGptImage25Flare": {
       "label": "OpenAI GPT Image 2.5 Flare",
@@ -3753,7 +3753,7 @@
     },
     "flux2ProEdit": {
       "label": "FLUX.2 Pro Edit",
-      "description": "Multi-reference image editing with FLUX.2 Pro — transform with a prompt and up to several source images."
+      "description": "Edit images with FLUX.2 Pro using a prompt and multiple reference images."
     },
     "flux2Flash": {
       "label": "FLUX 2 Flash",
@@ -3805,11 +3805,11 @@
     },
     "seedream50ProByteplus": {
       "label": "Seedream 5.0 Pro (BytePlus)",
-      "description": "Seedream 5.0 Pro via BytePlus ModelArk — the international Ark station, billed in USD. Single images only, no batch generation."
+      "description": "Seedream 5.0 Pro via BytePlus ModelArk's international API, billed in USD. Single images only; batch generation isn't supported."
     },
     "seedream50LiteByteplus": {
       "label": "Seedream 5.0 Lite (BytePlus)",
-      "description": "Value tier of Seedream 5.0 via BytePlus ModelArk — the international Ark station, billed in USD."
+      "description": "The lower-cost Seedream 5.0 option via BytePlus ModelArk's international API, billed in USD."
     },
     "novelaiV45Full": {
       "label": "NovelAI Diffusion V4.5 Full",
@@ -3865,7 +3865,7 @@
     },
     "fishAudioS2Pro": {
       "label": "Fish Audio S2.1 Pro",
-      "description": "Recommended production TTS — 83 languages, natural language emotion tags, voice cloning"
+      "description": "A recommended choice for finished voice work, with 83 languages, emotion tags, and voice cloning."
     },
     "elevenV3": {
       "label": "ElevenLabs v3",
@@ -3913,11 +3913,11 @@
     },
     "seedance20Reference": {
       "label": "Seedance 2.0 (Reference)",
-      "description": "Reference-to-video — supports voice cloning via audio_urls"
+      "description": "Generate video from reference material, with voice cloning from audio references."
     },
     "seedance20FastReference": {
       "label": "Seedance 2.0 Fast (Reference)",
-      "description": "Reference-to-video, faster variant — supports voice cloning"
+      "description": "Faster video generation from reference material, with voice cloning."
     },
     "seedance20Volcengine": {
       "label": "Seedance 2.0 (VolcEngine)",
@@ -3929,11 +3929,11 @@
     },
     "seedance20ReferenceVolcengine": {
       "label": "Seedance 2.0 (Reference, VolcEngine)",
-      "description": "Reference-to-video via VolcEngine (Ark) — China region, supports voice cloning"
+      "description": "Generate video from reference material via VolcEngine (Ark), with voice cloning. China region."
     },
     "seedance20FastReferenceVolcengine": {
       "label": "Seedance 2.0 Fast (Reference, VolcEngine)",
-      "description": "Reference-to-video, faster variant via VolcEngine (Ark) — China region"
+      "description": "Faster video generation from reference material via VolcEngine (Ark). China region."
     },
     "veo31": {
       "label": "Veo 3.1",
@@ -3961,11 +3961,11 @@
     },
     "minimaxH3Cn": {
       "label": "MiniMax H3 (CN)",
-      "description": "MiniMax H3 via the China station (minimaxi.com). Separate account and key from the global station."
+      "description": "MiniMax H3 via the China API (minimaxi.com). Uses a separate account and key from the global API."
     },
     "minimaxH3ReferenceCn": {
       "label": "MiniMax H3 (Reference, CN)",
-      "description": "Reference-to-video via the China station — separate account and key from the global station."
+      "description": "Generate video from references via the China API. Uses a separate account and key from the global API."
     },
     "hunyuan3d21": {
       "label": "Hunyuan3D 2.1",
@@ -3989,7 +3989,7 @@
     },
     "rodinGen25": {
       "label": "Rodin Gen-2.5",
-      "description": "Hyper3D official API — up to 5 reference images, GLB output, 5 quality tiers. Requires BYOK (Business subscription)."
+      "description": "Official Hyper3D API with up to 5 reference images, GLB output, and 5 quality levels. Requires your own API key with a Business subscription."
     },
     "qwen3Max": {
       "label": "Qwen3 Max",
@@ -4033,7 +4033,7 @@
     },
     "seedance25Byteplus": {
       "label": "Seedance 2.5 (BytePlus)",
-      "description": "Seedance 2.5 through the BytePlus ModelArk international station, with 480p/720p output and 4–30 second clips."
+      "description": "Seedance 2.5 via BytePlus ModelArk's international API, with 480p/720p output and 4–30 second clips."
     },
     "seedance25ReferenceByteplus": {
       "label": "Seedance 2.5 (Reference, BytePlus)",
@@ -4041,7 +4041,7 @@
     },
     "fishAudioS2ProFree": {
       "label": "Fish Audio S2.1 Pro Free",
-      "description": "Free upstream TTS; bring your Fish API key. Subject to Fair Use."
+      "description": "Free speech generation with your own Fish API key, subject to fair-use limits."
     }
   },
   "PromptPresets": {
@@ -4069,7 +4069,7 @@
   },
   "CharacterCard": {
     "title": "Character Cards",
-    "description": "Create stable character cards for consistent AI generation",
+    "description": "Save a character's look to keep it consistent across your creations.",
     "createNew": "New Character Card",
     "name": "Character Name",
     "namePlaceholder": "e.g. Hatsune Miku, Link, Genshin Impact character...",
@@ -4147,7 +4147,7 @@
       "emptyComboHint": "No generations found with {names} together",
       "count": "{count} generations",
       "loadMore": "Load More",
-      "loadFailed": "Failed to load generations"
+      "loadFailed": "Couldn't load creations"
     }
   },
   "PromptFeedback": {
@@ -4169,9 +4169,9 @@
     "apply": "Apply Prompt",
     "applyAndReference": "Apply & use as reference",
     "negativeAdditions": "Suggested negative prompt",
-    "conversationDone": "Refined prompt ready!",
-    "startFailed": "Failed to start conversation",
-    "responseFailed": "Failed to get response"
+    "conversationDone": "Your updated prompt is ready.",
+    "startFailed": "Couldn't start conversation",
+    "responseFailed": "Couldn't get response"
   },
   "ErrorBoundary": {
     "title": "Something went wrong",
@@ -4203,20 +4203,20 @@
     "displayName": "Display Name",
     "displayNamePlaceholder": "Your display name",
     "bio": "Bio",
-    "bioPlaceholder": "Tell the world about your creative style...",
+    "bioPlaceholder": "Tell us a little about what you like to create…",
     "publicProfile": "Public Profile",
     "publicProfileHint": "When off, your profile page is hidden from others",
     "save": "Save",
     "cancel": "Cancel",
     "profileUpdated": "Profile updated",
-    "updateFailed": "Failed to update profile",
+    "updateFailed": "Couldn't update profile",
     "changeBanner": "Change cover",
     "bannerUpdated": "Cover updated",
     "unsupportedImageType": "Please use JPEG, PNG, or WebP",
     "avatarTooLarge": "Avatar must be under 5 MB",
     "bannerTooLarge": "Cover image must be under 10 MB",
     "privateProfile": "This profile is private",
-    "loadFailed": "Failed to load profile",
+    "loadFailed": "Couldn't load profile",
     "privateProfileHint": "The creator has chosen to keep their profile hidden",
     "noPublicImages": "No public images yet",
     "startCreating": "Start creating in Studio",
@@ -4268,12 +4268,12 @@
     "edit": "Edit Recipe",
     "delete": "Delete Recipe",
     "deleteConfirm": "Are you sure you want to delete this recipe?",
-    "compile": "Compile",
-    "compiling": "Compiling recipe...",
+    "compile": "Build prompt",
+    "compiling": "Building a prompt from your recipe…",
     "preview": "Preview",
     "freePrompt": "Action / Scene",
     "freePromptPlaceholder": "What is the character doing? (e.g., walking in the rain, fighting)",
-    "compiledPrompt": "Compiled Prompt",
+    "compiledPrompt": "Combined prompt",
     "generate": "Generate from Recipe",
     "empty": "No recipes yet",
     "emptyHint": "Combine character, background, style and model cards into a recipe",
@@ -4315,9 +4315,9 @@
   },
   "CivitaiToken": {
     "saveSuccess": "Civitai token saved",
-    "saveFailed": "Failed to save token",
+    "saveFailed": "Couldn't save token",
     "removeSuccess": "Token removed",
-    "removeFailed": "Failed to remove token"
+    "removeFailed": "Couldn't remove token"
   },
   "StudioPromptArea": {
     "referenceMention": {
@@ -4342,8 +4342,8 @@
       "videoQueueFull": "Up to {max} clips can render at once — wait for one to finish",
       "videoAudioNeedsVisual": "Audio references on this route need at least one reference image. Add an image, or switch to a route that accepts audio-only references."
     },
-    "audioPromptMeta": "{current} / {max} chars · ≈ {minutes} min · ≈ {credits, plural, one {# credit} other {# credits}}",
-    "audioPromptMetaNoLimit": "{current} chars · ≈ {minutes} min · ≈ {credits, plural, one {# credit} other {# credits}}",
+    "audioPromptMeta": "{current} / {max} chars · ≈ {minutes} min · ≈ {credits, plural, one {# generation unit} other {# generation units}}",
+    "audioPromptMetaNoLimit": "{current} chars · ≈ {minutes} min · ≈ {credits, plural, one {# generation unit} other {# generation units}}",
     "audioPromptMetaNoModel": "{current} chars · ≈ {minutes} min · select a model for cost",
     "samplePrompts": {
       "quickImage": "A serene Japanese garden at golden hour, koi fish swimming in a crystal clear pond, cherry blossoms falling gently",
@@ -4427,7 +4427,7 @@
     "emptyGuide": {
       "title": "Empty canvas — start here",
       "subtitle": "Tell me the story and the assistant lays the nodes out for you.",
-      "chatOutline": "Chat the outline with the assistant",
+      "chatOutline": "Plan the outline with the assistant",
       "addNode": "Add a node manually (character / background / shot / image…)"
     },
     "appearance": {
@@ -4479,7 +4479,7 @@
       "frameImage": "Generate a keyframe image before video creation.",
       "image": "Upload, pick from the library, or generate with AI — name and categorize it once it lands. Characters and scenes come from the Cast dock.",
       "voice": "Select or upload a voice profile for video character voices.",
-      "seedance": "Aggregate upstream images, keyframes, and voices into a final video.",
+      "seedance": "Combine connected images, keyframes, and voices into a video.",
       "videoReference": "Upload a clip (≤15s / ≤50MB) as a reference. Unlocks the 0.6x Seedance Reference discount."
     },
     "addCatalog": {
@@ -4508,7 +4508,7 @@
         },
         "imageCharacter": {
           "label": "Character",
-          "helper": "What this person looks like: key art, close-ups and a bound voice."
+          "helper": "The character's look: main image, close-ups, and a linked voice."
         },
         "imageBackground": {
           "label": "Background",
@@ -4524,7 +4524,7 @@
         },
         "audioTimbre": {
           "label": "Timbre",
-          "helper": "A reusable vocal identity. Wire it into a shot or character to fix how they sound."
+          "helper": "A reusable voice. Connect it to a shot or character to set how they sound."
         },
         "videoShot": {
           "label": "Shot",
@@ -4535,7 +4535,7 @@
           "helper": "Upload a video to use as a motion or look reference."
         }
       },
-      "cast": "Cast tray",
+      "cast": "Cast",
       "upload": "Upload image",
       "pickFromLibrary": "Pick from library"
     },
@@ -4546,7 +4546,7 @@
       "running": "Rolling",
       "done": "Wrapped",
       "failed": "NG",
-      "stale": "Stale",
+      "stale": "Needs updating",
       "disabled": "Disabled"
     },
     "imageSourceStarter": {
@@ -4567,8 +4567,8 @@
     },
     "characterImage": {
       "voiceBound": {
-        "unnamed": "🎙 Voice bound from upstream (will label the @AudioN slot in the video prompt)",
-        "remove": "Unbind voice"
+        "unnamed": "🎙 Connected voice will be labeled with the character name in the video's @AudioN slot.",
+        "remove": "Disconnect voice"
       },
       "promptLabel": "Character image prompt",
       "promptPlaceholder": "Describe the character appearance, wardrobe, mood, and style...",
@@ -4647,7 +4647,7 @@
     },
     "voiceProfile": {
       "title": "Voice input",
-      "description": "This node only defines voice identity. Video nodes use it as character or narration voice context.",
+      "description": "Sets the voice to use for a character or narrator. Connect it to a video node to use it.",
       "emptyTitle": "No voice set",
       "emptyDescription": "Choose a library voice, paste a model voice ID, or upload reference audio.",
       "providerLabel": "Source",
@@ -4677,7 +4677,7 @@
         "visual": "Characters / backgrounds / shots",
         "keyframe": "Keyframes",
         "video": "Reference videos",
-        "text": "Shot text",
+        "text": "Shot description",
         "voice": "Voices"
       },
       "upstreamEmpty": {
@@ -4691,7 +4691,7 @@
         "referenceRequired": "The selected model requires at least one reference image."
       },
       "audioCapabilities": {
-        "referenceAudio": "Supports reference audio or voice context; this version writes voice nodes into the prompt, with direct audio wiring reserved for the provider path.",
+        "referenceAudio": "Voice details are added to the prompt. Sending reference audio directly depends on the selected provider route.",
         "voiceId": "Supports model-specific voice IDs. Fill a compatible voice ID on the voice node."
       },
       "audioCallout": {
@@ -4720,7 +4720,7 @@
     },
     "videoReference": {
       "title": "Reference video",
-      "description": "Upload a clip to use as reference for a downstream Seedance Reference node. Connecting a video automatically applies the 0.6x discount.",
+      "description": "Upload a video clip as a reference for a connected Seedance Reference node. This automatically applies a 40% discount.",
       "upload": "Upload video",
       "replace": "Replace video",
       "clear": "Clear",
@@ -4809,7 +4809,7 @@
         "closeup": "Closeup"
       },
       "cameraGrammar": {
-        "label": "Camera grammar",
+        "label": "Camera direction",
         "groups": {
           "size": "Shot size",
           "angle": "Angle",
@@ -4860,7 +4860,7 @@
         "locate": "Locate this node on canvas",
         "videoAutoHint": "Reference videos are sent automatically with the wire — nothing to insert",
         "keyframeHint": "First/last frames are sent automatically with the wire — nothing to insert",
-        "voiceNotReadyHint": "No reference audio uploaded/selected — it will NOT be sent this generation",
+        "voiceNotReadyHint": "No reference audio selected. It won't be sent with this generation.",
         "addVoice": "Add a voice to \"{name}\"",
         "remove": "Disconnect \"{name}\" (node kept)",
         "searchPlaceholder": "Search by name or @token",
@@ -4918,14 +4918,14 @@
       "preview": "Preview",
       "reorder": "Reorder",
       "compose": "Compose {count, plural, one {# clip} other {# clips}}",
-      "composeAria": "Bundle the selected {count, plural, one {# clip} other {# clips}} into a merge bin"
+      "composeAria": "Group the selected {count, plural, one {# clip} other {# clips}} for merging."
     },
     "nodeDetail": {
       "close": "Collapse",
       "generate": "Generate",
       "upload": "Upload",
       "openStudio": "Studio ↗",
-      "sampleWillSend": "Sampling will send"
+      "sampleWillSend": "Sent when generating"
     },
     "voiceDetail": {
       "speedLabel": "Speed",
@@ -5067,7 +5067,7 @@
     },
     "assistant": {
       "toggle": "Assistant",
-      "streamFailed": "Assistant stream failed"
+      "streamFailed": "The assistant's response was interrupted"
     },
     "dock": {
       "title": "Assistant dock",
@@ -5080,8 +5080,8 @@
       "scriptDocEmptyTitle": "No outline yet",
       "scriptDocEmptyHint": "Talk the outline through on the left, then draft it here — confirming spawns the matching nodes.",
       "scriptDocNeedChat": "Say a few words about your story first.",
-      "scriptDocTrimMessages": "The script is getting long — only your last {count} messages were sent this time.",
-      "scriptDocTrimFields": "The script is getting long — {count} optional field(s) (world setting, style note, target length) sat this round out. Their values are kept.",
+      "scriptDocTrimMessages": "This conversation is getting long. Only your last {count, plural, one {# message} other {# messages}} were sent this time.",
+      "scriptDocTrimFields": "The script is getting long. {count, plural, one {# optional field was} other {# optional fields were}} left out of this update. Your saved values are unchanged.",
       "clarify": {
         "title": "A few quick questions",
         "customPlaceholder": "Or type your own…",
@@ -5094,19 +5094,19 @@
       "scriptDocShotsLabel": "Shots · {count}",
       "scriptDocApplyResult": "Canvas synced: {created} new, {updated} updated, {removed} removed, {skipped} reused.",
       "scriptDocApplyNothing": "Canvas already matches the outline — nothing new to generate.",
-      "scriptDocProjectionTitle": "What projecting will change",
-      "scriptDocProjectionCreate": "Create {count} node(s)",
-      "scriptDocProjectionUpdate": "Update {count} node(s)",
-      "scriptDocProjectionRemove": "Remove {count} node(s) and {edges} edge(s) whose role / shot / line you deleted from the script",
+      "scriptDocProjectionTitle": "Changes to the canvas",
+      "scriptDocProjectionCreate": "Create {count, plural, one {# node} other {# nodes}}",
+      "scriptDocProjectionUpdate": "Update {count, plural, one {# node} other {# nodes}}",
+      "scriptDocProjectionRemove": "Remove {count, plural, one {# node} other {# nodes}} and {edges, plural, one {# edge} other {# edges}} whose role / shot / line you deleted from the script",
       "scriptDocProjectionCancel": "Cancel",
-      "scriptDocProjectionConfirm": "Project",
+      "scriptDocProjectionConfirm": "Apply to canvas",
       "scriptDocApplyEmpty": "Add roles or shots to the outline first.",
       "scriptDocStepOutline": "Outline",
       "scriptDocStepShots": "Shots",
       "scriptDocStepNodes": "Nodes",
       "scriptDocConfirmOutline": "Confirm outline",
-      "scriptDocBreakShots": "Break into shots",
-      "scriptDocRebreakShots": "Re-break shots",
+      "scriptDocBreakShots": "Split into shots",
+      "scriptDocRebreakShots": "Revise shot breakdown",
       "scriptDocConfirmShots": "Confirm shots",
       "scriptDocShotStills": "Still frame per shot",
       "scriptDocShotStillsHint": "Confirming shots also creates one still-image node per shot. Turning this off only stops new ones — stills already on the canvas are kept.",
@@ -5165,7 +5165,7 @@
           "prompt": "Help me plan a video shot on this canvas: subject, motion, camera, and duration."
         }
       },
-      "welcomeTitle": "Select a node to inspect it",
+      "welcomeTitle": "Select a node to see its details",
       "welcomeDescription": "I can help review the canvas, tighten prompts, and suggest the next node to run.",
       "welcomeSkillScript": "Break down a Composer idea into production steps.",
       "welcomeSkillRoute": "Check model routes and missing keys before running nodes.",
@@ -5189,19 +5189,19 @@
       "setupGrok": "Grok",
       "mediaCapabilities": {
         "imageVideo": "Images + video",
-        "imageOnly": "Image vision",
+        "imageOnly": "Image understanding",
         "textOnly": "Text only"
       }
     },
     "inspector": {
-      "unsupported": "This node type does not have an Inspector yet."
+      "unsupported": "This node doesn't have a settings panel yet."
     },
     "conversation": {
       "empty": "Ask about the current workflow, selected nodes, prompt quality, or what to run next.",
       "thinking": "Thinking...",
       "retry": "Retry",
       "placeholder": "Ask the canvas assistant...",
-      "modeHint": "Structure lands free · generation asks",
+      "modeHint": "Layout changes apply automatically · generation needs confirmation",
       "research": "Reference work",
       "researchHint": "Search the web for a film/anime/short and turn it into original script ideas (Gemini/OpenAI routes)",
       "send": "Send",
@@ -5219,10 +5219,10 @@
       "recentImagesEmpty": "No recent images",
       "openImageLibrary": "Open image library",
       "imageLibraryTitle": "Select a reference image",
-      "imageLibraryDescription": "Choose an existing image to attach to this assistant turn.",
+      "imageLibraryDescription": "Choose an image to attach to your message.",
       "openVideoLibrary": "Open video library",
       "videoLibraryTitle": "Select a reference video",
-      "videoLibraryDescription": "Choose an existing video to attach to this assistant turn.",
+      "videoLibraryDescription": "Choose a video to attach to your message.",
       "canvasReferences": "On this canvas",
       "uploadVideo": "Upload reference video",
       "galleryImageLabel": "Gallery image",
@@ -5236,7 +5236,7 @@
       "title": "Nodes",
       "locatorTitle": "All nodes on the canvas",
       "rosterTitle": "Reusable characters & scenes",
-      "rosterHint": "Drag onto a node to feed it — or long-press to pick targets",
+      "rosterHint": "Drag onto a node to use as a reference, or press and hold to choose a target.",
       "searchLabel": "Search canvas nodes",
       "searchPlaceholder": "Search nodes…",
       "groups": {
@@ -5261,19 +5261,19 @@
       },
       "performanceCount": "{count, plural, one {In # shot} other {In # shots}}",
       "referenceCountAria": "{count, plural, one {# reference image} other {# reference images}}",
-      "voiceBoundAria": "Voice bound",
+      "voiceBoundAria": "Voice linked",
       "create": "New",
       "deleteCard": "Delete {name}",
       "openDetail": "Open {name}"
     },
     "ingest": {
       "reasons": {
-        "typeMismatch": "This card can't feed that target",
+        "typeMismatch": "This card can't be used by that node",
         "duplicate": "Already included",
         "capacityFull": "Reference slots are full",
         "capacityFullWithLimit": "Reference slots are full ({current}/{limit})",
         "capacityFullIn": "{zone} slots are full ({current}/{limit}) — remove one to add another",
-        "capacityFullByTotal": "Only {limit} {zone} slots left: the total asset cap is reached, drop a video or audio to free more"
+        "capacityFullByTotal": "Only {limit} {zone} slots available because of the total asset limit. Remove a video or audio clip to make room."
       },
       "preview": {
         "images": "{count} refs",
@@ -5282,8 +5282,8 @@
         "fallbackName": "Untitled"
       },
       "quickThrow": {
-        "toggleAria": "Quick-throw {name}",
-        "hint": "Throwing {name} — click a target shot, Esc to exit",
+        "toggleAria": "Quick-add {name}",
+        "hint": "Choose a shot for {name}. Press Esc to cancel.",
         "alreadyIncluded": "Already included"
       },
       "looseImageFused": "Image added to the character's references",
@@ -5295,7 +5295,7 @@
         "uploaded": "{count, plural, one {# image} other {# images}} added to the canvas",
         "uploadFailed": "Image upload failed",
         "untitled": "Untitled image",
-        "cardAlt": "Loose image on the canvas"
+        "cardAlt": "Unconnected canvas image"
       }
     },
     "dossier": {
@@ -5339,7 +5339,7 @@
       "historyEmpty": "No history yet",
       "modeImage": "Image",
       "modeAudio": "Audio",
-      "audioPlaceholder": "Audio parameters ship in the voice-card round",
+      "audioPlaceholder": "Audio settings aren't available here yet.",
       "templateFilterLabel": {
         "recent": "Recent",
         "all": "All",
@@ -5370,9 +5370,9 @@
       "previousVersion": "Previous",
       "currentVersion": "Current",
       "reasonLabel": "Reason",
-      "reasonPlaceholder": "Why this one is out (optional)",
+      "reasonPlaceholder": "Why does this need another try? (optional)",
       "promptPatchLabel": "Prompt tweak",
-      "promptPatchPlaceholder": "What to change for the retry",
+      "promptPatchPlaceholder": "What would you like to change?",
       "regenerate": "Tweak & retry",
       "regenerating": "Regenerating"
     },
@@ -5402,7 +5402,7 @@
       "versionReadout": "{index} / {total}"
     },
     "canvasOps": {
-      "title": "The assistant wants to change the canvas",
+      "title": "Suggested canvas changes",
       "unnamed": "Untitled",
       "unknownTarget": "Deleted node",
       "apply": "Apply {count}",
@@ -5411,8 +5411,8 @@
       "appliedToast": "Applied {count} canvas changes",
       "confirmGenerate": "Confirm generation (uses credits)",
       "confirmReview": "Confirm review change",
-      "autoApplied": "{count} placed on the canvas — nothing spent yet",
-      "autoConnectsFailed": "{count} connection(s) not created",
+      "autoApplied": "{count, plural, one {# item} other {# items}} placed on the canvas. No credits used yet.",
+      "autoConnectsFailed": "{count, plural, one {# connection} other {# connections}} not created",
       "undoAutoApplied": "Undo",
       "generateSeparateHint": "Generation is confirmed separately",
       "rejectedPrefix": "Won't run: {reason}",
@@ -5437,10 +5437,10 @@
         "reorderShot": "Move shot {from} to position {to}",
         "setText": "Rewrite the text of “{target}”",
         "setField": "Set {field} of “{target}” to {value}",
-        "attachAssetSlot": "Attach “{source}” into “{target}” · {slot}",
+        "attachAssetSlot": "Attach “{source}” to “{target}” · {slot}",
         "setSlotVersion": "Switch the current version of “{target}” · {slot}",
         "blockVersion": "Mark the “{target}” · {slot} version as rejected",
-        "unblockVersion": "Un-reject the “{target}” · {slot} version",
+        "unblockVersion": "Clear the rejection for “{target}” · {slot}",
         "setParamsV4": "Change the generation dials of “{target}”",
         "setVoiceProfile": "Change the voice settings of “{target}”"
       },
@@ -5454,17 +5454,17 @@
       "reasons": {
         "unknownNode": "That node can't be found",
         "duplicateRef": "The same alias is used twice, so the reference is ambiguous",
-        "approvalForbidden": "The assistant can't approve for you — only you can",
+        "approvalForbidden": "Only you can approve results.",
         "noMedia": "This node has no image yet, so there is nothing to mark",
         "notGeneratable": "This kind of node produces no media",
         "noModel": "No model selected yet",
         "notCategorizable": "This kind of node has no image category",
         "unknownCategory": "That isn't one of the image categories",
         "missingCategoryLabel": "A custom category needs a name",
-        "notModelTargetable": "This kind of node doesn't pick a model",
+        "notModelTargetable": "This node type doesn't use a model",
         "unknownModel": "That model isn't in this node's list",
         "modelNeedsKey": "That model needs its API key set up first",
-        "notParameterizable": "This node's settings don't live on the node — image size and quality are on the compose bar",
+        "notParameterizable": "Adjust image size and quality in the generation bar.",
         "emptyParams": "No setting was given, so nothing would change",
         "unsupportedParam": "The selected model doesn't take that setting",
         "unknownParamValue": "That value isn't one the selected model accepts",
@@ -5489,7 +5489,7 @@
       "slotDisconnect": "Disconnect",
       "slotEmpty": "Empty",
       "changedBadge": "Changed this turn",
-      "blocked": "Marked failed: {reason}",
+      "blocked": "Rejected: {reason}",
       "audioDuration": "{seconds}s",
       "audioEmpty": "No audio",
       "audioOwner": "Voice: {name}",
@@ -5532,7 +5532,7 @@
         "ready": "Ready",
         "done": "Done",
         "failed": "Failed",
-        "stale": "Stale",
+        "stale": "Needs updating",
         "disabled": "Disabled"
       },
       "kinds": {
@@ -5554,13 +5554,13 @@
         "kindNotAllowed": "This input doesn't take that kind of asset",
         "subtypeNotAllowed": "This input only takes reference or character images",
         "slotFull": "This input is full",
-        "blockedSource": "This asset is marked failed and can't be a first frame",
+        "blockedSource": "This asset was rejected and can't be used as a first frame",
         "duplicateEdge": "Already connected",
         "unknownNode": "Node not found",
         "blockedVersion": "That version is disabled and can't be made current"
       },
       "upgrade": {
-        "backupFailed": "Backing up the v3 data failed — the canvas won't save. Retry or contact support.",
+        "backupFailed": "Couldn't back up this project's older data, so saving is paused. Try again or contact support.",
         "migrationFailed": "This project's data can't be read; writes are stopped so nothing is overwritten."
       },
       "versionAdded": "Added as version {count} and set as current",
@@ -5571,7 +5571,7 @@
       "generateDesk": {
         "failed": "Generation failed: {reason}",
         "noModel": "Pick a model first",
-        "noGenerate": "Text nodes do not generate — derive instead"
+        "noGenerate": "Create a connected node to generate from this text."
       },
       "renameNode": "Rename node",
       "expandNode": "Expand",
@@ -5598,7 +5598,7 @@
         "sourceExisting": "Existing"
       },
       "relations": {
-        "title": "Used downstream by",
+        "title": "Used by",
         "empty": "Nothing uses it yet",
         "chip": "{name} · {slot}"
       },
@@ -5608,7 +5608,7 @@
         "prompt": "Prompt",
         "blocked": "Blocked",
         "none": "—",
-        "slotValue": "{name} ({count} versions)"
+        "slotValue": "{name} ({count, plural, one {# version} other {# versions}})"
       },
       "gallery": {
         "title": "{slot} gallery ({count})",
@@ -5621,7 +5621,7 @@
         "slotStates": {
           "empty": "No voice",
           "loading": "Working",
-          "bound": "Voice bound",
+          "bound": "Voice set",
           "failed": "Failed"
         },
         "providerFallback": "Unknown source",
@@ -5807,7 +5807,7 @@
           "voiceLibrary": "Voice library…",
           "uploadShortcut": "⌘U"
         },
-        "emptyHint": "Upload · pick one that exists · or write a line",
+        "emptyHint": "Upload audio, choose a clip, or write a line",
         "promptPlaceholder": "Write a line, or upload audio…",
         "promptPlaceholderMusic": "Describe this music…",
         "promptPlaceholderSfx": "Describe this sound effect…",
@@ -5905,8 +5905,8 @@
         "trim": {
           "title": "Trim",
           "selectionWindow": "Selection window",
-          "inPoint": "In point",
-          "outPoint": "Out point",
+          "inPoint": "Start",
+          "outPoint": "End",
           "range": "Selection {start} – {end}",
           "preview": "Preview selection",
           "pausePreview": "Pause preview",
@@ -5948,7 +5948,7 @@
           "aspectRatio": "Aspect ratio",
           "resolution": "Resolution",
           "generateAudio": "Generate audio",
-          "generateAudioHint": "The model brings its own track; off means picture only",
+          "generateAudioHint": "Generate audio with the video. Turn off for a silent video.",
           "audioSuffix": "with audio",
           "regenerate": "Regenerate",
           "regenerateShortcut": "⌘↵",
@@ -5999,7 +5999,7 @@
           "itemLabel": "{group} {index}: {name}",
           "addLabel": "Add {group}",
           "full": "Full (max {limit})",
-          "referenceUnavailable": "This model has no reference variant — attachments would not be sent",
+          "referenceUnavailable": "This model doesn't support reference input, so attachments won't be sent.",
           "mentionGroup": "On the rail",
           "retry": "Retry",
           "uploading": "Uploading {name}",
@@ -6021,12 +6021,12 @@
       }
     },
     "rerunDownstream": {
-      "title": "Changed \"{origin}\" → {count} downstream nodes to rerun",
+      "title": "Changed “{origin}”. {count} connected nodes need to run again.",
       "free": "no credits",
       "estimate": "Would spend credits on: {summary}",
       "noCost": "None of these spend credits",
-      "menu": "Rerun downstream",
-      "ask": "I changed \"{name}\". Rerun only what is downstream of it — list them first."
+      "menu": "Rerun affected nodes",
+      "ask": "I changed “{name}”. Show me which nodes depend on it before running them again."
     },
     "textAssist": {
       "continue": "Continue the body of “{name}”: {prompt}",
@@ -6040,7 +6040,7 @@
         "open": "Project",
         "search": "Search projects…",
         "empty": "No matching project",
-        "nodeCount": "{count} nodes",
+        "nodeCount": "{count, plural, one {# node} other {# nodes}}",
         "new": "New project",
         "more": "More",
         "rename": "Rename",
@@ -6059,7 +6059,7 @@
         "refCount": "{count} refs",
         "cardsCharacters": "Characters",
         "cardsStyles": "Styles",
-        "cardsHint": "Drag onto the canvas, or @ it in a prompt",
+        "cardsHint": "Drag onto the canvas, or type @ in a prompt to select it.",
         "libraryHint": "Upload · drag in",
         "libraryAll": "All",
         "libraryImage": "Images",
@@ -6168,7 +6168,7 @@
       "planPlaceholder": "Describe the cut: follow the script order, 5s from the middle of each shot, crossfade…",
       "planAria": "Describe the cut",
       "planModel": "Writing model",
-      "planPending": "Cut-from-a-sentence is still on the way (S10)",
+      "planPending": "Editing from a description isn't available yet.",
       "inspector": {
         "empty": "Select a clip to see its settings",
         "selected": "Selected · {name}",
@@ -6176,8 +6176,8 @@
         "sourceLive": "From the canvas",
         "sourceVersion": "Version {index}/{total}",
         "sourceGone": "Source card deleted",
-        "inPoint": "In",
-        "outPoint": "Out",
+        "inPoint": "Start",
+        "outPoint": "End",
         "speed": "Speed",
         "speedOption": "{speed}×",
         "sound": "Original audio",
@@ -6201,7 +6201,7 @@
         "toCanvas": "Export to canvas (the cut lands as a video card)",
         "resolution": "Resolution",
         "confirm": "Start export",
-        "pending": "The render layer is still on the way (S9) — “{range}” will be exportable soon"
+        "pending": "Exporting “{range}” isn't available yet."
       },
       "clipClock": "Clip {at} / {total}",
       "render": {
@@ -6239,7 +6239,7 @@
           "tooManySegments": "Too many clips to render — remove a few and try again.",
           "tooLong": "The cut is longer than a single render allows."
         },
-        "landFailed": "The cut could not land on the canvas. Try again."
+        "landFailed": "Couldn't add the finished video to the canvas. Please try again."
       },
       "plan": {
         "ask": "Arrange the timeline: {prompt}",
@@ -6262,8 +6262,8 @@
           "full": "Take the whole clip ({total}s)"
         },
         "why": "Why: {reason}",
-        "inPoint": "In",
-        "outPoint": "Out",
+        "inPoint": "Start",
+        "outPoint": "End",
         "acceptClip": "Take this one",
         "skipClip": "Skip",
         "acceptedSoFar": "{count} taken so far"
@@ -6313,8 +6313,8 @@
           "light": "White",
           "dark": "Black"
         },
-        "inPoint": "In",
-        "outPoint": "Out",
+        "inPoint": "Start",
+        "outPoint": "End",
         "fade": "Fade",
         "fadeNone": "None",
         "fadeSeconds": "{fadeSec}s"
@@ -6328,7 +6328,7 @@
         "actions": {
           "play": "Play / pause",
           "split": "Split",
-          "inOut": "In / out",
+          "inOut": "Start / end",
           "remove": "Delete clip",
           "undo": "Undo",
           "back": "Back to canvas"
@@ -6339,8 +6339,8 @@
   },
   "StudioMobile": {
     "modelChipEmpty": "Pick a model",
-    "modelChipMulti": "{count} models",
-    "modelSheetDone": "Done · {count} models",
+    "modelChipMulti": "{count, plural, one {# model} other {# models}}",
+    "modelSheetDone": "Done · {count, plural, one {# model} other {# models}}",
     "modelSheetTitle": "Select model",
     "specSheetTitle": "Spec",
     "negativePromptLabel": "Negative prompt",
@@ -6402,10 +6402,10 @@
     "generateFailed": "Generation failed",
     "stillProcessingHint": "Still generating in the background — it'll appear in your library when it's ready.",
     "variantGenerate": "Generate Variants",
-    "variantGenerating": "Generating {count} variants...",
+    "variantGenerating": "Generating {count, plural, one {# variant} other {# variants}}...",
     "variantSuccess": "Variants generated!",
     "compareGenerate": "Compare Models",
-    "compareSuccess": "Comparison generated!",
+    "compareSuccess": "Comparison ready",
     "compareSelectModels": "Select 2-3 models to compare",
     "modelAdd": "Add model",
     "modelRemove": "Remove",
@@ -6416,7 +6416,7 @@
     "costVideoRate": "{duration}s × {rate}/s",
     "costApproxFrom": "≈ {amount}+",
     "costUnpriced": "{count, plural, one {# model has no listed price} other {# models have no listed price}}",
-    "costRange": "Plus, varying by tier: ~{min} – {max}",
+    "costRange": "Additional cost varies by quality level: about {min}–{max}",
     "costRangeBasis": "Range estimates 1024×1024 output only. Text and reference inputs cost extra; other sizes and auto quality depend on actual usage.",
     "batchCountSummary": "{count, plural, one {# per model} other {# per model}}",
     "generateCount": "{count, plural, one {Generate # image} other {Generate # images}}",
@@ -6433,7 +6433,7 @@
     },
     "freePromptPlaceholder": "Describe the action, scene, or expression...",
     "enhance": "Assistant",
-    "reverse": "Reverse",
+    "reverse": "Image to prompt",
     "advanced": "Advanced",
     "referenceImage": "Reference",
     "referenceFormats": "JPG, PNG, WebP",
@@ -6464,7 +6464,7 @@
     "reference": "Reference Images",
     "referenceDisabledOverLimit": "Exceeds the current model's {max}-image limit",
     "referenceDisabledUnsupported": "Current model doesn't accept reference images",
-    "reverse": "Image Reverse Engineer",
+    "reverse": "Image to prompt",
     "script": "Video Script",
     "videoAudio": "Audio references",
     "advanced": "Advanced Settings",
@@ -6524,7 +6524,7 @@
     },
     "generateFailed": "Generation failed",
     "elapsed": "Elapsed: {seconds}",
-    "previewErrorTitle": "Generation needs another try",
+    "previewErrorTitle": "Generation didn't finish",
     "retry": "Try again",
     "remix": "Remix",
     "promptPreviewLabel": "Prompt",
@@ -6569,10 +6569,10 @@
     "toolViewOriginal": "View original",
     "toolShare": "Share",
     "toolLockSeed": "Lock seed",
-    "seedLockedToast": "Seed {seed} locked — tweak the prompt and hit Generate to keep the composition.",
+    "seedLockedToast": "Seed {seed} locked. Adjust the prompt and generate again to try variations with the same seed.",
     "toolSuperRes": "Super resolution",
     "toolRemoveBg": "Remove background",
-    "toolSaveSuperRes": "Save super-res",
+    "toolSaveSuperRes": "Save upscaled image",
     "upscaling": "Upscaling...",
     "removingBg": "Removing...",
     "linkCopied": "Link copied",
@@ -6685,12 +6685,12 @@
       },
       "extract-element": {
         "label": "Extract element",
-        "description": "Cut out a clothing, person, or background by name."
+        "description": "Describe the clothing, person, or background you want to cut out."
       }
     },
     "placeholder": {
-      "title": "{task} is being wired up",
-      "subtitle": "This task ships once its providers are connected. Source state is kept — switch back any time.",
+      "title": "{task} isn't available yet",
+      "subtitle": "This tool isn't ready yet. Your source image is kept, so you can try another tool.",
       "backToGrid": "Back to tasks"
     },
     "picker": {
@@ -6718,7 +6718,7 @@
       "invertLabel": "Invert mask (keep everything except the matched element)",
       "run": "Extract",
       "success": "Element extracted.",
-      "saveFailed": "Saved the result, but couldn't add it to materials.",
+      "saveFailed": "Couldn't save changes to the asset library.",
       "materialsTitle": "My extracted elements",
       "materialsLoading": "Loading…",
       "materialsEmpty": "No saved cutouts yet.",
@@ -6739,7 +6739,7 @@
     "saveFailed": "Could not save the result.",
     "downloadFailed": "Download failed.",
     "stageEditThis": "Edit this",
-    "stageBack": "Back to workbench",
+    "stageBack": "Back to workspace",
     "stageReferenceCaption": "Reference {index} / {total}",
     "stageEditingReference": "Editing · reference {index} / {total}",
     "annotate": {
@@ -6834,7 +6834,7 @@
     "verify": "Verify & activate",
     "verifying": "Verifying...",
     "verifyFailed": "Invalid API key. Please check and try again.",
-    "success": "API key verified! Model ready to use.",
+    "success": "API key verified. You're ready to use this model.",
     "available": "Available",
     "configuredKeys": "Configured API keys",
     "platformQuota": "Platform free quota",
@@ -6844,14 +6844,14 @@
     "voiceRoom": {
       "notFound": "Room not found",
       "lineNotFound": "Line not found",
-      "castFull": "The cast is full — a room holds at most 8 voices",
+      "castFull": "A room can have up to 8 voices. Remove one to add another.",
       "castDuplicate": "That voice is already in the cast",
       "modelUnavailable": "No audio model is available right now",
       "speakerNotInCast": "That speaker is not in this room",
-      "speakerCannotSpeak": "The score is a room-level bed, not a speaker",
+      "speakerCannotSpeak": "Background music applies to the whole room and can't be assigned as a speaker.",
       "voiceCardUnavailable": "That voice is no longer available",
       "roomFull": "This room is full — start a new one",
-      "lineEmpty": "A line needs something to say"
+      "lineEmpty": "Enter a line to generate speech."
     },
     "common": {
       "unexpected": "An unexpected error occurred. Please try again.",
@@ -6873,11 +6873,11 @@
       "videoUnsupported": "This model cannot analyze video. Choose Gemini or remove the video reference.",
       "imageUnsupported": "This model cannot analyze images. Choose a model labeled for image vision, or remove the image reference.",
       "contentBlocked": "The provider blocked this request under its safety policy. Rephrase, or switch the assistant route.",
-      "outputTruncated": "The model stopped before writing an answer (output budget exhausted). Try a shorter conversation or retry.",
+      "outputTruncated": "The model reached its response limit before finishing. Try again or start a shorter conversation.",
       "noTextResponse": "The model returned an empty answer. Retry, or switch the assistant route.",
-      "phantomCitation": "The assistant cited evidence that does not exist, so the answer was withheld. Retry, or turn web research off for this turn.",
+      "phantomCitation": "The assistant cited a source that couldn't be verified, so the answer isn't shown. Try again, or turn off web research for this reply.",
       "videoUnreachable": "This video could not be fetched (it may be deleted, private, or blocked from external access). Try a public link, or download the clip and drop it in.",
-      "timelinePlanFailed": "The planner did not return a usable timeline. Retry, or say it more plainly.",
+      "timelinePlanFailed": "Couldn't create a usable timeline. Try again or describe the sequence you'd like.",
       "timelinePlanEmpty": "There is no finished video card to arrange yet — generate or upload one first."
     },
     "provider": {
@@ -6901,7 +6901,7 @@
       "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again.",
       "accountLimitReached": "The provider account has hit the usage limit configured for this model, and the model service is paused. Retrying will not help — raise or remove that limit in the provider's console, or switch to a different model.",
       "outputBudgetExhausted": "This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.",
-      "contextLimitExceeded": "This model's context window is still too small after PixelVault compacted older history and retried once. Start a new conversation or remove large references.",
+      "contextLimitExceeded": "This conversation is still too long for the model, even after shortening older messages. Start a new conversation or remove large references.",
       "refused": "The selected model declined this request under its content policy. Rephrase the request or choose another Agent Key.",
       "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",
       "callbackTimeout": "The result has not arrived yet. Check your generation history before deciding whether to retry.",
@@ -6909,7 +6909,7 @@
       "loraIncompatibleHosted": "This LoRA's layer format isn't supported by the hosted model. Try a PixelVault Runner model (faithful recipe clone) instead, if available.",
       "runnerMonthlyLimitExceeded": "PixelVault Runner's monthly generation limit has been reached. Try again next month, or use a hosted model instead.",
       "runnerLoraUnavailable": "This LoRA is not available on the current generation service. Choose another LoRA or a model that supports it.",
-      "loraDownloadDisabled": "The creator turned off downloads for this LoRA on Civitai, so its weights can't be fetched by any backend. Pick a different LoRA."
+      "loraDownloadDisabled": "The creator has disabled downloads for this LoRA on Civitai, so it can't be loaded here. Choose another LoRA."
     },
     "generation": {
       "provider_timeout": "Generation took too long. Try again later or choose another model.",
@@ -6934,7 +6934,7 @@
       "lora_incompatible_hosted": "This model does not support this LoRA format. Choose a compatible model or another LoRA.",
       "runner_monthly_limit_exceeded": "This month's Runner generation quota is used up. Switch to a hosted model for now, or wait for next month's reset.",
       "runner_lora_unavailable": "This LoRA is not available on the current generation service. Choose another LoRA or a model that supports it.",
-      "lora_download_disabled": "The creator turned off downloads for this LoRA on Civitai — it can only be used inside Civitai's own generator. No API key fixes this; pick a different LoRA.",
+      "lora_download_disabled": "The creator has disabled downloads for this LoRA. It can only be used in Civitai's generator. Choose another LoRA to use here.",
       "unknown": "Generation failed for an undetermined reason. Try again later. If it keeps failing, share the error details with the administrator."
     },
     "validation": {
@@ -6942,14 +6942,14 @@
       "invalidJson": "The request body could not be read."
     },
     "rateLimit": "Too many requests. Please wait a moment.",
-    "runawayGeneration": "Generation requests from this account came in a rapid, repeating pattern and have been paused automatically — this usually means a stuck retry loop or automation bug, not something you did wrong. Wait a few minutes before trying again.",
-    "platformGenerationDisabled": "Platform-funded generation is switched off — this is a site configuration state, not a transient failure, so retrying will not succeed. Use a model with your own bound API key, or ask the site admin to enable it.",
+    "runawayGeneration": "Generation was paused because this account sent many repeated requests in a short time. This may be caused by an automatic retry loop. Wait a few minutes before trying again.",
+    "platformGenerationDisabled": "Platform-funded generation is turned off. Use a model with your own API key, or ask the site admin to enable it.",
     "auth": {
       "unauthorized": "Please sign in to continue."
     },
     "gallery": {
       "invalidQuery": "The selected filters are invalid.",
-      "loadFailed": "Failed to load the gallery."
+      "loadFailed": "Couldn't load the gallery."
     },
     "credits": {
       "exceeded": "Free generation limit reached for today."
@@ -6959,20 +6959,20 @@
       "invalid": "Invalid API key. Please check and try again."
     },
     "profile": {
-      "loadFailed": "Failed to load your profile.",
-      "updateFailed": "Failed to update your profile.",
+      "loadFailed": "Couldn't load your profile.",
+      "updateFailed": "Couldn't update your profile.",
       "usernameTaken": "This username is already taken.",
       "usernameReserved": "This username is reserved.",
       "usernameInvalid": "Username must be 3-30 characters, start with a letter, and use only letters, numbers, or hyphens.",
-      "avatarUploadFailed": "Failed to upload the avatar.",
-      "bannerUploadFailed": "Failed to upload the cover image.",
+      "avatarUploadFailed": "Couldn't upload the avatar.",
+      "bannerUploadFailed": "Couldn't upload the cover image.",
       "unsupportedImageType": "Please use JPEG, PNG, or WebP.",
       "avatarTooLarge": "Avatar must be under 5 MB.",
       "bannerTooLarge": "Cover image must be under 10 MB."
     },
     "notImplemented": "This feature is coming soon.",
     "upload": {
-      "storageUnreachable": "Couldn't upload to image storage — usually a network or storage CORS configuration issue. Please retry; if it persists, contact the administrator.",
+      "storageUnreachable": "Couldn't upload the image. Check your connection and try again. If it still fails, contact the administrator.",
       "storageRejected": "Image storage rejected the upload. Please retry; if it persists, contact the administrator."
     },
     "scriptDoc": {
@@ -6980,16 +6980,16 @@
     },
     "vision": {
       "noCapableRoute": "No image-capable model is available right now. Add a Gemini or OpenAI API key to analyze images.",
-      "invalidOutput": "The analysis could not be turned into structured findings (already retried once). Try another image, or try again later.",
+      "invalidOutput": "Couldn't read the analysis results. Try another image or try again later.",
       "insufficientMedia": "Comparing needs at least two images.",
-      "framesInvalid": "The extracted frames don't match the deterministic plan. Re-run the extraction."
+      "framesInvalid": "The extracted frames didn't match the selected points. Try extracting them again."
     },
     "projectRule": {
-      "limitReached": "You already have the most rules this app keeps. Delete one to make room."
+      "limitReached": "You've reached the rule limit. Delete one to add another."
     },
     "contextCard": {
-      "limitReached": "You already have the most context cards this app keeps. Delete one to make room.",
-      "imageLimitReached": "This card already holds the most reference images it can. Remove one first.",
+      "limitReached": "You've reached the context card limit. Delete one to add another.",
+      "imageLimitReached": "This card's reference image slots are full. Remove one to add another.",
       "imageTooLarge": "Reference images must be under 10 MB."
     }
   },
@@ -7020,7 +7020,7 @@
     "dropZoneOr": "or pick a source",
     "baseModel": "Base model",
     "baseModelHint": "Pick the architecture to train against. Different bases suit different styles.",
-    "baseModelComingSoon": "No API trainer wired up yet — coming soon",
+    "baseModelComingSoon": "Training isn't available for this model yet.",
     "baseModelComingSoonBadge": "Coming soon",
     "dragToReorderHint": "Drag to reorder. The first image becomes the LoRA card cover.",
     "coverBadge": "Cover",
@@ -7033,7 +7033,7 @@
     "datasetReuseHint": "Coming soon — reuse a previous dataset to skip re-uploading",
     "assetSelectorTitle": "Pick training images",
     "assetSelectorDescription": "Select the images to add to your training set, then click Add",
-    "imageCount": "{count} images",
+    "imageCount": "{count, plural, one {# image} other {# images}}",
     "imageCountWithMax": "{count}/{max} images",
     "selectApiKey": "Replicate API key",
     "noApiKey": "No {provider} API key configured",
@@ -7041,7 +7041,7 @@
     "configureApiKey": "Click to configure",
     "submit": "Start Training",
     "submitting": "Submitting...",
-    "cost": "~$1–2 per training",
+    "cost": "About $1–2 per training run",
     "estimatedTime": "~2 minutes",
     "statusQueued": "Queued",
     "statusTraining": "Training...",
@@ -7059,28 +7059,28 @@
     "emptyCtaUpload": "Upload images",
     "presetAnimeCharacterName": "Anime character",
     "presetAnimeCharacterDescription": "Train a recurring anime character with consistent face and outfit.",
-    "presetAnimeCharacterExplanation": "Best for waifu / OC / fanart. Pre-fills FLUX-D + subject mode + a sks_character trigger you can rename.",
+    "presetAnimeCharacterExplanation": "For favorite characters, original characters, and fan art. Pre-fills FLUX-D, subject mode, and an editable sks_character trigger.",
     "presetRealisticPortraitName": "Realistic portrait",
     "presetRealisticPortraitDescription": "Capture a real person's likeness for portrait-quality generations.",
     "presetRealisticPortraitExplanation": "Best for photoreal headshots. FLUX-D + subject mode + sks_person trigger.",
     "presetArtStyleName": "Art style",
-    "presetArtStyleDescription": "Teach your LoRA a brushwork, palette, or rendering style instead of a subject.",
+    "presetArtStyleDescription": "Teach your LoRA a brushwork style, color palette, or rendering style rather than a subject.",
     "presetArtStyleExplanation": "Best for unique illustration looks. Switches to style mode so the LoRA generalizes across subjects.",
     "presetObjectName": "Object / prop",
     "presetObjectDescription": "Train a specific item, vehicle, or environmental prop.",
     "presetObjectExplanation": "Best for product shots, gear, mascots. Keep angles varied and backgrounds clean.",
     "presetSdxlName": "SDXL training",
-    "presetSdxlDescription": "Train on SDXL 1.0 base. Backend not wired up yet.",
-    "presetSdxlExplanation": "Coming soon — the SDXL trainer endpoint is on the roadmap behind the FLUX redesign.",
+    "presetSdxlDescription": "Train on SDXL 1.0. This option isn't available yet.",
+    "presetSdxlExplanation": "SDXL training is planned but isn't available yet.",
     "presetIllustriousName": "Illustrious training",
-    "presetIllustriousDescription": "Train on Illustrious for anime-tuned outputs. Backend not wired up yet.",
-    "presetIllustriousExplanation": "Coming soon — Illustrious trainer endpoint lands after SDXL.",
+    "presetIllustriousDescription": "Train on Illustrious for anime-style images. This option isn't available yet.",
+    "presetIllustriousExplanation": "Illustrious training is planned after SDXL support.",
     "presetComingSoonBadge": "Soon",
-    "presetComingSoonTooltip": "This trainer endpoint isn't wired up yet. Stay on FLUX-D for now.",
+    "presetComingSoonTooltip": "Training isn't available for this model yet. Use FLUX-D for now.",
     "presetFooterIdle": "Pick a preset above to pre-fill the form — you can always override.",
     "presetRailTitle": "Presets",
     "presetRailSubtitle": "Click a card to pre-fill the form",
-    "historyOutputHint": "Finished trainings land in My assets — mount them from the library modal's \"Mine\" tab.",
+    "historyOutputHint": "Finished LoRAs are saved to My assets. Add them from the library's My LoRAs tab.",
     "presetSelectedLabel": "Preset: {name}",
     "presetClear": "Clear preset",
     "submitSummaryAriaLabel": "Training submission summary",
@@ -7091,14 +7091,14 @@
     "summaryTime": "Est. time",
     "summaryTimeValue": "~{min} min",
     "completionTitle": "Your LoRA is ready",
-    "completionBody": "\"{name}\" finished training. Activate it in generate to start creating images.",
+    "completionBody": "“{name}” has finished training. Add it to start creating images.",
     "completionTriggerHint": "Trigger word: {triggerWord}",
     "completionCtaUse": "Use it now",
     "completionCtaAnother": "Train another",
     "completionDismiss": "Dismiss",
     "mobileSheetTrigger": "Open training form",
     "mobileSheetAriaLabel": "LoRA training form",
-    "failedUploadsTitle": "{count} upload failed",
+    "failedUploadsTitle": "{count, plural, one {# upload failed} other {# uploads failed}}",
     "failedUploadRetry": "Retry",
     "failedUploadDismiss": "Dismiss",
     "submitGate": {
@@ -7114,7 +7114,7 @@
     "errorInsufficientCredits": "Not enough credits to start this training. Top up and try again.",
     "errorImageTooLarge": "One of the images is too large. Keep individual files under 8 MB.",
     "errorImageInvalid": "That file isn't a usable image. Use a JPEG, PNG, WebP or GIF.",
-    "errorBaseModelUnsupported": "That base model isn't wired up yet. Switch to FLUX-D for now.",
+    "errorBaseModelUnsupported": "Training isn't available for that base model yet. Switch to FLUX-D.",
     "errorNamingConflict": "A LoRA with this name already exists. Pick a different name.",
     "errorUpstreamTimeout": "The training provider timed out. Wait a moment and retry.",
     "errorRateLimit": "Training provider rate limit hit. Wait a minute, then retry.",
@@ -7124,7 +7124,7 @@
     "statusCardQueuedTitle": "Submitted · queued",
     "statusCardQueuedBody": "Your job is in the training queue and will start shortly. You can leave this page — we will notify you when it finishes.",
     "statusCardTrainingTitle": "Training",
-    "statusCardTrainingBody": "Training runs in the background. When it finishes, the LoRA lands in \"My assets\" and can be mounted on the assembly bar.",
+    "statusCardTrainingBody": "Training continues in the background. Your finished LoRA will appear in My assets, ready to add to your workspace.",
     "statusCardElapsed": "{min} min elapsed",
     "statusCardFailedTitle": "Training failed",
     "statusCardFailedBody": "The training job stopped before it finished.",
@@ -7207,7 +7207,7 @@
     "listLoadFailed": "Couldn't load scripts.",
     "createFailed": "Couldn't create a script.",
     "sceneStatusLoadFailed": "Couldn't load scene status.",
-    "sceneStartFailed": "Couldn't start scene orchestration.",
+    "sceneStartFailed": "Couldn't start generating the scenes.",
     "sceneAdvanceFailed": "Couldn't advance scene.",
     "sceneRetryFailed": "Couldn't retry scene.",
     "statusDraft": "Draft",
@@ -7215,10 +7215,10 @@
   },
   "StudioResultFeedback": {
     "satisfied": "Satisfied",
-    "subjectMismatch": "Subject off",
-    "styleMismatch": "Style off",
-    "compositionMismatch": "Composition off",
-    "lightingMismatch": "Lighting off",
+    "subjectMismatch": "Subject looks off",
+    "styleMismatch": "Style looks off",
+    "compositionMismatch": "Composition looks off",
+    "lightingMismatch": "Lighting looks off",
     "lightingIssue": "Lighting issue",
     "refine": "Refine",
     "overallScore": "AI Score",
@@ -7229,7 +7229,7 @@
   "StudioImageAdvancedParams": {
     "seedLabel": "Seed",
     "seedPlaceholder": "Leave empty for random",
-    "seedHint": "Same seed + same prompt + same model reproduces the same image. Lock the seed when you want to tweak a tag without losing the composition.",
+    "seedHint": "Using the same seed, prompt, and model helps reproduce similar results. Lock the seed to compare small prompt changes.",
     "seedRandom": "Random",
     "seedRandomAria": "Use a random seed",
     "seedLocked": "Locked",
@@ -7238,7 +7238,7 @@
     "negativePromptHint": "Tags the model should push away from. Common starters: lowres, worst quality, extra fingers, watermark, signature."
   },
   "StudioKeepChangePanel": {
-    "title": "Refine Generation",
+    "title": "Refine your image",
     "keepSection": "Keep",
     "changeSection": "Change",
     "subject": "Subject",
@@ -7253,7 +7253,7 @@
   },
   "VideoAnalysis": {
     "title": "Analyze this video",
-    "description": "Extracts {count} frames on a fixed plan, then reads them. Same video, same frames, every time.",
+    "description": "Analyzes {count} frames selected at fixed points. The same video uses the same frames each time.",
     "taskLabel": "What to look for",
     "task": {
       "characterIdentity": "Character features",
@@ -7280,10 +7280,10 @@
     "receiptBorrowed": "Your selected model can't read video, so another one was used for this pass.",
     "captureFailedTitle": "Frames could not be extracted",
     "captureReason": {
-      "unsupportedEnvironment": "This browser context has no canvas to draw frames into, so extraction was skipped.",
+      "unsupportedEnvironment": "This browser can't extract video frames here.",
       "loadFailed": "The browser could not decode this video, so no frames were extracted.",
       "unreadableDuration": "This file's duration could not be read, so the frame plan could not be computed.",
-      "taintedCanvas": "This environment is not on the video storage CORS allowlist, so the browser blocks frame extraction here. Fix it by adding this origin to the R2 CORS rules — switching videos will not help.",
+      "taintedCanvas": "The video's storage settings are blocking frame extraction. Ask the administrator to allow this site in the storage CORS settings. Choosing a different video won't fix this.",
       "timeout": "Frame extraction took too long and was stopped. Try again on a faster connection.",
       "encodeFailed": "The extracted frames could not be encoded in this browser."
     }
@@ -7297,7 +7297,7 @@
     "itemFailed": "#{index} failed",
     "itemDone": "#{index} done",
     "itemViewing": "#{index} playing",
-    "hint": "Rendering does not lock the stage — change the params on the left and queue another.",
+    "hint": "You can keep working while videos generate. Change the settings on the left to queue another.",
     "cancel": "Cancel",
     "mobileHint": "This takes about 2–5 minutes. Stay on this page — you'll be notified when it's done."
   },
@@ -7330,11 +7330,11 @@
     "daysAgo": "{count} d ago",
     "roomNameLabel": "Room name",
     "renameRoom": "Rename",
-    "roomMeta": "Multi-speaker · library + cloning",
+    "roomMeta": "Multiple speakers · voice library + cloning",
     "assetsLibrary": "Assets",
-    "emptyEyebrow": "The cast is empty",
-    "emptyTitle": "Invite a voice in.",
-    "emptySub": "Pick a voice from the library, or clone your own. Whoever is selected speaks what you type — every take lands in your assets automatically.",
+    "emptyEyebrow": "No voices added yet",
+    "emptyTitle": "Choose your first voice.",
+    "emptySub": "Choose a voice from the library or clone your own. Your selected voice reads what you type, and each result is saved to your assets.",
     "castFromLibrary": "Cast from library",
     "dismiss": "Dismiss",
     "linePlaceholder": "{name}: put the emotion in the sentence — (whisper) do not look back…",
@@ -7367,8 +7367,8 @@
     "close": "Close",
     "searchVoices": "Search voices — a low male voice, late-night radio…",
     "preview": "Preview",
-    "joinRoom": "Invite in",
-    "alreadyInCast": "In the cast",
+    "joinRoom": "Add to room",
+    "alreadyInCast": "Added to cast",
     "loading": "Loading",
     "noVoicesFound": "No voices matched",
     "tab": {
@@ -7386,7 +7386,7 @@
     "castLabel": "Cast",
     "castCount": "{count} of {max}",
     "done": "Done",
-    "vaultNote": "Saved automatically · nothing to do",
+    "vaultNote": "Saved automatically",
     "vaultEmpty": "Nothing recorded in this room yet",
     "pickModel": "Pick a model",
     "cloneNew": "Clone a voice",
@@ -7415,7 +7415,7 @@
       "materials": "Materials",
       "palette": "Palette",
       "lighting": "Lighting",
-      "evidence": "Reference evidence · {count} images",
+      "evidence": "Reference evidence · {count, plural, one {# image} other {# images}}",
       "renderingMedium": "Rendering medium",
       "medium": {
         "2d_flat": "Flat 2D",
@@ -7428,15 +7428,15 @@
     },
     "title": "Assistant",
     "domainName": {
-      "image": "the image bench",
-      "video": "the video bench",
-      "lora": "the LoRA bench"
+      "image": "the image workspace",
+      "video": "the video workspace",
+      "lora": "the LoRA workspace"
     },
     "session": "Session",
     "newThread": "New chat",
     "emptyState": {
       "title": "I'm {name}, your image partner",
-      "description": "Drop a reference image, or just say the feeling you are after. I look at it, do the research, dial the settings in, and lay out the model and image count before anything gets generated."
+      "description": "Add a reference image or tell me the look you're after. I'll help with research and settings, then show you the models and image count before generating."
     },
     "history": {
       "heading": "Earlier chats",
@@ -7471,9 +7471,9 @@
     "collapse": "Collapse assistant",
     "expand": "Expand assistant",
     "resize": "Drag to resize the assistant",
-    "planFold": "Plan · {count} steps",
-    "placeholderIdle": "Keep talking, or attach something…",
-    "placeholderWorking": "Go ahead, I am listening — what you type gets queued for the next pause point",
+    "planFold": "Plan · {count, plural, one {# step} other {# steps}}",
+    "placeholderIdle": "Tell me more, or attach a reference…",
+    "placeholderWorking": "You can keep typing. Your message will be read at the next pause.",
     "send": "Send",
     "stop": "Stop the current work",
     "lightboxLabel": "View full size",
@@ -7483,22 +7483,22 @@
       "awaiting": "Needs confirming",
       "error": "Failed",
       "primed": "Ready",
-      "planning": "Your call"
+      "planning": "Your choice"
     },
     "mobile": {
       "sheetTitle": "Assistant",
-      "sheetDescription": "Half-height assistant sheet — drag the handle up for full screen, down to close.",
+      "sheetDescription": "Drag the handle up for full screen, or down to close the assistant.",
       "open": "Open assistant"
     },
     "researchDetails": "Research details",
     "toolGroup": {
-      "title": "{count} operations",
+      "title": "{count, plural, one {# operation} other {# operations}}",
       "elapsed": "took {seconds}s",
       "succeeded": "{count} ok",
       "skipped": "{count} skipped",
       "failed": "{count} failed",
       "running": "in progress",
-      "details": "Execution details · {count} steps",
+      "details": "Execution details · {count, plural, one {# step} other {# steps}}",
       "promptUnchanged": "Prompt unchanged",
       "blocked": "Action incomplete",
       "inspectFailure": "Expand the execution details for the reason, or clarify your request below."
@@ -7530,7 +7530,7 @@
       "referenceAnalysisFailed": "Reference analysis was incomplete; no analysis was accepted.",
       "referenceBriefFailed": "Images were analyzed, but reference-role validation failed; the prompt was not changed.",
       "promptConflict": "The prompt conflicts with reference roles or requirements",
-      "noSuchControl": "This bench has no such control",
+      "noSuchControl": "This workspace doesn't have that setting",
       "unknownModel": "That model is not in the list you can pick from",
       "unknownValue": "That value is not one of the options",
       "unknownAsset": "That asset was not in this run's search results",
@@ -7540,28 +7540,28 @@
       "userDeclined": "You chose to keep yours, so this step was skipped",
       "noModelSelected": "No model picked yet",
       "emptyPrompt": "The prompt is still empty",
-      "malformedArgs": "The arguments had the wrong shape",
+      "malformedArgs": "The request details weren't valid",
       "searchUnavailable": "Web image search isn't available right now",
-      "noResultToCritique": "No result of its own is waiting to be reviewed",
+      "noResultToCritique": "No generated result is ready to review yet",
       "visionUnavailable": "No model available here can look at pictures",
-      "critiqueFailed": "It looked, but the review came back unreadable",
+      "critiqueFailed": "The result review couldn't be read",
       "urlNotFromUser": "That link did not come from you, so it cannot be taken directly",
       "repeatedStep": "It already ran this exact step — skipped",
       "ruleLimitReached": "Rule limit reached — delete an old project rule before adding another.",
       "folderLimitReached": "Folder limit reached — delete an old folder before making another.",
       "unknownLora": "That LoRA was not in this run's search results",
-      "loraNotMounted": "That LoRA is not on the bench",
+      "loraNotMounted": "That LoRA hasn't been added to this workspace",
       "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page",
-      "loraIncompatibleBase": "That LoRA was trained for a different base model family, so the assistant won't mount it on the current base",
+      "loraIncompatibleBase": "That LoRA requires a different base model family and can't be used with the current base.",
       "sourceNotUsable": "That site asks not to be used as AI input, or republishes work without a traceable source",
-      "researchRoundsExhausted": "It already researched as much as one turn allows — it is working from what it found",
-      "unknownEvidenceRef": "That evidence number is not in this conversation",
-      "evidenceRecallsExhausted": "It already opened the evidence book as much as one turn allows",
+      "researchRoundsExhausted": "This reply has reached its research limit. I'll continue with the information found so far.",
+      "unknownEvidenceRef": "That source number isn't in this conversation",
+      "evidenceRecallsExhausted": "This reply has reached its source-reading limit.",
       "urlNotReadable": "That address can't be read here",
       "urlUnreadable": "That page could not be read",
       "aspectLockedByFirstFrame": "A first frame is set, so this model only accepts the adaptive aspect ratio",
       "videoFramesMissing": "Could not read frames from this clip",
-      "blockedSource": "You marked this one as failed, so it can't open or close a clip"
+      "blockedSource": "You rejected this asset, so it can't be used as a first or last frame."
     },
     "field": {
       "prompt": "Prompt",
@@ -7587,16 +7587,16 @@
       "originalEmpty": "Was empty",
       "revertOne": "Click to revert this field",
       "revertAll": "Revert everything the assistant changed ({count})",
-      "clearConfirm": "Really clear {count} changes?"
+      "clearConfirm": "Undo all {count, plural, one {# change} other {# changes}}?"
     },
     "confirm": {
       "generate": {
-        "title": "Generate {count} images?",
-        "count": "{count} images",
+        "title": "Generate {count, plural, one {# image} other {# images}}?",
+        "count": "{count, plural, one {# image} other {# images}}",
         "countLabel": "Count",
-        "confirm": "Confirm generate",
+        "confirm": "Confirm generation",
         "cancel": "Not now",
-        "handedOff": "Handed off to generate",
+        "handedOff": "Sent for generation",
         "notRun": "Not run",
         "retry": "Try again",
         "model": "Model",
@@ -7618,27 +7618,27 @@
         "cancelled": "Cancelled · {time}"
       },
       "contextCard": {
-        "title": "Keep this card?",
+        "title": "Save this card?",
         "save": "Keep it",
         "dismiss": "No thanks",
         "saved": "Kept",
         "notSaved": "Not kept",
-        "negative": "Hard negatives: {value}"
+        "negative": "Always exclude: {value}"
       },
       "loraPick": {
-        "header": "{name} found {count} · pick what to mount",
-        "mount": "Mount selected",
+        "header": "{name} found {count, plural, one {# LoRA} other {# LoRAs}}. Choose which to add.",
+        "mount": "Add selected",
         "mounted": "Processed {count} selections · {time}",
-        "dismiss": "Not mounting these for now",
+        "dismiss": "Skip these for now",
         "searchAgain": "Search other words",
         "searchAgainPrefill": "Search other words: ",
         "tally": "{count} selected · total weight",
         "tallyNoBudget": "{count} selected",
-        "overBudget": "Total weight is over {limit} — the image may go mushy. Drop one, or dial a weight down?",
+        "overBudget": "Total weight exceeds {limit}, which may distort the image. Remove a LoRA or lower a weight.",
         "compatible": "{family} · fits",
         "incompatible": "{family} · needs a different base model",
         "familyUnknown": "Base model unknown",
-        "downloads": "{count} downloads",
+        "downloads": "{count, plural, one {# download} other {# downloads}}",
         "viewDetail": "View details",
         "noThumbnail": "No cover",
         "detailPick": "Pick this one",
@@ -7653,25 +7653,25 @@
     "system": {
       "undoStep": "You undid: {subject} (the assistant knows and will not redo it)",
       "revertField": "You reverted: {subject} (the assistant knows)",
-      "revertAll": "You cleared every change the assistant made ({count}) — it knows",
+      "revertAll": "Undid all {count} assistant changes. The assistant has been informed.",
       "stopped": "You stopped the current work",
-      "interrupted": "You cut in — the assistant changed course",
-      "revertRound": "You reverted this round's {count} change(s) (the assistant knows)",
-      "resultArrived": "The run it armed came back — the assistant is looking at it",
-      "queuePicked": "Pause point — picking up the {count} message(s) you queued",
+      "interrupted": "Your message changed the assistant's direction.",
+      "revertRound": "You reverted this round's {count, plural, one {# change} other {# changes}} (the assistant knows)",
+      "resultArrived": "The generation is ready. The assistant is reviewing it.",
+      "queuePicked": "Reading your {count, plural, one {# queued message} other {# queued messages}} at this pause.",
       "queueDropped": "You pulled back the queued message: {subject}",
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
-      "generationFailed": "Nothing came out of that run — the assistant will not look at it",
-      "loraMountFailed": "Could not mount {subject} — nothing was added to the bench",
-      "loraWeightOverBudget": "Stack weight {subject} — past this base's budget, so the image may smear or styles may bleed. No weight was changed; tell me which one to dial back.",
+      "generationFailed": "No results were generated, so there's nothing for the assistant to review.",
+      "loraMountFailed": "Couldn't add {subject}. Nothing was added to the workspace.",
+      "loraWeightOverBudget": "Total LoRA weight is {subject}, above this base model's range. This may blur the image or mix styles. The weights are unchanged. Which one would you like to lower?",
       "videoFramesFailed": "No frames could be taken from this clip — the assistant cannot look at it this turn ({subject})",
       "checkpointRestored": "Restored the selected step’s configuration. Use the current form for subsequent actions.",
       "questionAnswered": "You picked: {subject}",
       "contextCardSaved": "Context card kept: {subject}",
       "contextCardDeclined": "Context card not kept: {subject}",
-      "contextCardSaveFailed": "Could not keep “{subject}” — try again?",
-      "loraPickMounted": "LoRAs you picked to mount: {subject}",
-      "loraPickDismissed": "Not mounting any of these LoRAs ({subject})"
+      "contextCardSaveFailed": "Couldn't save “{subject}”. Please try again.",
+      "loraPickMounted": "You chose these LoRAs: {subject}",
+      "loraPickDismissed": "Skipped these LoRAs: {subject}"
     },
     "suggestion": {
       "setupShot": "Set this shot up for me",
@@ -7681,8 +7681,8 @@
       "addVoice": "Give it her voice",
       "splitShots": "Cut it into 3 shots",
       "findStyle": "Find a LoRA that fits this look",
-      "stackConflict": "Will this stack fight itself?",
-      "sweepWeights": "Sweep the weights and compare",
+      "stackConflict": "Do these LoRAs work well together?",
+      "sweepWeights": "Try different weights and compare",
       "checkStyle": "Look up this art style"
     },
     "attach": {
@@ -7733,9 +7733,9 @@
     },
     "web": {
       "candidates": "From the web · previews, not in your library yet",
-      "pickHint": "Click a picture to see it big (nothing is downloaded) · press Use to file it and attach it",
+      "pickHint": "Click an image to preview it. Choose Use to save it to your library and attach it.",
       "selectedHint": "{count}/{limit} chosen · press Use again to drop one and delete it from your library; when full, the next one replaces the oldest",
-      "viewLarge": "See it big",
+      "viewLarge": "View full size",
       "use": "Use",
       "used": "In use",
       "retry": "Retry",
@@ -7754,11 +7754,11 @@
       "notUsableHotlink": "This site’s image host only serves its own pages, so we cannot fetch it server-side — you can still open the original page, but it cannot be saved into your library."
     },
     "critique": {
-      "title": "Auto-check · it set this up, so it reviews it",
+      "title": "Auto-check · the assistant reviews the result",
       "titleWithModel": "Auto-check · this one from {model}",
-      "borrowed": "Your model can't see pictures, so this look was borrowed from another one",
+      "borrowed": "Your selected model can't analyze images, so another model reviewed this result.",
       "revertRound": "Undo this round ({count})",
-      "nextRound": "Pre-filled for the next round:",
+      "nextRound": "Ready for your next message:",
       "applyAdvice": "Apply this to the prompt",
       "adviceApplied": "Applied to prompt",
       "frame": {
@@ -7778,7 +7778,7 @@
       "empty": "Nothing matches — keep typing",
       "remove": "Remove this reference",
       "count": "will look at {count}",
-      "countWarn": "will look at {count} · over {limit} may get fuzzy",
+      "countWarn": "Reviewing {count, plural, one {# image} other {# images}} · accuracy may drop above {limit}",
       "cards": "Character & style cards"
     },
     "library": {
@@ -7794,17 +7794,17 @@
       "useAsReference": "Use as reference"
     },
     "error": {
-      "generic": "The assistant did not finish this round",
-      "failed": "The assistant hit an error partway through this round",
+      "generic": "The assistant didn't finish this request",
+      "failed": "The assistant ran into an error during this request",
       "emptyStream": "No response came back from the assistant",
       "unauthorized": "Your session expired — sign in again",
-      "rateLimited": "Too fast — give it a moment and try again",
+      "rateLimited": "Too many requests. Wait a moment and try again.",
       "invalidRequest": "The server did not accept this request"
     },
     "assistantSettings": "Assistant settings",
     "persona": {
       "title": "Assistant settings",
-      "description": "Who this assistant is and how it talks. One set, shared by every workbench.",
+      "description": "Set your assistant's name and speaking style. These settings apply across all workspaces.",
       "save": "Save",
       "saved": "Saved",
       "cancel": "Cancel",
@@ -7826,11 +7826,11 @@
       "tone": {
         "professional": "Professional",
         "friendly": "Friendly",
-        "terse": "Terse",
+        "terse": "Brief",
         "custom": "Custom"
       },
       "toneCustomPlaceholder": "Describe how it should sound, in one line",
-      "toneCustomRequired": "Write that one line, or pick another tone.",
+      "toneCustomRequired": "Describe a tone in one line, or choose a preset.",
       "verbosityLabel": "Reply length",
       "verbosity": {
         "concise": "Concise",
@@ -7856,7 +7856,7 @@
         "cautious": {
           "name": "Cautious",
           "askLine": "Asks a couple of questions first",
-          "confirmLine": "Every step needs your nod",
+          "confirmLine": "Asks for your approval at each step",
           "lengthLine": "Short replies, conclusions only"
         },
         "balanced": {
@@ -7877,32 +7877,32 @@
       "preview": {
         "address": "{name}, ",
         "opener": {
-          "professional": "Reviewed. Of the three, the second has the backlit scatter closest to the dusk light you asked for; the other two push the warm tones too far.",
+          "professional": "I've reviewed all three. The second image's backlighting is closest to the dusk light you requested. The other two are too warm.",
           "friendly": "Had a look — the second one is closest to the dusk light you wanted, the other two lean a bit too warm.",
           "terse": "Second one is closest. The other two are too warm.",
           "custom": "Putting it the way you asked: the second one is closest to the dusk light you wanted."
         },
         "body": {
-          "second": "The backlit scatter in the second shot keeps the cloud detail, so it works as a base straight away.",
-          "third": "Rescuing the other two means dropping the warmth one notch and pulling exposure back half a stop — worth it only if you are not in a hurry."
+          "second": "The second image keeps detail in the backlit clouds, making it a good starting point.",
+          "third": "For the other two, try slightly cooler tones and half a stop less exposure if you'd like to refine them."
         },
         "nextStep": "Next: want another set based on the second one?"
       },
       "tabPersona": "Assistant",
       "tabRules": "Project rules",
-      "rulesHint": "Standing rules the assistant reads before it touches anything. It writes them down when you tell it something worth keeping.",
+      "rulesHint": "Rules the assistant follows while working on this project. Tell it what you'd like remembered, and it can save it here.",
       "rulesLoading": "Loading…",
       "rulesEmpty": "No rules yet — tell the assistant something worth keeping and it records one.",
       "ruleDelete": "Delete this rule",
       "tabCards": "Context cards",
-      "cardsHint": "Write a character or style card once — the assistant follows it on every workbench.",
+      "cardsHint": "Write a character or style card once — the assistant follows it on every workspace.",
       "cardsLoading": "Loading your cards…",
       "cardsEmpty": "No cards yet — make a character card and the assistant knows it next turn.",
       "cardNew": "New card",
       "cardEdit": "Edit “{name}”",
-      "cardPinnedHere": "Always on in this workbench",
+      "cardPinnedHere": "Always on in this workspace",
       "cardsProposedTitle": "Proposed by the assistant ({count})",
-      "cardsProposedHint": "It offered to remember these. They count only once you keep them.",
+      "cardsProposedHint": "The assistant suggested saving these cards. They take effect once you save them.",
       "cardConfirm": "Keep “{name}”",
       "cardReject": "Delete “{name}”",
       "ruleAdd": "Add",
@@ -7920,7 +7920,7 @@
       "sourceAssistant": "from your conversation",
       "sourceCreator": "written by you",
       "view": "View rule",
-      "scopeAll": "all workbenches"
+      "scopeAll": "all workspaces"
     },
     "plan": {
       "revisePrefill": "Change the plan: "
@@ -8011,17 +8011,17 @@
     "research": {
       "goal": "Looked up: {goal}",
       "goalUnknown": "Looked things up",
-      "count": "{count} sources",
-      "process": "How it looked",
+      "count": "{count, plural, one {# source} other {# sources}}",
+      "process": "Research steps",
       "evidenceMore": "{count} more",
       "evidenceLess": "Show less",
       "pin": "Pin",
       "unpin": "Unpin",
       "pinned": "Pinned",
       "fold": "Collapse",
-      "collapsed": "Checked · {count} sources",
-      "sourceCount": "{count} sources",
-      "corroborated": "{count} sources agree",
+      "collapsed": "Checked · {count, plural, one {# source} other {# sources}}",
+      "sourceCount": "{count, plural, one {# source} other {# sources}}",
+      "corroborated": "{count, plural, one {# source} other {# sources}} agree",
       "singleSource": "Single source",
       "expandSources": "Look in more places",
       "expandPrompt": "Check that again and look in more places — I want more than these sources.",
@@ -8038,7 +8038,7 @@
     "question": {
       "recommended": "Recommended",
       "other": "Your take",
-      "otherPlaceholder": "If none of these fit, write how you want it handled…",
+      "otherPlaceholder": "If none fit, tell me what you'd prefer…",
       "pinnedTitle": "{name} wants to confirm first",
       "current": "Current prompt",
       "proposed": "Suggested prompt",
@@ -8050,7 +8050,7 @@
       "unsupported-environment": "this environment cannot read video",
       "load-failed": "the video would not load",
       "unreadable-duration": "the clip's duration could not be read",
-      "tainted-canvas": "the video is cross-origin, so the canvas stayed blank",
+      "tainted-canvas": "the video's access settings blocked frame extraction",
       "timeout": "frame capture timed out",
       "encode-failed": "the frames could not be encoded"
     },
@@ -8060,8 +8060,8 @@
       "band": "Unfinished plan · continue from step {step}"
     },
     "roundSummary": {
-      "heading": "Round notes · {time}",
-      "collapsed": "{count} things remembered this round",
+      "heading": "Summary · {time}",
+      "collapsed": "{count} things saved from this exchange",
       "column": {
         "facts": "Facts",
         "decisions": "Decided",
@@ -8076,7 +8076,7 @@
       "thinking": "Thinking…",
       "capturingFrames": "Taking frames…",
       "look": "Looking at the image…",
-      "research": "Checking {count} sources…",
+      "research": "Checking {count, plural, one {# source} other {# sources}}…",
       "ask": "Thinking of a question…",
       "apply": "Adjusting settings…",
       "request_generation": "Getting ready to generate…"
@@ -8089,10 +8089,10 @@
       "request_generation": "Generate"
     },
     "verbStrip": {
-      "label": "This round"
+      "label": "This exchange"
     },
-    "placeholderQuestion": "You don't have to answer — you can type something else…",
-    "collapsedTodo": "{count} waiting on you"
+    "placeholderQuestion": "You can skip this question and tell me something else…",
+    "collapsedTodo": "{count} awaiting your response"
   },
   "GenerationCancel": {
     "cancel": "Cancel",
@@ -8115,7 +8115,7 @@
   "ContextCards": {
     "titleNew": "New context card",
     "titleEdit": "Edit context card",
-    "description": "Characters, styles and brand kits you write down once. The assistant works from them across every workbench.",
+    "description": "Characters, styles and brand kits you write down once. The assistant works from them across every workspace.",
     "kind": {
       "character": "Character",
       "style": "Style",
@@ -8143,7 +8143,7 @@
     "uploadImage": "Add image",
     "removeImage": "Remove image",
     "saveBeforeUpload": "Save the card first, then add images.",
-    "pinLabel": "Keep on this workbench",
+    "pinLabel": "Keep on this workspace",
     "pinHint": "Pinned cards are in front of the assistant every turn, without being @-mentioned.",
     "save": "Save",
     "cancel": "Cancel",
@@ -8154,8 +8154,8 @@
   "ModelPicker": {
     "recent": "Recent",
     "searchPlaceholder": "Search models…",
-    "channelCount": "{count} channels",
-    "autoRule": "Auto rule: your own key > platform free quota > cheapest; a manual pick is remembered",
+    "channelCount": "{count, plural, one {# channel} other {# channels}}",
+    "autoRule": "Auto picks your own key first, then the free quota, then the lowest-cost route. Manual selections are remembered.",
     "needsKeyFor": "Needs a {provider} key",
     "manageChannels": "Manage channels and keys…",
     "capability": {
@@ -8177,7 +8177,7 @@
     "up": "Move up",
     "remove": "Remove",
     "prompt": "Character prompt",
-    "negative": "Character undesired content",
+    "negative": "What to avoid for this character",
     "x": "Horizontal position",
     "y": "Vertical position",
     "add": "Add character"

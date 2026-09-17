@@ -575,7 +575,7 @@ function buildSeedance25(
       pickResolution(
         providerInput.resolution,
         providerInput.videoDefaults,
-        ['480p', '720p'],
+        ['480p', '720p', '1080p'],
         '720p',
       ) ?? '720p',
     duration: pickSeedanceDuration(providerInput.duration, 30),
@@ -761,7 +761,7 @@ function buildBody(
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_25:
       return buildSeedance25(context, mode)
     case FAL_VIDEO_MODEL_IDS.SEEDANCE_25_REFERENCE:
-      return buildSeedanceReference(context, ['480p', '720p'], {
+      return buildSeedanceReference(context, ['480p', '720p', '1080p'], {
         images: 30,
         videos: 10,
         audio: 10,

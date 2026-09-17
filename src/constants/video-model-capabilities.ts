@@ -228,40 +228,41 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
   },
   // Seedance 2.5 — GA 2026-08-07. 官方「视频生成教程」的时长段原文：
   // 「Seedance 2.0 系列: [4,15] 或设置为 -1 / **Seedance 2.5: [4,30] 或 -1**」。
-  // 480p/720p 是全部档位，2.5 没有 1080p/4k（4k 仅 2.0 独有）。
+  // 档位 480p/720p/1080p（fal 三个 2.5 端点的 resolution enum 同样是这三档）；
+  // 4k 仍是 2.0 独有。
   // ⚠ 时长比 2.0 长一倍，别把这份数组和 2.0 那几行合并去重。
   [AI_MODELS.SEEDANCE_25]: {
     supportedDurations: SEEDANCE_25_DURATIONS,
-    supportedResolutions: ['480p', '720p'],
+    supportedResolutions: ['480p', '720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
   [AI_MODELS.SEEDANCE_25_VOLCENGINE]: {
     supportedDurations: SEEDANCE_25_DURATIONS,
-    supportedResolutions: ['480p', '720p'],
+    supportedResolutions: ['480p', '720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
   // maxReferences 10（不是 2.0 的 3）：官方「使用限制」段写明 2.5 最多传入 10
   // 段参考音频、总时长 ≤30s，而 2.0 系列是 3 段 / ≤15s。
   [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: {
     supportedDurations: SEEDANCE_25_DURATIONS,
-    supportedResolutions: ['480p', '720p'],
+    supportedResolutions: ['480p', '720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
     audio: { mode: 'reference', maxReferences: 10 },
   },
   [AI_MODELS.SEEDANCE_25_REFERENCE]: {
     supportedDurations: SEEDANCE_25_DURATIONS,
-    supportedResolutions: ['480p', '720p'],
+    supportedResolutions: ['480p', '720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
     audio: { mode: 'reference', maxReferences: 10 },
   },
   [AI_MODELS.SEEDANCE_25_BYTEPLUS]: {
     supportedDurations: SEEDANCE_25_DURATIONS,
-    supportedResolutions: ['480p', '720p'],
+    supportedResolutions: ['480p', '720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
   },
   [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: {
     supportedDurations: SEEDANCE_25_DURATIONS,
-    supportedResolutions: ['480p', '720p'],
+    supportedResolutions: ['480p', '720p', '1080p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1', '4:3', '3:4'],
     audio: { mode: 'reference', maxReferences: 10 },
   },

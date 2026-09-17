@@ -122,8 +122,9 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     externalModelId: 'fal-ai/veo3.1',
     outputType: 'VIDEO',
     // Retired 2026-07-26 — dropped out of the top 5 on all three Artificial
-    // Analysis video arenas and was the priciest entry (8 credits). Native
-    // video extension stays available via KLING_V3_PRO.
+    // Analysis video arenas and was the priciest entry (8 credits). This is
+    // the only model left carrying a real `videoExtension`, and it is
+    // unavailable — so no shipped model offers native extension today.
     available: false,
     officialUrl: 'https://fal.ai/models/fal-ai/veo3.1',
     timeoutMs: 300_000,
@@ -173,12 +174,6 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
       negativePrompt: 'blur, distort, and low quality',
       cfgScale: 0.5,
       generateAudio: true,
-    },
-    videoExtension: {
-      extendEndpointId: 'fal-ai/kling-video/v3/pro/extend-video',
-      extensionMethod: 'native_extend',
-      extensionClipDuration: 5,
-      maxTotalDuration: 180,
     },
   },
   {

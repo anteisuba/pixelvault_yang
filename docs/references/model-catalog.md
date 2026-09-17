@@ -223,7 +223,7 @@ Fish：owner 2026-09-06 选择同时保留 `s2.1-pro` 和 `s2.1-pro-free`。付�
 
 1. **mini 档未接** —— fal `bytedance/seedance-2.0/mini/*` 与火山 `doubao-seedance-2-0-mini-260615` 都在，项目 8 个 seedance 变体全是 base/fast
 2. **4K 未露出** —— 火山 `doubao-seedance-2-0-260128` 官方标 480p/720p/1080p/**4k（10bit）**，`video-model-capabilities.ts` 里 `SEEDANCE_20_VOLCENGINE` 的 `supportedResolutions` 只到 `1080p`。⚠ 4K 限流是独立档（RPM 15 / 并发 1，企业个人同值），不能直接塞进现有分辨率数组
-3. **延长/编辑未配** —— 火山 2.0 能力表含「编辑视频 / 延长视频 / 图生视频-首尾帧」，项目 `videoExtension` 目前只有 KLING_V3_PRO
+3. **延长/编辑未配** —— 火山 2.0 能力表含「编辑视频 / 延长视频 / 图生视频-首尾帧」，项目当前**没有任何可用模型带 `videoExtension`**：KLING_V3_PRO 的 `fal-ai/kling-video/v3/pro/extend-video` 端点 2026-09-17 核实不存在（404，也不在 Kling v3 的请求类型清单里），已删除；唯一剩下的 VEO_31 是 `available: false`。长视频流水线因此对用户不可达
 
 **复查 2.5 是否 GA 的最省事办法**（免登录，fal 公开索引；注意 fal 的 HTML 页对脚本直连返 429，只有这个 JSON 面能打）：
 

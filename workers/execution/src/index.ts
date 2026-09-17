@@ -5544,6 +5544,15 @@ async function generateHuggingFaceImage(
   return { ...uploaded, ...dimensions }
 }
 
+/**
+ * Ark 文档 2026-09-17 核实：Seedream 5.0 Pro 只收 10 张参考图，Lite / 4.5 / 4.0
+ * 收 14 张。与 src/constants/provider-capabilities.ts 的上限保持一致。
+ * https://www.volcengine.com/docs/82379/1541523
+ */
+function volcEngineMaxReferenceImages(externalModelId: string): number {
+  return /seedream-5-0-pro/.test(externalModelId) ? 10 : 14
+}
+
 async function generateVolcEngineImage(
   env: ExecutionEnv,
   context: WorkerImageRunContext,
@@ -5564,7 +5573,10 @@ async function generateVolcEngineImage(
     content: [
       { type: 'text', text: context.providerInput.prompt },
       ...getImageReferenceInputs(context)
-        .slice(0, 14)
+        .slice(
+          0,
+          volcEngineMaxReferenceImages(context.providerInput.externalModelId),
+        )
         .map((url) => ({ type: 'image_url', image_url: { url } })),
     ],
     size: size.size,

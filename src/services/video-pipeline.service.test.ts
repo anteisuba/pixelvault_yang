@@ -114,7 +114,7 @@ import { ExecutionWorkerDispatchError } from '@/services/execution-worker.servic
 
 const BASE_INPUT: LongVideoRequest = {
   prompt: 'cinematic long shot over a neon city',
-  modelId: AI_MODELS.KLING_V3_PRO,
+  modelId: AI_MODELS.VEO_31,
   aspectRatio: '16:9',
   targetDuration: 20,
   apiKeyId: 'key-1',
@@ -123,7 +123,7 @@ const BASE_INPUT: LongVideoRequest = {
 }
 
 const EXECUTION_ROUTE = {
-  modelId: 'fal-ai/kling-video/v3/pro/text-to-video',
+  modelId: 'fal-ai/veo3.1',
   adapterType: AI_ADAPTER_TYPES.FAL,
   providerConfig: { label: 'fal.ai', baseUrl: 'https://fal.run' },
   apiKey: 'plain-key',
@@ -144,7 +144,7 @@ const BASE_GENERATION = {
   duration: 15,
   prompt: BASE_INPUT.prompt,
   negativePrompt: null,
-  model: AI_MODELS.KLING_V3_PRO,
+  model: AI_MODELS.VEO_31,
   provider: 'fal.ai',
   requestCount: 2,
   isPublic: false,
@@ -178,7 +178,7 @@ function pipeline(overrides: Record<string, unknown> = {}) {
     userId: 'user-1',
     status: 'RUNNING',
     prompt: BASE_INPUT.prompt,
-    modelId: AI_MODELS.KLING_V3_PRO,
+    modelId: AI_MODELS.VEO_31,
     adapterType: AI_ADAPTER_TYPES.FAL,
     aspectRatio: '16:9',
     resolution: '720p',
@@ -245,7 +245,7 @@ describe('video-pipeline.service', () => {
       })
       expect(mockValidateVideoGenerationInput).toHaveBeenCalledWith(
         expect.objectContaining({
-          modelId: AI_MODELS.KLING_V3_PRO,
+          modelId: AI_MODELS.VEO_31,
           duration: 10,
         }),
       )
@@ -281,9 +281,9 @@ describe('video-pipeline.service', () => {
           providerInput: expect.objectContaining({
             prompt: BASE_INPUT.prompt,
             modelId: EXECUTION_ROUTE.modelId,
-            externalModelId: 'fal-ai/kling-video/v3/pro/text-to-video',
+            externalModelId: 'fal-ai/veo3.1',
             firstClipDuration: 10,
-            extensionClipDuration: 5,
+            extensionClipDuration: 7,
             totalClips: 3,
             extensionMethod: 'native_extend',
             outputStorageKeys: [
@@ -444,7 +444,7 @@ describe('video-pipeline.service', () => {
         expect.objectContaining({
           userId: 'user-1',
           provider: 'fal.ai',
-          modelId: AI_MODELS.KLING_V3_PRO,
+          modelId: AI_MODELS.VEO_31,
           width: 1280,
           height: 720,
           wasSuccessful: true,
@@ -606,7 +606,7 @@ describe('video-pipeline.service', () => {
           startClipIndex: 0,
           providerInput: expect.objectContaining({
             firstClipDuration: 10,
-            extensionClipDuration: 5,
+            extensionClipDuration: 7,
           }),
         }),
       )

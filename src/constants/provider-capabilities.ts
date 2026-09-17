@@ -39,18 +39,10 @@ export type ReferenceImageMode = 'native' | 'img2img' | 'director'
 export const OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES = 16
 
 /**
- * ⚠ UNVERIFIED (J4, 2026-08-07) — kept at its shipped value on purpose.
- *
- * No source was ever recorded for 14, and the 2026-08-07 sweep could not
- * confirm it: 火山's Seedream API reference is JS-rendered and did not resolve,
- * and the only figures reachable were for **Seedream 4.0** (≤10 reference
- * images, input+output ≤15) — a version this project does not ship. We run 4.5
- * and 5.0, so those numbers are a near-match, not evidence.
- *
- * Left alone rather than lowered: shrinking a cap on a near-match would break
- * working multi-reference runs to fix a problem nobody has observed. To settle
- * it, read the 4.5/5.0 API reference in a real browser (JS on), or submit 11+
- * references to a `*_VOLCENGINE` Seedream model and see whether 火山 400s.
+ * 火山 Ark / BytePlus Seedream 参考图默认上限。Ark 文档 2026-09-17 核实：
+ * Seedream 4.0 / 4.5 / 5.0 Lite 最多 14 张参考图，**5.0 Pro 只收 10 张**。
+ * Pro 的差异由 MODEL_CAPABILITY_OVERRIDES 逐模型下调，不动这个默认值。
+ * https://www.volcengine.com/docs/82379/1541523
  */
 export const VOLCENGINE_SEEDREAM_MAX_REFERENCE_IMAGES = 14
 /**
@@ -397,6 +389,16 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'resolution',
     ] as const,
     resolutionOptions: ['2K'],
+  },
+  // Ark 文档 2026-09-17 核实：Seedream 5.0 Pro 的参考图上限是 10（Lite / 4.5 /
+  // 4.0 才是 14）。只覆盖这一项，resolveConfig() 是浅合并，adapter 的
+  // capabilities / resolutionOptions 原样保留。
+  // https://www.volcengine.com/docs/82379/1541523
+  [AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE]: {
+    maxReferenceImages: 10,
+  },
+  [AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS]: {
+    maxReferenceImages: 10,
   },
   [AI_MODELS.SEEDREAM_50_LITE]: {
     maxReferenceImages: FAL_SEEDREAM_MAX_REFERENCE_IMAGES,

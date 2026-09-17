@@ -83,12 +83,13 @@ describe('Seedance 2.5 contract', () => {
     }
   })
 
-  it('declares only the two resolutions 火山 actually ships', () => {
-    // 2.5 没有 1080p / 4k —— 4k 是 2.0 独有的档。
+  it('declares the three resolutions 火山 actually ships', () => {
+    // 2.5 = 480p/720p/1080p（fal 的 2.5 端点 enum 同样三档）；4k 是 2.0 独有的档。
     for (const id of SEEDANCE_25_IDS) {
       expect(getVideoModelCapabilities(id).supportedResolutions).toEqual([
         '480p',
         '720p',
+        '1080p',
       ])
     }
   })

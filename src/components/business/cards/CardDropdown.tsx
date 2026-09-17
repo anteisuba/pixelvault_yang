@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Plus, Search, Settings2 } from 'lucide-react'
+import { ChevronDown, Plus, Search, Settings2 } from '@/components/icons'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 

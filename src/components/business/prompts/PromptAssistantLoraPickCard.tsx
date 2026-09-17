@@ -7,7 +7,7 @@ import {
   Download,
   Layers,
   TriangleAlert,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

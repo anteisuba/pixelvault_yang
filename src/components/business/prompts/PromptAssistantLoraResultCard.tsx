@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, ClipboardCheck, Plus, X } from 'lucide-react'
+import { Check, ClipboardCheck, Plus, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

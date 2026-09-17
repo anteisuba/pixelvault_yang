@@ -1,7 +1,7 @@
 'use client'
 
 import { useId } from 'react'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_CARD_SORT_OPTIONS } from '@/constants/studio'

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Plus, Trash2, Globe, Upload, Sparkles } from 'lucide-react'
+import { Plus, Trash2, Globe, Upload, Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { Search } from 'lucide-react'
+import { Search } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Input } from '@/components/ui/input'

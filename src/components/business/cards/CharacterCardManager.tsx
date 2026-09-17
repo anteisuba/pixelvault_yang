@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Sparkles, User, Plus } from 'lucide-react'
+import { Sparkles, User, Plus } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import type {

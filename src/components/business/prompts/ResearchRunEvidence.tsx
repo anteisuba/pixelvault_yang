@@ -11,7 +11,7 @@ import {
   type JSX,
   type ReactNode,
 } from 'react'
-import { ExternalLink, ShieldAlert } from 'lucide-react'
+import { ExternalLink, ShieldAlert } from '@/components/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import type { Components } from 'react-markdown'
 

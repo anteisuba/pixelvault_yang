@@ -11,7 +11,7 @@ import {
   FolderPlus,
   Copy,
   Sparkles,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 

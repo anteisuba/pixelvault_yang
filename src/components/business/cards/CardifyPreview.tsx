@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, ImageIcon, RefreshCw, X } from 'lucide-react'
+import { Check, ImageIcon, RefreshCw, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 

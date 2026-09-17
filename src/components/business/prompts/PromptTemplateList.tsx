@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Globe, Pencil, Search, Trash2 } from 'lucide-react'
+import { Globe, Pencil, Search, Trash2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 

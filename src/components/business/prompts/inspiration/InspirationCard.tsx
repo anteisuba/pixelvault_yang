@@ -1,7 +1,7 @@
 'use client'
 /* eslint-disable @next/next/no-img-element -- inspiration images are external */
 
-import { ExternalLink, Heart, Sparkles } from 'lucide-react'
+import { ExternalLink, Heart, Sparkles } from '@/components/icons'
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'

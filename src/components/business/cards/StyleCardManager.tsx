@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Copy, Pencil, Trash2, Palette, Plus } from 'lucide-react'
+import { Copy, Pencil, Trash2, Palette, Plus } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { isBuiltInModel } from '@/constants/models'

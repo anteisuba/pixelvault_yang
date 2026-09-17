@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { Check, RefreshCw, SkipForward, ThumbsUp } from 'lucide-react'
+import { Check, RefreshCw, SkipForward, ThumbsUp } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Input } from '@/components/ui/input'

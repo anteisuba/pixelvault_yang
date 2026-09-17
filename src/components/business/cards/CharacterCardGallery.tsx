@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { ImageIcon } from 'lucide-react'
+import { ImageIcon } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { useCharacterCardGallery } from '@/hooks/cards/use-character-card-gallery'

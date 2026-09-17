@@ -1,5 +1,5 @@
-import { AudioLines, Boxes, Film, Image as ImageIcon } from 'lucide-react'
-import type { LucideIcon } from 'lucide-react'
+import { AudioLines, Boxes, Film, Image as ImageIcon } from '@/components/icons'
+import type { LucideIcon } from '@/components/icons'
 
 import { cn } from '@/lib/utils'
 import type { OutputType } from '@/types'

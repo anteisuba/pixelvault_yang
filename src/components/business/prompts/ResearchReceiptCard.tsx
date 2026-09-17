@@ -12,7 +12,7 @@ import {
   Search,
   TriangleAlert,
   ZapOff,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Spinner } from '@/components/ui/spinner'

@@ -26,7 +26,7 @@ import {
   Video,
   WandSparkles,
   X,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useLocale, useTranslations } from 'next-intl'
 
 import { CanvasAssistantReferencePicker } from '@/components/business/node/CanvasAssistantReferencePicker'

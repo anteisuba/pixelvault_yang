@@ -8,7 +8,6 @@ import {
   assistantAdapterSatisfiesVideoTier,
   assistantAdapterSupportsImage,
   assistantAdapterVideoTier,
-  getAssistantMediaCapabilityLabel,
 } from '@/constants/assistant'
 import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -148,26 +147,6 @@ describe('assistantAdapterAcceptsReferenceKind —— 附件闸', () => {
         ASSISTANT_VIDEO_TIERS.native,
       ),
     ).toBe(false)
-  })
-})
-
-describe('getAssistantMediaCapabilityLabel', () => {
-  it('frames 档标 imageOnly —— 标签说的是「能挂什么附件」，挂视频仍只有 native 行', () => {
-    expect(getAssistantMediaCapabilityLabel(AI_ADAPTER_TYPES.OPENAI)).toBe(
-      'imageOnly',
-    )
-    expect(getAssistantMediaCapabilityLabel(AI_ADAPTER_TYPES.GEMINI)).toBe(
-      'imageVideo',
-    )
-    expect(getAssistantMediaCapabilityLabel(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(
-      'textOnly',
-    )
-    expect(
-      getAssistantMediaCapabilityLabel(
-        AI_ADAPTER_TYPES.DEEPSEEK,
-        LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
-      ),
-    ).toBe('imageOnly')
   })
 })
 

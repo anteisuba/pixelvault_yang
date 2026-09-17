@@ -3,12 +3,11 @@
 import { useCallback, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS } from '@/constants/node-studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import { getAssistantMediaCapabilityLabel } from '@/constants/assistant'
 
 export interface NodeAssistantRouteSelection {
   optionId: string
@@ -158,25 +157,13 @@ export function CanvasAssistantRouteSelector({
     [onChange, quickSetup.adapterType, quickSetup.modelId],
   )
 
-  const detailForOption = useCallback(
-    (option: StudioModelOption) =>
-      t(
-        `mediaCapabilities.${getAssistantMediaCapabilityLabel(
-          option.adapterType,
-          option.modelId,
-        )}`,
-      ),
-    [t],
-  )
-
   return (
     <>
       <MainModelPicker
         modality="llm_assist"
-        // 与图片/视频/音频同一套三栏（居中 modal，不受这个窄面板的宽度约束）。
-        // LLM 路由没有 MODEL_FAMILIES，会退回按 adapterType 分组 —— 第一栏正好
-        // 是厂商，第二栏是模型，语义仍然成立。
-        layout="columns"
+        // 与其余四处同一颗触发器、同一个弹层（D2 ④）。LLM 路由没有
+        // MODEL_FAMILIES，会退回按 adapterType 分组 —— 分组标题正好是厂商，
+        // 行上是模型，语义仍然成立。
         llmCapability="assistant"
         value={
           // Saved-route optionIds carry the modelId since tiers multiplied —
@@ -189,9 +176,7 @@ export function CanvasAssistantRouteSelector({
         onChange={handleSelect}
         onRequestSetup={handleRequestSetup}
         triggerEmptyLabel={emptyRouteLabel}
-        size="compact"
         popoverSide="bottom"
-        detailForOption={detailForOption}
       />
 
       <QuickSetupDialog

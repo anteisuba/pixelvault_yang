@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
 import { ROUTES } from '@/constants/routes'
 import { STUDIO_LAST_IMAGE_MODEL_STORAGE_KEY } from '@/constants/studio'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { useStudioForm } from '@/contexts/studio-context'
 
 /**

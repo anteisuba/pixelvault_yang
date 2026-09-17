@@ -1,15 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-
-// jsdom 没有 ResizeObserver / scrollIntoView，cmdk 两样都要。
-globalThis.ResizeObserver = class {
-  observe() {}
-  unobserve() {}
-  disconnect() {}
-} as unknown as typeof ResizeObserver
-if (typeof Element !== 'undefined' && !Element.prototype.scrollIntoView) {
-  Element.prototype.scrollIntoView = () => {}
-}
+import { render, screen, fireEvent, within } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations:
@@ -27,7 +17,7 @@ vi.mock('@/contexts/api-keys-context', () => ({
   })),
 }))
 
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { ModelPickerPopover } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
 import { AI_MODELS } from '@/constants/models'
 import {
@@ -54,7 +44,7 @@ function option(over: Partial<StudioModelOption>): StudioModelOption {
 
 /**
  * 真实目录 id：分组读 `MODEL_FAMILIES` / `MODEL_VARIANTS`，编造 id 只会走兜底。
- * Seedream 5.0 Pro 铺两条渠道（fal 与火山都能跑），Lite 与 GPT Image 2 缺 key。
+ * Seedream 5.0 Pro 铺两条渠道（都配了 key），Lite 与 GPT Image 2 各只有一条且缺 key。
  */
 const FIXTURE: StudioModelOption[] = [
   option({
@@ -70,7 +60,6 @@ const FIXTURE: StudioModelOption[] = [
     modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
     displayLabel: 'Seedream 5.0 Pro（火山方舟）',
     adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
-    // 火山也配了 key（provider 级覆盖）—— 两条都能跑，自动规则这时比的是价。
     providerKeyId: 'volc-1',
   }),
   option({
@@ -86,6 +75,17 @@ const FIXTURE: StudioModelOption[] = [
     adapterType: AI_ADAPTER_TYPES.OPENAI,
   }),
 ]
+
+/** 行是按 `data-model-key` 认的 —— 名与型号在行里是两格，⛔ 别按整段文字找。 */
+function row(modelKey: string): HTMLElement {
+  const el = document.querySelector(`[data-model-key="${modelKey}"]`)
+  expect(el).not.toBeNull()
+  return el as HTMLElement
+}
+
+function channelPanel(): HTMLElement | null {
+  return document.querySelector('[data-channel-panel]')
+}
 
 function openPicker(
   props: Partial<React.ComponentProps<typeof ModelPickerPopover>> = {},
@@ -109,163 +109,166 @@ beforeEach(() => {
   window.localStorage.clear()
 })
 
-describe('ModelPickerPopover', () => {
-  it('lists one row per model with the series as a heading', () => {
+describe('ModelPickerPopover — 行只有 模型 · 型号 · 价格', () => {
+  it('每个型号一行，模型名与型号分成两格，系列当分组标题', () => {
     openPicker()
-    // 三条渠道后缀的假型号收敛成一行。
-    expect(screen.getAllByText('Seedream 5.0 Pro')).toHaveLength(1)
+    const pro = row('seedream-5.0-pro')
+    expect(pro.textContent).toContain('Seedream')
+    expect(pro.textContent).toContain('5.0 Pro')
+    // 渠道后缀的重复条目收敛成同一行。
     expect(screen.queryByText('Seedream 5.0 Pro（火山方舟）')).toBeNull()
-    expect(screen.getByText('Seedream')).toBeInTheDocument()
-    expect(screen.getByText('GPT Image')).toBeInTheDocument()
+    expect(screen.getAllByText('GPT Image').length).toBeGreaterThan(0)
   })
 
-  it('shows the auto-picked channel and its unit price on line two', () => {
-    const { container } = openPicker()
-    const metas = Array.from(
-      container.ownerDocument.querySelectorAll('span.text-2xs'),
-    ).map((el) => el.textContent ?? '')
-    const proMeta = metas.find((text) => text.includes('fal'))
-    expect(proMeta).toBeDefined()
-    // 自动选中的渠道 + 单价都印在行上（单价查不到才隐藏）。
-    expect(proMeta).toContain('Common.unitPrice.image')
+  it('多渠道但没选过 → 价格位写「—」', () => {
+    openPicker()
+    expect(row('seedream-5.0-pro').textContent).toContain(
+      'ModelPicker.channelUnset',
+    )
   })
 
-  it('greys out a model with no usable channel and routes it to QuickSetup', () => {
+  it('单渠道型号自动选中那一条，价格位直接写单价', () => {
+    openPicker()
+    // Lite 只有 fal 一条，但缺 key —— 缺 key 时价格位**不写字**。
+    expect(row('seedream-5.0-lite').textContent).not.toContain('unitPrice')
+    expect(row('seedream-5.0-lite').textContent).not.toContain(
+      'ModelPicker.channelUnset',
+    )
+  })
+
+  it('⛔ 行上不画状态点、不写渠道名、不写能力标', () => {
+    openPicker()
+    const pro = row('seedream-5.0-pro')
+    expect(pro.querySelector('.bg-status-applied')).toBeNull()
+    expect(pro.querySelector('.bg-status-warning')).toBeNull()
+    expect(pro.textContent).not.toMatch(/fal|VolcEngine|火山/i)
+  })
+})
+
+describe('ModelPickerPopover — 渠道面板', () => {
+  it('hover 一行就把独立渠道面板摆到它旁边，每条写 点 · 名 · 价', () => {
+    openPicker()
+    expect(channelPanel()).toBeNull()
+    fireEvent.mouseEnter(row('seedream-5.0-pro'))
+    const panel = channelPanel()
+    expect(panel).not.toBeNull()
+    const rows = within(panel as HTMLElement).getAllByRole('option')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.querySelector('.bg-status-applied')).not.toBeNull()
+    expect(rows[0]?.textContent).toContain('Common.unitPrice')
+    // ⛔ 面板里没有对勾，选中只用底色。
+    expect((panel as HTMLElement).querySelector('svg')).toBeNull()
+  })
+
+  it('单渠道型号的面板只有一行且已选中', () => {
+    openPicker()
+    fireEvent.mouseEnter(row('seedream-5.0-lite'))
+    const rows = within(channelPanel() as HTMLElement).getAllByRole('option')
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toHaveAttribute('data-channel-picked', 'true')
+  })
+
+  it('缺 key 的渠道是黄点，配了 key 的是绿点', () => {
+    openPicker()
+    fireEvent.mouseEnter(row('seedream-5.0-lite'))
+    const locked = document.querySelector('[data-channel-has-key="false"]')
+    expect(locked).not.toBeNull()
+    expect(locked?.querySelector('.bg-status-warning')).not.toBeNull()
+  })
+
+  it('点一条渠道 = 选定 + 按型号记住，下次默认走它', () => {
+    const { onChange } = openPicker()
+    fireEvent.mouseEnter(row('seedream-5.0-pro'))
+    const volc = within(channelPanel() as HTMLElement)
+      .getAllByRole('option')
+      .find((el) => /火山|VolcEngine/i.test(el.textContent ?? ''))
+    fireEvent.click(volc as HTMLElement)
+    expect(onChange).toHaveBeenCalledTimes(1)
+    expect(onChange.mock.calls[0][0].optionId).toBe(
+      'workspace:seedream-5.0-pro-volcengine',
+    )
+    expect(window.localStorage.getItem('pv:model-picker:channel')).toContain(
+      'seedream-5.0-pro',
+    )
+  })
+})
+
+describe('ModelPickerPopover — 没有「自动」', () => {
+  it('点多渠道行只停在「未选渠道」，⛔ 不替他挑一条', () => {
+    const { onChange } = openPicker()
+    fireEvent.click(row('seedream-5.0-pro'))
+    expect(onChange).not.toHaveBeenCalled()
+    // 记下的是型号，不是渠道。
+    expect(window.localStorage.getItem('pv:model-picker:pending')).toContain(
+      'seedream-5.0-pro',
+    )
+    expect(window.localStorage.getItem('pv:model-picker:channel')).toBeNull()
+  })
+
+  it('记住过渠道之后，点同一行一步到位', () => {
+    const { onChange } = openPicker()
+    fireEvent.mouseEnter(row('seedream-5.0-pro'))
+    fireEvent.click(
+      within(channelPanel() as HTMLElement).getAllByRole(
+        'option',
+      )[0] as HTMLElement,
+    )
+    expect(onChange).toHaveBeenCalledTimes(1)
+  })
+
+  it('触发器在「选了型号没选渠道」时写「先选渠道」', () => {
+    openPicker()
+    fireEvent.click(row('seedream-5.0-pro'))
+    const chip = document.querySelector('[data-model-chip]')
+    expect(chip?.getAttribute('data-status-tone')).toBe('warning')
+    expect(chip?.textContent).toContain('ModelPicker.pickChannel')
+  })
+
+  it('触发器在缺 key 的选中型号上写「缺 key」', () => {
+    render(
+      <ModelPickerPopover
+        options={FIXTURE}
+        value="workspace:seedream-lite"
+        onChange={vi.fn()}
+      />,
+    )
+    const chip = document.querySelector('[data-model-chip]')
+    expect(chip?.getAttribute('data-status-tone')).toBe('warning')
+    expect(chip?.textContent).toContain('ModelPicker.missingKey')
+  })
+
+  it('触发器在渠道就绪时写单价', () => {
+    render(
+      <ModelPickerPopover
+        options={FIXTURE}
+        value="key:fal-1"
+        onChange={vi.fn()}
+      />,
+    )
+    const chip = document.querySelector('[data-model-chip]')
+    expect(chip?.getAttribute('data-status-tone')).toBeNull()
+    expect(chip?.textContent).toContain('Common.unitPrice')
+  })
+})
+
+describe('ModelPickerPopover — 缺 key 走 QuickSetupDialog', () => {
+  it('点黄点渠道 → 关弹层、交给宿主的 onRequestSetup，⛔ 不选中', () => {
     const { onChange, onRequestSetup } = openPicker()
-    fireEvent.click(screen.getByText('GPT Image 2'))
+    fireEvent.mouseEnter(row('gpt-image-2'))
+    fireEvent.click(
+      within(channelPanel() as HTMLElement).getAllByRole(
+        'option',
+      )[0] as HTMLElement,
+    )
     expect(onRequestSetup).toHaveBeenCalledTimes(1)
     expect(onRequestSetup.mock.calls[0][0].optionId).toBe(
       'workspace:gpt-image-2',
     )
     expect(onChange).not.toHaveBeenCalled()
-  })
-
-  it('selects the auto-resolved channel when the model row is clicked', () => {
-    const { onChange } = openPicker()
-    fireEvent.click(screen.getByText('Seedream 5.0 Pro'))
-    expect(onChange).toHaveBeenCalledTimes(1)
-    expect(onChange.mock.calls[0][0].optionId).toBe('key:fal-1')
-  })
-
-  it('filters by the search box across model, series and channel names', () => {
-    openPicker()
-    fireEvent.change(
-      screen.getByPlaceholderText('ModelPicker.searchPlaceholder'),
-      {
-        target: { value: 'gpt' },
-      },
-    )
-    expect(screen.getByText('GPT Image 2')).toBeInTheDocument()
-    expect(screen.queryByText('Seedream 5.0 Pro')).toBeNull()
-  })
-
-  it('expands the channel radio list from the row-end "N 渠道" control', () => {
-    openPicker()
-    const toggle = screen.getByRole('button', {
-      name: /ModelPicker.channelCount/,
-    })
-    expect(screen.queryByText('ModelPicker.autoRule')).toBeNull()
-    fireEvent.click(toggle)
-    expect(screen.getByText('ModelPicker.autoRule')).toBeInTheDocument()
-    expect(toggle).toHaveAttribute('aria-expanded', 'true')
-  })
-
-  it('remembers a manually picked channel and puts it in the chip title', () => {
-    const { onChange, rerender } = openPicker()
-    fireEvent.click(
-      screen.getByRole('button', { name: /ModelPicker.channelCount/ }),
-    )
-    const volcRow = screen
-      .getAllByText(/火山|VolcEngine/i)
-      .find((el) => el.className.includes('flex-1'))
-    expect(volcRow).toBeDefined()
-    fireEvent.click(volcRow as HTMLElement)
-    expect(onChange).toHaveBeenCalledTimes(1)
-    expect(onChange.mock.calls[0][0].optionId).toBe(
-      'workspace:seedream-5.0-pro-volcengine',
-    )
-    // 记忆落地：下一次这个型号默认走火山。
-    expect(window.localStorage.getItem('pv:model-picker:channel')).toContain(
-      'seedream-5.0-pro',
-    )
-    // 2026-09-10 owner 真机反馈第六条：手改过的渠道退到 `title` 上，
-    // chip 上**只有型号名**（带上「· 渠道」会让栏底那一行出框）。
-    rerender(
-      <ModelPickerPopover
-        options={FIXTURE}
-        value="workspace:seedream-5.0-pro-volcengine"
-        onChange={onChange}
-      />,
-    )
-    const chip = screen.getByRole('button', { name: /Seedream 5.0 Pro/ })
-    expect(chip.textContent).not.toMatch(/·/)
-    expect(chip.getAttribute('title')).toMatch(/·/)
-  })
-
-  /**
-   * owner 2026-09-10 真机反馈第五条：缺 key 的行点了应该弹配置，而不是挂上一个
-   * 跑不了的模型。宿主给了 `onManageChannels`（画布四类卡）就开那个抽屉。
-   */
-  it('routes a needs-key row to QuickSetupDialog and never selects it', () => {
-    const onManageChannels = vi.fn()
-    const { onChange, onRequestSetup } = openPicker({ onManageChannels })
-    fireEvent.click(screen.getByText('GPT Image 2'))
-    expect(onRequestSetup).toHaveBeenCalledTimes(1)
-    expect(onManageChannels).not.toHaveBeenCalled()
-    expect(onChange).not.toHaveBeenCalled()
-    expect(window.localStorage.getItem('pv:model-picker:recent')).toBeNull()
-  })
-
-  /**
-   * owner 2026-09-10 真机第二条：截图里「VolcEngine · 需要 API key」是**选中态**
-   * （radio 亮着）。缺 key 的渠道行不是一个选项，是一条去配置的路。
-   */
-  it('never marks a needs-key channel as picked and sends it to setup instead', () => {
-    const onManageChannels = vi.fn()
-    const { onChange } = openPicker({
-      onManageChannels,
-      options: [
-        ...FIXTURE,
-        option({
-          optionId: 'workspace:seedream-5.0-pro-byteplus',
-          modelId: AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS,
-          displayLabel: 'Seedream 5.0 Pro（BytePlus）',
-          adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
-        }),
-      ],
-    })
-    fireEvent.click(
-      screen.getByRole('button', { name: /ModelPicker.channelCount/ }),
-    )
-    const locked = document.querySelector('[data-channel-runnable="false"]')
-    expect(locked).not.toBeNull()
-    expect(locked?.getAttribute('data-channel-picked')).toBe('false')
-    // 选中的那条一定是能跑的。
-    expect(
-      document
-        .querySelector('[data-channel-picked="true"]')
-        ?.getAttribute('data-channel-runnable'),
-    ).toBe('true')
-    fireEvent.click(locked as HTMLElement)
-    expect(onManageChannels).not.toHaveBeenCalled()
-    expect(onChange).not.toHaveBeenCalled()
-    // ⛔ 缺 key 的渠道不进记忆。
     expect(window.localStorage.getItem('pv:model-picker:channel')).toBeNull()
   })
 
-  it('keeps the panel open in multi-select mode and toggles instead of choosing', () => {
-    const onToggleOption = vi.fn()
-    const { onChange } = openPicker({
-      selectedOptionIds: new Set<string>(),
-      onToggleOption,
-    })
-    fireEvent.click(screen.getByText('Seedream 5.0 Pro'))
-    expect(onToggleOption).toHaveBeenCalledTimes(1)
-    expect(onChange).not.toHaveBeenCalled()
-    expect(screen.getByText('Seedream 5.0 Lite')).toBeInTheDocument()
-  })
-
-  it('opens its own QuickSetupDialog for a needs-key row when the host gives no onRequestSetup', () => {
+  it('宿主没给 onRequestSetup 时自己开那一个现有对话框', () => {
     const onChange = vi.fn()
     render(
       <ModelPickerPopover
@@ -276,19 +279,59 @@ describe('ModelPickerPopover', () => {
       />,
     )
     fireEvent.click(screen.getByRole('button'))
-    fireEvent.click(screen.getByText('GPT Image 2'))
+    fireEvent.mouseEnter(row('gpt-image-2'))
+    fireEvent.click(
+      within(channelPanel() as HTMLElement).getAllByRole(
+        'option',
+      )[0] as HTMLElement,
+    )
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(onChange).not.toHaveBeenCalled()
   })
+})
 
-  it('renders the manage-channels footer only when the host handles it', () => {
+describe('ModelPickerPopover — 其余契约', () => {
+  it('搜索跨模型名、系列与渠道名过滤', () => {
+    openPicker()
+    fireEvent.change(
+      screen.getByPlaceholderText('ModelPicker.searchPlaceholder'),
+      { target: { value: 'gpt' } },
+    )
+    expect(
+      document.querySelector('[data-model-key="gpt-image-2"]'),
+    ).not.toBeNull()
+    expect(
+      document.querySelector('[data-model-key="seedream-5.0-pro"]'),
+    ).toBeNull()
+  })
+
+  it('多选模式不关弹层，走 onToggleOption', () => {
+    const onToggleOption = vi.fn()
+    const { onChange } = openPicker({
+      selectedOptionIds: new Set<string>(),
+      onToggleOption,
+    })
+    fireEvent.mouseEnter(row('seedream-5.0-pro'))
+    fireEvent.click(
+      within(channelPanel() as HTMLElement).getAllByRole(
+        'option',
+      )[0] as HTMLElement,
+    )
+    expect(onToggleOption).toHaveBeenCalledTimes(1)
+    expect(onChange).not.toHaveBeenCalled()
+    expect(
+      document.querySelector('[data-model-key="seedream-5.0-lite"]'),
+    ).not.toBeNull()
+  })
+
+  it('只在宿主接得住时渲染底部「配置渠道与 key…」', () => {
     const onManageChannels = vi.fn()
     openPicker({ onManageChannels })
     fireEvent.click(screen.getByText('ModelPicker.manageChannels'))
     expect(onManageChannels).toHaveBeenCalledTimes(1)
   })
 
-  it('renders the panel body without a chip in inline mode', () => {
+  it('inline 模式只渲染面板本体，不渲染触发器', () => {
     render(
       <ModelPickerPopover
         options={FIXTURE}
@@ -300,10 +343,9 @@ describe('ModelPickerPopover', () => {
     expect(
       screen.getByPlaceholderText('ModelPicker.searchPlaceholder'),
     ).toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: /Common.selectModel/ }),
-    ).toBeNull()
+    expect(document.querySelector('[data-model-chip]')).toBeNull()
   })
+
   it('groupBy="kind" 把音频模型分成语音 / 配乐 / 音效三组（空组不画）', () => {
     render(
       <ModelPickerPopover
@@ -327,7 +369,6 @@ describe('ModelPickerPopover', () => {
     )
     expect(screen.getByText('ModelPicker.kinds.speech')).toBeInTheDocument()
     expect(screen.getByText('ModelPicker.kinds.music')).toBeInTheDocument()
-    // 一条音效模型都没有 —— 整组不画。
     expect(screen.queryByText('ModelPicker.kinds.sfx')).toBeNull()
   })
 })

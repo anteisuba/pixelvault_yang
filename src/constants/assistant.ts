@@ -281,26 +281,3 @@ export const ASSISTANT_MEDIA_UNSUPPORTED_ERRORS = {
       'The selected assistant model cannot analyze video. A Gemini key analyzes video directly.',
   },
 } as const
-
-export type AssistantMediaCapabilityLabel =
-  | 'imageVideo'
-  | 'imageOnly'
-  | 'textOnly'
-
-/**
- * 路由选择器上那个能力标签。
- *
- * ⚠ **`frames` 档标 `imageOnly` 是有意的**：这个标签说的是「你能往这条路上挂什么
- * 附件」，而挂视频这件事今天仍然只有 `native` 做得到（抽帧发生在视觉线，不是聊天
- * 附件面）。把 `frames` 标成「图片＋视频」会让用户挂上去然后撞
- * `ASSISTANT_VIDEO_UNSUPPORTED` —— 标签撒谎比标签保守坏得多。
- */
-export function getAssistantMediaCapabilityLabel(
-  adapterType: AI_ADAPTER_TYPES,
-  modelId?: string,
-): AssistantMediaCapabilityLabel {
-  const capability = getAssistantMediaCapability(adapterType, modelId)
-  if (capability.video === ASSISTANT_VIDEO_TIERS.native) return 'imageVideo'
-  if (capability.image) return 'imageOnly'
-  return 'textOnly'
-}

@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 
 import { getAvailableVideoModels, VIDEO_KIND } from '@/constants/models'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import {
   buildSavedModelOptionsForModels,

@@ -109,10 +109,9 @@ describe('MainModelPicker dispatcher', () => {
     expect(useVideoModelOptions).not.toHaveBeenCalled()
   })
 
-  it('renders the S1 popover chip for image and keeps the drill panel elsewhere', () => {
-    // studio/image 的入口换成方案 A 的弹层：触发器是 chip（模型名 + ▾），不是
-    // 三栏对话框的按钮。其余模态仍走 BaseModelPickerPanel —— 端点收窄 / 音频三组
-    // 还没搬（S2–S6）。
+  it('每个模态都渲染同一颗统一触发器（D2 ④「五处宿主同一形状」）', () => {
+    // 2026-09-17 收口：五个模态**全部**走 `ModelPickerPopover`，触发器是
+    // 「名 + 型号 + 价 / 状态 + caret」那一颗 chip。三栏对话框已整删。
     vi.mocked(useImageModelOptions).mockReturnValue({
       modelOptions: [
         {
@@ -131,16 +130,13 @@ describe('MainModelPicker dispatcher', () => {
     } as unknown as ReturnType<typeof useImageModelOptions>)
 
     const { unmount } = render(
-      <MainModelPicker
-        modality="image"
-        layout="columns"
-        value="key:fal-1"
-        onChange={vi.fn()}
-      />,
+      <MainModelPicker modality="image" value="key:fal-1" onChange={vi.fn()} />,
     )
     const chip = screen.getByRole('button')
     expect(chip).toHaveAttribute('aria-haspopup', 'dialog')
-    expect(chip.textContent).toContain('Seedream 5.0 Pro')
+    // 名与型号在 chip 上是两格。
+    expect(chip.textContent).toContain('Seedream')
+    expect(chip.textContent).toContain('5.0 Pro')
     unmount()
 
     vi.mocked(useImageModelOptions).mockReturnValue({

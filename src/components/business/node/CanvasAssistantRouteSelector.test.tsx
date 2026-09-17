@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 vi.mock('next-intl', () => ({
@@ -19,7 +19,6 @@ type CapturedPickerProps = {
   onRequestSetup?: (option: StudioModelOption) => void
   triggerEmptyLabel?: string
   popoverSide?: 'top' | 'bottom'
-  detailForOption?: (option: StudioModelOption) => string | undefined
 }
 let pickerProps: CapturedPickerProps | null = null
 
@@ -225,45 +224,5 @@ describe('CanvasAssistantRouteSelector', () => {
     expect(quickSetupProps?.modelLabel).toBe(
       'StudioNode.assistantRoute.setupClaude',
     )
-  })
-
-  it('labels the media capability of every supported assistant route', () => {
-    render(
-      <CanvasAssistantRouteSelector
-        emptyRouteLabel="Auto route"
-        value={{
-          optionId: 'node-studio-assistant:auto',
-          adapterType: AI_ADAPTER_TYPES.OPENAI,
-        }}
-        onChange={vi.fn()}
-      />,
-    )
-
-    const detail = pickerProps?.detailForOption
-    expect(detail?.(makeOption({ adapterType: AI_ADAPTER_TYPES.OPENAI }))).toBe(
-      'StudioNode.assistantRoute.mediaCapabilities.imageOnly',
-    )
-    expect(detail?.(makeOption({ adapterType: AI_ADAPTER_TYPES.GEMINI }))).toBe(
-      'StudioNode.assistantRoute.mediaCapabilities.imageVideo',
-    )
-    expect(
-      detail?.(
-        makeOption({
-          adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-          modelId: 'deepseek-v4-pro',
-        }),
-      ),
-    ).toBe('StudioNode.assistantRoute.mediaCapabilities.textOnly')
-    expect(
-      detail?.(
-        makeOption({
-          adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-          modelId: 'deepseek-flash',
-        }),
-      ),
-    ).toBe('StudioNode.assistantRoute.mediaCapabilities.imageOnly')
-    expect(
-      detail?.(makeOption({ adapterType: AI_ADAPTER_TYPES.ANTHROPIC })),
-    ).toBe('StudioNode.assistantRoute.mediaCapabilities.textOnly')
   })
 })

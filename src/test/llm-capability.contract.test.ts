@@ -207,7 +207,7 @@ describe('IRON RULE — no private LLM adapter sets outside the source of truth'
     'src/components/business/prompts/PromptAssistantPanel.tsx',
     'src/components/business/node/CanvasAssistantRouteSelector.tsx',
     'src/components/business/studio-shared/pickers/MainModelPicker.tsx',
-    'src/components/business/studio-shared/pickers/BaseModelPickerPanel.tsx',
+    'src/components/business/studio-shared/pickers/ModelPickerPopover.tsx',
   ]
 
   it('no picker file defines its own LLM_CAPABLE_ADAPTERS-style set', () => {

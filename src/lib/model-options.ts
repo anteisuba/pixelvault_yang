@@ -6,7 +6,7 @@ import {
   type ModelOption,
 } from '@/constants/models'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import type { ApiKeyHealthStatus, UserApiKeyRecord } from '@/types'
 
 const API_KEY_HEALTH_PRIORITY: Record<ApiKeyHealthStatus, number> = {
@@ -98,8 +98,8 @@ function pickActiveKeyPerAdapter(
  * Without this stamp the pickers read "runnable" off `sourceType === 'saved'`,
  * which is one option per saved KEY ROW (unique per user × adapter × model). A
  * user holding a single fal key bound to Seedance saw every other fal model
- * filed under 需要 API key — and `BaseModelPickerPanel` then hid the whole
- * bucket, so the fal group listed 1 of its 8 options.
+ * filed under 需要 API key — and the picker then showed a yellow dot on every
+ * one of them, so a fal group of 8 read as 7 unconfigured routes.
  *
  */
 export function withProviderKeyCoverage<T extends StudioModelOption>(

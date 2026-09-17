@@ -5112,12 +5112,7 @@
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
       "setupClaude": "Claude",
-      "setupGrok": "Grok",
-      "mediaCapabilities": {
-        "imageVideo": "Images + video",
-        "imageOnly": "Image understanding",
-        "textOnly": "Text only"
-      }
+      "setupGrok": "Grok"
     },
     "inspector": {
       "unsupported": "This node doesn't have a settings panel yet."
@@ -8079,15 +8074,11 @@
   "ModelPicker": {
     "recent": "Recent",
     "searchPlaceholder": "Search models…",
-    "channelCount": "{count, plural, one {# channel} other {# channels}}",
-    "autoRule": "Auto picks your own key first, then the lowest-cost route. Manual selections are remembered.",
-    "needsKeyFor": "Needs a {provider} key",
+    "channelUnset": "—",
+    "pickChannel": "Pick a route",
+    "missingKey": "Needs a key",
+    "channelPanelLabel": "Routes for {model}",
     "manageChannels": "Manage channels and keys…",
-    "capability": {
-      "reference": "Reference image",
-      "multiReference": "Multi-image reference",
-      "lora": "LoRA"
-    },
     "kinds": {
       "speech": "Speech",
       "music": "Music",

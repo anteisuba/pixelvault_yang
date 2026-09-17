@@ -9,7 +9,7 @@ import {
 } from '@/constants/audio-options'
 import { getAvailableAudioModels } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
 import {

@@ -4,8 +4,8 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { AUDIO_KIND } from '@/constants/audio-options'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
-import { BaseModelPickerPanel } from '@/components/business/studio-shared/pickers/BaseModelPickerPanel'
+import type { StudioModelOption } from '@/types/model-option'
+import { ModelPickerPopover } from '@/components/business/studio-shared/pickers'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import { useAudioModelOptionsFor } from '@/hooks/use-audio-model-options'
 
@@ -17,11 +17,11 @@ import { useAudioModelOptionsFor } from '@/hooks/use-audio-model-options'
  * 路由到 `QuickSetupDialog` 内联配置）。在此之前，配音间没有任何地方能配 key，
  * 没配的人只会看到一句失败提示然后无路可走。
  *
- * ⚠ 用 `BaseModelPickerPanel` 而不是 `MainModelPicker`：后者内部调
+ * ⚠ 用 `ModelPickerPopover` 而不是 `MainModelPicker`：后者内部调
  * `useAudioModelOptions()`，那个 hook 读 `useStudioForm()`——配音间**故意**住在
  * 工作台路由组外面，没有 `StudioProvider`。所以清单从
- * `useAudioModelOptionsFor()`（同一份实现的无上下文内核）取，面板还是那一个共享
- * 面板，皮肤与行为不分叉。
+ * `useAudioModelOptionsFor()`（同一份实现的无上下文内核）取，弹层还是那一个共享
+ * 弹层，皮肤与行为不分叉。
  */
 
 interface VoiceRoomModelChipProps {
@@ -49,14 +49,12 @@ export function VoiceRoomModelChip({
 
   return (
     <>
-      <BaseModelPickerPanel
+      <ModelPickerPopover
         options={modelOptions}
         value={shown}
-        // 与图片 / 视频 / 音频工作台同一套三栏（`StudioPromptArea` 也传这个）。
-        // 不传就退回 drill 那套单列下钻，和别处长得不一样。
-        layout="columns"
-        size="compact"
-        popoverSide="bottom"
+        // 五处宿主同一颗触发器、同一个弹层（D2 ④）——⛔ 不在配音间另调形状。
+        memoryScope="audio"
+        side="bottom"
         onChange={(option) => onChange(option.optionId, option.modelId)}
         onRequestSetup={setSetupFor}
         triggerEmptyLabel={t('pickModel')}

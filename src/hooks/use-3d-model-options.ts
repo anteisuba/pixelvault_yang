@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { getAvailableModel3DModels } from '@/constants/models'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import {

@@ -5,7 +5,7 @@ import { useEffect, useMemo } from 'react'
 import { getAvailableImageModels, IMAGE_KIND } from '@/constants/models'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useDefaultImageModel } from '@/hooks/use-default-image-model'
@@ -25,7 +25,7 @@ export interface UseImageModelOptionsReturn {
 
 /**
  * Shared hook for building image model options from available models + user API keys.
- * Used by StudioLeftPanel (ModelSelector display) and StudioGenerateBar (canGenerate + generate).
+ * Used by the unified model picker (`ModelPickerPopover`) and the generate path.
  */
 export function useImageModelOptions(): UseImageModelOptionsReturn {
   const { state, dispatch } = useStudioForm()

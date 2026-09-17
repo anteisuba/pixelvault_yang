@@ -200,7 +200,7 @@ import {
   mergeModelOptionsWithPreferredSavedRoutes,
   withProviderKeyCoverage,
 } from '@/lib/model-options'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { appendPromptFragments } from '@/lib/prompt-text-append'
 import { compilePromptTags } from '@/lib/prompt-tag-compiler'

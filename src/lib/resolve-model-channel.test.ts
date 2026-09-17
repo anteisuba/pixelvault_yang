@@ -18,82 +18,53 @@ function channel(
   }
 }
 
+/**
+ * D2 Q1（owner 2026-09-17）：**没有「自动」渠道**。这一组用例锁的就是那条决定 ——
+ * 只有「手选记住的」与「只有一条」两种情况成立，其余一律未选。
+ */
 describe('resolveModelChannel', () => {
   it('returns null for an empty channel list', () => {
     expect(resolveModelChannel([])).toBeNull()
   })
 
-  it('prefers the user own key over price', () => {
-    const result = resolveModelChannel([
-      channel('cheap', { unitPrice: 0.01 }),
-      channel('mine', { hasUserKey: true, unitPrice: 0.5 }),
-    ])
-    expect(result?.channel.channelId).toBe('mine')
-    expect(result?.reason).toBe('userKey')
-  })
-
-  it('falls back to the cheapest channel when nothing is configured', () => {
-    const result = resolveModelChannel([
-      channel('volc', { unitPrice: 0.085 }),
-      channel('fal', { unitPrice: 0.0675 }),
-    ])
+  it('auto-selects the only channel a model has', () => {
+    const result = resolveModelChannel([channel('fal', { unitPrice: 0.01 })])
     expect(result?.channel.channelId).toBe('fal')
-    expect(result?.reason).toBe('cheapest')
+    expect(result?.reason).toBe('only')
   })
 
-  it('compares price INSIDE a tier — two own keys still pick the cheaper', () => {
-    const result = resolveModelChannel([
-      channel('volc', { hasUserKey: true, unitPrice: 0.085 }),
-      channel('fal', { hasUserKey: true, unitPrice: 0.0675 }),
-    ])
-    expect(result?.channel.channelId).toBe('fal')
-    expect(result?.reason).toBe('userKey')
+  it('leaves a multi-channel model unselected until the user picks', () => {
+    expect(
+      resolveModelChannel([
+        channel('fal', { unitPrice: 0.473 }),
+        channel('volc', { unitPrice: 0.213 }),
+      ]),
+    ).toBeNull()
   })
 
-  it('ranks a healthy key above a failed one before comparing price', () => {
-    const result = resolveModelChannel([
-      channel('failed', {
-        hasUserKey: true,
-        unitPrice: 0.01,
-        health: 'failed',
-      }),
-      channel('ok', { hasUserKey: true, unitPrice: 0.5, health: 'available' }),
-    ])
-    expect(result?.channel.channelId).toBe('ok')
+  /** ⛔ 便宜不再是理由 —— 「自动 = 最便宜」随「自动」一起删了。 */
+  it('never falls back to the cheapest channel', () => {
+    expect(
+      resolveModelChannel([
+        channel('volc', { unitPrice: 0.085 }),
+        channel('fal', { unitPrice: 0.0675 }),
+      ]),
+    ).toBeNull()
   })
 
-  it('treats a missing price as most expensive, never as free', () => {
-    const result = resolveModelChannel([
-      channel('unknown-price', { unitPrice: null }),
-      channel('priced', { unitPrice: 9.99 }),
-    ])
-    expect(result?.channel.channelId).toBe('priced')
+  /** ⛔ 有 key 也不再是理由：配了 key 只是那颗点变绿，不代表他选了这条。 */
+  it('never falls back to the channel that happens to have a key', () => {
+    expect(
+      resolveModelChannel([
+        channel('fal', { hasUserKey: true, unitPrice: 0.5 }),
+        channel('volc', { unitPrice: 0.01 }),
+      ]),
+    ).toBeNull()
   })
 
-  it('keeps list order on a dead tie and reports how many tied', () => {
-    const result = resolveModelChannel([
-      channel('first', { unitPrice: 0.05 }),
-      channel('second', { unitPrice: 0.05 }),
-      channel('third', { unitPrice: 0.05 }),
-    ])
-    expect(result?.channel.channelId).toBe('first')
-    expect(result?.tiedWith).toBe(2)
-  })
-
-  it('reports no tie when the winner is strictly better', () => {
-    const result = resolveModelChannel([
-      channel('a', { unitPrice: 0.01 }),
-      channel('b', { unitPrice: 0.02 }),
-    ])
-    expect(result?.tiedWith).toBe(0)
-  })
-
-  it('lets a remembered manual pick win over every automatic rule', () => {
+  it('honours the remembered manual channel', () => {
     const result = resolveModelChannel(
-      [
-        channel('mine', { hasUserKey: true, unitPrice: 0.01 }),
-        channel('volc', { hasUserKey: true, unitPrice: 0.085 }),
-      ],
+      [channel('fal', { unitPrice: 0.473 }), channel('volc')],
       'volc',
     )
     expect(result?.channel.channelId).toBe('volc')
@@ -101,43 +72,14 @@ describe('resolveModelChannel', () => {
   })
 
   /**
-   * owner 2026-09-10 真机第二条：视频卡的模型弹层里「VolcEngine · 需要 API key」
-   * 是**选中态**。缺 key 的渠道一条都不许被自动规则或记忆选上。
+   * key 失效不改选 —— 点变黄、价格位清空，但它仍然是这个型号选中的渠道
+   * （owner D2 Q1：「key 失效时该渠道点变黄、价格位清空」）。
    */
-  it('never lands on a channel with neither a key nor free quota', () => {
-    const result = resolveModelChannel([
-      channel('volc-no-key', { unitPrice: 0.001 }),
-      channel('byteplus', { hasUserKey: true, unitPrice: 0.121 }),
-    ])
-    expect(result?.channel.channelId).toBe('byteplus')
-  })
-
-  it('recomputes when the remembered channel has since lost its key', () => {
+  it('keeps the remembered channel even when its key is gone', () => {
     const result = resolveModelChannel(
       [
-        channel('volc', { unitPrice: 0.001 }),
-        channel('byteplus', { hasUserKey: true, unitPrice: 0.121 }),
-      ],
-      'volc',
-    )
-    expect(result?.channel.channelId).toBe('byteplus')
-    expect(result?.reason).toBe('userKey')
-  })
-
-  it('still answers when the whole list is missing keys (the chip needs a name)', () => {
-    const result = resolveModelChannel([
-      channel('volc', { unitPrice: 0.085 }),
-      channel('fal', { unitPrice: 0.0675 }),
-    ])
-    expect(result?.channel.channelId).toBe('fal')
-    expect(result?.reason).toBe('cheapest')
-  })
-
-  it('honours a remembered channel that is the only kind left — all locked', () => {
-    const result = resolveModelChannel(
-      [
-        channel('volc', { unitPrice: 0.085 }),
-        channel('fal', { unitPrice: 0.06 }),
+        channel('fal', { hasUserKey: true, unitPrice: 0.473 }),
+        channel('volc', { hasUserKey: false }),
       ],
       'volc',
     )
@@ -145,12 +87,16 @@ describe('resolveModelChannel', () => {
     expect(result?.reason).toBe('manual')
   })
 
-  it('falls back to the automatic rules when the remembered channel is gone', () => {
-    const result = resolveModelChannel(
-      [channel('mine', { hasUserKey: true, unitPrice: 0.01 })],
-      'retired-channel',
-    )
-    expect(result?.channel.channelId).toBe('mine')
-    expect(result?.reason).toBe('userKey')
+  /** 记忆里的渠道已经不在清单里（下架 / 被模式过滤掉）→ 静默回到未选。 */
+  it('falls back to unselected when the remembered channel left the list', () => {
+    expect(
+      resolveModelChannel([channel('fal'), channel('volc')], 'byteplus'),
+    ).toBeNull()
+  })
+
+  it('still selects the single channel even when memory points elsewhere', () => {
+    const result = resolveModelChannel([channel('fal')], 'gone')
+    expect(result?.channel.channelId).toBe('fal')
+    expect(result?.reason).toBe('only')
   })
 })

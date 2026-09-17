@@ -40,7 +40,7 @@ vi.mock('@/constants/provider-capabilities', () => ({
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import {
   buildImageOperatorSnapshot,
   buildLoraOperatorSnapshot,

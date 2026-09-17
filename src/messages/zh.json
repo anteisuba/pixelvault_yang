@@ -5112,12 +5112,7 @@
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
       "setupClaude": "Claude",
-      "setupGrok": "Grok",
-      "mediaCapabilities": {
-        "imageVideo": "图片＋视频",
-        "imageOnly": "图片视觉",
-        "textOnly": "仅文本"
-      }
+      "setupGrok": "Grok"
     },
     "inspector": {
       "unsupported": "这个节点类型暂时还没有检查器。"
@@ -8079,15 +8074,11 @@
   "ModelPicker": {
     "recent": "最近",
     "searchPlaceholder": "搜索模型…",
-    "channelCount": "{count} 渠道",
-    "autoRule": "自动规则：自己的 key ＞ 最便宜；改过就记住",
-    "needsKeyFor": "需配置 {provider} key",
+    "channelUnset": "—",
+    "pickChannel": "先选渠道",
+    "missingKey": "缺 key",
+    "channelPanelLabel": "{model} 的渠道",
     "manageChannels": "配置渠道与 key…",
-    "capability": {
-      "reference": "参考图",
-      "multiReference": "多图参考",
-      "lora": "LoRA"
-    },
     "kinds": {
       "speech": "语音",
       "music": "配乐",

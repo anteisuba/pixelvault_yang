@@ -46,7 +46,7 @@ import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
 import { takeOperatorGenerationLabel } from '@/lib/studio-operator-label'
 import { getReferenceMentionIndices } from '@/lib/studio-reference-mentions'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import type { CostPreviewBasis } from '@/components/business/studio/StudioCostPreview'
 
 export interface StudioBlockedReason {

@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { STUDIO_LAST_IMAGE_MODEL_STORAGE_KEY } from '@/constants/studio'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 
 const usePathname = vi.fn(() => '/zh/studio/image')
 vi.mock('next/navigation', () => ({ usePathname: () => usePathname() }))

@@ -11,7 +11,7 @@ import {
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import {
@@ -54,7 +54,7 @@ interface StudioMobileModelSheetProps {
  * ⭐ **图片档不是单选**（视频档是 —— 见 `mode` prop）。图片档本来就支持多模型 × 每模型 N 张（结果走 `CompareGrid`
  * 的图墙），桌面参数栏是一列可删的模型行 + 一个「添加」入口。这里是同一件事的
  * 移动端形态：**上面是当前名单**（每行一个 ✕，走桌面同款 reducer 动作），
- * **下面是钻取选择器**（`MainModelPicker layout="drill" inline`，多选）。
+ * **下面是统一选择器本体**（`MainModelPicker inline`，多选）。
  * 折成单选就等于在手机上把对比生成整条路径删掉。
  *
  * 选中不自动关抽屉（需求卡交互表：抽屉保留在型号列表），由 footer 的
@@ -141,7 +141,6 @@ export function StudioMobileModelSheet({
           >
             <MainModelPicker
               modality={isVideo ? 'video' : 'image'}
-              layout="drill"
               inline
               // 图片档恒为 null：这里是纯粹的「添加」入口，选中状态由上面的名单
               // 承担（面板里的勾选走 `selectedOptionIds`）。传选中值会让同一条

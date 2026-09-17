@@ -1,4 +1,4 @@
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { getModelFamily, getModelVariant } from '@/constants/models'
 import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
 import { getProviderLabel } from '@/constants/providers'
@@ -6,9 +6,8 @@ import { getProviderLabel } from '@/constants/providers'
 /**
  * 方案 A 的列表形状：**系列 → 型号 → 渠道[]**（`node-canvas-v2.md` §1.6）。
  *
- * 与三层钻取（`BaseModelPickerPanel`）的区别不在数据，而在呈现：那边一次看一层，
- * 这边一屏摊平 —— 系列退成分组标题，型号是行，渠道收进行尾的「N 渠道」。
- * 所以分组逻辑抽成纯函数，i18n 与交互留给组件。
+ * 系列退成分组标题，型号是行，渠道进右侧那块独立浮层（D2 ④）。分组逻辑抽成纯
+ * 函数，i18n 与交互留给组件。
  */
 
 export interface PickerChannel {

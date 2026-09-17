@@ -19,11 +19,18 @@ If a file fails any test, it goes back to its owning module's L2 directory or st
 - `setup/` — API-key / model-config gates: quick setup dialog, API routes section, face-consent modal
 - `workflow/` — workflow & mode selection: workflow tabs / picker / summary, mode selector, generate bar
 - `primitives/` — small atomic UI primitives (e.g. `tool-surface`)
-- `pickers/` — model selection: `BaseModelPickerPanel`, `MainModelPicker`, `CanvasRoutePicker`
+- `pickers/` — 统一模型选择器：`ModelPickerPopover`（唯一面板）+ `ModelChip`（触发器）+ `MainModelPicker`（按模态取清单的分派器）
 
-## Model pickers — do not write a fourth one
+## Model pickers — there is exactly one
 
-Model UI is classified by **modality first**: `ModelOption.outputType` = `IMAGE | VIDEO | AUDIO | MODEL_3D`. Style / provider / video-brand are all _secondary_ groupings, never the top level.
+2026-09-17（D2 ④，画板 `docs/design/roadmap-canvas/gen/DesignD2Picker.dc.html`）收口：
+**`ModelPickerPopover` 是全仓唯一的模型选择器**。三层钻取的 `BaseModelPickerPanel`
+与更早的 `business/ModelSelector` 都已整删，`StudioModelOption` 搬到
+`@/types/model-option`。
+
+Model UI is classified by **modality first**: `ModelOption.outputType` =
+`IMAGE | VIDEO | AUDIO | MODEL_3D`. Style / provider / video-brand are all
+_secondary_ groupings, never the top level.
 
 The one supported chain:
 
@@ -31,14 +38,29 @@ The one supported chain:
 getAvailable{Image,Video,Audio,3D}Models()
   → use{Image,Video,Audio,3D}ModelOptions()   (per-modality hook)
     → StudioModelOption[]                     (one option shape)
-      → BaseModelPickerPanel                  (search, saved/workspace groups, locked-key → setup)
-        ← MainModelPicker(modality=…)         Studio
-        ← WorkflowModelPicker(kind=…)         Node canvas — parent pre-filters the options
+      → ModelPickerPopover                    (行 = 模型·型号·价格；渠道在右侧独立浮层)
+        ← MainModelPicker(modality=…)         Studio / 3D / LLM 助手
+        ← NodeModelChip / TextAssistantBar / VoiceRoomModelChip  直接挂
 ```
 
-**New model entry points go through `MainModelPicker` + the matching hook.** `business/ModelSelector.tsx` is the older/richer Studio selector and the source of the `StudioModelOption` type — it and `BaseModelPickerPanel` should converge long-term, so do not write half of a feature in each. Node canvas uses `WorkflowModelPicker` with parent-filtered options; `VideoComposer`'s Seedance strip is a brand/speed switch, **not** a model list.
+五处宿主用的是**同一颗触发器**（`ModelChip`：名 + 型号 + 价 / 状态 + caret）与同一个
+弹层，只换触发器上的字。⛔ 不为某个宿主另开一套皮肤。
 
-Route type (native API vs fal/Replicate aggregation vs self-hosted Runner) is an adapter-layer fact — see `docs/references/providers.md`. It is **not** a picker-level grouping; the UI only shows the provider label and key-lock state.
+三条不可动的规则（owner D2 Q1 亲手定）：
+
+1. 行只有三件 —— 模型名 · 型号 · 价格。⛔ 行里不画状态点、不写渠道名、不写能力标。
+2. 渠道面板是独立浮层，浮在弹层右侧、与当前行顶部对齐；绿 / 黄点**只在面板里**。
+3. **没有「自动」渠道**（`resolveModelChannel` 只认「手选记住的」与「只有一条」）。
+   多渠道没点过 = 未选：行价格位写「—」，触发器写「先选渠道」。
+
+例外（**不是**本选择器的变体，各有 owner 记录的理由）：
+`studio/assistant-operator/StudioOperatorModelChip`（助手人设级路由，「自动」是真选
+项；2026-08-19 生产事故后明确不与画布共用）与 `studio/lora/LoraBaseModelModal`
+（LoRA 底模，走 `LoraBaseModel` 兼容性模型，没有渠道这一层）。
+
+Route type (native API vs fal/Replicate aggregation vs self-hosted Runner) is an
+adapter-layer fact — see `docs/references/providers.md`. It is **not** a
+picker-level grouping; the UI only shows the channel label and its key dot.
 
 ## Public API
 

@@ -5,12 +5,14 @@ import { useCallback, useEffect, useState } from 'react'
 import {
   MODEL_PICKER_CHANNEL_STORAGE_KEY,
   MODEL_PICKER_DEFAULT_SCOPE,
+  MODEL_PICKER_PENDING_STORAGE_KEY,
   MODEL_PICKER_RECENT_LIMIT,
   MODEL_PICKER_RECENT_STORAGE_KEY,
 } from '@/constants/model-picker'
 
 /**
- * 模型选择器的两样记忆：**手选的渠道**（按型号）与**最近用过的型号**。
+ * 模型选择器的三样记忆：**手选的渠道**（按型号）、**最近用过的型号**，以及
+ * **选了型号还没选渠道**的那一个（按作用域，至多一个）。
  *
  * 都是纯本地偏好，不上服务端 —— 换一台机器重新按自动规则来是可接受的，而为
  * 「上次点了 fal」开一张表不是。读写全裹 try/catch：隐私窗口里 localStorage
@@ -43,6 +45,14 @@ function writeJson(storageKey: string, value: unknown): void {
 }
 
 export interface ModelPickerMemory {
+  /**
+   * 「选了型号但还没点渠道」的那个型号键；没有就是 null。
+   *
+   * ⚠ 这是 D2 Q1 删掉「自动渠道」之后必然存在的中间态，⛔ 不要用「随便挑一条渠道」
+   * 把它抹平 —— 那就是被删掉的自动规则。
+   */
+  pendingModelKey: string | null
+  setPendingModel: (modelKey: string | null) => void
   /** 该型号被手选过的渠道 id；没有就返回 null（走自动规则）。 */
   manualChannelOf: (modelKey: string) => string | null
   rememberChannel: (modelKey: string, channelId: string) => void
@@ -56,6 +66,7 @@ export function useModelPickerMemory(
 ): ModelPickerMemory {
   const [channels, setChannels] = useState<ScopedRecord>({})
   const [recent, setRecent] = useState<readonly string[]>([])
+  const [pending, setPending] = useState<string | null>(null)
 
   // 只在挂载后读 —— localStorage 在服务端不存在，初值直接读会让 SSR 与首帧不一致。
   // 这不是「从渲染输入推得出来的状态」，是**向外部系统取一次数据后回填**，与
@@ -65,6 +76,10 @@ export function useModelPickerMemory(
     setChannels(readJson<ScopedRecord>(MODEL_PICKER_CHANNEL_STORAGE_KEY, {}))
     setRecent(
       readJson<ScopedList>(MODEL_PICKER_RECENT_STORAGE_KEY, {})[scope] ?? [],
+    )
+    setPending(
+      readJson<ScopedRecord>(MODEL_PICKER_PENDING_STORAGE_KEY, {})[scope] ??
+        null,
     )
   }, [scope])
 
@@ -80,6 +95,17 @@ export function useModelPickerMemory(
         writeJson(MODEL_PICKER_CHANNEL_STORAGE_KEY, next)
         return next
       })
+    },
+    [scope],
+  )
+
+  const setPendingModel = useCallback(
+    (modelKey: string | null) => {
+      setPending(modelKey)
+      const all = readJson<ScopedRecord>(MODEL_PICKER_PENDING_STORAGE_KEY, {})
+      if (modelKey) all[scope] = modelKey
+      else delete all[scope]
+      writeJson(MODEL_PICKER_PENDING_STORAGE_KEY, all)
     },
     [scope],
   )
@@ -100,6 +126,8 @@ export function useModelPickerMemory(
   )
 
   return {
+    pendingModelKey: pending,
+    setPendingModel,
     manualChannelOf,
     rememberChannel,
     recentModelKeys: recent,

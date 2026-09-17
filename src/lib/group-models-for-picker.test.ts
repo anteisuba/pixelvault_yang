@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { AI_MODELS } from '@/constants/models/enum'
 import {
   AI_ADAPTER_TYPES,

@@ -1,4 +1,4 @@
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { STUDIO_IMAGE_ASPECT_RATIOS } from '@/constants/studio'
 import type {
   AdvancedParams,

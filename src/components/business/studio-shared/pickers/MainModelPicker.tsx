@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import type { LlmCapabilityScope } from '@/constants/llm-capability'
 import { use3DModelOptions } from '@/hooks/use-3d-model-options'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
@@ -14,10 +14,18 @@ import {
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 
 import {
-  BaseModelPickerPanel,
-  type BaseModelPickerPanelProps,
-} from './BaseModelPickerPanel'
-import { ModelPickerPopover } from './ModelPickerPopover'
+  ModelPickerPopover,
+  type ModelPickerPopoverProps,
+} from './ModelPickerPopover'
+
+/**
+ * 按模态取清单，再交给**统一模型选择器**（D2 ④）。
+ *
+ * ⚠ 2026-09-17 收口：五个模态**全部**走 `ModelPickerPopover`。三栏钻取的
+ * `BaseModelPickerPanel` 已整删 —— 与它一起没的还有 `layout` / `size` /
+ * `detailForOption` / `triggerLabelForOption` / `enableSearch` 那几个只有三栏认识
+ * 的 prop。⛔ 别为了「少改一个调用方」把它们加回来当无操作。
+ */
 
 export type MainModelPickerModality =
   | 'image'
@@ -33,43 +41,24 @@ interface CommonProps {
   triggerEmptyLabel?: string
   searchPlaceholder?: string
   emptySearchText?: string
-  enableSearch?: boolean
-  size?: 'compact' | 'default'
   popoverSide?: 'top' | 'bottom'
   className?: string
   disabled?: boolean
-  detailForOption?: (option: StudioModelOption) => string | undefined
   /**
    * 在这些模态各自的 hook 取到清单之后再收窄一次。谓词由调用方给 —— 组件本身不认
    * 识任何业务口径。
    *
    * 起因是视频节点的**模式**（关键帧 / 多图参考 / 全能参考）：不符合当前模式的模型
    * 要**直接从列表消失**（owner 2026-08-08 拍板，不是置灰）。
-   *
-   * ⚠ 与 `WorkflowModelPicker` 的 `options` prop 不冲突：那边是**换掉数据源**（父级
-   * 自己 curate 一份），这里是**在同一个数据源上过滤**。视频节点要的是后者 —— 清单
-   * 还是那份视频模型清单，只是按模式收窄。
    */
   filterOption?: (option: StudioModelOption) => boolean
-  /**
-   * 收起态触发器的标签覆写，原样透传给 `BaseModelPickerPanel`（那边接得住，所以不用
-   * 像 `filterOption` 一样在这里消化）。契约见该组件的 prop 注释。
-   */
-  triggerLabelForOption?: BaseModelPickerPanelProps['triggerLabelForOption']
-  /**
-   * 呈现方式，原样透传。⚠ **判据是触发器所在的容器有多宽**：Studio 底部 dock 是
-   * 整宽的，`columns` 的 44rem 面板放得下；画布节点上的 composer 丸放不下，保持
-   * 默认的 `drill`。契约见 `BaseModelPickerPanel` 的 prop 注释。
-   */
-  layout?: BaseModelPickerPanelProps['layout']
-  /**
-   * 只渲染面板本体（不带触发器 / 浮层），原样透传。移动端「chip → vaul 抽屉」的
-   * 宿主用它 —— 抽屉的开合归宿主，面板只是内容。契约见 `BaseModelPickerPanel`。
-   */
-  inline?: BaseModelPickerPanelProps['inline']
-  /** 多选，原样透传（两个要一起给才生效）。契约见 BaseModelPickerPanel。 */
-  selectedOptionIds?: BaseModelPickerPanelProps['selectedOptionIds']
-  onToggleOption?: BaseModelPickerPanelProps['onToggleOption']
+  /** 只渲染面板本体（不带触发器 / 浮层），原样透传。 */
+  inline?: ModelPickerPopoverProps['inline']
+  /** 多选，原样透传（两个要一起给才生效）。 */
+  selectedOptionIds?: ModelPickerPopoverProps['selectedOptionIds']
+  onToggleOption?: ModelPickerPopoverProps['onToggleOption']
+  /** 底部「配置渠道与 key…」，原样透传。 */
+  onManageChannels?: ModelPickerPopoverProps['onManageChannels']
 }
 
 export type MainModelPickerProps = CommonProps &
@@ -99,11 +88,6 @@ export function MainModelPicker(props: MainModelPickerProps) {
   }
 }
 
-/**
- * ⚠ `filterOption` 必须在这里消化掉，不能连同 `...props` 一起 spread 进
- * `BaseModelPickerPanel` —— 那边没有这个 prop，会被**静默丢弃**（同 D7 台账里
- * `triggerLabel` 那次：传了一个不存在的 prop，谁都没报错，功能就是不生效）。
- */
 function useFiltered(
   modelOptions: StudioModelOption[],
   filterOption: CommonProps['filterOption'],
@@ -115,76 +99,62 @@ function useFiltered(
 }
 
 /**
- * 图片模态走**方案 A 的弹层**（`ModelPickerPopover`），不再是三栏对话框。
- *
- * ⚠ 只有图片换了。视频要按模式收窄端点、音频的三组类型、3D 与 LLM 各有自己的
- * 列表口径，它们仍走 `BaseModelPickerPanel`，由 S2–S6 各自的节点切片接过去。
- *
- * ⚠ 这里**逐个列 prop，不 spread**：三栏专用的那几个（`layout` / `size` /
- * `detailForOption` / `triggerLabelForOption` / `enableSearch`）新弹层没有，
- * spread 过去会被静默丢弃 —— 调用方以为传上了，功能就是不生效（D7 台账那个老坑）。
+ * 每个模态只换两件事：**清单从哪个 hook 来**、**记忆作用域叫什么**。其余一律原样
+ * 透传 —— 五处宿主同一颗触发器、同一个弹层（D2 ④「五处宿主同一形状」）。
  */
+function toPickerProps(
+  props: CommonProps,
+  options: StudioModelOption[],
+  memoryScope: string,
+): ModelPickerPopoverProps {
+  // `filterOption` 在各模态的 `useFiltered` 里已经消化掉了，⛔ 不能连同 `...rest`
+  // 一起 spread 下去 —— 弹层没有这个 prop，会被**静默丢弃**（D7 台账那个老坑）。
+  const { filterOption, popoverSide, ...rest } = props
+  void filterOption
+  return {
+    ...rest,
+    options,
+    memoryScope,
+    ...(popoverSide ? { side: popoverSide } : {}),
+  }
+}
+
 function MainModelPickerImage(props: CommonProps) {
   const { modelOptions } = useImageModelOptions()
   const options = useFiltered(modelOptions, props.filterOption)
-  return (
-    <ModelPickerPopover
-      options={options}
-      memoryScope="image"
-      value={props.value}
-      onChange={props.onChange}
-      onRequestSetup={props.onRequestSetup}
-      triggerEmptyLabel={props.triggerEmptyLabel}
-      searchPlaceholder={props.searchPlaceholder}
-      emptySearchText={props.emptySearchText}
-      side={props.popoverSide}
-      disabled={props.disabled}
-      className={props.className}
-      inline={props.inline}
-      selectedOptionIds={props.selectedOptionIds}
-      onToggleOption={props.onToggleOption}
-    />
-  )
+  return <ModelPickerPopover {...toPickerProps(props, options, 'image')} />
 }
 
-function MainModelPickerVideo({ filterOption, ...props }: CommonProps) {
+function MainModelPickerVideo(props: CommonProps) {
   const { modelOptions } = useVideoModelOptions(props.value ?? '')
-  const options = useFiltered(modelOptions, filterOption)
-  return <BaseModelPickerPanel options={options} {...props} />
+  const options = useFiltered(modelOptions, props.filterOption)
+  return <ModelPickerPopover {...toPickerProps(props, options, 'video')} />
 }
 
-function MainModelPickerAudio({ filterOption, ...props }: CommonProps) {
+function MainModelPickerAudio(props: CommonProps) {
   const { modelOptions } = useAudioModelOptions()
-  const options = useFiltered(modelOptions, filterOption)
-  return <BaseModelPickerPanel options={options} {...props} />
+  const options = useFiltered(modelOptions, props.filterOption)
+  return <ModelPickerPopover {...toPickerProps(props, options, 'audio')} />
 }
 
-function MainModelPicker3D({ filterOption, ...props }: CommonProps) {
+function MainModelPicker3D(props: CommonProps) {
   const { modelOptions } = use3DModelOptions()
-  const options = useFiltered(modelOptions, filterOption)
-  return <BaseModelPickerPanel options={options} {...props} />
+  const options = useFiltered(modelOptions, props.filterOption)
+  return <ModelPickerPopover {...toPickerProps(props, options, 'model_3d')} />
 }
 
 interface LLMSubProps extends CommonProps {
   scope: LlmCapabilityScope
 }
 
-function MainModelPickerLLM({ scope, filterOption, ...rest }: LLMSubProps) {
+function MainModelPickerLLM({ scope, ...rest }: LLMSubProps) {
   const { allRoutes } = useLLMRoutePicker(scope)
-
   const options = useMemo<StudioModelOption[]>(
     () => allRoutes.map(routeToStudioOption),
     [allRoutes],
   )
-  const filtered = useFiltered(options, filterOption)
-
-  return (
-    <BaseModelPickerPanel
-      options={filtered}
-      savedOptionLabelMode="model"
-      {...rest}
-    />
-  )
+  const filtered = useFiltered(options, rest.filterOption)
+  return <ModelPickerPopover {...toPickerProps(rest, filtered, 'llm_assist')} />
 }
 
 /** Exported for unit-testing the conversion from LLM scope → picker shape. */

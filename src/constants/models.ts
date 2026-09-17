@@ -295,9 +295,8 @@ export const getModelFamily = (modelId: string): string | null =>
  * reference 后缀、但保留 fast」——`seedance-2.0-fast-reference-volcengine` 要剥
  * 两段留一段，再多一个型号就可能剥错。
  *
- * ⚠ 一个系列只有一个型号时（Veo / Gemini / HappyHorse / LTX / MiniMax），UI 应
- * **跳过第二层**直接进第三层，同 `BaseModelPickerPanel` 现有的 singleProvider
- * 处理，别为了结构对称让用户多点一次。
+ * ⚠ 一个系列只有一个型号时（Veo / Gemini / HappyHorse / LTX / MiniMax），分组标题
+ * 下就那一行 —— 统一选择器（D2 ④）本来就一屏摊平，不存在「多点一层」的问题。
  *
  * 设计出处：`docs/references/pages/canvas-video-card.md` §6.3。
  */

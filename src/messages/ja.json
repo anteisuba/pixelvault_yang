@@ -5112,12 +5112,7 @@
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
       "setupClaude": "Claude",
-      "setupGrok": "Grok",
-      "mediaCapabilities": {
-        "imageVideo": "画像＋動画",
-        "imageOnly": "画像の理解に対応",
-        "textOnly": "テキストのみ"
-      }
+      "setupGrok": "Grok"
     },
     "inspector": {
       "unsupported": "このノードの設定パネルは、まだ用意されていません。"
@@ -8079,15 +8074,11 @@
   "ModelPicker": {
     "recent": "最近",
     "searchPlaceholder": "モデルを検索…",
-    "channelCount": "{count} チャネル",
-    "autoRule": "自動では、ご自身のキー、最安のルートの順に選びます。手動で選んだルートは記憶されます",
-    "needsKeyFor": "{provider} の API キーが必要",
+    "channelUnset": "—",
+    "pickChannel": "ルートを選択",
+    "missingKey": "キーが必要",
+    "channelPanelLabel": "{model} のルート",
     "manageChannels": "チャネルとキーを設定…",
-    "capability": {
-      "reference": "参照画像",
-      "multiReference": "複数参照画像",
-      "lora": "LoRA"
-    },
     "kinds": {
       "speech": "音声",
       "music": "BGM",

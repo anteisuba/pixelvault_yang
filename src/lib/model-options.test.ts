@@ -13,7 +13,7 @@ import {
   buildSavedModelOptionsForModels,
   withProviderKeyCoverage,
 } from '@/lib/model-options'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import type { UserApiKeyRecord } from '@/types'
 
 function makeKey(

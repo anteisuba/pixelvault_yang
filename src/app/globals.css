@@ -114,8 +114,9 @@
      呼吸——`bottom-safe-bottom` 工具类消费。env() 不能塞进纯 Tailwind 间距刻度，
      故单开一个 token（Hard Rule 5：禁 arbitrary value，非禁自定义 token）。 */
   --spacing-safe-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
-  /* 模型选择器弹层（方案 A，node-canvas-v2 §1.6）：340px，贴 chip 弹出。 */
-  --width-model-picker: 21.25rem;
+  /* 统一模型选择器（D2 ④ 画板）：弹层 380px，渠道面板 190px 浮在它右侧。 */
+  --width-model-picker: 23.75rem;
+  --width-model-channel-panel: 11.875rem;
   --width-studio-left: 20rem;
   --width-studio-right: 28rem;
   --width-studio-sidebar: 13rem;

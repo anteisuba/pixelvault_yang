@@ -5,7 +5,7 @@
  * ⛔ 组件里不再出现第二份算术（v3 的卡宽在三处各算了一遍，改一处另两处不跟）。
  */
 
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { IMAGE_SIZES, type AspectRatio } from '@/constants/config'
 import {
   ADAPTER_CAPABILITIES,

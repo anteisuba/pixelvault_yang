@@ -41,7 +41,7 @@ import {
   getNodeModeForModel,
   type VideoNodeMode,
 } from '@/constants/video-node-modes'
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import type { VideoAudioReference } from '@/contexts/studio-context'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import type { StudioModelOption } from '@/components/business/ModelSelector'
+import type { StudioModelOption } from '@/types/model-option'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { GenerationRecord } from '@/types'
 

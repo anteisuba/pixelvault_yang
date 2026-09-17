@@ -82,7 +82,7 @@ export function getOpenAIImageOutputPrice(
  *
  * 2026-08-28 首页价目页随 owner 拍板整页退役，那张存量表与 `resolveHomepage-
  * ReferencePrice` 一并删除（未搬完的 7 条见该次提交）。现在只剩本表，消费者是
- * `StudioCostPreview` 与 `BaseModelPickerPanel`。**补价格只补本表。**
+ * `StudioCostPreview` 与 `ModelPickerPopover`。**补价格只补本表。**
  *
  * ⚠ 口径是「**按产品默认档**」——哪个开关默认开就报哪个价。当前目录里 12 个有价
  * 视频模型**全部** `generateAudio: true`，所以默认档恰好等于本表已有的含音频口径，

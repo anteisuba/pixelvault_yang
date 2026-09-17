@@ -5,14 +5,28 @@ import { Slider as SliderPrimitive } from 'radix-ui'
 
 import { cn } from '@/lib/utils'
 
+interface SliderProps extends React.ComponentProps<
+  typeof SliderPrimitive.Root
+> {
+  /** 拇指的额外样式。 */
+  thumbClassName?: string
+  /** 轨道的额外样式（高度 / 圆角 / 底色）。 */
+  trackClassName?: string
+  /** 已选填充的额外样式。 */
+  rangeClassName?: string
+}
+
 function Slider({
   className,
   defaultValue,
   value,
   min = 0,
   max = 100,
+  thumbClassName,
+  trackClassName,
+  rangeClassName,
   ...props
-}: React.ComponentProps<typeof SliderPrimitive.Root>) {
+}: SliderProps) {
   const _values = React.useMemo(
     () =>
       Array.isArray(value)
@@ -40,12 +54,14 @@ function Slider({
         data-slot="slider-track"
         className={cn(
           'relative grow overflow-hidden rounded-full bg-muted data-[orientation=horizontal]:h-1.5 data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-1.5',
+          trackClassName,
         )}
       >
         <SliderPrimitive.Range
           data-slot="slider-range"
           className={cn(
             'absolute bg-primary data-[orientation=horizontal]:h-full data-[orientation=vertical]:w-full',
+            rangeClassName,
           )}
         />
       </SliderPrimitive.Track>
@@ -53,7 +69,10 @@ function Slider({
         <SliderPrimitive.Thumb
           data-slot="slider-thumb"
           key={index}
-          className="block size-4 shrink-0 rounded-full border border-primary bg-background shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50"
+          className={cn(
+            'block size-4 shrink-0 rounded-full border border-primary bg-background shadow-sm ring-ring/50 transition-[color,box-shadow] hover:ring-4 focus-visible:ring-4 focus-visible:outline-hidden disabled:pointer-events-none disabled:opacity-50',
+            thumbClassName,
+          )}
         />
       ))}
     </SliderPrimitive.Root>

@@ -62,7 +62,6 @@ function makeOption(over: Partial<StudioModelOption>): StudioModelOption {
     providerConfig: { label: 'P', baseUrl: '' },
     requestCount: 0,
     isBuiltIn: false,
-    freeTier: false,
     sourceType: 'saved',
     ...over,
   } as StudioModelOption

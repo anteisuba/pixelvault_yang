@@ -11,7 +11,6 @@ vi.mock('@/constants/models', async () => {
       adapterType: AI_ADAPTER_TYPES.RUNNER,
       providerConfig: { label: 'PixelVault Runner', baseUrl: '' },
       cost: 3,
-      freeTier: false,
       imageKind: IMAGE_KIND.LORA_BASE,
     },
     {
@@ -19,7 +18,6 @@ vi.mock('@/constants/models', async () => {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       providerConfig: { label: 'OpenAI', baseUrl: '' },
       cost: 1,
-      freeTier: false,
     },
   ]
   return {

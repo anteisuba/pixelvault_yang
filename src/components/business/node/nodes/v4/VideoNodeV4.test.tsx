@@ -695,7 +695,7 @@ describe('参数 chip 永不为空（spec §5）', () => {
       harness([videoNode('v_1')], {
         modelOptionsByKind: {
           video: [
-            option('opt_platform', { freeTier: true }),
+            option('opt_keyless'),
             option('opt_mine', { sourceType: 'saved', apiKeyId: 'k_1' }),
           ],
         },

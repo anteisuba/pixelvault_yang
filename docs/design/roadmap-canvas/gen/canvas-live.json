@@ -452,6 +452,24 @@
       "h": 1530,
       "title": "D1 ④ 场景套用",
       "page": "page-9"
+    },
+    {
+      "file": "DesignD2Q1.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 1030,
+      "title": "D2 ① Q1 对照 A vs B",
+      "page": "page-11"
+    },
+    {
+      "file": "DesignD2Map.dc.html",
+      "x": 1500,
+      "y": 0,
+      "w": 1400,
+      "h": 1450,
+      "title": "D2 ② 思维导图",
+      "page": "page-11"
     }
   ],
   "annotations": [
@@ -726,7 +744,7 @@
   ],
   "launch": {
     "view": "canvas",
-    "page": "page-7"
+    "page": "page-11"
   },
   "pages": [
     {
@@ -768,6 +786,10 @@
     {
       "id": "page-10",
       "name": "UI 全清单"
+    },
+    {
+      "id": "page-11",
+      "name": "D2 · 选择器 / 表单 / 规格"
     }
   ]
 }

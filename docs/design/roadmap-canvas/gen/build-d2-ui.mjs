@@ -123,19 +123,21 @@ const FORM = header('PixelVault · D2 ④ · 能力驱动表单 · 2026-09-17', 
 // ═══════════ 3 · 规格 chip ═══════════
 const segBtn = (t, on = false, dis = false) => `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:44px;height:30px;padding:0 10px;border-radius:8px;font-size:12.5px;background:${on ? FG : '#fff'};color:${on ? '#fff' : dis ? '#c4c4c4' : FG};border:1px solid ${on ? FG : BORDER};${dis ? 'text-decoration:line-through;' : ''}">${esc(t)}</span>`
 const seg = (label, items, extra = '') => `<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div class="lab">${esc(label)}</div>${extra}</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${items.map(([t, on, dis]) => segBtn(t, on, dis)).join('')}</div></div>`
-const durSlider = (v, min, max, unit) => { const pct = ((v - min) / (max - min)) * 100; const ticks = Array.from({ length: max - min + 1 }, (_, i) => min + i); return `<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div class="lab">时长</div><span class="tok" style="color:${MUTED}">${v} s · $${(v * unit).toFixed(2)}</span></div>
-  <div style="position:relative;height:36px;margin-top:4px;padding:0 10px">
-    <div style="position:absolute;left:10px;right:10px;top:16px;height:4px;border-radius:2px;background:${BORDER}"></div>
-    <div style="position:absolute;left:10px;width:calc(${pct}% - ${pct / 100 * 20}px);top:16px;height:4px;border-radius:2px;background:${FG}"></div>
-    ${ticks.map((t) => { const tp = ((t - min) / (max - min)) * 100; const major = t === min || t === max || t % 5 === 0; return `<div style="position:absolute;left:calc(${tp}% + ${10 - tp / 100 * 20}px);top:${major ? 24 : 26}px;width:1px;height:${major ? 6 : 3}px;background:${major ? '#a3a3a3' : '#d4d4d4'}"></div>${major ? `<div class="tok" style="position:absolute;left:calc(${tp}% + ${10 - tp / 100 * 20}px);top:31px;transform:translateX(-50%);font-size:9.5px;color:${MUTED}">${t}</div>` : ''}` }).join('')}
-    <div style="position:absolute;left:calc(${pct}% + ${10 - pct / 100 * 20}px);top:8px;width:20px;height:20px;transform:translateX(-50%);border-radius:50%;background:#fff;border:1px solid ${BORDER};box-shadow:${SH_FLOAT}"></div>
+// owner 手改版（批注 42 之后）：轨道 12px 高、填充 8px 内嵌 2px、拇指 11px 白圆坐在填充末端、气泡贴在拇指上方无箭头
+const durSlider = (v, min, max, unit, { trackW = 260 } = {}) => { const fillW = Math.round(((v - min) / (max - min)) * trackW); return `<div style="margin-top:12px"><div style="display:flex;justify-content:space-between;align-items:baseline"><div class="lab">时长</div><span class="tok" style="color:${MUTED}">$${(v * unit).toFixed(2)}</span></div>
+  <div style="position:relative;height:44px;margin-top:2px;padding:0 10px">
+    <div style="position:absolute;left:${10 + fillW}px;top:6px;transform:translateX(-50%);padding:2px 7px;border-radius:6px;background:${FG};color:#fff;${MONO}font-size:11px;line-height:1.4;white-space:nowrap">${v} s</div>
+    <div style="position:absolute;left:10px;top:32px;width:${trackW}px;height:12px;border-radius:2px;background:${BORDER}">
+      <div style="position:absolute;left:-1px;top:2px;width:${fillW}px;height:8px;border-radius:2px;background:${FG}"></div>
+      <div style="position:absolute;left:${fillW}px;top:-3px;width:11px;height:11px;transform:translateX(-50%);border-radius:50%;background:#fff;border:1px solid ${BORDER};box-shadow:${SH_FLOAT}"></div>
+    </div>
   </div></div>` }
 const glyph = (r) => { const [w, h] = r.split(':').map(Number); const W = w >= h ? 12 : Math.round(12 * w / h), H = w >= h ? Math.round(12 * h / w) : 12; return `<span style="display:inline-block;width:${W}px;height:${H}px;border:1.5px solid currentColor;border-radius:2px;margin-right:6px;vertical-align:-1px"></span>` }
 const ratioSeg = (kind, locked = false) => `<div style="margin-top:12px${locked ? ';opacity:.5' : ''}"><div class="lab">比例</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px">${[['1:1', !locked], ['16:9'], ['9:16'], ['4:3'], ['3:4'], ['21:9', false, kind === 'video']].map(([t, on, dis]) => segBtn(t, on, dis).replace('">' + esc(t), '">' + glyph(t) + esc(t))).join('')}</div></div>${locked ? `<div style="margin-top:6px;font-size:12px;color:${MUTED}">已放首帧，宽高比跟随这张图（自适应）。</div>` : ''}`
 const specPop = (kind, { locked = false } = {}) => `<div style="width:360px;background:#fff;border:1px solid ${BORDER};border-radius:12px;box-shadow:${SH_OVERLAY};padding:12px 14px 14px">
   ${ratioSeg(kind, locked)}
   ${seg(kind === 'video' ? '清晰度' : '尺寸 / 清晰度', kind === 'video' ? [['480p'], ['720p', true], ['1080p']] : [['1K'], ['2K', true], ['4K', false, true]], kind === 'video' ? `<span class="tok" style="color:${MUTED}">1080p +$0.26 / s</span>` : `<span class="tok" style="color:${MUTED}">4K · 此模型不支持</span>`)}
-  ${kind === 'video' ? durSlider(5, 4, 30, 0.213) : ''}
+  ${kind === 'video' ? durSlider(12, 4, 30, 0.213) : ''}
   <div style="margin-top:14px;padding-top:10px;border-top:1px dashed ${BORDER};display:flex;align-items:center;justify-content:space-between;font-size:12.5px;color:${MUTED}"><span>更多 · ${kind === 'video' ? '声音 · seed' : 'seed · 格式 · 张数'}</span>${ic('caret', MUTED)}</div>
 </div>`
 const specChipEl = (t, { on = false } = {}) => `<span style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;border:1px solid ${on ? FG : BORDER};background:#fff;font-size:13px;box-shadow:${on ? `0 0 0 3px ${MUTEDBG}` : 'none'}">${esc(t)}${ic('caret', MUTED)}</span>`
@@ -145,14 +147,14 @@ const SPEC = header('PixelVault · D2 ④ · 规格 chip · 2026-09-17', '一颗
   sec('弹层 · 图片 / 视频两版', '同一组件，段落按模态取子集') +
   `<div style="display:flex;gap:28px;flex-wrap:wrap;margin-top:10px;align-items:flex-start">
     <div>${frame(specPop('image'))}${cap('图片：比例 · 尺寸 / 清晰度 两段；4K 在 Seedream 5.0 上不支持 → 灰显划线，hover 看原因「此模型最高 2K」。比例 chip 带现有 StudioRatioGlyph 小框。图片模型照常发用户选的比例，没有锁。')}</div>
-    <div>${frame(specPop('video'))}${cap('视频：比例 · 清晰度 · 时长 三段；1080p 旁显单价差（fal 2.5 有核实价才显）；21:9 在 Seedance 2.5 不支持。时长是滚动条：范围与刻度来自该模型 supportedDurations（Seedance 2.5 = 4–30 s 整秒），拖动按 snapVideoDuration 吸附到整秒，右上实时显「秒 · 合计价」；只有 3 档以内的模型（如 Veo 4/6/8）才退回按钮。')}</div>
+    <div>${frame(specPop('video'))}${cap('视频：比例 · 清晰度 · 时长 三段；1080p 旁显单价差（fal 2.5 有核实价才显）；21:9 在 Seedance 2.5 不支持。时长是滚动条：范围来自该模型 supportedDurations（Seedance 2.5 = 4–30 s 整秒），轨道下不画刻度；拖动按 snapVideoDuration 吸附到整秒，当前时长以气泡跟着拇指显示（批注 42），右上只显合计价；只有 3 档以内的模型（如 Veo 4/6/8）才退回按钮。')}</div>
     <div>${frame(specPop('video', { locked: true }))}${cap('视频 · 首帧已放（Seedance 2.5 关键帧档）：现有「首帧锁自适应」原样搬进来 —— 契约 imageAspectRatioLock 非空 且 首帧槽真的有图 → 比例组禁用不移除（opacity 50%，无选中），下面一句说清是谁锁的、怎么解除；chip 摘要去掉比例只剩「720p · 5s」。摘掉首帧即恢复。参考端点（2.5 参考档）不在此约束里。')}</div>
   </div>` +
   sec('画布提示词栏 · 结果', 'chip ≤ 2') +
   `<div style="margin-top:10px;display:inline-flex;align-items:center;gap:8px;padding:8px 10px;border-radius:14px;background:color-mix(in oklab,#fff 70%,transparent);backdrop-filter:blur(14px);border:1px solid rgba(0,0,0,.06);box-shadow:${SH_FLOAT}">${trigger('Seedance 2.5', '$0.213 / s')}${specChipEl('16:9 · 720p · 5s')}<span style="width:1px;height:20px;background:${BORDER}"></span>${ic('sound', MUTED, 18)}<span style="width:1px;height:20px;background:${BORDER}"></span><span style="display:inline-flex;height:32px;padding:0 14px;border-radius:999px;background:${FG};color:#fff;font-size:13px;align-items:center">生成</span></div>
   <div class="cap">画布节点提示词栏只剩 模型 chip + 规格 chip（+ 声音开关图标 + 生成）。声音开关保留为图标不进 chip，因为它是一次生成的开关不是规格。手机：同一弹层 inline 进底部 Sheet，三段变纵向，滑块拇指 44px。</div>` +
   reply(40, '比例加上图像参考 → 按现有设计来', ['不另加「参考」档。沿用现有「首帧锁自适应」（owner 2026-09-06 定，StudioVideoSpecFields）：契约 imageAspectRatioLock 非空的模型（Seedance 2.5 关键帧档）挂了首帧 → 比例组禁用不移除 + 一句「已放首帧，宽高比跟随这张图（自适应）」，chip 摘要去掉比例。', '图片模型与 2.5 参考端点没有这条锁，照常发用户选的比例。比例 chip 保留现有 StudioRatioGlyph 小框。']) +
-  reply(41, '时长应该做成滚动的。', ['时长改成滚动条：min–max 与刻度取自模型 supportedDurations，拖动按整秒吸附（snapVideoDuration），5 的倍数与两端有数字刻度，右上实时显「秒 · 合计价」。', '手机端同一滚动条，拇指 44px。只有 ≤3 档的模型（Veo 4 / 6 / 8 s）退回三颗按钮。'])
+  reply(41, '时长应该做成滚动的。→ 42：刻度不要，随滑动显示当前时长', ['时长改成滚动条：min–max 取自模型 supportedDurations，拖动按整秒吸附（snapVideoDuration）。轨道下**不画刻度**；当前时长以黑底小气泡贴在拇指上方跟着走，松手后留在原位；右上只显合计价。owner 手改定型：轨道 12px 高、填充 8px 内嵌、拇指 11px 白圆坐在填充末端、气泡无箭头。', '手机端同一滚动条，拇指 44px。只有 ≤3 档的模型（Veo 4 / 6 / 8 s）退回三颗按钮。'])
 
 for (const [name, html] of [
   ['DesignD2Picker.dc.html', page('D2 ④ 选择器', PICKER)],

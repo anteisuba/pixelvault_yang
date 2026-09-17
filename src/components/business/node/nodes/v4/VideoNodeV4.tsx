@@ -182,6 +182,7 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
     railCandidatesOf,
     paramsChip,
     modelChip,
+    audioToggle,
     mentionOptions,
     frameTokens,
     frameCandidates,
@@ -740,6 +741,9 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
               mentionOptions={mentionOptions}
               renderValue={renderPromptValue}
               chips={[modelChip, paramsChip].filter(Boolean)}
+              // chip 与发送钮之间那颗声音开关（画板「画布提示词栏 · 结果」）。
+              // ⛔ 不当第三颗 chip：出不出声是这一枪的开关，不是规格。
+              {...(audioToggle ? { trailing: audioToggle } : {})}
             />
           </div>
         </FlowNodeToolbar>

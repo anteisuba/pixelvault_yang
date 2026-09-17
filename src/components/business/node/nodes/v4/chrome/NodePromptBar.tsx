@@ -72,6 +72,15 @@ export interface NodePromptBarProps {
   /** `+` 的菜单项（用 `DropdownMenuItem` 拼）。不给就不渲染 `+`。 */
   readonly addMenu?: ReactNode
   /**
+   * chip 与发送钮之间那一格（画板 `DesignD2Spec` 的「画布提示词栏 · 结果」：
+   * 模型 chip · 规格 chip · 竖线 · 声音图标 · 竖线 · 生成）。
+   *
+   * ⚠ 它**不是第四颗 chip**：`promptChipMax` 那条上限管的是「参数摘要」这一类，
+   * 而这一格装的是一次生成的开关（开关不是规格，D2 ④ 定案点 6）。给了才连同两条
+   * 竖线一起渲染；⛔ 空的时候不留一条孤零零的分隔线。
+   */
+  readonly trailing?: ReactNode
+  /**
    * **栏内首行**（画板 `VideoSelected.dc.html`：已挂的首帧 / 尾帧 / 语音那排小
    * chip 就在栏里、正文之上，同一片玻璃）。
    *
@@ -132,6 +141,7 @@ export function NodePromptBar({
   placeholder,
   chips,
   addMenu,
+  trailing,
   leadingRow,
   ariaLabel,
   className,
@@ -453,6 +463,13 @@ export function NodePromptBar({
         <div className="flex min-w-0 flex-1 items-center gap-1.5">
           {visibleChips}
         </div>
+        {trailing ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <span aria-hidden className="h-5 w-px bg-border" />
+            {trailing}
+            <span aria-hidden className="h-5 w-px bg-border" />
+          </div>
+        ) : null}
         {overflowing && (
           <span
             data-prompt-bar-count

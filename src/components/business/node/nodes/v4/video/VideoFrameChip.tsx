@@ -5,8 +5,11 @@
  *
  * ⭐ 2026-09-18（D2 ④ 第 12 项）：它不再自己画一张 300 宽的四段弹层，而是挂共用的
  * `SpecChip` —— 与工作台图片 / 工作台视频 / 画布图片卡是**同一颗组件**。chip 上写
- * 全量摘要「比例 · 清晰度 · 时长」，弹层三段（时长是滚动条），生成声音与「这次按
- * ×」「已挂 N / 上限」那几行读数收进底部「更多」折叠区。
+ * 全量摘要「比例 · 清晰度 · 时长」，弹层三段（时长是滚动条），「这次按 ×」与
+ * 「已挂 N / 上限」那几行只读读数收进底部「更多」折叠区。
+ *
+ * ⚠ 生成声音**不在这里**（D2 ④ 定案点 6）：它是提示词栏上一颗独立的图标开关
+ * （`VideoAudioToggle`）—— 出不出声是这一枪的开关，不是规格。
  *
  * ⛔ 这里不算任何一个数：档位值域与摘要在 `@/lib/spec-chip-model`，底部读数与估价
  * 仍在 `video-node-model.ts`。
@@ -18,14 +21,10 @@ import {
   asVideoResolution,
   buildVideoSpecChipModel,
 } from '@/lib/spec-chip-model'
-import { Switch } from '@/components/ui/switch'
 import { SpecChip } from '@/components/business/studio-shared/spec'
 import type { NodeV4GenerationParams } from '@/types/node-workflow'
 
-import {
-  videoFrameReadout,
-  videoSupportsGeneratedAudio,
-} from './video-node-model'
+import { videoFrameReadout } from './video-node-model'
 
 export interface VideoFrameChipProps {
   readonly params: NodeV4GenerationParams | undefined
@@ -48,7 +47,6 @@ export interface VideoFrameChipProps {
   onDurationChange(next: string): void
   onAspectRatioChange(next: string): void
   onResolutionChange(next: string): void
-  onGenerateAudioChange(next: boolean): void
   readonly disabled?: boolean
 }
 
@@ -62,7 +60,6 @@ export function VideoFrameChip({
   onDurationChange,
   onAspectRatioChange,
   onResolutionChange,
-  onGenerateAudioChange,
   disabled = false,
 }: VideoFrameChipProps) {
   const t = useTranslations('StudioNode.v4.video')
@@ -75,7 +72,6 @@ export function VideoFrameChip({
     resolution: params?.resolution ?? null,
     durationSeconds: Number.isFinite(durationSeconds) ? durationSeconds : null,
   })
-  const audioSupported = videoSupportsGeneratedAudio(modelId)
   const readout = videoFrameReadout(modelId, params, readoutGroups)
 
   return (
@@ -93,28 +89,11 @@ export function VideoFrameChip({
       }}
       onDurationChange={(seconds) => onDurationChange(String(seconds))}
       disabled={disabled}
-      moreSummary={audioSupported ? tSpec('moreItem.audio') : undefined}
+      moreSummary={tSpec('moreItem.details')}
       data-testid="video-frame-chip"
       triggerClassName="h-6 min-h-6 max-w-50 px-2 text-2xs"
       more={
         <div className="flex flex-col gap-3">
-          {/* 生成声音是**开关**不是 chip（画板原话）。⚠ 模型发不出这个字段时
-              禁用不隐藏（Hard Rule 8）：用户看得见「这个模型不带音轨」。 */}
-          <div className="flex items-center justify-between gap-3">
-            <span className="flex flex-col gap-0.5">
-              <span className="text-2sm">{t('frame.generateAudio')}</span>
-              <span className="text-3xs text-muted-foreground">
-                {t('frame.generateAudioHint')}
-              </span>
-            </span>
-            <Switch
-              data-video-generate-audio
-              aria-label={t('frame.generateAudio')}
-              disabled={!audioSupported || disabled}
-              checked={Boolean(params?.generateAudio)}
-              onCheckedChange={onGenerateAudioChange}
-            />
-          </div>
           {/* 「这次按 ×」——只读读数（画板 `VideoRefs` 弹层首行）。 */}
           {modeLabel ? (
             <div className="flex flex-col gap-1">

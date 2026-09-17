@@ -5877,7 +5877,9 @@
           "editAriaLabel": "カット説明を編集",
           "readout": "{chars} 文字 · {slots} 件を接続中",
           "pickModel": "モデルを選ぶ",
-          "modeLabel": "今回は"
+          "modeLabel": "今回は",
+          "audioOn": "音声あり — クリックでオフ",
+          "audioOff": "音声なし — クリックでオン"
         },
         "model": {
           "title": "モデル"
@@ -8126,7 +8128,8 @@
     "moreItem": {
       "batchCount": "枚数",
       "audio": "音声",
-      "seed": "シード"
+      "seed": "シード",
+      "details": "詳細"
     }
   }
 }

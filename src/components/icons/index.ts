@@ -266,6 +266,10 @@ export {
   UserIcon as UserRound,
   UsersIcon as Users,
   VideoCameraIcon as Video,
+  // Phosphor spellings (⛔ 不新造 lucide 形状的别名，见文件头)：画布视频卡提示词栏
+  // 那颗声音开关用的就是这一对。
+  SpeakerHighIcon as SpeakerHigh,
+  SpeakerSlashIcon as SpeakerSlash,
   SpeakerHighIcon as Volume2,
   SpeakerXIcon as VolumeX,
   MagicWandIcon as Wand2,

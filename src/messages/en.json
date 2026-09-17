@@ -5877,7 +5877,9 @@
           "editAriaLabel": "Edit shot notes",
           "readout": "{chars} chars · {slots} attached",
           "pickModel": "Pick a model",
-          "modeLabel": "This run"
+          "modeLabel": "This run",
+          "audioOn": "Audio on — click to mute",
+          "audioOff": "Audio off — click to unmute"
         },
         "model": {
           "title": "Model"
@@ -8126,7 +8128,8 @@
     "moreItem": {
       "batchCount": "Count",
       "audio": "Audio",
-      "seed": "Seed"
+      "seed": "Seed",
+      "details": "Details"
     }
   }
 }

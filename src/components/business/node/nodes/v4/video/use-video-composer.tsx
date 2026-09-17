@@ -55,6 +55,7 @@ import {
 } from '../chrome'
 import { useNodeV4Canvas } from '../NodeV4Context'
 import { toStudioModelOption } from '../image/image-node-model'
+import { VideoAudioToggle } from './VideoAudioToggle'
 import { VideoFrameChip } from './VideoFrameChip'
 import {
   useVideoRailBinding,
@@ -63,6 +64,7 @@ import {
 import {
   videoEffectiveParams,
   videoSendMode,
+  videoSupportsGeneratedAudio,
   videoVersions,
 } from './video-node-model'
 
@@ -99,6 +101,12 @@ export interface VideoComposer extends Omit<
 
   readonly paramsChip: ReactNode
   readonly modelChip: ReactNode
+  /**
+   * 提示词栏 chip 与发送钮之间那颗声音开关（D2 ④ 定案点 6）。⚠ 这条端点发不出
+   * `generateAudio` 时是 `null` —— 宿主照原样传给 `trailing`，那一格连同两条竖线
+   * 一起不渲染。
+   */
+  readonly audioToggle: ReactNode
   readonly mentionOptions: readonly MentionPickerOption[]
   readonly frameTokens: readonly MentionToken[]
   readonly frameCandidates: readonly MentionCandidate[]
@@ -506,9 +514,20 @@ export function useVideoComposer({
       onDurationChange={(duration) => setParams({ duration })}
       onAspectRatioChange={(aspectRatio) => setParams({ aspectRatio })}
       onResolutionChange={(resolution) => setParams({ resolution })}
-      onGenerateAudioChange={(generateAudio) => setParams({ generateAudio })}
     />
   )
+
+  /**
+   * 声音开关 —— ⛔ 不进 chip 也不进规格弹层：chip 答「下一版长什么样」，出不出声
+   * 是这一枪的开关（画板「声音开关保留图标不进 chip」）。
+   */
+  const audioToggle = videoSupportsGeneratedAudio(modelId) ? (
+    <VideoAudioToggle
+      value={Boolean(effectiveParams.generateAudio)}
+      disabled={generating}
+      onChange={(generateAudio) => setParams({ generateAudio })}
+    />
+  ) : null
 
   const modelChip = (
     <NodeModelChip
@@ -536,6 +555,7 @@ export function useVideoComposer({
     railCandidatesOf: rail.candidatesOf,
     paramsChip,
     modelChip,
+    audioToggle,
     mentionOptions,
     frameTokens,
     frameCandidates,

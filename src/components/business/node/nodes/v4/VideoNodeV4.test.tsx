@@ -569,8 +569,9 @@ describe('画面弹层（spec §5）', () => {
   })
 
   // ⭐ 2026-09-18（第 12 项）：弹层换成共用的 `SpecChip` —— 比例 / 清晰度 / 时长
-  // 滚动条三段直接摆出来，声音开关与「这次按 ×」「已挂 N / 上限」收进底部「更多」。
-  it('弹层里时长滚动条常驻；声音 · 模式 · 读数在「更多」折叠区里', () => {
+  // 滚动条三段直接摆出来，「这次按 ×」与「已挂 N / 上限」读数收进底部「更多」。
+  // ⛔ 声音开关**不在弹层里**：它是提示词栏上一颗独立图标（定案点 6）。
+  it('弹层里时长滚动条常驻；模式 · 读数在「更多」折叠区里', () => {
     renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
     const chip = document.querySelector(
       '[data-testid="video-frame-chip"]',
@@ -578,15 +579,47 @@ describe('画面弹层（spec §5）', () => {
     fireEvent.pointerDown(chip, { button: 0 })
     fireEvent.click(chip)
     expect(document.querySelector('[data-spec-duration-slider]')).not.toBeNull()
-    // 折叠着的时候里面那三样不在 DOM 里 —— ⛔ 不是 `display:none` 的假折叠。
     expect(document.querySelector('[data-video-generate-audio]')).toBeNull()
+    // 折叠着的时候里面那两样不在 DOM 里 —— ⛔ 不是 `display:none` 的假折叠。
+    expect(document.querySelector('[data-video-frame-readout]')).toBeNull()
 
     const more = document.querySelector('[data-spec-chip-more]') as HTMLElement
     fireEvent.click(more)
-    expect(document.querySelector('[data-video-generate-audio]')).not.toBeNull()
     expect(document.querySelector('[data-video-frame-readout]')).not.toBeNull()
     // 模式只读（⛔ 没有任何一个可点的模式控件）。
     expect(document.querySelector('[data-video-frame-mode]')).not.toBeNull()
+  })
+
+  // ── 声音开关（D2 ④ 定案点 6：提示词栏上的独立图标，不进 chip、不进「更多」）
+  it('模型契约给了 generateAudio 时，声音图标长在 chip 与发送钮之间', () => {
+    renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
+    const toggle = document.querySelector('[data-video-audio-toggle]')
+    expect(toggle).not.toBeNull()
+    expect(toggle).toHaveAttribute('role', 'switch')
+  })
+
+  it('点一下把 `generateAudio` 写成反值（⛔ 不是本地 state）', () => {
+    const context = harness([
+      videoNode('v_1', {
+        ...READY,
+        params: { ...READY.params, generateAudio: true },
+      }),
+    ])
+    renderVideo(context, 'v_1', true)
+
+    fireEvent.click(
+      document.querySelector('[data-video-audio-toggle]') as HTMLElement,
+    )
+    expect(context.onSetParams).toHaveBeenCalledWith(
+      'v_1',
+      expect.objectContaining({ generateAudio: false }),
+    )
+  })
+
+  it('这条端点发不出 `generateAudio` 时整颗不渲染 —— ⛔ 不画一颗点了没反应的开关', () => {
+    expect(videoSupportsGeneratedAudio('kling-o3-standard-v2v-edit')).toBe(
+      false,
+    )
   })
 })
 

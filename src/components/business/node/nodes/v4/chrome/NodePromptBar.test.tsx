@@ -41,6 +41,27 @@ function setup(
 }
 
 describe('NodePromptBar', () => {
+  // `trailing` 是 chip 与发送钮之间那一格（画板：模型 chip · 规格 chip · 竖线 ·
+  // 声音图标 · 竖线 · 生成）。⛔ 它不受 `promptChipMax` 那条 chip 上限管。
+  it('trailing 给了才连同两条竖线一起渲染；空的时候不留孤零零的分隔线', () => {
+    const { container, rerender } = setup()
+    expect(screen.queryByTestId('trailing-slot')).toBeNull()
+    expect(container.querySelectorAll('span[aria-hidden].w-px')).toHaveLength(0)
+
+    rerender(
+      <NodePromptBar
+        value="站台"
+        onValueChange={vi.fn()}
+        onSubmit={vi.fn()}
+        placeholder="写点什么"
+        ariaLabel="提示词"
+        trailing={<button data-testid="trailing-slot">sound</button>}
+      />,
+    )
+    expect(screen.getByTestId('trailing-slot')).toBeInTheDocument()
+    expect(container.querySelectorAll('span[aria-hidden].w-px')).toHaveLength(2)
+  })
+
   it('leadingRow 有内容才占栏内首行', () => {
     const { container, rerender } = setup()
     expect(container.querySelector('[data-prompt-bar-leading]')).toBeNull()

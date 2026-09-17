@@ -5877,7 +5877,9 @@
           "editAriaLabel": "编辑镜头说明",
           "readout": "{chars} 字 · 已挂 {slots} 项",
           "pickModel": "选模型",
-          "modeLabel": "这次按"
+          "modeLabel": "这次按",
+          "audioOn": "这条会出声，点一下关掉",
+          "audioOff": "这条不出声，点一下打开"
         },
         "model": {
           "title": "模型"
@@ -8126,7 +8128,8 @@
     "moreItem": {
       "batchCount": "张数",
       "audio": "声音",
-      "seed": "seed"
+      "seed": "seed",
+      "details": "详情"
     }
   }
 }

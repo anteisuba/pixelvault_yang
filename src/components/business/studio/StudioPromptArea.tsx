@@ -56,6 +56,7 @@ import { StudioCardSection } from '@/components/business/studio/StudioCardSectio
 // 规格三档（比例 · 清晰度 · 张数）在参数栏里收进一个触发器 —— 只服务图片；
 // 视频的比例仍是自己那颗独立 chip，切片 B 再合。
 import { StudioSpecPopover } from '@/components/business/studio/StudioSpecPopover'
+import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
 import { StudioVideoSpecPopover } from '@/components/business/studio/StudioVideoSpecPopover'
 import { StudioVideoModeToggle } from '@/components/business/studio/StudioVideoModeToggle'
 import { StudioSfxSpecPopover } from '@/components/business/studio/StudioSfxSpecPopover'
@@ -987,6 +988,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             </span>
             <StudioSpecPopover disabled={isGenerating} />
           </div>
+        ) : null}
+        {/* 专属区 —— 通用区之下一条虚线，之下是「专属 · <模型名>」+ chip 行
+            （D2 ④ 能力驱动表单）。名单只从 `provider-capabilities` 派生，
+            ⛔ 这里不写模型名；没有专属能力的模型整段不渲染。 */}
+        {isImageMode ? (
+          <StudioModelCapabilityChips disabled={isGenerating} />
         ) : null}
         {isVideoMode ? (
           <StudioVideoSpecPopover disabled={isGenerating} />

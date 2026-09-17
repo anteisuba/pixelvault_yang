@@ -2,7 +2,6 @@
 
 import { useTranslations } from 'next-intl'
 
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import {
   IMAGE_BATCH_COUNTS,
@@ -63,6 +62,11 @@ interface StudioSpecFieldsProps {
  * 三档的数据源一个都没有自己发明：比例 = `STUDIO_IMAGE_ASPECT_RATIOS`，清晰度 =
  * `getCapabilityConfig().resolutionOptions`（模型没有这个能力时**整组不渲染**），
  * 张数 = `IMAGE_BATCH_COUNTS`。
+ *
+ * ⛔ 画质 / 背景 / 生成预览**不在这里**（2026-09-18，D2 ④ 能力驱动表单）：它们是
+ * 逐模型的**专属**能力，规格回答的是「下一版长什么样」这件三模态同形的事。
+ * 它们搬去了虚线以下的 `StudioModelCapabilityChips`，那颗 `preview` 也顺手把
+ * `adapterType === OPENAI` 这个硬分支换成了能力表里的 `preview`。
  */
 export function StudioSpecFields({ touch }: StudioSpecFieldsProps) {
   const { state, dispatch } = useStudioForm()
@@ -70,14 +74,10 @@ export function StudioSpecFields({ touch }: StudioSpecFieldsProps) {
   const t = useTranslations('StudioV2')
 
   const resolution = state.advancedParams.resolution ?? 'auto'
-  const config = selectedModel
-    ? getCapabilityConfig(selectedModel.adapterType, selectedModel.modelId)
-    : null
   const resolutionOptions = selectedModel
     ? (getCapabilityConfig(selectedModel.adapterType, selectedModel.modelId)
         ?.resolutionOptions ?? [])
     : []
-  const tAdvanced = useTranslations('AdvancedSettings')
   const chipClass = cn(segButtonClass, touch && segTouchClass)
 
   return (
@@ -143,47 +143,6 @@ export function StudioSpecFields({ touch }: StudioSpecFieldsProps) {
         </div>
       )}
 
-      {(['quality', 'background'] as const).map((cap) => {
-        const options =
-          cap === 'quality' ? config?.qualityOptions : config?.backgroundOptions
-        if (!config?.capabilities.includes(cap) || !options?.length) return null
-        return (
-          <div key={cap} className="flex flex-col gap-1.5">
-            <span className="text-2xs font-medium text-muted-foreground/70">
-              {tAdvanced(cap)}
-            </span>
-            <div
-              className="grid grid-cols-3 gap-1.5"
-              role="radiogroup"
-              aria-label={tAdvanced(cap)}
-            >
-              {options.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  role="radio"
-                  aria-checked={(state.advancedParams[cap] ?? 'auto') === value}
-                  className={cn(
-                    chipClass,
-                    (state.advancedParams[cap] ?? 'auto') === value
-                      ? studioChipActiveClass
-                      : segInactiveClass,
-                  )}
-                  onClick={() =>
-                    dispatch({
-                      type: 'SET_ADVANCED_PARAMS',
-                      payload: { ...state.advancedParams, [cap]: value },
-                    })
-                  }
-                >
-                  {tAdvanced(`${cap}Option.${value}`)}
-                </button>
-              ))}
-            </div>
-          </div>
-        )
-      })}
-
       <div className="flex flex-col gap-1.5">
         <span className="text-2xs font-medium text-muted-foreground/70">
           {t('batchCountLabel')}
@@ -211,30 +170,6 @@ export function StudioSpecFields({ touch }: StudioSpecFieldsProps) {
         </div>
         <p className="text-2xs text-muted-foreground">{t('batchCountHint')}</p>
       </div>
-      {selectedModel?.adapterType === AI_ADAPTER_TYPES.OPENAI && (
-        <label
-          className={cn(
-            'flex items-center justify-between gap-2 text-xs text-muted-foreground',
-            touch && 'min-h-11 text-sm',
-          )}
-        >
-          {tAdvanced('preview')}
-          <input
-            type="checkbox"
-            className="size-4 accent-primary"
-            checked={state.advancedParams.preview ?? false}
-            onChange={(event) =>
-              dispatch({
-                type: 'SET_ADVANCED_PARAMS',
-                payload: {
-                  ...state.advancedParams,
-                  preview: event.target.checked,
-                },
-              })
-            }
-          />
-        </label>
-      )}
     </div>
   )
 }

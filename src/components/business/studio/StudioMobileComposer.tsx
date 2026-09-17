@@ -31,6 +31,7 @@ import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageC
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
 import { StudioMobileModelSheet } from '@/components/business/studio/StudioMobileModelSheet'
+import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
 import { StudioMobileSpecSheet } from '@/components/business/studio/StudioMobileSpecSheet'
 import { useStudioSpecSummary } from '@/components/business/studio/StudioSpecFields'
 import { useStudioVideoSpec } from '@/components/business/studio/StudioVideoSpecFields'
@@ -160,6 +161,11 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
       {/* 第 1 行 —— 横向可滚，永不换行（换行会让 composer 高度跳，舞台跟着抖）。
           ⚠ 必须裹 Toolbar.Root：`ReferenceImageChip` / `StudioEnhanceButton`
           底下是 Radix `Toolbar.Button`，没有 roving-focus context 会直接抛。 */}
+      {/* 专属区 —— 与桌面同一颗组件、同一份能力表派生（D2 ④）。手机上这一行
+          横向滚不换行：换行会让 composer 高度跳，舞台跟着抖。 */}
+      {state.outputType === 'image' ? (
+        <StudioModelCapabilityChips disabled={isGenerating} scroll />
+      ) : null}
       <Toolbar.Root className="studio-mobile-chip-row flex min-w-0 items-center gap-1.5 overflow-x-auto">
         <button
           type="button"

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ImageOff } from 'lucide-react'
 
 import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'
@@ -8,6 +9,8 @@ import { StudioVideoQueueStrip } from '@/components/business/studio-shared/chrom
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
 import { StudioProvider } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 
 import {
   UI_STATE_CASES,
@@ -94,6 +97,33 @@ export function UiStateGallery() {
               onRemix={() => {}}
               onSaveRecipe={() => {}}
             />
+          ) : active.kind === 'empty-state' ? (
+            /* 空态模板三态（视觉语言总板 D1 ④）。⛔ 不画插画 —— 三格并排摆出来
+               就是为了量「去掉插画之后，标题到主动作的距离还读不读得出层次」。 */
+            <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+              <EmptyState
+                icon={<ImageOff />}
+                title="还没有生成过图"
+                description="写一句提示词就能开始，或者从画廊里挑一张当参考。"
+                action={<Button className="rounded-full">开始生成</Button>}
+                secondaryAction={
+                  <Button variant="outline" className="rounded-full">
+                    去画廊挑图
+                  </Button>
+                }
+              />
+              <EmptyState
+                icon={<ImageOff />}
+                title="这个筛选下没有资产"
+                description="换一个模型或时间范围试试。"
+                action={<Button className="rounded-full">清除筛选</Button>}
+              />
+              <EmptyState
+                icon={<ImageOff />}
+                title="这里还是空的"
+                description="没有动作可给时只留一句说明 —— ⛔ 不放假按钮占位。"
+              />
+            </div>
           ) : (
             <>
               {/* 参考轨与结果**并存** —— 旧版参考图区的渲染条件是「还没有结果」，

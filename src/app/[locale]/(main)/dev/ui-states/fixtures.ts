@@ -242,4 +242,11 @@ export const UI_STATE_CASES = [
     items: [],
     selectedIndex: null,
   },
+  {
+    kind: 'empty-state',
+    key: 'empty-state-trio',
+    title: '空态模板 · 三态（双动作 / 单动作 / 只说明）',
+    items: [],
+    selectedIndex: null,
+  },
 ] as const

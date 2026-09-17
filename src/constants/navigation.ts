@@ -1,3 +1,5 @@
+import { ROUTES } from '@/constants/routes'
+
 import {
   Archive,
   AudioLines,
@@ -10,10 +12,8 @@ import {
   SwatchBook,
   Video,
   Waypoints,
-  type LucideIcon,
-} from 'lucide-react'
-
-import { ROUTES } from '@/constants/routes'
+  type Icon,
+} from '@/components/icons'
 
 /**
  * 全局导航的**唯一**条目清单（施工基准 `docs/references/pages/app-shell.md` §6）。
@@ -33,7 +33,7 @@ export type ShellNavMatch = 'exact' | 'prefix'
 export interface ShellNavItem {
   id: string
   href: string
-  icon: LucideIcon
+  icon: Icon
   /** 完整 i18n 路径，消费方用 `useTranslations()`（不带命名空间）解析 */
   labelKey: string
   /** 除 href 外还算激活的路径 */

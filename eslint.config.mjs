@@ -204,6 +204,7 @@ const eslintConfig = defineConfig([
     files: [
       "src/components/ui/**/*.{ts,tsx}",
       "src/components/layout/**/*.{ts,tsx}",
+      "src/constants/navigation.ts",
     ],
     rules: {
       "no-restricted-imports": [

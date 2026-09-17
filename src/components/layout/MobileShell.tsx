@@ -3,7 +3,13 @@
 import { useState } from 'react'
 import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
 import Image from 'next/image'
-import { ChevronDown, Coins, KeyRound, LogOut, UserCircle } from 'lucide-react'
+import {
+  ChevronDown,
+  Coins,
+  KeyRound,
+  LogOut,
+  UserCircle,
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

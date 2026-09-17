@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
-import { Coins, KeyRound, LogOut, User, UserCircle } from 'lucide-react'
+import { Coins, KeyRound, LogOut, User, UserCircle } from '@/components/icons'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 

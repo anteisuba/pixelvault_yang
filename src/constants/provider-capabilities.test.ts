@@ -158,4 +158,37 @@ describe('provider-capabilities', () => {
       getMaxReferenceImages(AI_ADAPTER_TYPES.FAL, AI_MODELS.RECRAFT_V4_PRO),
     ).toBe(0)
   })
+
+  // fal OpenAPI (2026-09-17): none of these endpoints declare a `loras` input,
+  // yet the worker serializes `loras` into every fal image body — so a LoRA
+  // badge here promised a mount fal silently drops.
+  it.each([
+    AI_MODELS.FLUX_2_PRO,
+    AI_MODELS.FLUX_2_PRO_EDIT,
+    AI_MODELS.SEEDREAM_45,
+    AI_MODELS.SEEDREAM_50_PRO,
+    AI_MODELS.SEEDREAM_50_LITE,
+  ])('does not advertise LoRA on %s', (modelId) => {
+    expect(hasCapability(AI_ADAPTER_TYPES.FAL, 'lora', modelId)).toBe(false)
+  })
+
+  // `bytedance/seedream/v5/pro/{text-to-image,edit}` has no `seed` input.
+  it('does not advertise seed on Seedream 5.0 Pro', () => {
+    expect(
+      hasCapability(AI_ADAPTER_TYPES.FAL, 'seed', AI_MODELS.SEEDREAM_50_PRO),
+    ).toBe(false)
+  })
+
+  // `fal-ai/flux-lora` keeps guidance_scale / num_inference_steps / loras but
+  // has no negative_prompt, unlike the generic FAL adapter default.
+  it('keeps FLUX LoRA diffusion knobs but drops negativePrompt', () => {
+    const caps = getCapabilityConfig(
+      AI_ADAPTER_TYPES.FAL,
+      AI_MODELS.FLUX_LORA,
+    ).capabilities
+    expect(caps).toContain('lora')
+    expect(caps).toContain('guidanceScale')
+    expect(caps).toContain('steps')
+    expect(caps).not.toContain('negativePrompt')
+  })
 })

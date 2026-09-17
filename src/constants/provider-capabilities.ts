@@ -338,14 +338,15 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     // fal OpenAPI (2026-09-17) for `fal-ai/flux-2-pro` and `/edit`: inputs are
     // prompt / image_size / (image_urls) / seed / output_format /
     // safety_tolerance / enable_safety_checker only. No negative_prompt, no
-    // guidance_scale, no num_inference_steps — the worker used to serialize
-    // those three into a body fal simply drops, so the UI controls were fake.
-    capabilities: ['seed', 'imageAnalysis', 'lora'] as const,
+    // guidance_scale, no num_inference_steps and no `loras` — the worker used
+    // to serialize those into a body fal simply drops, so the UI controls and
+    // the LoRA badge were fake.
+    capabilities: ['seed', 'imageAnalysis'] as const,
   },
   [AI_MODELS.FLUX_2_PRO_EDIT]: {
     maxReferenceImages: FAL_FLUX_2_PRO_MAX_REFERENCE_IMAGES,
     referenceImageMode: 'native' as const,
-    capabilities: ['seed', 'imageAnalysis', 'lora'] as const,
+    capabilities: ['seed', 'imageAnalysis'] as const,
   },
   [AI_MODELS.SEEDREAM_45]: {
     maxReferenceImages: 0,
@@ -355,9 +356,9 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     // concatenating with the adapter default.
     // fal OpenAPI (2026-09-17): `…/seedream/v4.5/text-to-image` takes only
     // prompt / image_size / num_images / max_images / seed / sync_mode /
-    // enable_safety_checker — no negative_prompt, guidance_scale or
-    // num_inference_steps, so those three controls are not declared.
-    capabilities: ['seed', 'imageAnalysis', 'lora', 'resolution'] as const,
+    // enable_safety_checker — no negative_prompt, guidance_scale,
+    // num_inference_steps or `loras`, so none of those are declared.
+    capabilities: ['seed', 'imageAnalysis', 'resolution'] as const,
     resolutionOptions: ['2K', '4K'],
   },
   [AI_MODELS.SEEDREAM_50_PRO]: {
@@ -368,8 +369,9 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     // (pricing tiers are ≤1536² and ≤2048²), so no 4K option here.
     // fal OpenAPI (2026-09-17): `bytedance/seedream/v5/pro/*` takes only
     // prompt / image_size / (image_urls) / num_images / output_format /
-    // sync_mode / enable_safety_checker — none of the diffusion knobs.
-    capabilities: ['seed', 'imageAnalysis', 'lora', 'resolution'] as const,
+    // sync_mode / enable_safety_checker — none of the diffusion knobs, no
+    // `loras`, and not even `seed`.
+    capabilities: ['imageAnalysis', 'resolution'] as const,
     resolutionOptions: ['2K'],
   },
   // Ark 文档 2026-09-17 核实：Seedream 5.0 Pro 的参考图上限是 10（Lite / 4.5 /
@@ -387,8 +389,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     referenceImageMode: 'native' as const,
     // Same fal input surface as 5.0 Pro (checked 2026-09-17) — the generic FAL
     // adapter default would otherwise expose negativePrompt / guidanceScale /
-    // steps / referenceStrength that this endpoint does not accept.
-    capabilities: ['seed', 'imageAnalysis', 'lora'] as const,
+    // steps / referenceStrength / lora that this endpoint does not accept.
+    capabilities: ['seed', 'imageAnalysis'] as const,
   },
   [AI_MODELS.IDEOGRAM_3]: {
     maxReferenceImages: 0,
@@ -409,6 +411,18 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     // chip. The fal adapter swaps `fal-ai/flux-lora` → the `/image-to-image`
     // endpoint when a reference image is present.
     maxReferenceImages: 1,
+    // fal OpenAPI (2026-09-17) for `fal-ai/flux-lora` and `/image-to-image`:
+    // guidance_scale / num_inference_steps / loras / seed / (strength) but no
+    // negative_prompt, so the inherited FAL default's negativePrompt control
+    // was fake. Everything else on that default is kept.
+    capabilities: [
+      'guidanceScale',
+      'steps',
+      'seed',
+      'referenceStrength',
+      'imageAnalysis',
+      'lora',
+    ] as const,
   },
   [AI_MODELS.RECRAFT_V4_PRO]: {
     maxReferenceImages: 0,

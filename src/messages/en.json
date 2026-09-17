@@ -1004,46 +1004,6 @@
             "1": "Not included in the unlimited tier; costs more than V4.5."
           }
         },
-        "illustrious": {
-          "pos": "A leading open anime model, with broad character knowledge and an active fine-tuning community.",
-          "fare": "$0.14 / image (direct API)",
-          "routes": "On ANTEI · 1 API route + its own entry in LoRA",
-          "src": "Made here · Illustrious XL",
-          "tags": {
-            "0": "Anime characters",
-            "1": "Fan work",
-            "2": "LoRA base"
-          },
-          "plus": {
-            "0": "Trained on all of Danbooru: the widest character recall here",
-            "1": "Much more consistent hands, feet, and body structure than other open models of its generation.",
-            "2": "An active fine-tuning community, including WAI. Also available in the LoRA workspace."
-          },
-          "minus": {
-            "0": "Character knowledge stops mid-2024; it will not know a new season",
-            "1": "Less suited to photorealism and design work."
-          }
-        },
-        "ill-b": {
-          "pos": "An anime base model with an active LoRA community.",
-          "fare": "$0.14 / image (direct API)",
-          "routes": "On ANTEI · API and Runner, both",
-          "src": "In-app base-model cover",
-          "tags": {
-            "0": "Anime base",
-            "1": "Active community",
-            "2": "Two routes"
-          },
-          "plus": {
-            "0": "The largest Civitai scene: the fullest set of character and style LoRAs",
-            "1": "Trained on all of Danbooru, so character tags work directly.",
-            "2": "Use the API without deployment, or load your own LoRAs with Runner."
-          },
-          "minus": {
-            "0": "Weak towards realism",
-            "1": "New-season characters have to come from a LoRA"
-          }
-        },
         "wai": {
           "pos": "The crowd-favourite tune: a polished anime face straight out of the box.",
           "fare": "Usage-based (Runner)",

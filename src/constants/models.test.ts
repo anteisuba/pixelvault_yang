@@ -279,4 +279,12 @@ describe('models', () => {
       expect(availableImageIds.has(modelId)).toBe(true)
     }
   })
+
+  it('ships no free-tier image model', () => {
+    // 9fe7a2e7 dropped freeTier from Gemini 3.1 Flash Image (the Gemini image
+    // API is paid-only), leaving the image catalog entirely BYOK/platform-key.
+    expect(getAvailableImageModels().filter((model) => model.freeTier)).toEqual(
+      [],
+    )
+  })
 })

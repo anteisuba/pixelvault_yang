@@ -61,6 +61,11 @@
 5. 无 BYOK 且模型 `freeTier` 可用 → 才试 platform key。
 6. 都没有 → 失败并要求绑 key（UI 侧走 QuickSetupDialog，不禁用）。
 
+⚠ **当前目录里没有 freeTier 图片模型**（2026-09-17）：Gemini 3.1 Flash Image 是最后一个，
+9fe7a2e7 把它的 `freeTier` 翻成 false——Gemini 图像 API 只有付费档，免费通道在请求时 403。
+第 5 步的分支代码仍在（DB 目录可以把某个模型标成 freeTier），但内置图片模型走到第 5 步
+一律落到第 6 步 `MISSING_API_KEY`。仅剩的 `freeTier: true` 条目在 3D 目录。
+
 ## 错误信息机制（全链路）
 
 ```text

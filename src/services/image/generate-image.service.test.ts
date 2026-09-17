@@ -70,6 +70,19 @@ function freeLimitError(message = 'Free tier limit reached (20/day).') {
   })
 }
 
+/**
+ * No built-in image model is `freeTier` any more (Gemini 3.1 Flash Image lost
+ * it in 9fe7a2e7 — the Gemini image API is paid-only). The free-tier branch of
+ * `resolveGenerationRoute` is still live for DB-catalog models, so exercise it
+ * by having the catalog hand back a free-tier variant of a real model.
+ */
+function mockFreeTierModel(modelId: string) {
+  vi.mocked(getResolvedModelOption).mockResolvedValue({
+    ...modelsMock.realGetModelById!(modelId)!,
+    freeTier: true,
+  })
+}
+
 // ─── Tests ─────────────────────────────────────────────────────
 
 describe('resolveGenerationRoute', () => {
@@ -140,6 +153,7 @@ describe('resolveGenerationRoute', () => {
   })
 
   it('falls back to free tier when no user key exists', async () => {
+    mockFreeTierModel('gemini-3.1-flash-image-preview')
     vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
     vi.mocked(atomicReserveFreeTierSlot).mockResolvedValue(undefined)
     vi.mocked(getSystemApiKey).mockReturnValue('platform-key')
@@ -153,6 +167,7 @@ describe('resolveGenerationRoute', () => {
   })
 
   it('throws FREE_LIMIT_EXCEEDED when daily limit reached', async () => {
+    mockFreeTierModel('gemini-3.1-flash-image-preview')
     vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
     vi.mocked(atomicReserveFreeTierSlot).mockRejectedValue(freeLimitError())
 
@@ -240,6 +255,7 @@ describe('resolveGenerationRoute', () => {
   })
 
   it('throws PLATFORM_KEY_MISSING when free tier enabled but platform key absent', async () => {
+    mockFreeTierModel('gemini-3.1-flash-image-preview')
     vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
     vi.mocked(atomicReserveFreeTierSlot).mockResolvedValue(undefined)
     vi.mocked(getSystemApiKey).mockReturnValue(undefined as never)

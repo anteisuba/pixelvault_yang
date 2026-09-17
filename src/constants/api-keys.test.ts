@@ -22,9 +22,8 @@ describe('api key adapter options', () => {
       AI_ADAPTER_TYPES.BYTEPLUS,
       AI_ADAPTER_TYPES.FISH_AUDIO,
       AI_ADAPTER_TYPES.HYPER3D_RODIN,
-      // DashScope (Qwen) is active as an LLM text/vision route; ElevenLabs
-      // stays active through its SFX model (the v3 TTS model was retired).
-      AI_ADAPTER_TYPES.DASHSCOPE,
+      // ElevenLabs stays active through its SFX model (the v3 TTS model was
+      // retired). The DashScope (Qwen) text route was retired 2026-09-17.
       AI_ADAPTER_TYPES.ELEVENLABS,
       // MiniMax joined 2026-08-01 with H3 video. Two entries, not one: the
       // global (api.minimax.io) and CN (api.minimaxi.com) stations have

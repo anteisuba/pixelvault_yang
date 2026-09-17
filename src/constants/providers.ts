@@ -14,7 +14,6 @@ export enum AI_ADAPTER_TYPES {
   BYTEPLUS = 'byteplus',
   FISH_AUDIO = 'fish_audio',
   HYPER3D_RODIN = 'hyper3d_rodin',
-  DASHSCOPE = 'dashscope',
   ELEVENLABS = 'elevenlabs',
   /**
    * MiniMax (Hailuo) — 国际站 api.minimax.io. Video-only route today
@@ -78,7 +77,6 @@ export const AI_ADAPTER_TYPE_OPTIONS = [
   AI_ADAPTER_TYPES.BYTEPLUS,
   AI_ADAPTER_TYPES.FISH_AUDIO,
   AI_ADAPTER_TYPES.HYPER3D_RODIN,
-  AI_ADAPTER_TYPES.DASHSCOPE,
   AI_ADAPTER_TYPES.ELEVENLABS,
   AI_ADAPTER_TYPES.MINIMAX,
   AI_ADAPTER_TYPES.MINIMAX_CN,
@@ -138,10 +136,6 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
     label: 'Hyper3D Rodin',
     baseUrl: AI_PROVIDER_ENDPOINTS.HYPER3D,
   },
-  [AI_ADAPTER_TYPES.DASHSCOPE]: {
-    label: 'Qwen',
-    baseUrl: AI_PROVIDER_ENDPOINTS.DASHSCOPE,
-  },
   [AI_ADAPTER_TYPES.ELEVENLABS]: {
     label: 'ElevenLabs',
     baseUrl: AI_PROVIDER_ENDPOINTS.ELEVENLABS,
@@ -158,13 +152,13 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
     baseUrl: AI_PROVIDER_ENDPOINTS.MINIMAX_CN,
   },
   // 'Claude' not 'Anthropic': the selector shows the model-family name to
-  // users, matching the existing 'Qwen' (not 'DashScope') convention.
+  // users rather than the vendor name.
   [AI_ADAPTER_TYPES.ANTHROPIC]: {
     label: 'Claude',
     baseUrl: AI_PROVIDER_ENDPOINTS.ANTHROPIC,
   },
   // 'Grok' not 'xAI': same model-family-name convention as 'Claude' (not
-  // 'Anthropic') and 'Qwen' (not 'DashScope').
+  // 'Anthropic').
   [AI_ADAPTER_TYPES.XAI]: {
     label: 'Grok',
     baseUrl: AI_PROVIDER_ENDPOINTS.XAI,
@@ -188,7 +182,6 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.BYTEPLUS]: 'ark-...',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 'aaf42ad8...',
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'sk-...',
-  [AI_ADAPTER_TYPES.DASHSCOPE]: 'sk-...',
   [AI_ADAPTER_TYPES.ELEVENLABS]: 'sk_...',
   // MiniMax issues long JWT-shaped keys on both stations.
   [AI_ADAPTER_TYPES.MINIMAX]: 'eyJhbGci...',
@@ -216,7 +209,6 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   [AI_ADAPTER_TYPES.BYTEPLUS]: 4,
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 2,
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 3,
-  [AI_ADAPTER_TYPES.DASHSCOPE]: 2,
   [AI_ADAPTER_TYPES.ELEVENLABS]: 5,
   // 2K-only video at $0.13/s native — between the Seedance fast tier (4) and
   // the premium video tier (6).
@@ -246,7 +238,6 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.BYTEPLUS]: 'dreamina-seedance-2-0-260128',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 's2-pro',
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: 'rodin-gen-2.5',
-  [AI_ADAPTER_TYPES.DASHSCOPE]: 'qwen-plus',
   [AI_ADAPTER_TYPES.ELEVENLABS]: 'eleven_v3',
   [AI_ADAPTER_TYPES.MINIMAX]: 'MiniMax-H3',
   [AI_ADAPTER_TYPES.MINIMAX_CN]: 'MiniMax-H3',
@@ -324,11 +315,6 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
     url: 'https://hyper3d.ai/dashboard',
     steps:
       'Sign in → Dashboard → API Keys → Create key. Business subscription ($120/mo) required for Rodin Gen-2.5.',
-  },
-  [AI_ADAPTER_TYPES.DASHSCOPE]: {
-    url: 'https://dashscope.console.aliyun.com/apiKey',
-    steps:
-      'Sign in (Singapore / International account) → DashScope Console → API-KEY → Create new API key (sk-...). Use the Singapore region — keys are region-locked.',
   },
   [AI_ADAPTER_TYPES.ELEVENLABS]: {
     url: 'https://elevenlabs.io/app/settings/api-keys',

@@ -18,7 +18,7 @@
 - `runner` 是 BYOK 六步之外的特例：无 API key 可配（`AI_ADAPTER_TYPE_OPTIONS` 故意不含它），`resolveGenerationRoute()` 命中它就走独立分支——系统 key（`RUNPOD_KEY`）+ 月度限额（`RUNNER_MONTHLY_LIMIT`），不占用户每日 FREE_TIER 额度。真正的 provider 调用（RunPod submit/poll + recipe→ComfyUI workflow 映射）在 Worker（`workers/execution/src/models/runner/`），adapter 侧 `generateImage()` 只是契约占位（同步路径不支持，冷启动太长）。
 - `HYPER3D_RODIN` **故意不进 registry**——3D 走 `generate-3d.service.ts` 直发 Worker。
 - `deepseek` 不是 media adapter——用于 text / planner / assistant 路径（`llm-text.service.ts`）。
-- 文本响应异常（2026-09-09）：`llm-text.service.ts` 为 OpenAI / DeepSeek / Qwen / Grok / Gemini / Claude 保留空回复、拒绝、输出截断及上游错误分类。流式完成须有正文和结束事件（OpenAI 兼容线路 `[DONE]`、Gemini `finishReason=STOP`、Claude `message_stop`）；损坏事件、提前 EOF 或读流失败不能视为完整回复。已输出部分正文后发生拒绝或截断也会抛错；助手保留错误码，不进入 JSON 格式纠错重试，不执行该轮工具。非流式也检查异常停止原因，GPT 推理耗尽但无正文的既有专用错误保留。核验：[OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)、[DeepSeek 返回契约](https://api-docs.deepseek.com/api/create-chat-completion/)、[JSON 模式空回复说明](https://api-docs.deepseek.com/guides/json_mode/)、[Claude 流式错误](https://platform.claude.com/docs/en/build-with-claude/streaming)。
+- 文本响应异常（2026-09-09）：`llm-text.service.ts` 为 OpenAI / DeepSeek / Grok / Gemini / Claude 保留空回复、拒绝、输出截断及上游错误分类。流式完成须有正文和结束事件（OpenAI 兼容线路 `[DONE]`、Gemini `finishReason=STOP`、Claude `message_stop`）；损坏事件、提前 EOF 或读流失败不能视为完整回复。已输出部分正文后发生拒绝或截断也会抛错；助手保留错误码，不进入 JSON 格式纠错重试，不执行该轮工具。非流式也检查异常停止原因，GPT 推理耗尽但无正文的既有专用错误保留。核验：[OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)、[DeepSeek 返回契约](https://api-docs.deepseek.com/api/create-chat-completion/)、[JSON 模式空回复说明](https://api-docs.deepseek.com/guides/json_mode/)、[Claude 流式错误](https://platform.claude.com/docs/en/build-with-claude/streaming)。
 - 契约 `types.ts`：`ProviderGenerationInput/Result`（图）、`ProviderVideoInput/Result`（视频，`fetchHeaders` 支持需鉴权下载的 provider 如 Sora）、`ProviderQueueSubmitInput`（队列型，duration 支持 `'auto'`）；`civitaiToken` 全链穿透（Civitai 下载 401 需鉴权）。
 
 ### Assistant LLM 媒体契约（2026-08-05）
@@ -31,14 +31,23 @@
   resumable upload → 状态轮询 → `fileData` 输入；稳定附件 URL 仅由服务端受控抓取。实现依据
   [Gemini 视频理解](https://ai.google.dev/gemini-api/docs/video-understanding) 与
   [Files API](https://ai.google.dev/api/files)。
-- DeepSeek 的 `deepseek-v4-pro` 继续按纯文本路由处理；2026-08-21 发布的实验模型
-  `deepseek-v4-flash-vision-exp` 可在同一 OpenAI-compatible Chat Completions 接口中接收
-  `text + image_url` 内容块，PixelVault 将它作为独立助手档位暴露，不能把 DeepSeek adapter
-  整体翻成视觉能力。图片只允许进入该视觉档，V4 Pro 仍在能力闸和请求构造器两层拒绝。依据：
+- DeepSeek 的 `deepseek-v4-pro` 继续按纯文本路由处理；视觉档是 `deepseek-flash`，
+  可在同一 OpenAI-compatible Chat Completions 接口中接收 `text + image_url` 内容块，
+  PixelVault 将它作为独立助手档位暴露，不能把 DeepSeek adapter 整体翻成视觉能力。
+  图片只允许进入该视觉档，V4 Pro 仍在能力闸和请求构造器两层拒绝。⚠ **2026-09-17 换型号**：
+  官方模型列表已把 `deepseek-v4-flash` / `deepseek-v4-flash-vision-exp` 标为 legacy
+  并写明「对应模型已退役」（旧名仍被接受但由 DeepSeek-V4.1-Flash 承接），现行 id 是
+  `deepseek-flash`——1M 上下文、384K 最大输出、Vision ✓、非高峰 $0.15/$0.6 每 MTok
+  （高峰 $0.3/$1.2），缓存命中 $0.003–0.006。依据：
   [DeepSeek Vision](https://api-docs.deepseek.com/guides/vision/) 与
-  [发布公告](https://api-docs.deepseek.com/news/news260821/)。Claude 厂商 API
+  [定价 / 模型列表](https://api-docs.deepseek.com/quick_start/pricing)。Claude 厂商 API
   本身支持图片输入（见 [Claude vision](https://platform.claude.com/docs/en/build-with-claude/vision)），但当前
-  PixelVault Claude 助手调用尚未接入该图片内容块，所以菜单如实标为“仅文本”。Qwen 不进入共享助手模型注册表。
+  PixelVault Claude 助手调用尚未接入该图片内容块，所以菜单如实标为“仅文本”。
+- ⚠ **Qwen 文字线已于 2026-09-17 整体退役**（owner「文字路由合一」拍板）：`AI_ADAPTER_TYPES.DASHSCOPE`
+  枚举、`qwen3-max` / `qwen-plus` / `qwen-flash` / `qwen3-vl-plus` 四个文本模型 id、
+  DashScope 的 completion / stream 分支、enhance 与 planner 路由候选、key 校验与
+  三语文案全部删除。Qwen 只作为**图像 / LoRA 底模**（Qwen-Image 家族）与 Comfy Runner 的
+  Anima 工作流文本编码器继续存在，那条线与本节无关、未受影响。
   能力不匹配时服务端和客户端都必须拒绝，不得丢弃附件、传 URL 文本或以视频封面静默降级。
 - 交互、模型清单和最多 8 个稳定 URL 附件契约见 [`pages/assistant-shell.md`](pages/assistant-shell.md)。
 

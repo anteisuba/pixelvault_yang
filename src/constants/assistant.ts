@@ -125,12 +125,6 @@ export interface AssistantMediaCapability {
  * 降级成图，不需要 provider 那边有任何新能力），吃不了图就只能是 `false`。
  * 新开一个 provider 时先把 `image` 定对，`video` 只在**实测过视频直传**之后
  * 才允许写 `native`。
- *
- * 🔬 Qwen（DASHSCOPE）的 DashScope 原生视频分支 **owner 2026-08-21 拍板本轮跳过**
- * （缺 key 无法实测，不拿没测过的形态当能力）。它按图片能力归档即可。
- * ⚠ 注意它此刻 `image: false` —— `llm-text.service.ts` 的 dashscope 分支其实
- * 已经支持图片输入（VL 模型），这张表里的 false 是另一件事（助手路由默认模型
- * 未必是 VL 档），**要翻它得先实测，别顺手改**。
  */
 export const ASSISTANT_MEDIA_CAPABILITIES: Record<
   AI_ADAPTER_TYPES,
@@ -150,7 +144,6 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
   // `xaiTextCompletion` sends images as OpenAI multimodal content parts — so
   // this `true` is backed by a real code path, not just a spec sheet.
   [AI_ADAPTER_TYPES.XAI]: { image: true, video: false },
-  [AI_ADAPTER_TYPES.DASHSCOPE]: { image: false, video: false },
   [AI_ADAPTER_TYPES.VOLCENGINE]: { image: false, video: false },
   [AI_ADAPTER_TYPES.BYTEPLUS]: { image: false, video: false },
   [AI_ADAPTER_TYPES.MINIMAX]: { image: false, video: false },
@@ -177,7 +170,7 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
 const ASSISTANT_MODEL_MEDIA_CAPABILITIES: Readonly<
   Partial<Record<string, AssistantMediaCapability>>
 > = {
-  [LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP]: {
+  [LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH]: {
     image: true,
     video: ASSISTANT_VIDEO_TIERS.frames,
   },

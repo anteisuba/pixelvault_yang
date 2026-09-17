@@ -38,11 +38,6 @@ export const LLM_ENHANCE_ROUTE_MODELS = [
     label: 'Gemini 3.8 Flash',
   },
   {
-    adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
-    modelId: LLM_TEXT_MODEL_IDS.QWEN_FLASH,
-    label: 'Qwen Flash',
-  },
-  {
     adapterType: AI_ADAPTER_TYPES.XAI,
     modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
     label: 'Grok 4.6',
@@ -56,13 +51,9 @@ const ADAPTER_CAPABILITIES: Record<
   [AI_ADAPTER_TYPES.OPENAI]: ['enhance', 'planner', 'assistant'],
   [AI_ADAPTER_TYPES.GEMINI]: ['enhance', 'planner', 'assistant'],
   // DeepSeek V4 Pro remains the default text-only planner / assistant route.
-  // The assistant separately exposes V4 Flash Vision Exp through model-specific
+  // The assistant separately exposes deepseek-flash through model-specific
   // media capabilities; planner routing still uses the text model.
   [AI_ADAPTER_TYPES.DEEPSEEK]: ['planner', 'assistant'],
-  // DashScope (Qwen): cheap enhance + text planner. 2026-07-26: Qwen exits
-  // the canvas assistant route (owner decree) — Claude takes its slot there.
-  // enhance/planner stay untouched.
-  [AI_ADAPTER_TYPES.DASHSCOPE]: ['enhance', 'planner'],
   // Claude (Anthropic): canvas-assistant structural reasoning only (multi-
   // scene continuity, character arcs, shot planning — the assistant's own
   // job). No enhance (that line isn't short on adapters, don't expand it),

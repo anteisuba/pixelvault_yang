@@ -315,14 +315,16 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
     label: 'DeepSeek V4 Pro',
   },
   {
-    // DeepSeek's image contract belongs to this experimental model only.
-    // V4 Pro remains the first/default DeepSeek tier and stays text-only.
+    // DeepSeek's image contract belongs to the Flash tier only. V4 Pro
+    // remains the first/default DeepSeek tier and stays text-only.
+    // 2026-09-17: `deepseek-v4-flash-vision-exp` was retired upstream —
+    // `deepseek-flash` is the current vision id.
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
-    label: 'DeepSeek V4 Flash Vision Exp',
+    modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+    label: 'DeepSeek Flash',
   },
   {
-    // 2026-07-26: Qwen3 Max exits the assistant route (owner decree) — Claude
+    // 2026-07-26: Qwen3 Max exited the assistant route (owner decree) — Claude
     // takes its slot as the structural-reasoning route (multi-scene
     // continuity, character arcs, shot planning). 2026-09-02: Sonnet 5 →
     // Fable 5.1 (owner decision). Text-only, same as the other three — no

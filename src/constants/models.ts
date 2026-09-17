@@ -460,7 +460,6 @@ export type ProviderGroup =
   | 'openai'
   | 'google'
   | 'deepseek'
-  | 'dashscope'
   | 'novelai'
   | 'fal'
   | 'runway'
@@ -481,7 +480,6 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'openai',
   'google',
   'deepseek',
-  'dashscope',
   'novelai',
   'fal',
   'runway',
@@ -507,8 +505,6 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'google'
     case AI_ADAPTER_TYPES.DEEPSEEK:
       return 'deepseek'
-    case AI_ADAPTER_TYPES.DASHSCOPE:
-      return 'dashscope'
     case AI_ADAPTER_TYPES.NOVELAI:
       return 'novelai'
     case AI_ADAPTER_TYPES.FAL:

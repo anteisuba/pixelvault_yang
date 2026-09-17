@@ -474,14 +474,16 @@ model id 与下列字段约束均取自火山方舟官方文档 `https://docs.vo
   - ⚠ **官方模型汇总表的 Modalities 栏是错的**：它把每个 Grok 都写成 Text，而每个型号的**专属页**都写 `text, image → text`（grok-4.6 另有图片理解指南佐证）。**以专属页为准**。08-21 审计据汇总表推测「4.3 可能无视觉」，已被推翻。
   - ⚠ **不要复用 `buildOpenAiChatRequest`**：虽然 xAI 官方称与 OpenAI REST 完全兼容，但那个 helper 的 base URL 走 `getOpenAiChatBaseUrl()`（缺省回落到 **OpenAI 的域名**），且 `useGrounding` 时会把 modelId 换成 `gpt-5-search-api`——等于把 Grok 的请求计到 OpenAI 账上。已按 DeepSeek/DashScope 的形自建 `buildXaiChatRequest`（缓冲与流式共用一份请求），顺带绕开 `isOpenAiReasoningModel` 那条 `/^(gpt-5|o[134])/` 正则（匹配不到 grok id，会给出过低的 token 预算）。
   - 🔥 **08-24 生产 504 的根因就在这次接入里：只写了缓冲那一半，没写 SSE。** 助手的流式路由 `POST /api/prompt/assistant/stream` 于是一个字节都不产出，**响应头从未 flush**，Vercel 到 `maxDuration` 杀函数时网关只能回 504——用户看到的是错误而不是半截回答。日志形态（`dpl_GqSQDk9o`，14:50:32）：`durationMs: 35` 之后紧跟 `Vercel Runtime Timeout Error: Task timed out after 60 seconds`，即路由本身很快、59.96 秒全花在等模型上。
-  - ✅ **同日已补齐（08-24）**：`streamOpenAiCompatibleChat` 一份 SSE 解析给 OpenAI / DeepSeek / Qwen / Grok 四家共用（事件格式完全一致，差异全在请求侧的 `build*ChatRequest`）；`XAI` / `DEEPSEEK` / `DASHSCOPE` 三家一并补上流式（它们有同样的缺口）；助手三条路由 `maxDuration` 60 → 300；`llm-text.service.ts` 里所有 provider 的主请求 fetch 都加了超时（`LLM_TEXT_TIMEOUTS_MS`），挂住时报 `PROVIDER_TIMEOUT` / 504 而不是等平台杀函数。
+  - ✅ **同日已补齐（08-24）**：`streamOpenAiCompatibleChat` 一份 SSE 解析给 OpenAI / DeepSeek / Qwen / Grok 四家共用（Qwen 线 2026-09-17 退役，现为三家）（事件格式完全一致，差异全在请求侧的 `build*ChatRequest`）；`XAI` / `DEEPSEEK` / `DASHSCOPE` 三家一并补上流式（它们有同样的缺口）；助手三条路由 `maxDuration` 60 → 300；`llm-text.service.ts` 里所有 provider 的主请求 fetch 都加了超时（`LLM_TEXT_TIMEOUTS_MS`），挂住时报 `PROVIDER_TIMEOUT` / 504 而不是等平台杀函数。
   - ✅ **08-25 收口：漏写 SSE 现在编译不过。** 08-24 补完三家之后，「谁支持流式」仍是一张手工维护的 `Set` + 「不在集合里就缓冲」的降级——而那条降级正是 08-23 漏写能活到生产的原因（形态一样、行为天差地别，编译器和测试都不说话）。08-25 把它换成穷举 `Record<LlmTextAdapterType, …>`（`LLM_TEXT_STREAMS`）：接第七家 LLM 文本 provider 时漏写 stream 实现，`tsc` 当场报 `Property '<家>' is missing`。Claude 的 SSE 同批补齐（Anthropic 自己的事件格式：`content_block_delta` → `delta.text`，`message_stop` 收尾；⚠ 只取 `text_delta`，`thinking_delta` 绝不当正文转发）。`supportsLlmTextStreaming` / `LLM_TEXT_STREAMING_ADAPTERS` 已随之删除——**六家全部真流式，「支不支持」这个问题本身不存在了**。
+  - ✅ **2026-09-15 Grok 助手接续超时**：`grok-4.6` 推理默认 `"high"`、不能关；流式在推理结束前可不发首个 SSE，官方要求加长超时，否则会「prematurely closing connection」。助手原先 30s 首包窗口会自己掐断，界面像连不上。现发 `reasoning_effort: "low"`（官方给 latency-sensitive agentic / tool-calling 的档），流式首包窗口 `XAI_STREAM_HEADERS = 90s`；token 预算走现行字段 `max_completion_tokens`（只盖可见输出，省略时官方默认 128k），不再发已弃用的 `max_tokens`。核验（2026-09-15）：[Reasoning](https://docs.x.ai/developers/model-capabilities/text/reasoning) · [Streaming](https://docs.x.ai/developers/model-capabilities/text/streaming) · [Chat Completions](https://docs.x.ai/developers/rest-api-reference/inference/chat-completions)。
   - ⚠ `ADAPTER_KEY_HINTS` 里的 `xai-...` 是**观察值不是官方口径**（xAI 文档只给 `<YOUR_XAI_API_KEY_HERE>` 占位符）。因此 `validate-api-key.ts` **故意没有加 xAI 前缀规则**——真校验交给 `verifyAdapterKey` 打 `GET /v1/models`。
   - 未接的档：`grok-4.5`（与 4.6 同价更旧，被严格支配）、`grok-4.3`（1M 上下文、$1.25/$2.50，是便宜档候选，owner 本轮决定不接）、`grok-4.20-*` 三变体、`grok-build-0.1`。
   - ⛔ 视频线 `xai/grok-imagine-video/v1.5`（fal，480p $0.08/s）仍未接：**违规请求照样计费**且只给 16:9 一种比例（本仓是五档）。
-- `qwen3-vl-plus` 是**死常量**：无任何路由表引用，唯一非测试消费者是一句 enhanceHint 文案。
-- ✅ **2026-09-02 纠正旧审计结论**：DeepSeek 于 2026-08-21 新增实验视觉档
-  `deepseek-v4-flash-vision-exp`，支持 OpenAI-compatible `text + image_url` 输入；
+- ~~`qwen3-vl-plus` 是**死常量**~~ → **2026-09-17 整线退役**：Qwen 文字 / LLM 线（DASHSCOPE adapterType + 四个文本模型 id + DashScope 分支 + enhance/planner 候选）已整删，`TEXT_MODEL_STRENGTHS` 随之清空并删除。Qwen 的图像 / LoRA 底模与 runner 的 Anima 工作流不受影响。
+- ✅ **2026-09-02 纠正旧审计结论**（型号已于 2026-09-17 更新）：DeepSeek 的视觉档现为
+  `deepseek-flash`（旧的 `deepseek-v4-flash-vision-exp` 官方已标 legacy 并退役，旧名仍解析
+  但落到 DeepSeek-V4.1-Flash），支持 OpenAI-compatible `text + image_url` 输入；
   `deepseek-v4-pro` 仍是纯文本。两者是能力不同的模型档位，因此共同进入助手目录，
   能力按 `modelId` 判定，不能翻转整个 DeepSeek adapter。官方依据：
   [Vision 指南](https://api-docs.deepseek.com/guides/vision/) ·

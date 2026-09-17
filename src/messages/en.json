@@ -3158,10 +3158,6 @@
         "label": "Hyper3D Rodin",
         "description": "Use the official Hyper3D Rodin Gen-2.5 API for high-quality image-to-3D generation with up to 5 reference images."
       },
-      "dashscope": {
-        "label": "Qwen",
-        "description": "Use Alibaba Qwen (DashScope) text and vision models for Chinese scriptwriting, shot breakdowns, and image analysis. Singapore region."
-      },
       "elevenlabs": {
         "label": "ElevenLabs",
         "description": "Use ElevenLabs v3 for premium, expressive text-to-speech with natural voices."
@@ -3990,22 +3986,6 @@
     "rodinGen25": {
       "label": "Rodin Gen-2.5",
       "description": "Official Hyper3D API with up to 5 reference images, GLB output, and 5 quality levels. Requires your own API key with a Business subscription."
-    },
-    "qwen3Max": {
-      "label": "Qwen3 Max",
-      "description": "Flagship Qwen text model — best for Chinese scriptwriting, shot breakdowns, and recipe fusion."
-    },
-    "qwenPlus": {
-      "label": "Qwen Plus",
-      "description": "Balanced 1M-context Qwen model — the default workhorse for most text tasks."
-    },
-    "qwenFlash": {
-      "label": "Qwen Flash",
-      "description": "Cheap, fast Qwen model for high-frequency tasks like keyword extraction and quick rewrites."
-    },
-    "qwen3VlPlus": {
-      "label": "Qwen3 VL Plus",
-      "description": "Vision-capable Qwen model for image analysis and text-in-image, with strong Chinese understanding."
     },
     "seedance20Byteplus": {
       "label": "Seedance 2.0 (BytePlus)",
@@ -5167,7 +5147,6 @@
       "setupGemini": "Gemini",
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
-      "setupQwen": "Qwen",
       "setupClaude": "Claude",
       "setupGrok": "Grok",
       "mediaCapabilities": {
@@ -6883,7 +6862,7 @@
       "referenceImageLimitExceeded": "This model received too many reference images. Remove some reference images and try again.",
       "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again.",
       "accountLimitReached": "The provider account has hit the usage limit configured for this model, and the model service is paused. Retrying will not help — raise or remove that limit in the provider's console, or switch to a different model.",
-      "outputBudgetExhausted": "This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.",
+      "outputBudgetExhausted": "This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or DeepSeek), or shorten the prompt.",
       "contextLimitExceeded": "This conversation is still too long for the model, even after shortening older messages. Start a new conversation or remove large references.",
       "refused": "The selected model declined this request under its content policy. Rephrase the request or choose another Agent Key.",
       "noOutput": "The provider completed the request but did not return usable media. Adjust the prompt or try another model.",

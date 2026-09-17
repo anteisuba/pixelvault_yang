@@ -12,7 +12,6 @@ describe('getLLMCapabilityScope', () => {
   it('returns enhance-capable adapters matching legacy LLM_CAPABLE_ADAPTERS set', () => {
     expect(getLLMCapabilityScope('enhance').sort()).toEqual(
       [
-        AI_ADAPTER_TYPES.DASHSCOPE,
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.OPENAI,
         // 2026-08-23: Grok 4.6 joins enhance — it has vision, so unlike
@@ -25,7 +24,6 @@ describe('getLLMCapabilityScope', () => {
   it('returns planner-capable adapters matching SCRIPT_PLANNER_MODELS adapter set', () => {
     expect(getLLMCapabilityScope('planner').sort()).toEqual(
       [
-        AI_ADAPTER_TYPES.DASHSCOPE,
         AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.OPENAI,
@@ -34,9 +32,9 @@ describe('getLLMCapabilityScope', () => {
   })
 
   it('returns assistant-capable adapters matching NODE_STUDIO_ASSISTANT_ROUTE_MODELS adapter set', () => {
-    // 2026-07-26: Qwen (DASHSCOPE) exits the assistant route; Claude
-    // (ANTHROPIC) takes its slot — see
-    // docs/references/pages/assistant-shell.md.
+    // 2026-07-26: Qwen exits the assistant route; Claude (ANTHROPIC) takes
+    // its slot — see docs/references/pages/assistant-shell.md. 2026-09-17:
+    // the Qwen text line is retired outright.
     expect(getLLMCapabilityScope('assistant').sort()).toEqual(
       [
         AI_ADAPTER_TYPES.ANTHROPIC,

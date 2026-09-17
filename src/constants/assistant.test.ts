@@ -37,7 +37,6 @@ describe('ASSISTANT_MEDIA_CAPABILITIES 三值化', () => {
     for (const adapterType of [
       AI_ADAPTER_TYPES.DEEPSEEK,
       AI_ADAPTER_TYPES.ANTHROPIC,
-      AI_ADAPTER_TYPES.DASHSCOPE,
       AI_ADAPTER_TYPES.VOLCENGINE,
     ]) {
       expect(assistantAdapterVideoTier(adapterType)).toBe(false)
@@ -45,7 +44,7 @@ describe('ASSISTANT_MEDIA_CAPABILITIES 三值化', () => {
   })
 
   it('DeepSeek 视觉档能吃图但不冒充原生视频模型', () => {
-    const modelId = LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP
+    const modelId = LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH
     expect(
       assistantAdapterSupportsImage(AI_ADAPTER_TYPES.DEEPSEEK, modelId),
     ).toBe(true)
@@ -136,7 +135,7 @@ describe('assistantAdapterAcceptsReferenceKind —— 附件闸', () => {
         AI_ADAPTER_TYPES.DEEPSEEK,
         'image',
         ASSISTANT_VIDEO_TIERS.native,
-        LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+        LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
       ),
     ).toBe(true)
   })
@@ -166,7 +165,7 @@ describe('getAssistantMediaCapabilityLabel', () => {
     expect(
       getAssistantMediaCapabilityLabel(
         AI_ADAPTER_TYPES.DEEPSEEK,
-        LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+        LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
       ),
     ).toBe('imageOnly')
   })

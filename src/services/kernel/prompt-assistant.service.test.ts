@@ -1262,7 +1262,7 @@ describe('chatPromptAssistant', () => {
 
       await runGeneralTurn('clerk_1', {
         messages: [{ role: 'user', content: '看看这张图' }],
-        llmModelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+        llmModelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
         references: [
           {
             id: 'deepseek-vision-ref',
@@ -1277,7 +1277,7 @@ describe('chatPromptAssistant', () => {
       expect(mockLlmCompletion).toHaveBeenCalledWith(
         expect.objectContaining({
           adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-          modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+          modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
           imageData: ['https://cdn.example.com/deepseek-vision.png'],
         }),
       )

@@ -133,8 +133,8 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
     },
 
     // Retired (gen4.5 adapter deleted, no reachable models) — kept as an
-    // empty entry because the enum member stays. See DEEPSEEK/DASHSCOPE/
-    // ANTHROPIC/XAI below for the same "no image-generation controls" shape.
+    // empty entry because the enum member stays. See DEEPSEEK/ANTHROPIC/XAI
+    // below for the same "no image-generation controls" shape.
     [AI_ADAPTER_TYPES.RUNWAY]: {
       capabilities: [],
     },
@@ -251,11 +251,6 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
 
     [AI_ADAPTER_TYPES.ELEVENLABS]: {
       capabilities: ['voiceSelection', 'speed'],
-    },
-
-    [AI_ADAPTER_TYPES.DASHSCOPE]: {
-      // Text/vision LLM line — no image-generation parameter controls.
-      capabilities: [],
     },
 
     [AI_ADAPTER_TYPES.ANTHROPIC]: {

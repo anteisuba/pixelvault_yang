@@ -259,7 +259,7 @@ describe('CanvasAssistantRouteSelector', () => {
       detail?.(
         makeOption({
           adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-          modelId: 'deepseek-v4-flash-vision-exp',
+          modelId: 'deepseek-flash',
         }),
       ),
     ).toBe('StudioNode.assistantRoute.mediaCapabilities.imageOnly')

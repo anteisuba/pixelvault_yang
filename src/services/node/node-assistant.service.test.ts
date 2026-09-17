@@ -334,7 +334,7 @@ describe('createNodeAssistantStream', () => {
 
     const stream = await createNodeAssistantStream('clerk_user_1', {
       ...REQUEST,
-      llmModelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+      llmModelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
       references: [
         {
           id: 'deepseek-image:1',
@@ -350,7 +350,7 @@ describe('createNodeAssistantStream', () => {
     expect(mockLlmTextCompletion).toHaveBeenCalledWith(
       expect.objectContaining({
         adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-        modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+        modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
         imageData: ['https://cdn.example.com/deepseek.png'],
       }),
     )

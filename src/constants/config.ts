@@ -503,10 +503,6 @@ export const AI_PROVIDER_ENDPOINTS = {
   FISH_AUDIO: 'https://api.fish.audio',
   FISH_AUDIO_ASSETS: 'https://public-platform.r2.fish.audio',
   HYPER3D: 'https://api.hyper3d.com',
-  // DashScope (Qwen) — Singapore / International region. OpenAI-compatible
-  // chat-completions drop-in. Region-locked: intl keys do NOT work against
-  // the CN host (dashscope.aliyuncs.com) and vice versa.
-  DASHSCOPE: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
   ELEVENLABS: 'https://api.elevenlabs.io',
   // MiniMax (Hailuo) video — 国际站. Async video面: POST `/video_generation`
   // → task_id, GET `/query/video_generation/{id}` → task.content.url.
@@ -558,14 +554,12 @@ export const LLM_TEXT_MODEL_IDS = {
   OPENAI_GPT_5_6_LUNA: 'gpt-5.6-luna',
   OPENAI_GPT_5_SEARCH_API: 'gpt-5-search-api',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
-  DEEPSEEK_V4_FLASH_VISION_EXP: 'deepseek-v4-flash-vision-exp',
-  // Qwen (DashScope, intl). Text flagship + 1M-context default + cheap +
-  // vision. IDs map to compatible-mode aliases; pin to dated snapshots if
-  // alias drift becomes a problem.
-  QWEN3_MAX: 'qwen3-max',
-  QWEN_PLUS: 'qwen-plus',
-  QWEN_FLASH: 'qwen-flash',
-  QWEN3_VL_PLUS: 'qwen3-vl-plus',
+  // DeepSeek's vision tier. 2026-09-17: the official model list retired
+  // `deepseek-v4-flash` / `deepseek-v4-flash-vision-exp` (the legacy names
+  // still resolve, but to DeepSeek-V4.1-Flash) — `deepseek-flash` is the
+  // current id: 1M context, 384K max output, vision ✓, $0.15/$0.6 per MTok
+  // off-peak ($0.3/$1.2 peak), cache hits $0.003–0.006.
+  DEEPSEEK_FLASH: 'deepseek-flash',
   // Anthropic (Claude). Fable 5.1 only — owner 2026-09-02 decision, replacing
   // the 2026-07-26 "Sonnet 5 only" decree. Canvas-assistant structural
   // reasoning. $10/$50 per MTok, 1M context, 128k output, thinking always on

@@ -72,8 +72,8 @@ export interface LlmTextInput {
    * provider:
    *  - Gemini: requires inline base64, so any http(s) URL is fetched
    *    server-side via `fetchAsBuffer` (which guards against SSRF).
-   *  - OpenAI-compatible vision routes (OpenAI, DeepSeek vision, Qwen VL,
-   *    Grok) accept both forms in `image_url.url`, so the value is forwarded.
+   *  - OpenAI-compatible vision routes (OpenAI, DeepSeek vision, Grok) accept
+   *    both forms in `image_url.url`, so the value is forwarded.
    */
   imageData?: string | string[]
   /**
@@ -188,7 +188,6 @@ export const LLM_TEXT_ADAPTERS = [
   AI_ADAPTER_TYPES.GEMINI,
   AI_ADAPTER_TYPES.DEEPSEEK,
   AI_ADAPTER_TYPES.OPENAI,
-  AI_ADAPTER_TYPES.DASHSCOPE,
   // Appended last: lowest priority in the no-apiKeyId auto-fallback loop
   // below, and the newest/narrowest-scope BYOK route (see
   // docs/references/pages/assistant-shell.md). Still
@@ -212,7 +211,6 @@ const LLM_TEXT_MODELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.GEMINI]: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH_LITE,
   [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
   [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
-  [AI_ADAPTER_TYPES.DASHSCOPE]: LLM_TEXT_MODEL_IDS.QWEN_PLUS,
   [AI_ADAPTER_TYPES.ANTHROPIC]: LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
   [AI_ADAPTER_TYPES.XAI]: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
 }
@@ -221,7 +219,6 @@ const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.GEMINI]: 'Gemini',
   [AI_ADAPTER_TYPES.DEEPSEEK]: 'DeepSeek',
   [AI_ADAPTER_TYPES.OPENAI]: 'OpenAI',
-  [AI_ADAPTER_TYPES.DASHSCOPE]: 'Qwen',
   [AI_ADAPTER_TYPES.ANTHROPIC]: 'Claude',
   [AI_ADAPTER_TYPES.XAI]: 'Grok',
 }
@@ -283,7 +280,7 @@ const LLM_TEXT_PROVIDER_ERROR_MESSAGES = {
   failed:
     'The selected planner provider rejected the request. Try another Agent Key.',
   outputBudgetExhausted:
-    'This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or Qwen), or shorten the prompt.',
+    'This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or DeepSeek), or shorten the prompt.',
   contextLimitExceeded:
     'The selected model rejected the input because its context window was exceeded. PixelVault already compacted older history and retried once; start a new conversation or remove large references.',
   timeout:
@@ -362,8 +359,6 @@ function getBaseUrlForAdapter(adapterType: LlmTextAdapterType): string {
       return AI_PROVIDER_ENDPOINTS.OPENAI_CHAT
     case AI_ADAPTER_TYPES.DEEPSEEK:
       return AI_PROVIDER_ENDPOINTS.DEEPSEEK
-    case AI_ADAPTER_TYPES.DASHSCOPE:
-      return AI_PROVIDER_ENDPOINTS.DASHSCOPE
     case AI_ADAPTER_TYPES.ANTHROPIC:
       return AI_PROVIDER_ENDPOINTS.ANTHROPIC
     case AI_ADAPTER_TYPES.XAI:
@@ -1428,10 +1423,7 @@ function buildDeepseekChatRequest(
   const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DEEPSEEK]
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.DEEPSEEK
 
-  if (
-    input.imageData &&
-    modelId !== LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP
-  ) {
+  if (input.imageData && modelId !== LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH) {
     throw new Error(`DeepSeek model ${modelId} does not support image input.`)
   }
 
@@ -1509,116 +1501,6 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
 }
 
 /**
- * DashScope (Qwen) text completion — OpenAI `/chat/completions` drop-in
- * compatible. Generalized from `deepseekTextCompletion` with three differences:
- *  1. Image input is supported — VL models (e.g. qwen3-vl-plus) take images as
- *     `{ type: 'image_url', image_url: { url } }` content (OpenAI multimodal
- *     shape), so we do NOT hard-throw on `imageData`.
- *  2. For structured JSON output, Qwen requires the prompt to literally contain
- *     the word "json" and `enable_thinking: false` — both handled here.
- *  3. No grounding / web_search support (compatible-mode has no such tool).
- */
-function buildDashscopeChatRequest(
-  input: LlmTextInput,
-  options: { stream?: boolean } = {},
-): { endpoint: string; modelId: string; body: string } {
-  if (input.videoData) {
-    throw new Error('Qwen text completion does not support video input.')
-  }
-  if (input.useGrounding) {
-    throw new Error(
-      'Qwen (DashScope) text completion does not support grounding.',
-    )
-  }
-
-  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DASHSCOPE]
-  const baseUrl =
-    input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.DASHSCOPE
-
-  const wantsJson = input.responseFormat === 'json_object'
-  // Qwen's JSON mode requires the literal token "json" somewhere in the
-  // messages. If the caller's prompt doesn't already mention it, append a
-  // minimal instruction so structured output doesn't 400.
-  const systemPrompt =
-    wantsJson && !/json/i.test(`${input.systemPrompt} ${input.userPrompt}`)
-      ? `${input.systemPrompt}\n\nRespond with valid JSON.`
-      : input.systemPrompt
-
-  const messages: Array<Record<string, unknown>> = [
-    { role: 'system', content: systemPrompt },
-  ]
-
-  if (input.imageData) {
-    const images = Array.isArray(input.imageData)
-      ? input.imageData
-      : [input.imageData]
-    const content: Array<Record<string, unknown>> = images.map((img) => ({
-      type: 'image_url',
-      image_url: { url: img },
-    }))
-    content.push({ type: 'text', text: input.userPrompt })
-    messages.push({ role: 'user', content })
-  } else {
-    messages.push({ role: 'user', content: input.userPrompt })
-  }
-
-  return {
-    endpoint: `${baseUrl.replace(/\/$/, '')}/chat/completions`,
-    modelId,
-    body: JSON.stringify({
-      model: modelId,
-      messages,
-      ...(options.stream ? { stream: true } : {}),
-      ...(!input.providerManagedOutput
-        ? {
-            max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
-          }
-        : {}),
-      ...(wantsJson
-        ? { response_format: { type: 'json_object' }, enable_thinking: false }
-        : {}),
-    }),
-  }
-}
-
-async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
-  const { endpoint, modelId, body } = buildDashscopeChatRequest(input)
-
-  const response = await fetchLlmTextBuffered(
-    endpoint,
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${input.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body,
-    },
-    { adapterType: AI_ADAPTER_TYPES.DASHSCOPE, modelId },
-  )
-
-  if (!response.ok) {
-    const errorBody = await response.text().catch(() => 'Unknown error')
-    throw toLlmTextProviderError(response.status, errorBody, {
-      adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
-      modelId,
-    })
-  }
-
-  const data = OpenAiChatResponseSchema.parse(await response.json())
-  const content = getOpenAiChatText(data)
-
-  checkTextFinishReason(
-    data.choices[0]?.finish_reason,
-    modelId,
-    data.choices[0]?.message.refusal,
-  )
-  if (!content) throw textResponseError(modelId)
-
-  return content
-}
-
-/**
  * xAI (Grok) `/chat/completions` request — OpenAI drop-in (xAI's docs state
  * "full compatibility with the OpenAI REST API"), shared by the buffered and
  * streaming consumers.
@@ -1628,13 +1510,13 @@ async function dashscopeTextCompletion(input: LlmTextInput): Promise<string> {
  * silently break this route: it resolves its base URL via
  * `getOpenAiChatBaseUrl()` (which falls back to **OpenAI's** host), and on
  * `useGrounding` it swaps `modelId` for `OPENAI_GPT_5_SEARCH_API` — i.e. a
- * grounded Grok turn would be billed to OpenAI. Copying the DeepSeek/DashScope
- * shape keeps this route's host and model ids its own; it also sidesteps
+ * grounded Grok turn would be billed to OpenAI. Copying the DeepSeek shape
+ * keeps this route's host and model ids its own; it also sidesteps
  * `isOpenAiReasoningModel`, whose `/^(gpt-[56]|o[134])/` regex never matches a
  * `grok-*` id and would hand Grok a too-small token budget.
  *
  * Image input IS supported (grok-4.6 takes `text, image → text`; 20MiB max,
- * jpg/png only) using the same OpenAI multimodal content shape Qwen uses.
+ * jpg/png only) using the same OpenAI multimodal content shape DeepSeek uses.
  * Video and grounding are not — xAI's Live Search is a separate API surface,
  * so we fail loudly rather than silently dropping the request.
  */
@@ -1732,7 +1614,7 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
  * Deliberate differences from the branches above
  * (docs/references/pages/assistant-shell.md):
  *  1. `max_tokens` is required on every request — `providerManagedOutput`
- *     can't mean "omit the field" the way it does for OpenAI/DeepSeek/Qwen,
+ *     can't mean "omit the field" the way it does for OpenAI/DeepSeek,
  *     so it maps to a wide ceiling. Fable 5.1 always thinks and `max_tokens`
  *     caps thinking + answer together, so that ceiling is also the floor
  *     for explicit caller budgets (`resolveAnthropicMaxTokens`).
@@ -1827,8 +1709,8 @@ function buildAnthropicMessagesRequest(
   // The real structured-output surface is `output_config.format` with a
   // *json_schema*, but `LlmTextInput.responseFormat` only carries the
   // schemaless `'json_object'` flag, so there's no schema to hand it at this
-  // layer. Until a schema is threaded through, we do what the DashScope branch
-  // does — instruct in the system prompt — and lean on the existing
+  // layer. Until a schema is threaded through, we instruct in the system
+  // prompt instead, and lean on the existing
   // fence-tolerant parse + `validateLlmStructuredOutput` downstream.
   const systemPrompt = wantsJson
     ? `${input.systemPrompt}\n\nRespond with a single valid JSON object and nothing else — no prose, no markdown code fences.`
@@ -2006,7 +1888,7 @@ async function* geminiTextStream(input: LlmTextInput): AsyncIterable<string> {
 /**
  * OpenAI 兼容 `/chat/completions` 的 SSE 消费 —— **四家共用一份**。
  *
- * OpenAI / DeepSeek / Qwen / Grok 的事件格式完全一致
+ * OpenAI / DeepSeek / Grok 的事件格式完全一致
  * （`data: {choices:[{delta:{content}}]}`，以字面量 `[DONE]` 收尾），所以解析
  * 只写一遍。各家的差异全在请求那一侧（host / model id / 能力闸 / JSON 模式的
  * 特殊要求），由各自的 `build*ChatRequest` 负责——这条边界的意义是：接第五家
@@ -2112,23 +1994,6 @@ async function* deepseekTextStream(input: LlmTextInput): AsyncIterable<string> {
     adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
     modelId,
     label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.DEEPSEEK],
-  })
-}
-
-async function* dashscopeTextStream(
-  input: LlmTextInput,
-): AsyncIterable<string> {
-  const { endpoint, modelId, body } = buildDashscopeChatRequest(input, {
-    stream: true,
-  })
-
-  yield* streamOpenAiCompatibleChat({
-    endpoint,
-    body,
-    apiKey: input.apiKey,
-    adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
-    modelId,
-    label: LLM_TEXT_LABELS[AI_ADAPTER_TYPES.DASHSCOPE],
   })
 }
 
@@ -2252,7 +2117,6 @@ export const LLM_TEXT_STREAMS: Record<
   [AI_ADAPTER_TYPES.GEMINI]: geminiTextStream,
   [AI_ADAPTER_TYPES.OPENAI]: openAiTextStream,
   [AI_ADAPTER_TYPES.DEEPSEEK]: deepseekTextStream,
-  [AI_ADAPTER_TYPES.DASHSCOPE]: dashscopeTextStream,
   [AI_ADAPTER_TYPES.ANTHROPIC]: anthropicTextStream,
   [AI_ADAPTER_TYPES.XAI]: xaiTextStream,
 }
@@ -2300,8 +2164,6 @@ export async function llmTextCompletion(input: LlmTextInput): Promise<string> {
       return openAiTextCompletion(input)
     case AI_ADAPTER_TYPES.DEEPSEEK:
       return deepseekTextCompletion(input)
-    case AI_ADAPTER_TYPES.DASHSCOPE:
-      return dashscopeTextCompletion(input)
     case AI_ADAPTER_TYPES.ANTHROPIC:
       return anthropicTextCompletion(input)
     case AI_ADAPTER_TYPES.XAI:

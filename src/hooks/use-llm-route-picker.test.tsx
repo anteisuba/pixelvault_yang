@@ -91,7 +91,6 @@ describe('useLLMRoutePicker', () => {
       const adapters = result.current.lockedRoutes.map((r) => r.adapterType)
       expect([...new Set(adapters)].sort()).toEqual(
         [
-          AI_ADAPTER_TYPES.DASHSCOPE,
           AI_ADAPTER_TYPES.GEMINI,
           AI_ADAPTER_TYPES.OPENAI,
           AI_ADAPTER_TYPES.XAI,
@@ -106,7 +105,6 @@ describe('useLLMRoutePicker', () => {
           'OpenAI GPT-6 Astra',
           'Gemini 3.5 Flash Lite',
           'Gemini 3.8 Flash',
-          'Qwen Flash',
           'Grok 4.6',
         ].sort(),
       )
@@ -137,7 +135,7 @@ describe('useLLMRoutePicker', () => {
     it('locked routes list all planner-capable adapters with registry data', () => {
       mockApiKeys([])
       const { result } = renderHook(() => useLLMRoutePicker('planner'))
-      expect(result.current.lockedRoutes.length).toBe(4)
+      expect(result.current.lockedRoutes.length).toBe(3)
       expect(result.current.lockedRoutes.every((r) => r.modelId)).toBe(true)
     })
   })
@@ -147,8 +145,8 @@ describe('useLLMRoutePicker', () => {
       mockApiKeys([
         makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.GEMINI }),
         makeKey({ id: 'k2', adapterType: AI_ADAPTER_TYPES.OPENAI }),
-        makeKey({ id: 'k3', adapterType: AI_ADAPTER_TYPES.DASHSCOPE }),
         makeKey({ id: 'k4', adapterType: AI_ADAPTER_TYPES.DEEPSEEK }),
+        makeKey({ id: 'k6', adapterType: AI_ADAPTER_TYPES.HUGGINGFACE }),
         makeKey({ id: 'k5', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
@@ -172,7 +170,7 @@ describe('useLLMRoutePicker', () => {
       expect(result.current.savedRoutes[0].label).toBe('Gemini 3.8 Flash')
     })
 
-    it('offers OpenAI, Gemini, DeepSeek, Claude, and Grok setup rows without Qwen', () => {
+    it('offers OpenAI, Gemini, DeepSeek, Claude, and Grok setup rows', () => {
       mockApiKeys([])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
       expect(

@@ -3158,10 +3158,6 @@
         "label": "Hyper3D Rodin",
         "description": "使用 Hyper3D Rodin Gen-2.5 官方 API，支持最多 5 张参考图的高质量图生 3D。"
       },
-      "dashscope": {
-        "label": "通义千问",
-        "description": "使用阿里通义千问（DashScope）文本与视觉模型，擅长中文剧本、分镜拆解与图片分析。新加坡区域。"
-      },
       "elevenlabs": {
         "label": "ElevenLabs",
         "description": "使用 ElevenLabs v3 进行高品质、富有表现力的文字转语音，声音自然逼真。"
@@ -3990,22 +3986,6 @@
     "rodinGen25": {
       "label": "Rodin Gen-2.5",
       "description": "Hyper3D 官方 API — 最多 5 张参考图、GLB 输出、5 档质量层级。需要 BYOK（Business 订阅）。"
-    },
-    "qwen3Max": {
-      "label": "通义千问3 Max",
-      "description": "通义千问旗舰文本模型 — 擅长中文剧本、分镜拆解与配方融合。"
-    },
-    "qwenPlus": {
-      "label": "通义千问 Plus",
-      "description": "均衡型百万上下文通义千问模型 — 多数文本任务的默认主力。"
-    },
-    "qwenFlash": {
-      "label": "通义千问 Flash",
-      "description": "廉价、快速的通义千问模型，适合关键词拆解、快速改写等高频任务。"
-    },
-    "qwen3VlPlus": {
-      "label": "通义千问3 VL Plus",
-      "description": "支持视觉的通义千问模型，适合图片反推与图内文字识别，中文理解强。"
     },
     "seedance20Byteplus": {
       "label": "Seedance 2.0（BytePlus）",
@@ -5167,7 +5147,6 @@
       "setupGemini": "Gemini",
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
-      "setupQwen": "Qwen",
       "setupClaude": "Claude",
       "setupGrok": "Grok",
       "mediaCapabilities": {
@@ -6883,7 +6862,7 @@
       "referenceImageLimitExceeded": "参考图数量超过该模型限制。请减少参考图后再试。",
       "invalidReferenceImageDimensions": "参考图尺寸或比例不符合该模型要求。请换一张尺寸合规的图片后再试。",
       "accountLimitReached": "服务商账号为该模型设置的用量上限已触顶，模型服务已被暂停。重试不会有变化——请到服务商控制台调高或关闭该模型的用量限额，或先改用其它模型。",
-      "outputBudgetExhausted": "该推理模型在写出回复前就用尽了输出额度。请重试、换非推理模型（如 Gemini / Qwen），或缩短提示词。",
+      "outputBudgetExhausted": "该推理模型在写出回复前就用尽了输出额度。请重试、换非推理模型（如 Gemini / DeepSeek），或缩短提示词。",
       "contextLimitExceeded": "PixelVault 已压缩较早历史并自动重试一次，但仍超过该模型的上下文上限。请新建对话或移除较大的参考内容。",
       "refused": "所选模型依据其内容政策拒绝了本次请求。请换个说法，或选择其他 Agent Key。",
       "noOutput": "服务商完成了请求，但没有返回可用媒体。请调整提示词，或换一个模型重试。",

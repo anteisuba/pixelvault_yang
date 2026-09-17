@@ -3158,10 +3158,6 @@
         "label": "Hyper3D Rodin",
         "description": "公式Hyper3D Rodin Gen-2.5 APIを使用して、最大5枚の参照画像で高品質な画像→3D生成を行います。"
       },
-      "dashscope": {
-        "label": "Qwen",
-        "description": "Alibaba Qwen（DashScope）のテキスト・ビジョンモデルを使用。中国語の脚本作成、ショット分解、画像解析に対応。シンガポールリージョン。"
-      },
       "elevenlabs": {
         "label": "ElevenLabs",
         "description": "ElevenLabs v3 を使用して、自然で表現豊かな高品質テキスト読み上げを行います。"
@@ -3990,22 +3986,6 @@
     "rodinGen25": {
       "label": "Rodin Gen-2.5",
       "description": "Hyper3D 公式 API。最大5枚の参照画像、GLB 出力、5段階の品質に対応。Business プランの API キーが必要です。"
-    },
-    "qwen3Max": {
-      "label": "Qwen3 Max",
-      "description": "Qwen フラッグシップのテキストモデル — 中国語の脚本作成、ショット分解、レシピ融合に最適。"
-    },
-    "qwenPlus": {
-      "label": "Qwen Plus",
-      "description": "100万トークンのコンテキストに対応する、バランス型の Qwen モデル。幅広い文章作成に使えます。"
-    },
-    "qwenFlash": {
-      "label": "Qwen Flash",
-      "description": "キーワード抽出やクイックリライトなど高頻度タスク向けの安価で高速な Qwen モデル。"
-    },
-    "qwen3VlPlus": {
-      "label": "Qwen3 VL Plus",
-      "description": "画像解析や画像内テキストに対応するビジョン対応 Qwen モデル。中国語理解が強力。"
     },
     "seedance20Byteplus": {
       "label": "Seedance 2.0（BytePlus）",
@@ -5167,7 +5147,6 @@
       "setupGemini": "Gemini",
       "setupDeepSeek": "DeepSeek",
       "setupChatGpt": "OpenAI",
-      "setupQwen": "Qwen",
       "setupClaude": "Claude",
       "setupGrok": "Grok",
       "mediaCapabilities": {
@@ -6883,7 +6862,7 @@
       "referenceImageLimitExceeded": "参照画像の数がこのモデルの上限を超えています。参照画像を減らしてから再試行してください。",
       "invalidReferenceImageDimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません。別のサイズの画像で再試行してください。",
       "accountLimitReached": "プロバイダーのアカウントでこのモデルに設定された利用上限に達し、モデルサービスが停止されています。再試行しても解決しません。プロバイダーのコンソールで上限を引き上げるか解除するか、別のモデルに切り替えてください。",
-      "outputBudgetExhausted": "この推論モデルは、返信を書く前に出力枠を使い切りました。再試行するか、非推論モデル（例: Gemini / Qwen）に切り替えるか、プロンプトを短くしてください。",
+      "outputBudgetExhausted": "この推論モデルは、返信を書く前に出力枠を使い切りました。再試行するか、非推論モデル（例: Gemini / DeepSeek）に切り替えるか、プロンプトを短くしてください。",
       "contextLimitExceeded": "古いメッセージを短くしても、このモデルが扱える長さを超えています。新しい会話を始めるか、大きな参照素材を外してください。",
       "refused": "選択したモデルはコンテンツポリシーによりこのリクエストを拒否しました。言い換えるか、別の Agent Key を選んでください。",
       "noOutput": "プロバイダーは処理を完了しましたが、利用できるメディアを返しませんでした。プロンプトを調整するか、別のモデルを試してください。",

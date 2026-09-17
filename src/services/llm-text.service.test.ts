@@ -1046,7 +1046,7 @@ describe('llmTextCompletion - DeepSeek', () => {
         'https://cdn.example.com/a.png',
         'data:image/webp;base64,abc',
       ],
-      modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_FLASH_VISION_EXP,
+      modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
       adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
       providerConfig: {
         label: 'DeepSeek',
@@ -1066,7 +1066,7 @@ describe('llmTextCompletion - DeepSeek', () => {
     }
     const userMessage = payload.messages[1]
     expect(result).toBe('image described')
-    expect(payload.model).toBe('deepseek-v4-flash-vision-exp')
+    expect(payload.model).toBe('deepseek-flash')
     expect(userMessage.role).toBe('user')
     expect(userMessage.content).toEqual([
       {
@@ -1119,140 +1119,6 @@ describe('llmTextCompletion - DeepSeek', () => {
   })
 })
 
-describe('llmTextCompletion - DashScope (Qwen)', () => {
-  it('omits the app output cap when the provider manages the budget', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          choices: [{ message: { content: 'provider managed' } }],
-        }),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-
-    await llmTextCompletion({
-      systemPrompt: 'sys',
-      userPrompt: 'user',
-      providerManagedOutput: true,
-      adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
-      providerConfig: {
-        label: 'Qwen',
-        baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
-      },
-      apiKey: 'sk-qwen',
-    })
-
-    expect(readFetchJson(fetchMock).max_tokens).toBeUndefined()
-  })
-
-  it('calls the Qwen chat API and injects json + enable_thinking for JSON mode', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          choices: [{ message: { content: '{"scenes":[]}' } }],
-        }),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await llmTextCompletion({
-      systemPrompt: 'Plan a shot breakdown.',
-      userPrompt: 'Write a script outline.',
-      adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
-      providerConfig: {
-        label: 'Qwen',
-        baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
-      },
-      apiKey: 'sk-qwen',
-      maxTokens: 2048,
-      responseFormat: 'json_object',
-    })
-
-    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
-    const body = requestInit?.body
-    if (typeof body !== 'string') {
-      throw new Error('Expected Qwen request body to be a JSON string')
-    }
-    const payload = JSON.parse(body) as {
-      model: string
-      max_tokens: number
-      enable_thinking?: boolean
-      response_format?: { type: string }
-      messages: Array<{ role: string; content: unknown }>
-    }
-
-    expect(result).toBe('{"scenes":[]}')
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: 'Bearer sk-qwen',
-        }),
-      }),
-    )
-    expect(payload.model).toBe('qwen-plus')
-    expect(payload.max_tokens).toBe(2048)
-    expect(payload.enable_thinking).toBe(false)
-    expect(payload.response_format?.type).toBe('json_object')
-    // Neither prompt mentions "json", so the adapter must append the instruction.
-    expect(JSON.stringify(payload.messages)).toMatch(/json/i)
-  })
-
-  it('forwards image input as OpenAI-style image_url content (VL models)', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          choices: [{ message: { content: 'image described' } }],
-        }),
-        { status: 200 },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
-
-    const result = await llmTextCompletion({
-      systemPrompt: 'You analyze images.',
-      userPrompt: 'Describe this image.',
-      imageData: 'https://example.com/ref.png',
-      modelId: 'qwen3-vl-plus',
-      adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
-      providerConfig: {
-        label: 'Qwen',
-        baseUrl: 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1',
-      },
-      apiKey: 'sk-qwen',
-    })
-
-    const requestInit = fetchMock.mock.calls[0]?.[1] as RequestInit | undefined
-    const body = requestInit?.body
-    if (typeof body !== 'string') {
-      throw new Error('Expected Qwen request body to be a JSON string')
-    }
-    const payload = JSON.parse(body) as {
-      model: string
-      messages: Array<{
-        role: string
-        content: Array<{ type: string; image_url?: { url: string } }> | string
-      }>
-    }
-
-    expect(result).toBe('image described')
-    expect(payload.model).toBe('qwen3-vl-plus')
-    const userMessage = payload.messages.find((m) => m.role === 'user')
-    expect(Array.isArray(userMessage?.content)).toBe(true)
-    const content = userMessage?.content as Array<{
-      type: string
-      image_url?: { url: string }
-    }>
-    expect(content[0]).toEqual({
-      type: 'image_url',
-      image_url: { url: 'https://example.com/ref.png' },
-    })
-    expect(content[1]).toEqual({ type: 'text', text: 'Describe this image.' })
-  })
-})
-
 describe('llmTextCompletion — xAI (Grok)', () => {
   it('posts to the xAI chat endpoint with the route model and bearer key', async () => {
     const fetchMock = vi
@@ -1288,6 +1154,76 @@ describe('llmTextCompletion — xAI (Grok)', () => {
     )
     const payload = readFetchJson(fetchMock)
     expect(payload.model).toBe('grok-4.6')
+    // grok-4.6 defaults to high reasoning and cannot disable it. Assistant
+    // turns are agentic JSON / tool loops — official "low" is that tier.
+    expect(payload.reasoning_effort).toBe('low')
+    // Official visible-output field. Deprecated `max_tokens` must stay off:
+    // if still honored as a total cap it would eat the budget on thinking.
+    expect(payload.max_completion_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.XAI)
+    expect(payload.max_tokens).toBeUndefined()
+  })
+
+  it('omits the visible-output cap when the provider manages the budget, still sends low reasoning', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      providerManagedOutput: true,
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+      apiKey: 'xai-test',
+      modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
+    })
+
+    const payload = readFetchJson(fetchMock)
+    expect(payload.reasoning_effort).toBe('low')
+    expect(payload.max_completion_tokens).toBeUndefined()
+    expect(payload.max_tokens).toBeUndefined()
+  })
+
+  it('raises an explicit maxTokens below the Grok floor, keeps one above it', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockImplementation(
+        async () =>
+          new Response(
+            JSON.stringify({ choices: [{ message: { content: 'ok' } }] }),
+            { status: 200 },
+          ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const base = {
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      adapterType: AI_ADAPTER_TYPES.XAI,
+      providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+      apiKey: 'xai-test',
+      modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
+    } as const
+    await llmTextCompletion({ ...base, maxTokens: 512 })
+    await llmTextCompletion({
+      ...base,
+      maxTokens: LLM_TEXT_DEFAULT_MAX_TOKENS.XAI + 1,
+    })
+
+    const first = readFetchJson(fetchMock, 0)
+    const second = readFetchJson(fetchMock, 1)
+    expect(first.max_completion_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.XAI)
+    expect(second.max_completion_tokens).toBe(
+      LLM_TEXT_DEFAULT_MAX_TOKENS.XAI + 1,
+    )
+    expect(first.max_tokens).toBeUndefined()
+    expect(second.max_tokens).toBeUndefined()
   })
 
   it('forwards image input as OpenAI-style image_url content (grok-4.6 vision)', async () => {
@@ -1372,7 +1308,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     })
 
     // Anthropic's Messages API requires max_tokens on every request — unlike
-    // OpenAI/DeepSeek/Qwen, providerManagedOutput can't mean "omit the field."
+    // OpenAI/DeepSeek, providerManagedOutput can't mean "omit the field."
     expect(readFetchJson(fetchMock).max_tokens).toBe(
       LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC,
     )
@@ -1991,13 +1927,6 @@ describe('llmTextStream', () => {
       expectedHost: 'https://api.deepseek.com/chat/completions',
     },
     {
-      name: 'Qwen',
-      adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
-      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-      expectedHost:
-        'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-    },
-    {
       name: 'Grok',
       adapterType: AI_ADAPTER_TYPES.XAI,
       baseUrl: 'https://api.x.ai/v1',
@@ -2061,13 +1990,92 @@ describe('llmTextStream', () => {
       )
 
       expect(chunks).toEqual(['慢'])
-      // 远远越过首字窗口之后 signal 仍未 abort —— 计时器确实撤掉了。
-      vi.advanceTimersByTime(LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS * 4)
+      // 远远越过 Grok 加长后的首字窗口之后 signal 仍未 abort —— 计时器确实撤掉了。
+      vi.advanceTimersByTime(LLM_TEXT_TIMEOUTS_MS.XAI_STREAM_HEADERS * 4)
       expect(capturedSignal).not.toBeNull()
       expect((capturedSignal as unknown as AbortSignal).aborted).toBe(false)
     } finally {
       vi.useRealTimers()
     }
+  })
+
+  it('Grok 流式：首包窗口是 XAI_STREAM_HEADERS，通用 30s 不够就掐等于连接不上', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    try {
+      let capturedSignal: AbortSignal | null = null
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockImplementation((_url: string, init: RequestInit) => {
+          capturedSignal = init.signal ?? null
+          return new Promise((_resolve, reject) => {
+            const signal = init.signal
+            if (!signal) return
+            const onAbort = () => {
+              const aborted = new Error('The operation was aborted')
+              aborted.name = 'AbortError'
+              reject(aborted)
+            }
+            if (signal.aborted) onAbort()
+            else signal.addEventListener('abort', onAbort, { once: true })
+          })
+        }),
+      )
+
+      const pending = collect(
+        llmTextStream({
+          systemPrompt: 'sys',
+          userPrompt: 'user',
+          adapterType: AI_ADAPTER_TYPES.XAI,
+          providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+          apiKey: 'test-key',
+        }),
+      )
+      const expected = expect(pending).rejects.toMatchObject({
+        errorCode: 'PROVIDER_TIMEOUT',
+        httpStatus: 504,
+      })
+      // fetchLlmTextStreaming arms the timer then awaits fetch — flush that.
+      await Promise.resolve()
+      await Promise.resolve()
+
+      await vi.advanceTimersByTimeAsync(LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS)
+      expect(capturedSignal).not.toBeNull()
+      expect((capturedSignal as unknown as AbortSignal).aborted).toBe(false)
+
+      await vi.advanceTimersByTimeAsync(
+        LLM_TEXT_TIMEOUTS_MS.XAI_STREAM_HEADERS -
+          LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS,
+      )
+      expect((capturedSignal as unknown as AbortSignal).aborted).toBe(true)
+      await expected
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('Grok 流式请求同样带 reasoning_effort: low，不发已弃用的 max_tokens', async () => {
+    const event = (content: string) =>
+      `data: ${JSON.stringify({ choices: [{ delta: { content } }] })}\n\n`
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(sseResponse([event('ok'), 'data: [DONE]\n\n']))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await collect(
+      llmTextStream({
+        systemPrompt: 'sys',
+        userPrompt: 'user',
+        adapterType: AI_ADAPTER_TYPES.XAI,
+        providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
+        apiKey: 'test-key',
+      }),
+    )
+
+    const payload = readFetchJson(fetchMock)
+    expect(payload.stream).toBe(true)
+    expect(payload.reasoning_effort).toBe('low')
+    expect(payload.max_completion_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.XAI)
+    expect(payload.max_tokens).toBeUndefined()
   })
 
   it('流式：响应头等不到时报 PROVIDER_TIMEOUT，不是没头没尾的 502', async () => {
@@ -2253,7 +2261,6 @@ describe('LLM provider response regressions', () => {
   const adapters = [
     AI_ADAPTER_TYPES.OPENAI,
     AI_ADAPTER_TYPES.DEEPSEEK,
-    AI_ADAPTER_TYPES.DASHSCOPE,
     AI_ADAPTER_TYPES.XAI,
     AI_ADAPTER_TYPES.GEMINI,
     AI_ADAPTER_TYPES.ANTHROPIC,
@@ -2357,7 +2364,6 @@ describe('LLM provider response regressions', () => {
     it.each([
       AI_ADAPTER_TYPES.OPENAI,
       AI_ADAPTER_TYPES.DEEPSEEK,
-      AI_ADAPTER_TYPES.DASHSCOPE,
       AI_ADAPTER_TYPES.XAI,
     ])('%s must report stream output limit', async (adapter) => {
       respond(
@@ -2410,11 +2416,7 @@ describe('LLM provider response regressions', () => {
         errorCode: 'PROVIDER_TRANSIENT',
       })
     })
-    it.each([
-      AI_ADAPTER_TYPES.DEEPSEEK,
-      AI_ADAPTER_TYPES.DASHSCOPE,
-      AI_ADAPTER_TYPES.XAI,
-    ])(
+    it.each([AI_ADAPTER_TYPES.DEEPSEEK, AI_ADAPTER_TYPES.XAI])(
       '%s empty completion must preserve a structured error',
       async (adapter) => {
         respond({
@@ -2590,7 +2592,6 @@ describe('LLM provider response regressions', () => {
   it.each([
     AI_ADAPTER_TYPES.OPENAI,
     AI_ADAPTER_TYPES.DEEPSEEK,
-    AI_ADAPTER_TYPES.DASHSCOPE,
     AI_ADAPTER_TYPES.XAI,
   ])('%s refusal after partial JSON is preserved', async (adapter) => {
     respond(

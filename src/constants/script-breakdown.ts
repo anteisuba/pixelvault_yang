@@ -21,7 +21,6 @@ export const SCRIPT_PLANNER_PROVIDER_IDS = {
   gemini: 'gemini',
   deepseek: 'deepseek',
   openai: 'openai',
-  dashscope: 'dashscope',
 } as const
 
 export const SCRIPT_PLANNER_PROVIDERS = [
@@ -29,7 +28,6 @@ export const SCRIPT_PLANNER_PROVIDERS = [
   SCRIPT_PLANNER_PROVIDER_IDS.gemini,
   SCRIPT_PLANNER_PROVIDER_IDS.deepseek,
   SCRIPT_PLANNER_PROVIDER_IDS.openai,
-  SCRIPT_PLANNER_PROVIDER_IDS.dashscope,
 ] as const
 
 export type ScriptPlannerProvider = (typeof SCRIPT_PLANNER_PROVIDERS)[number]
@@ -58,11 +56,6 @@ export const SCRIPT_PLANNER_MODELS = {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
     label: 'OpenAI GPT-5.6 Terra',
   },
-  dashscope: {
-    modelId: LLM_TEXT_MODEL_IDS.QWEN3_MAX,
-    adapterType: AI_ADAPTER_TYPES.DASHSCOPE,
-    label: 'Qwen3 Max',
-  },
 } as const
 
 export const SCRIPT_PLANNER_MODEL_OPTIONS = [
@@ -77,10 +70,6 @@ export const SCRIPT_PLANNER_MODEL_OPTIONS = [
   {
     provider: SCRIPT_PLANNER_PROVIDER_IDS.openai,
     ...SCRIPT_PLANNER_MODELS.openai,
-  },
-  {
-    provider: SCRIPT_PLANNER_PROVIDER_IDS.dashscope,
-    ...SCRIPT_PLANNER_MODELS.dashscope,
   },
 ] as const
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Film, Frame, Locate, Mic2, Play } from 'lucide-react'
+import { Film, Frame, Locate, Mic2, Play } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

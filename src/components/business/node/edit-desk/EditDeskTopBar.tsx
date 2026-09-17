@@ -9,7 +9,7 @@
  */
 
 import { Fragment, useEffect, useRef, useState } from 'react'
-import { ChevronLeft, Keyboard, Undo2 } from 'lucide-react'
+import { ChevronLeft, Keyboard, Undo2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

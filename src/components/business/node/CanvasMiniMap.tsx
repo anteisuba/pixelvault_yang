@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Map, ChevronDown } from 'lucide-react'
+import { Map, ChevronDown } from '@/components/icons'
 
 import { MiniMap } from '@xyflow/react'
 import { useTranslations } from 'next-intl'

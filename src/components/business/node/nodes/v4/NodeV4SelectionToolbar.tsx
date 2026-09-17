@@ -19,7 +19,12 @@
 
 import { NodeToolbar, Position } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
-import { AlignVerticalJustifyStart, Copy, Download, Trash2 } from 'lucide-react'
+import {
+  AlignVerticalJustifyStart,
+  Copy,
+  Download,
+  Trash2,
+} from '@/components/icons'
 import type { ReactNode } from 'react'
 
 import {

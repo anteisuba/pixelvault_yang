@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
-import { Check, SendHorizontal, SkipForward } from 'lucide-react'
+import { Check, SendHorizontal, SkipForward } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'

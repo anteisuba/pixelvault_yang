@@ -16,7 +16,7 @@
 import { useEffect, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { Download, X } from 'lucide-react'
+import { Download, X } from '@/components/icons'
 
 import { cn } from '@/lib/utils'
 

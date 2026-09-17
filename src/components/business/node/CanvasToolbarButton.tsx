@@ -11,7 +11,7 @@
  * 4px，⛔ 别为了「看起来一样」把它删掉。
  */
 
-import type { LucideIcon } from 'lucide-react'
+import type { LucideIcon } from '@/components/icons'
 
 export interface CanvasToolbarLabelButtonProps {
   readonly icon: LucideIcon

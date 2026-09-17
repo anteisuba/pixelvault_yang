@@ -14,7 +14,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Loader2 } from 'lucide-react'
 import { useReactFlow } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -33,6 +32,7 @@ import {
 } from '@/hooks/node/use-node-upload-v4'
 import type { NodeGraphV4 } from '@/hooks/node/use-node-graph-v4'
 import type { NodeV4Data } from '@/types/node-workflow'
+import { Spinner } from '@/components/ui/spinner'
 
 /** 一个文件落成哪种节点。⚠ 判据是 MIME 大类，⛔ 不按扩展名猜。 */
 function resolveDropKind(file: File): {
@@ -339,10 +339,7 @@ export function WorkbenchUploadStatus({
     >
       {items.map((item) => (
         <div key={item.id} className="flex min-w-0 items-center gap-2">
-          <Loader2
-            aria-hidden
-            className="size-4 shrink-0 animate-spin motion-reduce:animate-none"
-          />
+          <Spinner aria-hidden className="size-4 shrink-0" />
           <span className="truncate">
             {t('uploading', { name: item.name })}
           </span>

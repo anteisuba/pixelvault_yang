@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { Copy, Trash2 } from 'lucide-react'
+import { Copy, Trash2 } from '@/components/icons'
 import { describe, expect, it, vi } from 'vitest'
 
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'

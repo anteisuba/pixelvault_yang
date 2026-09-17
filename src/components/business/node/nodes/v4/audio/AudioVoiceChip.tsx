@@ -16,7 +16,7 @@
 
 import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check, Pause, Play } from 'lucide-react'
+import { Check, Pause, Play } from '@/components/icons'
 
 import { ParamSlider } from '@/components/ui/param-slider'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'

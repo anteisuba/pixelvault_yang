@@ -20,7 +20,7 @@
  */
 
 import { EditorContent } from '@tiptap/react'
-import { FileText } from 'lucide-react'
+import { FileText } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { useEffect, useReducer, useState } from 'react'
 

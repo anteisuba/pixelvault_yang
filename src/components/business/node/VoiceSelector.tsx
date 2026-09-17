@@ -10,7 +10,7 @@ import {
   Search,
   Star,
   Trash2,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

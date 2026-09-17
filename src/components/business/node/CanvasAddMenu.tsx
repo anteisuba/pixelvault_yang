@@ -21,7 +21,7 @@ import {
   Upload,
   UserRound,
   Video,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import type { XYPosition } from '@xyflow/react'
 

@@ -10,7 +10,7 @@ import {
   Minimize2,
   PanelRightClose,
   Share2,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 

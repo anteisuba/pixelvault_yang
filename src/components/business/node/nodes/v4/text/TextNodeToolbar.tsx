@@ -20,7 +20,7 @@ import {
   Film,
   Image as ImageIcon,
   MoreHorizontal,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import type { ReactNode } from 'react'
 

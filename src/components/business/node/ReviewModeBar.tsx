@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, RefreshCw, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, RefreshCw, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'

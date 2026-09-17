@@ -13,7 +13,7 @@
  * 下载 · ×（画板），那一段没地方放，也不该在全屏里才够得着 —— 它是这张卡的属性。
  */
 
-import { Tag } from 'lucide-react'
+import { Tag } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'

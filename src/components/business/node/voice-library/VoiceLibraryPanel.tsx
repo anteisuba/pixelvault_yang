@@ -19,7 +19,7 @@
 
 import { Fragment, useCallback, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Mic, Pause, Play, Search } from 'lucide-react'
+import { Mic, Pause, Play, Search } from '@/components/icons'
 
 import { Input } from '@/components/ui/input'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'

@@ -1,7 +1,7 @@
 'use client'
 
 import type { ComponentType, PointerEvent as ReactPointerEvent } from 'react'
-import { Send, X } from 'lucide-react'
+import { Send, X } from '@/components/icons'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 

@@ -15,7 +15,7 @@
 import Image from 'next/image'
 import { useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { Film, ImageIcon, Plus } from 'lucide-react'
+import { Film, ImageIcon, Plus } from '@/components/icons'
 
 import {
   DropdownMenu,

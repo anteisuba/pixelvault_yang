@@ -38,7 +38,7 @@ import {
   Scissors,
   StepForward,
   VolumeX,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'

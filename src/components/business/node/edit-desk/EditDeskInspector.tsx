@@ -11,7 +11,7 @@
  */
 
 import { useState } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -419,13 +419,13 @@ function TextClipFields({
           testId="edit-desk-text-fade"
           options={EDIT_TEXT_FADES.map((fadeSec) => ({
             id: String(fadeSec),
-            label: fadeSec === 0 ? t('fadeNone') : t('fadeSeconds', { fadeSec }),
+            label:
+              fadeSec === 0 ? t('fadeNone') : t('fadeSeconds', { fadeSec }),
             active: clip.fadeSec === fadeSec,
             onSelect: () => desk.updateTextClip(clip.id, { fadeSec }),
           }))}
         />
       </div>
-
     </>
   )
 }

@@ -12,7 +12,13 @@
  */
 
 import { useMemo, useState } from 'react'
-import { Check, ChevronDown, MoreHorizontal, Plus, Search } from 'lucide-react'
+import {
+  Check,
+  ChevronDown,
+  MoreHorizontal,
+  Plus,
+  Search,
+} from '@/components/icons'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'

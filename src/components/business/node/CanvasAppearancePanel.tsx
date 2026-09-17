@@ -1,7 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, ImagePlus, Palette, RotateCcw, Trash2 } from 'lucide-react'
+import {
+  Check,
+  ImagePlus,
+  Palette,
+  RotateCcw,
+  Trash2,
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

@@ -18,7 +18,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { Plus, Search } from 'lucide-react'
+import { Plus, Search } from '@/components/icons'
 
 import { NODE_SLOT_IDS, type NodeSlotId } from '@/constants/node-slots'
 import { NODE_V4_CONNECT_TO_SHOT } from '@/constants/node-studio'

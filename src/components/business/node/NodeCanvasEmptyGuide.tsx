@@ -1,7 +1,7 @@
 'use client'
 
 import type { MouseEvent } from 'react'
-import { MessagesSquare, Plus } from 'lucide-react'
+import { MessagesSquare, Plus } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

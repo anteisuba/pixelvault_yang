@@ -29,7 +29,12 @@ import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Clapperboard, Download, MoreHorizontal, Pencil } from 'lucide-react'
+import {
+  Clapperboard,
+  Download,
+  MoreHorizontal,
+  Pencil,
+} from '@/components/icons'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'

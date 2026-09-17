@@ -12,7 +12,7 @@
 
 import { useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Pause, Play } from 'lucide-react'
+import { Pause, Play } from '@/components/icons'
 
 import { getGeneratingStageKey } from '@/lib/generation-progress'
 import { formatShotDisplayName } from '@/lib/node-display-name'

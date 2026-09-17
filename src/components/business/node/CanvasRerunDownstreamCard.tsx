@@ -15,7 +15,7 @@
  */
 
 import { useTranslations } from 'next-intl'
-import { ListOrdered } from 'lucide-react'
+import { ListOrdered } from '@/components/icons'
 
 import { NODE_MEDIA_KINDS } from '@/constants/node-types'
 import type { RerunDownstreamPlan } from '@/lib/node-rerun-downstream'

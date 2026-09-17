@@ -12,7 +12,7 @@
  * 真的什么都不用撤 —— 它丢掉提案而已。
  */
 
-import { Check, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react'
+import { Check, ChevronLeft, ChevronRight, Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { EDIT_DESK_LAYOUT, TIMELINE_PLAN_CARD } from '@/constants/edit-desk'

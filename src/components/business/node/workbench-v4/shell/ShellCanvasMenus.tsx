@@ -11,7 +11,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { XYPosition } from '@xyflow/react'
-import { Film, ImageIcon, Mic2, Type, Upload } from 'lucide-react'
+import { Film, ImageIcon, Mic2, Type, Upload } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

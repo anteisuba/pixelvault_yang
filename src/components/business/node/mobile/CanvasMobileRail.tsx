@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
-import { FileUp, Plus, Sparkles } from 'lucide-react'
+import { FileUp, Plus, Sparkles } from '@/components/icons'
 
 import {
   NODE_MOBILE_LISTS,

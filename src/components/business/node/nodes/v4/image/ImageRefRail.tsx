@@ -14,9 +14,8 @@ import {
   Upload,
   Library,
   ImageIcon,
-  Loader2,
   AlertTriangle,
-} from 'lucide-react'
+} from '@/components/icons'
 
 import {
   DropdownMenu,
@@ -25,6 +24,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 import type { VideoRailEntry } from '@/lib/video-node-rail'
 
@@ -222,10 +222,7 @@ export function ImageRefRail({
               aria-label={tImage('rail.uploading', { name: item.name })}
               className="relative flex size-12 shrink-0 items-center justify-center rounded-node-thumb border border-dashed border-border text-muted-foreground"
             >
-              <Loader2
-                aria-hidden
-                className="size-4 animate-spin motion-reduce:animate-none"
-              />
+              <Spinner aria-hidden className="size-4" />
               <span className="absolute inset-x-1.5 bottom-1.5 block h-0.5 overflow-hidden rounded-full bg-surface-fill-track">
                 <span
                   className="block h-full rounded-full bg-primary transition-[width] duration-base ease-standard motion-reduce:transition-none"

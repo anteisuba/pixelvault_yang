@@ -12,7 +12,7 @@
  */
 
 import { useCallback, useEffect, useRef, type ReactNode } from 'react'
-import { ChevronLeft } from 'lucide-react'
+import { ChevronLeft } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { canvasAssistantWidthLimits } from '@/constants/canvas-shell'

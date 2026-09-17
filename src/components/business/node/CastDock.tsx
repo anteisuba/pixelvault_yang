@@ -2,7 +2,7 @@
 
 import { useMemo, type ComponentType } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
-import { FileText, ImageIcon, Mic2, Search, Video } from 'lucide-react'
+import { FileText, ImageIcon, Mic2, Search, Video } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

@@ -19,7 +19,7 @@
  */
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { PencilLine } from 'lucide-react'
+import { PencilLine } from '@/components/icons'
 
 import { IMEAwareInput } from '@/components/business/node/inspector/IMEAwareField'
 import { focusUnlessTouch } from '@/lib/touch'

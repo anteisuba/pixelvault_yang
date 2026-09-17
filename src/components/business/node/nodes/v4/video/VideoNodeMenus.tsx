@@ -36,7 +36,7 @@ import {
   SquarePen,
   Trash2,
   Upload,
-} from 'lucide-react'
+} from '@/components/icons'
 
 import {
   DropdownMenuItem,

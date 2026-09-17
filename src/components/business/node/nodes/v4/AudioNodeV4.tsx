@@ -41,7 +41,7 @@ import {
   Play,
   Scissors,
   Smile,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'

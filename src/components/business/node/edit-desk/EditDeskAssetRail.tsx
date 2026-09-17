@@ -31,7 +31,7 @@ import {
   Shuffle,
   Type,
   type LucideIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'

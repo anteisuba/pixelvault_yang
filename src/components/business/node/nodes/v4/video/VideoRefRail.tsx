@@ -25,9 +25,8 @@ import {
   Library,
   ImageIcon,
   Film,
-  Loader2,
   AlertTriangle,
-} from 'lucide-react'
+} from '@/components/icons'
 
 import {
   DropdownMenu,
@@ -39,6 +38,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Spinner } from '@/components/ui/spinner'
 import { NODE_SLOT_IDS, type NodeSlotId } from '@/constants/node-slots'
 import { cn } from '@/lib/utils'
 import {
@@ -381,10 +381,7 @@ export function VideoRefRail({
                     aria-label={tVideo('rail.uploading', { name: item.name })}
                     className="relative flex size-12 shrink-0 items-center justify-center rounded-node-thumb border border-dashed border-border text-muted-foreground"
                   >
-                    <Loader2
-                      aria-hidden
-                      className="size-4 animate-spin motion-reduce:animate-none"
-                    />
+                    <Spinner aria-hidden className="size-4" />
                     {/* 真实字节进度只有图片路由报得出来；报不出时这条线停在 0，
                         转圈仍在动 —— ⛔ 不编一个假进度。 */}
                     <span className="absolute inset-x-1.5 bottom-1.5 block h-0.5 overflow-hidden rounded-full bg-surface-fill-track">

@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { Pause, Play, Volume2, VolumeX } from 'lucide-react'
+import { Pause, Play, Volume2, VolumeX } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'

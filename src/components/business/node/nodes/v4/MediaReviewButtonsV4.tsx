@@ -13,7 +13,7 @@
  * 就再也退不回来（按钮自己没了）。这条工具条是选中才出现的，不是常年挂着。
  */
 
-import { Check, Undo2 } from 'lucide-react'
+import { Check, Undo2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'

@@ -15,7 +15,7 @@
 
 import { createContext, useContext, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { X } from 'lucide-react'
+import { X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { ApiKeyManager } from '@/components/business/ApiKeyManager'

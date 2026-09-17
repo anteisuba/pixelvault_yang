@@ -18,7 +18,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { EdgeLabelRenderer, getBezierPath, type EdgeProps } from '@xyflow/react'
-import { X } from 'lucide-react'
+import { X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'

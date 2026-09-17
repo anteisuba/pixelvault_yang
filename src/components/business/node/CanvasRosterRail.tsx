@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useEdges, useNodes } from '@xyflow/react'
-import { Image as ImageIcon, ListTree, User } from 'lucide-react'
+import { Image as ImageIcon, ListTree, User } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

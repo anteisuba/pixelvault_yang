@@ -29,7 +29,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useTranslations } from 'next-intl'
-import { ArrowRight, Plus, X } from 'lucide-react'
+import { ArrowRight, Plus, X } from '@/components/icons'
 
 import {
   DropdownMenu,

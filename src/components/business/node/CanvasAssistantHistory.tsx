@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { History, Search } from 'lucide-react'
+import { History, Search } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

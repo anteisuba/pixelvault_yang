@@ -23,7 +23,7 @@
  */
 
 import { useNodeId } from '@xyflow/react'
-import { Plus } from 'lucide-react'
+import { Plus } from '@/components/icons'
 import type { ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'

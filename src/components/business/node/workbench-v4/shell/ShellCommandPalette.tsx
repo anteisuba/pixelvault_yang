@@ -18,7 +18,7 @@ import {
   Settings2,
   Type,
   Upload,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

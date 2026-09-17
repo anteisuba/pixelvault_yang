@@ -22,7 +22,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Pause, Play } from 'lucide-react'
+import { Pause, Play } from '@/components/icons'
 
 import { NODE_V4_AUDIO_TRIM } from '@/constants/node-studio'
 import type { AudioTrimRange } from '@/lib/audio-trim'

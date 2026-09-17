@@ -7,7 +7,7 @@ import {
   type ChangeEvent,
   type ClipboardEvent,
 } from 'react'
-import { Clipboard, Library, Upload } from 'lucide-react'
+import { Clipboard, Library, Upload } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 

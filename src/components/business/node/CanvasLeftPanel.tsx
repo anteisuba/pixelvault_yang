@@ -7,7 +7,7 @@ import {
   ListTree,
   PanelLeftClose,
   Plus,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'

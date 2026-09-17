@@ -8,7 +8,7 @@
  * （双击 / 右键 / ⌘K）。
  */
 
-import { Bot, Scissors } from 'lucide-react'
+import { Bot, Scissors } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'

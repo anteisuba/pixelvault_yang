@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useCallback, useMemo } from 'react'
-import { ArrowUpRight, Flag, ImagePlus, Star, Trash2 } from 'lucide-react'
+import { ArrowUpRight, Flag, ImagePlus, Star, Trash2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

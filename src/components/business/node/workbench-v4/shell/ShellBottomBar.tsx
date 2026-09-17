@@ -18,7 +18,7 @@ import {
   Undo2,
   ZoomIn,
   ZoomOut,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'

@@ -22,7 +22,7 @@ import {
   Trash2,
   Upload,
   UserRound,
-} from 'lucide-react'
+} from '@/components/icons'
 
 import {
   DropdownMenuItem,

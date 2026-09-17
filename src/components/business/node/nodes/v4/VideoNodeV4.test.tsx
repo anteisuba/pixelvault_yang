@@ -125,8 +125,6 @@ import { VIDEO_RAIL_PICKERS } from './video/VideoNodeMenus'
 import {
   VIDEO_SEND_MODE_IDS,
   videoCardHeight,
-  videoDurationStepIndex,
-  videoDurationSteps,
   videoFrameChipLabel,
   videoFrameReadout,
   videoRailCapacity,
@@ -447,22 +445,6 @@ describe('提示词栏', () => {
 })
 
 describe('画面弹层（spec §5）', () => {
-  it('时长是滑杆的吸附表，跟着模型能力表走，⛔ 不是一份写死的表', () => {
-    expect(videoDurationSteps(undefined)).toEqual([])
-    const durations = videoDurationSteps(MODEL_ID)
-    expect(durations).toContain(7)
-    expect(durations).not.toContain(60)
-    // 表是升序的（滑杆两端要写最小 / 最大）。
-    expect([...durations].sort((a, b) => a - b)).toEqual([...durations])
-  })
-
-  it('存量卡上落不在档里的时长吸附到最近一格，⛔ 不跳回最左', () => {
-    const steps = [4, 8, 12]
-    expect(videoDurationStepIndex(steps, '9')).toBe(1)
-    expect(videoDurationStepIndex(steps, '12')).toBe(2)
-    expect(videoDurationStepIndex(steps, undefined)).toBe(0)
-  })
-
   it('生成声音开关只在模型发得出这个字段时可点', () => {
     expect(videoSupportsGeneratedAudio(undefined)).toBe(false)
     expect(videoSupportsGeneratedAudio(MODEL_ID)).toBe(true)

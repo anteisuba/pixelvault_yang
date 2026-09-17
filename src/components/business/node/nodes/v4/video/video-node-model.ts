@@ -20,8 +20,6 @@ import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
 import { resolveVideoModelId } from '@/constants/video-node-modes'
 import {
-  VIDEO_ASPECT_RATIOS,
-  VIDEO_RESOLUTIONS,
   isVideoResolution,
   type VideoResolution,
 } from '@/constants/video-options'
@@ -31,15 +29,6 @@ import type {
   NodeV4VideoData,
   NodeWorkflowModelSelection,
 } from '@/types/node-workflow'
-
-/** 画板上的两档弹层宽：参数 300 / 模型 320（与图片卡同一份口径）。 */
-export const VIDEO_FRAME_POPOVER_WIDTH = 300
-
-/** 一段分段控件里的一格。⚠ 与图片卡的 `ImageSpecOption` 同形，两处各管各的值域。 */
-export interface VideoSpecOption {
-  readonly value: string
-  readonly disabled: boolean
-}
 
 /**
  * 卡高：**永远 16:9**（spec §5「16:9 空卡；有片时卡即封面」）。
@@ -58,73 +47,6 @@ export function videoCardHeight(width: number): number {
  */
 export function videoVersions(data: NodeV4VideoData): readonly string[] {
   return readOutputVersions(data).map((version) => version.url)
-}
-
-function optionsFrom(
-  all: readonly string[],
-  supported: readonly string[],
-): readonly VideoSpecOption[] {
-  return all.map((value) => ({ value, disabled: !supported.includes(value) }))
-}
-
-/**
- * 时长档（画板 `VideoPopover` 2026-09-10 改稿：**滑杆**，⛔ 不做分段控件）。
- *
- * 返回的是**吸附点**：滑杆按索引走，落在这张表的某一格上。没选模型时返回空数组
- * ——那是组级不可用（整段不画），与「某一档灰掉」是两件事。
- */
-export function videoDurationSteps(
-  modelId: string | undefined,
-): readonly number[] {
-  if (!modelId) return []
-  return [
-    ...(getVideoModelCapabilities(modelId).supportedDurations ?? []),
-  ].sort((a, b) => a - b)
-}
-
-/**
- * 当前时长落在吸附表的哪一格。落不上（存量卡上的值不在这个模型的档里）时取**最近
- * 的那一格**——⛔ 不返回 -1 让滑杆跑到最左：那会把用户存着的 15s 显示成 4s。
- */
-export function videoDurationStepIndex(
-  steps: readonly number[],
-  value: string | undefined,
-): number {
-  if (steps.length === 0) return 0
-  const seconds = Number(value)
-  if (!Number.isFinite(seconds)) return 0
-  let best = 0
-  for (let index = 1; index < steps.length; index += 1) {
-    const step = steps[index] as number
-    if (
-      Math.abs(step - seconds) < Math.abs((steps[best] as number) - seconds)
-    ) {
-      best = index
-    }
-  }
-  return best
-}
-
-/** 比例档。全仓的并集是 `VIDEO_ASPECT_RATIOS`，模型不支持的灰掉。 */
-export function videoAspectRatioOptions(
-  modelId: string | undefined,
-): readonly VideoSpecOption[] {
-  if (!modelId) return []
-  return optionsFrom(
-    VIDEO_ASPECT_RATIOS,
-    getVideoModelCapabilities(modelId).supportedAspectRatios ?? [],
-  )
-}
-
-/** 清晰度档。全仓的并集是 `VIDEO_RESOLUTIONS`（`2k` 只有 MiniMax H3 开）。 */
-export function videoResolutionOptions(
-  modelId: string | undefined,
-): readonly VideoSpecOption[] {
-  if (!modelId) return []
-  return optionsFrom(
-    VIDEO_RESOLUTIONS,
-    getVideoModelCapabilities(modelId).supportedResolutions ?? [],
-  )
 }
 
 /**
@@ -268,7 +190,9 @@ export function videoDefaultParams(
 ): NodeV4GenerationParams {
   if (!modelId) return {}
   const capabilities = getVideoModelCapabilities(modelId)
-  const durations = videoDurationSteps(modelId)
+  const durations = [...(capabilities.supportedDurations ?? [])].sort(
+    (a, b) => a - b,
+  )
   const ratios = capabilities.supportedAspectRatios ?? []
   const resolutions = capabilities.supportedResolutions ?? []
   const pick = (preferred: string, all: readonly string[]) =>

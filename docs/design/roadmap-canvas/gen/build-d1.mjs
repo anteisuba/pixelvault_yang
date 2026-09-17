@@ -84,6 +84,13 @@ const D1 = {
       { k: 'leaf', t: '空态 = C 一句话 + 主动作（现在就能做）；角色化插画 A 留作 P2，等卡片总线落地后用自家角色卡批量生成', w: 560 },
       { k: 'leaf', t: '圆角密度 = B 现状：--radius 0.625rem 七档 + node / shell 三个域档，只做「合并」不改数值', w: 560 },
     ] },
+    { k: 'cat', t: 'D1b 决策（owner 2026-09-17 答复）', c: [
+      { k: 'leaf', t: '图标底子 = A Phosphor：整站 lucide → Phosphor（regular 档，与 lucide 同 24 网格 / 线宽 1.5–2），228 个图标名建映射表做 codemod；找不到对应的才自绘', w: 560 },
+      { k: 'leaf', t: '业务对象图标 = A 抽象几何：节点四类 · 任务五态 · 渠道 / key 用几何符号，不写实、不用字母；先用 Phosphor 现成的顶上，缺的按 Phosphor 网格自绘', w: 560 },
+      { k: 'leaf', t: '品牌标：字母不是关键，要的是「ANTI」的品牌感（参考 updream · libtv · 即梦），可以是动物或字母；owner 另开一个 chat 单独设计，这里只留插槽（favicon · 顶栏胶囊 · 助手头像三处）', w: 560 },
+      { k: 'leaf', t: '品牌色 = A 中性黑白，与站内黑丸一致', w: 560 },
+      { k: 'leaf', t: '风格参考：Grok bot 那种偏动漫形象的风格 → 品牌标可走角色化，图标仍是几何线性；两者靠黑白与圆角统一', w: 560 },
+    ] },
     { k: 'cat', t: '图标体系', c: [
       { k: 'sub', t: '规格', c: [ { k: 'leaf', t: 'viewBox 24 · 线宽 2 · 端点 round · 拐角 round · 尺寸档 16 / 20 / 24（不做 32，UI 里没有）· currentColor · 与 lucide 同签名的 React 组件' } ] },
       { k: 'sub', t: '要自绘的（从 UI 全清单 E1 抽）', c: [
@@ -120,5 +127,5 @@ const D1 = {
     ] },
   ],
 }
-const B_D1 = header('PixelVault · D1 · 美术方向 · 思维导图 · 2026-09-17', 'D1 决策树 · 按「最好实现」选', 'owner 把五个反问交给我按实现成本定。结论：能沿用现状的都沿用（lucide 线性 · 现有磨砂层 · 现有 --modality-* · 现有圆角），新增只有约 20 个业务图标和 4 个阴影 token 的收口；插画留 P2。你在树上批注，没有红点我就出 ④ 的「视觉语言」总板。') + tree(D1, 60)
+const B_D1 = header('PixelVault · D1 · 美术方向 · 思维导图 · 2026-09-17', 'D1 决策树 · 按「最好实现」选', 'D1 ④ 已过（材质 / 状态 / 圆角 / 空态通过，模态色改 C）。D1b 图标与品牌标按 owner 答复定：Phosphor 底子 · 抽象几何业务图标 · 品牌标 ANTI 另开 chat · 黑白。下面第一组是 D1b 决策，其余为 D1 原树。') + tree(D1, 60)
 for (const [name, html] of [['DesignD1Map.dc.html', page('D1 美术方向思维导图', B_D1)]]) { writeFileSync(join(OUT, name), html); console.log('wrote', name) }

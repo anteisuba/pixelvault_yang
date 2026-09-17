@@ -66,7 +66,9 @@ import { useImageModelOptions } from '@/hooks/use-image-model-options'
 describe('useImageModelOptions', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('resets unsupported 2.5 quality when switching back to GPT Image 2', () => {
+  // 切模型 = 直接切（批注 36）：新模型不认识的**专属**值整个删掉（删 = 回默认），
+  // 通用值（规格 / seed）一个都不动。⛔ 不写「上一个模型的快照」。
+  it('drops unsupported 2.5 quality when switching back to GPT Image 2', () => {
     const dispatch = vi.fn()
     vi.mocked(useStudioForm).mockReturnValueOnce({
       state: {
@@ -84,7 +86,7 @@ describe('useImageModelOptions', () => {
     renderHook(() => useImageModelOptions())
     expect(dispatch).toHaveBeenCalledWith({
       type: 'SET_ADVANCED_PARAMS',
-      payload: { resolution: '2K', quality: 'auto', seed: 42 },
+      payload: { resolution: '2K', seed: 42 },
     })
   })
 

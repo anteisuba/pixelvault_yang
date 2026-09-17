@@ -3,8 +3,7 @@
 import { useEffect, useMemo } from 'react'
 
 import { getAvailableImageModels, IMAGE_KIND } from '@/constants/models'
-import { getCapabilityConfig } from '@/constants/provider-capabilities'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { pruneIncompatibleCapabilityValues } from '@/lib/model-capability-chips'
 import type { StudioModelOption } from '@/types/model-option'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
@@ -67,20 +66,22 @@ export function useImageModelOptions(): UseImageModelOptionsReturn {
     [modelOptions, state.selectedOptionId],
   )
 
+  // 切模型 = **直接切**（D2 ④ 画板 + owner 批注 36）：通用值（提示词 · 参考轨 ·
+  // 规格 · 张数）原样留着，新模型不认识的**专属**值静默回默认 —— 不提示、没有
+  // 撤销、⛔ 不存上一个模型的快照。
+  // ⚠ 这里以前只盯 OpenAI 的 `quality` 一个键，换到 Seedream 之后 GPT 的
+  // `background` / `style` 会原样留在载荷里跟着发出去。判据换成能力表全量。
   useEffect(() => {
-    if (!selectedModel || selectedModel.adapterType !== AI_ADAPTER_TYPES.OPENAI)
-      return
-    const quality = state.advancedParams.quality
-    const config = getCapabilityConfig(
+    if (!selectedModel) return
+    const pruned = pruneIncompatibleCapabilityValues(
+      state.advancedParams,
       selectedModel.adapterType,
       selectedModel.modelId,
     )
-    if (quality && !config.qualityOptions?.includes(quality)) {
-      dispatch({
-        type: 'SET_ADVANCED_PARAMS',
-        payload: { ...state.advancedParams, quality: 'auto' },
-      })
-    }
+    // ⚠ 没有变化时 `pruned` 是 null —— 每次都写回一个新对象会把这个 effect
+    // 打成死循环（依赖里就有 advancedParams）。
+    if (!pruned) return
+    dispatch({ type: 'SET_ADVANCED_PARAMS', payload: pruned })
   }, [selectedModel, state.advancedParams, dispatch])
 
   return { modelOptions, selectedModel }

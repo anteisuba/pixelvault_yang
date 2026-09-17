@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ImageOff } from 'lucide-react'
+import { ImageOff } from '@/components/icons'
 
 import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'

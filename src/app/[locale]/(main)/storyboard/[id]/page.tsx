@@ -1,7 +1,7 @@
 'use client'
 
 import { use, useRef } from 'react'
-import { ArrowLeft, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import Link from 'next/link'
 

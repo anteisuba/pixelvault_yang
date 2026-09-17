@@ -45,7 +45,7 @@ export interface AssistantPlanVisual {
   /** i18n 键后缀（`StudioOperator.planVisual.*`）—— 图示的**无障碍名**，⛔ 不是文案。 */
   labelKey: string
   kind: AssistantPlanVisualKind
-  /** `lucide-react` 里的组件名。⚠ 存名字不存组件：constants 不该把图标库拖进包体。 */
+  /** `@/components/icons` 里的组件名。⚠ 存名字不存组件：constants 不该把图标库拖进包体。 */
   lucide?: string
   /** 自绘线描：24×24 viewBox 里的一组 `d`，统一 `currentColor` 1.5px 描边、无填充。 */
   paths?: readonly string[]

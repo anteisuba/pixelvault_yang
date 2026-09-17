@@ -1,7 +1,7 @@
 import { auth } from '@clerk/nextjs/server'
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
-import { FileText } from 'lucide-react'
+import { FileText } from '@/components/icons'
 import { z } from 'zod'
 
 import { ROUTES } from '@/constants/routes'

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import NextImage from 'next/image'
-import { BookOpen, ImagePlus, Plus, Trash2 } from 'lucide-react'
+import { BookOpen, ImagePlus, Plus, Trash2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react'
+import type { LucideIcon } from '@/components/icons'
 import {
   Eraser,
   Palette,
@@ -7,7 +7,7 @@ import {
   Sparkles,
   Type,
   Wand2,
-} from 'lucide-react'
+} from '@/components/icons'
 
 import { getCanvasImageEditCapability } from '@/constants/canvas-image-edit-capabilities'
 import type { EditTaskKind } from '@/types/canvas-image-edit'

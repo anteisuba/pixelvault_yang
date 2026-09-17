@@ -2,7 +2,7 @@
 
 import * as Sentry from '@sentry/nextjs'
 import { useEffect } from 'react'
-import { AlertTriangle, Home, RotateCcw } from 'lucide-react'
+import { AlertTriangle, Home, RotateCcw } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

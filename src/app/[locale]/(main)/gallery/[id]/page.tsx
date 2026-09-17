@@ -7,7 +7,7 @@ import {
   Download,
   ImageIcon,
   Wand2,
-} from 'lucide-react'
+} from '@/components/icons'
 import type { Metadata } from 'next'
 import { getFormatter, getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'

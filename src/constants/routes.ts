@@ -46,9 +46,9 @@ export function galleryGenerationPath(id: string): string {
   return `${ROUTES.GALLERY}/${encodeURIComponent(id)}`
 }
 
-/** Build an asset browser deep link that opens a generation detail panel */
-export function assetGenerationPath(id: string): string {
-  return `${ROUTES.ASSETS}?generationId=${encodeURIComponent(id)}`
+/** Build the standalone asset detail URL for a generation */
+export function assetDetailPath(id: string): string {
+  return `${ROUTES.ASSETS}/${encodeURIComponent(id)}`
 }
 
 export interface PromptCreatePathOptions {

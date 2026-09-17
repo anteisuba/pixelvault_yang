@@ -1,6 +1,6 @@
 'use client'
 
-import { Dice5 } from 'lucide-react'
+import { Dice5 } from '@/components/icons'
 
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'

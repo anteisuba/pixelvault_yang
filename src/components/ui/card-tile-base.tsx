@@ -1,6 +1,6 @@
 'use client'
 
-import { Info } from 'lucide-react'
+import { Info } from '@/components/icons'
 import Image from 'next/image'
 import type { ReactNode } from 'react'
 

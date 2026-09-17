@@ -8,7 +8,7 @@ import {
   type ComponentPropsWithoutRef,
 } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { Search } from 'lucide-react'
+import { Search } from '@/components/icons'
 
 import { motionTransition } from '@/constants/motion'
 import { cn } from '@/lib/utils'

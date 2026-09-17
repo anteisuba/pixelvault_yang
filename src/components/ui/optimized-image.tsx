@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import Image, { type ImageProps } from 'next/image'
-import { ImageOff } from 'lucide-react'
+import { ImageOff } from '@/components/icons'
 
 import { cn } from '@/lib/utils'
 

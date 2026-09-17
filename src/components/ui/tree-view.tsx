@@ -2,7 +2,7 @@
 
 import React, { useCallback, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
-import { ChevronRight, File, Folder, FolderOpen } from 'lucide-react'
+import { ChevronRight, File, Folder, FolderOpen } from '@/components/icons'
 
 import { DURATION, EASE_STANDARD, motionTransition } from '@/constants/motion'
 import { cn } from '@/lib/utils'

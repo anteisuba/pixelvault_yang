@@ -1,4 +1,4 @@
-import { Upload } from 'lucide-react'
+import { Upload } from '@/components/icons'
 
 import { cn } from '@/lib/utils'
 

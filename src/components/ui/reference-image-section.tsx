@@ -1,6 +1,6 @@
 'use client'
 
-import { Plus, X } from 'lucide-react'
+import { Plus, X } from '@/components/icons'
 
 import { ImageDropZone } from '@/components/ui/image-drop-zone'
 import type { ReferenceImageEntry } from '@/hooks/use-image-upload'

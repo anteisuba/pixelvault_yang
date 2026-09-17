@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Download, FastForward, Pause, Play, Rewind } from 'lucide-react'
+import { Download, FastForward, Pause, Play, Rewind } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'

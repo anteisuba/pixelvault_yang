@@ -1,14 +1,14 @@
 'use client'
 
-import { Loader2 } from 'lucide-react'
+import { CircleNotch } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { cva, type VariantProps } from 'class-variance-authority'
 
 import { cn } from '@/lib/utils'
 
 /**
- * Unified loading spinner — collapses 60+ ad-hoc `<Loader2 className="animate-spin
- * size-N" />` call sites onto one component/size ledger.
+ * Unified loading spinner — collapses 60+ ad-hoc inline spinner call sites onto
+ * one component/size ledger.
  * Spec: docs/references/loading.md (visual + engineering skeleton).
  *
  * Sizing is the token surface here — three fixed steps, no arbitrary values:
@@ -39,7 +39,7 @@ const spinnerVariants = cva(
 
 export interface SpinnerProps
   extends
-    Omit<React.ComponentProps<typeof Loader2>, 'size'>,
+    Omit<React.ComponentProps<typeof CircleNotch>, 'size'>,
     VariantProps<typeof spinnerVariants> {
   /** Accessible label. Defaults to the localized "loading" string. */
   label?: string
@@ -50,10 +50,9 @@ function Spinner({ size, className, label, ...props }: SpinnerProps) {
   const accessibleLabel = label ?? t('loading')
 
   return (
-    <Loader2
+    <CircleNotch
       role="status"
       aria-label={accessibleLabel}
-      strokeWidth={2}
       className={cn(spinnerVariants({ size }), className)}
       {...props}
     />

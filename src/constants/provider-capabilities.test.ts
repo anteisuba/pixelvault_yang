@@ -172,12 +172,13 @@ describe('provider-capabilities', () => {
     expect(hasCapability(AI_ADAPTER_TYPES.FAL, 'lora', modelId)).toBe(false)
   })
 
-  // `bytedance/seedream/v5/pro/{text-to-image,edit}` has no `seed` input.
-  it('does not advertise seed on Seedream 5.0 Pro', () => {
-    expect(
-      hasCapability(AI_ADAPTER_TYPES.FAL, 'seed', AI_MODELS.SEEDREAM_50_PRO),
-    ).toBe(false)
-  })
+  // Neither `bytedance/seedream/v5/pro/*` nor `…/v5/lite/*` has a `seed` input.
+  it.each([AI_MODELS.SEEDREAM_50_PRO, AI_MODELS.SEEDREAM_50_LITE])(
+    'does not advertise seed on %s',
+    (modelId) => {
+      expect(hasCapability(AI_ADAPTER_TYPES.FAL, 'seed', modelId)).toBe(false)
+    },
+  )
 
   // `fal-ai/flux-lora` keeps guidance_scale / num_inference_steps / loras but
   // has no negative_prompt, unlike the generic FAL adapter default.

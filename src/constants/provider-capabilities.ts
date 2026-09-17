@@ -390,7 +390,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     // Same fal input surface as 5.0 Pro (checked 2026-09-17) — the generic FAL
     // adapter default would otherwise expose negativePrompt / guidanceScale /
     // steps / referenceStrength / lora that this endpoint does not accept.
-    capabilities: ['seed', 'imageAnalysis'] as const,
+    // `bytedance/seedream/v5/lite/{text-to-image,edit}` has no `seed` either.
+    capabilities: ['imageAnalysis'] as const,
   },
   [AI_MODELS.IDEOGRAM_3]: {
     maxReferenceImages: 0,

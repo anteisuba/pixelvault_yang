@@ -41,6 +41,15 @@ interface QuickSetupDialogProps {
   /** Option ID to auto-select after key creation */
   optionId: string
   /**
+   * 命名框（第 3 步）的预填。默认 = `modelLabel`，所以现有调用方零改动。
+   *
+   * ⚠ 统一模型选择器传的是两件不同的事：标题读「设置 {渠道}」（`modelLabel` =
+   * 渠道名，因为这一步配的是**这条渠道的 key**），命名框预填「型号 · 渠道」
+   * （`labelDefault`，因为 key 列表里要认得出是哪个型号的哪条路）。⛔ 别把两处
+   * 合回一个字符串 —— 画板 D2 ④ 上它们逐字不同。
+   */
+  labelDefault?: string
+  /**
    * Invoked after the key has been created AND verified upstream. Pages that
    * live outside `<StudioProvider>` (e.g. image-edit task pages) should use
    * this to flip their picker selection — the optional Studio dispatch below
@@ -134,6 +143,7 @@ export function QuickSetupDialog({
   onOpenChange,
   modelId,
   modelLabel,
+  labelDefault,
   adapterType,
   optionId,
   onVerified,
@@ -164,8 +174,8 @@ export function QuickSetupDialog({
   useEffect(() => {
     if (!open) return
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLabelValue(modelLabel)
-  }, [open, modelLabel])
+    setLabelValue(labelDefault ?? modelLabel)
+  }, [open, modelLabel, labelDefault])
 
   const handleVerify = useCallback(async () => {
     if (keyValue.trim().length < 10) return
@@ -174,7 +184,7 @@ export function QuickSetupDialog({
       setErrorMsg(t('verifyFailed'))
       return
     }
-    const finalLabel = labelValue.trim() || modelLabel
+    const finalLabel = labelValue.trim() || labelDefault || modelLabel
     setStep('verifying')
     setErrorMsg('')
 
@@ -238,6 +248,7 @@ export function QuickSetupDialog({
     keyValue,
     anthropicWorkspaceId,
     labelValue,
+    labelDefault,
     modelLabel,
     adapterType,
     providerConfig,

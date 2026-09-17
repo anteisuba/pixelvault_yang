@@ -38,6 +38,7 @@ const ic = (k, color = 'currentColor', s = 16) => `<svg class="ic" viewBox="0 0 
 const dot = (c) => `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:${c};flex:none"></span>`
 const frame = (inner, bg = WORKBENCH, pad = 22) => `<div style="background:${bg};border-radius:16px;padding:${pad}px;position:relative;display:inline-block;vertical-align:top">${inner}</div>`
 const cap = (t) => `<div class="cap">${t}</div>`
+const done = (t, a) => `<div style="margin-top:22px;display:grid;grid-template-columns:200px 1fr;border:1px solid oklch(0.8 0.1 150);border-radius:10px;overflow:hidden;background:#fff"><div style="padding:12px 14px;background:oklch(0.96 0.05 150);border-right:1px solid oklch(0.8 0.1 150)"><div style="${MONO}font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:oklch(0.4 0.1 150)">已落地</div><div style="margin-top:6px;font-size:13px;line-height:1.5;color:#404040">${esc(t)}</div></div><div style="padding:12px 14px;font-size:12.5px;line-height:1.6;color:#0a0a0a">${a.map((x) => `<div style="display:flex;gap:8px"><span style="color:#737373;flex:none">·</span><span>${esc(x)}</span></div>`).join('')}</div></div>`
 const reply = (n, q, a) => `<div style="margin-top:22px;display:grid;grid-template-columns:200px 1fr;gap:0;border:1px solid oklch(0.85 0.08 85);border-radius:10px;overflow:hidden;background:#fff"><div style="padding:12px 14px;background:oklch(0.97 0.04 85);border-right:1px solid oklch(0.85 0.08 85)"><div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:oklch(0.45 0.1 85)">owner 批注 ${n}</div><div style="margin-top:6px;font-size:13px;line-height:1.5;color:#404040">${esc(q)}</div></div><div style="padding:12px 14px;font-size:12.5px;line-height:1.6;color:#0a0a0a">${a.map((x) => `<div style="display:flex;gap:8px"><span style="color:#737373;flex:none">·</span><span>${esc(x)}</span></div>`).join('')}</div></div>`
 
 // ═══════════ 1 · 选择器 ═══════════
@@ -101,23 +102,24 @@ const formCard = (model, price, specific, { refs = 2, refMax = 10, note = '' } =
   <div style="display:flex;align-items:center;justify-content:space-between"><div style="display:flex;gap:8px;align-items:center">${trigger(model, price)}${chip('1:1 · 2K', { icon: '' })}${chip('×1', { muted: true })}</div></div>
   <div style="margin-top:12px;min-height:64px;border-radius:10px;background:${MUTEDBG};padding:10px 12px;font-size:13px;color:#525252">A young woman in a red raincoat at a rainy neon street corner…</div>
   <div style="margin-top:10px">${refTrack(refs, refMax)}</div>
-  ${specific.length ? `<div style="margin-top:12px;padding-top:12px;border-top:1px dashed ${BORDER}"><div class="lab" style="margin-bottom:6px">专属 · ${esc(model)}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${specific.map((c) => chip(c.t, { on: !!c.on, muted: !!c.muted })).join('')}</div></div>` : `<div style="margin-top:12px;padding-top:12px;border-top:1px dashed ${BORDER}"><div class="lab">专属 · 无</div></div>`}
+  ${specific.length ? `<div style="margin-top:12px;padding-top:12px;border-top:1px dashed ${BORDER}"><div class="lab" style="margin-bottom:6px">专属 · ${esc(model)}</div><div style="display:flex;gap:6px;flex-wrap:wrap">${specific.map((c) => chip(c.t, { on: !!c.on, muted: !!c.muted })).join('')}</div></div>` : ''}
   <div style="margin-top:12px;display:flex;justify-content:flex-end"><div style="display:inline-flex;height:34px;padding:0 16px;border-radius:999px;background:${FG};color:#fff;font-size:13px;font-weight:500;align-items:center">生成 1 张</div></div>
   ${note ? cap(note) : ''}
 </div>`
 const FORM = header('PixelVault · D2 ④ · 能力驱动表单 · 2026-09-17', '一张表单 · 通用区固定 · 第二行按模型长出专属 chip', 'Q2 = A：专属能力不进选择器，选中后表单第二行直接出现专属 chip 行。通用区永远是 模型触发器 · 规格 chip · 张数 · 提示词 · 参考轨，任何模型同一位置。专属区从 provider-capabilities 派生，UI 不写模型名。NAI 单独设计（批注 37）；Runner 底模属 LoRA 工作台，不在此板（批注 38）。') +
   sec('四家模型各一版', '同一张卡，只有虚线以下在变；NAI · Runner 不在此') +
   `<div style="margin-top:10px">
-    ${formCard('GPT Image 2.5 Flare', '$0.04 / 张', [{ t: '透明底' }, { t: '输入保真 · 高', on: true }, { t: '画质 · 六档' }], { refs: 3, refMax: 16 })}
-    ${formCard('Gemini 3 Pro Image', '$0.03 / 张', [{ t: '对话式改图' }, { t: '多图融合' }, { t: '角色槽 5 · 物体槽 6', muted: true }], { refs: 2, refMax: 11 })}
-    ${formCard('FLUX.2 max', '$0.05 / 张', [{ t: '多参考 @image' }, { t: '图层' }, { t: 'JSON prompt', muted: true }], { refs: 4, refMax: 10 })}
-    ${formCard('Seedream 5.0 Pro', '$0.03 / 张', [{ t: '组图 sequential' }, { t: '图层拆分' }, { t: '联网', muted: true }], { refs: 2, refMax: 10 })}
+    ${formCard('GPT Image 2.5 Flare', '$0.04 / 张', [{ t: '画质 · 六档' }, { t: '生成预览' }, { t: '透明底' }, { t: '输入保真 · 高', on: true }], { refs: 3, refMax: 16, note: '能力表实有：quality · preview · background · inputFidelity（61 接入，有参考图才出现）。' })}
+    ${formCard('Gemini 3 Pro Image', '$0.03 / 张', [], { refs: 2, refMax: 11, note: '无专属区（61 核实：对话式改图 = 会话历史、多图融合 = 多塞 image part、角色/物体槽只是条数上限，都不是请求字段）。虚线区整段不渲染。' })}
+    ${formCard('FLUX.2 Pro', '$0.05 / 张', [], { refs: 4, refMax: 10, note: '无专属区（61 核实 fal schema：只有 prompt · image_size · image_urls · seed · output_format · safety；@image 与 JSON prompt 都是提示词写法，没有「图层」）。' })}
+    ${formCard('Seedream 5.0 Pro', '$0.03 / 张', [{ t: '图层拆分', muted: true }, { t: '透明底', muted: true }], { refs: 2, refMax: 10, note: '灰 = 火山文档实有但待拍板：layer_decomposition（1 底图 + ≤16 图层，需多产物落库 → 62）· background: transparent（单产物可直接接 → 63）。组图 sequential 与联网 5.0 Pro 明确不支持，只在 5.0 Lite。' })}
   </div>` +
   reply(37, 'NAI 感觉需要单独设计。', ['NAI V5 卡从本板撤下；tag 模型（质量标签 · UC 预设 · Text: · 多人构图 · Anlas 计价 · 单参考）另开 D2b 设计项，进度表 44 改为独立设计行。', '通用区结构仍沿用本板；只有虚线以下与计价位单独画。']) +
   reply(38, 'Runner 是在 LoRA 那边。不应该一起设计。UI 不一样的。', ['Runner · Anima DiT 卡撤下；Runner 底模只出现在 LoRA 工作台，表单结构由 LoRA 域设计（进度表 45），本板与 11 不覆盖它。']) +
-  sec('切模型 · 从 Seedream 5.0 Pro 切到 FLUX.2 max', '直接切换：通用值保留，专属整组换，不提示不撤销') +
-  `<div style="margin-top:10px">${formCard('FLUX.2 max', '$0.05 / 张', [{ t: '多参考 @image', on: true }, { t: '图层' }], { refs: 2, refMax: 10 })}
-  <div class="cap" style="display:inline-block;vertical-align:top;max-width:400px;margin-top:0">· 提示词、参考轨、规格、张数全部原样带过去。<br>· 专属行整组换成 FLUX 的；Seedream 独有的「组图」值静默丢弃，不出提示、没有撤销（批注 36）。<br>· 参考轨按新模型上限裁剪：超出的灰显不删（此例 2 / 10 没超）。<br>· 想回去就再切回 Seedream：通用值仍在，专属值回该模型默认。</div></div>` +
+  sec('切模型 · 从 Seedream 5.0 Pro 切到 FLUX.2 Pro', '直接切换：通用值保留，专属整组换，不提示不撤销') +
+  `<div style="margin-top:10px">${formCard('FLUX.2 Pro', '$0.05 / 张', [], { refs: 2, refMax: 10 })}
+  <div class="cap" style="display:inline-block;vertical-align:top;max-width:400px;margin-top:0">· 提示词、参考轨、规格、张数全部原样带过去。<br>· 专属行整组换成 FLUX 的（FLUX.2 Pro 无专属 → 虚线区消失）；Seedream 独有的专属值静默丢弃，不出提示、没有撤销（批注 36）。<br>· 参考轨按新模型上限裁剪：超出的灰显不删（此例 2 / 10 没超）。<br>· 想回去就再切回 Seedream：通用值仍在，专属值回该模型默认。</div></div>` +
+  done('61 · 9 颗专属能力逐颗核一手 schema（61b3f646）', ['接上 1 颗：GPT Image 2.5 input_fidelity（low / high，仅 /images/edits，有参考图才发）。', '8 颗不是 provider 参数：Gemini 三颗、FLUX.2 Pro 三颗、Seedream 组图 / 联网（5.0 Pro 不支持，只在 5.0 Lite）→ 画板已删。', '待拍板：Seedream 5.0 Pro layer_decomposition（需多产物管线，62）· 火山 background: transparent（单产物，63）。']) +
   reply(36, '这个不需要，直接切换', ['撤销条与「已切到 X」提示整条删掉：切模型就是直接切，专属区换组，不兼容值静默回默认。', '11 的实现范围同步收窄：不做上一模型的专属值快照。'])
 
 // ═══════════ 3 · 规格 chip ═══════════

@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useEffect, useRef, useState } from 'react'
-import { Mic, Plus, Trash2, Upload } from 'lucide-react'
+import { Mic, Plus, Trash2, Upload } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Wand2 } from 'lucide-react'
+import { Wand2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { LORA_CARD_SOURCE_IMAGE_WIDTH } from '@/constants/lora'

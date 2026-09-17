@@ -20,7 +20,7 @@
  *   `StudioMobileComposer`（见 `STUDIO_OPERATOR_MOBILE_SHELL.fabBottomPx`）。
  */
 
-import { Sparkles } from 'lucide-react'
+import { Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

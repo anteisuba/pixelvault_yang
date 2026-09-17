@@ -39,7 +39,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import styles from './StudioOperatorDock.module.css'
-import { GripVertical } from 'lucide-react'
+import { GripVertical } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'

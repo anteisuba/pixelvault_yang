@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown, Mic } from 'lucide-react'
+import { ChevronDown, Mic } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { AUDIO_PACE, AUDIO_STYLE } from '@/constants/voice-cards'

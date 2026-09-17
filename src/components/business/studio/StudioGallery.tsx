@@ -1,7 +1,13 @@
 'use client'
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Heart, RefreshCw, Download, Grid3X3, LayoutGrid } from 'lucide-react'
+import {
+  Heart,
+  RefreshCw,
+  Download,
+  Grid3X3,
+  LayoutGrid,
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 

@@ -32,7 +32,7 @@
  * 浅 4.84 / 5.84、深 8.84 / 5.60 —— 全部过线。
  */
 
-import { Check, ExternalLink, TriangleAlert } from 'lucide-react'
+import { Check, ExternalLink, TriangleAlert } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_OPERATOR_WEB_CANDIDATE_PIXELS } from '@/constants/studio-assistant-operator'

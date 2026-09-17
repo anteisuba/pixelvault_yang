@@ -24,7 +24,7 @@ import {
   Sparkles,
   X,
   type LucideIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useId, useState, type ReactNode } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Spinner } from '@/components/ui/spinner'

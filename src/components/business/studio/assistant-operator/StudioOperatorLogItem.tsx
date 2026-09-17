@@ -48,7 +48,7 @@ import {
   Unplug,
   Volume2,
   type LucideIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'

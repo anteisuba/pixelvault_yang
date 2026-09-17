@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import Image from 'next/image'
-import { Check } from 'lucide-react'
+import { Check } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

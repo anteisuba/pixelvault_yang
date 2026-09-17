@@ -14,11 +14,10 @@ import {
   ChevronDown,
   FileAudio2,
   FileText,
-  Loader2,
   Music2,
   Plus,
   X,
-} from 'lucide-react'
+} from '@/components/icons'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { useTranslations } from 'next-intl'
 
@@ -78,6 +77,7 @@ import type {
   RecipeRecord,
 } from '@/types'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
+import { Spinner } from '@/components/ui/spinner'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 
@@ -549,10 +549,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
                 role="status"
                 className="flex items-center gap-2 px-1 py-2 text-sm text-muted-foreground"
               >
-                <Loader2
-                  aria-hidden="true"
-                  className="size-4 shrink-0 animate-spin motion-reduce:animate-none"
-                />
+                <Spinner aria-hidden="true" className="size-4 shrink-0" />
                 {tImageUpload('uploading')}
               </div>
             )}
@@ -1095,7 +1092,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           >
             {isGenerating ? (
               <>
-                <Loader2 className="size-4 animate-spin" />
+                <Spinner className="size-4" />
                 {elapsedSeconds > 0
                   ? `${t('generating')} ${elapsedSeconds}s`
                   : t('generating')}

@@ -1,7 +1,7 @@
 'use client'
 
 import { memo } from 'react'
-import { AlertTriangle, Ban, X } from 'lucide-react'
+import { AlertTriangle, Ban, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import type { RunItem } from '@/types'

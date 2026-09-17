@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, type ComponentType } from 'react'
-import { ArrowRight, Link2, Palette, Plus, User } from 'lucide-react'
+import { ArrowRight, Link2, Palette, Plus, User } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

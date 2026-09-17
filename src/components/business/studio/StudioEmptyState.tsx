@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AudioLines, CircleHelp } from 'lucide-react'
+import { AudioLines, CircleHelp } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { AUDIO_KIND, DEFAULT_AUDIO_KIND } from '@/constants/audio-options'

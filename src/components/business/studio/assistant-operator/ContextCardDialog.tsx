@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import { AlertCircle, Trash2, Upload } from 'lucide-react'
+import { AlertCircle, Trash2, Upload } from '@/components/icons'
 
 import { PROFILE } from '@/constants/config'
 import {

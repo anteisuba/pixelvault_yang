@@ -1,6 +1,6 @@
 'use client'
 
-import { Clock, Coins, ImageIcon, Layers } from 'lucide-react'
+import { Clock, Coins, ImageIcon, Layers } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { LORA_TRAINING } from '@/constants/config'

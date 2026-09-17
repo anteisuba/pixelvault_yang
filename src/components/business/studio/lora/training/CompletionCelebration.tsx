@@ -1,7 +1,12 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { CheckCircle2, ImageIcon, RotateCcw, Sparkles } from 'lucide-react'
+import {
+  CheckCircle2,
+  ImageIcon,
+  RotateCcw,
+  Sparkles,
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import type { LoraTrainingRecord } from '@/types'

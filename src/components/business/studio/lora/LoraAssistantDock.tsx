@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Bot, GripVertical } from 'lucide-react'
+import { Bot, GripVertical } from '@/components/icons'
 import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 

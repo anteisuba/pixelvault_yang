@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useMemo } from 'react'
-import { Settings2, X } from 'lucide-react'
+import { Settings2, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'

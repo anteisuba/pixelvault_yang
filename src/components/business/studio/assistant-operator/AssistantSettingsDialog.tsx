@@ -12,7 +12,7 @@ import {
   Trash2,
   Upload,
   X,
-} from 'lucide-react'
+} from '@/components/icons'
 
 import {
   ASSISTANT_AVATAR_PRESET_IDS,

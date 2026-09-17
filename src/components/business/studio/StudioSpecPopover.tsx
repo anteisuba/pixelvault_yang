@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm } from '@/contexts/studio-context'

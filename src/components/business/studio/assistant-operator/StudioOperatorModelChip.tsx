@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react'
-import { Check, ChevronDown, ChevronUp } from 'lucide-react'
+import { Check, ChevronDown, ChevronUp } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

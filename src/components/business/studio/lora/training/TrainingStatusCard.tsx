@@ -1,11 +1,12 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { AlertTriangle, Clock, Loader2, RotateCcw } from 'lucide-react'
+import { AlertTriangle, Clock, RotateCcw } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import type { LoraTrainingRecord } from '@/types'
 import { Progress } from '@/components/ui/progress'
+import { Spinner } from '@/components/ui/spinner'
 import { cn } from '@/lib/utils'
 
 export interface TrainingStatusCardProps {
@@ -72,7 +73,7 @@ export function TrainingStatusCard({
           {isFailed ? (
             <AlertTriangle className="size-4" aria-hidden />
           ) : isTraining ? (
-            <Loader2 className="size-4 animate-spin" aria-hidden />
+            <Spinner className="size-4" aria-hidden />
           ) : (
             <Clock className="size-4" aria-hidden />
           )}

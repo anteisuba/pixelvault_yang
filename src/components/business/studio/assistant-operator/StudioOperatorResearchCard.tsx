@@ -25,7 +25,7 @@
  * 不同的委托说成一件事。
  */
 
-import { Pin } from 'lucide-react'
+import { Pin } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'

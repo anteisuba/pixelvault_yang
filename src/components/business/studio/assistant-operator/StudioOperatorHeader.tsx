@@ -39,7 +39,7 @@ import {
   History,
   PanelRightClose,
   Settings2,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'

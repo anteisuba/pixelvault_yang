@@ -25,7 +25,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Markdown } from '@/components/ui/markdown'

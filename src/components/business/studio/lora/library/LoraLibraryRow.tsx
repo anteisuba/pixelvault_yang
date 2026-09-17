@@ -7,7 +7,7 @@ import {
   ExternalLink,
   Heart,
   Sparkles,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'

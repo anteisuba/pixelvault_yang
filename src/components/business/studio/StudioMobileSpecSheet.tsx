@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_MOBILE_DRAWER_CLASS } from '@/constants/studio-mobile'

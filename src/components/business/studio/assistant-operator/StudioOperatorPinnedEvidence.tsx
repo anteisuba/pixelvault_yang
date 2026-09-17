@@ -11,7 +11,7 @@
  * ⚠ 皮肤走信号位（§12.2）：近黑描边 + 加粗标签，⛔ 不引入新色相、不填色。
  */
 
-import { Pin, X } from 'lucide-react'
+import { Pin, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 export interface StudioOperatorPinnedEvidenceItem {

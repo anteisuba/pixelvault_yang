@@ -31,7 +31,7 @@
  */
 
 import { useState } from 'react'
-import { AlertTriangle, Check, Undo2, Wand2, X } from 'lucide-react'
+import { AlertTriangle, Check, Undo2, Wand2, X } from '@/components/icons'
 import Image from 'next/image'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'

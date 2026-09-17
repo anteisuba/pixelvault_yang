@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, ChevronDown, RotateCcw } from 'lucide-react'
+import { Check, ChevronDown, RotateCcw } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'

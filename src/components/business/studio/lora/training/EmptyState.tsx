@@ -1,6 +1,6 @@
 'use client'
 
-import { Camera, Sparkles, Upload } from 'lucide-react'
+import { Camera, Sparkles, Upload } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

@@ -48,7 +48,7 @@ import {
   Square,
   TriangleAlert,
   X,
-} from 'lucide-react'
+} from '@/components/icons'
 import {
   collectOperatorResearchRefs,
   groupOperatorResearch,

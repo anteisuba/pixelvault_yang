@@ -391,7 +391,8 @@ describe('PromptTemplatePicker', () => {
       .getByText('Text-only template')
       .closest('[cmdk-item]')
     expect(textOnlyRow?.querySelector('img')).toBeNull()
-    const fallbackIcon = textOnlyRow?.querySelector('.lucide-file-text')
+    // Phosphor icons carry no library class — query the fallback plaque's glyph.
+    const fallbackIcon = textOnlyRow?.querySelector('span.size-9 > svg')
     expect(fallbackIcon).not.toBeNull()
     // Fallback shares the rounded-md image-driven shape (not the old circle).
     expect(fallbackIcon?.parentElement).toHaveClass(
@@ -427,6 +428,6 @@ describe('PromptTemplatePicker', () => {
         'Long shared prompt with cinematic lighting and a careful subject',
       ),
     ).toHaveClass('line-clamp-2')
-    expect(container.querySelector('.lucide-external-link')).toBeNull()
+    expect(container.querySelector('a[target="_blank"]')).toBeNull()
   })
 })

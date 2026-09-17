@@ -29,7 +29,7 @@
  */
 
 import { motion, useReducedMotion } from 'motion/react'
-import { Images, RotateCw } from 'lucide-react'
+import { Images, RotateCw } from '@/components/icons'
 import Image from 'next/image'
 import { useFormatter, useTranslations } from 'next-intl'
 

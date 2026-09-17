@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useState } from 'react'
-import { Key } from 'lucide-react'
+import { Key } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 

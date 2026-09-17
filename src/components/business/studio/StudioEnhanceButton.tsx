@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import dynamic from 'next/dynamic'
 import * as Toolbar from '@radix-ui/react-toolbar'

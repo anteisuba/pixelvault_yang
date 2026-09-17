@@ -1,6 +1,6 @@
 'use client'
 
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { MUSIC_DURATION_RANGE } from '@/constants/audio-options'

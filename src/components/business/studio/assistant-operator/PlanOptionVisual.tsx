@@ -30,7 +30,7 @@ import {
   ZoomIn,
   ZoomOut,
   type LucideIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 
 import {
   ASSISTANT_PLAN_SWATCH_MIX,
@@ -43,7 +43,7 @@ import type { AssistantOperatorPlanOption } from '@/types/assistant-operator'
 /**
  * 词表里那 12 个 lucide 名 → 组件。
  *
- * ⚠ **逐个具名 import**，⛔ 不 `import * as icons from 'lucide-react'` 再按名取：
+ * ⚠ **逐个具名 import**，⛔ 不 `import * as icons from '@/components/icons'` 再按名取：
  * 后者会把整个图标库拖进这一块的 chunk（本仓 1000+ 图标）。
  * ⚠ 表里没有的名字返回 `null` 而不是兜一个默认图标 —— 词表与这张表对不上时，
  * 该出现的是「纯文字」，不是一个错的图标。

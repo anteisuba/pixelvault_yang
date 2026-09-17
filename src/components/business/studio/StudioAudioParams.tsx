@@ -26,7 +26,7 @@ import {
   Wind,
   X,
   Zap,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

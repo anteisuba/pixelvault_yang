@@ -5,12 +5,11 @@ import {
   ArrowUp,
   ChevronDown,
   FileText,
-  Loader2,
   Music2,
   RotateCw,
   Volume2,
   VolumeX,
-} from 'lucide-react'
+} from '@/components/icons'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { useTranslations } from 'next-intl'
 
@@ -26,6 +25,7 @@ import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
+import { Spinner } from '@/components/ui/spinner'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
@@ -338,7 +338,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
           )}
         >
           {isGenerating ? (
-            <Loader2 className="size-5 animate-spin" />
+            <Spinner className="size-5" />
           ) : hasResult ? (
             <RotateCw className="size-5" />
           ) : (

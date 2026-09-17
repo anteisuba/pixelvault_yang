@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { LORA_PREVIEW_SWIPE_MIN_PX } from '@/constants/lora'

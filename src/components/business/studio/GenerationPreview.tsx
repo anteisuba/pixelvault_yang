@@ -14,7 +14,7 @@ import {
   Share2,
   Sparkles,
   X,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import { TransformWrapper, TransformComponent } from 'react-zoom-pan-pinch'

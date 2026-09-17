@@ -23,7 +23,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState, type RefObject } from 'react'
-import { AtSign, Check, IdCard, Plus, Search } from 'lucide-react'
+import { AtSign, Check, IdCard, Plus, Search } from '@/components/icons'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 

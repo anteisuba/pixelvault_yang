@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { RotateCcw, Sparkles } from 'lucide-react'
+import { RotateCcw, Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

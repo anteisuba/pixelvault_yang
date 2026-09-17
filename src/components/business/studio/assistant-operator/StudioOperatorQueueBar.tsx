@@ -27,7 +27,7 @@
  */
 
 import { motion, useReducedMotion } from 'motion/react'
-import { X } from 'lucide-react'
+import { X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { motionTransition } from '@/constants/motion'

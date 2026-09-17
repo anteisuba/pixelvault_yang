@@ -11,7 +11,14 @@
  * land on Phosphor `Warning` and `WarningCircle`.
  */
 
-export type { Icon, IconProps, IconWeight } from '@phosphor-icons/react'
+export type {
+  Icon,
+  // lucide's component type, kept as an alias so `type LucideIcon`
+  // call sites migrate with an import-path change and nothing else.
+  Icon as LucideIcon,
+  IconProps,
+  IconWeight,
+} from '@phosphor-icons/react'
 export { IconContext } from '@phosphor-icons/react'
 
 export {

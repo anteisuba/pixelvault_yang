@@ -1,6 +1,6 @@
 'use client'
 
-import { PanelsTopLeft } from 'lucide-react'
+import { PanelsTopLeft } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 

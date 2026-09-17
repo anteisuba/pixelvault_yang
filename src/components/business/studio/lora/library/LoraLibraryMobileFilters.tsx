@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ChevronDown, RefreshCw, SlidersHorizontal } from 'lucide-react'
+import { ChevronDown, RefreshCw, SlidersHorizontal } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

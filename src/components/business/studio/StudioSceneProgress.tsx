@@ -1,18 +1,13 @@
 'use client'
 
 import { memo } from 'react'
-import {
-  AlertCircle,
-  CheckCircle2,
-  Film,
-  Loader2,
-  RotateCcw,
-} from 'lucide-react'
+import { AlertCircle, CheckCircle2, Film, RotateCcw } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
 import { ErrorAlert } from '@/components/ui/error-alert'
 import { Progress } from '@/components/ui/progress'
+import { Spinner } from '@/components/ui/spinner'
 import { VideoScriptSceneStatus } from '@/lib/generated/prisma/enums'
 import { cn } from '@/lib/utils'
 import type { SceneOrchestratorStatus } from '@/types/video-script'
@@ -127,7 +122,7 @@ export const StudioSceneProgress = memo(function StudioSceneProgress({
                       )}
                     >
                       {generating ? (
-                        <Loader2 className="size-3 animate-spin" />
+                        <Spinner className="size-3" />
                       ) : scene.status === VideoScriptSceneStatus.CLIP_READY ? (
                         <CheckCircle2 className="size-3" />
                       ) : scene.status === VideoScriptSceneStatus.FAILED ? (

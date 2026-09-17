@@ -33,7 +33,7 @@
 
 import { useState } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
-import { ChevronDown, ClipboardCheck } from 'lucide-react'
+import { ChevronDown, ClipboardCheck } from '@/components/icons'
 
 import { ASSISTANT_ROUND_SUMMARY_LIMITS } from '@/constants/assistant-operator'
 import type { AssistantOperatorRoundSummary } from '@/types/assistant-operator'

@@ -12,7 +12,7 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useFormatter, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 

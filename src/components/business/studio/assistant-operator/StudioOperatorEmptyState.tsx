@@ -19,9 +19,9 @@
  *   「自传头像优先于预设」那套判断。
  */
 
-import { BookOpen, ImageIcon, Search, Sparkles } from 'lucide-react'
+import { BookOpen, ImageIcon, Search, Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
-import type { LucideIcon } from 'lucide-react'
+import type { LucideIcon } from '@/components/icons'
 
 import { STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT } from '@/constants/studio-assistant-operator'
 import { AssistantTimelineAvatar } from '@/components/business/studio/assistant-operator/TimelineAvatar'

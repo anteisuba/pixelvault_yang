@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, type ReactNode } from 'react'
-import { ArrowUpRight, FileText, Save, Sparkles } from 'lucide-react'
+import { ArrowUpRight, FileText, Save, Sparkles } from '@/components/icons'
 import { useLocale, useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 

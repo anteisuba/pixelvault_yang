@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useState } from 'react'
-import { Library, Music2, Trash2, Upload } from 'lucide-react'
+import { Library, Music2, Trash2, Upload } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 

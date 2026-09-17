@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { Boxes, Download, Heart, Sparkles } from 'lucide-react'
+import { Boxes, Download, Heart, Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { useHuggingFaceShowcaseCover } from '@/hooks/use-huggingface-showcase-cover'

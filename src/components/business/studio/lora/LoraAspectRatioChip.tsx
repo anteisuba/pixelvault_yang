@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { RatioIcon } from 'lucide-react'
+import { RatioIcon } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

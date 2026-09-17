@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useRef, useState, type ChangeEvent } from 'react'
-import { Image as ImageIcon } from 'lucide-react'
+import { Image as ImageIcon } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 

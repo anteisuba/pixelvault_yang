@@ -1,6 +1,6 @@
 'use client'
 
-import { RotateCcw } from 'lucide-react'
+import { RotateCcw } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 

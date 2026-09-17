@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type ReactNode } from 'react'
-import { Minus, Plus, Tag, X } from 'lucide-react'
+import { Minus, Plus, Tag, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'

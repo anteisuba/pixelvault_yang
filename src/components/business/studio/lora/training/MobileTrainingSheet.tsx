@@ -2,7 +2,7 @@
 
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { ChevronUp, Sparkles } from 'lucide-react'
+import { ChevronUp, Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { Drawer as DrawerPrimitive } from 'vaul'
 

@@ -9,6 +9,11 @@
  * Semantic duplicates are collapsed on purpose: `Image` / `ImageIcon` share one
  * glyph, and `AlertTriangle` / `TriangleAlert` / `AlertCircle` / `CircleAlert`
  * land on Phosphor `Warning` and `WarningCircle`.
+ *
+ * The five lucide glyphs with no Phosphor counterpart (`FolderSearch`,
+ * `ImageDown`, `ImagePlus`, `MessageCircleWarning`, `MessageSquarePlus`) are
+ * resolved by call-site meaning rather than by shape; each carries the reason
+ * inline. Nothing here imports from lucide any more.
  */
 
 export type {
@@ -101,6 +106,10 @@ export {
   FolderOpenIcon as FolderInput,
   FolderOpenIcon as FolderOpen,
   FolderPlusIcon as FolderPlus,
+  // lucide `FolderSearch` — no folder+magnifier in Phosphor 2.1.10. The only
+  // call site is the `listAssetFolders` tool icon, so the folder *stack* says
+  // what the tool returns better than a magnifier would.
+  FoldersIcon as FolderSearch,
   TreeStructureIcon as FolderTree,
   FolderMinusIcon as FolderX,
   FrameCornersIcon as Frame,
@@ -122,8 +131,16 @@ export {
   HouseIcon as Home,
   IdentificationCardIcon as IdCard,
   ImageIcon as Image,
+  // lucide `ImageDown` — no image+arrow in Phosphor. Its one call site is the
+  // assistant dock's drag-over hint, where the down arrow is the whole message.
+  DownloadSimpleIcon as ImageDown,
   ImageIcon as ImageIcon,
   ImageBrokenIcon as ImageOff,
+  // lucide `ImagePlus` — no image+plus in Phosphor. Every call site is "attach
+  // an image" next to a label or inside an add menu, so the framed-image glyph
+  // carries the noun and the surrounding affordance carries the verb. Distinct
+  // from `Image` on purpose.
+  ImageSquareIcon as ImagePlus,
   ImagesIcon as Images,
   InfoIcon as Info,
   KeyIcon as Key,
@@ -144,6 +161,15 @@ export {
   SignOutIcon as LogOut,
   MapTrifoldIcon as Map,
   ArrowsOutIcon as Maximize2,
+  // lucide `MessageCircleWarning` — its one call site is the "pronunciation
+  // error" audio-feedback chip, sitting in a row of plain descriptive glyphs.
+  // A speech bubble with text reads as speech; `WarningCircle` would have
+  // turned one chip in that row into an alert.
+  ChatCircleTextIcon as MessageCircleWarning,
+  // lucide `MessageSquarePlus` — no chat+plus in Phosphor. All three call sites
+  // are "new conversation" controls carrying their own label/aria-label, and
+  // compose is the glyph that means "start a new one".
+  NotePencilIcon as MessageSquarePlus,
   ChatsCircleIcon as MessagesSquare,
   MicrophoneIcon as Mic,
   MicrophoneStageIcon as Mic2,
@@ -249,17 +275,6 @@ export {
   MagnifyingGlassPlusIcon as ZoomIn,
   MagnifyingGlassMinusIcon as ZoomOut,
 } from '@phosphor-icons/react'
-
-// TODO phosphor — no faithful Phosphor counterpart in 2.1.10. Still on lucide
-// so the codebase compiles; none of these are used from an already-migrated
-// directory, so they get resolved when their own domain batch lands.
-export {
-  FolderSearch,
-  ImageDown,
-  ImagePlus,
-  MessageCircleWarning,
-  MessageSquarePlus,
-} from 'lucide-react'
 
 // TODO phosphor — lucide `Loader2` is deliberately NOT re-exported. Spinners go
 // through `@/components/ui/spinner`, which renders `CircleNotch`.

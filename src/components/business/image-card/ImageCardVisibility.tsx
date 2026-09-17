@@ -1,4 +1,4 @@
-import { Globe2, LockKeyhole, Pin } from 'lucide-react'
+import { Globe2, LockKeyhole, Pin } from '@/components/icons'
 
 import { cn } from '@/lib/utils'
 

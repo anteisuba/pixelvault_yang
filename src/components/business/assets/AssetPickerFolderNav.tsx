@@ -8,7 +8,7 @@ import {
   Heart,
   LayoutGrid,
   Search,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

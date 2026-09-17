@@ -12,7 +12,7 @@ import {
   Images,
   Wand2,
   X,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 

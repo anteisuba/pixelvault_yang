@@ -11,7 +11,7 @@ import {
   RefreshCw,
   Shuffle,
   type LucideIcon,
-} from 'lucide-react'
+} from '@/components/icons'
 
 import {
   GENERATION_ERROR_CODES,

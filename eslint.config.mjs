@@ -121,6 +121,18 @@ const IMAGE_FORBIDDEN_PATTERNS = [
   },
 ];
 
+/** E1-b — icons come from `@/components/icons` (Phosphor, aliased to the
+ * lucide spellings). Folded into every block that already owns
+ * `no-restricted-imports` for its files, because a later flat-config block
+ * REPLACES the rule options of an earlier one instead of merging them. */
+const LUCIDE_FORBIDDEN_PATHS = [
+  {
+    name: "lucide-react",
+    message:
+      "Icons come from `@/components/icons` (Phosphor base, lucide names kept as aliases).",
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -139,7 +151,10 @@ const eslintConfig = defineConfig([
       "src/components/business/prompts/**/*.{ts,tsx}",
     ],
     rules: {
-      "no-restricted-imports": ["error", { patterns: PROMPTS_FORBIDDEN_SIBLINGS }],
+      "no-restricted-imports": [
+        "error",
+        { patterns: PROMPTS_FORBIDDEN_SIBLINGS, paths: LUCIDE_FORBIDDEN_PATHS },
+      ],
     },
   },
   // ─── Spec 2 boundary rules ─────────────────────────────────────
@@ -160,7 +175,10 @@ const eslintConfig = defineConfig([
       "src/components/business/cards/**/*.{ts,tsx}",
     ],
     rules: {
-      "no-restricted-imports": ["error", { patterns: CARDS_FORBIDDEN_SIBLINGS }],
+      "no-restricted-imports": [
+        "error",
+        { patterns: CARDS_FORBIDDEN_SIBLINGS, paths: LUCIDE_FORBIDDEN_PATHS },
+      ],
     },
   },
   // ─── Spec 4 boundary rules ─────────────────────────────────────
@@ -171,7 +189,10 @@ const eslintConfig = defineConfig([
       "src/components/business/image/**/*.{ts,tsx}",
     ],
     rules: {
-      "no-restricted-imports": ["error", { patterns: IMAGE_FORBIDDEN_PATTERNS }],
+      "no-restricted-imports": [
+        "error",
+        { patterns: IMAGE_FORBIDDEN_PATTERNS, paths: LUCIDE_FORBIDDEN_PATHS },
+      ],
     },
   },
   // ─── Spec 5a boundary rules ────────────────────────────────────
@@ -206,22 +227,11 @@ const eslintConfig = defineConfig([
       "src/components/layout/**/*.{ts,tsx}",
       "src/constants/navigation.ts",
       "src/components/business/studio/**/*.{ts,tsx}",
-      "src/components/business/prompts/**/*.{ts,tsx}",
-      "src/components/business/cards/**/*.{ts,tsx}",
+      "src/components/business/assets/**/*.{ts,tsx}",
+      "src/components/business/image-card/**/*.{ts,tsx}",
     ],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        {
-          paths: [
-            {
-              name: "lucide-react",
-              message:
-                "Icons come from `@/components/icons` (Phosphor base, lucide names kept as aliases).",
-            },
-          ],
-        },
-      ],
+      "no-restricted-imports": ["error", { paths: LUCIDE_FORBIDDEN_PATHS }],
     },
   },
   // Override default ignores of eslint-config-next.

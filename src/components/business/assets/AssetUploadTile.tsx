@@ -1,6 +1,6 @@
 'use client'
 
-import { AlertCircle, Music2, RotateCcw, X } from 'lucide-react'
+import { AlertCircle, Music2, RotateCcw, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import type { UploadQueueItem } from '@/hooks/use-asset-upload-queue'

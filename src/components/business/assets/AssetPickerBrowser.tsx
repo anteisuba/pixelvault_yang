@@ -7,7 +7,7 @@ import {
   PanelLeft,
   Search,
   UploadCloud,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
 

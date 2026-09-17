@@ -1,4 +1,4 @@
-import { Download, Heart } from 'lucide-react'
+import { Download, Heart } from '@/components/icons'
 
 import { cn } from '@/lib/utils'
 

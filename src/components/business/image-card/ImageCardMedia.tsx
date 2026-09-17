@@ -1,4 +1,4 @@
-import { ImageIcon, Music, Play } from 'lucide-react'
+import { ImageIcon, Music, Play } from '@/components/icons'
 
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import {

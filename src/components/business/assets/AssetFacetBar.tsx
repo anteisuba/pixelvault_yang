@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Check, ChevronDown, X } from 'lucide-react'
+import { Check, ChevronDown, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Input } from '@/components/ui/input'

@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowLeft, Folder, FolderPlus, Search } from 'lucide-react'
+import { ArrowLeft, Folder, FolderPlus, Search } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

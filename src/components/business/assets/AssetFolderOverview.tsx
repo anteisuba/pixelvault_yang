@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowUpDown, Search } from 'lucide-react'
+import { ArrowUpDown, Search } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { FOLDER_DND_MIME } from '@/constants/asset-dnd'

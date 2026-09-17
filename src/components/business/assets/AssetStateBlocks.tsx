@@ -1,6 +1,11 @@
 'use client'
 
-import { AlertCircle, FolderOpen, ImageIcon, RotateCcw } from 'lucide-react'
+import {
+  AlertCircle,
+  FolderOpen,
+  ImageIcon,
+  RotateCcw,
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

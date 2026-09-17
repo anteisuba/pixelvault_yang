@@ -1,6 +1,14 @@
 'use client'
 
-import { Box, CheckCircle2, Circle, Film, Heart, Mic, Play } from 'lucide-react'
+import {
+  Box,
+  CheckCircle2,
+  Circle,
+  Film,
+  Heart,
+  Mic,
+  Play,
+} from '@/components/icons'
 import NextImage from 'next/image'
 import { useTranslations } from 'next-intl'
 

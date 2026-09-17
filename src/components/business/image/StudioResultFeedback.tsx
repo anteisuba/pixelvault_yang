@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { LayoutGrid, Palette, Sun, ThumbsUp, User } from 'lucide-react'
+import { LayoutGrid, Palette, Sun, ThumbsUp, User } from '@/components/icons'
 
 import type { GenerationEvaluation } from '@/types'
 import { cn } from '@/lib/utils'

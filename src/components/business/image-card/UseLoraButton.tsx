@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Palette } from 'lucide-react'
+import { Palette } from '@/components/icons'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
 

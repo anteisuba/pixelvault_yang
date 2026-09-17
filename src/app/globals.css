@@ -69,6 +69,8 @@
   --color-node-port-voice-on-paper: var(--node-port-voice-on-paper);
   --color-node-port-video-on-paper: var(--node-port-video-on-paper);
   --color-node-port-image-on-paper: var(--node-port-image-on-paper);
+  /* 模态色：仅用于画布端口 / 连线归属，不再作为视觉语言按颜色区分模态
+     （owner 2026-09-17）。定值与完整理由见 :root。 */
   --color-modality-image: var(--modality-image);
   --color-modality-video: var(--modality-video);
   --color-modality-audio: var(--modality-audio);
@@ -77,6 +79,7 @@
   --color-status-applied: var(--status-applied);
   --color-status-applied-surface: var(--status-applied-surface);
   --color-status-risk: var(--status-risk);
+  --color-status-risk-surface: var(--status-risk-surface);
   --color-status-warning: var(--status-warning);
   --color-status-warning-surface: var(--status-warning-surface);
   /* S4 minimap 蓝图纸（§3）：与 node-canvas 暖炭形成材质区分的独立深青底。 */
@@ -643,10 +646,13 @@
   --node-focus-ring: rgba(10, 10, 10, 0.4);
   --node-shadow: rgba(0, 0, 0, 0.08);
 
-  /* 模态语义色（提示词库等跟随主题的页面用）：与画布端口色同族色相
-     （image 紫 292 / video 蓝 255 / audio 玫瑰 10），低饱和守 anti-slop。
-     画布端口 token 是暗面常量，此处按浅/暗主题各给一档明度。
-     TODO：node-port-* 后续可反向 alias 到这组（与 node-amber 改名一起做）。 */
+  /* 模态色：**仅用于画布端口 / 连线归属**，不再作为视觉语言按颜色区分模态
+     （owner 2026-09-17，视觉语言总板 D1 ④）。端口和连线需要一眼看出「这根线
+     插的是哪种料」，那是结构信息；页面上的「这是图 / 这是视频」由图标 + 文案
+     表达，⛔ 不再按模态改面色、边色或强调色。全站强调色仍只有 --primary。
+     token 不删、现有消费方不改，新代码不要再引。
+     色相与画布端口同族（image 紫 292 / video 蓝 255 / audio 玫瑰 10），
+     低饱和守 anti-slop；画布端口 token 是暗面常量，此处按浅/暗主题各给一档明度。 */
   --modality-image: oklch(46% 0.08 292);
   --modality-video: oklch(46% 0.09 255);
   --modality-audio: oklch(46% 0.09 10);
@@ -670,8 +676,13 @@
   --status-applied: #16794c;
   --status-applied-surface: #f0f7f2;
   /* 风险 / 破坏性说明文字。比 --destructive（≈#e7000b，对白 4.77）稳，
-     且不像报错色那么跳；对白 6.54。 */
+     且不像报错色那么跳；对白 6.54。
+     -surface 补齐（视觉语言总板 D1 ④，owner 2026-09-17）：三档状态色现在各有
+     浅底，风险不再只能靠 --destructive/10 一类临时透明度凑。明度对齐同档
+     （oklch L：applied-surface 0.970 · warning-surface 0.967 · risk 0.967），
+     #b3261e 对它 5.91 · --foreground 对它 13.85。 */
   --status-risk: #b3261e;
+  --status-risk-surface: #fcf1f0;
   /* 「警告 / 待处理」语义（2026-09-03 收口业务代码里的 amber 调色板类）。
      #a04f00：对白 5.81 · 对 --muted 5.33 · 对自身 surface 5.28 · 对 surface-sunken 4.88。 */
   --status-warning: #a04f00;
@@ -738,6 +749,9 @@ html:lang(ja) {
   --status-applied: #5cc998;
   --status-applied-surface: #163024;
   --status-risk: #e06c65;
+  /* 暗面风险浅底：#e06c65 对它 4.66（AA 过），明度 oklch L 0.276 与
+     applied-surface 0.284 / warning-surface 0.297 同档。 */
+  --status-risk-surface: #3e1d1a;
   /* 暗面警告档：#f0b25a 对 background 8.19 · 对 secondary(#404040) 5.54 · 对纯黑 11.22。 */
   --status-warning: #f0b25a;
   --status-warning-surface: #3a2a10;
@@ -771,7 +785,8 @@ html:lang(ja) {
   --overlay-chip: oklch(100% 0 0 / 0.4);
   --overlay-chip-foreground: oklch(100% 0 0);
 
-  /* 模态语义色 · 暗面档（同 :root 注释，暗底提亮到 78%） */
+  /* 模态色 · 暗面档（暗底提亮到 78%）。用途同 :root：仅画布端口 / 连线归属，
+     不再按颜色区分模态（owner 2026-09-17）。 */
   --modality-image: oklch(78% 0.09 292);
   --modality-video: oklch(78% 0.1 255);
   --modality-audio: oklch(78% 0.1 10);

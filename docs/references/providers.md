@@ -210,3 +210,13 @@ adapter / Worker 抛错
 
 - Date: 2026-07-10 · Method: registry（**当时** 10 adapter，名册已被上面 2026-08-24 条目取代）/ types 契约 / 错误码表与参考图分类正则读源码核验；BYOK 六步与 worker 边界沿用 2026-06-03 审计口径（当时对照过官方文档）。
 - **payload 字段级事实一律以改动当时的官方文档为准**——本文件不承诺字段级新鲜度。
+
+## 图片专属能力核验（2026-09-18，进度表 61）
+
+第 11 项把工作台「专属 chip 行」改成只从 `provider-capabilities.ts` 派生后，设计画板上四家模型的 9 颗专属 chip 逐颗对照一手 schema（OpenAI `/images/edits` 参考、Google image-generation 文档、fal OpenAPI、火山 Ark 图片生成 API）：
+
+- **OpenAI**：`input_fidelity: "high" | "low"` 已接（能力键 `inputFidelity`，`select`，只在 `/v1/images/edits` 即带参考图时发）。**gpt-image-2.5 专属**——gpt-image-2 官方要求省略该参数（始终高保真处理输入）。
+- **Gemini 3 Pro Image**：对话式改图 = 会话历史（`contents`），多图融合 = 多个 image part，角色 / 物体槽只是条数上限（≤5 角色 / ≤6 物体）且无标注机制——三者都**不是请求字段**，不进能力表。
+- **fal `fal-ai/flux-2-pro{,/edit}`**：入参只有 `prompt · image_size · image_urls · seed · output_format · safety_tolerance · enable_safety_checker`；`@image1` 与 JSON prompt 都是提示词写法，**没有「图层」**。
+- **Seedream 5.0 Pro（火山 Ark，文档 2026-09-09）**：支持 `layer_decomposition`（1 底图 + ≤16 张带 alpha 的 PNG 图层，任一图层失败整体报错）、`background: transparent | opaque`（仅 5.0 Pro · 图生图 · 单张透明通道输入 · 输出 png）、交互编辑（bbox）；**不支持**组图、联网搜索、流式输出。组图 `sequential_image_generation` + `max_images`（1–15，参考数 + 生成数 ≤15）只在 **5.0 Lite / 4.5 / 4.0**；`tools[].type = web_search` 只在 **5.0 Lite**。fal 侧 `bytedance/seedream/v5/pro/*` 无以上任一字段。
+- 未接的两颗真实参数：`layer_decomposition` 需要多产物落库（现图片管线取 `data[0]` 单产物），`background` 可单产物直接接——均待 owner 拍板（进度表 62 · 63）。

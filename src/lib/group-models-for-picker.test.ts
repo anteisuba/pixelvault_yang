@@ -79,7 +79,7 @@ describe('groupModelsForPicker', () => {
     ])
   })
 
-  it('drops the workspace twin of a keyed route but keeps a free-tier one', () => {
+  it('drops the workspace twin of a keyed route but keeps other models', () => {
     const series = groupModelsForPicker(
       [
         option(AI_MODELS.SEEDREAM_50_PRO, AI_ADAPTER_TYPES.FAL, {
@@ -89,8 +89,7 @@ describe('groupModelsForPicker', () => {
         }),
         option(AI_MODELS.SEEDREAM_50_PRO, AI_ADAPTER_TYPES.FAL),
         option(AI_MODELS.SEEDREAM_50_LITE, AI_ADAPTER_TYPES.FAL, {
-          optionId: 'free:lite',
-          freeTier: true,
+          optionId: 'workspace:lite',
         }),
       ],
       labelOf,
@@ -98,7 +97,9 @@ describe('groupModelsForPicker', () => {
 
     const models = series[0].models
     expect(models[0].channels.map((c) => c.channelId)).toEqual(['key:k1'])
-    expect(models[1].channels.map((c) => c.channelId)).toEqual(['free:lite'])
+    expect(models[1].channels.map((c) => c.channelId)).toEqual([
+      'workspace:lite',
+    ])
   })
 
   /**
@@ -244,7 +245,7 @@ describe('groupModelsForPicker', () => {
     ])
   })
 
-  it('keeps the free-tier channel apart from the user key on the same adapter', () => {
+  it('keeps a keyless channel apart from the user key on the same adapter', () => {
     const series = groupModelsForPicker(
       [
         option(AI_MODELS.SEEDANCE_25, AI_ADAPTER_TYPES.FAL, {
@@ -253,16 +254,15 @@ describe('groupModelsForPicker', () => {
           keyId: 'k1',
         }),
         option(AI_MODELS.SEEDANCE_25_REFERENCE, AI_ADAPTER_TYPES.FAL, {
-          optionId: 'free:ref',
-          freeTier: true,
+          optionId: 'workspace:ref',
         }),
       ],
       labelOf,
     )
-    // 「自己的 key」与「平台额度」是用户真要挑的两条路，⛔ 不折。
+    // 凭据不同 = 不同渠道（`key:k1` vs 无 key），⛔ 不折。
     expect(series[0].models[0].channels.map((c) => c.channelId)).toEqual([
       'key:k1',
-      'free:ref',
+      'workspace:ref',
     ])
   })
 

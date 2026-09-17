@@ -239,7 +239,6 @@ describe('routeToStudioOption', () => {
     const result = routeToStudioOption(route)
     expect(result.sourceType).toBe('workspace')
     expect(result.keyId).toBeUndefined()
-    expect(result.freeTier).toBe(false)
     expect(result.displayLabel).toBe('OpenAI GPT-5.4 Mini')
   })
 
@@ -257,8 +256,8 @@ describe('routeToStudioOption', () => {
   })
 
   it('routes locked options to locked group via useSplitModelOptions semantics', () => {
-    // sourceType='workspace' + freeTier=false → useSplitModelOptions puts in locked group
-    // This is the cross-hook integration: LLM lockedRoutes must end up in locked group.
+    // sourceType='workspace' with no key → useSplitModelOptions puts it in the
+    // locked group. Cross-hook integration: LLM lockedRoutes must land there.
     const lockedRoute: LLMRouteOption = {
       optionId: 'opt',
       apiKeyId: null,
@@ -269,6 +268,6 @@ describe('routeToStudioOption', () => {
     }
     const result = routeToStudioOption(lockedRoute)
     expect(result.sourceType).toBe('workspace')
-    expect(result.freeTier).toBe(false)
+    expect(result.providerKeyId).toBeUndefined()
   })
 })

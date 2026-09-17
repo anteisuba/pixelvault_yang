@@ -4,8 +4,8 @@ import type { ApiKeyHealthStatus } from '@/types'
  * 一个型号底下的一条渠道（fal / 火山 / BytePlus …）。
  *
  * ⚠ 这是**选择器的口径**，不是 `StudioModelOption` 的子集：它只留下「选哪条」
- * 需要的四件事（有没有自己的 key、有没有平台额度、多少钱、key 健不健康），
- * 好让规则本身是可测的纯函数。映射发生在组件里（见 `ModelPickerPopover`）。
+ * 需要的三件事（有没有自己的 key、多少钱、key 健不健康），好让规则本身是可测的
+ * 纯函数。映射发生在组件里（见 `ModelPickerPopover`）。
  */
 export interface ModelChannelCandidate {
   /** 该渠道在选择器里的稳定标识（= 对应条目的 `optionId`）。 */
@@ -14,8 +14,6 @@ export interface ModelChannelCandidate {
   channelLabel: string
   /** 用户自己配了这条渠道的 key（provider 级覆盖也算）。 */
   hasUserKey: boolean
-  /** 平台给的免费额度。 */
-  hasFreeQuota: boolean
   /** USD 参考单价；查不到价为 null —— **排最后**，不当 0。 */
   unitPrice: number | null
   /** key 健康度；同一档内先比它，再比价。 */
@@ -23,7 +21,7 @@ export interface ModelChannelCandidate {
 }
 
 /** 选中这条渠道的理由。`manual` = 用户自己改过并被记住了。 */
-export type ModelChannelReason = 'manual' | 'userKey' | 'freeQuota' | 'cheapest'
+export type ModelChannelReason = 'manual' | 'userKey' | 'cheapest'
 
 export interface ResolvedModelChannel {
   channel: ModelChannelCandidate
@@ -36,18 +34,20 @@ export interface ResolvedModelChannel {
 }
 
 /**
- * 自动规则的三档：自己的 key ＞ 平台免费额度 ＞ 最便宜。
+ * 自动规则的两档：自己的 key ＞ 最便宜。
  *
- * ⚠ 「最便宜」不是第四条独立规则，而是**每一档内部的次序**：一个人配了两把
- * key，仍然该走便宜的那条；两条都只剩公开价时，比的也是价。所以档只分三级，
+ * ⚠ 「最便宜」不是第二条独立规则，而是**每一档内部的次序**：一个人配了两把
+ * key，仍然该走便宜的那条；两条都只剩公开价时，比的也是价。所以档只分两级，
  * 档内一律 健康 → 价格 → 清单顺序。
+ *
+ * ⚠ 2026-09-17 owner 拍板：生成类（图 / 视 / 音 / 3D）没有「平台免费额度」这一
+ * 档，全部走用户自己的 key，所以曾经夹在中间的 `freeQuota` 档整个删掉了。仅剩的
+ * 平台 key 用法是 Gemini 的文本 / 视觉 LLM 路由，那条线不经过选择器。
  */
-const CHANNEL_TIERS = ['userKey', 'freeQuota', 'cheapest'] as const
+const CHANNEL_TIERS = ['userKey', 'cheapest'] as const
 
 function tierOf(candidate: ModelChannelCandidate): number {
-  if (candidate.hasUserKey) return 0
-  if (candidate.hasFreeQuota) return 1
-  return 2
+  return candidate.hasUserKey ? 0 : 1
 }
 
 const HEALTH_RANK: Record<ApiKeyHealthStatus, number> = {
@@ -79,20 +79,20 @@ function isTiedWith(
 }
 
 /**
- * 这条渠道**今天点了就能跑**吗 —— 自己的 key 或平台额度，二者有其一。
+ * 这条渠道**今天点了就能跑**吗 —— 有没有自己的 key。
  *
  * ⚠ 与 `isRunnableModelOption` 是同一条判据的两种口径（那边看条目，这边看候选，
  * 映射在 `toModelChannelCandidate`）：`hasUserKey` 已经把 provider 级 key 覆盖算
- * 进去了。⛔ 别在这里再发明第三种「可用」。
+ * 进去了。⛔ 别在这里再发明第二种「可用」。
  */
 function isAvailable(candidate: ModelChannelCandidate): boolean {
-  return candidate.hasUserKey || candidate.hasFreeQuota
+  return candidate.hasUserKey
 }
 
 /**
  * 挑出这个型号该跑哪条渠道，并说明理由。
  *
- * - **永远不落在缺 key 且无平台额度的渠道上**（owner 2026-09-10 真机第二条：
+ * - **永远不落在缺 key 的渠道上**（owner 2026-09-10 真机第二条：
  *   「VolcEngine · 需要 API key」是选中态）——只要清单里还有一条能跑的，缺 key 的
  *   那几条就不参与自动规则，连用户**记住过**的那条也不例外：记忆是「上次点了
  *   fal」，不是「以后一直发不出去」。整份清单都缺 key 时才退回它们（卡上仍要有

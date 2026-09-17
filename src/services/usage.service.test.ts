@@ -30,18 +30,12 @@ const mockFindUnique = vi.fn()
 const mockAggregate = vi.fn()
 const mockFindFirst = vi.fn()
 const mockJobCount = vi.fn()
-const mockSlotCount = vi.fn()
-const mockSlotCreate = vi.fn()
 const mockExecuteRaw = vi.fn().mockResolvedValue(1)
 const mockDbTransaction = vi.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
   fn({
     generationJob: {
       count: (...args: unknown[]) => mockJobCount(...args),
       create: (...args: unknown[]) => mockCreate(...args),
-    },
-    freeTierSlot: {
-      count: (...args: unknown[]) => mockSlotCount(...args),
-      create: (...args: unknown[]) => mockSlotCreate(...args),
     },
     $executeRaw: (...args: unknown[]) => mockExecuteRaw(...args),
   }),
@@ -65,10 +59,6 @@ vi.mock('@/lib/db', () => ({
     generation: {
       count: vi.fn(),
     },
-    freeTierSlot: {
-      count: (...args: unknown[]) => mockSlotCount(...args),
-      create: (...args: unknown[]) => mockSlotCreate(...args),
-    },
     $transaction: (...args: Parameters<typeof mockDbTransaction>) =>
       mockDbTransaction(...args),
   },
@@ -81,16 +71,12 @@ import {
   failActiveGenerationJob,
   createApiUsageEntry,
   attachUsageEntryToGeneration,
-  atomicReserveFreeTierSlot,
-  getFreeTierSlotsUsedToday,
   getRunnerMonthlyGenerationCount,
   getRunnerUsage,
   assertRunnerMonthlyLimitNotExceeded,
   RunnerMonthlyLimitExceededError,
   ActiveGenerationLimitExceededError,
   RunawayGenerationLimitExceededError,
-  PlatformDailyLimitExceededError,
-  PlatformGenerationDisabledError,
 } from './usage.service'
 
 // ─── Tests ──────────────────────────────────────────────────────
@@ -100,8 +86,6 @@ describe('usage.service', () => {
     vi.clearAllMocks()
     mockCreate.mockReset()
     mockJobCount.mockReset().mockResolvedValue(0)
-    mockSlotCount.mockReset().mockResolvedValue(0)
-    mockSlotCreate.mockReset().mockResolvedValue({ id: 'slot-1' })
   })
 
   afterEach(() => {
@@ -507,99 +491,6 @@ describe('usage.service', () => {
           data: { generationId: 'gen-1' },
         }),
       )
-    })
-  })
-
-  describe('atomicReserveFreeTierSlot', () => {
-    it('creates a slot when count is under daily limit (19 < 20)', async () => {
-      mockSlotCount.mockResolvedValue(19)
-
-      await atomicReserveFreeTierSlot('user-1')
-
-      expect(mockSlotCreate).toHaveBeenCalledOnce()
-      expect(mockSlotCreate).toHaveBeenCalledWith(
-        expect.objectContaining({
-          data: expect.objectContaining({ userId: 'user-1' }),
-        }),
-      )
-    })
-
-    it('throws with code FREE_LIMIT_EXCEEDED when count equals daily limit (20 >= 20)', async () => {
-      mockSlotCount.mockResolvedValue(20)
-
-      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toMatchObject({
-        code: 'FREE_LIMIT_EXCEEDED',
-      })
-      expect(mockSlotCreate).not.toHaveBeenCalled()
-    })
-
-    it('throws with code FREE_LIMIT_EXCEEDED when count exceeds daily limit (25 > 20)', async () => {
-      mockSlotCount.mockResolvedValue(25)
-
-      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toMatchObject({
-        code: 'FREE_LIMIT_EXCEEDED',
-      })
-    })
-
-    it('acquires a per-(user,date) advisory lock before counting', async () => {
-      mockSlotCount.mockResolvedValue(0)
-
-      await atomicReserveFreeTierSlot('user-1')
-
-      expect(mockExecuteRaw).toHaveBeenCalledOnce()
-      // Lock acquisition runs before any slot read so concurrent reservers
-      // for the same user serialize through the lock rather than racing.
-      const lockCallOrder = mockExecuteRaw.mock.invocationCallOrder[0]
-      const countCallOrder = mockSlotCount.mock.invocationCallOrder[0]
-      expect(lockCallOrder).toBeLessThan(countCallOrder)
-    })
-
-    it('re-throws unexpected create errors unchanged', async () => {
-      mockSlotCount.mockResolvedValue(19)
-      mockSlotCreate.mockRejectedValue(new Error('connection refused'))
-
-      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toThrow(
-        'connection refused',
-      )
-    })
-
-    it('fails closed in production when the platform generation switch is not explicitly enabled', async () => {
-      vi.stubEnv('NODE_ENV', 'production')
-      vi.stubEnv('PLATFORM_GENERATION_ENABLED', '')
-
-      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toThrow(
-        PlatformGenerationDisabledError,
-      )
-      expect(mockSlotCreate).not.toHaveBeenCalled()
-    })
-
-    it('rejects atomically when the global daily platform budget is exhausted', async () => {
-      mockSlotCount.mockResolvedValueOnce(500)
-
-      await expect(atomicReserveFreeTierSlot('user-1')).rejects.toThrow(
-        PlatformDailyLimitExceededError,
-      )
-      expect(mockSlotCreate).not.toHaveBeenCalled()
-      expect(mockSlotCount).toHaveBeenCalledWith({
-        where: { date: expect.any(String) },
-      })
-    })
-  })
-
-  describe('getFreeTierSlotsUsedToday', () => {
-    it('counts reserved free-tier slots for the current UTC date', async () => {
-      mockSlotCount.mockResolvedValue(7)
-
-      const result = await getFreeTierSlotsUsedToday('user-1')
-      const today = new Date().toISOString().slice(0, 10)
-
-      expect(result).toBe(7)
-      expect(mockSlotCount).toHaveBeenCalledWith({
-        where: {
-          userId: 'user-1',
-          date: today,
-        },
-      })
     })
   })
 

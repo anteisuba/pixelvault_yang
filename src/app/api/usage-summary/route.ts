@@ -1,13 +1,9 @@
 import { auth } from '@clerk/nextjs/server'
 import { NextResponse } from 'next/server'
 
-import { FREE_TIER } from '@/constants/config'
 import type { UsageSummary } from '@/types'
 import { ensureUser } from '@/services/user.service'
-import {
-  getFreeTierSlotsUsedToday,
-  getUserUsageSummary,
-} from '@/services/usage.service'
+import { getUserUsageSummary } from '@/services/usage.service'
 
 export async function GET() {
   const { userId: clerkId } = await auth()
@@ -17,17 +13,12 @@ export async function GET() {
   }
 
   const user = await ensureUser(clerkId)
-  const [usageSummary, freeCount] = await Promise.all([
-    getUserUsageSummary(user.id),
-    getFreeTierSlotsUsedToday(user.id),
-  ])
+  const usageSummary = await getUserUsageSummary(user.id)
 
   const summary: UsageSummary = usageSummary
     ? {
         ...usageSummary,
         lastRequestAt: usageSummary.lastRequestAt?.toISOString() ?? null,
-        freeGenerationsToday: freeCount,
-        freeGenerationLimit: FREE_TIER.DAILY_LIMIT,
       }
     : {
         totalRequests: 0,
@@ -35,8 +26,6 @@ export async function GET() {
         failedRequests: 0,
         last30DaysRequests: 0,
         lastRequestAt: null,
-        freeGenerationsToday: freeCount,
-        freeGenerationLimit: FREE_TIER.DAILY_LIMIT,
       }
 
   return NextResponse.json(summary)

@@ -1474,9 +1474,7 @@
     "voiceCardFishAudio": "Fish Audio",
     "voiceCardFalF5Tts": "F5-TTS",
     "advancedOptions": "Advanced Options",
-    "freeQuota": "{remaining}/{limit} free uses left today",
     "toggleSidebar": "Toggle sidebar",
-    "freeQuotaLow": "Almost out",
     "metrics": {
       "modelCoverageLabel": "Models",
       "modelCoverageValue": "{modelCount, plural, one {# model} other {# models}} · {providerCount, plural, one {# provider} other {# providers}}",
@@ -2276,7 +2274,6 @@
       "fast": "Fast",
       "faithful": "Faithful",
       "comingSoon": "Coming soon",
-      "freeQuota": "Free quota",
       "needApiKey": "Needs API key",
       "removeLora": "Remove {name}",
       "scaleLabel": "{name} strength",
@@ -3001,11 +2998,6 @@
     "errorTitle": "Generation error",
     "errorFallback": "Image generation failed",
     "errorUnexpected": "An unexpected error occurred",
-    "freeQuotaGuide": {
-      "title": "Get unlimited access with your own API key:",
-      "step1": "Get a free Gemini API key from Google AI Studio",
-      "step2": "Paste it in \"API Routes\" above"
-    },
     "toastSuccess": "Image generated successfully!",
     "errorCodes": {
       "NOVELAI_TIER_LIMIT": "Your NovelAI subscription only supports 1 reference image. Please select a single character card, or upgrade to Opus for multi-reference support.",
@@ -3045,7 +3037,6 @@
         "saved": "Saved route"
       },
       "customDescription": "Custom {provider} model using your saved route.",
-      "freeBadge": "Free",
       "modelCount": "models",
       "viewByProvider": "By provider",
       "viewByStyle": "By style",
@@ -6772,7 +6763,6 @@
     "success": "API key verified. You're ready to use this model.",
     "available": "Available",
     "configuredKeys": "Configured API keys",
-    "platformQuota": "Platform free quota",
     "needsKey": "Needs API key"
   },
   "Errors": {
@@ -8090,7 +8080,7 @@
     "recent": "Recent",
     "searchPlaceholder": "Search models…",
     "channelCount": "{count, plural, one {# channel} other {# channels}}",
-    "autoRule": "Auto picks your own key first, then the free quota, then the lowest-cost route. Manual selections are remembered.",
+    "autoRule": "Auto picks your own key first, then the lowest-cost route. Manual selections are remembered.",
     "needsKeyFor": "Needs a {provider} key",
     "manageChannels": "Manage channels and keys…",
     "capability": {

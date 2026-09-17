@@ -2,7 +2,6 @@ import 'server-only'
 
 import {
   API_USAGE,
-  FREE_TIER,
   PLATFORM_GENERATION_GUARD,
   RUNAWAY_GENERATION_GUARD,
   RUNNER_MONTHLY_LIMIT,
@@ -32,7 +31,7 @@ export interface CreateGenerationJobInput {
   prompt?: string
   externalRequestId?: string
   /**
-   * 这条生成是不是平台掏钱（平台自己的 API key / 免费额度），而非调用方自带 key
+   * 这条生成是不是平台掏钱（平台自己的 API key），而非调用方自带 key
    * (BYOK)。只有 `true` 时才会过 `PLATFORM_GENERATION_GUARD.MAX_ACTIVE_JOBS_PER_USER`
    * 并发闸——BYOK 不占平台资源，不该被这道闸拦。
    *
@@ -76,21 +75,6 @@ export interface UserUsageSummary {
   lastRequestAt: Date | null
 }
 
-function todayUTC(): string {
-  return new Date().toISOString().slice(0, 10)
-}
-
-export class FreeTierExhaustedError extends Error {
-  readonly code = 'FREE_LIMIT_EXCEEDED' as const
-
-  constructor(limit: number) {
-    super(
-      `Free tier limit reached (${limit}/day). Bind your own API key to continue.`,
-    )
-    this.name = 'FreeTierExhaustedError'
-  }
-}
-
 /**
  * 平台总闸关着时抛出。
  *
@@ -112,20 +96,6 @@ export class PlatformGenerationDisabledError extends ApiRequestError {
       'Platform-funded generation is switched off (PLATFORM_GENERATION_ENABLED).',
     )
     this.name = 'PlatformGenerationDisabledError'
-  }
-}
-
-export class PlatformDailyLimitExceededError extends ApiRequestError {
-  readonly code = 'PLATFORM_DAILY_LIMIT_EXCEEDED' as const
-
-  constructor(limit: number) {
-    super(
-      'PLATFORM_DAILY_LIMIT_EXCEEDED',
-      429,
-      'errors.rateLimit',
-      `The platform daily generation budget has been reached (${limit}/day).`,
-    )
-    this.name = 'PlatformDailyLimitExceededError'
   }
 }
 
@@ -180,77 +150,10 @@ export function assertPlatformGenerationEnabled(): void {
   }
 }
 
-/**
- * Atomically claim one free-tier slot for `(userId, today)` against a daily
- * cap, returning normally on success or throwing `FreeTierExhaustedError`
- * when the cap is hit.
- *
- * Previously used a Serializable transaction + count+create — that path
- * relied on SSI retries (P2034) and burned a Postgres-internal advisory
- * lock per Vercel connection. Two reasons it was the wrong tool:
- *
- *   1. Serializable is heavy in Neon; the SSI retry budget is small and
- *      P2034 surfaces as `FreeTierExhaustedError` regardless of the real
- *      reason, so genuine concurrent reservations were silently dropped.
- *   2. The cap is per-(user, day), so we don't need global serialization;
- *      a per-key advisory lock contains contention to the one user racing
- *      against themselves (the typical double-click case).
- *
- * The new path takes a `pg_advisory_xact_lock` keyed by user+date in the
- * default ReadCommitted isolation level. The lock releases automatically
- * on commit/rollback; nothing else in the codebase acquires advisory
- * locks, so the keyspace is private.
- */
-export async function atomicReserveFreeTierSlot(userId: string): Promise<void> {
-  if (!FREE_TIER.ENABLED) return
-  assertPlatformGenerationEnabled()
-
-  const date = todayUTC()
-  const lockKey = `platform-free-tier-budget:${date}`
-
-  await db.$transaction(async (tx) => {
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))`
-
-    const platformCount = await tx.freeTierSlot.count({
-      where: { date },
-    })
-
-    if (platformCount >= PLATFORM_GENERATION_GUARD.DAILY_LIMIT) {
-      throw new PlatformDailyLimitExceededError(
-        PLATFORM_GENERATION_GUARD.DAILY_LIMIT,
-      )
-    }
-
-    const userCount = await tx.freeTierSlot.count({
-      where: { userId, date },
-    })
-
-    if (userCount >= FREE_TIER.DAILY_LIMIT) {
-      throw new FreeTierExhaustedError(FREE_TIER.DAILY_LIMIT)
-    }
-
-    await tx.freeTierSlot.create({
-      data: { userId, date },
-    })
-  })
-}
-
-export async function getFreeTierSlotsUsedToday(
-  userId: string,
-): Promise<number> {
-  return db.freeTierSlot.count({
-    where: {
-      userId,
-      date: todayUTC(),
-    },
-  })
-}
-
 // ─── Comfy Runner monthly budget guardrail ───────────────────────
 //
 // RunPod's panel can cap per-job concurrency/cost but not "N generations per
-// month" — that lives here, mirroring the FREE_TIER daily cap above. Unlike
-// FREE_TIER (per-user daily), this is a single global monthly counter: the
+// month" — that lives here. This is a single global monthly counter: the
 // budget it protects (a $10/month prepaid RunPod balance) is shared account
 // spend, not a per-user fairness allowance. Counts `GenerationJob` rows
 // (created at submit time, before the async worker even runs) rather than

@@ -654,8 +654,8 @@ function getRunnerPreviewDimensions(
 }
 
 /**
- * 给定底模的 providerModelId，判断当前用户有没有可用的 key 路由（保存的 key
- * 或 freeTier 平台额度）。纯函数——GenerateBranch 用它算当前选中底模的状态，
+ * 给定底模的 providerModelId，判断当前用户有没有可用的 key 路由（保存的 key）。
+ * 纯函数——GenerateBranch 用它算当前选中底模的状态，
  * handleSelectBase 用它算"即将切换到的底模"的状态，避免两处各写一份。
  */
 function resolveBaseKeySetup(
@@ -666,7 +666,6 @@ function resolveBaseKeySetup(
   const options = modelOptions.filter((option) => option.modelId === modelId)
   const hasUsableRoute = options.some(
     (option) =>
-      option.freeTier ||
       option.sourceType === 'saved' ||
       // Comfy Runner has no BYOK path — it's always the platform's own
       // RUNPOD_KEY, resolved server-side. There's nothing to configure, so
@@ -780,7 +779,6 @@ function GenerateBranch({
       providerConfig: model.providerConfig,
       requestCount: model.cost,
       isBuiltIn: true,
-      freeTier: model.freeTier,
       sourceType: 'workspace',
     }))
     const activeKeys = keys.filter((k) => k.isActive)

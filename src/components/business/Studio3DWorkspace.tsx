@@ -542,8 +542,7 @@ export function Studio3DWorkspace({
     return keys.filter((k) => k.adapterType === adapterType && k.isActive)
   }, [keys, selectedMultiViewModel])
   const canUseSelectedMultiViewModel =
-    !!selectedMultiViewModel &&
-    (selectedMultiViewModel.freeTier === true || multiViewActiveKeys.length > 0)
+    !!selectedMultiViewModel && multiViewActiveKeys.length > 0
 
   useEffect(() => {
     if (multiViewActiveKeys.length === 0) {

@@ -16,7 +16,7 @@ export interface PickerChannel {
   channelId: string
   /** 行上写的渠道名；同一 provider 有两把 key 时附上 key 标签（见 `foldChannels`）。 */
   label: string
-  /** 这条渠道用的那把 key 的标签（没有 key / 走平台额度时不带）。 */
+  /** 这条渠道用的那把 key 的标签（没有 key 时不带）。 */
   keyLabel?: string
   option: StudioModelOption
   /**
@@ -72,9 +72,8 @@ function routeKey(option: StudioModelOption): string {
  * 渠道身份 —— **adapter + 真正会用到的那份凭据**。
  *
  * ⚠ 端点（`-reference` / `-fast` 这类变体）**不进** key：它们是同一条渠道上的两个
- * 端点，分成两行就是真机上看到的「VolcEngine 两次」。凭据进 key 是因为「自己的
- * key」与「平台免费额度」是用户真要挑的两条路（`resolveModelChannel` 的排序依据），
- * 折掉等于替他选了一条。
+ * 端点，分成两行就是真机上看到的「VolcEngine 两次」。凭据进 key 是因为**用哪把
+ * key** 是用户真要挑的事（`resolveModelChannel` 的排序依据），折掉等于替他选了一把。
  *
  * ⚠ 凭据认的是 **`keyId ?? providerKeyId`**，不是 `sourceType`：一把 BytePlus key
  * 绑在 `seedance-2.0-fast-byteplus` 上时，那一条是 `saved`，同族的
@@ -87,9 +86,8 @@ function channelKeyOf(option: StudioModelOption): string {
   return `${option.adapterType}::${credentialKeyOf(option)}`
 }
 
-/** 这条路今天靠哪份凭据跑：平台额度 › 某把 key › 没有。 */
+/** 这条路今天靠哪份凭据跑：某把 key › 没有。 */
 function credentialKeyOf(option: StudioModelOption): string {
-  if (option.freeTier) return 'free'
   const keyId = option.keyId ?? option.providerKeyId
   return keyId ? `key:${keyId}` : 'none'
 }
@@ -191,8 +189,7 @@ export function channelHasOption(
 /**
  * 同一条路由既有 `key:<id>` 又有 `workspace:<modelId>` 时只留 key 那条 ——
  * 它在提交时钉住 `apiKeyId`，还带着 key 标签与健康点，留下 workspace 双胞胎
- * 会在渠道单选里画出两行一模一样的字。`freeTier` 的双胞胎**不是**冗余：它走
- * 平台额度，不花用户的 key，收掉等于拿走更便宜的那条。
+ * 会在渠道单选里画出两行一模一样的字。
  */
 function dedupeRedundantRoutes(
   options: readonly StudioModelOption[],
@@ -202,7 +199,7 @@ function dedupeRedundantRoutes(
   )
   if (keyed.size === 0) return [...options]
   return options.filter(
-    (o) => o.sourceType === 'saved' || o.freeTier || !keyed.has(routeKey(o)),
+    (o) => o.sourceType === 'saved' || !keyed.has(routeKey(o)),
   )
 }
 

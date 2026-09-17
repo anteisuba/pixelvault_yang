@@ -412,8 +412,6 @@ export function ModelPickerPopover({
               <span className="truncate text-sm">{row.label}</span>
               {row.runnable && keyId ? (
                 <ApiKeyHealthDot status={healthMap[keyId]} showLabel={false} />
-              ) : row.runnable && row.active.candidate.hasFreeQuota ? (
-                <span className="size-1.5 shrink-0 rounded-full bg-status-applied" />
               ) : null}
             </span>
             <span className="mt-0.5 block truncate text-2xs text-muted-foreground">

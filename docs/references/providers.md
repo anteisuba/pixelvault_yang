@@ -16,7 +16,7 @@
 - **Replicate 2026-09-17 起没有任何在售模型**：`ILLUSTRIOUS_XL` 退役后它的两条目录条目（另一条是 `ANIMA_PENCIL_XL`）全是 `available: false`。`ACTIVE_API_KEY_ADAPTER_OPTIONS` 由「可用模型 ∪ LLM 能力域」推导，所以 key 选择器**自动**把 Replicate 排除掉了（与 HuggingFace / Runway 同处境，无需改代码）。⚠ **adapter 保留在 registry，不照 Runway 先例整删**——Runway 目录里从来没有过条目，Replicate 有两条归档条目、历史 Generation 记录引用着它，且 HuggingFace 就是「registry 在册、key 选择器不在册」的既有形状。`PROVIDER_ADAPTERS` 仍是 **13 个**。
 - `runway`（Runway gen4.5）2026-08-24 随死执行链清理**整删**：`runway.adapter.ts` 文件、registry 条目、`ADAPTER_PROMPT_HINTS`/`provider-capabilities.ts` 里的死细节全部移除。目录里从来没有过一个可选的 Runway 模型，adapter 本身在 registry 里存在的全部意义只剩 `healthCheck`——删除前已确认 `AI_ADAPTER_TYPES.RUNWAY` 枚举保留（退役≠删除）且 `apiKey.service.ts` 的 key 校验是自包含 switch（不依赖 registry），已有 Runway key 的用户仍能查看/校验/删除该 key，只是不能再新建。
 - **同一份实现挂多个 adapter type** 是既有形状，不是漏写：`byteplus` = `{ ...volcengineAdapter, adapterType: BYTEPLUS }`（BytePlus ModelArk 国际站 vs 火山 Ark 国内站）；`minimax` / `minimax_cn` 同理（`api.minimax.io` vs `api.minimaxi.com`）。分成两个 type 而不是一个 config flag 的原因只有一个——**两站账号独立、key 不可互换**，而 key 存储按 adapterType 分槽。
-- `runner` 是 BYOK 六步之外的特例：无 API key 可配（`AI_ADAPTER_TYPE_OPTIONS` 故意不含它），`resolveGenerationRoute()` 命中它就走独立分支——系统 key（`RUNPOD_KEY`）+ 月度限额（`RUNNER_MONTHLY_LIMIT`），不占用户每日 FREE_TIER 额度。真正的 provider 调用（RunPod submit/poll + recipe→ComfyUI workflow 映射）在 Worker（`workers/execution/src/models/runner/`），adapter 侧 `generateImage()` 只是契约占位（同步路径不支持，冷启动太长）。
+- `runner` 是 BYOK 六步之外的特例：无 API key 可配（`AI_ADAPTER_TYPE_OPTIONS` 故意不含它），`resolveGenerationRoute()` 命中它就走独立分支——系统 key（`RUNPOD_KEY`）+ 月度限额（`RUNNER_MONTHLY_LIMIT`）。真正的 provider 调用（RunPod submit/poll + recipe→ComfyUI workflow 映射）在 Worker（`workers/execution/src/models/runner/`），adapter 侧 `generateImage()` 只是契约占位（同步路径不支持，冷启动太长）。
 - `HYPER3D_RODIN` **故意不进 registry**——3D 走 `generate-3d.service.ts` 直发 Worker。
 - `deepseek` 不是 media adapter——用于 text / planner / assistant 路径（`llm-text.service.ts`）。
 - 文本响应异常（2026-09-09）：`llm-text.service.ts` 为 OpenAI / DeepSeek / Grok / Gemini / Claude 保留空回复、拒绝、输出截断及上游错误分类。流式完成须有正文和结束事件（OpenAI 兼容线路 `[DONE]`、Gemini `finishReason=STOP`、Claude `message_stop`）；损坏事件、提前 EOF 或读流失败不能视为完整回复。已输出部分正文后发生拒绝或截断也会抛错；助手保留错误码，不进入 JSON 格式纠错重试，不执行该轮工具。非流式也检查异常停止原因，GPT 推理耗尽但无正文的既有专用错误保留。核验：[OpenAI Chat Completions](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)、[DeepSeek 返回契约](https://api-docs.deepseek.com/api/create-chat-completion/)、[JSON 模式空回复说明](https://api-docs.deepseek.com/guides/json_mode/)、[Claude 流式错误](https://platform.claude.com/docs/en/build-with-claude/streaming)。
@@ -52,19 +52,25 @@
   能力不匹配时服务端和客户端都必须拒绝，不得丢弃附件、传 URL 文本或以视频封面静默降级。
 - 交互、模型清单和最多 8 个稳定 URL 附件契约见 [`pages/assistant-shell.md`](pages/assistant-shell.md)。
 
-## BYOK 路由（`resolveGenerationRoute()`，六步顺序）
+## BYOK 路由（`resolveGenerationRoute()`，五步顺序）
 
 1. 显式 `apiKeyId` → 服务端读该用户 active BYOK key。
 2. key 不存在 / 不属于该用户 / inactive / adapter 不匹配 → **直接失败**。
 3. 显式路径**永不** fallback 平台 key。
 4. 无显式 keyId → 找该用户对应 adapter 最新 active BYOK key。
-5. 无 BYOK 且模型 `freeTier` 可用 → 才试 platform key。
-6. 都没有 → 失败并要求绑 key（UI 侧走 QuickSetupDialog，不禁用）。
+5. 都没有 → `MISSING_API_KEY`，要求绑 key（UI 侧走 QuickSetupDialog，不禁用）。
 
-⚠ **当前目录里没有 freeTier 图片模型**（2026-09-17）：Gemini 3.1 Flash Image 是最后一个，
-9fe7a2e7 把它的 `freeTier` 翻成 false——Gemini 图像 API 只有付费档，免费通道在请求时 403。
-第 5 步的分支代码仍在（DB 目录可以把某个模型标成 freeTier），但内置图片模型走到第 5 步
-一律落到第 6 步 `MISSING_API_KEY`。仅剩的 `freeTier: true` 条目在 3D 目录。
+⚠ **生成类（图 / 视 / 音 / 3D）没有「平台额度 / 免费额度」这一档**（owner 2026-09-17 拍板）：
+`ModelOption.freeTier` 字段、`FREE_TIER` 常量、每日 slot 预留（`atomicReserveFreeTierSlot` /
+`FreeTierSlot` 计数）、选择器里的「平台免费额度」分组与额度徽章全部删除，
+`resolveModelChannel` 的档位从 `userKey › freeQuota › cheapest` 收成 `userKey › cheapest`。
+生成一律走用户自己的 key，缺 key 直接 `MISSING_API_KEY`。
+
+⚠ **唯一保留的平台 key 用法是 Gemini 的文本 / 视觉 LLM 路由**（`llm-text.service.ts` 的
+`getSystemApiKey(GEMINI)` 分支，以及经它转发的 `vision-route.service.ts` /
+`research-route.service.ts` / `node-planner-route.service.ts` / `video-script.service.ts`）——
+那条线不经过 BYOK 路由，也不进模型选择器。另一个平台掏钱的特例是 `runner`（见上方
+`RUNNER_MONTHLY_LIMIT`），它本来就没有 BYOK 通道。
 
 ## 错误信息机制（全链路）
 

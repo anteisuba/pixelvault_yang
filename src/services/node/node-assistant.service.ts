@@ -242,9 +242,7 @@ function buildModelCatalogInstructions(): string {
   const lines = groups.flatMap(({ kind, models }) => {
     const shown = models.slice(0, NODE_STUDIO_ASSISTANT_LIMITS.maxCatalogModels)
     if (shown.length === 0) return []
-    const ids = shown
-      .map((model) => (model.freeTier ? `${model.id} (free)` : model.id))
-      .join(', ')
+    const ids = shown.map((model) => model.id).join(', ')
     const omitted = models.length - shown.length
     return [
       `  ${kind}: ${ids}${omitted > 0 ? `, …and ${omitted} more not listed` : ''}`,

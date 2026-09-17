@@ -1,6 +1,6 @@
 /**
- * 「这张新卡该带哪个模型」——**与选择器同一条规则**（手选 › 自己的 key › 免费额度
- * › 最便宜，`resolveModelChannel`）。
+ * 「这张新卡该带哪个模型」——**与选择器同一条规则**（手选 › 自己的 key › 最便宜，
+ * `resolveModelChannel`）。
  *
  * ⚠ `resolveModelChannel` 本来回答的是「一个型号底下走哪条渠道」；默认模型问的是
  * 「整份清单里挑哪一条」。两问的**判据完全一样**（档 → 健康 → 价 → 清单顺序），
@@ -32,7 +32,6 @@ export function toModelChannelCandidate(
     channelId: option.optionId,
     channelLabel: channelLabel ?? getProviderLabel(option.providerConfig),
     hasUserKey: option.sourceType === 'saved' || Boolean(option.providerKeyId),
-    hasFreeQuota: Boolean(option.freeTier),
     unitPrice: unitPrice?.amount ?? null,
     ...(keyId && healthMap[keyId] ? { health: healthMap[keyId] } : {}),
   }

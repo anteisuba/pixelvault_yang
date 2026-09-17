@@ -197,7 +197,6 @@ export function routeToStudioOption(route: LLMRouteOption): StudioModelOption {
     providerConfig: { label: route.providerLabel, baseUrl: '' },
     requestCount: 0,
     isBuiltIn: false,
-    freeTier: false,
     sourceType: route.isSaved ? 'saved' : 'workspace',
     keyId: route.apiKeyId ?? undefined,
     keyLabel: route.keyLabel,

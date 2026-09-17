@@ -64,18 +64,4 @@ describe('pickDefaultModelOption', () => {
     // 都跑不了时按同一套规则挑最便宜的那条（BytePlus $0.121 < fal $0.2419）。
     expect(picked?.optionId).toBe('workspace:byteplus')
   })
-
-  it('prefers free platform quota over a paid channel with no key', () => {
-    const picked = pickDefaultModelOption([
-      option(
-        'workspace:byteplus',
-        AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS,
-        AI_ADAPTER_TYPES.BYTEPLUS,
-      ),
-      option('free:fal', AI_MODELS.SEEDANCE_20_FAST, AI_ADAPTER_TYPES.FAL, {
-        freeTier: true,
-      }),
-    ])
-    expect(picked?.optionId).toBe('free:fal')
-  })
 })

@@ -101,8 +101,6 @@ function pickActiveKeyPerAdapter(
  * filed under 需要 API key — and `BaseModelPickerPanel` then hid the whole
  * bucket, so the fal group listed 1 of its 8 options.
  *
- * `freeTier` options are left untouched: platform quota still outranks burning
- * the user's own key, and `useSplitModelOptions` checks freeTier first.
  */
 export function withProviderKeyCoverage<T extends StudioModelOption>(
   options: T[],

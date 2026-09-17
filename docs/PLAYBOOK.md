@@ -38,7 +38,7 @@
 **7 · 接入 / 升级模型**
 开口："接一下 XX" / "XX 出新版了升级下"（或等我月审报上来）。
 我先做：官方 API 核验 → 通道判断（直连优先）→ 四件套 + Worker handler + 错误映射 → dev 一次性 key 端到端实测 → 回写 model-catalog。
-流程：`scenes/new-model.md` ｜ 你拍：freeTier / 下架。
+流程：`scenes/new-model.md` ｜ 你拍：上架 / 下架。
 
 **8 · 改数据库结构**
 开口："XX 要加个字段 / 要记录 XX"。

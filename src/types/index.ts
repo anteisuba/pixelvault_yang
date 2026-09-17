@@ -2508,8 +2508,6 @@ export const UsageSummarySchema = z.object({
   failedRequests: z.number().int().nonnegative(),
   last30DaysRequests: z.number().int().nonnegative(),
   lastRequestAt: z.string().datetime().nullable(),
-  freeGenerationsToday: z.number().int().nonnegative(),
-  freeGenerationLimit: z.number().int().nonnegative(),
 })
 
 export type UsageSummary = z.infer<typeof UsageSummarySchema>

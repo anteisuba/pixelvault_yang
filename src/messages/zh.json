@@ -1474,9 +1474,7 @@
     "voiceCardFishAudio": "Fish Audio",
     "voiceCardFalF5Tts": "F5-TTS",
     "advancedOptions": "高级选项",
-    "freeQuota": "今日免费 {remaining}/{limit}",
     "toggleSidebar": "切换侧边栏",
-    "freeQuotaLow": "即将用完",
     "metrics": {
       "modelCoverageLabel": "模型",
       "modelCoverageValue": "{modelCount} 个模型 · {providerCount} 个提供商",
@@ -2276,7 +2274,6 @@
       "fast": "极速",
       "faithful": "忠实还原",
       "comingSoon": "即将",
-      "freeQuota": "免费额度",
       "needApiKey": "需 API Key",
       "removeLora": "移除 {name}",
       "scaleLabel": "{name} 强度",
@@ -3001,11 +2998,6 @@
     "errorTitle": "生成错误",
     "errorFallback": "图像生成失败",
     "errorUnexpected": "发生了意外错误",
-    "freeQuotaGuide": {
-      "title": "绑定自己的 API key 即可无限使用：",
-      "step1": "前往 Google AI Studio 获取免费 Gemini API key",
-      "step2": "粘贴到上方「API 路由」中"
-    },
     "toastSuccess": "图片生成成功！",
     "errorCodes": {
       "NOVELAI_TIER_LIMIT": "你的 NovelAI 订阅仅支持 1 张参考图。请选择单个角色卡，或升级到 Opus 以使用多参考图功能。",
@@ -3045,7 +3037,6 @@
         "saved": "已保存路由"
       },
       "customDescription": "使用你保存路由的自定义 {provider} 模型。",
-      "freeBadge": "免费",
       "modelCount": "个模型",
       "viewByProvider": "按提供商",
       "viewByStyle": "按风格",
@@ -6772,7 +6763,6 @@
     "success": "验证通过！模型已可用。",
     "available": "可用",
     "configuredKeys": "已配置 API Key",
-    "platformQuota": "平台免费额度",
     "needsKey": "需要 API key"
   },
   "Errors": {
@@ -8090,7 +8080,7 @@
     "recent": "最近",
     "searchPlaceholder": "搜索模型…",
     "channelCount": "{count} 渠道",
-    "autoRule": "自动规则：自己的 key ＞ 平台免费额度 ＞ 最便宜；改过就记住",
+    "autoRule": "自动规则：自己的 key ＞ 最便宜；改过就记住",
     "needsKeyFor": "需配置 {provider} key",
     "manageChannels": "配置渠道与 key…",
     "capability": {

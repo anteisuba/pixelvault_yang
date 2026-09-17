@@ -260,9 +260,7 @@ export function useStudioGenerateAction() {
         state.selectedOptionId &&
         modelOptions.some((o) => o.optionId === state.selectedOptionId)
       if (!stillValid) {
-        const fallback = modelOptions.find(
-          (o) => o.sourceType === 'saved' || o.freeTier,
-        )
+        const fallback = modelOptions.find((o) => o.sourceType === 'saved')
         dispatch({
           type: 'SET_OPTION_ID',
           payload: fallback?.optionId ?? null,

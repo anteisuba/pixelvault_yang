@@ -698,20 +698,12 @@ export const HEALTH_CHECK = {
   TIMEOUT_MS: 10_000,
 } as const
 
-/** Free tier configuration */
-export const FREE_TIER = {
-  /** Maximum free generations per user per day */
-  DAILY_LIMIT: 20,
-  /** Whether the free tier is enabled */
-  ENABLED: true,
-} as const
-
 /**
  * Public-beta resource guardrails for platform-funded generation.
  *
  * `MAX_ACTIVE_JOBS_PER_USER` only gates requests where the platform is
- * actually paying (its own API key / free-tier credit) — see the
- * `isPlatformFunded` field on `CreateGenerationJobInput` in
+ * actually paying (its own API key) — see the `isPlatformFunded` field on
+ * `CreateGenerationJobInput` in
  * `usage.service.ts`. A user generating with their own bound API key costs
  * the platform nothing and is intentionally not limited by this constant
  * (still subject to whatever rate limit the provider itself enforces).
@@ -723,7 +715,6 @@ export const FREE_TIER = {
  * local/test environments remain enabled unless explicitly set to `false`.
  */
 export const PLATFORM_GENERATION_GUARD = {
-  DAILY_LIMIT: 500,
   MAX_ACTIVE_JOBS_PER_USER: 4,
   ACTIVE_JOB_STATUSES: ['QUEUED', 'RUNNING'] as const,
   /**
@@ -768,8 +759,7 @@ export const PLATFORM_GENERATION_GUARD = {
  * 按账户（userId）计数，不是全站汇总：死循环是某一个账号的 bug，不该让全站陪葬。
  * 全平台限速的话，一个坏掉的客户端就能把所有人锁在门外——那是把「防失控」变成了
  * 「失控本身」。写法对齐 PLATFORM_GENERATION_GUARD 的活跃任务闸（同一张
- * GenerationJob 表 + per-user advisory lock + count），不是 DAILY_LIMIT 那个全站
- * freeTierSlot 汇总。
+ * GenerationJob 表 + per-user advisory lock + count）。
  *
  * ## 两档的分工（owner 2026-07-28 定值）
  *
@@ -810,10 +800,9 @@ export const RUNAWAY_GENERATION_GUARD = {
  * Comfy Runner (RunPod Serverless ComfyUI) budget guardrail.
  *
  * RunPod's panel can cap concurrency/cost per job but not "N generations per
- * month" — that has to live in application code (mirrors the FREE_TIER daily
- * cap above). 300/month is ≈ $1.8 at the measured ~$0.006/image ceiling,
- * leaving ~5x headroom under the $10/month prepaid budget for cold-start
- * variance and retries. See docs/references/domains/runner.md.
+ * month" — that has to live in application code. 300/month is ≈ $1.8 at the
+ * measured ~$0.006/image ceiling, leaving ~5x headroom under the $10/month
+ * prepaid budget for cold-start variance and retries. See docs/references/domains/runner.md.
  */
 export const RUNNER_MONTHLY_LIMIT = {
   /** Maximum RUNNER-adapter generation attempts per calendar month (UTC). */

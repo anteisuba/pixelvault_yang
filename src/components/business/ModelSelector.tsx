@@ -1,14 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  Check,
-  ChevronDown,
-  Gift,
-  KeyRound,
-  Plus,
-  Search,
-} from '@/components/icons'
+import { Check, ChevronDown, KeyRound, Plus, Search } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { API_USAGE } from '@/constants/config'
@@ -43,7 +36,6 @@ export interface StudioModelOption {
   providerConfig: ProviderConfig
   requestCount: number
   isBuiltIn: boolean
-  freeTier?: boolean
   sourceType: 'workspace' | 'saved'
   keyId?: string
   keyLabel?: string
@@ -291,8 +283,6 @@ export function ModelSelector({
                   const isSelected = multiSelect
                     ? (selectedValues?.has(option.optionId) ?? false)
                     : option.optionId === value
-                  const isFree =
-                    option.freeTier && option.sourceType === 'workspace'
                   const isSaved = option.sourceType === 'saved'
                   const description = getModelDescription(option, tModels)
                   const atMax =
@@ -341,15 +331,6 @@ export function ModelSelector({
                           <span className="truncate text-sm font-medium text-foreground">
                             {getModelLabel(option, tModels)}
                           </span>
-                          {isFree ? (
-                            <Badge
-                              variant="outline"
-                              className="shrink-0 rounded-full border-chart-3/40 px-2 py-0 text-2xs text-chart-3"
-                            >
-                              <Gift className="size-3" />
-                              {t('freeBadge')}
-                            </Badge>
-                          ) : null}
                           {isSaved ? (
                             <Badge
                               variant="secondary"
@@ -414,19 +395,13 @@ export function ModelSelector({
 
                       {/* Cost */}
                       <div className="shrink-0 text-right">
-                        {isFree ? (
-                          <span className="text-xs font-medium text-chart-3">
-                            {t('freeBadge')}
-                          </span>
-                        ) : (
-                          <span className="text-xs font-medium text-muted-foreground">
-                            {tCommon('requestCount', {
-                              count:
-                                option.requestCount ??
-                                API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
-                            })}
-                          </span>
-                        )}
+                        <span className="text-xs font-medium text-muted-foreground">
+                          {tCommon('requestCount', {
+                            count:
+                              option.requestCount ??
+                              API_USAGE.DEFAULT_REQUESTS_PER_GENERATION,
+                          })}
+                        </span>
                       </div>
                     </button>
                   )

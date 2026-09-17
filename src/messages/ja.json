@@ -1474,9 +1474,7 @@
     "voiceCardFishAudio": "Fish Audio",
     "voiceCardFalF5Tts": "F5-TTS",
     "advancedOptions": "詳細設定",
-    "freeQuota": "本日の無料枠：残り {remaining}/{limit} 回",
     "toggleSidebar": "サイドバーを切り替え",
-    "freeQuotaLow": "残りわずか",
     "metrics": {
       "modelCoverageLabel": "モデル",
       "modelCoverageValue": "{modelCount}モデル · {providerCount}プロバイダー",
@@ -2276,7 +2274,6 @@
       "fast": "高速",
       "faithful": "忠実",
       "comingSoon": "近日公開",
-      "freeQuota": "無料枠",
       "needApiKey": "APIキー必要",
       "removeLora": "{name} を削除",
       "scaleLabel": "{name} の強度",
@@ -3001,11 +2998,6 @@
     "errorTitle": "生成エラー",
     "errorFallback": "画像生成に失敗しました",
     "errorUnexpected": "予期しないエラーが発生しました",
-    "freeQuotaGuide": {
-      "title": "自分のAPIキーで無制限に使えます：",
-      "step1": "Google AI Studioで無料のGemini APIキーを取得",
-      "step2": "上の「APIルート」に貼り付け"
-    },
     "toastSuccess": "画像が生成されました！",
     "errorCodes": {
       "NOVELAI_TIER_LIMIT": "ご利用のNovelAIプランでは参照画像は1枚までです。キャラクターカードを1枚に絞るか、Opusにアップグレードしてください。",
@@ -3045,7 +3037,6 @@
         "saved": "保存済みルート"
       },
       "customDescription": "保存済みルートを使うカスタム {provider} モデルです。",
-      "freeBadge": "無料",
       "modelCount": "モデル",
       "viewByProvider": "プロバイダー別",
       "viewByStyle": "スタイル別",
@@ -6772,7 +6763,6 @@
     "success": "API キーを確認できました。このモデルを使えます。",
     "available": "利用可能",
     "configuredKeys": "設定済み API キー",
-    "platformQuota": "プラットフォーム無料枠",
     "needsKey": "APIキーが必要"
   },
   "Errors": {
@@ -8090,7 +8080,7 @@
     "recent": "最近",
     "searchPlaceholder": "モデルを検索…",
     "channelCount": "{count} チャネル",
-    "autoRule": "自動では、ご自身のキー、無料枠、最安のルートの順に選びます。手動で選んだルートは記憶されます",
+    "autoRule": "自動では、ご自身のキー、最安のルートの順に選びます。手動で選んだルートは記憶されます",
     "needsKeyFor": "{provider} の API キーが必要",
     "manageChannels": "チャネルとキーを設定…",
     "capability": {

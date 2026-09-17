@@ -120,16 +120,9 @@ describe('toDefaultImageModelCandidates', () => {
       option({ optionId: 'key:1', sourceType: 'saved', keyId: '1' }),
       option({ optionId: 'workspace:covered', providerKeyId: 'k-1' }),
       option({ optionId: 'workspace:bare' }),
-      option({ optionId: 'workspace:free', freeTier: true }),
     ])
 
-    expect(candidates.map((c) => c.keyConfigured)).toEqual([
-      true,
-      true,
-      false,
-      // 平台免费额度不是「已配置 API key」——owner 的规则按 provider key 写的。
-      false,
-    ])
+    expect(candidates.map((c) => c.keyConfigured)).toEqual([true, true, false])
   })
 
   it('carries the per-image unit price and leaves unpriced models undefined', () => {

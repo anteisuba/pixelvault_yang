@@ -60,7 +60,6 @@ export function useAudioModelOptionsFor(
       providerConfig: model.providerConfig,
       requestCount: model.cost,
       isBuiltIn: true,
-      freeTier: model.freeTier,
       sourceType: 'workspace',
     }))
     const activeKeys = keys.filter((k) => k.isActive)

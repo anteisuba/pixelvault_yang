@@ -62,7 +62,6 @@ export interface ModelOption {
    */
   videoKind?: VideoKind
   available: boolean
-  freeTier?: boolean
   officialUrl?: string
   timeoutMs?: number
   qualityTier?: QualityTier

@@ -5,7 +5,6 @@ import { useAuth } from '@clerk/nextjs'
 
 import { fetchUsageSummary } from '@/lib/api-client'
 import { deferToIdle } from '@/lib/defer-to-idle'
-import { FREE_TIER } from '@/constants/config'
 import type { UsageSummary } from '@/types'
 
 interface UseUsageSummaryReturn {
@@ -21,8 +20,6 @@ const EMPTY_USAGE_SUMMARY: UsageSummary = {
   failedRequests: 0,
   last30DaysRequests: 0,
   lastRequestAt: null,
-  freeGenerationsToday: 0,
-  freeGenerationLimit: FREE_TIER.DAILY_LIMIT,
 }
 
 // 30-second in-memory cache — avoids re-fetching on every page navigation

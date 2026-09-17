@@ -1,22 +1,18 @@
 'use client'
 
 import { memo } from 'react'
-import { Gift, ImageIcon, Film, Mic } from '@/components/icons'
+import { ImageIcon, Film, Mic } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm } from '@/contexts/studio-context'
-import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { cn } from '@/lib/utils'
 
 export const StudioModeSelector = memo(function StudioModeSelector() {
   const { state, dispatch } = useStudioForm()
   const tStudio = useTranslations('StudioPage')
-  const { summary } = useUsageSummary()
-  const freeRemaining =
-    summary.freeGenerationLimit - summary.freeGenerationsToday
 
   return (
-    <div className="flex items-center justify-between">
+    <div className="flex items-center">
       <div
         role="tablist"
         aria-label={tStudio('modeLabel')}
@@ -73,16 +69,6 @@ export const StudioModeSelector = memo(function StudioModeSelector() {
           <Mic className="size-3.5" />
           {tStudio('modeAudio')}
         </button>
-      </div>
-
-      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Gift className="size-3.5 text-chart-3" />
-        <span>
-          {tStudio('freeQuota', {
-            remaining: Math.max(0, freeRemaining),
-            limit: summary.freeGenerationLimit,
-          })}
-        </span>
       </div>
     </div>
   )

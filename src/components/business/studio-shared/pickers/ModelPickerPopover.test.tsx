@@ -46,7 +46,6 @@ function option(over: Partial<StudioModelOption>): StudioModelOption {
       over.providerConfig ?? getDefaultProviderConfig(adapterType),
     requestCount: 1,
     isBuiltIn: true,
-    freeTier: over.freeTier,
     sourceType: over.sourceType ?? 'workspace',
     keyId: over.keyId,
     providerKeyId: over.providerKeyId,
@@ -55,7 +54,7 @@ function option(over: Partial<StudioModelOption>): StudioModelOption {
 
 /**
  * 真实目录 id：分组读 `MODEL_FAMILIES` / `MODEL_VARIANTS`，编造 id 只会走兜底。
- * Seedream 5.0 Pro 铺两条渠道（fal 与火山都能跑），Lite 走平台额度，GPT Image 2 缺 key。
+ * Seedream 5.0 Pro 铺两条渠道（fal 与火山都能跑），Lite 与 GPT Image 2 缺 key。
  */
 const FIXTURE: StudioModelOption[] = [
   option({
@@ -75,11 +74,10 @@ const FIXTURE: StudioModelOption[] = [
     providerKeyId: 'volc-1',
   }),
   option({
-    optionId: 'free:seedream-lite',
+    optionId: 'workspace:seedream-lite',
     modelId: AI_MODELS.SEEDREAM_50_LITE,
     displayLabel: 'Seedream 5.0 Lite',
     adapterType: AI_ADAPTER_TYPES.FAL,
-    freeTier: true,
   }),
   option({
     optionId: 'workspace:gpt-image-2',

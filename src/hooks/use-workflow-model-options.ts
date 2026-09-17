@@ -36,7 +36,6 @@ function toNodeWorkflowModelOption(
     providerConfig: option.providerConfig,
     requestCount: option.requestCount,
     sourceType: option.sourceType,
-    freeTier: option.freeTier,
     apiKeyId: option.keyId,
     keyLabel: option.keyLabel,
     maskedKey: option.maskedKey,
@@ -65,7 +64,6 @@ export function useWorkflowModelOptions(): NodeWorkflowModelOptionsByType {
         providerConfig: model.providerConfig,
         requestCount: model.cost,
         isBuiltIn: true,
-        freeTier: model.freeTier,
         sourceType: 'workspace' as const,
       }))
       const activeKeys = keys.filter((key) => key.isActive)

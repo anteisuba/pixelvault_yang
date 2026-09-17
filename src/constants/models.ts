@@ -474,16 +474,6 @@ export const getAvailableModel3DModels = (): ModelOption[] =>
     (model) => model.available && model.outputType === 'MODEL_3D',
   )
 
-/** Get only the free tier models. */
-export const getFreeTierModels = (): ModelOption[] =>
-  MODEL_OPTIONS.filter((model) => model.available && model.freeTier)
-
-/** Check if a model is on the free tier. */
-export const isFreeTierModel = (modelId: string): boolean => {
-  const model = getModelById(modelId)
-  return model?.available === true && model.freeTier === true
-}
-
 /** Provider group key for grouping models in UI. */
 export type ProviderGroup =
   | 'openai'

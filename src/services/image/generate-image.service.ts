@@ -2,7 +2,7 @@ import 'server-only'
 
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 
-import { API_USAGE, FREE_TIER } from '@/constants/config'
+import { API_USAGE } from '@/constants/config'
 import { getModelById, type ModelOption } from '@/constants/models'
 import {
   getImageReferenceCapability,
@@ -29,7 +29,6 @@ import {
 } from '@/services/storage/r2'
 import {
   assertRunnerMonthlyLimitNotExceeded,
-  atomicReserveFreeTierSlot,
   createGenerationJob,
   RunnerMonthlyLimitExceededError,
 } from '@/services/usage.service'
@@ -59,7 +58,6 @@ export interface ResolvedGenerationRoute {
 
 type GenerateImageServiceErrorCode =
   | 'CUSTOM_MODEL_REQUIRES_ROUTE'
-  | 'FREE_LIMIT_EXCEEDED'
   | 'INVALID_API_KEY'
   | 'INVALID_JOB'
   | 'LORA_DOWNLOAD_DISABLED'
@@ -95,16 +93,6 @@ export function isGenerateImageServiceError(
   error: unknown,
 ): error is GenerateImageServiceError {
   return error instanceof GenerateImageServiceError
-}
-
-function hasServiceErrorCode(
-  error: unknown,
-  code: GenerateImageServiceErrorCode,
-): error is Error & { code: GenerateImageServiceErrorCode } {
-  if (!(error instanceof Error)) return false
-
-  const errorCode = (error as Error & { code?: unknown }).code
-  return errorCode === code
 }
 
 export async function resolveGenerationRoute(
@@ -177,8 +165,7 @@ export async function resolveGenerationRoute(
   }
 
   // Comfy Runner (RunPod) has no BYOK path — it's always the platform's own
-  // RUNPOD_KEY, gated by a monthly budget cap instead of the daily free-tier
-  // cap (different budget, different reset cadence). See
+  // RUNPOD_KEY, gated by a monthly budget cap. See
   // constants/config.ts RUNNER_MONTHLY_LIMIT and services/usage.service.ts.
   if (builtInModel.adapterType === AI_ADAPTER_TYPES.RUNNER) {
     try {
@@ -249,52 +236,6 @@ export async function resolveGenerationRoute(
       providerConfig: autoKey.providerConfig,
       apiKey: autoKey.keyValue,
       resolvedApiKeyId: autoKey.id,
-      creditCost: builtInModel.cost,
-      modelConfig: builtInModel,
-    }
-  }
-
-  // Free tier: use platform API key for eligible models
-  if (FREE_TIER.ENABLED && builtInModel.freeTier) {
-    try {
-      await atomicReserveFreeTierSlot(userId)
-    } catch (error) {
-      if (hasServiceErrorCode(error, 'FREE_LIMIT_EXCEEDED')) {
-        throw new GenerateImageServiceError(
-          'FREE_LIMIT_EXCEEDED',
-          error.message,
-          429,
-        )
-      }
-
-      throw error
-    }
-
-    const platformKey = getSystemApiKey(builtInModel.adapterType)
-    if (!platformKey) {
-      throw new GenerateImageServiceError(
-        'PLATFORM_KEY_MISSING',
-        'Free tier is temporarily unavailable. Please bind your own API key.',
-        503,
-      )
-    }
-
-    logger.info(
-      '[resolveGenerationRoute] Platform free-tier route resolution',
-      {
-        adapterType: builtInModel.adapterType,
-        requestedModelId: modelId,
-      },
-    )
-
-    return {
-      modelId,
-      externalModelId: builtInModel.externalModelId,
-      adapterType: builtInModel.adapterType,
-      providerConfig: builtInModel.providerConfig,
-      apiKey: platformKey,
-      resolvedApiKeyId: null,
-      isFreeGeneration: true,
       creditCost: builtInModel.cost,
       modelConfig: builtInModel,
     }
@@ -389,8 +330,8 @@ export interface GenerateImageDeps {
  * Auth + prompt validation + route resolution + reference-image capability
  * checks. Shared entry point ahead of the async `submitImageGeneration` path
  * (submit-image.service.ts) — kept separate from `resolveGenerationRoute` so
- * callers get identical gating, including the free-tier slot reservation
- * that happens inside `resolveGenerationRoute`.
+ * callers get identical gating to what happens inside
+ * `resolveGenerationRoute`.
  */
 export async function resolveImageRouteAndValidate(
   clerkId: string,

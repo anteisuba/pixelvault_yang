@@ -13,7 +13,6 @@ function channel(
     channelId,
     channelLabel: channelId,
     hasUserKey: false,
-    hasFreeQuota: false,
     unitPrice: null,
     ...overrides,
   }
@@ -24,23 +23,13 @@ describe('resolveModelChannel', () => {
     expect(resolveModelChannel([])).toBeNull()
   })
 
-  it('prefers the user own key over platform quota and price', () => {
+  it('prefers the user own key over price', () => {
     const result = resolveModelChannel([
-      channel('free', { hasFreeQuota: true, unitPrice: 0 }),
       channel('cheap', { unitPrice: 0.01 }),
       channel('mine', { hasUserKey: true, unitPrice: 0.5 }),
     ])
     expect(result?.channel.channelId).toBe('mine')
     expect(result?.reason).toBe('userKey')
-  })
-
-  it('prefers platform free quota over the cheapest paid channel', () => {
-    const result = resolveModelChannel([
-      channel('cheap', { unitPrice: 0.001 }),
-      channel('free', { hasFreeQuota: true, unitPrice: 0.2 }),
-    ])
-    expect(result?.channel.channelId).toBe('free')
-    expect(result?.reason).toBe('freeQuota')
   })
 
   it('falls back to the cheapest channel when nothing is configured', () => {

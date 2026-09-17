@@ -13,7 +13,6 @@ import {
   IMAGE_KIND,
   type ImageKind,
   isBuiltInModel,
-  isFreeTierModel,
   isRetiredModelId,
   MODEL_OPTIONS,
   normalizeModelId,
@@ -40,7 +39,6 @@ describe('models', () => {
         externalModelId: modelId,
         maxPromptChars: 32_000,
       })
-      expect(isFreeTierModel(modelId)).toBe(false)
       expect(getModelMessageKey(modelId)).toBe(messageKey)
       expect(getModelFamily(modelId)).toBe('GPT Image')
     },
@@ -230,11 +228,6 @@ describe('models', () => {
     }
   })
 
-  it('does not treat retired models as active free-tier options', () => {
-    expect(isFreeTierModel(AI_MODELS.ANIMA_PENCIL_XL)).toBe(false)
-    expect(isFreeTierModel(AI_MODELS.HUNYUAN3D_2_1)).toBe(false)
-  })
-
   it('keeps supported audio generation models active', () => {
     // ELEVENLABS_V3 retired 2026-07-26 (priced ~6.7x Fish S2 Pro). SFX + Music
     // stay as non-speech audio kinds.
@@ -251,7 +244,6 @@ describe('models', () => {
     expect(getExecutionModelId(AI_MODELS.FISH_AUDIO_S2_PRO_FREE)).toBe(
       's2.1-pro-free',
     )
-    expect(isFreeTierModel(AI_MODELS.FISH_AUDIO_S2_PRO_FREE)).toBe(false)
   })
 
   it('registers Kling O3 Pro and FLUX.2 Pro Edit as available', () => {
@@ -274,17 +266,8 @@ describe('models', () => {
       const model = getModelById(modelId)
       expect(isRetiredModelId(modelId)).toBe(false)
       expect(model?.available).toBe(true)
-      expect(model?.freeTier).toBeUndefined()
       expect(model?.adapterType).toBe(AI_ADAPTER_TYPES.NOVELAI)
       expect(availableImageIds.has(modelId)).toBe(true)
     }
-  })
-
-  it('ships no free-tier image model', () => {
-    // 9fe7a2e7 dropped freeTier from Gemini 3.1 Flash Image (the Gemini image
-    // API is paid-only), leaving the image catalog entirely BYOK/platform-key.
-    expect(getAvailableImageModels().filter((model) => model.freeTier)).toEqual(
-      [],
-    )
   })
 })

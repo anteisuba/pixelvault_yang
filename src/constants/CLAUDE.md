@@ -10,7 +10,7 @@ Constants are imported throughout the entire codebase. Changes here affect provi
 | ----------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `models.ts`                   | CRITICAL | AI_MODELS enum + ModelOption configs — drives model selection, provider routing, credit costs, UI display                                                                          |
 | `providers.ts`                | HIGH     | AI_ADAPTER_TYPES enum + ProviderConfig — maps models to provider adapters                                                                                                          |
-| `config.ts`                   | HIGH     | API_USAGE limits, FREE_TIER config, PAGINATION, PROFILE limits, timeouts                                                                                                           |
+| `config.ts`                   | HIGH     | API_USAGE limits, PAGINATION, PROFILE limits, timeouts                                                                                                                             |
 | `routes.ts`                   | MEDIUM   | URL route constants                                                                                                                                                                |
 | `studio.ts`                   | MEDIUM   | Studio-specific constants (prompt textarea ID, variant count)                                                                                                                      |
 | `character-card.ts`           | MEDIUM   | CHARACTER_CARD validation limits                                                                                                                                                   |
@@ -41,7 +41,6 @@ Image entries declare their role with `imageKind` (`edit` = must-have-image endp
 
 These values are used at runtime. Changes affect:
 
-- `FREE_TIER` — free generation limits, affects `usage.service.ts`
 - `API_USAGE` — rate limiting, affects API route factory
 - `PAGINATION` — gallery/list page sizes
 - Timeouts — health check, video polling, general fetch

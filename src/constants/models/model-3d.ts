@@ -75,7 +75,6 @@ export const MODEL_3D_OPTIONS: ModelOption[] = [
     externalModelId: 'fal-ai/triposr',
     outputType: 'MODEL_3D',
     available: true,
-    freeTier: true,
     officialUrl: 'https://fal.ai/models/fal-ai/triposr',
     timeoutMs: 120_000,
     qualityTier: 'standard',

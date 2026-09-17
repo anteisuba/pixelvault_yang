@@ -275,50 +275,6 @@ function SidebarFooterLoadingState() {
   )
 }
 
-/**
- * 免费额度 —— 头像右下角的一个点（app-shell.md §8）。
- *
- * 改版前它是独立一行：「今日免费 20/20」+ 一条发丝进度条。在 144px 的轨里，
- * 那是账户区三个读数中最占地方、又最不需要精确到个位的一个。降级成点：
- * 绿=充足 / 琥珀=快用完 / 红=用尽，确切数字进 tooltip 与头像菜单。
- * ⚠ 状态不能只靠颜色 —— tooltip 里始终带文字读数。
- */
-function SidebarFooterQuotaDot() {
-  const { summary, isLoading } = useUsageSummary()
-  const limit = summary.freeGenerationLimit
-  const used = Math.min(summary.freeGenerationsToday, limit)
-  const remaining = Math.max(0, limit - used)
-  const isLow = remaining > 0 && remaining <= Math.max(1, Math.floor(limit / 5))
-  const isOut = remaining === 0
-
-  if (isLoading) return null
-
-  return (
-    <span
-      aria-hidden
-      className={cn(
-        'absolute -bottom-px -right-px size-2.5 rounded-full ring-2 ring-sidebar',
-        isOut
-          ? 'bg-destructive'
-          : isLow
-            ? 'bg-status-warning'
-            : 'bg-status-applied',
-      )}
-    />
-  )
-}
-
-function useFreeQuotaLabel() {
-  const { summary } = useUsageSummary()
-  const tStudio = useTranslations('StudioPage')
-  const limit = summary.freeGenerationLimit
-  const remaining = Math.max(
-    0,
-    limit - Math.min(summary.freeGenerationsToday, limit),
-  )
-  return tStudio('freeQuota', { remaining, limit })
-}
-
 /** 积分读数。改版前是个带边框的盒子，和导航项抢重量 —— 现在只剩图标 + 数字。 */
 function SidebarFooterCreditBadge() {
   const { summary, isLoading } = useUsageSummary()
@@ -362,7 +318,6 @@ function SidebarFooterUserMenu() {
   const isCollapsed = state === 'collapsed'
   const isCompact = isCollapsed || isMobile
 
-  const freeQuotaLabel = useFreeQuotaLabel()
   const accountLabel = myProfile?.displayName ?? t('viewProfile')
 
   const [menuOpen, setMenuOpen] = useState(false)
@@ -439,9 +394,6 @@ function SidebarFooterUserMenu() {
             <UserCircle className="size-4" />
           )}
         </span>
-        {/* 免费额度：整整一行读数降级成头像上的一个点。overflow-hidden 在上面
-            那层，所以点要挂在按钮上，不然会被圆形头像裁掉。 */}
-        <SidebarFooterQuotaDot />
         <span className="sr-only">{accountLabel}</span>
       </button>
 
@@ -459,13 +411,10 @@ function SidebarFooterUserMenu() {
                 : 'bottom-full left-0 mb-2 w-48 origin-bottom-left',
             )}
           >
-            {/* 从轨里撤下来的两样东西在这里落地：显示名与免费额度读数。 */}
+            {/* 从轨里撤下来的显示名在这里落地。 */}
             <div className="border-b border-sidebar-border px-3 pb-2 pt-2">
               <p className="truncate text-sm font-semibold text-sidebar-accent-foreground">
                 {myProfile?.displayName ?? t('viewProfile')}
-              </p>
-              <p className="truncate text-xs text-sidebar-subtle">
-                {freeQuotaLabel}
               </p>
             </div>
             <button

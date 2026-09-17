@@ -68,10 +68,6 @@ function routeKey(option: StudioModelOption): string {
  * time and carries the key label + health dot — and drop the twin, so the
  * provider row's count matches what the drilled-in list actually shows.
  *
- * `freeTier` twins are NOT redundant: they render under 平台免费额度 and cost
- * the user nothing, so collapsing them into the key route would take away the
- * cheaper choice.
- *
  * Display-only: the full option array is kept for resolving a persisted
  * `optionId`, so an existing selection never loses its trigger label.
  */
@@ -83,8 +79,7 @@ function dedupeRedundantWorkspaceRoutes(
   )
   if (keyedRoutes.size === 0) return options
   return options.filter(
-    (o) =>
-      o.sourceType === 'saved' || o.freeTier || !keyedRoutes.has(routeKey(o)),
+    (o) => o.sourceType === 'saved' || !keyedRoutes.has(routeKey(o)),
   )
 }
 
@@ -615,7 +610,7 @@ export function BaseModelPickerPanel({
     columns,
   ])
 
-  const { saved, platform, locked } = useSplitModelOptions(visibleOptions)
+  const { saved, locked } = useSplitModelOptions(visibleOptions)
 
   const isEmpty = searching
     ? visibleOptions.length === 0
@@ -759,7 +754,6 @@ export function BaseModelPickerPanel({
     const savedOpt =
       opts.find((o) => o.sourceType === 'saved') ??
       opts.find((o) => o.providerKeyId)
-    const platformOpt = opts.find((o) => o.sourceType !== 'saved' && o.freeTier)
 
     // Every group drills in — even fully unconfigured ones, which list their
     // models as "needs key" and route to setup on click. Keeping the row
@@ -831,13 +825,6 @@ export function BaseModelPickerPanel({
               />
               <span className="hidden sm:inline">{tCommon('savedKey')}</span>
             </>
-          ) : platformOpt ? (
-            <>
-              <span className="size-2 rounded-full bg-status-applied" />
-              <span className="hidden sm:inline">
-                {tSetup('platformQuota')}
-              </span>
-            </>
           ) : (
             <Key className="size-3" aria-label={tSetup('needsKey')} />
           )}
@@ -873,9 +860,7 @@ export function BaseModelPickerPanel({
       ? savedOptionLabelMode === 'model'
         ? `${option.keyLabel} · ${providerLabel}`
         : `${optionModelLabel} · ${providerLabel}`
-      : option.freeTier && option.sourceType === 'workspace'
-        ? `${providerLabel} · ${tSetup('platformQuota')}`
-        : providerLabel
+      : providerLabel
     // 第三层（主字已是渠道名）**整条副行都不要**：那一层的职责只有「选哪家」，
     // 型号早由返回键交代过，路由细节与一句话介绍都收进悬停层。owner：「只留公司
     // 名字，比如 fal 和火山」。其余层保持原样的路由信息。
@@ -935,8 +920,6 @@ export function BaseModelPickerPanel({
                 身份靠分组标题交代。 */}
             {columns ? null : indicatorKeyId ? (
               <ApiKeyHealthDot status={healthMap[indicatorKeyId]} />
-            ) : option.freeTier ? (
-              <span className="size-1.5 shrink-0 rounded-full bg-status-applied" />
             ) : null}
             <span
               className={cn(
@@ -1117,12 +1100,10 @@ export function BaseModelPickerPanel({
 
   const triggerHealthIndicator = selectedOption?.keyId ? (
     <ApiKeyHealthDot status={healthMap[selectedOption.keyId]} />
-  ) : selectedOption?.freeTier ? (
-    <span className="size-1.5 shrink-0 rounded-full bg-status-applied" />
   ) : null
 
   // Shared between the flat search results and the drilled-in 渠道 view — both
-  // render the same saved/platform/locked groups, only the underlying
+  // render the same saved/locked groups, only the underlying
   // visibleOptions differ.
   //
   // ⚠ 第三层的主字是**渠道名**（fal.ai / VolcEngine），不是完整模型名：那一层的
@@ -1149,13 +1130,6 @@ export function BaseModelPickerPanel({
           {saved.map((o) => renderAvailableModelOption(o, channelLabelOf(o)))}
         </CommandGroup>
       )}
-      {platform.length > 0 && (
-        <CommandGroup heading={tSetup('platformQuota')}>
-          {platform.map((o) =>
-            renderAvailableModelOption(o, channelLabelOf(o)),
-          )}
-        </CommandGroup>
-      )}
       {locked.length > 0 && (
         <CommandGroup heading={tSetup('needsKey')}>
           {locked.map((o) => renderLockedOption(o, channelLabelOf(o)))}
@@ -1164,37 +1138,25 @@ export function BaseModelPickerPanel({
     </>
   )
 
-  // 型号层沿用同一套三桶分法（`splitModelOptions`），只是按**分组**判桶：一个型号
+  // 型号层沿用同一套分桶（`splitModelOptions`），只是按**分组**判桶：一个型号
   // 只要有一条渠道能跑，它就不该落进「需要 API key」。改造前单 provider 会直接落到
-  // 模型层，这三个标题正是那一屏的分组 —— 退化成两层时它们必须还在。
+  // 模型层，这两个标题正是那一屏的分组 —— 退化成两层时它们必须还在。
   const variantRows = (() => {
     const family = activeFamilyGroup
     if (!family) return null
-    const buckets: Record<'saved' | 'platform' | 'locked', VariantGroup[]> = {
+    const buckets: Record<'saved' | 'locked', VariantGroup[]> = {
       saved: [],
-      platform: [],
       locked: [],
     }
     for (const variant of family.variants) {
       const split = splitModelOptions(variant.opts)
-      buckets[
-        split.saved.length
-          ? 'saved'
-          : split.platform.length
-            ? 'platform'
-            : 'locked'
-      ].push(variant)
+      buckets[split.saved.length ? 'saved' : 'locked'].push(variant)
     }
     return (
       <>
         {buckets.saved.length > 0 && (
           <CommandGroup heading={tSetup('configuredKeys')}>
             {buckets.saved.map((v) => renderVariantRow(family, v))}
-          </CommandGroup>
-        )}
-        {buckets.platform.length > 0 && (
-          <CommandGroup heading={tSetup('platformQuota')}>
-            {buckets.platform.map((v) => renderVariantRow(family, v))}
           </CommandGroup>
         )}
         {buckets.locked.length > 0 && (

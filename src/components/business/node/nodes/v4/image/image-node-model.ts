@@ -216,7 +216,6 @@ export function toStudioModelOption(
     requestCount: option.requestCount,
     isBuiltIn: option.sourceType === 'workspace',
     sourceType: option.sourceType,
-    ...(option.freeTier === undefined ? {} : { freeTier: option.freeTier }),
     ...(option.apiKeyId ? { keyId: option.apiKeyId } : {}),
     ...(option.keyLabel ? { keyLabel: option.keyLabel } : {}),
     ...(option.maskedKey ? { maskedKey: option.maskedKey } : {}),

@@ -13,7 +13,6 @@ const { MockRunnerMonthlyLimitExceededError } = vi.hoisted(() => {
   return { MockRunnerMonthlyLimitExceededError }
 })
 vi.mock('@/services/usage.service', () => ({
-  atomicReserveFreeTierSlot: vi.fn(),
   assertRunnerMonthlyLimitNotExceeded: vi.fn(),
   RunnerMonthlyLimitExceededError: MockRunnerMonthlyLimitExceededError,
 }))
@@ -55,33 +54,11 @@ import {
   findActiveKeyForAdapter,
   getApiKeyValueById,
 } from '@/services/apiKey.service'
-import {
-  atomicReserveFreeTierSlot,
-  assertRunnerMonthlyLimitNotExceeded,
-} from '@/services/usage.service'
+import { assertRunnerMonthlyLimitNotExceeded } from '@/services/usage.service'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { getResolvedModelOption } from '@/services/model-config.service'
 
 // ─── Test Fixtures ─────────────────────────────────────────────
-
-function freeLimitError(message = 'Free tier limit reached (20/day).') {
-  return Object.assign(new Error(message), {
-    code: 'FREE_LIMIT_EXCEEDED' as const,
-  })
-}
-
-/**
- * No built-in image model is `freeTier` any more (Gemini 3.1 Flash Image lost
- * it in 9fe7a2e7 — the Gemini image API is paid-only). The free-tier branch of
- * `resolveGenerationRoute` is still live for DB-catalog models, so exercise it
- * by having the catalog hand back a free-tier variant of a real model.
- */
-function mockFreeTierModel(modelId: string) {
-  vi.mocked(getResolvedModelOption).mockResolvedValue({
-    ...modelsMock.realGetModelById!(modelId)!,
-    freeTier: true,
-  })
-}
 
 // ─── Tests ─────────────────────────────────────────────────────
 
@@ -152,30 +129,18 @@ describe('resolveGenerationRoute', () => {
     expect(route.apiKey).toBe('auto-key')
   })
 
-  it('falls back to free tier when no user key exists', async () => {
-    mockFreeTierModel('gemini-3.1-flash-image-preview')
+  it('throws MISSING_API_KEY when no user key exists (no platform free tier)', async () => {
+    // 2026-09-17 owner call: generation has no platform free-tier lane at all.
+    // A keyless built-in model falls straight through to the BYOK gate.
     vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
-    vi.mocked(atomicReserveFreeTierSlot).mockResolvedValue(undefined)
     vi.mocked(getSystemApiKey).mockReturnValue('platform-key')
-
-    const route = await resolveGenerationRoute('user-1', {
-      modelId: 'gemini-3.1-flash-image-preview',
-    })
-
-    expect(route.apiKey).toBe('platform-key')
-    expect(route.isFreeGeneration).toBe(true)
-  })
-
-  it('throws FREE_LIMIT_EXCEEDED when daily limit reached', async () => {
-    mockFreeTierModel('gemini-3.1-flash-image-preview')
-    vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
-    vi.mocked(atomicReserveFreeTierSlot).mockRejectedValue(freeLimitError())
 
     await expect(
       resolveGenerationRoute('user-1', {
         modelId: 'gemini-3.1-flash-image-preview',
       }),
-    ).rejects.toThrow(expect.objectContaining({ code: 'FREE_LIMIT_EXCEEDED' }))
+    ).rejects.toThrow(expect.objectContaining({ code: 'MISSING_API_KEY' }))
+    expect(getSystemApiKey).not.toHaveBeenCalled()
   })
 
   it('throws CUSTOM_MODEL_REQUIRES_ROUTE for unknown model without API key', async () => {
@@ -243,28 +208,14 @@ describe('resolveGenerationRoute', () => {
     })
   })
 
-  it('throws MISSING_API_KEY when no user key and model is not free-tier', async () => {
+  it('throws MISSING_API_KEY when no user key is bound', async () => {
     vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
 
-    // flux-2-pro is a built-in model but not free-tier
     await expect(
       resolveGenerationRoute('user-1', {
         modelId: 'flux-2-pro',
       }),
     ).rejects.toThrow(expect.objectContaining({ code: 'MISSING_API_KEY' }))
-  })
-
-  it('throws PLATFORM_KEY_MISSING when free tier enabled but platform key absent', async () => {
-    mockFreeTierModel('gemini-3.1-flash-image-preview')
-    vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
-    vi.mocked(atomicReserveFreeTierSlot).mockResolvedValue(undefined)
-    vi.mocked(getSystemApiKey).mockReturnValue(undefined as never)
-
-    await expect(
-      resolveGenerationRoute('user-1', {
-        modelId: 'gemini-3.1-flash-image-preview',
-      }),
-    ).rejects.toThrow(expect.objectContaining({ code: 'PLATFORM_KEY_MISSING' }))
   })
 
   describe('RUNNER adapter (Comfy Runner / RunPod)', () => {
@@ -279,7 +230,7 @@ describe('resolveGenerationRoute', () => {
       available: true,
     }
 
-    it('routes to the system key without a per-day free-tier reservation', async () => {
+    it('routes to the system key under the monthly budget cap', async () => {
       vi.mocked(getResolvedModelOption).mockResolvedValue(RUNNER_MODEL as never)
       vi.mocked(assertRunnerMonthlyLimitNotExceeded).mockResolvedValue(
         undefined,
@@ -294,7 +245,6 @@ describe('resolveGenerationRoute', () => {
       expect(route.apiKey).toBe('runpod-key')
       expect(route.isFreeGeneration).toBe(false)
       expect(assertRunnerMonthlyLimitNotExceeded).toHaveBeenCalledOnce()
-      expect(atomicReserveFreeTierSlot).not.toHaveBeenCalled()
       expect(findActiveKeyForAdapter).not.toHaveBeenCalled()
     })
 

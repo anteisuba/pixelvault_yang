@@ -7,7 +7,7 @@
 1. **模型身份与官方依据？**——官方模型页 + API reference 链接（先查 `references/model-catalog.md` 本月发现）；`externalModelId` 精确值；payload 字段逐个从官方文档核。
 2. **走哪个通道？**——直连官方优先，FAL 只在无直连或 FAL 唯一/更优时；国内模型按 additive 双版本原则（火山直连与 fal 并存，不互替）。已有 adapter 只加配置；新 provider 才写新 adapter。
 3. **能力契约是什么？**——模态 / 参考图（几张、什么格式）/ 时长 / 分辨率 / duration 是否支持 `'auto'`——capability 决定 UI chip 渲染（不支持不渲染，别留死按钮）。
-4. **执行路径通吗？**——Worker-only：对应 Worker handler 存在吗？没有 = 该路径会 fail，先补 handler。平台 key 有 `getSystemApiKey` 映射吗？`freeTier` 给不给（= 平台额度决定，问 owner）？
+4. **执行路径通吗？**——Worker-only：对应 Worker handler 存在吗？没有 = 该路径会 fail，先补 handler。平台 key 有 `getSystemApiKey` 映射吗？⚠ 生成类没有免费额度档（2026-09-17 owner 拍板），别再问「给不给 freeTier」——一律 BYOK。
 5. **错误与计费怎么映射？**——该 provider 的错误码/message 特征 → 标准 errorCode 表 + 三语文案；`cost` 定多少（平台额度单位，不是 provider 计费真值）。
 
 ## 本场景工作流

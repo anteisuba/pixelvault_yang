@@ -115,16 +115,9 @@ function MobileAccountSection({
   onOpenApiKeys: () => void
 }) {
   const t = useTranslations('Navbar')
-  const tStudio = useTranslations('StudioPage')
   const { profile } = useMyProfile()
   const { summary } = useUsageSummary()
   const { signOut } = useClerk()
-
-  const limit = summary.freeGenerationLimit
-  const remaining = Math.max(
-    0,
-    limit - Math.min(summary.freeGenerationsToday, limit),
-  )
 
   return (
     <div className="flex flex-col gap-2 px-2">
@@ -146,9 +139,6 @@ function MobileAccountSection({
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-sidebar-accent-foreground">
             {profile?.displayName ?? t('viewProfile')}
-          </p>
-          <p className="truncate text-xs text-sidebar-subtle">
-            {tStudio('freeQuota', { remaining, limit })}
           </p>
         </div>
         <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold tabular-nums text-sidebar-accent-foreground">

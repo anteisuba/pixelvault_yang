@@ -750,7 +750,6 @@ export type NodeWorkflowLoraSelection = z.infer<
 export interface NodeWorkflowModelOption extends NodeWorkflowModelSelection {
   requestCount: number
   sourceType: 'workspace' | 'saved'
-  freeTier?: boolean
   keyLabel?: string
   maskedKey?: string
   /**

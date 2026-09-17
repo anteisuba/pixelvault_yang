@@ -17,7 +17,7 @@
 | Serverless 端点 | **`p4qb5294ma1qzi`**（`pixelvault-runner-v2`）                                                                                   | ⛔ 旧端点 `01g8rrmixe4hah`（`pixelvault-runner`）**已退役删除** |
 | Template        | `it11vb8960` = `runpod/worker-comfyui:5.8.6-base`                                                                                | —                                                               |
 | GPU             | RTX 4090 24GB 主 · A5000 24GB 备                                                                                                 | SDXL 推理 16GB 就够，选 4090 是为冷启动更短                     |
-| 端点参数        | Active 0 / Max 1 / Idle 5s / Execution Timeout 120s / Flash Boot 开                                                              | 单端点服务全部 checkpoint，不按家族拆端点                       |
+| 端点参数        | Active 0 / Max 2 / Idle 5s / Execution Timeout 120s / Flash Boot 开 / GPU 24 GB + 24 GB Pro（2026-09-17 控制台核对，去掉 16 GB） | 单端点服务全部 checkpoint，不按家族拆端点                       |
 | API key 存放    | 本机注册表 `HKCU:\Environment\RUNPOD_KEY`；Worker 侧 `wrangler secret`（`pixelvault-execution`）；Vercel 服务端 env `RUNPOD_KEY` | ⛔ 值不进任何文档                                               |
 | 端点注册表      | 本机 `RUNPOD_ENDPOINT`                                                                                                           | 换端点时必须同步，否则请求打到已删的旧端点                      |
 

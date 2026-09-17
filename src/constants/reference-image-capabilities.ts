@@ -97,6 +97,24 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     defaultRole: 'subject',
     mode: 'native',
   },
+  // O3 video-to-video/edit: `image_urls` 是可选的风格/外观参考，与 `elements`
+  // 共用 4 个名额（fal schema 原文：带视频时 elements + reference images 合计
+  // 最多 4）。elements 还没接，名额今天全归 image_urls。
+  // ⚠ 这里说的**不是首帧** —— 首帧概念在这两条端点上不存在，输入是整段视频。
+  [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: {
+    kind: 'flexible',
+    min: 0,
+    max: 4,
+    defaultRole: 'style',
+    mode: 'native',
+  },
+  [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: {
+    kind: 'flexible',
+    min: 0,
+    max: 4,
+    defaultRole: 'style',
+    mode: 'native',
+  },
   // fal-ai/veo3.1/reference-to-video already posts `image_urls: string[]`.
   // Google's Veo 3.1 reference-to-video docs cap subject/scene references at
   // 3 images, so 3 is the right ceiling to expose to users.

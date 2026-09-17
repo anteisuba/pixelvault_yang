@@ -548,7 +548,25 @@ export type GenerationConfig = z.infer<typeof GenerationConfigSchema>
 
 // ─── Video Generate Request ───────────────────────────────────────
 
-export const GenerateVideoRequestSchema = z.object({
+/**
+ * 视频**编辑**端点：`video_url` 是 fal 的 required 字段，没有参考视频就没有可
+ * 编辑的对象。这里用请求 schema 直接卡住，而不是等 service 或 worker 抛 ——
+ * 路由层的 Zod 是第一道闸。
+ *
+ * ⚠ 目录侧的判据是 `videoKind: 'edit'`（见 `constants/models/video.ts`）；这里
+ * 之所以不 import `resolveVideoKind` 再查一遍，是因为 `@/types` 被客户端大量
+ * 引用，多拉一层目录模块不值当——两条 id 一起改的成本远低于此。
+ */
+const VIDEO_EDIT_MODEL_IDS: ReadonlySet<string> = new Set<string>([
+  AI_MODELS.KLING_O3_STANDARD_V2V_EDIT,
+  AI_MODELS.KLING_O3_PRO_V2V_EDIT,
+])
+
+/**
+ * ⚠ 只是为了让下面的 `.check()` 不把整个对象字面量重新缩进一层 —— 语义上它就是
+ * `GenerateVideoRequestSchema` 的对象部分，不要在别处 import。
+ */
+const GenerateVideoRequestObjectSchema = z.object({
   prompt: z
     .string()
     .trim()
@@ -626,6 +644,22 @@ export const GenerateVideoRequestSchema = z.object({
   /** 这一枪叫什么（切片 Y）—— 判据与 `StudioGenerateSchema.displayLabel` 同源。 */
   displayLabel: z.string().trim().min(1).max(160).optional(),
 })
+
+export const GenerateVideoRequestSchema =
+  GenerateVideoRequestObjectSchema.check((ctx) => {
+    if (
+      VIDEO_EDIT_MODEL_IDS.has(ctx.value.modelId) &&
+      !ctx.value.videoUrls?.[0]
+    ) {
+      ctx.issues.push({
+        code: 'custom',
+        message:
+          'This model edits an existing clip — a reference video is required',
+        path: ['videoUrls'],
+        input: ctx.value.videoUrls,
+      })
+    }
+  })
 
 export type GenerateVideoRequest = z.infer<typeof GenerateVideoRequestSchema>
 

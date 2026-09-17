@@ -49,21 +49,30 @@ const MODE_TO_REFERENCE_MODE: Record<VideoNodeMode, VideoReferenceMode> = {
   multimodal: 'multimodal-reference',
 }
 
-const REFERENCE_MODE_TO_MODE: Record<VideoReferenceMode, VideoNodeMode> = {
-  'text-or-first-frame': 'keyframe',
-  'image-content-array': 'image-reference',
-  'multimodal-reference': 'multimodal',
-}
+/**
+ * ⚠ 不是每个 `referenceMode` 都有对应的节点模式。`video-edit`（Kling O3 的
+ * video-to-video/edit）映射到 `null`：它是**编辑入口**的端点，不是画布上的一档
+ * 生成模式（目录里同样以 `videoKind: 'edit'` 表达这件事）。映射成 null 而不是
+ * 硬塞进 multimodal，是为了让它在每一个按模式筛选的选择器里**消失**，而不是
+ * 出现在一个它发不出正确请求的档里。UI 入口在设计阶段 D4 之后另接。
+ */
+const REFERENCE_MODE_TO_MODE: Record<VideoReferenceMode, VideoNodeMode | null> =
+  {
+    'text-or-first-frame': 'keyframe',
+    'image-content-array': 'image-reference',
+    'multimodal-reference': 'multimodal',
+    'video-edit': null,
+  }
 
 export const getReferenceModeForNodeMode = (
   mode: VideoNodeMode,
 ): VideoReferenceMode => MODE_TO_REFERENCE_MODE[mode]
 
-/** 某个模型条目属于哪一档模式。 */
+/** 某个模型条目属于哪一档模式；`null` = 不属于任何画布模式（编辑入口端点）。 */
 export function getNodeModeForModel(
   modelId: string,
   adapterType?: AI_ADAPTER_TYPES,
-): VideoNodeMode {
+): VideoNodeMode | null {
   const { referenceMode } = getVideoModelSendContract(modelId, adapterType)
   return REFERENCE_MODE_TO_MODE[referenceMode]
 }

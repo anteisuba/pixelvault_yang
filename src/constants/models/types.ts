@@ -4,6 +4,7 @@ import type { AI_ADAPTER_TYPES, ProviderConfig } from '@/constants/providers'
 import type { VideoResolution } from '@/constants/video-options'
 import type { AI_MODELS } from '@/constants/models/enum'
 import type { ImageKind } from '@/constants/models/image'
+import type { VideoKind } from '@/constants/models/video'
 
 /** Quality tier for all models */
 export type QualityTier = 'budget' | 'standard' | 'premium'
@@ -55,6 +56,11 @@ export interface ModelOption {
    * Omitted → generate (see DEFAULT_IMAGE_KIND).
    */
   imageKind?: ImageKind
+  /**
+   * For VIDEO models: what the entry is for (generate / edit).
+   * Omitted → generate (see DEFAULT_VIDEO_KIND).
+   */
+  videoKind?: VideoKind
   available: boolean
   freeTier?: boolean
   officialUrl?: string

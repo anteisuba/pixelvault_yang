@@ -27,6 +27,7 @@ import {
   getAvailableImageModels,
   getAvailableVideoModels,
   IMAGE_KIND,
+  VIDEO_KIND,
 } from '@/constants/models'
 import {
   assistantAdapterAcceptsReferenceKind,
@@ -235,7 +236,7 @@ function getNodeAssistantMediaInputs(
 function buildModelCatalogInstructions(): string {
   const groups = [
     { kind: 'image', models: getAvailableImageModels(IMAGE_KIND.GENERATE) },
-    { kind: 'video', models: getAvailableVideoModels() },
+    { kind: 'video', models: getAvailableVideoModels(VIDEO_KIND.GENERATE) },
     { kind: 'audio', models: getAvailableAudioModels() },
   ]
   const lines = groups.flatMap(({ kind, models }) => {

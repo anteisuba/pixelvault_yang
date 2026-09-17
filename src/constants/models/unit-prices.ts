@@ -243,6 +243,36 @@ export const MODEL_UNIT_PRICES: Partial<Record<AI_MODELS, ModelUnitPrice>> = {
     source: 'fal pricingInfoOverride：audio on $0.14/s（audio off $0.112）',
     verifiedAt: '2026-08-08',
   },
+  // Kling O3 video-to-video/edit —— **单一价，不分档、不分音频开关**（fal 的标价
+  // 原文只有一句「每生成一秒收 $X」，没有 audio on/off 的第二个数）。四档都填同
+  // 一个数，因为这两条端点的输出分辨率跟随输入视频，我们无从预知落在哪一档；
+  // 只填 720p 基准档的话，其余档位会被判成「未标价」。
+  [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: {
+    amount: 0.126,
+    unit: 'second',
+    resolutionAmounts: {
+      '480p': 0.126,
+      '540p': 0.126,
+      '720p': 0.126,
+      '1080p': 0.126,
+    },
+    source:
+      'fal pricingInfoOverride（fal.ai/models/fal-ai/kling-video/o3/standard/video-to-video/edit）：$0.126/s，5s = $0.63',
+    verifiedAt: '2026-09-17',
+  },
+  [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: {
+    amount: 0.168,
+    unit: 'second',
+    resolutionAmounts: {
+      '480p': 0.168,
+      '540p': 0.168,
+      '720p': 0.168,
+      '1080p': 0.168,
+    },
+    source:
+      'fal pricingInfoOverride（fal.ai/models/fal-ai/kling-video/o3/pro/video-to-video/edit）：$0.168/s，5s = $0.84',
+    verifiedAt: '2026-09-17',
+  },
   // 退役条目（`available: false`），填了今天没人读 —— 但 fal 的标价原文就写着
   // 两档同价，现在填比将来复活时再回查便宜。
   [AI_MODELS.VEO_31]: {

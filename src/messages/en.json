@@ -3860,6 +3860,14 @@
       "label": "Kling O3 Pro (Omni)",
       "description": "Omni track — element and video reference workflows, native audio, cinematic multi-shot"
     },
+    "klingO3StandardV2vEdit": {
+      "label": "Kling O3 Standard — Video Edit",
+      "description": "Edits an existing clip: rewrites materials, subjects or setting while the original camera motion and timing stay put"
+    },
+    "klingO3ProV2vEdit": {
+      "label": "Kling O3 Pro — Video Edit",
+      "description": "Top-tier video-to-video edit: same clip, same camera, new look — element and image references supported"
+    },
     "ltx23": {
       "label": "LTX 2.3",
       "description": "Efficient fal.ai video model for quick 1080p clips with optional generated audio."

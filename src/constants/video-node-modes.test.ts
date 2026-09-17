@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { AI_MODELS, MODEL_OPTIONS, getModelVariant } from '@/constants/models'
+import {
+  AI_MODELS,
+  MODEL_OPTIONS,
+  VIDEO_KIND,
+  getModelVariant,
+  resolveVideoKind,
+} from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   DEFAULT_VIDEO_NODE_MODE,
@@ -17,10 +23,15 @@ import {
  */
 
 describe('video node modes', () => {
-  it('sorts every available video model into exactly one mode', () => {
+  it('sorts every available generation video model into exactly one mode', () => {
     // 漏掉的模型会在选择器里三档都不出现 —— 用户永远选不到它。
+    // ⚠ `videoKind: 'edit'` 的端点**故意**落在三档之外（`getNodeModeForModel`
+    // 返回 null）：它们是编辑入口的端点，不是画布上的一档生成模式。
     const available = MODEL_OPTIONS.filter(
-      (m) => m.outputType === 'VIDEO' && m.available,
+      (m) =>
+        m.outputType === 'VIDEO' &&
+        m.available &&
+        resolveVideoKind(m) === VIDEO_KIND.GENERATE,
     )
     const covered = VIDEO_NODE_MODES.flatMap((mode) =>
       getModelsForNodeMode(mode),
@@ -31,6 +42,24 @@ describe('video node modes', () => {
         VIDEO_NODE_MODES,
         `${model.id} fell outside all three modes`,
       ).toContain(getNodeModeForModel(model.id, model.adapterType))
+    }
+  })
+
+  it('keeps the video-edit endpoints out of every node mode', () => {
+    // 它们发的是 video-to-video/edit —— 塞进任何一档都会让用户以为自己在做
+    // 生成，而请求里必需的参考视频在那些档里根本没有槽位。
+    for (const model of MODEL_OPTIONS) {
+      if (model.outputType !== 'VIDEO') continue
+      if (resolveVideoKind(model) !== VIDEO_KIND.EDIT) continue
+      expect(
+        getNodeModeForModel(model.id, model.adapterType),
+        `${model.id} must not claim a canvas node mode`,
+      ).toBeNull()
+      for (const mode of VIDEO_NODE_MODES) {
+        expect(getModelsForNodeMode(mode).map((m) => m.id)).not.toContain(
+          model.id,
+        )
+      }
     }
   })
 

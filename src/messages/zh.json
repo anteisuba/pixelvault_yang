@@ -3860,6 +3860,14 @@
       "label": "可灵 O3 Pro（Omni）",
       "description": "Omni 轨 — 元素/视频参考工作流、原生音频、电影级多镜"
     },
+    "klingO3StandardV2vEdit": {
+      "label": "可灵 O3 Standard — 视频编辑",
+      "description": "编辑已有镜头：保持原镜头运动与节奏，改写材质、主体或场景"
+    },
+    "klingO3ProV2vEdit": {
+      "label": "可灵 O3 Pro — 视频编辑",
+      "description": "最高档视频编辑：同一段镜头、同一套运镜，只换观感；支持元素与图片参考"
+    },
     "ltx23": {
       "label": "LTX 2.3",
       "description": "适合快速生成 1080p 短片的 fal.ai 视频模型，可选生成音频。"

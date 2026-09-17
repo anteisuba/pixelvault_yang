@@ -7,6 +7,7 @@ import {
   getAvailableImageModels,
   getAvailableVideoModels,
   IMAGE_KIND,
+  VIDEO_KIND,
   type ModelOption,
 } from '@/constants/models'
 import {
@@ -49,7 +50,10 @@ export function useWorkflowModelOptions(): NodeWorkflowModelOptionsByType {
     () => getAvailableImageModels(IMAGE_KIND.GENERATE),
     [],
   )
-  const videoModels = useMemo(() => getAvailableVideoModels(), [])
+  const videoModels = useMemo(
+    () => getAvailableVideoModels(VIDEO_KIND.GENERATE),
+    [],
+  )
   const audioModels = useMemo(() => getAvailableAudioModels(), [])
 
   const buildOptionsForModels = useCallback(

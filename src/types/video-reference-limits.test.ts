@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { AI_MODELS } from '@/constants/models'
 import { EXECUTION_WORKFLOW_IDS } from '@/constants/execution'
 import { VIDEO_REFERENCE_LIMITS } from '@/constants/video-reference-limits'
 
@@ -29,6 +30,34 @@ describe('video reference request limits', () => {
 
     expect(atLimit.success).toBe(true)
     expect(overLimit.success).toBe(false)
+  })
+
+  it('makes videoUrls required for the Kling O3 edit endpoints only', () => {
+    for (const modelId of [
+      AI_MODELS.KLING_O3_STANDARD_V2V_EDIT,
+      AI_MODELS.KLING_O3_PRO_V2V_EDIT,
+    ]) {
+      const missing = GenerateVideoRequestSchema.safeParse({
+        ...buildVideoRequest(),
+        modelId,
+      })
+      expect(missing.success, modelId).toBe(false)
+      expect(missing.error?.issues[0]?.path).toEqual(['videoUrls'])
+
+      expect(
+        GenerateVideoRequestSchema.safeParse({
+          ...buildVideoRequest(),
+          modelId,
+          videoUrls: ['https://cdn.example.com/source-clip.mp4'],
+        }).success,
+        modelId,
+      ).toBe(true)
+    }
+
+    // 生成端点不受这条约束 —— 它们没有参考视频照样能发。
+    expect(
+      GenerateVideoRequestSchema.safeParse(buildVideoRequest()).success,
+    ).toBe(true)
   })
 
   it('keeps audio URLs and bindings aligned with the shared constant', () => {

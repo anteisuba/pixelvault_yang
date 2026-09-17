@@ -115,6 +115,15 @@ export enum AI_MODELS {
   KLING_V3_PRO = 'kling-v3-pro',
   /** Kling VIDEO 3.0 Omni Pro — element/video reference heavy workflows. */
   KLING_O3_PRO = 'kling-o3-pro',
+  /**
+   * Kling O3 **video-to-video / edit** —— 与上面那两条（t2v / i2v）是不同的端点族：
+   * 输入必须带一段参考视频（`video_url`），prompt 里用 `@Video1` 指代它，产出是
+   * 被改写过的**同一段镜头**。没有 duration / resolution / aspect_ratio 旋钮 ——
+   * 全部跟随输入视频。因此它们是 `videoKind: 'edit'`，只归编辑入口，不进生成
+   * 选择器（与图片侧 `imageKind: 'edit'` 同一处理）。
+   */
+  KLING_O3_STANDARD_V2V_EDIT = 'kling-o3-standard-v2v-edit',
+  KLING_O3_PRO_V2V_EDIT = 'kling-o3-pro-v2v-edit',
   LTX_23 = 'ltx-2.3',
   SEEDANCE_20 = 'seedance-2.0',
   SEEDANCE_20_FAST = 'seedance-2.0-fast',

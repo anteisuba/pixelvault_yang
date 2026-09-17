@@ -3860,6 +3860,14 @@
       "label": "Kling O3 Pro (Omni)",
       "description": "Omni トラック — 要素・動画参照、ネイティブ音声、映画的マルチショット"
     },
+    "klingO3StandardV2vEdit": {
+      "label": "Kling O3 Standard — 動画編集",
+      "description": "既存クリップを編集 — 元のカメラワークとタイミングを保ったまま素材・被写体・舞台を書き換え"
+    },
+    "klingO3ProV2vEdit": {
+      "label": "Kling O3 Pro — 動画編集",
+      "description": "最上位の動画編集 — 同じクリップ、同じカメラで見た目だけ刷新。要素・画像参照に対応"
+    },
     "ltx23": {
       "label": "LTX 2.3",
       "description": "音声生成にも対応する、高速な 1080p クリップ向け fal.ai 動画モデル。"

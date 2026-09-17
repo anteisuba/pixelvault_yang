@@ -56,6 +56,8 @@ export interface FalWorkerVideoQueueRequest {
 const FAL_VIDEO_MODEL_IDS = {
   KLING_V3_PRO: 'kling-v3-pro',
   KLING_O3_PRO: 'kling-o3-pro',
+  KLING_O3_STANDARD_V2V_EDIT: 'kling-o3-standard-v2v-edit',
+  KLING_O3_PRO_V2V_EDIT: 'kling-o3-pro-v2v-edit',
   HAPPYHORSE_10: 'happyhorse-1.0',
   WAN_30: 'wan-3.0',
   WAN_30_REFERENCE: 'wan-3.0-reference',
@@ -85,6 +87,9 @@ const FAL_EXTENDED_ASPECT_RATIOS = [
 ] as const
 const HAPPYHORSE_ASPECT_RATIOS = ['16:9', '9:16', '1:1', '4:3', '3:4'] as const
 const LTX_ASPECT_RATIOS = ['16:9', '9:16'] as const
+
+/** image_urls + elements 合计上限（fal schema：带视频时最多 4）。 */
+const KLING_O3_VIDEO_EDIT_MAX_IMAGE_REFERENCES = 4
 
 /**
  * Wan 3.0 (fal `alibaba/wan-3.0/*`). Values below come from fal's OpenAPI for
@@ -290,6 +295,65 @@ function buildKlingV3Pro(
 
   applyNegativePrompt(body, context)
   applyCfgScale(body, context)
+  return body
+}
+
+/**
+ * Kling O3 video-to-video/edit —— fal
+ * `kling-video/o3/{standard,pro}/video-to-video/edit`（2026-09-17 核一手
+ * OpenAPI，standard 与 pro 的输入 schema 逐字同形）。
+ *
+ * body = `{ prompt, video_url, image_urls?, elements?, keep_audio? }`
+ *
+ * ⛔ 不发 duration / aspect_ratio / resolution / seed / negative_prompt /
+ * cfg_scale —— schema 里根本没有这些字段，输出跟随输入视频。也不发 `shot_type`：
+ * 它是 `const 'customize'`，只有一个取值，发不发都一样。
+ *
+ * 输入视频走现有的 `videoUrls`（Seedance / Wan 参考端点同一条通道），不新造字段；
+ * 这两条端点只收**一段**，取第一条。
+ */
+function buildKlingO3VideoEdit(
+  context: FalWorkerVideoRequestContext,
+): Record<string, unknown> {
+  const { providerInput } = context
+  const videoUrl = providerInput.videoUrls?.[0]
+  if (!videoUrl) {
+    throw new Error(
+      `FAL video model ${providerInput.modelId} requires a reference video for video-to-video editing.`,
+    )
+  }
+
+  // fal 要求 prompt 显式引用输入视频；不引用时模型没有可编辑的对象。用户已经
+  // 自己写了 @VideoN 就别动他的措辞。
+  const prompt = promptReferencesVideo(providerInput.prompt)
+    ? providerInput.prompt
+    : `Edit @Video1: ${providerInput.prompt}`.trim()
+
+  const body: Record<string, unknown> = {
+    prompt,
+    video_url: videoUrl,
+  }
+
+  // image_urls + elements 合计 ≤ 4（带视频时）。elements 尚未接入输入契约，
+  // 4 个名额今天全归 image_urls。
+  const imageUrls = (
+    providerInput.referenceImages && providerInput.referenceImages.length > 0
+      ? providerInput.referenceImages
+      : providerInput.referenceImage
+        ? [providerInput.referenceImage]
+        : []
+  ).slice(0, KLING_O3_VIDEO_EDIT_MAX_IMAGE_REFERENCES)
+  if (imageUrls.length > 0) {
+    body.image_urls = imageUrls
+  }
+
+  // `keep_audio` 问的是「保不保留**原视频**的声音」，不是「要不要生成新音轨」。
+  // 语义最近的既有输入是 generateAudio，但两者不等价，所以只在用户显式给了值时
+  // 才发，其余情况留给上游默认（true）。
+  if (typeof providerInput.generateAudio === 'boolean') {
+    body.keep_audio = providerInput.generateAudio
+  }
+
   return body
 }
 
@@ -740,6 +804,9 @@ function buildBody(
     case FAL_VIDEO_MODEL_IDS.KLING_V3_PRO:
     case FAL_VIDEO_MODEL_IDS.KLING_O3_PRO:
       return buildKlingV3Pro(context, mode)
+    case FAL_VIDEO_MODEL_IDS.KLING_O3_STANDARD_V2V_EDIT:
+    case FAL_VIDEO_MODEL_IDS.KLING_O3_PRO_V2V_EDIT:
+      return buildKlingO3VideoEdit(context)
     case FAL_VIDEO_MODEL_IDS.VEO_31:
       return buildVeo31(context, mode)
     case FAL_VIDEO_MODEL_IDS.HAPPYHORSE_10:

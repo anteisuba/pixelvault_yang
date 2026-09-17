@@ -7,6 +7,12 @@ export type VideoReferenceMode =
   | 'text-or-first-frame'
   | 'multimodal-reference'
   | 'image-content-array'
+  /**
+   * 必须带一段**参考视频**的编辑端点：prompt 改写的是那段镜头本身，没有参考
+   * 视频就没有输入。与 `multimodal-reference` 的区别是「视频是必需项、且只能有
+   * 一段」，而多模态参考里视频是可选的若干项之一。
+   */
+  | 'video-edit'
 
 export type VideoExecutionStatus = 'ready' | 'execution-not-migrated'
 
@@ -312,6 +318,39 @@ export function getVideoModelSendContract(
       },
       execution: executionStatus(adapterType),
       positionalImageTokens: referenceMode,
+      imageAspectRatioLock: null,
+      keyframeSlots: 1,
+    }
+  }
+
+  if (
+    normalized === AI_MODELS.KLING_O3_STANDARD_V2V_EDIT ||
+    normalized === AI_MODELS.KLING_O3_PRO_V2V_EDIT
+  ) {
+    // fal `kling-video/o3/{standard,pro}/video-to-video/edit`（2026-09-17 核
+    // 一手 OpenAPI，两条端点逐字同形）：
+    //   required prompt + video_url；optional image_urls / elements / keep_audio
+    // 参数旋钮一个都没有 —— duration / aspectRatio / resolution / seed /
+    // negativePrompt 全部 false，输出跟随输入视频。`generateAudio` 也是 false：
+    // 端点上的开关是 `keep_audio`（保不保留**原视频**的声音），不是「要不要生成
+    // 一条新音轨」，两者不是同一件事，借用会让用户以为自己在控制配乐。
+    return {
+      family: 'kling',
+      referenceMode: 'video-edit',
+      // image_urls + elements 合计 ≤ 4（带视频时）；elements 还没接，所以这 4
+      // 个名额今天全给 image_urls。视频恰好一段，音频没有槽位。
+      slots: { images: 4, videos: 1, audio: 0 },
+      parameters: {
+        duration: false,
+        aspectRatio: false,
+        resolution: false,
+        negativePrompt: false,
+        generateAudio: false,
+        seed: false,
+      },
+      execution: executionStatus(adapterType),
+      // fal 的位置引用语法就是 `@Image1` / `@Video1`，与图例常量同源。
+      positionalImageTokens: true,
       imageAspectRatioLock: null,
       keyframeSlots: 1,
     }

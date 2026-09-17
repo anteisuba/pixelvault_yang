@@ -6,6 +6,28 @@ import { AI_MODELS } from '@/constants/models/enum'
 import type { ModelOption } from '@/constants/models/types'
 
 /**
+ * 视频条目的用途，与图片侧的 `imageKind` 同形（见 `models/image.ts`）。
+ *
+ * - `generate` 通用生成：Video 工作台、画布、助手目录只列这一类
+ * - `edit` 必须带一段参考视频的编辑端点：只归编辑入口，不进生成选择器
+ *
+ * ⛔ 不从 `requiresReferenceImage` 之类的能力位推导用途——能力不等于用途。
+ */
+export const VIDEO_KIND = {
+  GENERATE: 'generate',
+  EDIT: 'edit',
+} as const
+
+export type VideoKind = (typeof VIDEO_KIND)[keyof typeof VIDEO_KIND]
+
+export const DEFAULT_VIDEO_KIND: VideoKind = VIDEO_KIND.GENERATE
+
+/** The role of a video entry — defaults to generate when unset. */
+export function resolveVideoKind(model: ModelOption): VideoKind {
+  return model.videoKind ?? DEFAULT_VIDEO_KIND
+}
+
+/**
  * Video generation models, ordered by recommendation. Keep only models with a
  * distinct role in short video, reference video, native audio, or budget use.
  */
@@ -571,5 +593,46 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
       generateAudio: true,
       resolution: '1080p',
     },
+  },
+  // ─── Kling O3 video-to-video / edit ────────────────────────────────
+  // fal `kling-video/o3/{standard,pro}/video-to-video/edit`。两条端点的输入
+  // schema 逐字同形（2026-09-17 核 fal OpenAPI）：
+  //   required: prompt(≤2500) + video_url
+  //   optional: image_urls[] / elements[] / keep_audio(默认 true) /
+  //             shot_type(const 'customize'，没有第二个取值，不发)
+  // **没有** duration / resolution / aspect_ratio / seed / negative_prompt /
+  // cfg_scale —— 时长、分辨率、宽高比全部跟随输入视频。
+  // video_url 限制：.mp4/.mov、3–15.05s、720–3840px、24–60fps、≤200MB。
+  // image_urls + elements 合计最多 4 项（带视频时）。
+  // `videoKind: 'edit'` → 只归编辑入口，不进生成选择器（动作按钮在设计 D4 后接）。
+  {
+    id: AI_MODELS.KLING_O3_STANDARD_V2V_EDIT,
+    cost: 6,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/kling-video/o3/standard/video-to-video/edit',
+    outputType: 'VIDEO',
+    videoKind: VIDEO_KIND.EDIT,
+    available: true,
+    officialUrl:
+      'https://fal.ai/models/fal-ai/kling-video/o3/standard/video-to-video/edit',
+    timeoutMs: 300_000,
+    qualityTier: 'standard',
+    maxPromptChars: 2500,
+  },
+  {
+    id: AI_MODELS.KLING_O3_PRO_V2V_EDIT,
+    cost: 8,
+    adapterType: AI_ADAPTER_TYPES.FAL,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+    externalModelId: 'fal-ai/kling-video/o3/pro/video-to-video/edit',
+    outputType: 'VIDEO',
+    videoKind: VIDEO_KIND.EDIT,
+    available: true,
+    officialUrl:
+      'https://fal.ai/models/fal-ai/kling-video/o3/pro/video-to-video/edit',
+    timeoutMs: 300_000,
+    qualityTier: 'premium',
+    maxPromptChars: 2500,
   },
 ]

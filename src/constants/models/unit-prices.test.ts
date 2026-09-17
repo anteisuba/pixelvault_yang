@@ -1,7 +1,7 @@
 import { getOpenAIImageOutputPrice } from './unit-prices'
 import { describe, expect, it } from 'vitest'
 
-import { getModelById } from '@/constants/models'
+import { VIDEO_KIND, getModelById, resolveVideoKind } from '@/constants/models'
 import { AI_MODELS } from '@/constants/models/enum'
 import {
   MODEL_UNIT_PRICES,
@@ -148,6 +148,11 @@ describe('model unit prices', () => {
     for (const [id] of entries) {
       const model = getModelById(id)
       if (!model || model.outputType !== 'VIDEO') continue
+      // 视频**编辑**端点不在这个口径里：fal 对它们的标价原文只有一个数，没有
+      // audio on / off 两档（生成端的 Kling / Veo 才有）。它们的 `keep_audio`
+      // 问的是「保不保留原片的声音」，不是「要不要生成一条音轨」—— 拿
+      // `videoDefaults.generateAudio` 去卡它，卡的是一件端点上不存在的事。
+      if (resolveVideoKind(model) === VIDEO_KIND.EDIT) continue
       expect(
         model.videoDefaults?.generateAudio,
         `${id} 默认不开音频 —— 「按产品默认档」不再等于含音频口径，见本表头部注释`,

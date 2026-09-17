@@ -133,6 +133,22 @@ adapter / Worker 抛错
 | （deepseek）      | 文本 planner/助手                                                            | 不是 media adapter                                                                                                                                                                                                                                                                                                                                                                  |
 | （runway）        | 曾经的视频（gen4.5）                                                         | **2026-08-24 整删**（死执行链清理）：`runway.adapter.ts` 文件+registry 条目已删，`AI_ADAPTER_TYPE_OPTIONS`/`ADAPTER_CAPABILITIES` 等类型层记录按「退役≠删除」保留但已不可被新选中——目录从未有过一个 Runway 模型，`ACTIVE_API_KEY_ADAPTER_OPTIONS` 早已自动排除它                                                                                                                    |
 
+### fal · Kling O3 video-to-video/edit（2026-09-17 接入）
+
+`fal-ai/kling-video/o3/{standard,pro}/video-to-video/edit` 两条端点已进目录
+（`KLING_O3_STANDARD_V2V_EDIT` / `KLING_O3_PRO_V2V_EDIT`）。它们是**编辑**端点，
+不是 O3 Pro 那条生成线的第三个 mode：输入必须带一段参考视频，产出是被改写的同一段
+镜头。
+
+- worker builder `buildKlingO3VideoEdit`（`workers/execution/src/models/fal/video-request-builders.ts`）：
+  body = `{ prompt, video_url, image_urls?, keep_audio? }`，其余字段 schema 里不存在
+- 输入视频复用既有的 `videoUrls` 通道（不新造字段），只取第一条；prompt 若未出现
+  `@VideoN` 自动前置 `Edit @Video1: `
+- 发送契约 `referenceMode: 'video-edit'`，参数旋钮全 false；校验层与请求 Zod
+  schema 都把参考视频列为必填
+- 字段、限制与价格逐条见 model-catalog.md「视频」节
+- ⚠ **未接 UI**，动作按钮在设计阶段 D4 之后另派；也**未做真实付费生成**
+
 ## 未决项（继承自 2026-06 核验，仍未解决）
 
 - `UserApiKey` 未持久化 verificationStatus / lastVerifiedAt；`verifyApiKey()` 只有瞬时探测结果。

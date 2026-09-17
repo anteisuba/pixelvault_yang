@@ -30,6 +30,7 @@ import {
 
 const PROMPT = 'A precise cinematic prompt'
 const REF = 'https://example.com/reference.png'
+const VIDEO_REF = 'https://example.com/source-clip.mp4'
 
 interface FalBodyCase {
   label: string
@@ -39,6 +40,8 @@ interface FalBodyCase {
   expectedMode: 'text-to-video' | 'image-to-video'
   expectedBody: Record<string, unknown>
   absentFields?: string[]
+  /** 额外的 providerInput 覆盖（视频编辑端点靠它带入 videoUrls）。 */
+  overrides?: ProviderInputOverrides
 }
 
 function getModel(id: AI_MODELS): ModelOption {
@@ -140,6 +143,55 @@ const falBodyCases: FalBodyCase[] = [
       cfg_scale: 0.5,
     },
     absentFields: ['image_url', 'aspect_ratio'],
+  },
+  {
+    label: 'Kling O3 Standard V2V Edit',
+    modelId: AI_MODELS.KLING_O3_STANDARD_V2V_EDIT,
+    overrides: { videoUrls: [VIDEO_REF] },
+    expectedEndpoint: 'fal-ai/kling-video/o3/standard/video-to-video/edit',
+    expectedMode: 'text-to-video',
+    expectedBody: {
+      // 没有 @VideoN 的 prompt 被自动前置一句引用 —— fal 要求 prompt 指向输入
+      // 视频，否则模型没有可编辑的对象。
+      prompt: `Edit @Video1: ${PROMPT}`,
+      video_url: VIDEO_REF,
+    },
+    // schema 里根本没有这些字段，发出去就是 422。
+    absentFields: [
+      'duration',
+      'aspect_ratio',
+      'resolution',
+      'negative_prompt',
+      'cfg_scale',
+      'generate_audio',
+      'seed',
+      'shot_type',
+      'image_urls',
+      'keep_audio',
+    ],
+  },
+  {
+    label: 'Kling O3 Pro V2V Edit',
+    modelId: AI_MODELS.KLING_O3_PRO_V2V_EDIT,
+    overrides: { videoUrls: [VIDEO_REF] },
+    expectedEndpoint: 'fal-ai/kling-video/o3/pro/video-to-video/edit',
+    expectedMode: 'text-to-video',
+    expectedBody: {
+      prompt: `Edit @Video1: ${PROMPT}`,
+      video_url: VIDEO_REF,
+    },
+    absentFields: [
+      'duration',
+      'aspect_ratio',
+      'resolution',
+      'negative_prompt',
+      'cfg_scale',
+      'generate_audio',
+      'seed',
+      'shot_type',
+      'image_urls',
+      'keep_audio',
+    ],
   },
   {
     label: 'Veo 3.1 T2V',
@@ -415,7 +467,11 @@ const falBodyCases: FalBodyCase[] = [
 describe('buildFalWorkerQueueRequest — per-model bodies', () => {
   it.each(falBodyCases)('builds $label body', (testCase) => {
     const request = buildFalWorkerQueueRequest(
-      buildWorkerInput(testCase.modelId, testCase.referenceImage),
+      buildWorkerInput(
+        testCase.modelId,
+        testCase.referenceImage,
+        testCase.overrides ?? {},
+      ),
     )
 
     expect(request.endpointModelId).toBe(testCase.expectedEndpoint)
@@ -929,6 +985,71 @@ describe('buildFalWorkerQueueRequest — per-model bodies', () => {
     expect(falVideoModels.map((model) => model.id).sort()).toEqual(
       Array.from(covered).sort(),
     )
+  })
+
+  describe('Kling O3 video-to-video edit', () => {
+    const CLIP = 'https://example.com/source-clip.mp4'
+    const A = 'https://example.com/a.png'
+    const B = 'https://example.com/b.png'
+    const C = 'https://example.com/c.png'
+    const D = 'https://example.com/d.png'
+    const E = 'https://example.com/e.png'
+
+    it('leaves a prompt that already addresses @Video1 alone', () => {
+      const prompt = 'Keep @Video1 framing, turn the street into snow'
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.KLING_O3_PRO_V2V_EDIT, undefined, {
+          prompt,
+          videoUrls: [CLIP],
+        }),
+      )
+      expect(result.input.prompt).toBe(prompt)
+    })
+
+    it('sends reference images as image_urls, capped at four', () => {
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.KLING_O3_STANDARD_V2V_EDIT, A, {
+          videoUrls: [CLIP],
+          referenceImages: [A, B, C, D, E],
+        }),
+      )
+      expect(result.input.image_urls).toEqual([A, B, C, D])
+    })
+
+    it('maps an explicit generateAudio onto keep_audio, and omits it otherwise', () => {
+      const off = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.KLING_O3_PRO_V2V_EDIT, undefined, {
+          videoUrls: [CLIP],
+          generateAudio: false,
+        }),
+      )
+      expect(off.input.keep_audio).toBe(false)
+
+      const unset = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.KLING_O3_PRO_V2V_EDIT, undefined, {
+          videoUrls: [CLIP],
+        }),
+      )
+      expect(unset.input).not.toHaveProperty('keep_audio')
+    })
+
+    it('refuses to build a body without a reference video', () => {
+      expect(() =>
+        buildFalWorkerQueueRequest(
+          buildWorkerInput(AI_MODELS.KLING_O3_STANDARD_V2V_EDIT),
+        ),
+      ).toThrow(/requires a reference video/)
+    })
+
+    it('never sends a seed even when one is supplied', () => {
+      const result = buildFalWorkerQueueRequest(
+        buildWorkerInput(AI_MODELS.KLING_O3_PRO_V2V_EDIT, undefined, {
+          videoUrls: [CLIP],
+          seed: 1234,
+        }),
+      )
+      expect(result.input).not.toHaveProperty('seed')
+    })
   })
 
   describe('Veo 3.1 multi-reference', () => {

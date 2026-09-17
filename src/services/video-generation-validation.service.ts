@@ -121,6 +121,16 @@ export function validateVideoGenerationInput({
       400,
     )
   }
+  // 视频编辑端点：参考视频是**输入本身**，不是可选增强 —— 没有它就没有可编辑的
+  // 对象，worker builder 也会直接抛。在这里先拦，用户拿到的是结构化 400 而不是
+  // 一条 worker 内部错误。
+  if (sendContract.referenceMode === 'video-edit' && videoCount === 0) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'This video model edits an existing clip and requires one reference video',
+      400,
+    )
+  }
   if (
     sendContract.referenceMode === 'multimodal-reference' &&
     !hasVisualReference

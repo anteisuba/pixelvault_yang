@@ -84,6 +84,15 @@ export const DEFAULT_VIDEO_MODEL_CAPABILITIES = {
  * 上游还支持 `duration: -1`（模型自选时长），我们的 picker 是离散秒数列表、
  * 没有「自动」这一档，故不在此暴露；要加得先在 UI 上给 -1 一个语义。
  */
+/**
+ * Kling O3 video-to-video/edit 的时长档 —— 这是**输入视频**的合法长度
+ * （fal `video_url`: 3–15.05s），不是一个可选参数：端点不收 duration，输出
+ * 跟随输入。给全 3–15 是为了不对一个发不出去的字段报错。
+ */
+const KLING_O3_V2V_EDIT_DURATIONS = [
+  3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15,
+] as const
+
 const SEEDANCE_25_DURATIONS = [
   4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24,
   25, 26, 27, 28, 29, 30,
@@ -207,6 +216,29 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
     supportedDurations: [3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15],
     supportedResolutions: ['1080p'],
     supportedAspectRatios: ['16:9', '9:16', '1:1'],
+  },
+  // Kling O3 video-to-video/edit（standard 与 pro 同形）：fal 的输入 schema 里
+  // **一个参数旋钮都没有** —— 没有 duration / resolution / aspect_ratio / seed，
+  // 输出的时长、分辨率、画幅全部跟随输入视频。发送契约
+  // （video-model-send-plan.ts）因此把这三项写成 `false`，参数栏整栏不渲染。
+  //
+  // ⚠ 这里给的是**全集**，不是收窄：既然三个值一个都发不出去，任何收窄都只会让
+  // 校验层（video-generation-validation.service.ts 拿 `supported*` 卡请求里必填的
+  // aspectRatio / 可选的 duration、resolution）对一个根本不影响结果的字段报 400。
+  // 也不能给空数组 —— 空数组会在展开合并里盖掉默认值，读 `supported*` 的地方会
+  // 拿到零选项（Kling V3/O3 Pro 那两行同款陷阱）。
+  //
+  // 真正的输入约束在 `video_url` 上（.mp4/.mov、3–15.05s、720–3840px、24–60fps、
+  // ≤200MB），那是上传侧的事，不是这张参数表能表达的。
+  [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: {
+    supportedDurations: KLING_O3_V2V_EDIT_DURATIONS,
+    supportedResolutions: DEFAULT_VIDEO_RESOLUTIONS,
+    supportedAspectRatios: VIDEO_ASPECT_RATIOS,
+  },
+  [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: {
+    supportedDurations: KLING_O3_V2V_EDIT_DURATIONS,
+    supportedResolutions: DEFAULT_VIDEO_RESOLUTIONS,
+    supportedAspectRatios: VIDEO_ASPECT_RATIOS,
   },
   [AI_MODELS.LTX_23]: {
     supportedDurations: [6, 8, 10],

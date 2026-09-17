@@ -51,16 +51,42 @@ Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE ·
 > ⚠ **2026-08-25 记：下表不全。** 实际 `available: true` 的视频模型是 **28** 个（脚本口径：数 `src/constants/models/video.ts` 里的条目），而表里只列了 8 行。缺的是 Seedance 2.5 全族、BytePlus 四条、MiniMax H3 四条、Kling O3 Pro —— 都在接入时进了代码没进这张表。原标题写的「11」也是旧数。
 > 接 Wan 3.0 时只补了自己那两行，**没有替别人的模型编 externalModelId**（那要逐条回查官方页，不是顺手能做对的事）。补全这张表值得单独开一刀。
 
-| enum                                                | externalModelId                                  | 通道                                                          |
-| --------------------------------------------------- | ------------------------------------------------ | ------------------------------------------------------------- |
-| SEEDANCE_20(\_FAST)                                 | bytedance/seedance-2.0(/fast)/text-to-video      | fal                                                           |
-| SEEDANCE_20(\_FAST)\_REFERENCE                      | bytedance/seedance-2.0(/fast)/reference-to-video | fal（画布视频汇点主力）                                       |
-| SEEDANCE_20(\_FAST)\_VOLCENGINE + REFERENCE 变体 ×4 | doubao-seedance-2-0(-fast)-260128                | 火山方舟直连（cn）                                            |
-| KLING_V3_PRO                                        | fal-ai/kling-video/v3/pro/text-to-video          | fal（唯一 native extend）                                     |
-| HAPPYHORSE_10                                       | alibaba/happy-horse/v1.1/text-to-video           | fal                                                           |
-| WAN_30                                              | alibaba/wan-3.0/text-to-video                    | fal（目录唯一 30s；首尾帧）                                   |
-| WAN_30_REFERENCE                                    | alibaba/wan-3.0/reference-to-video               | fal（图 10 / 视频 5 / 音频 5）                                |
-| **GEMINI_OMNI_FLASH**                               | gemini-omni-1.1-flash                            | Gemini 直连（**Interactions API**，非 generateContent，见 ⑦） |
+| enum                                                | externalModelId                                    | 通道                                                          |
+| --------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------------------- |
+| SEEDANCE_20(\_FAST)                                 | bytedance/seedance-2.0(/fast)/text-to-video        | fal                                                           |
+| SEEDANCE_20(\_FAST)\_REFERENCE                      | bytedance/seedance-2.0(/fast)/reference-to-video   | fal（画布视频汇点主力）                                       |
+| SEEDANCE_20(\_FAST)\_VOLCENGINE + REFERENCE 变体 ×4 | doubao-seedance-2-0(-fast)-260128                  | 火山方舟直连（cn）                                            |
+| KLING_V3_PRO                                        | fal-ai/kling-video/v3/pro/text-to-video            | fal（唯一 native extend）                                     |
+| HAPPYHORSE_10                                       | alibaba/happy-horse/v1.1/text-to-video             | fal                                                           |
+| WAN_30                                              | alibaba/wan-3.0/text-to-video                      | fal（目录唯一 30s；首尾帧）                                   |
+| WAN_30_REFERENCE                                    | alibaba/wan-3.0/reference-to-video                 | fal（图 10 / 视频 5 / 音频 5）                                |
+| **GEMINI_OMNI_FLASH**                               | gemini-omni-1.1-flash                              | Gemini 直连（**Interactions API**，非 generateContent，见 ⑦） |
+| KLING_O3_STANDARD_V2V_EDIT                          | fal-ai/kling-video/o3/standard/video-to-video/edit | fal（`videoKind: edit`，**未接 UI**）                         |
+| KLING_O3_PRO_V2V_EDIT                               | fal-ai/kling-video/o3/pro/video-to-video/edit      | fal（`videoKind: edit`，**未接 UI**）                         |
+
+**视频用途维度（2026-09-17 新增 `ModelOption.videoKind`）** —— 与图片侧的
+`imageKind` 同形：`edit` 的条目只归编辑入口，生成面读
+`getAvailableVideoModels(VIDEO_KIND.GENERATE)`，`getNodeModeForModel` 对它们返回
+`null`（不属于画布三档的任何一档）。今天只有 Kling O3 的两条 video-to-video/edit
+端点是 `edit`。
+
+**Kling O3 video-to-video/edit 契约**（2026-09-17 核 fal 一手 OpenAPI，standard
+与 pro 的输入 schema 逐字同形）：
+
+- required `prompt`（≤2500 字符，用 `@Video1` 指代输入视频）+ `video_url`
+- optional `image_urls[]`（`@Image1..`）· `elements[]`（`@Element1..`，**未接**）·
+  `keep_audio`（默认 true，问的是保不保留**原片**的声音）
+- `shot_type` 是 `const 'customize'`，只有一个取值，不发
+- **没有** duration / resolution / aspect_ratio / seed / negative_prompt /
+  cfg_scale —— 输出的时长、分辨率、画幅全部跟随输入视频
+- `video_url` 限制：.mp4/.mov · 3–15.05s · 720–3840px · 24–60fps · ≤200MB
+- `image_urls` + `elements` 合计 ≤ 4（带视频时）
+- 价：standard **$0.126/s**、pro **$0.168/s**（fal `pricingInfoOverride` 原文，
+  2026-09-17 核；两条都**没有** audio on/off 分档）
+- 「转白模」固定模板常量：`VIDEO_EDIT_WHITE_CLAY_PROMPT`
+  （`src/constants/video-edit-prompts.ts`，2026-09-17 实测通过后的措辞）
+- ⚠ **未接 UI** —— 目录、worker builder、校验与计价已通，动作按钮在设计阶段 D4
+  之后另派
 
 ### 音频（2）
 

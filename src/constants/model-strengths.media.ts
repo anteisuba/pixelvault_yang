@@ -67,6 +67,21 @@ const kling = (): ModelStrength => ({
   negativePrompt: 'supported',
 })
 
+/**
+ * Kling O3 video-to-video/edit。fal schema 原文：prompt 里用 `@Video1` 指代输入
+ * 视频，`@Image1..` 指代可选参考图，`@Element1..` 指代元素。
+ */
+const KLING_VIDEO_EDIT_HINT =
+  'Kling O3 video-to-video edit (fal). The input clip is addressed in the prompt as @Video1, optional style references as @Image1..@Image4, optional elements as @Element1..; a prompt that never names @Video1 has no subject to edit. Write the edit as an instruction, not as a fresh scene description: say what changes and, just as explicitly, what must stay — camera motion, framing, pose, timing and scene layout are preserved only when the prompt says so. Duration, resolution and aspect ratio follow the input clip and cannot be requested. Audio is governed by keep_audio, not by the prompt. The prompt is capped at 2500 characters.'
+
+const klingVideoEdit = (): ModelStrength => ({
+  bestFor: ['camera-control', 'multi-shot'],
+  promptStyle: 'natural-language',
+  enhanceHint: KLING_VIDEO_EDIT_HINT,
+  // 端点没有 negative_prompt 字段（一手 OpenAPI 核过）。
+  negativePrompt: 'unsupported',
+})
+
 /* ── Video: everything else ────────────────────────────────────────────── */
 
 /**
@@ -184,6 +199,10 @@ export const MEDIA_MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> =
     // ── Kling ───────────────────────────────────────────────────────────
     [AI_MODELS.KLING_V3_PRO]: kling(),
     [AI_MODELS.KLING_O3_PRO]: kling(),
+    // 视频编辑端点：改写的是**已有的那段镜头**，方言与生成端不同 —— 说清楚改
+    // 什么、保留什么，而不是从头描述一个画面。
+    [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: klingVideoEdit(),
+    [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: klingVideoEdit(),
     // ── Veo ─────────────────────────────────────────────────────────────
     [AI_MODELS.VEO_31]: {
       bestFor: ['native-audio', 'dialogue', 'photorealistic', 'cinematic'],

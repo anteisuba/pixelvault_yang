@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react'
 
-import { getAvailableVideoModels } from '@/constants/models'
+import { getAvailableVideoModels, VIDEO_KIND } from '@/constants/models'
 import type { StudioModelOption } from '@/components/business/ModelSelector'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import {
@@ -29,7 +29,10 @@ export function useVideoModelOptions(
 ): UseVideoModelOptionsReturn {
   const { keys, healthMap } = useApiKeysContext()
 
-  const videoModels = useMemo(() => getAvailableVideoModels(), [])
+  const videoModels = useMemo(
+    () => getAvailableVideoModels(VIDEO_KIND.GENERATE),
+    [],
+  )
 
   const modelOptions = useMemo<StudioModelOption[]>(() => {
     const builtIn: StudioModelOption[] = videoModels.map((model) => ({

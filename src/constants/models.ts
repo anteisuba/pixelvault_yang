@@ -13,13 +13,18 @@ import {
   resolveImageKind,
   type ImageKind,
 } from '@/constants/models/image'
-import { VIDEO_MODEL_OPTIONS } from '@/constants/models/video'
+import {
+  VIDEO_KIND,
+  VIDEO_MODEL_OPTIONS,
+  resolveVideoKind,
+  type VideoKind,
+} from '@/constants/models/video'
 import { AUDIO_MODEL_OPTIONS } from '@/constants/models/audio'
 import { MODEL_3D_OPTIONS } from '@/constants/models/model-3d'
 
 // Re-exports for backwards compatibility.
-export { AI_MODELS, IMAGE_KIND, resolveImageKind }
-export type { ImageKind }
+export { AI_MODELS, IMAGE_KIND, resolveImageKind, VIDEO_KIND, resolveVideoKind }
+export type { ImageKind, VideoKind }
 export type {
   ModelOption,
   QualityTier,
@@ -72,6 +77,8 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.WAN_30_REFERENCE]: 'wan30Reference',
   [AI_MODELS.KLING_V3_PRO]: 'klingV3Pro',
   [AI_MODELS.KLING_O3_PRO]: 'klingO3Pro',
+  [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: 'klingO3StandardV2vEdit',
+  [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: 'klingO3ProV2vEdit',
   [AI_MODELS.LTX_23]: 'ltx23',
   [AI_MODELS.SEEDANCE_20]: 'seedance20',
   [AI_MODELS.SEEDANCE_20_FAST]: 'seedance20Fast',
@@ -214,6 +221,8 @@ export const MODEL_FAMILIES: Record<string, string> = {
   [AI_MODELS.ANIMA_DIT_RUNNER]: 'Anima',
   [AI_MODELS.KLING_V3_PRO]: 'Kling',
   [AI_MODELS.KLING_O3_PRO]: 'Kling',
+  [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: 'Kling',
+  [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: 'Kling',
   [AI_MODELS.VEO_31]: 'Veo',
   [AI_MODELS.GEMINI_OMNI_FLASH]: 'Gemini',
   [AI_MODELS.SEEDANCE_25]: 'Seedance',
@@ -312,9 +321,13 @@ export const MODEL_VARIANTS: Record<string, string> = {
   [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: 'seedance-2.5',
   [AI_MODELS.SEEDANCE_25_BYTEPLUS]: 'seedance-2.5',
   [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: 'seedance-2.5',
-  // Kling：两个型号各一条
+  // Kling：两个生成型号各一条；O3 的编辑端点按**档位**归型号 —— pro edit 与
+  // pro 生成同属 `kling-o3-pro`（同一档的另一个端点，与 Seedance base/reference
+  // 同构），standard 档我们只有编辑端点，自成一个型号。
   [AI_MODELS.KLING_V3_PRO]: 'kling-v3-pro',
   [AI_MODELS.KLING_O3_PRO]: 'kling-o3-pro',
+  [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: 'kling-o3-pro',
+  [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: 'kling-o3-standard',
   // MiniMax H3：4 个条目 = 1 型号 × 2 站（key 不通用）× 2 端点
   [AI_MODELS.MINIMAX_H3]: 'minimax-h3',
   [AI_MODELS.MINIMAX_H3_REFERENCE]: 'minimax-h3',
@@ -400,6 +413,10 @@ const VIDEO_MODEL_PRIORITY: Partial<Record<AI_MODELS, number>> = {
   [AI_MODELS.VEO_31]: 4,
   [AI_MODELS.KLING_V3_PRO]: 5,
   [AI_MODELS.KLING_O3_PRO]: 5.5,
+  // 编辑端点（`videoKind: 'edit'`）不进生成选择器；这里排在 Kling 组尾，只为
+  // 画廊筛选条那种「列全部视频模型」的场合有个稳定的位置。
+  [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: 5.6,
+  [AI_MODELS.KLING_O3_PRO_V2V_EDIT]: 5.7,
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]: 6,
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: 6.5,
   [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]: 6.75,
@@ -416,10 +433,17 @@ const VIDEO_MODEL_PRIORITY: Partial<Record<AI_MODELS, number>> = {
   [AI_MODELS.LTX_23]: 10,
 }
 
-/** Get only the currently available video models, sorted by recommendation. */
-export const getAvailableVideoModels = (): ModelOption[] =>
+/**
+ * Get only the currently available video models, sorted by recommendation.
+ * Pass `kind` to keep one role — generation surfaces pass `VIDEO_KIND.GENERATE`
+ * so the video-edit endpoints stay out of their pickers.
+ */
+export const getAvailableVideoModels = (kind?: VideoKind): ModelOption[] =>
   MODEL_OPTIONS.filter(
-    (model) => model.available && model.outputType === 'VIDEO',
+    (model) =>
+      model.available &&
+      model.outputType === 'VIDEO' &&
+      (kind === undefined || resolveVideoKind(model) === kind),
   ).sort(
     (a, b) =>
       (VIDEO_MODEL_PRIORITY[a.id] ?? 999) - (VIDEO_MODEL_PRIORITY[b.id] ?? 999),

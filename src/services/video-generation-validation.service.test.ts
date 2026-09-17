@@ -48,6 +48,39 @@ describe('video-generation-validation.service', () => {
     ).not.toThrow()
   })
 
+  it('requires a reference video for the Kling O3 edit endpoints', () => {
+    for (const modelId of [
+      AI_MODELS.KLING_O3_STANDARD_V2V_EDIT,
+      AI_MODELS.KLING_O3_PRO_V2V_EDIT,
+    ]) {
+      expect(() =>
+        validateVideoGenerationInput({ modelId, aspectRatio: '16:9' }),
+      ).toThrowError(GenerateImageServiceError)
+
+      expect(() =>
+        validateVideoGenerationInput({
+          modelId,
+          aspectRatio: '16:9',
+          videoUrls: ['https://cdn.example.com/source-clip.mp4'],
+        }),
+      ).not.toThrow()
+    }
+  })
+
+  it('does not reject a leftover duration / resolution on the edit endpoints', () => {
+    // 这两条端点根本不发 duration / resolution / aspect_ratio —— 对一个发不出去
+    // 的字段报 400 是纯粹的假阴性。
+    expect(() =>
+      validateVideoGenerationInput({
+        modelId: AI_MODELS.KLING_O3_PRO_V2V_EDIT,
+        aspectRatio: '4:3',
+        duration: 15,
+        resolution: '480p',
+        videoUrls: ['https://cdn.example.com/source-clip.mp4'],
+      }),
+    ).not.toThrow()
+  })
+
   it('rejects image models in the video pipeline', () => {
     expect(() =>
       validateVideoGenerationInput({

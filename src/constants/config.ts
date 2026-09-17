@@ -446,7 +446,6 @@ export const PROFILE = {
     'u',
     'gallery',
     'studio',
-    'arena',
     'feed',
     'explore',
     'search',

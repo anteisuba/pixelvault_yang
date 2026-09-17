@@ -15,7 +15,7 @@ interface ImageDropZoneProps {
 
 /**
  * Drag-and-drop zone for image upload with click-to-browse.
- * Used in GenerateForm, VideoGenerateForm, and ArenaForm.
+ * Used in GenerateForm and VideoGenerateForm.
  */
 export function ImageDropZone({
   isDragging,

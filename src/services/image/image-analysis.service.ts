@@ -41,7 +41,7 @@ import { ensureUser } from '@/services/user.service'
  *
  * ⛔ 不共用的是**任务 schema 与 `ResearchRun` 落库**：这里每个 dimension 产出的是
  * 一段可以直接拼进生成提示词的文本，不是带 `basis` 的观察；它已经有自己的持久化
- * （`ImageAnalysis` 行）。硬套四个视觉任务只会让 Arena 的反推入口拿到一份它用不了的
+ * （`ImageAnalysis` 行）。硬套四个视觉任务只会让反推入口拿到一份它用不了的
  * 结构体。后续清理点记在切片 2 的交接里。
  */
 const REVERSE_ENGINEER_SYSTEM_PROMPT = `You are an expert at describing images for AI image generation. Analyze the provided image and generate a detailed prompt that could recreate it. Include: subject matter, composition, style, lighting, color palette, mood, textures, and any notable artistic qualities. Return ONLY the prompt text, no explanation or preamble.

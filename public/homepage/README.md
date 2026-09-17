@@ -39,6 +39,5 @@ Run each prompt through GPT-Image-2 or Gemini 3 Pro Image in Studio
 | `upscale`      | image | A single image split vertically — left half blurry low-res, right half tack-sharp 4× upscale, magnifier loupe over the seam, 16:10.                                              |
 | `tts`          | image | A sound-wave ribbon flowing across the frame with a floating speech bubble of multilingual text, dark ink palette, 16:10.                                                        |
 | `workflow`     | VIDEO | Node-based visual workflow editor; mouse drags a connection between an "image gen" node and an "upscale" node, then a "deploy" button pulses and turns green. 6–8s loop, silent. |
-| `arena`        | image | Four AI portraits in a 2×2 grid, one tagged with a glowing "winner" ribbon and a small ELO scoreboard in the corner, 16:10.                                                      |
 | `archive`      | image | A vast wall of generation thumbnails fading into the distance, a timeline ribbon along the bottom, earthy palette, 16:10.                                                        |
 | `social`       | image | Three artwork cards stacked at gentle angles with avatars, like counts, and a "follow" badge, soft sky-blue background, 16:10.                                                   |

@@ -13,14 +13,14 @@ This is the most widely imported module in the project. Changes here cascade to 
 
 ## Core Types (highest impact — touch with extreme care)
 
-| Type                    | Used By                                        | Notes                      |
-| ----------------------- | ---------------------------------------------- | -------------------------- |
-| `GenerateRequest`       | All generation services, API routes, hooks     | Image generation input     |
-| `GenerationRecord`      | Gallery, Studio, Arena, all display components | The universal image record |
-| `GenerateVideoRequest`  | Video pipeline, studio                         | Video generation input     |
-| `CharacterCardRecord`   | Card services, studio, gallery                 | Character card display     |
-| `AdvancedParams`        | Studio context, generation services            | Provider-specific params   |
-| `StudioGenerateRequest` | Studio-only generation flow                    | Extends GenerateRequest    |
+| Type                    | Used By                                    | Notes                      |
+| ----------------------- | ------------------------------------------ | -------------------------- |
+| `GenerateRequest`       | All generation services, API routes, hooks | Image generation input     |
+| `GenerationRecord`      | Gallery, Studio, all display components    | The universal image record |
+| `GenerateVideoRequest`  | Video pipeline, studio                     | Video generation input     |
+| `CharacterCardRecord`   | Card services, studio, gallery             | Character card display     |
+| `AdvancedParams`        | Studio context, generation services        | Provider-specific params   |
+| `StudioGenerateRequest` | Studio-only generation flow                | Extends GenerateRequest    |
 
 ## Change Checklist
 

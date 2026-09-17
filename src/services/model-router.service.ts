@@ -1,7 +1,6 @@
 import 'server-only'
 
 import {
-  ARENA_WINRATE_WEIGHT,
   DEFAULT_MODEL_ROUTER_WEIGHTS,
   MODEL_ROUTER_SCORE_WEIGHTS,
   MODEL_STRENGTHS,
@@ -17,7 +16,6 @@ import {
 import { classifyImageIntentTaskType } from '@/lib/classify-task-type'
 import { logger } from '@/lib/logger'
 import type { ImageIntent, ModelRouterPreferences } from '@/types'
-import { getModelWinRatesByTask } from '@/services/arena-winrate.service'
 import {
   getUserPreference,
   parseUserPreferredModelsByTask,
@@ -233,33 +231,6 @@ export function estimateModelCost(modelId: string): number {
   return getModelById(modelId)?.cost ?? 0
 }
 
-async function applyArenaWinRateBoost(
-  rankedModels: RecommendedModel[],
-  taskType: string,
-): Promise<void> {
-  try {
-    const winRates = await getModelWinRatesByTask(taskType)
-
-    for (const candidate of rankedModels) {
-      const winRate = winRates.get(candidate.modelId)
-      if (winRate === undefined) continue
-
-      candidate.score = Number(
-        (
-          candidate.score +
-          winRate * ARENA_WINRATE_WEIGHT * ROUTER_SCORE_SCALE
-        ).toFixed(4),
-      )
-      candidate.reason = appendReason(candidate.reason, 'arena win-rate signal')
-    }
-  } catch (error) {
-    logger.warn('Model router Arena win-rate boost skipped', {
-      taskType,
-      error: error instanceof Error ? error.message : String(error),
-    })
-  }
-}
-
 async function applyUserPreferenceBoost(
   rankedModels: RecommendedModel[],
   taskType: string,
@@ -327,9 +298,6 @@ export async function routeModelsForIntent(
   scored.sort((a, b) => b.score - a.score)
 
   const taskType = classifyImageIntentTaskType(intent)
-
-  await applyArenaWinRateBoost(scored, taskType)
-  scored.sort((a, b) => b.score - a.score)
 
   await applyUserPreferenceBoost(scored, taskType, options.userId)
   scored.sort((a, b) => b.score - a.score)

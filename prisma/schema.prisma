@@ -183,7 +183,6 @@ model User {
   generationJobs         GenerationJob[]
   apiUsageLedger         ApiUsageLedger[]
   imageAnalyses          ImageAnalysis[]
-  arenaMatches           ArenaMatch[]
   stories                Story[]
   projects               Project[]
   characterCards         CharacterCard[]
@@ -450,7 +449,6 @@ model Generation {
 
   generationJob     GenerationJob?     @relation("GenerationToJob")
   apiUsageLedger    ApiUsageLedger[]   @relation("GenerationToUsage")
-  arenaEntries      ArenaEntry[]
   storyPanels       StoryPanel[]
   likes             UserLike[]
   collectionItems   CollectionItem[]
@@ -812,48 +810,6 @@ model ImageAnalysis {
   createdAt        DateTime @default(now())
 
   @@index([userId, createdAt(sort: Desc)])
-}
-
-model ArenaMatch {
-  id             String       @id @default(uuid())
-  userId         String
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  prompt         String       @db.Text
-  taskType       String? // 'portrait' | 'landscape' | 'anime' | 'artistic' | 'product' | 'architecture' | 'general'
-  aspectRatio    String
-  referenceImage String?      @db.Text
-  winnerId       String?
-  votedAt        DateTime?
-  createdAt      DateTime     @default(now())
-  entries        ArenaEntry[]
-
-  @@index([userId, createdAt(sort: Desc)])
-  @@index([taskType])
-}
-
-model ArenaEntry {
-  id           String     @id @default(uuid())
-  matchId      String
-  match        ArenaMatch @relation(fields: [matchId], references: [id], onDelete: Cascade)
-  generationId String
-  generation   Generation @relation(fields: [generationId], references: [id], onDelete: Cascade)
-  modelId      String
-  slotIndex    Int
-  wasVoted     Boolean    @default(false)
-
-  @@unique([matchId, generationId])
-}
-
-model ModelEloRating {
-  id          String   @id @default(uuid())
-  modelId     String   @unique
-  modelFamily String?
-  rating      Float    @default(1500)
-  matchCount  Int      @default(0)
-  winCount    Int      @default(0)
-  updatedAt   DateTime @updatedAt
-
-  @@index([modelFamily, rating(sort: Desc)])
 }
 
 model ModelConfig {

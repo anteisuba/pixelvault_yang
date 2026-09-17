@@ -147,9 +147,9 @@ describe('analyzeImage', () => {
     )
   })
 
-  // ─── 切片 2 收编后的回归：Arena 反推路径必须原样不动 ─────────────
+  // ─── 切片 2 收编后的回归：反推路径必须原样不动 ─────────────────
 
-  it('keeps the Arena reverse-prompt path on plain text with no dimensions', async () => {
+  it('keeps the reverse-prompt path on plain text with no dimensions', async () => {
     const result = await analyzeImage(
       'clerk_user_1',
       'https://example.com/a.png',

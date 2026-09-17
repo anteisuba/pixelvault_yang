@@ -870,6 +870,14 @@ export type EnumVideoPipelineStatusFieldUpdateOperationsInput = {
   set?: $Enums.VideoPipelineStatus
 }
 
+export type FloatFieldUpdateOperationsInput = {
+  set?: number
+  increment?: number
+  decrement?: number
+  multiply?: number
+  divide?: number
+}
+
 export type VideoPipelineUpdatecharacterCardIdsInput = {
   set?: string[]
   push?: string | string[]

@@ -137,7 +137,7 @@ flowchart LR
 
 - Providers ×10 · Runner(ComfyUI/RunPod) · R2 归档 · Clerk/Credit/i18n · model-router/model-health。一般不作为需求域，除非要动模型阵容或执行架构。
 
-> **次要域**（Arena 模型对战 / Storyboard 分镜 / 3D）：你这次没提，按 `product.md` 是 gate 住的（图片和 LoRA 完善后再推），先不展开。
+> **次要域**（Storyboard 分镜 / 3D）：你这次没提，按 `product.md` 是 gate 住的（图片和 LoRA 完善后再推），先不展开。
 
 ---
 

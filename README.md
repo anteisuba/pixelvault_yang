@@ -86,18 +86,6 @@ Browse what others have created. Find inspiration. Share your own work.
 - Click any image to see full details — prompt, model, settings
 - Use any gallery image as a reference for your next generation
 
-### Arena — Blind Model Battles
-
-Which model is actually the best? Find out by voting blind.
-
-![PixelVault blind model battle sketch](assets/readme-illustrations/04-arena-blind-vote-en.png)
-
-1. Select 2–4 models and enter a prompt
-2. All models generate from the same prompt simultaneously
-3. Vote for the best result — **without knowing which model made it**
-4. After voting, model identities are revealed with ELO rating changes
-5. Check the **Leaderboard** to see overall model rankings
-
 ### Profile — Your Personal Archive
 
 Every generation you've ever made, in one place.

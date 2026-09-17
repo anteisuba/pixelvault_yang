@@ -12,7 +12,7 @@ interface UseGenerationFormOptions {
 }
 
 /**
- * Shared form state for generation forms (image, video, arena).
+ * Shared form state for generation forms (image, video).
  * Composes useImageUpload and usePromptEnhance with shared prompt/aspectRatio state.
  */
 export function useGenerationForm(options?: UseGenerationFormOptions) {

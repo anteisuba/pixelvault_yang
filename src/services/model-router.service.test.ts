@@ -3,13 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AI_MODELS, RETIRED_MODEL_IDS } from '@/constants/models'
 import type { ImageIntent } from '@/types'
 
-const mockGetModelWinRatesByTask = vi.hoisted(() => vi.fn())
 const mockGetUserPreference = vi.hoisted(() => vi.fn())
-
-vi.mock('@/services/arena-winrate.service', () => ({
-  getModelWinRatesByTask: (...args: unknown[]) =>
-    mockGetModelWinRatesByTask(...args),
-}))
 
 vi.mock('@/services/user-preference.service', () => ({
   getUserPreference: (...args: unknown[]) => mockGetUserPreference(...args),
@@ -21,7 +15,6 @@ import { estimateModelCost, routeModelsForIntent } from './model-router.service'
 describe('routeModelsForIntent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockGetModelWinRatesByTask.mockResolvedValue(new Map())
     mockGetUserPreference.mockResolvedValue(null)
   })
 
@@ -95,7 +88,7 @@ describe('routeModelsForIntent', () => {
     expect(results[0].score).toBeGreaterThan(0)
   })
 
-  it('uses health preference without requiring Arena data', async () => {
+  it('uses health preference to rank healthy routes first', async () => {
     const intent: ImageIntent = { subject: 'general image' }
     const results = await routeModelsForIntent(intent, { requireHealthy: true })
 
@@ -128,32 +121,7 @@ describe('routeModelsForIntent', () => {
     }
   })
 
-  it('uses Round-2 Arena win-rate data to affect sorting', async () => {
-    const intent: ImageIntent = { subject: 'something completely vague' }
-    const baselineResults = await routeModelsForIntent(intent)
-    const targetModelId = baselineResults[baselineResults.length - 1].modelId
-    mockGetModelWinRatesByTask.mockResolvedValue(new Map([[targetModelId, 1]]))
-
-    const boostedResults = await routeModelsForIntent(intent)
-
-    expect(boostedResults[0].modelId).toBe(targetModelId)
-    expect(boostedResults[0].reason).toContain('arena win-rate signal')
-  })
-
-  it('keeps Round-1 sorting when Round-2 Arena data is empty', async () => {
-    const intent: ImageIntent = { subject: 'something completely vague' }
-    const baselineResults = await routeModelsForIntent(intent)
-
-    mockGetModelWinRatesByTask.mockResolvedValue(new Map())
-
-    const results = await routeModelsForIntent(intent)
-
-    expect(results.map((result) => result.modelId)).toEqual(
-      baselineResults.map((result) => result.modelId),
-    )
-  })
-
-  it('uses Round-3 user preference data to affect sorting', async () => {
+  it('uses Round-2 user preference data to affect sorting', async () => {
     const intent: ImageIntent = { subject: 'something completely vague' }
     const baselineResults = await routeModelsForIntent(intent)
     const targetModelId = baselineResults[baselineResults.length - 1].modelId
@@ -167,7 +135,7 @@ describe('routeModelsForIntent', () => {
     expect(results[0].reason).toContain('user preference signal')
   })
 
-  it('keeps Round-2 sorting when Round-3 user preference data is missing', async () => {
+  it('keeps Round-1 sorting when Round-2 user preference data is missing', async () => {
     const intent: ImageIntent = { subject: 'something completely vague' }
     const baselineResults = await routeModelsForIntent(intent)
 

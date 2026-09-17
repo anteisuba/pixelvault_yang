@@ -20,7 +20,7 @@ export default async function MainLayout({
   const locale = isAppLocale(localeParam) ? localeParam : DEFAULT_LOCALE
   const tCommon = await getTranslations({ locale, namespace: 'Common' })
   // Root layout's NextIntlClientProvider only ships the marketing
-  // subset. Re-wrap here so Studio/Gallery/Arena client components see
+  // subset. Re-wrap here so Studio/Gallery client components see
   // every namespace they can reach. use-intl 4.x replaces (not merges)
   // on nesting, so this provider must carry the whole app bundle —
   // minus the namespaces whose only consumers sit outside `(main)`

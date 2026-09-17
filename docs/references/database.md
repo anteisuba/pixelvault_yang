@@ -20,7 +20,7 @@
 | 卡片        | `CharacterCard` · `GenerationCharacterCard`（join）· `BackgroundCard` · `StyleCard` · `CardRecipe` · `VoiceCard`                   | 可复用创作上下文层                                                        |
 | 配方/提示词 | `Recipe`（`visibility=PUBLIC` 即共享库）· `InspirationPrompt` · `ExtractedElement` · `ImageAnalysis` · `UserCreativePreference`    |                                                                           |
 | 社交        | `UserLike` · `UserFollow`                                                                                                          |                                                                           |
-| 竞技场      | `ArenaMatch` · `ArenaEntry` · `ModelEloRating` · `ModelConfig`                                                                     |                                                                           |
+| 模型配置    | `ModelConfig`                                                                                                                      | DB-first 覆盖目录条目；竞技场三表 2026-09-17 随 Arena 整删                |
 | 视频        | `VideoPipeline` / `VideoPipelineClip` · `VideoScript` / `VideoScriptScene` · `Story` / `StoryPanel`                                | 三代视频系统并存（收敛中；旧 archive 路线图已删 2026-08-07，见 git 历史） |
 | LoRA        | `LoraAsset` · `LoraTrainingJob`                                                                                                    | Civitai 来源字段 2026-06-08 迁移加入                                      |
 

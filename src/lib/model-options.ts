@@ -18,7 +18,7 @@ const API_KEY_HEALTH_PRIORITY: Record<ApiKeyHealthStatus, number> = {
 
 /**
  * Build saved model options from user's active API keys.
- * Shared by GenerateForm, VideoGenerateForm, and ArenaForm.
+ * Shared by GenerateForm and VideoGenerateForm.
  */
 export function buildSavedModelOptions(
   keys: UserApiKeyRecord[],

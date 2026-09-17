@@ -164,21 +164,6 @@ export type ProjectRule = Prisma.ProjectRuleModel
  */
 export type ImageAnalysis = Prisma.ImageAnalysisModel
 /**
- * Model ArenaMatch
- * 
- */
-export type ArenaMatch = Prisma.ArenaMatchModel
-/**
- * Model ArenaEntry
- * 
- */
-export type ArenaEntry = Prisma.ArenaEntryModel
-/**
- * Model ModelEloRating
- * 
- */
-export type ModelEloRating = Prisma.ModelEloRatingModel
-/**
  * Model ModelConfig
  * 
  */

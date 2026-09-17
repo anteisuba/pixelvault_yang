@@ -68,7 +68,6 @@ export const MODEL_ROUTER_SCORE_WEIGHTS = {
   preferenceBoost: 8,
 } as const
 
-export const ARENA_WINRATE_WEIGHT = 0.25
 export const USER_PREFERENCE_WEIGHT = 0.15
 
 /**

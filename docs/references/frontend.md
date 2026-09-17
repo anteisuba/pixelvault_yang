@@ -38,7 +38,7 @@ primitive → semantic → domain/component → page
 | Page                   | `.home-v4` 域内令牌（首页域）                                                                                      | 留在页内；第二个页面需要同模式时仍先分别验证                          |
 | Utility                | `max-w-content` / `max-w-gallery` · `text-3xs` / `text-2xs` / `text-nav`                                           | 共享尺度工具，不表达品牌性格                                          |
 
-- `editorial-*` 类族（globals.css 33 处）：跨 prompts / arena / storyboard / 详情页 / 路由态的陈列面模式；职责混合（壳/hero/panel/metric 混在一起），提取或改动前按页确认。
+- `editorial-*` 类族（globals.css 33 处）：跨 prompts / storyboard / 详情页 / 路由态的陈列面模式；职责混合（壳/hero/panel/metric 混在一起），提取或改动前按页确认。
 - **弱/孤 token**（2026-06-02 审计口径，构建新 UI 前先核实用量）：`--text-hero-*`、`--h-hero-btn`、`--text-tab`、`--overlay-chip`、`--surface-highlight`、`--home-surface-soft`、`--width-studio-left/sidebar`。
 - 任意值治理：`text-[10px]`（60 处）→ `text-3xs`；`text-[11px]`（27 处）→ `text-2xs`；`tracking-[0.16em]` 等 → `tracking-nav` 族。视口/运行时约束（`calc()`/`svh`/radix 变量/`duration-[…]`）属合法保留，不盲目归一。
 

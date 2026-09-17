@@ -3,7 +3,7 @@
 > 状态：**现行默认（2026-09-03 owner 拍板三条：字体收回脊柱 · semantic 颜色全站锁死 · UI 完成定义压成 8 项）**。
 > 定位：AI 或人动任何 UI 之前必读的**肯定句清单**——不写"不准"，只写"默认这样做"。禁忌见 `forbidden.md`，治理边界见 `brand-dna.md`，实现事实见 `frontend.md`，动效原则见 `interaction.md`。
 > 冲突时：本文 > 当前页面长相 > 任何 skill 的自带审美。需求卡（`templates/ui-request.md`）里没写的，一律按本文默认。
-> 2026-09-03 owner 已拍板：展示槽 = Fraunces + Noto Serif（A）· 壳底保留浮岛层次（`--surface-sunken`）· cards / assets loading 改回浅色 · 画布与 LoRA 移动端走降级、arena 待删。本文无未决项；标 **[待验证]** 的（页面切换 View Transitions）验证通过前不用。
+> 2026-09-03 owner 已拍板：展示槽 = Fraunces + Noto Serif（A）· 壳底保留浮岛层次（`--surface-sunken`）· cards / assets loading 改回浅色 · 画布与 LoRA 移动端走降级、arena 待删（2026-09-17 已整删）。本文无未决项；标 **[待验证]** 的（页面切换 View Transitions）验证通过前不用。
 
 ---
 
@@ -167,7 +167,6 @@
 - **降级**：studio/image · video · audio · enhance · analyze · 3d——参数进抽屉，预览占满，生成栏固定。
 - **降级 · 画布**（owner 2026-09-03 拍板要做，参考 updream.cn 手机画布的结构，不借皮肤）：视口全屏可 pan/zoom；节点卡放大到 `calc(100vw - 2rem)` 宽、单指拖动；左侧一条竖排浮动工具栏（4 到 5 个图标：素材 / 新节点 / 历史 / 剪辑）；composer 是底部 vaul 抽屉，收起只露一行输入、拉起露出模式 chip + 媒体类型 + 模型/参数；小地图缩到左下角可折叠；撤销/重做/全屏/预览压成底部一条 44px 工具条；助手 dock 改为全屏 Sheet；节点详情改为底部抽屉。连线用"点端口 → 点目标端口"两步点击，不用拖拽。
 - **降级 · LoRA**（owner 2026-09-03 拍板）：模型库、训练进度、用已训模型生成三条路径完整；**训练创建流程不做**，入口在手机上渲染"请在桌面创建训练"提示。
-- **不做**：arena（owner 2026-09-03：已闲置，待整体删除，不做任何移动端工作）。
 
 ---
 
@@ -211,5 +210,5 @@
 - 2026-09-03 · 新增 `--status-warning` / `-surface`（浅暗两档），28 个文件 170 处 amber/emerald 调色板类收口为 status token，43 处 `dark:` 变体删除。
 - 2026-09-03 · 颜色脊柱落地：`--surface-sunken` 入脊柱并接管壳底；首页 `--paper/--panel/--line` 与 LoRA 表面/文本/主色 token 全部 alias 脊柱（LoRA 的 `--destructive` 琥珀覆盖一并删除）；cards 页与 assets loading 去 `.dark`；`--muted-foreground` 55.6%→52%。对比度见 globals.css 注释。
 - 2026-09-03 · 展示槽收窄到首页 hero / legal / 空态三处，应用内 h1 退回正文槽（owner 看过画廊 375 截图后定）。
-- 2026-09-03 · owner 拍板展示槽 A、`--surface-sunken`、cards/assets 改浅色；移动端等级：画布与 LoRA 走「降级」（画布结构参考 updream.cn 手机画布；LoRA 不做训练创建），arena 待删不做。
+- 2026-09-03 · owner 拍板展示槽 A、`--surface-sunken`、cards/assets 改浅色；移动端等级：画布与 LoRA 走「降级」（画布结构参考 updream.cn 手机画布；LoRA 不做训练创建），arena 待删不做（2026-09-17 已整删）。
 - 2026-09-03 · 首版。字体 9 家族/三槽、五种浅底、`.dark` 孤岛、`font-serif` 86 处、zh/ja 正文丢 Geist 均为当日 `src/i18n/fonts.ts` · `globals.css` · `home-v4.css` · `canvas.css` · `lora.css` 核验。本文只定默认，落地 `src/` 另起任务。

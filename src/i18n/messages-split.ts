@@ -7,7 +7,7 @@ import type { AbstractIntlMessages } from 'next-intl'
  *
  * The full message bundle for `(main)` is ~99KB per locale; the marketing
  * subset is ~21KB, so first-paint surfaces stop shipping ~78KB of
- * unrelated Studio/Gallery/Arena strings to the client.
+ * unrelated Studio/Gallery strings to the client.
  *
  * Adding a new client-rendered translation to a marketing surface? Add
  * its namespace here, otherwise `useTranslations(<ns>)` will resolve to

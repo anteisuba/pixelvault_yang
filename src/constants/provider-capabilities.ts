@@ -13,6 +13,7 @@ export type ProviderCapability =
   | 'seed'
   | 'referenceStrength'
   | 'quality'
+  | 'preview'
   | 'resolution'
   | 'background'
   | 'style'
@@ -171,9 +172,10 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       // ANIMA_PENCIL_XL 已 available:false（`lucataco/animapencil-xl-v4` 端点 404）。
       // 旧值 2 是 2026-03 随首版 LoRA 支持写进来的、无注释无依据的保守数。
       //
-      // ⚠ 这个数**不是 provider 的真实上限——真实上限是「没有」**。它现在只剩
-      // **一个**读者：`CapabilityForm` 的「加号还能不能按」UI 闸。没有任何一条链路
-      // 再拿它截断发出去的载荷。
+      // ⚠ 这个数**不是 provider 的真实上限——真实上限是「没有」**。2026-09-18
+      // 起它**一个读者都没有**：最后那个（`CapabilityForm` 的「加号还能不能按」
+      // UI 闸）随能力驱动表单一起删了，专属 chip 行不派生 `lora`（LoRA 装配只在
+      // LoRA 工作台）。字段留着是因为能力表是一张事实表，⛔ 但别再拿它做闸。
       // 已按 owner 2026-08-07「一把尺子也不要了」退役掉的：LoRA 装配台、卡片配方
       // 编译（H，eb295d23 / 6c3add69）、画布两条 generate 路径的
       // `.slice(0, maxLoras)`（J4，f9522e44）。
@@ -187,6 +189,10 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
     [AI_ADAPTER_TYPES.OPENAI]: {
       capabilities: [
         'quality',
+        // `preview` = 生成中回传 partial image。曾经写成 UI 里的
+        // `adapterType === OPENAI` 硬分支，2026-09-18 收进能力表 —— 逐字等价的
+        // 一次搬迁（旧闸判的就是 adapter 而不是具体型号），⛔ 没有扩到别的 adapter。
+        'preview',
         'resolution',
         'background',
         'style',
@@ -315,12 +321,24 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
-    capabilities: ['quality', 'resolution', 'background', 'imageAnalysis'],
+    capabilities: [
+      'quality',
+      'preview',
+      'resolution',
+      'background',
+      'imageAnalysis',
+    ],
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: {
-    capabilities: ['quality', 'resolution', 'background', 'imageAnalysis'],
+    capabilities: [
+      'quality',
+      'preview',
+      'resolution',
+      'background',
+      'imageAnalysis',
+    ],
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
@@ -531,6 +549,7 @@ export function getReferenceImageMode(
 export type CapabilityFieldType =
   | 'slider'
   | 'select'
+  | 'toggle'
   | 'textarea'
   | 'seed'
   | 'lora'
@@ -548,6 +567,7 @@ export function getCapabilityFieldType(
     quality: 'select',
     background: 'select',
     style: 'select',
+    preview: 'toggle',
     lora: 'lora',
     // imageAnalysis is not user-configurable — no field type
   }

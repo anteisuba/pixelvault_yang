@@ -213,13 +213,41 @@
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
   /* Motion canon — 唯一来源见 src/constants/motion.ts，两处必须同步改 */
+
+  /* ── 阴影四档（视觉语言总板 D1 ④，owner 2026-09-17）────────────────────
+     全站阴影只有四档，域内的 shell / assistant / node 阴影都归进这四档：
+
+     | 档       | 用在哪                                       | 形状                       |
+     | -------- | -------------------------------------------- | -------------------------- |
+     | card     | 卡：白面 + border + 贴边一层 + 大扩散一层    | 两层，扩散中等             |
+     | float    | 浮层：工具条 / 胶囊 / dock，配 --surface-glass | 两层，比卡更聚更深         |
+     | overlay  | 弹层：Dialog / Sheet / Popover / 右键菜单    | 两层，扩散最大最深         |
+     | pressed  | 贴边一层：压在面上的窗、并列的普通卡          | 只有贴边那层               |
+
+     规则（⛔ 违反 = 设计门打回）：
+     1. 层级靠**面的明度 + 描边**分，影只表达「浮起多少」，不表达「是什么」。
+     2. **同屏最多两层带影**（例：弹层 overlay 盖在卡 card 上就到顶了）；
+        第三层要么并到已有层里，要么改用描边 + 明度分。
+     3. **弹层不用磨砂**：overlay 档配不透明面；`--surface-glass` 只给 float 档。 */
+  --shadow-card:
+    0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.18);
+  --shadow-float:
+    0 1px 2px rgb(0 0 0 / 0.05), 0 8px 28px -12px rgb(0 0 0 / 0.32);
+  --shadow-overlay:
+    0 1px 2px rgb(0 0 0 / 0.06), 0 18px 44px -18px rgb(0 0 0 / 0.38);
+  --shadow-pressed: 0 1px 2px rgb(0 0 0 / 0.04);
+
   /* 应用壳主卡：灰底上的白卡（app-shell.md §2 材质）。
      只做左缘浮起、上右下贴边 —— 四面留边会让任何用 `100svh` 的子页面
      溢出 20px（gallery 就是），而那属于页面高度契约，不该被壳的材质改动牵动。 */
   --radius-shell-card: 1rem;
+  /* 属 **card** 档。⚠ 不 alias 到 --shadow-card：这一条是**有方向**的（负 x 偏移，
+     只在左缘浮起），通用 card 档是四周均匀的，换过去观感会变。 */
   --shadow-shell-card:
     -1px 0 2px rgb(11 14 18 / 0.04), -14px 0 34px -26px rgb(11 14 18 / 0.4);
-  /* 激活浮片的投影。它连同圆角一起承担「浮」的观感 —— 面色差只有 1.24:1。 */
+  /* 激活浮片的投影。它连同圆角一起承担「浮」的观感 —— 面色差只有 1.24:1。
+     属 **float** 档。⚠ 不 alias：chip 很小，扩散只有 16px 且带蓝调
+     （rgb(11 14 18)），套通用 float 的 28px 中性扩散会糊掉。 */
   --shadow-sidebar-chip:
     0 1px 2px rgb(11 14 18 / 0.09), 0 6px 16px -12px rgb(11 14 18 / 0.5);
 
@@ -229,13 +257,16 @@
      raised = 当下要你动手的那张卡（问题 / 确认 / 输入区 / 结论编辑）·
      card = 并列的普通卡，只留一层贴边影，分层交给描边。
      ⛔ 别把 raised 铺给所有卡：浅色底上多层阴影会糊成灰块（§12.1 警告）。 */
+  /* 属 **overlay** 档。⚠ 不 alias：面板是常驻覆盖层，扩散 56px 比通用 overlay 更
+     散更浅，换成 overlay 会把它读成临时弹层。 */
   --shadow-assistant-panel:
     0 1px 2px rgb(0 0 0 / 0.04), 0 24px 56px -28px rgb(0 0 0 / 0.3);
-  --shadow-assistant-overlay:
-    0 1px 2px rgb(0 0 0 / 0.06), 0 18px 44px -18px rgb(0 0 0 / 0.38);
+  --shadow-assistant-overlay: var(--shadow-overlay);
+  /* 属 **float** 档。⚠ 不 alias：扩散 26px/-18px 比通用 float 更收，在浅色面板
+     里多张卡并排时才不糊。 */
   --shadow-assistant-raised:
     0 1px 2px rgb(0 0 0 / 0.05), 0 10px 26px -18px rgb(0 0 0 / 0.35);
-  --shadow-assistant-card: 0 1px 2px rgb(0 0 0 / 0.04);
+  --shadow-assistant-card: var(--shadow-pressed);
 
   --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
   --duration-fast: 120ms;
@@ -270,19 +301,19 @@
   /* 卡下那条裁剪 / 工具条的圆角（16px，画板 `AudioTrim.dc.html` 的玻璃条）——
      比卡（18）收一档：条是附在卡下的配件，不是第二张卡。 */
   --radius-node-bar: 1rem;
-  /* 裁剪条里那扇选区亮窗的影（画板：白底 + 一层很浅的贴边影）。 */
+  /* 裁剪条里那扇选区亮窗的影（画板：白底 + 一层很浅的贴边影）。
+     属 **pressed** 档。⚠ 不 alias：窗压在深色裁剪条上，贴边那层要 0.08 才看得见，
+     通用 pressed 的 0.04 是给浅色面用的。 */
   --shadow-node-trim-window: 0 1px 2px rgb(0 0 0 / 0.08);
   /* 节点卡的两层低不透明阴影（一层贴边定位置、一层大扩散给「浮」）。展开态只把
      扩散那层加大 = 「这是当前工作面」。⛔ 不退回一档 `shadow-lg`。 */
-  --shadow-node-card:
-    0 1px 2px rgb(0 0 0 / 0.04), 0 8px 24px -12px rgb(0 0 0 / 0.18);
+  --shadow-node-card: var(--shadow-card);
+  /* 属 **card** 档：展开态就是 card 的放大版，扩散那层加大表达「当前工作面」。 */
   --shadow-node-card-expanded:
     0 2px 4px rgb(0 0 0 / 0.05), 0 26px 60px -22px rgb(0 0 0 / 0.3);
   /* 浮层（工具条 / 右键菜单 / transport）的影：比卡更聚更深一点。 */
-  --shadow-node-chrome:
-    0 1px 2px rgb(0 0 0 / 0.05), 0 8px 28px -12px rgb(0 0 0 / 0.32);
-  --shadow-node-menu:
-    0 1px 2px rgb(0 0 0 / 0.06), 0 18px 44px -18px rgb(0 0 0 / 0.38);
+  --shadow-node-chrome: var(--shadow-float);
+  --shadow-node-menu: var(--shadow-overlay);
   /* 卡内三档字距（层级靠字号 + 字重 + 字距，⛔ 不靠颜色）。 */
   --tracking-node-title: -0.012em;
   --tracking-node-sec: -0.008em;

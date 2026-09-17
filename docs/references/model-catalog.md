@@ -35,16 +35,16 @@
 | **GEMINI_FLASH_LITE_IMAGE**  | gemini-3.1-flash-lite-image                       | Gemini 直连         |
 | FLUX_2_PRO / FLUX_2_FLASH    | fal-ai/flux-2-pro · fal-ai/flux-2/flash           | fal                 |
 | FLUX_KONTEXT_MAX             | fal-ai/flux-pro/kontext/max/multi                 | fal                 |
-| FLUX_LORA                    | fal-ai/flux-lora                                  | fal                 |
 | **SEEDREAM_50_PRO**          | bytedance/seedream/v5/pro/text-to-image（无前缀） | fal                 |
 | **SEEDREAM_50_LITE**         | fal-ai/bytedance/seedream/v5/lite/text-to-image   | fal                 |
 | **SEEDREAM_50_VOLCENGINE**   | doubao-seedream-5-0-260128                        | 火山方舟直连（cn）  |
 | RECRAFT_V4_PRO               | fal-ai/recraft/v4.1/pro/text-to-image             | fal                 |
-| ILLUSTRIOUS_XL               | delta-lock/noobai-xl                              | replicate           |
 
 ⚠ **`bytedance/seedream/v5/pro/...` 没有 `fal-ai/` 前缀**（同 `ideogram/v4` 的模式）——fal 上第三方 owner 的模型按 owner/model 直接寻址，照 4.5 的写法抄会 404。
 
-Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE · ANIMA_PENCIL_XL_RUNNER · PONY_DIFFUSION_V6 · SDXL_10_RUNNER · ANIMA_DIT_RUNNER。这一族是唯一真正吃用户 LoRA 的线。
+⚠ **2026-09-17 两条 hosted LoRA 底模退役**：`FLUX_LORA`（fal-ai/flux-lora）与 `ILLUSTRIOUS_XL`（delta-lock/noobai-xl，replicate）已 `available: false` + 进 `RETIRED_MODEL_IDS`，条目仍在（历史作品要解析标签）。连带后果两条：① **Replicate 两条目录条目全部退役**，`ACTIVE_API_KEY_ADAPTER_OPTIONS` 自动把它排除出 key 选择器（与 HuggingFace / Runway 同处境）；adapter、enum 与 key 校验保留，存量 Replicate key 仍可查看/校验/删除。② **LoRA 工作台从此只剩 Runner 底模**，`flux` 家族无任何可用底模（无 runner 后继）。
+
+Runner 族（`FEATURE_FLAGS.comfyRunner` 闸下）：ILLUSTRIOUS_RECIPE_CLONE · ANIMA_PENCIL_XL_RUNNER · PONY_DIFFUSION_V6 · SDXL_10_RUNNER · ANIMA_DIT_RUNNER。退役后这一族是**唯一**的 LoRA 底模线。
 
 ### 视频（28 个 available）
 
@@ -74,7 +74,7 @@ RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全
 
 视频（系列 → 型号 → 渠道）、音频（`audioKind`）、3D 的分类都够用；只有图片缺「用途」维度，LoRA 底模与编辑端点混在 Image 选择器里。owner 拍板后新增 `ModelOption.imageKind`：
 
-- `lora-base`（为挂 LoRA 而存在）：FLUX_LORA、ILLUSTRIOUS_XL（实为 NoobAI-XL）、ANIMA_PENCIL_XL、Runner ×5 —— **只在 LoRA 工作台出现**
+- `lora-base`（为挂 LoRA 而存在）：Runner ×5 —— **只在 LoRA 工作台出现**（FLUX_LORA、ILLUSTRIOUS_XL（实为 NoobAI-XL）、ANIMA_PENCIL_XL 已退役，条目保留）
 - `edit`（必须带图）：FLUX_2_PRO_EDIT、FLUX_KONTEXT_MAX —— **只归编辑入口**：挂在「物体替换」的模型下拉（默认仍是 Gemini 3 Pro Image），走 fal 的 `image_urls` 载荷，见 `pages/studio-image-edit.md` §5；multiview 仍内部调用 Kontext Max
 - `generate`（缺省）：其余。Image 工作台、画布图片节点、画布助手目录、自动选型（`routeModelsForIntent`）、画风卡都只取这一类；画廊按模型筛选与 LoRA 工作台仍看全部
 
@@ -135,15 +135,15 @@ TTS —— Fish Audio S2 Pro（#11，$15/1M 字符）对 ElevenLabs v3（$100/1M
 
 LoRA 底模（2026-07-30 社区对账；调研全文《LoRA底模与工作流调研-2026-07》已随任务包清理，git 历史可取）：
 
-| 族                           | 社区角色（2026）                                                         | 本仓                                     |
-| ---------------------------- | ------------------------------------------------------------------------ | ---------------------------------------- |
-| **Illustrious / NoobAI**     | 新默认质量 + 大量新角色/画风 LoRA；WAI-Illustrious 等 fine-tune 下载极高 | hosted NoobAI-XL；runner WAI-Illustrious |
-| **Pony（V6 系）**            | **LoRA 库存与角色覆盖仍最深**；依赖 `score_9…` 方言                      | runner Pony V6（无单独 hosted 快通道）   |
-| **FLUX.1**                   | 写实/提示服从 LoRA 生态成熟中                                            | `flux-hosted` / FLUX_LORA                |
-| **Anima DiT**                | 动画向新热；与 Pencil XL **不同架构**                                    | runner + 来源图自动 checkpoint           |
-| **Anima Pencil / 纯 SDXL**   | 存量与部分画风线                                                         | 已覆盖                                   |
-| **SD 1.5**                   | 历史库；新训练少                                                         | 目录保留，runner 不主推                  |
-| Krea2 / Z-Image / Qwen-Image | 本地新底观察项                                                           | **未**作 LoRA 插槽                       |
+| 族                           | 社区角色（2026）                                                         | 本仓                                    |
+| ---------------------------- | ------------------------------------------------------------------------ | --------------------------------------- |
+| **Illustrious / NoobAI**     | 新默认质量 + 大量新角色/画风 LoRA；WAI-Illustrious 等 fine-tune 下载极高 | runner WAI-Illustrious（hosted 已退役） |
+| **Pony（V6 系）**            | **LoRA 库存与角色覆盖仍最深**；依赖 `score_9…` 方言                      | runner Pony V6（无单独 hosted 快通道）  |
+| **FLUX.1**                   | 写实/提示服从 LoRA 生态成熟中                                            | 无可用底模（FLUX_LORA 2026-09-17 退役） |
+| **Anima DiT**                | 动画向新热；与 Pencil XL **不同架构**                                    | runner + 来源图自动 checkpoint          |
+| **Anima Pencil / 纯 SDXL**   | 存量与部分画风线                                                         | 已覆盖                                  |
+| **SD 1.5**                   | 历史库；新训练少                                                         | 目录保留，runner 不主推                 |
+| Krea2 / Z-Image / Qwen-Image | 本地新底观察项                                                           | **未**作 LoRA 插槽                      |
 
 工作流骨架：Checkpoint → 多 LoRA 栈 → 采样（参数跟 checkpoint 页）；配方还原用源图 meta → Runner 忠实 / hosted 快。Pony↔IL 勿默认互通。
 
@@ -156,6 +156,8 @@ LoRA 底模（2026-07-30 社区对账；调研全文《LoRA底模与工作流调
 | VEO_31                     | 跌出视频前五且单价最高（8 credit）                        |
 | LTX_23                     | 未上榜；budget 位由 SEEDANCE_20_FAST 承担                 |
 | ELEVENLABS_V3              | 约 6.7 倍于 Fish S2 Pro 的价格，质量不占优                |
+| FLUX_LORA（2026-09-17）    | hosted LoRA 底模线收束到 Runner；FLUX 无 runner 后继      |
+| ILLUSTRIOUS_XL（09-17）    | 同上；忠实 Illustrious 线由 ILLUSTRIOUS_RECIPE_CLONE 承担 |
 
 **退役 ≠ 删除**：条目保留在 enum / MODEL_OPTIONS / i18n 里，只是从选择器消失。永久归档是产品承诺，历史 Generation 记录的 `model` 字段引用着这些 id，物理删除会让旧作品失去模型标签与所属族。
 

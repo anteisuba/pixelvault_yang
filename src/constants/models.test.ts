@@ -216,11 +216,18 @@ describe('models', () => {
     ]) {
       expect(generateIds).not.toContain(modelId)
     }
-    // The unfiltered list still carries them for the LoRA workbench and the
-    // gallery's by-model filter (history includes LoRA-base generations).
-    expect(getAvailableImageModels().map((model) => model.id)).toContain(
-      AI_MODELS.FLUX_LORA,
-    )
+    // The catalog still carries the retired bases so archived LoRA
+    // generations keep resolving a label and a family — the gallery's
+    // by-model filter reads MODEL_OPTIONS, not the available list.
+    for (const modelId of [AI_MODELS.FLUX_LORA, AI_MODELS.ILLUSTRIOUS_XL]) {
+      expect(getModelById(modelId)).toBeDefined()
+      expect(isRetiredModelId(modelId)).toBe(true)
+    }
+    // Every hosted LoRA base retired 2026-09-17, so the only bases left are
+    // the Comfy Runner clones behind FEATURE_FLAGS.comfyRunner.
+    for (const model of getAvailableImageModels(IMAGE_KIND.LORA_BASE)) {
+      expect(model.adapterType, model.id).toBe(AI_ADAPTER_TYPES.RUNNER)
+    }
   })
 
   it('does not treat retired models as active free-tier options', () => {

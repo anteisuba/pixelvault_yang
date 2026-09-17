@@ -54,9 +54,11 @@ beforeAll(() => {
 // ── Issue 2 (Hard Rule 8) + 用户反馈迭代：API key 配置入口挂在「选底模」
 // 这一步（LoraSpineBar 的 needsKey 徽章），不挂在出图按钮上——出图按钮
 // 始终显示「出图」，只在用户从没碰过底模选择器时兜底路由到
-// QuickSetupDialog。这里只覆盖 GenerateBranch 的 key-gate 分支，其余
-// tab（库/训练）保持未测（既有 god-component，无先例覆盖），不在本次
-// 改动范围内新增。
+// QuickSetupDialog。⚠ 2026-09-17 hosted 底模全部退役后，剩下的底模全是
+// Comfy Runner（无 BYOK 路径），所以 needsKey 徽章在 LoRA 工作台当前
+// 打不出来——下面只锁住「runner 底模不要 key」这一面；徽章本身的正向
+// 覆盖等下一条 hosted 底模接入时再补。其余 tab（库/训练）保持未测
+//（既有 god-component，无先例覆盖），不在本次改动范围内新增。
 
 const mockGenerate = vi.hoisted(() => vi.fn())
 const mockUseApiKeysContext = vi.hoisted(() => vi.fn())
@@ -519,62 +521,13 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     ).toBeInTheDocument()
   }, 45_000)
 
-  it('shows a needs-key badge in the spine bar that opens QuickSetupDialog, without touching Generate', () => {
+  it('needs no API key on the Comfy Runner base Illustrious now defaults to', () => {
+    // 2026-09-17: every hosted LoRA base retired (ILLUSTRIOUS_XL / FLUX_LORA),
+    // so an Illustrious LoRA defaults to the runner clone. The runner has no
+    // BYOK path — the platform's own RUNPOD_KEY resolves server-side — so the
+    // spine bar shows no needs-key badge and Generate runs straight through
+    // even with an empty key list.
     mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
-
-    render(<LoraWorkbench />)
-
-    // Primary entry point is now the spine bar's badge next to the base
-    // model selector — not the Generate button.
-    const keyBadge = screen.getByRole('button', {
-      name: /QuickSetup:needsKey/,
-    })
-    fireEvent.click(keyBadge)
-
-    expect(mockGenerate).not.toHaveBeenCalled()
-    expect(screen.getByTestId('quick-setup-dialog')).toHaveTextContent(
-      `${AI_ADAPTER_TYPES.REPLICATE}:${AI_MODELS.ILLUSTRIOUS_XL}`,
-    )
-
-    // Generate button never swaps its own label/icon for the key state.
-    expect(
-      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
-    ).not.toBeDisabled()
-  })
-
-  it('falls back to QuickSetupDialog if Generate is clicked while the base model still lacks a key', () => {
-    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
-
-    render(<LoraWorkbench />)
-
-    const generateButton = screen.getByRole('button', {
-      name: /LoraWorkbench:generate\.run/,
-    })
-
-    fireEvent.click(generateButton)
-
-    expect(mockGenerate).not.toHaveBeenCalled()
-    expect(screen.getByTestId('quick-setup-dialog')).toHaveTextContent(
-      `${AI_ADAPTER_TYPES.REPLICATE}:${AI_MODELS.ILLUSTRIOUS_XL}`,
-    )
-  })
-
-  it('generates directly when the selected base model already has a saved key route', () => {
-    mockUseApiKeysContext.mockReturnValue({
-      keys: [
-        {
-          id: 'key-1',
-          modelId: AI_MODELS.ILLUSTRIOUS_XL,
-          adapterType: AI_ADAPTER_TYPES.REPLICATE,
-          providerConfig: { label: 'Replicate', baseUrl: '' },
-          label: 'My Replicate key',
-          maskedKey: '****abcd',
-          isActive: true,
-          createdAt: new Date(),
-        },
-      ],
-      healthMap: { 'key-1': 'available' },
-    })
 
     render(<LoraWorkbench />)
 
@@ -585,6 +538,7 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     const generateButton = screen.getByRole('button', {
       name: /LoraWorkbench:generate\.run/,
     })
+    expect(generateButton).not.toBeDisabled()
 
     fireEvent.click(generateButton)
 

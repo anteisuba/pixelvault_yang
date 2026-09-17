@@ -78,14 +78,14 @@ token 用量 = (输入视频时长 + 输出视频时长) × 输出宽 × 输出�
 | `FLUX_2_PRO`                       | fal         | $0.03 首 MP + $0.015/额外 MP（1024² = **$0.03**）                                              | BFL **$0.03**                                                                           | **1.00×**         |
 | `FLUX_2_PRO_EDIT`                  | fal         | 同上（1024² 编辑 ≈ **$0.045**）                                                                | BFL **$0.045**                                                                          | **1.00×**         |
 | `FLUX_2_FLASH`                     | fal         | **$0.005/MP**                                                                                  | BFL 定价表未列 flash 档 — **待查**                                                      | ?                 |
-| `FLUX_LORA`                        | fal         | **$0.035/MP**                                                                                  | 开源 FLUX + LoRA，无原生商用对照                                                        | n/a               |
+| `FLUX_LORA` ⏻退役                  | fal         | **$0.035/MP**                                                                                  | 开源 FLUX + LoRA，无原生商用对照                                                        | n/a               |
 | `FLUX_KONTEXT_MAX`                 | fal         | **$0.08/张**                                                                                   | BFL Kontext Max 单价 — **待查**                                                         | ?                 |
 | `RECRAFT_V4_PRO`                   | fal         | **$0.21/张**                                                                                   | Recraft 官方 V4.1 Pro raster **$0.21**（vector $0.30）                                  | **1.00×**         |
 | `OPENAI_GPT_IMAGE_2`               | OpenAI 原生 | 图输入 $8/M tok · 图输出 $30/M tok · 文本输入 $5/M；1024² medium ≈ **$0.053/张**               | —                                                                                       | 原生              |
 | `GEMINI_PRO_IMAGE`                 | Gemini 原生 | $120/M 输出 tok；1K/2K = 1120 tok ≈ **$0.134/张** · 4K = 2000 tok ≈ **$0.24**                  | —                                                                                       | 原生              |
 | `GEMINI_FLASH_IMAGE`               | Gemini 原生 | $60/M；1K ≈ **$0.067/张** · 4K ≈ **$0.101**                                                    | —                                                                                       | 原生              |
 | `GEMINI_FLASH_LITE_IMAGE`          | Gemini 原生 | $30/M；1K ≈ **$0.0336/张**                                                                     | —                                                                                       | 原生              |
-| `ILLUSTRIOUS_XL`                   | Replicate   | 按 GPU 秒；公共模型 A100 $0.0014/s，单次约 **$0.005~0.01**                                     | Replicate 即托管方                                                                      | 原生              |
+| `ILLUSTRIOUS_XL` ⏻退役             | Replicate   | 按 GPU 秒；公共模型 A100 $0.0014/s，单次约 **$0.005~0.01**                                     | Replicate 即托管方                                                                      | 原生              |
 
 ⚠ **火山的 Seedream 5.0 是三个 id，不是一个**，别当同一个模型比价：
 

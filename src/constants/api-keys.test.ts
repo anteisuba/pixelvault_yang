@@ -16,7 +16,6 @@ describe('api key adapter options', () => {
       AI_ADAPTER_TYPES.OPENAI,
       AI_ADAPTER_TYPES.DEEPSEEK,
       AI_ADAPTER_TYPES.FAL,
-      AI_ADAPTER_TYPES.REPLICATE,
       AI_ADAPTER_TYPES.NOVELAI,
       AI_ADAPTER_TYPES.VOLCENGINE,
       AI_ADAPTER_TYPES.BYTEPLUS,
@@ -46,6 +45,13 @@ describe('api key adapter options', () => {
     )
     expect(ACTIVE_API_KEY_ADAPTER_OPTIONS).not.toContain(
       AI_ADAPTER_TYPES.RUNWAY,
+    )
+    // Replicate went inactive 2026-09-17 with ILLUSTRIOUS_XL: both of its
+    // catalog entries are now retired, so the key picker drops it the same way
+    // it drops HuggingFace and Runway. The adapter and the enum stay so
+    // existing Replicate keys keep validating.
+    expect(ACTIVE_API_KEY_ADAPTER_OPTIONS).not.toContain(
+      AI_ADAPTER_TYPES.REPLICATE,
     )
   })
 })

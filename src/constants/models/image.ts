@@ -368,7 +368,9 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.REPLICATE),
     externalModelId: 'delta-lock/noobai-xl',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-09-17 — the hosted LoRA bases are being wound down; the
+    // faithful Illustrious line is the runner clone (ILLUSTRIOUS_RECIPE_CLONE).
+    available: false,
     officialUrl: 'https://replicate.com/delta-lock/noobai-xl',
     qualityTier: 'standard',
     styleTag: 'anime',
@@ -382,7 +384,10 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
     externalModelId: 'fal-ai/flux-lora',
     outputType: 'IMAGE',
-    available: true,
+    // Retired 2026-09-17 — the hosted LoRA bases are being wound down. FLUX.1
+    // LoRA has no runner successor; the FLUX family stays as a generation line
+    // (FLUX.2 flash / pro), just not as a mountable base.
+    available: false,
     officialUrl: 'https://fal.ai/models/fal-ai/flux-lora',
     qualityTier: 'standard',
     styleTag: 'general',

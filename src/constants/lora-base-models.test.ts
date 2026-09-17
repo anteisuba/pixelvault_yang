@@ -88,10 +88,14 @@ describe('getCompatibleBases', () => {
 })
 
 describe('getDefaultBase', () => {
-  it('prefers an available recommended base (flux hosted)', () => {
+  it('falls back to the gated hosted base for flux (retired 2026-09-17)', () => {
+    // FLUX_LORA was retired with the other hosted LoRA bases and has no runner
+    // successor, so the flux family surfaces its disabled entry rather than
+    // silently swapping the user's configured base for another family.
     const base = getDefaultBase('Flux.1 D')
     expect(base?.family).toBe('flux')
-    expect(base?.available).toBe(true)
+    expect(base?.id).toBe('flux-hosted')
+    expect(base?.available).toBe(false)
   })
 
   it('falls back to a coming-soon base when none is available (pony)', () => {

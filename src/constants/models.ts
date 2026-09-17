@@ -131,6 +131,11 @@ export const RETIRED_MODEL_IDS = [
   AI_MODELS.VEO_31,
   AI_MODELS.LTX_23,
   AI_MODELS.ELEVENLABS_V3,
+  // ─── 2026-09-17 hosted LoRA bases wound down ──────────────────────
+  // Entries stay so archived LoRA generations keep resolving a label and a
+  // family. The remaining LoRA bases are the Comfy Runner clones.
+  AI_MODELS.ILLUSTRIOUS_XL,
+  AI_MODELS.FLUX_LORA,
 ] as const satisfies readonly AI_MODELS[]
 
 const RETIRED_MODEL_ID_SET = new Set<string>(RETIRED_MODEL_IDS)

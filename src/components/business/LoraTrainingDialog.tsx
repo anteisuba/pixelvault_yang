@@ -79,6 +79,9 @@ import { cn } from '@/lib/utils'
 // dialog for the exact same provider. modelId picks the inference model
 // used for QuickSetup's test call (FLUX_LORA for fal, ILLUSTRIOUS_XL for
 // Replicate — both share the same key as their respective trainers).
+// ⚠ Both ids retired 2026-09-17 (`available: false`) — kept on purpose: the
+// test call only needs a valid endpoint for that adapter's key, and training
+// on fal / Replicate is unrelated to the inference catalog.
 const TRAINING_PROVIDER_QUICK_SETUP: Record<
   'replicate' | 'fal',
   { adapterType: AI_ADAPTER_TYPES; modelId: string; modelLabel: string }

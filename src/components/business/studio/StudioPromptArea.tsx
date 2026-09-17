@@ -1,5 +1,8 @@
 'use client'
 
+import { supportsNovelAiCharacters } from '@/constants/novelai'
+import { NovelAiCharacterControls } from './NovelAiCharacterControls'
+
 import {
   memo,
   useCallback,
@@ -494,6 +497,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         disabled={isGenerating}
         className={cn(
           'flex min-h-0 flex-1 flex-col gap-3 rounded-none border-0 bg-transparent p-0 shadow-none outline-none',
+          runModels.some((model) => supportsNovelAiCharacters(model.modelId)) &&
+            'overflow-y-auto [&>*]:shrink-0',
           imageUpload.isDragging &&
             'rounded-xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
         )}
@@ -698,6 +703,23 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               ⚠ 必须裹 Toolbar.Root —— 这几颗 chip 底下是 Radix `Toolbar.Button`，
               没有 roving-focus context 会直接抛 `RovingFocusGroupItem must be used
               within RovingFocusGroup`。dock 那边由 StudioToolbar 提供，参数栏得自己给。 */}
+        {state.outputType === 'image' && (
+          <NovelAiCharacterControls
+            modelId={
+              runModels.find((model) =>
+                supportsNovelAiCharacters(model.modelId),
+              )?.modelId
+            }
+            value={state.advancedParams.novelAiLayout}
+            disabled={isGenerating}
+            onChange={(novelAiLayout) =>
+              dispatch({
+                type: 'SET_ADVANCED_PARAMS',
+                payload: { ...state.advancedParams, novelAiLayout },
+              })
+            }
+          />
+        )}
         <Toolbar.Root
           className={cn(
             isVideoMode

@@ -335,26 +335,17 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     // native multi-ref, not img2img denoising — drop referenceStrength.
     maxReferenceImages: FAL_FLUX_2_PRO_MAX_REFERENCE_IMAGES,
     referenceImageMode: 'native' as const,
-    capabilities: [
-      'negativePrompt',
-      'guidanceScale',
-      'steps',
-      'seed',
-      'imageAnalysis',
-      'lora',
-    ] as const,
+    // fal OpenAPI (2026-09-17) for `fal-ai/flux-2-pro` and `/edit`: inputs are
+    // prompt / image_size / (image_urls) / seed / output_format /
+    // safety_tolerance / enable_safety_checker only. No negative_prompt, no
+    // guidance_scale, no num_inference_steps — the worker used to serialize
+    // those three into a body fal simply drops, so the UI controls were fake.
+    capabilities: ['seed', 'imageAnalysis', 'lora'] as const,
   },
   [AI_MODELS.FLUX_2_PRO_EDIT]: {
     maxReferenceImages: FAL_FLUX_2_PRO_MAX_REFERENCE_IMAGES,
     referenceImageMode: 'native' as const,
-    capabilities: [
-      'negativePrompt',
-      'guidanceScale',
-      'steps',
-      'seed',
-      'imageAnalysis',
-      'lora',
-    ] as const,
+    capabilities: ['seed', 'imageAnalysis', 'lora'] as const,
   },
   [AI_MODELS.SEEDREAM_45]: {
     maxReferenceImages: 0,
@@ -362,15 +353,11 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     // capability set — kept as a full override (not a merge) since
     // resolveConfig() replaces `capabilities` wholesale rather than
     // concatenating with the adapter default.
-    capabilities: [
-      'negativePrompt',
-      'guidanceScale',
-      'steps',
-      'seed',
-      'imageAnalysis',
-      'lora',
-      'resolution',
-    ] as const,
+    // fal OpenAPI (2026-09-17): `…/seedream/v4.5/text-to-image` takes only
+    // prompt / image_size / num_images / max_images / seed / sync_mode /
+    // enable_safety_checker — no negative_prompt, guidance_scale or
+    // num_inference_steps, so those three controls are not declared.
+    capabilities: ['seed', 'imageAnalysis', 'lora', 'resolution'] as const,
     resolutionOptions: ['2K', '4K'],
   },
   [AI_MODELS.SEEDREAM_50_PRO]: {
@@ -379,15 +366,10 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     // Same shape as the 4.5 override — full replacement, not a merge, because
     // resolveConfig() swaps `capabilities` wholesale. 5.0 tops out at 2K
     // (pricing tiers are ≤1536² and ≤2048²), so no 4K option here.
-    capabilities: [
-      'negativePrompt',
-      'guidanceScale',
-      'steps',
-      'seed',
-      'imageAnalysis',
-      'lora',
-      'resolution',
-    ] as const,
+    // fal OpenAPI (2026-09-17): `bytedance/seedream/v5/pro/*` takes only
+    // prompt / image_size / (image_urls) / num_images / output_format /
+    // sync_mode / enable_safety_checker — none of the diffusion knobs.
+    capabilities: ['seed', 'imageAnalysis', 'lora', 'resolution'] as const,
     resolutionOptions: ['2K'],
   },
   // Ark 文档 2026-09-17 核实：Seedream 5.0 Pro 的参考图上限是 10（Lite / 4.5 /
@@ -403,6 +385,10 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
   [AI_MODELS.SEEDREAM_50_LITE]: {
     maxReferenceImages: FAL_SEEDREAM_MAX_REFERENCE_IMAGES,
     referenceImageMode: 'native' as const,
+    // Same fal input surface as 5.0 Pro (checked 2026-09-17) — the generic FAL
+    // adapter default would otherwise expose negativePrompt / guidanceScale /
+    // steps / referenceStrength that this endpoint does not accept.
+    capabilities: ['seed', 'imageAnalysis', 'lora'] as const,
   },
   [AI_MODELS.IDEOGRAM_3]: {
     maxReferenceImages: 0,
@@ -410,14 +396,11 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
   [AI_MODELS.FLUX_2_FLASH]: {
     maxReferenceImages: FAL_FLUX_2_FLASH_MAX_REFERENCE_IMAGES,
     referenceImageMode: 'native' as const,
-    capabilities: [
-      'negativePrompt',
-      'guidanceScale',
-      'steps',
-      'seed',
-      'imageAnalysis',
-      'lora',
-    ] as const,
+    // fal OpenAPI (2026-09-17) for `fal-ai/flux-2/flash` and `/edit`: unlike
+    // FLUX.2 [pro] this endpoint really does accept `guidance_scale`
+    // (0–20, default 2.5), but still no negative_prompt / num_inference_steps.
+    capabilities: ['guidanceScale', 'seed', 'imageAnalysis', 'lora'] as const,
+    guidanceScale: { min: 0, max: 20, step: 0.5, default: 2.5 },
   },
   [AI_MODELS.FLUX_LORA]: {
     // B9 (D6): reference-image img2img enabled. The FAL adapter default

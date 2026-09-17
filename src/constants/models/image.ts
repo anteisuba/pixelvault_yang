@@ -410,7 +410,10 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     externalModelId: 'gemini-3.1-flash-image',
     outputType: 'IMAGE',
     available: true,
-    freeTier: true,
+    // Gemini image generation has no free tier — the Images API is paid-only
+    // on every key. Marking it freeTier routed keyless users onto a channel
+    // that 403s at request time (see resolveModelChannel's freeQuota step).
+    freeTier: false,
     officialUrl:
       'https://ai.google.dev/gemini-api/docs/models/gemini-3.1-flash-image',
     qualityTier: 'standard',

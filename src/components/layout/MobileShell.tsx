@@ -8,7 +8,6 @@ import { useTranslations } from 'next-intl'
 
 import {
   SHELL_NAV_GO,
-  SHELL_NAV_LOCKED,
   SHELL_NAV_TOOLS,
   isShellNavItemActive,
   type ShellNavItem,
@@ -46,14 +45,14 @@ import { cn } from '@/lib/utils'
  * M2 天然覆盖整个 <1024，不需要第三种形态。
  *
  * ⛔ 条目清单只来自 `src/constants/navigation.ts`。曾经这里手抄过第二份，
- * 结果「敬请期待」那三个入口在小屏直接不可达。
+ * 结果桌面独有的那一组入口在小屏直接不可达。
  */
 
 const PANEL_CELL_CLASS =
   'flex h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl px-1 text-2xs font-medium text-sidebar-foreground transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent-strong [&>svg]:size-5'
 
 function useCurrentEntry(pathname: string) {
-  const all = [...SHELL_NAV_TOOLS, ...SHELL_NAV_GO, ...SHELL_NAV_LOCKED]
+  const all = [...SHELL_NAV_TOOLS, ...SHELL_NAV_GO]
   return all.find((item) => isShellNavItemActive(item, pathname))
 }
 
@@ -61,12 +60,10 @@ function PanelGrid({
   items,
   pathname,
   onNavigate,
-  locked = false,
 }: {
   items: readonly ShellNavItem[]
   pathname: string
   onNavigate: () => void
-  locked?: boolean
 }) {
   const t = useTranslations()
   return (
@@ -85,7 +82,6 @@ function PanelGrid({
               // 小尺寸下用墨色填充表达激活，不是桌面那套白浮片：没有 hover
               // 就不需要反极性，而深色块在 375 上更容易一眼认出。
               isActive && 'bg-sidebar-primary text-sidebar-primary-foreground',
-              locked && !isActive && 'text-sidebar-subtle',
             )}
           >
             <Icon />
@@ -284,14 +280,6 @@ export function MobileShell() {
             items={SHELL_NAV_GO}
             pathname={pathname}
             onNavigate={close}
-          />
-
-          <PanelSectionLabel>{tTools('comingSoon')}</PanelSectionLabel>
-          <PanelGrid
-            items={SHELL_NAV_LOCKED}
-            pathname={pathname}
-            onNavigate={close}
-            locked
           />
 
           {hasHydrated && isLoaded && (

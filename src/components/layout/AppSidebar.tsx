@@ -4,21 +4,12 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
-import {
-  ChevronDown,
-  Coins,
-  KeyRound,
-  Lock,
-  LogOut,
-  User,
-  UserCircle,
-} from 'lucide-react'
+import { Coins, KeyRound, LogOut, User, UserCircle } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { motionTransition } from '@/constants/motion'
 import {
-  SHELL_NAV_LOCKED,
   SHELL_NAV_SECTIONS,
   isShellNavItemActive,
   type ShellNavItem,
@@ -53,7 +44,6 @@ import {
   SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSlider,
@@ -157,19 +147,10 @@ function AppSidebarHeader() {
 function AppSidebarContent() {
   const pathname = usePathname()
   const t = useTranslations()
-  const tTools = useTranslations('StudioTools')
   const { isMobile, setOpenMobile, state } = useSidebar()
-  const [showLocked, setShowLocked] = useState(false)
   const navScopeRef = useRef<HTMLDivElement>(null)
 
-  const hasActiveLockedItem = SHELL_NAV_LOCKED.some((item) =>
-    isShellNavItemActive(item, pathname),
-  )
-  const isLockedOpen = showLocked || hasActiveLockedItem
-  const isCollapsed = !isMobile && state === 'collapsed'
-
-  // 收展改宽度、展开「敬请期待」改纵向位置 —— 两者都要让滑片重量。
-  const indicator = useNavIndicator(navScopeRef, pathname, state, isLockedOpen)
+  const indicator = useNavIndicator(navScopeRef, pathname, state)
 
   const closeMobileSidebar = useCallback(() => {
     if (isMobile) setOpenMobile(false)
@@ -180,7 +161,7 @@ function AppSidebarContent() {
   // Clerk 水合 —— 之前那个 `useUser().isLoaded` 闸门对 `Clerk.loaded === false`
   // 的访客永远不会翻 true，会把整条侧栏留空。激活态来自 pathname，服务端与
   // 客户端都算得出，不存在水合不一致。
-  const renderItem = (item: ShellNavItem, locked = false) => {
+  const renderItem = (item: ShellNavItem) => {
     const Icon = item.icon
     const label = t(item.labelKey)
     return (
@@ -195,11 +176,6 @@ function AppSidebarContent() {
             <span>{label}</span>
           </Link>
         </SidebarMenuButton>
-        {locked && (
-          <SidebarMenuBadge className="text-sidebar-subtle">
-            <Lock className="size-3" />
-          </SidebarMenuBadge>
-        )}
       </SidebarMenuItem>
     )
   }
@@ -236,35 +212,6 @@ function AppSidebarContent() {
           <SidebarGroupContent>
             <SidebarMenu>
               {section.items.map((item) => renderItem(item))}
-
-              {/* 「敬请期待」展开器只挂在工具组末尾。
-                  ⚠ 收起态整行不渲染 —— 44px 轨里点开无处显示标签，
-                  badge 也被藏，缩成一个箭头没有意义（app-shell.md §6）。 */}
-              {section.id === 'tools' && !isCollapsed && (
-                <>
-                  <SidebarMenuItem>
-                    <SidebarMenuButton
-                      onClick={() => setShowLocked((value) => !value)}
-                      aria-expanded={isLockedOpen}
-                      className="text-sidebar-subtle"
-                    >
-                      <ChevronDown
-                        className={cn(
-                          'transition-transform duration-(--duration-fast) ease-standard',
-                          !isLockedOpen && '-rotate-90',
-                        )}
-                      />
-                      <span>{tTools('comingSoon')}</span>
-                    </SidebarMenuButton>
-                    <SidebarMenuBadge className="text-sidebar-subtle">
-                      {SHELL_NAV_LOCKED.length}
-                    </SidebarMenuBadge>
-                  </SidebarMenuItem>
-
-                  {isLockedOpen &&
-                    SHELL_NAV_LOCKED.map((item) => renderItem(item, true))}
-                </>
-              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

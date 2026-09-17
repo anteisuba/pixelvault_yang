@@ -24,8 +24,6 @@ export const ROUTES = {
   STUDIO_AUDIO: '/studio/audio',
   STUDIO_3D: '/studio/3d',
   STUDIO_EDIT: '/studio/edit',
-  STUDIO_ENHANCE: '/studio/enhance',
-  STUDIO_ANALYZE: '/studio/analyze',
   STUDIO_LORA: '/studio/lora',
   STUDIO_NODE: '/studio/node',
   /** Krea-style private asset browser */

@@ -4381,8 +4381,6 @@
   },
   "StudioTools": {
     "groupLabel": "工具",
-    "comingSoon": "敬请期待",
-    "backToImage": "回到图像工作台",
     "tools": {
       "image": {
         "label": "图像"
@@ -4395,21 +4393,6 @@
       },
       "model3d": {
         "label": "3D"
-      },
-      "edit": {
-        "label": "编辑",
-        "title": "编辑",
-        "description": "局部重绘、超分辨率、提取元素，一站式编辑你的图像。"
-      },
-      "enhance": {
-        "label": "增强",
-        "title": "增强",
-        "description": "4 倍超分、移除背景、细节优化。"
-      },
-      "analyze": {
-        "label": "解析",
-        "title": "提示词解析",
-        "description": "从任意图像反推提示词，提取风格、角色、标签。"
       },
       "lora": {
         "label": "LoRA",

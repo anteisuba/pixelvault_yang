@@ -4381,8 +4381,6 @@
   },
   "StudioTools": {
     "groupLabel": "Tools",
-    "comingSoon": "Soon",
-    "backToImage": "Back to image studio",
     "tools": {
       "image": {
         "label": "Image"
@@ -4395,21 +4393,6 @@
       },
       "model3d": {
         "label": "3D"
-      },
-      "edit": {
-        "label": "Edit",
-        "title": "Edit",
-        "description": "Inpaint, upscale, and cut elements out of your images."
-      },
-      "enhance": {
-        "label": "Enhance",
-        "title": "Enhance",
-        "description": "Upscale to 4× resolution, remove backgrounds, and refine details."
-      },
-      "analyze": {
-        "label": "Analyze",
-        "title": "Prompt Analysis",
-        "description": "Reverse-engineer prompts and extract style, character, and tags from any image."
       },
       "lora": {
         "label": "LoRA",

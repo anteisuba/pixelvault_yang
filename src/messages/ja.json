@@ -4381,8 +4381,6 @@
   },
   "StudioTools": {
     "groupLabel": "ツール",
-    "comingSoon": "近日公開",
-    "backToImage": "画像スタジオに戻る",
     "tools": {
       "image": {
         "label": "画像"
@@ -4395,21 +4393,6 @@
       },
       "model3d": {
         "label": "3D"
-      },
-      "edit": {
-        "label": "編集",
-        "title": "編集",
-        "description": "インペイント、超解像、要素の切り抜きで画像を編集。"
-      },
-      "enhance": {
-        "label": "エンハンサー",
-        "title": "エンハンサー",
-        "description": "4倍解像度へのアップスケール、背景除去、ディテール強化。"
-      },
-      "analyze": {
-        "label": "解析",
-        "title": "プロンプト解析",
-        "description": "画像からプロンプトを逆算し、スタイル・キャラ・タグを抽出。"
       },
       "lora": {
         "label": "LoRA",

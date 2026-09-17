@@ -7,8 +7,6 @@ import {
   IdCard,
   Image as ImageIcon,
   Images,
-  ScanSearch,
-  Sparkles,
   SwatchBook,
   Video,
   Waypoints,
@@ -21,8 +19,8 @@ import { ROUTES } from '@/constants/routes'
  * 全局导航的**唯一**条目清单（施工基准 `docs/references/pages/app-shell.md` §6）。
  *
  * ⛔ **不许再出现第二份清单。** 桌面侧栏和移动轨曾各自手抄一份，结果漂了：
- * 桌面有「敬请期待」组（增强 / 解析 / 故事），移动轨没有 —— 那三个入口在小屏
- * 直接不可达。任何断点、任何形态，条目都从这里取。
+ * 桌面多出一个「敬请期待」组，移动轨没有 —— 那些入口在小屏直接不可达。
+ * 任何断点、任何形态，条目都从这里取。
  *
  * 图标是 2026-08-18 owner 确认的一套（§7）。换图标前先读那一节：选型依据是
  * ①拆散方块系（改版前 11 个里有 4 个由方块构成，16px 下轮廓互撞）
@@ -44,7 +42,7 @@ export interface ShellNavItem {
 }
 
 export interface ShellNavSection {
-  id: 'go' | 'tools' | 'locked'
+  id: 'go' | 'tools'
   labelKey: string
   items: readonly ShellNavItem[]
 }
@@ -74,6 +72,13 @@ export const SHELL_NAV_GO: readonly ShellNavItem[] = [
     href: ROUTES.CARDS,
     icon: IdCard,
     labelKey: 'Navbar.links.cards',
+  },
+  {
+    id: 'storyboard',
+    href: ROUTES.STORYBOARD,
+    icon: BookOpen,
+    labelKey: 'Navbar.links.storyboard',
+    match: 'prefix',
   },
 ] as const
 
@@ -115,31 +120,6 @@ export const SHELL_NAV_TOOLS: readonly ShellNavItem[] = [
     href: ROUTES.STUDIO_NODE,
     icon: Waypoints,
     labelKey: 'StudioTools.tools.node.label',
-  },
-] as const
-
-/** 敬请期待 —— 折叠在工具组末尾。⚠ 收起态整行不渲染（§6）。 */
-export const SHELL_NAV_LOCKED: readonly ShellNavItem[] = [
-  {
-    id: 'enhance',
-    href: ROUTES.STUDIO_ENHANCE,
-    icon: Sparkles,
-    labelKey: 'StudioTools.tools.enhance.label',
-    match: 'prefix',
-  },
-  {
-    id: 'analyze',
-    href: ROUTES.STUDIO_ANALYZE,
-    icon: ScanSearch,
-    labelKey: 'StudioTools.tools.analyze.label',
-    match: 'prefix',
-  },
-  {
-    id: 'storyboard',
-    href: ROUTES.STORYBOARD,
-    icon: BookOpen,
-    labelKey: 'Navbar.links.storyboard',
-    match: 'prefix',
   },
 ] as const
 

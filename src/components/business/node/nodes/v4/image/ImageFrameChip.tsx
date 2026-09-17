@@ -1,38 +1,31 @@
 'use client'
 
 /**
- * 提示词栏上的**「画面」chip 与它的弹层**（spec §3，画板 `PromptBar.dc.html`）。
+ * 画布图片卡提示词栏上的**规格 chip**。
  *
- * 一个按钮 + 一张 300 宽的弹层：比例（分段控件）+ 底部实时读数「W×H · 约 $x/张」。
+ * ⭐ 2026-09-18（D2 ④ 第 12 项）：它不再自己画一张 300 宽的四段弹层，而是挂共用的
+ * `SpecChip` —— 与工作台图片 / 工作台视频 / 画布视频卡是**同一颗组件**。chip 上写
+ * 全量摘要「比例 · 清晰度」，弹层分「比例」「尺寸 / 清晰度」两段，张数与画质收进
+ * 底部「更多」折叠区（画板：提示词栏只剩 模型 chip + 规格 chip）。
  *
- * S3b 起弹层是四段：比例 + **质量 / 分辨率 / 张数**。三段的值域来自**能力表**，
- * 不支持的档**灰掉不隐藏**（Hard Rule 8）—— 换模型时弹层不会莫名变矮一截，用户
- * 看得见「这个模型没有 4K」。能力表整段没声明的（例如某家不给分辨率档）才整段
- * 不画：那是组级不可用，与「某一档灰掉」是两件事。
- *
- * ⛔ 依旧**没有 21:9**：`IMAGE_SIZES` 里没有这一档，能力表里也没有任何模型声明
- * 它。摆上去就是在卡上写一个服务端根本收不到的尺寸。
+ * ⛔ 这里不算任何一个数：档位值域与摘要全在 `@/lib/spec-chip-model`，底部那行
+ * 「W×H · 约 $x/张」的读数仍在 `image-node-model.ts`。
  */
 
 import { useTranslations } from 'next-intl'
 
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
+import { buildImageSpecChipModel } from '@/lib/spec-chip-model'
 import { cn } from '@/lib/utils'
-
+import { SpecChip } from '@/components/business/studio-shared/spec'
+import { ADAPTER_CAPABILITIES } from '@/constants/provider-capabilities'
+import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { NodeWorkflowModelOption } from '@/types/node-workflow'
 
-import { ChipPopover } from '../chrome'
 import {
-  IMAGE_ASPECT_RATIO_OPTIONS,
   IMAGE_COUNT_OPTIONS,
   imageFrameReadout,
   imageQualityOptions,
-  imageResolutionOptions,
-  type ImageSpecOption,
 } from './image-node-model'
-
-/** 画板上的两档弹层宽：参数 300 / 模型 320。 */
-const FRAME_POPOVER_WIDTH = 300
 
 export interface ImageFrameChipProps {
   readonly aspectRatio: string | undefined
@@ -51,48 +44,13 @@ export interface ImageFrameChipProps {
   readonly disabled?: boolean
 }
 
-/** 一段分段控件。⚠ 空值域 = 整段不画（组级不可用），⛔ 不画一段全灰的。 */
-function SpecSection({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  readonly label: string
-  readonly options: readonly ImageSpecOption[]
-  readonly value: string
-  onChange(next: string): void
-}) {
-  if (options.length === 0) return null
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-3xs tracking-node-sec text-muted-foreground">
-        {label}
-      </span>
-      <ToggleGroup
-        type="single"
-        variant="segmented"
-        value={value}
-        onValueChange={(next) => {
-          if (next) onChange(next)
-        }}
-        aria-label={label}
-        className="flex-wrap"
-      >
-        {options.map((option) => (
-          <ToggleGroupItem
-            key={option.value}
-            value={option.value}
-            aria-label={option.value}
-            disabled={option.disabled}
-          >
-            {option.value}
-          </ToggleGroupItem>
-        ))}
-      </ToggleGroup>
-    </div>
-  )
-}
+const moreTierClass =
+  'inline-flex h-11 min-w-11 items-center justify-center rounded-lg border px-2.5 text-xs transition-colors duration-fast ease-standard md:h-7.5'
+const moreTierActiveClass = 'border-foreground bg-foreground text-background'
+const moreTierIdleClass =
+  'border-border bg-background text-foreground hover:border-foreground/40'
+const moreTierBlockedClass =
+  'cursor-not-allowed border-border bg-background text-muted-foreground/60 line-through'
 
 export function ImageFrameChip({
   aspectRatio,
@@ -108,85 +66,124 @@ export function ImageFrameChip({
   disabled = false,
 }: ImageFrameChipProps) {
   const t = useTranslations('StudioNode.v4.image')
+  const tSpec = useTranslations('StudioSpecChip')
+
+  const adapterType =
+    model && model.adapterType in ADAPTER_CAPABILITIES
+      ? (model.adapterType as AI_ADAPTER_TYPES)
+      : undefined
+  const specModel = buildImageSpecChipModel({
+    adapterType,
+    modelId: model?.modelId,
+    aspectRatio: aspectRatio ?? null,
+    resolution: resolution ?? null,
+  })
+  const qualities = imageQualityOptions(model)
   const readout = imageFrameReadout(aspectRatio, modelId, {
     ...(quality ? { quality } : {}),
     ...(count === undefined ? {} : { count }),
   })
 
+  const moreSummary = [
+    tSpec('moreItem.batchCount'),
+    qualities.length > 0 ? t('frame.quality') : null,
+  ]
+    .filter(Boolean)
+    .join(' · ')
+
   return (
-    <ChipPopover
+    <SpecChip
+      model={specModel}
       ariaLabel={t('frame.title')}
-      width={FRAME_POPOVER_WIDTH}
-      trigger={
-        <button
-          type="button"
-          disabled={disabled}
-          data-image-frame-chip
-          aria-label={t('frame.title')}
-          className={cn(
-            'nodrag nopan inline-flex min-h-6 shrink-0 items-center gap-1 rounded-md border px-2 py-0.5 text-2xs',
-            'border-border text-muted-foreground transition-colors duration-fast ease-standard',
-            'hover:border-foreground/40 hover:text-foreground',
-            'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
-            'disabled:pointer-events-none disabled:opacity-60',
-          )}
-        >
-          {aspectRatio ?? t('frame.title')}
-        </button>
-      }
-    >
-      <div className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <span className="text-3xs tracking-node-sec text-muted-foreground">
-            {t('frame.aspectRatio')}
-          </span>
-          <ToggleGroup
-            type="single"
-            variant="segmented"
-            value={aspectRatio ?? ''}
-            onValueChange={(next) => {
-              // 分段控件点当前格会回空串 —— 比例不允许「没有」，忽略掉。
-              if (next) onAspectRatioChange(next)
-            }}
-            aria-label={t('frame.aspectRatio')}
-            className="flex-wrap"
-          >
-            {IMAGE_ASPECT_RATIO_OPTIONS.map((ratio) => (
-              <ToggleGroupItem key={ratio} value={ratio} aria-label={ratio}>
-                {ratio}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+      resolutionLabel={tSpec('imageResolutionLabel')}
+      aspectRatio={aspectRatio ?? null}
+      onAspectRatioChange={onAspectRatioChange}
+      resolution={resolution ?? null}
+      onResolutionChange={onResolutionChange}
+      disabled={disabled}
+      moreSummary={moreSummary}
+      data-testid="image-frame-chip"
+      triggerClassName="h-6 min-h-6 max-w-50 px-2 text-2xs"
+      more={
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-1.5">
+            <span className="text-2xs font-medium text-muted-foreground/70">
+              {tSpec('moreItem.batchCount')}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {IMAGE_COUNT_OPTIONS.map((option) => (
+                <button
+                  key={option.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={String(count ?? '') === option.value}
+                  aria-disabled={disabled}
+                  onClick={() => {
+                    if (disabled) return
+                    onCountChange(Number(option.value))
+                  }}
+                  className={cn(
+                    moreTierClass,
+                    String(count ?? '') === option.value
+                      ? moreTierActiveClass
+                      : moreTierIdleClass,
+                  )}
+                >
+                  {option.value}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* 画质是**逐模型的专属能力**（第 11 项把它从规格里搬走），所以它落在
+              「更多」里而不是与比例 / 清晰度并列。不支持的档灰显划线不移除。 */}
+          {qualities.length > 0 ? (
+            <div className="flex flex-col gap-1.5">
+              <span className="text-2xs font-medium text-muted-foreground/70">
+                {t('frame.quality')}
+              </span>
+              <div className="flex flex-wrap gap-1.5">
+                {qualities.map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="radio"
+                    aria-checked={quality === option.value}
+                    aria-disabled={option.disabled || disabled}
+                    title={
+                      option.disabled
+                        ? tSpec('tierUnsupported', { tier: option.value })
+                        : undefined
+                    }
+                    onClick={() => {
+                      if (option.disabled || disabled) return
+                      onQualityChange(option.value)
+                    }}
+                    className={cn(
+                      moreTierClass,
+                      option.disabled
+                        ? moreTierBlockedClass
+                        : quality === option.value
+                          ? moreTierActiveClass
+                          : moreTierIdleClass,
+                    )}
+                  >
+                    {option.value}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {/* 比例与单价都还不知道时**整行不渲染**，⛔ 不留一条空行占位。 */}
+          {readout ? (
+            <p
+              data-image-frame-readout
+              className="text-xs tabular-nums text-muted-foreground"
+            >
+              {readout}
+            </p>
+          ) : null}
         </div>
-        <SpecSection
-          label={t('frame.quality')}
-          options={imageQualityOptions(model)}
-          value={quality ?? ''}
-          onChange={onQualityChange}
-        />
-        <SpecSection
-          label={t('frame.resolution')}
-          options={imageResolutionOptions(model)}
-          value={resolution ?? ''}
-          onChange={onResolutionChange}
-        />
-        <SpecSection
-          label={t('frame.count')}
-          options={IMAGE_COUNT_OPTIONS}
-          value={count === undefined ? '' : String(count)}
-          onChange={(next) => onCountChange(Number(next))}
-        />
-        {/* 比例与单价都还不知道时**整行不渲染**，⛔ 不留一条空行占位：
-            弹层底下多出一条谁也解释不了的空白，比少一行更难懂。 */}
-        {readout ? (
-          <p
-            data-image-frame-readout
-            className="text-xs tabular-nums text-muted-foreground"
-          >
-            {readout}
-          </p>
-        ) : null}
-      </div>
-    </ChipPopover>
+      }
+    />
   )
 }

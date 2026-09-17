@@ -568,19 +568,24 @@ describe('画面弹层（spec §5）', () => {
     ).toBe('1920×1080 · 7s · $4.77 · 图 4/9 · 视频 2/3 · 语音 1')
   })
 
-  it('弹层里模式 · 时长滑杆 · 比例 · 清晰度 · 声音开关齐全', () => {
+  // ⭐ 2026-09-18（第 12 项）：弹层换成共用的 `SpecChip` —— 比例 / 清晰度 / 时长
+  // 滚动条三段直接摆出来，声音开关与「这次按 ×」「已挂 N / 上限」收进底部「更多」。
+  it('弹层里时长滚动条常驻；声音 · 模式 · 读数在「更多」折叠区里', () => {
     renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
     const chip = document.querySelector(
-      '[data-video-frame-chip]',
+      '[data-testid="video-frame-chip"]',
     ) as HTMLElement
     fireEvent.pointerDown(chip, { button: 0 })
     fireEvent.click(chip)
-    expect(
-      document.querySelector('[data-video-duration-slider]'),
-    ).not.toBeNull()
+    expect(document.querySelector('[data-spec-duration-slider]')).not.toBeNull()
+    // 折叠着的时候里面那三样不在 DOM 里 —— ⛔ 不是 `display:none` 的假折叠。
+    expect(document.querySelector('[data-video-generate-audio]')).toBeNull()
+
+    const more = document.querySelector('[data-spec-chip-more]') as HTMLElement
+    fireEvent.click(more)
     expect(document.querySelector('[data-video-generate-audio]')).not.toBeNull()
     expect(document.querySelector('[data-video-frame-readout]')).not.toBeNull()
-    // 模式只读地写在弹层顶部（⛔ 没有任何一个可点的模式控件）。
+    // 模式只读（⛔ 没有任何一个可点的模式控件）。
     expect(document.querySelector('[data-video-frame-mode]')).not.toBeNull()
   })
 })
@@ -709,7 +714,9 @@ describe('参数 chip 永不为空（spec §5）', () => {
     )
   })
 
-  it('有模型时参数 chip 首位写推出来的模式，⛔ 不是空的「画面」', () => {
+  // ⭐ 第 12 项：chip 上写的是**全量规格摘要**（比例 · 清晰度 · 时长），
+  // 推出来的模式改写在弹层的「更多」里 —— chip 只答「下一版长什么样」。
+  it('有模型时参数 chip 写全量摘要，⛔ 不是空的「画面」', () => {
     renderVideo(
       harness([videoNode('v_1')], {
         modelOptionsByKind: { video: [option('opt_a')] },
@@ -717,15 +724,15 @@ describe('参数 chip 永不为空（spec §5）', () => {
       'v_1',
       true,
     )
-    const chip = document.querySelector('[data-video-frame-chip]')
-    expect(chip?.textContent).toContain('mode.textToVideo')
+    const chip = document.querySelector('[data-testid="video-frame-chip"]')
+    expect(chip?.textContent).toContain('16:9')
   })
 
   it('一个模型都没有时 chip 写「选模型」', () => {
     renderVideo(harness([videoNode('v_1')]), 'v_1', true)
-    expect(document.querySelector('[data-video-frame-chip]')?.textContent).toBe(
-      'frame.pickModel',
-    )
+    expect(
+      document.querySelector('[data-testid="video-frame-chip"]')?.textContent,
+    ).toBe('frame.pickModel')
   })
 })
 

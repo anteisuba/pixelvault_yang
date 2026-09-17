@@ -30,11 +30,6 @@ import type {
   NodeWorkflowModelSelection,
 } from '@/types/node-workflow'
 
-/** 画面弹层里的比例档 —— 直接取 `IMAGE_SIZES` 的键，⛔ 不另列一份。 */
-export const IMAGE_ASPECT_RATIO_OPTIONS = Object.keys(
-  IMAGE_SIZES,
-) as readonly AspectRatio[]
-
 /**
  * 收起态卡宽：按媒体比例算，钳在两个已有档位之间（⛔ 不新造魔法值）。
  *
@@ -111,14 +106,6 @@ export const IMAGE_QUALITY_TIERS = Object.keys(
   NODE_V4_IMAGE_QUALITY_COST,
 ) as readonly string[]
 
-/** 全仓出现过的分辨率档之并集。 */
-export const IMAGE_RESOLUTION_TIERS = [
-  'auto',
-  '1K',
-  '2K',
-  '4K',
-] as const satisfies readonly string[]
-
 /**
  * 能力表查询。⚠ 先问 adapter 在不在表里：`getCapabilityConfig` 直接下标一个
  * `Record`，认不出来的 adapter 会返回 `undefined` 而它的签名说不会 —— 弹层因此
@@ -136,16 +123,6 @@ export function imageQualityOptions(
 ): readonly ImageSpecOption[] {
   if (!model) return []
   return optionsFrom(IMAGE_QUALITY_TIERS, capabilityOf(model)?.qualityOptions)
-}
-
-export function imageResolutionOptions(
-  model: Pick<NodeWorkflowModelOption, 'adapterType' | 'modelId'> | undefined,
-): readonly ImageSpecOption[] {
-  if (!model) return []
-  return optionsFrom(
-    IMAGE_RESOLUTION_TIERS,
-    capabilityOf(model)?.resolutionOptions,
-  )
 }
 
 /**

@@ -343,7 +343,7 @@ describe('画面弹层与模型 chip', () => {
     expect(imageFrameReadout(undefined, undefined)).toBe('')
   })
 
-  it('画面 chip 改比例走 onSetParams', () => {
+  it('规格 chip 上写的是全量摘要（第 12 项：一颗 chip · 比例 · 清晰度）', () => {
     const context = harness(
       [
         imageNode('i_1', {
@@ -354,9 +354,9 @@ describe('画面弹层与模型 chip', () => {
       { selectedNodeIds: ['i_1'] },
     )
     renderImage(context, 'i_1', true)
-    expect(document.querySelector('[data-image-frame-chip]')?.textContent).toBe(
-      '1:1',
-    )
+    expect(
+      document.querySelector('[data-testid="image-frame-chip"]')?.textContent,
+    ).toContain('1:1')
   })
 
   it('模型 chip 单选：选中回落 onSetModel', () => {

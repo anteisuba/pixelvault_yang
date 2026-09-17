@@ -13,7 +13,6 @@ import {
   imageFrameReadout,
   imageNodeAcceptsReferences,
   imageQualityOptions,
-  imageResolutionOptions,
   imageVersions,
 } from './image-node-model'
 
@@ -43,12 +42,6 @@ describe('画面弹层的档位：不支持的**禁用不隐藏**', () => {
       modelId: AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
     })
     expect(options.find((o) => o.value === 'max')?.disabled).toBe(false)
-  })
-
-  it('分辨率同一条规矩', () => {
-    const options = imageResolutionOptions(openai)
-    expect(options.map((o) => o.value)).toEqual(['auto', '1K', '2K', '4K'])
-    expect(options.every((o) => !o.disabled)).toBe(true)
   })
 
   it('没选模型 / 能力表没声明 → 整段不画（组级不可用）', () => {

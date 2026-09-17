@@ -6,8 +6,13 @@ import {
   CharacterCardStatusSchema,
   LoraSchema,
   SourceImageEntrySchema,
+  type CharacterAllowedStyleRange,
   type CharacterAttributes,
   type CharacterCardRecord,
+  type CharacterPersona,
+  type CharacterProvenance,
+  type CharacterReferenceRoles,
+  type CharacterVoiceProfile,
   type SourceImageEntry,
 } from '@/types'
 import { z } from 'zod'
@@ -114,6 +119,42 @@ export function serializeSourceImageEntries(
   entries: SourceImageEntry[],
 ): Prisma.InputJsonValue {
   return toPrismaJson(entries)
+}
+
+/**
+ * 角色卡字段 v2 的**透传**序列化（2026-09-17，cards.md「角色卡字段 v2」）。
+ *
+ * 只做两件事：`undefined` 的键根本不出现在返回值里（Prisma 的「这次不改这一格」），
+ * `null` 原样传下去（「清空这一格」）。⛔ 不合并、不补默认、不校验引用存在性——
+ * 那些是编译期那一片的事，这里多做一步就成了藏在 service 里的业务规则。
+ */
+export function serializeCharacterCardV2Fields(input: {
+  voiceCardId?: string | null
+  voiceProfile?: CharacterVoiceProfile | null
+  persona?: CharacterPersona | null
+  referenceRoles?: CharacterReferenceRoles | null
+  allowedStyleRange?: CharacterAllowedStyleRange | null
+  provenance?: CharacterProvenance | null
+}): Record<string, unknown> {
+  const data: Record<string, unknown> = {}
+  if (input.voiceCardId !== undefined) data.voiceCardId = input.voiceCardId
+  if (input.voiceProfile !== undefined)
+    data.voiceProfile = input.voiceProfile
+      ? toPrismaJson(input.voiceProfile)
+      : null
+  if (input.persona !== undefined)
+    data.persona = input.persona ? toPrismaJson(input.persona) : null
+  if (input.referenceRoles !== undefined)
+    data.referenceRoles = input.referenceRoles
+      ? toPrismaJson(input.referenceRoles)
+      : null
+  if (input.allowedStyleRange !== undefined)
+    data.allowedStyleRange = input.allowedStyleRange
+      ? toPrismaJson(input.allowedStyleRange)
+      : null
+  if (input.provenance !== undefined)
+    data.provenance = input.provenance ? toPrismaJson(input.provenance) : null
+  return data
 }
 
 export function serializeCharacterLoras(

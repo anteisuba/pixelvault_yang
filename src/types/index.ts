@@ -28,6 +28,7 @@ import {
   type ExecutionProgressStage,
 } from '@/constants/generation-progress'
 import { AI_MODELS, getModelById } from '@/constants/models'
+import { NODE_STUDIO_REFERENCE_ROLES } from '@/constants/node-studio'
 import { RECIPE_VISIBILITY_VALUES } from '@/constants/prompt-library'
 import { RESEARCH_MODE_VALUES } from '@/constants/research'
 import { RUNNER_SAMPLERS, RUNNER_SCHEDULERS } from '@/constants/runner-sampling'
@@ -3166,6 +3167,93 @@ export const SourceImageUploadSchema = z.object({
 })
 export type SourceImageUpload = z.infer<typeof SourceImageUploadSchema>
 
+/**
+ * ── 角色卡字段 v2（2026-09-17）────────────────────────────────
+ *
+ * 把图片 / 视频 / 语音 / 画布串成同一个命名实体。字段语义、谁写谁读、与画布参考
+ * 角色词表的对齐关系见 `docs/references/domains/cards.md` 的「角色卡字段 v2」。
+ * 本轮这些字段只被 create / update **透传**落库——⛔ 编译期（card-recipe-compiler）
+ * 尚未接，别在这一层写业务逻辑。
+ */
+
+/** 一档情绪。`params` 是 provider 无关的参数袋（语速/音高等），不在这层收敛到某家 API。 */
+export const CharacterVoiceEmotionSchema = z.object({
+  label: z.string().trim().min(1).max(60),
+  params: z
+    .record(z.string().max(60), z.union([z.string().max(200), z.number()]))
+    .optional(),
+})
+export type CharacterVoiceEmotion = z.infer<typeof CharacterVoiceEmotionSchema>
+
+/** 角色的嗓子档案：情绪档 + 示例台词。与 `voiceCardId`（选哪张音色卡）分开。 */
+export const CharacterVoiceProfileSchema = z.object({
+  emotions: z.array(CharacterVoiceEmotionSchema).max(20).default([]),
+  sampleLines: z.array(z.string().trim().max(500)).max(20).default([]),
+})
+export type CharacterVoiceProfile = z.infer<typeof CharacterVoiceProfileSchema>
+
+/** 一组范例对话（用户说什么 → 角色怎么回）。 */
+export const CharacterPersonaExampleSchema = z.object({
+  user: z.string().trim().max(1000),
+  reply: z.string().trim().max(2000),
+})
+export type CharacterPersonaExample = z.infer<
+  typeof CharacterPersonaExampleSchema
+>
+
+/**
+ * 人设。⚠ `behavior` / `speech` 要写**具体行为**而不是形容词——「紧张时搓手指」
+ * 对下游有用，「温柔体贴」没有。与 `description`（视觉描述）是两回事。
+ */
+export const CharacterPersonaSchema = z.object({
+  behavior: z.string().trim().max(2000).default(''),
+  speech: z.string().trim().max(2000).default(''),
+  catchphrases: z.array(z.string().trim().max(120)).max(20).default([]),
+  scenario: z.string().trim().max(2000).default(''),
+  opening: z.string().trim().max(2000).default(''),
+  examples: z.array(CharacterPersonaExampleSchema).max(10).default([]),
+})
+export type CharacterPersona = z.infer<typeof CharacterPersonaSchema>
+
+/**
+ * 参考图的用途槽位：`Record<图片 URL, role>`，role 的值域**直接复用**画布的
+ * `NODE_STUDIO_REFERENCE_ROLES`（11 类）——⛔ 不在卡片层另造一套同义词表。
+ *
+ * ⚠ 这是旁挂表，不是长期形状：v3 会把它与 `referenceImages` 合并成
+ * `referenceSlots: { role, url, cardId, cardName }[]`，别在它上面再叠语义。
+ */
+export const CharacterReferenceRolesSchema = z.record(
+  z.string().trim().min(1).max(4000),
+  z.enum(NODE_STUDIO_REFERENCE_ROLES),
+)
+export type CharacterReferenceRoles = z.infer<
+  typeof CharacterReferenceRolesSchema
+>
+
+/** 这张卡允许搭配的画风范围。两个数组都为空 = 不限制。 */
+export const CharacterAllowedStyleRangeSchema = z.object({
+  allowStyleCardIds: z
+    .array(z.string().trim().min(1).max(64))
+    .max(50)
+    .default([]),
+  denyTags: z.array(z.string().trim().max(60)).max(50).default([]),
+})
+export type CharacterAllowedStyleRange = z.infer<
+  typeof CharacterAllowedStyleRangeSchema
+>
+
+/** 这张卡的素材血缘：来自哪几次生成 / 哪个 LoRA 训练 job / 从哪张卡的哪一版派生。 */
+export const CharacterProvenanceSchema = z.object({
+  sourceGenerationIds: z
+    .array(z.string().trim().min(1).max(64))
+    .max(100)
+    .default([]),
+  loraJobId: z.string().trim().min(1).max(64).optional(),
+  derivedFromCardId: z.string().trim().min(1).max(64).optional(),
+  derivedFromCardVersion: z.number().int().min(1).optional(),
+})
+export type CharacterProvenance = z.infer<typeof CharacterProvenanceSchema>
+
 /** Create character card request */
 export const CreateCharacterCardSchema = z.object({
   name: z
@@ -3194,6 +3282,13 @@ export const CreateCharacterCardSchema = z.object({
     .trim()
     .max(CHARACTER_CARD.VARIANT_LABEL_MAX_LENGTH)
     .optional(),
+  /** ── 角色卡字段 v2（透传落库，无业务逻辑）── */
+  voiceCardId: z.string().trim().min(1).max(64).nullable().optional(),
+  voiceProfile: CharacterVoiceProfileSchema.nullable().optional(),
+  persona: CharacterPersonaSchema.nullable().optional(),
+  referenceRoles: CharacterReferenceRolesSchema.nullable().optional(),
+  allowedStyleRange: CharacterAllowedStyleRangeSchema.nullable().optional(),
+  provenance: CharacterProvenanceSchema.nullable().optional(),
   apiKeyId: z.string().trim().min(1).optional(),
 })
 
@@ -3227,6 +3322,13 @@ export const UpdateCharacterCardSchema = z.object({
   sourceImageEntries: z.array(SourceImageEntrySchema).optional(),
   /** Character-specific LoRA models */
   loras: z.array(LoraSchema).max(5).nullable().optional(),
+  /** ── 角色卡字段 v2（透传落库，无业务逻辑）── */
+  voiceCardId: z.string().trim().min(1).max(64).nullable().optional(),
+  voiceProfile: CharacterVoiceProfileSchema.nullable().optional(),
+  persona: CharacterPersonaSchema.nullable().optional(),
+  referenceRoles: CharacterReferenceRolesSchema.nullable().optional(),
+  allowedStyleRange: CharacterAllowedStyleRangeSchema.nullable().optional(),
+  provenance: CharacterProvenanceSchema.nullable().optional(),
 })
 
 export type UpdateCharacterCardRequest = z.infer<

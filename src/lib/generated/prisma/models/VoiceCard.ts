@@ -295,6 +295,7 @@ export type VoiceCardWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"VoiceCard"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"VoiceCard"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  characterCards?: Prisma.CharacterCardListRelationFilter
 }
 
 export type VoiceCardOrderByWithRelationInput = {
@@ -319,6 +320,7 @@ export type VoiceCardOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   user?: Prisma.UserOrderByWithRelationInput
+  characterCards?: Prisma.CharacterCardOrderByRelationAggregateInput
 }
 
 export type VoiceCardWhereUniqueInput = Prisma.AtLeast<{
@@ -346,6 +348,7 @@ export type VoiceCardWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"VoiceCard"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"VoiceCard"> | Date | string
   user?: Prisma.XOR<Prisma.UserScalarRelationFilter, Prisma.UserWhereInput>
+  characterCards?: Prisma.CharacterCardListRelationFilter
 }, "id">
 
 export type VoiceCardOrderByWithAggregationInput = {
@@ -421,6 +424,7 @@ export type VoiceCardCreateInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   user: Prisma.UserCreateNestedOneWithoutVoiceCardsInput
+  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutVoiceCardInput
 }
 
 export type VoiceCardUncheckedCreateInput = {
@@ -444,6 +448,7 @@ export type VoiceCardUncheckedCreateInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutVoiceCardInput
 }
 
 export type VoiceCardUpdateInput = {
@@ -467,6 +472,7 @@ export type VoiceCardUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   user?: Prisma.UserUpdateOneRequiredWithoutVoiceCardsNestedInput
+  characterCards?: Prisma.CharacterCardUpdateManyWithoutVoiceCardNestedInput
 }
 
 export type VoiceCardUncheckedUpdateInput = {
@@ -490,6 +496,7 @@ export type VoiceCardUncheckedUpdateInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutVoiceCardNestedInput
 }
 
 export type VoiceCardCreateManyInput = {
@@ -635,6 +642,11 @@ export type VoiceCardMinOrderByAggregateInput = {
   updatedAt?: Prisma.SortOrder
 }
 
+export type VoiceCardNullableScalarRelationFilter = {
+  is?: Prisma.VoiceCardWhereInput | null
+  isNot?: Prisma.VoiceCardWhereInput | null
+}
+
 export type VoiceCardCreateNestedManyWithoutUserInput = {
   create?: Prisma.XOR<Prisma.VoiceCardCreateWithoutUserInput, Prisma.VoiceCardUncheckedCreateWithoutUserInput> | Prisma.VoiceCardCreateWithoutUserInput[] | Prisma.VoiceCardUncheckedCreateWithoutUserInput[]
   connectOrCreate?: Prisma.VoiceCardCreateOrConnectWithoutUserInput | Prisma.VoiceCardCreateOrConnectWithoutUserInput[]
@@ -677,6 +689,22 @@ export type VoiceCardUncheckedUpdateManyWithoutUserNestedInput = {
   deleteMany?: Prisma.VoiceCardScalarWhereInput | Prisma.VoiceCardScalarWhereInput[]
 }
 
+export type VoiceCardCreateNestedOneWithoutCharacterCardsInput = {
+  create?: Prisma.XOR<Prisma.VoiceCardCreateWithoutCharacterCardsInput, Prisma.VoiceCardUncheckedCreateWithoutCharacterCardsInput>
+  connectOrCreate?: Prisma.VoiceCardCreateOrConnectWithoutCharacterCardsInput
+  connect?: Prisma.VoiceCardWhereUniqueInput
+}
+
+export type VoiceCardUpdateOneWithoutCharacterCardsNestedInput = {
+  create?: Prisma.XOR<Prisma.VoiceCardCreateWithoutCharacterCardsInput, Prisma.VoiceCardUncheckedCreateWithoutCharacterCardsInput>
+  connectOrCreate?: Prisma.VoiceCardCreateOrConnectWithoutCharacterCardsInput
+  upsert?: Prisma.VoiceCardUpsertWithoutCharacterCardsInput
+  disconnect?: Prisma.VoiceCardWhereInput | boolean
+  delete?: Prisma.VoiceCardWhereInput | boolean
+  connect?: Prisma.VoiceCardWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.VoiceCardUpdateToOneWithWhereWithoutCharacterCardsInput, Prisma.VoiceCardUpdateWithoutCharacterCardsInput>, Prisma.VoiceCardUncheckedUpdateWithoutCharacterCardsInput>
+}
+
 export type VoiceCardCreateWithoutUserInput = {
   id?: string
   name: string
@@ -697,6 +725,7 @@ export type VoiceCardCreateWithoutUserInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutVoiceCardInput
 }
 
 export type VoiceCardUncheckedCreateWithoutUserInput = {
@@ -719,6 +748,7 @@ export type VoiceCardUncheckedCreateWithoutUserInput = {
   isDeleted?: boolean
   createdAt?: Date | string
   updatedAt?: Date | string
+  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutVoiceCardInput
 }
 
 export type VoiceCardCreateOrConnectWithoutUserInput = {
@@ -773,6 +803,114 @@ export type VoiceCardScalarWhereInput = {
   updatedAt?: Prisma.DateTimeFilter<"VoiceCard"> | Date | string
 }
 
+export type VoiceCardCreateWithoutCharacterCardsInput = {
+  id?: string
+  name: string
+  provider?: string
+  modelId?: string | null
+  voiceId?: string | null
+  coverImage?: string | null
+  referenceAudioUrl?: string | null
+  referenceAudioStorageKey?: string | null
+  gender?: string | null
+  age?: string | null
+  tone?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  pace?: string
+  pitch?: string | null
+  pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: string | null
+  sampleText?: string | null
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  user: Prisma.UserCreateNestedOneWithoutVoiceCardsInput
+}
+
+export type VoiceCardUncheckedCreateWithoutCharacterCardsInput = {
+  id?: string
+  userId: string
+  name: string
+  provider?: string
+  modelId?: string | null
+  voiceId?: string | null
+  coverImage?: string | null
+  referenceAudioUrl?: string | null
+  referenceAudioStorageKey?: string | null
+  gender?: string | null
+  age?: string | null
+  tone?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  pace?: string
+  pitch?: string | null
+  pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: string | null
+  sampleText?: string | null
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type VoiceCardCreateOrConnectWithoutCharacterCardsInput = {
+  where: Prisma.VoiceCardWhereUniqueInput
+  create: Prisma.XOR<Prisma.VoiceCardCreateWithoutCharacterCardsInput, Prisma.VoiceCardUncheckedCreateWithoutCharacterCardsInput>
+}
+
+export type VoiceCardUpsertWithoutCharacterCardsInput = {
+  update: Prisma.XOR<Prisma.VoiceCardUpdateWithoutCharacterCardsInput, Prisma.VoiceCardUncheckedUpdateWithoutCharacterCardsInput>
+  create: Prisma.XOR<Prisma.VoiceCardCreateWithoutCharacterCardsInput, Prisma.VoiceCardUncheckedCreateWithoutCharacterCardsInput>
+  where?: Prisma.VoiceCardWhereInput
+}
+
+export type VoiceCardUpdateToOneWithWhereWithoutCharacterCardsInput = {
+  where?: Prisma.VoiceCardWhereInput
+  data: Prisma.XOR<Prisma.VoiceCardUpdateWithoutCharacterCardsInput, Prisma.VoiceCardUncheckedUpdateWithoutCharacterCardsInput>
+}
+
+export type VoiceCardUpdateWithoutCharacterCardsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  voiceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceAudioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  age?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tone?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  pace?: Prisma.StringFieldUpdateOperationsInput | string
+  pitch?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sampleText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  user?: Prisma.UserUpdateOneRequiredWithoutVoiceCardsNestedInput
+}
+
+export type VoiceCardUncheckedUpdateWithoutCharacterCardsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  userId?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  modelId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  voiceId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  coverImage?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceAudioStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  gender?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  age?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  tone?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  pace?: Prisma.StringFieldUpdateOperationsInput | string
+  pitch?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  pronunciationDictionary?: Prisma.JsonNullValueInput | runtime.InputJsonValue
+  sampleAudioUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  sampleText?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
 export type VoiceCardCreateManyUserInput = {
   id?: string
   name: string
@@ -815,6 +953,7 @@ export type VoiceCardUpdateWithoutUserInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  characterCards?: Prisma.CharacterCardUpdateManyWithoutVoiceCardNestedInput
 }
 
 export type VoiceCardUncheckedUpdateWithoutUserInput = {
@@ -837,6 +976,7 @@ export type VoiceCardUncheckedUpdateWithoutUserInput = {
   isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutVoiceCardNestedInput
 }
 
 export type VoiceCardUncheckedUpdateManyWithoutUserInput = {
@@ -862,6 +1002,35 @@ export type VoiceCardUncheckedUpdateManyWithoutUserInput = {
 }
 
 
+/**
+ * Count Type VoiceCardCountOutputType
+ */
+
+export type VoiceCardCountOutputType = {
+  characterCards: number
+}
+
+export type VoiceCardCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  characterCards?: boolean | VoiceCardCountOutputTypeCountCharacterCardsArgs
+}
+
+/**
+ * VoiceCardCountOutputType without action
+ */
+export type VoiceCardCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the VoiceCardCountOutputType
+   */
+  select?: Prisma.VoiceCardCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * VoiceCardCountOutputType without action
+ */
+export type VoiceCardCountOutputTypeCountCharacterCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CharacterCardWhereInput
+}
+
 
 export type VoiceCardSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -885,6 +1054,8 @@ export type VoiceCardSelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   createdAt?: boolean
   updatedAt?: boolean
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  characterCards?: boolean | Prisma.VoiceCard$characterCardsArgs<ExtArgs>
+  _count?: boolean | Prisma.VoiceCardCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["voiceCard"]>
 
 export type VoiceCardSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -961,6 +1132,8 @@ export type VoiceCardSelectScalar = {
 export type VoiceCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "name" | "provider" | "modelId" | "voiceId" | "coverImage" | "referenceAudioUrl" | "referenceAudioStorageKey" | "gender" | "age" | "tone" | "pace" | "pitch" | "pronunciationDictionary" | "sampleAudioUrl" | "sampleText" | "isDeleted" | "createdAt" | "updatedAt", ExtArgs["result"]["voiceCard"]>
 export type VoiceCardInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
+  characterCards?: boolean | Prisma.VoiceCard$characterCardsArgs<ExtArgs>
+  _count?: boolean | Prisma.VoiceCardCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type VoiceCardIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
@@ -973,6 +1146,7 @@ export type $VoiceCardPayload<ExtArgs extends runtime.Types.Extensions.InternalA
   name: "VoiceCard"
   objects: {
     user: Prisma.$UserPayload<ExtArgs>
+    characterCards: Prisma.$CharacterCardPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1395,6 +1569,7 @@ readonly fields: VoiceCardFieldRefs;
 export interface Prisma__VoiceCardClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   user<T extends Prisma.UserDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.UserDefaultArgs<ExtArgs>>): Prisma.Prisma__UserClient<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  characterCards<T extends Prisma.VoiceCard$characterCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.VoiceCard$characterCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CharacterCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1842,6 +2017,30 @@ export type VoiceCardDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Int
    * Limit how many VoiceCards to delete.
    */
   limit?: number
+}
+
+/**
+ * VoiceCard.characterCards
+ */
+export type VoiceCard$characterCardsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the CharacterCard
+   */
+  select?: Prisma.CharacterCardSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the CharacterCard
+   */
+  omit?: Prisma.CharacterCardOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CharacterCardInclude<ExtArgs> | null
+  where?: Prisma.CharacterCardWhereInput
+  orderBy?: Prisma.CharacterCardOrderByWithRelationInput | Prisma.CharacterCardOrderByWithRelationInput[]
+  cursor?: Prisma.CharacterCardWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CharacterCardScalarFieldEnum | Prisma.CharacterCardScalarFieldEnum[]
 }
 
 /**

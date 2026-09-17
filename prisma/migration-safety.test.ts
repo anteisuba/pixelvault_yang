@@ -83,6 +83,8 @@ const ACKNOWLEDGED: Record<string, string> = {
     '⭐ 这条是「做对了」的范例，别照抄成反面教材：它手写 USING (CASE "surface"::text WHEN \'STUDIO\' THEN \'IMAGE_STUDIO\' ELSE ... END) 正是因为 Prisma 自动生成的 ::text::"AssistantSurface_new" 对存量的 STUDIO 行会直接报错——值的改写与类型替换必须在同一条 ALTER 里完成。2026-08-08 已在生产成功应用。2026-09-06 补跑前核对 ep-solitary-dew：12 条现有对话仅含 STUDIO（7）/ NODE_CANVAS（5），均被 CASE 映射覆盖；原 ID 与 surface 已保存在本机受限临时文件，迁移自身包裹事务。',
   '20260821210442_lora_unique_user_url':
     '2026-08-21T12:05:01Z 已在 Vercel 所用的生产库（ep-flat-violet-…）成功应用——作者当时的「本地库」就是生产库（.env.local 指向它），重复在那一刻已经清掉。前一条 20260821210441_dedupe_lora_assets 是给**别的**库重放这段历史时兜底的（例如落后 6 条迁移、至今仍有 2 组重复的 ep-solitary-dew-…）。⚠ 别照抄 d5fa8587 的提交信息：那条写的「部署前查生产仍有 2 组重复」查错了库，见 docs/references/cicd.md。',
+  '20260917160000_character_card_v2_fields':
+    '不需要连库验：外键列 "CharacterCard"."voiceCardId" 是同一条迁移里新加的**可空**列，ADD COLUMN 之后全表该列一律为 NULL，而 NULL 行不参与外键校验（SQL 标准的 MATCH SIMPLE，Postgres 默认）。所以 ADD CONSTRAINT 在任何存量数据上都成立——闸门认的是 ADD CONSTRAINT 这个语句形状，不是这条约束真有风险。⚠ 若日后有迁移往这一列写值，那条迁移得自己验。',
 }
 
 interface ConstraintHit {

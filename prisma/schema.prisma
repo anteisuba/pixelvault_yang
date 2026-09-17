@@ -615,6 +615,8 @@ model VoiceCard {
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 
+  characterCards CharacterCard[]
+
   @@index([userId, isDeleted, createdAt(sort: Desc)])
 }
 
@@ -890,6 +892,27 @@ model CharacterCard {
   stabilityScore     Float?
   isDeleted          Boolean             @default(false)
 
+  // ── 角色卡字段 v2（2026-09-17，见 docs/references/domains/cards.md）──
+  // 把图片 / 视频 / 语音 / 画布串成同一个命名实体。全部可空、无回填、无业务约束；
+  // 本轮写入只走角色卡 create / update 的透传，⛔ card-recipe-compiler 未接。
+  /// 默认嗓子。软引用：删音色卡只清绑定，不删角色卡。
+  voiceCardId       String?
+  voiceCard         VoiceCard? @relation(fields: [voiceCardId], references: [id], onDelete: SetNull)
+  /// `{ emotions: [{ label, params }], sampleLines: string[] }`
+  voiceProfile      Json?
+  /// `{ behavior, speech, catchphrases[], scenario, opening, examples[] }`——人设写
+  /// 具体行为不写形容词，与 `description`（视觉描述）分开。
+  persona           Json?
+  /// `Record<url, role>`，role 取 `NODE_STUDIO_REFERENCE_ROLES` 的 11 类。
+  /// ⚠ 旁挂而不是改 `referenceImages` 的形状；v3 两者合并成 referenceSlots。
+  referenceRoles    Json?
+  /// `{ allowStyleCardIds: string[], denyTags: string[] }`，空数组 = 不限制。
+  allowedStyleRange Json?
+  /// `{ sourceGenerationIds[], loraJobId?, derivedFromCardId?, derivedFromCardVersion? }`
+  provenance        Json?
+  /// 卡内容的单调版本号，供 `provenance.derivedFromCardVersion` 指认派生自哪一版。
+  version           Int        @default(1)
+
   // ── Variant system (folder-like) ────────────────────────────
   parentId     String? // null = root card, set = variant of parent
   parent       CharacterCard?  @relation("CharacterCardVariants", fields: [parentId], references: [id], onDelete: Cascade)
@@ -908,6 +931,7 @@ model CharacterCard {
   @@index([userId, status, isDeleted])
   @@index([parentId, isDeleted, updatedAt(sort: Desc)])
   @@index([userId, projectId, isDeleted, updatedAt(sort: Desc)])
+  @@index([voiceCardId])
 }
 
 model GenerationCharacterCard {

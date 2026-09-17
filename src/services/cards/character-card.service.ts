@@ -27,6 +27,7 @@ import { analyzeVisual } from '@/services/vision/vision-analyzer.service'
 import {
   mapCharacterCardRow,
   serializeCharacterAttributes,
+  serializeCharacterCardV2Fields,
   serializeCharacterLoras,
   serializeSourceImageEntries,
 } from '@/services/cards/character-card.mapper'
@@ -408,6 +409,8 @@ export async function createCharacterCard(
       status: 'DRAFT',
       parentId: input.parentId ?? null,
       variantLabel: input.variantLabel ?? null,
+      // 角色卡字段 v2 —— 透传落库，⛔ 不在这里加业务逻辑（cards.md「角色卡字段 v2」）。
+      ...serializeCharacterCardV2Fields(input),
     },
   })
 
@@ -494,6 +497,8 @@ export async function updateCharacterCard(
     )
   if (data.loras !== undefined)
     updateData.loras = data.loras ? serializeCharacterLoras(data.loras) : null
+  // 角色卡字段 v2 —— 透传落库，⛔ 不在这里加业务逻辑（cards.md「角色卡字段 v2」）。
+  Object.assign(updateData, serializeCharacterCardV2Fields(data))
 
   const card = await db.characterCard.update({
     where: { id: cardId },

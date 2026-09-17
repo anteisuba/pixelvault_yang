@@ -65,7 +65,7 @@ const PROGRESS = header('PixelVault · 改进进度表 · 2026-09-17', '当前�
   table(['步', '先做什么', '先设计？', '进度表 #', '依赖', '状态'], [
     ['E0', '第 0 段全部修 / 删 · RunPod 设置 · 语音 / 白模调查 · Arena 与两条退役 · 免费档测试 · 画布源码进仓库', '否', '01–09 · 47 · 58', '—', '已完成 · 14 commit'],
     ['E1', 'D1 通过（材质 / 状态 / 圆角 / 空态；模态色改 C 不区分）。D1b 图标定：Phosphor 替换 lucide（228 名映射 codemod）· 业务图标抽象几何（先用 Phosphor 现成，缺的自绘）· 品牌标 ANTI owner 另开 chat。E1-a 已完成（b4956381 阴影四档别名 · 1f5ce7e2 risk -surface + 模态色限定画布连线 · 3b9c6932 EmptyState 原语 + 删训练页插画；warning-surface 本就存在；6 个值不同的旧阴影保留并标档）。剩余空态迁移量：StudioEmptyState 小 · LoraLibraryTypeStates 小 · AssetStateBlocks 中 · NodeCanvasEmptyGuide 中大（画布皮肤，D7 再定）· StudioOperatorEmptyState 大（不套模板）。下一步 E1-b Phosphor 迁移（273 文件 / 167 名，分域多 commit）→ E1-c 业务图标目录 → E1-d 品牌标插槽等 owner 的图', 'D1 ④ 已过 · D1b 已定', '32 · 33 · 新', '—', 'E1-a 已完成 · E1-b 待派'],
-    ['E1 ‖', '与 E1 并行的纯代码：20 add04286 · 53 aa222c84 · 23 已改（随 owner WIP 提交）· 28 端点接入进行中（不做 UI）· 27 角色卡字段迁移：需要 Prisma 迁移，与 Arena 三张表的 drop 迁移一起等 owner 授权后再派', '否', '20 · 23 · 53 · 27 · 28', 'E0', '可并行 · 3/5 完成 · 28 进行中'],
+    ['E1 ‖', '与 E1 并行的纯代码：20 add04286 · 53 aa222c84 · 28 端点 e924f611 · Arena 表 drop 迁移 922f1bac · 23 已改（随 owner WIP 提交）· 27 角色卡字段 v2（spec + schema + 迁移，owner 已授权）进行中', '否', '20 · 23 · 53 · 27 · 28', 'E0', '可并行 · 4/5 完成 · 27 进行中'],
     ['E2', 'D2 模型选择器（行只留 模型 · 型号 · 价格，批注 32）+ 能力驱动表单 + 规格 chip：① 反问（第二行放什么 · 渠道段常驻否 · chip 显价否 · 手机 Sheet 否）→ ② 图 → ④ 三方向并排 → 三态 + 手机 + 可点原型 → ⑤ 代码 10 → 11 → 12 → 删 BaseModelPickerPanel / 8 套选择器收口 → 25 · 26 · 44 的专属字段挂进 11', 'D2 · 从 ① 开始', '10 · 11 · 12 · 25 · 26 · 44', 'E1 通过', '等设计'],
     ['E3', 'D3 API key 门 + /settings + 顶栏胶囊：① 反问（整页 vs 大抽屉 · 记忆总览放哪 · 额度数字 vs 环）→ ② → ④ → ⑤ 代码 13 → 14 → 三处 key 入口收口', 'D3 · 从 ① 开始', '13 · 14', 'E2 通过（缺 key 行要有去处）', '等设计'],
     ['E3 ‖', '卡片总线 spec（referenceSlots · 卡 → 节点自动装填）→ 代码 35；助手宿主 op 表 spec（工作台 / LoRA / 配音间）→ 先写不落 UI', '否（契约）', '35 · 21', '27', '可并行（等 spec）'],
@@ -121,7 +121,7 @@ const PROGRESS = header('PixelVault · 改进进度表 · 2026-09-17', '当前�
     ['25', '图片：FLUX.2 [max] → Seedream 图层拆分 → Seedream 组图', '接', '顺序 owner 定；依赖 11 的专属 chip 行来放新字段', '拍板 5', '可开工（字段挂 11）'],
     ['26', 'NAI：inpaint + 质量标签 / UC / Text: 控件；PixAI 接入（BYOK · t2i）', '接', '同一端点加字段；PixAI 新 adapter', '拍板 6 · 7', '可开工（字段挂 11）'],
     ['27', '角色卡加 voiceCardId + 参考图 role + 人设字段（Prisma 迁移）+ 建卡向导', 'spec → 迁移', '把图片 / 视频 / 语音 / 画布串起来的钥匙；24 依赖它', '拍板 12', '等 spec'],
-    ['28', '视频：新接 Kling O3 video-to-video/edit 端点 → 视频节点 / 去向菜单「转白模」动作（固定 prompt 模板）→ 产物作 Seedance 2.5 白模参考；Kling multi_prompt 分镜', '接', '试验已通过；依赖 17 的注册表放动作', '拍板 8', '可开工'],
+    ['28', '端点已接 e924f611：KLING_O3_STANDARD_V2V_EDIT / PRO（$0.126 / $0.168 每秒，fal 官方 schema 核实：prompt + video_url 必填，image_urls / elements ≤4，keep_audio，无时长 / 分辩率 / seed）· 新增 videoKind=edit 只归编辑入口、不进生成选择器与画布模式 · worker builder + referenceMode video-edit 校验 · 「转白模」固定 prompt 常量已放 src/constants/video-edit-prompts.ts。⚠ 未接 UI：「转白模」「改这段」动作在 D4 去向菜单通过后挂进 17', '接', '试验已通过；动作 UI 依赖 17', '拍板 8', '端点已完成 · e924f611 · UI 等 D4'],
     ['29', '语音：豆包 2.0 + 复刻 2.0 adapter（¥3 / 万字符）· Qwen3-TTS 1.7B 独立 endpoint · 人声提取（ElevenLabs isolation + fal demucs + ffmpeg 抽轨回填）', '接', '契约与镜像已核实，见第 8 页 V2 / V4 / V4b', '拍板 9 · 10 · 人声提取', '可开工'],
   ], R) +
   stage('第 5 段 · 首页与皮肤', '首页 B 方案已定；设计师视角 11 条全部确认') +
@@ -149,7 +149,7 @@ const PROGRESS = header('PixelVault · 改进进度表 · 2026-09-17', '当前�
     ['44', 'tag 模型专属输入面：触发词 / 负面方言 / 权重语法从矩阵搬进 UI（NAI 的质量标签 / UC 就是第一份）', '设计落地', '就是 11 能力驱动表单的 NAI 专属 chip 行', '方向图 P1 · 26', '等设计稿'],
     ['45', 'LoRA：Z-Image Turbo 试作插槽 + 护栏重做；Volume 剩 32.6G 的顺序 Anima 新档 → Krea 2 →（扩容后）Z-Image', '接 / 重构', 'owner 口头 P0；目录仍列观察项，先定插槽再扩容', '方向图 P0 · Runner 调研', '等 spec'],
     ['46', '风格迁移：不是开关，style-transfer 零执行路径，是编辑器「不框 + 整体一句话」那条路要新建 → 并入 42 编辑线三分区；文字渲染半句删除（Ideogram 已退役，GPT Image / Seedream 覆盖）', '并入 42', '读码核实 studio-image-edit.md §5', '方向图 P2', '已定'],
-    ['47', 'Arena 整删（win-rate boost · 保留用户名 · schema 声明 · README / docs · 首页素材）；Illustrious XL / FLUX LoRA 按目录惯例退役（available:false + RETIRED）。⚠ 三张表要你手动 drop：ArenaMatch · ArenaEntry · ModelEloRating；LoRA 工作台现在只剩 Runner 底模，flux 家族无可用底模', '删', 'owner 拍板「确认」', '方向图 · 第 1 页图片', '已完成 · e8d4d551 · eaf3a88d'],
+    ['47', 'Arena 整删（e8d4d551）+ 两条退役（eaf3a88d）+ 三张表 drop 迁移（922f1bac，owner 授权，下次生产构建执行）；LoRA 工作台只剩 Runner 底模，flux 家族无可用底模', '删', 'owner 拍板「确认」+ 迁移授权', '方向图 · 第 1 页图片', '已完成 · e8d4d551 · eaf3a88d · 922f1bac'],
   ], R) +
   stage('第 8 段 · 音频能力包（第 1 · 8 页）', '第 8 页 V1–V5 的展开') +
   table(COLS, [

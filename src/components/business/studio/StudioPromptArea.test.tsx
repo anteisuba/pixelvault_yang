@@ -80,8 +80,6 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   stylePreset: false,
   reverse: false,
   refImage: false,
-  spec: false,
-  videoSpec: false,
   audioReading: false,
   musicSpec: false,
   loraSelector: false,
@@ -626,23 +624,6 @@ describe('StudioPromptArea', () => {
     mockDispatch.mockClear()
 
     fireEvent.pointerDown(screen.getByRole('button', { name: 'label' }))
-
-    expect(mockDispatch).not.toHaveBeenCalledWith({
-      type: 'CLOSE_TOOL_PANELS',
-    })
-  })
-
-  it('does not pre-close the open spec surface when its panel trigger is pressed', () => {
-    setupStudioForm(WORKFLOW_IDS.QUICK_IMAGE, {
-      outputType: 'image',
-      selectedOptionId: null,
-      panels: { ...EMPTY_PANELS, spec: true },
-    })
-
-    renderPromptArea()
-    mockDispatch.mockClear()
-
-    fireEvent.pointerDown(screen.getByRole('button', { name: 'specLabel' }))
 
     expect(mockDispatch).not.toHaveBeenCalledWith({
       type: 'CLOSE_TOOL_PANELS',

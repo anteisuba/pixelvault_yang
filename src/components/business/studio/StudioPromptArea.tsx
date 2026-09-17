@@ -53,11 +53,10 @@ import { StudioVideoReferenceSlots } from '@/components/business/studio-shared/c
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
 import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
 import { StudioCardSection } from '@/components/business/studio/StudioCardSection'
-// 规格三档（比例 · 清晰度 · 张数）在参数栏里收进一个触发器 —— 只服务图片；
-// 视频的比例仍是自己那颗独立 chip，切片 B 再合。
-import { StudioSpecPopover } from '@/components/business/studio/StudioSpecPopover'
+// 规格收成**一颗 chip**（D2 ④，第 12 项）：图片与视频共用同一颗，档位各自从能力表
+// 派生；张数 / 声音在它底部的「更多」折叠区里。
+import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
-import { StudioVideoSpecPopover } from '@/components/business/studio/StudioVideoSpecPopover'
 import { StudioVideoModeToggle } from '@/components/business/studio/StudioVideoModeToggle'
 import { StudioSfxSpecPopover } from '@/components/business/studio/StudioSfxSpecPopover'
 import { StudioMusicSpecPopover } from '@/components/business/studio/StudioMusicSpecPopover'
@@ -974,19 +973,20 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
           </div>
         )}
 
-        {/* 规格 —— 回答「下一版长什么样」。同一个形态、两套数据：
-            图片 = 比例 · 清晰度 · 每模型几张；视频 = 时长 · 分辨率 · 比例。
-            ⚠ 两颗**不能合成一颗**：数据源完全不同（图片读能力表的
-            `resolutionOptions` + `IMAGE_BATCH_COUNTS`，视频读
-            `getVideoModelParameterOptions` 实算的档位），合起来会变成一个
-            满是 `isVideoMode ?` 的分支堆。共用的是形态与药丸样式，不是组件。
+        {/* 规格 —— 回答「下一版长什么样」。**一颗 chip**（D2 ④ Q4 = A，第 12 项）：
+            chip 上是全量摘要「比例 · 清晰度（· 时长）」，点开一个弹层分段，
+            张数 / 声音收进底部「更多」。图片与视频共用同一颗组件，档位各自从
+            能力表派生 —— ⛔ 不再是两颗形态相同、数据两套的浮层。
             音频没有规格这一说（时长/变体归音效自己的浮层，切片 D）。 */}
-        {isImageMode ? (
+        {isImageMode || isVideoMode ? (
           <div className="flex flex-col gap-1.5">
             <span className="text-2xs font-medium text-muted-foreground/70">
               {t('specLabel')}
             </span>
-            <StudioSpecPopover disabled={isGenerating} />
+            <StudioSpecChip
+              disabled={isGenerating}
+              triggerClassName="h-9 w-full justify-start"
+            />
           </div>
         ) : null}
         {/* 专属区 —— 通用区之下一条虚线，之下是「专属 · <模型名>」+ chip 行
@@ -994,9 +994,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             ⛔ 这里不写模型名；没有专属能力的模型整段不渲染。 */}
         {isImageMode ? (
           <StudioModelCapabilityChips disabled={isGenerating} />
-        ) : null}
-        {isVideoMode ? (
-          <StudioVideoSpecPopover disabled={isGenerating} />
         ) : null}
         {isAudioMode && state.audioKind === AUDIO_KIND.SFX ? (
           <StudioSfxSpecPopover disabled={isGenerating} />

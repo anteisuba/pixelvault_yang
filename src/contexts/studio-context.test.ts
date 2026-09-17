@@ -94,8 +94,6 @@ function makeInitialState(
       stylePreset: false,
       reverse: false,
       refImage: false,
-      spec: false,
-      videoSpec: false,
       audioReading: false,
       musicSpec: false,
       loraSelector: false,
@@ -153,10 +151,10 @@ describe('studioFormReducer', () => {
 
     const next = studioFormReducer(state, {
       type: 'SET_SELECTED_WORKFLOW_ID',
-      payload: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+      payload: WORKFLOW_IDS.CHARACTER_TO_VIDEO,
     })
 
-    expect(next.panels.videoSpec).toBe(true)
+    expect(next.panels.refImage).toBe(true)
     expect(next.panels.reverse).toBe(false)
   })
 
@@ -165,12 +163,12 @@ describe('studioFormReducer', () => {
 
     const next = studioFormReducer(state, {
       type: 'SET_SELECTED_WORKFLOW_ID',
-      payload: WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO,
+      payload: WORKFLOW_IDS.CHARACTER_TO_VIDEO,
       openDefaultPanel: false,
     })
 
     expect(next.outputType).toBe('video')
-    expect(next.panels.videoSpec).toBe(false)
+    expect(next.panels.refImage).toBe(false)
   })
 
   it('SET_SELECTED_WORKFLOW_ID keeps prompt when staying in the same media group', () => {

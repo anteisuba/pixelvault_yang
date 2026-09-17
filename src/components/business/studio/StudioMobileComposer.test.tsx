@@ -21,13 +21,9 @@ const mockUseStudioForm = vi.hoisted(() => vi.fn())
 const mockHandleGenerate = vi.hoisted(() => vi.fn())
 const mockUseGenerateAction = vi.hoisted(() => vi.fn())
 const mockUseImageModelOptions = vi.hoisted(() => vi.fn())
-const mockVideoSpec = vi.hoisted(() => ({
-  value: {
-    summary: '5s · 720p · 16:9',
-    supportsGenerateAudio: false,
-    generateAudioValue: true,
-    isEmpty: false,
-  },
+const mockSpecChip = vi.hoisted(() => ({ value: { rendered: true } }))
+const mockVideoAudio = vi.hoisted(() => ({
+  value: { supported: false, value: true },
 }))
 
 const EMPTY_PANELS: StudioFormState['panels'] = {
@@ -40,8 +36,6 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   stylePreset: false,
   reverse: false,
   refImage: false,
-  spec: false,
-  videoSpec: false,
   audioReading: false,
   musicSpec: false,
   loraSelector: false,
@@ -105,15 +99,20 @@ vi.mock('@/components/business/studio/StudioMobileModelSheet', () => ({
     open ? <div data-testid="model-sheet" /> : null,
 }))
 
-vi.mock('@/components/business/studio/StudioMobileSpecSheet', () => ({
-  StudioMobileSpecSheet: ({ open, mode }: { open: boolean; mode: string }) =>
-    open ? <div data-testid="spec-sheet" data-mode={mode} /> : null,
+// 规格 chip 自带整条能力表 / 单价表，且它的弹层与摘要另有单测（`spec-chip-model`
+// 与 `SpecChip`）。这里只验 composer 有没有把它摆进 chip 行。
+vi.mock('@/components/business/studio/StudioSpecChip', () => ({
+  StudioSpecChip: () =>
+    mockSpecChip.value.rendered ? (
+      <button type="button" data-testid="studio-spec-chip">
+        spec
+      </button>
+    ) : null,
 }))
 
-// 视频规格的取值域自带整条模型目录 / 契约表；这里只要它的**摘要与出声契约**。
-vi.mock('@/components/business/studio/StudioVideoSpecFields', () => ({
-  useStudioVideoSpec: () => mockVideoSpec.value,
-  StudioVideoSpecFields: () => null,
+// 出声契约自带整条模型目录；这里只要它的两个布尔。
+vi.mock('@/hooks/use-studio-video-audio', () => ({
+  useStudioVideoAudio: () => mockVideoAudio.value,
 }))
 
 vi.mock('@/components/business/studio/StudioCostPreview', () => ({
@@ -217,12 +216,8 @@ function setVideo(
 beforeEach(() => {
   vi.clearAllMocks()
   mockUseImageModelOptions.mockReturnValue({ selectedModel: IMAGE_OPTION })
-  mockVideoSpec.value = {
-    summary: '5s · 720p · 16:9',
-    supportsGenerateAudio: false,
-    generateAudioValue: true,
-    isEmpty: false,
-  }
+  mockSpecChip.value = { rendered: true }
+  mockVideoAudio.value = { supported: false, value: true }
   setForm()
   setAction()
 })
@@ -239,9 +234,7 @@ describe('StudioMobileComposer', () => {
     expect(screen.getByTestId('studio-mobile-model-chip')).toHaveTextContent(
       'GPT Image 1',
     )
-    expect(screen.getByTestId('studio-mobile-spec-chip')).toHaveTextContent(
-      '3:4 · ×2',
-    )
+    expect(screen.getByTestId('studio-spec-chip')).toBeInTheDocument()
   })
 
   it('keeps the multi-model run list legible: N 个模型 + a count badge', () => {
@@ -312,15 +305,16 @@ describe('StudioMobileComposer', () => {
     expect(mockHandleGenerate).toHaveBeenCalledTimes(1)
   })
 
-  it('opens the model sheet from the 模型 chip and the spec sheet from the 规格 chip', () => {
+  it('opens the model sheet from the 模型 chip; 规格走的是共用那颗 chip 自己的弹层', () => {
     render(<StudioMobileComposer />)
 
     expect(screen.queryByTestId('model-sheet')).toBeNull()
     fireEvent.click(screen.getByTestId('studio-mobile-model-chip'))
     expect(screen.getByTestId('model-sheet')).toBeInTheDocument()
 
-    fireEvent.click(screen.getByTestId('studio-mobile-spec-chip'))
-    expect(screen.getByTestId('spec-sheet')).toBeInTheDocument()
+    // ⚠ 规格**不再**有第二份 sheet 的开合 state（第 12 项）：触屏上 `SpecChip`
+    //    自己就是底部抽屉，composer 只负责把它摆在 chip 行里。
+    expect(screen.getByTestId('studio-spec-chip')).toBeInTheDocument()
   })
 })
 
@@ -343,26 +337,12 @@ describe('StudioMobileComposer · 视频档', () => {
     ).not.toHaveTextContent('modelChipMulti')
   })
 
-  it('规格 chip 走视频那份摘要（时长 · 分辨率 · 比例），不是图片的 `1:1 · ×1`', () => {
+  it('规格走与图片档**同一颗** chip —— 档位按模态自己分，composer 不分支', () => {
     setVideo()
 
     render(<StudioMobileComposer />)
 
-    expect(screen.getByTestId('studio-mobile-spec-chip')).toHaveTextContent(
-      '5s · 720p · 16:9',
-    )
-  })
-
-  it('两张 sheet 都按 video 模式开 —— 装的是视频那组档位', () => {
-    setVideo()
-
-    render(<StudioMobileComposer />)
-    fireEvent.click(screen.getByTestId('studio-mobile-spec-chip'))
-
-    expect(screen.getByTestId('spec-sheet')).toHaveAttribute(
-      'data-mode',
-      'video',
-    )
+    expect(screen.getByTestId('studio-spec-chip')).toBeInTheDocument()
   })
 
   it('⭐ 出声 chip 只在**契约暴露该字段**时出现 —— 画一颗发不出去的开关比没有更糟', () => {
@@ -372,12 +352,7 @@ describe('StudioMobileComposer · 视频档', () => {
   })
 
   it('出声 chip 镜像 `videoGenerateAudio`，点一下写回反值', () => {
-    mockVideoSpec.value = {
-      summary: '5s · 720p · 16:9',
-      supportsGenerateAudio: true,
-      generateAudioValue: true,
-      isEmpty: false,
-    }
+    mockVideoAudio.value = { supported: true, value: true }
     setVideo()
 
     render(<StudioMobileComposer />)
@@ -434,19 +409,14 @@ describe('StudioMobileComposer · 视频档', () => {
   })
 
   it('⭐ 没选模型时规格 chip 整颗不渲染 —— 只剩箭头的空丸是纯噪音', () => {
-    mockVideoSpec.value = {
-      summary: '',
-      supportsGenerateAudio: false,
-      generateAudioValue: true,
-      isEmpty: true,
-    }
+    mockSpecChip.value = { rendered: false }
     setVideo({ selectedOptionId: null } as Partial<StudioFormState>, {
       selectedModel: null,
     })
 
     render(<StudioMobileComposer />)
 
-    expect(screen.queryByTestId('studio-mobile-spec-chip')).toBeNull()
+    expect(screen.queryByTestId('studio-spec-chip')).toBeNull()
     // 模型 chip 照旧在 —— 它正是「怎么选一个」的唯一出口。
     expect(screen.getByTestId('studio-mobile-model-chip')).toHaveTextContent(
       'modelChipEmpty',

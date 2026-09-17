@@ -35,8 +35,6 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   stylePreset: false,
   reverse: false,
   refImage: false,
-  spec: false,
-  videoSpec: false,
   audioReading: false,
   musicSpec: false,
   loraSelector: false,

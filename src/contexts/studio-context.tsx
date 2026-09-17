@@ -96,8 +96,6 @@ export type PanelName =
   | 'stylePreset'
   | 'reverse'
   | 'refImage'
-  | 'spec'
-  | 'videoSpec'
   | 'audioReading'
   | 'musicSpec'
   | 'loraSelector'
@@ -387,8 +385,6 @@ const initialPanels: Record<PanelName, boolean> = {
   stylePreset: false,
   reverse: false,
   refImage: false,
-  spec: false,
-  videoSpec: false,
   audioReading: false,
   musicSpec: false,
   loraSelector: false,
@@ -411,8 +407,6 @@ export const STUDIO_TOOL_PANEL_NAMES: PanelName[] = [
   'refImage',
   'loraSelector',
   'civitai',
-  'spec',
-  'videoSpec',
   'audioReading',
   'musicSpec',
   'script',

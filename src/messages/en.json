@@ -8110,5 +8110,23 @@
       "steps": "Steps",
       "referenceStrength": "Reference"
     }
+  },
+  "StudioSpecChip": {
+    "chipLabel": "Spec",
+    "aspectRatioLabel": "Aspect ratio",
+    "imageResolutionLabel": "Size / resolution",
+    "videoResolutionLabel": "Resolution",
+    "durationLabel": "Duration",
+    "durationSeconds": "{seconds}s",
+    "tierUnsupported": "{tier} · not supported by this model",
+    "resolutionCeiling": "{tier} · this model tops out at {max}",
+    "priceDelta": "{tier} +{amount} / s",
+    "more": "More",
+    "moreWith": "More · {items}",
+    "moreItem": {
+      "batchCount": "Count",
+      "audio": "Audio",
+      "seed": "Seed"
+    }
   }
 }

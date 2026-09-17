@@ -22,6 +22,7 @@ import {
 } from '@/constants/studio-mobile'
 import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
+import { useStudioVideoAudio } from '@/hooks/use-studio-video-audio'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { cn } from '@/lib/utils'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
@@ -32,9 +33,7 @@ import { StudioCostPreview } from '@/components/business/studio/StudioCostPrevie
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
 import { StudioMobileModelSheet } from '@/components/business/studio/StudioMobileModelSheet'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
-import { StudioMobileSpecSheet } from '@/components/business/studio/StudioMobileSpecSheet'
-import { useStudioSpecSummary } from '@/components/business/studio/StudioSpecFields'
-import { useStudioVideoSpec } from '@/components/business/studio/StudioVideoSpecFields'
+import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
 import { studioChipActiveClass } from '@/components/business/studio-shared/primitives/tool-surface'
 
 /**
@@ -98,15 +97,9 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
     isImagePromptOverLimit,
     videoCostBasis,
   } = useStudioGenerateAction()
-  const { short: imageSpecSummary } = useStudioSpecSummary()
-  const {
-    summary: videoSpecSummary,
-    supportsGenerateAudio,
-    generateAudioValue,
-    isEmpty: videoSpecIsEmpty,
-  } = useStudioVideoSpec()
+  const { supported: supportsGenerateAudio, value: generateAudioValue } =
+    useStudioVideoAudio()
   const [modelSheetOpen, setModelSheetOpen] = useState(false)
-  const [specSheetOpen, setSpecSheetOpen] = useState(false)
 
   const isVideo = state.outputType === 'video'
 
@@ -127,7 +120,6 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
       : runModels.length === 1
         ? labelOf(runModels[0])
         : t('modelChipMulti', { count: runModels.length })
-  const specSummary = isVideo ? videoSpecSummary : imageSpecSummary
   /** 这一枪总共出几张 = 模型数 × 每模型张数（与桌面按钮上那个数同一个算式）。 */
   const totalOutputCount = Math.max(1, runModels.length) * state.imageBatchCount
   const hasResult = Boolean(lastGeneration?.url)
@@ -178,22 +170,13 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
           <span className="max-w-32 truncate">{modelChipLabel}</span>
           <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
         </button>
-        {/* ⚠ 视频档没选模型时**整颗不渲染**（与桌面 `StudioVideoSpecPopover` 的
-            第 3 条判据同一条）：档位全部实算自型号，没有型号就没有答案，留一颗
-            只剩箭头的空丸是纯噪音 —— 真机 375 上量到过这一版。 */}
-        {isVideo && videoSpecIsEmpty ? null : (
-          <button
-            type="button"
-            onClick={() => setSpecSheetOpen(true)}
-            aria-label={tV2('specLabel')}
-            aria-haspopup="dialog"
-            data-testid="studio-mobile-spec-chip"
-            className={chipClass}
-          >
-            <span className="tabular-nums">{specSummary}</span>
-            <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
-          </button>
-        )}
+        {/* 规格 —— 与桌面**同一颗** chip（D2 ④，第 12 项）：触屏上它自己就是
+            底部抽屉，⛔ 不再另外存一份 sheet 的开合。档位全部实算自型号，没有任何
+            一档可调时它自己不渲染 —— 留一颗只剩箭头的空丸是纯噪音。 */}
+        <StudioSpecChip
+          disabled={isGenerating}
+          triggerClassName="touch-target-y shrink-0"
+        />
         {/* 出声 —— 与规格 sheet 里那颗开关**镜像同一个 state**，不是第二个真相。
             ⚠ 只在选中端点的契约暴露 `generateAudio` 时才渲染：画一颗发不出去的
             开关比没有更糟（同 `StudioVideoSpecFields` 的判据）。 */}
@@ -380,11 +363,6 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
         selectedOptionId={state.selectedOptionId ?? null}
         onSelectSingle={handleSelectSingleModel}
         filterOption={filterVideoModelByMode}
-      />
-      <StudioMobileSpecSheet
-        open={specSheetOpen}
-        onOpenChange={setSpecSheetOpen}
-        mode={isVideo ? 'video' : 'image'}
       />
     </div>
   )

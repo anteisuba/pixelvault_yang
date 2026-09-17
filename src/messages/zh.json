@@ -8110,5 +8110,23 @@
       "steps": "步数",
       "referenceStrength": "参考强度"
     }
+  },
+  "StudioSpecChip": {
+    "chipLabel": "规格",
+    "aspectRatioLabel": "比例",
+    "imageResolutionLabel": "尺寸 / 清晰度",
+    "videoResolutionLabel": "清晰度",
+    "durationLabel": "时长",
+    "durationSeconds": "{seconds}s",
+    "tierUnsupported": "{tier} · 此模型不支持",
+    "resolutionCeiling": "{tier} · 此模型最高 {max}",
+    "priceDelta": "{tier} +{amount} / s",
+    "more": "更多",
+    "moreWith": "更多 · {items}",
+    "moreItem": {
+      "batchCount": "张数",
+      "audio": "声音",
+      "seed": "seed"
+    }
   }
 }

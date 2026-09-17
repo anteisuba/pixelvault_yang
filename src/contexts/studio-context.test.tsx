@@ -173,10 +173,10 @@ describe('StudioProvider workflow selection', () => {
     const { result } = renderHook(() => useStudioContext(), { wrapper })
 
     act(() => {
-      result.current.setSelectedWorkflowId(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
+      result.current.setSelectedWorkflowId(WORKFLOW_IDS.CHARACTER_TO_VIDEO)
     })
 
-    expect(result.current.state.panels.videoSpec).toBe(true)
+    expect(result.current.state.panels.refImage).toBe(true)
   })
 
   it('setLastEvaluation updates evaluation state', () => {

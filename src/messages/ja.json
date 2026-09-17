@@ -8110,5 +8110,23 @@
       "steps": "ステップ",
       "referenceStrength": "参照の強さ"
     }
+  },
+  "StudioSpecChip": {
+    "chipLabel": "仕様",
+    "aspectRatioLabel": "アスペクト比",
+    "imageResolutionLabel": "サイズ / 解像度",
+    "videoResolutionLabel": "解像度",
+    "durationLabel": "長さ",
+    "durationSeconds": "{seconds}s",
+    "tierUnsupported": "{tier} · このモデルは非対応",
+    "resolutionCeiling": "{tier} · このモデルは最大 {max}",
+    "priceDelta": "{tier} +{amount} / s",
+    "more": "詳細",
+    "moreWith": "詳細 · {items}",
+    "moreItem": {
+      "batchCount": "枚数",
+      "audio": "音声",
+      "seed": "シード"
+    }
   }
 }

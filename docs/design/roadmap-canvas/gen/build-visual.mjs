@@ -151,7 +151,7 @@ const groups = [
   ['节点四类', ['nodeText', 'nodeImage', 'nodeAudio', 'nodeVideo'], ['文', '图', '声', '视']],
   ['卡片四锚 + 状态', ['anchorText', 'anchorImage', 'anchorVoice', 'anchorStyle', 'cardDraft', 'cardStable'], ['文字', '图片', '声音', '风格', 'DRAFT', 'STABLE']],
   ['任务五态', ['taskQueued', 'taskCold', 'taskGenerating', 'taskArchived', 'taskFailed'], ['排队', '冷启动', '生成中', '已归档', '失败']],
-  ['渠道 / key', ['chAuto', 'chOwnKey', 'chPlatform', 'chInvalid'], ['自动', '自己的 key', '平台额度', 'key 失效']],
+  ['渠道 / key（无平台额度档，owner 2026-09-17）', ['chAuto', 'chOwnKey', 'chInvalid'], ['自动', '自己的 key', 'key 失效']],
 ]
 const iconRow = (bg, fg) => `<div style="background:${bg};color:${fg};border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:14px">
   ${groups.map(([g, keys, labels]) => `<div><div class="lab" style="margin:0 0 8px;color:${fg === '#fff' ? '#a3a3a3' : MUTED}">${esc(g)}</div><div style="display:flex;gap:18px;flex-wrap:wrap">${keys.map((k, i) => `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:64px"><div style="display:flex;gap:8px;align-items:center">${ic(k, 24)}${ic(k, 16)}</div><div style="font-size:11px;opacity:.8">${esc(labels[i])}</div></div>`).join('')}</div></div>`).join('')}

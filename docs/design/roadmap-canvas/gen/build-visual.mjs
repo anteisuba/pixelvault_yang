@@ -38,6 +38,7 @@ const page = (title, body) => `<!doctype html>
 <div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">${body}</div></x-dc></body></html>
 `
 const header = (eyebrow, title, sub) => `<div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(title)}</h1><p class="sub">${esc(sub)}</p>`
+const note = (n, q, a) => `<div style="margin-top:14px;display:grid;grid-template-columns:200px 1fr;border:1px solid oklch(0.85 0.08 85);border-radius:10px;overflow:hidden;background:#fff"><div style="padding:12px 14px;background:oklch(0.97 0.04 85);border-right:1px solid oklch(0.85 0.08 85)"><div style="${MONO}font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:oklch(0.45 0.1 85)">owner 批注 ${n}</div><div style="margin-top:6px;font-size:13px;line-height:1.5;color:#404040">${esc(q)}</div></div><div style="padding:12px 14px;font-size:12.5px;line-height:1.6">${a.map((x) => `<div style="display:flex;gap:8px"><span style="color:#737373">·</span><span>${esc(x)}</span></div>`).join('')}</div></div>`
 const sec = (t, s = '') => `<div class="sec"><b>${esc(t)}</b>${s ? `<span>${esc(s)}</span>` : ''}</div>`
 
 // ─── 自绘业务图标（24 网格 · 线宽 2 · round）───
@@ -114,7 +115,8 @@ const colors = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;
     <div class="lab" style="margin:0 0 8px">模态色 · 深版（文字 / 图标 / 端口）· 淡版（底 / 标签）</div>
     <div style="display:flex;gap:10px">${sw(MOD.image, '#fff', '图 image', '--modality-image · 292')}${sw(MOD.video, '#fff', '视 video', '--modality-video · 255')}${sw(MOD.audio, '#fff', '声 audio', '--modality-audio · 10')}${sw(MOD.text, '#fff', '文 text', '--modality-text · 160 · 新增')}</div>
     <div style="display:flex;gap:10px;margin-top:10px">${sw(MODL.image, MOD.image, '图', '-surface')}${sw(MODL.video, MOD.video, '视', '-surface')}${sw(MODL.audio, MOD.audio, '声', '-surface')}${sw(MODL.text, MOD.text, '文', '-surface')}</div>
-    <div style="margin-top:10px;font-size:12px;line-height:1.6;color:#525252">只出现在五处：节点端口与连线 · 卡片四锚 · 模态丸 · 首页功能卡角标 · 素材瓦片左上类型角。其他地方一律中性灰。首页 / 卡片 / 方向图现有的三套全部改指向这组。</div>
+    <div style="margin-top:10px;font-size:12px;line-height:1.6;color:${ST.risk[0]};text-decoration:line-through">只出现在五处：节点端口与连线 · 卡片四锚 · 模态丸 · 首页功能卡角标 · 素材瓦片左上类型角。</div>
+    <div style="margin-top:6px;font-size:12px;line-height:1.6;color:#525252"><b>已按批注 26 改为 C：不按颜色区分模态。</b>模态只靠图标 + 文字表达；现有 --modality-* 三个 token 保留给画布端口连线（技术上区分线的归属，不作为视觉语言），其他地方全部中性灰。上面四块色板仅作废弃前记录。</div>
   </div>
   <div>
     <div class="lab" style="margin:0 0 8px">状态色 · 三档 × 两版（文字 5:1 以上；描边不承重，语义靠 图标 + 文字 + 填色）</div>
@@ -156,7 +158,13 @@ const iconRow = (bg, fg) => `<div style="background:${bg};color:${fg};border-rad
   <div><div class="lab" style="margin:0 0 8px;color:${fg === '#fff' ? '#a3a3a3' : MUTED}">与 lucide 混排（左 lucide · 右自绘）</div><div style="display:flex;gap:14px;align-items:center">${lic('plus')}${lic('search')}${lic('chevronDown')}${lic('x')}<span style="width:1px;height:20px;background:${fg};opacity:.2"></span>${ic('nodeImage')}${ic('taskGenerating')}${ic('chOwnKey')}${ic('anchorStyle')}</div></div>
 </div>`
 const icons = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:12px">${iconRow('#fff', FG).replace('border-radius:12px', `border-radius:12px;border:1px solid ${BORDER}`)}${iconRow('oklch(20% 0 0)', '#fff')}</div>
-<div style="margin-top:10px;font-size:12px;line-height:1.6;color:#525252">规格：viewBox 24 · stroke 2 · round cap / join · currentColor · 16 / 20 / 24 三档。19 枚自绘，全部与 lucide 同签名放进 src/components/icons/。任务态用状态色，其余 currentColor；生成中那枚配 1.2s 线性旋转。收口：Image → ImageIcon 留一 · Alert 三枚留 AlertTriangle · Loader2 全换 Spinner。</div>`
+<div style="margin-top:10px;font-size:12px;line-height:1.6;color:#525252">规格：viewBox 24 · stroke 2 · round cap / join · currentColor · 16 / 20 / 24 三档。收口：Image → ImageIcon 留一 · Alert 三枚留 AlertTriangle · Loader2 全换 Spinner。</div>` +
+  note(29, '这边设计感觉有点普通，我认为需要单独设计，或者使用开源的组件。以及上面这个 P 也很丑需要设计。我不希望这部分你直接做出来，而是和我讨论怎么设计。', [
+    '收到，上面 19 枚只算「占位草图」，不进代码。图标与品牌标（下面这个 P）单独开一步 D1b，用 ① 反问 → ② 图 走，问题在回复里。',
+    '开源候选先摆三家给你比：Phosphor（六种粗细，与 lucide 同网格，业务对象覆盖最广）· Tabler（4900+，线性，风格最接近现状）· Hugeicons / Iconoir（更圆润、有双色版）。自绘只补开源没有的业务对象。',
+    '品牌标 P：现在是浅色底 + 橙棕字母，与站内中性灰 + 黑丸的语言不一致。方向要你选：字母标（重画 P 的字形与圆角）· 符号标（延续 brand-mark 四点错位的几何）· 字母 + 符号合一。',
+  ]) +
+  `<div style="margin-top:10px;display:flex;align-items:center;gap:12px"><img src="data:image/webp;base64,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" style="height:50px;border:1px solid ${BORDER};border-radius:8px" alt="当前浏览器标签里的 P"><span style="font-size:12px;color:${MUTED}">owner 贴的：当前标签页里的 P（favicon / 品牌标）</span></div>`
 
 // ─── 5 · 空态模板 ───
 const empty = (title, line, cta, icon) => `<div style="flex:1;min-width:260px;border:1px dashed ${BORDER};border-radius:16px;padding:36px 24px;text-align:center;background:${WORKBENCH}">
@@ -174,10 +182,11 @@ const empties = `<div style="display:flex;gap:14px;margin-top:12px;flex-wrap:wra
 
 const VISUAL = header('PixelVault · D1 ④ · 视觉语言总板 · 2026-09-17', '视觉语言 · 一张板定全站', '按 D1 决策树落成实际尺寸：四层材质与四档阴影、四色 × 两版 + 三档状态、圆角七档与字号表、19 枚自绘图标（浅 / 深底、16 / 24、与 lucide 混排）、空态模板。全部值取自 globals.css 现有 token，新增只有 --modality-text、两枚 -surface 和四个阴影别名。右侧「场景板」把它套到三个真实组件上。') +
   sec('1 · 材质四层与阴影收口', '11 个 token → 4 个') + layers +
-  sec('2 · 色', '模态四色 × 两版 · 状态三档 × 两版') + colors +
-  sec('3 · 圆角与字') + radius +
+  note(24, '没问题', ['四层材质与四档阴影收口 · 通过。']) +
+  sec('2 · 色', '状态三档 × 两版 · 模态色废弃（批注 26）') + colors + note(27, '这三个没问题', ['状态三档 · 通过。']) +
+  sec('3 · 圆角与字') + radius + note(28, '确认，没问题', ['圆角与字号表 · 通过。']) +
   sec('4 · 图标一览', '19 枚自绘 · 与 lucide 同网格') + icons +
-  sec('5 · 空态模板 C') + empties
+  sec('5 · 空态模板 C') + empties + note(31, '这边没问题', ['空态模板 C · 通过。'])
 
 // ═══ 场景板 ═══
 const chip = (t, opts = {}) => `<span style="display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:999px;border:1px solid ${BORDER};background:${opts.bg || '#fff'};font-size:12.5px;color:${opts.color || FG}">${opts.icon || ''}${esc(t)}${opts.caret ? lic('chevronDown', 16, MUTED) : ''}</span>`
@@ -185,18 +194,15 @@ const scenePicker = `<div style="width:380px;background:#fff;border:1px solid ${
   <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:${MUTEDBG};color:${MUTED};font-size:12.5px">${lic('search', 16)}搜型号…</div>
   <div class="lab" style="margin:10px 8px 4px">最近</div>
   ${[
-    ['GPT Image 2.5 Flare', '自己的 key · $0.04 / 张', 'chOwnKey', FG, true],
-    ['Seedream 5.0 Pro', '自动 · 火山 · $0.03 / 张 · 专属：组图 · 图层', 'chAuto', FG, false],
-    ['Kling O3 Pro', '缺 key · 点击配置', 'chInvalid', ST.warning[0], false],
-  ].map(([n, s, k, c, sel]) => `<div style="display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:8px;background:${sel ? MUTEDBG : 'transparent'}"><div style="width:28px;height:28px;border-radius:8px;background:${MODL.image};display:flex;align-items:center;justify-content:center">${ic('nodeImage', 16, MOD.image)}</div><div style="flex:1;min-width:0"><div style="font-size:13px;font-weight:500">${esc(n)}</div><div style="display:flex;align-items:center;gap:5px;font-size:11.5px;color:${c === FG ? MUTED : c};margin-top:2px">${ic(k, 16, c === FG ? MUTED : c)}${esc(s)}</div></div>${sel ? `<span style="color:${FG}">${'<svg class="ic s16" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>'}</span>` : ''}</div>`).join('')}
-  <div style="height:1px;background:${BORDER};margin:6px 8px"></div>
-  <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;font-size:12px;color:${MUTED}"><span>渠道 · 自动（userKey › 免费额度 › 最便宜）</span>${lic('chevronDown', 16, MUTED)}</div>
+    ['GPT Image', '2.5 Flare', '$0.04 / 张', true],
+    ['Seedream', '5.0 Pro', '$0.03 / 张', false],
+    ['Kling', 'O3 Pro', '缺 key', false],
+  ].map(([m, v, p, sel]) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:${sel ? MUTEDBG : 'transparent'}"><div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px"><span style="font-size:13px;font-weight:500">${esc(m)}</span><span style="font-size:13px;color:#525252">${esc(v)}</span></div><span class="tok" style="color:${p === '缺 key' ? ST.warning[0] : MUTED}">${esc(p)}</span>${sel ? `<span style="color:${FG}">${'<svg class="ic s16" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>'}</span>` : ''}</div>`).join('')}
 </div>`
 const sceneNode = `<div style="width:340px;background:#fff;border:1px solid ${BORDER};border-radius:18px;box-shadow:${SH.card};overflow:hidden">
   <div style="display:flex;align-items:center;gap:8px;padding:10px 12px"><div style="width:22px;height:22px;border-radius:7px;background:${MODL.video};display:flex;align-items:center;justify-content:center">${ic('nodeVideo', 16, MOD.video)}</div><div style="font-size:13px;font-weight:600;letter-spacing:-.012em;flex:1">镜头 03 · 雨夜街角</div><span style="display:inline-flex;align-items:center;gap:4px;font-size:11px;color:${ST.warning[0]};background:${ST.warning[1]};padding:2px 7px;border-radius:999px">${ic('taskGenerating', 16, ST.warning[0])}生成中 · 42s</span></div>
   <div style="margin:0 12px;aspect-ratio:16/9;border-radius:12px;background:linear-gradient(135deg,#d9d9d6,#bfbfbb);position:relative;overflow:hidden"><div style="position:absolute;inset:0;background:linear-gradient(90deg,transparent 0,rgba(255,255,255,.35) 50%,transparent 100%);width:40%;left:30%"></div><div style="position:absolute;left:0;right:0;bottom:0;height:3px;background:${BORDER}"><div style="width:62%;height:100%;background:${FG}"></div></div></div>
-  <div style="display:flex;gap:6px;padding:10px 12px;flex-wrap:wrap">${chip('Seedance 2.5', { icon: ic('chAuto', 16, MUTED), caret: true })}${chip('16:9 · 1080p · 5s', { caret: true })}${chip('声音', { bg: MUTEDBG })}</div>
-  <div style="display:flex;align-items:center;gap:6px;padding:0 12px 12px"><div style="display:flex;gap:-4px">${['#c9b8e8', '#b8c9e8', '#e8b8c0'].map((c, i) => `<div style="width:22px;height:22px;border-radius:6px;background:${c};border:2px solid #fff;margin-left:${i ? -6 : 0}px"></div>`).join('')}</div><span style="font-size:11.5px;color:${MUTED}">@小雅 · @雨夜街 · 风格 · 3 张参考</span></div>
+  <div style="height:12px"></div>
 </div>`
 const sceneTile = `<div style="width:220px"><div style="position:relative;aspect-ratio:1;border-radius:12px;background:linear-gradient(160deg,#e6e2f2,#cfc7e6);overflow:hidden;border:1px solid ${BORDER}">
   <div style="position:absolute;left:8px;top:8px;width:22px;height:22px;border-radius:7px;${GLASS}display:flex;align-items:center;justify-content:center">${ic('nodeImage', 16, MOD.image)}</div>
@@ -205,11 +211,11 @@ const sceneTile = `<div style="width:220px"><div style="position:relative;aspect
 </div><div style="display:flex;justify-content:space-between;margin-top:6px;font-size:12px;color:#525252"><span>雨夜 · 定妆 02</span><span class="tok">1024²</span></div></div>`
 const SCENES = header('PixelVault · D1 ④ · 场景套用 · 2026-09-17', '同一套语言套到三个真实组件', '目的只有一个：看自绘图标与 lucide 混排、四层阴影、模态色与状态色在真实密度下是否成立。这三块也是 D2 / D6 / D5 的起点，不是终稿。') +
   sec('模型选择器一行（D2 起点）', '弹层 = ④ 实底 + shadow-overlay；渠道 / key 态用自绘图标；缺 key 行用 warning 色不用红') +
-  `<div style="display:flex;gap:28px;margin-top:12px;align-items:flex-start;background:${WORKBENCH};padding:22px;border-radius:16px">${scenePicker}<div style="font-size:12.5px;line-height:1.7;color:#525252;max-width:420px">· 第二行承载两件事：渠道 / key 态（图标 + 一句）和专属能力（「专属：组图 · 图层」）。<br>· 选中态只用 --muted 底 + 对勾，不用主色。<br>· 模态色只出现在左侧型号图标底，其他全灰。<br>· 渠道段常驻一行、可展开（方案 ①）。</div></div>` +
+  `<div style="display:flex;gap:28px;margin-top:12px;align-items:flex-start;background:${WORKBENCH};padding:22px;border-radius:16px">${scenePicker}<div style="font-size:12.5px;line-height:1.7;color:#525252;max-width:420px">· 已按批注 32 精简：一行只有 模型 · 型号 · 价格 三件；缺 key 的价格位写「缺 key」。<br>· 渠道 / key 态、专属能力从行里拿掉，放去哪（hover？行右侧小图标？弹层底部？）留到 D2 ① 反问。<br>· 选中态只用 --muted 底 + 对勾。</div></div>` + note(32, '信息太多，跟之前讨论的不一样。只需要模型、模型型号、价格。', ['已改成三件；第二行整体删除。', '渠道段那一行也拿掉了，D2 反问里问它去哪。']) +
   sec('画布视频节点卡（D7 / 节点视觉基线）', '卡 = ② shadow-card · 圆角 18 = 2xl · 任务态徽章用 warning 两版 · 三颗 chip 变两颗（12 规格合一）') +
-  `<div style="display:flex;gap:28px;margin-top:12px;align-items:flex-start;background:${SUNKEN};padding:22px;border-radius:16px">${sceneNode}<div style="font-size:12.5px;line-height:1.7;color:#525252;max-width:440px">· 标题行左侧 22px 模态色底 + 自绘节点图标，替代现在的 Film。<br>· 生成中 = 任务条最小形态：徽章 + 底部 3px 进度；失败换 risk 两版。<br>· chip：模型（带渠道图标）· 规格一颗 · 声音开关；≤ 2 颗常驻。<br>· 底部参考行：叠头像 + 「@名字」，来自卡片总线（35）。</div></div>` +
-  sec('素材瓦片（D5 起点）', '静态只留媒体 + 类型角 + 来源卡标记；作者 / 操作 hover 再出（批注 31）') +
-  `<div style="display:flex;gap:28px;margin-top:12px;align-items:flex-start;background:#fff;border:1px solid ${BORDER};padding:22px;border-radius:16px">${sceneTile}<div style="font-size:12.5px;line-height:1.7;color:#525252;max-width:440px">· 左上类型角 = ③ 磨砂小方 + 模态色图标（图 / 视 / 声 / 文），这是模态色允许出现的五处之一。<br>· 右上 ⋯ 常显但磨砂低对比，hover 才实。<br>· 左下「来自卡」用 applied 色 + STABLE 图标，点开进卡片。<br>· 文件名 + 等宽尺寸放瓦片下方，不叠在图上。</div></div>`
+  `<div style="display:flex;gap:28px;margin-top:12px;align-items:flex-start;background:${SUNKEN};padding:22px;border-radius:16px">${sceneNode}<div style="font-size:12.5px;line-height:1.7;color:#525252;max-width:440px">· 已按批注 33 减到 视频 + 名字（+ 生成中徽章作任务态最小形态）。<br>· chip 行与参考行全部拿掉；参数、参考、模型都在展开态或右键里，收起态只看画面。<br>· 标题行图标暂用占位，随 D1b 图标结论替换。</div></div>` + note(33, '差不多了，不用改太多，只需要保留视频和名字。', ['已改。']) +
+  sec('素材瓦片（D5 起点）· 按批注 34 先不设计，等画布阶段', '下面保留作占位') +
+  `<div style="display:flex;gap:28px;margin-top:12px;align-items:flex-start;background:#fff;border:1px solid ${BORDER};padding:22px;border-radius:16px">${sceneTile}<div style="font-size:12.5px;line-height:1.7;color:#525252;max-width:440px">批注 34：先不设计，等到画布（D7）时一起。此块不作为 D5 输入。</div></div>` + note(34, '这边先不设计。等到画布的时候再去设计。', ['收到，从 D5 拿掉，挂到 D7。'])
 
 for (const [name, html] of [
   ['VisualLanguage.dc.html', page('视觉语言总板', VISUAL)],

@@ -28,6 +28,8 @@
 import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
+
+import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Clapperboard,
@@ -120,6 +122,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const t = useTranslations('StudioNode.v4')
   const tImage = useTranslations('StudioNode.v4.image')
   const tStage = useTranslations('StudioV3')
+  const tPicker = useTranslations('ModelPicker')
+  // 这张卡自己的「未选渠道」闸（gateId = 节点 id，与卡上那颗 chip 同一对）。
+  const channelGate = useModelChannelGate(NODE_MEDIA_KIND_IDS.image, id)
   const canvas = useNodeV4Canvas()
   const openApiKeys = useOpenApiKeys()
   const generation = useNodeMediaGenerationV4()
@@ -626,6 +631,14 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               onValueChange={setDraft}
               onSubmit={submitPrompt}
               generating={generating}
+              // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
+              // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
+              {...(channelGate.blocked
+                ? {
+                    blockedLabel: tPicker('pickChannel'),
+                    onBlockedClick: channelGate.requestPick,
+                  }
+                : {})}
               onCancel={() => setStartedAt(null)}
               placeholder={tImage('promptPlaceholder')}
               ariaLabel={tImage('promptLabel')}
@@ -701,6 +714,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                     options={modelOptions.map(toStudioModelOption)}
                     value={imageData.model?.optionId ?? null}
                     memoryScope={NODE_MEDIA_KIND_IDS.image}
+                    gateId={id}
                     disabled={generating}
                     {...(openApiKeys ? { onManageChannels: openApiKeys } : {})}
                     onChange={(option) => {

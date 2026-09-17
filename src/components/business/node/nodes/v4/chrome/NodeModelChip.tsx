@@ -50,6 +50,8 @@ export function NodeModelChip({
       options={modelOptions.map(toStudioModelOption)}
       value={value}
       memoryScope={kind}
+      // 每张卡各管各的「未选渠道」——按 scope 共用一份会让一张卡挡住整块画布。
+      gateId={nodeId}
       {...(groupBy ? { groupBy } : {})}
       {...(openApiKeys ? { onManageChannels: openApiKeys } : {})}
       {...(triggerEmptyLabel ? { triggerEmptyLabel } : {})}

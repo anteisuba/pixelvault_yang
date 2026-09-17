@@ -16,6 +16,7 @@ import { useTranslations } from 'next-intl'
 import { ModelPickerPopover } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
 import { routeToStudioOption } from '@/components/business/studio-shared/pickers/MainModelPicker'
 import { useLLMRoutePicker } from '@/hooks/use-llm-route-picker'
+import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { cn } from '@/lib/utils'
 
 import { useOpenApiKeys } from '../../../workbench-v4/shell/ShellApiKeys'
@@ -44,6 +45,10 @@ function useWritingModel(): string | null {
 
 export function TextAssistantBar({ nodeId, className }: TextAssistantBarProps) {
   const t = useTranslations('StudioNode.v4.text')
+  const tPicker = useTranslations('ModelPicker')
+  // 写作模型也可能有多条渠道 —— 没选就发不出去（D2 Q1）。这一栏只挂一个选择器，
+  // 所以 gateId 用默认（= scope）。
+  const channelGate = useModelChannelGate('llm_assist')
   const [value, setValue] = useState('')
   const [action, setAction] = useState<TextAssistAction | null>(null)
   const modelOptionId = useWritingModel()
@@ -109,6 +114,12 @@ export function TextAssistantBar({ nodeId, className }: TextAssistantBarProps) {
       // ——⛔ 宁可少切一个 chip，也不要把半句话吞成名字（`parse-mentions` 头注）。
       renderValue={(text) => renderPromptMentions(text)}
       chips={[...actionChips, modelChip]}
+      {...(channelGate.blocked
+        ? {
+            blockedLabel: tPicker('pickChannel'),
+            onBlockedClick: channelGate.requestPick,
+          }
+        : {})}
       {...(className ? { className } : {})}
     />
   )

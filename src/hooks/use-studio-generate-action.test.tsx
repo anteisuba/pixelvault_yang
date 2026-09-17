@@ -3,6 +3,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { StudioFormState } from '@/contexts/studio-context'
 
+import {
+  modelPickerGateKey,
+  resetModelPickerGate,
+  setPendingModel,
+  subscribeModelPickerOpen,
+} from '@/lib/model-picker-gate'
+
 import { useStudioGenerateAction } from './use-studio-generate-action'
 
 /**
@@ -149,6 +156,8 @@ function setState(overrides: Partial<StudioFormState> = {}) {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  window.localStorage.clear()
+  resetModelPickerGate()
   mockUseImageModelOptions.mockReturnValue({
     selectedModel: IMAGE_OPTION,
     modelOptions: [IMAGE_OPTION],
@@ -264,5 +273,68 @@ describe('useStudioGenerateAction', () => {
       { modelId: IMAGE_OPTION.modelId, apiKeyId: IMAGE_OPTION.keyId },
       { modelId: second.modelId, apiKeyId: second.keyId },
     ])
+  })
+})
+
+/**
+ * D2 Q1（owner 2026-09-17）：没有「自动」渠道 —— 多渠道型号没点过渠道就发不出去。
+ * 桌面参数栏与移动端 composer 共用这一份判据（见本文件头注）。
+ */
+describe('useStudioGenerateAction — 未选渠道闸门', () => {
+  it('型号在等渠道时不能生成，按钮上写「先选渠道」', () => {
+    setState({
+      prompt: 'a cat',
+      selectedOptionId: IMAGE_OPTION.optionId,
+    } as Partial<StudioFormState>)
+    setPendingModel(modelPickerGateKey('image'), 'seedream-5.0-pro')
+
+    const { result } = renderHook(() => useStudioGenerateAction())
+
+    expect(result.current.canGenerate).toBe(false)
+    expect(result.current.blockedReason?.message).toBe('pickChannel')
+    expect(result.current.blockedReason?.action).toBe('pickChannel')
+  })
+
+  it('点这颗被挡住的按钮 → 打开选择器，⛔ 不发生成', async () => {
+    const opened = vi.fn()
+    subscribeModelPickerOpen(modelPickerGateKey('image'), opened)
+    setState({
+      prompt: 'a cat',
+      selectedOptionId: IMAGE_OPTION.optionId,
+    } as Partial<StudioFormState>)
+    setPendingModel(modelPickerGateKey('image'), 'seedream-5.0-pro')
+
+    const { result } = renderHook(() => useStudioGenerateAction())
+    await act(async () => {
+      await result.current.handleGenerate()
+    })
+
+    expect(opened).toHaveBeenCalledTimes(1)
+    expect(mockGenerate).not.toHaveBeenCalled()
+  })
+
+  it('选定渠道之后闸门解除', () => {
+    setState({
+      prompt: 'a cat',
+      selectedOptionId: IMAGE_OPTION.optionId,
+    } as Partial<StudioFormState>)
+    setPendingModel(modelPickerGateKey('image'), 'seedream-5.0-pro')
+    setPendingModel(modelPickerGateKey('image'), null)
+
+    const { result } = renderHook(() => useStudioGenerateAction())
+    expect(result.current.canGenerate).toBe(true)
+    expect(result.current.blockedReason).toBeNull()
+  })
+
+  /** ⚠ 画布卡的闸门带 gateId，⛔ 不能挡住工作台这一份。 */
+  it('别的宿主（带 gateId）的待选渠道挡不住工作台', () => {
+    setState({
+      prompt: 'a cat',
+      selectedOptionId: IMAGE_OPTION.optionId,
+    } as Partial<StudioFormState>)
+    setPendingModel(modelPickerGateKey('image', 'node-a'), 'seedream-5.0-pro')
+
+    const { result } = renderHook(() => useStudioGenerateAction())
+    expect(result.current.canGenerate).toBe(true)
   })
 })

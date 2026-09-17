@@ -3,6 +3,8 @@
 import { useState, type FormEvent } from 'react'
 import { useTranslations } from 'next-intl'
 
+import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
+
 import { VOICE_LINE_TEXT_MAX_LENGTH } from '@/constants/voiceroom'
 import type {
   VoiceRoomCastMember,
@@ -40,10 +42,21 @@ export function VoiceRoomComposer({
   onSubmit,
 }: VoiceRoomComposerProps) {
   const t = useTranslations('VoiceRoom')
+  const tPicker = useTranslations('ModelPicker')
+  /**
+   * 顶栏那颗模型 chip 与这颗生成键说的是同一件事：语音档的型号要是有多条渠道而
+   * 用户还没点过，这一枪发不出去（D2 Q1：没有「自动」渠道）。⛔ 别在这里另判一遍
+   * 「有没有 key」——那是渠道面板上那颗点的事。
+   */
+  const channelGate = useModelChannelGate('audio')
   const [text, setText] = useState('')
 
   const selected = cast.find((member) => member.id === selectedId) ?? null
-  const canSend = Boolean(selected) && text.trim().length > 0 && !sending
+  const canSend =
+    Boolean(selected) &&
+    text.trim().length > 0 &&
+    !sending &&
+    !channelGate.blocked
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault()
@@ -111,8 +124,26 @@ export function VoiceRoomComposer({
         disabled={sending}
       />
 
-      <button type="submit" className="vr-send" disabled={!canSend}>
-        {sending ? t('sending') : t('generate')}
+      <button
+        type="button"
+        className="vr-send"
+        disabled={sending || text.trim().length === 0 || !selected}
+        // 缺渠道时按钮**保持可点**并写「先选渠道」，点了把选择器打开并定位到那
+        // 一行 —— 禁用它只会让人「点了没反应」（与工作台那两颗生成键同一条规矩）。
+        onClick={(event) => {
+          if (channelGate.blocked) {
+            event.preventDefault()
+            channelGate.requestPick()
+            return
+          }
+          void handleSubmit(event)
+        }}
+      >
+        {sending
+          ? t('sending')
+          : channelGate.blocked
+            ? tPicker('pickChannel')
+            : t('generate')}
       </button>
     </form>
   )

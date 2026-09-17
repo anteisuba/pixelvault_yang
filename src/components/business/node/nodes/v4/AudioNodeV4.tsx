@@ -31,6 +31,8 @@
 import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
+
+import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Clapperboard,
@@ -140,6 +142,9 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   const t = useTranslations('StudioNode.v4')
   const tAudio = useTranslations('StudioNode.v4.audio')
   const tStage = useTranslations('StudioV3')
+  const tPicker = useTranslations('ModelPicker')
+  // 这张卡自己的「未选渠道」闸（gateId = 节点 id，与卡上那颗 chip 同一对）。
+  const channelGate = useModelChannelGate(NODE_MEDIA_KIND_IDS.audio, id)
   const canvas = useNodeV4Canvas()
   const openApiKeys = useOpenApiKeys()
   const generation = useNodeMediaGenerationV4()
@@ -848,6 +853,14 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                 value={draft}
                 onValueChange={setDraft}
                 onSubmit={submitPrompt}
+                // 多渠道型号没选渠道 = 这一枪发不出去（D2 Q1：没有「自动」渠道）。
+                // 按钮上写「先选渠道」，点了打开这张卡的选择器并定位到那一行。
+                {...(channelGate.blocked
+                  ? {
+                      blockedLabel: tPicker('pickChannel'),
+                      onBlockedClick: channelGate.requestPick,
+                    }
+                  : {})}
                 generating={generating}
                 onCancel={() => setStartedAt(null)}
                 placeholder={
@@ -949,6 +962,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                       value={audioData.model?.optionId ?? null}
                       groupBy={MODEL_PICKER_GROUP_BY.kind}
                       memoryScope={NODE_MEDIA_KIND_IDS.audio}
+                      gateId={id}
                       // 缺 key 的行点了进内联配置（Hard Rule 8）——⛔ 不选中。
                       {...(openApiKeys
                         ? { onManageChannels: openApiKeys }

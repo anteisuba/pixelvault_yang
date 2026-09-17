@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { act, render, screen, fireEvent, within } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations:
@@ -24,6 +24,11 @@ import {
   AI_ADAPTER_TYPES,
   getDefaultProviderConfig,
 } from '@/constants/providers'
+import {
+  modelPickerGateKey,
+  requestModelPickerOpen,
+  resetModelPickerGate,
+} from '@/lib/model-picker-gate'
 
 function option(over: Partial<StudioModelOption>): StudioModelOption {
   const adapterType = over.adapterType ?? AI_ADAPTER_TYPES.FAL
@@ -107,6 +112,8 @@ function openPicker(
 
 beforeEach(() => {
   window.localStorage.clear()
+  // 「未选渠道」住模块级 store —— 不清就会漏进下一个用例。
+  resetModelPickerGate()
 })
 
 describe('ModelPickerPopover — 行只有 模型 · 型号 · 价格', () => {
@@ -370,5 +377,78 @@ describe('ModelPickerPopover — 其余契约', () => {
     expect(screen.getByText('ModelPicker.kinds.speech')).toBeInTheDocument()
     expect(screen.getByText('ModelPicker.kinds.music')).toBeInTheDocument()
     expect(screen.queryByText('ModelPicker.kinds.sfx')).toBeNull()
+  })
+})
+
+describe('ModelPickerPopover — 未选渠道闸门', () => {
+  it('待选型号按 (scope, gateId) 存，画布上一张卡挡不住另一张', () => {
+    render(
+      <ModelPickerPopover
+        options={FIXTURE}
+        value={null}
+        memoryScope="image"
+        gateId="node-a"
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.click(row('seedream-5.0-pro'))
+    const raw = window.localStorage.getItem('pv:model-picker:pending')
+    expect(raw).toContain('image:node-a')
+    expect(raw).not.toContain('image:node-b')
+  })
+
+  it('生成键点「先选渠道」→ 这个选择器自己打开', () => {
+    render(
+      <ModelPickerPopover
+        options={FIXTURE}
+        value={null}
+        memoryScope="image"
+        gateId="node-a"
+        onChange={vi.fn()}
+      />,
+    )
+    expect(document.querySelector('[data-model-key]')).toBeNull()
+    act(() => requestModelPickerOpen(modelPickerGateKey('image', 'node-a')))
+    expect(document.querySelector('[data-model-key]')).not.toBeNull()
+  })
+
+  it('⛔ 别的宿主的请求叫不醒它', () => {
+    render(
+      <ModelPickerPopover
+        options={FIXTURE}
+        value={null}
+        memoryScope="image"
+        gateId="node-a"
+        onChange={vi.fn()}
+      />,
+    )
+    act(() => requestModelPickerOpen(modelPickerGateKey('image', 'node-b')))
+    expect(document.querySelector('[data-model-key]')).toBeNull()
+  })
+
+  /**
+   * 画板 ④ 那格：标题「设置 {渠道}」、命名框预填「型号 · 渠道」——两处逐字不同。
+   */
+  it('开 QuickSetupDialog 时标题读渠道名、命名框预填「型号 · 渠道」', () => {
+    render(
+      <ModelPickerPopover
+        options={FIXTURE}
+        value={null}
+        memoryScope="image"
+        onChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByRole('button'))
+    fireEvent.mouseEnter(row('gpt-image-2'))
+    fireEvent.click(
+      within(channelPanel() as HTMLElement).getAllByRole(
+        'option',
+      )[0] as HTMLElement,
+    )
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.textContent).toContain('QuickSetup.title')
+    const named = within(dialog).getByDisplayValue(/GPT Image 2 · /)
+    expect(named).toBeInTheDocument()
   })
 })

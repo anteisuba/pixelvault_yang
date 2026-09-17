@@ -37,6 +37,7 @@ import {
 } from '@/contexts/studio-context'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useStudioVideoMode } from '@/hooks/use-studio-video-mode'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
@@ -52,6 +53,11 @@ import type { CostPreviewBasis } from '@/components/business/studio/StudioCostPr
 export interface StudioBlockedReason {
   message: string
   focusPrompt?: 'now' | 'nextFrame'
+  /**
+   * 点了这颗被挡住的按钮时除了 toast 还该做什么。
+   * `pickChannel` = 打开模型选择器并定位到那个等着选渠道的型号行（D2 Q1）。
+   */
+  action?: 'pickChannel'
 }
 
 /**
@@ -75,6 +81,7 @@ export function useStudioGenerateAction() {
   const t = useTranslations('StudioV2')
   const tV3 = useTranslations('StudioV3')
   const tPromptArea = useTranslations('StudioPromptArea')
+  const tPicker = useTranslations('ModelPicker')
   const locale = useLocale()
 
   const selectedStyleCard = styles.activeCard
@@ -178,6 +185,15 @@ export function useStudioGenerateAction() {
   const selectedCharId =
     characters.activeCardIds.length > 0 ? characters.activeCardIds[0] : null
 
+  /**
+   * 「选了型号但还没点渠道」闸（D2 Q1：没有「自动」渠道）。作用域就是当前模态 ——
+   * 工作台一个模态只挂一个选择器，所以不传 `gateId`，与
+   * `MainModelPicker` 的 `memoryScope` 一一对上。
+   */
+  const channelGate = useModelChannelGate(
+    isAudioMode ? 'audio' : isVideoMode ? 'video' : 'image',
+  )
+
   // ── canGenerate ────────────────────────────────────────────────
   const usesStyleCardForModel =
     !isVideoMode && !isAudioMode && state.workflowMode === 'card'
@@ -249,7 +265,10 @@ export function useStudioGenerateAction() {
     !isAudioPromptOverLimit &&
     !isImagePromptOverLimit &&
     !isAudioReferenceIncomplete &&
-    !videoAudioNeedsVisual
+    !videoAudioNeedsVisual &&
+    // ⚠ 多渠道型号没选渠道 = 发不出去（没有渠道就没有端点）。⛔ 别在这里替他挑
+    // 一条兜底 —— 那就是 D2 Q1 删掉的那条「自动」。
+    !channelGate.blocked
 
   // ── Reset selectedOptionId when outputType changes ─────────────
   const prevOutputTypeRef = useRef(state.outputType)
@@ -871,6 +890,9 @@ export function useStudioGenerateAction() {
       }
     }
     if (canGenerate) return null
+    if (channelGate.blocked) {
+      return { message: tPicker('pickChannel'), action: 'pickChannel' }
+    }
     if (hasUnavailableMention) {
       return {
         message: tPromptArea('referenceMention.invalid'),
@@ -948,6 +970,8 @@ export function useStudioGenerateAction() {
     isAudioMode,
     isVideoMode,
     tPromptArea,
+    channelGate.blocked,
+    tPicker,
   ])
 
   const handleGenerate = useCallback(async () => {
@@ -956,6 +980,9 @@ export function useStudioGenerateAction() {
       // Krea-style: button stays clickable; click surfaces the missing piece
       // instead of silently doing nothing.
       toast.info(blockedReason.message)
+      // 缺的是渠道就直接把选择器打开并定位到那一行 —— ⛔ 不让他自己去找
+      // （owner D2 Q1：「点了打开这行的渠道列表」）。
+      if (blockedReason.action === 'pickChannel') channelGate.requestPick()
       if (blockedReason.focusPrompt === 'now') {
         focusStudioPrompt()
       } else if (blockedReason.focusPrompt === 'nextFrame') {
@@ -966,7 +993,7 @@ export function useStudioGenerateAction() {
       return
     }
     await executeGenerate()
-  }, [blockedReason, isGenerating, executeGenerate])
+  }, [blockedReason, isGenerating, executeGenerate, channelGate])
 
   /**
    * `REQUEST_GENERATE` 的执行端（「保留 / 改变」面板、音频反馈重试走这条路）。

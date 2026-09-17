@@ -52,6 +52,16 @@ export interface NodePromptBarProps {
   onSubmit(): void
   /** 生成中：整条变灰、正文只读、发送换取消。 */
   readonly generating?: boolean
+  /**
+   * 这一枪被挡住了，按钮上写什么（今天只有一种：「先选渠道」，D2 Q1）。
+   *
+   * ⚠ 发送键是 30px 的圆形图标键，装不下文案 —— 挡住的原因走 `aria-label` /
+   * `title` + 一圈 warning 描边。⛔ 不把它 `disabled`：禁用的按钮收不到点击，用户
+   * 就只剩「点了没反应」这一种反馈（与工作台那两颗生成键同一条规矩）。
+   */
+  readonly blockedLabel?: string
+  /** 被挡住时点了发送 —— 宿主在这里把选择器打开并定位到那一行。 */
+  onBlockedClick?(): void
   onCancel?(): void
   readonly placeholder: string
   /**
@@ -116,6 +126,8 @@ export function NodePromptBar({
   onValueChange,
   onSubmit,
   generating = false,
+  blockedLabel,
+  onBlockedClick,
   onCancel,
   placeholder,
   chips,
@@ -258,11 +270,20 @@ export function NodePromptBar({
   ) : (
     <button
       type="button"
-      aria-label={t('send')}
+      aria-label={blockedLabel ?? t('send')}
+      title={blockedLabel}
       data-prompt-bar-send
+      data-prompt-bar-blocked={blockedLabel ? 'true' : undefined}
       disabled={value.trim().length === 0}
-      onClick={onSubmit}
-      className="nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+      onClick={blockedLabel ? onBlockedClick : onSubmit}
+      className={cn(
+        'nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-95 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
+        // 挡住时降到次级填充 + warning 描边（与工作台生成键同一条规矩：降的是底
+        // 不是字）。
+        blockedLabel
+          ? 'border border-status-warning bg-surface-fill text-status-warning'
+          : 'bg-primary text-primary-foreground',
+      )}
     >
       <ArrowRight aria-hidden className="size-4" />
     </button>

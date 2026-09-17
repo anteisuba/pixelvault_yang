@@ -31,6 +31,10 @@ import {
   type PickerModel,
 } from '@/lib/group-models-for-picker'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import {
+  modelPickerGateKey,
+  subscribeModelPickerOpen,
+} from '@/lib/model-picker-gate'
 import { toModelChannelCandidate } from '@/lib/pick-default-model-option'
 import { resolveModelChannel } from '@/lib/resolve-model-channel'
 import { isTouchPrimary } from '@/lib/touch'
@@ -138,6 +142,12 @@ export interface ModelPickerPopoverProps {
   onManageChannels?: () => void
   /** 分组维度，默认按厂商系列；音频栏传 `kind`（语音 / 配乐 / 音效）。 */
   groupBy?: ModelPickerGroupBy
+  /**
+   * 「未选渠道」闸门的宿主标识。同一 scope 下同时挂着多个选择器时必须传（画布上每
+   * 张卡都是 `image`，各有各的生成键）——不传就退化成按 scope 共用一份，那会让一张
+   * 卡没选渠道挡住整块画布。生成侧用同一对 `(scope, gateId)` 调 `useModelChannelGate`。
+   */
+  gateId?: string
 }
 
 /**
@@ -177,6 +187,7 @@ export function ModelPickerPopover({
   onToggleOption,
   onManageChannels,
   groupBy = MODEL_PICKER_GROUP_BY.series,
+  gateId,
 }: ModelPickerPopoverProps) {
   const multi = Boolean(selectedOptionIds && onToggleOption)
   const [open, setOpen] = useState(false)
@@ -193,13 +204,28 @@ export function ModelPickerPopover({
     modelKey: string
     option: StudioModelOption
     channelLabel: string
+    /** 命名框的预填：「型号 · 渠道」（画板 ④ 那格）。 */
+    labelDefault: string
   } | null>(null)
 
   const { healthMap } = useApiKeysContext()
-  const memory = useModelPickerMemory(memoryScope)
+  const memory = useModelPickerMemory(memoryScope, gateId)
   // 触屏紧凑视口走底部 Sheet 分支（`ResponsivePopover` 内部同一条判据）：没有
   // hover，也没有右侧摆面板的地方，渠道列表只能在行里原地展开。
   const sheet = useIsMobile() && isTouchPrimary()
+
+  /**
+   * 生成键在「先选渠道」态被点 → 把这个选择器打开。定位那一行不用另做：`panelRow`
+   * 在没有 hover 时就是选中 / 待选那一行，下面的对齐 effect 打开即量。
+   * ⛔ inline 宿主不订阅：它没有自己的浮层，开合归宿主。
+   */
+  useEffect(() => {
+    if (inline) return
+    return subscribeModelPickerOpen(
+      modelPickerGateKey(memoryScope, gateId),
+      () => setOpen(true),
+    )
+  }, [inline, memoryScope, gateId])
 
   const surfaceRef = useRef<HTMLDivElement | null>(null)
   const rowRefs = useRef(new Map<string, HTMLElement>())
@@ -420,7 +446,10 @@ export function ModelPickerPopover({
       setQuickSetup({
         modelKey: row.modelKey,
         option: view.channel.option,
+        // 标题读「设置 {渠道}」，命名框预填「型号 · 渠道」——画板 ④ 那两格写的
+        // 不是同一件事，⛔ 别拿一个字符串糊两处。
         channelLabel: view.channel.label,
+        labelDefault: `${row.label} · ${view.channel.label}`,
       })
       return
     }
@@ -666,6 +695,7 @@ export function ModelPickerPopover({
       modelId={quickSetup.option.modelId}
       // 标题读「设置 {渠道}」——这一步配的是**渠道的 key**，不是型号。
       modelLabel={quickSetup.channelLabel}
+      labelDefault={quickSetup.labelDefault}
       adapterType={quickSetup.option.adapterType}
       optionId={quickSetup.option.optionId}
       onVerified={() => {

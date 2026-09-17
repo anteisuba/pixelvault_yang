@@ -216,3 +216,31 @@ describe('NodePromptBar', () => {
     expect(onCancel).toHaveBeenCalled()
   })
 })
+
+describe('NodePromptBar — 未选渠道闸门（D2 Q1）', () => {
+  it('blockedLabel 把发送键换成「先选渠道」，点它走 onBlockedClick', () => {
+    const onBlockedClick = vi.fn()
+    const { onSubmit } = setup({
+      blockedLabel: '先选渠道',
+      onBlockedClick,
+    })
+    const send = document.querySelector(
+      '[data-prompt-bar-send]',
+    ) as HTMLButtonElement
+    expect(send.getAttribute('data-prompt-bar-blocked')).toBe('true')
+    expect(send.getAttribute('aria-label')).toBe('先选渠道')
+    // ⛔ 不禁用：禁用的按钮收不到点击，用户只剩「点了没反应」。
+    expect(send.disabled).toBe(false)
+    fireEvent.click(send)
+    expect(onBlockedClick).toHaveBeenCalledTimes(1)
+    expect(onSubmit).not.toHaveBeenCalled()
+  })
+
+  it('没挡住时照常发送', () => {
+    const onBlockedClick = vi.fn()
+    const { onSubmit } = setup({ onBlockedClick })
+    fireEvent.click(document.querySelector('[data-prompt-bar-send]') as Element)
+    expect(onSubmit).toHaveBeenCalledTimes(1)
+    expect(onBlockedClick).not.toHaveBeenCalled()
+  })
+})

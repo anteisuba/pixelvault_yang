@@ -87,37 +87,36 @@ const optB = picker(bodyRows({ rowIcon: false }), `<div style="height:1px;backgr
   </div>`)
 
 // ─── 定案：A 无「自动」· 未选为空 · 记住上次 · 绿 / 黄点 ───
-const rowF = ([m, v], { price = '', dots = null, sel = false, hover = false, chosen = null }) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:${sel ? MUTEDBG : 'transparent'};position:relative">
+// owner 2026-09-17 亲手改的版本：行里不画点；渠道面板是弹层右侧独立一块，选中渠道 = --muted 底、无对勾
+const rowF = ([m, v], { price = '', sel = false }) => `<div style="display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;background:${sel ? MUTEDBG : 'transparent'}">
   <div style="flex:1;min-width:0;display:flex;align-items:baseline;gap:8px"><span style="font-size:13px;font-weight:500">${esc(m)}</span><span style="font-size:13px;color:#525252">${esc(v)}</span></div>
   <span class="tok" style="color:${price ? MUTED : '#c4c4c4'}">${esc(price || '—')}</span>
-  ${dots ? `<span style="display:inline-flex;gap:3px;align-items:center;width:34px;justify-content:flex-end">${dots.map((c) => dotc(c)).join('')}</span>` : `<span style="width:34px"></span>`}
-  ${sel ? `<span style="color:${FG}">${ic('check')}</span>` : `<span style="width:16px"></span>`}
-  ${hover ? `<div style="position:absolute;right:-206px;top:-6px;width:190px;background:#fff;border:1px solid ${BORDER};border-radius:10px;box-shadow:${SH_FLOAT};padding:6px;font-size:12.5px;z-index:2">
-     ${CH2.map(([t, p, c, on]) => `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;background:${on ? MUTEDBG : 'transparent'}">${dotc(c)}<span style="flex:1">${esc(t)}</span><span class="tok" style="color:${MUTED}">${esc(p)}</span>${on ? ic('check') : ''}</div>`).join('')}
-   </div>` : ''}
+  ${sel ? `<span style="color:${FG}">${ic('check')}</span>` : ''}
 </div>`
+const channelPanel = (top = 82) => `<div style="position:absolute;top:${top}px;left:422px;width:190px;background:#fff;border:1px solid ${BORDER};border-radius:10px;box-shadow:${SH_FLOAT};padding:6px;font-size:12.5px;z-index:2">
+     ${CH2.map(([t, p, c, on]) => `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;border-radius:6px;background:${on ? MUTEDBG : 'transparent'}">${dotc(c)}<span style="flex:1">${esc(t)}</span><span class="tok" style="color:${MUTED}">${esc(p)}</span></div>`).join('')}
+   </div>`
 const pickerF = `<div style="width:380px;background:#fff;border:1px solid ${BORDER};border-radius:12px;box-shadow:${SH_OVERLAY};padding:6px;position:relative">
   <div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;background:${MUTEDBG};color:${MUTED};font-size:12.5px">${ic('search')}搜型号…</div>
   ${groupHead('最近')}
-  ${rowF(['Seedance', '2.5'], { price: '$0.213 / s', dots: [GREEN, GREEN, AMBER], sel: true, hover: true })}
-  ${rowF(['Kling', 'O3 Pro'], { price: '$0.168 / s', dots: [GREEN] })}
+  ${rowF(['Seedance', '2.5'], { price: '$0.213 / s', sel: true })}
+  ${rowF(['Kling', 'O3 Pro'], { price: '$0.168 / s' })}
   ${groupHead('Seedance')}
-  ${rowF(['Seedance', '2.0 Fast'], { price: '', dots: [GREEN, GREEN, AMBER] })}
+  ${rowF(['Seedance', '2.0 Fast'], { price: '' })}
   ${groupHead('Wan')}
-  ${rowF(['Wan', '3.0 Prime'], { price: '$0.20 / s', dots: [GREEN] })}
+  ${rowF(['Wan', '3.0 Prime'], { price: '$0.20 / s' })}
   ${groupHead('Veo')}
-  ${rowF(['Veo', '3.1'], { price: '', dots: [AMBER] })}
+  ${rowF(['Veo', '3.1'], { price: '' })}
 </div>`
-const FINAL = header('PixelVault · D2 · Q1 定案 · 2026-09-17', '渠道 = A · 无「自动」· 未选为空 · 记住上次 · 绿 / 黄点', 'owner 拍板：选 A；删掉「自动」这一项；没选过渠道就是空（价格位空）；选过一次后按型号记住；有 key 绿点、无 key 黄点；尽量不写字。') +
+const FINAL = header('PixelVault · D2 · Q1 定案（owner 调整版）· 2026-09-17', '渠道 = A · 无「自动」· 未选为空 · 记住上次 · 绿 / 黄点只在渠道面板', 'owner 拍板并亲手调整：行只有 模型 · 型号 · 价格；渠道面板独立浮在弹层右侧、与当前行对齐；面板里每条渠道一颗绿 / 黄点 + 名 + 价，选中用底色不用对勾；没选过就是空价；选过按型号记住。这版是 ④ 的输入。') +
   `<div style="display:flex;gap:28px;margin-top:14px;align-items:flex-start">
-    <div style="background:${WORKBENCH};border-radius:16px;padding:22px 240px 22px 22px">${pickerF}</div>
+    <div style="background:${WORKBENCH};border-radius:16px;padding:22px 240px 22px 22px;position:relative">${pickerF}${channelPanel(82)}</div>
     <div style="font-size:12.5px;line-height:1.75;color:#525252;max-width:420px">
       <div style="font-weight:600;color:${FG};margin-bottom:4px">行</div>
-      · 模型 · 型号 · 价格 · 渠道点。价格 = 已选渠道的单价；没选过就是「—」。<br>
-      · 渠道点：每条渠道一颗，8px，${dotc(GREEN)} 有 key · ${dotc(AMBER)} 无 key；单渠道型号也画一颗，所以「能不能用」全表一眼看完，不写字。<br>
-      · Seedance 2.0 Fast 是「没选过」的样子：价格空、三颗点仍在。<br>
+      · 模型 · 型号 · 价格，三件（owner 亲手改：行里不画点）。价格 = 已选渠道的单价；没选过就是「—」。<br>
+      · Seedance 2.0 Fast 与 Veo 3.1 是「没选过」的样子：价格空。<br>
       <div style="font-weight:600;color:${FG};margin:12px 0 4px">hover / 点行末</div>
-      · 出渠道列表：点 · 名 · 价，没有「自动」，没有说明句。<br>
+      · 渠道面板在弹层右侧独立一块，与当前行对齐：${dotc(GREEN)} 有 key · ${dotc(AMBER)} 无 key，名 · 价，没有「自动」，没有对勾——选中的那条用 --muted 底表示。<br>
       · 选一条 → 该型号记住（按型号存，跨会话），行价格位立刻换成这条的价。<br>
       · 黄点渠道可点，点了弹面 1 配 key；配好变绿并自动成为该型号的选择。<br>
       <div style="font-weight:600;color:${FG};margin:12px 0 4px">代价（要你知道）</div>
@@ -169,12 +168,12 @@ const D2 = {
       { k: 'leaf', t: 'Q3 = A 按厂商分组 + 顶部「最近 3」+ 搜索（方向 A 原样）' },
       { k: 'leaf', t: 'Q4 = A 规格 chip 全量摘要「1:1 · 2K · 5s」，点开一颗弹层三段 + 更多折叠' },
       { k: 'leaf', t: 'Q5 = A 手机：选择器与规格都用底部 Sheet（现状形态），内容与桌面同构' },
-      { k: 'leaf', t: 'Q1 = A（行末渠道点 + hover 列表）；删「自动」；未选为空、不可生成（按钮文案「先选渠道」）；按型号记住上次；绿点有 key · 黄点无 key；不写字。见「Q1 定案」板' },
+      { k: 'leaf', t: 'Q1 = A（owner 调整版）：行只三件不画点；hover / 点行 → 弹层右侧独立渠道面板（绿 / 黄点 + 名 + 价，选中用底色）；删「自动」；未选为空、不可生成（按钮「先选渠道」）；按型号记住上次' },
       { k: 'leaf', t: 'owner 更正：没有「平台额度」档；全部自己的 key，只有 Gemini 走平台 key 自动配置且不进选择器。resolveModelChannel 的 userKey › freeQuota › cheapest 收成 userKey › cheapest（进度表新增 60）' },
     ] },
     { k: 'cat', t: '选择器（10）', c: [
       { k: 'sub', t: '行', c: [ { k: 'leaf', t: '模型 · 型号 · 价格 三件（批注 32）；价格位在缺 key 时写「缺 key」并用 warning 色；选中态 --muted 底 + 对勾' } ] },
-      { k: 'sub', t: '结构', c: [ { k: 'leaf', t: '搜索框 → 最近 ≤3 → 按厂商分组（GPT Image · Gemini · FLUX · Seedream · NAI · Runner）；画布多一层「本项目常用」可选' }, { k: 'leaf', t: '渠道：每条渠道一颗绿 / 黄点（单渠道型号也画）；多渠道型号必须选一条才能生成，选择按型号记住；key 失效 → 点变黄、价格清空、回到未选；没有「自动」' } ] },
+      { k: 'sub', t: '结构', c: [ { k: 'leaf', t: '搜索框 → 最近 ≤3 → 按厂商分组（GPT Image · Gemini · FLUX · Seedream · NAI · Runner）；画布多一层「本项目常用」可选' }, { k: 'leaf', t: '渠道：面板在弹层右侧，每条渠道一颗绿 / 黄点 + 价；多渠道型号必须选一条才能生成，选择按型号记住；key 失效 → 点变黄、价格清空、回到未选；没有「自动」；单渠道型号面板只有一行' } ] },
       { k: 'sub', t: '宿主', c: [ { k: 'leaf', t: '工作台参数栏触发器 · 画布 NodeModelChip · 助手模型 chip · 配音间模型 chip · LoRA 底模弹窗 → 全走同一 Popover / Sheet；只换触发器外观' } ] },
       { k: 'sub', t: '删', c: [ { k: 'leaf', s: 'gap', t: 'BaseModelPickerPanel（三层钻取）· business/ModelSelector（零消费者）· StudioMobileModelSheet 独立实现 → 合进同一个 ResponsivePopover' } ] },
     ] },

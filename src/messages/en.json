@@ -2678,6 +2678,7 @@
     "bulkPublishConfirm": "Publish {count, plural, one {# asset} other {# assets}} to the public gallery?",
     "bulkPublishSuccess": "Published {count, plural, one {# asset} other {# assets}} to gallery",
     "bulkPublishFailed": "Publish failed",
+    "bulkPublishView": "See it in the gallery",
     "bulkFavorite": "Favorite",
     "bulkFavoriteConfirm": "Add {count, plural, one {# asset} other {# assets}} to favorites?",
     "bulkFavoriteSuccess": "Added {count, plural, one {# asset} other {# assets}} to favorites",

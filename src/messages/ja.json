@@ -2678,6 +2678,7 @@
     "bulkPublishConfirm": "{count}件の素材を公開ギャラリーに公開しますか？",
     "bulkPublishSuccess": "{count} 件の素材をギャラリーに公開しました",
     "bulkPublishFailed": "公開に失敗しました",
+    "bulkPublishView": "ギャラリーで見る",
     "bulkFavorite": "お気に入り",
     "bulkFavoriteConfirm": "{count} 件の素材をお気に入りに追加しますか？",
     "bulkFavoriteSuccess": "{count} 件の素材をお気に入りに追加しました",

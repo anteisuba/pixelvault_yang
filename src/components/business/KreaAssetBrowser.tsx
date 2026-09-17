@@ -105,7 +105,7 @@ import {
   USER_AUDIO_UPLOAD_ACCEPTED_MIME_TYPES,
   USER_VIDEO_UPLOAD_ACCEPTED_MIME_TYPES,
 } from '@/constants/uploads'
-import { Link } from '@/i18n/navigation'
+import { Link, useRouter } from '@/i18n/navigation'
 import {
   batchAssignProjectAPI,
   batchDeleteGenerationsAPI,
@@ -351,6 +351,7 @@ export function KreaAssetBrowser({
 }: KreaAssetBrowserProps) {
   const t = useTranslations('AssetsPage')
   const tErrors = useTranslations('Errors')
+  const router = useRouter()
   const reducedMotion = useReducedMotion()
   const [isToolbarStuck, setIsToolbarStuck] = useState(false)
 
@@ -650,12 +651,25 @@ export function KreaAssetBrowser({
       clearGalleryCache()
       ids.forEach((id) => updateGeneration(id, { isPublic: true }))
       void refreshCounts()
-      toast.success(t('bulkPublishSuccess', { count: updatedCount }))
+      // 发完给一条回链：发布的结果长在画廊里，而用户此刻站在素材库。
+      toast.success(t('bulkPublishSuccess', { count: updatedCount }), {
+        action: {
+          label: t('bulkPublishView'),
+          onClick: () => router.push(ROUTES.GALLERY),
+        },
+      })
       exitSelectionMode()
     } finally {
       setIsBulkPublishing(false)
     }
-  }, [selectedIds, t, updateGeneration, refreshCounts, exitSelectionMode])
+  }, [
+    selectedIds,
+    t,
+    updateGeneration,
+    refreshCounts,
+    exitSelectionMode,
+    router,
+  ])
 
   const requestBulkFavorite = () => {
     const count = selectedIds.size

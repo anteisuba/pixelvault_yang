@@ -2678,6 +2678,7 @@
     "bulkPublishConfirm": "把 {count} 个素材发布到公开画廊？",
     "bulkPublishSuccess": "已发布 {count} 个素材到画廊",
     "bulkPublishFailed": "发布失败",
+    "bulkPublishView": "去画廊看",
     "bulkFavorite": "收藏",
     "bulkFavoriteConfirm": "把 {count} 个素材加入收藏？",
     "bulkFavoriteSuccess": "已加入 {count} 个素材到收藏",

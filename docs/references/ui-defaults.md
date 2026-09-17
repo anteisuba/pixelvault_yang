@@ -88,6 +88,14 @@
 - 填充式控件（填充输入、inset 分组、分段控件底、滑杆轨）用 `surface-fill` 三档，值由 `--foreground` 派生，⛔ 不引入新色相；最深那档只做非文本图形。
 - 其他页面的卡片**不跟着抬**，这一节的授权范围就是画布节点卡及其卡内控件。
 
+### 3.2 图标 — Phosphor 一套，只从桶里拿
+
+- 图标库是 **Phosphor**（`@phosphor-icons/react`），全站唯一一套。lucide 已卸载，`src/**` 再出现 `lucide-react` 由 eslint 报错。
+- 默认 **weight `bold`**，尺寸与颜色由调用点的 `className` 给（`size-4` 一档为主，`currentColor`）；全局默认写在 `src/components/icons/IconDefaults.tsx`，⛔ 不在调用点逐个传 `weight` / `size` prop。
+- **只从桶 `@/components/icons` import**，⛔ 不直接 import `@phosphor-icons/react`：桶是换库时唯一要改的一处，也是「这个语义用哪个字形」的唯一裁决点。
+- 需要新图标：**先查桶**——多数语义已经有了（同义词落在同一个字形上是有意的）。桶里没有才加一条 re-export，并挑与已有字形同族的那一支，⛔ 不为一个页面引入孤立风格。
+- 转圈只有一个来源：`@/components/ui/spinner` 的 `Spinner`（内部是 `CircleNotch`，自带 `animate-spin` 与 `motion-reduce` 降级），⛔ 不在调用点手写 `animate-spin`。
+
 ---
 
 ## 4. 动效配方 — 每个交互一行，直接照抄
@@ -203,10 +211,12 @@
 - 类名 `font-serif` → 报错（槽已废止）。
 - 业务代码出现 Tailwind 调色板类（`-(amber|emerald|red|blue|...)-\d{2,3}`）→ 报错。
 - `:root {` 出现在 `globals.css` 之外 → 报错（域 token 只写域根）。
+- `src/**` import `lucide-react` → 报错（已落地：`eslint.config.mjs` 的 Phosphor 图标门，`@typescript-eslint/no-restricted-imports` 一条管整棵树）。
 - 第 1 条与第 4 条现在就可以用 `grep -rn` 当 PR 前门，eslint 规则化是独立任务。
 
 ## Last Verified
 
+- 2026-09-17 · 图标基座换 Phosphor：`src/**` 全部改走 `@/components/icons`，`lucide-react` 已从 `package.json` 卸载，eslint 门覆盖整棵 `src/**`。
 - 2026-09-03 · 新增 `--status-warning` / `-surface`（浅暗两档），28 个文件 170 处 amber/emerald 调色板类收口为 status token，43 处 `dark:` 变体删除。
 - 2026-09-03 · 颜色脊柱落地：`--surface-sunken` 入脊柱并接管壳底；首页 `--paper/--panel/--line` 与 LoRA 表面/文本/主色 token 全部 alias 脊柱（LoRA 的 `--destructive` 琥珀覆盖一并删除）；cards 页与 assets loading 去 `.dark`；`--muted-foreground` 55.6%→52%。对比度见 globals.css 注释。
 - 2026-09-03 · 展示槽收窄到首页 hero / legal / 空态三处，应用内 h1 退回正文槽（owner 看过画廊 375 截图后定）。

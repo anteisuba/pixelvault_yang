@@ -1,10 +1,15 @@
 /**
  * Icon barrel — the single import site for icons under `src/`.
  *
- * Phosphor is the icon base (owner, 2026-09-17). Every icon is re-exported
- * under the lucide spelling the codebase already uses, so migrating a file is
- * an import-path change and nothing else — JSX and `className` sizing stay put.
+ * Phosphor is the icon base (owner, 2026-09-17), and the only one — lucide is
+ * uninstalled and importing it anywhere under `src/**` is an eslint error.
  * Global weight/size defaults live in `IconDefaults.tsx`.
+ *
+ * ⚠ The lucide spellings below are **migration-era aliases**: they existed so
+ * moving a file was an import-path change and nothing else. New code writes the
+ * Phosphor name (`MagnifyingGlass`, `CaretDown`, `Trash`), not the lucide one
+ * (`Search`, `ChevronDown`, `Trash2`). Adding an icon means adding the Phosphor
+ * export — ⛔ do not mint a new lucide-shaped alias for it.
  *
  * Semantic duplicates are collapsed on purpose: `Image` / `ImageIcon` share one
  * glyph, and `AlertTriangle` / `TriangleAlert` / `AlertCircle` / `CircleAlert`

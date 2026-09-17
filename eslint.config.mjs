@@ -121,10 +121,16 @@ const IMAGE_FORBIDDEN_PATTERNS = [
   },
 ];
 
-/** E1-b — icons come from `@/components/icons` (Phosphor, aliased to the
- * lucide spellings). Folded into every block that already owns
- * `no-restricted-imports` for its files, because a later flat-config block
- * REPLACES the rule options of an earlier one instead of merging them. */
+/** Icons come from `@/components/icons` (Phosphor base). `lucide-react` is no
+ * longer a dependency, so the gate exists to keep it from coming back.
+ *
+ * ⚠ It rides `@typescript-eslint/no-restricted-imports` rather than the base
+ * `no-restricted-imports` the boundary blocks use. A later flat-config block
+ * REPLACES an earlier block's options for the SAME rule instead of merging
+ * them — a single src-wide entry on the base rule would silently disarm every
+ * module's sibling-import patterns (and vice versa). Two distinct rule ids
+ * cannot collide, so this stays one entry no matter how many boundary blocks
+ * land later. */
 const LUCIDE_FORBIDDEN_PATHS = [
   {
     name: "lucide-react",
@@ -151,10 +157,7 @@ const eslintConfig = defineConfig([
       "src/components/business/prompts/**/*.{ts,tsx}",
     ],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        { patterns: PROMPTS_FORBIDDEN_SIBLINGS, paths: LUCIDE_FORBIDDEN_PATHS },
-      ],
+      "no-restricted-imports": ["error", { patterns: PROMPTS_FORBIDDEN_SIBLINGS }],
     },
   },
   // ─── Spec 2 boundary rules ─────────────────────────────────────
@@ -175,10 +178,7 @@ const eslintConfig = defineConfig([
       "src/components/business/cards/**/*.{ts,tsx}",
     ],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        { patterns: CARDS_FORBIDDEN_SIBLINGS, paths: LUCIDE_FORBIDDEN_PATHS },
-      ],
+      "no-restricted-imports": ["error", { patterns: CARDS_FORBIDDEN_SIBLINGS }],
     },
   },
   // ─── Spec 4 boundary rules ─────────────────────────────────────
@@ -189,10 +189,7 @@ const eslintConfig = defineConfig([
       "src/components/business/image/**/*.{ts,tsx}",
     ],
     rules: {
-      "no-restricted-imports": [
-        "error",
-        { patterns: IMAGE_FORBIDDEN_PATTERNS, paths: LUCIDE_FORBIDDEN_PATHS },
-      ],
+      "no-restricted-imports": ["error", { patterns: IMAGE_FORBIDDEN_PATTERNS }],
     },
   },
   // ─── Spec 5a boundary rules ────────────────────────────────────
@@ -217,21 +214,18 @@ const eslintConfig = defineConfig([
       ],
     },
   },
-  // ─── E1-b · Phosphor icon migration gate ───────────────────────
-  // Icons come from `@/components/icons` (Phosphor, aliased to the lucide
-  // spellings). The gate is scoped to the directories already migrated and
-  // widens one batch at a time until `src/**` is covered and lucide is dropped.
+  // ─── E1-b · Phosphor icon gate ─────────────────────────────────
+  // Every icon in `src/**` resolves through `@/components/icons`. The whole
+  // tree is migrated and `lucide-react` is uninstalled, so this is one entry,
+  // not a widening list. See LUCIDE_FORBIDDEN_PATHS for why it rides the
+  // typescript-eslint rule id and not the base one.
   {
-    files: [
-      "src/components/ui/**/*.{ts,tsx}",
-      "src/components/layout/**/*.{ts,tsx}",
-      "src/constants/navigation.ts",
-      "src/components/business/studio/**/*.{ts,tsx}",
-      "src/components/business/assets/**/*.{ts,tsx}",
-      "src/components/business/image-card/**/*.{ts,tsx}",
-    ],
+    files: ["src/**/*.{ts,tsx}"],
     rules: {
-      "no-restricted-imports": ["error", { paths: LUCIDE_FORBIDDEN_PATHS }],
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        { paths: LUCIDE_FORBIDDEN_PATHS },
+      ],
     },
   },
   // Override default ignores of eslint-config-next.

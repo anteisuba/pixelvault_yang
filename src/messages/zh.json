@@ -8097,5 +8097,18 @@
     "x": "水平位置",
     "y": "垂直位置",
     "add": "添加角色"
+  },
+  "StudioCapabilityChips": {
+    "sectionLabel": "专属 · {model}",
+    "needsReference": "先挂一张参考图",
+    "capability": {
+      "quality": "画质",
+      "background": "背景",
+      "style": "风格",
+      "preview": "生成预览",
+      "guidanceScale": "CFG",
+      "steps": "步数",
+      "referenceStrength": "参考强度"
+    }
   }
 }

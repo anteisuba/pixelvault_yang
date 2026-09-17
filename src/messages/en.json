@@ -8097,5 +8097,18 @@
     "x": "Horizontal position",
     "y": "Vertical position",
     "add": "Add character"
+  },
+  "StudioCapabilityChips": {
+    "sectionLabel": "Only in {model}",
+    "needsReference": "Attach a reference image first",
+    "capability": {
+      "quality": "Quality",
+      "background": "Background",
+      "style": "Style",
+      "preview": "Live preview",
+      "guidanceScale": "CFG",
+      "steps": "Steps",
+      "referenceStrength": "Reference"
+    }
   }
 }

@@ -6819,6 +6819,14 @@ export async function generateOpenAIImage(
   if (quality) body.quality = quality
   const background = readStringField(advancedParams, 'background')
   if (background) body.background = background
+  // `input_fidelity` only exists on `/v1/images/edits` — sending it on the
+  // text-only `/generations` route is a 400, so it rides along with the
+  // reference images or not at all. Unset = omitted = the provider default.
+  // https://developers.openai.com/api/reference/resources/images/methods/edit
+  const inputFidelity = readStringField(advancedParams, 'inputFidelity')
+  if (inputFidelity && referenceImages.length > 0) {
+    body.input_fidelity = inputFidelity
+  }
 
   const streaming = advancedParams.preview === true
   if (streaming) {

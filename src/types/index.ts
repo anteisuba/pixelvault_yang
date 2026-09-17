@@ -263,6 +263,12 @@ export const AdvancedParamsSchema = z.object({
   // v3 runner 底模按需下载：checkpointVersionId/Name = 客户端从源图配方转发的底模
   // 引用；runnerCheckpoint = 服务端分级(T1)解析出的精确下载规格（fork GPU 侧下）；
   // runnerCheckpointApproximate = T2 近似（无精确底模、用兼容档，UI 提示差异）。
+  /**
+   * OpenAI `/v1/images/edits` `input_fidelity` —— 只有 `high` / `low` 两档，
+   * 没有 `auto`；不设 = 不发这个字段（provider 自己的默认）。
+   * https://developers.openai.com/api/reference/resources/images/methods/edit
+   */
+  inputFidelity: z.enum(['low', 'high']).optional(),
   checkpointVersionId: z.number().int().positive().optional(),
   checkpointName: z.string().max(200).optional(),
   // LoRA 声明的 baseModel（原始 Civitai 串）——无精确底模时的权威架构信号，服务端

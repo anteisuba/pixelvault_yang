@@ -32,6 +32,31 @@ describe('provider-capabilities', () => {
     ).not.toContain('max')
   })
 
+  // `input_fidelity` is a 2.5-only field: the image-generation guide tells you
+  // to omit it for gpt-image-2 (that model always runs inputs at high
+  // fidelity), so it must not leak onto the adapter default or the older model.
+  it.each([
+    AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE,
+    AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST,
+  ])('offers low/high input fidelity for %s', (modelId) => {
+    const config = getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, modelId)
+    expect(config.capabilities).toContain('inputFidelity')
+    expect(config.inputFidelityOptions).toEqual(['low', 'high'])
+  })
+
+  it('keeps input fidelity off gpt-image-2 and off the adapter default', () => {
+    for (const config of [
+      getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI),
+      getCapabilityConfig(
+        AI_ADAPTER_TYPES.OPENAI,
+        AI_MODELS.OPENAI_GPT_IMAGE_2,
+      ),
+    ]) {
+      expect(config.capabilities).not.toContain('inputFidelity')
+      expect(config.inputFidelityOptions).toBeUndefined()
+    }
+  })
+
   it('every AI_ADAPTER_TYPES entry has a capabilities config', () => {
     for (const adapterType of Object.values(AI_ADAPTER_TYPES)) {
       const config = ADAPTER_CAPABILITIES[adapterType]

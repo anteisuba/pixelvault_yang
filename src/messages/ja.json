@@ -3411,6 +3411,12 @@
       "xhigh": "超高",
       "max": "最高"
     },
+    "inputFidelity": "入力忠実度",
+    "inputFidelityHint": "添付した参照画像のディテールをどれだけ保持するか。編集時のみ有効です。",
+    "inputFidelityOption": {
+      "low": "低",
+      "high": "高"
+    },
     "background": "背景",
     "backgroundHint": "生成画像の背景を透明にするか不透明にするかを選択します。",
     "backgroundOption": {
@@ -8105,6 +8111,7 @@
     "needsReference": "先に参照画像を追加してください",
     "capability": {
       "quality": "画質",
+      "inputFidelity": "入力忠実度",
       "background": "背景",
       "style": "スタイル",
       "preview": "途中プレビュー",

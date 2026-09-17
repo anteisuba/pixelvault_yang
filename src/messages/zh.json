@@ -3411,6 +3411,12 @@
       "xhigh": "超高",
       "max": "最高"
     },
+    "inputFidelity": "输入保真",
+    "inputFidelityHint": "模型保留参考图细节的强度，仅在挂了参考图的编辑路径上生效。",
+    "inputFidelityOption": {
+      "low": "低",
+      "high": "高"
+    },
     "background": "背景",
     "backgroundHint": "选择生成图像的背景为透明或不透明。",
     "backgroundOption": {
@@ -8105,6 +8111,7 @@
     "needsReference": "先挂一张参考图",
     "capability": {
       "quality": "画质",
+      "inputFidelity": "输入保真",
       "background": "背景",
       "style": "风格",
       "preview": "生成预览",

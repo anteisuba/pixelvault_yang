@@ -13,6 +13,7 @@ export type ProviderCapability =
   | 'seed'
   | 'referenceStrength'
   | 'quality'
+  | 'inputFidelity'
   | 'preview'
   | 'resolution'
   | 'background'
@@ -38,6 +39,14 @@ export type ReferenceImageMode = 'native' | 'img2img' | 'director'
  * https://developers.openai.com/api/reference/resources/images/methods/edit
  */
 export const OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES = 16
+
+/**
+ * `input_fidelity` accepts exactly these two values — there is no `auto`, and
+ * omitting the field is the provider default, which is what an untouched chip
+ * does. Only the gpt-image-2.5 pair may send it (see the overrides below).
+ * https://developers.openai.com/api/reference/resources/images/methods/edit
+ */
+export const OPENAI_INPUT_FIDELITY_OPTIONS = ['low', 'high'] as const
 
 /**
  * 火山 Ark / BytePlus Seedream 参考图默认上限。Ark 文档 2026-09-17 核实：
@@ -82,6 +91,13 @@ export interface CapabilityConfig {
   referenceStrength?: NumericRange
   loraScale?: NumericRange
   qualityOptions?: readonly string[]
+  /**
+   * `input_fidelity` on `POST /v1/images/edits` — how strongly the model
+   * preserves detail from the attached input images. Official reference lists
+   * exactly `"high" | "low"` (no `auto`), so an untouched chip sends nothing.
+   * https://developers.openai.com/api/reference/resources/images/methods/edit
+   */
+  inputFidelityOptions?: readonly string[]
   /** Resolution tiers the model accepts (e.g. 'auto' | '1K' | '2K' | '4K') */
   resolutionOptions?: readonly string[]
   styleOptions?: readonly string[]
@@ -320,26 +336,35 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
+  // ⚠ `inputFidelity` is 2.5-only on purpose. The image-generation guide says
+  // of gpt-image-2: "omit this parameter; the API doesn't allow changing it
+  // because the model processes every image input at high fidelity
+  // automatically", so the adapter default above must NOT carry it.
+  // https://developers.openai.com/api/docs/guides/image-generation
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: {
     capabilities: [
       'quality',
+      'inputFidelity',
       'preview',
       'resolution',
       'background',
       'imageAnalysis',
     ],
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+    inputFidelityOptions: OPENAI_INPUT_FIDELITY_OPTIONS,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: {
     capabilities: [
       'quality',
+      'inputFidelity',
       'preview',
       'resolution',
       'background',
       'imageAnalysis',
     ],
     qualityOptions: ['auto', 'low', 'medium', 'high', 'xhigh', 'max'],
+    inputFidelityOptions: OPENAI_INPUT_FIDELITY_OPTIONS,
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
   },
   [AI_MODELS.FLUX_2_PRO]: {
@@ -565,6 +590,7 @@ export function getCapabilityFieldType(
     referenceStrength: 'slider',
     seed: 'seed',
     quality: 'select',
+    inputFidelity: 'select',
     background: 'select',
     style: 'select',
     preview: 'toggle',

@@ -2243,6 +2243,114 @@ describe('OpenAI image streaming execution', () => {
 })
 
 /**
+ * `input_fidelity` 是 `/v1/images/edits` 的字段 —— 挂了参考图才有那条路，
+ * 纯文生图走 `/v1/images/generations`，把它发过去是 400。所以这两例锁的不是
+ * 「值有没有被读出来」，是**它只跟着参考图走**。
+ * https://developers.openai.com/api/reference/resources/images/methods/edit
+ */
+describe('OpenAI input fidelity', () => {
+  function openAiEnv(): {
+    env: Parameters<typeof generateOpenAIImage>[0]
+    put: ReturnType<typeof vi.fn>
+  } {
+    const put = vi.fn().mockResolvedValue(undefined)
+    return {
+      env: {
+        GENERATION_BUCKET: { put },
+        R2_PUBLIC_URL: 'https://cdn.example.com',
+      } as unknown as Parameters<typeof generateOpenAIImage>[0],
+      put,
+    }
+  }
+
+  function openAiContext(
+    providerInput: Record<string, unknown>,
+  ): Parameters<typeof generateOpenAIImage>[1] {
+    return {
+      workflowId: 'IMAGE_QUEUE',
+      outputType: 'IMAGE',
+      providerId: 'openai',
+      resolveKeyUrl: 'https://app.example.com/key',
+      timeoutMs: 300000,
+      maxAttempts: 1,
+      pollIntervalMs: 1000,
+      runId: 'fidelity-test',
+      callbackUrl: 'https://app.example.com/callback',
+      providerInput: {
+        modelId: 'gpt-image-2.5-sunburst',
+        externalModelId: 'gpt-image-2.5-sunburst',
+        prompt: 'a cat',
+        aspectRatio: '1:1',
+        ...providerInput,
+      },
+    } as Parameters<typeof generateOpenAIImage>[1]
+  }
+
+  function stubImageResponse(): ReturnType<typeof vi.fn> {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(JSON.stringify({ data: [{ b64_json: 'ZmluYWw=' }] })),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  it('sends input_fidelity on the edits route when a reference is attached', async () => {
+    const { env } = openAiEnv()
+    const fetchMock = stubImageResponse()
+
+    await generateOpenAIImage(
+      env,
+      openAiContext({
+        referenceImages: ['https://cdn.example.com/ref.png'],
+        advancedParams: { inputFidelity: 'high' },
+      }),
+      'test-key',
+    )
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('https://api.openai.com/v1/images/edits')
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      input_fidelity: 'high',
+      images: [{ image_url: 'https://cdn.example.com/ref.png' }],
+    })
+  })
+
+  it('omits input_fidelity on the text-only generations route', async () => {
+    const { env } = openAiEnv()
+    const fetchMock = stubImageResponse()
+
+    await generateOpenAIImage(
+      env,
+      openAiContext({ advancedParams: { inputFidelity: 'high' } }),
+      'test-key',
+    )
+
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(url).toBe('https://api.openai.com/v1/images/generations')
+    expect(JSON.parse(String(init.body))).not.toHaveProperty('input_fidelity')
+  })
+
+  it('sends nothing when the chip was never touched', async () => {
+    const { env } = openAiEnv()
+    const fetchMock = stubImageResponse()
+
+    await generateOpenAIImage(
+      env,
+      openAiContext({
+        referenceImages: ['https://cdn.example.com/ref.png'],
+        advancedParams: { quality: 'high' },
+      }),
+      'test-key',
+    )
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(String(init.body))).not.toHaveProperty('input_fidelity')
+  })
+})
+
+/**
  * Runner（自建 RunPod ComfyUI）是唯一会长时间停在 IN_QUEUE 的图片通道：冷启动
  * 要载 6.9GB 底模。此前 worker 的图片路径不回报任何阶段，主站分不清「排队等
  * GPU 冷启动」和「没人接单」，于是把两种情况显示成同一个「生成中」。

@@ -48,9 +48,18 @@ const SELECT_OPTION_KEYS: Partial<
   Record<ProviderCapability, keyof CapabilityConfig>
 > = {
   quality: 'qualityOptions',
+  inputFidelity: 'inputFidelityOptions',
   background: 'backgroundOptions',
   style: 'styleOptions',
 }
+
+/**
+ * 只有挂了参考图才成立的能力：`referenceStrength` 要一张底图去 denoise，
+ * `inputFidelity` 只是 `/v1/images/edits` 的字段（纯文生图那条路上 OpenAI 根本
+ * 不收）。没挂时 chip 走 muted 灰底，⛔ 不隐藏。
+ */
+const REFERENCE_DEPENDENT_CAPABILITIES: ReadonlySet<ProviderCapability> =
+  new Set<ProviderCapability>(['referenceStrength', 'inputFidelity'])
 
 const SLIDER_RANGE_KEYS: Partial<
   Record<ProviderCapability, keyof CapabilityConfig>
@@ -102,7 +111,8 @@ export function getModelCapabilityChips(
         kind,
         options,
         defaultValue: options[0],
-        requiresReferenceImage: false,
+        requiresReferenceImage:
+          REFERENCE_DEPENDENT_CAPABILITIES.has(capability),
       })
       continue
     }
@@ -116,7 +126,8 @@ export function getModelCapabilityChips(
         kind,
         range,
         defaultValue: range.default,
-        requiresReferenceImage: capability === 'referenceStrength',
+        requiresReferenceImage:
+          REFERENCE_DEPENDENT_CAPABILITIES.has(capability),
       })
       continue
     }

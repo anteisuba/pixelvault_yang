@@ -381,6 +381,7 @@ export async function resolveImageRouteAndValidate(
     )
     for (const [field, options] of [
       ['quality', config.qualityOptions],
+      ['inputFidelity', config.inputFidelityOptions],
       ['background', config.backgroundOptions],
     ] as const) {
       const value = input.advancedParams?.[field]

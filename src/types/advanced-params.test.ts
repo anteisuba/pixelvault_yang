@@ -135,3 +135,26 @@ describe('AdvancedParamsSchema', () => {
     expect(result.success).toBe(false)
   })
 })
+
+describe('OpenAI input fidelity contract', () => {
+  it.each(['low', 'high'])(
+    'accepts the documented %s tier',
+    (inputFidelity) => {
+      expect(AdvancedParamsSchema.parse({ inputFidelity }).inputFidelity).toBe(
+        inputFidelity,
+      )
+    },
+  )
+
+  // ⚠ 官方 reference 只给 high / low —— 没有 `auto`。不设 = 不发这个字段，
+  // 所以一个 `auto` 混进来必须在 schema 就死掉，⛔ 不要到 provider 才吃 400。
+  it.each(['auto', 'medium', '', 'HIGH'])('rejects %j', (inputFidelity) => {
+    expect(AdvancedParamsSchema.safeParse({ inputFidelity }).success).toBe(
+      false,
+    )
+  })
+
+  it('leaves the field undefined when nobody set it', () => {
+    expect(AdvancedParamsSchema.parse({}).inputFidelity).toBeUndefined()
+  })
+})

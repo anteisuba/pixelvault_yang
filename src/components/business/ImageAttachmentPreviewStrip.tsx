@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { draggable } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
-import { Image as ImageIcon, X } from 'lucide-react'
+import { Image as ImageIcon, X } from '@/components/icons'
 
 import type { ReferenceImageEntry } from '@/hooks/use-image-upload'
 import { cn } from '@/lib/utils'

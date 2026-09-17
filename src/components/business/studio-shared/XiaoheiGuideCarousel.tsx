@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from '@/components/icons'
 import { useLocale, useTranslations } from 'next-intl'
 
 import type { AppLocale } from '@/i18n/routing'

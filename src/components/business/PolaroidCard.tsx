@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import Image from 'next/image'
-import { Heart, Pin, X, Sparkles } from 'lucide-react'
+import { Heart, Pin, X, Sparkles } from '@/components/icons'
 
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import { useTranslations } from 'next-intl'

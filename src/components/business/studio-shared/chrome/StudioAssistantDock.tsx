@@ -11,7 +11,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from 'react'
 import { dropTargetForElements } from '@atlaskit/pragmatic-drag-and-drop/element/adapter'
-import { Bot, GripVertical, ImageDown } from 'lucide-react'
+import { Bot, GripVertical, ImageDown } from '@/components/icons'
 import dynamic from 'next/dynamic'
 import { useTranslations } from 'next-intl'
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Pencil, ShieldCheck, Trash2, X, Check } from 'lucide-react'
+import { Pencil, ShieldCheck, Trash2, X, Check } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { API_KEY_MASK } from '@/constants/api-keys'

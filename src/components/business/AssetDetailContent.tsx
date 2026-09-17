@@ -16,7 +16,7 @@ import {
   Mic,
   Sparkles,
   Trash2,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import NextImage from 'next/image'

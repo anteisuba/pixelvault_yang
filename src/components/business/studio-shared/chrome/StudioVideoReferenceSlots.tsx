@@ -20,7 +20,7 @@
  */
 
 import { useRef, useState, type ChangeEvent, type DragEvent } from 'react'
-import { Film, ImagePlus, Upload, X } from 'lucide-react'
+import { Film, ImagePlus, Upload, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 

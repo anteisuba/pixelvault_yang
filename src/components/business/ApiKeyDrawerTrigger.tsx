@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { KeyRound, X } from 'lucide-react'
+import { KeyRound, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { useApiKeysContext } from '@/contexts/api-keys-context'

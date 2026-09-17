@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronDown, ChevronRight, Plus } from 'lucide-react'
+import { ChevronDown, ChevronRight, Plus } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { getAvailableModels } from '@/constants/models'

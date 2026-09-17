@@ -18,7 +18,7 @@ import {
   Trash2,
   Wand2,
   X,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 import { useAuth } from '@clerk/nextjs'

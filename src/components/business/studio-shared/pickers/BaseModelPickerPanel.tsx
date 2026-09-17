@@ -9,7 +9,7 @@ import {
   ChevronRight,
   Key,
   Sparkles,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 

@@ -11,7 +11,7 @@ import {
   Heart,
   Users,
   Camera,
-} from 'lucide-react'
+} from '@/components/icons'
 import { toast } from 'sonner'
 
 import { cn } from '@/lib/utils'

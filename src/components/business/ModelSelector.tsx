@@ -1,7 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Check, ChevronDown, Gift, KeyRound, Plus, Search } from 'lucide-react'
+import {
+  Check,
+  ChevronDown,
+  Gift,
+  KeyRound,
+  Plus,
+  Search,
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { API_USAGE } from '@/constants/config'

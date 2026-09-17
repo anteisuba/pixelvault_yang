@@ -1,6 +1,6 @@
 'use client'
 
-import { Folder, FolderX, FolderOpen, Plus } from 'lucide-react'
+import { Folder, FolderX, FolderOpen, Plus } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { useProjects } from '@/hooks/use-projects'

@@ -1,7 +1,7 @@
 'use client'
 
 import { Component, type ReactNode } from 'react'
-import { AlertTriangle, RotateCcw } from 'lucide-react'
+import { AlertTriangle, RotateCcw } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

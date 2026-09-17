@@ -10,7 +10,7 @@ import {
   type MouseEvent,
   type ReactNode,
 } from 'react'
-import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from '@/components/icons'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 
 import {

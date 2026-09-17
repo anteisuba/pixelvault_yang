@@ -3,7 +3,7 @@
 import { useId, useRef, useState, type ChangeEvent } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import { Camera, Sparkles } from 'lucide-react'
+import { Camera, Sparkles } from '@/components/icons'
 import { toast } from 'sonner'
 
 import { AssistantSettingsDialog } from '@/components/business/studio/assistant-operator/AssistantSettingsDialog'

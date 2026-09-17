@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { Check, ChevronDown, Settings2 } from 'lucide-react'
+import { Check, ChevronDown, Settings2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { ApiKeyHealthDot } from '@/components/business/ApiKeyHealthDot'

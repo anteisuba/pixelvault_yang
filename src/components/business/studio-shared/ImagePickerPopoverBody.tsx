@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element -- recent-asset thumbnails are remote URLs */
 
 import { useEffect, useState, type ReactNode } from 'react'
-import { Library, UploadCloud, X } from 'lucide-react'
+import { Library, UploadCloud, X } from '@/components/icons'
 
 import { GENERATION_REVIEW_STATE_IDS } from '@/constants/assistant-operator'
 import { STUDIO_ASSISTANT_RECENT_ASSETS } from '@/constants/studio'

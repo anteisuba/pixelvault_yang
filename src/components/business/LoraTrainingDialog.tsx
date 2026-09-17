@@ -13,7 +13,7 @@ import {
   X,
   XCircle,
   Copy,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { ImageEditSurface } from '@/components/business/studio-shared/editor/ImageEditSurface'

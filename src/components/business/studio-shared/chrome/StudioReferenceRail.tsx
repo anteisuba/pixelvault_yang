@@ -1,7 +1,7 @@
 'use client'
 
 import { memo } from 'react'
-import { Trash2, Wand2 } from 'lucide-react'
+import { Trash2, Wand2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import type { ReferenceImageEntry } from '@/hooks/use-image-upload'

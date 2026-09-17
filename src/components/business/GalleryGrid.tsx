@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Sparkles } from 'lucide-react'
+import { Sparkles } from '@/components/icons'
 import { useWindowVirtualizer } from '@tanstack/react-virtual'
 
 import type { Route } from '@/constants/routes'

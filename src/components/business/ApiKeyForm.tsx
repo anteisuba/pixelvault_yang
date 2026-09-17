@@ -10,7 +10,7 @@ import {
   Plus,
   SlidersHorizontal,
   XCircle,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { ACTIVE_API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'

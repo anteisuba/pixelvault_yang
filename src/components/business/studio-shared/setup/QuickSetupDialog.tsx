@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { ExternalLink, CheckCircle2, XCircle } from 'lucide-react'
+import { ExternalLink, CheckCircle2, XCircle } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { AI_ADAPTER_TYPES, getAdapterApiGuide } from '@/constants/providers'

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback } from 'react'
-import { Play, Pause, Download, Maximize2 } from 'lucide-react'
+import { Play, Pause, Download, Maximize2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { downloadRemoteAsset } from '@/lib/api-client/shared'

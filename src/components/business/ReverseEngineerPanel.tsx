@@ -11,7 +11,7 @@ import {
   Trees,
   User,
   X,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { DEFAULT_ASPECT_RATIO, type AspectRatio } from '@/constants/config'

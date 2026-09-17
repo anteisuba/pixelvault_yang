@@ -19,7 +19,7 @@ import {
   Trash2,
   UploadCloud,
   X,
-} from 'lucide-react'
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { motion, useReducedMotion } from 'motion/react'
 import { toast } from 'sonner'

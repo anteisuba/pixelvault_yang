@@ -1,7 +1,7 @@
 'use client'
 
 import { memo, useEffect, useState } from 'react'
-import { AlertTriangle, Ban } from 'lucide-react'
+import { AlertTriangle, Ban } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { PLATFORM_GENERATION_GUARD } from '@/constants/config'

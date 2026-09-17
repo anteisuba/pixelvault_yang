@@ -16,7 +16,7 @@ import {
   Upload,
   Wand2,
   X,
-} from 'lucide-react'
+} from '@/components/icons'
 import Image from 'next/image'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'

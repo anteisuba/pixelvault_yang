@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { Plus, X } from 'lucide-react'
+import { Plus, X } from '@/components/icons'
 
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {

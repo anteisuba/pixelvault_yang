@@ -1,7 +1,7 @@
 'use client'
 
 import { memo } from 'react'
-import { Gift, ImageIcon, Film, Mic } from 'lucide-react'
+import { Gift, ImageIcon, Film, Mic } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm } from '@/contexts/studio-context'

@@ -689,7 +689,11 @@ describe('BaseModelPickerPanel', () => {
 
     const rows = screen.getAllByRole('option')
     expect(rows).toHaveLength(1)
-    expect(rows[0].querySelector('svg.lucide-check')).toBeTruthy()
+    // Structural, not library-specific: the selected row is the only one
+    // carrying the trailing check glyph.
+    expect(
+      rows[0].querySelector('svg.size-4.shrink-0.text-foreground'),
+    ).toBeTruthy()
   })
 
   it('drills 系列 → 型号 → 渠道 for models that carry a 型号 registry', () => {

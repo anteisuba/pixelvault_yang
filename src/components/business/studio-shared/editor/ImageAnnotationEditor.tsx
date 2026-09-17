@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useRef, useState } from 'react'
-import { Check, Trash2 } from 'lucide-react'
+import { Check, Trash2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

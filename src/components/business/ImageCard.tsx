@@ -10,7 +10,13 @@ import { ImageCardVisibility } from '@/components/business/image-card/ImageCardV
 import { UseLoraButton } from '@/components/business/image-card/UseLoraButton'
 import type { MediaTransitionOrigin } from '@/components/business/MediaDetailViewer'
 
-import { ArrowUpRight, Coins, Copy, LockKeyhole, Wand2 } from 'lucide-react'
+import {
+  ArrowUpRight,
+  Coins,
+  Copy,
+  LockKeyhole,
+  Wand2,
+} from '@/components/icons'
 import { toast } from 'sonner'
 import { useFormatter, useLocale, useTranslations } from 'next-intl'
 

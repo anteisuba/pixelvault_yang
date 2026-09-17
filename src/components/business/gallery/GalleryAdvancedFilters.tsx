@@ -8,7 +8,7 @@
  */
 
 import { memo } from 'react'
-import { Heart } from 'lucide-react'
+import { Heart } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { useAuth } from '@clerk/nextjs'
 

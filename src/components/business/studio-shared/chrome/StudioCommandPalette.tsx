@@ -10,7 +10,15 @@ import {
   CommandList,
   CommandSeparator,
 } from 'cmdk'
-import { ImageIcon, Film, Mic, Wand2, Layers, Search, Cpu } from 'lucide-react'
+import {
+  ImageIcon,
+  Film,
+  Mic,
+  Wand2,
+  Layers,
+  Search,
+  Cpu,
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { useStudioForm } from '@/contexts/studio-context'

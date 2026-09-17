@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
-import { Lock } from 'lucide-react'
+import { Lock } from '@/components/icons'
 
 import { cn } from '@/lib/utils'
 

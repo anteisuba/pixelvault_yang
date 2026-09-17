@@ -1,6 +1,6 @@
 'use client'
 
-import { Heart, X } from 'lucide-react'
+import { Heart, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { useCallback, useRef, useState } from 'react'
 import { useAuth } from '@clerk/nextjs'

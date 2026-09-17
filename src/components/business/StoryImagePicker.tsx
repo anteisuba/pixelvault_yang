@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useState, useCallback } from 'react'
-import { GripVertical } from 'lucide-react'
+import { GripVertical } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import type { StoryPanelRecord } from '@/types'

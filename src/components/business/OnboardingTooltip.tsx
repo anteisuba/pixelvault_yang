@@ -7,7 +7,7 @@ import {
   useState,
   useSyncExternalStore,
 } from 'react'
-import { X } from 'lucide-react'
+import { X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import type { OnboardingStep } from '@/constants/onboarding'

@@ -1,6 +1,6 @@
 'use client'
 
-import { ImageOff } from 'lucide-react'
+import { ImageOff } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { CardTileBase } from '@/components/ui/card-tile-base'

@@ -8,7 +8,7 @@ import {
   Paperclip,
   Upload,
   Video,
-} from 'lucide-react'
+} from '@/components/icons'
 
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { ImagePickerPopoverBody } from '@/components/business/studio-shared/ImagePickerPopoverBody'

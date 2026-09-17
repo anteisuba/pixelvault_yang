@@ -8,7 +8,7 @@
  */
 
 import { memo, useCallback, useRef, useState } from 'react'
-import { Search, SlidersHorizontal, X } from 'lucide-react'
+import { Search, SlidersHorizontal, X } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'

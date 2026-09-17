@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { ScanEye, TriangleAlert } from 'lucide-react'
+import { ScanEye, TriangleAlert } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { RESEARCH_CONCLUSION_BASES } from '@/constants/research'

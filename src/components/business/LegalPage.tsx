@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import '@/app/legal.css'

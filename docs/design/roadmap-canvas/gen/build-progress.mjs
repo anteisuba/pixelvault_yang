@@ -58,7 +58,7 @@ const COLS = ['#', '改什么', '类型', '为什么排在这里 / 依赖', '来
 const R = { 2: kind, 5: pill }
 
 const PROGRESS = header('PixelVault · 改进进度表 · 2026-09-17', '当前要改的事 · 按修改顺序从上到下', '一行一个可提交的切片，覆盖全部 8 页：第 0–5 段来自第 3–6 页的批注与拍板；第 6–9 段（2026-09-17 补）把第 1 页方向图的 P0 / P1 / P2、第 6 页画布 / 卡片设计的缺口、第 3 页用户旅程的摩擦点与共享组件候选表里还没排的项全部收进来。顺序原则：先零设计门的修 / 删，再一手调查，再按依赖顺序落共享组件，然后助手重做、新模型接入、首页与皮肤，最后是画布 / 图片 / 音频的能力包与旅程补遗。状态列说明现在能不能动。') + legend +
-  stage('第 0 段 · 直接开工 · 已全部提交（本地 main，未 push）', '9 个 commit：49d623f9 · 9fe7a2e7 · b6b7dfc1 · 633ada4a · 4c73bf4d · fc0c3cf5 · 151ba91b · c49e21b6；每条子代理提交前都核过 owner WIP hunk') +
+  stage('第 0 段 · 直接开工 · 已全部提交（本地 main，未 push）', '12 个 commit：49d623f9 · 9fe7a2e7 · b6b7dfc1 · 633ada4a · 4c73bf4d · fc0c3cf5 · 151ba91b · c49e21b6 · e8d4d551 · eaf3a88d · 14d2de98（免费档路由测试改 mock + 首页去 Illustrious）· 12df3d56（画布源码进仓库 docs/design/roadmap-canvas）；每条提交前都核过 owner WIP hunk') +
   table(COLS, [
     ['01', 'Seedream 5.0 Pro 参考上限 14 → 10（常量 + worker 请求体）；Seedance 2.5 六条目录 + fal builder 放开 1080p；删 KLING_V3_PRO 指向不存在端点的 videoExtension（长视频延长目前无可用模型，文档照实写）', '修', '线上会失败的错，无设计门', '拍板 3', '已完成 · 49d623f9'],
     ['02', '按 fal 官方 OpenAPI 逐端点核对后删虚标：Seedream 4.5 / 5.0 Pro / Lite 与 FLUX.2 pro / edit 去掉负面 / guidance / steps；FLUX.2 flash 保留真实存在的 guidance（0–20）；火山 / BytePlus 的 guidance 真发所以保留；GEMINI_FLASH_IMAGE freeTier → false', '删', 'worker 对所有 fal 图像模型无差别发这三个字段，端点 schema 没有就被静默丢弃', '拍板 4 · 批注 22', '已完成 · 9fe7a2e7'],

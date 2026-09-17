@@ -434,6 +434,24 @@
       "h": 1680,
       "title": "D1 美术方向 · 思维导图",
       "page": "page-9"
+    },
+    {
+      "file": "VisualLanguage.dc.html",
+      "x": 4500,
+      "y": 0,
+      "w": 1400,
+      "h": 2200,
+      "title": "D1 ④ 视觉语言总板",
+      "page": "page-9"
+    },
+    {
+      "file": "VisualScenes.dc.html",
+      "x": 4500,
+      "y": 2300,
+      "w": 1400,
+      "h": 1420,
+      "title": "D1 ④ 场景套用",
+      "page": "page-9"
     }
   ],
   "annotations": [

@@ -196,6 +196,30 @@ const eslintConfig = defineConfig([
       ],
     },
   },
+  // ─── E1-b · Phosphor icon migration gate ───────────────────────
+  // Icons come from `@/components/icons` (Phosphor, aliased to the lucide
+  // spellings). The gate is scoped to the directories already migrated and
+  // widens one batch at a time until `src/**` is covered and lucide is dropped.
+  {
+    files: [
+      "src/components/ui/**/*.{ts,tsx}",
+      "src/components/layout/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "lucide-react",
+              message:
+                "Icons come from `@/components/icons` (Phosphor base, lucide names kept as aliases).",
+            },
+          ],
+        },
+      ],
+    },
+  },
   // Override default ignores of eslint-config-next.
   globalIgnores([
     // Default ignores of eslint-config-next:

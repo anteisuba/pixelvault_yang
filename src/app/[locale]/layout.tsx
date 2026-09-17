@@ -9,6 +9,7 @@ import {
 import { notFound } from 'next/navigation'
 
 import { PrivacyConsentBanner } from '@/components/business/PrivacyConsentBanner'
+import { IconDefaults } from '@/components/icons/IconDefaults'
 import { LocaleHtmlSync } from '@/components/layout/LocaleHtmlSync'
 import { getAppOrigin, getClerkAllowedOrigins } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
@@ -117,7 +118,7 @@ export default async function LocaleLayout({
     >
       <NextIntlClientProvider locale={locale} messages={marketingMessages}>
         <LocaleHtmlSync />
-        {children}
+        <IconDefaults>{children}</IconDefaults>
         {/* Outside `{children}` on purpose: `(main)/layout.tsx` re-wraps
             children with its own provider, so keeping the banner here pins it
             to the marketing bundle — hence `PrivacyConsent` lives in

@@ -2,11 +2,15 @@
 
 import { useAuth } from '@clerk/nextjs'
 import { useLocale, useTranslations } from 'next-intl'
+import { Settings } from '@/components/icons'
 
 import { HOME_V4_ROUTES } from '@/constants/homepage-v4'
+import { ROUTES, creatorProfilePath } from '@/constants/routes'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { LOCALES } from '@/i18n/routing'
 import { useAuthDialog } from '@/components/business/auth/AuthDialog'
+import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
+import { useMyProfile } from '@/hooks/use-my-profile'
 
 /**
  * 浮岛登录条 — a centred capsule, not a full-width bar.
@@ -20,20 +24,24 @@ import { useAuthDialog } from '@/components/business/auth/AuthDialog'
  * the top inset `.page-inner` reserves, and the island (14px + ~53px tall) fits
  * inside it.
  *
- * The auth door keeps the rule the previous marketing home set, because it is
- * the right one: the button looks identical signed in or out and only its
- * destination changes, so an edge-cached marketing page never has to wait on
- * Clerk before it can paint.
+ * The auth door keeps the rule the previous marketing home set for the
+ * signed-out half: an edge-cached marketing page paints the 「登录」 button
+ * before Clerk resolves. Once Clerk says the visitor is signed in, the right
+ * end swaps to the two doors D3 ④ settled on — a gear (→ /settings) and the
+ * avatar (→ the visitor's own profile). ⛔ No credit reading, no key count,
+ * no dot: those live in /settings only.
  */
 export function HomeV4Topbar() {
   const tAuth = useTranslations('Auth')
   const tCommon = useTranslations('Common')
   const tLocale = useTranslations('LocaleSwitcher')
+  const tNav = useTranslations('Navbar')
   const activeLocale = useLocale()
   const pathname = usePathname()
   const router = useRouter()
   const { isLoaded, isSignedIn } = useAuth()
   const { openAuth } = useAuthDialog()
+  const { profile } = useMyProfile()
 
   return (
     <header className="topbar">
@@ -58,21 +66,50 @@ export function HomeV4Topbar() {
         ))}
       </nav>
 
-      <button
-        type="button"
-        className="login"
-        onClick={() => {
-          /* Not yet resolved: fall through to the window rather than guess —
-             Clerk forwards an already-signed-in visitor on its own. */
-          if (isLoaded && isSignedIn) {
-            router.push(HOME_V4_ROUTES.studio)
-            return
-          }
-          openAuth()
-        }}
-      >
-        {tAuth('open')}
-      </button>
+      {isLoaded && isSignedIn ? (
+        <>
+          <Link
+            href={ROUTES.SETTINGS}
+            className="settings"
+            aria-label={tNav('settings')}
+          >
+            <Settings width={18} height={18} aria-hidden />
+          </Link>
+          {profile?.username ? (
+            <Link
+              href={creatorProfilePath(profile.username)}
+              className="avatar"
+              aria-label={tNav('viewProfile')}
+            >
+              <ProfileAvatar
+                avatarUrl={profile.avatarUrl}
+                size={28}
+                className="size-7"
+              />
+            </Link>
+          ) : (
+            <span className="avatar" aria-hidden>
+              <ProfileAvatar size={28} className="size-7" />
+            </span>
+          )}
+        </>
+      ) : (
+        <button
+          type="button"
+          className="login"
+          onClick={() => {
+            /* Not yet resolved: fall through to the window rather than guess —
+               Clerk forwards an already-signed-in visitor on its own. */
+            if (isLoaded && isSignedIn) {
+              router.push(HOME_V4_ROUTES.studio)
+              return
+            }
+            openAuth()
+          }}
+        >
+          {tAuth('open')}
+        </button>
+      )}
     </header>
   )
 }

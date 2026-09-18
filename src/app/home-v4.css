@@ -184,6 +184,37 @@ body.home-v4-locked {
   cursor: pointer;
 }
 
+/* 已登录时胶囊右端的两颗（D3 ④ 入口收口）：齿轮 → /settings，头像 → 个人主页。
+   ⛔ 不显额度、不显 key 数、不挂红点 —— 那些只在 /settings 里看到。 */
+.home-v4 .topbar .settings {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  color: var(--dim);
+  text-decoration: none;
+  transition:
+    color 0.2s ease,
+    background 0.2s ease;
+}
+
+.home-v4 .topbar .settings:hover {
+  color: var(--ink);
+  background: color-mix(in srgb, var(--ink) 6%, transparent);
+}
+
+.home-v4 .topbar .avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  text-decoration: none;
+}
+
 /* ─── 翻页引擎：竖站 ────────────────────────────────────────────── */
 .home-v4 .deck {
   position: fixed;

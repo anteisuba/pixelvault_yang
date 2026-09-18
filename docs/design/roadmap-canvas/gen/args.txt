@@ -114,3 +114,11 @@ DesignD2Form.dc.html
 DesignD2Spec.dc.html
 --artboard
 DesignD3Ask.dc.html
+--artboard
+DesignD3Map.dc.html
+--artboard
+DesignD3Settings.dc.html
+--artboard
+DesignD3Keys.dc.html
+--artboard
+DesignD3Entry.dc.html

@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import {
   addOperatorMention,
+  appendOperatorEntry,
   resetOperatorThread,
 } from '@/hooks/use-studio-operator-store'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
@@ -11,6 +12,7 @@ import type { StudioOperatorPanel } from './StudioOperatorPanel'
 type StudioOperatorPanelProps = Parameters<typeof StudioOperatorPanel>[0]
 
 import {
+  STUDIO_OPERATOR_MOBILE_SHELL,
   STUDIO_OPERATOR_PANEL_RESIZE,
   STUDIO_OPERATOR_SHELL,
 } from '@/constants/studio-assistant-operator'
@@ -81,11 +83,6 @@ vi.mock('@/hooks/use-assistant-operator', () => ({
 }))
 vi.mock('@/hooks/use-studio-operator-critique', () => ({
   useStudioOperatorCritique: () => undefined,
-}))
-// 收起档那句微状态（§3.6）—— 手机浮标与桌面微状态卡读的是**同一个 hook**，
-// 这里给一句固定的，好让「传下去了没有」这件事有机器守着。
-vi.mock('@/hooks/use-studio-operator-status-word', () => ({
-  useStudioOperatorStatusWord: () => '正在查 3 个来源…',
 }))
 // 助手设置 persona（§8）—— 外壳拉一次往下传，这里给一份不发请求的默认值。
 vi.mock('@/hooks/use-assistant-persona', () => ({
@@ -230,21 +227,58 @@ describe('StudioOperatorDock', () => {
     expect(panel.className).toContain('shadow-assistant-panel')
   })
 
-  it('收起态：同一个 aside 收成 40px 微状态卡（§4.3），⛔ 没有图标轨', () => {
+  it('收起态：aside 归零，另画一颗右下角 44px 圆按钮（D7 ④ · Q2 = C）', () => {
     hostOpen = false
     render(<StudioOperatorDock />)
     const panel = screen.getByTestId('operator-panel')
     expect(panel.dataset.open).toBe('false')
-    expect(panel.style.width).toBe('auto')
-    expect(panel).not.toHaveClass('bottom-6')
-    expect(panel.style.height).toBe(
-      `${STUDIO_OPERATOR_SHELL.collapsedHeightPx}px`,
+    expect(panel.style.width).toBe('0px')
+    expect(panel.style.height).toBe('0px')
+    const collapsed = screen.getByTestId('operator-collapsed')
+    expect(collapsed.style.width).toBe(
+      `${STUDIO_OPERATOR_SHELL.collapsedSizePx}px`,
     )
-    expect(screen.getByTestId('operator-collapsed')).toBeTruthy()
+    expect(collapsed.style.bottom).toBe(
+      `${STUDIO_OPERATOR_SHELL.collapsedInsetPx}px`,
+    )
     expect(screen.queryByTestId('operator-panel-content')).toBeNull()
   })
 
-  it('点微状态卡展开', () => {
+  /** 结果卡落地那一刻面板多半是收着的（点生成键 = 点工作台 = 收面板）。 */
+  const arriveResult = (id: string) => {
+    act(() => {
+      appendOperatorEntry({
+        kind: 'result',
+        id,
+        total: 1,
+        completed: 1,
+        items: [{ id: `${id}-img`, url: 'https://cdn.test/a.png' }],
+        storedAt: '2026-09-19T00:00:00.000Z',
+      })
+    })
+  }
+
+  it('无事无角标；收着时回来一张结果就画数字', () => {
+    hostOpen = false
+    render(<StudioOperatorDock />)
+    expect(screen.queryByTestId('operator-collapsed-badge')).toBeNull()
+    arriveResult('result-unread')
+    expect(screen.getByTestId('operator-collapsed-badge').textContent).toBe('1')
+  })
+
+  it('打开面板即把未读结果清零', () => {
+    hostOpen = false
+    const view = render(<StudioOperatorDock />)
+    arriveResult('result-unread')
+    expect(screen.getByTestId('operator-collapsed-badge').textContent).toBe('1')
+    hostOpen = true
+    view.rerender(<StudioOperatorDock />)
+    hostOpen = false
+    view.rerender(<StudioOperatorDock />)
+    expect(screen.queryByTestId('operator-collapsed-badge')).toBeNull()
+  })
+
+  it('点圆按钮展开', () => {
     hostOpen = false
     render(<StudioOperatorDock />)
     fireEvent.click(screen.getByTestId('operator-collapsed'))
@@ -257,11 +291,10 @@ describe('StudioOperatorDock · 手机档', () => {
    * ⚠ v2 §4.6 起 Sheet 是**半屏**的：上半截工作台露着 —— 所以 Sheet 一开，
    * 浮标就整颗不渲染（⛔ 不再是「浮标一直挂着、被全屏 Sheet 盖住」）。
    */
-  it('渲染半屏 Sheet；开着时⛔ 不画浮标，也没有微状态卡与桌面 aside', () => {
+  it('渲染半屏 Sheet；开着时⛔ 不画收起态按钮，也没有桌面 aside', () => {
     mobile = true
     render(<StudioOperatorDock />)
     expect(screen.getByTestId('operator-mobile-sheet')).toBeTruthy()
-    expect(screen.queryByTestId('operator-mobile-fab')).toBeNull()
     expect(screen.queryByTestId('operator-collapsed')).toBeNull()
     expect(screen.queryByTestId('operator-panel')).toBeNull()
   })
@@ -276,28 +309,20 @@ describe('StudioOperatorDock · 手机档', () => {
     render(<StudioOperatorDock />)
     expect(screen.queryByTestId('operator-mobile-sheet')).toBeNull()
     expect(screen.queryByTestId('operator-panel-content')).toBeNull()
-    // 面板收起时浮标仍在 —— 它是手机上唯一的入口。
-    expect(screen.getByTestId('operator-mobile-fab')).toBeTruthy()
+    // 面板收起时那颗圆按钮仍在 —— 它是手机上唯一的入口。
+    expect(screen.getByTestId('operator-collapsed')).toBeTruthy()
   })
 
-  it('点浮标打开', () => {
+  it('点圆按钮打开；手机档只换距下缘的留白（96 而不是 16）', () => {
     mobile = true
     hostOpen = false
     render(<StudioOperatorDock />)
-    fireEvent.click(screen.getByTestId('operator-mobile-fab'))
-    expect(setOpen).toHaveBeenCalledWith(true)
-  })
-
-  it('收起档浮标带微状态 —— 与桌面微状态卡同一个 hook 供值', () => {
-    mobile = true
-    hostOpen = false
-    render(<StudioOperatorDock />)
-    expect(screen.getByTestId('operator-mobile-fab-status').textContent).toBe(
-      '正在查 3 个来源…',
+    const collapsed = screen.getByTestId('operator-collapsed')
+    expect(collapsed.style.bottom).toContain(
+      `${STUDIO_OPERATOR_MOBILE_SHELL.fabBottomPx}px`,
     )
-    expect(
-      screen.getByTestId('operator-mobile-fab').getAttribute('aria-label'),
-    ).toContain('正在查 3 个来源…')
+    fireEvent.click(collapsed)
+    expect(setOpen).toHaveBeenCalledWith(true)
   })
 
   it('LoRA 域在手机上整颗不渲染（装配台仍走 LoraAssistantDock）', () => {
@@ -306,7 +331,7 @@ describe('StudioOperatorDock · 手机档', () => {
     const { container } = render(<StudioOperatorDock />)
     expect(container.firstChild).toBeNull()
     expect(screen.queryByTestId('operator-mobile-sheet')).toBeNull()
-    expect(screen.queryByTestId('operator-mobile-fab')).toBeNull()
+    expect(screen.queryByTestId('operator-collapsed')).toBeNull()
   })
 })
 

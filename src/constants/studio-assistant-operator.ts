@@ -428,13 +428,15 @@ export const STUDIO_OPERATOR_SHELL = {
    */
   wideAtPx: 700,
   /**
-   * **收起态那张微状态卡**的高（v2 §4.3 / 画板 BCollapsed）。
+   * **收起态那颗圆按钮**的边长（D7 ④ · Q2 = C，2026-09-19）。
    *
-   * ⚠ 它是外壳收起后的高，不是按钮的命中区：卡整张可点，40px 已经过
-   * `ui-defaults.md §5` 的 fine 32/36 底线（这一档只有桌面 —— 手机走 44px 的
-   * `STUDIO_OPERATOR_MOBILE_SHELL.fabHitPx`，触屏那条 44 在那边）。
+   * ⚠ 它替掉了 v2 §4.3 那张 40px 微状态卡（参数摘要 + 状态词整个不要了）：
+   *   收起之后助手只剩「一颗头像 + 有没有事」两件事，44 因此同时是桌面的观感
+   *   尺寸与触屏的命中区（`ui-defaults.md §5`）—— ⛔ 桌面不再单开一档小的。
    */
-  collapsedHeightPx: 40,
+  collapsedSizePx: 44,
+  /** 收起态那颗按钮距视口右 / 下缘的留白（画板 dockBtn：右 16 / 下 16）。 */
+  collapsedInsetPx: 16,
 } as const
 
 /**
@@ -554,38 +556,6 @@ export const STUDIO_OPERATOR_GENERATE_KNOBS = [
 
 export type StudioOperatorGenerateKnob =
   (typeof STUDIO_OPERATOR_GENERATE_KNOBS)[number]
-
-/**
- * 图标轨上那颗**状态点**的四档语义（拍板 7 改口：胶囊没了，语义迁到状态点）。
- *
- * ⚠ 这里是**语义档**不是颜色：颜色在组件里按脊柱四 token 落地
- * （`ui-defaults.md §2.1` + `assistant-shell.md §11.2`），⛔ 常量层不存 hex。
- * ⚠ 值同时是 i18n 键的后缀（`StudioOperator.rail.*`）—— 收起之后这一行字是助手
- * 唯一还看得见的东西，光一颗点等于什么都没说。
- */
-export const STUDIO_OPERATOR_RAIL_TONES = {
-  /** 什么都没在跑。 */
-  idle: 'idle',
-  /** 干活中（进度环 + 脉冲）。 */
-  working: 'working',
-  /**
-   * 停在**计划卡**上，一整轮还没开始跑（§4.1 `awaitingPlan` 那一列：
-   * 图标轨「状态点闪烁 + 待你定」）。
-   *
-   * ⚠ 与 `awaiting` **分开**（切片 3a 加的第五档）：那一档是「有一件事等你拍板
-   * 才能继续」（覆盖三选 / 花钱 / 歧义反问），这一档是「一整轮还没开始」。
-   * 合成一档的表现是轨上永远只有一句「待确认」，而两者的下一步动作完全不同 ——
-   * 一个是回答一个问题，一个是决定要不要让它开跑。
-   */
-  planning: 'planning',
-  /** 停在就地确认 / 花钱确认 / 歧义反问上，等用户定。 */
-  awaiting: 'awaiting',
-  /** 这一轮失败了。 */
-  error: 'error',
-} as const
-
-export type StudioOperatorRailTone =
-  (typeof STUDIO_OPERATOR_RAIL_TONES)[keyof typeof STUDIO_OPERATOR_RAIL_TONES]
 
 /**
  * `@` 提及选择器（§3.3 / §7 的四入口）。

@@ -1,11 +1,11 @@
 'use client'
 
 /**
- * 操作员面板的**外壳**：两态（展开 ↔ 右上角微状态卡，v2 §4.3）、注意力收放法则、左缘拖拽与
- * 宽度记忆。
+ * 操作员面板的**外壳**：两态（展开 ↔ 右下角 44px 圆按钮，D7 ④ · Q2 = C）、注意力
+ * 收放法则、左缘拖拽与宽度记忆。
  *
  * ## 注意力收放法则（拍板 7 —— 唯一的收放规则）
- * 点工作台任意处 → 收成微状态卡；点**提示词框**或**助手面板**→ 不收；点卡 → 展开。
+ * 点工作台任意处 → 收成圆按钮；点**提示词框**或**助手面板**→ 不收；点按钮 → 展开。
  * **没有定时器，没有流程钩子。** 推论：点生成键属于「工作台任意处」，所以扣扳机
  * 时面板自动让位 —— 这条不需要单独写代码，它是同一条规则的结果。
  *
@@ -15,10 +15,10 @@
  *
  * ## 手机（本片）
  * 同一颗外壳两种容器：`≥lg` 是右侧那颗 `<aside>`（两态 + 拖宽），`<lg` 是
- * `StudioOperatorMobileSheet`（半屏可拖底部 Sheet）+ `StudioOperatorMobileFab`
- * （右下浮标，替代微状态卡）。⭐ **面板与 props 两条分支共用同一个元素**，⛔ 手机
+ * `StudioOperatorMobileSheet`（半屏可拖底部 Sheet）+ **同一颗**收起态圆按钮
+ * （只换距下缘的留白：桌面 16 / 手机 96）。⭐ **面板与 props 两条分支共用同一个元素**，⛔ 手机
  * 上没有第二套面板内容 —— 疏密由面板自己的 `@container` 收。
- * ⚠ 手机上**不渲染微状态卡、不记宽**：那两样都是「拖得动的浮层」才有的概念。
+ * ⚠ 手机上**不记宽**：宽度记忆是「拖得动的浮层」才有的概念。
  * ⛔ LoRA 装配台的手机档不在本片内（仍走 `LoraAssistantDock`），判据见下方
  * `hasMobileShell`。
  *
@@ -48,7 +48,6 @@ import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
   STUDIO_OPERATOR_PANEL_RESIZE as RESIZE,
-  STUDIO_OPERATOR_SHELL,
 } from '@/constants/studio-assistant-operator'
 import {
   getReferenceImageAttachmentId,
@@ -61,7 +60,6 @@ import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useStudioOperatorCritique } from '@/hooks/use-studio-operator-critique'
 import { useStudioOperatorResults } from '@/hooks/use-studio-operator-results'
 import { useStudioOperatorHistory } from '@/hooks/use-studio-operator-history'
-import { useStudioOperatorStatusWord } from '@/hooks/use-studio-operator-status-word'
 import {
   setOperatorPlanMode,
   removeOperatorMention,
@@ -76,9 +74,8 @@ import {
   AssistantSettingsDialog,
   type AssistantSettingsSection,
 } from '@/components/business/studio/assistant-operator/AssistantSettingsDialog'
-import { StudioOperatorCollapsedCard } from '@/components/business/studio/assistant-operator/StudioOperatorCollapsedCard'
+import { StudioOperatorCollapsedButton } from '@/components/business/studio/assistant-operator/StudioOperatorCollapsedButton'
 import { StudioOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
-import { StudioOperatorMobileFab } from '@/components/business/studio/assistant-operator/StudioOperatorMobileFab'
 import { StudioOperatorMobileSheet } from '@/components/business/studio/assistant-operator/StudioOperatorMobileSheet'
 import { StudioOperatorPanel } from '@/components/business/studio/assistant-operator/StudioOperatorPanel'
 import { cn } from '@/lib/utils'
@@ -160,24 +157,10 @@ export function StudioOperatorDock() {
     resultRun,
   } = useStudioOperatorHost()
   const isMobile = useIsMobile()
-  const {
-    status,
-    primed,
-    stepsDone,
-    plannedSteps,
-    domain,
-    mentions,
-    question,
-    confirm,
-  } = useStudioOperatorState()
+  const { domain, entries, mentions, question, confirm } =
+    useStudioOperatorState()
   /**
-   * 收起态那一行**微状态**（§4.3）—— 与展开时助手头像旁那一句是**同一句**
-   * （见 `use-studio-operator-status-word.ts` 的头注）。
-   * ⚠ 算在外壳这一层：收起时面板是卸载的，而那一句正是收起之后唯一的读数。
-   */
-  const statusWord = useStudioOperatorStatusWord()
-  /**
-   * 待办角标（§4.3）：**未答问题 + 未处理确认**。
+   * 角标的前半：**未答问题 + 未处理确认**。
    *
    * ⚠ 确认卡只有 `idle` 那一档算数：已确认 / 已取消的卡还留在流里（它们是记录），
    * 把它们也数进去的表现是「答完了角标还挂着 1」。
@@ -187,6 +170,48 @@ export function StudioOperatorDock() {
     (confirm && confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
       ? 1
       : 0)
+  /**
+   * 角标的后半：**未读结果卡**（D7 ④ · Q2 = C）。
+   *
+   * ⚠ 「跑完了」的判据是 `items.length > 0`，⛔ 不是卡存在：生成中那张卡正是
+   *   用户点了生成之后自己看着它转的那一张，把它数进未读等于「自己点的生成
+   *   也算一条通知」。
+   * ⚠ 已读线记在 ref 里而不是 store 里：它是**这一颗按钮的阅读状态**，与会话
+   *   无关，也不该跟着落库（刷新后重新来过是对的 —— 那些图早就在结果区里了）。
+   */
+  const settledResultIds = useMemo(
+    () =>
+      entries.flatMap((entry) =>
+        entry.kind === 'result' && entry.items.length > 0 ? [entry.id] : [],
+      ),
+    [entries],
+  )
+  /**
+   * ⚠ 已读线走**渲染阶段的派生 state**（与下面 `previousReferences` 同一个写法），
+   * ⛔ 不在 effect 里 `setState`：那是一次级联渲染，而这里根本不需要等提交 ——
+   * 「面板开着 = 都读过了」是一条纯函数规则。
+   */
+  const [readResults, setReadResults] = useState<{
+    open: boolean
+    ids: readonly string[]
+    seen: ReadonlySet<string>
+  }>(() => ({
+    open,
+    ids: settledResultIds,
+    seen: new Set(settledResultIds),
+  }))
+  if (readResults.open !== open || readResults.ids !== settledResultIds) {
+    setReadResults({
+      open,
+      ids: settledResultIds,
+      // 打开面板 = 全部读过了（画板：「打开面板即清零」）；收着时已读线冻住。
+      seen: open ? new Set(settledResultIds) : readResults.seen,
+    })
+  }
+  const unreadResults = open
+    ? 0
+    : settledResultIds.filter((id) => !readResults.seen.has(id)).length
+  const badgeCount = todoCount + unreadResults
   /**
    * ⭐ 驱动 hook 在**外壳**这一层调用，不在面板里：收起面板时面板会被卸载，
    * 而收起（拍板 7）绝不该把在飞的那一轮掐掉 —— 胶囊上那句「干活中 3/7」
@@ -568,13 +593,11 @@ export function StudioOperatorDock() {
     return (
       <>
         {open ? null : (
-          <StudioOperatorMobileFab
-            status={status}
-            statusText={statusWord}
-            primed={primed}
-            stepsDone={stepsDone}
-            plannedSteps={plannedSteps}
-            onOpen={() => setOpen(true)}
+          <StudioOperatorCollapsedButton
+            badgeCount={badgeCount}
+            {...(persona ? { persona } : {})}
+            mobile
+            onExpand={() => setOpen(true)}
           />
         )}
         <StudioOperatorMobileSheet open={open} onOpenChange={setOpen}>
@@ -613,11 +636,12 @@ export function StudioOperatorDock() {
         {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
         data-testid="operator-panel"
         data-open={open ? 'true' : 'false'}
+        // ⚠ 收起 = **宽高归零**（收起态那颗按钮是外壳外面的兄弟节点，画在右下角
+        //   而不是这条右上角的轨上）：留着一个有尺寸的空 `<aside>` 会在右上角
+        //   吃掉点击。
         style={{
-          width: open ? `${width}px` : 'auto',
-          height: open
-            ? 'calc(100dvh - 3rem)'
-            : `${STUDIO_OPERATOR_SHELL.collapsedHeightPx}px`,
+          width: open ? `${width}px` : '0px',
+          height: open ? 'calc(100dvh - 3rem)' : '0px',
         }}
         // ⚠ 拖拽中关掉过渡：320ms 的 width 过渡会让把手「跟不上手」。
         className={cn(
@@ -627,7 +651,7 @@ export function StudioOperatorDock() {
           //    18px 圆角是区间上限（§12.3 「面板与浮层取上限」）。
           open
             ? 'overflow-hidden rounded-2xl border border-border assistant-glass-panel shadow-assistant-panel'
-            : '',
+            : 'pointer-events-none overflow-hidden',
           isResizing && styles.resizing,
         )}
       >
@@ -677,19 +701,20 @@ export function StudioOperatorDock() {
             {panel}
           </div>
         ) : null}
-        {!open && (
-          <div className={styles.trigger}>
-            <StudioOperatorCollapsedCard
-              status={status}
-              primed={primed}
-              statusText={statusWord}
-              todoCount={todoCount}
-              {...(persona ? { persona } : {})}
-              onExpand={() => setOpen(true)}
-            />
-          </div>
-        )}
       </aside>
+
+      {/* 收起态（D7 ④ · Q2 = C）—— 右下角那颗 44px 圆按钮。⚠ 它**不在 `<aside>`
+          里**：那颗外壳贴的是右上角，而画板上这颗按钮在右下角，塞进去只能靠
+          负向定位去够。 */}
+      {open ? null : (
+        <div className={cn('hidden lg:block', styles.trigger)}>
+          <StudioOperatorCollapsedButton
+            badgeCount={badgeCount}
+            {...(persona ? { persona } : {})}
+            onExpand={() => setOpen(true)}
+          />
+        </div>
+      )}
 
       {/* 助手设置（§8.1）—— ⚠ 弹层挂在**外壳**里，与面板同生共死会被收放法则
           随手卸载掉。⛔ 别把它塞进面板：那是「点开设置、光标滑出面板，弹层

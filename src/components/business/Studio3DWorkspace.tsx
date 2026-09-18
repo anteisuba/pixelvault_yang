@@ -298,6 +298,11 @@ export function Studio3DWorkspace({
   // it lists previously generated GLB rows rather than source images.
   const [existingModelPickerOpen, setExistingModelPickerOpen] = useState(false)
   const [quickSetupOpen, setQuickSetupOpen] = useState(false)
+  /**
+   * 四视图那条路挂的是**另一个模型**（可能另一家渠道），所以缺 key 时要开的是
+   * 它自己那份面 1 —— ⛔ 不复用上面那个绑在 3D 主模型上的开关。
+   */
+  const [multiViewQuickSetupOpen, setMultiViewQuickSetupOpen] = useState(false)
   const [uploading, setUploading] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [selectedModelId, setSelectedModelId] = useState<string>(
@@ -508,7 +513,7 @@ export function Studio3DWorkspace({
   // API key gating — surface fal key state up-front so users without a key
   // don't get a confusing 400 at generate time. The selector below lets the
   // user pick *which* fal key powers the run when they have more than one.
-  const { keys, isLoading: isLoadingKeys } = useApiKeysContext()
+  const { keys } = useApiKeysContext()
   const falActiveKeys = useMemo(
     () =>
       keys.filter((k) => k.adapterType === AI_ADAPTER_TYPES.FAL && k.isActive),
@@ -1203,30 +1208,6 @@ export function Studio3DWorkspace({
         <ChevronDown className="size-4 shrink-0 text-muted-foreground" />
       </button>
 
-      {/* API key missing banner — shown below the model card, specific to selected adapter */}
-      {!isLoadingKeys && (isRodin ? !hasRodinKey : !hasFalKey) && (
-        <div className="flex flex-col gap-2 rounded-lg border border-status-warning/40 bg-status-warning-surface p-3">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-status-warning">
-            <AlertTriangle className="size-3.5" />
-            {isRodin ? t('rodinApiKeyMissingTitle') : t('apiKeyMissingTitle')}
-          </div>
-          <p className="text-xs leading-5 text-muted-foreground">
-            {isRodin
-              ? t('rodinApiKeyMissingDescription')
-              : t('apiKeyMissingDescription')}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setQuickSetupOpen(true)}
-            className="self-start rounded-full text-xs"
-          >
-            {t('setupApiKeyButton')}
-          </Button>
-        </div>
-      )}
-
       {isRodin && (
         <div className={styles.field}>
           <Label htmlFor="rodin-input-mode">{t('rodinModeLabel')}</Label>
@@ -1427,10 +1408,14 @@ export function Studio3DWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => void handleGenerate4Views()}
-                    disabled={
-                      isGeneratingViews || !canUseSelectedMultiViewModel
-                    }
+                    onClick={() => {
+                      if (!canUseSelectedMultiViewModel) {
+                        setMultiViewQuickSetupOpen(true)
+                        return
+                      }
+                      void handleGenerate4Views()
+                    }}
+                    disabled={isGeneratingViews}
                     className="w-full rounded-full"
                   >
                     {isGeneratingViews ? (
@@ -1499,10 +1484,14 @@ export function Studio3DWorkspace({
                     type="button"
                     variant="outline"
                     size="sm"
-                    onClick={() => void handleGenerate4Views({ force: true })}
-                    disabled={
-                      isGeneratingViews || !canUseSelectedMultiViewModel
-                    }
+                    onClick={() => {
+                      if (!canUseSelectedMultiViewModel) {
+                        setMultiViewQuickSetupOpen(true)
+                        return
+                      }
+                      void handleGenerate4Views({ force: true })
+                    }}
+                    disabled={isGeneratingViews}
                     className="h-8 w-full rounded-full text-xs"
                   >
                     {isGeneratingViews ? (
@@ -2796,6 +2785,18 @@ export function Studio3DWorkspace({
         modelLabel={tModels(`${getModelMessageKey(selectedModelId)}.label`)}
         adapterType={selectedModel?.adapterType ?? AI_ADAPTER_TYPES.FAL}
         optionId={`workspace:3d:${selectedModelId}`}
+      />
+      <QuickSetupDialog
+        open={multiViewQuickSetupOpen}
+        onOpenChange={setMultiViewQuickSetupOpen}
+        modelId={selectedMultiViewModelId}
+        modelLabel={tModels(
+          `${getModelMessageKey(selectedMultiViewModelId)}.label`,
+        )}
+        adapterType={
+          selectedMultiViewModel?.adapterType ?? AI_ADAPTER_TYPES.FAL
+        }
+        optionId={`workspace:3d:multiview:${selectedMultiViewModelId}`}
       />
     </div>
   )

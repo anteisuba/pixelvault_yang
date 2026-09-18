@@ -66,7 +66,11 @@ describe('getModelCapabilityChips', () => {
   ])('grows a reference-gated background chip on %s %s', (adapter, id) => {
     // seed / resolution / imageAnalysis 声明在能力表里但不进这条 chip 行
     // （seed 归规格 chip 的「更多」，后两者不是用户可配项）。
-    expect(capabilitiesOf(adapter, id)).toEqual(['guidanceScale', 'background'])
+    expect(capabilitiesOf(adapter, id)).toEqual([
+      'guidanceScale',
+      'background',
+      'layerDecomposition',
+    ])
     const chip = getModelCapabilityChips(adapter, id).find(
       (entry) => entry.capability === 'background',
     )
@@ -108,6 +112,49 @@ describe('getModelCapabilityChips', () => {
     expect(
       pruneIncompatibleCapabilityValues(
         { background: 'transparent' },
+        AI_ADAPTER_TYPES.VOLCENGINE,
+        AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+      ),
+    ).toBeNull()
+  })
+
+  // 图层拆分是一颗 toggle，且同样被参考图闸住 —— 开关型 chip 此前把
+  // requiresReferenceImage 写死成 false，那会让用户在没挂图时点得动它。
+  it.each([
+    [AI_ADAPTER_TYPES.VOLCENGINE, AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE],
+    [AI_ADAPTER_TYPES.BYTEPLUS, AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS],
+  ])('grows a reference-gated layer toggle on %s %s', (adapter, id) => {
+    const chip = getModelCapabilityChips(adapter, id).find(
+      (entry) => entry.capability === 'layerDecomposition',
+    )
+    expect(chip?.kind).toBe('toggle')
+    expect(chip?.defaultValue).toBe(false)
+    expect(chip?.requiresReferenceImage).toBe(true)
+  })
+
+  // preview 是另一颗 toggle，它**不**依赖参考图 —— 回归护栏。
+  it('keeps the OpenAI preview toggle usable without a reference', () => {
+    const chip = getModelCapabilityChips(
+      AI_ADAPTER_TYPES.OPENAI,
+      AI_MODELS.OPENAI_GPT_IMAGE_2,
+    ).find((entry) => entry.capability === 'preview')
+    expect(chip?.kind).toBe('toggle')
+    expect(chip?.requiresReferenceImage).toBe(false)
+  })
+
+  // 切到不认它的模型时这颗 toggle 必须被丢掉。此前 prune 的 toggle 名单是硬写
+  // 的 `['preview']`，新 toggle 会静默留在 params 里被原样发出去。
+  it('drops layer decomposition when the target model cannot take it', () => {
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { layerDecomposition: true },
+        AI_ADAPTER_TYPES.VOLCENGINE,
+        AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE,
+      ),
+    ).toEqual({})
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { layerDecomposition: true },
         AI_ADAPTER_TYPES.VOLCENGINE,
         AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
       ),

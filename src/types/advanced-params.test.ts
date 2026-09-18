@@ -158,3 +158,23 @@ describe('OpenAI input fidelity contract', () => {
     expect(AdvancedParamsSchema.parse({}).inputFidelity).toBeUndefined()
   })
 })
+
+describe('VolcEngine layer decomposition contract', () => {
+  it('accepts the documented boolean switch', () => {
+    expect(
+      AdvancedParamsSchema.parse({ layerDecomposition: true })
+        .layerDecomposition,
+    ).toBe(true)
+  })
+
+  // 不设 = 不发这个字段；provider 自己的默认就是 false。
+  it('leaves the field undefined when nobody set it', () => {
+    expect(AdvancedParamsSchema.parse({}).layerDecomposition).toBeUndefined()
+  })
+
+  it.each(['true', 1, 'auto'])('rejects %j', (layerDecomposition) => {
+    expect(AdvancedParamsSchema.safeParse({ layerDecomposition }).success).toBe(
+      false,
+    )
+  })
+})

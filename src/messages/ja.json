@@ -3424,6 +3424,8 @@
       "transparent": "透明",
       "opaque": "不透明"
     },
+    "layerDecomposition": "レイヤー分解",
+    "layerDecompositionHint": "参照画像を 1 枚のベースと最大 16 枚の透過 PNG レイヤーに分解します。",
     "style": "スタイル",
     "styleHint": "ビビッドはドラマチックで鮮やかな画像を生成します。ナチュラルはより落ち着いたリアルな結果を生成します。",
     "styleOption": {
@@ -6827,6 +6829,7 @@
       "referenceImageUnreachable": "プロバイダーが参照画像をダウンロードできませんでした。直接アクセスできる公開画像URLを使うか、画像を再アップロードしてください。",
       "referenceImageLimitExceeded": "参照画像の数がこのモデルの上限を超えています。参照画像を減らしてから再試行してください。",
       "transparentBackgroundRequiresSingleReference": "透明背景は、アルファチャンネル付きの参照画像がちょうど 1 枚必要です。透過 PNG を 1 枚だけ添付するか、背景チップを不透明に戻してください。",
+      "layerDecompositionRequiresSingleReference": "レイヤー分解は参照画像をちょうど 1 枚だけ受け取ります。画像を 1 枚だけ添付するか、レイヤーチップをオフにしてください。",
       "invalidReferenceImageDimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません。別のサイズの画像で再試行してください。",
       "accountLimitReached": "プロバイダーのアカウントでこのモデルに設定された利用上限に達し、モデルサービスが停止されています。再試行しても解決しません。プロバイダーのコンソールで上限を引き上げるか解除するか、別のモデルに切り替えてください。",
       "outputBudgetExhausted": "この推論モデルは、返信を書く前に出力枠を使い切りました。再試行するか、非推論モデル（例: Gemini / DeepSeek）に切り替えるか、プロンプトを短くしてください。",
@@ -6857,6 +6860,7 @@
       "reference_image_unreachable": "プロバイダーが参照画像をダウンロードできませんでした",
       "reference_image_limit_exceeded": "参照画像の数がこのモデルの上限を超えています",
       "transparent_background_requires_single_reference": "透明背景には、アルファチャンネル付きの参照画像がちょうど 1 枚必要です。",
+      "layer_decomposition_requires_single_reference": "レイヤー分解には、分解する参照画像がちょうど 1 枚必要です。",
       "invalid_reference_image_dimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません",
       "provider_account_limit_reached": "プロバイダーのアカウントで設定された利用上限に達し、モデルサービスが停止されています。再試行しても解決しません。コンソールで上限を調整してください。",
       "runner_queue_stuck": "生成を開始できない状態が続いたため、キャンセルされました。別の利用可能なモデルを選ぶか、後ほど再試行してください。",
@@ -8115,6 +8119,7 @@
       "quality": "画質",
       "inputFidelity": "入力忠実度",
       "background": "背景",
+      "layerDecomposition": "レイヤー分解",
       "style": "スタイル",
       "preview": "途中プレビュー",
       "guidanceScale": "CFG",

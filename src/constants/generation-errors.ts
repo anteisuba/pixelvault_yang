@@ -82,6 +82,13 @@ export const GENERATION_ERROR_CODES = {
    */
   TRANSPARENT_BACKGROUND_REQUIRES_SINGLE_REFERENCE:
     'transparent_background_requires_single_reference',
+  /**
+   * 火山 Ark / BytePlus Seedream 5.0 Pro 的 `layer_decomposition: true` 前置
+   * 没满足：文档写死「仅支持输入单张待拆分图，传入多张报错」，而且这时 `image`
+   * 是必选参数 —— 0 张和 ≥2 张同样不成立。
+   */
+  LAYER_DECOMPOSITION_REQUIRES_SINGLE_REFERENCE:
+    'layer_decomposition_requires_single_reference',
   UNKNOWN: 'unknown',
 } as const
 
@@ -191,6 +198,10 @@ const ERROR_PATTERNS: Array<{
   {
     pattern: /transparent background requires exactly one reference image/i,
     code: GENERATION_ERROR_CODES.TRANSPARENT_BACKGROUND_REQUIRES_SINGLE_REFERENCE,
+  },
+  {
+    pattern: /layer decomposition requires exactly one reference image/i,
+    code: GENERATION_ERROR_CODES.LAYER_DECOMPOSITION_REQUIRES_SINGLE_REFERENCE,
   },
   {
     pattern: REFERENCE_IMAGE_ERROR_PATTERNS.UNSUPPORTED_FORMAT,
@@ -382,6 +393,12 @@ export function getGenerationErrorI18nKeyForCode(
     GENERATION_ERROR_CODES.TRANSPARENT_BACKGROUND_REQUIRES_SINGLE_REFERENCE
   ) {
     return 'errors.provider.transparentBackgroundRequiresSingleReference'
+  }
+  if (
+    errorCode ===
+    GENERATION_ERROR_CODES.LAYER_DECOMPOSITION_REQUIRES_SINGLE_REFERENCE
+  ) {
+    return 'errors.provider.layerDecompositionRequiresSingleReference'
   }
   if (errorCode === GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS) {
     return 'errors.provider.invalidReferenceImageDimensions'

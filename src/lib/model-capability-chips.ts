@@ -75,6 +75,16 @@ function isReferenceDependent(
   )
 }
 
+/**
+ * 开关型能力。⚠ 这张表的用处只有一个：`pruneIncompatibleCapabilityValues` 要
+ * 知道切模型时该检查哪些键。此前这里是硬写的 `['preview']`，于是新加一颗 toggle
+ * 就会**静默漏掉** —— 切到不认它的模型后那个 `true` 会原样发给 provider。
+ */
+const TOGGLE_CAPABILITIES: readonly ProviderCapability[] = [
+  'preview',
+  'layerDecomposition',
+]
+
 const SLIDER_RANGE_KEYS: Partial<
   Record<ProviderCapability, keyof CapabilityConfig>
 > = {
@@ -144,11 +154,13 @@ export function getModelCapabilityChips(
       continue
     }
 
+    // toggle：缺省一律 false（不设 = 不发这个字段）。前置依旧逐模型判——
+    // `layerDecomposition` 要一张待拆分图，`preview` 不要。
     chips.push({
       capability,
       kind,
       defaultValue: false,
-      requiresReferenceImage: false,
+      requiresReferenceImage: isReferenceDependent(config, capability),
     })
   }
   return chips
@@ -198,7 +210,7 @@ export function pruneIncompatibleCapabilityValues(
 
   for (const capability of Object.keys(SELECT_OPTION_KEYS).concat(
     Object.keys(SLIDER_RANGE_KEYS),
-    ['preview'],
+    TOGGLE_CAPABILITIES,
   ) as ProviderCapability[]) {
     const key = capability as keyof AdvancedParams
     const current = next[key]

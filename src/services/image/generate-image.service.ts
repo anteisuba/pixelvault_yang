@@ -424,6 +424,26 @@ export async function resolveImageRouteAndValidate(
         400,
       )
     }
+
+    // 图层拆分的前置是**另一条**：「仅支持输入单张待拆分图，传入多张报错」，
+    // 且开了它之后 `image` 是必选。⚠ 文档没有写这两颗能力互斥，所以这里各判
+    // 各的前置，⛔ 不自造一条「不能同时开」的规则。
+    // https://www.volcengine.com/docs/82379/1541523
+    const wantsLayers = input.advancedParams?.layerDecomposition === true
+    if (wantsLayers && !config.capabilities.includes('layerDecomposition')) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'Unsupported layerDecomposition for the selected model',
+        400,
+      )
+    }
+    if (wantsLayers && refCount !== 1) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'Layer decomposition requires exactly one reference image to take apart.',
+        400,
+      )
+    }
   }
   if (builtInModel?.requiresReferenceImage && !hasReferenceImage) {
     throw new GenerateImageServiceError(

@@ -69,7 +69,7 @@ describe('provider-capabilities', () => {
     // `opaque` 必须排第一 —— chip 的缺省值取 options[0]，而文档的默认值是
     // opaque；排反了默认态就会变成「发 transparent」。
     expect(config.backgroundOptions).toEqual(['opaque', 'transparent'])
-    expect(config.referenceDependentCapabilities).toEqual(['background'])
+    expect(config.referenceDependentCapabilities).toContain('background')
     // 声明 capabilities 是整体替换，原有四项不能在这次覆盖里掉队。
     expect(config.capabilities).toEqual([
       'seed',
@@ -77,6 +77,7 @@ describe('provider-capabilities', () => {
       'resolution',
       'imageAnalysis',
       'background',
+      'layerDecomposition',
     ])
   })
 
@@ -90,6 +91,32 @@ describe('provider-capabilities', () => {
     const config = getCapabilityConfig(adapterType, modelId)
     expect(config.capabilities).not.toContain('background')
     expect(config.backgroundOptions).toBeUndefined()
+  })
+
+  // `layer_decomposition` 与 `background` 同档：文档「模型支持」只列 5.0 pro。
+  // 两颗都依赖参考图，但**依赖的理由不同**（透明底要带 alpha 的输入，图层拆分
+  // 要一张待拆分图），文档没说互斥，所以两者并列声明。
+  it.each([
+    [AI_ADAPTER_TYPES.VOLCENGINE, AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE],
+    [AI_ADAPTER_TYPES.BYTEPLUS, AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS],
+  ])('offers layer decomposition on %s %s', (adapterType, modelId) => {
+    const config = getCapabilityConfig(adapterType, modelId)
+    expect(config.capabilities).toContain('layerDecomposition')
+    expect(config.referenceDependentCapabilities).toEqual([
+      'background',
+      'layerDecomposition',
+    ])
+  })
+
+  it.each([
+    [AI_ADAPTER_TYPES.VOLCENGINE, AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE],
+    [AI_ADAPTER_TYPES.BYTEPLUS, AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS],
+    [AI_ADAPTER_TYPES.FAL, AI_MODELS.SEEDREAM_50_PRO],
+    [AI_ADAPTER_TYPES.OPENAI, AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE],
+  ])('keeps layer decomposition off %s %s', (adapterType, modelId) => {
+    expect(
+      getCapabilityConfig(adapterType, modelId).capabilities,
+    ).not.toContain('layerDecomposition')
   })
 
   it('every AI_ADAPTER_TYPES entry has a capabilities config', () => {

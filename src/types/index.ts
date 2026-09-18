@@ -255,6 +255,13 @@ export const AdvancedParamsSchema = z.object({
   preview: z.boolean().optional(),
   resolution: z.enum(['auto', '1K', '2K', '4K']).optional(),
   background: z.string().optional(),
+  /**
+   * 火山 Ark `layer_decomposition` —— Seedream 5.0 Pro 专属。true 时一次调用
+   * 返回 1 张底图 + 最多 16 个带 alpha 的 PNG 图层；`image` 变成必选且只收单张。
+   * 不设 / false = 不发这个字段（provider 默认就是 false）。
+   * https://www.volcengine.com/docs/82379/1541523
+   */
+  layerDecomposition: z.boolean().optional(),
   style: z.string().optional(),
   /** LoRA models to apply (up to 5, FAL/Replicate only) */
   loras: z.array(LoraSchema).max(5).optional(),

@@ -110,6 +110,10 @@ const ERROR_ACTIONS_BY_CODE: Partial<
     primary: 'editPrompt',
     secondary: 'switchModel',
   },
+  [GENERATION_ERROR_CODES.LAYER_DECOMPOSITION_REQUIRES_SINGLE_REFERENCE]: {
+    primary: 'editPrompt',
+    secondary: 'switchModel',
+  },
   [GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT]: DEFAULT_ERROR_ACTIONS,
   [GENERATION_ERROR_CODES.PROVIDER_OVERLOADED]: {
     primary: 'switchModel',

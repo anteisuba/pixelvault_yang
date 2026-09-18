@@ -3424,6 +3424,8 @@
       "transparent": "Transparent",
       "opaque": "Opaque"
     },
+    "layerDecomposition": "Split layers",
+    "layerDecompositionHint": "Split the reference image into one base plate plus up to 16 transparent PNG layers.",
     "style": "Style",
     "styleHint": "Vivid produces dramatic, vibrant images. Natural generates more subdued, realistic results.",
     "styleOption": {
@@ -6827,6 +6829,7 @@
       "referenceImageUnreachable": "The provider could not download the reference image. Use a direct public image URL or upload the image again.",
       "referenceImageLimitExceeded": "This model received too many reference images. Remove some reference images and try again.",
       "transparentBackgroundRequiresSingleReference": "Transparent background needs exactly one reference image with an alpha channel (PNG). Attach a single transparent PNG, or turn the background chip back to opaque.",
+      "layerDecompositionRequiresSingleReference": "Layer split takes exactly one reference image to take apart. Attach a single image, or turn the layer chip off.",
       "invalidReferenceImageDimensions": "The reference image size or aspect ratio is not supported. Use a different image size and try again.",
       "accountLimitReached": "The provider account has hit the usage limit configured for this model, and the model service is paused. Retrying will not help — raise or remove that limit in the provider's console, or switch to a different model.",
       "outputBudgetExhausted": "This reasoning model used up its output budget before writing a reply. Retry, switch to a non-reasoning model (e.g. Gemini or DeepSeek), or shorten the prompt.",
@@ -6857,6 +6860,7 @@
       "reference_image_unreachable": "The provider could not download the reference image",
       "reference_image_limit_exceeded": "This model received too many reference images",
       "transparent_background_requires_single_reference": "Transparent background needs exactly one reference image with an alpha channel (PNG).",
+      "layer_decomposition_requires_single_reference": "Layer split needs exactly one reference image to take apart.",
       "invalid_reference_image_dimensions": "The reference image size or aspect ratio is not supported",
       "provider_account_limit_reached": "The provider account hit its configured usage limit for this model and the service is paused. Retrying will not help — adjust the limit in the provider's console.",
       "runner_queue_stuck": "This generation was canceled because it could not start. Choose another available model or try again later.",
@@ -8115,6 +8119,7 @@
       "quality": "Quality",
       "inputFidelity": "Input fidelity",
       "background": "Background",
+      "layerDecomposition": "Split layers",
       "style": "Style",
       "preview": "Live preview",
       "guidanceScale": "CFG",

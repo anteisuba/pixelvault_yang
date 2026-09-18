@@ -17,6 +17,7 @@ export type ProviderCapability =
   | 'preview'
   | 'resolution'
   | 'background'
+  | 'layerDecomposition'
   | 'style'
   | 'imageAnalysis'
   | 'lora'
@@ -57,6 +58,18 @@ export const OPENAI_INPUT_FIDELITY_OPTIONS = ['low', 'high'] as const
  * 输入图；透明模式下输出默认 png，同时把 `output_format` 配成 jpeg 会报错。
  * https://www.volcengine.com/docs/82379/1541523
  */
+/**
+ * 火山 Ark `layer_decomposition` —— 同样是 Seedream 5.0 Pro 专属。开了之后一次
+ * 调用返回 1 张底图 + 最多 16 个带 alpha 的 PNG 图层。
+ *
+ * 前置：`image` 变成必选且**只收单张**（传多张报错）。⚠ 与 `background` 的关系
+ * 文档**没有**写：两者都只在 5.0 Pro、都要求单张输入图，但没有任何一句说它们
+ * 互斥。所以两边各自独立判前置，⛔ 不要自己发明一条互斥规则去挡住用户；真互斥
+ * 的话 provider 会报错，那时再按它的原文收口。
+ * https://www.volcengine.com/docs/82379/1541523
+ */
+export const VOLCENGINE_SEEDREAM_MAX_LAYERS = 16
+
 export const VOLCENGINE_TRANSPARENT_BACKGROUND = 'transparent'
 export const VOLCENGINE_SEEDREAM_BACKGROUND_OPTIONS = [
   'opaque',
@@ -451,9 +464,13 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'resolution',
       'imageAnalysis',
       'background',
+      'layerDecomposition',
     ] as const,
     backgroundOptions: VOLCENGINE_SEEDREAM_BACKGROUND_OPTIONS,
-    referenceDependentCapabilities: ['background'] as const,
+    referenceDependentCapabilities: [
+      'background',
+      'layerDecomposition',
+    ] as const,
   },
   [AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS]: {
     maxReferenceImages: 10,
@@ -463,9 +480,13 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'resolution',
       'imageAnalysis',
       'background',
+      'layerDecomposition',
     ] as const,
     backgroundOptions: VOLCENGINE_SEEDREAM_BACKGROUND_OPTIONS,
-    referenceDependentCapabilities: ['background'] as const,
+    referenceDependentCapabilities: [
+      'background',
+      'layerDecomposition',
+    ] as const,
   },
   [AI_MODELS.SEEDREAM_50_LITE]: {
     maxReferenceImages: FAL_SEEDREAM_MAX_REFERENCE_IMAGES,
@@ -637,6 +658,7 @@ export function getCapabilityFieldType(
     quality: 'select',
     inputFidelity: 'select',
     background: 'select',
+    layerDecomposition: 'toggle',
     style: 'select',
     preview: 'toggle',
     lora: 'lora',

@@ -388,3 +388,108 @@ describe('resolveImageRouteAndValidate — Seedream transparent background', () 
     )
   })
 })
+
+// ─── Seedream 5.0 Pro layer decomposition (item 62) ─────────────
+//
+// 「仅支持输入单张待拆分图，传入多张报错」，且开了 layer_decomposition 之后
+// `image` 是必选参数 —— 0 张与 ≥2 张都不成立。
+// https://www.volcengine.com/docs/82379/1541523
+describe('resolveImageRouteAndValidate — Seedream layer decomposition', () => {
+  const VOLC_PRO_ROUTE = {
+    modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+    externalModelId: 'doubao-seedream-5-0-pro-260628',
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+    apiKey: 'key',
+    creditCost: 2,
+  }
+
+  const deps = (route = VOLC_PRO_ROUTE) => ({
+    ensureUser: vi.fn().mockResolvedValue({ id: 'user-1' }),
+    validatePrompt: vi.fn().mockReturnValue({ valid: true }),
+    resolveGenerationRoute: vi.fn().mockResolvedValue(route),
+    getProviderAdapter: vi.fn().mockReturnValue({}),
+  })
+
+  const request = (overrides: Record<string, unknown>) => ({
+    modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+    prompt: 'split this poster',
+    ...overrides,
+  })
+
+  it('accepts layer decomposition with exactly one reference image', async () => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        request({
+          referenceImages: ['https://cdn.example.com/poster.png'],
+          advancedParams: { layerDecomposition: true },
+        }) as never,
+        deps() as never,
+      ),
+    ).resolves.toMatchObject({ route: VOLC_PRO_ROUTE })
+  })
+
+  it.each([
+    ['no reference image', [] as string[]],
+    ['two reference images', ['https://a/1.png', 'https://a/2.png']],
+  ])('rejects layer decomposition with %s', async (_label, refs) => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        request({
+          referenceImages: refs,
+          advancedParams: { layerDecomposition: true },
+        }) as never,
+        deps() as never,
+      ),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        code: 'VALIDATION_ERROR',
+        message: expect.stringContaining(
+          'Layer decomposition requires exactly one reference image',
+        ),
+      }),
+    )
+  })
+
+  // 文档没有写这两颗互斥，所以同时开也必须放行 —— ⛔ 不自造互斥规则。
+  it('allows layer decomposition together with a transparent background', async () => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        request({
+          referenceImages: ['https://cdn.example.com/poster.png'],
+          advancedParams: {
+            layerDecomposition: true,
+            background: 'transparent',
+          },
+        }) as never,
+        deps() as never,
+      ),
+    ).resolves.toMatchObject({ route: VOLC_PRO_ROUTE })
+  })
+
+  it('rejects layer decomposition on Seedream 5.0 Lite', async () => {
+    const liteRoute = {
+      ...VOLC_PRO_ROUTE,
+      modelId: AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE,
+      externalModelId: 'doubao-seedream-5-0-lite-260128',
+    }
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        request({
+          modelId: AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE,
+          referenceImages: ['https://cdn.example.com/poster.png'],
+          advancedParams: { layerDecomposition: true },
+        }) as never,
+        deps(liteRoute) as never,
+      ),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        message: 'Unsupported layerDecomposition for the selected model',
+      }),
+    )
+  })
+})

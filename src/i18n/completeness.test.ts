@@ -5,7 +5,6 @@ import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 import { AI_MODELS, MODEL_MESSAGE_KEYS } from '@/constants/models'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { VIDEO_NODE_MODES } from '@/constants/video-node-modes'
 
 const LOCALES = ['en', 'ja', 'zh'] as const
@@ -465,27 +464,6 @@ describe('i18n completeness', () => {
         expect(
           modelEntry?.description,
           `Models.${messageKey}.description missing in ${locale}.json`,
-        ).toBeDefined()
-      }
-    }
-  })
-
-  it('every AI_ADAPTER_TYPES entry has StudioApiKeys.providers.<type> translations', () => {
-    const adapterTypes = Object.values(AI_ADAPTER_TYPES)
-    for (const adapterType of adapterTypes) {
-      for (const locale of LOCALES) {
-        const messages = messagesByLocale[locale] as Record<
-          string,
-          Record<string, Record<string, Record<string, string>>>
-        >
-        const providerEntry = messages.StudioApiKeys?.providers?.[adapterType]
-        expect(
-          providerEntry?.label,
-          `StudioApiKeys.providers.${adapterType}.label missing in ${locale}.json`,
-        ).toBeDefined()
-        expect(
-          providerEntry?.description,
-          `StudioApiKeys.providers.${adapterType}.description missing in ${locale}.json`,
         ).toBeDefined()
       }
     }

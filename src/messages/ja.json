@@ -596,8 +596,7 @@
     "brand": "ANTEI",
     "signIn": "ログイン",
     "viewProfile": "プロフィールを見る",
-    "apiKeys": "APIキー",
-    "signOut": "ログアウト",
+    "settings": "設定",
     "menu": "メニュー",
     "openMenu": "メニューを開く",
     "mobileNavigation": "モバイルナビゲーション",
@@ -611,8 +610,6 @@
       "assets": "アセット",
       "cards": "カード管理"
     },
-    "requestsLoading": "...",
-    "requestsTooltip": "使用したAPIリクエスト数",
     "groupLabel": "移動先"
   },
   "LocaleSwitcher": {
@@ -3044,172 +3041,6 @@
     },
     "requestCostLabel": "1回ごと",
     "resultRequestLabel": "記録済みリクエスト"
-  },
-  "StudioApiKeys": {
-    "triggerLabel": "API ルート",
-    "triggerLoading": "読込中",
-    "triggerCount": "{count, plural, =0 {有効なルートなし} one {# 個の有効ルート} other {# 個の有効ルート}}",
-    "sheetTitle": "API ルート",
-    "sheetDescription": "自分のキーを保存します。有効なルートは Studio に表示されます。",
-    "closeLabel": "ルートパネルを閉じる",
-    "title": "ルート",
-    "description": "プロバイダーとモデルを選び、API キーを貼り付けて保存します。",
-    "loading": "保存済みルートを読み込んでいます...",
-    "customBadge": "カスタム",
-    "emptyModel": "{model} 用の保存済みルートはまだありません。",
-    "providers": {
-      "huggingface": {
-        "label": "Hugging Face",
-        "description": "Hugging Face 互換のアダプターとエンドポイント形式を使います。"
-      },
-      "gemini": {
-        "label": "Gemini",
-        "description": "Gemini の画像生成エンドポイント、または互換プロキシを使います。"
-      },
-      "openai": {
-        "label": "OpenAI",
-        "description": "OpenAI Images エンドポイント、または OpenAI 互換プロキシを使います。"
-      },
-      "deepseek": {
-        "label": "DeepSeek",
-        "description": "DeepSeek のチャットモデルでテキスト設計、脚本分解、ストーリー構成を行います。"
-      },
-      "fal": {
-        "label": "fal.ai",
-        "description": "fal.ai プラットフォームで Flux 2 などのモデルを使用。"
-      },
-      "runway": {
-        "label": "Runway",
-        "description": "Runway 公式の動画生成 API で Gen-4.5 と Gen-4 Turbo を使用。"
-      },
-      "replicate": {
-        "label": "Replicate",
-        "description": "Replicate プラットフォームで Ideogram などのモデルを使用。"
-      },
-      "novelai": {
-        "label": "NovelAI",
-        "description": "NovelAI のアニメ特化拡散モデルを使用。タグベースのプロンプトに対応。"
-      },
-      "volcengine": {
-        "label": "VolcEngine",
-        "description": "火山方舟で ByteDance Seedream 画像モデルと Seedance 動画モデルを使用。"
-      },
-      "minimax": {
-        "label": "MiniMax",
-        "description": "MiniMax グローバル版（api.minimax.io）の H3 動画モデル。API キーは中国版と共用できません。"
-      },
-      "minimax_cn": {
-        "label": "MiniMax（中国）",
-        "description": "MiniMax 中国版（api.minimaxi.com）の H3 動画モデル。個別登録が必要で、API キーはグローバル版と互換性がありません。"
-      },
-      "fish_audio": {
-        "label": "Fish Audio",
-        "description": "Fish Audio で高品質なテキスト読み上げを使用。30以上の言語で音声クローニング対応。"
-      },
-      "hyper3d_rodin": {
-        "label": "Hyper3D Rodin",
-        "description": "公式Hyper3D Rodin Gen-2.5 APIを使用して、最大5枚の参照画像で高品質な画像→3D生成を行います。"
-      },
-      "elevenlabs": {
-        "label": "ElevenLabs",
-        "description": "ElevenLabs v3 を使用して、自然で表現豊かな高品質テキスト読み上げを行います。"
-      },
-      "anthropic": {
-        "label": "Claude",
-        "description": "Anthropic Claude Fable 5.1 を使用。キャンバスアシスタントの構造的推論（複数シーンの一貫性、キャラクターアーク、ショット構成）に対応。"
-      },
-      "xai": {
-        "label": "Grok",
-        "description": "xAI Grok 4.6 をアシスタントとプロンプト強化に使用。50 万トークンのコンテキストと画像理解を備え、ここにある主力テキストモデルの中で最も安価です。"
-      },
-      "runner": {
-        "label": "PixelVault Runner",
-        "description": "忠実な Civitai レシピ複製のための自己ホスト型 RunPod ComfyUI ランナー。プラットフォーム管理型で、ユーザー設定はできません。"
-      },
-      "byteplus": {
-        "label": "BytePlus",
-        "description": "Seedance 動画向けの BytePlus ModelArk 国際リージョン。API キーは中国版 VolcEngine と共有されません。"
-      }
-    },
-    "summary": {
-      "activeRoutesLabel": "有効ルート",
-      "activeRoutesValue": "{count, plural, =0 {有効なルートはありません} one {# 個の有効ルート} other {# 個の有効ルート}}",
-      "routeCount": "{count, plural, =0 {ルートなし} one {# 個のルート} other {# 個のルート}}"
-    },
-    "sections": {
-      "builtInTitle": "保存済みルート"
-    },
-    "actions": {
-      "openComposer": "ルートを追加",
-      "hideComposer": "フォームを閉じる",
-      "enableRoute": "ルートを有効化",
-      "disableRoute": "ルートを無効化",
-      "deleteKey": "ルートを削除",
-      "editKey": "API キーを編集",
-      "verifyKey": "API キーを検証",
-      "verifying": "検証中..."
-    },
-    "status": {
-      "enabled": "有効",
-      "disabled": "無効"
-    },
-    "health": {
-      "available": "利用可能",
-      "noKey": "API キーなし",
-      "failed": "利用不可",
-      "execution_worker_unavailable": "実行サービスに接続できません",
-      "unknown": "未検証"
-    },
-    "collapse": {
-      "showAll": "すべてのプロバイダーを表示（{count}）",
-      "hideAll": "折りたたむ"
-    },
-    "tutorial": {
-      "title": "{provider} API キーの取得方法",
-      "goToProvider": "{provider} に移動 →"
-    },
-    "deleteDialog": {
-      "title": "保存済みルートを削除",
-      "description": "「{label}」を削除しますか？ この操作は取り消せません。",
-      "cancelAction": "キャンセル",
-      "confirmAction": "削除"
-    },
-    "editKeyPlaceholder": "新しいAPIキーを貼り付け...",
-    "addForm": {
-      "title": "ルートを追加",
-      "description": "プロバイダー、モデル、キーだけで追加できます。詳細設定は任意です。",
-      "adapterLabel": "プロバイダー",
-      "providerNameLabel": "プロバイダー名",
-      "providerBaseUrlLabel": "Base URL",
-      "providerBaseUrlHint": "アダプター互換の Base URL を使ってください。必要に応じてモデル ID は自動で末尾に追加されます。",
-      "modelModeLabel": "モデルの種類",
-      "presetModelLabel": "組み込みモデル",
-      "presetModelPlaceholder": "組み込みモデルを選択",
-      "customModelLabel": "カスタムモデル ID",
-      "customModelHint": "呼び出したい {provider} の正確なモデル ID を入力してください。",
-      "labelLabel": "ルート名",
-      "labelPlaceholder": "自分用ルート",
-      "keyLabel": "API キー",
-      "showKey": "API キーを表示",
-      "hideKey": "API キーを非表示",
-      "getKeyLink": "APIキーを取得 →",
-      "advancedToggle": "詳細なプロバイダー設定",
-      "keyFormatValid": "キー形式は正しいです",
-      "keyFormatInvalid": "キーは {hint} で始まる必要があります",
-      "saveAction": "ルートを保存",
-      "savingAction": "保存中...",
-      "cancelAction": "キャンセル",
-      "modelModes": {
-        "preset": {
-          "label": "組み込みモデルを使う",
-          "description": "Studio にすでにあるモデルの 1 つに保存済みルートを追加します。"
-        },
-        "custom": {
-          "label": "カスタムモデル ID を使う",
-          "description": "プリセット外のルートが必要なときは、自分のモデル ID を使います。"
-        }
-      }
-    }
   },
   "ImageDetail": {
     "title": "画像の詳細",

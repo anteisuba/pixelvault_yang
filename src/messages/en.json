@@ -596,8 +596,7 @@
     "brand": "ANTEI",
     "signIn": "Sign In",
     "viewProfile": "View Profile",
-    "apiKeys": "API Keys",
-    "signOut": "Sign Out",
+    "settings": "Settings",
     "menu": "Menu",
     "openMenu": "Open menu",
     "mobileNavigation": "Mobile navigation",
@@ -611,8 +610,6 @@
       "assets": "Assets",
       "cards": "Cards"
     },
-    "requestsLoading": "...",
-    "requestsTooltip": "Total API requests used",
     "groupLabel": "Go to"
   },
   "LocaleSwitcher": {
@@ -3044,172 +3041,6 @@
     },
     "requestCostLabel": "Per run",
     "resultRequestLabel": "Requests logged"
-  },
-  "StudioApiKeys": {
-    "triggerLabel": "API Routes",
-    "triggerLoading": "Loading",
-    "triggerCount": "{count, plural, =0 {No active routes} one {# active route} other {# active routes}}",
-    "sheetTitle": "API routes",
-    "sheetDescription": "Save your own keys. Enabled routes appear in Studio.",
-    "closeLabel": "Close API routes panel",
-    "title": "Routes",
-    "description": "Choose a provider, pick a model, paste the key, then save.",
-    "loading": "Loading your saved routes...",
-    "customBadge": "Custom",
-    "emptyModel": "No saved route for {model} yet.",
-    "providers": {
-      "huggingface": {
-        "label": "Hugging Face",
-        "description": "Use a Hugging Face-compatible adapter and endpoint shape."
-      },
-      "gemini": {
-        "label": "Gemini",
-        "description": "Use Gemini image generation endpoints or a compatible proxy."
-      },
-      "openai": {
-        "label": "OpenAI",
-        "description": "Use OpenAI Images endpoints or an OpenAI-compatible proxy."
-      },
-      "deepseek": {
-        "label": "DeepSeek",
-        "description": "Use DeepSeek chat models for text planning, script breakdown, and story structure."
-      },
-      "fal": {
-        "label": "fal.ai",
-        "description": "Use fal.ai platform for Flux 2 and other models."
-      },
-      "runway": {
-        "label": "Runway",
-        "description": "Use the official Runway video generation API for Gen-4.5 and Gen-4 Turbo."
-      },
-      "replicate": {
-        "label": "Replicate",
-        "description": "Use Replicate platform for Ideogram and other models."
-      },
-      "novelai": {
-        "label": "NovelAI",
-        "description": "Use NovelAI for anime-focused diffusion models with tag-based prompting."
-      },
-      "volcengine": {
-        "label": "VolcEngine",
-        "description": "Use VolcEngine (火山方舟) for ByteDance Seedream image and Seedance video models."
-      },
-      "minimax": {
-        "label": "MiniMax",
-        "description": "Use MiniMax's global API (api.minimax.io) for H3 video. Keys are separate from the China API."
-      },
-      "minimax_cn": {
-        "label": "MiniMax (CN)",
-        "description": "Use MiniMax's China API (api.minimaxi.com) for H3 video. Register separately; global API keys won't work here."
-      },
-      "fish_audio": {
-        "label": "Fish Audio",
-        "description": "Use Fish Audio for high-quality text-to-speech with 30+ language voice cloning."
-      },
-      "hyper3d_rodin": {
-        "label": "Hyper3D Rodin",
-        "description": "Use the official Hyper3D Rodin Gen-2.5 API for high-quality image-to-3D generation with up to 5 reference images."
-      },
-      "elevenlabs": {
-        "label": "ElevenLabs",
-        "description": "Use ElevenLabs v3 for premium, expressive text-to-speech with natural voices."
-      },
-      "anthropic": {
-        "label": "Claude",
-        "description": "Use Anthropic Claude Fable 5.1 for the canvas assistant's structural reasoning — multi-scene continuity, character arcs, and shot planning."
-      },
-      "xai": {
-        "label": "Grok",
-        "description": "Use xAI Grok 4.6 for the assistant and prompt enhancement — a 500k-token context window with image understanding, at the lowest price of any flagship text route here."
-      },
-      "runner": {
-        "label": "PixelVault Runner",
-        "description": "Self-hosted RunPod ComfyUI runner for faithful Civitai recipe clones. Platform-managed — not user-configurable."
-      },
-      "byteplus": {
-        "label": "BytePlus",
-        "description": "Use the BytePlus ModelArk international API for Seedance video. Keys are separate from VolcEngine China."
-      }
-    },
-    "summary": {
-      "activeRoutesLabel": "Active routes",
-      "activeRoutesValue": "{count, plural, =0 {No active routes} one {# active route} other {# active routes}}",
-      "routeCount": "{count, plural, =0 {No routes} one {# route} other {# routes}}"
-    },
-    "sections": {
-      "builtInTitle": "Saved routes"
-    },
-    "actions": {
-      "openComposer": "Add route",
-      "hideComposer": "Hide form",
-      "enableRoute": "Enable route",
-      "disableRoute": "Disable route",
-      "deleteKey": "Delete route",
-      "editKey": "Edit API key",
-      "verifyKey": "Verify API key",
-      "verifying": "Verifying..."
-    },
-    "status": {
-      "enabled": "Enabled",
-      "disabled": "Disabled"
-    },
-    "health": {
-      "available": "Available",
-      "noKey": "No API key",
-      "failed": "Unavailable",
-      "execution_worker_unavailable": "Execution service unavailable",
-      "unknown": "Not verified"
-    },
-    "collapse": {
-      "showAll": "Show all providers ({count})",
-      "hideAll": "Collapse"
-    },
-    "tutorial": {
-      "title": "How to get your {provider} API key",
-      "goToProvider": "Go to {provider} →"
-    },
-    "deleteDialog": {
-      "title": "Delete saved route",
-      "description": "Delete \"{label}\"? This cannot be undone.",
-      "cancelAction": "Cancel",
-      "confirmAction": "Delete"
-    },
-    "editKeyPlaceholder": "Paste new API key...",
-    "addForm": {
-      "title": "Add route",
-      "description": "Choose a provider, model, and key. Advanced settings are optional.",
-      "adapterLabel": "Provider",
-      "providerNameLabel": "Provider label",
-      "providerBaseUrlLabel": "Base URL",
-      "providerBaseUrlHint": "Use the adapter-compatible base URL. The model ID will be appended automatically when the adapter requires it.",
-      "modelModeLabel": "Model source",
-      "presetModelLabel": "Built-in model",
-      "presetModelPlaceholder": "Choose a built-in model",
-      "customModelLabel": "Custom model ID",
-      "customModelHint": "Enter the exact {provider} model ID you want to call.",
-      "labelLabel": "Route label",
-      "labelPlaceholder": "My personal route",
-      "keyLabel": "API key",
-      "showKey": "Show API key",
-      "hideKey": "Hide API key",
-      "getKeyLink": "Get your API key →",
-      "advancedToggle": "Advanced provider settings",
-      "keyFormatValid": "Key format looks correct",
-      "keyFormatInvalid": "Key should start with {hint}",
-      "saveAction": "Save route",
-      "savingAction": "Saving...",
-      "cancelAction": "Cancel",
-      "modelModes": {
-        "preset": {
-          "label": "Use a built-in model",
-          "description": "Add your own API route for a model already available in Studio."
-        },
-        "custom": {
-          "label": "Use a custom model ID",
-          "description": "Bring your own model ID when you need a route outside the preset catalog."
-        }
-      }
-    }
   },
   "ImageDetail": {
     "title": "Image details",

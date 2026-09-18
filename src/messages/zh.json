@@ -596,8 +596,7 @@
     "brand": "ANTEI",
     "signIn": "登录",
     "viewProfile": "查看主页",
-    "apiKeys": "API 密钥",
-    "signOut": "退出登录",
+    "settings": "设置",
     "menu": "菜单",
     "openMenu": "打开菜单",
     "mobileNavigation": "移动端导航",
@@ -611,8 +610,6 @@
       "assets": "素材",
       "cards": "卡片管理"
     },
-    "requestsLoading": "...",
-    "requestsTooltip": "已使用的 API 请求数",
     "groupLabel": "去处"
   },
   "LocaleSwitcher": {
@@ -3044,172 +3041,6 @@
     },
     "requestCostLabel": "单次生成",
     "resultRequestLabel": "已记录请求"
-  },
-  "StudioApiKeys": {
-    "triggerLabel": "API 路由",
-    "triggerLoading": "加载中",
-    "triggerCount": "{count, plural, =0 {没有启用路由} one {# 个启用路由} other {# 个启用路由}}",
-    "sheetTitle": "API 路由",
-    "sheetDescription": "保存自己的 Key。启用后会出现在 Studio 里。",
-    "closeLabel": "关闭路由面板",
-    "title": "路由",
-    "description": "选择供应商、模型和 Key，然后保存。",
-    "loading": "正在加载你保存的路由...",
-    "customBadge": "自定义",
-    "emptyModel": "还没有为 {model} 保存路由。",
-    "providers": {
-      "huggingface": {
-        "label": "HuggingFace",
-        "description": "使用兼容 HuggingFace 的适配器和端点格式。"
-      },
-      "gemini": {
-        "label": "Gemini",
-        "description": "使用 Gemini 图像生成端点，或兼容的代理。"
-      },
-      "openai": {
-        "label": "OpenAI",
-        "description": "使用 OpenAI Images 端点，或 OpenAI 兼容代理。"
-      },
-      "deepseek": {
-        "label": "DeepSeek",
-        "description": "使用 DeepSeek 对话模型进行文本规划、剧本拆解和故事结构生成。"
-      },
-      "fal": {
-        "label": "fal.ai",
-        "description": "使用 fal.ai 平台，支持 Flux 2 等模型。"
-      },
-      "runway": {
-        "label": "Runway",
-        "description": "使用 Runway 官方视频生成 API，支持 Gen-4.5 和 Gen-4 Turbo。"
-      },
-      "replicate": {
-        "label": "Replicate",
-        "description": "使用 Replicate 平台，支持 Ideogram 等模型。"
-      },
-      "novelai": {
-        "label": "NovelAI",
-        "description": "使用 NovelAI 动漫风格扩散模型，支持标签式提示。"
-      },
-      "volcengine": {
-        "label": "火山引擎",
-        "description": "使用火山方舟的字节跳动 Seedream 图像和 Seedance 视频模型。"
-      },
-      "minimax": {
-        "label": "MiniMax",
-        "description": "MiniMax 国际站（api.minimax.io）的 H3 视频模型。密钥与国内站不通用。"
-      },
-      "minimax_cn": {
-        "label": "MiniMax（国内）",
-        "description": "MiniMax 国内站（api.minimaxi.com）的 H3 视频模型。需单独注册，密钥与国际站不通用。"
-      },
-      "fish_audio": {
-        "label": "Fish Audio",
-        "description": "使用 Fish Audio 进行高质量文字转语音，支持 30+ 语言声音克隆。"
-      },
-      "hyper3d_rodin": {
-        "label": "Hyper3D Rodin",
-        "description": "使用 Hyper3D Rodin Gen-2.5 官方 API，支持最多 5 张参考图的高质量图生 3D。"
-      },
-      "elevenlabs": {
-        "label": "ElevenLabs",
-        "description": "使用 ElevenLabs v3 进行高品质、富有表现力的文字转语音，声音自然逼真。"
-      },
-      "anthropic": {
-        "label": "Claude",
-        "description": "使用 Anthropic Claude Fable 5.1，负责画布助手的结构化推理——多场戏连贯、角色弧光与分镜规划。"
-      },
-      "xai": {
-        "label": "Grok",
-        "description": "使用 xAI Grok 4.6 处理助手对话与提示词增强——50 万 token 上下文、能看图，且是这里所有旗舰文本线中最便宜的一条。"
-      },
-      "runner": {
-        "label": "PixelVault Runner",
-        "description": "自建 RunPod ComfyUI runner，用于忠实复刻 Civitai 来源图配方。平台托管，用户不可配置。"
-      },
-      "byteplus": {
-        "label": "BytePlus",
-        "description": "使用 BytePlus ModelArk 国际站的 Seedance 视频模型；API Key 与火山方舟国内站不通用。"
-      }
-    },
-    "summary": {
-      "activeRoutesLabel": "启用路由",
-      "activeRoutesValue": "{count, plural, =0 {没有启用路由} one {# 个启用路由} other {# 个启用路由}}",
-      "routeCount": "{count, plural, =0 {没有路由} one {# 个路由} other {# 个路由}}"
-    },
-    "sections": {
-      "builtInTitle": "已保存路由"
-    },
-    "actions": {
-      "openComposer": "添加路由",
-      "hideComposer": "收起表单",
-      "enableRoute": "启用路由",
-      "disableRoute": "停用路由",
-      "deleteKey": "删除路由",
-      "editKey": "编辑 API 密钥",
-      "verifyKey": "验证 API 密钥",
-      "verifying": "验证中..."
-    },
-    "status": {
-      "enabled": "已启用",
-      "disabled": "已停用"
-    },
-    "health": {
-      "available": "可用",
-      "noKey": "无 API 密钥",
-      "failed": "不可用",
-      "execution_worker_unavailable": "本地执行服务未启动",
-      "unknown": "未验证"
-    },
-    "collapse": {
-      "showAll": "展开全部厂商（{count}）",
-      "hideAll": "收起"
-    },
-    "tutorial": {
-      "title": "如何获取 {provider} API 密钥",
-      "goToProvider": "前往 {provider} →"
-    },
-    "deleteDialog": {
-      "title": "删除已保存路由",
-      "description": "要删除“{label}”吗？此操作无法撤销。",
-      "cancelAction": "取消",
-      "confirmAction": "删除"
-    },
-    "editKeyPlaceholder": "粘贴新的 API Key...",
-    "addForm": {
-      "title": "添加路由",
-      "description": "只需要供应商、模型和 Key。高级设置可选。",
-      "adapterLabel": "供应商",
-      "providerNameLabel": "提供商名称",
-      "providerBaseUrlLabel": "Base URL",
-      "providerBaseUrlHint": "请使用与适配器兼容的 Base URL。适配器需要时会自动拼接模型 ID。",
-      "modelModeLabel": "模型来源",
-      "presetModelLabel": "内置模型",
-      "presetModelPlaceholder": "选择一个内置模型",
-      "customModelLabel": "自定义模型 ID",
-      "customModelHint": "请输入你要调用的 {provider} 精确模型 ID。",
-      "labelLabel": "路由标签",
-      "labelPlaceholder": "我的个人路由",
-      "keyLabel": "API 密钥",
-      "showKey": "显示 API 密钥",
-      "hideKey": "隐藏 API 密钥",
-      "getKeyLink": "获取 API Key →",
-      "advancedToggle": "高级 provider 设置",
-      "keyFormatValid": "密钥格式正确",
-      "keyFormatInvalid": "密钥应以 {hint} 开头",
-      "saveAction": "保存路由",
-      "savingAction": "保存中...",
-      "cancelAction": "取消",
-      "modelModes": {
-        "preset": {
-          "label": "使用内置模型",
-          "description": "为 Studio 已经支持的模型补充一条已保存路由。"
-        },
-        "custom": {
-          "label": "使用自定义模型 ID",
-          "description": "当你需要预设目录之外的路由时，直接使用自己的模型 ID。"
-        }
-      }
-    }
   },
   "ImageDetail": {
     "title": "图像详情",

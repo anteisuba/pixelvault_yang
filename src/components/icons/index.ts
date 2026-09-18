@@ -1,3 +1,5 @@
+'use client'
+
 /**
  * Icon barrel — the single import site for icons under `src/`.
  *

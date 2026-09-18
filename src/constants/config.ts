@@ -108,6 +108,8 @@ export const API_ENDPOINTS = {
 
   /** User API usage summary */
   USAGE_SUMMARY: '/api/usage-summary',
+  /** 本月按模型的请求次数（`/settings/usage`）。 */
+  USAGE_BY_MODEL: '/api/usage/by-model',
 
   /** Clerk webhook */
   CLERK_WEBHOOK: '/api/webhooks/clerk',

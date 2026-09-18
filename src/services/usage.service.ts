@@ -16,6 +16,7 @@ import type {
   GenerationJobStatus,
 } from '@/lib/generated/prisma/client'
 import type { RunnerUsageResult } from '@/types'
+import type { MonthlyUsageSummary } from '@/types/usage'
 
 type UsageMutationClient = Pick<typeof db, 'generationJob' | 'apiUsageLedger'>
 type GenerationJobCreateClient = Pick<
@@ -485,6 +486,34 @@ export async function attachUsageEntryToGeneration(
       generationId,
     },
   })
+}
+
+/**
+ * 本月（UTC 自然月）**按模型**的请求次数 —— `/settings/usage` 那张表的数据源。
+ *
+ * ⚠ 只数次数，⛔ 不在这里算钱：单价住 `constants/models/unit-prices.ts`，页面
+ * 拿「次数 × 单价」自己累加，没有单价的模型只显次数。服务端算一遍等于给单价开
+ * 第二个家，而这两个家一定会漂。
+ * ⚠ 月界与 runner 额度共用 `startOfMonthUTC()`，两张表说的必须是同一个「本月」。
+ */
+export async function getUserMonthlyUsageByModel(
+  userId: string,
+): Promise<MonthlyUsageSummary> {
+  const monthStart = startOfMonthUTC()
+  const grouped = await db.apiUsageLedger.groupBy({
+    by: ['adapterType', 'modelId'],
+    where: { userId, createdAt: { gte: monthStart } },
+    _sum: { requestCount: true },
+  })
+
+  return {
+    month: `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, '0')}`,
+    rows: grouped.map((row) => ({
+      adapterType: row.adapterType,
+      modelId: row.modelId,
+      requests: row._sum.requestCount ?? 0,
+    })),
+  }
 }
 
 export async function getUserUsageSummary(

@@ -90,6 +90,7 @@ export const ModelName = {
   VideoScript: 'VideoScript',
   VideoScriptScene: 'VideoScriptScene',
   ExtractedElement: 'ExtractedElement',
+  GenerationLayer: 'GenerationLayer',
   InspirationPrompt: 'InspirationPrompt',
   CivitaiSearchSnapshot: 'CivitaiSearchSnapshot',
   CivitaiLoraMirror: 'CivitaiLoraMirror',
@@ -871,6 +872,24 @@ export const ExtractedElementScalarFieldEnum = {
 } as const
 
 export type ExtractedElementScalarFieldEnum = (typeof ExtractedElementScalarFieldEnum)[keyof typeof ExtractedElementScalarFieldEnum]
+
+
+export const GenerationLayerScalarFieldEnum = {
+  id: 'id',
+  generationId: 'generationId',
+  zIndex: 'zIndex',
+  url: 'url',
+  storageKey: 'storageKey',
+  mimeType: 'mimeType',
+  width: 'width',
+  height: 'height',
+  name: 'name',
+  description: 'description',
+  boundingBox: 'boundingBox',
+  createdAt: 'createdAt'
+} as const
+
+export type GenerationLayerScalarFieldEnum = (typeof GenerationLayerScalarFieldEnum)[keyof typeof GenerationLayerScalarFieldEnum]
 
 
 export const InspirationPromptScalarFieldEnum = {

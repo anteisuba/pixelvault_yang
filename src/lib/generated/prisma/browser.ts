@@ -235,6 +235,11 @@ export type VideoScriptScene = Prisma.VideoScriptSceneModel
  */
 export type ExtractedElement = Prisma.ExtractedElementModel
 /**
+ * Model GenerationLayer
+ * 
+ */
+export type GenerationLayer = Prisma.GenerationLayerModel
+/**
  * Model InspirationPrompt
  * 
  */

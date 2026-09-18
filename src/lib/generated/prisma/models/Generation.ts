@@ -524,6 +524,7 @@ export type GenerationWhereInput = {
   collectionItems?: Prisma.CollectionItemListRelationFilter
   videoPipeline?: Prisma.XOR<Prisma.VideoPipelineNullableScalarRelationFilter, Prisma.VideoPipelineWhereInput> | null
   extractedElements?: Prisma.ExtractedElementListRelationFilter
+  layers?: Prisma.GenerationLayerListRelationFilter
 }
 
 export type GenerationOrderByWithRelationInput = {
@@ -580,6 +581,7 @@ export type GenerationOrderByWithRelationInput = {
   collectionItems?: Prisma.CollectionItemOrderByRelationAggregateInput
   videoPipeline?: Prisma.VideoPipelineOrderByWithRelationInput
   extractedElements?: Prisma.ExtractedElementOrderByRelationAggregateInput
+  layers?: Prisma.GenerationLayerOrderByRelationAggregateInput
 }
 
 export type GenerationWhereUniqueInput = Prisma.AtLeast<{
@@ -639,6 +641,7 @@ export type GenerationWhereUniqueInput = Prisma.AtLeast<{
   collectionItems?: Prisma.CollectionItemListRelationFilter
   videoPipeline?: Prisma.XOR<Prisma.VideoPipelineNullableScalarRelationFilter, Prisma.VideoPipelineWhereInput> | null
   extractedElements?: Prisma.ExtractedElementListRelationFilter
+  layers?: Prisma.GenerationLayerListRelationFilter
 }, "id">
 
 export type GenerationOrderByWithAggregationInput = {
@@ -787,6 +790,7 @@ export type GenerationCreateInput = {
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateInput = {
@@ -839,6 +843,7 @@ export type GenerationUncheckedCreateInput = {
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUpdateInput = {
@@ -891,6 +896,7 @@ export type GenerationUpdateInput = {
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateInput = {
@@ -943,6 +949,7 @@ export type GenerationUncheckedUpdateInput = {
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateManyInput = {
@@ -1571,6 +1578,20 @@ export type GenerationUpdateOneWithoutExtractedElementsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationUpdateToOneWithWhereWithoutExtractedElementsInput, Prisma.GenerationUpdateWithoutExtractedElementsInput>, Prisma.GenerationUncheckedUpdateWithoutExtractedElementsInput>
 }
 
+export type GenerationCreateNestedOneWithoutLayersInput = {
+  create?: Prisma.XOR<Prisma.GenerationCreateWithoutLayersInput, Prisma.GenerationUncheckedCreateWithoutLayersInput>
+  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutLayersInput
+  connect?: Prisma.GenerationWhereUniqueInput
+}
+
+export type GenerationUpdateOneRequiredWithoutLayersNestedInput = {
+  create?: Prisma.XOR<Prisma.GenerationCreateWithoutLayersInput, Prisma.GenerationUncheckedCreateWithoutLayersInput>
+  connectOrCreate?: Prisma.GenerationCreateOrConnectWithoutLayersInput
+  upsert?: Prisma.GenerationUpsertWithoutLayersInput
+  connect?: Prisma.GenerationWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.GenerationUpdateToOneWithWhereWithoutLayersInput, Prisma.GenerationUpdateWithoutLayersInput>, Prisma.GenerationUncheckedUpdateWithoutLayersInput>
+}
+
 export type GenerationCreateWithoutUserInput = {
   id?: string
   createdAt?: Date | string
@@ -1620,6 +1641,7 @@ export type GenerationCreateWithoutUserInput = {
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutUserInput = {
@@ -1671,6 +1693,7 @@ export type GenerationUncheckedCreateWithoutUserInput = {
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutUserInput = {
@@ -1795,6 +1818,7 @@ export type GenerationCreateWithoutProjectInput = {
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutProjectInput = {
@@ -1846,6 +1870,7 @@ export type GenerationUncheckedCreateWithoutProjectInput = {
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutProjectInput = {
@@ -1923,6 +1948,7 @@ export type GenerationCreateWithoutGenerationJobInput = {
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutGenerationJobInput = {
@@ -1974,6 +2000,7 @@ export type GenerationUncheckedCreateWithoutGenerationJobInput = {
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutGenerationJobInput = {
@@ -2041,6 +2068,7 @@ export type GenerationUpdateWithoutGenerationJobInput = {
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
@@ -2092,6 +2120,7 @@ export type GenerationUncheckedUpdateWithoutGenerationJobInput = {
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutApiUsageLedgerInput = {
@@ -2143,6 +2172,7 @@ export type GenerationCreateWithoutApiUsageLedgerInput = {
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
@@ -2194,6 +2224,7 @@ export type GenerationUncheckedCreateWithoutApiUsageLedgerInput = {
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutApiUsageLedgerInput = {
@@ -2261,6 +2292,7 @@ export type GenerationUpdateWithoutApiUsageLedgerInput = {
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
@@ -2312,6 +2344,7 @@ export type GenerationUncheckedUpdateWithoutApiUsageLedgerInput = {
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutStoryPanelsInput = {
@@ -2363,6 +2396,7 @@ export type GenerationCreateWithoutStoryPanelsInput = {
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutStoryPanelsInput = {
@@ -2414,6 +2448,7 @@ export type GenerationUncheckedCreateWithoutStoryPanelsInput = {
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutStoryPanelsInput = {
@@ -2481,6 +2516,7 @@ export type GenerationUpdateWithoutStoryPanelsInput = {
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutStoryPanelsInput = {
@@ -2532,6 +2568,7 @@ export type GenerationUncheckedUpdateWithoutStoryPanelsInput = {
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutCharacterCardInput = {
@@ -2583,6 +2620,7 @@ export type GenerationCreateWithoutCharacterCardInput = {
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutCharacterCardInput = {
@@ -2634,6 +2672,7 @@ export type GenerationUncheckedCreateWithoutCharacterCardInput = {
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutCharacterCardInput = {
@@ -2711,6 +2750,7 @@ export type GenerationCreateWithoutCharacterCardsInput = {
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutCharacterCardsInput = {
@@ -2762,6 +2802,7 @@ export type GenerationUncheckedCreateWithoutCharacterCardsInput = {
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutCharacterCardsInput = {
@@ -2829,6 +2870,7 @@ export type GenerationUpdateWithoutCharacterCardsInput = {
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutCharacterCardsInput = {
@@ -2880,6 +2922,7 @@ export type GenerationUncheckedUpdateWithoutCharacterCardsInput = {
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutLikesInput = {
@@ -2931,6 +2974,7 @@ export type GenerationCreateWithoutLikesInput = {
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutLikesInput = {
@@ -2982,6 +3026,7 @@ export type GenerationUncheckedCreateWithoutLikesInput = {
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutLikesInput = {
@@ -3049,6 +3094,7 @@ export type GenerationUpdateWithoutLikesInput = {
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutLikesInput = {
@@ -3100,6 +3146,7 @@ export type GenerationUncheckedUpdateWithoutLikesInput = {
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutCollectionItemsInput = {
@@ -3151,6 +3198,7 @@ export type GenerationCreateWithoutCollectionItemsInput = {
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutCollectionItemsInput = {
@@ -3202,6 +3250,7 @@ export type GenerationUncheckedCreateWithoutCollectionItemsInput = {
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutCollectionItemsInput = {
@@ -3269,6 +3318,7 @@ export type GenerationUpdateWithoutCollectionItemsInput = {
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutCollectionItemsInput = {
@@ -3320,6 +3370,7 @@ export type GenerationUncheckedUpdateWithoutCollectionItemsInput = {
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutCardRecipeInput = {
@@ -3371,6 +3422,7 @@ export type GenerationCreateWithoutCardRecipeInput = {
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutCardRecipeInput = {
@@ -3422,6 +3474,7 @@ export type GenerationUncheckedCreateWithoutCardRecipeInput = {
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutCardRecipeInput = {
@@ -3499,6 +3552,7 @@ export type GenerationCreateWithoutVideoPipelineInput = {
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutVideoPipelineInput = {
@@ -3550,6 +3604,7 @@ export type GenerationUncheckedCreateWithoutVideoPipelineInput = {
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutVideoPipelineInput = {
@@ -3617,6 +3672,7 @@ export type GenerationUpdateWithoutVideoPipelineInput = {
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutVideoPipelineInput = {
@@ -3668,6 +3724,7 @@ export type GenerationUncheckedUpdateWithoutVideoPipelineInput = {
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationCreateWithoutExtractedElementsInput = {
@@ -3719,6 +3776,7 @@ export type GenerationCreateWithoutExtractedElementsInput = {
   likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
+  layers?: Prisma.GenerationLayerCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationUncheckedCreateWithoutExtractedElementsInput = {
@@ -3770,6 +3828,7 @@ export type GenerationUncheckedCreateWithoutExtractedElementsInput = {
   likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
   collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
   videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
+  layers?: Prisma.GenerationLayerUncheckedCreateNestedManyWithoutGenerationInput
 }
 
 export type GenerationCreateOrConnectWithoutExtractedElementsInput = {
@@ -3837,6 +3896,7 @@ export type GenerationUpdateWithoutExtractedElementsInput = {
   likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutExtractedElementsInput = {
@@ -3888,6 +3948,231 @@ export type GenerationUncheckedUpdateWithoutExtractedElementsInput = {
   likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
+}
+
+export type GenerationCreateWithoutLayersInput = {
+  id?: string
+  createdAt?: Date | string
+  outputType?: $Enums.OutputType
+  status?: $Enums.GenerationStatus
+  url: string
+  storageKey: string
+  mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
+  width?: number
+  height?: number
+  duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
+  referenceImageUrl?: string | null
+  prompt: string
+  negativePrompt?: string | null
+  model: string
+  provider: string
+  requestCount?: number
+  isFreeGeneration?: boolean
+  isPublic?: boolean
+  isPromptPublic?: boolean
+  isFeatured?: boolean
+  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  seq?: number | null
+  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  runGroupId?: string | null
+  runGroupType?: string
+  runGroupIndex?: number
+  isWinner?: boolean
+  seed?: bigint | number | null
+  user?: Prisma.UserCreateNestedOneWithoutGenerationsInput
+  project?: Prisma.ProjectCreateNestedOneWithoutGenerationsInput
+  characterCard?: Prisma.CharacterCardCreateNestedOneWithoutGenerationsInput
+  characterCards?: Prisma.GenerationCharacterCardCreateNestedManyWithoutGenerationInput
+  cardRecipe?: Prisma.CardRecipeCreateNestedOneWithoutGenerationsInput
+  generationJob?: Prisma.GenerationJobCreateNestedOneWithoutGenerationInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutGenerationInput
+  storyPanels?: Prisma.StoryPanelCreateNestedManyWithoutGenerationInput
+  likes?: Prisma.UserLikeCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemCreateNestedManyWithoutGenerationInput
+  videoPipeline?: Prisma.VideoPipelineCreateNestedOneWithoutGenerationInput
+  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutSourceGenerationInput
+}
+
+export type GenerationUncheckedCreateWithoutLayersInput = {
+  id?: string
+  createdAt?: Date | string
+  outputType?: $Enums.OutputType
+  status?: $Enums.GenerationStatus
+  url: string
+  storageKey: string
+  mimeType?: string
+  thumbnailUrl?: string | null
+  thumbnailStorageKey?: string | null
+  previewUrl?: string | null
+  previewStorageKey?: string | null
+  width?: number
+  height?: number
+  duration?: number | null
+  modelUrl?: string | null
+  modelStorageKey?: string | null
+  referenceImageUrl?: string | null
+  prompt: string
+  negativePrompt?: string | null
+  model: string
+  provider: string
+  requestCount?: number
+  isFreeGeneration?: boolean
+  isPublic?: boolean
+  isPromptPublic?: boolean
+  isFeatured?: boolean
+  userId?: string | null
+  projectId?: string | null
+  characterCardId?: string | null
+  cardRecipeId?: string | null
+  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  sourceSurface?: $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  seq?: number | null
+  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  runGroupId?: string | null
+  runGroupType?: string
+  runGroupIndex?: number
+  isWinner?: boolean
+  seed?: bigint | number | null
+  characterCards?: Prisma.GenerationCharacterCardUncheckedCreateNestedManyWithoutGenerationInput
+  generationJob?: Prisma.GenerationJobUncheckedCreateNestedOneWithoutGenerationInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutGenerationInput
+  storyPanels?: Prisma.StoryPanelUncheckedCreateNestedManyWithoutGenerationInput
+  likes?: Prisma.UserLikeUncheckedCreateNestedManyWithoutGenerationInput
+  collectionItems?: Prisma.CollectionItemUncheckedCreateNestedManyWithoutGenerationInput
+  videoPipeline?: Prisma.VideoPipelineUncheckedCreateNestedOneWithoutGenerationInput
+  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutSourceGenerationInput
+}
+
+export type GenerationCreateOrConnectWithoutLayersInput = {
+  where: Prisma.GenerationWhereUniqueInput
+  create: Prisma.XOR<Prisma.GenerationCreateWithoutLayersInput, Prisma.GenerationUncheckedCreateWithoutLayersInput>
+}
+
+export type GenerationUpsertWithoutLayersInput = {
+  update: Prisma.XOR<Prisma.GenerationUpdateWithoutLayersInput, Prisma.GenerationUncheckedUpdateWithoutLayersInput>
+  create: Prisma.XOR<Prisma.GenerationCreateWithoutLayersInput, Prisma.GenerationUncheckedCreateWithoutLayersInput>
+  where?: Prisma.GenerationWhereInput
+}
+
+export type GenerationUpdateToOneWithWhereWithoutLayersInput = {
+  where?: Prisma.GenerationWhereInput
+  data: Prisma.XOR<Prisma.GenerationUpdateWithoutLayersInput, Prisma.GenerationUncheckedUpdateWithoutLayersInput>
+}
+
+export type GenerationUpdateWithoutLayersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
+  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
+  url?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  width?: Prisma.IntFieldUpdateOperationsInput | number
+  height?: Prisma.IntFieldUpdateOperationsInput | number
+  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
+  runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
+  isWinner?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  user?: Prisma.UserUpdateOneWithoutGenerationsNestedInput
+  project?: Prisma.ProjectUpdateOneWithoutGenerationsNestedInput
+  characterCard?: Prisma.CharacterCardUpdateOneWithoutGenerationsNestedInput
+  characterCards?: Prisma.GenerationCharacterCardUpdateManyWithoutGenerationNestedInput
+  cardRecipe?: Prisma.CardRecipeUpdateOneWithoutGenerationsNestedInput
+  generationJob?: Prisma.GenerationJobUpdateOneWithoutGenerationNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutGenerationNestedInput
+  storyPanels?: Prisma.StoryPanelUpdateManyWithoutGenerationNestedInput
+  likes?: Prisma.UserLikeUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
+  videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
+  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+}
+
+export type GenerationUncheckedUpdateWithoutLayersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  outputType?: Prisma.EnumOutputTypeFieldUpdateOperationsInput | $Enums.OutputType
+  status?: Prisma.EnumGenerationStatusFieldUpdateOperationsInput | $Enums.GenerationStatus
+  url?: Prisma.StringFieldUpdateOperationsInput | string
+  storageKey?: Prisma.StringFieldUpdateOperationsInput | string
+  mimeType?: Prisma.StringFieldUpdateOperationsInput | string
+  thumbnailUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  thumbnailStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  previewStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  width?: Prisma.IntFieldUpdateOperationsInput | number
+  height?: Prisma.IntFieldUpdateOperationsInput | number
+  duration?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  modelUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  modelStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceImageUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  prompt?: Prisma.StringFieldUpdateOperationsInput | string
+  negativePrompt?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  model?: Prisma.StringFieldUpdateOperationsInput | string
+  provider?: Prisma.StringFieldUpdateOperationsInput | string
+  requestCount?: Prisma.IntFieldUpdateOperationsInput | number
+  isFreeGeneration?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isPromptPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isFeatured?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  userId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  projectId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  characterCardId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  cardRecipeId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  recipeSnapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  sourceSurface?: Prisma.EnumGenerationSourceSurfaceFieldUpdateOperationsInput | $Enums.GenerationSourceSurface
+  loraLineage?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  seq?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  snapshot?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  evaluation?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  runGroupId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  runGroupType?: Prisma.StringFieldUpdateOperationsInput | string
+  runGroupIndex?: Prisma.IntFieldUpdateOperationsInput | number
+  isWinner?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  seed?: Prisma.NullableBigIntFieldUpdateOperationsInput | bigint | number | null
+  characterCards?: Prisma.GenerationCharacterCardUncheckedUpdateManyWithoutGenerationNestedInput
+  generationJob?: Prisma.GenerationJobUncheckedUpdateOneWithoutGenerationNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutGenerationNestedInput
+  storyPanels?: Prisma.StoryPanelUncheckedUpdateManyWithoutGenerationNestedInput
+  likes?: Prisma.UserLikeUncheckedUpdateManyWithoutGenerationNestedInput
+  collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
+  videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
+  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
 }
 
 export type GenerationCreateManyUserInput = {
@@ -3982,6 +4267,7 @@ export type GenerationUpdateWithoutUserInput = {
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutUserInput = {
@@ -4033,6 +4319,7 @@ export type GenerationUncheckedUpdateWithoutUserInput = {
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateManyWithoutUserInput = {
@@ -4170,6 +4457,7 @@ export type GenerationUpdateWithoutProjectInput = {
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutProjectInput = {
@@ -4221,6 +4509,7 @@ export type GenerationUncheckedUpdateWithoutProjectInput = {
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateManyWithoutProjectInput = {
@@ -4358,6 +4647,7 @@ export type GenerationUpdateWithoutCharacterCardInput = {
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutCharacterCardInput = {
@@ -4409,6 +4699,7 @@ export type GenerationUncheckedUpdateWithoutCharacterCardInput = {
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateManyWithoutCharacterCardInput = {
@@ -4546,6 +4837,7 @@ export type GenerationUpdateWithoutCardRecipeInput = {
   collectionItems?: Prisma.CollectionItemUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateWithoutCardRecipeInput = {
@@ -4597,6 +4889,7 @@ export type GenerationUncheckedUpdateWithoutCardRecipeInput = {
   collectionItems?: Prisma.CollectionItemUncheckedUpdateManyWithoutGenerationNestedInput
   videoPipeline?: Prisma.VideoPipelineUncheckedUpdateOneWithoutGenerationNestedInput
   extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutSourceGenerationNestedInput
+  layers?: Prisma.GenerationLayerUncheckedUpdateManyWithoutGenerationNestedInput
 }
 
 export type GenerationUncheckedUpdateManyWithoutCardRecipeInput = {
@@ -4654,6 +4947,7 @@ export type GenerationCountOutputType = {
   likes: number
   collectionItems: number
   extractedElements: number
+  layers: number
 }
 
 export type GenerationCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -4663,6 +4957,7 @@ export type GenerationCountOutputTypeSelect<ExtArgs extends runtime.Types.Extens
   likes?: boolean | GenerationCountOutputTypeCountLikesArgs
   collectionItems?: boolean | GenerationCountOutputTypeCountCollectionItemsArgs
   extractedElements?: boolean | GenerationCountOutputTypeCountExtractedElementsArgs
+  layers?: boolean | GenerationCountOutputTypeCountLayersArgs
 }
 
 /**
@@ -4715,6 +5010,13 @@ export type GenerationCountOutputTypeCountCollectionItemsArgs<ExtArgs extends ru
  */
 export type GenerationCountOutputTypeCountExtractedElementsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   where?: Prisma.ExtractedElementWhereInput
+}
+
+/**
+ * GenerationCountOutputType without action
+ */
+export type GenerationCountOutputTypeCountLayersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.GenerationLayerWhereInput
 }
 
 
@@ -4772,6 +5074,7 @@ export type GenerationSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   collectionItems?: boolean | Prisma.Generation$collectionItemsArgs<ExtArgs>
   videoPipeline?: boolean | Prisma.Generation$videoPipelineArgs<ExtArgs>
   extractedElements?: boolean | Prisma.Generation$extractedElementsArgs<ExtArgs>
+  layers?: boolean | Prisma.Generation$layersArgs<ExtArgs>
   _count?: boolean | Prisma.GenerationCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["generation"]>
 
@@ -4929,6 +5232,7 @@ export type GenerationInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   collectionItems?: boolean | Prisma.Generation$collectionItemsArgs<ExtArgs>
   videoPipeline?: boolean | Prisma.Generation$videoPipelineArgs<ExtArgs>
   extractedElements?: boolean | Prisma.Generation$extractedElementsArgs<ExtArgs>
+  layers?: boolean | Prisma.Generation$layersArgs<ExtArgs>
   _count?: boolean | Prisma.GenerationCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type GenerationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -4959,6 +5263,7 @@ export type $GenerationPayload<ExtArgs extends runtime.Types.Extensions.Internal
     collectionItems: Prisma.$CollectionItemPayload<ExtArgs>[]
     videoPipeline: Prisma.$VideoPipelinePayload<ExtArgs> | null
     extractedElements: Prisma.$ExtractedElementPayload<ExtArgs>[]
+    layers: Prisma.$GenerationLayerPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -5408,6 +5713,7 @@ export interface Prisma__GenerationClient<T, Null = never, ExtArgs extends runti
   collectionItems<T extends Prisma.Generation$collectionItemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$collectionItemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CollectionItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   videoPipeline<T extends Prisma.Generation$videoPipelineArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$videoPipelineArgs<ExtArgs>>): Prisma.Prisma__VideoPipelineClient<runtime.Types.Result.GetResult<Prisma.$VideoPipelinePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   extractedElements<T extends Prisma.Generation$extractedElementsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$extractedElementsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ExtractedElementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  layers<T extends Prisma.Generation$layersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Generation$layersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$GenerationLayerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -6134,6 +6440,30 @@ export type Generation$extractedElementsArgs<ExtArgs extends runtime.Types.Exten
   take?: number
   skip?: number
   distinct?: Prisma.ExtractedElementScalarFieldEnum | Prisma.ExtractedElementScalarFieldEnum[]
+}
+
+/**
+ * Generation.layers
+ */
+export type Generation$layersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the GenerationLayer
+   */
+  select?: Prisma.GenerationLayerSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the GenerationLayer
+   */
+  omit?: Prisma.GenerationLayerOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.GenerationLayerInclude<ExtArgs> | null
+  where?: Prisma.GenerationLayerWhereInput
+  orderBy?: Prisma.GenerationLayerOrderByWithRelationInput | Prisma.GenerationLayerOrderByWithRelationInput[]
+  cursor?: Prisma.GenerationLayerWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.GenerationLayerScalarFieldEnum | Prisma.GenerationLayerScalarFieldEnum[]
 }
 
 /**

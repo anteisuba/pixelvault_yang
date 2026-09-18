@@ -423,6 +423,7 @@ export const ModelName = {
   VideoScript: 'VideoScript',
   VideoScriptScene: 'VideoScriptScene',
   ExtractedElement: 'ExtractedElement',
+  GenerationLayer: 'GenerationLayer',
   InspirationPrompt: 'InspirationPrompt',
   CivitaiSearchSnapshot: 'CivitaiSearchSnapshot',
   CivitaiLoraMirror: 'CivitaiLoraMirror',
@@ -443,7 +444,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard"
+    modelProps: "user" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3333,6 +3334,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    GenerationLayer: {
+      payload: Prisma.$GenerationLayerPayload<ExtArgs>
+      fields: Prisma.GenerationLayerFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.GenerationLayerFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationLayerPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.GenerationLayerFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationLayerPayload>
+        }
+        findFirst: {
+          args: Prisma.GenerationLayerFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationLayerPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.GenerationLayerFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationLayerPayload>
+        }
+        findMany: {
+          args: Prisma.GenerationLayerFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationLayerPayload>[]
+        }
+        create: {
+          args: Prisma.GenerationLayerCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationLayerPayload>
+        }
+        createMany: {
+          args: Prisma.GenerationLayerCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.GenerationLayerCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationLayerPayload>[]
+        }
+        delete: {
+          args: Prisma.GenerationLayerDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationLayerPayload>
+        }
+        update: {
+          args: Prisma.GenerationLayerUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationLayerPayload>
+        }
+        deleteMany: {
+          args: Prisma.GenerationLayerDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.GenerationLayerUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.GenerationLayerUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationLayerPayload>[]
+        }
+        upsert: {
+          args: Prisma.GenerationLayerUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$GenerationLayerPayload>
+        }
+        aggregate: {
+          args: Prisma.GenerationLayerAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateGenerationLayer>
+        }
+        groupBy: {
+          args: Prisma.GenerationLayerGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GenerationLayerGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.GenerationLayerCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.GenerationLayerCountAggregateOutputType> | number
+        }
+      }
+    }
     InspirationPrompt: {
       payload: Prisma.$InspirationPromptPayload<ExtArgs>
       fields: Prisma.InspirationPromptFieldRefs
@@ -4502,6 +4577,24 @@ export const ExtractedElementScalarFieldEnum = {
 export type ExtractedElementScalarFieldEnum = (typeof ExtractedElementScalarFieldEnum)[keyof typeof ExtractedElementScalarFieldEnum]
 
 
+export const GenerationLayerScalarFieldEnum = {
+  id: 'id',
+  generationId: 'generationId',
+  zIndex: 'zIndex',
+  url: 'url',
+  storageKey: 'storageKey',
+  mimeType: 'mimeType',
+  width: 'width',
+  height: 'height',
+  name: 'name',
+  description: 'description',
+  boundingBox: 'boundingBox',
+  createdAt: 'createdAt'
+} as const
+
+export type GenerationLayerScalarFieldEnum = (typeof GenerationLayerScalarFieldEnum)[keyof typeof GenerationLayerScalarFieldEnum]
+
+
 export const InspirationPromptScalarFieldEnum = {
   id: 'id',
   source: 'source',
@@ -5094,6 +5187,7 @@ export type GlobalOmitConfig = {
   videoScript?: Prisma.VideoScriptOmit
   videoScriptScene?: Prisma.VideoScriptSceneOmit
   extractedElement?: Prisma.ExtractedElementOmit
+  generationLayer?: Prisma.GenerationLayerOmit
   inspirationPrompt?: Prisma.InspirationPromptOmit
   civitaiSearchSnapshot?: Prisma.CivitaiSearchSnapshotOmit
   civitaiLoraMirror?: Prisma.CivitaiLoraMirrorOmit

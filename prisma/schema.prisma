@@ -454,6 +454,7 @@ model Generation {
   collectionItems   CollectionItem[]
   videoPipeline     VideoPipeline?
   extractedElements ExtractedElement[] @relation("ExtractedElementSource")
+  layers            GenerationLayer[]  @relation("GenerationLayers")
 
   @@index([userId])
   @@index([userId, seq])
@@ -1338,6 +1339,50 @@ model ExtractedElement {
 
   @@index([userId, createdAt(sort: Desc)])
   @@index([sourceGenerationId])
+}
+
+// ─── Generation Layer（图层拆分产物）──────────────────────────────
+//
+// Seedream 5.0 Pro 的 `layer_decomposition: true` 一次调用返回 1 张底图 +
+// 最多 16 个带 alpha 的 PNG 图层。**底图就是那条 Generation 本身**（z_index 0，
+// 走既有的 url / storageKey / width / height），这张表只存 z_index ≥ 1 的图层
+// —— 这样一次生成仍然只产生一条 Generation，画廊、计数、seq、credit 与
+// GenerationJob.generationId 的一对一关系一个都不用动。
+//
+// ⛔ 不加 (generationId, zIndex) 唯一索引：z_index 是 provider 给的值，我们
+//    没有它不重复的承诺；撞号最坏是排序并列，加唯一索引则是整批落库失败。
+// ⚠ 落库是**全有或全无**：文档写死「任一图层生成失败，整体请求报错，不支持
+//    部分成功」，所以图层行与 Generation 在同一个事务里创建。
+// https://www.volcengine.com/docs/82379/1541523
+model GenerationLayer {
+  id           String     @id @default(uuid())
+  generationId String
+  generation   Generation @relation("GenerationLayers", fields: [generationId], references: [id], onDelete: Cascade)
+
+  /** provider 的 z_index：底图固定 0（不存这张表），图层从 1 起递增，越大越靠上。 */
+  zIndex Int
+
+  url        String @db.Text
+  storageKey String
+  mimeType   String @default("image/png")
+
+  width  Int @default(0)
+  height Int @default(0)
+
+  /** 模型自己起的标签 / 语义描述；provider 不保证给，所以可空。 */
+  name        String?
+  description String? @db.Text
+
+  /**
+   * `{ absolute: [left, top, right, bottom], normalized: [...] }` 原样存。
+   * absolute 是输出底图坐标系的像素，normalized 是同一矩形换算到 0–1000 的
+   * 整数区间 —— ⚠ 不是 0–1 的小数，别照着名字猜。
+   */
+  boundingBox Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([generationId, zIndex])
 }
 
 // ─── Inspiration Prompt (curated public prompt library) ──────────

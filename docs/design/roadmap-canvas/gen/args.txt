@@ -122,3 +122,5 @@ DesignD3Settings.dc.html
 DesignD3Keys.dc.html
 --artboard
 DesignD3Entry.dc.html
+--artboard
+DesignD4Ask.dc.html

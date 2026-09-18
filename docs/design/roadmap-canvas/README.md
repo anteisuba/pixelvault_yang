@@ -1,6 +1,6 @@
 # 生成方向图画布 · 源码与调研稿
 
-线上画布：https://claude.ai/artifact/AGugEALDdyBLHMqDeNjaTD （Claude Design 画布，12 页，实时更新；owner 在画布上批注 / 删改，AI 每轮先 extract 再合并）。
+线上画布：https://claude.ai/artifact/AGugEALDdyBLHMqDeNjaTD （Claude Design 画布，13 页，实时更新；owner 在画布上批注 / 删改，AI 每轮先 extract 再合并）。
 
 这里是让**任何 AI 或人**都能重生成、续写那份画布的全部源码。画板是静态 `.dc.html`（内联样式，可在画布里直接编辑），由 `gen/build-*.mjs` 生成；调研稿在 `research/`。
 

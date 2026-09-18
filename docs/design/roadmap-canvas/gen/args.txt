@@ -112,3 +112,5 @@ DesignD2Picker.dc.html
 DesignD2Form.dc.html
 --artboard
 DesignD2Spec.dc.html
+--artboard
+DesignD3Ask.dc.html

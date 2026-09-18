@@ -1,6 +1,6 @@
 # 生成方向图画布 · 源码与调研稿
 
-线上画布：https://claude.ai/artifact/AGugEALDdyBLHMqDeNjaTD （Claude Design 画布，10 页，实时更新；owner 在画布上批注 / 删改，AI 每轮先 extract 再合并）。
+线上画布：https://claude.ai/artifact/AGugEALDdyBLHMqDeNjaTD （Claude Design 画布，12 页，实时更新；owner 在画布上批注 / 删改，AI 每轮先 extract 再合并）。
 
 这里是让**任何 AI 或人**都能重生成、续写那份画布的全部源码。画板是静态 `.dc.html`（内联样式，可在画布里直接编辑），由 `gen/build-*.mjs` 生成；调研稿在 `research/`。
 
@@ -16,6 +16,8 @@
 | `gen/build-progress.mjs`                                    | 第 7 页 改进进度表 · 第 8 页 语音方案                                                                  |
 | `gen/build-master.mjs` + `build-d1.mjs`                     | 第 9 页 总清单 · 设计流程 · 美术方法 · D1 思维导图                                                     |
 | `gen/build-ui-inventory.mjs`                                | 第 10 页 UI 全清单（渲染 `research/ui-inventory.md`）                                                  |
+| `gen/build-d2.mjs` + `build-d2-ui.mjs`                      | 第 11 页 D2 反问对照 · 思维导图 · ④ 选择器 / 表单 / 规格 chip 画板                                     |
+| `gen/build-d3.mjs`                                          | 第 12 页 D3 ① 反问（key 门 / settings / 胶囊）                                                         |
 | `gen/canvas-live.json`                                      | 画布布局（页 · 画板位置尺寸 · owner 便签）。**重生成前先从线上 extract 覆盖它**，否则会丢 owner 的批注 |
 | `gen/live1/Artboard*.dc.html`                               | owner 手绘的三张板（助手 / 卡片 / 画布），原样保留                                                     |
 | `research/*.md`                                             | 一手调研稿（图片 / NAI / 视频 / 语音 ×3 / LLM / Runner / 卡片 / 人声提取 / UI 全清单）                 |

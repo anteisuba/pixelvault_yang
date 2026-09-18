@@ -1,13 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
-import Image from 'next/image'
+import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 import {
+  ArrowRight,
   ChevronDown,
-  Coins,
-  KeyRound,
-  LogOut,
+  Settings,
   UserCircle,
 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
@@ -18,11 +16,9 @@ import {
   isShellNavItemActive,
   type ShellNavItem,
 } from '@/constants/navigation'
-import { ROUTES } from '@/constants/routes'
+import { ROUTES, creatorProfilePath, settingsPath } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
-import { useApiKeysContext } from '@/contexts/api-keys-context'
-import { ApiKeyManager } from '@/components/business/ApiKeyManager'
-import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
+import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import {
   Sheet,
   SheetContent,
@@ -32,7 +28,6 @@ import {
 } from '@/components/ui/sheet'
 import { useHasHydrated } from '@/hooks/use-has-hydrated'
 import { useMyProfile } from '@/hooks/use-my-profile'
-import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { cn } from '@/lib/utils'
 
 /**
@@ -107,68 +102,49 @@ function PanelSectionLabel({ children }: { children: React.ReactNode }) {
   )
 }
 
-function MobileAccountSection({
-  onNavigate,
-  onOpenApiKeys,
-}: {
-  onNavigate: () => void
-  onOpenApiKeys: () => void
-}) {
+/**
+ * 抽屉顶部的「我」区（D3 ④ 入口收口）：头像 · 显示名 ·「查看主页 →」。
+ *
+ * ⛔ 这里没有 key 数、没有额度、没有红点、没有语言切换 —— 语言进了
+ * `/settings/preferences`，退出登录进了 `/settings` 导航底部，
+ * 抽屉最底只留一行「设置」。
+ */
+function MobileMeSection({ onNavigate }: { onNavigate: () => void }) {
   const t = useTranslations('Navbar')
   const { profile } = useMyProfile()
-  const { summary } = useUsageSummary()
-  const { signOut } = useClerk()
+
+  const body = (
+    <>
+      <ProfileAvatar
+        avatarUrl={profile?.avatarUrl}
+        size={36}
+        className="size-9"
+        iconClassName="size-5"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-sm font-semibold text-sidebar-accent-foreground">
+          {profile?.displayName ?? t('viewProfile')}
+        </span>
+        <span className="flex items-center gap-1 text-2xs text-sidebar-subtle">
+          {t('viewProfile')}
+          <ArrowRight className="size-3" aria-hidden />
+        </span>
+      </span>
+    </>
+  )
+
+  if (!profile?.username) {
+    return <div className="flex items-center gap-3 px-2">{body}</div>
+  }
 
   return (
-    <div className="flex flex-col gap-2 px-2">
-      <div className="flex items-center gap-3">
-        <span className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground">
-          {profile?.avatarUrl ? (
-            <Image
-              src={profile.avatarUrl}
-              alt=""
-              width={36}
-              height={36}
-              unoptimized
-              className="size-full object-cover"
-            />
-          ) : (
-            <UserCircle className="size-5" />
-          )}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold text-sidebar-accent-foreground">
-            {profile?.displayName ?? t('viewProfile')}
-          </p>
-        </div>
-        <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold tabular-nums text-sidebar-accent-foreground">
-          <Coins className="size-3.5 text-sidebar-primary" />
-          {summary.totalRequests}
-        </span>
-      </div>
-
-      <LocaleSwitcher tone="sidebar" size="compact" className="w-full" />
-      <button
-        type="button"
-        onClick={onOpenApiKeys}
-        className="flex h-11 items-center gap-2.5 rounded-lg px-2 text-sm text-sidebar-foreground transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent-strong"
-      >
-        <KeyRound className="size-4" aria-hidden />
-        {t('apiKeys')}
-      </button>
-
-      <button
-        type="button"
-        onClick={() => {
-          onNavigate()
-          signOut({ redirectUrl: ROUTES.HOME })
-        }}
-        className="flex h-11 items-center gap-2.5 rounded-lg px-2 text-sm text-sidebar-foreground transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent-strong"
-      >
-        <LogOut className="size-4" />
-        {t('signOut')}
-      </button>
-    </div>
+    <Link
+      href={creatorProfilePath(profile.username)}
+      onClick={onNavigate}
+      className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent-strong"
+    >
+      {body}
+    </Link>
   )
 }
 
@@ -179,8 +155,6 @@ export function MobileShell() {
   const tTools = useTranslations('StudioTools')
   const tCommon = useTranslations('Common')
   const [open, setOpen] = useState(false)
-  const [apiKeysOpen, setApiKeysOpen] = useState(false)
-  const { refresh: refreshApiKeys } = useApiKeysContext()
   const hasHydrated = useHasHydrated()
   const { isLoaded } = useUser()
   const { profile } = useMyProfile()
@@ -214,27 +188,27 @@ export function MobileShell() {
           {hasHydrated && isLoaded ? (
             <>
               <SignedIn>
-                <button
-                  type="button"
-                  onClick={() => setOpen(true)}
-                  aria-label={tNav('viewProfile')}
-                  className="flex size-9 shrink-0 items-center justify-center rounded-full"
-                >
-                  <span className="flex size-7 items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground">
-                    {profile?.avatarUrl ? (
-                      <Image
-                        src={profile.avatarUrl}
-                        alt=""
-                        width={28}
-                        height={28}
-                        unoptimized
-                        className="size-full object-cover"
-                      />
-                    ) : (
-                      <UserCircle className="size-4" />
-                    )}
+                {/* 头像 = 去个人主页（D3 ④）。⛔ 不再是「开抽屉」，也不挂红点。 */}
+                {profile?.username ? (
+                  <Link
+                    href={creatorProfilePath(profile.username)}
+                    aria-label={tNav('viewProfile')}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full"
+                  >
+                    <ProfileAvatar
+                      avatarUrl={profile.avatarUrl}
+                      size={28}
+                      className="size-7"
+                    />
+                  </Link>
+                ) : (
+                  <span
+                    aria-hidden
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full"
+                  >
+                    <ProfileAvatar size={28} className="size-7" />
                   </span>
-                </button>
+                )}
               </SignedIn>
               <SignedOut>
                 <Link
@@ -264,6 +238,12 @@ export function MobileShell() {
             <SheetDescription>{tCommon('sidebarDescription')}</SheetDescription>
           </SheetHeader>
 
+          {hasHydrated && isLoaded && (
+            <SignedIn>
+              <MobileMeSection onNavigate={close} />
+            </SignedIn>
+          )}
+
           <PanelSectionLabel>{tTools('groupLabel')}</PanelSectionLabel>
           <PanelGrid
             items={SHELL_NAV_TOOLS}
@@ -280,31 +260,16 @@ export function MobileShell() {
 
           {hasHydrated && isLoaded && (
             <SignedIn>
-              <div className="mt-4 border-t border-sidebar-border pt-3">
-                <MobileAccountSection
-                  onNavigate={close}
-                  onOpenApiKeys={() => {
-                    setOpen(false)
-                    setApiKeysOpen(true)
-                    void refreshApiKeys()
-                  }}
-                />
-              </div>
+              <Link
+                href={settingsPath(ROUTES.SETTINGS, pathname)}
+                onClick={close}
+                className="mt-4 flex h-11 items-center gap-2.5 border-t border-sidebar-border px-2 text-sm text-sidebar-foreground transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent-strong"
+              >
+                <Settings className="size-4" aria-hidden />
+                {tNav('settings')}
+              </Link>
             </SignedIn>
           )}
-        </SheetContent>
-      </Sheet>
-      <Sheet open={apiKeysOpen} onOpenChange={setApiKeysOpen}>
-        <SheetContent className="inset-y-2 right-2 h-auto w-[calc(100%-1rem)] gap-0 overflow-hidden rounded-2xl border bg-background/95 p-0 shadow-xl sm:max-w-2xl">
-          <SheetTitle className="sr-only">
-            {t('StudioApiKeys.sheetTitle')}
-          </SheetTitle>
-          <SheetDescription className="sr-only">
-            {t('StudioApiKeys.sheetDescription')}
-          </SheetDescription>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-12 sm:px-6">
-            {apiKeysOpen ? <ApiKeyManager /> : null}
-          </div>
         </SheetContent>
       </Sheet>
     </>

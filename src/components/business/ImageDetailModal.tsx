@@ -48,7 +48,10 @@ import {
   MediaDetailViewer,
   type MediaTransitionOrigin,
 } from '@/components/business/MediaDetailViewer'
-import { GenerationLayerStrip } from '@/components/business/image'
+// ⚠ 直接指文件，不走 `@/components/business/image` 那个桶：桶里还有
+// CompareGrid 等依赖 studio-context 的组件，从这里走桶等于把整个工作台上下文
+// 拖进详情弹窗的模块图（ImageDetailModal 的测试会在 import 期就炸）。
+import { GenerationLayerStrip } from '@/components/business/image/GenerationLayerStrip'
 
 interface ImageDetailModalProps {
   generation: GenerationRecord

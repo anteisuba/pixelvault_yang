@@ -447,6 +447,20 @@ const STEP_FIXTURES: Record<
     },
     inverse: { loraId: 'lora-asset-1', weight: 0.8 },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters]: {
+    payload: {
+      steps: 25,
+      guidanceScale: 7,
+      runnerWidth: 672,
+      runnerHeight: 984,
+    },
+    inverse: {
+      steps: null,
+      guidanceScale: null,
+      runnerWidth: null,
+      runnerHeight: null,
+    },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules]: {
     payload: { scope: null },
     result: {
@@ -741,10 +755,10 @@ describe('五动词入口', () => {
    * 断的是「没有孤儿、没有分身」，断不出「有人悄悄加了一条工具」——
    * 而模型看得见的工具多一条，就是它多一条挑错的路。
    */
-  it('⭐ 工具表是 38 条，recall_evidence 归「查」组（§7.3）', () => {
+  it('⭐ 工具表是 39 条，recall_evidence 归「查」组（§7.3）', () => {
     // commit #18 把 33 变成 37（素材库四条写操作，v2 §10）。
     // lora-assistant §10.2.2 把 37 变成 38（`plan_lora_pick`）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(38)
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(39)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
@@ -1541,11 +1555,26 @@ describe('事件契约', () => {
         AssistantOperatorRequestSchema.safeParse({
           ...base,
           loraPicks: [
-            { candidateId: 'a', weight: 0.9, candidate: pickCandidate('a') },
-            { candidateId: 'b', candidate: pickCandidate('b') },
+            {
+              candidateId: 'a',
+              weight: 0.9,
+              candidate: pickCandidate('a'),
+              receipt: { assetId: 'asset-a' },
+            },
+            {
+              candidateId: 'b',
+              candidate: pickCandidate('b'),
+              receipt: { assetId: null, error: 'Import failed' },
+            },
           ],
         }).success,
       ).toBe(true)
+      expect(
+        AssistantOperatorRequestSchema.safeParse({
+          ...base,
+          loraPicks: [{ candidateId: 'a', candidate: pickCandidate('a') }],
+        }).success,
+      ).toBe(false)
       // ⛔ 只给 id 不给本体 —— 那正是「确认时按 id 再搜一次」的入口。
       expect(
         AssistantOperatorRequestSchema.safeParse({
@@ -1560,7 +1589,8 @@ describe('事件契约', () => {
             { length: ASSISTANT_OPERATOR_LIMITS.maxLoraResults + 1 },
             (_, index) => ({
               candidateId: `c${index}`,
-              candidate: loraCandidate(`c${index}`),
+              candidate: pickCandidate(`c${index}`),
+              receipt: { assetId: `asset-${index}` },
             }),
           ),
         }).success,

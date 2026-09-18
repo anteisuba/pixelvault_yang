@@ -64,6 +64,12 @@ export interface MentionInputHandle {
 /** 素材引用的前缀 —— 全仓只有这一个。 */
 const MENTION_PREFIX = '@'
 
+/**
+ * 中文等 IME 用回车确认候选时，compositionend 之后浏览器还会再发一次
+ * `key=Enter`（此时 `isComposing` 已经是 false）。这段窗口内不当发送 / 换行。
+ */
+const IME_CONFIRM_ENTER_MS = 100
+
 type MentionSegment =
   | { type: 'text'; text: string }
   | { type: 'token'; name: string }
@@ -576,6 +582,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
     const editorRef = useRef<HTMLDivElement>(null)
     const listId = useId()
     const composingRef = useRef(false)
+    const compositionEndedAtRef = useRef(0)
     const tokenSignature = JSON.stringify(tokens)
     const renderedTokensRef = useRef('')
     const [isComposing, setIsComposing] = useState(false)
@@ -633,9 +640,13 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
      * 省掉一次无谓的 DOM 重建（同值直接跳过），不再承担正确性。
      */
     useEffect(() => {
-      if (isComposing) return
       const el = editorRef.current
       if (!el) return
+      const active = el.ownerDocument.activeElement
+      const focused = active === el || el.contains(active)
+      // 正在组字时不要重建，免得把拼音候选冲掉。失焦后组字已经结束，
+      // 助手写入必须能进来 —— `isComposing` 卡在 true 时提示词框会假死。
+      if (isComposing && focused) return
 
       /**
        * ⭐ **谁是真相**：光标在这个编辑器里 → **DOM 是真相**，外部 `value` 只是
@@ -652,8 +663,7 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
        *
        * `insertToken` 那条路不受影响 —— 它直接改 DOM 再 `emit`，从不经过这里。
        */
-      const active = el.ownerDocument.activeElement
-      if (variant === 'canvas' && (active === el || el.contains(active))) {
+      if (variant === 'canvas' && focused) {
         lastValueRef.current = value
         return
       }
@@ -959,13 +969,18 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
           }}
           onCompositionEnd={() => {
             composingRef.current = false
+            compositionEndedAtRef.current = performance.now()
             setIsComposing(false)
             emit()
             syncMention()
           }}
           onClick={syncMention}
           onFocus={onFocus}
-          onBlur={() => setMention(null)}
+          onBlur={() => {
+            composingRef.current = false
+            setIsComposing(false)
+            setMention(null)
+          }}
           onCopy={(event) => {
             if (variant === 'canvas') return
             const selection = editorRef.current?.ownerDocument.getSelection()
@@ -997,6 +1012,12 @@ export const MentionInput = forwardRef<MentionInputHandle, MentionInputProps>(
               composingRef.current ||
               event.nativeEvent.isComposing ||
               event.keyCode === 229
+            )
+              return
+            if (
+              event.key === 'Enter' &&
+              performance.now() - compositionEndedAtRef.current <
+                IME_CONFIRM_ENTER_MS
             )
               return
             // 下拉开着时，方向键/回车/Tab 归下拉，不能漏给编辑器（回车会插换行、

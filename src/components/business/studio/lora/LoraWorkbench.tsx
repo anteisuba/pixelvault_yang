@@ -186,6 +186,7 @@ import { LoraAspectRatioChip } from '@/components/business/studio/lora/LoraAspec
 import { LoraAssistantDock } from '@/components/business/studio/lora/LoraAssistantDock'
 import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseModelModal'
 import { LoraCollocationStatusBar } from '@/components/business/studio/lora/LoraCollocationStatusBar'
+import { AssistantLoraParametersSchema } from '@/types/assistant-operator'
 import { PromptTriggerHighlight } from '@/components/business/studio/lora/PromptTriggerHighlight'
 import { LoraReferenceImageCards } from '@/components/business/studio/lora/LoraReferenceImageCards'
 import { LoraScaleChip } from '@/components/business/studio/lora/LoraScaleChip'
@@ -203,6 +204,7 @@ import {
 import type { StudioModelOption } from '@/types/model-option'
 import { proxyCivitaiImageUrl } from '@/lib/civitai-image-url'
 import { appendPromptFragments } from '@/lib/prompt-text-append'
+import { hasVerifiedLoraTrigger } from '@/lib/lora-trigger-clean'
 import { compilePromptTags } from '@/lib/prompt-tag-compiler'
 import type { AssistantWorkbenchState, LoraAssistantMount } from '@/types'
 import type { PromptTagSelection } from '@/types/prompt-tags'
@@ -908,6 +910,8 @@ function GenerateBranch({
       stack.items
         .map((item) => ({
           assetId: item.asset.id,
+          enabled: item.enabled !== false,
+          defaultTriggerEnabled: hasVerifiedLoraTrigger(item.asset),
           name: item.asset.name,
           triggerWord: item.asset.triggerWord?.trim() ?? '',
         }))
@@ -917,27 +921,45 @@ function GenerateBranch({
   // chip 可单独禁用：用 assetId 集合而不是逐 chip useState——LoRA 被卸载后
   // id 自然从 triggerChipEntries 过滤掉，Set 里留下的陈旧 id 只是静置不用，
   // 不需要额外清理。
-  const [disabledTriggerIds, setDisabledTriggerIds] = useState<
-    ReadonlySet<string>
-  >(() => new Set())
-  const handleToggleTriggerChip = useCallback((assetId: string) => {
-    setDisabledTriggerIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(assetId)) next.delete(assetId)
-      else next.add(assetId)
-      return next
-    })
-  }, [])
+  const [triggerOverrides, setTriggerOverrides] = useState<
+    ReadonlyMap<string, boolean>
+  >(() => new Map())
+  const disabledTriggerIds = useMemo(
+    () =>
+      new Set(
+        triggerChipEntries
+          .filter(
+            (entry) =>
+              !(
+                triggerOverrides.get(entry.assetId) ??
+                entry.defaultTriggerEnabled
+              ),
+          )
+          .map((entry) => entry.assetId),
+      ),
+    [triggerChipEntries, triggerOverrides],
+  )
+  const handleToggleTriggerChip = useCallback(
+    (assetId: string) => {
+      const enabled = disabledTriggerIds.has(assetId)
+      setTriggerOverrides((prev) => new Map(prev).set(assetId, enabled))
+    },
+    [disabledTriggerIds],
+  )
   // CD④：正文里要高亮的触发词 = 启用中的那些（停用的 chip 不进编译，正文里
   // 也就不该被标成「生效中」）。
   const triggerHighlightPhrases = useMemo(
     () =>
       triggerChipEntries
-        .filter((entry) => !disabledTriggerIds.has(entry.assetId))
-        .map((entry) => ({
-          phrase: entry.triggerWord,
-          ownerName: entry.name,
-        })),
+        .filter(
+          (entry) => entry.enabled && !disabledTriggerIds.has(entry.assetId),
+        )
+        .flatMap((entry) =>
+          entry.triggerWord.split(',').map((phrase) => ({
+            phrase: phrase.trim(),
+            ownerName: entry.name,
+          })),
+        ),
     [triggerChipEntries, disabledTriggerIds],
   )
   // 背板层不是 textarea，自己不会跟着滚：正文超出可视区时手动同步 scrollTop。
@@ -965,7 +987,7 @@ function GenerateBranch({
         polarity: 'positive',
         source: 'lora_asset',
         type: 'lora_trigger',
-        enabled: !disabledTriggerIds.has(entry.assetId),
+        enabled: entry.enabled && !disabledTriggerIds.has(entry.assetId),
         orderIndex: index - triggerChipEntries.length,
         insertedAt: '',
       })),
@@ -1057,6 +1079,7 @@ function GenerateBranch({
     recipe: CivitaiImageRecipe
     params: AdvancedParams
     includeSeed: boolean
+    extraLoras: readonly CivitaiRecipeExtraLora[]
     appliedParamLabels: readonly string[]
     snapshot: {
       prompt: string
@@ -1072,6 +1095,7 @@ function GenerateBranch({
       runnerWidth: string
       runnerHeight: string
       scale: number | undefined
+      selectedBaseId: string | null
     }
   } | null>(null)
   const [resultPreviewOpen, setResultPreviewOpen] = useState(false)
@@ -1238,7 +1262,7 @@ function GenerateBranch({
     hasAppliedReplayRef.current = true
     // 一次性从 URL 回放参数灌进本地 state——ref 守卫保证只跑一次，不会级联
     // 覆盖用户后续编辑；QuickSetupDialog.tsx 里也是同一个理由禁用这条规则。
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+     
     if (promptParam && promptParam.trim()) setPrompt(promptParam)
     if (negativePromptParam && negativePromptParam.trim()) {
       setNegativePrompt(negativePromptParam)
@@ -1259,8 +1283,13 @@ function GenerateBranch({
   // 「做同款」与行内「补挂」按钮共用这一份（owner 2026-07-20：做同款要把额外
   // LoRA 一起挂上，才是真还原）。baseModelFamily 用当前主 LoRA 的家族做解析
   // 提示，挑对底模变体；架构不兼容的额外 LoRA 会被兼容闸拦下不挂。
+  const extraMountsPending = useRef(0)
+  const [isMountingExtras, setIsMountingExtras] = useState(false)
   const [extraMountStatusByKey, setExtraMountStatusByKey] = useState<
     Record<string, ExtraMountStatus>
+  >({})
+  const [extraMountedIdsByKey, setExtraMountedIdsByKey] = useState<
+    Record<string, string | undefined>
   >({})
   const reportExtraMountResult = useCallback(
     (result: RecipeExtraMountResult) => {
@@ -1288,22 +1317,32 @@ function GenerateBranch({
     [tExtra],
   )
   const mountExtras = useCallback(
-    async (extras: readonly CivitaiRecipeExtraLora[]) => {
+    async (extras: readonly CivitaiRecipeExtraLora[], base = selectedBase) => {
       if (extras.length === 0) return
-      const result = await mountRecipeExtraLoras({
-        extras,
-        stackItems: stack.items,
-        baseModelFamily: loraFamily,
-        resolveLora: resolveCivitaiLoraAPI,
-        pushLora: stack.push,
-        setLoraScale: stack.setScale,
-        setStatus: (key, status) =>
-          setExtraMountStatusByKey((prev) => ({ ...prev, [key]: status })),
-        isBaseCompatible: selectedBase
-          ? (fam) => isLoraBaseModelMountCompatible(fam, selectedBase.family)
-          : undefined,
-      })
-      reportExtraMountResult(result)
+      extraMountsPending.current += 1
+      setIsMountingExtras(true)
+      try {
+        const result = await mountRecipeExtraLoras({
+          extras,
+          stackItems: stack.items,
+          baseModelFamily: loraFamily,
+          resolveLora: resolveCivitaiLoraAPI,
+          pushLora: stack.push,
+          setLoraScale: stack.setScale,
+          setLoraEnabled: stack.setEnabled,
+          setStatus: (key, status, assetId) => {
+            setExtraMountStatusByKey((prev) => ({ ...prev, [key]: status }))
+            setExtraMountedIdsByKey((prev) => ({ ...prev, [key]: assetId }))
+          },
+          isBaseCompatible: base
+            ? (fam) => isLoraBaseModelMountCompatible(fam, base.family)
+            : undefined,
+        })
+        reportExtraMountResult(result)
+      } finally {
+        extraMountsPending.current -= 1
+        setIsMountingExtras(extraMountsPending.current > 0)
+      }
     },
     [stack, loraFamily, selectedBase, reportExtraMountResult],
   )
@@ -1334,6 +1373,19 @@ function GenerateBranch({
 
   const handleApplyRecipe = useCallback(
     (recipe: CivitaiImageRecipe, options: ApplyRecipeOptions) => {
+      if (extraMountsPending.current > 0) return
+      const recipeBase =
+        (recipe.checkpointVersionId ||
+          recipe.checkpointHash ||
+          recipe.checkpoint) &&
+        recipeGroupAsset
+          ? (getCompatibleBases(recipeGroupAsset.baseModelFamily).find(
+              (base) =>
+                base.available &&
+                base.backend === 'runner' &&
+                base.recipeCheckpointMode !== 'fixed',
+            ) ?? selectedBase)
+          : selectedBase
       const plan = buildCivitaiRecipeGenerationPlan(recipe)
       const params = applyRecipePlanToAdvancedParams(undefined, plan, options)
       // G3b-2b：应用前快照当前输入（+ 该分组当前 scale），撤销时整批回滚。
@@ -1357,6 +1409,7 @@ function GenerateBranch({
         runnerWidth,
         runnerHeight,
         scale: prevScale,
+        selectedBaseId,
       }
       // §4.3「一键同款只替换正文,不碰 chips 行」：配方文本原样写进 prompt。
       // 旧版这里会把其他挂载缺失的触发词 append 进 plan.prompt（B10
@@ -1365,6 +1418,7 @@ function GenerateBranch({
       // 编译管线（见 handleGenerate 的 triggerSelections），不用再拼进正文，
       // 拼了反而会在编译后的 prompt 里重复计入一次。
       setPrompt(plan.prompt)
+      if (recipeBase) setSelectedBaseId(recipeBase.id)
       setNegativePrompt(params.negativePrompt ?? '')
       // 配方带负面时展开负面框——做同款改了它，就让用户直接看见（CD 的负面条
       // 平时折叠 + 内容预览，这里是「有变更就摊开」的例外）。
@@ -1375,6 +1429,7 @@ function GenerateBranch({
       if (plan.loraScale != null && recipeGroupAsset) {
         stack.setScale(recipeGroupAsset.id, plan.loraScale)
       }
+      if (recipeGroupAsset) stack.setEnabled(recipeGroupAsset.id, true)
       setSeed(options.includeSeed ? params.seed : undefined)
       setRunnerSeed(params.runnerSeed ?? '')
       setRunnerSteps(params.steps != null ? String(params.steps) : '')
@@ -1396,6 +1451,7 @@ function GenerateBranch({
           recipe,
           params,
           includeSeed: options.includeSeed,
+          extraLoras: options.extraLoras,
           // 展开时列出的「配方带来的参数」（seed 仅在锁原图 seed 时计入）。
           appliedParamLabels: plan.appliedParams.filter(
             (param) => param !== 'seed' || options.includeSeed,
@@ -1408,7 +1464,7 @@ function GenerateBranch({
       // 异步回报成功/失败数，避免静默失败。
       // owner 2026-08-07：挂哪些由 modal 的勾选决定（默认全选），不再无条件用
       // plan.extraLoras 全量——所以这里读 options 而不是 plan。
-      void mountExtras(options.extraLoras)
+      void mountExtras(options.extraLoras, recipeBase)
       // CD③：落台即进「待审阅」，并把变更卡摊开——用户得先看见改了什么。
       if (recipeGroupAsset) {
         setCollocationPending(true)
@@ -1431,6 +1487,8 @@ function GenerateBranch({
       runnerScheduler,
       runnerWidth,
       runnerHeight,
+      selectedBase,
+      selectedBaseId,
     ],
   )
 
@@ -1453,6 +1511,7 @@ function GenerateBranch({
     setRunnerScheduler(snap.runnerScheduler)
     setRunnerWidth(snap.runnerWidth)
     setRunnerHeight(snap.runnerHeight)
+    setSelectedBaseId(snap.selectedBaseId)
     if (snap.scale != null) stack.setScale(applied.groupAssetId, snap.scale)
     setAppliedRecipe(null)
     setCollocationPending(false)
@@ -1739,7 +1798,46 @@ function GenerateBranch({
     }),
     [stack.items, stack.push, stack.setScale, stack.remove, disabledTriggerIds],
   )
+  const operatorParameters = AssistantLoraParametersSchema.safeParse({
+    steps: parseOptionalRunnerNumber(runnerSteps) ?? null,
+    guidanceScale: parseOptionalRunnerNumber(runnerCfg) ?? null,
+    runnerSeed: runnerSeed.trim() || null,
+    runnerWidth: parseOptionalRunnerNumber(runnerWidth) ?? null,
+    runnerHeight: parseOptionalRunnerNumber(runnerHeight) ?? null,
+    runnerSampler: runnerSampler || null,
+    runnerScheduler: runnerScheduler || null,
+  })
   const operatorHost = useLoraOperatorHost({
+    loraParameters:
+      isRunnerBase && operatorParameters.success
+        ? operatorParameters.data
+        : undefined,
+    sourceRecipe: collocationRecipe?.recipe,
+    setLoraParameters: (parameters) => {
+      if ('steps' in parameters)
+        setRunnerSteps(parameters.steps == null ? '' : String(parameters.steps))
+      if ('guidanceScale' in parameters)
+        setRunnerCfg(
+          parameters.guidanceScale == null
+            ? ''
+            : String(parameters.guidanceScale),
+        )
+      if ('runnerSeed' in parameters) setRunnerSeed(parameters.runnerSeed ?? '')
+      if ('runnerWidth' in parameters)
+        setRunnerWidth(
+          parameters.runnerWidth == null ? '' : String(parameters.runnerWidth),
+        )
+      if ('runnerHeight' in parameters)
+        setRunnerHeight(
+          parameters.runnerHeight == null
+            ? ''
+            : String(parameters.runnerHeight),
+        )
+      if ('runnerSampler' in parameters)
+        setRunnerSampler(parameters.runnerSampler ?? '')
+      if ('runnerScheduler' in parameters)
+        setRunnerScheduler(parameters.runnerScheduler ?? '')
+    },
     prompt,
     setPrompt,
     appendPrompt: handleAssistantAppendPrompt,
@@ -1797,7 +1895,23 @@ function GenerateBranch({
     [prompt, negativePrompt, negativePromptExpanded],
   )
   const hasLora = stack.items.length > 0
+  const recipeExtrasReady =
+    !collocationRecipe ||
+    collocationRecipe.extraLoras.every((extra) =>
+      stack.items.some(
+        (entry) =>
+          entry.asset.id === extraMountedIdsByKey[extraLoraKey(extra)] &&
+          entry.enabled !== false &&
+          !!selectedBase &&
+          isLoraBaseModelMountCompatible(
+            entry.asset.baseModelFamily,
+            selectedBase.family,
+          ),
+      ),
+    )
   const canGenerate =
+    !isMountingExtras &&
+    recipeExtrasReady &&
     !!selectedBase?.available &&
     !!selectedBase.providerModelId &&
     !isGenerating &&
@@ -1810,6 +1924,7 @@ function GenerateBranch({
       triggerSelections.some((selection) => selection.enabled))
 
   const handleGenerate = useCallback(async () => {
+    if (extraMountsPending.current > 0 || !recipeExtrasReady) return
     const providerModelId = selectedBase?.providerModelId
     if (!providerModelId) return
     // 时间提示（owner 2026-09-12）：Runner 线路才有冷启动，hosted 线路不提。
@@ -1885,6 +2000,12 @@ function GenerateBranch({
       }
 
       const activeRecipe = activeAppliedRecipe?.recipe
+      if (
+        activeRecipe?.checkpointHash &&
+        selectedBase?.recipeCheckpointMode !== 'fixed'
+      ) {
+        advanced.checkpointHash = activeRecipe.checkpointHash
+      }
       // Runner-only fields never leak into hosted provider payloads.
       if (
         activeRecipe?.checkpointVersionId != null &&
@@ -1902,11 +2023,14 @@ function GenerateBranch({
       // 既能正确拦 DiT，又不会因配方 checkpoint 名字含 "anima"(如 Animagine) 误拦
       // 合法 SDXL 生成。
       if (
-        (advanced.checkpointVersionId || advanced.checkpointName) &&
+        (advanced.checkpointVersionId ||
+          advanced.checkpointHash ||
+          advanced.checkpointName) &&
         loraFamily
       )
         advanced.loraBaseModel = loraFamily
     } else {
+      delete advanced.runnerHires
       delete advanced.runnerSeed
       delete advanced.runnerSampler
       delete advanced.runnerScheduler
@@ -1965,6 +2089,7 @@ function GenerateBranch({
     prompt,
     promptTags,
     referenceStrength,
+    recipeExtrasReady,
     runnerCfg,
     runnerHeight,
     runnerSampler,
@@ -2325,6 +2450,20 @@ function GenerateBranch({
               </div>
             </div>
 
+            {collocationRecipe?.params.runnerHires ? (
+              <p className="rounded-lg border border-border p-2.5 text-2xs text-muted-foreground">
+                {t('generate.advanced.sourceHiresSummary', {
+                  scale: collocationRecipe.params.runnerHires.scale,
+                  denoise: collocationRecipe.params.runnerHires.denoise,
+                  steps:
+                    collocationRecipe.params.runnerHires.steps ??
+                    (runnerSteps || t('generate.advanced.modelDefault')),
+                  cfg:
+                    collocationRecipe.params.runnerHires.cfg ??
+                    (runnerCfg || t('generate.advanced.modelDefault')),
+                })}
+              </p>
+            ) : null}
             <div className="rounded-lg border border-border p-2.5">
               <div className="flex flex-col gap-2">
                 <div className="min-w-0 flex-1">
@@ -2984,6 +3123,15 @@ function GenerateBranch({
             // 10px/10px，`lg` 断点与 `useIsMobile` 同界）。
             className="lora-composer shrink-0 space-y-2.5 border-t border-border px-2.5 py-2.5 lg:px-4 lg:py-3"
           >
+            {(isMountingExtras || !recipeExtrasReady) && (
+              <p role="status" className="text-sm text-muted-foreground">
+                {t(
+                  isMountingExtras
+                    ? 'sourceRecipeMounting'
+                    : 'sourceRecipeIncomplete',
+                )}
+              </p>
+            )}
             {/* S7 移动端：装配摘要 chip 行——B 稿把它从旧的「结果卡上方独立
                 小卡」挪到 composer 顶部（mock 的手机版 composer 也是 chips 行
                 在输入行之上），点开的仍是同一个 assemblySheetOpen 抽屉。 */}
@@ -3064,7 +3212,7 @@ function GenerateBranch({
             <div className="flex items-end gap-2">
               {/* CD④：触发词在正文里高亮。背板层排同一段字（透明）只负责画
                       底色 + 下边线，可见文字仍来自压在上面的 textarea——两层的
-                      排版类必须保持一致（text-sm / leading-relaxed / 无内边距）。 */}
+                      排版与内边距通过共同的 lora-prompt-layout 对齐。 */}
               <div className="relative min-w-0 flex-1">
                 <label htmlFor="lora-prompt" className="sr-only">
                   {t('generate.promptLabel')}
@@ -3085,7 +3233,7 @@ function GenerateBranch({
                   // `.lora-prompt-input`（lora.css）：field-sizing: content 让它
                   // 跟着内容从一行长到约 4 行封顶，超过封顶内部滚动——不用 JS 量
                   // 高度，`field-sizing` 不支持的浏览器退回单行高度（不会更糟）。
-                  className="lora-prompt-input relative w-full resize-none bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
+                  className="lora-prompt-layout lora-prompt-input relative block w-full resize-none bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground md:text-sm"
                 />
                 <PromptTagAutocomplete
                   textareaRef={promptTextareaRef}
@@ -3138,7 +3286,17 @@ function GenerateBranch({
               </button>
               <LoraAspectRatioChip
                 value={aspectRatio}
-                onChange={setAspectRatio}
+                onChange={(ratio) => {
+                  setAspectRatio(ratio)
+                  if (isRunnerBase) {
+                    const dimensions = getRunnerPreviewDimensions(
+                      ratio,
+                      selectedBase?.family === 'anima-dit',
+                    )
+                    setRunnerWidth(String(dimensions.width))
+                    setRunnerHeight(String(dimensions.height))
+                  }
+                }}
                 disabled={isGenerating}
               />
               <button

@@ -565,6 +565,30 @@ export function appendOperatorPending(id: string): void {
  * ⭐ 覆盖而不是追加（v2 §13.1）：追加的表现正是那条 bug —— 计划帧插在两帧正文
  * 之间时，同一段分析回复在计划上下各出现一次。
  */
+/**
+ * 收尾轮还在写 —— 按 id 覆盖正文，**保持** `streaming`。
+ * 定稿走 `finalizeOperatorMessage`，把旗降下来。
+ */
+export function patchOperatorStreamingMessage(id: string, text: string): void {
+  const entry: StudioOperatorMessageEntry = {
+    kind: 'message',
+    id,
+    text,
+    streaming: true,
+  }
+  const index = state.entries.findIndex(
+    (item) => item.kind === 'message' && item.id === id,
+  )
+  if (index < 0) {
+    appendOperatorEntry(entry)
+    return
+  }
+  emit({
+    ...state,
+    entries: state.entries.map((item, i) => (i === index ? entry : item)),
+  })
+}
+
 export function finalizeOperatorMessage(
   id: string,
   text: string,

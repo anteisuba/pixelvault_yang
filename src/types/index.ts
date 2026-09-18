@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { NovelAiCharacterLayoutSchema } from './novelai'
 
 import { PROFILE, PROMPT_ENHANCE, VIDEO_GENERATION } from '@/constants/config'
 import {
@@ -237,6 +238,7 @@ const RunnerDimensionSchema = z
 
 /** Zod schema for provider-specific advanced parameters */
 export const AdvancedParamsSchema = z.object({
+  novelAiLayout: NovelAiCharacterLayoutSchema.optional(),
   negativePrompt: z.string().max(2000).optional(),
   guidanceScale: z.number().min(0).max(30).optional(),
   steps: z.number().int().min(1).max(100).optional(),
@@ -251,8 +253,23 @@ export const AdvancedParamsSchema = z.object({
   runnerHeight: RunnerDimensionSchema.optional(),
   /** Runner-only post-decode super-resolution model. */
   runnerUpscaler: z.enum(['4x-AnimeSharp']).optional(),
+  runnerHires: z
+    .object({
+      scale: z.number().gt(1).max(4),
+      denoise: z.number().gt(0).max(1),
+      steps: z.number().int().min(1).max(100).optional(),
+      cfg: z.number().min(0).max(30).optional(),
+    })
+    .strict()
+    .optional(),
   referenceStrength: z.number().min(0.01).max(0.99).optional(),
   quality: z.enum(['auto', 'low', 'medium', 'high', 'xhigh', 'max']).optional(),
+  /**
+   * OpenAI `/v1/images/edits` `input_fidelity` —— 只有 `high` / `low` 两档，
+   * 没有 `auto`；不设 = 不发这个字段（provider 自己的默认）。
+   * https://developers.openai.com/api/reference/resources/images/methods/edit
+   */
+  inputFidelity: z.enum(['low', 'high']).optional(),
   preview: z.boolean().optional(),
   resolution: z.enum(['auto', '1K', '2K', '4K']).optional(),
   background: z.string().optional(),
@@ -271,14 +288,12 @@ export const AdvancedParamsSchema = z.object({
   // v3 runner 底模按需下载：checkpointVersionId/Name = 客户端从源图配方转发的底模
   // 引用；runnerCheckpoint = 服务端分级(T1)解析出的精确下载规格（fork GPU 侧下）；
   // runnerCheckpointApproximate = T2 近似（无精确底模、用兼容档，UI 提示差异）。
-  /**
-   * OpenAI `/v1/images/edits` `input_fidelity` —— 只有 `high` / `low` 两档，
-   * 没有 `auto`；不设 = 不发这个字段（provider 自己的默认）。
-   * https://developers.openai.com/api/reference/resources/images/methods/edit
-   */
-  inputFidelity: z.enum(['low', 'high']).optional(),
   checkpointVersionId: z.number().int().positive().optional(),
   checkpointName: z.string().max(200).optional(),
+  checkpointHash: z
+    .string()
+    .regex(/^[a-fA-F0-9]{8,64}$/)
+    .optional(),
   // LoRA 声明的 baseModel（原始 Civitai 串）——无精确底模时的权威架构信号，服务端
   // 分级用它把 DiT「Anima」正确拦成 T3（而非按 checkpoint 名字误判近似）。
   loraBaseModel: z.string().max(120).optional(),
@@ -4443,6 +4458,7 @@ export type LoraCandidateLicense = z.infer<typeof LoraCandidateLicenseSchema>
  * 上游随后改了我们不知道 —— 时间戳是这句话唯一能落地的形态。
  */
 export const LoraSourceSnapshotSchema = z.object({
+  triggerSource: z.enum(['official', 'inferred']).optional(),
   source: z.enum(LORA_CANDIDATE_SOURCE_VALUES),
   /** 作者名。Civitai = `creator.username`；HF = `repoId` 的前缀段。null = 取不到。 */
   author: z.string().nullable(),
@@ -4459,6 +4475,7 @@ export const LoraSourceSnapshotSchema = z.object({
 export type LoraSourceSnapshot = z.infer<typeof LoraSourceSnapshotSchema>
 
 export const LoraAssetRecordSchema = z.object({
+  triggerSource: z.enum(['official', 'inferred']).optional(),
   id: z.string(),
   styleCode: z.string(),
   name: z.string(),
@@ -4788,11 +4805,16 @@ export const CivitaiImageRecipeSchema = z.object({
   // meta.Model 名字准、比 meta.hashes 作者本地 hash 可靠），并借此根治 Anima
   // 命名撞车。仅站内(onsite)生成图有；离线上传图靠 checkpoint 名兜底。
   checkpointVersionId: z.number().int().positive().optional(),
+  checkpointHash: z
+    .string()
+    .regex(/^[a-fA-F0-9]{8,64}$/)
+    .optional(),
   /** Preserved for truthful display; hires execution remains separately gated. */
   hiresUpscale: z.number().positive().optional(),
   hiresUpscaler: z.string().optional(),
   denoisingStrength: z.number().min(0).max(1).optional(),
-  hiresSteps: z.number().int().positive().optional(),
+  hiresSteps: z.number().int().nonnegative().optional(),
+  hiresCfgScale: z.number().min(0).max(30).optional(),
   // 目标 LoRA 在该图中的真实权重（meta.resources hash 匹配）。
   loraWeight: z.number().optional(),
   extraLoras: z.array(CivitaiRecipeExtraLoraSchema).optional(),
@@ -4908,6 +4930,7 @@ export const ReplayPayloadSchema = z.object({
   prompt: z.string().nullable(),
   seed: z.number().int().nullable(),
   negativePrompt: z.string().nullable(),
+  novelAiLayout: NovelAiCharacterLayoutSchema.optional(),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).nullable(),
 })
 

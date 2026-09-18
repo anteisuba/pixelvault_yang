@@ -30,6 +30,13 @@ const mineCivitaiLoraPromptsAPI = vi.fn()
  * 在飞、各自落地」，而真的去打 Civitai 既慢又拿不到可控的时序。
  */
 const favoriteLoraAPI = vi.fn()
+const ensureMountable = vi.fn(async () => true)
+vi.mock('@/hooks/use-civitai-download-gate', () => ({
+  useCivitaiDownloadGate: () => ({
+    checkingVersionId: null,
+    ensureMountable,
+  }),
+}))
 vi.mock('@/lib/api-client/lora-assets', async (importOriginal) => ({
   // ⚠ 只换这两只：同一个模块里其余那些别的用例还在真的用。
   ...(await importOriginal<object>()),
@@ -151,6 +158,65 @@ describe('useLoraOperatorHost.buildSnapshot 的触发词三格', () => {
       [null, null],
       ['ink lines', 'ink lines, rainy street'],
     ])
+  })
+
+  it('snapshots the latest LoRA parameters and source recipe', () => {
+    const input = hostInput([])
+    input.loraParameters = {
+      steps: 25,
+      guidanceScale: 7,
+      runnerSeed: '2092427729',
+      runnerWidth: 672,
+      runnerHeight: 984,
+      runnerSampler: 'euler_ancestral',
+      runnerScheduler: 'normal',
+    }
+    input.sourceRecipe = {
+      imageUrl: 'https://cdn.test/source.png',
+      source: 'model_version_image',
+      prompt: 'Sue, cyan eyes',
+      checkpoint: 'rinFlanimeIllustrious_v40',
+      loraWeight: 0.9,
+    }
+    const { result, rerender } = renderHook(
+      (props: UseLoraOperatorHostInput) => useLoraOperatorHost(props),
+      { initialProps: input },
+    )
+
+    expect(result.current.buildSnapshot()).toMatchObject({
+      loraParameters: input.loraParameters,
+      sourceRecipe: input.sourceRecipe,
+    })
+
+    rerender({
+      ...input,
+      loraParameters: { steps: 30, runnerSeed: null },
+      sourceRecipe: undefined,
+    })
+    expect(result.current.buildSnapshot().loraParameters).toEqual({
+      steps: 30,
+      runnerSeed: null,
+    })
+    expect(result.current.buildSnapshot().sourceRecipe).toBeUndefined()
+  })
+
+  it('delegates parameter changes to the latest workbench setter', () => {
+    const input = hostInput([])
+    const initialSetter = vi.fn()
+    const latestSetter = vi.fn()
+    input.setLoraParameters = initialSetter
+    const { result, rerender } = renderHook(
+      (props: UseLoraOperatorHostInput) => useLoraOperatorHost(props),
+      { initialProps: input },
+    )
+    rerender({ ...input, setLoraParameters: latestSetter })
+
+    result.current.apply.lora!.setParameters!({
+      steps: 28,
+      runnerSeed: null,
+    })
+    expect(latestSetter).toHaveBeenCalledWith({ steps: 28, runnerSeed: null })
+    expect(initialSetter).not.toHaveBeenCalled()
   })
 
   it('chip 关着时 triggerEnabled=false；缺省是 true', () => {
@@ -532,7 +598,7 @@ describe('useLoraOperatorHost 的一批挂载只报一次超预算', () => {
   ) {
     const lora = host.apply.lora
     if (!lora) throw new Error('装配台宿主缺 apply.lora')
-    lora.mount({
+    return lora.mount({
       candidateId,
       name: `LoRA ${candidateId}`,
       weight,
@@ -551,6 +617,7 @@ describe('useLoraOperatorHost 的一批挂载只报一次超预算', () => {
 
   beforeEach(() => {
     resetOperatorThread()
+    ensureMountable.mockReset().mockResolvedValue(true)
     favoriteLoraAPI.mockReset()
     favoriteLoraAPI.mockImplementation(
       async (payload: { loraUrl: string; name: string }) => {
@@ -558,6 +625,101 @@ describe('useLoraOperatorHost 的一批挂载只报一次超预算', () => {
         return { success: true, data: asset(id, 0.8) }
       },
     )
+  })
+
+  it('returns the completed import and mount outcome', async () => {
+    const input = hostInput([])
+    const push = vi.fn()
+    input.stack!.push = push
+    const { result } = renderHook(() => useLoraOperatorHost(input))
+
+    const outcome = await mount(result.current, 'c-1', 0.6)
+
+    expect(outcome).toMatchObject({
+      status: 'ok',
+      imported: true,
+      mounted: true,
+      triggerWordsApplied: false,
+      asset: { id: 'c-1' },
+    })
+    expect(push).toHaveBeenCalledWith(asset('c-1', 0.8), 0.6)
+  })
+
+  it('returns a download-gate failure without importing or mounting', async () => {
+    ensureMountable.mockResolvedValue(false)
+    const input = hostInput([])
+    const push = vi.fn()
+    input.stack!.push = push
+    const { result } = renderHook(() => useLoraOperatorHost(input))
+
+    const outcome = await result.current.apply.lora!.mount({
+      candidateId: 'c-1',
+      name: 'LoRA c-1',
+      weight: 0.6,
+      triggerWords: [],
+      importPayload: { ...importPayload('c-1'), modelVersionId: 123 },
+    })
+
+    expect(outcome).toMatchObject({
+      status: 'failed',
+      imported: false,
+      mounted: false,
+      triggerWordsApplied: false,
+    })
+    expect(favoriteLoraAPI).not.toHaveBeenCalled()
+    expect(push).not.toHaveBeenCalled()
+  })
+
+  it('returns the import failure instead of claiming the candidate mounted', async () => {
+    favoriteLoraAPI.mockResolvedValueOnce({ success: false, error: 'nope' })
+    const input = hostInput([])
+    const push = vi.fn()
+    input.stack!.push = push
+    const { result } = renderHook(() => useLoraOperatorHost(input))
+
+    expect(await mount(result.current, 'c-1', 0.6)).toMatchObject({
+      status: 'failed',
+      failedStep: 'import',
+      error: 'nope',
+      imported: false,
+      mounted: false,
+    })
+    expect(push).not.toHaveBeenCalled()
+  })
+
+  it('keeps a mounted candidate undoable when applying its trigger words fails', async () => {
+    const input = hostInput([])
+    const remove = vi.fn()
+    input.stack!.remove = remove
+    input.appendPrompt = () => {
+      throw new Error('Prompt write failed')
+    }
+    const { result } = renderHook(() => useLoraOperatorHost(input))
+
+    const outcome = await result.current.apply.lora!.mount({
+      candidateId: 'c-1',
+      name: 'LoRA c-1',
+      weight: 0.6,
+      triggerWords: ['ink lines'],
+      importPayload: {
+        ...importPayload('c-1'),
+        sourceSnapshot: {
+          ...importPayload('c-1').sourceSnapshot,
+          triggerSource: 'official',
+        },
+      },
+    })
+
+    expect(outcome).toMatchObject({
+      status: 'failed',
+      imported: true,
+      mounted: true,
+      triggerWordsApplied: false,
+      error: 'Prompt write failed',
+      asset: { id: 'c-1' },
+    })
+    result.current.apply.lora!.unmountByCandidateId('c-1')
+    expect(remove).toHaveBeenCalledWith('c-1')
   })
 
   /** ⭐ 三把一起挂 = 一行，且那个数是**整批**的和（⛔ 不是最后一把 + 旧栈）。 */

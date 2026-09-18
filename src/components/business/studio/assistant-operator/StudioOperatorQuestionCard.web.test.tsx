@@ -168,13 +168,14 @@ describe('StudioOperatorQuestionCard', () => {
     expect(onAnswer).toHaveBeenCalledTimes(1)
   })
 
-  it('「其他」展开一行输入，答复走 otherText 而不进 optionIds', () => {
+  it('自己的看法框常驻，不必先点「其他」', () => {
+    renderCard(TEXT_PROMPT)
+    expect(screen.getByTestId('operator-question-own-view')).toBeTruthy()
+    expect(screen.getByTestId('operator-question-other-input')).toBeVisible()
+  })
+
+  it('看法框的答复走 otherText 而不进 optionIds', () => {
     const { onAnswer } = renderCard(TEXT_PROMPT)
-    fireEvent.click(
-      screen
-        .getAllByTestId('operator-question-option')
-        .find((node) => node.dataset.kind === 'other')!,
-    )
     fireEvent.change(screen.getByTestId('operator-question-other-input'), {
       target: { value: '再远一点' },
     })
@@ -184,6 +185,52 @@ describe('StudioOperatorQuestionCard', () => {
       optionIds: [],
       otherText: '再远一点',
     })
+  })
+
+  it('看法框写了字再点选项，optionIds 与 otherText 一起带走', () => {
+    const { onAnswer } = renderCard(TEXT_PROMPT)
+    fireEvent.change(screen.getByTestId('operator-question-other-input'), {
+      target: { value: '保持 3D' },
+    })
+    fireEvent.click(
+      screen
+        .getAllByTestId('operator-question-option')
+        .find((node) => node.dataset.optionId === 'o2')!,
+    )
+    expect(onAnswer.mock.calls[0]?.[0]).toEqual({
+      questionId: 'q1',
+      optionIds: ['o2'],
+      otherText: '保持 3D',
+    })
+    expect(onAnswer.mock.calls[0]?.[1]).toMatchObject({
+      label: '全身 · 保持 3D',
+    })
+  })
+
+  it('覆盖三选没有看法框', () => {
+    renderCard(OVERWRITE_PROMPT)
+    expect(screen.queryByTestId('operator-question-own-view')).toBeNull()
+  })
+
+  it('IME 选字回车不提交看法框', () => {
+    const now = vi.spyOn(performance, 'now')
+    const { onAnswer } = renderCard(TEXT_PROMPT)
+    const input = screen.getByTestId('operator-question-other-input')
+    fireEvent.change(input, { target: { value: '夜景但保持 3D' } })
+    now.mockReturnValue(0)
+    fireEvent.compositionStart(input)
+    fireEvent.compositionEnd(input)
+    now.mockReturnValue(10)
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onAnswer).not.toHaveBeenCalled()
+    now.mockReturnValue(150)
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onAnswer.mock.calls[0]?.[0]).toEqual({
+      questionId: 'q1',
+      optionIds: [],
+      otherText: '夜景但保持 3D',
+    })
+    now.mockRestore()
   })
 
   it('覆盖三选：摆出「你写的 / 它建议的」，答复带 choice 回执', () => {

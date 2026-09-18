@@ -12,6 +12,7 @@ import {
 } from '@/lib/generation-progress'
 import type { RunItem } from '@/types'
 import { Spinner } from '@/components/ui/spinner'
+import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { cn } from '@/lib/utils'
 
 interface StudioVideoQueueStripProps {
@@ -70,6 +71,13 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
   onCancelAll,
 }: StudioVideoQueueStripProps) {
   const t = useTranslations('StudioVideoQueue')
+  const tErrors = useTranslations('Errors')
+  const errorMessage = (item: RunItem) =>
+    getGenerationErrorMessage(
+      tErrors,
+      { error: item.error ?? undefined },
+      tErrors('generation.unknown'),
+    )
   const tCancel = useTranslations('GenerationCancel')
   const tStages = useTranslations('StudioV3')
   const hasRunning = items.some((item) => item.status === 'generating')
@@ -142,7 +150,9 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
                       ? 'text-destructive'
                       : 'text-foreground',
                   )}
-                  title={item.status === 'failed' ? item.error : undefined}
+                  title={
+                    item.status === 'failed' ? errorMessage(item) : undefined
+                  }
                 >
                   {running
                     ? t('itemRunning', { index: index + 1 })
@@ -156,7 +166,9 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
                 >
                   {running
                     ? `${formatElapsed(elapsed)} · ${stageLabel}`
-                    : (item.error ?? formatElapsed(elapsed))}
+                    : item.status === 'failed'
+                      ? errorMessage(item)
+                      : formatElapsed(elapsed)}
                 </span>
                 <div
                   role="progressbar"
@@ -338,7 +350,9 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
                       ? 'font-medium text-foreground'
                       : 'text-muted-foreground',
                 )}
-                title={item.status === 'failed' ? item.error : undefined}
+                title={
+                  item.status === 'failed' ? errorMessage(item) : undefined
+                }
               >
                 {item.status === 'generating'
                   ? t('itemRunning', { index: index + 1 })
@@ -363,7 +377,7 @@ export const StudioVideoQueueStrip = memo(function StudioVideoQueueStrip({
         <span className="sr-only">
           {items
             .filter((item) => item.status === 'failed')
-            .map((item) => item.error)
+            .map(errorMessage)
             .join('; ')}
         </span>
       ) : null}

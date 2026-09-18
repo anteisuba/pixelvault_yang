@@ -1,6 +1,6 @@
 ---
 name: integrate-pixelvault-provider
-description: PixelVault-specific workflow for adding, updating, pruning, or debugging AI image/video/audio models and providers. Use for model catalog updates, provider adapter work, BYOK behavior, generation failures, FAL/Replicate/Gemini/OpenAI/VolcEngine/NovelAI/Fish Audio integration, model costs, and media API parameter changes.
+description: 新增或修改 PixelVault 模型目录、provider adapter、参数、计费或 BYOK 契约时使用。
 ---
 
 # Integrate PixelVault Provider

@@ -379,6 +379,27 @@ describe('正文与占位行', () => {
     ])
   })
 
+  it('收尾轮 partial 覆盖正文并保持 streaming，定稿再降旗', () => {
+    const result = readState()
+    act(() => store.appendOperatorPending('run-1:msg-0'))
+    act(() => store.patchOperatorStreamingMessage('run-1:msg-0', '图3是'))
+    expect(result.current.entries).toEqual([
+      {
+        kind: 'message',
+        id: 'run-1:msg-0',
+        text: '图3是',
+        streaming: true,
+      },
+    ])
+    act(() =>
+      store.patchOperatorStreamingMessage('run-1:msg-0', '图3是风格化 3D。'),
+    )
+    act(() => store.finalizeOperatorMessage('run-1:msg-0', '图3是风格化 3D。'))
+    expect(result.current.entries).toEqual([
+      { kind: 'message', id: 'run-1:msg-0', text: '图3是风格化 3D。' },
+    ])
+  })
+
   /**
    * ⭐ **§13.1 的那一条纪律**：同一个 id 再来一帧就**原地覆盖**，⛔ 不追加 ——
    * 追加正是「计划上下各出现一次同一段回复」那条 bug 的形状。

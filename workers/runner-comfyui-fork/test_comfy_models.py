@@ -38,6 +38,17 @@ def object_info(class_type, field, options):
 
 
 class CollectModelRequirementsTest(unittest.TestCase):
+    def test_custom_verified_loaders_require_visible_model_files(self):
+        workflow = {
+            'base': {'class_type': 'PixelVaultCheckpointLoader', 'inputs': {'ckpt_name': CHECKPOINT}},
+            'lora': {'class_type': 'PixelVaultLoraLoader', 'inputs': {'lora_name': FRESH_LORA}},
+            'save': {'class_type': 'PixelVaultSaveImage', 'inputs': {'audit': ['lora', 2]}},
+        }
+        self.assertEqual(collect_model_requirements(workflow), [
+            ('PixelVaultCheckpointLoader', 'ckpt_name', CHECKPOINT),
+            ('PixelVaultLoraLoader', 'lora_name', FRESH_LORA),
+        ])
+
     def test_collects_every_model_loader_field(self):
         workflow = {
             "unet": {"class_type": "UNETLoader", "inputs": {"unet_name": "a.st"}},

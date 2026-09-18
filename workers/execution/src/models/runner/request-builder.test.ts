@@ -2,12 +2,107 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildRunnerWorkflowFromRequest,
+  resolveRunnerHires,
+  parseRunnerModelEvidence,
   RunnerUnknownCheckpointError,
   type RunnerGenerationRequestInput,
 } from './request-builder'
 
 const FIXED_SEED = 30224931
 const fixedRandomSeed = () => FIXED_SEED
+
+describe('parseRunnerModelEvidence', () => {
+  function evidence() {
+    return {
+      version: 1,
+      evidence: 'loader-output',
+      imageSha256: 'a'.repeat(64),
+      models: [
+        {
+          kind: 'checkpoint',
+          filename: 'base.safetensors',
+          sha256: 'b'.repeat(64),
+          sizeBytes: 1024,
+        },
+        {
+          kind: 'lora',
+          filename: 'Sue.safetensors',
+          sha256: 'c'.repeat(64),
+          sizeBytes: 512,
+          strengthModel: 0.9,
+          strengthClip: 0.8,
+        },
+      ],
+    }
+  }
+
+  it('preserves loader order, file hashes and actual weights', () => {
+    expect(parseRunnerModelEvidence(evidence())).toEqual(evidence())
+    expect(parseRunnerModelEvidence(undefined)).toBeUndefined()
+  })
+
+  it.each([
+    (data: ReturnType<typeof evidence>) => {
+      data.imageSha256 = 'abc'
+    },
+    (data: ReturnType<typeof evidence>) => {
+      data.models[0].sha256 = 'abc'
+    },
+    (data: ReturnType<typeof evidence>) => {
+      data.models.reverse()
+    },
+    (data: ReturnType<typeof evidence>) => {
+      data.models[1].kind = 'checkpoint'
+    },
+    (data: ReturnType<typeof evidence>) => {
+      data.models[1].strengthModel = Number.POSITIVE_INFINITY
+    },
+    (data: ReturnType<typeof evidence>) => {
+      data.models[1].strengthClip = Number.NaN
+    },
+    (data: ReturnType<typeof evidence>) => {
+      data.models.length = 0
+    },
+  ])('rejects malformed or reordered evidence %#', (mutate) => {
+    const data = evidence()
+    mutate(data)
+    expect(() => parseRunnerModelEvidence(data)).toThrow(
+      /Invalid Runner model load evidence/,
+    )
+  })
+})
+
+describe('resolveRunnerHires', () => {
+  it('aligns the source 1.45x scale down to eight-pixel latent dimensions', () => {
+    expect(
+      resolveRunnerHires({ scale: 1.45, denoise: 0.45 }, 672, 984, 'sdxl'),
+    ).toEqual({
+      width: 968,
+      height: 1424,
+      denoise: 0.45,
+    })
+    expect(resolveRunnerHires(undefined, 672, 984, 'sdxl')).toBeUndefined()
+  })
+
+  it.each([
+    { scale: 1, denoise: 0.45 },
+    { scale: 1.45, denoise: 0 },
+    { scale: 1.45, denoise: Number.NaN },
+    { scale: 1.45, denoise: 0.45, steps: 0 },
+    { scale: 1.45, denoise: 0.45, cfg: 31 },
+  ])('rejects invalid hires values %j', (value) => {
+    expect(() => resolveRunnerHires(value, 672, 984, 'sdxl')).toThrow()
+  })
+
+  it('rejects unsupported architectures and oversized output', () => {
+    expect(() =>
+      resolveRunnerHires({ scale: 1.45, denoise: 0.45 }, 672, 984, 'anima'),
+    ).toThrow()
+    expect(() =>
+      resolveRunnerHires({ scale: 4, denoise: 0.45 }, 672, 984, 'sdxl'),
+    ).toThrow()
+  })
+})
 
 function baseRequest(
   overrides: Partial<RunnerGenerationRequestInput> = {},
@@ -23,6 +118,59 @@ function baseRequest(
 }
 
 describe('buildRunnerWorkflowFromRequest', () => {
+  it('keeps source prompt and LoRA weights unchanged through the second pass', () => {
+    const prompt = '(portrait:1.1), Sue, cyan eyes'
+    const workflow = buildRunnerWorkflowFromRequest(
+      baseRequest({
+        prompt,
+        width: 672,
+        height: 984,
+        seed: '2092427729',
+        steps: 25,
+        cfg: 7,
+        sampler: 'euler_ancestral',
+        loras: [{ filename: 'Sue.safetensors', scale: 0.9 }],
+        hires: resolveRunnerHires(
+          { scale: 1.45, denoise: 0.45 },
+          672,
+          984,
+          'sdxl',
+        ),
+      }),
+      fixedRandomSeed,
+    )
+    expect(workflow['positive-prompt'].inputs.text).toBe(prompt)
+    expect(workflow.checkpoint.class_type).toBe('PixelVaultCheckpointLoader')
+    expect(workflow['lora-0'].class_type).toBe('PixelVaultLoraLoader')
+    expect(workflow['lora-0'].inputs.audit).toEqual(['checkpoint', 3])
+    expect(workflow['save-image'].class_type).toBe('PixelVaultSaveImage')
+    expect(workflow['save-image'].inputs.audit).toEqual(['lora-0', 2])
+    expect(workflow['lora-0'].inputs).toMatchObject({
+      strength_model: 0.9,
+      strength_clip: 0.9,
+    })
+    expect(workflow['hires-sampler'].inputs).toMatchObject({
+      seed: '2092427729',
+      steps: 25,
+      cfg: 7,
+      denoise: 0.45,
+      model: workflow.sampler.inputs.model,
+      positive: workflow.sampler.inputs.positive,
+      negative: workflow.sampler.inputs.negative,
+    })
+  })
+
+  it('rejects resolved hires on the Anima pipeline', () => {
+    expect(() =>
+      buildRunnerWorkflowFromRequest(
+        baseRequest({
+          architecture: 'anima',
+          hires: { width: 968, height: 1424, denoise: 0.45 },
+        }),
+        fixedRandomSeed,
+      ),
+    ).toThrow(/SDXL/)
+  })
   it('resolves the checkpoint manifest and applies its recommended defaults', () => {
     const workflow = buildRunnerWorkflowFromRequest(
       baseRequest(),

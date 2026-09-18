@@ -306,8 +306,7 @@ body.home-v4-locked {
   overflow: hidden;
 }
 
-/* 横向切换语法：不平推 —— 背景交叉淡化，内容层错速滑入。
-   竖向保持上推；横向像画廊换灯箱片。 */
+/* 模型整步切换：背景淡化、内容纵向错速；连续滚动由下方进度规则驱动。 */
 .home-v4 .hpg {
   position: absolute;
   inset: 0;
@@ -331,33 +330,75 @@ body.home-v4-locked {
 }
 
 .home-v4 .hpg[data-pos='after'] .l1 {
-  transform: translateX(calc(-1 * var(--l1-h)));
+  transform: translateY(var(--l1-v));
 }
 
 .home-v4 .hpg[data-pos='after'] .l2 {
-  transform: translateX(calc(-1 * var(--l2-h)));
+  transform: translateY(var(--l2-v));
 }
 
 .home-v4 .hpg[data-pos='after'] .l3 {
-  transform: translateX(calc(-1 * var(--l3-h)));
+  transform: translateY(var(--l3-v));
 }
 
 .home-v4 .hpg[data-pos='before'] .l1 {
-  transform: translateX(var(--l1-h));
+  transform: translateY(calc(-1 * var(--l1-v)));
 }
 
 .home-v4 .hpg[data-pos='before'] .l2 {
-  transform: translateX(var(--l2-h));
+  transform: translateY(calc(-1 * var(--l2-v)));
 }
 
 .home-v4 .hpg[data-pos='before'] .l3 {
-  transform: translateX(var(--l3-h));
+  transform: translateY(calc(-1 * var(--l3-v)));
 }
 
 .home-v4 .hpg[data-pos='on'] .l1,
 .home-v4 .hpg[data-pos='on'] .l2,
 .home-v4 .hpg[data-pos='on'] .l3 {
   transform: none;
+}
+
+@media (min-width: 769px) and (prefers-reduced-motion: no-preference) {
+  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer] {
+    opacity: 1;
+    transition: none;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='incoming'] {
+    z-index: 2;
+    clip-path: inset(calc((1 - var(--model-progress)) * 100%) 0 0 0);
+  }
+
+  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer] .l1,
+  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer] .l2,
+  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer] .l3 {
+    transition: none;
+  }
+
+  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='outgoing'] .l1 {
+    transform: translateY(calc(var(--model-progress) * -12vh))
+      scale(calc(1 + var(--model-progress) * 0.24));
+  }
+
+  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='incoming'] .l1 {
+    transform: translateY(calc((1 - var(--model-progress)) * 12vh))
+      scale(calc(1 + (1 - var(--model-progress)) * 0.24));
+  }
+
+  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='outgoing'] .l2,
+  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='outgoing'] .l3 {
+    transform: translateY(calc(var(--model-progress) * -5vh));
+    opacity: calc(1 - var(--model-progress));
+  }
+
+  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='incoming'] .l2,
+  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='incoming'] .l3 {
+    transform: translateY(calc((1 - var(--model-progress)) * 5vh));
+    opacity: var(--model-progress);
+  }
 }
 
 /* ─── 通用排版 ──────────────────────────────────────────────────── */
@@ -2229,39 +2270,6 @@ body.home-v4-locked {
   white-space: nowrap;
 }
 
-.home-v4 .fn-step.dimmed {
-  opacity: 0.5;
-}
-
-.home-v4 .fn-step.dimmed.on {
-  opacity: 1;
-  border-color: var(--ink);
-}
-
-.home-v4 .fn-hand {
-  flex: none;
-  width: 42px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: var(--mono);
-  font-size: 15px;
-  color: var(--line-2);
-  transition: color 0.4s;
-}
-
-.home-v4 .fn-hand.on {
-  color: var(--ink);
-}
-
-.home-v4 .fn-hand[data-h='0'] {
-  margin-top: 158px;
-}
-
-.home-v4 .fn-hand[data-h='1'] {
-  margin-top: 176px;
-}
-
 /* 步 ① 助手聊天 */
 .home-v4 .fn-step.s1 {
   width: 296px;
@@ -3901,59 +3909,6 @@ body.home-v4-locked {
     aspect-ratio: 16 / 9;
   }
 
-  /* 05 画布：分步轮播 —— 三窗同格叠放，同一位置只站一步。
-     ⚠ 轮播的 opacity 与 `.fn-step.dimmed.on` 同权重，靠 `.fn-canvas` 提权
-     压过它；删掉那一节选择器，第 ②③ 步会在第 ① 步时就半亮着露脸。 */
-  .home-v4 .fn-canvas {
-    width: 100%;
-    display: grid;
-  }
-
-  .home-v4 .fn-canvas .fn-step {
-    grid-area: 1 / 1;
-    width: 100%;
-    margin-top: 0;
-    transition:
-      opacity 0.5s ease,
-      transform 0.5s ease;
-  }
-
-  .home-v4 .fn-canvas .fn-hand {
-    display: none;
-  }
-
-  .home-v4 .fn-canvas .fn-step.s2,
-  .home-v4 .fn-canvas .fn-step.s3 {
-    opacity: 0;
-    transform: translateY(16px);
-    pointer-events: none;
-  }
-
-  .home-v4 .fn-canvas[data-stage='2'] .fn-step.s1,
-  .home-v4 .fn-canvas[data-stage='3'] .fn-step.s1 {
-    opacity: 0;
-    transform: translateY(-16px);
-    pointer-events: none;
-  }
-
-  .home-v4 .fn-canvas[data-stage='2'] .fn-step.s2 {
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
-  }
-
-  .home-v4 .fn-canvas[data-stage='3'] .fn-step.s2 {
-    opacity: 0;
-    transform: translateY(-16px);
-    pointer-events: none;
-  }
-
-  .home-v4 .fn-canvas[data-stage='3'] .fn-step.s3 {
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
-  }
-
   .home-v4 .fn-step .bar {
     padding: 8px 12px;
   }
@@ -4171,5 +4126,99 @@ body.home-v4-locked {
   .home-v4 .fn-lora .prow2 {
     min-height: 0;
     padding: 7px 8px;
+  }
+}
+
+.home-v4 .fn-canvas[data-scroll-story] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  width: min(100%, 960px);
+  height: min(480px, calc(100svh - 300px));
+  min-height: 472px;
+  padding-top: 52px;
+  align-items: center;
+  justify-items: center;
+  isolation: isolate;
+}
+
+.home-v4 .canvas-panels {
+  display: grid;
+  align-items: center;
+  justify-items: center;
+  width: 100%;
+  height: 100%;
+  overflow: clip;
+}
+
+.home-v4 .fn-canvas[data-scroll-story] .fn-step {
+  grid-area: 1 / 1;
+  width: min(450px, 82vw);
+  margin: 0;
+  opacity: calc(1 - var(--step-distance));
+  transform: translateY(calc(var(--step-offset) * 75%))
+    scale(calc(1 - var(--step-distance) * 0.08));
+  pointer-events: auto;
+  transition: none;
+}
+
+.home-v4 .fn-canvas[data-scroll-story] .fn-step .body,
+.home-v4 .fn-canvas[data-scroll-story] .fn-step .cv {
+  transform: translateY(calc(var(--step-offset) * 8%));
+}
+
+.home-v4 .canvas-steps {
+  position: absolute;
+  top: 0;
+  display: flex;
+  gap: 12px;
+  z-index: 3;
+}
+
+.home-v4 .canvas-steps button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--dim);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.home-v4 .canvas-steps button[aria-current='step'] {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.home-v4 .canvas-steps button span {
+  font-family: var(--mono);
+}
+
+@media (max-width: 768px) {
+  .home-v4 .fn-canvas[data-scroll-story] {
+    min-height: 350px;
+  }
+
+  .home-v4 .fn-canvas[data-scroll-story] .fn-step {
+    transform: translateY(calc(var(--step-offset) * 16px));
+    transition:
+      opacity 0.3s ease,
+      transform 0.3s ease;
+  }
+
+  .home-v4 .fn-canvas[data-scroll-story] .fn-step .body,
+  .home-v4 .fn-canvas[data-scroll-story] .fn-step .cv {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-v4 .fn-canvas[data-scroll-story] .fn-step,
+  .home-v4 .fn-canvas[data-scroll-story] .fn-step * {
+    transform: none;
+    transition: none;
   }
 }

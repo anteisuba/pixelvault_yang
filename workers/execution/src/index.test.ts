@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { deflateRawSync } from 'node:zlib'
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
@@ -545,6 +546,86 @@ describe('parseModel3DRunContext', () => {
 })
 
 describe('pollAndPersistRunnerImageJob', () => {
+  const imageBytes = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a/r8AAAAASUVORK5CYII=',
+    'base64',
+  )
+  function evidence() {
+    return {
+      version: 1,
+      evidence: 'loader-output',
+      imageSha256: createHash('sha256').update(imageBytes).digest('hex'),
+      models: [
+        {
+          kind: 'checkpoint',
+          filename: 'source.safetensors',
+          sha256: 'a'.repeat(64),
+          sizeBytes: 1024,
+        },
+        {
+          kind: 'lora',
+          filename: 'Sue.safetensors',
+          sha256: 'b'.repeat(64),
+          sizeBytes: 512,
+          strengthModel: 0.9,
+          strengthClip: 0.9,
+        },
+      ],
+    }
+  }
+  function auditedPoll(runnerExecution: unknown) {
+    const put = vi.fn().mockResolvedValue(undefined)
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        Response.json({
+          status: 'COMPLETED',
+          output: {
+            images: [{ data: imageBytes.toString('base64') }],
+            runnerExecution,
+          },
+        }),
+      ),
+    )
+    const env = {
+      RUNPOD_ENDPOINT: 'runner-endpoint',
+      R2_PUBLIC_URL: 'https://cdn.example.com',
+      GENERATION_BUCKET: { put },
+    } as unknown as Parameters<typeof pollAndPersistRunnerImageJob>[1]
+    return {
+      put,
+      result: pollAndPersistRunnerImageJob(
+        'runner-job-1',
+        env,
+        'runpod-key',
+        'image/audited.png',
+      ),
+    }
+  }
+
+  it('propagates loader evidence only when its hash matches the uploaded image bytes', async () => {
+    const runnerExecution = evidence()
+    const { put, result } = auditedPoll(runnerExecution)
+    expect(await result).toMatchObject({ status: 'COMPLETED', runnerExecution })
+    expect(Buffer.from(put.mock.calls[0][1])).toEqual(imageBytes)
+  })
+
+  it('does not upload an image whose evidence hash belongs to different bytes', async () => {
+    const { put, result } = auditedPoll({
+      ...evidence(),
+      imageSha256: '0'.repeat(64),
+    })
+    await expect(result).rejects.toThrow(/does not match image bytes/)
+    expect(put).not.toHaveBeenCalled()
+  })
+
+  it('does not upload malformed model evidence', async () => {
+    const data = evidence()
+    data.models[0].sha256 = 'not-a-sha256'
+    const { put, result } = auditedPoll(data)
+    await expect(result).rejects.toThrow(/Invalid Runner model load evidence/)
+    expect(put).not.toHaveBeenCalled()
+  })
   it('stores completed Runner image bytes in R2 and returns only compact metadata', async () => {
     const imageBase64 = Buffer.alloc(1_100_000, 7).toString('base64')
     const put = vi.fn().mockResolvedValue(undefined)
@@ -581,6 +662,7 @@ describe('pollAndPersistRunnerImageJob', () => {
       mimeType: 'image/png',
     })
     expect(JSON.stringify(result).length).toBeLessThan(1024)
+    expect(result).not.toHaveProperty('runnerExecution')
     expect(put).toHaveBeenCalledWith(
       'image/run-1.png',
       expect.any(Uint8Array),
@@ -764,6 +846,66 @@ describe('generateNovelAiImage', () => {
       },
     } as unknown as Parameters<typeof generateNovelAiImage>[1]
   }
+
+  it.each(['manual', 'auto'])(
+    'maps V5 character prompts with %s positioning',
+    async (positioning) => {
+      const fetchMock = stubNovelAiZipResponse()
+      const context = makeContext(NOVELAI_V5_FULL)
+      context.providerInput.advancedParams = {
+        novelAiLayout: {
+          positioning,
+          characters: [
+            {
+              prompt: 'girl, blue hair',
+              negativePrompt: 'hat',
+              position: { x: 0.2, y: 0.7 },
+            },
+            {
+              prompt: 'boy, red hair',
+              negativePrompt: 'glasses',
+              position: { x: 0.8, y: 0.4 },
+            },
+          ],
+        },
+      }
+      await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+      const body = JSON.parse(
+        String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+      )
+      expect(body.parameters.v4_prompt).toMatchObject({
+        use_coords: positioning === 'manual',
+        use_order: true,
+        caption: {
+          char_captions: [
+            { char_caption: 'girl, blue hair', centers: [{ x: 0.2, y: 0.7 }] },
+            { char_caption: 'boy, red hair', centers: [{ x: 0.8, y: 0.4 }] },
+          ],
+        },
+      })
+      expect(body.parameters.v4_negative_prompt.caption.char_captions).toEqual([
+        { char_caption: 'hat', centers: [{ x: 0.2, y: 0.7 }] },
+        { char_caption: 'glasses', centers: [{ x: 0.8, y: 0.4 }] },
+      ])
+    },
+  )
+
+  it('rejects invalid V5 coordinates before making a request', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V5_FULL)
+    context.providerInput.advancedParams = {
+      novelAiLayout: {
+        positioning: 'manual',
+        characters: [
+          { prompt: 'girl', negativePrompt: '', position: { x: 2, y: 0 } },
+        ],
+      },
+    }
+    await expect(
+      generateNovelAiImage(makeEnv(), context, 'nai-test-key'),
+    ).rejects.toThrow('Invalid NovelAI character layout')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 
   it('sends params_version 4 for V5 models', async () => {
     const fetchMock = stubNovelAiZipResponse()

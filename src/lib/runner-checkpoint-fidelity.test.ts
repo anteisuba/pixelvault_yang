@@ -20,13 +20,48 @@ function ckpt(
 }
 
 describe('determineRunnerCheckpointFidelity', () => {
+  it('resolves an uploaded source checkpoint by hash instead of falling back to a family default', async () => {
+    const resolve = vi.fn(async () =>
+      ckpt({ modelVersionId: 2944197, baseModel: 'Illustrious' }),
+    )
+    const result = await determineRunnerCheckpointFidelity(
+      {
+        checkpointHash: '29d5281e0a',
+        checkpointName: 'rinFlanimeIllustrious_v40',
+        loraBaseModel: 'Illustrious',
+      },
+      resolve,
+    )
+    expect(resolve).toHaveBeenCalledWith({ hash: '29d5281e0a' })
+    expect(result).toMatchObject({
+      tier: 'faithful',
+      checkpoint: { modelVersionId: 2944197 },
+    })
+  })
+
+  it('tries the source hash when its version reference no longer resolves', async () => {
+    const resolve = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(ckpt())
+    const result = await determineRunnerCheckpointFidelity(
+      { checkpointVersionId: 1, checkpointHash: '29d5281e0a' },
+      resolve,
+    )
+    expect(resolve.mock.calls).toEqual([
+      [{ modelVersionId: 1 }],
+      [{ hash: '29d5281e0a' }],
+    ])
+    expect(result.tier).toBe('faithful')
+  })
+
   it('T1 faithful: exact version resolves to a supported architecture', async () => {
     const resolve = vi.fn(async () => ckpt())
     const result = await determineRunnerCheckpointFidelity(
       { checkpointVersionId: 597138, checkpointName: 'Anima Pencil-XL' },
       resolve,
     )
-    expect(resolve).toHaveBeenCalledWith(597138)
+    expect(resolve).toHaveBeenCalledWith({ modelVersionId: 597138 })
     expect(result).toEqual({
       tier: 'faithful',
       checkpoint: ckpt(),

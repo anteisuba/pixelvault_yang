@@ -1,10 +1,6 @@
 /**
- * Comfy Runner recipe → ComfyUI API-format workflow JSON — pure mapping
- * function (no fetch, no env access). Parameterizes the workflow template
- * validated end-to-end against the real RunPod endpoint (HANDOFF §7.1):
- * CheckpointLoaderSimple → 0+ chained LoraLoader → CLIPSetLastLayer →
- * CLIPTextEncode (positive/negative) + EmptyLatentImage → KSampler →
- * VAEDecode → SaveImage.
+ * Map an SDXL recipe to a ComfyUI workflow. Loader audit outputs follow the
+ * same model chain to the PNG; optional Latent hires runs before VAE decode.
  */
 
 export interface ComfyNode {
@@ -52,6 +48,14 @@ export interface RunnerWorkflowInput {
    * reference-strength-mapped value (lower = keep more of the reference).
    */
   denoise?: number
+  /** Optional Latent second sampling, before VAE decode. */
+  hires?: {
+    width: number
+    height: number
+    denoise: number
+    steps?: number
+    cfg?: number
+  }
   /** Optional post-decode super-resolution model in models/upscale_models/. */
   upscalerModelFilename?: string
 }
@@ -79,7 +83,7 @@ function loraNodeId(index: number): string {
 export function buildComfyWorkflow(input: RunnerWorkflowInput): ComfyWorkflow {
   const workflow: ComfyWorkflow = {
     [NODE_ID.checkpoint]: {
-      class_type: 'CheckpointLoaderSimple',
+      class_type: 'PixelVaultCheckpointLoader',
       inputs: { ckpt_name: input.checkpointFilename },
     },
   }
@@ -89,14 +93,16 @@ export function buildComfyWorkflow(input: RunnerWorkflowInput): ComfyWorkflow {
   // at the checkpoint's own outputs.
   let modelSource: [string, number] = [NODE_ID.checkpoint, 0]
   let clipSource: [string, number] = [NODE_ID.checkpoint, 1]
+  let auditSource: [string, number] = [NODE_ID.checkpoint, 3]
 
   input.loras.forEach((lora, index) => {
     const nodeId = loraNodeId(index)
     workflow[nodeId] = {
-      class_type: 'LoraLoader',
+      class_type: 'PixelVaultLoraLoader',
       inputs: {
         model: modelSource,
         clip: clipSource,
+        audit: auditSource,
         lora_name: lora.filename,
         strength_model: lora.strengthModel,
         strength_clip: lora.strengthClip,
@@ -104,6 +110,7 @@ export function buildComfyWorkflow(input: RunnerWorkflowInput): ComfyWorkflow {
     }
     modelSource = [nodeId, 0]
     clipSource = [nodeId, 1]
+    auditSource = [nodeId, 2]
   })
 
   workflow[NODE_ID.clipSkip] = {
@@ -189,10 +196,35 @@ export function buildComfyWorkflow(input: RunnerWorkflowInput): ComfyWorkflow {
     },
   }
 
+  let decodedLatent: [string, number] = [NODE_ID.sampler, 0]
+  if (input.hires) {
+    workflow['hires-latent'] = {
+      class_type: 'LatentUpscale',
+      inputs: {
+        samples: decodedLatent,
+        upscale_method: 'bilinear',
+        width: input.hires.width,
+        height: input.hires.height,
+        crop: 'disabled',
+      },
+    }
+    workflow['hires-sampler'] = {
+      class_type: 'KSampler',
+      inputs: {
+        ...workflow[NODE_ID.sampler]!.inputs,
+        latent_image: ['hires-latent', 0],
+        steps: input.hires.steps ?? input.steps,
+        cfg: input.hires.cfg ?? input.cfg,
+        denoise: input.hires.denoise,
+      },
+    }
+    decodedLatent = ['hires-sampler', 0]
+  }
+
   workflow[NODE_ID.vaeDecode] = {
     class_type: 'VAEDecode',
     inputs: {
-      samples: [NODE_ID.sampler, 0],
+      samples: decodedLatent,
       vae: [NODE_ID.checkpoint, 2],
     },
   }
@@ -214,9 +246,10 @@ export function buildComfyWorkflow(input: RunnerWorkflowInput): ComfyWorkflow {
   }
 
   workflow[NODE_ID.saveImage] = {
-    class_type: 'SaveImage',
+    class_type: 'PixelVaultSaveImage',
     inputs: {
       images: outputImageSource,
+      audit: auditSource,
       filename_prefix: input.filenamePrefix ?? 'pixelvault',
     },
   }

@@ -1,7 +1,7 @@
 'use client'
 
-import { memo } from 'react'
-import { Trash2, Wand2 } from '@/components/icons'
+import { memo, useId, useRef } from 'react'
+import { AlertTriangle, Trash2, Wand2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import type { ReferenceImageEntry } from '@/hooks/use-image-upload'
@@ -46,9 +46,18 @@ export const StudioReferenceRail = memo(function StudioReferenceRail({
 }: StudioReferenceRailProps) {
   const t = useTranslations('ImageChip')
   const tEdit = useTranslations('StudioImageEdit')
+  const reasonId = useId()
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const activeReason = entries[activeIndex]?.disabledReason
+  const reasonText =
+    activeReason === 'over_limit'
+      ? t('disabledOverLimit')
+      : activeReason === 'unsupported'
+        ? t('disabledUnsupported')
+        : null
 
   return (
-    <div className="mb-4 flex items-center gap-3 border-b border-border/60 pb-3">
+    <div className="mb-4 flex flex-wrap items-center gap-3 border-b border-border/60 pb-3">
       <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
 
       <div
@@ -76,22 +85,60 @@ export const StudioReferenceRail = memo(function StudioReferenceRail({
               // 参考图可以重复添加同一个 url，index 才是槽位的身份。
               key={`${entry.url}-${index}`}
               type="button"
+              ref={(node) => {
+                tabRefs.current[index] = node
+              }}
               role="tab"
               aria-selected={isActive}
+              tabIndex={isActive ? 0 : -1}
+              aria-describedby={isActive && reasonText ? reasonId : undefined}
               title={disabledTitle}
               aria-label={t('previewReferenceImage', { index: index + 1 })}
               onClick={() => onActiveIndexChange(index)}
+              onKeyDown={(event) => {
+                let nextIndex: number
+                switch (event.key) {
+                  case 'ArrowRight':
+                    nextIndex = (index + 1) % entries.length
+                    break
+                  case 'ArrowLeft':
+                    nextIndex = (index - 1 + entries.length) % entries.length
+                    break
+                  case 'Home':
+                    nextIndex = 0
+                    break
+                  case 'End':
+                    nextIndex = entries.length - 1
+                    break
+                  default:
+                    return
+                }
+                event.preventDefault()
+                onActiveIndexChange(nextIndex)
+                tabRefs.current[nextIndex]?.focus()
+              }}
               className={cn(
                 'relative size-11 shrink-0 overflow-hidden rounded-lg transition-shadow',
                 isActive
                   ? 'outline outline-2 -outline-offset-2 outline-foreground'
                   : 'outline outline-1 -outline-offset-1 outline-border/60',
-                entry.disabledReason !== null && 'opacity-40',
                 'focus-visible:outline-2 focus-visible:outline-primary',
               )}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={entry.url} alt="" className="size-full object-cover" />
+              <img
+                src={entry.url}
+                alt=""
+                className={cn(
+                  'size-full object-cover',
+                  disabledTitle && 'opacity-40',
+                )}
+              />
+              {disabledTitle && (
+                <span className="absolute right-0 bottom-0 rounded-tl bg-background p-0.5 text-status-warning">
+                  <AlertTriangle className="size-3" aria-hidden="true" />
+                </span>
+              )}
             </button>
           )
         })}
@@ -118,6 +165,21 @@ export const StudioReferenceRail = memo(function StudioReferenceRail({
         >
           <Trash2 className="size-3.5" />
         </Button>
+      </div>
+      <div
+        className={reasonText ? 'basis-full' : 'sr-only'}
+        role="status"
+        aria-atomic="true"
+      >
+        {reasonText && (
+          <p
+            id={reasonId}
+            className="flex items-start gap-2 text-xs text-status-warning"
+          >
+            <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
+            {reasonText}
+          </p>
+        )}
       </div>
     </div>
   )

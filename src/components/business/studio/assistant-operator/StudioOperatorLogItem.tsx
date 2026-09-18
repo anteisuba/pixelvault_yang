@@ -106,6 +106,7 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]: Pencil,
   [ASSISTANT_OPERATOR_TOOL_IDS.setNegative]: Ban,
   [ASSISTANT_OPERATOR_TOOL_IDS.setSpecs]: RectangleHorizontal,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters]: RectangleHorizontal,
   /** 视频规格与图片规格是同一件事的两个形状 —— 同一枚图标，日志流里读起来才连贯。 */
   [ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs]: RectangleHorizontal,
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: Layers,

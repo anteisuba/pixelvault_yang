@@ -2362,6 +2362,8 @@ export function StudioOperatorPanel({
                 )
               }}
               onKeyDown={(event) => {
+                if (event.nativeEvent.isComposing || event.keyCode === 229)
+                  return
                 if (event.key === 'Enter' && !event.shiftKey) {
                   event.preventDefault()
                   submit(draft)

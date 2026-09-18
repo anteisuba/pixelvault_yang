@@ -34,10 +34,7 @@ describe('extractCivitaiTrigger', () => {
       modelName: '鸣潮 (Wuthering Waves) || 达妮娅 (Denia)',
       descriptionHtml: html,
     })
-    // Author wrote prompts in description → treat as 'official' even
-    // though trainedWords is empty; users copying the full prompt will
-    // correctly activate the LoRA.
-    expect(result.source).toBe('official')
+    expect(result.source).toBe('inferred')
     expect(result.recommendedPrompt).toContain('c1')
     expect(result.recommendedPrompt).toContain('white hair ribbon')
     expect(result.recommendedPromptAlternates).toHaveLength(1)

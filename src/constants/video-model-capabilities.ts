@@ -4,6 +4,7 @@ import {
   DEFAULT_VIDEO_DURATIONS,
   DEFAULT_VIDEO_RESOLUTIONS,
   VIDEO_ASPECT_RATIOS,
+  VIDEO_RESOLUTIONS,
   type VideoResolution,
 } from '@/constants/video-options'
 
@@ -339,6 +340,55 @@ export function getVideoModelCapabilities(
     requiresReferenceImage: builtInModel?.requiresReferenceImage ?? false,
     ...(builtInModel ? VIDEO_MODEL_CAPABILITIES[builtInModel.id] : undefined),
   }
+}
+
+/**
+ * Snap a requested duration onto the model's allowed integer-second list.
+ * Used when a card still holds a leftover value (e.g. 3s from the generic
+ * `[3, 5, 10]` default) after switching to Seedance 2.5 (`[4, 30]`).
+ */
+export function snapVideoDuration(modelId: string, seconds: number): number {
+  const steps = getVideoModelCapabilities(modelId).supportedDurations
+  if (!steps || steps.length === 0) return seconds
+  let best = steps[0] as number
+  for (const step of steps) {
+    if (Math.abs(step - seconds) < Math.abs(best - seconds)) best = step
+  }
+  return best
+}
+
+/**
+ * Snap a requested resolution onto the model's own ladder.
+ * Supported → passed through untouched (Seedance 2.5 keeps its 1080p).
+ * Unsupported → the nearest offered step along VIDEO_RESOLUTIONS' order
+ * (480p < 540p < 720p < 1080p < 2k), ties resolving downwards — cheaper and
+ * always renderable beats a step the endpoint would 400 on.
+ */
+export function snapVideoResolution(
+  modelId: string,
+  resolution: VideoResolution,
+): VideoResolution {
+  const allowed = getVideoModelCapabilities(modelId).supportedResolutions
+  if (!allowed || allowed.length === 0) return resolution
+  if (allowed.includes(resolution)) return resolution
+
+  const target = VIDEO_RESOLUTIONS.indexOf(resolution)
+  const ladder = [...allowed].sort(
+    (a, b) => VIDEO_RESOLUTIONS.indexOf(a) - VIDEO_RESOLUTIONS.indexOf(b),
+  )
+  if (target < 0) return ladder[0] as VideoResolution
+
+  let best = ladder[0] as VideoResolution
+  let bestDistance = Number.POSITIVE_INFINITY
+  for (const candidate of ladder) {
+    const distance = Math.abs(VIDEO_RESOLUTIONS.indexOf(candidate) - target)
+    // 严格小于：等距时留住先遍历到的低档（向下优先）。
+    if (distance < bestDistance) {
+      best = candidate
+      bestDistance = distance
+    }
+  }
+  return best
 }
 
 export function getVideoAudioCapability(

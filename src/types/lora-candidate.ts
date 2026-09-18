@@ -21,12 +21,14 @@ import { z } from 'zod'
 
 import {
   LORA_CANDIDATE_LIMITS,
+  LORA_CANDIDATE_CONFIRM_STEPS,
   LORA_CANDIDATE_NOT_IMPORTABLE_REASON_VALUES,
   LORA_CANDIDATE_SOURCE_STATUS_VALUES,
   LORA_CANDIDATE_SOURCE_VALUES,
   LORA_METADATA_COMPLETENESS_VALUES,
 } from '@/constants/lora-candidate'
 import {
+  LoraAssetRecordSchema,
   FavoriteLoraRequestSchema,
   LoraAssetTypeSchema,
   LoraCandidateLicenseSchema,
@@ -123,4 +125,17 @@ export const LoraCandidateSearchResultSchema = z.object({
 })
 export type LoraCandidateSearchResult = z.infer<
   typeof LoraCandidateSearchResultSchema
+>
+
+export const LoraCandidateConfirmOutcomeSchema = z.object({
+  status: z.enum(['ok', 'failed']),
+  failedStep: z.enum(LORA_CANDIDATE_CONFIRM_STEPS).optional(),
+  error: z.string().optional(),
+  imported: z.boolean(),
+  mounted: z.boolean(),
+  triggerWordsApplied: z.boolean(),
+  asset: LoraAssetRecordSchema.optional(),
+})
+export type LoraCandidateConfirmOutcome = z.infer<
+  typeof LoraCandidateConfirmOutcomeSchema
 >

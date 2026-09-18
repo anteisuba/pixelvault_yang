@@ -32,6 +32,7 @@ import {
   type AssistantConversationMessageStored,
 } from '@/types/assistant-conversation'
 import type {
+  AssistantLoraParameters,
   AssistantOperatorMessage,
   AssistantOperatorPriorStep,
   AssistantOperatorStep,
@@ -48,6 +49,26 @@ import {
  * ⚠ **日志条与历史序列化共用这一份**：抄成两份的下场是刷新前后同一步的详情
  * 不一样，而那种不一致没有任何人会去查。
  */
+export function describeLoraParameters(
+  parameters: AssistantLoraParameters,
+): string {
+  const labels: Record<keyof AssistantLoraParameters, string> = {
+    steps: 'Steps',
+    guidanceScale: 'CFG',
+    runnerSeed: 'Seed',
+    runnerWidth: 'W',
+    runnerHeight: 'H',
+    runnerSampler: 'Sampler',
+    runnerScheduler: 'Scheduler',
+  }
+  return Object.entries(parameters)
+    .map(
+      ([key, value]) =>
+        `${labels[key as keyof AssistantLoraParameters]} ${value ?? '—'}`,
+    )
+    .join(' · ')
+}
+
 export function describeOperatorStepDetail(
   step: AssistantOperatorStep,
 ): string | null {
@@ -245,6 +266,8 @@ export function describeOperatorStepDetail(
       ].join(' ')
     case ASSISTANT_OPERATOR_TOOL_IDS.unmountLora:
       return step.payload.name
+    case ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters:
+      return describeLoraParameters(step.payload)
     case ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight:
       return `${step.payload.name} · ${step.payload.weight}`
     /** 规则两条（§10）：读的显示条数，记的显示原文 —— 用户认的是那句话。 */

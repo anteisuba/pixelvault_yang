@@ -19,6 +19,7 @@
  *    线程里交代（与 `urlImportFailed` 同一条）。
  */
 
+import { flushSync } from 'react-dom'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
@@ -72,6 +73,11 @@ export interface LoraOperatorHostMount {
 }
 
 export interface UseLoraOperatorHostInput {
+  loraParameters?: AssistantOperatorSnapshot['loraParameters']
+  sourceRecipe?: AssistantOperatorSnapshot['sourceRecipe']
+  setLoraParameters?(
+    parameters: NonNullable<AssistantOperatorSnapshot['loraParameters']>,
+  ): void
   prompt: string
   setPrompt(value: string): void
   /** 触发词落提示词 —— **装配台既有的那条追加路径**（会去重、规范逗号）。 */
@@ -206,10 +212,10 @@ export function useLoraOperatorHost(
   }>({ inFlight: 0, landed: [] })
 
   const appendPrompt = useCallback((text: string) => {
-    latest.current.appendPrompt(text)
+    flushSync(() => latest.current.appendPrompt(text))
   }, [])
   const pushMount = useCallback((asset: LoraAssetRecord, scale?: number) => {
-    latest.current.stack?.push(asset, scale)
+    flushSync(() => latest.current.stack?.push(asset, scale))
   }, [])
 
   /**
@@ -235,6 +241,8 @@ export function useLoraOperatorHost(
     const current = latest.current
     const baseFamily = current.base?.family ?? null
     return buildLoraOperatorSnapshot({
+      loraParameters: current.loraParameters,
+      sourceRecipe: current.sourceRecipe,
       prompt: current.prompt,
       negativePrompt: current.negativePrompt,
       base: current.base
@@ -431,25 +439,42 @@ export function useLoraOperatorHost(
         void revertAssistantAssetWriteAPI(input)
       },
       lora: {
+        ...(input.setLoraParameters
+          ? {
+              setParameters: (
+                parameters: NonNullable<
+                  AssistantOperatorSnapshot['loraParameters']
+                >,
+              ) => latest.current.setLoraParameters?.(parameters),
+            }
+          : {}),
         /**
          * 挂一把：**先过下载闸，再走既有的一次确认链**。
-         * ⚠ 「交出去就不管」而不是 Promise —— `applyOperatorStep` 是同步纯函数。
          */
-        mount: ({ candidateId, name, weight, triggerWords, importPayload }) => {
-          // ⚠ **报数在交出去的这一刻就 +1**：导入是异步的，等它回来再计数的话
-          //   同一批的第二把会赶在第一把落地之前发现「没有在飞的」，于是又各报
-          //   一行（见 `mountBatch` 头注）。
+        mount: async ({
+          candidateId,
+          name,
+          weight,
+          triggerWords,
+          importPayload,
+        }) => {
           mountBatch.current.inFlight += 1
-          void (async () => {
+          try {
             const versionId = importPayload.modelVersionId
-            if (versionId !== undefined) {
-              const ok = await downloadGate.ensureMountable({
+            if (
+              versionId !== undefined &&
+              !(await downloadGate.ensureMountable({
                 modelVersionId: versionId,
                 name,
-              })
-              if (!ok) {
-                reportFailure(name)
-                return
+              }))
+            ) {
+              reportFailure(name)
+              return {
+                status: 'failed',
+                imported: false,
+                mounted: false,
+                triggerWordsApplied: false,
+                error: 'Model download is unavailable',
               }
             }
             const outcome = await confirmChain.confirmPayload({
@@ -457,24 +482,33 @@ export function useLoraOperatorHost(
               triggerWords,
               suggestedWeight: weight,
             })
-            if (outcome.status !== 'ok' || !outcome.asset) {
-              reportFailure(name)
-              return
+            if (outcome.mounted && outcome.asset) {
+              mountedByCandidate.current.set(candidateId, outcome.asset)
+              mountBatch.current.landed.push({
+                id: outcome.asset.id,
+                weight: weight ?? outcome.asset.defaultScale,
+              })
             }
-            mountedByCandidate.current.set(candidateId, outcome.asset)
-            mountBatch.current.landed.push({
-              id: outcome.asset.id,
-              weight: weight ?? outcome.asset.defaultScale,
-            })
-          })().finally(() => {
+            if (outcome.status !== 'ok') reportFailure(name)
+            return outcome
+          } catch (error) {
+            reportFailure(name)
+            return {
+              status: 'failed',
+              imported: false,
+              mounted: false,
+              triggerWordsApplied: false,
+              error: error instanceof Error ? error.message : 'Mount failed',
+            }
+          } finally {
             const batch = mountBatch.current
             batch.inFlight -= 1
-            // ⚠ 还有在飞的就等着：这一批的数还没齐，现在念出来的那个总和偏小。
-            if (batch.inFlight > 0) return
-            const landed = batch.landed
-            batch.landed = []
-            reportOverBudget(landed)
-          })
+            if (batch.inFlight === 0) {
+              const landed = batch.landed
+              batch.landed = []
+              reportOverBudget(landed)
+            }
+          }
         },
         unmountByCandidateId: (candidateId) => {
           const asset = mountedByCandidate.current.get(candidateId)
@@ -507,7 +541,7 @@ export function useLoraOperatorHost(
         },
       },
     }
-  }, [confirmChain, downloadGate, userUrl])
+  }, [confirmChain, downloadGate, userUrl, input.setLoraParameters])
 
   /**
    * ⛔ **装配台没有 `triggerGeneration`**（§6 花钱档，切片 2a）。

@@ -18,13 +18,13 @@ import {
 } from '@/constants/lora-candidate'
 import { ROUTES } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
-import type {
-  LoraCandidateConfirmAdapter,
-  LoraCandidateConfirmOutcome,
-} from '@/hooks/use-lora-candidate-confirm'
+import type { LoraCandidateConfirmAdapter } from '@/hooks/use-lora-candidate-confirm'
 import { cn } from '@/lib/utils'
 import type { AssistantLoraPick } from '@/types/assistant-protocol'
-import type { LoraCandidate } from '@/types/lora-candidate'
+import type {
+  LoraCandidate,
+  LoraCandidateConfirmOutcome,
+} from '@/types/lora-candidate'
 
 /**
  * LoRA 推荐卡（任务包 §5「一次确认链」的界面那一半）。

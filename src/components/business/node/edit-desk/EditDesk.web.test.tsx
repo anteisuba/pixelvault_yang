@@ -314,9 +314,9 @@ describe('剪辑台 · 台面', () => {
     const landed = read().nodes.find((node) => node.id === clip?.sourceNodeId)
     // 段指向的是**画布上新建的那张卡**，⛔ 不是素材库记录。
     expect(landed?.data.kind).toBe('video')
-    expect(
-      landed?.data.kind === 'video' ? landed.data.url : undefined,
-    ).toBe('https://example.test/lib.mp4')
+    expect(landed?.data.kind === 'video' ? landed.data.url : undefined).toBe(
+      'https://example.test/lib.mp4',
+    )
     expect(clip?.out).toBe(8)
   })
 
@@ -355,9 +355,9 @@ describe('剪辑台 · 台面', () => {
       'true',
     )
     expect(screen.getByTestId('edit-desk-asset-a1')).toBeInTheDocument()
-    expect(
-      screen.getByTestId('edit-desk-track-audio').className,
-    ).toContain('outline-primary')
+    expect(screen.getByTestId('edit-desk-track-audio').className).toContain(
+      'outline-primary',
+    )
 
     fireEvent.click(screen.getByTestId('edit-desk-tool-music'))
     expect(screen.getByTestId('edit-desk-audio-filter-music')).toHaveAttribute(
@@ -366,9 +366,9 @@ describe('剪辑台 · 台面', () => {
     )
     // 语音卡在「配乐」这一档里筛掉了
     expect(screen.queryByTestId('edit-desk-asset-a1')).not.toBeInTheDocument()
-    expect(
-      screen.getByTestId('edit-desk-track-music').className,
-    ).toContain('outline-primary')
+    expect(screen.getByTestId('edit-desk-track-music').className).toContain(
+      'outline-primary',
+    )
   })
 
   it('「上游已更新」徽标：出现 → 点一下换新 → 消失', () => {
@@ -616,9 +616,7 @@ describe('剪辑台 · 文字段', () => {
     fireEvent.pointerDown(screen.getByTestId('edit-desk-track-text'), {
       clientX: 10_000,
     })
-    expect(
-      screen.queryByTestId(`edit-desk-preview-text-${clipId}`),
-    ).toBeNull()
+    expect(screen.queryByTestId(`edit-desk-preview-text-${clipId}`)).toBeNull()
   })
 
   it('⌫ 删的是选中的那一段字幕（⛔ 不误伤 V 轨）', () => {
@@ -652,9 +650,9 @@ describe('剪辑台 · 快捷键预设', () => {
     fireEvent.doubleClick(screen.getByTestId('edit-desk-asset-v1'))
     fireEvent.click(screen.getByTestId('edit-desk-shortcuts'))
     fireEvent.click(screen.getByTestId('edit-desk-preset-finalCut'))
-    expect(
-      window.localStorage.getItem('pixelvault:edit-shortcut-preset'),
-    ).toBe('finalCut')
+    expect(window.localStorage.getItem('pixelvault:edit-shortcut-preset')).toBe(
+      'finalCut',
+    )
     expect(screen.getByTestId('edit-desk-shortcut-split').textContent).toBe(
       '⌘B',
     )

@@ -41,6 +41,8 @@ import {
   type StudioOperatorField,
   type StudioOperatorGenerateKnob,
 } from '@/constants/studio-assistant-operator'
+import type { LoraCandidateConfirmOutcome } from '@/types/lora-candidate'
+import { describeLoraParameters } from '@/lib/studio-operator-history'
 import type { StudioAction, StudioFormState } from '@/contexts/studio-context'
 import { AdvancedParamsSchema } from '@/types'
 import type {
@@ -67,6 +69,9 @@ import type {
  * **类型层的诚实**，不是运行时的兜底。
  */
 export interface StudioOperatorLoraContext {
+  setParameters?(
+    parameters: import('@/types/assistant-operator').AssistantLoraParameters,
+  ): void
   /**
    * 挂一把：导入进库 → 进挂载栈 → 触发词落提示词。
    *
@@ -81,7 +86,7 @@ export interface StudioOperatorLoraContext {
     weight: number
     triggerWords: readonly string[]
     importPayload: LoraCandidateImportPayload
-  }): void
+  }): Promise<LoraCandidateConfirmOutcome>
   /** 撤销挂载：按 **candidateId** 反查它挂上去的那一把并摘掉（库记录 id 在宿主手上）。 */
   unmountByCandidateId(candidateId: string): void
   /** 摘一把（按库记录 id）。 */
@@ -148,7 +153,7 @@ export interface StudioOperatorApplyContext {
   /**
    * 用户亲手递来的一条地址：取图入库并挂上（P3-D，拍板 22）。
    *
-   * ⚠ 它是这份上下文里**唯一一个异步动作**，所以做成「交出去就不管」而不是
+   * ⚠ 此 URL 导入由宿主独立回传结果，接口保持 void 而不是
    * `Promise`：`applyOperatorStep` 是同步纯函数，它的两个调用方（事件循环、
    * 参数栏的 ✦）谁都不该为了一次网络往返变成 async。落地之后由宿主自己
    * `addReference`，失败由宿主往线程里插一行 —— ⛔ 不静默。
@@ -249,6 +254,7 @@ export function getOperatorStepField(
       return STUDIO_OPERATOR_FIELD_IDS.negative
     case ASSISTANT_OPERATOR_TOOL_IDS.setModel:
       return STUDIO_OPERATOR_FIELD_IDS.model
+    case ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters:
     case ASSISTANT_OPERATOR_TOOL_IDS.setSpecs:
     // 视频的规格三格与图片的两格**共用一格登记**：它们回答的是同一个问题
     // 「下一版长什么样」，而两个域不会同时在场。
@@ -326,6 +332,8 @@ export function describeOperatorInverse(
     case ASSISTANT_OPERATOR_TOOL_IDS.mountLora:
     case ASSISTANT_OPERATOR_TOOL_IDS.unmountLora:
       return step.payload.name
+    case ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters:
+      return describeLoraParameters(step.inverse)
     case ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight:
       return String(step.inverse.weight)
     default:
@@ -580,6 +588,10 @@ export function applyOperatorStep(
       return STUDIO_OPERATOR_FIELD_IDS.loras
     }
 
+    case ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters:
+      if (!ctx.lora?.setParameters) return null
+      ctx.lora.setParameters(step.payload)
+      return STUDIO_OPERATOR_FIELD_IDS.specs
     case ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight: {
       if (!ctx.lora) return null
       ctx.lora.setWeight(step.payload.loraId, step.payload.weight)
@@ -790,6 +802,9 @@ export function revertOperatorStep(
       ctx.lora?.remount(step.inverse.loraId, step.inverse.weight)
       return
 
+    case ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters:
+      ctx.lora?.setParameters?.(step.inverse)
+      return
     case ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight:
       ctx.lora?.setWeight(step.inverse.loraId, step.inverse.weight)
       return

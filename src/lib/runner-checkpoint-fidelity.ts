@@ -58,6 +58,7 @@ export type RunnerCheckpointFidelity =
 export interface RecipeCheckpointReference {
   /** civitaiResources[type=checkpoint].modelVersionId（v3-1 捕获）— 精确定位。 */
   checkpointVersionId?: number | null
+  checkpointHash?: string | null
   /** meta.Model — checkpoint 名，无 versionId 时的**兜底**架构信号（不可靠：Animagine
    *  等 SDXL 底模名字也含 "anima"）。仅当没有 loraBaseModel 时才用它判架构。 */
   checkpointName?: string | null
@@ -72,15 +73,26 @@ export interface RecipeCheckpointReference {
  */
 export async function determineRunnerCheckpointFidelity(
   recipe: RecipeCheckpointReference,
-  resolveCheckpoint: (
-    versionId: number,
-  ) => Promise<CivitaiCheckpointResolution | null>,
+  resolveCheckpoint: (reference: {
+    modelVersionId?: number
+    hash?: string
+  }) => Promise<CivitaiCheckpointResolution | null>,
 ): Promise<RunnerCheckpointFidelity> {
   const requestedName = recipe.checkpointName?.trim() || null
 
-  // 1. 精确解析（T1 候选）——只有精确的 versionId 才给出可下载、可忠实复刻的目标。
-  if (recipe.checkpointVersionId != null) {
-    const resolved = await resolveCheckpoint(recipe.checkpointVersionId)
+  // 1. 精确解析（T1 候选）——优先 versionId，其次文件 hash，定位可下载的来源底模。
+  if (recipe.checkpointVersionId != null || recipe.checkpointHash) {
+    const byVersion =
+      recipe.checkpointVersionId != null
+        ? await resolveCheckpoint({
+            modelVersionId: recipe.checkpointVersionId,
+          })
+        : null
+    const resolved =
+      byVersion ??
+      (recipe.checkpointHash
+        ? await resolveCheckpoint({ hash: recipe.checkpointHash })
+        : null)
     if (resolved) {
       const family = normalizeToLoraBaseFamily(resolved.baseModel ?? '')
       if (isRunnerSupportedFamily(family)) {

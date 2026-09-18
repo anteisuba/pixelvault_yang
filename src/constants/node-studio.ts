@@ -363,6 +363,32 @@ export function resolveAssistantModelId(
   return entries[0].modelId
 }
 
+/**
+ * 「自动」档下问答走的快模型。动手轮仍用 `resolveAssistantModelId` 的默认档。
+ * OpenAI 默认是 Sol（chip 第一档），问答改 Luna；Gemini 与 chip 上的 3.8 Flash 对齐。
+ */
+export function resolveAssistantFastModelId(
+  adapterType: AI_ADAPTER_TYPES,
+): string | undefined {
+  const entries = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.filter(
+    (model) => model.adapterType === adapterType,
+  )
+  if (entries.length === 0) return undefined
+  if (adapterType === AI_ADAPTER_TYPES.OPENAI) {
+    const luna = entries.find(
+      (model) => model.modelId === LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_LUNA,
+    )
+    if (luna) return luna.modelId
+  }
+  if (adapterType === AI_ADAPTER_TYPES.GEMINI) {
+    const flash = entries.find(
+      (model) => model.modelId === LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+    )
+    if (flash) return flash.modelId
+  }
+  return entries[0].modelId
+}
+
 export const NODE_STUDIO_DOCK = {
   focusZoom: 0.95,
   focusDurationMs: 420,

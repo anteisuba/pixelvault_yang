@@ -14,6 +14,7 @@ interface ApiErrorLike {
 
 type ErrorTranslator = ((key: string) => string) & {
   has: (key: string) => boolean
+  raw?: (key: string) => unknown
 }
 
 function normalizeI18nKey(i18nKey?: string): string | null {
@@ -59,7 +60,7 @@ export function getApiErrorMessage(
  * 2. Error-code classification — map `errorCode` (or, when it carries no
  *    specific classification, parse the raw provider message) to
  *    `Errors.generation.{code}`.
- * 3. Raw provider `error` string, then the caller's generic fallback.
+ * 3. Localized unknown error, then the caller's generic fallback.
  *
  * Only use this in generation flows: step 2's message parsing would
  * misclassify unrelated errors (a download "502" as `model_unavailable`).
@@ -71,18 +72,30 @@ export function getGenerationErrorMessage(
 ): string {
   const normalizedKey = normalizeI18nKey(payload.i18nKey)
 
-  // Validation errors carry the specific, actionable reason in `error` (which
-  // field or rule failed). Surface it instead of the generic localized
-  // "invalid input" string, which hides what the user actually has to fix.
-  const isValidationError =
-    payload.errorCode === 'VALIDATION_ERROR' ||
-    normalizedKey === 'validation.invalidInput'
-  if (isValidationError && payload.error) {
-    return payload.error
-  }
-
   if (normalizedKey && tErrors.has(normalizedKey)) {
     return tErrors(normalizedKey)
+  }
+
+  if (
+    payload.errorCode === 'VALIDATION_ERROR' &&
+    tErrors.has('validation.invalidInput')
+  ) {
+    return tErrors('validation.invalidInput')
+  }
+
+  // Run items may already carry a localized reason from the generation hook.
+  if (payload.error && tErrors.raw) {
+    for (const namespace of ['generation', 'provider', 'validation']) {
+      if (!tErrors.has(namespace)) continue
+      const messages = tErrors.raw(namespace)
+      if (
+        messages &&
+        typeof messages === 'object' &&
+        Object.values(messages).includes(payload.error)
+      ) {
+        return payload.error
+      }
+    }
   }
 
   const code =
@@ -94,29 +107,11 @@ export function getGenerationErrorMessage(
   if (code !== GENERATION_ERROR_CODES.UNKNOWN) {
     const generationKey = `generation.${code}`
     if (tErrors.has(generationKey)) {
-      const localized = tErrors(generationKey)
-      /**
-       * 台账 H（owner 2026-08-29 真机）：内容被安全系统拒了的时候，**上游的原话
-       * 是唯一能指向真因的信息**，不能被本地化文案整条替换掉。
-       *
-       * owner 实测：同一批角色设定图，「16岁女生」正常通过，「男子高中生，17岁」
-       * 被 Seedream 拒 —— 删掉年龄词后即通过。而 UI 只说「内容被服务商安全系统
-       * 过滤」，是哪个词触发的一个字都没有，用户只能瞎猜、甚至会以为是自己写错了。
-       *
-       * ⚠ **只对这一档这么做**。其余错误码（超时 / 限流 / 余额 / key 无效）的
-       * provider 原文是英文技术噪音，本地化文案已经把该说的说完了，附上去只是让
-       * 提示变长。内容过滤不一样：它的原文里可能带着被拒的具体理由或分类。
-       *
-       * ⚠ 原文与本地化文案相同时不重复拼（有的 provider 回的就是一句
-       * "content filtered"，那时附上去等于把同一句话说两遍）。
-       */
-      if (code === GENERATION_ERROR_CODES.CONTENT_FILTERED) {
-        const raw = payload.error?.trim()
-        if (raw && raw !== localized) return `${localized} — ${raw}`
-      }
-      return localized
+      return tErrors(generationKey)
     }
   }
 
-  return payload.error ?? fallbackMessage
+  return tErrors.has('generation.unknown')
+    ? tErrors('generation.unknown')
+    : fallbackMessage
 }

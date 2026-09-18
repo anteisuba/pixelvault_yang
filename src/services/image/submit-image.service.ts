@@ -280,10 +280,16 @@ export async function submitImageGeneration(
       // 分级——T1 解析出精确 checkpoint 供 fork GPU 侧下、T2 标记近似、T3 大声报错。
       // 无引用（非配方生成）则维持现状，用选中的预烤底模。
       const adv = runnerAdvancedParams
-      if (adv && (adv.checkpointVersionId != null || adv.checkpointName)) {
+      if (
+        adv &&
+        (adv.checkpointVersionId != null ||
+          adv.checkpointHash ||
+          adv.checkpointName)
+      ) {
         try {
           const prepared = await prepareRunnerCheckpoint({
             checkpointVersionId: adv.checkpointVersionId,
+            checkpointHash: adv.checkpointHash,
             checkpointName: adv.checkpointName,
             loraBaseModel: adv.loraBaseModel,
           })

@@ -1,11 +1,11 @@
 'use client'
 
-import { useCallback, useMemo } from 'react'
+import type { LoraCandidateConfirmOutcome } from '@/types/lora-candidate'
 
-import {
-  LORA_CANDIDATE_CONFIRM_STEPS,
-  type LoraCandidateConfirmStep,
-} from '@/constants/lora-candidate'
+import { useCallback, useMemo } from 'react'
+import { hasVerifiedLoraTrigger } from '@/lib/lora-trigger-clean'
+
+import { LORA_CANDIDATE_CONFIRM_STEPS } from '@/constants/lora-candidate'
 import { favoriteLoraAPI } from '@/lib/api-client/lora-assets'
 import type { LoraAssetRecord } from '@/types'
 import type {
@@ -30,19 +30,6 @@ import type {
  * ⚠ **失败报到步**：三步各自有各自的下一步动作，笼统一句「失败」把路都堵死。
  * 已经成功的步骤在结果里如实标着 —— 挂载失败不代表没导进去。
  */
-
-export interface LoraCandidateConfirmOutcome {
-  status: 'ok' | 'failed'
-  /** 失败停在哪一步。`status:'ok'` 时缺席。 */
-  failedStep?: LoraCandidateConfirmStep
-  /** 底层错误原文（有就给，卡面拿它做副标题；文案本身仍走 i18n）。 */
-  error?: string
-  imported: boolean
-  mounted: boolean
-  triggerWordsApplied: boolean
-  /** 导入成功后的库记录 —— 卡面用它显示「已收进库」的名字。 */
-  asset?: LoraAssetRecord
-}
 
 export interface LoraCandidateConfirmAdapter {
   /**
@@ -150,7 +137,9 @@ export function useLoraCandidateConfirm({
 
       // 触发词用**卡上显示的那一份**（候选给的），不是库记录里的原始字符串：
       // 用户按卡上看到的词做的决定，写进去的就该是同一批词。
-      const triggerText = triggerWords.join(', ').trim()
+      const triggerText = hasVerifiedLoraTrigger(importPayload)
+        ? triggerWords.join(', ').trim()
+        : ''
       if (triggerText) {
         try {
           applyTriggerWords(triggerText)

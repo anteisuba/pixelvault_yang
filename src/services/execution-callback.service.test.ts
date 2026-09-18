@@ -1122,6 +1122,80 @@ describe('execution-callback.service', () => {
     })
   })
 
+  it.each([
+    {
+      runpodJobId: 'runner-job-1',
+      runnerExecution: {
+        version: 1,
+        evidence: 'loader-output',
+        imageSha256: 'c'.repeat(64),
+        models: [
+          {
+            kind: 'checkpoint',
+            filename: 'loaded-base.safetensors',
+            sha256: 'a'.repeat(64),
+            sizeBytes: 100,
+          },
+          {
+            kind: 'lora',
+            filename: 'loaded-character.safetensors',
+            sha256: 'b'.repeat(64),
+            sizeBytes: 50,
+            strengthModel: 0.8,
+            strengthClip: 0.7,
+          },
+        ],
+      },
+    },
+    { runpodJobId: 'runner-without-evidence', futureField: 'unknown-metadata' },
+    undefined,
+  ])(
+    'persists Runner callback metadata verbatim without inventing loaded models: %j',
+    async (providerMetadata) => {
+      mockFindUnique.mockResolvedValue({
+        ...buildJob('RUNNING'),
+        adapterType: 'runner',
+        provider: 'runner',
+        modelId: 'illustrious-runner',
+        externalRequestId: JSON.stringify({
+          outputType: 'IMAGE',
+          isFreeGeneration: true,
+          creditCost: 1,
+          aspectRatio: '1:1',
+          originalModelId: 'illustrious-runner',
+          advancedParams: {
+            runnerCheckpoint: 'requested-but-not-load-evidence.safetensors',
+          },
+        }),
+      })
+      mockCreateGeneration.mockResolvedValue({
+        id: 'generation-image-1',
+        outputType: 'IMAGE',
+      })
+      await handleExecutionCallback({
+        ...buildPayload('result'),
+        data: {
+          artifactUrl: 'https://cdn.example.com/runner.png',
+          imageR2Key: 'generations/user-1/image/runner.png',
+          mimeType: 'image/png',
+          width: 1024,
+          height: 1024,
+          ...(providerMetadata ? { providerMetadata } : {}),
+        },
+      })
+      const saved = mockCreateGeneration.mock.calls[0]?.[0]
+      expect(saved).toBeDefined()
+      expect(saved.snapshot.executionCallback.providerMetadata).toEqual(
+        providerMetadata,
+      )
+      if (!providerMetadata?.runnerExecution) {
+        expect(
+          saved.snapshot.executionCallback.providerMetadata?.runnerExecution,
+        ).toBeUndefined()
+      }
+    },
+  )
+
   it('stores providerMetadata in the generation snapshot', async () => {
     mockFindUnique.mockResolvedValue(buildJob('RUNNING'))
 

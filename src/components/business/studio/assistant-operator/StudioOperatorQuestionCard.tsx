@@ -22,16 +22,14 @@
  * 「选中，等会儿一起交」—— 用 radio 画一个点下去立刻发请求的东西，键盘用户会在
  * 方向键切项时连发三轮。组语义仍由 `fieldset`/`legend` 承担（问句就是 legend）。
  *
- * ⚠ 「其他」那一项**不进 `optionIds`**（见 `STUDIO_OPERATOR_QUESTION_OTHER_ID`
- * 的头注）：服务端没有这个选项，带上去只会得到一条查无此项的答复；用户写的那句
- * 话走 `otherText`。
+ * ⚠ 「你的看法」框**不进 `optionIds`**：服务端没有这个选项，带上去只会得到一条
+ * 查无此项的答复；用户写的那句话走 `otherText`。点选项时若框里有字，一并带上。
  */
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
-import { STUDIO_OPERATOR_QUESTION_OTHER_ID } from '@/constants/studio-assistant-operator'
 import { getAssistantPlanVisual } from '@/constants/assistant-plan-visuals'
 import {
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
@@ -44,6 +42,9 @@ import type {
 } from '@/types/studio-assistant-operator'
 
 import { PlanOptionVisual } from './PlanOptionVisual'
+
+/** IME 选字回车会在 compositionend 后再发一次 Enter，不当提交。 */
+const IME_CONFIRM_ENTER_MS = 100
 
 /**
  * 推荐项排第一。
@@ -112,13 +113,15 @@ export function StudioOperatorQuestionCard({
    * 请求，而第二轮会把第一轮 abort 掉再从头跑一遍。
    */
   const [submitted, setSubmitted] = useState(false)
-  /** 「其他」那一行展开了没有 —— 展开本身不算答案，写了字才算。 */
-  const [otherOpen, setOtherOpen] = useState(false)
   const [otherText, setOtherText] = useState('')
+  const composingRef = useRef(false)
+  const compositionEndedAtRef = useRef(0)
   const assetMode = useMemo(
     () => isAssetQuestion(question.options),
     [question.options],
   )
+
+  const note = otherText.trim()
 
   const submit = (
     optionId: string | null,
@@ -131,10 +134,18 @@ export function StudioOperatorQuestionCard({
       {
         questionId: question.id,
         optionIds: optionId ? [optionId] : [],
-        ...(optionId ? {} : { otherText: label }),
+        ...(note ? { otherText: note } : optionId ? {} : { otherText: label }),
       },
-      { label, ...extra },
+      {
+        label: optionId && note ? `${label} · ${note}` : label,
+        ...extra,
+      },
     )
+  }
+
+  const submitOwnView = () => {
+    if (!note) return
+    submit(null, note)
   }
 
   return (
@@ -310,49 +321,69 @@ export function StudioOperatorQuestionCard({
                 </button>
               )
             })}
-
-            {question.allowOther ? (
-              /* ⚠ 桌面横排时这一支**整行独占**（`md:w-full`）：它展开后是一条
-                 输入框 + 发送键，挤在选项胶囊中间会被压成两个字宽。 */
-              <div className="flex flex-col gap-1 md:w-full md:flex-row md:flex-wrap md:items-start md:gap-2">
-                <button
-                  type="button"
-                  data-testid="operator-question-option"
-                  data-option-id={STUDIO_OPERATOR_QUESTION_OTHER_ID}
-                  data-kind="other"
-                  aria-expanded={otherOpen}
-                  disabled={submitted}
-                  onClick={() => setOtherOpen((value) => !value)}
-                  className="flex items-center gap-2 rounded-md border border-border bg-card p-2 text-left text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60 motion-reduce:transition-none md:min-h-8 md:px-3 md:py-1.5"
-                >
-                  {t('question.other')}
-                </button>
-                {otherOpen ? (
-                  <div className="flex gap-1.5 md:w-full">
-                    <input
-                      type="text"
-                      data-testid="operator-question-other-input"
-                      value={otherText}
-                      onChange={(event) => setOtherText(event.target.value)}
-                      placeholder={t('question.otherPlaceholder')}
-                      aria-label={t('question.other')}
-                      className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2 py-1.5 text-2sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    />
-                    <button
-                      type="button"
-                      data-testid="operator-question-other-submit"
-                      disabled={submitted || !otherText.trim()}
-                      onClick={() => submit(null, otherText.trim())}
-                      className="shrink-0 rounded-md bg-foreground px-2.5 py-1 text-2sm font-medium text-background transition-colors duration-(--duration-fast) ease-standard hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
-                    >
-                      {t('question.send')}
-                    </button>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
           </div>
         )}
+
+        {question.allowOther ? (
+          <div
+            data-testid="operator-question-own-view"
+            className="flex flex-col gap-1.5"
+          >
+            <label
+              htmlFor={`operator-question-other-${question.id}`}
+              className="text-2xs tracking-nav uppercase text-muted-foreground"
+            >
+              {t('question.other')}
+            </label>
+            <div className="flex gap-1.5">
+              <input
+                id={`operator-question-other-${question.id}`}
+                type="text"
+                data-testid="operator-question-other-input"
+                value={otherText}
+                onChange={(event) => setOtherText(event.target.value)}
+                onCompositionStart={() => {
+                  composingRef.current = true
+                }}
+                onCompositionEnd={() => {
+                  composingRef.current = false
+                  compositionEndedAtRef.current = performance.now()
+                }}
+                onKeyDown={(event) => {
+                  if (
+                    composingRef.current ||
+                    event.nativeEvent.isComposing ||
+                    event.keyCode === 229
+                  )
+                    return
+                  if (
+                    event.key === 'Enter' &&
+                    performance.now() - compositionEndedAtRef.current <
+                      IME_CONFIRM_ENTER_MS
+                  )
+                    return
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    submitOwnView()
+                  }
+                }}
+                placeholder={t('question.otherPlaceholder')}
+                aria-label={t('question.other')}
+                disabled={submitted}
+                className="min-w-0 flex-1 rounded-lg border border-border bg-background px-2.5 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+              />
+              <button
+                type="button"
+                data-testid="operator-question-other-submit"
+                disabled={submitted || !note}
+                onClick={submitOwnView}
+                className="shrink-0 rounded-md bg-foreground px-2.5 py-1.5 text-2sm font-medium text-background transition-colors duration-(--duration-fast) ease-standard hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none"
+              >
+                {t('question.send')}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </fieldset>
     </section>
   )

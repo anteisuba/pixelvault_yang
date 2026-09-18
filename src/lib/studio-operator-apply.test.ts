@@ -867,8 +867,14 @@ function makeLoraContext(): {
   const ctx: StudioOperatorApplyContext = {
     ...base.ctx,
     lora: {
-      mount: ({ candidateId, name, weight, triggerWords }) => {
+      mount: async ({ candidateId, name, weight, triggerWords }) => {
         mounted.push({ candidateId, name, weight, triggerWords })
+        return {
+          status: 'ok',
+          imported: true,
+          mounted: true,
+          triggerWordsApplied: triggerWords.length > 0,
+        }
       },
       unmountByCandidateId: (candidateId) => {
         unmountedByCandidate.push(candidateId)
@@ -1001,6 +1007,38 @@ describe('LoRA 装配台的三条改动型（P4-C）', () => {
     const { ctx, unmountedByCandidate } = makeLoraContext()
     revertOperatorStep(mountLoraStep(), ctx)
     expect(unmountedByCandidate).toEqual(['civitai:12345:67890'])
+  })
+
+  it('applies and undoes LoRA parameters through the host parameter setter', () => {
+    const { ctx } = makeLoraContext()
+    const setParameters = vi.fn()
+    ctx.lora!.setParameters = setParameters
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+      verb: 'apply',
+      payload: { steps: 28, guidanceScale: 6, runnerSeed: '42' },
+      inverse: { steps: 25, guidanceScale: 7, runnerSeed: null },
+    } satisfies AssistantOperatorAppliedStep
+
+    expect(applyOperatorStep(step, ctx)).toBe(STUDIO_OPERATOR_FIELD_IDS.specs)
+    expect(setParameters).toHaveBeenNthCalledWith(1, step.payload)
+    revertOperatorStep(step, ctx)
+    expect(setParameters).toHaveBeenNthCalledWith(2, step.inverse)
+  })
+
+  it('does not record a parameter change when the host cannot apply it', () => {
+    const { ctx } = makeLoraContext()
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+      verb: 'apply',
+      payload: { steps: 28 },
+      inverse: { steps: null },
+    } satisfies AssistantOperatorAppliedStep
+
+    expect(applyOperatorStep(step, ctx)).toBeNull()
+    expect(() => revertOperatorStep(step, ctx)).not.toThrow()
   })
 
   it('摘一把 / 撤销摘除：撤销挂回**改前那个权重**，不是默认值', () => {

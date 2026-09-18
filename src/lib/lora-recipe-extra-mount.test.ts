@@ -46,7 +46,7 @@ describe('mountRecipeExtraLoras', () => {
     })
     const pushLora = vi.fn()
     const setLoraScale = vi.fn()
-    const statuses: Array<[string, string]> = []
+    const statuses: Array<[string, string, string?]> = []
 
     const result = await mountRecipeExtraLoras({
       extras: [
@@ -61,7 +61,9 @@ describe('mountRecipeExtraLoras', () => {
       })),
       pushLora,
       setLoraScale,
-      setStatus: (key, status) => statuses.push([key, status]),
+      setLoraEnabled: vi.fn(),
+      setStatus: (key, status, assetId) =>
+        statuses.push(assetId ? [key, status, assetId] : [key, status]),
     })
 
     expect(result).toEqual({
@@ -75,9 +77,9 @@ describe('mountRecipeExtraLoras', () => {
     expect(setLoraScale).not.toHaveBeenCalled()
     expect(statuses).toEqual([
       ['aabbcc', 'loading'],
-      ['aabbcc', 'mounted'],
+      ['aabbcc', 'mounted', 'extra-hash'],
       ['v777', 'loading'],
-      ['v777', 'mounted'],
+      ['v777', 'mounted', 'extra-version'],
     ])
   })
 
@@ -100,6 +102,7 @@ describe('mountRecipeExtraLoras', () => {
       resolveLora,
       pushLora: vi.fn(),
       setLoraScale: vi.fn(),
+      setLoraEnabled: vi.fn(),
     })
 
     expect(resolveLora).toHaveBeenCalledWith({
@@ -136,6 +139,7 @@ describe('mountRecipeExtraLoras', () => {
       resolveLora,
       pushLora: vi.fn(),
       setLoraScale: vi.fn(),
+      setLoraEnabled: vi.fn(),
     })
 
     expect(resolveLora).toHaveBeenCalledWith({
@@ -156,7 +160,7 @@ describe('mountRecipeExtraLoras', () => {
     const resolveLora = vi.fn()
     const pushLora = vi.fn()
     const setLoraScale = vi.fn()
-    const statuses: Array<[string, string]> = []
+    const statuses: Array<[string, string, string?]> = []
 
     const result = await mountRecipeExtraLoras({
       extras: [{ hash: 'AABBCC', name: 'Already Mounted', weight: 0.62 }],
@@ -165,7 +169,9 @@ describe('mountRecipeExtraLoras', () => {
       resolveLora,
       pushLora,
       setLoraScale,
-      setStatus: (key, status) => statuses.push([key, status]),
+      setLoraEnabled: vi.fn(),
+      setStatus: (key, status, assetId) =>
+        statuses.push(assetId ? [key, status, assetId] : [key, status]),
     })
 
     expect(result).toEqual({
@@ -177,8 +183,103 @@ describe('mountRecipeExtraLoras', () => {
     expect(resolveLora).not.toHaveBeenCalled()
     expect(pushLora).not.toHaveBeenCalled()
     expect(setLoraScale).toHaveBeenCalledWith('mounted-extra', 0.62)
-    expect(statuses).toEqual([['aabbcc', 'mounted']])
+    expect(statuses).toEqual([['aabbcc', 'mounted', 'mounted-extra']])
   })
+
+  it('re-enables an already mounted extra and restores its exact recipe weight', async () => {
+    const asset = makeAsset({
+      id: 'disabled-extra',
+      fileHashAutoV3: 'a53740627a72',
+    })
+    const enabled = new Map([[asset.id, false]])
+    const setLoraEnabled = vi.fn((id: string, value: boolean) =>
+      enabled.set(id, value),
+    )
+    const setLoraScale = vi.fn()
+    const resolveLora = vi.fn()
+
+    await mountRecipeExtraLoras({
+      extras: [{ hash: 'a53740627a72', weight: 0.8 }],
+      stackItems: [{ asset }],
+      resolveLora,
+      pushLora: vi.fn(),
+      setLoraScale,
+      setLoraEnabled,
+    })
+
+    expect(enabled.get(asset.id)).toBe(true)
+    expect(setLoraEnabled).toHaveBeenCalledWith(asset.id, true)
+    expect(setLoraScale).toHaveBeenCalledWith(asset.id, 0.8)
+    expect(resolveLora).not.toHaveBeenCalled()
+  })
+
+  it('does not re-enable an incompatible existing asset found only after resolution', async () => {
+    const asset = makeAsset({ id: 'muted-sd15', baseModelFamily: 'SD 1.5' })
+    const enabled = new Map([[asset.id, false]])
+    const setLoraEnabled = vi.fn((id: string, value: boolean) =>
+      enabled.set(id, value),
+    )
+    const resolveLora = vi.fn(async () => ({ success: true, data: asset }))
+    const setLoraScale = vi.fn()
+    const pushLora = vi.fn()
+    const setStatus = vi.fn()
+    const result = await mountRecipeExtraLoras({
+      extras: [{ modelVersionId: 777, weight: 0.8 }],
+      stackItems: [{ asset }],
+      resolveLora,
+      pushLora,
+      setLoraScale,
+      setLoraEnabled,
+      setStatus,
+      isBaseCompatible: (family) => family === 'Illustrious',
+    })
+    expect(resolveLora).toHaveBeenCalledOnce()
+    expect(result).toEqual({
+      newlyMounted: 0,
+      missing: 0,
+      incompatible: 1,
+      overCapacity: 0,
+    })
+    expect(enabled.get(asset.id)).toBe(false)
+    expect(setLoraEnabled).not.toHaveBeenCalled()
+    expect(setLoraScale).not.toHaveBeenCalled()
+    expect(pushLora).not.toHaveBeenCalled()
+    expect(setStatus).toHaveBeenLastCalledWith('v777', 'incompatible')
+  })
+
+  it.each([{ hash: 'a53740627a72' }, { modelVersionId: 777 }])(
+    'does not substitute a same-name mounted version for strong locator %j',
+    async (locator) => {
+      const wrong = makeAsset({
+        id: 'wrong-version',
+        name: 'Detailed Hands',
+        fileHashAutoV3: 'bbbbbbbbbbbb',
+        modelVersionId: 778,
+      })
+      const right = makeAsset({
+        id: 'right-version',
+        name: 'Detailed Hands',
+        fileHashAutoV3: 'a53740627a72',
+        modelVersionId: 777,
+      })
+      const resolveLora = vi.fn(async () => ({ success: true, data: right }))
+      const pushLora = vi.fn()
+      const setLoraScale = vi.fn()
+
+      await mountRecipeExtraLoras({
+        extras: [{ ...locator, name: 'Detailed Hands', weight: 0.8 }],
+        stackItems: [{ asset: wrong }],
+        resolveLora,
+        pushLora,
+        setLoraScale,
+        setLoraEnabled: vi.fn(),
+      })
+
+      expect(resolveLora).toHaveBeenCalledOnce()
+      expect(pushLora).toHaveBeenCalledWith(right, 0.8)
+      expect(setLoraScale).not.toHaveBeenCalledWith(wrong.id, expect.anything())
+    },
+  )
 
   // 容量不足要单独记成 overCapacity，不能混进 missing——两者的补救动作不同
   // （卸掉一个 vs 这个 LoRA 根本定位不到），toast 要据此说清「为什么没挂上」。
@@ -209,6 +310,7 @@ describe('mountRecipeExtraLoras', () => {
       })),
       pushLora,
       setLoraScale: vi.fn(),
+      setLoraEnabled: vi.fn(),
       setStatus: (key, status) => statuses.push([key, status]),
     })
 
@@ -254,6 +356,7 @@ describe('mountRecipeExtraLoras', () => {
       })),
       pushLora,
       setLoraScale: vi.fn(),
+      setLoraEnabled: vi.fn(),
       setStatus: (key, status) => statuses.push([key, status]),
       // Stub the real bucket rule: only illustrious/SDXL-family mounts.
       isBaseCompatible: (fam) => fam.toLowerCase().includes('illustrious'),

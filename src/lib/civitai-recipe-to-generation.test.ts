@@ -19,6 +19,67 @@ function makeRecipe(
 }
 
 describe('buildCivitaiRecipeGenerationPlan', () => {
+  it.each([undefined, 0])(
+    'maps Latent hires with inherited steps (%s) and source CFG',
+    (hiresSteps) => {
+      const recipe = makeRecipe({
+        prompt: '(portrait:1.1), Sue',
+        loraWeight: 0.9,
+        baseWidth: 672,
+        baseHeight: 984,
+        steps: 25,
+        hiresUpscale: 1.45,
+        hiresUpscaler: 'Latent',
+        denoisingStrength: 0.45,
+        hiresSteps,
+        hiresCfgScale: 7,
+      })
+      const plan = buildCivitaiRecipeGenerationPlan(recipe)
+      expect(plan.advancedParams?.runnerHires).toEqual({
+        scale: 1.45,
+        denoise: 0.45,
+        cfg: 7,
+      })
+      expect(plan.advancedParams?.steps).toBe(25)
+      expect(plan.prompt).toBe(recipe.prompt)
+      expect(plan.loraScale).toBe(0.9)
+      expect(plan.skippedParams).toEqual([])
+      expect(
+        applyRecipePlanToAdvancedParams(undefined, plan, { includeSeed: false })
+          .runnerHires,
+      ).toEqual(plan.advancedParams?.runnerHires)
+    },
+  )
+
+  it('preserves explicit second-pass steps independently from the first pass', () => {
+    const plan = buildCivitaiRecipeGenerationPlan(
+      makeRecipe({
+        steps: 25,
+        hiresUpscale: 1.45,
+        hiresUpscaler: 'Latent',
+        denoisingStrength: 0.45,
+        hiresSteps: 12,
+      }),
+    )
+    expect(plan.advancedParams).toMatchObject({
+      steps: 25,
+      runnerHires: { steps: 12 },
+    })
+  })
+
+  it.each([
+    {
+      hiresUpscaler: '4x-AnimeSharp',
+      hiresUpscale: 1.45,
+      denoisingStrength: 0.45,
+    },
+    { hiresUpscaler: 'Latent', hiresUpscale: 1.45 },
+    { hiresUpscaler: 'Latent', hiresUpscale: 5, denoisingStrength: 0.45 },
+  ])('does not activate incomplete or unsupported hires %j', (metadata) => {
+    const plan = buildCivitaiRecipeGenerationPlan(makeRecipe(metadata))
+    expect(plan.advancedParams?.runnerHires).toBeUndefined()
+    expect(plan.skippedParams).toContain('hiresUpscaler')
+  })
   it('maps a full recipe into prompt + advanced params + scale + aspect ratio', () => {
     const plan = buildCivitaiRecipeGenerationPlan(
       makeRecipe({

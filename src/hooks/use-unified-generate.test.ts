@@ -1,3 +1,4 @@
+import { AI_MODELS } from '@/constants/models/enum'
 import { createElement, type ReactNode } from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
@@ -220,6 +221,37 @@ describe('useUnifiedGenerate', () => {
     expect(result.current.activeRun?.mode).toBe('variant')
     expect(result.current.activeRun?.items).toHaveLength(4)
 
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
+    })
+    await generationPromise!
+  })
+
+  it('only sends character layout to V5 in a mixed-model run', async () => {
+    vi.useFakeTimers()
+    mockStudioGenerate.mockResolvedValue(SUCCESS_IMAGE_SUBMIT_RESPONSE)
+    const novelAiLayout = {
+      positioning: 'manual' as const,
+      characters: [
+        { prompt: 'girl', negativePrompt: 'hat', position: { x: 0.2, y: 0.5 } },
+      ],
+    }
+    const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+    let generationPromise: Promise<GenerationRecord | null>
+    await act(async () => {
+      generationPromise = result.current.generate({
+        mode: 'image',
+        image: { ...IMAGE_INPUT, advancedParams: { novelAiLayout } },
+        compareModels: [
+          { modelId: 'model-a' },
+          { modelId: AI_MODELS.NOVELAI_V5_FULL },
+        ],
+      })
+      await Promise.resolve()
+    })
+    const calls = mockStudioGenerate.mock.calls.map(([arg]) => arg)
+    expect(calls[0].advancedParams?.novelAiLayout).toBeUndefined()
+    expect(calls[1].advancedParams?.novelAiLayout).toEqual(novelAiLayout)
     await act(async () => {
       await vi.advanceTimersByTimeAsync(IMAGE_GENERATION.POLL_INTERVAL_MS)
     })

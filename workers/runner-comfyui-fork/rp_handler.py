@@ -43,6 +43,7 @@ import runpod
 
 from comfy_models import wait_for_workflow_models
 from runner_payload import (
+    attach_model_evidence,
     build_input_image_specs,
     normalize_workflow_seeds,
     safe_basename,
@@ -527,7 +528,7 @@ def handler(job):
     inventory = cache_inventory(LORA_DIR, CHECKPOINT_DIR, DIFFUSION_MODELS_DIR)
     print(f"[runner-fork] cache inventory after job: {inventory}", flush=True)
     _persist_cache_manifest(inventory)
-    return base_handler(job)
+    return attach_model_evidence(base_handler(job), inp.get("workflow"))
 
 
 if __name__ == "__main__":

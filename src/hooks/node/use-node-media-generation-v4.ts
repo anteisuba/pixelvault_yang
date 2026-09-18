@@ -20,6 +20,11 @@ import type { AspectRatio } from '@/constants/config'
 import { getModelVariant } from '@/constants/models'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  getVideoModelCapabilities,
+  snapVideoDuration,
+  snapVideoResolution,
+} from '@/constants/video-model-capabilities'
 import { resolveVideoModelId } from '@/constants/video-node-modes'
 import type { VideoResolution } from '@/constants/video-options'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
@@ -142,25 +147,40 @@ export function planV4Generation(
         ? { ownPrompt: overrides.prompt ?? data.prompt }
         : {}),
     })
+    const sendModelId =
+      resolveVideoSendModelId(data.model, payload) ?? base.modelId
+    const capabilities = getVideoModelCapabilities(sendModelId)
+    const requestedDuration = parseDuration(data.params?.duration)
+    const duration =
+      typeof requestedDuration === 'number'
+        ? snapVideoDuration(sendModelId, requestedDuration)
+        : requestedDuration
+    const requestedResolution = data.params?.resolution as
+      | VideoResolution
+      | undefined
+    const resolution = requestedResolution
+      ? snapVideoResolution(sendModelId, requestedResolution)
+      : requestedResolution
+    const requestedRatio = data.params?.aspectRatio as AspectRatio | undefined
+    const aspectRatio =
+      requestedRatio &&
+      capabilities.supportedAspectRatios &&
+      !capabilities.supportedAspectRatios.includes(requestedRatio)
+        ? capabilities.supportedAspectRatios[0]
+        : requestedRatio
     return {
       ...base,
       // ⭐ **端点按推出来的模式选**（spec §5「不设模式页签」）：挂了参考项就走
       // 该型号的参考变体（`SEEDANCE_*_REFERENCE`），只有首 / 尾帧就走关键帧那条。
       // 解析不到（这个型号在这条渠道上没有参考变体）时**保留原选择**，⛔ 不回退
       // 到别的端点 —— 回退意味着用户以为在用全能参考、实际发的是首帧请求。
-      modelId: resolveVideoSendModelId(data.model, payload) ?? base.modelId,
+      modelId: sendModelId,
       kind: 'video',
       prompt: payload.prompt,
       ...(data.negativePrompt ? { negativePrompt: data.negativePrompt } : {}),
-      ...(data.params?.aspectRatio
-        ? { aspectRatio: data.params.aspectRatio as AspectRatio }
-        : {}),
-      ...(data.params?.resolution
-        ? { resolution: data.params.resolution as VideoResolution }
-        : {}),
-      ...(parseDuration(data.params?.duration) === undefined
-        ? {}
-        : { duration: parseDuration(data.params?.duration) }),
+      ...(aspectRatio ? { aspectRatio } : {}),
+      ...(resolution ? { resolution } : {}),
+      ...(duration === undefined ? {} : { duration }),
       ...(data.params?.seed === undefined ? {} : { seed: data.params.seed }),
       ...(data.params?.generateAudio === undefined
         ? {}

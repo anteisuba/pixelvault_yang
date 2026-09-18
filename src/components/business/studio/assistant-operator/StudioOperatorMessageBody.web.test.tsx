@@ -55,8 +55,7 @@ describe('StudioOperatorMessageBody', () => {
   })
 
   /**
-   * ⚠ 逐字揭示删掉之后（v2 拍板 13）`streaming` 只剩一种含义：**还没有字**。
-   * 有字就一定是定稿，长回话照折不误。
+   * `streaming` 两种形态：空正文是占位脉冲；有字是收尾轮还在写，先不折叠。
    */
   it('⭐ 空正文 + streaming = 三点占位脉冲，⛔ 不是一行空白', () => {
     renderBody({ text: '', streaming: true })
@@ -64,12 +63,12 @@ describe('StudioOperatorMessageBody', () => {
     expect(screen.queryByTestId('operator-message-text')).toBeNull()
   })
 
-  it('⭐ 有字就是定稿 —— streaming 旗不再挡住折叠', () => {
+  it('⭐ 还在写的长正文不折叠，免得半截 markdown 被切成首句', () => {
     renderBody({ text: LONG, streaming: true })
-    expect(screen.getByTestId('operator-message-text').dataset.collapsed).toBe(
-      'true',
-    )
-    expect(screen.getByTestId('operator-message-expand')).toBeTruthy()
+    expect(
+      screen.getByTestId('operator-message-text').dataset.collapsed,
+    ).toBeUndefined()
+    expect(screen.queryByTestId('operator-message-expand')).toBeNull()
   })
 
   it('⭐ `**粗体**` 出 <strong>，星号不落在屏幕上', () => {

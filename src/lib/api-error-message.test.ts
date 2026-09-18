@@ -1,4 +1,8 @@
 import { describe, it, expect } from 'vitest'
+import { createTranslator } from 'next-intl'
+import zhMessages from '@/messages/zh.json'
+import enMessages from '@/messages/en.json'
+import jaMessages from '@/messages/ja.json'
 
 import {
   getApiErrorMessage,
@@ -14,6 +18,7 @@ function makeTranslator(known: Record<string, string>): Translator {
 }
 
 const translator = makeTranslator({
+  'validation.invalidInput': 'Please check the generation settings',
   'provider.timeout': 'Provider timed out (i18n)',
   'generation.provider_timeout': 'AI provider took too long',
   'generation.provider_overloaded': 'Model at capacity',
@@ -96,17 +101,17 @@ describe('getGenerationErrorMessage', () => {
     ).toBe('AI provider took too long')
   })
 
-  it('falls back to the raw error for an unclassifiable message', () => {
+  it('uses a user-facing fallback for an unclassifiable provider log', () => {
     expect(
       getGenerationErrorMessage(
         translator,
         { error: 'totally unexpected xyz' },
         'fallback',
       ),
-    ).toBe('totally unexpected xyz')
+    ).toBe('fallback')
   })
 
-  it('surfaces the specific reason for a validation error (by errorCode)', () => {
+  it('localizes a validation error (by errorCode)', () => {
     expect(
       getGenerationErrorMessage(
         translator,
@@ -118,12 +123,10 @@ describe('getGenerationErrorMessage', () => {
         },
         'fallback',
       ),
-    ).toBe(
-      'referenceAudioUrl and referenceText must both be provided or both omitted',
-    )
+    ).toBe('Please check the generation settings')
   })
 
-  it('surfaces the specific reason for a validation error (by i18nKey only)', () => {
+  it('localizes a validation error (by i18nKey only)', () => {
     expect(
       getGenerationErrorMessage(
         translator,
@@ -133,7 +136,7 @@ describe('getGenerationErrorMessage', () => {
         },
         'fallback',
       ),
-    ).toBe('Text is required')
+    ).toBe('Please check the generation settings')
   })
 
   it('falls back to fallbackMessage for an empty payload', () => {
@@ -142,23 +145,18 @@ describe('getGenerationErrorMessage', () => {
     )
   })
 
-  it('falls back to the raw error when the classification key is untranslated', () => {
+  it('uses a user-facing fallback when the classification key is untranslated', () => {
     expect(
       getGenerationErrorMessage(
         translator,
         { errorCode: 'FREE_LIMIT_EXCEEDED', error: 'limit reached' },
         'fallback',
       ),
-    ).toBe('limit reached')
+    ).toBe('fallback')
   })
 
-  /**
-   * 台账 H（owner 2026-08-29 真机）：同一批角色设定图，「16岁女生」通过、
-   * 「男子高中生，17岁」被 Seedream 拒 —— 而 UI 只说「内容被服务商安全系统过滤」，
-   * 是哪个词触发的一个字都没有。上游原话是唯一能指向真因的信息。
-   */
-  describe('内容过滤：保留 provider 原话', () => {
-    it('把上游的拒绝理由接在本地化文案后面', () => {
+  describe('provider diagnostics stay out of the user-facing message', () => {
+    it('localizes a safety rejection without appending the provider log', () => {
       expect(
         getGenerationErrorMessage(
           translator,
@@ -168,9 +166,7 @@ describe('getGenerationErrorMessage', () => {
           },
           'fallback',
         ),
-      ).toBe(
-        'Content filtered — Your prompt was blocked by the safety system: minors in suggestive context',
-      )
+      ).toBe('Content filtered')
     })
 
     it('原话与本地化文案相同时不重复拼', () => {
@@ -183,7 +179,7 @@ describe('getGenerationErrorMessage', () => {
       ).toBe('Content filtered')
     })
 
-    it('⚠ 只对内容过滤这么做 —— 别的错误码不附英文技术噪音', () => {
+    it('does not append timeout diagnostics', () => {
       expect(
         getGenerationErrorMessage(
           translator,
@@ -193,4 +189,66 @@ describe('getGenerationErrorMessage', () => {
       ).toBe('AI provider took too long')
     })
   })
+})
+
+it('uses the localized unknown message when classification fails', () => {
+  const t = makeTranslator({
+    'generation.unknown': 'Generation failed. Try again later.',
+  })
+  expect(
+    getGenerationErrorMessage(
+      t,
+      { error: 'TypeError: internal transport xyz' },
+      'fallback',
+    ),
+  ).toBe('Generation failed. Try again later.')
+})
+
+it('preserves an already localized provider-specific reason in run items', () => {
+  const message = 'Please convert the reference image to PNG or JPEG.'
+  const t = Object.assign(
+    makeTranslator({ provider: '', 'generation.unknown': 'Unknown error' }),
+    {
+      raw: () => ({ unsupportedReferenceImage: message }),
+    },
+  )
+  expect(getGenerationErrorMessage(t, { error: message }, 'fallback')).toBe(
+    message,
+  )
+})
+
+describe('generation errors with real translations', () => {
+  for (const [locale, messages] of Object.entries({
+    zh: zhMessages,
+    en: enMessages,
+    ja: jaMessages,
+  })) {
+    it(`${locale}: localizes logs and preserves already translated reasons`, () => {
+      const t = createTranslator({
+        locale: locale as 'zh' | 'en' | 'ja',
+        messages,
+        namespace: 'Errors',
+      }) as unknown as Translator
+      expect(
+        getGenerationErrorMessage(
+          t,
+          { error: 'ETIMEDOUT after 120000ms' },
+          'fallback',
+        ),
+      ).toBe(messages.Errors.generation.provider_timeout)
+      for (const error of [
+        messages.Errors.provider.unsupportedGeminiReferenceImage,
+        messages.Errors.generation.provider_timeout,
+      ]) {
+        expect(getGenerationErrorMessage(t, { error }, 'fallback')).toBe(error)
+      }
+      expect(
+        getGenerationErrorMessage(
+          t,
+          { error: 'TypeError: transport xyz' },
+          'fallback',
+        ),
+      ).toBe(messages.Errors.generation.unknown)
+    })
+  }
 })

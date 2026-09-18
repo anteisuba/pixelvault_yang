@@ -103,7 +103,7 @@ const graph = {
 describe('planV4Generation · 视频', () => {
   const plan = planV4Generation('shot', graph)!
 
-  it('首帧/尾帧/参考/语音各落各的位置，档位原样带过去', () => {
+  it('首帧/尾帧/参考/语音各落各的位置；Seedance 2.5 接受 1080p', () => {
     expect(plan.kind).toBe('video')
     expect(plan.referenceImages).toEqual([
       'https://cdn/first.png',
@@ -143,6 +143,23 @@ describe('planV4Generation · 视频', () => {
       ],
     })!
     expect(keyframeOnly.modelId).toBe('seedance-2.5')
+  })
+
+  it('Seedance 2.5 不接受 3s：吸附到 4s，1080p 原样带过去', () => {
+    const short = node('short', {
+      kind: 'video',
+      subtype: 'shot',
+      prompt: '缓推',
+      model: MODEL,
+      params: { duration: '3', resolution: '1080p', aspectRatio: '9:16' },
+    })
+    const planShort = planV4Generation('short', {
+      nodes: [character, short],
+      edges: [edge('e1', 'char', 'short', NODE_SLOT_IDS.reference)],
+    })!
+    expect(planShort.duration).toBe(4)
+    expect(planShort.resolution).toBe('1080p')
+    expect(planShort.aspectRatio).toBe('9:16')
   })
 
   it('这个型号在这条渠道上没有参考变体 → **保留原选择**，⛔ 不回退到别的端点', () => {

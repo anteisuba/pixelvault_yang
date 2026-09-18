@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   cleanRecommendedPrompt,
   cleanTriggerToken,
+  hasVerifiedLoraTrigger,
   splitAndCleanTrainedWord,
 } from './lora-trigger-clean'
 
@@ -91,5 +92,31 @@ describe('cleanRecommendedPrompt', () => {
     expect(cleanRecommendedPrompt('达妮娅, 1girl, 长发')).toBe(
       '达妮娅, 1girl, 长发',
     )
+  })
+})
+
+describe('hasVerifiedLoraTrigger', () => {
+  it.each([
+    [{ source: 'trained' }, true],
+    [{ source: 'curated' }, true],
+    [{ triggerSource: 'official' }, true],
+    [
+      { source: 'imported', sourceSnapshot: { triggerSource: 'official' } },
+      true,
+    ],
+    [{ triggerSource: 'inferred' }, false],
+    [{ sourceSnapshot: { triggerSource: 'inferred' } }, false],
+    [{ source: 'imported' }, false],
+    [{ sourceSnapshot: null }, false],
+    [{}, false],
+    [
+      {
+        triggerSource: 'inferred',
+        sourceSnapshot: { triggerSource: 'official' },
+      },
+      false,
+    ],
+  ])('只让有来源依据的触发词默认启用：%j', (asset, expected) => {
+    expect(hasVerifiedLoraTrigger(asset)).toBe(expected)
   })
 })

@@ -74,9 +74,10 @@ export const ASSISTANT_OPERATOR_EVENTS = {
   /**
    * 普通对白 —— **正文的唯一来源**（v2 §3.1 / §13.1）。
    *
-   * ⚠ 一段正文只在**定稿**时发这一帧，整段出现（owner 拍板 13：逐字淡入改整段
-   * 出现）。客户端按条目 id **覆盖**，⛔ 不追加 —— 追加正是「计划帧插在中间就
+   * ⚠ 客户端按条目 id **覆盖**，⛔ 不追加 —— 追加正是「计划帧插在中间就
    * 出现两条同样的回复」那条 bug 的形状。
+   * ⚠ 收尾轮可以连发同一 id 的 `partial: true` 前缀帧，让字边生成边出现；
+   * 定稿那一帧不带 `partial`（或 `false`）。工具轮仍然整帧不发旁白。
    */
   message: 'message',
   /**
@@ -388,6 +389,7 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * 合法、助手直接设 1.5 被拒」。
    */
   setLoraWeight: 'set_lora_weight',
+  setLoraParameters: 'set_lora_parameters',
   /**
    * 读用户记下来的**项目规则**（§10，拍板 23）。
    *
@@ -546,6 +548,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+  ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
   ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
   ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
   ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
@@ -668,6 +671,7 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
   ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+  ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
   /**
    * ⚠ 全表唯一一条后果落在**服务端**的改动型工具（其余都是吐一个 op 让客户端应用）。
    * 所以它的 `inverse` 里放的是**库记录 id**（服务端刚写出来的那条），
@@ -816,6 +820,8 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]: ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]: ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
@@ -1522,17 +1528,17 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
    *    摆一条这里永远无解的工具，正是 2026-08-30「三连红而表单没动」那个形状。
    *    比例这颗旋钮因此在本片**够不着**（如实记在任务包里，补它是独立一件：
    *    要么给 LoRA 域一条单字段的比例工具，要么等装配台补上清晰度控件）。
-   * ⛔ **没有 `critique_result`**：看图闭环的归属追踪（`studio-operator-claim`）
-   *    盯的是工作台的 `activeRun`，而装配台走自己那条结果列（`resultHistory`）。
-   *    在闭环接上之前给这条工具，只会让它每次都撞 `noResultToCritique`。
    */
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: [
     ...COMMON_DOMAIN_TOOLS,
+    ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+    ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
     ASSISTANT_OPERATOR_TOOL_IDS.searchLoras,
     ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
     ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
     ASSISTANT_OPERATOR_TOOL_IDS.unmountLora,
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
+    ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
   ],
 }
 
@@ -2336,7 +2342,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]:
     'actually LOOK at a picture and say what worked and what did not. Two ways to get one: pass "targetIds" with the id or the exact address of a picture the creator attached to THIS message (that is them pointing at it), or call it with no target when a run you armed has just come back. You may never invent an address — anything the creator did not reference this turn is refused. If they said "that one" and more than one picture is in play, call it with no target and the app will ask them which. Call it first when a picture is waiting, then fix the form with set_* based on what you saw. On the video bench the target is a CLIP and you are shown three stills from it (first / middle / last) instead of one picture — same tool, same rules.',
   [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]:
-    'SEE the reference images mounted on this workbench: it opens their actual pixels and returns verified visual facts, without assigning creative roles or changing the prompt. This is the entry for any question about what a mounted reference looks like — its art style, its content, its composition, its colours — not only a step before writing the prompt, and ⛔ never answer such a question with "I cannot see these images". For a specific reference pass zero-based imageIndices (e.g. @Image3 -> [2]); omit to inspect all mounted references. Unchanged images reuse visual facts. Call before set_prompt with references; set_prompt separately builds and validates source roles. Answer visual/style questions directly from the facts. Do not use critique_result on sources. On referenceImageUnavailable, identify the exact failed image. On referenceAnalysisFailed, report the supplied failure stage; invalid model output is not evidence that an image is unreadable. Do not ask for re-upload unless image transport actually failed. Do not invent visual facts or retry unchanged within the same turn. A new user request may recheck an earlier failure.',
+    'SEE the reference images mounted on this workbench: it opens their actual pixels and returns verified visual facts, without assigning creative roles or changing the prompt. This is the entry for any question about what a mounted reference looks like — its art style, its content, its composition, its colours — not only a step before writing the prompt, and ⛔ never answer such a question with "I cannot see these images". If the creator @-mentioned images this turn, inspect ONLY those: @Image3 -> imageIndices: [2]. Omitting imageIndices then means those mentioned images, not every mounted reference. Extra unmentioned images are refused. If they mentioned none, omit to inspect all mounted references. Unchanged images reuse visual facts. Call before set_prompt with references; set_prompt separately builds and validates source roles. Answer visual/style questions directly from the facts. Do not use critique_result on sources. On referenceImageUnavailable, identify the exact failed image. On referenceAnalysisFailed, report the supplied failure stage; invalid model output is not evidence that an image is unreadable. Do not ask for re-upload unless image transport actually failed. Do not invent visual facts or retry unchanged within the same turn. A new user request may recheck an earlier failure.',
   /**
    * ⚠ 2026-09-06 放宽了**准入名单**（⛔ 不是放宽了闸）：除了「用户逐字写过的
    * 地址」，本轮 `search_web_images` 真的展示过的候选也算数 —— 用户说「都挂上」
@@ -2354,9 +2360,11 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick]:
     'PUT THE CANDIDATES IN FRONT OF THE CREATOR and let them tick the ones to mount. This MOUNTS NOTHING on its own: the app shows them the list and they decide; it ends your turn. Every candidateId must be one this turn\'s search_loras actually returned. ALWAYS go through this after a search — even when only one candidate came back, even when they named a LoRA themselves. Write "question" as the one line above the list, group the candidates by what they are for when that helps (a short title per group), and mark at most one as recommended. Candidates that cannot be mounted on the selected base go in the list too — the app greys them out and says why; never filter them out, or the creator reads it as "nothing found". Shape: {"action":"plan_lora_pick","question":"…","groups":[{"title":"…","candidateIds":["civitai:…"]}],"recommendedCandidateId":"…"} — every group needs a non-empty "candidateIds" array.',
   [ASSISTANT_OPERATOR_TOOL_IDS.mountLora]:
-    "mount one LoRA from a previous search_loras result onto the assembly bench, with a weight. Takes a candidateId, never a name or a URL. The app files it into the creator's library and mounts it in one go. There is NO limit on how many LoRAs can be stacked — never tell the creator they have to remove one first. If a candidate is marked as not importable, this is refused; say plainly that it can only be opened on its source page.",
+    'LoRA mounting is executed by the client after the creator selects the pick card. Do not call this directly: use plan_lora_pick, then read actual client receipts and the current stack on the next turn. A failed receipt is not a mounted LoRA.',
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountLora]:
     'take one LoRA off the assembly bench. The id comes from the mounted list in the state block — that is a different list from search results. Use it when two mounted LoRAs are fighting over the same thing, and say which one you dropped and why.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters]:
+    'set visible Runner controls: steps, guidanceScale, runnerSeed (decimal string), runnerWidth/runnerHeight (together), runnerSampler, runnerScheduler. Omit unchanged fields; null clears the override (seed becomes random; other controls use workbench defaults). Prefer source recipe values only when reproducing that recipe on a compatible base. Explain deliberate deviations. Never invent source settings or claim unsupported hires/ControlNet settings were applied. This does not generate.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]:
     'change how strongly one already-mounted LoRA applies. The id comes from the mounted list in the state block. Weight is a plain number in the range the state block gives.',
   [ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules]:
@@ -2396,7 +2404,7 @@ export const ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look]:
     'LOOK at something that is already here — the form, a picture, a folder, a clip, a card, the standing rules. It changes nothing and produces facts. The reference images mounted on this workbench are here too: analyze_references opens their actual pixels, so ⛔ never answer a question about one by saying you cannot see it.',
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research]:
-    "GO AND FIND something that is not here yet — on the web, or in the creator's own library. It produces candidates and evidence, and files nothing.",
+    "GO AND FIND something that is not here yet — on the web, or in the creator's own library. It produces candidates and evidence, and files nothing. For a character's official look: verify first, then find_images, then read_url — do not start with a single web extract.",
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask]:
     'STOP AND ASK the creator to settle one thing you genuinely cannot settle yourself. It ends your turn: the app shows one question and waits for their tap. Leave "action" out for a plain question; the one "action" listed below offers them something to keep instead of asking a question — and that is where every standing SETTING goes (what a character looks like or wears, a fixed look, brand colours), while a standing way of WORKING goes to apply/add_project_rule.',
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply]:

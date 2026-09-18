@@ -37,6 +37,7 @@ export function deriveRunnerCheckpointFilename(modelVersionId: number): string {
 
 export async function prepareRunnerCheckpoint(ref: {
   checkpointVersionId?: number | null
+  checkpointHash?: string | null
   checkpointName?: string | null
   /** LoRA 的 baseModel（权威架构信号）——无精确 checkpoint 时用它判 DiT/T2/T3。 */
   loraBaseModel?: string | null
@@ -44,6 +45,7 @@ export async function prepareRunnerCheckpoint(ref: {
   const fidelity = await determineRunnerCheckpointFidelity(
     {
       checkpointVersionId: ref.checkpointVersionId,
+      checkpointHash: ref.checkpointHash,
       checkpointName: ref.checkpointName,
       loraBaseModel: ref.loraBaseModel,
     },

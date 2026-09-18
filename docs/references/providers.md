@@ -213,6 +213,14 @@ adapter / Worker 抛错
 - Date: 2026-07-10 · Method: registry（**当时** 10 adapter，名册已被上面 2026-08-24 条目取代）/ types 契约 / 错误码表与参考图分类正则读源码核验；BYOK 六步与 worker 边界沿用 2026-06-03 审计口径（当时对照过官方文档）。
 - **payload 字段级事实一律以改动当时的官方文档为准**——本文件不承诺字段级新鲜度。
 
+## NovelAI V5 character composition (verified 2026-09-14)
+
+- Image 内按 V5 Full / Curated 展开角色控件，默认普通生成；不属于 LoRA 权重。应用参数为 `advancedParams.novelAiLayout`：`positioning` 是 auto/manual，`characters` 包含独立 prompt、negativePrompt 和 0–1 的 position.x/y，最多 22 人。非 V5 请求拒绝此配置；多模型生成只发给支持模型。
+- Worker 将角色顺序映射到 `v4_prompt.caption.char_captions` 与 `v4_negative_prompt.caption.char_captions`，每项为 `char_caption` 与 `centers: [{x,y}]`。仅 manual 开启 `use_coords`，`use_order=true`；无角色保持空数组。生成快照、Image 草稿及图库复用传递此配置，图库仍需选择对应模型，长参数沿用 URL 回填存在长度局限。
+- 依据：[官方多人文档](https://docs.novelai.net/en/image/multiplecharacters/)、[V5 模型文档](https://docs.novelai.net/en/image/models/)。公开 Swagger 不含完整 V5 字段；映射补核官方 image 页所载 `2952-0b37f4043b37a3af.js` 客户端 serializer。客户端是实现证据，不是稳定 API 承诺。
+- V5 支持自然语言；文字使用末尾 `Text:`，质量标签中的 `no text` 需要协调。现有增强器只输出 NovelAI 标签的规则尚待修正。透明背景属于提示词标签，不沿用 OpenAI `background` 字段。文字页和模型页对 Full 750 / Curated 374 的单位分别写 characters / tokens，不据此硬编码字数限制。
+- [Precise Reference 文档](https://docs.novelai.net/en/image/precisereference/)当前针对 V4.5；[V5 发布公告](https://journal.novelai.net/image-generation-novelai-diffusion-v5-is-here-c2df7c6b8d2d/)中的 Vibe / Precise / Curated inpaint 发布状态不能替代当前 V5 支持证据。Full inpaint、专属文字／透明／质量控件和助手角色结构仍未接入。
+
 ## 图片专属能力核验（2026-09-18，进度表 61）
 
 第 11 项把工作台「专属 chip 行」改成只从 `provider-capabilities.ts` 派生后，设计画板上四家模型的 9 颗专属 chip 逐颗对照一手 schema（OpenAI `/images/edits` 参考、Google image-generation 文档、fal OpenAPI、火山 Ark 图片生成 API）：

@@ -131,6 +131,20 @@ beforeEach(() => {
 })
 
 describe('searchLoraCandidates — 两源归一成同一个形状', () => {
+  it.each(['official', 'inferred'] as const)(
+    'Civitai 的 %s 触发词来源进入实际导入快照',
+    async (triggerSource) => {
+      mockListCivitaiLoras.mockResolvedValue({
+        items: [civitaiItem({ triggerSource })],
+      })
+      const { candidates } = await searchLoraCandidates(INPUT)
+      expect(candidates[0]?.importPayload?.sourceSnapshot?.triggerSource).toBe(
+        triggerSource,
+      )
+      expect(candidates[0]?.triggerWords).toEqual(['changli', 'changli casual'])
+    },
+  )
+
   it('两个源的候选带同一组键，「不知道」一律是 null', async () => {
     mockListCivitaiLoras.mockResolvedValue({ items: [civitaiItem()] })
     mockSearchHuggingFaceLoras.mockResolvedValue({ items: [hfItem()] })

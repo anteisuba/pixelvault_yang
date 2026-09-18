@@ -1,7 +1,13 @@
 import unittest
+import base64
+import hashlib
+import io
+import json
+from PIL import Image, PngImagePlugin
 
 from runner_payload import (
     UINT64_MAX,
+    attach_model_evidence,
     build_input_image_specs,
     normalize_workflow_seeds,
     safe_basename,
@@ -95,6 +101,50 @@ class SafeBasenameTest(unittest.TestCase):
         for name in ("a/b.png", "a\\b.png", "../b.png", "", None):
             with self.assertRaises(ValueError):
                 safe_basename(name)
+
+
+class AttachModelEvidenceTest(unittest.TestCase):
+    workflow = {'save': {'class_type': 'PixelVaultSaveImage'}}
+
+    def png_output(self, evidence=None):
+        stream = io.BytesIO()
+        info = PngImagePlugin.PngInfo()
+        if evidence is not None:
+            info.add_text('pixelvaultExecution', json.dumps(evidence))
+        Image.new('RGB', (1, 1)).save(stream, format='PNG', pnginfo=info)
+        raw = stream.getvalue()
+        return {'images': [{'data': base64.b64encode(raw).decode()}]}, raw
+
+    def test_extracts_png_evidence_and_binds_exact_output_bytes(self):
+        evidence = {'version': 1, 'evidence': 'loader-output', 'models': [{'kind': 'checkpoint', 'filename': 'actual.st', 'sha256': 'a' * 64, 'sizeBytes': 42}]}
+        output, raw = self.png_output(evidence)
+        workflow = {**self.workflow, 'ckpt': {'class_type': 'PixelVaultCheckpointLoader', 'inputs': {'ckpt_name': 'request-name-is-not-evidence.st'}}}
+        result = attach_model_evidence(output, workflow)
+        self.assertEqual(result['runnerExecution'], {**evidence, 'imageSha256': hashlib.sha256(raw).hexdigest()})
+        self.assertNotIn('runnerExecution', output)
+
+    def test_missing_png_metadata_fails(self):
+        output, _ = self.png_output()
+        with self.assertRaises((KeyError, ValueError)):
+            attach_model_evidence(output, self.workflow)
+
+    def test_empty_models_and_wrong_evidence_version_fail(self):
+        for evidence in ({'version': 1, 'evidence': 'loader-output', 'models': []}, {'version': 2, 'evidence': 'loader-output', 'models': [{}]}):
+            with self.subTest(evidence=evidence), self.assertRaises(ValueError):
+                attach_model_evidence(self.png_output(evidence)[0], self.workflow)
+
+    def test_missing_image_fails(self):
+        with self.assertRaises(ValueError):
+            attach_model_evidence({'images': []}, self.workflow)
+
+    def test_plain_anima_workflow_does_not_invent_evidence(self):
+        output = {'images': [{'data': 'not-needed'}]}
+        self.assertIs(attach_model_evidence(output, {'save': {'class_type': 'SaveImage'}, 'unet': {'class_type': 'UNETLoader'}}), output)
+        self.assertNotIn('runnerExecution', output)
+
+    def test_failed_handler_preserves_original_error(self):
+        output = {'error': 'execution failed'}
+        self.assertIs(attach_model_evidence(output, self.workflow), output)
 
 
 if __name__ == "__main__":

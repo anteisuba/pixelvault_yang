@@ -116,11 +116,13 @@ export function StudioWorkspaceUI() {
     () => ({
       prompt: state.prompt,
       negativePrompt: state.advancedParams.negativePrompt ?? '',
+      novelAiLayout: state.advancedParams.novelAiLayout,
       referenceImages: imageUpload.referenceEntries.map((entry) => entry.url),
     }),
     [
       state.prompt,
       state.advancedParams.negativePrompt,
+      state.advancedParams.novelAiLayout,
       imageUpload.referenceEntries,
     ],
   )
@@ -134,6 +136,7 @@ export function StudioWorkspaceUI() {
         payload: {
           ...state.advancedParams,
           negativePrompt: saved.negativePrompt,
+          novelAiLayout: saved.novelAiLayout,
         },
       })
     },

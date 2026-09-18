@@ -673,8 +673,7 @@ describe('listCivitaiLoras', () => {
     expect(item?.recommendedPromptAlternates).toHaveLength(1)
     expect(item?.recommendedPromptAlternates[0]?.label).toBe('costume2')
     expect(item?.recommendedPromptAlternates[0]?.prompt).toContain('c2')
-    // Author wrote the prompts in description so this counts as official.
-    expect(item?.triggerSource).toBe('official')
+    expect(item?.triggerSource).toBe('inferred')
   })
 
   it('rewrites Civitai cover URLs to sized transforms and keeps the original for the lightbox', async () => {
@@ -2646,6 +2645,136 @@ describe('resolveCivitaiModelPageUrlByVersion', () => {
 })
 
 describe('mineCivitaiUserPrompts', () => {
+  it.each([{ width: 672, height: 984 }, { 'Original Size': '672x984' }])(
+    'preserves Sue source generation dimensions and hash with %j',
+    async (dimensions) => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({
+          id: 3139260,
+          name: 'ILLU',
+          images: [
+            {
+              url: 'https://image.civitai.com/sue-137001090.jpeg',
+              width: 968,
+              height: 1424,
+              nsfwLevel: 2,
+              meta: {
+                ...dimensions,
+                prompt:
+                  'official style, <lora:detailed hand focus style illustriousXL v1.1:0.8>, <lora:EnchantingEyesIllustrious:0.8>, <lora:SueV1-Nuclear1811-IL:0.9>, Sue, cyan eyes, white background',
+                Model: 'rinFlanimeIllustrious_v40',
+                'Model hash': '29d5281e0a',
+                steps: 25,
+                cfgScale: 7,
+                sampler: 'Euler a',
+                'Hires upscale': '1.45',
+                'Hires upscaler': 'Latent',
+                'Denoising strength': '0.45',
+                'Hires steps': '0',
+                'Hires CFG Scale': '7',
+                resources: [
+                  {
+                    hash: '0x3da78937ac',
+                    name: 'EnchantingEyesIllustrious',
+                    type: 'lora',
+                    weight: 0.8,
+                  },
+                  {
+                    hash: '7ceb528b2184',
+                    name: 'SueV1-Nuclear1811-IL',
+                    type: 'lora',
+                    weight: 0.9,
+                  },
+                  {
+                    hash: 'a53740627a72',
+                    name: 'detailed hand focus style illustriousXL v1.1',
+                    type: 'lora',
+                    unmatched: true,
+                  },
+                  {
+                    hash: '29d5281e0a',
+                    name: 'rinFlanimeIllustrious_v40',
+                    type: 'model',
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      )
+      const result = await mineCivitaiUserPrompts({
+        modelId: 2786243,
+        modelVersionId: 3139260,
+        fileHashAutoV3: '7ceb528b2184',
+      })
+      expect(result.recipes?.[0]).toMatchObject({
+        width: 968,
+        height: 1424,
+        baseWidth: 672,
+        baseHeight: 984,
+        checkpointHash: '29d5281e0a',
+        loraWeight: 0.9,
+        hiresUpscale: 1.45,
+        hiresUpscaler: 'Latent',
+        denoisingStrength: 0.45,
+        hiresSteps: 0,
+        hiresCfgScale: 7,
+        extraLoras: expect.arrayContaining([
+          {
+            name: 'detailed hand focus style illustriousXL v1.1',
+            hash: 'a53740627a72',
+            weight: 0.8,
+          },
+        ]),
+      })
+      expect(result.recipes?.[0]?.extraLoras).toHaveLength(2)
+    },
+  )
+
+  it.each([0, 0.35])(
+    'keeps explicit resource weight %s instead of conflicting prompt-tag weight',
+    async (weight) => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({
+          id: 3139260,
+          name: 'ILLU',
+          images: [
+            {
+              url: 'https://image.civitai.com/sue-weight.jpeg',
+              nsfwLevel: 1,
+              meta: {
+                prompt:
+                  '<lora:SueV1-Nuclear1811-IL:0.9>, Sue, <lora:DetailedHands:0.8>',
+                resources: [
+                  {
+                    name: 'SueV1-Nuclear1811-IL',
+                    hash: '7ceb528b2184',
+                    type: 'lora',
+                    weight: 0.9,
+                  },
+                  {
+                    name: 'DetailedHands',
+                    hash: 'a53740627a72',
+                    type: 'lora',
+                    weight,
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      )
+      const result = await mineCivitaiUserPrompts({
+        modelId: 2786243,
+        modelVersionId: 3139260,
+        fileHashAutoV3: '7ceb528b2184',
+      })
+      expect(result.recipes?.[0]?.extraLoras).toEqual([
+        { name: 'DetailedHands', hash: 'a53740627a72', weight },
+      ])
+    },
+  )
+
   it('prefers model-version source image prompts over the community images endpoint', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse({
@@ -3505,7 +3634,9 @@ describe('resolveCivitaiCheckpointByReference', () => {
   it('resolves a checkpoint version to its download target', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse(CKPT_PAYLOAD))
 
-    const res = await resolveCivitaiCheckpointByReference(597138)
+    const res = await resolveCivitaiCheckpointByReference({
+      modelVersionId: 597138,
+    })
 
     const requestUrl = new URL(String(mockFetch.mock.calls[0]?.[0]))
     expect(requestUrl.pathname).toBe('/api/v1/model-versions/597138')
@@ -3517,6 +3648,34 @@ describe('resolveCivitaiCheckpointByReference', () => {
       sizeKB: 6944000,
       fileHashAutoV3: 'abcdef012345',
     })
+  })
+
+  it('resolves the source checkpoint hash through the by-hash endpoint', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(CKPT_PAYLOAD))
+    const result = await resolveCivitaiCheckpointByReference({
+      hash: '29d5281e0a',
+    })
+    expect(new URL(String(mockFetch.mock.calls[0]?.[0])).pathname).toBe(
+      '/api/v1/model-versions/by-hash/29d5281e0a',
+    )
+    expect(result?.modelVersionId).toBe(597138)
+  })
+
+  it.each(['LORA', 'TextualInversion', undefined])(
+    'rejects non-checkpoint hash payload type %s',
+    async (type) => {
+      mockFetch.mockResolvedValueOnce(
+        jsonResponse({ ...CKPT_PAYLOAD, model: { name: 'Wrong asset', type } }),
+      )
+      expect(
+        await resolveCivitaiCheckpointByReference({ hash: '29d5281e0a' }),
+      ).toBeNull()
+    },
+  )
+
+  it('does not fetch without a checkpoint locator', async () => {
+    expect(await resolveCivitaiCheckpointByReference({})).toBeNull()
+    expect(mockFetch).not.toHaveBeenCalled()
   })
 
   it('returns null when the version is a LoRA, not a checkpoint', async () => {
@@ -3534,7 +3693,9 @@ describe('resolveCivitaiCheckpointByReference', () => {
         ],
       }),
     )
-    expect(await resolveCivitaiCheckpointByReference(135867)).toBeNull()
+    expect(
+      await resolveCivitaiCheckpointByReference({ modelVersionId: 135867 }),
+    ).toBeNull()
   })
 
   it('returns null when the checkpoint has no downloadable file', async () => {
@@ -3547,7 +3708,9 @@ describe('resolveCivitaiCheckpointByReference', () => {
         files: [],
       }),
     )
-    expect(await resolveCivitaiCheckpointByReference(42)).toBeNull()
+    expect(
+      await resolveCivitaiCheckpointByReference({ modelVersionId: 42 }),
+    ).toBeNull()
   })
 })
 

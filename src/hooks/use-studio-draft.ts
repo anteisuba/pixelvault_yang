@@ -2,11 +2,17 @@
 
 import { useEffect, useRef } from 'react'
 
+import {
+  NovelAiCharacterLayoutSchema,
+  type NovelAiCharacterLayout,
+} from '@/types/novelai'
+
 import { logger } from '@/lib/logger'
 
 export interface StudioDraft {
   prompt: string
   negativePrompt: string
+  novelAiLayout?: NovelAiCharacterLayout
   referenceImages: string[]
 }
 
@@ -63,7 +69,13 @@ export function useStudioDraft({
         )
       )
         return
-      onRestore(value as StudioDraft)
+      const layout = NovelAiCharacterLayoutSchema.safeParse(
+        'novelAiLayout' in value ? value.novelAiLayout : undefined,
+      )
+      onRestore({
+        ...value,
+        novelAiLayout: layout.success ? layout.data : undefined,
+      } as StudioDraft)
     } catch (error) {
       logger.warn('Studio draft restore failed', {
         error: error instanceof Error ? error.message : String(error),

@@ -1,3 +1,4 @@
+import { supportsNovelAiCharacters } from '@/constants/novelai'
 import 'server-only'
 
 import {
@@ -362,6 +363,18 @@ export async function resolveImageRouteAndValidate(
     )
   }
 
+  for (const character of input.advancedParams?.novelAiLayout?.characters ??
+    []) {
+    const check = validatePromptFn(character.prompt)
+    if (!check.valid) {
+      throw new GenerateImageServiceError(
+        'PROVIDER_ERROR',
+        check.reason ?? 'Invalid character prompt',
+        400,
+      )
+    }
+  }
+
   // Capability routing (HANDOFF §4.2): a hosted model that can't load the
   // attached LoRA (known via the runner allowlist) transparently upgrades to
   // its runner-backed counterpart instead of failing with the hosted
@@ -376,6 +389,17 @@ export async function resolveImageRouteAndValidate(
     ...input,
     modelId: effectiveModelId,
   })
+
+  if (
+    input.advancedParams?.novelAiLayout &&
+    !supportsNovelAiCharacters(effectiveModelId)
+  ) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'Character layout requires a NovelAI V5 model',
+      400,
+    )
+  }
 
   const builtInModel = getModelByIdFn(effectiveModelId)
   const refCount =

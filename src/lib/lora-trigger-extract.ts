@@ -144,7 +144,7 @@ export interface ExtractInput {
  *   2. description 含 `<pre><code>` outfit prompts → recommendedPrompt 用第
  *      一个 block 整段，后续 blocks 进 recommendedPromptAlternates；trigger
  *      仍从 modelName 推断（outfit prompt 里挑不出单一激活词，整段才能用）。
- *      source = 'official'（来自作者写的 description）。
+ *      source = 'inferred'（仅推荐 prompt 来自作者，短触发词仍是猜测）。
  *   3. trainedWords 全空 + 无 description blocks → 从 modelName 推断，
  *      source = 'inferred'。
  *   4. 都失败 → 用 modelName 的前 60 字符兜底。
@@ -200,9 +200,8 @@ export function extractCivitaiTrigger({
       alternates: [],
       recommendedPrompt: descBlocks[0]?.prompt ?? null,
       recommendedPromptAlternates: descBlocks.slice(1),
-      // 来自作者写的 description，仍算 official 字段来源。它能帮助激活
-      // LoRA，但不等同于 Civitai 来源图 meta prompt。
-      source: 'official',
+
+      source: 'inferred',
     }
   }
 

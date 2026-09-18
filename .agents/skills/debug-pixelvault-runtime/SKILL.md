@@ -1,6 +1,6 @@
 ---
 name: debug-pixelvault-runtime
-description: PixelVault-specific runtime triage workflow for local errors, Vercel build/deploy failures, API 500s, generation breakages, missing next-intl messages, Prisma/Clerk/R2 issues, hydration warnings, slow pages, and logs pasted by the user. Use when Codex is asked to investigate, diagnose, explain, or fix a failing PixelVault behavior.
+description: 调查或修复 PixelVault 运行、构建、部署及生成链路故障时，定位日志与相关模块。
 ---
 
 # Debug PixelVault Runtime

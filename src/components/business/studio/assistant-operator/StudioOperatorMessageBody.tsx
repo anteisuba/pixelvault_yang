@@ -16,8 +16,8 @@
  * ⚠ 折叠**先按纯文本切，切完再各自渲染**：首句是在原文上取的（`firstOperatorSentence`
  * 认句号，见其头注），⛔ 不在渲染后的 DOM 上截 —— 那样切到一半的加粗会漏出星号。
  *
- * ⚠ 正文**整段一次到齐**（v2 拍板 13）：⛔ 没有逐字揭示，也就没有「流着的时候
- * 不折」那条例外——`streaming` 只剩「还没有字」这一种含义（占位行）。
+ * ⚠ `streaming` 且还没有字 = 占位行。`streaming` 且已有字 = 收尾轮还在写，
+ * 先不折叠，免得半截 markdown 被切成首句。
  * ⚠ 折叠开合是**局部 state**：它是一次性的阅读动作，不该占 store 的一格 ——
  * 而收放法则（拍板 7）把面板卸载一次之后重新收起，恰恰是对的（那时用户是在
  * 重新读这条会话）。
@@ -70,16 +70,14 @@ export function StudioOperatorCollapsibleText({
   statusText?: string
   /**
    * 这一条**还没有字**（发送即回显的占位行）—— 空正文时画三点脉冲。
-   *
-   * ⚠ 有字之后它不再改变任何东西：正文整段一次到齐（v2 拍板 13），⛔ 没有
-   * 「写到一半」这种中间态，也就没有「流着的时候不折」这条例外了。
+   * 有字且仍 streaming = 收尾轮还在写，不折叠。
    */
   streaming?: boolean
 }) {
   const t = useTranslations('StudioOperator')
   const [expanded, setExpanded] = useState(false)
 
-  const collapsible = shouldCollapseOperatorText(text)
+  const collapsible = !streaming && shouldCollapseOperatorText(text)
   const collapsed = collapsible && !expanded
 
   /**

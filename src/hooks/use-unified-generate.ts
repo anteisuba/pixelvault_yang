@@ -1,5 +1,7 @@
 'use client'
 
+import { supportsNovelAiCharacters } from '@/constants/novelai'
+
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -1155,6 +1157,15 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
               ...input,
               modelId: item.modelId,
               apiKeyId: item.apiKeyId,
+              ...(input.advancedParams?.novelAiLayout &&
+              !supportsNovelAiCharacters(item.modelId)
+                ? {
+                    advancedParams: {
+                      ...input.advancedParams,
+                      novelAiLayout: undefined,
+                    },
+                  }
+                : {}),
               ...(item.seed === undefined ? {} : { seed: item.seed }),
               runGroupId,
               runGroupType: 'compare',
@@ -1534,7 +1545,18 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       if (input.mode === 'image' && input.image) {
         // Image Studio no longer consumes LoRA — the LoRA domain owns its own
         // generation surface and injects loras there (see lora-domain-split).
-        const image = input.image
+        const image =
+          input.image.advancedParams?.novelAiLayout &&
+          !input.compareModels?.length &&
+          !supportsNovelAiCharacters(input.image.modelId)
+            ? {
+                ...input.image,
+                advancedParams: {
+                  ...input.image.advancedParams,
+                  novelAiLayout: undefined,
+                },
+              }
+            : input.image
 
         const count = input.variantCount ?? 1
         // 有额外模型 → 走矩阵（模型 × 张数）。单模型多张仍走 generateVariants，

@@ -1,6 +1,6 @@
 ---
 name: codebase-design
-description: Shared vocabulary for designing deep modules. Use when the user wants to design or improve a module's interface, find deepening opportunities, decide where a seam goes, make code more testable or AI-navigable, or when another skill needs the deep-module vocabulary.
+description: 设计或评审模块接口与边界时，提供深模块和可测试性判断方法。
 ---
 
 项目范围、授权、验证与文档位置遵循 `docs/WORKFLOW.md`；下文提供方法，不新增审批门。

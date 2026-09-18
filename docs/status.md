@@ -3,6 +3,8 @@
 - `/settings` 整页与入口收口（2026-09-18，进度表 13 + 14，设计画板 E3 完成、E4 起步）：新增 `/settings` 与 `/settings/[section]` 四分区（key / 用量 / 偏好 / 助手），桌面 200px 导航 + 720px 内容、手机停一级列表；新增 `GET /api/usage/by-model`（只数次数，单价与花费留客户端）。key 管理收成按 provider 一行的四态列表，配置与换 key 都开 `QuickSetupDialog`。侧栏账户区、`ApiKeyDrawerTrigger`、画布 `ShellApiKeys`、`StudioApiRoutesSection` 与 `ApiKeyManager` 一族同轮整删，三语里跟着走的键一并清掉；侧栏收成「顶端头像 + 最底设置行」，手机抽屉补「我」区与设置行，首页浮岛已登录态换成齿轮 + 头像，3D 工作台最后两处缺 key 死控件改为可点开弹层。行为见 `references/pages/settings.md`、`app-shell.md` §8、`node-canvas-v2.md` §7、`home.md`。未提交／发布。
   待办：① icon 桶为解 RSC 下 `createContext` 崩溃加了 `'use client'`（`aca8b753`），与 `@phosphor-icons/react/dist/ssr` 这个服务端出口之间怎么取舍未定——整桶标 client 会把引用它的服务端组件一起拉下水；② 助手记忆区只有 UI 与空态，行为等进度表 56 定数据形状；③ 真机 1440 / 820 / 375 **已登录态**目检待 owner。
 
+- 首页视差（2026-09-16）：按 owner 最新反馈，五个分类全部相邻模型切换与画布三步统一改为上下纵向视差，向下滚动时当前内容上移、下一项从下方进入；画布展示区裁切防止内容越过步骤导航。手机保留整步操作，减少动态效果禁用连续视差与画布成片自动播放。方向调整后首页 92 项定向测试、目标 lint 通过，桌面中间态与 390px 手机边界核对；此前全量类型检查被 `assistant-operator.service.test.ts` 的 4 处类型错误阻挡，本轮未重跑。未提交／发布。行为见 `references/pages/home.md`。
+
 - 画布助手展开宽与粘贴卡比例（2026-09-15）：展开两列从 `min(64rem, 72vw)` 收到 720（可拖 560–800），对话态仍 380（320–520）。粘贴/上传回填 `mediaWidth`/`mediaHeight`；已有图缺尺寸时按 `naturalWidth`/`naturalHeight` 补进当前版。收起卡按原图比例，宽钳 320–480，缺尺寸才退 16:9。未提交／发布。
 
 - Seedance 2.5 画布时长 3s（2026-09-15）：官方档位 [4,30]，存量 3s 会 400「输入无效」。发送与 chip 现吸附到最近合法档（3→4），1080p 吸附到 720p。定向 77 项通过。未提交／发布。

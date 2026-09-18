@@ -24,6 +24,8 @@ RunPod 网络卷（属性有客户端缓存）——我们写完文件那一刻�
 # 名册与 workers/execution/src/models/runner/{workflow,anima-workflow}-builder.ts
 # 造的节点一一对应：漏一个 = 那类权重回到「首次使用必失败一次」。
 MODEL_FILE_FIELDS = {
+    "PixelVaultCheckpointLoader": "ckpt_name",
+    "PixelVaultLoraLoader": "lora_name",
     "CheckpointLoaderSimple": "ckpt_name",
     "UNETLoader": "unet_name",
     "CLIPLoader": "clip_name",

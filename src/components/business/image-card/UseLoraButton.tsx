@@ -80,6 +80,7 @@ export function UseLoraButton({
           prompt,
           seed,
           negativePrompt,
+          novelAiLayout,
           aspectRatio,
         } = result.data
 
@@ -99,6 +100,8 @@ export function UseLoraButton({
         if (prompt) params.set('prompt', prompt)
         if (seed !== null) params.set('seed', String(seed))
         if (negativePrompt) params.set('negativePrompt', negativePrompt)
+        if (novelAiLayout)
+          params.set('novelAiLayout', JSON.stringify(novelAiLayout))
         if (aspectRatio) params.set('aspectRatio', aspectRatio)
 
         router.push(

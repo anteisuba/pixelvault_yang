@@ -589,6 +589,14 @@ export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   // sized for a non-thinking adapter (the 1024 default) could be spent
   // entirely on reasoning and truncate the reply. It is a cap, not spend.
   ANTHROPIC: 16_000,
+  // grok-4.6 reasoning cannot be disabled and defaults to high. Official
+  // Chat Completions uses `max_completion_tokens` for *visible* output
+  // only (default 128k when omitted). Deprecated `max_tokens` must not be
+  // sent — if still honored as a total cap, a 1024-sized budget is spent
+  // on reasoning and the assistant never emits a reply. This floor is the
+  // explicit-budget default; official "low" effort is the latency-sensitive
+  // agentic / tool-calling tier.
+  XAI: 16_000,
 } as const
 
 /**
@@ -612,6 +620,12 @@ export const LLM_TEXT_TIMEOUTS_MS = {
    * 而那正是流式要解决的问题。
    */
   STREAM_HEADERS: 30_000,
+  /**
+   * grok-4.6 流式在推理结束前不发第一个 SSE 事件。官方文档写明推理模型
+   * 必须加长超时，否则会「prematurely closing connection」。30s 首包窗口
+   * 对 default-high reasoning 不够；头到手之后仍走普通流、不再计时。
+   */
+  XAI_STREAM_HEADERS: 90_000,
 } as const
 
 export const RUNWAY_API = {

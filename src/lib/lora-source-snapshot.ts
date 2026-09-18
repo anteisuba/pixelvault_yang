@@ -99,9 +99,11 @@ export function buildLoraSourceSnapshot(input: {
   fileSizeBytes: number | null
   metadataCompleteness: LoraMetadataCompleteness
   retrievedAt: string
+  triggerSource?: LoraSourceSnapshot['triggerSource']
 }): LoraSourceSnapshot {
   return {
     source: input.source,
+    ...(input.triggerSource ? { triggerSource: input.triggerSource } : {}),
     author: input.author,
     license: input.license,
     pageUrl: input.pageUrl,

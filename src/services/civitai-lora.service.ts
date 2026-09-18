@@ -937,10 +937,19 @@ export interface CivitaiCheckpointResolution {
  *
  * See docs/references/domains/runner.md.
  */
-export async function resolveCivitaiCheckpointByReference(
-  modelVersionId: number,
-): Promise<CivitaiCheckpointResolution | null> {
-  const url = new URL(`${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`)
+export async function resolveCivitaiCheckpointByReference({
+  modelVersionId,
+  hash,
+}: {
+  modelVersionId?: number
+  hash?: string
+}): Promise<CivitaiCheckpointResolution | null> {
+  if (modelVersionId == null && !hash) return null
+  const url = new URL(
+    modelVersionId != null
+      ? `${CIVITAI_MODEL_VERSIONS_API}/${modelVersionId}`
+      : `${CIVITAI_MODEL_VERSIONS_API}/by-hash/${encodeURIComponent(hash!.toLowerCase())}`,
+  )
 
   let payload: unknown
   try {
@@ -3088,10 +3097,12 @@ type RecipeMetaParams = Pick<
   | 'baseHeight'
   | 'checkpoint'
   | 'checkpointVersionId'
+  | 'checkpointHash'
   | 'hiresUpscale'
   | 'hiresUpscaler'
   | 'denoisingStrength'
   | 'hiresSteps'
+  | 'hiresCfgScale'
 >
 
 const RECIPE_SIZE_PATTERN = /^(\d+)\s*[x×]\s*(\d+)$/i
@@ -3125,7 +3136,33 @@ function extractCheckpointVersionId(
 function extractRecipeMetaParams(
   meta: Record<string, unknown>,
 ): RecipeMetaParams {
-  const sizeRaw = coerceTrimmedString(meta.Size ?? meta.size)
+  const dimensions = [
+    coerceTrimmedString(meta.Size ?? meta.size),
+    coerceTrimmedString(meta['Original Size']),
+    meta.width != null && meta.height != null
+      ? `${meta.width}x${meta.height}`
+      : undefined,
+  ].find((value) => {
+    const parsed = extractRecipeBaseDimensions(value)
+    return (parsed.baseWidth ?? 0) > 0 && (parsed.baseHeight ?? 0) > 0
+  })
+  const sizeRaw = dimensions ?? coerceTrimmedString(meta.Size ?? meta.size)
+  const hashes = z.record(z.string(), z.unknown()).safeParse(meta.hashes)
+  const resources = z
+    .array(CivitaiImageResourceSchema)
+    .safeParse(meta.resources)
+  const checkpointHash = [
+    meta['Model hash'],
+    hashes.success ? hashes.data.model : undefined,
+    resources.success
+      ? resources.data.find((r) =>
+          ['model', 'checkpoint'].includes((r.type ?? '').toLowerCase()),
+        )?.hash
+      : undefined,
+  ]
+    .map(coerceTrimmedString)
+    .find((value) => value && /^[a-fA-F0-9]{8,64}$/.test(value))
+    ?.toLowerCase()
   return {
     negativePrompt: coerceTrimmedString(meta.negativePrompt),
     seed: coerceSeed(meta.seed),
@@ -3140,6 +3177,7 @@ function extractRecipeMetaParams(
     ...extractRecipeBaseDimensions(sizeRaw),
     checkpoint: coerceTrimmedString(meta.Model),
     checkpointVersionId: extractCheckpointVersionId(meta),
+    checkpointHash,
     hiresUpscale: coerceFiniteNumber(
       meta['Hires upscale'] ?? meta.hiresUpscale,
     ),
@@ -3150,6 +3188,9 @@ function extractRecipeMetaParams(
       meta['Denoising strength'] ?? meta.denoisingStrength,
     ),
     hiresSteps: coerceInteger(meta['Hires steps'] ?? meta.hiresSteps),
+    hiresCfgScale: coerceFiniteNumber(
+      meta['Hires CFG Scale'] ?? meta.hiresCfgScale,
+    ),
   }
 }
 
@@ -3301,7 +3342,12 @@ function resolveRecipeLoraSignals({
   for (const tag of promptTags) {
     if (tag === targetTag) continue
     const key = tag.name.toLowerCase()
-    if (seenNames.has(key) || isKnownTargetLoraName(key, knownTargetNames)) {
+    if (isKnownTargetLoraName(key, knownTargetNames)) {
+      continue
+    }
+    if (seenNames.has(key)) {
+      const existing = extras.find((extra) => extra.name?.toLowerCase() === key)
+      if (existing && existing.weight == null) existing.weight = tag.weight
       continue
     }
     seenNames.add(key)

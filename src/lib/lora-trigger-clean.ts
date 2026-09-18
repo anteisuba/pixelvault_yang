@@ -79,3 +79,15 @@ export function cleanRecommendedPrompt(raw: string): string {
     .replace(/^[\s,]+|[\s,]+$/g, '')
     .trim()
 }
+
+export function hasVerifiedLoraTrigger(asset: {
+  source?: string
+  triggerSource?: string
+  sourceSnapshot?: { triggerSource?: string } | null
+}): boolean {
+  return (
+    asset.source === 'trained' ||
+    asset.source === 'curated' ||
+    (asset.triggerSource ?? asset.sourceSnapshot?.triggerSource) === 'official'
+  )
+}

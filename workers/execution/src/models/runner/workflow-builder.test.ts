@@ -25,11 +25,46 @@ function baseInput(
 }
 
 describe('buildComfyWorkflow', () => {
+  it('adds bilinear latent upscale and a second sampler before decoding', () => {
+    const workflow = buildComfyWorkflow(
+      baseInput({
+        hires: { width: 968, height: 1424, denoise: 0.45, steps: 18, cfg: 6 },
+      }),
+    )
+    expect(workflow['hires-latent']).toEqual({
+      class_type: 'LatentUpscale',
+      inputs: {
+        samples: ['sampler', 0],
+        upscale_method: 'bilinear',
+        width: 968,
+        height: 1424,
+        crop: 'disabled',
+      },
+    })
+    expect(workflow['hires-sampler']).toEqual({
+      class_type: 'KSampler',
+      inputs: {
+        ...workflow.sampler.inputs,
+        latent_image: ['hires-latent', 0],
+        steps: 18,
+        cfg: 6,
+        denoise: 0.45,
+      },
+    })
+    expect(workflow['vae-decode'].inputs.samples).toEqual(['hires-sampler', 0])
+  })
+
+  it('keeps the original single-pass graph when hires is absent', () => {
+    const workflow = buildComfyWorkflow(baseInput())
+    expect(workflow['hires-latent']).toBeUndefined()
+    expect(workflow['hires-sampler']).toBeUndefined()
+    expect(workflow['vae-decode'].inputs.samples).toEqual(['sampler', 0])
+  })
   it('builds the validated §7.1 template shape with zero LoRAs', () => {
     const workflow = buildComfyWorkflow(baseInput())
 
     expect(workflow.checkpoint).toEqual({
-      class_type: 'CheckpointLoaderSimple',
+      class_type: 'PixelVaultCheckpointLoader',
       inputs: { ckpt_name: 'waiIllustriousSDXL_v150.safetensors' },
     })
 
@@ -73,8 +108,12 @@ describe('buildComfyWorkflow', () => {
       inputs: { samples: ['sampler', 0], vae: ['checkpoint', 2] },
     })
     expect(workflow['save-image']).toEqual({
-      class_type: 'SaveImage',
-      inputs: { images: ['vae-decode', 0], filename_prefix: 'pixelvault' },
+      class_type: 'PixelVaultSaveImage',
+      inputs: {
+        images: ['vae-decode', 0],
+        filename_prefix: 'pixelvault',
+        audit: ['checkpoint', 3],
+      },
     })
   })
 
@@ -116,13 +155,14 @@ describe('buildComfyWorkflow', () => {
     )
 
     expect(workflow['lora-0']).toEqual({
-      class_type: 'LoraLoader',
+      class_type: 'PixelVaultLoraLoader',
       inputs: {
         model: ['checkpoint', 0],
         clip: ['checkpoint', 1],
         lora_name: 'tutenstein-cleo-carter-v1.safetensors',
         strength_model: 1.0,
         strength_clip: 1.0,
+        audit: ['checkpoint', 3],
       },
     })
     // clip-skip and the sampler's model input now read from the LoRA node.
@@ -154,6 +194,10 @@ describe('buildComfyWorkflow', () => {
     })
     expect(workflow['clip-skip'].inputs.clip).toEqual(['lora-1', 1])
     expect(workflow.sampler.inputs.model).toEqual(['lora-1', 0])
+    expect(workflow['lora-0'].inputs.audit).toEqual(['checkpoint', 3])
+    expect(workflow['lora-1'].inputs.audit).toEqual(['lora-0', 2])
+    expect(workflow['save-image'].class_type).toBe('PixelVaultSaveImage')
+    expect(workflow['save-image'].inputs.audit).toEqual(['lora-1', 2])
   })
 
   it('maps clipSkip 1 (no skip) to stop_at_clip_layer -1', () => {

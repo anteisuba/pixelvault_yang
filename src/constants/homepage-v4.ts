@@ -235,13 +235,6 @@ export const HOME_V4_GLYPHS = {
   arrow: '→',
 } as const
 
-/**
- * The one breakpoint the deck's mobile layouts are cut at. Feature page 05 is
- * the only performance whose *timeline* differs between the two, so it asks
- * `matchMedia` for this at play time — see `HOME_V4_FN_CANVAS`.
- */
-export const HOME_V4_MOBILE_QUERY = '(max-width: 768px)'
-
 /* ── 01 图片：工作台 → 打字机 → 生成 → 四格 ───────────────────────── */
 
 /**
@@ -552,48 +545,6 @@ export const HOME_V4_FN_CANVAS_SHOTS = [
 export const HOME_V4_FN_CANVAS_THUMBS = {
   SHOT: { W: 110, H: 62 },
   CUT: { W: 222, H: 125 },
-} as const
-
-/**
- * Two timelines, because the two layouts tell the story differently: on desktop
- * the three windows stand side by side and the *hand-off* is the point (a ghost
- * flies from one window into the next), on mobile they are one carousel and the
- * hand-off is the step change itself, so the flight is dropped and every beat
- * shifts.
- */
-export const HOME_V4_FN_CANVAS = {
-  ENTER_DELAY_MS: 400,
-  /** A ghost is removed this long after it launches — see `.flyer` in the CSS. */
-  FLY_LIFE_MS: 820,
-  /** The script chip shrinks into the second window's title. */
-  CHIP_FLY_SCALE: 0.55,
-  /** A shot card grows slightly as it lands on the canvas. */
-  CARD_FLY_SCALE: 1.1,
-  PC: {
-    MSG_MS: [300, 1150],
-    CHIP_MS: 1950,
-    HANDOFF_MS: 2650,
-    SCRIPT_ON_MS: 3350,
-    ROW_IN_MS: 3500,
-    ROW_SENT_MS: 3950,
-    NODE_IN_MS: 4600,
-    ROW_STEP_MS: 450,
-    WIRES_MS: 5900,
-    CUT_MS: 6700,
-  },
-  MOBILE: {
-    MSG_MS: [350, 1150],
-    CHIP_MS: 1900,
-    STAGE_SCRIPT_MS: 2800,
-    ROW_IN_MS: 3200,
-    ROW_SENT_MS: 3550,
-    ROW_STEP_MS: 430,
-    STAGE_BOARD_MS: 5150,
-    NODE_IN_MS: 5550,
-    NODE_STEP_MS: 380,
-    WIRES_MS: 6850,
-    CUT_MS: 7550,
-  },
 } as const
 
 /* ── 06 资源库：归档飞入 → 涌入 → 回流飞出 ───────────────────────── */

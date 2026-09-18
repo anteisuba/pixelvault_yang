@@ -239,6 +239,7 @@ function civitaiToCandidate(
   const importable = baseModelFamily !== null && Boolean(item.loraUrl)
   const snapshot = buildLoraSourceSnapshot({
     source: LORA_CANDIDATE_SOURCE_IDS.civitai,
+    triggerSource: item.triggerSource,
     author,
     license,
     pageUrl: item.modelPageUrl,

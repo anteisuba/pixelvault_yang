@@ -125,6 +125,7 @@ import { VIDEO_RAIL_PICKERS } from './video/VideoNodeMenus'
 import {
   VIDEO_SEND_MODE_IDS,
   videoCardHeight,
+  videoEffectiveParams,
   videoFrameChipLabel,
   videoFrameReadout,
   videoRailCapacity,
@@ -448,6 +449,28 @@ describe('画面弹层（spec §5）', () => {
   it('生成声音开关只在模型发得出这个字段时可点', () => {
     expect(videoSupportsGeneratedAudio(undefined)).toBe(false)
     expect(videoSupportsGeneratedAudio(MODEL_ID)).toBe(true)
+  })
+
+  it('Seedance 2.5 把存量 3s 吸附成 4s，1080p 在档上原样留着', () => {
+    const snapped = videoEffectiveParams(
+      { duration: '3', resolution: '1080p', aspectRatio: '9:16' },
+      'seedance-2.5',
+    )
+    expect(snapped.duration).toBe('4')
+    expect(snapped.resolution).toBe('1080p')
+    expect(snapped.aspectRatio).toBe('9:16')
+    expect(
+      videoFrameChipLabel(snapped, {
+        modeLabel: '全能参考',
+        fallback: '选模型',
+      }),
+    ).toBe('全能参考 · 4s · 9:16 · 1080p')
+  })
+
+  it('540p 不在 Seedance 2.5 档上：等距时向下吸到 480p', () => {
+    expect(
+      videoEffectiveParams({ resolution: '540p' }, 'seedance-2.5').resolution,
+    ).toBe('480p')
   })
 
   it('chip 首位是推出来的模式，其后 `7s · 16:9 · 720p`，开了声音再接「· 有声」', () => {
@@ -1064,18 +1087,19 @@ it('失败原因在卡片与展开态持续显示，编辑提示词不会清除'
   }
   const context = harness([videoNode('v_1', data)])
   const view = renderVideo(context, 'v_1', true)
-  expect(screen.getByRole('alert')).toHaveTextContent('copyright restrictions')
+  expect(screen.getByRole('alert')).toHaveTextContent('generation.unknown')
+  expect(screen.queryByText(/copyright restrictions/)).not.toBeInTheDocument()
   expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
   fireEvent.change(screen.getByRole('textbox', { name: 'promptLabel' }), {
     target: { value: 'edited shot' },
   })
-  expect(screen.getByRole('alert')).toHaveTextContent('copyright restrictions')
+  expect(screen.getByRole('alert')).toHaveTextContent('generation.unknown')
   view.unmount()
   renderVideo(harness([videoNode('v_1', data)], { expandedNodeId: 'v_1' }))
   expect(
     screen
       .getAllByRole('alert')
-      .some((el) => el.textContent?.includes('copyright restrictions')),
+      .some((el) => el.textContent?.includes('generation.unknown')),
   ).toBe(true)
 })
 

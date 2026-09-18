@@ -359,7 +359,7 @@ import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import { TAG_BASED_GENERATION_PROMPT_RULE } from '@/constants/model-strengths'
 import { ASSISTANT_PLAN_VISUALS } from '@/constants/assistant-plan-visuals'
 import { AI_MODELS } from '@/constants/models'
-import { getAppOrigin } from '@/constants/config'
+import { getAppOrigin, LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { logger } from '@/lib/logger'
 import { runAssistantOperator } from '@/services/kernel/assistant-operator.service'
@@ -768,12 +768,10 @@ describe('工具环 · 逐事件顺序', () => {
   })
 
   /**
-   * ⭐ **正文只在定稿时发一帧**（v2 §3.1 / §13.1，拍板 13：逐字淡入改整段出现）。
-   *
-   * ⚠ 验的是**协议**：正文恰好一帧，⛔ 客户端不再累积半截正文 —— 那条累积路径
-   * 正是「同一段回复出现两次」的来源。
+   * 收尾轮可以发 `partial: true` 前缀帧，定稿仍然只有一帧不带 partial。
+   * 客户端按同一 id 覆盖，不会变成两条回复。
    */
-  it('⭐ 收尾轮正文恰好一帧 message —— ⛔ 没有第二个正文来源', async () => {
+  it('⭐ 收尾轮定稿恰好一帧 message；分块时允许 partial 前缀', async () => {
     queueTurns({ finished: true, message: '好的，已经改成夜景了。' })
     mockLlmTextStreamChunks.mockImplementation((raw) =>
       raw.match(/[\s\S]{1,6}/g),
@@ -783,13 +781,18 @@ describe('工具环 · 逐事件顺序', () => {
       runAssistantOperator('clerk-1', buildRequest()),
     )
 
-    // ⚠ `message_delta` 连事件联合都不在了（`types/assistant-operator.ts`），
-    //   所以这里断的是「正文恰好一帧」——多一帧就是又有第二个来源了。
+    const messages = events.filter(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.message,
+    )
+    const finals = messages.filter((event) => !event.partial)
+    expect(finals.map((event) => event.text)).toEqual([
+      '好的，已经改成夜景了。',
+    ])
     expect(
-      events
-        .filter((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
-        .map((event) => event.text),
-    ).toEqual(['好的，已经改成夜景了。'])
+      messages
+        .filter((event) => event.partial)
+        .every((event) => '好的，已经改成夜景了。'.startsWith(event.text)),
+    ).toBe(true)
   })
 
   it('⛔ 工具轮那句旁白整帧不发 —— 那一步已经有 step 事件在说同一件事', async () => {
@@ -818,7 +821,10 @@ describe('工具环 · 逐事件顺序', () => {
      */
     expect(
       events
-        .filter((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
+        .filter(
+          (event) =>
+            event.type === ASSISTANT_OPERATOR_EVENTS.message && !event.partial,
+        )
         .map((event) => event.text),
     ).toEqual(['写好了。'])
   })
@@ -4057,6 +4063,7 @@ function loraPickOf(
   const candidate = LoraCandidateSchema.parse(loraCandidate(over))
   return {
     candidateId: candidate.candidateId,
+    receipt: { assetId: `mounted-${candidate.candidateId}` },
     ...(weight === undefined ? {} : { weight }),
     candidate: {
       candidateId: candidate.candidateId,
@@ -4117,6 +4124,36 @@ const LORA_SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
   },
 }
 
+function snapshotWithMountedPicks(
+  picks: NonNullable<AssistantOperatorRequest['loraPicks']>,
+  snapshot = LORA_SNAPSHOT,
+): AssistantOperatorRequest['snapshot'] {
+  return {
+    ...snapshot,
+    loras: {
+      ...snapshot.loras!,
+      items: [
+        ...snapshot.loras!.items,
+        ...picks
+          .filter((pick) => pick.receipt.assetId)
+          .map((pick) => ({
+            id: pick.receipt.assetId!,
+            name: pick.candidate.name,
+            weight: pick.weight ?? pick.candidate.defaultWeight,
+            enabled: true,
+            compatible: true,
+            family: pick.candidate.family,
+            triggerWord: pick.candidate.triggerWords.join(', '),
+            triggerEnabled: true,
+            recommendedPrompt:
+              pick.candidate.importPayload?.recommendedPrompt ?? null,
+            sourcePrompts: [],
+          })),
+      ],
+    },
+  }
+}
+
 function buildLoraRequest(
   overrides: Partial<AssistantOperatorRequest> = {},
 ): AssistantOperatorRequest {
@@ -4129,7 +4166,120 @@ function buildLoraRequest(
 }
 
 describe('LoRA 装配台域（P4-C）', () => {
-  it('工具表里有那四条 LoRA 件，没有 set_specs / set_count / critique_result', async () => {
+  it('makes enabled compatible LoRA author and source material available to the model', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({
+          snapshot: {
+            ...LORA_SNAPSHOT,
+            loras: {
+              ...LORA_SNAPSHOT.loras!,
+              items: [
+                {
+                  ...LORA_SNAPSHOT.loras!.items[0]!,
+                  recommendedPrompt: 'author-cobalt-kintsugi-petals',
+                  sourcePrompts: ['source-cinnabar-woodblock-hatching'],
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    )
+    expect(lastUserPrompt()).toContain('lora-asset-1')
+    expect(lastUserPrompt()).toContain('author-cobalt-kintsugi-petals')
+    expect(lastUserPrompt()).toContain('source-cinnabar-woodblock-hatching')
+  })
+
+  it.each([
+    { enabled: false, compatible: true },
+    { enabled: true, compatible: false },
+  ])('excludes unusable mounted LoRA material: %j', async (availability) => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({
+          snapshot: {
+            ...LORA_SNAPSHOT,
+            loras: {
+              ...LORA_SNAPSHOT.loras!,
+              items: [
+                {
+                  ...LORA_SNAPSHOT.loras!.items[0]!,
+                  ...availability,
+                  recommendedPrompt: 'excluded-author-neon-filigree',
+                  sourcePrompts: ['excluded-source-violet-engraving'],
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    )
+    expect(lastUserPrompt()).not.toContain('excluded-author-neon-filigree')
+    expect(lastUserPrompt()).not.toContain('excluded-source-violet-engraving')
+  })
+
+  it('bounds a full stack of long reference prompts while preserving the current user instruction', async () => {
+    const instruction = 'USER-INTENT-KEEP-AMBER-EYES-AND-WHITE-BACKGROUND'
+    const items = Array.from({ length: 16 }, (_, index) => ({
+      ...LORA_SNAPSHOT.loras!.items[0]!,
+      id: `material-stack-${index}`,
+      recommendedPrompt:
+        `AUTHOR-${index}-` + 'a'.repeat(4000 - `AUTHOR-${index}-`.length),
+      sourcePrompts: Array.from({ length: 4 }, (_, sourceIndex) => {
+        const prefix = `SOURCE-${index}-${sourceIndex}-`
+        return prefix + 's'.repeat(4000 - prefix.length)
+      }),
+    }))
+    queueTurns({ finished: true, message: 'Ready.' })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({
+          messages: [{ role: 'user', content: instruction }],
+          snapshot: {
+            ...LORA_SNAPSHOT,
+            loras: { ...LORA_SNAPSHOT.loras!, items },
+          },
+        }),
+      ),
+    )
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain(instruction)
+    expect(prompt.length).toBeLessThan(30000)
+    for (let index = 0; index < 16; index += 1) {
+      expect(prompt).toContain(`AUTHOR-${index}-`)
+      expect(prompt).toContain(`SOURCE-${index}-3-`)
+    }
+  })
+
+  it('reads mounted author material from the actual snapshot after client confirmation', async () => {
+    queueTurns({ finished: true })
+    const candidate = loraCandidate()
+    const pick = loraPickOf({
+      importPayload: {
+        ...candidate.importPayload,
+        recommendedPrompt: 'newly-mounted-author-ochre-stipple',
+      },
+    })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({
+          loraPicks: [pick],
+          snapshot: snapshotWithMountedPicks([pick]),
+        }),
+      ),
+    )
+    expect(lastUserPrompt()).toContain(pick.candidateId)
+    expect(lastUserPrompt()).toContain('newly-mounted-author-ochre-stipple')
+  })
+
+  it('工具表包含 LoRA 挂载及看图工具，没有 set_specs / set_count', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildLoraRequest()))
 
@@ -4145,9 +4295,8 @@ describe('LoRA 装配台域（P4-C）', () => {
     expect(prompt).not.toContain(`- ${ASSISTANT_OPERATOR_TOOL_IDS.setSpecs}:`)
     // 单次出图，界面上压根没有张数控件。
     expect(prompt).not.toContain(`- ${ASSISTANT_OPERATOR_TOOL_IDS.setCount}:`)
-    expect(prompt).not.toContain(
-      `- ${ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult}:`,
-    )
+    expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult)
+    expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences)
   })
 
   it('状态块里印出挂载栈、底模家族，并明说「没有数量上限」', async () => {
@@ -4707,118 +4856,67 @@ describe('LoRA 装配台域（P4-C）', () => {
     })
   })
 
-  /**
-   * ⭐ `hydrateLoraIndexFromPicks`：勾中的那几把连本体一起回来，服务端灌回
-   * `run.loraIndex` —— **这一轮压根没有 `search_loras`**，`planMountLora` 照样
-   * 取得到候选。⛔ 不许改成「确认时按 id 再搜一次」。
-   */
-  it('带 loraPicks 的那一轮不必再搜：候选灌回索引后直接挂得上', async () => {
-    queueTurns({ finished: true })
-    const steps = stepsOf(
-      await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildLoraRequest({ loraPicks: [loraPickOf(undefined, 0.6)] }),
-        ),
+  it('客户端成功收据与实际快照一致时确认结果，不重复检索挂载', async () => {
+    const picks = [loraPickOf(undefined, 0.6)]
+    queueTurns({ finished: true, message: '已核对挂载。' })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({
+          loraPicks: picks,
+          snapshot: snapshotWithMountedPicks(picks),
+        }),
       ),
     )
+    expect(stepsOf(events)).toEqual([])
     expect(mockSearchLoraCandidates).not.toHaveBeenCalled()
-    expect(steps[1]).toMatchObject({
-      payload: {
-        candidateId: 'civitai:12345:67890',
-        name: 'Watercolor Storybook',
-        weight: 0.6,
-        compatible: true,
-      },
-    })
-    // ⭐ 导入载荷原样跟着回来 —— 取图 / 落 R2 / 落库那一跳照旧在客户端。
-    expect(
-      (steps[1] as { payload: Record<string, unknown> }).payload.importPayload,
-    ).toBeTruthy()
-    expect(steps[1]).not.toHaveProperty('error')
+    expect(lastUserPrompt()).toContain(
+      'Mounted "Watercolor Storybook" as assetId=mounted-civitai:12345:67890, weight=0.6',
+    )
   })
 
-  it('挂一把：载荷带 importPayload 与触发词，inverse 只有 candidateId', async () => {
-    queueTurns({ finished: true })
-    const steps = stepsOf(
-      await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildLoraRequest({ loraPicks: [loraPickOf(undefined, 0.7)] }),
-        ),
+  it('收据确认不生成导入载荷或虚假撤销记录', async () => {
+    const picks = [loraPickOf(undefined, 0.6)]
+    queueTurns({ finished: true, message: '已核对挂载。' })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({
+          loraPicks: picks,
+          snapshot: snapshotWithMountedPicks(picks),
+        }),
       ),
     )
-    const mounted = steps[1] as unknown as {
-      payload: Record<string, unknown>
-      inverse: Record<string, unknown>
-    }
-    expect(mounted.payload).toMatchObject({
-      candidateId: 'civitai:12345:67890',
-      name: 'Watercolor Storybook',
-      weight: 0.7,
-      triggerWords: ['watercolor'],
-      compatible: true,
-    })
-    expect(mounted.payload.importPayload).toBeTruthy()
-    // ⭐ 库记录 id 在服务端还不存在（导入那一跳在客户端）—— 撤销只能按候选反查。
-    expect(mounted.inverse).toEqual({ candidateId: 'civitai:12345:67890' })
+    expect(stepsOf(events)).toEqual([])
+    expect(mockSearchLoraCandidates).not.toHaveBeenCalled()
+    expect(lastUserPrompt()).toContain(
+      'Mounted "Watercolor Storybook" as assetId=mounted-civitai:12345:67890, weight=0.6',
+    )
+    expect(events.some((event) => event.type === 'step')).toBe(false)
   })
 
-  it('导入不了的那把按 loraNotImportable 拒，⛔ 不静默跳过', async () => {
-    queueTurns({ finished: true })
-    const steps = stepsOf(
-      await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildLoraRequest({
-            loraPicks: [
-              loraPickOf({
-                candidateId: 'hf:gated',
-                importable: false,
-                notImportableReason: 'gated_repo',
-                importPayload: null,
-              }),
-            ],
-          }),
-        ),
-      ),
+  it('导入失败收据记录原因且不乐观重试', async () => {
+    const pick = loraPickOf()
+    pick.receipt = { assetId: null, error: 'gated_repo' }
+    queueTurns({ finished: true, message: '挂载未成功。' })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildLoraRequest({ loraPicks: [pick] })),
     )
-    expect(steps[0]).toMatchObject({
-      error: {
-        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraNotImportable,
-      },
-    })
+    expect(stepsOf(events)).toEqual([])
+    expect(lastUserPrompt()).toContain('Could NOT confirm mounting')
+    expect(lastUserPrompt()).toContain('gated_repo')
   })
 
-  it('跨族的那把按 loraIncompatibleBase 拒，理由里有两个 family 与「去搜同族」', async () => {
-    queueTurns({ finished: true })
-    const steps = stepsOf(
-      await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildLoraRequest({
-            loraPicks: [
-              loraPickOf({
-                candidateId: 'civitai:flux:1',
-                baseModelFamily: 'flux',
-              }),
-            ],
-          }),
-        ),
-      ),
+  it('跨族失败收据记录原因且不补发挂载', async () => {
+    const pick = loraPickOf()
+    pick.receipt = { assetId: null, error: 'incompatible base' }
+    queueTurns({ finished: true, message: '挂载未成功。' })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildLoraRequest({ loraPicks: [pick] })),
     )
-    expect(steps[0]).toMatchObject({
-      error: {
-        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraIncompatibleBase,
-      },
-    })
-    const detail = (steps[0] as { error: { detail: string } }).error.detail
-    // ⭐ 两个 family 都来自服务端数据，⛔ 不让模型按名字猜。
-    expect(detail).toContain('flux')
-    expect(detail).toContain('illustrious')
-    // ⭐ 出路是「去搜同族的」，⛔ 不是一句「没有合适的」。
-    expect(detail).toContain(ASSISTANT_OPERATOR_TOOL_IDS.searchLoras)
-    expect(detail).toContain(ASSISTANT_OPERATOR_TOOL_IDS.setModel)
+    expect(stepsOf(events)).toEqual([])
+    expect(lastUserPrompt()).toContain('Could NOT confirm mounting')
+    expect(lastUserPrompt()).toContain('incompatible base')
   })
 
   /**
@@ -4836,7 +4934,7 @@ describe('LoRA 装配台域（P4-C）', () => {
     loras: { ...LORA_SNAPSHOT.loras!, items: [], baseFamily: 'anima-dit' },
   }
 
-  it('同一轮 set_model 切到 pony 后，pony 的那把挂得上（⛔ 家族不停在开跑那份快照）', async () => {
+  it('失败收据后即使同轮换底模也不能绕过重新挑选', async () => {
     mockSearchLoraCandidates.mockResolvedValue({
       query: 'pony style',
       candidates: [
@@ -4892,25 +4990,11 @@ describe('LoRA 装配台域（P4-C）', () => {
         (step as { tool?: string }).tool ===
         ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
     )
-    /**
-     * ⭐ 开跑段那一把先被拒：创作者勾的是 pony，而台上还是 anima-dit
-     * （§10.2.3「闸一道不少」）。
-     */
+    expect(mountSteps).toHaveLength(1)
     expect(mountSteps[0]).toMatchObject({
-      error: {
-        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraIncompatibleBase,
-      },
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep },
     })
-    /**
-     * ⭐ 而这一条才是本例要钉的：模型换完底模**同一轮**再挂那一把，家族已经跟着
-     * `set_model` 走了 —— ⛔ 不停在开跑那份快照上。勾选那一下仍然算数（准入闸
-     * 认的是 `confirmedLoraPickIds`），开跑段拒过一次也不妨碍它重挂一次。
-     */
-    const mounted = mountSteps.at(-1)
-    expect(mounted).toMatchObject({
-      payload: { candidateId: 'civitai:pony:1' },
-    })
-    expect(mounted).not.toHaveProperty('error')
+    expect(lastUserPrompt()).toContain('Could NOT confirm mounting')
   })
 
   it('同一轮 set_model 切到 pony 后，状态块里的底模家族已经是 pony', async () => {
@@ -5059,9 +5143,8 @@ describe('LoRA 装配台域（P4-C）', () => {
             ...PONY_MOUNTED_SNAPSHOT,
             availableModels: [
               { id: 'pony-runner', label: 'Pony Diffusion V6' },
-              { id: 'anima-dit-base-v10-runner', label: 'Anima Base v1.0' },
             ],
-            loras: { ...PONY_MOUNTED_SNAPSHOT.loras!, items: [] },
+            loras: PONY_MOUNTED_SNAPSHOT.loras,
           },
           loraPicks: [
             loraPickOf({
@@ -5076,6 +5159,7 @@ describe('LoRA 装配台域（P4-C）', () => {
     const digest = lastUserPrompt()
     expect(digest).toContain('pony-runner')
     expect(digest).not.toContain('anima-dit-base-v10-runner')
+    expect(digest).toContain('Pony Lines')
   })
 
   it('set_lora_weight 少给 loraId 时，观察里带上现在挂着的 id 与名字', async () => {
@@ -5102,19 +5186,23 @@ describe('LoRA 装配台域（P4-C）', () => {
     expect(detail).toContain('Pony Lines')
   })
 
-  it('同族的那把照旧挂得上：⛔ 改判只收紧跨族那一支', async () => {
-    queueTurns({ finished: true })
-    const steps = stepsOf(
-      await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildLoraRequest({ loraPicks: [loraPickOf()] }),
-        ),
+  it('同族成功收据使用真实资产编号', async () => {
+    const picks = [loraPickOf(undefined, 0.6)]
+    queueTurns({ finished: true, message: '已核对挂载。' })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({
+          loraPicks: picks,
+          snapshot: snapshotWithMountedPicks(picks),
+        }),
       ),
     )
-    expect(steps[1]).toMatchObject({
-      payload: { candidateId: 'civitai:12345:67890', compatible: true },
-    })
+    expect(stepsOf(events)).toEqual([])
+    expect(mockSearchLoraCandidates).not.toHaveBeenCalled()
+    expect(lastUserPrompt()).toContain(
+      'Mounted "Watercolor Storybook" as assetId=mounted-civitai:12345:67890, weight=0.6',
+    )
   })
 
   /**
@@ -5123,49 +5211,24 @@ describe('LoRA 装配台域（P4-C）', () => {
    * ⚠ 钉的是「权重没被改」那一半：自动归一是这条护栏最容易长出来的错 ——
    * 助手在正文里说「设成 1.2 了」而表单上是 0.9，用户会以为自己记错了。
    */
-  async function mountWithWeight(
-    weight: number,
-    snapshot?: AssistantOperatorRequest['snapshot'],
-  ) {
-    queueTurns({ finished: true })
-    return stepsOf(
-      await collect(
+  it.each([0.5, 0.9, 2])(
+    'receipt preserves actual weight %s without server normalization',
+    async (weight) => {
+      const picks = [loraPickOf(undefined, weight)]
+      queueTurns({ finished: true, message: '已核对。' })
+      const events = await collect(
         runAssistantOperator(
           'clerk-1',
           buildLoraRequest({
-            // ⚠ 挂载那一下现在发生在**模型开口之前**（§10.2.3）—— 权重从卡上
-            //   勾选那一下带回来，⛔ 不再由模型写一条 mount_lora。
-            loraPicks: [loraPickOf(undefined, weight)],
-            ...(snapshot ? { snapshot } : {}),
+            loraPicks: picks,
+            snapshot: snapshotWithMountedPicks(picks),
           }),
         ),
-      ),
-    )
-  }
-
-  it('超预算时 observation 多一句，⛔ 权重一个字没改', async () => {
-    // 栈上 0.8 + 这一把 0.9 = 1.7，非蒸馏底模的预算是 1.5。
-    const steps = await mountWithWeight(0.9)
-    expect(steps[1]).toMatchObject({ payload: { weight: 0.9 } })
-    const observed = lastUserPrompt()
-    expect(observed).toContain('1.7')
-    expect(observed).toContain('1.5')
-    expect(observed).toContain('I did not touch any weight')
-  })
-
-  it('不超预算时不出这句（⛔ 不逢挂必念）', async () => {
-    // 0.8 + 0.5 = 1.3，还在 1.5 以内。
-    await mountWithWeight(0.5)
-    expect(lastUserPrompt()).not.toContain('I did not touch any weight')
-  })
-
-  it('底模未定时不判：没有底模就没有预算', async () => {
-    await mountWithWeight(2, {
-      ...LORA_SNAPSHOT,
-      loras: { ...LORA_SNAPSHOT.loras!, baseFamily: null },
-    })
-    expect(lastUserPrompt()).not.toContain('I did not touch any weight')
-  })
+      )
+      expect(stepsOf(events)).toEqual([])
+      expect(lastUserPrompt()).toContain(`weight=${weight}`)
+    },
+  )
 
   it('set_lora_weight 超预算同样只提醒，设的还是那个值', async () => {
     queueTurns(
@@ -5187,53 +5250,38 @@ describe('LoRA 装配台域（P4-C）', () => {
     expect(observed).toContain('I did not touch any weight')
   })
 
-  it('挂载 observation 里有三件事：家族 / 兼容 / 权重', async () => {
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
-          title: 'look',
-          args: {},
-        },
-      },
-      { finished: true },
-    )
-    await collect(
+  it('挂载收据以当前快照名称和权重记账', async () => {
+    const picks = [loraPickOf(undefined, 0.6)]
+    queueTurns({ finished: true, message: '已核对挂载。' })
+    const events = await collect(
       runAssistantOperator(
         'clerk-1',
-        buildLoraRequest({ loraPicks: [loraPickOf(undefined, 0.7)] }),
+        buildLoraRequest({
+          loraPicks: picks,
+          snapshot: snapshotWithMountedPicks(picks),
+        }),
       ),
     )
-    const observed = lastUserPrompt()
-    expect(observed).toContain('illustrious')
-    expect(observed).toContain('fits')
-    expect(observed).toContain('at weight 0.7')
+    expect(stepsOf(events)).toEqual([])
+    expect(mockSearchLoraCandidates).not.toHaveBeenCalled()
+    expect(lastUserPrompt()).toContain(
+      'Mounted "Watercolor Storybook" as assetId=mounted-civitai:12345:67890, weight=0.6',
+    )
   })
 
-  it('底模未定时不判：跨族那把照样挂得上（与界面同一条语义）', async () => {
-    queueTurns({ finished: true })
-    const steps = stepsOf(
-      await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildLoraRequest({
-            snapshot: {
-              ...LORA_SNAPSHOT,
-              loras: { ...LORA_SNAPSHOT.loras!, baseFamily: null },
-            },
-            loraPicks: [
-              loraPickOf({
-                candidateId: 'civitai:flux:1',
-                baseModelFamily: 'flux',
-              }),
-            ],
-          }),
-        ),
+  it('收据不能仅凭候选信息声称挂载成功', async () => {
+    queueTurns({ finished: true, message: '未核实挂载。' })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildLoraRequest({ loraPicks: [loraPickOf()] }),
       ),
     )
-    expect(steps[1]).toMatchObject({
-      payload: { candidateId: 'civitai:flux:1', compatible: true },
-    })
+    expect(stepsOf(events)).toEqual([])
+    expect(lastUserPrompt()).toContain('Could NOT confirm mounting')
+    expect(lastUserPrompt()).not.toContain(
+      'Mounted "Watercolor Storybook" as assetId=',
+    )
   })
 
   it('⛔ 不设数量上限：挂载栈已经很满时照样挂得上', async () => {
@@ -5262,14 +5310,17 @@ describe('LoRA 装配台域（P4-C）', () => {
       await collect(
         runAssistantOperator(
           'clerk-1',
-          buildLoraRequest({ snapshot: packed, loraPicks: [loraPickOf()] }),
+          buildLoraRequest({
+            snapshot: snapshotWithMountedPicks([loraPickOf()], packed),
+            loraPicks: [loraPickOf()],
+          }),
         ),
       ),
     )
-    expect(steps[1]).toMatchObject({
-      tool: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
-      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
-    })
+    expect(steps).toEqual([])
+    expect(lastUserPrompt()).toContain(
+      'Mounted "Watercolor Storybook" as assetId=',
+    )
   })
 
   it('调权重：越界按 unknownValue 拒，⛔ 不做就近夹取', async () => {
@@ -5344,10 +5395,6 @@ describe('LoRA 装配台域（P4-C）', () => {
     })
   })
 
-  /**
-   * ⭐ 开跑段已经挂过的那一把，模型这一轮**再挂一次就被去重挡下**（§10.2.3）——
-   * 换个权重也绕不过去：护栏认的是候选 id，⛔ 不是这一次调用的参数。
-   */
   it('同一把候选换个权重再挂一次仍算重复（换参数绕不过去）', async () => {
     queueTurns(
       {
@@ -5367,12 +5414,8 @@ describe('LoRA 装配台域（P4-C）', () => {
         ),
       ),
     )
-    // 开跑段那一把照挂（0.8），模型那一把被拒 —— 台上仍然只有一条挂载 step。
-    expect(steps[1]).toMatchObject({
-      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
-      payload: { weight: 0.8 },
-    })
-    expect(steps[2]).toMatchObject({
+    expect(steps).toHaveLength(1)
+    expect(steps[0]).toMatchObject({
       error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep },
     })
   })
@@ -5403,148 +5446,74 @@ describe('LoRA 装配台域（P4-C）', () => {
     })
   })
 
-  /**
-   * **确认回来的那一轮：先挂，再让模型说话**（lora-assistant §10.2.3，commit #4）。
-   *
-   * ⭐ 本仓头一处「服务端先发 step、模型后开口」—— 勾选那一下就是拍板，⛔ 不交回
-   * 模型重判（「创作者勾了 3 把、模型挂了 2 把」这种偏差没人解释得清，而按钮他
-   * 已经点过了）。
-   */
-  describe('勾选回来那一轮：模型开口之前逐把挂上', () => {
-    /** 结账那一跳喂进去的提示（⛔ 与工具环那几次分开，见 `lastUserPrompt`）。 */
-    function checkoutPrompt(): string {
-      const call = mockLlmTextCompletion.mock.calls
-        .map(
-          (entry) => entry[0] as { userPrompt: string; systemPrompt?: string },
-        )
-        .find((entry) =>
-          entry.systemPrompt?.startsWith(
-            'You write the creator-facing closing record',
-          ),
-        )
-      return call?.userPrompt ?? ''
-    }
-
-    const INK = { candidateId: 'civitai:222:333', name: 'Ink Lines' }
-    const FLUX = { candidateId: 'civitai:flux:1', baseModelFamily: 'flux' }
-
-    it('⭐ 两把勾选 → 先吐两条 mount step，模型第一次开口时它们已经在台上', async () => {
-      queueTurns({ finished: true, message: '两把都挂好了。' })
-      const steps = stepsOf(
-        await collect(
-          runAssistantOperator(
-            'clerk-1',
-            buildLoraRequest({
-              loraPicks: [loraPickOf(undefined, 0.4), loraPickOf(INK, 0.2)],
-            }),
-          ),
+  describe('客户端挂载收据核对', () => {
+    it.each([
+      { enabled: false, compatible: true },
+      { enabled: true, compatible: false },
+    ])('does not confirm unusable snapshot assets %j', async (state) => {
+      const picks = [loraPickOf()]
+      const snapshot = snapshotWithMountedPicks(picks)
+      snapshot.loras!.items[1] = { ...snapshot.loras!.items[1]!, ...state }
+      queueTurns({ finished: true, message: '未核实挂载。' })
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({ loraPicks: picks, snapshot }),
         ),
       )
-      // 一把一条独立的 step（running + done），⛔ 不合成一条「挂了 2 把」。
-      expect(steps.map((step) => [step.id, step.tool, step.status])).toEqual([
-        ['step-1', ASSISTANT_OPERATOR_TOOL_IDS.mountLora, 'running'],
-        ['step-1', ASSISTANT_OPERATOR_TOOL_IDS.mountLora, 'done'],
-        ['step-2', ASSISTANT_OPERATOR_TOOL_IDS.mountLora, 'running'],
-        ['step-2', ASSISTANT_OPERATOR_TOOL_IDS.mountLora, 'done'],
-      ])
-      // ⭐ 撤销照旧：每一把自己的 inverse。
-      expect(steps[1]).toMatchObject({
-        payload: { candidateId: 'civitai:12345:67890', weight: 0.4 },
-        inverse: { candidateId: 'civitai:12345:67890' },
-      })
-      expect(steps[3]).toMatchObject({
-        payload: { candidateId: INK.candidateId, weight: 0.2 },
-        inverse: { candidateId: INK.candidateId },
-      })
-      /**
-       * ⭐ 「模型开口之前」那一半的实锤：**第一次**工具环往返的提示里，两把就
-       * 已经是既成事实了。
-       */
-      const first = toolRingCalls()[0]?.userPrompt ?? ''
-      expect(first).toContain('ALREADY MOUNTED')
-      expect(first).toContain('Watercolor Storybook')
-      expect(first).toContain('Ink Lines')
-      expect(first).toContain('Do NOT call mount_lora')
+      expect(stepsOf(events)).toEqual([])
+      expect(lastUserPrompt()).toContain('Could NOT confirm mounting')
     })
 
-    /**
-     * ⚠ **闸一道不少**：勾中的那把跨了族照样被拒（§4.2），其余照挂 —— ⛔ 不因为
-     * 「创作者已经点过头」就放行，也 ⛔ 不因为一把挂不上就整批不挂。
-     */
-    it('跨族那把变 rejected step，其余照挂且 inverse 齐', async () => {
-      queueTurns({ finished: true })
-      const steps = stepsOf(
-        await collect(
-          runAssistantOperator(
-            'clerk-1',
-            buildLoraRequest({
-              loraPicks: [
-                loraPickOf(undefined, 0.3),
-                loraPickOf(FLUX, 0.3),
-                loraPickOf(INK, 0.3),
-              ],
-            }),
-          ),
-        ),
-      )
-      expect(steps.map((step) => step.status)).toEqual([
-        'running',
-        'done',
-        'error',
-        'running',
-        'done',
-      ])
-      expect(steps[2]).toMatchObject({
-        error: {
-          reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraIncompatibleBase,
-        },
+    it('records partial success without creating mount steps', async () => {
+      const success = loraPickOf(undefined, 0.4)
+      const failure = loraPickOf({
+        candidateId: 'civitai:failed:1',
+        name: 'Unavailable LoRA',
       })
-      expect(steps[1]).toHaveProperty('inverse')
-      expect(steps[4]).toHaveProperty('inverse')
-      // ⭐ 被拒的那一把要在正文里交代 —— ⛔ 不静默跳过。
-      const prompt = lastUserPrompt()
-      expect(prompt).toContain('could NOT be mounted')
-      expect(prompt).toContain('flux')
-    })
-
-    /**
-     * 超预算那一句（§5.2）**整批只念一次**：三把里念三遍，创作者只会读到最后
-     * 那个数。⛔ 而且一个权重都没动 —— 自动归一是这条护栏最容易长出来的错。
-     */
-    it('超预算那句只出现一次，且权重一个字没改', async () => {
-      queueTurns({ finished: true })
-      const steps = stepsOf(
-        await collect(
-          runAssistantOperator(
-            'clerk-1',
-            buildLoraRequest({
-              // 栈上 0.8 + 0.5 + 0.6 = 1.9，非蒸馏底模的预算是 1.5。
-              loraPicks: [loraPickOf(undefined, 0.5), loraPickOf(INK, 0.6)],
-            }),
-          ),
-        ),
-      )
-      expect(steps[1]).toMatchObject({ payload: { weight: 0.5 } })
-      expect(steps[3]).toMatchObject({ payload: { weight: 0.6 } })
-      const prompt = lastUserPrompt()
-      expect(prompt.split('I did not touch any weight')).toHaveLength(2)
-      expect(prompt).toContain('1.9')
-      expect(prompt).toContain('1.5')
-    })
-
-    it('结账的「决定」栏落「挂了 X 把：名字×权重」，没挂上的那把也写清楚', async () => {
-      queueTurns({ finished: true, message: '挂好了。' })
-      await collect(
+      failure.receipt = { assetId: null, error: 'download failed' }
+      queueTurns({ finished: true, message: '一把成功，一把下载失败。' })
+      const events = await collect(
         runAssistantOperator(
           'clerk-1',
           buildLoraRequest({
-            loraPicks: [loraPickOf(undefined, 0.4), loraPickOf(FLUX, 0.3)],
+            loraPicks: [success, failure],
+            snapshot: snapshotWithMountedPicks([success]),
           }),
         ),
       )
-      const closing = checkoutPrompt()
-      expect(closing).toContain('挂了 1 把：Watercolor Storybook×0.4')
-      expect(closing).toContain('没挂上 1 把')
+      expect(stepsOf(events)).toEqual([])
+      expect(lastUserPrompt()).toContain('Mounted "Watercolor Storybook"')
+      expect(lastUserPrompt()).toContain(
+        'Could NOT confirm mounting "Unavailable LoRA": download failed',
+      )
+    })
+
+    it('blocks optimistic retry after a failed receipt', async () => {
+      const pick = loraPickOf()
+      pick.receipt = { assetId: null, error: 'download failed' }
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+            title: 'retry',
+            args: { candidateId: pick.candidateId },
+          },
+        },
+        { finished: true, message: '需要处理失败原因。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({ loraPicks: [pick] }),
+        ),
+      )
+      expect(stepsOf(events)).toEqual([
+        expect.objectContaining({
+          status: 'error',
+          error: expect.objectContaining({ reason: 'repeatedStep' }),
+        }),
+      ])
     })
   })
 })
@@ -8334,35 +8303,54 @@ describe('search_web_images · 认准目标（2026-09-06）', () => {
 })
 
 describe('系统提示 · 找角色设定图的推荐链路（2026-09-06）', () => {
-  it('⭐ 四步链路逐条写在提示里，顺序也写死了', async () => {
+  it('⭐ 常驻提示没有四步长文，问句优先写在最前面', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
-    const call = mockLlmTextCompletion.mock.calls.at(-1)?.[0] as {
-      systemPrompt: string
-    }
-    const prompt = call.systemPrompt
-    expect(prompt).toContain('FINDING WHAT A CHARACTER ACTUALLY LOOKS LIKE')
-    // 四步的关键动作各出现一次，且按 research → images → read_url → set_prompt 排。
+    const prompt = systemPrompt()
+    expect(prompt).toContain('ANSWER FIRST')
+    expect(prompt).not.toContain('FINDING WHAT A CHARACTER ACTUALLY LOOKS LIKE')
+    expect(prompt).not.toContain('STYLE IDENTIFICATION')
+    expect(prompt).toContain('verify first, then find_images, then read_url')
+  })
+
+  it('⭐ 「一次没搜到不算答案」仍在硬规则里', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const prompt = systemPrompt()
+    expect(prompt).toContain('One empty search is not an answer')
+    expect(prompt).toContain('Never fill a gap with invention')
+  })
+
+  it('查过图之后下一轮才加载角色四段链', async () => {
+    mockWebImageSearch.mockResolvedValue([
+      {
+        imageUrl: 'https://cdn.example.test/a.jpg',
+        domain: 'example.test',
+      },
+    ])
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+          title: 'find official art',
+          args: { query: 'art', subject: 'Ananta 时夜', preferOfficial: true },
+        },
+      },
+      { finished: true, message: '找到了。' },
+    )
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    const second = toolRingCalls()[1]?.systemPrompt ?? ''
+    expect(second).toContain('FINDING WHAT A CHARACTER ACTUALLY LOOKS LIKE')
     const order = [
       'research first',
       'search_web_images with "subject"',
       'read_url on the best page',
       'set_prompt with what you read',
-    ].map((needle) => prompt.indexOf(needle))
+    ].map((needle) => second.indexOf(needle))
     expect(order.every((index) => index >= 0)).toBe(true)
     expect(order).toEqual([...order].sort((a, b) => a - b))
-  })
-
-  it('⭐ 「一次没搜到不算答案」写进硬规则，⛔ 不只是工具说明里的一句', async () => {
-    queueTurns({ finished: true })
-    await collect(runAssistantOperator('clerk-1', buildRequest()))
-
-    const call = mockLlmTextCompletion.mock.calls.at(-1)?.[0] as {
-      systemPrompt: string
-    }
-    expect(call.systemPrompt).toContain('ONE EMPTY SEARCH IS NOT AN ANSWER')
-    expect(call.systemPrompt).toContain('Never fill a gap with invention')
   })
 
   it('两条新工具都在图片档的工具表里（全域通用）', async () => {
@@ -9149,6 +9137,190 @@ describe('切片 X · 审核态 / 跨轮记忆 / 起名', () => {
   })
 })
 
+describe('LoRA Runner parameter controls', () => {
+  const snapshot: AssistantOperatorRequest['snapshot'] = {
+    ...LORA_SNAPSHOT,
+    model: { id: 'illustrious-runner', label: 'Illustrious Runner' },
+    loraParameters: {
+      steps: 25,
+      guidanceScale: 7,
+      runnerSeed: '123',
+      runnerWidth: 672,
+      runnerHeight: 984,
+    },
+    sourceRecipe: {
+      imageUrl: 'https://cdn.test/sue-source.png',
+      source: 'model_version_image',
+      prompt: 'sue-source-author-prompt',
+      checkpointHash: '29d5281e0a',
+      baseWidth: 672,
+      baseHeight: 984,
+    },
+  }
+
+  it('exposes current controls separately from source recipe data', async () => {
+    queueTurns({ finished: true, message: '已读取参数。' })
+    await collect(
+      runAssistantOperator('clerk-1', buildLoraRequest({ snapshot })),
+    )
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('Current Runner parameters')
+    expect(prompt).toContain('"runnerSeed":"123"')
+    expect(prompt).toContain('APPLIED SOURCE RECIPE')
+    expect(prompt).toContain('29d5281e0a')
+    expect(prompt).toContain('sue-source-author-prompt')
+  })
+
+  it.each([
+    { steps: 30, guidanceScale: 6 },
+    { steps: null, runnerWidth: null, runnerHeight: null },
+  ])(
+    'updates requested parameters with inverse and preserves untouched values: %j',
+    async (args) => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+            title: '调整参数',
+            args,
+          },
+        },
+        { finished: true, message: '已调整，未生成。' },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', buildLoraRequest({ snapshot })),
+      )
+      const inverse = {
+        ...snapshot.loraParameters,
+        runnerSampler: null,
+        runnerScheduler: null,
+      }
+      expect(stepsOf(events)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            tool: ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+            status: 'done',
+            payload: args,
+            inverse,
+          }),
+        ]),
+      )
+      const prompt = lastUserPrompt()
+      expect(prompt).toContain('"runnerSeed":"123"')
+      for (const [key, value] of Object.entries(args))
+        expect(prompt).toContain(`"${key}":${value}`)
+      expect(prompt).toContain('Generation has not started')
+    },
+  )
+
+  it('keeps the full initial inverse when steps and CFG are changed in sequence', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+          title: '调整步数',
+          args: { steps: 30 },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+          title: '调整CFG',
+          args: { guidanceScale: 6 },
+        },
+      },
+      { finished: true, message: '参数已调整。' },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildLoraRequest({ snapshot })),
+    )
+    const completed = stepsOf(events).filter(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters &&
+        step.status === 'done',
+    )
+    const original = {
+      steps: 25,
+      guidanceScale: 7,
+      runnerSeed: '123',
+      runnerWidth: 672,
+      runnerHeight: 984,
+      runnerSampler: null,
+      runnerScheduler: null,
+    }
+    expect(completed).toHaveLength(2)
+    expect(completed[0]).toMatchObject({
+      payload: { steps: 30 },
+      inverse: original,
+    })
+    expect(completed[1]).toMatchObject({
+      payload: { guidanceScale: 6 },
+      inverse: { ...original, steps: 30 },
+    })
+    expect(lastUserPrompt()).toContain('"steps":30')
+    expect(lastUserPrompt()).toContain('"guidanceScale":6')
+  })
+
+  it.each(['hosted', 'missing-controls'])(
+    'rejects parameter writes for %s',
+    async (mode) => {
+      const unavailable = { ...snapshot }
+      if (mode === 'hosted')
+        unavailable.model = { id: 'illustrious-hosted', label: 'Hosted' }
+      else delete unavailable.loraParameters
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+            title: '调整',
+            args: { steps: 30 },
+          },
+        },
+        { finished: true, message: '无对应控件。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({ snapshot: unavailable }),
+        ),
+      )
+      expect(stepsOf(events)).toEqual([
+        expect.objectContaining({
+          error: expect.objectContaining({ reason: 'noSuchControl' }),
+        }),
+      ])
+    },
+  )
+
+  it.each([
+    { runnerWidth: 513, runnerHeight: 984 },
+    { runnerWidth: 256, runnerHeight: 984 },
+    { runnerWidth: 2056, runnerHeight: 984 },
+    { runnerWidth: null },
+  ])(
+    'rejects invalid or unpaired dimensions without applying: %j',
+    async (args) => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+            title: '调整尺寸',
+            args,
+          },
+        },
+        { finished: true, message: '尺寸无效。' },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', buildLoraRequest({ snapshot })),
+      )
+      expect(stepsOf(events).some((step) => step.status === 'done')).toBe(false)
+      expect(stepsOf(events)).toEqual(
+        expect.arrayContaining([expect.objectContaining({ status: 'error' })]),
+      )
+    },
+  )
+})
+
 describe('current reference image bindings', () => {
   const refs = [
     { url: 'https://cdn.test/female.png' },
@@ -9353,9 +9525,14 @@ describe('current reference image bindings', () => {
     expect(lastUserPrompt()).toContain('CURRENT VERIFIED REFERENCE EVIDENCE')
   })
 
-  it.each([AI_ADAPTER_TYPES.GEMINI, AI_ADAPTER_TYPES.OPENAI])(
-    'sends image 3 directly to the answering model on %s even after old failures',
-    async (adapterType) => {
+  it.each([
+    { adapterType: AI_ADAPTER_TYPES.GEMINI, domain: 'image' as const },
+    { adapterType: AI_ADAPTER_TYPES.OPENAI, domain: 'image' as const },
+    { adapterType: AI_ADAPTER_TYPES.GEMINI, domain: 'lora' as const },
+    { adapterType: AI_ADAPTER_TYPES.OPENAI, domain: 'lora' as const },
+  ])(
+    'sends image 3 directly to the answering model on $adapterType in $domain even after old failures',
+    async ({ adapterType, domain }) => {
       mockResolveLlmTextRoute.mockResolvedValue({
         adapterType,
         providerConfig: { label: adapterType, baseUrl: 'https://example.test' },
@@ -9369,6 +9546,7 @@ describe('current reference image bindings', () => {
         runAssistantOperator(
           'clerk-1',
           buildRequest({
+            domain,
             messages: [
               { role: 'assistant', content: '图3连续读取失败，请重新上传。' },
               {
@@ -9430,115 +9608,260 @@ describe('current reference image bindings', () => {
     ])
   })
 
-  it('automatically obtains evidence for a text-only model before it can repeat an old failure', async () => {
-    mockResolveLlmTextRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
-      apiKey: 'text-key',
-    })
-    mockFindVisionCapableRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.GEMINI,
-      providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
-      apiKey: 'vision-key',
-    })
-    queueTurns(
-      { images: [{ imageIndex: 2, ...facts }] },
-      { finished: true, message: '根据这次视觉检查，图3是风格化角色渲染。' },
-    )
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildRequest({
-          messages: [
-            { role: 'assistant', content: '图3无法读取。' },
-            { role: 'user', content: '再分析图3的画风' },
-          ],
-          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
-        }),
-      ),
-    )
-    // ⚠ 只数工具环那几次：结账（§7.5）自己还有一次轻量往返排在 `done` 之前。
-    expect(toolRingCalls()).toHaveLength(2)
-    expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
-      adapterType: AI_ADAPTER_TYPES.GEMINI,
-      imageData: [refs[2]!.url],
-    })
-    expect(mockLlmTextCompletion.mock.calls[1]?.[0]).toMatchObject({
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      userPrompt: expect.stringContaining('Recognizable face and costume'),
-    })
-    expect(mockLlmTextCompletion.mock.calls[1]?.[0].imageData).toBeUndefined()
-    expect(
-      stepsOf(events).some(
-        (step) => step.tool === 'analyze_references' && step.status === 'done',
-      ),
-    ).toBe(true)
-  })
+  it.each(['image', 'lora'] as const)(
+    'analyzes only the @-mentioned image when imageIndices are omitted (%s)',
+    async (domain) => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+            title: '分析图3',
+            args: {},
+          },
+        },
+        { images: [{ imageIndex: 2, ...facts }] },
+        { finished: true, message: '图3是风格化三维渲染。' },
+      )
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            domain,
+            messages: [{ role: 'user', content: '分析 @Image3 的画风' }],
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      const visionCall = mockLlmTextCompletion.mock.calls.find(([input]) =>
+        String(input.systemPrompt).startsWith('Analyze reference images'),
+      )
+      expect(visionCall?.[0].imageData).toEqual([refs[2]!.url])
+    },
+  )
 
-  it('reuses complete visual evidence for a text-only answer without another paid inspection', async () => {
-    mockResolveLlmTextRoute.mockResolvedValue({
-      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
-      providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
-      apiKey: 'text-key',
-    })
-    queueTurns({ finished: true, message: '图3是风格化三维渲染。' })
-    await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildRequest({
-          messages: [{ role: 'user', content: '图3是什么画风' }],
-          referenceProfiles: [{ url: refs[2]!.url, ...facts }],
-          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
-        }),
-      ),
-    )
-    expect(mockFindVisionCapableRoute).not.toHaveBeenCalled()
-    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
-    expect(lastUserPrompt()).toContain('Stylized 3D NPR')
-    expect(mockLlmTextCompletion.mock.calls[0]?.[0].imageData).toBeUndefined()
-  })
+  it.each(['image', 'lora'] as const)(
+    'refuses to inspect unmentioned mounted images when the creator @-mentioned one (%s)',
+    async (domain) => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+            title: '分析全部',
+            args: { imageIndices: [0, 1, 2, 3] },
+          },
+        },
+        { finished: true, message: '只看了图3。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            domain,
+            messages: [{ role: 'user', content: '分析 @Image3 的画风' }],
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      expect(
+        stepsOf(events).some(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
+            step.status === 'error' &&
+            step.error?.reason === 'unknownAsset',
+        ),
+      ).toBe(true)
+      expect(
+        mockLlmTextCompletion.mock.calls.some(([input]) =>
+          String(input.systemPrompt).startsWith('Analyze reference images'),
+        ),
+      ).toBe(false)
+    },
+  )
 
-  it('answers a question about image 3 without invoking source-role planning', async () => {
+  it('writes a prompt from one @ image without requiring the other mounted references', async () => {
     queueTurns(
       {
         tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
-          title: '分析图3',
-          args: { imageIndices: [2] },
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '写提示词',
+          args: { value: 'Night scene from @Image3', overwrite: true },
         },
       },
-      { images: [{ imageIndex: 2, ...facts }] },
-      { finished: true, message: '这是图3的画风分析。' },
+      brief,
+      { issues: [] },
+      { finished: true, message: '已按图3写好。' },
     )
     const events = await collect(
       runAssistantOperator(
         'clerk-1',
         buildRequest({
-          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          messages: [{ role: 'user', content: '把 @Image3 的画风写进提示词' }],
+          referenceProfiles: [{ url: refs[2]!.url, ...facts }],
+          snapshot: {
+            ...SNAPSHOT,
+            prompt: '',
+            references: { items: refs, limit: 4 },
+          },
         }),
       ),
     )
-    expect(
-      stepsOf(events).findLast(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
-          step.status !== 'running',
-      ),
-    ).toMatchObject({
-      status: 'done',
-      result: { profiles: [{ url: refs[2]!.url, ...facts }], brief: null },
-    })
-    const vision = mockLlmTextCompletion.mock.calls.filter(
-      ([input]) => input.imageData,
+    const write = stepsOf(events).find(
+      (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
     )
-    expect(vision).toHaveLength(1)
-    expect(vision[0]?.[0].imageData).toEqual([refs[2]!.url])
-    expect(
-      mockLlmTextCompletion.mock.calls.some(([input]) =>
-        input.systemPrompt.includes('Build a reference-use brief'),
-      ),
-    ).toBe(false)
+    expect(write?.error?.reason).not.toBe('referenceAnalysisRequired')
   })
+
+  it.each(['image', 'lora'] as const)(
+    'does not prefetch vision on an action turn for a text-only model (%s)',
+    async (domain) => {
+      mockResolveLlmTextRoute.mockResolvedValue({
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
+        apiKey: 'text-key',
+      })
+      queueTurns({ finished: true, message: '提示词已改成夜景。' })
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            domain,
+            messages: [{ role: 'user', content: '把提示词改成夜景 @Image3' }],
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      expect(toolRingCalls()).toHaveLength(1)
+      expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      })
+      expect(
+        stepsOf(events).some((step) => step.tool === 'analyze_references'),
+      ).toBe(false)
+    },
+  )
+
+  it.each(['image', 'lora'] as const)(
+    'automatically obtains evidence for a text-only model before it can repeat an old failure (%s)',
+    async (domain) => {
+      mockResolveLlmTextRoute.mockResolvedValue({
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
+        apiKey: 'text-key',
+      })
+      mockFindVisionCapableRoute.mockResolvedValue({
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        providerConfig: { label: 'Gemini', baseUrl: 'https://example.test' },
+        apiKey: 'vision-key',
+      })
+      queueTurns(
+        { images: [{ imageIndex: 2, ...facts }] },
+        { finished: true, message: '根据这次视觉检查，图3是风格化角色渲染。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            domain,
+            messages: [
+              { role: 'assistant', content: '图3无法读取。' },
+              { role: 'user', content: '再分析图3的画风' },
+            ],
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      // ⚠ 只数工具环那几次：结账（§7.5）自己还有一次轻量往返排在 `done` 之前。
+      expect(toolRingCalls()).toHaveLength(2)
+      expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
+        adapterType: AI_ADAPTER_TYPES.GEMINI,
+        imageData: [refs[2]!.url],
+      })
+      expect(mockLlmTextCompletion.mock.calls[1]?.[0]).toMatchObject({
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        userPrompt: expect.stringContaining('Recognizable face and costume'),
+      })
+      expect(mockLlmTextCompletion.mock.calls[1]?.[0].imageData).toBeUndefined()
+      expect(
+        stepsOf(events).some(
+          (step) =>
+            step.tool === 'analyze_references' && step.status === 'done',
+        ),
+      ).toBe(true)
+    },
+  )
+
+  it.each(['image', 'lora'] as const)(
+    'reuses complete visual evidence for a text-only answer without another paid inspection (%s)',
+    async (domain) => {
+      mockResolveLlmTextRoute.mockResolvedValue({
+        adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+        providerConfig: { label: 'DeepSeek', baseUrl: 'https://example.test' },
+        apiKey: 'text-key',
+      })
+      queueTurns({ finished: true, message: '图3是风格化三维渲染。' })
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            domain,
+            messages: [{ role: 'user', content: '图3是什么画风' }],
+            referenceProfiles: [{ url: refs[2]!.url, ...facts }],
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      expect(mockFindVisionCapableRoute).not.toHaveBeenCalled()
+      expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+      expect(lastUserPrompt()).toContain('Stylized 3D NPR')
+      expect(mockLlmTextCompletion.mock.calls[0]?.[0].imageData).toBeUndefined()
+    },
+  )
+
+  it.each(['image', 'lora'] as const)(
+    'answers a question about image 3 without invoking source-role planning (%s)',
+    async (domain) => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+            title: '分析图3',
+            args: { imageIndices: [2] },
+          },
+        },
+        { images: [{ imageIndex: 2, ...facts }] },
+        { finished: true, message: '这是图3的画风分析。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            domain,
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      expect(
+        stepsOf(events).findLast(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
+            step.status !== 'running',
+        ),
+      ).toMatchObject({
+        status: 'done',
+        result: { profiles: [{ url: refs[2]!.url, ...facts }], brief: null },
+      })
+      const vision = mockLlmTextCompletion.mock.calls.filter(
+        ([input]) => input.imageData,
+      )
+      expect(vision).toHaveLength(1)
+      expect(vision[0]?.[0].imageData).toEqual([refs[2]!.url])
+      expect(
+        mockLlmTextCompletion.mock.calls.some(([input]) =>
+          input.systemPrompt.includes('Build a reference-use brief'),
+        ),
+      ).toBe(false)
+    },
+  )
 
   /**
    * ⭐ **答过的那道题对分工简报也要可见**（2026-09-12 真机 bug 的另一半）。
@@ -9599,7 +9922,14 @@ describe('current reference image bindings', () => {
    */
   it('⭐ 简报两次没过 schema 时降级写入提示词（⛔ 不再整轮零产出）', async () => {
     queueTurns(
-      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+          title: '分析图1',
+          args: { imageIndices: [0] },
+        },
+      },
+      { images: [{ imageIndex: 0, ...facts }] },
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -9642,15 +9972,6 @@ describe('current reference image bindings', () => {
     expect(briefCalls).toHaveLength(2)
     expect(String(briefCalls[1]?.[0].userPrompt)).toContain(
       'PREVIOUS REPLY REJECTED',
-    )
-    // 兜底分工里，创作者点名的那张不排除，另一张标成本次不用。
-    const reviewCall = mockLlmTextCompletion.mock.calls.find(([input]) =>
-      String(input.systemPrompt).includes(
-        'Check an image-generation prompt against',
-      ),
-    )
-    expect(String(reviewCall?.[0].userPrompt)).toContain(
-      'Not named by the creator for this edit',
     )
     expect(lastUserPrompt()).toContain('The source-role brief failed schema')
   })
@@ -9703,7 +10024,7 @@ describe('current reference image bindings', () => {
     })
   })
 
-  it('ends the tool loop after one failed prompt correction and reports the concrete conflict', async () => {
+  it('asks after one failed prompt correction instead of hanging the turn', async () => {
     const conflict = '图1被写成人物来源，但用户要求保留图2的脸部。'
     queueTurns(
       ...analysisTurns(),
@@ -9750,22 +10071,25 @@ describe('current reference image bindings', () => {
     )
     expect(writes).toHaveLength(2)
     expect(writes.every((step) => step.status === 'error')).toBe(true)
+    expect(writes[1]?.error?.detail).toContain(conflict)
     expect(events).toContainEqual(
       expect.objectContaining({
-        type: ASSISTANT_OPERATOR_EVENTS.message,
-        text: expect.stringContaining('提示词尚未修改'),
+        type: ASSISTANT_OPERATOR_EVENTS.ask,
+        question: expect.objectContaining({ id: 'prompt-conflict' }),
       }),
     )
-    expect(events).toContainEqual(
-      expect.objectContaining({
-        type: ASSISTANT_OPERATOR_EVENTS.message,
-        text: expect.stringContaining(conflict),
-      }),
-    )
-    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+    expect(events.at(-1)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+    })
   })
 
-  it('also bounds repeated source-role uncertainty before the prompt reviewer runs', async () => {
+  /**
+   * ⭐ **用途歧义第一次就出问题卡**（进度表 23：反问替代报错）。原来要先吃两条
+   * `promptConflict` 红步才轮到那张卡 —— 模型拿着同一份证据只会换个说法再撞一次。
+   */
+  it('asks on the first source-role uncertainty instead of refusing set_prompt', async () => {
+    const uncertainty = '哪张图提供服装？'
     queueTurns(
       ...analysisTurns(),
       {
@@ -9774,17 +10098,11 @@ describe('current reference image bindings', () => {
           args: { value: 'First attempt' },
         },
       },
-      { ...brief, uncertainties: ['哪张图提供服装？'] },
+      { ...brief, uncertainties: [uncertainty] },
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
           args: { value: 'Second attempt' },
-        },
-      },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          args: { value: 'Third attempt' },
         },
       },
     )
@@ -9792,6 +10110,76 @@ describe('current reference image bindings', () => {
       runAssistantOperator(
         'clerk-1',
         buildRequest({
+          responseLanguage: 'chinese',
+          snapshot: {
+            ...SNAPSHOT,
+            prompt: '',
+            references: { items: refs, limit: 4 },
+          },
+        }),
+      ),
+    )
+    // ⛔ 一条被拒的写入都不该出现：缺的是创作者的一句话，不是一次失败。
+    expect(
+      stepsOf(events).filter(
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      ),
+    ).toHaveLength(0)
+    expect(
+      mockLlmTextCompletion.mock.calls.some(([input]) =>
+        String(input.systemPrompt).includes(
+          'Check an image-generation prompt against',
+        ),
+      ),
+    ).toBe(false)
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: ASSISTANT_OPERATOR_EVENTS.ask,
+        question: expect.objectContaining({
+          id: 'prompt-conflict',
+          // 问句就是模型自己写的那一条疑问，⛔ 不换成服务端的通用取舍问法。
+          question: uncertainty,
+          multiSelect: false,
+          allowOther: true,
+          options: [
+            expect.objectContaining({ id: 'follow-request' }),
+            expect.objectContaining({ id: 'follow-reference' }),
+          ],
+        }),
+      }),
+    )
+    expect(events.at(-1)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+    })
+  })
+
+  it('writes the prompt once the creator answered that uncertainty with follow-request', async () => {
+    queueTurns(
+      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'A hug on white' },
+        },
+      },
+      { ...brief, uncertainties: ['哪张图提供服装？'] },
+      { issues: [] },
+      { finished: true, message: '已写入。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          responseLanguage: 'chinese',
+          planAnswers: [
+            {
+              questionId: 'prompt-conflict',
+              optionIds: ['follow-request'],
+              question: '哪张图提供服装？',
+              optionLabels: ['按我的要求写'],
+            },
+          ],
           snapshot: {
             ...SNAPSHOT,
             prompt: '',
@@ -9801,18 +10189,12 @@ describe('current reference image bindings', () => {
       ),
     )
     expect(
-      stepsOf(events).filter(
-        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      stepsOf(events).findLast(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status !== 'running',
       ),
-    ).toHaveLength(2)
-    expect(
-      mockLlmTextCompletion.mock.calls.some(([input]) =>
-        String(input.systemPrompt).includes(
-          'Check an image-generation prompt against',
-        ),
-      ),
-    ).toBe(false)
-    expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
+    ).toMatchObject({ status: 'done', payload: { value: 'A hug on white' } })
   })
 
   it('rejects malformed visual fields without exceeding the error event limit', async () => {
@@ -10162,7 +10544,7 @@ describe('current reference image bindings', () => {
     expect(stepsOf(events).some((step) => step.status === 'done')).toBe(false)
   })
 
-  it('rejects conflicting prompts twice and does not keep paying for synonym rewrites', async () => {
+  it('rejects conflicting prompts twice and asks instead of hanging', async () => {
     const turns = analysisTurns()
     for (const value of ['A hug in a forest', 'An embrace in the woods']) {
       turns.push(
@@ -10208,6 +10590,74 @@ describe('current reference image bindings', () => {
         input.systemPrompt.includes('Check an image-generation prompt'),
       ),
     ).toHaveLength(2)
+    const ask = events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+    )
+    expect(ask).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.ask,
+      question: {
+        id: 'prompt-conflict',
+        options: [
+          expect.objectContaining({ id: 'follow-request' }),
+          expect.objectContaining({ id: 'follow-reference' }),
+        ],
+      },
+    })
+    expect(events.at(-1)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+    })
+    expect(
+      events.some(
+        (event) =>
+          event.type === ASSISTANT_OPERATOR_EVENTS.message &&
+          event.text.includes('我已停止尝试'),
+      ),
+    ).toBe(false)
+  })
+
+  it('writes the prompt after the creator picks follow-request on a conflict card', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '写提示词',
+          args: { value: 'Night city, stylized 3D character' },
+        },
+      },
+      brief,
+      { finished: true, message: '写好了。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [{ role: 'user', content: '改成夜景' }],
+          planAnswers: [
+            {
+              questionId: 'prompt-conflict',
+              optionIds: ['follow-request'],
+              question: '提示词没写上：参考检查和你的要求打架了。以哪边为准？',
+              optionLabels: ['按我的要求写'],
+            },
+          ],
+          referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      ),
+    ).toBe(true)
+    expect(
+      mockLlmTextCompletion.mock.calls.filter(([input]) =>
+        input.systemPrompt.includes('Check an image-generation prompt'),
+      ),
+    ).toHaveLength(0)
   })
 
   it('writes a validated reference prompt once instead of paying for successful synonym rewrites', async () => {
@@ -10304,43 +10754,173 @@ describe('current reference image bindings', () => {
     ).toBe(false)
   })
 
-  it('does not critique mounted source images as failed generations', async () => {
+  it.each(['image', 'lora'] as const)(
+    'does not critique mounted source images as failed generations (%s)',
+    async (domain) => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+            title: '看图',
+            args: { targetIds: ['ref-one'] },
+          },
+        },
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            domain,
+            mentionedAssets: [{ id: 'ref-one', url: refs[0]!.url }],
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      expect(stepsOf(events)).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            error: expect.objectContaining({
+              reason: 'referenceAnalysisRequired',
+            }),
+          }),
+        ]),
+      )
+      expect(
+        mockLlmTextCompletion.mock.calls.every(
+          ([input]) =>
+            !input.systemPrompt.includes(
+              'You are looking at a picture that PixelVault just produced',
+            ),
+        ),
+      ).toBe(true)
+    },
+  )
+
+  it.each([
+    {
+      cached: false,
+      value: 'ink lines, cyan eyes, white background',
+      reason: 'referenceAnalysisRequired',
+    },
+    { cached: true, value: 'ink lines, match @Image1', reason: 'unknownValue' },
+    {
+      cached: true,
+      value: 'ink lines, cyan eyes, white background',
+      reason: null,
+    },
+  ])(
+    'validates LoRA reference-grounded tag prompts: %j',
+    async ({ cached, value, reason }) => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            title: '写提示词',
+            args: { value },
+          },
+        },
+        { finished: true, message: '处理完成。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildLoraRequest({
+            snapshot: {
+              ...LORA_SNAPSHOT,
+              references: { items: refs, limit: 4 },
+            },
+            ...(cached
+              ? {
+                  referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+                }
+              : {}),
+          }),
+        ),
+      )
+      const steps = stepsOf(events).filter(
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      )
+      if (reason) {
+        expect(steps).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              status: 'error',
+              error: expect.objectContaining({ reason }),
+            }),
+          ]),
+        )
+        expect(steps.some((step) => step.status === 'done')).toBe(false)
+      } else {
+        expect(steps).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              status: 'done',
+              payload: expect.objectContaining({ value }),
+            }),
+          ]),
+        )
+      }
+    },
+  )
+
+  it('critiques a user-mentioned LoRA result against mounted source images', async () => {
     queueTurns(
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
-          title: '看图',
-          args: { targetIds: ['ref-one'] },
+          title: '比较成图',
+          args: { targetIds: ['lora-result'] },
         },
       },
-      { finished: true },
+      {
+        findings: [
+          {
+            severity: 'warn',
+            text: 'The eyes match but the linework drifted.',
+          },
+        ],
+        advice: 'Preserve the source linework.',
+      },
+      { finished: true, message: '需要调整线条。' },
     )
     const events = await collect(
       runAssistantOperator(
         'clerk-1',
-        buildRequest({
-          mentionedAssets: [{ id: 'ref-one', url: refs[0]!.url }],
-          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        buildLoraRequest({
+          messages: [{ role: 'user', content: '检查我选的成图' }],
+          mentionedAssets: [
+            { id: 'lora-result', url: 'https://cdn.test/lora-result.png' },
+          ],
+          snapshot: { ...LORA_SNAPSHOT, references: { items: refs, limit: 4 } },
         }),
       ),
     )
+    const vision = mockLlmTextCompletion.mock.calls.find(([input]) =>
+      input.systemPrompt.includes(
+        'You are looking at a picture that PixelVault just produced',
+      ),
+    )?.[0]
+    expect(vision?.imageData).toEqual([
+      'https://cdn.test/lora-result.png',
+      ...refs.map((ref) => ref.url),
+    ])
     expect(stepsOf(events)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
-          error: expect.objectContaining({
-            reason: 'referenceAnalysisRequired',
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+          status: 'done',
+          result: expect.objectContaining({
+            findings: [
+              {
+                severity: 'warn',
+                text: 'The eyes match but the linework drifted.',
+              },
+            ],
           }),
         }),
       ]),
     )
-    expect(
-      mockLlmTextCompletion.mock.calls.every(
-        ([input]) =>
-          !input.systemPrompt.includes(
-            'You are looking at a picture that PixelVault just produced',
-          ),
-      ),
-    ).toBe(true)
   })
 
   it('compares the generated result against actual reference images in one visual call', async () => {
@@ -10768,6 +11348,31 @@ describe('文本模型路由 · persona 说了算', () => {
         (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
       )!.modelId,
     )
+  })
+
+  it('自动 + 问句 + OpenAI → 走 Luna，不走 Sol', async () => {
+    mockGetAssistantPersonaByUserId.mockResolvedValue({
+      ...ASSISTANT_PERSONA_DEFAULTS,
+      avatarUrl: null,
+      routeModel: ASSISTANT_ROUTE_MODEL_AUTO,
+    })
+    mockResolveLlmTextRoute.mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'OpenAI', baseUrl: 'https://example.test' },
+      apiKey: 'openai-key',
+    })
+    queueTurns({ finished: true, message: '这是风格化 3D。' })
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [{ role: 'user', content: '这是什么画风' }],
+        }),
+      ),
+    )
+
+    expect(calledModelId()).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_LUNA)
   })
 
   /**
@@ -11945,14 +12550,7 @@ describe('LoRA 域方言与触发词规矩', () => {
   })
 })
 
-/**
- * `set_prompt` 的取材阶梯与确认卡两格（spec §7.1–§7.4）。
- *
- * ⚠ 素材只来自快照：阶梯 ② 的来源配方吃的是快照那格 `sourcePrompts`（客户端从
- * 装配台「来源配方」那条既有通道挖来的 Civitai 来源图提示词）。有料就真的可达
- * `reliable === true`；一条都没有时如实落第 ③ 档并说清为什么。
- */
-describe('LoRA 域 set_prompt 的取材阶梯', () => {
+describe('LoRA 域 set_prompt 的可用参考材料', () => {
   const WRITTEN = '我自己写的一段提示词'
   const SET_PROMPT_TURN = {
     tool: {
@@ -11991,22 +12589,17 @@ describe('LoRA 域 set_prompt 的取材阶梯', () => {
     ) as Extract<AssistantOperatorEvent, { type: 'ask' }>
   }
 
-  it('第 ① 档：有作者推荐就报「来自这把的作者推荐」', async () => {
+  it('有作者推荐时标为可参考材料，不声称已采用', async () => {
     const ask = await askFor(
       snapshotWith({ recommendedPrompt: 'ink lines, rooftop, dusk' }),
     )
 
     expect(ask.overwrite?.sourceNotes).toEqual([
-      `Subject — the author's own prompt for "Ink Lines"`,
+      `Available reference — author's prompt for "Ink Lines"`,
     ])
   })
 
-  /**
-   * ⭐ 这条是第 ② 档**真可达**的证据：快照带上来源图提示词，来源配方就 `reliable`，
-   * 标注说的是「来自来源图配方」而不是家族骨架。这一格空着的时候（第二条用例）
-   * 那一档永远判不可靠 —— 两条一起看才说得清这一格是干什么用的。
-   */
-  it('第 ② 档：快照带了来源图提示词 → reliable=true，标注写「来源配方」', async () => {
+  it('快照来源图提示词标为可参考材料', async () => {
     const ask = await askFor(
       snapshotWith({
         recommendedPrompt: null,
@@ -12015,11 +12608,11 @@ describe('LoRA 域 set_prompt 的取材阶梯', () => {
     )
 
     expect(ask.overwrite?.sourceNotes).toEqual([
-      `Subject — the source-image recipe for "Ink Lines"`,
+      `Available reference — source-image prompts for "Ink Lines"`,
     ])
   })
 
-  it('第 ② 档：没有触发词但有来源图提示词，照样 reliable', async () => {
+  it('没有触发词也能提供来源图提示词参考', async () => {
     const ask = await askFor(
       snapshotWith({
         recommendedPrompt: null,
@@ -12028,23 +12621,24 @@ describe('LoRA 域 set_prompt 的取材阶梯', () => {
       }),
     )
 
-    expect(ask.overwrite?.sourceNotes?.[0]).toContain('source-image recipe')
+    expect(ask.overwrite?.sourceNotes?.[0]).toContain('source-image prompts')
   })
 
-  it('第 ② 档：来源图提示词是空的 → reliable=false 落第 ③ 档并说清为什么', async () => {
+  it('只有触发词而无作者或来源图提示词时仅有家族骨架', async () => {
     const ask = await askFor(
       snapshotWith({ recommendedPrompt: null, sourcePrompts: [] }),
     )
 
     expect(ask.overwrite?.sourceNotes?.[0]).toContain(
-      'too little source description',
+      'has no author or source-image prompt',
     )
     expect(ask.overwrite?.sourceNotes?.[0]).toContain('family skeleton')
-    // ⛔ 不可靠的来源配方不当素材用 —— 一个字都不许说成「来自来源图」。
-    expect(ask.overwrite?.sourceNotes?.[0]).not.toContain('source-image recipe')
+    expect(ask.overwrite?.sourceNotes?.[0]).not.toContain(
+      'source-image prompts',
+    )
   })
 
-  it('第 ③ 档：触发词与来源图提示词都没有就跳过第 ② 档，直接按家族骨架', async () => {
+  it('无作者或来源图提示词时报告家族骨架可参考', async () => {
     const ask = await askFor(
       snapshotWith({
         recommendedPrompt: null,
@@ -12054,7 +12648,7 @@ describe('LoRA 域 set_prompt 的取材阶梯', () => {
     )
 
     expect(ask.overwrite?.sourceNotes).toEqual([
-      `Subject — no author prompt and no source recipe for "Ink Lines", so this follows the illustrious family skeleton`,
+      `"Ink Lines" has no author or source-image prompt; only the illustrious family skeleton is available`,
     ])
   })
 
@@ -12071,7 +12665,7 @@ describe('LoRA 域 set_prompt 的取材阶梯', () => {
     const [note] = ask.overwrite?.sourceNotes ?? []
     expect(note).toContain('family skeleton')
     expect(note).not.toContain(`author's own prompt`)
-    expect(note).not.toContain('source-image recipe')
+    expect(note).not.toContain('source-image prompts')
   })
 
   it('静音的那把不算料，条目数 ≤ 挂载数 + 1', async () => {
@@ -12193,8 +12787,10 @@ describe('LoRA 域 set_prompt 的取材阶梯', () => {
 
     expect(typesOf(events)).not.toContain(ASSISTANT_OPERATOR_EVENTS.ask)
     const digest = lastUserPrompt()
-    expect(digest).toContain(`Where this text's material came from`)
-    expect(digest).toContain(`the author's own prompt for "Ink Lines"`)
+    expect(digest).toContain(`Available LoRA reference material:`)
+    expect(digest).toContain(
+      `Available reference — author's prompt for "Ink Lines"`,
+    )
     expect(digest).toContain('never replacing it')
   })
 })

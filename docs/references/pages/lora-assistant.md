@@ -456,6 +456,44 @@ loraPicks?: { candidateId, weight?, candidate: AssistantOperatorLoraPickCandidat
 
 ---
 
+## 11. 实现核查：还原与质量链路（2026-09-13）
+
+本节记录当前本地实现，不改变前述已确认的 UI 结构；与前述历史设计描述冲突时，以本节及代码为准。做同款、助手取材、来源参数、挂载回执与显式看图评审已接通，尚未做真实付费出图质量验收。
+
+| 环节             | 当前实现事实                                                                                                                                                                         | 对质量的影响                                                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| 做同款的实际底模 | 应用有 checkpoint 引用的配方时选择兼容、支持来源底模的 Runner；版本 ID 与文件 hash 贯穿提交和解析链。                                                                                | 无版本 ID 时可用 hash 定位来源底模；只有名称或解析失败时仍按已有保真度分级处理，不能保证精确还原。                                  |
+| 配方额外 LoRA    | 补挂恢复已有兼容项的启用状态；所选 extras 的实际资产 ID、启用状态及当前底模兼容性共同决定是否允许出图。解析失败可重试或撤销，移除来源主 LoRA 后恢复普通生成。                        | 避免异步补挂未完成便提交、静音项误报完成，以及删除 extras 后仍提交不完整配方。                                                      |
+| 助手实际取材     | `renderState` 按挂载 ID 输出启用兼容项的作者/来源提示词，并独立输出已应用来源配方的 checkpoint、额外 LoRA 版本/权重与采样参数；提示词正文总预算 8000 字符，压缩时 2000 字符。        | 来源证据与当前设置分开，不能把材料存在等同于实际采用，也不能把当前底模/权重冒充来源配方。                                           |
+| LoRA 职责        | 材料标注不再按挂载顺序推断主体/画风，模型状态明确顺序不是职责证据。                                                                                                                  | 避免双角色或先挂画风时的固定错误归因；完整职责规划仍需结合用户目标与模型证据。                                                      |
+| 可编辑生成参数   | `set_lora_parameters` 写入现有 Runner 控件：Steps、CFG、seed、宽高、sampler、scheduler；校验尺寸与底模能力，null 清空覆盖值，完整 inverse 支持连续调整后撤销。                       | 参数实际进入生成请求；来源 Latent 精修由 SDXL 配方携带，此工具不编辑它；ControlNet 不会伪装成已应用。未选 Runner 时没有该编辑能力。 |
+| 挂载完成信号     | 客户端确认选择后逐把等待下载门检查、导入和挂载，返回实际资产 ID / 错误；下一轮服务端以新快照核对回执，删除乐观挂载状态写入。                                                         | 失败不会提前报成功或在同轮重复导入；已成功部分保留并可撤销挂载，撤销不删除素材。                                                    |
+| 看图与评审       | LoRA 域接通 `analyze_references` 与 `critique_result`；当前参考图可直接送视觉路由，用户显式 @ 的结果可评审；有参考图时写正面词须先有完整视觉依据，不把 @Image 占位符写入扩散提示词。 | 可先看目标再写词、显式对照结果纠偏；来源图不会误作失败成图。自动生成后的归属票与自动评审尚未接通，仍由用户点击出图。                |
+
+证据入口：`src/constants/lora-base-models.ts`、`src/components/business/studio/lora/LoraWorkbench.tsx`、`src/lib/lora-recipe-extra-mount.ts`、`src/services/kernel/assistant-operator.service.ts`、`src/hooks/use-lora-operator-host.ts`、`src/hooks/use-assistant-operator.ts`、`src/constants/assistant-operator.ts`。
+
+### 11.1 Sue 来源图个案：源 metadata 与真实生成记录
+
+用户补充[来源版本 3139260](https://civitai.red/models/2786243/arknights-endfield-oror-sue?modelVersionId=3139260)和成图后，已只读查询精确 URL 对应的 `Generation`（`8953f9f1-4c3b-4a23-89ee-693a351da7fd`）及关联 job，并读取[来源版本 API](https://civitai.red/api/v1/model-versions/3139260)首图 metadata。
+
+| 项目       | 来源                                                   | 生成记录 / 执行核查                                                                                                                              |
+| ---------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 通道       | 来源工具版本字段为 Forge/A1111 系版本串                | `illustrious-recipe-clone` / PixelVault Runner；本个案没有走上表的默认 NoobAI 路径                                                               |
+| checkpoint | `rinFlanimeIllustrious_v40`，hash `29d5281e0a`         | 记录仅有名字，无版本 ID；按当前解析器与 Worker manifest 重建会落至 WAI v15。历史 GPU graph 未留存，因此此项是代码推导，不是捕获到的历史 GPU 参数 |
+| LoRA 栈    | Sue 0.9、EnchantingEyes 0.8、detailed hand focus 0.8   | 记录只有 Sue 版本 3139260 / 0.9 与 Eyes 版本 1463317 / 0.8；缺手部 LoRA                                                                          |
+| 初始尺寸   | metadata width/height 与 `Original Size` 均为 672×984  | 768×1024；提取器只读 `Size/size`，漏掉本图的两个有效尺寸来源                                                                                     |
+| 高清修复   | Latent 1.45 倍、denoise 0.45；来源成图 968×1424        | 历史 Runner 图缺少该流程；本地新增 Latent 二采样，未部署或真实 GPU 验证                                                                          |
+| 已对齐项   | seed 2092427729、25 steps、CFG 7、Euler a、Clip skip 2 | seed/steps/CFG/sampler 与记录一致；当前 WAI manifest 的 Clip skip 也是 2，不能把它列为本例已证实差异                                             |
+| 提示词     | 来源正文与三个 LoRA 标签                               | 三个标签转换为挂载后，正文基本相同，但编译结果额外前置 `明日方舟, Enchanting Eyes`；不能把正文框视为最终提交原文                                 |
+
+修复前，手部权重还有一个独立解析缺口：`resolveRecipeLoraSignals` 先读取无 weight 的 `resources` 条目并记入 `seenNames`，随后跳过正文中同名的 `<lora:...:0.8>`，导致已有明确权重未被补齐。`unmatched:true` 不代表无 hash，也不能单凭它判定资源不可用。来源 checkpoint 的 hash 同样存在，修复前未贯穿到强定位步骤。本地实现已补齐 hash 链、`Original Size` 与 metadata width/height 的尺寸读取，以及同名正文 LoRA 标签对缺失权重的补齐（保留显式 0）。官方 by-hash API 已确认 `29d5281e0a` 对应 checkpoint 版本 2944197。手部源 hash 查询为 404；现有按文件名解析可定位版本 2212079，但不能由同名推断文件字节完全一致。
+
+视觉对照：已打开用户成图，对照用户上传截图，角色发色、角、眼睛与衣装基本保留；头部角度、构图、抬手侧及衣饰细节有明显差异。原图 CDN 被浏览器站点安全策略阻止，未绕过限制；对照使用用户截图。没有重新付费生成或进行控制变量实验，不能给各项差异分配因果占比。源 `Automatic` 与 Worker `normal` 的语义差异、Forge 与 ComfyUI 提示词加权等价性均未验证，不作为已证实根因。
+
+追溯缺口：该作品 `recipeSnapshot` / `loraLineage` 均为空；关联 job 仍保存输入，但完成后的 outbox 已精简，无法直接读取该次最终 GPU graph。后续验收需要区分来源配方、提交输入与真实执行信息。
+
+外部原理核验（2026-09-12）：[Diffusers LoRA 加载文档](https://huggingface.co/docs/diffusers/main/using-diffusers/loading_adapters)说明底模、实际加载权重及 scale 各自参与执行；[可复现性文档](https://huggingface.co/docs/diffusers/using-diffusers/reusing_seeds)说明随机状态与执行环境会影响复现，即使相同 seed 也不保证跨环境一致。这些是原理依据，不是本仓 Comfy Runner 的端到端验证。
+
 ## Source of Truth / Last Verified
 
 ### Source of Truth
@@ -478,3 +516,5 @@ loraPicks?: { candidateId, weight?, candidate: AssistantOperatorLoraPickCandidat
   - **`confirm` 帧已经有三支不是两支**（`multistep` / `generate` / `contextCard`），而 `ASSISTANT_OPERATOR_CONFIRM_KIND_IDS` 的头注与 v2 §3.3 还写着「只剩两种来源」。→ 推荐卡进**第四支** `loraPick`，那段注释跟着重写（§10.1）。
   - **`run.loraIndex` 只活一轮，而勾选发生在流结束之后**。「确认时按 id 再搜一次」已被 `types/lora-candidate.ts` 的头注否掉（上游会漂 + 两次外部请求），旧面板的 `AssistantConversationMessageSchema.loraCandidates` 存的正是**被挑中的候选本体**。→ 候选本体（含 `importPayload`）随推荐卡这一帧走、只回传勾中的那几条；`AssistantOperatorLoraCandidateSchema` 里那句「不流到客户端」改写成有边界的一句（它说的是 `search_loras` 的步结果）（§10.1 / §10.2.1）。
   - **库详情组件吃不下检索候选**：`LoraLibraryRowDetail` 是 `CivitaiLoraLibraryItem` / `HuggingFaceLoraSearchItem` 两支判别联合，而 `CivitaiLoraLibraryItem` 是 `LoraAssetRecord` 再 extend 二十来格必填字段（`thumbsUpCount` / `allowDerivatives` / `versionName`…），候选身上一格都没有。→ **给它加第三支 `source: 'candidate'`**，⛔ 不写「候选 → Civitai item」的适配器（适配器要给必填格编值，编出来的 0 / false 会被当成事实画到徽章上）（§10.3.2）。
+
+2026-09-13 触发词修正：Civitai 作者 `trainedWords` 与名称推断区分为 `official` / `inferred`，随 `sourceSnapshot` 保存。名称推断、以及旧导入资产缺少来源证据的触发词默认不注入；chip 可手动启用。候选确认挂载同样禁止自动追加猜词，作者推荐的完整 prompt 保留。自训和人工维护资产仍按已声明触发词处理。来源 Latent 与实际文件证据契约见 `../domains/runner.md` §2。

@@ -81,7 +81,49 @@ export interface RunnerGenerationRequestInput {
    */
   architecture?: RunnerArchitecture
   /** Exact post-decode model filename in models/upscale_models/. */
+  hires?: {
+    width: number
+    height: number
+    denoise: number
+    steps?: number
+    cfg?: number
+  }
   upscalerModelFilename?: string
+}
+
+export function resolveRunnerHires(
+  value: unknown,
+  width: number,
+  height: number,
+  architecture: RunnerArchitecture,
+) {
+  if (value === undefined) return undefined
+  if (!value || typeof value !== 'object' || architecture !== 'sdxl')
+    throw new Error('Latent hires requires an SDXL Runner recipe.')
+  const v = value as Record<string, unknown>
+  const valid = (n: unknown, min: number, max: number): n is number =>
+    typeof n === 'number' && Number.isFinite(n) && n >= min && n <= max
+  if (
+    !valid(v.scale, 1, 4) ||
+    v.scale <= 1 ||
+    !valid(v.denoise, 0, 1) ||
+    v.denoise <= 0 ||
+    (v.steps !== undefined &&
+      (!valid(v.steps, 1, 100) || !Number.isInteger(v.steps))) ||
+    (v.cfg !== undefined && !valid(v.cfg, 0, 30))
+  )
+    throw new Error('Invalid Latent hires parameters.')
+  const targetWidth = Math.floor((width * v.scale) / 8) * 8
+  const targetHeight = Math.floor((height * v.scale) / 8) * 8
+  if (targetWidth > 2048 || targetHeight > 2048)
+    throw new Error('Latent hires dimensions exceed the Runner 2048px limit.')
+  return {
+    width: targetWidth,
+    height: targetHeight,
+    denoise: v.denoise,
+    ...(v.steps !== undefined ? { steps: v.steps as number } : {}),
+    ...(v.cfg !== undefined ? { cfg: v.cfg as number } : {}),
+  }
 }
 
 export class RunnerUnknownCheckpointError extends Error {
@@ -103,6 +145,8 @@ export function buildRunnerWorkflowFromRequest(
 ): ComfyWorkflow {
   // v4：Anima DiT 走独立工作流（UNETLoader + Qwen 配件）。缺省 SDXL 走下方原图。
   if ((input.architecture ?? 'sdxl') === 'anima') {
+    if (input.hires)
+      throw new Error('Latent hires is only supported by SDXL Runner.')
     return buildAnimaWorkflowFromRequest(input, randomSeed)
   }
 
@@ -155,6 +199,7 @@ export function buildRunnerWorkflowFromRequest(
     referenceImageName: input.referenceImageName,
     denoise: input.denoise,
     upscalerModelFilename: input.upscalerModelFilename,
+    hires: input.hires,
   })
 }
 
@@ -210,4 +255,81 @@ function buildAnimaWorkflowFromRequest(
     denoise: input.denoise,
     upscalerModelFilename: input.upscalerModelFilename,
   })
+}
+
+export interface RunnerModelEvidence {
+  version: 1
+  evidence: 'loader-output'
+  imageSha256: string
+  models: Array<{
+    kind: 'checkpoint' | 'lora'
+    filename: string
+    sha256: string
+    sizeBytes: number
+    strengthModel?: number
+    strengthClip?: number
+  }>
+}
+
+export function parseRunnerModelEvidence(
+  value: unknown,
+): RunnerModelEvidence | undefined {
+  if (value === undefined) return undefined
+  const invalid = () => {
+    throw new Error('Invalid Runner model load evidence')
+  }
+  if (!value || typeof value !== 'object' || Array.isArray(value))
+    return invalid()
+  const data = value as Record<string, unknown>
+  const hash = (input: unknown): input is string =>
+    typeof input === 'string' && /^[a-f0-9]{64}$/.test(input)
+  if (
+    data.version !== 1 ||
+    data.evidence !== 'loader-output' ||
+    !hash(data.imageSha256) ||
+    !Array.isArray(data.models) ||
+    data.models.length < 1 ||
+    data.models.length > 32
+  )
+    return invalid()
+  const models = data.models.map((item: unknown, index: number) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item))
+      return invalid()
+    const model = item as Record<string, unknown>
+    if (
+      model.kind !== (index === 0 ? 'checkpoint' : 'lora') ||
+      typeof model.filename !== 'string' ||
+      !model.filename ||
+      model.filename.length > 512 ||
+      !hash(model.sha256) ||
+      typeof model.sizeBytes !== 'number' ||
+      !Number.isSafeInteger(model.sizeBytes) ||
+      model.sizeBytes <= 0
+    )
+      return invalid()
+    const record: RunnerModelEvidence['models'][number] = {
+      kind: index === 0 ? 'checkpoint' : 'lora',
+      filename: model.filename,
+      sha256: model.sha256,
+      sizeBytes: model.sizeBytes,
+    }
+    if (index > 0) {
+      if (
+        typeof model.strengthModel !== 'number' ||
+        !Number.isFinite(model.strengthModel) ||
+        typeof model.strengthClip !== 'number' ||
+        !Number.isFinite(model.strengthClip)
+      )
+        return invalid()
+      record.strengthModel = model.strengthModel
+      record.strengthClip = model.strengthClip
+    }
+    return record
+  })
+  return {
+    version: 1,
+    evidence: 'loader-output',
+    imageSha256: data.imageSha256,
+    models,
+  }
 }

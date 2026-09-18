@@ -751,17 +751,18 @@ async function fetchLlmTextStreaming(
   context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
 ): Promise<Response> {
   const controller = new AbortController()
-  const timer = setTimeout(
-    () => controller.abort(),
-    LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS,
-  )
+  const headerTimeoutMs =
+    context.adapterType === AI_ADAPTER_TYPES.XAI
+      ? LLM_TEXT_TIMEOUTS_MS.XAI_STREAM_HEADERS
+      : LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS
+  const timer = setTimeout(() => controller.abort(), headerTimeoutMs)
   try {
     return await fetch(endpoint, { ...init, signal: controller.signal })
   } catch (error) {
     if (!isAbortError(error)) throw error
     throw toLlmTextTimeoutError({
       ...context,
-      timeoutMs: LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS,
+      timeoutMs: headerTimeoutMs,
     })
   } finally {
     clearTimeout(timer)
@@ -1513,7 +1514,8 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
  * grounded Grok turn would be billed to OpenAI. Copying the DeepSeek shape
  * keeps this route's host and model ids its own; it also sidesteps
  * `isOpenAiReasoningModel`, whose `/^(gpt-[56]|o[134])/` regex never matches a
- * `grok-*` id and would hand Grok a too-small token budget.
+ * `grok-*` id. Token budget is `max_completion_tokens` (visible only) plus
+ * `reasoning_effort: 'low'` — not the deprecated `max_tokens` total cap.
  *
  * Image input IS supported (grok-4.6 takes `text, image → text`; 20MiB max,
  * jpg/png only) using the same OpenAI multimodal content shape DeepSeek uses.
@@ -1559,15 +1561,36 @@ function buildXaiChatRequest(
       model: modelId,
       messages,
       ...(options.stream ? { stream: true } : {}),
-      ...(!input.providerManagedOutput
-        ? {
-            max_tokens: input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.DEFAULT,
-          }
-        : {}),
+      ...xaiVisibleOutputBudget(input),
+      // grok-4.6 reasoning cannot be turned off and defaults to high.
+      // Official "low" is the latency-sensitive agentic / tool-calling tier
+      // the assistant operator needs; high burns the first-byte window
+      // and the client sees a dropped connection.
+      reasoning_effort: 'low',
       ...(input.responseFormat === 'json_object'
         ? { response_format: { type: 'json_object' } }
         : {}),
     }),
+  }
+}
+
+/**
+ * Visible-output budget for grok-4.6. Official Chat Completions field is
+ * `max_completion_tokens` (visible tokens only; default 128k when omitted).
+ * `max_tokens` is deprecated and must not be sent — a leftover 1024-sized
+ * total cap is spent on reasoning before any JSON lands.
+ *
+ * `providerManagedOutput` omits the field so the 128k default applies,
+ * same shape as OpenAI reasoning. Explicit caller budgets are raised to
+ * the XAI floor; it is a cap, not spend.
+ */
+function xaiVisibleOutputBudget(input: LlmTextInput): {
+  max_completion_tokens?: number
+} {
+  if (input.providerManagedOutput) return {}
+  const requested = input.maxTokens ?? LLM_TEXT_DEFAULT_MAX_TOKENS.XAI
+  return {
+    max_completion_tokens: Math.max(requested, LLM_TEXT_DEFAULT_MAX_TOKENS.XAI),
   }
 }
 

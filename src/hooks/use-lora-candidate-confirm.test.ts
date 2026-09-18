@@ -76,6 +76,7 @@ function candidate(over: Partial<LoraCandidate> = {}): LoraCandidate {
       fileHashAutoV3: null,
       sourceSnapshot: {
         source: 'civitai',
+        triggerSource: 'official',
         author: 'creator_name',
         license: {
           label: null,
@@ -141,6 +142,38 @@ describe('useLoraCandidateConfirm · LoRA 装配台（三件事全做）', () =>
 
     expect(mount).toHaveBeenCalledExactlyOnceWith(ASSET, ASSET.defaultScale)
   })
+
+  it.each(['inferred', undefined] as const)(
+    '来源为 %s 时仍导入挂载，但不把猜测触发词写进用户提示词',
+    async (triggerSource) => {
+      const target = candidate()
+      target.importPayload!.sourceSnapshot!.triggerSource = triggerSource
+      target.importPayload!.recommendedPrompt =
+        'c1, pink hair, white hair ribbon'
+      const mount = vi.fn()
+      const applyTriggerWords = vi.fn()
+      const { result } = renderHook(() =>
+        useLoraCandidateConfirm({ mount, applyTriggerWords }),
+      )
+
+      const outcome = await result.current.confirm({ candidate: target })
+
+      expect(favoriteLoraAPI).toHaveBeenCalledExactlyOnceWith(
+        target.importPayload,
+      )
+      expect(mount).toHaveBeenCalledExactlyOnceWith(ASSET, ASSET.defaultScale)
+      expect(applyTriggerWords).not.toHaveBeenCalled()
+      expect(outcome).toMatchObject({
+        status: 'ok',
+        imported: true,
+        mounted: true,
+        triggerWordsApplied: false,
+      })
+      expect(target.importPayload!.recommendedPrompt).toBe(
+        'c1, pink hair, white hair ribbon',
+      )
+    },
+  )
 
   it('没有触发词不算失败 —— 很多风格 LoRA 本来就不需要', async () => {
     const applyTriggerWords = vi.fn()

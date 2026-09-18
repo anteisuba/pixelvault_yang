@@ -1,11 +1,11 @@
 ---
 name: tdd
-description: Test-driven development. Use when the user wants to build features or fix bugs test-first, mentions "red-green-refactor", or wants integration tests.
+description: 用户要求测试先行或 red-green-refactor 时使用测试驱动开发。
 ---
 
 # 测试驱动开发
 
-用户要求测试先行或当前行为需要回归保护时使用。项目验证范围见 `docs/WORKFLOW.md`，不额外建立计划审批门。
+用户要求测试先行时使用；普通回归测试不自动引入 TDD 流程。项目验证范围见 `docs/WORKFLOW.md`，不额外建立计划审批门。
 
 1. 读相关 `docs/references/domains/` 与现有测试，确定需要保护的可观察行为、公共接口和关键失败路径；仅对未决产品语义提问。
 2. 写一个能复现问题或表达目标行为的测试，确认它因预期原因失败。

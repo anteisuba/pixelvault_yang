@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { ImageOff } from '@/components/icons'
+import { toast } from 'sonner'
 
 import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'
@@ -9,8 +10,8 @@ import { StudioVideoQueueStrip } from '@/components/business/studio-shared/chrom
 import { GenerationPreview } from '@/components/business/studio/GenerationPreview'
 import { StudioProvider } from '@/contexts/studio-context'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
 import { EmptyState } from '@/components/ui/empty-state'
+import { Button } from '@/components/ui/button'
 
 import {
   UI_STATE_CASES,
@@ -31,6 +32,10 @@ export function UiStateGallery() {
   const [caseKey, setCaseKey] = useState<string>(UI_STATE_CASES[0].key)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [referenceIndex, setReferenceIndex] = useState(0)
+  const [references, setReferences] = useState(UI_STATE_REFERENCE_ENTRIES)
+  const [feedback, setFeedback] = useState(
+    '点击第三张参考图，查看它未参与生成的原因。',
+  )
 
   const active =
     UI_STATE_CASES.find((c) => c.key === caseKey) ?? UI_STATE_CASES[0]
@@ -46,12 +51,33 @@ export function UiStateGallery() {
           <p className="text-xs font-medium text-muted-foreground">
             结果区状态样板间
           </p>
+          <h1 className="text-lg font-semibold">交互细节 · 演示 Mock</h1>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            参考图：← → 切换，Home / End
+            跳到首尾。结果：方向键按顺序浏览，跳过生成中与失败项；Tab
+            直接进入动作栏。浏览不会自动定为最佳。
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setReferences(UI_STATE_REFERENCE_ENTRIES)
+              setReferenceIndex(0)
+              setSelectedId(null)
+              setFeedback('已恢复三张参考图。点击第三张查看不可用原因。')
+            }}
+          >
+            恢复参考图
+          </Button>
+          <p role="status" className="text-sm leading-relaxed">
+            {feedback}
+          </p>
           <div className="flex flex-col gap-2">
             {UI_STATE_CASES.map((c) => (
               <button
                 key={c.key}
                 type="button"
                 data-ui-case-trigger={c.key}
+                aria-pressed={c.key === active.key}
                 onClick={() => {
                   setCaseKey(c.key)
                   setSelectedId(null)
@@ -129,22 +155,62 @@ export function UiStateGallery() {
               {/* 参考轨与结果**并存** —— 旧版参考图区的渲染条件是「还没有结果」，
                   第一张图落地就整块消失。这里两者同屏，量的是它们真实的相对位置
                   （尤其是右上角那颗固定的助手浮标会不会压住轨上的按钮）。 */}
-              <StudioReferenceRail
-                label="参考图"
-                entries={UI_STATE_REFERENCE_ENTRIES}
-                activeIndex={referenceIndex}
-                onActiveIndexChange={setReferenceIndex}
-                onEdit={() => {}}
-                onRemove={() => {}}
-              />
+              {references.length > 0 && (
+                <StudioReferenceRail
+                  label="参考图"
+                  entries={references}
+                  activeIndex={referenceIndex}
+                  onActiveIndexChange={setReferenceIndex}
+                  onEdit={(index) =>
+                    toast.info(
+                      `演示：编辑参考图 ${index + 1}。本样板间只演示选择与状态反馈。`,
+                    )
+                  }
+                  onRemove={(index) => {
+                    const next = references.filter(
+                      (_, entryIndex) => entryIndex !== index,
+                    )
+                    setReferences(next)
+                    setReferenceIndex(
+                      Math.max(0, Math.min(index, next.length - 1)),
+                    )
+                    setFeedback(
+                      `已移除参考图 ${index + 1}，剩余 ${next.length} 张。可用「恢复参考图」重新体验。`,
+                    )
+                  }}
+                />
+              )}
               <div className="mx-auto w-full">
                 <CompareGrid
                   items={[...active.items]}
                   selectedItemId={selectedId ?? presetSelected}
-                  onSelect={setSelectedId}
+                  onSelect={(id) => {
+                    setSelectedId(id)
+                    setFeedback('已在本次演示中定为最佳；仅更新本地状态。')
+                  }}
                   elapsedSeconds={12}
-                  onEdit={() => {}}
-                  onUseAsReference={() => {}}
+                  onEdit={() =>
+                    toast.info(
+                      '演示：已选择要编辑的结果。本样板间只演示选择与状态反馈。',
+                    )
+                  }
+                  onUseAsReference={(url) => {
+                    const existingIndex = references.findIndex(
+                      (entry) => entry.url === url,
+                    )
+                    if (existingIndex >= 0) {
+                      setReferenceIndex(existingIndex)
+                    } else {
+                      setReferences([
+                        ...references,
+                        { url, disabledReason: null },
+                      ])
+                      setReferenceIndex(references.length)
+                    }
+                    setFeedback(
+                      '已将当前结果放入参考轨，参考图在结果出现后仍可切换。',
+                    )
+                  }}
                 />
               </div>
             </>

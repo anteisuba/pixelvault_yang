@@ -21,7 +21,7 @@
 import { z } from 'zod'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 
-import { AdvancedParamsSchema } from '@/types'
+import { AdvancedParamsSchema, CivitaiImageRecipeSchema } from '@/types'
 import {
   ReferenceAnalysisSchema,
   ReferenceProfilesSchema,
@@ -491,6 +491,39 @@ export const AssistantOperatorSnapshotLorasSchema = z.object({
   maxWeight: z.number(),
 })
 
+export const AssistantLoraParametersSchema = z
+  .object({
+    steps: AdvancedParamsSchema.shape.steps.unwrap().nullable().optional(),
+    guidanceScale: AdvancedParamsSchema.shape.guidanceScale
+      .unwrap()
+      .nullable()
+      .optional(),
+    runnerSeed: AdvancedParamsSchema.shape.runnerSeed
+      .unwrap()
+      .nullable()
+      .optional(),
+    runnerWidth: AdvancedParamsSchema.shape.runnerWidth
+      .unwrap()
+      .nullable()
+      .optional(),
+    runnerHeight: AdvancedParamsSchema.shape.runnerHeight
+      .unwrap()
+      .nullable()
+      .optional(),
+    runnerSampler: AdvancedParamsSchema.shape.runnerSampler
+      .unwrap()
+      .nullable()
+      .optional(),
+    runnerScheduler: AdvancedParamsSchema.shape.runnerScheduler
+      .unwrap()
+      .nullable()
+      .optional(),
+  })
+  .strict()
+export type AssistantLoraParameters = z.infer<
+  typeof AssistantLoraParametersSchema
+>
+
 export const AssistantOperatorSnapshotSchema = z.object({
   /** 正面提示词现值。空串 = 空框（随便填，拍板 3）；非空 = 用户手写内容，写它要先确认。 */
   prompt: TextValueSchema,
@@ -521,6 +554,8 @@ export const AssistantOperatorSnapshotSchema = z.object({
   sound: AssistantOperatorSnapshotSoundSchema.optional(),
   /** ⚠ 缺席 = 这个工作台没有 LoRA 挂载栈（图片 / 视频档）。见 schema 头注。 */
   loras: AssistantOperatorSnapshotLorasSchema.optional(),
+  loraParameters: AssistantLoraParametersSchema.optional(),
+  sourceRecipe: CivitaiImageRecipeSchema.optional(),
 })
 
 export type AssistantOperatorSnapshot = z.infer<
@@ -1359,6 +1394,10 @@ export const AssistantOperatorRequestSchema = z.object({
         candidateId: IdSchema,
         weight: z.number().optional(),
         candidate: AssistantOperatorLoraPickCandidateSchema,
+        receipt: z.object({
+          assetId: IdSchema.nullable(),
+          error: z.string().max(LIMITS.maxPromptChars).optional(),
+        }),
       }),
     )
     .max(LIMITS.maxLoraResults)
@@ -1774,6 +1813,8 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
    * schema 拒 = 整轮读不出来，规划器拒 = 日志上写着「权重得在 0.1 到 2 之间」，
    * 助手还能改口再来一次。
    */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters]:
+    AssistantLoraParametersSchema,
   [ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight]: z.object({
     loraId: IdSchema,
     weight: z.number(),
@@ -2839,6 +2880,11 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     z.object({ loraId: IdSchema, name: LabelSchema, weight: z.number() }),
     z.object({ loraId: IdSchema, weight: z.number() }),
   ),
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
+    AssistantLoraParametersSchema,
+    AssistantLoraParametersSchema,
+  ),
   readStep(
     ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
     z.object({ scope: ProjectRuleScopeSchema.nullable() }),
@@ -3075,6 +3121,11 @@ export const AssistantOperatorMessageEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.message),
   text: z.string().max(LIMITS.maxMessageChars),
   detail: z.string().max(LIMITS.maxMessageChars).optional(),
+  /**
+   * 收尾轮边生成边显示：同一条气泡按 id 覆盖，`partial: true` 时仍算在写。
+   * 缺席或 false = 定稿，客户端把 `streaming` 降下来。
+   */
+  partial: z.boolean().optional(),
 })
 
 /**

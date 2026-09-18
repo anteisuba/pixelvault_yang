@@ -4,7 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { GenerationRecord, RunItem } from '@/types'
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () =>
+    Object.assign((key: string) => key, { has: () => true }),
 }))
 
 vi.mock('@/components/ui/optimized-image', () => ({
@@ -119,6 +120,47 @@ describe('CompareGrid — 图上零按钮', () => {
 })
 
 describe('CompareGrid — 聚焦与定为最佳是两步', () => {
+  it('moves a single Tab stop through completed results without committing a winner', () => {
+    const onSelect = vi.fn()
+    renderGrid({
+      onSelect,
+      items: [
+        matrixItems[0],
+        makeItem({ id: 'pending' }),
+        makeItem({ id: 'failed', status: 'failed' }),
+        matrixItems[3],
+      ],
+    })
+    const tiles = screen.getAllByRole('option')
+    expect(tiles.map((tile) => tile.tabIndex)).toEqual([0, -1, -1, -1])
+    fireEvent.keyDown(tiles[0], { key: 'ArrowRight' })
+    expect(tiles[3]).toHaveFocus()
+    expect(tiles[3]).toHaveAttribute('aria-selected', 'true')
+    expect(tiles.map((tile) => tile.tabIndex)).toEqual([-1, -1, -1, 0])
+    fireEvent.keyDown(tiles[3], { key: 'Home' })
+    expect(tiles[0]).toHaveFocus()
+    fireEvent.keyDown(tiles[0], { key: 'End' })
+    expect(tiles[3]).toHaveFocus()
+    fireEvent.keyDown(tiles[3], { key: 'ArrowUp' })
+    expect(tiles[0]).toHaveFocus()
+    expect(onSelect).not.toHaveBeenCalled()
+  })
+
+  it('restores a Tab entry when the selected result leaves the run', () => {
+    const { rerender } = renderGrid()
+    fireEvent.click(screen.getAllByRole('option')[3])
+    rerender(
+      <CompareGrid
+        items={[matrixItems[0]]}
+        selectedItemId={null}
+        onSelect={vi.fn()}
+        elapsedSeconds={3}
+        onEdit={vi.fn()}
+        onUseAsReference={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('option')).toHaveAttribute('tabindex', '0')
+  })
   // `selectWinner` 是服务端写入。旧版「点哪格就落库哪格」让浏览的代价
   // 等于提交的代价 —— 想看第二张就顺手改了最佳。
   it('focuses a tile on click without selecting a winner', () => {
@@ -249,4 +291,12 @@ describe('CompareGrid — 矩阵按模型分行', () => {
       screen.queryByRole('button', { name: /toolAskAssistant/ }),
     ).not.toBeInTheDocument()
   })
+})
+
+it('renders a localized generation reason instead of the provider log', () => {
+  renderGrid({
+    items: [makeItem({ status: 'failed', error: 'ETIMEDOUT after 120000ms' })],
+  })
+  expect(screen.getByText('generation.provider_timeout')).toBeInTheDocument()
+  expect(screen.queryByText('ETIMEDOUT after 120000ms')).not.toBeInTheDocument()
 })

@@ -215,7 +215,11 @@ function AppSidebarContent() {
           isActive={isShellNavItemActive(item, pathname)}
           tooltip={label}
         >
-          <Link href={item.href} onClick={closeMobileSidebar}>
+          <Link
+            href={item.href}
+            aria-label={label}
+            onClick={closeMobileSidebar}
+          >
             <Icon />
             <span>{label}</span>
           </Link>

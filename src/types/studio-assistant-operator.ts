@@ -51,9 +51,8 @@ export interface StudioOperatorUserEntry {
  * 助手说的话。
  *
  * ⚠ `streaming` 为真且 `text` 为空 = **发送即回显**的那条助手占位行（§4.1），
- * 面板据此画三点脉冲。⛔ 它不再有第二种含义：正文整段一次到齐（v2 拍板 13），
- * 没有「写到一半」这种中间态。
- * ⚠ 定稿帧（`message`）到达时按条目 id **整体覆盖**这一条，⛔ 不追加（§13.1）。
+ * 面板据此画三点脉冲。`streaming` 为真且已有字 = 收尾轮还在写，按 id 覆盖加长。
+ * ⚠ 定稿帧（`message` 且非 partial）到达时按条目 id **整体覆盖**这一条，⛔ 不追加（§13.1）。
  */
 export interface StudioOperatorMessageEntry {
   kind: 'message'

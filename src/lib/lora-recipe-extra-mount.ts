@@ -29,6 +29,7 @@ export interface RecipeExtraMountResult {
 
 interface RecipeExtraStackEntry {
   asset: LoraAssetRecord
+  enabled?: boolean
 }
 
 interface ResolveRecipeExtraLoraParams {
@@ -59,7 +60,8 @@ interface MountRecipeExtraLorasOptions {
   ) => Promise<ResolveRecipeExtraLoraResponse>
   pushLora: (asset: LoraAssetRecord, scale?: number) => void
   setLoraScale: (assetId: string, scale: number) => void
-  setStatus?: (key: string, status: ExtraMountStatus) => void
+  setLoraEnabled: (assetId: string, enabled: boolean) => void
+  setStatus?: (key: string, status: ExtraMountStatus, assetId?: string) => void
   /**
    * Base-model architecture guard. Given a resolved LoRA's baseModelFamily,
    * returns whether it can mount onto the selected base without corrupting the
@@ -127,7 +129,13 @@ function findMountedExtra(
     ) {
       return asset
     }
-    if (name && asset.name.trim().toLowerCase() === name) return asset
+    if (
+      !hash &&
+      extra.modelVersionId === undefined &&
+      name &&
+      asset.name.trim().toLowerCase() === name
+    )
+      return asset
   }
 
   return null
@@ -141,6 +149,7 @@ export async function mountRecipeExtraLoras({
   resolveLora,
   pushLora,
   setLoraScale,
+  setLoraEnabled,
   setStatus,
   isBaseCompatible,
 }: MountRecipeExtraLorasOptions): Promise<RecipeExtraMountResult> {
@@ -166,19 +175,32 @@ export async function mountRecipeExtraLoras({
     const scale = resolveExtraScale(extra)
     const mounted = findMountedExtra(extra, stackItems)
     if (mounted) {
+      if (isBaseCompatible && !isBaseCompatible(mounted.baseModelFamily)) {
+        setStatus?.(key, 'incompatible')
+        incompatible += 1
+        continue
+      }
       if (scale !== undefined) setLoraScale(mounted.id, scale)
+      setLoraEnabled(mounted.id, true)
       projectedIds.add(mounted.id)
-      setStatus?.(key, 'mounted')
+      setStatus?.(key, 'mounted', mounted.id)
       continue
     }
 
     setStatus?.(key, 'loading')
-    const result = await resolveLora({
-      hash: extra.hash,
-      modelVersionId: extra.modelVersionId,
-      name: normalizedExtraName(extra),
-      baseModelFamily: baseModelFamily?.trim() || undefined,
-    })
+    let result: ResolveRecipeExtraLoraResponse
+    try {
+      result = await resolveLora({
+        hash: extra.hash,
+        modelVersionId: extra.modelVersionId,
+        name: normalizedExtraName(extra),
+        baseModelFamily: baseModelFamily?.trim() || undefined,
+      })
+    } catch {
+      setStatus?.(key, 'failed')
+      missing += 1
+      continue
+    }
 
     if (!result.success || !result.data) {
       setStatus?.(key, 'failed')
@@ -187,12 +209,6 @@ export async function mountRecipeExtraLoras({
     }
 
     const item = result.data
-    if (projectedIds.has(item.id)) {
-      if (scale !== undefined) setLoraScale(item.id, scale)
-      setStatus?.(key, 'mounted')
-      continue
-    }
-
     // Base-model architecture guard: mounting a LoRA trained on a different
     // architecture (e.g. an SD1.5/Flux LoRA on an SDXL base) corrupts the
     // checkpoint → melted/garbage output. Reject loudly instead of mounting.
@@ -202,6 +218,13 @@ export async function mountRecipeExtraLoras({
     ) {
       setStatus?.(key, 'incompatible')
       incompatible += 1
+      continue
+    }
+
+    if (projectedIds.has(item.id)) {
+      if (scale !== undefined) setLoraScale(item.id, scale)
+      setLoraEnabled(item.id, true)
+      setStatus?.(key, 'mounted', item.id)
       continue
     }
 
@@ -215,7 +238,7 @@ export async function mountRecipeExtraLoras({
     projectedIds.add(item.id)
     projectedCount += 1
     newlyMounted += 1
-    setStatus?.(key, 'mounted')
+    setStatus?.(key, 'mounted', item.id)
   }
 
   return { newlyMounted, missing, incompatible, overCapacity }

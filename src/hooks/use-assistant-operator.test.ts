@@ -85,6 +85,7 @@ vi.mock('next-intl', () => {
  */
 const triggerGeneration = vi.hoisted(() => vi.fn())
 const dispatch = vi.hoisted(() => vi.fn())
+const mountLora = vi.hoisted(() => vi.fn())
 /**
  * 宿主上那份**可选**的四颗旋钮真值（#9 / §5.2）—— 逐例现填。
  * ⚠ 默认 `null`（缺席）：那一档验的正是「宿主不给就照载荷走」的既有行为。
@@ -125,6 +126,13 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       mountUserUrl: () => {},
       unmountUserUrl: () => {},
       setPrimed: () => {},
+      lora: {
+        mount: mountLora,
+        unmountByCandidateId: vi.fn(),
+        unmount: vi.fn(),
+        remount: vi.fn(),
+        setWeight: vi.fn(),
+      },
     },
   }),
 }))
@@ -1667,6 +1675,45 @@ describe('正文流式累积与占位行', () => {
     ])
   })
 
+  it('partial 帧保持 streaming，定稿再降旗', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('这是什么画风')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '图3是',
+      partial: true,
+    })
+    await settle()
+    expect(store.getOperatorState().entries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          kind: 'message',
+          text: '图3是',
+          streaming: true,
+        }),
+      ]),
+    )
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '图3是风格化 3D。',
+    })
+    await settle()
+    const messages = store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind === 'message')
+    expect(messages).toEqual([
+      expect.objectContaining({
+        text: '图3是风格化 3D。',
+      }),
+    ])
+    expect(messages[0]).not.toHaveProperty('streaming', true)
+  })
+
   it('⭐ 发送即回显：用户行与助手占位行在同一轮里立刻落进线程', async () => {
     const { result } = render()
     act(() => {
@@ -2132,6 +2179,57 @@ describe('断点续跑', () => {
  * 自包含正文（b9b6990a 的教训：不说出口，模型下一轮重提同一张卡）。
  */
 describe('LoRA 推荐卡（lora-assistant §10.1）', () => {
+  function finishMount(input: {
+    candidateId: string
+    name: string
+    weight: number
+  }) {
+    const asset = { id: `asset-${input.candidateId}`, name: input.name }
+    const loras = hostSnapshot.current.loras as { items: unknown[] }
+    hostSnapshot.current = {
+      ...hostSnapshot.current,
+      loras: {
+        ...loras,
+        items: [
+          ...loras.items,
+          {
+            ...asset,
+            weight: input.weight,
+            enabled: true,
+            family: 'illustrious',
+            compatible: true,
+            triggerWord: 'qingxiao',
+            triggerEnabled: true,
+            recommendedPrompt: null,
+            sourcePrompts: [],
+          },
+        ],
+      },
+    }
+    return {
+      status: 'ok' as const,
+      imported: true,
+      mounted: true,
+      triggerWordsApplied: true,
+      asset,
+    }
+  }
+
+  beforeEach(() => {
+    hostSnapshot.current = {
+      prompt: '',
+      availableModels: [],
+      loras: {
+        items: [],
+        baseFamily: 'illustrious',
+        minWeight: 0,
+        maxWeight: 2,
+      },
+    }
+    mountLora.mockReset()
+    mountLora.mockImplementation(async (input) => finishMount(input))
+  })
+
   const importPayload = (candidateId: string) => ({
     name: `LoRA ${candidateId}`,
     triggerWord: 'qingxiao',
@@ -2242,14 +2340,132 @@ describe('LoRA 推荐卡（lora-assistant §10.1）', () => {
       {
         candidateId: 'civitai:1',
         candidate: candidate('civitai:1', '清宵'),
+        receipt: { assetId: 'asset-civitai:1' },
       },
       {
         candidateId: 'civitai:2',
         weight: 1.1,
         candidate: candidate('civitai:2', 'overwatch_3d_anima'),
+        receipt: { assetId: 'asset-civitai:2' },
       },
     ])
     expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+    expect(request.snapshot.loras.items).toEqual([
+      expect.objectContaining({ id: 'asset-civitai:1', weight: 0.8 }),
+      expect.objectContaining({ id: 'asset-civitai:2', weight: 1.1 }),
+    ])
+    expect(store.getOperatorState().changes.loras?.firstInverse).toMatchObject({
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+      inverse: { candidateId: 'civitai:1' },
+    })
+  })
+
+  it('挂载尚未完成时不发续跑请求，连点也不重复导入', async () => {
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    mountLora.mockImplementation(async (input) => {
+      await pending
+      return finishMount(input)
+    })
+    const result = await raiseCard()
+    act(() => {
+      result.current.submitLoraPicks([{ candidateId: 'civitai:1' }])
+      result.current.submitLoraPicks([{ candidateId: 'civitai:1' }])
+    })
+    await settle()
+    expect(mountLora).toHaveBeenCalledOnce()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledOnce()
+    expect(store.getOperatorState().confirm?.status).toBe('submitting')
+    expect(
+      store
+        .getOperatorState()
+        .entries.some(
+          (entry) =>
+            entry.kind === 'system' && entry.code === 'loraPickMounted',
+        ),
+    ).toBe(false)
+    await act(async () => {
+      release()
+      await pending
+    })
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    expect(
+      streamAssistantOperatorAPI.mock.calls[1]?.[0].loraPicks[0].receipt,
+    ).toEqual({ assetId: 'asset-civitai:1' })
+    expect(mountLora).toHaveBeenCalledOnce()
+  })
+
+  it('部分导入失败只回传成功资产，失败原因随回执进入续跑请求', async () => {
+    mountLora.mockImplementation(async (input) => {
+      if (input.candidateId === 'civitai:2')
+        throw new Error('Import unavailable')
+      return finishMount(input)
+    })
+    const result = await raiseCard()
+    act(() =>
+      result.current.submitLoraPicks([
+        { candidateId: 'civitai:1' },
+        { candidateId: 'civitai:2' },
+      ]),
+    )
+    await settle()
+    const request = streamAssistantOperatorAPI.mock.calls[1]?.[0]
+    expect(
+      request.loraPicks.map((pick: { receipt: unknown }) => pick.receipt),
+    ).toEqual([
+      { assetId: 'asset-civitai:1' },
+      { assetId: null, error: 'Import unavailable' },
+    ])
+    expect(request.snapshot.loras.items).toHaveLength(1)
+    expect(
+      store
+        .getOperatorState()
+        .entries.find(
+          (entry) =>
+            entry.kind === 'system' && entry.code === 'loraPickMounted',
+        ),
+    ).toMatchObject({ subject: '清宵' })
+  })
+
+  it('等待挂载时停止，已落地资产保留但不启动后续挂载或助手请求', async () => {
+    let release!: () => void
+    const pending = new Promise<void>((resolve) => {
+      release = resolve
+    })
+    mountLora.mockImplementation(async (input) => {
+      await pending
+      return finishMount(input)
+    })
+    const result = await raiseCard()
+    act(() =>
+      result.current.submitLoraPicks([
+        { candidateId: 'civitai:1' },
+        { candidateId: 'civitai:2' },
+      ]),
+    )
+    await settle()
+    act(() => result.current.stop())
+    await act(async () => {
+      release()
+      await pending
+    })
+    await settle()
+    expect(mountLora).toHaveBeenCalledOnce()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledOnce()
+    expect(hostSnapshot.current.loras).toMatchObject({
+      items: [expect.objectContaining({ id: 'asset-civitai:1' })],
+    })
+    expect(store.getOperatorState().status).toBe('idle')
+    expect(
+      store
+        .getOperatorState()
+        .entries.filter(
+          (entry) => entry.kind === 'message' && entry.text.length === 0,
+        ),
+    ).toHaveLength(0)
   })
 
   it('⭐ 落账三件套：系统行 + 折成 user 消息 + 结构化 answered', async () => {

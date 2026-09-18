@@ -6,7 +6,6 @@ import {
   HOME_V4_ENGINE,
   HOME_V4_FN_AUDIO,
   HOME_V4_FN_AUDIO_LINES,
-  HOME_V4_FN_CANVAS,
   HOME_V4_FN_CANVAS_SHOTS,
   HOME_V4_FN_LORA_MOUNTS,
   HOME_V4_FN_LORA_OUTS,
@@ -110,7 +109,14 @@ describe.each([
   ['video', (active: boolean) => <HomeV4FnVideo {...HEADER} active={active} />],
   [
     'canvas',
-    (active: boolean) => <HomeV4FnCanvas {...HEADER} active={active} />,
+    (active: boolean) => (
+      <HomeV4FnCanvas
+        {...HEADER}
+        active={active}
+        progress={0}
+        onStepChange={() => undefined}
+      />
+    ),
   ],
   ['vault', (active: boolean) => <HomeV4FnVault {...HEADER} active={active} />],
 ] as const)('home v4 · feature page %s', (_name, page) => {
@@ -496,51 +502,57 @@ describe('home v4 · feature page 05 画布', () => {
     vi.restoreAllMocks()
   })
 
-  it('walks assistant → script → canvas and ends with four nodes wired', () => {
-    const view = stage((active) => (
-      <HomeV4FnCanvas {...HEADER} active={active} />
-    ))
-
-    view.play()
-
-    const shots = HOME_V4_FN_CANVAS_SHOTS.length
-    expect(view.count('.s1 .m.in')).toBe(2)
-    expect(view.count('.s1 .chip.in')).toBe(1)
-    expect(view.count('.fn-step.s2.on')).toBe(1)
-    expect(view.count('.fn-step.s3.on')).toBe(1)
-    expect(view.count('.s2 .row.in')).toBe(shots)
-    expect(view.count('.s2 .row.sent')).toBe(shots)
-    expect(view.count('.wires path.draw')).toBe(shots)
-    /* Three shot nodes plus the cut. */
-    expect(view.count('.s3 .cn.in')).toBe(shots + 1)
-    expect(view.count('.fn-hand.on')).toBe(2)
-  })
-
-  it('launches a ghost on the hand-off and takes it away again', () => {
-    const view = stage((active) => (
-      <HomeV4FnCanvas {...HEADER} active={active} />
-    ))
-
-    view.play(
-      HOME_V4_FN_CANVAS.ENTER_DELAY_MS + HOME_V4_FN_CANVAS.PC.HANDOFF_MS + 20,
+  it('follows explicit steps and only plays the finished cut on the last step', () => {
+    const onStepChange = vi.fn()
+    const view = render(
+      <HomeV4FnCanvas
+        {...HEADER}
+        active
+        progress={0}
+        onStepChange={onStepChange}
+      />,
     )
-    expect(view.count('.fn-flyers .flyer')).toBe(1)
-
-    view.advance(HOME_V4_FN_CANVAS.FLY_LIFE_MS + 50)
-    expect(view.count('.fn-flyers .flyer')).toBe(0)
-  })
-
-  /* `data-stage` is the mobile carousel's only switch; on desktop the attribute
-     must not exist at all, or the mobile rules would have something to match. */
-  it('leaves the mobile stage attribute off the desktop timeline', () => {
-    const view = stage((active) => (
-      <HomeV4FnCanvas {...HEADER} active={active} />
-    ))
-
-    view.play()
-    expect(
-      view.container.querySelector('.fn-canvas')?.hasAttribute('data-stage'),
-    ).toBe(false)
+    expect(view.container.querySelector('.fn-canvas')).toHaveAttribute(
+      'data-stage',
+      '1',
+    )
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+    fireEvent.click(view.getByRole('button', { name: /script.title/ }))
+    expect(onStepChange).toHaveBeenCalledWith(1)
+    view.rerender(
+      <HomeV4FnCanvas
+        {...HEADER}
+        active
+        progress={1}
+        onStepChange={onStepChange}
+      />,
+    )
+    expect(view.container.querySelector('.s2')).not.toHaveAttribute('inert')
+    expect(view.container.querySelector('.s1')).toHaveAttribute('inert')
+    view.rerender(
+      <HomeV4FnCanvas
+        {...HEADER}
+        active
+        progress={2}
+        onStepChange={onStepChange}
+      />,
+    )
+    expect(view.container.querySelectorAll('.s3 .cn.in')).toHaveLength(
+      HOME_V4_FN_CANVAS_SHOTS.length + 1,
+    )
+    expect(view.container.querySelectorAll('.wires path.draw')).toHaveLength(3)
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled()
+    vi.mocked(HTMLMediaElement.prototype.pause).mockClear()
+    view.rerender(
+      <HomeV4FnCanvas
+        {...HEADER}
+        active
+        progress={1}
+        onStepChange={onStepChange}
+      />,
+    )
+    expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled()
+    expect(view.container.querySelector('.cnv')).not.toHaveClass('in')
   })
 })
 

@@ -79,3 +79,5 @@
 `docs/status.md` 只保存当前状态，保留仍有效的未决项；稳定契约进入已有 `references/` 文档。删除文档前搜索并修复其引用；不恢复 `docs/plans/`、`docs/archive/` 或另一套 CONTEXT/ADR 目录。普通小修不强制产生文档。
 
 2026-09-06 核验：[GPT-6 Astra 指导](https://developers.openai.com/api/docs/guides/latest-model?model=gpt-6-astra)建议明确自主推进、指令优先级与适量验证；[Codex 最佳实践](https://learn.chatgpt.com/guides/best-practices)强调简短准确的项目指导；[技能指导](https://learn.chatgpt.com/docs/build-skills)采用明确触发与按需加载；[AGENTS 发现规则](https://learn.chatgpt.com/docs/agent-configuration/agents-md)说明作用域与加载机制。本仓按这些原则减少重复门槛，保留 owner 的 UI、数据与发布边界；未进行模型速度或质量的量化基准测试。
+
+2026-09-12 补充核验：[技能与提示词维护建议](https://developers.openai.com/blog/rethinking-skills-and-prompts-for-gpt-6-astra)用于本仓技能维护：缩短并区分触发描述，按需加载资源，以任务结果和真实约束替代固定流程；保留用户明确的设计、数据和发布边界。

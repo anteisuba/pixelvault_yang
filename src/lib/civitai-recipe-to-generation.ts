@@ -190,13 +190,33 @@ export function buildCivitaiRecipeGenerationPlan(
     ? nearestAspectRatio(dimensions.width, dimensions.height)
     : undefined
 
-  // Preserve hires metadata, but do not pretend the current single-pass graph
-  // can reproduce an upscaler/second denoise pass.
-  if (recipe.hiresUpscale !== undefined) skippedParams.push('hiresUpscale')
-  if (recipe.hiresUpscaler !== undefined) skippedParams.push('hiresUpscaler')
-  if (recipe.denoisingStrength !== undefined)
-    skippedParams.push('denoisingStrength')
-  if (recipe.hiresSteps !== undefined) skippedParams.push('hiresSteps')
+  const hires =
+    recipe.hiresUpscaler?.trim().toLowerCase() === 'latent'
+      ? AdvancedParamsSchema.shape.runnerHires.safeParse({
+          scale: recipe.hiresUpscale,
+          denoise: recipe.denoisingStrength,
+          ...(recipe.hiresSteps ? { steps: recipe.hiresSteps } : {}),
+          ...(recipe.hiresCfgScale !== undefined
+            ? { cfg: recipe.hiresCfgScale }
+            : {}),
+        })
+      : null
+  if (hires?.success && hires.data) {
+    advanced.runnerHires = hires.data
+    appliedParams.push('hiresUpscale', 'hiresUpscaler', 'denoisingStrength')
+    if (recipe.hiresSteps !== undefined) appliedParams.push('hiresSteps')
+    if (recipe.hiresCfgScale !== undefined) appliedParams.push('hiresCfgScale')
+  } else {
+    for (const key of [
+      'hiresUpscale',
+      'hiresUpscaler',
+      'denoisingStrength',
+      'hiresSteps',
+      'hiresCfgScale',
+    ] as const) {
+      if (recipe[key] !== undefined) skippedParams.push(key)
+    }
+  }
 
   return {
     prompt: recipe.prompt,
@@ -248,5 +268,7 @@ export function applyRecipePlanToAdvancedParams(
   if (planParams.runnerHeight !== undefined) {
     next.runnerHeight = planParams.runnerHeight
   }
+  if (planParams.runnerHires !== undefined)
+    next.runnerHires = planParams.runnerHires
   return next
 }

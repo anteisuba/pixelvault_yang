@@ -1,6 +1,6 @@
 ---
 name: audit
-description: Perform comprehensive audit of interface quality across accessibility, performance, theming, and responsive design. Generates detailed report of issues with severity ratings and recommendations.
+description: 审计指定界面的可访问性、响应式、主题与性能问题，按证据和用户影响报告。
 user-invokable: true
 args:
   - name: area
@@ -8,133 +8,15 @@ args:
     required: false
 ---
 
-Run systematic quality checks and generate a comprehensive audit report with prioritized issues and actionable recommendations. 仅审计请求只报告问题；用户同时授权修复时，在当前范围内修复并验证。
+# 界面质量审计
 
-先读本次目标和已确认的域/page 规范；只有需要额外设计方法时才读 frontend-design。检查范围与授权遵循 `docs/WORKFLOW.md`。
+审计用户指定的页面或组件，以可观察的用户影响排序。仅审计时报告；已授权修复时完成范围内修复与验证，不强制交接其他技能。范围与验证遵循 `docs/WORKFLOW.md`。
 
-## Diagnostic Scan
+按目标选择检查项，只有涉及设计判断时读取已确认的域/page 规范：
 
-Run comprehensive checks across multiple dimensions:
+- 可访问性：语义、可访问名称、键盘路径、焦点、对比度和表单错误反馈。引用标准时核对适用等级、文本大小与例外，不把设计偏好写成标准违规。
+- 响应式与主题：用实际内容检查溢出、文字缩放、触控可用性和项目支持的主题；依据现有 token 与页面契约判断一致性。
+- 性能：用测量或可复现现象定位加载、布局抖动和交互延迟。缺少 memo、will-change 或懒加载本身不构成缺陷。
+- 任务完成：主要操作是否可发现，相关加载、空态与失败恢复是否支持真实流程。不因字体、卡片、渐变或“像 AI”本身判错。
 
-1. **Accessibility (A11y)** - Check for:
-   - **Contrast issues**: Text contrast ratios < 4.5:1 (or 7:1 for AAA)
-   - **Missing ARIA**: Interactive elements without proper roles, labels, or states
-   - **Keyboard navigation**: Missing focus indicators, illogical tab order, keyboard traps
-   - **Semantic HTML**: Improper heading hierarchy, missing landmarks, divs instead of buttons
-   - **Alt text**: Missing or poor image descriptions
-   - **Form issues**: Inputs without labels, poor error messaging, missing required indicators
-
-2. **Performance** - Check for:
-   - **Layout thrashing**: Reading/writing layout properties in loops
-   - **Expensive animations**: Animating layout properties (width, height, top, left) instead of transform/opacity
-   - **Missing optimization**: Images without lazy loading, unoptimized assets, missing will-change
-   - **Bundle size**: Unnecessary imports, unused dependencies
-   - **Render performance**: Unnecessary re-renders, missing memoization
-
-3. **Theming** - Check for:
-   - **Hard-coded colors**: Colors not using design tokens
-   - **Broken dark mode**: Missing dark mode variants, poor contrast in dark theme
-   - **Inconsistent tokens**: Using wrong tokens, mixing token types
-   - **Theme switching issues**: Values that don't update on theme change
-
-4. **Responsive Design** - Check for:
-   - **Fixed widths**: Hard-coded widths that break on mobile
-   - **Touch targets**: Interactive elements < 44x44px
-   - **Horizontal scroll**: Content overflow on narrow viewports
-   - **Text scaling**: Layouts that break when text size increases
-   - **Missing breakpoints**: No mobile/tablet variants
-
-5. **Anti-Patterns (CRITICAL)** - Check against ALL the **DON'T** guidelines in the frontend-design skill. Look for AI slop tells (AI color palette, gradient text, glassmorphism, hero metrics, card grids, generic fonts) and general design anti-patterns (gray on color, nested cards, bounce easing, redundant copy).
-
-This is an audit, not a fix: document each issue with its impact, then hand the fixes to `polish` or `critique` (or an implementation session) after the audit.
-
-## Generate Comprehensive Report
-
-Create a detailed audit report with the following structure:
-
-### Anti-Patterns Verdict
-
-**Start here.** Pass/fail: Does this look AI-generated? List specific tells from the skill's Anti-Patterns section. Be brutally honest.
-
-### Executive Summary
-
-- Total issues found (count by severity)
-- Most critical issues (top 3-5)
-- Overall quality score (if applicable)
-- Recommended next steps
-
-### Detailed Findings by Severity
-
-For each issue, document:
-
-- **Location**: Where the issue occurs (component, file, line)
-- **Severity**: Critical / High / Medium / Low
-- **Category**: Accessibility / Performance / Theming / Responsive
-- **Description**: What the issue is
-- **Impact**: How it affects users
-- **WCAG/Standard**: Which standard it violates (if applicable)
-- **Recommendation**: How to fix it
-- **Suggested command**: Which command to use (prefer: /polish, /audit, /critique, /redesign-existing-projects, /frontend-design, /ui-styling, /design-system, /contrast-check, /verify-real — or other installed skills you're sure exist)
-
-#### Critical Issues
-
-[Issues that block core functionality or violate WCAG A]
-
-#### High-Severity Issues
-
-[Significant usability/accessibility impact, WCAG AA violations]
-
-#### Medium-Severity Issues
-
-[Quality issues, WCAG AAA violations, performance concerns]
-
-#### Low-Severity Issues
-
-[Minor inconsistencies, optimization opportunities]
-
-### Patterns & Systemic Issues
-
-Identify recurring problems:
-
-- "Hard-coded colors appear in 15+ components, should use design tokens"
-- "Touch targets consistently too small (<44px) throughout mobile experience"
-- "Missing focus indicators on all custom interactive components"
-
-### Positive Findings
-
-Note what's working well:
-
-- Good practices to maintain
-- Exemplary implementations to replicate elsewhere
-
-### Recommendations by Priority
-
-Create actionable plan:
-
-1. **Immediate**: Critical blockers to fix first
-2. **Short-term**: High-severity issues (this sprint)
-3. **Medium-term**: Quality improvements (next sprint)
-4. **Long-term**: Nice-to-haves and optimizations
-
-### Suggested Commands for Fixes
-
-Map issues to available commands. Prefer these: /polish, /audit, /critique, /redesign-existing-projects, /frontend-design, /ui-styling, /design-system, /contrast-check, /verify-real. You may also suggest other installed skills you're sure exist, but never invent commands.
-
-Examples:
-
-- "Use `/design-system` to align with the design system (addresses N theming issues)"
-- "Use `/contrast-check` to verify the N failing color pairs deterministically"
-- "Use `/polish` to close the N alignment / spacing / consistency gaps"
-
-**IMPORTANT**: Be thorough but actionable. Too many low-priority issues creates noise. Focus on what actually matters.
-
-**NEVER**:
-
-- Report issues without explaining impact (why does this matter?)
-- Mix severity levels inconsistently
-- Skip positive findings (celebrate what works)
-- Provide generic recommendations (be specific and actionable)
-- Forget to prioritize (everything can't be critical)
-- Report false positives without verification
-
-Remember: You're a quality auditor with exceptional attention to detail. Document systematically, prioritize ruthlessly, and provide clear paths to improvement. A good audit makes fixing easy.
+报告实际发现的位置、证据、影响、优先级和具体修复建议；区分已验证问题与待验证线索。无问题时直接说明检查范围，不凑数量、评分或固定章节。未能运行的浏览器或性能检查明确列出，静态检查不代表实际交互通过。

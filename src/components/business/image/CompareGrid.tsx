@@ -23,7 +23,10 @@ import { StudioGeneratingProgress } from '@/components/business/studio-shared'
 import { Button } from '@/components/ui/button'
 import { useAskAssistantAboutImage } from '@/hooks/use-ask-assistant-about-image'
 import { downloadRemoteAsset } from '@/lib/api-client'
-import { getApiErrorMessage } from '@/lib/api-error-message'
+import {
+  getApiErrorMessage,
+  getGenerationErrorMessage,
+} from '@/lib/api-error-message'
 import { cn } from '@/lib/utils'
 
 // 详情弹窗按需异步加载，和 ImageCard 里同样的理由：它拖着 VideoPlayer /
@@ -121,6 +124,10 @@ export const CompareGrid = memo(function CompareGrid({
     (item) => item.id === focusedItemId && item.status === 'completed',
   )
   const focusedGeneration = focused?.generation ?? null
+  const tabStopId =
+    focusedGeneration !== null
+      ? focusedItemId
+      : items.find((item) => item.status === 'completed' && item.generation)?.id
 
   /**
    * 聚焦项在它那一行里是第几张 —— 动作栏要说清「我在操作哪一张」。
@@ -236,8 +243,12 @@ export const CompareGrid = memo(function CompareGrid({
                       key={item.id}
                       role="option"
                       aria-selected={isFocused}
+                      aria-disabled={!isCompleted}
                       aria-label={`${modelLabel} ${takeIndex + 1}/${takes}`}
-                      tabIndex={isCompleted ? 0 : -1}
+                      tabIndex={isCompleted && item.id === tabStopId ? 0 : -1}
+                      onFocus={() => {
+                        if (isCompleted) setFocusedItemId(item.id)
+                      }}
                       onClick={() => {
                         if (isCompleted) setFocusedItemId(item.id)
                       }}
@@ -246,7 +257,42 @@ export const CompareGrid = memo(function CompareGrid({
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault()
                           setFocusedItemId(item.id)
+                          return
                         }
+                        const options = Array.from(
+                          event.currentTarget
+                            .closest('[role="listbox"]')
+                            ?.querySelectorAll<HTMLElement>(
+                              '[role="option"][aria-disabled="false"]',
+                            ) ?? [],
+                        )
+                        const currentIndex = options.indexOf(
+                          event.currentTarget,
+                        )
+                        let nextIndex: number
+                        switch (event.key) {
+                          case 'ArrowRight':
+                          case 'ArrowDown':
+                            nextIndex = Math.min(
+                              currentIndex + 1,
+                              options.length - 1,
+                            )
+                            break
+                          case 'ArrowLeft':
+                          case 'ArrowUp':
+                            nextIndex = Math.max(currentIndex - 1, 0)
+                            break
+                          case 'Home':
+                            nextIndex = 0
+                            break
+                          case 'End':
+                            nextIndex = options.length - 1
+                            break
+                          default:
+                            return
+                        }
+                        event.preventDefault()
+                        options[nextIndex]?.focus()
                       }}
                       className={cn(
                         'studio-result-tile relative overflow-hidden rounded-xl bg-muted/10 transition-shadow',
@@ -303,7 +349,11 @@ export const CompareGrid = memo(function CompareGrid({
                         <div className="flex size-full flex-col items-center justify-center gap-2 px-4">
                           <AlertTriangle className="size-5 text-destructive/60" />
                           <p className="text-center text-xs text-muted-foreground">
-                            {item.error ?? t('generateFailed')}
+                            {getGenerationErrorMessage(
+                              tErrors,
+                              { error: item.error },
+                              t('generateFailed'),
+                            )}
                           </p>
                         </div>
                       )}

@@ -451,6 +451,8 @@ export function buildVideoOperatorSnapshot({
 // ─── LoRA 装配台（P4-C）─────────────────────────────────────────────
 
 export interface LoraOperatorSnapshotInput {
+  loraParameters?: AssistantOperatorSnapshot['loraParameters']
+  sourceRecipe?: AssistantOperatorSnapshot['sourceRecipe']
   prompt: string
   /** `undefined` = 没有负面框。装配台有（可折叠那一格），所以正常总是给。 */
   negativePrompt: string | undefined
@@ -501,6 +503,8 @@ export interface LoraOperatorSnapshotInput {
  * 时就是这个底模不吃参考图）—— 上限由宿主算好传进来，与工作台那条同一个口径。
  */
 export function buildLoraOperatorSnapshot({
+  loraParameters,
+  sourceRecipe,
   prompt,
   negativePrompt,
   base,
@@ -512,6 +516,8 @@ export function buildLoraOperatorSnapshot({
   maxWeight,
 }: LoraOperatorSnapshotInput): AssistantOperatorSnapshot {
   return {
+    ...(loraParameters ? { loraParameters } : {}),
+    ...(sourceRecipe ? { sourceRecipe } : {}),
     prompt,
     negativePrompt: negativePrompt ?? '',
     model: base

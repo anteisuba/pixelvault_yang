@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import {
   afterEach,
   beforeAll,
@@ -13,6 +13,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AI_MODELS } from '@/constants/models'
 import type { RunnerUsageResult } from '@/types'
 import type { PromptTagSelection } from '@/types/prompt-tags'
+import type { UseLoraOperatorHostInput } from '@/hooks/use-lora-operator-host'
 
 import { LoraWorkbench } from './LoraWorkbench'
 
@@ -72,6 +73,19 @@ const mockUseHuggingFaceLoraShowcase = vi.hoisted(() => vi.fn())
 const mockStackPush = vi.hoisted(() => vi.fn())
 const mockStackSetScale = vi.hoisted(() => vi.fn())
 const mockResolveCivitaiLora = vi.hoisted(() => vi.fn())
+const captureOperatorHostInput = vi.hoisted(() => vi.fn())
+
+vi.mock('@/hooks/use-lora-operator-host', async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import('@/hooks/use-lora-operator-host')>()
+  return {
+    ...actual,
+    useLoraOperatorHost: (input: UseLoraOperatorHostInput) => {
+      captureOperatorHostInput(input)
+      return actual.useLoraOperatorHost(input)
+    },
+  }
+})
 
 vi.mock('@/constants/feature-flags', () => ({
   FEATURE_FLAGS: {
@@ -159,6 +173,9 @@ const stackAsset = {
   id: 'lora-1',
   name: 'Test LoRA',
   triggerWord: 'testlora',
+  sourceSnapshot: {
+    triggerSource: 'official' as 'official' | 'inferred' | undefined,
+  },
   baseModelFamily: 'illustrious',
   defaultScale: 1,
   loraUrl: 'https://example.com/lora.safetensors',
@@ -170,11 +187,16 @@ const stackAsset = {
 // H1 的 HF/civitai 分流判据是挂载资产的 `provider` 字段（收藏/导入时写死,
 // 见 LoraWorkbench.tsx hfSource useMemo）——mock 类型显式带上可选 provider,
 // 否则从 stackAsset 字面量推断的窄类型会拒绝 HF fixture。
-type MockStackAsset = typeof stackAsset & { provider?: string }
+type MockStackAsset = Omit<typeof stackAsset, 'sourceSnapshot'> & {
+  provider?: string
+  sourceSnapshot?: { triggerSource?: 'official' | 'inferred' } | null
+}
 
-let mockStackItems: { asset: MockStackAsset; scale: number }[] = [
-  { asset: stackAsset, scale: 1 },
-]
+let mockStackItems: {
+  asset: MockStackAsset
+  scale: number
+  enabled?: boolean
+}[] = [{ asset: stackAsset, scale: 1 }]
 
 vi.mock('@/hooks/use-active-lora-stack', () => {
   // ⚠ 工厂**会被提升到文件顶部**，所以这个函数只能定义在里面 —— 定义在外面
@@ -185,6 +207,7 @@ vi.mock('@/hooks/use-active-lora-stack', () => {
     },
     push: mockStackPush,
     setScale: mockStackSetScale,
+    setEnabled: vi.fn(),
     remove: vi.fn(),
     clear: vi.fn(),
   })
@@ -423,6 +446,7 @@ vi.mock(
 )
 
 beforeEach(() => {
+  captureOperatorHostInput.mockClear()
   mockInjectReference.mockReset()
   mockClearReference.mockReset()
   mockRequestOperatorAttachment.mockReset()
@@ -574,6 +598,64 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     expect(chip).toHaveAttribute('aria-pressed', 'true')
   })
 
+  it('highlights separated comma-delimited trigger phrases individually in the prompt', () => {
+    mockStackItems = [
+      {
+        asset: { ...stackAsset, triggerWord: 'shino style, soft ink' },
+        scale: 1,
+      },
+    ]
+    const { container } = render(<LoraWorkbench />)
+    fireEvent.change(
+      screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+      {
+        target: { value: 'shino style, portrait, soft ink' },
+      },
+    )
+    expect(
+      Array.from(
+        container.querySelectorAll('.lora-trigger-hl'),
+        (element) => element.textContent,
+      ),
+    ).toEqual(['shino style', 'soft ink'])
+  })
+
+  it('does not highlight or inject triggers from a disabled LoRA while preserving user text', () => {
+    mockStackItems = [{ asset: stackAsset, scale: 1, enabled: false }]
+    mockUseApiKeysContext.mockReturnValue({
+      keys: [
+        {
+          id: 'key-1',
+          modelId: AI_MODELS.ILLUSTRIOUS_XL,
+          adapterType: AI_ADAPTER_TYPES.REPLICATE,
+          providerConfig: { label: 'Replicate', baseUrl: '' },
+          label: 'My Replicate key',
+          maskedKey: '****abcd',
+          isActive: true,
+          createdAt: new Date(),
+        },
+      ],
+      healthMap: { 'key-1': 'available' },
+    })
+    const { container } = render(<LoraWorkbench />)
+    const textarea = screen.getByPlaceholderText(
+      'LoraWorkbench:generate.promptPlaceholder',
+    )
+    fireEvent.change(textarea, { target: { value: 'testlora, user portrait' } })
+    expect(container.querySelectorAll('.lora-trigger-hl')).toHaveLength(0)
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+    expect(mockGenerate.mock.calls[0][0].image.freePrompt).toBe(
+      'testlora, user portrait',
+    )
+    fireEvent.change(textarea, { target: { value: 'user portrait' } })
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+    expect(mockGenerate.mock.calls[1][0].image.freePrompt).toBe('user portrait')
+  })
+
   it('S5: stays enabled and compiles just the trigger word when the prompt textarea is left empty', () => {
     mockUseApiKeysContext.mockReturnValue({
       keys: [
@@ -688,6 +770,58 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
     )
   })
 
+  it.each(['inferred', undefined] as const)(
+    '来源为 %s 的触发词默认不注入，手动启用后才加入生成提示词',
+    (triggerSource) => {
+      mockStackItems = [
+        {
+          asset: { ...stackAsset, sourceSnapshot: { triggerSource } },
+          scale: 1,
+        },
+      ]
+      mockUseApiKeysContext.mockReturnValue({
+        keys: [
+          {
+            id: 'key-1',
+            modelId: AI_MODELS.ILLUSTRIOUS_XL,
+            adapterType: AI_ADAPTER_TYPES.REPLICATE,
+            providerConfig: { label: 'Replicate', baseUrl: '' },
+            label: 'My Replicate key',
+            maskedKey: '****abcd',
+            isActive: true,
+            createdAt: new Date(),
+          },
+        ],
+        healthMap: { 'key-1': 'available' },
+      })
+
+      render(<LoraWorkbench />)
+      fireEvent.change(
+        screen.getByPlaceholderText('LoraWorkbench:generate.promptPlaceholder'),
+        { target: { value: 'my free text' } },
+      )
+
+      expandCollocation()
+      const chip = screen.getByRole('button', { name: /Test LoRA/ })
+      expect(chip).toHaveAttribute('aria-pressed', 'false')
+
+      const generateButton = screen.getByRole('button', {
+        name: /LoraWorkbench:generate\.run/,
+      })
+      fireEvent.click(generateButton)
+      expect(mockGenerate.mock.calls[0][0].image.freePrompt).toBe(
+        'my free text',
+      )
+
+      fireEvent.click(chip)
+      expect(chip).toHaveAttribute('aria-pressed', 'true')
+      fireEvent.click(generateButton)
+      expect(mockGenerate.mock.calls[1][0].image.freePrompt).toBe(
+        'testlora, my free text',
+      )
+    },
+  )
+
   it('applies Civitai recipe steps and CFG to the real generation request', () => {
     mockUseApiKeysContext.mockReturnValue({
       keys: [
@@ -727,6 +861,204 @@ describe('LoraWorkbench GenerateBranch — API key gate (Issue 2)', () => {
       steps: 32,
       guidanceScale: 4,
     })
+  })
+
+  it('助手参数回调写入实际生成参数，null 恢复默认而不复用旧配方参数', () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'Sue, white background',
+        checkpoint: 'rinFlanimeIllustrious_v40',
+        steps: 25,
+        cfgScale: 7,
+      },
+    ]
+    render(<LoraWorkbench />)
+    applyFirstRecipeViaModal()
+    const latestInput = () =>
+      captureOperatorHostInput.mock.lastCall?.[0] as UseLoraOperatorHostInput
+    const parameters = {
+      steps: 32,
+      guidanceScale: 4.5,
+      runnerSeed: '2092427729',
+      runnerWidth: 672,
+      runnerHeight: 984,
+      runnerSampler: 'euler_ancestral' as const,
+      runnerScheduler: 'normal' as const,
+    }
+    expect(latestInput().loraParameters).toBeDefined()
+    act(() => latestInput().setLoraParameters!(parameters))
+    expect(latestInput().loraParameters).toMatchObject(parameters)
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+    expect(mockGenerate.mock.calls[0]?.[0].image.advancedParams).toMatchObject(
+      parameters,
+    )
+
+    const reset = {
+      steps: null,
+      guidanceScale: null,
+      runnerSeed: null,
+      runnerWidth: null,
+      runnerHeight: null,
+      runnerSampler: null,
+      runnerScheduler: null,
+    }
+    act(() => latestInput().setLoraParameters!(reset))
+    expect(latestInput().loraParameters).toMatchObject(reset)
+    fireEvent.click(
+      screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+    )
+    const advanced = mockGenerate.mock.calls[1]?.[0].image.advancedParams
+    expect(advanced).toBeDefined()
+    for (const key of Object.keys(reset))
+      expect(advanced).not.toHaveProperty(key)
+  })
+
+  it('updates explicit Runner dimensions when a ratio is selected after a source recipe', () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'Sue, white background',
+        checkpoint: 'rinFlanimeIllustrious_v40',
+        baseWidth: 984,
+        baseHeight: 672,
+      },
+    ]
+    render(<LoraWorkbench />)
+    applyFirstRecipeViaModal()
+    fireEvent.click(
+      screen.getByRole('button', {
+        name: 'LoraWorkbench:generate.aspectRatioLabel',
+      }),
+    )
+    for (const [ratio, width, height] of [
+      ['4:3', 1024, 768],
+      ['1:1', 1024, 1024],
+      ['3:4', 768, 1024],
+    ] as const) {
+      fireEvent.click(screen.getByRole('radio', { name: ratio }))
+      fireEvent.click(
+        screen.getByRole('button', { name: /LoraWorkbench:generate\.run/ }),
+      )
+      expect(
+        mockGenerate.mock.lastCall?.[0].image.advancedParams,
+      ).toMatchObject({ runnerWidth: width, runnerHeight: height })
+    }
+  })
+
+  it('waits for all recipe extras and sends the source checkpoint hash and original dimensions', async () => {
+    mockUseApiKeysContext.mockReturnValue({ keys: [], healthMap: {} })
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'Sue, white background, hair_twirling',
+        checkpoint: 'rinFlanimeIllustrious_v40',
+        checkpointHash: '29d5281e0a',
+        baseWidth: 672,
+        baseHeight: 984,
+        steps: 25,
+        cfgScale: 7,
+        sampler: 'Euler a',
+        extraLoras: [
+          { modelVersionId: 111, weight: 0.8 },
+          { modelVersionId: 222, weight: 0.8 },
+        ],
+      },
+    ]
+    let finishMount: () => void = () => {
+      throw new Error('mount not started')
+    }
+    const pending = new Promise<void>((resolve) => {
+      finishMount = resolve
+    })
+    mockResolveCivitaiLora.mockImplementation(
+      async ({ modelVersionId }: { modelVersionId: number }) => {
+        await pending
+        return {
+          success: true,
+          data: {
+            ...stackAsset,
+            id: `extra-${modelVersionId}`,
+            modelVersionId,
+            loraUrl: `https://example.com/${modelVersionId}.safetensors`,
+          },
+        }
+      },
+    )
+    mockStackPush.mockImplementation((asset: MockStackAsset, scale: number) => {
+      mockStackItems = [...mockStackItems, { asset, scale }]
+    })
+    const view = render(<LoraWorkbench />)
+    applyFirstRecipeViaModal()
+    const generateButton = screen.getByRole('button', {
+      name: /LoraWorkbench:generate\.run/,
+    })
+    expect(generateButton).toBeDisabled()
+    fireEvent.click(generateButton)
+    expect(mockGenerate).not.toHaveBeenCalled()
+    await act(async () => {
+      finishMount()
+      await pending
+    })
+    await waitFor(() => expect(generateButton).toBeEnabled())
+    fireEvent.click(generateButton)
+    const input = mockGenerate.mock.calls[0]?.[0].image
+    expect(input.modelId).toBe(AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE)
+    expect(input.advancedParams).toMatchObject({
+      checkpointHash: '29d5281e0a',
+      checkpointName: 'rinFlanimeIllustrious_v40',
+      runnerWidth: 672,
+      runnerHeight: 984,
+      steps: 25,
+      guidanceScale: 7,
+      runnerSampler: 'euler_ancestral',
+    })
+    expect(input.advancedParams.loras).toHaveLength(3)
+    expect(
+      input.advancedParams.loras
+        .slice(1)
+        .map((item: { scale: number }) => item.scale),
+    ).toEqual([0.8, 0.8])
+    mockStackItems[1].enabled = false
+    view.rerender(<LoraWorkbench />)
+    expect(generateButton).toBeDisabled()
+    mockStackItems[1].enabled = true
+    view.rerender(<LoraWorkbench />)
+    expect(generateButton).toBeEnabled()
+    mockStackItems = mockStackItems.slice(0, 2)
+    view.rerender(<LoraWorkbench />)
+    expect(generateButton).toBeDisabled()
+  })
+
+  it('does not generate a partial recipe when an extra fails to resolve', async () => {
+    mockMinedRecipes = [
+      {
+        imageUrl: 'https://example.com/source.png',
+        source: 'model_version_image',
+        prompt: 'Sue, white background',
+        extraLoras: [{ modelVersionId: 111, weight: 0.8 }],
+      },
+    ]
+    mockResolveCivitaiLora.mockResolvedValue({ success: false })
+    const view = render(<LoraWorkbench />)
+    applyFirstRecipeViaModal()
+    await waitFor(() => expect(mockResolveCivitaiLora).toHaveBeenCalled())
+    const generateButton = screen.getByRole('button', {
+      name: /LoraWorkbench:generate\.run/,
+    })
+    expect(generateButton).toBeDisabled()
+    fireEvent.click(generateButton)
+    expect(mockGenerate).not.toHaveBeenCalled()
+    mockStackItems = []
+    view.rerender(<LoraWorkbench />)
+    expect(generateButton).toBeEnabled()
   })
 
   // S5: 一键同款只替换正文，不碰触发词 chips 行——触发词已经从旧版

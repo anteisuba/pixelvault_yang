@@ -6,6 +6,8 @@ import {
   VIDEO_MODEL_CAPABILITIES,
   getVideoAudioCapability,
   getVideoModelCapabilities,
+  snapVideoDuration,
+  snapVideoResolution,
   videoModelSupportsSeed,
 } from '@/constants/video-model-capabilities'
 
@@ -65,6 +67,39 @@ describe('video-model-capabilities', () => {
       expect(capabilities.supportedDurations?.length ?? 0).toBeGreaterThan(0)
       expect(capabilities.supportedResolutions?.length ?? 0).toBeGreaterThan(0)
     }
+  })
+})
+
+describe('snapVideoDuration', () => {
+  it('adsorbs leftover 3s onto Seedance 2.5 minimum 4s', () => {
+    expect(snapVideoDuration(AI_MODELS.SEEDANCE_25, 3)).toBe(4)
+    expect(snapVideoDuration(AI_MODELS.SEEDANCE_25_REFERENCE, 3)).toBe(4)
+  })
+
+  it('keeps a legal Seedance duration', () => {
+    expect(snapVideoDuration(AI_MODELS.SEEDANCE_25, 8)).toBe(8)
+  })
+})
+
+describe('snapVideoResolution', () => {
+  it('passes a supported resolution through untouched', () => {
+    expect(snapVideoResolution(AI_MODELS.SEEDANCE_25, '1080p')).toBe('1080p')
+    expect(snapVideoResolution(AI_MODELS.SEEDANCE_25, '480p')).toBe('480p')
+  })
+
+  it('snaps downwards when the request sits between two offered steps', () => {
+    // Seedance 2.5 offers 480p/720p/1080p — 540p is equidistant, 480p wins.
+    expect(snapVideoResolution(AI_MODELS.SEEDANCE_25, '540p')).toBe('480p')
+  })
+
+  it('snaps to the nearest step the model actually offers', () => {
+    // Seedance 2.0 Fast stops at 720p.
+    expect(snapVideoResolution(AI_MODELS.SEEDANCE_20_FAST, '1080p')).toBe(
+      '720p',
+    )
+    // MiniMax H3 is 2K-only; HappyHorse has no 480p.
+    expect(snapVideoResolution(AI_MODELS.MINIMAX_H3, '720p')).toBe('2k')
+    expect(snapVideoResolution(AI_MODELS.HAPPYHORSE_10, '480p')).toBe('720p')
   })
 })
 

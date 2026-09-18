@@ -344,23 +344,33 @@ describe('顶栏进度', () => {
     // 结果是最后一条把前面写的全抹了。
     // ⚠ 超时放宽：落卡链是**逐帧**推进的（三步 + 每条边一帧），机器忙的时候
     // 默认那 1s 不够 —— ⛔ 不因为它慢就把断言改回「谁被调用过」。
-    await waitFor(() => {
-      const landed = read().nodes.find((node) => node.data.name === '我的成片')
-      expect(landed).toBeDefined()
-      const data = landed?.data as {
-        url?: string
-        source?: { kind?: string }
-      }
-      expect(data.url).toBe('https://cdn.test/renders/proj_1/job_1.mp4')
-      expect(data.source?.kind).toBe('render')
-    }, { timeout: 5_000 })
+    await waitFor(
+      () => {
+        const landed = read().nodes.find(
+          (node) => node.data.name === '我的成片',
+        )
+        expect(landed).toBeDefined()
+        const data = landed?.data as {
+          url?: string
+          source?: { kind?: string }
+        }
+        expect(data.url).toBe('https://cdn.test/renders/proj_1/job_1.mp4')
+        expect(data.source?.kind).toBe('render')
+      },
+      { timeout: 5_000 },
+    )
 
-    await waitFor(() => {
-      const landed = read().nodes.find((node) => node.data.name === '我的成片')
-      const edges = read().edges.filter((edge) => edge.target === landed?.id)
-      expect(edges.map((edge) => edge.source).sort()).toEqual(['v1', 'v2'])
-      expect(edges.every((edge) => edge.slot === 'reference')).toBe(true)
-    }, { timeout: 5_000 })
+    await waitFor(
+      () => {
+        const landed = read().nodes.find(
+          (node) => node.data.name === '我的成片',
+        )
+        const edges = read().edges.filter((edge) => edge.target === landed?.id)
+        expect(edges.map((edge) => edge.source).sort()).toEqual(['v1', 'v2'])
+        expect(edges.every((edge) => edge.slot === 'reference')).toBe(true)
+      },
+      { timeout: 5_000 },
+    )
   })
 })
 

@@ -38,6 +38,18 @@ Volume $0.07/GB/月。**冷启动**从 Volume 载 6.9GB checkpoint 约 **15–40
 
 ---
 
+### SDXL 来源精修与加载证据（2026-09-13 fork 已部署并通过 GPU 验收）
+
+- 来源 `Latent` 配方映射 `runnerHires`：第一遍 latent → bilinear `LatentUpscale` → 第二遍 `KSampler` → VAE；第二遍共用模型、LoRA、正负 conditioning 与 seed，独立 denoise / 可选 steps / CFG，步骤 0 或缺失继承第一遍。目标尺寸向下对齐 8、每边不超过 2048；Anima 不接受该设置。
+- Sue 来源：672×984、Latent ×1.45、denoise 0.45、25 步、CFG 7 → 968×1424。未改原 prompt 或三枚 LoRA 权重；与 Forge 的 RNG/采样实现仍可能不同，不能承诺逐像素复现。
+- `PixelVaultCheckpointLoader` / `PixelVaultLoraLoader` 在调用原加载器时核对文件 SHA-256、大小和变更；audit 与模型输出同链传入 `PixelVaultSaveImage`，写入 PNG `pixelvaultExecution`。Comfy 缓存复用时保留对应加载输出的证据；零权重跳过的 LoRA 不记为已加载。
+- fork 从成图读取证据并附加图像 SHA-256，Execution Worker 校验结构及图像绑定后，将 `runnerExecution` 连同 `runpodJobId` 送入现有 `executionCallback.providerMetadata` 快照。普通 Anima/旧结果缺证据时不伪造；记录证明文件经过加载器，不证明所有 LoRA key 都匹配或出图质量达标。
+- 官方 5.8.6 的 `src/start.sh` 在两个启动分支均传入 `--disable-metadata`；fork 构建时移除该参数，否则自定义保存节点在二次采样完成后拒绝保存，无法输出模型文件证据。
+- 实测镜像 `92ef778b5d6bab2cf1981b2eecb8311a92460a12` 返回 968×1424 PNG；加载证据确认 RIN v4 SHA-256 `29d5281e0adba1cf2dc8795e9016d3bf6e8c06b71630492b49468b7be8411bdf` 与三枚 LoRA 的 0.9/0.8/0.8 权重。随后应用端任务 `f6521add-8454-4ab0-aad1-7d32bc53e311` 成功归档；回调保存的完整加载证据（含图片 hash）与直接 RunPod 实测一致，提示词逐字一致。
+- 发布顺序：先构建并更新 RunPod fork（含 `/comfyui/custom_nodes/pixelvault_model_evidence`），验收自定义节点可见，再发布 Execution Worker 与应用。新工作流不能交给缺这些节点的旧镜像；本地单元测试没有替代真实 GPU 验收。
+
+契约核对：[ComfyUI nodes](https://github.com/comfyanonymous/ComfyUI/blob/master/nodes.py)、[Forge Latent 插值](https://github.com/lllyasviel/stable-diffusion-webui-forge/blob/main/modules/shared.py)、[RunPod 5.8.6 handler](https://github.com/runpod-workers/worker-comfyui/blob/5.8.6/handler.py)。
+
 ## 3. Volume 里有什么（2026-07-18 S3 SigV4 只读实测）
 
 用量 **47.40 GiB**（50,894,963,889 B），自由 **32.60 GiB**；`checkpoints/` 占 32.31 GiB。

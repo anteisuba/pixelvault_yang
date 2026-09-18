@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
+import { NovelAiCharacterLayoutSchema } from '@/types/novelai'
 import { isAspectRatio } from '@/constants/config'
 
 /**
@@ -31,6 +32,16 @@ export function useStudioReplayFromUrl(): void {
     const promptParam = searchParams.get('prompt')
     const seedParam = searchParams.get('seed')
     const negativePromptParam = searchParams.get('negativePrompt')
+    const layoutParam = searchParams.get('novelAiLayout')
+    let novelAiLayout
+    try {
+      const parsed = NovelAiCharacterLayoutSchema.safeParse(
+        JSON.parse(layoutParam ?? 'null'),
+      )
+      if (parsed.success) novelAiLayout = parsed.data
+    } catch {
+      /* Ignore malformed external URL input. */
+    }
     const aspectRatioParam = searchParams.get('aspectRatio')
     const referenceImages = searchParams
       .getAll('referenceImage')
@@ -43,6 +54,7 @@ export function useStudioReplayFromUrl(): void {
       })
 
     const hasAnyReplayParam =
+      novelAiLayout ||
       promptParam ||
       seedParam ||
       negativePromptParam ||
@@ -81,11 +93,12 @@ export function useStudioReplayFromUrl(): void {
         ? negativePromptParam
         : null
 
-    if (seed !== null || negativePrompt !== null) {
+    if (seed !== null || negativePrompt !== null || novelAiLayout) {
       dispatch({
         type: 'SET_ADVANCED_PARAMS',
         payload: {
           ...state.advancedParams,
+          novelAiLayout,
           ...(seed !== null ? { seed } : {}),
           ...(negativePrompt !== null ? { negativePrompt } : {}),
         },
@@ -97,6 +110,7 @@ export function useStudioReplayFromUrl(): void {
       'prompt',
       'seed',
       'negativePrompt',
+      'novelAiLayout',
       'aspectRatio',
       'referenceImage',
     ]) {

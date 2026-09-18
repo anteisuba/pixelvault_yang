@@ -18,6 +18,28 @@ const mockResolve = vi.mocked(resolveCivitaiCheckpointByReference)
 beforeEach(() => mockResolve.mockReset())
 
 describe('prepareRunnerCheckpoint', () => {
+  it('prepares the exact uploaded checkpoint from its hash', async () => {
+    mockResolve.mockResolvedValueOnce({
+      modelVersionId: 2944197,
+      name: 'v4.0',
+      baseModel: 'Illustrious',
+      downloadUrl: 'https://civitai.com/api/download/models/2944197',
+      sizeKB: 6000000,
+      fileHashAutoV3: 'ca3f57183417',
+    })
+    const result = await prepareRunnerCheckpoint({
+      checkpointHash: '29d5281e0a',
+      loraBaseModel: 'Illustrious',
+    })
+    expect(mockResolve).toHaveBeenCalledWith({ hash: '29d5281e0a' })
+    expect(result).toEqual({
+      approximate: false,
+      runnerCheckpoint: {
+        filename: 'civitai-ckpt-2944197.safetensors',
+        downloadUrl: 'https://civitai.com/api/download/models/2944197',
+      },
+    })
+  })
   it('T1: resolvable + supported architecture → exact checkpoint download spec', async () => {
     mockResolve.mockResolvedValueOnce({
       modelVersionId: 597138,

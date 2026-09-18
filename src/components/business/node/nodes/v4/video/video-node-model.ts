@@ -17,7 +17,11 @@ import {
 } from '@/constants/models/unit-prices'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
-import { getVideoModelCapabilities } from '@/constants/video-model-capabilities'
+import {
+  getVideoModelCapabilities,
+  snapVideoDuration,
+  snapVideoResolution,
+} from '@/constants/video-model-capabilities'
 import { resolveVideoModelId } from '@/constants/video-node-modes'
 import {
   isVideoResolution,
@@ -212,7 +216,37 @@ export function videoEffectiveParams(
   params: NodeV4GenerationParams | undefined,
   modelId: string | undefined,
 ): NodeV4GenerationParams {
-  return { ...videoDefaultParams(modelId), ...params }
+  const defaults = videoDefaultParams(modelId)
+  const merged: NodeV4GenerationParams = { ...defaults, ...params }
+  if (!modelId) return merged
+
+  const capabilities = getVideoModelCapabilities(modelId)
+  const seconds = Number(merged.duration)
+  if (
+    Number.isFinite(seconds) &&
+    seconds > 0 &&
+    (capabilities.supportedDurations?.length ?? 0) > 0
+  ) {
+    merged.duration = String(snapVideoDuration(modelId, seconds))
+  }
+
+  const ratios = capabilities.supportedAspectRatios ?? []
+  if (
+    merged.aspectRatio &&
+    ratios.length > 0 &&
+    !ratios.includes(merged.aspectRatio as (typeof ratios)[number])
+  ) {
+    merged.aspectRatio = defaults.aspectRatio
+  }
+
+  if (merged.resolution) {
+    merged.resolution = snapVideoResolution(
+      modelId,
+      merged.resolution as VideoResolution,
+    )
+  }
+
+  return merged
 }
 
 function readResolution(

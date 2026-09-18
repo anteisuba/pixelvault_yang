@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildHuggingFaceSourceSnapshot,
+  buildLoraSourceSnapshot,
   dedupeLoraStrings,
   gradeLoraMetadataCompleteness,
   huggingFaceAuthor,
@@ -187,4 +188,26 @@ describe('huggingFaceAuthor', () => {
     expect(huggingFaceAuthor('repo')).toBeNull()
     expect(huggingFaceAuthor('/repo')).toBeNull()
   })
+})
+
+describe('buildLoraSourceSnapshot trigger provenance', () => {
+  it.each(['official', 'inferred', undefined] as const)(
+    '保留 %s 来源，缺失来源不补成 official',
+    (triggerSource) => {
+      const item = hfItem()
+      const base = buildHuggingFaceSourceSnapshot({
+        item,
+        file: item.files[0],
+        retrievedAt: RETRIEVED_AT,
+      })
+      const snapshot = buildLoraSourceSnapshot({
+        ...base,
+        source: 'civitai',
+        triggerSource,
+      })
+      expect(snapshot.triggerSource).toBe(triggerSource)
+      if (triggerSource === undefined)
+        expect(snapshot).not.toHaveProperty('triggerSource')
+    },
+  )
 })

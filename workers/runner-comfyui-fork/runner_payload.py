@@ -79,3 +79,26 @@ def normalize_workflow_seeds(job):
         elif seed is not None:
             raise ValueError("Runner seed must be an integer or decimal string")
     return job
+
+
+def attach_model_evidence(output, workflow):
+    """Read evidence produced by loaders from the returned artifact, never the request."""
+    if not any(node.get("class_type") == "PixelVaultSaveImage" for node in (workflow or {}).values() if isinstance(node, dict)):
+        return output
+    if not isinstance(output, dict) or output.get("error"):
+        return output
+    import base64
+    import hashlib
+    import io
+    import json
+    from PIL import Image
+
+    images = output.get("images") or []
+    if not images:
+        raise ValueError("Runner output has no image carrying model evidence")
+    raw = base64.b64decode(images[0]["data"], validate=True)
+    with Image.open(io.BytesIO(raw)) as image:
+        evidence = json.loads(image.info["pixelvaultExecution"])
+    if evidence.get("version") != 1 or evidence.get("evidence") != "loader-output" or not evidence.get("models"):
+        raise ValueError("Invalid model load evidence")
+    return {**output, "runnerExecution": {**evidence, "imageSha256": hashlib.sha256(raw).hexdigest()}}

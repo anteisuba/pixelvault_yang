@@ -453,6 +453,24 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     },
   )
 
+  it('IME 选字回车不发送，过一会儿再回车才发送', () => {
+    const now = vi.spyOn(performance, 'now')
+    renderPanel()
+    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+    editor.textContent = '改成夜景'
+    fireEvent.input(editor)
+    now.mockReturnValue(0)
+    fireEvent.compositionStart(editor)
+    fireEvent.compositionEnd(editor)
+    now.mockReturnValue(10)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    expect(send).not.toHaveBeenCalled()
+    now.mockReturnValue(150)
+    fireEvent.keyDown(editor, { key: 'Enter' })
+    expect(send).toHaveBeenCalledWith('改成夜景', [])
+    now.mockRestore()
+  })
+
   it.each([false, true])(
     '只发送正文 @ 的图片，保留共享参考图（有引用：%s）',
     (hasMention) => {

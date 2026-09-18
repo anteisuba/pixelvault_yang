@@ -1,6 +1,6 @@
 ---
 name: critique
-description: Evaluate design effectiveness from a UX perspective. Assesses visual hierarchy, information architecture, emotional resonance, and overall design quality with actionable feedback.
+description: 用户请求界面设计评审时，评估任务流程、信息层级与视觉表达并给出改进建议。
 user-invokable: true
 args:
   - name: area
@@ -8,125 +8,14 @@ args:
     required: false
 ---
 
-Conduct a holistic design critique, evaluating whether the interface actually works—not just technically, but as a designed experience. Think like a design director giving feedback.
+# 设计评审
 
-先读本次目标和已确认的域/page 规范；只有需要额外设计方法时才读 frontend-design。检查范围与授权遵循 `docs/WORKFLOW.md`。
+用于用户请求设计反馈时，判断界面是否帮助目标用户完成主要任务。以真实内容、可见界面和已确认域/page 方向为依据；范围遵循 `docs/WORKFLOW.md`。
 
-## Design Critique
+围绕影响结果的部分评审：主操作与视觉层级、信息分组与导航、操作可发现性、文字可读性、品牌表达，以及相关空态、加载和错误恢复。选择与请求有关的维度，不机械遍历整套清单。
 
-Evaluate the interface across these dimensions:
+每个建议说明具体位置、观察到的现象、用户影响和可执行改变。区分可用性问题与审美取舍；常见字体、卡片或“像 AI”不是缺陷证据。优先保留有效设计，不为凑问题数提出改动。
 
-### 1. 任务与设计契合度
+反馈先给最重要的发现，按影响排序，必要时附截图或文件位置。只对会改变设计结论且现有证据无法回答的缺口提问，不强制评分、固定章节或其他技能命令。
 
-用真实内容与主要任务检查层级、结构和表达。指出可观察的可用性问题，不以常见字体、卡片、配色或“像 AI”本身判错；已确认视觉方向作为依据。
-
-### 2. Visual Hierarchy
-
-- Does the eye flow to the most important element first?
-- Is there a clear primary action? Can you spot it in 2 seconds?
-- Do size, color, and position communicate importance correctly?
-- Is there visual competition between elements that should have different weights?
-
-### 3. Information Architecture
-
-- Is the structure intuitive? Would a new user understand the organization?
-- Is related content grouped logically?
-- Are there too many choices at once? (cognitive overload)
-- Is the navigation clear and predictable?
-
-### 4. Emotional Resonance
-
-- What emotion does this interface evoke? Is that intentional?
-- Does it match the brand personality?
-- Does it feel trustworthy, approachable, premium, playful—whatever it should feel?
-- Would the target user feel "this is for me"?
-
-### 5. Discoverability & Affordance
-
-- Are interactive elements obviously interactive?
-- Would a user know what to do without instructions?
-- Are hover/focus states providing useful feedback?
-- Are there hidden features that should be more visible?
-
-### 6. Composition & Balance
-
-- Does the layout feel balanced or uncomfortably weighted?
-- Is whitespace used intentionally or just leftover?
-- Is there visual rhythm in spacing and repetition?
-- Does asymmetry feel designed or accidental?
-
-### 7. Typography as Communication
-
-- Does the type hierarchy clearly signal what to read first, second, third?
-- Is body text comfortable to read? (line length, spacing, size)
-- Do font choices reinforce the brand/tone?
-- Is there enough contrast between heading levels?
-
-### 8. Color with Purpose
-
-- Is color used to communicate, not just decorate?
-- Does the palette feel cohesive?
-- Are accent colors drawing attention to the right things?
-- Does it work for colorblind users? (not just technically—does meaning still come through?)
-
-### 9. States & Edge Cases
-
-- Empty states: Do they guide users toward action, or just say "nothing here"?
-- Loading states: Do they reduce perceived wait time?
-- Error states: Are they helpful and non-blaming?
-- Success states: Do they confirm and guide next steps?
-
-### 10. Microcopy & Voice
-
-- Is the writing clear and concise?
-- Does it sound like a human (the right human for this brand)?
-- Are labels and buttons unambiguous?
-- Does error copy help users fix the problem?
-
-## Generate Critique Report
-
-Structure your feedback as a design director would:
-
-### Anti-Patterns Verdict
-
-**Start here.** Pass/fail: Does this look AI-generated? List specific tells from the skill's Anti-Patterns section. Be brutally honest.
-
-### Overall Impression
-
-A brief gut reaction—what works, what doesn't, and the single biggest opportunity.
-
-### What's Working
-
-Highlight 2-3 things done well. Be specific about why they work.
-
-### Priority Issues
-
-The 3-5 most impactful design problems, ordered by importance:
-
-For each issue:
-
-- **What**: Name the problem clearly
-- **Why it matters**: How this hurts users or undermines goals
-- **Fix**: What to do about it (be concrete)
-- **Command**: Which command to use (prefer: /polish, /audit, /critique, /redesign-existing-projects, /frontend-design, /ui-styling, /design-system, /contrast-check, /verify-real — or other installed skills you're sure exist)
-
-### Minor Observations
-
-Quick notes on smaller issues worth addressing.
-
-### Questions to Consider
-
-Provocative questions that might unlock better solutions:
-
-- "What if the primary action were more prominent?"
-- "Does this need to feel this complex?"
-- "What would a confident version of this look like?"
-
-**Remember**:
-
-- Be direct—vague feedback wastes everyone's time
-- Be specific—"the submit button" not "some elements"
-- Say what's wrong AND why it matters to users
-- Give concrete suggestions, not just "consider exploring..."
-- Prioritize ruthlessly—if everything is important, nothing is
-- Don't soften criticism—developers need honest feedback to ship great design
+仅评审时不改实现；用户同时授权修复则推进到验证。若建议涉及未确认的整页改版，依 `docs/scenes/ui-page.md` 处理方向确认，已授权的局部修复继续完成。

@@ -43,6 +43,8 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
+  ASSISTANT_OPERATOR_TOOL_VERBS,
+  ASSISTANT_OPERATOR_REJECT_REASON_IDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
@@ -79,6 +81,7 @@ import {
   dropOperatorPending,
   enqueueOperatorMessage,
   finalizeOperatorMessage,
+  patchOperatorStreamingMessage,
   getOperatorReviewState,
   getOperatorState,
   nextOperatorEntryId,
@@ -132,6 +135,7 @@ import {
   hasUnfinishedSteps,
   toResumeFrom,
 } from '@/lib/studio-operator-resume'
+import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
   AssistantOperatorConfirmDecision,
@@ -547,7 +551,10 @@ interface RunOptions {
    * ⚠ **候选本体跟着回去**：服务端那一轮的 `loraIndex` 只活一轮，而勾选那一下
    * 发生在流结束之后。⛔ 不许改成「回一串 id 让服务端再搜一次」。
    */
-  loraPicks?: NonNullable<AssistantOperatorRequest['loraPicks']>
+  loraPicks?: Omit<
+    NonNullable<AssistantOperatorRequest['loraPicks']>[number],
+    'receipt'
+  >[]
   planApproved?: boolean
   /**
    * **断点续跑**（第三期）—— 从上一份没跑完的计划接着跑。
@@ -915,6 +922,152 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * 旧助手线（`use-assistant-conversation`）也是把历史原样带回上下文的。
        * ⚠ 只带最后几条对白（`historyToOperatorMessages` 自己截），显示是全部。
        */
+      const mountedPicks: NonNullable<AssistantOperatorRequest['loraPicks']> =
+        []
+      if (loraPicks?.length) {
+        const confirm = getOperatorState().confirm
+        for (const [index, pick] of loraPicks.entries()) {
+          if (controller.signal.aborted) {
+            dropOperatorPending(messageEntryId())
+            return
+          }
+          const candidate = pick.candidate
+          const weight = pick.weight ?? candidate.defaultWeight
+          const loraState = buildSnapshot().loras
+          const payload = {
+            candidateId: pick.candidateId,
+            name: candidate.name,
+            weight,
+            triggerWords: candidate.triggerWords,
+            family: candidate.family,
+            compatible: true,
+            importPayload: candidate.importPayload,
+          }
+          const base = {
+            id: `mount-${index + 1}`,
+            title: candidate.name,
+            tool: ASSISTANT_OPERATOR_TOOL_IDS.mountLora,
+            verb: ASSISTANT_OPERATOR_TOOL_VERBS[
+              ASSISTANT_OPERATOR_TOOL_IDS.mountLora
+            ],
+          }
+          let receipt: NonNullable<
+            AssistantOperatorRequest['loraPicks']
+          >[number]['receipt'] = { assetId: null }
+          try {
+            if (
+              !applyContext.lora ||
+              !candidate.importable ||
+              !candidate.importPayload ||
+              !loraState ||
+              !Number.isFinite(weight) ||
+              weight < loraState.minWeight ||
+              weight > loraState.maxWeight ||
+              !isLoraBaseModelMountCompatible(
+                candidate.family ?? '',
+                loraState.baseFamily ?? '',
+              )
+            ) {
+              throw new Error(
+                'LoRA is unavailable or incompatible with the current base/weight range',
+              )
+            }
+            upsertOperatorStep(
+              {
+                ...base,
+                status: 'running',
+                payload: { ...payload, importPayload: candidate.importPayload },
+                inverse: { candidateId: pick.candidateId },
+              },
+              runKey,
+            )
+            const outcome = await applyContext.lora.mount({
+              ...payload,
+              importPayload: candidate.importPayload,
+            })
+            receipt = {
+              assetId:
+                outcome.mounted && outcome.asset ? outcome.asset.id : null,
+              ...(outcome.error
+                ? {
+                    error: outcome.error.slice(
+                      0,
+                      ASSISTANT_OPERATOR_LIMITS.maxPromptChars,
+                    ),
+                  }
+                : {}),
+            }
+          } catch (error) {
+            receipt.error =
+              error instanceof Error
+                ? error.message.slice(
+                    0,
+                    ASSISTANT_OPERATOR_LIMITS.maxPromptChars,
+                  )
+                : 'Mount failed'
+          }
+          mountedPicks.push({ ...pick, receipt })
+          if (receipt.assetId && candidate.importPayload) {
+            const step: AssistantOperatorStep = {
+              ...base,
+              status: 'done',
+              payload: { ...payload, importPayload: candidate.importPayload },
+              inverse: { candidateId: pick.candidateId },
+            }
+            upsertOperatorStep(step, runKey)
+            recordOperatorChange({
+              field: 'loras',
+              stepId: operatorStepEntryId(runKey, step.id),
+              firstInverse: step,
+              previousLabel: describeOperatorInverse(step),
+            })
+          } else {
+            upsertOperatorStep(
+              {
+                ...base,
+                status: 'error',
+                error: {
+                  reason:
+                    ASSISTANT_OPERATOR_REJECT_REASON_IDS.loraNotImportable,
+                  detail: receipt.error ?? 'Mount did not complete',
+                },
+              },
+              runKey,
+            )
+          }
+          if (controller.signal.aborted) {
+            dropOperatorPending(messageEntryId())
+            return
+          }
+        }
+        if (confirm?.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick) {
+          const picks = mountedPicks
+          const succeeded = picks.filter((pick) => pick.receipt.assetId)
+          const picked = picks.map((pick) => ({
+            name: pick.candidate.name,
+            weight: pick.weight ?? pick.candidate.defaultWeight,
+          }))
+          const label = describeLoraPickSelectionLabel(picked)
+          const optionLabels = describeLoraPickOptionLabels(picked)
+          appendOperatorEntry({
+            kind: 'system',
+            id: nextOperatorEntryId('sys'),
+            code: succeeded.length ? 'loraPickMounted' : 'loraMountFailed',
+            // ⚠ 这一行上只写名字：权重在正文里，⛔ 不把两个数挤进一行读不完的话。
+            subject: (succeeded.length ? succeeded : picks)
+              .map((pick) => pick.candidate.name)
+              .join('、'),
+            ...loraPickDecision(
+              confirm.pick.question,
+              OPERATOR_LORA_PICK_CHOICE_IDS.mount,
+              label,
+              optionLabels,
+            ),
+          })
+          resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
+        }
+      }
+
       const { entries, history, sessionId, sourceAllowlist } =
         getOperatorState()
       const mentionedAssets = buildMentionedAssets(entries, domain)
@@ -1038,7 +1191,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             ? { sourceAllowlist: [...sourceAllowlist] }
             : {}),
           ...(confirmations?.length ? { confirmations } : {}),
-          ...(loraPicks?.length ? { loraPicks } : {}),
+          ...(mountedPicks.length ? { loraPicks: mountedPicks } : {}),
           ...(planAnswers?.length ? { planAnswers } : {}),
           ...(planApproved === undefined ? {} : { planApproved }),
           /**
@@ -1246,6 +1399,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   entry.kind === 'message' && entry.id === messageEntryId(),
               )
               if (index >= 0 && index !== entries.length - 1) messageSeq += 1
+              if (event.partial) {
+                patchOperatorStreamingMessage(messageEntryId(), event.text)
+                break
+              }
               finalizeOperatorMessage(
                 messageEntryId(),
                 event.text,
@@ -1979,7 +2136,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
 
   /**
    * **推荐卡「挂载所选」**（lora-assistant §10.1 / §10.3.1）—— 勾中的那几把
-   * **连本体**发下一轮，服务端在模型开口之前逐把挂上。
+   * 先在客户端逐把执行，再带候选本体、回执和最新快照进入下一轮。
    *
    * ⭐ 三件事，缺一不可：
    *  ① 带 `loraPicks` 重发（照 `confirmations` / `planAnswers` 那条通道）——
@@ -1987,7 +2144,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    *     只活一轮，而这一下发生在流结束之后；⛔ 不许退化成「回一串 id 再搜一次」。
    *  ② 落账三件套（系统行 + 折成 user 消息的正文 + 结构化 `answered`）——
    *     少了它们，模型下一轮读到的是一张没人回应的卡，于是重提同一张（b9b6990a）。
-   *  ③ 卡就地换成「已挂 N 把 · 11:24」。
+   *  ③ 卡就地显示已处理项数，成功与失败按实际回执落账。
    * ⚠ **一把都没勾时不发**：那一轮除了让模型重说一遍什么都不会发生（按钮那一侧
    *   也是禁用的，这里是第二道）。
    * ⚠ **连点两下只发一轮**：第二下撞在 `status !== idle` 上返回 —— 不拦的话第二轮
@@ -2024,26 +2181,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       })
       if (picks.length === 0) return
       resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting)
-      const picked = picks.map((pick) => ({
-        name: pick.candidate.name,
-        weight: pick.weight ?? pick.candidate.defaultWeight,
-      }))
-      const label = describeLoraPickSelectionLabel(picked)
-      const optionLabels = describeLoraPickOptionLabels(picked)
-      appendOperatorEntry({
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: 'loraPickMounted',
-        // ⚠ 这一行上只写名字：权重在正文里，⛔ 不把两个数挤进一行读不完的话。
-        subject: picks.map((pick) => pick.candidate.name).join('、'),
-        ...loraPickDecision(
-          confirm.pick.question,
-          OPERATOR_LORA_PICK_CHOICE_IDS.mount,
-          label,
-          optionLabels,
-        ),
-      })
-      resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
       void run({ loraPicks: picks, planApproved: true })
     },
     [run],

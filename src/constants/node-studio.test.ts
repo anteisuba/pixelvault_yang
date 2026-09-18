@@ -1,9 +1,45 @@
 import { describe, expect, it } from 'vitest'
 
+import { LLM_TEXT_MODEL_IDS } from '@/constants/config'
 import {
+  NODE_STUDIO_ASSISTANT_ROUTE_MODELS,
   NODE_STUDIO_NODE_PLACEMENT,
+  resolveAssistantFastModelId,
+  resolveAssistantModelId,
   resolveTopbarAddSpawnPosition,
 } from '@/constants/node-studio'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+
+describe('resolveAssistantFastModelId', () => {
+  it('OpenAI 问答走 Luna，默认档仍是 Sol', () => {
+    expect(resolveAssistantFastModelId(AI_ADAPTER_TYPES.OPENAI)).toBe(
+      LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_LUNA,
+    )
+    expect(resolveAssistantModelId(AI_ADAPTER_TYPES.OPENAI)).toBe(
+      LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_SOL,
+    )
+  })
+
+  it('Gemini 问答与 chip 第一档对齐，都是 3.8 Flash', () => {
+    expect(resolveAssistantFastModelId(AI_ADAPTER_TYPES.GEMINI)).toBe(
+      LLM_TEXT_MODEL_IDS.GEMINI_3_8_FLASH,
+    )
+    expect(resolveAssistantModelId(AI_ADAPTER_TYPES.GEMINI)).toBe(
+      NODE_STUDIO_ASSISTANT_ROUTE_MODELS.find(
+        (model) => model.adapterType === AI_ADAPTER_TYPES.GEMINI,
+      )!.modelId,
+    )
+  })
+
+  it('其他厂商没有单独快档，回落到 chip 第一档', () => {
+    expect(resolveAssistantFastModelId(AI_ADAPTER_TYPES.DEEPSEEK)).toBe(
+      resolveAssistantModelId(AI_ADAPTER_TYPES.DEEPSEEK),
+    )
+    expect(resolveAssistantFastModelId(AI_ADAPTER_TYPES.ANTHROPIC)).toBe(
+      resolveAssistantModelId(AI_ADAPTER_TYPES.ANTHROPIC),
+    )
+  })
+})
 
 describe('resolveTopbarAddSpawnPosition（《画布修法》02 节刀 1 task A）', () => {
   const center = { x: 500, y: 300 }

@@ -1,6 +1,43 @@
 import { describe, it, expect } from 'vitest'
 
-import { AdvancedParamsSchema } from '@/types'
+import { AdvancedParamsSchema, CivitaiImageRecipeSchema } from '@/types'
+
+describe('Latent hires parameter contracts', () => {
+  it('preserves explicit second-pass parameters', () => {
+    const runnerHires = { scale: 1.45, denoise: 0.45, steps: 20, cfg: 6 }
+    expect(AdvancedParamsSchema.parse({ runnerHires }).runnerHires).toEqual(
+      runnerHires,
+    )
+    expect(AdvancedParamsSchema.parse({}).runnerHires).toBeUndefined()
+  })
+
+  it.each([
+    { scale: 1, denoise: 0.45 },
+    { scale: 5, denoise: 0.45 },
+    { scale: 1.45, denoise: 0 },
+    { scale: 1.45, denoise: 1.1 },
+    { scale: 1.45, denoise: 0.45, steps: 0 },
+    { scale: 1.45, denoise: 0.45, steps: 1.5 },
+    { scale: 1.45, denoise: 0.45, cfg: 31 },
+  ])('rejects invalid execution hires parameters %j', (runnerHires) => {
+    expect(AdvancedParamsSchema.safeParse({ runnerHires }).success).toBe(false)
+  })
+
+  it('accepts source hiresSteps zero as metadata for inheriting first-pass steps', () => {
+    const recipe = CivitaiImageRecipeSchema.parse({
+      imageUrl: 'https://cdn.test/source.png',
+      source: 'model_version_image',
+      prompt: '(portrait:1.1), Sue',
+      hiresUpscale: 1.45,
+      hiresUpscaler: 'Latent',
+      denoisingStrength: 0.45,
+      hiresSteps: 0,
+      hiresCfgScale: 7,
+    })
+    expect(recipe.hiresSteps).toBe(0)
+    expect(recipe.hiresCfgScale).toBe(7)
+  })
+})
 
 describe('AdvancedParamsSchema', () => {
   it.each(['xhigh', 'max'])('accepts GPT Image 2.5 quality %s', (quality) => {

@@ -1,5 +1,7 @@
 import 'server-only'
 
+import { NovelAiCharacterLayoutSchema } from '@/types/novelai'
+
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import { ensureUser } from '@/services/user.service'
@@ -87,6 +89,9 @@ export async function getReplayPayload(
   const rawSeed =
     pickNumber(snapshot, 'seed') ?? pickNumber(advancedParams, 'seed')
   const seed = rawSeed === null || rawSeed < 0 ? null : rawSeed
+  const layout = NovelAiCharacterLayoutSchema.safeParse(
+    advancedParams?.novelAiLayout,
+  )
   const negativePrompt = pickString(advancedParams, 'negativePrompt')
   const rawAspectRatio = pickString(snapshot, 'aspectRatio')
   const aspectRatio =
@@ -111,6 +116,7 @@ export async function getReplayPayload(
     prompt,
     seed,
     negativePrompt,
+    ...(layout.success ? { novelAiLayout: layout.data } : {}),
     aspectRatio,
   }
 }

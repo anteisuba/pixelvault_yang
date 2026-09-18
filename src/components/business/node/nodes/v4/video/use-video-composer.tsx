@@ -395,7 +395,14 @@ export function useVideoComposer({
     // 默认模型 / 默认档到这一刻才落库：用户按了生成，它就是**用户的**选择了。
     if (!videoData.model && effectiveModel)
       canvas.onSetModel(id, effectiveModel)
-    if (!videoData.params) canvas.onSetParams(id, effectiveParams)
+    if (
+      !videoData.params ||
+      videoData.params.duration !== effectiveParams.duration ||
+      videoData.params.resolution !== effectiveParams.resolution ||
+      videoData.params.aspectRatio !== effectiveParams.aspectRatio
+    ) {
+      canvas.onSetParams(id, effectiveParams)
+    }
     // ⚠ 这一枪读的图是**打过补丁的**那份：上面两次写是异步落库，这一帧的
     // `canvas.nodes` 还是旧的，照它发出去就会少掉模型（发不出）与默认档。
     const nodes = canvas.nodes.map((item) =>

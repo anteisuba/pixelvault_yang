@@ -188,9 +188,9 @@
  * 字宽的样式都会让高亮块和真实文字错位。 */
 .domain-lora .lora-trigger-hl {
   border-radius: 3px;
-  background: color-mix(in oklab, var(--primary) 16%, transparent);
-  box-shadow: inset 0 -1.5px 0
-    color-mix(in oklab, var(--primary) 55%, transparent);
+  background: color-mix(in oklab, var(--primary) 24%, transparent);
+  box-shadow: inset 0 -2px 0
+    color-mix(in oklab, var(--primary) 75%, transparent);
 }
 
 /* ⚠ 退役（B 稿 2026-09-03）：`.lora-mobile-actionbar` 曾把出图条钉成
@@ -241,12 +241,16 @@
  * 4 ≈ 6.4em）后转内部滚动，避免一段长 prompt 把整条 composer 顶穿卡片。
  * 不支持 field-sizing 的浏览器（判据：属性值被忽略）退回 `min-height` 那一行，
  * 仍可用只是不会跟手长高，不会比改之前更差。 */
+.domain-lora .lora-prompt-layout {
+  padding: 6px 2px;
+  scrollbar-gutter: stable;
+}
+
 .domain-lora .lora-prompt-input {
   field-sizing: content;
   min-height: 1.6em;
   max-height: 6.4em;
   overflow-y: auto;
-  padding: 6px 2px;
 }
 
 /* iOS 输入聚焦缩放（owner 2026-09-03 报）：Safari 在聚焦一个字号 <16px 的表单

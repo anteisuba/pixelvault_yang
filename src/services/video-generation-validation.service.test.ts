@@ -16,6 +16,17 @@ describe('video-generation-validation.service', () => {
     ).not.toThrow()
   })
 
+  it('rejects Seedance 2.5 duration 3s (official floor is 4s)', () => {
+    expect(() =>
+      validateVideoGenerationInput({
+        modelId: AI_MODELS.SEEDANCE_25,
+        aspectRatio: '9:16',
+        duration: 3,
+        resolution: '720p',
+      }),
+    ).toThrowError(GenerateImageServiceError)
+  })
+
   it('rejects durations outside the current product-supported set', () => {
     expect(() =>
       validateVideoGenerationInput({

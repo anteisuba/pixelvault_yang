@@ -13,6 +13,8 @@ export {
 } from '../../../src/lib/image-output-size'
 import { WorkflowEntrypoint } from 'cloudflare:workers'
 import { readOpenAIImageStream } from '../../../src/lib/openai-image-stream'
+import { NovelAiCharacterLayoutSchema } from '../../../src/types/novelai'
+import { supportsNovelAiCharacters } from '../../../src/constants/novelai'
 import {
   EXECUTION_PROGRESS_STAGES,
   type ExecutionProgressStage,
@@ -44,6 +46,9 @@ import {
 import { getRunnerCheckpointById } from './models/runner/checkpoints'
 import {
   buildRunnerWorkflowFromRequest,
+  resolveRunnerHires,
+  parseRunnerModelEvidence,
+  type RunnerModelEvidence,
   RunnerUnknownCheckpointError,
   type RunnerArchitecture,
 } from './models/runner/request-builder'
@@ -6170,6 +6175,12 @@ export async function submitRunnerImageJob(
   )
   const sampling = readRunnerSampling(advancedParams)
   const upscaler = readRunnerUpscaler(advancedParams)
+  const hires = resolveRunnerHires(
+    advancedParams.runnerHires,
+    dimensions.width,
+    dimensions.height,
+    architecture,
+  )
 
   // img2img: when the request carries a reference image (base-model capability
   // maxReferenceImages > 0), hand RunPod the R2 URL via `input.images_to_fetch`
@@ -6226,6 +6237,7 @@ export async function submitRunnerImageJob(
         referenceImageName,
         denoise: referenceDenoise,
         upscalerModelFilename: upscaler?.filename,
+        hires,
       },
       randomUint32,
     )
@@ -6322,8 +6334,8 @@ export async function submitRunnerImageJob(
   const outputScale = upscaler?.scale ?? 1
   return {
     id,
-    width: dimensions.width * outputScale,
-    height: dimensions.height * outputScale,
+    width: (hires?.width ?? dimensions.width) * outputScale,
+    height: (hires?.height ?? dimensions.height) * outputScale,
   }
 }
 
@@ -6332,7 +6344,11 @@ type RunnerPollStatus = 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
 type RunnerPollResult =
   | { status: 'IN_QUEUE' | 'IN_PROGRESS' }
   | { status: 'FAILED'; error: string }
-  | { status: 'COMPLETED'; imageBase64: string }
+  | {
+      status: 'COMPLETED'
+      imageBase64: string
+      runnerExecution?: RunnerModelEvidence
+    }
 
 type PersistedRunnerPollResult =
   | { status: 'IN_QUEUE' | 'IN_PROGRESS' }
@@ -6342,6 +6358,7 @@ type PersistedRunnerPollResult =
       artifactUrl: string
       imageR2Key: string
       mimeType: string
+      runnerExecution?: RunnerModelEvidence
     }
 
 type CompletedPersistedRunnerPollResult = Extract<
@@ -6413,7 +6430,12 @@ async function pollRunnerImageJob(
     }
   }
 
-  return { status: 'COMPLETED', imageBase64 }
+  const runnerExecution = parseRunnerModelEvidence(output?.runnerExecution)
+  return {
+    status: 'COMPLETED',
+    imageBase64,
+    ...(runnerExecution ? { runnerExecution } : {}),
+  }
 }
 
 /**
@@ -6665,14 +6687,32 @@ export async function pollAndPersistRunnerImageJob(
   const pollResult = await pollRunnerImageJob(jobId, env, apiKey)
   if (pollResult.status !== 'COMPLETED') return pollResult
 
+  const imageBytes = base64ToBytes(pollResult.imageBase64)
+  if (pollResult.runnerExecution) {
+    const digest = await crypto.subtle.digest(
+      'SHA-256',
+      new Uint8Array(imageBytes),
+    )
+    const actualHash = Array.from(new Uint8Array(digest), (byte) =>
+      byte.toString(16).padStart(2, '0'),
+    ).join('')
+    if (actualHash !== pollResult.runnerExecution.imageSha256)
+      throw new Error('Runner model evidence does not match image bytes')
+  }
   const uploaded = await uploadImageBytesToKey(
     env,
-    base64ToBytes(pollResult.imageBase64),
+    imageBytes,
     'image/png',
     imageR2Key,
   )
 
-  return { status: 'COMPLETED', ...uploaded }
+  return {
+    status: 'COMPLETED',
+    ...uploaded,
+    ...(pollResult.runnerExecution
+      ? { runnerExecution: pollResult.runnerExecution }
+      : {}),
+  }
 }
 
 function isNovelAiStructuredPromptModel(externalModelId: string): boolean {
@@ -6835,6 +6875,23 @@ export async function generateNovelAiImage(
       : randomUint32()
   const useStructuredPrompt = isNovelAiStructuredPromptModel(externalModelId)
   const useV5 = isNovelAiV5Model(externalModelId)
+  const layoutResult = NovelAiCharacterLayoutSchema.optional().safeParse(
+    advancedParams.novelAiLayout,
+  )
+  if (
+    !layoutResult.success ||
+    (layoutResult.data && !supportsNovelAiCharacters(externalModelId))
+  ) {
+    throw new Error('Invalid NovelAI character layout.')
+  }
+  const layout = layoutResult.data
+  const characterPrompts = (layout?.characters ?? []).map((character) => ({
+    prompt: character.prompt,
+    uc: character.negativePrompt,
+    center: character.position,
+    enabled: true,
+  }))
+  const useCoords = layout?.positioning === 'manual'
   const parameters: Record<string, unknown> = {
     params_version: useV5 ? 4 : useStructuredPrompt ? 3 : 1,
     width: dimensions.width,
@@ -6857,8 +6914,8 @@ export async function generateNovelAiImage(
     cfg_rescale: 0,
     noise_schedule: 'karras',
     legacy_v3_extend: false,
-    use_coords: false,
-    characterPrompts: [],
+    use_coords: useCoords,
+    characterPrompts,
     negative_prompt: negative,
     prompt: context.providerInput.prompt,
     reference_image_multiple: [],
@@ -6882,13 +6939,22 @@ export async function generateNovelAiImage(
     parameters.v4_prompt = {
       caption: {
         base_caption: context.providerInput.prompt,
-        char_captions: [],
+        char_captions: characterPrompts.map((character) => ({
+          char_caption: character.prompt,
+          centers: [character.center],
+        })),
       },
-      use_coords: false,
+      use_coords: useCoords,
       use_order: true,
     }
     parameters.v4_negative_prompt = {
-      caption: { base_caption: negative, char_captions: [] },
+      caption: {
+        base_caption: negative,
+        char_captions: characterPrompts.map((character) => ({
+          char_caption: character.uc,
+          centers: [character.center],
+        })),
+      },
       legacy_uc: false,
     }
   }
@@ -7505,7 +7571,12 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           mimeType: completed.mimeType,
           width: currentJob.width,
           height: currentJob.height,
-          providerMetadata: { runpodJobId: currentJob.id },
+          providerMetadata: {
+            runpodJobId: currentJob.id,
+            ...(completed.runnerExecution
+              ? { runnerExecution: completed.runnerExecution }
+              : {}),
+          },
         }
       } else if (context.providerId === 'gemini') {
         result = await step.do(

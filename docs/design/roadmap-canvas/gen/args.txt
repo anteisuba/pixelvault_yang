@@ -128,3 +128,11 @@ DesignD4Ask.dc.html
 DesignD7Ask.dc.html
 --artboard
 DesignD7Map.dc.html
+--artboard
+DesignD7Dock.dc.html
+--artboard
+DesignD7Apply.dc.html
+--artboard
+DesignD7Script.dc.html
+--artboard
+DesignD7Shells.dc.html

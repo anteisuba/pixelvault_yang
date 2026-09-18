@@ -170,7 +170,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 9700,
+      "h": 9750,
       "title": "改进进度表",
       "page": "page-7"
     },
@@ -578,6 +578,42 @@
       "h": 2520,
       "title": "D7 ② 思维导图",
       "page": "page-14"
+    },
+    {
+      "file": "DesignD7Dock.dc.html",
+      "x": 0,
+      "y": 2900,
+      "w": 1400,
+      "h": 3600,
+      "title": "D7 ④ dock",
+      "page": "page-14"
+    },
+    {
+      "file": "DesignD7Apply.dc.html",
+      "x": 1500,
+      "y": 2650,
+      "w": 1400,
+      "h": 1290,
+      "title": "D7 ④ 改回执",
+      "page": "page-14"
+    },
+    {
+      "file": "DesignD7Script.dc.html",
+      "x": 1500,
+      "y": 4040,
+      "w": 1400,
+      "h": 1510,
+      "title": "D7 ④ 剧本节点",
+      "page": "page-14"
+    },
+    {
+      "file": "DesignD7Shells.dc.html",
+      "x": 1500,
+      "y": 5650,
+      "w": 1400,
+      "h": 910,
+      "title": "D7 ④ LoRA / 配音间壳",
+      "page": "page-14"
     }
   ],
   "annotations": [
@@ -900,7 +936,7 @@
   ],
   "launch": {
     "view": "canvas",
-    "page": "page-11"
+    "page": "page-14"
   },
   "pages": [
     {

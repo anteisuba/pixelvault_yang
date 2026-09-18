@@ -1,4 +1,4 @@
-import { ImageIcon, Music, Play } from '@/components/icons'
+import { ImageIcon, Layers, Music, Play } from '@/components/icons'
 
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import {
@@ -21,6 +21,8 @@ interface ImageCardMediaProps {
   openImageLabel: string
   openVideoLabel: string
   referenceImageLabel: string
+  /** 「底图 + N 图层」角标文案；没有图层时宿主不传。 */
+  layerBadgeLabel?: string
   priority?: boolean
 }
 
@@ -33,6 +35,7 @@ export function ImageCardMedia({
   openImageLabel,
   openVideoLabel,
   referenceImageLabel,
+  layerBadgeLabel,
   priority,
 }: ImageCardMediaProps) {
   const imageSrc = getGenerationThumbnailUrl(generation)
@@ -109,6 +112,14 @@ export function ImageCardMedia({
         >
           <ImageIcon className="size-3" />
           {referenceImageLabel}
+        </span>
+      )}
+      {layerBadgeLabel && (
+        // 图层拆分产物（进度表 62）。⚠ 放右上角而不是左上角：参考图角标已经
+        // 占着左上，而这两件事经常同时成立（图层拆分本来就必须挂参考图）。
+        <span className="absolute right-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-xs text-white shadow-sm backdrop-blur-md">
+          <Layers className="size-3" />
+          {layerBadgeLabel}
         </span>
       )}
       {isVideo && (

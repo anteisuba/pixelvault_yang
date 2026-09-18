@@ -34,7 +34,13 @@ vi.mock(import('@/constants/models'), async (importOriginal) => ({
 }))
 
 const mockGetCapabilityConfig = vi.fn()
-vi.mock('@/constants/provider-capabilities', () => ({
+// ⚠ 部分 mock，不是整模块替换：`src/types` 会读这份能力表里的常量
+// （`VOLCENGINE_SEEDREAM_MAX_LAYERS`），整模块替换会让它在 import 期就炸掉，
+// 而失败点离这里很远（「No export is defined on the mock」）。
+vi.mock('@/constants/provider-capabilities', async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import('@/constants/provider-capabilities')
+  >()),
   getCapabilityConfig: (...args: unknown[]) => mockGetCapabilityConfig(...args),
 }))
 

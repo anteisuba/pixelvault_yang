@@ -5,6 +5,7 @@
  * docs/references/domains/studio.md.
  */
 export * from './CompareGrid'
+export * from './GenerationLayerStrip'
 export * from './StudioGenerationErrorDialog'
 export * from './StudioKeepChangePanel'
 export * from './StudioResultFeedback'

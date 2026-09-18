@@ -3257,6 +3257,7 @@
     "openLabel": "查看",
     "modelLabel": "模型",
     "referenceImageLabel": "参考",
+    "layerBadge": "底图 + {count} 图层",
     "providerLabel": "提供商",
     "requestsLabel": "请求数",
     "imageVisibilityLabel": "图片",
@@ -3283,6 +3284,12 @@
     "copyPromptAction": "复制 Prompt",
     "useInStudioAction": "在 Studio 使用",
     "promptCopiedToast": "Prompt 已复制"
+  },
+  "GenerationLayers": {
+    "sectionLabel": "图层（{count}）",
+    "layerFallbackName": "图层 {z}",
+    "downloadLayer": "下载该图层",
+    "downloadFailed": "这张图层没能下载下来。"
   },
   "PromptEnhance": {
     "button": "增强",

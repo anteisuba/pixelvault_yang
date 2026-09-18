@@ -52,6 +52,7 @@ import {
   LORA_METADATA_COMPLETENESS_VALUES,
 } from '@/constants/lora-candidate'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
+import { VOLCENGINE_SEEDREAM_MAX_LAYERS } from '@/constants/provider-capabilities'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { GENERATION_CANCEL_MAX_BATCH } from '@/constants/generation-cancel'
 import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
@@ -1699,6 +1700,38 @@ export const ExecutionCallbackResultDataSchema = z.object({
   imageR2Key: z.string().trim().min(1).optional(),
   /** 3D: pre-uploaded R2 storage key (Hyper3D Rodin worker uploads GLB before callback) */
   glbR2Key: z.string().trim().min(1).optional(),
+  /**
+   * IMAGE: extra artifacts from the **same** provider call — today only
+   * Seedream 5.0 Pro's `layer_decomposition`, which returns 1 base plate
+   * (that's `artifactUrl` above, z_index 0) plus up to 16 alpha PNG layers.
+   * Every entry is already in R2: the worker uploads each one before calling
+   * back, because Ark's own URLs expire in 24 hours.
+   *
+   * ⚠ `boundingBox.normalized` is the provider's 0–1000 **integer** scale, not
+   * a 0–1 fraction. Both arrays are `[left, top, right, bottom]`.
+   * https://www.volcengine.com/docs/82379/1541523
+   */
+  layers: z
+    .array(
+      z.object({
+        zIndex: z.number().int().positive(),
+        artifactUrl: z.string().trim().url(),
+        imageR2Key: z.string().trim().min(1),
+        mimeType: z.string().trim().min(1),
+        width: z.number().int().nonnegative(),
+        height: z.number().int().nonnegative(),
+        name: z.string().trim().min(1).max(200).optional(),
+        description: z.string().trim().min(1).max(2000).optional(),
+        boundingBox: z
+          .object({
+            absolute: z.array(z.number()).length(4).optional(),
+            normalized: z.array(z.number()).length(4).optional(),
+          })
+          .optional(),
+      }),
+    )
+    .max(VOLCENGINE_SEEDREAM_MAX_LAYERS)
+    .optional(),
 })
 
 export type ExecutionCallbackResultData = z.infer<
@@ -2290,6 +2323,27 @@ export interface GenerationRecord {
   likeCount?: number
   /** Whether the current viewer has liked this — present when viewer is authenticated */
   isLiked?: boolean
+  /**
+   * 图层拆分产物（进度表 62）。**底图不在这个数组里** —— 底图就是这条记录本身
+   * （z_index 0，走上面的 url / width / height）；这里只有 z_index ≥ 1 的图层，
+   * 按 zIndex 升序，越靠后越靠上层。绝大多数产物是空数组。
+   * https://www.volcengine.com/docs/82379/1541523
+   */
+  layers?: GenerationLayerRecord[]
+}
+
+/** 一张拆分出来的图层。`boundingBox` 的 normalized 是 0–1000 的整数，不是 0–1。 */
+export interface GenerationLayerRecord {
+  id: string
+  zIndex: number
+  url: string
+  storageKey: string
+  mimeType: string
+  width: number
+  height: number
+  name?: string | null
+  description?: string | null
+  boundingBox?: unknown
 }
 
 // ─── API Key ──────────────────────────────────────────────────────

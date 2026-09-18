@@ -2476,6 +2476,233 @@ describe('VolcEngine transparent background', () => {
 })
 
 /**
+ * 图层拆分（进度表 62）。fixture 就是 Ark 文档「图层拆分」那一页给出的示例响应
+ * ——底图 z_index 0 是 jpeg、图层是带 bounding_box / name / description 的 png。
+ * 锁三件事：开关按前置发、data[] 全量落 R2、底图按响应尺寸而不是请求档位。
+ * https://www.volcengine.com/docs/82379/1541523
+ */
+describe('VolcEngine layer decomposition', () => {
+  // 文档示例响应，逐字段保留（只把 url 换成可解析的主机名）。
+  const DOC_RESPONSE = {
+    model: 'doubao-seedream-5-0-pro-260628',
+    created: 1784696685,
+    data: [
+      {
+        url: 'https://ark.example.com/base.jpg',
+        size: '2048x2048',
+        output_format: 'jpeg',
+        z_index: 0,
+      },
+      {
+        url: 'https://ark.example.com/layer-1.png',
+        size: '1273x265',
+        output_format: 'png',
+        z_index: 1,
+        bounding_box: {
+          absolute: [383, 120, 1655, 384],
+          normalized: [187, 59, 808, 188],
+        },
+        name: 'Seedream标题文字',
+        description: '黄色大号衬线字体的Seedream标题文字',
+      },
+    ],
+    usage: {
+      input_images: 1,
+      generated_images: 8,
+      output_tokens: 23107,
+      total_tokens: 23107,
+    },
+  }
+
+  function layerEnv(): {
+    env: Parameters<typeof generateVolcEngineImage>[0]
+    put: ReturnType<typeof vi.fn>
+  } {
+    const put = vi.fn().mockResolvedValue(undefined)
+    return {
+      env: {
+        GENERATION_BUCKET: { put },
+        R2_PUBLIC_URL: 'https://cdn.example.com',
+      } as unknown as Parameters<typeof generateVolcEngineImage>[0],
+      put,
+    }
+  }
+
+  function layerContext(
+    providerInput: Record<string, unknown>,
+  ): Parameters<typeof generateVolcEngineImage>[1] {
+    return {
+      workflowId: 'IMAGE_QUEUE',
+      outputType: 'IMAGE',
+      providerId: 'volcengine',
+      resolveKeyUrl: 'https://app.example.com/key',
+      timeoutMs: 300000,
+      maxAttempts: 1,
+      pollIntervalMs: 1000,
+      runId: 'volc-layer-test',
+      callbackUrl: 'https://app.example.com/callback',
+      providerInput: {
+        modelId: 'seedream-5.0-pro-volcengine',
+        externalModelId: 'doubao-seedream-5-0-pro-260628',
+        prompt: 'split this poster',
+        aspectRatio: '1:1',
+        outputStorageKey: 'image/volc-layer-test.png',
+        ...providerInput,
+      },
+    } as Parameters<typeof generateVolcEngineImage>[1]
+  }
+
+  function stubDocResponse(
+    payload: unknown = DOC_RESPONSE,
+  ): ReturnType<typeof vi.fn> {
+    const fetchMock = vi.fn(async (url: string) =>
+      String(url).includes('/images/generations')
+        ? new Response(JSON.stringify(payload))
+        : new Response(new Uint8Array([1, 2, 3]), {
+            headers: { 'content-type': 'image/png' },
+          }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  it('uploads every artifact and reports the layers alongside the base', async () => {
+    const { env, put } = layerEnv()
+    const fetchMock = stubDocResponse()
+
+    const result = await generateVolcEngineImage(
+      env,
+      layerContext({
+        referenceImages: ['https://cdn.example.com/poster.png'],
+        advancedParams: { layerDecomposition: true },
+      }),
+      'volc-key',
+    )
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(String(init.body))).toMatchObject({
+      layer_decomposition: true,
+    })
+
+    // 底图走既有的单产物出口，图层各自一把 key。
+    expect(put.mock.calls.map((call) => call[0])).toEqual([
+      'image/volc-layer-test.png',
+      'image/volc-layer-test-layer-1.png',
+    ])
+    expect(result.artifactUrl).toBe(
+      'https://cdn.example.com/image/volc-layer-test.png',
+    )
+    // 图层模式下 size 是档位/auto，底图跟输入图走 —— 尺寸必须读响应，
+    // ⛔ 不能沿用请求里那个名义尺寸。
+    expect(result.width).toBe(2048)
+    expect(result.height).toBe(2048)
+
+    expect(result.layers).toEqual([
+      {
+        zIndex: 1,
+        artifactUrl:
+          'https://cdn.example.com/image/volc-layer-test-layer-1.png',
+        imageR2Key: 'image/volc-layer-test-layer-1.png',
+        mimeType: 'image/png',
+        width: 1273,
+        height: 265,
+        name: 'Seedream标题文字',
+        description: '黄色大号衬线字体的Seedream标题文字',
+        boundingBox: {
+          absolute: [383, 120, 1655, 384],
+          normalized: [187, 59, 808, 188],
+        },
+      },
+    ])
+  })
+
+  // 文档没承诺 data[] 的顺序，底图只能按 z_index === 0 认。
+  it('finds the base plate by z_index rather than array position', async () => {
+    const { env } = layerEnv()
+    stubDocResponse({
+      ...DOC_RESPONSE,
+      data: [DOC_RESPONSE.data[1], DOC_RESPONSE.data[0]],
+    })
+
+    const result = await generateVolcEngineImage(
+      env,
+      layerContext({
+        referenceImages: ['https://cdn.example.com/poster.png'],
+        advancedParams: { layerDecomposition: true },
+      }),
+      'volc-key',
+    )
+
+    expect(result.width).toBe(2048)
+    expect(result.layers).toHaveLength(1)
+    expect(result.layers?.[0].zIndex).toBe(1)
+  })
+
+  it.each([
+    ['no reference image', [] as string[]],
+    ['two reference images', ['https://a/1.png', 'https://a/2.png']],
+  ])('omits layer_decomposition with %s', async (_label, referenceImages) => {
+    const { env } = layerEnv()
+    const fetchMock = stubDocResponse({
+      data: [{ url: 'https://ark.example.com/out.png' }],
+    })
+
+    const result = await generateVolcEngineImage(
+      env,
+      layerContext({
+        referenceImages,
+        advancedParams: { layerDecomposition: true },
+      }),
+      'volc-key',
+    )
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(String(init.body))).not.toHaveProperty(
+      'layer_decomposition',
+    )
+    expect(result.layers).toBeUndefined()
+  })
+
+  it('omits layer_decomposition on Seedream 5.0 Lite', async () => {
+    const { env } = layerEnv()
+    const fetchMock = stubDocResponse({
+      data: [{ url: 'https://ark.example.com/out.png' }],
+    })
+
+    await generateVolcEngineImage(
+      env,
+      layerContext({
+        externalModelId: 'doubao-seedream-5-0-lite-260128',
+        referenceImages: ['https://cdn.example.com/poster.png'],
+        advancedParams: { layerDecomposition: true },
+      }),
+      'volc-key',
+    )
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    expect(JSON.parse(String(init.body))).not.toHaveProperty(
+      'layer_decomposition',
+    )
+  })
+
+  // 关着的时候这条路必须和以前一模一样：单产物、请求尺寸、没有 layers。
+  it('leaves the single-artifact path untouched when the toggle is off', async () => {
+    const { env, put } = layerEnv()
+    stubDocResponse({ data: [{ url: 'https://ark.example.com/out.png' }] })
+
+    const result = await generateVolcEngineImage(
+      env,
+      layerContext({ referenceImages: ['https://cdn.example.com/a.png'] }),
+      'volc-key',
+    )
+
+    expect(put).toHaveBeenCalledTimes(1)
+    expect(result.layers).toBeUndefined()
+    expect(result.width).toBe(2048)
+  })
+})
+
+/**
  * Runner（自建 RunPod ComfyUI）是唯一会长时间停在 IN_QUEUE 的图片通道：冷启动
  * 要载 6.9GB 底模。此前 worker 的图片路径不回报任何阶段，主站分不清「排队等
  * GPU 冷启动」和「没人接单」，于是把两种情况显示成同一个「生成中」。

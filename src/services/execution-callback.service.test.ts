@@ -750,6 +750,125 @@ describe('execution-callback.service', () => {
     )
   })
 
+  /**
+   * 图层拆分（进度表 62）的**落地那一跳**：worker 已经把底图和每个图层都传进
+   * R2 了，这里要把图层交给 `createGeneration`（同一个事务写子行），并把用量
+   * 按底图 + 图层数记 —— provider 的 usage.generated_images 也是这么算的。
+   * https://www.volcengine.com/docs/82379/1541523
+   */
+  it('把 worker 报上来的图层交给 createGeneration 并计入产出图数（第 62 项）', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      adapterType: 'volcengine',
+      provider: 'VolcEngine',
+      modelId: 'seedream-5.0-pro-volcengine',
+      prompt: 'split this poster',
+      externalRequestId: JSON.stringify({
+        outputType: 'IMAGE',
+        creditCost: 2,
+        aspectRatio: '1:1',
+      }),
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'generation-layers-1',
+      outputType: 'IMAGE',
+    })
+
+    await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/base.png',
+        imageR2Key: 'generations/user-1/image/base.png',
+        mimeType: 'image/png',
+        width: 2048,
+        height: 2048,
+        requestCount: 1,
+        layers: [
+          {
+            zIndex: 1,
+            artifactUrl: 'https://cdn.example.com/base-layer-1.png',
+            imageR2Key: 'generations/user-1/image/base-layer-1.png',
+            mimeType: 'image/png',
+            width: 1273,
+            height: 265,
+            name: 'Seedream标题文字',
+            description: '黄色大号衬线字体的Seedream标题文字',
+            boundingBox: {
+              absolute: [383, 120, 1655, 384],
+              normalized: [187, 59, 808, 188],
+            },
+          },
+        ],
+      },
+    })
+
+    expect(mockCreateGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({
+        // ⚠ 存的是我们自己的 R2 URL，不是 Ark 那条 24 小时就失效的链接。
+        layers: [
+          {
+            zIndex: 1,
+            url: 'https://cdn.example.com/base-layer-1.png',
+            storageKey: 'generations/user-1/image/base-layer-1.png',
+            mimeType: 'image/png',
+            width: 1273,
+            height: 265,
+            name: 'Seedream标题文字',
+            description: '黄色大号衬线字体的Seedream标题文字',
+            boundingBox: {
+              absolute: [383, 120, 1655, 384],
+              normalized: [187, 59, 808, 188],
+            },
+          },
+        ],
+      }),
+      expect.anything(),
+    )
+    expect(mockCreateApiUsageEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ outputImageCount: 2 }),
+      expect.anything(),
+    )
+  })
+
+  // 没有图层的普通生成一个字段都不该变 —— outputImageCount 仍是 1。
+  it('keeps outputImageCount at 1 for an ordinary single-artifact image', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...buildJob('RUNNING'),
+      adapterType: 'fal',
+      provider: 'fal.ai',
+      modelId: 'flux-2-pro',
+      prompt: 'image prompt',
+      externalRequestId: JSON.stringify({
+        outputType: 'IMAGE',
+        creditCost: 1,
+        aspectRatio: '1:1',
+      }),
+    })
+    mockCreateGeneration.mockResolvedValue({
+      id: 'generation-image-2',
+      outputType: 'IMAGE',
+    })
+
+    await handleExecutionCallback({
+      ...buildPayload('result'),
+      data: {
+        artifactUrl: 'https://cdn.example.com/image.png',
+        imageR2Key: 'generations/user-1/image/worker.png',
+        mimeType: 'image/png',
+        requestCount: 1,
+      },
+    })
+
+    expect(mockCreateGeneration).toHaveBeenCalledWith(
+      expect.objectContaining({ layers: undefined }),
+      expect.anything(),
+    )
+    expect(mockCreateApiUsageEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ outputImageCount: 1 }),
+      expect.anything(),
+    )
+  })
+
   it('把队列元数据里的 displayLabel 交给 createGeneration（VIDEO，切片 Y）', async () => {
     mockFindUnique.mockResolvedValue({
       ...buildJob('RUNNING'),

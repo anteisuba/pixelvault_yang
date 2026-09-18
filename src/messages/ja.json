@@ -3257,6 +3257,7 @@
     "openLabel": "開く",
     "modelLabel": "モデル",
     "referenceImageLabel": "参照",
+    "layerBadge": "ベース + {count} レイヤー",
     "providerLabel": "プロバイダー",
     "requestsLabel": "リクエスト",
     "imageVisibilityLabel": "画像",
@@ -3283,6 +3284,12 @@
     "copyPromptAction": "プロンプトをコピー",
     "useInStudioAction": "Studioで使用",
     "promptCopiedToast": "プロンプトをコピーしました"
+  },
+  "GenerationLayers": {
+    "sectionLabel": "レイヤー（{count}）",
+    "layerFallbackName": "レイヤー {z}",
+    "downloadLayer": "レイヤーをダウンロード",
+    "downloadFailed": "このレイヤーをダウンロードできませんでした。"
   },
   "PromptEnhance": {
     "button": "整える",

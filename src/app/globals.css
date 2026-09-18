@@ -2149,6 +2149,26 @@ html:lang(ja) {
    行照旧量到 44px，composer 高度 135 而不是 108。
    ⚠ 只在这个宿主里压成 32px，不动那两颗组件自身的桌面外观。
    ⚠ 横向滚动条不占高度：触屏没有常驻滚动条，桌面型滚动条会再顶高 15px。 */
+/**
+ * 透明通道底纹。图层拆分产出的每个图层都是带 alpha 的 PNG —— 放在任何纯色底
+ * 上，「已经抠干净」和「根本没抠」看起来一模一样，棋盘格是唯一能一眼分辨的
+ * 底。用 token 而不是写死灰阶，深浅色主题下都要站得住。
+ */
+.studio-alpha-checkerboard {
+  background-color: var(--color-background);
+  background-image:
+    linear-gradient(45deg, var(--color-muted) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-muted) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-muted) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-muted) 75%);
+  background-size: 12px 12px;
+  background-position:
+    0 0,
+    0 6px,
+    6px -6px,
+    -6px 0;
+}
+
 .studio-mobile-chip-row {
   scrollbar-width: none;
 }

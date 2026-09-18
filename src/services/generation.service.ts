@@ -38,7 +38,7 @@ import { updatePreferenceOnDeleted } from '@/services/user-preference.service'
  */
 type GenerationMutationClient = Pick<
   typeof db,
-  'generation' | 'generationCharacterCard' | '$queryRaw'
+  'generation' | 'generationCharacterCard' | 'generationLayer' | '$queryRaw'
 >
 
 interface GenerationStorageKeyFields {
@@ -113,6 +113,24 @@ export interface CreateGenerationInput {
    * 不给就取提示词头几个字。
    */
   displayLabel?: string
+  /**
+   * 图层拆分产物（进度表 62）。**只放 z_index ≥ 1 的图层** —— 底图是这条
+   * Generation 本身。与 Generation 在同一个事务里写，因为 provider 侧就是
+   * 「任一图层失败整体报错，不支持部分成功」。
+   */
+  layers?: CreateGenerationLayerInput[]
+}
+
+export interface CreateGenerationLayerInput {
+  zIndex: number
+  url: string
+  storageKey: string
+  mimeType: string
+  width: number
+  height: number
+  name?: string
+  description?: string
+  boundingBox?: Prisma.InputJsonValue
 }
 
 export interface ListGenerationsOptions {
@@ -210,6 +228,27 @@ export const LIST_GENERATION_SELECT = {
    * `snapshot`，而列表口拉不起它。一列整数把这条约束解掉了。
    */
   seq: true,
+  /**
+   * 图层拆分产物（进度表 62）。⚠ 它**能**进列表口，是因为绝大多数产物一行都
+   * 没有 —— Prisma 把它做成一条 `IN (...)` 子查询，空集几乎不要钱，而单条最多
+   * 16 行短记录。⛔ 别照着 `snapshot` 的教训把它也排除掉：没有它，结果卡就画
+   * 不出「底图 + N 图层」那枚角标，而角标正是用户知道有图层可看的唯一入口。
+   */
+  layers: {
+    select: {
+      id: true,
+      zIndex: true,
+      url: true,
+      storageKey: true,
+      mimeType: true,
+      width: true,
+      height: true,
+      name: true,
+      description: true,
+      boundingBox: true,
+    },
+    orderBy: { zIndex: 'asc' },
+  },
 } as const satisfies Prisma.GenerationSelect
 
 const OUTPUT_TYPE_ENUM_BY_VALUE: Record<OutputTypeValue, OutputType> = {
@@ -545,6 +584,23 @@ async function createGenerationWithin(
       sourceSurface: input.sourceSurface ?? 'IMAGE_STUDIO',
     },
   })
+
+  if (input.layers && input.layers.length > 0) {
+    await client.generationLayer.createMany({
+      data: input.layers.map((layer) => ({
+        generationId: generation.id,
+        zIndex: layer.zIndex,
+        url: layer.url,
+        storageKey: layer.storageKey,
+        mimeType: layer.mimeType,
+        width: layer.width,
+        height: layer.height,
+        name: layer.name,
+        description: layer.description,
+        boundingBox: layer.boundingBox,
+      })),
+    })
+  }
 
   // Link character cards via join table (multi-card support)
   if (input.characterCardIds && input.characterCardIds.length > 0) {

@@ -48,6 +48,7 @@ import {
   MediaDetailViewer,
   type MediaTransitionOrigin,
 } from '@/components/business/MediaDetailViewer'
+import { GenerationLayerStrip } from '@/components/business/image'
 
 interface ImageDetailModalProps {
   generation: GenerationRecord
@@ -341,6 +342,13 @@ export function ImageDetailModal({
             </span>
           </button>
         </div>
+      ) : null}
+
+      {generation.layers?.length ? (
+        <GenerationLayerStrip
+          layers={generation.layers}
+          labelClassName={labelClass}
+        />
       ) : null}
 
       <MetadataList items={metadata} labelClassName={labelClass} />

@@ -5372,6 +5372,27 @@ function getNovelAiImageDimensions(aspectRatio: string): {
   }
 }
 
+/**
+ * One extra artifact produced by the same provider call as the main image.
+ * Today the only source is Seedream 5.0 Pro's `layer_decomposition`, which
+ * returns one base image (z_index 0 — that is `artifactUrl` below) plus up to
+ * 16 alpha PNG layers. Each layer is uploaded to R2 by the worker, exactly
+ * like the base image, so the app never fetches from the provider's 24-hour
+ * URLs.
+ * https://www.volcengine.com/docs/82379/1541523
+ */
+interface WorkerImageLayerResult {
+  zIndex: number
+  artifactUrl: string
+  imageR2Key: string
+  mimeType: string
+  width: number
+  height: number
+  name?: string
+  description?: string
+  boundingBox?: { absolute?: number[]; normalized?: number[] }
+}
+
 interface WorkerImageGenerationResult {
   artifactUrl: string
   imageR2Key: string
@@ -5379,6 +5400,8 @@ interface WorkerImageGenerationResult {
   height: number
   mimeType: string
   providerMetadata?: Record<string, unknown>
+  /** Only present when the provider returned more than one artifact. */
+  layers?: WorkerImageLayerResult[]
 }
 
 async function generateGeminiImage(
@@ -5564,6 +5587,45 @@ function isVolcEngineSeedream50Pro(externalModelId: string): boolean {
   return /seedream-5-0-pro/.test(externalModelId)
 }
 
+/**
+ * Ark reports each output's pixel size as `"<width>x<height>"`. In layer mode
+ * every artifact has its own size (layers are cropped to their bounding box),
+ * so the request's nominal size says nothing about them.
+ */
+function parseVolcEngineArtifactSize(
+  entry: Record<string, unknown>,
+): { width: number; height: number } | null {
+  const raw = readStringField(entry, 'size')
+  const match = raw ? /^(\d+)x(\d+)$/.exec(raw) : null
+  return match ? { width: Number(match[1]), height: Number(match[2]) } : null
+}
+
+function readVolcEngineBoundingBox(
+  entry: Record<string, unknown>,
+): { absolute?: number[]; normalized?: number[] } | undefined {
+  const box = entry.bounding_box
+  if (!isRecord(box)) return undefined
+  const read = (key: string): number[] | undefined => {
+    const value = box[key]
+    return Array.isArray(value) && value.every((n) => typeof n === 'number')
+      ? (value as number[])
+      : undefined
+  }
+  const absolute = read('absolute')
+  const normalized = read('normalized')
+  if (!absolute && !normalized) return undefined
+  return { absolute, normalized }
+}
+
+/** `image/foo.png` → `image/foo-layer-3.png`; extensionless keys just suffix. */
+function buildVolcEngineLayerKey(baseKey: string, zIndex: number): string {
+  const dot = baseKey.lastIndexOf('.')
+  const slash = baseKey.lastIndexOf('/')
+  return dot > slash
+    ? `${baseKey.slice(0, dot)}-layer-${zIndex}.png`
+    : `${baseKey}-layer-${zIndex}.png`
+}
+
 export async function generateVolcEngineImage(
   env: ExecutionEnv,
   context: WorkerImageRunContext,
@@ -5624,6 +5686,17 @@ export async function generateVolcEngineImage(
     body.output_format = 'png'
   }
 
+  // `layer_decomposition` has its own preconditions (5.0 pro, and "仅支持输入
+  // 单张待拆分图，传入多张报错"), checked the same way and for the same reason.
+  // ⚠ The doc does not make it exclusive with `background` — both may ride on
+  // the same request, so these two blocks stay independent.
+  // https://www.volcengine.com/docs/82379/1541523
+  const wantsLayers =
+    readBooleanField(advancedParams, 'layerDecomposition') === true &&
+    isVolcEngineSeedream50Pro(context.providerInput.externalModelId) &&
+    getImageReferenceInputs(context).length === 1
+  if (wantsLayers) body.layer_decomposition = true
+
   // 火山 Ark (cn-beijing) and BytePlus ModelArk (ap-southeast) expose the
   // identical /images/generations contract, so one function serves both —
   // the station is chosen entirely by this URL. Hardcoding the CN host here
@@ -5651,25 +5724,72 @@ export async function generateVolcEngineImage(
   }
 
   const payload = (await response.json()) as Record<string, unknown>
-  const data = Array.isArray(payload.data) ? payload.data : []
-  const first = data.find(isRecord)
-  const imageUrl = first ? readStringField(first, 'url') : null
-  if (!imageUrl) {
+  const data = (Array.isArray(payload.data) ? payload.data : []).filter(
+    isRecord,
+  )
+  // In layer mode the base plate is the entry with `z_index === 0`; the doc
+  // says nothing about the array's order, so pick it by the field rather than
+  // trusting position. Outside layer mode there is exactly one entry.
+  const base = wantsLayers
+    ? (data.find((entry) => readNumberField(entry, 'z_index') === 0) ?? data[0])
+    : data[0]
+  const imageUrl = base ? readStringField(base, 'url') : null
+  if (!base || !imageUrl) {
     throw new Error('VolcEngine response did not include an image URL.')
   }
 
+  const baseKey = getWorkerImageOutputKey(context)
   const uploaded = await downloadAndUploadImageArtifactToKey(
     env,
     imageUrl,
     'image/png',
-    getWorkerImageOutputKey(context),
+    baseKey,
   )
+
+  // ⚠ Sequential, not Promise.all: the doc is explicit that a layer job is
+  // all-or-nothing ("任一图层生成失败，整体请求报错，不支持部分成功"), so a
+  // failed upload must surface as a failed run rather than a half-stored set.
+  const layers: WorkerImageLayerResult[] = []
+  if (wantsLayers) {
+    for (const entry of data) {
+      const zIndex = readNumberField(entry, 'z_index')
+      const layerUrl = readStringField(entry, 'url')
+      if (zIndex == null || zIndex <= 0 || !layerUrl) continue
+      const layerSize = parseVolcEngineArtifactSize(entry)
+      const layerUpload = await downloadAndUploadImageArtifactToKey(
+        env,
+        layerUrl,
+        // 图层始终以 png 格式输出 — `output_format` only governs the base.
+        'image/png',
+        buildVolcEngineLayerKey(baseKey, zIndex),
+      )
+      layers.push({
+        zIndex,
+        artifactUrl: layerUpload.artifactUrl,
+        imageR2Key: layerUpload.imageR2Key,
+        mimeType: layerUpload.mimeType,
+        width: layerSize?.width ?? 0,
+        height: layerSize?.height ?? 0,
+        name: readStringField(entry, 'name') ?? undefined,
+        description: readStringField(entry, 'description') ?? undefined,
+        boundingBox: readVolcEngineBoundingBox(entry),
+      })
+    }
+    layers.sort((a, b) => a.zIndex - b.zIndex)
+  }
+
+  // In layer mode `size` is a tier (or `auto`) and the base plate follows the
+  // input image's aspect, so the request's nominal dimensions are wrong —
+  // read the ones the response reports back. Outside layer mode nothing
+  // changes.
+  const baseSize = wantsLayers ? parseVolcEngineArtifactSize(base) : null
 
   return {
     ...uploaded,
-    width: size.width,
-    height: size.height,
+    width: baseSize?.width ?? size.width,
+    height: baseSize?.height ?? size.height,
     providerMetadata: { sourceUrlHost: new URL(imageUrl).host },
+    ...(layers.length > 0 ? { layers } : {}),
   }
 }
 
@@ -7466,6 +7586,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           mimeType: result.mimeType,
           providerMetadata: result.providerMetadata,
           requestCount: 1,
+          layers: result.layers,
         }),
       )
 

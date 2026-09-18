@@ -995,6 +995,21 @@ async function finalizeImageResult(
             runGroupIndex: metadata.runGroupIndex,
             sourceSurface: metadata.sourceSurface,
             displayLabel: metadata.displayLabel,
+            // 图层拆分（进度表 62）：底图就是这条 Generation，图层作为子行在
+            // 同一个事务里落库 —— provider 侧「任一图层失败整体报错，不支持
+            // 部分成功」，落库这一跳没有理由比它松。⚠ worker 已经把每个图层
+            // 传进 R2 了，这里存的是我们自己的 URL，不是 Ark 那条 24 小时链接。
+            layers: resultData.layers?.map((layer) => ({
+              zIndex: layer.zIndex,
+              url: layer.artifactUrl,
+              storageKey: layer.imageR2Key,
+              mimeType: layer.mimeType,
+              width: layer.width,
+              height: layer.height,
+              name: layer.name,
+              description: layer.description,
+              boundingBox: layer.boundingBox,
+            })),
             snapshot: withGenerationObservability(
               {
                 ...metadata.studioSnapshot,
@@ -1041,7 +1056,10 @@ async function finalizeImageResult(
             modelId: job.modelId,
             requestCount,
             inputImageCount: getImageInputCount(metadata),
-            outputImageCount: 1,
+            // 图层也是 provider 真的产出的图（usage.generated_images 把它们算
+            // 进去），所以用量按底图 + 图层数记，⛔ 不是恒 1。计费单位另算：
+            // requestCount 上面已经被服务端封死，不受这里影响。
+            outputImageCount: 1 + (resultData.layers?.length ?? 0),
             width: resultData.width,
             height: resultData.height,
             durationMs: Date.now() - job.createdAt.getTime(),

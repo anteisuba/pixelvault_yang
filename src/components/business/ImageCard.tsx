@@ -283,6 +283,11 @@ export const ImageCard = memo(function ImageCard({
             openImageLabel={t('openImage')}
             openVideoLabel={t('openVideo')}
             referenceImageLabel={t('referenceImageLabel')}
+            layerBadgeLabel={
+              generation.layers?.length
+                ? t('layerBadge', { count: generation.layers.length })
+                : undefined
+            }
           />
           <ImageCardActions
             liked={liked}

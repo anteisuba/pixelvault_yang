@@ -3257,6 +3257,7 @@
     "openLabel": "Open",
     "modelLabel": "Model",
     "referenceImageLabel": "Ref",
+    "layerBadge": "Base + {count, plural, one {# layer} other {# layers}}",
     "providerLabel": "Provider",
     "requestsLabel": "Requests",
     "imageVisibilityLabel": "Image",
@@ -3283,6 +3284,12 @@
     "copyPromptAction": "Copy prompt",
     "useInStudioAction": "Use in Studio",
     "promptCopiedToast": "Prompt copied"
+  },
+  "GenerationLayers": {
+    "sectionLabel": "Layers ({count})",
+    "layerFallbackName": "Layer {z}",
+    "downloadLayer": "Download layer",
+    "downloadFailed": "Could not download this layer."
   },
   "PromptEnhance": {
     "button": "Improve",

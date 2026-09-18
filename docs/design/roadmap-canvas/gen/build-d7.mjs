@@ -112,7 +112,8 @@ const D7 = {
     ] },
     { k: 'cat', t: '一张脸（22）', c: [
       { k: 'sub', t: '壳', c: [ { k: 'leaf', t: 'StudioAssistantDock 成为唯一壳：right-6 top-6 bottom-6 · 可拖宽 · 收成 44px 按钮 + 角标；宿主只传 domain 与 op 表；手机半屏 Sheet（#20）' }, { k: 'leaf', s: 'gap', t: '删 StudioNodeAssistantDock · CanvasAssistantHistory · CanvasAssistantRouteSelector · CanvasAssistantReferencePicker（功能并入 v2 的会话历史 · LLM chip · @ 选择器）' } ] },
-      { k: 'sub', t: '内容层', c: [ { k: 'leaf', t: '五动词 · 五类卡 · 每轮结账 · 上下文卡提议 · @ / + 菜单 全部沿用 v2；画布多的只是 op 表里的节点 op 与「画布快照」进系统提示（分层：当前镜 + 相邻两镜完整）' }, { k: 'leaf', t: 'LoRA / 配音间：同一壳，五动词里「改」暂为空集 → 面板不显示「改」胶囊；看 / 查 / 问可用（挂载推荐卡 plan_lora_pick 归「问」继续用）' } ] },
+      { k: 'sub', t: '内容层', c: [ { k: 'leaf', t: '五动词 · 五类卡 · 每轮结账 · 上下文卡提议 · @ / + 菜单 全部沿用 v2；画布多的只是 op 表里的节点 op 与「画布快照」进系统提示（分层：当前镜 + 相邻两镜完整）' }, { k: 'leaf', t: 'LoRA / 配音间：同一壳，「改」op 表为空集 → 面板上没有任何改动入口；看 / 查 / 问可用（挂载推荐卡 plan_lora_pick 归「问」继续用）' },
+      { k: 'leaf', t: 'owner 09-19（④ 画板）：头部下的五动词胶囊行删掉，动词只作内部分类；问题卡固定多一行「其他：自己填」（批注 42）' } ] },
       { k: 'sub', t: '角标', c: [ { k: 'leaf', t: '数字 = 待确认卡数 + 未读结果卡数；打开面板清零；无事时按钮无角标' } ] },
     ] },
     { k: 'cat', t: 'op 表（21 · spec 骨架）', c: [

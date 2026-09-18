@@ -33,6 +33,7 @@ const page = (title, body) => `<!doctype html>
 <body><x-dc><helmet><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;display=swap"><style>${STYLE}</style></helmet>
 <div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">${body}</div></x-dc></body></html>
 `
+const reply = (n, q, a) => `<div style="margin-top:22px;display:grid;grid-template-columns:200px 1fr;gap:0;border:1px solid oklch(0.85 0.08 85);border-radius:10px;overflow:hidden;background:#fff"><div style="padding:12px 14px;background:oklch(0.97 0.04 85);border-right:1px solid oklch(0.85 0.08 85)"><div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:oklch(0.45 0.1 85)">owner 批注 ${n}</div><div style="margin-top:6px;font-size:13px;line-height:1.5;color:#404040">${esc(q)}</div></div><div style="padding:12px 14px;font-size:12.5px;line-height:1.6;color:#0a0a0a">${a.map((x) => `<div style="display:flex;gap:8px"><span style="color:#737373;flex:none">·</span><span>${esc(x)}</span></div>`).join('')}</div></div>`
 const header = (eyebrow, title, sub) => `<div class="eyebrow">${esc(eyebrow)}</div><h1>${esc(title)}</h1><p class="sub">${esc(sub)}</p>`
 const sec = (t, s = '') => `<div class="sec"><b>${esc(t)}</b>${s ? `<span>${esc(s)}</span>` : ''}</div>`
 const cap = (t) => `<div class="cap">${t}</div>`
@@ -52,7 +53,6 @@ const msgAi = (t) => `<div style="display:flex;gap:8px;align-items:flex-start">$
 const inputArea = () => `<div style="border-top:1px solid ${LINE};padding:10px 12px 12px;background:${PANEL}"><div style="min-height:40px;border:1px solid ${BORDER};border-radius:10px;background:#fff;padding:9px 12px;font-size:12.5px;color:#a3a3a3">说说你要的画面，或让我看看这张图…</div><div style="display:flex;align-items:center;gap:4px;margin-top:8px">${iconBtn('plus', 28)}${iconBtn('clip', 28)}${iconBtn('lib', 28)}<span style="display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 9px;border-radius:999px;border:1px solid ${BORDER};font-size:11.5px">自动 ${ic('caret', MUTED, 12)}</span><span style="flex:1"></span><span style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:8px;background:${FG}">${ic('send', '#fff', 14)}</span></div></div>`
 const panel = (title, body, { w = 420, h = 560, verbs = [1, 1, 1, 1, 1], active = 1 } = {}) => `<div style="width:${w}px;height:${h}px;background:${PANEL};border:1px solid ${LINE};border-radius:16px;box-shadow:${SH_CARD};display:flex;flex-direction:column;overflow:hidden">
   <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 10px 8px 14px"><span style="display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:600">${esc(title)}${ic('caret', MUTED, 14)}</span><span style="display:flex">${iconBtn('history')}${iconBtn('gear')}${iconBtn('collapse')}</span></div>
-  ${verbRow(active, verbs)}
   <div style="flex:1;overflow:hidden;padding:4px 12px 12px;display:flex;flex-direction:column;gap:10px">${body}</div>
   ${inputArea()}
 </div>`
@@ -64,7 +64,8 @@ const settled = () => `<div style="display:flex;align-items:center;gap:8px;color
 const bodyWorkbench = msgUser('把这张图改成新海诚式黄昏光') + evidence() + receipt(3) + confirmCard()
 const bodyCanvas = msgUser('S02 递伞这一镜换成火山渠道，再来一版') + msgAi('S02 已切到 Seedance 2.5 · 火山，参数沿用。') + receipt(1) + resultCard() + settled()
 const bodyLora = msgUser('这个鸣潮风格哪个 LoRA 合适') + evidence().replace('查 · 新海诚式黄昏光', '查 · 鸣潮渲染风 LoRA').replace('逆光 + 高饱和渐变天空 + 云层体积感；来源 #e12 · #e13 印证 2 处', 'Anima 家族 2 条候选 · Illustrious 1 条；推荐卡见下') + card(`<div style="font-weight:500">推荐 · WuWa Render v2</div><div style="margin-top:4px;color:#525252">兼容 Anima DiT · 建议权重 0.7 · 触发词 wuwa_style</div><div style="margin-top:8px;display:flex;gap:6px">${black('挂上')}${ghost('看来源')}</div>`)
-const bodyVoice = msgUser('第 3 句语气偏冷一点') + msgAi('这一句我建议加 [cold] 标记，不改词；要不要我标出来？') + card(`<div style="font-weight:500">问 · 标记方式</div><div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${['只标第 3 句', '整段都偏冷', '先听一版对比'].map((t, i) => `<div style="padding:6px 8px;border-radius:8px;border:1px solid ${i === 0 ? FG : BORDER};font-size:12px">${t}</div>`).join('')}</div>`)
+const askCard = (title, opts, sel = 0) => card(`<div style="font-weight:500">${esc(title)}</div><div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">${opts.map((t, i) => `<div style="padding:6px 8px;border-radius:8px;border:1px solid ${i === sel ? FG : BORDER};font-size:12px">${esc(t)}</div>`).join('')}<div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-radius:8px;border:1px dashed ${BORDER};font-size:12px;color:${MUTED}"><span>其他：</span><span style="flex:1;border-bottom:1px solid ${BORDER};height:14px"></span></div></div>`)
+const bodyVoice = msgUser('第 3 句语气偏冷一点') + msgAi('这一句我建议加 [cold] 标记，不改词；要不要我标出来？') + askCard('问 · 标记方式', ['只标第 3 句', '整段都偏冷', '先听一版对比'])
 
 // 宿主底
 const hostStage = (kind) => {
@@ -77,17 +78,19 @@ const shell = (kind, dockInner, { w = 760, h = 520 } = {}) => `<div style="width
 const dockOpen = (kind, body, opts = {}) => shell(kind, `<div style="position:absolute;top:12px;right:12px;bottom:12px;width:300px">${panel(opts.title ?? '借伞 · 分镜', body, { w: 300, h: 496, ...opts })}</div>`)
 const dockBtn = (kind, badge = 0) => shell(kind, `<div style="position:absolute;right:16px;bottom:16px">${avatar(44)}${badge ? `<span style="position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:${FG};color:#fff;${MONO}font-size:10px;display:flex;align-items:center;justify-content:center;border:2px solid #fff">${badge}</span>` : ''}</div>`, { h: 240 })
 
-const DOCK = header('PixelVault · D7 ④ · dock · 2026-09-19', '一张脸 · 同一个 dock × 四宿主 · 三态', 'Q1 = A：四宿主都挂工作台 v2 的 StudioAssistantDock（右 12 · 上 12 · 下 12，可拖宽 420–860，方向 B 浅色玻璃：面板最实、卡片靠细描边、只有浮层半透）。头部 = 会话标题▾ · 历史 · 设置 · 收起；五动词胶囊行在头部正下方；输入区两行（文本框 / + · 上传 · 素材库 · LLM chip · 发送）。Q2 = C：收起 = 44px 头像按钮 + 数字角标（待确认 + 未读结果），无角标 = 无事。') +
+const DOCK = header('PixelVault · D7 ④ · dock · 2026-09-19', '一张脸 · 同一个 dock × 四宿主 · 三态', 'Q1 = A：四宿主都挂工作台 v2 的 StudioAssistantDock（右 12 · 上 12 · 下 12，可拖宽 420–860，方向 B 浅色玻璃：面板最实、卡片靠细描边、只有浮层半透）。头部 = 会话标题▾ · 历史 · 设置 · 收起；owner 09-19 删掉了五动词胶囊行（动词只是内部分类，不占面板一行）；输入区两行（文本框 / + · 上传 · 素材库 · LLM chip · 发送）。Q2 = C：收起 = 44px 头像按钮 + 数字角标（待确认 + 未读结果），无角标 = 无事。') +
   sec('展开 · 四宿主', '同一壳，只换宿主底与 op 表') + `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:24px">
-    ${state('工作台（图片）', dockOpen('workbench', bodyWorkbench, { active: 3 }), '证据卡 → 「已改 3 项 · 撤销」回执 → 生成确认卡（近黑实底确认键）。五动词全亮。')}
+    ${state('工作台（图片）', dockOpen('workbench', bodyWorkbench, { active: 3 }), '证据卡 → 「已改 3 项 · 撤销」回执 → 生成确认卡（近黑实底确认键）。')}
     ${state('画布', dockOpen('canvas', bodyCanvas, { active: 4 }), '底是时间轴上的三镜，S02 被选中；op 落在节点上，回执一行；结果卡自动入库；结论记录作分隔。')}
-    ${state('LoRA', dockOpen('lora', bodyLora, { verbs: [1, 1, 1, 0, 0], active: 1, title: 'LoRA · 鸣潮风' }), 'Q5 = A：本轮 LoRA 只有 看 / 查 / 问 —— 胶囊行只三颗；plan_lora_pick 推荐卡归「问」继续用（「挂上」由用户点，不是 op）。')}
-    ${state('配音间', dockOpen('voice', bodyVoice, { verbs: [1, 1, 1, 0, 0], active: 2, title: '借伞 · 配音' }), '同样只三颗；问题卡钉在输入框上方（未答态）。台词 / 语气 op 随 E10。')}
+    ${state('LoRA', dockOpen('lora', bodyLora, { verbs: [1, 1, 1, 0, 0], active: 1, title: 'LoRA · 鸣潮风' }), 'Q5 = A：本轮 LoRA 只有 看 / 查 / 问（op 表为空集，面板上没有任何「改」的入口）；plan_lora_pick 推荐卡归「问」继续用（「挂上」由用户点，不是 op）。')}
+    ${state('配音间', dockOpen('voice', bodyVoice, { verbs: [1, 1, 1, 0, 0], active: 2, title: '借伞 · 配音' }), '问题卡钉在输入框上方（未答态）：2–4 个选项 + 一行「其他：自己填」（批注 42）。台词 / 语气 op 随 E10。')}
   </div>` +
   sec('收起 · 两态', 'Q2 = C') + `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:24px">
     ${state('无事 · 只有按钮', dockBtn('workbench', 0), '44px 近黑圆按钮，头像字母；右 16 / 下 16（手机沿用 右 16 / 下 96）。')}
     ${state('有事 · 数字角标', dockBtn('workbench', 2), '角标 = 待确认卡 + 未读结果卡；18px 近黑圆、白描边；打开面板即清零。不露最近一条。')}
-  </div>` + cap('删掉的：v2 #6 的「微状态卡」收起态（参数摘要三行 + 状态词）整个不要了；画布 StudioNodeAssistantDock 与其历史 / 路由 / 参考选择器三件。')
+  </div>` + cap('删掉的：v2 #6 的「微状态卡」收起态（参数摘要三行 + 状态词）整个不要了；画布 StudioNodeAssistantDock 与其历史 / 路由 / 参考选择器三件；头部下的五动词胶囊行（owner 09-19 在画板上直接删了六处）。') +
+  reply(42, '需要加上用户自己的回答，其他', ['问题卡固定多一行「其他：自己填」：2–4 个模型给的选项之后是一条虚线框输入，用户打字即选中并作为答案发回（ask 帧的 answer 允许自由文本，服务端把它当决定记进结账）。', '手机同样；键盘弹起时 Sheet 升全屏档。']) +
+  reply('42b', '（画板直接删）五动词胶囊行', ['dock 头部下面不再有 看 / 查 / 问 / 改 / 生成 胶囊行；五动词只是引擎与卡片的内部分类，面板上靠卡片种类自己说话。', 'v2 §4.6「五动词条桌面与手机都显示」作废；加载态那五句状态词保留在头像旁。'])
 
 // ═══════════ 改 · 回执 ═══════════
 const formBig = (hl = []) => `<div style="width:520px;background:#fff;border:1px solid ${BORDER};border-radius:16px;box-shadow:${SH_CARD};padding:14px 16px;font-size:12.5px">
@@ -118,7 +121,7 @@ const SCRIPT = header('PixelVault · D7 ④ · 剧本节点 · 2026-09-19', '一
 
 // ═══════════ LoRA / 配音间 壳 · 空态 ═══════════
 const emptyPanel = (title, intro, pills, verbs) => panel(title, `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:0 10px">${avatar(40)}<div style="font-size:13.5px;font-weight:600">我是 ANTI，你的画面搭档</div><div style="font-size:12px;color:#525252;line-height:1.55">${esc(intro)}</div><div style="display:flex;flex-direction:column;gap:6px;width:100%;margin-top:6px">${pills.map((t) => `<div style="padding:8px 10px;border-radius:10px;border:1px solid ${BORDER};background:#fff;font-size:12px">${esc(t)}</div>`).join('')}</div></div>`, { w: 320, h: 520, verbs, active: -1 })
-const SHELLS = header('PixelVault · D7 ④ · LoRA / 配音间壳 · 2026-09-19', '同一张脸只有 看 / 查 / 问 · 空态与起手药丸', 'Q5 = A：两处都挂同一个 dock，五动词胶囊行只显示三颗（「改」「生成」的 op 表为空集 → 不渲染，不是灰显）。空态沿用 v2 §4.2：头像 + 一句自我介绍 + 三颗语境化起手药丸；不显示结论记录区与钉住区。') +
+const SHELLS = header('PixelVault · D7 ④ · LoRA / 配音间壳 · 2026-09-19', '同一张脸只有 看 / 查 / 问 · 空态与起手药丸', 'Q5 = A：两处都挂同一个 dock；「改」「生成」的 op 表为空集，面板上不出现任何改动入口（没有五动词胶囊行，owner 09-19 删）。空态沿用 v2 §4.2：头像 + 一句自我介绍 + 三颗语境化起手药丸；不显示结论记录区与钉住区。') +
   `<div style="margin-top:10px;display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
     ${state('LoRA 工作台 · 空态', emptyPanel('LoRA · 新会话', '我能看你的参考、查 LoRA 家族和方言、帮你选；挂载和调参这一轮还得你亲手点。', ['帮我找鸣潮渲染风的 LoRA', '这张图用哪个底模合适', '查一下 Anima 家族的触发词'], [1, 1, 1, 0, 0]), '三颗药丸对应 查 / 看 / 查；「挂上」出现在推荐卡里由用户点。')}
     ${state('配音间 · 空态', emptyPanel('借伞 · 配音 · 新会话', '我能读台词表、查语气标记的写法、在拿不准时问你；改台词和标语气这一轮还得你亲手点。', ['这段台词哪句该停顿', '查 Fish 的情绪标记怎么写', '看看角色卡里小黑的音色'], [1, 1, 1, 0, 0]), '台词 / 语气 op 随 E10 语音一起写；此前「改」不出现。')}

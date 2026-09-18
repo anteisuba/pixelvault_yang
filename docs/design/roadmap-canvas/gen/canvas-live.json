@@ -560,6 +560,15 @@
       "h": 2730,
       "title": "D4 ① 反问",
       "page": "page-13"
+    },
+    {
+      "file": "DesignD7Ask.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 2760,
+      "title": "D7 ① 反问",
+      "page": "page-14"
     }
   ],
   "annotations": [
@@ -936,6 +945,10 @@
     {
       "id": "page-13",
       "name": "D4 · 去向菜单 / 右键 / 任务条"
+    },
+    {
+      "id": "page-14",
+      "name": "D7 · 助手"
     }
   ]
 }

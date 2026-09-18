@@ -108,11 +108,11 @@ const D7 = {
       { k: 'leaf', t: 'Q2 = C 收起态只有一颗按钮 + 数字角标（待确认 + 未读完成数）；不露最近一条。⚠ 与 D3「侧栏不挂红点」不冲突：这是 dock 自己的角标，且待确认里含钱闸，进面板才看到金额' },
       { k: 'leaf', t: 'Q3 = A 一张「剧本」文本节点 → 确认投影成一排镜头节点并连线；剧本卡留作源，改剧本可重投影只新增 / 标记变化的镜' },
       { k: 'leaf', t: 'Q4 = A 免费可撤销 op 自动落：字段 outline 闪一次（320ms）+ 面板一行「已改 N 项 · 撤销」整组回滚；花钱 op 仍出生成确认卡' },
-      { k: 'leaf', t: 'Q5 = A 壳四处都挂（都有 看 / 查 / 问）；「改」的 op 表本轮只写工作台 + 画布；LoRA / 配音间专属 op 随 34 / E10' },
+      { k: 'leaf', t: 'Q5 = A → 09-19 改口：壳只挂工作台 · 画布 · LoRA 三处（配音间不需要助手）；LoRA 的「改」随 owner WIP 一起来（set_lora_parameters · analyze_references · critique_result），不再是空集' },
     ] },
     { k: 'cat', t: '一张脸（22）', c: [
       { k: 'sub', t: '壳', c: [ { k: 'leaf', t: 'StudioAssistantDock 成为唯一壳：right-6 top-6 bottom-6 · 可拖宽 · 收成 44px 按钮 + 角标；宿主只传 domain 与 op 表；手机半屏 Sheet（#20）' }, { k: 'leaf', s: 'gap', t: '删 StudioNodeAssistantDock · CanvasAssistantHistory · CanvasAssistantRouteSelector · CanvasAssistantReferencePicker（功能并入 v2 的会话历史 · LLM chip · @ 选择器）' } ] },
-      { k: 'sub', t: '内容层', c: [ { k: 'leaf', t: '五动词 · 五类卡 · 每轮结账 · 上下文卡提议 · @ / + 菜单 全部沿用 v2；画布多的只是 op 表里的节点 op 与「画布快照」进系统提示（分层：当前镜 + 相邻两镜完整）' }, { k: 'leaf', t: 'LoRA / 配音间：同一壳，「改」op 表为空集 → 面板上没有任何改动入口；看 / 查 / 问可用（挂载推荐卡 plan_lora_pick 归「问」继续用）' },
+      { k: 'sub', t: '内容层', c: [ { k: 'leaf', t: '五动词 · 五类卡 · 每轮结账 · 上下文卡提议 · @ / + 菜单 全部沿用 v2；画布多的只是 op 表里的节点 op 与「画布快照」进系统提示（分层：当前镜 + 相邻两镜完整）' }, { k: 'leaf', t: 'LoRA：同一壳，「改」= owner WIP 的 LoRA 工具（set_lora_parameters 等），plan_lora_pick 推荐卡归「问」；配音间不挂助手（09-19）' },
       { k: 'leaf', t: 'owner 09-19（④ 画板）：头部下的五动词胶囊行删掉，动词只作内部分类；问题卡固定多一行「其他：自己填」（批注 42）' } ] },
       { k: 'sub', t: '角标', c: [ { k: 'leaf', t: '数字 = 待确认卡数 + 未读结果卡数；打开面板清零；无事时按钮无角标' } ] },
     ] },
@@ -136,7 +136,7 @@ const D7 = {
       { k: 'leaf', t: 'dock 三态（展开 · 收起按钮 · 收起 + 角标）× 四宿主各一帧（同一壳不同底）' },
       { k: 'leaf', t: '「改」回执：字段闪 + 一行回执 + 撤销后的状态；花钱确认卡对照' },
       { k: 'leaf', t: '剧本节点：卡 · 投影后的时间轴 · 重投影 diff 标记' },
-      { k: 'leaf', t: 'LoRA / 配音间壳：只有看查问时的胶囊行与空态' },
+      { k: 'leaf', t: 'LoRA 壳：空态与起手药丸（配音间已取消）' },
     ] },
   ],
 }
@@ -154,7 +154,7 @@ const OPTABLE = `<div class="lab" style="margin-top:28px">21 · op 表 spec 骨�
   ['generate · plan_rerun_downstream', '工作台 · 画布', '—（参数从快照现取）', '—', 'paid · 确认卡', '生成'],
   ['delete', '画布', 'nodeId', '—', '不可逆 · 确认', '画布'],
 ].map((r) => `<tr>${r.map((c, i) => `<td${i === 0 ? ' style="font-family:ui-monospace,monospace;font-size:12px"' : ''}>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table><div class="pros" style="margin-top:8px;color:${MUTED}">LoRA（挂载 / 参数）与配音间（台词 / 语气）两张表随 34 / E10 再写；本表是 spec 的骨架，字段级由 21 的 spec 文档定。</div>`
-const MAP = header('PixelVault · D7 · ② 思维导图 · 2026-09-19', 'D7 决策树 · Q1–Q5 已定 + 21 op 表骨架', '① 五题：Q1 A 统一 dock · Q2 C 按钮 + 角标 · Q3 A 剧本卡投影 · Q4 A 闪 + 一行回执 · Q5 A 壳四处 op 先两处。这棵树 + 下面的 op 表骨架是 ③ 要你确认的；没有红点或批注就进 ④。黄虚线 = 依赖别的条目。') + tree(D7, 300) + OPTABLE
+const MAP = header('PixelVault · D7 · ② 思维导图 · 2026-09-19', 'D7 决策树 · Q1–Q5 已定 + 21 op 表骨架', '① 五题：Q1 A 统一 dock · Q2 C 按钮 + 角标 · Q3 A 剧本卡投影 · Q4 A 闪 + 一行回执 · Q5 改口：三宿主（配音间不要助手），LoRA 的改随 owner WIP。这棵树 + 下面的 op 表骨架是 ③ 要你确认的；没有红点或批注就进 ④。黄虚线 = 依赖别的条目。') + tree(D7, 300) + OPTABLE
 
 const ASK = header('PixelVault · D7 · ① 反问 · 2026-09-18', '助手 · 一张脸 + 剧本节点 + op 回执 + 范围 · 五题', 'owner 2026-09-18：UI 先放一放，助手优先。已定不再问：Operator 唯一引擎 · 五动词 · 卡片五类 · 每轮结账 · 三档人设 · 记忆总览进 /settings（D3）· 手机半屏 Sheet · 「改」与「请求生成」按宿主 op 表重做、免费可撤销自动落、花钱才确认（第 6 页 DesignAssistant）。owner 已答（09-19）：Q1 A · Q2 C · Q3 A · Q4 A · Q5 A。② 思维导图与 21 op 表骨架在右侧。') + q1 + q2 + q3 + q4 + q5
 

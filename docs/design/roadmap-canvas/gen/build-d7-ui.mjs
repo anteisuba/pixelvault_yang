@@ -78,12 +78,11 @@ const shell = (kind, dockInner, { w = 760, h = 520 } = {}) => `<div style="width
 const dockOpen = (kind, body, opts = {}) => shell(kind, `<div style="position:absolute;top:12px;right:12px;bottom:12px;width:300px">${panel(opts.title ?? '借伞 · 分镜', body, { w: 300, h: 496, ...opts })}</div>`)
 const dockBtn = (kind, badge = 0) => shell(kind, `<div style="position:absolute;right:16px;bottom:16px">${avatar(44)}${badge ? `<span style="position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:${FG};color:#fff;${MONO}font-size:10px;display:flex;align-items:center;justify-content:center;border:2px solid #fff">${badge}</span>` : ''}</div>`, { h: 240 })
 
-const DOCK = header('PixelVault · D7 ④ · dock · 2026-09-19', '一张脸 · 同一个 dock × 四宿主 · 三态', 'Q1 = A：四宿主都挂工作台 v2 的 StudioAssistantDock（右 12 · 上 12 · 下 12，可拖宽 420–860，方向 B 浅色玻璃：面板最实、卡片靠细描边、只有浮层半透）。头部 = 会话标题▾ · 历史 · 设置 · 收起；owner 09-19 删掉了五动词胶囊行（动词只是内部分类，不占面板一行）；输入区两行（文本框 / + · 上传 · 素材库 · LLM chip · 发送）。Q2 = C：收起 = 44px 头像按钮 + 数字角标（待确认 + 未读结果），无角标 = 无事。') +
-  sec('展开 · 四宿主', '同一壳，只换宿主底与 op 表') + `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:24px">
+const DOCK = header('PixelVault · D7 ④ · dock · 2026-09-19', '一张脸 · 同一个 dock × 三宿主 · 三态', 'Q1 = A：工作台 · 画布 · LoRA 三宿主都挂工作台 v2 的 StudioAssistantDock（配音间不需要助手，owner 09-19）（右 12 · 上 12 · 下 12，可拖宽 420–860，方向 B 浅色玻璃：面板最实、卡片靠细描边、只有浮层半透）。头部 = 会话标题▾ · 历史 · 设置 · 收起；owner 09-19 删掉了五动词胶囊行（动词只是内部分类，不占面板一行）；输入区两行（文本框 / + · 上传 · 素材库 · LLM chip · 发送）。Q2 = C：收起 = 44px 头像按钮 + 数字角标（待确认 + 未读结果），无角标 = 无事。') +
+  sec('展开 · 三宿主', '同一壳，只换宿主底与 op 表') + `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:24px">
     ${state('工作台（图片）', dockOpen('workbench', bodyWorkbench, { active: 3 }), '证据卡 → 「已改 3 项 · 撤销」回执 → 生成确认卡（近黑实底确认键）。')}
     ${state('画布', dockOpen('canvas', bodyCanvas, { active: 4 }), '底是时间轴上的三镜，S02 被选中；op 落在节点上，回执一行；结果卡自动入库；结论记录作分隔。')}
-    ${state('LoRA', dockOpen('lora', bodyLora, { verbs: [1, 1, 1, 0, 0], active: 1, title: 'LoRA · 鸣潮风' }), 'Q5 = A：本轮 LoRA 只有 看 / 查 / 问（op 表为空集，面板上没有任何「改」的入口）；plan_lora_pick 推荐卡归「问」继续用（「挂上」由用户点，不是 op）。')}
-    ${state('配音间', dockOpen('voice', bodyVoice, { verbs: [1, 1, 1, 0, 0], active: 2, title: '借伞 · 配音' }), '问题卡钉在输入框上方（未答态）：2–4 个选项 + 一行「其他：自己填」（批注 42）。台词 / 语气 op 随 E10。')}
+    ${state('LoRA', dockOpen('lora', bodyLora, { verbs: [1, 1, 1, 0, 0], active: 1, title: 'LoRA · 鸣潮风' }), 'Q5 改口（09-19）：LoRA 的「改」随 owner WIP 一起来（set_lora_parameters 等）；plan_lora_pick 推荐卡归「问」继续用。')}
   </div>` +
   sec('收起 · 两态', 'Q2 = C') + `<div style="margin-top:10px;display:flex;flex-wrap:wrap;gap:24px">
     ${state('无事 · 只有按钮', dockBtn('workbench', 0), '44px 近黑圆按钮，头像字母；右 16 / 下 16（手机沿用 右 16 / 下 96）。')}
@@ -123,13 +122,12 @@ const SCRIPT = header('PixelVault · D7 ④ · 剧本节点 · 2026-09-19', '一
 const emptyPanel = (title, intro, pills, verbs) => panel(title, `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:10px;padding:0 10px">${avatar(40)}<div style="font-size:13.5px;font-weight:600">我是 ANTI，你的画面搭档</div><div style="font-size:12px;color:#525252;line-height:1.55">${esc(intro)}</div><div style="display:flex;flex-direction:column;gap:6px;width:100%;margin-top:6px">${pills.map((t) => `<div style="padding:8px 10px;border-radius:10px;border:1px solid ${BORDER};background:#fff;font-size:12px">${esc(t)}</div>`).join('')}</div></div>`, { w: 320, h: 520, verbs, active: -1 })
 const SHELLS = header('PixelVault · D7 ④ · LoRA / 配音间壳 · 2026-09-19', '同一张脸只有 看 / 查 / 问 · 空态与起手药丸', 'Q5 = A：两处都挂同一个 dock；「改」「生成」的 op 表为空集，面板上不出现任何改动入口（没有五动词胶囊行，owner 09-19 删）。空态沿用 v2 §4.2：头像 + 一句自我介绍 + 三颗语境化起手药丸；不显示结论记录区与钉住区。') +
   `<div style="margin-top:10px;display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
-    ${state('LoRA 工作台 · 空态', emptyPanel('LoRA · 新会话', '我能看你的参考、查 LoRA 家族和方言、帮你选；挂载和调参这一轮还得你亲手点。', ['帮我找鸣潮渲染风的 LoRA', '这张图用哪个底模合适', '查一下 Anima 家族的触发词'], [1, 1, 1, 0, 0]), '三颗药丸对应 查 / 看 / 查；「挂上」出现在推荐卡里由用户点。')}
-    ${state('配音间 · 空态', emptyPanel('借伞 · 配音 · 新会话', '我能读台词表、查语气标记的写法、在拿不准时问你；改台词和标语气这一轮还得你亲手点。', ['这段台词哪句该停顿', '查 Fish 的情绪标记怎么写', '看看角色卡里小黑的音色'], [1, 1, 1, 0, 0]), '台词 / 语气 op 随 E10 语音一起写；此前「改」不出现。')}
-  </div>` + cap('两处的会话与工作台 / 画布共用同一 AssistantConversation 表与结账机制；宿主只传 domain 与空 op 表。手机同一半屏 Sheet。')
+    ${state('LoRA 工作台 · 空态', emptyPanel('LoRA · 新会话', '我能看你的参考、查 LoRA 家族和方言、帮你选，也能替你挂载和调参。', ['帮我找鸣潮渲染风的 LoRA', '这张图用哪个底模合适', '查一下 Anima 家族的触发词'], [1, 1, 1, 0, 0]), '三颗药丸对应 查 / 看 / 查；「挂上」既可在推荐卡里点，也可由助手 set_lora_parameters 直接落。')}
+  </div>` + cap('LoRA 的会话与工作台 / 画布共用同一 AssistantConversation 表与结账机制；手机同一半屏 Sheet。')
 
 for (const [name, html] of [
   ['DesignD7Dock.dc.html', page('D7 ④ dock', DOCK)],
   ['DesignD7Apply.dc.html', page('D7 ④ 改回执', APPLY)],
   ['DesignD7Script.dc.html', page('D7 ④ 剧本节点', SCRIPT)],
-  ['DesignD7Shells.dc.html', page('D7 ④ LoRA / 配音间壳', SHELLS)],
+  ['DesignD7Shells.dc.html', page('D7 ④ LoRA 壳', SHELLS)],
 ]) { writeFileSync(join(OUT, name), html); console.log('wrote', name) }

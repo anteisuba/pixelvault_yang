@@ -54,12 +54,26 @@ const SELECT_OPTION_KEYS: Partial<
 }
 
 /**
- * 只有挂了参考图才成立的能力：`referenceStrength` 要一张底图去 denoise，
- * `inputFidelity` 只是 `/v1/images/edits` 的字段（纯文生图那条路上 OpenAI 根本
- * 不收）。没挂时 chip 走 muted 灰底，⛔ 不隐藏。
+ * 无论哪个 provider 都只有挂了参考图才成立的能力：`referenceStrength` 要一张
+ * 底图去 denoise，`inputFidelity` 只是 `/v1/images/edits` 的字段（纯文生图那条
+ * 路上 OpenAI 根本不收）。没挂时 chip 走 muted 灰底，⛔ 不隐藏。
+ *
+ * ⚠ 只依赖参考图**在某些模型上**成立的能力不进这张表，写进能力表的
+ * `referenceDependentCapabilities`（例：`background` 在 OpenAI 上文生图可用，
+ * 在火山 Seedream 5.0 Pro 上文档写死「仅支持图生图场景」）。
  */
 const REFERENCE_DEPENDENT_CAPABILITIES: ReadonlySet<ProviderCapability> =
   new Set<ProviderCapability>(['referenceStrength', 'inputFidelity'])
+
+function isReferenceDependent(
+  config: CapabilityConfig,
+  capability: ProviderCapability,
+): boolean {
+  return (
+    REFERENCE_DEPENDENT_CAPABILITIES.has(capability) ||
+    (config.referenceDependentCapabilities?.includes(capability) ?? false)
+  )
+}
 
 const SLIDER_RANGE_KEYS: Partial<
   Record<ProviderCapability, keyof CapabilityConfig>
@@ -111,8 +125,7 @@ export function getModelCapabilityChips(
         kind,
         options,
         defaultValue: options[0],
-        requiresReferenceImage:
-          REFERENCE_DEPENDENT_CAPABILITIES.has(capability),
+        requiresReferenceImage: isReferenceDependent(config, capability),
       })
       continue
     }
@@ -126,8 +139,7 @@ export function getModelCapabilityChips(
         kind,
         range,
         defaultValue: range.default,
-        requiresReferenceImage:
-          REFERENCE_DEPENDENT_CAPABILITIES.has(capability),
+        requiresReferenceImage: isReferenceDependent(config, capability),
       })
       continue
     }

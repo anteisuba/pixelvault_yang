@@ -45,10 +45,14 @@ vi.mock('@/services/model-config.service', () => ({
 }))
 
 import { AI_MODELS } from '@/constants/models'
-import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  AI_ADAPTER_TYPES,
+  getDefaultProviderConfig,
+} from '@/constants/providers'
 import {
   GenerateImageServiceError,
   resolveGenerationRoute,
+  resolveImageRouteAndValidate,
 } from '@/services/image/generate-image.service'
 import {
   findActiveKeyForAdapter,
@@ -278,5 +282,109 @@ describe('resolveGenerationRoute', () => {
         expect.objectContaining({ code: 'PLATFORM_KEY_MISSING' }),
       )
     })
+  })
+})
+
+// ─── Seedream 5.0 Pro transparent background (item 63) ──────────
+//
+// 火山 Ark 文档：`background: "transparent"` 只在 5.0 Pro 上存在，且「仅支持
+// 图生图场景，且只支持输入 1 张带透明通道的图片」。校验层管得到前两条前置
+// （场景 + 张数），图片本身有没有 alpha 通道只有 provider 判得了。
+// https://www.volcengine.com/docs/82379/1541523
+describe('resolveImageRouteAndValidate — Seedream transparent background', () => {
+  const VOLC_PRO_ROUTE = {
+    modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+    externalModelId: 'doubao-seedream-5-0-pro-260628',
+    adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.VOLCENGINE),
+    apiKey: 'key',
+    creditCost: 2,
+  }
+
+  const deps = (route = VOLC_PRO_ROUTE) => ({
+    ensureUser: vi.fn().mockResolvedValue({ id: 'user-1' }),
+    validatePrompt: vi.fn().mockReturnValue({ valid: true }),
+    resolveGenerationRoute: vi.fn().mockResolvedValue(route),
+    getProviderAdapter: vi.fn().mockReturnValue({}),
+  })
+
+  const request = (overrides: Record<string, unknown>) => ({
+    modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+    prompt: 'a cat',
+    ...overrides,
+  })
+
+  it('accepts a transparent background with exactly one reference image', async () => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        request({
+          referenceImages: ['https://cdn.example.com/a.png'],
+          advancedParams: { background: 'transparent' },
+        }) as never,
+        deps() as never,
+      ),
+    ).resolves.toMatchObject({ route: VOLC_PRO_ROUTE })
+  })
+
+  // 0 张 = 纯文生图，≥2 张 = 多图生图；文档两种都不允许。
+  it.each([
+    ['no reference image', [] as string[]],
+    ['two reference images', ['https://a/1.png', 'https://a/2.png']],
+  ])('rejects a transparent background with %s', async (_label, refs) => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        request({
+          referenceImages: refs,
+          advancedParams: { background: 'transparent' },
+        }) as never,
+        deps() as never,
+      ),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        code: 'VALIDATION_ERROR',
+        // ⚠ 原文要与 generation-errors 的那条正则对得上，否则这条错误会掉回
+        // 「参考图上限」的通用文案，把人送去删参考图。
+        message: expect.stringContaining(
+          'Transparent background requires exactly one reference image',
+        ),
+      }),
+    )
+  })
+
+  it('leaves an opaque background alone with no reference image', async () => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        request({ advancedParams: { background: 'opaque' } }) as never,
+        deps() as never,
+      ),
+    ).resolves.toMatchObject({ route: VOLC_PRO_ROUTE })
+  })
+
+  // Lite 的能力表里根本没有 backgroundOptions，所以任何 background 值都该在
+  // 值域校验那一关就死掉——不能等到火山返 400。
+  it('rejects any background value on Seedream 5.0 Lite', async () => {
+    const liteRoute = {
+      ...VOLC_PRO_ROUTE,
+      modelId: AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE,
+      externalModelId: 'doubao-seedream-5-0-lite-260128',
+    }
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        request({
+          modelId: AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE,
+          referenceImages: ['https://cdn.example.com/a.png'],
+          advancedParams: { background: 'transparent' },
+        }) as never,
+        deps(liteRoute) as never,
+      ),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        message: 'Unsupported background for the selected model',
+      }),
+    )
   })
 })

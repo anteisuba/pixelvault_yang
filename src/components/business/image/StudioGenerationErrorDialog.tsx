@@ -104,6 +104,12 @@ const ERROR_ACTIONS_BY_CODE: Partial<
     primary: 'switchModel',
     secondary: 'retry',
   },
+  // 透明底前置不满足：能修的是**这次请求的参考图/开关**，换模型和重试都不会
+  // 让它变对，所以主按钮给「改提示词」那条最接近「回去改输入」的路。
+  [GENERATION_ERROR_CODES.TRANSPARENT_BACKGROUND_REQUIRES_SINGLE_REFERENCE]: {
+    primary: 'editPrompt',
+    secondary: 'switchModel',
+  },
   [GENERATION_ERROR_CODES.PROVIDER_RATE_LIMIT]: DEFAULT_ERROR_ACTIONS,
   [GENERATION_ERROR_CODES.PROVIDER_OVERLOADED]: {
     primary: 'switchModel',

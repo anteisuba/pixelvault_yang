@@ -17,6 +17,7 @@ import {
   encryptStateString,
   generateNovelAiImage,
   generateOpenAIImage,
+  generateVolcEngineImage,
   hexToBytes,
   isCallbackKind,
   isImageResolutionTier,
@@ -2347,6 +2348,130 @@ describe('OpenAI input fidelity', () => {
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
     expect(JSON.parse(String(init.body))).not.toHaveProperty('input_fidelity')
+  })
+})
+
+/**
+ * 火山 Ark / BytePlus 的 `background: "transparent"`（进度表 63）。文档三条
+ * 前置：仅 Seedream 5.0 pro、仅图生图、且只收 1 张带透明通道的输入图。这里锁
+ * 的是**不满足前置时一个字段都不发** —— 发过去只会换一个 400，而校验层已经
+ * 在应用侧把同一种情况变成了可读错误。
+ * https://www.volcengine.com/docs/82379/1541523
+ */
+describe('VolcEngine transparent background', () => {
+  function volcEnv(): Parameters<typeof generateVolcEngineImage>[0] {
+    return {
+      GENERATION_BUCKET: { put: vi.fn().mockResolvedValue(undefined) },
+      R2_PUBLIC_URL: 'https://cdn.example.com',
+    } as unknown as Parameters<typeof generateVolcEngineImage>[0]
+  }
+
+  function volcContext(
+    providerInput: Record<string, unknown>,
+  ): Parameters<typeof generateVolcEngineImage>[1] {
+    return {
+      workflowId: 'IMAGE_QUEUE',
+      outputType: 'IMAGE',
+      providerId: 'volcengine',
+      resolveKeyUrl: 'https://app.example.com/key',
+      timeoutMs: 300000,
+      maxAttempts: 1,
+      pollIntervalMs: 1000,
+      runId: 'volc-bg-test',
+      callbackUrl: 'https://app.example.com/callback',
+      providerInput: {
+        modelId: 'seedream-5.0-pro-volcengine',
+        externalModelId: 'doubao-seedream-5-0-pro-260628',
+        prompt: 'a cat',
+        aspectRatio: '1:1',
+        ...providerInput,
+      },
+    } as Parameters<typeof generateVolcEngineImage>[1]
+  }
+
+  function stubVolcImageResponse(): ReturnType<typeof vi.fn> {
+    const fetchMock = vi.fn(async (url: string) =>
+      String(url).includes('/images/generations')
+        ? new Response(
+            JSON.stringify({
+              data: [{ url: 'https://ark.example.com/out.png' }],
+            }),
+          )
+        : new Response(new Uint8Array([1, 2, 3]), {
+            headers: { 'content-type': 'image/png' },
+          }),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  function volcBody(
+    fetchMock: ReturnType<typeof vi.fn>,
+  ): Record<string, unknown> {
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit]
+    return JSON.parse(String(init.body)) as Record<string, unknown>
+  }
+
+  it('sends background and pins png with exactly one reference image', async () => {
+    const fetchMock = stubVolcImageResponse()
+    await generateVolcEngineImage(
+      volcEnv(),
+      volcContext({
+        referenceImages: ['https://cdn.example.com/ref.png'],
+        advancedParams: { background: 'transparent' },
+      }),
+      'volc-key',
+    )
+    // ⚠ output_format 必须一起钉成 png：文档写「透明背景模式下输出默认为
+    // png，若同时配置 output_format 为 jpeg 将触发报错」。
+    expect(volcBody(fetchMock)).toMatchObject({
+      background: 'transparent',
+      output_format: 'png',
+    })
+  })
+
+  it.each([
+    ['no reference image', [] as string[]],
+    ['two reference images', ['https://a/1.png', 'https://a/2.png']],
+  ])('omits background with %s', async (_label, referenceImages) => {
+    const fetchMock = stubVolcImageResponse()
+    await generateVolcEngineImage(
+      volcEnv(),
+      volcContext({
+        referenceImages,
+        advancedParams: { background: 'transparent' },
+      }),
+      'volc-key',
+    )
+    expect(volcBody(fetchMock)).not.toHaveProperty('background')
+    expect(volcBody(fetchMock)).not.toHaveProperty('output_format')
+  })
+
+  it('omits background on Seedream 5.0 Lite', async () => {
+    const fetchMock = stubVolcImageResponse()
+    await generateVolcEngineImage(
+      volcEnv(),
+      volcContext({
+        externalModelId: 'doubao-seedream-5-0-lite-260128',
+        referenceImages: ['https://cdn.example.com/ref.png'],
+        advancedParams: { background: 'transparent' },
+      }),
+      'volc-key',
+    )
+    expect(volcBody(fetchMock)).not.toHaveProperty('background')
+  })
+
+  it('omits background when the chip sits on its opaque default', async () => {
+    const fetchMock = stubVolcImageResponse()
+    await generateVolcEngineImage(
+      volcEnv(),
+      volcContext({
+        referenceImages: ['https://cdn.example.com/ref.png'],
+        advancedParams: { background: 'opaque' },
+      }),
+      'volc-key',
+    )
+    expect(volcBody(fetchMock)).not.toHaveProperty('background')
   })
 })
 

@@ -1,6 +1,9 @@
 import 'server-only'
 
-import { getCapabilityConfig } from '@/constants/provider-capabilities'
+import {
+  getCapabilityConfig,
+  VOLCENGINE_TRANSPARENT_BACKGROUND,
+} from '@/constants/provider-capabilities'
 
 import { API_USAGE } from '@/constants/config'
 import { getModelById, type ModelOption } from '@/constants/models'
@@ -374,7 +377,18 @@ export async function resolveImageRouteAndValidate(
     modelId: effectiveModelId,
   })
 
-  if (resolvedRoute.adapterType === AI_ADAPTER_TYPES.OPENAI) {
+  const builtInModel = getModelByIdFn(effectiveModelId)
+  const refCount =
+    input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)
+  const hasReferenceImage = refCount > 0
+
+  // 值域校验：能力表声明了候选的 select 档，客户端送来一个表外的值就在这里
+  // 死掉，⛔ 不要放到 provider 去吃 400。三家共用同一份表，所以列在一起。
+  if (
+    resolvedRoute.adapterType === AI_ADAPTER_TYPES.OPENAI ||
+    resolvedRoute.adapterType === AI_ADAPTER_TYPES.VOLCENGINE ||
+    resolvedRoute.adapterType === AI_ADAPTER_TYPES.BYTEPLUS
+  ) {
     const config = getCapabilityConfig(
       resolvedRoute.adapterType,
       effectiveModelId,
@@ -393,11 +407,24 @@ export async function resolveImageRouteAndValidate(
         )
       }
     }
+
+    // 火山 Ark 的透明底前置：「仅支持图生图场景，且只支持输入 1 张带透明通道
+    // 的图片」。0 张和 ≥2 张都不成立 —— worker 侧遇到这两种情况会**不发**
+    // `background`，这里再把它变成一条能读懂的错误，而不是让用户拿到一张
+    // 默默不透明的图。图片格式（必须带 alpha）只有 provider 能判，交给它报。
+    // https://www.volcengine.com/docs/82379/1541523
+    if (
+      resolvedRoute.adapterType !== AI_ADAPTER_TYPES.OPENAI &&
+      input.advancedParams?.background === VOLCENGINE_TRANSPARENT_BACKGROUND &&
+      refCount !== 1
+    ) {
+      throw new GenerateImageServiceError(
+        'VALIDATION_ERROR',
+        'Transparent background requires exactly one reference image with an alpha channel.',
+        400,
+      )
+    }
   }
-  const builtInModel = getModelByIdFn(effectiveModelId)
-  const refCount =
-    input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)
-  const hasReferenceImage = refCount > 0
   if (builtInModel?.requiresReferenceImage && !hasReferenceImage) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',

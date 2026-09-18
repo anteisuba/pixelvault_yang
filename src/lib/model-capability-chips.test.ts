@@ -56,6 +56,64 @@ describe('getModelCapabilityChips', () => {
     )
   })
 
+  // 火山 / BytePlus 的 5.0 Pro：透明底是一颗 select chip，且**必须**标成依赖
+  // 参考图 —— 文档写死「仅支持图生图场景」。它和 inputFidelity 不同，不能靠
+  // 「这个能力键天生依赖参考图」实现：同一个 `background` 键在 OpenAI 上文生图
+  // 也能用，所以依赖关系只能由能力表逐模型声明。
+  it.each([
+    [AI_ADAPTER_TYPES.VOLCENGINE, AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE],
+    [AI_ADAPTER_TYPES.BYTEPLUS, AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS],
+  ])('grows a reference-gated background chip on %s %s', (adapter, id) => {
+    // seed / resolution / imageAnalysis 声明在能力表里但不进这条 chip 行
+    // （seed 归规格 chip 的「更多」，后两者不是用户可配项）。
+    expect(capabilitiesOf(adapter, id)).toEqual(['guidanceScale', 'background'])
+    const chip = getModelCapabilityChips(adapter, id).find(
+      (entry) => entry.capability === 'background',
+    )
+    expect(chip?.kind).toBe('select')
+    expect(chip?.options).toEqual(['opaque', 'transparent'])
+    expect(chip?.defaultValue).toBe('opaque')
+    expect(chip?.requiresReferenceImage).toBe(true)
+  })
+
+  // 同一颗键在 OpenAI 上**不**依赖参考图 —— 回归护栏，防止有人把 background
+  // 直接塞进全局的 REFERENCE_DEPENDENT_CAPABILITIES 图省事。
+  it('keeps the OpenAI background chip usable without a reference', () => {
+    const chip = getModelCapabilityChips(
+      AI_ADAPTER_TYPES.OPENAI,
+      AI_MODELS.OPENAI_GPT_IMAGE_2,
+    ).find((entry) => entry.capability === 'background')
+    expect(chip?.requiresReferenceImage).toBe(false)
+  })
+
+  // fal 那条 5.0 Pro 与两条 Lite 都没有这个字段，chip 不能长出来。
+  it.each([
+    [AI_ADAPTER_TYPES.FAL, AI_MODELS.SEEDREAM_50_PRO],
+    [AI_ADAPTER_TYPES.VOLCENGINE, AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE],
+    [AI_ADAPTER_TYPES.BYTEPLUS, AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS],
+  ])('keeps the background chip off %s %s', (adapter, id) => {
+    expect(capabilitiesOf(adapter, id)).not.toContain('background')
+  })
+
+  // 从 5.0 Pro 切到 Lite 时透明底必须跟着走，否则一个 provider 不收的字段会
+  // 留在 advancedParams 里被原样发出去。
+  it('drops a transparent background when the target model cannot take it', () => {
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { background: 'transparent' },
+        AI_ADAPTER_TYPES.VOLCENGINE,
+        AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE,
+      ),
+    ).toEqual({})
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { background: 'transparent' },
+        AI_ADAPTER_TYPES.VOLCENGINE,
+        AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+      ),
+    ).toBeNull()
+  })
+
   // 没有专属能力 = 宿主整段（虚线 + 小标 + chip 行）不渲染。
   //
   // ⚠ 这三家的空是**核过一手 schema 的结论**，不是还没接（第 61 项，2026-09-18）：

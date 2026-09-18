@@ -70,6 +70,18 @@ export const GENERATION_ERROR_CODES = {
    * 429 规则说成「请求过于频繁，稍后重试」，把人钉在一个永远不会好的重试循环里。
    */
   PROVIDER_ACCOUNT_LIMIT_REACHED: 'provider_account_limit_reached',
+  /**
+   * 火山 Ark / BytePlus Seedream 5.0 Pro 的 `background: "transparent"` 前置
+   * 条件没满足：文档写死「仅支持图生图场景，且只支持输入 1 张带透明通道的
+   * 图片」。0 张或 ≥2 张都不成立。
+   *
+   * 单列一个码而不是复用 REFERENCE_IMAGE_LIMIT_EXCEEDED：后者说的是「这个模型
+   * 最多收 N 张」，而这里模型收 10 张好好的，**是透明底这一档只收 1 张**。
+   * 把它说成参考图上限会让人去删参考图而不是去关透明底。
+   * https://www.volcengine.com/docs/82379/1541523
+   */
+  TRANSPARENT_BACKGROUND_REQUIRES_SINGLE_REFERENCE:
+    'transparent_background_requires_single_reference',
   UNKNOWN: 'unknown',
 } as const
 
@@ -173,6 +185,12 @@ const ERROR_PATTERNS: Array<{
   {
     pattern: /SetLimitExceeded|reached the set inference limit/i,
     code: GENERATION_ERROR_CODES.PROVIDER_ACCOUNT_LIMIT_REACHED,
+  },
+  // ⚠ 同样排在参考图规则**之前**：这句话里有 "reference image"，而下面五条
+  // 参考图规则谁先咬到就归谁。它是我们自己校验层抛的固定英文，认字面即可。
+  {
+    pattern: /transparent background requires exactly one reference image/i,
+    code: GENERATION_ERROR_CODES.TRANSPARENT_BACKGROUND_REQUIRES_SINGLE_REFERENCE,
   },
   {
     pattern: REFERENCE_IMAGE_ERROR_PATTERNS.UNSUPPORTED_FORMAT,
@@ -358,6 +376,12 @@ export function getGenerationErrorI18nKeyForCode(
   }
   if (errorCode === GENERATION_ERROR_CODES.REFERENCE_IMAGE_LIMIT_EXCEEDED) {
     return 'errors.provider.referenceImageLimitExceeded'
+  }
+  if (
+    errorCode ===
+    GENERATION_ERROR_CODES.TRANSPARENT_BACKGROUND_REQUIRES_SINGLE_REFERENCE
+  ) {
+    return 'errors.provider.transparentBackgroundRequiresSingleReference'
   }
   if (errorCode === GENERATION_ERROR_CODES.INVALID_REFERENCE_IMAGE_DIMENSIONS) {
     return 'errors.provider.invalidReferenceImageDimensions'

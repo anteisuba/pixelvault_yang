@@ -49,6 +49,21 @@ export const OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES = 16
 export const OPENAI_INPUT_FIDELITY_OPTIONS = ['low', 'high'] as const
 
 /**
+ * 火山 Ark `background` —— Seedream 5.0 Pro 专属的透明通道开关。文档只给这两
+ * 个值，默认 `opaque`，所以 `opaque` 必须排第一（chip 的缺省值 = options[0]，
+ * 停在缺省上就是不发这个字段）。
+ *
+ * 前置条件全部来自文档，⛔ 不要放宽：仅图生图，且只收 **1 张**带透明通道的
+ * 输入图；透明模式下输出默认 png，同时把 `output_format` 配成 jpeg 会报错。
+ * https://www.volcengine.com/docs/82379/1541523
+ */
+export const VOLCENGINE_TRANSPARENT_BACKGROUND = 'transparent'
+export const VOLCENGINE_SEEDREAM_BACKGROUND_OPTIONS = [
+  'opaque',
+  VOLCENGINE_TRANSPARENT_BACKGROUND,
+] as const
+
+/**
  * 火山 Ark / BytePlus Seedream 参考图默认上限。Ark 文档 2026-09-17 核实：
  * Seedream 4.0 / 4.5 / 5.0 Lite 最多 14 张参考图，**5.0 Pro 只收 10 张**。
  * Pro 的差异由 MODEL_CAPABILITY_OVERRIDES 逐模型下调，不动这个默认值。
@@ -108,6 +123,12 @@ export interface CapabilityConfig {
   maxReferenceImages?: number
   /** How this adapter handles reference images (default: 'img2img') */
   referenceImageMode?: ReferenceImageMode
+  /**
+   * 只有挂了参考图才成立的能力，**逐模型**声明。⚠ 不能做成「这个能力键天生
+   * 依赖参考图」：`background` 在 OpenAI 上文生图也能用，在火山 Seedream 5.0
+   * Pro 上却写死「仅支持图生图场景」。同一个键两种前置，只能由配置说了算。
+   */
+  referenceDependentCapabilities?: readonly ProviderCapability[]
 }
 
 export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
@@ -416,11 +437,35 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
   // 4.0 才是 14）。只覆盖这一项，resolveConfig() 是浅合并，adapter 的
   // capabilities / resolutionOptions 原样保留。
   // https://www.volcengine.com/docs/82379/1541523
+  //
+  // `background` 是 5.0 Pro 专属（Ark 文档 2026-09-18：模型支持一栏只列
+  // Seedream 5.0 pro），所以它只能挂在这两条 override 上，⛔ 不能上移到
+  // VOLCENGINE / BYTEPLUS 的 adapter 默认——那样 4.5 / 4.0 / 5.0 Lite 会一起
+  // 长出一颗 provider 根本不收的 chip。声明 `capabilities` 会**整体替换**
+  // adapter 默认，所以这里把原有四项一并写出。
   [AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE]: {
     maxReferenceImages: 10,
+    capabilities: [
+      'seed',
+      'guidanceScale',
+      'resolution',
+      'imageAnalysis',
+      'background',
+    ] as const,
+    backgroundOptions: VOLCENGINE_SEEDREAM_BACKGROUND_OPTIONS,
+    referenceDependentCapabilities: ['background'] as const,
   },
   [AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS]: {
     maxReferenceImages: 10,
+    capabilities: [
+      'seed',
+      'guidanceScale',
+      'resolution',
+      'imageAnalysis',
+      'background',
+    ] as const,
+    backgroundOptions: VOLCENGINE_SEEDREAM_BACKGROUND_OPTIONS,
+    referenceDependentCapabilities: ['background'] as const,
   },
   [AI_MODELS.SEEDREAM_50_LITE]: {
     maxReferenceImages: FAL_SEEDREAM_MAX_REFERENCE_IMAGES,

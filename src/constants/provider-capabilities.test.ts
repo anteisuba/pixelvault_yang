@@ -57,6 +57,41 @@ describe('provider-capabilities', () => {
     }
   })
 
+  // 火山 Ark 的 `background` 是 5.0 Pro 专属（文档「模型支持」一栏只列它），
+  // 所以这颗 chip 只能出现在两条原生线上——fal 那条 5.0 Pro 的入参里根本没有
+  // 这个字段，Lite / 4.5 也没有。
+  it.each([
+    [AI_ADAPTER_TYPES.VOLCENGINE, AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE],
+    [AI_ADAPTER_TYPES.BYTEPLUS, AI_MODELS.SEEDREAM_50_PRO_BYTEPLUS],
+  ])('offers a transparent background on %s %s', (adapterType, modelId) => {
+    const config = getCapabilityConfig(adapterType, modelId)
+    expect(config.capabilities).toContain('background')
+    // `opaque` 必须排第一 —— chip 的缺省值取 options[0]，而文档的默认值是
+    // opaque；排反了默认态就会变成「发 transparent」。
+    expect(config.backgroundOptions).toEqual(['opaque', 'transparent'])
+    expect(config.referenceDependentCapabilities).toEqual(['background'])
+    // 声明 capabilities 是整体替换，原有四项不能在这次覆盖里掉队。
+    expect(config.capabilities).toEqual([
+      'seed',
+      'guidanceScale',
+      'resolution',
+      'imageAnalysis',
+      'background',
+    ])
+  })
+
+  it.each([
+    [AI_ADAPTER_TYPES.VOLCENGINE, undefined],
+    [AI_ADAPTER_TYPES.BYTEPLUS, undefined],
+    [AI_ADAPTER_TYPES.VOLCENGINE, AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE],
+    [AI_ADAPTER_TYPES.BYTEPLUS, AI_MODELS.SEEDREAM_50_LITE_BYTEPLUS],
+    [AI_ADAPTER_TYPES.FAL, AI_MODELS.SEEDREAM_50_PRO],
+  ])('keeps the transparent background off %s %s', (adapterType, modelId) => {
+    const config = getCapabilityConfig(adapterType, modelId)
+    expect(config.capabilities).not.toContain('background')
+    expect(config.backgroundOptions).toBeUndefined()
+  })
+
   it('every AI_ADAPTER_TYPES entry has a capabilities config', () => {
     for (const adapterType of Object.values(AI_ADAPTER_TYPES)) {
       const config = ADAPTER_CAPABILITIES[adapterType]

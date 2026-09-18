@@ -5550,10 +5550,21 @@ async function generateHuggingFaceImage(
  * https://www.volcengine.com/docs/82379/1541523
  */
 function volcEngineMaxReferenceImages(externalModelId: string): number {
-  return /seedream-5-0-pro/.test(externalModelId) ? 10 : 14
+  return isVolcEngineSeedream50Pro(externalModelId) ? 10 : 14
 }
 
-async function generateVolcEngineImage(
+/**
+ * `background` (transparent output) and `layer_decomposition` are both listed
+ * under "模型支持: Seedream 5.0 pro" only — Lite / 4.5 / 4.0 reject them.
+ * Matches both stations' ids: 火山 `doubao-seedream-5-0-pro-*` and BytePlus
+ * `dola-seedream-5-0-pro-*`.
+ * https://www.volcengine.com/docs/82379/1541523
+ */
+function isVolcEngineSeedream50Pro(externalModelId: string): boolean {
+  return /seedream-5-0-pro/.test(externalModelId)
+}
+
+export async function generateVolcEngineImage(
   env: ExecutionEnv,
   context: WorkerImageRunContext,
   apiKey: string,
@@ -5591,6 +5602,27 @@ async function generateVolcEngineImage(
   }
   const guidanceScale = readNumberField(advancedParams, 'guidanceScale')
   if (guidanceScale != null) body.guidance_scale = guidanceScale
+
+  // `background: "transparent"` is Seedream 5.0 pro only, and the doc pins
+  // three preconditions: image-to-image only, exactly one input image, and an
+  // input that actually carries an alpha channel. We can check the first two
+  // here; the third is the provider's to reject. Failing either of ours means
+  // the field is simply not sent (an opaque image beats a 400), while the app's
+  // validation layer turns the same situation into a readable error up front.
+  //
+  // Transparent output defaults to png AND the doc says pairing it with
+  // `output_format: "jpeg"` is an error, so pin png explicitly rather than
+  // relying on a default that a future body change could stomp.
+  // https://www.volcengine.com/docs/82379/1541523
+  const background = readStringField(advancedParams, 'background')
+  if (
+    background === 'transparent' &&
+    isVolcEngineSeedream50Pro(context.providerInput.externalModelId) &&
+    getImageReferenceInputs(context).length === 1
+  ) {
+    body.background = 'transparent'
+    body.output_format = 'png'
+  }
 
   // 火山 Ark (cn-beijing) and BytePlus ModelArk (ap-southeast) expose the
   // identical /images/generations contract, so one function serves both —

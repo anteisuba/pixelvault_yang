@@ -126,3 +126,5 @@ DesignD3Entry.dc.html
 DesignD4Ask.dc.html
 --artboard
 DesignD7Ask.dc.html
+--artboard
+DesignD7Map.dc.html

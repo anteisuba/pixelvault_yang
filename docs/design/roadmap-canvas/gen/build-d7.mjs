@@ -25,6 +25,15 @@ const STYLE = `
   .mock { background:${WORKBENCH}; border-radius:10px; padding:12px; min-height:130px; position:relative; overflow:hidden }
   .rec-tag { ${MONO} font-size:10px; letter-spacing:.06em; text-transform:uppercase; color:#fff; background:${FG}; border-radius:999px; padding:2px 8px; display:inline-block; margin-left:8px; vertical-align:middle }
   .pros { font-size:12px; color:#404040; line-height:1.55 }
+  .tree { display:flex; align-items:center }
+  .kids { display:flex; flex-direction:column; gap:10px; position:relative; padding-left:32px }
+  .kids::before { content:''; position:absolute; left:0; top:0; bottom:0; border-left:1.5px solid #d4d4d4 }
+  .br { display:flex; align-items:center; position:relative }
+  .br::before { content:''; position:absolute; left:-33px; top:50%; width:33px; border-top:1.5px solid #d4d4d4; z-index:1 }
+  .br:first-child::after, .br:last-child::after { content:''; position:absolute; left:-34px; width:5px; background:#fff; z-index:0 }
+  .br:first-child::after { top:0; height:50% } .br:last-child::after { top:50%; height:50% } .br:only-child::after { top:0; height:100% }
+  .tree > .br::before, .tree > .br::after { display:none }
+  table.op { border-collapse:collapse; font-size:12.5px; margin-top:12px } table.op th, table.op td { border:1px solid ${BORDER}; padding:7px 10px; text-align:left; vertical-align:top } table.op th { background:${MUTEDBG}; font-weight:600; font-size:12px }
 `
 const page = (title, body) => `<!doctype html>
 <html><head><meta charset="utf-8"><title>${esc(title)}</title><script src="./support.js"></script></head>
@@ -71,6 +80,81 @@ const q5 = q(5, '这一轮的范围：LoRA 与配音间进不进', 'E7 的清单
   opt('C', '只做工作台 + 画布，LoRA / 配音间连壳也不挂', '两处保持现状零散入口。', `<div style="display:flex;gap:6px;font-size:10px">${['工作台', '画布'].map((t) => `<div style="flex:1;padding:8px 6px;border-radius:8px;background:#fff;border:1px solid ${FG};text-align:center">${t}</div>`).join('')}${['LoRA', '配音间'].map((t) => `<div style="flex:1;padding:8px 6px;border-radius:8px;background:${MUTEDBG};border:1px dashed ${BORDER};text-align:center;color:${MUTED}">${t} · 无</div>`).join('')}</div>`, ['范围最小', '「一张脸」只有两张；LoRA 助手是你手绘里明确画了的']),
 ])
 
-const ASK = header('PixelVault · D7 · ① 反问 · 2026-09-18', '助手 · 一张脸 + 剧本节点 + op 回执 + 范围 · 五题', 'owner 2026-09-18：UI 先放一放，助手优先。已定不再问：Operator 唯一引擎 · 五动词 · 卡片五类 · 每轮结账 · 三档人设 · 记忆总览进 /settings（D3）· 手机半屏 Sheet · 「改」与「请求生成」按宿主 op 表重做、免费可撤销自动落、花钱才确认（第 6 页 DesignAssistant）。剩下五个要你拍的：dock 形态 · 收起态 · 剧本节点形态 · 改动回执 · 本轮范围。加黑边的是建议；答完出 ② 思维导图（含 21 op 表 spec 的骨架）。') + q1 + q2 + q3 + q4 + q5
+// ─── D7 mind map + op 表骨架 ───
+const accent = (h, l = 0.45, c = 0.11) => `oklch(${l} ${c} ${h})`
+const tint = (h) => `oklch(0.965 0.022 ${h})`, tintBorder = (h) => `oklch(0.88 0.05 ${h})`, tintText = (h) => `oklch(0.38 0.11 ${h})`
+const mdot = (c) => `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:${c};margin-right:8px;flex:none;vertical-align:1px"></span>`
+function node(n, hue) {
+  if (n.k === 'root') return `<div style="background:${accent(hue)};color:#fff;font-size:22px;font-weight:600;padding:14px 22px;border-radius:12px;white-space:nowrap;flex:none">${esc(n.t)}</div>`
+  if (n.k === 'cat') return `<div style="background:${tint(hue)};color:${tintText(hue)};border:1px solid ${tintBorder(hue)};font-size:14px;font-weight:600;padding:8px 14px;border-radius:8px;white-space:nowrap;flex:none">${esc(n.t)}</div>`
+  if (n.k === 'sub') return `<div style="background:#fff;border:1px solid ${BORDER};font-size:13px;font-weight:500;line-height:1.45;padding:7px 12px;border-radius:8px;max-width:240px;flex:none">${esc(n.t)}</div>`
+  const pre = n.s === 'gap' ? mdot(RED) : n.s === 'open' ? mdot(AMBER) : ''
+  const border = n.s === 'open' ? `border:1px dashed ${AMBER}99;background:#fff;` : `background:#f5f5f5;`
+  return `<div style="display:flex;align-items:baseline;${border}font-size:13px;line-height:1.5;padding:6px 10px;border-radius:6px;max-width:${n.w ?? 520}px;flex:none">${pre}<span>${esc(n.t)}</span></div>`
+}
+const branch = (n, hue) => `<div class="br">${node(n, hue)}${n.c?.length ? `<div class="kids">${n.c.map((c) => branch(c, hue)).join('')}</div>` : ''}</div>`
+const tree = (root, hue) => `<div class="tree" style="margin-top:20px">${branch(root, hue)}</div>`
 
-for (const [name, html] of [['DesignD7Ask.dc.html', page('D7 ① 反问', ASK)]]) { writeFileSync(join(OUT, name), html); console.log('wrote', name) }
+const D7 = {
+  k: 'root', t: 'D7 · 一张脸 → 改得见 → 记得住',
+  c: [
+    { k: 'cat', t: '目标', c: [
+      { k: 'leaf', t: '四个宿主（工作台 · 画布 · LoRA · 配音间）打开的是同一个助手：同一 dock、同一五动词、同一卡片、同一结账；换宿主只换 op 表' },
+      { k: 'leaf', t: '「改」落在看得见的对象上：字段闪一次 + 一行回执 + 整组撤销；只有花钱 / 不可逆才出确认卡' },
+      { k: 'leaf', t: '剧本从会话里的一段话变成画布上的一张卡，确认后投影成镜头；角色由卡片总线装填' },
+    ] },
+    { k: 'cat', t: '决策（① 已答 09-19）', c: [
+      { k: 'leaf', t: 'Q1 = A 四宿主统一到工作台 v2 的右侧 dock（可拖宽 420–860 · 可收成按钮）；画布 StudioNodeAssistantDock 那套删，内容层随之统一' },
+      { k: 'leaf', t: 'Q2 = C 收起态只有一颗按钮 + 数字角标（待确认 + 未读完成数）；不露最近一条。⚠ 与 D3「侧栏不挂红点」不冲突：这是 dock 自己的角标，且待确认里含钱闸，进面板才看到金额' },
+      { k: 'leaf', t: 'Q3 = A 一张「剧本」文本节点 → 确认投影成一排镜头节点并连线；剧本卡留作源，改剧本可重投影只新增 / 标记变化的镜' },
+      { k: 'leaf', t: 'Q4 = A 免费可撤销 op 自动落：字段 outline 闪一次（320ms）+ 面板一行「已改 N 项 · 撤销」整组回滚；花钱 op 仍出生成确认卡' },
+      { k: 'leaf', t: 'Q5 = A 壳四处都挂（都有 看 / 查 / 问）；「改」的 op 表本轮只写工作台 + 画布；LoRA / 配音间专属 op 随 34 / E10' },
+    ] },
+    { k: 'cat', t: '一张脸（22）', c: [
+      { k: 'sub', t: '壳', c: [ { k: 'leaf', t: 'StudioAssistantDock 成为唯一壳：right-6 top-6 bottom-6 · 可拖宽 · 收成 44px 按钮 + 角标；宿主只传 domain 与 op 表；手机半屏 Sheet（#20）' }, { k: 'leaf', s: 'gap', t: '删 StudioNodeAssistantDock · CanvasAssistantHistory · CanvasAssistantRouteSelector · CanvasAssistantReferencePicker（功能并入 v2 的会话历史 · LLM chip · @ 选择器）' } ] },
+      { k: 'sub', t: '内容层', c: [ { k: 'leaf', t: '五动词 · 五类卡 · 每轮结账 · 上下文卡提议 · @ / + 菜单 全部沿用 v2；画布多的只是 op 表里的节点 op 与「画布快照」进系统提示（分层：当前镜 + 相邻两镜完整）' }, { k: 'leaf', t: 'LoRA / 配音间：同一壳，五动词里「改」暂为空集 → 面板不显示「改」胶囊；看 / 查 / 问可用（挂载推荐卡 plan_lora_pick 归「问」继续用）' } ] },
+      { k: 'sub', t: '角标', c: [ { k: 'leaf', t: '数字 = 待确认卡数 + 未读结果卡数；打开面板清零；无事时按钮无角标' } ] },
+    ] },
+    { k: 'cat', t: 'op 表（21 · spec 骨架）', c: [
+      { k: 'sub', t: '形状', c: [ { k: 'leaf', t: '每个宿主一张表：op id · 参数 schema（Zod）· 逆操作 inverse · 费用档（free / paid）· 可逆否 · 校验（客户端）· 落点（表单字段 / 节点 / 素材）；模型只见 apply(action=opId, args)，与 v2 §2.2 一致' }, { k: 'leaf', t: '免费 + 可逆 → 自动落并进「已改 N 项」；paid 或不可逆 → 确认卡（生成 / 删除 / 覆盖手写提示词走三选）' } ] },
+      { k: 'sub', t: '工作台表', c: [ { k: 'leaf', t: 'set_prompt · set_negative · set_model（含渠道）· set_specs（比例 / 清晰度 / 时长）· set_count · mount_reference / unmount · mount_lora / unmount / set_lora_weight · set_capability（11 的专属 chip 值）· set_sound / mount_audio_reference（视频）；prime_generate / request_generation 归「请求生成」' } ] },
+      { k: 'sub', t: '画布表', c: [ { k: 'leaf', t: '现有 NODE_ASSISTANT_AUTO_APPLY_OPS 8 条原样：add_node · connect · set_prompt · set_model · set_params · attach_asset · rename · move；plan_rerun_downstream · generate · delete 走确认' }, { k: 'leaf', t: '新增 project_script（剧本投影，见 24）· attach_card（卡片总线装填角色槽，35）' } ] },
+      { k: 'sub', t: '回执', c: [ { k: 'leaf', t: '一轮内所有自动落的 op 合成一行「已改 N 项 · 撤销」（消息卡里的一行摘要，§2.4）；撤销按逆序执行 inverse；结账时进「决定」' } ] },
+    ] },
+    { k: 'cat', t: '剧本节点（24）', c: [
+      { k: 'sub', t: '卡', c: [ { k: 'leaf', t: '文本类节点的一个子型 kind=script：Markdown 大纲 + 分镜列表（镜号 · 一句话 · 时长 · 角色 @）；可手编；助手 set_prompt 改它' } ] },
+      { k: 'sub', t: '投影', c: [ { k: 'leaf', t: '「确认 · 投影 N 镜」= op project_script：按分镜生成视频节点横排时间轴、从剧本卡连线到每镜文本槽；角色 @ 由卡片总线装填参考槽 + 音色（35）' }, { k: 'leaf', t: '重投影：diff 分镜列表，新增镜追加、改文案的镜标「已变」、删掉的镜不删节点只标灰' } ] },
+      { k: 'sub', t: '依赖', c: [ { k: 'leaf', s: 'open', t: '35 卡片总线（referenceSlots{role,url,cardId}）未落：投影时的角色装填先留接口，35 落地后接真' } ] },
+    ] },
+    { k: 'cat', t: '记忆 / 搜索 / 上下文（56 · 40）', c: [
+      { k: 'leaf', t: '记忆总览 UI 已在 /settings/assistant（13）；56 落数据形状后接真：记忆即时写 · 来源可溯 · 敏感类目不记 · 隐身' },
+      { k: 'leaf', t: '联网搜索重设计（便签 15）与页面分析动作（便签 16）归「查」组，不改脸' },
+      { k: 'leaf', t: '40 反推 / 上下文卡：上下文卡提议 → 确认已有（#14）；反推提示词作为「看」的一支' },
+    ] },
+    { k: 'cat', t: '④ UI 画板要出的', c: [
+      { k: 'leaf', t: 'dock 三态（展开 · 收起按钮 · 收起 + 角标）× 四宿主各一帧（同一壳不同底）' },
+      { k: 'leaf', t: '「改」回执：字段闪 + 一行回执 + 撤销后的状态；花钱确认卡对照' },
+      { k: 'leaf', t: '剧本节点：卡 · 投影后的时间轴 · 重投影 diff 标记' },
+      { k: 'leaf', t: 'LoRA / 配音间壳：只有看查问时的胶囊行与空态' },
+    ] },
+  ],
+}
+const OPTABLE = `<div class="lab" style="margin-top:28px">21 · op 表 spec 骨架（工作台 · 画布）</div><table class="op"><thead><tr><th>op</th><th>宿主</th><th>参数（要点）</th><th>inverse</th><th>费用 / 可逆</th><th>落点</th></tr></thead><tbody>${[
+  ['set_prompt', '工作台 · 画布', 'text · target(prompt|negative)', '旧文本', 'free · 可逆（覆盖手写走三选）', '提示词框 / 节点文本槽'],
+  ['set_model', '工作台 · 画布', 'modelId · channelId?', '旧 model+channel', 'free · 可逆', '模型 chip（10）'],
+  ['set_specs', '工作台 · 画布', 'aspect? · resolution? · duration?', '旧三值', 'free · 可逆（按 capabilities 吸附）', '规格 chip（12）'],
+  ['set_count', '工作台', 'n', '旧 n', 'free · 可逆', '张数'],
+  ['set_capability', '工作台', 'key · value（11 派生的专属 chip）', '旧值', 'free · 可逆', '专属 chip 行'],
+  ['mount_reference / unmount', '工作台 · 画布', 'assetId · slot(role)', '反向', 'free · 可逆', '参考轨 / 参考槽'],
+  ['mount_lora / set_lora_weight', '工作台', 'loraId · weight', '反向 / 旧权重', 'free · 可逆', 'LoRA chip'],
+  ['add_node · connect · rename · move', '画布', '现有 8 条 op 原样', '删节点 / 断线 / 旧名 / 旧位', 'free · 可逆', '画布'],
+  ['attach_card', '画布', 'cardId · nodeId · role', 'detach', 'free · 可逆（依赖 35）', '角色槽 + @名字 + 音色'],
+  ['project_script', '画布', 'scriptNodeId', '撤回本次新增的镜', 'free · 可逆', '时间轴镜头节点'],
+  ['generate · plan_rerun_downstream', '工作台 · 画布', '—（参数从快照现取）', '—', 'paid · 确认卡', '生成'],
+  ['delete', '画布', 'nodeId', '—', '不可逆 · 确认', '画布'],
+].map((r) => `<tr>${r.map((c, i) => `<td${i === 0 ? ' style="font-family:ui-monospace,monospace;font-size:12px"' : ''}>${esc(c)}</td>`).join('')}</tr>`).join('')}</tbody></table><div class="pros" style="margin-top:8px;color:${MUTED}">LoRA（挂载 / 参数）与配音间（台词 / 语气）两张表随 34 / E10 再写；本表是 spec 的骨架，字段级由 21 的 spec 文档定。</div>`
+const MAP = header('PixelVault · D7 · ② 思维导图 · 2026-09-19', 'D7 决策树 · Q1–Q5 已定 + 21 op 表骨架', '① 五题：Q1 A 统一 dock · Q2 C 按钮 + 角标 · Q3 A 剧本卡投影 · Q4 A 闪 + 一行回执 · Q5 A 壳四处 op 先两处。这棵树 + 下面的 op 表骨架是 ③ 要你确认的；没有红点或批注就进 ④。黄虚线 = 依赖别的条目。') + tree(D7, 300) + OPTABLE
+
+const ASK = header('PixelVault · D7 · ① 反问 · 2026-09-18', '助手 · 一张脸 + 剧本节点 + op 回执 + 范围 · 五题', 'owner 2026-09-18：UI 先放一放，助手优先。已定不再问：Operator 唯一引擎 · 五动词 · 卡片五类 · 每轮结账 · 三档人设 · 记忆总览进 /settings（D3）· 手机半屏 Sheet · 「改」与「请求生成」按宿主 op 表重做、免费可撤销自动落、花钱才确认（第 6 页 DesignAssistant）。owner 已答（09-19）：Q1 A · Q2 C · Q3 A · Q4 A · Q5 A。② 思维导图与 21 op 表骨架在右侧。') + q1 + q2 + q3 + q4 + q5
+
+for (const [name, html] of [['DesignD7Ask.dc.html', page('D7 ① 反问', ASK)], ['DesignD7Map.dc.html', page('D7 ② 思维导图', MAP)]]) { writeFileSync(join(OUT, name), html); console.log('wrote', name) }

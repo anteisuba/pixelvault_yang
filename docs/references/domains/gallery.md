@@ -46,4 +46,9 @@ filter 维度：search / model / sort / outputType / timeRange / liked / publish
 ## Last Verified
 
 - 2026-09-03 · 新增「移动端等级」节（owner 拍板，配方见 ui-defaults.md §6）。
-2026-07-19 · 当前代码仍是公开 Generation feed/详情；owner 已拍板公共配方发现从 Prompts 合并到 Gallery，尚未实施。Prompt redaction 与公开路由边界仍是安全红线。
+  2026-07-19 · 当前代码仍是公开 Generation feed/详情；owner 已拍板公共配方发现从 Prompts 合并到 Gallery，尚未实施。Prompt redaction 与公开路由边界仍是安全红线。
+
+## 图层拆分结果面（2026-09-18，进度表 62）
+
+- Seedream 5.0 Pro（火山 / BytePlus）开 `layer_decomposition` 的产物：结果卡右上角「底图 + N 图层」角标（`ImageCardMedia`，左上仍是参考图角标）；详情弹窗侧栏 `GenerationLayerStrip` 逐层列出 name / description，各自可下载，缩略图放在 `.studio-alpha-checkerboard` 棋盘格底上。
+- 数据：底图 = `Generation` 本身；图层 = `GenerationLayer`（`zIndex` · `boundingBox` 0–1000 归一化整数 `[left, top, right, bottom]`），`LIST_GENERATION_SELECT` 带 `layers`。只做「能看、能下载 / 存素材」，不做图层编辑或叠放预览。

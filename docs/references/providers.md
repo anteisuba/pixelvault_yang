@@ -219,4 +219,7 @@ adapter / Worker 抛错
 - **Gemini 3 Pro Image**：对话式改图 = 会话历史（`contents`），多图融合 = 多个 image part，角色 / 物体槽只是条数上限（≤5 角色 / ≤6 物体）且无标注机制——三者都**不是请求字段**，不进能力表。
 - **fal `fal-ai/flux-2-pro{,/edit}`**：入参只有 `prompt · image_size · image_urls · seed · output_format · safety_tolerance · enable_safety_checker`；`@image1` 与 JSON prompt 都是提示词写法，**没有「图层」**。
 - **Seedream 5.0 Pro（火山 Ark，文档 2026-09-09）**：支持 `layer_decomposition`（1 底图 + ≤16 张带 alpha 的 PNG 图层，任一图层失败整体报错）、`background: transparent | opaque`（仅 5.0 Pro · 图生图 · 单张透明通道输入 · 输出 png）、交互编辑（bbox）；**不支持**组图、联网搜索、流式输出。组图 `sequential_image_generation` + `max_images`（1–15，参考数 + 生成数 ≤15）只在 **5.0 Lite / 4.5 / 4.0**；`tools[].type = web_search` 只在 **5.0 Lite**。fal 侧 `bytedance/seedream/v5/pro/*` 无以上任一字段。
-- 未接的两颗真实参数：`layer_decomposition` 需要多产物落库（现图片管线取 `data[0]` 单产物），`background` 可单产物直接接——均待 owner 拍板（进度表 62 · 63）。
+- 两颗真实参数已接（2026-09-18，进度表 62 · 63，owner 拍板）：能力表 override 只挂两条原生 5.0 Pro model id（火山 / BytePlus），校验层做前置，worker 不满足前置就不发字段。
+  - `background: transparent`：仅图生图 · 只支持 1 张带透明通道的输入 · 输出默认 png 且**配 `output_format: jpeg` 会报错** → worker 把输出钉成 png。
+  - `layer_decomposition: true`：仅单张待拆分图（多张报错）· 开了以后 `image` 必选 · 任一图层失败整体报错。响应 `data[]` 每项 `url / size / output_format` + `z_index`（底图固定 0，图层从 1 递增）/ `name` / `description` / `bounding_box`；`bounding_box.normalized` 是 **0–1000 整数**，两个数组都是 `[left, top, right, bottom]`；`output_format` 只控制底图，图层恒 png；此场景 `size` 默认 `auto`（可选 1K / 1.5K / 2K / auto），底图尺寸必须读响应。文档未写两颗互斥，按各自前置独立判。
+  - 落库形状：底图 = `Generation` 本身；图层 = `GenerationLayer`（z_index ≥ 1），与 Generation 同事务写入；worker 先把每个图层传 R2（Ark URL 24 小时失效）再回调，回调契约加可选 `layers[]`（≤16）；`outputImageCount` = 底图 + 图层数，计费 `requestCount` 不变。

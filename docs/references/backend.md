@@ -32,6 +32,14 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 - **现状混合**：工厂路由与直接 `auth()` 路由并存（现状事实；统一风格属架构决定，改前问 owner）。
 - 新增 route 全链：`route.ts` → endpoint 常量进 `constants/config.ts` → 客户端包装进 `lib/api-client.ts`（组件不 fetch）→ 同目录 `.test.ts` 五段（401→400→mock→success→500）。
 
+### 本月用量按模型（2026-09-18）
+
+`GET /api/usage/by-model` —— `/settings/usage` 那张表的数据源，标准三件事（`createApiGetRoute` → 登录 → 空 Zod query → service）。
+
+- service `getUserMonthlyUsageByModel` 走 `apiUsageLedger.groupBy(['adapterType','modelId'])`，窗口是 **UTC 自然月**，与 runner 月额度共用同一个 `startOfMonthUTC()`：两处说的必须是同一个「本月」。
+- **只回次数，不回钱**。单价住 `constants/models/unit-prices.ts`（客户端可读），花费由页面按「次数 × 单价」累加。服务端算一遍就等于给单价开第二个家。
+- 按**模型**而不是按 provider 分组：不然没法用逐模型单价累加。没有单价的模型照样回一行，页面上那一格留空。
+
 ## 认证与边界（现状，改权限策略先问 owner）
 
 - Provider：`ClerkProvider` 按 locale 配置（localization / sign-in URL / redirect origins）。

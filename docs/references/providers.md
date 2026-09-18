@@ -9,6 +9,8 @@
 3. Provider 返回的临时 URL 只是 ingestion source；成功作品必须进 R2，R2 storageKey 才是平台内媒体事实源。
 4. 生成执行目标是 **worker-only**：Next.js 只做 auth / validation / route+key resolution / job create / signed dispatch / callback finalization；provider submit / poll / 结果下载 / R2 上传在 Cloudflare Worker。
 5. 官方文档打不开、要登录、只渲染 shell 时，**不能把字段写成已确认事实**。
+6. **缺 key 不禁用 UI**（CLAUDE.md Hard Rule 8）——2026-09-18 全站收口完成。3D 工作台是最后两处「死控件 + 解释」：模型卡下的缺 key 警告横幅、以及被禁用的多视角按钮。两者现在与生成键同形——仍可点，点了开对应 provider 的 `QuickSetupDialog`；多视角跑在自己的模型上，所以弹它自己那一个，不是 3D 那一个。四条横幅文案随之删除。
+7. **「通盘管理 key」全站只有 `/settings/keys` 一个去处**（见 `pages/settings.md`）。旧的两个 key 抽屉（侧栏 / 画布）与它们共用的 `ApiKeyManager` 已整删。就地补录仍由 `QuickSetupDialog` 负责，两者不重叠。
 
 ## Adapter 架构（2026-08-24 复核：registry 实到 13 个）
 

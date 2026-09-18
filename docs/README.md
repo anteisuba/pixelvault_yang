@@ -24,6 +24,8 @@ docs/
 
 UI 设计文档按职责读取：`brand-dna.md` 管全局不变量与设计权力边界，`references/frontend.md` 管实现事实与共享行为，`references/domains/` 管业务域责任，`references/pages/` 只保存 owner 已确认的页面方向与施工契约。
 
+`references/pages/` 里，账户级配置只有一处：`settings.md`（`/settings` 四分区 + **全站唯一**的 key 管理入口；旧的侧栏与画布两个 key 抽屉已删）。
+
 `references/pages/` 里两处**一个主题只有一份现行基准**，别读错那一份：
 
 - 助手 → `assistant-shell.md`（**现行施工基准**，2026-09-06 方向 C；旧方向 A 的决策逐条状态在它 §16「历史决策表」）

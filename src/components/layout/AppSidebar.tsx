@@ -1,40 +1,19 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { SignedIn, SignedOut, useClerk, useUser } from '@clerk/nextjs'
-import Image from 'next/image'
-import dynamic from 'next/dynamic'
-import { Coins, KeyRound, LogOut, User, UserCircle } from '@/components/icons'
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { useCallback, useRef } from 'react'
+import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
+import { Settings, UserCircle } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
-import { motionTransition } from '@/constants/motion'
 import {
   SHELL_NAV_SECTIONS,
   isShellNavItemActive,
   type ShellNavItem,
 } from '@/constants/navigation'
-import { ROUTES, creatorProfilePath } from '@/constants/routes'
-import { Link, usePathname, useRouter } from '@/i18n/navigation'
-import { LocaleSwitcher } from '@/components/layout/LocaleSwitcher'
-
-// Lazy-load ApiKeyManager so its bundle (forms + tables) stays out of the
-// main-layout chunk that loads on every page in the (main) route group.
-// The Sheet only mounts content when opened from the user menu.
-const ApiKeyManager = dynamic(
-  () =>
-    import('@/components/business/ApiKeyManager').then((m) => m.ApiKeyManager),
-  { ssr: false },
-)
+import { ROUTES, creatorProfilePath, settingsPath } from '@/constants/routes'
+import { Link, usePathname } from '@/i18n/navigation'
+import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import { Button } from '@/components/ui/button'
-import { NumberTicker } from '@/components/ui/number-ticker'
-import { Spinner } from '@/components/ui/spinner'
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetTitle,
-} from '@/components/ui/sheet'
 import {
   Sidebar,
   SidebarContent,
@@ -59,7 +38,6 @@ import {
 import { useHasHydrated } from '@/hooks/use-has-hydrated'
 import { useNavIndicator } from '@/hooks/use-nav-indicator'
 import { useMyProfile } from '@/hooks/use-my-profile'
-import { useUsageSummary } from '@/hooks/use-usage-summary'
 import { cn } from '@/lib/utils'
 
 const SIDEBAR_FOOTER_CLASS =
@@ -71,7 +49,7 @@ const SIDEBAR_FOOTER_CLASS =
  * 形态「分段浮岛」（2026-08-18 owner 拍板）：壳底浅灰，轨坐在灰底上，主区是
  * 一张左缘浮起的白卡。轨宽 144 展开 / 44 收起。
  *
- * 结构：品牌 + 折叠钮 · 去处段 · 工具段（末尾折叠「敬请期待」）· 账户一行。
+ * 结构：品牌 + 头像 + 折叠钮 · 去处段 · 工具段 · 最底一行「设置」。
  * 条目清单**只在** `src/constants/navigation.ts`，任何断点都从那里取。
  *
  * ⚠ 三条别退回去的东西（都是改版前真机量出来的问题）：
@@ -134,9 +112,75 @@ function AppSidebarHeader() {
             {t('brand')}
           </span>
         </Link>
-        <SidebarTrigger className="size-11 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:size-8" />
+        <div
+          className={cn('flex items-center gap-1', isCollapsed && 'flex-col')}
+        >
+          <SidebarHeaderAvatar isCollapsed={isCollapsed} />
+          <SidebarTrigger className="size-11 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:size-8" />
+        </div>
       </div>
     </SidebarHeader>
+  )
+}
+
+/**
+ * 顶端那颗头像（D3 ④）。**点击直接跳个人主页，不弹菜单** —— 旧的底部头像菜单
+ * （查看主页 / API 密钥 / 退出登录）已整条删掉，那三件事分别落在这颗头像、
+ * `/settings/keys` 和 `/settings` 导航底部。
+ *
+ * ⛔ 不挂红点 / 角标 / key 数 / 额度：失效 key 只在 `/settings/keys` 里看到。
+ *
+ * 用户名要等 `useMyProfile` 回来才知道，所以未就绪时渲染一颗**不可点**的占位，
+ * 不给死链接。
+ */
+function SidebarHeaderAvatar({ isCollapsed }: { isCollapsed: boolean }) {
+  const t = useTranslations('Navbar')
+  const { isLoaded } = useUser()
+  const hasHydrated = useHasHydrated()
+  const { profile } = useMyProfile()
+
+  if (!hasHydrated || !isLoaded) {
+    return <SidebarAvatarPlaceholder />
+  }
+
+  return (
+    <SignedIn>
+      {profile?.username ? (
+        <TooltipProvider delayDuration={300}>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Link
+                href={creatorProfilePath(profile.username)}
+                aria-label={t('viewProfile')}
+                className="flex size-8 shrink-0 items-center justify-center rounded-full transition-colors duration-(--duration-fast) ease-standard hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+              >
+                <ProfileAvatar
+                  avatarUrl={profile.avatarUrl}
+                  size={28}
+                  className="size-7"
+                />
+              </Link>
+            </TooltipTrigger>
+            {isCollapsed ? (
+              <TooltipContent side="right">{t('viewProfile')}</TooltipContent>
+            ) : null}
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        <SidebarAvatarPlaceholder />
+      )}
+    </SignedIn>
+  )
+}
+
+function SidebarAvatarPlaceholder() {
+  return (
+    <span
+      aria-hidden
+      className="flex size-8 shrink-0 items-center justify-center rounded-full"
+    >
+      <span className="size-7 rounded-full bg-sidebar-accent" />
+    </span>
   )
 }
 
@@ -221,26 +265,47 @@ function AppSidebarContent() {
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Footer — credit badge / cards / avatar / locale
+// Footer — 一行「设置」
 // ──────────────────────────────────────────────────────────────────────
 
+/**
+ * 最底一行「设置」（D3 ④ 入口收口）。齿轮 + 文字，与导航项同高同字号同 hover，
+ * 上有 1px 分隔线；折叠只剩齿轮，tooltip「设置」。
+ *
+ * ⛔ 这里不再有积分读数、也不再有头像菜单 —— 额度只在 `/settings/usage` 看，
+ * 失效 key 只在 `/settings/keys` 看，退出登录在 `/settings` 导航底部。
+ */
 function AppSidebarFooter() {
   const t = useTranslations('Navbar')
   const { isLoaded } = useUser()
   const hasHydrated = useHasHydrated()
+  const pathname = usePathname()
 
-  // 账户区收成**一行**（app-shell.md §8）。改版前是四行、竖向 167.5px（占 18%），
-  // 而它们是读数不是去处，不该和导航抢层级。
-  // 免费额度 → 头像上的一个点；语言与显示名 → 头像菜单里。
   return (
     <SidebarFooter className={SIDEBAR_FOOTER_CLASS}>
       {hasHydrated && isLoaded ? (
         <>
           <SignedIn>
-            <div className="flex items-center justify-between gap-1 group-data-[collapsible=icon]:justify-center">
-              <SidebarFooterCreditBadge />
-              <SidebarFooterUserMenu />
-            </div>
+            <SidebarMenu className="border-t border-sidebar-border pt-1">
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  tooltip={t('settings')}
+                  className="hover:bg-sidebar-accent"
+                >
+                  <Link
+                    href={settingsPath(ROUTES.SETTINGS, pathname)}
+                    aria-label={t('settings')}
+                    /* 引导第 4 步的锚点。旧的 key 抽屉触发器删了以后落在这里
+                       —— ⛔ 别留死锚点（`OnboardingTooltip` 找不到就只能居中）。 */
+                    data-onboarding="apiKey"
+                  >
+                    <Settings />
+                    <span>{t('settings')}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            </SidebarMenu>
           </SignedIn>
 
           <SignedOut>
@@ -268,212 +333,9 @@ function AppSidebarFooter() {
 
 function SidebarFooterLoadingState() {
   return (
-    <div className="flex items-center justify-between gap-1 group-data-[collapsible=icon]:justify-center">
-      <div className="h-7 w-16 rounded-md bg-sidebar-accent group-data-[collapsible=icon]:hidden" />
-      <div className="size-7 rounded-full bg-sidebar-accent" />
-    </div>
-  )
-}
-
-/** 积分读数。改版前是个带边框的盒子，和导航项抢重量 —— 现在只剩图标 + 数字。 */
-function SidebarFooterCreditBadge() {
-  const { summary, isLoading } = useUsageSummary()
-  const t = useTranslations('Navbar')
-
-  return (
-    <TooltipProvider delayDuration={300}>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div className="flex min-w-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-sidebar-accent-foreground group-data-[collapsible=icon]:hidden">
-            <Coins className="size-3.5 shrink-0 text-sidebar-primary" />
-            <span className="truncate font-semibold tabular-nums">
-              {isLoading ? (
-                t('requestsLoading')
-              ) : (
-                <NumberTicker
-                  value={summary.totalRequests}
-                  className="text-xs font-semibold text-sidebar-accent-foreground"
-                />
-              )}
-            </span>
-          </div>
-        </TooltipTrigger>
-        <TooltipContent side="right">
-          <p>{t('requestsTooltip')}</p>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
-  )
-}
-
-function SidebarFooterUserMenu() {
-  const { profile: myProfile, refresh: refreshMyProfile } = useMyProfile()
-  const t = useTranslations('Navbar')
-  const tApiKeys = useTranslations('StudioApiKeys')
-  const pathname = usePathname()
-  const { signOut } = useClerk()
-  const router = useRouter()
-  const { isMobile, state } = useSidebar()
-  const reducedMotion = useReducedMotion()
-  const isCollapsed = state === 'collapsed'
-  const isCompact = isCollapsed || isMobile
-
-  const accountLabel = myProfile?.displayName ?? t('viewProfile')
-
-  const [menuOpen, setMenuOpen] = useState(false)
-  const [menuPathname, setMenuPathname] = useState<string | null>(null)
-  const [apiKeysOpen, setApiKeysOpen] = useState(false)
-  const [isProfileNavigationPending, setIsProfileNavigationPending] =
-    useState(false)
-  const menuRef = useRef<HTMLDivElement>(null)
-  const isMenuOpen = menuOpen && menuPathname === pathname
-
-  useEffect(() => {
-    if (!isMenuOpen) return
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [isMenuOpen])
-
-  const handleViewProfile = useCallback(async () => {
-    setMenuOpen(false)
-    if (myProfile?.username) {
-      router.push(creatorProfilePath(myProfile.username))
-      return
-    }
-
-    setIsProfileNavigationPending(true)
-    try {
-      const nextProfile = await refreshMyProfile()
-      if (nextProfile?.username) {
-        router.push(creatorProfilePath(nextProfile.username))
-      }
-    } finally {
-      setIsProfileNavigationPending(false)
-    }
-  }, [myProfile?.username, refreshMyProfile, router])
-
-  const handleOpenApiKeys = useCallback(() => {
-    setMenuOpen(false)
-    setApiKeysOpen(true)
-  }, [])
-
-  const handleSignOut = useCallback(() => {
-    setMenuOpen(false)
-    signOut({ redirectUrl: ROUTES.HOME })
-  }, [signOut])
-
-  return (
-    <div className="relative" ref={menuRef}>
-      <button
-        type="button"
-        onClick={() => {
-          setMenuPathname(pathname)
-          setMenuOpen((value) => !value)
-        }}
-        className="relative flex size-8 shrink-0 items-center justify-center rounded-full text-sidebar-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-sidebar-accent"
-        aria-label={accountLabel}
-        aria-expanded={isMenuOpen}
-        aria-haspopup="true"
-      >
-        <span className="relative flex size-7 shrink-0 items-center justify-center overflow-hidden rounded-full border border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground">
-          {myProfile?.avatarUrl ? (
-            <Image
-              src={myProfile.avatarUrl}
-              alt=""
-              width={28}
-              height={28}
-              unoptimized
-              className="size-full rounded-full object-cover"
-            />
-          ) : (
-            <UserCircle className="size-4" />
-          )}
-        </span>
-        <span className="sr-only">{accountLabel}</span>
-      </button>
-
-      <AnimatePresence>
-        {isMenuOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: 6, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 6, scale: 0.96 }}
-            transition={motionTransition('fast', reducedMotion)}
-            className={cn(
-              'absolute z-50 rounded-xl border border-sidebar-border/60 bg-sidebar/95 py-1 shadow-lg backdrop-blur-xl',
-              isCompact
-                ? 'bottom-0 left-full ml-2 w-48 origin-bottom-left'
-                : 'bottom-full left-0 mb-2 w-48 origin-bottom-left',
-            )}
-          >
-            {/* 从轨里撤下来的显示名在这里落地。 */}
-            <div className="border-b border-sidebar-border px-3 pb-2 pt-2">
-              <p className="truncate text-sm font-semibold text-sidebar-accent-foreground">
-                {myProfile?.displayName ?? t('viewProfile')}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={handleViewProfile}
-              disabled={isProfileNavigationPending}
-              aria-busy={isProfileNavigationPending}
-              className="flex w-full items-center gap-2.5 whitespace-nowrap px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent disabled:cursor-wait disabled:opacity-70"
-            >
-              {isProfileNavigationPending ? (
-                <Spinner size="md" className="text-sidebar-foreground/70" />
-              ) : (
-                <User className="size-4 text-sidebar-foreground/70" />
-              )}
-              {t('viewProfile')}
-            </button>
-            <button
-              type="button"
-              onClick={handleOpenApiKeys}
-              className="flex w-full items-center gap-2.5 whitespace-nowrap px-3 py-2 text-sm text-sidebar-foreground transition-colors hover:bg-sidebar-accent"
-            >
-              <KeyRound className="size-4 text-sidebar-foreground/70" />
-              {t('apiKeys')}
-            </button>
-            <div className="mx-2 my-1 border-t border-sidebar-border/40" />
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="flex w-full items-center gap-2.5 whitespace-nowrap px-3 py-2 text-sm text-sidebar-foreground/80 transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground"
-            >
-              <LogOut className="size-4" />
-              {t('signOut')}
-            </button>
-            {/* 语言从常驻一行搬进来。⚠ 它在轨里时未选中态只有 3.14:1
-                （app-shell.md §8 记了 18 天没修）；菜单里走的是原语自己的
-                墨阶，不再叠 alpha。 */}
-            <div className="mx-2 my-1 border-t border-sidebar-border" />
-            <div className="px-2 pb-1">
-              <LocaleSwitcher
-                tone="sidebar"
-                size="compact"
-                className="w-full"
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <Sheet open={apiKeysOpen} onOpenChange={setApiKeysOpen}>
-        <SheetContent className="inset-y-2 right-2 h-auto w-[calc(100%-1rem)] gap-0 overflow-hidden rounded-2xl border bg-background/95 p-0 shadow-xl sm:max-w-2xl">
-          <SheetTitle className="sr-only">{tApiKeys('sheetTitle')}</SheetTitle>
-          <SheetDescription className="sr-only">
-            {tApiKeys('sheetDescription')}
-          </SheetDescription>
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-12 sm:px-6">
-            <ApiKeyManager />
-          </div>
-        </SheetContent>
-      </Sheet>
+    <div className="flex h-9 items-center gap-2 border-t border-sidebar-border px-2 pt-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+      <div className="size-4 rounded-sm bg-sidebar-accent" />
+      <div className="h-3 w-12 rounded-sm bg-sidebar-accent group-data-[collapsible=icon]:hidden" />
     </div>
   )
 }

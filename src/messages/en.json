@@ -7246,18 +7246,9 @@
     "send": "Send",
     "stop": "Stop the current work",
     "lightboxLabel": "View full size",
-    "rail": {
-      "idle": "Idle",
-      "working": "Working",
-      "awaiting": "Needs confirming",
-      "error": "Failed",
-      "primed": "Ready",
-      "planning": "Your choice"
-    },
     "mobile": {
       "sheetTitle": "Assistant",
-      "sheetDescription": "Drag the handle up for full screen, or down to close the assistant.",
-      "open": "Open assistant"
+      "sheetDescription": "Drag the handle up for full screen, or down to close the assistant."
     },
     "researchDetails": "Research details",
     "toolGroup": {

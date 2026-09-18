@@ -31,8 +31,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       └── StudioResultFeedback / StudioAudioFeedback / StudioGenerationErrorDialog
         ├── StudioAssistantDock + StudioAssistantFab (studio-shared/chrome/ + studio/ — 旧助手，只剩音频档走它；图片/视频已归 operator)
         ├── StudioOperatorDock (studio/assistant-operator/ — 操作员面板外壳：宽度/收放；图片+视频档)
-        │   ├── StudioOperatorCollapsedCard (收起态 40px 微状态卡：头像 + 名字 / 微状态词 / 三点进度 / 待办角标；v2 §4.3。⛔ StudioOperatorIconRail 整文件已删)
-        │   ├── StudioOperatorMobileFab (手机入口浮标 44px —— 微状态卡的手机对应物，复用同一张 tone 表；**只在 Sheet 收起档渲染**，带微状态药丸)
+        │   ├── StudioOperatorCollapsedButton (收起态 44px 近黑圆按钮：头像字母 + 数字角标（待确认 + 未读结果，打开面板清零）；右 16 / 下 16，手机同一颗只换成下 96。D7 ④ · Q2 = C。⛔ StudioOperatorIconRail · StudioOperatorCollapsedCard · StudioOperatorMobileFab 三个文件都已删)
         │   ├── StudioOperatorMobileSheet (手机半屏可拖 vaul Sheet：三档吸附 0.55 / 1 / 关闭，`modal={false}` 露出上半截工作台，键盘弹起升全屏 —— 装的是下面同一个 Panel 元素)
         │   └── StudioOperatorPanel (同目录 — 面板内容：空态 / 时间线 / 双行输入区)
         │       ├── StudioOperatorHeader (头部一行 56px：会话标题▾（= 历史下拉，新会话在底部）/ 续跑 / 右上两颗 32px 图标：历史 · 设置 / 收起)
@@ -66,12 +65,14 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 
 ⚠ **operator 系对外只有两颗入口**（`assistant-operator/index.ts`）：`StudioOperatorDock`（`StudioWorkspaceUI` 挂）与 `StudioOperatorChangeRail`（`StudioPromptArea.tsx:711` 挂，改动标记长在被改的那一栏）。其余是面板内部件，不从 index 导出。LoRA 工作台也挂这两颗（`studio/lora/LoraWorkbench.tsx:176-177`）。
 ⚠ **卡片已收敛为五类（v2 §3.2，commit #4）**：消息 / 问题 / 确认 / 结果 / 证据 + 系统行，分派表在 `StudioOperatorTimelineRow.tsx`（`STUDIO_OPERATOR_CARD_KINDS`）。⛔ `StudioOperatorSpendConfirmCard` · `StudioOperatorAssetChoiceCard` · `StudioOperatorProgressBand` **三个文件已删**，旧的覆写三选条也整块删掉 —— 别再按名字找：花钱确认随决策 8 消失，缩略图单选并进问题卡，覆写三选降级成问题卡，进度带的两样挂件搬去了头部。`StudioOperatorQuestionCard`（`ask` 一帧到底，钉在输入框上方）+ `PlanOptionVisual` · `StudioOperatorConfirmCard`（`confirm` 两支；生成支确认即客户端扣扳机）· `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（**头部右上那颗常驻齿轮** → `onOpenAssistantSettings`，开合 state 在 Dock；2026-09-07 起 ⋯ 菜单里不再有第二个入口）· `StudioOperatorTimelineList`（2026-09-06 起就是面板那颗 `threadRef` 容器）。
-⚠ **皮肤是方向 B「玻璃仪表 · 浅色」（v2 §12，commit #21）**：三层玻璃 = 面板（`assistant-glass-panel` + `shadow-assistant-panel`，18px 圆角）/ 卡片（`bg-card` + `border-border` + `shadow-assistant-card`，⛔ 不带模糊）/ 浮层（`assistant-glass-overlay` + `shadow-assistant-overlay`，历史下拉 · +菜单 · 模型选择器 · 收起态微状态卡 · 手机浮标）。「当下要你动手的那张卡」（问题 / 确认待决 / 输入区 / 结论编辑）多一档 `border-assistant-line-strong` + `shadow-assistant-raised`。**信号位只用近黑实底 + 白字**（`bg-foreground text-background`）—— ⛔ 不用 `--primary`，那一支被工作台的生成键占着（§12.2）。token 全在 `globals.css`，⛔ 组件内不写 hex、不写任意值。
+⚠ **皮肤是方向 B「玻璃仪表 · 浅色」（v2 §12，commit #21）**：三层玻璃 = 面板（`assistant-glass-panel` + `shadow-assistant-panel`，18px 圆角）/ 卡片（`bg-card` + `border-border` + `shadow-assistant-card`，⛔ 不带模糊）/ 浮层（`assistant-glass-overlay` + `shadow-assistant-overlay`，历史下拉 · +菜单 · 模型选择器）。「当下要你动手的那张卡」（问题 / 确认待决 / 输入区 / 结论编辑）多一档 `border-assistant-line-strong` + `shadow-assistant-raised`。**信号位只用近黑实底 + 白字**（`bg-foreground text-background`）—— ⛔ 不用 `--primary`，那一支被工作台的生成键占着（§12.2）。token 全在 `globals.css`，⛔ 组件内不写 hex、不写任意值。
 
 ⚠ **逐字淡入已删（v2 §13.1 / 拍板 13）**：`StudioOperatorStreamingText` 整文件删除，正文整段出现，占位脉冲并进 `StudioOperatorMessageBody`。
 ⚠ **视频档具名槽（2026-09-07 `48d6fecb`）**：视频参考区是 `StudioVideoReferenceSlots`（首帧 / 尾帧 / 参考视频），三条落法（拖入 / 素材库 / 助手 `mount_reference slot`）**汇到同一个 dispatch**（`use-video-reference-slots.ts`），⛔ 组件里没有第二条写入。⛔ 关键帧档下**不再渲染** `ReferenceImageChip`——那一档里图片是帧，留着它写进的参考图列表发送口根本不读（静默失效）。首帧在场且线路带图锁比例时，`StudioVideoSpecFields` 把比例组**禁用而不是移除**并说清怎么解除。
 
-⚠ **手机形态（2026-09-06 `adb0a008`）**：Dock 在 `isMobile` 时**不再 `return null`**——图片 / 视频档改渲染 `StudioOperatorMobileFab` + `StudioOperatorMobileSheet`（v2 §4.6 起是**半屏可拖**，⛔ 不再是 100dvh 全屏），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。
+⚠ **手机形态（2026-09-06 `adb0a008`）**：Dock 在 `isMobile` 时**不再 `return null`**——图片 / 视频档改渲染 `StudioOperatorCollapsedButton`（`mobile`）+ `StudioOperatorMobileSheet`（v2 §4.6 起是**半屏可拖**，⛔ 不再是 100dvh 全屏），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。
+
+⚠ **收起态已定案（D7 ④ · Q2 = C，owner 2026-09-19）**：右下角 44px 近黑圆按钮 + 数字角标，⛔ 不再有微状态卡、状态点、`N/M` 读数与那句状态词（状态词仍活在展开态头像旁）。下面这段方向 C 的「收起态 48px 图标轨」是历史记录。
 
 ⚠ **目标态：方向 C「工作日志」面板**——收起态 48px 图标轨、顶部进度带、计划卡 / 三档确认 / 结果行卡 / checkpoint 薄卡、时间线沟用 **32px 头像 + 24px 沟宽且不显示任何时间戳**、助手设置弹层（两栏 + `Tabs`）、手机全屏 Sheet、检索链（`research` / `read_url` / 官方优先搜图）。施工基准 `docs/references/pages/assistant-shell.md`（owner 2026-09-06 定，§7.1 检索链 / §11.3 时间线沟 / §11.6 移动端）；⛔ 动这一系之前先读它，别照现状扩。
 

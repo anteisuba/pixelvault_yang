@@ -7246,18 +7246,9 @@
     "send": "送信",
     "stop": "作業を止める",
     "lightboxLabel": "拡大表示",
-    "rail": {
-      "idle": "待機",
-      "working": "作業中",
-      "awaiting": "確認が必要",
-      "error": "失敗",
-      "primed": "準備完了",
-      "planning": "選んでください"
-    },
     "mobile": {
       "sheetTitle": "アシスタント",
-      "sheetDescription": "ハンドルを上にドラッグすると全画面に、下にドラッグすると閉じます。",
-      "open": "アシスタントを開く"
+      "sheetDescription": "ハンドルを上にドラッグすると全画面に、下にドラッグすると閉じます。"
     },
     "researchDetails": "調査の詳細",
     "toolGroup": {

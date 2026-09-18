@@ -424,3 +424,11 @@ PixelVault 的现状（读自 `prisma/schema.prisma` 与 `docs/references/domain
 
 1. **`loreEntries` 这一层要不要做**。它是本次调研里最大的新增机制，价值是"用 prompt 预算换表达力"，成本是编译器要多一个匹配 + 裁剪阶段。可以只做最小版（纯文本 keys + 一个 slot + order，无正则、无递归、无概率）先验证。
 2. **`description` 拆成 `description`（视觉）+ `summary`（给人看）是否现在就做**。这是一个语义收窄 + 数据迁移，越晚做越贵。
+
+## 11. owner 拍板（2026-09-19）
+
+- `description` **现在拆**：`description` 只留视觉描述进编译器；新增 `summary` 给人看、⛔ 不进 prompt。随 D6 卡片设计一起做迁移（现有文字默认归视觉，简介留空待补）。
+- `loreEntries` **做最小版**：纯文本 `keys[]` + `slot`（positive 前缀 / 后缀 / negative / 参考图选择）+ `order` + `enabled`；不做正则、递归、概率、装饰器。先进 `extensions` 观察。
+- owner 新增两条需求（酒馆里最想要的）：
+  1. **卡片给 LLM**：AI 以卡片角色的语气 / 情感回复——落在 `persona`（behavior · speech · catchphrases · examples）驱动对白生成与配音情绪标记；助手 / 配音间需要一个「以 @角色 的口吻」模式。
+  2. **卡片给助手**：写剧本时助手能看到角色详细信息与**角色之间的关系** → 新增 `relations[]`（`{ targetCardId, relation, note }`，双向展示），随上下文卡注入进系统提示；剧本节点（24）投影时按 @角色 带入。

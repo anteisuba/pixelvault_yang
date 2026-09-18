@@ -5,6 +5,7 @@ import { ExternalLink, CheckCircle2, XCircle } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { AI_ADAPTER_TYPES, getAdapterApiGuide } from '@/constants/providers'
+import { ROUTES } from '@/constants/routes'
 import { API_KEY_ADAPTER_OPTIONS } from '@/constants/api-keys'
 import { createApiKey, deleteApiKey } from '@/lib/api-client'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
@@ -421,6 +422,24 @@ export function QuickSetupDialog({
               t('verify')
             )}
           </button>
+
+          {/* 面 1 唯一的出口（D3 ④）：底部虚线上一行灰字，跳 /settings/keys。
+              ⛔ 这里不摆第二个录入表单，弹层本体一律不动。
+
+              ⚠ 故意是**不带语言前缀的 `<a>`**，不是 `@/i18n/navigation` 的
+              `Link`：这个弹层被画布 / 选择器 / 助手面板等十来个组件间接引入，
+              而 next-intl 的 `createNavigation` 在 vitest 里解析不了
+              `next/navigation`，加它会让九个**与本页无关**的测试文件整体挂掉。
+              未带前缀的路径由 next-intl 中间件按 NEXT_LOCALE 补全，落点一样。 */}
+          <div className="flex justify-center border-t border-dashed border-border/60 pt-2.5">
+            <a
+              href={ROUTES.SETTINGS_KEYS}
+              onClick={() => onOpenChange(false)}
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
+            >
+              {t('manageAllKeys')}
+            </a>
+          </div>
         </div>
       </ResponsiveDialogContent>
     </ResponsiveDialog>

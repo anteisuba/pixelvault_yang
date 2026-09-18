@@ -20,7 +20,7 @@
 | `gen/build-d3.mjs`                                          | 第 12 页 D3 ① 反问（key 门 / settings / 胶囊）                                                         |
 | `gen/canvas-live.json`                                      | 画布布局（页 · 画板位置尺寸 · owner 便签）。**重生成前先从线上 extract 覆盖它**，否则会丢 owner 的批注 |
 | `gen/live1/Artboard*.dc.html`                               | owner 手绘的三张板（助手 / 卡片 / 画布），原样保留                                                     |
-| `research/*.md`                                             | 一手调研稿（图片 / NAI / 视频 / 语音 ×3 / LLM / Runner / 卡片 / 人声提取 / UI 全清单）                 |
+| `research/*.md`                                             | 一手调研稿（图片 / NAI / 视频 / 语音 ×3 / LLM / Runner / 卡片 / 人声提取 / UI 全清单 / 酒馆角色卡）    |
 | `whitebox/compare.jpg`                                      | 视频转白模试验对比帧（进度表引用）                                                                     |
 
 ## 重生成步骤（Claude Code · design skill）

@@ -217,10 +217,6 @@ vi.mock('@/contexts/api-keys-context', () => ({
   }),
 }))
 
-vi.mock('@/components/business/ApiKeyHealthDot', () => ({
-  ApiKeyHealthDot: () => <span data-testid="api-key-health-dot" />,
-}))
-
 vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
   QuickSetupDialog: () => null,
 }))

@@ -62,6 +62,7 @@ import type {
   NodeWorkflowNodeData,
 } from '@/types/node-workflow'
 
+import { useKeySettingsAction } from '../../workbench-v4/shell/ShellKeySettings'
 import { CanvasImageEditWorkspace } from '../../CanvasImageEditWorkspace'
 import {
   NodeCardShell,
@@ -103,7 +104,6 @@ import {
 import { buildMentionCandidates, buildMentionTokens } from './NodeV4Mentions'
 import { videoRailMentionLabels } from '@/lib/video-node-rail'
 import { ModelPickerPopover } from '../../../studio-shared/pickers/ModelPickerPopover'
-import { useOpenApiKeys } from '../../workbench-v4/shell/ShellApiKeys'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
@@ -126,7 +126,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   // 这张卡自己的「未选渠道」闸（gateId = 节点 id，与卡上那颗 chip 同一对）。
   const channelGate = useModelChannelGate(NODE_MEDIA_KIND_IDS.image, id)
   const canvas = useNodeV4Canvas()
-  const openApiKeys = useOpenApiKeys()
+  const openKeySettings = useKeySettingsAction()
   const generation = useNodeMediaGenerationV4()
   const upload = useNodeUploadV4()
   const imageData = data as unknown as NodeV4ImageData
@@ -716,7 +716,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                     memoryScope={NODE_MEDIA_KIND_IDS.image}
                     gateId={id}
                     disabled={generating}
-                    {...(openApiKeys ? { onManageChannels: openApiKeys } : {})}
+                    {...(openKeySettings
+                      ? { onManageChannels: openKeySettings }
+                      : {})}
                     onChange={(option) => {
                       const picked = modelOptions.find(
                         (item) => item.optionId === option.optionId,

@@ -61,7 +61,7 @@ export interface ShellCommandPaletteProps {
   onAskAssistant(query: string): void
   onOpenEditDesk(): void
   onSwitchProject(projectId: string): void
-  /** 「配置渠道与 key…」——外壳没挂 API key 抽屉时为 `null`，那一行就不出现。 */
+  /** 「配置渠道与 key…」——跳 `/settings/keys`；外壳没挂时为 `null`，那一行不出现。 */
   readonly onManageChannels: (() => void) | null
 }
 

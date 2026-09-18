@@ -20,8 +20,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { buildStudioCardUsageMap } from '@/lib/studio-history'
 
-import { StudioApiRoutesSection } from '@/components/business/studio-shared/setup/StudioApiRoutesSection'
-
 /**
  * StudioCardSection — card mode only.
  * Contains: character/background/style dropdowns, API Keys sheet,
@@ -78,8 +76,6 @@ export const StudioCardSection = memo(function StudioCardSection() {
           }
           isLoading={styles.isLoading}
         />
-
-        <StudioApiRoutesSection compact />
       </div>
 
       {/* ── Card management Sheet ──────────────────────────────── */}

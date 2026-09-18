@@ -27,11 +27,13 @@
 
 import {
   useCallback,
+  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
 } from 'react'
 import { ReactFlowProvider, useReactFlow, type XYPosition } from '@xyflow/react'
 import { useAuth } from '@clerk/nextjs'
@@ -125,7 +127,8 @@ import {
 } from './WorkbenchDndV4'
 import { useWorkbenchShortcutsV4 } from './WorkbenchShortcutsV4'
 import { useWorkbenchRosterDropV4 } from './WorkbenchRosterDropV4'
-import { ShellApiKeysProvider, useOpenApiKeys } from './shell/ShellApiKeys'
+import { useOpenKeySettings } from '@/hooks/use-open-key-settings'
+import { KeySettingsContext } from './shell/ShellKeySettings'
 import { ShellAssistantFrame } from './shell/ShellAssistantFrame'
 import { ShellBottomBar } from './shell/ShellBottomBar'
 import { ShellPaneMenu, ShellQuickAdd } from './shell/ShellCanvasMenus'
@@ -230,11 +233,23 @@ interface CanvasPointerAnchor {
 export function NodeWorkbenchV4() {
   return (
     <ReactFlowProvider>
-      {/* 「配置渠道与 key」的抽屉挂在最外：⌘K 与卡上的模型选择器页脚共用同一份。 */}
-      <ShellApiKeysProvider>
+      {/* 「配置渠道与 key」只剩一个去处：/settings/keys（D3 ④）。外壳挂一份，
+          ⌘K 与卡上的模型选择器页脚共用。 */}
+      <NodeWorkbenchV4KeySettings>
         <NodeWorkbenchV4Inner />
-      </ShellApiKeysProvider>
+      </NodeWorkbenchV4KeySettings>
     </ReactFlowProvider>
+  )
+}
+
+/** 把「配置渠道与 key」的去处（`/settings/keys`）塞进画布 —— 只有外壳这一层碰路由。 */
+function NodeWorkbenchV4KeySettings({ children }: { children: ReactNode }) {
+  const openKeySettings = useOpenKeySettings()
+
+  return (
+    <KeySettingsContext.Provider value={openKeySettings}>
+      {children}
+    </KeySettingsContext.Provider>
   )
 }
 
@@ -242,7 +257,7 @@ function NodeWorkbenchV4Inner() {
   const t = useTranslations('StudioNode')
   const tV4 = useTranslations('StudioNode.v4')
   const tShell = useTranslations('StudioNode.shell')
-  const openApiKeys = useOpenApiKeys()
+  const openKeySettings = useContext(KeySettingsContext)
   const locale = useLocale()
   const appLocale = isAppLocale(locale) ? locale : DEFAULT_LOCALE
   const isMobile = useIsMobile()
@@ -1342,7 +1357,7 @@ function NodeWorkbenchV4Inner() {
                   }}
                   onOpenEditDesk={openEditDeskWithSelection}
                   onSwitchProject={store.switchProject}
-                  onManageChannels={openApiKeys}
+                  onManageChannels={openKeySettings}
                 />
                 <WorkbenchDocksV4 />
                 {/* 添加菜单「上传素材」的隐藏 input：菜单关掉后仍要在场接住系统

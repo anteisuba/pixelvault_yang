@@ -5,7 +5,6 @@
 export { StudioModeSelector } from '@/components/business/studio-shared/workflow/StudioModeSelector'
 export { StudioGenerateBar } from '@/components/business/studio-shared/workflow/StudioGenerateBar'
 export { StudioErrorBoundary } from '@/components/business/studio-shared/chrome/StudioErrorBoundary'
-export { StudioApiRoutesSection } from '@/components/business/studio-shared/setup/StudioApiRoutesSection'
 export { StudioCanvas } from '@/components/business/studio-shared/chrome/StudioCanvas'
 export { StudioWorkbenchLayout } from '@/components/business/studio-shared/chrome/StudioWorkbenchLayout'
 export { StudioWorkflowGroupTabs } from '@/components/business/studio-shared/workflow/StudioWorkflowGroupTabs'

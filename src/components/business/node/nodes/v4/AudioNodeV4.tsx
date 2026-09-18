@@ -108,6 +108,7 @@ import {
   resolveAudioNodeKind,
   showsVoiceChip,
 } from './audio/audio-node-model'
+import { useKeySettingsAction } from '../../workbench-v4/shell/ShellKeySettings'
 import { AudioAddMenuItems, AudioMoreMenuItems } from './audio/AudioNodeMenus'
 import { AudioOwnerMenuItem } from './audio/AudioOwnerMenuItem'
 import { AudioTonePopover, TONE_POPOVER_WIDTH } from './audio/AudioTonePopover'
@@ -126,7 +127,6 @@ import {
   MODEL_PICKER_GROUP_BY,
   ModelPickerPopover,
 } from '../../../studio-shared/pickers/ModelPickerPopover'
-import { useOpenApiKeys } from '../../workbench-v4/shell/ShellApiKeys'
 import { useNodeV4Canvas, type NodeV4MediaPatch } from './NodeV4Context'
 import { NodeV4ContextMenu } from './NodeV4ContextMenu'
 import { triggerNodeV4Download } from './NodeV4SelectionToolbar'
@@ -146,7 +146,7 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
   // 这张卡自己的「未选渠道」闸（gateId = 节点 id，与卡上那颗 chip 同一对）。
   const channelGate = useModelChannelGate(NODE_MEDIA_KIND_IDS.audio, id)
   const canvas = useNodeV4Canvas()
-  const openApiKeys = useOpenApiKeys()
+  const openKeySettings = useKeySettingsAction()
   const generation = useNodeMediaGenerationV4()
   const upload = useNodeUploadV4()
   const audioData = data as unknown as NodeV4AudioData
@@ -964,8 +964,8 @@ export function AudioNodeV4({ id, data, selected }: NodeProps) {
                       memoryScope={NODE_MEDIA_KIND_IDS.audio}
                       gateId={id}
                       // 缺 key 的行点了进内联配置（Hard Rule 8）——⛔ 不选中。
-                      {...(openApiKeys
-                        ? { onManageChannels: openApiKeys }
+                      {...(openKeySettings
+                        ? { onManageChannels: openKeySettings }
                         : {})}
                       disabled={generating}
                       triggerEmptyLabel={tAudio('model.title')}

@@ -23,9 +23,9 @@ describe('getHealthDotClass', () => {
     expect(getHealthDotClass('unknown', 'node')).toBe('bg-node-muted/45')
   })
 
-  it('default theme matches ApiKeyHealthDot HEALTH_COLORS contract', () => {
+  it('default theme matches the key health dot HEALTH_COLORS contract', () => {
     // 守护：default theme must stay byte-identical with
-    // src/components/business/ApiKeyHealthDot.tsx HEALTH_COLORS.
+    // the key health dot rendered by /settings/keys.
     // If you change either, change both.
     expect(getHealthDotClass('available')).toBe('bg-emerald-500')
     expect(getHealthDotClass('no_key')).toBe('bg-amber-500')

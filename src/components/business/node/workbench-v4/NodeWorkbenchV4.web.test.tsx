@@ -14,6 +14,13 @@ vi.mock('next-intl', () => ({
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), info: vi.fn() } }))
 
+// 外壳把「配置渠道与 key」的跳转（`/settings/keys`）挂在这一层，而 next-intl 的
+// `createNavigation` 在 vitest 里加载不了真的 `next/navigation`。
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn() }),
+  usePathname: () => '/studio/node',
+}))
+
 /**
  * ReactFlow 整包桩掉。⚠ `ReactFlow` 本体桩成「按 `nodeTypes` 逐个渲染」——本组
  * 要断言的正是**哪一个组件被挑中渲染**（v4 四类 vs legacy 空壳），而不是 RF 的

@@ -24,7 +24,6 @@ export * from './chrome/StudioLightbox'
 
 // setup — API key / model configuration gates
 export * from './setup/QuickSetupDialog'
-export * from './setup/StudioApiRoutesSection'
 
 // workflow — workflow / mode selection chrome
 export * from './workflow/StudioGenerateBar'

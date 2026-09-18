@@ -4,7 +4,7 @@
  * 绑在**一个节点**上的模型 chip（spec §1.6 方案 A）。
  *
  * 弹层本体是共用的 `ModelPickerPopover`；这一层只做三件一模一样的事：读这一档
- * 的模型清单、`set_model`、缺 key 时把「配置渠道」接到外壳的抽屉上（Hard Rule 8）。
+ * 的模型清单、`set_model`、缺 key 时把「配置渠道」接到 `/settings/keys`（Hard Rule 8）。
  * 图片 / 音频卡与 S12 的手机底部抽屉共用**这一份**，⛔ 不在每个形态里再抄一遍
  * 那段 `onChange`。
  *
@@ -17,7 +17,7 @@ import {
   ModelPickerPopover,
   type ModelPickerGroupBy,
 } from '@/components/business/studio-shared/pickers/ModelPickerPopover'
-import { useOpenApiKeys } from '../../../workbench-v4/shell/ShellApiKeys'
+import { useKeySettingsAction } from '../../../workbench-v4/shell/ShellKeySettings'
 import { useNodeV4Canvas } from '../NodeV4Context'
 import { toStudioModelOption } from '../image/image-node-model'
 
@@ -41,7 +41,7 @@ export function NodeModelChip({
   triggerEmptyLabel,
 }: NodeModelChipProps) {
   const canvas = useNodeV4Canvas()
-  const openApiKeys = useOpenApiKeys()
+  const openKeySettings = useKeySettingsAction()
   const modelOptions = canvas.modelOptionsByKind[kind] ?? []
   if (modelOptions.length === 0) return null
 
@@ -53,7 +53,7 @@ export function NodeModelChip({
       // 每张卡各管各的「未选渠道」——按 scope 共用一份会让一张卡挡住整块画布。
       gateId={nodeId}
       {...(groupBy ? { groupBy } : {})}
-      {...(openApiKeys ? { onManageChannels: openApiKeys } : {})}
+      {...(openKeySettings ? { onManageChannels: openKeySettings } : {})}
       {...(triggerEmptyLabel ? { triggerEmptyLabel } : {})}
       disabled={disabled}
       onChange={(option) => {

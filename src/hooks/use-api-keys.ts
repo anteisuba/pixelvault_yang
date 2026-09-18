@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 import { useAuth } from '@clerk/nextjs'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -70,6 +70,70 @@ function saveHealthCache(map: Record<string, ApiKeyHealthStatus>) {
   } catch {
     // localStorage unavailable — silently skip
   }
+}
+
+// ─── Verified-at Stamps (localStorage, no TTL) ────────────────────
+//
+// ⚠ 与上面那份健康缓存**分开存**：健康缓存 5 分钟过期（过期即当作未知，该重查），
+// 而「上次校验是什么时候」过了 5 分钟仍然是真话——/settings 的 key 行要拿它写
+// 「健康 · 3 分钟前」。塞回上面那份会被 `saveHealthCache` 的过期裁剪一起扔掉。
+
+const VERIFIED_AT_KEY = 'pixelvault:api-key-verified-at'
+
+function loadVerifiedAtMap(): Record<string, number> {
+  try {
+    const raw = localStorage.getItem(VERIFIED_AT_KEY)
+    if (!raw) return {}
+    const parsed = JSON.parse(raw) as Record<string, number>
+    const result: Record<string, number> = {}
+    for (const [id, ts] of Object.entries(parsed)) {
+      if (typeof ts === 'number' && Number.isFinite(ts)) result[id] = ts
+    }
+    return result
+  } catch {
+    return {}
+  }
+}
+
+function saveVerifiedAtMap(map: Record<string, number>) {
+  try {
+    localStorage.setItem(VERIFIED_AT_KEY, JSON.stringify(map))
+  } catch {
+    // localStorage unavailable — the row just loses its "上次校验" stamp.
+  }
+}
+
+/**
+ * ⚠ 走 `useSyncExternalStore` 而不是「`useState` 初值里读 localStorage」：后者
+ * 在服务端渲染出的是空表、客户端首帧是真表 —— 那正是 hydration mismatch。
+ * 服务端快照恒为同一个空对象（引用稳定，⛔ 别每次新建 `{}`，会无限重渲染）。
+ */
+const EMPTY_VERIFIED_AT: Record<string, number> = {}
+let verifiedAtCache: Record<string, number> | null = null
+const verifiedAtListeners = new Set<() => void>()
+
+function subscribeVerifiedAt(onStoreChange: () => void): () => void {
+  verifiedAtListeners.add(onStoreChange)
+  return () => {
+    verifiedAtListeners.delete(onStoreChange)
+  }
+}
+
+function getVerifiedAtSnapshot(): Record<string, number> {
+  verifiedAtCache ??= loadVerifiedAtMap()
+  return verifiedAtCache
+}
+
+function getVerifiedAtServerSnapshot(): Record<string, number> {
+  return EMPTY_VERIFIED_AT
+}
+
+function writeVerifiedAt(
+  updater: (prev: Record<string, number>) => Record<string, number>,
+): void {
+  verifiedAtCache = updater(getVerifiedAtSnapshot())
+  saveVerifiedAtMap(verifiedAtCache)
+  for (const listener of verifiedAtListeners) listener()
 }
 
 // ─── API Key List Cache (per user, in-memory) ─────────────────────
@@ -169,6 +233,8 @@ export interface UseApiKeysReturn {
   isLoading: boolean
   error: string | null
   healthMap: Record<string, ApiKeyHealthStatus>
+  /** key id → 上次校验的时间戳（ms）。没校验过的 key 不在表里。 */
+  verifiedAtMap: Record<string, number>
   create: (data: CreateApiKeyRequest) => Promise<boolean>
   update: (id: string, data: UpdateApiKeyRequest) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
@@ -193,6 +259,11 @@ export function useApiKeys({
   const [healthMap, setHealthMap] = useState<
     Record<string, ApiKeyHealthStatus>
   >(() => cachedSnapshot?.healthMap ?? {})
+  const verifiedAtMap = useSyncExternalStore(
+    subscribeVerifiedAt,
+    getVerifiedAtSnapshot,
+    getVerifiedAtServerSnapshot,
+  )
   const t = useTranslations('Toasts')
 
   const verifyOne = useCallback(
@@ -208,6 +279,7 @@ export function useApiKeys({
         }
         return next
       })
+      writeVerifiedAt((prev) => ({ ...prev, [id]: Date.now() }))
       return status
     },
     [userId],
@@ -381,6 +453,11 @@ export function useApiKeys({
           }
           return next
         })
+        writeVerifiedAt((prev) => {
+          const next = { ...prev }
+          delete next[id]
+          return next
+        })
         toast.success(t('apiKeyDeleted'))
         return true
       }
@@ -396,6 +473,7 @@ export function useApiKeys({
     isLoading,
     error,
     healthMap,
+    verifiedAtMap,
     create,
     update,
     remove,

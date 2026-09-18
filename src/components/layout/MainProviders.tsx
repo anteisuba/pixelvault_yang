@@ -18,7 +18,10 @@ export function MainProviders({ children }: { children: ReactNode }) {
     pathname === ROUTES.STUDIO ||
     pathname.startsWith(`${ROUTES.STUDIO}/`) ||
     pathname === ROUTES.STORYBOARD ||
-    pathname.startsWith(`${ROUTES.STORYBOARD}/`)
+    pathname.startsWith(`${ROUTES.STORYBOARD}/`) ||
+    // /settings/keys 整页就是在看这份名单（D3 ④），不预载它进去就是一屏空白。
+    pathname === ROUTES.SETTINGS ||
+    pathname.startsWith(`${ROUTES.SETTINGS}/`)
 
   return (
     <>

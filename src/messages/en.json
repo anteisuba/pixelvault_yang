@@ -6775,7 +6775,8 @@
     "success": "API key verified. You're ready to use this model.",
     "available": "Available",
     "configuredKeys": "Configured API keys",
-    "needsKey": "Needs API key"
+    "needsKey": "Needs API key",
+    "manageAllKeys": "Manage all keys →"
   },
   "Errors": {
     "voiceRoom": {
@@ -8151,6 +8152,95 @@
       "audio": "Audio",
       "seed": "Seed",
       "details": "Details"
+    }
+  },
+  "Settings": {
+    "title": "Settings",
+    "description": "API keys, usage, preferences and assistant settings.",
+    "back": "Back",
+    "backToList": "Back to settings",
+    "signOut": "Sign out",
+    "sections": {
+      "keys": "API keys",
+      "usage": "Usage",
+      "preferences": "Preferences",
+      "assistant": "Assistant"
+    },
+    "keys": {
+      "caption": "Every route runs on your own key — only Gemini text runs on the platform.",
+      "loading": "Loading your keys…",
+      "monthlySpend": "{amount} this month",
+      "invalidSummary": "{count, plural, one {# key failing} other {# keys failing}}",
+      "status": {
+        "healthy": "Healthy",
+        "healthyWithStamp": "Healthy · verified {stamp}",
+        "invalid": "Key rejected",
+        "invalidWithStamp": "Key rejected · checked {stamp}",
+        "unverified": "Configured · never verified",
+        "unconfigured": "Not configured"
+      },
+      "configure": "Set up",
+      "replaceKey": "Replace key",
+      "toggleKeys": "Show {provider} keys",
+      "addAnother": "Add another key",
+      "reverify": "Re-check",
+      "lastVerified": "Verified {stamp}",
+      "neverVerified": "Never verified",
+      "deleteKey": "Delete key {label}",
+      "deleteDialog": {
+        "title": "Delete this key?",
+        "description": "“{label}” will be removed. Models that run on it stop working until you add another key.",
+        "cancel": "Cancel",
+        "confirm": "Delete"
+      }
+    },
+    "usage": {
+      "estimateNote": "estimate — your provider's invoice is the source of truth",
+      "loading": "Loading usage…",
+      "empty": "No requests this month yet.",
+      "columnProvider": "provider",
+      "columnRequests": "requests",
+      "columnCost": "estimated cost",
+      "runnerLabel": "Runner · self-hosted",
+      "runnerQuota": "{used} / {limit}",
+      "runnerCost": "$0 · resets {date}",
+      "total": "Total",
+      "footnote": "Requests come from your own usage ledger; cost is requests × that model's unit price. Models with no published unit price show a request count only."
+    },
+    "preferences": {
+      "language": "Language",
+      "displayName": "Display name",
+      "displayNamePlaceholder": "Your name",
+      "displayNameSaved": "Display name saved",
+      "displayNameFailed": "Could not save the display name",
+      "defaultWorkbench": "Open by default",
+      "notifyOnComplete": "Notify me when a generation finishes",
+      "reduceMotion": "Reduce motion",
+      "workbench": {
+        "/studio/image": "Image workbench",
+        "/studio/video": "Video workbench",
+        "/studio/audio": "Audio workbench",
+        "/studio/node": "Canvas",
+        "/gallery": "Gallery"
+      }
+    },
+    "assistant": {
+      "personaLabel": "Persona",
+      "verbosity": {
+        "concise": "Concise",
+        "standard": "Standard",
+        "detailed": "Detailed"
+      },
+      "memoryLabel": "Memory",
+      "memoryEmpty": "Nothing remembered yet · chat with the assistant a few times and it will show up here.",
+      "incognito": "Incognito",
+      "mutedLabel": "Never remember",
+      "muted": {
+        "address": "Addresses",
+        "payment": "Payment details",
+        "contact": "Contact details"
+      },
+      "addMuted": "Add"
     }
   }
 }

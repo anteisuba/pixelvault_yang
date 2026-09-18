@@ -6775,7 +6775,8 @@
     "success": "API キーを確認できました。このモデルを使えます。",
     "available": "利用可能",
     "configuredKeys": "設定済み API キー",
-    "needsKey": "APIキーが必要"
+    "needsKey": "APIキーが必要",
+    "manageAllKeys": "すべてのキーを管理 →"
   },
   "Errors": {
     "voiceRoom": {
@@ -8151,6 +8152,95 @@
       "audio": "音声",
       "seed": "シード",
       "details": "詳細"
+    }
+  },
+  "Settings": {
+    "title": "設定",
+    "description": "API キー・使用量・環境設定・アシスタントの設定。",
+    "back": "戻る",
+    "backToList": "設定に戻る",
+    "signOut": "ログアウト",
+    "sections": {
+      "keys": "API キー",
+      "usage": "使用量",
+      "preferences": "環境設定",
+      "assistant": "アシスタント"
+    },
+    "keys": {
+      "caption": "すべて自分のキーで動きます。プラットフォーム経由は Gemini のテキストのみ。",
+      "loading": "キーを読み込み中…",
+      "monthlySpend": "今月 {amount}",
+      "invalidSummary": "{count, plural, other {# 本が無効}}",
+      "status": {
+        "healthy": "正常",
+        "healthyWithStamp": "正常 · {stamp}に確認",
+        "invalid": "キーが拒否されました",
+        "invalidWithStamp": "キーが拒否されました · {stamp}に確認",
+        "unverified": "設定済み · 未確認",
+        "unconfigured": "未設定"
+      },
+      "configure": "設定する",
+      "replaceKey": "差し替える",
+      "toggleKeys": "{provider} のキーを表示",
+      "addAnother": "キーを追加",
+      "reverify": "再確認",
+      "lastVerified": "{stamp}に確認",
+      "neverVerified": "未確認",
+      "deleteKey": "キー {label} を削除",
+      "deleteDialog": {
+        "title": "このキーを削除しますか？",
+        "description": "「{label}」を削除します。このキーで動くモデルは、別のキーを追加するまで使えません。",
+        "cancel": "キャンセル",
+        "confirm": "削除"
+      }
+    },
+    "usage": {
+      "estimateNote": "推定値 — 正確な金額は各プロバイダーの請求書をご確認ください",
+      "loading": "使用量を読み込み中…",
+      "empty": "今月のリクエストはまだありません。",
+      "columnProvider": "プロバイダー",
+      "columnRequests": "リクエスト数",
+      "columnCost": "推定費用",
+      "runnerLabel": "Runner · セルフホスト",
+      "runnerQuota": "{used} / {limit}",
+      "runnerCost": "$0 · {date} にリセット",
+      "total": "合計",
+      "footnote": "リクエスト数は利用履歴から、費用は「リクエスト数 × そのモデルの単価」で算出しています。単価が公開されていないモデルはリクエスト数のみ表示します。"
+    },
+    "preferences": {
+      "language": "言語",
+      "displayName": "表示名",
+      "displayNamePlaceholder": "あなたの名前",
+      "displayNameSaved": "表示名を保存しました",
+      "displayNameFailed": "表示名を保存できませんでした",
+      "defaultWorkbench": "最初に開く画面",
+      "notifyOnComplete": "生成が終わったら通知する",
+      "reduceMotion": "動きを減らす",
+      "workbench": {
+        "/studio/image": "画像ワークベンチ",
+        "/studio/video": "動画ワークベンチ",
+        "/studio/audio": "音声ワークベンチ",
+        "/studio/node": "キャンバス",
+        "/gallery": "ギャラリー"
+      }
+    },
+    "assistant": {
+      "personaLabel": "話し方",
+      "verbosity": {
+        "concise": "簡潔",
+        "standard": "標準",
+        "detailed": "詳細"
+      },
+      "memoryLabel": "記憶",
+      "memoryEmpty": "まだ記憶はありません · アシスタントと何度か話すとここに出てきます。",
+      "incognito": "シークレット",
+      "mutedLabel": "記憶しない項目",
+      "muted": {
+        "address": "住所",
+        "payment": "支払い情報",
+        "contact": "連絡先"
+      },
+      "addMuted": "追加"
     }
   }
 }

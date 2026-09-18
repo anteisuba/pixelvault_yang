@@ -32,6 +32,16 @@ export const ROUTES = {
   PROMPTS: '/prompts',
   STORYBOARD: '/storyboard',
 
+  /**
+   * 账号设置整页（D3 ④）。`/settings` 本身没有内容：桌面直接重定向到
+   * `/settings/keys`，手机停在一级列表。四个子路由都可直链、可回退。
+   */
+  SETTINGS: '/settings',
+  SETTINGS_KEYS: '/settings/keys',
+  SETTINGS_USAGE: '/settings/usage',
+  SETTINGS_PREFERENCES: '/settings/preferences',
+  SETTINGS_ASSISTANT: '/settings/assistant',
+
   /** Creator profile (public) */
   CREATOR_PROFILE: '/u',
 } as const
@@ -137,6 +147,25 @@ export function studioImageEditPath(
   appendStudioImageSourceParams(params, options)
   const query = params.toString()
   return query ? `${ROUTES.STUDIO_EDIT}?${query}` : ROUTES.STUDIO_EDIT
+}
+
+/**
+ * 设置页深链。`from` 是「点设置之前站在哪儿」，让设置页的返回键能把用户送回
+ * 工作台而不是丢进历史栈。只收站内绝对路径——`//host` 会被浏览器当成协议相对
+ * 的外链，所以那一类一并拒掉。
+ */
+export function settingsPath(
+  route: string = ROUTES.SETTINGS,
+  from?: string | null,
+): string {
+  if (!from || !from.startsWith('/') || from.startsWith('//')) return route
+  return `${route}?from=${encodeURIComponent(from)}`
+}
+
+/** `?from=` 读回来的那一跳——同一条判据，⛔ 别在组件里各写一遍。 */
+export function safeReturnPath(from: string | null | undefined): string | null {
+  if (!from || !from.startsWith('/') || from.startsWith('//')) return null
+  return from
 }
 
 /** Type for all route values */

@@ -6775,7 +6775,8 @@
     "success": "验证通过！模型已可用。",
     "available": "可用",
     "configuredKeys": "已配置 API Key",
-    "needsKey": "需要 API key"
+    "needsKey": "需要 API key",
+    "manageAllKeys": "管理全部 key →"
   },
   "Errors": {
     "voiceRoom": {
@@ -8151,6 +8152,95 @@
       "audio": "声音",
       "seed": "seed",
       "details": "详情"
+    }
+  },
+  "Settings": {
+    "title": "设置",
+    "description": "API key、用量、偏好与助手设置。",
+    "back": "返回",
+    "backToList": "回到设置",
+    "signOut": "退出登录",
+    "sections": {
+      "keys": "API key",
+      "usage": "用量",
+      "preferences": "偏好",
+      "assistant": "助手"
+    },
+    "keys": {
+      "caption": "全部用你自己的 key · 只有 Gemini 文本走平台",
+      "loading": "正在读取你的 key…",
+      "monthlySpend": "{amount} 本月",
+      "invalidSummary": "{count, plural, other {# 把失效}}",
+      "status": {
+        "healthy": "健康",
+        "healthyWithStamp": "健康 · {stamp}校验",
+        "invalid": "key 失效",
+        "invalidWithStamp": "key 失效 · {stamp}校验",
+        "unverified": "已配置 · 未校验",
+        "unconfigured": "未配置"
+      },
+      "configure": "配置",
+      "replaceKey": "换一把",
+      "toggleKeys": "展开 {provider} 的 key",
+      "addAnother": "加一把",
+      "reverify": "重新校验",
+      "lastVerified": "{stamp}校验",
+      "neverVerified": "未校验",
+      "deleteKey": "删除 key {label}",
+      "deleteDialog": {
+        "title": "删除这把 key？",
+        "description": "「{label}」会被移除。走这把 key 的模型在你补一把之前用不了。",
+        "cancel": "取消",
+        "confirm": "删除"
+      }
+    },
+    "usage": {
+      "estimateNote": "估算，以各 provider 账单为准",
+      "loading": "正在读取用量…",
+      "empty": "本月还没有请求。",
+      "columnProvider": "provider",
+      "columnRequests": "本月次数",
+      "columnCost": "估算花费",
+      "runnerLabel": "Runner · 自托管",
+      "runnerQuota": "{used} / {limit}",
+      "runnerCost": "$0 · {date} 重置",
+      "total": "合计",
+      "footnote": "次数来自你自己的用量流水；花费 = 次数 × 该模型单价累加。没有公开单价的模型只显次数。"
+    },
+    "preferences": {
+      "language": "语言",
+      "displayName": "显示名",
+      "displayNamePlaceholder": "你的名字",
+      "displayNameSaved": "显示名已保存",
+      "displayNameFailed": "显示名没能保存",
+      "defaultWorkbench": "默认打开",
+      "notifyOnComplete": "生成完成时通知",
+      "reduceMotion": "减少动效",
+      "workbench": {
+        "/studio/image": "图片工作台",
+        "/studio/video": "视频工作台",
+        "/studio/audio": "音频工作台",
+        "/studio/node": "画布",
+        "/gallery": "画廊"
+      }
+    },
+    "assistant": {
+      "personaLabel": "人设",
+      "verbosity": {
+        "concise": "简洁",
+        "standard": "标准",
+        "detailed": "详尽"
+      },
+      "memoryLabel": "记忆",
+      "memoryEmpty": "还没有记忆 · 用助手聊几次就会出现",
+      "incognito": "隐身模式",
+      "mutedLabel": "不记的类目",
+      "muted": {
+        "address": "地址",
+        "payment": "支付信息",
+        "contact": "联系方式"
+      },
+      "addMuted": "添加"
     }
   }
 }

@@ -117,6 +117,11 @@
   /* 统一模型选择器（D2 ④ 画板）：弹层 380px，渠道面板 190px 浮在它右侧。 */
   --width-model-picker: 23.75rem;
   --width-model-channel-panel: 11.875rem;
+  /* /settings 整页（D3 ④ 画板）：卡 1000px = 左 200px 分区导航 + 右内容 720px。 */
+  --width-settings-nav: 12.5rem;
+  --max-width-settings: 45rem;
+  --max-width-settings-shell: 62.5rem;
+  --min-height-settings-shell: 38.75rem;
   --width-studio-left: 20rem;
   --width-studio-right: 28rem;
   --width-studio-sidebar: 13rem;

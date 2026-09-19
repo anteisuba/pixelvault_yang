@@ -13,6 +13,7 @@
 | `gen/build-ux.mjs`                                          | 第 3 页 UI/UX 总结（全体 / 用户 / 设计师 / 首页滚动）                                                  |
 | `gen/build-research.mjs` + `build-research-map.mjs`         | 第 4 页 七路调研 + 待拍板 + 调研总图                                                                   |
 | `gen/build-shared*.mjs` + `build-design3.mjs`               | 第 5 页 共享组件 · 第 6 页 助手 / 画布 / 卡片设计                                                      |
+| `gen/build-cards-tavern.mjs`                                | 第 6 页 卡片 · 酒馆（SillyTavern）对照板（借 / 不借 / 独有 / 拍板 / 字段草案）                         |
 | `gen/build-progress.mjs`                                    | 第 7 页 改进进度表 · 第 8 页 语音方案                                                                  |
 | `gen/build-master.mjs` + `build-d1.mjs`                     | 第 9 页 总清单 · 设计流程 · 美术方法 · D1 思维导图                                                     |
 | `gen/build-ui-inventory.mjs`                                | 第 10 页 UI 全清单（渲染 `research/ui-inventory.md`）                                                  |

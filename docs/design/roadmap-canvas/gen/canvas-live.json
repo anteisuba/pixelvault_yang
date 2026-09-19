@@ -170,7 +170,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 10100,
+      "h": 9600,
       "title": "改进进度表",
       "page": "page-7"
     },
@@ -614,6 +614,15 @@
       "h": 890,
       "title": "D7 ④ LoRA 壳",
       "page": "page-14"
+    },
+    {
+      "file": "DesignCardsTavern.dc.html",
+      "x": 3000,
+      "y": 1680,
+      "w": 1400,
+      "h": 2700,
+      "title": "卡片 · 酒馆对照",
+      "page": "page-6"
     }
   ],
   "annotations": [
@@ -944,7 +953,7 @@
   ],
   "launch": {
     "view": "canvas",
-    "page": "page-14"
+    "page": "page-6"
   },
   "pages": [
     {

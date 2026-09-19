@@ -110,6 +110,29 @@ interface ModelRow {
   searchText: string
 }
 
+/**
+ * 行所在的段。「最近」会把常用型号顶上来，**同一个型号因此同时出现在两段里** ——
+ * 这是有意的（⛔ 别用「去重」把它抹平）。代价是「哪一行」不能再用裸 `modelKey` 认：
+ * 两份 DOM 会抢同一把键，后挂载的（分组那份，位置更靠下）盖掉先挂载的，于是渠道
+ * 浮层对齐到了下面那一行（owner 2026-09-19 真机）。
+ */
+const ROW_SECTION = {
+  recent: 'recent',
+  group: 'group',
+} as const
+
+type RowSection = (typeof ROW_SECTION)[keyof typeof ROW_SECTION]
+
+/**
+ * **行身份** = 段 + 型号。ref 注册表、当前指到哪行、面板对齐、键盘焦点都按它走。
+ * ⚠ 凡是喂给记忆与提交的（`rememberRecent` / `rememberChannel` / `manualChannelOf` /
+ * `setPendingModel` / `commit` / `resolveModelChannel`）**仍然用裸 `modelKey`** ——
+ * 记忆认的是型号，不是它出现在列表的哪一段；传复合键会让同一型号按段各记一份。
+ */
+function rowIdOf(section: RowSection, modelKey: string): string {
+  return `${section}:${modelKey}`
+}
+
 export interface ModelPickerPopoverProps {
   options: StudioModelOption[]
   /** 当前选中的 `optionId`；多选时传 null（选中状态由 `selectedOptionIds` 说）。 */
@@ -193,8 +216,8 @@ export function ModelPickerPopover({
   const multi = Boolean(selectedOptionIds && onToggleOption)
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
-  /** 桌面：渠道面板跟着走的那一行；手机：原地展开的那一行。 */
-  const [activeRowKey, setActiveRowKey] = useState<string | null>(null)
+  /** 桌面：渠道面板跟着走的那一行；手机：原地展开的那一行（按**行身份**）。 */
+  const [activeRowId, setActiveRowId] = useState<string | null>(null)
   /** 渠道面板相对弹层顶部的偏移（px）——「与当前行顶部对齐」。 */
   const [panelTop, setPanelTop] = useState(0)
 
@@ -253,7 +276,7 @@ export function ModelPickerPopover({
     cancelPanelClose()
     closeTimerRef.current = setTimeout(() => {
       closeTimerRef.current = null
-      setActiveRowKey(null)
+      setActiveRowId(null)
     }, DURATION_MS.base)
   }, [cancelPanelClose])
 
@@ -404,31 +427,46 @@ export function ModelPickerPopover({
         )
       : selectedRow?.modelKey === row.modelKey
 
+  /**
+   * 这一轮**真正画出来的行**：行身份 → 行。同一型号在「最近」与它自己的分组里各占
+   * 一条，两条身份不同 —— 面板要对齐的是被指到的那一条，不是同型号的另一条。
+   */
+  const renderedRows = new Map<string, ModelRow>()
+  for (const row of recentRows)
+    renderedRows.set(rowIdOf(ROW_SECTION.recent, row.modelKey), row)
+  for (const group of groups)
+    for (const row of group.rows)
+      renderedRows.set(rowIdOf(ROW_SECTION.group, row.modelKey), row)
+
+  /** 选中行在列表里的**第一条**身份（「最近」在前，所以优先对到上面那条）。 */
+  const selectedRowId = selectedRow
+    ? (Array.from(renderedRows.entries()).find(
+        ([, row]) => row.modelKey === selectedRow.modelKey,
+      )?.[0] ?? null)
+    : null
+
   /** 这一行当前该摆哪份渠道面板：hover / 键盘走到的那行，否则选中行。 */
-  const panelRow = useMemo(
-    () =>
-      rows.find((row) => row.modelKey === activeRowKey) ?? selectedRow ?? null,
-    [rows, activeRowKey, selectedRow],
-  )
+  const activeRow = activeRowId ? (renderedRows.get(activeRowId) ?? null) : null
+  const panelRow = activeRow ?? selectedRow ?? null
+  const panelRowId = activeRow ? activeRowId : selectedRowId
 
   /**
    * 弹层一打开就把面板对到**当前选中 / 待选渠道**的那一行 —— 触发器写着「先选渠道」
    * 时点它，要的正是「打开并定位到这一行」（owner D2 Q1 代价那条）。⛔ 不能只在
    * hover 时量：没有 hover 之前面板会贴在弹层顶上，指的是另一行。
    */
-  const panelRowKey = panelRow?.modelKey ?? null
   useEffect(() => {
-    if (!panelRowKey) return
-    const row = rowRefs.current.get(panelRowKey)
+    if (!panelRowId) return
+    const row = rowRefs.current.get(panelRowId)
     const surface = surfaceRef.current
     if (!row || !surface) return
     setPanelTop(
       row.getBoundingClientRect().top - surface.getBoundingClientRect().top,
     )
-  }, [panelRowKey, open, inline])
+  }, [panelRowId, open, inline])
 
-  const measureRow = (modelKey: string) => {
-    const row = rowRefs.current.get(modelKey)
+  const measureRow = (rowId: string) => {
+    const row = rowRefs.current.get(rowId)
     const surface = surfaceRef.current
     if (!row || !surface) return
     setPanelTop(
@@ -436,10 +474,10 @@ export function ModelPickerPopover({
     )
   }
 
-  const focusRow = (modelKey: string) => {
+  const focusRow = (rowId: string) => {
     cancelPanelClose()
-    setActiveRowKey(modelKey)
-    measureRow(modelKey)
+    setActiveRowId(rowId)
+    measureRow(rowId)
   }
 
   /** 键盘开面板那条路：面板渲染出来之后，把焦点送进第一条渠道。 */
@@ -449,7 +487,7 @@ export function ModelPickerPopover({
     const first =
       panelRef.current?.querySelector<HTMLElement>('[role="option"]')
     first?.focus()
-  }, [focusPanelPending, panelRowKey])
+  }, [focusPanelPending, panelRowId])
 
   const commit = (option: StudioModelOption, modelKey: string) => {
     memory.setPendingModel(null)
@@ -463,7 +501,7 @@ export function ModelPickerPopover({
   }
 
   /** 点行 = 选这个型号。渠道已定（单渠道 / 记住过）就一步到位，否则停在未选渠道。 */
-  const handleSelectRow = (row: ModelRow) => {
+  const handleSelectRow = (row: ModelRow, rowId: string) => {
     if (row.active) {
       commit(row.active.channel.option, row.modelKey)
       return
@@ -471,7 +509,7 @@ export function ModelPickerPopover({
     // 多渠道且没点过：**不替他选**（D2 Q1 删掉了「自动」）。记下型号，把渠道面板
     // 摆到这一行上等他点；关掉弹层则触发器写「先选渠道」。
     memory.setPendingModel(row.modelKey)
-    focusRow(row.modelKey)
+    focusRow(rowId)
     setFocusPanelPending(true)
   }
 
@@ -567,13 +605,13 @@ export function ModelPickerPopover({
     )
   }
 
-  const renderRow = (row: ModelRow, keyPrefix: string) => {
+  const renderRow = (row: ModelRow, section: RowSection) => {
     const selected = isRowSelected(row)
-    const expanded = sheet && activeRowKey === row.modelKey
-    const rowKey = `${keyPrefix}:${row.modelKey}`
+    const rowId = rowIdOf(section, row.modelKey)
+    const expanded = sheet && activeRowId === rowId
     return (
       <div
-        key={rowKey}
+        key={rowId}
         className={cn(
           sheet && expanded && 'rounded-lg bg-muted',
           selected && !expanded && 'rounded-lg bg-muted',
@@ -584,12 +622,15 @@ export function ModelPickerPopover({
           role="option"
           aria-selected={selected}
           data-model-key={row.modelKey}
+          data-row-id={rowId}
+          // 「指针 / 键盘现在指着哪一行」—— 同一型号的两行**只有一行**会带上它。
+          data-row-active={activeRowId === rowId || undefined}
           ref={(el) => {
-            if (el) rowRefs.current.set(row.modelKey, el)
-            else rowRefs.current.delete(row.modelKey)
+            if (el) rowRefs.current.set(rowId, el)
+            else rowRefs.current.delete(rowId)
           }}
-          onMouseEnter={sheet ? undefined : () => focusRow(row.modelKey)}
-          onFocus={sheet ? undefined : () => focusRow(row.modelKey)}
+          onMouseEnter={sheet ? undefined : () => focusRow(rowId)}
+          onFocus={sheet ? undefined : () => focusRow(rowId)}
           onKeyDown={
             sheet
               ? undefined
@@ -598,7 +639,7 @@ export function ModelPickerPopover({
                   // 渠道已定就直接选定，未定才停在面板上等他点）。
                   if (event.key !== 'ArrowRight') return
                   event.preventDefault()
-                  focusRow(row.modelKey)
+                  focusRow(rowId)
                   setFocusPanelPending(true)
                 }
           }
@@ -607,10 +648,10 @@ export function ModelPickerPopover({
               // 手机没有 hover 也没有侧面板：点行 = 选中并把这一行原地展开成渠道
               // 列表，再点渠道才收起（D2 ④「手机 · 底部 Sheet」）。
               memory.setPendingModel(row.active ? null : row.modelKey)
-              setActiveRowKey(expanded ? null : row.modelKey)
+              setActiveRowId(expanded ? null : rowId)
               return
             }
-            handleSelectRow(row)
+            handleSelectRow(row, rowId)
           }}
           className={cn(
             'flex w-full items-center gap-2.5 rounded-lg text-left',
@@ -689,7 +730,7 @@ export function ModelPickerPopover({
               <p className="px-2.5 pb-1 pt-2 font-mono text-3xs uppercase tracking-nav text-muted-foreground">
                 {t('recent')}
               </p>
-              {recentRows.map((row) => renderRow(row, 'recent'))}
+              {recentRows.map((row) => renderRow(row, ROW_SECTION.recent))}
             </>
           ) : null}
           {groups.map((group) => (
@@ -697,7 +738,7 @@ export function ModelPickerPopover({
               <p className="px-2.5 pb-1 pt-2 font-mono text-3xs uppercase tracking-nav text-muted-foreground">
                 {group.label}
               </p>
-              {group.rows.map((row) => renderRow(row, 'group'))}
+              {group.rows.map((row) => renderRow(row, ROW_SECTION.group))}
             </div>
           ))}
         </div>
@@ -741,7 +782,7 @@ export function ModelPickerPopover({
               if (event.key !== 'Escape') return
               event.preventDefault()
               event.stopPropagation()
-              rowRefs.current.get(panelRow.modelKey)?.focus()
+              if (panelRowId) rowRefs.current.get(panelRowId)?.focus()
             }}
             className="w-model-channel-panel rounded-lg border border-border bg-popover p-1.5 shadow-md"
           >
@@ -802,7 +843,7 @@ export function ModelPickerPopover({
         open={open}
         onOpenChange={(next) => {
           setOpen(next)
-          if (!next) setActiveRowKey(null)
+          if (!next) setActiveRowId(null)
         }}
       >
         <ResponsivePopoverTrigger asChild>

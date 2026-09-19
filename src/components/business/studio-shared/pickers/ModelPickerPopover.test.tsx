@@ -541,3 +541,111 @@ describe('ModelPickerPopover — 行 → 过渡区 → 渠道面板走得过去'
     expect(document.activeElement).toBe(pro)
   })
 })
+
+/**
+ * owner 2026-09-19 真机：Seedream 5.0 Pro 同时出现在「最近」与它自己的分组里时，
+ * hover「最近」那行，渠道浮层却对齐到了**下面**那一行。根因是行的身份用的是裸
+ * `modelKey`，两份 DOM 抢同一把 ref 键，后挂载的（分组那份）盖掉先挂载的。行身份
+ * 因此改成「段 + 型号」；⚠ 记忆与提交仍按裸 `modelKey` 走。
+ */
+describe('ModelPickerPopover — 同一型号在「最近」与分组里各是一行', () => {
+  /** jsdom 量不出真实布局，按 `data-row-id` 给两行喂不同的 top。 */
+  function stubRowRects(tops: Record<string, number>) {
+    return vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(function (this: HTMLElement) {
+        const top = tops[this.getAttribute('data-row-id') ?? ''] ?? 0
+        return {
+          top,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          width: 0,
+          height: 0,
+          x: 0,
+          y: 0,
+          toJSON: () => ({}),
+        } as DOMRect
+      })
+  }
+
+  function rowById(rowId: string): HTMLElement {
+    const el = document.querySelector(`[data-row-id="${rowId}"]`)
+    expect(el).not.toBeNull()
+    return el as HTMLElement
+  }
+
+  /** 面板外层 —— `top` 写在它身上。 */
+  function panelTop(): string {
+    return ((channelPanel() as HTMLElement).parentElement as HTMLElement).style
+      .top
+  }
+
+  beforeEach(() => {
+    window.localStorage.setItem(
+      'pv:model-picker:recent',
+      JSON.stringify({ default: ['seedream-5.0-pro'] }),
+    )
+  })
+
+  it('两行都画出来，身份是 `recent:` / `group:`（⛔ 不靠去重把「最近」抹平）', () => {
+    openPicker()
+    expect(
+      document.querySelectorAll('[data-model-key="seedream-5.0-pro"]'),
+    ).toHaveLength(2)
+    expect(rowById('recent:seedream-5.0-pro')).toBeInTheDocument()
+    expect(rowById('group:seedream-5.0-pro')).toBeInTheDocument()
+  })
+
+  it('hover 哪一行，面板就对齐哪一行 —— ⛔ 不是下面那份同名行', () => {
+    const rect = stubRowRects({
+      'recent:seedream-5.0-pro': 120,
+      'group:seedream-5.0-pro': 480,
+    })
+    try {
+      openPicker()
+      fireEvent.mouseEnter(rowById('recent:seedream-5.0-pro'))
+      expect(panelTop()).toBe('120px')
+      fireEvent.mouseEnter(rowById('group:seedream-5.0-pro'))
+      expect(panelTop()).toBe('480px')
+    } finally {
+      rect.mockRestore()
+    }
+  })
+
+  it('同一型号的两行不会同时被指到', () => {
+    openPicker()
+    fireEvent.mouseEnter(rowById('recent:seedream-5.0-pro'))
+    const active = document.querySelectorAll('[data-row-active]')
+    expect(active).toHaveLength(1)
+    expect(active[0]).toHaveAttribute('data-row-id', 'recent:seedream-5.0-pro')
+  })
+
+  it('→ 从「最近」那行开面板，Esc 回的是「最近」那行', () => {
+    openPicker()
+    const recent = rowById('recent:seedream-5.0-pro')
+    fireEvent.focus(recent)
+    fireEvent.keyDown(recent, { key: 'ArrowRight' })
+    expect(document.activeElement).toBe(
+      within(channelPanel() as HTMLElement).getAllByRole('option')[0],
+    )
+    fireEvent.keyDown(channelPanel() as HTMLElement, { key: 'Escape' })
+    expect(document.activeElement).toBe(recent)
+  })
+
+  it('记忆按裸型号存 —— ⛔ 复合行身份不许漏进 memory 层', () => {
+    openPicker()
+    fireEvent.mouseEnter(rowById('recent:seedream-5.0-pro'))
+    fireEvent.click(
+      within(channelPanel() as HTMLElement).getAllByRole(
+        'option',
+      )[0] as HTMLElement,
+    )
+    const channel = window.localStorage.getItem('pv:model-picker:channel')
+    expect(channel).toContain('"default:seedream-5.0-pro"')
+    expect(channel).not.toContain('recent:')
+    expect(window.localStorage.getItem('pv:model-picker:recent')).not.toContain(
+      'recent:seedream',
+    )
+  })
+})

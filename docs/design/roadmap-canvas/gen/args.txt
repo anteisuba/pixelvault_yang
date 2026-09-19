@@ -138,3 +138,7 @@ DesignD7Script.dc.html
 DesignD7Shells.dc.html
 --artboard
 DesignCardsTavern.dc.html
+--artboard
+DesignD56Ask.dc.html
+--artboard
+DesignD56Map.dc.html

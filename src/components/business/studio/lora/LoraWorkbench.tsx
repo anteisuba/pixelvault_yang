@@ -1262,7 +1262,7 @@ function GenerateBranch({
     hasAppliedReplayRef.current = true
     // 一次性从 URL 回放参数灌进本地 state——ref 守卫保证只跑一次，不会级联
     // 覆盖用户后续编辑；QuickSetupDialog.tsx 里也是同一个理由禁用这条规则。
-     
+
     if (promptParam && promptParam.trim()) setPrompt(promptParam)
     if (negativePromptParam && negativePromptParam.trim()) {
       setNegativePrompt(negativePromptParam)
@@ -3715,7 +3715,12 @@ function LoraSpineBar({
       )}
       {/* 执行通道已并入上面底模卡的 mono meta 行（CD），不再单独占一行。 */}
       {/* LoRA 栈（在底模下面）。CD：标题行右侧给「已挂 N」计数。 */}
-      <div className="mt-1 flex w-full items-baseline gap-2">
+      <div
+        className="mt-1 flex w-full items-baseline gap-2"
+        // 助手挂 / 摘 / 调权重时这一行闪一次（进度表 21）——整栈共用一格，
+        // 与登记簿的 `loras` 那一格逐字同源。
+        data-assistant-field="loras"
+      >
         <span className="text-2xs uppercase tracking-wide text-muted-foreground">
           {t('spine.stackTitle')}
         </span>

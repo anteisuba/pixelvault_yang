@@ -62,7 +62,11 @@ export function StudioModelCapabilityChips({
   const hasReferenceImage = imageUpload.referenceImages.length > 0
 
   return (
-    <div className="flex flex-col gap-1.5 border-t border-dashed border-border pt-3">
+    <div
+      className="flex flex-col gap-1.5 border-t border-dashed border-border pt-3"
+      // 助手改到专属那一格时整行闪一次（进度表 21）。
+      data-assistant-field="capabilities"
+    >
       <span className="text-2xs font-medium text-muted-foreground/70">
         {t('sectionLabel', {
           model: getTranslatedModelLabel(tModels, selectedModel.modelId),

@@ -57,7 +57,11 @@ export const StudioReferenceRail = memo(function StudioReferenceRail({
         : null
 
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-3 border-b border-border/60 pb-3">
+    <div
+      className="mb-4 flex flex-wrap items-center gap-3 border-b border-border/60 pb-3"
+      // 助手挂 / 摘参考图时整条轨闪一次（进度表 21）。
+      data-assistant-field="references"
+    >
       <span className="shrink-0 text-xs text-muted-foreground">{label}</span>
 
       <div

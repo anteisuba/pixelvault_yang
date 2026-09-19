@@ -2608,6 +2608,34 @@ html:lang(ja) {
   }
 }
 
+/* ── 助手回执：被改的那一格闪一次（进度表 21 · D7 Q4）─────────────
+   与画布那一档（`canvas.css` 的 `.node-assistant-touched`）**同一条动效**：
+   320ms、只动 outline 与 opacity（⛔ 不动 transform / 尺寸 —— 被改的东西常在
+   视线里，动尺寸会让整栏重排）。时长走脊柱里现成的 `--duration-slow`，
+   ⛔ 不新造一档。`prefers-reduced-motion` 由文件末尾那条全局降级接住（动画被
+   压到 0.01ms，也就是「直接不闪」），所以这里不再写第二条降级。 */
+@keyframes assistant-field-touch-flash {
+  0% {
+    outline-color: transparent;
+    opacity: 1;
+  }
+  40% {
+    outline-color: var(--foreground);
+    opacity: 0.85;
+  }
+  100% {
+    outline-color: transparent;
+    opacity: 1;
+  }
+}
+.assistant-field-touched {
+  outline: 2px solid transparent;
+  outline-offset: 4px;
+  border-radius: inherit;
+  animation: assistant-field-touch-flash var(--duration-slow)
+    var(--ease-standard);
+}
+
 /* ── B7: Reduced motion preference ──────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
   /* 弹簧三档整体退化成脊柱的线性档：曲线里的过冲在减弱动效偏好下必须消失，

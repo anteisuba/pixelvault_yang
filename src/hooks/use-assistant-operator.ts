@@ -66,6 +66,7 @@ import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
+  STUDIO_OPERATOR_FIELD_IDS,
   STUDIO_OPERATOR_STREAMING,
   type StudioOperatorGenerateKnob,
 } from '@/constants/studio-assistant-operator'
@@ -118,6 +119,7 @@ import {
   buildGenerationKnobSteps,
   describeOperatorInverse,
 } from '@/lib/studio-operator-apply'
+import { flashAssistantTouchedField } from '@/lib/studio-operator-flash'
 import {
   describeContextCardDecisionText,
   describeContextCardProposalText,
@@ -1471,6 +1473,26 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                       operatorStepEntryId(runKey, step.id),
                       checkpoint,
                     )
+                }
+                /**
+                 * 回执的**第二只眼**（进度表 21 · D7 Q4）：被改的那一格闪一次。
+                 *
+                 * ⚠ 画布那一格（`canvasNodes`）在这里**跳过** —— 它已经由画布宿主
+                 *   在应用那一刻按节点闪过了（`flashAssistantTouchedNode`），
+                 *   而参数栏在画布上根本不存在。⛔ 别两边都闪。
+                 * ⚠ 排到下一帧再闪：这一跳刚 `flushSync` 落完表单，那一格正要
+                 *   重渲染，React 那一侧的 className 会在同一拍把 class 覆盖掉
+                 *   （判据与画布那一处逐字同源）。
+                 */
+                if (
+                  field &&
+                  field !== STUDIO_OPERATOR_FIELD_IDS.canvasNodes &&
+                  typeof window !== 'undefined'
+                ) {
+                  const touched = field
+                  window.requestAnimationFrame(() =>
+                    flashAssistantTouchedField(touched),
+                  )
                 }
                 if (field) {
                   recordOperatorChange({

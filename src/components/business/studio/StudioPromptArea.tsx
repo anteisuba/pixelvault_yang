@@ -920,7 +920,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             发不出去的矩阵。⚠ 视频还要按「用途」收窄端点（`filterOption`），
             与工具条上的分段控件同一个源。 */}
         {state.workflowMode === 'quick' && !isImageMode && (
-          <div className="flex flex-col gap-1.5">
+          // `data-assistant-field` = 助手改到这一格时闪一次（进度表 21）。
+          <div className="flex flex-col gap-1.5" data-assistant-field="model">
             <span className="text-2xs font-medium text-muted-foreground/70">
               {tForm('modelLabel')}
             </span>
@@ -942,7 +943,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               主模型 + 额外模型都在这里，选择器是多选的（三栏居中 modal，不受
               这 288px 的栏宽约束）。 */}
         {state.workflowMode === 'quick' && isImageMode && (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5" data-assistant-field="model">
             <span className="flex items-center text-2xs font-medium text-muted-foreground/70">
               {tForm('modelLabel')}
               {runModels.length > 1 ? (
@@ -1001,7 +1002,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             能力表派生 —— ⛔ 不再是两颗形态相同、数据两套的浮层。
             音频没有规格这一说（时长/变体归音效自己的浮层，切片 D）。 */}
         {isImageMode || isVideoMode ? (
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5" data-assistant-field="specs">
             <span className="text-2xs font-medium text-muted-foreground/70">
               {t('specLabel')}
             </span>

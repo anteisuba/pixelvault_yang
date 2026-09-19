@@ -42,10 +42,27 @@
 
 **v3 的方向已定**：`referenceImages` 与 `referenceRoles` 合并成 `referenceSlots: { role, url, cardId, cardName }[]`，与编译器输出的 `referenceSlots` 同形，在编译器改造那一片一次性完成并删掉旁挂表。⛔ v2 的 `referenceRoles` 是过渡形状，不是长期形状，不要在它上面再叠新语义。
 
+## v3 方向（owner 2026-09-19 拍板，随 D6 卡片设计落地）
+
+来源：`docs/design/roadmap-canvas/research/sillytavern-cards.md` §9–§12（逐条取舍 · v3 字段草案 · owner 拍板 · 语气/情感/关系的实现机制）。这一节只记**已拍板的方向**，字段级落点以那份调研的 §10 表为准，实现时代码赢。
+
+- **`description` 现在就拆**：`description` 收窄成**只写视觉**（外观 / 体态 / 服饰基调）并进编译器；新增 `summary` 给人看，**⛔ 不进 prompt**。迁移随 D6 一起做：现有文字默认归视觉，简介留空待补。拆的理由是语义混淆只会越来越贵，不是美观。
+- **`loreEntries` 做最小版**：纯文本 `keys[]` + `slot`（positive 前缀 / 后缀 / negative / 参考图选择）+ `order` + `enabled`。⛔ 不做正则、递归、概率、装饰器。先进 `extensions` 观察，出现第二个消费方再提成正式表。价值是**用 prompt 预算换表达力**；裁剪按 block 砍而不按句子砍，且必须是确定性的。
+- **`handle`**：prompt 里 `@名字` 的**稳定锚点**，短、user 作用域内唯一、与展示名解耦。展示名会变（「林夏（雨夜版）」），prompt 锚点不能变，否则跨次生成的一致性断掉。⚠ `@角色` 的匹配⛔ 不用整词边界（`\b\w+\b`），中文会直接失效。
+- **`relations[]` 结构化，注入时降解**：存成 `{ targetCardId, relation, note }` 作事实层（可双向展示 · 可在剧本节点按 `@角色` 投影 · 可回答「这两个角色同框过几次」）；**注入时降解成 lore 条目**（`keys = [对方 handle / 展示名]`），只在对方真的出场时才花预算。**存储形态 ≠ 注入形态**；按视角裁剪（这个角色不知道的事不注入）。▶ 酒馆没有关系字段是为了保住「一张 PNG 自包含可交换」，**那个约束对我们不成立**（卡活在自己库里、有 `cardId`、本就有变体树与反向关联），放弃结构化是白丢已有优势。
+- **`persona` 补 `examples[]`**（示例对白）——这是酒馆全套字段里**唯一真正传递「嘴音」的那一个**；`behavior` / `speech` / `catchphrases` 都是描述性的，模型读完只会写出「一个被描述成这样的人」。形态要抄对：**按场景切成多个独立 block**，喂模型时**按真实轮次渲染**，⛔ 不拼成散文；用可区分的角色标记让示例既与真实输入同构、又不被误认为真实发生过。
+- **台词生成直接出 `{ line, emotion, delivery }`**，⛔ 不做酒馆那种「生成完再回头分类一次」。酒馆选事后分类是因为它的输出是给人读的聊天正文，塞标签是污染；**我们的产物是台词稿 + 配音指令，情绪标签本来就是产物的一部分**。
+- **自定一张面向表演的情绪词表**（十几个量级），⛔ 不抄 go-emotions 那 28 类（那是面向换立绘的分类标签）。一张表同时服务三处：配音情绪参数 · 台词稿表演提示 · 角色卡表情参考图的槽位命名。闭集**靠解码器兜**（JSON Schema `enum`）而不靠提示词祈祷；多级解析容错；候选标签按「这张卡**实际有的**表情参考图 / 音色情绪档」裁剪后再给模型——模型永远选不出一个我们落不了地的情绪。
+- **多角色同框按槽分**，⛔ 不拼文本（酒馆 Join 模式串味是最值钱的那条负面经验，对应我们「A 的服装长到 B 身上」）：每个角色占独立的 referenceSlot 组 + 独立 `@handle` 锚。退化到单参考图路径时可以合并描述性文本，但**每个角色的 `identity` 锚点必须各自独立保留**。为单个角色写台词 / 配音时，**在最靠近生成点的位置钉一句「现在只写 @X」并保证它在任何预算压力下不被裁掉**；写台词时把其他角色名加进停止串。
+
+⚠ **同名异义提醒**：PixelVault 的 `persona` 与酒馆的 Persona（用户人设）**不是一回事**——我们这个是「角色的行为与说话方式」，服务对白与音色。
+
 ## 不能破坏
 
 `Recipe` 与 `CardRecipe` 的模型分离 · 角色卡 owner-scoped 查询与 ownership 服务端校验 · 变体树 `parentId` 的级联语义（变体随父卡删）· `VoiceCard` 的软引用语义（删音色不删角色）· `referenceRoles` 值域与画布词表同源。
 
 ## Source of Truth
+
+调研与 v3 方向：`docs/design/roadmap-canvas/research/sillytavern-cards.md`（§9 逐条取舍 · §10 字段草案 · §11 owner 拍板 · §12 语气/情感/关系的实现机制，2026-09-19）。
 
 `prisma/schema.prisma`（`CharacterCard` / `VoiceCard`）· `src/types/index.ts`（Character Card 段）· `src/constants/cards/character-card.ts` · `src/constants/node-studio.ts` · 调研证据 `docs/design/roadmap-canvas/research/cards.md`。

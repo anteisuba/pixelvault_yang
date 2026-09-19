@@ -5,6 +5,10 @@
 > 引擎：Operator 工具环那一份（桌面 `StudioOperatorDock`）。上层协议、五动词、帧与卡片形状全部以 [`assistant-shell-v2.md`](assistant-shell-v2.md) 为准，本文**不重抄**，只写 LoRA 域这一侧多出来的东西。
 > 上游业务契约：[`../domains/lora.md`](../domains/lora.md)（§7.1.1 family 方言 = 本文 §6 的事实源）。页面结构：[`lora-generate.md`](lora-generate.md)。当前可运行功能：[`lora-workbench.md`](lora-workbench.md)（§4.3 触发词 chips = 本文 §3 的事实源）。
 
+> **2026-09-19 补记（进度表 22「一张脸」）**：LoRA 装配台**早已挂着**这颗统一 dock——宿主实现是 `src/hooks/use-lora-operator-host.ts`，与工作台、画布是同一个契约的三份实现。本轮它这一侧只多了一件事：**空态第三颗起手药丸换成触发词那一问**（owner 要的），三语同步。⛔ 别把 22 读成「LoRA 这一轮才接上助手」。
+>
+> **「改」保留**（owner 2026-09-19，D7 Q5 改口）：LoRA 域的 op 表**不是空集**——`set_lora_parameters` 等随 owner 的在飞实现一起留着，`plan_lora_pick` 推荐卡仍归「问」。此前画板与 D7 决策树里那句「LoRA 的 op 表为空集、面板上没有任何改动入口」**作废**，⛔ 不要按它去删改动入口。
+
 ---
 
 ## 1. 目标与不做什么
@@ -507,6 +511,8 @@ loraPicks?: { candidateId, weight?, candidate: AssistantOperatorLoraPickCandidat
 - **代码**：`src/constants/lora-base-models.ts` · `src/constants/assistant-operator.ts` · `src/constants/studio-assistant-operator.ts` · `src/types/assistant-operator.ts` · `src/services/kernel/assistant-operator.service.ts` · `src/lib/lora-model-compatibility.ts` · `src/lib/lora-prompt-template.ts` · `src/lib/lora-source-match-prompt.ts` · `src/lib/studio-operator-snapshot.ts` · `src/lib/studio-operator-history.ts` · `src/hooks/use-lora-operator-host.ts` · `src/hooks/use-assistant-operator.ts` · `src/types/lora-candidate.ts` · `src/types/assistant-conversation.ts` · `src/components/business/studio/lora/LoraWorkbench.tsx` · `src/components/business/studio/assistant-operator/**`
 
 ### Last Verified
+
+- **2026-09-19 · 进度表 22 落地当日的两条补记**（代码已这样）：① 空态三颗起手药丸的第三颗改成触发词那一问，en/ja/zh 同步；② LoRA 域的「改」**保留**（`set_lora_parameters` 等），D7 Q5 那句「op 表为空集」作废。统一 dock 的壳、收起态与问题卡形状见 [`assistant-shell-v2.md`](assistant-shell-v2.md) §4.3 / §3.4——本文不重抄。
 
 - **2026-09-12 · 本文创建，owner 当日逐条拍板**。代码现状于本日读码核过，**只写文档，代码未动**。三处「代码与讨论口径不一致」已按代码 + owner 拍板写死：
   - **底模目录上没有蒸馏这一位**：11 条里没有蒸馏底模，`LoraBaseModel` 上也没有字段；Turbo 字样只在 `constants/lora.ts:443`–`:458` 的 Civitai 浏览分桶里（那是 LoRA 的 baseModel 值）。→ 加**必填** `distilled: boolean`（今天全 `false`），两档阈值逻辑一次到位；接 Z-Image Turbo / FLUX schnell 时只改那一条的值（§5.1）。

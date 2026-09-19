@@ -48,12 +48,18 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 ### 非目标（本轮明确不做）
 
 - ❌ **不拆 5,821 行的 `assistant-operator.service.ts`**。五动词是**对外的收口**（工具表 + 提示词 + 事件 + 卡片），不是文件级重构。为什么：拆文件是纯搬运，和这一轮要验证的体验假设零关系，一起做会让每个 commit 都变成「体验改动 + 大搬运」的混合体，出问题分不清是哪一半。
-- ❌ **不删旧 Prompt 助手（`prompt-assistant.service.ts`）与画布助手（`node-assistant.service.ts`）**。owner 明确「过度设计这轮不清理」。
-- ❌ **不动钱闸结构**。工具表里**没有任何一条能创建 generation，将来也不许有**；`request_generation` 只吐载荷，扳机永远在客户端。见 [`assistant-shell.md` §6](assistant-shell.md#6-确认三档与钱闸)，本文不重抄。⚠ 「无花钱确认」改的是**卡片的话术与要素**（不再摆 credits、不再问「要不要花这笔钱」），**不是**把闸拆了。
+- ❌ **不删旧 Prompt 助手（`prompt-assistant.service.ts`）**。owner 明确「过度设计这轮不清理」。⚠ 画布助手**已经不在这条里**：2026-09-19（进度表 22）画布并入同一颗 dock，`node-assistant.service.ts` 与它那只 dock 整套删除，理由与去处见 [`node-canvas-v2.md` §13](node-canvas-v2.md)。
+- ❌ **不动钱闸结构**。工具表里**没有任何一条能创建 generation，将来也不许有**；`request_generation` 只吐载荷，扳机永远在客户端。见 [`assistant-shell.md` §6](assistant-shell.md#6-确认三档与钱闸)，本文不重抄。⚠ 「无花钱确认」改的是**卡片的话术与要素**（不再摆 credits、不再问「要不要花这笔钱」），**不是**把闸拆了。结构性证明（`assistant-operator.money-gate.test.ts`）从「扫一遍名字里带 `generate` 的工具」改成**闭合 allow-list**：带 `generate` 的工具逐条写明它为什么过得了闸，名单之外的一条都算破闸。判据没松，松的只是那条扫描——加一条新 `*_generate` 时必须来改名单，而改名单是一个看得见的动作。
 - ❌ 不改生成模型 / 计费 / 归档 / LoRA 训练流程。
 - ❌ 不做音频域（`ASSISTANT_OPERATOR_DOMAINS` 里没有 `audio`，本轮也不加）。
 - ❌ 不做 LoRA 域与音频域的手机形态（沿用 v1 现状）。
 - ➡ LoRA 域这一侧的「挂载 + 专属提示词」另有施工基准：[`lora-assistant.md`](lora-assistant.md)（本文不重抄，两文的协议口径以本文为准）。
+
+### 宿主范围（owner 2026-09-19）
+
+同一颗 dock 挂三处：**工作台（图片 / 视频）· 画布 · LoRA 装配台**。三份宿主实现差的只有契约里那三样——域、快照、落笔的手，别的一律共用。
+
+**⛔ 配音间不挂助手**（owner 09-19 拍板，D7 Q5 改口）。此前画板里那一帧「配音间壳」作废：台词与语气不是「替你拧旋钮」，它本身就是配音间的主工作流，套一层助手只会多一条谁都不走的路。
 
 ---
 
@@ -108,9 +114,9 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 ## 2. 五动词架构
 
-### 2.1 31 个现有工具 → 五组
+### 2.1 现有工具 → 五组
 
-> ⚠ **现状事实**：`ASSISTANT_OPERATOR_TOOL_IDS` 里是 **31** 条，不是 32（2026-09-10 读码点数）。讨论稿写的 32 是口算，以代码为准。
+> ⚠ **工具总数以代码点数为准**，⛔ 不以任何一份文档里的数字为准。`ASSISTANT_OPERATOR_TOOL_IDS` 逐键点数：2026-09-10 是 **31**，2026-09-19（进度表 22 并入画布三条）是 **42**。子代理在同一天报过 39——那是漏数，以逐键点数为准。下表按组给名字而不是给总数；表和代码对不上时，代码赢。
 
 | 组           | 入口工具名           | 组内现有工具                                                                                                                                                                                                                                                              | 判据（为什么归这组）                                   |
 | ------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
@@ -126,6 +132,8 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 **新增进「查」组的**：证据本翻页 `recall_evidence`（§7.3）。
 **新增进「问」组的**：`propose_context_card`（§8.1）——它本质是「问一句要不要记住」。
 
+**2026-09-19 并入的 canvas 域三条**（进度表 22）：`canvas_apply` 进「改」、`canvas_plan_rerun` 进「看」（它只列名单，一个字不改）、`canvas_generate` 进「请求生成」。分组判据一条没改——沿用的仍是上表最右那一列。细节见 [`node-canvas-v2.md` §13](node-canvas-v2.md)。
+
 ### 2.2 模型只见五个入口
 
 五个入口工具的 schema 长这样（要点，不是完整定义）：
@@ -138,7 +146,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 | `apply`              | `action`（枚举）+ 原有参数                          | 一次调用只改**一项**（不是 `changes[]`）——错一项只重发一项，报错仍是模型学得会的 `malformedArgs`；`action` 枚举按域裁剪（§2.3） |
 | `request_generation` | `action`（`prime_generate` / `request_generation`） | 参数从工作台快照现取，模型不填模型 / 张数 / 比例（用户在卡上改，§5）                                                            |
 
-真值只有一份：`ASSISTANT_OPERATOR_ENTRY_ACTIONS` 由 `ASSISTANT_OPERATOR_TOOL_VERBS` 过滤得出，五组并集 = 31、两两不交，由测试锁住。`step` 帧带必填 `verb`（= 入口名），面板状态词直接读它。
+真值只有一份：`ASSISTANT_OPERATOR_ENTRY_ACTIONS` 由 `ASSISTANT_OPERATOR_TOOL_VERBS` 过滤得出，五组并集 = 全部工具、两两不交，由测试锁住（⛔ 不在文档里钉死那个数字，见 §2.1）。`step` 帧带必填 `verb`（= 入口名），面板状态词直接读它。
 
 **为什么这样切**：v1 的模型要在 31 条描述里挑一条，挑错的代价是白烧一步 LLM 往返（`maxSteps` 只有 8）。收成 5 条之后，「挑哪个动词」这个判断人和模型都做得对，剩下的「具体哪一支」是确定性的字段派发——那是代码该干的活。
 
@@ -146,7 +154,9 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 ### 2.3 audio 域工具怎么处理
 
-`mount_audio_reference` 与 `set_sound` 两条**列进「改」组**，但 `ASSISTANT_OPERATOR_DOMAINS` **不新增 `audio`**——它们在 v1 里就住在 video 域的工具表里（`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[video]`），v2 保持原样：`apply` 的 `action` 枚举在 video 域下包含 `mount_audio_reference` / `set_sound`，在 image / lora 域下不包含。
+`ASSISTANT_OPERATOR_DOMAINS` 现在是**四个**：`image` · `video` · `lora` · `canvas`（2026-09-19 并入画布，读码点数）。
+
+`mount_audio_reference` 与 `set_sound` 两条**列进「改」组**，但域表里**仍然没有 `audio`**——它们在 v1 里就住在 video 域的工具表里（`ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[video]`），至今保持原样：`apply` 的 `action` 枚举在 video 域下包含 `mount_audio_reference` / `set_sound`，在 image / lora 域下不包含。
 
 为什么：这两条动的是**视频工作台上真实存在的两颗旋钮**（配音参考、声音开关），不是一个独立的音频工作台。给它们单开一个域，等于造一个界面上不存在的工作台，而域裁剪的全部意义就是「界面上没有的旋钮，模型压根看不见」。
 
@@ -224,6 +234,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 - **固定在输入框上方**，不随时间线滚走。为什么：未答的问题是当下唯一挡路的东西，滚走了就等于问了个寂寞。
 - **一次只问一个**。模型想问两件事就分两轮。
+- **固定带一行「其他：自己填」**（owner 2026-09-19 批注 42）。它不是第 N 个选项，是卡上常驻的一个自由文本框：写的那句话走 `otherText`，⛔ 不混进 `optionIds`。两者**并存**——可以既选 A 又补一句；一个字都没写又点了选项时只带 `optionIds`，只写了字没点选项时只带 `otherText`。为什么常驻而不是「选项对不上时才出现」：对不上的那一刻正是最不该再多点一次才有地方说话的时刻。
 - 用户可以**不答直接打字**——输入框 placeholder 变成「写点什么，或者先回答上面那个问题…」（画板 Main 里的实际文案）。这时问题卡按「未答」保留到本轮结束，然后连同「未答」一起折进时间线。
 - **落账规则**：答完后 ① 时间线插一行 `问题 · 你选了 X`；② 这条选择**写进本轮结论的「决定」栏**（§7.5）；③ 下一轮请求里作为一条 `decision` 带上去，⛔ 不再靠模型从对话文本里猜。
 - **反问时机由模型判**（决策 4）：系统提示里给的是判据而不是阈值——「用户的说法能对应到两种以上明显不同的做法时才问；能猜到八成就直接做，并在回复里说清你按哪种理解做的」。
@@ -274,17 +285,17 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 ### 4.3 收起态
 
-画板 BCollapsed 的清单——收起后不是一条 48px 竖轨，而是一张**微状态卡**：
+收起态是**右下角一颗 44px 近黑圆按钮 + 数字角标**（D7 ④ · Q2 = C，owner 2026-09-19 验收）。桌面与手机是同一个组件，差的只有距下缘的留白（桌面 16 / 手机 96——手机底下钉着生成条）。
 
-| 元素        | 内容                                              |
-| ----------- | ------------------------------------------------- |
-| 头像 + 名字 | `A` · `ANTI`                                      |
-| 微状态      | `正在查 3 个来源…`（就是 §3.6 那句状态词）        |
-| 待办计数    | 一颗数字角标（如 `2`）——未答问题 + 未处理确认之和 |
-| 参数摘要    | 模型 / 尺寸 / 张数三行只读                        |
-| 底部        | `等待生成`                                        |
+| 元素     | 内容                                                                                |
+| -------- | ----------------------------------------------------------------------------------- |
+| 按钮     | 44px 近黑实底圆，里面是**头像**；没有头像时是名字首字，与时间线沟里那颗同源         |
+| 数字角标 | **待确认（未答问题 + 未处理确认）+ 未读结果**。⛔ `0` 不画角标，不画一个写着 0 的圈 |
+| 清零     | 前两项答完即减；**未读结果由外壳在打开面板那一刻清零**                              |
 
-为什么保留参数摘要：收起助手的人多半正在盯着画面，这三行是「助手到底把参数改成了什么」的唯一读数。
+**⛔ 已删掉的**：此前那张「微状态卡」（头像 + 名字 + 微状态词 + 待办计数 + 参数摘要三行 + 底部状态）与手机那颗独立 fab（图标 + 状态点 + 微状态药丸 + `3/6` 读数），**两个组件一起删**，⛔ 不留兼容形态。
+
+为什么连那句状态词都不留：收起态的语义因此收敛成一句话——**有没有等你的事**。「正在查 3 个来源…」这种读数在展开态头像旁仍然有（面板自己画），收起时它是一句没人会为它展开面板的话。也⛔ 不露最近一条消息：那是第二套时间线。至于此前写在这里的「保留参数摘要」那条理由——收起助手的人正在盯着画面，而画面上那些旋钮本来就在他眼前，读数抄一份在按钮上不增加任何信息。
 
 ### 4.4 输入区（两行）
 
@@ -333,15 +344,16 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 ### 4.6 移动端：半屏可拖 Sheet
 
-| 规则     | 内容                                                                                                                                                                                                         |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 形态     | 从 `100dvh` 全屏改为**半屏（约 55dvh）可拖**，三档吸附：半屏 / 全屏 / 关闭                                                                                                                                   |
-| 为什么   | 全屏 Sheet 把工作台整个盖住，而助手改的恰恰是被盖住的那些控件——用户要反复开关才能看见改动                                                                                                                    |
-| 复用     | 装的仍是同一个 `StudioOperatorPanel`，⛔ 不写第二套面板                                                                                                                                                      |
-| 头部     | 拖拽把手 + 会话标题（历史与设置收进标题▾）                                                                                                                                                                   |
-| 输入区   | 与桌面同构；键盘弹起时 Sheet 自动升到全屏档                                                                                                                                                                  |
-| 浮标     | 44px，右 16 / 下 96（沿用 `STUDIO_OPERATOR_MOBILE_SHELL`），96px 净空保证不压生成键                                                                                                                          |
-| 五动词条 | 「看 / 查 / 问 / 改 / 生成」小标签条**桌面与手机都显示**，摆在头部正下方（画板 Main，owner 2026-09-11 对稿定；此前写的「只在移动端」是偏差）。它说的是「五步里走到第几步」，与状态词那句「正在做什么」不重复 |
+| 规则   | 内容                                                                                                                                       |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| 形态   | 从 `100dvh` 全屏改为**半屏（约 55dvh）可拖**，三档吸附：半屏 / 全屏 / 关闭                                                                 |
+| 为什么 | 全屏 Sheet 把工作台整个盖住，而助手改的恰恰是被盖住的那些控件——用户要反复开关才能看见改动                                                  |
+| 复用   | 装的仍是同一个 `StudioOperatorPanel`，⛔ 不写第二套面板                                                                                    |
+| 头部   | 拖拽把手 + 会话标题（历史与设置收进标题▾）                                                                                                 |
+| 输入区 | 与桌面同构；键盘弹起时 Sheet 自动升到全屏档                                                                                                |
+| 浮标   | 收起态那颗 44px 按钮本身（§4.3），右 16 / 下 96（沿用 `STUDIO_OPERATOR_MOBILE_SHELL`），96px 净空保证不压生成键。⛔ 手机没有第二颗独立 fab |
+
+**⛔ 五动词常驻条已删**：「看 / 查 / 问 / 改 / 生成」那条小标签条 2026-09-15 随 A 方向删除，owner 2026-09-19（D7 ④ 画板）再次确认不要。理由：**动词只是内部分类**，创作者要知道的是「此刻在做什么」，那句话状态词已经说了；标签条占掉面板一行，换来的是同一件事的第二种说法。此前写在这里的「桌面与手机都显示」作废，⛔ 不要按它复原。
 
 ---
 
@@ -797,10 +809,20 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 - **讨论稿**：`assistant-review.html`（八议题）· `assistant-search-settings.html`（搜索与设置）· `assistant-context.html`（跨轮记忆三方案）
 - **设计画板**：`Main.dc.html` · `BEmpty` · `BCollapsed` · `BMobile` · `BSettings` · `BCards.dc.html`；线上 <https://claude.ai/code/artifact/7003a63a-b804-4937-8c65-18235f886843>
 - **现状记录与未重抄的细节**：[`assistant-shell.md`](assistant-shell.md)（§6 钱闸三档与 `request_generation` 契约 · §7.1 检索链入出参与证据六字段 · §12.1 20 条代码拍板落点表）
-- **代码**：`src/constants/assistant-operator.ts`（工具 31 条 / 事件 14 条 / 域表）· `src/types/assistant-operator.ts` · `src/services/kernel/assistant-operator.service.ts` · `src/lib/studio-operator-memory.ts` · `src/hooks/use-assistant-operator.ts` · `src/components/business/studio/assistant-operator/**` · `src/constants/node-studio.ts`（`NODE_STUDIO_ASSISTANT_ROUTE_MODELS`，9 条）· `prisma/schema.prisma`（`AssistantConversation` / `ResearchRun` / `AssistantPersona` / `ContextCard` / `ProjectRule`）
+- **代码**：`src/constants/assistant-operator.ts`（工具表 / 事件表 / 域表 —— 条目数一律以逐键点数为准，见 §2.1）· `src/lib/studio-operator-canvas-snapshot.ts`（画布分层快照）· `src/components/business/studio/assistant-operator/StudioOperatorCollapsedButton.tsx`（收起态）· `src/hooks/use-lora-operator-host.ts` · `src/hooks/node/use-canvas-operator-host.ts` · `src/hooks/node/use-canvas-operator-requests.ts`· `src/types/assistant-operator.ts` · `src/services/kernel/assistant-operator.service.ts` · `src/lib/studio-operator-memory.ts` · `src/hooks/use-assistant-operator.ts` · `src/components/business/studio/assistant-operator/**` · `src/constants/node-studio.ts`（`NODE_STUDIO_ASSISTANT_ROUTE_MODELS`，9 条）· `prisma/schema.prisma`（`AssistantConversation` / `ResearchRun` / `AssistantPersona` / `ContextCard` / `ProjectRule`）
 - **规范**：[`ui-defaults.md`](../ui-defaults.md) · [`testing.md`](../testing.md) · [`WORKFLOW.md`](../../WORKFLOW.md) · [`AGENTS.md`](../../../AGENTS.md)
 
 ### Last Verified
+
+- **2026-09-19 · 进度表 22「一张脸」落地**（11 个 commit，`f8e45989`…`acd1cbff`）。⚠ 本条记的是**代码已经这样了**，不是计划。
+  - **宿主收成三处**：工作台 · 画布 · LoRA，同一颗 `StudioOperatorDock` + `StudioOperatorPanel`，三份宿主实现（`use-studio-workbench-operator-host` / `use-canvas-operator-host` / `use-lora-operator-host`）只差域、快照、落笔的手。**配音间不挂助手**（owner 09-19，D7 Q5 改口），画板里那一帧作废。
+  - **画布并入**：`ASSISTANT_OPERATOR_DOMAINS` 从三个变四个（多 `canvas`），带来 `canvas_apply` / `canvas_plan_rerun` / `canvas_generate` 三条工具。画布自己那套引擎（`StudioNodeAssistantDock` · `ShellAssistantFrame` · `/api/studio/node-assistant` · `node-assistant.service` · `use-assistant-conversation`）整套删除——详见 [`node-canvas-v2.md` §13](node-canvas-v2.md)。
+  - **工具总数 42**（逐键点数）。子代理当日报 39，漏数；文档不再钉死这个数字（§2.1）。
+  - **收起态换成 44px 近黑头像按钮 + 数字角标**（§4.3），微状态卡与手机 fab 两个组件一起删。
+  - **五动词常驻条确认不要**（09-15 已删，09-19 owner 再确认）；§4.6 里那条「桌面与手机都显示」已作废。
+  - **问题卡固定带「其他：自己填」**（批注 42），走 `otherText`，与 `optionIds` 并存（§3.4）。
+  - **钱闸的结构性证明改成 allow-list**：带 `generate` 字样的工具逐条写明为什么过得了闸。⚠ **闸本身一个字没松**——服务端仍然一条能创建 generation 的路都没有。
+  - **LoRA 的「改」保留**（`set_lora_parameters` 等，D7 Q5 改口）；起手药丸补第三颗（触发词），见 [`lora-assistant.md`](lora-assistant.md)。
 
 - **2026-09-10 · 本文创建**。基于 owner 2026-09-09 重审全部拍板 + 09-10 跨轮记忆方案 A + 09-10 设计画板确认（方向 B）。代码现状于本日读码核过，与讨论稿口径不一致的三处已按代码订正并记在下方。**只写文档，代码未动。**
   - **工具数是 31 不是 32**：`ASSISTANT_OPERATOR_TOOL_IDS` 逐键点数 31（`read_state` … `set_review_state`）。讨论稿与决策清单里的「32 个工具」是口算，本文一律按 31。

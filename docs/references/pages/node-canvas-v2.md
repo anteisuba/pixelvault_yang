@@ -132,7 +132,7 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 - **左侧**：44px 图标栏四项 节点一览 / 角色·风格卡 / 素材库 / 历史；面板 264 宽浮在画布上，再点图标收起。节点一览 = 搜索 + 四类分组，每行缩略 · 名 · 子型 · 引用数，点定位。
 - **加节点没有常驻加号**：双击空白弹五颗小图标（文本 / 图片 / 声音 / 视频 / 上传）就地落空卡；右键空白菜单（新建四类 + **上传… ⌘U** + 粘贴 / 整理布局 / 适配视图）；⌘K 命令面板（搜节点定位 · 新建 · 上传 · 问助手 · 剪辑台 · 切项目）。上传 = 系统选文件（多选），按 MIME 落成图片 / 声音 / 视频卡，落点在双击 / 右键的位置。上传开始立即在画布显示逐文件加载提示；各文件完成或失败后独立移除，并发上传不会提前结束整个加载态。
 - **底栏**：选择 / 手 · 缩放% · 适配 · 整理 ‖ 撤销 / 重做。
-- **助手**：右上键开右侧 dock，对话态可拖 320–520（默认 380），展开（对话 + 大纲两列）可拖 560–800（默认 720）；可收成一条。小地图常显可收成右下一颗。值在 `CANVAS_SHELL_ASSISTANT`。
+- **助手**：右上键开右侧 dock —— **就是工作台那一颗**（§13），宽度与收起态归它自己（可拖宽，收成右下 44px 按钮 + 角标）。⛔ 画布不再有自己的一套宽度常量：各记各的宽度正是「我拖过的宽度自己弹回去了」的成因。小地图常显可收成右下一颗。
 - **「配置渠道与 key」不再开抽屉**（2026-09-18）：⌘K 命令面板与卡上模型选择器页脚的那条动作，现在一律跳 `/settings/keys`，并带 `from=` 当前画布路径。画布自己的第二个 key 抽屉 `ShellApiKeys` 已删，留下的 `ShellKeySettings` **只是一个 context**——跳转由 `NodeWorkbenchV4` 这一层注入，叶子卡片只读不碰路由（否则每张卡的单测都要拖进 `@/i18n/navigation`）。外壳没挂时消费方不给出那一行，少一个入口比白屏好。缺 key 时的**就地**配置仍是 `QuickSetupDialog`（Hard Rule 8），与这条「通盘管理」不重叠。
 - **快捷键**：T / I / A / V 新建四类 · ⌘U 上传 · ⇧A 整理 · ⇧1 适配 · ⌘K · ⌘N 新项目 · Esc 收起。对齐 `alt+a/d/w/s` · 等距 `shift+h/v` · 复制粘贴撤销重做在 `WorkbenchShortcutsV4`，⚠ alt 组合先看 `event.code`：macOS 上 alt 会把字母键的 `key` 变成 `å`/`∂`。
 
@@ -298,7 +298,7 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 - **镜头标签不随换序变**：镜头有不变的 `label` 作为 `@` 名主体，`shotNo` 只是显示序号，换序只动序号不动名。
 - **创建即持久化**：任何路径新建节点都在同一次提交里写名字，⛔ 不再「显示时才编号」。
 - **改名不改 id**：显示层用名字，边 / op / 快照一律用 `id`；`@` 写进 prompt 时同时写 `[[node:<id>]]` 锚，改名后历史引用跟着更新。重名**就地拒绝**，⛔ 不静默加后缀。
-- **快照分层，不设节点数硬上限**（`NODE_V4_SNAPSHOT` + `buildNodeAssistantContext`）：当前镜 + 相邻两镜 + 选中 + 最近改动走**完整档**（镜头行 + 每槽 `slot ← 源` + prompt / 参数），其余镜头走**标题档**一行。文本槽在快照里**按角色分行**——混成一行模型就分不出「要拍的内容」和「不许违反的约束」。`maxNodes` 是**标题档的行数上限**，⛔ 不再用它截断完整档。轮播槽只报当前版 + 版本数。
+- **快照分层，不设节点数硬上限**（`NODE_V4_SNAPSHOT`；助手那一侧的现行实现见 §13.1）：当前镜 + 相邻两镜 + 选中 + 最近改动走**完整档**（镜头行 + 每槽 `slot ← 源` + prompt / 参数），其余镜头走**标题档**一行。文本槽在快照里**按角色分行**——混成一行模型就分不出「要拍的内容」和「不许违反的约束」。`maxNodes` 是**标题档的行数上限**，⛔ 不再用它截断完整档。轮播槽只报当前版 + 版本数。
 
 ---
 
@@ -341,9 +341,31 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 
 ## 13. 助手
 
+> **2026-09-19（进度表 22「一张脸」）**：画布不再有自己的助手引擎。板上那只 dock 就是**工作台那一颗**——`StudioOperatorDock` + `StudioOperatorPanel`，`domain = canvas`，宿主实现是 `src/hooks/node/use-canvas-operator-host.ts`。协议、五动词、五类卡、每轮结账、`@` 与 `+` 菜单、会话历史、LLM chip 全部以 [`assistant-shell-v2.md`](assistant-shell-v2.md) 为准，**本节不重抄**，只写画布这一侧多出来的东西。
+
+### 13.0 随之删掉的（⛔ 不要按旧文复原）
+
+`StudioNodeAssistantDock`（板上那只旧 dock）· `ShellAssistantFrame`（包着它的外壳与那几个只有它读的宽度常量）· `/api/studio/node-assistant` · `node-assistant.service` · `use-assistant-conversation`（驱动它的会话 hook）——**整套删除**。
+
+从会话 hook 里活下来的只有两样：消息形状与 `[[node:…]]` / `[[capability:…]]` 标记剥离，原样搬到 `src/lib/assistant-conversation-messages.ts`（剧本笺与它那份只读转录仍然读它们）。判据是文件名——叫 `use-*` 的文件里该装一个 hook。
+
+**还没走的三个**：`CanvasAssistantHistory` · `CanvasAssistantRouteSelector` · `CanvasAssistantReferencePicker`。它们同时也是旧 studio dock 与提示词面板的件，那只 dock 退场时一起走（进度表 57）。
+
 ### 13.1 助手读什么
 
-助手读的是 **v4 快照**（§10）：分层、带边、边内联在目标节点下按 `slot ← 源` 排、文本槽按角色分行、轮播槽只报当前版。
+助手读的是 **v4 快照**（§10）的一份**分层视图**（`src/lib/studio-operator-canvas-snapshot.ts`）：带边、边内联在目标节点下按 `slot ← 源` 排、文本槽按角色分行、轮播槽只报当前版。
+
+**分层规则**（⛔ 不是可调参数，是这条工具的形状）：
+
+- **焦点那一面镜与它左右各一面**完整展开——节点、槽、参数、连线俱全。
+- **其余每面镜只出一行**：`{shotNo, title, nodeCount}`。
+- **未归镜的散节点单独一档**，完整展开，排在最后。
+- 节点正文按上限截断（一张剧本笺可以有十万字，模型要的只是「这张卡在讲什么」）。
+- 快照里**没有 URL**，产出那一格是 `hasOutput: boolean`：画布 op 一律认节点 id，摆一串地址只会诱导模型去编一个不存在的地址。
+
+**为什么分层**：一步 = 一次完整 LLM 往返，一轮只有 8 步。一张六十镜的画布全展开，等于整轮预算烧在读上下文上。
+
+**要看更多就把焦点挪过去再读一次**——⛔ 别加一条「展开第 N 镜」的工具，那是 `read_state` 自己的活。⚠ **折叠的镜里的节点不进服务端准入名单**：模型没看见的节点它不该去改。这条与 `mount_reference` 只认 `searchIndex` 同源。
 
 ### 13.2 op 集
 
@@ -363,9 +385,23 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 
 ⛔ 没有 `collapse` / `collapse_lane`：展开是画布级视图状态（§1.11），镜头带不折叠。
 
-### 13.3 提案卡三档纪律
+### 13.2.1 canvas 域的三条工具 = 助手能碰的那一格
 
-提案卡（`CanvasOpProposalCard`）把一批 op 分成三种落法，**分档依据是「错了要付多大代价」，不是「改动大不大」**：
+| 工具                | 归哪个动词 | 收什么                                                                                                   |
+| ------------------- | ---------- | -------------------------------------------------------------------------------------------------------- |
+| `canvas_apply`      | 改         | **一条** v4 op，原样（⛔ 不是 `ops[]`）——错一条只重发一条                                                |
+| `canvas_plan_rerun` | 看         | 算下游名单，一个字不改一分钱不花；`includeSelf` 默认 false                                               |
+| `canvas_generate`   | 请求生成   | 板上唯一那条指向花钱的路。**服务端只吐载荷**，扳机在宿主手上——与工作台的 `request_generation` 同一条纪律 |
+
+**为什么是三条而不是十一条**：v4 的 op 词表（§13.2）本来就是一张**闭合真值表**，带自己的确认档与 inverse 形状，板上的执行器也是逐 op 读它的。再抄一份工具进去就是第二处定义。
+
+`canvas_apply` 收得下哪几条 op 由 `CANVAS_APPLY_OP_IDS` **从 spec 表现算**：`inverse !== null`（撤得掉）**且不是** `generate`。撤不掉的两类各有去处——读类归「看」，`generate` 归花钱档。⛔ 别把它改成手抄的字面量清单：v4 词表加一条而这里漏了，表现是「画布上做得到的事助手做不到」，而那是安静的。
+
+### 13.3 提案卡三档纪律（剧本笺的只读转录）
+
+⚠ **时效**：这一节描述的是 `CanvasOpProposalCard` 的纪律。板上的助手 2026-09-19 起走 Operator 那条路（回执 + 撤销，见 §13.5），这张卡如今只剩剧本笺（`ScriptDocWorkspace`）里那份只读转录在用。⛔ 不要把它当画布助手的现行形态读；剧本笺本身的去处属进度表 24。
+
+提案卡把一批 op 分成三种落法，**分档依据是「错了要付多大代价」，不是「改动大不大」**：
 
 | 落法         | 谁                                                        | 怎么落                                                                                                                          |
 | ------------ | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
@@ -382,6 +418,25 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 媒体与运行态回填串行合并到最新图状态，失败清理任务 ID 不会被后续状态更新覆盖；旧任务回包不改写已替换的新任务。服务端确认取消后停止轮询并清理任务，镜头取消按钮调用服务端取消接口；取消失败保留运行态，已完成则取回实际终态与产物。
 
 `use-node-generation-reconcile-v4` 负责后台落地：**有 job id 就是还在飞**（⛔ 不另看 `status`，两个判据迟早对不上），轮询到结果就 `setMedia` 回填（不进撤销栈，§11.3 例外 3）。⚠ 后台落地的失败必须走**翻译过的**那一条说给用户听——不给这条路径，同一个失败会有前台/后台两种读法；⛔ 不在 hook 里直接 toast。
+
+### 13.5 改了什么怎么看见（2026-09-19）
+
+- **被改的节点 outline 闪一次**：320ms，只动 outline 与不透明度。面板里的回执行说「改了几样」，闪的那一下说「是哪几张」——⛔ 没有这一下，创作者得读完一行字再去满板找卡。`prefers-reduced-motion` 下降到 1ms，与板上其他三处时长同一条规矩。
+- **`add_node` 不闪**：新 id 由执行器现铸，助手这一侧根本看不见它。一张卡凭空出现本来就比闪一下更响。
+- **撤销撤到那一步为止，不是只撤那一步**。画布的撤销栈是**线性**的：一条线建好之后又在它上面接了三个节点，此时单独抽掉那条线得到的是一张谁都没见过的图。语义与用户自己按 ⌘Z 一致，⛔ 不另起一套「只撤中间那一格」的画布撤销（那需要第二份图历史）。
+- **面板宽度记忆归 dock 自己**。此前是画布那只外壳各记各的，表现是「我拖过的宽度自己弹回去了」。
+
+### 13.6 板上三条侧入口
+
+面板之外还有三个地方能把意图递给助手，都走模块级便条 → `use-canvas-operator-requests` → 翻译成**一句人话**发进面板。⛔ 这个 hook 不算拓扑、不调模型、不碰画布——多算一遍就是第二份真相。句子里写**节点名字**不是 id：创作者认得「S02·首帧」，认不得一串 uuid；模型下一步要写回来的那个 id 由它自己从快照里取。取不到名字时回落成 id，⛔ 不因此不发。
+
+| 入口                     | 落到哪                       |
+| ------------------------ | ---------------------------- |
+| 节点菜单「重跑下游」     | `canvas_plan_rerun`          |
+| 文本卡助手栏 续写 / 重写 | `canvas_apply` 的 `set_text` |
+| 剪辑台排片栏 一句话排片  | **只到面板**（见下）         |
+
+**已知缺口，有意不假装**：排片那条目前只能在面板里拿到一个回答，拿不到一份剪辑台能直接套用的时间线提案——`deliverTimelineProposal` 还没有生产者，要等助手有一条能做出时间线的工具。⛔ 不临时造一个：那等于递给创作者一份没有任何东西算过的剪辑表。
 
 ---
 
@@ -459,7 +514,8 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 - 节点卡与共用件：`src/components/business/node/nodes/v4/**`（`chrome/*` = 工具条 / 提示词栏 / chip 弹层 / @ chip / 版本小点 / 裱框显影 / 快速看 / 画中框）· 外壳 `src/components/business/node/workbench-v4/**`（见 `src/components/business/node/CLAUDE.md`）
 - 模型选择器：`src/components/business/studio-shared/pickers/ModelPickerPopover.tsx` · `ModelChip.tsx` · `src/lib/resolve-model-channel.ts` · `src/lib/group-models-for-picker.ts` · `src/hooks/use-model-picker-memory.ts` · `src/constants/model-picker.ts`
 - 剪辑台：`src/components/business/node/edit-desk/**` · `src/hooks/node/use-edit-desk.ts` · `src/hooks/node/use-edit-shortcut-preset.ts`（PR / FCP 键位预设，住 `localStorage`）· `src/lib/edit-project.ts` · `src/constants/edit-desk.ts` · `src/constants/render-video.ts` · `src/services/video/render-video.service.ts` · `src/app/api/studio/render/**` · `workers/render-video/`
-- op 与助手：`src/constants/node-assistant-ops.ts` · `src/lib/node-assistant-op-apply-v4.ts` · `src/lib/node-assistant-op-plan.ts` · `src/lib/node-assistant-context.ts` · `src/services/node/node-assistant.service.ts` · `src/components/business/node/CanvasOpProposalCard.tsx`
+- op 与助手：`src/constants/node-assistant-ops.ts` · `src/lib/node-assistant-op-apply-v4.ts` · `src/lib/node-assistant-op-plan.ts` · `src/lib/node-assistant-context.ts` · `src/components/business/node/CanvasOpProposalCard.tsx`（剧本笺转录，§13.3）
+- 画布上的助手（§13）：`src/hooks/node/use-canvas-operator-host.ts` · `src/hooks/node/use-canvas-operator-requests.ts` · `src/lib/studio-operator-canvas-snapshot.ts` · `src/types/assistant-operator.ts`（`CANVAS_APPLY_OP_IDS`）· `src/constants/assistant-operator.ts`（canvas 域）· `src/components/business/studio/assistant-operator/**`（壳与面板，⛔ 画布不另有一套）· 协议 [`assistant-shell-v2.md`](assistant-shell-v2.md)
 - 槽与装配：`src/lib/node-slot-binding.ts` · `src/lib/node-slot-payload.ts` · `src/lib/node-connection-rules.ts` · `src/lib/node-mentions-to-slots.ts` · `src/lib/node-shot-layout.ts` · `src/lib/node-output-versions.ts`
 - 图引擎与存储：`src/hooks/node/use-node-graph-v4.ts` · `use-node-workflow-store.ts` · `use-cast-ingest-engine-v4.ts` · `use-node-generation-reconcile-v4.ts` · `src/lib/node-workflow-adopt-merge.ts` · `src/services/node/node-workflow.service.ts` · `prisma/schema.prisma`（`NodeWorkflowProject.state`）
 - 迁移：`src/lib/node-workflow-migrate-v4.ts`（含 `migrateRetireVideoMergeV4`）· `src/lib/node-workflow-v4-upgrade.ts` · `src/lib/node-v4-merge.ts` · `scripts/migrate-node-workflow-v4.ts`
@@ -467,6 +523,8 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 - 视觉：`docs/references/ui-defaults.md` §3.1 / §4.1 · `src/app/globals.css` · `src/app/canvas.css`（§15 收尾中）
 
 ## Last Verified
+
+- **2026-09-19 · 画布并入统一助手（进度表 22「一张脸」）**：§13 重写。板上的助手就是工作台那颗 dock（`domain = canvas`）；画布自己那套引擎（旧 dock · 外壳 · 路由 · service · 会话 hook）整套删除，新增 canvas 域三条工具、分层快照、被改节点闪一下、三条侧入口。⚠ 两处**已知缺口**记在文里而不是补一个假的：剪辑台排片只到面板（`deliverTimelineProposal` 无生产者）；`CanvasAssistantHistory` / `RouteSelector` / `ReferencePicker` 三个组件等旧 studio dock 退场（进度表 57）一起走。
 
 - **2026-09-10 · 界面重做并回（S11b）**：`node-canvas-v3-spec.md` 删除，其中**已落地**的结论并入本文——§1 通用语言十三条、§2–§5 四类节点的五态与提示词栏、§6 剪辑台（台面 + 渲染层 + 一句话排片 + 导出）、§7 画布外壳与新建词表、§8 随之而来的数据改动（子型不驱动渲染 / `@`→槽 / 音色是属性 / 模型选择器数据 / `EditProject` / `video.merge` 退役）。章节编号改按施工规格的 §1–§8，数据模型与基础设施顺延到 §9 起；代码注释里的 `spec §N` 因此指向本文。**删掉被 v3 推翻的内容**：旧 §2「两态渲染」（卡头 44px / 原地长高 480 / 卡内生成编排区 / 槽轨 / 图集证据关系带 disclosure）、旧 §5 添加菜单里的「合并」项。**新增**：§8.3 产出版本来源值域补 `render`（剪辑台成片）、§9.2 产出版本表的写入纪律、§14.3 服务端水化改为合并。⚠ 施工排片表（原 §9）不并回——那是过程不是基准，实现历史见 git log。
 - **2026-09-08 · 重写为现行基准**：v4 落地后本文从「第三期目标态」改写为现状基准。

@@ -432,3 +432,401 @@ PixelVault 的现状（读自 `prisma/schema.prisma` 与 `docs/references/domain
 - owner 新增两条需求（酒馆里最想要的）：
   1. **卡片给 LLM**：AI 以卡片角色的语气 / 情感回复——落在 `persona`（behavior · speech · catchphrases · examples）驱动对白生成与配音情绪标记；助手 / 配音间需要一个「以 @角色 的口吻」模式。
   2. **卡片给助手**：写剧本时助手能看到角色详细信息与**角色之间的关系** → 新增 `relations[]`（`{ targetCardId, relation, note }`，双向展示），随上下文卡注入进系统提示；剧本节点（24）投影时按 @角色 带入。
+
+## 12. 补充：角色语气 / 情感 / 关系的实现机制
+
+调研日期 **2026-09-19**。本节回答 owner 在第 11 节提出的两条需求背后的问题：**酒馆是不是真有这两个能力、怎么实现的**。不重复第 1~10 节的规范字段表，只讲机制——数据在哪个字段、prompt 怎么拼、代码在哪个文件。
+
+源码取自 `SillyTavern/SillyTavern` 的 **release 分支**（快照 commit `06bde93`，`package.json` 版本 1.19.0），可按 `https://github.com/SillyTavern/SillyTavern/blob/release/<路径>` 核对。官方文档统一指 `https://docs.sillytavern.app/`。规范两份：https://github.com/malfoyslastname/character-card-spec-v2/blob/main/spec_v2.md 、https://github.com/kwaroran/character-card-spec-v3/blob/main/SPEC_V3.md 。以上均 2026-09-19 逐个拉取核实。
+
+### 12.0 三句话结论
+
+1. **语气：有，而且是整张卡的主线**。承载语气的不是某个「语气字段」，而是**示例对白 `mes_example` 以「真实轮次」的形态注入上下文**——它教模型的是句法节奏，不是形容词。
+2. **情感：有，但和我们要的不是一回事**。酒馆的「情感」只服务于**换立绘**，是**事后分类**（默认本地 BERT 跑 28 类 go-emotions），**不进 prompt、不进 TTS**。TTS 里根本没有情绪通道。
+3. **角色关系：没有原生字段**。规范和 UI 里都查无此物；社区有十来个第三方扩展在做，但全是旁路实现，没有一个成为事实标准。
+
+---
+
+### 12.1 「语气」由哪些字段承载，在 prompt 里拼在哪
+
+酒馆有两条完全不同的装配路径，字段相同、拼法不同。公共入口是 `public/script.js` 的 `getCharacterCardFieldsLazy()`，所有字段都先过 `baseChatReplace()`（宏替换 + 折行归一）。
+
+几个容易误解的映射先写清：
+
+- `persona` 取的是**用户自己的** persona 描述，不是角色的；
+- `system` ← `character.data.system_prompt`，**但被 `power_user.prefer_character_prompt` 开关卡着**；
+- `jailbreak` ← `character.data.post_history_instructions`，被 `prefer_character_jailbreak` 卡着；
+- `charDepthPrompt` ← `character.data.extensions.depth_prompt.prompt`。
+
+**值得单独记一笔**：V2 规范说 `system_prompt` 的默认行为 **MUST** 是替换用户全局 system prompt（第 1.2 节），但**实现上酒馆给它加了一道用户开关**，卡没有无条件的覆盖权。第 9.2 节判断「让导入的卡覆盖全局系统提示词是安全问题」，酒馆自己也是这么处理的。
+
+#### Text Completion 路径：Story String 模板
+
+上下文由一个 Handlebars 模板一次性渲染（`public/scripts/power-user.js` 的 `renderStoryString()`）。默认模板（`default/content/presets/context/Default.json`）的变量顺序就是默认的字段优先级：
+
+> `anchorBefore` → `system` → `wiBefore` → `description` → `personality` → `scenario` → `wiAfter` → `persona` → `anchorAfter`
+
+每个变量都包在 `{{#if}}` 里——**空字段不占位、不留空行**。这是个很干净的设计：字段的「有无」直接决定结构，编译器不需要到处判空。`anchorBefore` / `anchorAfter` 是扩展注入的静态锚点（Author's Note、摘要、向量检索结果都落在这两个槽）。
+
+**默认模板里没有 `{{mesExamples}}`**——示例对白不走 Story String，而是作为独立的一段拼在 story string 之后、聊天历史之前，因为它要被单独裁剪（见 12.3）。
+
+Instruct Mode 不是插在中间的一段，而是**包在外面的一层**：`instruct-mode.js` 的 `formatInstructModeStoryString()` 用 `story_string_prefix` / `story_string_suffix` 把**整个渲染后的 story string** 包成一条 system 轮次（ChatML 预设即 `<|im_start|>system … <|im_end|>`），聊天消息再逐条各自包一层。
+
+#### Chat Completion 路径：Prompt Manager
+
+这条路不是渲染模板，而是**一个有序的消息列表**，用户可拖拽排序、逐条开关。默认顺序写死在 `public/scripts/PromptManager.js` 的 `promptManagerDefaultPromptOrder`：
+
+> `main`（主系统提示词）→ `worldInfoBefore` → `personaDescription` → `charDescription` → `charPersonality` → `scenario` → `enhanceDefinitions`（默认关）→ `nsfw`（Auxiliary Prompt）→ `worldInfoAfter` → `dialogueExamples` → `chatHistory` → `jailbreak`（Post-History Instructions）
+
+对照 Story String 会发现**两条路径的字段顺序是刻意对齐的**（描述 → 性格 → 场景 → 世界书后半 → 示例 → 历史）。`jailbreak` 永远在最后，紧贴生成点。
+
+其中 `charDescription` / `charPersonality` / `scenario` / `worldInfo*` / `dialogueExamples` / `chatHistory` / `personaDescription` 都是 **marker**（占位条目，内容运行时填）。摘要、作者注释、向量检索结果同样各占一个具名 identifier（`summary` / `authorsNote` / `vectorsMemory` / `vectorsDataBank` / `smartContext`），**与角色卡字段平起平坐、可拖拽排序**。
+
+还有一条架构细节值得抄：**条目的最终位置由用户的 `prompt_order` 决定，而装配代码里的添加顺序只决定「谁先抢 token 预算」**。位置和优先级是两个正交的维度。
+
+> **对 PixelVault 的直接启发**：这两条路径的差别是「模板渲染」vs「有序条目列表」。前者产出一整块文本、适合一次喂满；后者每一项独立可开关、可预算、可重排。`card-recipe-compiler` 现在更像前者；一旦引入第 11 节已拍板的 `loreEntries` 条件注入 + 预算裁剪，它必须变成后者——**先建有序条目列表，最后才 join 成 prompt**，并且把「位置」和「预算优先级」拆成两个字段。
+
+#### 这些字段里，真正承载「语气」的是哪个
+
+- `description` / `personality` / `scenario`：**描述性**——告诉模型角色「是什么样的人」。让模型知道该扮演谁，但不决定句子长什么样。
+- `mes_example`：**示范性**——直接给模型看几轮「这个角色会怎么说话」。这是酒馆里唯一能传递**句法节奏、口头禅密度、标点习惯、段落长度**的字段。社区公认「卡写得好不好看 example」，原因就在这里。
+- `system_prompt` / `post_history_instructions`：**指令性**——「用第三人称写」「不要替用户发言」这类元规则，不是角色的嗓音。
+- Author's Note / Character's Note（`depth_prompt`）：**抗遗忘**——把一句「她说话永远带刺」钉在历史末尾附近反复提醒，对抗长对话里的人格漂移。
+
+**结论：语气 = 示例对白（示范）+ 深度注入（抗遗忘）。描述性字段只是底座。**
+
+补一条 `{{original}}` 的实现细节（`script.js`）：这个宏**只在显式传入原内容的调用点存在，且一段文本里只生效第一次**，第二次返回空串。这是防止用户在覆盖模板里反复展开原 prompt 把上下文撑爆。
+
+---
+
+### 12.2 `mes_example` 的注入形态：它是「轮次」不是「段落」
+
+这一条是本节最有借鉴价值的机制细节。
+
+`script.js` 的 `parseMesExamples()`：用 `<START>` 把整段示例**切成多个独立 block**（不以 `<START>` 开头的会被自动补上），每块前加块首分隔符。
+
+关键在于**每块之后怎么渲染**，三条路径都指向同一个答案——**示例要和真实对话同构**：
+
+| 路径                           | 渲染形态                                                                                                                                                                               |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Text Completion（非 instruct） | 纯字符串拼接，`<START>` 变成 `example_separator`（默认 `***`），无角色包装                                                                                                             |
+| Text Completion + Instruct     | `formatInstructModeExamples()` 把 `<START>` 换成 `{Example Dialogue:}`，再把块**切成一条条独立轮次**，逐条套上和真实对话**完全相同的** `input_sequence` / `output_sequence` 前后缀     |
+| Chat Completion                | `setOpenAIMessageExamples()` 把块拆成真正的 message 对象；**角色统一是 `system`，靠 `name` 字段区分 `example_user` / `example_assistant`**，每块前再插一条 "New Example Chat" 分隔消息 |
+
+也就是说，在 Instruct 和 CC 路径下，示例对白在模型眼里**和真实的历史轮次长得一模一样**——它不是「一段关于对话的描述」，而是「几轮假的真对话」。
+
+（CC 路径用 `system` + `name` 而不是直接 `user`/`assistant`，是为了不让示例被模型误当成真实发生过的事——**既要同构、又要可区分**，这个折中值得注意。）
+
+多个 block 的意义也在这：`<START>` 分隔的每一段是**一个独立的对话场景**，不是同一段对话的续写。一张卡可以给「日常」「被激怒」「示弱」三个场景各一段例子。
+
+---
+
+### 12.3 上下文吃紧时，示例对白怎么被裁掉
+
+三档策略（User Settings 的 **Example Messages Behavior**）：
+
+| 选项                         | 内部开关         | 行为                       |
+| ---------------------------- | ---------------- | -------------------------- |
+| **Gradual push-out**（默认） | 两个开关都 false | 示例被逐 block 挤出去      |
+| Always include examples      | `pin_examples`   | 永远全量带上，不参与递减   |
+| Never include examples       | `strip_examples` | 渲染完 story string 即清空 |
+
+Gradual push-out 在 TC 路径上是**两段式**的：
+
+1. **预估**：先把聊天历史的 token 算完，再拿剩下的预算逐个 block 累加示例，超了就停，实际带上的数量记在 `count_exm_add`；
+2. **收缩**（`checkPromptSize()`，递归）：整条 prompt 仍然超限时，**先 `count_exm_add--`（一次丢一个完整示例块）；示例全部丢光之后，才开始丢最老的聊天消息**。
+
+CC 路径同理：`populateDialogueExamples()` 用 `canAffordAll()` 判断，装不下就 `break`，**整块丢弃**。
+
+三条结论：
+
+1. **聊天历史的优先级高于示例对白**——对话越长，角色的「原始嗓音样本」越少。这正是长对话人格漂移的机制性原因，也是 `depth_prompt` 存在的理由。
+2. **裁剪单位是 block，不是句子**。`<START>` 的分隔在这里第二次发挥作用：被砍掉的永远是完整的一个示例场景，不会砍出半段残缺对话。
+3. **裁剪是确定性的、按顺序的**——不掷骰子、不交给 LLM 判断。
+
+对照第 9.1 节已写下的「编译器的 prompt 预算裁剪策略必须确定、可解释」——酒馆这段代码就是那条原则的最小实现，而且额外给出一条：**裁剪的最小单位必须是一个语义完整的块**。
+
+---
+
+### 12.4 「情感」在酒馆里到底怎么落：事后分类，只为换立绘
+
+#### Character Expressions 扩展（`public/scripts/extensions/expressions/index.js`）
+
+分类后端五种（源码 `EXPRESSION_API` 枚举）：
+
+| 模式            | 机制                                                                                                                                                                                            |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `local`（默认） | 打到**酒馆自己的后端** `/api/extra/classify`，由 transformers.js 跑本地模型。模型名写在 `default/config.yaml`：**`Cohee/distilbert-base-uncased-go-emotions-onnx`**——一个 DistilBERT 文本分类器 |
+| `extras`        | 打到独立的 Extras 服务器 `/api/classify`                                                                                                                                                        |
+| `llm`           | **额外问一次 LLM**                                                                                                                                                                              |
+| `webllm`        | 浏览器内跑小模型                                                                                                                                                                                |
+| `none`          | 不分类                                                                                                                                                                                          |
+
+**标签集**：`DEFAULT_EXPRESSIONS` 共 **28 个**，就是 go-emotions 的 28 类（admiration / amusement / anger / annoyance / approval / caring / confusion / curiosity / desire / disappointment / disapproval / disgust / embarrassment / excitement / fear / gratitude / grief / joy / love / nervousness / optimism / pride / realization / relief / remorse / sadness / surprise / neutral）。
+
+但这个数组只是**离线兜底**：运行时会先向分类器要真实标签（读模型自己的 `label2id`），拿不到才用硬编码副本。换个模型（例如 6 类的 emotion 模型）标签集就跟着变。
+
+**所以标签集不是产品设计出来的，是跟着分类模型走的**——立绘文件名必须按标签命名，sprite pack 才能对上。这是一个典型的「实现细节泄漏成产品语义」的例子。（用户可另加 Custom Expressions，但自定义标签没有内置兜底图。）
+
+**`llm` 模式的提示词**（源码常量 `DEFAULT_LLM_PROMPT`，用户可改）：
+
+> `Ignore previous instructions. Classify the emotion of the last message. Output just one word, e.g. "joy" or "anger". Choose only one of the following labels: {{labels}}`
+
+注意这个形状：**额外一次独立调用，只输出一个词，标签表由 `{{labels}}` 宏注入**。它**不是**让模型在正文回复里带情绪标签——回复是回复，分类是分类，两件事分开做。
+
+`llm` 模式周边还有三个很成熟的工程细节，**这三条是本节最值得抄的部分**：
+
+1. **JSON Schema 强约束**：后端支持时直接下发 `{ emotion: { type: 'string', enum: [...标签] } }` 并设 `top_k: 1`——**把闭集约束交给解码器，而不是只靠提示词祈祷**。
+2. **多级解析容错**：先 `JSON.parse` 取字段 → 失败则剥离 reasoning → **模糊搜索**匹配最近标签 → 子串包含匹配 → 全失败才 fallback。
+3. **`filterAvailable`**：只把「这个角色**实际有图**的那些标签」喂给 LLM 做候选。**这是把标签集和素材现状对齐的官方机制**——模型不会选出一个没有对应素材的情绪。
+
+另有流式节流：`llm` 模式下若流式输出未结束就直接 return，避免重复请求。
+
+#### 这里最要紧的一条：情绪**不进 prompt**
+
+分类结果的唯一去向是**换立绘**。它不回流进上下文，不影响下一次生成，也**不传给 TTS**。酒馆的「情感」是一个**纯展示侧的旁路**。
+
+#### TTS 里有没有情绪：**没有逐句通道**
+
+要说准确：**TTS 主链路里一滴情绪都没有，但少数 provider 有全局的风格旋钮。**
+
+- **主链路零情绪**：`public/scripts/extensions/tts/index.js` 全文 0 处 `emotion`，也**不 import expressions 扩展**。唯一的 provider 调用点是 `generateTts(text, voiceId, voiceMapKey)`——**三个参数，没有情绪位**。两个扩展各跑各的，互不通信。
+- **provider 级全局旋钮（有，但不是逐句）**：ElevenLabs 有 `style`（0–1 全局滑条）、VITS 有 `emotion` / `style_text`、SBVits2 有 `style`、Chatterbox 有 `exaggeration`、OpenAI 有 `instructions` 文本框。**它们都是「设置面板里配一次、整场都用同一个值」**，不随句子变。
+- Azure 甚至**不构造 SSML**，没用它的 `express-as`；MiniMax 的 API 本身有 emotion 字段但 ST 没接。
+
+TTS 实际有的是另一套东西：
+
+- **voice map**：`{ 角色名 → voiceId }`，按**说话人**选嗓子（每个 provider 各存一份）；
+- **段落限定符**：voiceMap 的 key 可以带后缀——`{char} ("Quotes")` / `{char} (*Text inside asterisks*)` / `{char} (Other text)`，靠一个正则把文本切成 `dialogue` / `action` / `other` 三类，**「引号内的台词」和「星号内的动作描写」可以用不同音色**。
+
+**这是按文本形态分轨，不是按情绪分轨。** 酒馆没有「这句用生气的语气念」这个能力。
+
+> 而且分段语义**只传到第三个参数，且只有 OpenAI 那个 provider 真的接收它**——其余 provider 的签名都还是 `(text, voiceId)`。**分段信息在接口层就被丢掉了。** 这是酒馆「念得平」的结构性根因：情绪只停在 provider 全局滑条层，没有 per-utterance 注入。
+
+#### 对「让模型输出情绪标签」的官方态度
+
+没有官方的「回复里带 `[emotion]` 前缀」做法。官方给的就是上面那个**独立分类调用**（并通过 `/classify` slash command 暴露给脚本）。
+
+但官方把**搭这条链路的零件备齐了**：宏 `{{availableExpressions}}`（把可用标签注入正文提示词）、`{{lastExpression}}`（读回上一轮表情）、内置 Regex 扩展的 **"Only Format Display"**（把标签从显示中隐去而不改写聊天文件）、以及 `/expression-set` 强制设定立绘。
+
+社区的常见拼法就是：正文里让模型输出 `[joy]` → Regex 隐藏标签 → 脚本调 `/expression-set`。**零件是官方的，链路是用户自己拼的。**（属社区实践，未在官方文档中作为推荐方案出现。）
+
+> **对 PixelVault 的意义（重要）**：酒馆之所以选「事后分类」，是因为它的输出是**要念给人听的聊天正文**——在正文里塞标签会污染阅读。PixelVault 不一样：**我们要的是台词稿和配音指令，标签本来就是产物的一部分，不是污染。** 所以这一点**不该照抄**，详见 12.8 第 3 条。
+
+---
+
+### 12.5 群聊里多个角色怎么各自保持口吻
+
+`public/scripts/group-chats.js`，`group_generation_mode` 三档：`SWAP: 0`（默认）/ `APPEND: 1` / `APPEND_DISABLED: 2`。
+
+#### 最根本的一条：酒馆**不靠提示词工程让一个 LLM 同时扮多角色**
+
+`generateGroupWrapper()` 的做法是：算出本轮激活的成员列表，然后**逐个循环**——每次把全局「当前角色」切到这个成员，跑一次**完整的单人生成**，跑完切下一个。
+
+**一次生成 = 一个角色 = 一次单人生成。** 这是所有「口吻不串」机制的地基，其余都是补强。
+
+#### Swap（默认）：身份独占，历史共享
+
+`getGroupCharacterCardsLazy()` 在 SWAP 下直接返回 null，装配流程回落到普通单人卡路径——上下文里只有当前发言者一张卡。`getGroupDepthPrompts()` 同样在 SWAP 下返回空数组。
+
+**其他角色的发言以什么形态存在**（这才是口吻不串的主力）：
+
+- 历史是共享的扁平数组，每条带 `name`；
+- **Text Completion**：每条渲染成 `名字: 内容`，全员一视同仁，没有 role 概念；
+- **Chat Completion**：所有非用户消息**一律标成 `role: 'assistant'`**，角色区分靠 `names_behavior` 四档——把 `名字: ` 拼进 content，或改用 API 级的 `name` 字段，或干脆不区分（此时模型基本分不清谁说的）。
+
+还有三道很实用的隔离，第 5 节完全没提：
+
+1. **停止串**：群聊生成时把**其他成员的「名字 +冒号」全部加进 stopping strings**，防止模型替别人续写。这是「一次只写一个人」的硬闸。
+2. **推理隔离**：非当前发言者的 reasoning 内容不入上下文。
+3. **发言引导**：TC 非 instruct 下末尾强制追加 `当前角色名:`。
+
+#### Group Nudge：钉在生成点的第二道闸
+
+Chat Completion 路径上（`public/scripts/openai.js`）额外插一条提示词，默认内容：
+
+> `[Write the next reply only as {{char}}.]`
+
+它被 `insertAtEnd(..., 'chatHistory')` **插在聊天历史的最末尾**，而且是**预留预算的**（先 `reserveBudget` 再 `freeBudget`，保证永远不会被裁掉）。
+
+这印证了第 4 节那条原则的实现形态：**必须每次在场的强约束 = 钉在最靠近生成点的位置 + 预算上优先保障**。
+
+#### Join：把多张卡的同名字段拼起来
+
+`collectField()` 逐字段收集全体成员，源码明确只合并**四个**字段：`description` / `personality` / `scenario` / `mesExamples`。
+
+- 每段用 Join Prefix / Suffix 包裹，宏支持 `{{char}}`（解析为**这一段所属的成员**）和 **`<FIELDNAME>`**（替换为 `Description` / `Personality` / `Scenario` / `Example Messages`）——**分隔符里能带字段名**，这是让模型区分「这段是谁的什么」的唯一手段。
+- `mes_example` 合并时自动给每段补 `<START>`，保证 block 边界不串。
+- `scenario` 和 `mes_example` 都可被聊天级的 override **整体替换**（不再合并）。
+- Mute 处理：`APPEND` 排除静音成员，`APPEND_DISABLED` 保留；**当前发言者即使被静音也一定包含**。
+
+**Character's Note 不走这条合并路**：`getGroupDepthPrompts()` 单独逐成员收集 `data.extensions.depth_prompt` 并**并列注入各自的深度**，而不是拼成一段。
+
+> 这一点很值得琢磨：**即使在「被迫合并」的模式下，最强的那条身份约束也坚持每角色独立。** 描述性文本可以糊在一起，锚点不行。
+
+官方文档对 Join 的警告原文要点：由于典型角色卡的写法，此模式可能导致**角色自我混淆、人格融合、特质不确定**。文档还说明 Join 的正当用途其实是**避免大块上下文被改动**（利于 KV cache 命中），而不是为了表达「多人同框」。
+
+#### 激活策略
+
+四档，默认 Natural。被静音成员在策略层就被剔除。
+
+`activateNaturalOrder()` 的精确算法：
+
+1. **防连说**：非用户输入触发时，上一条消息的发言者被禁止（除非允许自我回复）；
+2. **点名激活**：把输入和角色名都分词，做**整词**交集；
+3. **`talkativeness` 掷骰**：成员先 shuffle，每人 `Math.random()` 掷一次，`talkativeness >= rollValue` 则激活；
+4. **兜底**：若无人激活，从 `talkativeness > 0` 的池子里随机抽一个；
+5. 去重。**可一次激活多人，按入列顺序依次生成。**
+
+`talkativeness` 取值 0–1、步长 0.05、默认 0.5，**不在 V2/V3 规范里**（两份规范全文 0 处），它是酒馆放进 `data.extensions.talkativeness` 的私有键（服务端读写时与顶层字段双写）。`depth_prompt` 同理。
+
+> **这正是第 1.2 节说的 `extensions` 逃生舱在真实运转的样子**：两个被所有人使用的核心功能，规范里一个字都没有。这条印证了第 9.1 节「卡上加一个 `extensions` 逃生舱」的价值判断。
+
+#### 一个已知陷阱：整词匹配对中文很可能失效
+
+点名匹配用的是 `\b\w+\b` 分词后求交集。`\w` **不含 CJK**，所以中文 / 日文角色名基本切不出词——「@林夏」这种点名在中文场景下大概率不生效。
+
+（源码可推出，但**未实跑验证**，标注为待验证。）这与第 2.3 节世界书那条官方警示「中日文应关掉 Match whole words」是同一个根因。**PixelVault 做 `@角色` 锚点时必须避开基于 `\b\w+\b` 的整词匹配。**
+
+---
+
+### 12.6 角色关系：**没有原生字段**（已核实）
+
+#### 核实过程与结论
+
+| 检查对象                                                                                             | 结果                                                     |
+| ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| Character Card V2 规范全文                                                                           | `relation` / `relationship` / `affinity` **0 处**        |
+| Character Card V3 规范全文（含 `extensions`、`character_book`/`Lorebook` 条目结构、20 个装饰器全表） | **0 处**；装饰器里也**没有**任何「限定某角色在场」的语义 |
+| 酒馆前端 `public/index.html`（全量 UI 约 735KB，含角色卡编辑器 Advanced Definitions、群聊设置面板）  | `relationship` / `relations` **0 处**                    |
+
+**答案：没有。** 规范层没有，实现层的 UI 也没有。第 11 节的判断成立。
+
+角色卡编辑器 Advanced Definitions 的实际字段是：Prompt Overrides（`system_prompt` / `post_history_instructions`）、Creator's Metadata、`personality`、`scenario`、Character's Note（`depth_prompt` + depth + role）、`talkativeness`、`mes_example`——**全是「这一个角色自己的属性」，没有任何字段指向另一张卡**。群聊设置里唯一的成员间参数是 `talkativeness`（发言概率）。
+
+**更根本的原因**：酒馆的卡是**自包含的可交换文件**（第 0 节第 1 条）。一张 PNG 落到任何人机器上都要能用——**卡之间的硬引用会破坏这个性质**（引用的卡不在对方库里怎么办）。所以「没有关系字段」不是疏忽，是**自包含性的必然代价**。
+
+#### 社区怎么表达关系（官方文档支持的做法）
+
+1. **写进 `description` / `scenario`**：最常见，纯文本、零机制。代价是关系描述**无条件占用 prompt 预算**，且天然单向（A 的卡里写了 B，B 的卡里不一定写 A）。
+2. **世界书条目，关键词 = 对方名字**：`keys: ["林夏"]` → `content: "他对林夏始终有愧"`。**这是唯一有机制支撑的做法**——关系变成条件注入，只在对方被提到时才花预算。需要注意：**官方文档并没有直接推荐这条具体技巧**，只在世界书页写了一句泛化鼓励（大意是别把世界书只当角色背景用，尽管试）。这是社区的既成实践，不是官方方案。
+3. **Character's Note（`depth_prompt`）**：把关键关系钉在历史末尾，抗遗忘。
+4. **Persona 描述 + Persona Lorebook**：表达「用户这一方」与角色的关系。
+5. **群聊 Join 模式**：让模型同时看到所有人的卡，关系靠模型自己从文本里推。串味风险见上。
+
+#### 两个反直觉的坑（都是源码核实、文档没写）
+
+**坑一：World Info 的 Character Filter 在群聊里按「当前发言者」过滤。**
+
+条目上有 `characterFilter: { isExclude, names[], tags[] }`，UI 文案在「Filter to Character(s)」和「Exclude Character(s)」之间切换。但扫描时的判定取的是「当前角色」，而群聊每轮都会把当前角色切到本轮发言者。
+
+所以它的真实语义是「**这条设定只在这个角色说话的回合生效**」，**不是**「这个角色在场时生效」。想表达「A 和 B 同框时的关系」，Character Filter 帮不上忙。
+
+（附带一条：Character Filter 是**酒馆的私有实现**，V3 装饰器里没有对应物——又一个 `extensions` 逃生舱的例子。）
+
+**坑二：群聊里只加载当前发言者那一张卡的 `character_book`。**
+
+世界书的角色书来源只读「当前角色」的绑定，整个世界书模块里没有任何群组分支。**Swap 和 Join 模式都是如此——Join 合并卡字段，但不合并角色书。**
+
+后果：在群聊里想让模型同时知道所有角色的私有设定，**角色专属世界书这条路是走不通的**，只能把共享设定放全局世界书或聊天级世界书。这对「多角色剧本」是个实打实的结构性限制。
+
+#### 一条对关系有用的机制：世界书能匹配聊天之外的文本
+
+条目上有一组开关：匹配 **角色 description / personality / scenario / persona 描述 / Character's Note / creator notes**。
+
+也就是说，**一条关系条目可以靠「对方的名字出现在当前角色的 description 里」被激活**，而不必等对方在对话里被提到。这是酒馆生态里最接近「结构化关系」的机制——但它本质仍是**字符串匹配**，不是引用。
+
+#### 第三方扩展：有很多尝试，没有事实标准
+
+GitHub 实地核查（star 数为 2026-09-19 当日值）。**全部走同一条路：LLM 逐条抽取 → 存自己的 chat_metadata 或 lorebook → 自己拼 prompt 注入。没有任何一个往卡里加字段。**
+
+专门做关系的：
+
+| 仓库                             | Star  | 最近推送   | 机制                                                                                                                                                                                                                   |
+| -------------------------------- | ----- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `senjinthedragon/Smart-Memory`   | 54    | 2026-07-02 | 多层记忆，其中一层是**关系对**：只注入「名字出现在最近消息窗口内」的 pair。另有一层知识图，记录每个角色「知道 / 怀疑 / 误信 / 对谁隐瞒」，**只把当前发言者的知识块私下注入他自己的 prompt**                            |
+| `ghostd93/BetterSimTracker`      | 37    | 2026-05-24 | 逐消息抽取 Affection / Trust / Desire 等数值、存快照画折线图，可选把当前状态注入 prompt                                                                                                                                |
+| `xenofei/SillyTavern-ScenePulse` | 21    | 2026-04-27 | 用 interceptor 注入 tracker prompt，抽取 characters / relationships / quests 的结构化 JSON                                                                                                                             |
+| `freir1337/bluemoon`             | 4     | 2026-02-19 | 关系类型枚举 + 0–100% 强度滑块，按角色持久化并自动注入                                                                                                                                                                 |
+| `wsgy6/st-dynamic-relationships` | **0** | 2026-08-02 | 设计最完整：**有向关系图**（`A→B` 与 `B→A` 独立，22 个维度），生成前注入精简关系上下文（**隐藏数值、不泄露角色未目击的信息**），生成后用独立结构化调用抽事件 → Schema 校验 → 确定性引擎更新。**但 0 star，等于没人用** |
+
+泛 tracker（关系只是其中一栏）：`SpicyMarinara/rpg-companion-sillytavern`（312★，**README 已标 DEPRECATED**）、`Coneja-Chibi/TunnelVision`（122★，不做数值做检索：给模型 lorebook 目录 + tool call，让 AI 自己决定调哪条）、`kaldigo/SillyTavern-Tracker`（101★，已一年无更新）、`prolix-oc/SillyTavern-SimTracker`（63★，只渲染不抽取）。
+
+记忆类（中文生态主力）：`muyoou/st-memory-enhancement`（**1471★**，2026-09-15，结构化**表格**长期记忆，关系可自建成表格的一列）、`aikohanasaki/SillyTavern-MemoryBooks`（309★，**把记忆写回 lorebook 条目**，复用原生 World Info 当存储层）。
+
+> **三条可读的信号**：① 最高 star 的通用 tracker 已废弃、设计最完整的关系图 0 star——**说明这个需求真实但没人做对**；② 活得最好的两个是「结构化表格」和「写回 lorebook」，都**贴着原生机制走**而不是另起炉灶；③ `st-dynamic-relationships` 那条「注入时隐藏数值、不泄露角色未目击的信息」的设计，是整批扩展里最值得记住的一个判断——**关系数据的存储形态和注入形态应该不同**。
+
+---
+
+### 12.7 多角色剧本场景：三层世界书 + 记忆类扩展
+
+#### 三个来源的合并
+
+Lore Insertion Strategy：顺序固定为 **Chat Lore → Persona Lore →（Character Lore 与 Global Lore 按策略合并）**，策略三选一：Sorted Evenly（默认，两者当一个大文件按 Insertion Order 排）/ Character Lore First / Global Lore First。
+
+映射到剧本场景的标准配法：
+
+- **全局世界书** = 世界观、时代、地理、通用规则（所有角色共享）；
+- **角色专属 `character_book`** = 这个角色自己的秘密、口头禅、与他人的关系条目；
+- **Chat Lore** = 这一场戏的临时设定。
+
+**但注意 12.6 的坑二**：群聊里角色专属世界书只有当前发言者的生效。所以「让模型同时知道所有角色」在酒馆里**只有三条可行路径**：共享设定放全局 / 聊天级世界书；切 Join 模式（接受串味风险）；用群聊 Scenario Override 统一场景文本。
+
+> **对 PixelVault 的直接启发**：分层的语义划分本身是对的——**世界级 / 角色级 / 本场级**，我们对应的是**项目 / 卡 / 本次生成**，形状完全一致。第 3 节已记下「合并顺序必须显式写死并可配」；这里补充两条：一是**分层的语义边界要提前定死**（什么设定该放哪一层），二是**不要复刻酒馆那个「只加载当前角色的书」的限制**——多角色同框时，所有在场角色的卡级设定都该在场。
+
+#### 记忆与结构类扩展（官方内置或官方组织维护）
+
+| 扩展                           | 机制一句话                                                                                                                                                             |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Summarize（内置 Memory）**   | 定期把历史压成摘要，存在聊天 metadata（挂在生成时的最后一条消息上，删该消息即回滚），通过 `{{summary}}` 宏 + 可配位置注入                                              |
+| **Objective**                  | 用户给一个总目标，AI 自动拆成**可分支的任务树**，按间隔检查完成状态，把「当前任务」作为指令持续注入——**区别于静态 prompt 的地方是它会自己推进**                        |
+| **Vector Storage / Data Bank** | 消息或文档切块做向量检索，把相关旧内容**临时挪到聊天历史的首尾**（RAG）；也可替代世界书的关键词匹配，但 trigger% / character filter / inclusion group 等其他检查仍要过 |
+| **Author's Note**              | 任意位置 / 任意频率的一段文本，存在 chat_metadata，可叠加角色专属 Note（替换 / 前置 / 后置三档）                                                                       |
+| **Quick Reply**                | 把 STscript 绑成按钮或自动触发器（**官方文档站没有独立页**，语法在 STscript 参考页）                                                                                   |
+| **Timelines**                  | 官方组织下的第三方扩展，聊天分支的时间线可视化。123★，**最后推送 2025-06-24，已一年多无更新**                                                                          |
+
+**这个架构值得看**：酒馆没有为「摘要」「向量」「作者注」各开一条特殊通道，而是把它们都做成**上下文里的一个具名条目**，在 Prompt Manager 里与卡字段平起平坐。PixelVault 的编译器要接第三方注入源（项目设定、剧本节点、助手上下文）时，应该用同一个形状——**统一的有序条目列表，而不是一堆 if 分支**。
+
+「Objective」的形状对我们的剧本节点（24）尤其对口：**把一个长目标拆成可推进的任务树，每次生成只注入当前这一步**——这正是「排剧本」需要的结构，比一次性把整个大纲塞进 prompt 更省预算也更可控。
+
+---
+
+### 12.8 映射到 PixelVault
+
+我们不是陪聊，是**写台词 / 配音 / 排剧本 / 生成一致的画面**。逐条给结论。
+
+1. **`persona` 要补 `examples[]`（示例对白），这是最该补的一件事。** 酒馆全套字段里唯一真正传递「嗓音」的就是示例对白；`behavior` / `speech` / `catchphrases` 都是描述性的，模型读完只会写出「一个被描述成这样的人」。形态要抄对：**按场景切成多个独立 block**（对应 `<START>`），每块是完整的一小段对白；喂 LLM 时按**真实轮次**渲染，不要拼成散文。可借 CC 路径那个折中——**用可区分的角色标记（如 system + name）让示例既与真实输入同构、又不被误认为真实发生过**。
+2. **预算裁剪按 block 砍，不按句子砍。** 抄 gradual push-out 的两段式确定性流程（预估 → 超限时逐块回退），并抄它的最小单位约定。这条同样适用于第 11 节拍板的 `loreEntries` 最小版。同时把「位置」和「预算优先级」拆成两个正交字段。
+3. **情绪标签走「模型输出」，不走「事后分类」。** 酒馆选事后分类是因为输出是给人读的聊天正文，塞标签是污染；我们的输出是**台词稿 + 配音指令**，情绪标签本来就是产物的一部分。让台词生成直接产出 `{ line, emotion, delivery }` 的结构化结果，一次调用拿到，而不是生成完再回头问一次模型。
+4. **要有情绪词表，但不要抄那 28 类；闭集要靠解码器兜，不靠提示词祈祷。** 酒馆的 28 类是跟着 go-emotions 模型走的、面向立绘的分类标签，含大量对配音无意义的细分（admiration / approval / realization）。PixelVault 应自定一个**面向表演**的小词表（十几个量级），同时服务三处：配音的情绪参数、台词稿的表演提示、角色卡表情参考图的槽位命名。三条实现纪律直接抄它的 `llm` 模式：
+   - **把可选值写进 prompt**（`{{labels}}` 那个做法）**并且下发 JSON Schema `enum` 约束**——双保险；
+   - **多级解析容错**（严格解析 → 模糊匹配 → 兜底），不要一次解析失败就整条生成作废；
+   - **抄 `filterAvailable`**：候选标签按「这张卡**实际有的**表情参考图 / 音色情绪档」裁剪后再给模型。这样模型永远不会选出一个我们无法落地的情绪——对「情绪标签要驱动画面和音色」的我们，这条比酒馆更刚需。
+5. **TTS 侧要抄 voice map 的两个形状，并且从一开始就修掉酒馆那个结构缺陷。** 借：一是 `{ 角色 → 音色 }` 映射（对应 `voiceCardId` + `VoiceRoom.cast`）；二是**按文本形态分轨**（引号内台词 / 星号内动作用不同音色）——这对「旁白 + 对白」混排的剧本是现成解法。修：酒馆把分段语义塞进一个字符串 key、只传到第三个参数、且只有一个 provider 接收，情绪因此在接口层就丢了。**我们的配音单元从第一天起就该是 `{ text, speakerCardId, emotion, delivery }` 的结构化对象，由各 adapter 自己决定映射到哪个 provider 参数（或降级忽略）**，而不是先拍平成字符串再想办法塞回去。
+6. **`relations[]` 要结构化字段，不要只借 lorebook 的关键词机制——两者都要。** 酒馆没有关系字段是为了保住「一张 PNG 自包含可交换」；**PixelVault 的卡活在自己的库里、有 `cardId`、本就有变体树和 `GenerationCharacterCard` 反向关联，那个约束对我们不成立**，放弃结构化是白白丢掉已有优势。所以：
+   - **`relations[]: { targetCardId, relation, note }` 作为事实层**——可双向展示、可在剧本节点里按 `@角色` 投影、可回答「这两个角色一起出现过几次」。这是酒馆给不了的。
+   - **注入时降解成 lorebook 式条目**（`keys = [对方 handle / 展示名]`），只在对方真的出场时才花预算。这是酒馆验证过的、用预算换表达力的正解。
+   - 借 `st-dynamic-relationships` 那条判断：**存储形态 ≠ 注入形态**——结构化存（含双向、含强度），注入时降解成自然语言、并按视角裁剪（这个角色不知道的事不要注入）。
+   - 避开两个坑：**不要照抄 Character Filter 的语义**（它按「当前发言者」而非「在场」过滤，我们要的是在场，而这个判据我们自己的槽位结构能直接回答）；**不要照抄「只加载当前角色的卡级设定」**——多角色同框时所有在场角色的卡级设定都该在场。
+   - `@角色` 锚点的匹配**不要用 `\b\w+\b` 整词**，中文会直接失效。
+7. **多角色同框：我们已定的「按槽分」对应酒馆的 Swap，方向正确。** 补三条实现细节：
+   - **Join 模式只合并四个描述性字段，而 `depth_prompt` 坚持逐角色并列注入**——即使在被迫合并的模式下，最强的身份约束也保持每角色独立。对应我们：退化到单参考图路径时可以合并描述性文本，但**每个角色的 `identity` 锚点必须各自独立保留**。
+   - **Group Nudge**（`[Write the next reply only as {{char}}.]`，钉在历史末尾 + 预留预算不被裁）。对应我们：为单个角色生成台词 / 配音时，都要在最靠近生成点的位置钉一句「现在只写 @X」，并保证它在任何预算压力下不被裁掉。
+   - **停止串隔离**（把其他角色名加进 stop sequences，防模型替别人续写）。写台词时直接可用。
+
+---
+
+### 12.9 需要对前文做的三处修正
+
+1. **第 5 节**写 Join 模式合并「description / scenario / personality / message examples / character notes」——源码里 **character notes（`depth_prompt`）不参与文本合并**，它由 `getGroupDepthPrompts()` 逐角色收集、**并列注入各自的深度**。文档的说法不算错（Join 模式下全体成员的 note 确实都生效），但形态不同，而这个差别正是有价值的那部分。
+2. **第 5 节未提到 Group Nudge、停止串隔离、推理隔离**——这三条才是群聊口吻不串的实际主力。
+3. **第 1.3 节**列了 V3 的 `group_only_greetings` 字段——**酒馆 release 分支全仓搜不到这个标识符，当前版本未实现**。群聊开场白的实际逻辑是从 `first_mes` + `alternate_greetings` 里随机挑一条。这是一条「规范有、实现没有」的例子，对第 9.1 节「借 `alternate_greetings` 的形状做 `posePresets`」没有影响，但说明**规范字段不等于可用能力**，引用规范时要分清。
+
+---
+
+### 12.10 本节未核实项
+
+- 中文 / 日文角色名在群聊 Natural Order 点名匹配中能否命中（源码推断会失效，未实跑）。
+- 「把 `{{lastExpression}}` 写进 OpenAI provider 的 Voice Instructions 框，从而把上一轮表情喂进 TTS」——机制上成立（该框也走宏替换），但这是宏替换的副作用而非设计，未实跑验证。
+- Join Prefix/Suffix 里 `<FIELDNAME>` 最终渲染的大小写（源码传入的是 `Description` 等首字母大写形式，官方文档示例写的是小写）。
+- 全部结论来自 release 分支源码静态阅读 + 官方文档交叉印证，**未实跑 SillyTavern 验证最终 prompt 输出**。

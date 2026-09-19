@@ -45,38 +45,6 @@ export const CANVAS_SHELL_LAYOUT = {
   nodeThumbHeightPx: 26,
 } as const
 
-/** 助手 dock 的可拖宽区间（S7 §5）。 */
-export const CANVAS_SHELL_ASSISTANT = {
-  minWidthPx: 320,
-  maxWidthPx: 520,
-  defaultWidthPx: 380,
-  /**
-   * 展开态（对话 + 大纲两列）。旧 CSS `min(64rem, 72vw)` 会盖住半张画布；
-   * 两列各约一档对话宽即可。展开下限高于对话上限，点开一定变宽。
-   */
-  expandedMinWidthPx: 560,
-  expandedMaxWidthPx: 800,
-  expandedDefaultWidthPx: 720,
-} as const
-
-export function canvasAssistantWidthLimits(expanded: boolean): {
-  readonly minWidthPx: number
-  readonly maxWidthPx: number
-  readonly defaultWidthPx: number
-} {
-  return expanded
-    ? {
-        minWidthPx: CANVAS_SHELL_ASSISTANT.expandedMinWidthPx,
-        maxWidthPx: CANVAS_SHELL_ASSISTANT.expandedMaxWidthPx,
-        defaultWidthPx: CANVAS_SHELL_ASSISTANT.expandedDefaultWidthPx,
-      }
-    : {
-        minWidthPx: CANVAS_SHELL_ASSISTANT.minWidthPx,
-        maxWidthPx: CANVAS_SHELL_ASSISTANT.maxWidthPx,
-        defaultWidthPx: CANVAS_SHELL_ASSISTANT.defaultWidthPx,
-      }
-}
-
 /** 左侧四个面板。顺序即图标栏从上到下的顺序。 */
 export const CANVAS_SHELL_PANEL_IDS = {
   nodes: 'nodes',

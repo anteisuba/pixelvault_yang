@@ -17,9 +17,9 @@ import { Button } from '@/components/ui/button'
 import { CodeBlock, CodeBlockCode } from '@/components/ui/code-block'
 import { Markdown } from '@/components/ui/markdown'
 import { Spinner } from '@/components/ui/spinner'
-import { stripNodeReferenceMarkers } from '@/hooks/use-assistant-conversation'
-import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
-import type { AssistantCapabilityReference } from '@/hooks/use-assistant-conversation'
+import { stripNodeReferenceMarkers } from '@/lib/assistant-conversation-messages'
+import type { AssistantConversationMessage } from '@/lib/assistant-conversation-messages'
+import type { AssistantCapabilityReference } from '@/lib/assistant-conversation-messages'
 import {
   NODE_STUDIO_ASSISTANT_LIMITS,
   NODE_STUDIO_ASSISTANT_MESSAGE_PREVIEW,

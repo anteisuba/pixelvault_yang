@@ -3,92 +3,15 @@
 /**
  * v4 workbench 的**外壳组件挂载点**（第三期 · 画布）。
  *
- * ── 这些组件为什么一行都不用改 ──────────────────────────────────────────
- * ③b 已经把它们全部换到 `useNodeCanvasActions()`（薄动作出口）与 ReactFlow 的
- * store（`useNodes()`）上，两者都与图的版本无关。所以本文件只负责**摆放**：
- * 动作出口由外层的 `NodeCanvasActionsProvider` 给（v4 实现，⛔ 不再走
- * ③d-4 之前那个 v3 适配器），节点由外层的 `<ReactFlow>` 给。
- *
- * ⚠ 已知缺口（③d-4 的接线清单里点名）：`StudioNodeAssistantDock` 的 `nodes` /
- * `edges` props 与 `CastDock` 的 `useNodes<NodeWorkflowNode>()`
- * 仍是 **v3 形状的类型**。运行时它们拿到的是 v4 节点（RF store 里就是这一份），
- * 读 `data.type` / `data.role` 这类 v3 字段会读到 `undefined` —— 不是崩，是**降级**。
- * 本片不给它们套形状转换层：那正是「给旧签名留垫片」。它们各自的 v4 props 改造
- * 是 ③d-4 / ③e 的独立条目。
+ * ⚠ 2026-09-19（进度表 22「一张脸」）起这里**只剩审阅条**：画布的助手 dock
+ * 随第二套引擎一起退场，右侧那一格由 `StudioOperatorDock` 直接占着
+ * （宿主契约在 `contexts/studio-operator-host.tsx`，画布那份实现在
+ * `hooks/node/use-canvas-operator-host.ts`）。
+ * ⛔ 别在这里再摆一个助手插槽：面板自带收放、宽度记忆与移动端 Sheet，
+ * 外面再包一层的表现是两层各管一半宽度（「拖到一半弹回去」）。
  */
 
-import type { ReactNode } from 'react'
-import type { AppLocale } from '@/i18n/routing'
-import type {
-  NodeV4,
-  NodeWorkflowEdgeV4,
-  NodeWorkflowModelOptionsByType,
-} from '@/types/node-workflow'
-import type { ScriptDoc } from '@/types/script-doc'
-
 import { ReviewModeBar } from '../ReviewModeBar'
-import { StudioNodeAssistantDock } from '../StudioNodeAssistantDock'
-
-export interface WorkbenchDocksV4Props {
-  readonly projectId: string
-  readonly projectName: string
-  readonly projectPanel: ReactNode
-  readonly modelOptionsByType: NodeWorkflowModelOptionsByType
-  readonly scriptDoc: ScriptDoc | undefined
-  readonly locale: AppLocale
-  readonly nodes: readonly NodeV4[]
-  readonly edges: readonly NodeWorkflowEdgeV4[]
-
-  readonly assistantOpen: boolean
-  readonly assistantExpanded: boolean
-  onAssistantOpenChange(open: boolean): void
-  onAssistantExpandedChange(expanded: boolean): void
-  onFocusNode(nodeId: string): void
-}
-
-/** 助手 dock 单独摘出来：它是 `CanvasWorkspaceLayout` 的 `assistant` 插槽内容。 */
-export function WorkbenchAssistantDockV4({
-  projectId,
-  projectName,
-  scriptDoc,
-  locale,
-  nodes,
-  edges,
-  assistantOpen,
-  assistantExpanded,
-  onAssistantOpenChange,
-  onAssistantExpandedChange,
-  onFocusNode,
-}: Pick<
-  WorkbenchDocksV4Props,
-  | 'projectId'
-  | 'projectName'
-  | 'scriptDoc'
-  | 'locale'
-  | 'nodes'
-  | 'edges'
-  | 'assistantOpen'
-  | 'assistantExpanded'
-  | 'onAssistantOpenChange'
-  | 'onAssistantExpandedChange'
-  | 'onFocusNode'
->) {
-  return (
-    <StudioNodeAssistantDock
-      open={assistantOpen}
-      expanded={assistantExpanded}
-      projectId={projectId}
-      projectName={projectName}
-      nodes={nodes}
-      edges={edges}
-      scriptDoc={scriptDoc}
-      locale={locale}
-      onOpenChange={onAssistantOpenChange}
-      onExpandedChange={onAssistantExpandedChange}
-      onFocusNode={onFocusNode}
-    />
-  )
-}
 
 /**
  * ⚠ S7 起桌面档的左栏不在这里 —— 44px 图标栏 + 264 浮起面板由

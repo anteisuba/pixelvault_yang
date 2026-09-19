@@ -10,6 +10,5 @@
  * Spec 1 Action 1, and is consumed via @/services/kernel.
  */
 export * from './node-workflow.service'
-export * from './node-assistant.service'
 export * from './script-breakdown.service'
 export * from './story.service'

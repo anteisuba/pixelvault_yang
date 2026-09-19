@@ -85,10 +85,7 @@ vi.mock('@/lib/api-client', () => ({
 }))
 
 import { CANVAS_ADD_INTENT_IDS } from '@/constants/canvas-add-catalog'
-import {
-  CANVAS_SHELL_ASSISTANT,
-  CANVAS_SHELL_PANEL_IDS,
-} from '@/constants/canvas-shell'
+import { CANVAS_SHELL_PANEL_IDS } from '@/constants/canvas-shell'
 import { NODE_STUDIO_TOOL_MODE_IDS } from '@/constants/node-studio'
 import { fetchGalleryImages } from '@/lib/api-client'
 import {
@@ -100,7 +97,6 @@ import type { GenerationRecord } from '@/types'
 import type { NodeWorkflowProjectSummary } from '@/types/node-workflow'
 
 import { useWorkbenchShortcutsV4 } from '../WorkbenchShortcutsV4'
-import { ShellAssistantFrame } from './ShellAssistantFrame'
 import { ShellBottomBar } from './ShellBottomBar'
 import { ShellPaneMenu, ShellQuickAdd } from './ShellCanvasMenus'
 import { ShellCommandPalette } from './ShellCommandPalette'
@@ -332,98 +328,6 @@ describe('ShellBottomBar · 无加号', () => {
     fireEvent.click(screen.getByTestId('shell-tool-select'))
     expect(screen.getByTestId('shell-fit-view')).toBeTruthy()
     expect(onUndo).not.toHaveBeenCalled()
-  })
-})
-
-describe('ShellAssistantFrame · 收放与宽度', () => {
-  it('开着时钉宽并给出拖宽把手', () => {
-    render(
-      <ShellAssistantFrame
-        open
-        showStrip
-        width={CANVAS_SHELL_ASSISTANT.defaultWidthPx}
-        onWidthChange={vi.fn()}
-        onOpen={vi.fn()}
-      >
-        <div data-testid="dock" />
-      </ShellAssistantFrame>,
-    )
-    const frame = screen.getByTestId('shell-assistant-frame')
-    expect(frame.style.width).toBe(`${CANVAS_SHELL_ASSISTANT.defaultWidthPx}px`)
-    expect(screen.getByTestId('shell-assistant-resize')).toBeTruthy()
-  })
-
-  it('收起后只剩一条；从没开过则连那一条都没有', () => {
-    const onOpen = vi.fn()
-    const { rerender } = render(
-      <ShellAssistantFrame
-        open={false}
-        showStrip
-        width={CANVAS_SHELL_ASSISTANT.defaultWidthPx}
-        onWidthChange={vi.fn()}
-        onOpen={onOpen}
-      >
-        <div data-testid="dock" />
-      </ShellAssistantFrame>,
-    )
-    fireEvent.click(screen.getByTestId('shell-assistant-strip'))
-    expect(onOpen).toHaveBeenCalled()
-
-    rerender(
-      <ShellAssistantFrame
-        open={false}
-        showStrip={false}
-        width={CANVAS_SHELL_ASSISTANT.defaultWidthPx}
-        onWidthChange={vi.fn()}
-        onOpen={onOpen}
-      >
-        <div data-testid="dock" />
-      </ShellAssistantFrame>,
-    )
-    expect(screen.queryByTestId('shell-assistant-strip')).toBeNull()
-  })
-
-  it('展开态钉展开默认宽，拖宽钳在展开区间', () => {
-    const onWidthChange = vi.fn()
-    render(
-      <ShellAssistantFrame
-        open
-        showStrip
-        expanded
-        width={CANVAS_SHELL_ASSISTANT.expandedDefaultWidthPx}
-        onWidthChange={onWidthChange}
-        onOpen={vi.fn()}
-      >
-        <div data-testid="dock" />
-      </ShellAssistantFrame>,
-    )
-    expect(screen.getByTestId('shell-assistant-frame').style.width).toBe(
-      `${CANVAS_SHELL_ASSISTANT.expandedDefaultWidthPx}px`,
-    )
-
-    fireEvent.pointerDown(screen.getByTestId('shell-assistant-resize'), {
-      clientX: 900,
-    })
-    fireEvent.pointerMove(window, { clientX: 0 })
-    expect(onWidthChange).toHaveBeenCalledWith(
-      CANVAS_SHELL_ASSISTANT.expandedMaxWidthPx,
-    )
-  })
-
-  it('手机档不钉宽（dock 自己是贴底抽屉）', () => {
-    render(
-      <ShellAssistantFrame
-        open
-        showStrip={false}
-        width={undefined}
-        onWidthChange={vi.fn()}
-        onOpen={vi.fn()}
-      >
-        <div data-testid="dock" />
-      </ShellAssistantFrame>,
-    )
-    expect(screen.queryByTestId('shell-assistant-frame')).toBeNull()
-    expect(screen.getByTestId('dock')).toBeTruthy()
   })
 })
 

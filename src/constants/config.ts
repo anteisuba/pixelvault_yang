@@ -143,8 +143,6 @@ export const API_ENDPOINTS = {
   ASSISTANT_SHARE: '/api/assistant/share',
   /** Node Studio Seedance prompt planning */
   SEEDANCE_PROMPT_PLAN: '/api/studio/seedance-prompt-plan',
-  /** Node Studio assistant conversation */
-  NODE_ASSISTANT: '/api/studio/node-assistant',
   /** Persisted assistant chat transcripts (Node canvas + Studio) */
   ASSISTANT_CONVERSATION: '/api/assistant/conversation',
   /** Assistant persona — one per user, shared by all four workbench domains */

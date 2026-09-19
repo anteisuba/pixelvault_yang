@@ -1,4 +1,4 @@
-import type { AssistantConversationMessage } from '@/hooks/use-assistant-conversation'
+import type { AssistantConversationMessage } from '@/lib/assistant-conversation-messages'
 
 export interface NodeAssistantHistorySession {
   id: string

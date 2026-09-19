@@ -11,6 +11,10 @@ import {
   NODE_ASSISTANT_WRITE_MODES,
 } from '@/constants/node-assistant-ops'
 import {
+  NODE_SCRIPT_PROJECTION_MODE_IDS,
+  NODE_SCRIPT_PROJECTION_MODES,
+} from '@/constants/node-script'
+import {
   NODE_SLOT_OUTPUTS,
   NODE_SLOT_TEXT_ROLES,
   NODE_SLOTS,
@@ -482,6 +486,23 @@ export const NodeAssistantSplitOutputVersionOpSchema = z.object({
 })
 
 /** 改图片子型（「设为角色卡」）。⛔ 只有 image kind 有子型词表可换。 */
+/**
+ * 剧本投影（进度表 24）。
+ *
+ * ⚠ 载荷里**没有分镜列表**：拆镜是执行器按剧本卡正文现算的
+ * （`lib/node-script-shots.ts`）。让模型在这里报一份镜头表等于让它把正文抄一遍 ——
+ * 抄错的那一版会静默变成画布上的事实，而用户看的是剧本卡里的原文。
+ * ⚠ `mode` 缺省 `create`；投影过的剧本再 `create` 由执行器拒并提示改用 `reproject`
+ * （⛔ 不静默当成重投影：两者的 inverse 收的不是同一批 id）。
+ */
+export const NodeAssistantProjectScriptOpSchema = z.object({
+  op: z.literal(NODE_ASSISTANT_OP_V4_IDS.projectScript),
+  scriptNodeId: NodeAssistantOpTargetSchema,
+  mode: z
+    .enum(NODE_SCRIPT_PROJECTION_MODES)
+    .default(NODE_SCRIPT_PROJECTION_MODE_IDS.create),
+})
+
 export const NodeAssistantSetSubtypeOpSchema = z.object({
   op: z.literal(NODE_ASSISTANT_OP_V4_IDS.setSubtype),
   target: NodeAssistantOpTargetSchema,
@@ -748,6 +769,7 @@ export const NodeAssistantOpV4Schema = z.discriminatedUnion('op', [
   NodeAssistantDeleteOpSchema,
   NodeAssistantMoveToShotOpSchema,
   NodeAssistantReorderShotOpSchema,
+  NodeAssistantProjectScriptOpSchema,
   NodeAssistantSetSlotVersionOpSchema,
   NodeAssistantMarkVersionBlockedOpSchema,
   NodeAssistantSetOutputVersionOpSchema,

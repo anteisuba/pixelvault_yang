@@ -5766,6 +5766,9 @@ function canvasOpTargets(op: NodeAssistantOpV4): readonly string[] {
       return [op.source, op.target]
     case NODE_ASSISTANT_OP_V4_IDS.attachAsset:
       return [op.target, op.sourceNodeId]
+    // 投影指的是剧本卡本身；它拆出来的那几面镜还没有 id。
+    case NODE_ASSISTANT_OP_V4_IDS.projectScript:
+      return [op.scriptNodeId]
     case NODE_ASSISTANT_OP_V4_IDS.addNode:
     case NODE_ASSISTANT_OP_V4_IDS.reorderShot:
       // 新建的那个还没有 id；换序动的是镜号不是节点。

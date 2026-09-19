@@ -19,7 +19,8 @@ describe('v4 op 表（spec §5）', () => {
     // 「设为角色卡」（⚠ 不并进 `set_field`：换子型会换一套槽位与工具条）。
     // +5 = 剪辑台五条（S8）：整表替换 + 四条单段手势。
     // +3 = 字幕三条（S8d）：T 轨上的段是另一种形状，⛔ 不并进上面那五条。
-    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(31)
+    // +1 = `project_script`（进度表 24）：剧本卡按分镜投影成一排镜头节点。
+    expect(NODE_ASSISTANT_OPS_V4).toHaveLength(32)
     expect(Object.keys(NODE_ASSISTANT_OP_V4_SPECS).sort()).toEqual(
       [...NODE_ASSISTANT_OPS_V4].sort(),
     )
@@ -53,14 +54,22 @@ describe('v4 op 表（spec §5）', () => {
     expect(paid.map(([op]) => op)).toEqual([NODE_ASSISTANT_OP_V4_IDS.generate])
   })
 
-  it('唯一需确认的结构 op 是 delete（owner 拍板「画-2」）', () => {
+  /**
+   * ⚠ 需确认档只有两条，判据同源：**一句话能删掉一整镜 / 长出一整排节点**。
+   * ⛔ 往这张名单里加第三条之前先读 `NODE_ASSISTANT_OP_V4_IDS` 上那两段注释 ——
+   * 确认档每多一条，自动落那一档就少一条，而那是助手好不好用的主轴。
+   */
+  it('需确认档只有 delete 与 project_script，且都不自动落', () => {
     const confirm = Object.entries(NODE_ASSISTANT_OP_V4_SPECS).filter(
       ([, spec]) => spec.tier === NODE_ASSISTANT_OP_V4_TIER_IDS.confirm,
     )
-    expect(confirm.map(([op]) => op)).toEqual([NODE_ASSISTANT_OP_V4_IDS.delete])
-    expect(
-      NODE_ASSISTANT_OP_V4_SPECS[NODE_ASSISTANT_OP_V4_IDS.delete].autoApply,
-    ).toBe(false)
+    expect(confirm.map(([op]) => op).sort()).toEqual(
+      [
+        NODE_ASSISTANT_OP_V4_IDS.delete,
+        NODE_ASSISTANT_OP_V4_IDS.projectScript,
+      ].sort(),
+    )
+    for (const [, spec] of confirm) expect(spec.autoApply).toBe(false)
   })
 
   it('inverse 指向的一定也是词表里的 op', () => {
@@ -128,6 +137,40 @@ describe('v4 op 载荷', () => {
       mode: 'replace',
     })
     expect(parsed).toMatchObject({ prompt: '沿用 的构图' })
+  })
+
+  it('project_script 的 mode 缺省 create，词表外的档整条拒收', () => {
+    expect(
+      NodeAssistantOpV4Schema.parse({
+        op: 'project_script',
+        scriptNodeId: 'sc_1',
+      }),
+    ).toMatchObject({ mode: 'create' })
+    expect(
+      NodeAssistantOpV4Schema.parse({
+        op: 'project_script',
+        scriptNodeId: 'sc_1',
+        mode: 'reproject',
+      }),
+    ).toMatchObject({ mode: 'reproject' })
+    expect(
+      NodeAssistantOpV4Schema.safeParse({
+        op: 'project_script',
+        scriptNodeId: 'sc_1',
+        mode: 'replace',
+      }).success,
+    ).toBe(false)
+    // ⛔ 载荷里没有分镜列表：拆镜由执行器按剧本正文现算。
+    expect(
+      NodeAssistantOpV4Schema.parse({
+        op: 'project_script',
+        scriptNodeId: 'sc_1',
+        shots: [{ key: 's1', text: '编的' }],
+      }),
+    ).not.toHaveProperty('shots')
+    expect(
+      NodeAssistantOpV4Schema.safeParse({ op: 'project_script' }).success,
+    ).toBe(false)
   })
 
   it('move_to_shot 的 shotNo 可为 null（移出镜头带）', () => {

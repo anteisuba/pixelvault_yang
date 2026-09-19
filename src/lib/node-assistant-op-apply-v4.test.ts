@@ -803,3 +803,258 @@ describe('批操作：refs 别名（「生镜头」那一批）', () => {
     })
   })
 })
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * 剧本投影（进度表 24 · `project_script`）
+ * ───────────────────────────────────────────────────────────────────────── */
+
+const SCRIPT_BODY = 'S01 · 雨夜街角 · 4s\nS02 · 递伞 · @小黑\nS03 · 对视'
+
+function scriptState(body = SCRIPT_BODY): NodeWorkflowStateV4 {
+  return {
+    version: 4,
+    nodes: [
+      {
+        id: 'sc_1',
+        position: { x: 0, y: 0 },
+        data: {
+          kind: 'text',
+          subtype: 'script',
+          name: '剧本 · 借伞',
+          status: 'idle',
+          createdAt: NOW,
+          body,
+        },
+      },
+    ],
+    edges: [],
+  }
+}
+
+function projectedShots(state: NodeWorkflowStateV4): NodeV4[] {
+  return state.nodes.filter(
+    (node) =>
+      node.data.kind === 'video' &&
+      node.data.subtype === 'shot' &&
+      node.data.scriptShot !== undefined,
+  )
+}
+
+function scriptRefOf(node: NodeV4 | undefined) {
+  return node?.data.kind === 'video' && node.data.subtype === 'shot'
+    ? node.data.scriptShot
+    : undefined
+}
+
+describe('project_script · 投影（画板 DesignD7Script ①②）', () => {
+  it('⭐ create 按分镜建出一排镜头，并从剧本卡连到每镜的文本槽', () => {
+    const run = runBatch(scriptState(), [
+      { op: 'project_script', scriptNodeId: 'sc_1', mode: 'create' },
+    ])
+    const shots = projectedShots(run.state)
+    expect(shots).toHaveLength(3)
+    expect(shots.map((node) => node.data.shotNo)).toEqual([1, 2, 3])
+    // 每一镜一条边，源恒为剧本卡，槽是 `text`（角色 `script` = 正文那一档）。
+    expect(run.state.edges).toHaveLength(3)
+    for (const edge of run.state.edges) {
+      expect(edge.source).toBe('sc_1')
+      expect(edge.slot).toBe(NODE_SLOT_IDS.text)
+    }
+    expect(scriptRefOf(shots[0])).toMatchObject({
+      scriptNodeId: 'sc_1',
+      shotKey: 's1',
+      state: 'synced',
+    })
+  })
+
+  it('`@小黑` 开出角色空槽——只有名字，⛔ 没有 url / cardId（35 未落）', () => {
+    const run = runBatch(scriptState(), [
+      { op: 'project_script', scriptNodeId: 'sc_1', mode: 'create' },
+    ])
+    const withRole = projectedShots(run.state).find(
+      (node) => scriptRefOf(node)?.shotKey === 's2',
+    )
+    const slots =
+      withRole?.data.kind === 'video' && withRole.data.subtype === 'shot'
+        ? withRole.data.referenceSlots
+        : undefined
+    expect(slots).toEqual([{ role: '小黑' }])
+  })
+
+  it('时长写进生成档位（`4s` → params.duration）', () => {
+    const run = runBatch(scriptState(), [
+      { op: 'project_script', scriptNodeId: 'sc_1', mode: 'create' },
+    ])
+    const first = projectedShots(run.state).find(
+      (node) => scriptRefOf(node)?.shotKey === 's1',
+    )
+    expect(
+      first?.data.kind === 'video' ? first.data.params?.duration : undefined,
+    ).toBe('4')
+  })
+
+  it('⭐ 投影过的剧本再 create 被拒并提示改用 reproject', () => {
+    const context = makeContext()
+    const first = runBatch(
+      scriptState(),
+      [{ op: 'project_script', scriptNodeId: 'sc_1', mode: 'create' }],
+      context,
+    )
+    const again = applyNodeAssistantOpV4(
+      first.state,
+      { op: 'project_script', scriptNodeId: 'sc_1', mode: 'create' },
+      context,
+    )
+    expect(again).toMatchObject({ ok: false, reason: 'alreadyProjected' })
+  })
+
+  it('没投过的剧本 reproject 被拒；文本节点不是剧本卡也被拒', () => {
+    const state = scriptState()
+    expect(
+      applyNodeAssistantOpV4(
+        state,
+        { op: 'project_script', scriptNodeId: 'sc_1', mode: 'reproject' },
+        makeContext(),
+      ),
+    ).toMatchObject({ ok: false, reason: 'notProjected' })
+    expect(
+      applyNodeAssistantOpV4(
+        baseState(),
+        { op: 'project_script', scriptNodeId: 't_02', mode: 'create' },
+        makeContext(),
+      ),
+    ).toMatchObject({ ok: false, reason: 'notScriptNode' })
+  })
+
+  it('拆不出镜的正文被拒（⛔ 不建一排空节点）', () => {
+    expect(
+      applyNodeAssistantOpV4(
+        scriptState('   '),
+        { op: 'project_script', scriptNodeId: 'sc_1', mode: 'create' },
+        makeContext(),
+      ),
+    ).toMatchObject({ ok: false, reason: 'emptyScript' })
+  })
+})
+
+describe('project_script · 重投影 diff（画板 DesignD7Script ③）', () => {
+  function reprojected(nextBody: string) {
+    const context = makeContext()
+    const first = runBatch(
+      scriptState(),
+      [{ op: 'project_script', scriptNodeId: 'sc_1', mode: 'create' }],
+      context,
+    )
+    const edited = replaceScriptBody(first.state, nextBody)
+    const result = applyNodeAssistantOpV4(
+      edited,
+      { op: 'project_script', scriptNodeId: 'sc_1', mode: 'reproject' },
+      context,
+    )
+    if (!result.ok) throw new Error(`reproject failed: ${result.reason}`)
+    return { before: first.state, result }
+  }
+
+  function replaceScriptBody(
+    state: NodeWorkflowStateV4,
+    body: string,
+  ): NodeWorkflowStateV4 {
+    return {
+      ...state,
+      nodes: state.nodes.map((node) =>
+        node.id === 'sc_1' && node.data.kind === 'text'
+          ? { ...node, data: { ...node.data, body } }
+          : node,
+      ),
+    }
+  }
+
+  it('⭐ 文案变了的旧镜只标「已变」并带上新文本，⛔ 不覆盖节点上的内容', () => {
+    const { result } = reprojected(
+      'S01 · 雨夜街角 · 4s\nS02 · 递伞 · 近景 · @小黑\nS03 · 对视',
+    )
+    const changed = projectedShots(result.state).find(
+      (node) => scriptRefOf(node)?.shotKey === 's2',
+    )!
+    expect(scriptRefOf(changed)).toMatchObject({
+      state: 'changed',
+      // 左边不动：它是「上一次同步进来的那一段」。
+      projectedText: '递伞 · @小黑',
+      pendingText: '递伞 · 近景 · @小黑',
+    })
+    // 节点自己的提示词一个字没动 —— 用户可能已经在这一镜上改过、出过片。
+    expect(
+      changed.data.kind === 'video' ? changed.data.prompt : undefined,
+    ).toBe('递伞 · @小黑')
+  })
+
+  it('⭐ 剧本里删掉的镜标灰不删', () => {
+    const { result } = reprojected('S01 · 雨夜街角 · 4s\nS02 · 递伞 · @小黑')
+    const shots = projectedShots(result.state)
+    expect(shots).toHaveLength(3)
+    expect(
+      scriptRefOf(shots.find((node) => scriptRefOf(node)?.shotKey === 's3')),
+    ).toMatchObject({
+      state: 'dropped',
+    })
+  })
+
+  it('新增的镜追加到末尾', () => {
+    const { result } = reprojected(`${SCRIPT_BODY}\nS04 · 伞留下`)
+    const created = projectedShots(result.state).find(
+      (node) => scriptRefOf(node)?.shotKey === 's4',
+    )!
+    expect(created.data.shotNo).toBe(4)
+  })
+
+  it('改回原文的镜自己消掉角标（回到 synced）', () => {
+    const context = makeContext()
+    const first = runBatch(
+      scriptState(),
+      [{ op: 'project_script', scriptNodeId: 'sc_1', mode: 'create' }],
+      context,
+    )
+    const changedBody = 'S01 · 雨夜街角 · 4s\nS02 · 递伞 · 近景\nS03 · 对视'
+    const marked = applyNodeAssistantOpV4(
+      replaceScriptBody(first.state, changedBody),
+      { op: 'project_script', scriptNodeId: 'sc_1', mode: 'reproject' },
+      context,
+    )
+    if (!marked.ok) throw new Error('reproject failed')
+    const back = applyNodeAssistantOpV4(
+      replaceScriptBody(marked.state, SCRIPT_BODY),
+      { op: 'project_script', scriptNodeId: 'sc_1', mode: 'reproject' },
+      context,
+    )
+    if (!back.ok) throw new Error('reproject failed')
+    const node = projectedShots(back.state).find(
+      (item) => scriptRefOf(item)?.shotKey === 's2',
+    )
+    expect(scriptRefOf(node)).toMatchObject({ state: 'synced' })
+    expect(scriptRefOf(node)).not.toHaveProperty('pendingText')
+  })
+
+  /**
+   * ⭐ spec 原文：inverse = **只删本次新增的那几面镜**，⛔ 不碰「标已变」与
+   * 「标灰」的旧镜 —— 它们上面可能挂着用户已经生成的产物。
+   */
+  it('⭐ 撤销只删本次新增的镜，标记过的旧镜原样留着', () => {
+    const { result } = reprojected(
+      'S01 · 雨夜街角 · 4s\nS02 · 递伞 · 近景\nS04 · 伞留下',
+    )
+    const undone = applyInverseV4(result.state, result.inverse, makeContext())
+    const shots = projectedShots(undone)
+    // 本次新增的 S04 没了；S01/S02/S03 三面都还在。
+    expect(shots.map((node) => scriptRefOf(node)?.shotKey).sort()).toEqual([
+      's1',
+      's2',
+      's3',
+    ])
+    expect(
+      scriptRefOf(shots.find((node) => scriptRefOf(node)?.shotKey === 's2')),
+    ).toMatchObject({ state: 'changed' })
+    expect(
+      scriptRefOf(shots.find((node) => scriptRefOf(node)?.shotKey === 's3')),
+    ).toMatchObject({ state: 'dropped' })
+  })
+})

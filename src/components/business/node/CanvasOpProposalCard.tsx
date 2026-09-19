@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import {
   ArrowRightLeft,
   Check,
+  Clapperboard,
   Copy,
   Cpu,
   Film,
@@ -78,6 +79,7 @@ const OP_ICONS: Record<NodeAssistantOpV4Id, LucideIcon> = {
   [NODE_ASSISTANT_OP_V4_IDS.delete]: Trash2,
   [NODE_ASSISTANT_OP_V4_IDS.moveToShot]: ArrowRightLeft,
   [NODE_ASSISTANT_OP_V4_IDS.reorderShot]: ListOrdered,
+  [NODE_ASSISTANT_OP_V4_IDS.projectScript]: Clapperboard,
   [NODE_ASSISTANT_OP_V4_IDS.setText]: Type,
   [NODE_ASSISTANT_OP_V4_IDS.setPrompt]: Type,
   [NODE_ASSISTANT_OP_V4_IDS.setField]: PenLine,
@@ -314,7 +316,19 @@ export function CanvasOpProposalCard({
   const chosenOverwriteOps = overwriteOps.flatMap((entry) => {
     const choice = choices[entry.index]
     if (choice === undefined || choice === KEEP_CHOICE) return []
-    return [{ ...entry, op: { ...entry.op, mode: choice } }]
+    const op = entry.op
+    /**
+     * ⚠ 三选**只对改正文那两条成立**（`requiresChoice` 只会落在它们身上）。
+     * ⛔ 不做无差别 spread：`mode` 这个名字在 `project_script` 上是另一档枚举
+     * （create / reproject），盖上去就是把一条投影 op 写成一条非法载荷。
+     */
+    if (
+      op.op !== NODE_ASSISTANT_OP_V4_IDS.setText &&
+      op.op !== NODE_ASSISTANT_OP_V4_IDS.setPrompt
+    ) {
+      return []
+    }
+    return [{ ...entry, op: { ...op, mode: choice } }]
   })
 
   const handleApplyOverwrites = useCallback(async () => {

@@ -429,6 +429,19 @@ export const NODE_ASSISTANT_OP_V4_IDS = {
   delete: 'delete',
   moveToShot: 'move_to_shot',
   reorderShot: 'reorder_shot',
+  /**
+   * 剧本投影（进度表 24，画板 `DesignD7Script.dc.html`）：把一张 `text.script`
+   * 卡按分镜拆成时间轴上的一排镜头节点，并从剧本卡连到每镜的文本槽。
+   *
+   * ⚠ 与 `delete` 同档（`confirm`）的判据也与它同源：**一句话能长出一整排节点**。
+   * ⚠ `mode` 不是装饰，它决定 inverse 收哪几个 id —— `reproject` 的 diff 语义是
+   * 「新增的镜新建 / 文案变了的旧镜标『已变』/ 剧本里删掉的镜标灰」，所以撤销
+   * **只撤回本次新增的那几面镜**，⛔ 不碰标记过的旧镜（它们上面可能挂着用户已经
+   * 生成的产物，而一次撤销不该把那些也一起带走）。
+   * ⛔ 拆镜是**确定性**的（`lib/node-script-shots.ts` 按分段标记切）。「让 LLM
+   * 拆镜」是后话：它换的是拆镜的产出来源，不换这条 op 的形状。
+   */
+  projectScript: 'project_script',
   setText: 'set_text',
   setPrompt: 'set_prompt',
   setField: 'set_field',
@@ -514,6 +527,7 @@ export const NODE_ASSISTANT_OPS_V4 = [
   NODE_ASSISTANT_OP_V4_IDS.delete,
   NODE_ASSISTANT_OP_V4_IDS.moveToShot,
   NODE_ASSISTANT_OP_V4_IDS.reorderShot,
+  NODE_ASSISTANT_OP_V4_IDS.projectScript,
   NODE_ASSISTANT_OP_V4_IDS.setText,
   NODE_ASSISTANT_OP_V4_IDS.setPrompt,
   NODE_ASSISTANT_OP_V4_IDS.setField,
@@ -634,6 +648,18 @@ export const NODE_ASSISTANT_OP_V4_SPECS = {
     tier: free,
     inverse: NODE_ASSISTANT_OP_V4_IDS.reorderShot,
     autoApply: true,
+  },
+  /**
+   * ⚠ 第二条 `confirm` 档（进度表 24）。判据与 `delete` 同源：一句话能长出一整排
+   * 节点。⛔ 不降为 free —— 「确认 · 投影 6 镜」那颗按钮在画板上就是一次确认。
+   * inverse 写成 `delete` 是**形状**（撤销会发一批 delete，每一条只对着本次新增的
+   * 那一面镜）；真正的载荷由执行器就地算，⛔ 不在这里摆一份。
+   */
+  [NODE_ASSISTANT_OP_V4_IDS.projectScript]: {
+    group: structure,
+    tier: confirm,
+    inverse: NODE_ASSISTANT_OP_V4_IDS.delete,
+    autoApply: false,
   },
   [NODE_ASSISTANT_OP_V4_IDS.setSlotVersion]: {
     group: structure,

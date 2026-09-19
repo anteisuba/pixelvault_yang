@@ -294,6 +294,22 @@ export function planNodeAssistantOpsV4(
       return
     }
 
+    /**
+     * 剧本投影指的是**剧本卡**（`scriptNodeId`），不是下面那条 `target` 通路
+     * （进度表 24）。落进通路的表现是每一条都被判 `unknownNode` —— 空串永远
+     * 找不到节点，而那看起来像「助手不会投影」。
+     * ⚠ 这一层只判「这张卡在不在」：拆不拆得出镜、是不是已经投过，都要读正文，
+     * 那是执行器的事（它有完整的 state）。
+     */
+    if (op.op === NODE_ASSISTANT_OP_V4_IDS.projectScript) {
+      if (!resolve(op.scriptNodeId)) {
+        reject(NODE_CONNECT_REJECT_REASON_IDS.unknownNode)
+        return
+      }
+      planned.push({ index, op, status: 'ready' })
+      return
+    }
+
     // 剩下的都有一个 `target`：找不到就拒，⛔ 不静默跳过（用户读不出少了什么）。
     const target = resolve(readOpTarget(op))
     if (!target) {

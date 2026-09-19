@@ -146,7 +146,17 @@ export function useCanvasOperatorHost({
        *   ⛔ 不为它去差集算一遍图 —— 新卡本来就会自己出现在画布上，那比闪一下
        *   更明显；如实记在任务包里。
        */
-      const touched = 'target' in op ? op.target : null
+      /**
+       * ⚠ `project_script` 指的是**剧本卡**（`scriptNodeId`）——闪的那一下落在
+       * 它身上。新建出来的那几面镜闪不到（id 是执行器现铸的），⛔ 不为它去差集
+       * 算一遍图：一整排卡凭空出现本来就比闪一下更响（§13.5 `add_node` 同理）。
+       */
+      const touched =
+        'target' in op
+          ? op.target
+          : 'scriptNodeId' in op
+            ? op.scriptNodeId
+            : null
       if (typeof touched === 'string' && typeof window !== 'undefined') {
         window.requestAnimationFrame(() => flashAssistantTouchedNode(touched))
       }

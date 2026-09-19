@@ -21,16 +21,28 @@ import {
 } from '@/constants/node-assistant-ops'
 import {
   NODE_EDGE_VIA_IDS,
+  NODE_SLOT_IDS,
   NODE_SLOT_OUTPUT_IDS,
+  NODE_SLOT_TEXT_ROLE_IDS,
   type NodeSlotId,
   type NodeSlotTextRole,
 } from '@/constants/node-slots'
 import {
   NODE_MEDIA_KIND_IDS,
+  NODE_V4_TEXT_SUBTYPE_IDS,
   NODE_V4_VIDEO_SUBTYPE_IDS,
   type NodeV4Subtype,
   type NodeWorkflowMediaKind,
 } from '@/constants/node-types'
+import {
+  NODE_SCRIPT_PROJECTION_MODE_IDS,
+  NODE_SCRIPT_SHOT_STATE_IDS,
+} from '@/constants/node-script'
+import {
+  planScriptProjection,
+  readScriptShotRef,
+  type ScriptProjectionPlan,
+} from '@/lib/node-script-projection'
 import {
   NODE_V4_OUTPUT_VERSION,
   NODE_V4_SUBTYPE_LABELS,
@@ -45,6 +57,7 @@ import { buildShotLabel, buildStableNodeName } from '@/lib/node-display-name'
 import {
   looseAreaSpawn,
   moveNodeToShot,
+  nextShotNo,
   reorderShots,
   shotSpawnPosition,
 } from '@/lib/node-shot-layout'
@@ -79,6 +92,7 @@ import {
   type EditProject,
   type EditTextClip,
   type NodeV4Data,
+  type NodeV4ScriptShot,
   type NodeWorkflowEdgeV4,
   type NodeWorkflowStateV4,
 } from '@/types/node-workflow'
@@ -332,6 +346,168 @@ function withTrack(
   }
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+ * 剧本投影（进度表 24 · `project_script`）
+ *
+ * ⚠ 三类改动写在**同一条 op** 里，因为它们是同一步意图的三面：新增的镜建出来、
+ * 文案变了的旧镜标一下、剧本里没了的旧镜压灰。拆成三条 op 的表现是撤销要点三次，
+ * 而中间那一次撤完的图谁都没见过。
+ *
+ * ⚠ inverse **只收本次新增的那几面镜**（spec 原文）：标记过的旧镜上可能挂着用户
+ * 已经生成的产物与手改过的提示词，一次撤销不该把那些一并带走。所以撤销之后
+ * 「已变 / 标灰」的角标**仍然在** —— 它们说的是「剧本和这一镜对不上」，那句话
+ * 在撤销之后依然为真。
+ * ───────────────────────────────────────────────────────────────────────── */
+
+function withScriptShotState(
+  state: NodeWorkflowStateV4,
+  nodeId: string,
+  patch: (ref: NodeV4ScriptShot) => NodeV4ScriptShot,
+): NodeWorkflowStateV4 {
+  return replaceNodeData(state, nodeId, (data) => {
+    if (
+      data.kind !== NODE_MEDIA_KIND_IDS.video ||
+      data.subtype !== NODE_V4_VIDEO_SUBTYPE_IDS.shot ||
+      !data.scriptShot
+    ) {
+      return data
+    }
+    return { ...data, scriptShot: patch(data.scriptShot) }
+  })
+}
+
+function applyScriptProjection(
+  state: NodeWorkflowStateV4,
+  script: NodeV4,
+  plan: ScriptProjectionPlan,
+  context: ApplyOpV4Context,
+  now: string,
+): ApplyOpV4Result {
+  let next = state
+  const changedNodeIds: string[] = []
+  const changedEdgeIds: string[] = []
+  const createdIds: string[] = []
+  const takenLabels = new Set(
+    state.nodes
+      .map((node) =>
+        node.data.kind === NODE_MEDIA_KIND_IDS.video
+          ? node.data.label
+          : undefined,
+      )
+      .filter((label): label is string => label !== undefined),
+  )
+
+  for (const shot of plan.toCreate) {
+    const id = context.mintId(NODE_MEDIA_KIND_IDS.video)
+    let label: string
+    try {
+      label = buildShotLabel({ given: shot.title }, takenLabels)
+    } catch {
+      return { ok: false, reason: 'nameExhausted' }
+    }
+    takenLabels.add(label)
+    // ⚠ 新增的镜**追加到末尾**（画板 §3 那句）：⛔ 不按剧本里的编号往中间插 ——
+    //   插队会把用户手动归过镜的节点一起挤走，而那不是这条 op 该管的事。
+    const shotNo = nextShotNo(next.nodes)
+    const scriptShot: NodeV4ScriptShot = {
+      scriptNodeId: script.id,
+      shotKey: shot.key,
+      projectedText: shot.text,
+      state: NODE_SCRIPT_SHOT_STATE_IDS.synced,
+    }
+    const parsed = NodeV4DataSchema.safeParse({
+      kind: NODE_MEDIA_KIND_IDS.video,
+      subtype: NODE_V4_VIDEO_SUBTYPE_IDS.shot,
+      name: label,
+      label,
+      status: 'idle',
+      createdAt: now,
+      shotNo,
+      prompt: shot.text,
+      scriptShot,
+      // 角色槽只开**空位**（35 未落）：名字来自这一段里的 `@角色`，⛔ 不装填。
+      ...(shot.roles.length === 0
+        ? {}
+        : { referenceSlots: shot.roles.map((role) => ({ role })) }),
+      ...(shot.durationSec === undefined
+        ? {}
+        : { params: { duration: String(shot.durationSec) } }),
+    })
+    if (!parsed.success) return { ok: false, reason: 'invalidShot' }
+    next = {
+      ...next,
+      nodes: [
+        ...next.nodes,
+        {
+          id,
+          position: shotSpawnPosition(next.nodes, next.edges, shotNo),
+          data: parsed.data,
+        },
+      ],
+    }
+    // 剧本卡 → 这一镜的文本槽（`role: script` = 正文那一档，§9.4）。
+    const wired = connectIntoSlot(next, {
+      source: script.id,
+      target: id,
+      slot: NODE_SLOT_IDS.text,
+      sourceHandle: NODE_SLOT_OUTPUT_IDS.out,
+      edgeId: context.mintId('e'),
+      role: NODE_SLOT_TEXT_ROLE_IDS.script,
+      now,
+    })
+    if (!wired.ok) return { ok: false, reason: wired.reason }
+    next = wired.state
+    changedEdgeIds.push(wired.edgeId)
+    createdIds.push(id)
+    changedNodeIds.push(id)
+  }
+
+  for (const entry of plan.toMark) {
+    next = withScriptShotState(next, entry.node.id, (ref) => ({
+      ...ref,
+      state: NODE_SCRIPT_SHOT_STATE_IDS.changed,
+      // ⛔ `projectedText` 不动：它是「上一次同步进来的那一段」，diff 的左边。
+      pendingText: entry.shot.text,
+    }))
+    changedNodeIds.push(entry.node.id)
+  }
+
+  for (const node of plan.toResync) {
+    const ref = readScriptShotRef(node)
+    if (!ref || ref.state === NODE_SCRIPT_SHOT_STATE_IDS.synced) continue
+    next = withScriptShotState(next, node.id, (current) => {
+      // ⚠ 删 key 而不是写 `pendingText: undefined`（与 `withEditProject` 同一条）：
+      // `undefined` 序列化后消失，但内存里那个对象仍然带着这个 key。
+      const rest: NodeV4ScriptShot = { ...current }
+      delete (rest as { pendingText?: string }).pendingText
+      return { ...rest, state: NODE_SCRIPT_SHOT_STATE_IDS.synced }
+    })
+    changedNodeIds.push(node.id)
+  }
+
+  for (const node of plan.toDrop) {
+    next = withScriptShotState(next, node.id, (ref) => ({
+      ...ref,
+      state: NODE_SCRIPT_SHOT_STATE_IDS.dropped,
+    }))
+    changedNodeIds.push(node.id)
+  }
+
+  return {
+    ok: true,
+    state: next,
+    inverse: {
+      kind: 'sequence',
+      // ⚠ 逆序删：与整份 inverse 的回放顺序同一条规矩。
+      items: [...createdIds]
+        .reverse()
+        .map((nodeId) => ({ kind: 'removeNode', nodeId }) as const),
+    },
+    changedNodeIds,
+    changedEdgeIds,
+  }
+}
+
 /** 一条 op → 新 state。⚠ 逐条应用，调用方负责把一轮的结果收成一个 undo 条目。 */
 export function applyNodeAssistantOpV4(
   state: NodeWorkflowStateV4,
@@ -581,6 +757,40 @@ export function applyNodeAssistantOpV4(
           .map((node) => node.id),
         changedEdgeIds: [],
       }
+    }
+
+    case ids.projectScript: {
+      const script = resolveTarget(state, op.scriptNodeId, context.refs)
+      if (!script) return { ok: false, reason: 'unknownNode' }
+      if (
+        script.data.kind !== NODE_MEDIA_KIND_IDS.text ||
+        script.data.subtype !== NODE_V4_TEXT_SUBTYPE_IDS.script
+      ) {
+        return { ok: false, reason: 'notScriptNode' }
+      }
+      const plan = planScriptProjection(
+        state.nodes,
+        script.id,
+        script.data.body,
+      )
+      if (plan.shots.length === 0) return { ok: false, reason: 'emptyScript' }
+      /**
+       * ⚠ 投影过的剧本再 `create` **拒并提示**，⛔ 不静默当成重投影：两者的
+       * inverse 收的不是同一批 id（重投影只撤回本次新增，create 撤回整排）。
+       */
+      if (
+        op.mode === NODE_SCRIPT_PROJECTION_MODE_IDS.create &&
+        plan.projected.length > 0
+      ) {
+        return { ok: false, reason: 'alreadyProjected' }
+      }
+      if (
+        op.mode === NODE_SCRIPT_PROJECTION_MODE_IDS.reproject &&
+        plan.projected.length === 0
+      ) {
+        return { ok: false, reason: 'notProjected' }
+      }
+      return applyScriptProjection(state, script, plan, context, now)
     }
 
     case ids.setSlotVersion: {
@@ -1210,10 +1420,10 @@ export function applyNodeAssistantOpV4(
       }
       return {
         ok: true,
-        state: withEditProject(state, withTextTrack(project, [
-          ...clips,
-          clampTextClip(op.clip),
-        ])),
+        state: withEditProject(
+          state,
+          withTextTrack(project, [...clips, clampTextClip(op.clip)]),
+        ),
         inverse: {
           kind: 'op',
           op: { op: ids.editRemoveText, clipId: op.clip.id },

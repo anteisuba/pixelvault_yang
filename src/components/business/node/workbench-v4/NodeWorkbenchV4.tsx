@@ -991,6 +991,7 @@ function NodeWorkbenchV4Inner() {
     nodes: graph.nodes,
     edges: graph.edges,
     selectedNodeIds: graph.selectedNodeIds,
+    projectName: store.currentProject.name,
     availableModelsByNodeId,
     applyOp: graph.dispatch,
     undo: graph.undo,

@@ -74,7 +74,6 @@ import {
   STUDIO_OPERATOR_LIBRARY_PAGE_SIZE,
   STUDIO_OPERATOR_MENTION,
   STUDIO_OPERATOR_SKIPPED_REJECT_REASONS,
-  STUDIO_OPERATOR_SUGGESTIONS,
   STUDIO_OPERATOR_TIMELINE,
   STUDIO_OPERATOR_UPLOAD_ACCEPT,
   studioOperatorChangeSubject,
@@ -417,7 +416,6 @@ export function StudioOperatorPanel({
     revertRoundThread,
     countRoundChanges,
     roundChangeLabelKeys,
-    changeCount,
   } = useStudioOperatorRevert()
 
   // 「+」菜单开着与否**是**局部态：它是一次性的挑选动作，收起再展开时它该是关的。
@@ -981,14 +979,6 @@ export function StudioOperatorPanel({
       setAttachOpen(false)
     },
     [upload],
-  )
-
-  const suggestions = useMemo(
-    () =>
-      STUDIO_OPERATOR_SUGGESTIONS[domain].filter(
-        (item) => changeCount >= item.minChanges,
-      ),
-    [changeCount, domain],
   )
 
   /**
@@ -1742,6 +1732,7 @@ export function StudioOperatorPanel({
         onOpenAssistantSettings={onOpenAssistantSettings}
         onCollapse={onCollapse}
         avatarOwned={headerAvatarOwned}
+        face={operatorHost.face}
         {...(persona ? { persona } : {})}
         /* ⚠ 续跑 chip 的正位是**结论记录块的尾部**（§3.6）——头部这一颗只在
            一条结论记录都没有时出现（见 `resumeHost` 的头注）。 */
@@ -1806,7 +1797,7 @@ export function StudioOperatorPanel({
             {/* ── 空态（§4.2）—— ⛔ 不再是一行灰字：头像 + 自我介绍 + 三颗起手势。 */}
             {threadEmpty ? (
               <StudioOperatorEmptyState
-                suggestions={suggestions}
+                face={operatorHost.face}
                 onSuggestion={submit}
                 {...(persona ? { persona } : {})}
               />
@@ -2067,20 +2058,24 @@ export function StudioOperatorPanel({
           </div>
         </StudioOperatorTimelineList>
 
-        {/* ── 建议药丸：语境化，点即发送（拍板 15）──────────────────
-          ⚠ 空态时**这一排不画**：同样三句话已经在空态那张卡上摆成了三行
-            （§4.2），两处同时出现是同一颗按钮画了两遍。 */}
-        {suggestions.length > 0 && !threadEmpty ? (
+        {/* ── 起手药丸：点即发送（拍板 15）—— **四处各写各的**（D7b ③）────
+          ⚠ 读的是宿主那张脸（`face.starterPills`），⛔ 不再按 domain 取
+            `STUDIO_OPERATOR_SUGGESTIONS`（那张带 `minChanges` 门的表连同
+            `suggestion.*` 词条已整块删掉）：它回答的是「语境化建议」，而 D7b 的
+            药丸是「这个助手会干什么」的自我介绍。
+          ⚠ 空态时**这一排不画**：同样几句话已经在空态那张卡上摆成了行（§4.2），
+            两处同时出现是同一颗按钮画了两遍。 */}
+        {operatorHost.face.starterPills.length > 0 && !threadEmpty ? (
           <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2">
-            {suggestions.map((suggestion) => (
+            {operatorHost.face.starterPills.map((text) => (
               <button
-                key={suggestion.id}
+                key={text}
                 type="button"
                 data-testid="operator-suggestion"
-                onClick={() => submit(t(`suggestion.${suggestion.id}`))}
+                onClick={() => submit(text)}
                 className="rounded-full border border-primary/30 bg-card px-2.5 py-1 text-2sm text-primary transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/10"
               >
-                {t(`suggestion.${suggestion.id}`)}
+                {text}
               </button>
             ))}
           </div>
@@ -2386,7 +2381,7 @@ export function StudioOperatorPanel({
                  挂收放法则的豁免标记，否则点候选 = 点面板外面 = 面板收起。 */
               popoverAttributes={{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
               value={draft}
-              aria-label={t('placeholderIdle')}
+              aria-label={operatorHost.face.inputPlaceholder}
               onValueChange={onDraftChange}
               tokens={referenceTokens}
               mentionCandidates={mentionCandidates}
@@ -2435,7 +2430,9 @@ export function StudioOperatorPanel({
                   ? t('placeholderQuestion')
                   : working
                     ? t('placeholderWorking')
-                    : t('placeholderIdle')
+                    : /* 空闲那一句**四处各写各的**（D7b ③）——这是输入区唯一的
+                         文案差异，⛔ 别把它也做成四套输入区。 */
+                      operatorHost.face.inputPlaceholder
               }
               className="max-h-40 min-h-9 w-full resize-none overflow-y-auto overscroll-contain rounded-lg border border-border bg-background px-2.5 py-2 text-md outline-none transition-colors duration-(--duration-fast) ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
             />

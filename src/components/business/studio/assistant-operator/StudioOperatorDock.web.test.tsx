@@ -513,3 +513,36 @@ describe('StudioOperatorDock · 头像开关的过渡', () => {
     }
   })
 })
+
+/**
+ * **⛔ 外壳里不许按 domain 分叉**（D7b ③ 的结构闸）。
+ *
+ * 🔬 四张脸的差异住在宿主的 `face` 里（`contexts/studio-operator-host.tsx`）。外壳
+ * 与面板一旦自己写 `domain === 'image' ? … : …` 去挑文案 / 图标 / 药丸，第五个宿主
+ * 接进来时那几处会各自沉默地回落到某一张脸 —— 而回落出来的界面看起来完全正常。
+ * ⚠ 这条是**源码扫描**：运行时断言看不见一条写死的分支有没有被执行到。
+ * ⚠ 白名单两处是**真的按域分**的东西，与「脸」无关：手机档有没有这套外壳
+ *   （`hasMobileShell`）与会话行上那枚域标签。
+ */
+describe('⛔ 外壳与面板不按 domain 挑脸', () => {
+  const FACE_FORK = /domain\s*===\s*ASSISTANT_PROTOCOL_DOMAIN_IDS\.\w+\s*\?/
+
+  it.each([
+    'StudioOperatorDock.tsx',
+    'StudioOperatorPanel.tsx',
+    'StudioOperatorHeader.tsx',
+    'StudioOperatorEmptyState.tsx',
+  ])('%s 里没有「按域挑一张脸」的三元分叉', async (file) => {
+    const { readFileSync } = await import('node:fs')
+    const { join } = await import('node:path')
+    const source = readFileSync(
+      join(
+        process.cwd(),
+        'src/components/business/studio/assistant-operator',
+        file,
+      ),
+      'utf-8',
+    )
+    expect(FACE_FORK.test(source)).toBe(false)
+  })
+})

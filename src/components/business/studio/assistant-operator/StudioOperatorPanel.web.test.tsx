@@ -109,6 +109,14 @@ const HOST_RESULTS = [
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
     domain: 'image' as const,
+    /** 四张脸那一格（D7b ③）—— 面板读 `face` 而不是按 domain 取药丸表。 */
+    face: {
+      domainIcon: () => null,
+      contextLine: () => 'Seedream 5.0 Pro · 1:1 · 4 张',
+      emptyLine: '说你想要的画面，我来写提示词、挑模型、配参考。',
+      starterPills: ['把这句写成好提示词', '换个模型看差别'],
+      inputPlaceholder: '描述画面，或把参考图挂进来…',
+    },
     buildSnapshot: () => ({
       prompt: '',
       availableModels: [],
@@ -352,7 +360,9 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
 
   it('助手正文选择缩略图引用后，发送实际图片并保留对应编号', () => {
     renderPanel()
-    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+    const editor = screen.getByRole('textbox', {
+      name: '描述画面，或把参考图挂进来…',
+    })
     editor.focus()
     editor.textContent = '采用@'
     const range = document.createRange()
@@ -432,7 +442,9 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       }
       initialAttachments = [attachment]
       renderPanel()
-      const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+      const editor = screen.getByRole('textbox', {
+        name: '描述画面，或把参考图挂进来…',
+      })
       editor.focus()
       editor.textContent = '参考@'
       const range = document.createRange()
@@ -457,7 +469,9 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
   it('IME 选字回车不发送，过一会儿再回车才发送', () => {
     const now = vi.spyOn(performance, 'now')
     renderPanel()
-    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+    const editor = screen.getByRole('textbox', {
+      name: '描述画面，或把参考图挂进来…',
+    })
     editor.textContent = '改成夜景'
     fireEvent.input(editor)
     now.mockReturnValue(0)
@@ -491,7 +505,9 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
         },
       ]
       renderPanel()
-      const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+      const editor = screen.getByRole('textbox', {
+        name: '描述画面，或把参考图挂进来…',
+      })
       editor.textContent = hasMention ? '一起参考@Image2' : '一起参考'
       fireEvent.input(editor)
       fireEvent.click(screen.getByRole('button', { name: 'send' }))
@@ -1069,7 +1085,9 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
   it('上行文本框、下行工具条 —— 顺序是文本框在前', () => {
     renderPanel()
     const area = screen.getByTestId('operator-input-area')
-    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+    const editor = screen.getByRole('textbox', {
+      name: '描述画面，或把参考图挂进来…',
+    })
     const toolbar = screen.getByTestId('operator-toolbar')
 
     expect(area).toContainElement(toolbar)
@@ -1121,7 +1139,9 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     fireEvent.click(screen.getByTestId('operator-plus-toggle'))
     fireEvent.click(screen.getByTestId('operator-plus-item-mention'))
 
-    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+    const editor = screen.getByRole('textbox', {
+      name: '描述画面，或把参考图挂进来…',
+    })
     expect(editor.textContent).toContain('@')
     expect(screen.queryByTestId('operator-plus-menu')).toBeNull()
   })
@@ -1153,7 +1173,9 @@ describe('素材库按钮（切片 #7c）', () => {
 
   it('挑两张：两张都落 chip 管线，正文里各留一个 @ 胶囊', () => {
     renderPanel()
-    const editor = screen.getByRole('textbox', { name: 'placeholderIdle' })
+    const editor = screen.getByRole('textbox', {
+      name: '描述画面，或把参考图挂进来…',
+    })
     fireEvent.click(screen.getByTestId('operator-library-toggle'))
     fireEvent.click(screen.getByTestId('asset-selector-confirm-many'))
 
@@ -1201,7 +1223,7 @@ describe('@ 选择器只剩工作台一段（切片 #7c）', () => {
 
   it('打 @ 只出工作台候选，没有素材库那一段，也不打搜索请求', () => {
     renderPanel()
-    typeAt(screen.getByRole('textbox', { name: 'placeholderIdle' }))
+    typeAt(screen.getByRole('textbox', { name: '描述画面，或把参考图挂进来…' }))
 
     const options = screen.getAllByRole('option')
     expect(options.map((option) => option.textContent)).toEqual([

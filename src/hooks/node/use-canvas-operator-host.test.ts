@@ -1,9 +1,23 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+// 这条用例验的是宿主契约的那几格，⛔ 不验文案 —— 词表由 i18n 完整性用例守着。
+vi.mock('next-intl', () => ({
+  /**
+   * ⚠ 带值的键把值一起串出来：四张脸那一句（`face.*.context`）验的正是「值跟着
+   * 宿主状态变」，回一个光秃秃的 key 会让那条断言恒真。
+   */
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}|${Object.values(values).join('·')}` : key,
+}))
+
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
-import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
+import {
+  STUDIO_OPERATOR_FACE_PILLS,
+  STUDIO_OPERATOR_FACE_PILL_LIMIT,
+  STUDIO_OPERATOR_SHELL,
+} from '@/constants/studio-assistant-operator'
 import { useCanvasOperatorHost } from '@/hooks/node/use-canvas-operator-host'
 
 /**
@@ -21,6 +35,7 @@ describe('useCanvasOperatorHost', () => {
         nodes: [],
         edges: [],
         selectedNodeIds: [],
+        projectName: '借伞',
         applyOp: vi.fn(() => true),
         undo: vi.fn(),
         canUndo: false,
@@ -43,6 +58,7 @@ describe('useCanvasOperatorHost', () => {
         nodes: [],
         edges: [],
         selectedNodeIds: [],
+        projectName: '借伞',
         applyOp: vi.fn(() => true),
         undo: vi.fn(),
         canUndo: false,
@@ -65,5 +81,56 @@ describe('useCanvasOperatorHost', () => {
       panelRightPx: CANVAS_SHELL_LAYOUT.edgeInsetPx,
     })
     expect(CANVAS_SHELL_LAYOUT.assistantPanelGapPx).toBe(6)
+  })
+})
+
+/**
+ * **画布那张脸**（D7b ③ · 画板 `DesignD7bFaces`）—— 全能导演。
+ *
+ * ⚠ 那一句读的是 render 期的 `selectedNodeIds`（⛔ 不是给「现读」用的那只 ref）：
+ * 用 ref 的表现是「框选了几个节点胶囊不动」。
+ */
+describe('useCanvasOperatorHost 的 face（D7b ③）', () => {
+  const render = (selectedNodeIds: readonly string[], projectName: string) =>
+    renderHook(
+      ({ ids, name }: { ids: readonly string[]; name: string }) =>
+        useCanvasOperatorHost({
+          nodes: [],
+          edges: [],
+          selectedNodeIds: ids,
+          projectName: name,
+          applyOp: vi.fn(() => true),
+          undo: vi.fn(),
+          canUndo: false,
+          generateNodes: vi.fn(),
+          open: true,
+          setOpen: vi.fn(),
+        }),
+      { initialProps: { ids: selectedNodeIds, name: projectName } },
+    )
+
+  it('那一句 =「{项目名} · 选中 {n} 个节点」，随选择实时刷', () => {
+    const { result, rerender } = render([], '借伞分镜')
+    expect(result.current.face.contextLine()).toBe(
+      'face.canvas.context|借伞分镜·0',
+    )
+    rerender({ ids: ['n-1', 'n-2'], name: '借伞分镜' })
+    expect(result.current.face.contextLine()).toBe(
+      'face.canvas.context|借伞分镜·2',
+    )
+  })
+
+  it('药丸来自画布那张脸，数量 ≤ 封顶（五颗）', () => {
+    const { result } = render([], '借伞分镜')
+    expect(result.current.face.starterPills).toEqual(
+      STUDIO_OPERATOR_FACE_PILLS[ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas].map(
+        (id) => `face.pill.${id}`,
+      ),
+    )
+    expect(result.current.face.starterPills.length).toBeLessThanOrEqual(
+      STUDIO_OPERATOR_FACE_PILL_LIMIT,
+    )
+    expect(result.current.face.emptyLine).toBe('face.canvas.empty')
+    expect(result.current.face.inputPlaceholder).toBe('face.canvas.placeholder')
   })
 })

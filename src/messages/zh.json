@@ -7426,23 +7426,6 @@
       "loraPickMounted": "已选要挂的 LoRA：{subject}",
       "loraPickDismissed": "这几把 LoRA 先不挂（{subject}）"
     },
-    "suggestion": {
-      "setupShot": "帮我配好这张图",
-      "findReference": "从我库里找参考",
-      "whyNotEnough": "这版还差在哪？",
-      "animateLast": "把这张动起来",
-      "addVoice": "配上她的音色",
-      "splitShots": "切成 3 个镜头",
-      "findStyle": "找个对味的画风 LoRA",
-      "stackConflict": "这套挂载会打架吗",
-      "sweepWeights": "把权重扫一遍对比",
-      "checkStyle": "查一下这个画风",
-      "triggerWords": "查一下这家的触发词",
-      "planShots": "把这段剧本排成分镜",
-      "wireLastImage": "把刚出的这张接到下一镜",
-      "describeBoard": "这张画布现在讲到哪了",
-      "whatIsStale": "改完这个，哪几镜要重跑"
-    },
     "attach": {
       "label": "上传图片 / 音频 / 视频",
       "remove": "摘掉这个附件",
@@ -7858,7 +7841,49 @@
     },
     "placeholderQuestion": "或者直接打字…",
     "collapsedTodo": "{count} 件等你处理",
-    "incognito": "隐身 · 这一轮不记"
+    "incognito": "隐身 · 这一轮不记",
+    "face": {
+      "noModel": "未选模型",
+      "pill": {
+        "writePrompt": "把这句写成好提示词",
+        "compareModels": "换个模型看差别",
+        "useReference": "照这张参考图来",
+        "fourVariants": "出 4 张对比",
+        "animateThis": "从这张图动起来",
+        "frameBridge": "首尾帧怎么接",
+        "pacing": "时长和节奏",
+        "cameraMove": "镜头运动怎么写",
+        "whichLoras": "这个题材该挂哪些 LoRA",
+        "loraPrompt": "帮我写这张的提示词",
+        "weightCheck": "权重这样对不对",
+        "trialShot": "试一张看看",
+        "scriptToBoard": "把这段剧本排成分镜",
+        "refToCharacter": "从参考图做角色资产",
+        "assetsToBoard": "用资产排分镜",
+        "boardToVideo": "分镜出视频",
+        "autoWire": "帮我连线"
+      },
+      "image": {
+        "empty": "说你想要的画面，我来写提示词、挑模型、配参考。",
+        "placeholder": "描述画面，或把参考图挂进来…",
+        "context": "{model} · {ratio} · {count} 张"
+      },
+      "video": {
+        "empty": "给我一张图或一句话，我来让它动起来。",
+        "placeholder": "描述镜头，或挂一张首帧…",
+        "context": "{model} · {ratio} · {seconds}s"
+      },
+      "lora": {
+        "empty": "告诉我想出什么图，我来帮你挑 LoRA、写触发词、调权重。",
+        "placeholder": "想出什么图？",
+        "context": "{base} · 挂了 {count} 个"
+      },
+      "canvas": {
+        "empty": "从剧本、参考图或一句话开始，我把它排成分镜、连成片。",
+        "placeholder": "继续说，或把素材挂进来…",
+        "context": "{project} · 选中 {count} 个节点"
+      }
+    }
   },
   "GenerationCancel": {
     "cancel": "取消",

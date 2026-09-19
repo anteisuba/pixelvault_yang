@@ -8,6 +8,7 @@ import { ASSISTANT_OPERATOR_REJECT_REASON_IDS } from '@/constants/assistant-oper
 import { ASSISTANT_PROTOCOL_DOMAINS } from '@/constants/assistant-protocol'
 import { AI_MODELS, MODEL_MESSAGE_KEYS } from '@/constants/models'
 import {
+  STUDIO_OPERATOR_FACE_PILLS,
   STUDIO_OPERATOR_FIELD_IDS,
   STUDIO_OPERATOR_SYSTEM_CODES,
 } from '@/constants/studio-assistant-operator'
@@ -519,6 +520,32 @@ describe('i18n completeness', () => {
       label: 'StudioOperator.domainName',
       prefix: 'StudioOperator.domainName',
       values: [...ASSISTANT_PROTOCOL_DOMAINS] as string[],
+    },
+    /**
+     * ⭐ 四张脸（D7b ③）三样文案全走**动态键**：域标记那一句
+     * （`t(\`face.${domain}.context\`)`）、空态那句话、输入框占位词。静态扫描那条
+     * 用例一个都看不见 —— 漏翻的表现与 `domainName` 那次逐字相同：next-intl 抛
+     * `MISSING_MESSAGE`，整棵渲染树被边界吃掉，「助手点开就关」。
+     */
+    {
+      label: 'StudioOperator.face（域三样）',
+      prefix: 'StudioOperator.face',
+      values: [...ASSISTANT_PROTOCOL_DOMAINS].flatMap((domain) => [
+        `${domain}.empty`,
+        `${domain}.placeholder`,
+        `${domain}.context`,
+      ]),
+    },
+    /**
+     * 起手药丸同理 —— 值域从常量表现取（⛔ 不手抄一份 id 列表：抄的那份会在
+     * 下一次改脸时原地过期）。
+     */
+    {
+      label: 'StudioOperator.face.pill',
+      prefix: 'StudioOperator.face.pill',
+      values: [
+        ...new Set(Object.values(STUDIO_OPERATOR_FACE_PILLS).flat()),
+      ] as string[],
     },
     {
       label: 'StudioOperator.field',

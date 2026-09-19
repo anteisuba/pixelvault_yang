@@ -20,6 +20,8 @@ import {
   setOperatorPrimed,
 } from '@/hooks/use-studio-operator-store'
 
+import { ImageIcon } from '@/components/icons'
+
 import { StudioPromptArea } from './StudioPromptArea'
 
 /**
@@ -29,6 +31,14 @@ import { StudioPromptArea } from './StudioPromptArea'
  */
 const STUB_OPERATOR_HOST: StudioOperatorHost = {
   domain: 'image',
+  // 四张脸那一格（D7b ③）—— 参数栏不读它，桩给最小形状即可。
+  face: {
+    domainIcon: ImageIcon,
+    contextLine: () => '',
+    emptyLine: '',
+    starterPills: [],
+    inputPlaceholder: '',
+  },
   buildSnapshot: () => ({ prompt: '', availableModels: [] }),
   // 结果行卡的数据源（切片 3a 起是宿主契约的一格）—— 这份桩里没有结果。
   results: [],

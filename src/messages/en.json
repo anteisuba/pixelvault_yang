@@ -7426,23 +7426,6 @@
       "loraPickMounted": "You chose these LoRAs: {subject}",
       "loraPickDismissed": "Skipped these LoRAs: {subject}"
     },
-    "suggestion": {
-      "setupShot": "Set this shot up for me",
-      "findReference": "Find a reference in my library",
-      "whyNotEnough": "What is this version still missing?",
-      "animateLast": "Bring this one to life",
-      "addVoice": "Give it her voice",
-      "splitShots": "Cut it into 3 shots",
-      "findStyle": "Find a LoRA that fits this look",
-      "stackConflict": "Do these LoRAs work well together?",
-      "sweepWeights": "Try different weights and compare",
-      "checkStyle": "Look up this art style",
-      "triggerWords": "Look up this family's trigger words",
-      "planShots": "Lay this script out as shots",
-      "wireLastImage": "Wire that picture into the next shot",
-      "describeBoard": "Tell me where this board stands",
-      "whatIsStale": "What went stale after that change?"
-    },
     "attach": {
       "label": "Upload image / audio / video",
       "remove": "Remove this attachment",
@@ -7858,7 +7841,49 @@
     },
     "placeholderQuestion": "Or just type…",
     "collapsedTodo": "{count} awaiting your response",
-    "incognito": "Incognito · skip this round"
+    "incognito": "Incognito · skip this round",
+    "face": {
+      "noModel": "No model yet",
+      "pill": {
+        "writePrompt": "Turn this into a good prompt",
+        "compareModels": "Try another model, show the difference",
+        "useReference": "Follow this reference",
+        "fourVariants": "Give me 4 to compare",
+        "animateThis": "Make this image move",
+        "frameBridge": "How do first and last frames connect?",
+        "pacing": "Length and pacing",
+        "cameraMove": "How to write camera movement",
+        "whichLoras": "Which LoRAs suit this subject?",
+        "loraPrompt": "Write the prompt for this shot",
+        "weightCheck": "Are these weights right?",
+        "trialShot": "Try one and see",
+        "scriptToBoard": "Lay this script out as a storyboard",
+        "refToCharacter": "Make a character asset from this reference",
+        "assetsToBoard": "Build a storyboard from my assets",
+        "boardToVideo": "Turn the storyboard into video",
+        "autoWire": "Wire it up for me"
+      },
+      "image": {
+        "empty": "Tell me the picture you want — I will write the prompt, pick the model, set the references.",
+        "placeholder": "Describe the shot, or drop a reference in…",
+        "context": "{model} · {ratio} · {count} images"
+      },
+      "video": {
+        "empty": "Give me an image or a sentence and I will make it move.",
+        "placeholder": "Describe the shot, or attach a first frame…",
+        "context": "{model} · {ratio} · {seconds}s"
+      },
+      "lora": {
+        "empty": "Tell me what you want to see — I will pick the LoRAs, write the triggers, tune the weights.",
+        "placeholder": "What do you want to make?",
+        "context": "{base} · {count} mounted"
+      },
+      "canvas": {
+        "empty": "Start from a script, a reference or a sentence — I will board it and wire it together.",
+        "placeholder": "Keep going, or drop material in…",
+        "context": "{project} · {count} nodes selected"
+      }
+    }
   },
   "GenerationCancel": {
     "cancel": "Cancel",

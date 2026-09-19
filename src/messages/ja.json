@@ -7426,23 +7426,6 @@
       "loraPickMounted": "追加する LoRA を選びました：{subject}",
       "loraPickDismissed": "今回はこれらの LoRA を追加しません：{subject}"
     },
-    "suggestion": {
-      "setupShot": "この一枚を組み立てて",
-      "findReference": "ライブラリから参照を探して",
-      "whyNotEnough": "この版に足りないところは？",
-      "animateLast": "この一枚を動かして",
-      "addVoice": "彼女の声をのせて",
-      "splitShots": "3 カットに分けて",
-      "findStyle": "この画風に合う LoRA を探して",
-      "stackConflict": "この LoRA の組み合わせ、相性はどう？",
-      "sweepWeights": "重みを変えて比べてみて",
-      "checkStyle": "この画風を調べて",
-      "triggerWords": "この系統のトリガーワードを調べて",
-      "planShots": "この脚本をカットに割って",
-      "wireLastImage": "今の一枚を次のカットにつないで",
-      "describeBoard": "このボードは今どこまで進んでる？",
-      "whatIsStale": "さっきの変更で撮り直しはどれ？"
-    },
     "attach": {
       "label": "画像 / 音声 / 動画をアップロード",
       "remove": "この添付を外す",
@@ -7858,7 +7841,49 @@
     },
     "placeholderQuestion": "または直接入力…",
     "collapsedTodo": "返答待ち {count}件",
-    "incognito": "シークレット · この回は記憶しない"
+    "incognito": "シークレット · この回は記憶しない",
+    "face": {
+      "noModel": "モデル未選択",
+      "pill": {
+        "writePrompt": "この一文をいいプロンプトに",
+        "compareModels": "モデルを変えて違いを見る",
+        "useReference": "この参考画像に寄せて",
+        "fourVariants": "4 枚出して比べる",
+        "animateThis": "この画像から動かす",
+        "frameBridge": "最初と最後のフレームのつなぎ方",
+        "pacing": "尺とテンポ",
+        "cameraMove": "カメラワークの書き方",
+        "whichLoras": "この題材に合う LoRA は？",
+        "loraPrompt": "この一枚のプロンプトを書いて",
+        "weightCheck": "この重みで合ってる？",
+        "trialShot": "一枚試してみる",
+        "scriptToBoard": "この脚本を絵コンテに",
+        "refToCharacter": "参考画像からキャラ素材を作る",
+        "assetsToBoard": "素材で絵コンテを組む",
+        "boardToVideo": "絵コンテから動画に",
+        "autoWire": "つなぎ方はおまかせ"
+      },
+      "image": {
+        "empty": "欲しい画を言ってください。プロンプト・モデル・参考はこちらで用意します。",
+        "placeholder": "画を説明するか、参考画像を入れて…",
+        "context": "{model} · {ratio} · {count} 枚"
+      },
+      "video": {
+        "empty": "画像か一言をもらえれば、動かします。",
+        "placeholder": "カットを説明するか、最初のフレームを…",
+        "context": "{model} · {ratio} · {seconds}s"
+      },
+      "lora": {
+        "empty": "作りたい画を教えてください。LoRA 選び・トリガー・重みまで一緒に。",
+        "placeholder": "どんな画を作りますか？",
+        "context": "{base} · {count} 個装着"
+      },
+      "canvas": {
+        "empty": "脚本でも参考画像でも一言でも。絵コンテに並べて、つないで仕上げます。",
+        "placeholder": "続けて話すか、素材を入れて…",
+        "context": "{project} · {count} 個のノードを選択中"
+      }
+    }
   },
   "GenerationCancel": {
     "cancel": "キャンセル",

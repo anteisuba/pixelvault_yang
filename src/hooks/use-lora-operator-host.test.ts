@@ -2,6 +2,11 @@ import { renderHook, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import {
+  STUDIO_OPERATOR_FACE_PILLS,
+  STUDIO_OPERATOR_FACE_PILL_LIMIT,
+} from '@/constants/studio-assistant-operator'
 import {
   type LoraOperatorHostMount,
   type UseLoraOperatorHostInput,
@@ -17,7 +22,12 @@ import type { LoraAssetRecord } from '@/types'
 
 /** 这一层验的是快照形状，不是词表 —— 桩成「回 key」就够（同工作台宿主那份）。 */
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  /**
+   * ⚠ 带值的键把值一起串出来：四张脸那一句（`face.*.context`）验的正是「值跟着
+   * 宿主状态变」，回一个光秃秃的 key 会让那条断言恒真。
+   */
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}|${Object.values(values).join('·')}` : key,
 }))
 
 /**
@@ -778,5 +788,86 @@ describe('useLoraOperatorHost 的一批挂载只报一次超预算', () => {
     mount(result.current, 'c-1', 0.6)
     await waitFor(() => expect(budgetLines()).toHaveLength(1))
     expect(budgetLines()).toEqual(['1.6 / 1.5'])
+  })
+})
+
+/**
+ * **装配台那张脸**（D7b ③ · owner 09-20 改口：核心是「用 LoRA 出对图」）。
+ *
+ * ⚠ 那一句 =「{底模} · 挂了 {n} 个」，随挂载栈实时刷；底模还没定出来时说
+ * 「未选模型」，⛔ 不留一个空的 `· 挂了 3 个`。
+ */
+describe('useLoraOperatorHost 的 face（D7b ③）', () => {
+  function faceInput(
+    mounted: number,
+    base: UseLoraOperatorHostInput['base'],
+  ): UseLoraOperatorHostInput {
+    return {
+      prompt: '',
+      setPrompt: () => {},
+      appendPrompt: () => {},
+      negativePrompt: '',
+      setNegativePrompt: () => {},
+      base,
+      availableBases: [],
+      selectBase: () => {},
+      stack: {
+        items: Array.from({ length: mounted }, (_, index) => ({
+          asset: { id: `lora-${index}` } as unknown as LoraAssetRecord,
+        })),
+        push: () => {},
+        setScale: () => {},
+        remove: () => {},
+      },
+      imageUpload: {
+        referenceEntries: [],
+        maxImages: 2,
+        addReferenceImage: () => {},
+        removeReferenceImage: () => {},
+      },
+      open: false,
+      setOpen: () => {},
+    }
+  }
+
+  const BASE = {
+    id: 'wai-illustrious-v15',
+    label: 'WAI-Illustrious v15',
+    family: 'illustrious',
+  }
+
+  it('那一句 =「{底模} · 挂了 {n} 个」，随挂载栈实时刷', () => {
+    const { result, rerender } = renderHook(
+      (props: UseLoraOperatorHostInput) => useLoraOperatorHost(props),
+      { initialProps: faceInput(0, BASE) },
+    )
+    expect(result.current.face.contextLine()).toBe(
+      'face.lora.context|WAI-Illustrious v15·0',
+    )
+    rerender(faceInput(3, BASE))
+    expect(result.current.face.contextLine()).toBe(
+      'face.lora.context|WAI-Illustrious v15·3',
+    )
+  })
+
+  it('底模还没定出来时说「未选模型」，⛔ 不留一个空的前半句', () => {
+    const { result } = renderHook(() => useLoraOperatorHost(faceInput(2, null)))
+    expect(result.current.face.contextLine()).toBe(
+      'face.lora.context|face.noModel·2',
+    )
+  })
+
+  it('药丸来自装配台那张脸，数量 ≤ 封顶', () => {
+    const { result } = renderHook(() => useLoraOperatorHost(faceInput(0, BASE)))
+    expect(result.current.face.starterPills).toEqual(
+      STUDIO_OPERATOR_FACE_PILLS[ASSISTANT_PROTOCOL_DOMAIN_IDS.lora].map(
+        (id) => `face.pill.${id}`,
+      ),
+    )
+    expect(result.current.face.starterPills.length).toBeLessThanOrEqual(
+      STUDIO_OPERATOR_FACE_PILL_LIMIT,
+    )
+    expect(result.current.face.emptyLine).toBe('face.lora.empty')
+    expect(result.current.face.inputPlaceholder).toBe('face.lora.placeholder')
   })
 })

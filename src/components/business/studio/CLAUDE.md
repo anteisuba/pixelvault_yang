@@ -36,7 +36,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │   └── StudioOperatorPanel (同目录 — 面板内容：空态 / 时间线 / 双行输入区)
         │       ├── StudioOperatorHeader (头部一行 56px：左上头像槽（桌面留位给外壳那颗，手机自己画）/ 会话标题▾（= 历史下拉，新会话在底部）/ 域标记 / 续跑 / 右上一颗 ⋯。⛔ 收起钮已删，收起 = 点头像)
         │       ├── StudioOperatorPinnedEvidence (面板顶部「钉住的证据」常驻条：钉住后在顶部留一份、点回原卡、× 取消钉住；⛔ 没钉住就整条不渲染；v2 §3.2 / 画板 BCards「已钉住 · 留在面板顶部」)
-        │       ├── StudioOperatorEmptyState (空态：助手头像 68px + 自我介绍 + 三颗起手势；v2 §4.2)
+        │       ├── StudioOperatorEmptyState (空态：助手头像 68px + **一句话** + 起手药丸 ≤5；两样都来自宿主的 `face`，⛔ 不按 domain 取药丸表；v2 §4.2)
         │       ├── StudioOperatorTimelineRow (时间线沟一行 + **五类卡的分派点**)
         │       │   └── TimelineAvatar (用户 / 助手 32px 头像，与竖线同轴；助手那一档另出口 `AssistantTimelineAvatar` —— 它不碰 Clerk，收起态与空态用的是它)
         │       ├── StudioOperatorToolGroup (「5 个操作 · 4 成功 1 失败」折叠行)
@@ -78,6 +78,8 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 ⚠ **视频档具名槽（2026-09-07 `48d6fecb`）**：视频参考区是 `StudioVideoReferenceSlots`（首帧 / 尾帧 / 参考视频），三条落法（拖入 / 素材库 / 助手 `mount_reference slot`）**汇到同一个 dispatch**（`use-video-reference-slots.ts`），⛔ 组件里没有第二条写入。⛔ 关键帧档下**不再渲染** `ReferenceImageChip`——那一档里图片是帧，留着它写进的参考图列表发送口根本不读（静默失效）。首帧在场且线路带图锁比例时，`StudioVideoSpecFields` 把比例组**禁用而不是移除**并说清怎么解除。
 
 ⚠ **手机形态（2026-09-06 `adb0a008`）**：Dock 在 `isMobile` 时**不再 `return null`**——图片 / 视频档改渲染 `StudioOperatorAvatarToggle`（右上角，⛔ 不再是右下浮标）+ `StudioOperatorMobileSheet`（v2 §4.6 起是**半屏可拖**，⛔ 不再是 100dvh 全屏），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。
+
+⚠ **四张脸（D7b ③，owner 2026-09-20）**：宿主契约多一格 `face`（`{domainIcon, contextLine(), emptyLine, starterPills[], inputPlaceholder}`，见 `src/contexts/studio-operator-host.tsx`），四份宿主各自实现，Dock / Header / EmptyState 只读它。⛔ 组件里不许按 `domain` 分叉挑文案 / 图标 / 药丸（`StudioOperatorDock.web.test.tsx` 有源码扫描守着）。静态那几样按域查表走 `src/hooks/use-studio-operator-face.ts`，只有 `contextLine` 是宿主自己算的。⛔ `STUDIO_OPERATOR_SUGGESTIONS` · `STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT` 与三语 `StudioOperator.suggestion.*` 已整块删。
 
 ⚠ **收起态已改口（D7b ④，owner 2026-09-20）**：**右上角 36px 人设头像 + 数字角标，头像即唯一开关**（点开滑进面板头部，点头部那颗或 Esc 收回）。⛔ D7 ④ 的「右下 44px 近黑圆按钮」与画布顶栏那颗「助手」胶囊（`shell-assistant-toggle`）一起退场；⛔ 仍旧没有微状态卡、状态点、`N/M` 读数与那句状态词。机制与十条动画铁律见 `docs/references/pages/assistant-shell-v2.md §4.3`。下面这段方向 C 的「收起态 48px 图标轨」是历史记录。
 

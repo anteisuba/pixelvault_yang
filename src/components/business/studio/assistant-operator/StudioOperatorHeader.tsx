@@ -71,6 +71,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import type { AssistantPersona } from '@/types/assistant-persona'
+import type { StudioOperatorFace } from '@/contexts/studio-operator-host'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { Input } from '@/components/ui/input'
 import { ASSISTANT_CONVERSATION_LIMITS } from '@/types/assistant-conversation'
@@ -156,6 +157,11 @@ interface StudioOperatorHeaderProps {
   avatarOwned: boolean
   persona?: AssistantPersona
   /**
+   * 这个宿主那张脸（D7b ③）—— 头部只读它的**域图标**与**那一句当前上下文**。
+   * ⛔ 头部不按 `domain` 分叉去拼那句话：四张脸的差异住在宿主里。
+   */
+  face: StudioOperatorFace
+  /**
    * **有未完成计划**（第三期 · 断点续跑）—— 刷新之后唯一还看得见的入口。
    *
    * ⭐ 它必须在头部而不是只在流里：刷新之后线程是从库里载回来的**只读历史**，
@@ -180,6 +186,7 @@ export function StudioOperatorHeader({
   onCollapse,
   avatarOwned,
   persona,
+  face,
   resume,
 }: StudioOperatorHeaderProps) {
   const t = useTranslations('StudioOperator')
@@ -261,8 +268,19 @@ export function StudioOperatorHeader({
           />
         )}
 
-        <span data-testid="operator-domain-chip" className="sr-only">
-          {t(`domainName.${domain}`)}
+        {/* ── 域标记（D7b ③ · 画板 `DesignD7bFaces`）──────────────────────
+            灰底小胶囊：域图标 + **一句当前上下文**，随宿主状态实时刷。
+            ⛔ **不上色** —— 脊柱 §2.1 把模态色留给 prompts 域，别的域不许拿颜色
+              当身份；这里只有 `bg-muted` 与 `text-muted-foreground` 两格。
+            ⚠ 域名仍留一份 `sr-only`：胶囊上写的是「Seedream 5.0 Pro · 1:1 · 4 张」，
+              读屏用户需要先知道这是哪个域。 */}
+        <span
+          data-testid="operator-domain-chip"
+          className="flex h-6 min-w-0 shrink items-center gap-1.5 rounded-full bg-muted px-2 text-2sm text-muted-foreground"
+        >
+          <face.domainIcon className="size-3.5 shrink-0" aria-hidden />
+          <span className="sr-only">{t(`domainName.${domain}`)}</span>
+          <span className="min-w-0 truncate">{face.contextLine()}</span>
         </span>
 
         <DropdownMenu

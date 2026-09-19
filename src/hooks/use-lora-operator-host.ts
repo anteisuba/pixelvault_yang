@@ -33,6 +33,8 @@ import {
 import { useCivitaiDownloadGate } from '@/hooks/use-civitai-download-gate'
 import { useLoraCandidateConfirm } from '@/hooks/use-lora-candidate-confirm'
 import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
+import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
+import { useTranslations } from 'next-intl'
 import {
   appendOperatorEntry,
   nextOperatorEntryId,
@@ -560,9 +562,33 @@ export function useLoraOperatorHost(
 
   const results = input.results ?? NO_RESULTS
 
+  /**
+   * **装配台那张脸的那一句**（D7b ③）——「{底模} · 挂了 {n} 个」。
+   *
+   * ⚠ 现读 `latest.current`：底模与挂载栈在这个宿主上是 `GenerateBranch` 的局部
+   * state，而 `face` 的依赖列里已经有这两格（见下面的 `useMemo`），所以胶囊跟着刷。
+   * ⚠ 底模还没定出来时说「未选模型」，⛔ 不留一个空的 `· 挂了 3 个`。
+   */
+  const baseLabel = input.base?.label ?? null
+  const mountedCount = input.stack?.items.length ?? 0
+  const t = useTranslations('StudioOperator')
+  const contextLine = useCallback(
+    () =>
+      t('face.lora.context', {
+        base: baseLabel ?? t('face.noModel'),
+        count: mountedCount,
+      }),
+    [baseLabel, mountedCount, t],
+  )
+  const face = useStudioOperatorFace(
+    ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
+    contextLine,
+  )
+
   return useMemo(
     () => ({
       domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
+      face,
       buildSnapshot,
       apply,
       results,
@@ -574,6 +600,7 @@ export function useLoraOperatorHost(
     [
       apply,
       buildSnapshot,
+      face,
       input.open,
       input.setOpen,
       input.imageUpload.referenceEntries,

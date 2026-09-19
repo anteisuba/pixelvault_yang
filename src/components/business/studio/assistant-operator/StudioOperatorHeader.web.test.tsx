@@ -2,7 +2,9 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { ImageIcon } from '@/components/icons'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import type { StudioOperatorFace } from '@/contexts/studio-operator-host'
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
 import { ASSISTANT_SURFACE_IDS } from '@/types/assistant-conversation'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
@@ -86,6 +88,15 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
   }
 })
 
+/** 头部只读这张脸的两格：域图标与那一句当前上下文（D7b ③）。 */
+const FACE: StudioOperatorFace = {
+  domainIcon: ImageIcon,
+  contextLine: () => 'Seedream 5.0 Pro · 1:1 · 4 张',
+  emptyLine: '空态那句话（头部不读）',
+  starterPills: [],
+  inputPlaceholder: '',
+}
+
 const NOW = Date.now()
 const DAY_MS = 86_400_000
 
@@ -139,6 +150,7 @@ function renderHeader(
       onOpenAssistantSettings={onOpenAssistantSettings}
       onCollapse={onCollapse}
       avatarOwned={false}
+      face={FACE}
       {...overrides}
     />,
   )

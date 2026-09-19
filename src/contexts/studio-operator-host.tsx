@@ -27,6 +27,8 @@
 
 import { createContext, useContext, type ReactNode } from 'react'
 
+import type { LucideIcon } from '@/components/icons'
+
 import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
@@ -37,6 +39,39 @@ import type {
   StudioOperatorResultItem,
   StudioOperatorResultRun,
 } from '@/types/studio-assistant-operator'
+
+/**
+ * **这个宿主的那张脸**（D7b ③ · 画板 `DesignD7bFaces`，owner 2026-09-20）。
+ *
+ * ⭐ 「一个壳，四张脸」的全部落点：骨架 / 输入区 / 卡片形状 / 宽高 / 动效 / 人设与
+ * 口吻四处**同一份**，每张脸只换这三样（外加输入框占位词）。四份宿主各自实现，
+ * 面板只读它 —— ⛔ 组件里不许按 `domain` 分叉硬编码，那正是这个契约要消掉的东西。
+ *
+ * ⛔ **不上色**：域标记是灰底小胶囊，颜色不能当身份用 —— 脊柱 §2.1 把模态色留给
+ * prompts 域（`ui-defaults.md`）。
+ */
+export interface StudioOperatorFace {
+  /** 头部域标记左边那枚图标。 */
+  domainIcon: LucideIcon
+  /**
+   * 域标记里那**一句当前上下文**，已翻译。
+   *
+   * ⭐ 它是**函数**不是值，但调用方在 render 里调：宿主每次把用到的那几格算进
+   * `useMemo` 的依赖，所以状态一变就换一份新的 `face`，胶囊跟着刷 —— 这正是画板
+   * 「随宿主变化实时刷」那条。⛔ 别改成一个在宿主里提前拼好的字符串常量：那会
+   * 让「改了张数胶囊不动」这种失败静默通过。
+   */
+  contextLine(): string
+  /** 空态那句话（已翻译）。⛔ 不重复人设名字 —— 名字在头部已经有了。 */
+  emptyLine: string
+  /**
+   * 起手药丸的**文案**（已翻译，≤ `STUDIO_OPERATOR_FACE_PILL_LIMIT`）。
+   * ⚠ 点一颗 = **直接发这句话**（拍板 15），所以这里给的就是要发出去的那句原文。
+   */
+  starterPills: readonly string[]
+  /** 输入框占位词 —— 四处各写各的，这是输入区唯一的文案差异。 */
+  inputPlaceholder: string
+}
 
 export interface StudioOperatorHost {
   checkpoints?: {
@@ -51,6 +86,8 @@ export interface StudioOperatorHost {
    * 装配台恒 `lora`。⛔ 别在面板里按路由猜域 —— 域是宿主说了算的。
    */
   domain: AssistantOperatorDomain
+  /** 这个宿主那张脸（D7b ③）—— 见 `StudioOperatorFace` 的头注。 */
+  face: StudioOperatorFace
   /**
    * 当前表单快照 —— `read_state` 的唯一数据源，服务端一个字段都不查库。
    *

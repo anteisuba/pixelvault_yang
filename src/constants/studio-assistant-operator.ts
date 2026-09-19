@@ -123,57 +123,6 @@ export const STUDIO_OPERATOR_WEB_CANDIDATE_PIXELS = 112
 export const STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS = 0.07
 
 /**
- * 建议药丸（拍板 15：语境化、点即发送，替代旧的灰 chips）。
- *
- * ⚠ 值是 **i18n 键的后缀**不是文案：三语各自写自己的话，中文那句直译成日文
- * 会很怪。写成 `Record<域, …>` 而不是一张扁平表 —— 域加一个而药丸没跟上，
- * 编译期就红。
- * ⚠ `minChanges` 是「助手改过几处之后这颗才出现」：一处没改就问「这张为什么
- * 不够手办感」是无源之水（切片 v4 里那颗 `|4` 的门）。
- */
-export const STUDIO_OPERATOR_SUGGESTIONS: Record<
-  AssistantOperatorDomain,
-  readonly { id: string; minChanges: number }[]
-> = {
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.image]: [
-    { id: 'setupShot', minChanges: 0 },
-    { id: 'findReference', minChanges: 0 },
-    /**
-     * 空态那三颗的第三颗（v2 §4.2 / 画板 BEmpty）。
-     *
-     * ⚠ `minChanges: 0` 是它存在的**全部理由**：§4.2 要的三颗起手势必须在
-     * 「一处都还没改」时同时在场，而 `whyNotEnough` 的门是 1 —— 只留那一颗的话
-     * 空态永远只画得出两颗。⛔ 别为此另开一张「空态专用药丸表」：两张表会漂。
-     */
-    { id: 'checkStyle', minChanges: 0 },
-    { id: 'whyNotEnough', minChanges: 1 },
-  ],
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: [
-    { id: 'animateLast', minChanges: 0 },
-    { id: 'addVoice', minChanges: 0 },
-    { id: 'splitShots', minChanges: 1 },
-  ],
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: [
-    { id: 'findStyle', minChanges: 0 },
-    { id: 'stackConflict', minChanges: 0 },
-    { id: 'triggerWords', minChanges: 0 },
-    { id: 'sweepWeights', minChanges: 1 },
-  ],
-  /**
-   * 画布（进度表 22）。三颗起手势都是**画布上真的做得到**的事：排片走
-   * `canvas_apply` 的一串 `add_node` / `connect`，接线走 `attach_asset`，
-   * 「哪几镜过期了」走 `canvas_plan_rerun`。
-   * ⛔ 别摆一颗「帮我剪成片」：剪辑台在画布上是另一件事，助手够不着。
-   */
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: [
-    { id: 'planShots', minChanges: 0 },
-    { id: 'wireLastImage', minChanges: 0 },
-    { id: 'describeBoard', minChanges: 0 },
-    { id: 'whatIsStale', minChanges: 1 },
-  ],
-}
-
-/**
  * 面板能改的表单字段 —— **归属标记（✦）与撤销的粒度就是它**。
  *
  * ⚠ 与工具表不是一一对应：`set_specs` 一条工具同时管比例与清晰度（台账
@@ -524,12 +473,69 @@ export const STUDIO_OPERATOR_DEFAULT_ANCHOR: StudioOperatorShellAnchor = {
 }
 
 /**
- * 空态最多摆几颗起手药丸（v2 §4.2 / 画板 BEmpty 的三行）。
+ * **四张脸**各自那几颗起手药丸（D7b ③ · 画板 `DesignD7bFaces`，owner 2026-09-20）。
  *
- * ⚠ 它是**封顶不是定额**：药丸表按域给，域里 `minChanges` 放行的可能不足三颗
- * （视频 / LoRA 在零改动时各只有两颗）—— 那就画两颗，⛔ 不凑数、⛔ 不补占位。
+ * ⭐ 「一个壳，四张脸」只换三样，这是其中之一：药丸就是「这个助手会干什么」的
+ * 自我介绍，四处各写各的。另外两样是**头部域标记**与**空态那句话**，它们跟着
+ * `face` 契约一起由宿主给（见 `contexts/studio-operator-host.tsx` 的 `face`）。
+ *
+ * ⚠ 值是 **i18n 键的后缀**不是文案：三语各自写自己的话，中文那句直译成日文会很怪。
+ * ⚠ 写成 `Record<域, …>`：域加一个而药丸没跟上，编译期就红。
+ * ⚠ 顺序就是画板上从左到右的顺序，⛔ 别在组件里重排。
+ * ⛔ 这里**没有 `minChanges`**：D7b 的药丸是「自我介绍」不是「语境化建议」——
+ *   一进来就要看得见四处各自是谁，而门会让空态在某些域上只画得出两颗。
+ * ⛔ 旧那张 `STUDIO_OPERATOR_SUGGESTIONS`（带 `minChanges` 门）与
+ *   `STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT` **整块已删**，连同三语的
+ *   `StudioOperator.suggestion.*` 词条 —— 空态与输入区上方那一排现在读的都是这张表，
+ *   ⛔ 不留兼容层。
  */
-export const STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT = 3
+export const STUDIO_OPERATOR_FACE_PILLS: Record<
+  AssistantOperatorDomain,
+  readonly string[]
+> = {
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.image]: [
+    'writePrompt',
+    'compareModels',
+    'useReference',
+    'fourVariants',
+  ],
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: [
+    'animateThis',
+    'frameBridge',
+    'pacing',
+    'cameraMove',
+  ],
+  /**
+   * LoRA 的脸是 owner 09-20 改口后的那一张：核心是**用 LoRA 出对图**，三件事都要
+   * 助手辅助 —— 提示词写对 · LoRA 挂对 · 参数调对。⛔ 不是「找风格 / 查冲突」。
+   */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: [
+    'whichLoras',
+    /**
+     * ⚠ 与图片那颗 `writePrompt` **分成两个键**：画板上两句话不一样（图片是
+     * 「把这句写成好提示词」，LoRA 是「帮我写这张的提示词」—— 后者的语境是
+     * 触发词 / 顺序 / 权重语法）。⛔ 共用一个键等于让其中一处说错话。
+     */
+    'loraPrompt',
+    'weightCheck',
+    'trialShot',
+  ],
+  /** 画布是**全能导演**：剧本 → 资产 → 分镜 → 视频，外加「帮我连线」。五颗封顶。 */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: [
+    'scriptToBoard',
+    'refToCharacter',
+    'assetsToBoard',
+    'boardToVideo',
+    'autoWire',
+  ],
+}
+
+/**
+ * 脸上那排药丸的**封顶**（画板：「最多 5 颗，两行以内」）。
+ *
+ * ⚠ 它是**封顶不是定额**：域里给几颗就画几颗，⛔ 不凑数、⛔ 不补占位。
+ */
+export const STUDIO_OPERATOR_FACE_PILL_LIMIT = 5
 
 /**
  * 时间线沟（§11.3）。

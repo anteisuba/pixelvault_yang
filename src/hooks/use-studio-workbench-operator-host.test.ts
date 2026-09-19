@@ -39,7 +39,12 @@ const setReferenceImage = vi.hoisted(() => vi.fn())
  * 桩成「回 key」就够：这一层验的是宿主契约，不是词表。
  */
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  /**
+   * ⚠ 带值的键把值一起串出来：四张脸那一句（`face.*.context`）验的正是「值跟着
+   * 宿主状态变」，回一个光秃秃的 key 会让那条断言恒真。
+   */
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}|${Object.values(values).join('·')}` : key,
 }))
 
 vi.mock('@/contexts/studio-context', () => ({
@@ -109,11 +114,30 @@ const EMPTY_CONTROLS = {
 vi.mock('@/lib/studio-operator-snapshot', () => ({
   buildImageOperatorSnapshot: () => ({ prompt: '', availableModels: [] }),
   buildVideoOperatorSnapshot: () => ({ prompt: '', availableModels: [] }),
-  // 四颗旋钮那份视图（#9）—— 这一层验的是 results / 分槽，桩成空的就够。
-  buildImageGenerationControls: () => EMPTY_CONTROLS,
-  buildVideoGenerationControls: () => EMPTY_CONTROLS,
+  /**
+   * 四颗旋钮那份视图（#9）。
+   * ⚠ **张数 / 比例原样透传**：D7b 的域标记那一句读的就是它，桩成常量会让
+   *   「改张数胶囊跟着刷」那条断言恒真。
+   */
+  buildImageGenerationControls: (input: {
+    aspectRatio: string
+    count: number
+  }) => ({
+    ...EMPTY_CONTROLS,
+    aspectRatio: input.aspectRatio,
+    count: input.count,
+  }),
+  buildVideoGenerationControls: (input: { aspectRatio: string }) => ({
+    ...EMPTY_CONTROLS,
+    aspectRatio: input.aspectRatio,
+  }),
 }))
 
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import {
+  STUDIO_OPERATOR_FACE_PILLS,
+  STUDIO_OPERATOR_FACE_PILL_LIMIT,
+} from '@/constants/studio-assistant-operator'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
 import { buildGenerationDisplayName } from '@/lib/generation-name'
 
@@ -341,5 +365,65 @@ describe('配置快照与刷新恢复', () => {
     ).toBe(false)
     expect(dispatch).not.toHaveBeenCalled()
     expect(addReferenceImage).not.toHaveBeenCalled()
+  })
+})
+
+/**
+ * **这台工作台那张脸**（D7b ③ · 画板 `DesignD7bFaces`）。
+ *
+ * 钉三件事：
+ *  ① 域标记那一句**随宿主状态刷**（改张数 → 胶囊跟着变），且图片 / 视频两档说的
+ *     是各自那句 —— 工作台一个宿主两张脸，判据是 `outputType`；
+ *  ② 药丸来自那张脸、数量 ≤ 封顶；
+ *  ③ 空态那句话与输入框占位词两档各不相同（⛔ 不是同一句）。
+ */
+describe('useStudioWorkbenchOperatorHost 的 face（D7b ③）', () => {
+  beforeEach(() => {
+    formState.overrides = {}
+  })
+
+  it('① 图片档：那一句带模型 · 比例 · 张数，改张数就跟着刷', () => {
+    const { result, rerender } = renderHook(() =>
+      useStudioWorkbenchOperatorHost(),
+    )
+    expect(result.current.face.contextLine()).toBe(
+      'face.image.context|face.noModel·1:1·1',
+    )
+
+    formState.overrides = { imageBatchCount: 4 }
+    rerender()
+    expect(result.current.face.contextLine()).toBe(
+      'face.image.context|face.noModel·1:1·4',
+    )
+  })
+
+  it('① 视频档换的是另一句（时长而不是张数）', () => {
+    formState.overrides = { outputType: 'video', videoDuration: 8 }
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    expect(result.current.face.contextLine()).toBe(
+      'face.video.context|face.noModel·1:1·8',
+    )
+  })
+
+  it('②③ 药丸 ≤ 封顶且来自那张脸；两档的空态句与占位词各不相同', () => {
+    const { result, rerender } = renderHook(() =>
+      useStudioWorkbenchOperatorHost(),
+    )
+    const image = result.current.face
+    expect(image.starterPills).toEqual(
+      STUDIO_OPERATOR_FACE_PILLS[ASSISTANT_PROTOCOL_DOMAIN_IDS.image].map(
+        (id) => `face.pill.${id}`,
+      ),
+    )
+    expect(image.starterPills.length).toBeLessThanOrEqual(
+      STUDIO_OPERATOR_FACE_PILL_LIMIT,
+    )
+    expect(image.emptyLine).toBe('face.image.empty')
+    expect(image.inputPlaceholder).toBe('face.image.placeholder')
+
+    formState.overrides = { outputType: 'video' }
+    rerender()
+    expect(result.current.face.emptyLine).toBe('face.video.empty')
+    expect(result.current.face.inputPlaceholder).toBe('face.video.placeholder')
   })
 })

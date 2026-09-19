@@ -17,6 +17,7 @@ import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
+import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
 import { useModelPickerMemory } from '@/hooks/use-model-picker-memory'
 import { getModelVariant } from '@/constants/models'
 import { foldChannels } from '@/lib/group-models-for-picker'
@@ -520,6 +521,8 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
    * ⚠ 自定义模型（非内置）没有条目 —— 回 `undefined`，由纯函数层回落到
    * `displayLabel` / id。
    */
+  /** 脸上那些字（`face.*`）—— ⚠ 与 `tModels` 分开：命名空间不同。 */
+  const t = useTranslations('StudioOperator')
   const tModels = useTranslations('Models')
   const modelLabelOf = useCallback(
     (option: { modelId: string; displayLabel?: string }) =>
@@ -571,9 +574,36 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
     ],
   )
 
+  /**
+   * **这台工作台那张脸的那一句**（D7b ③ · 画板 `DesignD7bFaces`）——
+   * 图片「{模型} · {比例} · {张数} 张」/ 视频「{模型} · {比例} · {时长}s」。
+   *
+   * ⚠ 它读的是 `generationControls`（那份**跟着表单重渲染**的值）而不是
+   * `buildSnapshot()`：快照是「现读」的，在 render 里调它拿不到重渲染 —— 表现是
+   * 「改了张数胶囊不动」。依赖列的正是用到的那几格。
+   * ⚠ 模型没定出来时说「未选模型」，⛔ 不留一个空的 `· · 4 张`。
+   */
+  const contextLine = useCallback(() => {
+    const model = generationControls.model?.label ?? t('face.noModel')
+    if (domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video) {
+      return t('face.video.context', {
+        model,
+        ratio: generationControls.aspectRatio,
+        seconds: state.videoDuration,
+      })
+    }
+    return t('face.image.context', {
+      model,
+      ratio: generationControls.aspectRatio,
+      count: generationControls.count,
+    })
+  }, [domain, generationControls, state.videoDuration, t])
+  const face = useStudioOperatorFace(domain, contextLine)
+
   return useMemo(
     () => ({
       domain,
+      face,
       buildSnapshot,
       checkpoints,
       apply,
@@ -590,6 +620,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       checkpoints,
       buildSnapshot,
       domain,
+      face,
       generationControls,
       open,
       referenceLimit,

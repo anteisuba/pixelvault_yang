@@ -25,6 +25,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
@@ -33,6 +34,7 @@ import {
   type StudioOperatorShellAnchor,
 } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
+import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
 import { collectDownstream } from '@/lib/node-downstream'
 import { flashAssistantTouchedNode } from '@/hooks/node/node-ingest-dom'
 import { buildCanvasOperatorSnapshot } from '@/lib/studio-operator-canvas-snapshot'
@@ -72,6 +74,8 @@ export interface UseCanvasOperatorHostInput {
   readonly nodes: readonly NodeV4[]
   readonly edges: readonly NodeWorkflowEdgeV4[]
   readonly selectedNodeIds: readonly string[]
+  /** 当前项目名 —— 只给头部域标记那一句用（「{项目名} · 选中 {n} 个节点」）。 */
+  readonly projectName: string
   /** 每个节点选得动的模型（`useWorkflowModelOptions` 现给）。 */
   readonly availableModelsByNodeId?: Readonly<Record<string, readonly string[]>>
   /** 落一条 op。⚠ 就是图引擎的 `dispatch` —— ⛔ 别在这里另调执行器。 */
@@ -89,6 +93,7 @@ export function useCanvasOperatorHost({
   nodes,
   edges,
   selectedNodeIds,
+  projectName,
   availableModelsByNodeId,
   applyOp,
   undo,
@@ -249,9 +254,29 @@ export function useCanvasOperatorHost({
     }
   }, [canvasApply, canvasRevert, canvasGenerate, canvasPlanRerun])
 
+  /**
+   * **画布那张脸的那一句**（D7b ③）——「{项目名} · 选中 {n} 个节点」。
+   *
+   * ⚠ 读的是 render 期的 `selectedNodeIds` 而不是 `graphRef`：胶囊要**跟着选择
+   * 变**（画板「随宿主变化实时刷」），而那只 ref 是给「现读」用的，它变了不会
+   * 触发重渲染 —— 用它的表现是「框选了几个节点胶囊不动」。
+   */
+  const t = useTranslations('StudioOperator')
+  const selectedCount = selectedNodeIds.length
+  const contextLine = useCallback(
+    () =>
+      t('face.canvas.context', { project: projectName, count: selectedCount }),
+    [projectName, selectedCount, t],
+  )
+  const face = useStudioOperatorFace(
+    ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+    contextLine,
+  )
+
   return useMemo(
     (): StudioOperatorHost => ({
       domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+      face,
       buildSnapshot,
       apply,
       /**
@@ -276,6 +301,6 @@ export function useCanvasOperatorHost({
       collapseOnOutsidePointer: false,
       anchor: CANVAS_ANCHOR,
     }),
-    [apply, buildSnapshot, open, setOpen],
+    [apply, buildSnapshot, face, open, setOpen],
   )
 }

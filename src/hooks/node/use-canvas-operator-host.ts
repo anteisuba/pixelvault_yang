@@ -237,6 +237,17 @@ export function useCanvasOperatorHost({
       referenceLimit: 0,
       open,
       setOpen,
+      /**
+       * **画布整体豁免注意力收放法则**（2026-09-19 owner 拍板）。
+       *
+       * ⚠ 那条法则的前提是「面板外面是表单」，而画布的面板外面就是**工作面**：
+       * 平移、框选、拖节点、点空白取消选择，每一下都会收掉助手 —— 真机上表现为
+       * 「助手一点就关、根本没法用」。
+       * ⚠ 于是画布上助手的开合**只认**右上角那颗 toggle（`ShellTopBar` 的
+       * `onOpenAssistant`）与 Esc 梯（`NodeWorkbenchV4` 的 `onEscape`，两级：
+       * 先收 expanded 再收 open）。⛔ 别再往画布上加第三条收起路。
+       */
+      collapseOnOutsidePointer: false,
     }),
     [apply, buildSnapshot, open, setOpen],
   )

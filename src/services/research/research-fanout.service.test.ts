@@ -628,6 +628,7 @@ describe('印证与结论（§9，commit #16）', () => {
         credibility: 'communityDigest',
         scope: 'character',
         corroboration: 1,
+        cite: 1,
       },
       {
         title: '官方设定集',
@@ -638,6 +639,7 @@ describe('印证与结论（§9，commit #16）', () => {
         credibility: 'official',
         scope: 'character',
         corroboration: 3,
+        cite: 2,
       },
     ])
     expect(conclusion).toBe('黑色长发，金色瞳孔。')
@@ -654,6 +656,7 @@ describe('印证与结论（§9，commit #16）', () => {
           credibility: 'reference',
           scope: 'character',
           corroboration: 2,
+          cite: 1,
         },
       ]),
     ).toBeUndefined()

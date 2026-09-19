@@ -681,33 +681,6 @@ export const STUDIO_OPERATOR_MOBILE_SHELL = {
 } as const
 
 /**
- * 调查卡上**默认铺开几条证据**（2026-09-07）。
- *
- * 🔬 owner 打回：「图一这个过程直接跳过不显示吧」—— 一轮检索的 19 条证据连着
- * 整段简介全文铺开，一张卡吃掉整屏，而用户要的答案（查到了什么、有哪些图）在
- * 最上面一行。剩下的进「还有 M 条」。
- * ⚠ 数字放这里而不是写在组件里：它是**产品判断**（一屏里留给证据多少行），
- * 与那颗组件的排版无关。
- */
-export const STUDIO_OPERATOR_RESEARCH_EVIDENCE_PREVIEW = 5
-
-/**
- * **默认不进证据列表**的那几档（2026-09-07）。
- *
- * ⚠ 判据是证据的 `kind`，⛔ 不是去匹配摘要的字面：
- *  · `image` —— 摘要恒是「image on this page (1024×1024)」这类占位（见
- *    `toAssistantEvidence`：图片档有意不放地址），而那些图**本来就画在下面的
- *    候选网格里**，在证据列里再列一遍是同一件事说两遍；
- *  · `tags` —— 摘要是「danbooru: a, b, c, …」一整堆分类标签，它是给模型对齐用的
- *    底稿，不是讲给人听的结论。
- * ⛔ 不是删掉：展开之后照样看得见（可复核是这张卡的另一半）。
- */
-export const STUDIO_OPERATOR_RESEARCH_LOW_SIGNAL_KINDS: readonly string[] = [
-  'image',
-  'tags',
-]
-
-/**
  * 三帧的入场 stagger（§11.5）。⚠ 单位是秒，与 `STUDIO_OPERATOR_RESULT_STAGGER`
  * 同一条理由；三帧不需要封顶，条数是契约里的常量 3
  * （`ASSISTANT_OPERATOR_LIMITS.videoCritiqueFrameCount`）。

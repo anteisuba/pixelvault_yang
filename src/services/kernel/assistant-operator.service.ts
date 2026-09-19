@@ -735,6 +735,17 @@ interface OperatorRun {
    * ⚠ `null` = 取不到（没有会话 id / 库读不出来）→ 这一轮的证据不带编号。
    */
   evidenceRefSeq: number | null | undefined
+  /**
+   * **本轮正文角标的号段**（56b 切片 1）—— 下一条证据该拿 `[n]` 里的哪个 n。
+   *
+   * ⭐ 与 `evidenceRefSeq` 是两件事：那一个是**会话内**的证据本编号（`#e12`，
+   * 跨轮指认、要落库），这一个是**本轮内**的阅读编号（`[3]`，只活在这一段正文
+   * 与它底下那排来源卡之间）。合成一个的表现是第五轮的第一条证据在正文里写着
+   * `[47]` —— 一个没有人数得清的号。
+   * ⚠ 从 1 起，按**过完来源名单之后**剩下的条数顺延：被名单挡掉的那几条不占号，
+   * ⛔ 否则来源卡上会缺号，而缺号在读者眼里就是「有一条我点不开」。
+   */
+  evidenceCiteSeq: number
   /** 讲给模型听的「刚才发生了什么」。 */
   observations: string[]
   /** 本轮里助手自己写过的字段 —— 覆写自己的东西不需要再问用户一次。 */
@@ -2326,11 +2337,19 @@ async function planResearch(
       conversationId,
     })
   }
+  /**
+   * ⚠ **两个号在同一次 map 里发**（56b 切片 1）：`evidenceRef` 是会话内的证据本
+   * 编号（可能缺席），`cite` 是本轮正文里那个 `[n]`（永远有）。扇出发的那个
+   * `cite` 在这里被顶掉 —— 它数的是过名单**之前**的序号。
+   */
+  const citeBase = run.evidenceCiteSeq
   const evidence = keptEvidence.map((item, index) => {
     const seq = run.evidenceRefSeq
-    if (seq === null || seq === undefined) return item
-    return { ...item, evidenceRef: `${EVIDENCE_REF_PREFIX}${seq + index}` }
+    const cited = { ...item, cite: citeBase + index }
+    if (seq === null || seq === undefined) return cited
+    return { ...cited, evidenceRef: `${EVIDENCE_REF_PREFIX}${seq + index}` }
   })
+  run.evidenceCiteSeq = citeBase + keptEvidence.length
   if (typeof run.evidenceRefSeq === 'number') {
     run.evidenceRefSeq += keptItems.length
   }
@@ -2429,12 +2448,12 @@ async function planResearch(
         }`
       : `${chainLine}\n→ ${evidence.length} piece(s) of evidence (round ${round}/${RESEARCH_LIMITS.maxRoundsPerTurn}), ${characterEvidence.length} of them about the character itself. Sources: ${receiptLine}.\n${evidence
           .map(
-            (item, index) =>
-              `  ${index + 1}. ${item.evidenceRef ? `${item.evidenceRef} ` : ''}[${item.publisher} · ${item.credibility} · ${item.scope}-level · ${item.kind} · ${item.corroboration > 1 ? `${item.corroboration} sources agree` : 'SINGLE SOURCE'}${item.publishedAt ? ` · ${item.publishedAt}` : ''}] ${item.title}\n     ${item.snippet}`,
+            (item) =>
+              `  [${item.cite}] ${item.evidenceRef ? `${item.evidenceRef} ` : ''}[${item.publisher} · ${item.credibility} · ${item.scope}-level · ${item.kind} · ${item.corroboration > 1 ? `${item.corroboration} sources agree` : 'SINGLE SOURCE'}${item.publishedAt ? ` · ${item.publishedAt}` : ''}] ${item.title}\n     ${item.snippet}`,
           )
           .join(
             '\n',
-          )}${characterGap}\nEvidence marked SINGLE SOURCE is exactly that: say so when you use it, never state it as settled fact.\n${
+          )}${characterGap}\nEvidence marked SINGLE SOURCE is exactly that: say so when you use it, never state it as settled fact.\nCITE THEM: in "message", put the bracketed number of the piece you used at the END of the sentence it supports — like this[3]. Only numbers from the list above; ⛔ never invent one, ⛔ never write a range, ⛔ never add a "Sources:" list at the end (the interface draws the source cards for you).\n${
           roundsLeft > 0
             ? 'If this pinned down the official name or the site of record but not the details you need, research ONE more time with a narrower goal, or read_url the best page above. Tag-kind evidence is already prompt-ready vocabulary — use those words.'
             : 'This was your last research round. Use it, name the source when it matters, and say plainly what is still unconfirmed.'
@@ -8489,6 +8508,7 @@ export async function* runAssistantOperator(
     apiKeyId,
     modelId,
     webImageIndex: new Map(),
+    evidenceCiteSeq: 1,
     researchRounds: 0,
     evidenceRefSeq: undefined,
     searchIndex: new Map(),

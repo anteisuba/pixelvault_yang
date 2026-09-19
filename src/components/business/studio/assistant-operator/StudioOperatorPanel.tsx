@@ -50,11 +50,9 @@ import {
   X,
 } from '@/components/icons'
 import {
-  collectOperatorResearchRefs,
+  collectOperatorAnswerSources,
   groupOperatorResearch,
   groupOperatorHistoryTools,
-  groupOperatorResearchRuns,
-  hasOperatorResearchFindings,
   isOperatorResearchTool,
   placeOperatorRoundSummaries,
   shouldStickOperatorScroll,
@@ -114,9 +112,9 @@ import {
   StudioOperatorUserText,
 } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
 import {
-  StudioOperatorResearchCard,
+  toOperatorAnswerSources,
   type StudioOperatorResearchSummary,
-} from '@/components/business/studio/assistant-operator/StudioOperatorResearchCard'
+} from '@/components/business/studio/assistant-operator/StudioOperatorAnswerSources'
 import {
   StudioOperatorPinnedEvidence,
   type StudioOperatorPinnedEvidenceItem,
@@ -1149,6 +1147,15 @@ export function StudioOperatorPanel({
     )
   }
 
+  /**
+   * **哪一段回答底下摆哪几条资料**（56b 切片 1）—— 判据是位置，见
+   * `collectOperatorAnswerSources` 的头注。
+   */
+  const answerSources = useMemo(
+    () => collectOperatorAnswerSources(entries),
+    [entries],
+  )
+
   const blocks = useMemo(() => {
     type Block =
       | { kind: 'entry'; entry: StudioOperatorThreadEntry }
@@ -1315,36 +1322,6 @@ export function StudioOperatorPanel({
        * `roundChangeLabelKeys` 的头注。
        */
       const changeLabelKeys = roundChangeLabelKeys(block.runKey)
-      /**
-       * ⭐ 这一组里有调查步 → 整组改画**调查卡**（第 6 件）：结论 + 证据 + 候选
-       * 在明面上，翻页读页那一串折进「过程」。⛔ 不与 ToolGroup 并排画 —— 那会
-       * 让同一轮检索在流里出现两次。
-       * ⚠ 有失败步时**退回 ToolGroup**：卡上没有失败那一档的位置，而失败恰恰是
-       * 那一刻唯一要读的东西（ToolGroup 单独呈现阻塞摘要）。
-       */
-      const researchSteps =
-        failed === 0
-          ? groupOperatorResearchRuns(
-              block.steps.map((item) => ({
-                runKey: item.runKey,
-                tool: item.step.tool,
-              })),
-            ).flatMap((group) =>
-              group.indexes.map((index) => block.steps[index]!),
-            )
-          : []
-      /**
-       * ⭐ **一条证据、一张候选都没有就不出卡**（2026-09-07 真机）：那样的卡结论行
-       * 回落成占位文案「查了一下」、右上角写着「0 条证据」，整张卡讲的是零。
-       * ⚠ 退回 `ToolGroup`（下面那一支）而不是整组不渲染：过程照旧可展开复核。
-       */
-      const showResearchCard =
-        researchSteps.length > 0 && hasOperatorResearchFindings(researchSteps)
-      /**
-       * ⚠ `logItems` 必须**排在 `showResearchCard` 之后**算：出卡时这几条日志是
-       * 卡底那段「过程」的内容，而候选网格已经画在卡面上了 —— 日志条这时候
-       * ⛔ 不能再画一份（2026-09-07 真机：16 个格子 / 8 张唯一候选）。
-       */
       const logItems = block.steps.map((item) => (
         <div key={item.id}>
           <StudioOperatorLogItem
@@ -1357,7 +1334,9 @@ export function StudioOperatorPanel({
             webImport={webImport.states[item.id]}
             webImportLimit={webImport.limit}
             onToggleWebImage={webImport.toggleCandidate}
-            renderWebCandidates={!showResearchCard}
+            /* ⚠ 候选网格由日志条自己画（56b 切片 1 起没有第二处画它的地方：
+               调查卡已经退场）。 */
+            renderWebCandidates
           />
           {/* ⚠ 后果落在**库里**的那几步（记规则 / 标审核态 / 素材库四条）
                 ⛔ 不挂「还原到这一步」：还原读的是工作台快照，而它们一颗旋钮都
@@ -1385,24 +1364,13 @@ export function StudioOperatorPanel({
           data-research-run={block.runKey}
         >
           <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.evidence}>
-            {showResearchCard ? (
-              <StudioOperatorResearchCard
-                steps={researchSteps}
-                pinned={isPinned(
-                  block.runKey,
-                  collectOperatorResearchRefs(researchSteps),
-                )}
-                onTogglePin={(summary) => togglePin(block.runKey, summary)}
-                /* 「再多找几个源」= 再跑一次查证并加源（§9.1 ③）。⚠ 走的是**普通
-                   一轮**（发一句话），⛔ 不另开一条绕过工具环的客户端检索路径。 */
-                onExpandSources={() => submit(t('research.expandPrompt'))}
-                webImportStates={webImport.states}
-                webImportLimit={webImport.limit}
-                onToggleWebImage={webImport.toggleCandidate}
-              >
-                {logItems}
-              </StudioOperatorResearchCard>
-            ) : (
+            {
+              /**
+               * ⭐ **调查卡退场**（56b 切片 1）：这一轮查到的结论与证据现在长在
+               * **回答底下**（来源卡 + 媒体条，`StudioOperatorMessageBody`），过程
+               * 留在这一折里。⛔ 别把那张卡找回来 —— 它把证据摆在回答**前面**，
+               * 读起来是「先看完它的过程，再看它说了什么」。
+               */
               <StudioOperatorToolGroup
                 total={block.steps.length}
                 failed={failed}
@@ -1436,7 +1404,7 @@ export function StudioOperatorPanel({
               >
                 {logItems}
               </StudioOperatorToolGroup>
-            )}
+            }
           </StudioOperatorTimelineRow>
           {block.steps.map((item) =>
             item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
@@ -1528,7 +1496,21 @@ export function StudioOperatorPanel({
        * ⚠ `streaming` 为真且还没有字 = **发送即回显**的占位行：头像已经在了，
        *   正文位画三点脉冲，高度就是一行正文高，第一个字到达时不跳。
        */
-      case 'message':
+      case 'message': {
+        /**
+         * ⭐ **资料长在回答底下**（56b 切片 1）：这一段话之前查到的证据在这里
+         * 变成句尾角标 + 媒体条 + 一排来源卡。⛔ 不再有那张摆在回答前面的调查卡。
+         */
+        const attached = answerSources.get(entry.id)
+        const researchSteps = (attached?.steps ?? []).flatMap((index) => {
+          const item = entries[index]
+          return item && item.kind === 'step' ? [item] : []
+        })
+        const answer =
+          researchSteps.length > 0
+            ? toOperatorAnswerSources(researchSteps)
+            : null
+        const runKey = attached?.runKey ?? ''
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
@@ -1541,9 +1523,20 @@ export function StudioOperatorPanel({
             <StudioOperatorMessageBody
               entry={entry}
               {...(statusWord ? { statusText: statusWord } : {})}
+              {...(answer
+                ? {
+                    sources: answer.sources,
+                    pinned: isPinned(runKey, answer.summary.evidenceRefs),
+                    onTogglePin: () => togglePin(runKey, answer.summary),
+                    /* 「深入调查」= 再跑一轮并加源（§9.1 ③）。⚠ 走的是**普通
+                       一轮**（发一句话），⛔ 不另开一条绕过工具环的检索路径。 */
+                    onDeepResearch: () => submit(t('research.expandPrompt')),
+                  }
+                : {})}
             />
           </StudioOperatorTimelineRow>
         )
+      }
       case 'plan':
         return (
           <StudioOperatorTimelineRow

@@ -66,6 +66,16 @@ function renderItemBody(item: EvidenceItem): string {
       ? `TAGS (${item.provenance}): ${item.tags.join(', ')}`
       : RESEARCH_INJECTION_PLACEHOLDER
   }
+  if (item.kind === 'video') {
+    /**
+     * ⚠ 视频档写的是**元数据**，⛔ 不是播放地址：与 `image` 档不同 —— 那一档
+     * 的地址是这条证据的全部内容（一张图），而视频的内容是它的标题与简介，
+     * 地址喂进去只会被模型当成可粘贴的素材（56b 切片 1）。
+     */
+    return `VIDEO on ${item.site}${
+      item.durationSeconds ? ` (${item.durationSeconds}s)` : ''
+    }${item.excerpt ? `: ${item.excerpt}` : ''}`
+  }
   return `IMAGE URL: ${item.imageUrl}${
     item.width && item.height ? ` (${item.width}×${item.height})` : ''
   }`

@@ -7776,7 +7776,8 @@
       "kind": {
         "text": "本文",
         "tags": "タグ",
-        "image": "画像"
+        "image": "画像",
+        "video": "動画"
       },
       "confidence": {
         "high": "公式",
@@ -7796,23 +7797,19 @@
       }
     },
     "research": {
-      "goal": "調べたこと：{goal}",
-      "goalUnknown": "調べもの",
-      "count": "根拠 {count} 件",
-      "process": "調べた手順",
-      "evidenceMore": "他 {count} 件",
-      "evidenceLess": "閉じる",
       "pin": "ピン留め",
       "unpin": "ピンを外す",
       "pinned": "ピン留め済み",
-      "fold": "折りたたむ",
-      "collapsed": "確認済み · 出典{count}件",
       "sourceCount": "出典 {count} 件",
       "corroborated": "{count}件の出典で一致",
-      "singleSource": "単一出典",
-      "expandSources": "もっと出典を探す",
       "expandPrompt": "もう一度裏取りして、出典をもっと探してください。これだけでは足りません。",
       "pinnedHeading": "ピン留めした根拠"
+    },
+    "answer": {
+      "media": "資料",
+      "sources": "出典",
+      "citation": "出典 {index}",
+      "deepResearch": "詳しく調べる"
     },
     "message": {
       "expand": "全文を表示",

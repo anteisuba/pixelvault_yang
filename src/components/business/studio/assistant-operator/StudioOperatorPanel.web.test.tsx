@@ -877,23 +877,7 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     )
   }
 
-  it('⭐ 证据与候选都为空 → ⛔ 不画调查卡，这一组退回 ToolGroup', () => {
-    pushStep('run-1', {
-      id: 'step-1',
-      title: '查了一下',
-      tool: 'research',
-      verb: 'research',
-      status: 'done',
-      payload: { goal: '', round: 1, sources: ['web'] },
-      result: { evidence: [], totalFound: 0 },
-    })
-    renderPanel()
-    expect(screen.queryByTestId('operator-research-card')).toBeNull()
-    // 过程没有被藏起来 —— 折叠行还在。
-    expect(screen.getByTestId('operator-tool-group')).toBeTruthy()
-  })
-
-  it('有一条证据就照旧画调查卡', () => {
+  it('⭐ 调查卡退场：过程折成 ToolGroup，⛔ 时间线里不再有那张卡（56b 切片 1）', () => {
     pushStep('run-1', {
       id: 'step-1',
       title: '查了一下',
@@ -905,16 +889,22 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
         evidence: [
           {
             title: '官方设定集',
-            publisher: '官网',
+            publisher: 'official.test',
             snippet: '披风是深红',
-            kind: 'official',
+            kind: 'text',
             confidence: 'high',
+            credibility: 'official',
+            scope: 'character',
+            corroboration: 1,
+            cite: 1,
           },
         ],
       },
     })
     renderPanel()
-    expect(screen.getByTestId('operator-research-card')).toBeTruthy()
+    expect(screen.queryByTestId('operator-research-card')).toBeNull()
+    // 过程没有被藏起来 —— 折叠行还在。
+    expect(screen.getByTestId('operator-tool-group')).toBeTruthy()
   })
 
   it('clears an earlier conflict after a successful write even across separate log blocks', () => {

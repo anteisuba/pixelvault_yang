@@ -193,14 +193,17 @@ export interface AssistantEvidenceRecallResult {
   missing: string[]
 }
 
-/** 三种 `kind` 压平成模型要读的那一段正文。 */
+/** 四种 `kind` 压平成模型要读的那一段正文。 */
 function evidenceBody(item: EvidenceItem): string {
   const text =
     item.kind === 'text'
       ? item.excerpt
       : item.kind === 'tags'
         ? `${item.tags.join(', ')}（${item.provenance}）`
-        : item.imageUrl
+        : item.kind === 'video'
+          ? // ⚠ 与证据块同一条纪律：视频给元数据，⛔ 不给播放地址。
+            `${item.site}${item.durationSeconds ? ` · ${item.durationSeconds}s` : ''}${item.excerpt ? ` · ${item.excerpt}` : ''}`
+          : item.imageUrl
   return text.slice(0, ASSISTANT_EVIDENCE_RECALL_LIMITS.maxBodyChars)
 }
 

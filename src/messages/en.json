@@ -7776,7 +7776,8 @@
       "kind": {
         "text": "passage",
         "tags": "tags",
-        "image": "picture"
+        "image": "picture",
+        "video": "Video"
       },
       "confidence": {
         "high": "official",
@@ -7796,23 +7797,19 @@
       }
     },
     "research": {
-      "goal": "Looked up: {goal}",
-      "goalUnknown": "Looked things up",
-      "count": "{count, plural, one {# source} other {# sources}}",
-      "process": "Research steps",
-      "evidenceMore": "{count} more",
-      "evidenceLess": "Show less",
       "pin": "Pin",
       "unpin": "Unpin",
       "pinned": "Pinned",
-      "fold": "Collapse",
-      "collapsed": "Checked · {count, plural, one {# source} other {# sources}}",
       "sourceCount": "{count, plural, one {# source} other {# sources}}",
       "corroborated": "{count, plural, one {# source} other {# sources}} agree",
-      "singleSource": "Single source",
-      "expandSources": "Look in more places",
       "expandPrompt": "Check that again and look in more places — I want more than these sources.",
       "pinnedHeading": "Pinned evidence"
+    },
+    "answer": {
+      "media": "Attachments",
+      "sources": "Sources",
+      "citation": "Source {index}",
+      "deepResearch": "Research deeper"
     },
     "message": {
       "expand": "Show all",

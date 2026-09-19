@@ -27,13 +27,33 @@ function renderBody(
   entry: Partial<
     React.ComponentProps<typeof StudioOperatorMessageBody>['entry']
   > = {},
+  rest: Partial<React.ComponentProps<typeof StudioOperatorMessageBody>> = {},
 ) {
   render(
     <StudioOperatorMessageBody
       entry={{ kind: 'message', id: 'm1', text: '改成夜景了。', ...entry }}
+      {...rest}
     />,
   )
 }
+
+/** 两条资料 —— 角标认的就是它们的 `cite`。 */
+const SOURCES = [
+  {
+    cite: 1,
+    title: '知乎那篇',
+    url: 'https://zhihu.com/a',
+    publisher: 'zhihu.com',
+    kind: 'text',
+  },
+  {
+    cite: 2,
+    title: 'pixiv 作品集',
+    url: 'https://pixiv.net/b',
+    publisher: 'pixiv.net',
+    kind: 'text',
+  },
+]
 
 describe('StudioOperatorMessageBody', () => {
   it('短回话原样出，⛔ 没有多余的展开钮', () => {
@@ -105,5 +125,46 @@ describe('StudioOperatorMessageBody', () => {
     screen.getByTestId('operator-message-why').remove()
     renderBody()
     expect(screen.queryByTestId('operator-message-why')).toBeNull()
+  })
+
+  it('⭐ 句尾 `[n]` 渲染成角标，⛔ 方括号不落在屏幕上（56b 切片 1）', () => {
+    renderBody(
+      { text: '核心是**霓虹反光**[1]。路面积水做镜面反射[2]。' },
+      { sources: SOURCES },
+    )
+    const marks = screen.getAllByTestId('operator-message-citation')
+    expect(marks.map((mark) => mark.dataset.cite)).toEqual(['1', '2'])
+    expect(
+      screen.getByTestId('operator-message-text').textContent,
+    ).not.toContain('[1]')
+  })
+
+  it('⭐ 点角标高亮对应的来源卡；再点一次熄灭', () => {
+    renderBody({ text: '一句话[2]。' }, { sources: SOURCES })
+    const mark = screen.getByTestId('operator-message-citation')
+    fireEvent.click(mark)
+    const active = screen
+      .getAllByTestId('operator-answer-source-card')
+      .filter((card) => card.dataset.active === 'true')
+    expect(active[0]?.dataset.cite).toBe('2')
+    fireEvent.click(screen.getByTestId('operator-message-citation'))
+    expect(
+      screen
+        .getAllByTestId('operator-answer-source-card')
+        .filter((card) => card.dataset.active === 'true'),
+    ).toHaveLength(0)
+  })
+
+  it('⛔ 没有这条资料的号原样留着那段字（模型编号时不许静默吞掉）', () => {
+    renderBody({ text: '一句话[9]。' }, { sources: SOURCES })
+    expect(screen.queryByTestId('operator-message-citation')).toBeNull()
+    expect(screen.getByTestId('operator-message-text').textContent).toContain(
+      '[9]',
+    )
+  })
+
+  it('⛔ 还在流的时候不摆来源卡 —— 正文长高时它会一直往下跳', () => {
+    renderBody({ text: '写到一半[1]', streaming: true }, { sources: SOURCES })
+    expect(screen.queryByTestId('operator-answer-sources')).toBeNull()
   })
 })

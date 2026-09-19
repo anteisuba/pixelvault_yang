@@ -87,6 +87,18 @@ export interface AssistantResearchEvidence {
    * 拿到号段之后补上。⛔ 别在这个文件里去查号：那就是把库拖进扇出层。
    */
   evidenceRef?: string
+  /**
+   * **正文里 `[n]` 的 n**（56b 切片 1）—— 本轮内 1 起、跨 `research` 调用连号。
+   * 契约与判据见 `AssistantOperatorEvidenceSchema.cite`。
+   */
+  cite: number
+  /**
+   * 能摆进正文的那张画面（`image` 是原图、`video` 是封面）。
+   * ⚠ ⛔ 不进 `snippet`，因此**模型看不到它**（见 `toAssistantEvidence`）。
+   */
+  mediaUrl?: string
+  /** 视频时长（秒）—— 封面角标。取不到就缺席，⛔ 不回落成 0。 */
+  durationSeconds?: number
 }
 
 export interface AssistantResearchOutcome {
@@ -516,6 +528,11 @@ export function toAssistantEvidence(
     forcedScope?: AssistantResearchScope
     /** 几个源说了同一件事（§9.1 ③）。缺省 `1` = 单源。 */
     corroboration?: number
+    /**
+     * 正文里那个 `[n]` 的 n（56b 切片 1）。缺省 `1` —— ⚠ 调用方一律显式给，
+     * 缺省只为单条构造的测试留个门（见 `AssistantOperatorEvidenceSchema.cite`）。
+     */
+    cite?: number
   } = {},
 ): AssistantResearchEvidence {
   const publisher = hostnameOf(item.url) ?? item.sourceId.replace(/_/g, ' ')
@@ -525,7 +542,23 @@ export function toAssistantEvidence(
       ? item.excerpt
       : item.kind === 'tags'
         ? `${item.provenance}: ${item.tags.join(', ')}`
-        : `image on this page${item.width && item.height ? ` (${item.width}×${item.height})` : ''}`
+        : item.kind === 'video'
+          ? // ⚠ 与 `image` 同一条纪律：**不写地址**。模型要的是「这一条是一支
+            //   视频、多长、哪个站、讲了什么」，⛔ 不是一条它会试着写进提示词的
+            //   播放地址。
+            `video on ${item.site}${item.durationSeconds ? ` (${formatEvidenceDuration(item.durationSeconds)})` : ''}${item.excerpt ? ` — ${item.excerpt}` : ''}`
+          : `image on this page${item.width && item.height ? ` (${item.width}×${item.height})` : ''}`
+  /**
+   * ⚠ 媒体地址**只往客户端走**：它不进 `snippet`（上面那一段），所以
+   * `observation` 里一个字都看不到它 —— 模型读到的仍然只有「这是一张图 / 一支
+   * 视频」。⛔ 别为了省一个字段把它并进 snippet。
+   */
+  const mediaUrl =
+    item.kind === 'image'
+      ? item.imageUrl
+      : item.kind === 'video'
+        ? item.thumbnailUrl
+        : undefined
 
   return {
     title: item.title.slice(0, ASSISTANT_RESEARCH_LIMITS.maxEvidenceTitleChars),
@@ -543,8 +576,31 @@ export function toAssistantEvidence(
     credibility,
     scope: scopeOfEvidence(item, options.character, options.forcedScope),
     corroboration: Math.max(1, options.corroboration ?? 1),
+    cite: Math.max(1, options.cite ?? 1),
+    ...(mediaUrl && isHttpUrl(mediaUrl) ? { mediaUrl } : {}),
+    ...(item.kind === 'video' && item.durationSeconds
+      ? { durationSeconds: item.durationSeconds }
+      : {}),
     ...(item.publishedAt ? { publishedAt: item.publishedAt } : {}),
   }
+}
+
+/** `12:40` / `1:02:03` —— 只给模型读的那一段字用，⛔ 不是 UI 的格式化器。 */
+function formatEvidenceDuration(seconds: number): string {
+  const h = Math.floor(seconds / 3600)
+  const m = Math.floor((seconds % 3600) / 60)
+  const s = seconds % 60
+  const pad = (value: number): string => String(value).padStart(2, '0')
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`
+}
+
+/**
+ * ⚠ `mediaUrl` 过 `z.string().url()`，而连接器给的封面偶尔是协议相对
+ * （`//i0.hdslb.com/...`）—— 那种进 schema 会整条证据被拒。这里先筛一道，
+ * ⛔ 不在 schema 上把 `.url()` 放宽（放宽等于让一个渲染不出来的串进 `<Image>`）。
+ */
+function isHttpUrl(value: string): boolean {
+  return /^https?:\/\//i.test(value)
 }
 
 /**
@@ -709,8 +765,14 @@ export async function runAssistantResearch(
      * 作品共现）时才出证据，而那些证据的字面是英文 tag（`ichinose_tokiya`），
      * 中文角色名永远匹配不上 —— 让文本判据去判它只会把真的角色证据判成作品级。
      */
-    evidence: items.map((item) =>
+    evidence: items.map((item, index) =>
       toAssistantEvidence(item, {
+        /**
+         * ⚠ 这里给的是**扇出内**的序号（1 起）。工具环拿到之后会按名单过滤再
+         * 重新编一遍号（`OperatorRun.evidenceCiteSeq`）—— ⛔ 别在这一层去接
+         * 上一次查证的号：这个文件一行 run 态都碰不到，接出来的号必然是错的。
+         */
+        cite: index + 1,
         ...(plan.character ? { character: plan.character } : {}),
         ...(plan.character && item.sourceId === RESEARCH_SOURCE_IDS.danbooru
           ? { forcedScope: ASSISTANT_RESEARCH_SCOPE_IDS.character }

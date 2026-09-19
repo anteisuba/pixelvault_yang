@@ -3,7 +3,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
-import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
+import type { StudioOperatorThreadEntry } from '@/types/studio-assistant-operator'
 
 export function isOperatorResearchTool(tool: string): boolean {
   return (
@@ -57,100 +57,39 @@ export function groupOperatorResearch(
 }
 
 /**
- * **调查卡**收哪几种步（2026-09-06 面板轮，第 6 件）。
+ * **一段回答底下要摆哪几条资料**（56b 切片 1）。
  *
- * ⚠ 与 `isOperatorResearchTool` 是**两张表，不是一张**：那张管的是「这一段过程
- * 值不值得默认折起来」（`search_web` / 读状态 / 列文件夹 / 读规则 —— 全是无结论
- * 的翻找）；这一张管的是「这一轮查出来的**结论与证据**归到同一张卡上」。
- * `search_web_images` 在前一张表里明确**不是**可隐藏的调查（它有候选图要给人挑），
- * 而在这里它必须在 —— 那几张候选正是这张卡的下半部分。合成一张表的表现是：
- * 要么候选图被折进「调查过程」里没人看得见，要么整条 `search_web` 都摊开来占屏。
+ * ⭐ 判据是**位置**而不是 runKey：消息条目身上**没有** runKey
+ * （`StudioOperatorMessageEntry` 的形状），而「这段话用了哪几条资料」在时间线上
+ * 本来就是位置关系 —— 查完再说话。所以扫一遍条目：攒着查到的证据，遇到下一条
+ * 助手消息就全部挂上去并清零。
+ * ⚠ 挂给**下一条消息**而不是「同一轮的最后一条」：一轮里「查一次 → 说一句 →
+ * 再查一次 → 再说一句」是正常形状，按轮挂会把两次查证的来源全堆在第二句下面。
+ * ⚠ 收不到消息的那几条证据（跑到一半停了）就**不挂**：⛔ 不硬塞给上一条消息 ——
+ * 那会让一句还没用到这些资料的话底下凭空长出一排来源卡。
  */
-export function isOperatorResearchCardTool(tool: string): boolean {
-  return (
-    tool === ASSISTANT_OPERATOR_TOOL_IDS.research ||
-    tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages ||
-    tool === ASSISTANT_OPERATOR_TOOL_IDS.readUrl
-  )
-}
-
-/**
- * 按 run 把调查步归组 —— 一轮一张卡。
- *
- * ⚠ 归的是 **run 不是「连不连续」**：`research` → `set_prompt` → `read_url` 是
- * 常见形状（先查一轮、顺手写一句、再回去读原页），按连续分会得到两张说同一件事
- * 的卡。而跨 run 合并同样错：那是两次不同的委托。
- * ⚠ 返回**下标**而不是元素，与 `groupOperatorResearch` 同一个约定：调用方那边
- * 一条渲染路走到底，⛔ 不在这里认识 React 节点。
- */
-export function groupOperatorResearchRuns(
-  steps: readonly { runKey: string; tool: string }[],
-): { runKey: string; indexes: number[] }[] {
-  const groups: { runKey: string; indexes: number[] }[] = []
-  for (let index = 0; index < steps.length; index++) {
-    const step = steps[index]
-    if (!step || !isOperatorResearchCardTool(step.tool)) continue
-    const existing = groups.find((group) => group.runKey === step.runKey)
-    if (existing) existing.indexes.push(index)
-    else groups.push({ runKey: step.runKey, indexes: [index] })
-  }
-  return groups
-}
-
-/**
- * 这一轮的调查**查出东西来了没有**（2026-09-07 真机）。
- *
- * ⭐ 由来：一屏里三张调查卡，其中两张的结论行回落成占位文案「查了一下」（`goal`
- * 空）且右上角写着「0 条证据」，有一张连候选图都没有 —— 一张既没有结论、没有
- * 证据也没有候选的卡，占的是整整一张卡的重量，讲的是零。
- * ⛔ 判据**不含 `goal`**：光有一句「我打算查 X」而什么都没查回来，仍然不值一张卡。
- * ⚠ 不渲染卡 ≠ 把这几步藏起来：调用方那一支退回 `ToolGroup`（「N 个操作」那一行
- *   折叠行），过程照旧可展开复核。
- */
-export function hasOperatorResearchFindings(
-  steps: readonly StudioOperatorStepEntry[],
-): boolean {
-  for (const { step } of steps) {
-    // ⚠ 先判 `status` 再判 `tool` —— 与调查卡同一条收窄顺序（载荷只挂跑完那一支）。
-    if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) continue
-    if (
-      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
-      (step.result?.evidence?.length ?? 0) > 0
-    ) {
-      return true
+export function collectOperatorAnswerSources(
+  entries: readonly StudioOperatorThreadEntry[],
+): Map<string, { runKey: string; steps: number[] }> {
+  const byMessage = new Map<string, { runKey: string; steps: number[] }>()
+  let pending: number[] = []
+  let runKey = ''
+  entries.forEach((entry, index) => {
+    if (entry.kind === 'step') {
+      const { step } = entry
+      if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) return
+      if (step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.research) return
+      if ((step.result?.evidence?.length ?? 0) === 0) return
+      pending.push(index)
+      runKey = entry.runKey
+      return
     }
-    if (
-      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages &&
-      (step.result?.images?.length ?? 0) > 0
-    ) {
-      return true
-    }
-  }
-  return false
-}
-
-/**
- * 这一轮调查**查到的那几条证据的编号**（§7.3，2026-09-12 实测第三组 B）。
- *
- * ⭐ 钉住认卡靠它：钉住落在结论记录的 `pinnedEvidence` 一列里，而那一列里存的
- * 是编号 —— 刷新之后 `runKey` 对不上任何东西，编号对得上。
- * ⚠ 没有会话 id 的那几轮（第一轮 / 老客户端）证据不带编号，这里因此回空数组：
- * 调用方据此走「先留本地态」那一支，⛔ 不编一个号出来。
- */
-export function collectOperatorResearchRefs(
-  steps: readonly StudioOperatorStepEntry[],
-): string[] {
-  const refs: string[] = []
-  for (const { step } of steps) {
-    if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) continue
-    if (step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.research) continue
-    for (const item of step.result?.evidence ?? []) {
-      if (item.evidenceRef && !refs.includes(item.evidenceRef)) {
-        refs.push(item.evidenceRef)
-      }
-    }
-  }
-  return refs
+    if (entry.kind !== 'message') return
+    if (pending.length === 0) return
+    byMessage.set(entry.id, { runKey, steps: pending })
+    pending = []
+  })
+  return byMessage
 }
 
 /**

@@ -90,16 +90,56 @@ export const EvidenceImageItemSchema = EvidenceBaseSchema.extend({
   height: z.number().int().positive().optional(),
 })
 
+/**
+ * 🎬 **视频证据**（56b 切片 1）—— 四种资料里的第四种。
+ *
+ * ⭐ 它与 `image` 分开而不是「带 `durationSeconds` 的图片」：封面点下去的**去处
+ * 不同** —— 图片开站内灯箱，视频开新窗口跳原站（⛔ 不嵌播放器、⛔ 不转存，
+ * 决策树「不做」那一支）。用一个可选字段区分两种点击行为，表现是「点封面弹出
+ * 一张静止的截图」，而用户要的是那支视频。
+ * ⚠ `site` 是**站点显示名**（`bilibili` / `YouTube`），不是域名：来源卡上那行
+ * 小字写的是它。域名从 `url` 现算（`hostnameOf`），⛔ 不在这里存第二份。
+ * ⚠ `durationSeconds` 可选：搜索结果给不出时长是常态（Serper 只在少数条目上
+ * 给），⛔ 不编一个 0 —— 封面右下角那枚时长角标缺席就是不画。
+ */
+export const EvidenceVideoItemSchema = EvidenceBaseSchema.extend({
+  kind: z.literal('video'),
+  /** 播放页地址（⛔ 不是视频流直链：这条链路一个字节的媒体都不取）。 */
+  videoUrl: z.string().trim().min(1).max(2000),
+  /** 封面图直链；取不到就不画封面（⛔ 不回落成站点 logo）。 */
+  thumbnailUrl: z.string().trim().min(1).max(2000).optional(),
+  durationSeconds: z
+    .number()
+    .int()
+    .positive()
+    .max(RESEARCH_LIMITS.maxVideoDurationSeconds)
+    .optional(),
+  site: z.string().trim().min(1).max(60),
+  /**
+   * 元数据摘录（标题 / UP主 / 简介）—— **喂给模型的那段字**。
+   *
+   * ⚠ 视频证据没有正文，但它有简介与标题，而那正是模型唯一能读的部分。缺了它
+   * 一条视频证据在模型眼里就只剩「这里有一支视频」，⛔ 于是它永远不会去讲那支
+   * 视频讲了什么。⚠ 仍然**只是元数据**：这条链路一帧都不解码（边界 18）。
+   */
+  excerpt: z
+    .string()
+    .max(RESEARCH_LIMITS.excerptChars * 2)
+    .optional(),
+})
+
 export const EvidenceItemSchema = z.discriminatedUnion('kind', [
   EvidenceTextItemSchema,
   EvidenceTagsItemSchema,
   EvidenceImageItemSchema,
+  EvidenceVideoItemSchema,
 ])
 
 export type EvidenceItem = z.infer<typeof EvidenceItemSchema>
 export type EvidenceTextItem = z.infer<typeof EvidenceTextItemSchema>
 export type EvidenceTagsItem = z.infer<typeof EvidenceTagsItemSchema>
 export type EvidenceImageItem = z.infer<typeof EvidenceImageItemSchema>
+export type EvidenceVideoItem = z.infer<typeof EvidenceVideoItemSchema>
 
 // ─── 源级回执 ───────────────────────────────────────────────────
 

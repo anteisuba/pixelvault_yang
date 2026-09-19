@@ -143,15 +143,23 @@ describe('fetchBilibiliEvidence — 单稿件（稳定路）', () => {
       'view?bvid=BV1ji421e7nM',
     )
 
-    const text = result.items.find((item) => item.kind === 'text')
-    expect(text?.excerpt).toContain('UP主：鸣潮')
+    /**
+     * ⚠ 56b 切片 1 起一条稿件出**一条 `video` 证据**（此前是 text + image 两条）：
+     * 封面与时长进结构化字段，元数据仍旧原样在 `excerpt` 里 —— 少的只是那条与它
+     * 同 URL 的重复封面条。
+     */
+    expect(result.items).toHaveLength(1)
+    const video = result.items.find((item) => item.kind === 'video')
+    expect(video?.kind).toBe('video')
+    expect(video?.kind === 'video' && video.excerpt).toContain('UP主：鸣潮')
     // 时长来自接口的秒数，不是「看过视频」推断的 —— 检索线不假装看过画面
-    expect(text?.excerpt).toContain('17:58（1078 秒）')
-    expect(text?.sourceTier).toBe('social')
-
-    const cover = result.items.find((item) => item.kind === 'image')
+    expect(video?.kind === 'video' && video.excerpt).toContain(
+      '17:58（1078 秒）',
+    )
+    expect(video?.kind === 'video' && video.durationSeconds).toBe(1078)
+    expect(video?.sourceTier).toBe('social')
     // 协议相对 URL 要补全，否则存下来的是打不开的地址
-    expect(cover?.kind === 'image' && cover.imageUrl).toBe(
+    expect(video?.kind === 'video' && video.thumbnailUrl).toBe(
       'https://i2.hdslb.com/cover.jpg',
     )
   })

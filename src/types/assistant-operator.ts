@@ -2668,6 +2668,31 @@ export const AssistantOperatorEvidenceSchema = z.object({
    * 分不出这件事，所以判据独立成一个字段，由服务端算，⛔ 不由模型写。
    */
   scope: z.enum(ASSISTANT_RESEARCH_SCOPES),
+  /**
+   * ⭐ **正文里那个 `[n]` 的 n**（56b 切片 1）——本轮内 1 起自增、**跨 `research`
+   * 调用连号**。
+   *
+   * ⭐ 它是「Claude 式呈现」的整条脊梁：模型在正文句尾写 `[3]`，客户端按这个号
+   * 认到第 3 张来源卡并高亮。⛔ 不用数组下标代替 —— 一轮里查两次的第二次会从 1
+   * 重新数，于是正文里的 `[1]` 指向两条不同的证据。
+   * ⚠ 由**服务端**分配（`OperatorRun.evidenceCiteSeq`），⛔ 不由模型写：让模型
+   * 自己编号，它会在第二次查证后忘记接着上一次数。
+   */
+  cite: z.number().int().positive(),
+  /**
+   * **能摆在正文里的那张图**（56b 切片 1）—— `image` 档是原图直链，`video` 档是
+   * 封面。⚠ 缺席 = 这条证据没有可看的画面，正文里就不给它格子。
+   *
+   * ⚠ 它**只下发给客户端**：模型读到的是 `observation` 那段文字，里面一个媒体
+   * 地址都没有（见 `toAssistantEvidence` 的 `snippet` 头注 —— 把一条能直接粘的
+   * 图片地址喂给模型，它下一步就会试着把它写进提示词）。
+   */
+  mediaUrl: z.string().url().optional(),
+  /**
+   * 视频时长（秒）—— 封面右下角那枚角标。
+   * ⚠ 取不到就缺席，⛔ 不回落成 0（「0:00」是一句假话）。
+   */
+  durationSeconds: z.number().int().positive().optional(),
 })
 
 export type AssistantOperatorEvidence = z.infer<

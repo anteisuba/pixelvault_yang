@@ -202,6 +202,29 @@ function EvidenceBody({ item }: { item: EvidenceItem }) {
     )
   }
 
+  if (item.kind === 'video') {
+    /**
+     * ⚠ 视频档**只画封面 + 元数据**（56b 切片 1）：⛔ 不嵌播放器、⛔ 不转存。
+     * 点开那一下由外层那颗「打开来源」承担（它指的就是播放页）。
+     * ⚠ 没封面就只剩那段元数据 —— ⛔ 不画一个灰格子假装有图。
+     */
+    return (
+      <div className="space-y-1">
+        {item.thumbnailUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- remote evidence thumbnail, not app-owned media
+          <img
+            src={item.thumbnailUrl}
+            alt={item.title}
+            className="max-h-40 w-full rounded-lg border border-border object-contain"
+          />
+        ) : null}
+        <p className="whitespace-pre-wrap text-xs leading-5 text-foreground">
+          {item.excerpt ?? item.site}
+        </p>
+      </div>
+    )
+  }
+
   return (
     <p className="whitespace-pre-wrap text-xs leading-5 text-foreground">
       {item.excerpt}

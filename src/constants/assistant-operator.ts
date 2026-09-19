@@ -2909,11 +2909,17 @@ export function isUnfinishedClosingMessage(message: string): boolean {
   )
 }
 
-/** 证据条的形状 —— 与 `EvidenceItem.kind` 逐字同名（文字 / 标签 / 图）。 */
+/**
+ * 证据条的形状 —— 与 `EvidenceItem.kind` 逐字同名（文字 / 标签 / 图 / 视频）。
+ *
+ * ⚠ `video` 是 56b 切片 1 加的第四种：它**不是**「带时长的图片」，点下去的去处
+ * 不同（图开灯箱、视频开新窗口）。判据与 `EvidenceVideoItemSchema` 头注同源。
+ */
 export const ASSISTANT_RESEARCH_EVIDENCE_KINDS = [
   'text',
   'tags',
   'image',
+  'video',
 ] as const
 
 export type AssistantResearchEvidenceKind =

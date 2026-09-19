@@ -4,6 +4,7 @@ import {
   RESEARCH_LIMITS,
   RESEARCH_SOURCE_IDS,
   SERPER_TBS_BY_FRESHNESS,
+  detectResearchVideoSite,
   type ResearchFreshness,
 } from '@/constants/research'
 import { readUrl, webSearch } from '@/services/web-research.service'
@@ -67,8 +68,10 @@ export async function fetchWebSearchEvidence(params: {
       if (!result) continue
       if (seen.has(result.url)) continue
       seen.add(result.url)
-      items.push({
-        kind: 'text',
+      const excerpt = clampExcerpt(
+        result.date ? `（${result.date}）${result.snippet}` : result.snippet,
+      )
+      const base = {
         id: evidenceId(RESEARCH_SOURCE_IDS.webSearch, result.url),
         sourceId: RESEARCH_SOURCE_IDS.webSearch,
         sourceTier: tier,
@@ -77,10 +80,27 @@ export async function fetchWebSearchEvidence(params: {
         url: result.url,
         // 结果日期是内容的日期，`retrievedAt` 是抓取的时刻 —— 两件事，都留着。
         ...(result.date ? { publishedAt: result.date } : {}),
-        excerpt: clampExcerpt(
-          result.date ? `（${result.date}）${result.snippet}` : result.snippet,
-        ),
-      })
+      }
+      /**
+       * ⭐ **播放页出视频证据**（56b 切片 1）——同一条结果**只出一条**：
+       * 视频档比文字档多的只有「点下去去哪儿」（新窗口跳原站），摘要一字不丢
+       * （`excerpt` 原样带过去）。⛔ 别两档都出：那会让同一支视频在来源卡上
+       * 占两格，而用户读到的是「它找到了两个来源」。
+       * ⚠ Serper 的网页结果**没有封面**，所以这一档没有 `thumbnailUrl` ——
+       * 正文里那一格因此不画封面（⛔ 不回落成站点 logo）。
+       */
+      const videoSite = detectResearchVideoSite(result.url)
+      items.push(
+        videoSite
+          ? {
+              ...base,
+              kind: 'video',
+              videoUrl: result.url,
+              site: videoSite,
+              excerpt,
+            }
+          : { ...base, kind: 'text', excerpt },
+      )
     }
   }
 

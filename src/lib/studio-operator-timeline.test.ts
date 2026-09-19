@@ -3,10 +3,8 @@ import { ASSISTANT_OPERATOR_TOOL_IDS as TOOLS } from '@/constants/assistant-oper
 import {
   countOperatorTextLines,
   firstOperatorSentence,
+  collectOperatorAnswerSources,
   groupOperatorResearch,
-  groupOperatorResearchRuns,
-  hasOperatorResearchFindings,
-  isOperatorResearchCardTool,
   isOperatorResearchTool,
   shouldCollapseOperatorText,
   shouldStickOperatorScroll,
@@ -14,7 +12,10 @@ import {
   splitOperatorHistoryRounds,
 } from './studio-operator-timeline'
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
-import type { StudioOperatorStepEntry } from '@/types/studio-assistant-operator'
+import type {
+  StudioOperatorStepEntry,
+  StudioOperatorThreadEntry,
+} from '@/types/studio-assistant-operator'
 
 /** 一条跑完的调查步 —— 只填这两个判据读得到的字段。 */
 function researchStep(
@@ -35,38 +36,6 @@ function researchStep(
     },
   } as unknown as StudioOperatorStepEntry
 }
-
-describe('hasOperatorResearchFindings', () => {
-  it('⛔ 证据与候选都为空 → 不值一张卡（2026-09-07 真机的三张里两张）', () => {
-    expect(hasOperatorResearchFindings([researchStep({ evidence: [] })])).toBe(
-      false,
-    )
-    // 连 `result` 都没有的那一张同理。
-    expect(hasOperatorResearchFindings([researchStep({})])).toBe(false)
-  })
-
-  it('有一条证据就出卡', () => {
-    expect(
-      hasOperatorResearchFindings([
-        researchStep({
-          evidence: [{ title: 'a', publisher: 'b', snippet: 'c' }],
-        }),
-      ]),
-    ).toBe(true)
-  })
-
-  it('证据为空但有候选图 → 照旧出卡（候选是这张卡的下半部分）', () => {
-    expect(
-      hasOperatorResearchFindings([
-        researchStep({ evidence: [] }),
-        researchStep(
-          { images: [{ url: 'https://x/1.png' }] },
-          TOOLS.searchWebImages,
-        ),
-      ]),
-    ).toBe(true)
-  })
-})
 
 describe('shouldStickOperatorScroll', () => {
   it('贴着底 → 跟着滚', () => {
@@ -154,35 +123,47 @@ describe('groupOperatorResearch', () => {
   })
 })
 
-describe('groupOperatorResearchRuns', () => {
-  it('同一轮的调查步归到一张卡，中间夹的写入步不切断', () => {
-    expect(
-      groupOperatorResearchRuns([
-        { runKey: 'r1', tool: TOOLS.research },
-        { runKey: 'r1', tool: 'set_prompt' },
-        { runKey: 'r1', tool: TOOLS.readUrl },
-        { runKey: 'r1', tool: TOOLS.searchWebImages },
-      ]),
-    ).toEqual([{ runKey: 'r1', indexes: [0, 2, 3] }])
+describe('collectOperatorAnswerSources', () => {
+  /** 一条助手消息条目 —— 只填收集器读得到的两格。 */
+  const message = (id: string) =>
+    ({
+      kind: 'message',
+      id,
+      text: 'ok',
+    }) as unknown as StudioOperatorThreadEntry
+
+  it('⭐ 资料挂在**下一条**回答上，挂完清零', () => {
+    const entries = [
+      researchStep({ evidence: [{ cite: 1 }] }),
+      message('m1'),
+      researchStep({ evidence: [{ cite: 2 }] }),
+      message('m2'),
+    ] as unknown as StudioOperatorThreadEntry[]
+    const map = collectOperatorAnswerSources(entries)
+    expect(map.get('m1')).toEqual({ runKey: 'run-1', steps: [0] })
+    expect(map.get('m2')).toEqual({ runKey: 'run-1', steps: [2] })
   })
-  it('跨轮不合并 —— 两次委托是两张卡', () => {
-    expect(
-      groupOperatorResearchRuns([
-        { runKey: 'r1', tool: TOOLS.research },
-        { runKey: 'r2', tool: TOOLS.research },
-      ]),
-    ).toEqual([
-      { runKey: 'r1', indexes: [0] },
-      { runKey: 'r2', indexes: [1] },
-    ])
+
+  it('⛔ 一条证据都没有的调查步不挂；收不到回答的那几条也不挂', () => {
+    const entries = [
+      researchStep({ evidence: [] }),
+      message('m1'),
+      researchStep({ evidence: [{ cite: 1 }] }),
+    ] as unknown as StudioOperatorThreadEntry[]
+    const map = collectOperatorAnswerSources(entries)
+    expect(map.size).toBe(0)
   })
-  it('搜图候选进调查卡，纯翻找的 search_web 不进', () => {
-    expect(isOperatorResearchCardTool(TOOLS.searchWebImages)).toBe(true)
-    expect(isOperatorResearchCardTool(TOOLS.research)).toBe(true)
-    expect(isOperatorResearchCardTool(TOOLS.readUrl)).toBe(true)
-    for (const tool of [TOOLS.searchWeb, TOOLS.readState, 'set_prompt']) {
-      expect(isOperatorResearchCardTool(tool)).toBe(false)
-    }
+
+  it('一句话之前查了两次 → 两次都挂在这一句下面', () => {
+    const entries = [
+      researchStep({ evidence: [{ cite: 1 }] }),
+      researchStep({ evidence: [{ cite: 2 }] }),
+      message('m1'),
+    ] as unknown as StudioOperatorThreadEntry[]
+    expect(collectOperatorAnswerSources(entries).get('m1')).toEqual({
+      runKey: 'run-1',
+      steps: [0, 1],
+    })
   })
 })
 

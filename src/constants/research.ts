@@ -290,6 +290,14 @@ export const RESEARCH_LIMITS = {
   /** tags 证据最多几个标签。 */
   maxTagsPerItem: 40,
   /**
+   * 视频证据的时长上限（秒）—— 24 小时。
+   *
+   * ⚠ 它是**一道正当性闸**而不是业务约束：上游给的 `duration` 偶尔是毫秒、
+   * 偶尔是直播的累计时长，一个 32 位随手数会在封面角标上渲染成「9999:59:59」。
+   * 超了就当没有时长（⛔ 不截断成 24 小时：那是在编一个假数）。
+   */
+  maxVideoDurationSeconds: 86_400,
+  /**
    * 判「搜到的是不是它」时，导语看多长（`isRelevantToTerms`）。
    * ⚠ **不看全文**：一篇长条目里蹭到两个字是常态，看全文这道闸等于不存在。
    */
@@ -1028,4 +1036,50 @@ export function judgeEvidenceCredibility(
     return EVIDENCE_CREDIBILITY_IDS.reference
   }
   return EVIDENCE_CREDIBILITY_IDS.communityDigest
+}
+
+// ─── 视频站识别（56b 切片 1）────────────────────────────────────
+
+/**
+ * **哪些站的结果算一支视频**（56b 切片 1「四种资料」的第四种）。
+ *
+ * ⭐ 为什么是一张白名单而不是「URL 里有没有 /video/」：后者会把一篇讲视频的
+ * 博客也判成视频，而判错的代价是界面上多一颗点开不是视频的播放钮。
+ * ⚠ `site` 是**给人读的站名**（来源卡上那行小字），⛔ 不是域名 —— 域名从 URL 现算。
+ * ⚠ 只认**播放页**：`youtube.com/@channel` 不该算视频，所以多数条目还要过
+ * `path` 那一道（见 `detectResearchVideoSite`）。
+ */
+export const RESEARCH_VIDEO_SITES: readonly {
+  host: string
+  site: string
+  path?: RegExp
+}[] = [
+  { host: 'bilibili.com', site: 'bilibili', path: /\/video\//i },
+  { host: 'b23.tv', site: 'bilibili' },
+  { host: 'youtube.com', site: 'YouTube', path: /\/(watch|shorts|live)\b/i },
+  { host: 'youtu.be', site: 'YouTube' },
+  { host: 'nicovideo.jp', site: 'niconico', path: /\/watch\//i },
+  { host: 'vimeo.com', site: 'Vimeo', path: /\/\d+/ },
+]
+
+/**
+ * 一条 URL 指的是不是一支视频 —— 是就给站名，不是就 `undefined`。
+ *
+ * ⚠ 解析失败（相对地址 / 畸形串）一律 `undefined`：⛔ 不去猜，一个猜出来的
+ * 「视频」在界面上就是一颗打不开的播放钮。
+ */
+export function detectResearchVideoSite(url: string): string | undefined {
+  let parsed: URL
+  try {
+    parsed = new URL(url)
+  } catch {
+    return undefined
+  }
+  const host = normalizeHostname(parsed.hostname)
+  for (const entry of RESEARCH_VIDEO_SITES) {
+    if (!matchesHostPattern(host, entry.host)) continue
+    if (entry.path && !entry.path.test(parsed.pathname)) continue
+    return entry.site
+  }
+  return undefined
 }

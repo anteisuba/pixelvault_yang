@@ -7776,7 +7776,8 @@
       "kind": {
         "text": "正文",
         "tags": "标签",
-        "image": "图片"
+        "image": "图片",
+        "video": "视频"
       },
       "confidence": {
         "high": "官方",
@@ -7796,23 +7797,19 @@
       }
     },
     "research": {
-      "goal": "查了：{goal}",
-      "goalUnknown": "查了一下",
-      "count": "{count} 条证据",
-      "process": "调查过程",
-      "evidenceMore": "还有 {count} 条",
-      "evidenceLess": "收起证据",
       "pin": "钉住",
       "unpin": "取消钉住",
       "pinned": "已钉住",
-      "fold": "折叠",
-      "collapsed": "查证 · {count} 个来源",
       "sourceCount": "{count} 个来源",
       "corroborated": "{count} 源印证",
-      "singleSource": "单源",
-      "expandSources": "再多找几个源",
       "expandPrompt": "再查证一次，多找几个来源——这几条不够。",
       "pinnedHeading": "钉住的证据"
+    },
+    "answer": {
+      "media": "资料",
+      "sources": "来源",
+      "citation": "来源 {index}",
+      "deepResearch": "深入调查"
     },
     "message": {
       "expand": "展开全文",

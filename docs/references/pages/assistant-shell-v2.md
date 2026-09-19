@@ -205,13 +205,13 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 ### 3.2 五类卡片
 
-| 卡片     | 数据来源               | 字段                                                                                                   | 状态（画板 BCards 里的态）                                                               |
-| -------- | ---------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
-| **消息** | `message`              | `role` · `text`（markdown）· `attachments[]`                                                           | 用户侧（带气泡 + 头像 + 附件缩略 + 「重新来」）· 助手侧纯文本（无气泡）· 助手侧 Markdown |
-| **问题** | `ask`                  | `question` · `options[]` · `why?` · `answeredOptionId?`                                                | 未答（钉在输入框上方）· 已答（时间线里一行）                                             |
-| **确认** | `confirm`              | `kind`（`multistep` / `generate`）· 多步：`steps[]`；生成：`model` · `aspect` · `count` · `resolution` | 默认态 · 模型下拉展开 · 确认中 · 已确认 · 已取消                                         |
-| **结果** | 宿主生成回调           | `items[]`（缩略 + 名字 + 时间）· `note`                                                                | 单张 · 多张 · 生成中（`正在出图 · 1 / 3`）                                               |
-| **证据** | `research` 步的 `done` | `conclusion` · `sources[]`（标题 · 日期 · 印证数）· `pinned`                                           | 展开态（默认一次）· 折叠态（`3 个来源`）· 已钉住（面板顶部）                             |
+| 卡片     | 数据来源               | 字段                                                                                                   | 状态（画板 BCards 里的态）                                                                             |
+| -------- | ---------------------- | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
+| **消息** | `message`              | `role` · `text`（markdown）· `attachments[]`                                                           | 用户侧（带气泡 + 头像 + 附件缩略 + 「重新来」）· 助手侧纯文本（无气泡）· 助手侧 Markdown               |
+| **问题** | `ask`                  | `question` · `options[]` · `why?` · `answeredOptionId?`                                                | 未答（钉在输入框上方）· 已答（时间线里一行）                                                           |
+| **确认** | `confirm`              | `kind`（`multistep` / `generate`）· 多步：`steps[]`；生成：`model` · `aspect` · `count` · `resolution` | 默认态 · 模型下拉展开 · 确认中 · 已确认 · 已取消                                                       |
+| **结果** | 宿主生成回调           | `items[]`（缩略 + 名字 + 时间）· `note`                                                                | 单张 · 多张 · 生成中（`正在出图 · 1 / 3`）                                                             |
+| **证据** | `research` 步的 `done` | `sources[]`（`cite` · 标题 · 域名 · `mediaUrl?` · `durationSeconds?`）· `pinned`                       | **⛔ 不再是一张卡**（56b 切片 1）：它长在回答底下（媒体条 + 来源卡，§3.5），已钉住的那一份仍在面板顶部 |
 
 **第六类不是卡片**：结论记录（§7.7）是**时间线上的分隔块**，不是卡。它没有「谁说了什么」这层语义，它是这一轮的封条。
 
@@ -244,6 +244,20 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 - **反问时机由模型判**（决策 4）：系统提示里给的是判据而不是阈值——「用户的说法能对应到两种以上明显不同的做法时才问；能猜到八成就直接做，并在回复里说清你按哪种理解做的」。
 
 ### 3.5 正文渲染
+
+**⭐ 56b 切片 1 起，一段回答由三层组成**（画板 `DesignD56bUI` 「快搜回答 · 流完」）：
+
+| 层         | 长什么样                                                      | 判据                                                                                                                                       |
+| ---------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **正文**   | markdown，句尾带 `[n]` 角标（小上标，点开高亮对应来源卡）     | 模型在 `message` 里写 `[n]`，号由服务端分配（`AssistantOperatorEvidence.cite`）。⚠ 认不出的号**原样留着那段字**，⛔ 不吞掉也不渲染成死按钮 |
+| **媒体条** | 图片与视频封面，横向一排，点开 = 灯箱 / 新窗口                | 只收有 `mediaUrl` 的那几条，⛔ 没封面的视频不留灰格子                                                                                      |
+| **来源卡** | 站点图标 + 标题 + 域名，横向可滚；底下一行「深入调查 / 钉住」 | 一条资料一张卡，按 `cite` 去重并排序；`url` 缺席时画成纯文字，⛔ 不是点不开的链接                                                          |
+
+- **⛔ 调查卡退场**（`StudioOperatorResearchCard` 整文件删）：那张卡把证据摆在回答**前面**，读起来是「先看完它的过程，再看它说了什么」。过程折进 `StudioOperatorToolGroup`，候选网格由日志条自己画。
+- **资料挂在哪一段回答下面**：判据是**位置**不是 runKey —— 消息条目身上没有 runKey，而「这段话用了哪几条资料」在时间线上本来就是「查完再说话」。实现是 `collectOperatorAnswerSources`：攒着查到的证据，遇到下一条助手消息就挂上去并清零。⚠ 一轮里「查 → 说 → 再查 → 再说」时两次分别挂，⛔ 不按轮堆到最后一句下面。
+- **钉住改为钉来源卡**：底下认的仍旧是证据编号（`pinnedEvidence`，§7.3），⛔ 不是「收藏一张卡」。
+- **⛔ 不为角标另写一个 markdown 渲染器**：`[3]` 在 markdown 里本来就是普通文字，所以做法是在**渲染出来的 React 子树上**递归替换（`withCitations`，`p` / `li` 两个覆盖叠在 `INITIAL_COMPONENTS` 之上）。只映射段落的直接子节点会漏掉紧跟在加粗后面的那一个。
+- **还在流的时候不摆资料**：否则来源卡会在正文长高的过程中一直往下跳。
 
 - **收尾轮边生成边显示**：同一条气泡按 id 覆盖；`partial: true` 时仍算在写，定稿帧不带 `partial`。工具轮仍然不发旁白。这覆盖拍板 13 的「整段出现」——字要尽早看见，不是再引入第二条正文来源。
 - **渲染 markdown**：复用仓里已有的 `src/components/ui/markdown.tsx`（`react-markdown` 已是依赖）。⛔ 不为助手另写一个渲染器。还在写的长正文不折叠。
@@ -580,12 +594,21 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 沿用 v1 的 `AssistantOperatorEvidenceSchema` 六字段（`title` · `url?` · `publisher` · `snippet` · `kind` · `confidence`），细节见 [`assistant-shell.md` §7.1](assistant-shell.md)，本文不重抄。v2 只加两项：
 
-| 新字段          | 说明                                        |
-| --------------- | ------------------------------------------- |
-| `evidenceRef`   | `#e12` 形态的会话内编号（§7.3）             |
-| `corroboration` | 印证源数（`2 源印证` / `单源`），由服务端算 |
+| 新字段            | 说明                                                                                                    |
+| ----------------- | ------------------------------------------------------------------------------------------------------- |
+| `evidenceRef`     | `#e12` 形态的会话内编号（§7.3）                                                                         |
+| `corroboration`   | 印证源数（`2 源印证` / `单源`），由服务端算                                                             |
+| `cite`            | **正文里 `[n]` 的 n**（56b 切片 1）——本轮内 1 起、跨 `research` 调用连号，由服务端分配（⛔ 不由模型写） |
+| `mediaUrl`        | 能摆进正文的那张画面（`image` 是原图、`video` 是封面）。⚠ **只下发客户端**，⛔ 不进 `observation`       |
+| `durationSeconds` | 视频时长 —— 封面右下角那枚角标。取不到就缺席，⛔ 不回落成 0                                             |
 
 ⚠ `confidence` 仍由**源的层级**算，⛔ 不由模型写——让模型给自己找的东西打分，它给的永远是 high。
+
+⭐ **四种资料**（56b 切片 1，owner 2026-09-19）：文字 = 正文本身 · 图片 = `image` 证据 · 链接 = 来源卡 · **视频 = 新增的 `video` 证据**（`videoUrl` · `thumbnailUrl?` · `durationSeconds?` · `site` · `excerpt?`，schema 在 `types/research.ts`）。它与 `image` 分开而不是「带时长的图片」：点下去的**去处不同** —— 图开站内灯箱，视频开新窗口跳原站。⛔ 不嵌播放器、⛔ 不转存、⛔ 不解码任何一帧（边界 18 不动）。
+
+- **谁产出**：B站连接器（单稿件与搜索两条路都出 `video`，此前是 text + image 两条同 URL 的证据）· 网搜连接器（命中 `RESEARCH_VIDEO_SITES` 白名单的播放页）。白名单与 `detectResearchVideoSite` 在 `constants/research.ts`。
+- **为什么是白名单不是 `/video/` 这种路径启发**：后者会把一篇讲视频的博客判成视频，而判错的代价是界面上多一颗点开不是视频的播放钮。
+- **模型读到的是元数据**（标题 / UP主 / 时长 / 简介），⛔ 不是播放地址 —— 与 `image` 档「有意不放图片地址」同一条纪律：给它一条能直接粘的地址，它下一步就会写进提示词。
 
 ### 9.3 来源白 / 黑名单
 
@@ -817,6 +840,13 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 - **规范**：[`ui-defaults.md`](../ui-defaults.md) · [`testing.md`](../testing.md) · [`WORKFLOW.md`](../../WORKFLOW.md) · [`AGENTS.md`](../../../AGENTS.md)
 
 ### Last Verified
+
+- **2026-09-19 · 进度表 56b 切片 1「资料四种 + Claude 式呈现」落地**。⚠ 本条记的是**代码已经这样了**。
+  - **`EvidenceItem` 加第四支 `video`**（`types/research.ts`）：`videoUrl` · `thumbnailUrl?` · `durationSeconds?`（≤ 24h）· `site` · `excerpt?`。B站连接器的单稿件与搜索两条路、网搜连接器命中 `RESEARCH_VIDEO_SITES` 的播放页都产出它。⚠ B站单稿件此前出 **text + image 两条同 URL 的证据**，现在合成一条 —— 元数据一个字没少。
+  - **助手侧证据加三栏**：`cite`（正文角标号，服务端分配，跨 `research` 调用连号）· `mediaUrl` · `durationSeconds`。⚠ 媒体地址**只下发客户端**，`observation` 里一个字都看不到它。
+  - **`StudioOperatorResearchCard` 整文件删**（连同 `.web.test.tsx`）。随它一起删的还有 `groupOperatorResearchRuns` / `hasOperatorResearchFindings` / `isOperatorResearchCardTool` / `collectOperatorResearchRefs` 与 `STUDIO_OPERATOR_RESEARCH_EVIDENCE_PREVIEW` / `STUDIO_OPERATOR_RESEARCH_LOW_SIGNAL_KINDS` 两枚常量。⛔ 别再按名字找。
+  - **新增 `StudioOperatorAnswerSources`**（媒体条 + 来源卡 + 「深入调查 / 钉住 / 回执」那一行）与 `collectOperatorAnswerSources`（资料挂给哪一段回答）。
+  - **正文角标**在 `StudioOperatorMessageBody` 里实现（`withCitations`）；服务端在 `research` 的 `observation` 末尾要求模型写 `[n]`，并明说⛔ 不许自己编号、⛔ 不许在末尾附一段「Sources:」。
 
 - **2026-09-19 · 进度表 22「一张脸」落地**（11 个 commit，`f8e45989`…`acd1cbff`）。⚠ 本条记的是**代码已经这样了**，不是计划。
   - **宿主收成三处**：工作台 · 画布 · LoRA，同一颗 `StudioOperatorDock` + `StudioOperatorPanel`，三份宿主实现（`use-studio-workbench-operator-host` / `use-canvas-operator-host` / `use-lora-operator-host`）只差域、快照、落笔的手。**配音间不挂助手**（owner 09-19，D7 Q5 改口），画板里那一帧作废。

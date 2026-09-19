@@ -452,3 +452,92 @@ describe('ModelPickerPopover — 未选渠道闸门', () => {
     expect(named).toBeInTheDocument()
   })
 })
+
+/**
+ * owner 2026-09-18 真机：Seedream 5.0 Pro 这类多渠道型号，指针从行往右挪向渠道
+ * 面板的**途中**面板就关了，渠道根本点不到。收口两条一起上 —— 面板贴住列表右缘
+ * （间距用 padding 撑，过渡区算进命中区）+ 离开整块之后延时再收。
+ */
+describe('ModelPickerPopover — 行 → 过渡区 → 渠道面板走得过去', () => {
+  /** 面板外层：含过渡区的那层命中区。 */
+  function panelHitArea(): HTMLElement {
+    const panel = channelPanel()
+    expect(panel).not.toBeNull()
+    return (panel as HTMLElement).parentElement as HTMLElement
+  }
+
+  /** 「行 ∪ 过渡区 ∪ 面板」那一整块。 */
+  function surface(): HTMLElement {
+    return (document.querySelector('[data-model-key]') as HTMLElement).closest(
+      '.relative',
+    ) as HTMLElement
+  }
+
+  it('面板贴住列表右缘 —— 间距是 padding，⛔ 不是真空隙', () => {
+    openPicker()
+    fireEvent.mouseEnter(row('seedream-5.0-pro'))
+    const hit = panelHitArea()
+    expect(hit.className).toContain('left-full')
+    expect(hit.className).toContain('pl-2')
+    expect(hit.className).not.toMatch(/left-\[/)
+  })
+
+  it('指针经过渡区进入面板，面板全程不关', () => {
+    vi.useFakeTimers()
+    try {
+      openPicker()
+      fireEvent.mouseEnter(row('seedream-5.0-pro'))
+      const hit = panelHitArea()
+      // 行 → 过渡区：整块的 mouseleave 先响，但那只是**排期**，不是立刻关。
+      fireEvent.mouseLeave(surface())
+      act(() => {
+        vi.advanceTimersByTime(100)
+      })
+      expect(channelPanel()).not.toBeNull()
+      // 过渡区 → 面板：命中区把定时器撤了。
+      fireEvent.mouseEnter(hit)
+      act(() => {
+        vi.advanceTimersByTime(1000)
+      })
+      expect(channelPanel()).not.toBeNull()
+      const volc = within(channelPanel() as HTMLElement)
+        .getAllByRole('option')
+        .find((el) => /火山|VolcEngine/i.test(el.textContent ?? ''))
+      expect(volc).toBeDefined()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('离开整块之后延时才收，延时不短于 150ms', () => {
+    vi.useFakeTimers()
+    try {
+      openPicker()
+      fireEvent.mouseEnter(row('seedream-5.0-pro'))
+      fireEvent.mouseLeave(surface())
+      act(() => {
+        vi.advanceTimersByTime(150)
+      })
+      expect(channelPanel()).not.toBeNull()
+      act(() => {
+        vi.advanceTimersByTime(200)
+      })
+      expect(channelPanel()).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('→ 开面板并把焦点落到第一条渠道，Esc 回到行', () => {
+    openPicker()
+    const pro = row('seedream-5.0-pro')
+    fireEvent.focus(pro)
+    fireEvent.keyDown(pro, { key: 'ArrowRight' })
+    const first = within(channelPanel() as HTMLElement).getAllByRole(
+      'option',
+    )[0] as HTMLElement
+    expect(document.activeElement).toBe(first)
+    fireEvent.keyDown(channelPanel() as HTMLElement, { key: 'Escape' })
+    expect(document.activeElement).toBe(pro)
+  })
+})

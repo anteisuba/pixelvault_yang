@@ -16,6 +16,7 @@ import {
   type AudioKind,
 } from '@/constants/audio-options'
 import { MODEL_PICKER_DEFAULT_SCOPE } from '@/constants/model-picker'
+import { DURATION_MS } from '@/constants/motion'
 import { getModelById } from '@/constants/models'
 import { resolveAudioKind } from '@/constants/models/audio'
 import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
@@ -229,6 +230,34 @@ export function ModelPickerPopover({
 
   const surfaceRef = useRef<HTMLDivElement | null>(null)
   const rowRefs = useRef(new Map<string, HTMLElement>())
+  const panelRef = useRef<HTMLDivElement | null>(null)
+  /** 指针离开「行 ∪ 过渡区 ∪ 面板」之后才收的那支定时器。 */
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  /** 键盘打开面板时，等面板渲染出来再把焦点送进第一条渠道。 */
+  const [focusPanelPending, setFocusPanelPending] = useState(false)
+
+  /**
+   * ⚠ 渠道面板**不能在指针离开行的那一刻就收**：它浮在列表右侧，指针从行斜着挪
+   * 过去必然要路过两者之间那段过渡区，立刻收 = 渠道根本点不到（owner 2026-09-18
+   * 真机）。收口是「离开整块之后延时再收」+ 面板贴住行右缘（间距用 padding 撑，
+   * 过渡区因此也算在面板的命中区里），两条一起上。时长走既有刻度 `base`（200ms），
+   * ⛔ 不自创数值。
+   */
+  const cancelPanelClose = useCallback(() => {
+    if (closeTimerRef.current === null) return
+    clearTimeout(closeTimerRef.current)
+    closeTimerRef.current = null
+  }, [])
+
+  const schedulePanelClose = useCallback(() => {
+    cancelPanelClose()
+    closeTimerRef.current = setTimeout(() => {
+      closeTimerRef.current = null
+      setActiveRowKey(null)
+    }, DURATION_MS.base)
+  }, [cancelPanelClose])
+
+  useEffect(() => cancelPanelClose, [cancelPanelClose])
 
   const labelOf = useCallback(
     (option: StudioModelOption): string =>
@@ -408,9 +437,19 @@ export function ModelPickerPopover({
   }
 
   const focusRow = (modelKey: string) => {
+    cancelPanelClose()
     setActiveRowKey(modelKey)
     measureRow(modelKey)
   }
+
+  /** 键盘开面板那条路：面板渲染出来之后，把焦点送进第一条渠道。 */
+  useEffect(() => {
+    if (!focusPanelPending) return
+    setFocusPanelPending(false)
+    const first =
+      panelRef.current?.querySelector<HTMLElement>('[role="option"]')
+    first?.focus()
+  }, [focusPanelPending, panelRowKey])
 
   const commit = (option: StudioModelOption, modelKey: string) => {
     memory.setPendingModel(null)
@@ -433,6 +472,7 @@ export function ModelPickerPopover({
     // 摆到这一行上等他点；关掉弹层则触发器写「先选渠道」。
     memory.setPendingModel(row.modelKey)
     focusRow(row.modelKey)
+    setFocusPanelPending(true)
   }
 
   const handleSelectChannel = (row: ModelRow, view: ChannelView) => {
@@ -550,6 +590,18 @@ export function ModelPickerPopover({
           }}
           onMouseEnter={sheet ? undefined : () => focusRow(row.modelKey)}
           onFocus={sheet ? undefined : () => focusRow(row.modelKey)}
+          onKeyDown={
+            sheet
+              ? undefined
+              : (event) => {
+                  // → 把焦点送进渠道面板（Enter 那条在 `handleSelectRow` 里：
+                  // 渠道已定就直接选定，未定才停在面板上等他点）。
+                  if (event.key !== 'ArrowRight') return
+                  event.preventDefault()
+                  focusRow(row.modelKey)
+                  setFocusPanelPending(true)
+                }
+          }
           onClick={() => {
             if (sheet && row.channels.length > 1) {
               // 手机没有 hover 也没有侧面板：点行 = 选中并把这一行原地展开成渠道
@@ -608,7 +660,8 @@ export function ModelPickerPopover({
     <div
       ref={surfaceRef}
       className="relative"
-      onMouseLeave={sheet ? undefined : () => setActiveRowKey(null)}
+      onMouseLeave={sheet ? undefined : schedulePanelClose}
+      onMouseEnter={sheet ? undefined : cancelPanelClose}
     >
       <div className="p-1.5">
         <label className="flex items-center gap-2 rounded-lg bg-muted px-2.5 py-1.5 text-2sm text-muted-foreground">
@@ -669,17 +722,34 @@ export function ModelPickerPopover({
           单渠道型号也摆（只有一行且已选中），⛔ 不因为「只有一条」就省掉 —— 面板
           在不在是「这一行有没有被指到」的回执。 */}
       {!sheet && panelRow ? (
+        // ⚠ 外层**贴住列表右缘**（`left-full`），视觉间距用 `pl-2` 撑 —— 行与面板
+        // 之间那段过渡区因此落在这一层的命中区里，指针斜着挪过去不会掉出去。
+        // ⛔ 别改回 `left-[calc(100%+…)]` 那种真空隙：那正是渠道点不到的根因。
         <div
-          role="listbox"
-          aria-label={t('channelPanelLabel', { model: panelRow.label })}
-          data-channel-panel
           style={{ top: panelTop }}
-          className="absolute left-[calc(100%+0.5rem)] z-50 w-model-channel-panel rounded-lg border border-border bg-popover p-1.5 shadow-md"
+          onMouseEnter={cancelPanelClose}
+          onMouseLeave={schedulePanelClose}
+          className="absolute left-full z-50 pl-2"
         >
-          <div className="flex flex-col gap-0.5">
-            {panelRow.channels.map((view) =>
-              renderChannel(panelRow, view, 'panel'),
-            )}
+          <div
+            ref={panelRef}
+            role="listbox"
+            aria-label={t('channelPanelLabel', { model: panelRow.label })}
+            data-channel-panel
+            onKeyDown={(event) => {
+              // Esc 回到行 —— ⛔ 不让它冒到 Radix 那层把整个弹层也关了。
+              if (event.key !== 'Escape') return
+              event.preventDefault()
+              event.stopPropagation()
+              rowRefs.current.get(panelRow.modelKey)?.focus()
+            }}
+            className="w-model-channel-panel rounded-lg border border-border bg-popover p-1.5 shadow-md"
+          >
+            <div className="flex flex-col gap-0.5">
+              {panelRow.channels.map((view) =>
+                renderChannel(panelRow, view, 'panel'),
+              )}
+            </div>
           </div>
         </div>
       ) : null}

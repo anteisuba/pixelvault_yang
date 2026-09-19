@@ -388,6 +388,53 @@ describe('buildImageOperatorSnapshot', () => {
   })
 
   /**
+   * 渠道（进度表 10 + 21）—— **只在多渠道型号上给**，且折叠判据与选择器共用。
+   */
+  it('单渠道型号不给 channels —— 那上面「选渠道」这件事不存在', () => {
+    const snapshot = buildImageOperatorSnapshot({
+      form: FORM,
+      modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
+      selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
+      references: { items: [], limit: 4 },
+    })
+    expect(snapshot.availableModels[0]).not.toHaveProperty('channels')
+    expect(snapshot.model).not.toHaveProperty('channelId')
+  })
+
+  it('⭐ 多渠道型号：channels 用的是选择器那一行的 optionId，并写出当前在跑哪条', () => {
+    const onFal = option({
+      optionId: 'workspace:seedream-4',
+      modelId: 'seedream-4',
+      displayLabel: 'Seedream 4',
+      keyId: 'key-fal',
+    })
+    const onBytePlus = option({
+      optionId: 'saved:seedream-4-byteplus',
+      modelId: 'seedream-4',
+      displayLabel: 'Seedream 4',
+      adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+      providerConfig: {
+        label: 'BytePlus',
+      } as StudioModelOption['providerConfig'],
+      keyId: 'key-byteplus',
+    })
+    const snapshot = buildImageOperatorSnapshot({
+      form: FORM,
+      modelOptions: [onFal, onBytePlus],
+      selectedModel: onBytePlus,
+      references: { items: [], limit: 4 },
+    })
+    expect(snapshot.availableModels[0]?.channels).toEqual([
+      { id: 'workspace:seedream-4', label: 'fal.ai' },
+      { id: 'saved:seedream-4-byteplus', label: 'BytePlus' },
+    ])
+    expect(snapshot.model).toMatchObject({
+      id: 'seedream-4',
+      channelId: 'saved:seedream-4-byteplus',
+    })
+  })
+
+  /**
    * 专属 chip 行（进度表 21）—— **白名单来自派生**，⛔ 不是这里写死的一张表。
    */
   it('capabilities 这一节从能力表派生：一颗都没有就整节缺席', () => {

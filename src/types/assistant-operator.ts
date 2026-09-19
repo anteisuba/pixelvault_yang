@@ -250,9 +250,35 @@ export const AssistantOperatorSearchKindSchema = z.enum(
 // `noSuchControl` 拒 —— 这就是拍板 19「助手只动用户看得见的旋钮」的落地方式，
 // 也是台账 BJ（参考强度没有控件）自动被兜住的原因。
 
+/**
+ * **同一个型号的一条供给路径**（进度表 10 的渠道）。
+ *
+ * ⚠ `id` = 选择器里那一行的 `optionId`（与 `resolveModelChannel` 的 `channelId`
+ * 是同一个东西），⛔ 不是型号 id。
+ */
+export const AssistantOperatorSnapshotChannelSchema = z.object({
+  id: IdSchema,
+  label: LabelSchema,
+})
+
 export const AssistantOperatorSnapshotModelSchema = z.object({
   id: IdSchema,
   label: LabelSchema.optional(),
+  /**
+   * 这个型号底下的几条渠道（进度表 10 + 21）。
+   *
+   * ⚠ **缺席 / 只有一条 = 渠道这件事在这个型号上没有意义** —— `set_model` 的
+   * `channelId` 只在多渠道型号上说得通（视频档的 `availableModels` 本身就是
+   * 型号 × 渠道，那一档整列缺席）。
+   * ⛔ 别让助手替用户在多条里挑一条：2026-09-17 owner 在 D2 Q1 把「自动渠道」
+   * 整条删掉了，它没选就是「先选渠道」，⛔ 不是「随便给一条」。
+   */
+  channels: z
+    .array(AssistantOperatorSnapshotChannelSchema)
+    .max(LIMITS.maxAvailableModels)
+    .optional(),
+  /** 当前选中的那条渠道；`null` / 缺席 = 还没选 / 这个型号没有渠道之分。 */
+  channelId: IdSchema.nullish(),
 })
 
 export const AssistantOperatorSnapshotSpecsSchema = z.object({
@@ -1834,7 +1860,18 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     slotIndex: z.number().int().positive().optional(),
     slot: AssistantOperatorReferenceSlotSchema.optional(),
   }),
-  [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: z.object({ modelId: IdSchema }),
+  /**
+   * 换模型（进度表 21 补 `channelId`）。
+   *
+   * ⚠ `channelId` **可选**，而且只在快照给了 `channels` 的型号上说得通：缺省 =
+   * 「按用户记住的上次渠道 / 单渠道自动」，两条都不成立时客户端进「先选渠道」态
+   * （进度表 10 已有那道闸）。⛔ 服务端不替他挑一条 —— 那正是 D2 Q1 删掉的「自动」。
+   * ⚠ 值域（这条渠道在不在那个型号底下）留在规划器（本文件头注 ②）。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: z.object({
+    modelId: IdSchema,
+    channelId: IdSchema.optional(),
+  }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]: z.object({
     value: z.string().trim().max(LIMITS.maxPromptChars),
     mode: AssistantOperatorWriteModeSchema.optional(),
@@ -2862,9 +2899,22 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
   ),
   mutatingStep(
     ASSISTANT_OPERATOR_TOOL_IDS.setModel,
-    z.object({ modelId: IdSchema, modelLabel: LabelSchema.optional() }),
+    /**
+     * ⚠ `channelId` **缺席不是 `null`**：缺席 = 「这一步没指定渠道」，客户端于是
+     * 按记忆 / 单渠道去定，定不下来就进「先选渠道」态（进度表 10）。写成必填可空
+     * 会让这两件事长得一样。
+     */
+    z.object({
+      modelId: IdSchema,
+      modelLabel: LabelSchema.optional(),
+      channelId: IdSchema.optional(),
+    }),
     /** `null` = 改之前一个模型都没选，撤销就是回到没选。 */
-    z.object({ modelId: IdSchema.nullable() }),
+    z.object({
+      modelId: IdSchema.nullable(),
+      /** 改之前选的是哪条渠道 —— 撤销要连渠道一起回去。 */
+      channelId: IdSchema.optional(),
+    }),
   ),
   mutatingStep(
     ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,

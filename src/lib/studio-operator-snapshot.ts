@@ -26,6 +26,7 @@
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { getProviderLabel, type AI_ADAPTER_TYPES } from '@/constants/providers'
+import { foldChannels } from '@/lib/group-models-for-picker'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { getModelCapabilityChips } from '@/lib/model-capability-chips'
 import { getModelById } from '@/constants/models'
@@ -231,16 +232,45 @@ function imageRunnableOptions(
   ].slice(0, ASSISTANT_OPERATOR_LIMITS.maxAvailableModels)
 }
 
+/**
+ * 一个型号底下的**几条渠道**（进度表 10 + 21）。
+ *
+ * ⭐ 渠道身份用的是**选择器那一份**（`optionId`），⛔ 这里不重算一套分组：
+ * 助手写回来的 `channelId` 必须与用户在选择器里点得到的那一行是同一个东西，
+ * 否则「助手说换到 BytePlus 了」而面板上那一行没亮。
+ * ⚠ 只有一条时**不给**这一节 —— 单渠道型号上「选渠道」这件事不存在（`resolveModelChannel`
+ * 的 `only` 那一档会自动成立），给了只会让模型去填一个没有意义的参数。
+ */
+function channelsOf(
+  modelId: string,
+  modelOptions: readonly StudioModelOption[],
+): { id: string; label: string }[] | undefined {
+  const channels = foldChannels(
+    runnable(modelOptions).filter((option) => option.modelId === modelId),
+  )
+  if (channels.length < 2) return undefined
+  return channels
+    .slice(0, ASSISTANT_OPERATOR_LIMITS.maxAvailableModels)
+    .map((channel) => ({
+      id: channel.channelId,
+      label: clampLabel(channel.label),
+    }))
+}
+
 export function buildImageOperatorSnapshot({
   form,
   modelOptions,
   selectedModel,
   references,
 }: ImageOperatorSnapshotInput): AssistantOperatorSnapshot {
-  const availableModels = imageRunnableOptions(modelOptions).map((option) => ({
-    id: option.modelId,
-    label: clampLabel(option.displayLabel ?? option.modelId),
-  }))
+  const availableModels = imageRunnableOptions(modelOptions).map((option) => {
+    const channels = channelsOf(option.modelId, modelOptions)
+    return {
+      id: option.modelId,
+      label: clampLabel(option.displayLabel ?? option.modelId),
+      ...(channels ? { channels } : {}),
+    }
+  })
 
   const resolutionOptions = selectedModel
     ? [
@@ -271,6 +301,13 @@ export function buildImageOperatorSnapshot({
           label: clampLabel(
             selectedModel.displayLabel ?? selectedModel.modelId,
           ),
+          ...(channelsOf(selectedModel.modelId, modelOptions)
+            ? {
+                channels: channelsOf(selectedModel.modelId, modelOptions),
+                // 当前跑在哪条渠道上 —— 选择器里那一行的 `optionId`。
+                channelId: selectedModel.optionId,
+              }
+            : {}),
         }
       : null,
     availableModels,

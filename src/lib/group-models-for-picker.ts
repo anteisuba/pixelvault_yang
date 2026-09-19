@@ -143,7 +143,14 @@ function pickChannelRepresentative(
  * 「BytePlus」，用户没有任何依据挑其中一条（owner 2026-09-10 真机第一条）。有 key
  * 标签就把它写进行名，没有就退回打码后的 key。
  */
-function foldChannels(options: readonly StudioModelOption[]): PickerChannel[] {
+/**
+ * ⚠ **导出**是给助手那条链用的（进度表 21）：`set_model` 的 `channelId` 必须与
+ * 用户在选择器里点得到的那一行是同一个 id，所以两处只能有**一份**折叠判据。
+ * 各折各的表现是「助手说换到 BytePlus 了」而面板上那一行没亮。
+ */
+export function foldChannels(
+  options: readonly StudioModelOption[],
+): PickerChannel[] {
   const byChannel = new Map<string, StudioModelOption[]>()
   for (const option of options) {
     const key = channelKeyOf(option)

@@ -13098,3 +13098,148 @@ describe('unmount_reference · 摘一张（进度表 21）', () => {
     })
   })
 })
+
+/**
+ * `set_model` 带渠道（进度表 10 + 21 · 差距清单 #3）。
+ *
+ * ⚠ 断的是「渠道只在多渠道型号上有意义」这一件事：单渠道型号上写它要拒（⛔ 不
+ * 静默忽略），写错一条要拒并把真的那几条列回去，不写则**服务端什么都不定** ——
+ * 定不下来那一档由客户端进「先选渠道」态，⛔ 服务端不替他挑一条。
+ */
+describe('set_model · 渠道（进度表 21）', () => {
+  const MULTI: AssistantOperatorRequest['snapshot'] = {
+    ...SNAPSHOT,
+    model: {
+      id: 'seedream-4',
+      label: 'Seedream 4',
+      channels: [
+        { id: 'workspace:seedream-4', label: 'fal.ai' },
+        { id: 'saved:seedream-4-byteplus', label: 'BytePlus' },
+      ],
+      channelId: 'workspace:seedream-4',
+    },
+    availableModels: [
+      {
+        id: 'seedream-4',
+        label: 'Seedream 4',
+        channels: [
+          { id: 'workspace:seedream-4', label: 'fal.ai' },
+          { id: 'saved:seedream-4-byteplus', label: 'BytePlus' },
+        ],
+      },
+      { id: 'flux-pro', label: 'FLUX Pro' },
+    ],
+  }
+
+  function callSetModel(args: Record<string, unknown>): void {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+          title: 'switch route',
+          args,
+        },
+      },
+      { finished: true },
+    )
+  }
+
+  it('状态块只印多渠道那几个型号的路，并写出当前在跑哪条', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator('clerk-1', buildRequest({ snapshot: MULTI })),
+    )
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('saved:seedream-4-byteplus (BytePlus)')
+    expect(prompt).toContain('Route in use right now: workspace:seedream-4')
+    // ⛔ 单渠道那个型号不出现在渠道行里 —— 印了只会让它去填个没意义的参数。
+    expect(prompt).not.toContain('flux-pro: ')
+  })
+
+  it('指名一条路：载荷带上它，inverse 连旧路一起回去', async () => {
+    callSetModel({
+      modelId: 'seedream-4',
+      channelId: 'saved:seedream-4-byteplus',
+    })
+    expect(
+      stepsOf(
+        await collect(
+          runAssistantOperator('clerk-1', buildRequest({ snapshot: MULTI })),
+        ),
+      ).at(-1),
+    ).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      payload: {
+        modelId: 'seedream-4',
+        channelId: 'saved:seedream-4-byteplus',
+      },
+      inverse: { modelId: 'seedream-4', channelId: 'workspace:seedream-4' },
+    })
+  })
+
+  it('⭐ 不指名时服务端什么都不定 —— 载荷里没有 channelId（客户端去定）', async () => {
+    callSetModel({ modelId: 'seedream-4' })
+    const done = stepsOf(
+      await collect(
+        runAssistantOperator('clerk-1', buildRequest({ snapshot: MULTI })),
+      ),
+    ).at(-1)
+    expect(done?.payload).not.toHaveProperty('channelId')
+  })
+
+  it('⛔ 单渠道型号上写 channelId —— 拒，⛔ 不静默忽略', async () => {
+    callSetModel({ modelId: 'flux-pro', channelId: 'workspace:flux-pro' })
+    expect(
+      stepsOf(
+        await collect(
+          runAssistantOperator('clerk-1', buildRequest({ snapshot: MULTI })),
+        ),
+      ).at(-1),
+    ).toMatchObject({
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownValue },
+    })
+  })
+
+  it('⛔ 写了一条这个型号没有的路 —— 拒，并把真的那几条列回去', async () => {
+    callSetModel({ modelId: 'seedream-4', channelId: 'workspace:made-up' })
+    expect(
+      stepsOf(
+        await collect(
+          runAssistantOperator('clerk-1', buildRequest({ snapshot: MULTI })),
+        ),
+      ).at(-1),
+    ).toMatchObject({
+      error: {
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownValue,
+        detail: expect.stringContaining('saved:seedream-4-byteplus'),
+      },
+    })
+  })
+
+  it('换到另一个型号再换回来：第二条的 inverse 里那条路是「还没定」', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+          title: 'to flux',
+          args: { modelId: 'flux-pro' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+          title: 'back',
+          args: { modelId: 'seedream-4' },
+        },
+      },
+      { finished: true },
+    )
+    const done = stepsOf(
+      await collect(
+        runAssistantOperator('clerk-1', buildRequest({ snapshot: MULTI })),
+      ),
+    ).filter((step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    // ⚠ 换走之后那条路属于上一个型号 —— ⛔ 不留着当下一条的旧值。
+    expect(done.at(-1)?.inverse).toEqual({ modelId: 'flux-pro' })
+  })
+})

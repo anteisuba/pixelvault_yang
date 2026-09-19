@@ -312,6 +312,82 @@ describe('applyOperatorStep', () => {
     expect(dispatched).toEqual([{ type: 'SET_IMAGE_BATCH_COUNT', payload: 4 }])
   })
 
+  /**
+   * 换模型带渠道（进度表 10 + 21）—— 这一层只验**分派**：渠道那三条判据住宿主，
+   * ⛔ 不在这里复算（复算一遍就有第二份会漂的真值）。
+   */
+  it('宿主接了渠道那只手时整件事交给它 —— 连缺省（没指定渠道）也交过去', () => {
+    const { ctx, dispatched } = makeContext()
+    const calls: { modelId: string | null; channelId: string | null }[] = []
+    const withChannel: StudioOperatorApplyContext = {
+      ...ctx,
+      selectModelChannel: (input) => {
+        calls.push(input)
+        return true
+      },
+    }
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+      verb: 'apply',
+      payload: { modelId: 'known-model', channelId: 'saved:known-model' },
+      inverse: { modelId: 'old-model', channelId: 'workspace:old-model' },
+    } satisfies AssistantOperatorAppliedStep
+    expect(applyOperatorStep(step, withChannel)).toBe(
+      STUDIO_OPERATOR_FIELD_IDS.model,
+    )
+    // ⛔ 这一层不自己 dispatch —— 切不切、切到哪条由宿主说了算。
+    expect(dispatched).toHaveLength(0)
+    expect(calls).toEqual([
+      { modelId: 'known-model', channelId: 'saved:known-model' },
+    ])
+
+    revertOperatorStep(step, withChannel)
+    // ⭐ 撤销连渠道一起回去：回到型号却换了条路，价钱就变了。
+    expect(calls.at(-1)).toEqual({
+      modelId: 'old-model',
+      channelId: 'workspace:old-model',
+    })
+  })
+
+  it('「进了先选渠道态」也算落成 —— 它在触发器上看得见，要撤得掉', () => {
+    const { ctx } = makeContext()
+    const withChannel: StudioOperatorApplyContext = {
+      ...ctx,
+      // 多渠道且没点过：宿主什么都不切，只记下型号 —— 仍然回 true。
+      selectModelChannel: () => true,
+    }
+    expect(
+      applyOperatorStep(
+        {
+          ...BASE,
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+          verb: 'apply',
+          payload: { modelId: 'multi-channel-model' },
+          inverse: { modelId: null },
+        } satisfies AssistantOperatorAppliedStep,
+        withChannel,
+      ),
+    ).toBe(STUDIO_OPERATOR_FIELD_IDS.model)
+  })
+
+  it('宿主没接那只手时回落到老路 —— 行为与改动之前逐字相同', () => {
+    const { ctx, dispatched } = makeContext()
+    applyOperatorStep(
+      {
+        ...BASE,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+        verb: 'apply',
+        payload: { modelId: 'known-model', channelId: 'saved:known-model' },
+        inverse: { modelId: null },
+      } satisfies AssistantOperatorAppliedStep,
+      ctx,
+    )
+    expect(dispatched).toEqual([
+      { type: 'SET_OPTION_ID', payload: 'workspace:known-model' },
+    ])
+  })
+
   /** 摘一张（进度表 21）—— 与挂载共用那两只手，撤销把它原样挂回同一个槽。 */
   it('unmount_reference 摘掉那一张，撤销挂回同一个槽', () => {
     const { ctx, references, slots } = makeContext()

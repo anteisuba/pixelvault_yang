@@ -159,6 +159,24 @@ export interface StudioOperatorApplyContext {
    */
   resolveOptionId(modelId: string): string | null
   /**
+   * **换模型（带渠道）**（进度表 10 + 21）。
+   *
+   * ⭐ 为什么整件事交给宿主，而不是在这里拼：渠道的三条判据全在客户端 ——
+   * 用户记住的上次渠道（localStorage）、这个型号有几条路、以及「都不成立时进
+   * 先选渠道态」那道闸（`lib/model-picker-gate.ts`）。在这一层复算一遍，
+   * 就会出现「按钮说能生成、选择器里那一行还空着」——那正是那道闸当初被抽成
+   * 模块级 store 的理由。
+   *
+   * @returns 这一步在工作台上**落成了吗**。⚠ 「进了先选渠道态」也算落成
+   *   （触发器上看得见，而且要撤得掉）；只有「这个型号根本不在清单里」才是 `false`。
+   * ⚠ 缺席 = 这个宿主还没接渠道那条线（装配台 / 画布）—— 那时回落到
+   *   `resolveOptionId` 那条老路，行为与改动之前逐字相同。
+   */
+  selectModelChannel?(input: {
+    modelId: string | null
+    channelId: string | null
+  }): boolean
+  /**
    * 挂一张参考图到**指定槽**（`slot` 第二期加）。
    *
    * ⚠ 名字没跟着改成 `mountReference`：这只手在图片档、视频档、装配台三个宿主上
@@ -510,6 +528,19 @@ export function applyOperatorStep(
     }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setModel: {
+      /**
+       * ⚠ 带渠道那条路**整件事交给宿主**（进度表 21）：载荷里没写 `channelId`
+       * 时它按记忆 / 单渠道去定，定不下来就进「先选渠道」态 —— 那一档照样记账，
+       * 因为它在触发器上看得见，而且用户要撤得回去。
+       */
+      if (ctx.selectModelChannel) {
+        return ctx.selectModelChannel({
+          modelId: step.payload.modelId,
+          channelId: step.payload.channelId ?? null,
+        })
+          ? STUDIO_OPERATOR_FIELD_IDS.model
+          : null
+      }
       const optionId = ctx.resolveOptionId(step.payload.modelId)
       if (!optionId) return null
       ctx.dispatch({ type: 'SET_OPTION_ID', payload: optionId })
@@ -827,6 +858,14 @@ export function revertOperatorStep(
 
     case ASSISTANT_OPERATOR_TOOL_IDS.setModel: {
       const previous = step.inverse.modelId
+      // ⚠ 撤销连**渠道**一起回去（进度表 21）：回到型号却换了条路，价钱就变了。
+      if (ctx.selectModelChannel) {
+        ctx.selectModelChannel({
+          modelId: previous,
+          channelId: step.inverse.channelId ?? null,
+        })
+        return
+      }
       if (previous === null) {
         ctx.dispatch({ type: 'SET_OPTION_ID', payload: null })
         return

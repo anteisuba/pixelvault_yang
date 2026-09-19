@@ -17,6 +17,11 @@ import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
+import { useModelPickerMemory } from '@/hooks/use-model-picker-memory'
+import { getModelVariant } from '@/constants/models'
+import { foldChannels } from '@/lib/group-models-for-picker'
+import { toModelChannelCandidate } from '@/lib/pick-default-model-option'
+import { resolveModelChannel } from '@/lib/resolve-model-channel'
 import { setOperatorGenerationLabel } from '@/lib/studio-operator-label'
 import {
   setOperatorPrimed,
@@ -67,6 +72,14 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
   const videoModels = useVideoModelOptions(state.selectedOptionId ?? '')
   /** 拍板 22 的落地那一跳 —— 两个宿主共用的那一份。 */
   const userUrl = useOperatorUserUrlMount(imageUpload)
+  /**
+   * 渠道那三样记忆（进度表 10）—— **与模型选择器共用同一份**（`memoryScope` 就是
+   * 模态名，见 `MainModelPicker`）。⛔ 别在这里另存一份手选渠道：两份记忆的表现
+   * 是「助手换的渠道，用户打开选择器看到的还是上一条」。
+   */
+  const modelMemory = useModelPickerMemory(
+    state.outputType === 'video' ? 'video' : 'image',
+  )
 
   const latest = useRef({ state, imageUpload, imageModels, videoModels })
   // ⚠ 同步写在 effect 里（本仓 latest-ref 的既有写法）：render 阶段改 ref 会被
@@ -212,6 +225,65 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
         )
       },
       /**
+       * **换模型（带渠道）**（进度表 10 + 21）。
+       *
+       * ⭐ 三条路，与选择器点行时逐字同源（`ModelPickerPopover.handleSelectRow`）：
+       * 载荷指名了渠道 → 记住它并切过去；没指名 → `resolveModelChannel` 按
+       * 「用户手选过的」/「只有一条」去定；两条都不成立 → **记下型号、不切**，
+       * 触发器写「先选渠道」。⛔ 不在这里补一条兜底渠道 —— 那正是 D2 Q1 删掉的
+       * 「自动」，而它的表现是用户看到助手把线路换成了更贵的那一条。
+       * ⚠ 视频档的 `availableModels` 本来就是**型号 × 渠道**（K-3），没有第二层
+       * 渠道可选，所以那一档直接走既有的 `resolveOptionId`。
+       */
+      selectModelChannel: ({ modelId, channelId }) => {
+        modelMemory.setPendingModel(null)
+        if (modelId === null) {
+          dispatch({ type: 'SET_OPTION_ID', payload: null })
+          return true
+        }
+        if (latest.current.state.outputType === 'video') {
+          const optionId =
+            latest.current.videoModels.modelOptions.find(
+              (option) => option.optionId === modelId,
+            )?.optionId ??
+            latest.current.videoModels.modelOptions.find(
+              (option) => option.modelId === modelId,
+            )?.optionId ??
+            null
+          if (!optionId) return false
+          dispatch({ type: 'SET_OPTION_ID', payload: optionId })
+          return true
+        }
+
+        // ⚠ 折叠判据与选择器**共用一份**（`foldChannels`）：助手写回来的
+        //   `channelId` 就是用户点得到的那一行的 id。
+        const channels = foldChannels(
+          latest.current.imageModels.modelOptions.filter(
+            (option) =>
+              option.modelId === modelId &&
+              (option.keyId || option.providerKeyId),
+          ),
+        )
+        if (channels.length === 0) return false
+        const modelKey = getModelVariant(modelId) ?? modelId
+        const candidates = channels.map((channel) =>
+          toModelChannelCandidate(channel.option, {}, channel.label),
+        )
+        const resolved = resolveModelChannel(
+          candidates,
+          channelId ?? modelMemory.manualChannelOf(modelKey),
+        )
+        if (!resolved) {
+          // 多渠道且没点过 = **不替他选**：记下型号，触发器写「先选渠道」。
+          modelMemory.setPendingModel(modelKey)
+          return true
+        }
+        // ⚠ 只记**助手指名的**那一条：自动成立的单渠道不写进手选记忆。
+        if (channelId) modelMemory.rememberChannel(modelKey, channelId)
+        dispatch({ type: 'SET_OPTION_ID', payload: resolved.channel.channelId })
+        return true
+      },
+      /**
        * 挂参考素材 —— **按槽分三条路**（第二期）。
        *
        * ⭐ 首尾帧走的是**具名槽**（`SET_VIDEO_FRAME_SLOT`）而不是参考图列表的
@@ -345,7 +417,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
        * 三绿」的失败。域工具表本来就不给工作台那三条 LoRA 工具。
        */
     }),
-    [dispatch, userUrl],
+    [dispatch, modelMemory, userUrl],
   )
 
   /**

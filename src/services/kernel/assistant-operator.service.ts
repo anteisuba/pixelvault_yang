@@ -466,13 +466,23 @@ interface OperatorWorkingState {
   modelLabel: string | null
   hasModelControl: boolean
   /**
+   * 当前跑在**哪条渠道**上（进度表 10 + 21）。`null` = 还没定 / 这个型号没有
+   * 渠道之分。⚠ 可变：同一轮换两次模型，第二条的 `inverse` 要撤回第一条之后。
+   */
+  modelChannelId: string | null
+  /**
    * 现在**能切**到哪些模型（快照那一份的可变副本）。
    *
    * ⚠ 可变是判据的一部分（2026-09-12 真机 bug）：LoRA 域里这份列表是「与当前挂载栈
    * 兼容的底模」，同一轮 `unmount_lora` / `mount_lora` 之后它就过期了 —— 卸掉最后
    * 一把 pony LoRA，助手却还照着开跑那份快照说「只有 Pony Diffusion V6 可选」。
    */
-  availableModels: { id: string; label: string }[]
+  availableModels: {
+    id: string
+    label: string
+    /** 这个型号底下的几条渠道（进度表 10 + 21）；⚠ 缺席 = 只有一条，没得选。 */
+    channels?: { id: string; label: string }[]
+  }[]
   aspectRatio: string | null
   resolution: string | null
   quality: AdvancedParams['quality']
@@ -583,6 +593,7 @@ function toWorkingState(
     modelId: snapshot.model?.id ?? null,
     modelLabel: snapshot.model?.label ?? null,
     hasModelControl: snapshot.model !== undefined,
+    modelChannelId: snapshot.model?.channelId ?? null,
     // ⚠ 拷一份可变副本（同 `loras` 那条）：LoRA 域会在挂载栈变动后重算它。
     availableModels: snapshot.availableModels.map((model) => ({ ...model })),
     aspectRatio: snapshot.specs?.aspectRatio ?? null,
@@ -1253,6 +1264,32 @@ function renderState(
           .join(' | ')}`
       : '- Models you can switch to: none listed — do not call set_model.',
   )
+
+  /**
+   * 渠道（进度表 10 + 21）—— **只印多渠道的那几个型号**。
+   *
+   * ⚠ 单渠道型号上「选渠道」这件事不存在，印出来只会让模型去填一个没有意义的
+   * 参数（判据与规格那几条「没有档位就别邀请调用」逐字同源）。
+   * ⛔ 不写「不给就自动挑一条」：没选就是没选，触发器会写「先选渠道」。
+   */
+  const multiChannel = models.filter(
+    (model) => (model.channels?.length ?? 0) > 1,
+  )
+  if (multiChannel.length > 0) {
+    lines.push(
+      `- Some of those models are served by more than one route. Pass "channelId" with set_model ONLY for these, and only when the creator named a route; leave it out and the app uses the one they picked last, or asks them to pick. ${multiChannel
+        .map(
+          (model) =>
+            `${model.id}: ${(model.channels ?? [])
+              .map((channel) => `${channel.id} (${channel.label})`)
+              .join(', ')}`,
+        )
+        .join(' | ')}`,
+    )
+    if (state.modelChannelId) {
+      lines.push(`- Route in use right now: ${state.modelChannelId}`)
+    }
+  }
 
   if (state.hasVideoSpecsControl) {
     // ⭐ 视频档（P4-A）。⚠ **一格一格地说「有没有档位」** —— 三个参数逐型号有无，
@@ -2998,7 +3035,10 @@ function planUnmountReference(
   }
 }
 
-function planSetModel(run: OperatorRun, args: { modelId: string }): ToolPlan {
+function planSetModel(
+  run: OperatorRun,
+  args: { modelId: string; channelId?: string },
+): ToolPlan {
   if (!run.state.hasModelControl) return reject(REJECT.noSuchControl)
 
   const match = run.state.availableModels.find(
@@ -3011,15 +3051,52 @@ function planSetModel(run: OperatorRun, args: { modelId: string }): ToolPlan {
     )
   }
 
+  /**
+   * **渠道**（进度表 10 + 21）—— 同一个型号的几条供给路径。
+   *
+   * ⚠ 只在快照给了 `channels` 的型号上说得通（那一节只在**多条**时才给）：
+   * 单渠道型号上写 `channelId` 一律拒，理由说清「这个型号只有一条路」——
+   * ⛔ 不静默忽略：忽略掉的表现是助手报告「已切到 BytePlus」而面板上没动。
+   * ⛔ 服务端**不替用户在多条里挑一条**：没给就不给，客户端按记忆 / 单渠道去定，
+   * 定不下来进「先选渠道」态（D2 Q1 删掉的「自动」不许从这里长回来）。
+   */
+  const channels = match.channels ?? []
+  if (args.channelId !== undefined) {
+    if (channels.length === 0) {
+      return reject(
+        REJECT.unknownValue,
+        `${match.label} has a single supply route here — channelId only means something on models that list several.`,
+      )
+    }
+    if (!channels.some((channel) => channel.id === args.channelId)) {
+      return reject(
+        REJECT.unknownValue,
+        `"${clamp(args.channelId, LIMITS.maxLabelChars)}" is not one of ${match.label}'s routes — they are: ${channels
+          .map((channel) => `${channel.id} (${channel.label})`)
+          .join(', ')}.`,
+      )
+    }
+  }
+
   const previousId = run.state.modelId
+  const previousChannelId = run.state.modelChannelId
   return {
     kind: 'mutate',
-    payload: { modelId: match.id, modelLabel: match.label },
-    inverse: { modelId: previousId },
+    payload: {
+      modelId: match.id,
+      modelLabel: match.label,
+      ...(args.channelId ? { channelId: args.channelId } : {}),
+    },
+    inverse: {
+      modelId: previousId,
+      ...(previousChannelId ? { channelId: previousChannelId } : {}),
+    },
     observation: `Model is now ${match.label} (${match.id}). ${getModelEnhanceHint(match.id, resolveAdapterType(match.id) ?? undefined) ?? ''}${resolveAdapterType(match.id) === AI_ADAPTER_TYPES.OPENAI ? ` Quality options: ${getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, match.id).qualityOptions?.join(', ')}. Background: auto, opaque, transparent. Preview: optional, up to $0.006 extra per image.` : ''}`,
     apply: () => {
       run.state.modelId = match.id
       run.state.modelLabel = match.label
+      // ⚠ 没指定就是「还没定」—— ⛔ 不留着上一个型号的渠道（那是另一个型号的路）。
+      run.state.modelChannelId = args.channelId ?? null
       /**
        * LoRA 域换底模 = 换家族（2026-09-12 真机 bug）。`loraBaseFamily` 原本只在
        * 开跑时从快照取一次，同一轮里 set_model 之后的兼容判定、权重预算、状态块
@@ -6333,7 +6410,10 @@ async function planTool(
         },
       )
     case TOOL.setModel:
-      return planSetModel(run, parsed.data as { modelId: string })
+      return planSetModel(
+        run,
+        parsed.data as { modelId: string; channelId?: string },
+      )
     case TOOL.setPrompt:
       return planSetText(
         run,

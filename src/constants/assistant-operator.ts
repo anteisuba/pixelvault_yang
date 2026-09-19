@@ -240,6 +240,26 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   setCount: 'set_count',
   /**
+   * 设**当前模型专属的那一格**（进度表 21 · 差距清单 #1）。
+   *
+   * ── ⭐ 为什么不是一条一条的工具 ──────────────────────────────────
+   * 专属区那一行 chip 是**从能力表派生**的（`lib/model-capability-chips.ts`，
+   * 进度表 11）：换个模型，这一行整排换掉。给每颗 chip 开一条工具的下场是工具表
+   * 跟着 `provider-capabilities` 长，而其中大半条在任何一个具体模型上都无解 ——
+   * 正是 `set_count` 当初被裁掉的那个形状，只是乘以 chip 的条数。
+   * 所以只有一条工具，`key` 那一格收的是**这个模型此刻真的有的那几颗 chip 的键**
+   * （快照现给），值域按 `getCapabilityFieldType` 分三种形态各自校验。
+   *
+   * ⛔ **模型看不到模型名**：它只看到 `read_state` 里印出来的那张 key 表。
+   * 让它按模型名去猜「OpenAI 应该有 quality 吧」，猜错就是白烧一步 LLM 往返。
+   * ⚠ 快照里 `capabilities` 整节缺席 = 这个工作台没有专属 chip 行（视频档今天
+   * 就是这一档，界面上那段整块不渲染），按 `noSuchControl` 拒 —— 与
+   * `set_negative` 逐字同源：工具列在域表里，第二道闸靠快照缺席收。
+   * ⚠ `inverse` 里放**旧值**，而旧值允许 `null`（「这一格用户没设过」）：撤销要
+   * 回得到缺省态，⛔ 不能把它撤成「用户明确选了缺省值」——后者会照样发给 provider。
+   */
+  setCapability: 'set_capability',
+  /**
    * 把视频参考位上的**音频**挂上（P4-A，台账 A 那条修好的通道）。
    *
    * ⭐ 与 `mount_reference` 分家的理由是**槽不同**：图片走
@@ -578,6 +598,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
   ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
   ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+  ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
   ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setSound,
   ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
@@ -701,6 +722,11 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
   ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
   ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+  /**
+   * ⚠ 专属 chip 那条也是改动型（进度表 21）：它动的是参数栏上看得见的一颗旋钮，
+   * `inverse` 里放的是**旧值**（允许 `null` = 用户没设过那一档）。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
   ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setSound,
   ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
@@ -877,6 +903,8 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.setCapability]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.setSound]: ASSISTANT_OPERATOR_VERB_IDS.apply,
@@ -1564,6 +1592,12 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
     ASSISTANT_OPERATOR_TOOL_IDS.setCount,
     /**
+     * 专属 chip 那一行（进度表 11 + 21）。⚠ 域表里有它**不等于**每台工作台上都
+     * 有：第二道闸是快照里 `capabilities` 这一节在不在（判据与 `set_negative`
+     * 逐字同源）。没有专属能力的模型上那一节整节缺席，工具按 `noSuchControl` 拒。
+     */
+    ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+    /**
      * 花钱档（§6）**只给两台工作台**。⛔ 装配台没有：它的出图键住在
      * `GenerateBranch` 的局部 state 里，宿主契约上还没有那只手
      * （`triggerGeneration` 在 LoRA 宿主上有意缺席）。摆一条这个域里无解的工具，
@@ -1580,6 +1614,14 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: [
     ...COMMON_DOMAIN_TOOLS,
     ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
+    /**
+     * ⚠ 视频档也列着它，而**今天的视频工作台上那一行 chip 不渲染**
+     * （`StudioPromptArea` 只在图片档挂 `StudioModelCapabilityChips`）—— 所以
+     * 快照不给 `capabilities`，这条工具在视频档一律按 `noSuchControl` 拒。
+     * ⛔ 这不是「摆一条无解的工具」：形状与 `set_negative` 完全相同（列在表里、
+     * 由快照缺席收），而视频档一旦补上专属区，这里一个字都不用改。
+     */
+    ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
     ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
     ASSISTANT_OPERATOR_TOOL_IDS.setSound,
     ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
@@ -2471,6 +2513,13 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'set the clip specs in ONE call. The argument names are exactly: durationSeconds (a plain number, no unit), aspectRatio, resolution. Send every one the state block lists options for; omit only the ones it says this model does not expose.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]:
     'set how many outputs one send produces. Pick from the options in the state.',
+  /**
+   * ⚠ 「只从状态块里抄 key」那句是硬要求（判据同 `set_model` 的「copy the id
+   * verbatim」）：这一行 chip 是逐模型派生的，模型按名字猜出来的键在这台机器上
+   * 多半不存在，而猜错就是白烧一步 LLM 往返。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setCapability]:
+    'set one of the controls that belong to the CURRENT model only — the extra row under the shared specs (quality, guidance, steps, reference strength, preview, and so on). The "key" must be copied verbatim from the model-specific controls listed in the state; never guess one from the model name, and never call this for aspect ratio, resolution or count (those have their own tools). The value has to match the shape the state gives for that key: one of the listed options, a number inside the given range, or true/false. A control the state marks as needing a reference image cannot be set until one is mounted.',
   [ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference]:
     "attach one audio clip from the creator's own library as a voice reference for this shot. Takes an assetId from a search_assets call with kind 'audio'. Name the character it belongs to when you know it — that is how the model learns who is speaking in a multi-character line.",
   [ASSISTANT_OPERATOR_TOOL_IDS.setSound]:

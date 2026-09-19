@@ -7329,6 +7329,7 @@
       "model": "Model",
       "specs": "Specs",
       "count": "Count",
+      "capabilities": "Model controls",
       "references": "References",
       "audioReferences": "Voice references",
       "sound": "Soundtrack",

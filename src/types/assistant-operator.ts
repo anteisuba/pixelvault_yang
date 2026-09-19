@@ -367,6 +367,43 @@ export const AssistantOperatorSnapshotCountSchema = z.object({
   options: z.array(z.number().int().positive()).min(1),
 })
 
+/**
+ * **当前模型专属的那一颗旋钮**（进度表 11 的 chip 行 → 进度表 21 的 `set_capability`）。
+ *
+ * ⚠ 这一节是**逐模型派生**的（`lib/model-capability-chips.ts` 那张唯一的派生表），
+ * ⛔ 不是一份固定字段表：换个模型整行换掉。所以助手能设哪几个键，只能问快照。
+ * ⚠ 整节缺席 = 这个工作台（或这个模型）没有专属 chip 行 —— 与全表其余每一节同
+ * 一条规矩：缺席 = 没有这个控件，`set_capability` 按 `noSuchControl` 拒。
+ * ⚠ `available: false` = chip 画着但点不动（今天只有一种成因：这颗要先挂参考图）。
+ * ⛔ 不隐藏它 —— 隐藏了助手与用户都不知道这个模型有这档能力。
+ */
+export const AssistantOperatorSnapshotCapabilitySchema = z.object({
+  /** 键 = `ProviderCapability`（`quality` / `guidanceScale` / `preview` …）。 */
+  key: ParamValueSchema,
+  /** 三种形态，与 `getCapabilityFieldType` 逐字同源。 */
+  kind: z.enum(['select', 'slider', 'toggle']),
+  /** 现值。`null` = 用户没设过（跟着缺省值走）。 */
+  value: z.union([z.string(), z.number(), z.boolean()]).nullable(),
+  /** 缺省值 —— 撤销回 `null` 之后实际生效的那个。 */
+  defaultValue: z.union([z.string(), z.number(), z.boolean()]),
+  /** `select` 的候选。⛔ 空表不下发这颗 chip（派生层已经滤过）。 */
+  options: z.array(ParamValueSchema).max(LIMITS.maxSpecOptions).optional(),
+  /** `slider` 的值域。 */
+  range: z
+    .object({
+      min: z.number(),
+      max: z.number(),
+      step: z.number().optional(),
+    })
+    .optional(),
+  /** 此刻点得动吗（`false` = 要先挂一张参考图）。 */
+  available: z.boolean(),
+})
+
+export type AssistantOperatorSnapshotCapability = z.infer<
+  typeof AssistantOperatorSnapshotCapabilitySchema
+>
+
 export const AssistantOperatorSnapshotReferenceSchema = z.object({
   /** 素材库里的 id；用户临时上传的没有 id，只有 URL。 */
   assetId: IdSchema.optional(),
@@ -644,6 +681,14 @@ export const AssistantOperatorSnapshotSchema = z.object({
   /** ⚠ 视频档的规格。与 `specs` **互斥** —— 两个都在就是构造快照的人写错了。 */
   videoSpecs: AssistantOperatorSnapshotVideoSpecsSchema.optional(),
   count: AssistantOperatorSnapshotCountSchema.optional(),
+  /**
+   * ⚠ 缺席 = 这个工作台没有专属 chip 行（视频 / LoRA / 画布今天都是这一档，
+   * 图片档在没有专属能力的模型上也是）。见 schema 头注。
+   */
+  capabilities: z
+    .array(AssistantOperatorSnapshotCapabilitySchema)
+    .max(LIMITS.maxSpecOptions)
+    .optional(),
   references: AssistantOperatorSnapshotReferencesSchema.optional(),
   /** ⚠ 缺席 = 没有具名帧槽（图片档 / 多图参考档 / 全能参考档）。见 schema 头注。 */
   frameReferences: AssistantOperatorSnapshotFrameReferencesSchema.optional(),
@@ -1818,6 +1863,19 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     resolution: ParamValueSchema.optional(),
   }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setCount]: z.object({ count: z.number() }),
+  /**
+   * 专属 chip 那一格（进度表 21）。
+   *
+   * ⚠ `key` 与 `value` 的值域**都留在规划器**（本文件头注 ②）：白名单是快照现给的
+   * 那几颗 chip，而值域按 chip 的形态分三种 —— 写进 schema 就得把它做成一个随模型
+   * 变的 union，那不是 schema 能表达的东西，而且 schema 拒 = 模型这一轮整个作废。
+   * ⛔ `value` **不收 `null`**：清回缺省是撤销的事（`inverse`），不是助手的动作 ——
+   * 与 `set_prompt` 不许写空串同源。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.setCapability]: z.object({
+    key: ParamValueSchema,
+    value: z.union([z.string(), z.number(), z.boolean()]),
+  }),
   [ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference]: z.object({
     /** ⛔ 同 `mount_reference`：只有 id，URL 由服务端从本轮检索结果里查出来填。 */
     assetId: IdSchema,
@@ -2836,6 +2894,25 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     ASSISTANT_OPERATOR_TOOL_IDS.setCount,
     z.object({ count: z.number().int().positive() }),
     z.object({ count: z.number().int().positive() }),
+  ),
+  /**
+   * 专属 chip 那一格（进度表 21）。
+   *
+   * ⚠ `inverse.value` **允许 `null`** —— 判据与 `set_sound` 逐字同源：用户很可能
+   * 一次都没设过这一格，撤销必须回得到「没设过」。把它收窄成非空，撤销之后那一格
+   * 会从「跟着模型缺省走」变成「用户明确选了这个值」，而两者发给 provider 的东西
+   * 不同（缺省那一档根本不发这个字段）。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+    z.object({
+      key: ParamValueSchema,
+      value: z.union([z.string(), z.number(), z.boolean()]),
+    }),
+    z.object({
+      key: ParamValueSchema,
+      value: z.union([z.string(), z.number(), z.boolean()]).nullable(),
+    }),
   ),
   /**
    * 挂音频参考（P4-A，台账 A）。形状照 `mount_reference`：`url` 由服务端从本轮

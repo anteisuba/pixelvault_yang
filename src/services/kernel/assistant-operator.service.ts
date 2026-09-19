@@ -403,6 +403,7 @@ import {
   type AssistantOperatorSearchResultAsset,
   type AssistantOperatorCanvasSnapshot,
   type AssistantOperatorSnapshot,
+  type AssistantOperatorSnapshotCapability,
   type AssistantOperatorTurn,
   type AssistantOperatorWorkingMemoryArtifact,
 } from '@/types/assistant-operator'
@@ -480,6 +481,16 @@ interface OperatorWorkingState {
   hasSpecsControl: boolean
   count: number | null
   hasCountControl: boolean
+  /**
+   * **当前模型专属的那一行 chip**（进度表 21）。
+   *
+   * ⚠ 可变副本（同 `prompt` / `loras` 那条）：同一轮里改两次同一颗 chip，第二条
+   * 的 `inverse` 要撤回到**第一条写完之后**的值。
+   * ⚠ 空数组 + `hasCapabilityControl=false` = 这个工作台没有专属区；空数组 +
+   * `true` 在今天不会发生（派生层一颗都没有时整节缺席）。
+   */
+  capabilities: AssistantOperatorSnapshotCapability[]
+  hasCapabilityControl: boolean
   referenceCount: number
   referenceUrls: (string | null)[]
   referenceLimit: number
@@ -582,6 +593,9 @@ function toWorkingState(
     hasSpecsControl: snapshot.specs !== undefined,
     count: snapshot.count?.value ?? null,
     hasCountControl: snapshot.count !== undefined,
+    // ⚠ 拷一份可变副本，⛔ 别把快照那个只读数组存进来（`apply()` 要改它）。
+    capabilities: (snapshot.capabilities ?? []).map((item) => ({ ...item })),
+    hasCapabilityControl: snapshot.capabilities !== undefined,
     referenceCount: snapshot.references?.items.length ?? 0,
     referenceUrls: (snapshot.references?.items ?? []).map((item) => item.url),
     referenceLimit: snapshot.references?.limit ?? 0,
@@ -1168,6 +1182,31 @@ function hasUsableVideoSpecOptions(
  * 自己不知道的事、有上限。多的那条是**可选值必须一起给**：不给列表，模型只会编一个
  * （画布 `[[setup]]` 真机上编出过一个工作区里根本不存在的「Animagine XL」）。
  */
+/**
+ * 一颗专属 chip 印给模型看的那一行（进度表 21）。
+ *
+ * ⚠ 现值印 `(not set)` 而不是缺省值：助手要分得清「用户没设过」与「用户选了缺省
+ * 值」—— 前者不必动，后者动它才是改主意。
+ */
+function describeCapability(
+  capability: AssistantOperatorSnapshotCapability,
+): string {
+  const current =
+    capability.value === null
+      ? `(not set — falls back to ${String(capability.defaultValue)})`
+      : String(capability.value)
+  const domain =
+    capability.kind === 'select'
+      ? `one of: ${capability.options?.join(', ') ?? '(none)'}`
+      : capability.kind === 'slider'
+        ? `a number from ${capability.range?.min ?? '?'} to ${capability.range?.max ?? '?'}`
+        : 'true or false'
+  const blocked = capability.available
+    ? ''
+    : ' — NOT settable right now: it needs a reference image mounted first'
+  return `${capability.key}: ${current} — ${domain}${blocked}`
+}
+
 function renderState(
   run: OperatorRun,
   materialBudget = LIMITS.maxPromptChars * 2,
@@ -1302,6 +1341,27 @@ function renderState(
       `- Outputs per send: ${state.count} — options: ${
         request.snapshot.count?.options.join(', ') ?? ''
       }`,
+    )
+  }
+
+  /**
+   * 专属 chip 行（进度表 21）。
+   *
+   * ⭐ **模型只看得到这张表**，看不到模型名 —— 它按模型名猜出来的键在这台机器上
+   * 多半不存在（判据与 `set_model` 的「copy the id verbatim」逐字同源）。
+   * ⚠ 值域跟着键一起印：`select` 印候选、`slider` 印区间、`toggle` 印 true/false。
+   * 不印的下场与规格那条一样 —— 模型编一个，然后撞 `unknownValue`。
+   */
+  if (state.hasCapabilityControl && state.capabilities.length > 0) {
+    lines.push(
+      '- Controls that belong to THIS model only (set_capability takes one of these keys verbatim):',
+    )
+    for (const capability of state.capabilities) {
+      lines.push(`  ${describeCapability(capability)}`)
+    }
+  } else {
+    lines.push(
+      '- Model-specific controls: none on this workbench — set_capability will be refused.',
     )
   }
 
@@ -3865,6 +3925,87 @@ function planSetCount(run: OperatorRun, args: { count: number }): ToolPlan {
 }
 
 /**
+ * 设一颗**当前模型专属的** chip（进度表 21 · 差距清单 #1）。
+ *
+ * ── 三道闸，各拦一件不同的事 ──────────────────────────────────────
+ * ① 快照没有 `capabilities` 这一节 → `noSuchControl`（这个工作台没有专属区）。
+ * ② 键不在这一行里 → `unknownValue`，**并把这一行的键原样列回去** —— 一条只说
+ *    「没有这个键」的理由不可教，模型只会换个拼法再撞一次。
+ * ③ 值不合这颗 chip 的形态 → `unknownValue`，理由里写清这颗要的是哪一种值。
+ * ⚠ 前置没满足（要先挂参考图）走 `noSuchControl` 而不是 `unknownValue`：那不是
+ * 「值写错了」，是「这颗此刻点不动」，而下一步该做的事是先挂一张图。
+ * ⚠ `inverse` 里放**旧值**，旧值允许 `null`（用户没设过那一档）。
+ */
+function planSetCapability(
+  run: OperatorRun,
+  args: { key: string; value: string | number | boolean },
+): ToolPlan {
+  if (!run.state.hasCapabilityControl || run.state.capabilities.length === 0) {
+    return reject(
+      REJECT.noSuchControl,
+      'This workbench has no model-specific controls right now.',
+    )
+  }
+
+  const chip = run.state.capabilities.find((item) => item.key === args.key)
+  if (!chip) {
+    return reject(
+      REJECT.unknownValue,
+      `"${clamp(args.key, LIMITS.maxLabelChars)}" is not one of this model's controls — they are: ${run.state.capabilities
+        .map((item) => item.key)
+        .join(', ')}.`,
+    )
+  }
+  if (!chip.available) {
+    return reject(
+      REJECT.noSuchControl,
+      `${chip.key} only applies once a reference image is mounted — mount one first.`,
+    )
+  }
+
+  if (chip.kind === 'toggle' && typeof args.value !== 'boolean') {
+    return reject(REJECT.unknownValue, `${chip.key} takes true or false.`)
+  }
+  if (chip.kind === 'select') {
+    const options = chip.options ?? []
+    if (typeof args.value !== 'string' || !options.includes(args.value)) {
+      return reject(
+        REJECT.unknownValue,
+        `${chip.key} takes one of: ${options.join(', ') || '(none)'}.`,
+      )
+    }
+  }
+  if (chip.kind === 'slider') {
+    const range = chip.range
+    if (
+      typeof args.value !== 'number' ||
+      !Number.isFinite(args.value) ||
+      !range ||
+      args.value < range.min ||
+      args.value > range.max
+    ) {
+      return reject(
+        REJECT.unknownValue,
+        `${chip.key} takes a number from ${range?.min ?? '?'} to ${range?.max ?? '?'}.`,
+      )
+    }
+  }
+
+  const previous = chip.value
+  return {
+    kind: 'mutate',
+    payload: { key: chip.key, value: args.value },
+    inverse: { key: chip.key, value: previous },
+    observation: `${chip.key} is now ${String(args.value)}${
+      previous === null ? ' (it was not set before)' : ''
+    }.`,
+    apply: () => {
+      chip.value = args.value
+    },
+  }
+}
+
+/**
  * ⛔ 这条**不生成任何东西**。它吐一个 op 让客户端把生成键置成 primed 态并算价，
  * 点的人永远是用户（拍板 2）。服务端在这一步一次外部调用都不发。
  */
@@ -6110,6 +6251,11 @@ async function planTool(
       )
     case TOOL.setCount:
       return planSetCount(run, parsed.data as { count: number })
+    case TOOL.setCapability:
+      return planSetCapability(
+        run,
+        parsed.data as { key: string; value: string | number | boolean },
+      )
     case TOOL.mountAudioReference:
       return planMountAudioReference(
         run,

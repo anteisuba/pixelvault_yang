@@ -192,6 +192,16 @@ export const STUDIO_OPERATOR_FIELD_IDS = {
   model: 'model',
   specs: 'specs',
   count: 'count',
+  /**
+   * 当前模型**专属的那一行 chip**（进度表 11 的专属区 → 21 的 `set_capability`）。
+   *
+   * ⚠ 与 `specs` 分成两格：规格回答的是三模态同形的「下一版长什么样」，专属区
+   * 回答的是「这个模型独有的那几颗旋钮」，换个模型整行换掉。合成一格的表现是
+   * 「还原规格」把用户调好的 guidance 一起撤掉。
+   * ⚠ 一整行共用这一格（与 `loras` 逐字同源）：逐条撤销仍然是逐条的，这一格管的
+   * 是「还原这个字段」那颗按钮的粒度。
+   */
+  capabilities: 'capabilities',
   references: 'references',
   /** 视频域的音频参考位（台账 A 的那条通道）。 */
   audioReferences: 'audioReferences',
@@ -257,6 +267,7 @@ export const STUDIO_OPERATOR_FIELDS = [
   STUDIO_OPERATOR_FIELD_IDS.model,
   STUDIO_OPERATOR_FIELD_IDS.specs,
   STUDIO_OPERATOR_FIELD_IDS.count,
+  STUDIO_OPERATOR_FIELD_IDS.capabilities,
   STUDIO_OPERATOR_FIELD_IDS.references,
   STUDIO_OPERATOR_FIELD_IDS.audioReferences,
   STUDIO_OPERATOR_FIELD_IDS.sound,

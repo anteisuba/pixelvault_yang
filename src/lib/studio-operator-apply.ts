@@ -303,6 +303,8 @@ export function getOperatorStepField(
       return STUDIO_OPERATOR_FIELD_IDS.specs
     case ASSISTANT_OPERATOR_TOOL_IDS.setCount:
       return STUDIO_OPERATOR_FIELD_IDS.count
+    case ASSISTANT_OPERATOR_TOOL_IDS.setCapability:
+      return STUDIO_OPERATOR_FIELD_IDS.capabilities
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
       return STUDIO_OPERATOR_FIELD_IDS.audioReferences
     case ASSISTANT_OPERATOR_TOOL_IDS.setSound:
@@ -352,6 +354,13 @@ export function describeOperatorInverse(
         .join(' · ')
     case ASSISTANT_OPERATOR_TOOL_IDS.setCount:
       return String(step.inverse.count)
+    /**
+     * ⚠ 空串 = 「这一格用户没设过」—— hover 里渲染成「原来是空的」，与 `set_sound`
+     * 的三态逐字同源。⛔ 别在这里填缺省值：那会让 hover 说「原来是 auto」，
+     * 而撤销之后那一格并不会变成一个明确选中的 auto。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setCapability:
+      return step.inverse.value === null ? '' : String(step.inverse.value)
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
       return step.payload.label ?? step.payload.url
     /**
@@ -568,6 +577,23 @@ export function applyOperatorStep(
         payload: step.payload.count,
       })
       return STUDIO_OPERATOR_FIELD_IDS.count
+    }
+
+    /**
+     * 专属 chip 那一格（进度表 21）。
+     *
+     * ⚠ `SET_ADVANCED_PARAMS` **是整体替换**（本文件头注 ①）：只发一个键会把用户
+     * 调好的 seed / resolution 一起清空，所以照旧 `{ ...current, [key]: value }`。
+     * ⚠ 值域收窄在**服务端**做完了（键来自快照现给的那一行，值按 chip 形态校验），
+     * 这里⛔ 不再抄一份判据 —— 抄第二份就有第二处会漂的真值。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setCapability: {
+      const next = {
+        ...ctx.getState().advancedParams,
+        [step.payload.key]: step.payload.value,
+      } as StudioFormState['advancedParams']
+      ctx.dispatch({ type: 'SET_ADVANCED_PARAMS', payload: next })
+      return STUDIO_OPERATOR_FIELD_IDS.capabilities
     }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference: {
@@ -847,6 +873,25 @@ export function revertOperatorStep(
         })
       }
       return
+
+    /**
+     * ⚠ 撤回 `null` 时**把那个键删掉**，⛔ 不是写一个缺省值进去：删掉才等于
+     * 「用户没设过」——留一个显式的缺省值会照样发给 provider，而那两件事在请求
+     * 体里长得不一样（判据与 `pruneIncompatibleCapabilityValues` 逐字同源）。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setCapability: {
+      const next = { ...ctx.getState().advancedParams } as Record<
+        string,
+        unknown
+      >
+      if (step.inverse.value === null) delete next[step.inverse.key]
+      else next[step.inverse.key] = step.inverse.value
+      ctx.dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: next as StudioFormState['advancedParams'],
+      })
+      return
+    }
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
       ctx.removeAudioReference(step.payload.url)

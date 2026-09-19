@@ -192,6 +192,9 @@ export function describeOperatorStepDetail(
       )
     case ASSISTANT_OPERATOR_TOOL_IDS.setCount:
       return String(step.payload.count)
+    /** 专属 chip（进度表 21）：键与值都写出来 —— 一行只写值读不出它改的是哪颗。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.setCapability:
+      return `${step.payload.key} ${String(step.payload.value)}`
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference:
       return step.payload.label ?? step.payload.assetId
     /** 归属写出来 —— `@AudioN` 那个 N 对不上谁，多角色对白就是一锅粥。 */

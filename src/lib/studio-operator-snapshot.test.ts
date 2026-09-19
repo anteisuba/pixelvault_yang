@@ -68,6 +68,7 @@ const FORM: StudioOperatorSnapshotForm = {
   aspectRatio: '16:9',
   imageResolution: 'auto',
   imageBatchCount: 1,
+  advancedParams: {},
   videoDurationSeconds: 5,
   videoResolution: '720p',
   videoAudioRefs: [],
@@ -156,7 +157,12 @@ beforeEach(() => {
   vi.clearAllMocks()
   mockGetNodeModeForModel.mockReturnValue('keyframe')
   mockGetModelById.mockReturnValue({ videoDefaults: { generateAudio: true } })
-  mockGetCapabilityConfig.mockReturnValue({ resolutionOptions: ['auto', '2K'] })
+  // ⚠ `capabilities` 必须给：`CapabilityConfig` 上它是必填，而专属 chip 行
+  //    （进度表 21）就是从它派生的 —— 桩里漏掉它等于桩出一个不存在的形状。
+  mockGetCapabilityConfig.mockReturnValue({
+    capabilities: [],
+    resolutionOptions: ['auto', '2K'],
+  })
   videoParams()
   videoContract()
 })
@@ -379,6 +385,89 @@ describe('buildImageOperatorSnapshot', () => {
     expect(snapshot.videoSpecs).toBeUndefined()
     expect(snapshot.audioReferences).toBeUndefined()
     expect(snapshot.sound).toBeUndefined()
+  })
+
+  /**
+   * 专属 chip 行（进度表 21）—— **白名单来自派生**，⛔ 不是这里写死的一张表。
+   */
+  it('capabilities 这一节从能力表派生：一颗都没有就整节缺席', () => {
+    const snapshot = buildImageOperatorSnapshot({
+      form: FORM,
+      modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
+      selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
+      references: { items: [], limit: 4 },
+    })
+    expect(snapshot.capabilities).toBeUndefined()
+  })
+
+  it('⭐ 三种形态各自带上值域，参考图依赖那颗标 available=false', () => {
+    mockGetCapabilityConfig.mockReturnValue({
+      capabilities: [
+        'quality',
+        'guidanceScale',
+        'preview',
+        'referenceStrength',
+      ],
+      qualityOptions: ['auto', 'high'],
+      guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
+      referenceStrength: { min: 0, max: 1, step: 0.05, default: 0.6 },
+      resolutionOptions: ['auto'],
+    })
+    const snapshot = buildImageOperatorSnapshot({
+      form: { ...FORM, advancedParams: { quality: 'high', seed: 7 } },
+      modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
+      selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
+      references: { items: [], limit: 4 },
+    })
+    expect(snapshot.capabilities).toEqual([
+      {
+        key: 'quality',
+        kind: 'select',
+        // ⚠ 现值是**原始值**：助手要分得清「没设过」与「选了缺省值」。
+        value: 'high',
+        defaultValue: 'auto',
+        options: ['auto', 'high'],
+        available: true,
+      },
+      {
+        key: 'guidanceScale',
+        kind: 'slider',
+        value: null,
+        defaultValue: 7,
+        range: { min: 1, max: 20, step: 0.5 },
+        available: true,
+      },
+      {
+        key: 'preview',
+        kind: 'toggle',
+        value: null,
+        defaultValue: false,
+        available: true,
+      },
+      {
+        key: 'referenceStrength',
+        kind: 'slider',
+        value: null,
+        defaultValue: 0.6,
+        range: { min: 0, max: 1, step: 0.05 },
+        // 没挂参考图 = 画着但点不动（⛔ 不隐藏）。
+        available: false,
+      },
+    ])
+
+    const mounted = buildImageOperatorSnapshot({
+      form: { ...FORM, advancedParams: {} },
+      modelOptions: [option({ optionId: 'a', modelId: 'seedream-4' })],
+      selectedModel: option({ optionId: 'a', modelId: 'seedream-4' }),
+      references: {
+        items: [{ url: 'https://cdn.example.com/a.png' }],
+        limit: 4,
+      },
+    })
+    expect(
+      mounted.capabilities?.find((chip) => chip.key === 'referenceStrength')
+        ?.available,
+    ).toBe(true)
   })
 
   it('只放用户真能跑的模型 —— 推荐一个跑不了的等于把人推去配置页', () => {

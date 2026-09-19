@@ -312,6 +312,80 @@ describe('applyOperatorStep', () => {
     expect(dispatched).toEqual([{ type: 'SET_IMAGE_BATCH_COUNT', payload: 4 }])
   })
 
+  /**
+   * 专属 chip（进度表 21）—— 三件事：整体替换不吞别的键、撤销回得到「没设过」、
+   * 撤销回得到旧值。
+   */
+  it('set_capability 并进 advancedParams —— ⛔ 不吞用户调好的 seed', () => {
+    const { ctx, dispatched, state } = makeContext()
+    expect(
+      applyOperatorStep(
+        {
+          ...BASE,
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+          verb: 'apply',
+          payload: { key: 'quality', value: 'high' },
+          inverse: { key: 'quality', value: null },
+        } satisfies AssistantOperatorAppliedStep,
+        ctx,
+      ),
+    ).toBe(STUDIO_OPERATOR_FIELD_IDS.capabilities)
+    expect(dispatched).toEqual([
+      {
+        type: 'SET_ADVANCED_PARAMS',
+        payload: { seed: 1234, resolution: 'auto', quality: 'high' },
+      },
+    ])
+    expect(state.advancedParams).toMatchObject({ seed: 1234, quality: 'high' })
+  })
+
+  it('⭐ 撤销回 null = **把那个键删掉**，⛔ 不是写一个缺省值进去', () => {
+    const { ctx, state } = makeContext()
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+      verb: 'apply',
+      payload: { key: 'quality', value: 'high' },
+      inverse: { key: 'quality', value: null },
+    } satisfies AssistantOperatorAppliedStep
+    applyOperatorStep(step, ctx)
+    revertOperatorStep(step, ctx)
+    expect(state.advancedParams).not.toHaveProperty('quality')
+    expect(state.advancedParams).toMatchObject({ seed: 1234 })
+    // hover 里那句「原来是空的」—— 三态要说得出「没设过」。
+    expect(describeOperatorInverse(step)).toBe('')
+  })
+
+  it('撤销回旧值：设过的那一格回到设之前那个数', () => {
+    const { ctx, state } = makeContext({
+      advancedParams: { seed: 1234, guidanceScale: 7 },
+    } as Partial<StudioFormState>)
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+      verb: 'apply',
+      payload: { key: 'guidanceScale', value: 12 },
+      inverse: { key: 'guidanceScale', value: 7 },
+    } satisfies AssistantOperatorAppliedStep
+    applyOperatorStep(step, ctx)
+    expect(state.advancedParams).toMatchObject({ guidanceScale: 12 })
+    revertOperatorStep(step, ctx)
+    expect(state.advancedParams).toMatchObject({ guidanceScale: 7, seed: 1234 })
+    expect(describeOperatorInverse(step)).toBe('7')
+  })
+
+  it('登记簿记在专属那一格 —— ⛔ 不与规格共用（还原规格不该撤掉 guidance）', () => {
+    expect(
+      getOperatorStepField({
+        ...BASE,
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+        verb: 'apply',
+        payload: { key: 'quality', value: 'high' },
+        inverse: { key: 'quality', value: null },
+      } satisfies AssistantOperatorAppliedStep),
+    ).toBe(STUDIO_OPERATOR_FIELD_IDS.capabilities)
+  })
+
   it('prime_generate 只点亮生成键 —— 一个 dispatch 都不发（钱闸）', () => {
     const { ctx, dispatched, primed } = makeContext()
     expect(

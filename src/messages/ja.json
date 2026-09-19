@@ -7329,6 +7329,7 @@
       "model": "モデル",
       "specs": "仕様",
       "count": "枚数",
+      "capabilities": "モデル専用",
       "references": "参照画像",
       "audioReferences": "参照音声",
       "sound": "音声出力",

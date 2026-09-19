@@ -27,6 +27,7 @@
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { getProviderLabel, type AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
+import { getModelCapabilityChips } from '@/lib/model-capability-chips'
 import { getModelById } from '@/constants/models'
 import {
   IMAGE_BATCH_COUNTS,
@@ -43,6 +44,7 @@ import {
 } from '@/constants/video-node-modes'
 import type { StudioModelOption } from '@/types/model-option'
 import type { VideoAudioReference } from '@/contexts/studio-context'
+import type { AdvancedParams } from '@/types'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type {
   StudioOperatorGenerationChoices,
@@ -60,6 +62,13 @@ export interface StudioOperatorSnapshotForm {
   imagePreview?: boolean
   imageBackground?: import('@/types').AdvancedParams['background']
   imageBatchCount: number
+  /**
+   * 参数栏那一整份高级参数 —— **专属 chip 行的现值从这里读**（进度表 21）。
+   * ⚠ 与上面 `imageQuality` / `imagePreview` / `imageBackground` 三格并存不是
+   * 冗余：那三格是 `specs` 那一节的成员（图片规格的一部分），这一份是**逐模型
+   * 派生的那一行**的原料，键随模型变，⛔ 列不出一张固定字段表。
+   */
+  advancedParams: AdvancedParams
   videoDurationSeconds: number
   videoResolution: string | null
   videoAudioRefs: readonly VideoAudioReference[]
@@ -106,6 +115,59 @@ function emptyToNull(value: string | null, max?: number): string | null {
   return max !== undefined && trimmed.length > max
     ? trimmed.slice(0, max)
     : trimmed
+}
+
+/**
+ * 专属 chip 行 → 快照的 `capabilities` 一节（进度表 11 + 21）。
+ *
+ * ⭐ **派生层只有一份**（`lib/model-capability-chips.ts`）：这里不重写「哪个能力
+ * 长成哪种 chip」的判据，只把那一行 chip 翻译成助手读得懂的形状。两处各判一遍的
+ * 表现是「界面上没有这颗 chip，助手却设得进去」。
+ * ⚠ 一颗都没有 → 返回 `undefined`，整节缺席（= 这个模型没有专属能力，界面上那段
+ * 也整块不渲染）。⛔ 别给一个空数组 —— 那等于告诉助手「有这一行，只是空着」。
+ */
+function buildCapabilitiesNode(
+  selectedModel: StudioModelOption | undefined,
+  params: AdvancedParams,
+  hasReferenceImage: boolean,
+): AssistantOperatorSnapshot['capabilities'] {
+  if (!selectedModel) return undefined
+  const chips = getModelCapabilityChips(
+    selectedModel.adapterType,
+    selectedModel.modelId,
+  )
+  if (chips.length === 0) return undefined
+  return chips
+    .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSpecOptions)
+    .map((chip) => {
+      const raw = params[chip.capability as keyof AdvancedParams]
+      return {
+        key: chip.capability,
+        kind: chip.kind,
+        // ⚠ 现值是**原始值**而不是 `getCapabilityChipValue` 的回落值：助手要分得清
+        //   「用户没设过」与「用户选了缺省值」，那正是 `inverse` 要回得去的那一档。
+        value:
+          typeof raw === 'string' ||
+          typeof raw === 'number' ||
+          typeof raw === 'boolean'
+            ? raw
+            : null,
+        defaultValue: chip.defaultValue,
+        ...(chip.options ? { options: [...chip.options] } : {}),
+        ...(chip.range
+          ? {
+              range: {
+                min: chip.range.min,
+                max: chip.range.max,
+                ...(chip.range.step !== undefined
+                  ? { step: chip.range.step }
+                  : {}),
+              },
+            }
+          : {}),
+        available: !chip.requiresReferenceImage || hasReferenceImage,
+      }
+    })
 }
 
 function buildReferencesNode(
@@ -189,6 +251,17 @@ export function buildImageOperatorSnapshot({
       ]
     : []
 
+  /**
+   * 专属 chip 行（进度表 11 + 21）—— ⚠ 只有图片档有：`StudioPromptArea` 只在
+   * 图片档挂 `StudioModelCapabilityChips`。视频档不给这一节，`set_capability`
+   * 在那边照旧按 `noSuchControl` 拒。
+   */
+  const capabilities = buildCapabilitiesNode(
+    selectedModel,
+    form.advancedParams,
+    references.items.length > 0,
+  )
+
   return {
     prompt: form.prompt,
     negativePrompt: form.negativePrompt ?? '',
@@ -230,6 +303,7 @@ export function buildImageOperatorSnapshot({
       value: form.imageBatchCount,
       options: [...IMAGE_BATCH_COUNTS],
     },
+    ...(capabilities ? { capabilities } : {}),
     references: buildReferencesNode(references),
   }
 }

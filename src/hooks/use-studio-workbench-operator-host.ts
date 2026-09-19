@@ -108,6 +108,8 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       imagePreview: current.advancedParams.preview,
       imageBackground: current.advancedParams.background,
       imageBatchCount: current.imageBatchCount,
+      // 专属 chip 行的现值（进度表 21）—— 整份端上去，键随模型变。
+      advancedParams: current.advancedParams,
       videoDurationSeconds: current.videoDuration,
       videoResolution: current.videoResolution,
       videoAudioRefs: current.videoAudioRefs,

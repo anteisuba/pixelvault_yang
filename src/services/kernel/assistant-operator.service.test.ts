@@ -12794,3 +12794,170 @@ describe('LoRA 域 set_prompt 的可用参考材料', () => {
     expect(digest).toContain('never replacing it')
   })
 })
+
+/**
+ * `set_capability` —— 当前模型**专属的那一颗** chip（进度表 21 · 差距清单 #1）。
+ *
+ * ⚠ 这一组断的全是「白名单来自派生」这一件事的几种失败形态：键是快照现给的、
+ * 值按 chip 形态收、前置没满足时拒、撤销回得到「没设过」。
+ */
+describe('set_capability · 专属 chip（进度表 21）', () => {
+  const CAPABILITY_SNAPSHOT: AssistantOperatorRequest['snapshot'] = {
+    ...SNAPSHOT,
+    capabilities: [
+      {
+        key: 'quality',
+        kind: 'select',
+        value: null,
+        defaultValue: 'auto',
+        options: ['auto', 'high'],
+        available: true,
+      },
+      {
+        key: 'guidanceScale',
+        kind: 'slider',
+        value: 7,
+        defaultValue: 7,
+        range: { min: 1, max: 20, step: 0.5 },
+        available: true,
+      },
+      {
+        key: 'referenceStrength',
+        kind: 'slider',
+        value: null,
+        defaultValue: 0.6,
+        range: { min: 0, max: 1 },
+        // 前置没满足：这颗要先挂一张参考图。
+        available: false,
+      },
+    ],
+  }
+
+  function buildCapabilityRequest(): AssistantOperatorRequest {
+    return buildRequest({ snapshot: CAPABILITY_SNAPSHOT })
+  }
+
+  function callSetCapability(args: Record<string, unknown>): void {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+          title: 'tune this model',
+          args,
+        },
+      },
+      { finished: true },
+    )
+  }
+
+  it('⭐ 状态块把这一行的键与值域印出来 —— 模型看不到模型名', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildCapabilityRequest()))
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('quality')
+    expect(prompt).toContain('auto, high')
+    expect(prompt).toContain('a number from 1 to 20')
+    expect(prompt).toContain('needs a reference image mounted first')
+  })
+
+  it('落一颗 select：inverse 是旧值，而旧值可以是「没设过」', async () => {
+    callSetCapability({ key: 'quality', value: 'high' })
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildCapabilityRequest())),
+    )
+    const done = steps.at(-1)
+    expect(done).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      payload: { key: 'quality', value: 'high' },
+      inverse: { key: 'quality', value: null },
+    })
+  })
+
+  it('⛔ 键不在这一行里 —— 拒，并把真的那几个键列回去', async () => {
+    callSetCapability({ key: 'style', value: 'anime' })
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildCapabilityRequest())),
+    )
+    expect(steps.at(-1)).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: {
+        reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownValue,
+        // ⚠ 断的是「理由可教」：把这个模型真有的那几个键原样列回去。
+        detail: expect.stringContaining('quality'),
+      },
+    })
+  })
+
+  it('⛔ select 写了个表外的值 / slider 写出界 —— 都拒', async () => {
+    callSetCapability({ key: 'quality', value: 'ultra' })
+    expect(
+      stepsOf(
+        await collect(
+          runAssistantOperator('clerk-1', buildCapabilityRequest()),
+        ),
+      ).at(-1),
+    ).toMatchObject({
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownValue },
+    })
+
+    callSetCapability({ key: 'guidanceScale', value: 99 })
+    expect(
+      stepsOf(
+        await collect(
+          runAssistantOperator('clerk-1', buildCapabilityRequest()),
+        ),
+      ).at(-1),
+    ).toMatchObject({
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownValue },
+    })
+  })
+
+  it('⛔ 前置没满足（要先挂参考图）按 noSuchControl 拒，⛔ 不是「值写错了」', async () => {
+    callSetCapability({ key: 'referenceStrength', value: 0.8 })
+    expect(
+      stepsOf(
+        await collect(
+          runAssistantOperator('clerk-1', buildCapabilityRequest()),
+        ),
+      ).at(-1),
+    ).toMatchObject({
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
+    })
+  })
+
+  it('⛔ 快照没有这一节（视频档就是）—— 整条工具按 noSuchControl 拒', async () => {
+    callSetCapability({ key: 'quality', value: 'high' })
+    expect(
+      stepsOf(
+        await collect(runAssistantOperator('clerk-1', buildRequest())),
+      ).at(-1),
+    ).toMatchObject({
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
+    })
+  })
+
+  it('同一轮改两次同一颗：第二条的 inverse 撤回第一条之后的值', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+          title: 'first',
+          args: { key: 'guidanceScale', value: 9 },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+          title: 'second',
+          args: { key: 'guidanceScale', value: 12 },
+        },
+      },
+      { finished: true },
+    )
+    const done = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildCapabilityRequest())),
+    ).filter((step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect(done.at(-2)).toMatchObject({ inverse: { value: 7 } })
+    expect(done.at(-1)).toMatchObject({ inverse: { value: 9 } })
+  })
+})

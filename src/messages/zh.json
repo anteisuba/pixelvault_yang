@@ -7329,6 +7329,7 @@
       "model": "模型",
       "specs": "规格",
       "count": "张数",
+      "capabilities": "专属参数",
       "references": "参考图",
       "audioReferences": "音频参考",
       "sound": "出声",

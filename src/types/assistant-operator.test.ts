@@ -292,6 +292,11 @@ const STEP_FIXTURES: Record<
     payload: { count: 2 },
     inverse: { count: 1 },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.setCapability]: {
+    payload: { key: 'quality', value: 'high' },
+    // ⚠ `null` = 这一格用户没设过 —— 撤销要回得去（见协议里那条头注）。
+    inverse: { key: 'quality', value: null },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference]: {
     payload: {
       assetId: 'gen-audio-1',
@@ -778,7 +783,7 @@ describe('五动词入口', () => {
     // commit #18 把 33 变成 37（素材库四条写操作，v2 §10）。
     // lora-assistant §10.2.2 把 37 变成 38（`plan_lora_pick`）。
     // 进度表 22「一张脸」把 39 变成 42（画布三条：改 / 算下游 / 那一枪）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(42)
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(43)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
@@ -1231,6 +1236,82 @@ describe('step 契约 · inverse 完备性', () => {
       payload: { query: 'x', kind: null, limit: 6 },
     })
     expect(missingResult.success).toBe(false)
+  })
+
+  /**
+   * `set_capability`（进度表 21）：入参只管形状，值域留给规划器（快照现给的白名单）。
+   */
+  it('set_capability 收三种形态的值，⛔ 不收 null（清回缺省是撤销的事）', () => {
+    const schema =
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_TOOL_IDS.setCapability
+      ]
+    for (const value of ['high', 7.5, true]) {
+      expect(schema.safeParse({ key: 'quality', value }).success).toBe(true)
+    }
+    expect(schema.safeParse({ key: 'quality', value: null }).success).toBe(
+      false,
+    )
+    expect(schema.safeParse({ key: '', value: 'high' }).success).toBe(false)
+    expect(schema.safeParse({ value: 'high' }).success).toBe(false)
+  })
+
+  it('⭐ set_capability 的 inverse 允许 null —— 撤销要回得到「没设过」', () => {
+    const base = buildStep(ASSISTANT_OPERATOR_TOOL_IDS.setCapability)
+    expect(AssistantOperatorStepSchema.safeParse(base).success).toBe(true)
+    expect(
+      AssistantOperatorStepSchema.safeParse({
+        ...base,
+        inverse: { key: 'quality', value: 'auto' },
+      }).success,
+    ).toBe(true)
+    // ⛔ 载荷那一侧照旧不收 null：助手写不出「清空」这个动作。
+    expect(
+      AssistantOperatorStepSchema.safeParse({
+        ...base,
+        payload: { key: 'quality', value: null },
+      }).success,
+    ).toBe(false)
+  })
+
+  it('快照的 capabilities 一节：缺席 = 没有专属区，⛔ 不是空数组', () => {
+    const snapshot = {
+      prompt: '',
+      availableModels: [],
+    }
+    const without = AssistantOperatorSnapshotSchema.safeParse(snapshot)
+    expect(without.success).toBe(true)
+    expect(without.data).not.toHaveProperty('capabilities')
+
+    const withRow = AssistantOperatorSnapshotSchema.safeParse({
+      ...snapshot,
+      capabilities: [
+        {
+          key: 'guidanceScale',
+          kind: 'slider',
+          value: null,
+          defaultValue: 7,
+          range: { min: 1, max: 20, step: 0.5 },
+          available: true,
+        },
+      ],
+    })
+    expect(withRow.success).toBe(true)
+    // 形态是封闭词表 —— `textarea` / `seed` / `lora` 不进这一行（派生层已滤掉）。
+    expect(
+      AssistantOperatorSnapshotSchema.safeParse({
+        ...snapshot,
+        capabilities: [
+          {
+            key: 'negativePrompt',
+            kind: 'textarea',
+            value: null,
+            defaultValue: '',
+            available: true,
+          },
+        ],
+      }).success,
+    ).toBe(false)
   })
 
   it('set_specs 必须同时带比例与清晰度（台账 AE/BG/BS）', () => {

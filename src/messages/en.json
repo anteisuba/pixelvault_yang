@@ -5496,6 +5496,18 @@
           "underline": "Underline",
           "mentionAriaLabel": "Mention candidates",
           "mentionEmpty": "No cards to mention"
+        },
+        "script": {
+          "metaShots": "{count} shots",
+          "metaActs": "{acts} acts · {shots} shots",
+          "seconds": "{seconds}s",
+          "more": "+ {count} more…",
+          "empty": "No shots yet — split the text with “Shot 1”, “S01” or # headings",
+          "changed": "Changed",
+          "listAriaLabel": "Shot list",
+          "project": "Confirm · project {count} shots",
+          "projected": "Projected · {count} shots",
+          "reproject": "Re-project · {count} changed"
         }
       },
       "image": {
@@ -5769,6 +5781,12 @@
           "retry": "Retry",
           "uploading": "Uploading {name}",
           "uploadFailed": "{name} failed to upload"
+        },
+        "scriptShot": {
+          "changed": "Changed",
+          "dropped": "Cut from script",
+          "roleEmpty": "@{role} not filled",
+          "rolesAriaLabel": "Character slots"
         }
       },
       "connectToShot": {

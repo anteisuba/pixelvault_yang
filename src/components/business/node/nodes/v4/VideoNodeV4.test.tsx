@@ -1113,3 +1113,72 @@ it('历史失败节点没有详情时也显示错误，而不是空上传卡', (
   expect(screen.getByRole('button', { name: 'frame.regenerate' })).toBeEnabled()
   expect(screen.queryByText('chrome.emptyHint')).not.toBeInTheDocument()
 })
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * 剧本投影在镜头卡上的两格（进度表 24，画板 `DesignD7Script.dc.html` ③）
+ * ───────────────────────────────────────────────────────────────────────── */
+
+describe('剧本投影角标与角色空槽（进度表 24）', () => {
+  function scriptShot(state: string) {
+    return {
+      scriptShot: {
+        scriptNodeId: 'sc_1',
+        shotKey: 's2',
+        projectedText: '递伞',
+        state,
+        ...(state === 'changed' ? { pendingText: '递伞 · 近景' } : {}),
+      },
+    }
+  }
+
+  it('⭐ 剧本里那一段改了 = 琥珀描边 + 「已变」角标（⛔ 不只靠颜色）', () => {
+    renderVideo(
+      harness([videoNode('v_1', { ...READY, ...scriptShot('changed') })]),
+    )
+    const badge = document.querySelector('[data-script-shot-badge="changed"]')
+    expect(badge?.textContent).toContain('changed')
+    expect(
+      document.querySelector('[data-node-card-surface]')?.className,
+    ).toContain('ring-status-warning')
+  })
+
+  it('⭐ 剧本里删掉的镜标灰不删 —— 卡还在，只是压暗', () => {
+    renderVideo(
+      harness([videoNode('v_1', { ...READY, ...scriptShot('dropped') })]),
+    )
+    expect(document.querySelector('[data-node-chrome="card"]')).not.toBeNull()
+    expect(
+      document.querySelector('[data-script-shot-badge="dropped"]'),
+    ).not.toBeNull()
+    expect(
+      document.querySelector('[data-node-chrome="card"]')?.className,
+    ).toContain('opacity-50')
+  })
+
+  it('与剧本一致时没有角标', () => {
+    renderVideo(
+      harness([videoNode('v_1', { ...READY, ...scriptShot('synced') })]),
+    )
+    expect(document.querySelector('[data-script-shot-badge]')).toBeNull()
+  })
+
+  /** ⚠ 只有空位：装填归进度表 35，本片⛔ 不挂图、不挂音色。 */
+  it('⭐ `@角色` 的空槽渲染在参考轨那一行，且是空的', () => {
+    renderVideo(
+      harness([
+        videoNode('v_1', {
+          ...READY,
+          referenceSlots: [{ role: '小黑' }, { role: '路人' }],
+        }),
+      ]),
+      'v_1',
+      true,
+    )
+    const slots = document.querySelectorAll('[data-script-role-slot]')
+    expect(slots).toHaveLength(2)
+    for (const slot of slots) {
+      expect(slot.getAttribute('data-script-role-slot')).toBe('empty')
+    }
+    expect(slots[0]?.textContent).toContain('小黑')
+  })
+})

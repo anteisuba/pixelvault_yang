@@ -21,10 +21,15 @@ import { useTranslations } from 'next-intl'
 import { useMemo, useState } from 'react'
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
+import { NODE_SCRIPT_PROJECTION_MODE_IDS } from '@/constants/node-script'
 import type { NodeSlotTextRole } from '@/constants/node-slots'
 import { NODE_V4_CARD } from '@/constants/node-studio'
-import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import {
+  NODE_MEDIA_KIND_IDS,
+  NODE_V4_TEXT_SUBTYPE_IDS,
+} from '@/constants/node-types'
 import { renameStableNodeName } from '@/lib/node-display-name'
+import { planScriptProjection } from '@/lib/node-script-projection'
 import type { MentionChipMedia, MentionPickerOption } from './chrome'
 import type { NodeV4, NodeV4TextData } from '@/types/node-workflow'
 
@@ -32,6 +37,7 @@ import { NodeCardShell, portSpecOf, useNodeCardFlash } from './chrome'
 import { useNodeV4Canvas } from './NodeV4Context'
 import { buildMentionCandidates } from './NodeV4Mentions'
 import { TextAssistantBar } from './text/TextAssistantBar'
+import { ScriptCardBody } from './text/ScriptCardBody'
 import { TextCardBody } from './text/TextCardBody'
 import { TextDocOverlay } from './text/TextDocOverlay'
 import { TextNodeToolbar } from './text/TextNodeToolbar'
@@ -88,6 +94,16 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
       }),
     [candidates, mediaOf],
   )
+
+  /**
+   * 剧本卡的分镜列表与按钮读的是**同一份计划**（进度表 24）：现算，⛔ 不在节点上
+   * 另存一份镜头表 —— 存两份的表现是用户改了正文而列表没跟上。
+   * ⚠ `subtype !== script` 时一分钱不算：其余文本卡走原来那只高文本框。
+   */
+  const scriptPlan = useMemo(() => {
+    if (textData.subtype !== NODE_V4_TEXT_SUBTYPE_IDS.script) return null
+    return planScriptProjection(canvas.nodes, id, textData.body)
+  }, [canvas.nodes, id, textData.body, textData.subtype])
 
   if (!node) return null
 
@@ -196,16 +212,43 @@ export function TextNodeV4({ id, data, selected }: NodeProps) {
         }
       >
         <div className="h-full">
-          <TextCardBody
-            body={textData.body}
-            onSave={(body) => canvas.onEditText(id, body)}
-            editAriaLabel={tText('editAriaLabel')}
-            emptyLabel={tText('empty')}
-            height={cardHeight}
-            onHeightPreview={setDragHeight}
-            onHeightCommit={commitHeight}
-            resizeAriaLabel={tText('card.resize')}
-          />
+          {scriptPlan ? (
+            <ScriptCardBody
+              outline={scriptPlan.outline}
+              actCount={scriptPlan.actCount}
+              shots={scriptPlan.shots}
+              changedKeys={
+                new Set(scriptPlan.toMark.map((entry) => entry.shot.key))
+              }
+              projectedCount={scriptPlan.projected.length}
+              pendingCount={
+                scriptPlan.toCreate.length +
+                scriptPlan.toMark.length +
+                scriptPlan.toDrop.length
+              }
+              onProject={() =>
+                void canvas.onApplyOp({
+                  op: NODE_ASSISTANT_OP_V4_IDS.projectScript,
+                  scriptNodeId: id,
+                  mode:
+                    scriptPlan.projected.length > 0
+                      ? NODE_SCRIPT_PROJECTION_MODE_IDS.reproject
+                      : NODE_SCRIPT_PROJECTION_MODE_IDS.create,
+                })
+              }
+            />
+          ) : (
+            <TextCardBody
+              body={textData.body}
+              onSave={(body) => canvas.onEditText(id, body)}
+              editAriaLabel={tText('editAriaLabel')}
+              emptyLabel={tText('empty')}
+              height={cardHeight}
+              onHeightPreview={setDragHeight}
+              onHeightCommit={commitHeight}
+              resizeAriaLabel={tText('card.resize')}
+            />
+          )}
         </div>
       </NodeCardShell>
 

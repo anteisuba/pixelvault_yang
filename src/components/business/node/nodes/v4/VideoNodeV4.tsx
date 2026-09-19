@@ -49,6 +49,8 @@ import {
   NODE_SLOT_IDS,
   NODE_SLOT_OUTPUT_IDS,
 } from '@/constants/node-slots'
+import { cn } from '@/lib/utils'
+import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
 import { NODE_V4_CARD } from '@/constants/node-studio'
 import { VIDEO_RAIL_GROUP_IDS } from '@/lib/video-node-rail'
 import {
@@ -84,6 +86,10 @@ import { VideoNodeFrame } from './video/VideoNodeFrame'
 import { VideoAddMenuItems, VideoMoreMenuItems } from './video/VideoNodeMenus'
 import { VideoPlayer } from './video/VideoPlayer'
 import { VideoRefRail } from './video/VideoRefRail'
+import {
+  VideoScriptRoleSlots,
+  VideoScriptShotBadge,
+} from './video/VideoScriptShotChips'
 import { useVideoComposer } from './video/use-video-composer'
 import { ASSET_BATCH_REF } from './video/use-video-rail-binding'
 import { formatVideoSeconds, videoCardHeight } from './video/video-node-model'
@@ -107,6 +113,18 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
   const videoData = data as unknown as NodeV4VideoData
   /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
   const flashed = useNodeCardFlash(id)
+  /**
+   * 这一镜与剧本的关系（进度表 24）。⚠ 只有 `video.shot` 有 —— 参考片段与成片
+   * 不由剧本投影产生。
+   */
+  const scriptShot =
+    videoData.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
+      ? videoData.scriptShot
+      : undefined
+  const scriptRoleSlots =
+    videoData.subtype === NODE_V4_VIDEO_SUBTYPE_IDS.shot
+      ? (videoData.referenceSlots ?? [])
+      : []
 
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null)
   const [quickLook, setQuickLook] = useState(false)
@@ -517,7 +535,20 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
         emptyAddAriaLabel={tVideo('add.upload')}
         emptyHeight={height}
         onEmptyAdd={() => openFilePicker(null)}
-        surfaceClassName="overflow-hidden"
+        surfaceClassName={cn(
+          'overflow-hidden',
+          // 剧本里那一段改了 → 卡描边转琥珀（画板 ③ 的 warning 描边）。
+          scriptShot?.state === NODE_SCRIPT_SHOT_STATE_IDS.changed &&
+            'ring-[1.5px] ring-status-warning',
+        )}
+        // 剧本里删掉的镜**标灰不删**：上面可能挂着已经生成的产物。
+        className={cn(
+          scriptShot?.state === NODE_SCRIPT_SHOT_STATE_IDS.dropped &&
+            'opacity-50',
+        )}
+        {...(scriptShot
+          ? { nameTrailing: <VideoScriptShotBadge state={scriptShot.state} /> }
+          : {})}
         changed={canvas.changedNodeIds.includes(id) || flashed}
         portSpec={{
           kind: NODE_MEDIA_KIND_IDS.video,
@@ -703,7 +734,12 @@ export function VideoNodeV4({ id, data, selected }: NodeProps) {
             <NodePromptBar
               // 栏**内**首行：已挂的首帧 / 尾帧 / 语音（画板 `VideoSelected.dc.html`
               // 第 57 行 —— 那排 chip 与正文同一片玻璃，⛔ 不是栏上方另一条）。
-              leadingRow={<VideoRefRail {...railProps} />}
+              leadingRow={
+                <>
+                  <VideoRefRail {...railProps} />
+                  <VideoScriptRoleSlots slots={scriptRoleSlots} />
+                </>
+              }
               value={draft}
               onValueChange={setDraft}
               onSubmit={submitPrompt}

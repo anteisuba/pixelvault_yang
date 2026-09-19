@@ -443,3 +443,120 @@ describe('S2b 文本节点 · 展开 = 全屏文档', () => {
     expect(context.onToggleExpanded).toHaveBeenCalledWith('t_02')
   })
 })
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * 剧本卡（进度表 24，画板 `DesignD7Script.dc.html`）
+ * ───────────────────────────────────────────────────────────────────────── */
+
+const SCRIPT_BODY = [
+  '雨夜街角的一段。',
+  '',
+  'S01 · 雨夜街角 · 4s',
+  'S02 · 递伞',
+].join('\n')
+
+function scriptScene(
+  body = SCRIPT_BODY,
+  extra: readonly NodeV4[] = [],
+): NodeWorkflowStateV4 {
+  return reconcileStateSlots(
+    {
+      version: 4,
+      nodes: [
+        node('sc_1', { kind: 'text', subtype: 'script', body }),
+        ...extra,
+      ],
+      edges: [],
+    },
+    { now: NOW },
+  )
+}
+
+function projectedShotNode(shotKey: string, state: string): NodeV4 {
+  return node(`v_${shotKey}`, {
+    kind: 'video',
+    subtype: 'shot',
+    label: `镜 ${shotKey}`,
+    shotNo: 1,
+    scriptShot: {
+      scriptNodeId: 'sc_1',
+      shotKey,
+      projectedText: shotKey === 's1' ? '雨夜街角 · 4s' : '递伞',
+      state,
+    },
+  } as unknown as Partial<NodeV4['data']> & { kind: NodeV4['data']['kind'] })
+}
+
+describe('剧本卡 · 卡面（进度表 24）', () => {
+  it('⭐ 分镜列表是正文的投影：大纲 + 每镜一行 + 时长', () => {
+    const { container } = renderText(harness(scriptScene()), false, 'sc_1')
+    const rows = container.querySelectorAll('[data-script-shot-row]')
+    expect(rows).toHaveLength(2)
+    expect(rows[0]?.textContent).toContain('S01')
+    expect(rows[0]?.textContent).toContain('雨夜街角')
+    // 时长走 i18n（桩把 key 拼成 `key:值`）—— ⛔ 不在标题里重复写一遍。
+    expect(rows[0]?.textContent).toContain('seconds:4')
+    expect(
+      container.querySelector('[data-script-outline]')?.textContent,
+    ).toContain('雨夜街角的一段')
+  })
+
+  it('空态：拆不出镜时给一句「怎么分段」，⛔ 不摆一颗投影不了的按钮', () => {
+    const { container } = renderText(harness(scriptScene('   ')), false, 'sc_1')
+    expect(container.querySelectorAll('[data-script-shot-row]')).toHaveLength(0)
+    expect(screen.getByRole('button', { name: /project:0/ })).toBeDisabled()
+  })
+
+  it('⭐ 没投过 = 「确认 · 投影 N 镜」，点了只发一条 project_script（create）', () => {
+    const context = harness(scriptScene())
+    renderText(context, false, 'sc_1')
+    const button = screen.getByRole('button', { name: /project:2/ })
+    fireEvent.click(button)
+    expect(context.onApplyOp).toHaveBeenCalledWith({
+      op: 'project_script',
+      scriptNodeId: 'sc_1',
+      mode: 'create',
+    })
+  })
+
+  it('投影过且一致 = 「已投影」且按钮停用', () => {
+    const context = harness(
+      scriptScene(SCRIPT_BODY, [
+        projectedShotNode('s1', 'synced'),
+        projectedShotNode('s2', 'synced'),
+      ]),
+    )
+    renderText(context, false, 'sc_1')
+    expect(screen.getByRole('button', { name: /projected:2/ })).toBeDisabled()
+  })
+
+  it('⭐ 剧本改了 = 那一行虚线 + 「已变」，按钮转「重投影 N 镜变」', () => {
+    const changedBody = [
+      '雨夜街角的一段。',
+      '',
+      'S01 · 雨夜街角 · 4s',
+      'S02 · 递伞 · 近景',
+    ].join('\n')
+    const context = harness(
+      scriptScene(changedBody, [
+        projectedShotNode('s1', 'synced'),
+        projectedShotNode('s2', 'synced'),
+      ]),
+    )
+    const { container } = renderText(context, false, 'sc_1')
+    const changedRow = container.querySelector(
+      '[data-script-shot-row][data-changed="true"]',
+    )
+    expect(changedRow?.textContent).toContain('递伞')
+    // ⛔ 不只靠颜色：虚线 + 一句「已变」。
+    expect(changedRow?.className).toContain('border-dashed')
+    expect(changedRow?.textContent).toContain('changed')
+    const button = screen.getByRole('button', { name: /reproject:1/ })
+    fireEvent.click(button)
+    expect(context.onApplyOp).toHaveBeenCalledWith({
+      op: 'project_script',
+      scriptNodeId: 'sc_1',
+      mode: 'reproject',
+    })
+  })
+})

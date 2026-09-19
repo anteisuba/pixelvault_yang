@@ -5496,6 +5496,18 @@
           "underline": "下划线",
           "mentionAriaLabel": "引用候选",
           "mentionEmpty": "没有可引用的卡"
+        },
+        "script": {
+          "metaShots": "{count} 镜",
+          "metaActs": "{acts} 幕 · {shots} 镜",
+          "seconds": "{seconds}s",
+          "more": "+ {count} 镜…",
+          "empty": "还没有分镜 —— 用「镜 1」「S01」或 # 小标题给正文分段",
+          "changed": "已变",
+          "listAriaLabel": "分镜列表",
+          "project": "确认 · 投影 {count} 镜",
+          "projected": "已投影 · {count} 镜",
+          "reproject": "重投影 · {count} 镜变"
         }
       },
       "image": {
@@ -5769,6 +5781,12 @@
           "retry": "重试",
           "uploading": "正在上传 {name}",
           "uploadFailed": "{name} 上传失败"
+        },
+        "scriptShot": {
+          "changed": "已变",
+          "dropped": "剧本已删",
+          "roleEmpty": "@{role} 未装填",
+          "rolesAriaLabel": "角色槽"
         }
       },
       "connectToShot": {

@@ -5496,6 +5496,18 @@
           "underline": "下線",
           "mentionAriaLabel": "引用候補",
           "mentionEmpty": "引用できるカードがありません"
+        },
+        "script": {
+          "metaShots": "{count} カット",
+          "metaActs": "{acts} 幕 · {shots} カット",
+          "seconds": "{seconds}s",
+          "more": "+ {count} カット…",
+          "empty": "カットがまだありません —— 「カット1」「S01」や # 見出しで本文を区切ってください",
+          "changed": "変更あり",
+          "listAriaLabel": "カット一覧",
+          "project": "確認 · {count} カットを投影",
+          "projected": "投影済み · {count} カット",
+          "reproject": "再投影 · {count} カット変更"
         }
       },
       "image": {
@@ -5769,6 +5781,12 @@
           "retry": "再試行",
           "uploading": "{name} をアップロード中",
           "uploadFailed": "{name} のアップロードに失敗しました"
+        },
+        "scriptShot": {
+          "changed": "変更あり",
+          "dropped": "脚本から削除",
+          "roleEmpty": "@{role} 未設定",
+          "rolesAriaLabel": "キャラクター枠"
         }
       },
       "connectToShot": {

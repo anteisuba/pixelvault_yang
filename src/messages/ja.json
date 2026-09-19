@@ -7217,7 +7217,8 @@
     "domainName": {
       "image": "画像ワークスペース",
       "video": "動画ワークスペース",
-      "lora": "LoRA ワークスペース"
+      "lora": "LoRA ワークスペース",
+      "canvas": "キャンバス"
     },
     "session": "セッション",
     "newThread": "新しい会話",
@@ -7330,6 +7331,7 @@
       "unknownLora": "その LoRA は今回の検索結果にありません",
       "loraNotMounted": "その LoRA は、このワークスペースには追加されていません",
       "loraNotImportable": "その LoRA はライブラリに取り込めません。配布元ページでのみ確認できます",
+      "loraPickRequired": "その LoRA はまだ選ばれていません。まず候補カードに出す必要があります",
       "loraIncompatibleBase": "その LoRA は別系統のベースモデル向けなので、現在のベースモデルとは組み合わせられません",
       "sourceNotUsable": "このサイトは AI の入力に使わないよう求めているか、出所をたどれない転載です",
       "researchRoundsExhausted": "今回の調査回数の上限に達しました。ここまでに見つけた情報で進めます",
@@ -7351,7 +7353,8 @@
       "references": "参照画像",
       "audioReferences": "参照音声",
       "sound": "音声出力",
-      "loras": "LoRA 構成"
+      "loras": "LoRA 構成",
+      "canvasNodes": "キャンバスのノード"
     },
     "changeSubject": {
       "rule": "プロジェクトルール",

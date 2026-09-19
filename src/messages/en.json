@@ -7217,7 +7217,8 @@
     "domainName": {
       "image": "the image workspace",
       "video": "the video workspace",
-      "lora": "the LoRA workspace"
+      "lora": "the LoRA workspace",
+      "canvas": "the canvas"
     },
     "session": "Session",
     "newThread": "New chat",
@@ -7330,6 +7331,7 @@
       "unknownLora": "That LoRA was not in this run's search results",
       "loraNotMounted": "That LoRA hasn't been added to this workspace",
       "loraNotImportable": "That LoRA can't be filed into your library — it can only be opened on its source page",
+      "loraPickRequired": "Nobody has ticked that LoRA yet — it has to go on a pick card first",
       "loraIncompatibleBase": "That LoRA requires a different base model family and can't be used with the current base.",
       "sourceNotUsable": "That site asks not to be used as AI input, or republishes work without a traceable source",
       "researchRoundsExhausted": "This reply has reached its research limit. I'll continue with the information found so far.",
@@ -7351,7 +7353,8 @@
       "references": "References",
       "audioReferences": "Voice references",
       "sound": "Soundtrack",
-      "loras": "LoRA stack"
+      "loras": "LoRA stack",
+      "canvasNodes": "Canvas nodes"
     },
     "changeSubject": {
       "rule": "Project rule",

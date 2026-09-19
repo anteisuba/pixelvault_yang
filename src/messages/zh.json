@@ -7217,7 +7217,8 @@
     "domainName": {
       "image": "图片工作台",
       "video": "视频工作台",
-      "lora": "LoRA 工作台"
+      "lora": "LoRA 工作台",
+      "canvas": "画布"
     },
     "session": "会话",
     "newThread": "新对话",
@@ -7330,6 +7331,7 @@
       "unknownLora": "这把 LoRA 不在这一轮搜到的结果里",
       "loraNotMounted": "这把 LoRA 没挂在装配台上",
       "loraNotImportable": "这把 LoRA 收不进你的库，只能去它的来源页看",
+      "loraPickRequired": "这把 LoRA 还没人勾过，得先摆成候选卡让你点",
       "loraIncompatibleBase": "这把 LoRA 是给另一族底模训的，助手不会把它挂到当前底模上",
       "sourceNotUsable": "这个站点声明不接受作为 AI 输入，或是溯源不到原作者的转载",
       "researchRoundsExhausted": "这一轮能查的次数已经用完了 —— 它在用已经查到的东西继续",
@@ -7351,7 +7353,8 @@
       "references": "参考图",
       "audioReferences": "音频参考",
       "sound": "出声",
-      "loras": "LoRA 挂载"
+      "loras": "LoRA 挂载",
+      "canvasNodes": "画布节点"
     },
     "changeSubject": {
       "rule": "项目规则",

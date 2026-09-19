@@ -4,7 +4,13 @@ import { join, relative } from 'node:path'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
+import { ASSISTANT_OPERATOR_REJECT_REASON_IDS } from '@/constants/assistant-operator'
+import { ASSISTANT_PROTOCOL_DOMAINS } from '@/constants/assistant-protocol'
 import { AI_MODELS, MODEL_MESSAGE_KEYS } from '@/constants/models'
+import {
+  STUDIO_OPERATOR_FIELD_IDS,
+  STUDIO_OPERATOR_SYSTEM_CODES,
+} from '@/constants/studio-assistant-operator'
 import { VIDEO_NODE_MODES } from '@/constants/video-node-modes'
 
 const LOCALES = ['en', 'ja', 'zh'] as const
@@ -500,5 +506,40 @@ describe('i18n completeness', () => {
       }
       expect(title.trim().length).toBeGreaterThan(0)
     }
+  })
+
+  /**
+   * ⭐ 助手头部按域取名走的是**动态键**（`t(\`domainName.${domain}\`)`），静态扫描
+   * 那条用例看不见它：`canvas` 并入 Operator 时三语都漏补，真机上 next-intl 抛
+   * `MISSING_MESSAGE`，整棵渲染树被边界吃掉 —— 表现是「助手点开就关」。
+   * ⛔ 别用 fallback 把它压成静默显示 key：漏翻要在 CI 红，所以护栏从常量枚举取值域。
+   */
+  describe.each([
+    {
+      label: 'StudioOperator.domainName',
+      prefix: 'StudioOperator.domainName',
+      values: [...ASSISTANT_PROTOCOL_DOMAINS] as string[],
+    },
+    {
+      label: 'StudioOperator.field',
+      prefix: 'StudioOperator.field',
+      values: Object.values(STUDIO_OPERATOR_FIELD_IDS) as string[],
+    },
+    {
+      label: 'StudioOperator.reject',
+      prefix: 'StudioOperator.reject',
+      values: Object.values(ASSISTANT_OPERATOR_REJECT_REASON_IDS) as string[],
+    },
+    {
+      label: 'StudioOperator.system',
+      prefix: 'StudioOperator.system',
+      values: [...STUDIO_OPERATOR_SYSTEM_CODES] as string[],
+    },
+  ])('$label covers every constant value', ({ prefix, values }) => {
+    it.each(LOCALES)('%s', (locale) => {
+      const keys = new Set(collectKeys(messagesByLocale[locale]))
+      const missing = values.filter((value) => !keys.has(`${prefix}.${value}`))
+      expect(missing, `${locale}.json is missing ${prefix}.*`).toEqual([])
+    })
   })
 })

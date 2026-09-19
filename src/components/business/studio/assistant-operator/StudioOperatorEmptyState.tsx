@@ -19,7 +19,14 @@
  *   「自传头像优先于预设」那套判断。
  */
 
-import { BookOpen, ImageIcon, Search, Sparkles } from '@/components/icons'
+import {
+  BookOpen,
+  Clapperboard,
+  ImageIcon,
+  Search,
+  Sparkles,
+  Waypoints,
+} from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import type { LucideIcon } from '@/components/icons'
 
@@ -38,6 +45,12 @@ const SUGGESTION_ICONS: Readonly<Record<string, LucideIcon>> = {
   setupShot: ImageIcon,
   findReference: BookOpen,
   checkStyle: Search,
+  // 画布三颗（进度表 22）：排片 / 接线 / 这张画布讲到哪了。
+  planShots: Clapperboard,
+  wireLastImage: Waypoints,
+  describeBoard: BookOpen,
+  // LoRA 那颗触发词（owner 的第三句起手势）。
+  triggerWords: Search,
 }
 
 interface StudioOperatorEmptyStateProps {

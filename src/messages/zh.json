@@ -7443,7 +7443,12 @@
       "findStyle": "找个对味的画风 LoRA",
       "stackConflict": "这套挂载会打架吗",
       "sweepWeights": "把权重扫一遍对比",
-      "checkStyle": "查一下这个画风"
+      "checkStyle": "查一下这个画风",
+      "triggerWords": "查一下这家的触发词",
+      "planShots": "把这段剧本排成分镜",
+      "wireLastImage": "把刚出的这张接到下一镜",
+      "describeBoard": "这张画布现在讲到哪了",
+      "whatIsStale": "改完这个，哪几镜要重跑"
     },
     "attach": {
       "label": "上传图片 / 音频 / 视频",

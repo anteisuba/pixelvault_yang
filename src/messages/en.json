@@ -7443,7 +7443,12 @@
       "findStyle": "Find a LoRA that fits this look",
       "stackConflict": "Do these LoRAs work well together?",
       "sweepWeights": "Try different weights and compare",
-      "checkStyle": "Look up this art style"
+      "checkStyle": "Look up this art style",
+      "triggerWords": "Look up this family's trigger words",
+      "planShots": "Lay this script out as shots",
+      "wireLastImage": "Wire that picture into the next shot",
+      "describeBoard": "Tell me where this board stands",
+      "whatIsStale": "What went stale after that change?"
     },
     "attach": {
       "label": "Upload image / audio / video",

@@ -7443,7 +7443,12 @@
       "findStyle": "この画風に合う LoRA を探して",
       "stackConflict": "この LoRA の組み合わせ、相性はどう？",
       "sweepWeights": "重みを変えて比べてみて",
-      "checkStyle": "この画風を調べて"
+      "checkStyle": "この画風を調べて",
+      "triggerWords": "この系統のトリガーワードを調べて",
+      "planShots": "この脚本をカットに割って",
+      "wireLastImage": "今の一枚を次のカットにつないで",
+      "describeBoard": "このボードは今どこまで進んでる？",
+      "whatIsStale": "さっきの変更で撮り直しはどれ？"
     },
     "attach": {
       "label": "画像 / 音声 / 動画をアップロード",

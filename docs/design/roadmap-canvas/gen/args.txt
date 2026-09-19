@@ -154,3 +154,7 @@ DesignD56bMap.dc.html
 DesignD56bUI.dc.html
 --artboard
 DesignD7bMap.dc.html
+--artboard
+DesignD7bFaces.dc.html
+--artboard
+DesignD7bToggle.dc.html

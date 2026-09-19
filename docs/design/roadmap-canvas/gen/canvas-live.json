@@ -692,8 +692,26 @@
       "x": 0,
       "y": 6250,
       "w": 1400,
-      "h": 1150,
+      "h": 1170,
       "title": "D7b ② 一个壳四张脸",
+      "page": "page-14"
+    },
+    {
+      "file": "DesignD7bFaces.dc.html",
+      "x": 1500,
+      "y": 6650,
+      "w": 1400,
+      "h": 1320,
+      "title": "D7b ④ 四张脸",
+      "page": "page-14"
+    },
+    {
+      "file": "DesignD7bToggle.dc.html",
+      "x": 0,
+      "y": 7500,
+      "w": 1400,
+      "h": 2440,
+      "title": "D7b ④ 头像开关",
       "page": "page-14"
     }
   ],

@@ -58,6 +58,7 @@ import {
   ASSISTANT_EVIDENCE_REF_PREFIX as EVIDENCE_REF_PREFIX,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
   ASSISTANT_RESEARCH_SCOPE_IDS,
+  ASSISTANT_RESEARCH_DEPTHS,
   ASSISTANT_RESEARCH_SOURCE_IDS,
   ASSISTANT_RESEARCH_SOURCES,
   ASSISTANT_ROUND_FACT_NEGATION_PATTERNS,
@@ -82,6 +83,7 @@ import {
   type AssistantOperatorSearchKind,
   type AssistantOperatorTool,
   type AssistantOperatorVerb,
+  type AssistantResearchDepth,
   type AssistantResearchSource,
   type GenerationReviewState,
 } from '@/constants/assistant-operator'
@@ -2208,6 +2210,7 @@ async function planResearch(
     entities?: string[]
     sources?: AssistantResearchSource[]
     expandSources?: boolean
+    depth?: AssistantResearchDepth
   },
   userId: string,
 ): Promise<ToolPlan> {
@@ -2229,6 +2232,15 @@ async function planResearch(
   }
 
   const round = run.researchRounds + 1
+  /**
+   * ⭐ **两档**（56b 切片 2）。缺席 = 快搜：绝大多数问题一轮网搜 + 读前三页就
+   * 答得了，而默认给深档的代价是每一句闲聊都要等一分钟。
+   * ⚠ 「再多找几个源」按 `deep` 算：用户按那颗按钮说的正是「这几条不够」。
+   */
+  const depth: AssistantResearchDepth = args.expandSources
+    ? ASSISTANT_RESEARCH_DEPTHS.deep
+    : (args.depth ?? ASSISTANT_RESEARCH_DEPTHS.quick)
+  const quick = depth === ASSISTANT_RESEARCH_DEPTHS.quick
   const entities = (args.entities ?? [])
     .map((entity) => clamp(entity, RESEARCH_LIMITS.maxEntityChars))
     .filter((entity) => entity.length > 0)
@@ -2240,12 +2252,22 @@ async function planResearch(
    * `expandSources` 打**全部**源组（含默认里没有的 B站）—— 用户按那颗按钮说的是
    * 「这几条来源不够」，答案是加源（§9.1 ③ / 证据卡）。
    */
-  const requestedSources: readonly AssistantResearchSource[] = args.sources
-    ?.length
-    ? args.sources
-    : args.expandSources
-      ? ASSISTANT_RESEARCH_SOURCES
-      : rewrite.sources
+  /**
+   * ⚠ **快搜那一档只打网搜**（56b 切片 2）：wiki 三站 + danbooru 各要一到两跳，
+   * 而快搜的全部卖点是「几秒出答案」。要百科与 tag 就走深档 —— ⛔ 不在快搜里
+   * 偷偷多打两个源然后声称自己很快。
+   * ⚠ **用户设了来源名单时这条收窄不生效**：名单是用户的决定，而「网搜」很可能
+   * 根本不在名单里 —— 照收窄的表现是他自己指定的源一个都没打、回来一句「查不到」。
+   * 名单在场时照旧按规划器选源，下面那道闸再滤。
+   */
+  const quickNarrowed = quick && !hasSourceRules(run.sourceRules)
+  const requestedSources: readonly AssistantResearchSource[] = quickNarrowed
+    ? [ASSISTANT_RESEARCH_SOURCE_IDS.web]
+    : args.sources?.length
+      ? args.sources
+      : args.expandSources
+        ? ASSISTANT_RESEARCH_SOURCES
+        : rewrite.sources
 
   /**
    * ⭐ **来源白 / 黑名单压在最后**（§9.3）——它比上面那三条优先级都高，
@@ -2276,6 +2298,9 @@ async function planResearch(
          * 这一轮一个外部请求都没发出去，⛔ 不该占掉用户的检索额度。
          */
         round,
+        depth,
+        /** 一个外部请求都没发出去，读页数当然是 0。 */
+        readPages: 0,
       },
       run: async () => ({
         result: { totalFound: 0, evidence: [] },
@@ -2292,6 +2317,7 @@ async function planResearch(
     questionType: rewrite.questionType,
     ...(rewrite.queries.length > 0 ? { queries: rewrite.queries } : {}),
     ...(args.expandSources ? { limit: RESEARCH_LIMITS.maxEvidenceItems } : {}),
+    ...(quick ? { limit: RESEARCH_LIMITS.quickEvidenceItems } : {}),
   })
   /**
    * ⚠ **打过就算一轮**，不管有没有收获：这一轮确实打了外部源（也确实花了
@@ -2314,6 +2340,47 @@ async function planResearch(
   const blockedByRules = outcome.items.length - keptIndices.length
   const keptItems = keptIndices.map((index) => outcome.items[index]!)
   const keptEvidence = keptIndices.map((index) => outcome.evidence[index]!)
+
+  /**
+   * ⭐ **快搜那一档读前几页全文**（56b 切片 2）。
+   *
+   * 🔬 为什么非读不可：Serper 的摘要经常只有两句，而「新海诚式雨夜怎么画」这类
+   * 题的答案在正文里。只给摘要的表现是助手把三条摘要改写一遍就交差 —— 那正是
+   * 这一档要消灭的行为。
+   * ⚠ **不新增证据条**：读到的正文原地顶掉那几条的 `snippet`（放宽到
+   * `maxReadUrlExcerptChars`），所以来源卡与正文角标仍旧一一对应，⛔ 不会出现
+   * 「同一页在来源里占两格」。
+   * ⚠ 读不出来就**留着摘要**（`readUrl` 自己回 `null`）：一页取不到不该让整轮
+   * 失败，也⛔ 不该在日志上假装读过。
+   * ⚠ 并行读，所以它加的是一次请求的时间不是三次。
+   */
+  let readPages = 0
+  if (quick && keptEvidence.length > 0) {
+    const targets = keptEvidence
+      .map((item, index) => ({ index, url: item.url }))
+      .filter(
+        (entry): entry is { index: number; url: string } =>
+          typeof entry.url === 'string',
+      )
+      .slice(0, RESEARCH_LIMITS.quickReadPages)
+    const pages = await Promise.all(
+      targets.map(async (entry) => ({
+        index: entry.index,
+        page: await readUrl(entry.url).catch(() => null),
+      })),
+    )
+    for (const { index, page } of pages) {
+      const body = page?.content?.trim()
+      if (!body) continue
+      const item = keptEvidence[index]
+      if (!item) continue
+      keptEvidence[index] = {
+        ...item,
+        snippet: clamp(body, RESEARCH_LIMITS.maxReadUrlExcerptChars),
+      }
+      readPages += 1
+    }
+  }
 
   if (keptItems.length > 0) {
     run.roundLedger.evidence.push({
@@ -2432,7 +2499,7 @@ async function planResearch(
     gate.dropped.length > 0 || blockedByRules > 0
       ? ` · source list dropped ${gate.dropped.length} source(s)${gate.dropped.length > 0 ? ` (${gate.dropped.join(', ')})` : ''} and ${blockedByRules} result(s)`
       : ''
-  const chainLine = `verify("${args.goal}") · rewrote into ${outcome.queries.length} phrase(s) [${outcome.queries.join(' | ')}] in ${rewrite.langs.join('/') || 'zh'} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''}${gateLine}${ruleLine}`
+  const chainLine = `verify("${args.goal}") · rewrote into ${outcome.queries.length} phrase(s) [${outcome.queries.join(' | ')}] in ${rewrite.langs.join('/') || 'zh'} · sources ${sources.join(', ')}${args.expandSources ? ' (expanded)' : ''} · ${depth}${readPages > 0 ? ` · read ${readPages} page(s) in full` : ''}${gateLine}${ruleLine}`
   const observation =
     evidence.length === 0
       ? `${chainLine}\nfound nothing. Sources: ${receiptLine}.${
@@ -2470,6 +2537,8 @@ async function planResearch(
       entities,
       sources: outcome.sources,
       round,
+      depth,
+      readPages,
     },
     run: async () => ({
       result: {
@@ -6401,6 +6470,7 @@ async function planTool(
           entities?: string[]
           sources?: AssistantResearchSource[]
           expandSources?: boolean
+          depth?: AssistantResearchDepth
         },
         userId,
       )

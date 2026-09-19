@@ -7802,8 +7802,17 @@
       "pinned": "已钉住",
       "sourceCount": "{count} 个来源",
       "corroborated": "{count} 源印证",
-      "expandPrompt": "再查证一次，多找几个来源——这几条不够。",
+      "expandPrompt": "深入调查一次：多找几个来源、读全文，尽量全。",
       "pinnedHeading": "钉住的证据"
+    },
+    "researchProgress": {
+      "runningQuick": "查资料中",
+      "runningDeep": "深入调查中",
+      "doneQuick": "搜了 {count} 条",
+      "doneDeep": "深入调查 · 查了 {count} 条",
+      "readPages": "读了 {count} 页",
+      "estimateSeconds": "约 {count} 秒",
+      "estimateMinutes": "约 {count} 分钟"
     },
     "answer": {
       "media": "资料",

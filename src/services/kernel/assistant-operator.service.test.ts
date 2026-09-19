@@ -7754,7 +7754,12 @@ describe('查证与找图两入口（§9，commit #16）', () => {
       reason: 'character lookup',
     })
     queueTurns(
-      verifyTurn({ goal: '外貌与服饰', entities: ['无限大', '时夜'] }),
+      // ⚠ 选源那一层只在**深档**上跑（56b 切片 2：快搜只打网搜）。
+      verifyTurn({
+        goal: '外貌与服饰',
+        entities: ['无限大', '时夜'],
+        depth: 'deep',
+      }),
       { finished: true },
     )
 
@@ -7774,6 +7779,80 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     expect(prompt).toContain('rewrote into')
     expect(prompt).toContain('zh/en/ja')
     expect(prompt).toContain('sources wiki, danbooru, web')
+  })
+
+  /**
+   * **两档**（56b 切片 2）—— 三条纪律：
+   *  ① 缺省是快搜，只打网搜；
+   *  ② 快搜读前几页全文，读到的正文顶掉那几条的摘要；
+   *  ③ `depth:'deep'` 才按规划器选源、才是深档。
+   * ⛔ 两档都**不弹确认卡**：这条工具一个 credit 都不花。
+   */
+  it('⭐ 缺省是快搜：只打网搜，读前几页全文并顶掉摘要', async () => {
+    queueOutcome([{ ...CORROBORATED, url: 'https://zhihu.com/a' }])
+    mockReadUrl.mockResolvedValue({
+      url: 'https://zhihu.com/a',
+      content: '正文里那一整段讲三层光怎么叠。'.repeat(8),
+    })
+    queueTurns(verifyTurn({ goal: '雨夜画风', entities: ['新海诚'] }), {
+      finished: true,
+    })
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    expect(mockRunAssistantResearch).toHaveBeenCalledWith(
+      expect.objectContaining({ sources: ['web'] }),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+        step.status === 'done',
+    )
+    expect(done?.payload).toMatchObject({ depth: 'quick', readPages: 1 })
+    const result = done?.result as { evidence: { snippet: string }[] }
+    expect(result.evidence[0]?.snippet).toContain('三层光怎么叠')
+  })
+
+  it('⛔ 读不出来就留着摘要，⛔ 也不在日志上假装读过', async () => {
+    queueOutcome([{ ...CORROBORATED, url: 'https://zhihu.com/a' }])
+    mockReadUrl.mockResolvedValue(null)
+    queueTurns(verifyTurn({ goal: '雨夜画风', entities: ['新海诚'] }), {
+      finished: true,
+    })
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+        step.status === 'done',
+    )
+    expect(done?.payload).toMatchObject({ depth: 'quick', readPages: 0 })
+  })
+
+  it('⭐ 「再多找几个源」按深档算 —— 那颗按钮说的正是「这几条不够」', async () => {
+    queueOutcome([CORROBORATED])
+    queueTurns(
+      verifyTurn({
+        goal: '外貌',
+        entities: ['无限大', '时夜'],
+        expandSources: true,
+      }),
+      CONCLUSION_TURN,
+      { finished: true },
+    )
+
+    const steps = stepsOf(
+      await collect(runAssistantOperator('clerk-1', buildRequest())),
+    )
+    const done = steps.find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.research &&
+        step.status === 'done',
+    )
+    expect(done?.payload).toMatchObject({ depth: 'deep' })
   })
 
   it('⭐ 证据带编号与印证标；单源那条在观察里点名', async () => {
@@ -7886,7 +7965,11 @@ describe('查证与找图两入口（§9，commit #16）', () => {
       reason: 'craft question',
     })
     queueTurns(
-      verifyTurn({ goal: '黄昏光怎么描述', entities: ['新海诚'] }),
+      verifyTurn({
+        goal: '黄昏光怎么描述',
+        entities: ['新海诚'],
+        depth: 'deep',
+      }),
       CONCLUSION_TURN,
       { finished: true },
     )
@@ -7913,7 +7996,11 @@ describe('查证与找图两入口（§9，commit #16）', () => {
       reason: 'entity lookup',
     })
     queueTurns(
-      verifyTurn({ goal: '她是谁', entities: ['无限大', '时夜'] }),
+      verifyTurn({
+        goal: '她是谁',
+        entities: ['无限大', '时夜'],
+        depth: 'deep',
+      }),
       CONCLUSION_TURN,
       { finished: true },
     )

@@ -5,6 +5,7 @@ import {
   firstOperatorSentence,
   collectOperatorAnswerSources,
   groupOperatorResearch,
+  summarizeOperatorResearchBlock,
   isOperatorResearchTool,
   shouldCollapseOperatorText,
   shouldStickOperatorScroll,
@@ -164,6 +165,58 @@ describe('collectOperatorAnswerSources', () => {
       runKey: 'run-1',
       steps: [0, 1],
     })
+  })
+})
+
+describe('summarizeOperatorResearchBlock', () => {
+  const research = (
+    payload: Record<string, unknown>,
+    evidence: unknown[] = [],
+  ): StudioOperatorStepEntry =>
+    ({
+      kind: 'step',
+      id: 'r',
+      runKey: 'run-1',
+      step: {
+        id: 's',
+        title: '查',
+        tool: TOOLS.research,
+        status: 'done',
+        payload: {
+          goal: 'g',
+          entities: [],
+          sources: ['web'],
+          round: 1,
+          ...payload,
+        },
+        result: { evidence, totalFound: evidence.length },
+      },
+    }) as unknown as StudioOperatorStepEntry
+
+  it('⛔ 没有 research 步就不是一次调查 —— 退回 ToolGroup', () => {
+    expect(summarizeOperatorResearchBlock([])).toBeNull()
+    expect(
+      summarizeOperatorResearchBlock([researchStep({}, TOOLS.readUrl)]),
+    ).toBeNull()
+  })
+
+  it('⭐ 快搜：条数来自证据，页数来自服务端读的那几页', () => {
+    expect(
+      summarizeOperatorResearchBlock([
+        research({ depth: 'quick', readPages: 3 }, [{}, {}, {}, {}, {}, {}]),
+      ]),
+    ).toEqual({ depth: 'quick', found: 6, readPages: 3 })
+  })
+
+  it('⭐ 一组里出现过深档就算深档；模型自己发的 read_url 也计页', () => {
+    expect(
+      summarizeOperatorResearchBlock([
+        research({ depth: 'quick', readPages: 1 }, [{}]),
+        research({ depth: 'deep', readPages: 0 }, [{}, {}]),
+        researchStep({}, TOOLS.readUrl),
+        researchStep({}, TOOLS.readUrl),
+      ]),
+    ).toEqual({ depth: 'deep', found: 3, readPages: 3 })
   })
 })
 

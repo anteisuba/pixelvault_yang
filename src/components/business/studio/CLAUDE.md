@@ -40,6 +40,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorTimelineRow (时间线沟一行 + **五类卡的分派点**)
         │       │   └── TimelineAvatar (用户 / 助手 32px 头像，与竖线同轴；助手那一档另出口 `AssistantTimelineAvatar` —— 它不碰 Clerk，收起态与空态用的是它)
         │       ├── StudioOperatorToolGroup (「5 个操作 · 4 成功 1 失败」折叠行)
+        │       ├── StudioOperatorResearchProgress (调查那一行，三态：跑着一行微光 + 预估 / 点开展开步骤 / 跑完收成灰底一行「搜了 N 条 · 读了 M 页」；有失败步时退回 ToolGroup。56b 切片 2)
         │       ├── StudioOperatorCheckpointCard (每轮 checkpoint 薄卡，就地二选撤销)
         │       ├── StudioOperatorQueueBar (排队条，浮在输入框上方)
         │       ├── MentionInput（共享输入框：`@` 选择器**只列当前工作台**（参考图 / 结果）；

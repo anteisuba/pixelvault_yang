@@ -59,6 +59,7 @@ import {
   ASSISTANT_RESEARCH_CONFIDENCES,
   ASSISTANT_RESEARCH_EVIDENCE_KINDS,
   ASSISTANT_RESEARCH_LIMITS as RESEARCH_LIMITS,
+  ASSISTANT_RESEARCH_DEPTH_VALUES,
   ASSISTANT_RESEARCH_SCOPES,
   ASSISTANT_RESEARCH_SOURCES,
   ASSISTANT_EVIDENCE_REF_PATTERN,
@@ -1812,6 +1813,17 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
      * 来源不够」，答案是加源，不是加轮。
      */
     expandSources: z.boolean().optional(),
+    /**
+     * **哪一档**（56b 切片 2，owner 2026-09-19）。
+     *
+     * ⚠ 缺席 = `quick`：绝大多数问题一轮网搜 + 读前三页就答得了，而默认给深档
+     * 的代价是每一句闲聊都要等一分钟。
+     * ⚠ `deep` 由**模型判**（判据写在工具说明里：用户说「深入查 / 尽量全 / 一定
+     * 要准」，或这一题明显需要多个源互相印证），或由回答底下那颗「深入调查」
+     * 按钮那一轮带进来。⛔ 不设死阈值。
+     * ⚠ `expandSources` 仍旧是**另一件事**（加源，不是加轮），两者可以并存。
+     */
+    depth: z.enum(ASSISTANT_RESEARCH_DEPTH_VALUES).optional(),
   }),
   /**
    * 读一页正文（2026-09-06）。
@@ -2846,6 +2858,17 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
         .max(RESEARCH_LIMITS.maxEntities),
       sources: z.array(z.enum(ASSISTANT_RESEARCH_SOURCES)),
       round: z.number().int().positive().max(RESEARCH_LIMITS.maxRoundsPerTurn),
+      /**
+       * **这一步走的是哪一档**（56b 切片 2）—— 加载行读它决定写「搜了 N 条」
+       * 还是「深入调查 · N 次搜索」。⚠ 服务端填**实际生效**的那一档（模型不给
+       * 时是 `quick`），⛔ 不是模型请求的那一档。
+       */
+      depth: z.enum(ASSISTANT_RESEARCH_DEPTH_VALUES),
+      /**
+       * 这一步**读了几页全文**（快搜那一档的「读了 3 页」）。
+       * ⚠ 深档为 0：那一档的读页走的是模型自己发的 `read_url`，各算各的。
+       */
+      readPages: z.number().int().nonnegative(),
     }),
     z.object({
       totalFound: z.number().int().nonnegative(),

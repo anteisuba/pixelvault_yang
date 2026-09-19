@@ -2667,7 +2667,7 @@ export const ASSISTANT_OPERATOR_ENTRY_ACTION_HINTS: Record<
 > = {
   ...ASSISTANT_OPERATOR_TOOL_HINTS,
   [ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.verify]:
-    'CHECK A FACT you are not certain of, properly. Give it a goal in one line ("what Shiye officially looks like") plus the entities it turns on ("Ananta", "Shiye"), first the work and last the character. The app rewrites it into two or three search phrases in Chinese, English and Japanese, picks the right kinds of source (encyclopedias, tag libraries, video, general web), hits them at once and hands you back a conclusion plus the sources behind it — what was said, who published it, and how many independent sources agree. Use it whenever the creator\'s request turns on a detail you would otherwise guess: an official name, a character\'s design, a platform rule, a studio\'s own terminology. Evidence marked "single source" is exactly that — say so instead of stating it as fact. You may verify a SECOND time with a narrower goal once the first round tells you the official name or the site of record; that second round is where the real answer usually is. ⚠ This is NOT how you find reference pictures — that is find_images.',
+    'CHECK A FACT you are not certain of, properly. Give it a goal in one line ("what Shiye officially looks like") plus the entities it turns on ("Ananta", "Shiye"), first the work and last the character. The app rewrites it into two or three search phrases in Chinese, English and Japanese, picks the right kinds of source (encyclopedias, tag libraries, video, general web), hits them at once and hands you back a conclusion plus the sources behind it — what was said, who published it, and how many independent sources agree. Use it whenever the creator\'s request turns on a detail you would otherwise guess: an official name, a character\'s design, a platform rule, a studio\'s own terminology. Evidence marked "single source" is exactly that — say so instead of stating it as fact. You may verify a SECOND time with a narrower goal once the first round tells you the official name or the site of record; that second round is where the real answer usually is. ⚠ This is NOT how you find reference pictures — that is find_images. TWO DEPTHS: leave depth out (or "quick") for almost everything — one round of web search plus the first three pages read in full, a few seconds. Pass depth:"deep" only when the creator asks for it ("look into this properly", "be thorough", "I need this to be right") or when the question plainly needs several independent kinds of source to agree — deep runs multiple rounds across encyclopedias, tag libraries and video and takes about a minute. ⛔ Do NOT ask the creator for permission before going deep and ⛔ do NOT mention what it costs; just say in one line that you are looking into it properly.',
   [ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.findImages]:
     'FIND REFERENCE PICTURES on the web. Takes three or four words in English plus "subject" (the work and the character) and, for character designs, preferOfficial:true. It puts candidates on screen as previews and files NOTHING: the creator picks the ones they want and the app imports those. ⛔ Never describe these pictures as if you had looked at them, and never write one of their addresses into the form. ⚠ This does not answer questions — that is verify.',
 }
@@ -2792,7 +2792,61 @@ export const ASSISTANT_RESEARCH_LIMITS = {
   maxConclusionEvidence: 5,
   /** 归纳出来那句话的长度（≤2 句，不是一段）。 */
   maxConclusionChars: 220,
+  /**
+   * **快搜一档读几页全文**（56b 切片 2）。
+   *
+   * ⭐ 3 页是「几秒内出答案」与「不只是读摘要」之间那条线：Serper 的摘要经常
+   * 只有两句，而用户问的是画风/技法这类要正文的题。四页起首字延迟就越过用户
+   * 愿意干等的那道坎（同 `plannerTimeoutMs` 的判据）。
+   * ⚠ 读页是**并行**的，所以它加的是一次请求的时间不是三次。
+   */
+  quickReadPages: 3,
+  /**
+   * 快搜一档最多回几条证据。
+   *
+   * ⚠ 比深入那一档（`maxEvidenceItems` 10）窄：快搜只打一组源（网搜），
+   * 十条里有七条来自同一个站不是印证，是噪音。
+   */
+  quickEvidenceItems: 6,
 } as const
+
+/**
+ * **调查的两档**（56b 切片 2，owner 2026-09-19）。
+ *
+ * ⭐ 两档的差别是**打多少**而不是「问得多认真」：
+ *  · `quick`（默认）—— 一轮网搜 + 读前 `quickReadPages` 页全文，几秒出答案；
+ *  · `deep` —— 现有的规划器 / 扇出多轮 + 全部连接器（wiki / B站 / danbooru）。
+ * ⛔ **不弹确认卡**：花的是搜索额度不是生成费（owner 定）。开跑前那句预估写在
+ * 加载行里，而不是拦一道要人点的闸。
+ * ⚠ 值同时是协议里那一格（模型写得出来的入参）与日志上那一格，⛔ 别在 UI 侧
+ * 再定义一份小写字符串。
+ */
+export const ASSISTANT_RESEARCH_DEPTHS = {
+  quick: 'quick',
+  deep: 'deep',
+} as const
+
+export const ASSISTANT_RESEARCH_DEPTH_VALUES = [
+  ASSISTANT_RESEARCH_DEPTHS.quick,
+  ASSISTANT_RESEARCH_DEPTHS.deep,
+] as const
+
+export type AssistantResearchDepth =
+  (typeof ASSISTANT_RESEARCH_DEPTH_VALUES)[number]
+
+/**
+ * 加载行里那句**预估**（秒）。
+ *
+ * ⚠ 它是给人读的量级不是承诺：写「约 1 分钟」的价值在于用户知道该不该走开，
+ * ⛔ 不是一个会被拿去比对的倒计时（所以⛔ 不做倒数）。
+ */
+export const ASSISTANT_RESEARCH_ESTIMATE_SECONDS: Record<
+  AssistantResearchDepth,
+  number
+> = {
+  [ASSISTANT_RESEARCH_DEPTHS.quick]: 10,
+  [ASSISTANT_RESEARCH_DEPTHS.deep]: 60,
+}
 
 /**
  * `research` 能打哪几组源。

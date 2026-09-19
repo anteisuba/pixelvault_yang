@@ -1,9 +1,14 @@
 import {
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
+  ASSISTANT_RESEARCH_DEPTHS,
+  type AssistantResearchDepth,
 } from '@/constants/assistant-operator'
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
-import type { StudioOperatorThreadEntry } from '@/types/studio-assistant-operator'
+import type {
+  StudioOperatorStepEntry,
+  StudioOperatorThreadEntry,
+} from '@/types/studio-assistant-operator'
 
 export function isOperatorResearchTool(tool: string): boolean {
   return (
@@ -90,6 +95,42 @@ export function collectOperatorAnswerSources(
     pending = []
   })
   return byMessage
+}
+
+/**
+ * **这一组步是不是一次调查，以及它那一行该写什么**（56b 切片 2）。
+ *
+ * ⭐ 判据是「里面有没有跑完的 `research` 步」：没有就 `null`，调用方退回
+ * `StudioOperatorToolGroup`（「N 个操作」那一行）。⛔ 别把 `read_url` 单独算成
+ * 一次调查 —— 模型顺手读一页不是「它去查了一轮」。
+ * ⚠ **一组里出现过深档就算深档**：一轮里先快搜再深入是正常形状，而那一行要
+ * 答的是「这一轮到底查到什么程度」。
+ * ⚠ 读页数两处相加：快搜那几页由服务端读（进 `payload.readPages`），深档那几页
+ * 是模型自己发的 `read_url` 步 —— 两者都是「读了一页全文」。
+ */
+export function summarizeOperatorResearchBlock(
+  steps: readonly StudioOperatorStepEntry[],
+): { depth: AssistantResearchDepth; found: number; readPages: number } | null {
+  let seen = false
+  let depth: AssistantResearchDepth = ASSISTANT_RESEARCH_DEPTHS.quick
+  let found = 0
+  let readPages = 0
+  for (const { step } of steps) {
+    // ⚠ 先判 `status` 再判 `tool` —— 载荷与结果只挂在跑完那一支上。
+    if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) continue
+    if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.readUrl) {
+      readPages += 1
+      continue
+    }
+    if (step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.research) continue
+    seen = true
+    found += step.result?.evidence?.length ?? 0
+    readPages += step.payload.readPages
+    if (step.payload.depth === ASSISTANT_RESEARCH_DEPTHS.deep) {
+      depth = ASSISTANT_RESEARCH_DEPTHS.deep
+    }
+  }
+  return seen ? { depth, found, readPages } : null
 }
 
 /**

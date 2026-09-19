@@ -7802,8 +7802,17 @@
       "pinned": "Pinned",
       "sourceCount": "{count, plural, one {# source} other {# sources}}",
       "corroborated": "{count, plural, one {# source} other {# sources}} agree",
-      "expandPrompt": "Check that again and look in more places — I want more than these sources.",
+      "expandPrompt": "Research this properly: more sources, read them in full, be thorough.",
       "pinnedHeading": "Pinned evidence"
+    },
+    "researchProgress": {
+      "runningQuick": "Looking things up",
+      "runningDeep": "Researching deeply",
+      "doneQuick": "{count} results",
+      "doneDeep": "Deep research · {count} results",
+      "readPages": "{count} pages read",
+      "estimateSeconds": "about {count}s",
+      "estimateMinutes": "about {count} min"
     },
     "answer": {
       "media": "Attachments",

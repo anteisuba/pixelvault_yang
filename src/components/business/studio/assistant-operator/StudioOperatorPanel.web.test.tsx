@@ -877,14 +877,20 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     )
   }
 
-  it('⭐ 调查卡退场：过程折成 ToolGroup，⛔ 时间线里不再有那张卡（56b 切片 1）', () => {
+  it('⭐ 调查卡退场：过程收成调查行，⛔ 时间线里不再有那张卡（56b 切片 1 / 2）', () => {
     pushStep('run-1', {
       id: 'step-1',
       title: '查了一下',
       tool: 'research',
       verb: 'research',
       status: 'done',
-      payload: { goal: '找官方设定', round: 1, sources: ['web'] },
+      payload: {
+        goal: '找官方设定',
+        round: 1,
+        sources: ['web'],
+        depth: 'quick',
+        readPages: 3,
+      },
       result: {
         evidence: [
           {
@@ -903,8 +909,10 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     })
     renderPanel()
     expect(screen.queryByTestId('operator-research-card')).toBeNull()
-    // 过程没有被藏起来 —— 折叠行还在。
-    expect(screen.getByTestId('operator-tool-group')).toBeTruthy()
+    // 过程没有被藏起来 —— 那一行还在，点它才展开步骤（56b 切片 2）。
+    const line = screen.getByTestId('operator-research-progress')
+    expect(line.dataset.depth).toBe('quick')
+    expect(line.dataset.state).toBe('done')
   })
 
   it('clears an earlier conflict after a successful write even across separate log blocks', () => {

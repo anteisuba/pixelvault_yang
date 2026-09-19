@@ -7802,8 +7802,17 @@
       "pinned": "ピン留め済み",
       "sourceCount": "出典 {count} 件",
       "corroborated": "{count}件の出典で一致",
-      "expandPrompt": "もう一度裏取りして、出典をもっと探してください。これだけでは足りません。",
+      "expandPrompt": "詳しく調べ直して：出典を増やして全文を読み、できるだけ網羅して。",
       "pinnedHeading": "ピン留めした根拠"
+    },
+    "researchProgress": {
+      "runningQuick": "調べています",
+      "runningDeep": "詳しく調べています",
+      "doneQuick": "{count} 件を検索",
+      "doneDeep": "詳細調査 · {count} 件",
+      "readPages": "{count} ページを読了",
+      "estimateSeconds": "約 {count} 秒",
+      "estimateMinutes": "約 {count} 分"
     },
     "answer": {
       "media": "資料",

@@ -52,6 +52,7 @@ import {
 import {
   collectOperatorAnswerSources,
   groupOperatorResearch,
+  summarizeOperatorResearchBlock,
   groupOperatorHistoryTools,
   isOperatorResearchTool,
   placeOperatorRoundSummaries,
@@ -123,6 +124,7 @@ import {
   StudioOperatorQuestionCard,
   type StudioOperatorQuestionAnswerPayload,
 } from '@/components/business/studio/assistant-operator/StudioOperatorQuestionCard'
+import { StudioOperatorResearchProgress } from '@/components/business/studio/assistant-operator/StudioOperatorResearchProgress'
 import { StudioOperatorQueueBar } from '@/components/business/studio/assistant-operator/StudioOperatorQueueBar'
 import { StudioOperatorEmptyState } from '@/components/business/studio/assistant-operator/StudioOperatorEmptyState'
 import { StudioOperatorHeader } from '@/components/business/studio/assistant-operator/StudioOperatorHeader'
@@ -1322,6 +1324,10 @@ export function StudioOperatorPanel({
        * `roundChangeLabelKeys` 的头注。
        */
       const changeLabelKeys = roundChangeLabelKeys(block.runKey)
+      /**
+       * 这一组是不是一次调查 —— `null` 就退回 `ToolGroup`（56b 切片 2）。
+       */
+      const researchSummary = summarizeOperatorResearchBlock(block.steps)
       const logItems = block.steps.map((item) => (
         <div key={item.id}>
           <StudioOperatorLogItem
@@ -1370,40 +1376,57 @@ export function StudioOperatorPanel({
                * **回答底下**（来源卡 + 媒体条，`StudioOperatorMessageBody`），过程
                * 留在这一折里。⛔ 别把那张卡找回来 —— 它把证据摆在回答**前面**，
                * 读起来是「先看完它的过程，再看它说了什么」。
+               * ⭐ **查过东西的那一组换成调查行**（56b 切片 2）：跑着是一行微光，
+               * 跑完收成灰底一行「搜了 N 条 · 读了 M 页」，点它才展开步骤。
+               * ⚠ 有失败步时**退回 ToolGroup**：那一行上没有失败的位置，而失败
+               * 恰恰是那一刻唯一要读的东西。
                */
-              <StudioOperatorToolGroup
-                total={block.steps.length}
-                failed={failed}
-                skipped={skipped}
-                running={running}
-                runningTitle={
-                  block.steps.findLast((item) => item.step.status === 'running')
-                    ?.step.title
-                }
-                failure={
-                  lastToolsBlock === block.steps[0]?.id &&
-                  blocker?.status === 'error' ? (
-                    <>
-                      <p className="font-medium">
-                        {blocker.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
-                          ? t('toolGroup.promptUnchanged')
-                          : t('toolGroup.blocked')}
-                      </p>
-                      <p className="mt-1 text-muted-foreground">
-                        {blocker.error.reason === 'promptConflict' &&
-                        blocker.error.detail
-                          ? blocker.error.detail
-                          : t(`reject.${blocker.error.reason}`)}
-                      </p>
-                      <p className="mt-1 text-muted-foreground">
-                        {t('toolGroup.inspectFailure')}
-                      </p>
-                    </>
-                  ) : null
-                }
-              >
-                {logItems}
-              </StudioOperatorToolGroup>
+              researchSummary && failed === 0 ? (
+                <StudioOperatorResearchProgress
+                  depth={researchSummary.depth}
+                  running={running}
+                  found={researchSummary.found}
+                  readPages={researchSummary.readPages}
+                >
+                  {logItems}
+                </StudioOperatorResearchProgress>
+              ) : (
+                <StudioOperatorToolGroup
+                  total={block.steps.length}
+                  failed={failed}
+                  skipped={skipped}
+                  running={running}
+                  runningTitle={
+                    block.steps.findLast(
+                      (item) => item.step.status === 'running',
+                    )?.step.title
+                  }
+                  failure={
+                    lastToolsBlock === block.steps[0]?.id &&
+                    blocker?.status === 'error' ? (
+                      <>
+                        <p className="font-medium">
+                          {blocker.tool ===
+                          ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
+                            ? t('toolGroup.promptUnchanged')
+                            : t('toolGroup.blocked')}
+                        </p>
+                        <p className="mt-1 text-muted-foreground">
+                          {blocker.error.reason === 'promptConflict' &&
+                          blocker.error.detail
+                            ? blocker.error.detail
+                            : t(`reject.${blocker.error.reason}`)}
+                        </p>
+                        <p className="mt-1 text-muted-foreground">
+                          {t('toolGroup.inspectFailure')}
+                        </p>
+                      </>
+                    ) : null
+                  }
+                >
+                  {logItems}
+                </StudioOperatorToolGroup>
+              )
             }
           </StudioOperatorTimelineRow>
           {block.steps.map((item) =>

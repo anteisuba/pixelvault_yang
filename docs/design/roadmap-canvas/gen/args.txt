@@ -152,3 +152,5 @@ DesignD56Ghost.dc.html
 DesignD56bMap.dc.html
 --artboard
 DesignD56bUI.dc.html
+--artboard
+DesignD7bMap.dc.html

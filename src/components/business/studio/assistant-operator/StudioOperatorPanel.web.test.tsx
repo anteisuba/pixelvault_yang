@@ -584,28 +584,33 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
    * 五类之后**时间线上只剩一张待定卡**：问题卡钉到了输入框上方（§3.4），
    * ⛔ 它不许再出现在时间线容器里。
    */
-  it('⭐ 问题卡钉在输入框上方 —— ⛔ 不在时间线里', () => {
+  it('⭐ 问题块与输入框同框 —— ⛔ 不在时间线里（56b 切片 4）', () => {
     store.setOperatorQuestion({
       id: 'ask-1',
-      question: {
-        id: 'q1',
-        header: '取景',
-        question: '要取到多少身？',
-        multiSelect: false,
-        allowOther: false,
-        options: [
-          { id: 'o1', label: '半身', description: '腰以上' },
-          { id: 'o2', label: '全身', description: '连鞋一起' },
-        ],
-      },
+      questions: [
+        {
+          id: 'q1',
+          header: '取景',
+          question: '要取到多少身？',
+          multiSelect: false,
+          allowOther: false,
+          options: [
+            { id: 'o1', label: '半身', description: '腰以上' },
+            { id: 'o2', label: '全身', description: '连鞋一起' },
+          ],
+        },
+      ],
+      answers: [],
     })
     store.setOperatorStatus('awaitingConfirm')
     renderPanel()
 
-    const card = screen.getByTestId('operator-question-card')
-    expect(card.dataset.pinned).toBe('true')
+    const card = screen.getByTestId('operator-question-block')
+    // 「1 / 1」—— 一组一道题时进度仍旧写出来（⛔ 不为一道题特判）。
+    expect(card.dataset.step).toBe('1')
+    expect(card.dataset.total).toBe('1')
     expect(screen.getByTestId('operator-thread')).not.toContainElement(card)
-    // 它长在输入区里：钉住的位置就是「输入框上方」。
+    // 它长在输入区里：位置就是「输入框上方、同一个 composer 容器」。
     expect(
       screen.getByTestId('operator-input-area').parentElement,
     ).toContainElement(card)
@@ -701,27 +706,30 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
   it('③ 问题卡的缩略图那一支：点一张走 `answerQuestion` 并带上素材', () => {
     store.setOperatorQuestion({
       id: 'ask-2',
-      question: {
-        id: 'q2',
-        header: '候选',
-        question: '你说的是哪一张？',
-        multiSelect: false,
-        allowOther: false,
-        options: [
-          {
-            id: 'gen-1',
-            label: '结果①',
-            description: '',
-            assetUrl: 'https://cdn.test/a.png',
-          },
-          {
-            id: 'gen-2',
-            label: '结果②',
-            description: '',
-            assetUrl: 'https://cdn.test/b.png',
-          },
-        ],
-      },
+      questions: [
+        {
+          id: 'q2',
+          header: '候选',
+          question: '你说的是哪一张？',
+          multiSelect: false,
+          allowOther: false,
+          options: [
+            {
+              id: 'gen-1',
+              label: '结果①',
+              description: '',
+              assetUrl: 'https://cdn.test/a.png',
+            },
+            {
+              id: 'gen-2',
+              label: '结果②',
+              description: '',
+              assetUrl: 'https://cdn.test/b.png',
+            },
+          ],
+        },
+      ],
+      answers: [],
     })
     renderPanel()
 
@@ -1015,22 +1023,25 @@ it.each(['append', 'overwrite', 'keep'] as const)(
     const proposed = '完整提示词'.repeat(100)
     store.setOperatorQuestion({
       id: 'ask-overwrite',
-      question: {
-        id: 'overwrite-prompt',
-        header: '提示词',
-        question: '提示词你已经自己写过了，这一段怎么办？',
-        multiSelect: false,
-        allowOther: false,
-        options: [
-          { id: 'append', label: '追加在后', description: '你写的留着' },
-          { id: 'overwrite', label: '覆盖', description: '换成它写的' },
-          { id: 'keep', label: '保留', description: '什么都不改' },
-        ],
-      },
+      questions: [
+        {
+          id: 'overwrite-prompt',
+          header: '提示词',
+          question: '提示词你已经自己写过了，这一段怎么办？',
+          multiSelect: false,
+          allowOther: false,
+          options: [
+            { id: 'append', label: '追加在后', description: '你写的留着' },
+            { id: 'overwrite', label: '覆盖', description: '换成它写的' },
+            { id: 'keep', label: '保留', description: '什么都不改' },
+          ],
+        },
+      ],
+      answers: [],
       overwrite: { field: 'prompt', have: '手写提示词', proposed },
     })
     renderPanel()
-    const card = screen.getByTestId('operator-question-card')
+    const card = screen.getByTestId('operator-question-block')
     expect(within(card).getByText(proposed)).toBeInTheDocument()
     fireEvent.click(
       within(card)

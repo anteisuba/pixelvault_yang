@@ -391,10 +391,40 @@ export type StudioOperatorQuestionAnswer = AssistantOperatorPlanAnswer
  */
 export interface StudioOperatorQuestionPrompt {
   id: string
-  question: StudioOperatorQuestion
+  /**
+   * 这一组题（1–4 道，56b 切片 4）。⚠ 顺序即提问顺序，⛔ 不重排。
+   *
+   * ⭐ 「一次一题」现在是**界面的事**而不是帧的事：问题块一次只画一道，带
+   * 「1 / 3」进度，答完自动进下一题。帧带整组的理由见
+   * `AssistantOperatorAskEventSchema` 的头注。
+   */
+  questions: readonly StudioOperatorQuestion[]
+  /**
+   * 已经答完的那几道（按题序）。
+   *
+   * ⭐ **当前是第几题 = `answers.length`**，⛔ 不另存一个 `index`：两份会分叉，
+   * 而分叉的表现是「上一题」点下去回到了一道已经答过的题的下一道。
+   * ⚠ 它们**还没进时间线**：进时间线是整组答完那一刻的事（见
+   * `answerQuestion`）。这样「← 上一题」只要 pop 一格，⛔ 不用从线程里删条目。
+   */
+  answers: readonly StudioOperatorQuestionAnswered[]
   /** 「为什么问这一句」—— 一行小字，缺席就不画。 */
   why?: string
   overwrite?: NonNullable<AssistantOperatorAskEvent['overwrite']>
+}
+
+/**
+ * 问题块里**已经答完的一道**（56b 切片 4）。
+ *
+ * ⚠ `label` 是小标签上写的那句（「6 镜」/「6 镜 · 前 3 镜慢一点」），
+ * `answer` 是要原样上服务端的那一份 —— 两者分开是因为前者是给人读的、后者是
+ * 契约，⛔ 别让渲染去从契约里拼一句话。
+ */
+export interface StudioOperatorQuestionAnswered {
+  /** 题头那几个字 —— 小标签左边那半截。 */
+  header: string
+  label: string
+  answer: AssistantOperatorPlanAnswer
 }
 
 /**

@@ -593,6 +593,10 @@ export interface UseAssistantOperatorResult {
       choice?: AssistantOperatorConfirmChoice
     },
   ): void
+  /** 「← 上一题」—— 退一格答复，回到那一道题（56b 切片 4）。 */
+  goBackQuestion(): void
+  /** Esc —— 收起问题块，这一组题作废（56b 切片 4）。 */
+  dismissQuestion(): void
   /** 多步确认卡「开始」（§3.3）—— 带 `planApproved` 重发。 */
   approvePlan(): void
   /** 多步确认卡「一步一步来」—— ⛔ 不发请求，只记下「下一条消息是改计划」。 */
@@ -1298,7 +1302,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               setOpen(true)
               setOperatorQuestion({
                 id: nextOperatorEntryId('question'),
-                question: event.question,
+                questions: event.questions,
+                answers: [],
                 ...(event.why ? { why: event.why } : {}),
                 ...(event.overwrite ? { overwrite: event.overwrite } : {}),
               })
@@ -1805,9 +1810,14 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         choice?: AssistantOperatorConfirmChoice
       },
     ) => {
-      const question = getOperatorState().question
-      if (!question) return
-      setOperatorQuestion(null)
+      const prompt = getOperatorState().question
+      if (!prompt) return
+      /**
+       * ⭐ **当前是第几题 = 已答几道**（56b 切片 4）。⛔ 不另存一个下标。
+       */
+      const current = prompt.questions[prompt.answers.length]
+      if (!current) return
+      const question = { ...prompt, question: current }
       /**
        * ⭐ **答复自带题面与选项文案**（v2 §3.4 落账规则，2026-09-12 真机 bug）。
        *
@@ -1860,6 +1870,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        *   系统行（同一句话说两遍）。
        */
       if (options.asset) {
+        setOperatorQuestion(null)
         addOperatorMention(options.asset)
         pendingResultRef.current = null
         appendOperatorEntry({
@@ -1873,16 +1884,17 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         void run({})
         return
       }
-      appendOperatorEntry({
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: 'questionAnswered',
-        subject: options.label,
-        userText,
-        answered,
-      })
 
       if (question.overwrite && options.choice) {
+        setOperatorQuestion(null)
+        appendOperatorEntry({
+          kind: 'system',
+          id: nextOperatorEntryId('sys'),
+          code: 'questionAnswered',
+          subject: options.label,
+          userText,
+          answered,
+        })
         void run({
           confirmations: [
             { field: question.overwrite.field, choice: options.choice },
@@ -1890,10 +1902,71 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         })
         return
       }
-      void run({ planAnswers: [answered], planApproved: true })
+
+      /**
+       * ⭐ **一组题一次答完再发**（56b 切片 4）。
+       *
+       * 🔬 从前一帧一题，于是每答一题都要重跑一整轮工具环 —— 三道题三轮，而
+       * 后两道的答案与前一道无关。现在答完一题只是**记一格**：还有题就进下一题，
+       * 整组答完才带着全部 `planAnswers` 发一次。
+       * ⚠ 已答的那几道**留在 prompt 里而不是时间线里**：这样「← 上一题」只要
+       * pop 一格，⛔ 不用从线程里删条目（删条目那条路要处理「删到哪一条为止」，
+       * 而那正是位置计算最容易错的地方）。
+       * ⚠ 整组答完那一刻一次性落成几行系统行：它们各自带着自包含的 `userText`，
+       * 进 `messages`、进库、刷新之后还在。
+       */
+      const answeredAll = [
+        ...prompt.answers,
+        { header: current.header, label: options.label, answer: answered },
+      ]
+      if (answeredAll.length < prompt.questions.length) {
+        setOperatorQuestion({ ...prompt, answers: answeredAll })
+        return
+      }
+      setOperatorQuestion(null)
+      for (const item of answeredAll) {
+        appendOperatorEntry({
+          kind: 'system',
+          id: nextOperatorEntryId('sys'),
+          code: 'questionAnswered',
+          subject: item.label,
+          userText: describeQuestionAnswerText(
+            item.answer.question ?? '',
+            item.label,
+          ),
+          answered: item.answer,
+        })
+      }
+      void run({
+        planAnswers: answeredAll.map((item) => item.answer),
+        planApproved: true,
+      })
     },
     [run],
   )
+
+  /**
+   * **「← 上一题」**（56b 切片 4）—— 把最后一格答复退回来，回到那一道题。
+   *
+   * ⚠ 第一题上不画这颗（面板那一侧判），所以这里**只做退一格**：⛔ 不在这里
+   * 再判一次「能不能退」—— 两处判据迟早会分叉。空了就是空了，pop 一个空数组
+   * 什么都不会发生。
+   */
+  const goBackQuestion = useCallback(() => {
+    const prompt = getOperatorState().question
+    if (!prompt || prompt.answers.length === 0) return
+    setOperatorQuestion({ ...prompt, answers: prompt.answers.slice(0, -1) })
+  }, [])
+
+  /**
+   * **Esc 收起问题块**（56b 切片 4）—— 这一组题就此作废，输入框回到普通发言。
+   *
+   * ⚠ 已经答过的那几道**跟着一起作废**：只留一半的答案发上去，模型会以为用户
+   * 只关心那一半。⛔ 不落任何系统行 —— 什么都没定下来。
+   */
+  const dismissQuestion = useCallback(() => {
+    setOperatorQuestion(null)
+  }, [])
 
   /**
    * **多步确认卡「开始」**（§3.3）—— 带 `planApproved: true` 重发。
@@ -2382,6 +2455,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     stop,
     cancelQueued,
     answerQuestion,
+    goBackQuestion,
+    dismissQuestion,
     approvePlan,
     declinePlan,
     revisePlan,

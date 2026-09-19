@@ -7829,10 +7829,11 @@
       "pending": "助手正在思考"
     },
     "question": {
+      "step": "{step} / {total}",
+      "back": "上一题",
       "recommended": "推荐",
-      "other": "你的看法",
-      "otherPlaceholder": "选项对不上时，写下你的判断…",
-      "pinnedTitle": "{name} 想先确认",
+      "other": "其他，自己写",
+      "otherPlaceholder": "自己写一句…",
       "current": "当前提示词",
       "proposed": "助手建议的提示词",
       "send": "发送",
@@ -7884,7 +7885,7 @@
     "verbStrip": {
       "label": "本轮进度"
     },
-    "placeholderQuestion": "也可以不选，直接打字说别的…",
+    "placeholderQuestion": "或者直接打字…",
     "collapsedTodo": "{count} 件等你处理"
   },
   "GenerationCancel": {

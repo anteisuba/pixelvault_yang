@@ -913,7 +913,7 @@ describe('工具环 · 逐事件顺序', () => {
     expect(events).toContainEqual(
       expect.objectContaining({
         type: ASSISTANT_OPERATOR_EVENTS.ask,
-        question: expect.objectContaining({ question: '要哪种画风？' }),
+        questions: [expect.objectContaining({ question: '要哪种画风？' })],
       }),
     )
     expect(stepsOf(events)).toHaveLength(0)
@@ -1761,7 +1761,7 @@ describe('就地确认往返（拍板 3）', () => {
     expect(
       (
         ask as Extract<AssistantOperatorEvent, { type: 'ask' }>
-      ).question.options.map((option) => option.id),
+      ).questions[0]!.options.map((option) => option.id),
     ).toEqual(Object.values(ASSISTANT_OPERATOR_CONFIRM_CHOICES))
     expect(halt).toMatchObject({
       reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
@@ -2470,7 +2470,7 @@ describe('看图闭环 · critique_result', () => {
     expect(
       (
         choice as Extract<AssistantOperatorEvent, { type: 'ask' }>
-      ).question.options.map((option) => option.assetUrl),
+      ).questions[0]!.options.map((option) => option.assetUrl),
     ).toEqual([
       'https://cdn.example.com/ref-a.png',
       'https://cdn.example.com/ref-b.png',
@@ -6539,10 +6539,9 @@ describe('计划协议 · plan / ask / confirm', () => {
         { id: 'plan-2', label: '写提示词' },
       ],
     })
-    const { question } = events[1] as Extract<
-      AssistantOperatorEvent,
-      { type: 'ask' }
-    >
+    const question = (
+      events[1] as Extract<AssistantOperatorEvent, { type: 'ask' }>
+    ).questions[0]!
     expect(question.id).toBe('question-1')
     expect(question.header).toBe('取景')
     expect(question.question).toBe('取多少身？')
@@ -6581,7 +6580,7 @@ describe('计划协议 · plan / ask / confirm', () => {
     const frame = events.find(
       (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
     ) as Extract<AssistantOperatorEvent, { type: 'ask' }>
-    expect(frame.question.options.map((option) => option.label)).toEqual([
+    expect(frame.questions[0]!.options.map((option) => option.label)).toEqual([
       '3D 游戏渲染',
       '厚涂',
     ])
@@ -6623,7 +6622,7 @@ describe('计划协议 · plan / ask / confirm', () => {
       events.find(
         (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
       ) as Extract<AssistantOperatorEvent, { type: 'ask' }>
-    ).question
+    ).questions[0]
     expect(question?.multiSelect).toBe(true)
     expect(question?.allowOther).toBe(false)
     expect(question?.options[0]?.label).toBe('3D 游戏渲染')
@@ -6631,6 +6630,49 @@ describe('计划协议 · plan / ask / confirm', () => {
     expect(
       question?.options.filter((option) => option.recommended === true),
     ).toHaveLength(1)
+  })
+
+  /**
+   * ⭐ **一帧带整组**（56b 切片 4）。此前多出来的题被丢掉并 warn，而丢掉的代价是
+   * 模型下一轮把同一道题重问一遍（真机：同一道题问了三遍）。界面上仍旧一次只画
+   * 一道 —— 那是问题块的事，不是帧的事。
+   */
+  it('⭐ 三道题一帧发完，⛔ 不再丢掉后两道', async () => {
+    const question = (id: string, header: string) => ({
+      id,
+      header,
+      question: `${header}选哪个？`,
+      multiSelect: false,
+      allowOther: true,
+      options: [
+        { label: 'A', description: '第一种做法' },
+        { label: 'B', description: '第二种做法' },
+      ],
+    })
+    queueTurns(
+      {
+        plan: ['排分镜'],
+        questions: [
+          question('q1', '镜头数量'),
+          question('q2', '时长风格'),
+          question('q3', '角色'),
+        ],
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const asks = events.filter(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
+    ) as Extract<AssistantOperatorEvent, { type: 'ask' }>[]
+    // ⛔ 一帧，不是三帧：三帧会让客户端同屏摆三个问题块。
+    expect(asks).toHaveLength(1)
+    expect(asks[0]!.questions.map((item) => item.header)).toEqual([
+      '镜头数量',
+      '时长风格',
+      '角色',
+    ])
   })
 
   it('只剩一个选项的反问题整道丢掉（一个选项的单选是通知不是问题）', async () => {
@@ -6678,8 +6720,8 @@ describe('计划协议 · plan / ask / confirm', () => {
     const frame = events.find(
       (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
     ) as Extract<AssistantOperatorEvent, { type: 'ask' }>
-    expect(frame.question.header).toBe('要不要把背景换成雨夜的…')
-    expect(frame.question.header.length).toBeLessThanOrEqual(12)
+    expect(frame.questions[0]!.header).toBe('要不要把背景换成雨夜的…')
+    expect(frame.questions[0]!.header.length).toBeLessThanOrEqual(12)
   })
 
   it('⭐ 人设「谨慎」档（planMode=always）下，哪怕只有一步也出多步确认卡', async () => {
@@ -10166,7 +10208,7 @@ describe('current reference image bindings', () => {
     expect(events).toContainEqual(
       expect.objectContaining({
         type: ASSISTANT_OPERATOR_EVENTS.ask,
-        question: expect.objectContaining({ id: 'prompt-conflict' }),
+        questions: [expect.objectContaining({ id: 'prompt-conflict' })],
       }),
     )
     expect(events.at(-1)).toMatchObject({
@@ -10226,17 +10268,19 @@ describe('current reference image bindings', () => {
     expect(events).toContainEqual(
       expect.objectContaining({
         type: ASSISTANT_OPERATOR_EVENTS.ask,
-        question: expect.objectContaining({
-          id: 'prompt-conflict',
-          // 问句就是模型自己写的那一条疑问，⛔ 不换成服务端的通用取舍问法。
-          question: uncertainty,
-          multiSelect: false,
-          allowOther: true,
-          options: [
-            expect.objectContaining({ id: 'follow-request' }),
-            expect.objectContaining({ id: 'follow-reference' }),
-          ],
-        }),
+        questions: [
+          expect.objectContaining({
+            id: 'prompt-conflict',
+            // 问句就是模型自己写的那一条疑问，⛔ 不换成服务端的通用取舍问法。
+            question: uncertainty,
+            multiSelect: false,
+            allowOther: true,
+            options: [
+              expect.objectContaining({ id: 'follow-request' }),
+              expect.objectContaining({ id: 'follow-reference' }),
+            ],
+          }),
+        ],
       }),
     )
     expect(events.at(-1)).toMatchObject({
@@ -10686,13 +10730,15 @@ describe('current reference image bindings', () => {
     )
     expect(ask).toMatchObject({
       type: ASSISTANT_OPERATOR_EVENTS.ask,
-      question: {
-        id: 'prompt-conflict',
-        options: [
-          expect.objectContaining({ id: 'follow-request' }),
-          expect.objectContaining({ id: 'follow-reference' }),
-        ],
-      },
+      questions: [
+        {
+          id: 'prompt-conflict',
+          options: [
+            expect.objectContaining({ id: 'follow-request' }),
+            expect.objectContaining({ id: 'follow-reference' }),
+          ],
+        },
+      ],
     })
     expect(events.at(-1)).toMatchObject({
       type: ASSISTANT_OPERATOR_EVENTS.stopped,
@@ -11343,8 +11389,8 @@ describe('五动词入口 · 派发与拒绝', () => {
       ASSISTANT_OPERATOR_EVENTS.stopped,
     ])
     const ask = events[0] as Extract<AssistantOperatorEvent, { type: 'ask' }>
-    expect(ask.question.question).toBe('要哪一路画风？')
-    expect(ask.question.options).toHaveLength(2)
+    expect(ask.questions[0]!.question).toBe('要哪一路画风？')
+    expect(ask.questions[0]!.options).toHaveLength(2)
     expect(events[1]).toMatchObject({
       reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
     })

@@ -7829,10 +7829,11 @@
       "pending": "アシスタントが考えています"
     },
     "question": {
+      "step": "{step} / {total}",
+      "back": "前の質問",
       "recommended": "おすすめ",
-      "other": "あなたの判断",
-      "otherPlaceholder": "合うものがなければ、希望を自由に教えてください…",
-      "pinnedTitle": "{name} が先に確認したいこと",
+      "other": "その他（自分で書く）",
+      "otherPlaceholder": "自分で書く…",
       "current": "現在のプロンプト",
       "proposed": "提案されたプロンプト",
       "send": "送信",
@@ -7884,7 +7885,7 @@
     "verbStrip": {
       "label": "今回のやり取り"
     },
-    "placeholderQuestion": "この質問は飛ばしても大丈夫です。ほかに伝えたいことがあればどうぞ…",
+    "placeholderQuestion": "または直接入力…",
     "collapsedTodo": "返答待ち {count}件"
   },
   "GenerationCancel": {

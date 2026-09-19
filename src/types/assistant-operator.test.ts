@@ -1449,10 +1449,10 @@ describe('事件契约', () => {
         type: ASSISTANT_OPERATOR_EVENTS.step,
         step: buildStep(ASSISTANT_OPERATOR_TOOL_IDS.setPrompt),
       },
-      { type: ASSISTANT_OPERATOR_EVENTS.ask, question: askQuestion },
+      { type: ASSISTANT_OPERATOR_EVENTS.ask, questions: [askQuestion] },
       {
         type: ASSISTANT_OPERATOR_EVENTS.ask,
-        question: askQuestion,
+        questions: [askQuestion, { ...askQuestion, id: 'q2' }],
         why: '两种做法差得远',
         overwrite: {
           field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
@@ -1578,21 +1578,23 @@ describe('事件契约', () => {
     ).toBe(false)
   })
 
-  /** ⚠ 一帧只问一道题，且题的形状照旧收紧：少于两个选项的「单选」是通知不是问题。 */
+  /** ⚠ 一帧带一组题（≤4），题的形状照旧收紧：少于两个选项的「单选」是通知不是问题。 */
   it('ask 的选项至少两个，且每个都得有一句说明', () => {
     expect(
       AssistantOperatorEventSchema.safeParse({
         type: ASSISTANT_OPERATOR_EVENTS.ask,
-        question: { ...askQuestion, options: [askQuestion.options[0]] },
+        questions: [{ ...askQuestion, options: [askQuestion.options[0]] }],
       }).success,
     ).toBe(false)
     expect(
       AssistantOperatorEventSchema.safeParse({
         type: ASSISTANT_OPERATOR_EVENTS.ask,
-        question: {
-          ...askQuestion,
-          options: [askQuestion.options[0], { id: 'b', label: '插画' }],
-        },
+        questions: [
+          {
+            ...askQuestion,
+            options: [askQuestion.options[0], { id: 'b', label: '插画' }],
+          },
+        ],
       }).success,
     ).toBe(false)
   })
@@ -1617,7 +1619,7 @@ describe('事件契约', () => {
     const parse = (extra: Record<string, unknown>) =>
       AssistantOperatorEventSchema.safeParse({
         type: ASSISTANT_OPERATOR_EVENTS.ask,
-        question: askQuestion,
+        questions: [askQuestion],
         overwrite: { ...overwrite, ...extra },
       }).success
 

@@ -574,7 +574,7 @@ describe('useAssistantOperator 的四条收尾路径', () => {
 
 // ─── 切片 3a：三张「等你定」的卡 + 规则薄卡 + 「不再问」──────────────
 
-const QUESTIONS: AssistantOperatorAskEvent['question'][] = [
+const QUESTIONS: AssistantOperatorAskEvent['questions'] = [
   {
     id: 'q1',
     header: '取景',
@@ -604,11 +604,14 @@ function multistepConfirmEvent(steps = 3): AssistantOperatorEvent {
   }
 }
 
-/** 问题帧（v2 §3.4）—— 一帧只问一道题。 */
+/** 问题帧（56b 切片 4）—— 一帧带一组题，界面一次只画一道。 */
 function askEvent(
-  question: AssistantOperatorAskEvent['question'] = QUESTIONS[0]!,
+  ...questions: AssistantOperatorAskEvent['questions']
 ): AssistantOperatorEvent {
-  return { type: ASSISTANT_OPERATOR_EVENTS.ask, question }
+  return {
+    type: ASSISTANT_OPERATOR_EVENTS.ask,
+    questions: questions.length > 0 ? questions : [QUESTIONS[0]!],
+  }
 }
 
 const SPEND_REQUEST = {
@@ -1349,9 +1352,11 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
       }),
     )
     await settle()
-    expect(store.getOperatorState().question?.question.options).toHaveLength(2)
+    expect(
+      store.getOperatorState().question?.questions[0]?.options,
+    ).toHaveLength(2)
 
-    const picked = store.getOperatorState().question?.question.options[1]
+    const picked = store.getOperatorState().question?.questions[0]?.options[1]
     act(() => {
       result.current.answerQuestion(
         { questionId: 'which-asset', optionIds: [picked!.id] },
@@ -1423,7 +1428,7 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     streams[0].emit(askEvent())
     await settle()
 
-    const picked = store.getOperatorState().question!.question.options[0]!
+    const picked = store.getOperatorState().question!.questions[0]!.options[0]!
     act(() => {
       result.current.answerQuestion(
         { questionId: 'q1', optionIds: [picked.id] },
@@ -1443,6 +1448,97 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
   })
 
   /**
+   * ⭐ **一组题一次答完再发**（56b 切片 4）。
+   *
+   * 从前一帧一题，于是每答一题都要重跑一整轮工具环 —— 三道题三轮，而后两道的
+   * 答案与前一道无关。钉三件事：① 答完第一题**不发请求**，只是进下一题；
+   * ② 整组答完发**一次**，`planAnswers` 里两道都在；③ 「上一题」退一格。
+   */
+  it('⭐ 一组题：答完第一题不发请求，整组答完才发一次', async () => {
+    const second = {
+      id: 'q2',
+      header: '节奏',
+      question: '快切还是长镜头？',
+      multiSelect: false,
+      allowOther: true,
+      options: [
+        { id: 'fast', label: '快切', description: '2–4 秒' },
+        { id: 'slow', label: '长镜头', description: '6 秒以上' },
+      ],
+    }
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我把这段排成分镜')
+    })
+    await settle()
+    streams[0].emit(askEvent(QUESTIONS[0]!, second))
+    await settle()
+
+    act(() => {
+      result.current.answerQuestion(
+        { questionId: 'q1', optionIds: ['half'] },
+        { label: '半身' },
+      )
+    })
+    await settle()
+    // ① 还没发第二轮 —— 只是进了下一题。
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+    expect(store.getOperatorState().question?.answers).toHaveLength(1)
+
+    // ③ 「上一题」退一格。
+    act(() => {
+      result.current.goBackQuestion()
+    })
+    await settle()
+    expect(store.getOperatorState().question?.answers).toHaveLength(0)
+
+    act(() => {
+      result.current.answerQuestion(
+        { questionId: 'q1', optionIds: ['half'] },
+        { label: '半身' },
+      )
+    })
+    await settle()
+    act(() => {
+      result.current.answerQuestion(
+        { questionId: 'q2', optionIds: ['fast'] },
+        { label: '快切' },
+      )
+    })
+    await settle()
+
+    // ② 整组答完发一次，两道都在。
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    expect(
+      streamAssistantOperatorAPI.mock.calls[1]?.[0].planAnswers?.map(
+        (item: { questionId: string }) => item.questionId,
+      ),
+    ).toEqual(['q1', 'q2'])
+    expect(store.getOperatorState().question).toBeNull()
+  })
+
+  it('Esc 收起问题块：这一组题作废，⛔ 一行都不落', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('帮我定一下取景')
+    })
+    await settle()
+    streams[0].emit(askEvent())
+    await settle()
+    act(() => {
+      result.current.dismissQuestion()
+    })
+    await settle()
+    expect(store.getOperatorState().question).toBeNull()
+    expect(
+      store
+        .getOperatorState()
+        .entries.filter((entry) => entry.kind === 'system'),
+    ).toHaveLength(0)
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(1)
+  })
+
+  /**
    * ⭐ **答复同时是一条会话里的 user 消息**（2026-09-12 第二次真机 bug）。
    *
    * 第一版修法只让答复随**当次**请求上送（`planAnswers`）：再下一轮那道题的答案
@@ -1459,7 +1555,7 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     streams[0].emit(askEvent())
     await settle()
 
-    const picked = store.getOperatorState().question!.question.options[0]!
+    const picked = store.getOperatorState().question!.questions[0]!.options[0]!
     act(() => {
       result.current.answerQuestion(
         { questionId: 'q1', optionIds: [picked.id] },

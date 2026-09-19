@@ -121,9 +121,10 @@ import {
   type StudioOperatorPinnedEvidenceItem,
 } from '@/components/business/studio/assistant-operator/StudioOperatorPinnedEvidence'
 import {
-  StudioOperatorQuestionCard,
+  StudioOperatorQuestionAnswers,
+  StudioOperatorQuestionBlock,
   type StudioOperatorQuestionAnswerPayload,
-} from '@/components/business/studio/assistant-operator/StudioOperatorQuestionCard'
+} from '@/components/business/studio/assistant-operator/StudioOperatorQuestionBlock'
 import { StudioOperatorResearchProgress } from '@/components/business/studio/assistant-operator/StudioOperatorResearchProgress'
 import { StudioOperatorQueueBar } from '@/components/business/studio/assistant-operator/StudioOperatorQueueBar'
 import { StudioOperatorEmptyState } from '@/components/business/studio/assistant-operator/StudioOperatorEmptyState'
@@ -350,6 +351,8 @@ export function StudioOperatorPanel({
     cancelQueued,
     newThread,
     answerQuestion,
+    goBackQuestion,
+    dismissQuestion,
     approvePlan,
     declinePlan,
     revisePlan,
@@ -866,6 +869,30 @@ export function StudioOperatorPanel({
       // 见上面 `uploading` 的注释：在飞的上传是发送的硬前提。
       if (uploading) return
       /**
+       * ⭐ **问题块开着时，直接打字 = 用一句话回答当前这题**（56b 切片 4）。
+       *
+       * ⚠ 它替掉了 v2 §3.4 的「不答直接打字」：那一档把没答的问题留到本轮结束
+       * 再折进时间线，而用户打的那句话往往**正是**答案（「8 镜，前 3 镜慢一点」）。
+       * 当成一条普通发言送出去的表现是助手下一轮把同一道题再问一遍。
+       * ⚠ 不想答就按 `Esc`（问题块收起，输入框回到普通发言）。
+       * ⚠ ⛔ 这条路不带附件：它走的是那道题的 `otherText`，而附件留在输入区等
+       *   下一句真正的发言。
+       */
+      const pending = getOperatorState().question
+      if (pending) {
+        answerQuestion(
+          {
+            questionId:
+              pending.questions[pending.answers.length]?.id ?? pending.id,
+            optionIds: [],
+            otherText: value,
+          },
+          { label: value },
+        )
+        onDraftChange('')
+        return
+      }
+      /**
        * ⭐ **@chip 与 📎 附件合成同一个数组送出去**（§7「四条走同一条 chip 管线」）：
        * 服务端一个新字段都没有，`buildMessages` 那条 `[attached: …]` 原样带上它们。
        * ⚠ 去重按 id：同一张图既被 📎 挂过又被 @ 提过时，助手会收到两份同样的地址。
@@ -929,6 +956,7 @@ export function StudioOperatorPanel({
       setAttachOpen(false)
     },
     [
+      answerQuestion,
       attachments,
       mention,
       onAttachmentsChange,
@@ -2073,18 +2101,24 @@ export function StudioOperatorPanel({
             而线程里的一切都是「已经发生的事」。 */}
         <StudioOperatorQueueBar items={queue} onCancel={cancelQueued} />
 
-        {/* ── 问题卡：**钉在输入框上方**（§3.4）────────────────────────
+        {/* ── 问题块：**与输入框同框、一次一题**（56b 切片 4）──────────
           ⭐ 它不进时间线：未答的问题是当下唯一挡路的东西，滚走了就等于问了个
-            寂寞。答完卡消失，时间线里落一行「问题 · 你选了 X」（系统行）。
-          ⚠ 用户可以**不答直接打字**：输入框的 placeholder 在这一档换一句
-            （见下面 `MentionInput` 的 placeholder）。 */}
+            寂寞。整组答完块消失，时间线里落几行「问题 · 你选了 X」（系统行）。
+          ⚠ 已答的那几道先收成小标签留在块上方 —— 它们此刻还没进线程，所以
+            「← 上一题」只要 pop 一格（见 `StudioOperatorQuestionPrompt` 的头注）。
+          ⚠ 下面的输入框**始终可用**：直接打字 = 用一句话回答当前这题
+            （见 `submitComposer`）。 */}
         {question ? (
-          <div className="shrink-0 px-3 pb-2">
-            <StudioOperatorQuestionCard
+          <div className="shrink-0">
+            <StudioOperatorQuestionAnswers answers={question.answers} />
+            <StudioOperatorQuestionBlock
+              /* ⭐ **key 带题序**：换一题 = 换一次挂载，于是键盘高亮、写了一半
+                 的「其他」、点过一次的锁全都自己清零 —— ⛔ 不在 effect 里
+                 setState 清（`react-hooks/set-state-in-effect`）。 */
+              key={`${question.id}:${question.answers.length}`}
               prompt={question}
-              assistantName={
-                persona?.name?.trim() || t('timeline.assistantFallback')
-              }
+              onBack={goBackQuestion}
+              onDismiss={dismissQuestion}
               onAnswer={(
                 answer,
                 payload: StudioOperatorQuestionAnswerPayload,
@@ -2095,7 +2129,9 @@ export function StudioOperatorPanel({
                   ...(payload.assetOptionId
                     ? {
                         asset: toQuestionAsset(
-                          question.question.options.find(
+                          question.questions[
+                            question.answers.length
+                          ]?.options.find(
                             (option) => option.id === payload.assetOptionId,
                           ),
                         ),

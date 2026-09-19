@@ -8897,19 +8897,13 @@ export async function* runAssistantOperator(
             /**
              * **问题优先于多步确认**（v2 §3.1 / §3.4）：待定项整体搬进了 `ask`，
              * 而 `ask` 一帧**只问一道题** —— 模型想问两件事就分两轮。
-             * ⚠ 多出来的题丢掉并 warn，⛔ 不连发两帧：两张问题卡同屏正是
-             * 「一次只问一个」要消灭的形状。
+             * ⚠ 一帧带**整组**（≤4 题，56b 切片 4）：界面上仍旧一次只显示一道
+             * （问题块自己带「1 / 3」进度）。⛔ 别再把多出来的题丢掉 —— 丢掉的
+             * 代价是模型下一轮把同一道题重问一遍。
              */
             const questions = normalizePlanQuestions(turn, clerkId)
-            const [question, ...extraQuestions] = questions
-            if (question) {
-              if (extraQuestions.length) {
-                logger.warn('assistant operator asked more than one question', {
-                  userId: clerkId,
-                  questionCount: questions.length,
-                })
-              }
-              yield { type: ASSISTANT_OPERATOR_EVENTS.ask, question }
+            if (questions.length > 0) {
+              yield { type: ASSISTANT_OPERATOR_EVENTS.ask, questions }
               /**
                * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
                * 本轮已经发生的看 / 查 / 改都有料，而用户点完那张卡不再新开一轮 ——
@@ -9124,7 +9118,7 @@ export async function* runAssistantOperator(
           )
           continue
         }
-        yield { type: ASSISTANT_OPERATOR_EVENTS.ask, question }
+        yield { type: ASSISTANT_OPERATOR_EVENTS.ask, questions: [question] }
         /**
          * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
          * 本轮已经发生的看 / 查 / 改都有料，而用户点完那张卡不再新开一轮 ——
@@ -9237,10 +9231,12 @@ export async function* runAssistantOperator(
          */
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.ask,
-          question: buildOverwriteQuestion(
-            plan.field,
-            resolveResponseLanguage(request, persona),
-          ),
+          questions: [
+            buildOverwriteQuestion(
+              plan.field,
+              resolveResponseLanguage(request, persona),
+            ),
+          ],
           overwrite: {
             field: plan.field,
             have: plan.have,
@@ -9275,7 +9271,10 @@ export async function* runAssistantOperator(
          * 停流，客户端答完带 `planAnswers` 重发。⛔ 不出被拒的 step：这一步没有
          * 失败可报，缺的只是创作者的一句话。
          */
-        yield { type: ASSISTANT_OPERATOR_EVENTS.ask, question: plan.question }
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.ask,
+          questions: [plan.question],
+        }
         const roundSummary = await closeRoundBeforeStop(run, {
           clerkId,
           userId: user.id,
@@ -9299,24 +9298,26 @@ export async function* runAssistantOperator(
          */
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.ask,
-          question: {
-            id: 'which-asset',
-            header: clamp(plan.question, PLAN_LIMITS.maxHeaderChars),
-            question: clamp(plan.question, PLAN_LIMITS.maxQuestionChars),
-            multiSelect: false,
-            allowOther: false,
-            options: plan.options
-              .slice(0, PLAN_LIMITS.maxOptions)
-              .map((option) => ({
-                id: option.id,
-                label: clamp(option.label, PLAN_LIMITS.maxOptionLabelChars),
-                description: clamp(
-                  option.label,
-                  PLAN_LIMITS.maxOptionDescriptionChars,
-                ),
-                assetUrl: option.assetUrl,
-              })),
-          },
+          questions: [
+            {
+              id: 'which-asset',
+              header: clamp(plan.question, PLAN_LIMITS.maxHeaderChars),
+              question: clamp(plan.question, PLAN_LIMITS.maxQuestionChars),
+              multiSelect: false,
+              allowOther: false,
+              options: plan.options
+                .slice(0, PLAN_LIMITS.maxOptions)
+                .map((option) => ({
+                  id: option.id,
+                  label: clamp(option.label, PLAN_LIMITS.maxOptionLabelChars),
+                  description: clamp(
+                    option.label,
+                    PLAN_LIMITS.maxOptionDescriptionChars,
+                  ),
+                  assetUrl: option.assetUrl,
+                })),
+            },
+          ],
         }
         /**
          * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
@@ -9459,7 +9460,10 @@ export async function* runAssistantOperator(
           if (promptConflictStrikes >= 2) {
             const language = resolveResponseLanguage(request, persona)
             const question = buildPromptConflictQuestion(language)
-            yield { type: ASSISTANT_OPERATOR_EVENTS.ask, question }
+            yield {
+              type: ASSISTANT_OPERATOR_EVENTS.ask,
+              questions: [question],
+            }
             const roundSummary = await closeRoundBeforeStop(run, {
               clerkId,
               userId: user.id,

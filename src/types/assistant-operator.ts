@@ -3583,7 +3583,11 @@ export const AssistantOperatorRuleHitEventSchema = z.object({
 /**
  * **列几个选项等用户点一个**（v2 §3.1：覆盖三选 + 候选单选并帧）。
  *
- * ⚠ 一帧**只问一道题**（§3.4「一次只问一个」）：模型想问两件事就分两轮。
+ * ⚠ 一帧带**一组题**（≤ `PLAN_LIMITS.maxQuestions` 4，56b 切片 4 改）。
+ * ⭐ 与「一次只问一个」**不矛盾**：界面上仍旧一次只显示一道（问题块带「1 / 3」
+ * 进度，答完自动进下一题）。改的是**帧**：v2 §3.4 那条「模型想问两件事就分两轮」
+ * 的代价是每答一题都要重跑一整轮工具环，而三道题里后两道的答案与前一道无关。
+ * ⛔ 别回到「一帧一题」：那正是真机上「同一道题被问了三遍」的来路。
  * ⚠ 题的形状复用 `AssistantOperatorPlanQuestion` —— 计划里的待定项搬进这一帧
  * 之后，两处问的本来就是同一种东西（一句问句 + 2–4 个带说明的选项，选项可以
  * 带 `assetUrl` 当缩略图，那就是旧的候选单选卡）。⛔ 别为「图片选项」
@@ -3596,7 +3600,13 @@ export const AssistantOperatorRuleHitEventSchema = z.object({
  */
 export const AssistantOperatorAskEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.ask),
-  question: AssistantOperatorPlanQuestionSchema,
+  /**
+   * 这一组题（1–4 道）。⚠ 顺序即提问顺序，⛔ 客户端不重排。
+   */
+  questions: z
+    .array(AssistantOperatorPlanQuestionSchema)
+    .min(1)
+    .max(PLAN_LIMITS.maxQuestions),
   /** 「为什么问这一句」—— 一行小字，缺席就不画。 */
   why: z.string().trim().min(1).max(LIMITS.maxMessageChars).optional(),
   overwrite: z

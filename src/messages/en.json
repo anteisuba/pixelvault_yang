@@ -7829,10 +7829,11 @@
       "pending": "The assistant is thinking"
     },
     "question": {
+      "step": "{step} / {total}",
+      "back": "Previous",
       "recommended": "Recommended",
-      "other": "Your take",
-      "otherPlaceholder": "If none fit, tell me what you'd prefer…",
-      "pinnedTitle": "{name} wants to confirm first",
+      "other": "Something else",
+      "otherPlaceholder": "Write your own…",
       "current": "Current prompt",
       "proposed": "Suggested prompt",
       "send": "Send",
@@ -7884,7 +7885,7 @@
     "verbStrip": {
       "label": "This exchange"
     },
-    "placeholderQuestion": "You can skip this question and tell me something else…",
+    "placeholderQuestion": "Or just type…",
     "collapsedTodo": "{count} awaiting your response"
   },
   "GenerationCancel": {

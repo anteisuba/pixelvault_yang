@@ -67,6 +67,7 @@ const D7B = {
       { k: 'leaf', t: '头像就是唯一开关：点开 → 面板从右上角展开，头像**滑进面板头部**成为头部那颗头像（同一元素，位置过渡 240ms，motion-reduce 直切）；点头部头像或 Esc → 面板收回头像。面板头部的「收起」按钮去掉' },
       { k: 'leaf', t: '画布：顶栏「助手」胶囊退场，位置换成这颗头像，排在「剪辑台」胶囊右侧；面板顶边在顶栏下方，不压顶栏。工作台 / LoRA：头像固定右上（LoRA 现在在右下，挪上去）' },
       { k: 'leaf', t: '头部右侧只剩一颗 ⋯：历史 · 设置 · 隐身（56a）收进去。⛔ 三颗图标并排退场' },
+      { k: 'leaf', t: '动画怎么做（owner 09-20 问）：头像是一个持久 fixed 元素、两个锚点（顶栏 36px · 头部槽 22px），打开时算位移 + 缩放 0.61 只过渡 transform；面板另起元素从右上角 scale(0.92)+opacity 长出，两者同 240ms 同曲线。⛔ 不动 width/height/top/left · ⛔ 过渡中不开 backdrop-filter（transitionend 后再加毛玻璃）· 阴影不做过渡 · 外壳先出内容 80ms 后淡入 · will-change 只在 240ms 内 · 过渡中 pointer-events:none · 关 200ms ease-in 定时器卸载不靘 animationend · reduced-motion 直切 · ⛔ 不用 AnimatePresence（后台页幽灵面板）' },
     ] },
     { k: 'cat', t: '④ 画板要出的', c: [
       { k: 'leaf', t: '四宿主各一帧：头部域标记 + 空态 + 起手药丸（同壳不同底）' },

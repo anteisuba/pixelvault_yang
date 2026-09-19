@@ -170,7 +170,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 10028,
+      "h": 10141,
       "title": "改进进度表",
       "page": "page-7"
     },
@@ -638,8 +638,35 @@
       "x": 1500,
       "y": 0,
       "w": 1440,
-      "h": 1830,
+      "h": 1850,
       "title": "D56a ② 思维导图",
+      "page": "page-15"
+    },
+    {
+      "file": "DesignD56Overview.dc.html",
+      "x": 0,
+      "y": 2160,
+      "w": 1400,
+      "h": 3620,
+      "title": "D56a ④ 记忆总览",
+      "page": "page-15"
+    },
+    {
+      "file": "DesignD56Receipt.dc.html",
+      "x": 1500,
+      "y": 1970,
+      "w": 1400,
+      "h": 1700,
+      "title": "D56a ④ 回执",
+      "page": "page-15"
+    },
+    {
+      "file": "DesignD56Ghost.dc.html",
+      "x": 1500,
+      "y": 3790,
+      "w": 1400,
+      "h": 1790,
+      "title": "D56a ④ 隐身",
       "page": "page-15"
     }
   ],

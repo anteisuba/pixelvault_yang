@@ -142,3 +142,9 @@ DesignCardsTavern.dc.html
 DesignD56Ask.dc.html
 --artboard
 DesignD56Map.dc.html
+--artboard
+DesignD56Overview.dc.html
+--artboard
+DesignD56Receipt.dc.html
+--artboard
+DesignD56Ghost.dc.html

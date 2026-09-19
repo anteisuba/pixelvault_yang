@@ -615,6 +615,12 @@ export const AssistantOperatorCanvasSnapshotSchema = z.object({
     .default([]),
 })
 
+export type AssistantOperatorCanvasNode = z.infer<
+  typeof AssistantOperatorCanvasNodeSchema
+>
+export type AssistantOperatorCanvasShot = z.infer<
+  typeof AssistantOperatorCanvasShotSchema
+>
 export type AssistantOperatorCanvasSnapshot = z.infer<
   typeof AssistantOperatorCanvasSnapshotSchema
 >

@@ -64,9 +64,9 @@
 
 ## 3. 画布 op 表
 
-真值是 `NODE_ASSISTANT_OPS_V4`（**31 条**，2026-09-19 逐键点数）。画布域**只开三个口子**（`canvas_apply` / `canvas_plan_rerun` / `canvas_generate`），`op` 那一格原样收 v4 的封闭词表 —— 模型看见的仍是封闭枚举，只是枚举住在它本来就住的那张表里。
+真值是 `NODE_ASSISTANT_OPS_V4`（**32 条**，2026-09-19 逐键点数）。画布域**只开三个口子**（`canvas_apply` / `canvas_plan_rerun` / `canvas_generate`），`op` 那一格原样收 v4 的封闭词表 —— 模型看见的仍是封闭枚举，只是枚举住在它本来就住的那张表里。
 
-**路由规则（现算，⛔ 不手抄）**：`CANVAS_APPLY_OP_IDS = NODE_ASSISTANT_OPS_V4.filter(inverse !== null && op !== 'generate')` → **27 条**。读类三条归 `canvas_plan_rerun` / `read_state`，`generate` 归 `canvas_generate`。
+**路由规则（现算，⛔ 不手抄）**：`CANVAS_APPLY_OP_IDS = NODE_ASSISTANT_OPS_V4.filter(inverse !== null && op !== 'generate')` → **28 条**。读类三条归 `canvas_plan_rerun` / `read_state`，`generate` 归 `canvas_generate`。
 
 | op id                   | group     | tier            | inverse                 | autoApply      | 走哪条工具                       |
 | ----------------------- | --------- | --------------- | ----------------------- | -------------- | -------------------------------- |
@@ -79,6 +79,7 @@
 | `delete`                | structure | **confirm**     | `add_node`              | **否**         | `canvas_apply`（先出就地确认卡） |
 | `move_to_shot`          | structure | free            | `move_to_shot`          | 是             | `canvas_apply`                   |
 | `reorder_shot`          | structure | free            | `reorder_shot`          | 是             | `canvas_apply`                   |
+| `project_script`        | structure | **confirm**     | `delete`（批量）        | **否**         | `canvas_apply`（先出就地确认卡） |
 | `set_slot_version`      | structure | free            | `set_slot_version`      | 是             | `canvas_apply`                   |
 | `mark_version_blocked`  | structure | free            | `mark_version_blocked`  | 是             | `canvas_apply`                   |
 | `set_output_version`    | structure | free            | `set_output_version`    | 是             | `canvas_apply`                   |
@@ -102,14 +103,15 @@
 | `edit_update_text`      | content   | free            | `edit_update_text`      | 是             | `canvas_apply`                   |
 | `generate`              | paid      | **hardConfirm** | —（结果不删，只回参数） | **否**         | **`canvas_generate`**            |
 
-### 3.1 待新增两行（⛔ 代码里还没有）
+### 3.1 `project_script` 已落地（进度表 24，2026-09-19）· `attach_card` 仍待新增
 
-| op id            | group     | tier    | 参数（草案）                                                | inverse（草案）                                                                          | 费用 / 可逆 | 落点                                        | 谁做                                                |
-| ---------------- | --------- | ------- | ----------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ----------- | ------------------------------------------- | --------------------------------------------------- |
-| `project_script` | structure | confirm | `scriptNodeId`（剧本文本节点）· `mode: create \| reproject` | 一条批量 `delete`：**只删本次新增的那几面镜**，⛔ 不碰重投影时「标已变」与「标灰」的旧镜 | free · 可逆 | 时间轴镜头节点 + 从剧本卡到每镜文本槽的连线 | 进度表 24                                           |
-| `attach_card`    | content   | free    | `cardId` · `nodeId` · `role`（角色槽名）                    | `disconnect`（同 `attach_asset` 那条：只有节点引用没有 URL）                             | free · 可逆 | 角色参考槽 + `@名字` + 音色                 | 进度表 35（依赖 `referenceSlots{role,url,cardId}`） |
+`project_script` 已在上表里（structure · **confirm** · inverse = 批量 `delete`）。参数是 `scriptNodeId`（`text.script` 卡）+ `mode: create | reproject`，缺省 `create`；投影过的剧本再 `create` **拒并提示改用 `reproject`**。落点是时间轴镜头节点 + 从剧本卡到每镜文本槽的连线。细则（拆镜三档 / diff 三类 / 角色空槽 / 快照两格）以 [`node-canvas-v2.md` §12.1](node-canvas-v2.md) 为准，⛔ 本文不重抄。
 
 ⚠ `project_script` 归 `confirm` 而不是 free 的判据与 `delete` 同源：**一句话能长出一整排节点**。重投影的 diff 语义（新增镜追加 / 改文案的镜标「已变」/ 删掉的镜不删节点只标灰）意味着它的 inverse 不是「整份快照回滚」，而是**只撤回本次新增**——所以参数里那个 `mode` 不是装饰，它决定 inverse 收哪几个 id。
+
+| op id         | group   | tier | 参数（草案）                             | inverse（草案）                                              | 费用 / 可逆 | 落点                        | 谁做                                                                 |
+| ------------- | ------- | ---- | ---------------------------------------- | ------------------------------------------------------------ | ----------- | --------------------------- | -------------------------------------------------------------------- |
+| `attach_card` | content | free | `cardId` · `nodeId` · `role`（角色槽名） | `disconnect`（同 `attach_asset` 那条：只有节点引用没有 URL） | free · 可逆 | 角色参考槽 + `@名字` + 音色 | 进度表 35（`referenceSlots{role,url,cardId}` 已落形状与空态，见 24） |
 
 ### 3.2 画布这一侧的三条纪律（照抄 §13.2，别在这里改）
 
@@ -173,7 +175,7 @@ LoRA 装配台的 op = **通用件里的那些**（与工作台同表，见 §2 
 | 6   | **排片回传缺口**：剪辑台「一句话排片」只到面板，拿不到剪辑台能直接套用的时间线提案（`deliverTimelineProposal` 无生产者）；`TIMELINE_PLAN_TOOL_ID = 'plan_timeline'` 在 `edit-desk.ts` 里定着，但 v4 op 词表里**没有这条 op**                                                                                | 进度表 21（补 op）+ 画布 §13.6                 |
 | 7   | **`node-canvas-v2.md` §13.2 把 `plan_timeline` 列进「读」组**，而 `NODE_ASSISTANT_OPS_V4` 里没有它 —— 文档超前于代码                                                                                                                                                                                        | 文档修正（21 落地时一并改）                    |
 | 8   | **`NODE_ASSISTANT_AUTO_APPLY_OPS`（v3 的 8 条）还在 `node-assistant-ops.ts` 里**，运行时已无消费者（canvas_apply 走 v4 现算），是旧词表残留                                                                                                                                                                 | 进度表 57（清理旧助手）                        |
-| 9   | **`project_script`（24）· `attach_card`（35）两条 op 未落**，画布表因此接不住剧本投影与角色槽装填；35 的 `referenceSlots{role,url,cardId}` 是 24 的前置                                                                                                                                                     | 进度表 24 / 35                                 |
+| 9   | ~~`project_script`（24）~~ **已落地**（2026-09-19，structure · confirm · inverse 只撤回本次新增）；`referenceSlots{role,url,cardId}` 的**形状与空态**随它一起落，投影按 `@角色` 开空位。**仍缺 `attach_card`（35）**：角色槽装填（卡片总线把角色卡的图与音色挂进来）还没有 op，空位今天只是空位             | 进度表 35                                      |
 | 10  | **LoRA 域有回执、无「改」的三条旋钮**：`set_specs`（无清晰度控件）· `set_count`（单次出图）· `request_generation`（宿主无 `triggerGeneration`）三条域表缺席，比例这颗旋钮助手够不着                                                                                                                         | 进度表 34 / 45（控件或宿主契约先动）           |
 | 11  | **配音间没有 op 表**：画板骨架注里写「LoRA 与配音间两张表随 34 / E10 再写」，而 owner 09-19 改口 —— 配音间不挂助手，这张表**不写**                                                                                                                                                                          | 已收口，无待办                                 |
 
@@ -193,6 +195,7 @@ LoRA 装配台的 op = **通用件里的那些**（与工作台同表，见 §2 
 
 ## Last Verified
 
+- **2026-09-19 · `project_script` 落地（进度表 24）**：§3 画布表补一行（structure · **confirm** · inverse = 批量 `delete`，**只撤回本次新增的那几面镜**），§3.1 从「待新增两行」缩成只剩 `attach_card`（35），§6 差距 9 标 24 那一半已落。点数因此由 `NODE_ASSISTANT_OPS_V4` **31 → 32**、`CANVAS_APPLY_OP_IDS` **27 → 28**；tier 非 free 的从两条变三条（`delete` / `project_script` 两条 confirm + `generate` hardConfirm），有测试锁住这张名单。细则以 [`node-canvas-v2.md` §12.1](node-canvas-v2.md) 为准，本文只摊 op 这一格。
 - **2026-09-19 · 差距清单 1–4 落地（进度表 21 代码部分）**。四条各一个 commit：`set_capability`（专属 chip 值）· `unmount_reference`（摘一张）· `set_model` 带 `channelId`（渠道）· 工作台 / LoRA 字段 320ms 闪。工具表由 **42** 条变 **44** 条（`ASSISTANT_OPERATOR_TOOLS` 逐键点数，有测试锁住那个数），域表 image **30 → 32** · video **30 → 32**（各多 `set_capability` / `unmount_reference` 两条），lora **33** 与 canvas **24** 不动。⚠ 本节其余数字仍是本文建立那天的点数，⛔ 它们只用来对账，代码赢。
 - ⚠ 落地时**没有改**的三处，如实记在这里：① 参考视频位仍摘不掉（快照那一节只给了个数，没给名单）；② 装配台那条参考轨没接 `unmount_reference`（宿主那只手归属另算）；③ 视频档没有专属 chip 行（那一行只在图片档渲染），所以 `set_capability` 在视频档一律 `noSuchControl` —— 形状与 `set_negative` 同源，补的是控件不是工具表。
 - **2026-09-19 · 本文建立（进度表 21 spec）**。Method：逐键读上述常量文件点数 —— `ASSISTANT_OPERATOR_TOOLS` **42** 条（读 18 / 改动型 22 / 花钱 2）；域表 image **30** · video **30** · lora **33** · canvas **24**；`NODE_ASSISTANT_OPS_V4` **31** 条，`CANVAS_APPLY_OP_IDS` 现算得 **27** 条（31 − 读类 3 − `generate`），其中 tier 非 free 的只有 `delete`（confirm）与 `generate`（hardConfirm）。⚠ 这些数字是对账用的点数，不是规范；代码加一条而本文没跟上时，代码赢。

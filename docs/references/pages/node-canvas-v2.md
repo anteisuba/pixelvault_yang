@@ -337,6 +337,31 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 
 ⚠ **角色投影成 `image.character` 而不是文本节点**：角色卡是生成落点（它自己出图），降成一段文字会让「先出角色图再进镜头」整条路径消失。镜头文本走**单一 Markdown 正文**（`text.shotNote`，`defaultRole: script`），四栏合并成带小标题的正文，拆合在投影层。
 
+### 12.1 剧本节点与 `project_script`（进度表 24，2026-09-19 落地）
+
+与上面那条 ScriptDoc 投影**并列、不互相取代**：那一条的入口是剧本笺（`ScriptDocWorkspace`），这一条的入口是**画布上的一张卡**——`text.script`，卡面自己带分镜列表和一颗「确认 · 投影 N 镜」。设计真值是画板 `DesignD7Script.dc.html`（owner D7 ④ 通过）。
+
+**卡面三段**（`text/ScriptCardBody.tsx`）：卡头一行元信息（`N 幕 · N 镜`）· 大纲（第一个分段标记之前的正文）· 分镜列表（每行 `S01 · 一句话 · 4s`，变了的那一行虚线 + 「已变」）· 底部一颗按钮。按钮三态 = 投影状态：`确认 · 投影 N 镜`（近黑主动作）/ `已投影 · N 镜`（停用）/ `重投影 · N 镜变`。
+
+⚠ **分镜列表是 `body` 的投影，不是第二份数据**：拆镜每次现算（`lib/node-script-shots.ts`）。⛔ 节点上不另存一份镜头表——存两份的表现是用户改了正文而列表没跟上，而那正是这张卡唯一要回答的问题。
+
+**拆镜是确定性的**，三档按顺序选一档（⛔ 不混用）：① 编号标记（`S01` / `镜3` / `第 3 镜` / `## S02 递伞`）→ 键取编号；② Markdown 小标题 → 键取标题文字；③ 空行分段 → 键取序号。同一份正文拆两次必须得到同一批键，否则「第三镜改了一句话」会被读成「删了三镜又建了三镜」。⚠ 编号后面有一个**零宽边界**：没有它 `s3cret …` 会被读成第 3 镜，而一行误判的后果是整张剧本的键全错位。⛔ **「让 LLM 拆镜」不在这条路径上**——它给不了同一段文字两次断在同一处的保证；要接也是换 `parseScriptShots` 的产出来源，不换 op 的形状。
+
+**`project_script` 的两档**（`mode` 缺省 `create`）：
+
+| mode        | 做什么                                                                                                                                                       | 拒在哪                                                                                                      |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------- |
+| `create`    | 按分镜建出一排 `video.shot`（镜号 1..N，**追加到末尾**），并从剧本卡连到每镜的 `text` 槽（`role: script`）                                                   | 投影过的剧本再 `create` → 拒并提示改用 `reproject`（⛔ 不静默当成重投影：两者的 inverse 收的不是同一批 id） |
+| `reproject` | diff 三类：**新增的镜新建** · **文案变了的旧镜标「已变」**（`state: changed` + 新文本进 `pendingText`）· **剧本里删掉的镜标灰**（`state: dropped`，⛔ 不删） | 没投过的剧本 → 拒；拆不出镜的正文 → 拒（⛔ 不建一排空节点）                                                 |
+
+⚠ **重投影不覆盖节点上的内容**：用户可能已经在这一镜上改过提示词、出过片。新文本只摆在 `pendingText` 上等他自己决定——直接盖掉等于用一次「同步」抹掉他的工作，而那件事看起来和投影成功一模一样。改回原文的镜自己回到 `synced`，角标随之消掉。
+
+⚠ **inverse 只删本次新增的那几面镜**，⛔ 不碰「标已变」与「标灰」的旧镜（spec 原文）。所以撤销之后那两种角标**仍然在**——它们说的是「剧本和这一镜对不上」，那句话在撤销之后依然为真。
+
+**角色槽**（`referenceSlots{role,url,cardId}`）：投影按这一镜里的 `@角色` 开出**空位**，显示在参考轨那一行（卡面不显示槽，§1.1）。⚠ 本片只有形状与空态；装填（卡片总线把角色卡的图与音色挂进来）归进度表 35 的 `attach_card`，⛔ 不提前写一半。
+
+**助手看得见**：快照里剧本卡带一份**跨折叠**的投影汇总（`scriptProjection: {shots, projected, changed, dropped}`），镜头卡带 `fromScript: {nodeId, shotKey, state}`。汇总跨折叠统计是有意的——折叠的镜模型看不见，但「还有几面与剧本对不上」这句话它必须知道，否则它会以为投影已经干净了。⛔ 汇总里没有逐镜列表（与分层同一条理由）。
+
 ---
 
 ## 13. 助手
@@ -372,7 +397,7 @@ Canvas 是 PixelVault 的北极星能力之一（与 LoRA 并列双核，见 [`.
 `NODE_ASSISTANT_OPS_V4` 分五组：
 
 - **读**（`read_canvas` / `find_node` / `plan_rerun_downstream` / `plan_timeline`）——没有副作用也就没有 inverse。⚠ `plan_rerun_downstream` **只列名单，一个字不改一分钱不花**；真正的重跑是紧随其后的一串 `generate`，⛔ 别把它做成「顺便把那几个也跑了」，那是在钱闸上开后门。`plan_timeline` 同理：出一份时间线 JSON，⛔ 不渲染、不生成。
-- **结构**（`add_node` / `connect` / `disconnect` / `delete` / `move_to_shot` / `reorder_shot` / `set_slot_version` / `mark_version_blocked`）。
+- **结构**（`add_node` / `connect` / `disconnect` / `delete` / `move_to_shot` / `reorder_shot` / `project_script` / `set_slot_version` / `mark_version_blocked`）。⚠ `project_script` 与 `delete` 并列是**需确认档**的另一条（判据同源：一句话能长出一整排节点），细则见 §12.1。
 - **内容**（`set_text` / `set_prompt` / `set_field` / `attach_asset` / `set_model` / `set_params` / `set_voice_profile` …）。
 - **审阅**（`set_review_state`）。⚠ 助手**不得自批**（`approvalForbidden`，无开关）。
 - **花钱**（`generate`）。
@@ -514,6 +539,7 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 - 节点卡与共用件：`src/components/business/node/nodes/v4/**`（`chrome/*` = 工具条 / 提示词栏 / chip 弹层 / @ chip / 版本小点 / 裱框显影 / 快速看 / 画中框）· 外壳 `src/components/business/node/workbench-v4/**`（见 `src/components/business/node/CLAUDE.md`）
 - 模型选择器：`src/components/business/studio-shared/pickers/ModelPickerPopover.tsx` · `ModelChip.tsx` · `src/lib/resolve-model-channel.ts` · `src/lib/group-models-for-picker.ts` · `src/hooks/use-model-picker-memory.ts` · `src/constants/model-picker.ts`
 - 剪辑台：`src/components/business/node/edit-desk/**` · `src/hooks/node/use-edit-desk.ts` · `src/hooks/node/use-edit-shortcut-preset.ts`（PR / FCP 键位预设，住 `localStorage`）· `src/lib/edit-project.ts` · `src/constants/edit-desk.ts` · `src/constants/render-video.ts` · `src/services/video/render-video.service.ts` · `src/app/api/studio/render/**` · `workers/render-video/`
+- 剧本节点与投影（§12.1）：`src/constants/node-script.ts` · `src/lib/node-script-shots.ts`（确定性拆镜）· `src/lib/node-script-projection.ts`（diff）· `src/components/business/node/nodes/v4/text/ScriptCardBody.tsx` · `src/components/business/node/nodes/v4/video/VideoScriptShotChips.tsx` · `NodeV4ScriptShotSchema` / `NodeV4ReferenceSlotSchema`（`src/types/node-workflow.ts`）
 - op 与助手：`src/constants/node-assistant-ops.ts` · `src/lib/node-assistant-op-apply-v4.ts` · `src/lib/node-assistant-op-plan.ts` · `src/lib/node-assistant-context.ts` · `src/components/business/node/CanvasOpProposalCard.tsx`（剧本笺转录，§13.3）
 - 画布上的助手（§13）：`src/hooks/node/use-canvas-operator-host.ts` · `src/hooks/node/use-canvas-operator-requests.ts` · `src/lib/studio-operator-canvas-snapshot.ts` · `src/types/assistant-operator.ts`（`CANVAS_APPLY_OP_IDS`）· `src/constants/assistant-operator.ts`（canvas 域）· `src/components/business/studio/assistant-operator/**`（壳与面板，⛔ 画布不另有一套）· 协议 [`assistant-shell-v2.md`](assistant-shell-v2.md)
 - 槽与装配：`src/lib/node-slot-binding.ts` · `src/lib/node-slot-payload.ts` · `src/lib/node-connection-rules.ts` · `src/lib/node-mentions-to-slots.ts` · `src/lib/node-shot-layout.ts` · `src/lib/node-output-versions.ts`
@@ -523,6 +549,8 @@ v3 读端（服务端透传 + 客户端惰性升级 + `legacy` 节点空壳 + v3
 - 视觉：`docs/references/ui-defaults.md` §3.1 / §4.1 · `src/app/globals.css` · `src/app/canvas.css`（§15 收尾中）
 
 ## Last Verified
+
+- **2026-09-19 · 剧本节点 + `project_script`（进度表 24）**：新增 §12.1。画布上的 `text.script` 卡自带分镜列表与「确认 · 投影 N 镜」；`project_script`（structure · **confirm** 档 · free · 可逆）两档 `create` / `reproject`，重投影 diff 三类（新增建 / 已变标 / 删掉标灰，⛔ 不覆盖用户已改内容），inverse **只删本次新增**。拆镜确定性（`lib/node-script-shots.ts`，⛔ LLM 拆镜未接）。镜头节点新增 `scriptShot` 与 `referenceSlots`（**只有形状与空态**，装填归 35）。助手快照新增 `scriptProjection` / `fromScript` 两格。⚠ 已知缺口记在文里：`text.script` 卡不再有那只高文本框（正文改动走全屏文档 / 助手 `set_text`）；`project_script` 的确认卡走 `tier: confirm` 的通用路径，⛔ 没有为它专门写一张「要建 N 面镜」的确认卡。
 
 - **2026-09-19 · 画布并入统一助手（进度表 22「一张脸」）**：§13 重写。板上的助手就是工作台那颗 dock（`domain = canvas`）；画布自己那套引擎（旧 dock · 外壳 · 路由 · service · 会话 hook）整套删除，新增 canvas 域三条工具、分层快照、被改节点闪一下、三条侧入口。⚠ 两处**已知缺口**记在文里而不是补一个假的：剪辑台排片只到面板（`deliverTimelineProposal` 无生产者）；`CanvasAssistantHistory` / `RouteSelector` / `ReferencePicker` 三个组件等旧 studio dock 退场（进度表 57）一起走。
 

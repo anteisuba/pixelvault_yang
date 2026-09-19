@@ -85,7 +85,10 @@ export function StudioOperatorCollapsedButton({
          生成键占着它）。⚠ `z-30` 低于手机 composer 的 `z-40`：净空万一不够，
          让位的是这颗按钮不是生成键。 */
       className={cn(
-        'fixed z-30 grid place-items-center overflow-visible rounded-full bg-foreground text-background shadow-assistant-overlay transition-transform duration-(--duration-fast) ease-standard hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:scale-100',
+        /* ⚠ `pointer-events-auto` 与展开态那一格同源（见 `StudioOperatorDock`
+           的 aside）：这颗按钮同样住在画布那条 `pointer-events-none` 的全屏
+           rail 里，不自己声明就按不动 —— 而按不动的表现是「收起之后再也打不开」。 */
+        'pointer-events-auto fixed z-30 grid place-items-center overflow-visible rounded-full bg-foreground text-background shadow-assistant-overlay transition-transform duration-(--duration-fast) ease-standard hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 motion-reduce:transition-none motion-reduce:hover:scale-100',
       )}
     >
       {avatarUrl ? (

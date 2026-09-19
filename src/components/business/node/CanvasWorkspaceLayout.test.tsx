@@ -42,6 +42,36 @@ describe('CanvasWorkspaceLayout', () => {
     expect(workspace).not.toHaveClass('domain-canvas')
   })
 
+  /**
+   * ⭐ **rail 是 none，装进去的东西自己声明 auto**（2026-09-19 真机：画布页面板
+   * 点不动）。rail 必须 none —— 它是一条全屏层，可点就会盖住整张画布；所以
+   * 「这块可点」这件事由助手自己说（见 `StudioOperatorDock` 的 aside）。
+   */
+  it('⭐ rail 不吃点击，而自己声明 auto 的子元素照旧可点', () => {
+    const stageRef = createRef<HTMLDivElement>()
+    render(
+      <CanvasWorkspaceLayout
+        assistantMode="chat"
+        stageRef={stageRef}
+        assistant={
+          <aside
+            data-testid="assistant-surface"
+            className="pointer-events-auto"
+          >
+            Assistant
+          </aside>
+        }
+      >
+        <div>Canvas</div>
+      </CanvasWorkspaceLayout>,
+    )
+    const rail = screen.getByTestId('canvas-assistant-rail')
+    const surface = screen.getByTestId('assistant-surface')
+    expect(rail).toHaveClass('pointer-events-none')
+    expect(surface.parentElement).toBe(rail)
+    expect(surface).toHaveClass('pointer-events-auto')
+  })
+
   it('script mode is the expanded two-column rail, not a second geometry owner', () => {
     const stageRef = createRef<HTMLDivElement>()
     render(

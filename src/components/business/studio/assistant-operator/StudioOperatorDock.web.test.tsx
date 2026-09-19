@@ -1,5 +1,5 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useImageUpload } from '@/hooks/use-image-upload'
 import {
@@ -228,6 +228,32 @@ describe('StudioOperatorDock', () => {
     expect(panel.className).toContain('assistant-glass-panel')
     expect(panel.className).not.toContain('bg-card')
     expect(panel.className).toContain('shadow-assistant-panel')
+  })
+
+  /**
+   * ⭐ **Dock 自己声明可点**（2026-09-19 真机：画布页面板点不动）。
+   *
+   * 🔬 画布宿主把助手渲染在一条 `pointer-events-none` 的全屏 rail 里（那条 rail
+   * 必须是 none，否则会盖住整张画布）。展开态不自己写 `auto` 就从 rail 继承成
+   * none —— 面板画得出来，点击全落到底下的画布上。收起态照旧是 none（那时
+   * `<aside>` 宽高归零，留着可点只会在右上角吃掉点击）。
+   */
+  it('⭐ 展开态自己 `pointer-events-auto`；收起态仍是 none', () => {
+    render(<StudioOperatorDock />)
+    expect(screen.getByTestId('operator-panel').className).toContain(
+      'pointer-events-auto',
+    )
+    cleanup()
+
+    hostOpen = false
+    render(<StudioOperatorDock />)
+    const collapsedPanel = screen.getByTestId('operator-panel')
+    expect(collapsedPanel.className).toContain('pointer-events-none')
+    expect(collapsedPanel.className).not.toContain('pointer-events-auto')
+    // 右下角那颗圆按钮同样住在 rail 里 —— 不自己声明就「收起之后再也打不开」。
+    expect(screen.getByTestId('operator-collapsed').className).toContain(
+      'pointer-events-auto',
+    )
   })
 
   it('收起态：aside 归零，另画一颗右下角 44px 圆按钮（D7 ④ · Q2 = C）', () => {

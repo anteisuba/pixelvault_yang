@@ -681,8 +681,20 @@ export function StudioOperatorDock() {
           styles.shell,
           // ── 三层玻璃①：**面板**（§12.1）。86% 白 + 轻模糊 + 细边 + 柔投影；
           //    18px 圆角是区间上限（§12.3 「面板与浮层取上限」）。
+          /**
+           * ⭐ **展开态自己声明可点**（2026-09-19 真机：画布页面板点不动）。
+           *
+           * 🔬 根因：画布宿主把助手渲染在一条**全屏** rail 里
+           * （`CanvasWorkspaceLayout` 的 `canvas-assistant-rail`），那条 rail 必须
+           * `pointer-events-none` —— 否则它会盖住整张画布。旧的画布面板自己写了
+           * `pointer-events-auto`，而换成这颗 Dock 之后展开态只写了皮肤，于是从
+           * rail 继承成 `none`：面板画得出来，点击全落到底下的画布上。
+           * ⚠ 所以这一格由**Dock 自己**声明，⛔ 不指望宿主去开：工作台 / LoRA
+           * 两个宿主没有 `none` 的父级，加了没有副作用；而依赖宿主的话，下一个
+           * 把助手挂进任何一条 overlay 的人会原样再撞一次。
+           */
           open
-            ? 'overflow-hidden rounded-2xl border border-border assistant-glass-panel shadow-assistant-panel'
+            ? 'pointer-events-auto overflow-hidden rounded-2xl border border-border assistant-glass-panel shadow-assistant-panel'
             : 'pointer-events-none overflow-hidden',
           isResizing && styles.resizing,
         )}

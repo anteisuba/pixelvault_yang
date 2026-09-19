@@ -142,3 +142,116 @@ describe('buildCanvasOperatorSnapshot', () => {
     ).toBe(true)
   })
 })
+
+/* ─────────────────────────────────────────────────────────────────────────
+ * 剧本投影在快照里怎么看见（进度表 24）
+ * ───────────────────────────────────────────────────────────────────────── */
+
+function scriptNode(id: string, body: string): NodeV4 {
+  return {
+    id,
+    position: { x: 0, y: 0 },
+    data: {
+      kind: 'text',
+      subtype: 'script',
+      name: id,
+      status: 'idle',
+      createdAt: '2026-09-19T00:00:00.000Z',
+      body,
+    },
+  } as NodeV4
+}
+
+function projectedShot(
+  id: string,
+  shotNo: number,
+  shotKey: string,
+  state: 'synced' | 'changed' | 'dropped',
+): NodeV4 {
+  return {
+    id,
+    position: { x: 0, y: 0 },
+    data: {
+      kind: 'video',
+      subtype: 'shot',
+      name: id,
+      label: id,
+      status: 'idle',
+      createdAt: '2026-09-19T00:00:00.000Z',
+      shotNo,
+      scriptShot: {
+        scriptNodeId: 'sc_1',
+        shotKey,
+        projectedText: shotKey,
+        state,
+      },
+    },
+  } as NodeV4
+}
+
+describe('剧本投影在快照里（进度表 24）', () => {
+  /**
+   * ⭐ 汇总**跨折叠**统计：折叠的镜模型看不见，但「还有几面与剧本对不上」这句话
+   * 它必须知道 —— 不然它会以为投影已经干净了，把重投影这一步跳过去。
+   */
+  it('⭐ 剧本卡带一份跨折叠的投影汇总', () => {
+    const nodes = [
+      scriptNode('sc_1', 'S01 甲\nS02 乙\nS03 丙'),
+      projectedShot('v1', 1, 's1', 'synced'),
+      projectedShot('v2', 2, 's2', 'changed'),
+      // ⚠ 这一面在焦点之外（会被折叠），它的「标灰」仍要进汇总。
+      projectedShot('v3', 40, 's3', 'dropped'),
+    ]
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes,
+      edges: [],
+      currentShotNo: 1,
+    })
+    expect(AssistantOperatorCanvasSnapshotSchema.parse(snapshot)).toBeTruthy()
+    const loose = snapshot.shots.find((shot) => shot.shotNo === null)
+    expect(loose?.expanded).toBe(true)
+    const card =
+      loose?.expanded === true
+        ? loose.nodes.find((node) => node.id === 'sc_1')
+        : undefined
+    expect(card?.scriptProjection).toEqual({
+      shots: 3,
+      projected: 3,
+      changed: 1,
+      dropped: 1,
+    })
+  })
+
+  it('镜头卡带「我来自哪一段、变没变」', () => {
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [
+        scriptNode('sc_1', 'S01 甲'),
+        projectedShot('v1', 1, 's1', 'changed'),
+      ],
+      edges: [],
+      currentShotNo: 1,
+    })
+    const shot = snapshot.shots.find((item) => item.shotNo === 1)
+    const node =
+      shot?.expanded === true
+        ? shot.nodes.find((item) => item.id === 'v1')
+        : undefined
+    expect(node?.fromScript).toEqual({
+      nodeId: 'sc_1',
+      shotKey: 's1',
+      state: 'changed',
+    })
+  })
+
+  it('没有剧本关系的节点不带这两格（⛔ 不摆空对象）', () => {
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [imageNode('i_1', 1)],
+      edges: [],
+      currentShotNo: 1,
+    })
+    const shot = snapshot.shots.find((item) => item.shotNo === 1)
+    const node = shot?.expanded === true ? shot.nodes[0] : undefined
+    expect(node).not.toHaveProperty('scriptProjection')
+    expect(node).not.toHaveProperty('fromScript')
+  })
+})

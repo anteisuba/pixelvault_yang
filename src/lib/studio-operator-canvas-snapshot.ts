@@ -19,7 +19,13 @@
  */
 
 import { ASSISTANT_OPERATOR_CANVAS_LIMITS } from '@/constants/assistant-operator'
-import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
+import {
+  NODE_MEDIA_KIND_IDS,
+  NODE_V4_TEXT_SUBTYPE_IDS,
+} from '@/constants/node-types'
+import { parseScriptShots } from '@/lib/node-script-shots'
+import { readScriptShotRef } from '@/lib/node-script-projection'
 import type {
   AssistantOperatorCanvasNode,
   AssistantOperatorCanvasShot,
@@ -54,12 +60,59 @@ function nodeHasOutput(node: NodeV4): boolean {
   return Boolean(data.url)
 }
 
+/**
+ * 剧本投影那两格（进度表 24）。
+ *
+ * ⚠ 汇总**跨折叠**统计：折叠的镜模型看不见，但「还有三面与剧本对不上」这句话
+ * 它必须知道 —— 否则它会以为投影已经干净了，然后把重投影这一步跳过去。
+ * ⚠ 汇总里**没有逐镜列表**：一张六十镜的剧本全列出来就是把整轮步数烧在读上下文
+ * 上（与分层同一条理由）。要看具体哪一面变了，把焦点挪到那一镜再读一次。
+ */
+type ScriptProjectionSummary = NonNullable<
+  AssistantOperatorCanvasNode['scriptProjection']
+>
+
+function buildScriptProjectionSummaries(
+  nodes: readonly NodeV4[],
+): Map<string, ScriptProjectionSummary> {
+  const summaries = new Map<string, ScriptProjectionSummary>()
+  for (const node of nodes) {
+    const data = node.data
+    if (data.kind !== NODE_MEDIA_KIND_IDS.text) continue
+    if (data.subtype !== NODE_V4_TEXT_SUBTYPE_IDS.script) continue
+    summaries.set(node.id, {
+      shots: parseScriptShots(data.body).shots.length,
+      projected: 0,
+      changed: 0,
+      dropped: 0,
+    })
+  }
+  for (const node of nodes) {
+    const ref = readScriptShotRef(node)
+    if (!ref) continue
+    const summary = summaries.get(ref.scriptNodeId)
+    if (!summary) continue
+    summaries.set(ref.scriptNodeId, {
+      ...summary,
+      projected: summary.projected + 1,
+      changed:
+        summary.changed +
+        (ref.state === NODE_SCRIPT_SHOT_STATE_IDS.changed ? 1 : 0),
+      dropped:
+        summary.dropped +
+        (ref.state === NODE_SCRIPT_SHOT_STATE_IDS.dropped ? 1 : 0),
+    })
+  }
+  return summaries
+}
+
 function toSnapshotNode(
   node: NodeV4,
   incoming: readonly NodeWorkflowEdgeV4[],
   availableModelsByNodeId:
     | Readonly<Record<string, readonly string[]>>
     | undefined,
+  scriptProjections: ReadonlyMap<string, ScriptProjectionSummary>,
 ): AssistantOperatorCanvasNode {
   const data = node.data
   const text = nodeText(node)
@@ -70,11 +123,24 @@ function toSnapshotNode(
     .slice(0, ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot)
     .map((edge) => ({ slot: edge.slot, from: edge.source }))
 
+  const scriptProjection = scriptProjections.get(node.id)
+  const fromScript = readScriptShotRef(node)
+
   return {
     id: node.id,
     name: data.name,
     kind: data.kind,
     subtype: data.subtype,
+    ...(scriptProjection === undefined ? {} : { scriptProjection }),
+    ...(fromScript === undefined
+      ? {}
+      : {
+          fromScript: {
+            nodeId: fromScript.scriptNodeId,
+            shotKey: fromScript.shotKey,
+            state: fromScript.state,
+          },
+        }),
     ...(text === undefined ? {} : { text }),
     ...(model === undefined ? {} : { model }),
     ...(availableModels === undefined || availableModels.length === 0
@@ -142,6 +208,8 @@ export function buildCanvasOperatorSnapshot({
     else incomingByTarget.set(edge.target, [edge])
   }
 
+  const scriptProjections = buildScriptProjectionSummaries(nodes)
+
   const byShot = new Map<number | null, NodeV4[]>()
   for (const node of nodes) {
     const shotNo = node.data.shotNo ?? null
@@ -179,6 +247,7 @@ export function buildCanvasOperatorSnapshot({
             node,
             incomingByTarget.get(node.id) ?? [],
             availableModelsByNodeId,
+            scriptProjections,
           ),
         ),
     })

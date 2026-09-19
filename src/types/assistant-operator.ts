@@ -86,6 +86,7 @@ import {
   NodeAssistantPlanRerunDownstreamOpSchema,
   NodeAssistantGenerateV4OpSchema,
 } from '@/types/node-assistant-ops'
+import { NODE_SCRIPT_SHOT_STATES } from '@/constants/node-script'
 import { EVIDENCE_CREDIBILITY_VALUES } from '@/constants/research'
 import { VIDEO_FRAME_LIMITS } from '@/constants/video-analysis'
 import { WEB_IMAGE_SOURCE_VERDICTS } from '@/constants/web-image-sources'
@@ -633,6 +634,31 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
     .optional(),
   /** 有没有产出。⚠ 是布尔不是 URL —— 挂图那一跳认的是节点 id，不是地址。 */
   hasOutput: z.boolean().optional(),
+  /**
+   * **剧本卡**那一格（进度表 24）：这张卡拆得出几面镜、已经投出去几面、其中
+   * 几面与剧本对不上。
+   *
+   * ⚠ 它是一份**汇总**而不是逐镜列表，理由与分层同源：一张六十镜的剧本全列出来
+   * 就是把整轮步数烧在读上下文上。要看具体哪一面变了，把焦点挪到那一镜再读。
+   * ⚠ 汇总**跨折叠**统计：折叠的镜模型看不见，但「还有三面对不上」这句话它必须
+   * 知道 —— 否则它会以为投影已经干净了。
+   */
+  scriptProjection: z
+    .object({
+      shots: z.number().int().min(0),
+      projected: z.number().int().min(0),
+      changed: z.number().int().min(0),
+      dropped: z.number().int().min(0),
+    })
+    .optional(),
+  /** **镜头卡**那一格：这一镜来自哪张剧本卡的哪一段，现在与剧本对不对得上。 */
+  fromScript: z
+    .object({
+      nodeId: IdSchema,
+      shotKey: LabelSchema,
+      state: z.enum(NODE_SCRIPT_SHOT_STATES),
+    })
+    .optional(),
 })
 
 /**

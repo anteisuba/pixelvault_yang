@@ -379,10 +379,10 @@ describe('正文与占位行', () => {
     ])
   })
 
-  it('收尾轮 partial 覆盖正文并保持 streaming，定稿再降旗', () => {
+  it('⭐ 增量**追加**到那条 streaming 气泡后面，定稿再整体覆盖并降旗（56b 切片 3）', () => {
     const result = readState()
     act(() => store.appendOperatorPending('run-1:msg-0'))
-    act(() => store.patchOperatorStreamingMessage('run-1:msg-0', '图3是'))
+    act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '图3是'))
     expect(result.current.entries).toEqual([
       {
         kind: 'message',
@@ -392,11 +392,32 @@ describe('正文与占位行', () => {
       },
     ])
     act(() =>
-      store.patchOperatorStreamingMessage('run-1:msg-0', '图3是风格化 3D。'),
+      store.appendOperatorStreamingMessage('run-1:msg-0', '风格化 3D。'),
     )
+    expect(result.current.entries).toEqual([
+      {
+        kind: 'message',
+        id: 'run-1:msg-0',
+        text: '图3是风格化 3D。',
+        streaming: true,
+      },
+    ])
     act(() => store.finalizeOperatorMessage('run-1:msg-0', '图3是风格化 3D。'))
     expect(result.current.entries).toEqual([
       { kind: 'message', id: 'run-1:msg-0', text: '图3是风格化 3D。' },
+    ])
+  })
+
+  it('⛔ 占位行被顶走时不静默丢字 —— 新建一条装它', () => {
+    const result = readState()
+    act(() => store.appendOperatorStreamingMessage('run-1:msg-0', '第一段'))
+    expect(result.current.entries).toEqual([
+      {
+        kind: 'message',
+        id: 'run-1:msg-0',
+        text: '第一段',
+        streaming: true,
+      },
     ])
   })
 

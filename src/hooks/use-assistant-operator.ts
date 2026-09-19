@@ -82,7 +82,7 @@ import {
   dropOperatorPending,
   enqueueOperatorMessage,
   finalizeOperatorMessage,
-  patchOperatorStreamingMessage,
+  appendOperatorStreamingMessage,
   getOperatorReviewState,
   getOperatorState,
   nextOperatorEntryId,
@@ -1237,6 +1237,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           if (
             event.type !== ASSISTANT_OPERATOR_EVENTS.message &&
             /**
+             * ⛔ 增量帧**也不算「它开口了」**（56b 切片 3）：那一帧写的正是这条
+             * 占位行本身 —— 把它算进来等于在第一个字到达的同一刻拆掉要装字的那
+             * 一格。
+             */
+            event.type !== ASSISTANT_OPERATOR_EVENTS.messageDelta &&
+            /**
              * ⛔ `open` **不算「它开口了」**：那一帧是成帧器在模型开口之前就发的
              * 握手（见 `lib/assistant-operator-stream.ts` 头注），它到达时模型还
              * 一个字都没写。把它算进来的表现是占位行闪一下就没了 —— 2026-09-06
@@ -1384,8 +1390,18 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               break
             }
             /**
-             * 正文的**唯一来源**（v2 §3.1 / §13.1）—— 整段一次到齐，按条目 id
-             * **覆盖**，⛔ 不追加。
+             * **正文的一小段增量**（56b 切片 3）—— 追加到那条 `streaming` 气泡
+             * 后面，⛔ 不覆盖。定稿仍旧只由下面那一帧说了算。
+             *
+             * ⚠ 它**不进位**（不动 `messageSeq`）：进位的判据是「这一段已经被别
+             * 的条目压在下面」，而增量帧永远属于当前这一段。
+             */
+            case ASSISTANT_OPERATOR_EVENTS.messageDelta:
+              appendOperatorStreamingMessage(messageEntryId(), event.delta)
+              break
+            /**
+             * 正文的**定稿来源**（v2 §3.1 / §13.1）—— 按条目 id **覆盖**，
+             * ⛔ 不追加。
              *
              * 🔬 那条 bug 的形状：这一段字已经落进线程，紧跟着来一帧 `plan`，
              * 服务端随后又发一次定稿 —— 序号在中间进了一位，于是同一段分析回复
@@ -1401,10 +1417,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   entry.kind === 'message' && entry.id === messageEntryId(),
               )
               if (index >= 0 && index !== entries.length - 1) messageSeq += 1
-              if (event.partial) {
-                patchOperatorStreamingMessage(messageEntryId(), event.text)
-                break
-              }
               finalizeOperatorMessage(
                 messageEntryId(),
                 event.text,

@@ -768,10 +768,13 @@ describe('工具环 · 逐事件顺序', () => {
   })
 
   /**
-   * 收尾轮可以发 `partial: true` 前缀帧，定稿仍然只有一帧不带 partial。
-   * 客户端按同一 id 覆盖，不会变成两条回复。
+   * **收尾轮逐段发增量，定稿恰好一帧**（56b 切片 3）。
+   *
+   * 钉两件事：① 定稿仍旧只有一帧 `message`（⛔ 不会变成两条回复）；
+   * ② 那几帧 `message_delta` **拼起来正好是定稿那句话** —— 少一个字是丢字，
+   * 多一个字是重复，两者在屏幕上都看得见。
    */
-  it('⭐ 收尾轮定稿恰好一帧 message；分块时允许 partial 前缀', async () => {
+  it('⭐ 收尾轮逐段发 message_delta，拼起来正好是定稿那一句', async () => {
     queueTurns({ finished: true, message: '好的，已经改成夜景了。' })
     mockLlmTextStreamChunks.mockImplementation((raw) =>
       raw.match(/[\s\S]{1,6}/g),
@@ -781,18 +784,22 @@ describe('工具环 · 逐事件顺序', () => {
       runAssistantOperator('clerk-1', buildRequest()),
     )
 
-    const messages = events.filter(
+    const finals = events.filter(
       (event) => event.type === ASSISTANT_OPERATOR_EVENTS.message,
     )
-    const finals = messages.filter((event) => !event.partial)
     expect(finals.map((event) => event.text)).toEqual([
       '好的，已经改成夜景了。',
     ])
-    expect(
-      messages
-        .filter((event) => event.partial)
-        .every((event) => '好的，已经改成夜景了。'.startsWith(event.text)),
-    ).toBe(true)
+    const deltas = events.filter(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.messageDelta,
+    )
+    expect(deltas.length).toBeGreaterThan(0)
+    // ⚠ 增量是**前缀**：模型还没写完时拼出来的是定稿那句话的开头。
+    expect('好的，已经改成夜景了。').toContain(
+      deltas.map((event) => event.delta).join(''),
+    )
+    // ⛔ 一帧空增量都不许有 —— 发它只是白费一次往返。
+    expect(deltas.every((event) => event.delta.length > 0)).toBe(true)
   })
 
   it('⛔ 工具轮那句旁白整帧不发 —— 那一步已经有 step 事件在说同一件事', async () => {
@@ -821,10 +828,7 @@ describe('工具环 · 逐事件顺序', () => {
      */
     expect(
       events
-        .filter(
-          (event) =>
-            event.type === ASSISTANT_OPERATOR_EVENTS.message && !event.partial,
-        )
+        .filter((event) => event.type === ASSISTANT_OPERATOR_EVENTS.message)
         .map((event) => event.text),
     ).toEqual(['写好了。'])
   })

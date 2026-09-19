@@ -54,7 +54,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       ├── StudioOperatorPlusMenu (「+」菜单三项：提及素材 / 上下文卡 / 指定来源；
         │       │    上传是下行那颗独立回形针按钮，素材库是它右边那颗独立按钮)
         │       ├── StudioOperatorHistoryItem (会话历史条目)
-        │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 长回话折首句 / `detail` 折成「为什么」 / 空正文时的占位脉冲 / **句尾 `[n]` 角标**（56b 切片 1）)
+        │       ├── StudioOperatorMessageBody (助手正文那一格：无气泡 / 长回话折首句 / `detail` 折成「为什么」 / 空正文时的占位脉冲 / **句尾 `[n]` 角标**（56b 切片 1）· **末尾光标 + `motion-reduce` 扣住整段**（切片 3）)
         │       ├── StudioOperatorAnswerSources (回答底下那两样：媒体条（图片开灯箱 · 视频封面开新窗口）+ 一排来源卡（站点图标 + 标题 + 域名，角标点下来高亮）+ 「深入调查 / 钉住 / 回执」一行)
         │       ├── StudioOperatorQuestionCard (问题卡：**钉在输入框上方**，一次一题；答完落一行系统行)
         │       ├── StudioOperatorConfirmCard (确认卡：多步 / 生成两支，就地换「已确认 · 时间」)
@@ -70,7 +70,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 
 ⚠ **调查卡已删（56b 切片 1）**：`StudioOperatorResearchCard` 整文件删除 —— 它把证据摆在回答**前面**，读起来是「先看完它的过程，再看它说了什么」。证据现在长在回答底下（`StudioOperatorAnswerSources`），过程折进 `StudioOperatorToolGroup`，候选网格由 `StudioOperatorLogItem` 自己画。
 
-⚠ **逐字淡入已删（v2 §13.1 / 拍板 13）**：`StudioOperatorStreamingText` 整文件删除，正文整段出现，占位脉冲并进 `StudioOperatorMessageBody`。
+⚠ **正文逐段追加（56b 切片 3）**：服务端只发差值（`message_delta`），客户端追加到同一条 `streaming` 气泡后面，末尾一根不闪的光标；定稿帧按 id 整体覆盖。`motion-reduce` 那一档**扣住整段**，写完才画。⛔ `StudioOperatorStreamingText`（当年那套逐字**淡入**）仍旧是删掉的，⛔ 别把它找回来 —— 这一次回来的是「字什么时候出现」，不是那套动效。
 ⚠ **视频档具名槽（2026-09-07 `48d6fecb`）**：视频参考区是 `StudioVideoReferenceSlots`（首帧 / 尾帧 / 参考视频），三条落法（拖入 / 素材库 / 助手 `mount_reference slot`）**汇到同一个 dispatch**（`use-video-reference-slots.ts`），⛔ 组件里没有第二条写入。⛔ 关键帧档下**不再渲染** `ReferenceImageChip`——那一档里图片是帧，留着它写进的参考图列表发送口根本不读（静默失效）。首帧在场且线路带图锁比例时，`StudioVideoSpecFields` 把比例组**禁用而不是移除**并说清怎么解除。
 
 ⚠ **手机形态（2026-09-06 `adb0a008`）**：Dock 在 `isMobile` 时**不再 `return null`**——图片 / 视频档改渲染 `StudioOperatorCollapsedButton`（`mobile`）+ `StudioOperatorMobileSheet`（v2 §4.6 起是**半屏可拖**，⛔ 不再是 100dvh 全屏），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。

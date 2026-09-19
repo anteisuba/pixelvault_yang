@@ -20,6 +20,12 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
+/** `motion-reduce` 那一档由这颗桩翻面（56b 切片 3）。 */
+const reduceMotion = vi.fn(() => false)
+vi.mock('motion/react', () => ({
+  useReducedMotion: () => reduceMotion(),
+}))
+
 const LONG =
   ['一', '二', '三', '四', '五', '六', '七', '八'].join('。\n') + '。'
 
@@ -166,5 +172,30 @@ describe('StudioOperatorMessageBody', () => {
   it('⛔ 还在流的时候不摆来源卡 —— 正文长高时它会一直往下跳', () => {
     renderBody({ text: '写到一半[1]', streaming: true }, { sources: SOURCES })
     expect(screen.queryByTestId('operator-answer-sources')).toBeNull()
+  })
+
+  it('⭐ 还在写时末尾有一根光标；定稿与历史回放都没有（56b 切片 3）', () => {
+    renderBody({ text: '写到一半', streaming: true })
+    expect(screen.getByTestId('operator-message-caret')).toBeTruthy()
+
+    screen.getByTestId('operator-message-text').remove()
+    renderBody({ text: '写完了。' })
+    expect(screen.queryByTestId('operator-message-caret')).toBeNull()
+  })
+
+  it('⭐ `motion-reduce` 直接整段落 —— 还在写时不画半截正文', () => {
+    reduceMotion.mockReturnValue(true)
+    renderBody({ text: '写到一半', streaming: true }, { statusText: '正在查…' })
+    expect(screen.queryByTestId('operator-message-text')).toBeNull()
+    expect(screen.getByTestId('operator-status-word').textContent).toBe(
+      '正在查…',
+    )
+
+    screen.getByTestId('operator-status-word').remove()
+    renderBody({ text: '写完了。' })
+    expect(screen.getByTestId('operator-message-text').textContent).toBe(
+      '写完了。',
+    )
+    reduceMotion.mockReturnValue(false)
   })
 })

@@ -567,19 +567,31 @@ export function appendOperatorPending(id: string): void {
  * 之间时，同一段分析回复在计划上下各出现一次。
  */
 /**
- * 收尾轮还在写 —— 按 id 覆盖正文，**保持** `streaming`。
- * 定稿走 `finalizeOperatorMessage`，把旗降下来。
+ * 收尾轮还在写 —— **把一小段增量追加**到那条正文后面，`streaming` 保持。
+ *
+ * ⭐ 追加而不是覆盖（56b 切片 3）：服务端从此只发差值（`message_delta`），
+ * 一句 800 字的回答不再被重发几十遍。
+ * ⚠ 定稿仍旧走 `finalizeOperatorMessage` 的**整体覆盖** —— v2 §13.1 那条
+ * 「追加会让同一段话出现两遍」说的是**定稿帧**，⛔ 别拿它来反对这里的追加：
+ * 这一条只在同一条 `streaming` 气泡里长长度，定稿一到就整条被顶掉。
+ * ⚠ 找不到那条（占位行被别的帧顶走了）就**新建一条**：⛔ 不静默丢字。
  */
-export function patchOperatorStreamingMessage(id: string, text: string): void {
+export function appendOperatorStreamingMessage(
+  id: string,
+  delta: string,
+): void {
+  const index = state.entries.findIndex(
+    (item) => item.kind === 'message' && item.id === id,
+  )
+  const current = index >= 0 ? state.entries[index] : undefined
+  const text =
+    current && current.kind === 'message' ? `${current.text}${delta}` : delta
   const entry: StudioOperatorMessageEntry = {
     kind: 'message',
     id,
     text,
     streaming: true,
   }
-  const index = state.entries.findIndex(
-    (item) => item.kind === 'message' && item.id === id,
-  )
   if (index < 0) {
     appendOperatorEntry(entry)
     return

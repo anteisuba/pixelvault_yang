@@ -31,6 +31,7 @@
 import { Children, isValidElement, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import Image from 'next/image'
+import { useReducedMotion } from 'motion/react'
 import type { Components } from 'react-markdown'
 import { ChevronDown } from '@/components/icons'
 import { useTranslations } from 'next-intl'
@@ -210,8 +211,16 @@ export function StudioOperatorCollapsibleText({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` 每次 render 换引用，钉在真正会变的三样上
   }, [known, onPickCitation, activeCite])
 
+  const reduceMotion = useReducedMotion()
   const collapsible = !streaming && shouldCollapseOperatorText(text)
   const collapsed = collapsible && !expanded
+  /**
+   * ⭐ **`motion-reduce` 直接整段落**（56b 切片 3，owner 2026-09-19）：逐字追加
+   * 本身就是一种动效 —— 关掉动效的人要的是「写完了再给我」。所以这一档**不画
+   * 半截正文**，占位行 / 状态词一直留到定稿帧。
+   * ⚠ 判据是「还在写」：空正文那一档本来就是占位行，两档在这里汇到同一个分支上。
+   */
+  const holdForReducedMotion = Boolean(reduceMotion) && streaming
 
   /**
    * **发送即回显的占位行**（§4.1）—— 头像已经在了，正文位画三点脉冲。
@@ -219,7 +228,7 @@ export function StudioOperatorCollapsibleText({
    * ⚠ 高度写死成一行正文高（`text-md`(15px) + `leading-relaxed` ≈ 24px = `h-6`）：
    * §4.1「骨架尺寸 = 内容尺寸」，第一个字到达时这一行不许跳。
    */
-  if (!text && streaming) {
+  if ((!text && streaming) || holdForReducedMotion) {
     /**
      * ⭐ **头像旁一行状态词**（§3.6）—— 不转圈、不用骨架屏。
      * ⚠ 它替掉的是顶部那条进度带（决策 14）：「正在查 3 个来源…」本身就是进度，
@@ -266,6 +275,19 @@ export function StudioOperatorCollapsibleText({
         >
           {collapsed ? firstOperatorSentence(text) : text}
         </Markdown>
+        {/* ⭐ **末尾那根光标**（56b 切片 3）—— 只在还在写的时候画。
+            ⚠ 历史回放里的那一条永远没有 `streaming`，所以⛔ 不会重播流式。
+            ⚠ 不闪：闪烁是一条 `motion-reduce` 关不掉就会一直动的动效，而这一档
+            本来就走不到这里（上面那个分支已经把整段扣住了）。 */}
+        {streaming && text ? (
+          <span
+            data-testid="operator-message-caret"
+            aria-hidden
+            /* ⚠ 高度走刻度（`h-4` ≈ 一行 `text-md` 的字高），⛔ 不写任意值
+               （Hard Rule 5：Tailwind 4 本仓没有 tailwind.config.ts）。 */
+            className="ml-0.5 inline-block h-4 w-px align-middle bg-foreground"
+          />
+        ) : null}
       </div>
 
       {collapsible ? (

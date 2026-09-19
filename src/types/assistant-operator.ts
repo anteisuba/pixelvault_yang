@@ -3541,16 +3541,26 @@ export const AssistantOperatorStepEventSchema = z.object({
  * ⚠ `detail` 是**可折叠的「为什么」**（2026-09-06）：正文只留结论 + 下一步，
  * 解释放这里由客户端折起来。⛔ 别把它并进 `text` —— 并进去之后「两句」这条
  * 约束在结构上就没有落点了，只能靠模型自觉。
+ * ⚠ 56b 切片 3 起它**只是定稿帧**：边写边显示由 `message_delta` 负责，那格
+ * `partial` 已删 —— ⛔ 别把它加回来，两条「正文还没写完」的表达方式必然分叉。
  */
 export const AssistantOperatorMessageEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.message),
   text: z.string().max(LIMITS.maxMessageChars),
   detail: z.string().max(LIMITS.maxMessageChars).optional(),
-  /**
-   * 收尾轮边生成边显示：同一条气泡按 id 覆盖，`partial: true` 时仍算在写。
-   * 缺席或 false = 定稿，客户端把 `streaming` 降下来。
-   */
-  partial: z.boolean().optional(),
+})
+
+/**
+ * **正文的一小段增量**（56b 切片 3）—— 客户端**追加**，⛔ 不覆盖。
+ *
+ * ⚠ 没有 id：一条流里同一时刻只有一段正文在写，而那一段由客户端自己的
+ * `messageEntryId()` 认着（与 `message` 帧同一条约定）。给它加一个 id 只会多一份
+ * 要对齐的真相。
+ * ⚠ `delta` 非空：一帧空增量什么都不改，发它只是白费一次往返。
+ */
+export const AssistantOperatorMessageDeltaEventSchema = z.object({
+  type: z.literal(ASSISTANT_OPERATOR_EVENTS.messageDelta),
+  delta: z.string().min(1).max(LIMITS.maxMessageChars),
 })
 
 /**
@@ -3786,6 +3796,7 @@ export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorAskEventSchema,
   AssistantOperatorConfirmEventSchema,
   AssistantOperatorMessageEventSchema,
+  AssistantOperatorMessageDeltaEventSchema,
   AssistantOperatorRuleHitEventSchema,
   AssistantOperatorDoneEventSchema,
   AssistantOperatorStoppedEventSchema,

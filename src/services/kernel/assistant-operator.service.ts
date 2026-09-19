@@ -8770,8 +8770,8 @@ export async function* runAssistantOperator(
       }
 
       /**
-       * 收尾轮把 `message` 边生成边显示（同一条气泡、`partial: true`）。
-       * 工具轮一旦写出 `"tool": {` 就停掉前缀帧，旁白仍等定稿。
+       * 收尾轮把正文边生成边显示（同一条气泡，逐段 `message_delta` 追加）。
+       * 工具轮一旦写出 `"tool": {` 就停掉增量帧，旁白仍等定稿。
        */
       let raw = ''
       let streamedMessage = ''
@@ -8808,11 +8808,18 @@ export async function* runAssistantOperator(
         ) {
           continue
         }
+        /**
+         * ⭐ **只发增量**（56b 切片 3）：此前这里发的是一整条 `message partial`
+         * （全量前缀），一句 800 字的回答会被重发几十遍，而客户端每次整体覆盖 ——
+         * 屏幕上是一段一段地跳。现在发差值，客户端追加。
+         * ⚠ 定稿仍旧只由下面那一帧 `message` 说了算，⛔ 这里不是第二条正文来源。
+         */
+        const delta = partial.slice(streamedMessage.length)
         streamedMessage = partial
+        if (!delta) continue
         yield {
-          type: ASSISTANT_OPERATOR_EVENTS.message,
-          text: streamedMessage,
-          partial: true,
+          type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+          delta,
         }
       }
 

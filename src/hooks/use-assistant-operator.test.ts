@@ -1675,24 +1675,25 @@ describe('正文流式累积与占位行', () => {
     ])
   })
 
-  it('partial 帧保持 streaming，定稿再降旗', async () => {
+  it('⭐ 增量帧逐段追加并保持 streaming，定稿再降旗（56b 切片 3）', async () => {
     const { result } = render()
     act(() => {
       result.current.send('这是什么画风')
     })
     await settle()
 
-    streams[0].emit({
-      type: ASSISTANT_OPERATOR_EVENTS.message,
-      text: '图3是',
-      partial: true,
-    })
-    await settle()
+    for (const delta of ['图3是', '风格化 ']) {
+      streams[0].emit({
+        type: ASSISTANT_OPERATOR_EVENTS.messageDelta,
+        delta,
+      })
+      await settle()
+    }
     expect(store.getOperatorState().entries).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           kind: 'message',
-          text: '图3是',
+          text: '图3是风格化 ',
           streaming: true,
         }),
       ]),

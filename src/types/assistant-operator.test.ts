@@ -191,6 +191,8 @@ const STEP_FIXTURES: Record<
       entities: ['Ananta', 'Shiye'],
       sources: ['wiki', 'web', 'danbooru'],
       round: 1,
+      depth: 'deep',
+      readPages: 0,
     },
     result: {
       totalFound: 2,
@@ -209,6 +211,8 @@ const STEP_FIXTURES: Record<
           evidenceRef: '#e12',
           corroboration: 2,
           publishedAt: '2024-05-12',
+          // 56b 切片 1：正文里 `[1]` 的那个号（服务端分配）。
+          cite: 1,
         },
         {
           // ⚠ 标签档**没有 url** —— danbooru 的共现标签不指向单一页面。
@@ -221,6 +225,7 @@ const STEP_FIXTURES: Record<
           scope: 'character',
           evidenceRef: '#e13',
           corroboration: 1,
+          cite: 2,
         },
       ],
     },
@@ -1505,7 +1510,7 @@ describe('事件契约', () => {
    * ⚠ 断的是**集合相等**而不是「这十个都在」：后者放得过一条偷偷留下来的旧帧，
    * 而收敛这件事的全部意义就是「没有第十一个」。
    */
-  it('⭐ 事件联合恰好十帧，一个不多一个不少', () => {
+  it('⭐ 事件联合恰好十一帧，一个不多一个不少', () => {
     const names = AssistantOperatorEventSchema.options
       .map((option) => option.shape.type.value)
       .sort()
@@ -1517,6 +1522,7 @@ describe('事件契约', () => {
         'ask',
         'confirm',
         'message',
+        'message_delta',
         'rule_hit',
         'done',
         'stopped',
@@ -1527,12 +1533,15 @@ describe('事件契约', () => {
   })
 
   /**
-   * ⭐ **v1 的五个帧名一个都不认**（v2 §3.1）：`message_delta` 随逐字淡入删掉
-   * （拍板 13），另外四个并进 `plan` / `ask` / `confirm` 或整条删掉（决策 8）。
+   * ⭐ **v1 的四个帧名一个都不认**（v2 §3.1）：并进 `plan` / `ask` / `confirm`
+   * 或整条删掉（决策 8）。
+   *
+   * ⚠ `message_delta` **不在这张名单上了**（56b 切片 3）：它被请了回来，但
+   * **载荷换了** —— v1 那一帧带的是 `text`，现在带的是 `delta`。所以旧形状照旧
+   * 不过校验，下面单独钉住这一条。
    */
-  it('⛔ v1 那五个帧名全部不在联合里', () => {
+  it('⛔ v1 那四个帧名全部不在联合里', () => {
     const gone = [
-      { type: 'message_delta', text: '夜' },
       { type: 'plan_request', steps: [], questions: [], estimate: {} },
       { type: 'spend_request', tier: 'spend', request: {} },
       { type: 'confirm_request', tier: 'overwrite', field: 'prompt' },
@@ -1545,6 +1554,28 @@ describe('事件契约', () => {
         JSON.stringify(event),
       ).toBe(false)
     }
+  })
+
+  /** ⭐ 增量帧只收 `delta`：v1 那个带 `text` 的旧形状照旧不过（56b 切片 3）。 */
+  it('message_delta 只认 delta，且⛔ 不收空增量', () => {
+    expect(
+      AssistantOperatorEventSchema.safeParse({
+        type: 'message_delta',
+        delta: '夜',
+      }).success,
+    ).toBe(true)
+    expect(
+      AssistantOperatorEventSchema.safeParse({
+        type: 'message_delta',
+        text: '夜',
+      }).success,
+    ).toBe(false)
+    expect(
+      AssistantOperatorEventSchema.safeParse({
+        type: 'message_delta',
+        delta: '',
+      }).success,
+    ).toBe(false)
   })
 
   /** ⚠ 一帧只问一道题，且题的形状照旧收紧：少于两个选项的「单选」是通知不是问题。 */

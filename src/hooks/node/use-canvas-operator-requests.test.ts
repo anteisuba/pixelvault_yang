@@ -1,13 +1,16 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { useCanvasOperatorRequests } from '@/hooks/node/use-canvas-operator-requests'
 import { requestCanvasRerunDownstream } from '@/lib/canvas-rerun-request'
 import { requestTimelinePlan } from '@/lib/timeline-plan-request'
 import { requestCanvasTextAssist } from '@/components/business/node/nodes/v4/text/text-assist-request'
 
-function mount(domain = ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas) {
+function mount(
+  domain: AssistantOperatorDomain = ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+) {
   const send = vi.fn()
   renderHook(() =>
     useCanvasOperatorRequests({

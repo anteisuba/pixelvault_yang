@@ -29,6 +29,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import { collectDownstream } from '@/lib/node-downstream'
+import { flashAssistantTouchedNode } from '@/hooks/node/node-ingest-dom'
 import { buildCanvasOperatorSnapshot } from '@/lib/studio-operator-canvas-snapshot'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
@@ -133,8 +134,23 @@ export function useCanvasOperatorHost({
   const canvasApply = useCallback(
     (stepId: string, op: NodeAssistantOpV4): boolean => {
       const landed = applyOp(op)
-      if (landed) landedStepIdsRef.current.push(stepId)
-      return landed
+      if (!landed) return false
+      landedStepIdsRef.current.push(stepId)
+      /**
+       * 回执的第二只眼（D7 Q4）：被改的那张卡闪一次 outline。面板里那行
+       * 「已改 N 项」说的是**多少**，这一闪说的是**哪几个**。
+       *
+       * ⚠ 排到下一帧再闪：这一跳刚提交完图，那张卡此刻正要重渲染，而 React 那
+       * 一侧的 className 会在同一拍把 class 覆盖掉 —— 表现是「有时闪有时不闪」。
+       * ⚠ `add_node` 那一条**闪不到**：新节点的 id 是执行器现铸的，这里拿不到。
+       *   ⛔ 不为它去差集算一遍图 —— 新卡本来就会自己出现在画布上，那比闪一下
+       *   更明显；如实记在任务包里。
+       */
+      const touched = 'target' in op ? op.target : null
+      if (typeof touched === 'string' && typeof window !== 'undefined') {
+        window.requestAnimationFrame(() => flashAssistantTouchedNode(touched))
+      }
+      return true
     },
     [applyOp],
   )

@@ -149,6 +149,36 @@
   outline-offset: 4px;
   border-radius: inherit;
 }
+/* 助手改过的节点闪一次（进度表 22 · D7 Q4）。命令式 classList 切换，与吞噬
+   手势同一条纪律：被改的卡此刻多半不重渲染，进 React state 会被下一次渲染的
+   className 覆盖掉。⚠ 只动 outline 与 opacity —— 卡常常正在用户视线里，动尺寸
+   会让整片跟着重排。 */
+@keyframes node-assistant-touch-flash {
+  0% {
+    outline-color: transparent;
+    opacity: 1;
+  }
+  40% {
+    outline-color: var(--canvas-accent);
+    opacity: 0.85;
+  }
+  100% {
+    outline-color: transparent;
+    opacity: 1;
+  }
+}
+.node-assistant-touched {
+  outline: 2px solid transparent;
+  outline-offset: 4px;
+  border-radius: inherit;
+  animation: node-assistant-touch-flash 320ms var(--ease-standard);
+}
+@media (prefers-reduced-motion: reduce) {
+  .node-assistant-touched {
+    animation-duration: 1ms;
+  }
+}
+
 .node-ingest-reject {
   transition: outline-color 180ms var(--ease-standard);
   outline: 2px solid var(--node-status-failed);

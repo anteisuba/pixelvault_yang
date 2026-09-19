@@ -110,6 +110,21 @@ export const EASE_SOFT_RETURN_CSS = 'cubic-bezier(0.3, 0.7, 0.4, 1.05)'
  * `node-ingest-dom.ts` / `use-cast-ingest-engine-v4.ts` 的 Web Animations API keyframes 全部从这里取值——手势里
  * 不允许出现裸数字（禁 inline 魔法值，任务包 B1-3 红线）。
  */
+/**
+ * 助手改过的节点**闪一次 outline**（进度表 22 · D7 Q4 的回执那一半）。
+ *
+ * ⭐ 它是回执的第二只眼：面板里那一行「已改 N 项」说的是**多少**，这一闪说的是
+ * **哪几个** —— 用户不必读完一行字再去画布上找。
+ * ⚠ 只动 `outline` 与 `opacity`（⛔ 不动 transform / 尺寸）：被改的节点常常正在
+ * 用户视线里，动尺寸会让整片卡跟着重排。
+ * ⚠ `prefers-reduced-motion` 那一档由 CSS 压到 1ms 并保留终态（同画布其余三档）。
+ */
+export const ASSISTANT_TOUCH_FLASH_MOTION = {
+  durationMs: 320,
+  outlineWidthPx: 2,
+  outlineOffsetPx: 4,
+} as const
+
 export const INGEST_MOTION = {
   /** 张口：拖拽物进入合法目标热区。 */
   biteDurationMs: 180,

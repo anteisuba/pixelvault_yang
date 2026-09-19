@@ -324,3 +324,32 @@ export function playInkUnsignAnimation(
       onSettle?.()
     })
 }
+
+/* ─── 助手回执：改过的节点闪一次（进度表 22 · D7 Q4）─────────────────── */
+
+const ASSISTANT_TOUCH_CLASS = 'node-assistant-touched'
+
+/**
+ * 让一个节点闪一次 outline —— 助手刚改过它。
+ *
+ * ⚠ 与本文件其余几只手同一条纪律：**命令式 classList**，⛔ 不进 React state。
+ * 判据在这里比拖拽那几条更硬：改一个节点会让那张卡重渲染，而 React 那一侧的
+ * className 会在同一拍把 class 覆盖掉 —— 表现是「有时闪有时不闪」。
+ * ⚠ 先摘再挂：同一个节点在一轮里被改两次时，不重启动画就只闪第一次
+ *   （CSS 动画对「class 已经在了」不做任何事）。`void offsetWidth` 是强制重排，
+ *   ⛔ 别删 —— 删掉之后浏览器会把摘与挂合并成一次无变化。
+ * ⚠ 节点不在 DOM 里（折叠的镜 / 手机镜头带）时**静默跳过**：闪一个看不见的东西
+ *   不是失败，面板里那行「已改 N 项」照样说得清。
+ */
+export function flashAssistantTouchedNode(nodeId: string): void {
+  const el = findNodeCardElement(nodeId)
+  if (!el) return
+  el.classList.remove(ASSISTANT_TOUCH_CLASS)
+  void el.offsetWidth
+  el.classList.add(ASSISTANT_TOUCH_CLASS)
+  el.addEventListener(
+    'animationend',
+    () => el.classList.remove(ASSISTANT_TOUCH_CLASS),
+    { once: true },
+  )
+}

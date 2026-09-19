@@ -170,7 +170,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 10141,
+      "h": 10216,
       "title": "改进进度表",
       "page": "page-7"
     },
@@ -668,6 +668,24 @@
       "h": 1790,
       "title": "D56a ④ 隐身",
       "page": "page-15"
+    },
+    {
+      "file": "DesignD56bMap.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 700,
+      "title": "D56b ② 思维导图",
+      "page": "page-16"
+    },
+    {
+      "file": "DesignD56bUI.dc.html",
+      "x": 0,
+      "y": 820,
+      "w": 1400,
+      "h": 2760,
+      "title": "D56b ④ UI 画板",
+      "page": "page-16"
     }
   ],
   "annotations": [
@@ -1060,6 +1078,10 @@
     {
       "id": "page-15",
       "name": "D56a · 助手记忆"
+    },
+    {
+      "id": "page-16",
+      "name": "D56b · 调查 · 反问 · 分析"
     }
   ]
 }

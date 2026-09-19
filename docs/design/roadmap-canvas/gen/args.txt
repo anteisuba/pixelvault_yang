@@ -148,3 +148,7 @@ DesignD56Overview.dc.html
 DesignD56Receipt.dc.html
 --artboard
 DesignD56Ghost.dc.html
+--artboard
+DesignD56bMap.dc.html
+--artboard
+DesignD56bUI.dc.html

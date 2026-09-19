@@ -38,11 +38,10 @@ import {
 import { ReactFlowProvider, useReactFlow, type XYPosition } from '@xyflow/react'
 import { useAuth } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import {
-  CANVAS_SHELL_ASSISTANT,
   CANVAS_SHELL_UPLOAD_ACCEPT,
   type CanvasShellPanelId,
 } from '@/constants/canvas-shell'
@@ -74,8 +73,7 @@ import {
   EDIT_DESK_MODE_VALUE,
 } from '@/constants/edit-desk'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
-import { DEFAULT_LOCALE, isAppLocale } from '@/i18n/routing'
-import { useIsMobile, useIsPhone } from '@/hooks/use-mobile'
+import { useIsPhone } from '@/hooks/use-mobile'
 import { useWorkflowModelOptions } from '@/hooks/use-workflow-model-options'
 import { useCanvasImageEditHandoffV4 } from '@/hooks/node/use-canvas-image-edit-handoff-v4'
 import { useEdgeSigning } from '@/hooks/node/use-edge-signing'
@@ -119,7 +117,7 @@ import { subscribeTimelinePlanRequest } from '@/lib/timeline-plan-request'
 import type { NodeTextDeriveAction } from '../nodes/v4/NodeV4Context'
 import { NodeV4Provider } from '../nodes/v4/NodeV4Provider'
 import { CanvasV4 } from './CanvasV4'
-import { WorkbenchAssistantDockV4, WorkbenchDocksV4 } from './WorkbenchDocksV4'
+import { WorkbenchDocksV4 } from './WorkbenchDocksV4'
 import {
   useWorkbenchDndV4,
   WorkbenchUploadStatus,
@@ -129,7 +127,9 @@ import { useWorkbenchShortcutsV4 } from './WorkbenchShortcutsV4'
 import { useWorkbenchRosterDropV4 } from './WorkbenchRosterDropV4'
 import { useOpenKeySettings } from '@/hooks/use-open-key-settings'
 import { KeySettingsContext } from './shell/ShellKeySettings'
-import { ShellAssistantFrame } from './shell/ShellAssistantFrame'
+import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
+import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
+import { useCanvasOperatorHost } from '@/hooks/node/use-canvas-operator-host'
 import { ShellBottomBar } from './shell/ShellBottomBar'
 import { ShellPaneMenu, ShellQuickAdd } from './shell/ShellCanvasMenus'
 import { ShellCommandPalette } from './shell/ShellCommandPalette'
@@ -258,9 +258,6 @@ function NodeWorkbenchV4Inner() {
   const tV4 = useTranslations('StudioNode.v4')
   const tShell = useTranslations('StudioNode.shell')
   const openKeySettings = useContext(KeySettingsContext)
-  const locale = useLocale()
-  const appLocale = isAppLocale(locale) ? locale : DEFAULT_LOCALE
-  const isMobile = useIsMobile()
   /** < 768 = 镜头带视图（桌面 ReactFlow 不挂载）。 */
   const isPhone = useIsPhone()
 
@@ -346,14 +343,12 @@ function NodeWorkbenchV4Inner() {
     null,
   )
   const [nodeQuery, setNodeQuery] = useState('')
-  const [assistantWidth, setAssistantWidth] = useState<number>(
-    CANVAS_SHELL_ASSISTANT.defaultWidthPx,
-  )
-  const [assistantExpandedWidth, setAssistantExpandedWidth] = useState<number>(
-    CANVAS_SHELL_ASSISTANT.expandedDefaultWidthPx,
-  )
-  /** 助手从没开过时右缘不留那一条（画板默认态右缘是空的）。 */
-  const [assistantEverOpened, setAssistantEverOpened] = useState(false)
+  /**
+   * ⚠ 宽度记忆与「从没开过」那一条随旧 dock 一起退场（进度表 22）：两者都长在
+   * `StudioOperatorDock` 自己身上（localStorage 背书的模块 store + 44px 收起态
+   * 圆按钮），工作台与装配台读的是同一份。留一份画布专用的等于让同一颗面板在
+   * 两个页面上记住两个宽度 —— 那是「我拖过的宽度自己弹回去了」的形状。
+   */
   const [paletteOpen, setPaletteOpen] = useState(false)
   /**
    * 就地加节点的两个浮层（双击 / 右键）。`screen` 是**相对画布容器**的坐标 ——
@@ -531,7 +526,6 @@ function NodeWorkbenchV4Inner() {
     () =>
       subscribeCanvasTextAssist(() => {
         setAssistantOpen(true)
-        setAssistantEverOpened(true)
       }),
     [],
   )
@@ -546,7 +540,6 @@ function NodeWorkbenchV4Inner() {
     () =>
       subscribeTimelinePlanRequest(() => {
         setAssistantOpen(true)
-        setAssistantEverOpened(true)
       }),
     [],
   )
@@ -971,6 +964,42 @@ function NodeWorkbenchV4Inner() {
     [modelOptionsByType],
   )
 
+  /**
+   * 每个节点**选得动**的模型 —— 画布快照里那一格（进度表 22）。
+   *
+   * ⚠ 不给的表现很具体：模型会编一个工作区里不存在的 id（真机上是
+   * 「Animagine XL」）。⛔ 别在快照那一侧另查一份 —— 这里的 `modelOptionsByKind`
+   * 就是节点卡自己那颗选择器读的同一份。
+   */
+  const availableModelsByNodeId = useMemo(() => {
+    const byNode: Record<string, readonly string[]> = {}
+    for (const node of graph.nodes) {
+      // ⚠ 文本节点不选模型 —— 它没有生成落点（只能派生）。
+      if (node.data.kind === NODE_MEDIA_KIND_IDS.text) continue
+      const options = modelOptionsByKind[node.data.kind]
+      if (options.length === 0) continue
+      byNode[node.id] = options.map((option) => option.modelId)
+    }
+    return byNode
+  }, [graph.nodes, modelOptionsByKind])
+
+  /**
+   * ⭐ **画布这个宿主**（进度表 22「一张脸」）—— 面板从这里读画布、往这里落 op。
+   * 三份宿主实现的差别正好只有域 / 快照 / 落笔的手，见那个 hook 的头注。
+   */
+  const operatorHost = useCanvasOperatorHost({
+    nodes: graph.nodes,
+    edges: graph.edges,
+    selectedNodeIds: graph.selectedNodeIds,
+    availableModelsByNodeId,
+    applyOp: graph.dispatch,
+    undo: graph.undo,
+    canUndo: graph.canUndo,
+    generateNodes,
+    open: assistantOpen,
+    setOpen: setAssistantOpen,
+  })
+
   const assistantMode = !assistantOpen
     ? 'closed'
     : assistantExpanded
@@ -1112,283 +1141,44 @@ function NodeWorkbenchV4Inner() {
    */
   if (isPhone) {
     return (
-      <NodeCanvasActionsProvider value={actions}>
-        <NodeV4Provider
-          graph={graph}
-          modelOptionsByKind={modelOptionsByKind}
-          onFocusNode={focusNode}
-          onDeriveFromText={deriveFromText}
-        >
-          <div className="node-workbench-v4 relative size-full">
-            <WorkbenchUploadStatus items={dnd.pendingUploads} />
-            <CanvasMobileRail
-              key={store.currentProject.id}
-              projectPill={
-                <ShellProjectPill
-                  projectName={store.currentProject.name}
-                  projects={store.projects}
-                  currentProjectId={store.currentProject.id}
-                  isSaving={dnd.isUploading}
-                  onSwitchProject={store.switchProject}
-                  onCreateProject={() => setProjectDialogMode('create')}
-                  onRenameProject={() => setProjectDialogMode('rename')}
-                  onDuplicateProject={() => setProjectDialogMode('duplicate')}
-                  onDeleteProject={() => setDeleteConfirmOpen(true)}
-                />
-              }
-              assistantOpen={assistantOpen}
-              onOpenAssistant={() => {
-                setAssistantOpen(!assistantOpen)
-                setAssistantEverOpened(true)
-              }}
-              assistant={
-                <WorkbenchAssistantDockV4
-                  projectId={store.currentProject.id}
-                  projectName={store.currentProject.name}
-                  scriptDoc={store.state.scriptDoc}
-                  locale={appLocale}
-                  nodes={graph.nodes}
-                  edges={graph.edges}
-                  assistantOpen={assistantOpen}
-                  assistantExpanded={false}
-                  onAssistantOpenChange={setAssistantOpen}
-                  onAssistantExpandedChange={setAssistantExpanded}
-                  onFocusNode={focusNode}
-                />
-              }
-              onAddShot={addShotAtRailEnd}
-              onUploadFiles={(files) =>
-                dnd.dropFilesAtFlow(files, looseAreaSpawn(graph.nodes.length))
-              }
-            />
-            {editMode ? (
-              <EditDesk
-                readOnly
-                state={graph.state}
-                projectId={store.currentProject.id}
-                dispatchBatch={graph.dispatchBatch}
-                mintId={mintEditId}
-                addNode={graph.addNode}
-                setMedia={graph.setMedia}
-                connect={graph.connect}
-                canUndo={graph.canUndo}
-                onUndo={graph.undo}
-                onExit={exitEditDesk}
-                onBackToNode={backToNodeFromEditDesk}
-                initialNodeIds={editDeskSeed}
-                onInitialConsumed={() => setEditDeskSeed([])}
-              />
-            ) : null}
-            {projectDialogs}
-          </div>
-        </NodeV4Provider>
-      </NodeCanvasActionsProvider>
-    )
-  }
-
-  return (
-    <NodeCanvasActionsProvider value={actions}>
-      <CanvasWorkspaceLayout
-        assistantMode={assistantMode}
-        stageRef={canvasRef}
-        reviewMode={reviewMode.active}
-        assistant={
-          <ShellAssistantFrame
-            open={assistantOpen}
-            showStrip={assistantEverOpened}
-            expanded={assistantExpanded}
-            width={
-              isMobile
-                ? undefined
-                : assistantExpanded
-                  ? assistantExpandedWidth
-                  : assistantWidth
-            }
-            onWidthChange={
-              assistantExpanded ? setAssistantExpandedWidth : setAssistantWidth
-            }
-            onOpen={() => setAssistantOpen(true)}
-          >
-            <WorkbenchAssistantDockV4
-              projectId={store.currentProject.id}
-              projectName={store.currentProject.name}
-              scriptDoc={store.state.scriptDoc}
-              locale={appLocale}
-              nodes={graph.nodes}
-              edges={graph.edges}
-              assistantOpen={assistantOpen}
-              assistantExpanded={assistantExpanded}
-              onAssistantOpenChange={setAssistantOpen}
-              onAssistantExpandedChange={setAssistantExpanded}
-              onFocusNode={focusNode}
-            />
-          </ShellAssistantFrame>
-        }
-      >
-        <IngestDragProviderV4
-          nodes={graph.nodes}
-          edges={graph.edges}
-          onConnect={graph.connect}
-        >
+      <StudioOperatorHostProvider host={operatorHost}>
+        <NodeCanvasActionsProvider value={actions}>
           <NodeV4Provider
             graph={graph}
             modelOptionsByKind={modelOptionsByKind}
             onFocusNode={focusNode}
             onDeriveFromText={deriveFromText}
           >
-            <div className="node-workbench-v4 contents">
+            <div className="node-workbench-v4 relative size-full">
               <WorkbenchUploadStatus items={dnd.pendingUploads} />
-              <CanvasV4
-                graph={graph}
-                toolMode={toolMode}
-                relationsCollapsed={relationsCollapsed}
-                canvasAppearance={store.state.canvasAppearance}
-                edgeSigning={edgeSigning}
-                onDrop={dnd.onDrop}
-                onDragOver={dnd.onDragOver}
-                onPaneDoubleClick={onPaneDoubleClick}
-                onPaneContextMenu={onPaneContextMenu}
-                onNodeDragStart={(node) =>
-                  rosterDrop.onNodeDragStart(node as unknown as NodeV4)
+              <CanvasMobileRail
+                key={store.currentProject.id}
+                projectPill={
+                  <ShellProjectPill
+                    projectName={store.currentProject.name}
+                    projects={store.projects}
+                    currentProjectId={store.currentProject.id}
+                    isSaving={dnd.isUploading}
+                    onSwitchProject={store.switchProject}
+                    onCreateProject={() => setProjectDialogMode('create')}
+                    onRenameProject={() => setProjectDialogMode('rename')}
+                    onDuplicateProject={() => setProjectDialogMode('duplicate')}
+                    onDeleteProject={() => setDeleteConfirmOpen(true)}
+                  />
                 }
-                onNodeDrag={(node, event) =>
-                  rosterDrop.onNodeDrag(
-                    node as unknown as NodeV4,
-                    event.clientX,
-                    event.clientY,
-                  )
-                }
-                onNodeDragStopIntercept={(node, event) =>
-                  rosterDrop.onNodeDragStop(
-                    node as unknown as NodeV4,
-                    event.clientX,
-                    event.clientY,
-                  )
+                assistantOpen={assistantOpen}
+                onOpenAssistant={() => {
+                  setAssistantOpen(!assistantOpen)
+                }}
+                assistant={<StudioOperatorDock />}
+                onAddShot={addShotAtRailEnd}
+                onUploadFiles={(files) =>
+                  dnd.dropFilesAtFlow(files, looseAreaSpawn(graph.nodes.length))
                 }
               />
-              {graph.nodes.length === 0 ? (
-                <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
-                  <NodeCanvasEmptyGuide
-                    onChatOutline={() => {
-                      setAssistantOpen(true)
-                      setAssistantExpanded(true)
-                    }}
-                    onAddNode={() => setPaletteOpen(true)}
-                  />
-                </div>
-              ) : null}
-              <div className="pointer-events-none absolute inset-0 z-canvas-chrome">
-                <ShellTopBar
-                  projectName={store.currentProject.name}
-                  projects={store.projects}
-                  currentProjectId={store.currentProject.id}
-                  isSaving={dnd.isUploading}
-                  onSwitchProject={store.switchProject}
-                  onCreateProject={() => setProjectDialogMode('create')}
-                  onRenameProject={() => setProjectDialogMode('rename')}
-                  onDuplicateProject={() => setProjectDialogMode('duplicate')}
-                  onDeleteProject={() => setDeleteConfirmOpen(true)}
-                  onOpenEditDesk={openEditDeskWithSelection}
-                  assistantOpen={assistantOpen}
-                  // 右上那颗是**开关**：再点一次收起（收起后右缘留一条，画板
-                  // `ChromeAssistant.dc.html`）。
-                  onOpenAssistant={() => {
-                    setAssistantOpen(!assistantOpen)
-                    setAssistantEverOpened(true)
-                  }}
-                />
-                <ShellSidePanels
-                  activePanel={activePanel}
-                  onActivePanelChange={setActivePanel}
-                  nodeQuery={nodeQuery}
-                  onNodeQueryChange={setNodeQuery}
-                  onUpload={() => openUpload()}
-                  onPlaceMedia={placeMediaAtViewportCenter}
-                />
-                <ShellBottomBar
-                  toolMode={toolMode}
-                  onToolModeChange={setToolMode}
-                  canUndo={graph.canUndo}
-                  canRedo={graph.canRedo}
-                  onUndo={graph.undo}
-                  onRedo={graph.redo}
-                  onTidyLayout={graph.tidyLayout}
-                />
-                <ShellQuickAdd
-                  at={quickAdd?.screen ?? null}
-                  onAdd={(intentId) =>
-                    addNodeFromIntent(intentId, quickAdd?.flow)
-                  }
-                  onUpload={() => openUpload(quickAdd?.client)}
-                  onClose={() => setQuickAdd(null)}
-                />
-                <ShellPaneMenu
-                  at={paneMenu?.screen ?? null}
-                  onAdd={(intentId) =>
-                    addNodeFromIntent(intentId, paneMenu?.flow)
-                  }
-                  onUpload={() => openUpload(paneMenu?.client)}
-                  onPaste={() => {
-                    graph.pasteClipboard()
-                    setPaneMenu(null)
-                  }}
-                  onTidyLayout={() => {
-                    graph.tidyLayout()
-                    setPaneMenu(null)
-                  }}
-                  onFitView={() => {
-                    fitAllNodes()
-                    setPaneMenu(null)
-                  }}
-                  onClose={() => setPaneMenu(null)}
-                />
-                <ShellCommandPalette
-                  open={paletteOpen}
-                  onOpenChange={setPaletteOpen}
-                  nodes={graph.nodes}
-                  projects={store.projects}
-                  currentProjectId={store.currentProject.id}
-                  onFocusNode={focusNode}
-                  onAdd={addNodeAtViewportCenter}
-                  onUpload={() => openUpload()}
-                  onAskAssistant={() => {
-                    setAssistantOpen(true)
-                    setAssistantEverOpened(true)
-                  }}
-                  onOpenEditDesk={openEditDeskWithSelection}
-                  onSwitchProject={store.switchProject}
-                  onManageChannels={openKeySettings}
-                />
-                <WorkbenchDocksV4 />
-                {/* 添加菜单「上传素材」的隐藏 input：菜单关掉后仍要在场接住系统
-                    对话框的 change，所以挂宿主不挂菜单。 */}
-                <input
-                  ref={uploadInputRef}
-                  type="file"
-                  accept={CANVAS_SHELL_UPLOAD_ACCEPT}
-                  multiple
-                  className="hidden"
-                  onChange={(event) => {
-                    const files = Array.from(event.target.files ?? [])
-                    event.target.value = ''
-                    if (files.length === 0) return
-                    const at = uploadPointRef.current
-                    uploadPointRef.current = null
-                    const rect = canvasRef.current?.getBoundingClientRect()
-                    dnd.dropFiles(
-                      files,
-                      at ?? {
-                        x: (rect?.left ?? 0) + (rect?.width ?? 0) / 2,
-                        y: (rect?.top ?? 0) + (rect?.height ?? 0) / 2,
-                      },
-                    )
-                  }}
-                />
-              </div>
-              {/* 剪辑台盖在外壳**之上**（S8）：画布留在 DOM 里只是被盖住，
-                  退出时视口与选择原样还在。 */}
               {editMode ? (
                 <EditDesk
+                  readOnly
                   state={graph.state}
                   projectId={store.currentProject.id}
                   dispatchBatch={graph.dispatchBatch}
@@ -1407,8 +1197,211 @@ function NodeWorkbenchV4Inner() {
               {projectDialogs}
             </div>
           </NodeV4Provider>
-        </IngestDragProviderV4>
-      </CanvasWorkspaceLayout>
-    </NodeCanvasActionsProvider>
+        </NodeCanvasActionsProvider>
+      </StudioOperatorHostProvider>
+    )
+  }
+
+  return (
+    <StudioOperatorHostProvider host={operatorHost}>
+      <NodeCanvasActionsProvider value={actions}>
+        <CanvasWorkspaceLayout
+          assistantMode={assistantMode}
+          stageRef={canvasRef}
+          reviewMode={reviewMode.active}
+          /**
+           * ⭐ 画布的助手**就是操作员面板本身**（进度表 22「一张脸」）。
+           *
+           * ⚠ 外面那层 `ShellAssistantFrame` 随旧 dock 一起退场：宽度记忆、收起态
+           * 与拖宽都长在 `StudioOperatorDock` 自己身上（它同时挂在工作台与装配台，
+           * 三处共用同一份行为）。留着它等于两层各管一半宽度 —— 那是「拖到一半
+           * 弹回去」的形状。
+           */
+          assistant={<StudioOperatorDock />}
+        >
+          <IngestDragProviderV4
+            nodes={graph.nodes}
+            edges={graph.edges}
+            onConnect={graph.connect}
+          >
+            <NodeV4Provider
+              graph={graph}
+              modelOptionsByKind={modelOptionsByKind}
+              onFocusNode={focusNode}
+              onDeriveFromText={deriveFromText}
+            >
+              <div className="node-workbench-v4 contents">
+                <WorkbenchUploadStatus items={dnd.pendingUploads} />
+                <CanvasV4
+                  graph={graph}
+                  toolMode={toolMode}
+                  relationsCollapsed={relationsCollapsed}
+                  canvasAppearance={store.state.canvasAppearance}
+                  edgeSigning={edgeSigning}
+                  onDrop={dnd.onDrop}
+                  onDragOver={dnd.onDragOver}
+                  onPaneDoubleClick={onPaneDoubleClick}
+                  onPaneContextMenu={onPaneContextMenu}
+                  onNodeDragStart={(node) =>
+                    rosterDrop.onNodeDragStart(node as unknown as NodeV4)
+                  }
+                  onNodeDrag={(node, event) =>
+                    rosterDrop.onNodeDrag(
+                      node as unknown as NodeV4,
+                      event.clientX,
+                      event.clientY,
+                    )
+                  }
+                  onNodeDragStopIntercept={(node, event) =>
+                    rosterDrop.onNodeDragStop(
+                      node as unknown as NodeV4,
+                      event.clientX,
+                      event.clientY,
+                    )
+                  }
+                />
+                {graph.nodes.length === 0 ? (
+                  <div className="pointer-events-none absolute inset-x-4 bottom-24 top-20 z-canvas-selection flex items-center justify-center md:inset-x-8 md:bottom-16 md:top-24">
+                    <NodeCanvasEmptyGuide
+                      onChatOutline={() => {
+                        setAssistantOpen(true)
+                        setAssistantExpanded(true)
+                      }}
+                      onAddNode={() => setPaletteOpen(true)}
+                    />
+                  </div>
+                ) : null}
+                <div className="pointer-events-none absolute inset-0 z-canvas-chrome">
+                  <ShellTopBar
+                    projectName={store.currentProject.name}
+                    projects={store.projects}
+                    currentProjectId={store.currentProject.id}
+                    isSaving={dnd.isUploading}
+                    onSwitchProject={store.switchProject}
+                    onCreateProject={() => setProjectDialogMode('create')}
+                    onRenameProject={() => setProjectDialogMode('rename')}
+                    onDuplicateProject={() => setProjectDialogMode('duplicate')}
+                    onDeleteProject={() => setDeleteConfirmOpen(true)}
+                    onOpenEditDesk={openEditDeskWithSelection}
+                    assistantOpen={assistantOpen}
+                    // 右上那颗是**开关**：再点一次收起（收起后右缘留一条，画板
+                    // `ChromeAssistant.dc.html`）。
+                    onOpenAssistant={() => {
+                      setAssistantOpen(!assistantOpen)
+                    }}
+                  />
+                  <ShellSidePanels
+                    activePanel={activePanel}
+                    onActivePanelChange={setActivePanel}
+                    nodeQuery={nodeQuery}
+                    onNodeQueryChange={setNodeQuery}
+                    onUpload={() => openUpload()}
+                    onPlaceMedia={placeMediaAtViewportCenter}
+                  />
+                  <ShellBottomBar
+                    toolMode={toolMode}
+                    onToolModeChange={setToolMode}
+                    canUndo={graph.canUndo}
+                    canRedo={graph.canRedo}
+                    onUndo={graph.undo}
+                    onRedo={graph.redo}
+                    onTidyLayout={graph.tidyLayout}
+                  />
+                  <ShellQuickAdd
+                    at={quickAdd?.screen ?? null}
+                    onAdd={(intentId) =>
+                      addNodeFromIntent(intentId, quickAdd?.flow)
+                    }
+                    onUpload={() => openUpload(quickAdd?.client)}
+                    onClose={() => setQuickAdd(null)}
+                  />
+                  <ShellPaneMenu
+                    at={paneMenu?.screen ?? null}
+                    onAdd={(intentId) =>
+                      addNodeFromIntent(intentId, paneMenu?.flow)
+                    }
+                    onUpload={() => openUpload(paneMenu?.client)}
+                    onPaste={() => {
+                      graph.pasteClipboard()
+                      setPaneMenu(null)
+                    }}
+                    onTidyLayout={() => {
+                      graph.tidyLayout()
+                      setPaneMenu(null)
+                    }}
+                    onFitView={() => {
+                      fitAllNodes()
+                      setPaneMenu(null)
+                    }}
+                    onClose={() => setPaneMenu(null)}
+                  />
+                  <ShellCommandPalette
+                    open={paletteOpen}
+                    onOpenChange={setPaletteOpen}
+                    nodes={graph.nodes}
+                    projects={store.projects}
+                    currentProjectId={store.currentProject.id}
+                    onFocusNode={focusNode}
+                    onAdd={addNodeAtViewportCenter}
+                    onUpload={() => openUpload()}
+                    onAskAssistant={() => {
+                      setAssistantOpen(true)
+                    }}
+                    onOpenEditDesk={openEditDeskWithSelection}
+                    onSwitchProject={store.switchProject}
+                    onManageChannels={openKeySettings}
+                  />
+                  <WorkbenchDocksV4 />
+                  {/* 添加菜单「上传素材」的隐藏 input：菜单关掉后仍要在场接住系统
+                    对话框的 change，所以挂宿主不挂菜单。 */}
+                  <input
+                    ref={uploadInputRef}
+                    type="file"
+                    accept={CANVAS_SHELL_UPLOAD_ACCEPT}
+                    multiple
+                    className="hidden"
+                    onChange={(event) => {
+                      const files = Array.from(event.target.files ?? [])
+                      event.target.value = ''
+                      if (files.length === 0) return
+                      const at = uploadPointRef.current
+                      uploadPointRef.current = null
+                      const rect = canvasRef.current?.getBoundingClientRect()
+                      dnd.dropFiles(
+                        files,
+                        at ?? {
+                          x: (rect?.left ?? 0) + (rect?.width ?? 0) / 2,
+                          y: (rect?.top ?? 0) + (rect?.height ?? 0) / 2,
+                        },
+                      )
+                    }}
+                  />
+                </div>
+                {/* 剪辑台盖在外壳**之上**（S8）：画布留在 DOM 里只是被盖住，
+                  退出时视口与选择原样还在。 */}
+                {editMode ? (
+                  <EditDesk
+                    state={graph.state}
+                    projectId={store.currentProject.id}
+                    dispatchBatch={graph.dispatchBatch}
+                    mintId={mintEditId}
+                    addNode={graph.addNode}
+                    setMedia={graph.setMedia}
+                    connect={graph.connect}
+                    canUndo={graph.canUndo}
+                    onUndo={graph.undo}
+                    onExit={exitEditDesk}
+                    onBackToNode={backToNodeFromEditDesk}
+                    initialNodeIds={editDeskSeed}
+                    onInitialConsumed={() => setEditDeskSeed([])}
+                  />
+                ) : null}
+                {projectDialogs}
+              </div>
+            </NodeV4Provider>
+          </IngestDragProviderV4>
+        </CanvasWorkspaceLayout>
+      </NodeCanvasActionsProvider>
+    </StudioOperatorHostProvider>
   )
 }

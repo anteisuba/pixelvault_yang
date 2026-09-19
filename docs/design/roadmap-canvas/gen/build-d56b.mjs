@@ -77,7 +77,8 @@ const D56B = {
       { k: 'leaf', t: '文字 = 正文本身 · 图片 = 现有 image 证据 · 链接 = 来源卡 · 视频 = 新增 video 证据（封面 + 时长 + 站点），点开新窗口播放，⛔ 不嵌播放器、不转存' },
     ] },
     { k: 'cat', t: '反问（Q3）', c: [
-      { k: 'leaf', t: '与输入框同框（owner 09-19 改口）：选择框一排放在输入框上方，一次一题，选完自动进下一题，答案以小标签留在对话里；「其他，自己填」= 直接在输入框打字发送。⛔ 不在消息流里出问题卡，QuestionCard 退场' },
+      { k: 'leaf', t: '与输入框同框、一次一题（owner 09-19）：问题块坐在输入框上方 —— 题头 + 进度 · 问题一句 · 选项竖排一行一个（标签 + 一句说明，推荐排第一）· 最后一行「其他，自己写」点开就地变输入框。选完自动进下一题，答案以小标签留在对话里，可点「上一题」改' },
+      { k: 'leaf', t: '键盘：1–4 直选 · ↑↓ + Enter · Esc 收起问题块只打字。对标 Claude Code 的提问框；⛔ 不在消息流里出问题卡，QuestionCard 退场' },
     ] },
     { k: 'cat', t: '分析（Q4 · 56c 并入）', c: [
       { k: 'leaf', t: '挂图 / 贴视频链接直接进当前多模态模型，回答就是普通正文；视频取关键帧 + 字幕 / 简介一起喂。ReferenceAnalysisCard 退场，56c 不再单独设计' },
@@ -137,23 +138,22 @@ const DEEP_DONE = dock(`
   <div style="font-size:12.5px;line-height:1.65;color:#262626">分镜可以按「三层光」推进：<b>先立霓虹底色，再压雨丝，最后逆光起人</b>${cite(1)}${cite(4)}。六镜里建议…</div>
 `, 300)
 
-const chipsRow = (label, step, opts) => `<div style="padding:8px 10px 2px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:baseline;gap:8px;font-size:11px;color:${MUTED}"><span style="font-weight:600;color:${FG}">${esc(label)}</span><span class="tok" style="font-size:10px">${step}</span></div><div style="display:flex;flex-wrap:wrap;gap:5px">${opts.map((o, i) => `<span style="padding:5px 10px;border-radius:8px;font-size:11.5px;border:1px solid ${i === 0 ? FG : BORDER};background:#fff">${esc(o)}</span>`).join('')}</div></div>`
+const optRow = (label, desc, { rec = false, hover = false } = {}) => `<div style="display:flex;align-items:flex-start;gap:9px;padding:7px 9px;border-radius:8px;border:1px solid ${rec ? FG : BORDER};background:${hover ? MUTEDBG : '#fff'}"><span style="width:14px;height:14px;border-radius:50%;border:1.5px solid ${rec ? FG : '#c4c4c0'};flex:none;margin-top:2px;position:relative">${rec ? `<span style="position:absolute;inset:3px;border-radius:50%;background:${FG}"></span>` : ''}</span><span style="display:flex;flex-direction:column;gap:2px;flex:1"><span style="font-size:12px;font-weight:500;display:flex;align-items:center;gap:6px">${esc(label)}${rec ? `<span style="${MONO}font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:${MUTED};border:1px solid ${BORDER};border-radius:4px;padding:0 4px">推荐</span>` : ''}</span>${desc ? `<span style="font-size:11px;color:${MUTED};line-height:1.45">${esc(desc)}</span>` : ''}</span></div>`
+const otherRow = (open = false) => open
+  ? `<div style="display:flex;align-items:center;gap:8px;padding:5px 5px 5px 9px;border-radius:8px;border:1px solid ${FG};background:#fff"><span style="width:14px;height:14px;border-radius:50%;border:1.5px solid ${FG};flex:none;position:relative"><span style="position:absolute;inset:3px;border-radius:50%;background:${FG}"></span></span><span style="flex:1;font-size:12px">8 镜，前 3 镜慢一点${caret}</span><span style="width:26px;height:26px;border-radius:50%;background:${FG};display:flex;align-items:center;justify-content:center">${ic('up', '#fff', 13)}</span></div>`
+  : `<div style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:8px;border:1px dashed ${BORDER};color:${MUTED}"><span style="width:14px;height:14px;border-radius:50%;border:1.5px dashed #c4c4c0;flex:none"></span><span style="font-size:12px">其他，自己写</span></div>`
+const qBlock = (head, step, question, opts, { other = 'closed', back = false } = {}) => `<div style="padding:10px 10px 6px;display:flex;flex-direction:column;gap:7px;border-bottom:1px solid ${BORDER}">
+  <div style="display:flex;align-items:center;gap:8px"><span style="${MONO}font-size:10px;letter-spacing:.05em;text-transform:uppercase;color:#525252;background:${MUTEDBG};border-radius:4px;padding:2px 6px">${esc(head)}</span><span class="tok" style="font-size:10px;color:${MUTED}">${step}</span><span style="flex:1"></span>${back ? `<span style="font-size:10.5px;color:${MUTED}">← 上一题</span>` : ''}</div>
+  <div style="font-size:12.5px;font-weight:600;line-height:1.5">${esc(question)}</div>
+  <div style="display:flex;flex-direction:column;gap:5px">${opts.map(([l, d], i) => optRow(l, d, { rec: i === 0 })).join('')}${other === 'none' ? '' : otherRow(other === 'open')}</div>
+</div>`
 const answerTag = (q, a) => `<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border-radius:6px;background:${MUTEDBG};font-size:11px"><span style="color:${MUTED}">${esc(q)}</span><span>${esc(a)}</span></span>`
+const lead = `${userMsg('帮我把这段剧本排成分镜')}<div style="font-size:12.5px;line-height:1.6;color:#262626">先定三件事，在下面选。</div>`
 
-const Q_STEP1 = dock(`
-  ${userMsg('帮我把这段剧本排成分镜')}
-  <div style="font-size:12.5px;line-height:1.6;color:#262626">先定三件事，下面选。</div>
-`, 340, { above: chipsRow('镜头数量', '1 / 3', ['6 镜（推荐）', '9 镜', '12 镜']), placeholder: '或者直接打字回答…' })
-
-const Q_STEP2 = dock(`
-  ${userMsg('帮我把这段剧本排成分镜')}
-  <div style="font-size:12.5px;line-height:1.6;color:#262626">先定三件事，下面选。</div>
-  <div style="align-self:flex-end;display:flex;gap:5px">${answerTag('镜头', '6 镜')}</div>
-`, 340, { above: chipsRow('时长风格', '2 / 3', ['短促快切（推荐）', '长镜头为主']), placeholder: '或者直接打字回答…' })
-
-const Q_DONE = dock(`
-  ${userMsg('帮我把这段剧本排成分镜')}
-  <div style="font-size:12.5px;line-height:1.6;color:#262626">先定三件事，下面选。</div>
+const Q_STEP1 = dock(lead, 500, { above: qBlock('镜头数量', '1 / 3', '这段剧本拆成几镜？', [['6 镜', '三幕各两镜，节奏最稳'], ['9 镜', '每幕多一个特写'], ['12 镜', '短视频节奏，镜头很碎']]), placeholder: '或者直接打字…' })
+const Q_OTHER = dock(lead, 500, { above: qBlock('镜头数量', '1 / 3', '这段剧本拆成几镜？', [['6 镜', '三幕各两镜，节奏最稳'], ['9 镜', '每幕多一个特写'], ['12 镜', '短视频节奏，镜头很碎']], { other: 'open' }), placeholder: '或者直接打字…' })
+const Q_STEP2 = dock(`${lead}<div style="align-self:flex-end;display:flex;gap:5px">${answerTag('镜头', '6 镜')}</div>`, 470, { above: qBlock('时长风格', '2 / 3', '镜头节奏偏哪种？', [['短促快切', '单镜 2–4 秒，情绪推得快'], ['长镜头为主', '单镜 6 秒以上，留白多']], { back: true }), placeholder: '或者直接打字…' })
+const Q_DONE = dock(`${lead}
   <div style="align-self:flex-end;display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">${answerTag('镜头', '6 镜')}${answerTag('时长', '短促快切')}${answerTag('角色', '伞下少女 + 男友')}</div>
   ${loadingLine('排分镜中…')}
 `, 340)
@@ -171,10 +171,11 @@ const UI = header('PixelVault · D56b · ④ UI 画板 · 2026-09-19', '调查�
   + state('默认：一行微光', frame(DEEP_LOADING), '只有这一行。微光在动，文字里带进度和预估。')
   + state('点开：步骤', frame(DEEP_OPEN), '点那一行才展开四步；再点收起。')
   + state('跑完：收成一行', frame(DEEP_DONE), '变成灰底一行折在回答上方，形状与快搜的加载行一致。')
-  + sec('反问', '与输入框同框 · 一次一题')
-  + state('第 1 题', frame(Q_STEP1), '一排选择框坐在输入框上方，推荐项实线排第一。想自己答就直接在输入框打字。')
-  + state('选完进第 2 题', frame(Q_STEP2), '刚选的答案变成小标签留在对话里，选择框换成下一题。')
-  + state('三题选完', frame(Q_DONE), '选择框消失，三个标签留下，助手直接开始干活。⛔ 没有「确定」按钮。')
+  + sec('反问', '与输入框同框 · 一次一题 · 对标 Claude Code 的提问框')
+  + state('第 1 题', frame(Q_STEP1), '问题块坐在输入框上方：题头 + 进度 → 问题一句 → 选项竖排一行一个（标签 + 一句说明），推荐项实线排第一并打「推荐」→ 最后一行「其他，自己写」。点任一行即选中并进下一题。键盘 1–4 直选，↑↓ + Enter。')
+  + state('点了「其他」', frame(Q_OTHER), '那一行就地变成输入框，回车或点箭头提交，不跳到下面的输入框。Esc 收回。')
+  + state('第 2 题', frame(Q_STEP2), '刚选的答案变成小标签留在对话里；右上角「← 上一题」可以回去改。下面的输入框始终可用，直接打字 = 用一句话回答当前这题。')
+  + state('三题选完', frame(Q_DONE), '问题块消失，三个标签留下，助手直接开始干活。⛔ 没有「确定」按钮。')
   + sec('直喂分析', 'Q4 · 56c 并入')
   + state('挂图问画风', frame(ANALYZE), '没有分析卡，就是一段回答，末尾顺手问要不要落到工作台。视频同理：贴链接进来，取关键帧和字幕一起喂。')
 

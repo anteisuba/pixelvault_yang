@@ -1821,6 +1821,19 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
      */
     slot: AssistantOperatorReferenceSlotSchema.optional(),
   }),
+  /**
+   * 摘一张参考（进度表 21）。
+   *
+   * ⚠ 「二选一」与「这一格此刻挂着东西吗」都**留在规划器**（本文件头注 ②）：
+   * schema 拒 = 模型这一轮整个作废，规划器拒 = 它读得到「第 3 张？轨上只有 2 张」
+   * 还能改口。⛔ 没有 URL 这个参数 —— 与 `mount_reference` 逐字同源。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.unmountReference]: z.object({
+    assetId: IdSchema.optional(),
+    /** 状态块里 `@ImageN` 的那个 N —— **从 1 起**。 */
+    slotIndex: z.number().int().positive().optional(),
+    slot: AssistantOperatorReferenceSlotSchema.optional(),
+  }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: z.object({ modelId: IdSchema }),
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]: z.object({
     value: z.string().trim().max(LIMITS.maxPromptChars),
@@ -2827,6 +2840,25 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
      * 「把这张从列表里删掉」—— 两者在客户端是不同的动作。
      */
     z.object({ assetId: IdSchema, slot: AssistantOperatorReferenceSlotSchema }),
+  ),
+  /**
+   * 摘一张参考（进度表 21）—— 载荷与逆操作**同形**：都是「这个槽上的这条地址」。
+   *
+   * ⭐ 带 `url` 而不是只带 id：客户端摘除认的是 URL（`removeReference` 的契约），
+   * 而挂回去要的也是它 —— 两边同一份数据，撤销因此不必反查任何对照表。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.unmountReference,
+    z.object({
+      url: z.string().url(),
+      slot: AssistantOperatorReferenceSlotSchema,
+      assetId: IdSchema.optional(),
+    }),
+    z.object({
+      url: z.string().url(),
+      slot: AssistantOperatorReferenceSlotSchema,
+      assetId: IdSchema.optional(),
+    }),
   ),
   mutatingStep(
     ASSISTANT_OPERATOR_TOOL_IDS.setModel,

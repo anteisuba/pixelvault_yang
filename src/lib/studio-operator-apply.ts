@@ -371,6 +371,9 @@ export function describeOperatorInverse(
       return step.inverse.enabled === null ? '' : String(step.inverse.enabled)
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference:
       return step.payload.url
+    /** ⚠ 显示的是**摘掉的那张**的地址 —— 那正是撤销会挂回去的那一条。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.unmountReference:
+      return step.payload.url
     case ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl:
       // 显示**源地址**：那是用户自己粘过来的那一串，他认得出来；落地地址是一串
       // 他从没见过的 R2 key。
@@ -616,6 +619,16 @@ export function applyOperatorStep(
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference: {
       ctx.addReference(step.payload.url, step.payload.slot)
+      return STUDIO_OPERATOR_FIELD_IDS.references
+    }
+
+    /**
+     * 摘一张（进度表 21）—— **与挂载共用那两只手**，⛔ 不新开一条通道：
+     * `removeReference` 在三个宿主上已经分好了「清一个帧槽」与「从轨上删一张」
+     * 两条路（见 `use-studio-workbench-operator-host.ts` 那段头注）。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.unmountReference: {
+      ctx.removeReference(step.payload.url, step.payload.slot)
       return STUDIO_OPERATOR_FIELD_IDS.references
     }
 
@@ -904,6 +917,11 @@ export function revertOperatorStep(
 
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference:
       ctx.removeReference(step.payload.url, step.inverse.slot)
+      return
+
+    /** ⚠ 撤销 = 原样挂回同一个位置（`inverse` 与载荷同形，不必反查对照表）。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.unmountReference:
+      ctx.addReference(step.inverse.url, step.inverse.slot)
       return
 
     /**

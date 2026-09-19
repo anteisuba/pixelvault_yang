@@ -260,6 +260,11 @@ const STEP_FIXTURES: Record<
     },
     inverse: { assetId: 'gen-1', slot: 'reference' },
   },
+  [ASSISTANT_OPERATOR_TOOL_IDS.unmountReference]: {
+    payload: { url: 'https://cdn.example.com/a.png', slot: 'reference' },
+    // ⚠ 逆操作与载荷同形：同一条地址挂回同一个槽。
+    inverse: { url: 'https://cdn.example.com/a.png', slot: 'reference' },
+  },
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: {
     payload: { modelId: 'seedream-4', modelLabel: 'Seedream 4' },
     inverse: { modelId: null },
@@ -783,7 +788,7 @@ describe('五动词入口', () => {
     // commit #18 把 33 变成 37（素材库四条写操作，v2 §10）。
     // lora-assistant §10.2.2 把 37 变成 38（`plan_lora_pick`）。
     // 进度表 22「一张脸」把 39 变成 42（画布三条：改 / 算下游 / 那一枪）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(43)
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(44)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
@@ -1236,6 +1241,28 @@ describe('step 契约 · inverse 完备性', () => {
       payload: { query: 'x', kind: null, limit: 6 },
     })
     expect(missingResult.success).toBe(false)
+  })
+
+  /** `unmount_reference`（进度表 21）：⛔ 没有 URL 参数，指法留给规划器收。 */
+  it('unmount_reference 只收 assetId / slotIndex / slot，⛔ 收不了 URL', () => {
+    const schema =
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_TOOL_IDS.unmountReference
+      ]
+    expect(schema.safeParse({ slotIndex: 2 }).success).toBe(true)
+    expect(schema.safeParse({ assetId: 'gen-1' }).success).toBe(true)
+    expect(schema.safeParse({ slot: 'first' }).success).toBe(true)
+    // 「二选一」是规划器的闸，形状这一层两个都给照样过。
+    expect(schema.safeParse({ assetId: 'gen-1', slotIndex: 1 }).success).toBe(
+      true,
+    )
+    // ⛔ 从 1 起数 —— 0 不是一个 @ImageN。
+    expect(schema.safeParse({ slotIndex: 0 }).success).toBe(false)
+    const parsed = schema.safeParse({
+      url: 'https://cdn.example.com/a.png',
+    })
+    expect(parsed.success).toBe(true)
+    expect(parsed.data).not.toHaveProperty('url')
   })
 
   /**

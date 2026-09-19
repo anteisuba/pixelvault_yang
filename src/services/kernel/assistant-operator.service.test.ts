@@ -12961,3 +12961,140 @@ describe('set_capability · 专属 chip（进度表 21）', () => {
     expect(done.at(-1)).toMatchObject({ inverse: { value: 9 } })
   })
 })
+
+/**
+ * `unmount_reference` —— 摘一张（进度表 21 · 差距清单 #2）。
+ *
+ * ⚠ 断的是「只摘挂着的那一张」：指错一格 / 指一张没挂的 / 指一条无从指认的轨，
+ * 三种都得**拒并说清楚**，⛔ 不能静默成功（那是最难查的假成功）。
+ */
+describe('unmount_reference · 摘一张（进度表 21）', () => {
+  const MOUNTED: AssistantOperatorRequest['snapshot'] = {
+    ...SNAPSHOT,
+    references: {
+      items: [
+        { url: 'https://cdn.example.com/a.png' },
+        { url: 'https://cdn.example.com/b.png' },
+        { url: 'https://cdn.example.com/c.png' },
+      ],
+      limit: 4,
+    },
+  }
+
+  function callUnmount(args: Record<string, unknown>): void {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.unmountReference,
+          title: 'drop that one',
+          args,
+        },
+      },
+      { finished: true },
+    )
+  }
+
+  it('按 @ImageN 摘（从 1 起）：inverse 与载荷同形，撤销挂回同一个槽', async () => {
+    callUnmount({ slotIndex: 2 })
+    const done = stepsOf(
+      await collect(
+        runAssistantOperator('clerk-1', buildRequest({ snapshot: MOUNTED })),
+      ),
+    ).at(-1)
+    expect(done).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      payload: { url: 'https://cdn.example.com/b.png', slot: 'reference' },
+      inverse: { url: 'https://cdn.example.com/b.png', slot: 'reference' },
+    })
+  })
+
+  it('⛔ 指了一格轨上没有的 —— 拒，并说出现在有几张', async () => {
+    callUnmount({ slotIndex: 5 })
+    expect(
+      stepsOf(
+        await collect(
+          runAssistantOperator('clerk-1', buildRequest({ snapshot: MOUNTED })),
+        ),
+      ).at(-1),
+    ).toMatchObject({
+      status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.unknownAsset },
+    })
+  })
+
+  it('⛔ 两个都给 / 一个都不给 —— 拒，理由里写清怎么指', async () => {
+    callUnmount({})
+    expect(
+      stepsOf(
+        await collect(
+          runAssistantOperator('clerk-1', buildRequest({ snapshot: MOUNTED })),
+        ),
+      ).at(-1),
+    ).toMatchObject({
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.malformedArgs },
+    })
+
+    callUnmount({ slotIndex: 1, assetId: 'gen-1' })
+    expect(
+      stepsOf(
+        await collect(
+          runAssistantOperator('clerk-1', buildRequest({ snapshot: MOUNTED })),
+        ),
+      ).at(-1),
+    ).toMatchObject({
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.malformedArgs },
+    })
+  })
+
+  it('⛔ 空着的帧槽摘不了，⛔ 参考视频位无从指认 —— 都按 noSuchControl 拒', async () => {
+    callUnmount({ slot: 'first' })
+    expect(
+      stepsOf(
+        await collect(runAssistantOperator('clerk-1', buildVideoRequest())),
+      ).at(-1),
+    ).toMatchObject({
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
+    })
+
+    callUnmount({ slot: 'video' })
+    expect(
+      stepsOf(
+        await collect(runAssistantOperator('clerk-1', buildVideoRequest())),
+      ).at(-1),
+    ).toMatchObject({
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl },
+    })
+  })
+
+  it('同一轮摘两张：第二条指的是**摘掉一张之后**的那一格', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.unmountReference,
+          title: 'drop the first',
+          args: { slotIndex: 1 },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.unmountReference,
+          title: 'drop what is left',
+          args: { slotIndex: 2 },
+        },
+      },
+      { finished: true },
+    )
+    const done = stepsOf(
+      await collect(
+        runAssistantOperator('clerk-1', buildRequest({ snapshot: MOUNTED })),
+      ),
+    ).filter((step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done)
+    expect(done.at(-2)).toMatchObject({
+      payload: { url: 'https://cdn.example.com/a.png' },
+    })
+    // ⭐ 第二条指的是**摘掉一张之后**的第 2 张（b 上位成了第 1 张）。
+    expect(done.at(-1)).toMatchObject({
+      payload: { url: 'https://cdn.example.com/c.png' },
+    })
+  })
+})

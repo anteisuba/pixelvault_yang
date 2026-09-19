@@ -312,6 +312,45 @@ describe('applyOperatorStep', () => {
     expect(dispatched).toEqual([{ type: 'SET_IMAGE_BATCH_COUNT', payload: 4 }])
   })
 
+  /** 摘一张（进度表 21）—— 与挂载共用那两只手，撤销把它原样挂回同一个槽。 */
+  it('unmount_reference 摘掉那一张，撤销挂回同一个槽', () => {
+    const { ctx, references, slots } = makeContext()
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.unmountReference,
+      verb: 'apply',
+      payload: { url: 'https://cdn.example.com/a.png', slot: 'reference' },
+      inverse: { url: 'https://cdn.example.com/a.png', slot: 'reference' },
+    } satisfies AssistantOperatorAppliedStep
+    ctx.addReference('https://cdn.example.com/a.png')
+    expect(references).toEqual(['https://cdn.example.com/a.png'])
+
+    expect(applyOperatorStep(step, ctx)).toBe(
+      STUDIO_OPERATOR_FIELD_IDS.references,
+    )
+    expect(references).toEqual([])
+
+    revertOperatorStep(step, ctx)
+    expect(references).toEqual(['https://cdn.example.com/a.png'])
+    // ⚠ 槽一路带着：摘首帧与摘一张普通参考在客户端是两个动作。
+    expect(slots.at(-1)).toBe('reference')
+  })
+
+  it('清一个帧槽：槽名原样带到两侧', () => {
+    const { ctx, slots } = makeContext()
+    const step = {
+      ...BASE,
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.unmountReference,
+      verb: 'apply',
+      payload: { url: 'https://cdn.example.com/first.png', slot: 'first' },
+      inverse: { url: 'https://cdn.example.com/first.png', slot: 'first' },
+    } satisfies AssistantOperatorAppliedStep
+    applyOperatorStep(step, ctx)
+    expect(slots.at(-1)).toBe('first')
+    revertOperatorStep(step, ctx)
+    expect(slots.at(-1)).toBe('first')
+  })
+
   /**
    * 专属 chip（进度表 21）—— 三件事：整体替换不吞别的键、撤销回得到「没设过」、
    * 撤销回得到旧值。

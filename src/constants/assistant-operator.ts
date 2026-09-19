@@ -190,6 +190,25 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * 论据照抄画布 `attach_asset` 那条 —— 让模型写 URL 就是让它编一个不存在的地址。
    */
   mountReference: 'mount_reference',
+  /**
+   * 从参考位上**摘一张**（进度表 21 · 差距清单 #2）——与 `mount_reference` 对称。
+   *
+   * ⭐ 为什么非要有它：画板骨架写的一直是「mount_reference / unmount」，而代码里
+   * 只有挂没有摘（LoRA 那一侧早就有 `unmount_lora`）。缺了它，助手挂错一张之后
+   * 唯一的出路是让用户自己去参考轨上点 × —— 而「回头支使用户去点东西」正是拍板
+   * 22 明令要消掉的那种回答。
+   *
+   * ⚠ 目标只能是**此刻真的挂着的那一张**，两种指法（⛔ 二选一，不是都给）：
+   *  · `slotIndex` —— 状态块里印的那个 `@ImageN` 的 N（**从 1 起**，与用户嘴里
+   *    说的「第二张」逐字对上）；
+   *  · `assetId` —— 本轮检索 / 跨轮记忆里那张，服务端反查它挂在哪一格。
+   * ⛔ 没有 URL 这个参数：判据与 `mount_reference` 逐字同源。
+   * ⚠ `slot` 与挂载那条**同一张词表**：首帧 / 尾帧是**清空一个格子**（那一档是
+   * 覆盖写），普通参考位是「把这一张从轨上删掉」。⛔ 参考视频位不收 —— 快照里
+   * 那一节只给了个数、没有名单，摘哪一条无从指认（按 `noSuchControl` 拒）。
+   * ⚠ `inverse` = 把同一张挂回同一个位置。
+   */
+  unmountReference: 'unmount_reference',
   /** 换模型。⛔ 只能从快照的 `availableModels` 里挑，不许自己写 id。 */
   setModel: 'set_model',
   /** 写正面提示词。⚠ 目标字段已有用户手写内容时先走确认通道（拍板 3）。 */
@@ -592,6 +611,7 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
   ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
   ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
+  ASSISTANT_OPERATOR_TOOL_IDS.unmountReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setModel,
   ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
   ASSISTANT_OPERATOR_TOOL_IDS.setNegative,
@@ -716,6 +736,12 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
  */
 export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
+  /**
+   * ⚠ 摘一张也是改动型（进度表 21）：`inverse` 里放的是**那张的落地地址与槽**，
+   * 撤销 = 原样挂回同一个位置。⛔ 撤销不重新下载、不碰素材库 —— 那张图一直在
+   * 用户库里，这一步动的只是「这次用不用它」（判据同 `unmount_lora`）。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.unmountReference,
   ASSISTANT_OPERATOR_TOOL_IDS.setModel,
   ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
   ASSISTANT_OPERATOR_TOOL_IDS.setNegative,
@@ -893,6 +919,8 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick]: ASSISTANT_OPERATOR_VERB_IDS.ask,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]:
+    ASSISTANT_OPERATOR_VERB_IDS.apply,
+  [ASSISTANT_OPERATOR_TOOL_IDS.unmountReference]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
   [ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl]:
     ASSISTANT_OPERATOR_VERB_IDS.apply,
@@ -1598,6 +1626,12 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
      */
     ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
     /**
+     * 摘参考图（进度表 21）—— ⚠ 只给两台工作台：装配台那条参考轨今天还没接这只
+     * 手（`use-lora-operator-host.ts` 的 `removeReference` 归属另算），摆上去就是
+     * 一条点了没反应的路。补它是独立一件。
+     */
+    ASSISTANT_OPERATOR_TOOL_IDS.unmountReference,
+    /**
      * 花钱档（§6）**只给两台工作台**。⛔ 装配台没有：它的出图键住在
      * `GenerateBranch` 的局部 state 里，宿主契约上还没有那只手
      * （`triggerGeneration` 在 LoRA 宿主上有意缺席）。摆一条这个域里无解的工具，
@@ -1622,6 +1656,8 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
      * 由快照缺席收），而视频档一旦补上专属区，这里一个字都不用改。
      */
     ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+    /** 摘参考图 / 清一个帧槽（进度表 21）。判据见图片档那条。 */
+    ASSISTANT_OPERATOR_TOOL_IDS.unmountReference,
     ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference,
     ASSISTANT_OPERATOR_TOOL_IDS.setSound,
     ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
@@ -2495,6 +2531,8 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     'open the evidence you already gathered earlier in THIS conversation, by number. Earlier rounds are summarised for you in "WHAT EARLIER ROUNDS SETTLED", and the evidence there appears only as numbers like #e12 — this is how you read the actual text behind one. Pass the numbers you need in "refs". Use it when an earlier finding decides what you are about to write; never re-run a web search to recover something this conversation already looked up. A number that does not exist is refused — it is not a hint to go searching.',
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]:
     "attach one asset from a previous search_assets result to the workbench as a reference image. Takes an assetId, never a URL. ⚠ Web search results have no assetId and can never be mounted this way — only the creator's own library can.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.unmountReference]:
+    'take ONE reference off the bench — the mirror image of mount_reference. Name the one you mean with exactly one of: "slotIndex", the N in the @ImageN list printed in the state (counting from 1), or "assetId" for a picture that came back from a search this turn. Pass slot "first" or "last" to clear a named frame slot instead. Use it when you mounted the wrong picture, or when the creator says to drop one — never tell them to click the × themselves. Undoing this puts the same picture back where it was.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]:
     'switch the generation model. The id must be copied verbatim from availableModels in the state.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]:

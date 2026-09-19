@@ -2896,6 +2896,108 @@ async function planMountReference(
   }
 }
 
+/**
+ * 从参考位上摘一张（进度表 21 · 差距清单 #2）—— `mount_reference` 的对称件。
+ *
+ * ── 三件事 ────────────────────────────────────────────────────────
+ * ① **指法二选一**：`slotIndex`（状态块印的 `@ImageN`，从 1 起）或 `assetId`。
+ *    两个都给 / 一个都不给 → `malformedArgs`，理由里写清怎么指。
+ * ② **只摘挂着的**：轨上没有那一格 / 那张不在轨上 → `unknownAsset`，⛔ 不静默
+ *    成功（「我摘掉了」而画面没变，是最难查的那种假成功）。
+ * ③ 帧槽是**清空一个格子**（那一档是覆盖写），所以不必指哪一张；空着就按
+ *    `noSuchControl` 拒，理由里说清它本来就是空的。
+ */
+function planUnmountReference(
+  run: OperatorRun,
+  args: {
+    assetId?: string
+    slotIndex?: number
+    slot?: AssistantOperatorReferenceSlot
+  },
+): ToolPlan {
+  const slot = args.slot ?? SLOT.reference
+
+  if (slot === SLOT.first || slot === SLOT.last) {
+    if (!run.state.hasFrameSlotControl) {
+      return reject(
+        REJECT.noSuchControl,
+        'This bench has no first/last frame slots — that only exists on the keyframe mode.',
+      )
+    }
+    const url =
+      slot === SLOT.first ? run.state.frameFirstUrl : run.state.frameLastUrl
+    if (!url) {
+      return reject(
+        REJECT.noSuchControl,
+        `The ${slot} frame slot is already empty — there is nothing to take off.`,
+      )
+    }
+    return {
+      kind: 'mutate',
+      payload: { url, slot },
+      inverse: { url, slot },
+      observation: `Cleared the ${slot} frame slot.`,
+      apply: () => {
+        if (slot === SLOT.first) run.state.frameFirstUrl = null
+        else run.state.frameLastUrl = null
+      },
+    }
+  }
+
+  if (slot === SLOT.video) {
+    /**
+     * ⛔ 参考视频位不收：快照里那一节只给了个数，没有名单 —— 摘哪一条无从指认，
+     * 而「随便摘一条」比不摘更糟。补它要先给那一节一份名单，那是独立一件。
+     */
+    return reject(
+      REJECT.noSuchControl,
+      'Reference videos cannot be taken off from here — the state only reports how many are mounted, not which.',
+    )
+  }
+
+  if (!run.state.hasReferenceControl) return reject(REJECT.noSuchControl)
+
+  const hasIndex = args.slotIndex !== undefined
+  const hasAssetId = args.assetId !== undefined
+  if (hasIndex === hasAssetId) {
+    return reject(
+      REJECT.malformedArgs,
+      'Name exactly one of "slotIndex" (the N in @ImageN, counting from 1) or "assetId" — not both, not neither.',
+    )
+  }
+
+  const index = hasIndex
+    ? (args.slotIndex as number) - 1
+    : run.state.referenceUrls.indexOf(
+        (
+          run.searchIndex.get(args.assetId as string) ??
+          workingMemoryAsset(run, args.assetId as string)
+        )?.url ?? '\u0000',
+      )
+  const url = run.state.referenceUrls[index]
+  if (index < 0 || !url) {
+    return reject(
+      REJECT.unknownAsset,
+      hasIndex
+        ? `There is no @Image${args.slotIndex} on this bench — ${run.state.referenceCount} reference image(s) are mounted.`
+        : 'That asset is not mounted on this bench right now — only the ones listed under CURRENT REFERENCE ORDER can be taken off.',
+    )
+  }
+
+  return {
+    kind: 'mutate',
+    payload: { url, slot, ...(args.assetId ? { assetId: args.assetId } : {}) },
+    inverse: { url, slot, ...(args.assetId ? { assetId: args.assetId } : {}) },
+    observation: `Took @Image${index + 1} off the bench (${
+      run.state.referenceCount - 1
+    } reference image(s) left).`,
+    apply: () => {
+      run.state.referenceUrls.splice(index, 1)
+      run.state.referenceCount = Math.max(0, run.state.referenceCount - 1)
+    },
+  }
+}
+
 function planSetModel(run: OperatorRun, args: { modelId: string }): ToolPlan {
   if (!run.state.hasModelControl) return reject(REJECT.noSuchControl)
 
@@ -6220,6 +6322,15 @@ async function planTool(
           slot?: AssistantOperatorReferenceSlot
         },
         userId,
+      )
+    case TOOL.unmountReference:
+      return planUnmountReference(
+        run,
+        parsed.data as {
+          assetId?: string
+          slotIndex?: number
+          slot?: AssistantOperatorReferenceSlot
+        },
       )
     case TOOL.setModel:
       return planSetModel(run, parsed.data as { modelId: string })

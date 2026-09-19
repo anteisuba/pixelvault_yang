@@ -24,6 +24,7 @@ import {
   FolderPlus,
   FolderSearch,
   Globe,
+  ImageOff,
   ImagePlus,
   IdCard,
   Layers,
@@ -105,6 +106,8 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence]: BookOpen,
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]: ImagePlus,
+  /** 摘一张（进度表 21）—— 与挂载那颗成对，日志流里一眼分得出方向。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.unmountReference]: ImageOff,
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]: Sparkles,
   [ASSISTANT_OPERATOR_TOOL_IDS.setPrompt]: Pencil,
   [ASSISTANT_OPERATOR_TOOL_IDS.setNegative]: Ban,

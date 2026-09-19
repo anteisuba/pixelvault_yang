@@ -197,6 +197,9 @@ export function describeOperatorStepDetail(
       return `${step.payload.key} ${String(step.payload.value)}`
     case ASSISTANT_OPERATOR_TOOL_IDS.mountReference:
       return step.payload.label ?? step.payload.assetId
+    /** 摘一张（进度表 21）：写槽名 —— 「清了首帧」与「摘了一张参考」不是一件事。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.unmountReference:
+      return step.payload.slot
     /** 归属写出来 —— `@AudioN` 那个 N 对不上谁，多角色对白就是一锅粥。 */
     case ASSISTANT_OPERATOR_TOOL_IDS.mountAudioReference:
       return [

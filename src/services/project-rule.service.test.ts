@@ -85,10 +85,22 @@ describe('project rule service', () => {
     expect(args.where.OR).toEqual([{ scope: 'image' }, { scope: null }])
   })
 
+  /**
+   * ⚠ 2026-09-19（进度表 22）`canvas` 进了域词表，所以样例换成一个**真的**不在
+   * 表里的值。⛔ 别把这条用例删掉：它守的是「库里存量行的 scope 掉出词表时被
+   * 剥掉」，而那条规则一个字都没变 —— 只是举例用的那个值不再是反例了。
+   */
   it('scope 掉出域词表的存量行被剥掉，⛔ 不塞进系统提示', async () => {
-    mockFindMany.mockResolvedValue([{ ...ROW, scope: 'canvas' }])
+    mockFindMany.mockResolvedValue([{ ...ROW, scope: 'audio' }])
 
     await expect(listProjectRules('db_user_1')).resolves.toEqual([])
+  })
+
+  /** ⭐ 画布现在是个真域：它的规则照样读得出来（同 image / video / lora）。 */
+  it('canvas 是词表里的域 —— 它的规则读得出来', async () => {
+    mockFindMany.mockResolvedValue([{ ...ROW, scope: 'canvas' }])
+
+    await expect(listProjectRules('db_user_1')).resolves.toHaveLength(1)
   })
 
   it('写入时把协议侧的小写来源翻成库里的枚举', async () => {

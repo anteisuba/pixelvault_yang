@@ -67,12 +67,18 @@ describe('GET /api/assistant/rules', () => {
     expect(mockList).toHaveBeenCalledWith('clerk_test_user', { scope: 'image' })
   })
 
+  /** ⚠ `canvas` 2026-09-19 进了域词表（进度表 22），举例换成真的在表外的值。 */
   it('词表外的 scope 400', async () => {
-    const res = await GET(
-      createGET('/api/assistant/rules', { scope: 'canvas' }),
-    )
+    const res = await GET(createGET('/api/assistant/rules', { scope: 'audio' }))
     expect(res.status).toBe(400)
     expect(mockList).not.toHaveBeenCalled()
+  })
+
+  it('canvas 是词表里的域 —— 照样透传给 service', async () => {
+    await GET(createGET('/api/assistant/rules', { scope: 'canvas' }))
+    expect(mockList).toHaveBeenCalledWith('clerk_test_user', {
+      scope: 'canvas',
+    })
   })
 })
 

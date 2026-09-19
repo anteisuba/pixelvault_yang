@@ -14,8 +14,15 @@ vi.mock('@/constants/video-model-send-plan', () => ({
     mockGetVideoModelSendContract(...args),
 }))
 
+/**
+ * ⚠ 与下面 `@/constants/models` 同一条：**部分**桩。2026-09-19（进度表 22）
+ * `types/assistant-operator.ts` 开始借画布的 op 词表，于是这个文件的 import 链
+ * 里多了 `types/node-workflow.ts`，而它在模块加载期就读 `VIDEO_NODE_MODES`。
+ * 整个换掉的表现是「0 test」而不是断言失败 —— 最难查的那一种。
+ */
 const mockGetNodeModeForModel = vi.fn()
-vi.mock('@/constants/video-node-modes', () => ({
+vi.mock(import('@/constants/video-node-modes'), async (importOriginal) => ({
+  ...(await importOriginal()),
   getNodeModeForModel: (...args: unknown[]) => mockGetNodeModeForModel(...args),
 }))
 

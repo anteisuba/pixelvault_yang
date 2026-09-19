@@ -293,13 +293,29 @@ describe('⛔ 助手工具环的钱闸', () => {
     expect(FOLDER_VISION_SOURCE).toContain('completeVisionStructured')
   })
 
-  it('工具表里没有任何一条叫 generate 的（prime 除外，而它只置态）', () => {
-    const generating = ASSISTANT_OPERATOR_TOOLS.filter(
-      (tool) => tool.includes('generate') && tool !== 'prime_generate',
+  /**
+   * ⚠ 2026-09-19（进度表 22）多了一条 `canvas_generate`，所以这条用例从
+   * 「一条都没有」改成**一张封闭的允许名单**。
+   *
+   * ⭐ 规则的本意一个字都没变：服务端**不得创建 generation**。变的只是写法 ——
+   * 名字里带 `generate` 的工具现在有三条，逐条给出它为什么过得了闸，而名单之外
+   * 的任何一条当场红。⛔ 别把这条用例改回 `filter(...).toEqual([])`：那只会在
+   * 下一个域进来时被再改一次，而每改一次这条闸就松一点。
+   */
+  it('名字里带 generate 的工具**只有这三条**，且没有一条在服务端建 generation', () => {
+    const generating = ASSISTANT_OPERATOR_TOOLS.filter((tool) =>
+      tool.includes('generate'),
     )
-    expect(generating).toEqual([])
+    expect([...generating].sort()).toEqual([
+      // 画布那一枪：服务端只吐载荷，扳机在宿主手上（`canvas.generate`）。
+      'canvas_generate',
+      // 只置态：它改的是按钮的样子，不是账单。
+      'prime_generate',
+    ])
     // prime 是改动型的（因此可撤销），但它改的是按钮的样子，不是账单。
     expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).toContain('prime_generate')
+    // ⛔ 画布那一枪**不在**改动型里：它撤不掉（与 `request_generation` 同档）。
+    expect(ASSISTANT_OPERATOR_MUTATING_TOOLS).not.toContain('canvas_generate')
   })
 
   /**

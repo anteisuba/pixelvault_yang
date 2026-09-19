@@ -56,6 +56,7 @@ import {
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useAssistantOperator } from '@/hooks/use-assistant-operator'
+import { useCanvasOperatorRequests } from '@/hooks/node/use-canvas-operator-requests'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useStudioOperatorCritique } from '@/hooks/use-studio-operator-critique'
 import { useStudioOperatorResults } from '@/hooks/use-studio-operator-results'
@@ -153,6 +154,7 @@ export function StudioOperatorDock() {
     referenceLimit,
     referenceImages,
     apply,
+    buildSnapshot,
     domain: hostDomain,
     resultRun,
   } = useStudioOperatorHost()
@@ -225,6 +227,31 @@ export function StudioOperatorDock() {
    * ⚠ 手机分支同样排在所有 hook 后面，所以这颗照样在跑 —— Sheet 关着的时候
    *   面板是卸载的，但闭环该照常闭。
    */
+  /**
+   * ⭐ 画布那三张便条（进度表 22）**也住在外壳**，理由与下面几条逐字相同：
+   * 右键「重跑下游」、文本卡助手栏、剪辑台排片栏发来的那一刻，面板多半是收着的
+   * （点画布 = 收面板）。挂在面板里的下场是点了什么都不发生。
+   * ⚠ 它自己判域，别的三台工作台上一张便条都不取。
+   */
+  const canvasNodeName = useCallback(
+    (nodeId: string): string => {
+      const canvas = buildSnapshot().canvas
+      if (!canvas) return nodeId
+      for (const shot of canvas.shots) {
+        if (!shot.expanded) continue
+        const hit = shot.nodes.find((node) => node.id === nodeId)
+        if (hit) return hit.name
+      }
+      // 折叠的镜里没有节点表 —— 回落成 id，⛔ 不因此不发（那就是静默失效）。
+      return nodeId
+    },
+    [buildSnapshot],
+  )
+  useCanvasOperatorRequests({
+    domain: hostDomain,
+    send: operator.send,
+    nodeName: canvasNodeName,
+  })
   useStudioOperatorCritique({ onResult: operator.critique })
   /**
    * ⭐ 结果卡的回流（v2 §6，commit #10）同样**住在外壳**，理由与上面那条逐字

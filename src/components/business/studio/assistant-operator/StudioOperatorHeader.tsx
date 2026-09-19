@@ -2,7 +2,7 @@
 
 /**
  * 面板**头部**（v2 §4.1 / 画板 Main 头部 · BCards「头部」两态）—— 一行：
- * 左边会话标题▾，右边两颗 32px 图标（历史 · 设置）。
+ * 左边头像槽 + 会话标题▾ + 域标记，右边**一颗 ⋯**（D7b ④）。
  *
  * ── 它替掉了什么 ────────────────────────────────────────────────
  * 顶部那条进度带（整文件删）。决策 14：它占了 40px
@@ -16,15 +16,20 @@
  *    这颗按钮本来就是为「刷新之后」存在的，而刷新之后恰恰可能什么都没载回来。
  *    ⚠ 挂不挂由面板判（`resumeHost`），⛔ 这里不再自己决定。
  *
- * ── 历史图标为什么和标题▾ 开的是**同一个下拉**（§4.1）──────────────
- * v1 把它们合并过一次（2026-09-09），结论是对的：用户找「上次那个会话」时脑子里
- * 想的就是「换一个标题」。所以这里是**一个受控的 `DropdownMenu`**，标题是它的
- * 触发器兼锚点，图标只是第二条路 —— ⛔ 不开第二个菜单实例（两份菜单内容必然漂）。
- * ⚠ 图标要能**再点一下关掉**：Radix 会先因为「点了菜单外面」把 open 置回 false，
- *   于是 onClick 里的取反永远只看得到 false。判据因此写在 `onInteractOutside` 上
- *   （点到的是这颗图标就不当外部点击），⛔ 别改成 pointerdown 去猜。
+ * ── 右上收成**一颗 ⋯**（D7b ④，owner 2026-09-20）──────────────────
+ * 并排那三颗 32px 图标（历史 · 设置 · 收起）**全部退场**：收起改点左上头像（见下），
+ * 历史与设置收进 ⋯ 菜单，隐身（56a）也在那里。
  *
- * ⚠ **收起钮已删**（D7b ④，owner 2026-09-20）：收起现在点**左上那颗头像**。
+ * ⚠ 菜单里的「历史会话」**不另开一份列表**：它把标题▾ 那个受控 `DropdownMenu` 打开
+ *   （`setMenuOpen(true)`），锚点仍是标题那颗药丸。v1 把两处合并过一次
+ *   （2026-09-09），结论是对的：用户找「上次那个会话」时脑子里想的就是「换一个
+ *   标题」。⛔ 不开第二个菜单实例 —— 两份菜单内容必然漂。
+ * ⚠ ⋯ 关掉自己时会把焦点还给它的触发器，而那一下对刚打开的历史下拉来说是一次
+ *   「点了外面」—— 所以 ⋯ 的触发器带着 `HISTORY_BUTTON_ATTR`，历史下拉的
+ *   `onInteractOutside` 认得它就不当外部点击。⛔ 别改成 `setTimeout` 去躲这一拍：
+ *   那只是把同一个竞态推迟一帧。
+ *
+ * ⚠ **收起钮与并排图标全删**（D7b ④，owner 2026-09-20）：收起现在点**左上那颗头像**。
  * 键盘可达没有丢 —— 头像本身是一颗 `<button>`（桌面上是外壳那颗 fixed 的，
  * 手机上是下面这颗），Esc 那一级也还在。⛔ 别把 `PanelRightClose` 找回来：
  * 一个面板不该有两条收起的路。
@@ -43,7 +48,9 @@ import {
   MessageSquarePlus,
   ChevronDown,
   Trash2,
+  EyeOff,
   History,
+  MoreHorizontal,
   Settings2,
 } from '@/components/icons'
 import { useFormatter, useTranslations } from 'next-intl'
@@ -101,10 +108,10 @@ const HISTORY_BUTTON_ATTR = 'data-operator-history-trigger'
 const MS_PER_DAY = 86_400_000
 
 /**
- * 右上那两颗（＋保留的收起）图标钮的共用皮肤（§4.1：32px）。
+ * 右上**那一颗 ⋯** 的皮肤（§4.1：32px）。
  *
  * ⚠ 命中区 32px 是 `ui-defaults.md §5` 的 fine 档底线，⛔ 别为了挤下更多东西
- * 缩到 28 —— 它们是常驻入口，先保命中。
+ * 缩到 28 —— 它是头部唯一的常驻入口，先保命中。
  */
 const HEADER_ICON_BUTTON_CLASS =
   'grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
@@ -421,34 +428,55 @@ export function StudioOperatorHeader({
         {/* 标题药丸 hug 之后靠这一格把右上三颗推到右边（⛔ 不靠 `flex-1` 撑标题）。 */}
         <span className="flex-1" />
 
-        {/* ── 右上两颗 32px 图标（§4.1 / 画板 BCards「头部 · 静止」）────────
-            ⚠ 历史这一颗与标题▾ 开的是**同一个菜单**（见头注）：它只是给「不知道
-              标题可以点」的人的第二条路。 */}
-        <button
-          type="button"
-          data-testid="operator-history-button"
-          aria-label={t('history.heading')}
-          aria-expanded={menuOpen}
-          {...{ [HISTORY_BUTTON_ATTR]: '' }}
-          {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
-          onClick={() => setMenuOpen((current) => !current)}
-          className={HEADER_ICON_BUTTON_CLASS}
-        >
-          <History className="size-4" aria-hidden />
-        </button>
-
-        {/* 助手设置（§8.1 主入口）—— ⚠ 带 `data-operator-keep`：点它弹层要开，
-            而收放法则（拍板 7）会因为「点了面板外面」把面板收掉，判据就是这个属性。 */}
-        <button
-          type="button"
-          data-testid="operator-assistant-settings"
-          aria-label={t('assistantSettings')}
-          {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
-          onClick={onOpenAssistantSettings}
-          className={HEADER_ICON_BUTTON_CLASS}
-        >
-          <Settings2 className="size-4" aria-hidden />
-        </button>
+        {/* ── 右上**一颗 ⋯**（D7b ④ · 画板 `DesignD7bToggle` 的「⋯ 菜单」）────
+            历史会话 · 设置 · 分隔线 · 隐身。⛔ 并排三颗图标已退场。 */}
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              data-testid="operator-more"
+              aria-label={t('more')}
+              {...{ [HISTORY_BUTTON_ATTR]: '' }}
+              {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+              className={HEADER_ICON_BUTTON_CLASS}
+            >
+              <MoreHorizontal className="size-4" aria-hidden />
+            </button>
+          </DropdownMenuTrigger>
+          {/* ── 三层玻璃③：**浮层**（§12.1），与历史下拉同一层。 */}
+          <DropdownMenuContent
+            align="end"
+            {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+            className="w-56 rounded-xl assistant-glass-overlay shadow-assistant-overlay"
+          >
+            <DropdownMenuItem
+              data-testid="operator-more-history"
+              // ⚠ 同一拍直接开：⋯ 收回焦点那一下由 `onInteractOutside` 挡着（见头注）。
+              onSelect={() => setMenuOpen(true)}
+            >
+              <History className="size-4" aria-hidden />
+              {t('history.heading')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              data-testid="operator-assistant-settings"
+              onSelect={onOpenAssistantSettings}
+            >
+              <Settings2 className="size-4" aria-hidden />
+              {t('assistantSettings')}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            {/**
+             * 隐身（56a）—— ⚠ **占位且禁用**：56a 只落了设置页那颗开关的存储位
+             * （`SETTINGS_PREFERENCE_KEYS.assistantIncognito`），「这一轮不记」的
+             * 行为一行都还没接。⛔ 这里绝不实现记忆逻辑 —— 一颗点了就静默什么都
+             * 不做的菜单项比没有这一项更糟。
+             */}
+            <DropdownMenuItem data-testid="operator-more-incognito" disabled>
+              <EyeOff className="size-4" aria-hidden />
+              {t('incognito')}
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       <AlertDialog

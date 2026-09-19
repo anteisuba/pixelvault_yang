@@ -7857,7 +7857,8 @@
       "label": "今回のやり取り"
     },
     "placeholderQuestion": "または直接入力…",
-    "collapsedTodo": "返答待ち {count}件"
+    "collapsedTodo": "返答待ち {count}件",
+    "incognito": "シークレット · この回は記憶しない"
   },
   "GenerationCancel": {
     "cancel": "キャンセル",

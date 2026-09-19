@@ -7857,7 +7857,8 @@
       "label": "This exchange"
     },
     "placeholderQuestion": "Or just type…",
-    "collapsedTodo": "{count} awaiting your response"
+    "collapsedTodo": "{count} awaiting your response",
+    "incognito": "Incognito · skip this round"
   },
   "GenerationCancel": {
     "cancel": "Cancel",

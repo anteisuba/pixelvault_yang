@@ -761,15 +761,17 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
   })
 
   /**
-   * ⭐ 助手设置的入口在**进度带上**（owner 2026-09-07）—— 面板这一层验的是
-   * 「接线还在」：齿轮那颗组件级用例已经绿了，而面板不把 `onOpenAssistantSettings`
-   * 递下去的话，点它什么都不会发生。
+   * ⭐ 助手设置的入口在**头部那颗 ⋯ 菜单里**（D7b ④；此前是并排那颗齿轮）——
+   * 面板这一层验的是「接线还在」：菜单项那颗组件级用例已经绿了，而面板不把
+   * `onOpenAssistantSettings` 递下去的话，点它什么都不会发生。
    */
-  it('⭐ 进度带上那颗常驻齿轮点得开助手设置', () => {
+  it('⭐ 头部 ⋯ 菜单里的「设置」点得开助手设置', () => {
     renderPanel()
-    const gear = screen.getByTestId('operator-assistant-settings')
-    expect(gear.tagName).toBe('BUTTON')
-    fireEvent.click(gear)
+    fireEvent.pointerDown(
+      screen.getByTestId('operator-more'),
+      new PointerEvent('pointerdown', { bubbles: true, button: 0 }),
+    )
+    fireEvent.click(screen.getByTestId('operator-assistant-settings'))
     expect(onOpenAssistantSettings).toHaveBeenCalledTimes(1)
   })
 

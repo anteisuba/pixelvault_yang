@@ -7857,7 +7857,8 @@
       "label": "本轮进度"
     },
     "placeholderQuestion": "或者直接打字…",
-    "collapsedTodo": "{count} 件等你处理"
+    "collapsedTodo": "{count} 件等你处理",
+    "incognito": "隐身 · 这一轮不记"
   },
   "GenerationCancel": {
     "cancel": "取消",

@@ -1,5 +1,4 @@
 'use client'
-import { StudioOperatorReferenceAnalysisCard } from './StudioOperatorReferenceAnalysisCard'
 
 /**
  * 操作员面板的**内容**（头部 / 线程 / 药丸 / 输入区）。外壳（宽度、收放、胶囊）
@@ -1457,20 +1456,6 @@ export function StudioOperatorPanel({
               )
             }
           </StudioOperatorTimelineRow>
-          {block.steps.map((item) =>
-            item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
-            item.step.status === 'done' &&
-            item.step.result ? (
-              <StudioOperatorTimelineRow
-                key={item.id}
-                card={STUDIO_OPERATOR_CARD_KINDS.evidence}
-              >
-                <StudioOperatorReferenceAnalysisCard
-                  analysis={item.step.result}
-                />
-              </StudioOperatorTimelineRow>
-            ) : null,
-          )}
           {roundDone &&
           changeCountInRound > 0 &&
           lastToolsBlock === block.steps[0]?.id ? (

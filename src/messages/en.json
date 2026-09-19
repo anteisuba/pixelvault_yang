@@ -7184,35 +7184,6 @@
     "deleteRoomHint": "“{name}” and all its lines will be removed. Voices you already generated stay in your library."
   },
   "StudioOperator": {
-    "referenceAnalysis": {
-      "title": "Reference roles",
-      "identity": "Character identity",
-      "pose": "Pose",
-      "style": "Style",
-      "content": "Scene and content",
-      "keep": "Keep",
-      "exclude": "Exclude",
-      "details": "View visual evidence",
-      "uncertain": "Uncertain",
-      "requirements": "Requirements",
-      "rendering": "Rendering and dimensionality",
-      "proportions": "Proportions",
-      "contours": "Contours",
-      "shading": "Shading",
-      "materials": "Materials",
-      "palette": "Palette",
-      "lighting": "Lighting",
-      "evidence": "Reference evidence · {count, plural, one {# image} other {# images}}",
-      "renderingMedium": "Rendering medium",
-      "medium": {
-        "2d_flat": "Flat 2D",
-        "2d_painterly": "Painterly 2D",
-        "3d_stylized": "Stylized 3D",
-        "3d_realistic": "Realistic 3D",
-        "photo": "Photography",
-        "mixed": "Mixed media"
-      }
-    },
     "title": "Assistant",
     "domainName": {
       "image": "the image workspace",

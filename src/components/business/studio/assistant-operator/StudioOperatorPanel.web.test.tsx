@@ -844,7 +844,7 @@ describe('StudioOperatorPanel · 正文与加载态', () => {
  * 但面板不用它的话屏幕上一点没变。
  */
 describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
-  it('keeps reference roles visible outside the collapsed tool log', () => {
+  it('⭐ 分析卡退场：看参考图那一条折进工具组，⛔ 不再出卡（56b 切片 5）', () => {
     pushStep('run-reference', {
       id: 'reference-analysis',
       title: '分析参考图',
@@ -871,12 +871,11 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       },
     })
     renderPanel()
-    const card = screen.getByTestId('operator-reference-analysis')
-    expect(card.closest('[data-testid="operator-tool-group"]')).toBeNull()
-    expect(within(card).getByText('双人拥抱，保留指定画风')).toBeInTheDocument()
-    expect(within(card).getByText(/柔和明暗与块状发束/)).toBeInTheDocument()
-    expect(within(card).getByText(/纯白背景/)).toBeInTheDocument()
+    expect(screen.queryByTestId('operator-reference-analysis')).toBeNull()
+    // 过程没有被藏起来 —— 它与其它步一样折在工具组里。
+    expect(screen.getByTestId('operator-tool-group')).toBeTruthy()
   })
+
   /** 一条跑完的步 —— `upsertOperatorStep` 收的形状。 */
   function pushStep(runKey: string, step: Record<string, unknown>): void {
     store.upsertOperatorStep(

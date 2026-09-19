@@ -7184,35 +7184,6 @@
     "deleteRoomHint": "「{name}」とすべてのセリフが削除されます。生成済みの音声は素材ライブラリに残ります。"
   },
   "StudioOperator": {
-    "referenceAnalysis": {
-      "title": "参照画像の役割",
-      "identity": "キャラクター",
-      "pose": "ポーズ",
-      "style": "画風",
-      "content": "背景と内容",
-      "keep": "維持",
-      "exclude": "除外",
-      "details": "視覚的な根拠を見る",
-      "uncertain": "要確認",
-      "requirements": "今回の要件",
-      "rendering": "レンダリング方式と立体感",
-      "proportions": "プロポーション",
-      "contours": "輪郭",
-      "shading": "陰影",
-      "materials": "質感",
-      "palette": "配色",
-      "lighting": "照明",
-      "evidence": "参考資料 · {count} 枚",
-      "renderingMedium": "表現媒体",
-      "medium": {
-        "2d_flat": "2Dフラット",
-        "2d_painterly": "2D絵画",
-        "3d_stylized": "デフォルメした3D",
-        "3d_realistic": "写実的3D",
-        "photo": "写真",
-        "mixed": "ミクストメディア"
-      }
-    },
     "title": "アシスタント",
     "domainName": {
       "image": "画像ワークスペース",

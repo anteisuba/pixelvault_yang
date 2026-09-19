@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
 import zhMessages from '@/messages/zh.json'
-import { StudioOperatorReferenceAnalysisCard } from './StudioOperatorReferenceAnalysisCard'
 
 import {
   STUDIO_OPERATOR_CARD_KINDS,
@@ -41,45 +40,6 @@ vi.mock('@/hooks/use-my-profile', () => ({
 }))
 
 describe('StudioOperatorTimelineRow', () => {
-  it('renders visual facts and the source thumbnail without a role brief', () => {
-    render(
-      <StudioOperatorReferenceAnalysisCard
-        analysis={{
-          brief: null,
-          profiles: [
-            {
-              url: 'https://cdn.test/third.png',
-              identity: 'Character features',
-              pose: 'Standing',
-              scene: 'White backdrop',
-              uncertainties: [],
-              style: {
-                proportions: 'Stylized',
-                contours: 'Clean contours',
-                shading: 'Soft shadows',
-                materials: 'Matte',
-                palette: 'Muted',
-                lighting: 'Diffuse',
-              },
-            },
-          ],
-        }}
-      />,
-    )
-    expect(screen.getByText('Character features')).not.toBeVisible()
-    fireEvent.click(
-      screen
-        .getByTestId('operator-reference-analysis')
-        .querySelector('summary')!,
-    )
-    expect(screen.getByText('Character features')).toBeVisible()
-    expect(screen.getByText('contours：Clean contours')).toBeVisible()
-    expect(screen.getByRole('img')).toHaveAttribute(
-      'src',
-      'https://cdn.test/third.png',
-    )
-    expect(screen.queryByText('requirements')).not.toBeInTheDocument()
-  })
   it('uses ANTI as the default assistant ID', () => {
     render(
       <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.message}>

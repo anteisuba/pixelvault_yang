@@ -2,7 +2,7 @@
 
 ## Risk Level: HIGH (53 components across `studio/` + `studio-shared/`, sharing 3 contexts)
 
-2026-09-15 owner 已选 A「连续对话与结果优先」并授权修复；工具记录与参考依据默认折叠，失败摘要独立显示，五动词常驻条已删除。此项覆盖下方旧方向的展开约定，现行增量契约见 `docs/references/pages/assistant-shell-v2.md` 的 A 方向节。
+2026-09-15 owner 已选 A「连续对话与结果优先」并授权修复；工具记录默认折叠，失败摘要独立显示，五动词常驻条已删除。⚠ 「参考依据」那一折随 56b 切片 5 整张分析卡一起退场。此项覆盖下方旧方向的展开约定，现行增量契约见 `docs/references/pages/assistant-shell-v2.md` 的 A 方向节。
 
 ## Component Tree
 
@@ -69,6 +69,8 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 ⚠ **皮肤是方向 B「玻璃仪表 · 浅色」（v2 §12，commit #21）**：三层玻璃 = 面板（`assistant-glass-panel` + `shadow-assistant-panel`，18px 圆角）/ 卡片（`bg-card` + `border-border` + `shadow-assistant-card`，⛔ 不带模糊）/ 浮层（`assistant-glass-overlay` + `shadow-assistant-overlay`，历史下拉 · +菜单 · 模型选择器）。「当下要你动手的那张卡」（问题 / 确认待决 / 输入区 / 结论编辑）多一档 `border-assistant-line-strong` + `shadow-assistant-raised`。**信号位只用近黑实底 + 白字**（`bg-foreground text-background`）—— ⛔ 不用 `--primary`，那一支被工作台的生成键占着（§12.2）。token 全在 `globals.css`，⛔ 组件内不写 hex、不写任意值。
 
 ⚠ **调查卡已删（56b 切片 1）**：`StudioOperatorResearchCard` 整文件删除 —— 它把证据摆在回答**前面**，读起来是「先看完它的过程，再看它说了什么」。证据现在长在回答底下（`StudioOperatorAnswerSources`），过程折进 `StudioOperatorToolGroup`，候选网格由 `StudioOperatorLogItem` 自己画。
+
+⚠ **分析卡已删（56b 切片 5）**：`StudioOperatorReferenceAnalysisCard` 整文件删除。挂进来的图直接进当前多模态模型，回答就是一段普通正文；看参考图那一条跟着其它步折进 `StudioOperatorToolGroup`。⚠ `analyze_references` **工具本身没删** —— 它还是 `set_prompt` 的取材来源，历史里那份 `referenceAnalysis` 还喂着 `readOperatorReferenceProfiles`。
 
 ⚠ **问题卡已删（56b 切片 4）**：`StudioOperatorQuestionCard` + `PlanOptionVisual` 两个文件整删。反问现在是输入区里的 `StudioOperatorQuestionBlock`（一帧带一组 ≤4 题，界面一次一题）。⚠ 选项上的 `visual` 一格暂时没有渲染方 —— 契约还在，记为已知缺口。
 

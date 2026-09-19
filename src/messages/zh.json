@@ -7184,35 +7184,6 @@
     "deleteRoomHint": "「{name}」和它的全部台词都会删掉。已经生成的声音不受影响，仍然在素材库里。"
   },
   "StudioOperator": {
-    "referenceAnalysis": {
-      "title": "参考图分工",
-      "identity": "角色身份",
-      "pose": "动作",
-      "style": "画风",
-      "content": "场景与内容",
-      "keep": "保留",
-      "exclude": "排除",
-      "details": "查看视觉依据",
-      "uncertain": "待确认",
-      "requirements": "本次要求",
-      "rendering": "渲染方式与立体特征",
-      "proportions": "比例",
-      "contours": "轮廓",
-      "shading": "明暗",
-      "materials": "材质",
-      "palette": "色彩",
-      "lighting": "光照",
-      "evidence": "参考依据 · {count} 张图",
-      "renderingMedium": "成像介质",
-      "medium": {
-        "2d_flat": "二维平涂",
-        "2d_painterly": "二维绘画",
-        "3d_stylized": "风格化三维",
-        "3d_realistic": "写实三维",
-        "photo": "摄影",
-        "mixed": "混合媒介"
-      }
-    },
     "title": "助手",
     "domainName": {
       "image": "图片工作台",

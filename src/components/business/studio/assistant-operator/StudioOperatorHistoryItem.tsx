@@ -1,5 +1,4 @@
 'use client'
-import { StudioOperatorReferenceAnalysisCard } from './StudioOperatorReferenceAnalysisCard'
 
 /**
  * 一条**只读历史**（P4-B）。
@@ -126,11 +125,12 @@ export function StudioOperatorHistoryItem({
         </details>
       )
     case 'step':
-      return entry.referenceAnalysis ? (
-        <StudioOperatorReferenceAnalysisCard
-          analysis={entry.referenceAnalysis}
-        />
-      ) : entry.critique ? (
+      /**
+       * ⚠ 看参考图那一条**不再出卡**（56b 切片 5）：挂进来的图直接进当前多模态
+       * 模型，回答就是一段普通正文。那张卡把同一件事拆成「一段分工简报 + 一折
+       * 参考依据」，而用户问的是「这是什么画风」。
+       */
+      return entry.critique ? (
         <HistoryCritiqueCard entry={entry} />
       ) : (
         <HistoryStepRow entry={entry} />

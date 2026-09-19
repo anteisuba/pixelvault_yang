@@ -26,15 +26,18 @@ export function groupOperatorHistoryTools(
   entries: readonly {
     kind: string
     critique?: unknown
-    referenceAnalysis?: unknown
   }[],
 ) {
   const groups: { tools: boolean; indexes: number[]; round: number }[] = []
   let round = 0
   entries.forEach((entry, index) => {
     if (entry.kind === 'user') round += 1
-    const tools =
-      entry.kind === 'step' && !entry.critique && !entry.referenceAnalysis
+    /**
+     * ⚠ 看参考图那一条**跟着一起折**（56b 切片 5）：它此前因为要单独出一张分析卡
+     * 而不进折叠组，而那张卡已经退场 —— 留着这条例外的表现是历史里一条孤零零的
+     * 日志行挨着一组折起来的日志。
+     */
+    const tools = entry.kind === 'step' && !entry.critique
     const previous = groups.at(-1)
     if (tools && previous?.tools) previous.indexes.push(index)
     else groups.push({ tools, indexes: [index], round })

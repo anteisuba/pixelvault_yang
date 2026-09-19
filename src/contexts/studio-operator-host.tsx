@@ -120,6 +120,24 @@ export interface StudioOperatorHost {
    */
   open: boolean
   setOpen(open: boolean): void
+  /**
+   * 面板外的 pointerdown 收不收面板 —— 即「注意力收放法则」（拍板 7）在这个宿主
+   * 上成不成立。
+   *
+   * ⚠ **缺省 = `true`（收）**：工作台与 LoRA 装配台一个字都不用改，新宿主接进来
+   * 也默认继承现有法则；要豁免必须显式写出来。
+   *
+   * ⭐ 为什么是**宿主**的性质而不是域的性质：法则的前提是「面板外面是表单」——
+   * 点表单说明用户不在跟助手说话。画布（`/studio/node`）的面板外面是**工作面**
+   * 本身：平移、框选、拖节点、点空白取消选择，每一下都会命中那条监听，助手因此
+   * 一点就关（2026-09-19 owner 真机 `/zh/studio/node` 复现）。所以判据是「这个宿主
+   * 的面板外面是不是工作面」，⛔ 别在面板里按 `domain === 'canvas'` 硬判 ——
+   * 第四个宿主该由它自己说了算。
+   *
+   * ⚠ 置为 `false` 的宿主必须自己给出开合的路（画布是右上角那颗 toggle + Esc 梯），
+   * 否则面板开了就收不回去。
+   */
+  collapseOnOutsidePointer?: boolean
 }
 
 const StudioOperatorHostContext = createContext<StudioOperatorHost | null>(null)

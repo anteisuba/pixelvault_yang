@@ -43,6 +43,7 @@ vi.mock('next-intl', () => ({
 const setOpen = vi.hoisted(() => vi.fn())
 let hostOpen = true
 let hostDomain = 'image'
+let hostCollapseOnOutsidePointer: boolean | undefined
 let mobile = false
 let references: ReturnType<typeof useImageUpload>
 let panelProps: StudioOperatorPanelProps
@@ -67,6 +68,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
         },
       },
       results: [],
+      collapseOnOutsidePointer: hostCollapseOnOutsidePointer,
     }
   },
 }))
@@ -159,6 +161,7 @@ import { StudioOperatorDock } from './StudioOperatorDock'
 beforeEach(() => {
   hostOpen = true
   hostDomain = 'image'
+  hostCollapseOnOutsidePointer = undefined
   mobile = false
   setOpen.mockClear()
   resetOperatorThread()
@@ -276,6 +279,31 @@ describe('StudioOperatorDock', () => {
     hostOpen = false
     view.rerender(<StudioOperatorDock />)
     expect(screen.queryByTestId('operator-collapsed-badge')).toBeNull()
+  })
+
+  /**
+   * 注意力收放法则的**宿主开关**（2026-09-19 owner 拍板：画布整体豁免）。
+   *
+   * ⚠ 两条一起钉：缺省仍旧收（工作台 / LoRA 的行为不回归），显式说不收才不收。
+   */
+  const clickOutside = () => {
+    const outside = document.createElement('button')
+    document.body.appendChild(outside)
+    fireEvent.pointerDown(outside)
+    outside.remove()
+  }
+
+  it('缺省仍旧收：点面板外任意元素就收起（拍板 7 原样）', () => {
+    render(<StudioOperatorDock />)
+    clickOutside()
+    expect(setOpen).toHaveBeenCalledWith(false)
+  })
+
+  it('宿主说不收时：点面板外不收，那条监听根本没挂', () => {
+    hostCollapseOnOutsidePointer = false
+    render(<StudioOperatorDock />)
+    clickOutside()
+    expect(setOpen).not.toHaveBeenCalled()
   })
 
   it('点圆按钮展开', () => {

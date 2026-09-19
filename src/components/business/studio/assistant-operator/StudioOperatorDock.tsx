@@ -157,6 +157,7 @@ export function StudioOperatorDock() {
     buildSnapshot,
     domain: hostDomain,
     resultRun,
+    collapseOnOutsidePointer,
   } = useStudioOperatorHost()
   const isMobile = useIsMobile()
   const { domain, entries, mentions, question, confirm } =
@@ -479,9 +480,13 @@ export function StudioOperatorDock() {
    * ⚠ 捕获阶段监听：面板里很多控件（下拉、popover）会 `stopPropagation`，
    * 冒泡阶段会漏掉一部分点击，于是「点面板不收」在某些角落莫名失效。
    * ⚠ 只在展开时挂：收起时它什么都不需要判断。
+   * ⚠ 宿主说「我的面板外面是工作面」（`collapseOnOutsidePointer === false`，画布）
+   *   时**整条监听不挂** —— 与 `isMobile` 同一档：不挂才是零开销也零副作用，
+   *   挂上再在回调里 return 只是把同一个判断搬进热路径。那种宿主的开合另有其路
+   *   （画布是右上角那颗 toggle + Esc 梯），见 `studio-operator-host.tsx`。
    */
   useEffect(() => {
-    if (!open || isMobile) return
+    if (!open || isMobile || collapseOnOutsidePointer === false) return
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target
       if (!(target instanceof Element)) return
@@ -502,7 +507,7 @@ export function StudioOperatorDock() {
     document.addEventListener('pointerdown', onPointerDown, true)
     return () =>
       document.removeEventListener('pointerdown', onPointerDown, true)
-  }, [isMobile, open, setOpen])
+  }, [collapseOnOutsidePointer, isMobile, open, setOpen])
 
   const handlePointerDown = useCallback(
     (event: ReactPointerEvent<HTMLDivElement>) => {

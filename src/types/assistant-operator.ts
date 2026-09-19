@@ -37,6 +37,7 @@ import {
   ASSISTANT_OPERATOR_ENTRY_TOOLS,
   type AssistantOperatorEntryTool,
   ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_CANVAS_LIMITS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
   ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS,
   ASSISTANT_OPERATOR_REFERENCE_SLOTS,
@@ -68,6 +69,23 @@ import {
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PLAN_VISUAL_IDS } from '@/constants/assistant-plan-visuals'
+/**
+ * ⭐ 画布那两条**原样借 v4 的 op 词表**（进度表 22）：词表、确认三档与 inverse
+ * 形状在 `constants/node-assistant-ops.ts` 里已经是一张封闭的真值表，画布的执行器
+ * 逐条读的就是它。⛔ 别在这里抄第二份 —— 两份的分叉表现是「这条 op 在画布上要
+ * 确认、在面板上直接落了」。
+ */
+import {
+  NODE_ASSISTANT_OP_V4_IDS,
+  NODE_ASSISTANT_OP_V4_SPECS,
+  NODE_ASSISTANT_OPS_V4,
+  type NodeAssistantOpV4Id,
+} from '@/constants/node-assistant-ops'
+import {
+  NodeAssistantOpV4Schema,
+  NodeAssistantPlanRerunDownstreamOpSchema,
+  NodeAssistantGenerateV4OpSchema,
+} from '@/types/node-assistant-ops'
 import { EVIDENCE_CREDIBILITY_VALUES } from '@/constants/research'
 import { VIDEO_FRAME_LIMITS } from '@/constants/video-analysis'
 import { WEB_IMAGE_SOURCE_VERDICTS } from '@/constants/web-image-sources'
@@ -524,6 +542,83 @@ export type AssistantLoraParameters = z.infer<
   typeof AssistantLoraParametersSchema
 >
 
+/**
+ * 画布快照的**一个节点**（进度表 22）。
+ *
+ * ⚠ 只放模型改得动的那几格：id（它下一步要写回来的那一个）、名字（它和用户
+ * 都用这个词指认）、族与子型（决定它有哪些槽）、正文 / 提示词、选的模型、
+ * 接进来的几条线。⛔ 不放位置、尺寸、版本表 —— 那些它一格都改不了，塞进去
+ * 只会挤掉真正有用的那几面镜。
+ */
+export const AssistantOperatorCanvasNodeSchema = z.object({
+  id: IdSchema,
+  name: LabelSchema,
+  kind: LabelSchema,
+  subtype: LabelSchema.optional(),
+  /** 文本节点的正文 / 媒体节点的提示词。⚠ 截断，整段正文按需走 `read_state`。 */
+  text: z.string().max(LIMITS.maxMessageChars).optional(),
+  model: LabelSchema.optional(),
+  /** 这个节点上选得动的模型 —— ⛔ 没有这一格模型就会编一个不存在的 id。 */
+  availableModels: z
+    .array(LabelSchema)
+    .max(LIMITS.maxAvailableModels)
+    .optional(),
+  /** 接进来的线：哪个槽、从哪个节点来。 */
+  inputs: z
+    .array(z.object({ slot: LabelSchema, from: IdSchema }))
+    .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot)
+    .optional(),
+  /** 有没有产出。⚠ 是布尔不是 URL —— 挂图那一跳认的是节点 id，不是地址。 */
+  hasOutput: z.boolean().optional(),
+})
+
+/**
+ * 一面镜 —— **分层就落在这个 schema 上**（进度表 22）。
+ *
+ * ⭐ 当前镜与它左右各一面 `expanded: true`，带完整节点表；其余每面只出一行
+ * 标题 + 节点数。为什么分层而不是整张画布全发：每一步都是一次完整的 LLM 往返
+ * （`maxSteps` 只有 8），一张六十镜的画布全展开会把整轮步数烧在读上下文上。
+ * ⚠ 折叠的镜**不是看不见**：模型知道它叫什么、有几个节点，要看细节就把焦点
+ * 挪过去再读一次 —— ⛔ 别为此加一条「展开第 N 镜」的工具，那是 `read_state`
+ * 自己该做的事。
+ */
+export const AssistantOperatorCanvasShotSchema = z.discriminatedUnion(
+  'expanded',
+  [
+    z.object({
+      expanded: z.literal(true),
+      shotNo: z.number().int().min(1).max(999).nullable(),
+      title: LabelSchema,
+      nodes: z
+        .array(AssistantOperatorCanvasNodeSchema)
+        .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot),
+    }),
+    z.object({
+      expanded: z.literal(false),
+      shotNo: z.number().int().min(1).max(999).nullable(),
+      title: LabelSchema,
+      nodeCount: z.number().int().min(0),
+    }),
+  ],
+)
+
+export const AssistantOperatorCanvasSnapshotSchema = z.object({
+  /** 焦点所在的那一面镜 —— 展开哪三面由它定。`null` = 还没落焦点。 */
+  currentShotNo: z.number().int().min(1).max(999).nullable(),
+  shots: z
+    .array(AssistantOperatorCanvasShotSchema)
+    .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxShotLines),
+  /** 用户此刻选中的那几个节点（⌘K / 右键「问助手」带过来的就是它们）。 */
+  selectedNodeIds: z
+    .array(IdSchema)
+    .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxNodesPerShot)
+    .default([]),
+})
+
+export type AssistantOperatorCanvasSnapshot = z.infer<
+  typeof AssistantOperatorCanvasSnapshotSchema
+>
+
 export const AssistantOperatorSnapshotSchema = z.object({
   /** 正面提示词现值。空串 = 空框（随便填，拍板 3）；非空 = 用户手写内容，写它要先确认。 */
   prompt: TextValueSchema,
@@ -556,6 +651,12 @@ export const AssistantOperatorSnapshotSchema = z.object({
   loras: AssistantOperatorSnapshotLorasSchema.optional(),
   loraParameters: AssistantLoraParametersSchema.optional(),
   sourceRecipe: CivitaiImageRecipeSchema.optional(),
+  /**
+   * ⚠ 缺席 = 这个宿主不是画布（图片 / 视频 / LoRA 三台工作台）。画布域的
+   * `read_state` 读的就是这一格，⛔ 服务端一个字段都不查库 —— 库里没有
+   * 「用户此刻把焦点放在第几镜」。
+   */
+  canvas: AssistantOperatorCanvasSnapshotSchema.optional(),
 })
 
 export type AssistantOperatorSnapshot = z.infer<
@@ -1496,6 +1597,37 @@ function normalizeAddProjectRuleArgs(raw: unknown): unknown {
   return next
 }
 
+/**
+ * `canvas_apply` 收得下的那几条 op —— **从 v4 的 spec 表现算**（进度表 22）。
+ *
+ * ⭐ 判据就是 spec 表自己那一格：`inverse !== null` = 这条 op 撤得掉。撤不掉的
+ * 两类各有去处 —— 读类（`read_canvas` / `find_node` / `plan_rerun_downstream`）
+ * 归「看」，`generate` 归花钱档。⛔ 别改成手抄的字面量表：v4 词表加一条而这里
+ * 漏了的表现是「画布上做得到的事助手做不到」，而那是安静的。
+ */
+export const CANVAS_APPLY_OP_IDS: readonly NodeAssistantOpV4Id[] =
+  NODE_ASSISTANT_OPS_V4.filter(
+    (op) =>
+      NODE_ASSISTANT_OP_V4_SPECS[op].inverse !== null &&
+      op !== NODE_ASSISTANT_OP_V4_IDS.generate,
+  )
+
+export function isCanvasApplyOpId(op: string): op is NodeAssistantOpV4Id {
+  return (CANVAS_APPLY_OP_IDS as readonly string[]).includes(op)
+}
+
+/**
+ * ⚠ 校验分两跳：形状归 v4 自己那张 union（⛔ 不重写），「这条撤得掉吗」归上面
+ * 那张现算的清单。`superRefine` 而不是 `.and()`：错的时候要说得出是哪条 op。
+ */
+const CanvasApplyOpSchema = NodeAssistantOpV4Schema.superRefine((op, ctx) => {
+  if (isCanvasApplyOpId(op.op)) return
+  ctx.addIssue({
+    code: 'custom',
+    message: `op ${op.op} cannot be applied through canvas_apply`,
+  })
+})
+
 export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
   AssistantOperatorTool,
   z.ZodType
@@ -1921,6 +2053,20 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     assetIds: AssetIdListSchema,
     targetFolderId: IdSchema,
   }),
+  /**
+   * 画布：**一条** v4 op，原样（⛔ 不是 `ops[]`）。
+   *
+   * ⚠ 这里收的是整张 v4 词表，只把**撤不掉的**那几条挡在门外
+   * （`CANVAS_APPLY_OP_IDS` 由 spec 表现算）：读类没有东西可改，`generate` 走
+   * 自己那条花钱档。⛔ 别在这里手抄一份可用 op 清单 —— 那就是第二处定义。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]: CanvasApplyOpSchema,
+  /** 画布：算下游名单。`includeSelf` 默认 false —— 刚换上去的那个不该被盖掉。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]:
+    NodeAssistantPlanRerunDownstreamOpSchema.omit({ op: true }),
+  /** 画布：那一枪。⛔ 载荷里只有目标节点 —— 模型不填模型 / 张数（快照现取）。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate]:
+    NodeAssistantGenerateV4OpSchema.omit({ op: true }),
 }
 
 // ─── ②′ 五个入口工具（v2 §2.1 / §2.2）────────────────────────────
@@ -3030,6 +3176,46 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
         .array(AssetFolderEntrySchema)
         .max(ASSET_WRITE_LIMITS.maxAssetsPerWrite),
     }),
+  ),
+  /**
+   * 画布那一条（进度表 22）。
+   *
+   * ⚠ `payload` 就是**那条 v4 op 本身** —— 客户端把它原样交给
+   * `applyNodeAssistantOpV4`，中间一个字段都不翻译。翻译层是分叉的温床：
+   * v4 词表加一格而翻译层漏了的表现是「助手说改好了，画布上没动」。
+   * ⚠ `inverse` 只是一张**指路条**（这条 op 的逆是哪条 op + 动的是哪个节点）。
+   *   真正的撤销载荷**服务端手上没有**：删一个节点的逆要整份 data 快照 + 边表 +
+   *   各槽版本，那些只在客户端的图里。执行器在应用那一刻把它算出来并扣着，
+   *   撤销时按 `nodeRef` 取回 —— 形态与 `mount_lora` 的 `candidateId` 逐字同源。
+   */
+  mutatingStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+    CanvasApplyOpSchema,
+    z.object({
+      /** 这条 op 的逆是哪条 op（读 `NODE_ASSISTANT_OP_V4_SPECS[op].inverse`）。 */
+      op: z.enum(NODE_ASSISTANT_OPS_V4),
+      /** 被动到的那个节点 —— 客户端按它取回自己扣着的那份撤销载荷。 */
+      nodeRef: z.string().trim().min(1).max(LIMITS.maxTitleChars),
+    }),
+  ),
+  /** 画布：下游名单。⚠ 读类 —— 没有 `inverse`，日志条上不该出现撤销。 */
+  readStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
+    NodeAssistantPlanRerunDownstreamOpSchema.omit({ op: true }),
+    z.object({
+      /** 要重跑的那几个（图算出来的，⛔ 不是模型列的）。 */
+      nodeIds: z
+        .array(z.string().trim().min(1))
+        .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxRerunNodes),
+    }),
+  ),
+  /**
+   * 画布那一枪（花钱档）。⛔ 没有 `inverse`：出来的东西删不掉、钱退不回，
+   * 回头路是画布上那张卡自己的版本表，不是日志条上的撤销钮。
+   */
+  spendStep(
+    ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+    NodeAssistantGenerateV4OpSchema.omit({ op: true }),
   ),
 ])
 

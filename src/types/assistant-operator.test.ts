@@ -41,6 +41,7 @@ import {
   isSpendAssistantOperatorTool,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { ASSISTANT_STREAM_EVENTS } from '@/constants/assistant-stream'
 import {
   ASSISTANT_OPERATOR_ENTRY_ARGS_SCHEMAS,
@@ -604,6 +605,24 @@ const STEP_FIXTURES: Record<
       ],
     },
   },
+  // ── 画布三条（进度表 22）──────────────────────────────────────────
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]: {
+    payload: {
+      op: 'set_prompt',
+      target: 'node-1',
+      prompt: '黄昏的街口',
+      mode: 'replace',
+    },
+    // ⚠ 指路条，不是逆载荷本身 —— 真正的逆在客户端执行器那一侧扣着。
+    inverse: { op: 'set_prompt', nodeRef: 'node-1' },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]: {
+    payload: { target: 'node-1' },
+    result: { nodeIds: ['node-2', 'node-3'] },
+  },
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate]: {
+    payload: { target: 'node-1' },
+  },
 }
 
 function buildStep(tool: AssistantOperatorTool, omitInverse = false) {
@@ -758,7 +777,8 @@ describe('五动词入口', () => {
   it('⭐ 工具表是 39 条，recall_evidence 归「查」组（§7.3）', () => {
     // commit #18 把 33 变成 37（素材库四条写操作，v2 §10）。
     // lora-assistant §10.2.2 把 37 变成 38（`plan_lora_pick`）。
-    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(39)
+    // 进度表 22「一张脸」把 39 变成 42（画布三条：改 / 算下游 / 那一枪）。
+    expect(ASSISTANT_OPERATOR_TOOLS).toHaveLength(42)
     expect(
       ASSISTANT_OPERATOR_ENTRY_ACTIONS[
         ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research
@@ -866,6 +886,177 @@ describe('五动词入口', () => {
       ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
       ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
     ])
+  })
+
+  /**
+   * ⭐ 画布域的**完成判据**（进度表 22「一张脸」）：域在表里、三条工具各归其位、
+   * 而工作台那几颗旋钮一条都没漏进来。
+   *
+   * ⚠ 断「没有 set_prompt」比断「有 canvas_apply」值钱：漏进一条工作台旋钮的
+   * 表现是模型在画布上调一条永远无解的工具，白烧一步 LLM 往返 —— 而它三绿。
+   */
+  it('⭐ canvas 域在表里，三条画布工具各归其位（进度表 22）', () => {
+    expect([...ASSISTANT_OPERATOR_DOMAINS]).toContain(
+      ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+    )
+    const canvas =
+      ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]
+    expect(canvas).toEqual(
+      expect.arrayContaining([
+        ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+        ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
+        ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+      ]),
+    )
+    // ⛔ 工作台那张表单上的旋钮在画布上一条都不该有 —— 画布上没有那张表单。
+    for (const absent of [
+      ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      ASSISTANT_OPERATOR_TOOL_IDS.setNegative,
+      ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+      ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+      ASSISTANT_OPERATOR_TOOL_IDS.setCount,
+      ASSISTANT_OPERATOR_TOOL_IDS.mountReference,
+      ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate,
+      ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+    ]) {
+      expect(canvas).not.toContain(absent)
+    }
+    // ⚠ 画布那三条也**只**在画布域：别的工作台上它们一条都不该出现。
+    for (const domain of ASSISTANT_OPERATOR_DOMAINS) {
+      if (domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas) continue
+      for (const canvasTool of [
+        ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+        ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
+        ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+      ]) {
+        expect(ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[domain]).not.toContain(
+          canvasTool,
+        )
+      }
+    }
+  })
+
+  it('画布三条各归其动词，且画布域的五个入口枚举都非空（除 request 外）', () => {
+    expect(
+      ASSISTANT_OPERATOR_TOOL_VERBS[ASSISTANT_OPERATOR_TOOL_IDS.canvasApply],
+    ).toBe(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply)
+    // ⚠ 算下游归**看**：它一个节点都没动，归改动型的表现是日志条上一颗撤不掉的撤销钮。
+    expect(
+      ASSISTANT_OPERATOR_TOOL_VERBS[
+        ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun
+      ],
+    ).toBe(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look)
+    expect(
+      ASSISTANT_OPERATOR_TOOL_VERBS[ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate],
+    ).toBe(ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration)
+
+    const byDomain =
+      ASSISTANT_OPERATOR_ENTRY_ACTIONS_BY_DOMAIN[
+        ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas
+      ]
+    expect(byDomain[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply]).toContain(
+      ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+    )
+    expect(byDomain[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look]).toContain(
+      ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
+    )
+    expect(
+      byDomain[ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration],
+    ).toEqual([ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate])
+    // 画布上模型见得到的入口：五个都在（`ask` 永远在）。
+    expect([
+      ...assistantOperatorEntryToolsInDomain(
+        ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+      ),
+    ]).toEqual([...ASSISTANT_OPERATOR_ENTRY_TOOLS])
+  })
+
+  /**
+   * ⭐ `canvas_apply` 收的是 **v4 那张封闭词表**，且只收撤得掉的那几条
+   * （进度表 22）。⛔ 别在别处再抄一份可用 op 清单。
+   */
+  it('canvas_apply 只收撤得掉的 v4 op —— 读类与 generate 当场拒', () => {
+    const schema =
+      ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[
+        ASSISTANT_OPERATOR_TOOL_IDS.canvasApply
+      ]
+    expect(
+      schema.safeParse({
+        op: 'set_prompt',
+        target: 'node-1',
+        prompt: '黄昏',
+        mode: 'replace',
+      }).success,
+    ).toBe(true)
+    // 撤得掉：删一个节点的逆是 add_node（v4 spec 表说的）。
+    expect(schema.safeParse({ op: 'delete', target: 'node-1' }).success).toBe(
+      true,
+    )
+    // ⛔ 读类没有东西可改；⛔ generate 走花钱档自己那条。
+    expect(schema.safeParse({ op: 'read_canvas', scope: 'all' }).success).toBe(
+      false,
+    )
+    expect(schema.safeParse({ op: 'generate', target: 'node-1' }).success).toBe(
+      false,
+    )
+    expect(
+      schema.safeParse({ op: 'plan_rerun_downstream', target: 'node-1' })
+        .success,
+    ).toBe(false)
+    // 不在 v4 词表里的 op 名当场拒（⛔ `action` 不是开放字符串）。
+    expect(schema.safeParse({ op: 'nuke_board' }).success).toBe(false)
+  })
+
+  /**
+   * ⭐ 画布快照的**分层规则**（进度表 22）：展开的镜带完整节点表，折叠的镜只有
+   * 标题与节点数。两支用 `expanded` 判别 —— ⛔ 不做成「nodes 可选」，那会让
+   * 「一面空镜」与「一面折叠的镜」读起来一模一样。
+   */
+  it('画布快照分层：展开的镜带节点表，折叠的镜只有一行标题', () => {
+    const parsed = AssistantOperatorSnapshotSchema.safeParse({
+      ...SNAPSHOT,
+      canvas: {
+        currentShotNo: 2,
+        selectedNodeIds: ['node-2'],
+        shots: [
+          {
+            expanded: true,
+            shotNo: 1,
+            title: '开场',
+            nodes: [{ id: 'node-1', name: '街口', kind: 'image' }],
+          },
+          {
+            expanded: true,
+            shotNo: 2,
+            title: '对峙',
+            nodes: [
+              {
+                id: 'node-2',
+                name: '正面',
+                kind: 'image',
+                text: '黄昏的街口',
+                model: 'seedream-4',
+                availableModels: ['seedream-4'],
+                inputs: [{ slot: 'reference', from: 'node-1' }],
+                hasOutput: true,
+              },
+            ],
+          },
+          { expanded: false, shotNo: 9, title: '收尾', nodeCount: 4 },
+        ],
+      },
+    })
+    expect(parsed.success).toBe(true)
+    // ⛔ 折叠的镜给了 nodes = 形状不对（`strict` 之外，判别键管住了这一半）。
+    expect(
+      AssistantOperatorSnapshotSchema.safeParse({
+        ...SNAPSHOT,
+        canvas: {
+          currentShotNo: null,
+          shots: [{ expanded: false, shotNo: 1, title: 'x' }],
+        },
+      }).success,
+    ).toBe(false)
   })
 
   it('audio 两条列进 apply，且 ⛔ 没有多出一个 audio 域（§2.3）', () => {
@@ -1792,11 +1983,25 @@ describe('请求与快照契约', () => {
     ).toBe(false)
   })
 
-  it('canvas 不在 P1 的域里', () => {
+  /**
+   * ⚠ 2026-09-19 翻面（进度表 22「一张脸」）：这条用例原本断的是「canvas 不在
+   * P1 的域里」—— 那时画布走自己那套引擎。画布并进操作员之后它断的是反面，
+   * ⛔ 别把它删掉：域表少一个域的表现是「画布上发出去的那一轮当场 400」，
+   * 而那正是这条用例一直在守的那一格。
+   */
+  it('canvas 在域里，⛔ 表里没有的域仍然当场拒', () => {
     expect(
       AssistantOperatorRequestSchema.safeParse({
         messages: [{ role: 'user', content: 'x' }],
-        domain: 'canvas',
+        domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+        snapshot: SNAPSHOT,
+      }).success,
+    ).toBe(true)
+    // 配音间没进表（owner 2026-09-19）——它一样当场拒。
+    expect(
+      AssistantOperatorRequestSchema.safeParse({
+        messages: [{ role: 'user', content: 'x' }],
+        domain: 'audio',
         snapshot: SNAPSHOT,
       }).success,
     ).toBe(false)

@@ -314,6 +314,19 @@ export function describeOperatorStepDetail(
       return step.payload.name
     case ASSISTANT_OPERATOR_TOOL_IDS.moveAssets:
       return `${step.payload.targetFolderName} · ${step.payload.assetIds.length}`
+    /**
+     * 画布三条（进度表 22）—— 日志条右侧那半句。
+     *
+     * ⚠ 写的是 **op 名 + 节点 id**，⛔ 不是一句人话：这一行的作用是让用户在
+     * 一串改动里认出「哪一条动的是哪个节点」，而节点的名字他自己在画布上看得见。
+     * 逐条 op 的人话住在 `NODE_ASSISTANT_OP_V4_HINTS`（真值只有一份）。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasApply:
+      return step.payload.op
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun:
+      return step.result === null ? null : String(step.result.nodeIds.length)
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate:
+      return step.payload.target
   }
 }
 

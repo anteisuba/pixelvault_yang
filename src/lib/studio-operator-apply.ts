@@ -52,6 +52,7 @@ import type {
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type { LoraCandidateImportPayload } from '@/types/lora-candidate'
+import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type {
   StudioOperatorGenerationChoices,
   StudioOperatorGenerationControls,
@@ -94,6 +95,44 @@ export interface StudioOperatorLoraContext {
   /** 撤销摘除：挂回去。⚠ 那条库记录由宿主在摘的一刻扣下来 —— 服务端没有它。 */
   remount(loraId: string, weight: number): void
   setWeight(loraId: string, weight: number): void
+}
+
+/**
+ * 画布宿主**专属**的那只手（进度表 22）。
+ *
+ * ── 为什么又是一个可选能力组，而不是几个必填成员 ────────────────────
+ * 判据与上面 `StudioOperatorLoraContext` 逐字同源：这份上下文现在有三个宿主
+ * （工作台 / 装配台 / 画布），必填成员会逼另外两个实现一件它们做不到的事，而
+ * 「实现成空函数」正是本仓最讨厌的那种失败（点了没反应，三绿）。
+ * ⚠ 缺席在运行时**不会发生**：域工具表已经把画布那三条锁在 canvas 域里。
+ *
+ * ── ⛔ 为什么 `applyOp` 收一整条 op 而不是拆成八只手 ────────────────
+ * 落地那一跳已经有一个逐条实现（`lib/node-assistant-op-apply-v4.ts`），它同时
+ * 算出 inverse。拆成八只手等于把那个 switch 在这里再写一遍 —— 第二处定义。
+ */
+export interface StudioOperatorCanvasContext {
+  /**
+   * 落一条 v4 op。
+   *
+   * ⚠ 返回**这一条撤得掉吗**：执行器拒了（连不上 / 节点没了）时是 `false`，
+   * 调用方据此不记账 —— ⛔ 别返回 void，那会让一条被拒的 op 在登记簿里留下一格
+   * 「改过」，而参数栏上那颗 ✦ 指向一个什么都没变的节点。
+   * ⚠ 撤销载荷由宿主在这一刻扣下来（按 step id 存），⛔ 服务端手上没有它。
+   */
+  applyOp(stepId: string, op: NodeAssistantOpV4): boolean
+  /** 撤销：按 step id 取回宿主扣着的那份逆载荷并回放。 */
+  revertOp(stepId: string): void
+  /**
+   * 扣扳机 —— 画布那一枪。⚠ 与工作台的 `triggerGeneration` 同一条纪律：
+   * 交出去就不管（`applyOperatorStep` 是同步纯函数），结果回灌由画布自己的
+   * 生成链完成。
+   */
+  generate(nodeId: string): void
+  /**
+   * 下游名单：沿具名槽边算一遍后继闭包。⚠ 由宿主算而不是服务端 —— 服务端那份
+   * 快照是分层的，折叠的镜里没有边，闭包会漏。
+   */
+  planRerunDownstream(nodeId: string, includeSelf: boolean): readonly string[]
 }
 
 /**
@@ -200,6 +239,8 @@ export interface StudioOperatorApplyContext {
   setReviewState?(assetId: string, state: GenerationReviewState): void
   /** ⚠ 缺席 = 这个宿主没有 LoRA 挂载栈。见 `StudioOperatorLoraContext` 头注。 */
   lora?: StudioOperatorLoraContext
+  /** ⚠ 缺席 = 这个宿主不是画布（进度表 22）。判据同 `lora` 那条。 */
+  canvas?: StudioOperatorCanvasContext
   /**
    * 撤销一条**刚被助手记下的项目规则**（§10，拍板 23）。
    *
@@ -649,6 +690,33 @@ export function applyOperatorStep(
       ctx.triggerGeneration?.(step.payload)
       return null
     }
+
+    /**
+     * 画布：落一条 v4 op（进度表 22）。
+     *
+     * ⚠ 载荷原样交给执行器 —— 中间一个字段都不翻译（翻译层是分叉的温床）。
+     * ⚠ 执行器拒了就**不记账**：一条没落成的 op 在登记簿里留一格「改过」的表现
+     *   是节点上闪一次 outline 而它什么都没变。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasApply: {
+      const landed = ctx.canvas?.applyOp(step.id, step.payload) ?? false
+      return landed ? STUDIO_OPERATOR_FIELD_IDS.canvasNodes : null
+    }
+
+    /**
+     * 画布：算下游名单（读类）—— ⚠ 画布上一个节点都没动，所以不记账。
+     * 名单本身由宿主在读流里回填进 step 的 `result`。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun:
+      return null
+
+    /**
+     * 画布：那一枪（花钱档）—— 这一跳就是「客户端扣扳机」本身。
+     * ⚠ 返回 `null`：与 `request_generation` 逐字同源，它撤不掉，所以不记账。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate:
+      ctx.canvas?.generate(step.payload.target)
+      return null
   }
 }
 
@@ -679,6 +747,19 @@ export function revertOperatorStep(
     case ASSISTANT_OPERATOR_TOOL_IDS.listContextCards:
     case ASSISTANT_OPERATOR_TOOL_IDS.readContextCard:
     case ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult:
+    /** ⚠ 画布的下游名单也是读：一个节点都没动，也就没有东西可撤。 */
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun:
+      return
+
+    /**
+     * 画布：撤一条 op（进度表 22）。
+     *
+     * ⚠ 走的是**宿主扣着的那份逆载荷**，按 step id 取回 —— step 上那份 `inverse`
+     * 只是指路条（服务端手上没有整份 data 快照）。形态与 `mount_lora` 的
+     * `candidateId` 逐字同源。
+     */
+    case ASSISTANT_OPERATOR_TOOL_IDS.canvasApply:
+      ctx.canvas?.revertOp(step.id)
       return
 
     /**

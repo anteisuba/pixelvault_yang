@@ -487,6 +487,47 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    * 逐字同源：一批里各自来处不同，统一挪回一个地方就是在重排用户的库。
    */
   moveAssets: 'move_assets',
+
+  // ── 画布域那两条（进度表 22「一张脸」）──────────────────────────────
+  //
+  // ⚠ **为什么是两条而不是十一条**：画布的 op 词表（`NODE_ASSISTANT_OPS_V4`，
+  // 31 条）连同它的确认三档与 inverse 形状（`NODE_ASSISTANT_OP_V4_SPECS`）**已经
+  // 是一张封闭的真值表**，画布的执行器逐条读的就是它。把它再抄一份成 31 条操作员
+  // 工具，得到的是第二处定义 —— 而两处定义的分叉表现是「菜单里加得了的节点助手
+  // 加不了」「这条 op 在画布上要确认、在面板上直接落了」。
+  // 所以这里只开两个口子，`op` 那一格**原样收 v4 的封闭词表**：模型看得见的依旧
+  // 是封闭枚举（§2.2 ⛔ 那条），只是枚举住在它本来就住的那张表里。
+  //
+  // ⚠ 两条的分界与全表其余部分一致：**能不能撤**。
+  /**
+   * 动画布上的一个节点 / 一条线 —— 载荷是**一条** v4 op（⛔ 不是 `ops[]`：错一条
+   * 只重发一条，与 §2.2 `apply` 那条纪律逐字同源）。
+   *
+   * ⚠ 落地与撤销都在客户端：`lib/node-assistant-op-apply-v4.ts` 应用那一条 op 并
+   * **就地算出 inverse**（删一个节点的 inverse 要整份 data 快照 + 边表，服务端手上
+   * 根本没有这些）。所以 step 上那份 `inverse` 只是一个**指路条**，形态与
+   * `mount_lora` 逐字同源 —— 真正的撤销载荷在客户端那一侧扣着。
+   * ⚠ 免费档直接落，`confirm` 档（`delete`）先出确认卡：判据读
+   *   `NODE_ASSISTANT_OP_V4_SPECS[op].tier`，⛔ 别在这里再抄一张分档表。
+   */
+  canvasApply: 'canvas_apply',
+  /**
+   * 「改了这个之后下游哪几个要重跑」——⛔ **只列名单，一个字都不改、一分钱都不花**。
+   *
+   * ⚠ 它归**读**档（与 v4 那张 spec 表逐字一致：`group: read` / `inverse: null`）。
+   * 归改动型的表现很具体：日志条上会冒出一颗撤销钮，而它什么都撤不掉。
+   * ⚠ 名单是**图算出来的**（`lib/node-downstream.ts`），⛔ 不让模型自己列 ——
+   *   让它列的下场是漏一个分支（前后不一致的成片）或多列一个（多花一份钱）。
+   *   真正的重跑是紧随其后的一串 `canvas_generate`，每一枪各自要用户点头。
+   */
+  canvasPlanRerun: 'canvas_plan_rerun',
+  /**
+   * 让画布上某个节点出图 / 出片 —— 画布域唯一会扣 credit 的一条（花钱档）。
+   *
+   * ⚠ 钱闸结构一个字都没松：服务端只吐载荷，扳机在宿主那只手上
+   * （`StudioOperatorCanvasContext.generate`）。⛔ 它撤不掉，所以不在改动型那张表里。
+   */
+  canvasGenerate: 'canvas_generate',
 } as const
 
 /**
@@ -559,6 +600,9 @@ export const ASSISTANT_OPERATOR_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+  ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+  ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
+  ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
 ] as const
 
 export type AssistantOperatorTool = (typeof ASSISTANT_OPERATOR_TOOLS)[number]
@@ -634,6 +678,12 @@ export const ASSISTANT_OPERATOR_READ_TOOLS = [
    * 点下去之后的那一轮（每一把各自一条 `mount_lora` step，撤销撤在那上面）。
    */
   ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick,
+  /**
+   * ⚠ **重跑名单也是读**（进度表 22）：它沿具名槽边算一遍后继闭包，画布上一个
+   * 节点都没动、一分钱都没花。判据与 `search_web_images` 逐字同源 —— 落地那几跳
+   * 是之后那一串 `canvas_generate`，每一枪各自要用户点头。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
 ] as const
 
 /**
@@ -698,6 +748,14 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
   ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
   ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+  /**
+   * **画布那一条**（进度表 22）—— 后果落在**客户端的画布图**上，与工作台那批
+   * 「吐 op 让客户端应用」同形，⛔ 不是服务端写库那一类。
+   *
+   * ⚠ 它的 `inverse` 是一张**指路条**（op id + 目标节点），真正的撤销载荷由客户端
+   * 的执行器在应用那一刻算出来并扣着 —— 形态与 `mount_lora` 逐字同源。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
 ] as const
 
 /**
@@ -714,6 +772,11 @@ export const ASSISTANT_OPERATOR_MUTATING_TOOLS = [
  */
 export const ASSISTANT_OPERATOR_SPEND_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration,
+  /**
+   * ⚠ 画布那一枪也在这一档（进度表 22）：它同样撤不掉（出来的东西删不掉、钱退
+   * 不回），回头路同样是结果那一侧而不是日志条上的撤销钮。
+   */
+  ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
 ] as const
 
 /**
@@ -839,6 +902,18 @@ export const ASSISTANT_OPERATOR_TOOL_VERBS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]:
     ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
   [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]:
+    ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
+  /**
+   * ⚠ 画布那条归**改**组（进度表 22）：它动的是画布上看得见的节点与连线，产出是
+   * 「改完了」—— 与工作台那批旋钮是同一个动词，面板上那句状态词因此也是同一句。
+   * ⛔ 别为画布另起一个动词：五动词是**对用户的**分类，不是按宿主分。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]: ASSISTANT_OPERATOR_VERB_IDS.apply,
+  /** ⚠ 重跑名单归**看**：它产出的是「事实」（哪几个过期了），不是「改完了」。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]:
+    ASSISTANT_OPERATOR_VERB_IDS.look,
+  /** ⚠ 画布那一枪归**请求生成**：它与工作台的 `request_generation` 一样只吐载荷。 */
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate]:
     ASSISTANT_OPERATOR_VERB_IDS.requestGeneration,
 }
 
@@ -1320,14 +1395,21 @@ export const ASSISTANT_OPERATOR_OVERWRITE_INTENT_WORDS = {
 } as const
 
 /**
- * P1 的域 —— 工作台三域，**取值来自 `ASSISTANT_PROTOCOL_DOMAINS`**（域简报已分域，
- * 复用不重造）。`canvas` 有意不在这里：画布对齐是 P4，那之前它走自己的 ops。
+ * 四个域 —— **取值来自 `ASSISTANT_PROTOCOL_DOMAINS`**（域简报已分域，复用不重造）。
  * `satisfies` 保证有人改域词表时这里编译期就红。
+ *
+ * ⚠ `canvas` 2026-09-19 进表（进度表 22「一张脸」）：画布此前走的是自己那套
+ * `node-assistant` 引擎（marker + JSON、自己的历史、自己的模型选择器、自己的
+ * 参考图选择器）。两套引擎并存的代价不是「多了点代码」，是**同一句话在两个
+ * 工作台上得到两种行为** —— 会话不跟着走、@ 菜单不一样、结账与证据本在画布上
+ * 整个不存在。所以画布不是「再接一个域」，是把第二张脸摘掉。
+ * ⛔ 配音间**不进这张表**（owner 2026-09-19）：那边没有「替你拧旋钮」这回事。
  */
 export const ASSISTANT_OPERATOR_DOMAINS = [
   ASSISTANT_PROTOCOL_DOMAIN_IDS.image,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
 ] as const satisfies readonly AssistantProtocolDomain[]
 
 export type AssistantOperatorDomain =
@@ -1540,6 +1622,46 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraWeight,
     ASSISTANT_OPERATOR_TOOL_IDS.setLoraParameters,
   ],
+  /**
+   * 画布（进度表 22）。
+   *
+   * ── 通用件为什么只借了一半 ──────────────────────────────────────────
+   * `COMMON_DOMAIN_TOOLS` 里有六条动的是**一张表单上的旋钮**（`set_prompt` /
+   * `set_negative` / `set_model` / `mount_reference` / `import_user_url` /
+   * `prime_generate`）。画布上没有那张表单 —— 提示词、模型、参考图各自住在**某个
+   * 节点**身上。摆上去等于给模型一条「点了没反应」的路，正是 `set_count` 当初
+   * 被裁掉的同一个形状。画布那一侧的对应物是十条 `canvas_*`。
+   * ⛔ **没有 `request_generation`**：画布的扳机是逐节点的（`canvas_generate`），
+   *    工作台那颗「生成键」在画布上不存在。
+   * ⚠ 读 / 查那几条**一条不少**：素材库、联网、证据本、上下文卡、项目规则在
+   *   画布上问的是同一个问题（判据与 `COMMON_DOMAIN_TOOLS` 头注逐字同源）。
+   */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: [
+    ASSISTANT_OPERATOR_TOOL_IDS.readState,
+    ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+    ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+    ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
+    ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+    ASSISTANT_OPERATOR_TOOL_IDS.research,
+    ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
+    ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
+    ASSISTANT_OPERATOR_TOOL_IDS.readProjectRules,
+    ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule,
+    ASSISTANT_OPERATOR_TOOL_IDS.listContextCards,
+    ASSISTANT_OPERATOR_TOOL_IDS.readContextCard,
+    ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard,
+    ASSISTANT_OPERATOR_TOOL_IDS.setReviewState,
+    ASSISTANT_OPERATOR_TOOL_IDS.tagAsset,
+    ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset,
+    ASSISTANT_OPERATOR_TOOL_IDS.createFolder,
+    ASSISTANT_OPERATOR_TOOL_IDS.moveAssets,
+    ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+    ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
+    ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+  ],
 }
 
 /**
@@ -1603,6 +1725,29 @@ export function isAssistantOperatorToolInDomain(
 ): boolean {
   return ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[domain].includes(tool)
 }
+
+/**
+ * 画布域的几个上限（进度表 22）。
+ *
+ * ⚠ 它们存在的理由与 `maxSteps` 同源：**每一步都是一次完整的 LLM 往返**，而画布
+ * 可以有几百个节点。一份不封顶的画布快照会把整轮的步数全烧在读上下文上 ——
+ * 那正是 §2.2「模型要在 31 条里挑一条」被收掉的同一个成本。
+ */
+export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
+  /**
+   * 快照里**完整展开**几面镜（当前镜 + 左右各一）。
+   *
+   * ⚠ 三这个数不是拍脑袋：用户说「把这镜改成黄昏，下一镜接上」时，模型要同时
+   * 看得见「这镜」和「下一镜」的槽与连线；再往外的镜头它只需要知道叫什么。
+   */
+  expandedShots: 3,
+  /** 其余每镜只出一行标题 —— 整张画布最多列这么多行。 */
+  maxShotLines: 60,
+  /** 一面展开的镜里最多列几个节点。 */
+  maxNodesPerShot: 24,
+  /** 一次重跑规划最多列几个下游节点。 */
+  maxRerunNodes: 40,
+} as const
 
 export const ASSISTANT_OPERATOR_LIMITS = {
   /**
@@ -2387,6 +2532,15 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
     "file up to 20 of the creator's own assets into one folder. targetFolderId is a real folder id — from list_asset_folders, or from a create_folder you just made. Assets keep their tags and stars; this only changes which folder they live in. Undoing puts each one back exactly where it came from, so a wrong move is cheap — but a move the creator did not ask for is still a mess in their library.",
   [ASSISTANT_OPERATOR_TOOL_IDS.setReviewState]:
     'mark one of the creator\'s own assets as approved or blocked, so the verdict survives this turn. Use "blocked" when they say a picture did not work ("the hands are wrong", "not this one") — a blocked asset can never be used as a first or last frame again, on any workbench, and you should stop offering it. Use "approved" when they settle on one. The assetId comes from search_assets, from what they handed you, or from what you produced earlier this session — never invent one. Blocking deletes nothing: the picture stays in their library and you can still review it. Give a short reason in their words.',
+  // ── 画布两条 ────────────────────────────────────────────────────────
+  // ⚠ 逐条 op 的说明照旧从 `NODE_ASSISTANT_OP_V4_HINTS` 里取（真值只有一份），
+  //   这里只写「什么时候用这个入口」。
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]:
+    "change one thing on the board — add a card, wire two cards together, rewrite a prompt, switch a model, hang one card's picture onto another, retag a frame, or work out what has gone stale downstream. One call changes one thing, so a wrong one costs one retry and one undo. Every node id comes from the board snapshot you read; a made-up id is refused. Deleting a card asks the creator first, because its wires go with it.",
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]:
+    'work out which cards downstream of one card are now out of date, after something upstream changed. It fires nothing and spends nothing — it hands the creator a list so they can decide what to run again. Never write the list yourself; this walks the wires for you.',
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate]:
+    'ask to run one card on the board. This is the only thing here that costs credits, so it never happens on its own: it puts a confirmation in front of the creator and they pull the trigger. Check the prompt, the model and the references on that card first.',
 }
 
 /**

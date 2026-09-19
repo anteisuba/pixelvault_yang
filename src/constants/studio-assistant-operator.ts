@@ -156,7 +156,20 @@ export const STUDIO_OPERATOR_SUGGESTIONS: Record<
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: [
     { id: 'findStyle', minChanges: 0 },
     { id: 'stackConflict', minChanges: 0 },
+    { id: 'triggerWords', minChanges: 0 },
     { id: 'sweepWeights', minChanges: 1 },
+  ],
+  /**
+   * 画布（进度表 22）。三颗起手势都是**画布上真的做得到**的事：排片走
+   * `canvas_apply` 的一串 `add_node` / `connect`，接线走 `attach_asset`，
+   * 「哪几镜过期了」走 `canvas_plan_rerun`。
+   * ⛔ 别摆一颗「帮我剪成片」：剪辑台在画布上是另一件事，助手够不着。
+   */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: [
+    { id: 'planShots', minChanges: 0 },
+    { id: 'wireLastImage', minChanges: 0 },
+    { id: 'describeBoard', minChanges: 0 },
+    { id: 'whatIsStale', minChanges: 1 },
   ],
 }
 
@@ -193,6 +206,16 @@ export const STUDIO_OPERATOR_FIELD_IDS = {
    * 管的是「还原这个字段」那颗按钮的粒度。
    */
   loras: 'loras',
+  /**
+   * 画布域的节点（进度表 22）—— **一整轮动过的节点共用这一格**。
+   *
+   * ⚠ 共用一格的理由与 `loras` 逐字同源：用户心里只有「助手动了我的画布」这
+   * 一件事，而逐节点开一格会让登记簿的格数跟着画布长。逐条撤销仍然是逐条的
+   * （日志条上那颗撤销钮走 `step.inverse`），这一格管的是「还原这个字段」的粒度。
+   * ⚠ ✦ 归属标记在画布上**不画在参数栏**（那里没有参数栏），画在被动到的
+   *   节点自己身上（D7 Q4 的 outline 闪一次）。
+   */
+  canvasNodes: 'canvasNodes',
 } as const
 
 export type StudioOperatorField =

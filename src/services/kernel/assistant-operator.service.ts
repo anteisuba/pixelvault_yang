@@ -108,6 +108,15 @@ import {
   ASSISTANT_PROTOCOL_DOMAIN_IDS,
 } from '@/constants/assistant-protocol'
 /**
+ * ⭐ 画布那几条**原样借 v4 的 op 词表与 spec 表**（进度表 22）：词表、确认三档与
+ * inverse 形状在那边已经是一张封闭的真值表。⛔ 别在这里抄第二份。
+ */
+import {
+  NODE_ASSISTANT_OP_V4_IDS,
+  NODE_ASSISTANT_OP_V4_SPECS,
+} from '@/constants/node-assistant-ops'
+import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
+/**
  * ⭐ 生成器方言（提示词准确性 P0）。与旧助手 `prompt-assistant.service` **同源同一个
  * 常量**，不是抄一份字符串 —— 两处各写一份的下场是改了一处忘另一处，而「哪一处对」
  * 从代码上看不出来。
@@ -392,6 +401,7 @@ import {
   type AssistantOperatorRoundSummary,
   type AssistantOperatorRoundSummaryDraft,
   type AssistantOperatorSearchResultAsset,
+  type AssistantOperatorCanvasSnapshot,
   type AssistantOperatorSnapshot,
   type AssistantOperatorTurn,
   type AssistantOperatorWorkingMemoryArtifact,
@@ -531,6 +541,24 @@ interface OperatorWorkingState {
   loraBaseFamily: string | null
   loraMinWeight: number
   loraMaxWeight: number
+  /** ⚠ 缺席 = 这个宿主不是画布（进度表 22）。 */
+  canvas: AssistantOperatorCanvasSnapshot | undefined
+}
+
+/**
+ * 画布快照里**所有**节点的 id —— 展开的镜逐个列，折叠的镜一个都没有。
+ *
+ * ⚠ 这就是画布域那道准入闸的名单，判据与 `searchIndex` 逐字同源：模型写得出
+ * 一个 id ⛔ 不等于画布上有这个节点。折叠的镜里的节点**不在名单里**是有意的 ——
+ * 模型没看见它们，也就不该去改它们；要改先把焦点挪过去再读一次。
+ */
+function canvasNodeIds(canvas: AssistantOperatorCanvasSnapshot): Set<string> {
+  const ids = new Set<string>()
+  for (const shot of canvas.shots) {
+    if (!shot.expanded) continue
+    for (const node of shot.nodes) ids.add(node.id)
+  }
+  return ids
 }
 
 function toWorkingState(
@@ -584,6 +612,12 @@ function toWorkingState(
     loraBaseFamily: snapshot.loras?.baseFamily ?? null,
     loraMinWeight: snapshot.loras?.minWeight ?? 0,
     loraMaxWeight: snapshot.loras?.maxWeight ?? 0,
+    /**
+     * ⚠ 画布快照**原样带着**（进度表 22）：它已经是分好层的（当前镜 + 相邻两镜
+     * 完整，其余一行标题），再在这里摊平一次只会得到第二份要同步的形状。
+     * 缺席 = 这个宿主不是画布。
+     */
+    canvas: snapshot.canvas,
   }
 }
 
@@ -5393,6 +5427,133 @@ async function planSetReviewState(
   }
 }
 
+// ─── 画布三条（进度表 22「一张脸」）──────────────────────────────
+//
+// ── 为什么服务端这一层只校验 id，不校验「这条线连不连得上」 ──────────
+// 连不连得上要算槽的容量与类型，而那份判据已经存在且只在客户端算得准
+// （`lib/node-assistant-op-plan.ts` 的 `planNodeAssistantOpsV4`，它在一份模拟图
+// 上逐条推进）。服务端手上只有一份**分层过的**快照 —— 折叠的镜里连节点都没有，
+// 用它去判容量只会得出一个比客户端宽的答案，而两个答案不一致的表现是「助手说
+// 连好了，画布上那条线没出现」。
+// ⚠ 所以两道闸各守各的：这里守「这个 id 在你看得见的画布上存在吗」（与
+//   `mount_reference` 只认 `searchIndex` 逐字同源），客户端守「这条 op 做得成吗」
+//   并把拒绝理由渲染出来。⛔ 别在这里抄第二份连线规则。
+
+/** op 载荷里所有指向节点的那几格 —— 逐条列出来，⛔ 不做反射式扫描。 */
+function canvasOpTargets(op: NodeAssistantOpV4): readonly string[] {
+  switch (op.op) {
+    case NODE_ASSISTANT_OP_V4_IDS.connect:
+      return [op.source, op.target]
+    case NODE_ASSISTANT_OP_V4_IDS.attachAsset:
+      return [op.target, op.sourceNodeId]
+    case NODE_ASSISTANT_OP_V4_IDS.addNode:
+    case NODE_ASSISTANT_OP_V4_IDS.reorderShot:
+      // 新建的那个还没有 id；换序动的是镜号不是节点。
+      return []
+    default:
+      return 'target' in op && typeof op.target === 'string' ? [op.target] : []
+  }
+}
+
+function planCanvasApply(run: OperatorRun, op: NodeAssistantOpV4): ToolPlan {
+  const canvas = run.state.canvas
+  if (!canvas) {
+    return reject(
+      REJECT.noSuchControl,
+      'There is no board here. This tool only works on the node canvas.',
+    )
+  }
+  const known = canvasNodeIds(canvas)
+  const missing = canvasOpTargets(op).filter((id) => !known.has(id))
+  if (missing.length > 0) {
+    return reject(
+      REJECT.noSuchControl,
+      `No card on the board has the id ${missing.join(', ')}. Use an id from the board you just read; if the card is in a shot that was only listed by name, move the focus there and read the board again.`,
+    )
+  }
+
+  const spec = NODE_ASSISTANT_OP_V4_SPECS[op.op]
+  /**
+   * ⚠ `inverse` 只是一张指路条：真正的撤销载荷（整份 data 快照 + 边表）在客户端
+   * 的执行器那一侧扣着。⛔ 别在服务端造一份 —— 它手上没有那些字段。
+   */
+  const inverse = {
+    op: spec.inverse ?? op.op,
+    nodeRef: canvasOpTargets(op)[0] ?? op.op,
+  }
+
+  return {
+    kind: 'mutate',
+    payload: op,
+    inverse,
+    observation: `Queued ${op.op} on the board. The change lands on the creator's canvas; if the board refuses it you will see why next turn.`,
+    // 后果全在客户端的图上 —— 服务端这一步没有本地状态要动。
+    apply: () => {},
+  }
+}
+
+function planCanvasPlanRerun(
+  run: OperatorRun,
+  args: { target: string; includeSelf?: boolean },
+): ToolPlan {
+  const canvas = run.state.canvas
+  if (!canvas) {
+    return reject(
+      REJECT.noSuchControl,
+      'There is no board here. This tool only works on the node canvas.',
+    )
+  }
+  if (!canvasNodeIds(canvas).has(args.target)) {
+    return reject(
+      REJECT.noSuchControl,
+      `No card on the board has the id ${args.target}.`,
+    )
+  }
+  return {
+    kind: 'read',
+    payload: args,
+    /**
+     * ⚠ 名单由**客户端**沿边算（`lib/node-downstream.ts`）——服务端手上那份快照
+     * 是分层的，折叠的镜里没有边，算出来的闭包会漏。所以这一步在服务端只是
+     * 「这个起点成立」，名单回填由客户端补进 step 的 `result`。
+     */
+    run: async () => ({
+      result: { nodeIds: [] as string[] },
+      observation: `Asked the board which cards downstream of ${args.target} are now out of date. The creator sees the list; nothing ran and nothing was spent.`,
+    }),
+  }
+}
+
+function planCanvasGenerate(
+  run: OperatorRun,
+  args: { target: string },
+): ToolPlan {
+  const canvas = run.state.canvas
+  if (!canvas) {
+    return reject(
+      REJECT.noSuchControl,
+      'There is no board here. This tool only works on the node canvas.',
+    )
+  }
+  if (!canvasNodeIds(canvas).has(args.target)) {
+    return reject(
+      REJECT.noSuchControl,
+      `No card on the board has the id ${args.target}.`,
+    )
+  }
+  /**
+   * ⛔ 服务端在这一步一分钱都花不掉：它只吐载荷，扳机在宿主手上
+   * （`StudioOperatorCanvasContext.generate`）。钱闸结构一个字都没松。
+   */
+  return {
+    kind: 'mutate',
+    payload: { target: args.target },
+    inverse: { op: NODE_ASSISTANT_OP_V4_IDS.generate, nodeRef: args.target },
+    observation: `Offered to run the card ${args.target}. The creator confirms before anything is spent.`,
+    apply: () => {},
+  }
+}
+
 // ─── 素材库四条写操作（v2 §10）──────────────────────────────────
 
 /**
@@ -6060,6 +6221,16 @@ async function planTool(
         parsed.data as { assetIds: string[]; targetFolderId: string },
         userId,
       )
+    // ── 画布三条（进度表 22）────────────────────────────────────
+    case TOOL.canvasApply:
+      return planCanvasApply(run, parsed.data as NodeAssistantOpV4)
+    case TOOL.canvasPlanRerun:
+      return planCanvasPlanRerun(
+        run,
+        parsed.data as { target: string; includeSelf?: boolean },
+      )
+    case TOOL.canvasGenerate:
+      return planCanvasGenerate(run, parsed.data as { target: string })
     default:
       return assertNever(tool)
   }

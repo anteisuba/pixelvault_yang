@@ -34,7 +34,9 @@ import {
   Music2,
   NotebookPen,
   Pencil,
+  Play,
   RectangleHorizontal,
+  RefreshCw,
   ScanEye,
   ScrollText,
   Search,
@@ -47,6 +49,7 @@ import {
   CheckCheck,
   Unplug,
   Volume2,
+  Waypoints,
   type LucideIcon,
 } from '@/components/icons'
 import Image from 'next/image'
@@ -174,6 +177,13 @@ export const OPERATOR_TOOL_ICONS: Record<AssistantOperatorTool, LucideIcon> = {
   [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]: Star,
   [ASSISTANT_OPERATOR_TOOL_IDS.createFolder]: FolderPlus,
   [ASSISTANT_OPERATOR_TOOL_IDS.moveAssets]: FolderInput,
+  /**
+   * 画布三条（进度表 22）。⚠ 三个图标**互不相同**：日志流里它们常常前后脚出现
+   * （改一格 → 算下游 → 跑一枪），长一样就分不出哪条是哪条。
+   */
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasApply]: Waypoints,
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun]: RefreshCw,
+  [ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate]: Play,
 }
 
 interface StudioOperatorLogItemProps {

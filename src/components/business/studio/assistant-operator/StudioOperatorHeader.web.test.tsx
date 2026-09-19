@@ -1,5 +1,5 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
@@ -132,6 +132,7 @@ function renderHeader(
       onNewThread={onNewThread}
       onOpenAssistantSettings={onOpenAssistantSettings}
       onCollapse={onCollapse}
+      avatarOwned={false}
       {...overrides}
     />,
   )
@@ -194,18 +195,36 @@ describe('StudioOperatorHeader', () => {
     expect(onNewThread).toHaveBeenCalledTimes(1)
   })
 
-  it('右上两颗图标（历史 · 设置）与保留的收起各自可点，且同为 32px 档', () => {
-    const { onOpenAssistantSettings, onCollapse } = renderHeader()
+  it('右上两颗图标（历史 · 设置）各自可点，且同为 32px 档', () => {
+    const { onOpenAssistantSettings } = renderHeader()
     for (const id of [
       'operator-history-button',
       'operator-assistant-settings',
-      'operator-collapse',
     ]) {
       expect(screen.getByTestId(id).className).toContain('size-8')
     }
     fireEvent.click(screen.getByTestId('operator-assistant-settings'))
     expect(onOpenAssistantSettings).toHaveBeenCalledTimes(1)
-    fireEvent.click(screen.getByTestId('operator-collapse'))
+  })
+
+  /**
+   * 收起钮已删（D7b ④）—— 收起改点左上那颗头像。
+   * ⚠ 桌面上头部只留**空槽**（那颗头像是外壳里那个持久 fixed 元素滑进来的），
+   *   手机上头部自己画一颗可点的。
+   */
+  it('⛔ 不再有收起钮；桌面留空槽、手机画真头像且点了就收', () => {
+    renderHeader()
+    expect(screen.queryByTestId('operator-collapse')).toBeNull()
+    const slot = screen.getByTestId('operator-header-avatar-slot')
+    expect(slot.style.width).toBe(
+      `${STUDIO_OPERATOR_SHELL.avatarHeaderSizePx}px`,
+    )
+    expect(screen.queryByTestId('operator-header-avatar')).toBeNull()
+    cleanup()
+
+    const { onCollapse } = renderHeader({ avatarOwned: true })
+    expect(screen.queryByTestId('operator-header-avatar-slot')).toBeNull()
+    fireEvent.click(screen.getByTestId('operator-header-avatar'))
     expect(onCollapse).toHaveBeenCalledTimes(1)
   })
 

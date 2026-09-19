@@ -462,16 +462,66 @@ export const STUDIO_OPERATOR_SHELL = {
    */
   wideAtPx: 700,
   /**
-   * **收起态那颗圆按钮**的边长（D7 ④ · Q2 = C，2026-09-19）。
+   * **头像开关**收起档的边长（D7b ④ · owner 2026-09-20）。
    *
-   * ⚠ 它替掉了 v2 §4.3 那张 40px 微状态卡（参数摘要 + 状态词整个不要了）：
-   *   收起之后助手只剩「一颗头像 + 有没有事」两件事，44 因此同时是桌面的观感
-   *   尺寸与触屏的命中区（`ui-defaults.md §5`）—— ⛔ 桌面不再单开一档小的。
+   * ⚠ 它替掉了 D7 那颗 44px 近黑圆按钮：收起态四处统一成**人设头像**，36 = 画板
+   *   `DesignD7bToggle` 上「与『剪辑台』胶囊同高」那个口径
+   *   （`CANVAS_SHELL_LAYOUT.pillHeightPx` 也是 36，⛔ 两个数必须一起改）。
+   * ⚠ 触屏命中区靠按钮自己的 padding 撑到 44（`ui-defaults.md §5`），⛔ 不是把
+   *   这颗圆画大。
    */
-  collapsedSizePx: 44,
-  /** 收起态那颗按钮距视口右 / 下缘的留白（画板 dockBtn：右 16 / 下 16）。 */
-  collapsedInsetPx: 16,
+  avatarSizePx: 36,
+  /**
+   * 同一颗头像落进**面板头部左上槽**时的边长（画板：22px）。
+   *
+   * ⚠ 开关的缩放比就是 `avatarHeaderSizePx / avatarSizePx`（22/36 ≈ 0.61，
+   *   画板 ② 写死的那个数）—— ⛔ 别在组件里另写一个 0.61：两个数分开调会让
+   *   头像落位时错半个像素。
+   */
+  avatarHeaderSizePx: 22,
+  /** 头像与它左边那颗胶囊之间的空隙（画布顶栏排布用）。 */
+  avatarGapPx: 8,
+  /** 头部左右内距（`px-3`）—— 头像落位的 x 由它算出来，⛔ 不量 DOM。 */
+  headerPadXPx: 12,
+  /**
+   * 展开 / 收起那两段过渡的时长（画板 ②「动画怎么做」那一支写死）。
+   *
+   * ⚠ 240 / 200 不是 `--duration-*` 里的任何一档，但它们**是这颗外壳原本就在用
+   *   的两个数**（`StudioOperatorDock.module.css` 的 shell 过渡与外壳卸载定时器），
+   *   ⛔ 别为它们往 `globals.css` 的脊柱里新造 token：那是全站的东西，一颗面板的
+   *   morph 不配进去。曲线仍走脊柱的 `--ease-standard`。
+   * ⚠ 卸载靠**定时器**读这个数，⛔ 不靠 `animationend` / `transitionend`：后台标签页
+   *   里 rAF 冻结，事件永远不来，留下的是一个吃着点击的幽灵面板（Dock 头注那条）。
+   */
+  openMs: 240,
+  closeMs: 200,
 } as const
+
+/**
+ * 头像与面板在视口上的**两个锚点**（D7b ④ · 头像开关）。
+ *
+ * ⭐ 为什么是宿主给而不是外壳自己判：画布有顶栏（面板顶边 = 顶栏底 + 6，头像排在
+ * 「剪辑台」右侧），工作台 / LoRA 没有（头像与面板同贴右上留白）。⛔ 别在 Dock 里
+ * 按 `domain === 'canvas'` 硬判 —— 第四个宿主该由它自己说了算，判据与
+ * `collapseOnOutsidePointer` 逐字同源。
+ *
+ * ⚠ 四个数全是**距视口上缘 / 右缘**的 px。开关的位移由它们算得出来，所以 ⛔ 不量
+ * DOM：量 DOM 的那一版会在面板还没布局完的第一帧算出一个错位的 transform。
+ */
+export interface StudioOperatorShellAnchor {
+  readonly avatarTopPx: number
+  readonly avatarRightPx: number
+  readonly panelTopPx: number
+  readonly panelRightPx: number
+}
+
+/** 没有顶栏的宿主（图片 / 视频工作台 · LoRA 装配台）：头像与面板同贴 24 留白。 */
+export const STUDIO_OPERATOR_DEFAULT_ANCHOR: StudioOperatorShellAnchor = {
+  avatarTopPx: STUDIO_OPERATOR_SHELL.insetPx,
+  avatarRightPx: STUDIO_OPERATOR_SHELL.insetPx,
+  panelTopPx: STUDIO_OPERATOR_SHELL.insetPx,
+  panelRightPx: STUDIO_OPERATOR_SHELL.insetPx,
+}
 
 /**
  * 空态最多摆几颗起手药丸（v2 §4.2 / 画板 BEmpty 的三行）。
@@ -666,18 +716,14 @@ export const STUDIO_OPERATOR_MOBILE_SHELL = {
   sheetHeight: '100dvh',
   /** 浮标的命中区 —— 触屏 44（`ui-defaults.md §5`）。 */
   fabHitPx: 44,
-  /** 浮标距视口右缘的留白。 */
-  fabInsetPx: 16,
   /**
-   * 浮标距视口下缘的留白（safe-area 与软键盘之上再加这么多）。
+   * 头像距视口右 / 上缘的留白。
    *
-   * ⚠ 它比 `fabInsetPx` 大得多是**有原因的**：图片 / 视频档的手机形态底部钉着
-   * `StudioMobileComposer` 那条固定栏（`fixed bottom-0 z-40`），浮标贴到 16px
-   * 会正好压在生成键上。这个数是「清过那条栏」的净空，⛔ 不是随手挑的留白。
-   * ⚠ 浮标同时用 `z-30`（低于 composer 的 `z-40`）兜底：净空万一不够，让位的
-   * 是浮标不是生成键。
+   * ⚠ ⛔ `fabBottomPx`（96）**已删**：D7b 起收起态头像挂**右上角**，不再从底部那条
+   * `StudioMobileComposer` 固定栏旁边绕路 —— 那个数存在的全部理由是「清过生成键」，
+   * 而头像已经不在下面了。
    */
-  fabBottomPx: 96,
+  fabInsetPx: 16,
 } as const
 
 /**

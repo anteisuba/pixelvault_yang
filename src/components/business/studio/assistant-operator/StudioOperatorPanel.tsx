@@ -293,6 +293,8 @@ interface StudioOperatorPanelProps {
   /** 规则薄卡上的「查看规则」（§10）—— 打开助手设置并落到规则那一页。 */
   onOpenProjectRules(): void
   onCollapse(): void
+  /** 头部那颗头像由**面板**画吗（手机档 = 是，见 `StudioOperatorHeader` 头注）。 */
+  headerAvatarOwned: boolean
 }
 
 /**
@@ -319,6 +321,7 @@ export function StudioOperatorPanel({
   onOpenAssistantSettings,
   onOpenProjectRules,
   onCollapse,
+  headerAvatarOwned,
 }: StudioOperatorPanelProps) {
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
@@ -1738,6 +1741,8 @@ export function StudioOperatorPanel({
         onNewThread={newThread}
         onOpenAssistantSettings={onOpenAssistantSettings}
         onCollapse={onCollapse}
+        avatarOwned={headerAvatarOwned}
+        {...(persona ? { persona } : {})}
         /* ⚠ 续跑 chip 的正位是**结论记录块的尾部**（§3.6）——头部这一颗只在
            一条结论记录都没有时出现（见 `resumeHost` 的头注）。 */
         {...(resumeStepNumber === null || resumeHost !== null

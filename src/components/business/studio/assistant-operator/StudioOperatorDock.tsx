@@ -37,6 +37,7 @@ import {
   useSyncExternalStore,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type TransitionEvent as ReactTransitionEvent,
 } from 'react'
 import styles from './StudioOperatorDock.module.css'
 import { GripVertical } from '@/components/icons'
@@ -46,7 +47,10 @@ import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
+  STUDIO_OPERATOR_DEFAULT_ANCHOR,
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
+  STUDIO_OPERATOR_MOBILE_SHELL,
+  STUDIO_OPERATOR_SHELL,
   STUDIO_OPERATOR_PANEL_RESIZE as RESIZE,
 } from '@/constants/studio-assistant-operator'
 import {
@@ -75,7 +79,10 @@ import {
   AssistantSettingsDialog,
   type AssistantSettingsSection,
 } from '@/components/business/studio/assistant-operator/AssistantSettingsDialog'
-import { StudioOperatorCollapsedButton } from '@/components/business/studio/assistant-operator/StudioOperatorCollapsedButton'
+import {
+  StudioOperatorAvatarToggle,
+  type StudioOperatorShellPhase,
+} from '@/components/business/studio/assistant-operator/StudioOperatorAvatarToggle'
 import { StudioOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { StudioOperatorMobileSheet } from '@/components/business/studio/assistant-operator/StudioOperatorMobileSheet'
 import { StudioOperatorPanel } from '@/components/business/studio/assistant-operator/StudioOperatorPanel'
@@ -125,6 +132,15 @@ function subscribeWidth(listener: () => void): () => void {
   }
 }
 
+/**
+ * 展开那一段兜底定时器比过渡本身多等这么久。
+ *
+ * ⚠ 它**只是兜底**：正常路径上 `transitionend` 先到（见相位机那段头注）。多等
+ * 这几十毫秒是为了让事件有机会先落，⛔ 不是为了「等动画跑完」—— 后者是定时器
+ * 那条路，而那条路在后台标签页里才是唯一还走得通的。
+ */
+const SHELL_FALLBACK_SLACK_MS = 60
+
 function writeWidth(next: number): void {
   const width = clamp(next)
   if (storedWidth === width) return
@@ -158,7 +174,16 @@ export function StudioOperatorDock() {
     domain: hostDomain,
     resultRun,
     collapseOnOutsidePointer,
+    anchor: hostAnchor,
   } = useStudioOperatorHost()
+  /**
+   * 头像与面板落在视口的哪两个角（D7b ④）。
+   *
+   * ⚠ 缺省 = 没有顶栏的那一档（工作台 / LoRA，24/24）：画布自己给一份（顶栏底
+   *   + 6），⛔ 这里不按 `domain === 'canvas'` 硬判 —— 判据与
+   *   `collapseOnOutsidePointer` 逐字同源，第四个宿主该由它自己说了算。
+   */
+  const anchor = hostAnchor ?? STUDIO_OPERATOR_DEFAULT_ANCHOR
   const isMobile = useIsMobile()
   const { domain, entries, mentions, question, confirm } =
     useStudioOperatorState()
@@ -305,21 +330,75 @@ export function StudioOperatorDock() {
    * ⚠ `null` = 关着；非 null 时同时说明**开在哪一页**（规则薄卡的「查看规则」
    *   直接落到规则那一页，§10）。
    */
-  const [panelPresence, setPanelPresence] = useState({ open, present: open })
-  if (panelPresence.open !== open) {
-    setPanelPresence({ open, present: open || panelPresence.present })
+  /**
+   * ── 头像开关的四档相位（D7b ④ · 画板 ②）──────────────────────────
+   *
+   * `closed` → `opening` →（transitionend 或兜底定时器）→ `open` → `closing`
+   * →（**定时器**）→ `closed`。
+   *
+   * ⚠ **收回那一段只认定时器**（`closeMs`）：后台标签页里 rAF 冻结，`transitionend`
+   *   永远不来，靠事件摘节点留下的是一个 opacity:0、却仍占着右半屏并吃掉点击的
+   *   幽灵面板（2026-08-30 真机实测，见下方 `<aside>` 那段头注）。⛔ 同理不用
+   *   `AnimatePresence`。
+   * ⚠ 展开那一段**认 transitionend、并带一条兜底定时器**：毛玻璃必须等过渡跑完
+   *   才挂（过渡中开 `backdrop-filter` 会让整块在低端机上掉帧），而在后台标签页里
+   *   那个事件同样不来 —— 没有兜底的表现是面板永远停在 `pointer-events: none`。
+   * ⚠ `prefers-reduced-motion` 两段都**直切**：没有中间档，毛玻璃当场就挂。
+   */
+  const reducedMotion =
+    typeof window !== 'undefined' &&
+    (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false)
+  /**
+   * ⚠ 进档走**渲染阶段的派生 state**（与上面 `readResults` / `previousReferences`
+   *   同一个写法），⛔ 不在 effect 里 `setState`：那是一次级联渲染，而且面板会
+   *   先以静止态画一帧再跳进 `opening` —— 那一帧正是 morph 看起来「闪」的地方。
+   * ⚠ 出档（`opening → open` / `closing → closed`）才走 effect 里的定时器：那是
+   *   一件真的「过一会儿」的事，不是 render 算得出来的。
+   */
+  const [shell, setShell] = useState<{
+    open: boolean
+    phase: StudioOperatorShellPhase
+  }>({ open, phase: open ? 'open' : 'closed' })
+  if (shell.open !== open) {
+    setShell({
+      open,
+      phase: reducedMotion
+        ? open
+          ? 'open'
+          : 'closed'
+        : open
+          ? 'opening'
+          : 'closing',
+    })
   }
+  const phase = shell.phase
   useEffect(() => {
-    if (open) return
-    const reducedMotion = window.matchMedia?.(
-      '(prefers-reduced-motion: reduce)',
-    ).matches
+    if (phase !== 'opening' && phase !== 'closing') return
+    const settled: StudioOperatorShellPhase =
+      phase === 'opening' ? 'open' : 'closed'
     const timeout = window.setTimeout(
-      () => setPanelPresence((current) => ({ ...current, present: false })),
-      reducedMotion ? 0 : 240,
+      () =>
+        setShell((current) =>
+          current.phase === phase ? { ...current, phase: settled } : current,
+        ),
+      phase === 'opening'
+        ? STUDIO_OPERATOR_SHELL.openMs + SHELL_FALLBACK_SLACK_MS
+        : STUDIO_OPERATOR_SHELL.closeMs,
     )
     return () => window.clearTimeout(timeout)
-  }, [open])
+  }, [phase])
+  /** 展开那一段真正的落点 —— ⚠ 只认自己那条 transform，⛔ 不收子元素冒上来的。 */
+  const handleShellTransitionEnd = useCallback(
+    (event: ReactTransitionEvent<HTMLElement>) => {
+      if (event.target !== event.currentTarget) return
+      if (event.propertyName !== 'transform') return
+      setShell((current) =>
+        current.phase === 'opening' ? { ...current, phase: 'open' } : current,
+      )
+    },
+    [],
+  )
+  const panelPresent = phase !== 'closed'
   const [settingsSection, setSettingsSection] =
     useState<AssistantSettingsSection | null>(null)
   /**
@@ -588,6 +667,16 @@ export function StudioOperatorDock() {
         setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.rules)
       }
       onCollapse={() => setOpen(false)}
+      /**
+       * 头部左上那颗头像是不是**面板自己画**的。
+       *
+       * ⚠ 桌面上不是：那颗是外壳里那个持久 fixed 元素滑进来的（D7b 的「一个元素
+       *   两个锚点」），面板只留一个同尺寸的空槽给它坐，⛔ 不再画第二颗 ——
+       *   两颗叠在一起的表现是头像边缘在过渡末尾闪一下。
+       * ⚠ 手机上是：Sheet 那条路没有 morph（半屏 Sheet 不从右上角长出来），
+       *   头部那颗头像因此得由面板自己画，否则头部左上是个空洞。
+       */
+      headerAvatarOwned={isMobile}
     />
   )
 
@@ -624,12 +713,24 @@ export function StudioOperatorDock() {
   if (isMobile) {
     return (
       <>
+        {/* ⚠ 手机收起态的头像挂**右上角**（D7b ④，与桌面一致）——⛔ 不再是右下
+            那颗浮标：那个位置的全部理由是「清过底部 `StudioMobileComposer` 那条
+            固定栏」，而头像已经不在下面了。
+            ⚠ 手机上**不做 morph**（Sheet 不从右上角长出来），所以相位恒 `closed`
+            且面板一开就把它摘掉。 */}
         {open ? null : (
-          <StudioOperatorCollapsedButton
+          <StudioOperatorAvatarToggle
             badgeCount={badgeCount}
             {...(persona ? { persona } : {})}
-            mobile
-            onExpand={() => setOpen(true)}
+            anchor={{
+              avatarTopPx: STUDIO_OPERATOR_MOBILE_SHELL.fabInsetPx,
+              avatarRightPx: STUDIO_OPERATOR_MOBILE_SHELL.fabInsetPx,
+              panelTopPx: STUDIO_OPERATOR_MOBILE_SHELL.fabInsetPx,
+              panelRightPx: STUDIO_OPERATOR_MOBILE_SHELL.fabInsetPx,
+            }}
+            panelWidthPx={0}
+            phase="closed"
+            onToggle={() => setOpen(true)}
           />
         )}
         <StudioOperatorMobileSheet open={open} onOpenChange={setOpen}>
@@ -662,47 +763,63 @@ export function StudioOperatorDock() {
           2026-08-30 真机实测撞到，判据是 `document.visibilityState === 'hidden'`
           时元素停在退场的终态却不消失。
  */}
-      <aside
-        role="complementary"
-        aria-label={t('title')}
-        {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
-        data-testid="operator-panel"
-        data-open={open ? 'true' : 'false'}
-        // ⚠ 收起 = **宽高归零**（收起态那颗按钮是外壳外面的兄弟节点，画在右下角
-        //   而不是这条右上角的轨上）：留着一个有尺寸的空 `<aside>` 会在右上角
-        //   吃掉点击。
-        style={{
-          width: open ? `${width}px` : '0px',
-          height: open ? 'calc(100dvh - 3rem)' : '0px',
-        }}
-        // ⚠ 拖拽中关掉过渡：320ms 的 width 过渡会让把手「跟不上手」。
-        className={cn(
-          'fixed right-6 top-6 z-40 hidden flex-col lg:flex',
-          styles.shell,
-          // ── 三层玻璃①：**面板**（§12.1）。86% 白 + 轻模糊 + 细边 + 柔投影；
-          //    18px 圆角是区间上限（§12.3 「面板与浮层取上限」）。
+      {panelPresent ? (
+        <aside
+          role="complementary"
+          aria-label={t('title')}
+          {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+          data-testid="operator-panel"
+          data-open={open ? 'true' : 'false'}
+          data-phase={phase}
+          onTransitionEnd={handleShellTransitionEnd}
           /**
-           * ⭐ **展开态自己声明可点**（2026-09-19 真机：画布页面板点不动）。
-           *
-           * 🔬 根因：画布宿主把助手渲染在一条**全屏** rail 里
-           * （`CanvasWorkspaceLayout` 的 `canvas-assistant-rail`），那条 rail 必须
-           * `pointer-events-none` —— 否则它会盖住整张画布。旧的画布面板自己写了
-           * `pointer-events-auto`，而换成这颗 Dock 之后展开态只写了皮肤，于是从
-           * rail 继承成 `none`：面板画得出来，点击全落到底下的画布上。
-           * ⚠ 所以这一格由**Dock 自己**声明，⛔ 不指望宿主去开：工作台 / LoRA
-           * 两个宿主没有 `none` 的父级，加了没有副作用；而依赖宿主的话，下一个
-           * 把助手挂进任何一条 overlay 的人会原样再撞一次。
+           * ⚠ **宽高是常数**（D7b 铁律）：收起不再把 width/height 归零，收放靠
+           * `transform: scale()` + `opacity`（CSS module）。⛔ 别把这两行改回过渡
+           * 的量 —— 动 width/height 每一帧都要重排整棵面板，那正是 owner 说的「卡」。
+           * ⚠ 收起档整颗 `<aside>` 根本不渲染（`panelPresent`），所以一个有尺寸的
+           *   空面板不会在右上角吃掉点击。
+           * ⚠ top / right 由宿主的锚点给（画布 = 顶栏底 + 6，⛔ 不再压顶栏）。
            */
-          open
-            ? 'pointer-events-auto overflow-hidden rounded-2xl border border-border assistant-glass-panel shadow-assistant-panel'
-            : 'pointer-events-none overflow-hidden',
-          isResizing && styles.resizing,
-        )}
-      >
-        {open || panelPresence.present ? (
+          style={{
+            width: `${width}px`,
+            height: `calc(100dvh - ${anchor.panelTopPx * 2}px)`,
+            top: `${anchor.panelTopPx}px`,
+            right: `${anchor.panelRightPx}px`,
+          }}
+          className={cn(
+            'fixed z-40 hidden flex-col lg:flex',
+            styles.shell,
+            // ── 三层玻璃①：**面板**（§12.1）。86% 白 + 轻模糊 + 细边 + 柔投影；
+            //    18px 圆角是区间上限（§12.3 「面板与浮层取上限」）。
+            /**
+             * ⭐ **展开态自己声明可点**（2026-09-19 真机：画布页面板点不动）。
+             *
+             * 🔬 根因：画布宿主把助手渲染在一条**全屏** rail 里
+             * （`CanvasWorkspaceLayout` 的 `canvas-assistant-rail`），那条 rail 必须
+             * `pointer-events-none` —— 否则它会盖住整张画布。旧的画布面板自己写了
+             * `pointer-events-auto`，而换成这颗 Dock 之后展开态只写了皮肤，于是从
+             * rail 继承成 `none`：面板画得出来，点击全落到底下的画布上。
+             * ⚠ 所以这一格由**Dock 自己**声明，⛔ 不指望宿主去开：工作台 / LoRA
+             * 两个宿主没有 `none` 的父级，加了没有副作用；而依赖宿主的话，下一个
+             * 把助手挂进任何一条 overlay 的人会原样再撞一次。
+             */
+            'overflow-hidden rounded-2xl border border-border shadow-assistant-panel',
+            /**
+             * ⚠ **毛玻璃只在静止档挂**（D7b 铁律）：`assistant-glass-panel` 带
+             * `backdrop-filter`，而过渡中开它会让整块在每一帧重新采样背景 ——
+             * owner 09-20 明令「过渡中不开 backdrop-filter，transitionend 后再加」。
+             * `phase === 'open'` 正是那一刻（reduced-motion 下它当场就成立）。
+             * ⚠ 阴影**不在这条分支里**：它常驻，⛔ 也不做过渡。
+             */
+            phase === 'open'
+              ? 'pointer-events-auto assistant-glass-panel'
+              : 'bg-card',
+            isResizing && styles.resizing,
+          )}
+        >
           <div
             className={styles.content}
-            data-visible={open}
+            data-visible={phase === 'open' || phase === 'opening'}
             inert={!open}
             aria-hidden={!open}
           >
@@ -744,21 +861,24 @@ export function StudioOperatorDock() {
 
             {panel}
           </div>
-        ) : null}
-      </aside>
+        </aside>
+      ) : null}
 
-      {/* 收起态（D7 ④ · Q2 = C）—— 右下角那颗 44px 圆按钮。⚠ 它**不在 `<aside>`
-          里**：那颗外壳贴的是右上角，而画板上这颗按钮在右下角，塞进去只能靠
-          负向定位去够。 */}
-      {open ? null : (
-        <div className={cn('hidden lg:block', styles.trigger)}>
-          <StudioOperatorCollapsedButton
-            badgeCount={badgeCount}
-            {...(persona ? { persona } : {})}
-            onExpand={() => setOpen(true)}
-          />
-        </div>
-      )}
+      {/* ── 头像开关（D7b ④）──────────────────────────────────────────
+          ⚠ 它**不在 `<aside>` 里**、也**不随开合卸载**：这是「一个持久元素、两个
+            锚点」那条的全部实现 —— 塞进面板的那一版每次开合都重新挂载，而重新
+            挂载的元素没有可过渡的起始 transform（那正是 morph 看起来「跳」的原因）。
+          ⚠ `hidden lg:block` 与面板同一道断点：手机那条分支自己画一颗（见上面）。 */}
+      <div className="hidden lg:block">
+        <StudioOperatorAvatarToggle
+          badgeCount={badgeCount}
+          {...(persona ? { persona } : {})}
+          anchor={anchor}
+          panelWidthPx={width}
+          phase={phase}
+          onToggle={() => setOpen(!open)}
+        />
+      </div>
 
       {/* 助手设置（§8.1）—— ⚠ 弹层挂在**外壳**里，与面板同生共死会被收放法则
           随手卸载掉。⛔ 别把它塞进面板：那是「点开设置、光标滑出面板，弹层

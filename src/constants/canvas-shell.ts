@@ -29,6 +29,13 @@ export const CANVAS_SHELL_LAYOUT = {
   iconButtonRadiusPx: 10,
   /** 项目胶囊高（画板 .pill）。 */
   pillHeightPx: 36,
+  /**
+   * 助手面板顶边与顶栏底之间的空隙（D7b ④ · 画板 `DesignD7bToggle`：顶栏底 + 6）。
+   *
+   * ⚠ 它存在的理由是 owner 09-20 那条「⛔ 不再压顶栏」：此前面板贴 `top: 24`，
+   * 正好盖住「剪辑台」那排胶囊的下半截。
+   */
+  assistantPanelGapPx: 6,
   /** 项目切换弹层宽（画板 .pop width:320）。 */
   projectPopoverWidthPx: 320,
   /** ⌘K 面板宽（画板 .pop width:520）。 */

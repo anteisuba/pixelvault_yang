@@ -1,14 +1,77 @@
+/*
+ * 头像开关的 morph（D7b ④ · 画板 ②「动画怎么做」那一支，owner 2026-09-20）。
+ *
+ * 铁律逐条：
+ *  · 只过渡 transform / opacity —— ⛔ 一条 width / height / top / left 都没有
+ *    （旧版那三行连同 `interpolate-size: allow-keywords` 一起删了）；
+ *  · 阴影不做过渡（⛔ box-shadow 不在任何一条 transition 里）；
+ *  · will-change 只在过渡那一段加（`data-phase` = opening / closing），结束撤掉；
+ *  · 过渡中面板 pointer-events: none；
+ *  · 毛玻璃由 JS 在 transitionend 之后才挂上（`assistant-glass-panel`），
+ *    所以这里也 ⛔ 不写 backdrop-filter；
+ *  · prefers-reduced-motion 整块直切。
+ *
+ * ⚠ 240 / 200 与 `STUDIO_OPERATOR_SHELL.openMs / closeMs` 是同两个数（外壳的卸载
+ *   定时器读的是常量那一份）。⛔ 别只改一边 —— 改短了面板会在动完之前被摘掉，
+ *   改长了会留下一段「已经不动了但还点不动」的死时间。
+ */
+
+/* ── 头像：一个持久元素、两个锚点 ─────────────────────────────── */
+.avatar {
+  transition: transform 240ms var(--ease-standard);
+}
+.avatar[data-phase='closing'] {
+  transition: transform 200ms ease-in;
+}
+.avatar[data-phase='opening'],
+.avatar[data-phase='closing'] {
+  will-change: transform;
+}
+
+/* ── 面板外壳：从右上角长出来 ─────────────────────────────────── */
 .shell {
-  interpolate-size: allow-keywords;
   transform-origin: top right;
   transition:
-    width 240ms cubic-bezier(0.22, 1, 0.36, 1),
-    height 240ms cubic-bezier(0.22, 1, 0.36, 1),
-    box-shadow 240ms ease;
+    transform 240ms var(--ease-standard),
+    opacity 240ms var(--ease-standard);
 }
+.shell[data-phase='closing'] {
+  transform: scale(0.92);
+  opacity: 0;
+}
+/*
+ * 入场的**起始帧**。
+ *
+ * ⚠ 面板在 `opening` 那一刻才挂载，而刚挂载的元素没有可过渡的旧值 —— 没有这一块
+ * 它会直接以终态出现（「面板不长出来，是啪一下贴上去」）。⛔ 别改成「先挂 closed
+ * 再 rAF 翻 opening」：那是两帧 setState，在低端机上照样会漏掉第一帧。
+ */
+@starting-style {
+  .shell {
+    transform: scale(0.92);
+    opacity: 0;
+  }
+  .content {
+    opacity: 0;
+  }
+}
+.shell[data-phase='closing'] {
+  transition:
+    transform 200ms ease-in,
+    opacity 200ms ease-in;
+}
+.shell[data-phase='opening'],
+.shell[data-phase='closing'] {
+  will-change: transform;
+  /* ⚠ 过渡中不吃点击：动着的面板上点中的格子与松手时的那一格不是同一个。 */
+  pointer-events: none;
+}
+/* 拖宽时关掉过渡 —— 否则把手「跟不上手」。 */
 .resizing {
   transition: none;
 }
+
+/* ── 内容：外壳先出，80ms 后 160ms 淡入 ───────────────────────── */
 .content {
   display: flex;
   min-height: 0;
@@ -16,42 +79,23 @@
   flex: 1;
   flex-direction: column;
   opacity: 1;
-  transform: none;
-  transition:
-    opacity 160ms ease,
-    transform 240ms ease;
+  transition: opacity 160ms var(--ease-standard) 80ms;
 }
 .content[data-visible='false'] {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
   opacity: 0;
-  transform: translateY(-8px);
+  /* ⚠ 退场不延迟：收面板时内容要先没，⛔ 别让它比外壳晚 80ms 消失。 */
+  transition: opacity 120ms var(--ease-standard);
   pointer-events: none;
 }
-.trigger {
-  animation: appear 200ms ease both;
-}
-@starting-style {
-  .content {
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-}
-@keyframes appear {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
+
 @media (prefers-reduced-motion: reduce) {
+  .avatar,
   .shell,
   .content {
     transition: none;
   }
-  .trigger {
-    animation: none;
+  .avatar,
+  .shell {
+    will-change: auto;
   }
 }

@@ -24,9 +24,16 @@
  *   于是 onClick 里的取反永远只看得到 false。判据因此写在 `onInteractOutside` 上
  *   （点到的是这颗图标就不当外部点击），⛔ 别改成 pointerdown 去猜。
  *
- * ⚠ 收起钮（`onCollapse`）画板上没有，这里**保留**：收放法则（拍板 7）那条
- * 「点工作台就收」只有指针走得通，键盘用户在画板那版里一个收起的路都没有。
- * 它与那两颗同宽（32px），⛔ 不是第三种尺寸。
+ * ⚠ **收起钮已删**（D7b ④，owner 2026-09-20）：收起现在点**左上那颗头像**。
+ * 键盘可达没有丢 —— 头像本身是一颗 `<button>`（桌面上是外壳那颗 fixed 的，
+ * 手机上是下面这颗），Esc 那一级也还在。⛔ 别把 `PanelRightClose` 找回来：
+ * 一个面板不该有两条收起的路。
+ *
+ * ── 左上那个头像槽 ──────────────────────────────────────────────
+ * 桌面上头部**不画**头像：那颗是外壳里那个持久 fixed 元素滑进来的（D7b「一个
+ * 元素两个锚点」），这里只留一个同尺寸的空槽给它坐。手机走 Sheet、没有 morph，
+ * 所以那一档由头部自己画（`avatarOwned`）。⛔ 两边都画的表现是过渡末尾头像
+ * 边缘闪一下。
  */
 
 import { useState } from 'react'
@@ -37,7 +44,6 @@ import {
   ChevronDown,
   Trash2,
   History,
-  PanelRightClose,
   Settings2,
 } from '@/components/icons'
 import { useFormatter, useTranslations } from 'next-intl'
@@ -56,6 +62,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
+import type { AssistantPersona } from '@/types/assistant-persona'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { Input } from '@/components/ui/input'
 import { ASSISTANT_CONVERSATION_LIMITS } from '@/types/assistant-conversation'
@@ -128,7 +136,18 @@ interface StudioOperatorHeaderProps {
    * 弹层跟着面板走的下场是它自己突然消失。
    */
   onOpenAssistantSettings(): void
+  /**
+   * 收起 —— 现在只有**头像**按得到它（D7b）。⚠ 桌面上按的是外壳那颗 fixed 头像，
+   * 所以这个回调在桌面档其实没有调用方；留着是因为手机那颗头像就在头部里。
+   */
   onCollapse(): void
+  /**
+   * 头部**自己画**那颗头像吗（手机档 = 是）。
+   * ⚠ 判据由外壳给（它才知道有没有 morph），⛔ 头部不自己 `useIsMobile()`：
+   *   同一件事判两遍必然会漂。
+   */
+  avatarOwned: boolean
+  persona?: AssistantPersona
   /**
    * **有未完成计划**（第三期 · 断点续跑）—— 刷新之后唯一还看得见的入口。
    *
@@ -152,6 +171,8 @@ export function StudioOperatorHeader({
   onNewThread,
   onOpenAssistantSettings,
   onCollapse,
+  avatarOwned,
+  persona,
   resume,
 }: StudioOperatorHeaderProps) {
   const t = useTranslations('StudioOperator')
@@ -201,6 +222,38 @@ export function StudioOperatorHeader({
         style={{ height: `${STUDIO_OPERATOR_SHELL.headerHeightPx}px` }}
         className="flex items-center gap-2 px-3"
       >
+        {/* 头像槽（D7b ④）—— 桌面是给外壳那颗 fixed 头像**留位**的空格子，
+            手机是真的那一颗。两档同宽，所以标题的起点在两档上逐像素相同。 */}
+        {avatarOwned ? (
+          <button
+            type="button"
+            data-testid="operator-header-avatar"
+            aria-label={t('collapse')}
+            {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+            onClick={onCollapse}
+            style={{
+              width: `${STUDIO_OPERATOR_SHELL.avatarHeaderSizePx}px`,
+              height: `${STUDIO_OPERATOR_SHELL.avatarHeaderSizePx}px`,
+            }}
+            className="grid shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-card text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <AssistantAvatarGlyph
+              presetId={persona?.avatarPreset ?? null}
+              name={persona?.name?.trim() || t('timeline.assistantFallback')}
+            />
+          </button>
+        ) : (
+          <span
+            data-testid="operator-header-avatar-slot"
+            aria-hidden
+            className="shrink-0"
+            style={{
+              width: `${STUDIO_OPERATOR_SHELL.avatarHeaderSizePx}px`,
+              height: `${STUDIO_OPERATOR_SHELL.avatarHeaderSizePx}px`,
+            }}
+          />
+        )}
+
         <span data-testid="operator-domain-chip" className="sr-only">
           {t(`domainName.${domain}`)}
         </span>
@@ -395,17 +448,6 @@ export function StudioOperatorHeader({
           className={HEADER_ICON_BUTTON_CLASS}
         >
           <Settings2 className="size-4" aria-hidden />
-        </button>
-
-        {/* 收起 —— 画板上没有这一颗，保留的理由见头注（键盘可达）。 */}
-        <button
-          type="button"
-          data-testid="operator-collapse"
-          aria-label={t('collapse')}
-          onClick={onCollapse}
-          className={HEADER_ICON_BUTTON_CLASS}
-        >
-          <PanelRightClose className="size-4" aria-hidden />
         </button>
       </div>
 

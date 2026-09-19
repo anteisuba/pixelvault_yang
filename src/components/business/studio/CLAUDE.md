@@ -31,10 +31,10 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       └── StudioResultFeedback / StudioAudioFeedback / StudioGenerationErrorDialog
         ├── StudioAssistantDock + StudioAssistantFab (studio-shared/chrome/ + studio/ — 旧助手，只剩音频档走它；图片/视频已归 operator)
         ├── StudioOperatorDock (studio/assistant-operator/ — 操作员面板外壳：宽度/收放；图片+视频档)
-        │   ├── StudioOperatorCollapsedButton (收起态 44px 近黑圆按钮：头像字母 + 数字角标（待确认 + 未读结果，打开面板清零）；右 16 / 下 16，手机同一颗只换成下 96。D7 ④ · Q2 = C。⛔ StudioOperatorIconRail · StudioOperatorCollapsedCard · StudioOperatorMobileFab 三个文件都已删)
+        │   ├── StudioOperatorAvatarToggle (**头像开关**：36px 人设头像 + 数字角标（待确认 + 未读结果，打开面板清零），**右上角**；一个持久 fixed 元素、两个锚点（顶栏 36 ↔ 面板头部槽 22），只过渡 transform。D7b ④。⛔ StudioOperatorCollapsedButton · StudioOperatorIconRail · StudioOperatorCollapsedCard · StudioOperatorMobileFab 四个文件都已删)
         │   ├── StudioOperatorMobileSheet (手机半屏可拖 vaul Sheet：三档吸附 0.55 / 1 / 关闭，`modal={false}` 露出上半截工作台，键盘弹起升全屏 —— 装的是下面同一个 Panel 元素)
         │   └── StudioOperatorPanel (同目录 — 面板内容：空态 / 时间线 / 双行输入区)
-        │       ├── StudioOperatorHeader (头部一行 56px：会话标题▾（= 历史下拉，新会话在底部）/ 续跑 / 右上两颗 32px 图标：历史 · 设置 / 收起)
+        │       ├── StudioOperatorHeader (头部一行 56px：左上头像槽（桌面留位给外壳那颗，手机自己画）/ 会话标题▾（= 历史下拉，新会话在底部）/ 域标记 / 续跑 / 右上一颗 ⋯。⛔ 收起钮已删，收起 = 点头像)
         │       ├── StudioOperatorPinnedEvidence (面板顶部「钉住的证据」常驻条：钉住后在顶部留一份、点回原卡、× 取消钉住；⛔ 没钉住就整条不渲染；v2 §3.2 / 画板 BCards「已钉住 · 留在面板顶部」)
         │       ├── StudioOperatorEmptyState (空态：助手头像 68px + 自我介绍 + 三颗起手势；v2 §4.2)
         │       ├── StudioOperatorTimelineRow (时间线沟一行 + **五类卡的分派点**)
@@ -77,9 +77,9 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 ⚠ **正文逐段追加（56b 切片 3）**：服务端只发差值（`message_delta`），客户端追加到同一条 `streaming` 气泡后面，末尾一根不闪的光标；定稿帧按 id 整体覆盖。`motion-reduce` 那一档**扣住整段**，写完才画。⛔ `StudioOperatorStreamingText`（当年那套逐字**淡入**）仍旧是删掉的，⛔ 别把它找回来 —— 这一次回来的是「字什么时候出现」，不是那套动效。
 ⚠ **视频档具名槽（2026-09-07 `48d6fecb`）**：视频参考区是 `StudioVideoReferenceSlots`（首帧 / 尾帧 / 参考视频），三条落法（拖入 / 素材库 / 助手 `mount_reference slot`）**汇到同一个 dispatch**（`use-video-reference-slots.ts`），⛔ 组件里没有第二条写入。⛔ 关键帧档下**不再渲染** `ReferenceImageChip`——那一档里图片是帧，留着它写进的参考图列表发送口根本不读（静默失效）。首帧在场且线路带图锁比例时，`StudioVideoSpecFields` 把比例组**禁用而不是移除**并说清怎么解除。
 
-⚠ **手机形态（2026-09-06 `adb0a008`）**：Dock 在 `isMobile` 时**不再 `return null`**——图片 / 视频档改渲染 `StudioOperatorCollapsedButton`（`mobile`）+ `StudioOperatorMobileSheet`（v2 §4.6 起是**半屏可拖**，⛔ 不再是 100dvh 全屏），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。
+⚠ **手机形态（2026-09-06 `adb0a008`）**：Dock 在 `isMobile` 时**不再 `return null`**——图片 / 视频档改渲染 `StudioOperatorAvatarToggle`（右上角，⛔ 不再是右下浮标）+ `StudioOperatorMobileSheet`（v2 §4.6 起是**半屏可拖**，⛔ 不再是 100dvh 全屏），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。
 
-⚠ **收起态已定案（D7 ④ · Q2 = C，owner 2026-09-19）**：右下角 44px 近黑圆按钮 + 数字角标，⛔ 不再有微状态卡、状态点、`N/M` 读数与那句状态词（状态词仍活在展开态头像旁）。下面这段方向 C 的「收起态 48px 图标轨」是历史记录。
+⚠ **收起态已改口（D7b ④，owner 2026-09-20）**：**右上角 36px 人设头像 + 数字角标，头像即唯一开关**（点开滑进面板头部，点头部那颗或 Esc 收回）。⛔ D7 ④ 的「右下 44px 近黑圆按钮」与画布顶栏那颗「助手」胶囊（`shell-assistant-toggle`）一起退场；⛔ 仍旧没有微状态卡、状态点、`N/M` 读数与那句状态词。机制与十条动画铁律见 `docs/references/pages/assistant-shell-v2.md §4.3`。下面这段方向 C 的「收起态 48px 图标轨」是历史记录。
 
 ⚠ **目标态：方向 C「工作日志」面板**——收起态 48px 图标轨、顶部进度带、计划卡 / 三档确认 / 结果行卡 / checkpoint 薄卡、时间线沟用 **32px 头像 + 24px 沟宽且不显示任何时间戳**、助手设置弹层（两栏 + `Tabs`）、手机全屏 Sheet、检索链（`research` / `read_url` / 官方优先搜图）。施工基准 `docs/references/pages/assistant-shell.md`（owner 2026-09-06 定，§7.1 检索链 / §11.3 时间线沟 / §11.6 移动端）；⛔ 动这一系之前先读它，别照现状扩。
 

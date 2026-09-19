@@ -1283,12 +1283,8 @@ function NodeWorkbenchV4Inner() {
                     onDuplicateProject={() => setProjectDialogMode('duplicate')}
                     onDeleteProject={() => setDeleteConfirmOpen(true)}
                     onOpenEditDesk={openEditDeskWithSelection}
-                    assistantOpen={assistantOpen}
-                    // 右上那颗是**开关**：再点一次收起（收起后右缘留一条，画板
-                    // `ChromeAssistant.dc.html`）。
-                    onOpenAssistant={() => {
-                      setAssistantOpen(!assistantOpen)
-                    }}
+                    /* ⚠ 「助手」胶囊已从顶栏退场（D7b ④）：同一位置换成 Dock 自己
+                       那颗人设头像，顶栏只为它留出右侧那一格（见 ShellTopBar 头注）。 */
                   />
                   <ShellSidePanels
                     activePanel={activePanel}

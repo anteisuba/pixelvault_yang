@@ -31,6 +31,7 @@ import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoin
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
+import type { StudioOperatorShellAnchor } from '@/constants/studio-assistant-operator'
 import type {
   StudioOperatorGenerationControls,
   StudioOperatorResultItem,
@@ -138,6 +139,19 @@ export interface StudioOperatorHost {
    * 否则面板开了就收不回去。
    */
   collapseOnOutsidePointer?: boolean
+  /**
+   * **头像与面板落在视口哪两个角**（D7b ④ · 头像开关，owner 2026-09-20）。
+   *
+   * ⭐ 与 `collapseOnOutsidePointer` 同一条判据：这是**宿主的性质**不是域的性质。
+   * 画布有顶栏（面板顶边 = 顶栏底 + 6，头像排在「剪辑台」胶囊右侧），工作台与
+   * LoRA 装配台没有（头像与面板同贴右上那 24px 留白）。⛔ 别在 Dock 里按
+   * `domain === 'canvas'` 硬判 —— 第四个宿主该由它自己说了算。
+   *
+   * ⚠ **缺省 = `STUDIO_OPERATOR_DEFAULT_ANCHOR`**（24/24 四角）：工作台与装配台
+   * 一个字都不用写，新宿主接进来也默认继承。
+   * ⚠ 开关的位移由这四个数**算**出来（见 `operatorAvatarShift`），⛔ 不量 DOM。
+   */
+  anchor?: StudioOperatorShellAnchor
 }
 
 const StudioOperatorHostContext = createContext<StudioOperatorHost | null>(null)

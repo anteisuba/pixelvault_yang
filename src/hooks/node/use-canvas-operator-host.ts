@@ -27,6 +27,11 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
+import {
+  STUDIO_OPERATOR_SHELL,
+  type StudioOperatorShellAnchor,
+} from '@/constants/studio-assistant-operator'
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import { collectDownstream } from '@/lib/node-downstream'
 import { flashAssistantTouchedNode } from '@/hooks/node/node-ingest-dom'
@@ -36,6 +41,27 @@ import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 import type { StudioOperatorResultItem } from '@/types/studio-assistant-operator'
+
+/**
+ * **画布这个宿主的两个锚点**（D7b ④ · 画板 `DesignD7bToggle`）。
+ *
+ * ⚠ 画布**有顶栏**，所以它与另外三处不同：头像排在「剪辑台」胶囊右侧（顶栏那一行
+ * 里，与胶囊同高 36），面板顶边 = 顶栏底 + 6（⛔ 不再压顶栏 —— 此前贴 `top: 24`
+ * 正好盖住那排胶囊的下半截）。
+ * ⚠ 这是**宿主的性质**，所以它住在这里而不是 Dock 里：⛔ 别在外壳里按
+ *   `domain === 'canvas'` 硬判，判据与 `collapseOnOutsidePointer` 逐字同源。
+ */
+const CANVAS_ANCHOR: StudioOperatorShellAnchor = {
+  avatarTopPx:
+    CANVAS_SHELL_LAYOUT.edgeInsetPx +
+    (CANVAS_SHELL_LAYOUT.pillHeightPx - STUDIO_OPERATOR_SHELL.avatarSizePx) / 2,
+  avatarRightPx: CANVAS_SHELL_LAYOUT.edgeInsetPx,
+  panelTopPx:
+    CANVAS_SHELL_LAYOUT.edgeInsetPx +
+    CANVAS_SHELL_LAYOUT.pillHeightPx +
+    CANVAS_SHELL_LAYOUT.assistantPanelGapPx,
+  panelRightPx: CANVAS_SHELL_LAYOUT.edgeInsetPx,
+}
 
 /** ⚠ 常量化：空数组字面量每次 render 换引用，会把下面那个 `useMemo` 打穿。 */
 const NO_RESULTS: readonly StudioOperatorResultItem[] = []
@@ -248,6 +274,7 @@ export function useCanvasOperatorHost({
        * 先收 expanded 再收 open）。⛔ 别再往画布上加第三条收起路。
        */
       collapseOnOutsidePointer: false,
+      anchor: CANVAS_ANCHOR,
     }),
     [apply, buildSnapshot, open, setOpen],
   )

@@ -12,6 +12,7 @@ import type { StudioOperatorPanel } from './StudioOperatorPanel'
 type StudioOperatorPanelProps = Parameters<typeof StudioOperatorPanel>[0]
 
 import {
+  STUDIO_OPERATOR_DEFAULT_ANCHOR,
   STUDIO_OPERATOR_MOBILE_SHELL,
   STUDIO_OPERATOR_PANEL_RESIZE,
   STUDIO_OPERATOR_SHELL,
@@ -204,18 +205,21 @@ describe('StudioOperatorDock', () => {
     expect(panelProps.attachments).toHaveLength(1)
   })
 
-  it('展开态：宽 560、fixed 四边 inset 24', () => {
+  it('展开态：宽 560、顶 / 右由宿主锚点给（缺省 24）', () => {
     render(<StudioOperatorDock />)
     const panel = screen.getByTestId('operator-panel')
     expect(panel.style.width).toBe(
       `${STUDIO_OPERATOR_PANEL_RESIZE.defaultWidthPx}px`,
     )
-    // Tailwind 的 6 档 = 1.5rem = 24px = `STUDIO_OPERATOR_SHELL.insetPx`。
     expect(STUDIO_OPERATOR_SHELL.insetPx).toBe(24)
-    expect(panel).toHaveClass('fixed', 'right-6', 'top-6')
-    expect(panel.style.height).toBe('calc(100dvh - 3rem)')
+    expect(panel).toHaveClass('fixed')
+    expect(panel.style.top).toBe(
+      `${STUDIO_OPERATOR_DEFAULT_ANCHOR.panelTopPx}px`,
+    )
+    expect(panel.style.right).toBe(
+      `${STUDIO_OPERATOR_DEFAULT_ANCHOR.panelRightPx}px`,
+    )
     expect(screen.getByTestId('operator-panel-content')).toBeTruthy()
-    expect(screen.queryByTestId('operator-collapsed')).toBeNull()
   })
 
   it('展开态皮肤走三层玻璃①「面板」（v2 §12.1）：玻璃面 + 细边 + 柔投影 + 18px 圆角', () => {
@@ -227,6 +231,7 @@ describe('StudioOperatorDock', () => {
     // ⛔ 不是 `bg-card`：面板是**玻璃**那一层（半透 + 模糊，低端机回落不透明）。
     expect(panel.className).toContain('assistant-glass-panel')
     expect(panel.className).not.toContain('bg-card')
+    expect(panel.dataset.phase).toBe('open')
     expect(panel.className).toContain('shadow-assistant-panel')
   })
 
@@ -238,7 +243,7 @@ describe('StudioOperatorDock', () => {
    * none —— 面板画得出来，点击全落到底下的画布上。收起态照旧是 none（那时
    * `<aside>` 宽高归零，留着可点只会在右上角吃掉点击）。
    */
-  it('⭐ 展开态自己 `pointer-events-auto`；收起态仍是 none', () => {
+  it('⭐ 展开态自己 `pointer-events-auto`；头像同样自己声明', () => {
     render(<StudioOperatorDock />)
     expect(screen.getByTestId('operator-panel').className).toContain(
       'pointer-events-auto',
@@ -247,30 +252,38 @@ describe('StudioOperatorDock', () => {
 
     hostOpen = false
     render(<StudioOperatorDock />)
-    const collapsedPanel = screen.getByTestId('operator-panel')
-    expect(collapsedPanel.className).toContain('pointer-events-none')
-    expect(collapsedPanel.className).not.toContain('pointer-events-auto')
-    // 右下角那颗圆按钮同样住在 rail 里 —— 不自己声明就「收起之后再也打不开」。
-    expect(screen.getByTestId('operator-collapsed').className).toContain(
+    // 收起档整颗 aside 根本不渲染 —— ⛔ 不留一个有尺寸的空面板在右上角吃点击。
+    expect(screen.queryByTestId('operator-panel')).toBeNull()
+    // 头像住在画布那条 rail 里 —— 不自己声明就「收起之后再也打不开」。
+    expect(screen.getByTestId('operator-avatar-toggle').className).toContain(
       'pointer-events-auto',
     )
   })
 
-  it('收起态：aside 归零，另画一颗右下角 44px 圆按钮（D7 ④ · Q2 = C）', () => {
+  /**
+   * 收起态 = **右上角那颗人设头像**（D7b ④，owner 2026-09-20 改口）。
+   * ⛔ 右下角那颗 44px 近黑圆按钮（D7 ④ · Q2 = C）连同它的组件文件已删。
+   */
+  it('收起态：aside 不渲染，右上角一颗 36px 头像', () => {
     hostOpen = false
     render(<StudioOperatorDock />)
-    const panel = screen.getByTestId('operator-panel')
-    expect(panel.dataset.open).toBe('false')
-    expect(panel.style.width).toBe('0px')
-    expect(panel.style.height).toBe('0px')
-    const collapsed = screen.getByTestId('operator-collapsed')
-    expect(collapsed.style.width).toBe(
-      `${STUDIO_OPERATOR_SHELL.collapsedSizePx}px`,
+    expect(screen.queryByTestId('operator-panel')).toBeNull()
+    const avatar = screen.getByTestId('operator-avatar-toggle')
+    expect(avatar.style.width).toBe(`${STUDIO_OPERATOR_SHELL.avatarSizePx}px`)
+    expect(avatar.style.top).toBe(
+      `${STUDIO_OPERATOR_DEFAULT_ANCHOR.avatarTopPx}px`,
     )
-    expect(collapsed.style.bottom).toBe(
-      `${STUDIO_OPERATOR_SHELL.collapsedInsetPx}px`,
-    )
+    expect(avatar.style.bottom).toBe('')
+    expect(avatar.getAttribute('aria-pressed')).toBe('false')
     expect(screen.queryByTestId('operator-panel-content')).toBeNull()
+  })
+
+  /** 开合两态：`aria-pressed` 跟着走，头像在两态都在场（同一个持久元素）。 */
+  it('展开态：同一颗头像还在，aria-pressed 翻成 true', () => {
+    render(<StudioOperatorDock />)
+    const avatar = screen.getByTestId('operator-avatar-toggle')
+    expect(avatar.getAttribute('aria-pressed')).toBe('true')
+    expect(avatar.style.transform).toContain('scale(')
   })
 
   /** 结果卡落地那一刻面板多半是收着的（点生成键 = 点工作台 = 收面板）。 */
@@ -290,21 +303,21 @@ describe('StudioOperatorDock', () => {
   it('无事无角标；收着时回来一张结果就画数字', () => {
     hostOpen = false
     render(<StudioOperatorDock />)
-    expect(screen.queryByTestId('operator-collapsed-badge')).toBeNull()
+    expect(screen.queryByTestId('operator-avatar-badge')).toBeNull()
     arriveResult('result-unread')
-    expect(screen.getByTestId('operator-collapsed-badge').textContent).toBe('1')
+    expect(screen.getByTestId('operator-avatar-badge').textContent).toBe('1')
   })
 
   it('打开面板即把未读结果清零', () => {
     hostOpen = false
     const view = render(<StudioOperatorDock />)
     arriveResult('result-unread')
-    expect(screen.getByTestId('operator-collapsed-badge').textContent).toBe('1')
+    expect(screen.getByTestId('operator-avatar-badge').textContent).toBe('1')
     hostOpen = true
     view.rerender(<StudioOperatorDock />)
     hostOpen = false
     view.rerender(<StudioOperatorDock />)
-    expect(screen.queryByTestId('operator-collapsed-badge')).toBeNull()
+    expect(screen.queryByTestId('operator-avatar-badge')).toBeNull()
   })
 
   /**
@@ -332,11 +345,17 @@ describe('StudioOperatorDock', () => {
     expect(setOpen).not.toHaveBeenCalled()
   })
 
-  it('点圆按钮展开', () => {
+  it('点头像展开；展开态再点一次收起（同一颗按钮两件事）', () => {
     hostOpen = false
     render(<StudioOperatorDock />)
-    fireEvent.click(screen.getByTestId('operator-collapsed'))
+    fireEvent.click(screen.getByTestId('operator-avatar-toggle'))
     expect(setOpen).toHaveBeenCalledWith(true)
+    cleanup()
+
+    hostOpen = true
+    render(<StudioOperatorDock />)
+    fireEvent.click(screen.getByTestId('operator-avatar-toggle'))
+    expect(setOpen).toHaveBeenCalledWith(false)
   })
 })
 
@@ -349,7 +368,7 @@ describe('StudioOperatorDock · 手机档', () => {
     mobile = true
     render(<StudioOperatorDock />)
     expect(screen.getByTestId('operator-mobile-sheet')).toBeTruthy()
-    expect(screen.queryByTestId('operator-collapsed')).toBeNull()
+    expect(screen.queryByTestId('operator-avatar-toggle')).toBeNull()
     expect(screen.queryByTestId('operator-panel')).toBeNull()
   })
 
@@ -363,19 +382,20 @@ describe('StudioOperatorDock · 手机档', () => {
     render(<StudioOperatorDock />)
     expect(screen.queryByTestId('operator-mobile-sheet')).toBeNull()
     expect(screen.queryByTestId('operator-panel-content')).toBeNull()
-    // 面板收起时那颗圆按钮仍在 —— 它是手机上唯一的入口。
-    expect(screen.getByTestId('operator-collapsed')).toBeTruthy()
+    // 面板收起时那颗头像仍在 —— 它是手机上唯一的入口。
+    expect(screen.getByTestId('operator-avatar-toggle')).toBeTruthy()
   })
 
-  it('点圆按钮打开；手机档只换距下缘的留白（96 而不是 16）', () => {
+  it('点头像打开；手机档同样挂**右上角**（⛔ 不再是右下那颗浮标）', () => {
     mobile = true
     hostOpen = false
     render(<StudioOperatorDock />)
-    const collapsed = screen.getByTestId('operator-collapsed')
-    expect(collapsed.style.bottom).toContain(
-      `${STUDIO_OPERATOR_MOBILE_SHELL.fabBottomPx}px`,
+    const avatar = screen.getByTestId('operator-avatar-toggle')
+    expect(avatar.style.top).toBe(
+      `${STUDIO_OPERATOR_MOBILE_SHELL.fabInsetPx}px`,
     )
-    fireEvent.click(collapsed)
+    expect(avatar.style.bottom).toBe('')
+    fireEvent.click(avatar)
     expect(setOpen).toHaveBeenCalledWith(true)
   })
 
@@ -385,32 +405,111 @@ describe('StudioOperatorDock · 手机档', () => {
     const { container } = render(<StudioOperatorDock />)
     expect(container.firstChild).toBeNull()
     expect(screen.queryByTestId('operator-mobile-sheet')).toBeNull()
-    expect(screen.queryByTestId('operator-collapsed')).toBeNull()
+    expect(screen.queryByTestId('operator-avatar-toggle')).toBeNull()
   })
 })
 
-it('disables closing content immediately, removes it after the animation, and cancels cleanup on reopen', () => {
-  vi.useFakeTimers()
-  try {
-    const view = render(<StudioOperatorDock />)
+/**
+ * ── morph 的四档相位（D7b ④ · 画板 ②「动画怎么做」）─────────────────
+ *
+ * 逐条钉铁律：
+ *  ① 过渡中面板 `pointer-events-none` + `will-change`（CSS module 按 `data-phase`
+ *     挂），过渡完两样都撤；
+ *  ② **毛玻璃在 transitionend 之后才出现**（过渡中开 `backdrop-filter` 会掉帧）；
+ *  ③ 收回靠**定时器**（200ms）卸载 —— ⛔ 不靠 transitionend / animationend：
+ *     后台标签页里那个事件永远不来，留下的是幽灵面板；
+ *  ④ 展开那条兜底定时器（240 + slack）在事件不来时照样把相位推到 `open`。
+ */
+describe('StudioOperatorDock · 头像开关的过渡', () => {
+  beforeEach(() => {
     hostOpen = false
-    view.rerender(<StudioOperatorDock />)
-    expect(
-      screen.getByTestId('operator-panel-content').closest('[inert]'),
-    ).not.toBeNull()
-    act(() => vi.advanceTimersByTime(100))
+  })
+
+  it('①②④ 过渡中不可点、无毛玻璃；transitionend 之后两样都到位', () => {
+    const view = render(<StudioOperatorDock />)
     hostOpen = true
     view.rerender(<StudioOperatorDock />)
-    act(() => vi.advanceTimersByTime(240))
-    expect(
-      screen.getByTestId('operator-panel-content').closest('[inert]'),
-    ).toBeNull()
-    hostOpen = false
-    view.rerender(<StudioOperatorDock />)
-    act(() => vi.advanceTimersByTime(240))
-    expect(screen.queryByTestId('operator-panel-content')).toBeNull()
-    expect(screen.getByTestId('operator-collapsed')).toBeInTheDocument()
-  } finally {
-    vi.useRealTimers()
-  }
+
+    const panel = screen.getByTestId('operator-panel')
+    expect(panel.dataset.phase).toBe('opening')
+    expect(panel.className).not.toContain('assistant-glass-panel')
+    expect(panel.className).not.toContain('pointer-events-auto')
+    expect(screen.getByTestId('operator-avatar-toggle').dataset.phase).toBe(
+      'opening',
+    )
+
+    act(() => {
+      fireEvent.transitionEnd(panel, { propertyName: 'transform' })
+    })
+    expect(screen.getByTestId('operator-panel').dataset.phase).toBe('open')
+    expect(screen.getByTestId('operator-panel').className).toContain(
+      'assistant-glass-panel',
+    )
+    expect(screen.getByTestId('operator-panel').className).toContain(
+      'pointer-events-auto',
+    )
+  })
+
+  it('④ transitionend 不来时，兜底定时器照样把相位推到 open', () => {
+    vi.useFakeTimers()
+    try {
+      const view = render(<StudioOperatorDock />)
+      hostOpen = true
+      view.rerender(<StudioOperatorDock />)
+      expect(screen.getByTestId('operator-panel').dataset.phase).toBe('opening')
+      act(() => vi.advanceTimersByTime(STUDIO_OPERATOR_SHELL.openMs + 60))
+      expect(screen.getByTestId('operator-panel').dataset.phase).toBe('open')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('③ 收回：内容立刻不可达，200ms 后**定时器**把面板整颗卸载', () => {
+    vi.useFakeTimers()
+    try {
+      hostOpen = true
+      const view = render(<StudioOperatorDock />)
+      hostOpen = false
+      view.rerender(<StudioOperatorDock />)
+      expect(screen.getByTestId('operator-panel').dataset.phase).toBe('closing')
+      expect(
+        screen.getByTestId('operator-panel-content').closest('[inert]'),
+      ).not.toBeNull()
+      act(() => vi.advanceTimersByTime(STUDIO_OPERATOR_SHELL.closeMs - 1))
+      expect(screen.queryByTestId('operator-panel')).not.toBeNull()
+      act(() => vi.advanceTimersByTime(1))
+      expect(screen.queryByTestId('operator-panel')).toBeNull()
+      expect(screen.getByTestId('operator-avatar-toggle')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('reduced-motion 直切：没有中间相位，毛玻璃当场就挂', () => {
+    const original = window.matchMedia
+    window.matchMedia = ((query: string) => ({
+      matches: query.includes('reduce'),
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      onchange: null,
+      dispatchEvent: vi.fn(),
+    })) as unknown as typeof window.matchMedia
+    try {
+      const view = render(<StudioOperatorDock />)
+      hostOpen = true
+      view.rerender(<StudioOperatorDock />)
+      const panel = screen.getByTestId('operator-panel')
+      expect(panel.dataset.phase).toBe('open')
+      expect(panel.className).toContain('assistant-glass-panel')
+
+      hostOpen = false
+      view.rerender(<StudioOperatorDock />)
+      expect(screen.queryByTestId('operator-panel')).toBeNull()
+    } finally {
+      window.matchMedia = original
+    }
+  })
 })

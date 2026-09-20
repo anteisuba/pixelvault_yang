@@ -171,14 +171,16 @@ export function StudioOperatorModelChip({
             data-testid="operator-model-chip"
             aria-label={t('label')}
             data-open={open || undefined}
-            /* 画板 BCards「输入区 · 静止 / 文本模型选择器展开」：静止时是一颗浅
-               片（`bg-muted` + 细边），**展开才翻成信号位**（近黑实底 + 白字，
-               §12.2）。⛔ 常驻黑会和右边那颗发送键抢同一个重量级。 */
+            /* 静止时与左边三颗方控件**同一张皮**（D7c ④ 画板「输入区拆解」：
+               白底 + 细边 + 32 高 + `rounded-md`），**展开才翻成信号位**（近黑
+               实底 + 白字，§12.2）。⛔ 常驻黑会和右边那颗发送键抢同一个重量级。
+               ⚠ 底色从 `bg-muted` 换成 `bg-card`：一排白控件里独自压深一档读起来
+               像「这一颗被选中了」。 */
             className={cn(
               'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
               open
                 ? 'bg-foreground font-medium text-background'
-                : 'border border-border bg-muted text-foreground hover:bg-accent',
+                : 'border border-border bg-card text-foreground hover:bg-accent',
             )}
           >
             <span className="max-w-32 truncate">{selectedLabel}</span>

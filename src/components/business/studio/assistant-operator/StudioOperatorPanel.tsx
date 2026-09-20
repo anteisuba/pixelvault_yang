@@ -2515,11 +2515,14 @@ export function StudioOperatorPanel({
                 }
                 data-operator-plus-trigger
                 onClick={() => setAttachOpen((open) => !open)}
+                /* ⚠ 与右边两颗**同一张皮**（D7c ④ 画板「输入区拆解」：三颗方控件
+                   白底 + 细边 + 灰图标）—— 它此前独自顶着 `bg-muted`，在一排白
+                   控件里读起来像被选中了。展开那一档照旧翻成信号位。 */
                 className={cn(
-                  'grid size-8 shrink-0 place-items-center rounded-md border border-border bg-muted text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                  'grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
                   // 展开时翻成信号位（近黑实底 + 白字，§12.2）。
                   attachOpen &&
-                    'border-foreground bg-foreground text-background hover:bg-foreground',
+                    'border-foreground bg-foreground text-background hover:bg-foreground hover:text-background',
                 )}
               >
                 <Plus className="size-4" aria-hidden />
@@ -2538,7 +2541,7 @@ export function StudioOperatorPanel({
                 onClick={() => uploadInputRef.current?.click()}
                 className="grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
-                <Paperclip className="size-3.5" aria-hidden />
+                <Paperclip className="size-4" aria-hidden />
               </button>
               <input
                 ref={uploadInputRef}
@@ -2572,7 +2575,7 @@ export function StudioOperatorPanel({
                    自己小一号、圆一档。 */
                 className="grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
-                <Images className="size-3.5" aria-hidden />
+                <Images className="size-4" aria-hidden />
               </button>
               {/* ⭐ 文本模型 chip（§4.5，commit #8）：「自动」是真选项排第一，
                 九条模型按厂商分组，选中即写 `AssistantPersona.routeModel`。

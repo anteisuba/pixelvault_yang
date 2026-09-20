@@ -1215,6 +1215,38 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     expect(toolbar.getByTestId('operator-send')).toBeTruthy()
   })
 
+  /**
+   * D7c ④ 画板「输入区拆解」：三颗方控件与发送**同尺寸同圆角**，⛔ 不许发送
+   * 自己圆一档；静止态四颗同一张皮（白底 + 细边），⛔ 不许某一颗独自压深。
+   */
+  it('⭐ 控件行统一：三颗方控件与发送同 `size-8 rounded-md`，静止同底', () => {
+    renderPanel()
+    const toolbar = within(screen.getByTestId('operator-toolbar'))
+    for (const id of [
+      'operator-plus-toggle',
+      'operator-attach-toggle',
+      'operator-library-toggle',
+      'operator-send',
+    ]) {
+      const className = toolbar.getByTestId(id).className
+      expect(className).toContain('size-8')
+      expect(className).toContain('rounded-md')
+      // ⛔ 发送自己圆一档 / 某一颗自己小一号，都从这条红。
+      expect(className).not.toContain('rounded-full')
+    }
+
+    for (const id of [
+      'operator-plus-toggle',
+      'operator-attach-toggle',
+      'operator-library-toggle',
+    ]) {
+      expect(toolbar.getByTestId(id).className).toContain('bg-card')
+    }
+    expect(toolbar.getByTestId('operator-model-chip').className).toContain(
+      'bg-card',
+    )
+  })
+
   it('上传按钮 = 开文件选择器，选完交回上传通道（⛔ 不是装饰）', () => {
     renderPanel()
     const input = screen.getByTestId(

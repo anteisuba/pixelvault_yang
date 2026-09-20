@@ -6299,7 +6299,19 @@
     "dialect": {
       "natural": "Natural language",
       "tags": "Tags"
-    }
+    },
+    "positiveLabel": "Tags",
+    "negativeLabel": "Negative · UC",
+    "negativeNote": "NovelAI calls this UC",
+    "tagCount": "{count, plural, one {# tag · comma separated} other {# tags · comma separated}}",
+    "placeholder": "Type a tag, comma separated…",
+    "weightLabel": "Weight",
+    "weightHint": "Shown the same way for every model; translated into each provider’s own syntax when the run is sent.",
+    "weightIncrease": "Increase weight",
+    "weightDecrease": "Decrease weight",
+    "weightReset": "Back to ×1",
+    "removeTag": "Remove {tag}",
+    "onlyFor": "Only affects {models}"
   },
   "StudioPanels": {
     "reference": "Reference Images",

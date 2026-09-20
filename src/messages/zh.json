@@ -6299,7 +6299,19 @@
     "dialect": {
       "natural": "自然语言",
       "tags": "标签"
-    }
+    },
+    "positiveLabel": "正向标签",
+    "negativeLabel": "负向 · UC",
+    "negativeNote": "NAI 叫 UC",
+    "tagCount": "{count, plural, other {# 个 · 逗号分隔}}",
+    "placeholder": "输入标签，逗号分隔…",
+    "weightLabel": "权重",
+    "weightHint": "所有模型都这样显示；出图时按各家语法翻译。",
+    "weightIncrease": "调高权重",
+    "weightDecrease": "调低权重",
+    "weightReset": "回到 ×1",
+    "removeTag": "删除 {tag}",
+    "onlyFor": "只对 {models} 生效"
   },
   "StudioPanels": {
     "reference": "参考图",

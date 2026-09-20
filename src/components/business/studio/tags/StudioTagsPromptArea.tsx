@@ -1,18 +1,23 @@
 'use client'
 
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioDialectSwitch } from '@/components/business/studio/tags/StudioDialectSwitch'
+import { StudioTagCapabilityControl } from '@/components/business/studio/tags/StudioTagCapabilityControl'
+import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
+import type { TagChip } from '@/types/tag-composer'
 
 /**
- * 标签台的**编辑器主区**（D10 ④，画板宽度 420）。
+ * 标签台的**编辑器主区**（D10 ④，画板宽度 420）。自上而下：
+ * 正向标签 → 负向 / UC → UC 预设一排 chip → `Text:` 文字渲染 → 出图。
  *
  * 与自然语言台**同壳**：结果区 / 参考轨 / 助手 / 任务条 / 生成键全部是同一份，
  * ⛔ 这里没有第二套工作台。差别只有中间这一列长什么样。
@@ -22,6 +27,7 @@ import { getTranslatedModelLabel } from '@/lib/model-options'
  * 发两遍请求 —— 与参数栏 / 移动端 composer 之间那条规矩同源。
  */
 export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
+  const t = useTranslations('StudioTags')
   const tStudio = useTranslations('StudioV2')
   const tForm = useTranslations('StudioForm')
   const tModels = useTranslations('Models')
@@ -50,6 +56,25 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
         .join(' · ')
     : tStudio('noModelHint')
 
+  /**
+   * 这一轮选中的模型共同长出来的控件（能力表派生 + 台内取交集）。编辑器主区
+   * 只认领其中两条 —— UC 预设与 `Text:`，画板把它们画在正负两栏底下；其余归
+   * 右列。
+   */
+  const controls = useMemo(
+    () => getTagWorkbenchControls(runModels),
+    [runModels],
+  )
+  const ucPreset = controls.find(
+    (control) => control.chip.capability === 'ucPreset',
+  )
+  const textRendering = controls.find(
+    (control) => control.chip.capability === 'textRendering',
+  )
+
+  const setChips = (polarity: 'positive' | 'negative', chips: TagChip[]) =>
+    dispatch({ type: 'SET_TAG_CHIPS', payload: { polarity, chips } })
+
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2.5">
       {/* 顶栏 —— 一对分段切换是两台之间**唯一**的门；右边的型号只列本方言。 */}
@@ -76,8 +101,45 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
         </div>
       </div>
 
+      <div data-assistant-field="prompt">
+        <StudioTagChipField
+          label={t('positiveLabel')}
+          polarity="positive"
+          chips={state.tagChips}
+          disabled={isGenerating}
+          onChange={(chips) => setChips('positive', chips)}
+        />
+      </div>
+
+      {/* 负向栏在 NAI 语境里叫 UC —— 标题旁一行小字说明即可，
+          ⛔ 不为此分叉出两个组件。 */}
+      <div data-assistant-field="negativePrompt">
+        <StudioTagChipField
+          label={t('negativeLabel')}
+          note={t('negativeNote')}
+          polarity="negative"
+          chips={state.tagNegativeChips}
+          disabled={isGenerating}
+          onChange={(chips) => setChips('negative', chips)}
+        />
+      </div>
+
+      {ucPreset ? (
+        <StudioTagCapabilityControl
+          control={ucPreset}
+          disabled={isGenerating}
+        />
+      ) : null}
+
+      {textRendering ? (
+        <StudioTagCapabilityControl
+          control={textRendering}
+          disabled={isGenerating}
+        />
+      ) : null}
+
       {/* 成本 + 生成 —— 与自然语言台同一颗键、同一份三态。 */}
-      <div className="mt-auto flex shrink-0 flex-col gap-2">
+      <div className="mt-auto flex shrink-0 flex-col gap-2 pt-2">
         <StudioCostPreview
           models={runModels}
           basis={{

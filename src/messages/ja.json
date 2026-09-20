@@ -6299,7 +6299,19 @@
     "dialect": {
       "natural": "自然言語",
       "tags": "タグ"
-    }
+    },
+    "positiveLabel": "タグ",
+    "negativeLabel": "ネガティブ · UC",
+    "negativeNote": "NovelAI では UC",
+    "tagCount": "{count, plural, other {# 個 · カンマ区切り}}",
+    "placeholder": "タグを入力（カンマ区切り）…",
+    "weightLabel": "重み",
+    "weightHint": "表示はどのモデルでも同じ。送信時に各プロバイダーの記法へ変換されます。",
+    "weightIncrease": "重みを上げる",
+    "weightDecrease": "重みを下げる",
+    "weightReset": "×1 に戻す",
+    "removeTag": "{tag} を削除",
+    "onlyFor": "{models} にのみ有効"
   },
   "StudioPanels": {
     "reference": "参照画像",

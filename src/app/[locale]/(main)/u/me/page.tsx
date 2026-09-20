@@ -6,10 +6,9 @@ import { getTranslations } from 'next-intl/server'
 import { ROUTES, creatorProfilePath } from '@/constants/routes'
 import { ensureUser, getCreatorProfile } from '@/services/user.service'
 import { CreatorProfileView } from '@/components/business/CreatorProfileView'
+import { pageAddress } from '@/lib/page-address'
 import { redirect } from '@/i18n/navigation'
 import type { AppLocale } from '@/i18n/routing'
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
 interface MyProfilePageProps {
   params: Promise<{ locale: AppLocale }>
@@ -30,9 +29,11 @@ interface MyProfilePageProps {
  * ② 与仓库既有的 `me` 约定同构：`/api/users/me/profile` 也是**就地返回**当前
  *    用户，不跳到 `/api/users/<username>/profile`。
  *
- * ⚠ 同一个页面两个地址，所以 `alternates.canonical` 指向带用户名那个 ——
- * 告诉爬虫哪个是正的。⛔ 不要再叠 `noindex`：canonical 已经回答了重复内容，
- * 两个信号同时挂是互相矛盾的。
+ * ⚠ 同一个页面两个地址，所以 canonical 指向带用户名那个 —— 告诉爬虫哪个是
+ * 正的。地址由 `pageAddress()` 一支算出（canonical / hreflang / og:url 是同一
+ * 个事实的三个出口），⛔ 这里不自己拼 origin。传了 `canonicalPath` 就不产
+ * hreflang —— 正本都不是自己，再给一组翻译对照只会是矛盾信号。
+ * ⛔ 不要再叠 `noindex`：canonical 已经回答了重复内容这件事。
  *
  * ⚠ 段名用 `me` 沿用 `/api/users/me/*` 的约定，⛔ 不造 `/u/self` / `/profile`
  * 第二套说法。它静态段优先于同级 `[username]`，所以 `me` 已一并进
@@ -57,12 +58,20 @@ export async function generateMetadata({
 
   const t = await getTranslations({ locale, namespace: 'CreatorProfile' })
   const displayName = user.displayName ?? user.username
+  const title = `${displayName} — ${t('metaTitle')}`
+
+  const { alternates, openGraph } = pageAddress({
+    locale,
+    path: ROUTES.MY_PROFILE,
+    canonicalPath: creatorProfilePath(user.username),
+  })
 
   return {
-    title: `${displayName} — ${t('metaTitle')}`,
-    alternates: {
-      canonical: `${APP_URL}/${locale}${creatorProfilePath(user.username)}`,
-    },
+    title,
+    alternates,
+    // ⚠ 子页只要写了 `openGraph`，根层那块就整块消失 —— `siteName` / `locale`
+    // 由 `pageAddress()` 一起给回来，⛔ 别在这里重写。
+    openGraph: { ...openGraph, title },
   }
 }
 

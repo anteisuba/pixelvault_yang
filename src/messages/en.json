@@ -3325,7 +3325,9 @@
     "pixaiSizeHint": "PixAI output size: 1k is about 1 megapixel, 1.5k about 2.36 with the longest edge capped at 1536px.",
     "pixaiSizeOption": {
       "1k": "1k · ~1 MP",
-      "1.5k": "1.5k · ~2.4 MP"
+      "1": {
+        "5k": "1.5k · ~2.4 MP"
+      }
     }
   },
   "ReverseEngineer": {

@@ -2,7 +2,8 @@ import { readFileSync, readdirSync } from 'node:fs'
 import { join, relative } from 'node:path'
 
 import ts from 'typescript'
-import { describe, expect, it } from 'vitest'
+import { createTranslator } from 'next-intl'
+import { describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_MEMORY_FILTER_SCOPES } from '@/constants/assistant-memory'
 import {
@@ -60,10 +61,21 @@ it('translates every derived model capability chip in all locales', () => {
   expect(needed.size).toBeGreaterThan(0)
 
   for (const locale of LOCALES) {
-    const keys = new Set(collectKeys(loadMessages(locale)))
+    const messages = loadMessages(locale)
+    const onError = vi.fn()
+    const translate = createTranslator({
+      locale,
+      messages: messages as typeof import('@/messages/en.json'),
+      onError,
+    })
     for (const key of needed) {
-      expect(keys, `${locale}: ${key}`).toContain(key)
+      expect(messageKeyExists(messages, key), `${locale}: ${key}`).toBe(true)
+      expect(
+        translate(key as Parameters<typeof translate>[0]),
+        `${locale}: ${key}`,
+      ).not.toBe(key)
     }
+    expect(onError).not.toHaveBeenCalled()
   }
 })
 
@@ -452,6 +464,22 @@ function scanStaticTranslationUsage(
 describe('i18n completeness', () => {
   const messagesByLocale = Object.fromEntries(
     LOCALES.map((locale) => [locale, loadMessages(locale)]),
+  )
+
+  it.each(LOCALES)(
+    '%s uses nested objects instead of dots in message keys',
+    (locale) => {
+      const invalid: string[] = []
+      function visit(messages: Record<string, unknown>, path: string[]) {
+        for (const [key, value] of Object.entries(messages)) {
+          const next = [...path, key]
+          if (key.includes('.')) invalid.push(JSON.stringify(next))
+          if (isRecord(value)) visit(value, next)
+        }
+      }
+      visit(messagesByLocale[locale], [])
+      expect(invalid).toEqual([])
+    },
   )
 
   it('all locales have the same top-level key set', () => {

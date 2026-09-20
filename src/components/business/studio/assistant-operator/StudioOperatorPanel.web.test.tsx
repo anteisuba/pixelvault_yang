@@ -1094,6 +1094,44 @@ it.each(['append', 'overwrite', 'keep'] as const)(
 )
 
 /**
+ * ⭐ **会话区是唯一会裁剪 / 滚动的那一层**（owner 2026-09-20 真机第二轮）。
+ *
+ * 判据不是「现在高度够」而是「挤的时候谁让步」：时间线 `min-h-0 flex-1
+ * overflow-y-auto` 会收缩并自己滚，它下面那三样（建议 chip · 规格行 · 输入区）
+ * 一律 `shrink-0` 且排在它**后面**。⛔ 少了 `min-h-0`，时间线就不再收缩，内容会
+ * 直接把 chip 行和输入框顶下去 —— 横屏手机 / 小屏 / 字号放大都会再把它挤回来。
+ */
+describe('StudioOperatorPanel · 会话区裁剪', () => {
+  it('⭐ 时间线可收缩且自己滚；chip · 规格行 · 输入区都 `shrink-0` 且排在它后面', () => {
+    renderPanel()
+    const thread = screen.getByTestId('operator-thread')
+    expect(thread.className).toContain('min-h-0')
+    expect(thread.className).toContain('flex-1')
+    expect(thread.className).toContain('overflow-y-auto')
+
+    // 装着这四样的那一层必须是**能收缩的 flex 列**，否则 `flex-1` 无从谈起。
+    const column = thread.parentElement as HTMLElement
+    expect(column.className).toContain('flex')
+    expect(column.className).toContain('min-h-0')
+    expect(column.className).toContain('flex-col')
+
+    for (const id of [
+      'operator-suggestion-row',
+      'operator-spec-line',
+      'operator-input-area',
+    ]) {
+      const node = screen.getByTestId(id)
+      expect(node.className).toContain('shrink-0')
+      // DOCUMENT_POSITION_FOLLOWING = 它排在时间线**后面**（所以被顶的是它们
+      // 上面那一格，而那一格会滚）。
+      expect(
+        thread.compareDocumentPosition(node) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy()
+    }
+  })
+})
+
+/**
  * 建议 chip（D7c ④ · 画板 `DesignD7cFlow`「空态 · 改后」）。
  *
  * 钉三件事：

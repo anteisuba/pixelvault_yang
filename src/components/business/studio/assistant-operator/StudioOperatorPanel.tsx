@@ -1802,13 +1802,15 @@ export function StudioOperatorPanel({
           className="min-h-0 flex-1 overflow-y-auto"
         >
           <div
-            /* 空态时这一格**撑满可视高度并居中**（D7c ④ 画板「空态 · 改后」：
-               `flex:1` + 居中偏上）—— 顶着上沿的一颗小头像读起来像一条被截断的
-               消息。⚠ 只在空态换布局：有内容时这里是一串按顺序堆的行，⛔ 不给
-               它们换一套 flex 语义。 */
+            /* 空态时这一格**恰好是会话区那么高**（`h-full`），居中交给空态自己
+               那两根可伸可缩的 spacer —— ⛔ 不用 `min-h-full` + `justify-center`：
+               前者让容器跟着内容长（spacer 于是永远不让步），后者在真的装不下时
+               把顶端推到滚不到的地方。
+               ⚠ 只在空态换布局：有内容时这里是一串按顺序堆的行，⛔ 不给它们换
+               一套 flex 语义。 */
             className={cn(
               'relative px-3.5 pb-5 pt-3.5',
-              threadEmpty && 'flex min-h-full flex-col justify-center',
+              threadEmpty && 'flex h-full min-h-0 flex-col',
             )}
           >
             {/* 贯穿的 1px border 色线 —— 节点与头像都压在它上面（同轴）。

@@ -105,13 +105,21 @@ export function StudioOperatorSessionRow({
 }: StudioOperatorSessionRowProps) {
   const t = useTranslations('StudioOperator')
   /**
-   * ⚠ 两个标题，⛔ 别合成一个（owner 2026-09-20 真机第 4 条）：
-   *  · `title` = **库里那一份**，给读屏与改名的初值 —— 用户要改的是真名字；
-   *  · `displayTitle` = 派生出来的短名，只给眼睛看，与头部胶囊共用同一个函数。
+   * 三个标题，⛔ 别合成一个（owner 2026-09-20 真机第 4 条 + 改名预填那一条）：
+   *  · `title` = **库里那一份**，只给读屏的那句 `aria-label`（「重命名 X」要说得出
+   *    它在改哪一条，而库里那一份是它的真身份）；
+   *  · `derivedTitle` = 派生出来的短名，`null` = 这条会话本来就没有标题；
+   *  · `displayTitle` = 眼睛看的那一份，与头部胶囊共用同一个函数。
+   *
+   * ⭐ **改名预填的是 `derivedTitle`**（owner：「最好是总结的标题，就像 claude
+   * 那样」）：行上写「分析这个图片的画风」、点开却出来
+   * 「分析这个图片的画风reference image 1」，是把存量噪音倒回给用户去手删。
+   * ⚠ 派生不出来时填**空串**，⛔ 不填 `history.untitled`：那是一句占位，用户一回车
+   *   就会把「未命名会话」存成真标题。
    */
   const title = session.title ?? t('history.untitled')
-  const displayTitle =
-    deriveAssistantConversationTitle(session.title) ?? t('history.untitled')
+  const derivedTitle = deriveAssistantConversationTitle(session.title)
+  const displayTitle = derivedTitle ?? t('history.untitled')
   /** `null` = 不在编辑态。⛔ 不用一个布尔 + 一份文本：两格状态会漂。 */
   const [draft, setDraft] = useState<string | null>(null)
   /**
@@ -251,7 +259,8 @@ export function StudioOperatorSessionRow({
               onSelect={(event) => {
                 // ⛔ 不让菜单跟着关掉：接下来用户要在这一行里打字。
                 event.preventDefault()
-                setDraft(session.title ?? '')
+                // 见 `derivedTitle` 的头注：填看得见的那一句，⛔ 不是库里那一份。
+                setDraft(derivedTitle ?? '')
               }}
             >
               <Pencil className="size-3.5 text-current" aria-hidden />

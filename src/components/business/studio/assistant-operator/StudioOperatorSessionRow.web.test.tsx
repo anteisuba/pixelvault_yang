@@ -38,9 +38,13 @@ vi.mock('@/components/ui/dropdown-menu', () => ({
   ),
 }))
 
+/**
+ * ⚠ 标题带着**存量噪音**（`reference image 1`）—— 预填那一条要验的正是
+ * 「填的是看得见的短名还是库里那一份」，干净标题两者相同，验不出来。
+ */
 const SESSION = {
   id: 'session-1',
-  title: '黄昏光的参考研究',
+  title: '黄昏光的参考研究reference image 1',
   surface: ASSISTANT_SURFACE_IDS.imageStudio,
   updatedAt: new Date().toISOString(),
 } as unknown as AssistantConversationSummary
@@ -85,6 +89,8 @@ describe('StudioOperatorSessionRow — 编辑就地', () => {
     fireEvent.click(screen.getByTestId('operator-session-rename'))
 
     const input = screen.getByTestId('operator-session-rename-input')
+    // ⭐ 预填的是**看得见的那一句**，⛔ 不是库里带噪音的那一份（owner：
+    //   「最好是总结的标题，就像 claude 那样」）。
     expect(input).toHaveValue('黄昏光的参考研究')
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.queryByRole('alertdialog')).toBeNull()
@@ -109,6 +115,18 @@ describe('StudioOperatorSessionRow — 编辑就地', () => {
     expect(input.selectionStart).toBe(0)
     expect(input.selectionEnd).toBe('黄昏光的参考研究'.length)
     expect(input.className).not.toContain('animate-in')
+  })
+
+  /**
+   * 派生不出标题时（这条会话本来就没名字）填**空串**：⛔ 不填
+   * `history.untitled` —— 那是一句占位，用户一回车就会把「未命名会话」存成真标题。
+   */
+  it('⭐ 本来就没标题时预填空串，⛔ 不是那句占位词', () => {
+    renderRow({
+      session: { ...SESSION, title: null } as AssistantConversationSummary,
+    })
+    fireEvent.click(screen.getByTestId('operator-session-rename'))
+    expect(screen.getByTestId('operator-session-rename-input')).toHaveValue('')
   })
 
   it('回车保存', () => {
@@ -137,8 +155,12 @@ describe('StudioOperatorSessionRow — 编辑就地', () => {
     expect(screen.queryByTestId('operator-session-rename-input')).toBeNull()
   })
 
-  it('失焦保存；原样没改的不发请求', () => {
-    const { onRename } = renderRow()
+  it('失焦保存；与库里那份一字不差的不发请求', () => {
+    const clean = {
+      ...SESSION,
+      title: '黄昏光的参考研究',
+    } as AssistantConversationSummary
+    const { onRename } = renderRow({ session: clean })
     fireEvent.click(screen.getByTestId('operator-session-rename'))
     fireEvent.blur(screen.getByTestId('operator-session-rename-input'))
     expect(onRename).not.toHaveBeenCalled()
@@ -148,6 +170,19 @@ describe('StudioOperatorSessionRow — 编辑就地', () => {
     fireEvent.change(input, { target: { value: '换个名字' } })
     fireEvent.blur(input)
     expect(onRename).toHaveBeenCalledWith('换个名字')
+  })
+
+  /**
+   * ⭐ **所见即所改**（owner 拍板）：存量噪音标题下直接回车，存下去的就是行上
+   * 看得见的那一句 —— 用户不用先手删一串 `reference image N`。
+   */
+  it('⭐ 带噪音的标题：什么都不改直接回车，存的是看得见那一句', () => {
+    const { onRename } = renderRow()
+    fireEvent.click(screen.getByTestId('operator-session-rename'))
+    const input = screen.getByTestId('operator-session-rename-input')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    fireEvent.blur(input)
+    expect(onRename).toHaveBeenCalledWith('黄昏光的参考研究')
   })
 })
 

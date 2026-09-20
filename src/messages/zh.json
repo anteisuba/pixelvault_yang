@@ -8059,19 +8059,6 @@
       "sfx": "音效"
     }
   },
-  "NovelAiCharacters": {
-    "title": "多人构图",
-    "hint": "主提示词描述场景、风格与总人数；在这里分别描述角色。最多 22 个，顺序影响自动构图。空白角色请填写或移除。",
-    "manual": "手动定位（坐标以画面左上角为起点）",
-    "character": "角色 {number}",
-    "up": "上移",
-    "remove": "移除",
-    "prompt": "角色描述",
-    "negative": "角色负面描述",
-    "x": "水平位置",
-    "y": "垂直位置",
-    "add": "添加角色"
-  },
   "StudioCapabilityChips": {
     "sectionLabel": "专属 · {model}",
     "needsReference": "先挂一张参考图",

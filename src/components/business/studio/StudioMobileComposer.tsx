@@ -1,8 +1,5 @@
 'use client'
 
-import { supportsNovelAiCharacters } from '@/constants/novelai'
-import { NovelAiCharacterControls } from './NovelAiCharacterControls'
-
 import { memo, useState } from 'react'
 import {
   ArrowUp,
@@ -157,23 +154,9 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
           ⚠ 必须裹 Toolbar.Root：`ReferenceImageChip` / `StudioEnhanceButton`
           底下是 Radix `Toolbar.Button`，没有 roving-focus context 会直接抛。 */}
       {/* 专属区 —— 与桌面同一颗组件、同一份能力表派生（D2 ④）。手机上这一行
-          横向滚不换行：换行会让 composer 高度跳，舞台跟着抖。 */}
-      {state.outputType === 'image' && (
-        <NovelAiCharacterControls
-          modelId={
-            runModels.find((model) => supportsNovelAiCharacters(model.modelId))
-              ?.modelId
-          }
-          value={state.advancedParams.novelAiLayout}
-          disabled={isGenerating}
-          onChange={(novelAiLayout) =>
-            dispatch({
-              type: 'SET_ADVANCED_PARAMS',
-              payload: { ...state.advancedParams, novelAiLayout },
-            })
-          }
-        />
-      )}
+          横向滚不换行：换行会让 composer 高度跳，舞台跟着抖。
+          ⚠ 标签模型的专属控件**不在这里**：它们只活在标签台（D10 ⑤），
+          而这条 composer 只服务自然语言台与视频档。 */}
       {state.outputType === 'image' ? (
         <StudioModelCapabilityChips disabled={isGenerating} scroll />
       ) : null}

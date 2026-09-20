@@ -8059,19 +8059,6 @@
       "sfx": "Sound effects"
     }
   },
-  "NovelAiCharacters": {
-    "title": "Character composition",
-    "hint": "Use the main prompt for the scene, style and total count. Describe up to 22 characters here; order affects automatic placement. Fill or remove empty characters.",
-    "manual": "Manual placement (origin at top left)",
-    "character": "Character {number}",
-    "up": "Move up",
-    "remove": "Remove",
-    "prompt": "Character prompt",
-    "negative": "What to avoid for this character",
-    "x": "Horizontal position",
-    "y": "Vertical position",
-    "add": "Add character"
-  },
   "StudioCapabilityChips": {
     "sectionLabel": "Only in {model}",
     "needsReference": "Attach a reference image first",

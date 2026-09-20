@@ -34,7 +34,17 @@ import type { NovelAiCharacterLayout } from '@/types/novelai'
 /** 归编辑器主区的那两条，右列不重复画。 */
 const EDITOR_OWNED = new Set(['ucPreset', 'textRendering'])
 
-export function StudioTagsControlColumn() {
+interface StudioTagsControlColumnProps {
+  /**
+   * 手机上角色构图自己占一条整屏条目（D10 ④），所以那张卡不在这一叠里
+   * 重复出现。桌面不传 = 照画。
+   */
+  hideCharacters?: boolean
+}
+
+export function StudioTagsControlColumn({
+  hideCharacters,
+}: StudioTagsControlColumnProps = {}) {
   const t = useTranslations('StudioTags')
   const tCapability = useTranslations('StudioCapabilityChips')
   const tModels = useTranslations('Models')
@@ -72,7 +82,7 @@ export function StudioTagsControlColumn() {
 
   return (
     <>
-      {characterMode && characterModel ? (
+      {characterMode && characterModel && !hideCharacters ? (
         <ControlCard
           title={t('characterTitle')}
           note={

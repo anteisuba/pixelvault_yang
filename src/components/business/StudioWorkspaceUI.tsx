@@ -18,6 +18,7 @@ import {
 import { StudioDockPanelArea } from '@/components/business/studio/StudioDockPanelArea'
 import { StudioMobileComposer } from '@/components/business/studio/StudioMobileComposer'
 import { StudioTagsControlColumn } from '@/components/business/studio/tags/StudioTagsControlColumn'
+import { StudioTagsMobilePanel } from '@/components/business/studio/tags/StudioTagsMobilePanel'
 import { StudioTagsPromptArea } from '@/components/business/studio/tags/StudioTagsPromptArea'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
@@ -332,10 +333,21 @@ export function StudioWorkspaceUI() {
               `StudioToolbarPanels` / `StudioToolbar` 已整条退役，不留兼容层。
               栏位差异归 `StudioPromptArea` 自己按 outputType 分。 */}
           <StudioWorkbenchLayout
+            /**
+             * ⚠ 标签台的手机形态**不是底部固定条**：编辑器与 UC 预设常驻、
+             * 右列折成可展开的条目（D10 ④），那一叠装不进 7rem 的固定条里。
+             * 所以它走移动端纵向栈的**上半截**（参数在上、结果在下），
+             * ⛔ 不去改 `--studio-mobile-composer-height` 那套为一行输入框
+             * 量身定的预留高度。
+             */
             params={
-              useMobileComposer ? null : isTagsWorkbench ? (
-                <StudioTagsPromptArea />
-              ) : (
+              isTagsWorkbench ? (
+                isMobile ? (
+                  <StudioTagsMobilePanel />
+                ) : (
+                  <StudioTagsPromptArea />
+                )
+              ) : useMobileComposer ? null : (
                 <StudioPromptArea />
               )
             }
@@ -347,7 +359,11 @@ export function StudioWorkspaceUI() {
               ) : null
             }
             stage={<StudioCanvas />}
-            composer={useMobileComposer ? <StudioMobileComposer /> : null}
+            composer={
+              useMobileComposer && !isTagsWorkbench ? (
+                <StudioMobileComposer />
+              ) : null
+            }
           />
         </div>
         {/* 助手 —— **图片工作台整体切到操作员面板**。它自带三态：展开的

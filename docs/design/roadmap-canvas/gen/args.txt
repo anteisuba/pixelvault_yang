@@ -154,3 +154,5 @@ DesignD7bFaces.dc.html
 DesignD7bToggle.dc.html
 --artboard
 DesignD56Simple.dc.html
+--artboard
+DesignD8Map.dc.html

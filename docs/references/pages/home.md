@@ -35,6 +35,25 @@
 
 **动效时钟只有一份。** `HOME_V4_ENGINE`（`PAGE_MS: 850` / `LOCK_MS: 900` / `WHEEL_THRESHOLD: 46` / `TOUCH_THRESHOLD_PX: 52`）与 `HOME_V4_PARALLAX` 由 `HomeV4Shell` 作为 CSS 自定义属性推到域根；`home-v4.css` 里的同名值只是 fallback。**改时长改常量，不要改 CSS**，否则两个钟会漂。
 
+## 翻页错速视差（09-20 真机推翻方向 B 之后）
+
+进度表 30 曾按方向 B 把整站改成 scrub 长卷。owner 09-20 真机滑完推翻：**六个演示模块和模型站都回「一滚一页、到位自动播」，模块之间的切换改做视差，视差 = 翻页时前后景错速。** 30 的六个 commit 已整体 revert，本文回到 v4 基准，再加下面这一节。
+
+翻页时长（`--dur`）一点没变，改的只是页**里面**两层的行程：
+
+| 层                  | 挂在哪                                                             | 翻页主程的行程                     |
+| ------------------- | ------------------------------------------------------------------ | ---------------------------------- |
+| `data-layer="copy"` | `.fn-head` · `.op-hero` · `.fin-hero`                              | `COPY_TRAVEL` = 1.0×，跟页走满一屏 |
+| `data-layer="demo"` | `.fn-stage` · `.fn-aside` · `.op-strip` · `.op-note` · `.fin-foot` | `DEMO_TRAVEL` = 0.6×，慢半拍       |
+
+差出来的 0.4× 由演示层自身的反向位移承担，那段位移在 `CATCHUP_AT`（0.72 × `PAGE_MS`）处收完；之后演示层只剩页的速度，于是**末段自己追平**，两层同一瞬间落位。页到位后六段演示照旧自动播——自动播放、键盘 / 目录跳页、`LOCK_MS`、模型站五站、目录圆点都没动。
+
+- **常量在 `HOME_V4_PARALLAX.PAGE_FLIP`**（`src/constants/homepage-v4.ts`）。三个数由 `HomeV4Shell` 推成 `--flip-copy` / `--flip-demo` / `--flip-demo-dur`，`home-v4.css` 只读不写。owner 试手感后改的是这三个数，⛔ 不改 CSS。
+- 只动 `transform`，不动布局；行程差全走 CSS 变量，⛔ 不写 arbitrary 值。
+- **只在 `≥769px` 且 `prefers-reduced-motion: no-preference` 下生效**；手机与减少动态效果模式两层同速，整页切。
+- 选择器一律挑 `[data-layer='copy']` / `[data-layer='demo']` 两个值，⛔ 不写裸 `[data-layer]`——模型站的 `.hpg` 也带 `data-layer`（`incoming` / `outgoing`），会被误伤。
+- **⛔ 模型站内切模型的视差不在这一刀**（`.hpg` 的横站规则原样保留），等 owner 在 3000 上滑过翻页视差再定。
+
 ## 硬约束
 
 1. **服务端优先**：`page.tsx` → `HomeV4Shell`（server）→ `HomeV4Deck`（唯一 client 边界）。标题、模型名、页表都在首个 HTML 响应里，页面保持 `revalidate = 3600` 可边缘缓存。
@@ -64,6 +83,7 @@
 
 - `src/components/business/home-v4/home-v4.test.ts` —— 页表形状（13 页、id 唯一、opening 首 finale 末、站序）、资产存在性、三语键齐（含模板字面量拼出来的那批：`completeness.test.ts` 只看写死的字符串，看不见它们）。
 - `HomeV4Deck.test.tsx` / `HomeV4Fn.test.tsx` / `HomeV4Model.test.tsx` —— 翻页引擎与锁、功能页时间线、模型页与详情面板。
+- 翻页错速：`home-v4.test.ts` 的「home v4 · 翻页错速」守常量关系、CSS 只读变量、媒体查询闸门与「不写裸 `[data-layer]`」；`HomeV4Fn.test.tsx` 守六页各有一个 copy 层和至少一个 demo 层，且演示时不写行内 `transform`。
 - `src/i18n/messages-split.test.ts` —— `Homepage` / `Auth` 命名空间的消费者白名单。**新增读这两个命名空间的组件必须登记**，否则 `(main)` 的 provider 会把字串丢掉，线上直接渲染出 key。
 
 ## 相邻域
@@ -79,6 +99,7 @@
 
 ## Last Verified
 
+- 2026-09-20 · 30 的六个 commit（`8fecd08c` `fe6dbcf1` `9aa93736` `b95a6b25` `acc1ab21` `c5871b38`）整体 revert，首页文件逐字回到 `59e9769f`；翻页错速按 `PAGE_FLIP` 落地，全量 vitest 绿。**手感未经真机**——1440×900 与 375 两档待 owner 在 3000 上滑。
 - 2026-09-11 · 01 / 02 左栏标题：Chrome 1470×803 实测标题顶 252 / 386px，工作台 939×659 / 939×694，单格 285px、出图 220×293，与设计稿一致；1280×720（单格 226、出图 188×252）、1920×1080、ja / en、375 移动端复核，无溢出、无横向滚动。
 - 2026-08-30 · 图片功能页收窄输入列、放大四宫格；Chrome 1920×855 实测工作台 860px、输入 315px、结果 500px、单格 245px，无页面横向溢出。
 - 2026-08-28 · v4 上线；v3 整体退役；价目页按 owner 拍板删除，站结构回到 13 页。

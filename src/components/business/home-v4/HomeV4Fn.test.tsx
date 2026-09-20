@@ -145,6 +145,32 @@ describe.each([
     expect(view.count('.in')).toBe(0)
   })
 
+  /* 翻页错速 needs both travel groups present on every page, or that page turns
+     as one flat sheet while its neighbours have depth. */
+  it('splits into a copy layer and a demo layer for the page flip', () => {
+    const view = stage(page)
+
+    expect(view.count('.fn-head[data-layer="copy"]')).toBe(1)
+    expect(view.count('.fn-stage[data-layer="demo"]')).toBe(1)
+    expect(view.count('[data-layer="copy"]')).toBe(1)
+    expect(view.count('[data-layer="demo"]')).toBeGreaterThanOrEqual(1)
+  })
+
+  /* The offsets are the layer's own transform; a page that plays by moving the
+     same box would fight the flip for it. */
+  it('leaves the layer boxes free of inline transforms while it plays', () => {
+    const view = stage(page)
+    view.play()
+
+    const layers = Array.from(
+      view.container.querySelectorAll<HTMLElement>('[data-layer]'),
+    )
+    expect(layers.length).toBeGreaterThan(0)
+    for (const layer of layers) {
+      expect(layer.style.transform).toBe('')
+    }
+  })
+
   it('plays, then rewinds to exactly the state it started in', () => {
     const view = stage(page)
     const atRest = view.classes()

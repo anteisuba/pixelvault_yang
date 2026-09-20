@@ -27,10 +27,12 @@ interface HomeV4FnFrameProps {
  * repeated on all six pages. Those are layout, not data, so they moved into
  * `home-v4.css` (`.fn-head` / `.fn-stage`) and the repetition moved here.
  *
- * The layer classes are the load-bearing part: `l2` on the text, `l3` on the
- * visual block, so the two arrive at different speeds when the page turns.
- * ⚠ Anything carrying a layer class has its `transform` written by the parallax
- * rules — never centre such an element with `translate`.
+ * The layer split is the load-bearing part: `data-layer="copy"` on the text,
+ * `data-layer="demo"` on the visual block, so the two travel different
+ * distances during the flip and land together (`HOME_V4_PARALLAX.PAGE_FLIP`).
+ * The `l2` / `l3` classes stay for the model station's own clocks.
+ * ⚠ Anything carrying a layer attribute or class has its `transform` written by
+ * the parallax rules — never centre such an element with `translate`.
  *
  * `.fn-text` is `display: contents` until the rail turns it into the left
  * column, which is why it carries no layer class of its own: without a rail
@@ -48,13 +50,19 @@ export function HomeV4FnFrame({
     <div className={rail ? 'page-inner rail' : 'page-inner'}>
       <div className="fg imgfn">
         <div className="fn-text">
-          <div className="fn-head l2">
+          <div className="fn-head l2" data-layer="copy">
             <p className="eyebrow">{eyebrow}</p>
             <h2>{title}</h2>
           </div>
-          {aside ? <div className="fn-aside l3">{aside}</div> : null}
+          {aside ? (
+            <div className="fn-aside l3" data-layer="demo">
+              {aside}
+            </div>
+          ) : null}
         </div>
-        <div className="fn-stage l3">{children}</div>
+        <div className="fn-stage l3" data-layer="demo">
+          {children}
+        </div>
       </div>
     </div>
   )

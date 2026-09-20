@@ -64,7 +64,7 @@ export function HomeV4Finale({ active }: HomeV4FinaleProps) {
   return (
     <div className="page-inner">
       <div className="fg">
-        <div className={`fin-hero l2${heroIn ? ' in' : ''}`}>
+        <div className={`fin-hero l2${heroIn ? ' in' : ''}`} data-layer="copy">
           <h2>
             <span className="opl">
               <span>{t('v4.finale.title')}</span>
@@ -83,7 +83,7 @@ export function HomeV4Finale({ active }: HomeV4FinaleProps) {
         {tCommon('brand')}
       </div>
 
-      <div className={`fin-foot l3${footIn ? ' in' : ''}`}>
+      <div className={`fin-foot l3${footIn ? ' in' : ''}`} data-layer="demo">
         <span>
           © {HOME_V4_FINALE.COPYRIGHT_YEAR} {tCommon('brand')}
         </span>

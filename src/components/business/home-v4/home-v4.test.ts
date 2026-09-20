@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { describe, expect, it } from 'vitest'
@@ -17,6 +17,7 @@ import {
   HOME_V4_MODEL_FACETS,
   HOME_V4_MODEL_LOGO_KEYS,
   HOME_V4_PAGES,
+  HOME_V4_PARALLAX,
   HOME_V4_STATION_KEYS,
   HOME_V4_STATIONS,
   HOME_V4_STORY,
@@ -356,5 +357,122 @@ describe('home v4 · copy', () => {
 
     expect(mounted.filter((id) => !library.includes(id))).toEqual([])
     expect(mounted.length).toBeLessThan(library.length)
+  })
+})
+
+/**
+ * 翻页错速（owner 2026-09-20：视差 = 翻页时前后景错速）。
+ *
+ * The numbers live in `HOME_V4_PARALLAX.PAGE_FLIP` and the stylesheet only
+ * reads them, so what is worth guarding is the relationship between them and
+ * the shape of the rule that consumes them — not the values, which owner is
+ * expected to retune by hand on a real device.
+ */
+describe('home v4 · 翻页错速', () => {
+  const css = readFileSync(join(process.cwd(), 'src/app/home-v4.css'), 'utf8')
+  const flat = css.replace(/\s+/g, ' ')
+  const flip = HOME_V4_PARALLAX.PAGE_FLIP
+
+  /** The flip block, from its own comment marker to its closing brace. */
+  const flipBlock = (() => {
+    const start = css.indexOf(
+      '@media',
+      css.indexOf('翻页错速：文案层与演示卡层'),
+    )
+    let depth = 0
+    for (let i = css.indexOf('{', start); i < css.length; i += 1) {
+      if (css[i] === '{') depth += 1
+      else if (css[i] === '}') {
+        depth -= 1
+        if (depth === 0) return css.slice(start, i + 1)
+      }
+    }
+    throw new Error('the flip block is not brace-balanced')
+  })()
+
+  it('lets the copy layer ride the page and holds the demo layer back', () => {
+    expect(flip.COPY_TRAVEL).toBe(1)
+    expect(flip.DEMO_TRAVEL).toBeGreaterThan(0)
+    expect(flip.DEMO_TRAVEL).toBeLessThan(flip.COPY_TRAVEL)
+  })
+
+  /* The demo layer's own displacement has to finish before the page does, or
+     there is no tail left for it to catch up in and the two layers land apart. */
+  it('finishes the demo layer ahead of the page so the tail closes the gap', () => {
+    expect(flip.CATCHUP_AT).toBeGreaterThan(0)
+    expect(flip.CATCHUP_AT).toBeLessThan(1)
+    expect(Math.round(HOME_V4_ENGINE.PAGE_MS * flip.CATCHUP_AT)).toBeLessThan(
+      HOME_V4_ENGINE.PAGE_MS,
+    )
+  })
+
+  /* The stylesheet's standalone fallbacks have to state the same numbers, or
+     the page reads one clock before hydration and another after it. */
+  it('declares the same travel ratios as the stylesheet fallbacks', () => {
+    expect(flat).toContain(`--flip-copy: ${flip.COPY_TRAVEL};`)
+    expect(flat).toContain(`--flip-demo: ${flip.DEMO_TRAVEL};`)
+    expect(flat).toContain(
+      `--flip-demo-dur: ${Math.round(HOME_V4_ENGINE.PAGE_MS * flip.CATCHUP_AT)}ms;`,
+    )
+  })
+
+  /* The stylesheet only ever reads the variables; the shell is what writes the
+     constants onto the domain root, so a ratio nobody publishes is a ratio the
+     page never sees. */
+  it('publishes all three travel variables from the shell', () => {
+    const shell = readFileSync(
+      join(process.cwd(), 'src/components/business/home-v4/HomeV4Shell.tsx'),
+      'utf8',
+    )
+
+    expect(shell).toContain("'--flip-copy'")
+    expect(shell).toContain("'--flip-demo'")
+    expect(shell).toContain("'--flip-demo-dur'")
+    expect(shell).toContain('PAGE_FLIP.COPY_TRAVEL')
+    expect(shell).toContain('PAGE_FLIP.DEMO_TRAVEL')
+    expect(shell).toContain('PAGE_FLIP.CATCHUP_AT')
+  })
+
+  it('drives both layers from the travel-ratio variables, not from literals', () => {
+    const rules = flipBlock.replace(/\s+/g, ' ')
+    expect(rules).toContain(
+      "[data-pos='after'] [data-layer='copy'] { transform: translateY(calc((1 - var(--flip-copy)) * -100vh));",
+    )
+    expect(rules).toContain(
+      "[data-pos='after'] [data-layer='demo'] { transform: translateY(calc((1 - var(--flip-demo)) * -100vh));",
+    )
+    expect(rules).toContain(
+      "[data-pos='before'] [data-layer='copy'] { transform: translateY(calc((1 - var(--flip-copy)) * 100vh));",
+    )
+    expect(rules).toContain(
+      "[data-pos='before'] [data-layer='demo'] { transform: translateY(calc((1 - var(--flip-demo)) * 100vh));",
+    )
+    expect(rules).toContain('transition-duration: var(--flip-demo-dur);')
+  })
+
+  /* Phones switch the whole page as one, and so does a reduced-motion desktop:
+     the offsets only exist inside this one guard. */
+  it('keeps the offsets off phones and off reduced motion', () => {
+    expect(flipBlock).toMatch(
+      /^@media \(min-width: 769px\) and \(prefers-reduced-motion: no-preference\)/,
+    )
+    const outside = flat.replace(flipBlock.replace(/\s+/g, ' '), '')
+    expect(outside).not.toContain('--flip-copy)')
+    expect(outside).not.toContain('--flip-demo)')
+  })
+
+  /* `.hpg` carries `data-layer="incoming" | "outgoing"` and lives inside a
+     `.vp`, so a bare `[data-layer]` selector here would rewrite the model
+     station's transforms from the deck's clock. */
+  it('never selects data-layer without naming copy or demo', () => {
+    const selectors = flipBlock
+      .split('}')
+      .map((chunk) => chunk.split('{')[0])
+      .filter((selector) => selector.includes('data-layer'))
+
+    expect(selectors.length).toBeGreaterThan(0)
+    for (const selector of selectors) {
+      expect(selector).not.toMatch(/\[data-layer\](?!=)/)
+    }
   })
 })

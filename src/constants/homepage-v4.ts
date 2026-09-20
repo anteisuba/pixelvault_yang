@@ -50,6 +50,25 @@ export const HOME_V4_PARALLAX = {
   STATION_FADE_MS: 750,
   VERTICAL_VH: { L1: 7, L2: 13, L3: 22 },
   HORIZONTAL_VW: { L1: 6, L2: 11, L3: 18 },
+  /**
+   * 翻页错速（owner 2026-09-20 定：视差 = 翻页时前后景错速）。
+   *
+   * 页本身永远走满一屏（`PAGE_MS` 不变）。页里的两层各有自己的行程比：
+   * 文案层跟页走满 `COPY_TRAVEL`，演示卡层在主程只走 `DEMO_TRAVEL`，剩下的
+   * `1 - DEMO_TRAVEL` 由它自身的反向位移在 `CATCHUP_AT` 处收完——收完之后
+   * 演示卡只剩页的速度，于是末段自己追平，两层同一瞬间落位。
+   *
+   * 行程比只在桌面 + `prefers-reduced-motion: no-preference` 下生效；
+   * 手机与降级下两层同速，整页切。
+   */
+  PAGE_FLIP: {
+    /** 文案层：跟页 1.0×，落位即页落位。 */
+    COPY_TRAVEL: 1,
+    /** 演示卡层：主程只走这么多，慢半拍。 */
+    DEMO_TRAVEL: 0.6,
+    /** 演示卡自身位移收完的时点，占 `PAGE_MS` 的比例——之后是追平段。 */
+    CATCHUP_AT: 0.72,
+  },
 } as const
 
 /** Left-rail dots: each title slides in one beat after the one above it. */

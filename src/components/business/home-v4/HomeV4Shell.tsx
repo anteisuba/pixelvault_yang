@@ -35,6 +35,11 @@ const MOTION_VARS = {
   '--l2-h': `${HOME_V4_PARALLAX.HORIZONTAL_VW.L2}vw`,
   '--l3-h': `${HOME_V4_PARALLAX.HORIZONTAL_VW.L3}vw`,
   '--dot-stagger': `${HOME_V4_DOTS_STAGGER_MS}ms`,
+  '--flip-copy': `${HOME_V4_PARALLAX.PAGE_FLIP.COPY_TRAVEL}`,
+  '--flip-demo': `${HOME_V4_PARALLAX.PAGE_FLIP.DEMO_TRAVEL}`,
+  '--flip-demo-dur': `${Math.round(
+    HOME_V4_ENGINE.PAGE_MS * HOME_V4_PARALLAX.PAGE_FLIP.CATCHUP_AT,
+  )}ms`,
 } as CSSProperties
 
 /**

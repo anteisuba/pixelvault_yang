@@ -71,6 +71,9 @@ body.home-v4-locked {
   --l2-h: 11vw;
   --l3-h: 18vw;
   --dot-stagger: 18ms;
+  --flip-copy: 1;
+  --flip-demo: 0.6;
+  --flip-demo-dur: 612ms;
 
   --easing: cubic-bezier(0.65, 0.05, 0.28, 1);
 
@@ -241,8 +244,10 @@ body.home-v4-locked {
   transform: translateY(-100vh);
 }
 
-/* 三层错速：层的过渡时长与页错开，翻页瞬间层在页内继续滑，产生深度。
-   l1 背景最慢 · l2 文字中速（= --dur） · l3 视觉块最快。 */
+/* 三层时钟：层的过渡时长与页错开，翻页瞬间层在页内继续滑，产生深度。
+   l1 背景最慢 · l2 文字中速（= --dur） · l3 视觉块最快。
+   竖站（`.vp`）翻页的行程差 2026-09-20 起改由下面的 copy / demo 两层给，
+   l2 / l3 的纵向位移只剩模型站（`.hpg`）在用；l1 背景两站通用。 */
 .home-v4 .l1,
 .home-v4 .l2,
 .home-v4 .l3 {
@@ -262,30 +267,52 @@ body.home-v4-locked {
   transform: translateY(calc(-1 * var(--l1-v)));
 }
 
-.home-v4 .vp[data-pos='after'] .l2 {
-  transform: translateY(calc(-1 * var(--l2-v)));
-}
-
-.home-v4 .vp[data-pos='after'] .l3 {
-  transform: translateY(calc(-1 * var(--l3-v)));
-}
-
 .home-v4 .vp[data-pos='before'] .l1 {
   transform: translateY(var(--l1-v));
 }
 
-.home-v4 .vp[data-pos='before'] .l2 {
-  transform: translateY(var(--l2-v));
-}
-
-.home-v4 .vp[data-pos='before'] .l3 {
-  transform: translateY(var(--l3-v));
-}
-
-.home-v4 .vp[data-pos='on'] .l1,
-.home-v4 .vp[data-pos='on'] .l2,
-.home-v4 .vp[data-pos='on'] .l3 {
+.home-v4 .vp[data-pos='on'] .l1 {
   transform: none;
+}
+
+/* ─── 翻页错速：文案层与演示卡层行程不同 ──────────────────────────
+   owner 2026-09-20 口径：视差 = 翻页时前后景错速。页本身永远走满一屏
+   （`--dur` 不变）；页里的两层各有自己的行程比 —— 文案 `--flip-copy`
+   走满，演示卡 `--flip-demo` 只走一部分，差值由它自身的反向位移承担，
+   那段位移在 `--flip-demo-dur`（< `--dur`）处收完，之后演示卡只剩页的
+   速度，于是末段自己追平，两层同一瞬间落位。
+   ⚠ 只挑 copy / demo 两个值，不写裸 `[data-layer]` —— 模型站的
+   `.hpg[data-layer='incoming'|'outgoing']` 也在 `.vp` 里面。
+   数值的唯一家在 `HOME_V4_PARALLAX.PAGE_FLIP`。 */
+@media (min-width: 769px) and (prefers-reduced-motion: no-preference) {
+  .home-v4 .vp :is([data-layer='copy'], [data-layer='demo']) {
+    transition: transform var(--dur) var(--easing);
+    will-change: transform;
+  }
+
+  .home-v4 .vp [data-layer='demo'] {
+    transition-duration: var(--flip-demo-dur);
+  }
+
+  .home-v4 .vp[data-pos='after'] [data-layer='copy'] {
+    transform: translateY(calc((1 - var(--flip-copy)) * -100vh));
+  }
+
+  .home-v4 .vp[data-pos='after'] [data-layer='demo'] {
+    transform: translateY(calc((1 - var(--flip-demo)) * -100vh));
+  }
+
+  .home-v4 .vp[data-pos='before'] [data-layer='copy'] {
+    transform: translateY(calc((1 - var(--flip-copy)) * 100vh));
+  }
+
+  .home-v4 .vp[data-pos='before'] [data-layer='demo'] {
+    transform: translateY(calc((1 - var(--flip-demo)) * 100vh));
+  }
+
+  .home-v4 .vp[data-pos='on'] :is([data-layer='copy'], [data-layer='demo']) {
+    transform: none;
+  }
 }
 
 .home-v4 .page-inner {

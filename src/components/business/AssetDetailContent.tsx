@@ -514,8 +514,9 @@ export function AssetDetailContent({
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              size="sm"
-              className="gap-1.5"
+              size="icon"
+              aria-label={t('detailMoveTo')}
+              title={t('detailMoveTo')}
               disabled={isMoving}
             >
               {isMoving ? (
@@ -523,7 +524,6 @@ export function AssetDetailContent({
               ) : (
                 <FolderInput className="size-4" />
               )}
-              {t('detailMoveTo')}
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -575,9 +575,14 @@ export function AssetDetailContent({
         </DropdownMenu>
         <Button
           variant="ghost"
-          size="sm"
-          className="gap-1.5"
+          size="icon"
           onClick={() => setIsPublishScopeOpen(true)}
+          aria-label={
+            generation.isPublic ? t('detailPublishScope') : t('detailPublish')
+          }
+          title={
+            generation.isPublic ? t('detailPublishScope') : t('detailPublish')
+          }
           disabled={isPublishing}
           aria-pressed={generation.isPublic}
         >
@@ -588,16 +593,20 @@ export function AssetDetailContent({
           ) : (
             <Globe className="size-4" />
           )}
-          {generation.isPublic ? t('detailPublishScope') : t('detailPublish')}
         </Button>
         <Button
           variant="ghost"
-          size="sm"
+          size="icon"
           className={cn(
-            'gap-1.5',
             generation.isLiked && 'text-primary hover:text-primary',
           )}
           onClick={() => void handleToggleFavorite()}
+          aria-label={
+            generation.isLiked ? t('detailUnfavorite') : t('detailFavorite')
+          }
+          title={
+            generation.isLiked ? t('detailUnfavorite') : t('detailFavorite')
+          }
           disabled={isFavoriting}
           aria-pressed={!!generation.isLiked}
         >
@@ -608,13 +617,13 @@ export function AssetDetailContent({
               className={cn('size-4', generation.isLiked && 'fill-current')}
             />
           )}
-          {generation.isLiked ? t('detailUnfavorite') : t('detailFavorite')}
         </Button>
         <Button
           variant="ghost"
-          size="sm"
-          className="gap-1.5"
+          size="icon"
           onClick={() => void handleSaveRecipe()}
+          aria-label={tPrompts('saveAsTemplate')}
+          title={tPrompts('saveAsTemplate')}
           disabled={isSavingRecipe}
         >
           {isSavingRecipe ? (
@@ -622,14 +631,14 @@ export function AssetDetailContent({
           ) : (
             <FileText className="size-4" />
           )}
-          {tPrompts('saveAsTemplate')}
         </Button>
         {isAudioAsset && (
           <Button
             variant="ghost"
-            size="sm"
-            className="gap-1.5"
+            size="icon"
             onClick={() => setCoverPickerOpen(true)}
+            aria-label={t('detailSetCover')}
+            title={t('detailSetCover')}
             disabled={isSettingCover}
           >
             {isSettingCover ? (
@@ -637,7 +646,6 @@ export function AssetDetailContent({
             ) : (
               <ImagePlus className="size-4" />
             )}
-            {t('detailSetCover')}
           </Button>
         )}
         <ConfirmDialog
@@ -650,8 +658,10 @@ export function AssetDetailContent({
           trigger={
             <Button
               variant="ghost"
-              size="sm"
-              className="ml-auto gap-1.5 text-status-risk hover:bg-status-risk-surface hover:text-status-risk"
+              size="icon"
+              className="ml-auto text-status-risk hover:bg-status-risk-surface hover:text-status-risk"
+              aria-label={t('detailDelete')}
+              title={t('detailDelete')}
               disabled={isDeleting}
             >
               {isDeleting ? (
@@ -659,7 +669,6 @@ export function AssetDetailContent({
               ) : (
                 <Trash2 className="size-4" />
               )}
-              {t('detailDelete')}
             </Button>
           }
         />

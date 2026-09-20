@@ -574,9 +574,10 @@ describe('画面弹层（spec §5）', () => {
   })
 
   // ⭐ 2026-09-18（第 12 项）：弹层换成共用的 `SpecChip` —— 比例 / 清晰度 / 时长
-  // 滚动条三段直接摆出来，「这次按 ×」与「已挂 N / 上限」读数收进底部「更多」。
+  // 滚动条三段直接摆出来，「这次按 ×」与「已挂 N / 上限」读数在虚线以下（owner
+  // 2026-09-20「没必要做收放」后不再折叠）。
   // ⛔ 声音开关**不在弹层里**：它是提示词栏上一颗独立图标（定案点 6）。
-  it('弹层里时长滚动条常驻；模式 · 读数在「更多」折叠区里', () => {
+  it('弹层里时长滚动条常驻；模式 · 读数在虚线以下直接露着', () => {
     renderVideo(harness([videoNode('v_1', READY)]), 'v_1', true)
     const chip = document.querySelector(
       '[data-testid="video-frame-chip"]',
@@ -585,11 +586,6 @@ describe('画面弹层（spec §5）', () => {
     fireEvent.click(chip)
     expect(document.querySelector('[data-spec-duration-slider]')).not.toBeNull()
     expect(document.querySelector('[data-video-generate-audio]')).toBeNull()
-    // 折叠着的时候里面那两样不在 DOM 里 —— ⛔ 不是 `display:none` 的假折叠。
-    expect(document.querySelector('[data-video-frame-readout]')).toBeNull()
-
-    const more = document.querySelector('[data-spec-chip-more]') as HTMLElement
-    fireEvent.click(more)
     expect(document.querySelector('[data-video-frame-readout]')).not.toBeNull()
     // 模式只读（⛔ 没有任何一个可点的模式控件）。
     expect(document.querySelector('[data-video-frame-mode]')).not.toBeNull()

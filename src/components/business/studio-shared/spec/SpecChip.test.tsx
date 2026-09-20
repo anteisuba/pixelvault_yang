@@ -219,17 +219,19 @@ describe('SpecChip · 时长', () => {
   })
 })
 
-describe('SpecChip · 更多', () => {
-  it('底部折叠区默认折起，点开才把内容挂进 DOM', () => {
-    renderChip({}, { more: <p>extra</p>, moreSummary: 'seed' })
+describe('SpecChip · 附加段', () => {
+  // owner 2026-09-20「没必要做收放」：虚线以下的内容直接露着，⛔ 没有折叠行。
+  it('宿主给的内容开弹层就在 DOM 里，且没有折叠开关', () => {
+    renderChip({}, { more: <p>extra</p> })
     openChip()
 
-    expect(screen.queryByText('extra')).toBeNull()
-    fireEvent.click(document.querySelector('[data-spec-chip-more]') as Element)
     expect(screen.getByText('extra')).toBeInTheDocument()
+    expect(
+      document.querySelector('[data-spec-chip-more] button[aria-expanded]'),
+    ).toBeNull()
   })
 
-  it('没给 `more` 就整行不渲染', () => {
+  it('没给 `more` 就整段不渲染', () => {
     renderChip()
     openChip()
     expect(document.querySelector('[data-spec-chip-more]')).toBeNull()

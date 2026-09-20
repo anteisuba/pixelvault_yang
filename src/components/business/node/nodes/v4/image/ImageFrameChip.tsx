@@ -84,13 +84,6 @@ export function ImageFrameChip({
     ...(count === undefined ? {} : { count }),
   })
 
-  const moreSummary = [
-    tSpec('moreItem.batchCount'),
-    qualities.length > 0 ? t('frame.quality') : null,
-  ]
-    .filter(Boolean)
-    .join(' · ')
-
   return (
     <SpecChip
       model={specModel}
@@ -101,7 +94,6 @@ export function ImageFrameChip({
       resolution={resolution ?? null}
       onResolutionChange={onResolutionChange}
       disabled={disabled}
-      moreSummary={moreSummary}
       data-testid="image-frame-chip"
       triggerClassName="h-6 min-h-6 max-w-50 px-2 text-2xs"
       more={

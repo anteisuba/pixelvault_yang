@@ -8,7 +8,8 @@
  * warning 描边（1s 后恢复，由 `flashToken` 变化触发）。
  *
  * 弹层分段：比例 → 清晰度（图片叫「尺寸 / 清晰度」）→ 时长（仅视频）→ 底部虚线
- * 以下一行「更多」折叠区（内容由宿主给：张数 / 声音 / seed 等）。
+ * 以下的附加段（内容由宿主给：张数 / 声音 / seed 等），⛔ 不收折（owner 2026-09-20
+ * 「没必要做收放」）。
  *
  * **纯呈现 + 受控**：不认识 context、不认识节点。四个宿主（工作台图片 / 工作台视频 /
  * 画布图片卡 / 画布视频卡）各自把 `SpecChipModel` 与回调传进来 —— 它替掉的正是那
@@ -49,10 +50,8 @@ export interface SpecChipProps {
   readonly resolutionLabel: string
   /** 比例被首帧锁住时那一句「是谁锁的、怎么解除」。 */
   readonly ratioLockedHint?: string
-  /** 底部「更多」折叠区的内容；不给就整行不渲染。 */
+  /** 底部虚线以下的附加段内容；不给就整段不渲染。 */
   readonly more?: ReactNode
-  /** 折叠行上写的项目名（如「声音 · seed」）；`more` 给了就必须给。 */
-  readonly moreSummary?: string
   readonly disabled?: boolean
   /**
    * 「这一帧有值被吸附回默认」的信号。**从空变成非空**时闪一次 warning 描边；
@@ -161,7 +160,6 @@ export function SpecChip({
   resolutionLabel,
   ratioLockedHint,
   more,
-  moreSummary,
   disabled = false,
   flashSignal,
   ariaLabel,
@@ -170,7 +168,6 @@ export function SpecChip({
 }: SpecChipProps) {
   const t = useTranslations('StudioSpecChip')
   const [open, setOpen] = useState(false)
-  const [moreOpen, setMoreOpen] = useState(false)
   /**
    * ⚠ 上一次看到的信号存在 **state** 里而不是 ref：这是 React 官方的「渲染中调整
    * state」写法，⛔ 不在渲染里读写 ref（读到的可能是上一轮的值）。计时器那半边留在
@@ -316,28 +313,11 @@ export function SpecChip({
           ) : null}
 
           {more ? (
-            <div className="flex flex-col gap-2 border-t border-dashed border-border pt-2.5">
-              <button
-                type="button"
-                aria-expanded={moreOpen}
-                onClick={() => setMoreOpen((prev) => !prev)}
-                data-spec-chip-more
-                className="flex min-h-11 items-center justify-between gap-2 text-left text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground md:min-h-0"
-              >
-                <span>
-                  {moreSummary
-                    ? t('moreWith', { items: moreSummary })
-                    : t('more')}
-                </span>
-                <ChevronDown
-                  aria-hidden
-                  className={cn(
-                    'size-4 shrink-0 transition-transform duration-base ease-standard',
-                    moreOpen && 'rotate-180',
-                  )}
-                />
-              </button>
-              {moreOpen ? more : null}
+            <div
+              data-spec-chip-more
+              className="flex flex-col gap-2 border-t border-dashed border-border pt-2.5"
+            >
+              {more}
             </div>
           ) : null}
         </div>

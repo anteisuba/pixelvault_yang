@@ -89,7 +89,6 @@ export function VideoFrameChip({
       }}
       onDurationChange={(seconds) => onDurationChange(String(seconds))}
       disabled={disabled}
-      moreSummary={tSpec('moreItem.details')}
       data-testid="video-frame-chip"
       triggerClassName="h-6 min-h-6 max-w-50 px-2 text-2xs"
       more={

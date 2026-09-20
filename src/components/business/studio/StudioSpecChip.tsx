@@ -84,13 +84,10 @@ function StudioImageSpecChip({
       }
       resolution={resolution}
       onResolutionChange={setResolution}
-      moreSummary={t('moreItem.batchCount')}
       data-testid="studio-spec-chip"
       {...(triggerClassName ? { triggerClassName } : {})}
       {...(disabled === undefined ? {} : { disabled })}
       more={
-        // ⚠ 张数住在「更多」下面 —— 浮层没展开时闪不到它（`flashAssistantTouchedField`
-        //   静默跳过），那是这一格今天的形状，⛔ 不为它把浮层弹开。
         <div className="flex flex-col gap-1.5" data-assistant-field="count">
           <span className="text-2xs font-medium text-muted-foreground/70">
             {t('moreItem.batchCount')}
@@ -249,7 +246,6 @@ function StudioVideoSpecChip({
       {...(disabled === undefined ? {} : { disabled })}
       {...(supportsGenerateAudio
         ? {
-            moreSummary: t('moreItem.audio'),
             more: (
               <div className="flex min-h-11 items-center justify-between gap-2">
                 <span className="text-2xs font-medium text-muted-foreground/70">

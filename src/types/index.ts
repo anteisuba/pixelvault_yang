@@ -301,6 +301,9 @@ export const AdvancedParamsSchema = z.object({
    * NovelAI `Text:` 文字渲染（V5，EN/JA/ZH）。worker 把它拼到 prompt **最末**。
    * https://docs.novelai.net/en/image/textrendering/
    */
+  // ⚠ 这里卡的是**全名册里最大的那个上限**（V5 Full 750）；逐模型的真上限
+  // （Curated 374）由 `generate-image.service` 按能力表判 —— schema 不知道当前
+  // 选的是哪个模型。
   textRendering: z.string().max(NOVELAI_TEXT_RENDERING_MAX_CHARS).optional(),
   /**
    * NovelAI 遮罩重绘的遮罩图：白 = 重画，黑 = 保留。客户端发 data URL，服务端

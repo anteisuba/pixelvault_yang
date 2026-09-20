@@ -3626,7 +3626,8 @@ describe('generatePixAiImage', () => {
       ),
     ]
     let call = 0
-    const fetchMock = vi.fn(async (url: unknown) => {
+    const fetchMock = vi.fn(async (url: unknown, init?: unknown) => {
+      void init
       // 最后一次是去取图（不是 API），回二进制。
       if (call >= responses.length) {
         return new Response(Uint8Array.from([1, 2, 3]), {
@@ -3669,7 +3670,7 @@ describe('generatePixAiImage', () => {
       'https://api.pixai.art/v2/image/create',
     )
     const body = JSON.parse(
-      String((createCall?.[1] as { body: string }).body),
+      String((createCall?.[1] as { body: string } | undefined)?.body),
     ) as Record<string, unknown>
     expect(body.modelVersionId).toBe(TSUBAKI)
     // 比例是逐字透传的，⛔ 没有第二张换算表。

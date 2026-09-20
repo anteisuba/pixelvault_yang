@@ -350,13 +350,16 @@ describe('NovelAI capability chips', () => {
     expect(isCapabilityChipSet(chip!, {})).toBe(false)
   })
 
-  it('derives the Text control as a 750-char text field', () => {
-    const chip = getModelCapabilityChips(
-      AI_ADAPTER_TYPES.NOVELAI,
-      AI_MODELS.NOVELAI_V5_FULL,
-    ).find((entry) => entry.capability === 'textRendering')
+  // 两档不同上限（官方文字页 / 模型页：Full 750、Curated 374）。
+  it.each([
+    [AI_MODELS.NOVELAI_V5_FULL, 750],
+    [AI_MODELS.NOVELAI_V5_CURATED, 374],
+  ])('derives the Text control for %s with its own cap', (id, maxLength) => {
+    const chip = getModelCapabilityChips(AI_ADAPTER_TYPES.NOVELAI, id).find(
+      (entry) => entry.capability === 'textRendering',
+    )
     expect(chip?.kind).toBe('text')
-    expect(chip?.maxLength).toBe(750)
+    expect(chip?.maxLength).toBe(maxLength)
     expect(chip?.defaultValue).toBe('')
   })
 

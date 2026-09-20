@@ -137,11 +137,16 @@ export const NOVELAI_UC_PRESET_OPTIONS = [
 ] as const
 
 /**
- * `Text:` 文字渲染上限。官方只给了 V5 Full 的 750 字；Curated 的上限文档未写，
- * 这里同样按 750 收口（宁可先卡住，也不放一个会被 provider 打回的长串）。
+ * `Text:` 文字渲染上限：V5 Full 750、V5 Curated 374。
+ *
+ * ⚠ **单位在官方两页上不一致**（文字页写 characters、模型页写 tokens），所以
+ * 这两个数在这里只当**前端护栏**用 —— 拦住明显越界的长串、给用户一个计数器，
+ * ⛔ 不当作 provider 的精确契约（`providers.md` 的 V5 节早写过这条不确定性）。
  * https://docs.novelai.net/en/image/textrendering/
+ * https://docs.novelai.net/en/image/models/
  */
 export const NOVELAI_TEXT_RENDERING_MAX_CHARS = 750
+export const NOVELAI_CURATED_TEXT_RENDERING_MAX_CHARS = 374
 
 /** Range constraints for numeric parameters */
 export interface NumericRange {
@@ -466,7 +471,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     ] as const,
     ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
     qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
-    textRenderingMaxChars: NOVELAI_TEXT_RENDERING_MAX_CHARS,
+    textRenderingMaxChars: NOVELAI_CURATED_TEXT_RENDERING_MAX_CHARS,
   },
   // SDXL 两档才有 `sampling`（steps / cfg / sampler）与 `loras`；Tsubaki 是 DiT，
   // 收的是 `mode` / `style`，那两样一个都不收。⚠ 声明 `capabilities` 是整体替换，

@@ -16,25 +16,42 @@ import {
 import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { getTranslatedModelLabel } from '@/lib/model-options'
-import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
+import {
+  getTagWorkbenchControls,
+  type TagWorkbenchControl,
+} from '@/lib/tag-workbench-controls'
 import { cn } from '@/lib/utils'
 import type { AdvancedParams } from '@/types'
+import type { StudioModelOption } from '@/types/model-option'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 
 /**
- * 标签台的**右列常驻控件**（D10 ④，画板宽度 272）：
+ * 标签台的**右列常驻控件**（D10 ④，画板宽度 272），自上而下：
  * 角色构图 · 质量标签 · 采样器 / 步数 · 分辩率 / 额度 · 参考图用法。
  *
  * ⚠ 控件名单仍从 `provider-capabilities` 派生（进度表 11 的结论），只是排版
  * 从「一行 chip」换成常驻卡片 —— ⛔ 这里没有第二份能力表，也没有模型名分支。
  * UC 预设与 `Text:` 归编辑器主区（画板把它们画在正负两栏底下），所以这一列
  * 把那两条让出去。
+ *
+ * 多选交集态（② Q3）：每张卡自己报「这一档只对谁生效」并灰下去，**仍然可改**；
+ * 真正的裁剪发生在发请求那一跳（`tailorImageRequestToModel`）。
  */
 
 /** 归编辑器主区的那两条，右列不重复画。 */
-const EDITOR_OWNED = new Set(['ucPreset', 'textRendering'])
+const EDITOR_OWNED: readonly string[] = ['ucPreset', 'textRendering']
 
-interface StudioTagsControlColumnProps {
+/**
+ * 卡片顺序 —— 画板自上而下的那一列。⚠ 排的是**能力键**不是模型名，所以它仍然
+ * 是「能力表说有什么就画什么」，只是画的先后有个定数。表外的能力排在这几张
+ * 之后，按能力表自己的声明顺序 —— ⛔ 不因为画板没画到就把它藏了。
+ */
+const CARD_ORDER: readonly string[] = ['qualityToggle', 'sampler', 'steps']
+
+/** 与上一张卡合并成一张的能力（「采样器 · 步数」是画板上的一张卡）。 */
+const MERGED_INTO: Readonly<Record<string, string>> = { steps: 'sampler' }
+
+export interface StudioTagsControlColumnProps {
   /**
    * 手机上角色构图自己占一条整屏条目（D10 ④），所以那张卡不在这一叠里
    * 重复出现。桌面不传 = 照画。
@@ -59,17 +76,24 @@ export function StudioTagsControlColumn({
     [runModels],
   )
 
+  const onlyForNote = (supportedBy: readonly string[]) =>
+    supportedBy.length === 0 || supportedBy.length === runModels.length
+      ? null
+      : t('onlyFor', {
+          models: supportedBy
+            .map((modelId) => getTranslatedModelLabel(tModels, modelId))
+            .join(' · '),
+        })
+
   /**
    * 角色构图的形态由**第一个支持它的模型**说了算（名单第一位是主模型）。
    * 多选里只有它一家支持时，卡片跟着灰并标「只对 X 生效」，⛔ 仍然可改。
    */
-  const characterModel = runModels.find((model) =>
-    getNovelAiCharacterLayoutMode(model.modelId),
-  )
-  const characterMode = getNovelAiCharacterLayoutMode(characterModel?.modelId)
   const characterSupport = runModels.filter((model) =>
     getNovelAiCharacterLayoutMode(model.modelId),
   )
+  const characterModel = characterSupport[0]
+  const characterMode = getNovelAiCharacterLayoutMode(characterModel?.modelId)
 
   const setLayout = (layout: NovelAiCharacterLayout | undefined) =>
     dispatch({
@@ -80,22 +104,31 @@ export function StudioTagsControlColumn({
       } satisfies AdvancedParams,
     })
 
+  // 画板顺序在前，表外的按能力表自己的声明顺序跟在后面。
+  const visible = controls.filter(
+    (control) => !EDITOR_OWNED.includes(control.chip.capability),
+  )
+  const ranked = [...visible].sort((a, b) => {
+    const rank = (control: TagWorkbenchControl) => {
+      const index = CARD_ORDER.indexOf(control.chip.capability)
+      return index === -1 ? CARD_ORDER.length + visible.indexOf(control) : index
+    }
+    return rank(a) - rank(b)
+  })
+  const cards = ranked.filter(
+    (control) => !(control.chip.capability in MERGED_INTO),
+  )
+  const mergedFor = (capability: string) =>
+    ranked.filter(
+      (control) => MERGED_INTO[control.chip.capability] === capability,
+    )
+
   return (
     <>
       {characterMode && characterModel && !hideCharacters ? (
         <ControlCard
           title={t('characterTitle')}
-          note={
-            characterSupport.length === runModels.length
-              ? null
-              : t('onlyFor', {
-                  models: characterSupport
-                    .map((model) =>
-                      getTranslatedModelLabel(tModels, model.modelId),
-                    )
-                    .join(' · '),
-                })
-          }
+          note={onlyForNote(characterSupport.map((model) => model.modelId))}
           dimmed={characterSupport.length !== runModels.length}
         >
           <NovelAiCharacterComposer
@@ -112,25 +145,38 @@ export function StudioTagsControlColumn({
         </ControlCard>
       ) : null}
 
-      {controls
-        .filter((control) => !EDITOR_OWNED.has(control.chip.capability))
-        .map((control) => (
+      {cards.map((control) => {
+        const merged = mergedFor(control.chip.capability)
+        return (
           <ControlCard
             key={control.chip.capability}
-            title={tCapability(`capability.${control.chip.capability}`)}
-            note={null}
-            dimmed={false}
+            title={[control, ...merged]
+              .map((entry) =>
+                tCapability(`capability.${entry.chip.capability}`),
+              )
+              .join(' · ')}
+            note={onlyForNote(control.supportedBy)}
+            dimmed={!control.shared}
           >
             <StudioTagCapabilityControl
               control={control}
               disabled={isGenerating}
               hideLabel
             />
+            {merged.map((entry) => (
+              <StudioTagCapabilityControl
+                key={entry.chip.capability}
+                control={entry}
+                disabled={isGenerating}
+                hideLabel
+              />
+            ))}
           </ControlCard>
-        ))}
+        )
+      })}
 
-      <ResolutionCard />
-      <ReferenceUsageCard />
+      <ResolutionCard runModels={runModels} note={onlyForNote} />
+      <ReferenceUsageCard runModels={runModels} note={onlyForNote} />
     </>
   )
 }
@@ -154,7 +200,7 @@ function ControlCard({
       )}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <h3 className="text-2xs font-medium">{title}</h3>
+        <h3 className="shrink-0 text-2xs font-medium">{title}</h3>
         {note ? (
           <span className="truncate text-3xs text-muted-foreground">
             {note}
@@ -166,6 +212,8 @@ function ControlCard({
   )
 }
 
+type OnlyForNote = (supportedBy: readonly string[]) => string | null
+
 /**
  * 分辩率 · 额度。
  *
@@ -173,15 +221,20 @@ function ControlCard({
  * ≤28 步），⛔ 不报一个「大约多少 Anlas」的数 —— NovelAI 没有公开逐档价目，
  * 摆一个凭社区逆向出来的系数比不报更糟。画板那格的「约 28 Anlas」是示意数。
  */
-function ResolutionCard() {
+function ResolutionCard({
+  runModels,
+  note,
+}: {
+  runModels: readonly StudioModelOption[]
+  note: OnlyForNote
+}) {
   const t = useTranslations('StudioTags')
   const { state } = useStudioForm()
-  const { runModels } = useStudioRunModels()
 
-  const novelAi = runModels.find((model) =>
+  const novelAi = runModels.filter((model) =>
     getNovelAiCharacterLayoutMode(model.modelId),
   )
-  if (!novelAi) return null
+  if (novelAi.length === 0) return null
 
   const { width, height } = getNovelAiImageDimensions(state.aspectRatio)
   const free = isWithinNovelAiOpusFreeTier({
@@ -192,7 +245,11 @@ function ResolutionCard() {
   })
 
   return (
-    <ControlCard title={t('resolutionTitle')} note={null} dimmed={false}>
+    <ControlCard
+      title={t('resolutionTitle')}
+      note={note(novelAi.map((model) => model.modelId))}
+      dimmed={novelAi.length !== runModels.length}
+    >
       <div className="flex items-center justify-between gap-2 text-2xs">
         <span className="font-mono tabular-nums">
           {width}×{height}
@@ -213,17 +270,26 @@ function ResolutionCard() {
  * 还没有它们的请求形状。所以这两档画出来但点不动，并把原因写在旁边 ——
  * ⛔ 不给用户一个点了什么都不会发生的选项。接通时只改那一行常量。
  */
-function ReferenceUsageCard() {
+function ReferenceUsageCard({
+  runModels,
+  note,
+}: {
+  runModels: readonly StudioModelOption[]
+  note: OnlyForNote
+}) {
   const t = useTranslations('StudioTags')
-  const { runModels } = useStudioRunModels()
 
-  const novelAi = runModels.find((model) =>
+  const novelAi = runModels.filter((model) =>
     getNovelAiCharacterLayoutMode(model.modelId),
   )
-  if (!novelAi) return null
+  if (novelAi.length === 0) return null
 
   return (
-    <ControlCard title={t('referenceUsageTitle')} note={null} dimmed={false}>
+    <ControlCard
+      title={t('referenceUsageTitle')}
+      note={note(novelAi.map((model) => model.modelId))}
+      dimmed={novelAi.length !== runModels.length}
+    >
       <div className="flex flex-wrap gap-1">
         {NOVELAI_REFERENCE_USAGES.map((usage) => {
           const routed = NOVELAI_ROUTED_REFERENCE_USAGES.includes(usage)

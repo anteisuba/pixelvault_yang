@@ -1,0 +1,147 @@
+import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+/** 步数 / CFG 是 Radix Slider —— 它量 thumb 尺寸要 ResizeObserver（jsdom 没有）。 */
+Object.defineProperty(globalThis, 'ResizeObserver', {
+  configurable: true,
+  value: class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  },
+})
+
+import { AI_MODELS } from '@/constants/models'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+
+const mocks = vi.hoisted(() => ({
+  runModels: [] as { modelId: string; adapterType: string }[],
+  advancedParams: {} as Record<string, unknown>,
+  dispatch: vi.fn(),
+}))
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
+    values ? `${key}:${Object.values(values).join(',')}` : key,
+}))
+vi.mock('@/contexts/studio-context', () => ({
+  useStudioForm: () => ({
+    state: {
+      advancedParams: mocks.advancedParams,
+      aspectRatio: '1:1',
+      imageBatchCount: 1,
+      activeTagCharacterIndex: null,
+    },
+    dispatch: mocks.dispatch,
+  }),
+  useStudioGen: () => ({ isGenerating: false }),
+}))
+vi.mock('@/hooks/use-studio-run-models', () => ({
+  useStudioRunModels: () => ({ runModels: mocks.runModels }),
+}))
+vi.mock('@/lib/model-options', () => ({
+  getTranslatedModelLabel: (_t: unknown, modelId: string) => modelId,
+}))
+
+import { StudioTagsControlColumn } from './StudioTagsControlColumn'
+
+const NAI_V5 = {
+  modelId: AI_MODELS.NOVELAI_V5_FULL as string,
+  adapterType: AI_ADAPTER_TYPES.NOVELAI as string,
+}
+const PIXAI = {
+  modelId: AI_MODELS.PIXAI_HARUKA_V2 as string,
+  adapterType: AI_ADAPTER_TYPES.PIXAI as string,
+}
+
+function headings() {
+  return screen.getAllByRole('heading').map((node) => node.textContent)
+}
+
+describe('标签台右列', () => {
+  beforeEach(() => {
+    mocks.advancedParams = {}
+    mocks.runModels = [NAI_V5]
+    mocks.dispatch.mockClear()
+  })
+
+  // 画板自上而下：角色构图 · 质量标签 · 采样器 / 步数 · 分辩率 / 额度 · 参考图用法。
+  // ⚠ 画板没画到的能力（CFG · 参考强度）排在中间那一段，⛔ 不因为没画就藏了。
+  it('按画板的顺序排卡片，采样器与步数合成一张', () => {
+    render(<StudioTagsControlColumn />)
+    expect(headings().slice(0, 3)).toEqual([
+      'characterTitle',
+      'capability.qualityToggle',
+      'capability.sampler · capability.steps',
+    ])
+    expect(headings().slice(-2)).toEqual([
+      'resolutionTitle',
+      'referenceUsageTitle',
+    ])
+  })
+
+  // UC 预设与 `Text:` 归编辑器主区，右列不重复画。
+  it('不画归编辑器的那两条', () => {
+    render(<StudioTagsControlColumn />)
+    expect(headings()).not.toContain('capability.ucPreset')
+    expect(headings()).not.toContain('capability.textRendering')
+  })
+
+  it('手机上角色构图自己占一条，这一叠里不重复', () => {
+    render(<StudioTagsControlColumn hideCharacters />)
+    expect(headings()).not.toContain('characterTitle')
+  })
+
+  // ⭐ 多选交集：只有一家支持的那些标「只对 X 生效」并灰下去，**仍然可改**。
+  it('多选时把只对一家生效的卡片标出来', () => {
+    mocks.runModels = [NAI_V5, PIXAI]
+    render(<StudioTagsControlColumn />)
+    const note = `onlyFor:${NAI_V5.modelId}`
+    expect(screen.getAllByText(note).length).toBeGreaterThanOrEqual(3)
+    // 灰的是整张卡，⛔ 不是禁用 —— 里面的按钮照样点得动。
+    for (const button of screen.getAllByRole('button', {
+      name: /qualityToggleOption/,
+    })) {
+      expect(button).not.toBeDisabled()
+    }
+  })
+
+  it('两家都支持的那张不标也不灰', () => {
+    mocks.runModels = [NAI_V5, PIXAI]
+    render(<StudioTagsControlColumn />)
+    const shared = screen
+      .getAllByRole('heading')
+      .find((node) => node.textContent === 'capability.guidanceScale')
+    expect(shared).toBeDefined()
+    expect(shared?.closest('section')?.className).not.toContain('opacity-60')
+  })
+
+  // ⚠ 额度那一格报的是官方判据，⛔ 不是一个猜出来的 Anlas 数。
+  it('分辩率报真尺寸与 Opus 免费窗口', () => {
+    render(<StudioTagsControlColumn />)
+    expect(screen.getByText('1024×1024')).toBeInTheDocument()
+    expect(screen.getByText('opusFree')).toBeInTheDocument()
+  })
+
+  it('只有 Vibe / 精确参考那两档点不动', () => {
+    render(<StudioTagsControlColumn />)
+    expect(
+      screen.getByRole('button', { name: 'referenceUsage.standard' }),
+    ).not.toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'referenceUsage.vibe' }),
+    ).toBeDisabled()
+    expect(
+      screen.getByRole('button', { name: 'referenceUsage.precise' }),
+    ).toBeDisabled()
+  })
+
+  // 标签台里没有 NAI 时，NAI 自己那几张卡整块不渲染。
+  it('只选 PixAI 时不画 NAI 专属的三张卡', () => {
+    mocks.runModels = [PIXAI]
+    render(<StudioTagsControlColumn />)
+    expect(headings()).not.toContain('characterTitle')
+    expect(headings()).not.toContain('resolutionTitle')
+    expect(headings()).not.toContain('referenceUsageTitle')
+  })
+})

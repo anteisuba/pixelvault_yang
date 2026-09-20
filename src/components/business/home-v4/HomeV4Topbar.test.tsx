@@ -15,12 +15,6 @@ vi.mock('next-intl', () => ({
     namespace ? `${namespace}:${key}` : key,
 }))
 
-vi.mock('@/hooks/use-my-profile', () => ({
-  useMyProfile: () => ({
-    profile: { username: 'fulina', displayName: 'fulina', avatarUrl: null },
-  }),
-}))
-
 vi.mock('@/components/business/auth/AuthDialog', () => ({
   useAuthDialog: () => ({ openAuth: vi.fn() }),
 }))
@@ -42,27 +36,42 @@ vi.mock('@/i18n/navigation', () => ({
   ),
 }))
 
-describe('HomeV4Topbar 浮岛胶囊两态（D3 ④）', () => {
-  it('已登录：右端只有头像，没有齿轮、没有「登录」', () => {
+/**
+ * 首页顶栏**不承载应用壳的 chrome**（owner 2026-09-20）：没有齿轮、没有头像，
+ * 右端有且只有一颗入口按钮，文案随登录态变。
+ */
+describe('HomeV4Topbar 浮岛胶囊：一颗门', () => {
+  it('已登录：唯一的按钮是「进入工作台」', () => {
     mockAuth.isLoaded = true
     mockAuth.isSignedIn = true
-    render(<HomeV4Topbar />)
+    const { container } = render(<HomeV4Topbar />)
 
-    expect(
-      screen.getByLabelText('Navbar:viewProfile').getAttribute('href'),
-    ).toBe('/u/fulina')
-    // 设置只有一个门：登录后应用壳侧栏最底（settings.md §入口 D3）。
-    expect(screen.queryByLabelText('Navbar:settings')).toBeNull()
-    expect(screen.queryByRole('button', { name: 'Auth:open' })).toBeNull()
+    const buttons = container.querySelectorAll('header button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]?.textContent).toBe('Auth:enterStudio')
   })
 
-  it('未登录：右端只有「登录」', () => {
+  it('未登录：唯一的按钮是「登录」', () => {
     mockAuth.isLoaded = true
     mockAuth.isSignedIn = false
-    render(<HomeV4Topbar />)
+    const { container } = render(<HomeV4Topbar />)
 
-    expect(screen.getByRole('button', { name: 'Auth:open' })).toBeTruthy()
-    expect(screen.queryByLabelText('Navbar:settings')).toBeNull()
-    expect(screen.queryByLabelText('Navbar:viewProfile')).toBeNull()
+    const buttons = container.querySelectorAll('header button')
+    expect(buttons).toHaveLength(1)
+    expect(buttons[0]?.textContent).toBe('Auth:open')
+  })
+
+  it('两态都没有设置入口、没有头像', () => {
+    for (const signedIn of [true, false]) {
+      mockAuth.isLoaded = true
+      mockAuth.isSignedIn = signedIn
+      const { container, unmount } = render(<HomeV4Topbar />)
+
+      expect(screen.queryByLabelText('Navbar:settings')).toBeNull()
+      expect(screen.queryByLabelText('Navbar:viewProfile')).toBeNull()
+      expect(container.querySelector('.settings')).toBeNull()
+      expect(container.querySelector('.avatar')).toBeNull()
+      unmount()
+    }
   })
 })

@@ -1351,6 +1351,7 @@
   },
   "Auth": {
     "open": "ログイン",
+    "enterStudio": "スタジオを開く",
     "title": "{brand} へようこそ",
     "subtitle": "ログインまたは新規登録して続ける",
     "terms": "続けると<terms>利用規約</terms>と<privacy>プライバシーポリシー</privacy>に同意したことになります。",

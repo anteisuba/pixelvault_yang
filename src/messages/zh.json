@@ -1351,6 +1351,7 @@
   },
   "Auth": {
     "open": "登录",
+    "enterStudio": "进入工作台",
     "title": "欢迎使用 {brand}",
     "subtitle": "登录或注册以继续",
     "terms": "继续即代表你同意我们的<terms>服务条款</terms>与<privacy>隐私政策</privacy>。",

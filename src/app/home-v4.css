@@ -178,6 +178,9 @@ body.home-v4-locked {
   color: var(--paper);
 }
 
+/* 胶囊右端**只有这一颗**（owner 2026-09-20）：未登录「登录」，已登录「进入
+   工作台」。⛔ 没有齿轮、没有头像 —— 首页顶栏不承载应用壳的 chrome。
+   ⛔ 不显额度、不显 key 数、不挂红点 —— 那些只在 /settings 里看到。 */
 .home-v4 .topbar .login {
   padding: 8px 20px;
   background: var(--ink);
@@ -186,19 +189,6 @@ body.home-v4-locked {
   border-radius: 999px;
   font-size: 13px;
   cursor: pointer;
-}
-
-/* 已登录时胶囊右端只剩一颗（settings.md §入口 D3）：头像 → 个人主页。
-   ⛔ 没有齿轮 —— 设置只有一个门，在登录后应用壳侧栏最底。
-   ⛔ 不显额度、不显 key 数、不挂红点 —— 那些只在 /settings 里看到。 */
-.home-v4 .topbar .avatar {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 999px;
-  text-decoration: none;
 }
 
 /* ─── 翻页引擎：竖站 ────────────────────────────────────────────── */

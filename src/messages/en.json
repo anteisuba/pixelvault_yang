@@ -1351,6 +1351,7 @@
   },
   "Auth": {
     "open": "Sign in",
+    "enterStudio": "Open studio",
     "title": "Welcome to {brand}",
     "subtitle": "Sign in or create an account to continue",
     "terms": "By continuing you agree to our <terms>terms of service</terms> and <privacy>privacy policy</privacy>.",

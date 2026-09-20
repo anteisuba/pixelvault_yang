@@ -235,6 +235,39 @@ describe('StudioOperatorHeader', () => {
   })
 
   /**
+   * owner 2026-09-20 真机第 4 条：标题胶囊与历史行**共用同一个派生函数**
+   * （`lib/assistant-conversation-title.ts`），存量长标题在渲染时就短下来。
+   * 规则本身（剥提及 / 首句 / 宽度）在 `assistant-conversation-title.test.ts` 里验。
+   */
+  it('⭐ 标题胶囊与历史行共用派生函数：存量长标题渲染时就剥掉参考图提及', () => {
+    const noisy = [
+      {
+        id: 'noisy-session',
+        title:
+          'reference image 1 reference image 2 reference image 3 这几张图的画风抽出来用在新的角色上',
+        surface: ASSISTANT_SURFACE_IDS.imageStudio,
+        updatedAt: new Date(NOW).toISOString(),
+      },
+    ] as unknown as UseStudioOperatorHistoryResult['sessions']
+
+    renderHeader({
+      history: {
+        ...HISTORY,
+        sessions: noisy,
+        currentSessionId: 'noisy-session',
+      },
+    })
+
+    const pill = screen.getByTestId('operator-session-menu')
+    expect(pill.textContent).not.toContain('reference image')
+    expect(pill.textContent).toContain('这几张图的画风')
+
+    const row = screen.getByTestId('operator-session-item')
+    expect(row.textContent).not.toContain('reference image')
+    expect(row.textContent).toContain('这几张图的画风')
+  })
+
+  /**
    * 右上收成**一颗 ⋯**（D7b ④）：并排三颗图标（历史 · 设置 · 收起）全部退场，
    * 菜单里三项 —— 历史会话 · 设置 · 隐身（56a 未落 → 占位禁用）。
    */

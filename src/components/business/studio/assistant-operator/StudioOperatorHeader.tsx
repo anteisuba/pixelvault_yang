@@ -76,6 +76,7 @@ import type { AssistantPersona } from '@/types/assistant-persona'
 import type { StudioOperatorFace } from '@/contexts/studio-operator-host'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
+import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import {
   ASSISTANT_SURFACE_IDS,
   type AssistantSurfaceId,
@@ -200,9 +201,19 @@ export function StudioOperatorHeader({
   /** 标题▾ 与历史图标共开的那一个菜单（见头注），⛔ 不是两个实例。 */
   const [menuOpen, setMenuOpen] = useState(false)
 
+  /**
+   * 胶囊上那几个字（owner 2026-09-20 真机第 4 条）。
+   *
+   * ⚠ **派生在渲染时跑**，⛔ 不信库里那一列的长度：存量标题是几个月前按 80 字
+   * 存下的，那正是胶囊上「reference image 1 reference image 2 …」的来源。
+   * ⚠ 与历史行**共用同一个函数**（`lib/assistant-conversation-title.ts`），
+   * ⛔ 两处各写一遍必然漂成两种长度。
+   */
   const sessionTitle =
-    history.sessions.find((item) => item.id === history.currentSessionId)
-      ?.title ?? t('newThread')
+    deriveAssistantConversationTitle(
+      history.sessions.find((item) => item.id === history.currentSessionId)
+        ?.title,
+    ) ?? t('newThread')
 
   /**
    * 会话行右边那枚日期（画板 BCards：`今天` / `昨天` / `09-05`）。

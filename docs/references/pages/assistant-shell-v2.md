@@ -386,6 +386,23 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 - ⚠ **输入框在 Radix 菜单里要挡两件事**：菜单的 typeahead（任何可打印键都会把焦点跳到另一行）与 Esc 关菜单 —— 编辑态整格先 `stopPropagation()`，回车 / Esc 自己收尾。编辑态那一格 ⛔ 不是 `DropdownMenuItem`：菜单项会在指针掠过时抢焦点，而那正是用户正在打字的地方。
 - 随之删掉的三语词条：`history.deleteTitle` · `deleteDescription` · `deleteCancel` · `renameTitle` · `renameDescription` · `renameConfirm`；新增 `history.deleteConfirmInline`，`history.deleteConfirm` 改口成「确认删除」。
 
+#### 会话标题怎么派生（owner 2026-09-20 真机第 4 条）
+
+> 起因：胶囊上写着「reference image 1 reference image 2 reference image 3 这几张图的画风抽出…」。前面那三段是**挂上去的图**在正文里的占位 —— 界面上它们是 chip，进了标题只剩噪音。
+
+规则整条住 `src/lib/assistant-conversation-title.ts`，**三个调用方共用它**：头部标题胶囊 · 历史行 · 服务端新建会话时的 `titleFromMessages`。⛔ 三处各写一遍必然漂成三种长度。
+
+三步，顺序有理由：
+
+1. **先剥参考图提及** —— 两种形态：`@名字`（`mention-input` 的序列化字面量：`@Image1` · `@Attachment[...]` · `@莫宁`）与「reference image N / 参考图 N / リファレンス画像 N」那类短语。⛔ 不能放到截断之后：噪音会先把额度吃光。
+2. **再取首句** —— 三语句号 + 感叹问号 + **换行**都算收尾（按回车就是换了一件事）。
+3. **最后按视觉宽度封顶** —— `TITLE_MAX_WIDTH = 36` **半角格**：CJK 一个字两格、拉丁一格，于是 18 个汉字与 36 个西文字符是同一条视觉宽度。超出加 `…`（省略号自己占一格）。
+
+- **CSS `truncate` 只作兜底**：它按容器宽度裁，而容器宽度随面板拖宽变 —— 同一条会话在两台机器上会显示成两个长度不同的名字，而这个名字正是用户用来认它的。
+- **存量标题在渲染时才过这条规则**，⛔ 不写数据迁移：函数是幂等的，跑第二遍还是它自己（有测试钉着）。
+- **历史行上是两个标题**：库里那一份给读屏与改名初值（用户要改的是真名字），派生那一份只给眼睛。
+- **剥成空退回原文**（整条消息都是提及时）：一个噪音标题仍旧好过一个空标题。
+
 ### 4.2 空态与四张脸的 `face` 契约（D7b ③，owner 2026-09-20）
 
 > Last Verified: 2026-09-20（owner 拍板 D7b ④ · 画板 `DesignD7bFaces`）
@@ -1040,6 +1057,13 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 - **规范**：[`ui-defaults.md`](../ui-defaults.md) · [`testing.md`](../testing.md) · [`WORKFLOW.md`](../../WORKFLOW.md) · [`AGENTS.md`](../../../AGENTS.md)
 
 ### Last Verified
+
+- **2026-09-20 · owner 真机四修**（本轮四个 commit，每条一个）。
+  - **①** 可选增强不再拖垮整轮（判据与落点见 [`backend.md`](../backend.md)「可选增强不许拖垮主流程」），错误帧新增 `traceId` / `detail`，错误条长成三段 —— 见 §3.7。
+  - **②** 模型选择器：分组头写着厂商时行内不再重复它（判据 = `group.key === row.seriesKey`，⛔ 不按前缀裁）；搜索结果改**平铺无分组头**，与「最近」段一样保留厂商名。⚠ 此前搜索态是有分组头的，本轮按 owner 批注里的口径改平。
+  - **③** 历史会话行：铅笔就地改、垃圾桶原位两段确认，两张 `AlertDialog` 整块退场 —— 见 §4.1「历史会话行的两个动作」。新组件 `StudioOperatorSessionRow`。
+  - **④** 会话标题派生收进 `lib/assistant-conversation-title.ts`，三处共用 —— 见 §4.1「会话标题怎么派生」。
+  - ⚠ 迁移 `20260920120000_assistant_memory` **仍未对数据库执行**（本轮不跑任何 prisma 命令）；①的容错让这件事不再表现成「助手整轮挂掉」，但记忆本身在迁移跑之前仍旧是空的。
 
 - **2026-09-19 · 进度表 56b 切片 5「分析直喂模型」落地**。
   - **`StudioOperatorReferenceAnalysisCard` 整文件删**（连同 `.web.test.tsx`）；面板、历史条目、时间线行测试三处调用方一起改。

@@ -32,6 +32,7 @@ import { Check, Pencil, Trash2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
+import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import { ASSISTANT_CONVERSATION_LIMITS } from '@/types/assistant-conversation'
 import type { AssistantConversationSummary } from '@/types/assistant-conversation'
 import { cn } from '@/lib/utils'
@@ -84,7 +85,14 @@ export function StudioOperatorSessionRow({
   onConfirmDelete,
 }: StudioOperatorSessionRowProps) {
   const t = useTranslations('StudioOperator')
+  /**
+   * ⚠ 两个标题，⛔ 别合成一个（owner 2026-09-20 真机第 4 条）：
+   *  · `title` = **库里那一份**，给读屏与改名的初值 —— 用户要改的是真名字；
+   *  · `displayTitle` = 派生出来的短名，只给眼睛看，与头部胶囊共用同一个函数。
+   */
   const title = session.title ?? t('history.untitled')
+  const displayTitle =
+    deriveAssistantConversationTitle(session.title) ?? t('history.untitled')
   /** `null` = 不在编辑态。⛔ 不用一个布尔 + 一份文本：两格状态会漂。 */
   const [draft, setDraft] = useState<string | null>(null)
   /**
@@ -137,7 +145,8 @@ export function StudioOperatorSessionRow({
           onSelect={onSelect}
         >
           <span className="min-w-0 flex-1">
-            <span className="block truncate">{title}</span>
+            {/* CSS `truncate` 只是兜底 —— 真正的上限在派生函数里。 */}
+            <span className="block truncate">{displayTitle}</span>
             <span className="mt-0.5 flex items-center gap-2 text-2sm text-muted-foreground">
               {domainLabel ? <span>{domainLabel}</span> : null}
               <span className="font-mono tabular-nums">{dateLabel}</span>

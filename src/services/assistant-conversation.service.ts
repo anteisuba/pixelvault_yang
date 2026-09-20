@@ -4,6 +4,7 @@ import { createHash, randomBytes } from 'node:crypto'
 
 import { Prisma, type AssistantSurface } from '@/lib/generated/prisma/client'
 
+import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
 import { db } from '@/lib/db'
 import { ensureUser } from '@/services/user.service'
 import { ASSISTANT_ROUND_SUMMARY_LIMITS } from '@/constants/assistant-operator'
@@ -29,16 +30,20 @@ function hashShareToken(token: string): string {
   return createHash('sha256').update(token, 'utf8').digest('hex')
 }
 
+/**
+ * 新建会话时派生的那个标题。
+ *
+ * ⚠ 规则整条住在 `lib/assistant-conversation-title.ts`（owner 2026-09-20 真机
+ * 第 4 条）：先剥参考图提及、再取首句、最后按视觉宽度封顶。⛔ 这里不再自己
+ * 按 `titleMaxLength` 切 —— 那一版把「@图1 @图2 @图3 这几张图的画风…」原样存了
+ * 进去。⚠ 面板那两处（头部胶囊 · 历史行）渲染时走的是**同一个函数**，所以
+ * 存量行不需要迁移。
+ */
 function titleFromMessages(
   messages: AssistantConversationMessageStored[],
 ): string | null {
   const firstUser = messages.find((message) => message.role === 'user')
-  const content = firstUser?.content?.trim()
-  if (!content) return null
-  if (content.length <= ASSISTANT_CONVERSATION_LIMITS.titleMaxLength) {
-    return content
-  }
-  return `${content.slice(0, ASSISTANT_CONVERSATION_LIMITS.titleMaxLength - 1)}…`
+  return deriveAssistantConversationTitle(firstUser?.content)
 }
 
 function sanitizeMessages(

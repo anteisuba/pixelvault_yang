@@ -2,11 +2,13 @@ import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
 import { PAGINATION } from '@/constants/config'
+import { ROUTES } from '@/constants/routes'
 import { GallerySearchSchema } from '@/types'
 import { getPublicGenerationPage } from '@/services/generation.service'
 
 import { GalleryFeed } from '@/components/business/GalleryFeed'
 import type { AppLocale } from '@/i18n/routing'
+import { pageAddress } from '@/lib/page-address'
 
 export const revalidate = 60
 
@@ -27,9 +29,18 @@ export async function generateMetadata({
 }: GalleryPageProps): Promise<Metadata> {
   const { locale } = await params
   const t = await getTranslations({ locale, namespace: 'Metadata' })
+  const title = t('gallery.title')
+  const description = t('gallery.description')
+  // ⚠ 分面（search / model / sort…）只在 query string 里，canonical 因此是
+  // 不带参数的 `/gallery` —— 每一种筛选组合都归到同一个正本，⛔ 不要把
+  // `searchParams` 拼进来，那会凭空造出无数个自称正本的地址。
+  const address = pageAddress({ locale, path: ROUTES.GALLERY })
+
   return {
-    title: t('gallery.title'),
-    description: t('gallery.description'),
+    title,
+    description,
+    alternates: address.alternates,
+    openGraph: { ...address.openGraph, title, description, type: 'website' },
   }
 }
 

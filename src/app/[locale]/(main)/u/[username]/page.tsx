@@ -3,10 +3,13 @@ import { notFound } from 'next/navigation'
 import { auth } from '@clerk/nextjs/server'
 import { getTranslations } from 'next-intl/server'
 
+import { getAppOrigin } from '@/constants/config'
+import { creatorProfilePath } from '@/constants/routes'
 import { getCreatorProfile, getUserByClerkId } from '@/services/user.service'
 import { CreatorProfileView } from '@/components/business/CreatorProfileView'
 import { PrivateProfileView } from '@/components/business/PrivateProfileView'
 import type { AppLocale } from '@/i18n/routing'
+import { pageAddress } from '@/lib/page-address'
 
 interface CreatorProfilePageProps {
   params: Promise<{ locale: AppLocale; username: string }>
@@ -33,16 +36,22 @@ export async function generateMetadata({
   const title = `${displayName} — ${t('metaTitle')}`
   const description = profile.bio ?? t('metaDescription', { name: displayName })
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'https://pixelvault.app'
-  const ogImageUrl = `${appUrl}/api/og?type=profile&username=${encodeURIComponent(username)}`
+  const ogImageUrl = `${getAppOrigin()}/api/og?type=profile&username=${encodeURIComponent(username)}`
+  // ⚠ canonical 用规范化后的 `creatorProfilePath(username)`，不是地址栏里那个
+  // 原样的 `username` —— 大小写或转义不同的两条链接因此归到同一个正本。
+  const address = pageAddress({
+    locale,
+    path: creatorProfilePath(profile.username),
+  })
 
   return {
     title,
     description,
+    alternates: address.alternates,
     openGraph: {
+      ...address.openGraph,
       title,
       description,
-      url: `${appUrl}/${locale}/u/${username}`,
       type: 'profile',
       images: [{ url: ogImageUrl, width: 1200, height: 630 }],
     },

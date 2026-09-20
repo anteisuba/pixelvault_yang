@@ -4,8 +4,7 @@ import { getTranslations } from 'next-intl/server'
 import { LegalPage } from '@/components/business/LegalPage'
 import { ROUTES } from '@/constants/routes'
 import type { AppLocale } from '@/i18n/routing'
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+import { pageAddress } from '@/lib/page-address'
 
 export async function generateMetadata({
   params,
@@ -16,9 +15,12 @@ export async function generateMetadata({
   const t = await getTranslations({ locale, namespace: 'Legal' })
   const title = t('terms.title')
 
+  const address = pageAddress({ locale, path: ROUTES.TERMS })
+
   return {
     title,
-    alternates: { canonical: `${APP_URL}/${locale}${ROUTES.TERMS}` },
+    alternates: address.alternates,
+    openGraph: { ...address.openGraph, title },
   }
 }
 

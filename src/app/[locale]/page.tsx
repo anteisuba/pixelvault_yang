@@ -1,11 +1,11 @@
 import type { Metadata } from 'next'
 import { getTranslations } from 'next-intl/server'
 
+import { ROUTES } from '@/constants/routes'
 import { HomeV4Shell } from '@/components/business/home-v4/HomeV4Shell'
 import type { AppLocale } from '@/i18n/routing'
+import { pageAddress } from '@/lib/page-address'
 import { getHomeV4ShowcaseShots } from '@/services/homepage-showcase.service'
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
 // Marketing homepage is auth-agnostic on the server — the auth-aware CTA is
 // resolved client-side via Clerk's useUser(). This lets the page be served
@@ -25,18 +25,13 @@ export async function generateMetadata({
   const title = t('title')
   const description = t('description')
 
+  const address = pageAddress({ locale, path: ROUTES.HOME })
+
   return {
     title,
     description,
-    openGraph: {
-      title,
-      description,
-      url: `${APP_URL}/${locale}`,
-      type: 'website',
-    },
-    alternates: {
-      canonical: `${APP_URL}/${locale}`,
-    },
+    alternates: address.alternates,
+    openGraph: { ...address.openGraph, title, description, type: 'website' },
   }
 }
 

@@ -8,6 +8,7 @@ import {
 } from '@/constants/routes'
 import { LOCALES } from '@/i18n/routing'
 import { logger } from '@/lib/logger'
+import { localeUrl } from '@/lib/page-address'
 import { getPublicGenerations } from '@/services/generation.service'
 import { listPublicCreatorUsernames } from '@/services/user.service'
 
@@ -25,16 +26,9 @@ import { listPublicCreatorUsernames } from '@/services/user.service'
  * The catalogue is walked in `SITEMAP_QUERY_BATCH_SIZE` batches so no single
  * query loads the whole table; a short batch ends the walk.
  */
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 const sitemapLogger = logger.child({ route: '/sitemap.xml' })
 
 export const dynamic = 'force-dynamic'
-
-function getLocalizedUrl(locale: string, route: string): string {
-  return route === ROUTES.HOME
-    ? `${APP_URL}/${locale}`
-    : `${APP_URL}/${locale}${route}`
-}
 
 /**
  * Walk an offset-paginated reader until it returns a short batch. A failing
@@ -73,7 +67,7 @@ function getStaticEntries(): MetadataRoute.Sitemap {
 
   return LOCALES.flatMap((locale) =>
     staticRoutes.map((route) => ({
-      url: getLocalizedUrl(locale, route),
+      url: localeUrl(locale, route),
       lastModified: new Date(),
       changeFrequency: 'weekly' as const,
       priority: route === ROUTES.HOME ? 1.0 : 0.8,
@@ -89,7 +83,7 @@ async function getGenerationEntries(): Promise<MetadataRoute.Sitemap> {
 
   return LOCALES.flatMap((locale) =>
     generations.map((generation) => ({
-      url: getLocalizedUrl(locale, galleryGenerationPath(generation.id)),
+      url: localeUrl(locale, galleryGenerationPath(generation.id)),
       lastModified: new Date(generation.createdAt),
       changeFrequency: 'monthly' as const,
       priority: 0.6,
@@ -106,7 +100,7 @@ async function getCreatorEntries(): Promise<MetadataRoute.Sitemap> {
 
   return LOCALES.flatMap((locale) =>
     usernames.map((username) => ({
-      url: getLocalizedUrl(locale, creatorProfilePath(username)),
+      url: localeUrl(locale, creatorProfilePath(username)),
       changeFrequency: 'weekly' as const,
       priority: 0.5,
     })),

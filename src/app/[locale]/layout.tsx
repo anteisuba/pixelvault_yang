@@ -11,7 +11,11 @@ import { notFound } from 'next/navigation'
 import { PrivacyConsentBanner } from '@/components/business/PrivacyConsentBanner'
 import { IconDefaults } from '@/components/icons/IconDefaults'
 import { LocaleHtmlSync } from '@/components/layout/LocaleHtmlSync'
-import { getAppOrigin, getClerkAllowedOrigins } from '@/constants/config'
+import {
+  getAppOrigin,
+  getClerkAllowedOrigins,
+  SITE_NAME,
+} from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
 import { CLERK_LOCALIZATIONS } from '@/i18n/clerk'
 import { MARKETING_NAMESPACES, pickMessages } from '@/i18n/messages-split'
@@ -46,6 +50,10 @@ export async function generateMetadata({
   const description = t('description')
   const keywords = t.has('keywords') ? t('keywords') : undefined
 
+  // ⛔ 这里不给 `alternates` 也不给 `openGraph.url`。Next 的 metadata 是整块
+  // 替换而非深合并，父层给的地址在子页没覆盖时**原样生效** —— 曾经每个忘了
+  // 覆盖的页面（画廊、创作者主页…）都在对爬虫说「我的正本是首页」，等于自请
+  // 不收录。地址只由页面自己用 `pageAddress()` 说，见 `src/lib/page-address.ts`。
   return {
     title,
     description,
@@ -54,21 +62,14 @@ export async function generateMetadata({
     openGraph: {
       title,
       description,
-      siteName: 'PixelVault',
+      siteName: SITE_NAME,
       type: 'website',
       locale,
-      url: `${APP_ORIGIN}/${locale}`,
     },
     twitter: {
       card: 'summary_large_image',
       title,
       description,
-    },
-    alternates: {
-      canonical: `${APP_ORIGIN}/${locale}`,
-      languages: Object.fromEntries(
-        LOCALES.map((l) => [l, `${APP_ORIGIN}/${l}`]),
-      ),
     },
   }
 }

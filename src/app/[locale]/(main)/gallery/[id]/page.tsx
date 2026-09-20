@@ -12,11 +12,17 @@ import type { Metadata } from 'next'
 import { getFormatter, getTranslations } from 'next-intl/server'
 import { notFound } from 'next/navigation'
 
+import { getAppOrigin, SITE_NAME } from '@/constants/config'
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
-import { ROUTES, studioCanvasEditPath } from '@/constants/routes'
+import {
+  ROUTES,
+  galleryGenerationPath,
+  studioCanvasEditPath,
+} from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
 import { isCjkLocale, type AppLocale } from '@/i18n/routing'
 import { getGenerationPreviewUrl } from '@/lib/generation-media'
+import { localeUrl, pageAddress } from '@/lib/page-address'
 import { cn } from '@/lib/utils'
 import { getPublicGenerationById } from '@/services/generation.service'
 
@@ -49,22 +55,23 @@ export async function generateMetadata({
     ? tModels(`${getModelMessageKey(generation.model)}.label`)
     : generation.model
 
-  const title = `${modelLabel} — PixelVault`
+  const title = `${modelLabel} — ${SITE_NAME}`
   const description = generation.isPromptPublic
     ? generation.prompt.slice(0, 160)
     : `AI-generated ${generation.outputType === 'VIDEO' ? 'video' : 'image'} by ${modelLabel}`
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 
-  const ogImageUrl = `${appUrl}/api/og?type=generation&id=${id}`
+  const ogImageUrl = `${getAppOrigin()}/api/og?type=generation&id=${id}`
+  const address = pageAddress({ locale, path: galleryGenerationPath(id) })
 
   return {
     title,
     description,
+    alternates: address.alternates,
     openGraph: {
+      ...address.openGraph,
       title,
       description,
       type: 'article',
-      url: `${appUrl}/${locale}/gallery/${id}`,
       images: [
         {
           url: ogImageUrl,
@@ -104,7 +111,8 @@ export default async function ImageDetailPage({
     ? tModels(`${getModelMessageKey(generation.model)}.label`)
     : generation.model
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  // JSON-LD 的 `url` 必须与 canonical 逐字一致，所以走同一支。
+  const pageUrl = localeUrl(locale, galleryGenerationPath(id))
   const createdAt = new Date(generation.createdAt)
   const aspectRatio = `${Math.max(generation.width, 1)} / ${Math.max(generation.height, 1)}`
 
@@ -121,10 +129,10 @@ export default async function ImageDetailPage({
         name: `${modelLabel} generation`,
         description: jsonLdDescription,
         contentUrl: generation.url,
-        url: `${appUrl}/${locale}/gallery/${id}`,
+        url: pageUrl,
         duration: generation.duration ? `PT${generation.duration}S` : undefined,
         uploadDate: createdAt.toISOString(),
-        creator: { '@type': 'Organization', name: 'PixelVault' },
+        creator: { '@type': 'Organization', name: SITE_NAME },
       }
     : {
         '@context': 'https://schema.org',
@@ -132,11 +140,11 @@ export default async function ImageDetailPage({
         name: `${modelLabel} generation`,
         description: jsonLdDescription,
         contentUrl: generation.url,
-        url: `${appUrl}/${locale}/gallery/${id}`,
+        url: pageUrl,
         width: generation.width,
         height: generation.height,
         dateCreated: createdAt.toISOString(),
-        creator: { '@type': 'Organization', name: 'PixelVault' },
+        creator: { '@type': 'Organization', name: SITE_NAME },
       }
 
   const labelClass = cn(

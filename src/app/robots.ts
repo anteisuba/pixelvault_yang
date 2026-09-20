@@ -1,9 +1,9 @@
 import type { MetadataRoute } from 'next'
 
+import { getAppOrigin } from '@/constants/config'
 import { ROUTES } from '@/constants/routes'
 import { LOCALES } from '@/i18n/routing'
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
 const API_ROUTE_PREFIX = '/api'
 const SITEMAP_ROUTE = '/sitemap.xml'
 
@@ -30,6 +30,6 @@ export default function robots(): MetadataRoute.Robots {
         ],
       },
     ],
-    sitemap: `${APP_URL}${SITEMAP_ROUTE}`,
+    sitemap: `${getAppOrigin()}${SITEMAP_ROUTE}`,
   }
 }

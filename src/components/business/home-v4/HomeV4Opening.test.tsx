@@ -51,7 +51,10 @@ const cellSrcs = (container: HTMLElement) =>
 describe('HomeV4Opening · showcase wall', () => {
   it('draws the shots the page passed, not the bundled strip', () => {
     const { container } = render(
-      <HomeV4Opening progress={0} shots={shots(HOME_V4_SHOWCASE.CELL_COUNT)} />,
+      <HomeV4Opening
+        active={false}
+        shots={shots(HOME_V4_SHOWCASE.CELL_COUNT)}
+      />,
     )
 
     expect(cellSrcs(container)).toEqual(
@@ -62,7 +65,7 @@ describe('HomeV4Opening · showcase wall', () => {
   it('takes only the first CELL_COUNT shots — the rest are rotation spares', () => {
     const { container } = render(
       <HomeV4Opening
-        progress={0}
+        active={false}
         shots={shots(HOME_V4_SHOWCASE.CELL_COUNT + 6)}
       />,
     )
@@ -71,54 +74,14 @@ describe('HomeV4Opening · showcase wall', () => {
   })
 
   it('falls back to the bundled strip when no shots are passed', () => {
-    const { container } = render(<HomeV4Opening progress={0} />)
+    const { container } = render(<HomeV4Opening active={false} />)
 
     expect(cellSrcs(container)).toEqual(HOME_V4_STRIP.map((shot) => shot.src))
   })
 
   it('falls back to the bundled strip on an empty list', () => {
-    const { container } = render(<HomeV4Opening progress={0} shots={[]} />)
+    const { container } = render(<HomeV4Opening active={false} shots={[]} />)
 
     expect(cellSrcs(container)).toEqual(HOME_V4_STRIP.map((shot) => shot.src))
-  })
-})
-
-/**
- * 首屏随滚动散开（UX 板 Hero · 100vh：「作品墙随滚动向两侧散开（scrub）」）。
- *
- * jsdom 不算样式，所以这里钉的是**喂给 CSS 的数**：每格自己的 `--away`（到中线
- * 的距离）与全墙共用的 `--spread`（段内进度）。⛔ 只写自定义属性，没有一行
- * 布局属性被碰。
- */
-describe('HomeV4Opening · 随滚动散开', () => {
-  const styles = (container: HTMLElement) =>
-    Array.from(container.querySelectorAll('.op-strip figure')).map(
-      (cell) => cell.getAttribute('style') ?? '',
-    )
-
-  it('把进度喂给每一格，中线两侧的符号相反', () => {
-    const { container } = render(<HomeV4Opening progress={0.5} />)
-    const written = styles(container)
-
-    expect(written).toHaveLength(HOME_V4_SHOWCASE.CELL_COUNT)
-    for (const style of written) {
-      expect(style).toContain('--spread: 0.5')
-      expect(style).toContain('--away')
-    }
-    /* 第一格在中线左侧，最后一格在右侧 —— 散开，不是整块平移。 */
-    expect(written[0]).toContain('--away: -1')
-    expect(written[written.length - 1]).toContain('--away: 1')
-  })
-
-  it('标题与提示随后半程淡出，且只动 opacity', () => {
-    const top = render(<HomeV4Opening progress={0} />)
-    expect(top.container.querySelector('.op-hero')?.getAttribute('style')).toBe(
-      'opacity: 1;',
-    )
-
-    const gone = render(<HomeV4Opening progress={1} />)
-    expect(
-      gone.container.querySelector('.op-hero')?.getAttribute('style'),
-    ).toBe('opacity: 0;')
   })
 })

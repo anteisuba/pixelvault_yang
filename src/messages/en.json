@@ -631,7 +631,18 @@
     "heroLine2": "Keep every result.",
     "v4": {
       "nav": {
-        "label": "Page navigation"
+        "label": "Page navigation",
+        "pageLabel": "Page index",
+        "close": "Close",
+        "stationPages": "{count, plural, one {# page} other {# pages}}",
+        "prevModel": "Previous model",
+        "nextModel": "Next model"
+      },
+      "groups": {
+        "opening": "Opening",
+        "feature": "Features",
+        "models": "Models",
+        "finale": "Closing"
       },
       "opening": {
         "note": "Made here · From the public gallery · Updated continuously",
@@ -645,7 +656,6 @@
       },
       "fn": {
         "image": {
-          "go": "Open the image studio",
           "workbench": "Image workspace",
           "meta": "1024×1365 · 1 image per model · same prompt",
           "prompt": "Ginger cat curator in round glasses at a museum desk, framed art behind, warm light",
@@ -653,7 +663,6 @@
           "moreModels": "{count, plural, one {# model} other {# models}}"
         },
         "lora": {
-          "go": "Open the LoRA bench",
           "workbench": "LoRA workspace",
           "mounted": "<b>{count}</b> added · no limit",
           "search": "Search Civitai / Hugging Face…",
@@ -691,7 +700,6 @@
           }
         },
         "audio": {
-          "go": "Open the dubbing room",
           "room": "Voice room",
           "meta": "8 speakers · voice library + cloning · Fish S2.1",
           "lines": {
@@ -725,7 +733,6 @@
           "generate": "Generate"
         },
         "video": {
-          "go": "Open the video studio",
           "workbench": "Video workspace",
           "meta": "Seedance 2.5 reference endpoint · 30s in one pass · 720p",
           "refs": {
@@ -748,7 +755,6 @@
           "outTag": "Seedance · made here · The Borrowed Umbrella"
         },
         "canvas": {
-          "go": "Open the canvas",
           "assistant": {
             "title": "Assistant",
             "meta": "Script assistant",
@@ -789,7 +795,6 @@
           }
         },
         "vault": {
-          "go": "Open the library",
           "title": "Vault",
           "meta": "Images · video · audio · LoRA · kept for good",
           "filters": {
@@ -848,10 +853,20 @@
           "nav": "Vault",
           "title": "Everything you keep can go back on stage."
         },
-        "models": {
-          "nav": "Model line-up",
-          "title": "Twenty-five models, one place to run them.",
-          "eyebrow": "07 · MODELS"
+        "modelsImage": {
+          "nav": "Models · Image"
+        },
+        "modelsLora": {
+          "nav": "Models · LoRA"
+        },
+        "modelsVideo": {
+          "nav": "Models · Video"
+        },
+        "modelsAudio": {
+          "nav": "Models · Audio"
+        },
+        "models3d": {
+          "nav": "Models · 3D"
         },
         "finale": {
           "nav": "Closing"
@@ -866,17 +881,6 @@
         "coverAlt": "{model} sample output"
       },
       "models": {
-        "rows": {
-          "image": "Image",
-          "lora": "LoRA",
-          "video": "Video",
-          "audio": "Audio",
-          "threed": "3D"
-        },
-        "rail": {
-          "count": "{count}",
-          "open": "Generate with {model}"
-        },
         "gpt": {
           "pos": "The all-rounder: top of the blind-test boards, and the best at reading a complicated brief.",
           "fare": "Usage-based",

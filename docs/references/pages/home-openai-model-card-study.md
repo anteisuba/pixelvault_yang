@@ -3,8 +3,6 @@
 Status: owner decision recorded 2026-07-28. Use the original official
 model-specific icon without an editorial redesign.
 
-> 2026-09-20 · 模型区形态回到「横滑卡片列表」：v5 长卷把 v4 的五个整屏模型站并成终页前的一段，每模态一行（见 `home.md` §结构）。本文说的 rail-card 尺度因此重新成立，结论不变——卡是目录标识，不是独立品牌战役。
-
 ## Decision to make
 
 The current abstract illustration does not identify OpenAI or GPT Image 2. The cover must be model-specific at rail-card size while preserving the existing homepage layout.

@@ -1,27 +1,19 @@
 'use client'
 
 import Image from 'next/image'
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type CSSProperties,
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { useTranslations } from 'next-intl'
 
 import { HOMEPAGE_MODEL_COUNTS, HOMEPAGE_PROVIDERS } from '@/constants/homepage'
 import {
-  HOME_V4_BEATS,
+  HOME_V4_ENGINE,
   HOME_V4_OPENING,
   HOME_V4_SHOWCASE,
   HOME_V4_STRIP,
   HOME_V4_STRIP_SPARES,
   type HomeV4ShowcaseShot,
 } from '@/constants/homepage-v4'
-import { homeV4OpeningBeats } from '@/lib/home-v4-beats'
 
 /** One strip cell. `b` sits on top of `a` and only exists during/after a swap. */
 interface StripSlot {
@@ -40,11 +32,8 @@ const STATIC_SHOTS: readonly HomeV4ShowcaseShot[] = [
 ]
 
 interface HomeV4OpeningProps {
-  /**
-   * 这一段的滚动进度 0–1 —— 首屏往上退出的那一程。作品墙按它向两侧散开，
-   * 标题在后半程淡出。
-   */
-  progress: number
+  /** True while this is the page on screen. Drives play / reset, same as the SPEC. */
+  active: boolean
   /**
    * The wall, newest public work first, read server-side by the page. The first
    * `CELL_COUNT` fill the grid and the rest become the rotation pool — the split
@@ -79,7 +68,7 @@ interface HomeV4OpeningProps {
  * has no timeline of its own: it is there from the first paint and only moves
  * when the deck moves.
  */
-export function HomeV4Opening({ progress, shots }: HomeV4OpeningProps) {
+export function HomeV4Opening({ active, shots }: HomeV4OpeningProps) {
   const t = useTranslations('Homepage')
   const tCommon = useTranslations('Common')
 
@@ -91,7 +80,9 @@ export function HomeV4Opening({ progress, shots }: HomeV4OpeningProps) {
     [wall],
   )
 
-  const beats = homeV4OpeningBeats(progress)
+  const [heroIn, setHeroIn] = useState(false)
+  const [revealed, setRevealed] = useState(0)
+  const [tailIn, setTailIn] = useState(false)
   const [slots, setSlots] = useState<StripSlot[]>(() =>
     cells.map((shot) => ({ a: shot.src, b: null, swapping: false })),
   )
@@ -99,12 +90,20 @@ export function HomeV4Opening({ progress, shots }: HomeV4OpeningProps) {
   /* Refs, not state: the rotation tick reads them from inside a timer, where a
      captured render's values would be stale. */
   const slotsRef = useRef(slots)
+  const revealedRef = useRef(0)
   /* Whatever the grid did not take. The rotation swaps these in and hands the
      outgoing shot back, so the pool never empties. */
   const sparesRef = useRef<string[]>(
     wall.slice(HOME_V4_SHOWCASE.CELL_COUNT).map((shot) => shot.src),
   )
   const swapTimersRef = useRef<number[]>([])
+  /* The very first paint gets a longer beat than a return visit. */
+  const firstRunRef = useRef(true)
+
+  const reveal = useCallback((count: number) => {
+    revealedRef.current = count
+    setRevealed(count)
+  }, [])
 
   const commit = useCallback((next: StripSlot[]) => {
     slotsRef.current = next
@@ -115,7 +114,9 @@ export function HomeV4Opening({ progress, shots }: HomeV4OpeningProps) {
     const current = slotsRef.current
     const candidates = current
       .map((_, index) => index)
-      .filter((index) => !current[index].swapping)
+      .filter(
+        (index) => index < revealedRef.current && !current[index].swapping,
+      )
     if (candidates.length === 0) return
 
     const next = sparesRef.current.shift()
@@ -143,35 +144,53 @@ export function HomeV4Opening({ progress, shots }: HomeV4OpeningProps) {
     )
   }, [commit])
 
-  /**
-   * 常驻轮换。⚠ 这里**不再有入场时间线**：长卷的首屏一落地就是完整的，没有
-   * 「进入这一页」这个事件可以挂。墙照旧每隔一阵换一张，读者在读的时候它在呼吸。
-   */
   useEffect(() => {
-    const interval = window.setInterval(
-      rotate,
-      HOME_V4_OPENING.ROTATE_INTERVAL_MS,
-    )
-    return () => {
-      window.clearInterval(interval)
+    if (!active) {
       swapTimersRef.current.forEach((id) => window.clearTimeout(id))
       swapTimersRef.current = []
+      /* Rewind only once the page has finished sliding away. Resetting on the
+         spot would play the intro backwards in full view — the headline sinking
+         back into its mask, the cells dropping — for the whole 850ms exit. */
+      const rewind = window.setTimeout(() => {
+        setHeroIn(false)
+        setTailIn(false)
+        reveal(0)
+        commit(slotsRef.current.map((slot) => ({ ...slot, swapping: false })))
+      }, HOME_V4_ENGINE.PAGE_MS)
+      return () => window.clearTimeout(rewind)
     }
-  }, [rotate])
 
-  /**
-   * 散开：格子离中线越远走得越远（`--away` 是它到中线的距离，0–1），所以墙是
-   * **向两侧摊开**而不是整块平移。只写 `transform` 与 `opacity`。
-   */
-  const spreadStyle = (index: number): CSSProperties => {
-    const middle = (cells.length - 1) / 2
-    const away = middle === 0 ? 0 : (index - middle) / middle
-    return {
-      '--away': away,
-      '--spread': beats.spread,
-      '--spread-vw': `${HOME_V4_BEATS.opening.spreadVw}vw`,
-    } as CSSProperties
-  }
+    const base = firstRunRef.current
+      ? HOME_V4_OPENING.FIRST_PAINT_DELAY_MS
+      : HOME_V4_OPENING.ENTER_DELAY_MS
+    firstRunRef.current = false
+
+    const timers: number[] = []
+    const at = (fn: () => void, ms: number) => {
+      timers.push(window.setTimeout(fn, ms))
+    }
+
+    at(() => setHeroIn(true), base + HOME_V4_OPENING.HERO_MS)
+    cells.forEach((_, index) => {
+      at(
+        () => reveal(index + 1),
+        base +
+          HOME_V4_OPENING.STRIP_START_MS +
+          index * HOME_V4_OPENING.STRIP_STAGGER_MS,
+      )
+    })
+    at(() => setTailIn(true), base + HOME_V4_OPENING.TAIL_MS)
+
+    let interval: number | undefined
+    at(() => {
+      interval = window.setInterval(rotate, HOME_V4_OPENING.ROTATE_INTERVAL_MS)
+    }, base)
+
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id))
+      if (interval !== undefined) window.clearInterval(interval)
+    }
+  }, [active, cells, commit, reveal, rotate])
 
   return (
     <div className="page-inner">
@@ -182,10 +201,7 @@ export function HomeV4Opening({ progress, shots }: HomeV4OpeningProps) {
       </div>
 
       <div className="fg">
-        <div
-          className="op-hero l2 in"
-          style={{ opacity: beats.copyOpacity } as CSSProperties}
-        >
+        <div className={`op-hero l2${heroIn ? ' in' : ''}`}>
           <p className="eyebrow op-stat">
             {t('heroStat', {
               models: HOMEPAGE_MODEL_COUNTS.total,
@@ -206,28 +222,22 @@ export function HomeV4Opening({ progress, shots }: HomeV4OpeningProps) {
         <div className="op-strip l3">
           {cells.map((shot, index) => {
             const slot = slots[index]
-            const classes = ['in', slot.swapping ? 'swap' : '']
+            const classes = [
+              index < revealed ? 'in' : '',
+              slot.swapping ? 'swap' : '',
+            ]
               .filter(Boolean)
               .join(' ')
 
             return (
-              <figure
-                key={shot.id}
-                className={classes}
-                style={spreadStyle(index)}
-              >
+              <figure key={shot.id} className={classes}>
                 <Image
                   className="a"
                   src={slot.a}
                   alt=""
                   fill
                   sizes="(max-width: 768px) 34vw, 120px"
-                  decoding="async"
-                  /* ⭐ 首屏只抢两张。LCP 算的是标题与第一张图，后面八格抢到的
-                     优先级只是在跟标题抢带宽。其余格子走 next/image 默认的
-                     lazy —— 长卷里这个默认终于是对的：v4 用 transform 移动十三
-                     页，浏览器看哪张都像在屏上，只能手写预取门。 */
-                  priority={index < 2}
+                  priority={index < 4}
                 />
                 {slot.b ? (
                   <Image
@@ -243,16 +253,13 @@ export function HomeV4Opening({ progress, shots }: HomeV4OpeningProps) {
           })}
         </div>
 
-        <p
-          className="op-note l3 in"
-          style={{ opacity: beats.copyOpacity } as CSSProperties}
-        >
+        <p className={`op-note l3${tailIn ? ' in' : ''}`}>
           {t('v4.opening.note')}
         </p>
       </div>
 
       {/* Outside `.fg` on purpose: both are pinned to `.page-inner`. */}
-      <div className="op-mq l1 in">
+      <div className={`op-mq l1${tailIn ? ' in' : ''}`}>
         <div className="op-track">
           {/* duplicated once so the -50% translate loops seamlessly */}
           {[false, true].map((isClone) => (
@@ -269,10 +276,7 @@ export function HomeV4Opening({ progress, shots }: HomeV4OpeningProps) {
         </div>
       </div>
 
-      <div
-        className="op-cue in"
-        style={{ opacity: beats.copyOpacity } as CSSProperties}
-      >
+      <div className={`op-cue${tailIn ? ' in' : ''}`}>
         <i />
         <span className="cue-pc">{t('v4.opening.cuePc')}</span>
         <span className="cue-m">{t('v4.opening.cueMobile')}</span>

@@ -631,7 +631,18 @@
     "heroLine2": "保留每一次结果。",
     "v4": {
       "nav": {
-        "label": "页导航"
+        "label": "页导航",
+        "pageLabel": "页码",
+        "close": "关闭",
+        "stationPages": "{count} 页",
+        "prevModel": "上一个模型",
+        "nextModel": "下一个模型"
+      },
+      "groups": {
+        "opening": "开场",
+        "feature": "功能",
+        "models": "模型",
+        "finale": "收尾"
       },
       "opening": {
         "note": "站内生成 · 来自公开画廊 · 持续更新",
@@ -645,7 +656,6 @@
       },
       "fn": {
         "image": {
-          "go": "去图片工作台",
           "workbench": "图片工作台",
           "meta": "1024×1365 · 各 1 张 · 同题",
           "prompt": "一只戴圆框眼镜的橘猫馆长，坐在美术馆前台，胸牌写着「馆长」，身后挂满画框，暖光，浅景深",
@@ -653,7 +663,6 @@
           "moreModels": "{count} 个模型"
         },
         "lora": {
-          "go": "去 LoRA 工作台",
           "workbench": "LoRA 工作台",
           "mounted": "已挂 <b>{count}</b> · 不设上限",
           "search": "搜 Civitai / HuggingFace…",
@@ -691,7 +700,6 @@
           }
         },
         "audio": {
-          "go": "去配音间",
           "room": "配音间",
           "meta": "多说话人 ×8 · 音色库 + 克隆 · Fish S2.1",
           "lines": {
@@ -725,7 +733,6 @@
           "generate": "生成"
         },
         "video": {
-          "go": "去视频工作台",
           "workbench": "视频工作台",
           "meta": "Seedance 2.5 参考端点 · 单次 30s · 720p",
           "refs": {
@@ -748,7 +755,6 @@
           "outTag": "Seedance · 站内生成 · 借伞"
         },
         "canvas": {
-          "go": "去画布",
           "assistant": {
             "title": "助手",
             "meta": "剧本脑",
@@ -789,7 +795,6 @@
           }
         },
         "vault": {
-          "go": "去资源库",
           "title": "资源库",
           "meta": "图 · 视频 · 声音 · LoRA · 永久归档",
           "filters": {
@@ -848,10 +853,20 @@
           "nav": "资源库",
           "title": "存下来的，都能再上场。"
         },
-        "models": {
-          "nav": "模型阵容",
-          "title": "二十五个模型，一处调度。",
-          "eyebrow": "07 · MODELS"
+        "modelsImage": {
+          "nav": "模型 · 图片"
+        },
+        "modelsLora": {
+          "nav": "模型 · LoRA"
+        },
+        "modelsVideo": {
+          "nav": "模型 · 视频"
+        },
+        "modelsAudio": {
+          "nav": "模型 · 声音"
+        },
+        "models3d": {
+          "nav": "模型 · 3D"
         },
         "finale": {
           "nav": "收尾"
@@ -866,17 +881,6 @@
         "coverAlt": "{model} 代表图"
       },
       "models": {
-        "rows": {
-          "image": "图片",
-          "lora": "LoRA",
-          "video": "视频",
-          "audio": "声音",
-          "threed": "3D"
-        },
-        "rail": {
-          "count": "{count} 个",
-          "open": "用 {model} 生成"
-        },
         "gpt": {
           "pos": "全能第一名：盲测榜连续霸榜，最能读懂复杂指令。",
           "fare": "按用量计费",

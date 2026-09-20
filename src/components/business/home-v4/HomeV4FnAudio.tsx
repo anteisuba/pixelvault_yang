@@ -12,26 +12,29 @@ import {
 import { useLocale, useTranslations } from 'next-intl'
 
 import {
+  HOME_V4_ENGINE,
   HOME_V4_FN_AUDIO,
   HOME_V4_FN_AUDIO_LINES,
   HOME_V4_GLYPHS,
 } from '@/constants/homepage-v4'
 import type { AppLocale } from '@/i18n/routing'
-import { homeV4AudioBeats } from '@/lib/home-v4-beats'
 
 import { HomeV4FnFrame } from './HomeV4FnFrame'
 
 interface HomeV4FnAudioProps {
-  /** 段内滚动进度 0–1。0 = 空房间，1 = 三条台词齐 + CTA。 */
-  progress: number
-  /**
-   * 这一段还在视口里。⚠ 与 `progress` 是两件事：进度管**画什么**，这个只管
-   * **声音**——滚出视口必须当场静音，否则读者会在下一段听见上一段的嗓子。
-   */
+  /** True while this is the page on screen. Drives play / reset. */
   active: boolean
   eyebrow: string
   title: string
 }
+
+/** How many bubbles have landed, and how many have played their waveform. */
+interface AudioBeats {
+  arrived: number
+  played: number
+}
+
+const AT_REST: AudioBeats = { arrived: 0, played: 0 }
 
 /**
  * The transport. Exactly one line can hold it, which is what makes starting a
@@ -87,19 +90,11 @@ function formatElapsed(seconds: number): string {
  *
  * A chat column is already the mobile shape, so this page only trims type
  * sizes below 768px rather than re-laying anything out.
- *
- * v5 长卷：气泡与波形由 `homeV4AudioBeats(progress)` 求值，没有定时器。声音仍然
- * 只由点击触发，滚动不会让任何东西发声。
  */
-export function HomeV4FnAudio({
-  progress,
-  active,
-  eyebrow,
-  title,
-}: HomeV4FnAudioProps) {
+export function HomeV4FnAudio({ active, eyebrow, title }: HomeV4FnAudioProps) {
   const t = useTranslations('Homepage')
   const locale = useLocale() as AppLocale
-  const beats = homeV4AudioBeats(progress)
+  const [beats, setBeats] = useState<AudioBeats>(AT_REST)
   const [transport, setTransport] = useState<AudioTransport>(SILENT)
 
   /* One <audio> per line, registered by the element's own ref callback. */
@@ -181,15 +176,45 @@ export function HomeV4FnAudio({
     )
   }, [])
 
-  /* Leaving stops the elements. The bubbles need no rewind any more — they are
-     drawn from `progress`, so scrolling back up plays them backwards for free. */
   useEffect(() => {
-    if (!active) rewindClips()
+    if (!active) {
+      /* Sound stops the moment the page starts leaving — unlike the video page,
+         a voice carrying over the slide would be heard on top of the next one.
+         (The transport state was already cleared above, in render; this is the
+         other half, the elements themselves.) The bubbles still rewind on the
+         page's own clock. */
+      rewindClips()
+      const rewind = window.setTimeout(
+        () => setBeats(AT_REST),
+        HOME_V4_ENGINE.PAGE_MS,
+      )
+      return () => window.clearTimeout(rewind)
+    }
+
+    const timers: number[] = []
+    const at = (fn: () => void, ms: number) => {
+      timers.push(window.setTimeout(fn, HOME_V4_FN_AUDIO.ENTER_DELAY_MS + ms))
+    }
+
+    HOME_V4_FN_AUDIO_LINES.forEach((_, index) => {
+      const landsAt =
+        HOME_V4_FN_AUDIO.MSG_START_MS + index * HOME_V4_FN_AUDIO.MSG_STEP_MS
+      at(
+        () => setBeats((current) => ({ ...current, arrived: index + 1 })),
+        landsAt,
+      )
+      at(
+        () => setBeats((current) => ({ ...current, played: index + 1 })),
+        landsAt + HOME_V4_FN_AUDIO.PLAY_DELAY_MS,
+      )
+    })
+
+    return () => timers.forEach((id) => window.clearTimeout(id))
   }, [active, rewindClips])
 
   return (
-    <HomeV4FnFrame id="audio" eyebrow={eyebrow} title={title} ctaOn={beats.cta}>
-      <div className={`fn-audio${beats.compose ? ' ready' : ''}`}>
+    <HomeV4FnFrame eyebrow={eyebrow} title={title}>
+      <div className="fn-audio">
         <div className="bar">
           <span className="t">{t('v4.fn.audio.room')}</span>
           <span className="p">{t('v4.fn.audio.meta')}</span>

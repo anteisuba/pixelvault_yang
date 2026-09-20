@@ -1,11 +1,18 @@
 'use client'
 
 import Image from 'next/image'
-import type { CSSProperties } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from 'react'
 
 import { useTranslations } from 'next-intl'
 
 import {
+  HOME_V4_ENGINE,
   HOME_V4_FN_VAULT,
   HOME_V4_FN_VAULT_CELLS,
   HOME_V4_FN_VAULT_FILTERS,
@@ -13,15 +20,35 @@ import {
   HOME_V4_GLYPHS,
   HOME_V4_STORY,
 } from '@/constants/homepage-v4'
-import { homeV4VaultBeats } from '@/lib/home-v4-beats'
 
 import { HomeV4FnFrame } from './HomeV4FnFrame'
 
 interface HomeV4FnVaultProps {
-  /** 段内滚动进度 0–1。0 = 空库，1 = 复用位填满 + CTA。 */
-  progress: number
+  /** True while this is the page on screen. Drives play / reset. */
+  active: boolean
   eyebrow: string
   title: string
+}
+
+interface VaultBeats {
+  /** Tiles dropped in from the pages above. */
+  arrivals: number
+  /** Tiles that flooded in behind them. */
+  rest: number
+  /** The character anchor, singled out. */
+  lift: boolean
+  /** The reuse slot, filled. */
+  slot: boolean
+  /** The call to action, lit. */
+  cta: boolean
+}
+
+const AT_REST: VaultBeats = {
+  arrivals: 0,
+  rest: 0,
+  lift: false,
+  slot: false,
+  cta: false,
 }
 
 const ARRIVALS = HOME_V4_FN_VAULT_CELLS.filter((cell) => cell.arrival)
@@ -31,31 +58,117 @@ const REST = HOME_V4_FN_VAULT_CELLS.filter((cell) => !cell.arrival)
  * 功能页 06 · 资源库 — everything you kept can go back on stage.
  *
  * Archiving is the hook; *reuse* is the subject. So the performance runs in
- * that order: the three things the sections above just made drop in from off the
+ * that order: the three things the pages above just made drop in from off the
  * top, the rest of the library floods in behind them, then the character anchor
- * lights up and the reuse slot fills with a **copy** of it — the original stays
- * in the grid, because taking it out of the library would say the exact
- * opposite of what the段 is claiming.
+ * lights up and a **copy** of it flies out into the reuse slot — the original
+ * stays in the grid, because taking it out of the library would say the exact
+ * opposite of what the page is claiming.
  *
- * ⚠ **飞递 ghost 已删**（v5 长卷）。原来那张 FLIP 幽灵是一次性事件：它读
- * `getBoundingClientRect()`、往 DOM 里塞一个元素、再用定时器收尾——在 scrub 下
- * 它会在读者每次来回滚动时重放一遍，而且每次都要读一次布局。现在「被拿去复用」
- * 是复用位自己的 `clip-path` 揭开（`beats.slot` 是 0–1 的连续量），往回滚就真
- * 的收回去，全程只动 `clip-path` 与 `opacity`，一次布局读取都没有。
+ * The flight is a FLIP on a raw ghost element, same mechanism as page 05.
  *
  * Mobile drops to a 3×3 grid (the prompt card is the one that goes) and lays
  * the reuse column out along the bottom.
  */
-export function HomeV4FnVault({
-  progress,
-  eyebrow,
-  title,
-}: HomeV4FnVaultProps) {
+export function HomeV4FnVault({ active, eyebrow, title }: HomeV4FnVaultProps) {
   const t = useTranslations('Homepage')
-  const beats = homeV4VaultBeats(progress)
+
+  const [beats, setBeats] = useState<VaultBeats>(AT_REST)
+
+  const flyersRef = useRef<HTMLDivElement | null>(null)
+  const heroRef = useRef<HTMLDivElement | null>(null)
+  const slotRef = useRef<HTMLDivElement | null>(null)
+  const timersRef = useRef<number[]>([])
+
+  const clearTimers = useCallback(() => {
+    timersRef.current.forEach((id) => window.clearTimeout(id))
+    timersRef.current = []
+  }, [])
+
+  /** Send a copy of the anchor tile into the reuse slot. */
+  const flyToSlot = useCallback(() => {
+    const host = flyersRef.current
+    const from = heroRef.current
+    const to = slotRef.current
+    if (!host || !from || !to) return
+
+    const hostRect = host.getBoundingClientRect()
+    const fromRect = from.getBoundingClientRect()
+    const toRect = to.getBoundingClientRect()
+
+    const ghost = document.createElement('div')
+    ghost.className = 'flyer'
+    const shot = document.createElement('img')
+    shot.className = 'fly-shot'
+    shot.src = HOME_V4_STORY.anchor
+    shot.alt = ''
+    shot.style.width = `${Math.round(fromRect.width)}px`
+    shot.style.height = `${Math.round(fromRect.height)}px`
+    ghost.appendChild(shot)
+    ghost.style.left = `${fromRect.left - hostRect.left}px`
+    ghost.style.top = `${fromRect.top - hostRect.top}px`
+    host.appendChild(ghost)
+    /* Commit the start frame before moving it — see the same read in
+       `HomeV4FnCanvas`. */
+    ghost.getBoundingClientRect()
+
+    const dx =
+      toRect.left + toRect.width / 2 - (fromRect.left + fromRect.width / 2)
+    const dy =
+      toRect.top + toRect.height / 2 - (fromRect.top + fromRect.height / 2)
+    ghost.style.transform = `translate(${dx}px, ${dy}px) scale(${HOME_V4_FN_VAULT.FLY_SCALE})`
+    ghost.style.opacity = '0'
+
+    timersRef.current.push(
+      window.setTimeout(() => ghost.remove(), HOME_V4_FN_VAULT.FLY_LIFE_MS),
+    )
+  }, [])
+
+  useEffect(() => {
+    if (!active) {
+      clearTimers()
+      /* Rewind only once the page has slid away — see `HomeV4Opening`. */
+      timersRef.current.push(
+        window.setTimeout(() => {
+          setBeats(AT_REST)
+          const host = flyersRef.current
+          while (host?.firstChild) host.firstChild.remove()
+        }, HOME_V4_ENGINE.PAGE_MS),
+      )
+      return clearTimers
+    }
+
+    const at = (fn: () => void, ms: number) => {
+      timersRef.current.push(
+        window.setTimeout(fn, HOME_V4_FN_VAULT.ENTER_DELAY_MS + ms),
+      )
+    }
+    const set = (patch: Partial<VaultBeats>) => {
+      setBeats((current) => ({ ...current, ...patch }))
+    }
+
+    ARRIVALS.forEach((_, index) => {
+      at(
+        () => set({ arrivals: index + 1 }),
+        HOME_V4_FN_VAULT.ARRIVAL_START_MS +
+          index * HOME_V4_FN_VAULT.ARRIVAL_STEP_MS,
+      )
+    })
+    REST.forEach((_, index) => {
+      at(
+        () => set({ rest: index + 1 }),
+        HOME_V4_FN_VAULT.REST_START_MS + index * HOME_V4_FN_VAULT.REST_STEP_MS,
+      )
+    })
+    at(() => set({ lift: true }), HOME_V4_FN_VAULT.LIFT_MS)
+    at(flyToSlot, HOME_V4_FN_VAULT.FLY_MS)
+    at(() => set({ slot: true }), HOME_V4_FN_VAULT.SLOT_MS)
+    at(() => set({ cta: true }), HOME_V4_FN_VAULT.CTA_MS)
+
+    return clearTimers
+  }, [active, clearTimers, flyToSlot])
 
   return (
-    <HomeV4FnFrame id="vault" eyebrow={eyebrow} title={title} ctaOn={beats.cta}>
+    <HomeV4FnFrame eyebrow={eyebrow} title={title}>
       <div className="fn-vault">
         <div className="bar">
           <span className="t">{t('v4.fn.vault.title')}</span>
@@ -94,6 +207,7 @@ export function HomeV4FnVault({
                     key={cell.id}
                     data-hero={cell.hero ? '1' : undefined}
                     data-tile={cell.kind === 'swatch' ? cell.id : undefined}
+                    ref={cell.hero ? heroRef : undefined}
                   >
                     {cell.kind === 'shot' ? (
                       <Image
@@ -144,12 +258,7 @@ export function HomeV4FnVault({
 
           <div className="vright">
             <span className="rk2">{t('v4.fn.vault.reuseKicker')}</span>
-            {/* `--slot` 走 clip-path：复用位是**被填满**的，不是被替换的。 */}
-            <div
-              className="slot"
-              data-got={String(beats.slot >= 1)}
-              style={{ '--slot': beats.slot } as CSSProperties}
-            >
+            <div className={`slot${beats.slot ? ' got' : ''}`} ref={slotRef}>
               <span className="ph">{t('v4.fn.vault.slotEmpty')}</span>
               <Image
                 src={HOME_V4_STORY.anchor}
@@ -165,6 +274,10 @@ export function HomeV4FnVault({
             </span>
           </div>
         </div>
+
+        {/* Ghosts land here — a layer React never puts children into, so the
+            two never fight over the same DOM. Same host as page 05. */}
+        <div className="fn-flyers" ref={flyersRef} aria-hidden="true" />
       </div>
     </HomeV4FnFrame>
   )

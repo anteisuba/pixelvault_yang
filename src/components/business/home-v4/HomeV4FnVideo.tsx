@@ -1,31 +1,45 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useTranslations } from 'next-intl'
 
 import {
+  HOME_V4_ENGINE,
   HOME_V4_FN_VIDEO,
   HOME_V4_FN_VIDEO_REFS,
   HOME_V4_FN_VIDEO_TOOLS,
   HOME_V4_GLYPHS,
   HOME_V4_STORY,
 } from '@/constants/homepage-v4'
-import { homeV4VideoBeats } from '@/lib/home-v4-beats'
+import { useHomeV4Typewriter } from '@/hooks/use-home-v4-typewriter'
 
 import { HomeV4FnFrame } from './HomeV4FnFrame'
 
 interface HomeV4FnVideoProps {
-  /** 段内滚动进度 0–1。0 = 空输入框，1 = 成片 + CTA。 */
-  progress: number
-  /**
-   * 这一段还在视口里。进度管画什么，这个只管**播放**：滚出视口就暂停，不让一段
-   * 看不见的视频在背后解码。
-   */
+  /** True while this is the page on screen. Drives play / reset. */
   active: boolean
   eyebrow: string
   title: string
+}
+
+interface VideoBeats {
+  /** How many reference capsules have dropped into the composer. */
+  pills: number
+  /** The prompt line itself (the typewriter owns the text). */
+  prompt: boolean
+  /** The send button, lit once the line is finished. */
+  send: boolean
+  /** The finished cut. */
+  out: boolean
+}
+
+const AT_REST: VideoBeats = {
+  pills: 0,
+  prompt: false,
+  send: false,
+  out: false,
 }
 
 /**
@@ -44,43 +58,68 @@ interface HomeV4FnVideoProps {
  *
  * The clip is a static path with a poster behind it. The SPEC copied blobs
  * between pages at runtime; that hack is retired — see `HOME_V4_STORY`.
- *
- * v5 长卷：胶囊、brief、发送键与成片全部由 `homeV4VideoBeats(progress)` 求值。
  */
-export function HomeV4FnVideo({
-  progress,
-  active,
-  eyebrow,
-  title,
-}: HomeV4FnVideoProps) {
+export function HomeV4FnVideo({ active, eyebrow, title }: HomeV4FnVideoProps) {
   const t = useTranslations('Homepage')
   const videoRef = useRef<HTMLVideoElement | null>(null)
 
   const promptText = t('v4.fn.video.prompt')
-  const chars = useMemo(() => Array.from(promptText), [promptText])
-  const beats = homeV4VideoBeats(progress)
-  const typed = chars.slice(0, Math.round(beats.typed * chars.length)).join('')
-  const playing = active && beats.out
+  const typed = useHomeV4Typewriter({
+    text: promptText,
+    stepMs: HOME_V4_FN_VIDEO.TYPE_MS,
+    delayMs: HOME_V4_FN_VIDEO.ENTER_DELAY_MS + HOME_V4_FN_VIDEO.PROMPT_MS,
+    active,
+    resetMs: HOME_V4_ENGINE.PAGE_MS,
+  })
 
-  /**
-   * The cut plays while the段 is on screen and the progress has reached it, and
-   * is paused otherwise. ⚠ Not `autoPlay`: a段 the visitor scrolls past at speed
-   * must not leave a decoder running behind the next one.
-   */
+  const [beats, setBeats] = useState<VideoBeats>(AT_REST)
+
   useEffect(() => {
-    const clip = videoRef.current
-    if (!clip) return
-    if (playing) {
+    if (!active) {
+      /* Rewind — and stop the clip — only once the page has slid away, so the
+         cut keeps running through the exit instead of freezing mid-frame. */
+      const rewind = window.setTimeout(() => {
+        setBeats(AT_REST)
+        videoRef.current?.pause()
+      }, HOME_V4_ENGINE.PAGE_MS)
+      return () => window.clearTimeout(rewind)
+    }
+
+    const timers: number[] = []
+    const at = (fn: () => void, ms: number) => {
+      timers.push(window.setTimeout(fn, HOME_V4_FN_VIDEO.ENTER_DELAY_MS + ms))
+    }
+
+    HOME_V4_FN_VIDEO_REFS.forEach((_, index) => {
+      at(
+        () => setBeats((current) => ({ ...current, pills: index + 1 })),
+        HOME_V4_FN_VIDEO.PILL_START_MS + index * HOME_V4_FN_VIDEO.PILL_STEP_MS,
+      )
+    })
+
+    const typedAt =
+      HOME_V4_FN_VIDEO.PROMPT_MS + promptText.length * HOME_V4_FN_VIDEO.TYPE_MS
+
+    at(
+      () => setBeats((current) => ({ ...current, prompt: true })),
+      HOME_V4_FN_VIDEO.PROMPT_MS,
+    )
+    at(() => setBeats((current) => ({ ...current, send: true })), typedAt)
+    at(() => {
+      setBeats((current) => ({ ...current, out: true }))
+      const clip = videoRef.current
+      if (!clip) return
+      clip.currentTime = 0
       /* Autoplay can be refused (a data-saver profile, a paused-media setting).
          The poster is the fallback, so a refusal is not an error. */
       void clip.play().catch(() => undefined)
-      return
-    }
-    clip.pause()
-  }, [playing])
+    }, typedAt + HOME_V4_FN_VIDEO.OUT_AFTER_TYPE_MS)
+
+    return () => timers.forEach((id) => window.clearTimeout(id))
+  }, [active, promptText])
 
   return (
-    <HomeV4FnFrame id="video" eyebrow={eyebrow} title={title} ctaOn={beats.cta}>
+    <HomeV4FnFrame eyebrow={eyebrow} title={title}>
       <div className="fn-video">
         <div className="bar">
           <span className="t">{t('v4.fn.video.workbench')}</span>
@@ -117,9 +156,9 @@ export function HomeV4FnVideo({
               </div>
             ))}
 
-            <div className={`iline ptxt${beats.typed > 0 ? ' in' : ''}`}>
+            <div className={`iline ptxt${beats.prompt ? ' in' : ''}`}>
               <span className="tw">{typed}</span>
-              {beats.typed < 1 ? <span className="cur3" /> : null}
+              <span className="cur3" />
             </div>
 
             <div className="itools">

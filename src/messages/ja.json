@@ -631,7 +631,18 @@
     "heroLine2": "すべての結果を残す。",
     "v4": {
       "nav": {
-        "label": "ページナビゲーション"
+        "label": "ページナビゲーション",
+        "pageLabel": "ページ番号",
+        "close": "閉じる",
+        "stationPages": "{count} ページ",
+        "prevModel": "前のモデル",
+        "nextModel": "次のモデル"
+      },
+      "groups": {
+        "opening": "オープニング",
+        "feature": "機能",
+        "models": "モデル",
+        "finale": "エンディング"
       },
       "opening": {
         "note": "サイト内生成 · 公開ギャラリーより · 随時更新",
@@ -645,7 +656,6 @@
       },
       "fn": {
         "image": {
-          "go": "画像スタジオへ",
           "workbench": "画像生成ワークスペース",
           "meta": "1024×1365 · 同じプロンプトで各1枚生成",
           "prompt": "丸眼鏡をかけた茶トラの猫の館長が、美術館の受付に座っている。背後には額縁に入った絵画。暖かな光。",
@@ -653,7 +663,6 @@
           "moreModels": "{count}種類のモデル"
         },
         "lora": {
-          "go": "LoRA ベンチへ",
           "workbench": "LoRA ワークスペース",
           "mounted": "<b>{count}</b>個追加済み · 上限なし",
           "search": "Civitai / Hugging Face を検索…",
@@ -691,7 +700,6 @@
           }
         },
         "audio": {
-          "go": "アフレコルームへ",
           "room": "アフレコルーム",
           "meta": "話者 ×8 · ボイスライブラリ + クローン · Fish S2.1",
           "lines": {
@@ -725,7 +733,6 @@
           "generate": "生成"
         },
         "video": {
-          "go": "動画スタジオへ",
           "workbench": "動画生成ワークスペース",
           "meta": "Seedance 2.5 参照エンドポイント · 一度に 30s · 720p",
           "refs": {
@@ -748,7 +755,6 @@
           "outTag": "Seedance · サイト内生成 · 借り傘"
         },
         "canvas": {
-          "go": "キャンバスへ",
           "assistant": {
             "title": "アシスタント",
             "meta": "脚本アシスタント",
@@ -789,7 +795,6 @@
           }
         },
         "vault": {
-          "go": "ライブラリへ",
           "title": "ライブラリ",
           "meta": "画像 · 動画 · 音声 · LoRA · 永久保管",
           "filters": {
@@ -848,10 +853,20 @@
           "nav": "ライブラリ",
           "title": "残したものは、また使える。"
         },
-        "models": {
-          "nav": "モデル一覧",
-          "title": "25 のモデルを、ひとつの場所から。",
-          "eyebrow": "07 · MODELS"
+        "modelsImage": {
+          "nav": "モデル · 画像"
+        },
+        "modelsLora": {
+          "nav": "モデル · LoRA"
+        },
+        "modelsVideo": {
+          "nav": "モデル · 動画"
+        },
+        "modelsAudio": {
+          "nav": "モデル · 音声"
+        },
+        "models3d": {
+          "nav": "モデル · 3D"
         },
         "finale": {
           "nav": "エンディング"
@@ -866,17 +881,6 @@
         "coverAlt": "{model} の作例"
       },
       "models": {
-        "rows": {
-          "image": "画像",
-          "lora": "LoRA",
-          "video": "動画",
-          "audio": "音声",
-          "threed": "3D"
-        },
-        "rail": {
-          "count": "{count} 件",
-          "open": "{model} で生成する"
-        },
         "gpt": {
           "pos": "総合首位：ブラインド評価で首位を守り、複雑な指示の読解が最も得意。",
           "fare": "従量課金",

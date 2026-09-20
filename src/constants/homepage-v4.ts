@@ -17,6 +17,44 @@ import type { AppLocale } from '@/i18n/routing'
  * them `asset-NN.*`, that manifest is the translation table.
  */
 
+/* ── 引擎：输入阈值与节拍 ─────────────────────────────────────────── */
+
+/**
+ * Wheel/touch/keyboard routing plus the transition clock. `LOCK_MS` is
+ * deliberately a hair longer than `PAGE_MS`: the lock has to outlive the slide,
+ * or a trackpad's tail delta lands mid-flight and double-steps the deck.
+ */
+export const HOME_V4_ENGINE = {
+  /** One vertical page slide. Published as `--dur`. */
+  PAGE_MS: 850,
+  /** Input is ignored for this long after a step. */
+  LOCK_MS: 900,
+  /** Accumulated `wheel` deltaY that counts as one step. */
+  WHEEL_THRESHOLD: 46,
+  /** Swipe distance (px) that counts as one step. */
+  TOUCH_THRESHOLD_PX: 52,
+} as const
+
+/**
+ * Three-layer parallax. The layers run on their own clocks so that at the moment
+ * the page lands they are still sliding inside it — that lag is the depth.
+ * Vertical numbers are `vh`, the horizontal (station) ones `vw`.
+ */
+export const HOME_V4_PARALLAX = {
+  /** Background layer, slowest. */
+  L1_MS: 1050,
+  /* The text layer has no entry: it runs on `PAGE_MS`, the page's own clock. */
+  /** Visual blocks, fastest. */
+  L3_MS: 680,
+  /** Cross-fade of a horizontal station's pages. */
+  STATION_FADE_MS: 750,
+  VERTICAL_VH: { L1: 7, L2: 13, L3: 22 },
+  HORIZONTAL_VW: { L1: 6, L2: 11, L3: 18 },
+} as const
+
+/** Left-rail dots: each title slides in one beat after the one above it. */
+export const HOME_V4_DOTS_STAGGER_MS = 18
+
 /* ── 开场页演出 ──────────────────────────────────────────────────── */
 
 /**
@@ -231,6 +269,19 @@ export const HOME_V4_FN_IMAGE_MODELS = [
   },
 ] as const
 
+/**
+ * Typing is per character, so the reveal is chained off the *end of the typing*
+ * rather than a wall-clock offset — a longer en/ja prompt then pushes the whole
+ * tail back instead of showing results before the prompt is written.
+ */
+export const HOME_V4_FN_IMAGE = {
+  ENTER_DELAY_MS: 500,
+  /** One character. */
+  TYPE_MS: 46,
+  /** Quad starts appearing this long after the last character. */
+  REVEAL_MS: 350,
+} as const
+
 /* ── 02 LoRA：逐个挂载 → 触发词弹入 → 出图位 ─────────────────────── */
 
 /**
@@ -332,6 +383,13 @@ export const HOME_V4_FN_LORA_OUTS = [
 ] as const
 
 /**
+ * ⚠ These are chained, not independent: mounts must finish before the trigger
+ * words drop, and the trigger words before the shots. Five mounts and four
+ * shots is more beats than the previous three-and-two, so the steps were cut to
+ * keep the whole run near five seconds — a page the reader scrolls past in
+ * three is not worth animating.
+ */
+/**
  * The top of the weight scale the rack draws against — the product's own
  * ceiling (`provider-capabilities.ts`, runner `loraScale: { min: 0.1, max: 2 }`).
  *
@@ -341,6 +399,19 @@ export const HOME_V4_FN_LORA_OUTS = [
  * the end of the track and over its own number.
  */
 export const HOME_V4_FN_LORA_WEIGHT_MAX = 2
+
+export const HOME_V4_FN_LORA = {
+  ENTER_DELAY_MS: 400,
+  /** First mount lands, then one every `MOUNT_STEP_MS`. Five of them. */
+  MOUNT_START_MS: 500,
+  MOUNT_STEP_MS: 420,
+  /** Trigger words drop into the prompt row after the last mount lands. */
+  TRIGGER_START_MS: 2700,
+  TRIGGER_STEP_MS: 200,
+  /** Shots fade up last, left to right. Four of them. */
+  OUT_START_MS: 3800,
+  OUT_STEP_MS: 250,
+} as const
 
 /* ── 03 声音：配音聊天室 ─────────────────────────────────────────── */
 
@@ -411,6 +482,12 @@ export const HOME_V4_FN_AUDIO_LINES = [
 }[]
 
 export const HOME_V4_FN_AUDIO = {
+  ENTER_DELAY_MS: 400,
+  /** First bubble lands, then one every `MSG_STEP_MS`. */
+  MSG_START_MS: 500,
+  MSG_STEP_MS: 900,
+  /** A bubble's waveform grows this long after the bubble itself arrives. */
+  PLAY_DELAY_MS: 380,
   /** Chat-bubble avatar, matching `.fn-audio .ava` in `home-v4.css`. */
   AVATAR_PX: 38,
   /** The same face in the voice picker, matching `.fn-audio .pick`. */
@@ -430,6 +507,27 @@ export const HOME_V4_FN_VIDEO_REFS = [
 export const HOME_V4_FN_VIDEO_TOOLS = ['＋', '⬡', '▤', '✥'] as const
 
 export const HOME_V4_FN_VIDEO = {
+  ENTER_DELAY_MS: 400,
+  /** First capsule lands, then one every `PILL_STEP_MS`. */
+  PILL_START_MS: 400,
+  PILL_STEP_MS: 550,
+  /** Prompt line appears and the typewriter starts. */
+  PROMPT_MS: 2150,
+  /**
+   * One character. The cut lands at `PROMPT_MS + length × TYPE_MS +
+   * OUT_AFTER_TYPE_MS`, so this number is the only lever against the length of
+   * `v4.fn.video.prompt` — 42ms was cut for a 23-character Chinese line, and
+   * the full three-shot brief that replaced it is 64 / 138 / 71 characters.
+   * At 28ms the three locales land at 4.8s / 6.8s / 5.0s.
+   */
+  TYPE_MS: 28,
+  /**
+   * The cut appears this long after the last character. The SPEC hard-coded the
+   * whole thing as one 3950ms wall-clock offset; chaining it off the typing
+   * instead keeps the order (prompt → send button lights → cut) true whatever
+   * the locale's line length is.
+   */
+  OUT_AFTER_TYPE_MS: 834,
   /** Pill thumbnail, matching `.fn-video .pill img` in `home-v4.css`. */
   THUMB_PX: 24,
 } as const
@@ -522,107 +620,22 @@ export const HOME_V4_FN_VAULT_FILTERS = [
 ] as const
 
 export const HOME_V4_FN_VAULT = {
+  ENTER_DELAY_MS: 400,
+  /** The three arrivals drop in first, one every `ARRIVAL_STEP_MS`. */
+  ARRIVAL_START_MS: 350,
+  ARRIVAL_STEP_MS: 280,
+  /** …then the rest of the library floods in. */
+  REST_START_MS: 1450,
+  REST_STEP_MS: 80,
+  /** The character anchor lights up, then a *copy* flies to the reuse slot. */
+  LIFT_MS: 2550,
+  FLY_MS: 3000,
+  SLOT_MS: 3720,
+  CTA_MS: 4150,
+  FLY_LIFE_MS: 820,
+  FLY_SCALE: 0.85,
   /** What the tally prints. The library is the product; the number is the point. */
   ARCHIVED_COUNT: 1284,
-} as const
-
-/* ── v5 长卷：段高、降级门槛与关键帧表 ──────────────────────────── */
-
-/**
- * 长卷的几何与降级门槛（owner 批注 40：方向 B · 连续滚动 + 钉住演示）。
- *
- * 每个功能段是一条 `SECTION_VH` 高的滚动行程，里面钉住一屏（`STAGE_VH`）的演示
- * 卡；滚过的距离除以 `段高 − 一屏` 就是那一段的 `progress`。钉住用的是
- * `position: sticky`，不是 GSAP pin —— sticky 够用，就不把动画库拉进营销域。
- */
-export const HOME_V4_SCROLL = {
-  /** 钉住区高度，单位 vh。一屏一段，多出来的段高全是 scrub 行程。 */
-  STAGE_VH: 100,
-  /**
-   * 降级后每段直接渲染的进度。⚠ 是 1 不是 0：降级要给的是**结果态**，
-   * 不是空态——空态等于把页面的内容藏起来。
-   */
-  REST_PROGRESS: 1,
-  /** 这个宽度及以下不钉住、不 scrub（ui-defaults 的移动断点）。 */
-  MOBILE_MAX_PX: 767,
-  /** 屏高低于这个值走矮视口收缩（owner 批注 50）。 */
-  SHORT_VIEWPORT_PX: 900,
-  /**
-   * 目录跳页 / 键盘跳段时那一段被直接置到的进度。落地要点原文：
-   * 「键盘翻页跳到 1.0」。
-   */
-  JUMP_PROGRESS: 1,
-} as const
-
-/**
- * 六段演示的关键帧表 —— **状态机，不是时间线**。
- *
- * 每个条目是这一段 `progress`（0–1）轴上的一个区间或一个阈值，求值在
- * `src/lib/home-v4-beats.ts`，那里是纯函数，测试直接在 0 / 0.3 / 0.7 / 1.0 上
- * 钉住结果。⚠ 这里没有一个毫秒数：段的快慢由读者的滚轮决定，不由时钟决定。
- *
- * 表的形状统一按 UX 板给的节拍读：**0.0 空态 · 0.3 输入完 · 0.7 出图 · 1.0
- * 结果 + CTA**，各段在这个骨架上自定自己的分镜。
- *
- * `[from, to]` 是一批元素依次落位的区间（第 i 个在 `from + i/n` 处落位）；
- * 单个数字是一个开关的阈值。
- */
-export const HOME_V4_BEATS = {
-  /** 01 图片：写 prompt → 四家出图 → 结果 + CTA。 */
-  image: {
-    /** 打字区间：写到 0.30 收笔。 */
-    type: [0.04, 0.3],
-    /** 四格依次揭开。 */
-    tiles: [0.42, 0.86],
-    /** 结果态：CTA 亮起。 */
-    cta: 0.9,
-  },
-  /** 02 LoRA：挂载 → 触发词 → 权重轴四张对照图。 */
-  lora: {
-    mounts: [0.04, 0.22],
-    triggers: [0.22, 0.3],
-    outs: [0.4, 0.86],
-    cta: 0.92,
-  },
-  /** 03 声音：三句台词落位 → 波形画出 → 输入行就绪。 */
-  audio: {
-    lines: [0.04, 0.3],
-    /** 波形比气泡慢一拍：气泡是「到了」，波形是「这条有声音」。 */
-    waves: [0.1, 0.4],
-    compose: 0.62,
-    cta: 0.88,
-  },
-  /** 04 视频：三个参考落槽 → 写 brief → 发送键亮 → 出片。 */
-  video: {
-    pills: [0.02, 0.18],
-    type: [0.18, 0.3],
-    send: 0.34,
-    out: 0.62,
-    cta: 0.9,
-  },
-  /** 05 画布：助手 → 剧本 → 节点；`steps` 的 0–1 线性映到 0–2 号步骤。 */
-  canvas: {
-    steps: [0.05, 0.9],
-    /** 步骤浮点数到这里才放成片（第三步已经坐稳）。 */
-    cutAtStep: 1.9,
-    cta: 0.95,
-  },
-  /** 06 资源库：新作品落库 → 库涌满 → 选中角色锚 → 复用位填上。 */
-  vault: {
-    arrivals: [0.04, 0.18],
-    rest: [0.18, 0.3],
-    lift: 0.45,
-    /** 复用位是连续填充（clip-path），不是开关。 */
-    slot: [0.55, 0.75],
-    cta: 0.88,
-  },
-  /** 开场：作品墙随滚动向两侧散开，散开量就是这一段的进度。 */
-  opening: {
-    /** 最外侧一列散开的距离，单位 vw。 */
-    spreadVw: 26,
-    /** 标题与副文在散开的后半程淡出。 */
-    fade: [0.35, 1],
-  },
 } as const
 
 /* ── 模型区：五个横站 ────────────────────────────────────────────── */
@@ -1056,133 +1069,49 @@ export const HOME_V4_STATIONS: Record<
 export const HOME_V4_ALL_MODELS: readonly HomeV4Model[] =
   HOME_V4_STATION_KEYS.flatMap((key) => HOME_V4_STATIONS[key])
 
-/* ── 竖轴：v5 长卷的九段 ─────────────────────────────────────────── */
+/* ── 竖轴：13 页 ─────────────────────────────────────────────────── */
 
-/** Which block of the rail / mobile toc a section belongs to. */
+/** Which block of the left rail / mobile toc a page belongs to. */
 export type HomeV4PageGroup = 'opening' | 'feature' | 'models' | 'finale'
 
-export interface HomeV4Section {
-  /** Stable id. Doubles as the i18n key under `Homepage.v4.pages.*` and as the
-   *  shareable anchor (`/#lora` → `id="home-lora"`). */
+export interface HomeV4Page {
+  /** Stable id. Doubles as the i18n key under `Homepage.v4.pages.*`. */
   id: string
   group: HomeV4PageGroup
   /**
    * Numbered eyebrow, e.g. `01 · IMAGE`. Language-neutral by design, so it stays
-   * out of the message files. `null` where the section prints something else.
+   * out of the message files. `null` on the opening (which prints the model
+   * count instead) and the finale (which prints nothing).
    */
   eyebrow: string | null
-  /**
-   * 段高，单位 vh。`HOME_V4_SCROLL.STAGE_VH` 是钉住的那一屏，多出来的部分就是
-   * scrub 行程 —— 250vh 的段有 150vh 可以滚，进度 0–1 摊在这段距离上。
-   */
-  vh: number
-  /**
-   * 这一段的演示由段内进度驱动。`false` 的段（开场 / 模型 / 收尾）高度就是一屏，
-   * 不钉住、不 scrub —— 模型列表是横滑的，参与 scrub 会和横轴打架。
-   */
-  scrub: boolean
+  /** Set on the five model pages: they page sideways before releasing downward. */
+  station: HomeV4StationKey | null
 }
 
 /**
- * 长卷，从上到下九段（owner 批注 40 定的结构，UX 板「推荐结构」那一列）。
+ * The deck, top to bottom. Thirteen pages: opening, six feature pages, the five
+ * model stations, finale.
  *
- * ⚠ 与 v4 的十三页 snap deck 的差别不只是少了四页：**五个整屏模型站合并成了
- * 终页前的一段横滑列表**（每模态一行），模型不再参与竖向翻页。旧结构见 git。
+ * A fourteenth page — a four-column price list of the whole catalogue — shipped
+ * briefly and was cut by owner on sight (「这个页面不需要。之前的设计页面也没有
+ * 这个」). The deck is back to the prototype's structure: the model region ends
+ * at the 3D station and releases straight into the finale.
  */
-export const HOME_V4_SECTIONS: readonly HomeV4Section[] = [
-  { id: 'opening', group: 'opening', eyebrow: null, vh: 100, scrub: false },
-  {
-    id: 'image',
-    group: 'feature',
-    eyebrow: '01 · IMAGE',
-    vh: 250,
-    scrub: true,
-  },
-  { id: 'lora', group: 'feature', eyebrow: '02 · LORA', vh: 250, scrub: true },
-  {
-    id: 'audio',
-    group: 'feature',
-    eyebrow: '03 · AUDIO',
-    vh: 200,
-    scrub: true,
-  },
-  {
-    id: 'video',
-    group: 'feature',
-    eyebrow: '04 · VIDEO',
-    vh: 250,
-    scrub: true,
-  },
-  {
-    id: 'canvas',
-    group: 'feature',
-    eyebrow: '05 · CANVAS',
-    vh: 250,
-    scrub: true,
-  },
-  {
-    id: 'vault',
-    group: 'feature',
-    eyebrow: '06 · VAULT',
-    vh: 200,
-    scrub: true,
-  },
-  { id: 'models', group: 'models', eyebrow: null, vh: 100, scrub: false },
-  { id: 'finale', group: 'finale', eyebrow: null, vh: 100, scrub: false },
+export const HOME_V4_PAGES: readonly HomeV4Page[] = [
+  { id: 'opening', group: 'opening', eyebrow: null, station: null },
+  { id: 'image', group: 'feature', eyebrow: '01 · IMAGE', station: null },
+  { id: 'lora', group: 'feature', eyebrow: '02 · LORA', station: null },
+  { id: 'audio', group: 'feature', eyebrow: '03 · AUDIO', station: null },
+  { id: 'video', group: 'feature', eyebrow: '04 · VIDEO', station: null },
+  { id: 'canvas', group: 'feature', eyebrow: '05 · CANVAS', station: null },
+  { id: 'vault', group: 'feature', eyebrow: '06 · VAULT', station: null },
+  { id: 'modelsImage', group: 'models', eyebrow: null, station: 'image' },
+  { id: 'modelsLora', group: 'models', eyebrow: null, station: 'lora' },
+  { id: 'modelsVideo', group: 'models', eyebrow: null, station: 'video' },
+  { id: 'modelsAudio', group: 'models', eyebrow: null, station: 'audio' },
+  { id: 'models3d', group: 'models', eyebrow: null, station: 'threed' },
+  { id: 'finale', group: 'finale', eyebrow: null, station: null },
 ]
-
-/**
- * 手机目录条上每一段的缩略图（owner 批注 51 / 52）。
- *
- * ⭐ 手机上的目录**不复用桌面圆点**：拇指区里七八个 7px 的点既点不准也认不出，
- * 一条缩略图带才是「我要去看哪一段」的移动端形态（ui-defaults §6：手机不是桌面
- * 缩小）。每张图都是这一段自己已经在用的素材，⛔ 不为目录新增资产。
- */
-export const HOME_V4_SECTION_THUMBS: Record<string, string> = {
-  opening: HOME_V4_STRIP[0].src,
-  image: HOME_V4_FN_IMAGE_MODELS[0].shot,
-  lora: HOME_V4_FN_LORA_OUTS[0].shot,
-  audio: HOME_V4_FN_AUDIO_LINES[0].avatar,
-  video: HOME_V4_STORY.poster,
-  canvas: HOME_V4_STORY.shotDeck,
-  vault: HOME_V4_STORY.anchor,
-  models: HOME_V4_STRIP[5].src,
-  finale: HOME_V4_STRIP[8].src,
-}
-
-/** `#home-lora` 一类的可分享锚点。段 id → DOM id，一处拼接。 */
-export function homeV4SectionAnchor(id: string): string {
-  return `home-${id}`
-}
-
-/**
- * 模型列表里每一行封面点下去的去处 —— 对应模态的工作台。
- *
- * ⚠ 还**不带模型预选**：站表的 `key`（`gpt` / `flux` …）是首页自己的 id，不是
- * 目录里的 model id，凭它拼一个 `?model=` 参数就是手抄。工作台也还没有读这个
- * 参数的入口。见 `docs/references/pages/home.md` §已知缺口。
- */
-export const HOME_V4_STATION_ROUTES: Record<HomeV4StationKey, string> = {
-  image: ROUTES.STUDIO_IMAGE,
-  lora: ROUTES.STUDIO_LORA,
-  video: ROUTES.STUDIO_VIDEO,
-  audio: ROUTES.STUDIO_AUDIO,
-  threed: ROUTES.STUDIO_3D,
-}
-
-/**
- * 每个功能段结束态那颗「去用这个」按钮的去处。
- *
- * ⚠ 段 id → 路由，一处声明；六段的 CTA 都从这里取，⛔ 不在组件里各写各的。
- */
-export const HOME_V4_FN_ROUTES: Record<string, string> = {
-  image: ROUTES.STUDIO_IMAGE,
-  lora: ROUTES.STUDIO_LORA,
-  audio: ROUTES.STUDIO_AUDIO,
-  video: ROUTES.STUDIO_VIDEO,
-  canvas: ROUTES.STUDIO_NODE,
-  vault: ROUTES.ASSETS,
-}
 
 /** Where the finale's CTA goes — same destination as the footer's 画布 link. */
 export const HOME_V4_ROUTES = {

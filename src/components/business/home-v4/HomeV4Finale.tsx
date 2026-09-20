@@ -1,23 +1,26 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+
 import { useTranslations } from 'next-intl'
 
-import { HOME_V4_FINALE, HOME_V4_ROUTES } from '@/constants/homepage-v4'
+import {
+  HOME_V4_ENGINE,
+  HOME_V4_FINALE,
+  HOME_V4_ROUTES,
+} from '@/constants/homepage-v4'
 import { Link } from '@/i18n/navigation'
 
 interface HomeV4FinaleProps {
-  /**
-   * 这一段的滚动进度 0–1。收尾段不 scrub，所以这里不读它；留在签名上是为了段
-   * 的渲染口径统一 —— deck 对九段是同一句 `progress={at}`。
-   */
-  progress?: number
+  /** True while this is the page on screen. */
+  active: boolean
 }
 
 /**
  * 收尾页 — the deck's last screen, fully built (not a placeholder).
  *
- * 长卷的最后一屏：收尾行、CTA、巨型字标、单行页脚。
- *
- * ⚠ 三拍入场时间线已删。长卷里没有「翻到这一页」这个事件可以挂——读者是滚到这里
- * 的，滚到的时候它就该已经在那儿了。
+ * Three beats: the closing line rises out of its mask and the CTA settles under
+ * it, the giant wordmark fades up behind, then the single-line footer.
  *
  * ⚠ `.fin-mark` carries the `l1` parallax class, and the parallax rules write
  * `transform`. So it must **not** be centred with `left:50% / translateX(-50%)`
@@ -26,14 +29,42 @@ interface HomeV4FinaleProps {
  * text-align:center` instead. The same trap applies to anything else that ends
  * up carrying a layer class.
  */
-export function HomeV4Finale({}: HomeV4FinaleProps) {
+export function HomeV4Finale({ active }: HomeV4FinaleProps) {
   const t = useTranslations('Homepage')
   const tCommon = useTranslations('Common')
+
+  const [heroIn, setHeroIn] = useState(false)
+  const [markIn, setMarkIn] = useState(false)
+  const [footIn, setFootIn] = useState(false)
+
+  useEffect(() => {
+    if (!active) {
+      /* Rewind once the page has slid away, not while it is still on screen —
+         see the same note in `HomeV4Opening`. */
+      const rewind = window.setTimeout(() => {
+        setHeroIn(false)
+        setMarkIn(false)
+        setFootIn(false)
+      }, HOME_V4_ENGINE.PAGE_MS)
+      return () => window.clearTimeout(rewind)
+    }
+
+    const base = HOME_V4_FINALE.ENTER_DELAY_MS
+    const timers = [
+      window.setTimeout(() => setHeroIn(true), base + HOME_V4_FINALE.HERO_MS),
+      window.setTimeout(() => setMarkIn(true), base + HOME_V4_FINALE.MARK_MS),
+      window.setTimeout(() => setFootIn(true), base + HOME_V4_FINALE.FOOT_MS),
+    ]
+
+    return () => {
+      timers.forEach((id) => window.clearTimeout(id))
+    }
+  }, [active])
 
   return (
     <div className="page-inner">
       <div className="fg">
-        <div className="fin-hero l2 in">
+        <div className={`fin-hero l2${heroIn ? ' in' : ''}`}>
           <h2>
             <span className="opl">
               <span>{t('v4.finale.title')}</span>
@@ -48,11 +79,11 @@ export function HomeV4Finale({}: HomeV4FinaleProps) {
 
       {/* Both sit outside `.fg`, pinned to `.page-inner`; the wordmark is cropped
           by `.vp`'s own overflow so it reads as a printed cap. */}
-      <div className="fin-mark l1 in" aria-hidden="true">
+      <div className={`fin-mark l1${markIn ? ' in' : ''}`} aria-hidden="true">
         {tCommon('brand')}
       </div>
 
-      <div className="fin-foot l3 in">
+      <div className={`fin-foot l3${footIn ? ' in' : ''}`}>
         <span>
           © {HOME_V4_FINALE.COPYRIGHT_YEAR} {tCommon('brand')}
         </span>

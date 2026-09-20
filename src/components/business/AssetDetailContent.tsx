@@ -9,6 +9,7 @@ import {
   Link2,
   FileText,
   FolderInput,
+  Folder,
   Globe,
   GlobeLock,
   Heart,
@@ -57,6 +58,7 @@ import {
   setGenerationVisibility,
   toggleLikeAPI,
 } from '@/lib/api-client'
+import { getFolderPath } from '@/lib/folder-tree'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { getApiErrorMessage } from '@/lib/api-error-message'
 import {
@@ -508,7 +510,7 @@ export function AssetDetailContent({
         {t('detailRemix')}
       </Button>
       <div className="flex flex-wrap items-center gap-1">
-        <DropdownMenu modal={false}>
+        <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
@@ -526,7 +528,7 @@ export function AssetDetailContent({
           </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
-            className="max-h-72 w-56 overflow-y-auto"
+            className="max-h-[min(18rem,var(--radix-dropdown-menu-content-available-height))] w-64 overflow-y-auto overscroll-contain"
           >
             <DropdownMenuItem
               onClick={() => void handleMove(null)}
@@ -555,7 +557,18 @@ export function AssetDetailContent({
                     <Check className="size-3.5" />
                   )}
                 </span>
-                <span className="truncate">{project.name}</span>
+                <Folder className="size-4 shrink-0 text-muted-foreground" />
+                <span className="min-w-0">
+                  <span className="block truncate">{project.name}</span>
+                  {project.parentId && (
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {getFolderPath(projects, project.id)
+                        .slice(0, -1)
+                        .map((parent) => parent.name)
+                        .join(' / ')}
+                    </span>
+                  )}
+                </span>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>

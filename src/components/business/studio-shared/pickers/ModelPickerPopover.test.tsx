@@ -117,14 +117,63 @@ beforeEach(() => {
 })
 
 describe('ModelPickerPopover — 行只有 模型 · 型号 · 价格', () => {
-  it('每个型号一行，模型名与型号分成两格，系列当分组标题', () => {
+  /**
+   * ⚠ 本条 2026-09-20 改口（owner 真机第 2 条，原话「有一个 NovelAI 的表示了，
+   * 下面应该是版本号，不需要再重复」）：分组头已经写着厂商，行里**不再重复**它。
+   */
+  it('每个型号一行；头顶分组头写着厂商时行里只剩型号', () => {
     openPicker()
     const pro = row('seedream-5.0-pro')
-    expect(pro.textContent).toContain('Seedream')
     expect(pro.textContent).toContain('5.0 Pro')
+    expect(pro.textContent).not.toContain('Seedream')
+    // 省掉的只是眼睛看到的那一份 —— 读屏仍听得到完整的「哪一家的哪一版」。
+    expect(pro).toHaveAttribute(
+      'aria-label',
+      expect.stringContaining('Seedream'),
+    )
+    // 分组头自己还在。
+    expect(
+      Array.from(document.querySelectorAll('[data-picker-group]')).map(
+        (node) => node.textContent,
+      ),
+    ).toContain('Seedream')
     // 渠道后缀的重复条目收敛成同一行。
     expect(screen.queryByText('Seedream 5.0 Pro（火山方舟）')).toBeNull()
     expect(screen.getAllByText('GPT Image').length).toBeGreaterThan(0)
+  })
+
+  it('搜索结果平铺、没有分组头 —— 行里把厂商名写回来', () => {
+    openPicker()
+    fireEvent.change(
+      screen.getByPlaceholderText('ModelPicker.searchPlaceholder'),
+      {
+        target: { value: '5.0 pro' },
+      },
+    )
+
+    const pro = row('seedream-5.0-pro')
+    expect(pro.textContent).toContain('Seedream')
+    expect(pro).not.toHaveAttribute('aria-label')
+    // ⛔ 搜索态不画分组头（那才是行要自报家门的理由）。
+    expect(document.querySelectorAll('[data-picker-group]')).toHaveLength(0)
+  })
+
+  it('「最近」段没有分组头 —— 那一段的行也写厂商名', () => {
+    window.localStorage.setItem(
+      'pv:model-picker:recent',
+      JSON.stringify({ default: ['seedream-5.0-pro'] }),
+    )
+    openPicker()
+
+    const recent = document.querySelector(
+      '[data-row-id="recent:seedream-5.0-pro"]',
+    ) as HTMLElement
+    expect(recent.textContent).toContain('Seedream')
+    // 同一型号在分组里那一条仍旧只有型号。
+    const grouped = document.querySelector(
+      '[data-row-id="group:seedream-5.0-pro"]',
+    ) as HTMLElement
+    expect(grouped.textContent).not.toContain('Seedream')
   })
 
   it('多渠道但没选过 → 价格位写「—」', () => {

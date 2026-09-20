@@ -605,8 +605,27 @@ export function ModelPickerPopover({
     )
   }
 
-  const renderRow = (row: ModelRow, section: RowSection) => {
+  /**
+   * 一行。
+   *
+   * ⚠ `underSeriesHeading` = **这一行头顶那个分组头写的就是它的厂商**
+   * （owner 2026-09-20 真机第 2 条：「有一个 NovelAI 的表示了，下面应该是版本号，
+   * 不需要再重复」）。判据从数据推导（`group.key === row.seriesKey`），
+   * ⛔ 不按字符串前缀裁 —— 前缀只说明标签长什么样，说明不了这一行摆在谁下面。
+   */
+  const renderRow = (
+    row: ModelRow,
+    section: RowSection,
+    underSeriesHeading = false,
+  ) => {
     const selected = isRowSelected(row)
+    /**
+     * ⚠ 拆不出型号（`variant === null`，厂商只有一个模型）时**照旧写厂商名** ——
+     * 省掉它这一行就一个字都没有了。
+     */
+    const omitSeries = underSeriesHeading && row.variant !== null
+    const primary = omitSeries ? row.variant : row.name
+    const secondary = omitSeries ? null : row.variant
     const rowId = rowIdOf(section, row.modelKey)
     const expanded = sheet && activeRowId === rowId
     return (
@@ -623,6 +642,9 @@ export function ModelPickerPopover({
           aria-selected={selected}
           data-model-key={row.modelKey}
           data-row-id={rowId}
+          /* 视觉上省了厂商名，读屏仍要听得到「这是哪一家的哪一版」——
+             分组头是一个 `<p>`，它与这颗按钮没有任何关联。 */
+          {...(omitSeries ? { 'aria-label': row.label } : {})}
           // 「指针 / 键盘现在指着哪一行」—— 同一型号的两行**只有一行**会带上它。
           data-row-active={activeRowId === rowId || undefined}
           ref={(el) => {
@@ -663,17 +685,15 @@ export function ModelPickerPopover({
             !sheet && 'hover:outline hover:outline-1 hover:outline-border',
           )}
         >
-          <span className="min-w-0 flex-1 truncate font-medium">
-            {row.name}
-          </span>
-          {row.variant ? (
+          <span className="min-w-0 flex-1 truncate font-medium">{primary}</span>
+          {secondary ? (
             <span
               className={cn(
                 'min-w-0 shrink truncate text-muted-foreground',
                 sheet ? 'text-md' : 'text-2sm',
               )}
             >
-              {row.variant}
+              {secondary}
             </span>
           ) : null}
           {renderRowPrice(row)}
@@ -733,14 +753,32 @@ export function ModelPickerPopover({
               {recentRows.map((row) => renderRow(row, ROW_SECTION.recent))}
             </>
           ) : null}
-          {groups.map((group) => (
-            <div key={group.key}>
-              <p className="px-2.5 pb-1 pt-2 text-3xs uppercase tracking-nav text-muted-foreground">
-                {group.label}
-              </p>
-              {group.rows.map((row) => renderRow(row, ROW_SECTION.group))}
-            </div>
-          ))}
+          {/* ── 搜索结果**平铺**（owner 2026-09-20 真机第 2 条）─────────────
+              搜出来的几行常常横跨好几家，分组头在这一档只是把三五条结果切成
+              三五段。没有分组头，行就得自己说清是哪一家 —— 所以这一支传
+              `underSeriesHeading = false`，厂商名照写。 */}
+          {query
+            ? visibleRows.map((row) => renderRow(row, ROW_SECTION.group))
+            : groups.map((group) => (
+                <div key={group.key}>
+                  <p
+                    data-picker-group={group.key}
+                    className="px-2.5 pb-1 pt-2 text-3xs uppercase tracking-nav text-muted-foreground"
+                  >
+                    {group.label}
+                  </p>
+                  {group.rows.map((row) =>
+                    renderRow(
+                      row,
+                      ROW_SECTION.group,
+                      /* ⚠ 只有按厂商分的那一档头顶写着厂商名；音频那一档
+                         （`kind`）的分组头是「语音 / 配乐 / 音效」，⛔ 不省。 */
+                      groupBy === MODEL_PICKER_GROUP_BY.series &&
+                        group.key === row.seriesKey,
+                    ),
+                  )}
+                </div>
+              ))}
         </div>
 
         {onManageChannels ? (

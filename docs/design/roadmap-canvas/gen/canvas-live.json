@@ -170,7 +170,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 11990,
+      "h": 12210,
       "title": "改进进度表",
       "page": "page-7"
     },
@@ -740,6 +740,24 @@
       "h": 1490,
       "title": "D7c ④ 空态与动效",
       "page": "page-14"
+    },
+    {
+      "file": "DesignD11Account.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 1760,
+      "title": "D11 ④ 账号入口",
+      "page": "page-18"
+    },
+    {
+      "file": "DesignD11Rules.dc.html",
+      "x": 1500,
+      "y": 0,
+      "w": 1400,
+      "h": 1090,
+      "title": "D11 ④ 判据与动效",
+      "page": "page-18"
     }
   ],
   "annotations": [
@@ -1140,6 +1158,10 @@
     {
       "id": "page-17",
       "name": "D10 · 标签台 image/tags"
+    },
+    {
+      "id": "page-18",
+      "name": "D11 · 账号入口"
     }
   ]
 }

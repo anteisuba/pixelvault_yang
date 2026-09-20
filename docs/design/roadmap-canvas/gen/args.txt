@@ -164,3 +164,7 @@ DesignD10States.dc.html
 DesignD7cShell.dc.html
 --artboard
 DesignD7cFlow.dc.html
+--artboard
+DesignD11Account.dc.html
+--artboard
+DesignD11Rules.dc.html

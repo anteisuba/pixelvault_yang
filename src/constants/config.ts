@@ -2,6 +2,12 @@
  * Application-wide configuration constants
  */
 
+/**
+ * 站点名。`og:site_name` 与画廊详情页标题后缀共用同一个字面量，所以它是常量
+ * 而不是各写各的 —— 改名时只有一处要改。
+ */
+export const SITE_NAME = 'PixelVault'
+
 export const DEFAULT_APP_ORIGIN = 'http://localhost:3000'
 
 export const LOCAL_APP_ORIGINS = [DEFAULT_APP_ORIGIN] as const

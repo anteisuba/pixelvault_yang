@@ -16,7 +16,9 @@ import { StudioOperatorEmptyState } from './StudioOperatorEmptyState'
  *  ② ⭐ **药丸不在这里**：那四条满宽建议条整块搬去了输入框正上方（在
  *     `StudioOperatorPanel.web.test.tsx` 里验），⛔ 空态一颗都不画；
  *  ③ 药丸走了之后这一格**不再收** `onSuggestion` —— 留个没人调的回调只会让
- *     下一个人把它们塞回来。
+ *     下一个人把它们塞回来；
+ *  ④ ⭐ 上下留白**不许抄回画板那对 52 / 44**：半屏 Sheet 里时间线净高只有 164，
+ *     96px 的留白足以把整组顶出可视区（手机实测：头像被卷到头部底下）。
  */
 
 // 头像那一颗的内部（persona 预设 / 自传图）不是这条断言的契约。
@@ -58,6 +60,19 @@ describe('StudioOperatorEmptyState', () => {
    * owner 在画板上的判据：药丸是**诱饵**，不该比助手说的那句话还重。四条与输入框
    * 等宽、带边带影的卡摆在一句话底下，读起来像四个必须先做的选择。
    */
+  /**
+   * 手机 Sheet 实测：`pt-13 pb-11`（52 / 44）让这一组比时间线净高还高，于是
+   * 跟着滚那条把头像卷到头部底下。留白多寡在宽松档上一个像素都看不出来 ——
+   * 它只在挤的时候说话。
+   */
+  it('⭐ ⛔ 不抄画板那对 52 / 44 留白（矮容器会把头像顶出可视区）', () => {
+    renderEmpty()
+    const className = screen.getByTestId('operator-empty').className
+    expect(className).toContain('py-6')
+    expect(className).not.toContain('pt-13')
+    expect(className).not.toContain('pb-11')
+  })
+
   it('⭐ 空态里一颗药丸都不画 —— 它们搬去了输入框正上方', () => {
     renderEmpty()
     expect(screen.queryByTestId('operator-empty-suggestion')).toBeNull()

@@ -35,9 +35,12 @@ export function StudioOperatorEmptyState({
   return (
     <div
       data-testid="operator-empty"
-      /* 画板：`52 / 44` 的上下留白把这一组顶到**居中偏上** —— 正中间会让它读起来
-         像一张等着被填的表单，偏上才像「它先说了一句，等你接话」。 */
-      className="flex flex-col items-center gap-2.5 px-4 pb-11 pt-13 text-center"
+      /* ⚠ 上下留白 **24 而不是画板那对 52 / 44**（手机 Sheet 实测）：这一组是被
+         外面那一层居中摆的，所以留白多寡在宽松档上一个像素都看不出来 —— 它只在
+         **挤的时候**说话。半屏 Sheet 里时间线净高只有 164，96px 的留白足以把整组
+         顶出可视区，于是头像被卷到头部底下看不见。⛔ 别把那对数字抄回来：画板量
+         的是桌面面板那一档的可视高度。 */
+      className="flex flex-col items-center gap-2.5 px-4 py-6 text-center"
     >
       {/* 40px = 时间线那颗 32px 的放大档（画板「空态 · 改后」）—— 同一颗组件换
           尺寸，⛔ 不是第二种头像。 */}

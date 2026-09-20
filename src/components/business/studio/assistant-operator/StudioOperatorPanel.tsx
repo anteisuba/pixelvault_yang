@@ -351,6 +351,16 @@ export function StudioOperatorPanel({
       allHistoryEntries.filter((entry): boolean => entry.kind !== 'domainMark'),
     [allHistoryEntries],
   )
+
+  /**
+   * 这条线程一个字都还没有（§4.2 的判据）—— 首次打开或刚开一条新会话。
+   *
+   * ⚠ 载回来的只读历史也要数：翻开一条旧会话时线程里明明有内容，画空态就是在
+   * 说「我不记得我们聊过」。
+   * ⚠ 算在这里（紧跟两份条目）而不是用到它的地方：跟着滚那条 effect 的依赖列
+   * 要读它，而依赖列是**渲染期**求值的 —— 定义在下面会撞 TDZ。
+   */
+  const threadEmpty = entries.length === 0 && historyEntries.length === 0
   const {
     domain,
     send,
@@ -865,8 +875,17 @@ export function StudioOperatorPanel({
   useEffect(() => {
     const node = threadRef.current
     if (!node || !stickRef.current) return
+    /**
+     * ⚠ **空态不滚**（手机 Sheet 实测）：空态里没有「最新一条」可跟，而它在矮
+     * 容器里比时间线净高还高一点 —— 滚到底把头像和那句话的上半截卷到头部底下，
+     * 看起来就是「助手开着但什么都没有」。空态的可读点在**顶端**。
+     */
+    if (threadEmpty) {
+      node.scrollTop = 0
+      return
+    }
     node.scrollTop = node.scrollHeight
-  }, [entries, historyEntries, confirm?.id, confirm?.status])
+  }, [entries, historyEntries, confirm?.id, confirm?.status, threadEmpty])
 
   const submit = useCallback(
     (text: string) => {
@@ -986,14 +1005,6 @@ export function StudioOperatorPanel({
     },
     [upload],
   )
-
-  /**
-   * 这条线程一个字都还没有（§4.2 的判据）—— 首次打开或刚开一条新会话。
-   *
-   * ⚠ 载回来的只读历史也要数：翻开一条旧会话时线程里明明有内容，画空态就是在
-   * 说「我不记得我们聊过」。
-   */
-  const threadEmpty = entries.length === 0 && historyEntries.length === 0
 
   /**
    * checkpoint 二选的落点（§3.2）。

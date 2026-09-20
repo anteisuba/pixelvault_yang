@@ -102,6 +102,15 @@ const EMPTY_PANELS: StudioFormState['panels'] = {
   keepChange: false,
 }
 
+/**
+ * ⚠ 助手面板那条 barrel（`assistant-operator/index`）拖进来一个走
+ * `@/i18n/navigation` 的 hook（56a 的回执跳转），而那条链在 jsdom 里会去解
+ * `next/navigation`。这份用例验的是提示词区，不是路由 —— 桩掉它。
+ */
+vi.mock('@/hooks/use-open-assistant-memory', () => ({
+  useOpenAssistantMemory: () => vi.fn(),
+}))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
   useLocale: () => 'en',

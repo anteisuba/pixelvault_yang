@@ -33,7 +33,7 @@
 
 import { useState } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
-import { ChevronDown, ClipboardCheck } from '@/components/icons'
+import { ChevronDown, ClipboardCheck, EyeOff } from '@/components/icons'
 
 import { ASSISTANT_ROUND_SUMMARY_LIMITS } from '@/constants/assistant-operator'
 import type { AssistantOperatorRoundSummary } from '@/types/assistant-operator'
@@ -72,6 +72,13 @@ interface StudioOperatorRoundSummaryProps {
   onSave?(columns: StudioOperatorRoundColumns): void
   /** 见头注：传了才把证据编号画成可点的。 */
   onRecallEvidence?(ref: string): void
+  /**
+   * 「本轮记住 N 件事」那一行点下去的去处（56a）——`/settings/assistant`。
+   *
+   * ⚠ 由调用方传（面板那一侧才有 `usePathname()` 与 `?from=`），⛔ 这块自己不
+   * 认路由。缺席 = 退回展开三栏（老调用方与快照测试走这一档）。
+   */
+  onOpenMemory?(): void
   /** 见头注；缺席 = 这一轮没有没跑完的计划。 */
   resume?: StudioOperatorRoundResume
   /** 首次渲染就折起来（载回来的历史用它，⛔ 不影响用户之后的开合）。 */
@@ -102,6 +109,7 @@ export function StudioOperatorRoundSummary({
   summary,
   onSave,
   onRecallEvidence,
+  onOpenMemory,
   resume,
   defaultCollapsed = false,
 }: StudioOperatorRoundSummaryProps) {
@@ -123,7 +131,16 @@ export function StudioOperatorRoundSummary({
     })
   }
 
+  /**
+   * 回执上那个 N（56a）。
+   *
+   * ⭐ **记忆条数优先**：用户点那一行是去**记忆列表**，数的就该是「记下了几条
+   * 记忆」。`memoriesWritten` 缺席（56a 之前写的老记录 / 这一轮一条都没写）时
+   * 退回三栏条目数 —— 那是 56a 之前的口径。
+   * ⚠ 敏感类目命中的那几条服务端已经不算进 `memoriesWritten`，⛔ 这里也不提。
+   */
   const count =
+    summary.memoriesWritten ??
     summary.facts.length + summary.decisions.length + summary.todos.length
   const time = format.dateTime(new Date(summary.createdAt), {
     hour: '2-digit',
@@ -149,18 +166,40 @@ export function StudioOperatorRoundSummary({
       >
         {/* ⚠ 「改」与展开是**并排两颗按钮**不是嵌套：折叠态下要改一句结论，点
             一下展开再点一下「改」是两步，而这块本来就是给 10 秒纠错用的（§7.7）。
-            ⛔ 别把它塞进展开那颗里 —— 按钮套按钮的 DOM 本身就是坏的。 */}
-        <button
-          type="button"
-          data-testid="operator-round-expand"
-          onClick={() => setCollapsed(false)}
-          className="flex min-w-0 flex-1 items-center gap-2 px-0.5 py-2.5 text-left transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {icon}
-          <span className="min-w-0 flex-1 text-2sm text-muted-foreground">
-            {t('collapsed', { count })}
-          </span>
-        </button>
+            ⛔ 别把它塞进展开那颗里 —— 按钮套按钮的 DOM 本身就是坏的。
+            ⚠ 56a 起**那一行字自己去设置页**（画板 `DesignD56Simple`「回执一行」）：
+            「本轮记住 N 件事」说的是记忆，而记忆能改能删的地方只有
+            `/settings/assistant`。展开三栏那条路搬到了尾巴上那颗 ▾ —— 它仍然是
+            `operator-round-expand`，⛔ 两件事不共用一个命中区。
+            ⚠ 隐身那一轮整行不可点：没有记，也就没有可去的地方（`incognito`）。 */}
+        {summary.incognito ? (
+          <div
+            data-testid="operator-round-incognito"
+            className="flex min-w-0 flex-1 items-center gap-2 px-0.5 py-2.5"
+          >
+            <EyeOff
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <span className="min-w-0 flex-1 text-2sm text-muted-foreground">
+              {t('incognito')}
+            </span>
+          </div>
+        ) : (
+          <button
+            type="button"
+            data-testid="operator-round-memory"
+            onClick={() =>
+              onOpenMemory ? onOpenMemory() : setCollapsed(false)
+            }
+            className="flex min-w-0 flex-1 items-center gap-2 px-0.5 py-2.5 text-left transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {icon}
+            <span className="min-w-0 flex-1 text-2sm text-muted-foreground">
+              {t('collapsed', { count })}
+            </span>
+          </button>
+        )}
         {onSave ? (
           <button
             type="button"
@@ -171,10 +210,15 @@ export function StudioOperatorRoundSummary({
             {t('edit')}
           </button>
         ) : null}
-        <ChevronDown
-          className="ml-1 mr-0.5 size-4 shrink-0 text-muted-foreground"
-          aria-hidden
-        />
+        <button
+          type="button"
+          data-testid="operator-round-expand"
+          aria-label={t('expand')}
+          onClick={() => setCollapsed(false)}
+          className="ml-1 mr-0.5 grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <ChevronDown className="size-4" aria-hidden />
+        </button>
       </div>
     )
   }

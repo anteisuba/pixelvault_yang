@@ -51,6 +51,53 @@ describe('StudioOperatorRoundSummary', () => {
     expect(screen.getByTestId('operator-round-edit')).toBeTruthy()
   })
 
+  /* ── 回执那一行（56a 切片 4）────────────────────────────────── */
+
+  it('⭐ N 优先数记忆条数（回执点下去是记忆列表）', () => {
+    renderBlock({ summary: { ...SUMMARY, memoriesWritten: 2 } })
+    fireEvent.click(screen.getByTestId('operator-round-collapse'))
+    // 三栏共 4 条，记忆 2 条 —— 印的必须是 2 那一份。
+    expect(screen.getByTestId('operator-round-memory').textContent).toContain(
+      'collapsed',
+    )
+  })
+
+  it('⭐ 点那一行去设置页，⛔ 不展开', () => {
+    const onOpenMemory = vi.fn()
+    renderBlock({ summary: { ...SUMMARY, memoriesWritten: 2 }, onOpenMemory })
+    fireEvent.click(screen.getByTestId('operator-round-collapse'))
+    fireEvent.click(screen.getByTestId('operator-round-memory'))
+    expect(onOpenMemory).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('operator-round-summary').dataset.state).toBe(
+      'collapsed',
+    )
+  })
+
+  it('⚠ 没给去处时那一行退回展开（老调用方）', () => {
+    renderBlock()
+    fireEvent.click(screen.getByTestId('operator-round-collapse'))
+    fireEvent.click(screen.getByTestId('operator-round-memory'))
+    expect(screen.getByTestId('operator-round-summary').dataset.state).toBe(
+      'expanded',
+    )
+  })
+
+  it('⭐ 隐身那一轮：改说「这一轮没有记」，整行不可点', () => {
+    const onOpenMemory = vi.fn()
+    renderBlock({ summary: { ...SUMMARY, incognito: true }, onOpenMemory })
+    fireEvent.click(screen.getByTestId('operator-round-collapse'))
+    expect(screen.queryByTestId('operator-round-memory')).toBeNull()
+    expect(
+      screen.getByTestId('operator-round-incognito').textContent,
+    ).toContain('incognito')
+    expect(onOpenMemory).not.toHaveBeenCalled()
+    // 三栏照旧展得开 —— 隐身关的是记忆，⛔ 不是这一轮。
+    fireEvent.click(screen.getByTestId('operator-round-expand'))
+    expect(screen.getByTestId('operator-round-summary').dataset.state).toBe(
+      'expanded',
+    )
+  })
+
   it('空栏不画一行只有标签的空句子', () => {
     renderBlock({ summary: { ...SUMMARY, todos: [], evidenceRefs: [] } })
     expect(screen.getAllByTestId('operator-round-column')).toHaveLength(2)

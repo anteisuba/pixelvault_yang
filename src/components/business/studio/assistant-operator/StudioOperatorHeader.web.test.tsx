@@ -9,6 +9,11 @@ import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
 import { ASSISTANT_SURFACE_IDS } from '@/types/assistant-conversation'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 
+import {
+  getOperatorState,
+  setOperatorIncognito,
+} from '@/hooks/use-studio-operator-store'
+
 import { StudioOperatorHeader } from './StudioOperatorHeader'
 
 /**
@@ -223,8 +228,28 @@ describe('StudioOperatorHeader', () => {
     fireEvent.click(screen.getByTestId('operator-assistant-settings'))
     expect(onOpenAssistantSettings).toHaveBeenCalledTimes(1)
 
-    // 隐身：**占位且禁用** —— ⛔ 这一轮不实现记忆逻辑。
-    expect(screen.getByTestId('operator-more-incognito')).toBeDisabled()
+    // 隐身（56a 切片 4）：真开关，⛔ 不再是禁用占位。
+    expect(screen.getByTestId('operator-more-incognito')).not.toBeDisabled()
+  })
+
+  /**
+   * 隐身（56a 切片 4）—— ⋯ 菜单那颗开关作用于**当前会话**，头部一枚文字胶囊。
+   * ⚠ ⛔ 不用红点：红点说的是「有东西要你看」，隐身是一个持续的状态。
+   */
+  it('⭐ 隐身：菜单切一下 → 头部出文字胶囊；再切一下收回去', () => {
+    // store 是模块级的 —— ⚠ 这一条自己把它摆回关着，⛔ 不依赖用例顺序。
+    setOperatorIncognito(false)
+    renderHeader()
+    // 关着时整枚不渲染（⛔ 不画停用态）。
+    expect(screen.queryByTestId('operator-incognito-pill')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('operator-more-incognito'))
+    expect(screen.getByTestId('operator-incognito-pill')).toBeTruthy()
+    expect(getOperatorState().incognito).toBe(true)
+
+    fireEvent.click(screen.getByTestId('operator-more-incognito'))
+    expect(screen.queryByTestId('operator-incognito-pill')).toBeNull()
+    expect(getOperatorState().incognito).toBe(false)
   })
 
   /**

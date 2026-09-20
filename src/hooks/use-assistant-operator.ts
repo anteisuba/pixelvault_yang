@@ -1187,6 +1187,14 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            *   历史列表里留一条空线程。
            */
           ...(sessionId ? { conversationId: sessionId } : {}),
+          /**
+           * ⭐ **隐身**（56a · ⋯ 菜单）—— 开着时服务端这一轮一条记忆都不写。
+           * ⚠ 每轮上送、⛔ 不落库：它作用于**当前会话**，不是账号级设置
+           * （判据与 `sourceAllowlist` 那条同源）。
+           * ⚠ 关着时**整个键不发**：一个恒在的 `incognito: false` 读起来像
+           *   「用户特意关掉了隐身」，而绝大多数轮次里他从没碰过这颗开关。
+           */
+          ...(getOperatorState().incognito ? { incognito: true } : {}),
           ...(videoFrames ? { videoFrames } : {}),
           /**
            * ⭐ **这一轮指定的来源**（v2 §9.3）——「+」菜单点的那几个，只作用于

@@ -739,3 +739,42 @@ describe('结论记录（v2 §7.7，commit #13）', () => {
     expect(store.getOperatorState().historyRounds).toEqual([])
   })
 })
+
+// ─── 隐身（56a 切片 4）────────────────────────────────────────────
+
+describe('隐身', () => {
+  /**
+   * ⚠ store 是模块级的 —— 每条用例自己摆状态、自己收拾，⛔ 不依赖用例顺序。
+   */
+  it('默认关着；切开 / 切回都真的落进状态', () => {
+    expect(store.getOperatorState().incognito).toBe(false)
+
+    act(() => {
+      store.setOperatorIncognito(true)
+    })
+    expect(store.getOperatorState().incognito).toBe(true)
+
+    act(() => {
+      store.setOperatorIncognito(false)
+    })
+    expect(store.getOperatorState().incognito).toBe(false)
+  })
+
+  it('⛔ 切开隐身不动这条线程的任何别的东西', () => {
+    act(() => {
+      store.loadOperatorThread({
+        history: [],
+        rounds: [],
+        sessionId: 'conv-1',
+        sessionSurface: 'IMAGE_STUDIO',
+      })
+      store.setOperatorIncognito(true)
+    })
+    expect(store.getOperatorState().sessionId).toBe('conv-1')
+    expect(store.getOperatorState().sessionSurface).toBe('IMAGE_STUDIO')
+    act(() => {
+      store.setOperatorIncognito(false)
+      store.resetOperatorThread()
+    })
+  })
+})

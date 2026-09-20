@@ -126,6 +126,7 @@ import {
 import { StudioOperatorResearchProgress } from '@/components/business/studio/assistant-operator/StudioOperatorResearchProgress'
 import { StudioOperatorQueueBar } from '@/components/business/studio/assistant-operator/StudioOperatorQueueBar'
 import { StudioOperatorEmptyState } from '@/components/business/studio/assistant-operator/StudioOperatorEmptyState'
+import { useOpenAssistantMemory } from '@/hooks/use-open-assistant-memory'
 import { StudioOperatorHeader } from '@/components/business/studio/assistant-operator/StudioOperatorHeader'
 import {
   STUDIO_OPERATOR_CARD_KINDS,
@@ -1132,6 +1133,9 @@ export function StudioOperatorPanel({
     return null
   }, [entries, historyRounds, resumeStepNumber])
 
+  /** 回执那一行的去处（56a）—— `/settings/assistant`，带 `?from=` 当前路径。 */
+  const openAssistantMemory = useOpenAssistantMemory()
+
   const roundResume =
     resumeStepNumber === null
       ? null
@@ -1160,6 +1164,7 @@ export function StudioOperatorPanel({
         summary={summary}
         defaultCollapsed
         onSave={(columns) => saveRoundSummary(summary, columns)}
+        onOpenMemory={openAssistantMemory}
         {...(roundResume &&
         resumeHost?.scope === 'history' &&
         resumeHost.roundIndex === summary.roundIndex
@@ -1709,6 +1714,7 @@ export function StudioOperatorPanel({
             key={entry.id}
             summary={entry.summary}
             onSave={(columns) => saveRoundSummary(entry.summary, columns)}
+            onOpenMemory={openAssistantMemory}
             {...(roundResume &&
             resumeHost?.scope === 'live' &&
             resumeHost.roundIndex === entry.summary.roundIndex

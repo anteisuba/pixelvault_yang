@@ -7818,7 +7818,9 @@
       "edit": "改",
       "edited": "· 已修改",
       "save": "保存",
-      "cancel": "取消"
+      "cancel": "取消",
+      "incognito": "这一轮没有记",
+      "expand": "展开本轮记录"
     },
     "status": {
       "thinking": "正在想…",

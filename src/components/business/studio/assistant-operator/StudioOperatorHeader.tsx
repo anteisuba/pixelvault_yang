@@ -69,6 +69,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import {
+  setOperatorIncognito,
+  useStudioOperatorState,
+} from '@/hooks/use-studio-operator-store'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import type { AssistantPersona } from '@/types/assistant-persona'
 import type { StudioOperatorFace } from '@/contexts/studio-operator-host'
@@ -191,6 +195,12 @@ export function StudioOperatorHeader({
 }: StudioOperatorHeaderProps) {
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
+  /**
+   * 隐身（56a）—— ⚠ 从 store 读而不是从 props：它同时要被 ⋯ 菜单切、被头部那枚
+   * 胶囊读、被驱动 hook 在事件处理器里同步读。穿成 prop 等于让面板与外壳各转发
+   * 一次同一个布尔。
+   */
+  const { incognito } = useStudioOperatorState()
   const [deleteTarget, setDeleteTarget] =
     useState<AssistantConversationSummary | null>(null)
 
@@ -427,6 +437,20 @@ export function StudioOperatorHeader({
           </DropdownMenuContent>
         </DropdownMenu>
 
+        {/* ── 隐身胶囊（56a · 画板 `DesignD56Simple`「隐身开着」）──────
+            ⚠ **一枚文字胶囊**，⛔ 不用红点：红点说的是「有东西要你看」，而隐身
+              是一个**持续的状态** —— 它要能一眼读出来在说什么。
+            ⚠ 关着时整枚不渲染（⛔ 不画停用态）：绝大多数轮次里它就不该占位。 */}
+        {incognito ? (
+          <span
+            data-testid="operator-incognito-pill"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-2sm text-muted-foreground"
+          >
+            <EyeOff className="size-3.5" aria-hidden />
+            {t('incognito')}
+          </span>
+        ) : null}
+
         {/* ── 有未完成计划（第三期 · 断点续跑）───────────────────────
             ⚠ 长在标题右边、成本计数左边：它是一个**动作**，而右边那两样是注脚
               与常驻入口 —— 动作排在注脚前面。
@@ -484,14 +508,27 @@ export function StudioOperatorHeader({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             {/**
-             * 隐身（56a）—— ⚠ **占位且禁用**：56a 只落了设置页那颗开关的存储位
-             * （`SETTINGS_PREFERENCE_KEYS.assistantIncognito`），「这一轮不记」的
-             * 行为一行都还没接。⛔ 这里绝不实现记忆逻辑 —— 一颗点了就静默什么都
-             * 不做的菜单项比没有这一项更糟。
+             * 隐身（56a 切片 4）—— 现在是**真的**：开着时这一轮一条记忆都不写
+             * （请求带 `incognito`，服务端结账时跳过写入）。
+             * ⚠ 作用于**当前会话**，⛔ 不写库：用户为一件事临时不想被记，不该
+             * 变成他此后每一轮的设置。换会话 / 刷新之后回到关着。
+             * ⚠ `onSelect` 里 `preventDefault()`：切一颗开关不该顺手把菜单关掉 ——
+             * 用户常常是切完想立刻确认头部那枚胶囊亮了。
              */}
-            <DropdownMenuItem data-testid="operator-more-incognito" disabled>
+            <DropdownMenuItem
+              data-testid="operator-more-incognito"
+              aria-checked={incognito}
+              role="menuitemcheckbox"
+              onSelect={(event) => {
+                event.preventDefault()
+                setOperatorIncognito(!incognito)
+              }}
+            >
               <EyeOff className="size-4" aria-hidden />
               {t('incognito')}
+              {incognito ? (
+                <Check className="ml-auto size-4" aria-hidden />
+              ) : null}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

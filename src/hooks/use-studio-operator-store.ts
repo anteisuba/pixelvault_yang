@@ -194,6 +194,17 @@ export interface StudioOperatorState {
   /** 时间线末尾那张**确认卡**（§3.3，两种来源一张卡）。 */
   confirm: StudioOperatorConfirmPrompt | null
   /**
+   * **隐身**（56a · ⋯ 菜单里那颗开关）—— 开着时这一轮**一条记忆都不写**。
+   *
+   * ⭐ 住在 store 而不是面板：面板会被收放法则（拍板 7）随时卸载，而「这段对话
+   * 别记」的承诺不该因为收了一下面板就失效。驱动 hook 也要在事件处理器里同步
+   * 读它（`getOperatorState()`），那正是这份 store 存在的理由。
+   * ⚠ **作用于当前会话**，⛔ 不写库、⛔ 不跨域分槽：它说的是「这段对话」，
+   * 与用户此刻站在哪台工作台无关。换会话 / 刷新之后回到关着。
+   * ⚠ 它**只关掉写入**：这一轮照常跑、照常结账下发，只是一条记忆都不落。
+   */
+  incognito: boolean
+  /**
    * 视频域评审的**抽帧那一段**正在跑（第二期最后一环）。
    *
    * ⭐ 它与 `status: 'working'` **不是同一件事**：抽帧发生在请求发出去**之前**
@@ -274,6 +285,7 @@ const INITIAL_STATE: StudioOperatorState = {
   planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
   question: null,
   confirm: null,
+  incognito: false,
   capturingFrames: false,
   reviewStates: {},
   resume: null,
@@ -973,6 +985,17 @@ export function dropOperatorPendingResult(id: string): void {
  * 多步确认闸 + 系统提示 `PLAN_MODE_DIRECTIVES`）。⛔ 别在输入区再造一个跟它
  * 打架的单轮开关（v2 §11.1）。
  */
+/**
+ * 隐身开关（56a）—— ⋯ 菜单那一颗按的就是它。
+ *
+ * ⚠ ⛔ 不在这里清任何东西：隐身**不撤销**已经记下的那些（那是设置页上的
+ * 「删」与「全部清空」干的事），它只管从现在起这段对话不再记。
+ */
+export function setOperatorIncognito(incognito: boolean): void {
+  if (state.incognito === incognito) return
+  emit({ ...state, incognito })
+}
+
 export function setOperatorPlanMode(planMode: AssistantPersonaPlanMode): void {
   if (state.planMode === planMode) return
   emit({ ...state, planMode })

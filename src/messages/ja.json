@@ -7818,7 +7818,9 @@
       "edit": "修正",
       "edited": "· 修正済み",
       "save": "保存",
-      "cancel": "キャンセル"
+      "cancel": "キャンセル",
+      "incognito": "このターンは記憶していません",
+      "expand": "このターンの記録を開く"
     },
     "status": {
       "thinking": "考え中…",

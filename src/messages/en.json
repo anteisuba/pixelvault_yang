@@ -7818,7 +7818,9 @@
       "edit": "Edit",
       "edited": "· edited",
       "save": "Save",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "incognito": "Nothing remembered this turn",
+      "expand": "Show this turn's record"
     },
     "status": {
       "thinking": "Thinking…",

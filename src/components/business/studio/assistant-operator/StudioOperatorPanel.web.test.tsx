@@ -23,6 +23,14 @@ import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operat
  *     （LoRA 装配台上那条 context 根本不存在）。
  */
 
+/**
+ * ⚠ 回执那一行的去处（56a）走 `@/i18n/navigation`，而那条链在 jsdom 里会去解
+ * `next/navigation` —— 这份用例验的是**面板接线**，不是路由。桩掉它。
+ */
+vi.mock('@/hooks/use-open-assistant-memory', () => ({
+  useOpenAssistantMemory: () => vi.fn(),
+}))
+
 vi.mock('next-intl', () => ({
   useTranslations: () => {
     const t = (key: string) => key

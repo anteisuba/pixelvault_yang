@@ -54,13 +54,14 @@ describe('MobileShell 入口收口（D11 ④）', () => {
     expect(trigger.getAttribute('href')).toBeNull()
   })
 
-  it('抽屉「去处」段里有「我的主页」，与桌面同一条清单', () => {
+  it('抽屉「去处」段里的「我的主页」也是静态 /u/me，与桌面同一条清单', () => {
     render(<MobileShell />)
     openDrawer()
 
     const dialog = screen.getByRole('dialog')
-    const item = dialog.querySelector('a[href="/u/fulina"]')
+    const item = dialog.querySelector('a[href="/u/me"]')
     expect(item?.textContent).toContain('Navbar.links.profile')
+    expect(dialog.querySelector('a[href="/u/fulina"]')).toBeNull()
   })
 
   it('抽屉里不再有「我」区，也不再有最底那一行「设置」—— 都进了账号菜单', () => {

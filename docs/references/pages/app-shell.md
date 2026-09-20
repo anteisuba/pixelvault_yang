@@ -206,7 +206,12 @@ M3 边缘手势（与画布 pan、画廊/素材横滑直接冲突）。
 - ⚠ **底色仍走侧栏的反极性**：hover 往暗（`--sidebar-accent`）、pressed / 菜单打开更暗（`--sidebar-accent-strong`）、激活浮片往亮（`--sidebar-active-surface`）。⛔ 账号入口不许自己破例。
 - **<1024 同形**：顶栏胶囊右端那颗头像挂**同一颗** `AccountMenu`。⛔ 抽屉里因此不再有「我」区、也不再有最底那一行「设置」—— 两个入口并存就是下一次漂移的起点。
 
-**「我的主页」这一项的地址是运行时算出来的**（`creatorProfilePath(username)`），而条目清单是静态数据。收口方式：条目带一个 `dynamicHref: 'creatorProfile'` 标记 + `href: null`，解析集中在 `resolveShellNavItems()`，桌面轨与手机壳调同一支；解析不出来（未登录 / 资料还没回来）就**整条不产出**。⛔ 不在 constants 里放闭包 —— 那会把「谁喂 username」藏进数据层，两套壳各自凑参数，第二份清单就是这么长出来的。⛔ 更不许给一个点了跳 `/u/undefined` 的链接。
+**「我的主页」的地址是静态的 `/u/me`**（owner 2026-09-20 第二轮拍板）。那条路由在**服务端**解析当前用户的 username 后 `redirect` 到 `/u/<username>`（`app/[locale]/(main)/u/me/page.tsx`）。
+
+- ⛔ **不要让壳在渲染时按 `useMyProfile()` 拼地址。** 上一版这么做过（条目带一个 `dynamicHref` 标记 + 解析层，解析不出就不产出这一项），真机在日语档看得见**侧边栏当着用户的面回流一次**——列表过几秒多出一行。运行时依赖已整层删除，⛔ 别再引回来。
+- ⚠ 段名 `me` 沿用仓库既有约定（`/api/users/me/*`），⛔ 不造 `/u/self` / `/profile` 第二套说法；静态段优先于同级 `[username]`，所以 `me` 已进 `PROFILE.RESERVED_USERNAMES`。
+- ⚠ `/u/(.*)` 在 `proxy.ts` 里是公开路由（别人的主页要能匿名看），未登录这一档中间件不管，由该页自己 `redirect` 到登录页——与 `/settings` 同一个口径。
+- ⚠ **这一项没有激活态**：落地 URL 是 `/u/<username>`，静态清单认不出那是不是「我的」。要它亮起来只有两条路（都还没做）：`/u/me` 改成就地渲染而不是 redirect，或者让壳按 username 补一条激活路径——后者就是刚删掉的那种运行时依赖。
 
 仍未收的遗留：
 

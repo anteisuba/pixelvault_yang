@@ -111,7 +111,7 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
     expect(anchor).toBe(screen.getByLabelText('Navbar:account'))
   })
 
-  it('「我的主页」是「去处」段的一条常规导航项，地址是当前用户的主页', () => {
+  it('「我的主页」的地址是静态的 /u/me —— username 由服务端解析', () => {
     mockProfile.current = {
       username: 'fulina',
       displayName: 'fulina',
@@ -120,17 +120,23 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
     const { container } = renderSidebar()
 
     const item = container.querySelector(
-      '[data-slot="sidebar-menu-button"][href="/u/fulina"]',
+      '[data-slot="sidebar-menu-button"][href="/u/me"]',
     )
     expect(item?.textContent).toContain('Navbar.links.profile')
+    // ⛔ 壳里不许再出现按 username 拼出来的地址。
+    expect(container.querySelector('a[href="/u/fulina"]')).toBeNull()
   })
 
-  it('username 还没回来时「我的主页」整条不渲染，不给 /u/undefined', () => {
+  it('username 还没回来也照常渲染 —— ⛔ 侧边栏不得当着用户的面回流', () => {
     mockProfile.current = null
     const { container } = renderSidebar()
 
-    expect(screen.queryByText('Navbar.links.profile')).toBeNull()
-    expect(container.querySelector('a[href^="/u/"]')).toBeNull()
+    expect(
+      container.querySelector(
+        '[data-slot="sidebar-menu-button"][href="/u/me"]',
+      ),
+    ).not.toBeNull()
+    expect(container.querySelector('a[href="/u/undefined"]')).toBeNull()
   })
 
   it('⛔ 底部不读任何账户数字，也不挂红点 / 角标', () => {

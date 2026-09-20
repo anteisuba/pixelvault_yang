@@ -11,6 +11,7 @@
 | model-catalog.md | **模型目录月度审计**：现役盘点 / 官方动态 / 加删建议（✅ 已写，**每月更新**）                                                    | `src/constants/models/` · model-doc-monitor CI                           |
 | cicd.md          | GitHub Actions 5 workflows / Vercel / 本地闸门（✅ 已写）                                                                        | `.github/workflows/`                                                     |
 | testing.md       | vitest / playwright 策略 / 视觉基线双 OS（✅ 已写）                                                                              | `vitest.config.*` · `e2e/`                                               |
+| seo.md           | **页面地址与索引信号契约**：canonical 自指 / hreflang / sitemap 一致 / noindex 边界（✅ 2026-09-20）                             | `src/lib/page-address.ts` · `src/app/sitemap.ts`                         |
 | providers.md     | AI provider 接入契约 / BYOK / 错误信息全链路（✅ 已写）                                                                          | `src/constants/providers.ts`                                             |
 | product.md       | 产品边界与主线（✅ 已写，2026-07-10 四项重核更新）                                                                               | 本文件即现行契约；详版 `archive/product/` 已删 2026-08-07，见 git 历史   |
 | loading.md       | **加载态与生成进度契约**：spinner 三档 / 混合阶段进度区间（✅ 2026-08-07 由三份任务包合并沉淀）                                  | `src/components/ui/spinner.tsx` · `src/constants/generation-progress.ts` |

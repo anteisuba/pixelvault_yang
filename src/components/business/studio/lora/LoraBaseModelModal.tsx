@@ -125,7 +125,7 @@ export function LoraBaseModelModal({
               <Check className="size-3.5 shrink-0 text-primary" aria-hidden />
             ) : null}
           </span>
-          <span className="font-mono text-2xs text-muted-foreground">
+          <span className="text-2xs text-muted-foreground">
             {archLabel(b)} · {channelLabel(b)}
           </span>
           <span className="mt-auto flex flex-wrap items-center gap-1.5">

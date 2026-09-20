@@ -3601,7 +3601,7 @@ function LoraSpineBar({
         >
           <Plus className="size-4" aria-hidden />
         </button>
-        <span className="text-center font-mono text-3xs leading-tight text-muted-foreground">
+        <span className="text-center text-3xs leading-tight text-muted-foreground">
           {t('spine.mountedCount', { count: stack.items.length })}
         </span>
       </div>
@@ -3672,7 +3672,7 @@ function LoraSpineBar({
                       单独占一行）。300px 窄栏放不下「Runner · 唯一通道」全称，
                       通道用短标（Runner / 云端 API），全称进 title。 */}
                   <span
-                    className="block truncate font-mono text-2xs text-muted-foreground"
+                    className="block truncate text-2xs text-muted-foreground"
                     title={
                       selectedBase.backend === 'runner'
                         ? t('spine.executorRunner')
@@ -3724,7 +3724,7 @@ function LoraSpineBar({
         <span className="text-2xs uppercase tracking-wide text-muted-foreground">
           {t('spine.stackTitle')}
         </span>
-        <span className="ml-auto font-mono text-2xs text-muted-foreground">
+        <span className="ml-auto text-2xs text-muted-foreground">
           {t('spine.mountedCount', { count: stack.items.length })}
         </span>
       </div>

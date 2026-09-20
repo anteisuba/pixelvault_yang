@@ -197,7 +197,7 @@ function SlotShell({
           </button>
         ) : null}
       </div>
-      <span className="font-mono text-2xs text-muted-foreground">{label}</span>
+      <span className="text-2xs text-muted-foreground">{label}</span>
     </div>
   )
 }
@@ -388,7 +388,13 @@ export function StudioVideoReferenceSlots({
                       </button>
                     ) : null}
                   </div>
-                  <span className="font-mono text-2xs text-muted-foreground">
+                  <span
+                    className={cn(
+                      'text-2xs text-muted-foreground',
+                      // 时长是数值 → 等宽；取不到时那句是标签 → 正文槽。
+                      duration ? 'font-mono tabular-nums' : '',
+                    )}
+                  >
                     {duration ?? t('referenceVideo')}
                   </span>
                 </div>

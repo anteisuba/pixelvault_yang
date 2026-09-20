@@ -1074,7 +1074,7 @@ export function AssistantSettingsDialog({
                       >
                         <div className="flex min-w-0 flex-1 flex-col gap-1">
                           <p className="truncate text-sm leading-snug text-foreground">
-                            <span className="font-mono text-2xs uppercase tracking-nav text-muted-foreground">
+                            <span className="text-2xs uppercase tracking-nav text-muted-foreground">
                               {tCards(`kind.${card.kind}`)}
                             </span>{' '}
                             {card.name}
@@ -1149,7 +1149,7 @@ export function AssistantSettingsDialog({
                   >
                     <div className="flex min-w-0 flex-1 flex-col gap-1">
                       <p className="truncate text-sm leading-snug text-foreground">
-                        <span className="font-mono text-2xs uppercase tracking-nav text-muted-foreground">
+                        <span className="text-2xs uppercase tracking-nav text-muted-foreground">
                           {tCards(`kind.${card.kind}`)}
                         </span>{' '}
                         {card.name}

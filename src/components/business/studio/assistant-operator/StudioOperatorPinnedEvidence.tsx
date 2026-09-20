@@ -69,7 +69,7 @@ export function StudioOperatorPinnedEvidence({
             onClick={() => onJump(item.runKey)}
             className="min-w-0 flex-1 rounded-md text-left transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring motion-reduce:transition-none"
           >
-            <span className="block font-mono text-2xs font-medium tracking-nav uppercase text-foreground">
+            <span className="block text-2xs font-medium tracking-nav uppercase text-foreground">
               {t('research.pinned')}
             </span>
             <span className="mt-1 block text-2sm leading-relaxed text-foreground">

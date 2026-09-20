@@ -1974,7 +1974,7 @@ export function StudioOperatorPanel({
             {historyEntries.length > 0 ? (
               <p
                 data-testid="operator-history-divider"
-                className="my-2 flex items-center gap-2 font-mono text-xs tracking-nav text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+                className="my-2 flex items-center gap-2 text-xs tracking-nav text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
               >
                 {/* ⚠ 日期取的是**这条会话的 `updatedAt`**（库里那一份没有逐条时刻，
                   见 `types/studio-operator-history.ts`）——⛔ 不拿「现在」去填每一

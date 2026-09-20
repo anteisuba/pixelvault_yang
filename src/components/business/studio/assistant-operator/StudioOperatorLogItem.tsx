@@ -436,7 +436,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
               >
                 {entry.title}
               </a>
-              <span className="block truncate font-mono text-xs tracking-nav text-muted-foreground">
+              <span className="block truncate text-xs tracking-nav text-muted-foreground">
                 {entry.publisher ?? t('web.publisherUnknown')}
               </span>
               <span className="mt-0.5 block text-2sm text-muted-foreground">
@@ -488,7 +488,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
               <span className="flex min-w-0 items-center gap-1">
                 <span
                   data-testid="operator-evidence-publisher"
-                  className="truncate font-mono text-xs tracking-nav text-muted-foreground"
+                  className="truncate text-xs tracking-nav text-muted-foreground"
                 >
                   {item.publisher}
                 </span>
@@ -536,7 +536,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             target="_blank"
             rel="noopener noreferrer"
             data-testid="operator-read-url-link"
-            className="block truncate font-mono text-xs tracking-nav text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
+            className="block truncate text-xs tracking-nav text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-primary hover:underline"
           >
             {step.result.title}
           </a>

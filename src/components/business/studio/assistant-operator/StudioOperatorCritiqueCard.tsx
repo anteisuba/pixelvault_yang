@@ -193,9 +193,11 @@ export function StudioOperatorCritiqueCard({
                   className="object-cover"
                 />
               </span>
-              <span className="flex items-baseline justify-between gap-1 font-mono text-2xs text-muted-foreground">
+              <span className="flex items-baseline justify-between gap-1 text-2xs text-muted-foreground">
                 <span>{t(`critique.frame.${frame.label}`)}</span>
-                <span>{formatTimecode(frame.t)}</span>
+                <span className="font-mono tabular-nums">
+                  {formatTimecode(frame.t)}
+                </span>
               </span>
             </motion.button>
           ))}

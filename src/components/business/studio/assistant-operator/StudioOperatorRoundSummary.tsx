@@ -241,7 +241,7 @@ export function StudioOperatorRoundSummary({
         <div className="mt-2.5 flex flex-col gap-2">
           {STUDIO_OPERATOR_ROUND_COLUMNS.map((column) => (
             <label key={column} className="flex flex-col gap-1">
-              <span className="font-mono text-3xs uppercase tracking-nav text-muted-foreground">
+              <span className="text-3xs uppercase tracking-nav text-muted-foreground">
                 {t(`column.${column}`)}
               </span>
               <textarea

@@ -248,7 +248,7 @@ export function StudioOperatorAnswerSources({
             <>
               <span className="flex items-center gap-1 text-muted-foreground">
                 <Globe className="size-2.5 shrink-0" aria-hidden />
-                <span className="truncate font-mono text-2xs tracking-nav">
+                <span className="truncate text-2xs tracking-nav">
                   {source.publisher}
                 </span>
               </span>
@@ -325,7 +325,7 @@ export function StudioOperatorAnswerSources({
           {receiptLabel ? (
             <span
               data-testid="operator-answer-receipt"
-              className="ml-auto min-w-0 truncate font-mono text-2xs tracking-nav text-muted-foreground"
+              className="ml-auto min-w-0 truncate text-2xs tracking-nav text-muted-foreground"
             >
               {receiptLabel}
             </span>

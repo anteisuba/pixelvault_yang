@@ -219,7 +219,7 @@ function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
             </span>
           ) : null}
           {entry.detail ? (
-            <span className="mt-1 block break-words font-mono text-2sm leading-relaxed text-muted-foreground">
+            <span className="mt-1 block break-words text-2sm leading-relaxed text-muted-foreground">
               {entry.detail}
             </span>
           ) : null}

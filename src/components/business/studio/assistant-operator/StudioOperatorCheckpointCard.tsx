@@ -95,7 +95,7 @@ export function StudioOperatorCheckpointCard({
       {reverted ? (
         <span
           data-testid="operator-checkpoint-done"
-          className="shrink-0 font-mono text-xs tracking-nav text-muted-foreground"
+          className="shrink-0 text-xs tracking-nav text-muted-foreground"
         >
           {t(`checkpoint.reverted.${reverted}`)}
         </span>

@@ -95,14 +95,14 @@ export function TrainingStatusCard({
             ) : null}
           </div>
 
-          <p className="font-mono text-2xs text-muted-foreground">
+          <p className="text-2xs text-muted-foreground">
             {job.triggerWord ? `${job.name} · ${job.triggerWord}` : job.name}
           </p>
 
           {isTraining ? (
             <div className="space-y-1 pt-1">
               <Progress value={pct} className="h-1.5" />
-              <p className="font-mono text-2xs text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 {t('statusCardElapsed', { min: elapsedMin })}
               </p>
             </div>

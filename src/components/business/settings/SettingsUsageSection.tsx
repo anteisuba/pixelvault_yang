@@ -32,7 +32,7 @@ export function SettingsUsageSection() {
     <section>
       <header className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-xl font-semibold">{t('sections.usage')}</h2>
-        <p className="font-mono text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {month ? `${month} · ` : ''}
           {t('usage.estimateNote')}
         </p>

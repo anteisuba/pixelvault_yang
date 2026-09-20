@@ -65,13 +65,13 @@ export function StudioOperatorQueueBar({
           transition={motionTransition('base', reduceMotion)}
           className="flex items-center gap-1.5 rounded-md border border-dashed border-status-warning/70 bg-status-warning-surface px-2 py-1.5 text-2sm text-status-warning"
         >
-          <span className="shrink-0 font-mono text-xs tracking-nav uppercase">
+          <span className="shrink-0 text-xs tracking-nav uppercase">
             {t('queue.badge')}
           </span>
           <span className="min-w-0 flex-1 truncate" title={item.text}>
             {item.text}
           </span>
-          <span className="shrink-0 font-mono text-xs tracking-nav">
+          <span className="shrink-0 text-xs tracking-nav">
             {t('queue.hint')}
           </span>
           <button

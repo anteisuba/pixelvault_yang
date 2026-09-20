@@ -89,7 +89,7 @@ export function CompletionCelebration({
             {t('completionBody', { name: job.name })}
           </p>
           {job.triggerWord ? (
-            <p className="rounded-md bg-background/70 px-2 py-1 font-mono text-xs text-foreground">
+            <p className="rounded-md bg-background/70 px-2 py-1 text-xs text-foreground">
               {t('completionTriggerHint', { triggerWord: job.triggerWord })}
             </p>
           ) : null}

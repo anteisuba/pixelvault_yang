@@ -317,7 +317,7 @@ export function StudioOperatorLoraPickCard({
                         ) : (
                           <span
                             data-testid="operator-lora-pick-thumb-fallback"
-                            className="flex size-full items-center justify-center font-mono text-xs text-muted-foreground"
+                            className="flex size-full items-center justify-center text-xs text-muted-foreground"
                           >
                             {t('confirm.loraPick.noThumbnail')}
                           </span>

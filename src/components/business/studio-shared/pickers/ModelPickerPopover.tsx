@@ -591,7 +591,7 @@ export function ModelPickerPopover({
       return (
         <span
           aria-hidden
-          className="shrink-0 font-mono text-2xs text-muted-foreground/50"
+          className="shrink-0 text-2xs text-muted-foreground/50"
         >
           {t('channelUnset')}
         </span>
@@ -727,7 +727,7 @@ export function ModelPickerPopover({
           ) : null}
           {recentRows.length > 0 ? (
             <>
-              <p className="px-2.5 pb-1 pt-2 font-mono text-3xs uppercase tracking-nav text-muted-foreground">
+              <p className="px-2.5 pb-1 pt-2 text-3xs uppercase tracking-nav text-muted-foreground">
                 {t('recent')}
               </p>
               {recentRows.map((row) => renderRow(row, ROW_SECTION.recent))}
@@ -735,7 +735,7 @@ export function ModelPickerPopover({
           ) : null}
           {groups.map((group) => (
             <div key={group.key}>
-              <p className="px-2.5 pb-1 pt-2 font-mono text-3xs uppercase tracking-nav text-muted-foreground">
+              <p className="px-2.5 pb-1 pt-2 text-3xs uppercase tracking-nav text-muted-foreground">
                 {group.label}
               </p>
               {group.rows.map((row) => renderRow(row, ROW_SECTION.group))}

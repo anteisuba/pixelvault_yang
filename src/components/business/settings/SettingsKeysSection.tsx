@@ -162,7 +162,7 @@ function ProviderRow({
         />
         <span className="min-w-28 font-medium">{row.label}</span>
         {row.modelCount > 0 ? (
-          <span className="min-w-16 font-mono text-xs text-muted-foreground">
+          <span className="min-w-16 text-xs text-muted-foreground">
             {tCommon('modelCount', { count: row.modelCount })}
           </span>
         ) : null}
@@ -177,7 +177,7 @@ function ProviderRow({
           {statusText}
         </span>
         {spendUsd !== null ? (
-          <span className="font-mono text-xs text-muted-foreground">
+          <span className="text-xs text-muted-foreground">
             {t('keys.monthlySpend', {
               amount: formatUnitPriceAmount(spendUsd),
             })}

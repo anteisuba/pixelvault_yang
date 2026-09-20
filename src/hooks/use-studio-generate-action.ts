@@ -16,7 +16,6 @@ import type { AspectRatio } from '@/constants/config'
 import { getModelById } from '@/constants/models'
 import { resolveAudioTextLimit } from '@/constants/models/audio'
 import { VIDEO_UNIT_PRICE_BASE_RESOLUTION } from '@/constants/models/unit-prices'
-import { getPromptDialect } from '@/constants/prompt-dialects'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
   getReferenceCapability,
@@ -38,6 +37,7 @@ import {
 } from '@/contexts/studio-context'
 import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useStudioVideoMode } from '@/hooks/use-studio-video-mode'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
@@ -515,49 +515,7 @@ export function useStudioGenerateAction() {
    * 这一轮要跑的模型名单 = 主模型 + 额外模型，按名单顺序去重。
    * 额外模型里可能有已经不在当前 options 里的（切模态、key 被删），过滤掉。
    */
-  const runModels = useMemo(() => {
-    const byId = new Map(imageModelOptions.map((o) => [o.optionId, o]))
-    const ids = [
-      ...(state.selectedOptionId ? [state.selectedOptionId] : []),
-      ...state.extraModelOptionIds,
-    ]
-    const seen = new Set<string>()
-    return (
-      ids
-        .filter((id) => (seen.has(id) ? false : (seen.add(id), true)))
-        .map((id) => byId.get(id))
-        .filter((o): o is NonNullable<typeof o> => Boolean(o))
-        /**
-         * ⛔ **不跨方言**（D10 ② Q3）：两台各自只跑本方言的模型。跨台留下来的
-         * 陈旧选择在这里就被挡住 —— 让一条吃自然语言的线路收到一串 danbooru
-         * 标签（或反过来），两边都出不好。
-         */
-        .filter(
-          (option) =>
-            getPromptDialect(option.adapterType) === state.promptDialect,
-        )
-    )
-  }, [
-    imageModelOptions,
-    state.selectedOptionId,
-    state.extraModelOptionIds,
-    state.promptDialect,
-  ])
-
-  /**
-   * 模型选择器的方言闸 —— 两台的名单互不相交。传给 `MainModelPicker` 的
-   * `filterOption`，⛔ 组件里不认识 adapter。
-   */
-  const filterModelByDialect = useCallback(
-    (option: StudioModelOption) =>
-      getPromptDialect(option.adapterType) === state.promptDialect,
-    [state.promptDialect],
-  )
-
-  const runModelIds = useMemo(
-    () => new Set(runModels.map((o) => o.optionId)),
-    [runModels],
-  )
+  const { runModels, runModelIds, filterModelByDialect } = useStudioRunModels()
 
   /**
    * 视频档的成本预览基准 —— 按**真正会发出去的那两个值**算（见 `buildVideoInput`

@@ -17,6 +17,7 @@ import {
 } from '@/components/business/studio'
 import { StudioDockPanelArea } from '@/components/business/studio/StudioDockPanelArea'
 import { StudioMobileComposer } from '@/components/business/studio/StudioMobileComposer'
+import { StudioTagsControlColumn } from '@/components/business/studio/tags/StudioTagsControlColumn'
 import { StudioTagsPromptArea } from '@/components/business/studio/tags/StudioTagsPromptArea'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
@@ -340,6 +341,11 @@ export function StudioWorkspaceUI() {
             }
             // 编辑器主区按画板是 420（`lg:w-105`），自然语言台仍是 288。
             paramsWidthClass={isTagsWorkbench ? 'lg:w-105' : 'lg:w-72'}
+            controls={
+              isTagsWorkbench && !useMobileComposer ? (
+                <StudioTagsControlColumn />
+              ) : null
+            }
             stage={<StudioCanvas />}
             composer={useMobileComposer ? <StudioMobileComposer /> : null}
           />

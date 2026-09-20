@@ -6311,7 +6311,29 @@
     "weightDecrease": "调低权重",
     "weightReset": "回到 ×1",
     "removeTag": "删除 {tag}",
-    "onlyFor": "只对 {models} 生效"
+    "onlyFor": "只对 {models} 生效",
+    "characterTitle": "角色构图",
+    "characterModeFree": "V5 · 自由定位 · 至多 {max} 人",
+    "characterModeGrid": "V4.5 · 5×5 网格 · 至多 {max} 人",
+    "characterChip": "{number}. {name}",
+    "characterDot": "角色 {number}",
+    "removeCharacter": "删除角色 {number}",
+    "addCharacter": "加人",
+    "unnamed": "未命名",
+    "gridCell": "第 {column} 列第 {row} 行",
+    "editingCharacter": "正在编辑角色 {number}",
+    "characterPositiveLabel": "角色 {number} 的标签",
+    "backToWhole": "回到整体",
+    "resolutionTitle": "分辩率 · 额度",
+    "opusFree": "在 Opus 免费档内",
+    "opusMetered": "超出免费档，按 Anlas 计",
+    "referenceUsageTitle": "参考图用法",
+    "referenceUsage": {
+      "standard": "普通参考",
+      "vibe": "Vibe",
+      "precise": "精确参考"
+    },
+    "referenceUsageUnrouted": "Vibe 与精确参考尚未接通发送路径。"
   },
   "StudioPanels": {
     "reference": "参考图",

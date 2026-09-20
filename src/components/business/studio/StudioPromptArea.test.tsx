@@ -331,6 +331,7 @@ function setupStudioForm(
     promptDialect: 'natural',
     tagChips: [],
     tagNegativeChips: [],
+    activeTagCharacterIndex: null,
     recipeUsage: null,
     aspectRatio: '16:9',
     advancedParams: {},

@@ -6311,7 +6311,29 @@
     "weightDecrease": "重みを下げる",
     "weightReset": "×1 に戻す",
     "removeTag": "{tag} を削除",
-    "onlyFor": "{models} にのみ有効"
+    "onlyFor": "{models} にのみ有効",
+    "characterTitle": "キャラクター構図",
+    "characterModeFree": "V5 · 自由配置 · 最大 {max} 人",
+    "characterModeGrid": "V4.5 · 5×5 グリッド · 最大 {max} 人",
+    "characterChip": "{number}. {name}",
+    "characterDot": "キャラクター {number}",
+    "removeCharacter": "キャラクター {number} を削除",
+    "addCharacter": "追加",
+    "unnamed": "無題",
+    "gridCell": "{column} 列 {row} 行",
+    "editingCharacter": "キャラクター {number} を編集中",
+    "characterPositiveLabel": "キャラクター {number} のタグ",
+    "backToWhole": "全体に戻る",
+    "resolutionTitle": "解像度 · 消費",
+    "opusFree": "Opus 無料枠の範囲内",
+    "opusMetered": "無料枠外 — Anlas を消費",
+    "referenceUsageTitle": "参照画像の使い方",
+    "referenceUsage": {
+      "standard": "通常参照",
+      "vibe": "Vibe",
+      "precise": "精密参照"
+    },
+    "referenceUsageUnrouted": "Vibe と精密参照はまだ送信経路に繋がっていません。"
   },
   "StudioPanels": {
     "reference": "参照画像",

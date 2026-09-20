@@ -6311,7 +6311,29 @@
     "weightDecrease": "Decrease weight",
     "weightReset": "Back to ×1",
     "removeTag": "Remove {tag}",
-    "onlyFor": "Only affects {models}"
+    "onlyFor": "Only affects {models}",
+    "characterTitle": "Characters",
+    "characterModeFree": "V5 · free placement · up to {max}",
+    "characterModeGrid": "V4.5 · 5×5 grid · up to {max}",
+    "characterChip": "{number}. {name}",
+    "characterDot": "Character {number}",
+    "removeCharacter": "Remove character {number}",
+    "addCharacter": "Add",
+    "unnamed": "Untitled",
+    "gridCell": "Column {column}, row {row}",
+    "editingCharacter": "Editing character {number}",
+    "characterPositiveLabel": "Character {number} tags",
+    "backToWhole": "Back to the whole image",
+    "resolutionTitle": "Resolution · quota",
+    "opusFree": "Inside the Opus free window",
+    "opusMetered": "Outside the free window — burns Anlas",
+    "referenceUsageTitle": "Reference use",
+    "referenceUsage": {
+      "standard": "Plain reference",
+      "vibe": "Vibe",
+      "precise": "Precise reference"
+    },
+    "referenceUsageUnrouted": "Vibe and precise reference are not wired to a send path yet."
   },
   "StudioPanels": {
     "reference": "Reference Images",

@@ -40,6 +40,7 @@ function makeInitialState(
     promptDialect: 'natural',
     tagChips: [],
     tagNegativeChips: [],
+    activeTagCharacterIndex: null,
     recipeUsage: null,
     aspectRatio: '1:1',
     advancedParams: {},

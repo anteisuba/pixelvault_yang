@@ -167,6 +167,12 @@ export interface StudioFormState {
    */
   tagChips: TagChip[]
   tagNegativeChips: TagChip[]
+  /**
+   * 标签台里**正在编辑谁的标签**：`null` = 整体，数字 = `novelAiLayout` 里的
+   * 第几个角色（D10 ④「选中某角色时，编辑器主区切到那个角色的标签」）。
+   * ⚠ 它是纯 UI 焦点，不进 payload；角色没了要跟着回到整体。
+   */
+  activeTagCharacterIndex: number | null
   recipeUsage: RecipeUsage | null
   aspectRatio: AspectRatio
   advancedParams: AdvancedParams
@@ -344,6 +350,7 @@ export type StudioAction =
       type: 'SET_TAG_CHIPS'
       payload: { polarity: 'positive' | 'negative'; chips: TagChip[] }
     }
+  | { type: 'SET_ACTIVE_TAG_CHARACTER'; payload: number | null }
   | { type: 'REMOVE_PROMPT_REFERENCE'; payload?: number }
   | { type: 'SET_RECIPE_USAGE'; payload: RecipeUsage | null }
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
@@ -481,6 +488,7 @@ const initialFormState: StudioFormState = {
   promptDialect: DEFAULT_PROMPT_DIALECT,
   tagChips: [],
   tagNegativeChips: [],
+  activeTagCharacterIndex: null,
   recipeUsage: null,
   aspectRatio: '1:1',
   advancedParams: {},
@@ -680,6 +688,8 @@ export function studioFormReducer(
           : parseTagChips(state.advancedParams.negativePrompt ?? ''),
       }
     }
+    case 'SET_ACTIVE_TAG_CHARACTER':
+      return { ...state, activeTagCharacterIndex: action.payload }
     case 'SET_TAG_CHIPS': {
       const text = serializeTagChips(action.payload.chips)
       if (action.payload.polarity === 'positive') {
@@ -700,8 +710,21 @@ export function studioFormReducer(
       return { ...state, recipeUsage: action.payload }
     case 'SET_ASPECT_RATIO':
       return { ...state, aspectRatio: action.payload }
-    case 'SET_ADVANCED_PARAMS':
-      return { ...state, advancedParams: action.payload }
+    case 'SET_ADVANCED_PARAMS': {
+      /**
+       * 角色被删光 / 删到当前这一个之前时，编辑器主区正指着一个不存在的人。
+       * ⚠ 跟着同一次写回落，⛔ 不另起一个「发现越界再回退」的 effect ——
+       * 那会先渲染一帧空白再纠正。
+       */
+      const characters = action.payload.novelAiLayout?.characters.length ?? 0
+      const active = state.activeTagCharacterIndex
+      return {
+        ...state,
+        advancedParams: action.payload,
+        activeTagCharacterIndex:
+          active !== null && active >= characters ? null : active,
+      }
+    }
     case 'RESET_ADVANCED_PARAMS':
       return { ...state, advancedParams: {} }
     case 'SET_IMAGE_BATCH_COUNT':
@@ -790,6 +813,7 @@ export function studioFormReducer(
         prompt: '',
         tagChips: [],
         tagNegativeChips: [],
+        activeTagCharacterIndex: null,
         recipeUsage: null,
         aspectRatio: '1:1',
         advancedParams: {},

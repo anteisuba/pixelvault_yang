@@ -14,6 +14,12 @@ interface StudioWorkbenchLayoutProps {
    */
   params: React.ReactNode
   /**
+   * 参数栏之后的**第二条常驻列**（标签台右列，D10 ④）。⛔ 不是第二套壳：
+   * 结果区 / 参考轨 / 助手 / 任务条与自然语言台一模一样，只有中间多这一列。
+   * 不传 = 单列，图片 / 视频 / 音频三档逐字维持原样。
+   */
+  controls?: React.ReactNode
+  /**
    * 参数栏在桌面端的宽度类。缺省 `lg:w-72`（288，三个模态的现行宽度）；
    * 标签台的编辑器主区按画板是 420，所以那一处传 `lg:w-105`。
    */
@@ -44,6 +50,7 @@ interface StudioWorkbenchLayoutProps {
  */
 export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
   params,
+  controls,
   paramsWidthClass = 'lg:w-72',
   stage,
   composer,
@@ -70,6 +77,15 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
           )}
         >
           {params}
+        </div>
+      ) : null}
+      {/* 右列 —— 标签台的常驻控件列（角色构图 / 质量标签 / 采样器 / 分辩率 /
+          参考图用法）。⚠ 与参数栏分开两块而不是塞进同一块白卡：两列各自独立
+          滚动，一边翻长名单时另一边不该跟着动。移动端整列不渲染 —— 那一份收进
+          底部 composer（D10 ④ 手机形态）。 */}
+      {controls ? (
+        <div className="studio-control-column hidden shrink-0 flex-col gap-2 lg:flex lg:w-68 lg:overflow-y-auto">
+          {controls}
         </div>
       ) : null}
       {/* 结果区 = 白卡（`.workbench-card`，工作台脊柱，owner 2026-09-03）。

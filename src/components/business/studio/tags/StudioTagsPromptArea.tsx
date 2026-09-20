@@ -12,7 +12,9 @@ import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagC
 import { useStudioForm } from '@/contexts/studio-context'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { getTranslatedModelLabel } from '@/lib/model-options'
+import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
+import type { AdvancedParams } from '@/types'
 import type { TagChip } from '@/types/tag-composer'
 
 /**
@@ -72,8 +74,48 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
     (control) => control.chip.capability === 'textRendering',
   )
 
-  const setChips = (polarity: 'positive' | 'negative', chips: TagChip[]) =>
+  /**
+   * 正在编辑谁的标签。⭐ 选中某个角色时，编辑器主区整个切到那个角色的正负标签
+   * （D10 ④）—— ⛔ 不在右列里塞两个小输入框：那是编辑器该干的事。
+   */
+  const layout = state.advancedParams.novelAiLayout
+  const activeIndex = state.activeTagCharacterIndex
+  const activeCharacter =
+    activeIndex !== null ? layout?.characters[activeIndex] : undefined
+
+  const setChips = (polarity: 'positive' | 'negative', chips: TagChip[]) => {
+    if (activeCharacter && layout && activeIndex !== null) {
+      const text = serializeTagChips(chips)
+      dispatch({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: {
+          ...state.advancedParams,
+          novelAiLayout: {
+            ...layout,
+            characters: layout.characters.map((character, index) =>
+              index === activeIndex
+                ? {
+                    ...character,
+                    ...(polarity === 'positive'
+                      ? { prompt: text }
+                      : { negativePrompt: text }),
+                  }
+                : character,
+            ),
+          },
+        } satisfies AdvancedParams,
+      })
+      return
+    }
     dispatch({ type: 'SET_TAG_CHIPS', payload: { polarity, chips } })
+  }
+
+  const positiveChips = activeCharacter
+    ? parseTagChips(activeCharacter.prompt)
+    : state.tagChips
+  const negativeChips = activeCharacter
+    ? parseTagChips(activeCharacter.negativePrompt)
+    : state.tagNegativeChips
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2.5">
@@ -101,11 +143,34 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
         </div>
       </div>
 
+      {/* 正在编辑某个角色时，栏首一行说清是谁、怎么回到整体 —— ⛔ 不靠右列
+          那颗药丸的选中态独自承担这件事，编辑器自己得说明白它在写谁。 */}
+      {activeCharacter ? (
+        <div className="flex items-center gap-2 rounded-lg border border-foreground/25 bg-muted px-2.5 py-1.5 text-2xs">
+          <span className="min-w-0 flex-1 truncate font-medium">
+            {t('editingCharacter', { number: (activeIndex ?? 0) + 1 })}
+          </span>
+          <button
+            type="button"
+            onClick={() =>
+              dispatch({ type: 'SET_ACTIVE_TAG_CHARACTER', payload: null })
+            }
+            className="shrink-0 text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-foreground hover:underline"
+          >
+            {t('backToWhole')}
+          </button>
+        </div>
+      ) : null}
+
       <div data-assistant-field="prompt">
         <StudioTagChipField
-          label={t('positiveLabel')}
+          label={
+            activeCharacter
+              ? t('characterPositiveLabel', { number: (activeIndex ?? 0) + 1 })
+              : t('positiveLabel')
+          }
           polarity="positive"
-          chips={state.tagChips}
+          chips={positiveChips}
           disabled={isGenerating}
           onChange={(chips) => setChips('positive', chips)}
         />
@@ -118,7 +183,7 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
           label={t('negativeLabel')}
           note={t('negativeNote')}
           polarity="negative"
-          chips={state.tagNegativeChips}
+          chips={negativeChips}
           disabled={isGenerating}
           onChange={(chips) => setChips('negative', chips)}
         />

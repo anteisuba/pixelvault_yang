@@ -12,6 +12,7 @@ import { useCallback, useSyncExternalStore } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
+import { DURATION, EASE_POP } from '@/constants/motion'
 
 interface LightboxState {
   url: string | null
@@ -68,15 +69,17 @@ export function StudioOperatorLightbox() {
           onClick={close}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: reduceMotion ? 0 : 0.18 }}
+          transition={{ duration: reduceMotion ? 0 : DURATION.base }}
           className="fixed inset-0 z-[60] grid cursor-zoom-out place-items-center bg-foreground/70 p-8 backdrop-blur-sm"
         >
           <motion.div
             initial={reduceMotion ? false : { opacity: 0, scale: 0.86 }}
             animate={{ opacity: 1, scale: 1 }}
+            /* 时长走脊柱的 slow 档（面板 / 对话框那一类），曲线走 `EASE_POP`
+               —— 过冲是这一拍的语义，⛔ 不退回 `EASE_STANDARD`。 */
             transition={{
-              duration: reduceMotion ? 0 : 0.26,
-              ease: [0.2, 0.9, 0.3, 1.1],
+              duration: reduceMotion ? 0 : DURATION.slow,
+              ease: EASE_POP,
             }}
             className="relative max-h-full w-full max-w-3xl overflow-hidden rounded-2xl shadow-lg"
           >

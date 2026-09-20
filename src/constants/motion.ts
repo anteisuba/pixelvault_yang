@@ -174,3 +174,19 @@ export const NODE_EDGE_SIGNING_MOTION = {
   /** 被拖节点本体从落点软回弹回拖拽起点。 */
   bounceBackMs: DURATION_MS.slow,
 } as const
+
+/**
+ * 助手结果「弹进来」那一类的过冲曲线（拍板 17 的灯箱与参考图缩略图）。
+ *
+ * ⚠ 与 `EASE_STANDARD` 分开命名，理由和吞噬三拍一样：这两拍的手感是**带过冲的
+ * 弹出**，全站默认那条曲线是收敛的，共用一条会把「蹦出来」读成「淡进来」。
+ * ⛔ 数值不再散写进组件 —— 组件里出现裸数组就是下一个人复制粘贴的源头。
+ *
+ * 时长这一侧照旧走四档刻度（`DURATION`），⛔ 不自创数值。
+ */
+export const EASE_POP: [number, number, number, number] = [0.2, 0.9, 0.3, 1.1]
+
+/** 同一族、过冲更大的一档：参考图缩略图挂上去那一下。 */
+export const EASE_POP_STRONG: [number, number, number, number] = [
+  0.2, 0.9, 0.3, 1.25,
+]

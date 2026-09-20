@@ -63,6 +63,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
+import { DURATION, EASE_POP_STRONG } from '@/constants/motion'
 import { STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS } from '@/constants/studio-assistant-operator'
 import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import { StudioOperatorWebCandidateGrid } from '@/components/business/studio/assistant-operator/StudioOperatorWebCandidateGrid'
@@ -344,10 +345,12 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
           initial={reduceMotion ? false : { opacity: 0, y: 10, scale: 0.88 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           whileHover={reduceMotion ? undefined : { y: -3, scale: 1.045 }}
+          /* 时长走脊柱的 slow 档，曲线走 `EASE_POP_STRONG` —— 过冲是这一拍的
+             语义（图「挂」上去），⛔ 不退回 `EASE_STANDARD`。 */
           transition={{
-            duration: reduceMotion ? 0 : 0.42,
+            duration: reduceMotion ? 0 : DURATION.slow,
             delay: reduceMotion ? 0 : STUDIO_OPERATOR_REFERENCE_STAGGER_SECONDS,
-            ease: [0.2, 0.9, 0.3, 1.25],
+            ease: EASE_POP_STRONG,
           }}
           className="mt-2 block w-16 cursor-zoom-in overflow-hidden rounded-lg border border-primary/30"
         >

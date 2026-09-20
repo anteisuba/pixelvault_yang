@@ -150,7 +150,13 @@
 | 数字变化                     | `number-ticker.tsx` 已有；只给统计数，不给价格/额度                                                                                     | 已有组件           |
 | 拖拽                         | dnd-kit / pragmatic-dnd 已装；拖起 `scale-[1.02] shadow-lg`，落下回弹 `--ease-soft-return`                                              | 已有依赖           |
 
-**首页营销域**例外：GSAP 允许，且只在 `HomeV4*` 内动态导入（`CLAUDE.md` 动画库分工）。
+**app 内动效库只有一个：`motion`，且只从 `motion/react` 进**（服务端安全的那一档走 `motion/react-client`）。`framer-motion` 是 `motion` 的旧包名，`package.json` 里**没有**它 —— 写 `from 'framer-motion'` 不会报模块找不到（`motion` 把它作为传递依赖拖了进来），只会让一个幽灵包悄悄进 bundle。
+
+**首页营销域**例外：GSAP 允许，且只在 `src/components/business/home-v4/**` 内动态导入（`CLAUDE.md` 动画库分工）。截至 2026-09-20 首页一行 GSAP 都没有——规则照样立着，它守的是下一次有人想加的时候。
+
+两条都由 `eslint.config.mjs` 的 **`ANIMATION_LIBRARY_FORBIDDEN_PATHS`** 守（`@typescript-eslint/no-restricted-imports`，与 Phosphor 图标门同一条规则 id，⛔ 不能各起一个块——flat config 会整块替换同名规则的 options）。
+
+**过冲那一族**（助手灯箱 / 参考图挂上去）走 `constants/motion.ts` 的 `EASE_POP` / `EASE_POP_STRONG`：时长照旧四档刻度，曲线单列是因为「蹦出来」和脊柱那条收敛曲线是两种意思。⛔ 组件里不再出现裸的 `ease: [...]` 数组。
 
 ### 4.1 弹簧三档（owner 2026-09-08 定，只给画布节点卡）
 
@@ -261,11 +267,15 @@
 - 业务代码出现 Tailwind 调色板类（`-(amber|emerald|red|blue|...)-\d{2,3}`）→ 报错。
 - `:root {` 出现在 `globals.css` 之外 → 报错（域 token 只写域根）。
 - `src/**` import `lucide-react` → 报错（已落地：`eslint.config.mjs` 的 Phosphor 图标门，`@typescript-eslint/no-restricted-imports` 一条管整棵树）。
+- `src/**` import `framer-motion` → 报错（已落地：动效库门 `ANIMATION_LIBRARY_FORBIDDEN_PATHS`，与图标门同一条规则）。app 内一律 `motion/react`。
+- `src/**` import `gsap` → 报错，**只放行 `src/components/business/home-v4/**`**（已落地，同上）。两道门的「真的会红」由 `src/test/animation-library.contract.test.ts` 拿 fixture 源码喂同一份配置验证，⛔ 不靠读配置文件里有没有那几个字符串。
 - 自画的空态 → 红（已落地：`src/test/empty-state.contract.test.ts` 的落点名册）。
 - 应用内组件出现 `font-display` → 红（已落地：`src/test/typography.contract.test.ts`，展示槽应用内只有空态原语一个落点）。
 - 第 1 条与第 4 条现在就可以用 `grep -rn` 当 PR 前门，eslint 规则化是独立任务。
 
 ## Last Verified
+
+- 2026-09-20 · 动效语法合一（进度表 33 ②）：`src/` 里 `framer-motion` = 0（迁移先于本次完成，本次补的是门），eslint `ANIMATION_LIBRARY_FORBIDDEN_PATHS` 锁死 `framer-motion` 与 `gsap`（后者只放行首页域）；三处硬编时长（0.18 / 0.26 / 0.42s）按**角色**归到 `DURATION.base` / `.slow`，两条裸过冲曲线收进 `EASE_POP` / `EASE_POP_STRONG`。
 
 - 2026-09-20 · 空态收口（进度表 33 ①）：全站空态收进 `EmptyState` 原语，落点清单见 §7，`empty-state.contract.test.ts` 守名册与「一句话 + 黑丸动作」；展示槽应用内落点数 = 1（空态原语自己那一行，首页 hero 与 legal 走各自域 CSS 的 `--font-stack-display`），由 `typography.contract.test.ts` 守。
 

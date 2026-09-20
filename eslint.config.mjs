@@ -139,6 +139,32 @@ const LUCIDE_FORBIDDEN_PATHS = [
   },
 ];
 
+/** 动效库分工（`CLAUDE.md` + `ui-defaults.md` §4）。
+ *
+ * · **app 内只有 `motion`，且只从 `motion/react` 进**（服务端安全的那一档走
+ *   `motion/react-client`）。`framer-motion` 是同一个库的旧包名，`package.json`
+ *   里**没有**它 —— 写 `from 'framer-motion'` 不会报模块找不到（`motion` 把它
+ *   作为传递依赖拖了进来），只会让一个幽灵包悄悄进 bundle。
+ * · **GSAP 只给首页营销域**，而且只允许动态导入。截至 2026-09-20 首页一行
+ *   GSAP 都没有 —— 规则照样立着，它守的是下一次有人想加的时候。
+ *
+ * ⚠ 与 Phosphor 图标门共用 `@typescript-eslint/no-restricted-imports`：flat
+ * config 里**后一个块会整块替换同名规则的 options**，所以这两道门必须写在
+ * 同一个 `paths` 数组里，⛔ 不能各起一个块。
+ */
+const ANIMATION_LIBRARY_FORBIDDEN_PATHS = [
+  {
+    name: "framer-motion",
+    message:
+      "app 内动效一律 `motion/react`（服务端安全的用 `motion/react-client`）。framer-motion 是 motion 的旧包名，项目没有这个依赖。",
+  },
+  {
+    name: "gsap",
+    message:
+      "GSAP 只给首页营销域（src/components/business/home-v4/**），且只动态导入。app 内用 motion/react。",
+  },
+];
+
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
@@ -219,12 +245,38 @@ const eslintConfig = defineConfig([
   // tree is migrated and `lucide-react` is uninstalled, so this is one entry,
   // not a widening list. See LUCIDE_FORBIDDEN_PATHS for why it rides the
   // typescript-eslint rule id and not the base one.
+  // ─── 33 ② · 动效库门 ───────────────────────────────────────────
+  // 同一条规则 id 管两件事（见 ANIMATION_LIBRARY_FORBIDDEN_PATHS 头注里的
+  // flat-config 替换陷阱）：图标基座 + 动效库分工。
   {
     files: ["src/**/*.{ts,tsx}"],
     rules: {
       "@typescript-eslint/no-restricted-imports": [
         "error",
-        { paths: LUCIDE_FORBIDDEN_PATHS },
+        {
+          paths: [
+            ...LUCIDE_FORBIDDEN_PATHS,
+            ...ANIMATION_LIBRARY_FORBIDDEN_PATHS,
+          ],
+        },
+      ],
+    },
+  },
+  // 首页营销域是 GSAP 唯一的家：把 gsap 这一条摘掉，图标门与 framer-motion
+  // 门照旧（整块替换 → 必须把要保留的两条重新列一遍）。
+  {
+    files: ["src/components/business/home-v4/**/*.{ts,tsx}"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            ...LUCIDE_FORBIDDEN_PATHS,
+            ...ANIMATION_LIBRARY_FORBIDDEN_PATHS.filter(
+              (entry) => entry.name !== "gsap",
+            ),
+          ],
+        },
       ],
     },
   },

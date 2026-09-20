@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef } from 'react'
 import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
-import { Settings, UserCircle } from '@/components/icons'
+import { ChevronDown, UserCircle } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -10,8 +10,9 @@ import {
   resolveShellNavSections,
   type ResolvedShellNavItem,
 } from '@/constants/navigation'
-import { ROUTES, creatorProfilePath, settingsPath } from '@/constants/routes'
+import { ROUTES } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
+import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import { Button } from '@/components/ui/button'
 import {
@@ -29,12 +30,6 @@ import {
   SidebarTrigger,
   useSidebar,
 } from '@/components/ui/sidebar'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip'
 import { useHasHydrated } from '@/hooks/use-has-hydrated'
 import { useNavIndicator } from '@/hooks/use-nav-indicator'
 import { useMyProfile } from '@/hooks/use-my-profile'
@@ -49,7 +44,7 @@ const SIDEBAR_FOOTER_CLASS =
  * 形态「分段浮岛」（2026-08-18 owner 拍板）：壳底浅灰，轨坐在灰底上，主区是
  * 一张左缘浮起的白卡。轨宽 144 展开 / 44 收起。
  *
- * 结构：品牌 + 头像 + 折叠钮 · 去处段 · 工具段 · 最底一行「设置」。
+ * 结构：品牌 + 折叠钮 · 去处段 · 工具段 · 最底一行「账号」。
  * 条目清单**只在** `src/constants/navigation.ts`，任何断点都从那里取。
  *
  * ⚠ 三条别退回去的东西（都是改版前真机量出来的问题）：
@@ -112,75 +107,11 @@ function AppSidebarHeader() {
             {t('brand')}
           </span>
         </Link>
-        <div
-          className={cn('flex items-center gap-1', isCollapsed && 'flex-col')}
-        >
-          <SidebarHeaderAvatar isCollapsed={isCollapsed} />
-          <SidebarTrigger className="size-11 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:size-8" />
-        </div>
+        {/* 头像不在这里了（D11 ④）—— 它下沉到最底与「设置」合成账号入口。
+            顶端只剩品牌与折叠钮。 */}
+        <SidebarTrigger className="size-11 rounded-md text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:size-8" />
       </div>
     </SidebarHeader>
-  )
-}
-
-/**
- * 顶端那颗头像（D3 ④）。**点击直接跳个人主页，不弹菜单** —— 旧的底部头像菜单
- * （查看主页 / API 密钥 / 退出登录）已整条删掉，那三件事分别落在这颗头像、
- * `/settings/keys` 和 `/settings` 导航底部。
- *
- * ⛔ 不挂红点 / 角标 / key 数 / 额度：失效 key 只在 `/settings/keys` 里看到。
- *
- * 用户名要等 `useMyProfile` 回来才知道，所以未就绪时渲染一颗**不可点**的占位，
- * 不给死链接。
- */
-function SidebarHeaderAvatar({ isCollapsed }: { isCollapsed: boolean }) {
-  const t = useTranslations('Navbar')
-  const { isLoaded } = useUser()
-  const hasHydrated = useHasHydrated()
-  const { profile } = useMyProfile()
-
-  if (!hasHydrated || !isLoaded) {
-    return <SidebarAvatarPlaceholder />
-  }
-
-  return (
-    <SignedIn>
-      {profile?.username ? (
-        <TooltipProvider delayDuration={300}>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Link
-                href={creatorProfilePath(profile.username)}
-                aria-label={t('viewProfile')}
-                className="flex size-8 shrink-0 items-center justify-center rounded-full transition-colors duration-(--duration-fast) ease-standard hover:bg-sidebar-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-              >
-                <ProfileAvatar
-                  avatarUrl={profile.avatarUrl}
-                  size={28}
-                  className="size-7"
-                />
-              </Link>
-            </TooltipTrigger>
-            {isCollapsed ? (
-              <TooltipContent side="right">{t('viewProfile')}</TooltipContent>
-            ) : null}
-          </Tooltip>
-        </TooltipProvider>
-      ) : (
-        <SidebarAvatarPlaceholder />
-      )}
-    </SignedIn>
-  )
-}
-
-function SidebarAvatarPlaceholder() {
-  return (
-    <span
-      aria-hidden
-      className="flex size-8 shrink-0 items-center justify-center rounded-full"
-    >
-      <span className="size-7 rounded-full bg-sidebar-accent" />
-    </span>
   )
 }
 
@@ -277,47 +208,64 @@ function AppSidebarContent() {
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// Footer — 一行「设置」
+// Footer — 账号入口
 // ──────────────────────────────────────────────────────────────────────
 
 /**
- * 最底一行「设置」（D3 ④ 入口收口）。齿轮 + 文字，与导航项同高同字号同 hover，
- * 上有 1px 分隔线；折叠只剩齿轮，tooltip「设置」。
+ * 最底那一行就是账号入口（D11 ④，2026-09-20 owner 确认画板）：
+ * 头像 + 名字 + ▾，整行一颗触发器，点开**向上弹**账号菜单（语言 / 设置 /
+ * 退出登录）。收起 40 只剩头像，仍是一颗**真 button**，tooltip「账号」，
+ * 菜单锚到右侧 —— 那一档它是**唯一**的账号入口，键盘必须到得了。
  *
- * ⛔ 这里不再有积分读数、也不再有头像菜单 —— 额度只在 `/settings/usage` 看，
- * 失效 key 只在 `/settings/keys` 看，退出登录在 `/settings` 导航底部。
+ * ⚠ 底色三档走侧栏的**反极性**（app-shell.md §5.1，别破例）：
+ * hover 往暗 `--sidebar-accent` → pressed / 菜单打开更暗
+ * `--sidebar-accent-strong`。⛔ 不动字重、⛔ 行不能抖（只过渡颜色）。
+ *
+ * ⛔ 这一行不读任何账户数字：额度在 `/settings/usage`，失效 key 在
+ * `/settings/keys`，⛔ 不挂红点 / 角标。
  */
 function AppSidebarFooter() {
   const t = useTranslations('Navbar')
   const { isLoaded } = useUser()
   const hasHydrated = useHasHydrated()
-  const pathname = usePathname()
+  const { state, isMobile } = useSidebar()
+  const { profile } = useMyProfile()
+  const isCollapsed = !isMobile && state === 'collapsed'
+  const name = profile?.displayName ?? profile?.username
 
   return (
     <SidebarFooter className={SIDEBAR_FOOTER_CLASS}>
       {hasHydrated && isLoaded ? (
         <>
           <SignedIn>
-            <SidebarMenu className="border-t border-sidebar-border pt-1">
-              <SidebarMenuItem>
-                <SidebarMenuButton
-                  asChild
-                  tooltip={t('settings')}
-                  className="hover:bg-sidebar-accent"
+            <div className="border-t border-sidebar-border pt-1">
+              <AccountMenu
+                side={isCollapsed ? 'right' : 'top'}
+                align={isCollapsed ? 'end' : 'start'}
+                tooltip={isCollapsed ? t('account') : undefined}
+              >
+                <button
+                  type="button"
+                  aria-label={t('account')}
+                  /* 引导第 4 步的锚点。「设置」那一行收进菜单后落到这里 ——
+                     ⛔ 别把它挂进菜单内容里：那一层只在打开后才挂载，
+                     `OnboardingTooltip` 查不到目标就只能把气泡居中。 */
+                  data-onboarding="apiKey"
+                  className="flex h-9 w-full items-center gap-2 overflow-hidden rounded-md px-1.5 text-left text-sm text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors duration-(--duration-fast) ease-standard hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent-strong data-[state=open]:bg-sidebar-accent-strong data-[state=open]:text-sidebar-accent-foreground motion-reduce:transition-none group-data-[collapsible=icon]:size-8! group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:gap-0 group-data-[collapsible=icon]:px-0"
                 >
-                  <Link
-                    href={settingsPath(ROUTES.SETTINGS, pathname)}
-                    aria-label={t('settings')}
-                    /* 引导第 4 步的锚点。旧的 key 抽屉触发器删了以后落在这里
-                       —— ⛔ 别留死锚点（`OnboardingTooltip` 找不到就只能居中）。 */
-                    data-onboarding="apiKey"
-                  >
-                    <Settings />
-                    <span>{t('settings')}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+                  <ProfileAvatar
+                    avatarUrl={profile?.avatarUrl}
+                    size={24}
+                    className="size-6"
+                    iconClassName="size-3.5"
+                  />
+                  <span className="min-w-0 flex-1 truncate group-data-[collapsible=icon]:hidden">
+                    {name ?? t('account')}
+                  </span>
+                  <ChevronDown className="size-3.5 shrink-0 text-sidebar-subtle group-data-[collapsible=icon]:hidden" />
+                </button>
+              </AccountMenu>
+            </div>
           </SignedIn>
 
           <SignedOut>

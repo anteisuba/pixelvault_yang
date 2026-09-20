@@ -65,39 +65,50 @@ function renderSidebar() {
   )
 }
 
-describe('AppSidebar 入口收口（D3 ④）', () => {
-  it('顶端头像直接指向个人主页，不弹菜单', () => {
+describe('AppSidebar 入口收口（D11 ④）', () => {
+  it('顶端不再有头像 —— 只剩品牌与折叠钮', () => {
     mockProfile.current = {
       username: 'fulina',
       displayName: 'fulina',
       avatarUrl: null,
     }
-    renderSidebar()
+    const { container } = renderSidebar()
 
-    const avatar = screen.getByLabelText('Navbar:viewProfile')
-    expect(avatar.getAttribute('href')).toBe('/u/fulina')
-    expect(avatar.getAttribute('aria-haspopup')).toBeNull()
-  })
-
-  it('用户名还没回来时不给死链接', () => {
-    mockProfile.current = null
-    renderSidebar()
-
+    const header = container.querySelector('[data-slot="sidebar-header"]')
+    expect(header?.querySelector('img')).toBeNull()
     expect(screen.queryByLabelText('Navbar:viewProfile')).toBeNull()
   })
 
-  it('最底一行「设置」带上来处进 /settings', () => {
+  it('最底一行是账号入口：一颗真 button，点开菜单，⛔ 不是链接', () => {
     mockProfile.current = {
       username: 'fulina',
       displayName: 'fulina',
       avatarUrl: null,
     }
-    renderSidebar()
+    const { container } = renderSidebar()
 
-    const settings = screen.getByLabelText('Navbar:settings')
-    expect(settings.getAttribute('href')).toBe(
-      '/settings?from=%2Fstudio%2Fimage',
-    )
+    const trigger = screen.getByLabelText('Navbar:account')
+    expect(trigger.tagName).toBe('BUTTON')
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
+    // 「设置」那一行收进了菜单，底部不再有第二个常驻入口。
+    expect(
+      container.querySelector(
+        '[data-slot="sidebar-footer"] a[href^="/settings"]',
+      ),
+    ).toBeNull()
+  })
+
+  it('引导锚点跟着搬到账号触发器上，⛔ 不留死锚点', () => {
+    mockProfile.current = {
+      username: 'fulina',
+      displayName: 'fulina',
+      avatarUrl: null,
+    }
+    const { container } = renderSidebar()
+
+    const anchor = container.querySelector('[data-onboarding="apiKey"]')
+    expect(anchor).not.toBeNull()
+    expect(anchor).toBe(screen.getByLabelText('Navbar:account'))
   })
 
   it('「我的主页」是「去处」段的一条常规导航项，地址是当前用户的主页', () => {
@@ -122,17 +133,15 @@ describe('AppSidebar 入口收口（D3 ④）', () => {
     expect(container.querySelector('a[href^="/u/"]')).toBeNull()
   })
 
-  it('不再有积分读数、也不再有头像菜单', () => {
+  it('⛔ 底部不读任何账户数字，也不挂红点 / 角标', () => {
     mockProfile.current = {
       username: 'fulina',
       displayName: 'fulina',
       avatarUrl: null,
     }
-    const { container } = renderSidebar()
+    renderSidebar()
 
     expect(screen.queryByText('Navbar:requestsLoading')).toBeNull()
     expect(screen.queryByText('Navbar:apiKeys')).toBeNull()
-    expect(screen.queryByText('Navbar:signOut')).toBeNull()
-    expect(container.querySelector('[aria-haspopup="true"]')).toBeNull()
   })
 })

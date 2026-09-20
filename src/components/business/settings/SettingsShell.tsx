@@ -1,7 +1,5 @@
 'use client'
 
-import { useCallback } from 'react'
-import { useClerk } from '@clerk/nextjs'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, LogOut } from '@/components/icons'
@@ -12,6 +10,7 @@ import {
   SETTINGS_SECTION_ROUTES,
   type SettingsSection,
 } from '@/constants/settings'
+import { useSignOut } from '@/hooks/use-sign-out'
 import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
 
@@ -94,10 +93,8 @@ function SettingsNav({
 
 function SignOutRow() {
   const t = useTranslations('Settings')
-  const { signOut } = useClerk()
-  const handleSignOut = useCallback(() => {
-    void signOut({ redirectUrl: ROUTES.HOME })
-  }, [signOut])
+  // 退出登录只有一条路（`use-sign-out.ts`），侧栏账号菜单调的是同一支。
+  const handleSignOut = useSignOut()
 
   return (
     <button

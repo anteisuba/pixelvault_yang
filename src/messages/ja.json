@@ -595,6 +595,7 @@
   "Navbar": {
     "brand": "ANTEI",
     "signIn": "ログイン",
+    "account": "アカウント",
     "viewProfile": "プロフィールを見る",
     "settings": "設定",
     "menu": "メニュー",
@@ -623,7 +624,7 @@
     "names": {
       "en": "English",
       "ja": "日本語",
-      "zh": "中文"
+      "zh": "简体中文"
     }
   },
   "Homepage": {

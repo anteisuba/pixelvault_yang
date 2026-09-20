@@ -1,7 +1,6 @@
 'use client'
 
-import { useCallback, useEffect } from 'react'
-import { useClerk } from '@clerk/nextjs'
+import { useEffect } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, ChevronRight, LogOut } from '@/components/icons'
@@ -15,6 +14,7 @@ import {
 } from '@/constants/settings'
 import { MOBILE_BREAKPOINT } from '@/hooks/use-mobile'
 import { useProviderKeyRows } from '@/hooks/use-provider-key-rows'
+import { useSignOut } from '@/hooks/use-sign-out'
 import { Link, useRouter } from '@/i18n/navigation'
 
 /**
@@ -86,10 +86,8 @@ export function SettingsIndexView() {
 
 function SignOutRow() {
   const t = useTranslations('Settings')
-  const { signOut } = useClerk()
-  const handleSignOut = useCallback(() => {
-    void signOut({ redirectUrl: ROUTES.HOME })
-  }, [signOut])
+  // 退出登录只有一条路（`use-sign-out.ts`），侧栏账号菜单调的是同一支。
+  const handleSignOut = useSignOut()
 
   return (
     <button

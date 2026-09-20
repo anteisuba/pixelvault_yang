@@ -16,7 +16,11 @@ import { AccountMenu } from './AccountMenu'
  *  ⑤ ⭐ 退出登录走 `/settings` 同一条路（Clerk `signOut` + 回首页），
  *     ⛔ 没有二次确认；
  *  ⑥ ⛔ 菜单里没有额度、没有 key 数、没有「外观」——那三样各有各的落点，
- *     主题切换这个应用根本没有。
+ *     主题切换这个应用根本没有；
+ *  ⑦ ⭐ 两层浮层都带 `motion-reduce:` 降级 —— 这条浏览器工具模拟不了
+ *     （2026-09-20 实测缺口），只能在这里钉住；
+ *  ⑧ ⭐ 两层浮层都带视口夹取 —— 375 档没验到（Chrome 最窄 ~500），
+ *     夹取写死在代码里，窄屏溢出就不可能。
  */
 
 vi.mock('next-intl', () => ({
@@ -135,6 +139,35 @@ describe('AccountMenu（D11 ④）', () => {
     expect(settings.getAttribute('href')).toBe(
       '/settings?from=%2Fstudio%2Fimage',
     )
+  })
+
+  it('两层浮层都带 motion-reduce 降级', async () => {
+    await openLanguageSubmenu()
+
+    const content = document.querySelector(
+      '[data-slot="dropdown-menu-content"]',
+    )
+    const sub = document.querySelector(
+      '[data-slot="dropdown-menu-sub-content"]',
+    )
+    expect(content?.className).toContain('motion-reduce:animate-none')
+    expect(sub?.className).toContain('motion-reduce:animate-none')
+    // ⛔ 开场不缩放（画板动效表）：`lift` 档不许带 zoom。
+    expect(content?.className).not.toContain('zoom-in')
+    expect(content?.className).not.toContain('zoom-out')
+  })
+
+  it('两层浮层都带视口夹取 —— 窄屏溢出在代码层就不可能', async () => {
+    await openLanguageSubmenu()
+
+    const content = document.querySelector(
+      '[data-slot="dropdown-menu-content"]',
+    )
+    const sub = document.querySelector(
+      '[data-slot="dropdown-menu-sub-content"]',
+    )
+    expect(content?.className).toContain('max-w-[calc(100vw-2rem)]')
+    expect(sub?.className).toContain('max-w-[calc(100vw-2rem)]')
   })
 
   it('退出登录走 Clerk 同一条路，⛔ 没有二次确认', async () => {

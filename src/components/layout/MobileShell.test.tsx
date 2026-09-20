@@ -54,6 +54,14 @@ describe('MobileShell 入口收口（D11 ④）', () => {
     expect(trigger.getAttribute('href')).toBeNull()
   })
 
+  it('顶栏那颗头像也带 motion-reduce 降级', () => {
+    render(<MobileShell />)
+
+    const trigger = screen.getByLabelText('Navbar:account')
+    expect(trigger.className).toContain('transition-colors')
+    expect(trigger.className).toContain('motion-reduce:transition-none')
+  })
+
   it('抽屉「去处」段里的「我的主页」也是静态 /u/me，与桌面同一条清单', () => {
     render(<MobileShell />)
     openDrawer()

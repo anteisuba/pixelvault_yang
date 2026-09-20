@@ -72,7 +72,10 @@ export function AccountMenu({
         sideOffset={6}
         collisionPadding={8}
         motionPreset="lift"
-        className="w-54 max-w-[calc(100vw-1rem)] rounded-xl p-1.5 shadow-overlay"
+        /* ⚠ 视口夹取不是装饰：手机档这颗菜单从顶栏右端往下开，216 的固定宽在
+           窄屏会顶出右边缘。夹取写在代码里，窄屏溢出就不可能（仓库先例：
+           `PromptTemplatePicker` / `LoraLibraryFilterCombobox`）。 */
+        className="w-54 max-w-[calc(100vw-2rem)] rounded-xl p-1.5 shadow-overlay"
       >
         <AccountMenuHeader />
         <DropdownMenuSeparator />
@@ -136,7 +139,7 @@ function AccountMenuLanguage() {
       <DropdownMenuSubContent
         motionPreset="lift"
         sideOffset={6}
-        className="w-44 max-w-[calc(100vw-1rem)] rounded-xl p-1.5 shadow-overlay"
+        className="w-44 max-w-[calc(100vw-2rem)] rounded-xl p-1.5 shadow-overlay"
       >
         {locales.map((option) => {
           const isActive = option === locale

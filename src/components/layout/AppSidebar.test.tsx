@@ -139,6 +139,26 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
     expect(container.querySelector('a[href="/u/undefined"]')).toBeNull()
   })
 
+  it('账号行的三档底色只过渡颜色，且带 motion-reduce 降级', () => {
+    mockProfile.current = {
+      username: 'fulina',
+      displayName: 'fulina',
+      avatarUrl: null,
+    }
+    renderSidebar()
+
+    const row = screen.getByLabelText('Navbar:account')
+    // 反极性三档：hover 往暗 → pressed / 菜单打开更暗（app-shell.md §5.1）。
+    expect(row.className).toContain('hover:bg-sidebar-accent')
+    expect(row.className).toContain('active:bg-sidebar-accent-strong')
+    expect(row.className).toContain(
+      'data-[state=open]:bg-sidebar-accent-strong',
+    )
+    // ⛔ 只过渡颜色：动字重或尺寸这行就会抖。
+    expect(row.className).toContain('transition-colors')
+    expect(row.className).toContain('motion-reduce:transition-none')
+  })
+
   it('⛔ 底部不读任何账户数字，也不挂红点 / 角标', () => {
     mockProfile.current = {
       username: 'fulina',

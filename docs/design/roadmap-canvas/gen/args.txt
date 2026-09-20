@@ -155,4 +155,12 @@ DesignD7bToggle.dc.html
 --artboard
 DesignD56Simple.dc.html
 --artboard
-DesignD8Map.dc.html
+DesignD10Map.dc.html
+--artboard
+DesignD10Page.dc.html
+--artboard
+DesignD10States.dc.html
+--artboard
+DesignD7cShell.dc.html
+--artboard
+DesignD7cFlow.dc.html

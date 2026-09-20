@@ -1,4 +1,4 @@
-// D8 · 标签台 image/tags：② 思维导图（① 三题 owner 09-20 已答）
+// D10 · 标签台 image/tags：② 思维导图（① 三题 owner 09-20 已答）
 import { writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -43,7 +43,7 @@ const branch = (n, hue) => `<div class="br">${node(n, hue)}${n.c?.length ? `<div
 const tree = (root, hue) => `<div class="tree" style="margin-top:20px">${branch(root, hue)}</div>`
 
 const D8 = {
-  k: 'root', t: 'D8 · 标签台 image/tags',
+  k: 'root', t: 'D10 · 标签台 image/tags',
   c: [
     { k: 'cat', t: '为什么分两台（Q1）', c: [
       { k: 'leaf', t: '分的是输入方言不是厂商：GPT · Gemini · Seedream · Flux 吃自然语言，参数面长得一样，留在 image；NAI · PixAI 吃 danbooru 标签，有角色构图 / UC / Vibe / LoRA 架这些别处没有的旋钮，另开 image/tags' },
@@ -81,7 +81,7 @@ const D8 = {
     ] },
   ],
 }
-const MAP = header('PixelVault · D8 · ② 思维导图 · 2026-09-20', '标签台 · 决策树（Q1–Q3 已定）', 'owner 09-20 ① 三题全取建议档：按方言分两台 · 标签编辑器为中心 · 不跨方言多选 + 台内取交集。起因：PixAI 与 NAI 应单独设计，是否 image/gpt · image/nai 逐 provider 分页 —— 答案是分方言不分厂商。这棵树没有待定项；没有批注就进 ④。') + tree(D8, 200)
+const MAP = header('PixelVault · D10 · ② 思维导图 · 2026-09-20', '标签台 · 决策树（Q1–Q3 已定）', 'owner 09-20 ① 三题全取建议档：按方言分两台 · 标签编辑器为中心 · 不跨方言多选 + 台内取交集。起因：PixAI 与 NAI 应单独设计，是否 image/gpt · image/nai 逐 provider 分页 —— 答案是分方言不分厂商。这棵树没有待定项；没有批注就进 ④。') + tree(D8, 200)
 
-writeFileSync(join(OUT, 'DesignD8Map.dc.html'), page('D8 ② 思维导图', MAP))
-console.log('wrote DesignD8Map.dc.html')
+writeFileSync(join(OUT, 'DesignD10Map.dc.html'), page('D10 ② 思维导图', MAP))
+console.log('wrote DesignD10Map.dc.html')

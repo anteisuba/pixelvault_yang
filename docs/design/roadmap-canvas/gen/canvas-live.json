@@ -170,7 +170,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 10540,
+      "h": 11990,
       "title": "改进进度表",
       "page": "page-7"
     },
@@ -179,7 +179,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 1690,
+      "h": 1700,
       "title": "语音方案 · 草案",
       "page": "page-8"
     },
@@ -447,7 +447,7 @@
     {
       "file": "VisualScenes.dc.html",
       "x": 4500,
-      "y": 2300,
+      "y": 2900,
       "w": 1400,
       "h": 1530,
       "title": "D1 ④ 场景套用",
@@ -697,13 +697,49 @@
       "page": "page-15"
     },
     {
-      "file": "DesignD8Map.dc.html",
+      "file": "DesignD10Map.dc.html",
       "x": 0,
       "y": 0,
       "w": 1400,
       "h": 1370,
-      "title": "D8 ② 思维导图",
+      "title": "D10 ② 思维导图",
       "page": "page-17"
+    },
+    {
+      "file": "DesignD10Page.dc.html",
+      "x": 1500,
+      "y": 0,
+      "w": 1400,
+      "h": 1060,
+      "title": "D10 ④ 标签台整页",
+      "page": "page-17"
+    },
+    {
+      "file": "DesignD10States.dc.html",
+      "x": 0,
+      "y": 1490,
+      "w": 1400,
+      "h": 2230,
+      "title": "D10 ④ 状态",
+      "page": "page-17"
+    },
+    {
+      "file": "DesignD7cShell.dc.html",
+      "x": 1500,
+      "y": 8100,
+      "w": 1400,
+      "h": 1260,
+      "title": "D7c ④ 头部与历史",
+      "page": "page-14"
+    },
+    {
+      "file": "DesignD7cFlow.dc.html",
+      "x": 1500,
+      "y": 9480,
+      "w": 1400,
+      "h": 1490,
+      "title": "D7c ④ 空态与动效",
+      "page": "page-14"
     }
   ],
   "annotations": [
@@ -1103,7 +1139,7 @@
     },
     {
       "id": "page-17",
-      "name": "D8 · 标签台 image/tags"
+      "name": "D10 · 标签台 image/tags"
     }
   ]
 }

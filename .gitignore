@@ -89,3 +89,6 @@ ds-bundle/
 
 # obsidian vault config (docs/ doubles as an Obsidian vault)
 docs/.obsidian/
+
+# playwright 跑出来的截图 / trace —— 是产物，重跑就有，不进库
+output/playwright/

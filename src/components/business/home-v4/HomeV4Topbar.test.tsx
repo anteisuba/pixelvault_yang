@@ -43,17 +43,16 @@ vi.mock('@/i18n/navigation', () => ({
 }))
 
 describe('HomeV4Topbar 浮岛胶囊两态（D3 ④）', () => {
-  it('已登录：右端是齿轮 + 头像，没有「登录」', () => {
+  it('已登录：右端只有头像，没有齿轮、没有「登录」', () => {
     mockAuth.isLoaded = true
     mockAuth.isSignedIn = true
     render(<HomeV4Topbar />)
 
-    expect(screen.getByLabelText('Navbar:settings').getAttribute('href')).toBe(
-      '/settings',
-    )
     expect(
       screen.getByLabelText('Navbar:viewProfile').getAttribute('href'),
     ).toBe('/u/fulina')
+    // 设置只有一个门：登录后应用壳侧栏最底（settings.md §入口 D3）。
+    expect(screen.queryByLabelText('Navbar:settings')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Auth:open' })).toBeNull()
   })
 

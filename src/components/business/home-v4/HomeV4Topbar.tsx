@@ -2,10 +2,9 @@
 
 import { useAuth } from '@clerk/nextjs'
 import { useLocale, useTranslations } from 'next-intl'
-import { Settings } from '@/components/icons'
 
 import { HOME_V4_ROUTES } from '@/constants/homepage-v4'
-import { ROUTES, creatorProfilePath } from '@/constants/routes'
+import { creatorProfilePath } from '@/constants/routes'
 import { Link, usePathname, useRouter } from '@/i18n/navigation'
 import { LOCALES } from '@/i18n/routing'
 import { useAuthDialog } from '@/components/business/auth/AuthDialog'
@@ -27,9 +26,9 @@ import { useMyProfile } from '@/hooks/use-my-profile'
  * The auth door keeps the rule the previous marketing home set for the
  * signed-out half: an edge-cached marketing page paints the 「登录」 button
  * before Clerk resolves. Once Clerk says the visitor is signed in, the right
- * end swaps to the two doors D3 ④ settled on — a gear (→ /settings) and the
- * avatar (→ the visitor's own profile). ⛔ No credit reading, no key count,
- * no dot: those live in /settings only.
+ * end swaps to the avatar (→ the visitor's own profile) — and only that.
+ * ⛔ No gear here: settings is one door, the bottom of the signed-in app
+ * sidebar (settings.md §入口 D3). ⛔ No credit reading, no key count, no dot.
  */
 export function HomeV4Topbar() {
   const tAuth = useTranslations('Auth')
@@ -67,32 +66,23 @@ export function HomeV4Topbar() {
       </nav>
 
       {isLoaded && isSignedIn ? (
-        <>
+        profile?.username ? (
           <Link
-            href={ROUTES.SETTINGS}
-            className="settings"
-            aria-label={tNav('settings')}
+            href={creatorProfilePath(profile.username)}
+            className="avatar"
+            aria-label={tNav('viewProfile')}
           >
-            <Settings width={18} height={18} aria-hidden />
+            <ProfileAvatar
+              avatarUrl={profile.avatarUrl}
+              size={28}
+              className="size-7"
+            />
           </Link>
-          {profile?.username ? (
-            <Link
-              href={creatorProfilePath(profile.username)}
-              className="avatar"
-              aria-label={tNav('viewProfile')}
-            >
-              <ProfileAvatar
-                avatarUrl={profile.avatarUrl}
-                size={28}
-                className="size-7"
-              />
-            </Link>
-          ) : (
-            <span className="avatar" aria-hidden>
-              <ProfileAvatar size={28} className="size-7" />
-            </span>
-          )}
-        </>
+        ) : (
+          <span className="avatar" aria-hidden>
+            <ProfileAvatar size={28} className="size-7" />
+          </span>
+        )
       ) : (
         <button
           type="button"

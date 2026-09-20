@@ -3312,6 +3312,20 @@
       "k_dpmpp_sde": "DPM++ SDE",
       "k_dpm_2": "DPM 2",
       "ddim_v3": "DDIM v3"
+    },
+    "pixaiMode": "Render mode",
+    "pixaiModeHint": "Tsubaki compute tier — higher tiers cost more credits and take longer. Only the Tsubaki family accepts it.",
+    "pixaiModeOption": {
+      "lite": "Lite",
+      "standard": "Standard",
+      "pro": "Pro",
+      "ultra": "Ultra"
+    },
+    "pixaiSize": "Output size",
+    "pixaiSizeHint": "PixAI output size: 1k is about 1 megapixel, 1.5k about 2.36 with the longest edge capped at 1536px.",
+    "pixaiSizeOption": {
+      "1k": "1k · ~1 MP",
+      "1.5k": "1.5k · ~2.4 MP"
     }
   },
   "ReverseEngineer": {
@@ -8075,7 +8089,9 @@
       "qualityToggle": "Quality tags",
       "ucPreset": "UC preset",
       "textRendering": "Text",
-      "sampler": "Sampler"
+      "sampler": "Sampler",
+      "pixaiMode": "Render mode",
+      "pixaiSize": "Output size"
     },
     "textFilled": "{count} chars"
   },

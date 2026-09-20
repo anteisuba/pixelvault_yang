@@ -313,6 +313,65 @@ describe('pruneIncompatibleCapabilityValues', () => {
   })
 })
 
+/**
+ * PixAI 的专属旋钮（2026-09-20 官方 createImage 页核实）。起因：只选 Tsubaki.2
+ * 时右列整个空白 —— 能力表当时只给它声明了 `negativePrompt` + `seed`。
+ */
+describe('PixAI capability chips', () => {
+  // `mode` 官方原文：「Only available for the Tsubaki.2 and Tsubaki.3 model
+  // families. Rejected with 400 INVALID_ARGUMENT on other model types.」
+  it('gives Tsubaki the render mode and the output size', () => {
+    expect(
+      capabilitiesOf(AI_ADAPTER_TYPES.PIXAI, AI_MODELS.PIXAI_TSUBAKI_2),
+    ).toEqual(['pixaiSize', 'pixaiMode'])
+  })
+
+  // SDXL 两档是 DiT 之外的那支：收扩散旋钮，⛔ 不收 mode。
+  it.each([AI_MODELS.PIXAI_HARUKA_V2, AI_MODELS.PIXAI_HOSHINO_V2])(
+    'gives %s the diffusion knobs and the output size, but no render mode',
+    (modelId) => {
+      expect(capabilitiesOf(AI_ADAPTER_TYPES.PIXAI, modelId)).toEqual([
+        'guidanceScale',
+        'steps',
+        'pixaiSize',
+      ])
+    },
+  )
+
+  it.each([
+    ['pixaiMode', ['lite', 'standard', 'pro', 'ultra']],
+    ['pixaiSize', ['1k', '1.5k']],
+  ])('derives %s from the documented value set', (cap, options) => {
+    const chip = getModelCapabilityChips(
+      AI_ADAPTER_TYPES.PIXAI,
+      AI_MODELS.PIXAI_TSUBAKI_2,
+    ).find((entry) => entry.capability === cap)
+    expect(chip?.kind).toBe('select')
+    expect(chip?.options).toEqual(options)
+  })
+
+  // ⛔ 两家的键不串台：换到 NAI 时 PixAI 的专属值整个丢掉，反之亦然。
+  it('drops PixAI-only values when switching to NovelAI', () => {
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { pixaiMode: 'ultra', pixaiSize: '1.5k', ucPreset: 'heavy' },
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V5_FULL,
+      ),
+    ).toEqual({ ucPreset: 'heavy' })
+  })
+
+  it('drops the render mode when switching from Tsubaki to an SDXL model', () => {
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { pixaiMode: 'ultra', pixaiSize: '1.5k' },
+        AI_ADAPTER_TYPES.PIXAI,
+        AI_MODELS.PIXAI_HARUKA_V2,
+      ),
+    ).toEqual({ pixaiSize: '1.5k' })
+  })
+})
+
 describe('NovelAI capability chips', () => {
   // 11 的派生层：模型声明什么字段，chip 行就长什么控件。质量标签与 `Text:` 是
   // V5 专属（官方 qualitytags / textrendering 两页都只写 V5），V4.5 只该拿到

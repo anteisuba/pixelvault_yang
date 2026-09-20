@@ -115,12 +115,24 @@ export function StudioTagsControlColumn({
     }
     return rank(a) - rank(b)
   })
-  const cards = ranked.filter(
-    (control) => !(control.chip.capability in MERGED_INTO),
+  const present = new Set<string>(
+    ranked.map((control) => control.chip.capability),
   )
+  /**
+   * ⚠ 合并**只在宿主那张卡也在场时**成立。PixAI 的 SDXL 两档声明了 `steps`
+   * 却没有 `sampler`（那是 NAI 的档）—— 无条件把 steps 折进 sampler，它就连同
+   * 宿主一起整个消失了。判据是「宿主在不在」，⛔ 不是「它属不属于某张卡」。
+   */
+  const isMerged = (capability: string) => {
+    const host = MERGED_INTO[capability]
+    return host !== undefined && present.has(host)
+  }
+  const cards = ranked.filter((control) => !isMerged(control.chip.capability))
   const mergedFor = (capability: string) =>
     ranked.filter(
-      (control) => MERGED_INTO[control.chip.capability] === capability,
+      (control) =>
+        isMerged(control.chip.capability) &&
+        MERGED_INTO[control.chip.capability] === capability,
     )
 
   return (

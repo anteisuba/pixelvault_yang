@@ -3581,7 +3581,10 @@ describe('generatePixAiImage', () => {
     } as unknown as Parameters<typeof generatePixAiImage>[0]
   }
 
-  function makeContext(referenceImages?: string[]) {
+  function makeContext(
+    referenceImages?: string[],
+    advancedParams?: Record<string, unknown>,
+  ) {
     return {
       runId: 'run-pixai-1',
       workflowId: 'IMAGE_QUEUE',
@@ -3599,6 +3602,7 @@ describe('generatePixAiImage', () => {
         aspectRatio: '16:9',
         outputStorageKey: 'generations/u1/image/out.png',
         referenceImages,
+        ...(advancedParams ? { advancedParams } : {}),
       },
     } as unknown as Parameters<typeof generatePixAiImage>[1]
   }
@@ -3691,6 +3695,57 @@ describe('generatePixAiImage', () => {
       'https://cdn.example.com/generations/u1/image/out.png',
     )
     expect(result.providerMetadata).toMatchObject({ pixaiTaskId: 'task-1' })
+  })
+
+  /**
+   * `size` 与 `mode`（2026-09-20 官方 createImage 页核实）。⚠ 画出控件却不发字段
+   * 就是一颗假旋钮 —— 这两条盯的就是「真的发出去了」。
+   */
+  it('sends the documented size and render mode', async () => {
+    const fetchMock = stubPixAi(['completed'])
+    await generatePixAiImage(
+      makeEnv(),
+      makeContext(undefined, { pixaiSize: '1.5k', pixaiMode: 'ultra' }),
+      'pixai-key',
+    )
+    const body = JSON.parse(
+      String(
+        (fetchMock.mock.calls[0]?.[1] as { body: string } | undefined)?.body,
+      ),
+    ) as Record<string, unknown>
+    expect(body.size).toBe('1.5k')
+    expect(body.mode).toBe('ultra')
+  })
+
+  // 不设 = 不发这个字段（provider 自己的默认），⛔ 不替它编一个。
+  it('omits size and mode when they are not set', async () => {
+    const fetchMock = stubPixAi(['completed'])
+    await generatePixAiImage(makeEnv(), makeContext(), 'pixai-key')
+    const body = JSON.parse(
+      String(
+        (fetchMock.mock.calls[0]?.[1] as { body: string } | undefined)?.body,
+      ),
+    ) as Record<string, unknown>
+    expect(body).not.toHaveProperty('size')
+    expect(body).not.toHaveProperty('mode')
+  })
+
+  // 白名单之外的值一律不发：`mode` 在非 Tsubaki 上是 400 INVALID_ARGUMENT，
+  // 表外的 `size` 同理。⛔ 不把客户端送来的任意串原样透传。
+  it('drops values outside the documented sets', async () => {
+    const fetchMock = stubPixAi(['completed'])
+    await generatePixAiImage(
+      makeEnv(),
+      makeContext(undefined, { pixaiSize: '4k', pixaiMode: 'insane' }),
+      'pixai-key',
+    )
+    const body = JSON.parse(
+      String(
+        (fetchMock.mock.calls[0]?.[1] as { body: string } | undefined)?.body,
+      ),
+    ) as Record<string, unknown>
+    expect(body).not.toHaveProperty('size')
+    expect(body).not.toHaveProperty('mode')
   })
 
   it.each(['failed', 'cancelled'])('surfaces a %s task', async (status) => {

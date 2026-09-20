@@ -53,6 +53,7 @@ import {
   LORA_METADATA_COMPLETENESS_VALUES,
 } from '@/constants/lora-candidate'
 import { NOVELAI_SAMPLER_OPTIONS } from '@/constants/novelai'
+import { PIXAI_SIZES, PIXAI_TSUBAKI_MODES } from '@/constants/pixai'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
   NOVELAI_QUALITY_TOGGLE_OPTIONS,
@@ -304,6 +305,17 @@ export const AdvancedParamsSchema = z.object({
    * https://docs.novelai.net/en/image/sampling/
    */
   sampler: z.enum(NOVELAI_SAMPLER_OPTIONS).optional(),
+  /**
+   * PixAI `mode` —— **仅 Tsubaki 家族**，别的型号收到会 400 INVALID_ARGUMENT。
+   * 不设 = 不发这个字段（provider 自己的默认）。
+   * https://platform.pixai.art/en/docs/api-v2/image/createImage
+   */
+  pixaiMode: z.enum(PIXAI_TSUBAKI_MODES).optional(),
+  /**
+   * PixAI `size` —— `1k` ≈ 1 MP，`1.5k` ≈ 2.36 MP（长边封顶 1536）。
+   * ⚠ 与 `resolution` 是两把互不相交的梯子，⛔ 别合并（见能力表那条头注）。
+   */
+  pixaiSize: z.enum(PIXAI_SIZES).optional(),
   /**
    * NovelAI `Text:` 文字渲染（V5，EN/JA/ZH）。worker 把它拼到 prompt **最末**。
    * https://docs.novelai.net/en/image/textrendering/

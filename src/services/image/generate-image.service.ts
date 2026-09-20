@@ -451,7 +451,8 @@ export async function resolveImageRouteAndValidate(
   if (
     resolvedRoute.adapterType === AI_ADAPTER_TYPES.OPENAI ||
     resolvedRoute.adapterType === AI_ADAPTER_TYPES.VOLCENGINE ||
-    resolvedRoute.adapterType === AI_ADAPTER_TYPES.BYTEPLUS
+    resolvedRoute.adapterType === AI_ADAPTER_TYPES.BYTEPLUS ||
+    resolvedRoute.adapterType === AI_ADAPTER_TYPES.PIXAI
   ) {
     const config = getCapabilityConfig(
       resolvedRoute.adapterType,
@@ -461,6 +462,11 @@ export async function resolveImageRouteAndValidate(
       ['quality', config.qualityOptions],
       ['inputFidelity', config.inputFidelityOptions],
       ['background', config.backgroundOptions],
+      // ⚠ `pixaiMode` 只在 Tsubaki 家族的 override 里有候选 —— 别的 PixAI 型号
+      // 上 `options` 是 undefined，于是任何值都在这里死掉，⛔ 不放到 provider
+      // 去吃一个 400 INVALID_ARGUMENT。
+      ['pixaiMode', config.pixaiModeOptions],
+      ['pixaiSize', config.pixaiSizeOptions],
     ] as const) {
       const value = input.advancedParams?.[field]
       if (value !== undefined && !options?.includes(value)) {

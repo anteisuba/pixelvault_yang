@@ -103,6 +103,67 @@ describe('出图时按各模型能力裁剪 payload', () => {
     expect(out.freePrompt).toBe('a girl: 1.2 meters tall')
   })
 
+  /**
+   * ⭐ 两家的专属键**不串台**：多选跑的是并集，发出去的必须是各自那一份。
+   * 串了的后果是 PixAI 收到 `ucPreset` / NAI 收到 `mode`，两边都 400。
+   */
+  it('NAI 那一枪不带 PixAI 的键', () => {
+    const out = tailorImageRequestToModel(
+      {
+        modelId: AI_MODELS.NOVELAI_V5_FULL,
+        advancedParams: {
+          pixaiMode: 'ultra',
+          pixaiSize: '1.5k',
+          ucPreset: 'heavy',
+          qualityToggle: 'standard',
+        },
+      },
+      'tags',
+    )
+    expect(out.advancedParams?.pixaiMode).toBeUndefined()
+    expect(out.advancedParams?.pixaiSize).toBeUndefined()
+    expect(out.advancedParams).toMatchObject({
+      ucPreset: 'heavy',
+      qualityToggle: 'standard',
+    })
+  })
+
+  it('PixAI 那一枪不带 NAI 的键', () => {
+    const out = tailorImageRequestToModel(
+      {
+        modelId: AI_MODELS.PIXAI_TSUBAKI_2,
+        advancedParams: {
+          pixaiMode: 'ultra',
+          pixaiSize: '1.5k',
+          ucPreset: 'heavy',
+          qualityToggle: 'standard',
+          sampler: 'k_euler',
+        },
+      },
+      'tags',
+    )
+    expect(out.advancedParams).toMatchObject({
+      pixaiMode: 'ultra',
+      pixaiSize: '1.5k',
+    })
+    expect(out.advancedParams?.ucPreset).toBeUndefined()
+    expect(out.advancedParams?.qualityToggle).toBeUndefined()
+    expect(out.advancedParams?.sampler).toBeUndefined()
+  })
+
+  // Tsubaki 专属的 `mode` 发给同厂的 SDXL 档也是 400 —— 同厂不等于同能力。
+  it('PixAI 的 SDXL 档不带 Tsubaki 专属的 mode', () => {
+    const out = tailorImageRequestToModel(
+      {
+        modelId: AI_MODELS.PIXAI_HARUKA_V2,
+        advancedParams: { pixaiMode: 'ultra', pixaiSize: '1k', steps: 28 },
+      },
+      'tags',
+    )
+    expect(out.advancedParams?.pixaiMode).toBeUndefined()
+    expect(out.advancedParams).toMatchObject({ pixaiSize: '1k', steps: 28 })
+  })
+
   it('没什么可裁的就原样返回同一个对象', () => {
     const request = { modelId: AI_MODELS.OPENAI_GPT_IMAGE_2, freePrompt: 'hi' }
     expect(tailorImageRequestToModel(request, 'natural')).toBe(request)

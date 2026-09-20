@@ -25,6 +25,8 @@ import {
   PIXAI_ASPECT_RATIOS,
   PIXAI_BATCH_SIZE,
   PIXAI_CREATE_IMAGE_PATH,
+  PIXAI_SIZES,
+  PIXAI_TSUBAKI_MODES,
   PIXAI_MAX_WAITING_TASKS,
   PIXAI_POLL_INTERVAL_MS,
   PIXAI_TASK_PATH,
@@ -7102,6 +7104,14 @@ function isPixAiAspectRatio(value: string): boolean {
   return (PIXAI_ASPECT_RATIOS as readonly string[]).includes(value)
 }
 
+/** 白名单取值：在表里就原样返回，否则 undefined（= 这个字段不发）。 */
+function pickAllowed(
+  value: string | null | undefined,
+  allowed: readonly string[],
+): string | undefined {
+  return value && allowed.includes(value) ? value : undefined
+}
+
 /**
  * PixAI 文生图：`POST /v2/image/create` 建任务 → `GET /v1/task/{id}` 轮询 →
  * 把结果图**立刻**落 R2。
@@ -7136,6 +7146,20 @@ export async function generatePixAiImage(
   const seed = readNumberField(advancedParams, 'seed')
   const steps = readPositiveNumberField(advancedParams, 'steps')
   const cfgScale = readNumberField(advancedParams, 'guidanceScale')
+  /**
+   * `size` 与 `mode`。⚠ 都走白名单：客户端送来表外的值一律**不发**，⛔ 不原样
+   * 透传（`mode` 在非 Tsubaki 上是 400，`size` 表外值同理）。
+   * 「哪个型号有哪一档」由能力表与 `generate-image.service` 的值域校验判，
+   * ⛔ 不在 worker 里再抄一份模型名单。
+   */
+  const size = pickAllowed(
+    readStringField(advancedParams, 'pixaiSize'),
+    PIXAI_SIZES,
+  )
+  const mode = pickAllowed(
+    readStringField(advancedParams, 'pixaiMode'),
+    PIXAI_TSUBAKI_MODES,
+  )
   // `sampling` 只在 SDXL 档成立（Tsubaki 是 DiT）。能力表已经逐模型挡过一次，
   // 这里按「有值才发」处理，⛔ 不在 worker 里再抄一份模型名单。
   const sampling =
@@ -7160,6 +7184,8 @@ export async function generatePixAiImage(
       ...(negativePrompt ? { negativePrompt } : {}),
       aspectRatio,
       batchSize: PIXAI_BATCH_SIZE,
+      ...(size ? { size } : {}),
+      ...(mode ? { mode } : {}),
       ...(seed != null && seed >= 0 ? { seed: Math.round(seed) } : {}),
       ...(sampling ? { sampling } : {}),
     }),

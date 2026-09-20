@@ -56,6 +56,8 @@ const SELECT_OPTION_KEYS: Partial<
   qualityToggle: 'qualityToggleOptions',
   ucPreset: 'ucPresetOptions',
   sampler: 'samplerOptions',
+  pixaiMode: 'pixaiModeOptions',
+  pixaiSize: 'pixaiSizeOptions',
 }
 
 /**

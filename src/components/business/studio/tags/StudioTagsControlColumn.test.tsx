@@ -53,6 +53,10 @@ const PIXAI = {
   modelId: AI_MODELS.PIXAI_HARUKA_V2 as string,
   adapterType: AI_ADAPTER_TYPES.PIXAI as string,
 }
+const TSUBAKI = {
+  modelId: AI_MODELS.PIXAI_TSUBAKI_2 as string,
+  adapterType: AI_ADAPTER_TYPES.PIXAI as string,
+}
 
 function headings() {
   return screen.getAllByRole('heading').map((node) => node.textContent)
@@ -143,5 +147,51 @@ describe('标签台右列', () => {
     expect(headings()).not.toContain('characterTitle')
     expect(headings()).not.toContain('resolutionTitle')
     expect(headings()).not.toContain('referenceUsageTitle')
+  })
+
+  /**
+   * ⭐ owner 真机：只选 Tsubaki.2 时右列**整个空白**（能力表当时只给 PixAI
+   * 声明了 `negativePrompt` + `seed`，两者都不是 chip 形态）。
+   */
+  it('只选 Tsubaki.2 时右列不是空的', () => {
+    mocks.runModels = [TSUBAKI]
+    render(<StudioTagsControlColumn />)
+    expect(headings()).toEqual(['capability.pixaiSize', 'capability.pixaiMode'])
+  })
+
+  // SDXL 档是扩散旋钮那一套，⛔ 没有 mode。
+  it('只选 Haruka v2 时是 CFG / 步数那套，没有 mode', () => {
+    mocks.runModels = [PIXAI]
+    render(<StudioTagsControlColumn />)
+    expect(headings()).toContain('capability.guidanceScale')
+    expect(headings()).toContain('capability.steps')
+    expect(headings()).toContain('capability.pixaiSize')
+    expect(headings()).not.toContain('capability.pixaiMode')
+  })
+
+  // 同选 NAI + PixAI：两家的专属卡各自带自己的「只对 X 生效」，且都可改。
+  it('NAI 与 Tsubaki 同选时，两家的专属卡各标各的', () => {
+    mocks.runModels = [NAI_V5, TSUBAKI]
+    render(<StudioTagsControlColumn />)
+
+    const cardOf = (heading: string) =>
+      screen
+        .getAllByRole('heading')
+        .find((node) => node.textContent === heading)
+        ?.closest('section')
+
+    const naiOnly = cardOf('capability.qualityToggle')
+    const pixaiOnly = cardOf('capability.pixaiMode')
+    expect(naiOnly?.textContent).toContain(`onlyFor:${NAI_V5.modelId}`)
+    expect(pixaiOnly?.textContent).toContain(`onlyFor:${TSUBAKI.modelId}`)
+    expect(naiOnly?.className).toContain('opacity-60')
+    expect(pixaiOnly?.className).toContain('opacity-60')
+
+    // 灰的是卡，⛔ 不是禁用 —— 两边的按钮都还点得动。
+    for (const name of [/qualityToggleOption/, /pixaiModeOption/]) {
+      for (const button of screen.getAllByRole('button', { name })) {
+        expect(button).not.toBeDisabled()
+      }
+    }
   })
 })

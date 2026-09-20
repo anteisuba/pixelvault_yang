@@ -1,6 +1,7 @@
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AI_MODELS } from '@/constants/models'
 import { NOVELAI_SAMPLER_OPTIONS } from '@/constants/novelai'
+import { PIXAI_SIZES, PIXAI_TSUBAKI_MODES } from '@/constants/pixai'
 
 /**
  * Provider capability flags.
@@ -24,6 +25,8 @@ export type ProviderCapability =
   | 'qualityToggle'
   | 'ucPreset'
   | 'sampler'
+  | 'pixaiMode'
+  | 'pixaiSize'
   | 'textRendering'
   | 'imageAnalysis'
   | 'lora'
@@ -186,6 +189,18 @@ export interface CapabilityConfig {
    * 缺省上就等于逐字保住此前硬编的那一档）。
    */
   samplerOptions?: readonly string[]
+  /** PixAI `mode` 档位（**仅 Tsubaki 家族**，别的型号发了会 400）。 */
+  pixaiModeOptions?: readonly string[]
+  /**
+   * PixAI `size` 档位。
+   *
+   * ⚠ 刻意**不复用** `resolution`：那一档在本仓是「1K / 2K / 4K 这把公共梯子」，
+   * 规格 chip 的 `SPEC_IMAGE_RESOLUTION_TIERS` 就是照它画的。PixAI 的梯子是
+   * `1k` / `1.5k`，两者没有交集 —— 挂到 `resolution` 上，规格 chip 会画出三格
+   * 划掉的 1K/2K/4K 而 PixAI 真正的两档一格都出不来。一个键两把梯子，正是
+   * 「同一个身份两种含义」那类 bug 的来源。
+   */
+  pixaiSizeOptions?: readonly string[]
   /** `textRendering` 文本框的字数上限；没有这一项就等于没有这档能力。 */
   textRenderingMaxChars?: number
   /** Maximum number of LoRAs that can be applied simultaneously */
@@ -240,7 +255,10 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
      * provider 无条件都收的两项，其余逐模型声明。
      */
     [AI_ADAPTER_TYPES.PIXAI]: {
-      capabilities: ['negativePrompt', 'seed'],
+      // `size` 两档对三个型号都成立（官方 body 字段没有按型号设限）；`mode` 是
+      // Tsubaki 专属，逐模型 override 声明。
+      capabilities: ['negativePrompt', 'seed', 'pixaiSize'],
+      pixaiSizeOptions: PIXAI_SIZES,
       maxReferenceImages: 0,
     },
 
@@ -491,16 +509,42 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
   // SDXL 两档才有 `sampling`（steps / cfg / sampler）与 `loras`；Tsubaki 是 DiT，
   // 收的是 `mode` / `style`，那两样一个都不收。⚠ 声明 `capabilities` 是整体替换，
   // 所以这里连同 adapter 默认那两项一起写出。
+  /**
+   * Tsubaki 是 DiT：收 `mode`，不收 `sampling`（扩散旋钮）。⚠ 声明 `capabilities`
+   * 是整体替换，所以 adapter 默认那三项要一起写出。
+   * 官方：「Only available for the Tsubaki.2 and Tsubaki.3 model families.
+   * Rejected with 400 INVALID_ARGUMENT on other model types.」
+   */
+  [AI_MODELS.PIXAI_TSUBAKI_2]: {
+    capabilities: ['negativePrompt', 'seed', 'pixaiSize', 'pixaiMode'] as const,
+    pixaiSizeOptions: PIXAI_SIZES,
+    pixaiModeOptions: PIXAI_TSUBAKI_MODES,
+    maxReferenceImages: 0,
+  },
   [AI_MODELS.PIXAI_HARUKA_V2]: {
-    capabilities: ['negativePrompt', 'seed', 'guidanceScale', 'steps'] as const,
+    capabilities: [
+      'negativePrompt',
+      'seed',
+      'guidanceScale',
+      'steps',
+      'pixaiSize',
+    ] as const,
     guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
     steps: { min: 1, max: 50, step: 1, default: 28 },
+    pixaiSizeOptions: PIXAI_SIZES,
     maxReferenceImages: 0,
   },
   [AI_MODELS.PIXAI_HOSHINO_V2]: {
-    capabilities: ['negativePrompt', 'seed', 'guidanceScale', 'steps'] as const,
+    capabilities: [
+      'negativePrompt',
+      'seed',
+      'guidanceScale',
+      'steps',
+      'pixaiSize',
+    ] as const,
     guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
     steps: { min: 1, max: 50, step: 1, default: 28 },
+    pixaiSizeOptions: PIXAI_SIZES,
     maxReferenceImages: 0,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
@@ -798,6 +842,8 @@ export function getCapabilityFieldType(
     qualityToggle: 'select',
     ucPreset: 'select',
     sampler: 'select',
+    pixaiMode: 'select',
+    pixaiSize: 'select',
     // 单行文本 —— 与 negativePrompt 的 `textarea` 不同档：那条住在通用参数栏的
     // 折叠行里，这条是专属 chip 行上的一颗。
     textRendering: 'text',

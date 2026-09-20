@@ -245,7 +245,26 @@ adapter / Worker 抛错
 - 三个型号与 `modelVersionId`：Tsubaki.2 `1983308862240288769`（DiT）· Haruka v2 `1861558740588989558`（SDXL）· Hoshino v2 `1954632828118619567`（SDXL）。⚠ **beta API，版本号随发布会变**——目录里的 `externalModelId` 就是这串数字。
 - 能力表：adapter 默认只有 `negativePrompt` + `seed`（两档架构都收）；`guidanceScale` / `steps` 逐模型挂在 SDXL 两条上（Tsubaki 是 DiT，收的是 `mode` / `style`，不收扩散旋钮）。`maxReferenceImages: 0` 是如实声明。
 - 健康检查打一个必定不存在的 task id，判据是「**不是 401/403、不是 5xx**」——PixAI 没有公开的 `/me` 或余额端点，⛔ 别改成 `response.ok`（好 key 也会被判成不可用）。
-- **未核实项**：API 专属价目。PixAI 是 credits 制，但平台文档没有给出 API 的 credits 换算或单价，所以目录里的 `cost: 2` 是**站内额度档**（与 NovelAI 同档），⛔ 不是换算出来的成本。真实费率要以 owner 账号实跑为准。
+
+### PixAI 专属旋钮（verified 2026-09-20，第二次核对 createImage 页）
+
+起因：只选 Tsubaki.2 时工作台右列**整个空白** —— 能力表当时只给 PixAI 声明了
+`negativePrompt` + `seed`，两者都不是 chip 形态。逐字段重读官方 createImage 页后
+**接了两条、按「不猜」压下两条**：
+
+| 字段    | 官方口径                                                                                                                                                           | 本轮                                                             |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `mode`  | `lite` / `standard` / `pro` / `ultra`。「Only available for the Tsubaki.2 and Tsubaki.3 model families. Rejected with 400 INVALID_ARGUMENT on other model types.」 | **已接**，能力键 `pixaiMode`，只挂 Tsubaki.2 的 override         |
+| `size`  | `1k` ≈ 1 MP · `1.5k` ≈ 2.36 MP，「longest edge is capped at 1536 px for 1.5k」                                                                                     | **已接**，能力键 `pixaiSize`，挂 adapter 默认（三个型号都有）    |
+| `style` | 「Can be a named preset or a custom style string」——**没有列出任何 preset 名**                                                                                     | ⛔ **不接**：值集未公开，填什么都是猜，摆一个会 400 的输入框更糟 |
+| `loras` | 只写了「Apply one or more LoRA adapters… Up to 5 LoRAs can be combined」与「LoraItem」这个类型名；**页面上没有 LoraItem 的属性定义**                               | ⛔ **不接**：连字段名都没有，发出去要么 400 要么被静默忽略       |
+
+- `pixaiSize` **刻意不复用 `resolution`**：后者在本仓是「1K / 2K / 4K 这把公共梯子」，规格 chip 的 `SPEC_IMAGE_RESOLUTION_TIERS` 照它画。PixAI 的梯子与它没有交集，挂上去规格 chip 会画出三格划掉的 1K/2K/4K 而真正的两档一格都不出。**一个键两把梯子**正是「同一个身份两种含义」那类 bug 的来源。
+- worker 侧两条都走**白名单**：表外的值一律不发（`mode` 在非 Tsubaki 上是 400），⛔ 不原样透传客户端送来的串。「哪个型号有哪一档」由能力表 + `generate-image.service` 的值域校验判，⛔ worker 里不抄第二份模型名单。
+- ⚠ `loras` 再接时**不能复用 `advancedParams.loras`**：那一档是 `{url, scale}`（给 fal / Replicate 的 URL 体系），而 PixAI 认的是自家 `pixai.art/model/<id>/<versionId>` 那串 id。两件事，两个字段。
+- ⛔ 本轮未动：`batchSize`（worker 的图片结果契约是单张，只发 1）· `promptHelper`（语义未核）· `aspectRatio`（归规格 chip）。
+
+- **未核实项**：API 专属价目。PixAI 是 credits 制，但平台文档没有给出 API 的 credits 换算或单价，所以目录里的 `cost: 2` 是**站内额度档**（与 NovelAI 同档），⛔ 不是换算出来的成本。真实费率要以 owner 账号实跑为准。`style` 的值集与 `loras` 的 `LoraItem` 形状同样未核实（见上表）。
 - **未联调**：本轮全部用 fixture 测试，没有对 `api.pixai.art` 发过真实请求，key 有效性、错误体形状、`sampling` 的字段名逐字正确性均未在真机验证。
 
 ## 图片专属能力核验（2026-09-18，进度表 61）

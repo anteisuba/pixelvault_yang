@@ -49,6 +49,20 @@ export function useStudioRunModels(): UseStudioRunModelsReturn {
           (option) =>
             getPromptDialect(option.adapterType) === state.promptDialect,
         )
+        /**
+         * ⭐ **同一条路只跑一次**。目录那一层已经把 `workspace:` / `key:` 双胞胎
+         * 折掉了（`foldRedundantWorkspaceRoutes`），这里是第二道：这份名单是
+         * 算钱、裁剪 payload、画 chip 的**同一份**，名单里多一条就是多发一次请求、
+         * 多扣一次钱。⛔ 不在渲染层去重 —— 那样名单里仍旧躺着两份。
+         */
+        .filter((option, index, list) => {
+          const route = `${option.adapterType}::${option.modelId}`
+          return (
+            list.findIndex(
+              (other) => `${other.adapterType}::${other.modelId}` === route,
+            ) === index
+          )
+        })
     )
   }, [
     modelOptions,

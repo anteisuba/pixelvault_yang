@@ -1,4 +1,5 @@
 import type { StudioModelOption } from '@/types/model-option'
+import { foldRedundantWorkspaceRoutes } from '@/lib/model-options'
 import { getModelFamily, getModelVariant } from '@/constants/models'
 import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
 import { getProviderLabel } from '@/constants/providers'
@@ -61,10 +62,6 @@ function seriesLabelOf(option: StudioModelOption): string {
 
 function modelKeyOf(option: StudioModelOption): string {
   return getModelVariant(option.modelId) ?? option.modelId
-}
-
-function routeKey(option: StudioModelOption): string {
-  return `${option.adapterType}::${option.modelId}`
 }
 
 /**
@@ -193,23 +190,6 @@ export function channelHasOption(
 }
 
 /**
- * 同一条路由既有 `key:<id>` 又有 `workspace:<modelId>` 时只留 key 那条 ——
- * 它在提交时钉住 `apiKeyId`，还带着 key 标签与健康点，留下 workspace 双胞胎
- * 会在渠道单选里画出两行一模一样的字。
- */
-function dedupeRedundantRoutes(
-  options: readonly StudioModelOption[],
-): StudioModelOption[] {
-  const keyed = new Set(
-    options.filter((o) => o.sourceType === 'saved').map(routeKey),
-  )
-  if (keyed.size === 0) return [...options]
-  return options.filter(
-    (o) => o.sourceType === 'saved' || !keyed.has(routeKey(o)),
-  )
-}
-
-/**
  * 一族里每个型号显示什么名字 —— **整族一起算**，单个型号自己定不了。
  *
  * 取族内最短的那条标签再削掉结尾括注；⚠ **削与不削的判据是「削完在本族里还
@@ -251,7 +231,13 @@ export function groupModelsForPicker(
   options: readonly StudioModelOption[],
   labelOf: (option: StudioModelOption) => string,
 ): PickerSeries[] {
-  const display = dedupeRedundantRoutes(options)
+  /**
+   * ⚠ 折的是**路由**，规则住在 `model-options.ts`（目录层）。此前这里揣着自己
+   * 的一份，于是「目录里有两个 optionId、选择器只认得一个」—— 行认不出自己已
+   * 被选中，再点一次变新增，同一个模型进名单两份。⛔ 别再在这里复制一份。
+   * 目录那一层已经折过，这里再折一次是幂等的保险（画布等宿主可能自己拼名单）。
+   */
+  const display = foldRedundantWorkspaceRoutes(options)
 
   const bySeries = new Map<string, StudioModelOption[]>()
   for (const option of display) {

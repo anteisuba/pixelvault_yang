@@ -142,6 +142,37 @@ export function sortSavedModelOptionsByHealth(
   })
 }
 
+/** 一条**路由**的身份：adapter + 型号。⛔ 不含 optionId —— 同一条路可以有两个。 */
+function routeKeyOf(option: StudioModelOption): string {
+  return `${option.adapterType}::${option.modelId}`
+}
+
+/**
+ * 同一条路既有 `key:<id>` 又有 `workspace:<modelId>` 时**只留 key 那条**。
+ *
+ * ⭐ 这是**路由身份的唯一一份定义**（选择器此前自己揣了一份，于是目录里躺着
+ * 两个 optionId、而选择器只认得其中一个）。真机 2026-09-20 撞到的后果：
+ * 默认模型落在 `workspace:` 那一条上，选择器的行只认得 `key:` 那一条 ——
+ * 行不知道自己已被选中，再点一次走的是「新增」而不是「取消」，**同一个模型
+ * 进名单两份，按两份跑、按两份计费**。
+ *
+ * ⛔ 修法不能是「渲染时去重」：名单里仍旧躺着两份，裁剪 payload 与算钱的地方
+ * 照样看到两个。折在目录这一层，**出图跑哪份、选择器点亮哪份就永远是同一份**。
+ *
+ * 留 key 那条而不是 workspace：它提交时钉住 `apiKeyId`，还带着 key 标签与健康点。
+ */
+export function foldRedundantWorkspaceRoutes<T extends StudioModelOption>(
+  options: readonly T[],
+): T[] {
+  const keyed = new Set(
+    options.filter((o) => o.sourceType === 'saved').map(routeKeyOf),
+  )
+  if (keyed.size === 0) return [...options]
+  return options.filter(
+    (o) => o.sourceType === 'saved' || !keyed.has(routeKeyOf(o)),
+  )
+}
+
 /**
  * Show verified saved routes first, keep workspace defaults in the middle,
  * and leave unhealthy / unknown saved routes accessible afterwards.
@@ -167,11 +198,13 @@ export function mergeModelOptionsWithPreferredSavedRoutes(
     (option) => getSavedOptionHealthStatus(option) !== 'available',
   )
 
-  return [
+  // ⚠ 折在**返回之前**：这份名单是目录本身，下游（默认模型 / 出图名单 / 成本 /
+  // 选择器）读的都是它。折在任何一个下游都会让其余几个继续看到两份。
+  return foldRedundantWorkspaceRoutes([
     ...preferredSavedOptions,
     ...workspaceOptions,
     ...fallbackSavedOptions,
-  ]
+  ])
 }
 
 /**

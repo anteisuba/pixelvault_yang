@@ -1,7 +1,9 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type { StudioFormState } from '@/contexts/studio-context'
+import type { StudioModelOption } from '@/types/model-option'
 
 import {
   modelPickerGateKey,
@@ -83,14 +85,17 @@ vi.mock('@/contexts/studio-context', () => ({
   }),
 }))
 
-const IMAGE_OPTION = {
+// ⚠ 显式标成 `StudioModelOption`：这份夹具会原样喂给 `handleToggleRunModel`，
+// 缺字段的话错会报在调用点而不是这里。
+const IMAGE_OPTION: StudioModelOption = {
   optionId: 'image-option',
   modelId: 'gpt-image-1',
   keyId: 'api-key-1',
   keyLabel: 'OpenAI',
-  adapterType: 'openai',
+  adapterType: AI_ADAPTER_TYPES.OPENAI,
   providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com' },
   sourceType: 'saved',
+  isBuiltIn: true,
   requestCount: 1,
 }
 
@@ -323,6 +328,96 @@ describe('useStudioGenerateAction', () => {
     expect(result.current.runModels.map((o) => o.optionId)).toEqual([
       novelAi.optionId,
     ])
+  })
+
+  /**
+   * ⭐ 真机 2026-09-20 的重复计费：名单里已有的那一条再点一次走了「新增」。
+   * 名单长度必须**减一**，且任何时候不出现同一条路两份。
+   */
+  it('toggling a model already in the run list shortens it', async () => {
+    const second = {
+      ...IMAGE_OPTION,
+      optionId: 'image-option-2',
+      modelId: 'flux-1',
+    }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: IMAGE_OPTION,
+      modelOptions: [IMAGE_OPTION, second],
+    })
+    setState({
+      prompt: 'a cat',
+      selectedOptionId: IMAGE_OPTION.optionId,
+      extraModelOptionIds: [second.optionId],
+    } as Partial<StudioFormState>)
+
+    const { result } = renderHook(() => useStudioGenerateAction())
+    expect(result.current.runModels).toHaveLength(2)
+
+    // ⚠ 点的是**主模型**那一条 —— 它对 `TOGGLE_EXTRA_MODEL` 是个 no-op，
+    // 「名单第一条点不掉」就是从这里来的。
+    act(() => {
+      result.current.handleToggleRunModel(IMAGE_OPTION)
+    })
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'SET_OPTION_ID',
+      payload: second.optionId,
+    })
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'REMOVE_EXTRA_MODEL',
+      payload: second.optionId,
+    })
+    expect(mockDispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'TOGGLE_EXTRA_MODEL' }),
+    )
+  })
+
+  it('toggling a model that is not in the run list still adds it', () => {
+    const second = {
+      ...IMAGE_OPTION,
+      optionId: 'image-option-2',
+      modelId: 'flux-1',
+    }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: IMAGE_OPTION,
+      modelOptions: [IMAGE_OPTION, second],
+    })
+    setState({
+      prompt: 'a cat',
+      selectedOptionId: IMAGE_OPTION.optionId,
+    } as Partial<StudioFormState>)
+
+    const { result } = renderHook(() => useStudioGenerateAction())
+    act(() => {
+      result.current.handleToggleRunModel(second)
+    })
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'TOGGLE_EXTRA_MODEL',
+      payload: second.optionId,
+    })
+  })
+
+  // 同一条路的两个 optionId 若仍旧溜进 state，出图名单也只认一条 —— 算钱、
+  // 裁剪 payload、画 chip 读的都是它。
+  it('never runs the same route twice', () => {
+    const twin: StudioModelOption = {
+      ...IMAGE_OPTION,
+      optionId: 'workspace:gpt-image-1',
+      sourceType: 'workspace',
+      keyId: undefined,
+    }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: IMAGE_OPTION,
+      modelOptions: [IMAGE_OPTION, twin],
+    })
+    setState({
+      prompt: 'a cat',
+      selectedOptionId: IMAGE_OPTION.optionId,
+      extraModelOptionIds: [twin.optionId],
+    } as Partial<StudioFormState>)
+
+    const { result } = renderHook(() => useStudioGenerateAction())
+    expect(result.current.runModels).toHaveLength(1)
+    expect(result.current.runModels[0].optionId).toBe(IMAGE_OPTION.optionId)
   })
 
   // 标签台那一枪要带着方言出门，翻译才发生在发请求那一跳。

@@ -10,7 +10,16 @@ import {
   type ProviderConfig,
 } from '@/constants/providers'
 import {
+  pickDefaultImageModelOptionId,
+  toDefaultImageModelCandidates,
+} from '@/hooks/use-default-image-model'
+import {
+  channelHasOption,
+  groupModelsForPicker,
+} from '@/lib/group-models-for-picker'
+import {
   buildSavedModelOptionsForModels,
+  mergeModelOptionsWithPreferredSavedRoutes,
   withProviderKeyCoverage,
 } from '@/lib/model-options'
 import type { StudioModelOption } from '@/types/model-option'
@@ -187,5 +196,108 @@ describe('withProviderKeyCoverage', () => {
 
     expect(option.providerKeyId).toBeUndefined()
     expect(option.keyId).toBe('k1')
+  })
+})
+
+/**
+ * ⭐ 真机 2026-09-20 的重复计费：同一条路在目录里有两个 optionId
+ * （`workspace:<modelId>` 与 `key:<id>`），选择器折掉了 workspace 那条，
+ * 默认模型却落在它上面 —— 行认不出自己已被选中，再点一次走「新增」，
+ * 同一个模型进出图名单两份，**按两份跑、按两份计费**。
+ */
+describe('一条路只留一个 optionId', () => {
+  const route = (
+    overrides: Partial<StudioModelOption> & Pick<StudioModelOption, 'optionId'>,
+  ): StudioModelOption => ({
+    modelId: 'nai-diffusion-4-5-full',
+    adapterType: AI_ADAPTER_TYPE_OPTIONS[0],
+    providerConfig: { label: 'p', baseUrl: '' },
+    requestCount: 1,
+    isBuiltIn: true,
+    sourceType: 'workspace',
+    ...overrides,
+  })
+
+  const saved = route({
+    optionId: 'key:k1',
+    sourceType: 'saved',
+    isBuiltIn: false,
+    keyId: 'k1',
+  })
+  const workspace = route({
+    optionId: 'workspace:nai-diffusion-4-5-full',
+    providerKeyId: 'k1',
+  })
+
+  // key 健康「未知」是最常见的状态（没跑过检查）—— 正是这一档让 workspace
+  // 那条排到了 saved 前面，默认模型于是落在它上面。
+  it.each([
+    ['健康未知', {}],
+    ['健康可用', { k1: 'available' as const }],
+    ['健康失败', { k1: 'failed' as const }],
+  ])('%s 时合并后只剩 key 那条', (_label, healthMap) => {
+    const merged = mergeModelOptionsWithPreferredSavedRoutes(
+      [saved],
+      [workspace],
+      healthMap,
+    )
+    expect(merged.map((option) => option.optionId)).toEqual(['key:k1'])
+  })
+
+  it('没有 key 那条时 workspace 原样留着', () => {
+    const merged = mergeModelOptionsWithPreferredSavedRoutes(
+      [],
+      [workspace],
+      {},
+    )
+    expect(merged.map((option) => option.optionId)).toEqual([
+      'workspace:nai-diffusion-4-5-full',
+    ])
+  })
+
+  // 别的型号不受牵连：折的判据是 adapter + 型号，不是 adapter。
+  it('只折同一条路，不折同一家的别的型号', () => {
+    const otherModel = route({
+      optionId: 'workspace:nai-diffusion-5-full',
+      modelId: 'nai-diffusion-5-full',
+      providerKeyId: 'k1',
+    })
+    const merged = mergeModelOptionsWithPreferredSavedRoutes(
+      [saved],
+      [workspace, otherModel],
+      {},
+    )
+    // ⚠ 顺序仍是既有的健康偏好（健康未知的 saved 排在 workspace 之后），
+    // 这一轮一个字没动它 —— 折掉的只有「同一条路的双胞胎」。
+    expect(merged.map((option) => option.optionId)).toEqual([
+      'workspace:nai-diffusion-5-full',
+      'key:k1',
+    ])
+  })
+
+  /**
+   * ⭐ 不变量本身：**凡是应用能自动选中的那一条，选择器都必须指得到**。
+   * 这条断言直接钉住那个 bug —— 修之前它是红的。
+   */
+  it('默认模型必定是选择器指得到的那一条', () => {
+    const merged = mergeModelOptionsWithPreferredSavedRoutes(
+      [saved],
+      [workspace],
+      {},
+    )
+    const picked = pickDefaultImageModelOptionId(
+      toDefaultImageModelCandidates(merged),
+      null,
+    )
+    expect(picked).not.toBeNull()
+
+    const pointable = groupModelsForPicker(merged, (o) => o.modelId)
+      .flatMap((series) => series.models)
+      .some((model) =>
+        model.channels.some((channel) =>
+          channelHasOption(channel, picked ?? ''),
+        ),
+      )
+    expect(pointable).toBe(true)
   })
 })

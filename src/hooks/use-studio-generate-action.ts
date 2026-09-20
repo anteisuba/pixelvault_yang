@@ -600,17 +600,6 @@ export function useStudioGenerateAction() {
     ],
   )
 
-  const handleToggleRunModel = useCallback(
-    (option: SelectedModelOption) => {
-      if (!state.selectedOptionId) {
-        dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
-        return
-      }
-      dispatch({ type: 'TOGGLE_EXTRA_MODEL', payload: option.optionId })
-    },
-    [dispatch, state.selectedOptionId],
-  )
-
   const handleRemoveRunModel = useCallback(
     (optionId: string) => {
       if (optionId !== state.selectedOptionId) {
@@ -622,6 +611,29 @@ export function useStudioGenerateAction() {
       if (next) dispatch({ type: 'REMOVE_EXTRA_MODEL', payload: next })
     },
     [dispatch, state.selectedOptionId, state.extraModelOptionIds],
+  )
+
+  /**
+   * 选择器里点一行 = **在出图名单里加它或去掉它**。
+   *
+   * ⚠ 去掉走的是 `handleRemoveRunModel` 而**不是** `TOGGLE_EXTRA_MODEL`：主模型
+   * 那一格里的型号对 `TOGGLE_EXTRA_MODEL` 是个 no-op（reducer 有意不让主模型进
+   * 额外名单），于是「名单上的第一条点不掉」——它在名单里、行也亮着，点一下却
+   * 什么都不发生。判据只能是「它在不在这一轮的名单里」，⛔ 不是「它在哪个槽」。
+   */
+  const handleToggleRunModel = useCallback(
+    (option: SelectedModelOption) => {
+      if (runModelIds.has(option.optionId)) {
+        handleRemoveRunModel(option.optionId)
+        return
+      }
+      if (!state.selectedOptionId) {
+        dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
+        return
+      }
+      dispatch({ type: 'TOGGLE_EXTRA_MODEL', payload: option.optionId })
+    },
+    [dispatch, handleRemoveRunModel, runModelIds, state.selectedOptionId],
   )
 
   const buildImageInput = useCallback(

@@ -44,6 +44,12 @@ export const ROUTES = {
 
   /** Creator profile (public) */
   CREATOR_PROFILE: '/u',
+  /**
+   * 「我的主页」的静态地址（D11 ④）。服务端解析当前用户的 username 后
+   * `redirect` 到 `/u/<username>` —— 导航条目因此不必等任何运行时事实。
+   * ⚠ `me` 已在 `PROFILE.RESERVED_USERNAMES` 里占住，见那条注释。
+   */
+  MY_PROFILE: '/u/me',
 } as const
 
 /** Build a creator profile URL from username */

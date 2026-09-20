@@ -450,6 +450,10 @@ export const PROFILE = {
     'settings',
     'profile',
     'u',
+    // `/u/me` 是「我的主页」这条导航项的静态地址（app-shell.md §8）。静态段
+    // 优先于同级的 `[username]`，所以这个名字必须占住：被人注册走的话，那个人
+    // 就再也打不开自己的主页了。
+    'me',
     'gallery',
     'studio',
     'feed',

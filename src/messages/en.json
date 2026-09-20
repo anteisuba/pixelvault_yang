@@ -2603,7 +2603,9 @@
     "filterAll": "All",
     "filterImage": "Images",
     "filterVideo": "Videos",
-    "addReferenceLong": "Add reference · upload / paste / assets"
+    "addReferenceLong": "Add reference · upload / paste / assets",
+    "referenceOnlyFor": "These reference images are only sent to {models}.",
+    "referenceNoReceiver": "None of the selected models accept reference images this run."
   },
   "AssetsPage": {
     "title": "Assets",

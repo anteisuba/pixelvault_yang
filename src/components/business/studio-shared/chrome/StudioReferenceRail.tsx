@@ -21,6 +21,11 @@ interface StudioReferenceRailProps {
    * 同一张图在不同用途下被送去干完全不同的事，轨上不写清就只能靠猜。
    */
   label: string
+  /**
+   * 一句横幅：**挂着的图这一轮会发给谁**。多选里混进不收参考图的模型时由宿主
+   * 算出来（D10 ④）。⛔ 有它也不禁用参考轨 —— 图还在，只是收件人少一个。
+   */
+  notice?: string
 }
 
 /**
@@ -43,6 +48,7 @@ export const StudioReferenceRail = memo(function StudioReferenceRail({
   onEdit,
   onRemove,
   label,
+  notice,
 }: StudioReferenceRailProps) {
   const t = useTranslations('ImageChip')
   const tEdit = useTranslations('StudioImageEdit')
@@ -170,6 +176,11 @@ export const StudioReferenceRail = memo(function StudioReferenceRail({
           <Trash2 className="size-3.5" />
         </Button>
       </div>
+      {/* 「这几张只发给谁」—— 一句横幅，⛔ 不禁用参考轨（D10 ④）。它说的是
+          收件人，与下面那条「这一张为什么没被用上」是两件事，各占一行。 */}
+      {notice ? (
+        <p className="basis-full text-xs text-muted-foreground">{notice}</p>
+      ) : null}
       <div
         className={reasonText ? 'basis-full' : 'sr-only'}
         role="status"

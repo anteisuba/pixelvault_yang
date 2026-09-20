@@ -781,6 +781,10 @@ export function useStudioGenerateAction() {
       mode: 'image',
       image: displayLabel ? { ...image, displayLabel } : image,
       variantCount: state.imageBatchCount,
+      // 标签台写出来的是**统一串**，发出去之前按各模型的 provider 翻译
+      // （D10 ⑤）。⚠ 自然语言台不能走这一支：用户写的
+      // `a girl: 1.2 meters tall` 翻一遍会被改写成权重。
+      promptDialect: state.promptDialect,
       // 只有一条时不送名单 —— 让它走原来的单模型路径，请求逐字节不变。
       compareModels:
         runModels.length > 1
@@ -816,6 +820,7 @@ export function useStudioGenerateAction() {
     isVideoMode,
     selectedModel,
     state.prompt,
+    state.promptDialect,
     state.imageBatchCount,
     runModels,
     state.voiceId,

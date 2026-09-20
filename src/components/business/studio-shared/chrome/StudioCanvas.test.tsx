@@ -42,6 +42,13 @@ vi.mock('@atlaskit/pragmatic-drag-and-drop/element/adapter', () => ({
   dropTargetForElements: () => () => {},
 }))
 
+vi.mock('@/hooks/use-studio-run-models', () => ({
+  useStudioRunModels: () => ({
+    runModels: [],
+    runModelIds: new Set<string>(),
+    filterModelByDialect: () => true,
+  }),
+}))
 vi.mock('@/hooks/use-image-model-options', () => ({
   useImageModelOptions: () => ({ modelOptions: [] }),
 }))

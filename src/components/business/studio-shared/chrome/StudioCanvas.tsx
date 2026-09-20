@@ -19,7 +19,10 @@ import {
   useStudioData,
   useStudioGen,
 } from '@/contexts/studio-context'
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useStudioRunModels } from '@/hooks/use-studio-run-models'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { promptCreatePath } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
@@ -76,6 +79,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
   const tEdit = useTranslations('StudioImageEdit')
   const tVideo = useTranslations('VideoGenerate')
   const tImageChip = useTranslations('ImageChip')
+  const tModels = useTranslations('Models')
   const [errorDismissed, setErrorDismissed] = useState<string | null>(null)
   /**
    * 编辑态的目标图。非空 = 结果区整片切成编辑态（施工基准
@@ -86,6 +90,8 @@ export const StudioCanvas = memo(function StudioCanvas() {
   )
   const errorDialogOpen = !!error && error !== errorDismissed
   const { modelOptions } = useImageModelOptions()
+  // ⚠ **纯读**那颗（`useStudioGenerateAction` 带执行端副作用，结果区不能挂它）。
+  const { runModels } = useStudioRunModels()
 
   // Only show the latest generation if it matches the current output type.
   // Prevents Canvas from displaying an image result after user switches to
@@ -312,6 +318,31 @@ export const StudioCanvas = memo(function StudioCanvas() {
   }[resolveReferenceRailSlot(state.outputType)]
 
   /**
+   * 「挂着的图这一轮发给谁」—— 多选里混进**不收参考图**的模型时的那一句横幅
+   * （D10 ④：PixAI 不收参考图，这几张只给 NAI）。
+   *
+   * ⚠ 不按方言分支：同样的事在自然语言台也成立（Seedream 4.5 的
+   * `maxReferenceImages` 是 0，与 GPT 一起选就是同一个局面）。判据是能力表里
+   * 的那个数，⛔ 不是厂商名。
+   * ⛔ 有它也不禁用参考轨 —— 图还在，只是收件人少一个。
+   */
+  const referenceReceivers = runModels.filter(
+    (model) => getMaxReferenceImages(model.adapterType, model.modelId) > 0,
+  )
+  const referenceNotice =
+    referenceEntries.length === 0 || runModels.length < 2
+      ? undefined
+      : referenceReceivers.length === 0
+        ? tImageChip('referenceNoReceiver')
+        : referenceReceivers.length < runModels.length
+          ? tImageChip('referenceOnlyFor', {
+              models: referenceReceivers
+                .map((model) => getTranslatedModelLabel(tModels, model.modelId))
+                .join(' · '),
+            })
+          : undefined
+
+  /**
    * 队列里当前在播放器里看的那一条。null = 看最新结果（`lastGeneration`）。
    *
    * ⚠ 是**本地态**，不是 `selectedItemId` —— 后者是「定为最佳」，会落库
@@ -399,6 +430,7 @@ export const StudioCanvas = memo(function StudioCanvas() {
       {!editTarget && stageReference && (
         <StudioReferenceRail
           label={referenceRailLabel}
+          notice={referenceNotice}
           entries={referenceEntries}
           activeIndex={stageReference.referenceIndex}
           onActiveIndexChange={setReferenceCursor}

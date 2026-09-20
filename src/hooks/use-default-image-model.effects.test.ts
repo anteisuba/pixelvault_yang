@@ -11,6 +11,7 @@ vi.mock('next/navigation', () => ({ usePathname: () => usePathname() }))
 const dispatch = vi.fn()
 const formState = {
   outputType: 'image' as string,
+  promptDialect: 'natural' as string,
   selectedOptionId: null as string | null,
   modelSelectionTouched: false as boolean | undefined,
 }
@@ -47,6 +48,7 @@ describe('useDefaultImageModel', () => {
     window.localStorage.clear()
     usePathname.mockReturnValue('/zh/studio/image')
     formState.outputType = 'image'
+    formState.promptDialect = 'natural'
     formState.selectedOptionId = null
     formState.modelSelectionTouched = false
   })

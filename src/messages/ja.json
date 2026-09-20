@@ -2603,7 +2603,9 @@
     "filterAll": "すべて",
     "filterImage": "画像",
     "filterVideo": "動画",
-    "addReferenceLong": "参考画像を追加 · アップロード / 貼付 / アセット"
+    "addReferenceLong": "参考画像を追加 · アップロード / 貼付 / アセット",
+    "referenceOnlyFor": "この参照画像は {models} にのみ送られます。",
+    "referenceNoReceiver": "今回選択中のモデルはどれも参照画像を受け取りません。"
   },
   "AssetsPage": {
     "title": "アセット",

@@ -1,7 +1,5 @@
 'use client'
 
-import { supportsNovelAiCharacters } from '@/constants/novelai'
-
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
@@ -41,6 +39,11 @@ import type {
   StudioGenerateResponseData,
   GenerateVideoRequest,
 } from '@/types'
+import {
+  DEFAULT_PROMPT_DIALECT,
+  type PromptDialect,
+} from '@/constants/prompt-dialects'
+import { tailorImageRequestToModel } from '@/lib/studio/tailor-image-request'
 import {
   checkAudioStatusAPI,
   checkImageGenerationStatusAPI,
@@ -119,6 +122,13 @@ export interface UnifiedGenerateInput {
   variantCount?: number
   /** B4: Models to compare — non-empty routes the run to compare mode. */
   compareModels?: CompareModelSelection[]
+  /**
+   * 这一枪出自哪一台（D10 ⑤）。`tags` 时 `freePrompt` / 负向 / 角色标签都是
+   * **统一串**，发出去之前按各模型的 provider 翻成它自己的语法。
+   * ⚠ 客户端字段，⛔ 不上线到请求体 —— 翻译在这里做完，服务端收到的就是
+   * provider 认得的那一份。
+   */
+  promptDialect?: PromptDialect
 }
 
 export interface UseUnifiedGenerateReturn {
@@ -1097,6 +1107,7 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       input: StudioGenerateRequest,
       models: CompareModelSelection[],
       perModelCount = 1,
+      dialect: PromptDialect = DEFAULT_PROMPT_DIALECT,
     ): Promise<GenerationRecord | null> => {
       setIsGenerating(true)
       setStage('generating')
@@ -1154,18 +1165,13 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         const tasks = items.map(async (item) => {
           try {
             const result = await studioGenerateAPI({
-              ...input,
-              modelId: item.modelId,
+              // ⭐ 一条名单跑 N 个模型 —— **逐个裁剪**（D10 ② Q3）：不认识的
+              // 专属键删掉、角色构图截到这家的上限、标签串翻成它自己的语法。
+              ...tailorImageRequestToModel(
+                { ...input, modelId: item.modelId },
+                dialect,
+              ),
               apiKeyId: item.apiKeyId,
-              ...(input.advancedParams?.novelAiLayout &&
-              !supportsNovelAiCharacters(item.modelId)
-                ? {
-                    advancedParams: {
-                      ...input.advancedParams,
-                      novelAiLayout: undefined,
-                    },
-                  }
-                : {}),
               ...(item.seed === undefined ? {} : { seed: item.seed }),
               runGroupId,
               runGroupType: 'compare',
@@ -1545,25 +1551,21 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
       if (input.mode === 'image' && input.image) {
         // Image Studio no longer consumes LoRA — the LoRA domain owns its own
         // generation surface and injects loras there (see lora-domain-split).
-        const image =
-          input.image.advancedParams?.novelAiLayout &&
-          !input.compareModels?.length &&
-          !supportsNovelAiCharacters(input.image.modelId)
-            ? {
-                ...input.image,
-                advancedParams: {
-                  ...input.image.advancedParams,
-                  novelAiLayout: undefined,
-                },
-              }
-            : input.image
-
+        const dialect = input.promptDialect ?? DEFAULT_PROMPT_DIALECT
         const count = input.variantCount ?? 1
         // 有额外模型 → 走矩阵（模型 × 张数）。单模型多张仍走 generateVariants，
         // 两者的 item 形状一致，图墙那一片会把它们合成同一个渲染。
+        // ⚠ 矩阵那条**不在这里裁剪** —— 每一格的型号不同，裁剪逐格发生。
         if (input.compareModels?.length) {
-          return generateCompare(image, input.compareModels, count)
+          return generateCompare(
+            input.image,
+            input.compareModels,
+            count,
+            dialect,
+          )
         }
+        // 单模型：型号就是 `input.image.modelId`，在这里裁一次就够了。
+        const image = tailorImageRequestToModel(input.image, dialect)
         if (count > 1) {
           return generateVariants(image, count)
         }

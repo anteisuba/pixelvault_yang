@@ -2603,7 +2603,9 @@
     "filterAll": "全部",
     "filterImage": "图像",
     "filterVideo": "视频",
-    "addReferenceLong": "添加参考图 · 上传 / 粘贴 / 素材库"
+    "addReferenceLong": "添加参考图 · 上传 / 粘贴 / 素材库",
+    "referenceOnlyFor": "挂着的参考图只发给 {models}。",
+    "referenceNoReceiver": "这一轮选中的模型都不收参考图。"
   },
   "AssetsPage": {
     "title": "素材",

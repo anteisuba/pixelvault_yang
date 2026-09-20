@@ -118,6 +118,10 @@ function makeState(overrides: Partial<StudioFormState> = {}) {
   return {
     prompt: '',
     outputType: 'image',
+    promptDialect: 'natural',
+    tagChips: [],
+    tagNegativeChips: [],
+    activeTagCharacterIndex: null,
     workflowMode: 'quick',
     selectedWorkflowId: 'quick-image',
     selectedOptionId: null,
@@ -271,6 +275,74 @@ describe('useStudioGenerateAction', () => {
       { modelId: IMAGE_OPTION.modelId, apiKeyId: IMAGE_OPTION.keyId },
       { modelId: second.modelId, apiKeyId: second.keyId },
     ])
+  })
+
+  // ⛔ 不跨方言（D10 ② Q3）：跨台留下来的陈旧选择不进这一轮的名单。
+  it('drops a model from the other dialect', () => {
+    const novelAi = {
+      ...IMAGE_OPTION,
+      optionId: 'nai-option',
+      modelId: 'nai-diffusion-5-full',
+      adapterType: 'novelai',
+    }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: IMAGE_OPTION,
+      modelOptions: [IMAGE_OPTION, novelAi],
+    })
+    setState({
+      prompt: 'a cat',
+      selectedOptionId: IMAGE_OPTION.optionId,
+      extraModelOptionIds: [novelAi.optionId],
+    } as Partial<StudioFormState>)
+
+    const { result } = renderHook(() => useStudioGenerateAction())
+    expect(result.current.runModels.map((o) => o.optionId)).toEqual([
+      IMAGE_OPTION.optionId,
+    ])
+  })
+
+  it('keeps only the tag-dialect models on the tag workbench', () => {
+    const novelAi = {
+      ...IMAGE_OPTION,
+      optionId: 'nai-option',
+      modelId: 'nai-diffusion-5-full',
+      adapterType: 'novelai',
+    }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: novelAi,
+      modelOptions: [IMAGE_OPTION, novelAi],
+    })
+    setState({
+      prompt: '1girl',
+      promptDialect: 'tags',
+      selectedOptionId: novelAi.optionId,
+      extraModelOptionIds: [IMAGE_OPTION.optionId],
+    } as Partial<StudioFormState>)
+
+    const { result } = renderHook(() => useStudioGenerateAction())
+    expect(result.current.runModels.map((o) => o.optionId)).toEqual([
+      novelAi.optionId,
+    ])
+  })
+
+  // 标签台那一枪要带着方言出门，翻译才发生在发请求那一跳。
+  it('tells the generator which dialect the prompt came from', async () => {
+    setState({
+      prompt: '1girl, rain:1.2',
+      promptDialect: 'tags',
+      selectedOptionId: IMAGE_OPTION.optionId,
+    } as Partial<StudioFormState>)
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: { ...IMAGE_OPTION, adapterType: 'novelai' },
+      modelOptions: [{ ...IMAGE_OPTION, adapterType: 'novelai' }],
+    })
+
+    const { result } = renderHook(() => useStudioGenerateAction())
+    await act(async () => {
+      await result.current.handleGenerate()
+    })
+
+    expect(mockGenerate.mock.calls[0][0].promptDialect).toBe('tags')
   })
 })
 

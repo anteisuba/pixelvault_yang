@@ -66,6 +66,7 @@ function renderEditor(overrides?: {
   onCancel?: () => void
   imageWidth?: number
   imageHeight?: number
+  showPrompt?: boolean
 }) {
   const props = {
     imageUrl: 'https://example.com/source.png',
@@ -73,6 +74,9 @@ function renderEditor(overrides?: {
     imageHeight: overrides?.imageHeight ?? 480,
     onApply: overrides?.onApply ?? vi.fn(),
     onCancel: overrides?.onCancel ?? vi.fn(),
+    ...(overrides?.showPrompt !== undefined
+      ? { showPrompt: overrides.showPrompt }
+      : {}),
   }
 
   render(<StudioInpaintEditor {...props} />)
@@ -227,6 +231,32 @@ describe('StudioInpaintEditor', () => {
       'data:image/png;base64,mask',
       'a red jacket',
     )
+  })
+
+  // 生成工作台的遮罩重绘（进度表 26 切片 2）只要一张遮罩 —— 那一枪的提示词
+  // 就是工作台里那条，再要一句会变成两个提示词框同屏。
+  describe('without the repaint prompt (generation workbench)', () => {
+    it('hides the prompt field and applies with an empty prompt', () => {
+      const onApply = vi.fn()
+      renderEditor({ showPrompt: false, onApply })
+
+      expect(screen.queryByLabelText('prompt')).not.toBeInTheDocument()
+
+      const canvas = screen.getByLabelText('canvasLabel')
+      fireEvent.pointerDown(canvas, { clientX: 40, clientY: 30 })
+      fireEvent.pointerMove(canvas, { clientX: 80, clientY: 70 })
+      fireEvent.pointerUp(canvas, { clientX: 80, clientY: 70 })
+      fireEvent.click(screen.getByRole('button', { name: 'apply' }))
+
+      expect(canvasContext.stroke).toHaveBeenCalled()
+      expect(onApply).toHaveBeenCalledWith('data:image/png;base64,mask', '')
+    })
+
+    it('keeps apply enabled with nothing typed', () => {
+      renderEditor({ showPrompt: false })
+
+      expect(screen.getByRole('button', { name: 'apply' })).toBeEnabled()
+    })
   })
 
   it('calls onCancel when cancel is clicked', () => {

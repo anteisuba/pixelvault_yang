@@ -8128,5 +8128,14 @@
       "memoryClearConfirm": "Clear all",
       "memoryCancel": "Cancel"
     }
+  },
+  "StudioInpaintMask": {
+    "label": "Mask",
+    "labelSet": "Mask · drawn",
+    "clear": "Clear mask",
+    "title": "Paint the area to repaint",
+    "description": "White is repainted, everything else stays. The workbench prompt describes what goes there.",
+    "fallbackHint": "V5 Curated has no inpainting model of its own — repainting runs on the V4.5 Full inpainting model.",
+    "needsOneReference": "Attach exactly one reference image to repaint"
   }
 }

@@ -14,7 +14,10 @@ export {
 import { WorkflowEntrypoint } from 'cloudflare:workers'
 import { readOpenAIImageStream } from '../../../src/lib/openai-image-stream'
 import { NovelAiCharacterLayoutSchema } from '../../../src/types/novelai'
-import { supportsNovelAiCharacters } from '../../../src/constants/novelai'
+import {
+  resolveNovelAiInpaintModelId,
+  supportsNovelAiCharacters,
+} from '../../../src/constants/novelai'
 import {
   EXECUTION_PROGRESS_STAGES,
   type ExecutionProgressStage,
@@ -6924,6 +6927,23 @@ export async function generateNovelAiImage(
   const externalModelId = context.providerInput.externalModelId
   const referenceImage = referenceImages[0]
   const isImg2Img = Boolean(referenceImage)
+  /**
+   * 遮罩重绘。⚠ NovelAI 的 infill 是**换模型 + 换 action**，不是在原模型上加
+   * 一个参数：`model` 变成 `…-inpainting`，`action` 变成 `infill`，`mask` 是一张
+   * 与底图同规格的黑白图（白 = 重画）。V5 Curated 没有自己的 inpaint 模型，掉到
+   * V4.5 Full 上（`resolveNovelAiInpaintModelId`）。
+   * https://docs.novelai.net/en/image/inpaint/
+   */
+  const maskImage = readStringField(advancedParams, 'inpaintMask')
+  const inpaintModelId = maskImage
+    ? resolveNovelAiInpaintModelId(externalModelId)
+    : undefined
+  const isInpaint = Boolean(maskImage && referenceImage && inpaintModelId)
+  if (maskImage && !isInpaint) {
+    throw new Error(
+      'NovelAI inpainting needs one source image and a model with an inpainting counterpart.',
+    )
+  }
   const negative = composeNovelAiUndesiredContent(
     readStringField(advancedParams, 'negativePrompt') ??
       'lowres, bad anatomy, bad hands, missing fingers, extra digit',
@@ -7001,6 +7021,12 @@ export async function generateNovelAiImage(
     parameters.extra_noise_seed = seed
   }
 
+  if (isInpaint && maskImage) {
+    parameters.mask = await readReferenceImageAsBase64(maskImage)
+    // 遮罩外的像素原样贴回去 —— 不设它就等于整张重画一遍，遮罩白等于没画。
+    parameters.add_original_image = true
+  }
+
   if (useStructuredPrompt) {
     parameters.v4_prompt = {
       caption: {
@@ -7033,8 +7059,8 @@ export async function generateNovelAiImage(
     },
     body: JSON.stringify({
       input: composedPrompt,
-      model: externalModelId,
-      action: isImg2Img ? 'img2img' : 'generate',
+      model: isInpaint ? inpaintModelId : externalModelId,
+      action: isInpaint ? 'infill' : isImg2Img ? 'img2img' : 'generate',
       parameters,
     }),
   })

@@ -44,6 +44,11 @@ vi.mock('@/services/image/generate-image.service', () => {
     GenerateImageServiceError,
     resolveImageRouteAndValidate: vi.fn(),
     uploadReferenceImagesIfNeeded: vi.fn(),
+    // 遮罩走参考图那条同一个上传通路；默认把 advancedParams 原样带过去。
+    uploadInpaintMaskIfNeeded: vi.fn(
+      async ({ input }: { input: { advancedParams?: unknown } }) =>
+        input.advancedParams,
+    ),
   }
 })
 vi.mock('@/services/generation.service', () => ({
@@ -81,6 +86,7 @@ import {
 import {
   GenerateImageServiceError,
   resolveImageRouteAndValidate,
+  uploadInpaintMaskIfNeeded,
   uploadReferenceImagesIfNeeded,
 } from '@/services/image/generate-image.service'
 import { getGenerationByIdForUser } from '@/services/generation.service'
@@ -176,6 +182,29 @@ describe('submitImageGeneration', () => {
         providerInput: expect.objectContaining({
           modelId: 'gpt-image-2',
           outputStorageKey: 'generations/user-1/image/output.png',
+        }),
+      }),
+    )
+  })
+
+  // 进度表 26 切片 2：遮罩在这一层换成 R2 的 http URL，⛔ 客户端那串 data URL
+  // 既不该进 worker（解不了）也不该进 DB（几十 KB 的 base64）。
+  it('sends the uploaded mask URL to the worker, not the client data URL', async () => {
+    setupResolve(AI_ADAPTER_TYPES.NOVELAI)
+    vi.mocked(isExecutionWorkerDispatchConfigured).mockReturnValue(true)
+    vi.mocked(uploadInpaintMaskIfNeeded).mockResolvedValueOnce({
+      inpaintMask: 'https://cdn.example.com/mask.png',
+    })
+
+    await submitImageGeneration('clerk-1', {
+      ...INPUT,
+      advancedParams: { inpaintMask: 'data:image/png;base64,bWFzaw==' },
+    })
+
+    expect(dispatchImageWorkerRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerInput: expect.objectContaining({
+          advancedParams: { inpaintMask: 'https://cdn.example.com/mask.png' },
         }),
       }),
     )

@@ -576,6 +576,63 @@ describe('NovelAI capability gate (slice 26/1)', () => {
     )
   })
 
+  // 切片 2：遮罩要一张底图，且模型得真有 inpaint 模型可换。
+  it('accepts a mask with exactly one reference image', async () => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        {
+          modelId: AI_MODELS.NOVELAI_V5_FULL,
+          prompt: '1girl',
+          referenceImages: ['https://cdn.example.com/a.png'],
+          advancedParams: { inpaintMask: 'https://cdn.example.com/mask.png' },
+        } as never,
+        deps(NAI_V5_ROUTE) as never,
+      ),
+    ).resolves.toMatchObject({ route: NAI_V5_ROUTE })
+  })
+
+  it.each([
+    ['no reference image', [] as string[]],
+    ['two reference images', ['https://a/1.png', 'https://a/2.png']],
+  ])('rejects a mask with %s', async (_label, refs) => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        {
+          modelId: AI_MODELS.NOVELAI_V5_FULL,
+          prompt: '1girl',
+          referenceImages: refs,
+          advancedParams: { inpaintMask: 'https://cdn.example.com/mask.png' },
+        } as never,
+        deps(NAI_V5_ROUTE) as never,
+      ),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        message: 'Inpainting requires exactly one reference image to repaint.',
+      }),
+    )
+  })
+
+  it('rejects a mask on V4.5, which declares no inpaint capability', async () => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        {
+          modelId: AI_MODELS.NOVELAI_V45_FULL,
+          prompt: '1girl',
+          referenceImages: ['https://cdn.example.com/a.png'],
+          advancedParams: { inpaintMask: 'https://cdn.example.com/mask.png' },
+        } as never,
+        deps(NAI_V45_ROUTE) as never,
+      ),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        message: 'Unsupported inpaintMask for the selected model',
+      }),
+    )
+  })
+
   it('rejects a Text value over the 750-char cap', async () => {
     await expect(
       run(AI_MODELS.NOVELAI_V5_FULL, NAI_V5_ROUTE, {

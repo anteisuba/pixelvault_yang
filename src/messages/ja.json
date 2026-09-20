@@ -8128,5 +8128,14 @@
       "memoryClearConfirm": "すべて消去",
       "memoryCancel": "キャンセル"
     }
+  },
+  "StudioInpaintMask": {
+    "label": "マスク",
+    "labelSet": "マスク · 作成済み",
+    "clear": "マスクを消す",
+    "title": "描き直す範囲を塗る",
+    "description": "白く塗った部分だけ描き直され、他はそのまま残ります。何を描くかはワークベンチのプロンプトが決めます。",
+    "fallbackHint": "V5 Curated には専用のインペイントモデルがないため、V4.5 Full のインペイントモデルで実行されます。",
+    "needsOneReference": "描き直す元画像を 1 枚だけ添付してください"
   }
 }

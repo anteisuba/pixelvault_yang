@@ -52,6 +52,7 @@ import { PlaceholderFillDialog } from '@/components/business/prompts/inspiration
 // 参数栏直接组合这几颗 —— 它们本来就是独立组件，不用经过一层横向工具条
 // （`StudioToolbarPanels` / `StudioToolbar` 已随 dock 一起退役）。
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
+import { StudioInpaintMaskChip } from '@/components/business/studio/StudioInpaintMaskChip'
 import { StudioVideoReferenceSlots } from '@/components/business/studio-shared/chrome/StudioVideoReferenceSlots'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
 import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
@@ -750,6 +751,11 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               于是用户挂了图、生成出来一点关系都没有（典型的静默失效）。 */}
           {!isAudioMode && !isKeyframeVideo ? (
             <ReferenceImageChip disabled={isGenerating} />
+          ) : null}
+          {/* 遮罩重绘挨着参考图 —— 它改的就是那张图。能力表没声明 `inpaint`
+              的模型下它整颗不渲染（判据在组件里，⛔ 这里不写模型名）。 */}
+          {isImageMode ? (
+            <StudioInpaintMaskChip disabled={isGenerating} />
           ) : null}
           {/* 卡片入口 —— 切片 A 从退役的 `StudioToolbar` 搬过来的唯一一颗。
               其余四颗（助手 / 参考图 / 比例 / 张数）参数栏本来就有：比例与张数

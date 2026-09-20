@@ -26,6 +26,12 @@ interface StudioInpaintEditorProps {
   onCancel: () => void
   isLoading?: boolean
   allowWholeImage?: boolean
+  /**
+   * 编辑域（`ImageEditSurface`）在这块画布上**同时**收一句重绘指令，所以默认
+   * 带提示词框。生成工作台的遮罩重绘不需要 —— 那一枪的提示词就是工作台里那条，
+   * 再要一句会变成两个提示词框同屏。此时 `onApply` 的第二个参数是空串。
+   */
+  showPrompt?: boolean
 }
 
 interface CanvasPoint {
@@ -98,6 +104,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
   onCancel,
   isLoading = false,
   allowWholeImage = false,
+  showPrompt = true,
 }: StudioInpaintEditorProps) {
   const t = useTranslations('StudioV3.inpaintEditor')
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -395,9 +402,10 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
 
   const handleApply = useCallback(() => {
     const trimmedPrompt = prompt.trim()
-    if (!trimmedPrompt || isLoading) return
+    if (isLoading) return
+    if (showPrompt && !trimmedPrompt) return
     onApply(exportMaskDataUrl(), trimmedPrompt)
-  }, [exportMaskDataUrl, isLoading, onApply, prompt])
+  }, [exportMaskDataUrl, isLoading, onApply, prompt, showPrompt])
 
   return (
     <div className="space-y-5">
@@ -555,16 +563,18 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
             </Button>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="inpaint-prompt">{t('prompt')}</Label>
-            <Textarea
-              id="inpaint-prompt"
-              value={prompt}
-              onChange={(event) => setPrompt(event.target.value)}
-              placeholder={t('promptPlaceholder')}
-              className="min-h-24 resize-none"
-            />
-          </div>
+          {showPrompt ? (
+            <div className="space-y-2">
+              <Label htmlFor="inpaint-prompt">{t('prompt')}</Label>
+              <Textarea
+                id="inpaint-prompt"
+                value={prompt}
+                onChange={(event) => setPrompt(event.target.value)}
+                placeholder={t('promptPlaceholder')}
+                className="min-h-24 resize-none"
+              />
+            </div>
+          ) : null}
         </div>
       </div>
 
@@ -575,7 +585,7 @@ export const StudioInpaintEditor = memo(function StudioInpaintEditor({
         <Button
           type="button"
           onClick={handleApply}
-          disabled={!prompt.trim() || isLoading}
+          disabled={(showPrompt && !prompt.trim()) || isLoading}
           className={cn(isLoading && 'cursor-wait')}
         >
           <Check className="size-4" />

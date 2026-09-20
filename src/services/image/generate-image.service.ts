@@ -312,6 +312,29 @@ export async function uploadReferenceImagesIfNeeded(params: {
   )
 }
 
+/**
+ * 遮罩同样要变成 worker 拿得到的稳定 URL —— worker 解不了 `data:`，而 DB 里也
+ * 不该躺一串几十 KB 的 base64。走的是参考图那条**同一个**上传通路。
+ *
+ * @returns 换过遮罩地址的 advancedParams；没有遮罩时原样返回。
+ */
+export async function uploadInpaintMaskIfNeeded(params: {
+  userId: string
+  input: GenerateRequest
+  timer: GenerationStageTimer
+}): Promise<GenerateRequest['advancedParams']> {
+  const { userId, input, timer } = params
+  const mask = input.advancedParams?.inpaintMask
+  if (!mask) return input.advancedParams
+
+  const inpaintMask = await uploadSingleReferenceImageIfNeeded({
+    userId,
+    referenceImage: mask,
+    timer,
+  })
+  return { ...input.advancedParams, inpaintMask }
+}
+
 // ─── Orchestrator ───────────────────────────────────────────────
 
 /**
@@ -493,6 +516,26 @@ export async function resolveImageRouteAndValidate(
         )
       }
     }
+    // 遮罩重绘：要一张底图 + 一张遮罩，缺一个都不是重绘。⚠ 能力表里没声明
+    // `inpaint` 就是「这个模型没有 inpaint 模型可换」（NovelAI 的 infill 是换
+    // 模型换 action，不是加参数），⛔ 不能默默当普通图生图跑掉。
+    if (input.advancedParams?.inpaintMask) {
+      if (!declared.has('inpaint')) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          'Unsupported inpaintMask for the selected model',
+          400,
+        )
+      }
+      if (refCount !== 1) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          'Inpainting requires exactly one reference image to repaint.',
+          400,
+        )
+      }
+    }
+
     const textRendering = input.advancedParams?.textRendering
     if (textRendering) {
       const maxChars = naiConfig.textRenderingMaxChars

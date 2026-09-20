@@ -19,6 +19,7 @@ export type ProviderCapability =
   | 'background'
   | 'layerDecomposition'
   | 'style'
+  | 'inpaint'
   | 'qualityToggle'
   | 'ucPreset'
   | 'textRendering'
@@ -425,6 +426,9 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'ucPreset',
       'qualityToggle',
       'textRendering',
+      // 遮罩重绘。⛔ 不是一颗 chip —— 它要的是一块画布，长在参考图那一栏
+      // （`getCapabilityFieldType` 对它返回 null）。
+      'inpaint',
     ] as const,
     ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
     qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
@@ -442,6 +446,9 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'ucPreset',
       'qualityToggle',
       'textRendering',
+      // 遮罩重绘。⛔ 不是一颗 chip —— 它要的是一块画布，长在参考图那一栏
+      // （`getCapabilityFieldType` 对它返回 null）。
+      'inpaint',
     ] as const,
     ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
     qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,

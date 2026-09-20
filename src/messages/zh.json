@@ -8128,5 +8128,14 @@
       "memoryClearConfirm": "全部清空",
       "memoryCancel": "取消"
     }
+  },
+  "StudioInpaintMask": {
+    "label": "遮罩",
+    "labelSet": "遮罩 · 已画",
+    "clear": "清除遮罩",
+    "title": "涂出要重画的区域",
+    "description": "涂白的部分会被重画，其余原样保留。画成什么由工作台的提示词决定。",
+    "fallbackHint": "V5 Curated 没有自己的 inpaint 模型，重绘会跑在 V4.5 Full 的 inpaint 模型上。",
+    "needsOneReference": "先挂恰好一张要重画的参考图"
   }
 }

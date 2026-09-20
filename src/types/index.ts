@@ -302,6 +302,13 @@ export const AdvancedParamsSchema = z.object({
    * https://docs.novelai.net/en/image/textrendering/
    */
   textRendering: z.string().max(NOVELAI_TEXT_RENDERING_MAX_CHARS).optional(),
+  /**
+   * NovelAI 遮罩重绘的遮罩图：白 = 重画，黑 = 保留。客户端发 data URL，服务端
+   * 在 `submit-image.service` 里换成 R2 的 http URL 之后才进 DB 与 worker
+   * （⛔ 别把几十 KB 的 base64 存进 generation 的 advancedParams 快照）。
+   * https://docs.novelai.net/en/image/inpaint/
+   */
+  inpaintMask: z.string().optional(),
   /** LoRA models to apply (up to 5, FAL/Replicate only) */
   loras: z.array(LoraSchema).max(5).optional(),
   /** v2 runner：R2 缓存后的 LoRA 规格（服务端 prepareRunnerLoras 注入，不由客户端填）。 */

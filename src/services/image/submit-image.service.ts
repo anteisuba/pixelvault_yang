@@ -30,6 +30,7 @@ import {
 import {
   GenerateImageServiceError,
   resolveImageRouteAndValidate,
+  uploadInpaintMaskIfNeeded,
   uploadReferenceImagesIfNeeded,
   type GenerateImageDeps,
 } from '@/services/image/generate-image.service'
@@ -202,6 +203,13 @@ export async function submitImageGeneration(
     timer,
   })
   const referenceImageUrl = referenceImages[0]
+  // 遮罩走同一条上传通路 —— 从这里往下，advancedParams 里的 `inpaintMask`
+  // 已经是 R2 的 http URL（⛔ 不是客户端那串 data URL）。
+  const advancedParams = await uploadInpaintMaskIfNeeded({
+    userId: dbUser.id,
+    input,
+    timer,
+  })
   const outputStorageKey = generateStorageKey('IMAGE', dbUser.id)
 
   const metadata: ImageQueueMetadata = {
@@ -216,7 +224,7 @@ export async function submitImageGeneration(
     apiKeyId: apiKeyId ?? undefined,
     originalModelId: input.modelId,
     recipeUsage: input.recipeUsage,
-    advancedParams: input.advancedParams,
+    advancedParams,
     runGroupId: queueMetadataInput.runGroupId,
     runGroupType: queueMetadataInput.runGroupType,
     runGroupIndex: queueMetadataInput.runGroupIndex,
@@ -247,7 +255,7 @@ export async function submitImageGeneration(
     // LoRA 确保进 R2 + 生成预签名下载链，注入 advancedParams.runnerLoras 供 Worker →
     // RunPod fork。非 runner 原样透传。⚠ 下载同步跑在本请求里——大/多 LoRA 有超 Vercel
     // Hobby 60s 的风险，撞到再迁到 Cloudflare Worker（设计包 §5 caveat）。
-    let runnerAdvancedParams = input.advancedParams
+    let runnerAdvancedParams = advancedParams
     if (route.adapterType === AI_ADAPTER_TYPES.RUNNER) {
       const loras = input.advancedParams?.loras ?? []
       if (loras.length > 0) {
@@ -256,7 +264,7 @@ export async function submitImageGeneration(
             dbUser.id,
           ).catch(() => null)
           const runnerLoras = await prepareRunnerLoras(loras, userCivitaiToken)
-          runnerAdvancedParams = { ...input.advancedParams, runnerLoras }
+          runnerAdvancedParams = { ...advancedParams, runnerLoras }
         } catch (error) {
           // 大声失败：LoRA 下载/缓存失败 → 明确报错而非静默出一张没挂 LoRA 的图。
           throw new GenerateImageServiceError(

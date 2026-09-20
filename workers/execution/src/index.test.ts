@@ -1044,6 +1044,72 @@ describe('generateNovelAiImage', () => {
     expect(body.parameters.ucPreset).toBe(4)
   })
 
+  // 进度表 26 切片 2。NovelAI 的 infill 是换模型 + 换 action，不是加参数。
+  it('switches to the inpainting model and infill action when a mask is set', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V5_FULL, [
+      'data:image/png;base64,c291cmNl',
+    ])
+    context.providerInput.advancedParams = {
+      inpaintMask: 'data:image/png;base64,bWFzaw==',
+    }
+
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+    ) as { model: string; action: string; parameters: Record<string, unknown> }
+    expect(body.model).toBe('nai-diffusion-5-full-inpainting')
+    expect(body.action).toBe('infill')
+    expect(body.parameters.mask).toBe('bWFzaw==')
+    expect(body.parameters.add_original_image).toBe(true)
+  })
+
+  it('falls back to the V4.5 Full inpainting model for V5 Curated', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext('nai-diffusion-5-curated', [
+      'data:image/png;base64,c291cmNl',
+    ])
+    context.providerInput.advancedParams = {
+      inpaintMask: 'data:image/png;base64,bWFzaw==',
+    }
+
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+    ) as { model: string; action: string }
+    expect(body.model).toBe('nai-diffusion-4-5-full-inpainting')
+    expect(body.action).toBe('infill')
+  })
+
+  // 遮罩没有底图 = 没有可重绘的东西；⛔ 不能默默退回普通文生图。
+  it('rejects a mask with no source image', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V5_FULL)
+    context.providerInput.advancedParams = {
+      inpaintMask: 'data:image/png;base64,bWFzaw==',
+    }
+
+    await expect(
+      generateNovelAiImage(makeEnv(), context, 'nai-test-key'),
+    ).rejects.toThrow('NovelAI inpainting needs one source image')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects a mask on a model with no inpainting counterpart', async () => {
+    const context = makeContext(NOVELAI_V45_FULL, [
+      'data:image/png;base64,c291cmNl',
+    ])
+    context.providerInput.advancedParams = {
+      inpaintMask: 'data:image/png;base64,bWFzaw==',
+    }
+
+    await expect(
+      generateNovelAiImage(makeEnv(), context, 'nai-test-key'),
+    ).rejects.toThrow('NovelAI inpainting needs one source image')
+  })
+
   it('extracts the image from a deflate-compressed, streamed-size ZIP (real NovelAI shape)', async () => {
     // Regression test: NovelAI's actual response is deflate-compressed
     // (method 8) with the local header's sizes zeroed (general-purpose bit

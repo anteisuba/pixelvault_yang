@@ -81,7 +81,7 @@
 
 - **页面底 = `--background` 纯白；分组/次级面 = `--muted` 中性灰。** 首页 `--paper/--panel`、LoRA `--lora-page/--lora-well`、壳 `--sidebar` 全部 alias 到这两个，不再各自给值。**壳底例外（owner 2026-09-03 拍板保住浮岛层次）**：脊柱新增第三层 `--surface-sunken: oklch(94% 0 0)`，只给应用壳 `--sidebar` 用，主卡浮在它上面；域不得再造第四种浅底。三层就是全部：`--background` 纯白 · `--muted` 97% · `--surface-sunken` 94%。
 - **画布米纸与 composer 象牙是"材质"，不是页面底**：作为 canvas 域和 studio 域各自的材质 token 保留，只贴在卡片/输入条那一件东西上，不铺整页。
-- **第四层 `--surface-workbench`（owner 2026-09-03，配音间灰底+白卡推广到工作台）**：配音间原实现是 `#f4f4f1`，真机实测与壳底 `--sidebar`（计算值 #ebebeb）通道差 (9,9,6)，超过「肉眼几乎一样」的 ≤6 判据，没有直接复用 `--sidebar`，单独开了这一档（暗色沿用 `--surface-sunken`，即壳底暗档，配音间锁浅色没有暗档可对齐）。工作台框 = `.workbench-ground`（灰底地台）+ `.workbench-card`（白卡），四个工作台（配音间 / 图像 / 视频 / LoRA）共用一份值，值以 `src/app/globals.css` 为准，不在域内各自维护。
+- **第四层 `--surface-workbench`（owner 2026-09-03，配音间灰底+白卡推广到工作台）**：配音间原实现是 `#f4f4f1`，真机实测与壳底 `--sidebar`（计算值 #ebebeb）通道差 (9,9,6)，超过「肉眼几乎一样」的 ≤6 判据，没有直接复用 `--sidebar`，单独开了这一档（暗色沿用 `--surface-sunken`，即壳底暗档，配音间锁浅色没有暗档可对齐）。工作台框 = `.workbench-ground`（灰底地台）+ `.workbench-card`（白卡），四个工作台（配音间 / 图像 / 视频 / LoRA）共用一份值，值以 `src/app/globals.css` 为准，不在域内各自维护。**2026-09-20（进度表 32 ④）画廊页与素材库页也推到这一层**：页面底（含两页的 `loading.tsx` 与素材库未登录壳）走 `bg-surface-workbench`，卡走不透明 `bg-card` —— 画廊卡原本是 `bg-card/84`、素材库图块是 `bg-muted/40`，半透明白摆在纯白页面底上等于没有卡，换到灰底后卡边才立得住。⛔ 只换底与卡面，卡片布局与信息不动（那是 34）。
 
 ### 2.3 强调色
 

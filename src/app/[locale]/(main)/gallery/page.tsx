@@ -69,7 +69,9 @@ export default async function GalleryPage({ searchParams }: GalleryPageProps) {
   const total = initialPage.total ?? initialPage.generations.length
 
   return (
-    <div className="relative min-h-svh">
+    // 灰底地台 + 白卡（ui-defaults §2.2 第四层）—— 画廊与素材库跟工作台 /
+    // 配音间同一层：图是主角，纯白页面底会让卡边消失在页面里。
+    <div className="relative min-h-svh bg-surface-workbench">
       {/* ⚠ 这里以前是 `mx-auto max-w-gallery`（80rem = 1280px）。1900 宽的窗口
           减掉侧边栏还有 ~1740 可用，被卡在 1280 就等于两边各丢 230px 白边，而
           画廊是内容浏览页，白边换不来任何东西（owner 2026-08-24 实拍）。

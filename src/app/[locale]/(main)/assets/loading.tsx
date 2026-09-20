@@ -5,7 +5,7 @@
  */
 export default function AssetsLoading() {
   return (
-    <div className="flex min-h-svh flex-col bg-background text-foreground">
+    <div className="flex min-h-svh flex-col bg-surface-workbench text-foreground">
       {/* Toolbar row */}
       <div className="flex items-center gap-3 border-b border-border px-4 py-3">
         <div className="h-7 w-32 animate-pulse rounded-md bg-muted" />

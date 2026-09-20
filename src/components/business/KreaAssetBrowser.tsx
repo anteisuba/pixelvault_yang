@@ -1517,7 +1517,7 @@ export function KreaAssetBrowser({
   return (
     <div
       className={cn(
-        'flex h-[calc(100svh-3rem)] flex-col bg-background',
+        'flex h-[calc(100svh-3rem)] flex-col bg-surface-workbench',
         className,
       )}
       onDragEnter={handleRootDragEnter}

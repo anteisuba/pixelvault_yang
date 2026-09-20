@@ -98,7 +98,7 @@ export function AssetTile({
       style={{ width, height }}
       className={cn(
         styles.tile,
-        'group relative shrink-0 overflow-hidden rounded-lg border bg-muted/40 transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
+        'group relative shrink-0 overflow-hidden rounded-lg border bg-card transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none',
         selected
           ? 'border-primary ring-2 ring-primary/40'
           : 'border-border/60 hover:border-primary/40',

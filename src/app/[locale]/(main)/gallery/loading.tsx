@@ -1,6 +1,6 @@
 export default function GalleryLoading() {
   return (
-    <div className="mx-auto max-w-content px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-svh bg-surface-workbench px-4 py-8 sm:px-6 lg:px-8">
       {/* Header skeleton */}
       <div className="mb-8 space-y-3">
         <div className="h-8 w-48 animate-pulse rounded-2xl bg-secondary/40" />
@@ -12,7 +12,7 @@ export default function GalleryLoading() {
         {Array.from({ length: 12 }).map((_, i) => (
           <div
             key={i}
-            className="animate-pulse overflow-hidden rounded-3xl border border-border/40 bg-card/60"
+            className="animate-pulse overflow-hidden rounded-3xl border border-border/40 bg-card"
           >
             <div
               className="bg-secondary/25"

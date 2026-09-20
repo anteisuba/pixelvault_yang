@@ -262,7 +262,7 @@ export const ImageCard = memo(function ImageCard({
           'group overflow-hidden border',
           isGalleryPresentation
             ? 'rounded-xl border-border/25 bg-transparent transition-colors duration-200 hover:border-border/70'
-            : 'rounded-3xl border-border/60 bg-card/84 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:shadow-md hover:shadow-primary/5',
+            : 'rounded-3xl border-border/60 bg-card shadow-sm transition-all duration-300 hover:-translate-y-1 hover:border-primary/20 hover:shadow-md hover:shadow-primary/5',
         )}
       >
         <div

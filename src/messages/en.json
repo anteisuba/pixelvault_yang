@@ -6335,7 +6335,9 @@
       "vibe": "Vibe",
       "precise": "Precise reference"
     },
-    "referenceUsageUnrouted": "Vibe and precise reference are not wired to a send path yet."
+    "referenceUsageUnrouted": "Vibe and precise reference are not wired to a send path yet.",
+    "jumpToTags": "{model} is a tag model — take me to the tag workbench",
+    "jumpToNatural": "{model} takes a sentence — take me to the natural-language workbench"
   },
   "StudioPanels": {
     "reference": "Reference Images",

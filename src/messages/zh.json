@@ -6335,7 +6335,9 @@
       "vibe": "Vibe",
       "precise": "精确参考"
     },
-    "referenceUsageUnrouted": "Vibe 与精确参考尚未接通发送路径。"
+    "referenceUsageUnrouted": "Vibe 与精确参考尚未接通发送路径。",
+    "jumpToTags": "{model} 是标签模型，带你去标签台",
+    "jumpToNatural": "{model} 吃自然语言，带你去自然语言台"
   },
   "StudioPanels": {
     "reference": "参考图",

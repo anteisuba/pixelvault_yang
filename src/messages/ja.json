@@ -6335,7 +6335,9 @@
       "vibe": "Vibe",
       "precise": "精密参照"
     },
-    "referenceUsageUnrouted": "Vibe と精密参照はまだ送信経路に繋がっていません。"
+    "referenceUsageUnrouted": "Vibe と精密参照はまだ送信経路に繋がっていません。",
+    "jumpToTags": "{model} はタグモデルです — タグスタジオへ移動",
+    "jumpToNatural": "{model} は文章で指示します — 自然言語スタジオへ移動"
   },
   "StudioPanels": {
     "reference": "参照画像",

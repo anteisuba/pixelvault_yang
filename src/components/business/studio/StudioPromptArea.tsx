@@ -61,6 +61,7 @@ import { StudioCardSection } from '@/components/business/studio/StudioCardSectio
 // 派生；张数 / 声音在它底部的「更多」折叠区里。
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
+import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioDialectJumpHint'
 import { StudioVideoModeToggle } from '@/components/business/studio/StudioVideoModeToggle'
 import { StudioSfxSpecPopover } from '@/components/business/studio/StudioSfxSpecPopover'
 import { StudioMusicSpecPopover } from '@/components/business/studio/StudioMusicSpecPopover'
@@ -161,6 +162,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     runModels,
     runModelIds,
     filterVideoModelByMode,
+    filterModelByDialect,
     handleSelectSingleModel,
     handleToggleRunModel,
     handleRemoveRunModel,
@@ -980,6 +982,12 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               }
               selectedOptionIds={runModelIds}
               onToggleOption={handleToggleRunModel}
+              // 名单只列自然语言方言的型号（D10 ② Q3）；真搜到标签模型时
+              // 底下给一行「带你去标签台」，⛔ 不把它混进名单。
+              filterOption={filterModelByDialect}
+              renderSearchFallback={(query, close) => (
+                <StudioDialectJumpHint query={query} close={close} />
+              )}
               onRequestSetup={handleOpenQuickSetup}
               triggerEmptyLabel={
                 runModels.length > 0 ? t('modelAdd') : t('noModelHint')

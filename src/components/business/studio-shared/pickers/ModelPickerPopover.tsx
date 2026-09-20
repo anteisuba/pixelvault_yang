@@ -1,6 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { Check, Search, Settings2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
@@ -164,6 +171,15 @@ export interface ModelPickerPopoverProps {
   onToggleOption?: (option: StudioModelOption) => void
   /** 底部「配置渠道与 key…」；不给则不渲染那一行。 */
   onManageChannels?: () => void
+  /**
+   * 搜索框里有字时，列表底下多出来的那一行 —— **本名单之外的去处**
+   * （D10 ④ 两台跳转：在自然语言台搜到标签模型时给一行「带你过去」）。
+   *
+   * 宿主自己判「这句话有没有命中别处」并给内容，⛔ 组件不认识任何业务口径。
+   * 返回 null = 没有可去的地方，这一行不渲染。点了之后由宿主负责收弹层 ——
+   * 所以回调里带上 `close`。
+   */
+  renderSearchFallback?: (query: string, close: () => void) => ReactNode
   /** 分组维度，默认按厂商系列；音频栏传 `kind`（语音 / 配乐 / 音效）。 */
   groupBy?: ModelPickerGroupBy
   /**
@@ -210,6 +226,7 @@ export function ModelPickerPopover({
   selectedOptionIds,
   onToggleOption,
   onManageChannels,
+  renderSearchFallback,
   groupBy = MODEL_PICKER_GROUP_BY.series,
   gateId,
 }: ModelPickerPopoverProps) {
@@ -779,6 +796,10 @@ export function ModelPickerPopover({
                   )}
                 </div>
               ))}
+          {/* 本名单之外的去处 —— 只在搜索时出现，⛔ 不占常驻名单的位置。 */}
+          {query && renderSearchFallback
+            ? renderSearchFallback(query, () => setOpen(false))
+            : null}
         </div>
 
         {onManageChannels ? (

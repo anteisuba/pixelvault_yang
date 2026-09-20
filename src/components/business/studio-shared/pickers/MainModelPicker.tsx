@@ -67,6 +67,8 @@ interface CommonProps {
    * 传了就等于宣布「这是另一份名单」。
    */
   memoryScope?: string
+  /** 搜索时列表底下那一行「本名单之外的去处」，原样透传。 */
+  renderSearchFallback?: ModelPickerPopoverProps['renderSearchFallback']
 }
 
 export type MainModelPickerProps = CommonProps &

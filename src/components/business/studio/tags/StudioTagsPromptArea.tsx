@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
+import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioDialectJumpHint'
 import { StudioDialectSwitch } from '@/components/business/studio/tags/StudioDialectSwitch'
 import { StudioTagCapabilityControl } from '@/components/business/studio/tags/StudioTagCapabilityControl'
 import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
@@ -136,6 +137,11 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
             triggerEmptyLabel={modelSummary}
             searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
             emptySearchText={tForm('modelSelector.emptySearch')}
+            // 搜到对面方言的型号时给一行「带你过去」——⛔ 名单本身仍然只列
+            // 自己这一台的（D10 ② Q3）。
+            renderSearchFallback={(query, close) => (
+              <StudioDialectJumpHint query={query} close={close} />
+            )}
             popoverSide="bottom"
             disabled={isGenerating}
             className="max-w-full"

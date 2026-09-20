@@ -861,3 +861,38 @@ describe('提示词方言与标签栏', () => {
     expect(state.tagChips).toEqual([])
   })
 })
+
+// 两台跳转：整句进正向栏第一格，⛔ 不自动切成标签。
+describe('带着提示词跳去标签台', () => {
+  it('整句进第一格，已有的 chip 排在后面', () => {
+    const state = studioFormReducer(
+      makeInitialState({
+        prompt: 'a girl standing in the rain, looking up',
+        tagChips: [{ text: '1girl', weight: 1 }],
+      }),
+      { type: 'CARRY_PROMPT_TO_TAGS' },
+    )
+    expect(state.tagChips).toEqual([
+      { text: 'a girl standing in the rain, looking up', weight: 1 },
+      { text: '1girl', weight: 1 },
+    ])
+    // 统一串跟着一起写 —— 下游读 prompt 就够了。
+    expect(state.prompt).toBe('a girl standing in the rain, looking up, 1girl')
+  })
+
+  it('来回跳两次不会攒出两格一样的字', () => {
+    const once = studioFormReducer(
+      makeInitialState({ prompt: 'neon city at night' }),
+      { type: 'CARRY_PROMPT_TO_TAGS' },
+    )
+    const twice = studioFormReducer(once, { type: 'CARRY_PROMPT_TO_TAGS' })
+    expect(twice.tagChips).toHaveLength(1)
+  })
+
+  it('空提示词不造格子', () => {
+    const state = makeInitialState({ prompt: '   ' })
+    expect(studioFormReducer(state, { type: 'CARRY_PROMPT_TO_TAGS' })).toBe(
+      state,
+    )
+  })
+})

@@ -190,6 +190,16 @@ vi.mock('@/contexts/studio-context', () => ({
   }),
 }))
 
+// 两台跳转那一行（`StudioDialectJumpHint`）要一个 router —— 参数栏本身
+// 不跳路由，这里只是把 next-intl 的导航壳挡在测试之外。
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+  usePathname: () => '/studio/image',
+  Link: 'a',
+  redirect: vi.fn(),
+  getPathname: vi.fn(),
+}))
+
 vi.mock('@/hooks/use-studio-shortcuts', () => ({
   useStudioShortcuts: vi.fn(),
 }))

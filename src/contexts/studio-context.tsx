@@ -351,6 +351,11 @@ export type StudioAction =
       payload: { polarity: 'positive' | 'negative'; chips: TagChip[] }
     }
   | { type: 'SET_ACTIVE_TAG_CHARACTER'; payload: number | null }
+  /**
+   * 从自然语言台**带着提示词跳过去**（D10 ④ 两台跳转）。整句进正向栏第一格，
+   * ⛔ 不自动切成标签 —— 用户写的是一句话，替他改写成标签不是他要求的事。
+   */
+  | { type: 'CARRY_PROMPT_TO_TAGS' }
   | { type: 'REMOVE_PROMPT_REFERENCE'; payload?: number }
   | { type: 'SET_RECIPE_USAGE'; payload: RecipeUsage | null }
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
@@ -690,6 +695,16 @@ export function studioFormReducer(
     }
     case 'SET_ACTIVE_TAG_CHARACTER':
       return { ...state, activeTagCharacterIndex: action.payload }
+    case 'CARRY_PROMPT_TO_TAGS': {
+      const carried = wholeSentenceAsTag(state.prompt)
+      if (carried.length === 0) return state
+      // 已经在场的同一句不再插第二遍（来回跳两次会攒出两格一样的字）。
+      const existing = state.tagChips.filter(
+        (chip) => chip.text !== carried[0].text,
+      )
+      const tagChips = [...carried, ...existing]
+      return { ...state, tagChips, prompt: serializeTagChips(tagChips) }
+    }
     case 'SET_TAG_CHIPS': {
       const text = serializeTagChips(action.payload.chips)
       if (action.payload.polarity === 'positive') {

@@ -208,7 +208,28 @@
 
 ## 7. 状态配方
 
-- **空态**：一句说明 + 一个可点动作（起手势），可选 3 个示例 chip；不留白板。
+- **空态**：一句说明 + 一个可点动作（起手势），可选 3 个示例 chip；不留白板。长相只有一种 —— `src/components/ui/empty-state.tsx` 的五段：灰底虚线框 → 40px 图标位 → **展示槽标题** → 一句话 → 黑丸主动作。⛔ 不画插画。那句话回答「为什么是空的 / 接下来做什么」，⛔ 不写「暂无数据」。
+
+**全站空态落点清单（2026-09-20 收口，进度表 33 ①）**——机器门 `src/test/empty-state.contract.test.ts` 守这张表：名册写死，长出第四类落点就红；每个落点都得给一句话 + 一个 `rounded-full` 主动作。
+
+| 落点                   | 文件                                                                                |
+| ---------------------- | ----------------------------------------------------------------------------------- |
+| 画布空项目             | `node/NodeCanvasEmptyGuide.tsx`（画布皮肤覆盖）                                     |
+| 画廊为空               | `GalleryGrid.tsx`                                                                   |
+| 素材库空库             | `assets/AssetStateBlocks.tsx` · `KreaAssetBrowser.tsx`                              |
+| 角色卡 / 画风卡为空    | `cards/CharacterCardManager.tsx` · `StyleCardManager.tsx` · `SimpleCardManager.tsx` |
+| 灵感墙筛空             | `prompts/inspiration/InspirationGrid.tsx`                                           |
+| 设置页记忆为空         | `settings/SettingsAssistantSection.tsx`                                             |
+| LoRA 我的库 / 类型筛空 | `lora/LoraWorkbench.tsx` · `lora/library/LoraLibraryTypeStates.tsx`                 |
+| LoRA 训练起手          | `lora/training/EmptyState.tsx`                                                      |
+| dev 展柜               | `dev/ui-states/UiStateGallery.tsx`                                                  |
+
+**故意不收进原语的几处**（理由写在契约测试的 `EXCEPTIONS` 头注里，改代码前先读）：
+
+- **素材库「空文件夹」随进度表 19**（`AssetEmptyFolder`）——文案与出口依赖 19 那一整套，⛔ 现在不提前收，收了还得再改一遍。
+- **起手屏不是空态**：`StudioEmptyState`（示例卡 + 最近作品）与 `StudioOperatorEmptyState`（一句话 + 起手药丸）都是 owner 逐条定过的形态，D7b ③ 的原话是「一句话就是一句话，不再是标题 + 说明两段」。
+- **搜索无结果不是空态**：它回答「你的筛选太窄」，出口只有一个「清除筛选」，套空态配方会硬造一个不该有的主动作。
+- **LoRA 稀疏引导卡**本页有 1–5 条内容，是结果流尾部的引导行。
 - **加载**：`loading.md`。行内 `Spinner md`，区块 `lg` + 一行文案，列表用与内容同尺寸的 `Skeleton`。
 - **错误**：`error-alert.tsx`，说明 + 重试按钮；缺 API key 走 `QuickSetupDialog`，不禁用 UI。
 - **不支持的能力不渲染**，不做禁用占位。
@@ -240,9 +261,13 @@
 - 业务代码出现 Tailwind 调色板类（`-(amber|emerald|red|blue|...)-\d{2,3}`）→ 报错。
 - `:root {` 出现在 `globals.css` 之外 → 报错（域 token 只写域根）。
 - `src/**` import `lucide-react` → 报错（已落地：`eslint.config.mjs` 的 Phosphor 图标门，`@typescript-eslint/no-restricted-imports` 一条管整棵树）。
+- 自画的空态 → 红（已落地：`src/test/empty-state.contract.test.ts` 的落点名册）。
+- 应用内组件出现 `font-display` → 红（已落地：`src/test/typography.contract.test.ts`，展示槽应用内只有空态原语一个落点）。
 - 第 1 条与第 4 条现在就可以用 `grep -rn` 当 PR 前门，eslint 规则化是独立任务。
 
 ## Last Verified
+
+- 2026-09-20 · 空态收口（进度表 33 ①）：全站空态收进 `EmptyState` 原语，落点清单见 §7，`empty-state.contract.test.ts` 守名册与「一句话 + 黑丸动作」；展示槽应用内落点数 = 1（空态原语自己那一行，首页 hero 与 legal 走各自域 CSS 的 `--font-stack-display`），由 `typography.contract.test.ts` 守。
 
 - 2026-09-20 · 皮肤脊柱（进度表 32）五片：① 模态色只留 prompts 域，站外 12 处调色板强调色改 `--primary` / 去色；② `font-mono` 131 → 101，判据写进 §1，`src/test/typography.contract.test.ts` 守标题；③ 字号档收成 §1 一张表，删 `--text-nav` / `--text-tab` 两个 11px 重名档，61 处 arbitrary 换档名；④ 画廊 / 素材库推到 `--surface-workbench` 灰底 + `bg-card` 白卡；⑤ 风险浅底 64 处统一 `bg-status-risk-surface` + `text-status-risk`，对比度见 §2.4。
 

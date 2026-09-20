@@ -24,14 +24,16 @@ import {
 } from '@/components/business/ImageCard'
 import { BlurFade } from '@/components/ui/blur-fade'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import type { GenerationRecord } from '@/types'
 
 interface GalleryGridProps {
   generations: GenerationRecord[]
   emptyTitle: string
   emptyDescription: string
-  emptyActionHref?: Route
-  emptyActionLabel?: string
+  /** §7「一句说明 + 一个可点动作」—— 空态的出口是必给的，⛔ 不留白板。 */
+  emptyActionHref: Route
+  emptyActionLabel: string
   feedLabel: string
   itemFallbackLabel: string
   showVisibility?: boolean
@@ -248,26 +250,16 @@ export function GalleryGrid({
 
   if (generations.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-primary/20 bg-primary/3 px-6 py-16 text-center sm:px-10">
-        <div className="mx-auto flex max-w-xl flex-col items-center gap-4">
-          <span className="inline-flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <Sparkles className="size-5" />
-          </span>
-          <div className="space-y-2">
-            <h3 className="text-2xl font-medium tracking-tight text-foreground">
-              {emptyTitle}
-            </h3>
-            <p className="text-sm leading-7 text-muted-foreground">
-              {emptyDescription}
-            </p>
-          </div>
-          {emptyActionHref && emptyActionLabel ? (
-            <Button asChild className="rounded-full px-5">
-              <Link href={emptyActionHref}>{emptyActionLabel}</Link>
-            </Button>
-          ) : null}
-        </div>
-      </div>
+      <EmptyState
+        icon={<Sparkles aria-hidden />}
+        title={emptyTitle}
+        description={emptyDescription}
+        action={
+          <Button asChild className="rounded-full px-5">
+            <Link href={emptyActionHref}>{emptyActionLabel}</Link>
+          </Button>
+        }
+      />
     )
   }
 

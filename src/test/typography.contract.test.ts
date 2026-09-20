@@ -44,3 +44,31 @@ describe('字体三槽 · 等宽不进标题', () => {
     expect(offenders).toEqual([])
   })
 })
+
+/**
+ * 展示槽的机器门（ui-defaults.md §1，进度表 33 ①）。
+ *
+ * `font-display` 在**应用内**只有一个落点：空态大标题，也就是空态原语
+ * `src/components/ui/empty-state.tsx` 自己那一行。全站其余两处（首页 hero、
+ * legal 页标题）走各自域 CSS 里的 `--font-stack-display`，不经过这个 utility。
+ *
+ * 换句话说：应用内任何组件里再冒出一个 `font-display`，就是第四类落点 ——
+ * 要么它该用空态原语，要么 ui-defaults §1 得先改。⛔ 不许悄悄多一个。
+ */
+describe('字体三槽 · 展示槽只有空态这一个应用内落点', () => {
+  it('src/**/*.tsx 里 className 带 font-display 的只有空态原语', () => {
+    const offenders: string[] = []
+
+    for (const file of collectTsx(ROOT)) {
+      const source = readFileSync(file, 'utf8')
+      if (!/\bfont-display\b/.test(source)) continue
+      const relative = file.replace(`${process.cwd()}/`, '')
+      if (relative === 'src/components/ui/empty-state.tsx') continue
+      // 原语自己的测试断言标题带 font-display —— 那是门的一部分，不是落点。
+      if (relative === 'src/components/ui/empty-state.test.tsx') continue
+      offenders.push(relative)
+    }
+
+    expect(offenders).toEqual([])
+  })
+})

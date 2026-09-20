@@ -28,6 +28,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
 import type { CardManagerSortMode } from '@/lib/card-management'
 import { matchesCardSearch, sortCardManagerItems } from '@/lib/card-management'
@@ -388,22 +390,24 @@ export function SimpleCardManager({
         )}
 
         {!isLoading && cards.length === 0 && !showCreateForm && (
-          <button
-            type="button"
-            onClick={() => setShowCreateForm(true)}
-            className={cn(
-              'group flex w-1/2 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/20 bg-card/30 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card/50 hover:text-foreground',
-              aspect === 'portrait' && 'aspect-[3/4]',
-              aspect === 'video' && 'aspect-video',
-              aspect === 'square' && 'aspect-square',
-            )}
-          >
-            <Plus className="size-6 transition-transform group-hover:scale-110" />
-            <span className="text-xs font-medium">{t('create')}</span>
-            <span className="px-3 text-center text-3xs text-muted-foreground/70">
-              {t('emptyState')}
-            </span>
-          </button>
+          /* 一张卡都没有 —— 走全站空态原语（ui-defaults §7）。⛔ 不再用那张
+             「虚线幽灵卡」：它长得像一张卡，读者得先分辨「这是内容还是按钮」。
+             （`aspect` 只管真卡的比例，空态不跟着变形。） */
+          <EmptyState
+            icon={<Plus aria-hidden />}
+            title={t('emptyState')}
+            description={t('emptyStateHint')}
+            action={
+              <Button
+                type="button"
+                size="sm"
+                className="rounded-full"
+                onClick={() => setShowCreateForm(true)}
+              >
+                {t('create')}
+              </Button>
+            }
+          />
         )}
 
         {!isLoading &&

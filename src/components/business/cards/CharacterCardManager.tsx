@@ -16,6 +16,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Spinner } from '@/components/ui/spinner'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { CardManagerToolbar } from '@/components/business/cards/CardManagerToolbar'
 import { CharacterCardCreateForm } from '@/components/business/cards/CharacterCardCreateForm'
 import { CharacterCardItem } from '@/components/business/cards/CharacterCardItem'
@@ -163,17 +165,23 @@ export function CharacterCardManager({
             <Spinner size="lg" className="text-muted-foreground" />
           </div>
         ) : cards.length === 0 && !showCreateForm ? (
-          <button
-            type="button"
-            onClick={() => setShowCreateForm(true)}
-            className="group flex aspect-[3/4] w-1/2 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/20 bg-card/30 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card/50 hover:text-foreground"
-          >
-            <Plus className="size-6 transition-transform group-hover:scale-110" />
-            <span className="text-xs font-medium">{t('createNew')}</span>
-            <span className="px-3 text-center text-3xs text-muted-foreground/70">
-              {t('noCardsHint')}
-            </span>
-          </button>
+          /* 一张卡都没有 —— 走全站空态原语（ui-defaults §7）。⛔ 不再用那张
+             「虚线幽灵卡」：它长得像一张卡，读者得先分辨「这是内容还是按钮」。 */
+          <EmptyState
+            icon={<Plus aria-hidden />}
+            title={t('noCards')}
+            description={t('noCardsHint')}
+            action={
+              <Button
+                type="button"
+                size="sm"
+                className="rounded-full"
+                onClick={() => setShowCreateForm(true)}
+              >
+                {t('createNew')}
+              </Button>
+            }
+          />
         ) : visibleCards.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border/60 py-8 text-center">
             <Sparkles className="mx-auto mb-2 size-8 text-muted-foreground/40" />

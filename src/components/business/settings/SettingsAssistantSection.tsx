@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
-import { EyeOff, Trash2 } from '@/components/icons'
+import { EyeOff, Sparkles, Trash2 } from '@/components/icons'
 
 import {
   ASSISTANT_PERSONA_VERBOSITIES,
@@ -30,6 +30,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 
 /**
  * `/settings/assistant`（D3 ④ + 56a ④「最简版」画板 `DesignD56Simple`）。
@@ -255,22 +257,25 @@ function MemoryEmptyState({
 }) {
   const t = useTranslations('Settings')
   return (
-    <div className="mt-2 flex flex-col items-center gap-2 rounded-lg border border-dashed border-border px-4 py-8 text-center">
-      <p className="text-sm font-medium">
-        {isLoading ? t('assistant.memoryLoading') : t('assistant.memoryEmpty')}
-      </p>
-      <p className="max-w-[340px] text-xs leading-relaxed text-muted-foreground">
-        {t('assistant.memoryEmptyHint')}
-      </p>
-      <button
-        type="button"
-        onClick={onIncognito}
-        className="mt-1 inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-xs transition-colors duration-fast hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:h-11"
-      >
-        <EyeOff className="size-3.5" aria-hidden />
-        {t('assistant.memoryIncognitoCta')}
-      </button>
-    </div>
+    <EmptyState
+      className="mt-2"
+      icon={<Sparkles aria-hidden />}
+      title={
+        isLoading ? t('assistant.memoryLoading') : t('assistant.memoryEmpty')
+      }
+      description={t('assistant.memoryEmptyHint')}
+      action={
+        <Button
+          type="button"
+          size="sm"
+          className="rounded-full"
+          onClick={onIncognito}
+        >
+          <EyeOff className="size-3.5" aria-hidden />
+          {t('assistant.memoryIncognitoCta')}
+        </Button>
+      }
+    />
   )
 }
 

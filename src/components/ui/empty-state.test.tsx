@@ -30,6 +30,13 @@ describe('EmptyState', () => {
     expect(screen.getByRole('button', { name: '上传图片' })).toBeInTheDocument()
   })
 
+  it('puts the title in the display slot — the whole point of the primitive', () => {
+    render(<EmptyState title="还没有训练过模型" />)
+    expect(
+      screen.getByRole('heading', { name: '还没有训练过模型' }).className,
+    ).toContain('font-display')
+  })
+
   it('renders no button row when neither action is given', () => {
     render(<EmptyState title="还没有训练过模型" description="先挑个预设。" />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()

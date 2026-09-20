@@ -4,11 +4,17 @@ import { useTranslations } from 'next-intl'
 
 import { LORA_LIBRARY_SOURCES } from '@/constants/lora'
 import type { LoraLibrarySource } from '@/constants/lora'
+import { Sparkles } from '@/components/icons'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 
 // S2（docs/references/pages/lora-workbench.md §3.3）：类型筛选激活
 // （type≠all）时的稀疏/空态承接。两者都是说明性内容——中性灰阶，不执行
 // 琥珀警示色（§3.3「引导卡/空态均为中性灰阶」）。
+//
+// 空态那一半走全站空态原语（`EmptyState`，ui-defaults §7）：五段结构一字不改。
+// 稀疏卡**不是空态**（本页有 1–5 条内容），它是结果流尾部的一条引导行，
+// ⛔ 不收进原语。
 
 interface LoraLibraryTypeSparseCardProps {
   source: LoraLibrarySource
@@ -75,32 +81,32 @@ export function LoraLibraryTypeEmptyState({
   const t = useTranslations('LoraWorkbench')
 
   return (
-    <div className="flex flex-col items-center gap-3 py-12 text-center">
-      <div className="space-y-1">
-        <p className="text-sm font-medium text-foreground">
-          {t('typeEmptyTitle')}
-        </p>
-        <p className="text-xs text-muted-foreground">{t('typeEmptyBody')}</p>
-      </div>
-      <div className="flex flex-wrap items-center justify-center gap-2">
+    <EmptyState
+      className="my-3"
+      icon={<Sparkles aria-hidden />}
+      title={t('typeEmptyTitle')}
+      description={t('typeEmptyBody')}
+      action={
         <Button
           type="button"
           size="sm"
           onClick={onSearchFallback}
-          className="h-8 text-xs"
+          className="rounded-full"
         >
           {t('typeEmptySearch')}
         </Button>
+      }
+      secondaryAction={
         <Button
           type="button"
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={onClearType}
-          className="h-8 text-xs"
+          className="rounded-full"
         >
           {t('typeEmptyClear')}
         </Button>
-      </div>
-    </div>
+      }
+    />
   )
 }

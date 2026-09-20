@@ -109,6 +109,7 @@ const LoraLibraryModal = dynamic(
 )
 import { LoraAssetCard } from '@/components/business/studio/lora/LoraAssetCard'
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import {
   Dialog,
   DialogClose,
@@ -4585,58 +4586,36 @@ interface EmptyHeroProps {
   onSwitchSection: (section: LoraWorkbenchSection) => void
 }
 
+/** 我的 LoRA 空库 —— 走全站空态原语（ui-defaults §7）。 */
 function EmptyHero({ onSwitchSection }: EmptyHeroProps) {
   const t = useTranslations('LoraWorkbench')
   return (
-    <div className="relative overflow-hidden rounded-3xl border border-border/60 bg-gradient-to-br from-primary/5 via-card to-card px-6 py-14 text-center sm:px-12 sm:py-20 animate-in fade-in slide-in-from-bottom-2 duration-500">
-      {/* 抽象装饰 — 大圈柔光在右上，配合品牌色，给空状态一点温度，
-          不抢主视觉。fixed 单层渐变，不是 AI slop 的 floating blob 阵。 */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -right-24 -top-24 size-72 rounded-full bg-primary/10 blur-3xl"
-      />
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -bottom-32 -left-24 size-64 rounded-full bg-primary/5 blur-3xl"
-      />
-
-      <div className="relative mx-auto flex max-w-lg flex-col items-center gap-4">
-        <div className="inline-flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
-          <Sparkles className="size-7" strokeWidth={1.5} />
-        </div>
-
-        <div className="space-y-2">
-          <h3 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
-            {t('myLorasEmptyTitle')}
-          </h3>
-          <p className="text-sm text-muted-foreground sm:text-base">
-            {t('myLorasEmptyDescription')}
-          </p>
-        </div>
-
-        <div className="mt-2 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center">
-          <Button
-            type="button"
-            size="lg"
-            onClick={() => onSwitchSection(LORA_WORKBENCH_SECTIONS.TRAIN)}
-            className="gap-2"
-          >
-            <Sparkles className="size-4" aria-hidden />
-            {t('myLorasEmptyCtaTrain')}
-          </Button>
-          <Button
-            type="button"
-            size="lg"
-            variant="outline"
-            onClick={() => onSwitchSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)}
-            className="gap-2"
-          >
-            <Compass className="size-4" aria-hidden />
-            {t('myLorasEmptyCtaBrowse')}
-          </Button>
-        </div>
-      </div>
-    </div>
+    <EmptyState
+      icon={<Sparkles aria-hidden />}
+      title={t('myLorasEmptyTitle')}
+      description={t('myLorasEmptyDescription')}
+      action={
+        <Button
+          type="button"
+          className="rounded-full"
+          onClick={() => onSwitchSection(LORA_WORKBENCH_SECTIONS.TRAIN)}
+        >
+          <Sparkles className="size-4" aria-hidden />
+          {t('myLorasEmptyCtaTrain')}
+        </Button>
+      }
+      secondaryAction={
+        <Button
+          type="button"
+          variant="ghost"
+          className="rounded-full"
+          onClick={() => onSwitchSection(LORA_WORKBENCH_SECTIONS.COMMUNITY)}
+        >
+          <Compass className="size-4" aria-hidden />
+          {t('myLorasEmptyCtaBrowse')}
+        </Button>
+      }
+    />
   )
 }
 

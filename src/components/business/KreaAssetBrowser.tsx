@@ -58,6 +58,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { EmptyState as EmptyStateTemplate } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group'
 import { ProjectCreateDialog } from '@/components/business/ProjectCreateDialog'
@@ -2262,21 +2263,20 @@ function DensityToggle({ density, onChange }: DensityToggleProps) {
   )
 }
 
+/** 素材库空库（无文件夹上下文那一档）—— 走全站空态原语（ui-defaults §7）。 */
 function EmptyState() {
   const t = useTranslations('AssetsPage')
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-      <div className="flex size-12 items-center justify-center rounded-2xl bg-muted/40 text-muted-foreground">
-        <ImageIcon className="size-6" />
-      </div>
-      <h2 className="text-xl font-medium">{t('emptyTitle')}</h2>
-      <p className="text-sm text-muted-foreground">{t('emptyDescription')}</p>
-      <Link
-        href={ROUTES.STUDIO_IMAGE}
-        className="mt-2 inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2 text-sm font-medium text-background transition-colors hover:bg-foreground/90"
-      >
-        {t('emptyAction')}
-      </Link>
-    </div>
+    <EmptyStateTemplate
+      className="my-4"
+      icon={<ImageIcon aria-hidden />}
+      title={t('emptyTitle')}
+      description={t('emptyDescription')}
+      action={
+        <Button asChild className="rounded-full">
+          <Link href={ROUTES.STUDIO_IMAGE}>{t('emptyAction')}</Link>
+        </Button>
+      }
+    />
   )
 }

@@ -4,6 +4,7 @@ import { Sparkles } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { EmptyState as EmptyStateTemplate } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
 
 import { InspirationCard } from './InspirationCard'
@@ -45,7 +46,12 @@ export function InspirationGrid() {
       ) : isLoading && items.length === 0 ? (
         <GridSkeleton />
       ) : items.length === 0 ? (
-        <EmptyState />
+        <EmptyState
+          onClearFilters={() => {
+            setCategory(null)
+            setQuery('')
+          }}
+        />
       ) : (
         <>
           <div className="text-xs text-muted-foreground">
@@ -102,15 +108,19 @@ function GridSkeleton() {
   )
 }
 
-function EmptyState() {
+/** 灵感墙筛不出东西 —— 走全站空态原语（ui-defaults §7）。 */
+function EmptyState({ onClearFilters }: { onClearFilters: () => void }) {
   const t = useTranslations('PromptLibrary')
   return (
-    <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-border/60 bg-card/50 p-10 text-center">
-      <Sparkles className="size-8 text-primary/70" />
-      <h3 className="text-lg font-medium">{t('inspirationEmptyTitle')}</h3>
-      <p className="max-w-sm text-sm leading-6 text-muted-foreground">
-        {t('inspirationEmptyDescription')}
-      </p>
-    </div>
+    <EmptyStateTemplate
+      icon={<Sparkles aria-hidden />}
+      title={t('inspirationEmptyTitle')}
+      description={t('inspirationEmptyDescription')}
+      action={
+        <Button type="button" className="rounded-full" onClick={onClearFilters}>
+          {t('inspirationEmptyClear')}
+        </Button>
+      }
+    />
   )
 }

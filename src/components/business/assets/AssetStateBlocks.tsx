@@ -9,6 +9,7 @@ import {
 import { useTranslations } from 'next-intl'
 
 import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { ROUTES } from '@/constants/routes'
 import { Link } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
@@ -29,26 +30,37 @@ interface AssetEmptyLibraryProps {
   onUpload: () => void
 }
 
+/**
+ * 空库（当前**没有**文件夹上下文那一档）—— 走全站空态原语
+ * （`EmptyState`，ui-defaults §7）。
+ *
+ * ⚠ 下面的 `AssetEmptyFolder`（空文件夹）**故意还没收进原语**：它的文案与出口
+ * 依赖 19「文件夹」那一整套还没落地，收口要和 19 一起做，否则改完还得再改一遍。
+ */
 export function AssetEmptyLibrary({ onUpload }: AssetEmptyLibraryProps) {
   const t = useTranslations('AssetsPage')
   return (
-    <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
-      <span className="flex size-12 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
-        <ImageIcon className="size-6" />
-      </span>
-      <h2 className="text-xl font-medium text-foreground">{t('emptyTitle')}</h2>
-      <p className="max-w-sm text-sm text-muted-foreground">
-        {t('emptyDescription')}
-      </p>
-      <div className="mt-2 flex items-center gap-2">
-        <Button type="button" size="sm" onClick={onUpload}>
+    <EmptyState
+      className="my-4"
+      icon={<ImageIcon aria-hidden />}
+      title={t('emptyTitle')}
+      description={t('emptyDescription')}
+      action={
+        <Button
+          type="button"
+          className="rounded-full"
+          size="sm"
+          onClick={onUpload}
+        >
           {t('uploadButton')}
         </Button>
-        <Button asChild size="sm" variant="outline">
+      }
+      secondaryAction={
+        <Button asChild size="sm" variant="ghost" className="rounded-full">
           <Link href={ROUTES.STUDIO_IMAGE}>{t('emptyAction')}</Link>
         </Button>
-      </div>
-    </div>
+      }
+    />
   )
 }
 

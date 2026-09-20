@@ -12,6 +12,8 @@ import type {
   UpdateStyleCardRequest,
 } from '@/types'
 import { CardManagerToolbar } from '@/components/business/cards/CardManagerToolbar'
+import { Button } from '@/components/ui/button'
+import { EmptyState } from '@/components/ui/empty-state'
 import { MediaCardTile } from '@/components/business/MediaCardTile'
 import { StyleCardEditor } from '@/components/business/cards/StyleCardEditor'
 import {
@@ -218,17 +220,23 @@ export function StyleCardManager({
         />
 
         {cards.length === 0 && (
-          <button
-            type="button"
-            onClick={() => setView({ type: 'create' })}
-            className="group flex aspect-square w-1/3 flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-white/20 bg-card/30 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-card/50 hover:text-foreground"
-          >
-            <Plus className="size-6 transition-transform group-hover:scale-110" />
-            <span className="text-xs font-medium">{t('new')}</span>
-            <span className="px-3 text-center text-3xs text-muted-foreground/70">
-              {tStyle('empty')}
-            </span>
-          </button>
+          /* 一张卡都没有 —— 走全站空态原语（ui-defaults §7）。⛔ 不再用那张
+             「虚线幽灵卡」：它长得像一张卡，读者得先分辨「这是内容还是按钮」。 */
+          <EmptyState
+            icon={<Plus aria-hidden />}
+            title={tStyle('empty')}
+            description={tStyle('emptyHint')}
+            action={
+              <Button
+                type="button"
+                size="sm"
+                className="rounded-full"
+                onClick={() => setView({ type: 'create' })}
+              >
+                {t('new')}
+              </Button>
+            }
+          />
         )}
 
         {cards.length > 0 && visibleCards.length === 0 && (

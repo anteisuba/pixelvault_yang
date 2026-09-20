@@ -112,6 +112,26 @@ describe('getResolvedModelOptions', () => {
 })
 
 describe('getResolvedModelOption', () => {
+  it('keeps paused PixAI entries unavailable even when old DB rows enable them', async () => {
+    const row = {
+      ...FAKE_ROW,
+      modelId: AI_MODELS.PIXAI_TSUBAKI_2,
+      adapterType: 'pixai',
+      available: true,
+    }
+    mockFindMany.mockResolvedValue([row])
+    mockFindUnique.mockResolvedValue(row)
+    mockFindUnique.mockClear()
+    const resolved = await getResolvedModelOption(AI_MODELS.PIXAI_TSUBAKI_2)
+    expect(resolved?.available).toBe(false)
+    expect(mockFindUnique).not.toHaveBeenCalled()
+    const catalog = await getResolvedModelOptions()
+    expect(
+      catalog.find((model) => model.id === AI_MODELS.PIXAI_TSUBAKI_2)
+        ?.available,
+    ).toBe(false)
+  })
+
   it('applies DB execution overrides to the canonical built-in model', async () => {
     mockFindUnique.mockResolvedValue({
       ...FAKE_ROW,

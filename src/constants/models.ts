@@ -146,6 +146,10 @@ export const RETIRED_MODEL_IDS = [
   // family. The remaining LoRA bases are the Comfy Runner clones.
   AI_MODELS.ILLUSTRIOUS_XL,
   AI_MODELS.FLUX_LORA,
+  // PixAI is paused by product decision; keep IDs for existing archives.
+  AI_MODELS.PIXAI_TSUBAKI_2,
+  AI_MODELS.PIXAI_HARUKA_V2,
+  AI_MODELS.PIXAI_HOSHINO_V2,
 ] as const satisfies readonly AI_MODELS[]
 
 const RETIRED_MODEL_ID_SET = new Set<string>(RETIRED_MODEL_IDS)

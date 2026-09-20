@@ -168,6 +168,40 @@ describe('resolveGenerationRoute', () => {
     expect(findActiveKeyForAdapter).not.toHaveBeenCalled()
   })
 
+  it.each([
+    AI_MODELS.PIXAI_TSUBAKI_2,
+    AI_MODELS.PIXAI_HARUKA_V2,
+    AI_MODELS.PIXAI_HOSHINO_V2,
+  ])(
+    'rejects paused PixAI model %s before looking up a key',
+    async (modelId) => {
+      await expect(
+        resolveGenerationRoute('user-1', { modelId, apiKeyId: 'pixai-key' }),
+      ).rejects.toThrow(
+        expect.objectContaining({ code: 'UNSUPPORTED_MODEL', status: 400 }),
+      )
+      expect(getApiKeyValueById).not.toHaveBeenCalled()
+      expect(findActiveKeyForAdapter).not.toHaveBeenCalled()
+    },
+  )
+
+  it('does not allow a custom model ID to bypass the PixAI pause', async () => {
+    vi.mocked(getApiKeyValueById).mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.PIXAI,
+      providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.PIXAI),
+      keyValue: 'test-key',
+      modelId: 'custom-pixai-version',
+    } as never)
+    await expect(
+      resolveGenerationRoute('user-1', {
+        modelId: 'custom-pixai-version',
+        apiKeyId: 'pixai-key',
+      }),
+    ).rejects.toThrow(
+      expect.objectContaining({ code: 'UNSUPPORTED_MODEL', status: 400 }),
+    )
+  })
+
   it('rejects a model immediately when the DB catalog marks it unavailable', async () => {
     vi.mocked(getResolvedModelOption).mockResolvedValue({
       ...modelsMock.realGetModelById!('flux-2-pro')!,

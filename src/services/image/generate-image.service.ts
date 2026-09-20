@@ -108,7 +108,11 @@ export async function resolveGenerationRoute(
 ): Promise<ResolvedGenerationRoute> {
   const builtInModel = await getResolvedModelOption(modelId)
 
-  if (builtInModel && !builtInModel.available) {
+  if (
+    builtInModel &&
+    (!builtInModel.available ||
+      builtInModel.adapterType === AI_ADAPTER_TYPES.PIXAI)
+  ) {
     throw new GenerateImageServiceError(
       'UNSUPPORTED_MODEL',
       'This model is no longer available for new generations',
@@ -127,6 +131,14 @@ export async function resolveGenerationRoute(
       throw new GenerateImageServiceError(
         'INVALID_ROUTE_SELECTION',
         'Selected API key is unavailable',
+        400,
+      )
+    }
+
+    if (selectedApiKey.adapterType === AI_ADAPTER_TYPES.PIXAI) {
+      throw new GenerateImageServiceError(
+        'UNSUPPORTED_MODEL',
+        'PixAI is not available for new generations',
         400,
       )
     }

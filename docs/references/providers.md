@@ -129,7 +129,7 @@ adapter / Worker 抛错
 | fal               | 图/视频/3D 最大聚合通道（queue submit/poll）                                 | 参考图 URL 必须直接可达；**部分视频 schema 未逐字段核验**（改前查模型页）；Worker 已迁移（图+视频+长视频+3D）。`fal.adapter.ts` 的 `submitModel3DToQueue`/`checkModel3DQueueStatus` 内联实现已整删（2026-08-25）——3D 提交侧对 FAL/Hyper3D Rodin 无条件短路进 Worker，legacy 内联任务早被 execution-sweeper 清空，`generate-3d.service.ts` 同步删掉了 PR3-α 的 mesh-first 分阶段调用                                                                                                                                                                                                                   |
 | replicate         | 图（FLUX/SDXL LoRA 字段）                                                    | 结果下载需 bearer；Worker 已迁移                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | novelai           | 图（nai-diffusion-5 / 4.5，Full+Curated）                                    | **BYOK-only**（无平台 key）。返回 ZIP 需解包；V5 payload 是 `params_version: 4` 且不发 `skip_cfg_above_sigma`；Worker 已迁移（t2i + 单图 img2img + **V5 遮罩重绘**）。V5 发布当天无 Director / Vibe Transfer。**V4/4.5 多图 Director 模式随 src 死链删除，实现只存于 git 历史（worker 从未实现过它），能力已收 `maxReferenceImages:1`（`d2c664bd`）**。2026-09-20（进度表 26）补三颗控件 + inpaint，见下方「NovelAI V5 专属控件」节                                                                                                                                                                   |
-| pixai             | 图（Tsubaki.2 / Haruka v2 / Hoshino v2）                                     | **BYOK-only**，A 类原生，**仅文生图**（无 i2i / 参考图 / 编辑 / 视频，能力表如实写 `maxReferenceImages: 0`）。队列型：`POST /v2/image/create` → `GET /v1/task/{id}` 轮询（⚠ 官方下限 1.5s/次；状态 waiting/running/completed/failed/cancelled）。**图不永久保留**——worker 拿到 `outputs.mediaUrls[0]` 立刻下载进 R2，⛔ 不存 PixAI 的临时 URL。账号级并发闸：同时最多 10 个 `waiting` 任务（running 不计），429 时给出这句话而不是「key 无效」。`batchSize` 官方收 1\|4，本仓只发 **1**（worker 图片结果契约是单张）；比例逐字透传（本仓 5 种是官方 11 种的子集）。**价目未核实**——见下方「未核实项」 |
+| pixai             | 暂时下架（Tsubaki.2 / Haruka v2 / Hoshino v2）                               | **BYOK-only**，A 类原生，**仅文生图**（无 i2i / 参考图 / 编辑 / 视频，能力表如实写 `maxReferenceImages: 0`）。队列型：`POST /v2/image/create` → `GET /v1/task/{id}` 轮询（⚠ 官方下限 1.5s/次；状态 waiting/running/completed/failed/cancelled）。**图不永久保留**——worker 拿到 `outputs.mediaUrls[0]` 立刻下载进 R2，⛔ 不存 PixAI 的临时 URL。账号级并发闸：同时最多 10 个 `waiting` 任务（running 不计），429 时给出这句话而不是「key 无效」。`batchSize` 官方收 1\|4，本仓只发 **1**（worker 图片结果契约是单张）；比例逐字透传（本仓 5 种是官方 11 种的子集）。**价目未核实**——见下方「未核实项」 |
 | volcengine        | 图/视频国内直连（Ark，`ark.cn-beijing.volces.com/api/v3`）                   | 官方文档页需 JS 渲染，字段级改动去控制台 API Explorer / SDK 例子核；Worker 已迁移（图）                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | byteplus          | 图/视频国际线（BytePlus ModelArk，`ark.ap-southeast.bytepluses.com/api/v3`） | 与 volcengine **同一份实现**（`byteplusAdapter = { ...volcengineAdapter, adapterType: BYTEPLUS }`），只换 adapterType / baseUrl / key 槽；账号与 key **与国内 Ark 不通用**。有平台 key（`BYTEPLUS_API_KEY`）。Worker 侧共用 `models/volcengine/video-request-builder.ts`（`isVolcEngineProviderId` 同时认 `byteplus`）                                                                                                                                                                                                                                                                                |
 | minimax           | 视频（MiniMax-H3，国际站 `api.minimax.io/v2`）                               | 队列型 submit → poll；`generateImage()` 直接抛 400（**video only**）。轮询的 `status` 故意用 string 不用 `z.enum`——未文档化的中间态按「仍在排队」处理，不炸掉在飞的 poll。参考图/视频/音频上限 9 / 3 / 3 且总数 ≤12（超任一条 provider 返 400，发送前 clamp）。有平台 key（`MINIMAX_API_KEY`）；Worker 侧 `models/minimax/video-request-builder.ts`                                                                                                                                                                                                                                                   |
@@ -238,34 +238,26 @@ adapter / Worker 抛错
 - 遮罩传输：客户端画布导出的是 data URL，`submit-image.service` 在建 job 之前把它换成 R2 的 http URL，之后才进 DB 与 worker（worker 解不了 `data:`，而 DB 里也不该躺几十 KB 的 base64）。前置校验：恰好 1 张参考图，且模型在能力表里声明了 `inpaint`。
 - 画板复用编辑域那块 `StudioInpaintEditor`（画笔 / 拉框 / 橡皮 / 撤销 / 清空，导出与源图**逐像素同尺寸**的黑白 PNG），生成工作台把它那条重绘指令关掉 —— 那一枪的提示词就是工作台里那条。⛔ 没做羽化 / 反选 / 图层。
 
-## PixAI 接入（verified 2026-09-20，进度表 26）
+## PixAI 接入（2026-09-20 暂时下架；历史契约已核实）
+
+Owner 决定暂时移除 PixAI 接入。三个模型标记 unavailable 并加入既有退役名单：模型选择器、可用目录与新增 key 配置入口不再出现 PixAI，旧 DB 配置不能重新启用它；服务端拒绝三个型号及以 PixAI key 指定的自定义型号的新生成。已有 key、作品、模型标签和运行记录不删除，已提交任务的 Worker 处理保留。本轮未提交的 style / LoRA 架、链接输入与相关扩展已撤回；下方是历史契约，不代表当前产品入口。
 
 - 端点：`POST https://api.pixai.art/v2/image/create`（⚠ v2）→ `GET https://api.pixai.art/v1/task/{id}`（⚠ v1，两代不同）。鉴权 `Authorization: Bearer <key>`。
 - 请求体：`modelVersionId`（必填）· `prompt`（必填）· `negativePrompt` · `aspectRatio`（11 档，默认 `1:1`）· `size`（`1k`\|`1.5k`）· `mode`（**仅 Tsubaki**：lite/standard/pro/ultra）· `style`（仅 Tsubaki）· `batchSize`（1\|4）· `seed` · `loras`（≤5）· `sampling`（SDXL 档的扩散旋钮）· `promptHelper` · `callbackUrl`。
 - 三个型号与 `modelVersionId`：Tsubaki.2 `1983308862240288769`（DiT）· Haruka v2 `1861558740588989558`（SDXL）· Hoshino v2 `1954632828118619567`（SDXL）。⚠ **beta API，版本号随发布会变**——目录里的 `externalModelId` 就是这串数字。
-- 能力表：adapter 默认只有 `negativePrompt` + `seed`（两档架构都收）；`guidanceScale` / `steps` 逐模型挂在 SDXL 两条上（Tsubaki 是 DiT，收的是 `mode` / `style`，不收扩散旋钮）。`maxReferenceImages: 0` 是如实声明。
+- 能力表：历史 adapter 默认含 `negativePrompt` / `seed` / `pixaiSize`；`guidanceScale` / `steps` 逐模型挂在 SDXL 两条上（Tsubaki 是 DiT，收的是 `mode` / `style`，不收扩散旋钮）。`maxReferenceImages: 0` 是如实声明。
 - 健康检查打一个必定不存在的 task id，判据是「**不是 401/403、不是 5xx**」——PixAI 没有公开的 `/me` 或余额端点，⛔ 别改成 `response.ok`（好 key 也会被判成不可用）。
 
-### PixAI 专属旋钮（verified 2026-09-20，第二次核对 createImage 页）
+### PixAI 契约补核（verified 2026-09-20，当前不继续接入）
 
-起因：只选 Tsubaki.2 时工作台右列**整个空白** —— 能力表当时只给 PixAI 声明了
-`negativePrompt` + `seed`，两者都不是 chip 形态。逐字段重读官方 createImage 页后
-**接了两条、按「不猜」压下两条**：
+官方来源：[REST v2 createImage](https://platform.pixai.art/en/docs/api-v2/image/createImage)、[LoRA 使用与架构兼容](https://docs.pixai.art/docs/lora/lora-usage)、[公开 API 文档索引](https://platform.pixai.art/llms.txt)、[官方 JS SDK 查询定义](https://github.com/pixai-art/pixai-client-js/blob/main/graphql/query.graphql)。Method：读取官方正文及页面交付的完整请求 schema；旧记录漏读了折叠的 `style.oneOf` 和 `loras.items.properties`。
 
-| 字段    | 官方口径                                                                                                                                                           | 本轮                                                             |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| `mode`  | `lite` / `standard` / `pro` / `ultra`。「Only available for the Tsubaki.2 and Tsubaki.3 model families. Rejected with 400 INVALID_ARGUMENT on other model types.」 | **已接**，能力键 `pixaiMode`，只挂 Tsubaki.2 的 override         |
-| `size`  | `1k` ≈ 1 MP · `1.5k` ≈ 2.36 MP，「longest edge is capped at 1536 px for 1.5k」                                                                                     | **已接**，能力键 `pixaiSize`，挂 adapter 默认（三个型号都有）    |
-| `style` | 「Can be a named preset or a custom style string」——**没有列出任何 preset 名**                                                                                     | ⛔ **不接**：值集未公开，填什么都是猜，摆一个会 400 的输入框更糟 |
-| `loras` | 只写了「Apply one or more LoRA adapters… Up to 5 LoRAs can be combined」与「LoraItem」这个类型名；**页面上没有 LoraItem 的属性定义**                               | ⛔ **不接**：连字段名都没有，发出去要么 400 要么被静默忽略       |
-
-- `pixaiSize` **刻意不复用 `resolution`**：后者在本仓是「1K / 2K / 4K 这把公共梯子」，规格 chip 的 `SPEC_IMAGE_RESOLUTION_TIERS` 照它画。PixAI 的梯子与它没有交集，挂上去规格 chip 会画出三格划掉的 1K/2K/4K 而真正的两档一格都不出。**一个键两把梯子**正是「同一个身份两种含义」那类 bug 的来源。
-- worker 侧两条都走**白名单**：表外的值一律不发（`mode` 在非 Tsubaki 上是 400），⛔ 不原样透传客户端送来的串。「哪个型号有哪一档」由能力表 + `generate-image.service` 的值域校验判，⛔ worker 里不抄第二份模型名单。
-- ⚠ `loras` 再接时**不能复用 `advancedParams.loras`**：那一档是 `{url, scale}`（给 fal / Replicate 的 URL 体系），而 PixAI 认的是自家 `pixai.art/model/<id>/<versionId>` 那串 id。两件事，两个字段。
-- ⛔ 本轮未动：`batchSize`（worker 的图片结果契约是单张，只发 1）· `promptHelper`（语义未核）· `aspectRatio`（归规格 chip）。
-
-- **未核实项**：API 专属价目。PixAI 是 credits 制，但平台文档没有给出 API 的 credits 换算或单价，所以目录里的 `cost: 2` 是**站内额度档**（与 NovelAI 同档），⛔ 不是换算出来的成本。真实费率要以 owner 账号实跑为准。`style` 的值集与 `loras` 的 `LoraItem` 形状同样未核实（见上表）。
-- **未联调**：本轮全部用 fixture 测试，没有对 `api.pixai.art` 发过真实请求，key 有效性、错误体形状、`sampling` 的字段名逐字正确性均未在真机验证。
+- `mode`：仅 Tsubaki.2 / .3，lite / standard / pro / ultra；`size`：1k / 1.5k。已有声明随模型下架而退出当前产品入口。
+- `style`：Tsubaki 专属，收 `{type:'preset',key:枚举}` 或 `{type:'custom',custom:字符串}`。官方 schema 列出 35 个预设；本轮实现已按 owner 指令撤回。
+- `loras`：最多 5 项，每项 `{modelId:string,weight?:number,triggerWords?:string}`；权重 0–1、默认 1，不发 triggerWords 时用版本默认触发词。`modelId` 实际是 PixAI LoRA 版本 ID（版本页 URL 最后一段），不是本仓 LoRA 资产 ID 或文件 URL。当前公开 REST 文档未发布列举/搜索接口，旧 SDK 的 GraphQL 查询不等于 REST v2 列表接口。
+- 兼容性：Tsubaki.2 使用专属 LoRA，Haruka / Hoshino 使用 SDXL LoRA；不能凭 ID 声称已经验证架构兼容。网页默认权重或会员挂载数不覆盖 REST schema。
+- 保留的既有执行契约：batchSize 只发 1；未改 promptHelper、比例、费用或平台回落策略。官方 sampling 的步数字段为 `steps`，既有 Worker 写 `samplingSteps`，未改动且不宣称联调通过。
+- 未核实 API credits 价目与换算；未做真实付费生成。本轮取消接入不作已完成 PixAI 联调的记录。
 
 ## 图片专属能力核验（2026-09-18，进度表 61）
 

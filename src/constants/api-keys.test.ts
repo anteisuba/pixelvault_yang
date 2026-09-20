@@ -17,10 +17,6 @@ describe('api key adapter options', () => {
       AI_ADAPTER_TYPES.DEEPSEEK,
       AI_ADAPTER_TYPES.FAL,
       AI_ADAPTER_TYPES.NOVELAI,
-      // PixAI joined 2026-09-20 (progress table 26) — BYOK, text-to-image
-      // only. It lands here automatically because its three models are
-      // `available: true`; the list is derived, not hand-kept.
-      AI_ADAPTER_TYPES.PIXAI,
       AI_ADAPTER_TYPES.VOLCENGINE,
       AI_ADAPTER_TYPES.BYTEPLUS,
       AI_ADAPTER_TYPES.FISH_AUDIO,
@@ -57,5 +53,7 @@ describe('api key adapter options', () => {
     expect(ACTIVE_API_KEY_ADAPTER_OPTIONS).not.toContain(
       AI_ADAPTER_TYPES.REPLICATE,
     )
+    expect(ACTIVE_API_KEY_ADAPTER_OPTIONS).not.toContain(AI_ADAPTER_TYPES.PIXAI)
+    expect(API_KEY_ADAPTER_OPTIONS).toContain(AI_ADAPTER_TYPES.PIXAI)
   })
 })

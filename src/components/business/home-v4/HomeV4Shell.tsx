@@ -1,49 +1,22 @@
 import '@/app/home-v4.css'
 import '@/app/auth.css'
 
-import type { CSSProperties } from 'react'
-
 import { useLocale } from 'next-intl'
 
-import {
-  HOME_V4_DOTS_STAGGER_MS,
-  HOME_V4_ENGINE,
-  HOME_V4_PARALLAX,
-  type HomeV4ShowcaseShot,
-} from '@/constants/homepage-v4'
+import type { HomeV4ShowcaseShot } from '@/constants/homepage-v4'
 import { AuthDialogProvider } from '@/components/business/auth/AuthDialog'
 
 import { HomeV4Deck } from './HomeV4Deck'
 
 /**
- * Motion numbers pushed onto the domain root as custom properties.
- *
- * `home-v4.css` declares the same values as fallbacks, so the skin still reads
- * correctly on its own — but at runtime these win, which is what keeps the
- * engine's clock (`HOME_V4_ENGINE.PAGE_MS`, the lock, the layer offsets) and the
- * stylesheet's clock from being two numbers that drift apart.
- */
-const MOTION_VARS = {
-  '--dur': `${HOME_V4_ENGINE.PAGE_MS}ms`,
-  '--l1-dur': `${HOME_V4_PARALLAX.L1_MS}ms`,
-  '--l3-dur': `${HOME_V4_PARALLAX.L3_MS}ms`,
-  '--hfade': `${HOME_V4_PARALLAX.STATION_FADE_MS}ms`,
-  '--l1-v': `${HOME_V4_PARALLAX.VERTICAL_VH.L1}vh`,
-  '--l2-v': `${HOME_V4_PARALLAX.VERTICAL_VH.L2}vh`,
-  '--l3-v': `${HOME_V4_PARALLAX.VERTICAL_VH.L3}vh`,
-  '--l1-h': `${HOME_V4_PARALLAX.HORIZONTAL_VW.L1}vw`,
-  '--l2-h': `${HOME_V4_PARALLAX.HORIZONTAL_VW.L2}vw`,
-  '--l3-h': `${HOME_V4_PARALLAX.HORIZONTAL_VW.L3}vw`,
-  '--dot-stagger': `${HOME_V4_DOTS_STAGGER_MS}ms`,
-} as CSSProperties
-
-/**
- * v4 marketing home. Domain contract:
+ * v5 marketing home（长卷 + 钉住演示）。Domain contract:
  * `docs/references/pages/home.md`.
  *
  * A server component on purpose — the deck under it is the only client
- * boundary, so the headline, the model names and the whole page list are in the
- * first HTML response and the page stays edge-cacheable.
+ * boundary, so the headline, the model names and the whole section list are in
+ * the first HTML response and the page stays edge-cacheable. ⭐ 长卷把这条
+ * 拉得更紧了：scrub 未挂载时每段的进度是 `REST_PROGRESS`（结果态），所以首个
+ * HTML 里六段演示画的是**做完的样子**，没有 JS 的访客看到的是内容。
  *
  * `data-locale` picks the CJK face. It reads the locale segment rather than
  * `<html lang>` because a root layout never re-renders on client navigation, and
@@ -63,7 +36,7 @@ export function HomeV4Shell({ shots }: HomeV4ShellProps) {
 
   return (
     <AuthDialogProvider>
-      <div className="home-v4" data-locale={locale} style={MOTION_VARS}>
+      <div className="home-v4" data-locale={locale}>
         <HomeV4Deck locale={locale} shots={shots} />
       </div>
     </AuthDialogProvider>

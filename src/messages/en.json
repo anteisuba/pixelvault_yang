@@ -633,10 +633,7 @@
       "nav": {
         "label": "Page navigation",
         "pageLabel": "Page index",
-        "close": "Close",
-        "stationPages": "{count, plural, one {# page} other {# pages}}",
-        "prevModel": "Previous model",
-        "nextModel": "Next model"
+        "close": "Close"
       },
       "groups": {
         "opening": "Opening",
@@ -859,20 +856,10 @@
           "nav": "Vault",
           "title": "Everything you keep can go back on stage."
         },
-        "modelsImage": {
-          "nav": "Models · Image"
-        },
-        "modelsLora": {
-          "nav": "Models · LoRA"
-        },
-        "modelsVideo": {
-          "nav": "Models · Video"
-        },
-        "modelsAudio": {
-          "nav": "Models · Audio"
-        },
-        "models3d": {
-          "nav": "Models · 3D"
+        "models": {
+          "nav": "Model line-up",
+          "title": "Twenty-five models, one place to run them.",
+          "eyebrow": "07 · MODELS"
         },
         "finale": {
           "nav": "Closing"
@@ -887,6 +874,17 @@
         "coverAlt": "{model} sample output"
       },
       "models": {
+        "rows": {
+          "image": "Image",
+          "lora": "LoRA",
+          "video": "Video",
+          "audio": "Audio",
+          "threed": "3D"
+        },
+        "rail": {
+          "count": "{count}",
+          "open": "Generate with {model}"
+        },
         "gpt": {
           "pos": "The all-rounder: top of the blind-test boards, and the best at reading a complicated brief.",
           "fare": "Usage-based",

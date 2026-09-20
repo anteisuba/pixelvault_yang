@@ -43,7 +43,7 @@ const ALLOWED_CONSUMERS: Readonly<Record<string, readonly string[]>> = {
     'components/business/home-v4/HomeV4FnLora.tsx',
     'components/business/home-v4/HomeV4FnVault.tsx',
     'components/business/home-v4/HomeV4FnVideo.tsx',
-    'components/business/home-v4/HomeV4ModelPage.tsx',
+    'components/business/home-v4/HomeV4ModelRail.tsx',
     'components/business/home-v4/HomeV4ModelSheet.tsx',
     'components/business/home-v4/HomeV4ModelStrip.tsx',
     'components/business/home-v4/HomeV4Opening.tsx',

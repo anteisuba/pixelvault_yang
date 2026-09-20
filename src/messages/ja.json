@@ -633,10 +633,7 @@
       "nav": {
         "label": "ページナビゲーション",
         "pageLabel": "ページ番号",
-        "close": "閉じる",
-        "stationPages": "{count} ページ",
-        "prevModel": "前のモデル",
-        "nextModel": "次のモデル"
+        "close": "閉じる"
       },
       "groups": {
         "opening": "オープニング",
@@ -859,20 +856,10 @@
           "nav": "ライブラリ",
           "title": "残したものは、また使える。"
         },
-        "modelsImage": {
-          "nav": "モデル · 画像"
-        },
-        "modelsLora": {
-          "nav": "モデル · LoRA"
-        },
-        "modelsVideo": {
-          "nav": "モデル · 動画"
-        },
-        "modelsAudio": {
-          "nav": "モデル · 音声"
-        },
-        "models3d": {
-          "nav": "モデル · 3D"
+        "models": {
+          "nav": "モデル一覧",
+          "title": "25 のモデルを、ひとつの場所から。",
+          "eyebrow": "07 · MODELS"
         },
         "finale": {
           "nav": "エンディング"
@@ -887,6 +874,17 @@
         "coverAlt": "{model} の作例"
       },
       "models": {
+        "rows": {
+          "image": "画像",
+          "lora": "LoRA",
+          "video": "動画",
+          "audio": "音声",
+          "threed": "3D"
+        },
+        "rail": {
+          "count": "{count} 件",
+          "open": "{model} で生成する"
+        },
         "gpt": {
           "pos": "総合首位：ブラインド評価で首位を守り、複雑な指示の読解が最も得意。",
           "fare": "従量課金",

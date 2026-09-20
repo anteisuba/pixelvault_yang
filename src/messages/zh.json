@@ -633,10 +633,7 @@
       "nav": {
         "label": "页导航",
         "pageLabel": "页码",
-        "close": "关闭",
-        "stationPages": "{count} 页",
-        "prevModel": "上一个模型",
-        "nextModel": "下一个模型"
+        "close": "关闭"
       },
       "groups": {
         "opening": "开场",
@@ -859,20 +856,10 @@
           "nav": "资源库",
           "title": "存下来的，都能再上场。"
         },
-        "modelsImage": {
-          "nav": "模型 · 图片"
-        },
-        "modelsLora": {
-          "nav": "模型 · LoRA"
-        },
-        "modelsVideo": {
-          "nav": "模型 · 视频"
-        },
-        "modelsAudio": {
-          "nav": "模型 · 声音"
-        },
-        "models3d": {
-          "nav": "模型 · 3D"
+        "models": {
+          "nav": "模型阵容",
+          "title": "二十五个模型，一处调度。",
+          "eyebrow": "07 · MODELS"
         },
         "finale": {
           "nav": "收尾"
@@ -887,6 +874,17 @@
         "coverAlt": "{model} 代表图"
       },
       "models": {
+        "rows": {
+          "image": "图片",
+          "lora": "LoRA",
+          "video": "视频",
+          "audio": "声音",
+          "threed": "3D"
+        },
+        "rail": {
+          "count": "{count} 个",
+          "open": "用 {model} 生成"
+        },
         "gpt": {
           "pos": "全能第一名：盲测榜连续霸榜，最能读懂复杂指令。",
           "fare": "按用量计费",

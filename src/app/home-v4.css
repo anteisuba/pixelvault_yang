@@ -20,10 +20,26 @@
  * a frozen page.
  */
 
-html.home-v4-locked,
-body.home-v4-locked {
-  height: 100%;
-  overflow: hidden;
+/* ⭐ v5 长卷：页面**用文档自己的滚动条**。v4 在这里写的是
+   `height:100%; overflow:hidden`（整页交给翻页引擎），那一条连同引擎一起删了。
+   现在这个类只声明「怎么滚」：段首一格一段（proximity，段内自由），跳段平滑。 */
+html.home-v4-roll {
+  scroll-snap-type: y proximity;
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.home-v4-roll {
+    scroll-snap-type: none;
+    scroll-behavior: auto;
+  }
+}
+
+/* 手机：不钉住、不 snap —— 每段就是一屏结果态，一路滚下去。 */
+@media (max-width: 768px) {
+  html.home-v4-roll {
+    scroll-snap-type: none;
+  }
 }
 
 .home-v4 {
@@ -57,20 +73,10 @@ body.home-v4-locked {
   --gut: clamp(22px, 5vw, 80px);
   --bar: 54px;
 
-  /* Motion. `HomeV4Deck` overwrites these inline from `HOME_V4_ENGINE` /
-     `HOME_V4_PARALLAX` so the numbers have exactly one home; the literals here
-     are the same SPEC values and only apply if the script never runs. */
-  --dur: 850ms;
-  --l1-dur: 1050ms;
-  --l3-dur: 680ms;
-  --hfade: 750ms;
-  --l1-v: 7vh;
-  --l2-v: 13vh;
-  --l3-v: 22vh;
-  --l1-h: 6vw;
-  --l2-h: 11vw;
-  --l3-h: 18vw;
-  --dot-stagger: 18ms;
+  /* ⚠ 翻页时钟（`--dur` / 三层错速的时长与位移 / 站内淡入 / 页点错开）全部删了
+     ——那是 v4 翻页引擎的参数，引擎没了。`--dur` 只留给段内还在用它的几处揭开
+     过渡。 */
+  --dur: 400ms;
 
   --easing: cubic-bezier(0.65, 0.05, 0.28, 1);
 
@@ -215,79 +221,36 @@ body.home-v4-locked {
   text-decoration: none;
 }
 
-/* ─── 翻页引擎：竖站 ────────────────────────────────────────────── */
+/* ─── 长卷：段 + 钉住的舞台 ─────────────────────────────────────── */
 .home-v4 .deck {
-  position: fixed;
-  inset: 0;
+  position: relative;
   background: var(--paper);
 }
 
+/* 一段 = 一条滚动行程。`--sec-vh` 由 `HOME_V4_SECTIONS[].vh` 写在行内，
+   所以段高只有一个家（常量），⛔ 不要在这里补第二套数字。 */
 .home-v4 .vp {
-  position: absolute;
-  inset: 0;
-  background: var(--paper);
-  /* 错速层在待命位会探出页界（横向 11–18vw），必须就地裁剪 */
+  position: relative;
+  min-height: var(--sec-vh, 100vh);
+  /* 段首对齐：键盘与触控板一格一段，段内滚动自由。 */
+  scroll-snap-align: start;
+  /* 分享出去的 `/#lora` 落下来不能钻到浮岛底下。 */
+  scroll-margin-top: 0;
+}
+
+/* 钉住的一屏。⚠ sticky，不是 GSAP pin：零依赖、零脚本、浏览器自己合成。
+   `svh` 而不是 `vh` —— 手机地址栏收起来的时候 `vh` 会比屏幕高一截。 */
+.home-v4 .vp-stage {
+  position: sticky;
+  top: 0;
+  height: 100svh;
   overflow: hidden;
-  transform: translateY(100vh);
-  transition: transform var(--dur) var(--easing);
-  will-change: transform;
 }
 
-.home-v4 .vp[data-pos='on'] {
-  transform: translateY(0);
-}
-
-.home-v4 .vp[data-pos='before'] {
-  transform: translateY(-100vh);
-}
-
-/* 三层错速：层的过渡时长与页错开，翻页瞬间层在页内继续滑，产生深度。
-   l1 背景最慢 · l2 文字中速（= --dur） · l3 视觉块最快。 */
-.home-v4 .l1,
-.home-v4 .l2,
-.home-v4 .l3 {
-  transition: transform var(--dur) var(--easing);
-  will-change: transform;
-}
-
-.home-v4 .l1 {
-  transition-duration: var(--l1-dur);
-}
-
-.home-v4 .l3 {
-  transition-duration: var(--l3-dur);
-}
-
-.home-v4 .vp[data-pos='after'] .l1 {
-  transform: translateY(calc(-1 * var(--l1-v)));
-}
-
-.home-v4 .vp[data-pos='after'] .l2 {
-  transform: translateY(calc(-1 * var(--l2-v)));
-}
-
-.home-v4 .vp[data-pos='after'] .l3 {
-  transform: translateY(calc(-1 * var(--l3-v)));
-}
-
-.home-v4 .vp[data-pos='before'] .l1 {
-  transform: translateY(var(--l1-v));
-}
-
-.home-v4 .vp[data-pos='before'] .l2 {
-  transform: translateY(var(--l2-v));
-}
-
-.home-v4 .vp[data-pos='before'] .l3 {
-  transform: translateY(var(--l3-v));
-}
-
-.home-v4 .vp[data-pos='on'] .l1,
-.home-v4 .vp[data-pos='on'] .l2,
-.home-v4 .vp[data-pos='on'] .l3 {
-  transform: none;
-}
-
+/* ⚠ `.l1` / `.l2` / `.l3` 现在只是**层的名字**，不再带任何 transform。
+   v4 的三层错速是「页在翻」的装置（层与页跑不同的时长，落地那一刻还在页内
+   滑，那点滞后就是深度）——页不翻了，那套 transform 就没有可依附的事件，留着
+   只会和 scrub 写的 transform 打架。层名留下，因为六段的排版按它分栏。 */
 .home-v4 .page-inner {
   height: 100%;
   display: flex;
@@ -299,106 +262,34 @@ body.home-v4-locked {
   position: relative;
 }
 
-/* ─── 横站（模型区）：站内横排页 ────────────────────────────────── */
-.home-v4 .hwrap {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-}
-
-/* 模型整步切换：背景淡化、内容纵向错速；连续滚动由下方进度规则驱动。 */
-.home-v4 .hpg {
-  position: absolute;
-  inset: 0;
-  background: var(--paper);
-  overflow: hidden;
+/* ─── 段的 CTA：结果态那颗「去用这个」 ──────────────────────────── */
+/* ⭐ 永远在 DOM 里，只是没揭开。结果态才冒出来的按钮会在读者正盯着结果的那
+   一刻把舞台顶一下——所以这里只动 `opacity` 与 `transform`。 */
+.home-v4 .fn-cta {
+  align-self: flex-start;
+  margin-top: 10px;
+  padding: 8px 16px;
+  border: 1px solid var(--ink);
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-decoration: none;
+  white-space: nowrap;
   opacity: 0;
+  transform: translateY(6px);
   pointer-events: none;
-  transition: opacity var(--hfade) ease;
-  will-change: opacity;
+  transition:
+    opacity 0.32s var(--easing),
+    transform 0.32s var(--easing);
 }
 
-.home-v4 .hpg[data-pos='on'] {
+.home-v4 .fn-cta[data-on='true'] {
   opacity: 1;
-  pointer-events: auto;
-  z-index: 2;
-}
-
-.home-v4 .hpg[data-pos='before'],
-.home-v4 .hpg[data-pos='after'] {
-  z-index: 1;
-}
-
-.home-v4 .hpg[data-pos='after'] .l1 {
-  transform: translateY(var(--l1-v));
-}
-
-.home-v4 .hpg[data-pos='after'] .l2 {
-  transform: translateY(var(--l2-v));
-}
-
-.home-v4 .hpg[data-pos='after'] .l3 {
-  transform: translateY(var(--l3-v));
-}
-
-.home-v4 .hpg[data-pos='before'] .l1 {
-  transform: translateY(calc(-1 * var(--l1-v)));
-}
-
-.home-v4 .hpg[data-pos='before'] .l2 {
-  transform: translateY(calc(-1 * var(--l2-v)));
-}
-
-.home-v4 .hpg[data-pos='before'] .l3 {
-  transform: translateY(calc(-1 * var(--l3-v)));
-}
-
-.home-v4 .hpg[data-pos='on'] .l1,
-.home-v4 .hpg[data-pos='on'] .l2,
-.home-v4 .hpg[data-pos='on'] .l3 {
   transform: none;
-}
-
-@media (min-width: 769px) and (prefers-reduced-motion: no-preference) {
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer] {
-    opacity: 1;
-    transition: none;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='incoming'] {
-    z-index: 2;
-    clip-path: inset(calc((1 - var(--model-progress)) * 100%) 0 0 0);
-  }
-
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer] .l1,
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer] .l2,
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer] .l3 {
-    transition: none;
-  }
-
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='outgoing'] .l1 {
-    transform: translateY(calc(var(--model-progress) * -12vh))
-      scale(calc(1 + var(--model-progress) * 0.24));
-  }
-
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='incoming'] .l1 {
-    transform: translateY(calc((1 - var(--model-progress)) * 12vh))
-      scale(calc(1 + (1 - var(--model-progress)) * 0.24));
-  }
-
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='outgoing'] .l2,
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='outgoing'] .l3 {
-    transform: translateY(calc(var(--model-progress) * -5vh));
-    opacity: calc(1 - var(--model-progress));
-  }
-
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='incoming'] .l2,
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-layer='incoming'] .l3 {
-    transform: translateY(calc((1 - var(--model-progress)) * 5vh));
-    opacity: var(--model-progress);
-  }
+  pointer-events: auto;
 }
 
 /* ─── 通用排版 ──────────────────────────────────────────────────── */
@@ -691,56 +582,6 @@ body.home-v4-locked {
   color: var(--dim);
 }
 
-/* ─── 站内横向进度（模型站底部） ────────────────────────────────── */
-.home-v4 .hnav {
-  position: absolute;
-  z-index: 5;
-  left: 0;
-  right: 0;
-  bottom: 18px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.18em;
-  color: var(--dim);
-}
-
-.home-v4 .hnav button {
-  border: 1px solid var(--line);
-  background: var(--paper);
-  border-radius: 999px;
-  width: 30px;
-  height: 30px;
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  font-size: 13px;
-}
-
-.home-v4 .hnav button:hover {
-  border-color: var(--ink);
-}
-
-.home-v4 .hnav .hdots {
-  display: flex;
-  gap: 6px;
-}
-
-.home-v4 .hnav .hdots i {
-  width: 16px;
-  height: 2px;
-  background: var(--line);
-  border-radius: 2px;
-  transition: background 0.3s;
-}
-
-.home-v4 .hnav .hdots i[data-on='true'] {
-  background: var(--ink);
-}
-
 /* ─── 竖轴页点（PC 左缘） ───────────────────────────────────────── */
 /* hover 整个区域展开全部页名；每个 title 自带 hover 动效 */
 .home-v4 .dots {
@@ -812,7 +653,6 @@ body.home-v4-locked {
     opacity 0.28s ease,
     transform 0.28s ease,
     color 0.2s ease;
-  transition-delay: calc(var(--i, 0) * var(--dot-stagger));
 }
 
 .home-v4 .dots:hover .nm,
@@ -2806,293 +2646,6 @@ body.home-v4-locked {
   color: var(--paper);
 }
 
-/* ═══ 模型页（P3）：整图背景 + 暗玻璃身份板 + 强弱规格横条 ════════
-   官方样图铺满整页当背景（挂 l1 慢层，翻页瞬间像镜头微移）；内容圈进两块
-   暗玻璃：左下身份板（l2）+ 底部横条（强 / 弱 / 站内规格，l3）。
-
-   ⚠ 两处与 SPEC 的差：
-   1. SPEC 里 `.m-bg.side` / `.m-bg.plain` 写 `background: transparent`，靠
-      透出底下的 `bgno` 大序号水印给左半屏纹理。bgno 这一轮退役了，透出来
-      的就只剩空白，所以两者改成自己铺纸底。
-   2. SPEC 先按浅玻璃写一遍配色，紧接着整段用暗玻璃覆盖掉。这里只留生效的
-      那一份 —— 搬一套自己就被下一行推翻的规则过来毫无意义。          */
-.home-v4 .mpage {
-  justify-content: flex-end;
-  align-items: stretch;
-  gap: 12px;
-  padding-bottom: 64px;
-}
-
-.home-v4 .m-bg {
-  position: absolute;
-  inset: -4%;
-  z-index: 0;
-}
-
-/* 铺满不糊：单层 cover 占满整页，「不丢信息」由图的构图负责（代表作按 16:9
-   满幅、主体偏右创作）。`--pos` 留着，逐图微调不用改结构。 */
-/* ⚠ `video` 必须跟 `img` 走同一条规则。2026-08-30 视频幕改放真视频时漏了这一条，
-   结果 `<video>` 按自身固有尺寸渲染，右侧和下方露出大片白底——**而且 tsc 与测试全绿**，
-   只有真机目检看得出来。凡是往 `.m-bg` 里加新的媒体元素，都要一起加进这个选择器。 */
-.home-v4 .m-bg img,
-.home-v4 .m-bg video {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: var(--pos, center);
-}
-
-/* 暗 scrim：只压左缘与底缘，给玻璃板托底，不碰画面主体 */
-.home-v4 .m-bg .veil {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(96deg, rgba(0, 0, 0, 0.34), rgba(0, 0, 0, 0) 52%),
-    linear-gradient(0deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 34%);
-}
-
-.home-v4 .m-bg.side,
-.home-v4 .m-bg.plain {
-  background: var(--paper);
-}
-
-/* 竖图布局：整图靠右完整摆放（contain，不裁），左侧纸底给玻璃板留位。
-   ⚠ SPEC 写死 `top: 7%`，实测（1920×911）落在 y=32 —— 顶栏是 54px 不透明白条，
-   整图的上缘被压掉一截。`.m-bg` 自身是 `inset: -4%`，所以要清掉顶栏得把那 4%
-   加回来再让开一个 `--bar`；来源角标本来就是这么写的，这里跟它同一个算式。 */
-.home-v4 .m-bg.side img {
-  position: absolute;
-  left: auto;
-  right: 4.5%;
-  top: calc(4% + var(--bar) + 10px);
-  width: auto;
-  height: 80%;
-  object-fit: contain;
-  object-position: center;
-  border-radius: 14px;
-  box-shadow: 0 30px 80px -34px rgba(0, 0, 0, 0.4);
-}
-
-.home-v4 .m-bg.side .src {
-  background: rgba(10, 10, 10, 0.07);
-  color: #55555a;
-}
-
-/* 竖图墙：三张等高并排铺满整页。SPEC 写 `var(--void)`，那个变量整份文件
-   从没声明过（和 `--line-2` 同一类漏），这里落到最接近的 `--ink`。 */
-.home-v4 .m-bg.wall {
-  display: flex;
-  gap: 12px;
-  background: var(--ink);
-}
-
-.home-v4 .m-bg.wall img {
-  position: static;
-  flex: 1 1 0;
-  min-width: 0;
-  width: auto;
-  height: 100%;
-  object-fit: cover;
-  object-position: center top;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.home-v4 .m-bg.wall .veil2 {
-  position: absolute;
-  inset: 0;
-  background:
-    linear-gradient(96deg, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0) 50%),
-    linear-gradient(0deg, rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0) 32%);
-}
-
-/* 来源角标：这张图是站内生成还是官方样图，页面自己说清楚 */
-.home-v4 .m-bg .src {
-  position: absolute;
-  right: 6%;
-  top: calc(4% + var(--bar) + 10px);
-  padding: 3px 9px;
-  border-radius: 999px;
-  background: rgba(10, 10, 10, 0.42);
-  backdrop-filter: blur(4px);
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* 无图页：纸底 + 提示词水印卡（= 站内出图任务单，不是装饰） */
-.home-v4 .m-bg .want {
-  position: absolute;
-  left: 50%;
-  top: 44%;
-  transform: translate(-50%, -50%);
-  width: min(430px, 70%);
-  padding: 18px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  border: 1px dashed var(--line-2);
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.6);
-  text-align: left;
-}
-
-/* 同 `.fn-quad .fq .want .k`：半透明白卡上 `--dim` 不够，深一档。 */
-.home-v4 .m-bg .want .k {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: #55555b;
-}
-
-.home-v4 .m-bg .want p {
-  margin: 0;
-  font-family: var(--serif);
-  font-weight: 600;
-  font-size: 15px;
-  line-height: 1.6;
-}
-
-/* ─── 身份板（l2）──────────────────────────────────────────────── */
-.home-v4 .m-glass {
-  position: relative;
-  z-index: 1;
-  align-self: flex-start;
-  width: min(500px, 62%);
-  padding: 20px 24px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 18px;
-  background: linear-gradient(
-    160deg,
-    rgba(13, 13, 16, 0.62),
-    rgba(13, 13, 16, 0.4)
-  );
-  backdrop-filter: blur(9px) saturate(1.2);
-  box-shadow:
-    0 24px 60px -28px rgba(0, 0, 0, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.14);
-  color: #f4f2ec;
-  text-align: left;
-}
-
-.home-v4 .m-glass .toprow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.home-v4 .m-glass .lg {
-  flex: none;
-  width: 34px;
-  height: 34px;
-  color: #f4f2ec;
-}
-
-.home-v4 .m-glass .lg svg {
-  width: 100%;
-  height: 100%;
-}
-
-.home-v4 .m-glass .lg.textmark {
-  display: flex;
-  align-items: center;
-  width: auto;
-  font-family: var(--mono);
-  font-size: 11.5px;
-  letter-spacing: 0.2em;
-}
-
-.home-v4 .m-glass .lg.seedmark {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  width: auto;
-}
-
-.home-v4 .m-glass .lg.seedmark svg {
-  width: 26px;
-  height: 26px;
-}
-
-.home-v4 .m-glass .lg.seedmark b {
-  font-family: var(--sans);
-  font-weight: 700;
-  font-size: 15px;
-  letter-spacing: -0.01em;
-}
-
-.home-v4 .m-glass .prov {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
-  color: rgba(244, 242, 236, 0.6);
-}
-
-.home-v4 .m-glass h2 {
-  text-align: left;
-  font-size: clamp(1.7rem, 3.1vw, 2.5rem);
-  line-height: 1.12;
-  color: #f4f2ec;
-}
-
-.home-v4 .m-glass .pos {
-  margin: 0;
-  font-size: 0.92rem;
-  color: rgba(244, 242, 236, 0.8);
-}
-
-.home-v4 .m-glass .meta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 12px;
-  margin-top: 2px;
-}
-
-.home-v4 .m-glass .fare {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: #f4f2ec;
-}
-
-.home-v4 .m-glass .fare b {
-  font-weight: 500;
-}
-
-.home-v4 .m-glass .routes {
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: rgba(244, 242, 236, 0.6);
-}
-
-.home-v4 .m-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 2px;
-}
-
-.home-v4 .m-tags i {
-  padding: 4px 11px;
-  border: 1px solid rgba(255, 255, 255, 0.28);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  font-style: normal;
-  font-family: var(--mono);
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  color: rgba(244, 242, 236, 0.85);
-}
-
 /* ─── 强 / 弱（l3）───────────────────────────────────────────────
    2026-08-28 owner 拍板：不再是压在页底的三列横条，而是接在身份板下面的
    同宽左列 —— 两块竖排，右半页整个让给图。玻璃外观与身份板一致。 */
@@ -3152,21 +2705,6 @@ body.home-v4-locked {
 }
 
 /* 详情按钮：手机独有（PC 上横条本来就在屏上，再开一层是开给自己看） */
-.home-v4 .m-more {
-  display: none;
-  align-self: flex-start;
-  margin-top: 9px;
-  padding: 6px 13px;
-  border: 1px solid rgba(244, 242, 236, 0.5);
-  border-radius: 999px;
-  background: none;
-  color: #f4f2ec;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.12em;
-  cursor: pointer;
-}
-
 /* ─── 手机详情 sheet（portal 到 body，见 HomeV4ModelSheet）────────
    `.vp` 带 transform + will-change + overflow:hidden，是个包含块 —— sheet
    长在页里就会被裁掉、并且相对页而不是视口定位。所以它长在 body 上，外面
@@ -3367,21 +2905,29 @@ body.home-v4-locked {
   color: var(--dim);
 }
 
-/* ─── 减少动态：禁过渡（瞬切），手势不禁 ────────────────────────── */
+/* ─── 减少动态：不钉住、不 scrub，段内过渡一律瞬切 ──────────────── */
+/* ⭐ 降级的第一条是**不 pin**：`.vp-stage` 回到普通流，段高收成一屏，每段直接
+   就是结果态（进度由 `useHomeV4Scrub` 钉在 1.0）。第二条才是禁过渡。 */
 @media (prefers-reduced-motion: reduce) {
-  .home-v4 .vp,
-  .home-v4 .hpg,
-  .home-v4 .vp .l1,
-  .home-v4 .vp .l2,
-  .home-v4 .vp .l3,
-  .home-v4 .hpg .l1,
-  .home-v4 .hpg .l2,
-  .home-v4 .hpg .l3 {
+  .home-v4 .vp {
+    min-height: 100svh;
+  }
+
+  .home-v4 .vp-stage {
+    position: static;
+    height: auto;
+    min-height: 100svh;
+  }
+
+  .home-v4 .vp *,
+  .home-v4 .vp *::before,
+  .home-v4 .vp *::after {
     transition: none !important;
+    animation: none !important;
   }
 }
 
-/* ═══ Mobile 层（≤768px）：翻页保留（swipe 即手机原生手势） ═══════ */
+/* ═══ Mobile 层（≤768px）：不钉住、不 scrub，每段一屏结果态 ═══════ */
 .home-v4 .mdots,
 .home-v4 .mtoc,
 .home-v4 .cue-m {
@@ -3389,20 +2935,25 @@ body.home-v4-locked {
 }
 
 @media (max-width: 768px) {
-  html.home-v4-locked,
-  body.home-v4-locked {
-    overscroll-behavior: none;
-  }
-
-  /* 手机上整页交给手势引擎；两个例外（胶片带横滑 / 目录竖滚）在下面豁免。
-     这些是 owner 真机踩坑后的修复，别删。 */
-  body.home-v4-locked {
-    touch-action: none;
-  }
+  /* ⚠ `touch-action: none` 与 `height:100%; overflow:hidden` 已随手势引擎删除。
+     手机上的滚动从头到尾是浏览器原生的——这正是批注 40「手机上 pin 抖动，需要
+     降级」要的结果：没有 pin，就没有抖。 */
 
   .home-v4 {
     --bar: 48px;
     --gut: 16px;
+  }
+
+  /* ⭐ 降级第一条：手机不钉住。段高收成一屏，舞台回到普通流，每段就是一屏
+     结果态（进度由 `useHomeV4Scrub` 钉在 1.0）。批注 40「手机上 pin 抖动」。 */
+  .home-v4 .vp {
+    min-height: 100svh;
+  }
+
+  .home-v4 .vp-stage {
+    position: static;
+    height: auto;
+    min-height: 100svh;
   }
 
   .home-v4 .op-strip {
@@ -3621,17 +3172,6 @@ body.home-v4-locked {
     gap: 8px;
     text-align: center;
     font-size: 10px;
-  }
-
-  /* 横向站导航钮：拇指触达尺寸 */
-  .home-v4 .hnav {
-    bottom: 12px;
-  }
-
-  .home-v4 .hnav button {
-    display: grid;
-    width: 38px;
-    height: 38px;
   }
 
   /* ── 功能页 · 一屏一焦点 ────────────────────────────────────── */
@@ -3944,31 +3484,7 @@ body.home-v4-locked {
     line-height: 1.55;
   }
 
-  /* ── 模型页 · 图当主角，信息压底，强弱两块收进上拉 sheet ────── */
-  .home-v4 .m-glass {
-    width: 100%;
-    padding: 13px 15px 12px;
-  }
-
-  .home-v4 .m-glass .pos {
-    font-size: 12px;
-    line-height: 1.55;
-  }
-
-  .home-v4 .m-glass .meta {
-    flex-wrap: wrap;
-    gap: 4px 10px;
-  }
-
-  /* 标签在手机上是第四层信息，与定位句重复度高 —— 让位给图 */
-  .home-v4 .m-tags {
-    display: none;
-  }
-
-  .home-v4 .m-more {
-    display: inline-block;
-  }
-
+  /* ── 模型卡 · 强弱两块只在上拉 sheet 里 ───────────────────── */
   /* 强弱块只在 sheet 里出现（`.as-sheet` 那份），页面上的这份收起 */
   .home-v4 .m-strip {
     display: none;
@@ -3976,34 +3492,6 @@ body.home-v4-locked {
 
   .home-v4 .m-strip.as-sheet {
     display: flex;
-  }
-
-  /* 三联在手机上只剩第一张：三条 1/3 宽的竖缝谁也看不清 */
-  .home-v4 .m-bg.wall img:not(:first-of-type) {
-    display: none;
-  }
-
-  .home-v4 .m-bg.wall img:first-of-type {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  /* 竖图改横向居中、压上半屏，下半屏留给玻璃板。顶栏同样要让开（见 PC 那条） */
-  .home-v4 .m-bg.side img {
-    left: 4%;
-    right: 4%;
-    top: calc(4% + var(--bar) + 8px);
-    margin: auto;
-    width: auto;
-    max-width: 92%;
-    height: 50%;
-  }
-
-  /* sheet 打开时站内导航正好在它底下，让开 */
-  .home-v4 .hwrap.sheet-on .hnav {
-    opacity: 0;
-    pointer-events: none;
   }
 
   /* ── 价目页 · 四栏改一条，栏头吸顶，整块一次滚完 ───────────── */
@@ -4164,5 +3652,222 @@ body.home-v4-locked {
   .home-v4 .fn-canvas[data-scroll-story] .fn-step * {
     transform: none;
     transition: none;
+  }
+}
+
+/* ─── 开场墙：随滚动向两侧散开 ──────────────────────────────────── */
+/* `--away` 是这一格到中线的距离（-1…1），`--spread` 是段内进度。离中线越远
+   走得越远，所以墙是**摊开**而不是整块平移。只写 transform 与 opacity。 */
+.home-v4 .op-strip figure {
+  transform: translateX(
+      calc(var(--away, 0) * var(--spread, 0) * var(--spread-vw, 0))
+    )
+    scale(calc(1 - var(--spread, 0) * 0.06));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-v4 .op-strip figure {
+    transform: none;
+  }
+}
+
+/* ─── 模型阵容：每模态一行横滑卡片 ──────────────────────────────── */
+/* ⭐ 这一段不参与 scrub：横轴已经吃掉了滚动。每行自己横向滚，用的是浏览器原生
+   的 `overflow-x` + `scroll-snap`，⛔ 没有一行手写手势。 */
+.home-v4 .mrail .fg {
+  width: 100%;
+  max-width: 1240px;
+  gap: clamp(10px, 2vh, 20px);
+}
+
+.home-v4 .mrail-rows {
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.8vh, 20px);
+  width: 100%;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.home-v4 .mrow2 > h3 {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 7px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.home-v4 .mrow2 > h3 .n {
+  font-size: 10px;
+  color: var(--line-2);
+}
+
+.home-v4 .mcards {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 6px;
+  /* 这一行自己横滑，别把手势交给页面的竖向 snap。 */
+  overscroll-behavior-x: contain;
+}
+
+.home-v4 .mcard {
+  flex: none;
+  width: clamp(150px, 15vw, 196px);
+  margin: 0;
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.home-v4 .mcard .cover {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 10;
+  border-radius: 11px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  transition: border-color 0.2s var(--easing);
+}
+
+.home-v4 .mcard .cover:hover {
+  border-color: var(--ink);
+}
+
+.home-v4 .mcard .cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center right;
+}
+
+.home-v4 .mcard .cover .plain {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--panel2);
+}
+
+.home-v4 .mcard figcaption {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.home-v4 .mcard .toprow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.home-v4 .mcard .lg svg {
+  width: 13px;
+  height: 13px;
+  display: block;
+}
+
+.home-v4 .mcard .lg.textmark,
+.home-v4 .mcard .lg.seedmark b {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+}
+
+.home-v4 .mcard .prov {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-v4 .mcard b {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.home-v4 .mcard .pos {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--dim);
+  /* 两行封顶：卡是拿来扫的，不是拿来读完的。 */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.home-v4 .mcard .more {
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: none;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  transition: border-color 0.2s var(--easing);
+}
+
+.home-v4 .mcard .more:hover {
+  border-color: var(--ink);
+}
+
+@media (max-width: 768px) {
+  .home-v4 .mrail .fg {
+    gap: 12px;
+  }
+
+  .home-v4 .mcard {
+    width: 66vw;
+    max-width: 260px;
+  }
+}
+
+/* ─── 矮视口（<900px 高）：钉住区按 vh 收缩，绝不溢到浮岛底下 ───── */
+/* ⭐ owner 批注 50。舞台永远只有一屏高，所以「矮」唯一能做的是让内容收，不是
+   让页面长——`.page-inner` 收内距、舞台收上限，溢出的部分自己裁掉。 */
+@media (max-height: 900px) {
+  .home-v4 .page-inner {
+    padding-top: calc(var(--bar) + 8px);
+    padding-bottom: 24px;
+    gap: clamp(8px, 1.6vh, 16px);
+  }
+
+  .home-v4 .fn-stage {
+    max-height: calc(100svh - var(--bar) - 48px);
+  }
+
+  .home-v4 .fn-head h2 {
+    font-size: clamp(19px, 2.6vh, 30px);
+  }
+
+  .home-v4 .fn-cta {
+    margin-top: 6px;
+    padding: 6px 13px;
+  }
+
+  .home-v4 .mrail-rows {
+    gap: 8px;
+  }
+
+  .home-v4 .mcard {
+    width: clamp(132px, 13vw, 168px);
   }
 }

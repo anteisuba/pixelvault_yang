@@ -17,44 +17,6 @@ import type { AppLocale } from '@/i18n/routing'
  * them `asset-NN.*`, that manifest is the translation table.
  */
 
-/* ── 引擎：输入阈值与节拍 ─────────────────────────────────────────── */
-
-/**
- * Wheel/touch/keyboard routing plus the transition clock. `LOCK_MS` is
- * deliberately a hair longer than `PAGE_MS`: the lock has to outlive the slide,
- * or a trackpad's tail delta lands mid-flight and double-steps the deck.
- */
-export const HOME_V4_ENGINE = {
-  /** One vertical page slide. Published as `--dur`. */
-  PAGE_MS: 850,
-  /** Input is ignored for this long after a step. */
-  LOCK_MS: 900,
-  /** Accumulated `wheel` deltaY that counts as one step. */
-  WHEEL_THRESHOLD: 46,
-  /** Swipe distance (px) that counts as one step. */
-  TOUCH_THRESHOLD_PX: 52,
-} as const
-
-/**
- * Three-layer parallax. The layers run on their own clocks so that at the moment
- * the page lands they are still sliding inside it — that lag is the depth.
- * Vertical numbers are `vh`, the horizontal (station) ones `vw`.
- */
-export const HOME_V4_PARALLAX = {
-  /** Background layer, slowest. */
-  L1_MS: 1050,
-  /* The text layer has no entry: it runs on `PAGE_MS`, the page's own clock. */
-  /** Visual blocks, fastest. */
-  L3_MS: 680,
-  /** Cross-fade of a horizontal station's pages. */
-  STATION_FADE_MS: 750,
-  VERTICAL_VH: { L1: 7, L2: 13, L3: 22 },
-  HORIZONTAL_VW: { L1: 6, L2: 11, L3: 18 },
-} as const
-
-/** Left-rail dots: each title slides in one beat after the one above it. */
-export const HOME_V4_DOTS_STAGGER_MS = 18
-
 /* ── 开场页演出 ──────────────────────────────────────────────────── */
 
 /**
@@ -1094,49 +1056,100 @@ export const HOME_V4_STATIONS: Record<
 export const HOME_V4_ALL_MODELS: readonly HomeV4Model[] =
   HOME_V4_STATION_KEYS.flatMap((key) => HOME_V4_STATIONS[key])
 
-/* ── 竖轴：13 页 ─────────────────────────────────────────────────── */
+/* ── 竖轴：v5 长卷的九段 ─────────────────────────────────────────── */
 
-/** Which block of the left rail / mobile toc a page belongs to. */
+/** Which block of the rail / mobile toc a section belongs to. */
 export type HomeV4PageGroup = 'opening' | 'feature' | 'models' | 'finale'
 
-export interface HomeV4Page {
-  /** Stable id. Doubles as the i18n key under `Homepage.v4.pages.*`. */
+export interface HomeV4Section {
+  /** Stable id. Doubles as the i18n key under `Homepage.v4.pages.*` and as the
+   *  shareable anchor (`/#lora` → `id="home-lora"`). */
   id: string
   group: HomeV4PageGroup
   /**
    * Numbered eyebrow, e.g. `01 · IMAGE`. Language-neutral by design, so it stays
-   * out of the message files. `null` on the opening (which prints the model
-   * count instead) and the finale (which prints nothing).
+   * out of the message files. `null` where the section prints something else.
    */
   eyebrow: string | null
-  /** Set on the five model pages: they page sideways before releasing downward. */
-  station: HomeV4StationKey | null
+  /**
+   * 段高，单位 vh。`HOME_V4_SCROLL.STAGE_VH` 是钉住的那一屏，多出来的部分就是
+   * scrub 行程 —— 250vh 的段有 150vh 可以滚，进度 0–1 摊在这段距离上。
+   */
+  vh: number
+  /**
+   * 这一段的演示由段内进度驱动。`false` 的段（开场 / 模型 / 收尾）高度就是一屏，
+   * 不钉住、不 scrub —— 模型列表是横滑的，参与 scrub 会和横轴打架。
+   */
+  scrub: boolean
 }
 
 /**
- * The deck, top to bottom. Thirteen pages: opening, six feature pages, the five
- * model stations, finale.
+ * 长卷，从上到下九段（owner 批注 40 定的结构，UX 板「推荐结构」那一列）。
  *
- * A fourteenth page — a four-column price list of the whole catalogue — shipped
- * briefly and was cut by owner on sight (「这个页面不需要。之前的设计页面也没有
- * 这个」). The deck is back to the prototype's structure: the model region ends
- * at the 3D station and releases straight into the finale.
+ * ⚠ 与 v4 的十三页 snap deck 的差别不只是少了四页：**五个整屏模型站合并成了
+ * 终页前的一段横滑列表**（每模态一行），模型不再参与竖向翻页。旧结构见 git。
  */
-export const HOME_V4_PAGES: readonly HomeV4Page[] = [
-  { id: 'opening', group: 'opening', eyebrow: null, station: null },
-  { id: 'image', group: 'feature', eyebrow: '01 · IMAGE', station: null },
-  { id: 'lora', group: 'feature', eyebrow: '02 · LORA', station: null },
-  { id: 'audio', group: 'feature', eyebrow: '03 · AUDIO', station: null },
-  { id: 'video', group: 'feature', eyebrow: '04 · VIDEO', station: null },
-  { id: 'canvas', group: 'feature', eyebrow: '05 · CANVAS', station: null },
-  { id: 'vault', group: 'feature', eyebrow: '06 · VAULT', station: null },
-  { id: 'modelsImage', group: 'models', eyebrow: null, station: 'image' },
-  { id: 'modelsLora', group: 'models', eyebrow: null, station: 'lora' },
-  { id: 'modelsVideo', group: 'models', eyebrow: null, station: 'video' },
-  { id: 'modelsAudio', group: 'models', eyebrow: null, station: 'audio' },
-  { id: 'models3d', group: 'models', eyebrow: null, station: 'threed' },
-  { id: 'finale', group: 'finale', eyebrow: null, station: null },
+export const HOME_V4_SECTIONS: readonly HomeV4Section[] = [
+  { id: 'opening', group: 'opening', eyebrow: null, vh: 100, scrub: false },
+  {
+    id: 'image',
+    group: 'feature',
+    eyebrow: '01 · IMAGE',
+    vh: 250,
+    scrub: true,
+  },
+  { id: 'lora', group: 'feature', eyebrow: '02 · LORA', vh: 250, scrub: true },
+  {
+    id: 'audio',
+    group: 'feature',
+    eyebrow: '03 · AUDIO',
+    vh: 200,
+    scrub: true,
+  },
+  {
+    id: 'video',
+    group: 'feature',
+    eyebrow: '04 · VIDEO',
+    vh: 250,
+    scrub: true,
+  },
+  {
+    id: 'canvas',
+    group: 'feature',
+    eyebrow: '05 · CANVAS',
+    vh: 250,
+    scrub: true,
+  },
+  {
+    id: 'vault',
+    group: 'feature',
+    eyebrow: '06 · VAULT',
+    vh: 200,
+    scrub: true,
+  },
+  { id: 'models', group: 'models', eyebrow: null, vh: 100, scrub: false },
+  { id: 'finale', group: 'finale', eyebrow: null, vh: 100, scrub: false },
 ]
+
+/** `#home-lora` 一类的可分享锚点。段 id → DOM id，一处拼接。 */
+export function homeV4SectionAnchor(id: string): string {
+  return `home-${id}`
+}
+
+/**
+ * 模型列表里每一行封面点下去的去处 —— 对应模态的工作台。
+ *
+ * ⚠ 还**不带模型预选**：站表的 `key`（`gpt` / `flux` …）是首页自己的 id，不是
+ * 目录里的 model id，凭它拼一个 `?model=` 参数就是手抄。工作台也还没有读这个
+ * 参数的入口。见 `docs/references/pages/home.md` §已知缺口。
+ */
+export const HOME_V4_STATION_ROUTES: Record<HomeV4StationKey, string> = {
+  image: ROUTES.STUDIO_IMAGE,
+  lora: ROUTES.STUDIO_LORA,
+  video: ROUTES.STUDIO_VIDEO,
+  audio: ROUTES.STUDIO_AUDIO,
+  threed: ROUTES.STUDIO_3D,
+}
 
 /**
  * 每个功能段结束态那颗「去用这个」按钮的去处。

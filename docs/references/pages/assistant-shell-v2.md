@@ -369,6 +369,23 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 为什么标题和历史是同一个下拉：v1 把它们合并过一次（2026-09-09），结论是对的——用户找「上次那个会话」时脑子里想的就是「换一个标题」。
 
+#### 历史会话行的两个动作（owner 2026-09-20 真机第 3 条）
+
+> 原话：「点击编辑后应该直接编辑；点击删除后按钮切换成确认删除的按钮，再点一次才删」。
+> **两张 `AlertDialog` 整块退场**（改名一张、删除一张）—— 一次改名要穿过一层浮层、一次删除要读一段说明文字，而这两件事的对象都只有一个：手指底下这一行。组件是 `StudioOperatorSessionRow`。
+
+| 动作     | 状态机                                                                                                                                                                |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **编辑** | 点铅笔 → 标题那一格**就地**换成 `<input>`：**回车保存 · Esc 取消 · 失焦保存**；编辑态里两颗动作钮让位。⛔ 不弹层                                                      |
+| **删除** | 点垃圾桶 → 该按钮**原位**换成「确认删除」（`status-risk` 红字，**内距一格不变**）；再点一次才真删。退回确认态三条路：**3 秒无操作 · 指针离开这一行 · 焦点离开这一行** |
+
+- 就地改那一套**逐字沿用 56a 记忆列表**（`SettingsAssistantSection` 的 `MemoryRow`），连 `cancelledRef` 那一手都一样：Esc 之后紧跟着的那一拍 blur ⛔ 不许当成保存（`setDraft(null)` 要到下一次渲染才生效）。
+- **同一列表同时只有一行能进确认态**：那一格住在头部（`confirmDeleteId`），行只收 `confirming` 这个 prop。⛔ 不让每行各记各的 —— 各记各的表现是一屏红字。关菜单时一并放下。
+- **命中区两态同尺寸**（`p-2`）：位置跳一下的按钮会让第二下点空。
+- **可达性**：两颗都是 `DropdownMenuItem`，走菜单自己的方向键 roving focus（Radix 菜单里 Tab 是关菜单，⛔ 不为这两颗破掉菜单的键盘模型）；确认态另有一句 `role="status" aria-live="polite"` 的 sr-only 文案（`history.deleteConfirmInline`），⛔ 不让红色独自表达状态。
+- ⚠ **输入框在 Radix 菜单里要挡两件事**：菜单的 typeahead（任何可打印键都会把焦点跳到另一行）与 Esc 关菜单 —— 编辑态整格先 `stopPropagation()`，回车 / Esc 自己收尾。编辑态那一格 ⛔ 不是 `DropdownMenuItem`：菜单项会在指针掠过时抢焦点，而那正是用户正在打字的地方。
+- 随之删掉的三语词条：`history.deleteTitle` · `deleteDescription` · `deleteCancel` · `renameTitle` · `renameDescription` · `renameConfirm`；新增 `history.deleteConfirmInline`，`history.deleteConfirm` 改口成「确认删除」。
+
 ### 4.2 空态与四张脸的 `face` 契约（D7b ③，owner 2026-09-20）
 
 > Last Verified: 2026-09-20（owner 拍板 D7b ④ · 画板 `DesignD7bFaces`）

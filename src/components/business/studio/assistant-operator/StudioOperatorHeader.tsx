@@ -41,13 +41,11 @@
  * 边缘闪一下。
  */
 
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import {
   Check,
-  Pencil,
   MessageSquarePlus,
   ChevronDown,
-  Trash2,
   EyeOff,
   History,
   MoreHorizontal,
@@ -77,22 +75,10 @@ import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-ope
 import type { AssistantPersona } from '@/types/assistant-persona'
 import type { StudioOperatorFace } from '@/contexts/studio-operator-host'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
-import { Input } from '@/components/ui/input'
-import { ASSISTANT_CONVERSATION_LIMITS } from '@/types/assistant-conversation'
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogCancel,
-  AlertDialogAction,
-} from '@/components/ui/alert-dialog'
+import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import {
   ASSISTANT_SURFACE_IDS,
   type AssistantSurfaceId,
-  type AssistantConversationSummary,
 } from '@/types/assistant-conversation'
 
 /**
@@ -201,12 +187,16 @@ export function StudioOperatorHeader({
    * 一次同一个布尔。
    */
   const { incognito } = useStudioOperatorState()
-  const [deleteTarget, setDeleteTarget] =
-    useState<AssistantConversationSummary | null>(null)
-
-  const [renameTarget, setRenameTarget] =
-    useState<AssistantConversationSummary | null>(null)
-  const [renameTitle, setRenameTitle] = useState('')
+  /**
+   * **举着刀的那一行**（owner 2026-09-20 真机第 3 条）—— 删除是原位两段确认，
+   * ⛔ 不再弹 `AlertDialog`。
+   *
+   * ⚠ 这一格住在这里而不是各行自己：同一列表**同时只能有一行**处于确认态，
+   * 各记各的表现是一屏红字。⚠ 换会话列表 / 关菜单时清掉（见下面那两处）。
+   */
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
+  /** ⚠ 稳定引用：行里的 3 秒定时器把它当 effect 依赖。 */
+  const cancelConfirmDelete = useCallback(() => setConfirmDeleteId(null), [])
   /** 标题▾ 与历史图标共开的那一个菜单（见头注），⛔ 不是两个实例。 */
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -299,6 +289,8 @@ export function StudioOperatorHeader({
           onOpenChange={(next) => {
             setMenuOpen(next)
             if (next) history.refreshSessions()
+            // ⚠ 关掉菜单就把刀放下：下次打开不该有一行还举着「确认删除」。
+            else setConfirmDeleteId(null)
           }}
         >
           <DropdownMenuTrigger asChild>
@@ -352,69 +344,38 @@ export function StudioOperatorHeader({
                  `t()` 的键类型里（编译期就红）。 */
               const sessionDomain = SESSION_DOMAIN_BY_SURFACE[session.surface]
               return (
-                <div key={session.id} className="flex items-center gap-1">
-                  <DropdownMenuItem
-                    className="min-w-0 flex-1"
-                    disabled={
-                      working ||
-                      Boolean(history.loadingSessionId) ||
-                      history.deletingSessionId === session.id
-                    }
-                    data-testid="operator-session-item"
-                    data-session-id={session.id}
-                    data-surface={session.surface}
-                    data-current={
-                      session.id === history.currentSessionId ? 'true' : 'false'
-                    }
-                    onSelect={() => history.selectSession(session)}
-                  >
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate">
-                        {session.title ?? t('history.untitled')}
-                      </span>
-                      <span className="mt-0.5 flex items-center gap-2 text-2sm text-muted-foreground">
-                        {sessionDomain ? (
-                          <span>{t(`domainName.${sessionDomain}`)}</span>
-                        ) : null}
-                        <span className="font-mono tabular-nums">
-                          {sessionDateLabel(session.updatedAt)}
-                        </span>
-                      </span>
-                    </span>
-                    {session.id === history.currentSessionId ? (
-                      <Check className="size-3.5 shrink-0" aria-hidden />
-                    ) : null}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="shrink-0 p-2 text-muted-foreground"
-                    aria-label={t('history.renameLabel', {
-                      title: session.title ?? t('history.untitled'),
-                    })}
-                    disabled={
-                      Boolean(history.renamingSessionId) ||
-                      Boolean(history.deletingSessionId)
-                    }
-                    onSelect={() => {
-                      setRenameTarget(session)
-                      setRenameTitle(session.title ?? '')
-                    }}
-                  >
-                    <Pencil className="size-4" aria-hidden />
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    className="shrink-0 p-2 text-muted-foreground focus:text-destructive"
-                    aria-label={t('history.deleteLabel', {
-                      title: session.title ?? t('history.untitled'),
-                    })}
-                    disabled={
-                      Boolean(history.deletingSessionId) ||
-                      (working && session.id === history.currentSessionId)
-                    }
-                    onSelect={() => setDeleteTarget(session)}
-                  >
-                    <Trash2 className="size-4" aria-hidden />
-                  </DropdownMenuItem>
-                </div>
+                <StudioOperatorSessionRow
+                  key={session.id}
+                  session={session}
+                  domainLabel={
+                    sessionDomain ? t(`domainName.${sessionDomain}`) : null
+                  }
+                  dateLabel={sessionDateLabel(session.updatedAt)}
+                  current={session.id === history.currentSessionId}
+                  selectDisabled={
+                    working ||
+                    Boolean(history.loadingSessionId) ||
+                    history.deletingSessionId === session.id
+                  }
+                  deleteDisabled={
+                    Boolean(history.deletingSessionId) ||
+                    (working && session.id === history.currentSessionId)
+                  }
+                  renaming={history.renamingSessionId === session.id}
+                  deleting={history.deletingSessionId === session.id}
+                  confirming={confirmDeleteId === session.id}
+                  onSelect={() => history.selectSession(session)}
+                  onRename={(title) =>
+                    void history.renameSession(session, title)
+                  }
+                  onRequestDelete={() => setConfirmDeleteId(session.id)}
+                  onCancelDelete={cancelConfirmDelete}
+                  onConfirmDelete={() => {
+                    void history.deleteSession(session).then((deleted) => {
+                      if (deleted) setConfirmDeleteId(null)
+                    })
+                  }}
+                />
               )
             })}
             {history.error ? (
@@ -533,101 +494,6 @@ export function StudioOperatorHeader({
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-
-      <AlertDialog
-        open={deleteTarget !== null}
-        onOpenChange={(next) => {
-          if (!next && !history.deletingSessionId) setDeleteTarget(null)
-        }}
-      >
-        <AlertDialogContent {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('history.deleteTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('history.deleteDescription', {
-                title: deleteTarget?.title ?? t('history.untitled'),
-              })}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {history.error && (
-            <p role="alert" className="text-sm text-destructive">
-              {history.error}
-            </p>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={Boolean(history.deletingSessionId)}>
-              {t('history.deleteCancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              variant="destructive"
-              disabled={Boolean(history.deletingSessionId)}
-              onClick={(event) => {
-                event.preventDefault()
-                if (deleteTarget)
-                  void history.deleteSession(deleteTarget).then((deleted) => {
-                    if (deleted) setDeleteTarget(null)
-                  })
-              }}
-            >
-              {history.deletingSessionId
-                ? t('history.deleting')
-                : t('history.deleteConfirm')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog
-        open={Boolean(renameTarget)}
-        onOpenChange={(next) => {
-          if (!next && !history.renamingSessionId) setRenameTarget(null)
-        }}
-      >
-        <AlertDialogContent {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('history.renameTitle')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('history.renameDescription')}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <Input
-            autoFocus
-            aria-label={t('history.renameTitle')}
-            value={renameTitle}
-            maxLength={ASSISTANT_CONVERSATION_LIMITS.titleMaxLength}
-            disabled={Boolean(history.renamingSessionId)}
-            onChange={(event) => setRenameTitle(event.target.value)}
-          />
-          {history.error ? (
-            <p role="alert" className="text-sm text-destructive">
-              {history.error}
-            </p>
-          ) : null}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={Boolean(history.renamingSessionId)}>
-              {t('history.deleteCancel')}
-            </AlertDialogCancel>
-            <AlertDialogAction
-              disabled={
-                !renameTitle.trim() || Boolean(history.renamingSessionId)
-              }
-              onClick={(event) => {
-                event.preventDefault()
-                if (renameTarget)
-                  void history
-                    .renameSession(renameTarget, renameTitle)
-                    .then((saved) => {
-                      if (saved) setRenameTarget(null)
-                    })
-              }}
-            >
-              {history.renamingSessionId
-                ? t('history.renaming')
-                : t('history.renameConfirm')}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   )
 }

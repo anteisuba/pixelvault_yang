@@ -214,6 +214,27 @@ describe('StudioOperatorHeader', () => {
   })
 
   /**
+   * owner 2026-09-20 真机第 3 条：删除是**原位两段**，⛔ 不再弹 `AlertDialog`。
+   * 这一条只钉头部这一侧的那一格 —— 同一列表**同时只有一行**能举着刀。
+   * 行内的两个状态机在 `StudioOperatorSessionRow.web.test.tsx` 里逐条验。
+   */
+  it('⭐ 同一列表同时只有一行处于确认删除态；⛔ 两张弹层都退场', () => {
+    renderHeader({ history: { ...HISTORY, sessions: SESSIONS } })
+    const deletes = screen.getAllByTestId('operator-session-delete')
+
+    fireEvent.click(deletes[0] as HTMLElement)
+    expect(deletes[0]).toHaveAttribute('data-confirming', 'true')
+
+    fireEvent.click(deletes[1] as HTMLElement)
+    expect(deletes[1]).toHaveAttribute('data-confirming', 'true')
+    expect(deletes[0]).toHaveAttribute('data-confirming', 'false')
+
+    // ⛔ 改名弹层与删除弹层都不在了。
+    expect(screen.queryByRole('alertdialog')).toBeNull()
+    expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  /**
    * 右上收成**一颗 ⋯**（D7b ④）：并排三颗图标（历史 · 设置 · 收起）全部退场，
    * 菜单里三项 —— 历史会话 · 设置 · 隐身（56a 未落 → 占位禁用）。
    */

@@ -16,7 +16,7 @@ import { StudioTagCapabilityControl } from '@/components/business/studio/tags/St
 import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
 import { StudioTagsControlColumn } from '@/components/business/studio/tags/StudioTagsControlColumn'
 import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioDialectJumpHint'
-import { StudioDialectSwitch } from '@/components/business/studio/tags/StudioDialectSwitch'
+import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { NovelAiCharacterComposer } from '@/components/business/studio/tags/NovelAiCharacterComposer'
 import { STUDIO_PROMPT_SCROLL_ANCHOR_ID } from '@/constants/studio-mobile'
 import {
@@ -131,31 +131,28 @@ export const StudioTagsMobilePanel = memo(function StudioTagsMobilePanel() {
 
   return (
     <div id={STUDIO_PROMPT_SCROLL_ANCHOR_ID} className="flex flex-col gap-2">
-      <div className="flex items-center gap-2">
-        <StudioDialectSwitch disabled={isGenerating} />
-        <div className="ml-auto min-w-0">
-          <MainModelPicker
-            modality="image"
-            memoryScope="image-tags"
-            value={null}
-            onChange={(option) =>
-              dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
-            }
-            selectedOptionIds={runModelIds}
-            onToggleOption={handleToggleRunModel}
-            filterOption={filterModelByDialect}
-            renderSearchFallback={(query, close) => (
-              <StudioDialectJumpHint query={query} close={close} />
-            )}
-            triggerEmptyLabel={modelSummary}
-            searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
-            emptySearchText={tForm('modelSelector.emptySearch')}
-            popoverSide="top"
-            disabled={isGenerating}
-            className="max-w-full"
-          />
-        </div>
-      </div>
+      <StudioDialectHeader disabled={isGenerating}>
+        <MainModelPicker
+          modality="image"
+          memoryScope="image-tags"
+          value={null}
+          onChange={(option) =>
+            dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
+          }
+          selectedOptionIds={runModelIds}
+          onToggleOption={handleToggleRunModel}
+          filterOption={filterModelByDialect}
+          renderSearchFallback={(query, close) => (
+            <StudioDialectJumpHint query={query} close={close} />
+          )}
+          triggerEmptyLabel={modelSummary}
+          searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
+          emptySearchText={tForm('modelSelector.emptySearch')}
+          popoverSide="top"
+          disabled={isGenerating}
+          className="max-w-full"
+        />
+      </StudioDialectHeader>
 
       {/* 编辑器常驻 —— 手机上每次都要动它。⚠ 负向栏折进「其它控件」那一条：
             正向标签与 UC 预设才是每一枪都改的两样。 */}

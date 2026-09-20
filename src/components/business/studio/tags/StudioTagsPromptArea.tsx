@@ -7,7 +7,7 @@ import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioDialectJumpHint'
-import { StudioDialectSwitch } from '@/components/business/studio/tags/StudioDialectSwitch'
+import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { StudioTagCapabilityControl } from '@/components/business/studio/tags/StudioTagCapabilityControl'
 import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
 import { useStudioForm } from '@/contexts/studio-context'
@@ -120,10 +120,10 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2.5">
-      {/* 顶栏 —— 一对分段切换是两台之间**唯一**的门；右边的型号只列本方言。 */}
-      <div className="flex items-center gap-2">
-        <StudioDialectSwitch disabled={isGenerating} />
-        <div className="ml-auto min-w-0" data-assistant-field="model">
+      {/* 顶栏 —— 一对分段切换是两台之间**唯一**的门（两台挂的是同一颗
+          `StudioDialectHeader`，位置也一样）；右边的型号只列本方言。 */}
+      <StudioDialectHeader disabled={isGenerating}>
+        <div data-assistant-field="model">
           <MainModelPicker
             modality="image"
             memoryScope="image-tags"
@@ -147,7 +147,7 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
             className="max-w-full"
           />
         </div>
-      </div>
+      </StudioDialectHeader>
 
       {/* 正在编辑某个角色时，栏首一行说清是谁、怎么回到整体 —— ⛔ 不靠右列
           那颗药丸的选中态独自承担这件事，编辑器自己得说明白它在写谁。 */}

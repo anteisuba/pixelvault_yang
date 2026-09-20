@@ -58,6 +58,7 @@ import { StudioCardSection } from '@/components/business/studio/StudioCardSectio
 // 派生；张数 / 声音在它底部的「更多」折叠区里。
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
+import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioDialectJumpHint'
 import { StudioVideoModeToggle } from '@/components/business/studio/StudioVideoModeToggle'
 import { StudioSfxSpecPopover } from '@/components/business/studio/StudioSfxSpecPopover'
@@ -469,6 +470,11 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
         prompt={placeholderDialog.prompt}
         onApply={applyInspirationPrompt}
       />
+
+      {/* 两台之间那扇门的**这一侧**。⚠ 与标签台挂的是同一颗组件、同一个位置
+          （参数列的第一行）—— 只装一边它就不是门，是单向阀。
+          ⛔ 只给图片档：视频与音频没有方言这一说。 */}
+      {isImageMode ? <StudioDialectHeader disabled={isGenerating} /> : null}
 
       <PromptInput
         ref={composerContainerRef}

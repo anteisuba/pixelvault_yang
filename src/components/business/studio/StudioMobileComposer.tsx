@@ -34,6 +34,7 @@ import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceB
 import { StudioMobileModelSheet } from '@/components/business/studio/StudioMobileModelSheet'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
+import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { studioChipActiveClass } from '@/components/business/studio-shared/primitives/tool-surface'
 
 /**
@@ -153,6 +154,9 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
       {/* 第 1 行 —— 横向可滚，永不换行（换行会让 composer 高度跳，舞台跟着抖）。
           ⚠ 必须裹 Toolbar.Root：`ReferenceImageChip` / `StudioEnhanceButton`
           底下是 Radix `Toolbar.Button`，没有 roving-focus context 会直接抛。 */}
+      {/* 两台之间那扇门的**这一侧**（与标签台同一颗组件、同在第一行）。
+          ⛔ 只给图片档：视频没有方言这一说。 */}
+      {!isVideo ? <StudioDialectHeader disabled={isGenerating} /> : null}
       {/* 专属区 —— 与桌面同一颗组件、同一份能力表派生（D2 ④）。手机上这一行
           横向滚不换行：换行会让 composer 高度跳，舞台跟着抖。
           ⚠ 标签模型的专属控件**不在这里**：它们只活在标签台（D10 ⑤），

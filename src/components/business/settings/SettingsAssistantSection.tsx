@@ -1,29 +1,49 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { Plus } from '@/components/icons'
+import { useCallback, useMemo, useRef, useState } from 'react'
+import { useFormatter, useTranslations } from 'next-intl'
+import { EyeOff, Trash2 } from '@/components/icons'
 
 import {
   ASSISTANT_PERSONA_VERBOSITIES,
   type AssistantPersonaVerbosity,
 } from '@/constants/assistant-persona'
 import {
-  SETTINGS_ASSISTANT_MUTED_PRESETS,
-  SETTINGS_PREFERENCE_KEYS,
-} from '@/constants/settings'
+  ASSISTANT_MEMORY_FILTER_SCOPES,
+  ASSISTANT_MEMORY_LIMITS,
+  type AssistantMemoryScopeId,
+} from '@/constants/assistant-memory'
+import { SETTINGS_PREFERENCE_KEYS } from '@/constants/settings'
+import { useAssistantMemories } from '@/hooks/use-assistant-memories'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
 import { useLocalPreference } from '@/hooks/use-local-preference'
 import { cn } from '@/lib/utils'
+import type { AssistantMemory } from '@/types/assistant-memory'
 
-import { Switch } from '@/components/ui/switch'
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog'
 
 /**
- * `/settings/assistant`（D3 ④）。
+ * `/settings/assistant`（D3 ④ + 56a ④「最简版」画板 `DesignD56Simple`）。
  *
- * ⚠ 记忆那一块**只有 UI 与空态**：56 还没落数据形状，这里⛔ 不接假数据。
- * 隐身模式与「不记的类目」同样只存状态（既有的 localStorage 偏好机制），行为
- * 接入留给 56。
+ * 两块，⛔ 没有第三块：
+ *  · **人设三档** —— 写穿到 `AssistantPersona.verbosity`；
+ *  · **记忆** —— 一张平铺列表（倒序 · 一行字 + 时间）、顶部筛选 chip、
+ *    hover 行尾唯一动作「删」、点文字就地改、右上「全部清空」二次确认、空态。
+ *
+ * ⚠ **「不记的类目」整块退场**（owner 2026-09-19：「负规则不做」）：它是一份只
+ * 活在 localStorage 里、服务端从没读过的负规则清单 —— 而 56a 把「不记什么」改成
+ * 了服务端的**敏感类目**确定性闸（`constants/assistant-memory.ts`），用户既看不见
+ * 也不需要配。留着两份「不记」的设定只会让人以为那颗 chip 真的管用。
+ * ⛔ 也没有分组 / 时间线分段 / 容量表 / 存为卡 / 导出 —— 画板上一个都没有。
  */
 export function SettingsAssistantSection() {
   const t = useTranslations('Settings')
@@ -33,7 +53,6 @@ export function SettingsAssistantSection() {
       <h2 className="text-xl font-semibold">{t('sections.assistant')}</h2>
       <PersonaChips />
       <MemoryBlock />
-      <MutedTopics />
     </section>
   )
 }
@@ -69,7 +88,7 @@ function PersonaChips() {
               aria-pressed={isActive}
               onClick={() => pick(verbosity)}
               className={cn(
-                'inline-flex h-8 items-center rounded-full px-3 text-xs transition-colors duration-fast active:scale-[.98] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+                'inline-flex h-8 items-center rounded-full px-3 text-xs transition-colors duration-fast active:scale-[.98] disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none coarse:h-11',
                 isActive
                   ? 'bg-primary text-primary-foreground'
                   : 'border border-border hover:bg-accent',
@@ -84,10 +103,29 @@ function PersonaChips() {
   )
 }
 
+/** 筛选 chip 的取值：`null` = 全部（默认那一档，⛔ 不是某个域）。 */
+type MemoryFilter = AssistantMemoryScopeId | null
+
 function MemoryBlock() {
   const t = useTranslations('Settings')
-  const [incognito, setIncognito] = useLocalPreference(
+  const { memories, isLoading, error, update, remove, clearAll } =
+    useAssistantMemories()
+  const [filter, setFilter] = useState<MemoryFilter>(null)
+  const [confirmingClear, setConfirmingClear] = useState(false)
+  const [, setIncognito] = useLocalPreference(
     SETTINGS_PREFERENCE_KEYS.assistantIncognito,
+  )
+
+  /**
+   * ⚠ **纯前端过滤**（画板）：一次全取，四颗 chip 之间不再打一次网。
+   * ⚠ `global` 那些跟着「全部」出现，⛔ 不单独一颗 chip（见 constants 里那条）。
+   */
+  const visible = useMemo(
+    () =>
+      filter === null
+        ? memories
+        : memories.filter((memory) => memory.scope === filter),
+    [filter, memories],
   )
 
   return (
@@ -95,113 +133,88 @@ function MemoryBlock() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-2xs uppercase tracking-nav text-muted-foreground">
           {t('assistant.memoryLabel')}
+          {memories.length > 0 ? (
+            <span className="ml-1.5 tabular-nums">{memories.length}</span>
+          ) : null}
         </p>
-        <label className="flex items-center gap-2 text-xs text-muted-foreground">
-          {t('assistant.incognito')}
-          <Switch
-            size="sm"
-            checked={incognito === '1'}
-            onCheckedChange={(checked) => setIncognito(checked ? '1' : '0')}
-            aria-label={t('assistant.incognito')}
-          />
-        </label>
-      </div>
-      {/* 56 未落数据形状 —— 这里只有空态，⛔ 不摆示例记忆。 */}
-      <p className="mt-2 rounded-lg border border-dashed border-border px-4 py-6 text-sm text-muted-foreground">
-        {t('assistant.memoryEmpty')}
-      </p>
-    </div>
-  )
-}
-
-function MutedTopics() {
-  const t = useTranslations('Settings')
-  const [stored, setStored] = useLocalPreference(
-    SETTINGS_PREFERENCE_KEYS.assistantMutedTopics,
-  )
-  const [draft, setDraft] = useState<string | null>(null)
-
-  const topics = useMemo(
-    () => (stored ? stored.split(',').filter(Boolean) : []),
-    [stored],
-  )
-
-  const toggle = useCallback(
-    (topic: string) => {
-      const next = topics.includes(topic)
-        ? topics.filter((item) => item !== topic)
-        : [...topics, topic]
-      setStored(next.join(','))
-    },
-    [setStored, topics],
-  )
-
-  const addCustom = useCallback(() => {
-    const value = (draft ?? '').trim()
-    setDraft(null)
-    // 逗号是分隔符本身 —— 收下它会把一条类目劈成两条。
-    if (!value || value.includes(',') || topics.includes(value)) return
-    setStored([...topics, value].join(','))
-  }, [draft, setStored, topics])
-
-  const custom = topics.filter(
-    (topic) =>
-      !(SETTINGS_ASSISTANT_MUTED_PRESETS as readonly string[]).includes(topic),
-  )
-
-  return (
-    <div>
-      <p className="text-2xs uppercase tracking-nav text-muted-foreground">
-        {t('assistant.mutedLabel')}
-      </p>
-      <div className="mt-2 flex flex-wrap gap-1.5">
-        {SETTINGS_ASSISTANT_MUTED_PRESETS.map((preset) => (
-          <TopicChip
-            key={preset}
-            label={t(`assistant.muted.${preset}`)}
-            isActive={topics.includes(preset)}
-            onClick={() => toggle(preset)}
-          />
-        ))}
-        {custom.map((topic) => (
-          <TopicChip
-            key={topic}
-            label={topic}
-            isActive
-            onClick={() => toggle(topic)}
-          />
-        ))}
-        {draft === null ? (
+        {memories.length > 0 ? (
           <button
             type="button"
-            onClick={() => setDraft('')}
-            className="inline-flex h-7 items-center gap-1 rounded-full border border-dashed border-border px-2.5 text-xs text-muted-foreground transition-colors duration-fast hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            onClick={() => setConfirmingClear(true)}
+            className="text-xs underline underline-offset-2 transition-colors duration-fast hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:min-h-11"
           >
-            <Plus className="size-3" />
-            {t('assistant.addMuted')}
+            {t('assistant.memoryClearAll')}
           </button>
-        ) : (
-          <input
-            autoFocus
-            type="text"
-            value={draft}
-            maxLength={24}
-            aria-label={t('assistant.addMuted')}
-            onChange={(event) => setDraft(event.target.value)}
-            onBlur={addCustom}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') event.currentTarget.blur()
-              if (event.key === 'Escape') setDraft(null)
-            }}
-            className="h-7 w-28 rounded-full border border-border bg-background px-2.5 text-xs focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          />
-        )}
+        ) : null}
       </div>
+
+      {memories.length > 0 ? (
+        <div className="mt-2 flex flex-wrap gap-1.5" role="group">
+          <FilterChip
+            label={t('assistant.memoryScope.all')}
+            isActive={filter === null}
+            onClick={() => setFilter(null)}
+          />
+          {ASSISTANT_MEMORY_FILTER_SCOPES.map((scope) => (
+            <FilterChip
+              key={scope}
+              label={t(`assistant.memoryScope.${scope}`)}
+              isActive={filter === scope}
+              onClick={() => setFilter(scope)}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {error ? (
+        <p role="alert" className="mt-2 text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+
+      {memories.length === 0 ? (
+        <MemoryEmptyState
+          isLoading={isLoading}
+          onIncognito={() => setIncognito('1')}
+        />
+      ) : (
+        <ul className="mt-2 divide-y divide-border rounded-lg border border-border">
+          {visible.map((memory) => (
+            <MemoryRow
+              key={memory.id}
+              memory={memory}
+              onSave={(text) => update(memory.id, text)}
+              onDelete={() => remove(memory.id)}
+            />
+          ))}
+        </ul>
+      )}
+
+      <AlertDialog open={confirmingClear} onOpenChange={setConfirmingClear}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {t('assistant.memoryClearTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('assistant.memoryClearDescription', {
+                count: memories.length,
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t('assistant.memoryCancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void clearAll()}>
+              {t('assistant.memoryClearConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }
 
-function TopicChip({
+function FilterChip({
   label,
   isActive,
   onClick,
@@ -216,7 +229,7 @@ function TopicChip({
       onClick={onClick}
       aria-pressed={isActive}
       className={cn(
-        'inline-flex h-7 items-center rounded-full px-2.5 text-xs transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+        'inline-flex h-7 items-center rounded-full px-2.5 text-xs transition-colors duration-fast focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:h-11',
         isActive
           ? 'bg-muted text-foreground'
           : 'border border-border text-muted-foreground hover:bg-accent',
@@ -225,4 +238,165 @@ function TopicChip({
       {label}
     </button>
   )
+}
+
+/**
+ * 空态（画板）：一句话说清会记什么、能改能删，加一个隐身入口。
+ *
+ * ⚠ 起手动作直接**切开关**而不是滚到一段说明：这一页上没有别的地方讲隐身，
+ * 跳过去等于跳到自己。
+ */
+function MemoryEmptyState({
+  isLoading,
+  onIncognito,
+}: {
+  isLoading: boolean
+  onIncognito: () => void
+}) {
+  const t = useTranslations('Settings')
+  return (
+    <div className="mt-2 flex flex-col items-center gap-2 rounded-lg border border-dashed border-border px-4 py-8 text-center">
+      <p className="text-sm font-medium">
+        {isLoading ? t('assistant.memoryLoading') : t('assistant.memoryEmpty')}
+      </p>
+      <p className="max-w-[340px] text-xs leading-relaxed text-muted-foreground">
+        {t('assistant.memoryEmptyHint')}
+      </p>
+      <button
+        type="button"
+        onClick={onIncognito}
+        className="mt-1 inline-flex h-8 items-center gap-1.5 rounded-full border border-border px-3 text-xs transition-colors duration-fast hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:h-11"
+      >
+        <EyeOff className="size-3.5" aria-hidden />
+        {t('assistant.memoryIncognitoCta')}
+      </button>
+    </div>
+  )
+}
+
+/**
+ * 一行 = 一条记忆。
+ *
+ * 三态：默认（文字 + 时间）· hover / focus（行尾出「删」）· 就地改（回车保存、
+ * Esc 取消）。⛔ 改不弹层 —— 画板上那一下就是把文字变成可编辑。
+ * ⚠ 触屏上「删」**常显**（`coarse:`，ui-defaults §6：hover 显示的操作在手机上
+ * 要常显或长按菜单）。
+ */
+function MemoryRow({
+  memory,
+  onSave,
+  onDelete,
+}: {
+  memory: AssistantMemory
+  onSave(text: string): Promise<AssistantMemory | null>
+  onDelete(): Promise<boolean>
+}) {
+  const t = useTranslations('Settings')
+  const [draft, setDraft] = useState<string | null>(null)
+  /**
+   * Esc 按下之后那一拍的 blur **不许当成保存**。
+   *
+   * ⚠ 走 ref 不走 state：`setDraft(null)` 要到下一次渲染才生效，而 blur 就在
+   * 这一拍紧接着发生 —— 只看 state 的表现是 Esc 把改坏的那一版存了进去。
+   */
+  const cancelledRef = useRef(false)
+
+  const commit = useCallback(() => {
+    const cancelled = cancelledRef.current
+    cancelledRef.current = false
+    const value = (draft ?? '').trim()
+    setDraft(null)
+    if (cancelled || !value || value === memory.text) return
+    void onSave(value.slice(0, ASSISTANT_MEMORY_LIMITS.maxTextChars))
+  }, [draft, memory.text, onSave])
+
+  return (
+    <li className="group flex items-center gap-2 px-3 py-2 coarse:min-h-11">
+      {draft === null ? (
+        <button
+          type="button"
+          onClick={() => setDraft(memory.text)}
+          className="flex-1 text-left text-sm leading-snug focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {memory.text}
+        </button>
+      ) : (
+        <input
+          autoFocus
+          type="text"
+          value={draft}
+          maxLength={ASSISTANT_MEMORY_LIMITS.maxTextChars}
+          aria-label={t('assistant.memoryEditLabel')}
+          onChange={(event) => setDraft(event.target.value)}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.key === 'Enter') event.currentTarget.blur()
+            // ⚠ Esc 只立起那面旗、让 blur 自己收尾（见 `cancelledRef` 的头注）。
+            if (event.key === 'Escape') {
+              cancelledRef.current = true
+              event.currentTarget.blur()
+            }
+          }}
+          className="h-7 flex-1 rounded-md border border-border bg-background px-2 text-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        />
+      )}
+
+      {draft === null ? (
+        <>
+          <time
+            dateTime={memory.updatedAt}
+            className="shrink-0 text-2xs tabular-nums text-muted-foreground group-hover:hidden group-focus-within:hidden coarse:hidden"
+          >
+            <MemoryStamp iso={memory.updatedAt} />
+          </time>
+          <button
+            type="button"
+            onClick={() => void onDelete()}
+            aria-label={t('assistant.memoryDelete')}
+            className="hidden size-7 shrink-0 place-items-center rounded-md border border-border text-muted-foreground transition-colors duration-fast hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring group-hover:grid group-focus-within:grid coarse:grid coarse:size-11"
+          >
+            <Trash2 className="size-3.5" aria-hidden />
+          </button>
+        </>
+      ) : (
+        <span className="shrink-0 text-2xs text-muted-foreground">
+          {t('assistant.memoryEditHint')}
+        </span>
+      )}
+    </li>
+  )
+}
+
+/** 一天的毫秒数 —— 只给下面那个「今天 / 昨天」的日差用。 */
+const MS_PER_DAY = 86_400_000
+
+/**
+ * 时间戳（画板：今天 HH:mm · 昨天 · M/D）。
+ *
+ * ⚠ 判据是**日差**不是 24 小时差：昨天 23:50 与今天 00:10 差 20 分钟，按小时算
+ * 会写成「今天」。判法与 `StudioOperatorHeader` 里那一份逐字同源。
+ */
+function MemoryStamp({ iso }: { iso: string }) {
+  const t = useTranslations('Settings')
+  const format = useFormatter()
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return null
+
+  const startOfDay = (value: Date) =>
+    new Date(value.getFullYear(), value.getMonth(), value.getDate()).getTime()
+  const days = Math.round(
+    (startOfDay(new Date()) - startOfDay(date)) / MS_PER_DAY,
+  )
+
+  if (days <= 0) {
+    return (
+      <>
+        {t('assistant.memoryToday', {
+          time: format.dateTime(date, { hour: '2-digit', minute: '2-digit' }),
+        })}
+      </>
+    )
+  }
+  if (days === 1) return <>{t('assistant.memoryYesterday')}</>
+  return <>{format.dateTime(date, { month: 'numeric', day: 'numeric' })}</>
 }

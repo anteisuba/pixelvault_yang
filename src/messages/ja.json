@@ -8081,15 +8081,27 @@
         "detailed": "詳細"
       },
       "memoryLabel": "記憶",
-      "memoryEmpty": "まだ記憶はありません · アシスタントと何度か話すとここに出てきます。",
-      "incognito": "シークレット",
-      "mutedLabel": "記憶しない項目",
-      "muted": {
-        "address": "住所",
-        "payment": "支払い情報",
-        "contact": "連絡先"
+      "memoryClearAll": "すべて消去",
+      "memoryScope": {
+        "all": "すべて",
+        "image": "画像",
+        "video": "動画",
+        "canvas": "キャンバス",
+        "lora": "LoRA"
       },
-      "addMuted": "追加"
+      "memoryLoading": "記憶を読み込み中…",
+      "memoryEmpty": "まだ記憶はありません",
+      "memoryEmptyHint": "アシスタントは各ターンの終わりにあなたの好みや事実を書き留めます。ここでいつでも編集・削除できます。",
+      "memoryIncognitoCta": "このセッションは記憶しない",
+      "memoryEditLabel": "この記憶を編集",
+      "memoryEditHint": "Enter で保存 · Esc で取消",
+      "memoryDelete": "この記憶を削除",
+      "memoryToday": "今日 {time}",
+      "memoryYesterday": "昨日",
+      "memoryClearTitle": "記憶をすべて消去しますか？",
+      "memoryClearDescription": "{count, plural, other {# 件}}の記憶が削除されます。元に戻せません。",
+      "memoryClearConfirm": "すべて消去",
+      "memoryCancel": "キャンセル"
     }
   }
 }

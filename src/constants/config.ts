@@ -158,6 +158,12 @@ export const API_ENDPOINTS = {
    * can @-mention or pin to a workbench. Images live under `<id>/images`.
    */
   CONTEXT_CARDS: '/api/context-cards',
+  /**
+   * 助手记忆（56a）—— 一条 = 一行字。总览列表在 `/settings/assistant`；
+   * 「全部清空」走 `<base>/clear`（⚠ 集合上的 DELETE 在路由工厂里是**按 id** 的
+   * 那一支，没有 id 可给），单条的改 / 删走 `<base>/<id>`。
+   */
+  ASSISTANT_MEMORIES: '/api/assistant-memories',
   /** Node Studio structured ScriptDoc draft (assistant → outline) */
   NODE_SCRIPT_DOC: '/api/studio/node-script-doc',
   /** Generation feedback (iterative refinement) */

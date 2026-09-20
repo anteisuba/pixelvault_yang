@@ -8081,15 +8081,27 @@
         "detailed": "Detailed"
       },
       "memoryLabel": "Memory",
-      "memoryEmpty": "Nothing remembered yet · chat with the assistant a few times and it will show up here.",
-      "incognito": "Incognito",
-      "mutedLabel": "Never remember",
-      "muted": {
-        "address": "Addresses",
-        "payment": "Payment details",
-        "contact": "Contact details"
+      "memoryClearAll": "Clear all",
+      "memoryScope": {
+        "all": "All",
+        "image": "Image",
+        "video": "Video",
+        "canvas": "Canvas",
+        "lora": "LoRA"
       },
-      "addMuted": "Add"
+      "memoryLoading": "Loading memory…",
+      "memoryEmpty": "Nothing remembered yet",
+      "memoryEmptyHint": "The assistant notes your preferences and facts at the end of each turn. You can edit or delete any of them here.",
+      "memoryIncognitoCta": "Don't remember this session",
+      "memoryEditLabel": "Edit this memory",
+      "memoryEditHint": "Enter to save · Esc to cancel",
+      "memoryDelete": "Delete this memory",
+      "memoryToday": "Today {time}",
+      "memoryYesterday": "Yesterday",
+      "memoryClearTitle": "Clear all memory?",
+      "memoryClearDescription": "{count, plural, one {# remembered line} other {# remembered lines}} will be deleted. This cannot be undone.",
+      "memoryClearConfirm": "Clear all",
+      "memoryCancel": "Cancel"
     }
   }
 }

@@ -4,6 +4,7 @@ import { join, relative } from 'node:path'
 import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
+import { ASSISTANT_MEMORY_FILTER_SCOPES } from '@/constants/assistant-memory'
 import { ASSISTANT_OPERATOR_REJECT_REASON_IDS } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAINS } from '@/constants/assistant-protocol'
 import { AI_MODELS, MODEL_MESSAGE_KEYS } from '@/constants/models'
@@ -561,6 +562,16 @@ describe('i18n completeness', () => {
       label: 'StudioOperator.system',
       prefix: 'StudioOperator.system',
       values: [...STUDIO_OPERATOR_SYSTEM_CODES] as string[],
+    },
+    /**
+     * 记忆总览那排筛选 chip（56a）—— 词表加一档而三语没跟上时，chip 上会印一个
+     * `Settings.assistant.memoryScope.xxx` 的原样 key。⚠ `all` 不在词表里
+     * （它是「不筛」那一档），所以单独补进值域。
+     */
+    {
+      label: 'Settings.assistant.memoryScope',
+      prefix: 'Settings.assistant.memoryScope',
+      values: ['all', ...ASSISTANT_MEMORY_FILTER_SCOPES] as string[],
     },
   ])('$label covers every constant value', ({ prefix, values }) => {
     it.each(LOCALES)('%s', (locale) => {

@@ -8081,15 +8081,27 @@
         "detailed": "详尽"
       },
       "memoryLabel": "记忆",
-      "memoryEmpty": "还没有记忆 · 用助手聊几次就会出现",
-      "incognito": "隐身模式",
-      "mutedLabel": "不记的类目",
-      "muted": {
-        "address": "地址",
-        "payment": "支付信息",
-        "contact": "联系方式"
+      "memoryClearAll": "全部清空",
+      "memoryScope": {
+        "all": "全部",
+        "image": "图片",
+        "video": "视频",
+        "canvas": "画布",
+        "lora": "LoRA"
       },
-      "addMuted": "添加"
+      "memoryLoading": "正在读取记忆…",
+      "memoryEmpty": "还没有记忆",
+      "memoryEmptyHint": "助手会在每轮结束时记下你的偏好和事实。这里随时能改、能删。",
+      "memoryIncognitoCta": "这一轮不记（隐身）",
+      "memoryEditLabel": "改这条记忆",
+      "memoryEditHint": "回车保存 · Esc 取消",
+      "memoryDelete": "删掉这条记忆",
+      "memoryToday": "今天 {time}",
+      "memoryYesterday": "昨天",
+      "memoryClearTitle": "清空全部记忆？",
+      "memoryClearDescription": "{count, plural, other {# 条}}记忆会被删掉，且无法恢复。",
+      "memoryClearConfirm": "全部清空",
+      "memoryCancel": "取消"
     }
   }
 }

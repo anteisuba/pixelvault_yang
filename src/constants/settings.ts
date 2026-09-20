@@ -48,10 +48,12 @@ export const SETTINGS_PREFERENCE_KEYS = {
   notifyOnComplete: 'pixelvault:settings:notify-on-complete',
   /** 减少动效（用户显式勾选，与系统 prefers-reduced-motion 是或的关系）。 */
   reduceMotion: 'pixelvault:settings:reduce-motion',
-  /** 助手隐身模式（行为接入留给 56，本轮只存状态）。 */
+  /**
+   * 助手隐身（56a）—— **设置页那一侧的落点**：空态里那颗「这一轮不记」写它。
+   * ⚠ 面板 ⋯ 菜单里那颗开关作用于**当前会话**（住在操作员 store 里），与这一格
+   * ⛔ 不是同一件事：这一格是「下次打开助手时默认隐身」。
+   */
   assistantIncognito: 'pixelvault:settings:assistant-incognito',
-  /** 助手「不记的类目」，逗号分隔（同上，本轮只存状态）。 */
-  assistantMutedTopics: 'pixelvault:settings:assistant-muted-topics',
 } as const
 
 /** 「默认打开」可选的工作台。值就是路由，⛔ 不做第二张 id → 路由的映射。 */
@@ -73,13 +75,3 @@ export function isSettingsDefaultWorkbench(
     value ?? '',
   )
 }
-
-/**
- * 助手「不记的类目」的三个预设值。⚠ 它们是 i18n key 的后缀，不是展示文案——
- * 用户自己加的类目原样存原文。
- */
-export const SETTINGS_ASSISTANT_MUTED_PRESETS = [
-  'address',
-  'payment',
-  'contact',
-] as const

@@ -17,6 +17,7 @@ import {
   HOME_V4_MODEL_LOGO_KEYS,
   HOME_V4_SCROLL,
   HOME_V4_SECTIONS,
+  HOME_V4_SECTION_THUMBS,
   HOME_V4_STATION_KEYS,
   HOME_V4_STATIONS,
   HOME_V4_STORY,
@@ -48,6 +49,9 @@ describe('home v4 · assets', () => {
          its 「待生成」 placeholder — the exact state the shot replaced, so the
          page would look intentional rather than broken. */
       ...HOME_V4_FN_IMAGE_MODELS.map((model) => model.shot),
+      /* 手机目录条的缩略图。少一张，条上就是一个灰格子，而它正是手机上
+         「我要去哪一段」唯一的线索。 */
+      ...Object.values(HOME_V4_SECTION_THUMBS),
     ]
 
     const missing = referenced.filter((src) => !existsSync(localPath(src)))
@@ -144,6 +148,16 @@ describe('home v4 · model records', () => {
 })
 
 describe('home v5 · 长卷段表', () => {
+  /* 手机目录条一段一张图，少一段就是一个点不明白的灰格。 */
+  it('gives every section a thumbnail for the phone toc', () => {
+    for (const section of HOME_V4_SECTIONS) {
+      expect(HOME_V4_SECTION_THUMBS[section.id], section.id).toBeTruthy()
+    }
+    expect(Object.keys(HOME_V4_SECTION_THUMBS)).toHaveLength(
+      HOME_V4_SECTIONS.length,
+    )
+  })
+
   /* 九段：开场 + 六个功能段 + 一段模型列表 + 收尾。五个整屏模型站合并成了终页
      前的那一段横滑列表（owner 批注 40），旧的十三页结构见 git。 */
   it('is nine sections with unique ids, opening first and finale last', () => {

@@ -266,7 +266,8 @@ html.home-v4-roll {
 /* ⭐ 永远在 DOM 里，只是没揭开。结果态才冒出来的按钮会在读者正盯着结果的那
    一刻把舞台顶一下——所以这里只动 `opacity` 与 `transform`。 */
 .home-v4 .fn-cta {
-  align-self: flex-start;
+  /* ⚠ 不写 `align-self`：跟着 `.fn-head` 自己的对齐走 —— 居中版式里它居中，
+     ≥1100px 的左栏版式里它靠左。写死一个方向必然有一半页面是歪的。 */
   margin-top: 10px;
   padding: 8px 16px;
   border: 1px solid var(--ink);

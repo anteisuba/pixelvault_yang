@@ -13,6 +13,7 @@ import {
 } from '@/services/providers/minimax.adapter'
 import { novelAiAdapter } from '@/services/providers/novelai.adapter'
 import { openAiAdapter } from '@/services/providers/openai.adapter'
+import { pixAiAdapter } from '@/services/providers/pixai.adapter'
 import { replicateAdapter } from '@/services/providers/replicate.adapter'
 import { runnerAdapter } from '@/services/providers/runner.adapter'
 import {
@@ -28,6 +29,7 @@ const PROVIDER_ADAPTERS: Partial<Record<AI_ADAPTER_TYPES, ProviderAdapter>> = {
   [AI_ADAPTER_TYPES.FAL]: falAdapter,
   [AI_ADAPTER_TYPES.REPLICATE]: replicateAdapter,
   [AI_ADAPTER_TYPES.NOVELAI]: novelAiAdapter,
+  [AI_ADAPTER_TYPES.PIXAI]: pixAiAdapter,
   [AI_ADAPTER_TYPES.VOLCENGINE]: volcengineAdapter,
   [AI_ADAPTER_TYPES.BYTEPLUS]: byteplusAdapter,
   [AI_ADAPTER_TYPES.FISH_AUDIO]: fishAudioAdapter,

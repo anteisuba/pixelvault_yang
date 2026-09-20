@@ -9,6 +9,13 @@ export enum AI_ADAPTER_TYPES {
   RUNWAY = 'runway',
   REPLICATE = 'replicate',
   NOVELAI = 'novelai',
+  /**
+   * PixAI —— 动漫向 A 类原生 adapter，BYOK，**只有文生图**。队列型：
+   * `POST /v2/image/create` 拿 task id，`GET /v1/task/{id}` 轮询。⚠ 生成的图
+   * **不永久保留**，拿到结果要立刻落 R2（见 `constants/pixai.ts`）。
+   * https://platform.pixai.art/en/docs
+   */
+  PIXAI = 'pixai',
   VOLCENGINE = 'volcengine',
   /** BytePlus ModelArk international station; accounts and keys are separate from VolcEngine China. */
   BYTEPLUS = 'byteplus',
@@ -73,6 +80,7 @@ export const AI_ADAPTER_TYPE_OPTIONS = [
   AI_ADAPTER_TYPES.RUNWAY,
   AI_ADAPTER_TYPES.REPLICATE,
   AI_ADAPTER_TYPES.NOVELAI,
+  AI_ADAPTER_TYPES.PIXAI,
   AI_ADAPTER_TYPES.VOLCENGINE,
   AI_ADAPTER_TYPES.BYTEPLUS,
   AI_ADAPTER_TYPES.FISH_AUDIO,
@@ -119,6 +127,10 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
   [AI_ADAPTER_TYPES.NOVELAI]: {
     label: 'NovelAI',
     baseUrl: AI_PROVIDER_ENDPOINTS.NOVELAI,
+  },
+  [AI_ADAPTER_TYPES.PIXAI]: {
+    label: 'PixAI',
+    baseUrl: AI_PROVIDER_ENDPOINTS.PIXAI,
   },
   [AI_ADAPTER_TYPES.VOLCENGINE]: {
     label: 'VolcEngine',
@@ -178,6 +190,9 @@ export const ADAPTER_KEY_HINTS: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.RUNWAY]: 'key_...',
   [AI_ADAPTER_TYPES.REPLICATE]: 'r8_...',
   [AI_ADAPTER_TYPES.NOVELAI]: 'pst-...',
+  // ⚠ PixAI 的文档从不写 key 前缀（只给 `<YOUR_API_KEY>` 占位），这里照
+  // xAI 的先例只当显示提示，validate-api-key.ts 不给它前缀规则。
+  [AI_ADAPTER_TYPES.PIXAI]: 'pixai-...',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'ark-...',
   [AI_ADAPTER_TYPES.BYTEPLUS]: 'ark-...',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 'aaf42ad8...',
@@ -205,6 +220,9 @@ export const ADAPTER_DEFAULT_COSTS: Record<AI_ADAPTER_TYPES, number> = {
   [AI_ADAPTER_TYPES.RUNWAY]: 5,
   [AI_ADAPTER_TYPES.REPLICATE]: 2,
   [AI_ADAPTER_TYPES.NOVELAI]: 2,
+  // 与 NovelAI 同档：同为动漫向 BYOK 图片线路。⚠ API 专属价目未核实，
+  // 这个数字是站内额度档而不是换算出来的成本。
+  [AI_ADAPTER_TYPES.PIXAI]: 2,
   [AI_ADAPTER_TYPES.VOLCENGINE]: 4,
   [AI_ADAPTER_TYPES.BYTEPLUS]: 4,
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 2,
@@ -234,6 +252,8 @@ export const ADAPTER_CUSTOM_MODEL_EXAMPLES: Record<AI_ADAPTER_TYPES, string> = {
   [AI_ADAPTER_TYPES.RUNWAY]: 'gen4.5',
   [AI_ADAPTER_TYPES.REPLICATE]: 'ideogram-ai/ideogram-v2',
   [AI_ADAPTER_TYPES.NOVELAI]: 'nai-diffusion-5-full',
+  // 自定义模型就是 pixai.art/model/<id>/<modelVersionId> 地址末段那个数字。
+  [AI_ADAPTER_TYPES.PIXAI]: '1983308862240288769',
   [AI_ADAPTER_TYPES.VOLCENGINE]: 'doubao-seedream-5-0-260128',
   [AI_ADAPTER_TYPES.BYTEPLUS]: 'dreamina-seedance-2-0-260128',
   [AI_ADAPTER_TYPES.FISH_AUDIO]: 's2-pro',
@@ -296,6 +316,11 @@ export const ADAPTER_API_GUIDES: Record<AI_ADAPTER_TYPES, ProviderGuide> = {
   [AI_ADAPTER_TYPES.NOVELAI]: {
     url: 'https://novelai.net/',
     steps: 'Sign in → User Settings → Account → Get Persistent API Token',
+  },
+  [AI_ADAPTER_TYPES.PIXAI]: {
+    url: 'https://platform.pixai.art/en/docs',
+    steps:
+      'Sign in to pixai.art → Profile → API key (members generate one instantly; otherwise request one by email). The REST API is beta — no SLA, and model version ids change with releases.',
   },
   [AI_ADAPTER_TYPES.VOLCENGINE]: {
     url: 'https://console.volcengine.com/ark/region:ark+cn-beijing/apiKey',

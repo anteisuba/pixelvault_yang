@@ -156,6 +156,8 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
   // assistant can *recommend* NovelAI catalog ids via workbench state;
   // it cannot route chat/vision through this adapter.
   [AI_ADAPTER_TYPES.NOVELAI]: { image: false, video: false },
+  // 出图，不读图 —— 与 NovelAI 同处境。
+  [AI_ADAPTER_TYPES.PIXAI]: { image: false, video: false },
   [AI_ADAPTER_TYPES.FISH_AUDIO]: { image: false, video: false },
   [AI_ADAPTER_TYPES.HYPER3D_RODIN]: { image: false, video: false },
   [AI_ADAPTER_TYPES.RUNNER]: { image: false, video: false },

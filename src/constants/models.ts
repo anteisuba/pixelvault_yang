@@ -38,6 +38,9 @@ export const MODEL_MESSAGE_KEYS: Record<string, string> = {
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: 'openaiGptImage2',
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: 'openaiGptImage25Flare',
   [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: 'openaiGptImage25Sunburst',
+  [AI_MODELS.PIXAI_TSUBAKI_2]: 'pixaiTsubaki2',
+  [AI_MODELS.PIXAI_HARUKA_V2]: 'pixaiHarukaV2',
+  [AI_MODELS.PIXAI_HOSHINO_V2]: 'pixaiHoshinoV2',
   [AI_MODELS.FLUX_2_PRO]: 'flux2Pro',
   [AI_MODELS.FLUX_2_PRO_EDIT]: 'flux2ProEdit',
   [AI_MODELS.FLUX_2_FLASH]: 'flux2Flash',
@@ -492,6 +495,7 @@ export type ProviderGroup =
   | 'xai'
   | 'minimax'
   | 'runner'
+  | 'pixai'
 
 /** Display order for provider groups. */
 export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
@@ -499,6 +503,7 @@ export const PROVIDER_GROUP_ORDER: ProviderGroup[] = [
   'google',
   'deepseek',
   'novelai',
+  'pixai',
   'fal',
   'runway',
   'volcengine',
@@ -525,6 +530,8 @@ export function getProviderGroup(adapterType: AI_ADAPTER_TYPES): ProviderGroup {
       return 'deepseek'
     case AI_ADAPTER_TYPES.NOVELAI:
       return 'novelai'
+    case AI_ADAPTER_TYPES.PIXAI:
+      return 'pixai'
     case AI_ADAPTER_TYPES.FAL:
       return 'fal'
     case AI_ADAPTER_TYPES.RUNWAY:

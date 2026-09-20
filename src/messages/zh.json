@@ -3847,6 +3847,18 @@
     "fishAudioS2ProFree": {
       "label": "Fish Audio S2.1 Pro Free",
       "description": "上游免费 TTS，需自备 Fish API Key，受公平使用政策限制"
+    },
+    "pixaiTsubaki2": {
+      "label": "PixAI Tsubaki.2",
+      "description": "PixAI 的旗舰 DiT 动漫模型，仅支持文生图。"
+    },
+    "pixaiHarukaV2": {
+      "label": "PixAI Haruka v2",
+      "description": "PixAI 的经典 SDXL 动漫线路，仅支持文生图。"
+    },
+    "pixaiHoshinoV2": {
+      "label": "PixAI Hoshino v2",
+      "description": "PixAI 偏风格化的 SDXL 线路，仅支持文生图。"
     }
   },
   "PromptPresets": {

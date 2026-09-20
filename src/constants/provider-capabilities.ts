@@ -214,6 +214,20 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       referenceImageMode: 'img2img',
     },
 
+    /**
+     * PixAI（beta REST API，2026-09-20 核对 createImage 文档）。文生图**独此
+     * 一条路**：不收 i2i / 参考图 / 编辑 / 视频，所以 `maxReferenceImages: 0`
+     * 是如实声明，⛔ 不是保守值。
+     *
+     * 扩散旋钮住在请求体的 `sampling` 对象里且**只对 SDXL 档成立**
+     * （Tsubaki 是 DiT，收的是 `mode` / `style`），所以 adapter 默认只留
+     * provider 无条件都收的两项，其余逐模型声明。
+     */
+    [AI_ADAPTER_TYPES.PIXAI]: {
+      capabilities: ['negativePrompt', 'seed'],
+      maxReferenceImages: 0,
+    },
+
     [AI_ADAPTER_TYPES.FAL]: {
       capabilities: [
         'negativePrompt',
@@ -453,6 +467,21 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
     ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
     qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
     textRenderingMaxChars: NOVELAI_TEXT_RENDERING_MAX_CHARS,
+  },
+  // SDXL 两档才有 `sampling`（steps / cfg / sampler）与 `loras`；Tsubaki 是 DiT，
+  // 收的是 `mode` / `style`，那两样一个都不收。⚠ 声明 `capabilities` 是整体替换，
+  // 所以这里连同 adapter 默认那两项一起写出。
+  [AI_MODELS.PIXAI_HARUKA_V2]: {
+    capabilities: ['negativePrompt', 'seed', 'guidanceScale', 'steps'] as const,
+    guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
+    steps: { min: 1, max: 50, step: 1, default: 28 },
+    maxReferenceImages: 0,
+  },
+  [AI_MODELS.PIXAI_HOSHINO_V2]: {
+    capabilities: ['negativePrompt', 'seed', 'guidanceScale', 'steps'] as const,
+    guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
+    steps: { min: 1, max: 50, step: 1, default: 28 },
+    maxReferenceImages: 0,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,

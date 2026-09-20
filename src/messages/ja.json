@@ -3847,6 +3847,18 @@
     "fishAudioS2ProFree": {
       "label": "Fish Audio S2.1 Pro Free",
       "description": "ご自身の Fish API キーで無料の音声生成を利用できます。フェアユースの制限があります。"
+    },
+    "pixaiTsubaki2": {
+      "label": "PixAI Tsubaki.2",
+      "description": "PixAI のフラッグシップ DiT アニメモデル。テキストから画像のみ。"
+    },
+    "pixaiHarukaV2": {
+      "label": "PixAI Haruka v2",
+      "description": "PixAI の定番 SDXL アニメ系列。テキストから画像のみ。"
+    },
+    "pixaiHoshinoV2": {
+      "label": "PixAI Hoshino v2",
+      "description": "PixAI のスタイライズ寄り SDXL 系列。テキストから画像のみ。"
     }
   },
   "PromptPresets": {

@@ -79,6 +79,8 @@ export const ADAPTER_PROMPT_HINTS: Record<string, string> = {
     'Target model: FLUX. Prefer photographic terminology, specific lens/camera details, precise lighting descriptions, and full natural language sentences.',
   [AI_ADAPTER_TYPES.NOVELAI]:
     'Target model: NovelAI (anime diffusion). Prefer comma-separated danbooru-style tags. Quality tags first, then character tags, then style and scene. Natural-language sentences are acceptable on V5 but tags remain the reliable dialect. A reference image is optional: one image becomes img2img, not a character lock. Do not assume Director / Vibe Transfer.',
+  [AI_ADAPTER_TYPES.PIXAI]:
+    'Target model: PixAI (anime diffusion). Prefer comma-separated danbooru-style tags: subject and character tags first, then clothing and pose, then scene and lighting. Text-to-image only — there is no reference image, no img2img and no editing on this route, so never write instructions that refer to an input picture.',
   [AI_ADAPTER_TYPES.GEMINI]:
     'Target model: Gemini image generation. Prefer natural, descriptive English sentences with rich visual detail.',
   [AI_ADAPTER_TYPES.VOLCENGINE]:
@@ -438,6 +440,48 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
       health: 0.7,
     },
   },
+  // ── PixAI（BYOK，文生图 only）─────────────────────────────────────
+  // 三条都在 danbooru 标签方言上，与 NovelAI 同族；区别是它**真的收**
+  // negative_prompt 字段（NovelAI 那边叫 undesired content）。
+  [AI_MODELS.PIXAI_TSUBAKI_2]: {
+    bestFor: ['anime', 'illustration', 'character-design', 'detailed'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint:
+      'PixAI Tsubaki.2 (DiT flagship). Comma-separated danbooru tags: subject and character first, then outfit and pose, then scene and lighting. Text-to-image only — no reference image, no img2img, no editing, so never describe an input picture. Quality and style are chosen by the model mode, not by quality tags.',
+    routerWeights: {
+      referenceFit: 0,
+      costEfficiency: 0.5,
+      latency: 0.4,
+      health: 0.6,
+    },
+  },
+  [AI_MODELS.PIXAI_HARUKA_V2]: {
+    bestFor: ['anime', 'illustration', 'character-design'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint:
+      'PixAI Haruka v2 (SDXL). Comma-separated danbooru tags; classic SDXL anime dialect, so quality tags at the front still help. Text-to-image only — no reference image and no editing. Sampling steps and CFG are available on this SDXL line.',
+    routerWeights: {
+      referenceFit: 0,
+      costEfficiency: 0.55,
+      latency: 0.5,
+      health: 0.6,
+    },
+  },
+  [AI_MODELS.PIXAI_HOSHINO_V2]: {
+    bestFor: ['anime', 'illustration', 'stylized'],
+    promptStyle: 'tag-based',
+    negativePrompt: 'supported',
+    enhanceHint:
+      'PixAI Hoshino v2 (SDXL). Comma-separated danbooru tags; leans stylised and illustrative. Text-to-image only — no reference image and no editing. Sampling steps and CFG are available on this SDXL line.',
+    routerWeights: {
+      referenceFit: 0,
+      costEfficiency: 0.55,
+      latency: 0.5,
+      health: 0.6,
+    },
+  },
   // ── SDXL 系（托管 + Comfy Runner）────────────────────────────────
   // Illustrious/NoobAI carries the hosted LoRA anime line. NovelAI is a
   // closed API — same tag dialect, no Civitai LoRA slot.
@@ -538,6 +582,9 @@ export const TAG_BASED_PROMPT_MODEL_IDS: ReadonlySet<string> = new Set<string>([
   AI_MODELS.NOVELAI_V45_CURATED,
   AI_MODELS.NOVELAI_V5_FULL,
   AI_MODELS.NOVELAI_V5_CURATED,
+  AI_MODELS.PIXAI_TSUBAKI_2,
+  AI_MODELS.PIXAI_HARUKA_V2,
+  AI_MODELS.PIXAI_HOSHINO_V2,
   AI_MODELS.ILLUSTRIOUS_XL,
   AI_MODELS.ANIMA_PENCIL_XL,
   AI_MODELS.ILLUSTRIOUS_RECIPE_CLONE,

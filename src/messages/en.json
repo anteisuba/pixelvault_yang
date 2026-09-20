@@ -3847,6 +3847,18 @@
     "fishAudioS2ProFree": {
       "label": "Fish Audio S2.1 Pro Free",
       "description": "Free speech generation with your own Fish API key, subject to fair-use limits."
+    },
+    "pixaiTsubaki2": {
+      "label": "PixAI Tsubaki.2",
+      "description": "PixAI's flagship DiT anime model. Text-to-image only."
+    },
+    "pixaiHarukaV2": {
+      "label": "PixAI Haruka v2",
+      "description": "Classic SDXL anime line on PixAI. Text-to-image only."
+    },
+    "pixaiHoshinoV2": {
+      "label": "PixAI Hoshino v2",
+      "description": "Stylised SDXL anime line on PixAI. Text-to-image only."
     }
   },
   "PromptPresets": {

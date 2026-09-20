@@ -17,6 +17,9 @@ vi.mock('./novelai.adapter', () => ({
 vi.mock('./openai.adapter', () => ({
   openAiAdapter: { adapterType: 'openai' },
 }))
+vi.mock('./pixai.adapter', () => ({
+  pixAiAdapter: { adapterType: 'pixai' },
+}))
 vi.mock('./replicate.adapter', () => ({
   replicateAdapter: { adapterType: 'replicate' },
 }))
@@ -51,6 +54,12 @@ describe('getProviderAdapter', () => {
     const adapter = getProviderAdapter(AI_ADAPTER_TYPES.BYTEPLUS)
 
     expect(adapter.adapterType).toBe('byteplus')
+  })
+
+  it('returns the PixAI adapter for PIXAI type', () => {
+    const adapter = getProviderAdapter(AI_ADAPTER_TYPES.PIXAI)
+
+    expect(adapter.adapterType).toBe('pixai')
   })
 
   it('throws for text-only providers without media adapters', () => {

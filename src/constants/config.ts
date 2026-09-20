@@ -503,6 +503,7 @@ export const AI_PROVIDER_ENDPOINTS = {
   RUNWAY: 'https://api.dev.runwayml.com/v1',
   REPLICATE: 'https://api.replicate.com/v1',
   NOVELAI: 'https://image.novelai.net',
+  PIXAI: 'https://api.pixai.art',
   VOLCENGINE: 'https://ark.cn-beijing.volces.com/api/v3',
   BYTEPLUS: 'https://ark.ap-southeast.bytepluses.com/api/v3',
   FISH_AUDIO: 'https://api.fish.audio',

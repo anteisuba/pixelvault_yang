@@ -254,8 +254,8 @@ describe('图片模型的逐 model 方言条目', () => {
    * 数字写死是**故意**的：加模型时这一条先红，提醒去补方言，而不是让新模型
    * 悄悄落到 adapter 兜底 hint 上。
    */
-  it('图片名册就是 33 条，一条不漏地有 strength 条目', () => {
-    expect(IMAGE_MODEL_IDS.length).toBe(33)
+  it('图片名册就是 36 条，一条不漏地有 strength 条目', () => {
+    expect(IMAGE_MODEL_IDS.length).toBe(36)
     for (const modelId of IMAGE_MODEL_IDS) {
       expect(MODEL_STRENGTHS[modelId], `${modelId} 缺方言条目`).toBeTruthy()
     }

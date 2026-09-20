@@ -17,6 +17,7 @@ import {
   decryptStateString,
   encryptStateString,
   generateNovelAiImage,
+  generatePixAiImage,
   generateOpenAIImage,
   generateVolcEngineImage,
   hexToBytes,
@@ -3562,5 +3563,184 @@ describe('runner 幻影名额自愈（工作流）', () => {
       .map(([, init]) => String((init as RequestInit).body))
       .join('\n')
     expect(failure).toContain('runner_queue_stuck')
+  })
+})
+
+/**
+ * `generatePixAiImage` —— 队列型 A 类原生 adapter（进度表 26 切片 3）。
+ * 这一组盯住四件会静默出错的事：状态机、只发 batchSize 1、比例映射、
+ * **拿到结果立刻落 R2**（PixAI 的图不永久保留）。
+ */
+describe('generatePixAiImage', () => {
+  const TSUBAKI = '1983308862240288769'
+
+  function makeEnv() {
+    return {
+      GENERATION_BUCKET: { put: vi.fn().mockResolvedValue(undefined) },
+      R2_PUBLIC_URL: 'https://cdn.example.com',
+    } as unknown as Parameters<typeof generatePixAiImage>[0]
+  }
+
+  function makeContext(referenceImages?: string[]) {
+    return {
+      runId: 'run-pixai-1',
+      workflowId: 'IMAGE_QUEUE',
+      outputType: 'IMAGE',
+      providerId: 'pixai',
+      callbackUrl: 'https://cb.example.com',
+      resolveKeyUrl: 'https://resolve.example.com',
+      timeoutMs: 60000,
+      maxAttempts: 1,
+      pollIntervalMs: 2000,
+      providerInput: {
+        prompt: '1girl, blue hair',
+        modelId: 'pixai-tsubaki-2',
+        externalModelId: TSUBAKI,
+        aspectRatio: '16:9',
+        outputStorageKey: 'generations/u1/image/out.png',
+        referenceImages,
+      },
+    } as unknown as Parameters<typeof generatePixAiImage>[1]
+  }
+
+  function jsonResponse(body: unknown, status = 200) {
+    return new Response(JSON.stringify(body), {
+      status,
+      headers: { 'content-type': 'application/json' },
+    })
+  }
+
+  function stubPixAi(
+    statuses: string[],
+    options: { mediaUrls?: string[] } = {},
+  ) {
+    const mediaUrls = options.mediaUrls ?? ['https://pixai.example/out.png']
+    const responses: Response[] = [
+      jsonResponse({ id: 'task-1', status: 'waiting' }, 201),
+      ...statuses.map((status) =>
+        jsonResponse({
+          id: 'task-1',
+          status,
+          outputs: status === 'completed' ? { mediaUrls } : undefined,
+        }),
+      ),
+    ]
+    let call = 0
+    const fetchMock = vi.fn(async (url: unknown) => {
+      // 最后一次是去取图（不是 API），回二进制。
+      if (call >= responses.length) {
+        return new Response(Uint8Array.from([1, 2, 3]), {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        })
+      }
+      const response = responses[call]
+      call += 1
+      void url
+      return response
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    return fetchMock
+  }
+
+  beforeEach(() => {
+    // 官方要求两次轮询至少隔 1.5s —— 用例不真等。
+    vi.spyOn(globalThis, 'setTimeout').mockImplementation(((
+      handler: () => void,
+    ) => {
+      handler()
+      return 0 as unknown as ReturnType<typeof setTimeout>
+    }) as typeof setTimeout)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.unstubAllGlobals()
+  })
+
+  it('creates a task, polls until completed and stores the image in R2', async () => {
+    const fetchMock = stubPixAi(['running', 'completed'])
+    const env = makeEnv()
+
+    const result = await generatePixAiImage(env, makeContext(), 'pixai-key')
+
+    const createCall = fetchMock.mock.calls[0]
+    expect(String(createCall?.[0])).toBe(
+      'https://api.pixai.art/v2/image/create',
+    )
+    const body = JSON.parse(
+      String((createCall?.[1] as { body: string }).body),
+    ) as Record<string, unknown>
+    expect(body.modelVersionId).toBe(TSUBAKI)
+    // 比例是逐字透传的，⛔ 没有第二张换算表。
+    expect(body.aspectRatio).toBe('16:9')
+    // worker 的图片结果契约是单张，所以只发 1。
+    expect(body.batchSize).toBe(1)
+
+    expect(String(fetchMock.mock.calls[1]?.[0])).toBe(
+      'https://api.pixai.art/v1/task/task-1',
+    )
+    // 结果图立刻落 R2 —— PixAI 的 mediaUrls 会过期，⛔ 不能存它。
+    expect(env.GENERATION_BUCKET.put).toHaveBeenCalledWith(
+      'generations/u1/image/out.png',
+      expect.anything(),
+      expect.anything(),
+    )
+    expect(result.artifactUrl).toBe(
+      'https://cdn.example.com/generations/u1/image/out.png',
+    )
+    expect(result.providerMetadata).toMatchObject({ pixaiTaskId: 'task-1' })
+  })
+
+  it.each(['failed', 'cancelled'])('surfaces a %s task', async (status) => {
+    stubPixAi([status])
+
+    await expect(
+      generatePixAiImage(makeEnv(), makeContext(), 'pixai-key'),
+    ).rejects.toThrow(`PixAI task task-1 ended as ${status}`)
+  })
+
+  it('names the 10-waiting-task cap when creation is throttled', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('slow down', { status: 429 })),
+    )
+
+    await expect(
+      generatePixAiImage(makeEnv(), makeContext(), 'pixai-key'),
+    ).rejects.toThrow('at most 10 tasks waiting')
+  })
+
+  // 挂了参考图还硬发，PixAI 会照常出一张与它毫无关系的图 —— 静默失效。
+  it('refuses a reference image instead of silently ignoring it', async () => {
+    const fetchMock = stubPixAi(['completed'])
+
+    await expect(
+      generatePixAiImage(
+        makeEnv(),
+        makeContext(['https://example.com/ref.png']),
+        'pixai-key',
+      ),
+    ).rejects.toThrow('text-to-image only')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects an aspect ratio PixAI does not list', async () => {
+    const fetchMock = stubPixAi(['completed'])
+    const context = makeContext()
+    context.providerInput.aspectRatio = '21:9'
+
+    await expect(
+      generatePixAiImage(makeEnv(), context, 'pixai-key'),
+    ).rejects.toThrow('does not support the aspect ratio 21:9')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('fails loudly when a completed task carries no image', async () => {
+    stubPixAi(['completed'], { mediaUrls: [] })
+
+    await expect(
+      generatePixAiImage(makeEnv(), makeContext(), 'pixai-key'),
+    ).rejects.toThrow('completed without an image URL')
   })
 })

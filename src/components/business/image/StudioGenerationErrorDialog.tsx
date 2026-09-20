@@ -232,7 +232,7 @@ export function StudioGenerationErrorDialog({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-destructive/10">
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-status-risk-surface">
               <AlertTriangle className="size-5 text-destructive" />
             </div>
             <div>

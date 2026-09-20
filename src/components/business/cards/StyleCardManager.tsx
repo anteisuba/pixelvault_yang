@@ -166,7 +166,7 @@ export function StyleCardManager({
   if (view.type === 'confirmDelete') {
     const card = view.card
     return (
-      <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 space-y-2">
+      <div className="rounded-lg border border-status-risk/30 bg-status-risk-surface p-3 space-y-2">
         <p className="text-sm text-foreground">{tStyle('deleteConfirm')}</p>
         <p className="text-xs text-muted-foreground">{card.name}</p>
         <div className="flex gap-2 justify-end">
@@ -313,7 +313,7 @@ export function StyleCardManager({
                       setView({ type: 'confirmDelete', card: detailCard })
                       setDetailCardId(null)
                     }}
-                    className="flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10"
+                    className="flex items-center gap-1 rounded-md border border-status-risk/30 px-2.5 py-1 text-xs text-status-risk hover:bg-status-risk-surface"
                   >
                     <Trash2 className="size-3" />
                     {tStyle('delete')}

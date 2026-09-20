@@ -2055,7 +2055,7 @@ export function StudioOperatorPanel({
               >
                 <p
                   data-testid="operator-error"
-                  className="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5 text-2sm text-destructive"
+                  className="rounded-md border border-status-risk/40 bg-status-risk-surface px-2.5 py-1.5 text-2sm text-status-risk"
                 >
                   {errorText ?? t('error.generic')}
                 </p>
@@ -2158,7 +2158,7 @@ export function StudioOperatorPanel({
                   className={cn(
                     'flex items-center gap-1 rounded-lg border py-0.5 pl-0.5 pr-1.5 text-2sm',
                     failed
-                      ? 'border-destructive/40 bg-destructive/5 text-destructive'
+                      ? 'border-status-risk/40 bg-status-risk-surface text-status-risk'
                       : 'border-border bg-muted/50 text-muted-foreground',
                   )}
                 >
@@ -2532,7 +2532,7 @@ export function StudioOperatorPanel({
                   aria-label={t('stop')}
                   title={t('stop')}
                   onClick={stop}
-                  className="grid size-8 shrink-0 place-items-center rounded-md border border-destructive/40 bg-destructive/5 text-destructive transition-colors duration-(--duration-fast) ease-standard hover:bg-destructive/10 motion-reduce:transition-none"
+                  className="grid size-8 shrink-0 place-items-center rounded-md border border-status-risk/40 bg-status-risk-surface text-status-risk transition-colors duration-(--duration-fast) ease-standard hover:border-status-risk motion-reduce:transition-none"
                 >
                   <Square className="size-3" aria-hidden />
                 </button>

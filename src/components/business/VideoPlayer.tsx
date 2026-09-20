@@ -78,7 +78,7 @@ export default function VideoPlayer({
   if (hasError) {
     return (
       <div
-        className={`flex items-center justify-center rounded-3xl border border-destructive/35 bg-destructive/8 p-8 ${className ?? ''}`}
+        className={`flex items-center justify-center rounded-3xl border border-status-risk/35 bg-status-risk-surface p-8 ${className ?? ''}`}
       >
         <p className="text-sm text-destructive">{t('errorPlayback')}</p>
       </div>

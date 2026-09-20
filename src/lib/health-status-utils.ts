@@ -6,16 +6,18 @@ const HEALTH_DOT_COLORS: Record<
   HealthDotTheme,
   Record<ApiKeyHealthStatus, string>
 > = {
+  // 三档状态色走脊柱 token（ui-defaults §2.4）——它们自带浅 / 暗两档值，
+  // 所以两个主题只在「未知」那一格还需要各自的中性灰。
   default: {
-    available: 'bg-emerald-500',
-    no_key: 'bg-amber-500',
-    failed: 'bg-red-500',
+    available: 'bg-status-applied',
+    no_key: 'bg-status-warning',
+    failed: 'bg-status-risk',
     unknown: 'bg-muted-foreground/40',
   },
   node: {
-    available: 'bg-emerald-400',
-    no_key: 'bg-amber-400',
-    failed: 'bg-red-400',
+    available: 'bg-status-applied',
+    no_key: 'bg-status-warning',
+    failed: 'bg-status-risk',
     unknown: 'bg-node-muted/45',
   },
 }

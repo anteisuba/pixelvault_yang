@@ -81,7 +81,7 @@ export function NodeV4ToolbarButton({
           className={cn(
             'nodrag nopan flex h-7.5 min-w-7.5 items-center justify-center rounded-full transition-[background-color,transform] duration-spring-press ease-spring-press active:scale-95 disabled:opacity-40',
             danger
-              ? 'text-destructive hover:bg-destructive/10'
+              ? 'text-status-risk hover:bg-status-risk-surface'
               : 'hover:bg-surface-fill-hover',
           )}
         >

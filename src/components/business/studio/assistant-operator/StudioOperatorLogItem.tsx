@@ -279,7 +279,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
         'group relative rounded-xl border border-border/70 bg-background px-2.5 py-2 text-md transition-colors duration-fast ease-standard',
         isRunning && 'border-primary/40 bg-primary/5',
         isMoney && 'border-status-warning/40 bg-status-warning-surface',
-        isRejected && 'border-destructive/40 bg-destructive/5',
+        isRejected && 'border-status-risk/40 bg-status-risk-surface',
         undone && 'opacity-55',
       )}
     >
@@ -290,7 +290,7 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             isMoney &&
               'border-status-warning/40 bg-status-warning-surface text-status-warning',
             isRejected &&
-              'border-destructive/40 bg-destructive/10 text-destructive',
+              'border-status-risk/40 bg-status-risk-surface text-status-risk',
           )}
         >
           <Icon className="size-3" aria-hidden />

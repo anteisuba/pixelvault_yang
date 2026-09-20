@@ -271,7 +271,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
                   <button
                     type="button"
                     onClick={() => civitai.remove()}
-                    className="rounded-md border border-destructive/40 px-3 py-1.5 text-xs text-destructive hover:bg-destructive/5"
+                    className="rounded-md border border-status-risk/40 px-3 py-1.5 text-xs text-status-risk hover:bg-status-risk-surface"
                   >
                     {t('removeToken')}
                   </button>

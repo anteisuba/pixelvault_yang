@@ -289,7 +289,7 @@ export const GenerationPreview = memo(function GenerationPreview({
   // ── Error only (no generation) ────────────────────────────────────
   if (!generation) {
     return (
-      <div className="rounded-2xl border border-destructive/20 bg-destructive/5 p-4">
+      <div className="rounded-2xl border border-status-risk/20 bg-status-risk-surface p-4">
         <p className="text-sm font-medium text-foreground">
           {t('previewErrorTitle')}
         </p>
@@ -519,7 +519,7 @@ export const GenerationPreview = memo(function GenerationPreview({
 
   // ── Error section ─────────────────────────────────────────────────
   const errorSection = error ? (
-    <div className="mt-2 rounded-2xl border border-destructive/20 bg-destructive/5 p-3">
+    <div className="mt-2 rounded-2xl border border-status-risk/20 bg-status-risk-surface p-3">
       <p className="text-sm font-medium text-foreground">
         {t('previewErrorTitle')}
       </p>

@@ -83,7 +83,7 @@ export default function AssistantSharePage({
             {copy.loading}
           </p>
         ) : status === 'error' || !conversation || !token ? (
-          <p className="rounded-xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+          <p className="rounded-xl border border-status-risk/30 bg-status-risk-surface p-6 text-sm text-status-risk">
             {copy.error}
           </p>
         ) : (

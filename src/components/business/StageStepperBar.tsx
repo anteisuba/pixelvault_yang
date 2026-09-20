@@ -81,7 +81,8 @@ export function StageStepperBar({
                     'border-status-applied/40 bg-status-applied-surface text-status-applied animate-pulse',
                   s === 'pending' &&
                     'border-white/30 bg-transparent text-white/40',
-                  s === 'failed' && 'border-red-400 bg-red-400/20 text-red-300',
+                  s === 'failed' &&
+                    'border-status-risk/40 bg-status-risk-surface text-status-risk',
                 )}
               >
                 {s === 'done' ? '✓' : s === 'failed' ? '✗' : idx + 1}

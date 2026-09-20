@@ -405,7 +405,7 @@ export function CharacterCardItem({
             <button
               type="button"
               onClick={onDelete}
-              className="flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1 text-xs text-destructive transition-colors hover:bg-destructive/10"
+              className="flex items-center gap-1 rounded-md border border-status-risk/30 px-2.5 py-1 text-xs text-status-risk transition-colors hover:bg-status-risk-surface"
             >
               <Trash2 className="size-3" />
               {tCard('delete')}

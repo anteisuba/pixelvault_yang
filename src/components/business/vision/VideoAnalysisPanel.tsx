@@ -181,7 +181,7 @@ export function VideoAnalysisPanel({
       ) : null}
 
       {phase === 'error' && error ? (
-        <p className="rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-xs leading-5 text-foreground">
+        <p className="rounded-lg border border-status-risk/40 bg-status-risk-surface p-3 text-xs leading-5 text-foreground">
           {getApiErrorMessage(
             tErrors,
             {

@@ -122,7 +122,7 @@ export function StudioOperatorCheckpointCard({
               setReverted(STUDIO_OPERATOR_REVERT_CHOICES.thread)
             }}
             // 破坏性档只给 `--destructive`（§11.2）：它真的会删掉这一轮之后的对话。
-            className="rounded-md border border-destructive/40 bg-card px-1.5 py-0.5 text-2sm text-destructive shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-destructive/5"
+            className="rounded-md border border-status-risk/40 bg-card px-1.5 py-0.5 text-2sm text-status-risk shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-status-risk-surface"
           >
             {t('checkpoint.choice.thread')}
           </button>

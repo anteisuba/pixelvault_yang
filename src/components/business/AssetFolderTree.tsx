@@ -570,7 +570,7 @@ export function AssetFolderTree({
                       event.stopPropagation()
                       onRequestDeleteProject(project.id, project.name)
                     }}
-                    className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
+                    className="flex size-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-status-risk-surface hover:text-status-risk"
                   >
                     <Trash2 className="size-3" />
                   </button>

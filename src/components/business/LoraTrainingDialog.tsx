@@ -790,7 +790,7 @@ export function LoraTrainingForm({
         </div>
 
         {failed.length > 0 ? (
-          <div className="space-y-1.5 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2.5">
+          <div className="space-y-1.5 rounded-lg border border-status-risk/30 bg-status-risk-surface px-3 py-2.5">
             <div className="flex items-center gap-1.5 text-xs font-medium text-destructive">
               <AlertTriangle className="size-3.5" aria-hidden />
               {t('failedUploadsTitle', { count: failed.length })}
@@ -866,7 +866,7 @@ export function LoraTrainingForm({
                   job.status === 'COMPLETED'
                     ? 'border-status-applied/40 bg-status-applied-surface'
                     : job.status === 'FAILED'
-                      ? 'border-destructive/30 bg-destructive/5'
+                      ? 'border-status-risk/30 bg-status-risk-surface'
                       : 'border-primary/20 bg-primary/5',
                 )}
               >
@@ -1049,7 +1049,7 @@ export function LoraTrainingHistorySidebar() {
                 job.status === 'COMPLETED'
                   ? 'border-status-applied/40 bg-status-applied-surface'
                   : job.status === 'FAILED'
-                    ? 'border-destructive/30 bg-destructive/5'
+                    ? 'border-status-risk/30 bg-status-risk-surface'
                     : job.status === 'CANCELED'
                       ? 'border-border/60 bg-muted/30'
                       : 'border-primary/20 bg-primary/5',

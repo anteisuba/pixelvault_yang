@@ -2129,7 +2129,7 @@ export function KreaAssetBrowser({
               type="button"
               onClick={requestBulkDelete}
               disabled={isBulkActionPending || selectedIds.size === 0}
-              className="flex items-center gap-1.5 rounded-full border border-destructive/40 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-full border border-status-risk/40 px-3 py-1.5 text-xs font-medium text-status-risk transition-colors hover:bg-status-risk-surface disabled:opacity-50"
             >
               {isBulkDeleting ? (
                 <Spinner size="sm" />

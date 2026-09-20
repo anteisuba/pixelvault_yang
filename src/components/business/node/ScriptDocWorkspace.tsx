@@ -1440,7 +1440,7 @@ function DeleteButton({ label, onClick }: { label: string; onClick(): void }) {
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="inline-flex size-6 shrink-0 items-center justify-center rounded-lg text-node-subtle transition-colors hover:bg-node-panel-inner hover:text-red-300"
+      className="inline-flex size-6 shrink-0 items-center justify-center rounded-lg text-node-subtle transition-colors hover:bg-node-panel-inner hover:text-status-risk"
     >
       <Trash2 className="size-3.5" />
     </button>

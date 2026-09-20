@@ -366,7 +366,7 @@ export function HuggingFaceLoraLibrary({
         )}
 
         {library.error ? (
-          <div className="flex flex-col gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 rounded-xl border border-status-risk/30 bg-status-risk-surface px-3 py-2 text-xs text-status-risk sm:flex-row sm:items-center sm:justify-between">
             <span>{t('huggingFaceLoadFailed')}</span>
             <Button
               type="button"

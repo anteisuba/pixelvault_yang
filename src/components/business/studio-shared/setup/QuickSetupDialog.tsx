@@ -384,7 +384,7 @@ export function QuickSetupDialog({
 
           {/* Success message */}
           {step === 'success' && (
-            <div className="flex items-center gap-2 text-sm text-green-600">
+            <div className="flex items-center gap-2 text-sm text-status-applied">
               <CheckCircle2 className="size-4 shrink-0" />
               <span>{t('success')}</span>
             </div>

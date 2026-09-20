@@ -24,7 +24,7 @@ export default function StoryboardErrorPage({ error, reset }: ErrorPageProps) {
     <div className="editorial-page">
       <div className="editorial-container">
         <div className="flex min-h-[50vh] flex-col items-center justify-center gap-6 text-center">
-          <span className="rounded-2xl bg-destructive/10 p-4 text-destructive">
+          <span className="rounded-2xl bg-status-risk-surface p-4 text-status-risk">
             <AlertTriangle className="size-8" />
           </span>
           <div className="space-y-2">

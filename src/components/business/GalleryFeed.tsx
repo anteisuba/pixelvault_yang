@@ -98,7 +98,7 @@ export function GalleryFeed({
       />
 
       {error ? (
-        <div className="rounded-3xl border border-destructive/30 bg-destructive/6 px-4 py-3 text-sm text-destructive">
+        <div className="rounded-3xl border border-status-risk/30 bg-status-risk-surface px-4 py-3 text-sm text-status-risk">
           {error}
         </div>
       ) : null}

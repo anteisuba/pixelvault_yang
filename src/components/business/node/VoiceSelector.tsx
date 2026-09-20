@@ -502,7 +502,7 @@ export const VoiceSelector = memo(function VoiceSelector({
             <Spinner size="lg" className="text-muted-foreground" />
           </div>
         ) : listError ? (
-          <div className="flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-3 text-xs text-destructive">
+          <div className="flex items-start gap-2 rounded-lg border border-status-risk/30 bg-status-risk-surface px-3 py-3 text-xs text-status-risk">
             <AlertCircle className="mt-0.5 size-3.5 shrink-0" />
             <span>{listError}</span>
           </div>
@@ -633,7 +633,7 @@ export const VoiceSelector = memo(function VoiceSelector({
                     className={cn(
                       'shrink-0 rounded-md p-1 disabled:pointer-events-none disabled:opacity-50',
                       tab === 'cloned'
-                        ? 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive'
+                        ? 'text-muted-foreground hover:bg-status-risk-surface hover:text-status-risk'
                         : 'text-primary hover:bg-muted/60',
                     )}
                   >

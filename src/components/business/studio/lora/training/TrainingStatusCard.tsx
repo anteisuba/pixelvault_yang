@@ -56,7 +56,7 @@ export function TrainingStatusCard({
       className={cn(
         'rounded-2xl border p-4 animate-in fade-in slide-in-from-top-1 duration-300',
         isFailed
-          ? 'border-destructive/30 bg-destructive/5'
+          ? 'border-status-risk/30 bg-status-risk-surface'
           : 'border-primary/25 bg-primary/5',
         className,
       )}
@@ -66,7 +66,7 @@ export function TrainingStatusCard({
           className={cn(
             'mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full',
             isFailed
-              ? 'bg-destructive/15 text-destructive'
+              ? 'bg-status-risk-surface text-status-risk'
               : 'bg-primary/15 text-primary',
           )}
         >

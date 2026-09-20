@@ -486,7 +486,7 @@ export function ImageDetailModal({
             <Button
               variant="outline"
               size="sm"
-              className="rounded-full border-destructive/30 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="rounded-full border-status-risk/30 text-status-risk hover:bg-status-risk-surface hover:text-status-risk"
             >
               <Trash2 className="size-3.5" />
               {t('delete')}

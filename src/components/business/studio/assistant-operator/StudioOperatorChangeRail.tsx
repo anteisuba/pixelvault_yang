@@ -97,7 +97,7 @@ export function StudioOperatorChangeRail() {
             className={cn(
               'ml-auto inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2sm transition-colors duration-fast ease-standard',
               confirmingClear
-                ? 'bg-destructive/10 font-medium text-destructive'
+                ? 'bg-status-risk-surface font-medium text-status-risk'
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >

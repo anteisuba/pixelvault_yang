@@ -12,7 +12,7 @@ interface ErrorAlertProps {
  */
 export function ErrorAlert({ title, message, children }: ErrorAlertProps) {
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-destructive/25 bg-destructive/5 p-4 text-sm text-destructive">
+    <div className="flex items-start gap-3 rounded-2xl border border-status-risk/25 bg-status-risk-surface p-4 text-sm text-status-risk">
       <AlertCircle className="mt-0.5 size-4 shrink-0" />
       <div className="space-y-1">
         {title && <p className="font-medium">{title}</p>}

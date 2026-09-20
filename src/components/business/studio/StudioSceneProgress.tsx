@@ -41,7 +41,7 @@ const STATUS_CLASSES: Record<VideoScriptSceneStatus, string> = {
   [VideoScriptSceneStatus.CLIP_READY]:
     'border-status-applied/40 bg-status-applied-surface text-status-applied',
   [VideoScriptSceneStatus.FAILED]:
-    'border-destructive/30 bg-destructive/10 text-destructive',
+    'border-status-risk/30 bg-status-risk-surface text-status-risk',
 }
 
 function isGenerating(status: VideoScriptSceneStatus): boolean {

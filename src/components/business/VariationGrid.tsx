@@ -61,7 +61,7 @@ export function VariationGrid({
 
       {/* Failed models */}
       {failedModels.length > 0 && (
-        <div className="flex items-start gap-2 rounded-xl bg-destructive/5 p-3">
+        <div className="flex items-start gap-2 rounded-xl bg-status-risk-surface p-3">
           <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" />
           <p className="text-xs text-destructive">
             {t('failedModels', { models: failedModels.join(', ') })}

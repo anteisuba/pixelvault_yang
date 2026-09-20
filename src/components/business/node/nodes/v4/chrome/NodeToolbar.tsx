@@ -102,7 +102,7 @@ const ToolbarCell = forwardRef<
         'focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
         'disabled:pointer-events-none disabled:opacity-50',
         action.danger
-          ? 'text-destructive hover:bg-destructive/10'
+          ? 'text-status-risk hover:bg-status-risk-surface'
           : 'text-foreground hover:bg-surface-fill-hover',
         action.active && 'bg-surface-fill-hover',
         className,

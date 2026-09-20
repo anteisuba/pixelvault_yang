@@ -318,7 +318,7 @@ export function ProfileEditModal({
           </button>
 
           {error ? (
-            <p className="rounded-2xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+            <p className="rounded-2xl border border-status-risk/30 bg-status-risk-surface px-4 py-3 text-sm text-status-risk">
               {error}
             </p>
           ) : null}

@@ -273,7 +273,7 @@ export function NodePromptBar({
       aria-label={t('cancel')}
       data-prompt-bar-cancel
       onClick={() => onCancel?.()}
-      className="nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full bg-surface-fill-track text-foreground transition-colors duration-fast hover:bg-destructive/10 hover:text-destructive focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      className="nodrag nopan flex size-7.5 shrink-0 items-center justify-center rounded-full bg-surface-fill-track text-foreground transition-colors duration-fast hover:bg-status-risk-surface hover:text-status-risk focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       <X aria-hidden className="size-4" />
     </button>

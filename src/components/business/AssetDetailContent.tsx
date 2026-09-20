@@ -638,7 +638,7 @@ export function AssetDetailContent({
             <Button
               variant="ghost"
               size="sm"
-              className="ml-auto gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="ml-auto gap-1.5 text-status-risk hover:bg-status-risk-surface hover:text-status-risk"
               disabled={isDeleting}
             >
               {isDeleting ? (

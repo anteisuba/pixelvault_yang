@@ -222,7 +222,7 @@ export function SpecChip({
             'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
             'disabled:pointer-events-none disabled:opacity-50',
             flashing
-              ? 'border-status-warning bg-status-warning/10 text-status-warning'
+              ? 'border-status-warning bg-status-warning-surface text-status-warning'
               : open
                 ? 'border-foreground bg-background text-foreground ring-3 ring-muted'
                 : 'border-border bg-background text-foreground hover:border-foreground/40',

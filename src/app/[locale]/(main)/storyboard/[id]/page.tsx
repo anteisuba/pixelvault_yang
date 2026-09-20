@@ -189,7 +189,7 @@ export default function StoryDetailPage({ params }: StoryDetailPageProps) {
           </div>
 
           {error && (
-            <div className="mt-4 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+            <div className="mt-4 rounded-2xl border border-status-risk/30 bg-status-risk-surface p-4">
               <p className="text-sm text-destructive">{error}</p>
             </div>
           )}

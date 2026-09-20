@@ -138,7 +138,7 @@ export function AssetPageError({
     <div
       role="alert"
       className={cn(
-        'flex flex-col items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3',
+        'flex flex-col items-start gap-2 rounded-xl border border-status-risk/30 bg-status-risk-surface px-4 py-3',
         className,
       )}
     >
@@ -172,7 +172,7 @@ export function AssetPaginationError({
     <div
       role="alert"
       className={cn(
-        'flex flex-wrap items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2',
+        'flex flex-wrap items-center gap-2 rounded-lg border border-status-risk/30 bg-status-risk-surface px-3 py-2',
         className,
       )}
     >

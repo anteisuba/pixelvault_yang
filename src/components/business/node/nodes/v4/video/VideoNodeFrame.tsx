@@ -157,7 +157,7 @@ export function VideoNodeFrame({
         {failureMessage && (
           <p
             role="alert"
-            className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm leading-relaxed break-words"
+            className="rounded-xl border border-status-risk/30 bg-status-risk-surface p-4 text-sm leading-relaxed break-words"
           >
             {t('generateDesk.failed', { reason: failureMessage })}
           </p>

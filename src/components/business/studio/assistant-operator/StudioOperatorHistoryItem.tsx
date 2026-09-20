@@ -185,7 +185,7 @@ function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
       data-undone={entry.undone ? 'true' : 'false'}
       className={cn(
         'rounded-xl border border-border/60 bg-muted/20 px-2.5 py-2 text-md',
-        rejected && 'border-destructive/30 bg-destructive/5',
+        rejected && 'border-status-risk/30 bg-status-risk-surface',
         entry.undone && 'opacity-55',
       )}
     >
@@ -194,7 +194,7 @@ function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
           className={cn(
             'mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border border-border bg-muted text-muted-foreground',
             rejected &&
-              'border-destructive/40 bg-destructive/10 text-destructive',
+              'border-status-risk/40 bg-status-risk-surface text-status-risk',
           )}
         >
           <Icon className="size-3" aria-hidden />

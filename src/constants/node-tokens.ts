@@ -181,5 +181,5 @@ export const EDGE_COLORS = {
   hover: 'stroke-node-edge-active',
   selected: 'stroke-node-edge-active',
   connecting: 'stroke-node-edge-active',
-  invalid: 'stroke-red-400',
+  invalid: 'stroke-status-risk',
 } as const

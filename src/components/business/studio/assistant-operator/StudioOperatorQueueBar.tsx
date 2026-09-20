@@ -80,7 +80,7 @@ export function StudioOperatorQueueBar({
             aria-label={t('queue.cancel')}
             title={t('queue.cancel')}
             onClick={() => onCancel(item.id)}
-            className="flex shrink-0 items-center gap-0.5 rounded-md px-1 py-0.5 transition-colors duration-(--duration-fast) ease-standard hover:bg-status-warning/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex shrink-0 items-center gap-0.5 rounded-md px-1 py-0.5 transition-colors duration-(--duration-fast) ease-standard hover:bg-status-warning-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <X className="size-2.5" aria-hidden />
             {t('queue.cancel')}

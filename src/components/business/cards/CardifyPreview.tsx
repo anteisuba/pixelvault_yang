@@ -64,7 +64,7 @@ export function CardifyPreview({
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">
+        <div className="rounded-md border border-status-risk/30 bg-status-risk-surface px-3 py-2 text-xs text-status-risk">
           {error}
         </div>
       )}

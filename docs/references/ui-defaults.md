@@ -91,7 +91,9 @@
 
 ### 2.4 写法
 
-- 颜色一律用 token 类名，Tailwind 调色板类（`text-amber-700` `bg-emerald-500/15` 一类）**不出现在业务代码**。amber/emerald 已于 2026-09-03 全部换成 `status-warning` / `status-applied`（文字用 `text-status-*`，浅底用 `bg-status-*-surface`，实心点/进度用 `bg-status-*` 或 `bg-status-*/70` 一类透明度）；红/蓝/紫/中性灰等其余调色板类仍待清，装饰性渐变（cards 占位、训练完成庆祝）不在此列。
+- 颜色一律用 token 类名，Tailwind 调色板类（`text-amber-700` `bg-emerald-500/15` 一类）**不出现在业务代码**。文字用 `text-status-*`，浅底用 `bg-status-*-surface`，实心点 / 进度用 `bg-status-*` 或 `bg-status-*/70` 一类透明度。
+- **风险面收口（2026-09-20，进度表 32 ⑤）**：`bg-destructive/5…/20` 这类「拿透明度凑浅红」的写法已全部换成 `bg-status-risk-surface`，同一个 className 里的 `text-destructive` → `text-status-risk`、`border-destructive/N` → `border-status-risk/N`；`bg-red-*` 与暗色 HUD 里的 `text-red-100` 一并收进同一档。`--destructive` 只剩**实心破坏按钮**那一支（`bg-destructive text-destructive-foreground hover:bg-destructive/90`），⛔ 别再用它调浅底。同批把 `bg-status-warning/10` 两处散写换成 `bg-status-warning-surface`。对比度（2026-09-20 实算）：`#b3261e` 对 risk-surface **5.91** · 对白 **6.54** · 对 `--surface-workbench` **5.93**；`--foreground` 对 risk-surface **16.65**；暗档 `#e06c65` 对 `#3e1d1a` **4.66**；warning **5.28** · applied **4.98**。
+- 未清的两处例外：**装饰性渐变**（素材库未登录壳的占位图块、训练完成庆祝）与**贴在媒体上的固定明暗 chrome**（`bg-neutral-950/85` 的 stage HUD、3D 预览黑台、图上白底小按钮）——后者刻意不跟随主题，换 `foreground` / `background` token 会在暗档整个翻过来。
 - 任何新颜色先跑 `contrast-check`，文字 4.5:1、大字与图标 3:1、AA 底线 24px 命中区。
 - 透明度修饰符是允许的：`bg-primary/90` `border-border/60`。
 
@@ -241,6 +243,8 @@
 - 第 1 条与第 4 条现在就可以用 `grep -rn` 当 PR 前门，eslint 规则化是独立任务。
 
 ## Last Verified
+
+- 2026-09-20 · 皮肤脊柱（进度表 32）五片：① 模态色只留 prompts 域，站外 12 处调色板强调色改 `--primary` / 去色；② `font-mono` 131 → 101，判据写进 §1，`src/test/typography.contract.test.ts` 守标题；③ 字号档收成 §1 一张表，删 `--text-nav` / `--text-tab` 两个 11px 重名档，61 处 arbitrary 换档名；④ 画廊 / 素材库推到 `--surface-workbench` 灰底 + `bg-card` 白卡；⑤ 风险浅底 64 处统一 `bg-status-risk-surface` + `text-status-risk`，对比度见 §2.4。
 
 - 2026-09-17 · 图标基座换 Phosphor：`src/**` 全部改走 `@/components/icons`，`lucide-react` 已从 `package.json` 卸载，eslint 门覆盖整棵 `src/**`。
 - 2026-09-03 · 新增 `--status-warning` / `-surface`（浅暗两档），28 个文件 170 处 amber/emerald 调色板类收口为 status token，43 处 `dark:` 变体删除。

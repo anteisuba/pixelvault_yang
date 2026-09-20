@@ -30,7 +30,7 @@ function ErrorFallback({
   const t = useTranslations('ErrorBoundary')
 
   return (
-    <div className="flex flex-col items-center gap-3 rounded-xl border border-destructive/20 bg-destructive/5 p-6 text-center">
+    <div className="flex flex-col items-center gap-3 rounded-xl border border-status-risk/20 bg-status-risk-surface p-6 text-center">
       <AlertTriangle className="size-6 text-destructive/60" />
       <div className="space-y-1">
         <p className="text-sm font-medium text-foreground">

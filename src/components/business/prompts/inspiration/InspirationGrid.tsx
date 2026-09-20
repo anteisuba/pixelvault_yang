@@ -39,7 +39,7 @@ export function InspirationGrid() {
       />
 
       {error ? (
-        <div className="rounded-2xl border border-destructive/40 bg-destructive/5 p-6 text-sm text-destructive">
+        <div className="rounded-2xl border border-status-risk/40 bg-status-risk-surface p-6 text-sm text-status-risk">
           {error}
         </div>
       ) : isLoading && items.length === 0 ? (

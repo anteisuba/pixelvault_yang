@@ -2263,7 +2263,7 @@ function GenerateBranch({
             {runnerParameterError ? (
               <p
                 role="alert"
-                className="rounded-md bg-destructive/10 px-2.5 py-2 text-2xs text-destructive"
+                className="rounded-md bg-status-risk-surface px-2.5 py-2 text-2xs text-status-risk"
               >
                 {runnerParameterError}
               </p>
@@ -2616,7 +2616,7 @@ function GenerateBranch({
    */
   const mobileGenerateFailure =
     isAssistantMobile && generateError ? (
-      <div className="w-full space-y-2 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-left">
+      <div className="w-full space-y-2 rounded-lg border border-status-risk/40 bg-status-risk-surface p-3 text-left">
         <p className="flex items-start gap-1.5 text-xs text-destructive">
           <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
           <span className="min-w-0">{generateError}</span>
@@ -4518,7 +4518,7 @@ interface ErrorBlockProps {
 function ErrorBlock({ error, onRetry }: ErrorBlockProps) {
   const t = useTranslations('LoraWorkbench')
   return (
-    <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4">
+    <div className="flex items-start gap-3 rounded-2xl border border-status-risk/30 bg-status-risk-surface p-4">
       <AlertCircle
         className="mt-0.5 size-4 shrink-0 text-destructive"
         aria-hidden

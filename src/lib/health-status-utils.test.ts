@@ -9,17 +9,17 @@ describe('getHealthDotClass', () => {
     expect(getHealthDotClass(undefined, 'node')).toBe('bg-transparent')
   })
 
-  it('returns default theme 500-tier colors', () => {
-    expect(getHealthDotClass('available')).toBe('bg-emerald-500')
-    expect(getHealthDotClass('no_key')).toBe('bg-amber-500')
-    expect(getHealthDotClass('failed')).toBe('bg-red-500')
+  it('returns default theme status tokens', () => {
+    expect(getHealthDotClass('available')).toBe('bg-status-applied')
+    expect(getHealthDotClass('no_key')).toBe('bg-status-warning')
+    expect(getHealthDotClass('failed')).toBe('bg-status-risk')
     expect(getHealthDotClass('unknown')).toBe('bg-muted-foreground/40')
   })
 
-  it('returns node theme 400-tier + node-muted colors', () => {
-    expect(getHealthDotClass('available', 'node')).toBe('bg-emerald-400')
-    expect(getHealthDotClass('no_key', 'node')).toBe('bg-amber-400')
-    expect(getHealthDotClass('failed', 'node')).toBe('bg-red-400')
+  it('returns node theme status tokens + node-muted', () => {
+    expect(getHealthDotClass('available', 'node')).toBe('bg-status-applied')
+    expect(getHealthDotClass('no_key', 'node')).toBe('bg-status-warning')
+    expect(getHealthDotClass('failed', 'node')).toBe('bg-status-risk')
     expect(getHealthDotClass('unknown', 'node')).toBe('bg-node-muted/45')
   })
 
@@ -27,18 +27,18 @@ describe('getHealthDotClass', () => {
     // 守护：default theme must stay byte-identical with
     // the key health dot rendered by /settings/keys.
     // If you change either, change both.
-    expect(getHealthDotClass('available')).toBe('bg-emerald-500')
-    expect(getHealthDotClass('no_key')).toBe('bg-amber-500')
-    expect(getHealthDotClass('failed')).toBe('bg-red-500')
+    expect(getHealthDotClass('available')).toBe('bg-status-applied')
+    expect(getHealthDotClass('no_key')).toBe('bg-status-warning')
+    expect(getHealthDotClass('failed')).toBe('bg-status-risk')
     expect(getHealthDotClass('unknown')).toBe('bg-muted-foreground/40')
   })
 
   it('node theme matches CanvasAssistantRouteSelector contract', () => {
     // 守护：node theme must stay byte-identical with the local
     // getHealthDotClass implementation CanvasAssistantRouteSelector used to carry.
-    expect(getHealthDotClass('available', 'node')).toBe('bg-emerald-400')
-    expect(getHealthDotClass('no_key', 'node')).toBe('bg-amber-400')
-    expect(getHealthDotClass('failed', 'node')).toBe('bg-red-400')
+    expect(getHealthDotClass('available', 'node')).toBe('bg-status-applied')
+    expect(getHealthDotClass('no_key', 'node')).toBe('bg-status-warning')
+    expect(getHealthDotClass('failed', 'node')).toBe('bg-status-risk')
     expect(getHealthDotClass('unknown', 'node')).toBe('bg-node-muted/45')
   })
 })

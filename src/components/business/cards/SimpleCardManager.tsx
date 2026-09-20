@@ -528,7 +528,7 @@ export function SimpleCardManager({
                       const ok = await onDelete(detailCard.id)
                       if (ok) setDetailCardId(null)
                     }}
-                    className="flex items-center gap-1 rounded-md border border-destructive/30 px-2.5 py-1 text-xs text-destructive hover:bg-destructive/10"
+                    className="flex items-center gap-1 rounded-md border border-status-risk/30 px-2.5 py-1 text-xs text-status-risk hover:bg-status-risk-surface"
                   >
                     <Trash2 className="size-3" />
                     {t('delete')}

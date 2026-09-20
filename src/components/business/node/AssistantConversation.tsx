@@ -517,13 +517,13 @@ export function AssistantConversation({
         )}
 
         {error ? (
-          <div className="rounded-2xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-100">
+          <div className="rounded-2xl border border-status-risk/30 bg-status-risk-surface p-3 text-sm text-status-risk">
             <p>{error}</p>
             <Button
               type="button"
               size="sm"
               onClick={() => void onRetry()}
-              className="mt-2 h-8 rounded-2xl border border-red-300/30 bg-transparent px-3 text-xs text-red-100 hover:bg-red-400/10"
+              className="mt-2 h-8 rounded-2xl border border-status-risk/30 bg-transparent px-3 text-xs text-status-risk hover:bg-status-risk-surface"
             >
               <RefreshCcw className="mr-1.5 size-3.5" />
               {t('retry')}

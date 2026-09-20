@@ -58,7 +58,7 @@ describe('NodeToolbar', () => {
     expect(off.onSelect).not.toHaveBeenCalled()
   })
 
-  it('危险项走 destructive 皮肤，禁用项不可点', () => {
+  it('危险项走 status-risk 皮肤，禁用项不可点', () => {
     render(
       <NodeToolbar
         ariaLabel="工具条"
@@ -70,8 +70,10 @@ describe('NodeToolbar', () => {
         ]}
       />,
     )
+    // 32 ⑤：风险浅底与风险文字统一走 `--status-risk`，`--destructive` 只剩
+    // 实心破坏按钮那一支（ui-defaults §2.4）。
     expect(screen.getByRole('button', { name: 'del' }).className).toContain(
-      'text-destructive',
+      'text-status-risk',
     )
     expect(screen.getByRole('button', { name: 'off' })).toBeDisabled()
   })

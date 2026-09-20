@@ -37,7 +37,7 @@ export function ImageCardActions({
         <Heart
           className={cn(
             'size-3.5 transition-colors',
-            liked && 'fill-red-500 text-red-500',
+            liked && 'fill-primary text-primary',
           )}
         />
         {likeCount > 0 && <span>{likeCount}</span>}

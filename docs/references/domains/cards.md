@@ -2,6 +2,8 @@
 
 > 职责：把「同一个角色 / 同一处场景 / 同一种画风 / 同一副嗓子」固化成可复用实体，供图片、视频、语音、画布四条生成链引用。**不负责**：执行生成，也不负责 `Recipe`（那是 prompts 域的 owner-scoped 模板，与本域的 `CardRecipe` 是两个模型）。
 
+⚠ **记忆 ≠ 卡，两者之间没有桥**（56a，owner 2026-09-19）：卡是用户**亲手经营**的实体（正文 · 图 · 硬否定 · 常挂范围 · `@` 点名）；`AssistantMemory` 的一条是助手**观察到**的一行字，由每轮结账自动写、用户在 `/settings/assistant` 里改删。⛔ 不做「把这条记忆存成卡」、⛔ 也不把卡自动降级成记忆——助手能自己写的东西和用户亲手放进去的东西混成一摊，是这一层最贵的那种错。记忆的形状见 [`references/database.md`](../database.md) 与 [`pages/assistant-shell-v2.md`](../pages/assistant-shell-v2.md) §7.8。
+
 ## 数据模型
 
 `CharacterCard`（含 `parentId` 变体树）· `GenerationCharacterCard`（生成↔角色卡 join）· `BackgroundCard` · `StyleCard` · `CardRecipe`（character + background + style + freePrompt 的组合）· `VoiceCard`（声音资产，2026-09-17 前与 `CharacterCard` 零关联）。
@@ -59,10 +61,14 @@
 
 ## 不能破坏
 
-`Recipe` 与 `CardRecipe` 的模型分离 · 角色卡 owner-scoped 查询与 ownership 服务端校验 · 变体树 `parentId` 的级联语义（变体随父卡删）· `VoiceCard` 的软引用语义（删音色不删角色）· `referenceRoles` 值域与画布词表同源。
+`Recipe` 与 `CardRecipe` 的模型分离 · 卡与 `AssistantMemory` 的分界（⛔ 不许长出互相转换的路） · 角色卡 owner-scoped 查询与 ownership 服务端校验 · 变体树 `parentId` 的级联语义（变体随父卡删）· `VoiceCard` 的软引用语义（删音色不删角色）· `referenceRoles` 值域与画布词表同源。
 
 ## Source of Truth
 
 调研与 v3 方向：`docs/design/roadmap-canvas/research/sillytavern-cards.md`（§9 逐条取舍 · §10 字段草案 · §11 owner 拍板 · §12 语气/情感/关系的实现机制，2026-09-19）。
 
 `prisma/schema.prisma`（`CharacterCard` / `VoiceCard`）· `src/types/index.ts`（Character Card 段）· `src/constants/cards/character-card.ts` · `src/constants/node-studio.ts` · 调研证据 `docs/design/roadmap-canvas/research/cards.md`。
+
+## Last Verified
+
+- Date: 2026-09-20 · Method: 只核了**记忆 vs 卡**那条分界（56a 落地时补写），对照 `src/constants/assistant-memory.ts` 与 `src/services/assistant-memory.service.ts` 确认两边确实没有互转的代码路径。本文其余各节未在本轮复核。

@@ -87,7 +87,31 @@ provider · 本月请求次数 · 估算花费，末行合计；runner 另有一
 ## 6 · assistant
 
 - **人设三档**写穿到已有的 `AssistantPersona.verbosity`，不是这一页自己的新字段。
-- **记忆区只有 UI 与空态**；隐身与「不记的类目」只**存**状态。行为接入等进度表第 56 项定了数据形状再做——⚠ 现在把它当成「已经会记 / 已经会忘」是错的。
+- **记忆区是全站唯一能管记忆的地方**（56a 落地，2026-09-20）。一条记忆 = **一行字**，由助手每轮结账时写进 `AssistantMemory`；这一页负责看、改、删。
+
+### 6.1 记忆总览 —— 一张平铺列表
+
+| 元素     | 行为                                                                                  |
+| -------- | ------------------------------------------------------------------------------------- |
+| 列表     | **一张平铺表**按 `updatedAt` 倒序，每条一行字 + 一枚时间（今天 HH:mm · 昨天 · M/D）   |
+| 筛选     | 顶部一排 chip：全部 · 图片 · 视频 · 画布 · LoRA，默认全部，**纯前端过滤**（一次全取） |
+| 改       | **点那行字就地改**，回车保存 · Esc 取消。⛔ 不弹层                                    |
+| 删       | hover / focus 时行尾出现**唯一**动作「删」，真删。触屏常显（`coarse:`）               |
+| 全部清空 | 右上一行字，过现有 `AlertDialog` 二次确认                                             |
+| 空态     | 一句话说清会记什么 + 一颗隐身入口                                                     |
+
+⚠ `global` 那一档**不单独出 chip**：它跟着「全部」出现。用户脑子里没有「全局记忆」这个类目。
+⛔ **这一页没有**：分组 · 时间线分段 · 容量表 · 负规则 · 「存为卡」· 导出 · 新建。owner 2026-09-19 打回过一版更复杂的形状（「太复杂，Claude 不会这么设计」）。
+⛔ **也没有「新建一条」**：记忆唯一的写入口是服务端结账，API 上根本没有 POST。
+
+### 6.2 隐身与「不记的类目」
+
+- **隐身**分两处，⚠ 它们不是同一件事：面板 ⋯ 菜单里那颗作用于**当前会话**（住操作员 store，不落库）；这一页空态里那颗写本地偏好 `assistantIncognito`。
+- **「不记的类目」那一块已整删**（2026-09-19 owner 定「负规则不做」）：它曾是一份只活在 localStorage、服务端从没读过的清单。现在「不记什么」是服务端的**敏感类目**确定性闸（`src/constants/assistant-memory.ts`：身份证件 · 账号密码 / API key · 健康与医疗 · 私密关系 · 财务账户 · 未成年人信息），命中的候选静默跳过——⛔ 不写库、不进回执计数、不留日志明文、不提示。
+
+### 6.3 上限与淘汰
+
+每域 200 条，超了按 `lastUsedAt` 最旧的**静默**删。⛔ 界面上一个字都不提。
 
 ---
 
@@ -95,10 +119,12 @@ provider · 本月请求次数 · 估算花费，末行合计；runner 另有一
 
 - 路由 `src/app/[locale]/(main)/settings/{page.tsx,[section]/page.tsx}` · 组件 `src/components/business/settings/`
 - 词表与本地偏好键 `src/constants/settings.ts` · 深链 `src/constants/routes.ts`（`settingsPath` / `safeReturnPath`）
+- 记忆 `src/services/assistant-memory.service.ts` · `src/constants/assistant-memory.ts` · `src/hooks/use-assistant-memories.ts` · `src/app/api/assistant-memories/**`
 - key 行数据 `src/hooks/use-provider-key-rows.ts` · 用量 `src/hooks/use-monthly-usage.ts` + `src/services/usage.service.ts`
 - 入口收口 `src/hooks/use-open-key-settings.ts` · 画布侧 `shell/ShellKeySettings.tsx`
 
 ## Last Verified
 
+**2026-09-20 · 助手记忆区落地（56a，owner 拍板最简版）。** §6 逐条对照 `SettingsAssistantSection.tsx` 与 `assistant-memory.service.ts` 核验；列表 / 筛选 / 就地改 / 删 / 全部清空 / 空态带单测，四条 API 各自有 ownership 用例。
 **2026-09-18 · 实现落地。** 路由、四分区、key 四态与排序、用量口径、入口收口逐条对照源码核验；`SettingsIndexView` / `SettingsKeysSection` / `SettingsUsageSection` 带单测。
-**未验**：真机 1440 / 820 / 375 已登录态目检待 owner；助手记忆区的真实行为（等第 56 项）。
+**未验**：真机 1440 / 820 / 375 已登录态目检待 owner（记忆区的 hover「删」与就地改也在内）；迁移 `20260920120000_assistant_memory` **尚未对数据库执行**。

@@ -165,6 +165,48 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
     mockPathname.current = '/studio/image'
   })
 
+  /**
+   * 收起 40 档的命中区闸（owner 2026-09-20 真机：收起时「我的主页」点不动）。
+   *
+   * 根因是 shadcn 自带的：分组标题收起态只 `opacity-0` + `-mt-8`，仍然
+   * `pointer-events: auto`，于是那块看不见的 28px 压在**上一组最后一项**身上
+   * （实测重叠 24px）。⛔ jsdom 没有布局也没有 CSS，命中测试只能上真机；
+   * 这里钉的是**原则**：收起态被藏起来的东西，一律不许还能接住鼠标。
+   */
+  it('收起态里看不见的东西一律不接鼠标', () => {
+    mockProfile.current = {
+      username: 'fulina',
+      displayName: 'fulina',
+      avatarUrl: null,
+    }
+    const { container } = renderSidebar()
+
+    const label = container.querySelector(
+      '[data-slot="sidebar-group-label"]',
+    ) as HTMLElement | null
+    expect(label?.className).toContain(
+      'group-data-[collapsible=icon]:pointer-events-none',
+    )
+
+    // 同一个病扫一遍：收起态靠 opacity 藏起来的，都得一起收走命中区。
+    const offenders = Array.from(container.querySelectorAll<HTMLElement>('*'))
+      .filter((el) =>
+        el.className
+          ?.toString()
+          .includes('group-data-[collapsible=icon]:opacity-0'),
+      )
+      .filter((el) => {
+        const className = el.className.toString()
+        return (
+          !className.includes(
+            'group-data-[collapsible=icon]:pointer-events-none',
+          ) && !className.includes('pointer-events-none')
+        )
+      })
+      .map((el) => el.getAttribute('data-slot') ?? el.tagName)
+    expect(offenders).toEqual([])
+  })
+
   it('账号行的三档底色只过渡颜色，且带 motion-reduce 降级', () => {
     mockProfile.current = {
       username: 'fulina',

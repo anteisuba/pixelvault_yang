@@ -130,6 +130,8 @@
 
 **幽灵块细则**：首次进入列表 → 就位后淡入，**不从别处滑过来**；划过当前激活项 → 让位（白浮片赢，不在它下面压暗块）；`pointerType !== 'mouse'` → 不触发（触屏没有 hover，否则会糊一块在那）。
 
+⚠ **收起 40 档：看不见的东西一律不许接住鼠标。** 2026-09-20 owner 真机撞到过——分组标题收起态只 `opacity-0` + `-mt-8`（shadcn 默认写法），仍然 `pointer-events: auto`，那块 28px 高的透明标题**压在上一组最后一项身上**（实测重叠 24px，`elementFromPoint` 命中的是标题不是链接），于是那一项悬停有反馈却点不动。已在 `ui/sidebar.tsx` 的 `SidebarGroupLabel` 上补 `pointer-events-none`；⛔ 不改成 `hidden`——那条 `transition-[margin,opacity]` 就是标题滑走滑回的动画。⚠ 消费方也不许用 `pointer-events-auto` 把它翻回来（tailwind-merge 会让后者赢），`AppSidebar.test.tsx` 有一条扫描用例守着整棵轨。
+
 ---
 
 ## 6 · 断点行为（一套组件三档）

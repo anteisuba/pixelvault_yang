@@ -425,7 +425,20 @@ function SidebarGroupLabel({
       data-sidebar="group-label"
       className={cn(
         'flex h-8 shrink-0 items-center rounded-md px-2 text-xs font-medium text-sidebar-foreground/70 ring-sidebar-ring outline-hidden transition-[margin,opacity] duration-200 ease-linear focus-visible:ring-2 [&>svg]:size-4 [&>svg]:shrink-0',
-        'group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0',
+        /**
+         * 收起态：淡出 + 负边距收走。⚠ `pointer-events-none` 不是可选项 ——
+         * 看不见的东西不该还能接住鼠标。
+         *
+         * 这是 shadcn 默认写法自带的缺陷，2026-09-20 owner 真机撞到：`-mt-8`
+         * 把这块 28px 高、`opacity: 0` 但仍 `pointer-events: auto` 的标题压在
+         * **上一组最后一项**身上（实测重叠 24px，`elementFromPoint(28, 256)`
+         * 命中的是标题不是链接），于是那一项悬停有反馈却点不动。
+         *
+         * ⛔ 不用 `hidden` 换掉这两个类：上面那条 `transition-[margin,opacity]`
+         * 就是收起 / 展开时标题滑走滑回的动画，`display: none` 会把它整条掐掉。
+         * 留着元素、只收走命中区，是这里唯一两头都成立的写法。
+         */
+        'group-data-[collapsible=icon]:pointer-events-none group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0',
         className,
       )}
       {...props}

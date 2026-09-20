@@ -33,6 +33,16 @@ filter 维度：search / model / sort / outputType / timeRange / liked / publish
 - Gallery 负责浏览、搜索、比较和“使用这套配方”；执行后保存到用户自己的 Prompts 工作区，私有编辑/版本管理仍不属于 Gallery。
 - 旧 MeiGen 造型、展厅/画册跨页/藏书票隐喻随视觉规则重建废止；route-backed 详情只作为可分享 URL 与交互连续性的候选行为重新评估。
 
+## 卡片信息层级 — 静态 / hover / 触屏（2026-09-20，进度表 34）
+
+画廊卡（`ImageCard` 的 `presentation="gallery"`，⚠ 不是 `MediaCardTile`）分三态，**同一张卡，三种读法**：
+
+- **静态**：只有媒体本体与贴在媒体上的角标 —— 参考图（左上）· 图层拆分（右上）· 视频的播放圆点与时长（底部两角，时长走 `text-3xs` 等宽 `tabular-nums`，机器串判据见 `../ui-defaults.md §1`）。⛔ 作者、点赞、下载、提示词、模型一概不在静态卡面上。
+- **hover / 键盘焦点**：一条从底部升起的半透明条，从上到下是作者胶囊 → 公开提示词（或「提示词私有」锁）→ 模型 chip + 用这条 LoRA / 复制 / 进 Studio。只动 `opacity` 与 `transform`（`../ui-defaults.md §4`），命中区跟着透明度一起开关（透明时 `pointer-events-none`），所以看不见的东西也点不到。右上角那一排点赞 / 下载同一条规则。`group-focus-within` 与 `group-hover` 并列 —— 键盘 Tab 进去与鼠标悬停是同一态。
+- **触屏（`pointer: coarse`）**：hover 条与操作排**整条不渲染**（`coarse:hidden`）。点媒体进详情弹窗，全部操作在那里。⛔ 不在卡面留常驻的三颗图标 —— 那正是这一刀拿掉的东西。
+
+卡片尺寸、栅格几何（`constants/gallery-grid.ts`）、排序与数据请求这一刀**没动**。
+
 ## Source of Truth
 
 `src/app/[locale]/(main)/gallery/**` · `src/services/generation.service.ts`（getPublicGenerationPage / getPublicGenerationById）· `GalleryFeed/GalleryGrid/ImageCard` 组件族；历史详版 `git show cddc4384:docs/domains/gallery.md`。
@@ -45,7 +55,8 @@ filter 维度：search / model / sort / outputType / timeRange / liked / publish
 
 ## Last Verified
 
-- 2026-09-03 · 新增「移动端等级」节（owner 拍板，配方见 ui-defaults.md §6）。
+- 2026-09-20 · 新增「卡片信息层级」节（进度表 34 画廊卡减负：静态只剩媒体 + 时长，作者 / 操作 hover 再出，触屏走详情弹窗）。
+  2026-09-03 · 新增「移动端等级」节（owner 拍板，配方见 ui-defaults.md §6）。
   2026-07-19 · 当前代码仍是公开 Generation feed/详情；owner 已拍板公共配方发现从 Prompts 合并到 Gallery，尚未实施。Prompt redaction 与公开路由边界仍是安全红线。
 
 ## 图层拆分结果面（2026-09-18，进度表 62）

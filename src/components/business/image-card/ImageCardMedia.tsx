@@ -117,7 +117,9 @@ export function ImageCardMedia({
             <Play className="ml-0.5 size-3.5" fill="currentColor" />
           </span>
           {generation.duration != null && (
-            <span className="absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-xs text-white backdrop-blur-md">
+            // 时长是机器串（ui-defaults §1 等宽槽判据）：角标档 `text-3xs` +
+            // 等宽 + `tabular-nums`，⛔ 不用 `text-xs` 那一档。
+            <span className="absolute bottom-3 right-3 rounded-full bg-black/50 px-2 py-0.5 font-mono text-3xs tabular-nums text-white backdrop-blur-md">
               0:{String(Math.round(generation.duration)).padStart(2, '0')}
             </span>
           )}

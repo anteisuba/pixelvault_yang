@@ -192,7 +192,7 @@ describe('ImageCard', () => {
     expect(screen.getByText('Stable Diffusion XL')).toBeInTheDocument()
   })
 
-  it('shows creator link in gallery presentation', () => {
+  it('keeps the gallery creator inside the hover-only layer', () => {
     renderCard({
       generation: {
         ...BASE_GEN,
@@ -209,12 +209,64 @@ describe('ImageCard', () => {
       name: 'View Alice W. profile',
     })
     expect(creatorLink).toHaveAttribute('href', '/en/u/alice')
-    expect(creatorLink.parentElement).toHaveClass('z-30')
-    expect(creatorLink.parentElement?.className).not.toContain(
-      'group-hover:opacity-0',
-    )
+
+    // 进度表 34：静态卡面不带作者 —— 它住在那条升起的条里，透明、不可点、
+    // 触屏整条不渲染；hover 与 focus-within 两边都把它唤醒。
+    const hoverLayer = creatorLink.closest('.coarse\\:hidden')
+    expect(hoverLayer).not.toBeNull()
+    expect(hoverLayer?.className).toContain('opacity-0')
+    expect(hoverLayer?.className).toContain('pointer-events-none')
+    expect(hoverLayer?.className).toContain('group-hover:opacity-100')
+    expect(hoverLayer?.className).toContain('group-focus-within:opacity-100')
     expect(screen.getByText('Alice W.')).toBeInTheDocument()
     expect(screen.getByText('@alice')).toBeInTheDocument()
+  })
+
+  it('hides the gallery action row until hover and drops it on touch', () => {
+    const { container } = renderCard({
+      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
+    })
+
+    const actions = container.querySelector('.card-actions')
+    expect(actions).not.toBeNull()
+    expect(actions?.className).toContain('opacity-0')
+    expect(actions?.className).toContain('pointer-events-none')
+    expect(actions?.className).toContain('group-hover:pointer-events-auto')
+    expect(actions?.className).toContain(
+      'group-focus-within:pointer-events-auto',
+    )
+    expect(actions?.className).toContain('coarse:hidden')
+  })
+
+  it('keeps the default presentation action row on touch', () => {
+    const { container } = renderCard()
+
+    const actions = container.querySelector('.card-actions')
+    expect(actions?.className).toContain('pointer-events-none')
+    expect(actions?.className).not.toContain('coarse:hidden')
+  })
+
+  it('badges the duration only on video cards', () => {
+    const { rerender } = renderCard({
+      presentation: IMAGE_CARD_PRESENTATIONS.GALLERY,
+    })
+    expect(screen.queryByText('0:07')).not.toBeInTheDocument()
+
+    rerender(
+      <NextIntlClientProvider locale="en" messages={MESSAGES}>
+        <ImageCard
+          generation={{
+            ...BASE_GEN,
+            outputType: 'VIDEO',
+            url: 'https://r2.example.com/card.mp4',
+            mimeType: 'video/mp4',
+            duration: 7,
+          }}
+          presentation={IMAGE_CARD_PRESENTATIONS.GALLERY}
+        />
+      </NextIntlClientProvider>,
+    )
+    expect(screen.getByText('0:07')).toBeInTheDocument()
   })
 
   it('does not open detail modal when gallery creator link is clicked', () => {

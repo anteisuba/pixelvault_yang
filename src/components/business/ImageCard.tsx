@@ -244,9 +244,6 @@ export const ImageCard = memo(function ImageCard({
     Boolean(creator?.displayName?.trim()) &&
     creator?.displayName?.trim() !== creator?.username
   const creatorInitial = creatorName.charAt(0).toUpperCase()
-  const galleryCreatorHoverPositionClass = generation.referenceImageUrl
-    ? 'group-hover:top-12 group-focus-within:top-12'
-    : 'group-hover:top-2.5 group-focus-within:top-2.5'
 
   const detailGeneration = {
     ...generation,
@@ -299,60 +296,51 @@ export const ImageCard = memo(function ImageCard({
             likeLabel={t('like')}
             unlikeLabel={t('unlike')}
             downloadLabel={t('download')}
+            hiddenOnCoarse={isGalleryPresentation}
           />
-          {isGalleryPresentation && creator?.username ? (
-            <div
-              className={cn(
-                'pointer-events-none absolute left-2.5 right-2.5 z-30 flex justify-start transition-all duration-200',
-                isAudio
-                  ? 'top-2.5'
-                  : cn(
-                      isVideo ? 'bottom-12' : 'bottom-2.5',
-                      'group-hover:bottom-auto group-focus-within:bottom-auto',
-                      galleryCreatorHoverPositionClass,
-                    ),
-              )}
-            >
-              <a
-                href={creatorHref}
-                onClick={(e) => e.stopPropagation()}
-                aria-label={t('creatorProfileLabel', { name: creatorName })}
-                className="pointer-events-auto inline-flex max-w-full items-center gap-2 rounded-full border border-white/10 bg-black/50 px-2.5 py-1.5 text-white shadow-sm backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
-              >
-                {creator.avatarUrl ? (
-                  <Image
-                    src={creator.avatarUrl}
-                    alt=""
-                    width={24}
-                    height={24}
-                    unoptimized
-                    className="size-6 shrink-0 rounded-full object-cover"
-                  />
-                ) : (
-                  <span
-                    aria-hidden="true"
-                    className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-3xs font-semibold"
-                  >
-                    {creatorInitial}
-                  </span>
-                )}
-                <span className="min-w-0 leading-tight">
-                  <span className="block truncate text-xs font-semibold">
-                    {creatorName}
-                  </span>
-                  {showCreatorHandle ? (
-                    <span className="block truncate text-3xs text-white/70 max-sm:hidden">
-                      {creatorHandle}
-                    </span>
-                  ) : null}
-                </span>
-              </a>
-            </div>
-          ) : null}
-
           {isGalleryPresentation ? (
-            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 translate-y-2 opacity-0 transition-all duration-200 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100">
-              <div className="pointer-events-auto flex flex-col gap-2.5 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-3 pb-3 pt-10 text-white">
+            // 静态卡面只剩媒体本体与时长角标（进度表 34）。作者、提示词、
+            // 模型与操作全部住在这一条从底部升起的半透明条里，只动
+            // `opacity` / `transform`（ui-defaults §4）。`coarse:hidden`：触屏
+            // 没有 hover，这些操作改从详情弹窗进 —— ⛔ 不在卡面留常驻图标。
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 translate-y-2 opacity-0 transition-[opacity,transform] duration-(--duration-base) ease-standard group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:translate-y-0 group-focus-within:opacity-100 coarse:hidden">
+              <div className="pointer-events-none flex flex-col gap-2.5 bg-gradient-to-t from-black/90 via-black/70 to-transparent px-3 pb-3 pt-10 text-white group-hover:pointer-events-auto group-focus-within:pointer-events-auto">
+                {creator?.username ? (
+                  <a
+                    href={creatorHref}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label={t('creatorProfileLabel', { name: creatorName })}
+                    className="inline-flex max-w-full items-center gap-2 self-start rounded-full border border-white/10 bg-black/50 px-2.5 py-1.5 text-white shadow-sm backdrop-blur-md transition-colors hover:bg-black/70 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
+                  >
+                    {creator.avatarUrl ? (
+                      <Image
+                        src={creator.avatarUrl}
+                        alt=""
+                        width={24}
+                        height={24}
+                        unoptimized
+                        className="size-6 shrink-0 rounded-full object-cover"
+                      />
+                    ) : (
+                      <span
+                        aria-hidden="true"
+                        className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-3xs font-semibold"
+                      >
+                        {creatorInitial}
+                      </span>
+                    )}
+                    <span className="min-w-0 leading-tight">
+                      <span className="block truncate text-xs font-semibold">
+                        {creatorName}
+                      </span>
+                      {showCreatorHandle ? (
+                        <span className="block truncate text-3xs text-white/70 max-sm:hidden">
+                          {creatorHandle}
+                        </span>
+                      ) : null}
+                    </span>
+                  </a>
+                ) : null}
                 {canShowPromptOverlay ? (
                   <p className="line-clamp-3 text-xs leading-snug text-white/95">
                     {promptText}

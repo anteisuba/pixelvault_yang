@@ -1,8 +1,16 @@
 'use client'
 
 /**
- * 面板**头部**（v2 §4.1 / 画板 Main 头部 · BCards「头部」两态）—— 一行：
- * 左边头像槽 + 会话标题▾ + 域标记，右边**一颗 ⋯**（D7b ④）。
+ * 面板**头部**（D7c ④ · 画板 `DesignD7cShell`「头部 · 改后」）—— 44px 一行：
+ * 头像槽 · 会话标题▾ ……… **一颗 ⋯**。
+ *
+ * ── 头部只回答「这是哪个会话」（D7c ④，owner 2026-09-20）────────────
+ * 那枚域标记胶囊（域图标 + `face.contextLine()`，写的是「未选模型 · 1:1 · 1 张」）
+ * **整块搬去输入框上方**（`StudioOperatorPanel` 的规格行）。判据：头部说的是**会话
+ * 身份**，而那一句说的是「这一句发出去会产出什么」—— 它随参数栏变，属于输入区。
+ * 留在这里的代价是标题被挤到第三位，而标题才是这一行里唯一有分量的东西。
+ * ⚠ `face.contextLine` **没有**从契约里删，只是换了渲染位置。⛔ 头部不再收 `face`
+ *   与 `domain` 两个 prop —— 它此刻一格都不读，留着就会有人往回填东西。
  *
  * ── 它替掉了什么 ────────────────────────────────────────────────
  * 顶部那条进度带（整文件删）。决策 14：它占了 40px
@@ -73,7 +81,6 @@ import {
 } from '@/hooks/use-studio-operator-store'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
 import type { AssistantPersona } from '@/types/assistant-persona'
-import type { StudioOperatorFace } from '@/contexts/studio-operator-host'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
 import { deriveAssistantConversationTitle } from '@/lib/assistant-conversation-title'
@@ -119,7 +126,6 @@ const SESSION_DOMAIN_BY_SURFACE: Record<
 }
 
 interface StudioOperatorHeaderProps {
-  domain: AssistantOperatorDomain
   /**
    * 这一轮还在跑 —— 会话切换 / 新会话在这一档**不可点**（换会话 = 换语境，
    * 而流正读着旧那一份）。
@@ -148,11 +154,6 @@ interface StudioOperatorHeaderProps {
   avatarOwned: boolean
   persona?: AssistantPersona
   /**
-   * 这个宿主那张脸（D7b ③）—— 头部只读它的**域图标**与**那一句当前上下文**。
-   * ⛔ 头部不按 `domain` 分叉去拼那句话：四张脸的差异住在宿主里。
-   */
-  face: StudioOperatorFace
-  /**
    * **有未完成计划**（第三期 · 断点续跑）—— 刷新之后唯一还看得见的入口。
    *
    * ⭐ 它必须在头部而不是只在流里：刷新之后线程是从库里载回来的**只读历史**，
@@ -169,7 +170,6 @@ interface StudioOperatorHeaderProps {
 }
 
 export function StudioOperatorHeader({
-  domain,
   working,
   history,
   onNewThread,
@@ -177,7 +177,6 @@ export function StudioOperatorHeader({
   onCollapse,
   avatarOwned,
   persona,
-  face,
   resume,
 }: StudioOperatorHeaderProps) {
   const t = useTranslations('StudioOperator')
@@ -279,21 +278,6 @@ export function StudioOperatorHeader({
           />
         )}
 
-        {/* ── 域标记（D7b ③ · 画板 `DesignD7bFaces`）──────────────────────
-            灰底小胶囊：域图标 + **一句当前上下文**，随宿主状态实时刷。
-            ⛔ **不上色** —— 脊柱 §2.1 把模态色留给 prompts 域，别的域不许拿颜色
-              当身份；这里只有 `bg-muted` 与 `text-muted-foreground` 两格。
-            ⚠ 域名仍留一份 `sr-only`：胶囊上写的是「Seedream 5.0 Pro · 1:1 · 4 张」，
-              读屏用户需要先知道这是哪个域。 */}
-        <span
-          data-testid="operator-domain-chip"
-          className="flex h-6 min-w-0 shrink items-center gap-1.5 rounded-full bg-muted px-2 text-2sm text-muted-foreground"
-        >
-          <face.domainIcon className="size-3.5 shrink-0" aria-hidden />
-          <span className="sr-only">{t(`domainName.${domain}`)}</span>
-          <span className="min-w-0 truncate">{face.contextLine()}</span>
-        </span>
-
         <DropdownMenu
           modal={false}
           open={menuOpen}
@@ -314,8 +298,11 @@ export function StudioOperatorHeader({
                  不是一行裸字 —— 那颗片就是「这里可以点开历史」的形状。
                  ⚠ 展开时压深一档（`data-[state=open]`），⛔ 不换色相。
                  ⚠ **hug-content**（对稿 2026-09-11）：⛔ 不给 `flex-1` —— 撑满一行
-                   的浅片读起来是一条输入框，而它是一颗药丸式的下拉触发器。 */
-              className="flex h-8 min-w-0 max-w-full items-center gap-1 rounded-md bg-muted px-2.5 text-left text-sm font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent data-[state=open]:bg-surface-fill-track focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                   的浅片读起来是一条输入框，而它是一颗药丸式的下拉触发器。
+                 ⚠ 静息底**透明**（D7c ④ 改后）：规格胶囊走了之后标题是这一行里唯一
+                   有分量的东西，再给它一块浅底等于让它跟一颗控件抢读法。hover 与
+                   展开两态照旧压底 —— 可点这件事由那两态说。 */
+              className="flex h-8 min-w-0 max-w-full items-center gap-1 rounded-md bg-transparent px-2.5 text-left text-sm font-medium text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent data-[state=open]:bg-surface-fill-track focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
               <span className="min-w-0 truncate">{sessionTitle}</span>
               <ChevronDown className="size-3.5 shrink-0" aria-hidden />

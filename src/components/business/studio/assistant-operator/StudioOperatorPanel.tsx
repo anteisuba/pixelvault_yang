@@ -1733,14 +1733,12 @@ export function StudioOperatorPanel({
     <>
       {/* ── 头部（v2 §4.1）—— 进度带整条删掉（决策 14），进度由状态词说（§3.6）。 */}
       <StudioOperatorHeader
-        domain={domain}
         working={working}
         history={history}
         onNewThread={newThread}
         onOpenAssistantSettings={onOpenAssistantSettings}
         onCollapse={onCollapse}
         avatarOwned={headerAvatarOwned}
-        face={operatorHost.face}
         {...(persona ? { persona } : {})}
         /* ⚠ 续跑 chip 的正位是**结论记录块的尾部**（§3.6）——头部这一颗只在
            一条结论记录都没有时出现（见 `resumeHost` 的头注）。 */

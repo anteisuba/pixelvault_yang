@@ -2,9 +2,6 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ImageIcon } from '@/components/icons'
-import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
-import type { StudioOperatorFace } from '@/contexts/studio-operator-host'
 import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
 import { ASSISTANT_SURFACE_IDS } from '@/types/assistant-conversation'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
@@ -17,15 +14,17 @@ import {
 import { StudioOperatorHeader } from './StudioOperatorHeader'
 
 /**
- * 面板头部的回归闸（v2 §4.1 / 画板 BCards「头部」两态）。
+ * 面板头部的回归闸（D7c ④ · 画板 `DesignD7cShell`「头部 · 改后」）。
  *
- * 钉六件事：
+ * 钉七件事：
  *  ① 头高就是 `STUDIO_OPERATOR_SHELL.headerHeightPx`（真机目检读同一个数）；
  *  ② ⛔ **带子的东西一样都不许回来**：进度环 / 分数 / 清单开关（决策 14）；
  *  ③ 标题▾ 与右上历史图标开的是**同一个下拉**（§4.1），且图标能再点一下关掉；
  *  ④ 下拉里有历史列表（每行日期走「今天 / 昨天 / MM-DD」）＋ **底部**那颗新会话；
  *  ⑤ 右上**一颗 ⋯**（32px），菜单三项：历史会话 · 设置 · 隐身（占位禁用）；
- *  ⑥ 续跑 chip 只在**空闲**时露脸 —— 它暂挂在头部（§3.6 那条 ⚠ 的去处之一）。
+ *  ⑥ 续跑 chip 只在**空闲**时露脸 —— 它暂挂在头部（§3.6 那条 ⚠ 的去处之一）；
+ *  ⑦ ⭐ **规格胶囊不在头部**（D7c ④）：头部只回答「这是哪个会话」，那一句下沉到
+ *     输入框上方（在 `StudioOperatorPanel.web.test.tsx` 里验）。
  */
 
 vi.mock('next-intl', () => ({
@@ -93,15 +92,6 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
   }
 })
 
-/** 头部只读这张脸的两格：域图标与那一句当前上下文（D7b ③）。 */
-const FACE: StudioOperatorFace = {
-  domainIcon: ImageIcon,
-  contextLine: () => 'Seedream 5.0 Pro · 1:1 · 4 张',
-  emptyLine: '空态那句话（头部不读）',
-  starterPills: [],
-  inputPlaceholder: '',
-}
-
 const NOW = Date.now()
 const DAY_MS = 86_400_000
 
@@ -148,14 +138,12 @@ function renderHeader(
   const onNewThread = vi.fn()
   render(
     <StudioOperatorHeader
-      domain={ASSISTANT_PROTOCOL_DOMAIN_IDS.image}
       working={false}
       history={HISTORY}
       onNewThread={onNewThread}
       onOpenAssistantSettings={onOpenAssistantSettings}
       onCollapse={onCollapse}
       avatarOwned={false}
-      face={FACE}
       {...overrides}
     />,
   )
@@ -163,7 +151,7 @@ function renderHeader(
 }
 
 describe('StudioOperatorHeader', () => {
-  it('头高钉在 40px，且带子的读数一样都没有', () => {
+  it('头高钉在常量那一档，且带子的读数一样都没有', () => {
     renderHeader()
     const head = screen.getByTestId('operator-header')
       .firstElementChild as HTMLElement
@@ -173,6 +161,24 @@ describe('StudioOperatorHeader', () => {
     expect(screen.queryByTestId('operator-band-fraction')).toBeNull()
     expect(screen.queryByTestId('operator-band-toggle')).toBeNull()
     expect(screen.queryByTestId('operator-band-list')).toBeNull()
+  })
+
+  /**
+   * D7c ④：头部只回答「这是哪个会话」。那枚域标记胶囊（`face.contextLine()`）
+   * 搬去了输入框上方 —— ⛔ 它回到头部就是这一条红。
+   */
+  it('⭐ ⛔ 头部不再画规格胶囊；头像槽之后紧跟的就是标题', () => {
+    renderHeader()
+    expect(screen.queryByTestId('operator-domain-chip')).toBeNull()
+
+    const row = screen.getByTestId('operator-header')
+      .firstElementChild as HTMLElement
+    const slot = screen.getByTestId('operator-header-avatar-slot')
+    // 标题那颗药丸**紧挨着**头像槽（⛔ 中间不许再塞第三样东西）。
+    expect(row.children[0]).toBe(slot)
+    expect(row.children[1]).toContainElement(
+      screen.getByTestId('operator-session-menu'),
+    )
   })
 
   it('标题▾ 与 ⋯ 菜单里的「历史会话」开的是同一个下拉', () => {

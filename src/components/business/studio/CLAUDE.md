@@ -34,7 +34,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │   ├── StudioOperatorAvatarToggle (**头像开关**：36px 人设头像 + 数字角标（待确认 + 未读结果，打开面板清零），**右上角**；一个持久 fixed 元素、两个锚点（顶栏 36 ↔ 面板头部槽 22），只过渡 transform。D7b ④。⛔ StudioOperatorCollapsedButton · StudioOperatorIconRail · StudioOperatorCollapsedCard · StudioOperatorMobileFab 四个文件都已删)
         │   ├── StudioOperatorMobileSheet (手机半屏可拖 vaul Sheet：三档吸附 0.55 / 1 / 关闭，`modal={false}` 露出上半截工作台，键盘弹起升全屏 —— 装的是下面同一个 Panel 元素)
         │   └── StudioOperatorPanel (同目录 — 面板内容：空态 / 时间线 / 双行输入区)
-        │       ├── StudioOperatorHeader (头部一行 56px：左上头像槽（桌面留位给外壳那颗，手机自己画）/ 会话标题▾（= 历史下拉，新会话在底部）/ 域标记 / 续跑 / 右上一颗 ⋯。⛔ 收起钮已删，收起 = 点头像)
+        │       ├── StudioOperatorHeader (头部一行 44px：左上头像槽（桌面留位给外壳那颗，手机自己画）/ 会话标题▾（= 历史下拉，新会话在底部）/ 续跑 / 右上一颗 ⋯。⛔ 收起钮已删，收起 = 点头像；⛔ 域标记胶囊已搬去输入框上方（D7c ④）)
         │       ├── StudioOperatorPinnedEvidence (面板顶部「钉住的证据」常驻条：钉住后在顶部留一份、点回原卡、× 取消钉住；⛔ 没钉住就整条不渲染；v2 §3.2 / 画板 BCards「已钉住 · 留在面板顶部」)
         │       ├── StudioOperatorEmptyState (空态：助手头像 68px + **一句话** + 起手药丸 ≤5；两样都来自宿主的 `face`，⛔ 不按 domain 取药丸表；v2 §4.2)
         │       ├── StudioOperatorTimelineRow (时间线沟一行 + **五类卡的分派点**)

@@ -393,12 +393,30 @@ HF 卡面移除的键（file select/import 在卡上的文案）迁移到抽屉�
 
 **切片 H1**（独立于助手 F 线，可与 §12 压缩同批交 Sonnet）：service+route+单测 → 生成侧样例参考条 → 真机验收（挂 Anything2Real 见 8 图横滚 + 提示词一键填入；挂无 README 图的 HF LoRA 整条不渲染；civitai LoRA 的 mined 配方零回归）。
 
+## 组件树现状（2026-09-20，进度表 34）
+
+四个 tab（`?section=` — `generate` / `community` / `mine` / `train`）共用 `LoraWorkbench.tsx` 那张 workbench-card，但身体各在各的文件里：
+
+| tab      | 渲染什么                                             | 住在哪                                                                 |
+| -------- | ---------------------------------------------------- | ---------------------------------------------------------------------- |
+| 生成     | `GenerateBranch` + `LoraSpineBar`                    | 仍在 `LoraWorkbench.tsx` 内                                            |
+| 库       | `CommunitySourceBranch`                              | `lora/library/LoraLibraryTabs.tsx`                                     |
+| 收藏     | `MyLoraBranch`                                       | 仍在 `LoraWorkbench.tsx` 内                                            |
+| **训练** | **`TrainWizard`**（两步向导 + 历史栏，手机走 Sheet） | **`lora/training/TrainWizard.tsx`** + `hooks/use-lora-train-wizard.ts` |
+
+训练这一刀（进度表 34）：`TrainingBranch` · `PresetRailPanel` · `StepBadge` 三个局部函数与 `LoraTrainingForm` / `LoraTrainingHistorySidebar` / `PresetGrid` / `MobileTrainingSheet` 四条 import **整体搬出**，`LoraWorkbench.tsx` 里只剩 tab 分派那一行 `<TrainWizard />`，⛔ 没有 re-export 垫片。向导只持有步骤之间那点状态（选中的预设 + 滚回第 1 步），上传 / 配置 / 提交 / 任务轮询整套状态机仍在 `LoraTrainingDialog` 里 —— ⛔ 不在向导里复刻第二份。
+
+**不新造路由**：tab 已经带 `?section=train`（`LORA_WORKBENCH_SEARCH_PARAM`），分享与回退早就有落点，这一刀只拆文件、不改导航。
+
+行数：`LoraWorkbench.tsx` **4794 → 4625**。⚠ 剩下的体量几乎全在生成分支（`GenerateBranch` + `LoraSpineBar` 约 3300 行）与收藏分支（约 590 行）—— 训练分支本来就只有 152 行，拆它降不到 2500，那一刀得另行授权。
+
 ## Source of Truth
 
-- 代码现状：`LoraWorkbench.tsx`（4268 行，锚点见 §9）· `HuggingFaceLoraLibrary.tsx` · `use-civitai-lora-library.ts` / `use-huggingface-lora-library.ts` / `use-active-lora-stack.tsx` · `constants/lora.ts` · `lib/lora-model-compatibility.ts` · `lib/prompt-tag-search.ts` + `constants/prompt-tags.*` · `prompt-tags/PromptTagTray.tsx`
+- 代码现状：`LoraWorkbench.tsx`（4625 行，锚点见 §9；⚠ §9 的行号锚点写于 4268 行时代，已漂移）· `HuggingFaceLoraLibrary.tsx` · `use-civitai-lora-library.ts` / `use-huggingface-lora-library.ts` / `use-active-lora-stack.tsx` · `constants/lora.ts` · `lib/lora-model-compatibility.ts` · `lib/prompt-tag-search.ts` + `constants/prompt-tags.*` · `prompt-tags/PromptTagTray.tsx`
 - 上游决策：`lora-search-redesign-2026-07.md`（调查简报）· LoRA 域 UI review v1（v1 施工基准，D1–D9/B1–B11，已随 archive 清理删除）· `lora-search-image-audit-2026-07.md`（S0 工程前置）—— 两份任务包均已随 plans 清理，全部见 git 历史
 - 规矩：当前功能施工读本文；未来视觉改版同时读 `lora-library.md` / `lora-generate.md`、`docs/brand-dna.md`、`docs/scenes/ui-page.md`、`docs/checklists/ui.md` 与 `docs/references/frontend.md`，不得从本文现有皮肤反推新方向。
 
 ## Last Verified
 
+- Date: 2026-09-20 · Method: 训练分支物理拆出到 `lora/training/TrainWizard.tsx` + `hooks/use-lora-train-wizard.ts`（进度表 34），新增「组件树现状」节并回写行数 4794 → 4625；`vitest run src/components/business/studio/lora` 全绿。
 - Date: 2026-07-17 · Method: 逐文件核实上表代码锚点（LoraWorkbench 结构 grep + 关键区间精读；双库/栈/词库引擎/兼容引擎全读）；未改产品代码。civitai tag 供给数字（§3.1）标注为待 S2 实测项，非已验证值。

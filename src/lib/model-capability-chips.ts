@@ -55,6 +55,7 @@ const SELECT_OPTION_KEYS: Partial<
   style: 'styleOptions',
   qualityToggle: 'qualityToggleOptions',
   ucPreset: 'ucPresetOptions',
+  sampler: 'samplerOptions',
 }
 
 /**

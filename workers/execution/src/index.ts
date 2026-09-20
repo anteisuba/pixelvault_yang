@@ -15,6 +15,9 @@ import { WorkflowEntrypoint } from 'cloudflare:workers'
 import { readOpenAIImageStream } from '../../../src/lib/openai-image-stream'
 import { NovelAiCharacterLayoutSchema } from '../../../src/types/novelai'
 import {
+  NOVELAI_SAMPLER_OPTIONS,
+  getNovelAiImageDimensions,
+  getNovelAiMaxCharacters,
   resolveNovelAiInpaintModelId,
   supportsNovelAiCharacters,
 } from '../../../src/constants/novelai'
@@ -5370,24 +5373,6 @@ function getVolcEngineImageSize(aspectRatio: string): {
   }
 }
 
-function getNovelAiImageDimensions(aspectRatio: string): {
-  width: number
-  height: number
-} {
-  switch (aspectRatio) {
-    case '16:9':
-      return { width: 1216, height: 832 }
-    case '9:16':
-      return { width: 832, height: 1216 }
-    case '4:3':
-      return { width: 1024, height: 768 }
-    case '3:4':
-      return { width: 768, height: 1024 }
-    default:
-      return { width: 1024, height: 1024 }
-  }
-}
-
 /**
  * One extra artifact produced by the same provider call as the main image.
  * Today the only source is Seedream 5.0 Pro's `layer_decomposition`, which
@@ -6737,6 +6722,17 @@ function isNovelAiStructuredPromptModel(externalModelId: string): boolean {
   )
 }
 
+/**
+ * 采样器白名单。客户端送来表外的值（旧客户端、改过的请求）退回官方缺省档，
+ * 与 D10 ⑤ 之前那句硬编逐字等价。
+ * https://docs.novelai.net/en/image/sampling/
+ */
+function resolveNovelAiSampler(value: string | null | undefined): string {
+  return value && (NOVELAI_SAMPLER_OPTIONS as readonly string[]).includes(value)
+    ? value
+    : NOVELAI_SAMPLER_OPTIONS[0]
+}
+
 function isNovelAiV5Model(externalModelId: string): boolean {
   return (
     externalModelId === 'nai-diffusion-5-full' ||
@@ -6974,7 +6970,12 @@ export async function generateNovelAiImage(
   )
   if (
     !layoutResult.success ||
-    (layoutResult.data && !supportsNovelAiCharacters(externalModelId))
+    (layoutResult.data && !supportsNovelAiCharacters(externalModelId)) ||
+    // ⚠ 人数上限**逐模型**不同（V5 22 / V4.5 6），schema 卡的是名册里最大的
+    // 那个数，所以真上限只能在这里按型号判。
+    (layoutResult.data &&
+      layoutResult.data.characters.length >
+        getNovelAiMaxCharacters(externalModelId))
   ) {
     throw new Error('Invalid NovelAI character layout.')
   }
@@ -6991,7 +6992,9 @@ export async function generateNovelAiImage(
     width: dimensions.width,
     height: dimensions.height,
     scale: readNumberField(advancedParams, 'guidanceScale') ?? (useV5 ? 7 : 5),
-    sampler: 'k_euler_ancestral',
+    // 采样器：D10 ⑤ 起是真控件。⚠ 白名单之外的值一律退回官方缺省档，
+    // ⛔ 不把客户端送来的任意串原样发给 provider。
+    sampler: resolveNovelAiSampler(readStringField(advancedParams, 'sampler')),
     steps:
       readPositiveNumberField(advancedParams, 'steps') ?? (useV5 ? 23 : 28),
     seed,

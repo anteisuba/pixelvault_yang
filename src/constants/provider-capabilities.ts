@@ -1,5 +1,6 @@
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AI_MODELS } from '@/constants/models'
+import { NOVELAI_SAMPLER_OPTIONS } from '@/constants/novelai'
 
 /**
  * Provider capability flags.
@@ -22,6 +23,7 @@ export type ProviderCapability =
   | 'inpaint'
   | 'qualityToggle'
   | 'ucPreset'
+  | 'sampler'
   | 'textRendering'
   | 'imageAnalysis'
   | 'lora'
@@ -179,6 +181,11 @@ export interface CapabilityConfig {
   qualityToggleOptions?: readonly string[]
   /** NovelAI Undesired Content 预设档位（`none` 为缺省）。 */
   ucPresetOptions?: readonly string[]
+  /**
+   * 扩散采样器档位（`samplerOptions[0]` 必须是 provider 的现行缺省 —— chip 停在
+   * 缺省上就等于逐字保住此前硬编的那一档）。
+   */
+  samplerOptions?: readonly string[]
   /** `textRendering` 文本框的字数上限；没有这一项就等于没有这档能力。 */
   textRenderingMaxChars?: number
   /** Maximum number of LoRAs that can be applied simultaneously */
@@ -207,9 +214,13 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
         // UC 预设适用于所有 NAI 档（V3 / V4.5 / V5）；质量标签与 Text: 是 V5
         // 专属，逐模型 override 声明。
         'ucPreset',
+        // 采样器适用于所有 NAI 档（官方 sampling 页没有分代）。D10 ⑤ 之前
+        // worker 硬编 `k_euler_ancestral`，那一档现在是这张表的 options[0]。
+        'sampler',
         // NovelAI does not support image analysis (reverse engineering)
       ],
       ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
+      samplerOptions: NOVELAI_SAMPLER_OPTIONS,
       guidanceScale: { min: 1, max: 20, step: 0.5, default: 5 },
       steps: { min: 1, max: 50, step: 1, default: 28 },
       referenceStrength: { min: 0.01, max: 0.99, step: 0.01, default: 0.7 },
@@ -443,6 +454,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'seed',
       'referenceStrength',
       'ucPreset',
+      'sampler',
       'qualityToggle',
       'textRendering',
       // 遮罩重绘。⛔ 不是一颗 chip —— 它要的是一块画布，长在参考图那一栏
@@ -450,6 +462,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'inpaint',
     ] as const,
     ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
+    samplerOptions: NOVELAI_SAMPLER_OPTIONS,
     qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
     textRenderingMaxChars: NOVELAI_TEXT_RENDERING_MAX_CHARS,
   },
@@ -463,6 +476,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'seed',
       'referenceStrength',
       'ucPreset',
+      'sampler',
       'qualityToggle',
       'textRendering',
       // 遮罩重绘。⛔ 不是一颗 chip —— 它要的是一块画布，长在参考图那一栏
@@ -470,6 +484,7 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'inpaint',
     ] as const,
     ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
+    samplerOptions: NOVELAI_SAMPLER_OPTIONS,
     qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
     textRenderingMaxChars: NOVELAI_CURATED_TEXT_RENDERING_MAX_CHARS,
   },
@@ -782,6 +797,7 @@ export function getCapabilityFieldType(
     background: 'select',
     qualityToggle: 'select',
     ucPreset: 'select',
+    sampler: 'select',
     // 单行文本 —— 与 negativePrompt 的 `textarea` 不同档：那条住在通用参数栏的
     // 折叠行里，这条是专属 chip 行上的一颗。
     textRendering: 'text',

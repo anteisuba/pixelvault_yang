@@ -325,20 +325,31 @@ describe('NovelAI capability chips', () => {
       'steps',
       'referenceStrength',
       'ucPreset',
+      'sampler',
       'qualityToggle',
       'textRendering',
     ])
   })
 
-  it('gives V4.5 only the UC preset', () => {
+  // 采样器不分代（官方 sampling 页没有按模型分档），所以 V4.5 也有它；
+  // V5 专属的只有质量标签与 `Text:`。
+  it('gives V4.5 the UC preset and the sampler, but no V5-only control', () => {
     expect(
       capabilitiesOf(AI_ADAPTER_TYPES.NOVELAI, AI_MODELS.NOVELAI_V45_FULL),
-    ).toEqual(['guidanceScale', 'steps', 'referenceStrength', 'ucPreset'])
+    ).toEqual([
+      'guidanceScale',
+      'steps',
+      'referenceStrength',
+      'ucPreset',
+      'sampler',
+    ])
   })
 
   it.each([
     ['qualityToggle', 'off'],
     ['ucPreset', 'none'],
+    // 采样器的缺省必须是 worker 此前硬编的那一档 —— 停在缺省上逐字保住旧行为。
+    ['sampler', 'k_euler_ancestral'],
   ])('defaults %s to the no-op option so the chip idles', (cap, expected) => {
     const chip = getModelCapabilityChips(
       AI_ADAPTER_TYPES.NOVELAI,

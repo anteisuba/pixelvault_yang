@@ -1,4 +1,7 @@
-import { supportsNovelAiCharacters } from '@/constants/novelai'
+import {
+  getNovelAiMaxCharacters,
+  supportsNovelAiCharacters,
+} from '@/constants/novelai'
 import 'server-only'
 
 import {
@@ -419,7 +422,21 @@ export async function resolveImageRouteAndValidate(
   ) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',
-      'Character layout requires a NovelAI V5 model',
+      'Character layout requires a NovelAI model that supports it',
+      400,
+    )
+  }
+
+  // 人数上限**逐模型**不同（V5 22 人自由定位 / V4.5 6 人 5×5 网格）。schema 卡的
+  // 是名册里最大的那个数，所以真上限只能在这里按型号判。
+  const maxCharacters = getNovelAiMaxCharacters(effectiveModelId)
+  if (
+    input.advancedParams?.novelAiLayout &&
+    input.advancedParams.novelAiLayout.characters.length > maxCharacters
+  ) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      `This NovelAI model accepts at most ${maxCharacters} characters`,
       400,
     )
   }

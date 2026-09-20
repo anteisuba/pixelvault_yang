@@ -52,6 +52,7 @@ import {
   LORA_CANDIDATE_SOURCE_VALUES,
   LORA_METADATA_COMPLETENESS_VALUES,
 } from '@/constants/lora-candidate'
+import { NOVELAI_SAMPLER_OPTIONS } from '@/constants/novelai'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
 import {
   NOVELAI_QUALITY_TOGGLE_OPTIONS,
@@ -297,6 +298,12 @@ export const AdvancedParamsSchema = z.object({
    * https://docs.novelai.net/en/image/undesiredcontent/
    */
   ucPreset: z.enum(NOVELAI_UC_PRESET_OPTIONS).optional(),
+  /**
+   * NovelAI 采样器（官方八档）。不设 = `k_euler_ancestral`，也就是 D10 ⑤ 之前
+   * worker 硬编的那一档 —— 停在缺省上逐字等价于旧行为。
+   * https://docs.novelai.net/en/image/sampling/
+   */
+  sampler: z.enum(NOVELAI_SAMPLER_OPTIONS).optional(),
   /**
    * NovelAI `Text:` 文字渲染（V5，EN/JA/ZH）。worker 把它拼到 prompt **最末**。
    * https://docs.novelai.net/en/image/textrendering/

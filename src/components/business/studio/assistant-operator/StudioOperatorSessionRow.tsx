@@ -17,6 +17,15 @@
  * ── D7c ④ 改了长相（owner 2026-09-20 确认画板）────────────────────
  *  · **一行两层**：标题 13px 单行截断，下面 11px「工作台 · 日期」用 `·` 连起来 ——
  *    ⛔ 不再是隔着一大格的两段（那一格 `gap-2` 让两样读起来像两栏表格）。
+ *  · **「哪条是当前」由行自己说**（owner 2026-09-20 真机：「选中不要有这个 ✅。
+ *    直接做成选中态就可以了」）：那枚 ✓ 与铅笔、垃圾桶同尺寸同位置排在一条线上，
+ *    看起来是第三颗按钮、实际按不了。现在当前那一行**常驻一层浅填充**、标题字重
+ *    上到 medium，⛔ 不再塞一枚和操作按钮抢位置的字形。
+ *    ⚠ 三档底色走 HIG 填充三档（`--surface-fill` 4% / `-hover` 7% / `-track` 11%，
+ *    见 `globals.css`）：选中静息 < 任意行 hover < 选中且 hover。⛔ 别让选中与
+ *    hover 撞成同一个值 —— 鼠标一划过就分不清哪条是当前。
+ *    ⚠ **语义单独留着**：行上挂 `aria-current` —— ✓ 曾经是唯一告诉读屏「这是当前
+ *    项」的东西，删了它就必须有人顶上，⛔ 选中态那层底色对读屏什么都没说。
  *  · **图标按需**：改名 / 删除**默认不可见**，hover 或键盘聚焦才淡入（只动
  *    `opacity`）。⚠ 位子**常驻**：两态之间标题的截断点必须逐像素一致，⛔ 不做位移
  *    —— 会抖的行没法用指针瞄准。⚠ 触屏（`coarse:`）常显：那一档没有 hover，
@@ -38,7 +47,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
-import { Check, Pencil, Trash2 } from '@/components/icons'
+import { Pencil, Trash2 } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import { DropdownMenuItem } from '@/components/ui/dropdown-menu'
@@ -154,8 +163,15 @@ export function StudioOperatorSessionRow({
       /* 44px 一行、8px 圆角（画板「静息 / hover」两态）。底色亮起的是**整行**
          而不是标题那一格 —— 右边两颗图标也属于这一行，⛔ 不让它们各亮各的。
          ⚠ `focus-within` 那一档是键盘路：Radix 菜单项被高亮时是真的拿到了焦点。 */
+      /* ⚠ 当前那一条的**语义**（见头注）：`aria-current` 是 ✓ 退场之后唯一还
+         在说「这是当前项」的东西，⛔ 底色对读屏什么都没说。 */
+      {...(current ? { 'aria-current': 'true' as const } : {})}
       className={cn(
-        'group/row flex h-11 items-center gap-2 rounded-md pr-1.5 transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-within:bg-accent motion-reduce:transition-none',
+        'group/row flex h-11 items-center gap-2 rounded-md pr-1.5 transition-colors duration-(--duration-fast) ease-standard motion-reduce:transition-none',
+        // 三档底色（见头注）：选中静息 4% < 任意行 hover 7% < 选中且 hover 11%。
+        current
+          ? 'bg-surface-fill hover:bg-surface-fill-track focus-within:bg-surface-fill-track'
+          : 'hover:bg-surface-fill-hover focus-within:bg-surface-fill-hover',
         // 编辑态左边少 2px：输入框自己那条 1px 边把文字往里推了一格。
         editing ? 'pl-1.75' : 'pl-2.25',
       )}
@@ -221,8 +237,15 @@ export function StudioOperatorSessionRow({
             onSelect={onSelect}
           >
             <span className="flex min-w-0 flex-1 flex-col">
-              {/* CSS `truncate` 只是兜底 —— 真正的上限在派生函数里。 */}
-              <span className="block truncate text-2sm leading-snug">
+              {/* CSS `truncate` 只是兜底 —— 真正的上限在派生函数里。
+                  ⚠ 当前那一条字重上一档：底色之外再给一条线索，⛔ 状态不只靠
+                  颜色（`forbidden.md`）。 */}
+              <span
+                className={cn(
+                  'block truncate text-2sm leading-snug',
+                  current && 'font-medium',
+                )}
+              >
                 {displayTitle}
               </span>
               {/* ⚠ 一行两段用 `·` 连起来（画板），⛔ 不再是隔着 `gap-2` 的两栏。
@@ -235,9 +258,6 @@ export function StudioOperatorSessionRow({
                 <span className="font-mono tabular-nums">{dateLabel}</span>
               </span>
             </span>
-            {current ? (
-              <Check className="size-3.5 shrink-0" aria-hidden />
-            ) : null}
           </DropdownMenuItem>
 
           {/* ── 两颗图标：默认透明、hover / 聚焦才淡入（画板动效表第 3 行）────

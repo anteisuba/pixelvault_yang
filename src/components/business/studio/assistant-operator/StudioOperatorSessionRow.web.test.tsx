@@ -1,5 +1,5 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { ASSISTANT_SURFACE_IDS } from '@/types/assistant-conversation'
@@ -17,7 +17,9 @@ import { StudioOperatorSessionRow } from './StudioOperatorSessionRow'
  *  ④ 确认态自己退回去的三条路（3 秒 · 指针离开 · 焦点离开），且有 `aria-live`；
  *  ⑤ ⭐ 两层一行：「工作台 · 日期」连在一起，⛔ 不是隔着一格的两段；
  *  ⑥ ⭐ 两颗图标**默认不可见**（只动 `opacity`，位子常驻），hover / 聚焦才淡入；
- *  ⑦ ⭐ 动的那几处都挂着 `motion-reduce:transition-none`（D7c ④ 动效表末行）。
+ *  ⑦ ⭐ 动的那几处都挂着 `motion-reduce:transition-none`（D7c ④ 动效表末行）；
+ *  ⑧ ⭐ 「哪条是当前」由**行自己**说：⛔ 没有那枚 ✓，改成常驻选中底色 + 字重，
+ *     语义由 `aria-current` 顶上。
  */
 
 vi.mock('next-intl', () => ({
@@ -211,6 +213,59 @@ describe('StudioOperatorSessionRow — 一行两层（D7c ④）', () => {
     expect(screen.getByTestId('operator-session-actions').className).toContain(
       'opacity-100',
     )
+  })
+})
+
+describe('StudioOperatorSessionRow — 当前那一条', () => {
+  /**
+   * owner 2026-09-20 真机：「选中不要有这个 ✅。直接做成选中态就可以了。」
+   * 那枚 ✓ 与铅笔、垃圾桶同尺寸同位置，看起来是第三颗按钮、实际按不了。
+   */
+  it('⭐ ⛔ 没有那枚 ✓；当前那一行常驻选中底色 + 字重上一档', () => {
+    renderRow({ current: true })
+    const row = screen.getByTestId('operator-session-row')
+    // 图标槽只剩两颗（改名 · 删除）。
+    expect(
+      screen.getByTestId('operator-session-actions').children,
+    ).toHaveLength(2)
+    // 三档底色：选中静息 4% < 任意行 hover 7% < 选中且 hover 11%。
+    expect(row.className).toContain('bg-surface-fill')
+    expect(row.className).toContain('hover:bg-surface-fill-track')
+    // 字重那一条只看**标题那一格**：删除药丸里的「确认」也是 medium。
+    const title = screen
+      .getByTestId('operator-session-item')
+      .querySelector('.truncate') as HTMLElement
+    expect(title.textContent).toBe('黄昏光的参考研究')
+    expect(title.className).toContain('font-medium')
+  })
+
+  it('非当前那一行只有 hover 那一档，⛔ 不常驻底色', () => {
+    renderRow()
+    const row = screen.getByTestId('operator-session-row')
+    expect(row.className).toContain('hover:bg-surface-fill-hover')
+    // ⛔ 静息态不许带底色 —— 否则整张列表看起来每一条都是当前。
+    expect(row.className).not.toMatch(/(^|\s)bg-surface-fill/)
+    const title = screen
+      .getByTestId('operator-session-item')
+      .querySelector('.truncate') as HTMLElement
+    expect(title.className).not.toContain('font-medium')
+  })
+
+  /**
+   * ⭐ ✓ 曾经是唯一告诉读屏「这是当前项」的东西 —— 删了它，语义必须由
+   * `aria-current` 顶上。⛔ 选中态那层底色对读屏什么都没说。
+   */
+  it('⭐ 当前行带 `aria-current`，非当前行不带', () => {
+    renderRow({ current: true })
+    expect(
+      screen.getByTestId('operator-session-row').getAttribute('aria-current'),
+    ).toBe('true')
+
+    cleanup()
+    renderRow()
+    expect(
+      screen.getByTestId('operator-session-row').hasAttribute('aria-current'),
+    ).toBe(false)
   })
 })
 

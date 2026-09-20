@@ -33,6 +33,16 @@ import {
   type WorkflowId,
 } from '@/constants/workflows'
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
+import {
+  DEFAULT_PROMPT_DIALECT,
+  type PromptDialect,
+} from '@/constants/prompt-dialects'
+import {
+  parseTagChips,
+  serializeTagChips,
+  wholeSentenceAsTag,
+} from '@/lib/tag-composer'
+import type { TagChip } from '@/types/tag-composer'
 import type { AspectRatio } from '@/constants/config'
 import { VIDEO_GENERATION } from '@/constants/config'
 import {
@@ -141,6 +151,22 @@ export interface StudioFormState {
    */
   modelSelectionTouched?: boolean
   prompt: string
+  /**
+   * 当前这一台说哪种提示词方言（D10 ⑤）。由路由说了算：`/studio/image` 是
+   * `natural`，`/studio/image/tags` 是 `tags`，两台的 `StudioModeSync` 各自
+   * 报一次。⛔ 不由选中的模型反推 —— 没选模型时它也得成立。
+   */
+  promptDialect: PromptDialect
+  /**
+   * 标签台编辑器里的正 / 负两栏。
+   *
+   * ⚠ 与 `prompt` / `advancedParams.negativePrompt` **一起写**：`SET_TAG_CHIPS`
+   * 同时落 chip 列表和它序列化出来的统一串，所以下游（成本预览 · 生成 · 助手
+   * 快照 · 草稿）读 `prompt` 就够了，⛔ 不必认识 chip。反方向由 `SET_PROMPT`
+   * 兜住：外部改写提示词时按逗号重新切成 chip。
+   */
+  tagChips: TagChip[]
+  tagNegativeChips: TagChip[]
   recipeUsage: RecipeUsage | null
   aspectRatio: AspectRatio
   advancedParams: AdvancedParams
@@ -309,6 +335,15 @@ export type StudioAction =
    */
   | { type: 'AUTO_SELECT_OPTION_ID'; payload: string }
   | { type: 'SET_PROMPT'; payload: string }
+  /**
+   * 换台。⚠ 进标签台时如果 chip 还是空的，就拿当前提示词**整句**开第一格
+   * （D10 ④ 两台跳转，⛔ 不自动切成标签）；负向栏本来就是逗号列表，按逗号切。
+   */
+  | { type: 'SET_PROMPT_DIALECT'; payload: PromptDialect }
+  | {
+      type: 'SET_TAG_CHIPS'
+      payload: { polarity: 'positive' | 'negative'; chips: TagChip[] }
+    }
   | { type: 'REMOVE_PROMPT_REFERENCE'; payload?: number }
   | { type: 'SET_RECIPE_USAGE'; payload: RecipeUsage | null }
   | { type: 'SET_ASPECT_RATIO'; payload: AspectRatio }
@@ -443,6 +478,9 @@ const initialFormState: StudioFormState = {
   selectedOptionId: null,
   modelSelectionTouched: false,
   prompt: '',
+  promptDialect: DEFAULT_PROMPT_DIALECT,
+  tagChips: [],
+  tagNegativeChips: [],
   recipeUsage: null,
   aspectRatio: '1:1',
   advancedParams: {},
@@ -617,7 +655,42 @@ export function studioFormReducer(
     case 'AUTO_SELECT_OPTION_ID':
       return { ...state, selectedOptionId: action.payload }
     case 'SET_PROMPT':
-      return { ...state, prompt: action.payload }
+      return {
+        ...state,
+        prompt: action.payload,
+        // 标签台开着时，外部改写提示词（助手 · 草稿回灌 · 灵感）要在 chip 上
+        // 看得见 —— 否则编辑器画的是一份已经被顶掉的旧名单。
+        ...(state.promptDialect === 'tags'
+          ? { tagChips: parseTagChips(action.payload) }
+          : {}),
+      }
+    case 'SET_PROMPT_DIALECT': {
+      if (state.promptDialect === action.payload) return state
+      if (action.payload !== 'tags') {
+        return { ...state, promptDialect: action.payload }
+      }
+      return {
+        ...state,
+        promptDialect: 'tags',
+        tagChips: state.tagChips.length
+          ? state.tagChips
+          : wholeSentenceAsTag(state.prompt),
+        tagNegativeChips: state.tagNegativeChips.length
+          ? state.tagNegativeChips
+          : parseTagChips(state.advancedParams.negativePrompt ?? ''),
+      }
+    }
+    case 'SET_TAG_CHIPS': {
+      const text = serializeTagChips(action.payload.chips)
+      if (action.payload.polarity === 'positive') {
+        return { ...state, tagChips: action.payload.chips, prompt: text }
+      }
+      return {
+        ...state,
+        tagNegativeChips: action.payload.chips,
+        advancedParams: { ...state.advancedParams, negativePrompt: text },
+      }
+    }
     case 'REMOVE_PROMPT_REFERENCE':
       return {
         ...state,
@@ -715,6 +788,8 @@ export function studioFormReducer(
       return {
         ...state,
         prompt: '',
+        tagChips: [],
+        tagNegativeChips: [],
         recipeUsage: null,
         aspectRatio: '1:1',
         advancedParams: {},

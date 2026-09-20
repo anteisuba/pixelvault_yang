@@ -3,10 +3,19 @@
 import { useEffect } from 'react'
 
 import { useStudioForm } from '@/contexts/studio-context'
+import {
+  DEFAULT_PROMPT_DIALECT,
+  type PromptDialect,
+} from '@/constants/prompt-dialects'
 import { WORKFLOWS, type WorkflowMediaGroup } from '@/constants/workflows'
 
 interface StudioModeSyncProps {
   mode: WorkflowMediaGroup
+  /**
+   * 这一台说哪种提示词方言（D10 ⑤）。`/studio/image/tags` 报 `tags`，其余
+   * 全部留在缺省的 `natural` —— 方言由**路由**说了算，⛔ 不由选中的模型反推。
+   */
+  dialect?: PromptDialect
 }
 
 /**
@@ -21,8 +30,16 @@ interface StudioModeSyncProps {
  * navigations, the user perceives an instant switch — no remount, no
  * provider reset, no flash.
  */
-export function StudioModeSync({ mode }: StudioModeSyncProps) {
+export function StudioModeSync({
+  mode,
+  dialect = DEFAULT_PROMPT_DIALECT,
+}: StudioModeSyncProps) {
   const { state, dispatch } = useStudioForm()
+
+  useEffect(() => {
+    if (state.promptDialect === dialect) return
+    dispatch({ type: 'SET_PROMPT_DIALECT', payload: dialect })
+  }, [dialect, state.promptDialect, dispatch])
 
   useEffect(() => {
     if (state.outputType === mode) return

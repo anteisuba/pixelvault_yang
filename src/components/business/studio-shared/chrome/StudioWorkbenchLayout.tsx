@@ -13,6 +13,11 @@ interface StudioWorkbenchLayoutProps {
    * 与底部 composer 同时挂载会让一次请求发两遍。
    */
   params: React.ReactNode
+  /**
+   * 参数栏在桌面端的宽度类。缺省 `lg:w-72`（288，三个模态的现行宽度）；
+   * 标签台的编辑器主区按画板是 420，所以那一处传 `lg:w-105`。
+   */
+  paramsWidthClass?: string
   stage: React.ReactNode
   /**
    * 固定在视口底部的移动端 composer。非空时舞台按 composer 高度 + 键盘安全区
@@ -39,6 +44,7 @@ interface StudioWorkbenchLayoutProps {
  */
 export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
   params,
+  paramsWidthClass = 'lg:w-72',
   stage,
   composer,
 }: StudioWorkbenchLayoutProps) {
@@ -57,7 +63,12 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
     // 否则子级仍按整屏高度算，会把卡片顶出地台的下边距，出现整页滚动条。
     <div className="studio-workbench-shell flex min-h-0 flex-1 flex-col lg:flex-none lg:flex-row lg:gap-3">
       {params ? (
-        <div className="studio-param-panel flex shrink-0 flex-col gap-3 rounded-2xl border border-border bg-card p-3 lg:w-72 lg:overflow-y-auto lg:p-4">
+        <div
+          className={cn(
+            'studio-param-panel flex shrink-0 flex-col gap-3 rounded-2xl border border-border bg-card p-3 lg:overflow-y-auto lg:p-4',
+            paramsWidthClass,
+          )}
+        >
           {params}
         </div>
       ) : null}

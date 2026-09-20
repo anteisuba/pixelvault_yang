@@ -1,11 +1,18 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { usePathname } from 'next/navigation'
 
 import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
+import {
+  getPromptDialect,
+  type PromptDialect,
+} from '@/constants/prompt-dialects'
 import { ROUTES } from '@/constants/routes'
-import { STUDIO_LAST_IMAGE_MODEL_STORAGE_KEY } from '@/constants/studio'
+import {
+  STUDIO_LAST_IMAGE_MODEL_STORAGE_KEY,
+  STUDIO_LAST_TAGS_MODEL_STORAGE_KEY,
+} from '@/constants/studio'
 import type { StudioModelOption } from '@/types/model-option'
 import { useStudioForm } from '@/contexts/studio-context'
 
@@ -84,33 +91,50 @@ export function pickDefaultImageModelOptionId(
   return best?.optionId ?? null
 }
 
+/** 「上次用的模型」按台分开记（D10 ②）。 */
+export function storageKeyForDialect(dialect: PromptDialect): string {
+  return dialect === 'tags'
+    ? STUDIO_LAST_TAGS_MODEL_STORAGE_KEY
+    : STUDIO_LAST_IMAGE_MODEL_STORAGE_KEY
+}
+
 /** SSR 安全：服务端没有 localStorage，隐私模式下读写都可能直接抛。 */
-export function readStoredImageModelOptionId(): string | null {
+export function readStoredImageModelOptionId(
+  dialect: PromptDialect = 'natural',
+): string | null {
   if (typeof window === 'undefined') return null
   try {
-    const stored = window.localStorage.getItem(
-      STUDIO_LAST_IMAGE_MODEL_STORAGE_KEY,
-    )
+    const stored = window.localStorage.getItem(storageKeyForDialect(dialect))
     return stored && stored.length > 0 ? stored : null
   } catch {
     return null
   }
 }
 
-export function writeStoredImageModelOptionId(optionId: string): void {
+export function writeStoredImageModelOptionId(
+  optionId: string,
+  dialect: PromptDialect = 'natural',
+): void {
   if (typeof window === 'undefined') return
   try {
-    window.localStorage.setItem(STUDIO_LAST_IMAGE_MODEL_STORAGE_KEY, optionId)
+    window.localStorage.setItem(storageKeyForDialect(dialect), optionId)
   } catch {
     // 写不进去只是下次不记得，不该把工作台带崩。
   }
 }
 
-/** 只认图片工作台这一条路由（带 locale 前缀，如 `/zh/studio/image`）。 */
+/**
+ * 图片的两台都算（带 locale 前缀，如 `/zh/studio/image` 与
+ * `/zh/studio/image/tags`）。⚠ 标签台的路径以图片台的路径开头，所以先判长的
+ * 那条 —— 反过来写会让标签台永远匹配成图片台。
+ */
 export function isImageStudioPathname(pathname: string | null): boolean {
   if (!pathname) return false
   return (
-    pathname === ROUTES.STUDIO_IMAGE || pathname.endsWith(ROUTES.STUDIO_IMAGE)
+    pathname === ROUTES.STUDIO_IMAGE ||
+    pathname.endsWith(ROUTES.STUDIO_IMAGE) ||
+    pathname === ROUTES.STUDIO_IMAGE_TAGS ||
+    pathname.endsWith(ROUTES.STUDIO_IMAGE_TAGS)
   )
 }
 
@@ -129,26 +153,56 @@ export function useDefaultImageModel(
   const { state, dispatch } = useStudioForm()
   const pathname = usePathname()
   const active = isImageStudioPathname(pathname) && state.outputType === 'image'
-  const { selectedOptionId, modelSelectionTouched } = state
+  const { selectedOptionId, modelSelectionTouched, promptDialect } = state
+
+  /** 这一台的名单 —— 只有本方言的型号（D10 ② Q3「⛔ 不跨方言」）。 */
+  const dialectOptions = useMemo(
+    () =>
+      modelOptions.filter(
+        (option) => getPromptDialect(option.adapterType) === promptDialect,
+      ),
+    [modelOptions, promptDialect],
+  )
 
   useEffect(() => {
     if (!active) return
-    if (selectedOptionId !== null) return
-    if (modelSelectionTouched) return
-    if (modelOptions.length === 0) return
+    if (dialectOptions.length === 0) return
+
+    const candidates = toDefaultImageModelCandidates(dialectOptions)
+    /**
+     * 选中的那条属不属于这一台。⚠ **跨台的陈旧选择永远不是用户的意图**
+     * （在自然语言台选的 GPT 跟着走进标签台），所以它是唯一一个越过
+     * `modelSelectionTouched` 去自动补位的口子；「把最后一行删掉 = 就是要空态」
+     * 那条路径（`selectedOptionId === null`）照旧一个字不动。
+     */
+    const crossDialect =
+      selectedOptionId !== null &&
+      !candidates.some((candidate) => candidate.optionId === selectedOptionId)
+
+    if (!crossDialect) {
+      if (selectedOptionId !== null) return
+      if (modelSelectionTouched) return
+    }
 
     const optionId = pickDefaultImageModelOptionId(
-      toDefaultImageModelCandidates(modelOptions),
-      readStoredImageModelOptionId(),
+      candidates,
+      readStoredImageModelOptionId(promptDialect),
     )
     if (!optionId) return
     dispatch({ type: 'AUTO_SELECT_OPTION_ID', payload: optionId })
-  }, [active, dispatch, modelOptions, modelSelectionTouched, selectedOptionId])
+  }, [
+    active,
+    dispatch,
+    dialectOptions,
+    modelSelectionTouched,
+    promptDialect,
+    selectedOptionId,
+  ])
 
   useEffect(() => {
     if (!active) return
     if (!modelSelectionTouched) return
     if (!selectedOptionId) return
-    writeStoredImageModelOptionId(selectedOptionId)
-  }, [active, modelSelectionTouched, selectedOptionId])
+    writeStoredImageModelOptionId(selectedOptionId, promptDialect)
+  }, [active, modelSelectionTouched, promptDialect, selectedOptionId])
 }

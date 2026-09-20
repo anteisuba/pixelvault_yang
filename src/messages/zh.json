@@ -557,6 +557,10 @@
       "node": {
         "title": "画布 — PixelVault",
         "description": "在一个可视化画布上创建并编排图片、视频与音频工作流。"
+      },
+      "imageTags": {
+        "title": "标签台 — PixelVault",
+        "description": "为 NovelAI 与 PixAI 编写 danbooru 风格的标签提示词。"
       }
     },
     "gallery": {
@@ -3294,7 +3298,19 @@
     },
     "textRendering": "文字",
     "textRenderingHint": "让 NovelAI V5 画进图里的文字，会以 \"Text: …\" 追加到提示词最末。支持中英日。",
-    "textRenderingPlaceholder": "要画进图里的文字"
+    "textRenderingPlaceholder": "要画进图里的文字",
+    "sampler": "采样器",
+    "samplerHint": "NovelAI 的采样算法。Euler Ancestral 是官方缺省档，也是这颗控件出现之前每一次生成实际用的那一档。",
+    "samplerOption": {
+      "k_euler_ancestral": "Euler Ancestral",
+      "k_euler": "Euler",
+      "k_dpmpp_2s_ancestral": "DPM++ 2S Ancestral",
+      "k_dpmpp_2m": "DPM++ 2M",
+      "k_dpmpp_2m_sde": "DPM++ 2M SDE",
+      "k_dpmpp_sde": "DPM++ SDE",
+      "k_dpm_2": "DPM 2",
+      "ddim_v3": "DDIM v3"
+    }
   },
   "ReverseEngineer": {
     "title": "图片反向工程",
@@ -6278,6 +6294,13 @@
     },
     "variantRequests": "消耗 {count} 积分"
   },
+  "StudioTags": {
+    "dialectSwitchLabel": "提示词方言",
+    "dialect": {
+      "natural": "自然语言",
+      "tags": "标签"
+    }
+  },
   "StudioPanels": {
     "reference": "参考图",
     "referenceDisabledOverLimit": "超出当前模型最多 {max} 张参考图的限制",
@@ -8024,7 +8047,8 @@
       "referenceStrength": "参考强度",
       "qualityToggle": "质量标签",
       "ucPreset": "UC 预设",
-      "textRendering": "文字"
+      "textRendering": "文字",
+      "sampler": "采样器"
     },
     "textFilled": "{count} 字"
   },

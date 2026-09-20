@@ -17,6 +17,7 @@ import {
 } from '@/components/business/studio'
 import { StudioDockPanelArea } from '@/components/business/studio/StudioDockPanelArea'
 import { StudioMobileComposer } from '@/components/business/studio/StudioMobileComposer'
+import { StudioTagsPromptArea } from '@/components/business/studio/tags/StudioTagsPromptArea'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
 import { Button } from '@/components/ui/button'
@@ -109,6 +110,13 @@ export function StudioWorkspaceUI() {
   const isMobile = useIsMobile()
   const useMobileComposer =
     isMobile && (state.outputType === 'image' || state.outputType === 'video')
+  /**
+   * 标签台（D10 ⑤）—— **同一个壳**：结果区 / 参考轨 / 助手 / 任务条一个字都不换，
+   * 只把中间那一列的参数栏换成标签编辑器。方言由路由说了算（`StudioModeSync`），
+   * ⛔ 不由选中的模型反推。
+   */
+  const isTagsWorkbench =
+    state.outputType === 'image' && state.promptDialect === 'tags'
 
   const { isLoaded, userId } = useAuth()
   const pathname = usePathname()
@@ -323,7 +331,15 @@ export function StudioWorkspaceUI() {
               `StudioToolbarPanels` / `StudioToolbar` 已整条退役，不留兼容层。
               栏位差异归 `StudioPromptArea` 自己按 outputType 分。 */}
           <StudioWorkbenchLayout
-            params={useMobileComposer ? null : <StudioPromptArea />}
+            params={
+              useMobileComposer ? null : isTagsWorkbench ? (
+                <StudioTagsPromptArea />
+              ) : (
+                <StudioPromptArea />
+              )
+            }
+            // 编辑器主区按画板是 420（`lg:w-105`），自然语言台仍是 288。
+            paramsWidthClass={isTagsWorkbench ? 'lg:w-105' : 'lg:w-72'}
             stage={<StudioCanvas />}
             composer={useMobileComposer ? <StudioMobileComposer /> : null}
           />

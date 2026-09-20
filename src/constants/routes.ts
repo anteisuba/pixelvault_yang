@@ -20,6 +20,12 @@ export const ROUTES = {
   /** Protected pages */
   STUDIO: '/studio',
   STUDIO_IMAGE: '/studio/image',
+  /**
+   * 标签台（D10 ⑤）。与 `/studio/image` **同壳**：结果区 / 参考轨 / 助手 /
+   * 任务条全部复用，只有中间两列是它自己的。两台之间只有顶部那一对分段切换
+   * 这一个门，⛔ 不做逐 provider 分页、⛔ 不做第三台。
+   */
+  STUDIO_IMAGE_TAGS: '/studio/image/tags',
   STUDIO_VIDEO: '/studio/video',
   STUDIO_AUDIO: '/studio/audio',
   STUDIO_3D: '/studio/3d',

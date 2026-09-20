@@ -68,11 +68,7 @@ import { StudioAudioSpeechParams } from '@/components/business/studio/StudioAudi
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioAudioKindSwitcher } from '@/components/business/studio/StudioAudioKindSwitcher'
 import { StudioOperatorChangeRail } from '@/components/business/studio/assistant-operator'
-import {
-  claimOperatorGeneration,
-  setOperatorPrimed,
-  useStudioOperatorState,
-} from '@/hooks/use-studio-operator-store'
+import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { cn } from '@/lib/utils'
 import { hasPlaceholders } from '@/lib/prompt-placeholders'
 import type {
@@ -130,13 +126,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const tScript = useTranslations('VideoScript')
   const tVideoAudio = useTranslations('StudioVideoAudio')
   const tVideo = useTranslations('VideoGenerate')
-  /**
-   * 助手「预填好的生成键」（owner 拍板：**钱是唯一硬闸**，助手只能把参数铺好，
-   * 扣扳机的永远是用户）。只读一个布尔 —— 价钱由上面那行既有的
-   * `StudioCostPreview` 报，⛔ 不在这里另算一个数（两处算价必然分叉）。
-   */
-  const { primed: isOperatorPrimed } = useStudioOperatorState()
-
   useEffect(() => {
     if (!localStorage.getItem(SAMPLE_PROMPT_STORAGE_KEY) && !state.prompt) {
       const key = SAMPLE_PROMPT_KEYS[state.selectedWorkflowId]
@@ -1065,86 +1054,34 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               basis={videoCostBasis}
             />
           ) : null}
-          {/* 生成 —— 按钮上写清这一次会出几张 */}
-          <button
-            type="button"
-            data-operator-primed={isOperatorPrimed ? 'true' : undefined}
-            onClick={(event) => {
-              event.stopPropagation()
-              /**
-               * ⭐ 归属追踪（P3-C，拍板 4「自动只看它自己备的那次」）：**只有
-               * primed 态下真的打出去的那一枪**才领票。用户自己配好表单点的那些
-               * 一律不领 —— 于是助手根本拿不到它们的结果图，「不打扰」在结构上
-               * 成立，不靠模型自觉。
-               * ⚠ 三个前提与下面 `handleGenerate` 自己的守卫**逐条一致**：
-               *   被 `blockedReason` 挡下的那一次只弹 toast、什么都没生成，
-               *   在那里领票会让这张票飘到用户接下来自己发的那一枪上。
-               */
-              if (isOperatorPrimed && !isGenerating && !blockedReason) {
-                claimOperatorGeneration()
-              }
-              // 助手预填的那一枪打出去了 —— primed 是「等你来点」，点完就该灭
-              // （owner 拍板：钱是唯一硬闸）。
-              // ⛔ 助手在服务端一条能创建 generation 的工具都没有：扣扳机的
-              //    永远是这一下点击。
-              setOperatorPrimed(false)
-              void handleGenerate()
-            }}
+          {/* 生成 —— 按钮上写清这一次会出几张。三个模态与标签台同一颗
+              （`StudioGenerateButton`），⛔ 别在宿主里各写一份三态。 */}
+          <StudioGenerateButton
+            ariaLabel={t('generate')}
+            isGenerating={isGenerating}
+            elapsedSeconds={elapsedSeconds}
+            canGenerate={canGenerate}
             disabled={
               isGenerating || isImagePromptOverLimit || isAudioPromptOverLimit
             }
-            aria-label={t('generate')}
-            aria-busy={isGenerating}
-            aria-disabled={!canGenerate}
-            className={cn(
-              'flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-primary text-sm font-medium text-primary-foreground shadow-sm',
-              'transition-[background-color,transform,box-shadow] duration-fast ease-standard',
-              'hover:shadow-md active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
-              // 挡住时降到次级填充。现在按钮上写着缺什么，就没有「点一下才知道」
-              // 这层信息了，所以不必再用满强度的实心黑去引诱点击 —— 整屏唯一的
-              // 最高强调留给真正能出图的那一刻。文字仍用 foreground 满强度：
-              // 降的是底不是字，`muted-foreground` 落在浅底上过不了对比度。
-              !isGenerating &&
-                blockedReason &&
-                'bg-muted text-foreground shadow-none hover:shadow-none',
-              (isGenerating ||
-                isImagePromptOverLimit ||
-                isAudioPromptOverLimit) &&
-                'cursor-not-allowed bg-muted text-muted-foreground shadow-none hover:shadow-none',
-              // 助手把表单配好了、价钱就在上面那行 —— 这一圈是「等你来点」。
-              // ⚠ 只加一圈 ring，**不改按钮的文案与行为**：钱闸是这一下点击，
-              //   把它做得更像「已经在跑」只会让人以为不用点了。
-              isOperatorPrimed &&
-                !isGenerating &&
-                !blockedReason &&
-                'ring-2 ring-primary/60 ring-offset-2 ring-offset-background',
-            )}
-          >
-            {isGenerating ? (
-              <>
-                <Spinner className="size-4" />
-                {elapsedSeconds > 0
-                  ? `${t('generating')} ${elapsedSeconds}s`
-                  : t('generating')}
-              </>
-            ) : (
-              // 缺什么就写在按钮上。按钮**保持可点**（Krea 式，点了还会 toast
-              // 并把焦点送到该补的地方），但没必要让人点一下才知道缺模型 ——
-              // 「模型：请先选择模型」就在同一栏上面两行，按钮再说一句
-              // 「生成 1 张」等于跟旁边的事实对着干。
-              // ⚠ 只有图片按「模型数 × 张数」报数。视频恒出 1 条、语音恒出 1 条，
-              //   给它们印一个乘法结果等于承诺一个发不出去的矩阵。
-              (blockedReason?.message ??
-              (isVideoMode
+            blockedMessage={blockedReason?.message}
+            busyLabel={t('generating')}
+            /* ⚠ 只有图片按「模型数 × 张数」报数。视频恒出 1 条、语音恒出 1 条，
+               给它们印一个乘法结果等于承诺一个发不出去的矩阵。 */
+            label={
+              isVideoMode
                 ? `${tVideo('generateButton')} · ${state.videoDuration}s`
                 : isAudioMode
                   ? t('generate')
                   : t('generateCount', {
                       count:
                         Math.max(1, runModels.length) * state.imageBatchCount,
-                    })))
-            )}
-          </button>
+                    })
+            }
+            onGenerate={() => {
+              void handleGenerate()
+            }}
+          />
         </div>
       </PromptInput>
     </>

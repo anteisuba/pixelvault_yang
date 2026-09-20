@@ -59,6 +59,14 @@ interface CommonProps {
   onToggleOption?: ModelPickerPopoverProps['onToggleOption']
   /** 底部「配置渠道与 key…」，原样透传。 */
   onManageChannels?: ModelPickerPopoverProps['onManageChannels']
+  /**
+   * 覆盖「上次用的模型」记忆的作用域。缺省是模态名（`image` / `video` / …）。
+   *
+   * 起因是 D10 的两台：自然语言台与标签台的名单互不相交，共用一个作用域会让
+   * 「上次用的」指向一个这一台根本列不出来的型号。⛔ 别把它当通用开关 ——
+   * 传了就等于宣布「这是另一份名单」。
+   */
+  memoryScope?: string
 }
 
 export type MainModelPickerProps = CommonProps &
@@ -109,12 +117,17 @@ function toPickerProps(
 ): ModelPickerPopoverProps {
   // `filterOption` 在各模态的 `useFiltered` 里已经消化掉了，⛔ 不能连同 `...rest`
   // 一起 spread 下去 —— 弹层没有这个 prop，会被**静默丢弃**（D7 台账那个老坑）。
-  const { filterOption, popoverSide, ...rest } = props
+  const {
+    filterOption,
+    popoverSide,
+    memoryScope: memoryScopeOverride,
+    ...rest
+  } = props
   void filterOption
   return {
     ...rest,
     options,
-    memoryScope,
+    memoryScope: memoryScopeOverride ?? memoryScope,
     ...(popoverSide ? { side: popoverSide } : {}),
   }
 }

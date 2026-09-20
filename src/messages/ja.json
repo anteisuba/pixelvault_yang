@@ -557,6 +557,10 @@
       "node": {
         "title": "キャンバス — PixelVault",
         "description": "1つのビジュアルキャンバスで画像・動画・音声のワークフローを作成・編成します。"
+      },
+      "imageTags": {
+        "title": "タグスタジオ — PixelVault",
+        "description": "NovelAI と PixAI 向けの danbooru タグプロンプトを組み立てます。"
       }
     },
     "gallery": {
@@ -3294,7 +3298,19 @@
     },
     "textRendering": "テキスト",
     "textRenderingHint": "NovelAI V5 が画像内に描く文字。プロンプトの最後に \"Text: …\" として追加されます。英語・日本語・中国語に対応。",
-    "textRenderingPlaceholder": "画像内に描く文字"
+    "textRenderingPlaceholder": "画像内に描く文字",
+    "sampler": "サンプラー",
+    "samplerHint": "NovelAI のサンプリングアルゴリズム。Euler Ancestral が公式の既定で、このコントロールが無かった頃に全生成が使っていた値です。",
+    "samplerOption": {
+      "k_euler_ancestral": "Euler Ancestral",
+      "k_euler": "Euler",
+      "k_dpmpp_2s_ancestral": "DPM++ 2S Ancestral",
+      "k_dpmpp_2m": "DPM++ 2M",
+      "k_dpmpp_2m_sde": "DPM++ 2M SDE",
+      "k_dpmpp_sde": "DPM++ SDE",
+      "k_dpm_2": "DPM 2",
+      "ddim_v3": "DDIM v3"
+    }
   },
   "ReverseEngineer": {
     "title": "画像からプロンプト",
@@ -6278,6 +6294,13 @@
     },
     "variantRequests": "{count}クレジット使用"
   },
+  "StudioTags": {
+    "dialectSwitchLabel": "プロンプト方言",
+    "dialect": {
+      "natural": "自然言語",
+      "tags": "タグ"
+    }
+  },
   "StudioPanels": {
     "reference": "参照画像",
     "referenceDisabledOverLimit": "このモデルの最大 {max} 枚を超えています",
@@ -8024,7 +8047,8 @@
       "referenceStrength": "参照の強さ",
       "qualityToggle": "品質タグ",
       "ucPreset": "UC プリセット",
-      "textRendering": "テキスト"
+      "textRendering": "テキスト",
+      "sampler": "サンプラー"
     },
     "textFilled": "{count} 文字"
   },

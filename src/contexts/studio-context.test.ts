@@ -37,6 +37,9 @@ function makeInitialState(
     workflowMode: 'quick',
     selectedOptionId: null,
     prompt: '',
+    promptDialect: 'natural',
+    tagChips: [],
+    tagNegativeChips: [],
     recipeUsage: null,
     aspectRatio: '1:1',
     advancedParams: {},
@@ -782,5 +785,78 @@ describe('studioFormReducer', () => {
     const next = studioFormReducer(state, { type: 'RESET_FORM' })
     expect(next.videoFrameSlots).toEqual({ first: null, last: null })
     expect(next.videoReferenceVideos).toEqual([])
+  })
+})
+
+// ── 标签台（D10 ⑤）─────────────────────────────────────────────
+describe('提示词方言与标签栏', () => {
+  it('进标签台时把整句放进正向栏第一格，⛔ 不按逗号切', () => {
+    const state = studioFormReducer(
+      makeInitialState({
+        prompt: 'a girl standing in the rain, looking up',
+        advancedParams: { negativePrompt: 'bad hands, blurry' },
+      }),
+      { type: 'SET_PROMPT_DIALECT', payload: 'tags' },
+    )
+    expect(state.promptDialect).toBe('tags')
+    expect(state.tagChips).toEqual([
+      { text: 'a girl standing in the rain, looking up', weight: 1 },
+    ])
+    // 负向栏在每一种方言里本来就是逗号列表，整句一格会变成一颗没法用的大 chip。
+    expect(state.tagNegativeChips).toEqual([
+      { text: 'bad hands', weight: 1 },
+      { text: 'blurry', weight: 1 },
+    ])
+  })
+
+  it('已经有 chip 时换台不动它们', () => {
+    const chips = [{ text: '1girl', weight: 1 }]
+    const state = studioFormReducer(
+      makeInitialState({ prompt: 'ignored', tagChips: chips }),
+      { type: 'SET_PROMPT_DIALECT', payload: 'tags' },
+    )
+    expect(state.tagChips).toBe(chips)
+  })
+
+  // chip 与统一串**一起写** —— 下游读 prompt 就够了，⛔ 不必认识 chip。
+  it('落 chip 的同时把统一串写进 prompt / negativePrompt', () => {
+    const positive = studioFormReducer(makeInitialState(), {
+      type: 'SET_TAG_CHIPS',
+      payload: {
+        polarity: 'positive',
+        chips: [
+          { text: '1girl', weight: 1 },
+          { text: 'rain', weight: 1.2 },
+        ],
+      },
+    })
+    expect(positive.prompt).toBe('1girl, rain:1.2')
+
+    const negative = studioFormReducer(makeInitialState(), {
+      type: 'SET_TAG_CHIPS',
+      payload: { polarity: 'negative', chips: [{ text: 'blurry', weight: 1 }] },
+    })
+    expect(negative.advancedParams.negativePrompt).toBe('blurry')
+    expect(negative.prompt).toBe('')
+  })
+
+  // 外部改写提示词（助手 / 草稿回灌）要在 chip 上看得见。
+  it('标签台开着时 SET_PROMPT 重新切成 chip', () => {
+    const state = studioFormReducer(
+      makeInitialState({ promptDialect: 'tags' }),
+      { type: 'SET_PROMPT', payload: '1girl, rain:1.2' },
+    )
+    expect(state.tagChips).toEqual([
+      { text: '1girl', weight: 1 },
+      { text: 'rain', weight: 1.2 },
+    ])
+  })
+
+  it('自然语言台开着时 SET_PROMPT 不碰 chip', () => {
+    const state = studioFormReducer(makeInitialState(), {
+      type: 'SET_PROMPT',
+      payload: '1girl, rain',
+    })
+    expect(state.tagChips).toEqual([])
   })
 })

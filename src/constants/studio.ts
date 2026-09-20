@@ -42,6 +42,13 @@ export const STUDIO_NODE_HANDOFF_MAX_REFERENCES = 4 as const
 export const STUDIO_LAST_IMAGE_MODEL_STORAGE_KEY =
   'pixelvault:studio-last-image-model' as const
 
+/**
+ * 标签台记自己的那一条（D10 ②「用户记住的模型按台分开记」）。两台的名单互不
+ * 相交，共用一个键会让「上次用的」指向一个这一台根本列不出来的型号。
+ */
+export const STUDIO_LAST_TAGS_MODEL_STORAGE_KEY =
+  'pixelvault:studio-last-tags-model' as const
+
 export const STUDIO_IMAGE_ASPECT_RATIOS = [
   '1:1',
   '16:9',

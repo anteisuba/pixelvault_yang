@@ -557,6 +557,10 @@
       "node": {
         "title": "Canvas — PixelVault",
         "description": "Create and orchestrate image, video, and audio workflows on one visual canvas."
+      },
+      "imageTags": {
+        "title": "Tag Studio — PixelVault",
+        "description": "Compose danbooru-style tag prompts for NovelAI and PixAI."
       }
     },
     "gallery": {
@@ -3294,7 +3298,19 @@
     },
     "textRendering": "Text",
     "textRenderingHint": "Words NovelAI V5 should render in the image. Appended to the very end of the prompt as \"Text: …\". English, Japanese and Chinese are supported.",
-    "textRenderingPlaceholder": "Words to render in the image"
+    "textRenderingPlaceholder": "Words to render in the image",
+    "sampler": "Sampler",
+    "samplerHint": "NovelAI sampling algorithm. Euler Ancestral is the official default and what every run used before this control existed.",
+    "samplerOption": {
+      "k_euler_ancestral": "Euler Ancestral",
+      "k_euler": "Euler",
+      "k_dpmpp_2s_ancestral": "DPM++ 2S Ancestral",
+      "k_dpmpp_2m": "DPM++ 2M",
+      "k_dpmpp_2m_sde": "DPM++ 2M SDE",
+      "k_dpmpp_sde": "DPM++ SDE",
+      "k_dpm_2": "DPM 2",
+      "ddim_v3": "DDIM v3"
+    }
   },
   "ReverseEngineer": {
     "title": "Image to prompt",
@@ -6278,6 +6294,13 @@
     },
     "variantRequests": "Uses {count} credits"
   },
+  "StudioTags": {
+    "dialectSwitchLabel": "Prompt dialect",
+    "dialect": {
+      "natural": "Natural language",
+      "tags": "Tags"
+    }
+  },
   "StudioPanels": {
     "reference": "Reference Images",
     "referenceDisabledOverLimit": "Exceeds the current model's {max}-image limit",
@@ -8024,7 +8047,8 @@
       "referenceStrength": "Reference",
       "qualityToggle": "Quality tags",
       "ucPreset": "UC preset",
-      "textRendering": "Text"
+      "textRendering": "Text",
+      "sampler": "Sampler"
     },
     "textFilled": "{count} chars"
   },

@@ -10,13 +10,14 @@ import { StudioOperatorSessionRow } from './StudioOperatorSessionRow'
 /**
  * 历史会话行的回归闸（owner 2026-09-20 真机第 3 条 + D7c ④ 画板）。
  *
- * 钉六件事：
+ * 钉七件事：
  *  ① 点铅笔 = **就地**出现输入框，⛔ 屏幕上一个 dialog 都没有，且进来就全选；
  *  ② 回车保存 · Esc 取消 · 失焦保存（与 56a 记忆行同一套）；
  *  ③ 点垃圾桶 = 原位切确认态，**第一下不删**，第二下才删；
  *  ④ 确认态自己退回去的三条路（3 秒 · 指针离开 · 焦点离开），且有 `aria-live`；
  *  ⑤ ⭐ 两层一行：「工作台 · 日期」连在一起，⛔ 不是隔着一格的两段；
- *  ⑥ ⭐ 两颗图标**默认不可见**（只动 `opacity`，位子常驻），hover / 聚焦才淡入。
+ *  ⑥ ⭐ 两颗图标**默认不可见**（只动 `opacity`，位子常驻），hover / 聚焦才淡入；
+ *  ⑦ ⭐ 动的那几处都挂着 `motion-reduce:transition-none`（D7c ④ 动效表末行）。
  */
 
 vi.mock('next-intl', () => ({
@@ -209,6 +210,31 @@ describe('StudioOperatorSessionRow — 一行两层（D7c ④）', () => {
     renderRow({ confirming: true })
     expect(screen.getByTestId('operator-session-actions').className).toContain(
       'opacity-100',
+    )
+  })
+})
+
+describe('StudioOperatorSessionRow — 降级', () => {
+  /**
+   * D7c ④ 动效表末行：「全部包在 `motion-reduce:` 里」。这一行里动的几处都是
+   * `transition-*`（底色 / 图标淡入 / 药丸撑开），所以都用 `transition-none`。
+   * ⛔ 这条红 = 有人把降级删了。
+   */
+  it('⭐ 底色 · 图标淡入 · 两颗钮都带 `motion-reduce:transition-none`', () => {
+    renderRow()
+    for (const id of [
+      'operator-session-row',
+      'operator-session-actions',
+      'operator-session-rename',
+      'operator-session-delete',
+    ]) {
+      expect(screen.getByTestId(id).className).toContain(
+        'motion-reduce:transition-none',
+      )
+    }
+    // 药丸那两个字自己也在动（`max-width`），它同样要降级。
+    expect(screen.getByTestId('operator-session-delete').innerHTML).toContain(
+      'motion-reduce:transition-none',
     )
   })
 })

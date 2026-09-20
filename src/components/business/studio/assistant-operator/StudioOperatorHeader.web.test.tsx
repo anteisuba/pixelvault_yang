@@ -24,7 +24,8 @@ import { StudioOperatorHeader } from './StudioOperatorHeader'
  *  ⑤ 右上**一颗 ⋯**（32px），菜单三项：历史会话 · 设置 · 隐身（占位禁用）；
  *  ⑥ 续跑 chip 只在**空闲**时露脸 —— 它暂挂在头部（§3.6 那条 ⚠ 的去处之一）；
  *  ⑦ ⭐ **规格胶囊不在头部**（D7c ④）：头部只回答「这是哪个会话」，那一句下沉到
- *     输入框上方（在 `StudioOperatorPanel.web.test.tsx` 里验）。
+ *     输入框上方（在 `StudioOperatorPanel.web.test.tsx` 里验）；
+ *  ⑧ ⭐ 动的那几处都挂着 `motion-reduce:` 降级（D7c ④ 动效表最后一行）。
  */
 
 vi.mock('next-intl', () => ({
@@ -71,8 +72,21 @@ vi.mock('@/components/ui/dropdown-menu', async () => {
       const onOpenChange = React.useContext(OpenChangeContext)
       return <span onClick={() => onOpenChange(true)}>{children}</span>
     },
-    DropdownMenuContent: ({ children }: { children: React.ReactNode }) => (
-      <div>{children}</div>
+    /* ⚠ 把 `className` 原样透下来：`motion-reduce` 那条断言验的是**组件交给
+       原语的那串类名**，替身吞掉它等于验了个寂寞。 */
+    DropdownMenuContent: ({
+      children,
+      className,
+    }: {
+      children: React.ReactNode
+      className?: string
+    }) => (
+      <div
+        data-testid="operator-session-dropdown-content"
+        className={className}
+      >
+        {children}
+      </div>
     ),
     DropdownMenuItem: ({
       children,
@@ -360,6 +374,32 @@ describe('StudioOperatorHeader', () => {
     expect(screen.queryByTestId('operator-header-avatar-slot')).toBeNull()
     fireEvent.click(screen.getByTestId('operator-header-avatar'))
     expect(onCollapse).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * D7c ④ 动效表末行：「全部包在 `motion-reduce:` 里」。
+   *
+   * ⚠ 两种降级**不能混**：下拉开合走的是 `animate-in` / `animate-out`
+   * （keyframes），`transition-none` 关不掉它 —— 必须是 `animate-none`；
+   * 而标题药丸与 ⋯ 是 `transition-colors`，那一档才用 `transition-none`。
+   * ⛔ 这条红 = 有人把降级删了，或者把两种写反了。
+   */
+  it('⭐ 动的那几处都挂着对应的 `motion-reduce:` 降级', () => {
+    renderHeader()
+
+    // 历史下拉：keyframes 动画档。⚠ 同屏两张浮层（历史 + ⋯），认「装着新对话
+    // 那一颗」的那一张，⛔ 不靠顺序取。
+    const content = screen
+      .getAllByTestId('operator-session-dropdown-content')
+      .find((node) => node.contains(screen.getByTestId('operator-new-thread')))
+    expect(content?.className).toContain('motion-reduce:animate-none')
+
+    // 标题药丸与右上 ⋯：`transition-colors` 档。
+    for (const id of ['operator-session-menu', 'operator-more']) {
+      expect(screen.getByTestId(id).className).toContain(
+        'motion-reduce:transition-none',
+      )
+    }
   })
 
   it('续跑 chip 只在空闲时露脸', () => {

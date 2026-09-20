@@ -678,7 +678,7 @@ function RecipeSourceBadge({
   }
   if (source === 'community_image') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-sky-500/15 px-1.5 py-0.5 text-2xs font-medium text-sky-700 dark:text-sky-300">
+      <span className="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-2xs font-medium text-muted-foreground">
         <Users className="size-2.5" aria-hidden />
         {t('sourceRecipeCommunityBadge')}
       </span>

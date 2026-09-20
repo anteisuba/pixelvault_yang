@@ -2103,7 +2103,7 @@ export function KreaAssetBrowser({
               type="button"
               onClick={requestBulkFavorite}
               disabled={isBulkActionPending || selectedIds.size === 0}
-              className="flex items-center gap-1.5 rounded-full border border-rose-500/40 px-3 py-1.5 text-xs font-medium text-rose-500 transition-colors hover:bg-rose-500/10 disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-full border border-primary/40 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/10 disabled:opacity-50"
             >
               {isBulkFavoriting ? (
                 <Spinner size="sm" />

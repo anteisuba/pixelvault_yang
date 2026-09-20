@@ -207,7 +207,7 @@ export function AssetTile({
       )}
       {generation.isLiked && !selectionMode && (
         <span
-          className="pointer-events-none absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-background/80 text-rose-500 shadow-sm backdrop-blur-sm"
+          className="pointer-events-none absolute right-1.5 top-1.5 flex size-5 items-center justify-center rounded-full bg-background/80 text-primary shadow-sm backdrop-blur-sm"
           aria-hidden
         >
           <Heart className="size-3 fill-current" />

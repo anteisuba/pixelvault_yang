@@ -14,10 +14,10 @@ interface CharacterCardTileProps {
 }
 
 const STATUS_DOT: Record<string, string> = {
-  DRAFT: 'bg-zinc-400',
+  DRAFT: 'bg-muted-foreground',
   REFINING: 'bg-chart-3',
   STABLE: 'bg-status-applied',
-  ARCHIVED: 'bg-zinc-500/50',
+  ARCHIVED: 'bg-muted-foreground/50',
 }
 
 export function CharacterCardTile({

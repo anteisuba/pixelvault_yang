@@ -5,7 +5,6 @@ import {
   getGenerationThumbnailUrl,
   getGenerationVideoPosterUrl,
 } from '@/lib/generation-media'
-import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 import {
   toMediaTransitionOrigin,
@@ -96,20 +95,10 @@ export function ImageCardMedia({
         )}
       </button>
       {generation.referenceImageUrl && (
-        <span
-          className={cn(
-            // Type-aware accent so a glance tells image vs. video vs. audio:
-            // image → sky, video → violet, audio → emerald. Tint stays on the
-            // glass pill rather than swapping the whole chrome so it reads as
-            // a Krea-style badge with a subtle category cue, not a sticker.
-            'absolute left-3 top-3 flex items-center gap-1.5 rounded-full px-2 py-1 text-xs text-white shadow-sm ring-1 backdrop-blur-md',
-            isAudio
-              ? 'bg-status-applied/45 ring-status-applied/50'
-              : isVideo
-                ? 'bg-violet-500/45 ring-violet-200/50'
-                : 'bg-sky-500/45 ring-sky-200/50',
-          )}
-        >
+        // ⚠ 三档模态色已去色（32 ③，ui-defaults §2.3）：模态色只活在 prompts 域，
+        //   这里的角标改走与右上角图层角标同一块中性玻璃 —— 模态本来就写在卡上，
+        //   颜色没在回答第二个问题。
+        <span className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-xs text-white shadow-sm backdrop-blur-md">
           <ImageIcon className="size-3" />
           {referenceImageLabel}
         </span>

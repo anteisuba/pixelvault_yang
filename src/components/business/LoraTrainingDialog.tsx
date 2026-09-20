@@ -679,7 +679,7 @@ export function LoraTrainingForm({
                       ? 'text-status-warning'
                       : n <= LORA_TRAINING.RECOMMENDED_MAX
                         ? 'text-status-applied'
-                        : 'text-sky-600 dark:text-sky-400'
+                        : 'text-primary'
               return (
                 <span className={cn('text-2xs font-medium', tone)}>
                   {t('imageCountWithMax', {

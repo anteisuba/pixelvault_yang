@@ -582,7 +582,7 @@ export function AssetDetailContent({
           size="sm"
           className={cn(
             'gap-1.5',
-            generation.isLiked && 'text-rose-500 hover:text-rose-500',
+            generation.isLiked && 'text-primary hover:text-primary',
           )}
           onClick={() => void handleToggleFavorite()}
           disabled={isFavoriting}

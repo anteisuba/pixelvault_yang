@@ -100,7 +100,7 @@ export function CanvasAppearancePanel({
                 className={cn(
                   'relative size-3 drop-shadow',
                   isLightColor(resolved.backgroundColor)
-                    ? 'text-neutral-800'
+                    ? 'text-black'
                     : 'text-white',
                 )}
               />
@@ -162,9 +162,7 @@ export function CanvasAppearancePanel({
                         <Check
                           className={cn(
                             'absolute inset-0 m-auto size-3.5 drop-shadow',
-                            isLightColor(color)
-                              ? 'text-neutral-900'
-                              : 'text-white',
+                            isLightColor(color) ? 'text-black' : 'text-white',
                           )}
                         />
                       ) : null}

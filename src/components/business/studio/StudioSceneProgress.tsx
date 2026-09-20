@@ -31,10 +31,11 @@ const STATUS_LABEL_KEYS: Record<VideoScriptSceneStatus, string> = {
 const STATUS_CLASSES: Record<VideoScriptSceneStatus, string> = {
   [VideoScriptSceneStatus.PENDING]:
     'border-border bg-muted text-muted-foreground',
+  // 进度是 `--primary` 的三个落点之一（ui-defaults §2.3）；蓝是模态色相，⛔ 不用。
   [VideoScriptSceneStatus.FRAME_GENERATING]:
-    'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300',
+    'border-primary/30 bg-primary/10 text-primary',
   [VideoScriptSceneStatus.FRAME_READY]:
-    'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300',
+    'border-primary/30 bg-primary/10 text-primary',
   [VideoScriptSceneStatus.CLIP_GENERATING]:
     'border-status-warning/40 bg-status-warning-surface text-status-warning',
   [VideoScriptSceneStatus.CLIP_READY]:

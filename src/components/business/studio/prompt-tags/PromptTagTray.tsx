@@ -51,7 +51,7 @@ interface TrackLabelProps {
 
 function TrackLabel({ icon, label }: TrackLabelProps) {
   return (
-    <span className="inline-flex w-12 shrink-0 items-center gap-1 text-2xs font-semibold uppercase tracking-wide text-neutral-500">
+    <span className="inline-flex w-12 shrink-0 items-center gap-1 text-2xs font-semibold uppercase tracking-wide text-muted-foreground">
       {icon}
       {label}
     </span>
@@ -90,7 +90,7 @@ function TagTrack({
       />
       <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
         {selections.length === 0 ? (
-          <span className="rounded-full border border-dashed border-neutral-300 px-2.5 py-1 text-xs text-neutral-500">
+          <span className="rounded-full border border-dashed border-border px-2.5 py-1 text-xs text-muted-foreground">
             {emptyLabel}
           </span>
         ) : (
@@ -102,7 +102,7 @@ function TagTrack({
           <button
             type="button"
             onClick={() => setExpanded(true)}
-            className="rounded-full border border-neutral-300 px-2 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-100"
+            className="rounded-full border border-border px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
           >
             +{hiddenCount}
           </button>
@@ -110,7 +110,7 @@ function TagTrack({
           <button
             type="button"
             onClick={() => setExpanded(false)}
-            className="rounded-full border border-neutral-300 px-2 py-1 text-xs font-medium text-neutral-600 hover:bg-neutral-100"
+            className="rounded-full border border-border px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
           >
             {t('tray.collapse')}
           </button>
@@ -126,7 +126,7 @@ function PromptTagChip({ selection }: { selection: PromptTagSelection }) {
   const tone =
     selection.polarity === 'negative'
       ? 'border-status-warning/40 bg-status-warning-surface text-status-warning'
-      : 'border-neutral-300 bg-neutral-100 text-neutral-800'
+      : 'border-border bg-muted text-foreground'
 
   return (
     <Popover>

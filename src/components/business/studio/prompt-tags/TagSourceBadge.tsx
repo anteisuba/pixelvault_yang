@@ -10,17 +10,24 @@ interface TagSourceBadgeProps {
   className?: string
 }
 
+/**
+ * ⚠ 只有「已挖到」「要小心」两档带颜色（status token）—— 其余来源走同一块中性
+ * 底（32 ③）：来源名就写在角标里，色相不必再答一遍，而蓝 / 紫 / 橙正是模态色与
+ * 状态色的色相，摆在 prompts 域之外会把人往错的语义上带。
+ */
+const SOURCE_NEUTRAL_TONE = 'border-border bg-muted text-muted-foreground'
+
 const SOURCE_TONE: Record<PromptTagSource, string> = {
-  system: 'border-neutral-300 bg-neutral-100 text-neutral-700',
-  danbooru: 'border-sky-300 bg-sky-50 text-sky-700',
-  lora_asset: 'border-violet-300 bg-violet-50 text-violet-700',
+  system: SOURCE_NEUTRAL_TONE,
+  danbooru: SOURCE_NEUTRAL_TONE,
+  lora_asset: SOURCE_NEUTRAL_TONE,
   civitai:
     'border-status-warning/40 bg-status-warning-surface text-status-warning',
-  model_keyword: 'border-orange-300 bg-orange-50 text-orange-700',
+  model_keyword: SOURCE_NEUTRAL_TONE,
   mined_prompt:
     'border-status-applied/40 bg-status-applied-surface text-status-applied',
-  recent: 'border-neutral-300 bg-neutral-100 text-neutral-700',
-  user: 'border-neutral-300 bg-neutral-100 text-neutral-700',
+  recent: SOURCE_NEUTRAL_TONE,
+  user: SOURCE_NEUTRAL_TONE,
 }
 
 export function TagSourceBadge({ source, className }: TagSourceBadgeProps) {

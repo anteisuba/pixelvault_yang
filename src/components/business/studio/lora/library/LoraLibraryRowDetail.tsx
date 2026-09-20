@@ -281,7 +281,7 @@ function InlineActions({ model }: { model: DetailActionModel }) {
           <Heart
             className={cn(
               'size-4',
-              model.isFavorited && 'fill-rose-500 text-rose-500',
+              model.isFavorited && 'fill-primary text-primary',
             )}
             aria-hidden
           />
@@ -336,7 +336,7 @@ function DrawerActionBar({ model }: { model: DetailActionModel }) {
           <Heart
             className={cn(
               'size-4',
-              model.isFavorited && 'fill-rose-500 text-rose-500',
+              model.isFavorited && 'fill-primary text-primary',
             )}
             aria-hidden
           />

@@ -158,24 +158,6 @@ describe('ModelPickerPopover — 行只有 模型 · 型号 · 价格', () => {
     expect(document.querySelectorAll('[data-picker-group]')).toHaveLength(0)
   })
 
-  it('「最近」段没有分组头 —— 那一段的行也写厂商名', () => {
-    window.localStorage.setItem(
-      'pv:model-picker:recent',
-      JSON.stringify({ default: ['seedream-5.0-pro'] }),
-    )
-    openPicker()
-
-    const recent = document.querySelector(
-      '[data-row-id="recent:seedream-5.0-pro"]',
-    ) as HTMLElement
-    expect(recent.textContent).toContain('Seedream')
-    // 同一型号在分组里那一条仍旧只有型号。
-    const grouped = document.querySelector(
-      '[data-row-id="group:seedream-5.0-pro"]',
-    ) as HTMLElement
-    expect(grouped.textContent).not.toContain('Seedream')
-  })
-
   it('多渠道但没选过 → 价格位写「—」', () => {
     openPicker()
     expect(row('seedream-5.0-pro').textContent).toContain(
@@ -591,14 +573,8 @@ describe('ModelPickerPopover — 行 → 过渡区 → 渠道面板走得过去'
   })
 })
 
-/**
- * owner 2026-09-19 真机：Seedream 5.0 Pro 同时出现在「最近」与它自己的分组里时，
- * hover「最近」那行，渠道浮层却对齐到了**下面**那一行。根因是行的身份用的是裸
- * `modelKey`，两份 DOM 抢同一把 ref 键，后挂载的（分组那份）盖掉先挂载的。行身份
- * 因此改成「段 + 型号」；⚠ 记忆与提交仍按裸 `modelKey` 走。
- */
-describe('ModelPickerPopover — 同一型号在「最近」与分组里各是一行', () => {
-  /** jsdom 量不出真实布局，按 `data-row-id` 给两行喂不同的 top。 */
+describe('ModelPickerPopover — 有历史记录时仍只显示厂商列表', () => {
+  /** jsdom 量不出真实布局，按 `data-row-id` 提供行位置。 */
   function stubRowRects(tops: Record<string, number>) {
     return vi
       .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
@@ -637,24 +613,22 @@ describe('ModelPickerPopover — 同一型号在「最近」与分组里各是�
     )
   })
 
-  it('两行都画出来，身份是 `recent:` / `group:`（⛔ 不靠去重把「最近」抹平）', () => {
+  it('历史记录不产生最近分组或重复行', () => {
     openPicker()
+    expect(screen.queryByText('ModelPicker.recent')).toBeNull()
     expect(
       document.querySelectorAll('[data-model-key="seedream-5.0-pro"]'),
-    ).toHaveLength(2)
-    expect(rowById('recent:seedream-5.0-pro')).toBeInTheDocument()
+    ).toHaveLength(1)
     expect(rowById('group:seedream-5.0-pro')).toBeInTheDocument()
+    expect(document.querySelector('[data-row-id^="recent:"]')).toBeNull()
   })
 
-  it('hover 哪一行，面板就对齐哪一行 —— ⛔ 不是下面那份同名行', () => {
+  it('渠道面板对齐厂商列表中的行', () => {
     const rect = stubRowRects({
-      'recent:seedream-5.0-pro': 120,
       'group:seedream-5.0-pro': 480,
     })
     try {
       openPicker()
-      fireEvent.mouseEnter(rowById('recent:seedream-5.0-pro'))
-      expect(panelTop()).toBe('120px')
       fireEvent.mouseEnter(rowById('group:seedream-5.0-pro'))
       expect(panelTop()).toBe('480px')
     } finally {
@@ -662,29 +636,29 @@ describe('ModelPickerPopover — 同一型号在「最近」与分组里各是�
     }
   })
 
-  it('同一型号的两行不会同时被指到', () => {
+  it('只有当前行带有激活标记', () => {
     openPicker()
-    fireEvent.mouseEnter(rowById('recent:seedream-5.0-pro'))
+    fireEvent.mouseEnter(rowById('group:seedream-5.0-pro'))
     const active = document.querySelectorAll('[data-row-active]')
     expect(active).toHaveLength(1)
-    expect(active[0]).toHaveAttribute('data-row-id', 'recent:seedream-5.0-pro')
+    expect(active[0]).toHaveAttribute('data-row-id', 'group:seedream-5.0-pro')
   })
 
-  it('→ 从「最近」那行开面板，Esc 回的是「最近」那行', () => {
+  it('→ 打开渠道面板，Esc 回到厂商列表行', () => {
     openPicker()
-    const recent = rowById('recent:seedream-5.0-pro')
-    fireEvent.focus(recent)
-    fireEvent.keyDown(recent, { key: 'ArrowRight' })
+    const grouped = rowById('group:seedream-5.0-pro')
+    fireEvent.focus(grouped)
+    fireEvent.keyDown(grouped, { key: 'ArrowRight' })
     expect(document.activeElement).toBe(
       within(channelPanel() as HTMLElement).getAllByRole('option')[0],
     )
     fireEvent.keyDown(channelPanel() as HTMLElement, { key: 'Escape' })
-    expect(document.activeElement).toBe(recent)
+    expect(document.activeElement).toBe(grouped)
   })
 
   it('记忆按裸型号存 —— ⛔ 复合行身份不许漏进 memory 层', () => {
     openPicker()
-    fireEvent.mouseEnter(rowById('recent:seedream-5.0-pro'))
+    fireEvent.mouseEnter(rowById('group:seedream-5.0-pro'))
     fireEvent.click(
       within(channelPanel() as HTMLElement).getAllByRole(
         'option',

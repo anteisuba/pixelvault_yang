@@ -117,29 +117,6 @@ interface ModelRow {
   searchText: string
 }
 
-/**
- * 行所在的段。「最近」会把常用型号顶上来，**同一个型号因此同时出现在两段里** ——
- * 这是有意的（⛔ 别用「去重」把它抹平）。代价是「哪一行」不能再用裸 `modelKey` 认：
- * 两份 DOM 会抢同一把键，后挂载的（分组那份，位置更靠下）盖掉先挂载的，于是渠道
- * 浮层对齐到了下面那一行（owner 2026-09-19 真机）。
- */
-const ROW_SECTION = {
-  recent: 'recent',
-  group: 'group',
-} as const
-
-type RowSection = (typeof ROW_SECTION)[keyof typeof ROW_SECTION]
-
-/**
- * **行身份** = 段 + 型号。ref 注册表、当前指到哪行、面板对齐、键盘焦点都按它走。
- * ⚠ 凡是喂给记忆与提交的（`rememberRecent` / `rememberChannel` / `manualChannelOf` /
- * `setPendingModel` / `commit` / `resolveModelChannel`）**仍然用裸 `modelKey`** ——
- * 记忆认的是型号，不是它出现在列表的哪一段；传复合键会让同一型号按段各记一份。
- */
-function rowIdOf(section: RowSection, modelKey: string): string {
-  return `${section}:${modelKey}`
-}
-
 export interface ModelPickerPopoverProps {
   options: StudioModelOption[]
   /** 当前选中的 `optionId`；多选时传 null（选中状态由 `selectedOptionIds` 说）。 */
@@ -390,12 +367,6 @@ export function ModelPickerPopover({
     ? rows.filter((row) => row.searchText.includes(query))
     : rows
 
-  const recentRows = query
-    ? []
-    : memory.recentModelKeys
-        .map((key) => rows.find((row) => row.modelKey === key))
-        .filter((row): row is ModelRow => row !== undefined)
-
   const groups = useMemo(() => {
     const order: { key: string; label: string; rows: ModelRow[] }[] = []
     if (groupBy === MODEL_PICKER_GROUP_BY.kind) {
@@ -444,18 +415,10 @@ export function ModelPickerPopover({
         )
       : selectedRow?.modelKey === row.modelKey
 
-  /**
-   * 这一轮**真正画出来的行**：行身份 → 行。同一型号在「最近」与它自己的分组里各占
-   * 一条，两条身份不同 —— 面板要对齐的是被指到的那一条，不是同型号的另一条。
-   */
   const renderedRows = new Map<string, ModelRow>()
-  for (const row of recentRows)
-    renderedRows.set(rowIdOf(ROW_SECTION.recent, row.modelKey), row)
   for (const group of groups)
-    for (const row of group.rows)
-      renderedRows.set(rowIdOf(ROW_SECTION.group, row.modelKey), row)
+    for (const row of group.rows) renderedRows.set(`group:${row.modelKey}`, row)
 
-  /** 选中行在列表里的**第一条**身份（「最近」在前，所以优先对到上面那条）。 */
   const selectedRowId = selectedRow
     ? (Array.from(renderedRows.entries()).find(
         ([, row]) => row.modelKey === selectedRow.modelKey,
@@ -630,11 +593,7 @@ export function ModelPickerPopover({
    * 不需要再重复」）。判据从数据推导（`group.key === row.seriesKey`），
    * ⛔ 不按字符串前缀裁 —— 前缀只说明标签长什么样，说明不了这一行摆在谁下面。
    */
-  const renderRow = (
-    row: ModelRow,
-    section: RowSection,
-    underSeriesHeading = false,
-  ) => {
+  const renderRow = (row: ModelRow, underSeriesHeading = false) => {
     const selected = isRowSelected(row)
     /**
      * ⚠ 拆不出型号（`variant === null`，厂商只有一个模型）时**照旧写厂商名** ——
@@ -643,7 +602,7 @@ export function ModelPickerPopover({
     const omitSeries = underSeriesHeading && row.variant !== null
     const primary = omitSeries ? row.variant : row.name
     const secondary = omitSeries ? null : row.variant
-    const rowId = rowIdOf(section, row.modelKey)
+    const rowId = `group:${row.modelKey}`
     const expanded = sheet && activeRowId === rowId
     return (
       <div
@@ -662,7 +621,6 @@ export function ModelPickerPopover({
           /* 视觉上省了厂商名，读屏仍要听得到「这是哪一家的哪一版」——
              分组头是一个 `<p>`，它与这颗按钮没有任何关联。 */
           {...(omitSeries ? { 'aria-label': row.label } : {})}
-          // 「指针 / 键盘现在指着哪一行」—— 同一型号的两行**只有一行**会带上它。
           data-row-active={activeRowId === rowId || undefined}
           ref={(el) => {
             if (el) rowRefs.current.set(rowId, el)
@@ -732,7 +690,7 @@ export function ModelPickerPopover({
     )
   }
 
-  const empty = visibleRows.length === 0 && recentRows.length === 0
+  const empty = visibleRows.length === 0
 
   const body = (
     <div
@@ -762,20 +720,12 @@ export function ModelPickerPopover({
               {emptySearchText ?? tCommon('noModelsFound')}
             </p>
           ) : null}
-          {recentRows.length > 0 ? (
-            <>
-              <p className="px-2.5 pb-1 pt-2 text-3xs uppercase tracking-nav text-muted-foreground">
-                {t('recent')}
-              </p>
-              {recentRows.map((row) => renderRow(row, ROW_SECTION.recent))}
-            </>
-          ) : null}
           {/* ── 搜索结果**平铺**（owner 2026-09-20 真机第 2 条）─────────────
               搜出来的几行常常横跨好几家，分组头在这一档只是把三五条结果切成
               三五段。没有分组头，行就得自己说清是哪一家 —— 所以这一支传
               `underSeriesHeading = false`，厂商名照写。 */}
           {query
-            ? visibleRows.map((row) => renderRow(row, ROW_SECTION.group))
+            ? visibleRows.map((row) => renderRow(row))
             : groups.map((group) => (
                 <div key={group.key}>
                   <p
@@ -787,7 +737,6 @@ export function ModelPickerPopover({
                   {group.rows.map((row) =>
                     renderRow(
                       row,
-                      ROW_SECTION.group,
                       /* ⚠ 只有按厂商分的那一档头顶写着厂商名；音频那一档
                          （`kind`）的分组头是「语音 / 配乐 / 音效」，⛔ 不省。 */
                       groupBy === MODEL_PICKER_GROUP_BY.series &&

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 import {
   ArrowRight,
@@ -14,7 +14,8 @@ import {
   SHELL_NAV_GO,
   SHELL_NAV_TOOLS,
   isShellNavItemActive,
-  type ShellNavItem,
+  resolveShellNavItems,
+  type ResolvedShellNavItem,
 } from '@/constants/navigation'
 import { ROUTES, creatorProfilePath, settingsPath } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
@@ -52,9 +53,11 @@ import { cn } from '@/lib/utils'
 const PANEL_CELL_CLASS =
   'flex h-[4.5rem] flex-col items-center justify-center gap-1.5 rounded-xl px-1 text-2xs font-medium text-sidebar-foreground transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent-strong [&>svg]:size-5'
 
-function useCurrentEntry(pathname: string) {
-  const all = [...SHELL_NAV_TOOLS, ...SHELL_NAV_GO]
-  return all.find((item) => isShellNavItemActive(item, pathname))
+function findCurrentEntry(
+  items: readonly ResolvedShellNavItem[],
+  pathname: string,
+) {
+  return items.find((item) => isShellNavItemActive(item, pathname))
 }
 
 function PanelGrid({
@@ -62,7 +65,7 @@ function PanelGrid({
   pathname,
   onNavigate,
 }: {
-  items: readonly ShellNavItem[]
+  items: readonly ResolvedShellNavItem[]
   pathname: string
   onNavigate: () => void
 }) {
@@ -159,7 +162,22 @@ export function MobileShell() {
   const { isLoaded } = useUser()
   const { profile } = useMyProfile()
 
-  const current = useCurrentEntry(pathname)
+  // 「我的主页」的地址要等 username（D11 ④）—— 解析走 constants 那一支，
+  // 桌面轨与这里同一条路；username 没回来时那一条不产出，⛔ 不给死链接。
+  const navRuntime = useMemo(
+    () => ({ username: profile?.username ?? null }),
+    [profile?.username],
+  )
+  const goItems = useMemo(
+    () => resolveShellNavItems(SHELL_NAV_GO, navRuntime),
+    [navRuntime],
+  )
+  const toolItems = useMemo(
+    () => resolveShellNavItems(SHELL_NAV_TOOLS, navRuntime),
+    [navRuntime],
+  )
+
+  const current = findCurrentEntry([...toolItems, ...goItems], pathname)
   const CurrentIcon = current?.icon
   const currentLabel = current ? t(current.labelKey) : tCommon('brand')
 
@@ -245,18 +263,10 @@ export function MobileShell() {
           )}
 
           <PanelSectionLabel>{tTools('groupLabel')}</PanelSectionLabel>
-          <PanelGrid
-            items={SHELL_NAV_TOOLS}
-            pathname={pathname}
-            onNavigate={close}
-          />
+          <PanelGrid items={toolItems} pathname={pathname} onNavigate={close} />
 
           <PanelSectionLabel>{tNav('groupLabel')}</PanelSectionLabel>
-          <PanelGrid
-            items={SHELL_NAV_GO}
-            pathname={pathname}
-            onNavigate={close}
-          />
+          <PanelGrid items={goItems} pathname={pathname} onNavigate={close} />
 
           {hasHydrated && isLoaded && (
             <SignedIn>

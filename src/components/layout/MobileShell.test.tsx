@@ -72,6 +72,17 @@ describe('MobileShell 入口收口（D3 ④）', () => {
     expect(profileLink?.textContent).toContain('Navbar:viewProfile')
   })
 
+  it('抽屉「去处」段里有「我的主页」，与桌面同一条清单', () => {
+    render(<MobileShell />)
+    openDrawer()
+
+    const dialog = screen.getByRole('dialog')
+    const links = Array.from(dialog.querySelectorAll('a[href="/u/fulina"]'))
+    expect(
+      links.some((link) => link.textContent?.includes('Navbar.links.profile')),
+    ).toBe(true)
+  })
+
   it('抽屉里没有 key 入口、没有额度读数、没有退出登录', () => {
     render(<MobileShell />)
     openDrawer()

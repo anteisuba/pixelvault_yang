@@ -100,6 +100,28 @@ describe('AppSidebar 入口收口（D3 ④）', () => {
     )
   })
 
+  it('「我的主页」是「去处」段的一条常规导航项，地址是当前用户的主页', () => {
+    mockProfile.current = {
+      username: 'fulina',
+      displayName: 'fulina',
+      avatarUrl: null,
+    }
+    const { container } = renderSidebar()
+
+    const item = container.querySelector(
+      '[data-slot="sidebar-menu-button"][href="/u/fulina"]',
+    )
+    expect(item?.textContent).toContain('Navbar.links.profile')
+  })
+
+  it('username 还没回来时「我的主页」整条不渲染，不给 /u/undefined', () => {
+    mockProfile.current = null
+    const { container } = renderSidebar()
+
+    expect(screen.queryByText('Navbar.links.profile')).toBeNull()
+    expect(container.querySelector('a[href^="/u/"]')).toBeNull()
+  })
+
   it('不再有积分读数、也不再有头像菜单', () => {
     mockProfile.current = {
       username: 'fulina',

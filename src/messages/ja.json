@@ -608,7 +608,8 @@
       "storyboard": "ストーリー",
       "library": "アーカイブ",
       "assets": "アセット",
-      "cards": "カード管理"
+      "cards": "カード管理",
+      "profile": "マイページ"
     },
     "groupLabel": "移動先"
   },

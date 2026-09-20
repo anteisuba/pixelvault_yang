@@ -1,14 +1,14 @@
 'use client'
 
-import { useCallback, useRef } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
 import { Settings, UserCircle } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
-  SHELL_NAV_SECTIONS,
   isShellNavItemActive,
-  type ShellNavItem,
+  resolveShellNavSections,
+  type ResolvedShellNavItem,
 } from '@/constants/navigation'
 import { ROUTES, creatorProfilePath, settingsPath } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
@@ -193,6 +193,14 @@ function AppSidebarContent() {
   const t = useTranslations()
   const { isMobile, setOpenMobile, state } = useSidebar()
   const navScopeRef = useRef<HTMLDivElement>(null)
+  const { profile } = useMyProfile()
+
+  // 「我的主页」的地址要等 username（D11 ④）。解析在 constants 那支，这里只
+  // 递运行时事实；username 还没回来时那一条**不产出**，不会出现死链接。
+  const sections = useMemo(
+    () => resolveShellNavSections({ username: profile?.username ?? null }),
+    [profile?.username],
+  )
 
   const indicator = useNavIndicator(navScopeRef, pathname, state)
 
@@ -205,7 +213,7 @@ function AppSidebarContent() {
   // Clerk 水合 —— 之前那个 `useUser().isLoaded` 闸门对 `Clerk.loaded === false`
   // 的访客永远不会翻 true，会把整条侧栏留空。激活态来自 pathname，服务端与
   // 客户端都算得出，不存在水合不一致。
-  const renderItem = (item: ShellNavItem) => {
+  const renderItem = (item: ResolvedShellNavItem) => {
     const Icon = item.icon
     const label = t(item.labelKey)
     return (
@@ -249,7 +257,7 @@ function AppSidebarContent() {
         visible={indicator.active !== null}
       />
 
-      {SHELL_NAV_SECTIONS.map((section) => (
+      {sections.map((section) => (
         <SidebarGroup
           key={section.id}
           className="px-1.5 py-1 group-data-[collapsible=icon]:px-1 md:p-1.5 md:group-data-[collapsible=icon]:p-1"

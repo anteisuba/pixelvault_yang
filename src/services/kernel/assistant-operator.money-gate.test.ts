@@ -137,6 +137,15 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
    */
   '@/services/context-cards.service',
   /**
+   * 助手记忆（56a）。⭐ 判据逐条与上面那条同源：一张**只有文本列**的表 ——
+   * 不创建 generation、不扣 credit、不调 provider、不碰 R2。它是名单里第三条会
+   * 往库里写的服务，写的是助手这一轮归纳出的一行字（`recordAssistantMemories`），
+   * 与「创建 generation」不是一回事。
+   * ⛔ 哪天有人想把别的写操作挂到这个模块上「顺路存一下」，那就是这条判据破的
+   * 那一天。
+   */
+  '@/services/assistant-memory.service',
+  /**
    * **抽帧落库**（第二期 · 视频域评审）。⭐ 这是第五次值得复核的改动，而且是名单
    * 里**第二条会往外写字节**的服务（第一条是 `project-rule.service` 写一行文本）。
    *
@@ -587,11 +596,12 @@ describe('⛔ 助手工具环的钱闸', () => {
     expect(SOURCE).not.toContain('purgeContextCardImages')
   })
 
-  it('persona / 规则 / 上下文卡三个服务都不具备生成、扣费或上传能力', () => {
+  it('persona / 规则 / 上下文卡 / 记忆四个服务都不具备生成、扣费或上传能力', () => {
     for (const path of [
       'src/services/assistant-persona.service.ts',
       'src/services/project-rule.service.ts',
       'src/services/context-cards.service.ts',
+      'src/services/assistant-memory.service.ts',
     ]) {
       const source = readFileSync(join(process.cwd(), path), 'utf8')
       for (const identifier of [

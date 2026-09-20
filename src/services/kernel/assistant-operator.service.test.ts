@@ -324,6 +324,19 @@ vi.mock('@/services/context-cards.service', () => ({
   getContextCard: (...args: unknown[]) => mockGetContextCard(...args),
 }))
 
+/** 助手记忆（56a）—— 注入那一跳读它、结账那一跳写它，两边都不许真打库。 */
+const mockListMemoriesForPrompt = vi.fn(
+  async (..._args: unknown[]) => [] as unknown[],
+)
+const mockRecordMemories = vi.fn(async (..._args: unknown[]) => 0)
+const mockTouchMemories = vi.fn(async (..._args: unknown[]) => undefined)
+vi.mock('@/services/assistant-memory.service', () => ({
+  listAssistantMemoriesForPrompt: (...args: unknown[]) =>
+    mockListMemoriesForPrompt(...args),
+  recordAssistantMemories: (...args: unknown[]) => mockRecordMemories(...args),
+  touchAssistantMemories: (...args: unknown[]) => mockTouchMemories(...args),
+}))
+
 import {
   ASSISTANT_ASSET_WRITE_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
@@ -12014,6 +12027,131 @@ describe('每轮结账', () => {
       'NEVER put a negative or a failed lookup in "facts"',
     )
     expect(systemPromptOfCheckout).toContain('Put it in "todos" instead')
+  })
+})
+
+// ─── 助手记忆（56a）──────────────────────────────────────────────
+
+/**
+ * **跨会话记忆**：结账时写、下一轮注入、隐身时一条都不写。
+ *
+ * ⚠ 这一组不验服务内部的去重 / 上限 / 敏感闸（那是
+ * `assistant-memory.service.test.ts` 的事），只验**工具环这一侧的接线**：
+ * 候选怎么从结账那一跳走到服务里、注入段长什么样、隐身关掉了哪一半。
+ */
+describe('助手记忆（56a）', () => {
+  const CONVERSATION_ID = '77777777-7777-4777-8777-777777777777'
+
+  const searchStep = {
+    tool: {
+      name: ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+      title: '翻素材库',
+      args: { query: 'cat poster' },
+    },
+  }
+
+  function doneEvent(events: AssistantOperatorEvent[]) {
+    return events.find(
+      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.done,
+    ) as { roundSummary?: { memoriesWritten?: number; incognito?: boolean } }
+  }
+
+  function toolRingSystemPrompt(): string {
+    return toolRingCalls()[0]?.systemPrompt ?? ''
+  }
+
+  it('⭐ 结账产出的候选落进记忆服务，带当前域与会话 id', async () => {
+    queueTurns(searchStep, { finished: true, message: '挑好了。' })
+    mockRecordMemories.mockResolvedValueOnce(2)
+    mockLlmTextCompletion.mockResolvedValue(
+      JSON.stringify({
+        facts: ['库里有三张夜景'],
+        decisions: [],
+        todos: [],
+        memories: [
+          { kind: 'preference', text: '偏好横构图 16:9' },
+          { kind: 'rule', text: '回答用中文', scope: 'global' },
+        ],
+      }),
+    )
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    expect(mockRecordMemories).toHaveBeenCalledTimes(1)
+    const args = mockRecordMemories.mock.calls[0][0] as {
+      scope: string
+      conversationId?: string
+      candidates: { kind: string; text: string; scope?: string }[]
+    }
+    expect(args.scope).toBe('image')
+    expect(args.conversationId).toBe(CONVERSATION_ID)
+    expect(args.candidates).toEqual([
+      { kind: 'preference', text: '偏好横构图 16:9' },
+      { kind: 'rule', text: '回答用中文', scope: 'global' },
+    ])
+    // 回执上那个 N = 服务真正记下的条数（敏感命中的那几条已经不在里面）。
+    expect(doneEvent(events).roundSummary?.memoriesWritten).toBe(2)
+  })
+
+  it('⛔ 形状不对的那一条被丢掉，整轮记忆不作废', async () => {
+    queueTurns(searchStep, { finished: true, message: '挑好了。' })
+    mockLlmTextCompletion.mockResolvedValue(
+      JSON.stringify({
+        facts: ['库里有三张夜景'],
+        decisions: [],
+        todos: [],
+        memories: [
+          { kind: '偏好', text: '这条 kind 不在词表里' },
+          { kind: 'fact', text: '角色「伞下少女」是黑长直' },
+        ],
+      }),
+    )
+
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    const args = mockRecordMemories.mock.calls[0][0] as {
+      candidates: { text: string }[]
+    }
+    expect(args.candidates.map((entry) => entry.text)).toEqual([
+      '角色「伞下少女」是黑长直',
+    ])
+  })
+
+  it('⛔ 隐身开着：一条都不写，结论记录照常下发', async () => {
+    queueTurns(searchStep, { finished: true, message: '挑好了。' })
+    mockLlmTextCompletion.mockResolvedValue(
+      JSON.stringify({
+        facts: ['库里有三张夜景'],
+        decisions: [],
+        todos: [],
+        memories: [{ kind: 'preference', text: '偏好横构图 16:9' }],
+      }),
+    )
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID, incognito: true }),
+      ),
+    )
+
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+    expect(doneEvent(events).roundSummary?.incognito).toBe(true)
+    expect(doneEvent(events).roundSummary?.memoriesWritten).toBeUndefined()
+    // 隐身关的是记忆，⛔ 不是这一轮：三栏照常在。
+    expect(
+      (doneEvent(events).roundSummary as unknown as { facts: string[] }).facts,
+    ).toEqual(['库里有三张夜景'])
   })
 })
 

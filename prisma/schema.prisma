@@ -208,6 +208,7 @@ model User {
   assistantPersona       AssistantPersona?
   projectRules           ProjectRule[]
   contextCards           ContextCard[]
+  assistantMemories      AssistantMemory[]
 
   @@index([username])
   @@index([isDeleted])
@@ -1595,4 +1596,56 @@ model ContextCard {
   @@index([userId, kind, updatedAt(sort: Desc)])
   /// 待确认区那一次查询（`status = PROPOSED`）走它。
   @@index([userId, status, updatedAt(sort: Desc)])
+}
+
+/// 助手记住的一条事（进度表 56a · 最简版）。
+///
+/// 一条 = **一行字**：`text` 就是进系统提示的那一行。⛔ 没有分组、没有容量表、
+/// 没有负规则、没有「存为卡」的桥 —— owner 2026-09-19 打回过一版更复杂的形状。
+///
+/// ⚠ 它与 `ContextCard` 是两件事：卡是用户**亲手经营**的素材（正文 / 图 / 硬否定 /
+/// 常挂范围），记忆是助手**观察到**的一行事实或偏好。⛔ 两者之间没有自动升降级。
+enum AssistantMemoryScope {
+  IMAGE
+  VIDEO
+  CANVAS
+  LORA
+  GLOBAL
+}
+
+/// 这一行是哪一类。⚠ 只影响提示里的措辞，⛔ 不影响注入顺序（那由 lastUsedAt 决定）。
+enum AssistantMemoryKind {
+  PREFERENCE
+  FACT
+  RULE
+}
+
+model AssistantMemory {
+  id     String @id @default(uuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  scope AssistantMemoryScope
+  kind  AssistantMemoryKind
+
+  /// 那一行字本身 —— 系统提示里印的就是它。
+  text String @db.Text
+
+  /// 溯源两件：这条是哪一轮结账写出来的。
+  /// ⚠ 库里存着但**界面不画**（最简版撤掉了「来源跳转」）：留着是因为哪天要查
+  /// 「这句话是从哪冒出来的」时，没有它就只能靠猜。⛔ 不加 FK：会话删了记忆还在。
+  conversationId String?
+  messageId      String?
+
+  /// **被注入过就更新** —— 注入优先级与淘汰顺序都读它（每域上限 200，超了淘汰最旧的）。
+  lastUsedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// 总览列表（按 updatedAt 倒序）与筛选 chip 走它。
+  @@index([userId, scope, updatedAt(sort: Desc)])
+  @@index([userId, updatedAt(sort: Desc)])
+  /// 注入取前 N 条、淘汰取最旧一条，两边都按 lastUsedAt 排。
+  @@index([userId, scope, lastUsedAt(sort: Desc)])
 }

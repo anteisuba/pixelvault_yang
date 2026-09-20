@@ -292,6 +292,7 @@ export type UserWhereInput = {
   assistantPersona?: Prisma.XOR<Prisma.AssistantPersonaNullableScalarRelationFilter, Prisma.AssistantPersonaWhereInput> | null
   projectRules?: Prisma.ProjectRuleListRelationFilter
   contextCards?: Prisma.ContextCardListRelationFilter
+  assistantMemories?: Prisma.AssistantMemoryListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -340,6 +341,7 @@ export type UserOrderByWithRelationInput = {
   assistantPersona?: Prisma.AssistantPersonaOrderByWithRelationInput
   projectRules?: Prisma.ProjectRuleOrderByRelationAggregateInput
   contextCards?: Prisma.ContextCardOrderByRelationAggregateInput
+  assistantMemories?: Prisma.AssistantMemoryOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -391,6 +393,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   assistantPersona?: Prisma.XOR<Prisma.AssistantPersonaNullableScalarRelationFilter, Prisma.AssistantPersonaWhereInput> | null
   projectRules?: Prisma.ProjectRuleListRelationFilter
   contextCards?: Prisma.ContextCardListRelationFilter
+  assistantMemories?: Prisma.AssistantMemoryListRelationFilter
 }, "id" | "clerkId" | "email" | "username">
 
 export type UserOrderByWithAggregationInput = {
@@ -481,6 +484,7 @@ export type UserCreateInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -529,6 +533,7 @@ export type UserUncheckedCreateInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
@@ -577,6 +582,7 @@ export type UserUpdateInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -625,6 +631,7 @@ export type UserUncheckedUpdateInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -1185,6 +1192,20 @@ export type UserUpdateOneRequiredWithoutContextCardsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutContextCardsInput, Prisma.UserUpdateWithoutContextCardsInput>, Prisma.UserUncheckedUpdateWithoutContextCardsInput>
 }
 
+export type UserCreateNestedOneWithoutAssistantMemoriesInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAssistantMemoriesInput, Prisma.UserUncheckedCreateWithoutAssistantMemoriesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAssistantMemoriesInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutAssistantMemoriesNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutAssistantMemoriesInput, Prisma.UserUncheckedCreateWithoutAssistantMemoriesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutAssistantMemoriesInput
+  upsert?: Prisma.UserUpsertWithoutAssistantMemoriesInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutAssistantMemoriesInput, Prisma.UserUpdateWithoutAssistantMemoriesInput>, Prisma.UserUncheckedUpdateWithoutAssistantMemoriesInput>
+}
+
 export type UserCreateWithoutAssistantConversationsInput = {
   id?: string
   clerkId: string
@@ -1230,6 +1251,7 @@ export type UserCreateWithoutAssistantConversationsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAssistantConversationsInput = {
@@ -1277,6 +1299,7 @@ export type UserUncheckedCreateWithoutAssistantConversationsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAssistantConversationsInput = {
@@ -1340,6 +1363,7 @@ export type UserUpdateWithoutAssistantConversationsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAssistantConversationsInput = {
@@ -1387,6 +1411,7 @@ export type UserUncheckedUpdateWithoutAssistantConversationsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutResearchRunsInput = {
@@ -1434,6 +1459,7 @@ export type UserCreateWithoutResearchRunsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutResearchRunsInput = {
@@ -1481,6 +1507,7 @@ export type UserUncheckedCreateWithoutResearchRunsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutResearchRunsInput = {
@@ -1544,6 +1571,7 @@ export type UserUpdateWithoutResearchRunsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutResearchRunsInput = {
@@ -1591,6 +1619,7 @@ export type UserUncheckedUpdateWithoutResearchRunsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutNodeWorkflowProjectsInput = {
@@ -1638,6 +1667,7 @@ export type UserCreateWithoutNodeWorkflowProjectsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutNodeWorkflowProjectsInput = {
@@ -1685,6 +1715,7 @@ export type UserUncheckedCreateWithoutNodeWorkflowProjectsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutNodeWorkflowProjectsInput = {
@@ -1748,6 +1779,7 @@ export type UserUpdateWithoutNodeWorkflowProjectsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutNodeWorkflowProjectsInput = {
@@ -1795,6 +1827,7 @@ export type UserUncheckedUpdateWithoutNodeWorkflowProjectsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutProjectsInput = {
@@ -1842,6 +1875,7 @@ export type UserCreateWithoutProjectsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutProjectsInput = {
@@ -1889,6 +1923,7 @@ export type UserUncheckedCreateWithoutProjectsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutProjectsInput = {
@@ -1952,6 +1987,7 @@ export type UserUpdateWithoutProjectsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutProjectsInput = {
@@ -1999,6 +2035,7 @@ export type UserUncheckedUpdateWithoutProjectsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutUserApiKeysInput = {
@@ -2046,6 +2083,7 @@ export type UserCreateWithoutUserApiKeysInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutUserApiKeysInput = {
@@ -2093,6 +2131,7 @@ export type UserUncheckedCreateWithoutUserApiKeysInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutUserApiKeysInput = {
@@ -2156,6 +2195,7 @@ export type UserUpdateWithoutUserApiKeysInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutUserApiKeysInput = {
@@ -2203,6 +2243,7 @@ export type UserUncheckedUpdateWithoutUserApiKeysInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutGenerationsInput = {
@@ -2250,6 +2291,7 @@ export type UserCreateWithoutGenerationsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutGenerationsInput = {
@@ -2297,6 +2339,7 @@ export type UserUncheckedCreateWithoutGenerationsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutGenerationsInput = {
@@ -2360,6 +2403,7 @@ export type UserUpdateWithoutGenerationsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutGenerationsInput = {
@@ -2407,6 +2451,7 @@ export type UserUncheckedUpdateWithoutGenerationsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutGenerationJobsInput = {
@@ -2454,6 +2499,7 @@ export type UserCreateWithoutGenerationJobsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutGenerationJobsInput = {
@@ -2501,6 +2547,7 @@ export type UserUncheckedCreateWithoutGenerationJobsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutGenerationJobsInput = {
@@ -2564,6 +2611,7 @@ export type UserUpdateWithoutGenerationJobsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutGenerationJobsInput = {
@@ -2611,6 +2659,7 @@ export type UserUncheckedUpdateWithoutGenerationJobsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutApiUsageLedgerInput = {
@@ -2658,6 +2707,7 @@ export type UserCreateWithoutApiUsageLedgerInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
@@ -2705,6 +2755,7 @@ export type UserUncheckedCreateWithoutApiUsageLedgerInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutApiUsageLedgerInput = {
@@ -2768,6 +2819,7 @@ export type UserUpdateWithoutApiUsageLedgerInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
@@ -2815,6 +2867,7 @@ export type UserUncheckedUpdateWithoutApiUsageLedgerInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutRecipesInput = {
@@ -2862,6 +2915,7 @@ export type UserCreateWithoutRecipesInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutRecipesInput = {
@@ -2909,6 +2963,7 @@ export type UserUncheckedCreateWithoutRecipesInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutRecipesInput = {
@@ -2972,6 +3027,7 @@ export type UserUpdateWithoutRecipesInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutRecipesInput = {
@@ -3019,6 +3075,7 @@ export type UserUncheckedUpdateWithoutRecipesInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutVoiceCardsInput = {
@@ -3066,6 +3123,7 @@ export type UserCreateWithoutVoiceCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutVoiceCardsInput = {
@@ -3113,6 +3171,7 @@ export type UserUncheckedCreateWithoutVoiceCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutVoiceCardsInput = {
@@ -3176,6 +3235,7 @@ export type UserUpdateWithoutVoiceCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutVoiceCardsInput = {
@@ -3223,6 +3283,7 @@ export type UserUncheckedUpdateWithoutVoiceCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutVoiceRoomsInput = {
@@ -3270,6 +3331,7 @@ export type UserCreateWithoutVoiceRoomsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutVoiceRoomsInput = {
@@ -3317,6 +3379,7 @@ export type UserUncheckedCreateWithoutVoiceRoomsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutVoiceRoomsInput = {
@@ -3380,6 +3443,7 @@ export type UserUpdateWithoutVoiceRoomsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutVoiceRoomsInput = {
@@ -3427,6 +3491,7 @@ export type UserUncheckedUpdateWithoutVoiceRoomsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutCreativePreferenceInput = {
@@ -3474,6 +3539,7 @@ export type UserCreateWithoutCreativePreferenceInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutCreativePreferenceInput = {
@@ -3521,6 +3587,7 @@ export type UserUncheckedCreateWithoutCreativePreferenceInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutCreativePreferenceInput = {
@@ -3584,6 +3651,7 @@ export type UserUpdateWithoutCreativePreferenceInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutCreativePreferenceInput = {
@@ -3631,6 +3699,7 @@ export type UserUncheckedUpdateWithoutCreativePreferenceInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutAssistantPersonaInput = {
@@ -3678,6 +3747,7 @@ export type UserCreateWithoutAssistantPersonaInput = {
   voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutAssistantPersonaInput = {
@@ -3725,6 +3795,7 @@ export type UserUncheckedCreateWithoutAssistantPersonaInput = {
   voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutAssistantPersonaInput = {
@@ -3788,6 +3859,7 @@ export type UserUpdateWithoutAssistantPersonaInput = {
   voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutAssistantPersonaInput = {
@@ -3835,6 +3907,7 @@ export type UserUncheckedUpdateWithoutAssistantPersonaInput = {
   voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutProjectRulesInput = {
@@ -3882,6 +3955,7 @@ export type UserCreateWithoutProjectRulesInput = {
   voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutProjectRulesInput = {
@@ -3929,6 +4003,7 @@ export type UserUncheckedCreateWithoutProjectRulesInput = {
   voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutProjectRulesInput = {
@@ -3992,6 +4067,7 @@ export type UserUpdateWithoutProjectRulesInput = {
   voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutProjectRulesInput = {
@@ -4039,6 +4115,7 @@ export type UserUncheckedUpdateWithoutProjectRulesInput = {
   voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutImageAnalysesInput = {
@@ -4086,6 +4163,7 @@ export type UserCreateWithoutImageAnalysesInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutImageAnalysesInput = {
@@ -4133,6 +4211,7 @@ export type UserUncheckedCreateWithoutImageAnalysesInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutImageAnalysesInput = {
@@ -4196,6 +4275,7 @@ export type UserUpdateWithoutImageAnalysesInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutImageAnalysesInput = {
@@ -4243,6 +4323,7 @@ export type UserUncheckedUpdateWithoutImageAnalysesInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutStoriesInput = {
@@ -4290,6 +4371,7 @@ export type UserCreateWithoutStoriesInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutStoriesInput = {
@@ -4337,6 +4419,7 @@ export type UserUncheckedCreateWithoutStoriesInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutStoriesInput = {
@@ -4400,6 +4483,7 @@ export type UserUpdateWithoutStoriesInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutStoriesInput = {
@@ -4447,6 +4531,7 @@ export type UserUncheckedUpdateWithoutStoriesInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutCharacterCardsInput = {
@@ -4494,6 +4579,7 @@ export type UserCreateWithoutCharacterCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutCharacterCardsInput = {
@@ -4541,6 +4627,7 @@ export type UserUncheckedCreateWithoutCharacterCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutCharacterCardsInput = {
@@ -4604,6 +4691,7 @@ export type UserUpdateWithoutCharacterCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutCharacterCardsInput = {
@@ -4651,6 +4739,7 @@ export type UserUncheckedUpdateWithoutCharacterCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutLikesGivenInput = {
@@ -4698,6 +4787,7 @@ export type UserCreateWithoutLikesGivenInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutLikesGivenInput = {
@@ -4745,6 +4835,7 @@ export type UserUncheckedCreateWithoutLikesGivenInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutLikesGivenInput = {
@@ -4808,6 +4899,7 @@ export type UserUpdateWithoutLikesGivenInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutLikesGivenInput = {
@@ -4855,6 +4947,7 @@ export type UserUncheckedUpdateWithoutLikesGivenInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutFollowsGivenInput = {
@@ -4902,6 +4995,7 @@ export type UserCreateWithoutFollowsGivenInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutFollowsGivenInput = {
@@ -4949,6 +5043,7 @@ export type UserUncheckedCreateWithoutFollowsGivenInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutFollowsGivenInput = {
@@ -5001,6 +5096,7 @@ export type UserCreateWithoutFollowsReceivedInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutFollowsReceivedInput = {
@@ -5048,6 +5144,7 @@ export type UserUncheckedCreateWithoutFollowsReceivedInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutFollowsReceivedInput = {
@@ -5111,6 +5208,7 @@ export type UserUpdateWithoutFollowsGivenInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutFollowsGivenInput = {
@@ -5158,6 +5256,7 @@ export type UserUncheckedUpdateWithoutFollowsGivenInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserUpsertWithoutFollowsReceivedInput = {
@@ -5216,6 +5315,7 @@ export type UserUpdateWithoutFollowsReceivedInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
@@ -5263,6 +5363,7 @@ export type UserUncheckedUpdateWithoutFollowsReceivedInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutCollectionsInput = {
@@ -5310,6 +5411,7 @@ export type UserCreateWithoutCollectionsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutCollectionsInput = {
@@ -5357,6 +5459,7 @@ export type UserUncheckedCreateWithoutCollectionsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutCollectionsInput = {
@@ -5420,6 +5523,7 @@ export type UserUpdateWithoutCollectionsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutCollectionsInput = {
@@ -5467,6 +5571,7 @@ export type UserUncheckedUpdateWithoutCollectionsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutBackgroundCardsInput = {
@@ -5514,6 +5619,7 @@ export type UserCreateWithoutBackgroundCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutBackgroundCardsInput = {
@@ -5561,6 +5667,7 @@ export type UserUncheckedCreateWithoutBackgroundCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutBackgroundCardsInput = {
@@ -5624,6 +5731,7 @@ export type UserUpdateWithoutBackgroundCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutBackgroundCardsInput = {
@@ -5671,6 +5779,7 @@ export type UserUncheckedUpdateWithoutBackgroundCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutStyleCardsInput = {
@@ -5718,6 +5827,7 @@ export type UserCreateWithoutStyleCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutStyleCardsInput = {
@@ -5765,6 +5875,7 @@ export type UserUncheckedCreateWithoutStyleCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutStyleCardsInput = {
@@ -5828,6 +5939,7 @@ export type UserUpdateWithoutStyleCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutStyleCardsInput = {
@@ -5875,6 +5987,7 @@ export type UserUncheckedUpdateWithoutStyleCardsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutCardRecipesInput = {
@@ -5922,6 +6035,7 @@ export type UserCreateWithoutCardRecipesInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutCardRecipesInput = {
@@ -5969,6 +6083,7 @@ export type UserUncheckedCreateWithoutCardRecipesInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutCardRecipesInput = {
@@ -6032,6 +6147,7 @@ export type UserUpdateWithoutCardRecipesInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutCardRecipesInput = {
@@ -6079,6 +6195,7 @@ export type UserUncheckedUpdateWithoutCardRecipesInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutVideoPipelinesInput = {
@@ -6126,6 +6243,7 @@ export type UserCreateWithoutVideoPipelinesInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutVideoPipelinesInput = {
@@ -6173,6 +6291,7 @@ export type UserUncheckedCreateWithoutVideoPipelinesInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutVideoPipelinesInput = {
@@ -6236,6 +6355,7 @@ export type UserUpdateWithoutVideoPipelinesInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutVideoPipelinesInput = {
@@ -6283,6 +6403,7 @@ export type UserUncheckedUpdateWithoutVideoPipelinesInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutLoraTrainingJobsInput = {
@@ -6330,6 +6451,7 @@ export type UserCreateWithoutLoraTrainingJobsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutLoraTrainingJobsInput = {
@@ -6377,6 +6499,7 @@ export type UserUncheckedCreateWithoutLoraTrainingJobsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutLoraTrainingJobsInput = {
@@ -6440,6 +6563,7 @@ export type UserUpdateWithoutLoraTrainingJobsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutLoraTrainingJobsInput = {
@@ -6487,6 +6611,7 @@ export type UserUncheckedUpdateWithoutLoraTrainingJobsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutLoraAssetsInput = {
@@ -6534,6 +6659,7 @@ export type UserCreateWithoutLoraAssetsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutLoraAssetsInput = {
@@ -6581,6 +6707,7 @@ export type UserUncheckedCreateWithoutLoraAssetsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutLoraAssetsInput = {
@@ -6644,6 +6771,7 @@ export type UserUpdateWithoutLoraAssetsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutLoraAssetsInput = {
@@ -6691,6 +6819,7 @@ export type UserUncheckedUpdateWithoutLoraAssetsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutVideoScriptsInput = {
@@ -6738,6 +6867,7 @@ export type UserCreateWithoutVideoScriptsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutVideoScriptsInput = {
@@ -6785,6 +6915,7 @@ export type UserUncheckedCreateWithoutVideoScriptsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutVideoScriptsInput = {
@@ -6848,6 +6979,7 @@ export type UserUpdateWithoutVideoScriptsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutVideoScriptsInput = {
@@ -6895,6 +7027,7 @@ export type UserUncheckedUpdateWithoutVideoScriptsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutExtractedElementsInput = {
@@ -6942,6 +7075,7 @@ export type UserCreateWithoutExtractedElementsInput = {
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutExtractedElementsInput = {
@@ -6989,6 +7123,7 @@ export type UserUncheckedCreateWithoutExtractedElementsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
   contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutExtractedElementsInput = {
@@ -7052,6 +7187,7 @@ export type UserUpdateWithoutExtractedElementsInput = {
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutExtractedElementsInput = {
@@ -7099,6 +7235,7 @@ export type UserUncheckedUpdateWithoutExtractedElementsInput = {
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
   contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateWithoutContextCardsInput = {
@@ -7146,6 +7283,7 @@ export type UserCreateWithoutContextCardsInput = {
   voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutContextCardsInput = {
@@ -7193,6 +7331,7 @@ export type UserUncheckedCreateWithoutContextCardsInput = {
   voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
   projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutContextCardsInput = {
@@ -7256,6 +7395,7 @@ export type UserUpdateWithoutContextCardsInput = {
   voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutContextCardsInput = {
@@ -7303,6 +7443,215 @@ export type UserUncheckedUpdateWithoutContextCardsInput = {
   voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
   assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
   projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
+  assistantMemories?: Prisma.AssistantMemoryUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutAssistantMemoriesInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisCreateNestedManyWithoutUserInput
+  stories?: Prisma.StoryCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowCreateNestedManyWithoutFollowingInput
+  collections?: Prisma.CollectionCreateNestedManyWithoutUserInput
+  backgroundCards?: Prisma.BackgroundCardCreateNestedManyWithoutUserInput
+  styleCards?: Prisma.StyleCardCreateNestedManyWithoutUserInput
+  cardRecipes?: Prisma.CardRecipeCreateNestedManyWithoutUserInput
+  recipes?: Prisma.RecipeCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceCreateNestedOneWithoutUserInput
+  videoPipelines?: Prisma.VideoPipelineCreateNestedManyWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobCreateNestedManyWithoutUserInput
+  loraAssets?: Prisma.LoraAssetCreateNestedManyWithoutUserInput
+  videoScripts?: Prisma.VideoScriptCreateNestedManyWithoutUserInput
+  extractedElements?: Prisma.ExtractedElementCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectCreateNestedManyWithoutUserInput
+  assistantConversations?: Prisma.AssistantConversationCreateNestedManyWithoutUserInput
+  researchRuns?: Prisma.ResearchRunCreateNestedManyWithoutUserInput
+  voiceRooms?: Prisma.VoiceRoomCreateNestedManyWithoutUserInput
+  assistantPersona?: Prisma.AssistantPersonaCreateNestedOneWithoutUserInput
+  projectRules?: Prisma.ProjectRuleCreateNestedManyWithoutUserInput
+  contextCards?: Prisma.ContextCardCreateNestedManyWithoutUserInput
+}
+
+export type UserUncheckedCreateWithoutAssistantMemoriesInput = {
+  id?: string
+  clerkId: string
+  email: string
+  username?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+  avatarStorageKey?: string | null
+  bannerUrl?: string | null
+  bannerStorageKey?: string | null
+  bio?: string | null
+  civitaiToken?: string | null
+  isPublic?: boolean
+  isDeleted?: boolean
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  generations?: Prisma.GenerationUncheckedCreateNestedManyWithoutUserInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedCreateNestedManyWithoutUserInput
+  generationJobs?: Prisma.GenerationJobUncheckedCreateNestedManyWithoutUserInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedCreateNestedManyWithoutUserInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedCreateNestedManyWithoutUserInput
+  stories?: Prisma.StoryUncheckedCreateNestedManyWithoutUserInput
+  projects?: Prisma.ProjectUncheckedCreateNestedManyWithoutUserInput
+  characterCards?: Prisma.CharacterCardUncheckedCreateNestedManyWithoutUserInput
+  likesGiven?: Prisma.UserLikeUncheckedCreateNestedManyWithoutUserInput
+  followsGiven?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowerInput
+  followsReceived?: Prisma.UserFollowUncheckedCreateNestedManyWithoutFollowingInput
+  collections?: Prisma.CollectionUncheckedCreateNestedManyWithoutUserInput
+  backgroundCards?: Prisma.BackgroundCardUncheckedCreateNestedManyWithoutUserInput
+  styleCards?: Prisma.StyleCardUncheckedCreateNestedManyWithoutUserInput
+  cardRecipes?: Prisma.CardRecipeUncheckedCreateNestedManyWithoutUserInput
+  recipes?: Prisma.RecipeUncheckedCreateNestedManyWithoutUserInput
+  voiceCards?: Prisma.VoiceCardUncheckedCreateNestedManyWithoutUserInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedCreateNestedOneWithoutUserInput
+  videoPipelines?: Prisma.VideoPipelineUncheckedCreateNestedManyWithoutUserInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedCreateNestedManyWithoutUserInput
+  loraAssets?: Prisma.LoraAssetUncheckedCreateNestedManyWithoutUserInput
+  videoScripts?: Prisma.VideoScriptUncheckedCreateNestedManyWithoutUserInput
+  extractedElements?: Prisma.ExtractedElementUncheckedCreateNestedManyWithoutUserInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedCreateNestedManyWithoutUserInput
+  assistantConversations?: Prisma.AssistantConversationUncheckedCreateNestedManyWithoutUserInput
+  researchRuns?: Prisma.ResearchRunUncheckedCreateNestedManyWithoutUserInput
+  voiceRooms?: Prisma.VoiceRoomUncheckedCreateNestedManyWithoutUserInput
+  assistantPersona?: Prisma.AssistantPersonaUncheckedCreateNestedOneWithoutUserInput
+  projectRules?: Prisma.ProjectRuleUncheckedCreateNestedManyWithoutUserInput
+  contextCards?: Prisma.ContextCardUncheckedCreateNestedManyWithoutUserInput
+}
+
+export type UserCreateOrConnectWithoutAssistantMemoriesInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutAssistantMemoriesInput, Prisma.UserUncheckedCreateWithoutAssistantMemoriesInput>
+}
+
+export type UserUpsertWithoutAssistantMemoriesInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutAssistantMemoriesInput, Prisma.UserUncheckedUpdateWithoutAssistantMemoriesInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutAssistantMemoriesInput, Prisma.UserUncheckedCreateWithoutAssistantMemoriesInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutAssistantMemoriesInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutAssistantMemoriesInput, Prisma.UserUncheckedUpdateWithoutAssistantMemoriesInput>
+}
+
+export type UserUpdateWithoutAssistantMemoriesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUpdateManyWithoutUserNestedInput
+  stories?: Prisma.StoryUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUpdateManyWithoutFollowingNestedInput
+  collections?: Prisma.CollectionUpdateManyWithoutUserNestedInput
+  backgroundCards?: Prisma.BackgroundCardUpdateManyWithoutUserNestedInput
+  styleCards?: Prisma.StyleCardUpdateManyWithoutUserNestedInput
+  cardRecipes?: Prisma.CardRecipeUpdateManyWithoutUserNestedInput
+  recipes?: Prisma.RecipeUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUpdateOneWithoutUserNestedInput
+  videoPipelines?: Prisma.VideoPipelineUpdateManyWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUpdateManyWithoutUserNestedInput
+  loraAssets?: Prisma.LoraAssetUpdateManyWithoutUserNestedInput
+  videoScripts?: Prisma.VideoScriptUpdateManyWithoutUserNestedInput
+  extractedElements?: Prisma.ExtractedElementUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUpdateManyWithoutUserNestedInput
+  assistantConversations?: Prisma.AssistantConversationUpdateManyWithoutUserNestedInput
+  researchRuns?: Prisma.ResearchRunUpdateManyWithoutUserNestedInput
+  voiceRooms?: Prisma.VoiceRoomUpdateManyWithoutUserNestedInput
+  assistantPersona?: Prisma.AssistantPersonaUpdateOneWithoutUserNestedInput
+  projectRules?: Prisma.ProjectRuleUpdateManyWithoutUserNestedInput
+  contextCards?: Prisma.ContextCardUpdateManyWithoutUserNestedInput
+}
+
+export type UserUncheckedUpdateWithoutAssistantMemoriesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  clerkId?: Prisma.StringFieldUpdateOperationsInput | string
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  username?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  displayName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  avatarStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerUrl?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bannerStorageKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bio?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  civitaiToken?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  isPublic?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  isDeleted?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  generations?: Prisma.GenerationUncheckedUpdateManyWithoutUserNestedInput
+  userApiKeys?: Prisma.UserApiKeyUncheckedUpdateManyWithoutUserNestedInput
+  generationJobs?: Prisma.GenerationJobUncheckedUpdateManyWithoutUserNestedInput
+  apiUsageLedger?: Prisma.ApiUsageLedgerUncheckedUpdateManyWithoutUserNestedInput
+  imageAnalyses?: Prisma.ImageAnalysisUncheckedUpdateManyWithoutUserNestedInput
+  stories?: Prisma.StoryUncheckedUpdateManyWithoutUserNestedInput
+  projects?: Prisma.ProjectUncheckedUpdateManyWithoutUserNestedInput
+  characterCards?: Prisma.CharacterCardUncheckedUpdateManyWithoutUserNestedInput
+  likesGiven?: Prisma.UserLikeUncheckedUpdateManyWithoutUserNestedInput
+  followsGiven?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowerNestedInput
+  followsReceived?: Prisma.UserFollowUncheckedUpdateManyWithoutFollowingNestedInput
+  collections?: Prisma.CollectionUncheckedUpdateManyWithoutUserNestedInput
+  backgroundCards?: Prisma.BackgroundCardUncheckedUpdateManyWithoutUserNestedInput
+  styleCards?: Prisma.StyleCardUncheckedUpdateManyWithoutUserNestedInput
+  cardRecipes?: Prisma.CardRecipeUncheckedUpdateManyWithoutUserNestedInput
+  recipes?: Prisma.RecipeUncheckedUpdateManyWithoutUserNestedInput
+  voiceCards?: Prisma.VoiceCardUncheckedUpdateManyWithoutUserNestedInput
+  creativePreference?: Prisma.UserCreativePreferenceUncheckedUpdateOneWithoutUserNestedInput
+  videoPipelines?: Prisma.VideoPipelineUncheckedUpdateManyWithoutUserNestedInput
+  loraTrainingJobs?: Prisma.LoraTrainingJobUncheckedUpdateManyWithoutUserNestedInput
+  loraAssets?: Prisma.LoraAssetUncheckedUpdateManyWithoutUserNestedInput
+  videoScripts?: Prisma.VideoScriptUncheckedUpdateManyWithoutUserNestedInput
+  extractedElements?: Prisma.ExtractedElementUncheckedUpdateManyWithoutUserNestedInput
+  nodeWorkflowProjects?: Prisma.NodeWorkflowProjectUncheckedUpdateManyWithoutUserNestedInput
+  assistantConversations?: Prisma.AssistantConversationUncheckedUpdateManyWithoutUserNestedInput
+  researchRuns?: Prisma.ResearchRunUncheckedUpdateManyWithoutUserNestedInput
+  voiceRooms?: Prisma.VoiceRoomUncheckedUpdateManyWithoutUserNestedInput
+  assistantPersona?: Prisma.AssistantPersonaUncheckedUpdateOneWithoutUserNestedInput
+  projectRules?: Prisma.ProjectRuleUncheckedUpdateManyWithoutUserNestedInput
+  contextCards?: Prisma.ContextCardUncheckedUpdateManyWithoutUserNestedInput
 }
 
 
@@ -7339,6 +7688,7 @@ export type UserCountOutputType = {
   voiceRooms: number
   projectRules: number
   contextCards: number
+  assistantMemories: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -7370,6 +7720,7 @@ export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.I
   voiceRooms?: boolean | UserCountOutputTypeCountVoiceRoomsArgs
   projectRules?: boolean | UserCountOutputTypeCountProjectRulesArgs
   contextCards?: boolean | UserCountOutputTypeCountContextCardsArgs
+  assistantMemories?: boolean | UserCountOutputTypeCountAssistantMemoriesArgs
 }
 
 /**
@@ -7578,6 +7929,13 @@ export type UserCountOutputTypeCountContextCardsArgs<ExtArgs extends runtime.Typ
   where?: Prisma.ContextCardWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountAssistantMemoriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.AssistantMemoryWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -7625,6 +7983,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   assistantPersona?: boolean | Prisma.User$assistantPersonaArgs<ExtArgs>
   projectRules?: boolean | Prisma.User$projectRulesArgs<ExtArgs>
   contextCards?: boolean | Prisma.User$contextCardsArgs<ExtArgs>
+  assistantMemories?: boolean | Prisma.User$assistantMemoriesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -7714,6 +8073,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   assistantPersona?: boolean | Prisma.User$assistantPersonaArgs<ExtArgs>
   projectRules?: boolean | Prisma.User$projectRulesArgs<ExtArgs>
   contextCards?: boolean | Prisma.User$contextCardsArgs<ExtArgs>
+  assistantMemories?: boolean | Prisma.User$assistantMemoriesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -7752,6 +8112,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     assistantPersona: Prisma.$AssistantPersonaPayload<ExtArgs> | null
     projectRules: Prisma.$ProjectRulePayload<ExtArgs>[]
     contextCards: Prisma.$ContextCardPayload<ExtArgs>[]
+    assistantMemories: Prisma.$AssistantMemoryPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -8193,6 +8554,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   assistantPersona<T extends Prisma.User$assistantPersonaArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$assistantPersonaArgs<ExtArgs>>): Prisma.Prisma__AssistantPersonaClient<runtime.Types.Result.GetResult<Prisma.$AssistantPersonaPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   projectRules<T extends Prisma.User$projectRulesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$projectRulesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProjectRulePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   contextCards<T extends Prisma.User$contextCardsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$contextCardsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ContextCardPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  assistantMemories<T extends Prisma.User$assistantMemoriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$assistantMemoriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$AssistantMemoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -9337,6 +9699,30 @@ export type User$contextCardsArgs<ExtArgs extends runtime.Types.Extensions.Inter
   take?: number
   skip?: number
   distinct?: Prisma.ContextCardScalarFieldEnum | Prisma.ContextCardScalarFieldEnum[]
+}
+
+/**
+ * User.assistantMemories
+ */
+export type User$assistantMemoriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the AssistantMemory
+   */
+  select?: Prisma.AssistantMemorySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the AssistantMemory
+   */
+  omit?: Prisma.AssistantMemoryOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.AssistantMemoryInclude<ExtArgs> | null
+  where?: Prisma.AssistantMemoryWhereInput
+  orderBy?: Prisma.AssistantMemoryOrderByWithRelationInput | Prisma.AssistantMemoryOrderByWithRelationInput[]
+  cursor?: Prisma.AssistantMemoryWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.AssistantMemoryScalarFieldEnum | Prisma.AssistantMemoryScalarFieldEnum[]
 }
 
 /**

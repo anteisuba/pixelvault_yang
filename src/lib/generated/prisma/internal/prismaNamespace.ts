@@ -428,7 +428,8 @@ export const ModelName = {
   CivitaiSearchSnapshot: 'CivitaiSearchSnapshot',
   CivitaiLoraMirror: 'CivitaiLoraMirror',
   CivitaiMirrorSyncState: 'CivitaiMirrorSyncState',
-  ContextCard: 'ContextCard'
+  ContextCard: 'ContextCard',
+  AssistantMemory: 'AssistantMemory'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -444,7 +445,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard"
+    modelProps: "user" | "assistantConversation" | "assistantConversationShare" | "researchRun" | "nodeWorkflowProject" | "project" | "userApiKey" | "generation" | "generationJob" | "executionOutbox" | "apiUsageLedger" | "freeTierSlot" | "recipe" | "voiceCard" | "voiceRoom" | "voiceLine" | "userCreativePreference" | "assistantPersona" | "projectRule" | "imageAnalysis" | "modelConfig" | "story" | "storyPanel" | "characterCard" | "generationCharacterCard" | "userLike" | "userFollow" | "collection" | "collectionItem" | "backgroundCard" | "styleCard" | "cardRecipe" | "videoPipeline" | "videoPipelineClip" | "loraTrainingJob" | "loraAsset" | "videoScript" | "videoScriptScene" | "extractedElement" | "generationLayer" | "inspirationPrompt" | "civitaiSearchSnapshot" | "civitaiLoraMirror" | "civitaiMirrorSyncState" | "contextCard" | "assistantMemory"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3778,6 +3779,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    AssistantMemory: {
+      payload: Prisma.$AssistantMemoryPayload<ExtArgs>
+      fields: Prisma.AssistantMemoryFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AssistantMemoryFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantMemoryPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AssistantMemoryFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantMemoryPayload>
+        }
+        findFirst: {
+          args: Prisma.AssistantMemoryFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantMemoryPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AssistantMemoryFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantMemoryPayload>
+        }
+        findMany: {
+          args: Prisma.AssistantMemoryFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantMemoryPayload>[]
+        }
+        create: {
+          args: Prisma.AssistantMemoryCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantMemoryPayload>
+        }
+        createMany: {
+          args: Prisma.AssistantMemoryCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AssistantMemoryCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantMemoryPayload>[]
+        }
+        delete: {
+          args: Prisma.AssistantMemoryDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantMemoryPayload>
+        }
+        update: {
+          args: Prisma.AssistantMemoryUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantMemoryPayload>
+        }
+        deleteMany: {
+          args: Prisma.AssistantMemoryDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AssistantMemoryUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AssistantMemoryUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantMemoryPayload>[]
+        }
+        upsert: {
+          args: Prisma.AssistantMemoryUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AssistantMemoryPayload>
+        }
+        aggregate: {
+          args: Prisma.AssistantMemoryAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAssistantMemory>
+        }
+        groupBy: {
+          args: Prisma.AssistantMemoryGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantMemoryGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AssistantMemoryCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AssistantMemoryCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -4685,6 +4760,22 @@ export const ContextCardScalarFieldEnum = {
 export type ContextCardScalarFieldEnum = (typeof ContextCardScalarFieldEnum)[keyof typeof ContextCardScalarFieldEnum]
 
 
+export const AssistantMemoryScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  scope: 'scope',
+  kind: 'kind',
+  text: 'text',
+  conversationId: 'conversationId',
+  messageId: 'messageId',
+  lastUsedAt: 'lastUsedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssistantMemoryScalarFieldEnum = (typeof AssistantMemoryScalarFieldEnum)[keyof typeof AssistantMemoryScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -5053,6 +5144,34 @@ export type EnumContextCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType
 export type ListEnumContextCardStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ContextCardStatus[]'>
     
 
+
+/**
+ * Reference to a field of type 'AssistantMemoryScope'
+ */
+export type EnumAssistantMemoryScopeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantMemoryScope'>
+    
+
+
+/**
+ * Reference to a field of type 'AssistantMemoryScope[]'
+ */
+export type ListEnumAssistantMemoryScopeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantMemoryScope[]'>
+    
+
+
+/**
+ * Reference to a field of type 'AssistantMemoryKind'
+ */
+export type EnumAssistantMemoryKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantMemoryKind'>
+    
+
+
+/**
+ * Reference to a field of type 'AssistantMemoryKind[]'
+ */
+export type ListEnumAssistantMemoryKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantMemoryKind[]'>
+    
+
 /**
  * Batch Payload for updateMany & deleteMany & createMany
  */
@@ -5193,6 +5312,7 @@ export type GlobalOmitConfig = {
   civitaiLoraMirror?: Prisma.CivitaiLoraMirrorOmit
   civitaiMirrorSyncState?: Prisma.CivitaiMirrorSyncStateOmit
   contextCard?: Prisma.ContextCardOmit
+  assistantMemory?: Prisma.AssistantMemoryOmit
 }
 
 /* Types for Logging */

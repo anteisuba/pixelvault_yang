@@ -95,7 +95,8 @@ export const ModelName = {
   CivitaiSearchSnapshot: 'CivitaiSearchSnapshot',
   CivitaiLoraMirror: 'CivitaiLoraMirror',
   CivitaiMirrorSyncState: 'CivitaiMirrorSyncState',
-  ContextCard: 'ContextCard'
+  ContextCard: 'ContextCard',
+  AssistantMemory: 'AssistantMemory'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -980,6 +981,22 @@ export const ContextCardScalarFieldEnum = {
 } as const
 
 export type ContextCardScalarFieldEnum = (typeof ContextCardScalarFieldEnum)[keyof typeof ContextCardScalarFieldEnum]
+
+
+export const AssistantMemoryScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  scope: 'scope',
+  kind: 'kind',
+  text: 'text',
+  conversationId: 'conversationId',
+  messageId: 'messageId',
+  lastUsedAt: 'lastUsedAt',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type AssistantMemoryScalarFieldEnum = (typeof AssistantMemoryScalarFieldEnum)[keyof typeof AssistantMemoryScalarFieldEnum]
 
 
 export const SortOrder = {

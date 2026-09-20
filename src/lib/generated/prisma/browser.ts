@@ -307,3 +307,8 @@ export type CivitaiMirrorSyncState = Prisma.CivitaiMirrorSyncStateModel
  * ⛔ 同理不复用 `StyleCard` / `BackgroundCard`：它们是同一套生成侧卡片体系。
  */
 export type ContextCard = Prisma.ContextCardModel
+/**
+ * Model AssistantMemory
+ * 
+ */
+export type AssistantMemory = Prisma.AssistantMemoryModel

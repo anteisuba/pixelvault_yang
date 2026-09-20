@@ -105,7 +105,7 @@ import {
   setOperatorStepCheckpoint,
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
-import { collectStepArtifacts } from '@/lib/studio-operator-memory'
+import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
 import { captureVideoEndpointFrames } from '@/lib/video-frame-capture'
 import { streamAssistantOperatorAPI } from '@/lib/api-client/assistant-operator'
 /** ⚠ Hard Rule 3：写库走 api-client，⛔ 组件与 hook 里不 `fetch`。 */

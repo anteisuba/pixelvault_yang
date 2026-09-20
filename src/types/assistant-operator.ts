@@ -1221,6 +1221,21 @@ export const AssistantOperatorRoundSummarySchema = z.object({
     .array(AssistantOperatorPinnedEvidenceSchema)
     .max(ROUND_LIMITS.maxPinnedPerRound)
     .optional(),
+  /**
+   * **这一轮真的记下了几件事**（56a · 回执那一行）。
+   *
+   * ⭐ 它是回执上那个 N 的唯一来源：结论记录的三栏是「这一轮发生了什么」，
+   * 而用户点那一行是去**记忆列表**，两个数不是同一件事。缺席（老记录 /
+   * 一条记忆都没写）时回执退回按三栏条目数数 —— 那是 56a 之前的口径。
+   * ⚠ 敏感类目命中的候选**不进这个数**：回执里不许出现「有 N 条被跳过」。
+   */
+  memoriesWritten: z.number().int().nonnegative().optional(),
+  /**
+   * **这一轮开着隐身**（56a）—— 结账照常算、照常下发，只是一条记忆都没写。
+   * 回执行因此改说「这一轮没有记」。⚠ 落在记录上而不是只看当前开关：用户过一会
+   * 把隐身关掉，历史里那一轮仍然是没记的那一轮。
+   */
+  incognito: z.boolean().optional(),
 })
 
 export type AssistantOperatorRoundSummary = z.infer<
@@ -1240,6 +1255,24 @@ export const AssistantOperatorRoundSummaryDraftSchema = z.object({
   facts: z.array(z.string()),
   decisions: z.array(z.string()),
   todos: z.array(z.string()),
+  /**
+   * **这一轮值得长期记住的那几行**（56a）—— 与三栏搭同一次往返。
+   *
+   * ⭐ 不另开一次 LLM 调用：结账已经在读这一轮的全部原料，再问一遍等于为同一份
+   * 材料付两次钱。
+   * ⚠ 每一条宽松地收（`text` 不在这里限长）：收窄与敏感闸都在服务端
+   * （`recordAssistantMemories`），schema 拒的代价是整条结论记录一起作废。
+   * ⚠ 缺席 = 这一轮没什么值得记的 —— 那是常态，⛔ 别写成必填逼模型凑数。
+   */
+  memories: z
+    .array(
+      z.object({
+        kind: z.string(),
+        text: z.string(),
+        scope: z.string().optional(),
+      }),
+    )
+    .optional(),
 })
 
 export type AssistantOperatorRoundSummaryDraft = z.infer<
@@ -1440,6 +1473,16 @@ export const AssistantOperatorRequestSchema = z.object({
    * 下发，只是不落库。⛔ 别因此把它做成必填 —— 那会让第一轮直接 400。
    */
   conversationId: z.string().uuid().optional(),
+  /**
+   * **这一轮开着隐身**（56a · ⋯ 菜单那颗开关）—— 开着时这一轮**一条记忆都不写**。
+   *
+   * ⚠ 它作用于**当前会话**而不是账号：用户为一件事临时不想被记，不该变成他此后
+   * 每一轮的设置。所以它住在客户端的会话态里、每轮上送，⛔ 服务端不落库。
+   * ⚠ 缺席 = 没开（老客户端也走这一档）：⛔ 别做成必填。
+   * ⚠ 它**只关掉写入**：结论记录照常算、照常随 `done` 下发 —— 隐身的意思是
+   *   「别记进我的长期记忆」，不是「这一轮别工作」。
+   */
+  incognito: z.boolean().optional(),
   snapshot: AssistantOperatorSnapshotSchema,
   priorSteps: z
     .array(AssistantOperatorPriorStepSchema)

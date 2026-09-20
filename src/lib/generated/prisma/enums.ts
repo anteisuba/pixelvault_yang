@@ -168,3 +168,23 @@ export const VideoScriptSceneStatus = {
 } as const
 
 export type VideoScriptSceneStatus = (typeof VideoScriptSceneStatus)[keyof typeof VideoScriptSceneStatus]
+
+
+export const AssistantMemoryScope = {
+  IMAGE: 'IMAGE',
+  VIDEO: 'VIDEO',
+  CANVAS: 'CANVAS',
+  LORA: 'LORA',
+  GLOBAL: 'GLOBAL'
+} as const
+
+export type AssistantMemoryScope = (typeof AssistantMemoryScope)[keyof typeof AssistantMemoryScope]
+
+
+export const AssistantMemoryKind = {
+  PREFERENCE: 'PREFERENCE',
+  FACT: 'FACT',
+  RULE: 'RULE'
+} as const
+
+export type AssistantMemoryKind = (typeof AssistantMemoryKind)[keyof typeof AssistantMemoryKind]

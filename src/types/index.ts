@@ -53,7 +53,12 @@ import {
   LORA_METADATA_COMPLETENESS_VALUES,
 } from '@/constants/lora-candidate'
 import { AI_ADAPTER_TYPES, type ProviderConfig } from '@/constants/providers'
-import { VOLCENGINE_SEEDREAM_MAX_LAYERS } from '@/constants/provider-capabilities'
+import {
+  NOVELAI_QUALITY_TOGGLE_OPTIONS,
+  NOVELAI_TEXT_RENDERING_MAX_CHARS,
+  NOVELAI_UC_PRESET_OPTIONS,
+  VOLCENGINE_SEEDREAM_MAX_LAYERS,
+} from '@/constants/provider-capabilities'
 import { ASSISTANT_MEDIA_LIMITS } from '@/constants/assistant'
 import { GENERATION_CANCEL_MAX_BATCH } from '@/constants/generation-cancel'
 import { AssistantMediaReferenceSchema } from '@/types/assistant-media'
@@ -281,6 +286,22 @@ export const AdvancedParamsSchema = z.object({
    */
   layerDecomposition: z.boolean().optional(),
   style: z.string().optional(),
+  /**
+   * NovelAI 质量标签档（V5）。官方把它实现成追加到提示词末尾的标签串，不是
+   * API 字段 —— 拼接发生在 worker（见 workers/execution/src/index.ts）。
+   * https://docs.novelai.net/en/image/qualitytags/
+   */
+  qualityToggle: z.enum(NOVELAI_QUALITY_TOGGLE_OPTIONS).optional(),
+  /**
+   * NovelAI Undesired Content 预设（五档）。
+   * https://docs.novelai.net/en/image/undesiredcontent/
+   */
+  ucPreset: z.enum(NOVELAI_UC_PRESET_OPTIONS).optional(),
+  /**
+   * NovelAI `Text:` 文字渲染（V5，EN/JA/ZH）。worker 把它拼到 prompt **最末**。
+   * https://docs.novelai.net/en/image/textrendering/
+   */
+  textRendering: z.string().max(NOVELAI_TEXT_RENDERING_MAX_CHARS).optional(),
   /** LoRA models to apply (up to 5, FAL/Replicate only) */
   loras: z.array(LoraSchema).max(5).optional(),
   /** v2 runner：R2 缓存后的 LoRA 规格（服务端 prepareRunnerLoras 注入，不由客户端填）。 */

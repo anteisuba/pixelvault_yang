@@ -23,7 +23,7 @@ import type { AdvancedParams } from '@/types'
  *   不是专属行；owner 2026-08-22 也定过「图片工作台 seed 不介入」。
  * - `lora` —— LoRA 装配只在 LoRA 工作台（批注 38），工作台不给第二个入口。
  */
-export type CapabilityChipKind = 'select' | 'slider' | 'toggle'
+export type CapabilityChipKind = 'select' | 'slider' | 'toggle' | 'text'
 
 export interface CapabilityChip {
   readonly capability: ProviderCapability
@@ -32,13 +32,15 @@ export interface CapabilityChip {
   readonly options?: readonly string[]
   /** `slider` 的取值域；其余形态为 undefined。 */
   readonly range?: NumericRange
+  /** `text` 的字数上限；其余形态为 undefined。 */
+  readonly maxLength?: number
   /** 缺省值 —— chip 处在它上面时是「默认态」（白底描边），不是「选中」。 */
   readonly defaultValue: string | number | boolean
   /** 需要先挂参考图才成立（referenceStrength）：没挂时 chip 走 muted 灰底。 */
   readonly requiresReferenceImage: boolean
 }
 
-const CHIP_KINDS: readonly string[] = ['select', 'slider', 'toggle']
+const CHIP_KINDS: readonly string[] = ['select', 'slider', 'toggle', 'text']
 
 function isChipKind(kind: string | null): kind is CapabilityChipKind {
   return kind !== null && CHIP_KINDS.includes(kind)
@@ -51,6 +53,19 @@ const SELECT_OPTION_KEYS: Partial<
   inputFidelity: 'inputFidelityOptions',
   background: 'backgroundOptions',
   style: 'styleOptions',
+  qualityToggle: 'qualityToggleOptions',
+  ucPreset: 'ucPresetOptions',
+}
+
+/**
+ * 文本型能力 → 它的字数上限住在能力表的哪个键。没有上限的能力**不画** ——
+ * 与 select 缺候选同理：一颗点开随便填、发出去被 provider 打回的 chip 比
+ * 不画更糟。
+ */
+const TEXT_MAX_LENGTH_KEYS: Partial<
+  Record<ProviderCapability, keyof CapabilityConfig>
+> = {
+  textRendering: 'textRenderingMaxChars',
 }
 
 /**
@@ -154,6 +169,21 @@ export function getModelCapabilityChips(
       continue
     }
 
+    if (kind === 'text') {
+      const key = TEXT_MAX_LENGTH_KEYS[capability]
+      const maxLength = key ? (config[key] as number | undefined) : undefined
+      if (!maxLength) continue
+      chips.push({
+        capability,
+        kind,
+        maxLength,
+        // 缺省是空串 = 不发这个字段。
+        defaultValue: '',
+        requiresReferenceImage: isReferenceDependent(config, capability),
+      })
+      continue
+    }
+
     // toggle：缺省一律 false（不设 = 不发这个字段）。前置依旧逐模型判——
     // `layerDecomposition` 要一张待拆分图，`preview` 不要。
     chips.push({
@@ -210,6 +240,7 @@ export function pruneIncompatibleCapabilityValues(
 
   for (const capability of Object.keys(SELECT_OPTION_KEYS).concat(
     Object.keys(SLIDER_RANGE_KEYS),
+    Object.keys(TEXT_MAX_LENGTH_KEYS),
     TOGGLE_CAPABILITIES,
   ) as ProviderCapability[]) {
     const key = capability as keyof AdvancedParams
@@ -225,7 +256,10 @@ export function pruneIncompatibleCapabilityValues(
             !!chip.range &&
             current >= chip.range.min &&
             current <= chip.range.max
-          : typeof current === 'boolean'
+          : chip.kind === 'text'
+            ? typeof current === 'string' &&
+              current.length <= (chip.maxLength ?? 0)
+            : typeof current === 'boolean'
       : false
 
     if (compatible) continue

@@ -7,7 +7,12 @@ import { describe, expect, it } from 'vitest'
 import { ASSISTANT_MEMORY_FILTER_SCOPES } from '@/constants/assistant-memory'
 import { ASSISTANT_OPERATOR_REJECT_REASON_IDS } from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAINS } from '@/constants/assistant-protocol'
-import { AI_MODELS, MODEL_MESSAGE_KEYS } from '@/constants/models'
+import {
+  AI_MODELS,
+  MODEL_OPTIONS,
+  MODEL_MESSAGE_KEYS,
+} from '@/constants/models'
+import { getModelCapabilityChips } from '@/lib/model-capability-chips'
 import {
   STUDIO_OPERATOR_FACE_PILLS,
   STUDIO_OPERATOR_FIELD_IDS,
@@ -26,6 +31,35 @@ it('translates every video mode rendered by the Studio toggle in all locales', (
       expect(keys, `${locale}: ${mode}`).toContain(
         `StudioNode.videoComposer.sidecar.mode.${mode}`,
       )
+    }
+  }
+})
+
+/**
+ * 专属 chip 行的键是**派生**出来的（`capability.${cap}` / `${cap}Hint` /
+ * `${cap}Option.${option}` / 文本档的 `${cap}Placeholder`），源码扫描看不见它们。
+ * 能力表里加一颗 chip 而漏掉三语文案时，这条在 CI 里先死。
+ */
+it('translates every derived model capability chip in all locales', () => {
+  const needed = new Set<string>()
+  for (const model of MODEL_OPTIONS) {
+    for (const chip of getModelCapabilityChips(model.adapterType, model.id)) {
+      needed.add(`StudioCapabilityChips.capability.${chip.capability}`)
+      needed.add(`AdvancedSettings.${chip.capability}Hint`)
+      if (chip.kind === 'text') {
+        needed.add(`AdvancedSettings.${chip.capability}Placeholder`)
+      }
+      for (const option of chip.options ?? []) {
+        needed.add(`AdvancedSettings.${chip.capability}Option.${option}`)
+      }
+    }
+  }
+  expect(needed.size).toBeGreaterThan(0)
+
+  for (const locale of LOCALES) {
+    const keys = new Set(collectKeys(loadMessages(locale)))
+    for (const key of needed) {
+      expect(keys, `${locale}: ${key}`).toContain(key)
     }
   }
 })

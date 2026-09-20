@@ -469,6 +469,49 @@ export async function resolveImageRouteAndValidate(
       )
     }
   }
+  // NovelAI 专属三颗控件的服务端闸。⚠ 这一段**不按 adapter 分支**：质量标签与
+  // `Text:` 是逐模型声明的（只有 V5 两档有），所以判据只能是「能力表里这个模型
+  // 声明了没有」。旧客户端把这几个键发给别的模型时必须在这里 400，⛔ 不静默丢弃
+  // —— 静默丢弃会让用户拿到一张完全不带他要的文字的图却以为设置生效了。
+  {
+    const naiConfig = getCapabilityConfig(
+      resolvedRoute.adapterType,
+      effectiveModelId,
+    )
+    const declared = new Set(naiConfig.capabilities)
+    for (const [field, options] of [
+      ['qualityToggle', naiConfig.qualityToggleOptions],
+      ['ucPreset', naiConfig.ucPresetOptions],
+    ] as const) {
+      const value = input.advancedParams?.[field]
+      if (value === undefined) continue
+      if (!declared.has(field) || !options?.includes(value)) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          `Unsupported ${field} for the selected model`,
+          400,
+        )
+      }
+    }
+    const textRendering = input.advancedParams?.textRendering
+    if (textRendering) {
+      const maxChars = naiConfig.textRenderingMaxChars
+      if (!declared.has('textRendering') || !maxChars) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          'Unsupported textRendering for the selected model',
+          400,
+        )
+      }
+      if (textRendering.length > maxChars) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          `Text rendering is limited to ${maxChars} characters`,
+          400,
+        )
+      }
+    }
+  }
   if (builtInModel?.requiresReferenceImage && !hasReferenceImage) {
     throw new GenerateImageServiceError(
       'VALIDATION_ERROR',

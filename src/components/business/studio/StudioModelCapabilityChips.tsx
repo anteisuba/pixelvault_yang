@@ -13,6 +13,7 @@ import { getTranslatedModelLabel } from '@/lib/model-options'
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import type { AdvancedParams } from '@/types'
+import { Input } from '@/components/ui/input'
 import { OptionGroup } from '@/components/ui/option-group'
 import { ParamSlider } from '@/components/ui/param-slider'
 import {
@@ -136,7 +137,10 @@ function CapabilityChipControl({
         ? chip.capability === 'referenceStrength'
           ? `${Math.round(Number(value) * 100)}%`
           : String(value)
-        : null
+        : chip.kind === 'text'
+          ? // 文本档不把整串塞进 chip —— 只报「填了多少字」，正文在弹层里读。
+            t('textFilled', { count: String(value).length })
+          : null
   const chipText = isSet && valueLabel ? `${label} · ${valueLabel}` : label
 
   const className = cn(
@@ -202,6 +206,28 @@ function CapabilityChipControl({
               }
               disabled={disabled}
             />
+          </div>
+        ) : null}
+        {chip.kind === 'text' && chip.maxLength ? (
+          <div className="flex flex-col gap-2">
+            <span className="text-2xs text-muted-foreground">
+              {tAdvanced(`${chip.capability}Hint`)}
+            </span>
+            <Input
+              value={String(value)}
+              maxLength={chip.maxLength}
+              disabled={disabled}
+              aria-label={label}
+              placeholder={tAdvanced(`${chip.capability}Placeholder`)}
+              onChange={(event) =>
+                update({
+                  [chip.capability]: event.target.value,
+                } as AdvancedParams)
+              }
+            />
+            <span className="text-2xs text-muted-foreground/70">
+              {String(value).length} / {chip.maxLength}
+            </span>
           </div>
         ) : null}
         {chip.kind === 'slider' && chip.range ? (

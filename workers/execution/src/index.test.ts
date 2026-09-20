@@ -979,6 +979,71 @@ describe('generateNovelAiImage', () => {
     ).rejects.toThrow()
   })
 
+  // 进度表 26 切片 1。三颗控件的字段对照都来自官方文档：质量标签与 UC 预设是
+  // **标签串**（不是 API 字段），`Text:` 落在 prompt 最末。
+  it('appends the V5 quality tag string and keeps Text: last', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V5_FULL)
+    context.providerInput.advancedParams = {
+      qualityToggle: 'standard',
+      textRendering: 'Hello world',
+    }
+
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+    ) as { input: string; parameters: Record<string, unknown> }
+    const expected =
+      'masterpiece, best quality, 1girl, blue hair, very aesthetic, masterpiece, no text, Text: Hello world'
+    expect(body.parameters.prompt).toBe(expected)
+    expect(body.input).toBe(expected)
+    expect(
+      (
+        body.parameters.v4_prompt as {
+          caption: { base_caption: string }
+        }
+      ).caption.base_caption,
+    ).toBe(expected)
+    // 质量标签不是 API 字段 —— payload 里那颗布尔保持关闭。
+    expect(body.parameters.qualityToggle).toBe(false)
+  })
+
+  it('leaves the prompt untouched on the default quality tag option', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V5_FULL)
+    context.providerInput.advancedParams = { qualityToggle: 'off' }
+
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+    ) as { parameters: Record<string, unknown> }
+    expect(body.parameters.prompt).toBe(
+      'masterpiece, best quality, 1girl, blue hair',
+    )
+  })
+
+  it('prefixes the UC preset tags before the user negative prompt', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V5_FULL)
+    context.providerInput.advancedParams = {
+      ucPreset: 'light',
+      negativePrompt: 'hat',
+    }
+
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0]?.[1] as { body: string }).body),
+    ) as { parameters: Record<string, unknown> }
+    expect(body.parameters.negative_prompt).toBe(
+      'lowres, bad hands, bad anatomy, artistic error, sepia, white haze, worst quality, very displeasing, jpeg artifacts, 0::ai-generated::, hat',
+    )
+    // 数字档没有官方口径，保持原样（V4/V5 的 None）。
+    expect(body.parameters.ucPreset).toBe(4)
+  })
+
   it('extracts the image from a deflate-compressed, streamed-size ZIP (real NovelAI shape)', async () => {
     // Regression test: NovelAI's actual response is deflate-compressed
     // (method 8) with the local header's sizes zeroed (general-purpose bit

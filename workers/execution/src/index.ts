@@ -6846,6 +6846,65 @@ async function extractNovelAiZipImage(
   )
 }
 
+/**
+ * NovelAI 质量标签。⚠ 官方 2026-09-20 核实：**不是 API 字段**，而是追加在提示词
+ * 末尾的标签串，V5 Full 与 Curated 用同一串。所以这里做字符串拼接，payload 里
+ * 的 `qualityToggle` 保持 false（前端自己拼 = NAI 网页端的做法）。
+ * https://docs.novelai.net/en/image/qualitytags/
+ */
+const NOVELAI_QUALITY_TAG_SUFFIXES: Record<string, string> = {
+  light: ', very aesthetic, amazing quality, no text',
+  standard: ', very aesthetic, masterpiece, no text',
+}
+
+/**
+ * NovelAI Undesired Content 预设。同样是标签串而不是数字档 —— payload 里那个
+ * `ucPreset` 数字在 V3 / V4.5 / V5 之间的含义**没有官方口径**（社区 SDK 之间
+ * 互相矛盾），⛔ 不猜：数字原样保持在各自的 None 值上，预设内容作为**前缀**
+ * 拼进 UC，用户自己写的负面提示词跟在后面。
+ * https://docs.novelai.net/en/image/undesiredcontent/
+ */
+const NOVELAI_UC_PRESET_TAGS: Record<string, string> = {
+  heavy:
+    'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page',
+  light:
+    'lowres, bad hands, bad anatomy, artistic error, sepia, white haze, worst quality, very displeasing, jpeg artifacts, 0::ai-generated::',
+  furry:
+    '{worst quality}, distracting watermark, unfinished, bad quality, {widescreen}, upscale, {sequence}, {{grandfathered content}}, blurred foreground, chromatic aberration, sketch, everyone, [sketch background], simple, [flat colors], ych (character), outline, multiple scenes, [[horror (theme)]], comic',
+  human:
+    'lowres, artistic error, film grain, scan artifacts, worst quality, bad quality, jpeg artifacts, very displeasing, chromatic aberration, dithering, halftone, screentone, multiple views, logo, too many watermarks, negative space, blank page, @_@, mismatched pupils, glowing eyes, bad anatomy',
+}
+
+/**
+ * 组装最终提示词：正文 → 质量标签 → `Text:`。⚠ `Text:` 必须落在**最末**
+ * （官方 textrendering 页），所以质量标签先拼。
+ * https://docs.novelai.net/en/image/textrendering/
+ */
+export function composeNovelAiPrompt(
+  prompt: string,
+  qualityToggle: string | null | undefined,
+  textRendering: string | null | undefined,
+): string {
+  let composed = prompt
+  const suffix = qualityToggle
+    ? NOVELAI_QUALITY_TAG_SUFFIXES[qualityToggle]
+    : undefined
+  if (suffix) composed += suffix
+  const text = textRendering?.trim()
+  if (text) composed += `${composed ? ', ' : ''}Text: ${text}`
+  return composed
+}
+
+/** UC 预设前缀 + 用户自己的负面提示词。 */
+export function composeNovelAiUndesiredContent(
+  negative: string,
+  ucPreset: string | null | undefined,
+): string {
+  const preset = ucPreset ? NOVELAI_UC_PRESET_TAGS[ucPreset] : undefined
+  if (!preset) return negative
+  return negative ? `${preset}, ${negative}` : preset
+}
+
 export async function generateNovelAiImage(
   env: ExecutionEnv,
   context: WorkerImageRunContext,
@@ -6865,9 +6924,16 @@ export async function generateNovelAiImage(
   const externalModelId = context.providerInput.externalModelId
   const referenceImage = referenceImages[0]
   const isImg2Img = Boolean(referenceImage)
-  const negative =
+  const negative = composeNovelAiUndesiredContent(
     readStringField(advancedParams, 'negativePrompt') ??
-    'lowres, bad anatomy, bad hands, missing fingers, extra digit'
+      'lowres, bad anatomy, bad hands, missing fingers, extra digit',
+    readStringField(advancedParams, 'ucPreset'),
+  )
+  const composedPrompt = composeNovelAiPrompt(
+    context.providerInput.prompt,
+    readStringField(advancedParams, 'qualityToggle'),
+    readStringField(advancedParams, 'textRendering'),
+  )
   const configuredSeed = readNumberField(advancedParams, 'seed')
   const seed =
     configuredSeed != null && configuredSeed >= 0
@@ -6917,7 +6983,7 @@ export async function generateNovelAiImage(
     use_coords: useCoords,
     characterPrompts,
     negative_prompt: negative,
-    prompt: context.providerInput.prompt,
+    prompt: composedPrompt,
     reference_image_multiple: [],
     reference_information_extracted_multiple: [],
     reference_strength_multiple: [],
@@ -6938,7 +7004,7 @@ export async function generateNovelAiImage(
   if (useStructuredPrompt) {
     parameters.v4_prompt = {
       caption: {
-        base_caption: context.providerInput.prompt,
+        base_caption: composedPrompt,
         char_captions: characterPrompts.map((character) => ({
           char_caption: character.prompt,
           centers: [character.center],
@@ -6966,7 +7032,7 @@ export async function generateNovelAiImage(
       'Content-Type': JSON_CONTENT_TYPE,
     },
     body: JSON.stringify({
-      input: context.providerInput.prompt,
+      input: composedPrompt,
       model: externalModelId,
       action: isImg2Img ? 'img2img' : 'generate',
       parameters,

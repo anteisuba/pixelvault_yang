@@ -3272,7 +3272,26 @@
     "loraUrlPlaceholder": "https://civitai.com/api/download/models/... 或 HuggingFace 链接",
     "loraScale": "权重",
     "noConfigurable": "该模型没有可配置的高级设置",
-    "technicalParams": "技术参数"
+    "technicalParams": "技术参数",
+    "qualityToggle": "质量标签",
+    "qualityToggleHint": "NovelAI V5 会在提示词末尾追加一串质量标签。Light 比 Standard 更克制。",
+    "qualityToggleOption": {
+      "off": "关闭",
+      "light": "Light",
+      "standard": "Standard"
+    },
+    "ucPreset": "UC 预设",
+    "ucPresetHint": "NovelAI 的 Undesired Content 预设。None 只发送你自己写的负面提示词。",
+    "ucPresetOption": {
+      "none": "无",
+      "heavy": "Heavy",
+      "light": "Light",
+      "furry": "Furry",
+      "human": "Human focus"
+    },
+    "textRendering": "文字",
+    "textRenderingHint": "让 NovelAI V5 画进图里的文字，会以 \"Text: …\" 追加到提示词最末。支持中英日。",
+    "textRenderingPlaceholder": "要画进图里的文字"
   },
   "ReverseEngineer": {
     "title": "图片反向工程",
@@ -7983,8 +8002,12 @@
       "preview": "生成预览",
       "guidanceScale": "CFG",
       "steps": "步数",
-      "referenceStrength": "参考强度"
-    }
+      "referenceStrength": "参考强度",
+      "qualityToggle": "质量标签",
+      "ucPreset": "UC 预设",
+      "textRendering": "文字"
+    },
+    "textFilled": "{count} 字"
   },
   "StudioSpecChip": {
     "chipLabel": "规格",

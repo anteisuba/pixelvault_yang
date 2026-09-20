@@ -3272,7 +3272,26 @@
     "loraUrlPlaceholder": "https://civitai.com/api/download/models/... or Hugging Face URL",
     "loraScale": "Weight",
     "noConfigurable": "This model has no configurable advanced settings",
-    "technicalParams": "Technical parameters"
+    "technicalParams": "Technical parameters",
+    "qualityToggle": "Quality tags",
+    "qualityToggleHint": "NovelAI V5 appends a quality tag string to the end of your prompt. Light is lighter-handed than Standard.",
+    "qualityToggleOption": {
+      "off": "Off",
+      "light": "Light",
+      "standard": "Standard"
+    },
+    "ucPreset": "UC preset",
+    "ucPresetHint": "NovelAI Undesired Content preset. None sends only your own negative prompt.",
+    "ucPresetOption": {
+      "none": "None",
+      "heavy": "Heavy",
+      "light": "Light",
+      "furry": "Furry",
+      "human": "Human focus"
+    },
+    "textRendering": "Text",
+    "textRenderingHint": "Words NovelAI V5 should render in the image. Appended to the very end of the prompt as \"Text: …\". English, Japanese and Chinese are supported.",
+    "textRenderingPlaceholder": "Words to render in the image"
   },
   "ReverseEngineer": {
     "title": "Image to prompt",
@@ -7983,8 +8002,12 @@
       "preview": "Live preview",
       "guidanceScale": "CFG",
       "steps": "Steps",
-      "referenceStrength": "Reference"
-    }
+      "referenceStrength": "Reference",
+      "qualityToggle": "Quality tags",
+      "ucPreset": "UC preset",
+      "textRendering": "Text"
+    },
+    "textFilled": "{count} chars"
   },
   "StudioSpecChip": {
     "chipLabel": "Spec",

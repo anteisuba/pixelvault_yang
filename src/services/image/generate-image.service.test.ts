@@ -493,3 +493,98 @@ describe('resolveImageRouteAndValidate — Seedream layer decomposition', () => 
     )
   })
 })
+
+describe('NovelAI capability gate (slice 26/1)', () => {
+  const NAI_V5_ROUTE = {
+    modelId: AI_MODELS.NOVELAI_V5_FULL,
+    externalModelId: 'nai-diffusion-5-full',
+    adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.NOVELAI),
+    apiKey: 'key',
+    creditCost: 2,
+  }
+  const NAI_V45_ROUTE = {
+    ...NAI_V5_ROUTE,
+    modelId: AI_MODELS.NOVELAI_V45_FULL,
+    externalModelId: 'nai-diffusion-4-5-full',
+  }
+
+  const deps = (route: Record<string, unknown>) => ({
+    ensureUser: vi.fn().mockResolvedValue({ id: 'user-1' }),
+    validatePrompt: vi.fn().mockReturnValue({ valid: true }),
+    resolveGenerationRoute: vi.fn().mockResolvedValue(route),
+    getProviderAdapter: vi.fn().mockReturnValue({}),
+  })
+
+  const run = (
+    modelId: string,
+    route: Record<string, unknown>,
+    advancedParams: Record<string, unknown>,
+  ) =>
+    resolveImageRouteAndValidate(
+      'clerk-1',
+      { modelId, prompt: '1girl', advancedParams } as never,
+      deps(route) as never,
+    )
+
+  it('accepts the three V5 controls on a V5 model', async () => {
+    await expect(
+      run(AI_MODELS.NOVELAI_V5_FULL, NAI_V5_ROUTE, {
+        qualityToggle: 'standard',
+        ucPreset: 'heavy',
+        textRendering: 'hello',
+      }),
+    ).resolves.toMatchObject({ route: NAI_V5_ROUTE })
+  })
+
+  // V4.5 只声明了 UC 预设 —— 另外两颗必须 400，⛔ 不静默丢弃。
+  it.each([
+    ['qualityToggle', { qualityToggle: 'standard' }],
+    ['textRendering', { textRendering: 'hello' }],
+  ])('rejects %s on V4.5', async (field, params) => {
+    await expect(
+      run(AI_MODELS.NOVELAI_V45_FULL, NAI_V45_ROUTE, params),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        code: 'VALIDATION_ERROR',
+        message: `Unsupported ${field} for the selected model`,
+      }),
+    )
+  })
+
+  it('keeps the UC preset available on V4.5', async () => {
+    await expect(
+      run(AI_MODELS.NOVELAI_V45_FULL, NAI_V45_ROUTE, { ucPreset: 'furry' }),
+    ).resolves.toMatchObject({ route: NAI_V45_ROUTE })
+  })
+
+  it('rejects the NovelAI-only keys on a non-NovelAI model', async () => {
+    const falRoute = {
+      modelId: AI_MODELS.FLUX_2_FLASH,
+      externalModelId: 'fal-ai/flux-2/flash',
+      adapterType: AI_ADAPTER_TYPES.FAL,
+      providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.FAL),
+      apiKey: 'key',
+      creditCost: 1,
+    }
+    await expect(
+      run(AI_MODELS.FLUX_2_FLASH, falRoute, { ucPreset: 'heavy' }),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        message: 'Unsupported ucPreset for the selected model',
+      }),
+    )
+  })
+
+  it('rejects a Text value over the 750-char cap', async () => {
+    await expect(
+      run(AI_MODELS.NOVELAI_V5_FULL, NAI_V5_ROUTE, {
+        textRendering: 'x'.repeat(751),
+      }),
+    ).rejects.toThrow(
+      expect.objectContaining({
+        message: 'Text rendering is limited to 750 characters',
+      }),
+    )
+  })
+})

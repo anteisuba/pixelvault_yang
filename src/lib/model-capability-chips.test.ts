@@ -312,3 +312,82 @@ describe('pruneIncompatibleCapabilityValues', () => {
     ).toEqual({})
   })
 })
+
+describe('NovelAI capability chips', () => {
+  // 11 的派生层：模型声明什么字段，chip 行就长什么控件。质量标签与 `Text:` 是
+  // V5 专属（官方 qualitytags / textrendering 两页都只写 V5），V4.5 只该拿到
+  // UC 预设那一颗。
+  it('gives V5 the quality tag, UC preset and Text controls', () => {
+    expect(
+      capabilitiesOf(AI_ADAPTER_TYPES.NOVELAI, AI_MODELS.NOVELAI_V5_FULL),
+    ).toEqual([
+      'guidanceScale',
+      'steps',
+      'referenceStrength',
+      'ucPreset',
+      'qualityToggle',
+      'textRendering',
+    ])
+  })
+
+  it('gives V4.5 only the UC preset', () => {
+    expect(
+      capabilitiesOf(AI_ADAPTER_TYPES.NOVELAI, AI_MODELS.NOVELAI_V45_FULL),
+    ).toEqual(['guidanceScale', 'steps', 'referenceStrength', 'ucPreset'])
+  })
+
+  it.each([
+    ['qualityToggle', 'off'],
+    ['ucPreset', 'none'],
+  ])('defaults %s to the no-op option so the chip idles', (cap, expected) => {
+    const chip = getModelCapabilityChips(
+      AI_ADAPTER_TYPES.NOVELAI,
+      AI_MODELS.NOVELAI_V5_FULL,
+    ).find((entry) => entry.capability === cap)
+    expect(chip?.kind).toBe('select')
+    expect(chip?.options?.[0]).toBe(expected)
+    expect(chip?.defaultValue).toBe(expected)
+    expect(isCapabilityChipSet(chip!, {})).toBe(false)
+  })
+
+  it('derives the Text control as a 750-char text field', () => {
+    const chip = getModelCapabilityChips(
+      AI_ADAPTER_TYPES.NOVELAI,
+      AI_MODELS.NOVELAI_V5_FULL,
+    ).find((entry) => entry.capability === 'textRendering')
+    expect(chip?.kind).toBe('text')
+    expect(chip?.maxLength).toBe(750)
+    expect(chip?.defaultValue).toBe('')
+  })
+
+  it('drops V5-only values when switching to V4.5', () => {
+    expect(
+      pruneIncompatibleCapabilityValues(
+        {
+          qualityToggle: 'standard',
+          textRendering: 'hello',
+          ucPreset: 'heavy',
+        },
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V45_FULL,
+      ),
+    ).toEqual({ ucPreset: 'heavy' })
+  })
+
+  it('drops a Text value longer than the model cap', () => {
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { textRendering: 'x'.repeat(751) },
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V5_FULL,
+      ),
+    ).toEqual({})
+    expect(
+      pruneIncompatibleCapabilityValues(
+        { textRendering: 'x'.repeat(750) },
+        AI_ADAPTER_TYPES.NOVELAI,
+        AI_MODELS.NOVELAI_V5_FULL,
+      ),
+    ).toBeNull()
+  })
+})

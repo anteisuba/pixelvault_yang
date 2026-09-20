@@ -408,14 +408,16 @@ export const AssistantOperatorSnapshotCountSchema = z.object({
 export const AssistantOperatorSnapshotCapabilitySchema = z.object({
   /** 键 = `ProviderCapability`（`quality` / `guidanceScale` / `preview` …）。 */
   key: ParamValueSchema,
-  /** 三种形态，与 `getCapabilityFieldType` 逐字同源。 */
-  kind: z.enum(['select', 'slider', 'toggle']),
+  /** 四种形态，与 `getCapabilityFieldType` 逐字同源。 */
+  kind: z.enum(['select', 'slider', 'toggle', 'text']),
   /** 现值。`null` = 用户没设过（跟着缺省值走）。 */
   value: z.union([z.string(), z.number(), z.boolean()]).nullable(),
   /** 缺省值 —— 撤销回 `null` 之后实际生效的那个。 */
   defaultValue: z.union([z.string(), z.number(), z.boolean()]),
   /** `select` 的候选。⛔ 空表不下发这颗 chip（派生层已经滤过）。 */
   options: z.array(ParamValueSchema).max(LIMITS.maxSpecOptions).optional(),
+  /** `text` 的字数上限（超了规划器就拒，⛔ 不截断）。 */
+  maxLength: z.number().int().positive().optional(),
   /** `slider` 的值域。 */
   range: z
     .object({

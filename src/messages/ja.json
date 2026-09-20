@@ -3272,7 +3272,26 @@
     "loraUrlPlaceholder": "https://civitai.com/api/download/models/... または Hugging Face URL",
     "loraScale": "重み",
     "noConfigurable": "このモデルには設定可能な詳細パラメータがありません",
-    "technicalParams": "テクニカルパラメーター"
+    "technicalParams": "テクニカルパラメーター",
+    "qualityToggle": "品質タグ",
+    "qualityToggleHint": "NovelAI V5 はプロンプトの末尾に品質タグを追加します。Light は Standard より控えめです。",
+    "qualityToggleOption": {
+      "off": "オフ",
+      "light": "Light",
+      "standard": "Standard"
+    },
+    "ucPreset": "UC プリセット",
+    "ucPresetHint": "NovelAI の Undesired Content プリセット。None は入力したネガティブプロンプトだけを送ります。",
+    "ucPresetOption": {
+      "none": "なし",
+      "heavy": "Heavy",
+      "light": "Light",
+      "furry": "Furry",
+      "human": "Human focus"
+    },
+    "textRendering": "テキスト",
+    "textRenderingHint": "NovelAI V5 が画像内に描く文字。プロンプトの最後に \"Text: …\" として追加されます。英語・日本語・中国語に対応。",
+    "textRenderingPlaceholder": "画像内に描く文字"
   },
   "ReverseEngineer": {
     "title": "画像からプロンプト",
@@ -7983,8 +8002,12 @@
       "preview": "途中プレビュー",
       "guidanceScale": "CFG",
       "steps": "ステップ",
-      "referenceStrength": "参照の強さ"
-    }
+      "referenceStrength": "参照の強さ",
+      "qualityToggle": "品質タグ",
+      "ucPreset": "UC プリセット",
+      "textRendering": "テキスト"
+    },
+    "textFilled": "{count} 文字"
   },
   "StudioSpecChip": {
     "chipLabel": "仕様",

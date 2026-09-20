@@ -155,6 +155,7 @@ function buildCapabilitiesNode(
             : null,
         defaultValue: chip.defaultValue,
         ...(chip.options ? { options: [...chip.options] } : {}),
+        ...(chip.maxLength !== undefined ? { maxLength: chip.maxLength } : {}),
         ...(chip.range
           ? {
               range: {

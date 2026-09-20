@@ -4266,6 +4266,19 @@ function planSetCapability(
       )
     }
   }
+  if (chip.kind === 'text') {
+    const maxLength = chip.maxLength ?? 0
+    if (
+      typeof args.value !== 'string' ||
+      args.value.trim().length === 0 ||
+      args.value.length > maxLength
+    ) {
+      return reject(
+        REJECT.unknownValue,
+        `${chip.key} takes a non-empty string of at most ${maxLength} characters.`,
+      )
+    }
+  }
   if (chip.kind === 'slider') {
     const range = chip.range
     if (

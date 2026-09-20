@@ -19,6 +19,9 @@ export type ProviderCapability =
   | 'background'
   | 'layerDecomposition'
   | 'style'
+  | 'qualityToggle'
+  | 'ucPreset'
+  | 'textRendering'
   | 'imageAnalysis'
   | 'lora'
   | 'voiceSelection'
@@ -103,6 +106,42 @@ export const FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX = 3
 export const FAL_KLING_V3_MAX_REFERENCE_IMAGES =
   1 + FAL_KLING_V3_ELEMENT_REFERENCE_IMAGES_MAX
 
+/**
+ * NovelAI 质量标签。⚠ 官方 2026-09-20 核实：这**不是 API 字段**，而是前端追加
+ * 在提示词末尾的一串标签，V5 Full 与 Curated 用同一串：
+ *   Light    → `, very aesthetic, amazing quality, no text`
+ *   Standard → `, very aesthetic, masterpiece, no text`
+ * 所以 `off` 必须排第一 —— chip 停在缺省上就是「一个字都不追加」，与 worker
+ * 此前硬编的 `qualityToggle: false` 逐字等价。
+ * https://docs.novelai.net/en/image/qualitytags/
+ */
+export const NOVELAI_QUALITY_TOGGLE_OPTIONS = [
+  'off',
+  'light',
+  'standard',
+] as const
+
+/**
+ * NovelAI Undesired Content 预设，官方五档。`none` 排第一同样是为了保住现状：
+ * worker 此前硬编 `ucPreset: useStructuredPrompt ? 4 : 3`，两个数在各自的
+ * params_version 下都是 None（不套预设，只发用户自己的 UC）。
+ * https://docs.novelai.net/en/image/undesiredcontent/
+ */
+export const NOVELAI_UC_PRESET_OPTIONS = [
+  'none',
+  'heavy',
+  'light',
+  'furry',
+  'human',
+] as const
+
+/**
+ * `Text:` 文字渲染上限。官方只给了 V5 Full 的 750 字；Curated 的上限文档未写，
+ * 这里同样按 750 收口（宁可先卡住，也不放一个会被 provider 打回的长串）。
+ * https://docs.novelai.net/en/image/textrendering/
+ */
+export const NOVELAI_TEXT_RENDERING_MAX_CHARS = 750
+
 /** Range constraints for numeric parameters */
 export interface NumericRange {
   min: number
@@ -130,6 +169,12 @@ export interface CapabilityConfig {
   resolutionOptions?: readonly string[]
   styleOptions?: readonly string[]
   backgroundOptions?: readonly string[]
+  /** NovelAI 质量标签档位（`off` 为缺省 = 不追加标签）。 */
+  qualityToggleOptions?: readonly string[]
+  /** NovelAI Undesired Content 预设档位（`none` 为缺省）。 */
+  ucPresetOptions?: readonly string[]
+  /** `textRendering` 文本框的字数上限；没有这一项就等于没有这档能力。 */
+  textRenderingMaxChars?: number
   /** Maximum number of LoRAs that can be applied simultaneously */
   maxLoras?: number
   /** Maximum number of reference images supported (default: 1) */
@@ -153,8 +198,12 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
         'steps',
         'seed',
         'referenceStrength',
+        // UC 预设适用于所有 NAI 档（V3 / V4.5 / V5）；质量标签与 Text: 是 V5
+        // 专属，逐模型 override 声明。
+        'ucPreset',
         // NovelAI does not support image analysis (reverse engineering)
       ],
+      ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
       guidanceScale: { min: 1, max: 20, step: 0.5, default: 5 },
       steps: { min: 1, max: 50, step: 1, default: 28 },
       referenceStrength: { min: 0.01, max: 0.99, step: 0.01, default: 0.7 },
@@ -359,13 +408,44 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
 export const MODEL_CAPABILITY_OVERRIDES: Partial<
   Record<string, Partial<CapabilityConfig>>
 > = {
+  // ⚠ 声明 `capabilities` 会**整体替换** adapter 默认（resolveConfig 是浅合并），
+  // 所以这两条要把 adapter 那五项连同 ucPreset 一起重写出来，再加 V5 专属的两项。
+  // 质量标签（V5 的 Light/Standard 两串）与 `Text:` 文字渲染（V5 起支持 EN/JA/ZH）
+  // 都只在 V5 成立，⛔ 不能上移到 adapter 默认——那样 V4.5 / V3 会长出两颗按官方
+  // 文档并不适用于它们的 chip。
   [AI_MODELS.NOVELAI_V5_FULL]: {
     guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
     steps: { min: 1, max: 50, step: 1, default: 23 },
+    capabilities: [
+      'negativePrompt',
+      'guidanceScale',
+      'steps',
+      'seed',
+      'referenceStrength',
+      'ucPreset',
+      'qualityToggle',
+      'textRendering',
+    ] as const,
+    ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
+    qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
+    textRenderingMaxChars: NOVELAI_TEXT_RENDERING_MAX_CHARS,
   },
   [AI_MODELS.NOVELAI_V5_CURATED]: {
     guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
     steps: { min: 1, max: 50, step: 1, default: 23 },
+    capabilities: [
+      'negativePrompt',
+      'guidanceScale',
+      'steps',
+      'seed',
+      'referenceStrength',
+      'ucPreset',
+      'qualityToggle',
+      'textRendering',
+    ] as const,
+    ucPresetOptions: NOVELAI_UC_PRESET_OPTIONS,
+    qualityToggleOptions: NOVELAI_QUALITY_TOGGLE_OPTIONS,
+    textRenderingMaxChars: NOVELAI_TEXT_RENDERING_MAX_CHARS,
   },
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: {
     maxReferenceImages: OPENAI_GPT_IMAGE_MAX_REFERENCE_IMAGES,
@@ -641,6 +721,7 @@ export type CapabilityFieldType =
   | 'slider'
   | 'select'
   | 'toggle'
+  | 'text'
   | 'textarea'
   | 'seed'
   | 'lora'
@@ -658,6 +739,11 @@ export function getCapabilityFieldType(
     quality: 'select',
     inputFidelity: 'select',
     background: 'select',
+    qualityToggle: 'select',
+    ucPreset: 'select',
+    // 单行文本 —— 与 negativePrompt 的 `textarea` 不同档：那条住在通用参数栏的
+    // 折叠行里，这条是专属 chip 行上的一颗。
+    textRendering: 'text',
     layerDecomposition: 'toggle',
     style: 'select',
     preview: 'toggle',

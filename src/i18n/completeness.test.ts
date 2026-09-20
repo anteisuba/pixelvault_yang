@@ -5,7 +5,10 @@ import ts from 'typescript'
 import { describe, expect, it } from 'vitest'
 
 import { ASSISTANT_MEMORY_FILTER_SCOPES } from '@/constants/assistant-memory'
-import { ASSISTANT_OPERATOR_REJECT_REASON_IDS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS,
+  ASSISTANT_OPERATOR_REJECT_REASON_IDS,
+} from '@/constants/assistant-operator'
 import { ASSISTANT_PROTOCOL_DOMAINS } from '@/constants/assistant-protocol'
 import {
   AI_MODELS,
@@ -596,6 +599,16 @@ describe('i18n completeness', () => {
       label: 'StudioOperator.system',
       prefix: 'StudioOperator.system',
       values: [...STUDIO_OPERATOR_SYSTEM_CODES] as string[],
+    },
+    /**
+     * 错误条第一段那句人话（owner 2026-09-20 真机第 1 条）—— 词表键是按
+     * `errorCode` **动态**取的（`tError(key)`），源码扫描看不见。漏一条的表现是
+     * 红条上印一个原样的 `StudioOperator.error.xxx`。
+     */
+    {
+      label: 'StudioOperator.error',
+      prefix: 'StudioOperator.error',
+      values: Object.values(ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS),
     },
     /**
      * 记忆总览那排筛选 chip（56a）—— 词表加一档而三语没跟上时，chip 上会印一个

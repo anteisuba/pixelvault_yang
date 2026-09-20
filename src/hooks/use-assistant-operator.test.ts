@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
   ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
@@ -569,6 +570,53 @@ describe('useAssistantOperator 的四条收尾路径', () => {
     await settle()
 
     expect(store.getOperatorState().errorText).toBe('i18n:failed')
+  })
+
+  /**
+   * **owner 2026-09-20 真机第 1 条**：说不出分类的那一族带一个短码下来，
+   * 错误条第二、三段读的就是它。⚠ 与第一段（那句人话）分开存 ——
+   * 合成一个字符串的下场是「复制详情」只能把翻译过的那句话再抄一遍。
+   */
+  it('d‴) INTERNAL 那一档：人话走词表，traceId / detail 单独落进 store', async () => {
+    const { result } = render()
+
+    act(() => {
+      result.current.send('画一张海报')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.error,
+      error: 'The assistant operator run failed midway.',
+      errorCode: ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
+      traceId: 'a1b2c3d4',
+      detail: "Cannot read properties of undefined (reading 'findMany')",
+    })
+    await settle()
+
+    expect(store.getOperatorState().errorText).toBe('i18n:internal')
+    expect(store.getOperatorState().errorTrace).toEqual({
+      traceId: 'a1b2c3d4',
+      detail: "Cannot read properties of undefined (reading 'findMany')",
+    })
+  })
+
+  it('⛔ 没有 traceId 的那一族不留诊断段', async () => {
+    const { result } = render()
+
+    act(() => {
+      result.current.send('画一张海报')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.error,
+      error: 'bad key',
+      errorCode: 'invalid_api_key',
+    })
+    await settle()
+
+    expect(store.getOperatorState().errorTrace).toBeNull()
   })
 })
 

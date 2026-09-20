@@ -14,9 +14,17 @@
  * 只把流关掉不管生成器 —— 那才是「悬空 promise」的来源。
  */
 
+import { randomBytes } from 'node:crypto'
+
 import { ASSISTANT_STREAM_CONTENT_TYPE } from '@/constants/assistant-stream'
-import { ASSISTANT_OPERATOR_EVENTS } from '@/constants/assistant-operator'
-import type { AssistantOperatorEvent } from '@/types/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
+} from '@/constants/assistant-operator'
+import type {
+  AssistantOperatorErrorEvent,
+  AssistantOperatorEvent,
+} from '@/types/assistant-operator'
 import { isGenerationError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { encodeSseEvent } from '@/lib/sse'
@@ -25,14 +33,42 @@ const ENCODER = new TextEncoder()
 
 export const ASSISTANT_OPERATOR_FALLBACK_ERROR = {
   error: 'The assistant operator run failed midway.',
-  errorCode: 'ASSISTANT_OPERATOR_FAILED',
+  errorCode: ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
 } as const
 
-function toErrorEvent(error: unknown): AssistantOperatorEvent {
+/**
+ * 一次失败的**短码**（8 位十六进制）。用户屏幕上印一份、服务端日志里存一份，
+ * 两边靠它对上 —— 这就是它存在的全部理由。
+ *
+ * ⚠ 短到 8 位是故意的：它是用来**念给我们听**的（截图 / 口述 / 粘一行），
+ * ⛔ 不是全局唯一键，不进库、不做索引。
+ */
+function newTraceId(): string {
+  return randomBytes(4).toString('hex')
+}
+
+/**
+ * 异常 → 错误帧。
+ *
+ * ⭐ **非 `GenerationError` 不再只回一句兜底**（owner 2026-09-20 真机第 1 条，
+ * 原话「我甚至不知道为什么出错」）：那一档现在带一个 `traceId`，非生产环境再带
+ * 上原始 `message`。人话由**客户端**按 `errorCode` 取三语文案（服务端不知道用户
+ * 的界面语言，也不该知道 —— 见 `use-assistant-operator.ts` 那张码表的头注）。
+ *
+ * ⛔ 生产环境**不下发 stack，也不下发原始 message**：栈里有路径与内部结构，
+ * 它属于日志。用户手上有 `traceId` 就够我们在日志里把同一次失败捞出来。
+ */
+function toErrorEvent(error: unknown): AssistantOperatorErrorEvent {
   if (!isGenerationError(error)) {
     return {
       type: ASSISTANT_OPERATOR_EVENTS.error,
       ...ASSISTANT_OPERATOR_FALLBACK_ERROR,
+      traceId: newTraceId(),
+      ...(process.env.NODE_ENV === 'production'
+        ? {}
+        : {
+            detail: error instanceof Error ? error.message : String(error),
+          }),
     }
   }
   const payload = error.toJSON()
@@ -90,10 +126,20 @@ export function toAssistantOperatorSseResponse(
       } catch (error) {
         // 已经吐出去的 step 留在客户端；这里补一帧结构化的错误尾巴，而不是把流
         // 打断 —— 打断的话客户端只拿到一个读流异常，errorCode / i18nKey 全丢。
+        const event = toErrorEvent(error)
+        /**
+         * ⚠ `traceId` **与帧里那一份是同一个值**：日志这一行和用户屏幕上那八位
+         * 是同一次失败的两端，⛔ 别在这里另生成一个。
+         * ⚠ `stack` 只进日志（`lib/logger` 递归脱敏），⛔ 不进帧。
+         */
         logger.error(`${options.routeName} operator stream failed`, {
+          ...(event.traceId ? { traceId: event.traceId } : {}),
           error: error instanceof Error ? error.message : String(error),
+          ...(error instanceof Error && error.stack
+            ? { stack: error.stack }
+            : {}),
         })
-        send(toErrorEvent(error))
+        send(event)
       } finally {
         options.signal?.removeEventListener('abort', abort)
         if (!closed) {

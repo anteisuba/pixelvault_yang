@@ -3836,13 +3836,32 @@ export const AssistantOperatorStoppedEventSchema = z.object({
   roundSummary: AssistantOperatorRoundSummarySchema.optional(),
 })
 
-/** 形态与 `AssistantStreamErrorFrame` 逐字一致 —— 客户端两条流共用一个错误渲染。 */
+/**
+ * 形态与 `AssistantStreamErrorFrame` 逐字一致 —— 客户端两条流共用一个错误渲染，
+ * 外加下面两个**只属于这条流**的诊断字段。
+ *
+ * ⭐ 两个字段的由来（owner 2026-09-20 真机第 1 条，原话「我甚至不知道为什么出错」）：
+ * 此前非 `GenerationError` 的异常一律压成一句 `ASSISTANT_OPERATOR_FAILED`，
+ * 服务端日志与用户屏幕之间没有任何一根线能把两边对上。
+ *
+ * ⚠ `detail` **只在非生产环境下发**（成帧器那一侧判），⛔ 生产 UI 上不出现原始
+ * message，更不出现 stack —— 那是日志的事，日志靠 `traceId` 找得回来。
+ */
 export const AssistantOperatorErrorEventSchema = z.object({
   type: z.literal(ASSISTANT_OPERATOR_EVENTS.error),
   error: z.string(),
   errorCode: z.string().optional(),
   i18nKey: z.string().optional(),
+  /** 8 位短码：错误条上印的就是它，服务端日志里同一个值。 */
+  traceId: z.string().optional(),
+  /** 原始 message —— 仅非生产环境。 */
+  detail: z.string().optional(),
 })
+
+/** 错误那一帧（成帧器与客户端错误条共用的形状）。 */
+export type AssistantOperatorErrorEvent = z.infer<
+  typeof AssistantOperatorErrorEventSchema
+>
 
 export const AssistantOperatorEventSchema = z.discriminatedUnion('type', [
   AssistantOperatorOpenEventSchema,

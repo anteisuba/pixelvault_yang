@@ -7570,11 +7570,15 @@
     },
     "error": {
       "generic": "The assistant didn't finish this request",
+      "internal": "Something broke on our side while running this request",
       "failed": "The assistant ran into an error during this request",
       "emptyStream": "No response came back from the assistant",
       "unauthorized": "Your session expired — sign in again",
       "rateLimited": "Too many requests. Wait a moment and try again.",
-      "invalidRequest": "The server did not accept this request"
+      "invalidRequest": "The server did not accept this request",
+      "traceLabel": "Error ID {traceId}",
+      "copyDetail": "Copy details",
+      "copied": "Copied"
     },
     "assistantSettings": "Assistant settings",
     "persona": {

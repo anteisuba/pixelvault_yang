@@ -1388,6 +1388,54 @@ export const ASSISTANT_OPERATOR_STOP_REASONS = {
 export type AssistantOperatorStopReason =
   (typeof ASSISTANT_OPERATOR_STOP_REASONS)[keyof typeof ASSISTANT_OPERATOR_STOP_REASONS]
 
+/**
+ * **说不出更具体原因的那一档**（owner 2026-09-20 真机第 1 条）。
+ *
+ * ⭐ 它是成帧器对**非 `GenerationError`** 的统一回答：那一族异常没有 provider 码、
+ * 没有 `i18nKey`，此前一律压成一句英文兜底，用户屏幕与服务端日志之间没有任何
+ * 一根线。现在这一档配一个 `traceId`（见 `lib/assistant-operator-stream.ts`）。
+ *
+ * ⚠ 码住在 constants 是因为它有**两个消费方**：成帧器发它，客户端那张
+ * `OPERATOR_ERROR_MESSAGE_KEYS` 按它取三语文案。⛔ 两边各写一个字面量。
+ */
+export const ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE = 'INTERNAL'
+
+/**
+ * **操作员自己那几个码** → `StudioOperator.error.*` 的词表键。
+ *
+ * ⭐ 由来（2026-09-06 真机）：zh 界面上助手失败时显示的是英文原文
+ * 「The assistant operator run failed midway.」——那句话是**服务端**成帧器的兜底
+ * （`lib/assistant-operator-stream.ts` 的 `ASSISTANT_OPERATOR_FALLBACK_ERROR`），
+ * 服务端不知道用户的界面语言，也不该知道。所以翻译发生在客户端：服务端只负责给
+ * 一个**稳定的码**，面板按码取三语文案。
+ *
+ * ⚠ 这张表**只收操作员自己的码**（路由与成帧器发的那几个）。provider 侧的
+ * `GenerationError` 码不进来 —— 它们的三语文案早就在 `Errors.generation.*` 里
+ * （`constants/generation-errors.i18n.test.ts` 逐码把关），面板那颗 hook 走
+ * `getGenerationErrorMessage` 复用那一条现成的阶梯（顺带白拿 `i18nKey` 这一档）。
+ * ⛔ 别在这里给 `invalid_api_key` 一类再抄一份文案：两处迟早说两句不一样的话。
+ *
+ * ⚠ 它**从 hook 搬到了 constants**（2026-09-20）：多了第二个消费方 ——
+ * `src/i18n/completeness.test.ts` 按它逐条验三语。词表键是**动态**取的
+ * （`tError(key)`），源码扫描看不见，漏一条的表现是界面上印一个原样 key。
+ */
+export const ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS: Readonly<
+  Record<string, string>
+> = {
+  ASSISTANT_OPERATOR_FAILED: 'failed',
+  /**
+   * 成帧器对**非 `GenerationError`** 的统一码（owner 2026-09-20 真机第 1 条）。
+   * 它是阶梯的最后一级：连分类都做不出来时至少说清「这是我们这边的内部错误」，
+   * 再配上错误条第二段那个 `traceId`。⛔ 别把它说成「请稍后重试」—— 重试对
+   * 一个没修的内部错误没有用。
+   */
+  [ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE]: 'internal',
+  EMPTY_STREAM: 'emptyStream',
+  UNAUTHORIZED: 'unauthorized',
+  RATE_LIMIT_EXCEEDED: 'rateLimited',
+  VALIDATION_ERROR: 'invalidRequest',
+}
+
 /** 会触发就地确认的字段 —— 只有这两个是「用户手写的自由文本」。 */
 export const ASSISTANT_OPERATOR_CONFIRM_FIELDS = {
   prompt: 'prompt',

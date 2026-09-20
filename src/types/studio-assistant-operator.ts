@@ -540,6 +540,20 @@ export type StudioOperatorStatus =
   | 'error'
 
 /**
+ * 错误条第二、三段要的那两样（owner 2026-09-20 真机第 1 条）。
+ *
+ * ⭐ 与 `errorText`（第一段，那句人话）**分开存**：人话是按 `errorCode` 取的三语
+ * 文案，这两样是服务端给的诊断数据，两者的来源和寿命都不同。合成一个字符串的
+ * 下场是「复制详情」只能把已经翻译过的那句话再抄一遍。
+ * ⚠ `detail` **只有非生产环境才有**（成帧器那一侧判，见事件 schema 头注）——
+ * 客户端 ⛔ 不自己判环境，有就画、没有就不画。
+ */
+export interface StudioOperatorErrorTrace {
+  traceId: string
+  detail?: string
+}
+
+/**
  * ─── 视频域评审卡：两支载荷的分岔（第二期）───────────────────────────
  *
  * 契约那边 `critique_result` 的 payload 与 result 都是 **union**（图片档 /

@@ -12220,6 +12220,101 @@ describe('助手记忆（56a）', () => {
       ),
     )
   })
+
+  /**
+   * ── 可选增强不许拖垮主流程（owner 2026-09-20 真机第 1 条）────────────
+   *
+   * ⭐ 由来：记忆表的迁移还没跑，`findMany` 在一个 `undefined` 上炸开，异常一路
+   * 冒到成帧器 —— 面板上只剩一句没有原因的「出错了」。owner 原话：「我甚至不知道
+   * 为什么出错」。
+   * 判据：**这一跳失败了，这一轮还答得出来吗**。答得出来就包住 + 记一行 warn。
+   */
+  it('⭐ 注入那一跳打库炸了，这一轮照常跑完（并记一行 warn）', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+    mockListMemoriesForPrompt.mockRejectedValueOnce(
+      new TypeError("Cannot read properties of undefined (reading 'findMany')"),
+    )
+    queueTurns({ finished: true, message: '好。' })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+
+    // 这一轮跑完了 —— ⛔ 没有 error 帧。
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.error),
+    ).toBe(false)
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.done),
+    ).toBe(true)
+    // 少的只是那一段注入。
+    expect(toolRingSystemPrompt()).not.toContain('WHAT YOU ALREADY KNOW ABOUT')
+    // ⛔ 不吞成静默成功：日志里查得到这次降级。
+    expect(
+      warn.mock.calls.some(([message]) =>
+        message.includes('assistantMemories'),
+      ),
+    ).toBe(true)
+    warn.mockRestore()
+  })
+
+  it('⭐ 结账写记忆炸了，`done` 照常带结论记录（并记一行 warn）', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+    queueTurns(searchStep, { finished: true, message: '挑好了。' })
+    mockRecordMemories.mockRejectedValueOnce(new Error('table is missing'))
+    mockLlmTextCompletion.mockResolvedValue(
+      JSON.stringify({
+        facts: ['库里有三张夜景'],
+        decisions: [],
+        todos: [],
+        memories: [{ kind: 'preference', text: '偏好横构图 16:9' }],
+      }),
+    )
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.error),
+    ).toBe(false)
+    expect(
+      (doneEvent(events).roundSummary as unknown as { facts: string[] }).facts,
+    ).toEqual(['库里有三张夜景'])
+    // 写失败 = 这一轮一条记忆都没落，⛔ 但不冒称写了几条。
+    expect(doneEvent(events).roundSummary?.memoriesWritten).toBeUndefined()
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it('⭐ 上下文卡 / 规则 / 结论三样打库炸了，这一轮照样跑完', async () => {
+    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+    mockListContextCards.mockRejectedValueOnce(new Error('cards down'))
+    mockListProjectRules.mockRejectedValueOnce(new Error('rules down'))
+    mockListAssistantConversationRounds.mockRejectedValueOnce(
+      new Error('rounds down'),
+    )
+    queueTurns({ finished: true, message: '好。' })
+
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ conversationId: CONVERSATION_ID }),
+      ),
+    )
+
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.error),
+    ).toBe(false)
+    expect(
+      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.done),
+    ).toBe(true)
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+  })
 })
 
 /**

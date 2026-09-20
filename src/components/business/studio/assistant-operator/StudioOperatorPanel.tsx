@@ -126,6 +126,7 @@ import {
 import { StudioOperatorResearchProgress } from '@/components/business/studio/assistant-operator/StudioOperatorResearchProgress'
 import { StudioOperatorQueueBar } from '@/components/business/studio/assistant-operator/StudioOperatorQueueBar'
 import { StudioOperatorEmptyState } from '@/components/business/studio/assistant-operator/StudioOperatorEmptyState'
+import { StudioOperatorErrorBar } from '@/components/business/studio/assistant-operator/StudioOperatorErrorBar'
 import { useOpenAssistantMemory } from '@/hooks/use-open-assistant-memory'
 import { StudioOperatorHeader } from '@/components/business/studio/assistant-operator/StudioOperatorHeader'
 import {
@@ -330,6 +331,7 @@ export function StudioOperatorPanel({
     entries: allEntries,
     status,
     errorText,
+    errorTrace,
     history: allHistoryEntries,
     historyRounds,
     queue,
@@ -2053,12 +2055,10 @@ export function StudioOperatorPanel({
               <StudioOperatorTimelineRow
                 card={STUDIO_OPERATOR_CARD_KINDS.system}
               >
-                <p
-                  data-testid="operator-error"
-                  className="rounded-md border border-status-risk/40 bg-status-risk-surface px-2.5 py-1.5 text-2sm text-status-risk"
-                >
-                  {errorText ?? t('error.generic')}
-                </p>
+                <StudioOperatorErrorBar
+                  text={errorText ?? t('error.generic')}
+                  trace={errorTrace}
+                />
               </StudioOperatorTimelineRow>
             ) : null}
           </div>

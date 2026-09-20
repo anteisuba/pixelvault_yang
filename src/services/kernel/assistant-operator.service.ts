@@ -88,6 +88,7 @@ import {
   type GenerationReviewState,
 } from '@/constants/assistant-operator'
 import {
+  ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_PERSONA_LANGUAGE_IDS,
   ASSISTANT_PERSONA_PLAN_MODE_IDS,
   ASSISTANT_PERSONA_TONE_IDS,
@@ -8382,14 +8383,26 @@ async function closeRound(
   const conversationId = run.request.conversationId
   let evidenceRefs: string[] = []
   if (conversationId && ledger.evidence.length > 0) {
-    const book = await appendAssistantEvidenceBook({
-      userId: args.userId,
-      surface: ASSISTANT_SURFACE_BY_DOMAIN[run.request.domain],
-      conversationId,
-      model: run.modelId,
-      entries: ledger.evidence,
-    })
-    evidenceRefs = book.refs
+    /**
+     * ⚠ **落本失败不阻塞 `done`**（owner 2026-09-20 真机第 1 条）：本函数头注
+     * 早就写着「三步里任何一步失败都不阻塞 `done`」，但这一步的异常此前是直接
+     * 冒出去的 —— 表现正是「一轮凭空消失，而且不说为什么」。这一轮照常收尾，
+     * 只是结论记录里没有证据编号。
+     */
+    const book = await optionalContext(
+      'evidenceBook',
+      args.clerkId,
+      null as { refs: string[] } | null,
+      () =>
+        appendAssistantEvidenceBook({
+          userId: args.userId,
+          surface: ASSISTANT_SURFACE_BY_DOMAIN[run.request.domain],
+          conversationId,
+          model: run.modelId,
+          entries: ledger.evidence,
+        }),
+    )
+    evidenceRefs = book?.refs ?? []
   }
 
   const draft = await compressRoundLedger(run, args.closingMessage)
@@ -8591,6 +8604,37 @@ function rememberStepArtifacts(run: OperatorRun, rawStep: unknown): void {
   }
 }
 
+/**
+ * **可选增强是锦上添花，主流程是回答用户**（owner 2026-09-20 真机第 1 条）。
+ *
+ * ⭐ 由来：56a 的记忆注入直接打库，而那张表的迁移还没跑 —— `findMany` 在一个
+ * `undefined` 上炸开，异常一路冒到成帧器，面板上只剩一句「出错了」。用户这一轮
+ * 想要的是一个回答，而他丢掉的是**几行本来就可有可无的上下文**。
+ *
+ * 判据（照着往下加时按这一条判）：
+ *  · **这一跳失败了，这一轮还答得出来吗**？答得出来 = 可选，包进来；
+ *  · 包进来的一律 `logger.warn` 记一笔 —— ⛔ 不吞成静默成功：日志里查不到的
+ *    降级等于没发生过，下一次真机还是「我甚至不知道为什么没生效」。
+ *  · **真正必须成功的不进这里**：模型调用、op 落地、`ensureUser`、路由解析 ——
+ *    它们失败时这一轮本来就没有正确答案可言，抛出去让错误条说原因才对。
+ */
+async function optionalContext<T>(
+  label: string,
+  clerkId: string,
+  fallback: T,
+  load: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await load()
+  } catch (error) {
+    logger.warn(`assistant optional context degraded: ${label}`, {
+      userId: clerkId,
+      error: error instanceof Error ? error.message : String(error),
+    })
+    return fallback
+  }
+}
+
 export async function* runAssistantOperator(
   clerkId: string,
   request: AssistantOperatorRequest,
@@ -8605,6 +8649,10 @@ export async function* runAssistantOperator(
    * 给每一步多加一次库查询。⚠ 也不从客户端收：这两样直连系统提示。
    * ⭐ 它排在路由解析**之前**（v2 §4.5）：文本模型选哪一档现在住在
    * `persona.routeModel`，路由要等它读回来才知道该找哪把 key。
+   *
+   * ⚠ **这六件全部是可选增强**（owner 2026-09-20 真机第 1 条，见 `optionalContext`
+   * 头注）：少了其中任何一件，这一轮仍然答得出话 —— 少的只是「助手记得的那几行」。
+   * 任何一件把整轮炸掉，用户看到的都是一句没有原因的「出错了」。
    */
   const [
     persona,
@@ -8614,11 +8662,15 @@ export async function* runAssistantOperator(
     priorRounds,
     creativePreference,
   ] = await Promise.all([
-    getAssistantPersonaByUserId(user.id),
-    listProjectRules(user.id, {
-      scope: request.domain,
-      limit: RULE_LIMITS.maxInPrompt,
-    }),
+    optionalContext('persona', clerkId, { ...ASSISTANT_PERSONA_DEFAULTS }, () =>
+      getAssistantPersonaByUserId(user.id),
+    ),
+    optionalContext('projectRules', clerkId, [], () =>
+      listProjectRules(user.id, {
+        scope: request.domain,
+        limit: RULE_LIMITS.maxInPrompt,
+      }),
+    ),
     /**
      * ⭐ **来源白 / 黑名单单独读一次**（v2 §9.3）。
      *
@@ -8626,33 +8678,41 @@ export async function* runAssistantOperator(
      * 能少 —— 被截掉的那一条在用户眼里仍然是「我设过的闸」，静默失效的表现是
      * 助手照常去打那个站，而用户永远不会知道。
      */
-    listProjectSourceRules(user.id, { scope: request.domain }),
+    optionalContext('projectSourceRules', clerkId, [], () =>
+      listProjectSourceRules(user.id, { scope: request.domain }),
+    ),
     /**
      * 常挂在**当前域**上的上下文卡（K1）。⚠ 按 `pinnedScopes` 命中收敛，
      * ⛔ 不把用户全部的卡拼进提示 —— 常挂那颗开关的全部意义就是「这台工作台上
      * 带哪几张」，全带等于没有这颗开关。没挂的那些靠 `list_context_cards` 翻。
      */
-    listContextCards(user.id, {
-      pinnedScope: request.domain,
-      limit: CARD_LIMITS.maxInPrompt,
-    }),
+    optionalContext('contextCards', clerkId, [], () =>
+      listContextCards(user.id, {
+        pinnedScope: request.domain,
+        limit: CARD_LIMITS.maxInPrompt,
+      }),
+    ),
     /**
      * ⭐ **之前几轮记住的事**（§7.6）—— 与 persona / 规则 / 卡同一档：开跑前读
      * 一次，⛔ 不在每一步重读（系统提示每一步都重发，但它每一步都是同一份）。
      * ⚠ 没有 `conversationId`（这条线程还没落过库 / 老客户端）时就是空的 ——
      * 那一轮照常跑，只是没有跨轮记忆可注入。
      */
-    request.conversationId
-      ? listAssistantConversationRounds(user.id, request.conversationId, {
-          limit: ROUND_LIMITS.maxRoundsInPrompt,
-        })
-      : [],
+    optionalContext('priorRounds', clerkId, [], () =>
+      request.conversationId
+        ? listAssistantConversationRounds(user.id, request.conversationId, {
+            limit: ROUND_LIMITS.maxRoundsInPrompt,
+          })
+        : Promise.resolve([]),
+    ),
     /**
      * ⭐ 学出来的创作偏好（§8.3）—— 与上面四样同一档：开跑前读一次。
      * ⚠ 这张表**多数用户是空的**（它由生成反馈那条路慢慢喂），缺行时是 `null`，
      * 「关于这位创作者」那一段照样拼得出来（只是少那几行）。
      */
-    getCreativePreferenceDigest(user.id),
+    optionalContext('creativePreference', clerkId, null, () =>
+      getCreativePreferenceDigest(user.id),
+    ),
   ])
 
   /**
@@ -8672,15 +8732,24 @@ export async function* runAssistantOperator(
    * **卡优先**（owner 2026-09-20）—— 这一轮挂了几张卡，要等卡回来才知道。
    * 预算被卡吃光时这里一条都不查（服务里 `limit <= 0` 直接回空）。
    * ⚠ **历史回放不走这条路**：载回旧线程是客户端从库里读，压根不经过本文件。
+   * ⚠ **读失败就是没有记忆**（owner 2026-09-20 真机第 1 条）：这一跳曾经把整轮
+   * 掀翻过一次 —— 迁移还没跑，`findMany` 在 `undefined` 上炸，而用户只看到一句
+   * 「出错了」。记忆是锦上添花，主流程是回答用户（判据见 `optionalContext`）。
    */
   const memoryBudget = Math.min(
     ASSISTANT_MEMORY_LIMITS.maxInPrompt,
     ASSISTANT_CONTEXT_BUDGET.maxEntries - contextCards.length,
   )
-  const assistantMemories = await listAssistantMemoriesForPrompt(
-    user.id,
-    memoryScopeForDomain(request.domain),
-    memoryBudget,
+  const assistantMemories = await optionalContext(
+    'assistantMemories',
+    clerkId,
+    [],
+    () =>
+      listAssistantMemoriesForPrompt(
+        user.id,
+        memoryScopeForDomain(request.domain),
+        memoryBudget,
+      ),
   )
   /**
    * **被注入过就更新 `lastUsedAt`**（56a）—— 注入优先级与淘汰顺序都读它。

@@ -4,12 +4,17 @@ vi.mock('@/lib/logger', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }))
 
-import { ASSISTANT_OPERATOR_EVENTS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_EVENTS,
+  ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
+} from '@/constants/assistant-operator'
 import { ASSISTANT_STREAM_CONTENT_TYPE } from '@/constants/assistant-stream'
 import {
   ASSISTANT_OPERATOR_FALLBACK_ERROR,
   toAssistantOperatorSseResponse,
 } from '@/lib/assistant-operator-stream'
+import { ApiRequestError } from '@/lib/errors'
+import { logger } from '@/lib/logger'
 import { parseSseStream } from '@/lib/sse'
 import type { AssistantOperatorEvent } from '@/types/assistant-operator'
 
@@ -80,6 +85,85 @@ describe('操作员流成帧器', () => {
     expect(frames.at(-1)?.data.errorCode).toBe(
       ASSISTANT_OPERATOR_FALLBACK_ERROR.errorCode,
     )
+  })
+
+  /**
+   * ── 错误要说得出原因（owner 2026-09-20 真机第 1 条）─────────────────
+   * 非 `GenerationError` 那一族此前只回一句兜底，用户屏幕与服务端日志之间
+   * 没有任何一根线。现在那一档带一个八位 `traceId`，非生产再带原始 message。
+   */
+  it('非 GenerationError 带一个八位 traceId，且与日志里那一行是同一个值', async () => {
+    const response = toAssistantOperatorSseResponse({
+      routeName: 'test',
+      events: async function* () {
+        throw new TypeError(
+          "Cannot read properties of undefined (reading 'findMany')",
+        )
+      },
+    })
+
+    const frames = await readFrames(response)
+    const error = frames.at(-1)?.data as {
+      errorCode?: string
+      traceId?: string
+    }
+    expect(error.errorCode).toBe(ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE)
+    expect(error.traceId).toMatch(/^[0-9a-f]{8}$/)
+    const logged = vi.mocked(logger.error).mock.calls.at(-1)?.[1] as {
+      traceId?: string
+      stack?: string
+    }
+    expect(logged.traceId).toBe(error.traceId)
+    // stack 只进日志。
+    expect(logged.stack).toContain('TypeError')
+  })
+
+  it('非生产环境带原始 message；生产环境不带 detail、更不带 stack', async () => {
+    const run = async () => {
+      const response = toAssistantOperatorSseResponse({
+        routeName: 'test',
+        events: async function* () {
+          throw new Error('table is missing')
+        },
+      })
+      const frames = await readFrames(response)
+      return frames.at(-1)?.data as { detail?: string; traceId?: string }
+    }
+
+    const dev = await run()
+    expect(dev.detail).toBe('table is missing')
+
+    vi.stubEnv('NODE_ENV', 'production')
+    const prod = await run()
+    expect(prod.detail).toBeUndefined()
+    expect(JSON.stringify(prod)).not.toContain('at ')
+    // 短码在生产照旧有 —— 它正是生产里唯一的那根线。
+    expect(prod.traceId).toMatch(/^[0-9a-f]{8}$/)
+    vi.unstubAllEnvs()
+  })
+
+  it('GenerationError 那一族不编短码（它本来就说得出原因）', async () => {
+    const response = toAssistantOperatorSseResponse({
+      routeName: 'test',
+      events: async function* () {
+        throw new ApiRequestError(
+          'invalid_api_key',
+          401,
+          'Errors.generation.invalid_api_key',
+          'bad key',
+        )
+      },
+    })
+
+    const frames = await readFrames(response)
+    const error = frames.at(-1)?.data as {
+      errorCode?: string
+      traceId?: string
+      detail?: string
+    }
+    expect(error.errorCode).toBe('invalid_api_key')
+    expect(error.traceId).toBeUndefined()
+    expect(error.detail).toBeUndefined()
   })
 
   it('客户端取消时 abort 传下去，生成器跑完自己的收尾，且不再往关掉的流里写', async () => {

@@ -313,6 +313,31 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 - **用户设了来源名单时快搜那条收窄不生效**：名单是用户的决定，而「网搜」很可能根本不在名单里 —— 照收窄的表现是他指定的源一个都没打、回来一句「查不到」。
 - ⛔ **不弹确认卡**（owner 定）：花的是搜索额度不是生成费。
 
+### 3.7 失败那一条：三段 + `traceId`
+
+> Last Verified: 2026-09-20（owner 真机第 1 条，原话「我甚至不知道为什么出错」）
+
+**起因**：56a 的记忆注入直接打库，而 `20260920120000_assistant_memory` 还没执行 —— `findMany` 在一个 `undefined` 上炸开，异常冒到成帧器，`toErrorEvent` 对非 `GenerationError` 一律回同一句兜底，面板上只剩 `error.generic`。两个洞各修各的：**可选增强不该拖垮整轮**（[`backend.md`](../backend.md)「可选增强」节），**说不出分类的失败也得说得出是哪一次**（本节）。
+
+**错误帧多两个可选字段**（`AssistantOperatorErrorEventSchema`）：
+
+| 字段      | 谁给                                                  | 生产环境                  |
+| --------- | ----------------------------------------------------- | ------------------------- |
+| `traceId` | 成帧器，8 位十六进制；同一个值同时写进 `logger.error` | **有**（唯一那根线）      |
+| `detail`  | 原始 `message`                                        | **没有**（⛔ 更没 stack） |
+
+- **判据在服务端**（成帧器按 `NODE_ENV` 决定下不下发），⛔ 客户端不自己判环境：两份 `NODE_ENV` 判两遍，迟早说两句不一样的话。
+- `GenerationError` 那一族**不编短码**：它本来就带 `errorCode` + `i18nKey`，编一个日志里查不到的号比没有更糟。
+- 非 `GenerationError` 的统一码是 `ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE`（`'INTERNAL'`），住 `constants/assistant-operator.ts`：成帧器发它、客户端那张 `ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS` 按它取三语文案，两个消费方，⛔ 别各写一个字面量。
+
+**错误条长成三段**（`StudioOperatorErrorBar`，`status-risk` 档）：
+
+1. **一句人话** —— 阶梯照旧：操作员自己的码 → `getGenerationErrorMessage`（`i18nKey` → `Errors.generation.*`）→ 原文；都走不到就是 `error.internal`「这次请求在我们这边出了问题」。⛔ 别说成「请稍后重试」——重试对一个没修的内部错误没有用。
+2. **`traceId`** —— 等宽槽（`ui-defaults.md §1`：机器串）。它存在的全部意义是被念出来 / 截图 / 粘过来。
+3. **「复制详情」** —— 一次点击把人话 + 短码 + `detail` 一起进剪贴板；触屏命中区靠 `touch-target-y` 补到 44。⛔ 不做「展开更多」：要的人是要把它发出去，不是要在面板里读它。
+
+非生产环境另外把 `detail` 原样画在第三行（等宽、可换行）。三段的数据在 store 里是**两格**（`errorText` 那句人话 + `errorTrace` 那两样）：合成一个字符串的下场是「复制详情」只能把翻译过的那句话再抄一遍。
+
 ---
 
 ## 4. 面板结构

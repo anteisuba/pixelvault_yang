@@ -56,6 +56,23 @@ app/api routes（156 个 route.ts，以 glob 为准）  ← 只做三件事，�
 - **kernel/ = prompt 引擎族**：`prompt-guard`（用户 prompt 送 AI 前必过）· `prompt-compiler` / `scene-prompt-compiler` / `card-recipe-compiler` · `prompt-enhance` / `prompt-assistant` · `node-planner-route` / `research-route` / `inspiration-context`。LLM 输出使用前必过 `lib/llm-output-validator`。
 - 可观测性：`lib/generation-observability`；错误层次在 `lib/errors`（AuthError / ApiRequestError / GenerationError / RateLimitError…）。
 
+## 可选增强不许拖垮主流程（2026-09-20）
+
+**起因**（owner 真机，助手第 1 条）：助手记忆的注入直接 `db.assistantMemory.findMany`，而迁移还没执行 —— 异常一路冒到 SSE 成帧器，用户看到的是一句没有原因的「出错了」。他损失的**本来只是几行可有可无的上下文**。
+
+判据一句话：**这一跳失败了，这一轮还答得出来吗**。
+
+- **答得出来 = 可选**：包进 try/catch，回退成空值，并且 `logger.warn` 记一行（带降级点的名字）。⛔ 不抛、⛔ 也不吞成静默成功 —— 日志里查不到的降级等于没发生过，下一次真机还是「我甚至不知道为什么没生效」。
+- **答不出来 = 必须成功**：模型调用、op 落地、`ensureUser`、路由解析、鉴权与钱闸。它们失败时这一轮本来就没有正确答案，照常抛出去让错误条说原因。
+
+落点（`services/kernel/assistant-operator.service.ts` 的 `optionalContext`）：开跑前那一批 persona / 项目规则 / 来源名单 / 上下文卡 / 上几轮结论 / 创作偏好，记忆注入（读）与结账写记忆（写），以及结账里的证据本落本。⚠ 结账整体「任何一步失败都不阻塞 `done`」这条纪律在头注里写了很久，但证据落本那一步此前是直接冒出去的 —— 表现正是「一轮凭空消失」。
+
+⛔ 这条不是「到处加 try/catch」的许可证：包住一个必须成功的东西，等于把一次真失败变成一次说不清的假成功。
+
+### SSE 错误帧的两个诊断字段
+
+`AssistantOperatorErrorEventSchema` 多了 `traceId`（8 位十六进制）与 `detail`（原始 message）两个可选字段。成帧器对**非 `GenerationError`** 生成短码，同一个值同时写进 `logger.error`（连同 stack）；`detail` **只在非生产环境下发**，⛔ 生产 UI 上没有原始 message、更没有 stack。`GenerationError` 那一族不编短码（它自带 `errorCode` + `i18nKey`）。UI 形态见 [`pages/assistant-shell-v2.md §3.7`](pages/assistant-shell-v2.md)。
+
 ## 生成链路（现状要点）
 
 第一主路径：`选模型 → prompt/参考图 → 生成 → 永久保存 → 管理/复用`。Studio 是主入口；Node workflow 是长视频/高级编排层，不替代 Studio。
@@ -186,4 +203,5 @@ Civitai 官网搜索（`ModelSearchIndexSortBy`）是**全局排序**，不是�
 ## Last Verified
 
 - Date: 2026-07-23 · Method: 核验执行 Worker 幂等创建、应用派发分类、回调 CAS、DB-first 模型解析、平台免费体验闸门、Execution v1 防重放协议、日志脱敏、认证边界、Clerk Production 已验证邮箱重绑定和对应回归测试。route/service 数量与高风险引用计数仍沿用 2026-07-10 快照；据此改动前先对实际代码。
+- Date: 2026-09-20 · Method: 按 owner 真机第 1 条改码并核验 —— 新增「可选增强不许拖垮主流程」一节（`optionalContext` 的八个落点 + 判据），错误帧新增 `traceId` / `detail` 两个可选字段（生产不下发 `detail`、任何环境都不下发 stack）。测试：`src/lib/assistant-operator-stream.test.ts` · `src/services/kernel/assistant-operator.service.test.ts`「助手记忆（56a）」组。
 - Date: 2026-09-04 · Method: 核验生成任务取消五层链路（状态机 CANCELLED、`generation-cancel.service`、worker terminate、`providerJobId` 上报 + CAS 落库、五入口 UI），对照 commit `205026c9` 与 `providerJobIdFromStatusCallback` 实现补「生成任务取消」一节。

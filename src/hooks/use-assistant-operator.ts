@@ -41,6 +41,7 @@ import {
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
+  ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_TOOL_VERBS,
@@ -153,33 +154,26 @@ import type {
 } from '@/types/assistant-operator'
 import type {
   StudioOperatorAttachment,
+  StudioOperatorErrorTrace,
   StudioOperatorQuestionAnswer,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
 
 /**
- * **操作员自己那几个码** → `StudioOperator.error.*` 的词表键。
+ * 帧上那两样诊断字段 → 错误条第二、三段。
  *
- * ⭐ 由来（2026-09-06 真机）：zh 界面上助手失败时显示的是英文原文
- * 「The assistant operator run failed midway.」——那句话是**服务端**成帧器的兜底
- * （`lib/assistant-operator-stream.ts` 的 `ASSISTANT_OPERATOR_FALLBACK_ERROR`），
- * 服务端不知道用户的界面语言，也不该知道。所以翻译发生在这里：服务端只负责给
- * 一个**稳定的码**，客户端按码取三语文案。
- *
- * ⚠ 这张表**只收操作员自己的码**（路由与成帧器发的那几个）。provider 侧的
- * `GenerationError` 码不进来 —— 它们的三语文案早就在 `Errors.generation.*` 里
- * （`constants/generation-errors.i18n.test.ts` 逐码把关），本 hook 走
- * `getGenerationErrorMessage` 复用那一条现成的阶梯（顺带白拿 `i18nKey` 这一档）。
- * ⛔ 别在这里给 `invalid_api_key` 一类再抄一份文案：两处迟早说两句不一样的话。
- * ⚠ 这张表住在这里而不是 `src/constants/`：它是**这一颗 hook 的展示层映射**
- * （码 → 词表键），没有第二个消费方。
+ * ⚠ 没有 `traceId` 就整块不画（`GenerationError` 那一族本来就说得出原因），
+ * ⛔ 不为它编一个短码 —— 编出来的号在日志里查不到，比没有更糟。
  */
-const OPERATOR_ERROR_MESSAGE_KEYS: Readonly<Record<string, string>> = {
-  ASSISTANT_OPERATOR_FAILED: 'failed',
-  EMPTY_STREAM: 'emptyStream',
-  UNAUTHORIZED: 'unauthorized',
-  RATE_LIMIT_EXCEEDED: 'rateLimited',
-  VALIDATION_ERROR: 'invalidRequest',
+function toErrorTrace(payload: {
+  traceId?: string | undefined
+  detail?: string | undefined
+}): StudioOperatorErrorTrace | null {
+  if (!payload.traceId) return null
+  return {
+    traceId: payload.traceId,
+    ...(payload.detail ? { detail: payload.detail } : {}),
+  }
 }
 
 function toResponseLanguage(locale: string): PromptAssistantResponseLanguage {
@@ -688,7 +682,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   const tConfirm = useTranslations('StudioOperator.confirm')
   const tErrors = useTranslations('Errors')
   /**
-   * 一句给用户看的失败文案（见 `OPERATOR_ERROR_MESSAGE_KEYS` 头注）。
+   * 一句给用户看的失败文案（见 `ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS` 头注）。
    *
    * 三级阶梯：操作员自己的码 → `getGenerationErrorMessage`（`i18nKey` →
    * `Errors.generation.{码}`）→ **原文**。
@@ -702,7 +696,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       i18nKey?: string
     }): string => {
       const key = payload.errorCode
-        ? OPERATOR_ERROR_MESSAGE_KEYS[payload.errorCode]
+        ? ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS[payload.errorCode]
         : undefined
       if (key) return tError(key)
       return getGenerationErrorMessage(tErrors, payload, payload.error)
@@ -1227,6 +1221,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           setOperatorStatus('idle')
           return
         }
+        /**
+         * ⚠ 这一支**没有 `traceId`**：它是「流还没开起来」的那一档（HTTP 401 /
+         * 429 / 500 / 空流），错误码本身已经说清是哪一类。短码只给成帧器那条
+         * 说不出分类的内部错误（见 `toErrorTrace` 头注）。
+         */
         setOperatorStatus('error', describeError(result))
         return
       }
@@ -1628,7 +1627,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               roundFinished = true
               break
             case ASSISTANT_OPERATOR_EVENTS.error:
-              setOperatorStatus('error', describeError(event))
+              setOperatorStatus(
+                'error',
+                describeError(event),
+                toErrorTrace(event),
+              )
               break
             default:
               break

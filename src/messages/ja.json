@@ -7570,11 +7570,15 @@
     },
     "error": {
       "generic": "アシスタントの作業が完了しませんでした",
+      "internal": "このリクエストの処理中に、こちら側で問題が発生しました",
       "failed": "アシスタントの作業中にエラーが発生しました",
       "emptyStream": "アシスタントから応答が返りませんでした",
       "unauthorized": "セッションが切れました —— もう一度ログインしてください",
       "rateLimited": "リクエストが集中しています。少し待ってから、もう一度お試しください",
-      "invalidRequest": "このリクエストはサーバーに受け付けられませんでした"
+      "invalidRequest": "このリクエストはサーバーに受け付けられませんでした",
+      "traceLabel": "エラー ID {traceId}",
+      "copyDetail": "詳細をコピー",
+      "copied": "コピーしました"
     },
     "assistantSettings": "アシスタント設定",
     "persona": {

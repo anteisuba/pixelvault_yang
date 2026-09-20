@@ -7570,11 +7570,15 @@
     },
     "error": {
       "generic": "助手这一轮没跑完",
+      "internal": "这次请求在我们这边出了问题",
       "failed": "助手这一轮中途出错了",
       "emptyStream": "没收到助手的回应",
       "unauthorized": "登录状态过期了，重新登录再试",
       "rateLimited": "太快了 —— 缓一会儿再发",
-      "invalidRequest": "这一轮的请求服务端没认下来"
+      "invalidRequest": "这一轮的请求服务端没认下来",
+      "traceLabel": "错误编号 {traceId}",
+      "copyDetail": "复制详情",
+      "copied": "已复制"
     },
     "assistantSettings": "助手设置",
     "persona": {

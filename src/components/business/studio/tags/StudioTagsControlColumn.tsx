@@ -20,8 +20,8 @@ import {
   getTagWorkbenchControls,
   type TagWorkbenchControl,
 } from '@/lib/tag-workbench-controls'
-import { cn } from '@/lib/utils'
 import type { AdvancedParams } from '@/types'
+import { cn } from '@/lib/utils'
 import type { StudioModelOption } from '@/types/model-option'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 
@@ -34,7 +34,7 @@ import type { NovelAiCharacterLayout } from '@/types/novelai'
  * UC 预设与 `Text:` 归编辑器主区（画板把它们画在正负两栏底下），所以这一列
  * 把那两条让出去。
  *
- * 多选交集态（② Q3）：每张卡自己报「这一档只对谁生效」并灰下去，**仍然可改**；
+ * 多选交集态（② Q3）：每张卡自己报「这一档只对谁生效」并保持可改；
  * 真正的裁剪发生在发请求那一跳（`tailorImageRequestToModel`）。
  */
 
@@ -87,7 +87,7 @@ export function StudioTagsControlColumn({
 
   /**
    * 角色构图的形态由**第一个支持它的模型**说了算（名单第一位是主模型）。
-   * 多选里只有它一家支持时，卡片跟着灰并标「只对 X 生效」，⛔ 仍然可改。
+   * 多选里只有它一家支持时，卡片标「只对 X 生效」，⛔ 仍然可改。
    */
   const characterSupport = runModels.filter((model) =>
     getNovelAiCharacterLayoutMode(model.modelId),
@@ -141,7 +141,6 @@ export function StudioTagsControlColumn({
         <ControlCard
           title={t('characterTitle')}
           note={onlyForNote(characterSupport.map((model) => model.modelId))}
-          dimmed={characterSupport.length !== runModels.length}
         >
           <NovelAiCharacterComposer
             mode={characterMode}
@@ -168,7 +167,6 @@ export function StudioTagsControlColumn({
               )
               .join(' · ')}
             note={onlyForNote(control.supportedBy)}
-            dimmed={!control.shared}
           >
             <StudioTagCapabilityControl
               control={control}
@@ -196,27 +194,18 @@ export function StudioTagsControlColumn({
 function ControlCard({
   title,
   note,
-  dimmed,
   children,
 }: {
   title: string
   note: string | null
-  dimmed: boolean
   children: ReactNode
 }) {
   return (
-    <section
-      className={cn(
-        'flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5',
-        dimmed && 'opacity-60',
-      )}
-    >
+    <section className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5">
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="shrink-0 text-2xs font-medium">{title}</h3>
         {note ? (
-          <span className="truncate text-3xs text-muted-foreground">
-            {note}
-          </span>
+          <span className="text-3xs text-muted-foreground">{note}</span>
         ) : null}
       </div>
       {children}
@@ -260,7 +249,6 @@ function ResolutionCard({
     <ControlCard
       title={t('resolutionTitle')}
       note={note(novelAi.map((model) => model.modelId))}
-      dimmed={novelAi.length !== runModels.length}
     >
       <div className="flex items-center justify-between gap-2 text-2xs">
         <span className="font-mono tabular-nums">
@@ -300,7 +288,6 @@ function ReferenceUsageCard({
     <ControlCard
       title={t('referenceUsageTitle')}
       note={note(novelAi.map((model) => model.modelId))}
-      dimmed={novelAi.length !== runModels.length}
     >
       <div className="flex flex-wrap gap-1">
         {NOVELAI_REFERENCE_USAGES.map((usage) => {

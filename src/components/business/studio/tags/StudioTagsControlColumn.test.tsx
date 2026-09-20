@@ -96,13 +96,13 @@ describe('标签台右列', () => {
     expect(headings()).not.toContain('characterTitle')
   })
 
-  // ⭐ 多选交集：只有一家支持的那些标「只对 X 生效」并灰下去，**仍然可改**。
+  // ⭐ 多选交集：只有一家支持的那些标「只对 X 生效」保持可改。
   it('多选时把只对一家生效的卡片标出来', () => {
     mocks.runModels = [NAI_V5, PIXAI]
     render(<StudioTagsControlColumn />)
     const note = `onlyFor:${NAI_V5.modelId}`
     expect(screen.getAllByText(note).length).toBeGreaterThanOrEqual(3)
-    // 灰的是整张卡，⛔ 不是禁用 —— 里面的按钮照样点得动。
+    // 专属卡只提示适用模型，不降低可用控件的对比度。
     for (const button of screen.getAllByRole('button', {
       name: /qualityToggleOption/,
     })) {
@@ -184,10 +184,10 @@ describe('标签台右列', () => {
     const pixaiOnly = cardOf('capability.pixaiMode')
     expect(naiOnly?.textContent).toContain(`onlyFor:${NAI_V5.modelId}`)
     expect(pixaiOnly?.textContent).toContain(`onlyFor:${TSUBAKI.modelId}`)
-    expect(naiOnly?.className).toContain('opacity-60')
-    expect(pixaiOnly?.className).toContain('opacity-60')
+    expect(naiOnly?.className).not.toContain('opacity-60')
+    expect(pixaiOnly?.className).not.toContain('opacity-60')
 
-    // 灰的是卡，⛔ 不是禁用 —— 两边的按钮都还点得动。
+    // 两边的按钮都可用。
     for (const name of [/qualityToggleOption/, /pixaiModeOption/]) {
       for (const button of screen.getAllByRole('button', { name })) {
         expect(button).not.toBeDisabled()

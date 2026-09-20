@@ -24,7 +24,7 @@ interface StudioTagCapabilityControlProps {
  * （质量标签 · 采样器 · 步数 …）**用的是同一颗**（D10 ② 「同一份派生层，
  * 两台两种排列」）。
  *
- * 多选交集态（D10 ② Q3）：只有一部分选中模型支持的那一档**灰掉并标
+ * 多选交集态（D10 ② Q3）：只有一部分选中模型支持的那一档**标
  * 「只对 X 生效」，但仍然可改** —— 出图时按各模型能力裁剪 payload。
  * ⛔ 不禁用、⛔ 不隐藏：隐藏了用户根本不知道这个模型有这档能力。
  */
@@ -59,15 +59,12 @@ export function StudioTagCapabilityControl({
       })
 
   return (
-    <div
-      className={cn('flex flex-col gap-1.5', !shared && 'opacity-60')}
-      data-assistant-field="capabilities"
-    >
+    <div className="flex flex-col gap-1.5" data-assistant-field="capabilities">
       {hideLabel ? null : (
         <div className="flex items-baseline justify-between gap-2">
           <span className="text-2xs font-medium">{label}</span>
           {onlyForNote ? (
-            <span className="truncate text-3xs text-muted-foreground">
+            <span className="text-3xs text-muted-foreground">
               {onlyForNote}
             </span>
           ) : null}

@@ -12,8 +12,8 @@ import type { AI_ADAPTER_TYPES } from '@/constants/providers'
  * 这里在它之上只加一件事：**台内多选时取交集**。
  *
  * - 两家都支持的 → `shared: true`，照常可改。
- * - 只有一家支持的 → `shared: false` + `supportedBy` 说清是哪一家，界面上灰掉
- *   并标「只对 X 生效」，**仍然可改**；出图时按各模型能力裁剪 payload
+ * - 只有一家支持的 → `shared: false` + `supportedBy` 说清是哪一家，界面上
+ *   标「只对 X 生效」，保持可改；出图时按各模型能力裁剪 payload
  *   （`pruneIncompatibleCapabilityValues`）。
  * - ⛔ 不跨方言 —— 两台的选择器各只列自己方言的模型，所以这里比较的永远是
  *   标签模型之间。
@@ -36,9 +36,8 @@ export interface TagWorkbenchControl {
 /**
  * 选中模型的控件并集，按能力表的声明顺序去重。
  *
- * ⚠ 并集而不是交集：只有一家支持的那些**要画出来**（灰着、可改），
- * 画板上那一句「只对 NAI V5 生效」就是它。真正「取交集」的是**可改而不灰**
- * 的那一档，由 `shared` 表达。
+ * ⚠ 并集而不是交集：只有一家支持的那些**要画出来**（标适用范围、可改），
+ * 画板上那一句「只对 NAI V5 生效」就是它。选中模型都支持的那一档由 `shared` 表达。
  *
  * ⚠ 同一个能力在两个模型上值域不同（例：V5 Full 的 `textRendering` 750 字 /
  * Curated 374 字）时，取**第一个声明它的模型**那一份 —— 主模型排在名单第一位，

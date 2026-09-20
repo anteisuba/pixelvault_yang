@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from 'react'
 
 import { getAvailableImageModels, IMAGE_KIND } from '@/constants/models'
+import { getPromptDialect } from '@/constants/prompt-dialects'
 import { pruneIncompatibleCapabilityValues } from '@/lib/model-capability-chips'
 import type { StudioModelOption } from '@/types/model-option'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
@@ -73,16 +74,38 @@ export function useImageModelOptions(): UseImageModelOptionsReturn {
   // `background` / `style` 会原样留在载荷里跟着发出去。判据换成能力表全量。
   useEffect(() => {
     if (!selectedModel) return
-    const pruned = pruneIncompatibleCapabilityValues(
-      state.advancedParams,
-      selectedModel.adapterType,
-      selectedModel.modelId,
+    const selectedIds = new Set(state.extraModelOptionIds)
+    const selectedModels = [
+      selectedModel,
+      ...modelOptions.filter(
+        (option) =>
+          selectedIds.has(option.optionId) &&
+          getPromptDialect(option.adapterType) === state.promptDialect,
+      ),
+    ]
+    // 多选表单保留任一已选模型支持的值；发送时再逐模型裁剪。
+    const pruned = Object.assign(
+      {},
+      ...selectedModels.map(
+        (model) =>
+          pruneIncompatibleCapabilityValues(
+            state.advancedParams,
+            model.adapterType,
+            model.modelId,
+          ) ?? state.advancedParams,
+      ),
     )
-    // ⚠ 没有变化时 `pruned` 是 null —— 每次都写回一个新对象会把这个 effect
-    // 打成死循环（依赖里就有 advancedParams）。
-    if (!pruned) return
+    if (Object.keys(pruned).length === Object.keys(state.advancedParams).length)
+      return
     dispatch({ type: 'SET_ADVANCED_PARAMS', payload: pruned })
-  }, [selectedModel, state.advancedParams, dispatch])
+  }, [
+    modelOptions,
+    selectedModel,
+    state.extraModelOptionIds,
+    state.promptDialect,
+    state.advancedParams,
+    dispatch,
+  ])
 
   return { modelOptions, selectedModel }
 }

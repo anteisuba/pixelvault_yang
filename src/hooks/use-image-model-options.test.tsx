@@ -58,13 +58,24 @@ vi.mock('@/lib/model-options', () => ({
   withProviderKeyCoverage: vi.fn((options) => options),
 }))
 
-import { getAvailableImageModels, IMAGE_KIND } from '@/constants/models'
+import {
+  AI_MODELS,
+  getAvailableImageModels,
+  IMAGE_KIND,
+} from '@/constants/models'
 import { useStudioForm } from '@/contexts/studio-context'
 import { findSelectedModel } from '@/lib/model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 
 describe('useImageModelOptions', () => {
-  beforeEach(() => vi.clearAllMocks())
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(findSelectedModel).mockReset()
+    vi.mocked(useStudioForm).mockReturnValue({
+      state: { selectedOptionId: null, outputType: 'image' },
+      dispatch: vi.fn(),
+    } as unknown as ReturnType<typeof useStudioForm>)
+  })
 
   // 切模型 = 直接切（批注 36）：新模型不认识的**专属**值整个删掉（删 = 回默认），
   // 通用值（规格 / seed）一个都不动。⛔ 不写「上一个模型的快照」。
@@ -100,4 +111,63 @@ describe('useImageModelOptions', () => {
       AI_ADAPTER_TYPES.OPENAI,
     )
   })
+
+  it.each([false, true])(
+    'retains both providers after editing with PixAI primary=%s, then prunes on deselection',
+    (pixaiPrimary) => {
+      const models = [
+        {
+          id: AI_MODELS.NOVELAI_V5_CURATED,
+          adapterType: AI_ADAPTER_TYPES.NOVELAI,
+        },
+        { id: AI_MODELS.PIXAI_TSUBAKI_2, adapterType: AI_ADAPTER_TYPES.PIXAI },
+      ]
+      vi.mocked(getAvailableImageModels).mockReturnValueOnce(
+        models as ReturnType<typeof getAvailableImageModels>,
+      )
+      const primary = models[pixaiPrimary ? 1 : 0]
+      const extra = models[pixaiPrimary ? 0 : 1]
+      const selectedModel = {
+        optionId: `workspace:${primary.id}`,
+        modelId: primary.id,
+        adapterType: primary.adapterType,
+      } as NonNullable<ReturnType<typeof findSelectedModel>>
+      vi.mocked(findSelectedModel).mockReturnValue(selectedModel)
+      const state = {
+        selectedOptionId: selectedModel.optionId,
+        extraModelOptionIds: [`workspace:${extra.id}`],
+        outputType: 'image',
+        promptDialect: 'tags',
+        advancedParams: {
+          qualityToggle: 'standard',
+          pixaiMode: 'ultra',
+          seed: 42,
+        },
+      }
+      const dispatch = vi.fn()
+      vi.mocked(useStudioForm).mockReturnValue({
+        state,
+        dispatch,
+      } as unknown as ReturnType<typeof useStudioForm>)
+      const { rerender } = renderHook(() => useImageModelOptions())
+      expect(dispatch).not.toHaveBeenCalled()
+
+      state.advancedParams = {
+        qualityToggle: 'light',
+        pixaiMode: 'lite',
+        seed: 42,
+      }
+      rerender()
+      expect(dispatch).not.toHaveBeenCalled()
+
+      state.extraModelOptionIds = []
+      rerender()
+      expect(dispatch).toHaveBeenLastCalledWith({
+        type: 'SET_ADVANCED_PARAMS',
+        payload: pixaiPrimary
+          ? { pixaiMode: 'lite', seed: 42 }
+          : { qualityToggle: 'light', seed: 42 },
+      })
+    },
+  )
 })

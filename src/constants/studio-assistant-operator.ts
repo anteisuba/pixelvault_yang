@@ -705,32 +705,27 @@ export const STUDIO_OPERATOR_RESULT_STAGGER = {
  */
 export const STUDIO_OPERATOR_MOBILE_SHELL = {
   /**
-   * Sheet 的**三档吸附**（v2 §4.6）：半屏 / 全屏 / 关闭。
+   * Sheet 的高度 —— **接近满屏，顶上只留一条窄缝**（owner 2026-09-20 真机：
+   * 「感觉半屏高度不够」「Sheet 打开就接近满屏，像 Claude / GPT 的手机版」）。
    *
-   * ⚠ 这里只列「开着」的两档 —— 第三档「关闭」不是一个 snap point，它是
-   * `Drawer` 的 `open=false`（面板整颗卸载，手机上的「收起」就是这个）。把
-   * 关闭也写成一个 0 的 snap 会留下一张高度为 0、却仍然吃着焦点的 Sheet。
-   * ⚠ 数值是**视口比例**不是 px：vaul 的 snap point 收 0–1 的小数时按
-   * `window.innerHeight` 折算，而手机高度从 667 到 932 都有 —— 写死 px 会让
-   * 小屏上「半屏」盖住大半个工作台。
-   * ⚠ 半屏这一档是 §4.6 的「约 55dvh」：再低就装不下「最近一条消息 + 问题卡
-   * + 两行输入区」（画板 BMobile 那一屏），而问题卡钉在输入框上方、半屏内
-   * 必须看得见是这一档的全部意义。
-   */
-  halfSnapPoint: 0.55,
-  /** 全屏档 —— 1 = 整个视口高（Sheet 自身高度就是 `sheetHeight`）。 */
-  fullSnapPoint: 1,
-  /**
-   * Sheet 自身的高度 = **最大那一档**。
+   * ── ⛔ 半屏那一档已整块退场 ──────────────────────────────────────
+   * 55% 那一档把 376px 分给「头部 55 + 会话区 100 + 建议 chip 70 + 规格行与输入
+   * 区 130」—— 会话区是唯一的弹性格，于是它一个人吃掉所有挤压，空态那 153px
+   * 连一句话都摆不下。**助手就是当前任务**，不该只占半屏。
+   * ⚠ 顶上那条缝只够让人看出「后面还有东西、这是一层可关的」，⛔ 不留到能看
+   *   结果缩略图 —— 那些高度归会话区。
+   * ⚠ 跟着退场的是 `snapPoints` 整套（半屏 / 全屏两档、键盘升档、关掉复位）：
+   *   只有一个高度就没有档可吸，vaul 回到它最常走的那条路 —— 一张固定高度、
+   *   往下拖即关的抽屉。软键盘由 `maxHeight` 扣 `--keyboard-inset` 接住，⛔ 不再
+   *   靠「升到全屏」绕。
    *
-   * ⚠ 半屏不是靠改高度实现的：vaul 把 Sheet 按 `snapPointsOffset` 整体
-   * `translateY` 下移，露出来多少就是哪一档。⛔ 别改成 55dvh 再去拖 ——
-   * 那样拖到全屏时下半截是空的。
-   * ⚠ `dvh` 不是 `vh`（`ui-defaults.md §6`）：iOS 上地址栏收放会让 `100vh` 比
-   * 可视区高出一截，表现是输入区被顶到屏幕外面去。软键盘那一段由
-   * `--keyboard-inset` 从 `maxHeight` 里再扣（`KeyboardInsetBridge` 供值）。
+   * ⚠ `svh` 不是 `vh` 也不是 `dvh`（`ui-defaults.md §6` + `responsive-dialog.tsx`
+   *   的 `max-h-[95svh]` 同一口径）：`vh` 在 iOS 上比可视区高出一截（输入区被顶
+   *   出屏幕）；`dvh` 会随地址栏收放变高变矮，而这张 Sheet 现在几乎占满一屏 ——
+   *   跟着抖的表现是滚动位置每次都跳。`svh` 取的是地址栏**展开**时的那一档，
+   *   于是它在两种状态下都装得下。
    */
-  sheetHeight: '100dvh',
+  sheetHeight: '95svh',
   /** 浮标的命中区 —— 触屏 44（`ui-defaults.md §5`）。 */
   fabHitPx: 44,
   /**

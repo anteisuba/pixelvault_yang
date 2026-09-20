@@ -1,5 +1,5 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
-import { act, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
@@ -8,23 +8,21 @@ import {
 } from '@/constants/studio-assistant-operator'
 
 /**
- * 手机**半屏可拖** Sheet 的几何闸（v2 §4.6 · `ui-defaults.md §6` 移动端配方）。
+ * 手机 Sheet 的几何闸（owner 2026-09-20 真机：「感觉半屏高度不够」）。
  *
  * 钉这几件事：
  *  ① 关着时内容整颗不在 DOM 里（面板卸载 = 手机上的「收起」）；
  *  ② 打开时装的就是传进来的那个面板；
- *  ③ **默认开在半屏那一档**（三档里的中间那档；关闭那档 = `open=false`）；
- *  ④ 软键盘弹起（`visualViewport` 变矮）时升到全屏，收起后**回到弹起前那一档**；
- *  ⑤ Sheet 自身高度是 `dvh` 不是 `vh`（半屏靠 vaul 的吸附位移，不靠改高度），
+ *  ③ ⭐ **接近满屏、且只有一个高度**：`snapPoints` 整套已退场，⛔ 半屏那一档
+ *     不许回来 —— 它把唯一的弹性格（会话区）挤到装不下一句话；
+ *  ④ ⭐ 顶上留的是一条**窄缝**：露出的高度 ≥ 视口的九成，⛔ 不留到能看结果图；
+ *  ⑤ 高度走 `svh`（⛔ 不是 `vh`：iOS 地址栏；⛔ 不是 `dvh`：满屏档会跟着抖），
  *     且 `maxHeight` 把 `--keyboard-inset` 扣掉 —— ⛔ 只钉 bottom 不扣高的话，
  *     软键盘会把整张 Sheet 顶出屏幕上沿；
  *  ⑥ 带 `data-operator-keep`（面板内的 Radix portal 靠它认亲）；
- *  ⑦ `modal={false}` 下**没有遮罩** —— 上半截工作台照常看得见、点得到（半屏这
- *     一档的全部理由）；
+ *  ⑦ `modal={false}` 下**没有遮罩** —— 顶上那条缝底下的工作台看得见也点得到；
  *  ⑧ 拖把手**只有一条**（原语自带），⛔ 不在 Sheet 里再画第二条；
- *  ⑨ 关掉再开回到默认那一档 —— 上一次被键盘顶到全屏不记进下一次。
- *
- * ⚠ 吸附档读的是 `data-snap`：vaul 的位移是 rAF 里写的 transform，jsdom 量不出来。
+ *  ⑨ ⭐ 那一层 `min-h-0 flex-1 flex-col` 还在 —— 会话区能不能裁剪全靠它。
  */
 
 vi.mock('next-intl', () => ({
@@ -47,11 +45,8 @@ function renderSheet(open: boolean) {
 }
 
 describe('StudioOperatorMobileSheet', () => {
-  let viewport: FakeVisualViewport
-
   beforeEach(() => {
-    viewport = new FakeVisualViewport()
-    vi.stubGlobal('visualViewport', viewport)
+    vi.stubGlobal('visualViewport', new FakeVisualViewport())
     Object.defineProperty(window, 'innerHeight', {
       value: 844,
       configurable: true,
@@ -68,51 +63,46 @@ describe('StudioOperatorMobileSheet', () => {
     expect(screen.queryByTestId('operator-panel-content')).toBeNull()
   })
 
-  it('打开时装的就是传进来的那个面板，且默认停在半屏那一档', () => {
+  it('打开时装的就是传进来的那个面板', () => {
     renderSheet(true)
     expect(screen.getByTestId('operator-panel-content')).toBeTruthy()
-    expect(screen.getByTestId('operator-mobile-sheet').dataset.snap).toBe(
-      String(STUDIO_OPERATOR_MOBILE_SHELL.halfSnapPoint),
-    )
-    // 半屏这一档必须真的小于全屏，否则「露出上半截工作台」无从谈起。
-    expect(STUDIO_OPERATOR_MOBILE_SHELL.halfSnapPoint).toBeLessThan(
-      STUDIO_OPERATOR_MOBILE_SHELL.fullSnapPoint,
-    )
   })
 
-  it('软键盘弹起升到全屏，收起后回到原来那一档', () => {
+  /**
+   * owner 2026-09-20：半屏（0.55）把 376px 分成四格，而只有会话区是弹性的 ——
+   * 挤压全落在它头上。⛔ 吸附档整套退场，只留一个接近满屏的高度。
+   */
+  it('⭐ 只有一个高度：⛔ 没有吸附档，⛔ 半屏那一档不许回来', () => {
     renderSheet(true)
-    const sheet = () => screen.getByTestId('operator-mobile-sheet')
-
-    act(() => {
-      viewport.height = 500
-      viewport.dispatchEvent(new Event('resize'))
-    })
-    expect(sheet().dataset.snap).toBe(
-      String(STUDIO_OPERATOR_MOBILE_SHELL.fullSnapPoint),
-    )
-
-    act(() => {
-      viewport.height = 844
-      viewport.dispatchEvent(new Event('resize'))
-    })
-    expect(sheet().dataset.snap).toBe(
-      String(STUDIO_OPERATOR_MOBILE_SHELL.halfSnapPoint),
-    )
+    const sheet = screen.getByTestId('operator-mobile-sheet')
+    // vaul 有 `snapPoints` 时会在 DOM 上留下当前档的读数，没有就是没有。
+    expect(sheet.dataset.snap).toBeUndefined()
+    expect(sheet.getAttribute('data-vaul-snap-points')).not.toBe('true')
+    expect(STUDIO_OPERATOR_MOBILE_SHELL).not.toHaveProperty('halfSnapPoint')
+    expect(STUDIO_OPERATOR_MOBILE_SHELL).not.toHaveProperty('fullSnapPoint')
   })
 
-  it('高度走 dvh，且 maxHeight 扣掉软键盘那一段', () => {
+  it('⭐ 顶上只留一条窄缝：露出的高度 ≥ 视口九成', () => {
+    const exposed = Number.parseFloat(
+      STUDIO_OPERATOR_MOBILE_SHELL.sheetHeight.replace('svh', ''),
+    )
+    expect(exposed).toBeGreaterThanOrEqual(90)
+    // ⛔ 100：一条缝都不留就看不出这是一层可以关掉的东西。
+    expect(exposed).toBeLessThan(100)
+  })
+
+  it('高度走 svh，且 maxHeight 扣掉软键盘那一段', () => {
     renderSheet(true)
     const sheet = screen.getByTestId('operator-mobile-sheet')
     expect(sheet.style.height).toBe(STUDIO_OPERATOR_MOBILE_SHELL.sheetHeight)
-    // ⛔ 不用 `100vh`（`ui-defaults.md §6`）。
-    expect(STUDIO_OPERATOR_MOBILE_SHELL.sheetHeight).toBe('100dvh')
+    // ⛔ 不用 `100vh`（`ui-defaults.md §6`）、⛔ 也不用 `dvh`（满屏档会跟着抖）。
+    expect(STUDIO_OPERATOR_MOBILE_SHELL.sheetHeight).toMatch(/svh$/)
     expect(sheet.style.maxHeight).toContain('--keyboard-inset')
   })
 
-  it('半屏档露出上半截工作台：`modal={false}` 下 vaul 的遮罩整颗不渲染', () => {
+  it('⛔ `modal={false}` 下 vaul 的遮罩整颗不渲染', () => {
     const { baseElement } = renderSheet(true)
-    // 有遮罩 = 上半截被盖住且 body 被锁滚 —— 那正是半屏这一档要消灭的东西。
+    // 有遮罩 = 顶上那条缝被盖住且 body 被锁滚。
     expect(baseElement.querySelector('[data-vaul-overlay]')).toBeNull()
   })
 
@@ -123,64 +113,17 @@ describe('StudioOperatorMobileSheet', () => {
     expect(handles.length).toBe(1)
   })
 
-  it('键盘开着时再来一次遮挡不覆盖「弹起前那一档」', () => {
+  /**
+   * ⭐ 会话区能不能裁剪全靠这一层：`min-h-0` 一断，时间线就不再收缩，内容会
+   * 直接把建议 chip 与输入区顶下去（owner 真机撞到的正是这一类）。
+   */
+  it('⭐ 装面板那一层是可收缩的 flex 列（`min-h-0`）', () => {
     renderSheet(true)
-    const sheet = () => screen.getByTestId('operator-mobile-sheet')
-
-    act(() => {
-      viewport.height = 500
-      viewport.dispatchEvent(new Event('resize'))
-    })
-    // 已经在全屏档了：第二次遮挡必须提前返回，⛔ 不许把 restore 覆写成全屏。
-    act(() => {
-      viewport.height = 480
-      viewport.dispatchEvent(new Event('resize'))
-    })
-    expect(sheet().dataset.snap).toBe(
-      String(STUDIO_OPERATOR_MOBILE_SHELL.fullSnapPoint),
-    )
-
-    act(() => {
-      viewport.height = 844
-      viewport.dispatchEvent(new Event('resize'))
-    })
-    expect(sheet().dataset.snap).toBe(
-      String(STUDIO_OPERATOR_MOBILE_SHELL.halfSnapPoint),
-    )
-  })
-
-  it('关掉再开回到默认那一档（上一次被顶到全屏不记进下一次）', () => {
-    const view = render(
-      <StudioOperatorMobileSheet open onOpenChange={vi.fn()}>
-        <div data-testid="operator-panel-content" />
-      </StudioOperatorMobileSheet>,
-    )
-
-    act(() => {
-      viewport.height = 500
-      viewport.dispatchEvent(new Event('resize'))
-    })
-    expect(screen.getByTestId('operator-mobile-sheet').dataset.snap).toBe(
-      String(STUDIO_OPERATOR_MOBILE_SHELL.fullSnapPoint),
-    )
-
-    view.rerender(
-      <StudioOperatorMobileSheet open={false} onOpenChange={vi.fn()}>
-        <div data-testid="operator-panel-content" />
-      </StudioOperatorMobileSheet>,
-    )
-    act(() => {
-      viewport.height = 844
-      viewport.dispatchEvent(new Event('resize'))
-    })
-    view.rerender(
-      <StudioOperatorMobileSheet open onOpenChange={vi.fn()}>
-        <div data-testid="operator-panel-content" />
-      </StudioOperatorMobileSheet>,
-    )
-    expect(screen.getByTestId('operator-mobile-sheet').dataset.snap).toBe(
-      String(STUDIO_OPERATOR_MOBILE_SHELL.halfSnapPoint),
-    )
+    const host = screen.getByTestId('operator-panel-content')
+      .parentElement as HTMLElement
+    expect(host.className).toContain('min-h-0')
+    expect(host.className).toContain('flex-1')
+    expect(host.className).toContain('flex-col')
   })
 
   it('带 data-operator-keep', () => {

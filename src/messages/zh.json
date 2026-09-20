@@ -656,6 +656,7 @@
       },
       "fn": {
         "image": {
+          "go": "去图片工作台",
           "workbench": "图片工作台",
           "meta": "1024×1365 · 各 1 张 · 同题",
           "prompt": "一只戴圆框眼镜的橘猫馆长，坐在美术馆前台，胸牌写着「馆长」，身后挂满画框，暖光，浅景深",
@@ -663,6 +664,7 @@
           "moreModels": "{count} 个模型"
         },
         "lora": {
+          "go": "去 LoRA 工作台",
           "workbench": "LoRA 工作台",
           "mounted": "已挂 <b>{count}</b> · 不设上限",
           "search": "搜 Civitai / HuggingFace…",
@@ -700,6 +702,7 @@
           }
         },
         "audio": {
+          "go": "去配音间",
           "room": "配音间",
           "meta": "多说话人 ×8 · 音色库 + 克隆 · Fish S2.1",
           "lines": {
@@ -733,6 +736,7 @@
           "generate": "生成"
         },
         "video": {
+          "go": "去视频工作台",
           "workbench": "视频工作台",
           "meta": "Seedance 2.5 参考端点 · 单次 30s · 720p",
           "refs": {
@@ -755,6 +759,7 @@
           "outTag": "Seedance · 站内生成 · 借伞"
         },
         "canvas": {
+          "go": "去画布",
           "assistant": {
             "title": "助手",
             "meta": "剧本脑",
@@ -795,6 +800,7 @@
           }
         },
         "vault": {
+          "go": "去资源库",
           "title": "资源库",
           "meta": "图 · 视频 · 声音 · LoRA · 永久归档",
           "filters": {

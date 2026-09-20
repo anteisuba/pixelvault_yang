@@ -1122,7 +1122,7 @@ body.home-v4-locked {
     border-color 0.6s ease;
 }
 
-.home-v4 .fn-studio.reveal .fq {
+.home-v4 .fn-quad .fq.in {
   background: var(--panel);
   border-color: var(--line);
 }
@@ -1138,32 +1138,16 @@ body.home-v4-locked {
     transform 0.6s ease;
 }
 
-.home-v4 .fn-studio.reveal .fq img {
+.home-v4 .fn-quad .fq.in img {
   opacity: 1;
   transform: none;
 }
 
-/* 四格错开。延时挂在 `.fq` 的 `nth-child` 上，所以四格必须是 `.fn-quad` 的
-   直接子元素——中间夹一层包装就全部同时落下。
-   ⚠ 三行选择器要一起改：格子的底与框、图、模型角标是同一张结果的三个部件，
-   漏掉任何一行，那一格就会先冒出个空框或先亮出个模型名再等图。 */
-.home-v4 .fn-studio.reveal .fq:nth-child(2),
-.home-v4 .fn-studio.reveal .fq:nth-child(2) img,
-.home-v4 .fn-studio.reveal .fq:nth-child(2) .mtag {
-  transition-delay: 0.3s;
-}
-
-.home-v4 .fn-studio.reveal .fq:nth-child(3),
-.home-v4 .fn-studio.reveal .fq:nth-child(3) img,
-.home-v4 .fn-studio.reveal .fq:nth-child(3) .mtag {
-  transition-delay: 0.6s;
-}
-
-.home-v4 .fn-studio.reveal .fq:nth-child(4),
-.home-v4 .fn-studio.reveal .fq:nth-child(4) img,
-.home-v4 .fn-studio.reveal .fq:nth-child(4) .mtag {
-  transition-delay: 0.9s;
-}
+/* ⭐ 四格的错开**不再是 CSS 延时**。v5 长卷里每一格由段内进度逐格点亮
+   （`HOME_V4_BEATS.image.tiles`），错开量 = 读者滚过的距离。写死的
+   `transition-delay` 在 scrub 下会把格子推到进度后面去，所以那三段
+   `nth-child` 延时已经删掉；格子仍必须是 `.fn-quad` 的直接子元素，因为
+   状态类挂在格子本身上。 */
 
 /* 模型角标跟着它那张图一起到——空态里它也不许先站出来。 */
 .home-v4 .fn-quad .fq .mtag {
@@ -1182,7 +1166,7 @@ body.home-v4-locked {
   transition: opacity 0.6s ease;
 }
 
-.home-v4 .fn-studio.reveal .fq .mtag {
+.home-v4 .fn-quad .fq.in .mtag {
   opacity: 1;
 }
 
@@ -2217,13 +2201,6 @@ body.home-v4-locked {
   text-align: left;
 }
 
-/* 飞递的 ghost 落在这块空层里，不进 React 管的子树（05 与 06 共用一套） */
-.home-v4 .fn-flyers {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
 .home-v4 .fn-step {
   flex: none;
   border: 1px solid var(--line);
@@ -2537,28 +2514,6 @@ body.home-v4-locked {
   stroke-dashoffset: 0;
 }
 
-/* 接续飞行元素（05 剧本卡 / 分镜卡 · 06 回流图） */
-.home-v4 .flyer {
-  position: absolute;
-  z-index: 60;
-  pointer-events: none;
-  transition:
-    transform 0.78s cubic-bezier(0.45, 0.05, 0.25, 1),
-    opacity 0.78s ease;
-}
-
-.home-v4 .fly-chip {
-  display: inline-block;
-  white-space: nowrap;
-  border: 1px solid var(--ink);
-  background: var(--panel);
-  border-radius: 9px;
-  padding: 6px 11px;
-  font-family: var(--mono);
-  font-size: 11px;
-  box-shadow: 0 14px 34px -14px rgba(10, 10, 10, 0.45);
-}
-
 .home-v4 .fly-card {
   display: block;
   width: 56px;
@@ -2566,14 +2521,6 @@ body.home-v4-locked {
   border: 1px solid var(--ink);
   background: var(--paper);
   border-radius: 7px;
-  box-shadow: 0 14px 34px -14px rgba(10, 10, 10, 0.45);
-}
-
-.home-v4 .fly-shot {
-  display: block;
-  object-fit: cover;
-  border-radius: 10px;
-  border: 1px solid var(--ink);
   box-shadow: 0 14px 34px -14px rgba(10, 10, 10, 0.45);
 }
 
@@ -2794,22 +2741,24 @@ body.home-v4-locked {
   letter-spacing: 0.12em;
 }
 
+/* ⭐ 复用位是**被填满**的：`--slot`（0–1，段内进度求值）从下往上揭开这张图。
+   飞递 ghost 删掉之后，「拿去复用」这件事完全由这一条 clip-path 表达，滚回去
+   就真的退回去。⛔ 不动宽高，不动布局。 */
 .home-v4 .fn-vault .slot img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0;
-  transition: opacity 0.45s;
+  opacity: 1;
+  clip-path: inset(calc((1 - var(--slot, 0)) * 100%) 0 0 0);
 }
 
 .home-v4 .fn-vault .slot .gk {
   position: absolute;
   left: 7px;
   bottom: 7px;
-  opacity: 0;
-  transition: opacity 0.45s;
+  opacity: var(--slot, 0);
   font-family: var(--mono);
   font-size: 10px;
   padding: 2px 8px;
@@ -2819,18 +2768,13 @@ body.home-v4-locked {
   backdrop-filter: blur(3px);
 }
 
-.home-v4 .fn-vault .slot.got {
+.home-v4 .fn-vault .slot[data-got='true'] {
   border-color: var(--ink);
   border-style: solid;
 }
 
-.home-v4 .fn-vault .slot.got .ph {
-  opacity: 0;
-}
-
-.home-v4 .fn-vault .slot.got img,
-.home-v4 .fn-vault .slot.got .gk {
-  opacity: 1;
+.home-v4 .fn-vault .slot .ph {
+  opacity: calc(1 - var(--slot, 0));
 }
 
 .home-v4 .fn-vault .vnote {

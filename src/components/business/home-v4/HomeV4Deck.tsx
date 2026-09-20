@@ -22,6 +22,8 @@ import {
   type HomeV4StationKey,
 } from '@/constants/homepage-v4'
 
+import { homeV4CanvasProgressForStep } from '@/lib/home-v4-beats'
+
 import { HomeV4Finale } from './HomeV4Finale'
 import { HomeV4FnAudio } from './HomeV4FnAudio'
 import { HomeV4FnCanvas } from './HomeV4FnCanvas'
@@ -556,10 +558,17 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
     if (page.id === 'finale') return <HomeV4Finale active={active} />
     if (page.station) return renderStation(page, index)
 
-    /* Every feature page takes the same header and the same play/reset switch;
-       only page 01 needs a way back out into a station. */
+    /**
+     * Every feature section takes the same header and the same progress.
+     *
+     * ⚠ `progress` is the段's own 0–1 scrub position, and while the deck is
+     * still a page-turner it is **1 on the page you are looking at** — the
+     * result state, which is exactly what 降级 (reduced motion / phone) and a
+     * 目录跳段 are defined to show. The long scroll replaces this one line with
+     * a real scroll reading; nothing else in the六段 changes.
+     */
     const shared = {
-      active,
+      progress: active ? 1 : 0,
       eyebrow: page.eyebrow ?? '',
       title: t(`v4.pages.${page.id}.title`),
     }
@@ -575,14 +584,15 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
       case 'lora':
         return <HomeV4FnLora {...shared} />
       case 'audio':
-        return <HomeV4FnAudio {...shared} />
+        return <HomeV4FnAudio {...shared} active={active} />
       case 'video':
-        return <HomeV4FnVideo {...shared} />
+        return <HomeV4FnVideo {...shared} active={active} />
       case 'canvas':
         return (
           <HomeV4FnCanvas
             {...shared}
-            progress={canvasProgress}
+            active={active}
+            progress={homeV4CanvasProgressForStep(canvasProgress)}
             onStepChange={(step) => {
               setCanvasPosition(step)
               lock()

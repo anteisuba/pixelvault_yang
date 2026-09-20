@@ -1,6 +1,13 @@
 import type { ReactNode } from 'react'
 
+import { useTranslations } from 'next-intl'
+
+import { HOME_V4_FN_ROUTES, HOME_V4_GLYPHS } from '@/constants/homepage-v4'
+import { Link } from '@/i18n/navigation'
+
 interface HomeV4FnFrameProps {
+  /** Section id — picks the CTA's destination out of `HOME_V4_FN_ROUTES`. */
+  id: string
   /** Mono kicker, e.g. `01 · IMAGE`. Language-neutral, comes from the deck. */
   eyebrow: string
   /** The one line the page is about. */
@@ -16,21 +23,24 @@ interface HomeV4FnFrameProps {
    * everywhere else — page 01's model chips.
    */
   aside?: ReactNode
+  /**
+   * The段's 结果态 has arrived: light the 「去用这个」 link.
+   *
+   * ⚠ The link is **always rendered**, on every段, at every progress — only its
+   * paint is withheld. A CTA that appears at 0.9 would relayout the stage at
+   * the one moment the reader is looking at the result.
+   */
+  ctaOn: boolean
   children: ReactNode
 }
 
 /**
- * The scaffold all six feature pages share: `.page-inner` → `.fg.imgfn` →
- * header (`l2`) + stage (`l3`).
+ * The scaffold all six feature sections share: `.page-inner` → `.fg.imgfn` →
+ * header (`l2`) + stage (`l3`) + the section's own CTA.
  *
  * It exists because the SPEC wrote the header and stage boxes as inline styles
  * repeated on all six pages. Those are layout, not data, so they moved into
  * `home-v4.css` (`.fn-head` / `.fn-stage`) and the repetition moved here.
- *
- * The layer classes are the load-bearing part: `l2` on the text, `l3` on the
- * visual block, so the two arrive at different speeds when the page turns.
- * ⚠ Anything carrying a layer class has its `transform` written by the parallax
- * rules — never centre such an element with `translate`.
  *
  * `.fn-text` is `display: contents` until the rail turns it into the left
  * column, which is why it carries no layer class of its own: without a rail
@@ -38,12 +48,16 @@ interface HomeV4FnFrameProps {
  * is ordered after the stage.
  */
 export function HomeV4FnFrame({
+  id,
   eyebrow,
   title,
   rail = false,
   aside,
+  ctaOn,
   children,
 }: HomeV4FnFrameProps) {
+  const t = useTranslations('Homepage')
+
   return (
     <div className={rail ? 'page-inner rail' : 'page-inner'}>
       <div className="fg imgfn">
@@ -51,6 +65,14 @@ export function HomeV4FnFrame({
           <div className="fn-head l2">
             <p className="eyebrow">{eyebrow}</p>
             <h2>{title}</h2>
+            <Link
+              className="fn-cta"
+              data-on={String(ctaOn)}
+              href={HOME_V4_FN_ROUTES[id]}
+              tabIndex={ctaOn ? undefined : -1}
+            >
+              {t(`v4.fn.${id}.go`)} {HOME_V4_GLYPHS.arrow}
+            </Link>
           </div>
           {aside ? <div className="fn-aside l3">{aside}</div> : null}
         </div>

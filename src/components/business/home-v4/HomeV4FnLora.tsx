@@ -1,37 +1,26 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useState } from 'react'
 
 import { useTranslations } from 'next-intl'
 
 import {
-  HOME_V4_ENGINE,
-  HOME_V4_FN_LORA,
   HOME_V4_FN_LORA_CARDS,
   HOME_V4_FN_LORA_MOUNTS,
   HOME_V4_FN_LORA_OUTS,
   HOME_V4_FN_LORA_WEIGHT_MAX,
   HOME_V4_GLYPHS,
 } from '@/constants/homepage-v4'
+import { homeV4LoraBeats } from '@/lib/home-v4-beats'
 
 import { HomeV4FnFrame } from './HomeV4FnFrame'
 
 interface HomeV4FnLoraProps {
-  /** True while this is the page on screen. Drives play / reset. */
-  active: boolean
+  /** 段内滚动进度 0–1。0 = 空机架，1 = 四张对照图 + CTA。 */
+  progress: number
   eyebrow: string
   title: string
 }
-
-/** Three counters, one per beat — each is 「how many have landed」. */
-interface LoraBeats {
-  mounted: number
-  triggers: number
-  outs: number
-}
-
-const AT_REST: LoraBeats = { mounted: 0, triggers: 0, outs: 0 }
 
 /**
  * 功能页 02 · LoRA — the mounting bench, played out.
@@ -47,50 +36,22 @@ const AT_REST: LoraBeats = { mounted: 0, triggers: 0, outs: 0 }
  *
  * Mobile drops the library column entirely and keeps the rack, so the one thing
  * on screen is the state the page is actually about.
+ *
+ * v5 长卷：三批拍子（挂载 / 触发词 / 出图）由 `homeV4LoraBeats(progress)` 求值，
+ * 没有定时器。六张库卡、五条机架行、四格出图全部预渲染，只切 class。
  */
-export function HomeV4FnLora({ active, eyebrow, title }: HomeV4FnLoraProps) {
+export function HomeV4FnLora({ progress, eyebrow, title }: HomeV4FnLoraProps) {
   const t = useTranslations('Homepage')
-  const [beats, setBeats] = useState<LoraBeats>(AT_REST)
-
-  useEffect(() => {
-    if (!active) {
-      /* Rewind only once the page has slid away — see `HomeV4Opening`. */
-      const rewind = window.setTimeout(
-        () => setBeats(AT_REST),
-        HOME_V4_ENGINE.PAGE_MS,
-      )
-      return () => window.clearTimeout(rewind)
-    }
-
-    const timers: number[] = []
-    const at = (fn: () => void, ms: number) => {
-      timers.push(window.setTimeout(fn, HOME_V4_FN_LORA.ENTER_DELAY_MS + ms))
-    }
-
-    HOME_V4_FN_LORA_MOUNTS.forEach((_, index) => {
-      at(
-        () => setBeats((current) => ({ ...current, mounted: index + 1 })),
-        HOME_V4_FN_LORA.MOUNT_START_MS + index * HOME_V4_FN_LORA.MOUNT_STEP_MS,
-      )
-      at(
-        () => setBeats((current) => ({ ...current, triggers: index + 1 })),
-        HOME_V4_FN_LORA.TRIGGER_START_MS +
-          index * HOME_V4_FN_LORA.TRIGGER_STEP_MS,
-      )
-    })
-
-    HOME_V4_FN_LORA_OUTS.forEach((_, index) => {
-      at(
-        () => setBeats((current) => ({ ...current, outs: index + 1 })),
-        HOME_V4_FN_LORA.OUT_START_MS + index * HOME_V4_FN_LORA.OUT_STEP_MS,
-      )
-    })
-
-    return () => timers.forEach((id) => window.clearTimeout(id))
-  }, [active])
+  const beats = homeV4LoraBeats(progress)
 
   return (
-    <HomeV4FnFrame eyebrow={eyebrow} title={title} rail>
+    <HomeV4FnFrame
+      id="lora"
+      eyebrow={eyebrow}
+      title={title}
+      rail
+      ctaOn={beats.cta}
+    >
       <div className="fn-lora">
         <div className="bar">
           <span className="t">{t('v4.fn.lora.workbench')}</span>

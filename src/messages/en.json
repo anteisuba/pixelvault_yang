@@ -656,6 +656,7 @@
       },
       "fn": {
         "image": {
+          "go": "Open the image studio",
           "workbench": "Image workspace",
           "meta": "1024×1365 · 1 image per model · same prompt",
           "prompt": "Ginger cat curator in round glasses at a museum desk, framed art behind, warm light",
@@ -663,6 +664,7 @@
           "moreModels": "{count, plural, one {# model} other {# models}}"
         },
         "lora": {
+          "go": "Open the LoRA bench",
           "workbench": "LoRA workspace",
           "mounted": "<b>{count}</b> added · no limit",
           "search": "Search Civitai / Hugging Face…",
@@ -700,6 +702,7 @@
           }
         },
         "audio": {
+          "go": "Open the dubbing room",
           "room": "Voice room",
           "meta": "8 speakers · voice library + cloning · Fish S2.1",
           "lines": {
@@ -733,6 +736,7 @@
           "generate": "Generate"
         },
         "video": {
+          "go": "Open the video studio",
           "workbench": "Video workspace",
           "meta": "Seedance 2.5 reference endpoint · 30s in one pass · 720p",
           "refs": {
@@ -755,6 +759,7 @@
           "outTag": "Seedance · made here · The Borrowed Umbrella"
         },
         "canvas": {
+          "go": "Open the canvas",
           "assistant": {
             "title": "Assistant",
             "meta": "Script assistant",
@@ -795,6 +800,7 @@
           }
         },
         "vault": {
+          "go": "Open the library",
           "title": "Vault",
           "meta": "Images · video · audio · LoRA · kept for good",
           "filters": {

@@ -11,14 +11,18 @@ import {
   HOME_V4_GLYPHS,
   HOME_V4_STORY,
 } from '@/constants/homepage-v4'
+import { homeV4CanvasBeats } from '@/lib/home-v4-beats'
 
 import { HomeV4FnFrame } from './HomeV4FnFrame'
 
 interface HomeV4FnCanvasProps {
+  /** 这一段还在视口里。只管成片播放，不管画什么。 */
   active: boolean
   eyebrow: string
   title: string
+  /** 段内滚动进度 0–1，经 `homeV4CanvasBeats` 映到 0–2 号步骤。 */
   progress: number
+  /** 步骤按钮：跳到那一步（= 把该步的进度喂回来）。 */
   onStepChange: (step: number) => void
 }
 
@@ -37,7 +41,9 @@ export function HomeV4FnCanvas({
 }: HomeV4FnCanvasProps) {
   const t = useTranslations('Homepage')
   const videoRef = useRef<HTMLVideoElement | null>(null)
-  const showCut = active && progress >= 1.9
+  const beats = homeV4CanvasBeats(progress)
+  const step = beats.step
+  const showCut = active && beats.cut
 
   useEffect(() => {
     const clip = videoRef.current
@@ -57,27 +63,32 @@ export function HomeV4FnCanvas({
 
   const stepStyle = (index: number): CSSProperties =>
     ({
-      '--step-offset': index - progress,
-      '--step-distance': Math.min(1, Math.abs(index - progress)),
+      '--step-offset': index - step,
+      '--step-distance': Math.min(1, Math.abs(index - step)),
     }) as CSSProperties
 
   return (
-    <HomeV4FnFrame eyebrow={eyebrow} title={title}>
+    <HomeV4FnFrame
+      id="canvas"
+      eyebrow={eyebrow}
+      title={title}
+      ctaOn={beats.cta}
+    >
       <div
         className="fn-canvas"
-        data-stage={Math.round(progress) + 1}
+        data-stage={Math.round(step) + 1}
         data-scroll-story
       >
         <nav className="canvas-steps" aria-label={title}>
-          {['assistant', 'script', 'board'].map((step, index) => (
+          {['assistant', 'script', 'board'].map((name, index) => (
             <button
-              key={step}
+              key={name}
               type="button"
-              aria-current={Math.round(progress) === index ? 'step' : undefined}
+              aria-current={Math.round(step) === index ? 'step' : undefined}
               onClick={() => onStepChange(index)}
             >
               <span>{index + 1}</span>
-              {t(`v4.fn.canvas.${step}.title`)}
+              {t(`v4.fn.canvas.${name}.title`)}
             </button>
           ))}
         </nav>
@@ -86,7 +97,7 @@ export function HomeV4FnCanvas({
           <div
             className="fn-step s1"
             style={stepStyle(0)}
-            inert={Math.round(progress) !== 0}
+            inert={Math.round(step) !== 0}
           >
             <div className="bar">
               <span className="no">1</span>
@@ -100,13 +111,13 @@ export function HomeV4FnCanvas({
                 </span>
                 <span className="b">{t('v4.fn.canvas.assistant.me')}</span>
               </div>
-              <div className={`m${active ? ' in' : ''}`}>
+              <div className="m in">
                 <span className="av">
                   {t('v4.fn.canvas.assistant.botAvatar')}
                 </span>
                 <span className="b">{t('v4.fn.canvas.assistant.bot')}</span>
               </div>
-              <span className={`chip${active ? ' in' : ''}`}>
+              <span className="chip in">
                 {t('v4.fn.canvas.assistant.chip')}
               </span>
             </div>
@@ -116,7 +127,7 @@ export function HomeV4FnCanvas({
           <div
             className="fn-step s2"
             style={stepStyle(1)}
-            inert={Math.round(progress) !== 1}
+            inert={Math.round(step) !== 1}
           >
             <div className="bar">
               <span className="no">2</span>
@@ -125,11 +136,7 @@ export function HomeV4FnCanvas({
             </div>
             <div className="body">
               {HOME_V4_FN_CANVAS_SHOTS.map((shot) => {
-                const classes = [
-                  'row',
-                  active ? 'in' : '',
-                  progress >= 1.5 ? 'sent' : '',
-                ]
+                const classes = ['row', 'in', step >= 1.5 ? 'sent' : '']
                   .filter(Boolean)
                   .join(' ')
 
@@ -154,7 +161,7 @@ export function HomeV4FnCanvas({
           <div
             className="fn-step s3"
             style={stepStyle(2)}
-            inert={Math.round(progress) !== 2}
+            inert={Math.round(step) !== 2}
           >
             <div className="bar">
               <span className="no">3</span>
@@ -182,7 +189,7 @@ export function HomeV4FnCanvas({
 
               {HOME_V4_FN_CANVAS_SHOTS.map((shot, index) => (
                 <div
-                  className={`cn${active && progress > 1 ? ' in' : ''}`}
+                  className={`cn${step > 1 ? ' in' : ''}`}
                   data-n={index}
                   key={shot}
                 >

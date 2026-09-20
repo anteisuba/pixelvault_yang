@@ -1,19 +1,19 @@
-import { act, fireEvent, render } from '@testing-library/react'
+import { render } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
-  HOME_V4_ENGINE,
-  HOME_V4_FN_AUDIO,
   HOME_V4_FN_AUDIO_LINES,
   HOME_V4_FN_CANVAS_SHOTS,
+  HOME_V4_FN_IMAGE_MODELS,
   HOME_V4_FN_LORA_MOUNTS,
   HOME_V4_FN_LORA_OUTS,
-  HOME_V4_FN_VAULT,
   HOME_V4_FN_VAULT_CELLS,
   HOME_V4_FN_VIDEO_REFS,
+  HOME_V4_SCROLL,
   HOME_V4_STATIONS,
 } from '@/constants/homepage-v4'
+import { homeV4CanvasProgressForStep } from '@/lib/home-v4-beats'
 
 import { HomeV4FnAudio } from './HomeV4FnAudio'
 import { HomeV4FnCanvas } from './HomeV4FnCanvas'
@@ -36,561 +36,314 @@ vi.mock('next/image', () => ({
   ),
 }))
 
-/** Long enough for every page's last beat plus its longest flight. */
-const WHOLE_PERFORMANCE_MS = 12_000
+vi.mock('@/i18n/navigation', () => ({
+  Link: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: string
+    children: React.ReactNode
+  }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
+  ),
+}))
+
 const HEADER = { eyebrow: '01 · TEST', title: 'title' }
 
-/**
- * Drives one feature page through the switch the deck actually flips: mounted
- * off-screen, played, then left.
- */
-function stage(page: (active: boolean) => ReactElement) {
-  const view = render(page(false))
+/** UX 板给的四个取样点，六段共用。 */
+const SAMPLES = [0, 0.3, 0.7, 1] as const
 
-  const advance = (ms: number) => {
-    act(() => {
-      vi.advanceTimersByTime(ms)
-    })
-  }
-
+/** One section, drawn at one progress. Nothing here needs a clock. */
+function at(section: (progress: number) => ReactElement, progress: number) {
+  const view = render(section(progress))
   return {
-    container: view.container,
     unmount: view.unmount,
-    /** Turn the page on and run its timeline for `ms`. */
-    play(ms: number = WHOLE_PERFORMANCE_MS) {
-      view.rerender(page(true))
-      advance(ms)
-    },
-    /** Turn it off and wait out the delayed rewind. */
-    leave() {
-      view.rerender(page(false))
-      advance(HOME_V4_ENGINE.PAGE_MS + 100)
-    },
-    /** Flip `active` without moving the clock — for what must happen *now*. */
-    rerender: (active: boolean) => view.rerender(page(active)),
-    advance,
     count: (selector: string) =>
       view.container.querySelectorAll(selector).length,
-    /**
-     * Every element's class attribute, in document order. `getAttribute` and
-     * not `className`, because on an SVG node the latter is an
-     * `SVGAnimatedString` and would compare equal to nothing.
-     */
-    classes: () =>
-      Array.from(
-        view.container.querySelectorAll('*'),
-        (element) => element.getAttribute('class') ?? '',
-      ),
+    has: (selector: string) => view.container.querySelector(selector) !== null,
+    text: (selector: string) =>
+      view.container.querySelector(selector)?.textContent ?? '',
+    attr: (selector: string, name: string) =>
+      view.container.querySelector(selector)?.getAttribute(name) ?? null,
   }
 }
 
-/**
- * Smoke coverage for the six feature-page performances (P2).
- *
- * jsdom has no layout, so nothing here asserts geometry — every rect is zero,
- * which is exactly why the flight ghosts are only checked for existence and
- * cleanup. What *is* pinned is the contract with `home-v4.css`: which classes
- * are on at the end of the timeline, that leaving clears every one of them, and
- * that no page leaves a timer behind when it unmounts.
- */
-describe.each([
+const SECTIONS = [
   [
     'image',
-    (active: boolean) => (
+    (progress: number) => (
       <HomeV4FnImage
         {...HEADER}
-        active={active}
+        progress={progress}
         onOpenModel={() => undefined}
       />
     ),
   ],
-  ['lora', (active: boolean) => <HomeV4FnLora {...HEADER} active={active} />],
-  ['audio', (active: boolean) => <HomeV4FnAudio {...HEADER} active={active} />],
-  ['video', (active: boolean) => <HomeV4FnVideo {...HEADER} active={active} />],
+  [
+    'lora',
+    (progress: number) => <HomeV4FnLora {...HEADER} progress={progress} />,
+  ],
+  [
+    'audio',
+    (progress: number) => (
+      <HomeV4FnAudio {...HEADER} progress={progress} active />
+    ),
+  ],
+  [
+    'video',
+    (progress: number) => (
+      <HomeV4FnVideo {...HEADER} progress={progress} active />
+    ),
+  ],
   [
     'canvas',
-    (active: boolean) => (
+    (progress: number) => (
       <HomeV4FnCanvas
         {...HEADER}
-        active={active}
-        progress={0}
+        progress={progress}
+        active
         onStepChange={() => undefined}
       />
     ),
   ],
-  ['vault', (active: boolean) => <HomeV4FnVault {...HEADER} active={active} />],
-] as const)('home v4 · feature page %s', (_name, page) => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    /* jsdom implements neither, and `play()` returning undefined would make the
-       `.catch()` in the page throw rather than swallow a refused autoplay. */
-    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
-    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(
-      () => undefined,
-    )
+  [
+    'vault',
+    (progress: number) => <HomeV4FnVault {...HEADER} progress={progress} />,
+  ],
+] as const
+
+/**
+ * 六段演示的**状态机**契约（v5 长卷）。
+ *
+ * jsdom 没有布局，所以这里一寸几何都不断言。被钉住的是另一件事，而且是现在唯一
+ * 要紧的那件：**同一个 progress 永远画出同一个 DOM**——没有定时器、没有「播到
+ * 哪儿了」、没有进场与退场的差别。往回滚就是把 progress 调小，所以每条断言都
+ * 双向成立。
+ */
+beforeEach(() => {
+  /* jsdom implements neither, and `play()` returning undefined would make the
+     `.catch()` in the section throw rather than swallow a refused autoplay. */
+  vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
+  vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(
+    () => undefined,
+  )
+})
+
+afterEach(() => {
+  vi.restoreAllMocks()
+})
+
+describe.each(SECTIONS)('home v5 · 功能段 %s', (name, section) => {
+  it('空态就画完整的骨架：元素全部预渲染，只是没揭开', () => {
+    const view = at(section, 0)
+    expect(view.has('.page-inner')).toBe(true)
+    expect(view.has('.fn-head h2')).toBe(true)
+    expect(view.has('.fn-stage')).toBe(true)
+    /* ⛔ 段内没有任何一件东西是「到时候才加进 DOM」的：那是布局变化。 */
+    expect(view.count('.fn-stage > *')).toBeGreaterThan(0)
   })
 
-  afterEach(() => {
-    vi.runOnlyPendingTimers()
-    vi.useRealTimers()
-    vi.restoreAllMocks()
+  it('结果态亮 CTA，空态不亮，且 CTA 在两种状态下都在 DOM 里', () => {
+    const empty = at(section, 0)
+    expect(empty.attr('.fn-cta', 'data-on')).toBe('false')
+    /* 不亮的时候不吃 Tab —— 看不见的链接不该是焦点站。 */
+    expect(empty.attr('.fn-cta', 'tabindex')).toBe('-1')
+
+    const done = at(section, HOME_V4_SCROLL.REST_PROGRESS)
+    expect(done.attr('.fn-cta', 'data-on')).toBe('true')
+    expect(done.attr('.fn-cta', 'tabindex')).toBe(null)
+    expect(done.attr('.fn-cta', 'href')).toBeTruthy()
   })
 
-  it('renders the page header and stage before it is ever played', () => {
-    const view = stage(page)
-
-    expect(view.count('.page-inner')).toBe(1)
-    expect(view.count('.fn-head.l2')).toBe(1)
-    expect(view.count('.fn-stage.l3')).toBe(1)
-    expect(view.count('.in')).toBe(0)
+  it('同一个 progress 画出同一个 DOM（可来回滚）', () => {
+    for (const progress of SAMPLES) {
+      const first = render(section(progress)).container.innerHTML
+      const second = render(section(progress)).container.innerHTML
+      expect(second, `${name} @ ${progress}`).toBe(first)
+    }
   })
 
-  it('plays, then rewinds to exactly the state it started in', () => {
-    const view = stage(page)
-    const atRest = view.classes()
-
-    view.play()
-    expect(view.classes()).not.toEqual(atRest)
-
-    view.leave()
-    expect(view.classes()).toEqual(atRest)
-    expect(view.count('.flyer')).toBe(0)
-
-    view.unmount()
-    expect(vi.getTimerCount()).toBe(0)
-  })
-
-  /**
-   * ⭐ The regression P2 shipped with: leaving reset the page but coming back
-   * never replayed it. Every beat is scheduled off `active` going true, so a
-   * page that has been rewound has to run its whole timeline again — this is
-   * the invariant, not "it plays the first time".
-   */
-  it('replays the whole performance on a second visit', () => {
-    const view = stage(page)
-    const atRest = view.classes()
-
-    view.play()
-    const played = view.classes()
-
-    view.leave()
-    expect(view.classes()).toEqual(atRest)
-
-    view.play()
-    expect(view.classes()).toEqual(played)
-  })
-
-  it('survives being toggled on and off mid-performance', () => {
-    const view = stage(page)
-    const atRest = view.classes()
-
-    view.play(600)
-    view.leave()
-    view.play(600)
-    view.leave()
-
-    expect(view.classes()).toEqual(atRest)
-    view.unmount()
-    expect(vi.getTimerCount()).toBe(0)
+  it('降级进度（手机 / reduced-motion）给的是结果态', () => {
+    const view = at(section, HOME_V4_SCROLL.REST_PROGRESS)
+    expect(view.attr('.fn-cta', 'data-on')).toBe('true')
   })
 })
 
-describe('home v4 · feature page 01 图片', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.runOnlyPendingTimers()
-    vi.useRealTimers()
-  })
-
-  it('types the prompt, lights the button, then reveals four tiles', () => {
-    const view = stage((active) => (
-      <HomeV4FnImage
-        {...HEADER}
-        active={active}
-        onOpenModel={() => undefined}
-      />
-    ))
-
-    view.play()
-
-    const studio = view.container.querySelector('.fn-studio')
-    expect(studio?.className).toContain('typed')
-    expect(studio?.className).toContain('reveal')
-    expect(view.container.querySelector('.ptxt .txt')?.textContent).toBe(
-      'v4.fn.image.prompt',
-    )
-    expect(view.count('.fn-quad .fq')).toBe(4)
-
-    view.leave()
-    expect(view.container.querySelector('.ptxt .txt')?.textContent).toBe('')
-    expect(view.container.querySelector('.fn-studio')?.className).toBe(
-      'fn-studio',
-    )
-  })
-
-  it('offers one chip per image-station model and reports its index', () => {
-    const onOpenModel = vi.fn()
-    const view = stage((active) => (
-      <HomeV4FnImage {...HEADER} active={active} onOpenModel={onOpenModel} />
-    ))
-
-    const chips = view.container.querySelectorAll('.chips button')
-    expect(chips).toHaveLength(HOME_V4_STATIONS.image.length)
-
-    fireEvent.click(chips[2])
-    expect(onOpenModel).toHaveBeenCalledWith(2)
-  })
-})
-
-describe('home v4 · feature page 02 LoRA', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-  })
-
-  afterEach(() => {
-    vi.runOnlyPendingTimers()
-    vi.useRealTimers()
-  })
-
-  it('mounts all but one library card, then drops in the triggers that exist', () => {
-    const view = stage((active) => <HomeV4FnLora {...HEADER} active={active} />)
-
-    view.play()
-
-    const mounts = HOME_V4_FN_LORA_MOUNTS.length
-    expect(view.count('.lcard.hot')).toBe(mounts)
-    /* One card is deliberately left in the library — and it is the one cut for
-       a different base model, which is what「挂不上」 actually looks like. */
-    expect(view.count('.lcard')).toBeGreaterThan(mounts)
-    expect(view.count('.mrow.in')).toBe(mounts)
-    /* ⚠ **Fewer chips than mounts, on purpose.** A slider LoRA and a detail
-       LoRA have no trigger word; printing one for every mount would misstate
-       how they are used. This asserts the gap is real rather than a dropped
-       chip — if `trigger: null` ever silently starts rendering, this fails. */
-    const triggered = HOME_V4_FN_LORA_MOUNTS.filter((m) => m.trigger).length
-    expect(triggered).toBeLessThan(mounts)
-    expect(view.count('.trig.in')).toBe(triggered)
-    expect(view.count('.oq.in')).toBe(HOME_V4_FN_LORA_OUTS.length)
-
-    view.leave()
-    expect(view.count('.lcard.hot')).toBe(0)
-    expect(view.count('.mrow.in')).toBe(0)
-  })
-})
-
-describe('home v4 · feature page 03 声音', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
-    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(
-      () => undefined,
-    )
-  })
-
-  afterEach(() => {
-    vi.runOnlyPendingTimers()
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-  })
-
-  /** The three transport buttons, in message order. */
-  const keys = (view: ReturnType<typeof stage>) =>
-    Array.from(
-      view.container.querySelectorAll<HTMLButtonElement>('.voice .play'),
+describe('01 图片 · DOM 随进度', () => {
+  const draw = (progress: number) =>
+    at(
+      (p: number) => (
+        <HomeV4FnImage {...HEADER} progress={p} onOpenModel={() => undefined} />
+      ),
+      progress,
     )
 
-  const notes = (view: ReturnType<typeof stage>) =>
-    Array.from(view.container.querySelectorAll<HTMLAudioElement>('audio'))
-
-  it('lands each bubble before its waveform grows', () => {
-    const view = stage((active) => (
-      <HomeV4FnAudio {...HEADER} active={active} />
-    ))
-
-    /* Stop between the first bubble arriving and its voice note playing. */
-    view.play(
-      HOME_V4_FN_AUDIO.ENTER_DELAY_MS +
-        HOME_V4_FN_AUDIO.MSG_START_MS +
-        HOME_V4_FN_AUDIO.PLAY_DELAY_MS / 2,
-    )
-    expect(view.count('.msg.in')).toBe(1)
-    expect(view.count('.msg.played')).toBe(0)
-
-    view.advance(WHOLE_PERFORMANCE_MS)
-    expect(view.count('.msg.in')).toBe(HOME_V4_FN_AUDIO_LINES.length)
-    expect(view.count('.msg.played')).toBe(HOME_V4_FN_AUDIO_LINES.length)
-  })
-
-  /**
-   * ⭐ The page's contract with the visitor: it is silent until asked. The
-   * arrival choreography above runs on its own and must never touch `play()`
-   * — a homepage that speaks at you is worse than one with a fake button.
-   */
-  it('never plays on its own, and downloads nothing until clicked', () => {
-    const view = stage((active) => (
-      <HomeV4FnAudio {...HEADER} active={active} />
-    ))
-
-    view.play()
-
-    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
-    expect(notes(view)).toHaveLength(HOME_V4_FN_AUDIO_LINES.length)
-    expect(notes(view).map((clip) => clip.getAttribute('preload'))).toEqual(
-      notes(view).map(() => 'none'),
-    )
-    expect(notes(view).map((clip) => clip.getAttribute('src'))).toEqual(
-      HOME_V4_FN_AUDIO_LINES.map((line) => line.clips.zh),
-    )
-  })
-
-  it('gives every note a real, labelled, focusable key', () => {
-    const view = stage((active) => (
-      <HomeV4FnAudio {...HEADER} active={active} />
-    ))
-    view.play()
-
-    expect(keys(view)).toHaveLength(HOME_V4_FN_AUDIO_LINES.length)
-    keys(view).forEach((key, index) => {
-      const line = HOME_V4_FN_AUDIO_LINES[index]
-      expect(key.tagName).toBe('BUTTON')
-      expect(key.type).toBe('button')
-      expect(key.disabled).toBe(false)
-      expect(key.getAttribute('aria-label')).toBe(
-        `v4.fn.audio.lines.${line.id}.playLabel`,
+  it('四格逐格揭开，格子数从头到尾不变', () => {
+    const tiles = SAMPLES.map((p) => draw(p).count('.fn-quad .fq.in'))
+    expect(tiles).toEqual([0, 0, 3, 4])
+    for (const progress of SAMPLES) {
+      expect(draw(progress).count('.fn-quad .fq')).toBe(
+        HOME_V4_FN_IMAGE_MODELS.length,
       )
-    })
+    }
   })
 
-  it('swaps the key to a pause control while a note sounds', async () => {
-    const view = stage((active) => (
-      <HomeV4FnAudio {...HEADER} active={active} />
-    ))
-    view.play()
-
-    await act(async () => {
-      fireEvent.click(keys(view)[0])
-    })
-
-    const [first] = keys(view)
-    expect(first.getAttribute('aria-label')).toBe(
-      'v4.fn.audio.lines.qing.pauseLabel',
-    )
-    expect(view.count('.voice.sounding')).toBe(1)
-
-    await act(async () => {
-      fireEvent.click(keys(view)[0])
-    })
-    expect(keys(view)[0].getAttribute('aria-label')).toBe(
-      'v4.fn.audio.lines.qing.playLabel',
-    )
-    /* Paused, not finished — the line keeps the transport and its progress. */
-    expect(view.count('.voice.sounding')).toBe(0)
-    expect(view.count('.voice.live')).toBe(1)
+  it('prompt 是一截一截写出来的；写完光标就收走', () => {
+    expect(draw(0).text('.ptxt .txt')).toBe('')
+    expect(draw(0.3).text('.ptxt .txt').length).toBeGreaterThan(0)
+    expect(draw(0.2).has('.ptxt .cur')).toBe(true)
+    expect(draw(1).has('.ptxt .cur')).toBe(false)
   })
 
-  it('lets only one note sound at a time', async () => {
-    const view = stage((active) => (
-      <HomeV4FnAudio {...HEADER} active={active} />
-    ))
-    view.play()
-
-    await act(async () => {
-      fireEvent.click(keys(view)[0])
-    })
-    await act(async () => {
-      fireEvent.click(keys(view)[1])
-    })
-
-    expect(view.count('.voice.live')).toBe(1)
-    expect(view.count('.voice.sounding')).toBe(1)
-    expect(keys(view)[0].getAttribute('aria-label')).toBe(
-      'v4.fn.audio.lines.qing.playLabel',
-    )
-    expect(keys(view)[1].getAttribute('aria-label')).toBe(
-      'v4.fn.audio.lines.lei.pauseLabel',
-    )
-    /* The one that lost the transport is rewound, not merely paused. */
-    expect(notes(view)[0].currentTime).toBe(0)
-  })
-
-  /**
-   * ⭐ Leaving the page has to cut the sound *now*, not on the page's own
-   * rewind clock — a voice carrying across the slide is heard over the next
-   * page, which no amount of choreography can take back.
-   */
-  it('cuts the sound the instant the page starts leaving', async () => {
-    const view = stage((active) => (
-      <HomeV4FnAudio {...HEADER} active={active} />
-    ))
-    view.play()
-
-    await act(async () => {
-      fireEvent.click(keys(view)[0])
-    })
-    expect(view.count('.voice.sounding')).toBe(1)
-
-    act(() => {
-      view.rerender(false)
-    })
-    /* Before a single millisecond of the rewind clock has run. */
-    expect(view.count('.voice.sounding')).toBe(0)
-    expect(view.count('.voice.live')).toBe(0)
-    expect(notes(view)[0].paused).toBe(true)
-    expect(notes(view)[0].currentTime).toBe(0)
+  it('模型 chips 走真站表，不手抄', () => {
+    expect(draw(1).count('.chips button')).toBe(HOME_V4_STATIONS.image.length)
   })
 })
 
-describe('home v4 · feature page 04 视频', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
-    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(
-      () => undefined,
-    )
+describe('02 LoRA · DOM 随进度', () => {
+  const draw = (progress: number) =>
+    at((p: number) => <HomeV4FnLora {...HEADER} progress={p} />, progress)
+
+  it('挂载 → 触发词 → 出图，三批依次落位', () => {
+    expect(SAMPLES.map((p) => draw(p).count('.mrow.in'))).toEqual([0, 5, 5, 5])
+    expect(SAMPLES.map((p) => draw(p).count('.trig.in'))).toEqual([0, 3, 3, 3])
+    expect(SAMPLES.map((p) => draw(p).count('.oq.in'))).toEqual([0, 0, 3, 4])
   })
 
-  afterEach(() => {
-    vi.runOnlyPendingTimers()
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-  })
-
-  it('fills the composer, lights the send key, then rolls the cut', () => {
-    const view = stage((active) => (
-      <HomeV4FnVideo {...HEADER} active={active} />
-    ))
-
-    view.play()
-
-    /* Three reference capsules plus the prompt line. */
-    expect(view.count('.iline.in')).toBe(HOME_V4_FN_VIDEO_REFS.length + 1)
-    expect(view.count('.itools .up.on')).toBe(1)
-    expect(view.count('.out.in')).toBe(1)
-    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled()
-
-    view.leave()
-    expect(view.count('.iline.in')).toBe(0)
-    expect(view.count('.out.in')).toBe(0)
-    expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled()
-  })
-
-  it('keeps a poster behind the clip so a refused autoplay still shows a frame', () => {
-    const view = stage((active) => (
-      <HomeV4FnVideo {...HEADER} active={active} />
-    ))
-    const clip = view.container.querySelector('.out video')
-
-    expect(clip?.getAttribute('poster')).toBeTruthy()
+  it('机架行与出图格的总数与常量一致，不随进度增删', () => {
+    expect(draw(0).count('.mrow')).toBe(HOME_V4_FN_LORA_MOUNTS.length)
+    expect(draw(0).count('.oq')).toBe(HOME_V4_FN_LORA_OUTS.length)
   })
 })
 
-describe('home v4 · feature page 05 画布', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
-    vi.spyOn(HTMLMediaElement.prototype, 'play').mockResolvedValue(undefined)
-    vi.spyOn(HTMLMediaElement.prototype, 'pause').mockImplementation(
-      () => undefined,
+describe('03 声音 · DOM 随进度', () => {
+  const draw = (progress: number) =>
+    at(
+      (p: number) => <HomeV4FnAudio {...HEADER} progress={p} active />,
+      progress,
+    )
+
+  it('气泡落位、波形跟上', () => {
+    expect(SAMPLES.map((p) => draw(p).count('.msg.in'))).toEqual([0, 3, 3, 3])
+    expect(SAMPLES.map((p) => draw(p).count('.msg.played'))).toEqual([
+      0, 2, 3, 3,
+    ])
+  })
+
+  it('三条消息与三段音频从头到尾都在 DOM 里，且 preload=none', () => {
+    const view = draw(0)
+    expect(view.count('.msg')).toBe(HOME_V4_FN_AUDIO_LINES.length)
+    expect(view.count('audio[preload="none"]')).toBe(
+      HOME_V4_FN_AUDIO_LINES.length,
     )
   })
 
-  afterEach(() => {
-    vi.runOnlyPendingTimers()
-    vi.useRealTimers()
-    vi.restoreAllMocks()
-  })
-
-  it('follows explicit steps and only plays the finished cut on the last step', () => {
-    const onStepChange = vi.fn()
-    const view = render(
-      <HomeV4FnCanvas
-        {...HEADER}
-        active
-        progress={0}
-        onStepChange={onStepChange}
-      />,
-    )
-    expect(view.container.querySelector('.fn-canvas')).toHaveAttribute(
-      'data-stage',
-      '1',
-    )
-    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
-    fireEvent.click(view.getByRole('button', { name: /script.title/ }))
-    expect(onStepChange).toHaveBeenCalledWith(1)
-    view.rerender(
-      <HomeV4FnCanvas
-        {...HEADER}
-        active
-        progress={1}
-        onStepChange={onStepChange}
-      />,
-    )
-    expect(view.container.querySelector('.s2')).not.toHaveAttribute('inert')
-    expect(view.container.querySelector('.s1')).toHaveAttribute('inert')
-    view.rerender(
-      <HomeV4FnCanvas
-        {...HEADER}
-        active
-        progress={2}
-        onStepChange={onStepChange}
-      />,
-    )
-    expect(view.container.querySelectorAll('.s3 .cn.in')).toHaveLength(
-      HOME_V4_FN_CANVAS_SHOTS.length + 1,
-    )
-    expect(view.container.querySelectorAll('.wires path.draw')).toHaveLength(3)
-    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled()
-    vi.mocked(HTMLMediaElement.prototype.pause).mockClear()
-    view.rerender(
-      <HomeV4FnCanvas
-        {...HEADER}
-        active
-        progress={1}
-        onStepChange={onStepChange}
-      />,
-    )
-    expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled()
-    expect(view.container.querySelector('.cnv')).not.toHaveClass('in')
+  it('滚动本身不发声：没有一个 audio 带 autoplay', () => {
+    expect(draw(1).count('audio[autoplay]')).toBe(0)
   })
 })
 
-describe('home v4 · feature page 06 资源库', () => {
-  beforeEach(() => {
-    vi.useFakeTimers()
+describe('04 视频 · DOM 随进度', () => {
+  const draw = (progress: number, active = true) =>
+    at(
+      (p: number) => <HomeV4FnVideo {...HEADER} progress={p} active={active} />,
+      progress,
+    )
+
+  it('胶囊 → brief → 发送键 → 成片', () => {
+    expect(SAMPLES.map((p) => draw(p).count('.iline.in'))).toEqual([0, 4, 4, 4])
+    expect(SAMPLES.map((p) => draw(p).count('.up.on'))).toEqual([0, 0, 1, 1])
+    expect(SAMPLES.map((p) => draw(p).count('.out.in'))).toEqual([0, 0, 1, 1])
   })
 
-  afterEach(() => {
-    vi.runOnlyPendingTimers()
-    vi.useRealTimers()
+  it('三个参考胶囊从头到尾都在 DOM 里', () => {
+    expect(draw(0).count('.ibox .iline .pill')).toBe(
+      HOME_V4_FN_VIDEO_REFS.length,
+    )
   })
 
-  it('fills the grid, then copies the anchor into the reuse slot', () => {
-    const view = stage((active) => (
-      <HomeV4FnVault {...HEADER} active={active} />
-    ))
+  it('段滚出视口就暂停，不留一个看不见的解码器', () => {
+    const pause = vi.spyOn(HTMLMediaElement.prototype, 'pause')
+    draw(1, false)
+    expect(pause).toHaveBeenCalled()
+  })
+})
 
-    view.play()
+describe('05 画布 · DOM 随进度', () => {
+  const draw = (progress: number) =>
+    at(
+      (p: number) => (
+        <HomeV4FnCanvas
+          {...HEADER}
+          progress={p}
+          active
+          onStepChange={() => undefined}
+        />
+      ),
+      progress,
+    )
 
-    expect(view.count('.vc.in')).toBe(HOME_V4_FN_VAULT_CELLS.length)
-    expect(view.count('.vc.lift')).toBe(1)
-    expect(view.count('.slot.got')).toBe(1)
-    expect(view.count('.cta2.on')).toBe(1)
-    /* ⭐ The reuse story is a *copy*: taking the tile out of the library would
-       say the opposite of what the page claims. */
-    expect(view.count('.vgrid .vc[data-hero]')).toBe(1)
+  it('三步随进度推进；步骤按钮与 data-stage 同源', () => {
+    expect(draw(0).attr('.fn-canvas', 'data-stage')).toBe('1')
+    expect(draw(0.7).attr('.fn-canvas', 'data-stage')).toBe('3')
+    expect(draw(1).attr('.fn-canvas', 'data-stage')).toBe('3')
   })
 
-  it('sends one ghost to the slot and clears it', () => {
-    const view = stage((active) => (
-      <HomeV4FnVault {...HEADER} active={active} />
-    ))
+  it('跳步的反解落在那一步上', () => {
+    for (const step of [0, 1, 2]) {
+      expect(
+        draw(homeV4CanvasProgressForStep(step)).attr(
+          '.fn-canvas',
+          'data-stage',
+        ),
+      ).toBe(String(step + 1))
+    }
+  })
 
-    view.play(HOME_V4_FN_VAULT.ENTER_DELAY_MS + HOME_V4_FN_VAULT.FLY_MS + 20)
-    expect(view.count('.fn-vault .fn-flyers .flyer')).toBe(1)
+  it('节点与连线在第三步才揭开，节点数恒定', () => {
+    expect(draw(0).count('.cv .cn')).toBe(HOME_V4_FN_CANVAS_SHOTS.length + 1)
+    expect(draw(0).count('.cv .cn.in')).toBe(0)
+    expect(draw(1).count('.cv .cn.in')).toBe(HOME_V4_FN_CANVAS_SHOTS.length + 1)
+    expect(draw(1).count('.wires path.draw')).toBe(
+      HOME_V4_FN_CANVAS_SHOTS.length,
+    )
+  })
+})
 
-    view.advance(HOME_V4_FN_VAULT.FLY_LIFE_MS + 50)
-    expect(view.count('.fn-vault .fn-flyers .flyer')).toBe(0)
+describe('06 资源库 · DOM 随进度', () => {
+  const draw = (progress: number) =>
+    at((p: number) => <HomeV4FnVault {...HEADER} progress={p} />, progress)
+
+  it('落库 → 涌入 → 选中 → 复用位填满', () => {
+    expect(SAMPLES.map((p) => draw(p).count('.vc.far.in'))).toEqual([
+      0, 3, 3, 3,
+    ])
+    expect(SAMPLES.map((p) => draw(p).count('.vc.in'))).toEqual([0, 10, 10, 10])
+    expect(SAMPLES.map((p) => draw(p).count('.vc.lift'))).toEqual([0, 0, 1, 1])
+  })
+
+  it('复用位是连续填充，不是开关', () => {
+    expect(draw(0).attr('.slot', 'data-got')).toBe('false')
+    expect(draw(0.7).attr('.slot', 'data-got')).toBe('false')
+    expect(draw(0.7).attr('.slot', 'style')).toContain('--slot')
+    expect(draw(1).attr('.slot', 'data-got')).toBe('true')
+  })
+
+  it('⛔ 飞递 ghost 已删：任何进度下都不往 DOM 里塞飞行元素', () => {
+    for (const progress of SAMPLES) {
+      expect(draw(progress).count('.flyer')).toBe(0)
+      expect(draw(progress).count('.fn-flyers')).toBe(0)
+    }
+  })
+
+  it('库格数恒定，不随进度增删', () => {
+    for (const progress of SAMPLES) {
+      expect(draw(progress).count('.vgrid .vc')).toBe(
+        HOME_V4_FN_VAULT_CELLS.length,
+      )
+    }
   })
 })

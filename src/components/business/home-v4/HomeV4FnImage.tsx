@@ -1,37 +1,26 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useState } from 'react'
+import { useMemo } from 'react'
 
 import { useTranslations } from 'next-intl'
 
 import {
-  HOME_V4_ENGINE,
-  HOME_V4_FN_IMAGE,
   HOME_V4_FN_IMAGE_MODELS,
   HOME_V4_GLYPHS,
   HOME_V4_STATIONS,
 } from '@/constants/homepage-v4'
-import { useHomeV4Typewriter } from '@/hooks/use-home-v4-typewriter'
+import { homeV4ImageBeats } from '@/lib/home-v4-beats'
 
 import { HomeV4FnFrame } from './HomeV4FnFrame'
 
 interface HomeV4FnImageProps {
-  /** True while this is the page on screen. Drives play / reset. */
-  active: boolean
+  /** 段内滚动进度 0–1。0 = 空态，1 = 结果态 + CTA。 */
+  progress: number
   eyebrow: string
   title: string
-  /** Open the image station at this model. Wired to the chips under the window. */
+  /** Open the image models at this entry. Wired to the chips under the window. */
   onOpenModel: (index: number) => void
-}
-
-/** `''` → `'typed'` → `'reveal'`; the class string is cumulative. */
-type Beat = 'idle' | 'typed' | 'reveal'
-
-const BEAT_CLASS: Record<Beat, string> = {
-  idle: '',
-  typed: ' typed',
-  reveal: ' typed reveal',
 }
 
 /**
@@ -57,11 +46,12 @@ const BEAT_CLASS: Record<Beat, string> = {
  * they are the same claim: what you put in on the left, what came back on the
  * right.
  *
- * Everything after the typing is chained off `promptText.length` rather than a
- * fixed offset — see `useHomeV4Typewriter`.
+ * v5 长卷：这一段是**按进度求值的状态机**，不是时间线。打字、四格、CTA 全部由
+ * `homeV4ImageBeats(progress)` 给出，所以往回滚就真的往回演；元素一律预渲染，
+ * 只揭 `opacity` / `transform`。
  */
 export function HomeV4FnImage({
-  active,
+  progress,
   eyebrow,
   title,
   onOpenModel,
@@ -70,40 +60,11 @@ export function HomeV4FnImage({
   const models = HOME_V4_STATIONS.image
 
   const promptText = t('v4.fn.image.prompt')
-  const typed = useHomeV4Typewriter({
-    text: promptText,
-    stepMs: HOME_V4_FN_IMAGE.TYPE_MS,
-    delayMs: HOME_V4_FN_IMAGE.ENTER_DELAY_MS,
-    active,
-    resetMs: HOME_V4_ENGINE.PAGE_MS,
-  })
-
-  const [beat, setBeat] = useState<Beat>('idle')
-
-  useEffect(() => {
-    if (!active) {
-      /* Rewind once the page has finished sliding away — resetting on the spot
-         would play the whole performance backwards in full view. */
-      const rewind = window.setTimeout(
-        () => setBeat('idle'),
-        HOME_V4_ENGINE.PAGE_MS,
-      )
-      return () => window.clearTimeout(rewind)
-    }
-
-    const typedAt =
-      HOME_V4_FN_IMAGE.ENTER_DELAY_MS +
-      promptText.length * HOME_V4_FN_IMAGE.TYPE_MS
-    const timers = [
-      window.setTimeout(() => setBeat('typed'), typedAt),
-      window.setTimeout(
-        () => setBeat('reveal'),
-        typedAt + HOME_V4_FN_IMAGE.REVEAL_MS,
-      ),
-    ]
-
-    return () => timers.forEach((id) => window.clearTimeout(id))
-  }, [active, promptText])
+  /* ⚠ `Array.from`, not `slice` on the string: a CJK line is fine either way,
+     but an emoji or a combining mark would be cut in half mid-codepoint. */
+  const chars = useMemo(() => Array.from(promptText), [promptText])
+  const beats = homeV4ImageBeats(progress)
+  const typed = chars.slice(0, Math.round(beats.typed * chars.length)).join('')
 
   /* PC only — mobile hides the row and keeps the quad as the one focus. In the
      rail it sits under the title; otherwise under the window. */
@@ -126,8 +87,15 @@ export function HomeV4FnImage({
   )
 
   return (
-    <HomeV4FnFrame eyebrow={eyebrow} title={title} rail aside={chips}>
-      <div className={`fn-studio${BEAT_CLASS[beat]}`}>
+    <HomeV4FnFrame
+      id="image"
+      eyebrow={eyebrow}
+      title={title}
+      rail
+      aside={chips}
+      ctaOn={beats.cta}
+    >
+      <div className={`fn-studio${beats.typed >= 1 ? ' typed' : ''}`}>
         <div className="bar">
           <span className="t">{t('v4.fn.image.workbench')}</span>
           {HOME_V4_FN_IMAGE_MODELS.map((model) => (
@@ -142,7 +110,8 @@ export function HomeV4FnImage({
           <div className="ibox">
             <p className="ptxt">
               <span className="txt">{typed}</span>
-              <span className="cur" />
+              {/* 光标只在还在写的时候闪——写完了还留着，读起来像卡住了。 */}
+              {beats.typed < 1 ? <span className="cur" /> : null}
             </p>
             {/* A picture of the button, not a control — it has nothing to submit. */}
             <button type="button" className="go">
@@ -153,8 +122,11 @@ export function HomeV4FnImage({
           {/* The stagger between tiles lives in `home-v4.css` as `nth-child`
               delays, so these must stay direct children. */}
           <div className="fn-quad">
-            {HOME_V4_FN_IMAGE_MODELS.map((model) => (
-              <div className="fq" key={model.name}>
+            {HOME_V4_FN_IMAGE_MODELS.map((model, index) => (
+              <div
+                className={`fq${index < beats.tiles ? ' in' : ''}`}
+                key={model.name}
+              >
                 {/* The prompt is the description of the picture, in the reader's
                     own language, so the model name in front of it is the whole
                     alt this needs. */}

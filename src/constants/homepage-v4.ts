@@ -269,19 +269,6 @@ export const HOME_V4_FN_IMAGE_MODELS = [
   },
 ] as const
 
-/**
- * Typing is per character, so the reveal is chained off the *end of the typing*
- * rather than a wall-clock offset — a longer en/ja prompt then pushes the whole
- * tail back instead of showing results before the prompt is written.
- */
-export const HOME_V4_FN_IMAGE = {
-  ENTER_DELAY_MS: 500,
-  /** One character. */
-  TYPE_MS: 46,
-  /** Quad starts appearing this long after the last character. */
-  REVEAL_MS: 350,
-} as const
-
 /* ── 02 LoRA：逐个挂载 → 触发词弹入 → 出图位 ─────────────────────── */
 
 /**
@@ -383,13 +370,6 @@ export const HOME_V4_FN_LORA_OUTS = [
 ] as const
 
 /**
- * ⚠ These are chained, not independent: mounts must finish before the trigger
- * words drop, and the trigger words before the shots. Five mounts and four
- * shots is more beats than the previous three-and-two, so the steps were cut to
- * keep the whole run near five seconds — a page the reader scrolls past in
- * three is not worth animating.
- */
-/**
  * The top of the weight scale the rack draws against — the product's own
  * ceiling (`provider-capabilities.ts`, runner `loraScale: { min: 0.1, max: 2 }`).
  *
@@ -399,19 +379,6 @@ export const HOME_V4_FN_LORA_OUTS = [
  * the end of the track and over its own number.
  */
 export const HOME_V4_FN_LORA_WEIGHT_MAX = 2
-
-export const HOME_V4_FN_LORA = {
-  ENTER_DELAY_MS: 400,
-  /** First mount lands, then one every `MOUNT_STEP_MS`. Five of them. */
-  MOUNT_START_MS: 500,
-  MOUNT_STEP_MS: 420,
-  /** Trigger words drop into the prompt row after the last mount lands. */
-  TRIGGER_START_MS: 2700,
-  TRIGGER_STEP_MS: 200,
-  /** Shots fade up last, left to right. Four of them. */
-  OUT_START_MS: 3800,
-  OUT_STEP_MS: 250,
-} as const
 
 /* ── 03 声音：配音聊天室 ─────────────────────────────────────────── */
 
@@ -482,12 +449,6 @@ export const HOME_V4_FN_AUDIO_LINES = [
 }[]
 
 export const HOME_V4_FN_AUDIO = {
-  ENTER_DELAY_MS: 400,
-  /** First bubble lands, then one every `MSG_STEP_MS`. */
-  MSG_START_MS: 500,
-  MSG_STEP_MS: 900,
-  /** A bubble's waveform grows this long after the bubble itself arrives. */
-  PLAY_DELAY_MS: 380,
   /** Chat-bubble avatar, matching `.fn-audio .ava` in `home-v4.css`. */
   AVATAR_PX: 38,
   /** The same face in the voice picker, matching `.fn-audio .pick`. */
@@ -507,27 +468,6 @@ export const HOME_V4_FN_VIDEO_REFS = [
 export const HOME_V4_FN_VIDEO_TOOLS = ['＋', '⬡', '▤', '✥'] as const
 
 export const HOME_V4_FN_VIDEO = {
-  ENTER_DELAY_MS: 400,
-  /** First capsule lands, then one every `PILL_STEP_MS`. */
-  PILL_START_MS: 400,
-  PILL_STEP_MS: 550,
-  /** Prompt line appears and the typewriter starts. */
-  PROMPT_MS: 2150,
-  /**
-   * One character. The cut lands at `PROMPT_MS + length × TYPE_MS +
-   * OUT_AFTER_TYPE_MS`, so this number is the only lever against the length of
-   * `v4.fn.video.prompt` — 42ms was cut for a 23-character Chinese line, and
-   * the full three-shot brief that replaced it is 64 / 138 / 71 characters.
-   * At 28ms the three locales land at 4.8s / 6.8s / 5.0s.
-   */
-  TYPE_MS: 28,
-  /**
-   * The cut appears this long after the last character. The SPEC hard-coded the
-   * whole thing as one 3950ms wall-clock offset; chaining it off the typing
-   * instead keeps the order (prompt → send button lights → cut) true whatever
-   * the locale's line length is.
-   */
-  OUT_AFTER_TYPE_MS: 834,
   /** Pill thumbnail, matching `.fn-video .pill img` in `home-v4.css`. */
   THUMB_PX: 24,
 } as const
@@ -620,22 +560,107 @@ export const HOME_V4_FN_VAULT_FILTERS = [
 ] as const
 
 export const HOME_V4_FN_VAULT = {
-  ENTER_DELAY_MS: 400,
-  /** The three arrivals drop in first, one every `ARRIVAL_STEP_MS`. */
-  ARRIVAL_START_MS: 350,
-  ARRIVAL_STEP_MS: 280,
-  /** …then the rest of the library floods in. */
-  REST_START_MS: 1450,
-  REST_STEP_MS: 80,
-  /** The character anchor lights up, then a *copy* flies to the reuse slot. */
-  LIFT_MS: 2550,
-  FLY_MS: 3000,
-  SLOT_MS: 3720,
-  CTA_MS: 4150,
-  FLY_LIFE_MS: 820,
-  FLY_SCALE: 0.85,
   /** What the tally prints. The library is the product; the number is the point. */
   ARCHIVED_COUNT: 1284,
+} as const
+
+/* ── v5 长卷：段高、降级门槛与关键帧表 ──────────────────────────── */
+
+/**
+ * 长卷的几何与降级门槛（owner 批注 40：方向 B · 连续滚动 + 钉住演示）。
+ *
+ * 每个功能段是一条 `SECTION_VH` 高的滚动行程，里面钉住一屏（`STAGE_VH`）的演示
+ * 卡；滚过的距离除以 `段高 − 一屏` 就是那一段的 `progress`。钉住用的是
+ * `position: sticky`，不是 GSAP pin —— sticky 够用，就不把动画库拉进营销域。
+ */
+export const HOME_V4_SCROLL = {
+  /** 钉住区高度，单位 vh。一屏一段，多出来的段高全是 scrub 行程。 */
+  STAGE_VH: 100,
+  /**
+   * 降级后每段直接渲染的进度。⚠ 是 1 不是 0：降级要给的是**结果态**，
+   * 不是空态——空态等于把页面的内容藏起来。
+   */
+  REST_PROGRESS: 1,
+  /** 这个宽度及以下不钉住、不 scrub（ui-defaults 的移动断点）。 */
+  MOBILE_MAX_PX: 767,
+  /** 屏高低于这个值走矮视口收缩（owner 批注 50）。 */
+  SHORT_VIEWPORT_PX: 900,
+  /**
+   * 目录跳页 / 键盘跳段时那一段被直接置到的进度。落地要点原文：
+   * 「键盘翻页跳到 1.0」。
+   */
+  JUMP_PROGRESS: 1,
+} as const
+
+/**
+ * 六段演示的关键帧表 —— **状态机，不是时间线**。
+ *
+ * 每个条目是这一段 `progress`（0–1）轴上的一个区间或一个阈值，求值在
+ * `src/lib/home-v4-beats.ts`，那里是纯函数，测试直接在 0 / 0.3 / 0.7 / 1.0 上
+ * 钉住结果。⚠ 这里没有一个毫秒数：段的快慢由读者的滚轮决定，不由时钟决定。
+ *
+ * 表的形状统一按 UX 板给的节拍读：**0.0 空态 · 0.3 输入完 · 0.7 出图 · 1.0
+ * 结果 + CTA**，各段在这个骨架上自定自己的分镜。
+ *
+ * `[from, to]` 是一批元素依次落位的区间（第 i 个在 `from + i/n` 处落位）；
+ * 单个数字是一个开关的阈值。
+ */
+export const HOME_V4_BEATS = {
+  /** 01 图片：写 prompt → 四家出图 → 结果 + CTA。 */
+  image: {
+    /** 打字区间：写到 0.30 收笔。 */
+    type: [0.04, 0.3],
+    /** 四格依次揭开。 */
+    tiles: [0.42, 0.86],
+    /** 结果态：CTA 亮起。 */
+    cta: 0.9,
+  },
+  /** 02 LoRA：挂载 → 触发词 → 权重轴四张对照图。 */
+  lora: {
+    mounts: [0.04, 0.22],
+    triggers: [0.22, 0.3],
+    outs: [0.4, 0.86],
+    cta: 0.92,
+  },
+  /** 03 声音：三句台词落位 → 波形画出 → 输入行就绪。 */
+  audio: {
+    lines: [0.04, 0.3],
+    /** 波形比气泡慢一拍：气泡是「到了」，波形是「这条有声音」。 */
+    waves: [0.1, 0.4],
+    compose: 0.62,
+    cta: 0.88,
+  },
+  /** 04 视频：三个参考落槽 → 写 brief → 发送键亮 → 出片。 */
+  video: {
+    pills: [0.02, 0.18],
+    type: [0.18, 0.3],
+    send: 0.34,
+    out: 0.62,
+    cta: 0.9,
+  },
+  /** 05 画布：助手 → 剧本 → 节点；`steps` 的 0–1 线性映到 0–2 号步骤。 */
+  canvas: {
+    steps: [0.05, 0.9],
+    /** 步骤浮点数到这里才放成片（第三步已经坐稳）。 */
+    cutAtStep: 1.9,
+    cta: 0.95,
+  },
+  /** 06 资源库：新作品落库 → 库涌满 → 选中角色锚 → 复用位填上。 */
+  vault: {
+    arrivals: [0.04, 0.18],
+    rest: [0.18, 0.3],
+    lift: 0.45,
+    /** 复用位是连续填充（clip-path），不是开关。 */
+    slot: [0.55, 0.75],
+    cta: 0.88,
+  },
+  /** 开场：作品墙随滚动向两侧散开，散开量就是这一段的进度。 */
+  opening: {
+    /** 最外侧一列散开的距离，单位 vw。 */
+    spreadVw: 26,
+    /** 标题与副文在散开的后半程淡出。 */
+    fade: [0.35, 1],
+  },
 } as const
 
 /* ── 模型区：五个横站 ────────────────────────────────────────────── */
@@ -1112,6 +1137,20 @@ export const HOME_V4_PAGES: readonly HomeV4Page[] = [
   { id: 'models3d', group: 'models', eyebrow: null, station: 'threed' },
   { id: 'finale', group: 'finale', eyebrow: null, station: null },
 ]
+
+/**
+ * 每个功能段结束态那颗「去用这个」按钮的去处。
+ *
+ * ⚠ 段 id → 路由，一处声明；六段的 CTA 都从这里取，⛔ 不在组件里各写各的。
+ */
+export const HOME_V4_FN_ROUTES: Record<string, string> = {
+  image: ROUTES.STUDIO_IMAGE,
+  lora: ROUTES.STUDIO_LORA,
+  audio: ROUTES.STUDIO_AUDIO,
+  video: ROUTES.STUDIO_VIDEO,
+  canvas: ROUTES.STUDIO_NODE,
+  vault: ROUTES.ASSETS,
+}
 
 /** Where the finale's CTA goes — same destination as the footer's 画布 link. */
 export const HOME_V4_ROUTES = {

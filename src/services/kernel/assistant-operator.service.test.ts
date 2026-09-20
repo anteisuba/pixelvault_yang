@@ -338,6 +338,10 @@ vi.mock('@/services/assistant-memory.service', () => ({
 }))
 
 import {
+  ASSISTANT_CONTEXT_BUDGET,
+  ASSISTANT_MEMORY_LIMITS,
+} from '@/constants/assistant-memory'
+import {
   ASSISTANT_ASSET_WRITE_LIMITS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_VERB_IDS,
@@ -12152,6 +12156,69 @@ describe('助手记忆（56a）', () => {
     expect(
       (doneEvent(events).roundSummary as unknown as { facts: string[] }).facts,
     ).toEqual(['库里有三张夜景'])
+  })
+  it('⭐ 注入段印出那几行字，并更新 lastUsedAt', async () => {
+    mockListMemoriesForPrompt.mockResolvedValueOnce([
+      {
+        id: 'mem-1',
+        scope: 'image',
+        kind: 'preference',
+        text: '偏好横构图 16:9，除非我明说要竖的',
+        createdAt: '2026-09-19T10:00:00.000Z',
+        updatedAt: '2026-09-19T10:00:00.000Z',
+      },
+    ])
+    queueTurns({ finished: true, message: '好。' })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    expect(toolRingSystemPrompt()).toContain('WHAT YOU ALREADY KNOW ABOUT THIS')
+    expect(toolRingSystemPrompt()).toContain(
+      '偏好横构图 16:9，除非我明说要竖的',
+    )
+    expect(mockTouchMemories).toHaveBeenCalledWith('user-db-1', ['mem-1'])
+  })
+
+  it('⛔ 一条记忆都没有时不印那一段', async () => {
+    queueTurns({ finished: true, message: '好。' })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+    expect(toolRingSystemPrompt()).not.toContain('WHAT YOU ALREADY KNOW ABOUT')
+    expect(mockTouchMemories).not.toHaveBeenCalled()
+  })
+
+  it('⭐ 预算与上下文卡共用一份、卡优先', async () => {
+    mockListContextCards.mockResolvedValueOnce([
+      {
+        id: 'card-1',
+        kind: 'character',
+        status: 'confirmed',
+        name: '伞下少女',
+        summary: '黑长直 + 校服',
+        body: '',
+        images: [],
+        negative: null,
+        pinnedScopes: ['image'],
+        createdAt: '2026-09-19T10:00:00.000Z',
+        updatedAt: '2026-09-19T10:00:00.000Z',
+      },
+    ])
+    queueTurns({ finished: true, message: '好。' })
+
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    const [, scope, limit] = mockListMemoriesForPrompt.mock.calls[0] as [
+      string,
+      string,
+      number,
+    ]
+    expect(scope).toBe('image')
+    // 12（共用预算）− 1 张卡，再封顶在记忆自己的 maxInPrompt。
+    expect(limit).toBe(
+      Math.min(
+        ASSISTANT_MEMORY_LIMITS.maxInPrompt,
+        ASSISTANT_CONTEXT_BUDGET.maxEntries - 1,
+      ),
+    )
   })
 })
 

@@ -257,7 +257,11 @@ import {
  * 不扣 credit、不调 provider、不碰 R2。它做的全部事情是把助手这一轮归纳出的
  * 一行字存起来，以及把之前存下的那几行读回提示里。
  */
-import { recordAssistantMemories } from '@/services/assistant-memory.service'
+import {
+  listAssistantMemoriesForPrompt,
+  recordAssistantMemories,
+  touchAssistantMemories,
+} from '@/services/assistant-memory.service'
 /**
  * ⭐ 借一条**能看图**的路（P3-C）。加它进钱闸白名单的判据与
  * `web-research.service` 同一条：它是**路由解析**模块 —— 产出是一把 key 加一个
@@ -426,6 +430,7 @@ import {
 } from '@/types/assistant-persona'
 import { toContextCardDigest, type ContextCard } from '@/types/context-cards'
 import {
+  ASSISTANT_CONTEXT_BUDGET,
   ASSISTANT_MEMORY_KINDS,
   ASSISTANT_MEMORY_LIMITS,
   ASSISTANT_MEMORY_SCOPES,
@@ -434,6 +439,7 @@ import {
 } from '@/constants/assistant-memory'
 import {
   AssistantMemoryCandidateSchema,
+  type AssistantMemory,
   type AssistantMemoryCandidate,
 } from '@/types/assistant-memory'
 import type { ContextCardKindId } from '@/constants/context-cards'
@@ -7088,6 +7094,29 @@ The creator says "that one" or "the earlier one" about these. Call them by these
 }
 
 /**
+ * **助手长期记住的那几行**（56a 切片 2 的注入段）。
+ *
+ * ⭐ 与上下文卡 / 项目规则同一档：它是「你认识这个人」的一部分，每一步都要在场。
+ * ⚠ 与结论记录段（下面那一段）**是两件事**：那一段是「这段对话里刚发生过什么」，
+ * 随会话生灭；这一段是「跨会话、跨工作台你早就知道的事」。
+ * ⚠ 只印**那一行字**，⛔ 不印 id、不印时间、不印域 —— 模型不需要指认某一条记忆
+ * （它没有任何一条工具能改它们），印出来只是让它多一样可以抄错的东西。
+ * ⚠ 末一句是纪律：记忆是**用户的**，⛔ 不许拿它压过用户这一轮当场说的话。
+ */
+function buildAssistantMemorySection(
+  memories: readonly AssistantMemory[],
+): string {
+  if (memories.length === 0) return ''
+  const lines = memories.map((memory) => `  - ${memory.text}`).join('\n')
+  return `
+
+WHAT YOU ALREADY KNOW ABOUT THIS CREATOR — learned from earlier sessions, still true unless they say otherwise:
+${lines}
+- Work from these without being reminded, and without reciting them back. Never say "I remember that you…" — just do it.
+- What they say THIS turn always wins. If a line above fights what they just asked for, follow them and say nothing about the old note.`
+}
+
+/**
  * **之前几轮记住的事**（v2 §7.6 的注入段，commit #12）。
  *
  * ⭐ 它答的是 §7.1 那张断点表：上一轮查到的证据、评审得出的结论、用户在问题卡上
@@ -7395,6 +7424,8 @@ function buildOperatorSystemPrompt(
   artifacts: readonly AssistantOperatorWorkingMemoryArtifact[],
   /** 这段会话最近几条结论记录（§7.6 的注入段）。 */
   rounds: readonly AssistantConversationRoundStored[],
+  /** 跨会话记住的那几行（56a）——**卡优先**之后剩下的预算里取的。 */
+  memories: readonly AssistantMemory[],
   /** 「关于这位创作者」那一段要的两样（§8.3）：账号名 + 学出来的创作偏好。 */
   creator: {
     accountName: string | null
@@ -7564,7 +7595,7 @@ HOW YOU TALK — the creator hired an operator, not a rulebook:
     creator.accountName,
     contextCards,
     creator.preference,
-  )}${buildProjectRulesSection(rules)}${buildSourceRulesSection(sourceRules)}${buildContextCardsSection(contextCards)}${buildWorkingMemorySection(artifacts)}${buildRoundMemorySection(rounds)}
+  )}${buildProjectRulesSection(rules)}${buildSourceRulesSection(sourceRules)}${buildContextCardsSection(contextCards)}${buildAssistantMemorySection(memories)}${buildWorkingMemorySection(artifacts)}${buildRoundMemorySection(rounds)}
 
 TOOLS:
 ${tools}
@@ -8621,6 +8652,40 @@ export async function* runAssistantOperator(
    * ⚠ 选中的厂商**没绑 key** 时回落到自动那条优先级（`findLlmTextKeyId` 给
    * `undefined`）：选择照旧留在库里，用户补上 key 之后自动生效。
    */
+  /**
+   * ⭐ **跨会话记忆**（56a 切片 2）—— 当前域 + `global`，按 `lastUsedAt` 倒序。
+   *
+   * ⚠ 它**排在卡后面读**而不是并进上面那条 `Promise.all`：预算是共用的一份，
+   * **卡优先**（owner 2026-09-20）—— 这一轮挂了几张卡，要等卡回来才知道。
+   * 预算被卡吃光时这里一条都不查（服务里 `limit <= 0` 直接回空）。
+   * ⚠ **历史回放不走这条路**：载回旧线程是客户端从库里读，压根不经过本文件。
+   */
+  const memoryBudget = Math.min(
+    ASSISTANT_MEMORY_LIMITS.maxInPrompt,
+    ASSISTANT_CONTEXT_BUDGET.maxEntries - contextCards.length,
+  )
+  const assistantMemories = await listAssistantMemoriesForPrompt(
+    user.id,
+    memoryScopeForDomain(request.domain),
+    memoryBudget,
+  )
+  /**
+   * **被注入过就更新 `lastUsedAt`**（56a）—— 注入优先级与淘汰顺序都读它。
+   * ⚠ ⛔ 不 await：这一跳的成败与这一轮能不能跑起来无关，而它排在开跑的关键路径
+   * 上。失败只意味着这几条的「上次用过」晚一轮才前移。
+   */
+  if (assistantMemories.length > 0) {
+    void touchAssistantMemories(
+      user.id,
+      assistantMemories.map((memory) => memory.id),
+    ).catch((error: unknown) => {
+      logger.warn('assistant memory lastUsedAt not refreshed', {
+        userId: clerkId,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
+  }
+
   const pinnedRouteModel = getAssistantRouteModelEntry(persona.routeModel)
   const apiKeyId = pinnedRouteModel
     ? await findLlmTextKeyId(user.id, pinnedRouteModel.adapterType)
@@ -8738,6 +8803,7 @@ export async function* runAssistantOperator(
       contextCards,
       initialMemoryArtifacts(request),
       priorRounds,
+      assistantMemories,
       {
         /**
          * 没设称呼时用账号名（§8.3）。⚠ 顺序是 `displayName` → `username`：

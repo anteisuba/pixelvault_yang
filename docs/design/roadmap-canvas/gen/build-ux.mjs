@@ -189,5 +189,5 @@ for (const [name, html] of [
   ['UxOverview.dc.html', page('UI/UX 总结 · 全体视角', OVERVIEW)],
   ['UxUser.dc.html', page('UI/UX 总结 · 用户视角', USER)],
   ['UxDesigner.dc.html', page('UI/UX 总结 · 设计师视角', DESIGNER)],
-  ['UxHomeScroll.dc.html', page('首页视觉滚动方案', SCROLL + reply(40, '确认使用 B。', ['B · 连续滚动 + 钉住演示（scrub）已定。实现顺序：先 reduced-motion 降级与 scrub 状态机（不动演示内容），再把 13 页 deck 改长卷、每段 200–250vh，最后目录圆点改进度。', '首页在 <900px 高裁切（批注 50）与手机缩略图条（批注 51 / 52）随同一次改版一起收。', '排在进度表的首页段，位于共享组件之后。']))],
+  ['UxHomeScroll.dc.html', page('首页视觉滚动方案', SCROLL + reply(40, '确认使用 B。', ['B · 连续滚动 + 钉住演示（scrub）已定。实现顺序：先 reduced-motion 降级与 scrub 状态机（不动演示内容），再把 13 页 deck 改长卷、每段 200–250vh，最后目录圆点改进度。', '首页在 <900px 高裁切（批注 50）与手机缩略图条（批注 51 / 52）随同一次改版一起收。', '排在进度表的首页段，位于共享组件之后。']) + reply('09-20 真机', 'B 落地后真机一看：感觉不对。图片 / LoRA / 声音 / 视频 / 画布还是之前那样自动展示更好；可以保留一个模块跳到下一个模块；模块之间的切换做上下视差；模型站也不对，回之前那样，上下切换和模型之间切换做视差。', ['改口 = 方向 A 的加强版：翻页不变、演示自动播；翻页那 600ms 前后景错速（文案快、演示卡慢，翻完对齐）；模型站回 v4 五站，站内切模型同样错速。', '处置：整体 git revert 六个 commit 回 v4，再只动两处过场（30b）。', '教训：滚动手感画板上判断不了，改版级先出能滑的原型再全量施工。']))],
 ]) { writeFileSync(join(OUT, name), html); console.log('wrote', name) }

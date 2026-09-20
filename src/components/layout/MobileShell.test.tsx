@@ -44,32 +44,14 @@ function openDrawer() {
   fireEvent.click(trigger)
 }
 
-describe('MobileShell 入口收口（D3 ④）', () => {
-  it('顶栏胶囊右端头像去个人主页', () => {
+describe('MobileShell 入口收口（D11 ④）', () => {
+  it('顶栏胶囊右端头像是账号菜单触发器，⛔ 不再是个人主页的快捷方式', () => {
     render(<MobileShell />)
 
-    expect(
-      screen.getByLabelText('Navbar:viewProfile').getAttribute('href'),
-    ).toBe('/u/fulina')
-  })
-
-  it('抽屉最底一行「设置」带上来处进 /settings', () => {
-    render(<MobileShell />)
-    openDrawer()
-
-    const settings = screen.getByText('Navbar:settings').closest('a')
-    expect(settings?.getAttribute('href')).toBe(
-      '/settings?from=%2Fstudio%2Fimage',
-    )
-  })
-
-  it('抽屉顶部「我」区也通向个人主页', () => {
-    render(<MobileShell />)
-    openDrawer()
-
-    const dialog = screen.getByRole('dialog')
-    const profileLink = dialog.querySelector('a[href="/u/fulina"]')
-    expect(profileLink?.textContent).toContain('Navbar:viewProfile')
+    const trigger = screen.getByLabelText('Navbar:account')
+    expect(trigger.tagName).toBe('BUTTON')
+    expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
+    expect(trigger.getAttribute('href')).toBeNull()
   })
 
   it('抽屉「去处」段里有「我的主页」，与桌面同一条清单', () => {
@@ -77,10 +59,17 @@ describe('MobileShell 入口收口（D3 ④）', () => {
     openDrawer()
 
     const dialog = screen.getByRole('dialog')
-    const links = Array.from(dialog.querySelectorAll('a[href="/u/fulina"]'))
-    expect(
-      links.some((link) => link.textContent?.includes('Navbar.links.profile')),
-    ).toBe(true)
+    const item = dialog.querySelector('a[href="/u/fulina"]')
+    expect(item?.textContent).toContain('Navbar.links.profile')
+  })
+
+  it('抽屉里不再有「我」区，也不再有最底那一行「设置」—— 都进了账号菜单', () => {
+    render(<MobileShell />)
+    openDrawer()
+
+    const dialog = screen.getByRole('dialog')
+    expect(dialog.querySelector('a[href^="/settings"]')).toBeNull()
+    expect(screen.queryByText('Navbar:viewProfile')).toBeNull()
   })
 
   it('抽屉里没有 key 入口、没有额度读数、没有退出登录', () => {

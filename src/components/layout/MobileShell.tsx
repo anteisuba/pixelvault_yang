@@ -2,12 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { SignedIn, SignedOut, useUser } from '@clerk/nextjs'
-import {
-  ArrowRight,
-  ChevronDown,
-  Settings,
-  UserCircle,
-} from '@/components/icons'
+import { ChevronDown, UserCircle } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
 import {
@@ -17,8 +12,9 @@ import {
   resolveShellNavItems,
   type ResolvedShellNavItem,
 } from '@/constants/navigation'
-import { ROUTES, creatorProfilePath, settingsPath } from '@/constants/routes'
+import { ROUTES } from '@/constants/routes'
 import { Link, usePathname } from '@/i18n/navigation'
+import { AccountMenu } from '@/components/layout/AccountMenu'
 import { ProfileAvatar } from '@/components/layout/ProfileAvatar'
 import {
   Sheet,
@@ -48,6 +44,12 @@ import { cn } from '@/lib/utils'
  *
  * ⛔ 条目清单只来自 `src/constants/navigation.ts`。曾经这里手抄过第二份，
  * 结果桌面独有的那一组入口在小屏直接不可达。
+ *
+ * **账号入口与桌面同形（D11 ④，2026-09-20）**：顶栏胶囊右端那颗头像是**账号
+ * 菜单**的触发器（`AccountMenu`，与侧栏底行同一颗菜单），语言 / 设置 / 退出
+ * 登录都在里面；「我的主页」已下沉成「去处」段的一条常规导航项。
+ * ⛔ 抽屉里因此不再有「我」区、也不再有最底那一行「设置」—— 一件事只留一个家，
+ * 两个入口并存就是下一次漂移的起点。
  */
 
 const PANEL_CELL_CLASS =
@@ -102,52 +104,6 @@ function PanelSectionLabel({ children }: { children: React.ReactNode }) {
     <p className="px-2 pb-1 pt-3 text-2xs font-semibold uppercase tracking-nav-dense text-sidebar-subtle">
       {children}
     </p>
-  )
-}
-
-/**
- * 抽屉顶部的「我」区（D3 ④ 入口收口）：头像 · 显示名 ·「查看主页 →」。
- *
- * ⛔ 这里没有 key 数、没有额度、没有红点、没有语言切换 —— 语言进了
- * `/settings/preferences`，退出登录进了 `/settings` 导航底部，
- * 抽屉最底只留一行「设置」。
- */
-function MobileMeSection({ onNavigate }: { onNavigate: () => void }) {
-  const t = useTranslations('Navbar')
-  const { profile } = useMyProfile()
-
-  const body = (
-    <>
-      <ProfileAvatar
-        avatarUrl={profile?.avatarUrl}
-        size={36}
-        className="size-9"
-        iconClassName="size-5"
-      />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-sidebar-accent-foreground">
-          {profile?.displayName ?? t('viewProfile')}
-        </span>
-        <span className="flex items-center gap-1 text-2xs text-sidebar-subtle">
-          {t('viewProfile')}
-          <ArrowRight className="size-3" aria-hidden />
-        </span>
-      </span>
-    </>
-  )
-
-  if (!profile?.username) {
-    return <div className="flex items-center gap-3 px-2">{body}</div>
-  }
-
-  return (
-    <Link
-      href={creatorProfilePath(profile.username)}
-      onClick={onNavigate}
-      className="flex items-center gap-3 rounded-lg px-2 py-1 transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent-strong"
-    >
-      {body}
-    </Link>
   )
 }
 
@@ -206,27 +162,21 @@ export function MobileShell() {
           {hasHydrated && isLoaded ? (
             <>
               <SignedIn>
-                {/* 头像 = 去个人主页（D3 ④）。⛔ 不再是「开抽屉」，也不挂红点。 */}
-                {profile?.username ? (
-                  <Link
-                    href={creatorProfilePath(profile.username)}
-                    aria-label={tNav('viewProfile')}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full"
+                {/* 头像 = 开账号菜单（D11 ④）。⛔ 不再是个人主页的快捷方式
+                    —— 主页已经是导航里的一项；⛔ 也不挂红点 / 角标。 */}
+                <AccountMenu side="bottom" align="end">
+                  <button
+                    type="button"
+                    aria-label={tNav('account')}
+                    className="flex size-9 shrink-0 items-center justify-center rounded-full outline-hidden ring-sidebar-ring transition-colors duration-(--duration-fast) ease-standard focus-visible:ring-2 active:bg-sidebar-accent data-[state=open]:bg-sidebar-accent-strong motion-reduce:transition-none"
                   >
                     <ProfileAvatar
-                      avatarUrl={profile.avatarUrl}
+                      avatarUrl={profile?.avatarUrl}
                       size={28}
                       className="size-7"
                     />
-                  </Link>
-                ) : (
-                  <span
-                    aria-hidden
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full"
-                  >
-                    <ProfileAvatar size={28} className="size-7" />
-                  </span>
-                )}
+                  </button>
+                </AccountMenu>
               </SignedIn>
               <SignedOut>
                 <Link
@@ -256,30 +206,11 @@ export function MobileShell() {
             <SheetDescription>{tCommon('sidebarDescription')}</SheetDescription>
           </SheetHeader>
 
-          {hasHydrated && isLoaded && (
-            <SignedIn>
-              <MobileMeSection onNavigate={close} />
-            </SignedIn>
-          )}
-
           <PanelSectionLabel>{tTools('groupLabel')}</PanelSectionLabel>
           <PanelGrid items={toolItems} pathname={pathname} onNavigate={close} />
 
           <PanelSectionLabel>{tNav('groupLabel')}</PanelSectionLabel>
           <PanelGrid items={goItems} pathname={pathname} onNavigate={close} />
-
-          {hasHydrated && isLoaded && (
-            <SignedIn>
-              <Link
-                href={settingsPath(ROUTES.SETTINGS, pathname)}
-                onClick={close}
-                className="mt-4 flex h-11 items-center gap-2.5 border-t border-sidebar-border px-2 text-sm text-sidebar-foreground transition-colors duration-(--duration-fast) ease-standard active:bg-sidebar-accent-strong"
-              >
-                <Settings className="size-4" aria-hidden />
-                {tNav('settings')}
-              </Link>
-            </SignedIn>
-          )}
         </SheetContent>
       </Sheet>
     </>

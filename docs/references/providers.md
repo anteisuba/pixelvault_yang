@@ -233,10 +233,20 @@ adapter / Worker 抛错
 | UC 预设          | `ucPreset`      | [undesiredcontent](https://docs.novelai.net/en/image/undesiredcontent/)：Heavy / Light / Furry Focus / Human Focus / None，各自一串 UC 标签                                                       | ⚠ 同样按标签串拼 —— 作为**前缀**接在用户自己的 UC 前面。payload 里那个数字 `ucPreset` 原样保持（V4/V5 发 4、V3 发 3，都是 None）：⛔ **数字档在各代之间的含义没有官方口径，社区 SDK 互相矛盾，不猜** |
 | `Text:` 文字渲染 | `textRendering` | [textrendering](https://docs.novelai.net/en/image/textrendering/)：放 prompt **最末**，V5 支持 EN/JA/ZH                                                                                           | `prompt` → 质量标签 → `, Text: …`（所以质量标签先拼）。上限 Full 750 / Curated 374 只作护栏，见上一节的单位说明                                                                                      |
 
-- 三颗都是 **V5 专属**（`MODEL_CAPABILITY_OVERRIDES` 逐模型声明），只有 `ucPreset` 挂在 adapter 默认上、V4.5 / V3 也有。旧客户端把 V5 专属键发给别的模型时 `generate-image.service` **400**，⛔ 不静默丢弃。
+- `Text:` 与 Light 质量标签仅限 V5；V4.5 也支持标准质量标签（2026-09-21 补核，见下节）。`ucPreset` 挂在 adapter 默认。服务端按逐模型能力声明校验，不支持的值返回 400。
 - **遮罩重绘（inpaint）**：NovelAI 的 infill 是**换模型 + 换 action**，不是加参数。`model` 换成 `nai-diffusion-5-full-inpainting`，`action` 换成 `infill`，`mask` 是与底图同规格的黑白 PNG（白 = 重画），并发 `add_original_image: true`。**V5 Curated 没有自己的 inpaint 模型，回落 `nai-diffusion-4-5-full-inpainting`**——界面上说出这句话（`StudioInpaintMaskChip`），⛔ 不让用户以为重绘还跑在 Curated 上。
 - 遮罩传输：客户端画布导出的是 data URL，`submit-image.service` 在建 job 之前把它换成 R2 的 http URL，之后才进 DB 与 worker（worker 解不了 `data:`，而 DB 里也不该躺几十 KB 的 base64）。前置校验：恰好 1 张参考图，且模型在能力表里声明了 `inpaint`。
 - 画板复用编辑域那块 `StudioInpaintEditor`（画笔 / 拉框 / 橡皮 / 撤销 / 清空，导出与源图**逐像素同尺寸**的黑白 PNG），生成工作台把它那条重绘指令关掉 —— 那一枪的提示词就是工作台里那条。⛔ 没做羽化 / 反选 / 图层。
+
+## NovelAI 基础参数与精确角色参考（verified 2026-09-21）
+
+- Sources：[官方 Swagger](https://image.novelai.net/docs/doc.json)、[Precise Reference](https://docs.novelai.net/en/image/precisereference/)、[Quality Tags](https://docs.novelai.net/en/image/qualitytags/)。Method：逐字段核对公开契约；本地请求测试不等于线上联调。
+- 基础参数：`cfgRescale` → `cfg_rescale`；`img2imgNoise` → 图生图 `noise`。本仓开放 0–1，默认 0；没有参考图时隐藏参考强度与噪声。`noise_schedule` 保留既有 karras，未核实完整可选值集，不新增猜测选项。
+- V4.5 质量标签提供 off / standard：Full 追加 `, location, very aesthetic, masterpiece, no text`；Curated 追加 `, location, masterpiece, no text, -0.8::feet::, rating:general`。V5 保留既有 Light / Standard；缺省 off 不改提示词。
+- 精确参考本轮仅接 **V4.5 Full / Curated、单张角色参考**。`advancedParams.novelAiReferenceMode=precise`，`preciseReferenceStrength` 与 `preciseReferenceFidelity` 为 0–1（本仓默认 1）。不与遮罩重绘组合；V5 不显示该模式，服务端与 Worker 拒绝不支持的请求。Vibe 不接入，也不保留禁用占位。
+- 服务端将图片旋正、等比缩放并补黑边到官方允许的 `1472×1472` PNG，再存 R2。Worker 用 `action=generate`，发送 `director_reference_images`、`director_reference_descriptions`（`caption.base_caption=character`）、`director_reference_information_extracted=[1]`、`director_reference_strength_values`、`director_reference_secondary_strength_values`（Fidelity）。不发送图生图 `image` / `strength` / `noise`。
+- 官方费用：每张生成、每张精确参考额外 **5 Anlas**。界面明示额外费用，精确参考不显示 Opus 免费提示。不承诺角色复现必然准确。
+- 状态：代码与本地契约验证已接通；尚未部署新版 execution Worker，未做精确参考真实付费生成。需部署 Worker 后再验收真实链路。
 
 ## PixAI 接入（2026-09-20 暂时下架；历史契约已核实）
 

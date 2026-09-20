@@ -32,6 +32,8 @@ export interface TailorableImageRequest {
    *  按路由解析）。认不出型号就只翻译方言、不做能力裁剪。 */
   modelId?: string
   freePrompt?: string
+  referenceImage?: string
+  referenceImages?: readonly string[]
   advancedParams?: AdvancedParams
 }
 
@@ -46,6 +48,15 @@ export function tailorImageRequestToModel<T extends TailorableImageRequest>(
   let freePrompt = request.freePrompt
 
   if (advancedParams) {
+    const hasReferenceImage = Boolean(
+      request.referenceImages?.length || request.referenceImage,
+    )
+    if (!hasReferenceImage && advancedParams.novelAiReferenceMode) {
+      advancedParams = { ...advancedParams }
+      delete advancedParams.novelAiReferenceMode
+      delete advancedParams.preciseReferenceStrength
+      delete advancedParams.preciseReferenceFidelity
+    }
     const pruned = pruneIncompatibleCapabilityValues(
       advancedParams,
       adapterType,

@@ -3283,7 +3283,7 @@
     "noConfigurable": "This model has no configurable advanced settings",
     "technicalParams": "Technical parameters",
     "qualityToggle": "Quality tags",
-    "qualityToggleHint": "NovelAI V5 appends a quality tag string to the end of your prompt. Light is lighter-handed than Standard.",
+    "qualityToggleHint": "Append quality tags for this model; Light is available on V5 only.",
     "qualityToggleOption": {
       "off": "Off",
       "light": "Light",
@@ -3328,7 +3328,21 @@
       "1": {
         "5k": "1.5k · ~2.4 MP"
       }
-    }
+    },
+    "cfgRescale": "CFG rescale",
+    "img2imgNoise": "Image-to-image noise",
+    "novelAiReferenceMode": "Reference usage",
+    "preciseReferenceStrength": "Character reference strength",
+    "preciseReferenceFidelity": "Character reference fidelity",
+    "cfgRescaleHint": "Reduce overexposure at high CFG; 0 disables it.",
+    "img2imgNoiseHint": "Add noise to the source image to allow more variation.",
+    "preciseReferenceStrengthHint": "Higher values follow the reference character more closely.",
+    "preciseReferenceFidelityHint": "Higher values enforce the reference more strictly; lower values allow more prompt influence.",
+    "novelAiReferenceModeOption": {
+      "standard": "Image to image",
+      "precise": "Precise character reference"
+    },
+    "novelAiReferenceModeHint": "Image to image repaints the source. Precise character reference preserves appearance and adds 5 Anlas per generated image."
   },
   "ReverseEngineer": {
     "title": "Image to prompt",
@@ -6347,15 +6361,13 @@
     "opusMetered": "Outside the free window — burns Anlas",
     "referenceUsageTitle": "Reference use",
     "referenceUsage": {
-      "standard": "Plain reference",
-      "vibe": "Vibe",
-      "precise": "Precise reference"
+      "standard": "Image to image"
     },
-    "referenceUsageUnrouted": "Vibe and precise reference are not wired to a send path yet.",
     "jumpToTags": "{model} is a tag model — take me to the tag workbench",
     "jumpToNatural": "{model} takes a sentence — take me to the natural-language workbench",
     "characterCount": "{count, plural, =0 {none} one {# character} other {# characters}}",
-    "moreControls": "Sampler · resolution · more"
+    "moreControls": "Sampler · resolution · more",
+    "preciseReferenceCost": "Adds 5 Anlas per generated image; references character appearance only."
   },
   "StudioPanels": {
     "reference": "Reference Images",
@@ -8093,7 +8105,12 @@
       "textRendering": "Text",
       "sampler": "Sampler",
       "pixaiMode": "Render mode",
-      "pixaiSize": "Output size"
+      "pixaiSize": "Output size",
+      "cfgRescale": "CFG rescale",
+      "img2imgNoise": "Image-to-image noise",
+      "novelAiReferenceMode": "Reference usage",
+      "preciseReferenceStrength": "Character reference strength",
+      "preciseReferenceFidelity": "Character reference fidelity"
     },
     "textFilled": "{count} chars"
   },

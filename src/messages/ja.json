@@ -3283,7 +3283,7 @@
     "noConfigurable": "このモデルには設定可能な詳細パラメータがありません",
     "technicalParams": "テクニカルパラメーター",
     "qualityToggle": "品質タグ",
-    "qualityToggleHint": "NovelAI V5 はプロンプトの末尾に品質タグを追加します。Light は Standard より控えめです。",
+    "qualityToggleHint": "モデルに合わせた品質タグを追加します。Light は V5 のみ。",
     "qualityToggleOption": {
       "off": "オフ",
       "light": "Light",
@@ -3328,7 +3328,21 @@
       "1": {
         "5k": "1.5k · 約 236 万画素"
       }
-    }
+    },
+    "cfgRescale": "CFG リスケール",
+    "img2imgNoise": "画像変換ノイズ",
+    "novelAiReferenceMode": "参照画像の用途",
+    "preciseReferenceStrength": "キャラクター参照強度",
+    "preciseReferenceFidelity": "キャラクター参照忠実度",
+    "cfgRescaleHint": "高い CFG による白飛びを抑えます。0 で無効。",
+    "img2imgNoiseHint": "元画像にノイズを加えて変化の幅を広げます。",
+    "preciseReferenceStrengthHint": "高いほど参照キャラクターの特徴に近づきます。",
+    "preciseReferenceFidelityHint": "高いほど参照を厳密に反映し、低いほどプロンプトの影響を強めます。",
+    "novelAiReferenceModeOption": {
+      "standard": "画像から生成",
+      "precise": "精密キャラクター参照"
+    },
+    "novelAiReferenceModeHint": "画像から生成は元画像を描き直します。精密キャラクター参照は外観を保ち、生成画像ごとに 5 Anlas が追加されます。"
   },
   "ReverseEngineer": {
     "title": "画像からプロンプト",
@@ -6347,15 +6361,13 @@
     "opusMetered": "無料枠外 — Anlas を消費",
     "referenceUsageTitle": "参照画像の使い方",
     "referenceUsage": {
-      "standard": "通常参照",
-      "vibe": "Vibe",
-      "precise": "精密参照"
+      "standard": "画像から生成"
     },
-    "referenceUsageUnrouted": "Vibe と精密参照はまだ送信経路に繋がっていません。",
     "jumpToTags": "{model} はタグモデルです — タグスタジオへ移動",
     "jumpToNatural": "{model} は文章で指示します — 自然言語スタジオへ移動",
     "characterCount": "{count, plural, =0 {なし} other {# 人}}",
-    "moreControls": "サンプラー · 解像度 · その他"
+    "moreControls": "サンプラー · 解像度 · その他",
+    "preciseReferenceCost": "生成画像ごとに 5 Anlas が追加されます。キャラクターの外観のみを参照します。"
   },
   "StudioPanels": {
     "reference": "参照画像",
@@ -8093,7 +8105,12 @@
       "textRendering": "テキスト",
       "sampler": "サンプラー",
       "pixaiMode": "レンダリングモード",
-      "pixaiSize": "出力サイズ"
+      "pixaiSize": "出力サイズ",
+      "cfgRescale": "CFG リスケール",
+      "img2imgNoise": "画像変換ノイズ",
+      "novelAiReferenceMode": "参照画像の用途",
+      "preciseReferenceStrength": "キャラクター参照強度",
+      "preciseReferenceFidelity": "キャラクター参照忠実度"
     },
     "textFilled": "{count} 文字"
   },

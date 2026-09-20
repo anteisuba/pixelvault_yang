@@ -373,9 +373,6 @@ describe('PixAI capability chips', () => {
 })
 
 describe('NovelAI capability chips', () => {
-  // 11 的派生层：模型声明什么字段，chip 行就长什么控件。质量标签与 `Text:` 是
-  // V5 专属（官方 qualitytags / textrendering 两页都只写 V5），V4.5 只该拿到
-  // UC 预设那一颗。
   it('gives V5 the quality tag, UC preset and Text controls', () => {
     expect(
       capabilitiesOf(AI_ADAPTER_TYPES.NOVELAI, AI_MODELS.NOVELAI_V5_FULL),
@@ -383,6 +380,8 @@ describe('NovelAI capability chips', () => {
       'guidanceScale',
       'steps',
       'referenceStrength',
+      'cfgRescale',
+      'img2imgNoise',
       'ucPreset',
       'sampler',
       'qualityToggle',
@@ -390,8 +389,6 @@ describe('NovelAI capability chips', () => {
     ])
   })
 
-  // 采样器不分代（官方 sampling 页没有按模型分档），所以 V4.5 也有它；
-  // V5 专属的只有质量标签与 `Text:`。
   it('gives V4.5 the UC preset and the sampler, but no V5-only control', () => {
     expect(
       capabilitiesOf(AI_ADAPTER_TYPES.NOVELAI, AI_MODELS.NOVELAI_V45_FULL),
@@ -399,8 +396,14 @@ describe('NovelAI capability chips', () => {
       'guidanceScale',
       'steps',
       'referenceStrength',
+      'cfgRescale',
+      'img2imgNoise',
       'ucPreset',
       'sampler',
+      'qualityToggle',
+      'novelAiReferenceMode',
+      'preciseReferenceStrength',
+      'preciseReferenceFidelity',
     ])
   })
 
@@ -444,7 +447,7 @@ describe('NovelAI capability chips', () => {
         AI_ADAPTER_TYPES.NOVELAI,
         AI_MODELS.NOVELAI_V45_FULL,
       ),
-    ).toEqual({ ucPreset: 'heavy' })
+    ).toEqual({ ucPreset: 'heavy', qualityToggle: 'standard' })
   })
 
   it('drops a Text value longer than the model cap', () => {

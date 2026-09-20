@@ -36,7 +36,7 @@ export interface CapabilityChip {
   readonly maxLength?: number
   /** 缺省值 —— chip 处在它上面时是「默认态」（白底描边），不是「选中」。 */
   readonly defaultValue: string | number | boolean
-  /** 需要先挂参考图才成立（referenceStrength）：没挂时 chip 走 muted 灰底。 */
+  /** 需要先挂参考图才显示。 */
   readonly requiresReferenceImage: boolean
 }
 
@@ -56,6 +56,7 @@ const SELECT_OPTION_KEYS: Partial<
   qualityToggle: 'qualityToggleOptions',
   ucPreset: 'ucPresetOptions',
   sampler: 'samplerOptions',
+  novelAiReferenceMode: 'novelAiReferenceModeOptions',
   pixaiMode: 'pixaiModeOptions',
   pixaiSize: 'pixaiSizeOptions',
 }
@@ -74,14 +75,21 @@ const TEXT_MAX_LENGTH_KEYS: Partial<
 /**
  * 无论哪个 provider 都只有挂了参考图才成立的能力：`referenceStrength` 要一张
  * 底图去 denoise，`inputFidelity` 只是 `/v1/images/edits` 的字段（纯文生图那条
- * 路上 OpenAI 根本不收）。没挂时 chip 走 muted 灰底，⛔ 不隐藏。
+ * 路上 OpenAI 根本不收）。没有图片时不显示。
  *
  * ⚠ 只依赖参考图**在某些模型上**成立的能力不进这张表，写进能力表的
  * `referenceDependentCapabilities`（例：`background` 在 OpenAI 上文生图可用，
  * 在火山 Seedream 5.0 Pro 上文档写死「仅支持图生图场景」）。
  */
 const REFERENCE_DEPENDENT_CAPABILITIES: ReadonlySet<ProviderCapability> =
-  new Set<ProviderCapability>(['referenceStrength', 'inputFidelity'])
+  new Set<ProviderCapability>([
+    'referenceStrength',
+    'inputFidelity',
+    'img2imgNoise',
+    'novelAiReferenceMode',
+    'preciseReferenceStrength',
+    'preciseReferenceFidelity',
+  ])
 
 function isReferenceDependent(
   config: CapabilityConfig,
@@ -109,6 +117,10 @@ const SLIDER_RANGE_KEYS: Partial<
   guidanceScale: 'guidanceScale',
   steps: 'steps',
   referenceStrength: 'referenceStrength',
+  cfgRescale: 'cfgRescale',
+  img2imgNoise: 'img2imgNoise',
+  preciseReferenceStrength: 'preciseReferenceStrength',
+  preciseReferenceFidelity: 'preciseReferenceFidelity',
 }
 
 /**
@@ -271,4 +283,24 @@ export function pruneIncompatibleCapabilityValues(
   }
 
   return changed ? next : null
+}
+
+export function isCapabilityChipVisible(
+  chip: CapabilityChip,
+  advancedParams: AdvancedParams,
+  hasReferenceImage: boolean,
+): boolean {
+  if (chip.requiresReferenceImage && !hasReferenceImage) return false
+  const precise = advancedParams.novelAiReferenceMode === 'precise'
+  if (
+    chip.capability === 'preciseReferenceStrength' ||
+    chip.capability === 'preciseReferenceFidelity'
+  )
+    return precise
+  if (
+    chip.capability === 'referenceStrength' ||
+    chip.capability === 'img2imgNoise'
+  )
+    return !precise
+  return true
 }

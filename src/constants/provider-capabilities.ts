@@ -1,6 +1,9 @@
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { AI_MODELS } from '@/constants/models'
-import { NOVELAI_SAMPLER_OPTIONS } from '@/constants/novelai'
+import {
+  NOVELAI_SAMPLER_OPTIONS,
+  NOVELAI_REFERENCE_USAGES,
+} from '@/constants/novelai'
 import { PIXAI_SIZES, PIXAI_TSUBAKI_MODES } from '@/constants/pixai'
 
 /**
@@ -14,6 +17,11 @@ export type ProviderCapability =
   | 'steps'
   | 'seed'
   | 'referenceStrength'
+  | 'cfgRescale'
+  | 'img2imgNoise'
+  | 'novelAiReferenceMode'
+  | 'preciseReferenceStrength'
+  | 'preciseReferenceFidelity'
   | 'quality'
   | 'inputFidelity'
   | 'preview'
@@ -167,6 +175,11 @@ export interface CapabilityConfig {
   guidanceScale?: NumericRange
   steps?: NumericRange
   referenceStrength?: NumericRange
+  cfgRescale?: NumericRange
+  img2imgNoise?: NumericRange
+  preciseReferenceStrength?: NumericRange
+  preciseReferenceFidelity?: NumericRange
+  novelAiReferenceModeOptions?: readonly string[]
   loraScale?: NumericRange
   qualityOptions?: readonly string[]
   /**
@@ -226,6 +239,8 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
         'steps',
         'seed',
         'referenceStrength',
+        'cfgRescale',
+        'img2imgNoise',
         // UC 预设适用于所有 NAI 档（V3 / V4.5 / V5）；质量标签与 Text: 是 V5
         // 专属，逐模型 override 声明。
         'ucPreset',
@@ -239,6 +254,8 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
       guidanceScale: { min: 1, max: 20, step: 0.5, default: 5 },
       steps: { min: 1, max: 50, step: 1, default: 28 },
       referenceStrength: { min: 0.01, max: 0.99, step: 0.01, default: 0.7 },
+      cfgRescale: { min: 0, max: 1, step: 0.05, default: 0 },
+      img2imgNoise: { min: 0, max: 1, step: 0.01, default: 0 },
       maxReferenceImages: 1,
       // Production worker treats a single reference as img2img. V5 launch has
       // no Director / Precise Reference; V4.5 Director is not worker-migrated.
@@ -457,11 +474,33 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
 export const MODEL_CAPABILITY_OVERRIDES: Partial<
   Record<string, Partial<CapabilityConfig>>
 > = {
-  // ⚠ 声明 `capabilities` 会**整体替换** adapter 默认（resolveConfig 是浅合并），
-  // 所以这两条要把 adapter 那五项连同 ucPreset 一起重写出来，再加 V5 专属的两项。
-  // 质量标签（V5 的 Light/Standard 两串）与 `Text:` 文字渲染（V5 起支持 EN/JA/ZH）
-  // 都只在 V5 成立，⛔ 不能上移到 adapter 默认——那样 V4.5 / V3 会长出两颗按官方
-  // 文档并不适用于它们的 chip。
+  [AI_MODELS.NOVELAI_V45_FULL]: {
+    capabilities: [
+      ...ADAPTER_CAPABILITIES[AI_ADAPTER_TYPES.NOVELAI].capabilities,
+      'qualityToggle',
+      'novelAiReferenceMode',
+      'preciseReferenceStrength',
+      'preciseReferenceFidelity',
+    ],
+    novelAiReferenceModeOptions: NOVELAI_REFERENCE_USAGES,
+    preciseReferenceStrength: { min: 0, max: 1, step: 0.05, default: 1 },
+    preciseReferenceFidelity: { min: 0, max: 1, step: 0.05, default: 1 },
+    qualityToggleOptions: ['off', 'standard'],
+  },
+  [AI_MODELS.NOVELAI_V45_CURATED]: {
+    capabilities: [
+      ...ADAPTER_CAPABILITIES[AI_ADAPTER_TYPES.NOVELAI].capabilities,
+      'qualityToggle',
+      'novelAiReferenceMode',
+      'preciseReferenceStrength',
+      'preciseReferenceFidelity',
+    ],
+    novelAiReferenceModeOptions: NOVELAI_REFERENCE_USAGES,
+    preciseReferenceStrength: { min: 0, max: 1, step: 0.05, default: 1 },
+    preciseReferenceFidelity: { min: 0, max: 1, step: 0.05, default: 1 },
+    qualityToggleOptions: ['off', 'standard'],
+  },
+  // Light 质量标签与文字渲染只在 V5 声明；V4.5 只有 standard 质量标签。
   [AI_MODELS.NOVELAI_V5_FULL]: {
     guidanceScale: { min: 1, max: 20, step: 0.5, default: 7 },
     steps: { min: 1, max: 50, step: 1, default: 23 },
@@ -471,6 +510,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'steps',
       'seed',
       'referenceStrength',
+      'cfgRescale',
+      'img2imgNoise',
       'ucPreset',
       'sampler',
       'qualityToggle',
@@ -493,6 +534,8 @@ export const MODEL_CAPABILITY_OVERRIDES: Partial<
       'steps',
       'seed',
       'referenceStrength',
+      'cfgRescale',
+      'img2imgNoise',
       'ucPreset',
       'sampler',
       'qualityToggle',
@@ -835,6 +878,11 @@ export function getCapabilityFieldType(
     guidanceScale: 'slider',
     steps: 'slider',
     referenceStrength: 'slider',
+    cfgRescale: 'slider',
+    img2imgNoise: 'slider',
+    novelAiReferenceMode: 'select',
+    preciseReferenceStrength: 'slider',
+    preciseReferenceFidelity: 'slider',
     seed: 'seed',
     quality: 'select',
     inputFidelity: 'select',

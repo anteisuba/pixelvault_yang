@@ -20,6 +20,7 @@ import {
   getNovelAiMaxCharacters,
   resolveNovelAiInpaintModelId,
   supportsNovelAiCharacters,
+  supportsNovelAiPreciseReference,
 } from '../../../src/constants/novelai'
 import {
   PIXAI_ASPECT_RATIOS,
@@ -6893,11 +6894,22 @@ export function composeNovelAiPrompt(
   prompt: string,
   qualityToggle: string | null | undefined,
   textRendering: string | null | undefined,
+  externalModelId?: string,
 ): string {
   let composed = prompt
-  const suffix = qualityToggle
-    ? NOVELAI_QUALITY_TAG_SUFFIXES[qualityToggle]
-    : undefined
+  const v45Suffix =
+    externalModelId === 'nai-diffusion-4-5-full'
+      ? ', location, very aesthetic, masterpiece, no text'
+      : externalModelId === 'nai-diffusion-4-5-curated'
+        ? ', location, masterpiece, no text, -0.8::feet::, rating:general'
+        : undefined
+  const suffix = v45Suffix
+    ? qualityToggle === 'standard'
+      ? v45Suffix
+      : undefined
+    : qualityToggle
+      ? NOVELAI_QUALITY_TAG_SUFFIXES[qualityToggle]
+      : undefined
   if (suffix) composed += suffix
   const text = textRendering?.trim()
   if (text) composed += `${composed ? ', ' : ''}Text: ${text}`
@@ -6932,7 +6944,19 @@ export async function generateNovelAiImage(
   const advancedParams = readAdvancedRecord(context)
   const externalModelId = context.providerInput.externalModelId
   const referenceImage = referenceImages[0]
-  const isImg2Img = Boolean(referenceImage)
+  const isPrecise =
+    readStringField(advancedParams, 'novelAiReferenceMode') === 'precise'
+  if (
+    isPrecise &&
+    (!supportsNovelAiPreciseReference(externalModelId) ||
+      !referenceImage ||
+      advancedParams.inpaintMask)
+  ) {
+    throw new Error(
+      'Precise character reference requires V4.5 and one image without an inpainting mask.',
+    )
+  }
+  const isImg2Img = Boolean(referenceImage) && !isPrecise
   /**
    * 遮罩重绘。⚠ NovelAI 的 infill 是**换模型 + 换 action**，不是在原模型上加
    * 一个参数：`model` 变成 `…-inpainting`，`action` 变成 `infill`，`mask` 是一张
@@ -6959,6 +6983,7 @@ export async function generateNovelAiImage(
     context.providerInput.prompt,
     readStringField(advancedParams, 'qualityToggle'),
     readStringField(advancedParams, 'textRendering'),
+    externalModelId,
   )
   const configuredSeed = readNumberField(advancedParams, 'seed')
   const seed =
@@ -7010,7 +7035,10 @@ export async function generateNovelAiImage(
     controlnet_strength: 1,
     legacy: false,
     add_original_image: isImg2Img && useStructuredPrompt,
-    cfg_rescale: 0,
+    cfg_rescale: Math.min(
+      1,
+      Math.max(0, readNumberField(advancedParams, 'cfgRescale') ?? 0),
+    ),
     noise_schedule: 'karras',
     legacy_v3_extend: false,
     use_coords: useCoords,
@@ -7025,13 +7053,48 @@ export async function generateNovelAiImage(
     parameters.skip_cfg_above_sigma = null
   }
 
-  if (referenceImage) {
+  if (referenceImage && isImg2Img) {
     parameters.image = await readReferenceImageAsBase64(referenceImage)
     parameters.strength = invertReferenceStrength(
       readNumberField(advancedParams, 'referenceStrength') ?? 0.7,
     )
-    parameters.noise = 0
+    parameters.noise = Math.min(
+      1,
+      Math.max(0, readNumberField(advancedParams, 'img2imgNoise') ?? 0),
+    )
     parameters.extra_noise_seed = seed
+  }
+
+  if (isPrecise && referenceImage) {
+    parameters.director_reference_images = [
+      await readReferenceImageAsBase64(referenceImage),
+    ]
+    parameters.director_reference_descriptions = [
+      {
+        caption: { base_caption: 'character', char_captions: [] },
+        use_coords: false,
+        use_order: true,
+      },
+    ]
+    parameters.director_reference_information_extracted = [1]
+    parameters.director_reference_strength_values = [
+      Math.min(
+        1,
+        Math.max(
+          0,
+          readNumberField(advancedParams, 'preciseReferenceStrength') ?? 1,
+        ),
+      ),
+    ]
+    parameters.director_reference_secondary_strength_values = [
+      Math.min(
+        1,
+        Math.max(
+          0,
+          readNumberField(advancedParams, 'preciseReferenceFidelity') ?? 1,
+        ),
+      ),
+    ]
   }
 
   if (isInpaint && maskImage) {

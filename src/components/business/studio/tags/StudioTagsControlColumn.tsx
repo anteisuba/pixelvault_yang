@@ -6,22 +6,24 @@ import { useTranslations } from 'next-intl'
 import { NovelAiCharacterComposer } from '@/components/business/studio/tags/NovelAiCharacterComposer'
 import { StudioTagCapabilityControl } from '@/components/business/studio/tags/StudioTagCapabilityControl'
 import {
-  NOVELAI_REFERENCE_USAGES,
-  NOVELAI_ROUTED_REFERENCE_USAGES,
   getNovelAiCharacterLayoutMode,
   getNovelAiImageDimensions,
   getNovelAiMaxCharacters,
   isWithinNovelAiOpusFreeTier,
 } from '@/constants/novelai'
-import { useStudioForm, useStudioGen } from '@/contexts/studio-context'
+import {
+  useStudioData,
+  useStudioForm,
+  useStudioGen,
+} from '@/contexts/studio-context'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
+import { isCapabilityChipVisible } from '@/lib/model-capability-chips'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import {
   getTagWorkbenchControls,
   type TagWorkbenchControl,
 } from '@/lib/tag-workbench-controls'
 import type { AdvancedParams } from '@/types'
-import { cn } from '@/lib/utils'
 import type { StudioModelOption } from '@/types/model-option'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 
@@ -70,6 +72,8 @@ export function StudioTagsControlColumn({
   // 的执行端 effect，右列再挂一份会让一次请求发两遍。
   const { runModels } = useStudioRunModels()
   const { isGenerating } = useStudioGen()
+  const { imageUpload } = useStudioData()
+  const hasReferenceImage = imageUpload.referenceImages.length > 0
 
   const controls = useMemo(
     () => getTagWorkbenchControls(runModels),
@@ -106,7 +110,13 @@ export function StudioTagsControlColumn({
 
   // 画板顺序在前，表外的按能力表自己的声明顺序跟在后面。
   const visible = controls.filter(
-    (control) => !EDITOR_OWNED.includes(control.chip.capability),
+    (control) =>
+      !EDITOR_OWNED.includes(control.chip.capability) &&
+      isCapabilityChipVisible(
+        control.chip,
+        state.advancedParams,
+        hasReferenceImage,
+      ),
   )
   const ranked = [...visible].sort((a, b) => {
     const rank = (control: TagWorkbenchControl) => {
@@ -185,8 +195,21 @@ export function StudioTagsControlColumn({
         )
       })}
 
+      {hasReferenceImage &&
+      state.advancedParams.novelAiReferenceMode === 'precise' ? (
+        <p className="text-2xs text-muted-foreground">
+          {t('preciseReferenceCost')}
+        </p>
+      ) : null}
       <ResolutionCard runModels={runModels} note={onlyForNote} />
-      <ReferenceUsageCard runModels={runModels} note={onlyForNote} />
+      {hasReferenceImage &&
+      !controls.some(
+        (control) => control.chip.capability === 'novelAiReferenceMode',
+      ) ? (
+        <span className="text-2xs text-muted-foreground">
+          {t('referenceUsage.standard')}
+        </span>
+      ) : null}
     </>
   )
 }
@@ -255,65 +278,11 @@ function ResolutionCard({
           {width}×{height}
         </span>
         <span className="truncate text-3xs text-muted-foreground">
-          {free ? t('opusFree') : t('opusMetered')}
+          {free && state.advancedParams.novelAiReferenceMode !== 'precise'
+            ? t('opusFree')
+            : t('opusMetered')}
         </span>
       </div>
-    </ControlCard>
-  )
-}
-
-/**
- * 参考图用法（普通参考 / Vibe / 精确参考）。
- *
- * ⚠ **只有 `standard` 今天真的发得出去**（`NOVELAI_ROUTED_REFERENCE_USAGES`）：
- * Vibe Transfer 与 Precise Reference 是「最该补的 8 条」里的第 5、6 条，worker
- * 还没有它们的请求形状。所以这两档画出来但点不动，并把原因写在旁边 ——
- * ⛔ 不给用户一个点了什么都不会发生的选项。接通时只改那一行常量。
- */
-function ReferenceUsageCard({
-  runModels,
-  note,
-}: {
-  runModels: readonly StudioModelOption[]
-  note: OnlyForNote
-}) {
-  const t = useTranslations('StudioTags')
-
-  const novelAi = runModels.filter((model) =>
-    getNovelAiCharacterLayoutMode(model.modelId),
-  )
-  if (novelAi.length === 0) return null
-
-  return (
-    <ControlCard
-      title={t('referenceUsageTitle')}
-      note={note(novelAi.map((model) => model.modelId))}
-    >
-      <div className="flex flex-wrap gap-1">
-        {NOVELAI_REFERENCE_USAGES.map((usage) => {
-          const routed = NOVELAI_ROUTED_REFERENCE_USAGES.includes(usage)
-          return (
-            <button
-              key={usage}
-              type="button"
-              aria-pressed={routed}
-              disabled={!routed}
-              title={routed ? undefined : t('referenceUsageUnrouted')}
-              className={cn(
-                'rounded-full border px-2.5 py-1 text-3xs transition-colors duration-fast ease-standard',
-                routed
-                  ? 'border-foreground bg-background font-medium'
-                  : 'border-border bg-background text-muted-foreground opacity-45',
-              )}
-            >
-              {t(`referenceUsage.${usage}`)}
-            </button>
-          )
-        })}
-      </div>
-      <span className="text-3xs text-muted-foreground">
-        {t('referenceUsageUnrouted')}
-      </span>
     </ControlCard>
   )
 }

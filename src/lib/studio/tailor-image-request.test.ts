@@ -24,9 +24,9 @@ describe('出图时按各模型能力裁剪 payload', () => {
       { modelId: AI_MODELS.NOVELAI_V45_FULL, advancedParams },
       'tags',
     )
-    // V4.5 没有质量标签与 Text:，UC 预设留着。
+    // V4.5 支持标准质量标签与 UC，不支持 Text:。
     expect(out.advancedParams).toMatchObject({ ucPreset: 'heavy' })
-    expect(out.advancedParams?.qualityToggle).toBeUndefined()
+    expect(out.advancedParams?.qualityToggle).toBe('standard')
     expect(out.advancedParams?.textRendering).toBeUndefined()
   })
 
@@ -168,4 +168,54 @@ describe('出图时按各模型能力裁剪 payload', () => {
     const request = { modelId: AI_MODELS.OPENAI_GPT_IMAGE_2, freePrompt: 'hi' }
     expect(tailorImageRequestToModel(request, 'natural')).toBe(request)
   })
+})
+
+it('keeps precise reference and CFG controls on V4.5 without leaking them to PixAI', () => {
+  const advancedParams: AdvancedParams = {
+    novelAiReferenceMode: 'precise',
+    preciseReferenceStrength: 0.8,
+    preciseReferenceFidelity: 0.4,
+    cfgRescale: 0.2,
+    img2imgNoise: 0.1,
+    pixaiMode: 'pro',
+  }
+  const nai = tailorImageRequestToModel(
+    {
+      modelId: AI_MODELS.NOVELAI_V45_FULL,
+      advancedParams,
+      referenceImages: ['https://example.com/ref.png'],
+    },
+    'tags',
+  )
+  expect(nai.advancedParams).toMatchObject({
+    novelAiReferenceMode: 'precise',
+    preciseReferenceStrength: 0.8,
+    preciseReferenceFidelity: 0.4,
+    cfgRescale: 0.2,
+  })
+  expect(nai.advancedParams?.pixaiMode).toBeUndefined()
+  const pixai = tailorImageRequestToModel(
+    { modelId: AI_MODELS.PIXAI_TSUBAKI_2, advancedParams },
+    'tags',
+  )
+  expect(pixai.advancedParams).toEqual({ pixaiMode: 'pro' })
+})
+
+it('removing the reference image also removes precise-reference request options', () => {
+  const advancedParams: AdvancedParams = {
+    novelAiReferenceMode: 'precise',
+    preciseReferenceStrength: 0.8,
+    preciseReferenceFidelity: 0.4,
+    seed: 42,
+  }
+  const out = tailorImageRequestToModel(
+    {
+      modelId: AI_MODELS.NOVELAI_V45_FULL,
+      advancedParams,
+      referenceImages: [],
+    },
+    'tags',
+  )
+  expect(out.advancedParams).toEqual({ seed: 42 })
+  expect(advancedParams.novelAiReferenceMode).toBe('precise')
 })

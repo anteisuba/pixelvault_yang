@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('@/services/storage/r2', () => ({
+  fetchAsBuffer: vi.fn(),
+  uploadToR2: vi.fn(),
+  generateStorageKey: vi.fn(() => 'ref.png'),
+  isOwnedStorageUrl: vi.fn(),
+  uploadFromHttpToR2: vi.fn(),
+}))
+
 // ─── Mock all external dependencies ────────────────────────────
 
 vi.mock('@/services/apiKey.service', () => ({
@@ -53,6 +61,7 @@ import {
   GenerateImageServiceError,
   resolveGenerationRoute,
   resolveImageRouteAndValidate,
+  uploadReferenceImagesIfNeeded,
 } from '@/services/image/generate-image.service'
 import {
   findActiveKeyForAdapter,
@@ -571,9 +580,9 @@ describe('NovelAI capability gate (slice 26/1)', () => {
     ).resolves.toMatchObject({ route: NAI_V5_ROUTE })
   })
 
-  // V4.5 只声明了 UC 预设 —— 另外两颗必须 400，⛔ 不静默丢弃。
+  // V4.5 不支持 Light 质量标签或文字渲染。
   it.each([
-    ['qualityToggle', { qualityToggle: 'standard' }],
+    ['qualityToggle', { qualityToggle: 'light' }],
     ['textRendering', { textRendering: 'hello' }],
   ])('rejects %s on V4.5', async (field, params) => {
     await expect(
@@ -584,6 +593,59 @@ describe('NovelAI capability gate (slice 26/1)', () => {
         message: `Unsupported ${field} for the selected model`,
       }),
     )
+  })
+
+  it('accepts standard quality tags on V4.5', async () => {
+    await expect(
+      run(AI_MODELS.NOVELAI_V45_FULL, NAI_V45_ROUTE, {
+        qualityToggle: 'standard',
+      }),
+    ).resolves.toMatchObject({ route: NAI_V45_ROUTE })
+  })
+
+  it.each([
+    [NAI_V5_ROUTE, ['https://example.com/ref.png'], undefined],
+    [NAI_V45_ROUTE, [], undefined],
+    [
+      NAI_V45_ROUTE,
+      ['https://example.com/ref.png'],
+      'https://example.com/mask.png',
+    ],
+  ])(
+    'rejects unsupported precise-reference requests before upload',
+    async (route, referenceImages, inpaintMask) => {
+      await expect(
+        resolveImageRouteAndValidate(
+          'clerk-1',
+          {
+            modelId: route.modelId,
+            prompt: '1girl',
+            referenceImages,
+            advancedParams: { novelAiReferenceMode: 'precise', inpaintMask },
+          } as never,
+          deps(route) as never,
+        ),
+      ).rejects.toThrow('Precise character reference requires')
+    },
+  )
+
+  it('accepts one precise character reference with V4.5', async () => {
+    await expect(
+      resolveImageRouteAndValidate(
+        'clerk-1',
+        {
+          modelId: NAI_V45_ROUTE.modelId,
+          prompt: '1girl',
+          referenceImages: ['https://example.com/ref.png'],
+          advancedParams: {
+            novelAiReferenceMode: 'precise',
+            preciseReferenceStrength: 0.8,
+            preciseReferenceFidelity: 0.4,
+          },
+        } as never,
+        deps(NAI_V45_ROUTE) as never,
+      ),
+    ).resolves.toMatchObject({ route: NAI_V45_ROUTE })
   })
 
   it('keeps the UC preset available on V4.5', async () => {
@@ -677,5 +739,47 @@ describe('NovelAI capability gate (slice 26/1)', () => {
         message: 'Text rendering is limited to 750 characters',
       }),
     )
+  })
+})
+
+describe('precise reference image preparation', () => {
+  it('pads a reference to the documented dimensions with black borders before upload', async () => {
+    const sharp = (await import('sharp')).default
+    const { fetchAsBuffer, uploadToR2 } = await import('@/services/storage/r2')
+    const source = await sharp({
+      create: { width: 12, height: 24, channels: 3, background: '#ffffff' },
+    })
+      .png()
+      .toBuffer()
+    vi.mocked(fetchAsBuffer).mockResolvedValue({
+      buffer: source,
+      mimeType: 'image/png',
+    })
+    vi.mocked(uploadToR2).mockResolvedValue(
+      'https://cdn.example.com/prepared.png',
+    )
+    const result = await uploadReferenceImagesIfNeeded({
+      userId: 'user-1',
+      input: {
+        modelId: AI_MODELS.NOVELAI_V45_FULL,
+        prompt: '1girl',
+        referenceImages: ['https://cdn.example.com/source.png'],
+        advancedParams: { novelAiReferenceMode: 'precise' },
+      } as never,
+      timer: {
+        measure: (_stage: unknown, fn: () => Promise<unknown>) => fn(),
+      } as never,
+    })
+    expect(result).toEqual(['https://cdn.example.com/prepared.png'])
+    const output = vi.mocked(uploadToR2).mock.calls.at(-1)![0].data
+    const { data, info } = await sharp(output as Buffer)
+      .raw()
+      .toBuffer({ resolveWithObject: true })
+    expect([info.width, info.height]).toEqual([1472, 1472])
+    expect(Array.from(data.subarray(0, 3))).toEqual([0, 0, 0])
+    const center = (736 * info.width + 736) * info.channels
+    expect(Array.from(data.subarray(center, center + 3))).toEqual([
+      255, 255, 255,
+    ])
   })
 })

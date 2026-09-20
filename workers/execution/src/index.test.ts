@@ -848,6 +848,74 @@ describe('generateNovelAiImage', () => {
     } as unknown as Parameters<typeof generateNovelAiImage>[1]
   }
 
+  it('routes precise character reference as generation without img2img fields', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V45_FULL, [
+      'https://example.com/ref.png',
+    ])
+    fetchMock.mockResolvedValueOnce(
+      new Response(Uint8Array.from([137, 80, 78, 71])),
+    )
+    context.providerInput.advancedParams = {
+      novelAiReferenceMode: 'precise',
+      preciseReferenceStrength: 0.8,
+      preciseReferenceFidelity: 0.4,
+      referenceStrength: 0.9,
+      img2imgNoise: 0.6,
+      cfgRescale: 0.2,
+    }
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+    const body = JSON.parse(String(fetchMock.mock.calls[1][1].body))
+    expect(body.action).toBe('generate')
+    expect(body.parameters).toMatchObject({
+      director_reference_images: ['iVBORw=='],
+      director_reference_descriptions: [
+        { caption: { base_caption: 'character', char_captions: [] } },
+      ],
+      director_reference_information_extracted: [1],
+      director_reference_strength_values: [0.8],
+      director_reference_secondary_strength_values: [0.4],
+      cfg_rescale: 0.2,
+    })
+    expect(body.parameters.image).toBeUndefined()
+    expect(body.parameters.strength).toBeUndefined()
+    expect(body.parameters.noise).toBeUndefined()
+  })
+
+  it('sends noise and CFG rescale for ordinary img2img without precise-reference fields', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    fetchMock.mockResolvedValueOnce(
+      new Response(Uint8Array.from([137, 80, 78, 71])),
+    )
+    const context = makeContext(NOVELAI_V5_FULL, [
+      'https://example.com/ref.png',
+    ])
+    context.providerInput.advancedParams = {
+      img2imgNoise: 0.3,
+      cfgRescale: 0.25,
+      referenceStrength: 0.8,
+    }
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+    const body = JSON.parse(String(fetchMock.mock.calls[1][1].body))
+    expect(body.action).toBe('img2img')
+    expect(body.parameters.noise).toBe(0.3)
+    expect(body.parameters.cfg_rescale).toBe(0.25)
+    expect(body.parameters.strength).toBeCloseTo(0.2)
+    expect(body.parameters.director_reference_images).toBeUndefined()
+  })
+
+  it('rejects precise reference on V5 before fetching', async () => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(NOVELAI_V5_FULL, [
+      'https://example.com/ref.png',
+    ])
+    context.providerInput.advancedParams = { novelAiReferenceMode: 'precise' }
+    await expect(
+      generateNovelAiImage(makeEnv(), context, 'nai-test-key'),
+    ).rejects.toThrow('Precise character reference requires')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it.each(['manual', 'auto'])(
     'maps V5 character prompts with %s positioning',
     async (positioning) => {
@@ -1007,6 +1075,26 @@ describe('generateNovelAiImage', () => {
       ).caption.base_caption,
     ).toBe(expected)
     // 质量标签不是 API 字段 —— payload 里那颗布尔保持关闭。
+    expect(body.parameters.qualityToggle).toBe(false)
+  })
+
+  it.each([
+    [
+      'nai-diffusion-4-5-full',
+      ', location, very aesthetic, masterpiece, no text',
+    ],
+    [
+      'nai-diffusion-4-5-curated',
+      ', location, masterpiece, no text, -0.8::feet::, rating:general',
+    ],
+  ])('uses model-specific quality tags for %s', async (model, suffix) => {
+    const fetchMock = stubNovelAiZipResponse()
+    const context = makeContext(model)
+    context.providerInput.advancedParams = { qualityToggle: 'standard' }
+    await generateNovelAiImage(makeEnv(), context, 'nai-test-key')
+    const body = JSON.parse(String(fetchMock.mock.calls[0][1].body))
+    expect(body.input).toBe(context.providerInput.prompt + suffix)
+    expect(body.parameters.v4_prompt.caption.base_caption).toBe(body.input)
     expect(body.parameters.qualityToggle).toBe(false)
   })
 

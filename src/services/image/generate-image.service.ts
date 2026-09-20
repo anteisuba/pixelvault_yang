@@ -1,8 +1,10 @@
 import {
   getNovelAiMaxCharacters,
   supportsNovelAiCharacters,
+  supportsNovelAiPreciseReference,
 } from '@/constants/novelai'
 import 'server-only'
+import sharp from 'sharp'
 
 import {
   getCapabilityConfig,
@@ -316,6 +318,28 @@ export async function uploadReferenceImagesIfNeeded(params: {
 
   if (referenceImages.length === 0) return []
 
+  if (input.advancedParams?.novelAiReferenceMode === 'precise') {
+    return Promise.all(
+      referenceImages.map(async (referenceImage) => {
+        const data = await fetchAsBuffer(referenceImage)
+        const buffer = await sharp(data.buffer)
+          .rotate()
+          .resize(1472, 1472, {
+            fit: 'contain',
+            background: '#000000',
+          })
+          .flatten({ background: '#000000' })
+          .png()
+          .toBuffer()
+        return uploadToR2({
+          data: buffer,
+          key: generateStorageKey('IMAGE', userId),
+          mimeType: 'image/png',
+        })
+      }),
+    )
+  }
+
   return Promise.all(
     referenceImages.map((referenceImage) =>
       uploadSingleReferenceImageIfNeeded({
@@ -457,6 +481,19 @@ export async function resolveImageRouteAndValidate(
   const refCount =
     input.referenceImages?.length ?? (input.referenceImage ? 1 : 0)
   const hasReferenceImage = refCount > 0
+  if (
+    input.advancedParams?.novelAiReferenceMode === 'precise' &&
+    (resolvedRoute.adapterType !== AI_ADAPTER_TYPES.NOVELAI ||
+      !supportsNovelAiPreciseReference(resolvedRoute.externalModelId) ||
+      refCount !== 1 ||
+      input.advancedParams.inpaintMask)
+  ) {
+    throw new GenerateImageServiceError(
+      'VALIDATION_ERROR',
+      'Precise character reference requires a V4.5 model and exactly one image, without an inpainting mask.',
+      400,
+    )
+  }
 
   // 值域校验：能力表声明了候选的 select 档，客户端送来一个表外的值就在这里
   // 死掉，⛔ 不要放到 provider 去吃 400。三家共用同一份表，所以列在一起。
@@ -527,10 +564,7 @@ export async function resolveImageRouteAndValidate(
       )
     }
   }
-  // NovelAI 专属三颗控件的服务端闸。⚠ 这一段**不按 adapter 分支**：质量标签与
-  // `Text:` 是逐模型声明的（只有 V5 两档有），所以判据只能是「能力表里这个模型
-  // 声明了没有」。旧客户端把这几个键发给别的模型时必须在这里 400，⛔ 不静默丢弃
-  // —— 静默丢弃会让用户拿到一张完全不带他要的文字的图却以为设置生效了。
+  // 按逐模型能力声明校验专属参数，拒绝不支持的字段和值。
   {
     const naiConfig = getCapabilityConfig(
       resolvedRoute.adapterType,
@@ -540,10 +574,34 @@ export async function resolveImageRouteAndValidate(
     for (const [field, options] of [
       ['qualityToggle', naiConfig.qualityToggleOptions],
       ['ucPreset', naiConfig.ucPresetOptions],
+      ['novelAiReferenceMode', naiConfig.novelAiReferenceModeOptions],
     ] as const) {
       const value = input.advancedParams?.[field]
       if (value === undefined) continue
       if (!declared.has(field) || !options?.includes(value)) {
+        throw new GenerateImageServiceError(
+          'VALIDATION_ERROR',
+          `Unsupported ${field} for the selected model`,
+          400,
+        )
+      }
+    }
+    for (const field of [
+      'cfgRescale',
+      'img2imgNoise',
+      'preciseReferenceStrength',
+      'preciseReferenceFidelity',
+    ] as const) {
+      const value = input.advancedParams?.[field]
+      const range = naiConfig[field]
+      if (
+        value !== undefined &&
+        (!declared.has(field) ||
+          !range ||
+          !Number.isFinite(value) ||
+          value < range.min ||
+          value > range.max)
+      ) {
         throw new GenerateImageServiceError(
           'VALIDATION_ERROR',
           `Unsupported ${field} for the selected model`,

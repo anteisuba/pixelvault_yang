@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /** 步数 / CFG 是 Radix Slider —— 它量 thumb 尺寸要 ResizeObserver（jsdom 没有）。 */
@@ -17,6 +17,7 @@ import { AI_ADAPTER_TYPES } from '@/constants/providers'
 const mocks = vi.hoisted(() => ({
   runModels: [] as { modelId: string; adapterType: string }[],
   advancedParams: {} as Record<string, unknown>,
+  referenceImages: [] as string[],
   dispatch: vi.fn(),
 }))
 
@@ -33,6 +34,9 @@ vi.mock('@/contexts/studio-context', () => ({
       activeTagCharacterIndex: null,
     },
     dispatch: mocks.dispatch,
+  }),
+  useStudioData: () => ({
+    imageUpload: { referenceImages: mocks.referenceImages },
   }),
   useStudioGen: () => ({ isGenerating: false }),
 }))
@@ -65,6 +69,7 @@ function headings() {
 describe('标签台右列', () => {
   beforeEach(() => {
     mocks.advancedParams = {}
+    mocks.referenceImages = []
     mocks.runModels = [NAI_V5]
     mocks.dispatch.mockClear()
   })
@@ -78,10 +83,7 @@ describe('标签台右列', () => {
       'capability.qualityToggle',
       'capability.sampler · capability.steps',
     ])
-    expect(headings().slice(-2)).toEqual([
-      'resolutionTitle',
-      'referenceUsageTitle',
-    ])
+    expect(headings().at(-1)).toBe('resolutionTitle')
   })
 
   // UC 预设与 `Text:` 归编辑器主区，右列不重复画。
@@ -127,17 +129,20 @@ describe('标签台右列', () => {
     expect(screen.getByText('opusFree')).toBeInTheDocument()
   })
 
-  it('只有 Vibe / 精确参考那两档点不动', () => {
+  it('没有参考图时不显示无效的参考控件', () => {
     render(<StudioTagsControlColumn />)
-    expect(
-      screen.getByRole('button', { name: 'referenceUsage.standard' }),
-    ).not.toBeDisabled()
-    expect(
-      screen.getByRole('button', { name: 'referenceUsage.vibe' }),
-    ).toBeDisabled()
-    expect(
-      screen.getByRole('button', { name: 'referenceUsage.precise' }),
-    ).toBeDisabled()
+    expect(headings()).not.toContain('capability.referenceStrength')
+    expect(headings()).not.toContain('capability.img2imgNoise')
+    expect(screen.queryByText('referenceUsage.vibe')).not.toBeInTheDocument()
+    expect(screen.queryByText('referenceUsage.precise')).not.toBeInTheDocument()
+  })
+
+  it('上传参考图后显示图生图强度和噪声', () => {
+    mocks.referenceImages = ['https://example.com/ref.png']
+    render(<StudioTagsControlColumn />)
+    expect(headings()).toContain('capability.referenceStrength')
+    expect(headings()).toContain('capability.img2imgNoise')
+    expect(screen.getByText('referenceUsage.standard')).toBeInTheDocument()
   })
 
   // 标签台里没有 NAI 时，NAI 自己那几张卡整块不渲染。
@@ -194,4 +199,33 @@ describe('标签台右列', () => {
       }
     }
   })
+})
+
+it('V4.5 switches between img2img and precise character controls', () => {
+  mocks.runModels = [
+    {
+      modelId: AI_MODELS.NOVELAI_V45_FULL,
+      adapterType: AI_ADAPTER_TYPES.NOVELAI,
+    },
+  ]
+  mocks.referenceImages = ['https://example.com/ref.png']
+  mocks.advancedParams = { seed: 42 }
+  const { rerender } = render(<StudioTagsControlColumn />)
+  const mode = screen.getByRole('button', {
+    name: 'novelAiReferenceModeOption.precise',
+  })
+  expect(mode).toBeEnabled()
+  fireEvent.click(mode)
+  expect(mocks.dispatch).toHaveBeenLastCalledWith({
+    type: 'SET_ADVANCED_PARAMS',
+    payload: { seed: 42, novelAiReferenceMode: 'precise' },
+  })
+  mocks.advancedParams = { seed: 42, novelAiReferenceMode: 'precise' }
+  rerender(<StudioTagsControlColumn />)
+  expect(headings()).toContain('capability.preciseReferenceStrength')
+  expect(headings()).toContain('capability.preciseReferenceFidelity')
+  expect(headings()).not.toContain('capability.referenceStrength')
+  expect(headings()).not.toContain('capability.img2imgNoise')
+  expect(screen.getByText('preciseReferenceCost')).toBeInTheDocument()
+  expect(screen.queryByText('opusFree')).not.toBeInTheDocument()
 })

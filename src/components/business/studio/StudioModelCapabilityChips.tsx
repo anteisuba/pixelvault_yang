@@ -5,6 +5,7 @@ import { useTranslations } from 'next-intl'
 import {
   getCapabilityChipValue,
   getModelCapabilityChips,
+  isCapabilityChipVisible,
   isCapabilityChipSet,
   type CapabilityChip,
 } from '@/lib/model-capability-chips'
@@ -81,15 +82,23 @@ export function StudioModelCapabilityChips({
             : 'flex-wrap',
         )}
       >
-        {chips.map((chip) => (
-          <CapabilityChipControl
-            key={chip.capability}
-            chip={chip}
-            params={state.advancedParams}
-            disabled={disabled}
-            hasReferenceImage={hasReferenceImage}
-          />
-        ))}
+        {chips
+          .filter((chip) =>
+            isCapabilityChipVisible(
+              chip,
+              state.advancedParams,
+              hasReferenceImage,
+            ),
+          )
+          .map((chip) => (
+            <CapabilityChipControl
+              key={chip.capability}
+              chip={chip}
+              params={state.advancedParams}
+              disabled={disabled}
+              hasReferenceImage={hasReferenceImage}
+            />
+          ))}
       </div>
     </div>
   )
@@ -118,8 +127,6 @@ function CapabilityChipControl({
 
   const value = getCapabilityChipValue(chip, params)
   const isSet = isCapabilityChipSet(chip, params)
-  // 前置条件没满足 = 次要态：画出来但点不动，并在 title 里说清为什么
-  // （⛔ 不隐藏 —— 隐藏了用户根本不知道这个模型有这档能力）。
   const unavailable = chip.requiresReferenceImage && !hasReferenceImage
 
   const update = (patch: Partial<AdvancedParams>) =>

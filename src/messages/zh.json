@@ -3283,7 +3283,7 @@
     "noConfigurable": "该模型没有可配置的高级设置",
     "technicalParams": "技术参数",
     "qualityToggle": "质量标签",
-    "qualityToggleHint": "NovelAI V5 会在提示词末尾追加一串质量标签。Light 比 Standard 更克制。",
+    "qualityToggleHint": "在提示词末尾追加该模型的质量标签；Light 仅限 V5。",
     "qualityToggleOption": {
       "off": "关闭",
       "light": "Light",
@@ -3328,7 +3328,21 @@
       "1": {
         "5k": "1.5k · 约 236 万像素"
       }
-    }
+    },
+    "cfgRescale": "CFG 重缩放",
+    "img2imgNoise": "图生图噪声",
+    "novelAiReferenceMode": "参考图用法",
+    "preciseReferenceStrength": "角色参考强度",
+    "preciseReferenceFidelity": "角色参考保真度",
+    "cfgRescaleHint": "缓解高 CFG 导致的过曝；0 表示关闭。",
+    "img2imgNoiseHint": "增加底图噪声，为重绘留出更多变化。",
+    "preciseReferenceStrengthHint": "越高越贴近参考角色的视觉特征。",
+    "preciseReferenceFidelityHint": "越高越严格遵循参考；降低可增加提示词的影响。",
+    "novelAiReferenceModeOption": {
+      "standard": "图生图",
+      "precise": "精确角色参考"
+    },
+    "novelAiReferenceModeHint": "图生图重绘底图；精确角色参考保留外观，每张生成额外消耗 5 Anlas。"
   },
   "ReverseEngineer": {
     "title": "图片反向工程",
@@ -6347,15 +6361,13 @@
     "opusMetered": "超出免费档，按 Anlas 计",
     "referenceUsageTitle": "参考图用法",
     "referenceUsage": {
-      "standard": "普通参考",
-      "vibe": "Vibe",
-      "precise": "精确参考"
+      "standard": "图生图"
     },
-    "referenceUsageUnrouted": "Vibe 与精确参考尚未接通发送路径。",
     "jumpToTags": "{model} 是标签模型，带你去标签台",
     "jumpToNatural": "{model} 吃自然语言，带你去自然语言台",
     "characterCount": "{count, plural, =0 {无} other {# 人}}",
-    "moreControls": "采样器 · 分辩率 · 更多"
+    "moreControls": "采样器 · 分辩率 · 更多",
+    "preciseReferenceCost": "每张生成额外消耗 5 Anlas；仅参考角色外观。"
   },
   "StudioPanels": {
     "reference": "参考图",
@@ -8093,7 +8105,12 @@
       "textRendering": "文字",
       "sampler": "采样器",
       "pixaiMode": "渲染档",
-      "pixaiSize": "出图尺寸"
+      "pixaiSize": "出图尺寸",
+      "cfgRescale": "CFG 重缩放",
+      "img2imgNoise": "图生图噪声",
+      "novelAiReferenceMode": "参考图用法",
+      "preciseReferenceStrength": "角色参考强度",
+      "preciseReferenceFidelity": "角色参考保真度"
     },
     "textFilled": "{count} 字"
   },

@@ -143,24 +143,16 @@ export const NOVELAI_SAMPLER_OPTIONS = [
 
 export type NovelAiSampler = (typeof NOVELAI_SAMPLER_OPTIONS)[number]
 
-/**
- * 参考图用法三档（D10 ④ 右列最后一张卡）。
- * - `standard` 普通参考 = img2img（strength / noise），今天唯一接通的一条。
- * - `vibe` Vibe Transfer（V4+，≤16 张，V5 官方写「coming later」）。
- * - `precise` Precise Reference（仅 V4.5）。
- * https://docs.novelai.net/en/image/vibetransfer/
- * https://docs.novelai.net/en/image/precisereference/
- */
-export const NOVELAI_REFERENCE_USAGES = ['standard', 'vibe', 'precise'] as const
-export type NovelAiReferenceUsage = (typeof NOVELAI_REFERENCE_USAGES)[number]
+export const NOVELAI_REFERENCE_USAGES = ['standard', 'precise'] as const
 
-/**
- * **发送路径今天真正接通的用法**。⚠ Vibe 与 Precise 是「最该补的 8 条」里的
- * 第 5、6 条，worker 还没有它们的请求形状 —— 所以右列那张卡把它们画出来但
- * 点不动，⛔ 不给用户一个点了什么都不会发生的选项。接通时只改这一行。
- */
-export const NOVELAI_ROUTED_REFERENCE_USAGES: readonly NovelAiReferenceUsage[] =
-  ['standard']
+export function supportsNovelAiPreciseReference(
+  modelId: string | undefined,
+): boolean {
+  return (
+    modelId === AI_MODELS.NOVELAI_V45_FULL ||
+    modelId === AI_MODELS.NOVELAI_V45_CURATED
+  )
+}
 
 /**
  * 遮罩重绘用的 inpaint 模型名。⚠ NovelAI 的 inpaint 是**换一个模型 + 换一个

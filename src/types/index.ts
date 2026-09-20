@@ -270,6 +270,11 @@ export const AdvancedParamsSchema = z.object({
     .strict()
     .optional(),
   referenceStrength: z.number().min(0.01).max(0.99).optional(),
+  cfgRescale: z.number().min(0).max(1).optional(),
+  img2imgNoise: z.number().min(0).max(1).optional(),
+  novelAiReferenceMode: z.enum(['standard', 'precise']).optional(),
+  preciseReferenceStrength: z.number().min(0).max(1).optional(),
+  preciseReferenceFidelity: z.number().min(0).max(1).optional(),
   quality: z.enum(['auto', 'low', 'medium', 'high', 'xhigh', 'max']).optional(),
   /**
    * OpenAI `/v1/images/edits` `input_fidelity` —— 只有 `high` / `low` 两档，
@@ -289,7 +294,7 @@ export const AdvancedParamsSchema = z.object({
   layerDecomposition: z.boolean().optional(),
   style: z.string().optional(),
   /**
-   * NovelAI 质量标签档（V5）。官方把它实现成追加到提示词末尾的标签串，不是
+   * NovelAI 质量标签档（V4.5 / V5）。官方把它实现成追加到提示词末尾的标签串，不是
    * API 字段 —— 拼接发生在 worker（见 workers/execution/src/index.ts）。
    * https://docs.novelai.net/en/image/qualitytags/
    */

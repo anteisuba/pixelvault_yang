@@ -99,14 +99,13 @@ describe('StudioModelCapabilityChips', () => {
     })
   })
 
-  // 前置条件没满足 → muted 次要态：画出来但点不动，⛔ 不隐藏。
-  it('greys out reference strength until a reference image is attached', () => {
+  it('shows reference strength only after a reference image is attached', () => {
     mocks.adapterType = AI_ADAPTER_TYPES.FAL
     mocks.modelId = AI_MODELS.FLUX_LORA
     const { rerender } = render(<StudioModelCapabilityChips />)
     expect(
-      screen.getByRole('button', { name: 'capability.referenceStrength' }),
-    ).toBeDisabled()
+      screen.queryByRole('button', { name: 'capability.referenceStrength' }),
+    ).not.toBeInTheDocument()
     mocks.referenceImages = ['https://example.com/a.png']
     rerender(<StudioModelCapabilityChips />)
     expect(

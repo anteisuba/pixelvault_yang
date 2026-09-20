@@ -235,7 +235,7 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
           <StudioPanelHeader icon={<Key className="size-3.5 text-primary" />}>
             {tPanels('civitai')}
             {civitai.hasToken && (
-              <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">
+              <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-3xs text-primary">
                 {t('tokenSaved')}
               </span>
             )}

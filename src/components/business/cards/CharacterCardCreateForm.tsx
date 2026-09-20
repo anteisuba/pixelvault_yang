@@ -290,7 +290,7 @@ export function CharacterCardCreateForm({
                 onChange={(e) =>
                   setViewType(i, e.target.value as SourceImageViewType)
                 }
-                className="absolute bottom-0 left-0 right-0 rounded-b-md border-t border-border/60 bg-background/90 px-1 py-0.5 text-[10px] backdrop-blur-sm focus:outline-none"
+                className="absolute bottom-0 left-0 right-0 rounded-b-md border-t border-border/60 bg-background/90 px-1 py-0.5 text-3xs backdrop-blur-sm focus:outline-none"
               >
                 {CHARACTER_CARD.VIEW_TYPES.map((vt) => (
                   <option key={vt} value={vt}>

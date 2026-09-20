@@ -125,7 +125,7 @@ function PresetCard({ preset, isSelected, onSelect }: PresetCardProps) {
         {t(preset.nameKey)}
       </span>
       {disabled ? (
-        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+        <span className="shrink-0 rounded-full bg-muted px-1.5 py-0.5 text-3xs font-medium text-muted-foreground">
           {t('presetComingSoonBadge')}
         </span>
       ) : null}

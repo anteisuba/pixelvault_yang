@@ -280,7 +280,7 @@ export function CanvasAddMenu({
           key={group.id}
           className="mt-1 space-y-0.5 border-t border-node-panel-inner/80 pt-1.5"
         >
-          <h3 className="px-2.5 pb-0.5 pt-0.5 text-[11px] font-semibold tracking-wide text-node-subtle">
+          <h3 className="px-2.5 pb-0.5 pt-0.5 text-2xs font-semibold tracking-wide text-node-subtle">
             {t(`addCatalog.groups.${group.id}`)}
           </h3>
           <div className="space-y-0.5">

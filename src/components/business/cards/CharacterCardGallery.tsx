@@ -38,7 +38,7 @@ export function CharacterCardGallery({
         <ImageIcon className="mx-auto mb-2 size-6 text-muted-foreground/40" />
         <p className="text-xs text-muted-foreground">{t('empty')}</p>
         {cardNames && cardNames.length > 1 && (
-          <p className="mt-1 text-[10px] text-muted-foreground/60">
+          <p className="mt-1 text-3xs text-muted-foreground/60">
             {t('emptyComboHint', { names: cardNames.join(' × ') })}
           </p>
         )}
@@ -53,7 +53,7 @@ export function CharacterCardGallery({
           {t('count', { count: total })}
         </p>
         {cardNames && cardNames.length > 1 && (
-          <p className="text-[10px] text-muted-foreground/60">
+          <p className="text-3xs text-muted-foreground/60">
             {cardNames.join(' × ')}
           </p>
         )}
@@ -73,7 +73,7 @@ export function CharacterCardGallery({
               loading="lazy"
             />
             <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-              <p className="line-clamp-2 text-[10px] leading-tight text-white">
+              <p className="line-clamp-2 text-3xs leading-tight text-white">
                 {gen.prompt}
               </p>
             </div>

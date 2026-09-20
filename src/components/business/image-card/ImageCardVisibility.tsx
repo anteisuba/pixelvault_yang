@@ -38,7 +38,7 @@ export function ImageCardVisibility({
   labels,
 }: ImageCardVisibilityProps) {
   const actionClass = cn(
-    'text-nav font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
+    'text-2xs font-semibold text-primary underline-offset-2 transition-opacity hover:underline disabled:pointer-events-none',
     isDenseLocale
       ? 'tracking-normal normal-case'
       : 'uppercase tracking-nav-dense',

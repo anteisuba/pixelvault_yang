@@ -168,9 +168,12 @@
      排查时极易误判成「面板没渲染」。45 足够压过 chrome(40) 与助手 rail(20)。 */
   --z-index-canvas-workspace: 45;
   --z-index-canvas-drag: 80; /* L8 拖拽 ghost / 吞噬 portal，恒压过共享 UI z-50 */
-  --text-brand: 1.12rem;
-  --text-nav: 0.6875rem;
-  --text-tab: 0.6875rem;
+  /* ⚠ 字号档的完整「档 → 用途」表在 ui-defaults.md §1，⛔ 别在这里再维护第二份。
+     2026-09-20（进度表 32 ③）删掉两档：`--text-nav` 与 `--text-tab` 都是
+     0.6875rem，与 `--text-2xs` 同值不同名 —— 三个名字指同一个大小，谁都说不清
+     该用哪个。`--text-tab` 当时零消费者，`--text-nav` 的 7 处已改 `text-2xs`；
+     字距那一档 `--tracking-nav` 与本次无关，照旧。 */
+  --text-brand: 1.12rem; /* 17.9px，只给 wordmark */
   --tracking-brand: -0.04em;
   --tracking-nav: 0.16em;
   --tracking-nav-dense: 0.14em;

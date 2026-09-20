@@ -577,7 +577,7 @@ export function LoraTrainingForm({
                 >
                   <span className="font-medium">{option.label}</span>
                   {isComingSoon && (
-                    <span className="text-[10px] text-muted-foreground">
+                    <span className="text-3xs text-muted-foreground">
                       {t('baseModelComingSoonBadge')}
                     </span>
                   )}
@@ -1072,7 +1072,7 @@ export function LoraTrainingHistorySidebar() {
                   {job.name}
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-1 text-[10px] text-muted-foreground">
+              <div className="flex items-center justify-between gap-1 text-3xs text-muted-foreground">
                 <span className="truncate">
                   {job.status === 'COMPLETED'
                     ? t('statusCompleted')
@@ -1175,7 +1175,7 @@ function TrainingImageTile({
       />
       {isCover && (
         <span
-          className="pointer-events-none absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-primary/90 px-1.5 py-0.5 text-[10px] font-medium text-primary-foreground"
+          className="pointer-events-none absolute left-1 top-1 inline-flex items-center gap-0.5 rounded-full bg-primary/90 px-1.5 py-0.5 text-3xs font-medium text-primary-foreground"
           aria-label={coverBadgeLabel}
         >
           <Star className="size-2.5 fill-current" aria-hidden />

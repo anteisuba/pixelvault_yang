@@ -65,7 +65,7 @@ export function LocaleSwitcher({
             aria-label={t(`names.${option}`)}
             title={t(`names.${option}`)}
             className={cn(
-              'locale-switcher-option relative z-10 inline-flex items-center justify-center rounded-full text-nav font-semibold uppercase tracking-nav transition-colors duration-200',
+              'locale-switcher-option relative z-10 inline-flex items-center justify-center rounded-full text-2xs font-semibold uppercase tracking-nav transition-colors duration-200',
               isVertical
                 ? 'size-6 p-0 text-2xs tracking-normal'
                 : cn(

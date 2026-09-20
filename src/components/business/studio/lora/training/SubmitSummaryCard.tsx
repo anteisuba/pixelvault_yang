@@ -48,7 +48,7 @@ export function SubmitSummaryCard({
           {t('submitSummaryTitle')}
         </p>
         {presetName ? (
-          <span className="rounded-full border border-primary/30 bg-background px-2 py-0.5 text-[10px] font-medium text-primary">
+          <span className="rounded-full border border-primary/30 bg-background px-2 py-0.5 text-3xs font-medium text-primary">
             {presetName}
           </span>
         ) : null}
@@ -92,7 +92,7 @@ function SummaryCell({ icon, label, value }: SummaryCellProps) {
     <div className="flex items-start gap-2 rounded-lg bg-background/60 p-2.5">
       <span className="mt-0.5 text-primary">{icon}</span>
       <div className="min-w-0 space-y-0.5">
-        <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
+        <p className="text-3xs uppercase tracking-wide text-muted-foreground">
           {label}
         </p>
         <p className="truncate text-sm font-medium text-foreground">{value}</p>

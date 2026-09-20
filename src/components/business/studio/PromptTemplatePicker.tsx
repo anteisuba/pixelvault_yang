@@ -239,7 +239,7 @@ export function PromptTemplatePicker({
           <span className="line-clamp-1 min-w-0 text-sm font-semibold">
             {recipe.name || recipe.modelId}
           </span>
-          <span className="mt-0.5 flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
+          <span className="mt-0.5 flex min-w-0 items-center gap-1 text-2xs text-muted-foreground">
             <span className="truncate">{modelLabel}</span>
             {relativeTime && (
               <>
@@ -511,7 +511,7 @@ function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
                     <span className="line-clamp-2 text-sm leading-snug text-foreground">
                       {truncatePrompt(inspiration.prompt)}
                     </span>
-                    <span className="mt-1 flex items-center gap-1 text-[11px] text-muted-foreground">
+                    <span className="mt-1 flex items-center gap-1 text-2xs text-muted-foreground">
                       <span>@{inspiration.authorName}</span>
                       {inspiration.categories[0] && (
                         <>

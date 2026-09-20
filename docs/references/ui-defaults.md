@@ -29,9 +29,28 @@
 3. **首页营销域并入三槽**：`--font-home-sans`（Noto Sans）→ `font-sans`；`--font-home-mono`（IBM Plex Mono）→ `font-mono`；`--font-home-serif` / `-jp` → `font-display` 的 CJK 侧。首页保留的只是"标题用衬线"这个用法，不是独立字体家族。
 4. **`--font-editorial`（Fraunces，legal 页）并入 `font-display`**，不再单独存在。
 5. 目标：根布局挂载家族从 9 个降到 7 个（Geist · Geist Mono · Fraunces · Noto Sans SC · Noto Sans JP · Noto Serif SC · Noto Serif JP）；`--font-app-display` / `--font-app-serif` 两个重复的 Geist 变量删掉。
-6. **字号只走 Tailwind 尺度 + 已有扩展**：`text-3xs`(10) · `text-2xs`(11) · `text-xs`(12) · `text-sm`(14) · `text-base`(16) · `text-lg`(18) · `text-xl`(20) · `text-2xl`(24) · 更大只在 `font-display` 槽里出现。控件正文 `text-sm`，辅助文字 `text-xs`，标签 `text-2xs` 大写字距 `tracking-nav`，10px 只给密排数据。
+6. **字号只走下面这张表**，⛔ 不写 `text-[13px]` 一类 arbitrary（Hard Rule 5），⛔ 不为同一个值再起第二个名字。更大的只在 `font-display` 槽里出现。
 7. **字重**：正文 400 · 强调/按钮 500 · 小标题 600 · 700 只在 `font-display`。CJK 不用 700 以上。
 8. **行高**：正文 `leading-normal`(1.5)，CJK 段落 `leading-relaxed`(1.625)，标题 `leading-tight`。
+
+**字号档 → 用途（2026-09-20 收口，进度表 32 ③；真值 SoT = `src/app/globals.css`）**
+
+| 档                              | 值                      | 用途                                                   |
+| ------------------------------- | ----------------------- | ------------------------------------------------------ |
+| `text-3xs`                      | 0.625rem / 10px         | 密排数据：网格角标、缩略图上的读数、序号。**全站下限** |
+| `text-2xs`                      | 0.6875rem / 11px        | 标签、分组头、chip、导航项（配 `tracking-nav` 大写）   |
+| `text-xs`                       | 0.75rem / 12px（内置）  | 辅助文字、说明行                                       |
+| `text-2sm`                      | 0.8125rem / 13px        | 面板里的辅助文字（2026-09-06 从 12 抬的那一档）        |
+| `text-sm`                       | 0.875rem / 14px（内置） | 控件正文，默认档                                       |
+| `text-md`                       | 0.9375rem / 15px        | 面板正文（2026-09-06 抬的那一档）                      |
+| `text-base`                     | 1rem / 16px（内置）     | 长文正文                                               |
+| `text-lg` / `text-xl`           | 1.125 / 1.25rem（内置） | 卡片标题、区块标题                                     |
+| `text-brand`                    | 1.12rem / 17.9px        | 只给 wordmark，⛔ 不外借                               |
+| `text-empty-title`              | 1.375rem / 22px         | 空态大标题（`font-display` 三个落点之一）              |
+| `text-2xl` 及以上               | 内置                    | 应用内页面 h1；再大只在首页营销域                      |
+| `text-hero-title` / `-subtitle` | clamp()                 | 首页 hero，营销域专用                                  |
+
+⚠ 已删的重复档：`--text-nav` 与 `--text-tab` 都等于 `--text-2xs` 的 11px，三个名字一个大小，2026-09-20 只留 `text-2xs`（字距 token `tracking-nav` 与本次无关，照旧在）。同日把业务代码里 61 处 arbitrary 换成档名：`text-[10px]`→`text-3xs` · `text-[11px]`→`text-2xs` · `text-[12px]`→`text-xs` · `text-[13px]`→`text-2sm`；另有 4 处低于下限的（`text-[9px]` ×2、`text-[0.65rem]` ×2）一并归到 `text-3xs`，是本次**唯一**的字号视觉变化（+1px / −0.4px），因为 10px 就是表里的下限。
 
 **展示槽已拍板（2026-09-03）：A = Fraunces + Noto Serif SC/JP**，全站唯一衬线，首页 08-28 方向 B 的衬线标题与 legal 页 Fraunces 合成这一个槽。代价是 zh/ja 页面首屏多一个 Noto Serif 请求，`preload: false` 已挡在关键路径外。
 

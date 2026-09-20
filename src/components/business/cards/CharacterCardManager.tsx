@@ -133,7 +133,7 @@ export function CharacterCardManager({
         </span>
         <span className="text-xs text-muted-foreground">({cards.length})</span>
         {selectedCount > 0 && (
-          <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary">
+          <span className="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-3xs font-medium text-primary">
             {selectedCount} selected
           </span>
         )}
@@ -170,7 +170,7 @@ export function CharacterCardManager({
           >
             <Plus className="size-6 transition-transform group-hover:scale-110" />
             <span className="text-xs font-medium">{t('createNew')}</span>
-            <span className="px-3 text-center text-[10px] text-muted-foreground/70">
+            <span className="px-3 text-center text-3xs text-muted-foreground/70">
               {t('noCardsHint')}
             </span>
           </button>

@@ -331,7 +331,7 @@ export const ImageCard = memo(function ImageCard({
                 ) : (
                   <span
                     aria-hidden="true"
-                    className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-[10px] font-semibold"
+                    className="flex size-6 shrink-0 items-center justify-center rounded-full bg-white/20 text-3xs font-semibold"
                   >
                     {creatorInitial}
                   </span>
@@ -341,7 +341,7 @@ export const ImageCard = memo(function ImageCard({
                     {creatorName}
                   </span>
                   {showCreatorHandle ? (
-                    <span className="block truncate text-[10px] text-white/70 max-sm:hidden">
+                    <span className="block truncate text-3xs text-white/70 max-sm:hidden">
                       {creatorHandle}
                     </span>
                   ) : null}
@@ -364,7 +364,7 @@ export const ImageCard = memo(function ImageCard({
                   </p>
                 ) : null}
                 <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="inline-flex max-w-[55%] items-center truncate rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-[10px] font-medium tracking-wide text-white/90 backdrop-blur-md">
+                  <span className="inline-flex max-w-[55%] items-center truncate rounded-full border border-white/15 bg-white/10 px-2 py-0.5 text-3xs font-medium tracking-wide text-white/90 backdrop-blur-md">
                     {modelLabel}
                   </span>
                   <div className="ml-auto flex items-center gap-1.5">
@@ -377,7 +377,7 @@ export const ImageCard = memo(function ImageCard({
                       <button
                         type="button"
                         onClick={(e) => void handleCopyPrompt(e)}
-                        className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] font-medium text-white backdrop-blur-md transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
+                        className="inline-flex items-center gap-1 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-2xs font-medium text-white backdrop-blur-md transition-colors hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
                         aria-label={t('copyPromptAction')}
                       >
                         <Copy className="size-3" />
@@ -388,7 +388,7 @@ export const ImageCard = memo(function ImageCard({
                       <button
                         type="button"
                         onClick={handleUseInStudio}
-                        className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-[11px] font-medium text-black transition-colors hover:bg-white/85 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
+                        className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-2xs font-medium text-black transition-colors hover:bg-white/85 focus-visible:ring-2 focus-visible:ring-white/70 focus-visible:outline-none"
                         aria-label={t('useInStudioAction')}
                       >
                         <Wand2 className="size-3" />
@@ -408,7 +408,7 @@ export const ImageCard = memo(function ImageCard({
             <div className="flex items-start justify-between gap-4">
               <p
                 className={cn(
-                  'text-nav font-semibold text-muted-foreground',
+                  'text-2xs font-semibold text-muted-foreground',
                   isDenseLocale
                     ? 'tracking-normal normal-case'
                     : 'uppercase tracking-nav',
@@ -425,7 +425,7 @@ export const ImageCard = memo(function ImageCard({
                 type="button"
                 onClick={() => openDetail(null)}
                 className={cn(
-                  'inline-flex shrink-0 items-center gap-1 text-nav font-semibold text-muted-foreground transition-colors hover:text-foreground',
+                  'inline-flex shrink-0 items-center gap-1 text-2xs font-semibold text-muted-foreground transition-colors hover:text-foreground',
                   isDenseLocale
                     ? 'tracking-normal normal-case'
                     : 'uppercase tracking-nav-dense',

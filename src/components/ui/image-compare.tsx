@@ -129,10 +129,10 @@ export function ImageCompare({
       </div>
 
       {/* Labels */}
-      <span className="absolute top-3 left-3 rounded-full bg-black/50 px-2.5 py-1 text-[0.65rem] font-semibold text-white backdrop-blur-sm">
+      <span className="absolute top-3 left-3 rounded-full bg-black/50 px-2.5 py-1 text-3xs font-semibold text-white backdrop-blur-sm">
         {beforeLabel}
       </span>
-      <span className="absolute top-3 right-3 rounded-full bg-black/50 px-2.5 py-1 text-[0.65rem] font-semibold text-white backdrop-blur-sm">
+      <span className="absolute top-3 right-3 rounded-full bg-black/50 px-2.5 py-1 text-3xs font-semibold text-white backdrop-blur-sm">
         {afterLabel}
       </span>
     </div>

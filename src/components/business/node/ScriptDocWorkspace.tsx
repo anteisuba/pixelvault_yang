@@ -448,7 +448,7 @@ export function ScriptDocWorkspace({
               >
                 <span
                   className={cn(
-                    'inline-flex size-4 items-center justify-center rounded-full text-[10px]',
+                    'inline-flex size-4 items-center justify-center rounded-full text-3xs',
                     step.state === 'active' &&
                       'bg-node-foreground text-node-canvas',
                     step.state === 'done' &&
@@ -999,7 +999,7 @@ function ScriptDocEditor({
                   ariaLabel={t('scriptDocFieldShotEmotion')}
                   placeholder={t('scriptDocFieldShotEmotion')}
                   maxLength={SCRIPT_DOC_LIMITS.emotionMaxLength}
-                  className="text-[10px] text-node-subtle"
+                  className="text-3xs text-node-subtle"
                 />
               ) : null}
               {shot.camera !== undefined ? (
@@ -1174,7 +1174,7 @@ function ScriptDocReader({ scriptDoc }: { scriptDoc: ScriptDoc }) {
               {shot.summary}
             </p>
             {shot.emotion ? (
-              <p className="text-[10px] text-node-subtle">{shot.emotion}</p>
+              <p className="text-3xs text-node-subtle">{shot.emotion}</p>
             ) : null}
             {shot.camera ? (
               <p className="text-2xs italic leading-4 text-node-subtle">

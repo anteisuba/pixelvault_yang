@@ -140,7 +140,7 @@ export default async function ImageDetailPage({
       }
 
   const labelClass = cn(
-    'text-nav font-semibold text-muted-foreground',
+    'text-2xs font-semibold text-muted-foreground',
     isDenseLocale
       ? 'tracking-normal normal-case'
       : 'uppercase tracking-nav-dense',
@@ -215,7 +215,7 @@ export default async function ImageDetailPage({
             <div className="flex items-start justify-between gap-4">
               <p
                 className={cn(
-                  'text-nav font-semibold text-muted-foreground',
+                  'text-2xs font-semibold text-muted-foreground',
                   isDenseLocale
                     ? 'tracking-normal normal-case'
                     : 'uppercase tracking-nav',

@@ -1883,7 +1883,7 @@ export function Studio3DWorkspace({
                               : 'border-border/60 text-muted-foreground hover:border-border hover:text-foreground',
                           )}
                         >
-                          <span className="text-[12px] font-semibold leading-tight">
+                          <span className="text-xs font-semibold leading-tight">
                             {faceLabel}
                           </span>
                           <span className="text-2xs leading-tight opacity-80">

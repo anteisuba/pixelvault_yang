@@ -377,7 +377,7 @@ export function AssistantConversation({
                                 <Icon className="size-4" />
                               </span>
                             )}
-                            <span className="absolute bottom-0.5 left-0.5 flex items-center gap-0.5 rounded bg-node-panel/85 px-1 py-0.5 text-[10px] leading-none">
+                            <span className="absolute bottom-0.5 left-0.5 flex items-center gap-0.5 rounded bg-node-panel/85 px-1 py-0.5 text-3xs leading-none">
                               <Icon className="size-2.5" />
                               {outgoingHandleByUrl.get(reference.url) ?? ''}
                             </span>

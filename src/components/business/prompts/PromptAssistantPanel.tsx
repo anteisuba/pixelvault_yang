@@ -657,7 +657,7 @@ export function PromptAssistantPanel({
                         <Icon className="size-5" />
                       </span>
                     )}
-                    <span className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded bg-background/85 px-1 py-0.5 text-[10px] leading-none text-muted-foreground">
+                    <span className="absolute bottom-1 left-1 flex items-center gap-0.5 rounded bg-background/85 px-1 py-0.5 text-3xs leading-none text-muted-foreground">
                       <Icon className="size-3" />
                       {handle}
                     </span>
@@ -830,7 +830,7 @@ function MessageBubble({
                         <Icon className="size-4" />
                       </span>
                     )}
-                    <span className="absolute bottom-0.5 left-0.5 flex items-center gap-0.5 rounded bg-background/85 px-1 py-0.5 text-[10px] leading-none text-muted-foreground">
+                    <span className="absolute bottom-0.5 left-0.5 flex items-center gap-0.5 rounded bg-background/85 px-1 py-0.5 text-3xs leading-none text-muted-foreground">
                       <Icon className="size-2.5" />
                       {handle}
                     </span>
@@ -1084,7 +1084,7 @@ function MessageActionBar({
       {rows.length > 0 ? (
         <div className="rounded-xl border border-border bg-card/40">
           <div className="flex items-center gap-2 px-2.5 pb-1 pt-2">
-            <span className="text-[10px] font-medium uppercase tracking-[0.12em] text-muted-foreground">
+            <span className="text-3xs font-medium uppercase tracking-[0.12em] text-muted-foreground">
               {t('actionsHeading')}
             </span>
             {/* ⚠ 历史消息默认收起：面板挂载会水合上一段会话，老用户首帧是一屏
@@ -1093,7 +1093,7 @@ function MessageActionBar({
               <button
                 type="button"
                 onClick={() => setExpanded(true)}
-                className="ml-auto text-[11px] text-muted-foreground underline underline-offset-[3px] hover:text-foreground"
+                className="ml-auto text-2xs text-muted-foreground underline underline-offset-[3px] hover:text-foreground"
               >
                 {t('moreSuggestions', { count: actionable })}
               </button>
@@ -1106,13 +1106,13 @@ function MessageActionBar({
                   key={row.key}
                   className="flex min-h-8 items-center gap-2 border-t border-border/60 px-2.5 py-1 first:border-t-0"
                 >
-                  <span className="shrink-0 text-[11px] text-muted-foreground">
+                  <span className="shrink-0 text-2xs text-muted-foreground">
                     {t(row.labelKey)}
                   </span>
                   {row.unavailableKey ? (
                     /* 缺席原因第 ① 类。⚠ 不能靠把灰调更浅表达「不可用」——
                        那个灰只有 2.81:1（切片 S6），改由删除线承担。 */
-                    <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground line-through">
+                    <span className="min-w-0 flex-1 truncate text-2xs text-muted-foreground line-through">
                       {t(row.unavailableKey)}
                     </span>
                   ) : (
@@ -1125,15 +1125,15 @@ function MessageActionBar({
                           助手建议的新值整个看不见。`max-w-1/3` 只在长值时才咬合，
                           `9:16 →` 这类短值仍按内容宽排，不会留出空档。 */}
                       {row.current ? (
-                        <span className="hidden min-w-0 max-w-1/3 truncate text-[10px] text-muted-foreground sm:inline">
+                        <span className="hidden min-w-0 max-w-1/3 truncate text-3xs text-muted-foreground sm:inline">
                           {row.current} →
                         </span>
                       ) : null}
-                      <span className="min-w-0 flex-1 truncate text-[11px] font-medium">
+                      <span className="min-w-0 flex-1 truncate text-2xs font-medium">
                         {row.proposed}
                       </span>
                       {row.isApplied ? (
-                        <span className="inline-flex shrink-0 items-center gap-1 text-[11px] text-status-applied">
+                        <span className="inline-flex shrink-0 items-center gap-1 text-2xs text-status-applied">
                           <Check className="size-3" />
                           {t('applied')}
                           {row.undo ? (
@@ -1172,7 +1172,7 @@ function MessageActionBar({
                 row.noteKey && !row.isApplied ? (
                   <li
                     key={`${row.key}-note`}
-                    className="border-t border-border/60 px-2.5 py-1.5 text-[11px] leading-4 text-status-risk"
+                    className="border-t border-border/60 px-2.5 py-1.5 text-2xs leading-4 text-status-risk"
                   >
                     {t(row.noteKey)}
                   </li>

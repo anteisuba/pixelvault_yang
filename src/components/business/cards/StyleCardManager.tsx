@@ -225,7 +225,7 @@ export function StyleCardManager({
           >
             <Plus className="size-6 transition-transform group-hover:scale-110" />
             <span className="text-xs font-medium">{t('new')}</span>
-            <span className="px-3 text-center text-[10px] text-muted-foreground/70">
+            <span className="px-3 text-center text-3xs text-muted-foreground/70">
               {tStyle('empty')}
             </span>
           </button>

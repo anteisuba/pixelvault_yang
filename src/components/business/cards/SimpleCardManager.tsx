@@ -400,7 +400,7 @@ export function SimpleCardManager({
           >
             <Plus className="size-6 transition-transform group-hover:scale-110" />
             <span className="text-xs font-medium">{t('create')}</span>
-            <span className="px-3 text-center text-[10px] text-muted-foreground/70">
+            <span className="px-3 text-center text-3xs text-muted-foreground/70">
               {t('emptyState')}
             </span>
           </button>
@@ -505,7 +505,7 @@ export function SimpleCardManager({
                     {detailCard.tags.map((tag) => (
                       <span
                         key={tag}
-                        className="rounded-full bg-muted/50 px-2 py-0.5 text-[10px] text-muted-foreground"
+                        className="rounded-full bg-muted/50 px-2 py-0.5 text-3xs text-muted-foreground"
                       >
                         {tag}
                       </span>

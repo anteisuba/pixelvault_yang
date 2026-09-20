@@ -44,7 +44,7 @@ export function CharacterCardTile({
       viewDetailsLabel={tCard('viewDetails')}
       topLeftBadge={
         card.variantLabel ? (
-          <span className="absolute left-2 top-2 max-w-[60%] truncate rounded-full bg-primary/90 px-2 py-0.5 text-[10px] font-medium text-primary-foreground backdrop-blur-sm">
+          <span className="absolute left-2 top-2 max-w-[60%] truncate rounded-full bg-primary/90 px-2 py-0.5 text-3xs font-medium text-primary-foreground backdrop-blur-sm">
             {card.variantLabel}
           </span>
         ) : null
@@ -62,7 +62,7 @@ export function CharacterCardTile({
             {card.name}
           </span>
           {variantCount > 0 && (
-            <span className="ml-auto shrink-0 rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-medium text-white/90 backdrop-blur-sm">
+            <span className="ml-auto shrink-0 rounded-full bg-white/15 px-1.5 py-0.5 text-3xs font-medium text-white/90 backdrop-blur-sm">
               +{variantCount}
             </span>
           )}

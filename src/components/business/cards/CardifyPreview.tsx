@@ -123,7 +123,7 @@ function PreviewPane({
 }: PreviewPaneProps) {
   return (
     <div className="space-y-1.5">
-      <div className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+      <div className="text-3xs font-medium uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
       <div className="relative aspect-[3/4] overflow-hidden rounded-md border border-border/60 bg-muted/30">

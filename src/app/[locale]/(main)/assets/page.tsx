@@ -184,7 +184,7 @@ export default async function AssetsPage({
               ))}
             </div>
 
-            <div className="mt-4 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+            <div className="mt-4 px-2 text-3xs font-medium uppercase tracking-wider text-muted-foreground/60">
               {t('sidebarTools')}
             </div>
             <div className="mt-1 space-y-1">
@@ -206,7 +206,7 @@ export default async function AssetsPage({
               ))}
             </div>
 
-            <div className="mt-4 px-2 text-[10px] font-medium uppercase tracking-wider text-muted-foreground/60">
+            <div className="mt-4 px-2 text-3xs font-medium uppercase tracking-wider text-muted-foreground/60">
               {t('sidebarFolders')}
             </div>
             <div className="mt-1 space-y-1">

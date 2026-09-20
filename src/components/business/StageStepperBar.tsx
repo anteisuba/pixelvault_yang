@@ -74,7 +74,7 @@ export function StageStepperBar({
             <div key={step.key} className="flex flex-1 items-center gap-2">
               <div
                 className={cn(
-                  'flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] font-medium leading-none',
+                  'flex size-5 shrink-0 items-center justify-center rounded-full border text-3xs font-medium leading-none',
                   s === 'done' &&
                     'border-status-applied/40 bg-status-applied text-white',
                   s === 'active' &&
@@ -108,7 +108,7 @@ export function StageStepperBar({
       </div>
       {(detail ||
         (totalElapsedSeconds !== undefined && totalElapsedSeconds > 0)) && (
-        <div className="flex w-full items-center justify-between text-[10px] text-neutral-400">
+        <div className="flex w-full items-center justify-between text-3xs text-neutral-400">
           <span>{detail ?? ''}</span>
           {totalElapsedSeconds !== undefined && totalElapsedSeconds > 0 && (
             <span>

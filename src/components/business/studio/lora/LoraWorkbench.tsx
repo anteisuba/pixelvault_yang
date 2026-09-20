@@ -3094,7 +3094,7 @@ function GenerateBranch({
                         )}
                         style={{ backgroundImage: `url(${item.url})` }}
                       >
-                        <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-left text-[9px] leading-tight text-white/90">
+                        <span className="absolute inset-x-0 bottom-0 truncate bg-black/55 px-1 py-0.5 text-left text-3xs leading-tight text-white/90">
                           {item.scale != null
                             ? `s${item.scale.toFixed(2)}`
                             : ''}

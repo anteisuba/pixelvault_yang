@@ -209,7 +209,7 @@ export function CharacterCardItem({
             <div className="flex items-center gap-2">
               <span className="truncate text-sm font-medium">{card.name}</span>
               {card.variantLabel && (
-                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium text-primary">
+                <span className="shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-3xs font-medium text-primary">
                   {card.variantLabel}
                 </span>
               )}
@@ -261,7 +261,7 @@ export function CharacterCardItem({
                       loading="lazy"
                     />
                     {entry.viewType !== 'other' && (
-                      <span className="absolute bottom-0 left-0 right-0 bg-background/80 text-center text-[9px] font-medium backdrop-blur-sm">
+                      <span className="absolute bottom-0 left-0 right-0 bg-background/80 text-center text-3xs font-medium backdrop-blur-sm">
                         {tView(entry.viewType)}
                       </span>
                     )}

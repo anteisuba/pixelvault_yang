@@ -24,7 +24,7 @@ export function invertReferenceStrength(referenceStrength: number): number {
 
 export function getLabelClassName(isDenseLocale: boolean) {
   return cn(
-    'text-nav font-semibold text-muted-foreground',
+    'text-2xs font-semibold text-muted-foreground',
     isDenseLocale
       ? 'tracking-normal normal-case'
       : 'uppercase tracking-nav-dense',

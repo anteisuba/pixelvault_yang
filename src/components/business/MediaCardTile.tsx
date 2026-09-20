@@ -65,7 +65,7 @@ export function MediaCardTile({
         <>
           <div className="truncate text-sm font-medium text-white">{name}</div>
           {subtitle && (
-            <div className="truncate text-[10px] text-white/70">{subtitle}</div>
+            <div className="truncate text-3xs text-white/70">{subtitle}</div>
           )}
         </>
       }

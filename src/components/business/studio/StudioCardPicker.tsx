@@ -212,7 +212,7 @@ export function StudioCardPicker() {
                 {group.icon}
                 <span className="truncate">{group.label}</span>
                 {group.selectedIds.length > 0 ? (
-                  <span className="rounded-full bg-primary/10 px-1.5 text-[10px] font-semibold text-primary">
+                  <span className="rounded-full bg-primary/10 px-1.5 text-3xs font-semibold text-primary">
                     {group.selectedIds.length}
                   </span>
                 ) : null}
@@ -358,7 +358,7 @@ export function StudioCardPicker() {
                     ) : null}
                   </span>
                   {isSelected ? (
-                    <span className="rounded-full bg-primary px-2 py-0.5 text-[10px] font-semibold text-primary-foreground">
+                    <span className="rounded-full bg-primary px-2 py-0.5 text-3xs font-semibold text-primary-foreground">
                       {t('selected')}
                     </span>
                   ) : null}

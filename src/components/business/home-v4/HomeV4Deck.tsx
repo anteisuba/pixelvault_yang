@@ -491,7 +491,7 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
             <div
               key={model.key}
               className="hpg"
-              data-layer={
+              data-scrub={
                 modelTransition?.station === station
                   ? index === modelTransition.from
                     ? 'outgoing'

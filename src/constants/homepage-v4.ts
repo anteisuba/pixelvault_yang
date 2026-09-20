@@ -58,8 +58,11 @@ export const HOME_V4_PARALLAX = {
    * `1 - DEMO_TRAVEL` 由它自身的反向位移在 `CATCHUP_AT` 处收完——收完之后
    * 演示卡只剩页的速度，于是末段自己追平，两层同一瞬间落位。
    *
+   * 同一对比例也管模型站：站与站之间的翻页走上面这条，同一站内模型之间的
+   * 切换（整步与滚轮连续）改以 `STATION_SHIFT_VH` 为基准按比例分。
+   *
    * 行程比只在桌面 + `prefers-reduced-motion: no-preference` 下生效；
-   * 手机与降级下两层同速，整页切。
+   * 手机与降级下两层同速，整页切、站内整步切。
    */
   PAGE_FLIP: {
     /** 文案层：跟页 1.0×，落位即页落位。 */
@@ -68,6 +71,11 @@ export const HOME_V4_PARALLAX = {
     DEMO_TRAVEL: 0.6,
     /** 演示卡自身位移收完的时点，占 `PAGE_MS` 的比例——之后是追平段。 */
     CATCHUP_AT: 0.72,
+    /**
+     * 站内切模型的行程基准（vh）。模型页之间是交叉淡入淡出、页本身不位移，
+     * 所以层的位移就是全部动作，两层按同一对比例直接分这个数。
+     */
+    STATION_SHIFT_VH: 13,
   },
 } as const
 

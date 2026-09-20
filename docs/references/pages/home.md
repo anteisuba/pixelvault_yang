@@ -39,20 +39,26 @@
 
 进度表 30 曾按方向 B 把整站改成 scrub 长卷。owner 09-20 真机滑完推翻：**六个演示模块和模型站都回「一滚一页、到位自动播」，模块之间的切换改做视差，视差 = 翻页时前后景错速。** 30 的六个 commit 已整体 revert，本文回到 v4 基准，再加下面这一节。
 
-翻页时长（`--dur`）一点没变，改的只是页**里面**两层的行程：
+每页（含每张模型页）分两层，**一对比例管三种切换**：
 
-| 层                  | 挂在哪                                                             | 翻页主程的行程                     |
-| ------------------- | ------------------------------------------------------------------ | ---------------------------------- |
-| `data-layer="copy"` | `.fn-head` · `.op-hero` · `.fin-hero`                              | `COPY_TRAVEL` = 1.0×，跟页走满一屏 |
-| `data-layer="demo"` | `.fn-stage` · `.fn-aside` · `.op-strip` · `.op-note` · `.fin-foot` | `DEMO_TRAVEL` = 0.6×，慢半拍       |
+| 层                  | 挂在哪                                                                          |
+| ------------------- | ------------------------------------------------------------------------------- |
+| `data-layer="copy"` | `.fn-head` · `.op-hero` · `.fin-hero` · `.m-glass`                              |
+| `data-layer="demo"` | `.fn-stage` · `.fn-aside` · `.op-strip` · `.op-note` · `.fin-foot` · `.m-strip` |
 
-差出来的 0.4× 由演示层自身的反向位移承担，那段位移在 `CATCHUP_AT`（0.72 × `PAGE_MS`）处收完；之后演示层只剩页的速度，于是**末段自己追平**，两层同一瞬间落位。页到位后六段演示照旧自动播——自动播放、键盘 / 目录跳页、`LOCK_MS`、模型站五站、目录圆点都没动。
+| 切换                                    | 基准                | copy  | demo           |
+| --------------------------------------- | ------------------- | ----- | -------------- |
+| 竖向翻页（功能页之间 / 站与站之间）     | 一屏 `100vh`        | 1.0×  | 0.6×，末段追平 |
+| 站内切模型 · 整步（箭头 / 键盘 / 滑动） | `--flip-shift` 13vh | × 1.0 | × 0.6          |
+| 站内切模型 · 滚轮连续                   | 同上，进度逐帧      | × 1.0 | × 0.6          |
 
-- **常量在 `HOME_V4_PARALLAX.PAGE_FLIP`**（`src/constants/homepage-v4.ts`）。三个数由 `HomeV4Shell` 推成 `--flip-copy` / `--flip-demo` / `--flip-demo-dur`，`home-v4.css` 只读不写。owner 试手感后改的是这三个数，⛔ 不改 CSS。
-- 只动 `transform`，不动布局；行程差全走 CSS 变量，⛔ 不写 arbitrary 值。
-- **只在 `≥769px` 且 `prefers-reduced-motion: no-preference` 下生效**；手机与减少动态效果模式两层同速，整页切。
-- 选择器一律挑 `[data-layer='copy']` / `[data-layer='demo']` 两个值，⛔ 不写裸 `[data-layer]`——模型站的 `.hpg` 也带 `data-layer`（`incoming` / `outgoing`），会被误伤。
-- **⛔ 模型站内切模型的视差不在这一刀**（`.hpg` 的横站规则原样保留），等 owner 在 3000 上滑过翻页视差再定。
+竖翻时页走满一屏，差出来的 0.4× 由演示层自身的反向位移承担，那段位移在 `CATCHUP_AT`（0.72 × `PAGE_MS`）处收完；之后演示层只剩页的速度，于是**末段自己追平**，两层同一瞬间落位。页到位后六段演示照旧自动播——自动播放、键盘 / 目录跳页、`LOCK_MS`、页数页序、目录圆点都没动。
+
+- **常量在 `HOME_V4_PARALLAX.PAGE_FLIP`**（`src/constants/homepage-v4.ts`）。四个数由 `HomeV4Shell` 推成 `--flip-copy` / `--flip-demo` / `--flip-demo-dur` / `--flip-shift`，`home-v4.css` 只读不写。owner 试手感后改的是这四个数，⛔ 不改 CSS。
+- **一个层的 `transform` 只在一条规则里写**：`translateY(calc(var(--flip-y) + var(--station-y)))`。翻页只改 `--flip-y`，站内切模型只改 `--station-y`，⛔ 不许再出现第二条 `transform` 声明——两条会互相清零，竖翻进站时站内偏移就没了。
+- 只动 `transform` / `opacity`，不动布局；⛔ 不写 arbitrary 值。
+- **只在 `≥769px` 且 `prefers-reduced-motion: no-preference` 下生效**；手机与减少动态效果模式两层同速，整页切、站内整步切。
+- 模型页在站内「进 / 出」的标记是 **`data-scrub`**（`incoming` / `outgoing`），⛔ 不叫 `data-layer`——`.hpg` 就在 `.vp` 里面，同名会让翻页规则选中整张模型页。
 
 ## 硬约束
 

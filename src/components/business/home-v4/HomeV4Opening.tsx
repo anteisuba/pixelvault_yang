@@ -201,7 +201,7 @@ export function HomeV4Opening({ active, shots }: HomeV4OpeningProps) {
       </div>
 
       <div className="fg">
-        <div className={`op-hero l2${heroIn ? ' in' : ''}`} data-layer="copy">
+        <div className={`op-hero${heroIn ? ' in' : ''}`} data-layer="copy">
           <p className="eyebrow op-stat">
             {t('heroStat', {
               models: HOMEPAGE_MODEL_COUNTS.total,
@@ -219,7 +219,7 @@ export function HomeV4Opening({ active, shots }: HomeV4OpeningProps) {
           </h1>
         </div>
 
-        <div className="op-strip l3" data-layer="demo">
+        <div className="op-strip" data-layer="demo">
           {cells.map((shot, index) => {
             const slot = slots[index]
             const classes = [
@@ -253,7 +253,7 @@ export function HomeV4Opening({ active, shots }: HomeV4OpeningProps) {
           })}
         </div>
 
-        <p className={`op-note l3${tailIn ? ' in' : ''}`} data-layer="demo">
+        <p className={`op-note${tailIn ? ' in' : ''}`} data-layer="demo">
           {t('v4.opening.note')}
         </p>
       </div>

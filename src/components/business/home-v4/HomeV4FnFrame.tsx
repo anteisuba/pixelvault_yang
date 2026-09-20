@@ -50,17 +50,17 @@ export function HomeV4FnFrame({
     <div className={rail ? 'page-inner rail' : 'page-inner'}>
       <div className="fg imgfn">
         <div className="fn-text">
-          <div className="fn-head l2" data-layer="copy">
+          <div className="fn-head" data-layer="copy">
             <p className="eyebrow">{eyebrow}</p>
             <h2>{title}</h2>
           </div>
           {aside ? (
-            <div className="fn-aside l3" data-layer="demo">
+            <div className="fn-aside" data-layer="demo">
               {aside}
             </div>
           ) : null}
         </div>
-        <div className="fn-stage l3" data-layer="demo">
+        <div className="fn-stage" data-layer="demo">
           {children}
         </div>
       </div>

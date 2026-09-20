@@ -157,7 +157,7 @@ export function HomeV4ModelPage({
     <div className="page-inner mpage">
       {background()}
 
-      <div className="m-glass l2">
+      <div className="m-glass" data-layer="copy">
         <div className="toprow">
           <HomeV4ModelLogo logo={model.logo} mark={model.mark} />
           <span className="prov">{model.provider}</span>

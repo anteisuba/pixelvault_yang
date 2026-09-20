@@ -40,6 +40,7 @@ const MOTION_VARS = {
   '--flip-demo-dur': `${Math.round(
     HOME_V4_ENGINE.PAGE_MS * HOME_V4_PARALLAX.PAGE_FLIP.CATCHUP_AT,
   )}ms`,
+  '--flip-shift': `${HOME_V4_PARALLAX.PAGE_FLIP.STATION_SHIFT_VH}vh`,
 } as CSSProperties
 
 /**

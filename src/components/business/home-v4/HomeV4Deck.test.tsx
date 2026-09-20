@@ -447,8 +447,8 @@ describe('HomeV4Deck', () => {
         fireEvent.wheel(window, {
           deltaY: Math.max(720, window.innerHeight) / 2,
         })
-        expect(pages[index]).toHaveAttribute('data-layer', 'outgoing')
-        expect(pages[index + 1]).toHaveAttribute('data-layer', 'incoming')
+        expect(pages[index]).toHaveAttribute('data-scrub', 'outgoing')
+        expect(pages[index + 1]).toHaveAttribute('data-scrub', 'incoming')
         fireEvent.wheel(window, {
           deltaY: Math.max(720, window.innerHeight) / 2,
         })

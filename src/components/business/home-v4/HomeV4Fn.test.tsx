@@ -140,8 +140,8 @@ describe.each([
     const view = stage(page)
 
     expect(view.count('.page-inner')).toBe(1)
-    expect(view.count('.fn-head.l2')).toBe(1)
-    expect(view.count('.fn-stage.l3')).toBe(1)
+    expect(view.count('.fn-head')).toBe(1)
+    expect(view.count('.fn-stage')).toBe(1)
     expect(view.count('.in')).toBe(0)
   })
 

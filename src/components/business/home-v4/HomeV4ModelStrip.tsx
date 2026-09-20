@@ -41,7 +41,10 @@ export function HomeV4ModelStrip({
   const base = `v4.models.${model.key}`
 
   return (
-    <div className={asSheet ? 'm-strip as-sheet' : 'm-strip l3'}>
+    <div
+      className={asSheet ? 'm-strip as-sheet' : 'm-strip'}
+      data-layer={asSheet ? undefined : 'demo'}
+    >
       <div className="pm">
         <span className="k">{t('v4.modelPage.plus')}</span>
         <ul>

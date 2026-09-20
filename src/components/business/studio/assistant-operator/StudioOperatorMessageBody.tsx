@@ -283,9 +283,12 @@ export function StudioOperatorCollapsibleText({
           <span
             data-testid="operator-message-caret"
             aria-hidden
-            /* ⚠ 高度走刻度（`h-4` ≈ 一行 `text-md` 的字高），⛔ 不写任意值
-               （Hard Rule 5：Tailwind 4 本仓没有 tailwind.config.ts）。 */
-            className="ml-0.5 inline-block h-4 w-px align-middle bg-foreground"
+            /* ⚠ **一块**不是一条（D7c ④ 画板「流式中」：7×14 的实心小块）——
+               1px 的细线在一段正在长的正文末尾几乎看不见，而它要回答的正是
+               「它还在写」。
+               ⚠ 尺寸走刻度（`w-1.75` / `h-3.5`），⛔ 不写任意值（Hard Rule 5：
+               Tailwind 4 本仓没有 tailwind.config.ts）。 */
+            className="ml-0.5 inline-block h-3.5 w-1.75 rounded-xs align-middle bg-foreground"
           />
         ) : null}
       </div>

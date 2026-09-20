@@ -67,7 +67,8 @@
 3. **CJK 选面用 `.home-v4[data-locale='ja']`，不要用 `:root[lang^='ja']`**——`<html lang>` 由根 layout 写，客户端导航时不重渲染，切到日文后 `lang` 还停在旧值，日文会被 Noto Sans SC 的简体字形画出来。域根自己带 `data-locale`，随语段重渲染，零脚本就对。（`<html lang>` 本身的陈旧影响读屏，由 `src/components/layout/LocaleHtmlSync.tsx` 单独补。）
 4. **模型阵容走真目录**，不手抄清单：名称 `MODEL_MESSAGE_KEYS`，供应商 `getProviderLabel`。首页宣传产品跑不了的模型是硬伤，而手抄的清单必然腐烂。
 5. **动画库**：首页域是全项目唯一允许 GSAP 的地方，且必须动态导入不进主 chunk；app 内部一律 `motion`（见 CLAUDE.md 动画库分工）。
-6. **中文排版三条**（都踩过）：标题行高 ≥1.14（1.0 会重叠，CJK 字身满高）；`max-width: Nem` 按容器自己字号算，别拿它约束大标题；必须 `word-break: keep-all; line-break: strict`，否则中文会在任意两字间断行。判断行距**不要看 `getClientRects`**——它算回退字体的完整 ascent+descent，会误报重叠。
+6. **媒体按页懒挂载**：二十五张模型页从首屏起全部挂载，所以 `<img src>` / `<video src>` / `poster` 一律走 `near`（当前页 ±1 步，纵横都算）；离开这一格的页**不持有任何源**。`preload="none"` 只挡下载，持有 `src` 的 `<video>` 仍是浏览器要跟踪的媒体元素。⛔ 不要用 `loading="lazy"` 代替——deck 用 transform 移动页面，浏览器的视口启发式把二十五页都算在屏内。
+7. **中文排版三条**（都踩过）：标题行高 ≥1.14（1.0 会重叠，CJK 字身满高）；`max-width: Nem` 按容器自己字号算，别拿它约束大标题；必须 `word-break: keep-all; line-break: strict`，否则中文会在任意两字间断行。判断行距**不要看 `getClientRects`**——它算回退字体的完整 ascent+descent，会误报重叠。
 
 ## 功能页 01 · 图片 / 02 · LoRA
 
@@ -89,6 +90,8 @@
 
 - `src/components/business/home-v4/home-v4.test.ts` —— 页表形状（13 页、id 唯一、opening 首 finale 末、站序）、资产存在性、三语键齐（含模板字面量拼出来的那批：`completeness.test.ts` 只看写死的字符串，看不见它们）。
 - `HomeV4Deck.test.tsx` / `HomeV4Fn.test.tsx` / `HomeV4Model.test.tsx` —— 翻页引擎与锁、功能页时间线、模型页与详情面板。
+- 媒体懒挂载：`HomeV4Model.test.tsx` 的「fetches nothing for a page that is not near」守远页的 `<img src>` / `<video src>` / `poster` 三者皆空。
+- 末页可达：`HomeV4Deck.test.tsx` 的「jumps straight to the finale from the rail, from anywhere」守跨十页、跨模型站的目录跳转不被锁或单步逻辑截断。
 - 翻页错速：`home-v4.test.ts` 的「home v4 · 翻页错速」守常量关系、CSS 只读变量、媒体查询闸门与「不写裸 `[data-layer]`」；`HomeV4Fn.test.tsx` 守六页各有一个 copy 层和至少一个 demo 层，且演示时不写行内 `transform`。
 - `src/i18n/messages-split.test.ts` —— `Homepage` / `Auth` 命名空间的消费者白名单。**新增读这两个命名空间的组件必须登记**，否则 `(main)` 的 provider 会把字串丢掉，线上直接渲染出 key。
 
@@ -101,10 +104,17 @@
 - 页脚「资源 / 公司」类链接在 v3 时代是 `#` 死链；v4 页脚只保留 tagline + 条款 + 隐私三条真链，那批占位**已随 v3 删除**，没有恢复计划。
 - 音频站只有 2 个模型，与图片站的 7 个并排时横轴明显短；等音频域把模型接上，不为此改版式。
 - 英 / 日排版未逐页真机复核过（三语文案齐全，键有测试守）。
+- **09-20 owner 报的三件「闪烁 / 卡死」均未复现**，都发生在 dev server 正在热更新（控制台连续 `[Fast Refresh] rebuilding / done`）、且 revert 中途 messages 与代码不同步（`MISSING_MESSAGE: Homepage.v4.nav.stationPages` 等）的那一小时里：
+  - 目录闪烁——`nav.dots` 上挂 MutationObserver，空闲 3 秒 0 次变更、换页只 2 次；100ms 采样 13 颗点的 computed `opacity`，3 秒只有一种状态。DOM 与样式层面都没有抖动源。⚠ 唯一确实存在的是**渲染次数**：站内滚轮 scrub 每个 wheel 事件都 `setModelTransition`，整个 `HomeV4Deck`（含目录）重渲染一次；但属性与样式不变，React 不碰 DOM，所以这不是闪烁的来源，**没有为此加 memo**。
+  - 视频切换闪烁——模型页 `key={model.key}` 恒定、站内所有页常驻挂载，切模型不会卸载重建 `<video>`；首屏 7 个 `<video>` 里 6 个 `readyState 0`，切到视频站时只有 1 个在播。同样未复现。
+  - 末页空白 / 点不动——jsdom 回归测试证明目录点可以从任意页（含模型站）一步跳到第 13 页，`LOCK_MS` 与「一次只翻一页」都不截断跨页跳转，收尾页到位即渲染自己的内容。owner 截图里的空白与当时 `Homepage.v4.*` 键缺失吻合。
+  - 内存不是原因：13 页全挂时 usedJSHeap 117–126MB，到末页不涨。
+  - **若刷新后仍能复现任何一条，需要 owner 从控制台提供**：`performance.memory` 读数、`[Fast Refresh]` 是否还在刷、以及闪烁时 `nav.dots` 的 MutationObserver 是否有记录。
 - 769–1099px 宽且屏高不足时，01 / 02 仍走居中堆叠，溢出会把标题推进浮岛（Chrome 1024×768 实测标题顶 38px，浮岛底 67px）；左栏只覆盖 ≥1100px。
 
 ## Last Verified
 
+- 2026-09-20 · 模型站错速与 `<video src>` 懒挂载落地；目录闪烁 / 视频闪烁 / 末页卡死三件在 owner 的 Chrome 上实测未复现（见「已知缺口」）。
 - 2026-09-20 · 30 的六个 commit（`8fecd08c` `fe6dbcf1` `9aa93736` `b95a6b25` `acc1ab21` `c5871b38`）整体 revert，首页文件逐字回到 `59e9769f`；翻页错速按 `PAGE_FLIP` 落地，全量 vitest 绿。**手感未经真机**——1440×900 与 375 两档待 owner 在 3000 上滑。
 - 2026-09-11 · 01 / 02 左栏标题：Chrome 1470×803 实测标题顶 252 / 386px，工作台 939×659 / 939×694，单格 285px、出图 220×293，与设计稿一致；1280×720（单格 226、出图 188×252）、1920×1080、ja / en、375 移动端复核，无溢出、无横向滚动。
 - 2026-08-30 · 图片功能页收窄输入列、放大四宫格；Chrome 1920×855 实测工作台 860px、输入 315px、结果 500px、单格 245px，无页面横向溢出。

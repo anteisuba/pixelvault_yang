@@ -142,7 +142,13 @@ export function HomeV4ModelPage({
             playsInline
             preload="none"
             poster={near ? model.cover : undefined}
-            src={model.clip}
+            /* ⚠ Gated on `near` for the same reason the poster is. `preload="none"`
+               keeps a far page from *fetching*, but a `<video>` that holds a `src`
+               is still a media element the browser tracks, and the video station
+               mounts one per model from first paint. Off-stage pages hold no
+               source at all; `near` is one step either way, so the page you are
+               about to turn to already has it. */
+            src={near ? model.clip : undefined}
             aria-label={alt}
           />
         )}

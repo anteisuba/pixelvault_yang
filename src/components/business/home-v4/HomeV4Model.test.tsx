@@ -153,7 +153,13 @@ describe('HomeV4ModelPage', () => {
       /* A video's poster is a fetch too — gate it or the four video pages
          still pull four full-resolution stills from the opening screen. */
       const clip = container.querySelector('.m-bg video')
-      if (clip) expect(clip.getAttribute('poster')).toBeNull()
+      if (clip) {
+        expect(clip.getAttribute('poster')).toBeNull()
+        /* And no `src` either: `preload="none"` stops the fetch, but a media
+           element that holds a source is still one the browser tracks, and the
+           video station mounts one per model from first paint. */
+        expect(clip.getAttribute('src')).toBeNull()
+      }
 
       unmount()
     }

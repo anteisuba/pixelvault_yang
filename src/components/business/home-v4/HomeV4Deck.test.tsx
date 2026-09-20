@@ -93,6 +93,37 @@ describe('HomeV4Deck', () => {
     vi.unstubAllGlobals()
   })
 
+  /**
+   * ⭐ Owner 2026-09-20 reported the finale coming up blank with only the topbar
+   * and the rail on it, and a rail click that did not move the deck. Neither
+   * reproduces: the rail jumps to any page from any other in one step, across a
+   * station and across ten pages, and the finale renders its own content when it
+   * gets there. What owner saw was a dev-server refresh mid-revert, where the
+   * finale's message keys were briefly absent. This pins the behaviour so the
+   * next report has something to contradict.
+   */
+  it('jumps straight to the finale from the rail, from anywhere', () => {
+    const { container } = renderDeck()
+    const last = HOME_V4_PAGES.length - 1
+    const dots = () => container.querySelectorAll('.dots button')
+
+    fireEvent.click(dots()[last])
+    expect(pageAt(container, last).getAttribute('data-pos')).toBe('on')
+    expect(container.querySelector('.fin-hero')).not.toBeNull()
+
+    /* Back to a station, then ten pages forward in one click — the jump is a
+       set, not a walk, so neither the lock nor the one-page-at-a-time stepper
+       may truncate it. */
+    fireEvent.click(dots()[IMAGE_STATION_INDEX])
+    expect(
+      pageAt(container, IMAGE_STATION_INDEX).getAttribute('data-pos'),
+    ).toBe('on')
+
+    fireEvent.click(dots()[last])
+    expect(pageAt(container, last).getAttribute('data-pos')).toBe('on')
+    expect(container.querySelector('.fin-hero')).not.toBeNull()
+  })
+
   it('stacks every page with only the first one on screen', () => {
     const { container } = renderDeck()
     const pages = container.querySelectorAll('.vp')

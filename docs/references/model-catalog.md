@@ -117,6 +117,18 @@ RODIN_GEN_2_5 · HUNYUAN3D_V31_PRO · HUNYUAN3D_V3 · TRELLIS_2 · TRIPOSR（全
 - 图片编辑共用界面显示使用型号，局部重绘、物体替换与提取元素允许两款 2.5。OpenAI 遮罩按 alpha 通道转换；整图修改使用全透明遮罩，结果作为下一轮输入，沿用编辑历史回退。此流程未接入 Responses API 的 `previous_response_id` 对话上下文。
 - 预览默认关闭，开启后请求两张中间图，最多增加 $0.006/张输出。生成由 Worker 状态回调更新预览；局部重绘/物体替换通过 `/api/image/edit-stream` SSE 展示中间图，最终结果照常归档。
 
+## 本月发现（2026-09-20 · PixAI 接入 · 进度表 26）
+
+owner 拍板接 PixAI（拍板 7），A 类原生 adapter、**BYOK-only、仅 t2i**（不支持 i2i / 参考图 / 编辑 / 视频，capabilities 声明 0 张参考）。三条都在 danbooru 标签方言上，与 NovelAI 同族。结果图 PixAI 不永久保留，worker 拿到即落 R2。
+
+| enum               | externalModelId       | 通道               | 备注                                   |
+| ------------------ | --------------------- | ------------------ | -------------------------------------- |
+| `PIXAI_TSUBAKI_2`  | `1983308862240288769` | PixAI 直连（BYOK） | DiT 旗舰                               |
+| `PIXAI_HARUKA_V2`  | `1861558740588989558` | PixAI 直连（BYOK） | SDXL 系，兼容 SDXL LoRA（`loras ≤ 5`） |
+| `PIXAI_HOSHINO_V2` | `1954632828118619567` | PixAI 直连（BYOK） | SDXL 系，兼容 SDXL LoRA                |
+
+⚠ `cost: 2` 是站内额度档（与 NovelAI 同档），**不是**按 PixAI 价目换算的值 —— API 专属价目官方未公布，未核实。`batchSize 4` 未接（worker 图片结果契约是单张）。真实 API 未联调，字段与错误体形状按 `platform.pixai.art/en/docs` 抄，见 `providers.md`。同一轮 NovelAI V5 补了质量标签 / UC 预设 / `Text:` 三颗派生 chip 与 Full inpaint（Curated 回落 V4.5）。
+
 ## 本月发现（2026-08-24 · NovelAI V5）
 
 owner 拍板把 NovelAI 从 `RETIRED_MODEL_IDS` 捞回，接到 **Image**（不是 LoRA），四档全开、只 BYOK：

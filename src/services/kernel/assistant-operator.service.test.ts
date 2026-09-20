@@ -384,6 +384,8 @@ import {
   AssistantOperatorEventSchema,
   type AssistantOperatorEvent,
   type AssistantOperatorRequest,
+  type AssistantOperatorStep,
+  type AssistantOperatorStepEvent,
 } from '@/types/assistant-operator'
 import { LoraCandidateSchema } from '@/types/lora-candidate'
 
@@ -498,10 +500,52 @@ function typesOf(events: AssistantOperatorEvent[]) {
   return events.map((event) => event.type)
 }
 
-function stepsOf(events: AssistantOperatorEvent[]) {
+/**
+ * 日志流里的**工具步**。
+ *
+ * ⚠ 收窄走类型谓词，⛔ 不再 `as { step: Record<string, unknown> }` —— 那一刀
+ * 把 `AssistantOperatorStep` 这个判别联合整个抹平了，于是 `step.error` 退化成
+ * 一个读不出字段的宽对象，三条真实断言（失败步带 `reason` / `detail`）在 tsc
+ * 下红着，而 `.husky/pre-push` 是 `tsc --noEmit || exit 1`。
+ */
+/**
+ * 联合里**任一支**上 `K` 这一格的类型；没有这一格的支不贡献。
+ * （分配式条件类型：`A | B` 进来，出去的是各支的 `K` 之并。）
+ */
+type StepField<K extends PropertyKey> = AssistantOperatorStep extends infer S
+  ? S extends Record<K, infer V>
+    ? V
+    : never
+  : never
+
+/**
+ * 断言读到的那一份 step —— **每一格的类型都来自契约本身**，只把「哪一支有
+ * 这一格」放宽成可选：断言是按 `tool` / `status` 在**运行时**挑支的，编译期
+ * 复刻那条分支只会让每一条断言多写一层 `if`。
+ *
+ * ⚠ 这不是 `Record<string, unknown>` 的换皮：`error` 在这里是
+ * `{ reason: AssistantOperatorRejectReason; detail?: string }`，字段名写错、
+ * 值域写错都照样红 —— 而那正是原来那一刀抹掉的东西。
+ */
+type AssistantOperatorStepView = Pick<
+  AssistantOperatorStep,
+  'id' | 'verb' | 'title' | 'tool' | 'status' | 'reason'
+> & {
+  payload?: StepField<'payload'>
+  result?: StepField<'result'>
+  inverse?: StepField<'inverse'>
+  error?: StepField<'error'>
+}
+
+function stepsOf(
+  events: AssistantOperatorEvent[],
+): AssistantOperatorStepView[] {
   return events
-    .filter((event) => event.type === ASSISTANT_OPERATOR_EVENTS.step)
-    .map((event) => (event as { step: Record<string, unknown> }).step)
+    .filter(
+      (event): event is AssistantOperatorStepEvent =>
+        event.type === ASSISTANT_OPERATOR_EVENTS.step,
+    )
+    .map((event) => event.step)
 }
 
 /**
@@ -9585,7 +9629,16 @@ describe('current reference image bindings', () => {
           events.push(event)
       })(),
     ).rejects.toMatchObject({ errorCode: 'PROVIDER_TIMEOUT' })
-    expect(stepsOf(events).some((step) => step.referenceAnalysis)).toBe(false)
+    // ⚠ 原文读的是 `step.referenceAnalysis` —— 契约里**没有这一格**，于是这条
+    // 断言自打写下就恒真（`Record<string, unknown>` 那一刀正好把它藏住了）。
+    // 真正要说的是「超时那一轮看图没有产出」，那一格在契约里叫 `result`。
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
+          Boolean(step.result),
+      ),
+    ).toBe(false)
     expect(stepsOf(events)).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

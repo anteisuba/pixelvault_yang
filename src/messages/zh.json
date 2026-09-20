@@ -631,15 +631,7 @@
     "heroLine2": "保留每一次结果。",
     "v4": {
       "nav": {
-        "label": "页导航",
-        "pageLabel": "页码",
-        "close": "关闭"
-      },
-      "groups": {
-        "opening": "开场",
-        "feature": "功能",
-        "models": "模型",
-        "finale": "收尾"
+        "label": "页导航"
       },
       "opening": {
         "note": "站内生成 · 来自公开画廊 · 持续更新",

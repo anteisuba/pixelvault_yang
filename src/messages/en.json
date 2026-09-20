@@ -631,15 +631,7 @@
     "heroLine2": "Keep every result.",
     "v4": {
       "nav": {
-        "label": "Page navigation",
-        "pageLabel": "Page index",
-        "close": "Close"
-      },
-      "groups": {
-        "opening": "Opening",
-        "feature": "Features",
-        "models": "Models",
-        "finale": "Closing"
+        "label": "Page navigation"
       },
       "opening": {
         "note": "Made here · From the public gallery · Updated continuously",

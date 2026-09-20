@@ -631,15 +631,7 @@
     "heroLine2": "すべての結果を残す。",
     "v4": {
       "nav": {
-        "label": "ページナビゲーション",
-        "pageLabel": "ページ番号",
-        "close": "閉じる"
-      },
-      "groups": {
-        "opening": "オープニング",
-        "feature": "機能",
-        "models": "モデル",
-        "finale": "エンディング"
+        "label": "ページナビゲーション"
       },
       "opening": {
         "note": "サイト内生成 · 公開ギャラリーより · 随時更新",

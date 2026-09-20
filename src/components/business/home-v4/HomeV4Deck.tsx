@@ -1,7 +1,6 @@
 'use client'
 
 import {
-  Fragment,
   useCallback,
   useEffect,
   useRef,
@@ -14,14 +13,15 @@ import { useTranslations } from 'next-intl'
 import {
   HOME_V4_SCROLL,
   HOME_V4_SECTIONS,
+  HOME_V4_SECTION_THUMBS,
   HOME_V4_STATIONS,
   homeV4SectionAnchor,
-  type HomeV4PageGroup,
   type HomeV4Section,
   type HomeV4ShowcaseShot,
   type HomeV4StationKey,
 } from '@/constants/homepage-v4'
 import { useHomeV4Scrub } from '@/hooks/use-home-v4-scrub'
+import { useIsPhone } from '@/hooks/use-mobile'
 import { homeV4CanvasProgressForStep } from '@/lib/home-v4-beats'
 
 import { HomeV4Finale } from './HomeV4Finale'
@@ -75,10 +75,9 @@ function tocNumber(index: number): string {
 export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
   const t = useTranslations('Homepage')
   const { progress, activeId, enabled, register, jumpTo } = useHomeV4Scrub()
+  const isPhone = useIsPhone()
 
-  const [tocOpen, setTocOpen] = useState(false)
   const [sheet, setSheet] = useState<OpenSheet | null>(null)
-  const tocOpenRef = useRef(false)
   const sheetRef = useRef<OpenSheet | null>(null)
   /* 键盘处理器只注册一次，所以它读的是 ref 而不是闭包里的那一帧。
      ⚠ 写在 effect 里而不是 render 里：render 期间改 ref 是并发模式下的坑。 */
@@ -88,11 +87,6 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
     activeRef.current = activeId
     progressRef.current = progress
   }, [activeId, progress])
-
-  const setToc = useCallback((open: boolean) => {
-    tocOpenRef.current = open
-    setTocOpen(open)
-  }, [])
 
   /**
    * The detail sheet belongs to the deck rather than to the rail that opens it:
@@ -118,11 +112,10 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
    */
   const goToSection = useCallback(
     (id: string) => {
-      setToc(false)
       closeSheet()
       jumpTo(id, HOME_V4_SCROLL.JUMP_PROGRESS)
     },
-    [closeSheet, jumpTo, setToc],
+    [closeSheet, jumpTo],
   )
 
   /* 页面拥有文档滚动条。挂在类上而不是裸 `html, body` 选择器上，所以离开这条
@@ -145,10 +138,6 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
    */
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (tocOpenRef.current) {
-        if (event.key === 'Escape') setToc(false)
-        return
-      }
       if (sheetRef.current) {
         if (event.key === 'Escape') closeSheet()
         return
@@ -178,7 +167,7 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
 
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [closeSheet, jumpTo, setToc])
+  }, [closeSheet, jumpTo])
 
   const renderSection = (section: HomeV4Section) => {
     const at = progress[section.id] ?? HOME_V4_SCROLL.REST_PROGRESS
@@ -229,14 +218,6 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
     }
   }
 
-  /** A group heading is printed on the first row of each group, and nowhere else. */
-  const tocGroupHeads: (HomeV4PageGroup | null)[] = HOME_V4_SECTIONS.map(
-    (section, index) =>
-      index === 0 || HOME_V4_SECTIONS[index - 1].group !== section.group
-        ? section.group
-        : null,
-  )
-
   return (
     <>
       <HomeV4Topbar />
@@ -259,68 +240,66 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
         ))}
       </main>
 
-      {/* PC：左缘段进度条，hover 整个区域展开全部段名 */}
+      {/**
+       * PC：左缘**段进度条**（owner 批注 40 第三步：圆点改进度）。
+       *
+       * 每一段一条细轨，轨里那条填充就是这一段走了多少 —— 圆点只能说「我在第
+       * 几段」，进度条还能说「这一段还剩多少」，而长卷里这正是读者要知道的。
+       * ⚠ 填充量是 `--p`，写成自定义属性交给 CSS 的 `scaleY`，⛔ 不写 height：
+       * 改高度每帧都要重排。
+       */}
       <nav className="dots" aria-label={t('v4.nav.label')}>
         {HOME_V4_SECTIONS.map((section) => (
           <button
             key={section.id}
             type="button"
             data-on={String(section.id === activeId)}
+            style={
+              {
+                '--p': progress[section.id] ?? HOME_V4_SCROLL.REST_PROGRESS,
+              } as CSSProperties
+            }
             onClick={() => goToSection(section.id)}
           >
-            <i />
+            <i>
+              <b />
+            </i>
             <span className="nm">{t(`v4.pages.${section.id}.nav`)}</span>
           </button>
         ))}
       </nav>
 
-      {/* Mobile：右缘细点条（拇指区）→ 点击弹全屏目录 */}
-      <button
-        type="button"
-        className="mdots"
-        aria-label={t('v4.nav.pageLabel')}
-        onClick={() => setToc(true)}
-      >
-        {HOME_V4_SECTIONS.map((section) => (
-          <i
-            key={section.id}
-            className={section.id === activeId ? 'on' : undefined}
-          />
-        ))}
-      </button>
-
-      {/* Closed, it is only `opacity:0` — without `inert` a screen reader would
-          still walk every invisible section button on every mobile screen. */}
-      <div className={`mtoc${tocOpen ? ' on' : ''}`} inert={!tocOpen}>
-        <button
-          type="button"
-          className="mt-x"
-          aria-label={t('v4.nav.close')}
-          onClick={() => setToc(false)}
-        >
-          ✕
-        </button>
-        {HOME_V4_SECTIONS.map((section, index) => {
-          const heading = tocGroupHeads[index]
-          const name = t(`v4.pages.${section.id}.nav`)
-
-          return (
-            <Fragment key={section.id}>
-              {heading ? (
-                <span className="mt-k">{t(`v4.groups.${heading}`)}</span>
-              ) : null}
-              <button
-                type="button"
-                className={section.id === activeId ? 'on' : undefined}
-                onClick={() => goToSection(section.id)}
-              >
-                <span className="no">{tocNumber(index)}</span>
-                {name}
-              </button>
-            </Fragment>
-          )
-        })}
-      </div>
+      {/**
+       * 手机：底部**缩略图条**（owner 批注 51 / 52）。
+       *
+       * ⛔ 不复用桌面圆点。拇指区里一排 7px 的点既点不准也认不出，而每段自己
+       * 的画面是认得出的 —— 这一条就是 ui-defaults §6「手机不是桌面缩小」在
+       * 目录上的样子。只在 `<768` 挂载：宽屏上左缘那条进度轨已经在屏上了，
+       * 再来一条是两份目录。
+       */}
+      {isPhone ? (
+        <nav className="mstrip" aria-label={t('v4.nav.label')}>
+          {HOME_V4_SECTIONS.map((section, index) => (
+            <button
+              key={section.id}
+              type="button"
+              data-on={String(section.id === activeId)}
+              aria-current={section.id === activeId ? 'true' : undefined}
+              onClick={() => goToSection(section.id)}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={HOME_V4_SECTION_THUMBS[section.id]}
+                alt=""
+                loading="lazy"
+                decoding="async"
+              />
+              <span className="no">{tocNumber(index)}</span>
+              <span className="nm">{t(`v4.pages.${section.id}.nav`)}</span>
+            </button>
+          ))}
+        </nav>
+      ) : null}
 
       {/* Portalled to `<body>`: the sheet is `position: fixed` and a sticky
           stage with its own stacking context would trap it. */}

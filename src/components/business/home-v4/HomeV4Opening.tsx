@@ -222,7 +222,12 @@ export function HomeV4Opening({ progress, shots }: HomeV4OpeningProps) {
                   alt=""
                   fill
                   sizes="(max-width: 768px) 34vw, 120px"
-                  priority={index < 4}
+                  decoding="async"
+                  /* ⭐ 首屏只抢两张。LCP 算的是标题与第一张图，后面八格抢到的
+                     优先级只是在跟标题抢带宽。其余格子走 next/image 默认的
+                     lazy —— 长卷里这个默认终于是对的：v4 用 transform 移动十三
+                     页，浏览器看哪张都像在屏上，只能手写预取门。 */
+                  priority={index < 2}
                 />
                 {slot.b ? (
                   <Image

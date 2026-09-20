@@ -181,14 +181,42 @@ describe('home v5 · 目录与键盘', () => {
     expect(window.scrollTo).toHaveBeenCalled()
   })
 
-  it('目录列出全部段，手机点条同样', () => {
+  it('左缘一段一条进度轨，填充量就是那一段的进度', () => {
     const { container } = renderDeck()
-    expect(container.querySelectorAll('.dots button')).toHaveLength(
+    const rails = container.querySelectorAll('.dots button')
+
+    expect(rails).toHaveLength(HOME_V4_SECTIONS.length)
+    for (const rail of rails) {
+      /* 降级下每段都是结果态，所以九条都填满。 */
+      expect(rail.getAttribute('style')).toContain('--p: 1')
+      /* ⛔ 不是圆点了：轨里得有一条填充。 */
+      expect(rail.querySelector('i > b')).not.toBeNull()
+    }
+  })
+
+  /**
+   * 手机缩略图条（owner 批注 51 / 52）**只在 `<768` 渲染**，⛔ 不复用桌面那条
+   * 进度轨。jsdom 默认 1024 宽、`useIsPhone` 回落桌面，所以这里两边各跑一次。
+   */
+  it('手机缩略图条只在 <768 渲染，且每段一张图', () => {
+    const wide = renderDeck()
+    expect(wide.container.querySelector('.mstrip')).toBeNull()
+    wide.unmount()
+
+    mockMedia(true)
+    vi.stubGlobal('innerWidth', 375)
+    const phone = renderDeck()
+    const strip = phone.container.querySelector('.mstrip')
+
+    expect(strip).not.toBeNull()
+    expect(strip?.querySelectorAll('button')).toHaveLength(
       HOME_V4_SECTIONS.length,
     )
-    expect(container.querySelectorAll('.mdots i')).toHaveLength(
-      HOME_V4_SECTIONS.length,
-    )
+    /* 图才是手机上认得出的那件东西；序号与段名跟着走（段名给读屏）。 */
+    expect(strip?.querySelectorAll('img')).toHaveLength(HOME_V4_SECTIONS.length)
+    for (const section of HOME_V4_SECTIONS) {
+      expect(strip?.textContent).toContain(`v4.pages.${section.id}.nav`)
+    }
   })
 
   it('方向键滚动，其余键一律留给浏览器', () => {

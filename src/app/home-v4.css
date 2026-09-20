@@ -235,7 +235,7 @@ html.home-v4-roll {
   /* 段首对齐：键盘与触控板一格一段，段内滚动自由。 */
   scroll-snap-align: start;
   /* 分享出去的 `/#lora` 落下来不能钻到浮岛底下。 */
-  scroll-margin-top: 0;
+  scroll-margin-top: var(--bar);
 }
 
 /* 钉住的一屏。⚠ sticky，不是 GSAP pin：零依赖、零脚本、浏览器自己合成。
@@ -582,8 +582,10 @@ html.home-v4-roll {
   color: var(--dim);
 }
 
-/* ─── 竖轴页点（PC 左缘） ───────────────────────────────────────── */
-/* hover 整个区域展开全部页名；每个 title 自带 hover 动效 */
+/* ─── 竖轴段进度（PC 左缘） ─────────────────────────────────────── */
+/* ⭐ owner 批注 40 第三步：圆点改进度。一段一条细轨，轨里的填充 = 这一段的
+   `--p`。圆点只说「我在第几段」，进度条还说「这一段还剩多少」——长卷里读者要
+   知道的正是后者。hover 整个区域展开全部段名。 */
 .home-v4 .dots {
   position: fixed;
   z-index: 70;
@@ -621,19 +623,30 @@ html.home-v4-roll {
 }
 
 .home-v4 .dots i {
-  width: 7px;
-  height: 7px;
-  border-radius: 999px;
-  background: var(--line-2);
-  transition:
-    background 0.25s,
-    transform 0.25s;
+  position: relative;
   display: block;
   flex: none;
+  width: 3px;
+  height: 20px;
+  border-radius: 999px;
+  background: var(--line-2);
+  overflow: hidden;
+  transition: background 0.25s;
+}
+
+/* ⚠ 填充走 `scaleY`，⛔ 不走 height —— 改高度每一帧都要重排，而这条轨是跟着
+   滚动每帧都在变的那一个元素。 */
+.home-v4 .dots i b {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: var(--ink);
+  transform: scaleY(var(--p, 0));
+  transform-origin: top;
 }
 
 .home-v4 .dots button[data-on='true'] i {
-  background: var(--ink);
+  background: var(--line);
 }
 
 /* 页名不是数据字：走正文 sans、正常字号、墨色。等宽小字在 hover 里一闪而过
@@ -662,10 +675,9 @@ html.home-v4-roll {
   transform: none;
 }
 
-/* title hover 动效：点亮 + 点放大 + 名字前移一步 */
+/* title hover 动效：轨加宽 + 名字前移一步 */
 .home-v4 .dots button:hover i {
-  background: var(--ink);
-  transform: scale(1.5);
+  width: 5px;
 }
 
 .home-v4 .dots button:hover .nm {
@@ -2928,8 +2940,7 @@ html.home-v4-roll {
 }
 
 /* ═══ Mobile 层（≤768px）：不钉住、不 scrub，每段一屏结果态 ═══════ */
-.home-v4 .mdots,
-.home-v4 .mtoc,
+.home-v4 .mstrip,
 .home-v4 .cue-m {
   display: none;
 }
@@ -2954,14 +2965,6 @@ html.home-v4-roll {
     position: static;
     height: auto;
     min-height: 100svh;
-  }
-
-  .home-v4 .op-strip {
-    touch-action: pan-x;
-  }
-
-  .home-v4 .mtoc {
-    touch-action: pan-y;
   }
 
   .home-v4 .topbar {
@@ -3001,112 +3004,82 @@ html.home-v4-roll {
   }
 
   /* 导航：右缘细点条（拇指区）→ 点击弹全屏目录 */
-  .home-v4 .mdots {
-    display: flex;
+  /* ── 手机目录：底部缩略图条（owner 批注 51 / 52）─────────────
+     ⛔ 不复用桌面那条进度轨。拇指区里 3px 宽的轨既点不准也认不出；每段自己的
+     画面是认得出的，所以手机上的目录是一条**图**，横着滑，当前段亮起。
+     44px 命中区（ui-defaults §5 coarse），底部让开安全区。 */
+  .home-v4 .mstrip {
     position: fixed;
-    right: 7px;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 60;
-    flex-direction: column;
-    gap: 7px;
-    padding: 10px 5px;
-    border: 0;
-    background: none;
-  }
-
-  .home-v4 .mdots i {
-    width: 4px;
-    height: 4px;
-    border-radius: 999px;
-    background: var(--ink);
-    opacity: 0.22;
-    transition:
-      opacity 0.3s,
-      height 0.3s;
-  }
-
-  .home-v4 .mdots i.on {
-    opacity: 0.95;
-    height: 14px;
-  }
-
-  .home-v4 .mtoc {
-    position: fixed;
-    inset: 0;
-    z-index: 95;
-    background: var(--paper);
+    z-index: 70;
+    left: 0;
+    right: 0;
+    bottom: 0;
     display: flex;
-    flex-direction: column;
-    padding: 60px 26px 30px;
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.35s ease;
-    overflow-y: auto;
+    gap: 8px;
+    padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    background: color-mix(in oklab, var(--paper) 88%, transparent);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--line);
   }
 
-  .home-v4 .mtoc.on {
-    opacity: 1;
-    pointer-events: auto;
-  }
-
-  .home-v4 .mtoc .mt-k {
-    font-family: var(--mono);
-    font-size: 10.5px;
-    letter-spacing: 0.22em;
-    color: var(--dim);
-    margin: 14px 0 6px;
-    text-transform: uppercase;
-  }
-
-  .home-v4 .mtoc button {
-    display: block;
-    width: 100%;
-    text-align: left;
-    border: 0;
-    background: none;
-    color: var(--ink);
-    font-family: var(--serif);
-    font-weight: 900;
-    font-size: 21px;
-    letter-spacing: 0.01em;
-    padding: 7px 0;
-    border-bottom: 1px solid var(--line);
-  }
-
-  .home-v4 .mtoc button.on {
-    text-decoration: underline;
-    text-underline-offset: 7px;
-    text-decoration-thickness: 2px;
-  }
-
-  .home-v4 .mtoc button.on .no {
-    color: var(--ink);
-    font-weight: 700;
-  }
-
-  .home-v4 .mtoc button .no {
-    font-family: var(--mono);
-    font-weight: 400;
-    font-size: 10.5px;
-    color: var(--dim);
-    margin-right: 10px;
-    letter-spacing: 0.1em;
-  }
-
-  .home-v4 .mtoc .mt-x {
-    position: absolute;
-    top: 12px;
-    right: 14px;
-    width: 38px;
-    height: 38px;
-    border: 1px solid var(--line-2);
-    border-radius: 999px;
-    background: var(--paper);
-    font-size: 15px;
-    line-height: 1;
-    color: var(--ink);
+  .home-v4 .mstrip button {
+    position: relative;
+    flex: none;
+    width: 56px;
+    height: 44px;
     padding: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--panel);
+    cursor: pointer;
+    transition: border-color 0.2s var(--easing);
+  }
+
+  .home-v4 .mstrip button[data-on='true'] {
+    border-color: var(--ink);
+    border-width: 2px;
+  }
+
+  .home-v4 .mstrip img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: 0.66;
+  }
+
+  .home-v4 .mstrip button[data-on='true'] img {
+    opacity: 1;
+  }
+
+  .home-v4 .mstrip .no {
+    position: absolute;
+    left: 3px;
+    top: 2px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.06em;
+    padding: 1px 4px;
+    border-radius: 999px;
+    background: rgba(10, 10, 10, 0.62);
+    color: #f4f2ec;
+  }
+
+  /* 段名只给读屏：条上只放得下图与序号，名字仍然必须说得出来。 */
+  .home-v4 .mstrip .nm {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* 缩略图条占着底部一条，段内容要让开它。 */
+  .home-v4 .page-inner {
+    padding-bottom: calc(60px + env(safe-area-inset-bottom));
   }
 
   /* 开场：作品墙改横滑胶片带（手机原生卡带），cue 换 SWIPE */

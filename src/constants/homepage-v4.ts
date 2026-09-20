@@ -1131,6 +1131,25 @@ export const HOME_V4_SECTIONS: readonly HomeV4Section[] = [
   { id: 'finale', group: 'finale', eyebrow: null, vh: 100, scrub: false },
 ]
 
+/**
+ * 手机目录条上每一段的缩略图（owner 批注 51 / 52）。
+ *
+ * ⭐ 手机上的目录**不复用桌面圆点**：拇指区里七八个 7px 的点既点不准也认不出，
+ * 一条缩略图带才是「我要去看哪一段」的移动端形态（ui-defaults §6：手机不是桌面
+ * 缩小）。每张图都是这一段自己已经在用的素材，⛔ 不为目录新增资产。
+ */
+export const HOME_V4_SECTION_THUMBS: Record<string, string> = {
+  opening: HOME_V4_STRIP[0].src,
+  image: HOME_V4_FN_IMAGE_MODELS[0].shot,
+  lora: HOME_V4_FN_LORA_OUTS[0].shot,
+  audio: HOME_V4_FN_AUDIO_LINES[0].avatar,
+  video: HOME_V4_STORY.poster,
+  canvas: HOME_V4_STORY.shotDeck,
+  vault: HOME_V4_STORY.anchor,
+  models: HOME_V4_STRIP[5].src,
+  finale: HOME_V4_STRIP[8].src,
+}
+
 /** `#home-lora` 一类的可分享锚点。段 id → DOM id，一处拼接。 */
 export function homeV4SectionAnchor(id: string): string {
   return `home-${id}`

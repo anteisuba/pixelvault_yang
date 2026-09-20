@@ -258,18 +258,6 @@ describe('home v4 · copy', () => {
     }
   })
 
-  it('names every navigation group in all three locales', () => {
-    const groups = [
-      ...new Set(HOME_V4_SECTIONS.map((section) => section.group)),
-    ]
-
-    for (const [locale, messages] of Object.entries(locales)) {
-      const named = messages.groups as Record<string, string>
-      const missing = groups.filter((group) => !named[group])
-      expect(missing.map((group) => `${locale}:${group}`)).toEqual([])
-    }
-  })
-
   /**
    * The feature pages build message keys out of the ids in
    * `homepage-v4.ts` — `v4.fn.audio.lines.${line.id}.text` and friends. Those

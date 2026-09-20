@@ -445,6 +445,16 @@ export const STUDIO_OPERATOR_SHELL = {
    */
   openMs: 240,
   closeMs: 200,
+  /**
+   * 空态那排建议 chip **逐颗错开**多久（D7c ④ 画板动效表：入场 180ms 错开 30ms）。
+   *
+   * ⚠ 与 `constants/motion.ts` 的 `staggerDelay()`（50ms 步进）**不是**同一件事：
+   *   那一支是给列表 / 网格用的，一屏十几项；这里最多 5 颗、总延迟要压在 120ms
+   *   以内，50ms 步进会让最后一颗慢半拍出现。⛔ 也别为它往 `globals.css` 的脊柱
+   *   里新造 token —— 判据与上面 240 / 200 那两个数逐字同源。
+   * ⚠ 时长本身仍走既有档（`--duration-base`），⛔ 不为画板上的 180ms 开新档。
+   */
+  pillStaggerMs: 30,
 } as const
 
 /**

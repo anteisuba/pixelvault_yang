@@ -3,7 +3,10 @@ import { useState } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { STUDIO_OPERATOR_KEEP_OPEN_ATTR } from '@/constants/studio-assistant-operator'
+import {
+  STUDIO_OPERATOR_KEEP_OPEN_ATTR,
+  STUDIO_OPERATOR_SHELL,
+} from '@/constants/studio-assistant-operator'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-upload'
@@ -1089,6 +1092,53 @@ it.each(['append', 'overwrite', 'keep'] as const)(
     expect(answerQuestion.mock.calls[0]?.[1]).toMatchObject({ choice })
   },
 )
+
+/**
+ * 建议 chip（D7c ④ · 画板 `DesignD7cFlow`「空态 · 改后」）。
+ *
+ * 钉三件事：
+ *  ① ⭐ **只在空态出现**（与旧实现相反）——线程一开始它们就退场；
+ *  ② 长在**规格行上方**（自上而下：chip → 规格行 → 输入框 → 控件行）；
+ *  ③ 点一颗 = 直接把那句话发出去（拍板 15），⛔ 不是填进输入框；
+ *     入场逐颗错开 `STUDIO_OPERATOR_SHELL.pillStaggerMs`。
+ */
+describe('StudioOperatorPanel · D7c 建议 chip', () => {
+  it('⭐ 空态才画；点一颗直接发送，且逐颗错开入场', () => {
+    renderPanel()
+    const chips = screen.getAllByTestId('operator-suggestion')
+    expect(chips.map((chip) => chip.textContent)).toEqual([
+      '把这句写成好提示词',
+      '换个模型看差别',
+    ])
+    expect(chips[1]!.style.animationDelay).toBe(
+      `${STUDIO_OPERATOR_SHELL.pillStaggerMs}ms`,
+    )
+
+    // 自上而下：chip → 规格行 → 输入框。
+    expect(
+      screen
+        .getByTestId('operator-suggestion-row')
+        .compareDocumentPosition(screen.getByTestId('operator-spec-line')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+
+    fireEvent.click(chips[0]!)
+    expect(send).toHaveBeenCalledTimes(1)
+    expect(send.mock.calls[0]?.[0]).toContain('把这句写成好提示词')
+  })
+
+  it('⭐ 线程一开始就退场（⛔ 别的地方不再出现）', () => {
+    store.appendOperatorEntry({
+      kind: 'user',
+      id: 'first-message',
+      text: '照这张参考图来',
+      attachments: [],
+    })
+    renderPanel()
+    expect(screen.queryByTestId('operator-suggestion-row')).toBeNull()
+    expect(screen.queryAllByTestId('operator-suggestion')).toHaveLength(0)
+  })
+})
 
 /**
  * 规格行（D7c ④ · 画板 `DesignD7cFlow`「输入区拆解」）。

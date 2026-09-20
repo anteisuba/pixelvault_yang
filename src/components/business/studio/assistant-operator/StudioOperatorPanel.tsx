@@ -45,6 +45,7 @@ import {
   Play,
   Plus,
   RotateCw,
+  Sparkles,
   Square,
   TriangleAlert,
   X,
@@ -74,6 +75,7 @@ import {
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
   STUDIO_OPERATOR_LIBRARY_PAGE_SIZE,
   STUDIO_OPERATOR_MENTION,
+  STUDIO_OPERATOR_SHELL,
   STUDIO_OPERATOR_SKIPPED_REJECT_REASONS,
   STUDIO_OPERATOR_TIMELINE,
   STUDIO_OPERATOR_UPLOAD_ACCEPT,
@@ -1805,7 +1807,6 @@ export function StudioOperatorPanel({
             {threadEmpty ? (
               <StudioOperatorEmptyState
                 face={operatorHost.face}
-                onSuggestion={submit}
                 {...(persona ? { persona } : {})}
               />
             ) : null}
@@ -2063,29 +2064,6 @@ export function StudioOperatorPanel({
           </div>
         </StudioOperatorTimelineList>
 
-        {/* ── 起手药丸：点即发送（拍板 15）—— **四处各写各的**（D7b ③）────
-          ⚠ 读的是宿主那张脸（`face.starterPills`），⛔ 不再按 domain 取
-            `STUDIO_OPERATOR_SUGGESTIONS`（那张带 `minChanges` 门的表连同
-            `suggestion.*` 词条已整块删掉）：它回答的是「语境化建议」，而 D7b 的
-            药丸是「这个助手会干什么」的自我介绍。
-          ⚠ 空态时**这一排不画**：同样几句话已经在空态那张卡上摆成了行（§4.2），
-            两处同时出现是同一颗按钮画了两遍。 */}
-        {operatorHost.face.starterPills.length > 0 && !threadEmpty ? (
-          <div className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2">
-            {operatorHost.face.starterPills.map((text) => (
-              <button
-                key={text}
-                type="button"
-                data-testid="operator-suggestion"
-                onClick={() => submit(text)}
-                className="rounded-full border border-primary/30 bg-card px-2.5 py-1 text-2sm text-primary transition-colors duration-(--duration-fast) ease-standard hover:bg-primary/10"
-              >
-                {text}
-              </button>
-            ))}
-          </div>
-        ) : null}
-
         {/* ── 排队条（§3.1 ㉒–㉔）────────────────────────────────────
           ⚠ 长在输入框**上方**（不是线程末尾）：它说的是「你刚打的这句还在手上」，
             而线程里的一切都是「已经发生的事」。 */}
@@ -2340,6 +2318,40 @@ export function StudioOperatorPanel({
                   })
                 : t('mention.count', { count: mention.count })}
             </span>
+          </div>
+        ) : null}
+
+        {/* ── 建议 chip：点即发送（拍板 15）—— **四处各写各的**（D7b ③）────
+          ⭐ **只在空态出现**（D7c ④，与旧实现相反）：它们是诱饵，回答的是「这个
+            助手会干什么」。线程一开始，用户已经知道了 —— 那时候还摆着同样几句话
+            等于在每一轮对话上方常驻一排永不变化的按钮。
+          ⚠ 28px 一排、窄了换行（画板「空态 · 改后」）：⛔ 不再是空态里那四条与
+            输入框等宽、带边带影的卡 —— 那个分量比助手说的那句话还重。
+          ⚠ 入场错开（动效表最后第二行）：`fill-mode-backwards` 让它们在各自的
+            延迟走完之前保持起始帧，⛔ 少了它就是「先全部出现再一起动一下」。 */}
+        {threadEmpty && operatorHost.face.starterPills.length > 0 ? (
+          <div
+            data-testid="operator-suggestion-row"
+            className="flex shrink-0 flex-wrap gap-1.5 px-3 pb-2"
+          >
+            {operatorHost.face.starterPills.map((text, index) => (
+              <button
+                key={text}
+                type="button"
+                data-testid="operator-suggestion"
+                onClick={() => submit(text)}
+                style={{
+                  animationDelay: `${index * STUDIO_OPERATOR_SHELL.pillStaggerMs}ms`,
+                }}
+                className="flex h-7 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard animate-in fade-in-0 slide-in-from-bottom-1.5 fill-mode-backwards animation-duration-(--duration-base) hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none motion-reduce:transition-none"
+              >
+                <Sparkles
+                  className="size-3 shrink-0 text-muted-foreground/70"
+                  aria-hidden
+                />
+                <span className="min-w-0 truncate">{text}</span>
+              </button>
+            ))}
           </div>
         ) : null}
 

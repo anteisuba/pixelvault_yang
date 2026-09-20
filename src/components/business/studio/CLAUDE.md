@@ -36,7 +36,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │   └── StudioOperatorPanel (同目录 — 面板内容：空态 / 时间线 / 双行输入区)
         │       ├── StudioOperatorHeader (头部一行 44px：左上头像槽（桌面留位给外壳那颗，手机自己画）/ 会话标题▾（= 历史下拉，新会话在底部）/ 续跑 / 右上一颗 ⋯。⛔ 收起钮已删，收起 = 点头像；⛔ 域标记胶囊已搬去输入框上方（D7c ④）)
         │       ├── StudioOperatorPinnedEvidence (面板顶部「钉住的证据」常驻条：钉住后在顶部留一份、点回原卡、× 取消钉住；⛔ 没钉住就整条不渲染；v2 §3.2 / 画板 BCards「已钉住 · 留在面板顶部」)
-        │       ├── StudioOperatorEmptyState (空态：助手头像 68px + **一句话** + 起手药丸 ≤5；两样都来自宿主的 `face`，⛔ 不按 domain 取药丸表；v2 §4.2)
+        │       ├── StudioOperatorEmptyState (空态：助手头像 40px + **一句话**（`face.emptyLine`），⛔ 就这两样；起手药丸已搬去输入框正上方那一排 28px chip（D7c ④，只在空态出现）)
         │       ├── StudioOperatorTimelineRow (时间线沟一行 + **五类卡的分派点**)
         │       │   └── TimelineAvatar (用户 / 助手 32px 头像，与竖线同轴；助手那一档另出口 `AssistantTimelineAvatar` —— 它不碰 Clerk，收起态与空态用的是它)
         │       ├── StudioOperatorToolGroup (「5 个操作 · 4 成功 1 失败」折叠行)

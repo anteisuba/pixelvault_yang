@@ -335,9 +335,12 @@ export function StudioOperatorHeader({
                ⚠ **开合动效**（画板动效表前两行）：开 = 淡入 + 下移 4px，
                  ⛔ 不缩放整张菜单（`zoom-in-100` 把原语那档 95 顶掉）；
                  关 = 只淡出、不位移。原语那份 `origin-(--radix-…)` 照旧贴触发器。
-               ⚠ 时长曲线走既有 token（`--duration-fast` + `ease-standard`），
-                 ⛔ 不为画板上的 90ms 新开一档。 */
-            className="max-h-[60svh] w-75 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay duration-(--duration-fast) data-[side=bottom]:slide-in-from-top-1 data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 motion-reduce:transition-none"
+               ⚠ 时长曲线走既有 token（`--duration-fast` + `ease-standard`，
+                 原语已经带着后者），⛔ 不为画板上的 90ms 新开一档。
+               ⚠ 降级写 `motion-reduce:animate-none` 不是 `transition-none`：
+                 开合走的是 `animate-in` / `animate-out`（keyframes），⛔ 关过渡
+                 关不掉动画。 */
+            className="max-h-[60svh] w-75 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay duration-(--duration-fast) data-[side=bottom]:slide-in-from-top-1 data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 motion-reduce:animate-none"
           >
             <DropdownMenuLabel className="px-2.25 pb-1 pt-1.5 text-2xs font-normal text-muted-foreground">
               {t('history.heading')}

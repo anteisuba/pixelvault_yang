@@ -38,6 +38,7 @@ import {
 import {
   ArrowUp,
   Box,
+  ChevronDown,
   Images,
   Music,
   Paperclip,
@@ -2341,6 +2342,52 @@ export function StudioOperatorPanel({
             </span>
           </div>
         ) : null}
+
+        {/* ── 规格行（D7c ④ · 画板 `DesignD7cFlow`「输入区拆解」）────────
+          ⭐ 这一句原来长在**头部**（域标记胶囊）。它说的是「这一句发出去会产出
+            什么」—— 随参数栏变，所以它属于输入区，贴着输入框；头部只回答「这是
+            哪个会话」。
+          ⚠ 真值只有一个：点开的就是参数栏里**那一颗**规格 chip（`face.openSpec`），
+            ⛔ 助手不造第二份规格表单。
+          ⚠ 宿主没有 `openSpec`（画布 / LoRA 装配台）时渲染成**非交互的一句读数**：
+            不画 chevron、不加 hover、不是 button —— ⛔ 不做「点了没反应」。
+          ⚠ 域名留一份 `sr-only`：这一行写的是「Seedream 5.0 Pro · 1:1 · 4 张」，
+            读屏用户需要先知道这是哪个域。 */}
+        {(() => {
+          const { face } = operatorHost
+          const specContent = (
+            <>
+              <face.domainIcon
+                className="size-3.5 shrink-0 text-muted-foreground/70"
+                aria-hidden
+              />
+              <span className="sr-only">{t(`domainName.${domain}`)}</span>
+              <span className="min-w-0 truncate">{face.contextLine()}</span>
+            </>
+          )
+          return face.openSpec ? (
+            <button
+              type="button"
+              data-testid="operator-spec-line"
+              onClick={face.openSpec}
+              className="mx-3 mb-1.5 flex h-5.5 shrink-0 items-center gap-1.5 self-start rounded-sm text-2xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            >
+              {specContent}
+              <span className="sr-only">{t('specLine.adjust')}</span>
+              <ChevronDown
+                className="size-3 shrink-0 text-muted-foreground/70"
+                aria-hidden
+              />
+            </button>
+          ) : (
+            <span
+              data-testid="operator-spec-line"
+              className="mx-3 mb-1.5 flex h-5.5 shrink-0 items-center gap-1.5 text-2xs text-muted-foreground"
+            >
+              {specContent}
+            </span>
+          )
+        })()}
 
         {/* ── 输入区：上行工具条 + 下行输入（拍板 12）──────────────── */}
         <div

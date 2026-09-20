@@ -7263,6 +7263,9 @@
     "planFold": "計画 · {count} ステップ",
     "placeholderIdle": "続きを聞かせてください。参考素材も添付できます…",
     "placeholderWorking": "続けて入力できます。次の区切りでメッセージを確認します",
+    "specLine": {
+      "adjust": "出力設定を変更"
+    },
     "send": "送信",
     "stop": "作業を止める",
     "lightboxLabel": "拡大表示",

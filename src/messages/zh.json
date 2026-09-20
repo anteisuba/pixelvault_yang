@@ -7263,6 +7263,9 @@
     "planFold": "计划 · {count} 步",
     "placeholderIdle": "继续说，或把素材挂进来…",
     "placeholderWorking": "说，我在听 —— 你打的这句会排队，下一个停顿点处理",
+    "specLine": {
+      "adjust": "调整规格"
+    },
     "send": "发送",
     "stop": "停止当前工作",
     "lightboxLabel": "看大图",

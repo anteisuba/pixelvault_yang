@@ -20,6 +20,7 @@ import { useEffect, useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ChevronDown } from '@/components/icons'
+import { STUDIO_SPEC_CHIP_ATTR } from '@/constants/studio'
 import { formatUnitPriceAmount } from '@/constants/models/unit-prices'
 import type { SpecChipModel, SpecTier } from '@/lib/spec-chip-model'
 import { cn } from '@/lib/utils'
@@ -215,7 +216,9 @@ export function SpecChip({
           disabled={disabled}
           aria-label={ariaLabel}
           data-testid={testId}
-          data-spec-chip
+          /* ⚠ 运行时标记（⛔ 不是 testid）：助手的规格行靠它找到这一颗并点开 ——
+             「和参数栏那颗同一个真值」（D7c ④）。 */
+          {...{ [STUDIO_SPEC_CHIP_ATTR]: '' }}
           data-spec-chip-state={flashing ? 'flash' : open ? 'open' : 'default'}
           className={cn(
             'nodrag nopan inline-flex h-8 min-w-0 items-center gap-1.5 rounded-full border px-3 text-2sm transition-colors duration-fast ease-standard',

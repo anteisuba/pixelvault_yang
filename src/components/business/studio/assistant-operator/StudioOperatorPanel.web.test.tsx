@@ -1,7 +1,7 @@
 // ⚠ 用 `fireEvent` 不是 `user-event`：本仓没装 `@testing-library/user-event`。
 import { useState } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { STUDIO_OPERATOR_KEEP_OPEN_ATTR } from '@/constants/studio-assistant-operator'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
@@ -114,6 +114,16 @@ const HOST_RESULTS = [
   { id: 'gen-2', url: 'https://cdn.test/b.png', label: '第二张' },
 ]
 
+/**
+ * 这个宿主有没有「点开规格弹层」那只手（D7c ④ · `face.openSpec`）。
+ *
+ * ⚠ 可变盒子：工作台有、画布与 LoRA 装配台没有 —— 两档都要能验，而 mock 工厂
+ * 只跑一次。
+ */
+const HOST_SPEC = vi.hoisted(() => ({
+  openSpec: null as null | (() => void),
+}))
+
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
     domain: 'image' as const,
@@ -124,6 +134,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       emptyLine: '说你想要的画面，我来写提示词、挑模型、配参考。',
       starterPills: ['把这句写成好提示词', '换个模型看差别'],
       inputPlaceholder: '描述画面，或把参考图挂进来…',
+      ...(HOST_SPEC.openSpec ? { openSpec: HOST_SPEC.openSpec } : {}),
     },
     buildSnapshot: () => ({
       prompt: '',
@@ -1078,6 +1089,45 @@ it.each(['append', 'overwrite', 'keep'] as const)(
     expect(answerQuestion.mock.calls[0]?.[1]).toMatchObject({ choice })
   },
 )
+
+/**
+ * 规格行（D7c ④ · 画板 `DesignD7cFlow`「输入区拆解」）。
+ *
+ * 钉三件事：
+ *  ① 那一句在**输入框上方**，⛔ 不在头部（头部只回答「这是哪个会话」）；
+ *  ② 宿主给了 `openSpec` 时它是一颗 button，点它开的是**参数栏那一颗**规格 chip；
+ *  ③ 宿主没给时渲染成非交互的一句读数 —— ⛔ 不画 chevron、⛔ 不做「点了没反应」。
+ */
+describe('StudioOperatorPanel · D7c 规格行', () => {
+  afterEach(() => {
+    HOST_SPEC.openSpec = null
+  })
+
+  it('⭐ 那一句长在输入框上方，且点开的是宿主那只手', () => {
+    const openSpec = vi.fn()
+    HOST_SPEC.openSpec = openSpec
+    renderPanel()
+
+    const line = screen.getByTestId('operator-spec-line')
+    expect(line.textContent).toContain('Seedream 5.0 Pro · 1:1 · 4 张')
+    expect(line.tagName).toBe('BUTTON')
+    // ⚠ DOCUMENT_POSITION_FOLLOWING = 输入区排在这一行**后面**。
+    expect(
+      line.compareDocumentPosition(screen.getByTestId('operator-input-area')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+
+    fireEvent.click(line)
+    expect(openSpec).toHaveBeenCalledTimes(1)
+  })
+
+  it('⭐ 宿主没有那只手时它不是按钮（⛔ 不做「点了没反应」）', () => {
+    renderPanel()
+    const line = screen.getByTestId('operator-spec-line')
+    expect(line.tagName).not.toBe('BUTTON')
+    expect(line.textContent).toContain('Seedream 5.0 Pro · 1:1 · 4 张')
+  })
+})
 
 /**
  * v2 §4.4 输入区**两行**（画板 Main「输入区」/ BCards 三态）。

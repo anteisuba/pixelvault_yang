@@ -49,11 +49,14 @@ const DOMAIN_ICONS: Readonly<Record<AssistantOperatorDomain, LucideIcon>> = {
  * 拼出这个宿主那张脸。
  *
  * @param domain 这个宿主此刻在哪个域（⚠ 工作台会随模态在 image / video 间变）。
- * @param contextLine 域标记里那一句 —— **宿主自己算**，见 `StudioOperatorFace`。
+ * @param contextLine 输入框上方那一句 —— **宿主自己算**，见 `StudioOperatorFace`。
+ * @param openSpec 点开参数栏那颗规格 chip 的手 —— **只有工作台有**（D7c ④）。
+ *   ⚠ 缺席不是遗漏：画布与装配台没有「规格」这一说，那一行于是渲染成非交互。
  */
 export function useStudioOperatorFace(
   domain: AssistantOperatorDomain,
   contextLine: () => string,
+  openSpec?: () => void,
 ): StudioOperatorFace {
   const t = useTranslations('StudioOperator')
   /**
@@ -76,7 +79,10 @@ export function useStudioOperatorFace(
       emptyLine: t(`face.${domain}.empty`),
       starterPills,
       inputPlaceholder: t(`face.${domain}.placeholder`),
+      // ⚠ 展开式可选键：`exactOptionalPropertyTypes` 下 `openSpec: undefined`
+      //   与「这一格不存在」不是一回事，而面板判的正是后者。
+      ...(openSpec ? { openSpec } : {}),
     }),
-    [contextLine, domain, starterPills, t],
+    [contextLine, domain, openSpec, starterPills, t],
   )
 }

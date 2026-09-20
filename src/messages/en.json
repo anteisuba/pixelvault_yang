@@ -7263,6 +7263,9 @@
     "planFold": "Plan · {count, plural, one {# step} other {# steps}}",
     "placeholderIdle": "Tell me more, or attach a reference…",
     "placeholderWorking": "You can keep typing. Your message will be read at the next pause.",
+    "specLine": {
+      "adjust": "Adjust output spec"
+    },
     "send": "Send",
     "stop": "Stop the current work",
     "lightboxLabel": "View full size",

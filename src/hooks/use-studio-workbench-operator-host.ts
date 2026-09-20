@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import { STUDIO_SPEC_CHIP_ATTR } from '@/constants/studio'
 import {
   useStudioData,
   useStudioForm,
@@ -598,7 +599,27 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       count: generationControls.count,
     })
   }, [domain, generationControls, state.videoDuration, t])
-  const face = useStudioOperatorFace(domain, contextLine)
+  /**
+   * 点开**参数栏那颗规格 chip**（D7c ④ · 画板「点开是规格弹层，和参数栏那颗同一个
+   * 真值」）。
+   *
+   * ⭐ 走 DOM 去点那一颗，⛔ 不在助手里造第二份规格表单：档位表是从模型能力派生
+   * 的（`spec-chip-model.ts`），抄第二份的下场是两处档位不一样而没人会发现。
+   * ⚠ 同一屏可能挂着两颗（桌面参数栏与手机 composer 各画一份）—— 挑**看得见**的
+   * 那一颗（`offsetParent`），⛔ 不是第一个：点一颗 `display:none` 的按钮什么都不会
+   * 发生，而那正是「点了没反应」。
+   * ⚠ 一颗都没有 = 这个模型没有任何规格可调（chip 整颗不渲染，见 `SpecChipModel`
+   *   的 `isEmpty`）—— 静默跳过。规格行那边照常渲染成一句读数。
+   */
+  const openSpec = useCallback(() => {
+    if (typeof document === 'undefined') return
+    const triggers = document.querySelectorAll<HTMLElement>(
+      `[${STUDIO_SPEC_CHIP_ATTR}]`,
+    )
+    const visible = [...triggers].find((node) => node.offsetParent !== null)
+    visible?.click()
+  }, [])
+  const face = useStudioOperatorFace(domain, contextLine, openSpec)
 
   return useMemo(
     () => ({

@@ -51,10 +51,10 @@ import type {
  * prompts 域（`ui-defaults.md`）。
  */
 export interface StudioOperatorFace {
-  /** 头部域标记左边那枚图标。 */
+  /** 规格行（输入框上方那一行）左边那枚图标。 */
   domainIcon: LucideIcon
   /**
-   * 域标记里那**一句当前上下文**，已翻译。
+   * 规格行里那**一句当前上下文**，已翻译。
    *
    * ⭐ 它是**函数**不是值，但调用方在 render 里调：宿主每次把用到的那几格算进
    * `useMemo` 的依赖，所以状态一变就换一份新的 `face`，胶囊跟着刷 —— 这正是画板
@@ -71,6 +71,17 @@ export interface StudioOperatorFace {
   starterPills: readonly string[]
   /** 输入框占位词 —— 四处各写各的，这是输入区唯一的文案差异。 */
   inputPlaceholder: string
+  /**
+   * 点开**规格弹层**（D7c ④ · 画板 `DesignD7cFlow`「输入区拆解」）。
+   *
+   * ⭐ `contextLine` 那一句搬到了输入框上方，画板原话是「点开是规格弹层，和参数栏
+   * 那颗同一个真值」—— 于是那一句需要一只手把参数栏里**那一颗**打开，⛔ 不是在
+   * 助手里造第二份规格表单（两份档位表必然漂）。
+   * ⚠ **可选**：画布与 LoRA 装配台没有「规格」这一说（画布的规格在节点卡上，装配台
+   * 一次一张、没有比例 / 张数两颗旋钮）。缺席时那一行**渲染成非交互**（不画
+   * chevron、不加 hover、不是 button）—— ⛔ 不做「点了没反应」。
+   */
+  openSpec?(): void
 }
 
 export interface StudioOperatorHost {

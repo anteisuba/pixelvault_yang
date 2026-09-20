@@ -206,12 +206,13 @@ M3 边缘手势（与画布 pan、画廊/素材横滑直接冲突）。
 - ⚠ **底色仍走侧栏的反极性**：hover 往暗（`--sidebar-accent`）、pressed / 菜单打开更暗（`--sidebar-accent-strong`）、激活浮片往亮（`--sidebar-active-surface`）。⛔ 账号入口不许自己破例。
 - **<1024 同形**：顶栏胶囊右端那颗头像挂**同一颗** `AccountMenu`。⛔ 抽屉里因此不再有「我」区、也不再有最底那一行「设置」—— 两个入口并存就是下一次漂移的起点。
 
-**「我的主页」的地址是静态的 `/u/me`**（owner 2026-09-20 第二轮拍板）。那条路由在**服务端**解析当前用户的 username 后 `redirect` 到 `/u/<username>`（`app/[locale]/(main)/u/me/page.tsx`）。
+**「我的主页」的地址是静态的 `/u/me`**（owner 2026-09-20 拍板）。那条路由在服务端解析当前用户后**就地渲染**个人主页（`app/[locale]/(main)/u/me/page.tsx`），⛔ **不 redirect 到 `/u/<username>`**。
 
 - ⛔ **不要让壳在渲染时按 `useMyProfile()` 拼地址。** 上一版这么做过（条目带一个 `dynamicHref` 标记 + 解析层，解析不出就不产出这一项），真机在日语档看得见**侧边栏当着用户的面回流一次**——列表过几秒多出一行。运行时依赖已整层删除，⛔ 别再引回来。
-- ⚠ 段名 `me` 沿用仓库既有约定（`/api/users/me/*`），⛔ 不造 `/u/self` / `/profile` 第二套说法；静态段优先于同级 `[username]`，所以 `me` 已进 `PROFILE.RESERVED_USERNAMES`。
+- ⭐ **就地渲染而不是跳转，是为了激活态**：地址栏停在 `/u/me`，静态清单认得出这一项就是当前位置；跳到 `/u/<username>` 的话落地 URL 带着用户名，只能把刚删掉的运行时解析接回来。判据上它也与仓库既有的 `me` 约定同构——`/api/users/me/profile` 同样是就地返回当前用户，不跳到 `/api/users/<username>/profile`。
+- ⚠ 同一个页面两个地址，所以 `/u/me` 的 `alternates.canonical` 指向 `/u/<username>`。⛔ 不要再叠 `noindex`：canonical 已经回答了重复内容，两个信号同时挂是互相矛盾的。
+- ⚠ 段名 `me` 沿用仓库既有约定（`/api/users/me/*`），⛔ 不造 `/u/self` / `/profile` 第二套说法；静态段优先于同级 `[username]`，所以 `me` 已进 `PROFILE.RESERVED_USERNAMES`（2026-09-20 查库确认线上零占用）。
 - ⚠ `/u/(.*)` 在 `proxy.ts` 里是公开路由（别人的主页要能匿名看），未登录这一档中间件不管，由该页自己 `redirect` 到登录页——与 `/settings` 同一个口径。
-- ⚠ **这一项没有激活态**：落地 URL 是 `/u/<username>`，静态清单认不出那是不是「我的」。要它亮起来只有两条路（都还没做）：`/u/me` 改成就地渲染而不是 redirect，或者让壳按 username 补一条激活路径——后者就是刚删掉的那种运行时依赖。
 
 仍未收的遗留：
 

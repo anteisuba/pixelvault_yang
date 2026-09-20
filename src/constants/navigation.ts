@@ -85,12 +85,13 @@ export const SHELL_NAV_GO: readonly ShellNavItem[] = [
    * 我的主页（D11 ④，2026-09-20 owner 确认）。头像不再是它的快捷方式 ——
    * 头像改开账号菜单，一件事只留一个家，所以它下沉成一条常规导航项。
    *
-   * ⭐ 地址是**静态**的 `/u/me`，由那条路由在**服务端**解析 username 后
-   * redirect（`app/[locale]/(main)/u/me/page.tsx`）。⛔ 不要再让壳在渲染时
+   * ⭐ 地址是**静态**的 `/u/me`，那条路由在服务端解析当前用户后**就地渲染**
+   * （`app/[locale]/(main)/u/me/page.tsx`，⛔ 不跳转）。⛔ 不要再让壳在渲染时
    * 按 `useMyProfile()` 拼地址 —— 那一版真机在日语档看得见侧边栏回流一次。
    *
-   * ⚠ 因此这一项**不会有激活态**：落地 URL 是 `/u/<username>`，静态清单认不出
-   * 那是不是「我的」。owner 知情（见 app-shell.md §8）。
+   * ⚠ 「就地渲染而不是 redirect」正是为了这一项的**激活态**：地址栏停在
+   * `/u/me`，静态清单就认得出；跳到 `/u/<username>` 的话只能把刚删掉的运行时
+   * 解析接回来。`match` 留默认的 `exact`：这条路由没有子路由。
    */
   {
     id: 'profile',

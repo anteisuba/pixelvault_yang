@@ -41,8 +41,10 @@ vi.mock('@/hooks/use-nav-indicator', () => ({
   }),
 }))
 
+const mockPathname = vi.hoisted(() => ({ current: '/studio/image' }))
+
 vi.mock('@/i18n/navigation', () => ({
-  usePathname: () => '/studio/image',
+  usePathname: () => mockPathname.current,
   Link: ({
     href,
     children,
@@ -137,6 +139,30 @@ describe('AppSidebar 入口收口（D11 ④）', () => {
       ),
     ).not.toBeNull()
     expect(container.querySelector('a[href="/u/undefined"]')).toBeNull()
+  })
+
+  it('停在 /u/me 时「我的主页」是激活的，同段其它项不是', () => {
+    mockProfile.current = {
+      username: 'fulina',
+      displayName: 'fulina',
+      avatarUrl: null,
+    }
+    mockPathname.current = '/u/me'
+    const { container } = renderSidebar()
+
+    // 激活态成立的**前提**就是地址栏停在 /u/me —— `/u/me` 那条路由就地渲染、
+    // ⛔ 不跳 `/u/<username>`，否则静态清单认不出那是不是「我的」。
+    const profileItem = container.querySelector(
+      '[data-slot="sidebar-menu-button"][href="/u/me"]',
+    )
+    expect(profileItem?.getAttribute('data-active')).toBe('true')
+
+    const gallery = container.querySelector(
+      '[data-slot="sidebar-menu-button"][href="/gallery"]',
+    )
+    expect(gallery?.getAttribute('data-active')).toBe('false')
+
+    mockPathname.current = '/studio/image'
   })
 
   it('账号行的三档底色只过渡颜色，且带 motion-reduce 降级', () => {

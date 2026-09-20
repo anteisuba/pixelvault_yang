@@ -80,6 +80,8 @@ import {
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import { AssistantAvatarGlyph } from '@/components/business/studio/assistant-operator/AssistantAvatarGlyph'
+import { Skeleton } from '@/components/ui/skeleton'
+import { cn } from '@/lib/utils'
 import type { AssistantPersona } from '@/types/assistant-persona'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
 import { StudioOperatorSessionRow } from '@/components/business/studio/assistant-operator/StudioOperatorSessionRow'
@@ -105,6 +107,15 @@ const HISTORY_BUTTON_ATTR = 'data-operator-history-trigger'
 
 /** 一天的毫秒数 —— 只给下面那个「今天 / 昨天」的日差用。 */
 const MS_PER_DAY = 86_400_000
+
+/**
+ * 加载态那三条骨架的首行宽度（画板「加载中」：62% / 48% / 70%）。
+ *
+ * ⚠ 三条**不等长**：等长的骨架读起来是三条进度条，不是三个待载入的标题。
+ * ⚠ 条数写死 3 —— 它占的是「下拉一屏大概几行」，⛔ 不跟着上一次的列表长度走
+ *   （那会让刷新前后跳两次高度）。
+ */
+const HISTORY_SKELETON_WIDTHS = ['w-3/5', 'w-1/2', 'w-7/10'] as const
 
 /**
  * 右上**那一颗 ⋯** 的皮肤（§4.1：32px）。
@@ -319,23 +330,51 @@ export function StudioOperatorHeader({
                 event.preventDefault()
             }}
             /* ── 三层玻璃③：**浮层**（§12.1）。唯一真正半透 + 模糊的一层，
-               配强投影；14px 圆角走区间上限一侧。 */
-            className="max-h-[60svh] w-80 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl assistant-glass-overlay shadow-assistant-overlay"
+               配强投影；14px 圆角走区间上限一侧。
+               ⚠ 宽 300 / 内边距 5（画板 `DesignD7cShell`「历史下拉」）。
+               ⚠ **开合动效**（画板动效表前两行）：开 = 淡入 + 下移 4px，
+                 ⛔ 不缩放整张菜单（`zoom-in-100` 把原语那档 95 顶掉）；
+                 关 = 只淡出、不位移。原语那份 `origin-(--radix-…)` 照旧贴触发器。
+               ⚠ 时长曲线走既有 token（`--duration-fast` + `ease-standard`），
+                 ⛔ 不为画板上的 90ms 新开一档。 */
+            className="max-h-[60svh] w-75 max-w-[calc(100vw-2rem)] overflow-y-auto rounded-xl p-1.25 assistant-glass-overlay shadow-assistant-overlay duration-(--duration-fast) data-[side=bottom]:slide-in-from-top-1 data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 motion-reduce:transition-none"
           >
-            <DropdownMenuLabel className="text-2sm font-normal text-muted-foreground">
+            <DropdownMenuLabel className="px-2.25 pb-1 pt-1.5 text-2xs font-normal text-muted-foreground">
               {t('history.heading')}
             </DropdownMenuLabel>
+            {/* ── 加载中 = **替掉**列表（画板「加载中」那条 ⚠）───────────
+                真机上现在是「读取中…」那行字和已经载出来的会话行同时挂着 ——
+                于是列表读起来像「这些是旧的，新的还在路上」。三条骨架占住行位，
+                ⛔ 不叠在列表上面。⚠ 骨架行高 = 真行高（`h-11`），⛔ 不许跳动。 */}
             {history.isHydrating ? (
-              <DropdownMenuItem disabled className="text-2sm">
-                {t('history.loading')}
-              </DropdownMenuItem>
+              <div
+                data-testid="operator-history-skeleton"
+                role="status"
+                aria-label={t('history.loading')}
+              >
+                {HISTORY_SKELETON_WIDTHS.map((width) => (
+                  <div key={width} className="flex h-11 items-center px-2.25">
+                    <span className="flex min-w-0 flex-1 flex-col gap-1.25">
+                      <Skeleton className={cn('h-2.25 rounded-sm', width)} />
+                      <Skeleton className="h-1.75 w-2/5 rounded-sm" />
+                    </span>
+                  </div>
+                ))}
+              </div>
             ) : null}
+            {/* 一条都没有 = **一句灰字**（画板「一条都没有」）：⛔ 不画插图空态，
+                这是个下拉菜单不是一页；底下那颗「新对话」照常在。 */}
             {!history.isHydrating && history.sessions.length === 0 ? (
-              <DropdownMenuItem disabled className="text-2sm">
+              <p
+                data-testid="operator-history-empty"
+                className="px-2.25 pb-4 pt-3.5 text-xs text-muted-foreground"
+              >
                 {t('history.empty')}
-              </DropdownMenuItem>
+              </p>
             ) : null}
-            {history.sessions.map((session) => {
+            {/* ⚠ 列表与骨架**互斥**（上面那条 ⚠）：这一行的 `isHydrating` 判据就是
+                「⛔ 不叠加」本身 —— 少了它，骨架会挂在已经载出来的行上面。 */}
+            {(history.isHydrating ? [] : history.sessions).map((session) => {
               /* ⚠ 域标签读的是 `surface`（线程**起始**域）—— 一条线程后来切去
                  哪儿只在它自己的域标记里，列表这一层看不到，也不该猜。
                  ⚠ 先取出来再判：直接把索引表达式塞进模板串，`null` 会一起进

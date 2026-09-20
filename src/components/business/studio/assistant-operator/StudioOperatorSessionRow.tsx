@@ -1,7 +1,7 @@
 'use client'
 
 /**
- * 历史下拉里的**一条会话**（owner 2026-09-20 真机第 3 条）。
+ * 历史下拉里的**一条会话**（D7c ④ · 画板 `DesignD7cShell` 六态）。
  *
  * ── 它替掉了什么 ────────────────────────────────────────────────
  * 铅笔开一张 `AlertDialog` 改名、垃圾桶开另一张 `AlertDialog` 确认删除。
@@ -12,8 +12,17 @@
  *  · **编辑 = 就地**：标题那一格换成 `<input>`（回车保存 · Esc 取消 · 失焦保存），
  *    逐字沿用 56a 记忆列表那一套（`SettingsAssistantSection` 的 `MemoryRow`），
  *    连 `cancelledRef` 那一手都一样 —— Esc 之后紧跟着的那一拍 blur 不许当成保存。
- *  · **删除 = 原位两段**：垃圾桶就地换成「确认删除」（`status-risk`），再点一次
- *    才真删。命中区一格不变，⛔ 不换尺寸：位置跳一下的按钮会让第二下点空。
+ *  · **删除 = 原位两段**：垃圾桶就地撑成一颗红色「确认」药丸，再点一次才真删。
+ *
+ * ── D7c ④ 改了长相（owner 2026-09-20 确认画板）────────────────────
+ *  · **一行两层**：标题 13px 单行截断，下面 11px「工作台 · 日期」用 `·` 连起来 ——
+ *    ⛔ 不再是隔着一大格的两段（那一格 `gap-2` 让两样读起来像两栏表格）。
+ *  · **图标按需**：改名 / 删除**默认不可见**，hover 或键盘聚焦才淡入（只动
+ *    `opacity`）。⚠ 位子**常驻**：两态之间标题的截断点必须逐像素一致，⛔ 不做位移
+ *    —— 会抖的行没法用指针瞄准。⚠ 触屏（`coarse:`）常显：那一档没有 hover，
+ *    留一颗看不见却按得到的删除是陷阱（`ui-defaults.md §6`）。
+ *  · **两段确认是一次宽度形变**：药丸由「按钮左右内距 + 那两个字的 `max-width`」
+ *    一起过渡（⛔ 不是换一颗按钮）—— `width: auto` 过渡不了，这是它的替身。
  *
  * ── 退回确认态的三条路 ─────────────────────────────────────────
  * 3 秒无操作 · 指针离开这一行 · 焦点离开这一行。三条都退回，因为「举着一把刀」
@@ -25,6 +34,7 @@
  * 跳到另一行）与 Esc 关菜单。所以编辑态整格 `onKeyDown` 先 `stopPropagation()`，
  * 回车 / Esc 由这里自己收尾。⛔ 编辑态那一格 ⛔ 不是 `DropdownMenuItem`：菜单项
  * 会在指针掠过时抢焦点，而那正是用户正在打字的地方。
+ * ⚠ 编辑态**不淡入**（画板动效表）：要等动画才能打字的输入框是坏动画。
  */
 
 import { useEffect, useRef, useState } from 'react'
@@ -45,6 +55,15 @@ import { cn } from '@/lib/utils'
  * 3 秒是 owner 在批注里写死的数。
  */
 const DELETE_CONFIRM_DWELL_MS = 3000
+
+/**
+ * 两颗行内图标钮的皮肤（画板：24px 见方、6px 圆角）。
+ *
+ * ⚠ ⛔ 不继承 `DropdownMenuItem` 的 `px-2 py-1.5`：那一档是给「一行文字菜单项」的，
+ * 套在一枚图标上会把 44px 的行撑开。
+ */
+const ROW_ICON_BUTTON_CLASS =
+  'flex h-6 shrink-0 items-center justify-center rounded-sm p-0 transition-[background-color,color,padding] duration-(--duration-fast) ease-standard motion-reduce:transition-none'
 
 interface StudioOperatorSessionRowProps {
   session: AssistantConversationSummary
@@ -118,11 +137,20 @@ export function StudioOperatorSessionRow({
     onRename(value.slice(0, ASSISTANT_CONVERSATION_LIMITS.titleMaxLength))
   }
 
+  const editing = draft !== null
+
   return (
     <div
       data-testid="operator-session-row"
       data-session-id={session.id}
-      className="flex items-center gap-1"
+      /* 44px 一行、8px 圆角（画板「静息 / hover」两态）。底色亮起的是**整行**
+         而不是标题那一格 —— 右边两颗图标也属于这一行，⛔ 不让它们各亮各的。
+         ⚠ `focus-within` 那一档是键盘路：Radix 菜单项被高亮时是真的拿到了焦点。 */
+      className={cn(
+        'group/row flex h-11 items-center gap-2 rounded-md pr-1.5 transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-within:bg-accent motion-reduce:transition-none',
+        // 编辑态左边少 2px：输入框自己那条 1px 边把文字往里推了一格。
+        editing ? 'pl-1.75' : 'pl-2.25',
+      )}
       /* 指针离开 / 焦点离开都退回确认态（见头注的三条路）。 */
       onPointerLeave={confirming ? onCancelDelete : undefined}
       onBlur={
@@ -134,30 +162,10 @@ export function StudioOperatorSessionRow({
           : undefined
       }
     >
-      {draft === null ? (
-        <DropdownMenuItem
-          className="min-w-0 flex-1"
-          disabled={selectDisabled}
-          data-testid="operator-session-item"
-          data-session-id={session.id}
-          data-surface={session.surface}
-          data-current={current ? 'true' : 'false'}
-          onSelect={onSelect}
-        >
-          <span className="min-w-0 flex-1">
-            {/* CSS `truncate` 只是兜底 —— 真正的上限在派生函数里。 */}
-            <span className="block truncate">{displayTitle}</span>
-            <span className="mt-0.5 flex items-center gap-2 text-2sm text-muted-foreground">
-              {domainLabel ? <span>{domainLabel}</span> : null}
-              <span className="font-mono tabular-nums">{dateLabel}</span>
-            </span>
-          </span>
-          {current ? <Check className="size-3.5 shrink-0" aria-hidden /> : null}
-        </DropdownMenuItem>
-      ) : (
+      {editing ? (
         /* ⚠ 整格挡住菜单的 typeahead 与 Esc（见头注），⛔ 不是 `DropdownMenuItem`。 */
         <div
-          className="min-w-0 flex-1 px-2 py-1.5"
+          className="flex min-w-0 flex-1 flex-col gap-0.5"
           onKeyDown={(event) => event.stopPropagation()}
         >
           <input
@@ -169,6 +177,9 @@ export function StudioOperatorSessionRow({
             maxLength={ASSISTANT_CONVERSATION_LIMITS.titleMaxLength}
             aria-label={t('history.renameLabel', { title })}
             onChange={(event) => setDraft(event.target.value)}
+            /* 进来就**全选**（画板「改名中」）：用户按铅笔多半是要重写整句，
+               先全选让「直接打字」就等于覆盖。 */
+            onFocus={(event) => event.currentTarget.select()}
             onBlur={commitRename}
             onKeyDown={(event) => {
               if (event.key === 'Enter') event.currentTarget.blur()
@@ -178,59 +189,112 @@ export function StudioOperatorSessionRow({
                 event.currentTarget.blur()
               }
             }}
-            className="h-7 w-full rounded-md border border-border bg-background px-2 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="h-6 w-full rounded-sm border border-foreground bg-background px-1.75 text-2sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
+          {/* 第二行换成这一句操作提示（画板「改名中」）——「工作台 · 日期」在
+              编辑这一刻不回答任何问题。 */}
+          <span
+            data-testid="operator-session-rename-hint"
+            className="truncate pl-0.5 text-3xs text-muted-foreground"
+          >
+            {renaming ? t('history.renaming') : t('history.renameHint')}
+          </span>
         </div>
-      )}
-
-      {draft === null ? (
+      ) : (
         <>
           <DropdownMenuItem
-            className="shrink-0 p-2 text-muted-foreground"
-            data-testid="operator-session-rename"
-            aria-label={t('history.renameLabel', { title })}
-            disabled={renaming || deleting}
-            onSelect={(event) => {
-              // ⛔ 不让菜单跟着关掉：接下来用户要在这一行里打字。
-              event.preventDefault()
-              setDraft(session.title ?? '')
-            }}
+            /* ⚠ 菜单项自己那一层底色**关掉**：亮起来的是整行（见上）。 */
+            className="min-w-0 flex-1 gap-1.5 rounded-sm p-0 focus:bg-transparent"
+            disabled={selectDisabled}
+            data-testid="operator-session-item"
+            data-session-id={session.id}
+            data-surface={session.surface}
+            data-current={current ? 'true' : 'false'}
+            onSelect={onSelect}
           >
-            <Pencil className="size-4" aria-hidden />
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            className={cn(
-              // ⚠ 两态**同一格尺寸** `p-2`：位置跳一下的按钮会让第二下点空。
-              'shrink-0 p-2',
-              confirming
-                ? 'text-status-risk focus:text-status-risk'
-                : 'text-muted-foreground focus:text-destructive',
-            )}
-            data-testid="operator-session-delete"
-            data-confirming={confirming ? 'true' : 'false'}
-            aria-label={
-              confirming
-                ? t('history.deleteConfirmInline', { title })
-                : t('history.deleteLabel', { title })
-            }
-            disabled={deleteDisabled}
-            onSelect={(event) => {
-              // 两段都不关菜单：第一下要留在原地等第二下，第二下之后列表还要刷新。
-              event.preventDefault()
-              if (confirming) onConfirmDelete()
-              else onRequestDelete()
-            }}
-          >
-            {confirming ? (
-              <span className="text-2sm font-medium whitespace-nowrap">
-                {deleting ? t('history.deleting') : t('history.deleteConfirm')}
+            <span className="flex min-w-0 flex-1 flex-col">
+              {/* CSS `truncate` 只是兜底 —— 真正的上限在派生函数里。 */}
+              <span className="block truncate text-2sm leading-snug">
+                {displayTitle}
               </span>
-            ) : (
-              <Trash2 className="size-4" aria-hidden />
-            )}
+              {/* ⚠ 一行两段用 `·` 连起来（画板），⛔ 不再是隔着 `gap-2` 的两栏。
+                  ⚠ 日期单独一个 span 走等宽（`ui-defaults.md §1`：日期是机器串），
+                    ⛔ 不给整行套 `font-mono` —— 「图片工作台」四个字会白付一次噪音。 */}
+              <span className="flex min-w-0 items-center truncate text-2xs leading-snug text-muted-foreground">
+                {domainLabel ? <span>{`${domainLabel} · `}</span> : null}
+                <span className="font-mono tabular-nums">{dateLabel}</span>
+              </span>
+            </span>
+            {current ? (
+              <Check className="size-3.5 shrink-0" aria-hidden />
+            ) : null}
           </DropdownMenuItem>
+
+          {/* ── 两颗图标：默认透明、hover / 聚焦才淡入（画板动效表第 3 行）────
+              ⚠ 整块**常驻占位**：`opacity` 之外一个盒模型属性都不动，所以标题的
+                截断点在两态之间逐像素一致。
+              ⚠ 确认态强制可见：此刻这一行正举着刀，⛔ 不许它随 hover 消失。 */}
+          <span
+            data-testid="operator-session-actions"
+            className={cn(
+              'flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity duration-(--duration-fast) ease-standard group-hover/row:opacity-100 group-focus-within/row:opacity-100 coarse:opacity-100 motion-reduce:transition-none',
+              confirming && 'opacity-100',
+            )}
+          >
+            <DropdownMenuItem
+              className={cn(ROW_ICON_BUTTON_CLASS, 'w-6 text-muted-foreground')}
+              data-testid="operator-session-rename"
+              aria-label={t('history.renameLabel', { title })}
+              disabled={renaming || deleting}
+              onSelect={(event) => {
+                // ⛔ 不让菜单跟着关掉：接下来用户要在这一行里打字。
+                event.preventDefault()
+                setDraft(session.title ?? '')
+              }}
+            >
+              <Pencil className="size-3.5 text-current" aria-hidden />
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className={cn(
+                ROW_ICON_BUTTON_CLASS,
+                confirming
+                  ? 'gap-0 bg-status-risk px-1.5 text-white focus:bg-status-risk focus:text-white'
+                  : 'w-6 text-muted-foreground focus:text-status-risk',
+              )}
+              data-testid="operator-session-delete"
+              data-confirming={confirming ? 'true' : 'false'}
+              aria-label={
+                confirming
+                  ? t('history.deleteConfirmInline', { title })
+                  : t('history.deleteLabel', { title })
+              }
+              disabled={deleteDisabled}
+              onSelect={(event) => {
+                // 两段都不关菜单：第一下要留在原地等第二下，第二下之后列表还要刷新。
+                event.preventDefault()
+                if (confirming) onConfirmDelete()
+                else onRequestDelete()
+              }}
+            >
+              <Trash2 className="size-3.5 shrink-0 text-current" aria-hidden />
+              {/* ⚠ 药丸是**撑出来**的：`width: auto` 过渡不了，所以让这两个字
+                  自己从 `max-w-0` 长到 `max-w-20`，左内距写在里层（被裁掉）。 */}
+              <span
+                className={cn(
+                  'overflow-hidden whitespace-nowrap transition-[max-width] duration-(--duration-fast) ease-standard motion-reduce:transition-none',
+                  confirming ? 'max-w-20' : 'max-w-0',
+                )}
+              >
+                <span className="pl-1 text-2xs font-medium">
+                  {deleting
+                    ? t('history.deleting')
+                    : t('history.deleteConfirm')}
+                </span>
+              </span>
+            </DropdownMenuItem>
+          </span>
         </>
-      ) : null}
+      )}
 
       {/* 确认态说给读屏听的那一句（`forbidden.md`：状态不许只靠颜色）。 */}
       <span

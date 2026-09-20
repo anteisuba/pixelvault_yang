@@ -7249,6 +7249,7 @@
       "deleteBusy": "現在の応答が完了してから、この会話を削除してください。",
       "loadFailed": "会話一覧を読み込めませんでした。一覧を開き直してください。",
       "renameLabel": "{title} の名前を変更",
+      "renameHint": "Enter で保存 · Esc でキャンセル",
       "renaming": "保存中…",
       "renameFailed": "名前を変更できませんでした。再試行してください。",
       "switching": "会話を読み込み中…"

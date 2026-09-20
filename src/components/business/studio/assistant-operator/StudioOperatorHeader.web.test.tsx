@@ -220,6 +220,35 @@ describe('StudioOperatorHeader', () => {
   })
 
   /**
+   * D7c ④ 画板「加载中」那条 ⚠：真机上「读取中…」那行字和已经载出来的会话行
+   * **同时挂着**。骨架必须**替掉**列表，⛔ 不叠在上面。
+   */
+  it('⭐ 加载中 = 三条骨架**替掉**列表，⛔ 不与会话行同时挂着', () => {
+    renderHeader({
+      history: { ...HISTORY, isHydrating: true, sessions: SESSIONS },
+    })
+
+    const skeleton = screen.getByTestId('operator-history-skeleton')
+    expect(skeleton.children).toHaveLength(3)
+    expect(screen.queryAllByTestId('operator-session-item')).toHaveLength(0)
+    // 「新对话」在这一档照常在（画板：底下那颗不跟着消失）。
+    expect(screen.getByTestId('operator-new-thread')).toBeTruthy()
+  })
+
+  /**
+   * D7c ④ 画板「一条都没有」：一句灰字，⛔ 不画插图空态 —— 这是个下拉菜单
+   * 不是一页，底下「新对话」照常在。
+   */
+  it('⭐ 一条都没有 = 一句灰字 + 底下那颗新对话', () => {
+    renderHeader()
+    expect(screen.getByTestId('operator-history-empty').textContent).toBe(
+      'history.empty',
+    )
+    expect(screen.queryByTestId('operator-history-skeleton')).toBeNull()
+    expect(screen.getByTestId('operator-new-thread')).toBeTruthy()
+  })
+
+  /**
    * owner 2026-09-20 真机第 3 条：删除是**原位两段**，⛔ 不再弹 `AlertDialog`。
    * 这一条只钉头部这一侧的那一格 —— 同一列表**同时只有一行**能举着刀。
    * 行内的两个状态机在 `StudioOperatorSessionRow.web.test.tsx` 里逐条验。

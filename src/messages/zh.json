@@ -7249,6 +7249,7 @@
       "deleteBusy": "请等待当前回复结束后再删除这段对话。",
       "loadFailed": "对话列表加载失败，请重新打开列表重试。",
       "renameLabel": "重命名 {title}",
+      "renameHint": "Enter 保存 · Esc 取消",
       "renaming": "保存中…",
       "renameFailed": "修改失败，请重试。",
       "switching": "正在加载对话…"

@@ -7243,7 +7243,7 @@
       "earlierRounds": "それ以前の {count} 件",
       "deleteLabel": "会話を削除：{title}",
       "deleteConfirmInline": "もう一度押すと「{title}」を完全に削除します",
-      "deleteConfirm": "削除を確定",
+      "deleteConfirm": "確認",
       "deleting": "削除中…",
       "deleteFailed": "削除できませんでした。もう一度お試しください。",
       "deleteBusy": "現在の応答が完了してから、この会話を削除してください。",

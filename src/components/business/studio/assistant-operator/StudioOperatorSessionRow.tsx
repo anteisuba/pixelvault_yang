@@ -220,7 +220,9 @@ export function StudioOperatorSessionRow({
               {/* ⚠ 一行两段用 `·` 连起来（画板），⛔ 不再是隔着 `gap-2` 的两栏。
                   ⚠ 日期单独一个 span 走等宽（`ui-defaults.md §1`：日期是机器串），
                     ⛔ 不给整行套 `font-mono` —— 「图片工作台」四个字会白付一次噪音。 */}
-              <span className="flex min-w-0 items-center truncate text-2xs leading-snug text-muted-foreground">
+              {/* ⚠ `block` 不是 `flex`：flex 会把每个 span 的首尾空白**裁掉**，
+                  表现是「图片工作台 ·09/10」—— 点号后面那一格空格没了。 */}
+              <span className="block truncate text-2xs leading-snug text-muted-foreground">
                 {domainLabel ? <span>{`${domainLabel} · `}</span> : null}
                 <span className="font-mono tabular-nums">{dateLabel}</span>
               </span>

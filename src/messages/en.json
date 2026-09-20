@@ -7243,7 +7243,7 @@
       "earlierRounds": "{count} earlier entries",
       "deleteLabel": "Delete conversation: {title}",
       "deleteConfirmInline": "Click delete again to remove “{title}” for good",
-      "deleteConfirm": "Confirm delete",
+      "deleteConfirm": "Confirm",
       "deleting": "Deleting…",
       "deleteFailed": "Could not delete the conversation. Try again.",
       "deleteBusy": "Wait for the current response to finish before deleting this conversation.",

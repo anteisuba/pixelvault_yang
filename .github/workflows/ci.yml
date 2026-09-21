@@ -79,6 +79,10 @@ jobs:
           cache: npm
           cache-dependency-path: workers/execution/package-lock.json
 
+      - name: Install shared source dependencies
+        working-directory: .
+        run: npm ci --ignore-scripts
+
       - name: Install Worker dependencies
         run: npm ci
 
@@ -220,6 +224,10 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: workers/execution/package-lock.json
+
+      - name: Install shared source dependencies
+        working-directory: .
+        run: npm ci --ignore-scripts
 
       - name: Install Worker dependencies
         run: npm ci

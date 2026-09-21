@@ -137,6 +137,7 @@ export interface ModelPickerPopoverProps {
   emptySearchText?: string
   disabled?: boolean
   className?: string
+  contentClassName?: string
   side?: 'top' | 'bottom'
   align?: 'start' | 'center' | 'end'
   /**
@@ -197,6 +198,7 @@ export function ModelPickerPopover({
   emptySearchText,
   disabled,
   className,
+  contentClassName,
   side = 'top',
   align = 'end',
   inline = false,
@@ -871,7 +873,7 @@ export function ModelPickerPopover({
           side={side}
           align={align}
           label={triggerEmptyLabel ?? tCommon('selectModel')}
-          className="w-model-picker p-0"
+          className={cn(contentClassName ?? 'w-model-picker', 'p-0')}
           mobileClassName="px-0"
         >
           {body}

@@ -978,6 +978,8 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               }
               searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
               emptySearchText={tForm('modelSelector.emptySearch')}
+              popoverAlign="start"
+              contentClassName="w-80"
               className="w-full justify-start border-dashed"
             />
           </div>

@@ -42,6 +42,8 @@ interface CommonProps {
   searchPlaceholder?: string
   emptySearchText?: string
   popoverSide?: 'top' | 'bottom'
+  popoverAlign?: ModelPickerPopoverProps['align']
+  contentClassName?: string
   className?: string
   disabled?: boolean
   /**
@@ -122,6 +124,7 @@ function toPickerProps(
   const {
     filterOption,
     popoverSide,
+    popoverAlign,
     memoryScope: memoryScopeOverride,
     ...rest
   } = props
@@ -131,6 +134,7 @@ function toPickerProps(
     options,
     memoryScope: memoryScopeOverride ?? memoryScope,
     ...(popoverSide ? { side: popoverSide } : {}),
+    ...(popoverAlign ? { align: popoverAlign } : {}),
   }
 }
 

@@ -4,26 +4,23 @@
 > 讨论过程、方案对比、施工步骤一律不进来——那些从 git 历史取。
 > 上游关系：LoRA 侧的产品约束见 `domains/lora.md`；provider 名册见 `references/providers.md`。
 
-⚠ **本页记的是 2026-07-18 的审计快照，动手前必须现查一遍**（端点和 Volume 都改过一次：
-07-10 建的 40GB Volume 与 `01g8rrmixe4hah` 端点都已不是现状）。核对手段见文末。
+基础设施标识于 2026-09-21 通过 RunPod CLI 回读；下方注明日期的历史 Volume 清单与性能记录不代表当前库存或价格。
 
 ---
 
 ## 1. 基础设施标识
 
-| 项              | 值                                                                                                                               | 备注                                                            |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
-| Network Volume  | id `rk3t3mb1ko` · **80GB** · US-CA-2                                                                                             | 07-10 首建 40GB，后扩到 80GB。RunPod 支持在线扩容、**不能缩**   |
-| Serverless 端点 | **`p4qb5294ma1qzi`**（`pixelvault-runner-v2`）                                                                                   | ⛔ 旧端点 `01g8rrmixe4hah`（`pixelvault-runner`）**已退役删除** |
-| Template        | `it11vb8960` = `runpod/worker-comfyui:5.8.6-base`                                                                                | —                                                               |
-| GPU             | RTX 4090 24GB 主 · A5000 24GB 备                                                                                                 | SDXL 推理 16GB 就够，选 4090 是为冷启动更短                     |
-| 端点参数        | Active 0 / Max 2 / Idle 5s / Execution Timeout 120s / Flash Boot 开 / GPU 24 GB + 24 GB Pro（2026-09-17 控制台核对，去掉 16 GB） | 单端点服务全部 checkpoint，不按家族拆端点                       |
-| API key 存放    | 本机注册表 `HKCU:\Environment\RUNPOD_KEY`；Worker 侧 `wrangler secret`（`pixelvault-execution`）；Vercel 服务端 env `RUNPOD_KEY` | ⛔ 值不进任何文档                                               |
-| 端点注册表      | 本机 `RUNPOD_ENDPOINT`                                                                                                           | 换端点时必须同步，否则请求打到已删的旧端点                      |
+| 项              | 当前生产值                                                                     | 核验范围                                                                                       |
+| --------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
+| Network Volume  | `ivchraoqjv` · `pixelvault-models-eu-ro-1` · 80 GB · EU-RO-1                   | 2026-09-21 API 回读；本轮未扫描文件                                                            |
+| Serverless 端点 | `dt0wyuid7lywic` · `pixelvault-runner-eu-ro-1`                                 | Execution Worker 的 `RUNPOD_ENDPOINT` 同值                                                     |
+| Template        | `pmh4gs9eht`                                                                   | 镜像 `ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-92ef778b5d6bab2cf1981b2eecb8311a92460a12` |
+| 端点参数        | Min 0 / Max 2 / Idle 60s / Execution Timeout 600000ms / FlashBoot 开           | 单 Worker 一张 GPU，QUEUE_DELAY 4                                                              |
+| GPU 型号        | 本轮 CLI 响应未包含具体型号                                                    | 不把旧文档的 GPU 档位当成实查结果                                                              |
+| API 凭证        | Execution Worker 的 `RUNPOD_KEY`；本机 RunPod CLI 使用 `~/.runpod/config.toml` | 不记录值；本轮本机凭证可读，创建模板返回 403                                                   |
+| 端点配置真值    | `workers/execution/wrangler.jsonc`                                             | 本机环境变量可能过时，不用它判断生产端点                                                       |
 
-**成本**：4090 Community $0.34/hr 按秒计费 → 约 **$0.002–0.006/图**（含冷启动，保守估）；
-Volume $0.07/GB/月。**冷启动**从 Volume 载 6.9GB checkpoint 约 **15–40s** —— 这是要靠体验
-设计消化的点，不是成本问题。
+2026-09-21 Qwen 评估部署未改动上述生产端点。当前价格与显存／耗时须实测，旧的每图费用估算不再作为现行依据。
 
 ---
 
@@ -35,6 +32,16 @@ Volume $0.07/GB/月。**冷启动**从 Volume 载 6.9GB checkpoint 约 **15–40
   `output.images[].data`。checkpoint / LoRA 在 workflow JSON 里按文件名引用。
 - ⛔ **stock worker 不支持「运行时按 URL 动态下载模型」**（RunPod configuration.md 查证）。
   所以模型必须**预置进 Volume**；想"大量复刻任意 Civitai 模型"就得换自建镜像，不是配置能解决的。
+
+### Qwen-Image-2.1 内部评估（2026-09-21）
+
+- owner 仅授权非商业研究／评估。没有新增公开模型条目，也没有将生产 Execution Worker 切到评估通道。
+- Runner 源码将 ComfyUI 固定到 v0.37.0（`73c9bad4d21e7addbe1d13bc92eee0f1431b017d`）；评估 target `qwen-evaluation` 预置 INT8 diffusion、INT8 Qwen3-VL 8B、BF16 专用 VAE，固定 HF revision 并校验 SHA-256 与文件长度。
+- `workers/runner-comfyui-fork/qwen_workflow.py` 生成 API 工作流：文生图用 `TextEncodeQwenImage21` + Euler/simple；编辑通过同节点接入图片与 VAE 参考条件，最多 10 张，latent 随首图缩放尺寸。不是 SDXL 低 denoise 图生图。
+- 基础镜像构建已通过 CPU 启动检查，实际 PyTorch 为 `2.12.0+cu130`；GPU 部署需选择 CUDA 13.0 驱动兼容机器。CPU 启动不能替代显存和真实出图验收。
+- GPU 部署状态与未决权限见 `docs/status.md`；镜像构建成功不能当作 RunPod 端点已部署。
+
+核验来源：[官方模型仓](https://github.com/QwenLM/Qwen-Image-2.1)、[ComfyUI v0.37.0](https://github.com/Comfy-Org/ComfyUI/releases/tag/v0.37.0)、[官方工作流](https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_image_edit.json)、[研究许可证](https://github.com/QwenLM/Qwen-Image-2.1/blob/main/LICENSE)。
 
 ---
 

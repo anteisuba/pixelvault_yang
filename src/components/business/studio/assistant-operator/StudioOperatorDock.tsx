@@ -490,7 +490,7 @@ export function StudioOperatorDock() {
     setPreviousReferences({ domain: hostDomain, images: referenceImages })
     if (previousReferences.domain !== hostDomain) {
       setDraft((current) => removeReferenceMentions(current))
-    } else if (referenceImages.length < previousReferences.images.length) {
+    } else {
       const removed = previousReferences.images
         .flatMap((entry, index) =>
           referenceImages.some((current) => current.url === entry.url)

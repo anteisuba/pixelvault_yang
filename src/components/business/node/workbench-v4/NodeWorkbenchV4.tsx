@@ -988,6 +988,7 @@ function NodeWorkbenchV4Inner() {
    * 三份宿主实现的差别正好只有域 / 快照 / 落笔的手，见那个 hook 的头注。
    */
   const operatorHost = useCanvasOperatorHost({
+    projectId: store.currentProject.id,
     nodes: graph.nodes,
     edges: graph.edges,
     selectedNodeIds: graph.selectedNodeIds,

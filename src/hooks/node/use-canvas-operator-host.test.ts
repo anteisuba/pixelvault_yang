@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react'
+import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 // 这条用例验的是宿主契约的那几格，⛔ 不验文案 —— 词表由 i18n 完整性用例守着。
@@ -19,6 +19,7 @@ import {
   STUDIO_OPERATOR_SHELL,
 } from '@/constants/studio-assistant-operator'
 import { useCanvasOperatorHost } from '@/hooks/node/use-canvas-operator-host'
+import type { NodeV4 } from '@/types/node-workflow'
 
 /**
  * ⭐ 守的是「画布整体豁免注意力收放法则」（2026-09-19 owner 拍板）。
@@ -35,6 +36,7 @@ describe('useCanvasOperatorHost', () => {
         nodes: [],
         edges: [],
         selectedNodeIds: [],
+        projectId: 'project-a',
         projectName: '借伞',
         applyOp: vi.fn(() => true),
         undo: vi.fn(),
@@ -58,6 +60,7 @@ describe('useCanvasOperatorHost', () => {
         nodes: [],
         edges: [],
         selectedNodeIds: [],
+        projectId: 'project-a',
         projectName: '借伞',
         applyOp: vi.fn(() => true),
         undo: vi.fn(),
@@ -98,6 +101,7 @@ describe('useCanvasOperatorHost 的 face（D7b ③）', () => {
           nodes: [],
           edges: [],
           selectedNodeIds: ids,
+          projectId: 'project-a',
           projectName: name,
           applyOp: vi.fn(() => true),
           undo: vi.fn(),
@@ -132,5 +136,122 @@ describe('useCanvasOperatorHost 的 face（D7b ③）', () => {
     )
     expect(result.current.face.emptyLine).toBe('face.canvas.empty')
     expect(result.current.face.inputPlaceholder).toBe('face.canvas.placeholder')
+  })
+})
+
+describe('canvas assistant image references', () => {
+  const image = (id: string, url?: string): NodeV4 =>
+    ({
+      id,
+      position: { x: 0, y: 0 },
+      data: {
+        kind: 'image',
+        subtype: 'shot',
+        name: id,
+        status: 'idle',
+        createdAt: '2026-09-21T00:00:00.000Z',
+        ...(url ? { url } : {}),
+      },
+    }) as NodeV4
+  function setup(nodes: readonly NodeV4[] = []) {
+    const applyOp = vi.fn(() => true)
+    const hook = renderHook(
+      ({ nodes, projectId }) =>
+        useCanvasOperatorHost({
+          nodes,
+          projectId,
+          projectName: 'same name',
+          edges: [],
+          selectedNodeIds: [],
+          applyOp,
+          undo: vi.fn(),
+          canUndo: false,
+          generateNodes: vi.fn(),
+          open: true,
+          setOpen: vi.fn(),
+        }),
+      { initialProps: { nodes, projectId: 'project-a' } },
+    )
+    return { ...hook, applyOp }
+  }
+
+  it('exposes existing canvas images without requiring node selection', () => {
+    const { result } = setup([
+      image('one', 'https://example.com/one.png'),
+      image('empty'),
+      image('duplicate', 'https://example.com/one.png'),
+    ])
+    expect(result.current.referenceImages).toEqual([
+      { url: 'https://example.com/one.png' },
+    ])
+    expect(result.current.referenceLimit).toBeGreaterThan(0)
+  })
+
+  it('retains library/upload references, deduplicates them, and removes them without editing the graph', () => {
+    const { result, applyOp } = setup()
+    act(() => {
+      result.current.apply.addReference('https://example.com/library.png')
+      result.current.apply.addReference('https://example.com/library.png')
+    })
+    expect(result.current.referenceImages).toEqual([
+      { url: 'https://example.com/library.png' },
+    ])
+    act(() =>
+      result.current.apply.removeReference('https://example.com/library.png'),
+    )
+    expect(result.current.referenceImages).toEqual([])
+    expect(applyOp).not.toHaveBeenCalled()
+  })
+
+  it('removing an assistant reference does not delete its canvas node', () => {
+    const nodes = [image('one', 'https://example.com/one.png')]
+    const { result, rerender, applyOp } = setup(nodes)
+    act(() =>
+      result.current.apply.removeReference('https://example.com/one.png'),
+    )
+    rerender({ nodes: [...nodes], projectId: 'project-a' })
+    expect(result.current.referenceImages).toEqual([])
+    expect(applyOp).not.toHaveBeenCalled()
+    act(() => result.current.apply.addReference('https://example.com/one.png'))
+    expect(result.current.referenceImages).toEqual([
+      { url: 'https://example.com/one.png' },
+    ])
+  })
+
+  it('clears local reference changes when switching projects with the same name', () => {
+    const { result, rerender } = setup()
+    act(() =>
+      result.current.apply.addReference('https://example.com/library.png'),
+    )
+    rerender({
+      nodes: [image('two', 'https://example.com/two.png')],
+      projectId: 'project-b',
+    })
+    expect(result.current.referenceImages).toEqual([
+      { url: 'https://example.com/two.png' },
+    ])
+  })
+
+  it('keeps existing reference numbers when nodes are added or reordered', () => {
+    const one = image('one', 'https://example.com/one.png')
+    const two = image('two', 'https://example.com/two.png')
+    const { result, rerender } = setup([one])
+    act(() =>
+      result.current.apply.addReference('https://example.com/library.png'),
+    )
+    rerender({ nodes: [two, one], projectId: 'project-a' })
+    expect(result.current.referenceImages.map((entry) => entry.url)).toEqual([
+      'https://example.com/one.png',
+      'https://example.com/library.png',
+      'https://example.com/two.png',
+    ])
+  })
+
+  it('updates references when a canvas output disappears', () => {
+    const { result, rerender } = setup([
+      image('one', 'https://example.com/one.png'),
+    ])
+    rerender({ nodes: [], projectId: 'project-a' })
+    expect(result.current.referenceImages).toEqual([])
   })
 })

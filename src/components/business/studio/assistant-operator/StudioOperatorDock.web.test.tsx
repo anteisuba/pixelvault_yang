@@ -191,6 +191,18 @@ describe('StudioOperatorDock', () => {
     expect(panelProps.draft).toBe('参考')
   })
 
+  it('clears a removed image mention even when a replacement keeps the reference count unchanged', () => {
+    render(<StudioOperatorDock />)
+    act(() => references.addReferenceImage('https://cdn.test/old.png'))
+    act(() => panelProps.onDraftChange('参考@Image1'))
+    act(() => {
+      references.removeReferenceImage(0)
+      references.addReferenceImage('https://cdn.test/new.png')
+    })
+    expect(references.referenceImages).toEqual(['https://cdn.test/new.png'])
+    expect(panelProps.draft).toBe('参考')
+  })
+
   it('library selections and dragged mention images enter the shared references without duplicates', () => {
     render(<StudioOperatorDock />)
     const image: StudioOperatorAttachment = {

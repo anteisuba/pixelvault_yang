@@ -9,13 +9,8 @@
  * 这一份读写 **v4 图引擎**（`useNodeGraphV4`）。三份的差别正好就是契约里那三样
  * （域 / 快照 / 落笔的手），别的一律没动。
  *
- * ── ⛔ 为什么表单那几只手在这里是空的 ───────────────────────────────
- * 契约里的 `dispatch` / `addReference` / `setSound` / `mountUserUrl` 等等动的是
- * **一张工作台表单**，而画布上没有那张表单（提示词、模型、参考图各自住在某个
- * 节点身上）。域工具表已经把那几条工具锁在 image / video / lora 三个域里，所以
- * 它们在画布上**运行时到不了** —— 这里的空实现是类型层的诚实，不是运行时兜底。
- * ⚠ 真要让它们变成「点了没反应」，得先有人把 `set_prompt` 加进 canvas 域的工具
- * 表 —— 而那一步在 `constants/assistant-operator.ts` 里有一整段头注挡着。
+ * 参考图属于当前项目的助手上下文：画布图片与用户添加的图片共同组成列表。
+ * 添加或移除助手参考图不修改画布节点；生成表单的其它写入口仍由域工具表隔离。
  *
  * ── 撤销为什么是「撤到这一步为止」而不是「只撤这一步」 ────────────────
  * 画布的撤销栈是**线性**的（`useNodeGraphV4` 的 `undo()`）。一条线建好之后用户
@@ -24,10 +19,11 @@
  * ⛔ 不另起一套「只撤中间那一格」的画布撤销（那需要第二份图历史）。
  */
 
-import { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import {
   STUDIO_OPERATOR_SHELL,
@@ -67,9 +63,9 @@ const CANVAS_ANCHOR: StudioOperatorShellAnchor = {
 
 /** ⚠ 常量化：空数组字面量每次 render 换引用，会把下面那个 `useMemo` 打穿。 */
 const NO_RESULTS: readonly StudioOperatorResultItem[] = []
-const NO_REFERENCES: readonly { url: string }[] = []
 
 export interface UseCanvasOperatorHostInput {
+  readonly projectId: string
   /** ⚠ 现读：事件循环跨很多次 render，第 5 步用的必须是此刻这张图。 */
   readonly nodes: readonly NodeV4[]
   readonly edges: readonly NodeWorkflowEdgeV4[]
@@ -90,6 +86,7 @@ export interface UseCanvasOperatorHostInput {
 }
 
 export function useCanvasOperatorHost({
+  projectId,
   nodes,
   edges,
   selectedNodeIds,
@@ -102,6 +99,63 @@ export function useCanvasOperatorHost({
   open,
   setOpen,
 }: UseCanvasOperatorHostInput): StudioOperatorHost {
+  const [referenceState, setReferenceState] = useState({
+    projectId,
+    order: [] as string[],
+    added: [] as string[],
+    removed: [] as string[],
+  })
+  if (referenceState.projectId !== projectId) {
+    setReferenceState({ projectId, order: [], added: [], removed: [] })
+  }
+  const referenceImages = useMemo(() => {
+    const urls = nodes.flatMap((node) =>
+      node.data.kind === NODE_MEDIA_KIND_IDS.image && node.data.url
+        ? [node.data.url]
+        : [],
+    )
+    const available = new Set(
+      [...urls, ...referenceState.added].filter(
+        (url) => !referenceState.removed.includes(url),
+      ),
+    )
+    const ordered = referenceState.order.filter((url) => available.has(url))
+    for (const url of available) {
+      if (!ordered.includes(url)) ordered.push(url)
+    }
+    return ordered.map((url) => ({ url }))
+  }, [nodes, referenceState])
+  if (
+    referenceState.projectId === projectId &&
+    (referenceImages.length !== referenceState.order.length ||
+      referenceImages.some(
+        (entry, index) => entry.url !== referenceState.order[index],
+      ))
+  ) {
+    setReferenceState({
+      ...referenceState,
+      order: referenceImages.map((entry) => entry.url),
+    })
+  }
+  const addReference = useCallback((url: string) => {
+    setReferenceState((current) => ({
+      ...current,
+      added: current.added.includes(url)
+        ? current.added
+        : [...current.added, url],
+      removed: current.removed.filter((entry) => entry !== url),
+    }))
+  }, [])
+  const removeReference = useCallback((url: string) => {
+    setReferenceState((current) => ({
+      ...current,
+      added: current.added.filter((entry) => entry !== url),
+      removed: current.removed.includes(url)
+        ? current.removed
+        : [...current.removed, url],
+    }))
+  }, [])
+
   /**
    * 现读用的 ref —— ⚠ 与工作台那份 `getState()` 同一条纪律：`buildSnapshot` 每次
    * 调用都要读**此刻**这张图，而不是发消息那一刻 render 里捕获的那一份。
@@ -237,8 +291,8 @@ export function useCanvasOperatorHost({
       getState: () => ({ prompt: '', advancedParams: {} }),
       dispatch: noForm,
       resolveOptionId: () => null,
-      addReference: noForm,
-      removeReference: noForm,
+      addReference,
+      removeReference,
       addAudioReference: noForm,
       removeAudioReference: noForm,
       setSound: noForm,
@@ -252,7 +306,14 @@ export function useCanvasOperatorHost({
         planRerunDownstream: canvasPlanRerun,
       },
     }
-  }, [canvasApply, canvasRevert, canvasGenerate, canvasPlanRerun])
+  }, [
+    addReference,
+    removeReference,
+    canvasApply,
+    canvasRevert,
+    canvasGenerate,
+    canvasPlanRerun,
+  ])
 
   /**
    * **画布那张脸的那一句**（D7b ③）——「{项目名} · 选中 {n} 个节点」。
@@ -284,8 +345,8 @@ export function useCanvasOperatorHost({
        * 用户回头找它的地方。⛔ 不在面板里造一份第二处结果列。
        */
       results: NO_RESULTS,
-      referenceImages: NO_REFERENCES,
-      referenceLimit: 0,
+      referenceImages,
+      referenceLimit: Infinity,
       open,
       setOpen,
       /**
@@ -301,6 +362,6 @@ export function useCanvasOperatorHost({
       collapseOnOutsidePointer: false,
       anchor: CANVAS_ANCHOR,
     }),
-    [apply, buildSnapshot, face, open, setOpen],
+    [apply, buildSnapshot, face, referenceImages, open, setOpen],
   )
 }

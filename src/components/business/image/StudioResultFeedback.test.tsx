@@ -1,4 +1,5 @@
 import { fireEvent, render, screen } from '@testing-library/react'
+import { StrictMode, useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
 import { StudioResultFeedback } from './StudioResultFeedback'
@@ -20,6 +21,53 @@ const MOCK_EVALUATION: GenerationEvaluation = {
 }
 
 describe('StudioResultFeedback', () => {
+  it('notifies the parent once per click without updating it during render', () => {
+    const onFeedback = vi.fn()
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+    function Parent() {
+      const [tags, setTags] = useState<string[]>([])
+      return (
+        <>
+          <output>{tags.join(',')}</output>
+          <StudioResultFeedback
+            generationId="gen-1"
+            evaluation={null}
+            onFeedback={(next) => {
+              onFeedback(next)
+              setTags(next)
+            }}
+          />
+        </>
+      )
+    }
+    try {
+      render(
+        <StrictMode>
+          <Parent />
+        </StrictMode>,
+      )
+      for (const label of [
+        'subjectMismatch',
+        'styleMismatch',
+        'satisfied',
+        'satisfied',
+      ]) {
+        fireEvent.click(
+          screen.getByRole('button', { name: label, exact: true }),
+        )
+      }
+      expect(onFeedback.mock.calls).toEqual([
+        [['subject_mismatch']],
+        [['subject_mismatch', 'style_mismatch']],
+        [['satisfied']],
+        [[]],
+      ])
+      expect(screen.getByRole('status')).toBeEmptyDOMElement()
+      expect(consoleError).not.toHaveBeenCalled()
+    } finally {
+      consoleError.mockRestore()
+    }
+  })
   it('renders feedback chips', () => {
     render(
       <StudioResultFeedback

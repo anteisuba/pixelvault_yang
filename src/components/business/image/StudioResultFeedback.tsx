@@ -68,15 +68,13 @@ export function StudioResultFeedback({
 
   const handleToggle = useCallback(
     (tag: FeedbackTag) => {
-      setSelection((current) => {
-        const currentTags =
-          current.generationId === generationId ? current.tags : []
-        const next = getNextTags(currentTags, tag)
-        onFeedback(next)
-        return { generationId, tags: next }
-      })
+      const currentTags =
+        selection.generationId === generationId ? selection.tags : []
+      const next = getNextTags(currentTags, tag)
+      setSelection({ generationId, tags: next })
+      onFeedback(next)
     },
-    [generationId, onFeedback],
+    [generationId, onFeedback, selection],
   )
 
   return (

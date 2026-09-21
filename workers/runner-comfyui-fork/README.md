@@ -104,6 +104,32 @@ Cloudflare Worker 完全不碰图片字节，和几百 MB 的 LoRA 走同一条�
 
 # 部署
 
+## Qwen-Image-2.1 内部评估镜像（2026-09-21）
+
+Dockerfile 在 5.8.6 handler 基础上将 ComfyUI 固定到 v0.37.0 的
+`73c9bad4d21e7addbe1d13bc92eee0f1431b017d`，同步运行环境依赖，并在构建中做 CPU 启动检查。
+默认 `final` target 不带 Qwen 权重；显式构建 `qwen-evaluation` target 才包含
+INT8 diffusion model、INT8 Qwen3-VL 8B 编码器及专用 BF16 VAE（合计约 17.3 GB）。
+三份权重固定 Hugging Face revision，并逐文件检查大小和 SHA-256；镜像保留研究许可证。
+
+`qwen_workflow.py` 生成 RunPod API 请求体。文生图默认 1024²、25 步、CFG 1、Euler/simple、
+固定 seed；编辑最多 10 张参考图，使用 `TextEncodeQwenImage21` 的参考条件与首图尺寸 latent。
+编辑时输出尺寸跟随经 1024 像素预算缩放的首图，`--width/--height` 仅影响文生图。
+参考图须通过现有 `images_to_fetch` 或官方 `images` 上传，名称与 `--reference` 一致。
+
+```bash
+python qwen_workflow.py --prompt '一个写着千问的白色陶瓷杯' > request.json
+python qwen_workflow.py --prompt '把 <image1> 的杯子改成蓝色，保留文字和构图' --reference reference.png > edit-request.json
+```
+
+本轮 owner 仅授权内部研究／评估：使用独立端点、最少 0／最多 1 Worker，不注册到公开模型列表。
+镜像构建不代表 GPU 验收或部署成功，实际部署与验证状态见 `docs/status.md`。
+
+官方依据：[ComfyUI v0.37.0](https://github.com/Comfy-Org/ComfyUI/releases/tag/v0.37.0)、
+[文生图模板](https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_t2i.json)、
+[编辑模板](https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_image_edit.json)、
+[研究许可证](https://github.com/QwenLM/Qwen-Image-2.1/blob/main/LICENSE)。
+
 ## 现状（镜像于 2026-09-13 经 RunPod / GitHub API 回读）
 
 | 项             | 值                                                                                                        |

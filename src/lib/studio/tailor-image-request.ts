@@ -64,6 +64,24 @@ export function tailorImageRequestToModel<T extends TailorableImageRequest>(
     )
     if (pruned) advancedParams = pruned
 
+    const sourceLayout = advancedParams.novelAiLayout
+    if (sourceLayout) {
+      const characters = sourceLayout.characters
+        .filter(
+          (character) => character.enabled !== false && character.prompt.trim(),
+        )
+        .map((character) => {
+          const value = { ...character }
+          delete value.enabled
+          return value
+        })
+      advancedParams = {
+        ...advancedParams,
+        novelAiLayout: characters.length
+          ? { ...sourceLayout, characters }
+          : undefined,
+      }
+    }
     const layout = advancedParams.novelAiLayout
     if (layout && request.modelId) {
       if (!supportsNovelAiCharacters(request.modelId)) {

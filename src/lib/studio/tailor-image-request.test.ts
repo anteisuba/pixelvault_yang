@@ -219,3 +219,39 @@ it('removing the reference image also removes precise-reference request options'
   expect(out.advancedParams).toEqual({ seed: 42 })
   expect(advancedParams.novelAiReferenceMode).toBe('precise')
 })
+
+it('removes disabled and blank characters before applying the model limit without mutating the draft', () => {
+  const layout = {
+    ...LAYOUT,
+    characters: [
+      { ...LAYOUT.characters[0], enabled: false },
+      { ...LAYOUT.characters[0], prompt: '' },
+      ...LAYOUT.characters,
+    ],
+  }
+  const out = tailorImageRequestToModel(
+    {
+      modelId: AI_MODELS.NOVELAI_V45_FULL,
+      advancedParams: { novelAiLayout: layout },
+    },
+    'tags',
+  )
+  expect(out.advancedParams?.novelAiLayout?.characters).toHaveLength(6)
+  expect(out.advancedParams?.novelAiLayout?.characters[0].prompt).not.toContain(
+    ':1.2',
+  )
+  expect(out.advancedParams?.novelAiLayout?.characters[0]).not.toHaveProperty(
+    'enabled',
+  )
+  expect(layout.characters[0]).toMatchObject({ enabled: false })
+  const empty = tailorImageRequestToModel(
+    {
+      modelId: AI_MODELS.NOVELAI_V45_FULL,
+      advancedParams: {
+        novelAiLayout: { ...layout, characters: layout.characters.slice(0, 2) },
+      },
+    },
+    'tags',
+  )
+  expect(empty.advancedParams?.novelAiLayout).toBeUndefined()
+})

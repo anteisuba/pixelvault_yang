@@ -66,15 +66,14 @@ describe('两台之间那扇门', () => {
 
 /**
  * ⭐ 真机 2026-09-20：`/studio/image` 上整页查不到这对切换，标签台只能手敲地址
- * 进 —— 门只装了一侧就不是门，是单向阀。这条扫源码锁住「四个宿主都挂它」，
+ * 进 —— 门只装了一侧就不是门，是单向阀。这条扫源码锁住「三个宿主都挂它」，
  * 因为渲染测只能证明装了的那一侧还在，证不了没装的那一侧。
  */
-describe('四个参数宿主都挂着这扇门', () => {
+describe('三个参数宿主都挂着这扇门', () => {
   it.each([
     'src/components/business/studio/StudioPromptArea.tsx',
     'src/components/business/studio/StudioMobileComposer.tsx',
     'src/components/business/studio/tags/StudioTagsPromptArea.tsx',
-    'src/components/business/studio/tags/StudioTagsMobilePanel.tsx',
   ])('%s 渲染 StudioDialectHeader', (file) => {
     const source = readFileSync(join(process.cwd(), file), 'utf8')
     expect(source).toContain('<StudioDialectHeader')

@@ -91,3 +91,33 @@ describe('Studio image draft', () => {
     ).toEqual(saved)
   })
 })
+
+it('restores editable prompt blocks without losing disabled content', () => {
+  const draft = {
+    ...saved,
+    promptBlocks: [{ id: 'style', name: 'Ink', text: 'ink', enabled: false }],
+  }
+  sessionStorage.setItem('pv:studio-image-draft:user-a', JSON.stringify(draft))
+  const view = renderHook(() => useHarness())
+  expect(view.result.current.draft.promptBlocks).toEqual(draft.promptBlocks)
+})
+
+it('keeps incomplete characters in the draft without making them valid generation input', () => {
+  const draft = {
+    ...saved,
+    novelAiLayout: {
+      positioning: 'auto' as const,
+      characters: [
+        {
+          prompt: '',
+          negativePrompt: 'blur',
+          enabled: false,
+          position: { x: 0.5, y: 0.5 },
+        },
+      ],
+    },
+  }
+  sessionStorage.setItem('pv:studio-image-draft:user-a', JSON.stringify(draft))
+  const view = renderHook(() => useHarness())
+  expect(view.result.current.draft.novelAiLayout).toEqual(draft.novelAiLayout)
+})

@@ -27,3 +27,11 @@ export const TagChipSchema = z
 export type TagChip = z.infer<typeof TagChipSchema>
 
 export const TagChipListSchema = z.array(TagChipSchema)
+
+export const TagPromptBlockSchema = z.object({
+  id: z.string(),
+  name: z.string().max(100),
+  text: z.string(),
+  enabled: z.boolean(),
+})
+export type TagPromptBlock = z.infer<typeof TagPromptBlockSchema>

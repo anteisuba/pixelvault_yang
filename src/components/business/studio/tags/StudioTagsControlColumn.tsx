@@ -2,6 +2,9 @@
 
 import { useMemo, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
+import { getCapabilityConfig } from '@/constants/provider-capabilities'
+import { Input } from '@/components/ui/input'
+import { AdvancedParamsSchema } from '@/types'
 
 import { NovelAiCharacterComposer } from '@/components/business/studio/tags/NovelAiCharacterComposer'
 import { StudioTagCapabilityControl } from '@/components/business/studio/tags/StudioTagCapabilityControl'
@@ -27,20 +30,7 @@ import type { AdvancedParams } from '@/types'
 import type { StudioModelOption } from '@/types/model-option'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 
-/**
- * 标签台的**右列常驻控件**（D10 ④，画板宽度 272），自上而下：
- * 角色构图 · 质量标签 · 采样器 / 步数 · 分辩率 / 额度 · 参考图用法。
- *
- * ⚠ 控件名单仍从 `provider-capabilities` 派生（进度表 11 的结论），只是排版
- * 从「一行 chip」换成常驻卡片 —— ⛔ 这里没有第二份能力表，也没有模型名分支。
- * UC 预设与 `Text:` 归编辑器主区（画板把它们画在正负两栏底下），所以这一列
- * 把那两条让出去。
- *
- * 多选交集态（② Q3）：每张卡自己报「这一档只对谁生效」并保持可改；
- * 真正的裁剪发生在发请求那一跳（`tailorImageRequestToModel`）。
- */
-
-/** 归编辑器主区的那两条，右列不重复画。 */
+/** 模型能力派生的参数；部分模型支持的控件保持可改，提交时按模型裁剪。 */
 const EDITOR_OWNED: readonly string[] = ['ucPreset', 'textRendering']
 
 /**
@@ -59,10 +49,12 @@ export interface StudioTagsControlColumnProps {
    * 重复出现。桌面不传 = 照画。
    */
   hideCharacters?: boolean
+  compact?: boolean
 }
 
 export function StudioTagsControlColumn({
   hideCharacters,
+  compact = false,
 }: StudioTagsControlColumnProps = {}) {
   const t = useTranslations('StudioTags')
   const tCapability = useTranslations('StudioCapabilityChips')
@@ -171,6 +163,9 @@ export function StudioTagsControlColumn({
         return (
           <ControlCard
             key={control.chip.capability}
+            hideTitle={
+              compact && control.chip.kind === 'slider' && !merged.length
+            }
             title={[control, ...merged]
               .map((entry) =>
                 tCapability(`capability.${entry.chip.capability}`),
@@ -182,6 +177,7 @@ export function StudioTagsControlColumn({
               control={control}
               disabled={isGenerating}
               hideLabel
+              compact={compact}
             />
             {merged.map((entry) => (
               <StudioTagCapabilityControl
@@ -189,6 +185,7 @@ export function StudioTagsControlColumn({
                 control={entry}
                 disabled={isGenerating}
                 hideLabel
+                compact={compact}
               />
             ))}
           </ControlCard>
@@ -200,6 +197,36 @@ export function StudioTagsControlColumn({
         <p className="text-2xs text-muted-foreground">
           {t('preciseReferenceCost')}
         </p>
+      ) : null}
+      {compact &&
+      runModels.some((model) =>
+        getCapabilityConfig(
+          model.adapterType,
+          model.modelId,
+        ).capabilities.includes('seed'),
+      ) ? (
+        <label className="flex flex-col gap-2 text-sm">
+          {t('workbench.seed')}
+          <Input
+            type="number"
+            step={1}
+            value={state.advancedParams.seed ?? ''}
+            placeholder={t('workbench.randomSeed')}
+            disabled={isGenerating}
+            onChange={(event) => {
+              const value =
+                event.target.value === ''
+                  ? undefined
+                  : Number(event.target.value)
+              if (!AdvancedParamsSchema.shape.seed.safeParse(value).success)
+                return
+              dispatch({
+                type: 'SET_ADVANCED_PARAMS',
+                payload: { ...state.advancedParams, seed: value },
+              })
+            }}
+          />
+        </label>
       ) : null}
       <ResolutionCard runModels={runModels} note={onlyForNote} />
       {hasReferenceImage &&
@@ -215,18 +242,28 @@ export function StudioTagsControlColumn({
 }
 
 function ControlCard({
+  hideTitle = false,
   title,
   note,
   children,
 }: {
+  hideTitle?: boolean
   title: string
   note: string | null
   children: ReactNode
 }) {
   return (
     <section className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5">
-      <div className="flex items-baseline justify-between gap-2">
-        <h3 className="shrink-0 text-2xs font-medium">{title}</h3>
+      <div
+        className={
+          hideTitle && !note
+            ? 'sr-only'
+            : 'flex items-baseline justify-between gap-2'
+        }
+      >
+        <h3 className={hideTitle ? 'sr-only' : 'shrink-0 text-2xs font-medium'}>
+          {title}
+        </h3>
         {note ? (
           <span className="text-3xs text-muted-foreground">{note}</span>
         ) : null}

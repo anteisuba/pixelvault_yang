@@ -8,6 +8,7 @@ export const NovelAiCharacterLayoutSchema = z
     characters: z
       .array(
         z.object({
+          enabled: z.boolean().optional(),
           prompt: z.string().trim().min(1),
           negativePrompt: z.string(),
           position: z.object({
@@ -24,3 +25,11 @@ export const NovelAiCharacterLayoutSchema = z
 export type NovelAiCharacterLayout = z.infer<
   typeof NovelAiCharacterLayoutSchema
 >
+
+export const NovelAiCharacterDraftSchema = NovelAiCharacterLayoutSchema.extend({
+  characters: NovelAiCharacterLayoutSchema.shape.characters.element
+    .extend({ prompt: z.string() })
+    .array()
+    .min(1)
+    .max(NOVELAI_V5_MAX_CHARACTERS),
+})

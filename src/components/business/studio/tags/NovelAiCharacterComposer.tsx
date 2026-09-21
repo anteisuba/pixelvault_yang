@@ -150,6 +150,26 @@ export function NovelAiCharacterComposer({
             type="button"
             aria-label={t('characterDot', { number: index + 1 })}
             aria-pressed={activeIndex === index}
+            disabled={disabled || character.enabled === false}
+            onKeyDown={(event) => {
+              const moves: Record<string, [number, number]> = {
+                ArrowLeft: [-1, 0],
+                ArrowRight: [1, 0],
+                ArrowUp: [0, -1],
+                ArrowDown: [0, 1],
+              }
+              const move = moves[event.key]
+              if (!move) return
+              event.preventDefault()
+              const step =
+                mode === 'grid' ? 1 / NOVELAI_CHARACTER_GRID_SIZE : 0.01
+              onSelect(index)
+              place(
+                index,
+                character.position.x + move[0] * step,
+                character.position.y + move[1] * step,
+              )
+            }}
             style={{
               left: `${character.position.x * 100}%`,
               top: `${character.position.y * 100}%`,
@@ -208,7 +228,14 @@ export function NovelAiCharacterComposer({
               aria-label={t('removeCharacter', { number: index + 1 })}
               onClick={() => {
                 write(characters.filter((_, i) => i !== index))
-                if (activeIndex === index) onSelect(null)
+                if (activeIndex !== null)
+                  onSelect(
+                    activeIndex === index
+                      ? null
+                      : activeIndex > index
+                        ? activeIndex - 1
+                        : activeIndex,
+                  )
               }}
               className="grid size-4 shrink-0 place-items-center rounded-sm text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted hover:text-foreground disabled:pointer-events-none"
             >

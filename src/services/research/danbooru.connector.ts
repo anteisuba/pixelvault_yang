@@ -1,4 +1,9 @@
 import 'server-only'
+import { z } from 'zod'
+import type {
+  DanbooruCatalog,
+  DanbooruCatalogQuery,
+} from '@/types/danbooru-catalog'
 
 import {
   DANBOORU_REQUEST,
@@ -8,6 +13,7 @@ import {
 import type { EvidenceItem } from '@/types/research'
 import {
   clampExcerpt,
+  getResearchBreaker,
   evidenceId,
   evidenceTier,
   researchFetchJson,
@@ -271,4 +277,122 @@ export async function fetchDanbooruEvidence(params: {
   }
 
   return { items }
+}
+
+async function readDanbooruCatalog(
+  query: DanbooruCatalogQuery,
+): Promise<DanbooruCatalog> {
+  const category =
+    query.kind === 'character' ? DANBOORU_REQUEST.characterTagCategory : 1
+  const read = (path: string, params: Record<string, string>) =>
+    researchFetchJson(RESEARCH_SOURCE_IDS.danbooru, danbooruUrl(path, params))
+  const tagSchema = z.array(
+    z.object({
+      name: z.string(),
+      category: z.number(),
+      post_count: z.number(),
+    }),
+  )
+  if (!query.tag) {
+    const wiki = z.array(z.object({ title: z.string() })).parse(
+      await read('/wiki_pages.json', {
+        'search[other_names_match]': query.query,
+        limit: String(DANBOORU_REQUEST.maxTagCandidates),
+      }),
+    )
+    const slug = query.query.toLowerCase().replace(/\s+/g, '_')
+    const names = [...new Set(wiki.map((page) => page.title))]
+    const [aliases, matches] = await Promise.all([
+      Promise.all(
+        names.map((name) =>
+          read('/tags.json', { 'search[name]': name, limit: '1' }),
+        ),
+      ).then((values) => values.flatMap((value) => tagSchema.parse(value))),
+      read('/tags.json', {
+        'search[name_matches]': `*${slug}*`,
+        'search[category]': String(category),
+        'search[order]': 'count',
+        limit: '5',
+      }),
+    ])
+    const seen = new Set<string>()
+    return {
+      candidates: [...tagSchema.parse(aliases), ...tagSchema.parse(matches)]
+        .filter(
+          (tag) =>
+            tag.category === category &&
+            !seen.has(tag.name) &&
+            Boolean(seen.add(tag.name)),
+        )
+        .map((tag) => ({
+          name: tag.name,
+          count: tag.post_count,
+          category: tag.category,
+        })),
+      detail: null,
+    }
+  }
+  const tags = tagSchema.parse(
+    await read('/tags.json', { 'search[name]': query.tag, limit: '1' }),
+  )
+  if (!tags.some((tag) => tag.name === query.tag && tag.category === category))
+    return { candidates: [], detail: null }
+  const [wikiRaw, postsRaw] = await Promise.all([
+    read('/wiki_pages.json', { 'search[title]': query.tag, limit: '1' }),
+    read('/posts.json', {
+      tags: `${query.tag} rating:${DANBOORU_REQUEST.safeRating}`,
+      limit: '20',
+    }),
+  ])
+  const wiki = z
+    .array(z.object({ other_names: z.array(z.string()).optional() }))
+    .parse(wikiRaw)
+  const posts = z
+    .array(
+      z.object({
+        id: z.number(),
+        rating: z.string(),
+        tag_string_general: z.string(),
+        preview_file_url: z.string().nullish(),
+      }),
+    )
+    .parse(postsRaw)
+    .filter((post) => post.rating === DANBOORU_REQUEST.safeRating)
+  const counts = new Map<string, number>()
+  for (const post of posts)
+    for (const tag of new Set(
+      post.tag_string_general.split(' ').filter(Boolean),
+    ))
+      counts.set(tag, (counts.get(tag) ?? 0) + 1)
+  return {
+    candidates: [],
+    detail: {
+      tag: query.tag,
+      aliases: wiki[0]?.other_names ?? [],
+      sampleSize: posts.length,
+      traits: [...counts]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, DANBOORU_REQUEST.consensusTopN)
+        .map(([tag, count]) => ({ tag, count })),
+      images: posts
+        .flatMap((post) => {
+          if (!post.preview_file_url) return []
+          const url = new URL(post.preview_file_url)
+          return url.protocol === 'https:' &&
+            (url.hostname === 'donmai.us' ||
+              url.hostname.endsWith('.donmai.us'))
+            ? [{ id: post.id, url: url.href }]
+            : []
+        })
+        .slice(0, DANBOORU_REQUEST.maxSampleImages),
+    },
+  }
+}
+
+export function fetchDanbooruCatalog(
+  query: DanbooruCatalogQuery,
+): Promise<DanbooruCatalog> {
+  return getResearchBreaker(RESEARCH_SOURCE_IDS.danbooru).call(() =>
+    readDanbooruCatalog(query),
+  )
 }

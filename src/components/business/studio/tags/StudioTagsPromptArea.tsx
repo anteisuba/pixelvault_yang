@@ -2,6 +2,7 @@
 
 import { memo, useMemo } from 'react'
 import { useTranslations } from 'next-intl'
+import * as Toolbar from '@radix-ui/react-toolbar'
 
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
@@ -14,23 +15,21 @@ import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagC
 import { useStudioForm } from '@/contexts/studio-context'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { getTranslatedModelLabel } from '@/lib/model-options'
-import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
-import type { AdvancedParams } from '@/types'
+import { Button } from '@/components/ui/button'
+import { StudioTagCharacters } from './StudioTagCharacters'
+import { StudioTagsControlColumn } from './StudioTagsControlColumn'
+import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
+import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
+import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
 import type { TagChip } from '@/types/tag-composer'
 
-/**
- * 标签台的**编辑器主区**（D10 ④，画板宽度 420）。自上而下：
- * 正向标签 → 负向 / UC → UC 预设一排 chip → `Text:` 文字渲染 → 出图。
- *
- * 与自然语言台**同壳**：结果区 / 参考轨 / 助手 / 任务条 / 生成键全部是同一份，
- * ⛔ 这里没有第二套工作台。差别只有中间这一列长什么样。
- *
- * ⚠ 它与 `StudioPromptArea` **二选一渲染**（`StudioWorkspaceUI` 按方言分派）：
- * 两者各自调 `useStudioGenerateAction`，同时挂载会让一次 `REQUEST_GENERATE`
- * 发两遍请求 —— 与参数栏 / 移动端 composer 之间那条规矩同源。
- */
-export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
+/** 标签台 A：同一份编辑状态服务桌面与手机，生成动作只挂载一次。 */
+export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
+  onOpenPanel,
+}: {
+  onOpenPanel: (panel: TagWorkbenchPanel) => void
+}) {
   const t = useTranslations('StudioTags')
   const tStudio = useTranslations('StudioV2')
   const tForm = useTranslations('StudioForm')
@@ -76,51 +75,13 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
     (control) => control.chip.capability === 'textRendering',
   )
 
-  /**
-   * 正在编辑谁的标签。⭐ 选中某个角色时，编辑器主区整个切到那个角色的正负标签
-   * （D10 ④）—— ⛔ 不在右列里塞两个小输入框：那是编辑器该干的事。
-   */
-  const layout = state.advancedParams.novelAiLayout
-  const activeIndex = state.activeTagCharacterIndex
-  const activeCharacter =
-    activeIndex !== null ? layout?.characters[activeIndex] : undefined
-
-  const setChips = (polarity: 'positive' | 'negative', chips: TagChip[]) => {
-    if (activeCharacter && layout && activeIndex !== null) {
-      const text = serializeTagChips(chips)
-      dispatch({
-        type: 'SET_ADVANCED_PARAMS',
-        payload: {
-          ...state.advancedParams,
-          novelAiLayout: {
-            ...layout,
-            characters: layout.characters.map((character, index) =>
-              index === activeIndex
-                ? {
-                    ...character,
-                    ...(polarity === 'positive'
-                      ? { prompt: text }
-                      : { negativePrompt: text }),
-                  }
-                : character,
-            ),
-          },
-        } satisfies AdvancedParams,
-      })
-      return
-    }
+  const setChips = (polarity: 'positive' | 'negative', chips: TagChip[]) =>
     dispatch({ type: 'SET_TAG_CHIPS', payload: { polarity, chips } })
-  }
-
-  const positiveChips = activeCharacter
-    ? parseTagChips(activeCharacter.prompt)
-    : state.tagChips
-  const negativeChips = activeCharacter
-    ? parseTagChips(activeCharacter.negativePrompt)
-    : state.tagNegativeChips
+  const positiveChips = state.tagChips
+  const negativeChips = state.tagNegativeChips
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-2.5">
+    <div className="flex shrink-0 flex-col gap-3">
       {/* 顶栏 —— 一对分段切换是两台之间**唯一**的门（两台挂的是同一颗
           `StudioDialectHeader`，位置也一样）；右边的型号只列本方言。 */}
       <StudioDialectHeader disabled={isGenerating}>
@@ -149,26 +110,6 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
           />
         </div>
       </StudioDialectHeader>
-
-      {/* 正在编辑某个角色时，栏首一行说清是谁、怎么回到整体 —— ⛔ 不靠右列
-          那颗药丸的选中态独自承担这件事，编辑器自己得说明白它在写谁。 */}
-      {activeCharacter ? (
-        <div className="flex items-center gap-2 rounded-lg border border-foreground/25 bg-muted px-2.5 py-1.5 text-2xs">
-          <span className="min-w-0 flex-1 truncate font-medium">
-            {t('editingCharacter', { number: (activeIndex ?? 0) + 1 })}
-          </span>
-          <button
-            type="button"
-            onClick={() =>
-              dispatch({ type: 'SET_ACTIVE_TAG_CHARACTER', payload: null })
-            }
-            className="shrink-0 text-muted-foreground underline-offset-2 transition-colors duration-fast ease-standard hover:text-foreground hover:underline"
-          >
-            {t('backToWhole')}
-          </button>
-        </div>
-      ) : null}
-
       <div data-assistant-field="prompt">
         <StudioTagChipField
           modelId={
@@ -176,52 +117,110 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
               (model) => NovelAiTagModelSchema.safeParse(model.modelId).success,
             )?.modelId
           }
-          label={
-            activeCharacter
-              ? t('characterPositiveLabel', { number: (activeIndex ?? 0) + 1 })
-              : t('positiveLabel')
-          }
+          label={t('positiveLabel')}
           polarity="positive"
           chips={positiveChips}
           disabled={isGenerating}
           onChange={(chips) => setChips('positive', chips)}
         />
       </div>
+      <details className="space-y-2">
+        <summary className="cursor-pointer py-1 text-sm text-muted-foreground">
+          {t('negativeLabel')}
+        </summary>
+        <div data-assistant-field="negativePrompt">
+          <StudioTagChipField
+            modelId={
+              runModels.find(
+                (model) =>
+                  NovelAiTagModelSchema.safeParse(model.modelId).success,
+              )?.modelId
+            }
+            label={t('negativeLabel')}
+            note={t('negativeNote')}
+            polarity="negative"
+            chips={negativeChips}
+            disabled={isGenerating}
+            onChange={(chips) => setChips('negative', chips)}
+          />
+        </div>
 
-      {/* 负向栏在 NAI 语境里叫 UC —— 标题旁一行小字说明即可，
-          ⛔ 不为此分叉出两个组件。 */}
-      <div data-assistant-field="negativePrompt">
-        <StudioTagChipField
-          modelId={
-            runModels.find(
-              (model) => NovelAiTagModelSchema.safeParse(model.modelId).success,
-            )?.modelId
-          }
-          label={t('negativeLabel')}
-          note={t('negativeNote')}
-          polarity="negative"
-          chips={negativeChips}
-          disabled={isGenerating}
-          onChange={(chips) => setChips('negative', chips)}
-        />
-      </div>
-
-      {ucPreset ? (
-        <StudioTagCapabilityControl
-          control={ucPreset}
-          disabled={isGenerating}
-        />
-      ) : null}
-
+        {ucPreset ? (
+          <StudioTagCapabilityControl
+            control={ucPreset}
+            disabled={isGenerating}
+          />
+        ) : null}
+      </details>
+      <StudioTagCharacters
+        disabled={isGenerating}
+        onCompose={() => onOpenPanel('composition')}
+        onLookup={() => onOpenPanel('catalog')}
+      />
+      <section className="space-y-2 border-t border-border pt-3">
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-medium">{t('workbench.blocks')}</h3>
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onOpenPanel('blocks')}
+          >
+            {t('workbench.editBlocks')}
+          </Button>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {state.tagPromptBlocks?.map((block) => (
+            <Button
+              key={block.id}
+              variant="outline"
+              size="sm"
+              aria-pressed={block.enabled}
+              disabled={isGenerating}
+              onClick={() =>
+                dispatch({
+                  type: 'SET_TAG_PROMPT_BLOCKS',
+                  payload: state.tagPromptBlocks.map((item) =>
+                    item.id === block.id
+                      ? { ...item, enabled: !item.enabled }
+                      : item,
+                  ),
+                })
+              }
+            >
+              {block.name} ·{' '}
+              {t(block.enabled ? 'workbench.on' : 'workbench.off')}
+            </Button>
+          ))}
+        </div>
+        <details>
+          <summary className="cursor-pointer text-xs text-muted-foreground">
+            {t('workbench.compiled')}
+          </summary>
+          <p className="whitespace-pre-wrap break-words py-2 text-sm">
+            {state.prompt}
+          </p>
+        </details>
+      </section>
+      <Toolbar.Root className="flex flex-wrap gap-2 border-t border-border pt-3">
+        <ReferenceImageChip disabled={isGenerating} />
+        <StudioSpecChip disabled={isGenerating} />
+      </Toolbar.Root>
+      <div className="studio-tag-settings flex flex-col gap-3 border-t border-border pt-3">
+        <StudioTagsControlColumn hideCharacters compact />
+      </div>{' '}
       {textRendering ? (
-        <StudioTagCapabilityControl
-          control={textRendering}
-          disabled={isGenerating}
-        />
+        <details>
+          <summary className="cursor-pointer py-1 text-sm text-muted-foreground">
+            {t('workbench.textRendering')}
+          </summary>
+          <StudioTagCapabilityControl
+            control={textRendering}
+            disabled={isGenerating}
+          />
+        </details>
       ) : null}
-
       {/* 成本 + 生成 —— 与自然语言台同一颗键、同一份三态。 */}
-      <div className="mt-auto flex shrink-0 flex-col gap-2 pt-2">
+      <div className="sticky bottom-0 z-10 mt-auto flex shrink-0 flex-col gap-2 border-t border-border bg-card py-3">
         <StudioCostPreview
           models={runModels}
           basis={{

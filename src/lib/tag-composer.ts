@@ -155,3 +155,15 @@ export function translateTagPromptText(
 ): string {
   return translateTagChips(parseTagChips(unifiedText), adapterType)
 }
+
+export function compileTagPrompt(
+  chips: readonly TagChip[],
+  blocks: readonly import('@/types/tag-composer').TagPromptBlock[],
+) {
+  return serializeTagChips([
+    ...chips,
+    ...blocks
+      .filter((block) => block.enabled)
+      .flatMap((block) => parseTagChips(block.text)),
+  ])
+}

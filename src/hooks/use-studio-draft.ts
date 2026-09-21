@@ -3,13 +3,15 @@
 import { useEffect, useRef } from 'react'
 
 import {
-  NovelAiCharacterLayoutSchema,
+  NovelAiCharacterDraftSchema,
   type NovelAiCharacterLayout,
 } from '@/types/novelai'
 
+import { TagPromptBlockSchema, type TagPromptBlock } from '@/types/tag-composer'
 import { logger } from '@/lib/logger'
 
 export interface StudioDraft {
+  promptBlocks?: TagPromptBlock[]
   prompt: string
   negativePrompt: string
   novelAiLayout?: NovelAiCharacterLayout
@@ -69,11 +71,14 @@ export function useStudioDraft({
         )
       )
         return
-      const layout = NovelAiCharacterLayoutSchema.safeParse(
+      const layout = NovelAiCharacterDraftSchema.safeParse(
         'novelAiLayout' in value ? value.novelAiLayout : undefined,
       )
       onRestore({
         ...value,
+        promptBlocks: TagPromptBlockSchema.array().safeParse(
+          'promptBlocks' in value ? value.promptBlocks : undefined,
+        ).data,
         novelAiLayout: layout.success ? layout.data : undefined,
       } as StudioDraft)
     } catch (error) {

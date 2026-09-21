@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
+import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import { ROUTES } from '@/constants/routes'
 import {
   StudioAssistantDock,
@@ -17,9 +18,7 @@ import {
 } from '@/components/business/studio'
 import { StudioDockPanelArea } from '@/components/business/studio/StudioDockPanelArea'
 import { StudioMobileComposer } from '@/components/business/studio/StudioMobileComposer'
-import { StudioTagsControlColumn } from '@/components/business/studio/tags/StudioTagsControlColumn'
-import { StudioTagsMobilePanel } from '@/components/business/studio/tags/StudioTagsMobilePanel'
-import { StudioTagsPromptArea } from '@/components/business/studio/tags/StudioTagsPromptArea'
+import { StudioTagsWorkbench } from '@/components/business/studio/tags/StudioTagsWorkbench'
 import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { StudioKeepChangePanel } from '@/components/business/image/StudioKeepChangePanel'
 import { Button } from '@/components/ui/button'
@@ -114,7 +113,7 @@ export function StudioWorkspaceUI() {
     isMobile && (state.outputType === 'image' || state.outputType === 'video')
   /**
    * 标签台（D10 ⑤）—— **同一个壳**：结果区 / 参考轨 / 助手 / 任务条一个字都不换，
-   * 只把中间那一列的参数栏换成标签编辑器。方言由路由说了算（`StudioModeSync`），
+   * 左侧集中标签与参数，右侧按需展开资料和构图。方言由路由说了算（`StudioModeSync`），
    * ⛔ 不由选中的模型反推。
    */
   const isTagsWorkbench =
@@ -124,13 +123,18 @@ export function StudioWorkspaceUI() {
   const pathname = usePathname()
   const draft = useMemo<StudioDraft>(
     () => ({
-      prompt: state.prompt,
+      prompt: state.tagPromptBlocks?.length
+        ? serializeTagChips(state.tagChips)
+        : state.prompt,
+      promptBlocks: state.tagPromptBlocks,
       negativePrompt: state.advancedParams.negativePrompt ?? '',
       novelAiLayout: state.advancedParams.novelAiLayout,
       referenceImages: imageUpload.referenceEntries.map((entry) => entry.url),
     }),
     [
       state.prompt,
+      state.tagChips,
+      state.tagPromptBlocks,
       state.advancedParams.negativePrompt,
       state.advancedParams.novelAiLayout,
       imageUpload.referenceEntries,
@@ -141,6 +145,17 @@ export function StudioWorkspaceUI() {
       imageUpload.clearAllImages()
       saved.referenceImages.forEach((url) => imageUpload.addReferenceImage(url))
       dispatch({ type: 'SET_PROMPT', payload: saved.prompt })
+      dispatch({
+        type: 'SET_TAG_PROMPT_BLOCKS',
+        payload: saved.promptBlocks ?? [],
+      })
+      dispatch({
+        type: 'SET_TAG_CHIPS',
+        payload: {
+          polarity: 'negative',
+          chips: parseTagChips(saved.negativePrompt),
+        },
+      })
       dispatch({
         type: 'SET_ADVANCED_PARAMS',
         payload: {
@@ -154,7 +169,10 @@ export function StudioWorkspaceUI() {
   )
   useStudioDraft({
     userId: isLoaded ? userId : null,
-    enabled: pathname.endsWith('/studio/image') && state.outputType === 'image',
+    enabled:
+      (pathname.endsWith('/studio/image') ||
+        pathname.endsWith('/studio/image/tags')) &&
+      state.outputType === 'image',
     draft,
     onRestore: restoreDraft,
   })
@@ -332,39 +350,15 @@ export function StudioWorkspaceUI() {
               那条路连同 `StudioFlowLayout` / `StudioBottomDock` /
               `StudioToolbarPanels` / `StudioToolbar` 已整条退役，不留兼容层。
               栏位差异归 `StudioPromptArea` 自己按 outputType 分。 */}
-          <StudioWorkbenchLayout
-            /**
-             * ⚠ 标签台的手机形态**不是底部固定条**：编辑器与 UC 预设常驻、
-             * 右列折成可展开的条目（D10 ④），那一叠装不进 7rem 的固定条里。
-             * 所以它走移动端纵向栈的**上半截**（参数在上、结果在下），
-             * ⛔ 不去改 `--studio-mobile-composer-height` 那套为一行输入框
-             * 量身定的预留高度。
-             */
-            params={
-              isTagsWorkbench ? (
-                isMobile ? (
-                  <StudioTagsMobilePanel />
-                ) : (
-                  <StudioTagsPromptArea />
-                )
-              ) : useMobileComposer ? null : (
-                <StudioPromptArea />
-              )
-            }
-            // 编辑器主区按画板是 420（`lg:w-105`），自然语言台仍是 288。
-            paramsWidthClass={isTagsWorkbench ? 'lg:w-105' : 'lg:w-72'}
-            controls={
-              isTagsWorkbench && !useMobileComposer ? (
-                <StudioTagsControlColumn />
-              ) : null
-            }
-            stage={<StudioCanvas />}
-            composer={
-              useMobileComposer && !isTagsWorkbench ? (
-                <StudioMobileComposer />
-              ) : null
-            }
-          />
+          {isTagsWorkbench ? (
+            <StudioTagsWorkbench />
+          ) : (
+            <StudioWorkbenchLayout
+              params={useMobileComposer ? null : <StudioPromptArea />}
+              stage={<StudioCanvas />}
+              composer={useMobileComposer ? <StudioMobileComposer /> : null}
+            />
+          )}
         </div>
         {/* 助手 —— **图片工作台整体切到操作员面板**。它自带三态：展开的
             覆盖层 + 收起的胶囊，所以图片档不再挂 `StudioAssistantFab`（那颗浮标

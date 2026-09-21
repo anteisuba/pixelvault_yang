@@ -17,6 +17,7 @@ interface StudioTagCapabilityControlProps {
   disabled?: boolean
   /** 一行的紧凑排布（右列卡片内）还是带标题的块（编辑器主区）。 */
   hideLabel?: boolean
+  compact?: boolean
 }
 
 /**
@@ -32,6 +33,7 @@ export function StudioTagCapabilityControl({
   control,
   disabled,
   hideLabel,
+  compact = false,
 }: StudioTagCapabilityControlProps) {
   const { state, dispatch } = useStudioForm()
   const t = useTranslations('StudioCapabilityChips')
@@ -72,36 +74,56 @@ export function StudioTagCapabilityControl({
       )}
 
       {chip.kind === 'select' && chip.options ? (
-        <div className="flex flex-wrap gap-1">
-          {chip.options.map((option) => {
-            const selected = String(value) === option
-            return (
-              <button
-                key={option}
-                type="button"
-                aria-pressed={selected}
-                disabled={disabled}
-                onClick={() =>
-                  update({ [chip.capability]: option } as AdvancedParams)
-                }
-                className={cn(
-                  'rounded-full border px-2.5 py-1 text-2xs transition-[background-color,border-color] duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
-                  selected
-                    ? 'border-foreground bg-background font-medium'
-                    : 'border-border bg-background text-muted-foreground hover:bg-accent',
-                )}
-              >
+        compact && chip.capability === 'sampler' ? (
+          <select
+            aria-label={label}
+            disabled={disabled}
+            value={String(value)}
+            onChange={(event) =>
+              update({
+                [chip.capability]: event.target.value,
+              } as AdvancedParams)
+            }
+            className="w-full rounded-md border border-input bg-background p-2 text-sm"
+          >
+            {chip.options.map((option) => (
+              <option key={option} value={option}>
                 {tAdvanced(`${chip.capability}Option.${option}`)}
-              </button>
-            )
-          })}
-        </div>
+              </option>
+            ))}
+          </select>
+        ) : (
+          <div className="flex flex-wrap gap-1">
+            {chip.options.map((option) => {
+              const selected = String(value) === option
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={selected}
+                  disabled={disabled}
+                  onClick={() =>
+                    update({ [chip.capability]: option } as AdvancedParams)
+                  }
+                  className={cn(
+                    'rounded-full border px-2.5 py-1 text-2xs transition-[background-color,border-color] duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
+                    selected
+                      ? 'border-foreground bg-background font-medium'
+                      : 'border-border bg-background text-muted-foreground hover:bg-accent',
+                  )}
+                >
+                  {tAdvanced(`${chip.capability}Option.${option}`)}
+                </button>
+              )
+            })}
+          </div>
+        )
       ) : null}
 
       {chip.kind === 'slider' && chip.range ? (
         <ParamSlider
           label={label}
-          hint={tAdvanced(`${chip.capability}Hint`)}
+          hint={compact ? undefined : tAdvanced(`${chip.capability}Hint`)}
           value={Number(value)}
           onChange={(next) =>
             update({ [chip.capability]: next } as AdvancedParams)

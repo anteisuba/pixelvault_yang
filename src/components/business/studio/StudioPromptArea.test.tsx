@@ -340,6 +340,7 @@ function setupStudioForm(
     prompt: 'Make a cinematic establishing shot',
     promptDialect: 'natural',
     tagChips: [],
+    tagPromptBlocks: [],
     tagNegativeChips: [],
     activeTagCharacterIndex: null,
     recipeUsage: null,

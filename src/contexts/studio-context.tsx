@@ -38,11 +38,12 @@ import {
   type PromptDialect,
 } from '@/constants/prompt-dialects'
 import {
+  compileTagPrompt,
   parseTagChips,
   serializeTagChips,
   wholeSentenceAsTag,
 } from '@/lib/tag-composer'
-import type { TagChip } from '@/types/tag-composer'
+import type { TagPromptBlock, TagChip } from '@/types/tag-composer'
 import type { AspectRatio } from '@/constants/config'
 import { VIDEO_GENERATION } from '@/constants/config'
 import {
@@ -165,6 +166,7 @@ export interface StudioFormState {
    * 快照 · 草稿）读 `prompt` 就够了，⛔ 不必认识 chip。反方向由 `SET_PROMPT`
    * 兜住：外部改写提示词时按逗号重新切成 chip。
    */
+  tagPromptBlocks: TagPromptBlock[]
   tagChips: TagChip[]
   tagNegativeChips: TagChip[]
   /**
@@ -341,6 +343,7 @@ export type StudioAction =
    */
   | { type: 'AUTO_SELECT_OPTION_ID'; payload: string }
   | { type: 'SET_PROMPT'; payload: string }
+  | { type: 'SET_TAG_PROMPT_BLOCKS'; payload: TagPromptBlock[] }
   /**
    * 换台。⚠ 进标签台时如果 chip 还是空的，就拿当前提示词**整句**开第一格
    * （D10 ④ 两台跳转，⛔ 不自动切成标签）；负向栏本来就是逗号列表，按逗号切。
@@ -492,6 +495,7 @@ const initialFormState: StudioFormState = {
   prompt: '',
   promptDialect: DEFAULT_PROMPT_DIALECT,
   tagChips: [],
+  tagPromptBlocks: [],
   tagNegativeChips: [],
   activeTagCharacterIndex: null,
   recipeUsage: null,
@@ -667,13 +671,28 @@ export function studioFormReducer(
       }
     case 'AUTO_SELECT_OPTION_ID':
       return { ...state, selectedOptionId: action.payload }
+    case 'SET_TAG_PROMPT_BLOCKS': {
+      if (!action.payload.length && !state.tagPromptBlocks?.length)
+        return { ...state, tagPromptBlocks: [] }
+      const chips =
+        state.promptDialect === 'tags' || state.tagPromptBlocks?.length
+          ? state.tagChips
+          : parseTagChips(state.prompt)
+      return {
+        ...state,
+        tagChips: chips,
+        tagPromptBlocks: action.payload,
+        prompt: compileTagPrompt(chips, action.payload),
+      }
+    }
     case 'SET_PROMPT':
       return {
         ...state,
         prompt: action.payload,
+        tagPromptBlocks: [],
         // 标签台开着时，外部改写提示词（助手 · 草稿回灌 · 灵感）要在 chip 上
         // 看得见 —— 否则编辑器画的是一份已经被顶掉的旧名单。
-        ...(state.promptDialect === 'tags'
+        ...(state.promptDialect === 'tags' || state.tagPromptBlocks?.length
           ? { tagChips: parseTagChips(action.payload) }
           : {}),
       }
@@ -685,9 +704,10 @@ export function studioFormReducer(
       return {
         ...state,
         promptDialect: 'tags',
-        tagChips: state.tagChips.length
-          ? state.tagChips
-          : wholeSentenceAsTag(state.prompt),
+        tagChips:
+          state.tagChips.length || state.tagPromptBlocks?.length
+            ? state.tagChips
+            : wholeSentenceAsTag(state.prompt),
         tagNegativeChips: state.tagNegativeChips.length
           ? state.tagNegativeChips
           : parseTagChips(state.advancedParams.negativePrompt ?? ''),
@@ -698,17 +718,30 @@ export function studioFormReducer(
     case 'CARRY_PROMPT_TO_TAGS': {
       const carried = wholeSentenceAsTag(state.prompt)
       if (carried.length === 0) return state
+      if (state.tagPromptBlocks?.length)
+        return { ...state, tagPromptBlocks: [], tagChips: carried }
       // 已经在场的同一句不再插第二遍（来回跳两次会攒出两格一样的字）。
       const existing = state.tagChips.filter(
         (chip) => chip.text !== carried[0].text,
       )
       const tagChips = [...carried, ...existing]
-      return { ...state, tagChips, prompt: serializeTagChips(tagChips) }
+      return {
+        ...state,
+        tagChips,
+        prompt: compileTagPrompt(tagChips, state.tagPromptBlocks ?? []),
+      }
     }
     case 'SET_TAG_CHIPS': {
       const text = serializeTagChips(action.payload.chips)
       if (action.payload.polarity === 'positive') {
-        return { ...state, tagChips: action.payload.chips, prompt: text }
+        return {
+          ...state,
+          tagChips: action.payload.chips,
+          prompt: compileTagPrompt(
+            action.payload.chips,
+            state.tagPromptBlocks ?? [],
+          ),
+        }
       }
       return {
         ...state,
@@ -827,6 +860,7 @@ export function studioFormReducer(
         ...state,
         prompt: '',
         tagChips: [],
+        tagPromptBlocks: [],
         tagNegativeChips: [],
         activeTagCharacterIndex: null,
         recipeUsage: null,

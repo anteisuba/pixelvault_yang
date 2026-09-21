@@ -10,12 +10,14 @@ vi.mock('@/lib/with-retry', () => ({
   withRetry: <T>(fn: () => Promise<T>) => fn(),
 }))
 
+import { resetResearchBreakers } from '@/services/research/connector-runtime'
 import { RESEARCH_SOURCE_IDS } from '@/constants/research'
 import { fetchDanbooruEvidence } from '@/services/research/danbooru.connector'
 
 const mockFetch = vi.fn()
 
 beforeEach(() => {
+  resetResearchBreakers([RESEARCH_SOURCE_IDS.danbooru])
   vi.clearAllMocks()
   vi.stubGlobal('fetch', mockFetch)
 })
@@ -281,5 +283,85 @@ describe('fetchDanbooruEvidence · 角色级判据', () => {
     expect(result.items).toEqual([])
     expect(result.unrelated).toContain('no character tag')
     expect(result.unrelated).toContain('ananta')
+  })
+})
+
+describe('catalog used by the tag workbench', () => {
+  it('returns ambiguous aliases as candidates and excludes the wrong category', async () => {
+    mockFetch.mockImplementation(async (raw: string) => {
+      const url = new URL(raw)
+      if (url.pathname === '/wiki_pages.json')
+        return jsonResponse([{ title: 'denia' }, { title: 'other' }])
+      if (url.searchParams.get('search[name]') === 'denia')
+        return jsonResponse([{ name: 'denia', category: 4, post_count: 20 }])
+      if (url.searchParams.get('search[name]') === 'other')
+        return jsonResponse([{ name: 'other', category: 1, post_count: 100 }])
+      return jsonResponse([
+        { name: 'denia', category: 4, post_count: 20 },
+        { name: 'denia_alternate', category: 4, post_count: 10 },
+      ])
+    })
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({
+      query: '达妮娅',
+      kind: 'character',
+    })
+    expect(result.candidates.map((tag) => tag.name)).toEqual([
+      'denia',
+      'denia_alternate',
+    ])
+    expect(result.detail).toBeNull()
+  })
+  it('counts only general-rated posts and allows preview images only from Danbooru', async () => {
+    routeFetch([
+      {
+        match: '/tags.json',
+        body: [{ name: 'denia', category: 4, post_count: 3 }],
+      },
+      { match: '/wiki_pages.json', body: [{ other_names: ['达妮娅'] }] },
+      {
+        match: '/posts.json',
+        body: [
+          {
+            ...post(1, 'g', 'pink_hair pink_hair long_hair'),
+            preview_file_url: 'https://cdn.donmai.us/1.jpg',
+          },
+          {
+            ...post(2, 'g', 'long_hair'),
+            preview_file_url: 'https://untrusted.example/image',
+          },
+          {
+            ...post(3, 'e', 'pink_hair'),
+            preview_file_url: 'https://cdn.donmai.us/3.jpg',
+          },
+        ],
+      },
+    ])
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    const result = await fetchDanbooruCatalog({
+      query: 'denia',
+      kind: 'character',
+      tag: 'denia',
+    })
+    expect(result.detail?.sampleSize).toBe(2)
+    expect(result.detail?.traits).toEqual([
+      { tag: 'long_hair', count: 2 },
+      { tag: 'pink_hair', count: 1 },
+    ])
+    expect(result.detail?.images).toEqual([
+      { id: 1, url: 'https://cdn.donmai.us/1.jpg' },
+    ])
+    expect(
+      mockFetch.mock.calls.some(
+        ([url]) => new URL(url).searchParams.get('tags') === 'denia rating:g',
+      ),
+    ).toBe(true)
+  })
+  it('propagates network failures instead of returning a misleading empty search', async () => {
+    mockFetch.mockRejectedValue(new Error('offline'))
+    const { fetchDanbooruCatalog } = await import('./danbooru.connector')
+    await expect(
+      fetchDanbooruCatalog({ query: 'denia', kind: 'character' }),
+    ).rejects.toThrow('offline')
   })
 })

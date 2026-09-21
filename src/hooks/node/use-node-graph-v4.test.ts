@@ -1,6 +1,8 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { buildAssistantSetModelPatch } from '@/lib/node-assistant-op-patch'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { NODE_SLOT_IDS, NODE_SLOT_OUTPUT_IDS } from '@/constants/node-slots'
 import { NODE_V4_CARD } from '@/constants/node-studio'
 import type {
@@ -74,6 +76,81 @@ const shot = node(
 )
 
 describe('useNodeGraphV4 · 图动作', () => {
+  it('助手能为六个空节点设置完整模型、提示词和参考图，并逐步撤销', () => {
+    const selection = buildAssistantSetModelPatch({
+      optionId: 'test-image-route',
+      modelId: 'test-image-model',
+      adapterType: AI_ADAPTER_TYPES.FAL,
+      providerConfig: { label: 'test route', baseUrl: 'https://example.com' },
+      apiKeyId: 'test-key',
+      sourceType: 'saved',
+      requestCount: 1,
+    }).model!
+    const onOpFailed = vi.fn()
+    const view = renderHook(
+      ({ state }: { state: NodeWorkflowStateV4 }) =>
+        useNodeGraphV4({
+          state,
+          onStateChange: (next) => view.rerender({ state: next }),
+          resolveModel: (id) =>
+            id === selection.modelId ? selection : undefined,
+          onOpFailed,
+        }),
+      { initialProps: { state: stateOf([firstFrame]) } },
+    )
+    for (let i = 0; i < 6; i += 1) {
+      act(() => {
+        expect(
+          view.result.current.dispatch({
+            op: 'add_node',
+            kind: 'image',
+            subtype: 'shot',
+            name: `方案${i + 1}`,
+          }),
+        ).toBe(true)
+      })
+      const target = view.result.current.nodes.at(-1)!.id
+      act(() => {
+        expect(
+          view.result.current.dispatch({
+            op: 'set_model',
+            target,
+            modelId: selection.modelId,
+          }),
+        ).toBe(true)
+      })
+      act(() => {
+        expect(
+          view.result.current.dispatch({
+            op: 'set_prompt',
+            target,
+            prompt: `保持原图画风，换装方案${i + 1}`,
+            mode: 'replace',
+          }),
+        ).toBe(true)
+      })
+      act(() => {
+        expect(
+          view.result.current.dispatch({
+            op: 'connect',
+            source: firstFrame.id,
+            target,
+            slot: 'reference',
+          }),
+        ).toBe(true)
+      })
+      const data = view.result.current.nodes.find((n) => n.id === target)!.data
+      expect(data.kind !== 'text' && data.model).toEqual(selection)
+      expect(data.kind !== 'text' && data.prompt).toContain(`方案${i + 1}`)
+    }
+    expect(onOpFailed).not.toHaveBeenCalled()
+    expect(view.result.current.nodes).toHaveLength(7)
+    expect(view.result.current.edges).toHaveLength(6)
+    for (let i = 0; i < 24; i += 1) act(() => view.result.current.undo())
+    expect(view.result.current.nodes).toEqual([firstFrame])
+    expect(view.result.current.edges).toEqual([])
+  })
+
   it('addNode 走 op 表并回新 id', () => {
     const { view } = renderGraph(stateOf([]))
     let created: string | null = null

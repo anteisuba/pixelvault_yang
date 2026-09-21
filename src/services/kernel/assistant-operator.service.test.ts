@@ -1099,51 +1099,59 @@ describe('read_state', () => {
     expect(digest).toContain('edit-image')
     expect(digest).toContain('保持五官')
     expect(digest).toContain('canvas_apply')
+    expect(digest).toContain('NO model selected')
+    expect(digest).toContain('availableModels lists candidates, not selections')
     expect(digest).toContain('sourceNodeId')
     expect(digest).not.toContain('NO NEGATIVE PROMPT FIELD')
     expect(toolRingCalls()[0].userPrompt).toContain('source-image')
   })
 
-  it('创建节点后先同步客户端快照，不让模型猜测新节点 id', async () => {
-    queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
-          title: '创建换装节点',
-          args: {
-            op: 'add_node',
-            kind: 'image',
-            subtype: 'shot',
-            name: '换装',
+  it.each([false, true])(
+    '创建节点即使附带 finished=%s 也必须执行，再同步客户端快照',
+    async (finished) => {
+      queueTurns(
+        {
+          finished,
+          message: '已经创建换装节点。',
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+            title: '创建换装节点',
+            args: {
+              op: 'add_node',
+              kind: 'image',
+              subtype: 'shot',
+              name: '换装',
+            },
           },
         },
-      },
-      { finished: true },
-    )
-    const events = await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildRequest({
-          domain: 'canvas',
-          planApproved: true,
-          snapshot: {
-            prompt: '',
-            availableModels: [],
-            canvas: { currentShotNo: null, selectedNodeIds: [], shots: [] },
-          },
-        }),
-      ),
-    )
-    expect(
-      stepsOf(events).some(
-        (step) =>
-          step.status === 'done' &&
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
-      ),
-    ).toBe(true)
-    expect(events.at(-1)).toEqual({ type: 'stopped', reason: 'canvas_sync' })
-    expect(toolRingCalls()).toHaveLength(1)
-  })
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            domain: 'canvas',
+            planApproved: true,
+            snapshot: {
+              prompt: '',
+              availableModels: [],
+              canvas: { currentShotNo: null, selectedNodeIds: [], shots: [] },
+            },
+          }),
+        ),
+      )
+      expect(
+        stepsOf(events).some(
+          (step) =>
+            step.status === 'done' &&
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+        ),
+      ).toBe(true)
+      expect(events.at(-1)).toEqual({ type: 'stopped', reason: 'canvas_sync' })
+      expect(events.some((event) => event.type === 'message')).toBe(false)
+      expect(toolRingCalls()).toHaveLength(1)
+    },
+  )
   it('读的是请求里的快照，不查库；负面框缺席时明说没有这个控件', async () => {
     queueTurns(
       {

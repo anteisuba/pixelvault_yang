@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import {
   applyInverseV4,
@@ -406,6 +407,52 @@ describe('内容 op', () => {
     const back = undone.nodes.find((n) => n.id === 'i_c')?.data
     expect(back?.kind === 'image' && back.contextCardId).toBeUndefined()
     expect(undone.edges).toHaveLength(0)
+  })
+
+  it('切换模型使用新路由，撤销恢复旧路由，未知模型不继承旧凭证', () => {
+    const state = baseState()
+    const oldModel = {
+      optionId: 'old-option',
+      modelId: 'old-model',
+      adapterType: AI_ADAPTER_TYPES.FAL,
+      providerConfig: { label: 'old', baseUrl: 'https://old.example.com' },
+      apiKeyId: 'old-key',
+    }
+    const newModel = {
+      ...oldModel,
+      optionId: 'new-option',
+      modelId: 'new-model',
+      providerConfig: { label: 'new', baseUrl: 'https://new.example.com' },
+      apiKeyId: 'new-key',
+    }
+    const target = state.nodes.find((n) => n.id === 'i_a')!
+    if (target.data.kind === 'text') throw new Error('expected image')
+    target.data.model = oldModel
+    const context = {
+      ...makeContext(),
+      resolveModel: (id: string) =>
+        id === newModel.modelId ? newModel : undefined,
+    }
+    const result = applyNodeAssistantOpV4(
+      state,
+      { op: 'set_model', target: target.id, modelId: newModel.modelId },
+      context,
+    )
+    expect(result.ok).toBe(true)
+    if (!result.ok) return
+    expect(
+      result.state.nodes.find((n) => n.id === target.id)?.data,
+    ).toMatchObject({ model: newModel })
+    const undone = applyInverseV4(result.state, result.inverse, context)
+    expect(undone.nodes.find((n) => n.id === target.id)).toEqual(target)
+    expect(undone.edges).toEqual(state.edges)
+    expect(
+      applyNodeAssistantOpV4(
+        state,
+        { op: 'set_model', target: target.id, modelId: 'unknown' },
+        context,
+      ),
+    ).toEqual({ ok: false, reason: 'modelNotResolvable' })
   })
 
   it('set_model 在没有旧选择也没有 resolver 时失败可见，不静默半写', () => {

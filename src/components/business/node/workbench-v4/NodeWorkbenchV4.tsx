@@ -58,6 +58,7 @@ import {
   type NodeStudioToolMode,
 } from '@/constants/node-studio'
 import { looseAreaSpawn, nextShotNo } from '@/lib/node-shot-layout'
+import { buildAssistantSetModelPatch } from '@/lib/node-assistant-op-patch'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_STATUS_IDS,
@@ -280,18 +281,34 @@ function NodeWorkbenchV4Inner() {
    * op 失败理由 → 一句人话。⛔ 只映射**真的会产出**的那几条；其余落 `opFailed`
    * 的通用句（带原始理由），⚠ 不静默吞掉：一条没有出口的失败等于一次「点了没反应」。
    */
+  const lastOpError = useRef<string | undefined>(undefined)
+  const getApplyError = useCallback(() => lastOpError.current, [])
   const onOpFailed = useCallback(
     (reason: string) => {
       const key = OP_FAILURE_KEYS[reason]
-      toast.error(key ? tV4(key) : tV4('opFailed', { reason }))
+      const detail = key ? tV4(key) : tV4('opFailed', { reason })
+      lastOpError.current = detail
+      toast.error(detail)
     },
     [tV4],
+  )
+
+  const modelOptionsByType = useWorkflowModelOptions()
+  const resolveModel = useCallback(
+    (modelId: string) => {
+      const option = Object.values(modelOptionsByType)
+        .flat()
+        .find((candidate) => candidate.modelId === modelId)
+      return option ? buildAssistantSetModelPatch(option).model : undefined
+    },
+    [modelOptionsByType],
   )
 
   const rawGraph = useNodeGraphV4({
     state: store.state,
     onStateChange: commitState,
     onOpFailed,
+    resolveModel,
   })
 
   /**
@@ -324,7 +341,6 @@ function NodeWorkbenchV4Inner() {
   }, [rawGraph, scheduleEdgeSigning, scheduleEdgeUnsign])
 
   const { fitView, screenToFlowPosition } = useReactFlow()
-  const modelOptionsByType = useWorkflowModelOptions()
   const generation = useNodeMediaGenerationV4()
 
   /* ── chrome 的会话态 ─────────────────────────────────────────────────── */
@@ -995,6 +1011,7 @@ function NodeWorkbenchV4Inner() {
     projectName: store.currentProject.name,
     availableModelsByNodeId,
     applyOp: graph.dispatch,
+    getApplyError,
     undo: graph.undo,
     canUndo: graph.canUndo,
     generateNodes,

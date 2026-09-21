@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { ASSISTANT_OPERATOR_CANVAS_LIMITS } from '@/constants/assistant-operator'
+import { getAvailableVideoModels, VIDEO_KIND } from '@/constants/models'
 import { buildCanvasOperatorSnapshot } from '@/lib/studio-operator-canvas-snapshot'
 import { AssistantOperatorCanvasSnapshotSchema } from '@/types/assistant-operator'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
@@ -31,6 +32,37 @@ function edge(id: string, source: string, target: string): NodeWorkflowEdgeV4 {
 }
 
 describe('buildCanvasOperatorSnapshot', () => {
+  it('视频目录的全部候选进入快照时仍满足请求契约', () => {
+    const models = getAvailableVideoModels(VIDEO_KIND.GENERATE).map(
+      (model) => model.id,
+    )
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [
+        {
+          id: 'video',
+          position: { x: 0, y: 0 },
+          data: {
+            kind: 'video',
+            subtype: 'shot',
+            name: '验收视频',
+            label: '验收视频',
+            status: 'idle',
+            createdAt: '2026-09-21T00:00:00.000Z',
+          },
+        },
+      ],
+      edges: [],
+      currentShotNo: null,
+      availableModelsByNodeId: { video: [...models, ...models] },
+    })
+    const parsed = AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot)
+    expect(
+      parsed.success,
+      JSON.stringify({ count: models.length, issues: parsed.error?.issues }),
+    ).toBe(true)
+    const shot = snapshot.shots[0]
+    expect(shot.expanded && shot.nodes[0].availableModels).toEqual(models)
+  })
   it('保留节点位置，并按当前参考图顺序提供 @Image 到节点 id 的映射', () => {
     const node = imageNode('source', undefined)
     node.position = { x: 120, y: 240 }

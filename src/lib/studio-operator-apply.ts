@@ -120,6 +120,7 @@ export interface StudioOperatorCanvasContext {
    * ⚠ 撤销载荷由宿主在这一刻扣下来（按 step id 存），⛔ 服务端手上没有它。
    */
   applyOp(stepId: string, op: NodeAssistantOpV4): boolean
+  getApplyError?(): string | undefined
   /** 撤销：按 step id 取回宿主扣着的那份逆载荷并回放。 */
   revertOp(stepId: string): void
   /**

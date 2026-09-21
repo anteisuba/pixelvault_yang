@@ -1885,6 +1885,8 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
   maxShotLines: 60,
   /** 一面展开的镜里最多列几个节点。 */
   maxNodesPerShot: 24,
+  /** 画布保留节点选择器的模型目录；视频目录已超过通用快照的 24 项。 */
+  maxAvailableModels: 64,
   /** 一次重跑规划最多列几个下游节点。 */
   maxRerunNodes: 40,
 } as const

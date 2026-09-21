@@ -1496,6 +1496,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   canvasApplied =
                     field === STUDIO_OPERATOR_FIELD_IDS.canvasNodes
                   if (!canvasApplied) {
+                    const detail = applyContext.canvas?.getApplyError?.()
                     const resume = getOperatorState().resume
                     const resumeStep = resume?.steps.findLast(
                       (item) => item.state === 'done',
@@ -1504,6 +1505,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                       markOperatorResumeStep(resumeStep.id, {
                         state: 'failed',
                         reason:
+                          detail ??
                           ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
                       })
                     upsertOperatorStep(
@@ -1511,6 +1513,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                         ...step,
                         status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
                         error: {
+                          ...(detail ? { detail } : {}),
                           reason:
                             ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
                         },

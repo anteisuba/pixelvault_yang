@@ -77,6 +77,7 @@ export interface UseCanvasOperatorHostInput {
   readonly availableModelsByNodeId?: Readonly<Record<string, readonly string[]>>
   /** 落一条 op。⚠ 就是图引擎的 `dispatch` —— ⛔ 别在这里另调执行器。 */
   applyOp(op: NodeAssistantOpV4): boolean
+  getApplyError?(): string | undefined
   /** 撤一步（图引擎的线性撤销栈）。 */
   undo(): void
   readonly canUndo: boolean
@@ -94,6 +95,7 @@ export function useCanvasOperatorHost({
   projectName,
   availableModelsByNodeId,
   applyOp,
+  getApplyError,
   undo,
   canUndo,
   generateNodes,
@@ -310,6 +312,7 @@ export function useCanvasOperatorHost({
       setPrimed: noForm,
       canvas: {
         applyOp: canvasApply,
+        getApplyError,
         revertOp: canvasRevert,
         generate: canvasGenerate,
         planRerunDownstream: canvasPlanRerun,
@@ -319,6 +322,7 @@ export function useCanvasOperatorHost({
     addReference,
     removeReference,
     canvasApply,
+    getApplyError,
     canvasRevert,
     canvasGenerate,
     canvasPlanRerun,

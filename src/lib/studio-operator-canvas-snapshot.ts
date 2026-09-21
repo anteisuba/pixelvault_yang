@@ -152,7 +152,7 @@ function toSnapshotNode(
     ...(model === undefined ? {} : { model }),
     ...(availableModels === undefined || availableModels.length === 0
       ? {}
-      : { availableModels: [...availableModels] }),
+      : { availableModels: [...new Set(availableModels)] }),
     ...(inputs.length === 0 ? {} : { inputs }),
     ...(nodeHasOutput(node) ? { hasOutput: true } : {}),
   }

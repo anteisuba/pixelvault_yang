@@ -1269,6 +1269,7 @@ function renderState(
     return [
       'NODE CANVAS — edit nodes with apply/action canvas_apply. There is no global form; this does NOT mean node prompts or references are unavailable.',
       `Current board: ${JSON.stringify(state.canvas ?? null)}`,
+      'A node without model has NO model selected. availableModels lists candidates, not selections. Before reporting completion, verify the current snapshot contains each requested node model, prompt (text) and reference input. If a requested field is absent, apply it; never claim it is configured. If already correct, do not repeat that mutation. Configure each new generated node fully before creating the next one; if the step budget runs out, report the remaining work honestly.',
       'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
       `Node kinds and subtypes: ${JSON.stringify(CANVAS_ADD_CATALOG.flatMap((group) => group.items.map((item) => item.v4)))}`,
       `Input slots: ${JSON.stringify(Object.fromEntries(Object.entries(NODE_V4_PORTS).map(([key, ports]) => [key, ports.inputs.map((input) => input.slot)])))}`,
@@ -9245,7 +9246,7 @@ export async function* runAssistantOperator(
         }
       }
       /** 这一轮是不是收尾轮 —— 下面两道闸的判据都是它。 */
-      const closingTurn = !turn.tool || turn.finished === true
+      const closingTurn = !turn.tool
 
       /**
        * ⭐ **收尾必须是一个结论**（2026-09-07，owner 打回的那一条）。
@@ -9328,7 +9329,7 @@ export async function* runAssistantOperator(
       }
 
       // ⚠ 这里重写一遍判据而不是用 `closingTurn`：TS 靠这一句把 `turn.tool` 收窄。
-      if (!turn.tool || turn.finished) {
+      if (!turn.tool) {
         /**
          * **每轮结账**（§7.5）—— 它排在 `done` 之前，因为记录要随那一帧走
          * （客户端直接渲染，⛔ 不再请求一次）。失败一律回 `undefined`，

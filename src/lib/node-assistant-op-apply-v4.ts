@@ -129,7 +129,7 @@ export interface ApplyOpV4Context {
   /**
    * `modelId` → 完整的模型选择（adapter / provider / apiKey）。助手只吐 modelId，
    * 展开成一份可用的选择是画布手上的事（`resolve()` 阶段），⛔ 不让模型编 adapter。
-   * 不给这个函数 = `set_model` 在没有旧选择可继承时**失败可见**，不静默半写。
+   * 不给这个函数 = `set_model` 失败，不继承旧模型的渠道或凭证。
    */
   resolveModel?(modelId: string): NodeV4Model | undefined
   /**
@@ -1106,24 +1106,12 @@ export function applyNodeAssistantOpV4(
       if (node.data.kind === NODE_MEDIA_KIND_IDS.text) {
         return { ok: false, reason: 'notAGeneratedNode' }
       }
-      const previous = node.data.model
-      const model: NodeV4Model | undefined = previous
-        ? { ...previous, modelId: op.modelId }
-        : context.resolveModel?.(op.modelId)
+      const model: NodeV4Model | undefined = context.resolveModel?.(op.modelId)
       if (!model) return { ok: false, reason: 'modelNotResolvable' }
       return {
         ok: true,
         state: replaceNodeData(state, node.id, (data) => ({ ...data, model })),
-        inverse: previous?.modelId
-          ? {
-              kind: 'op',
-              op: {
-                op: ids.setModel,
-                target: node.id,
-                modelId: previous.modelId,
-              },
-            }
-          : { kind: 'restore', nodes: [node], edges: [] },
+        inverse: { kind: 'restore', nodes: [node], edges: [] },
         changedNodeIds: [node.id],
         changedEdgeIds: [],
       }

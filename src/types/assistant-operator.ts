@@ -630,7 +630,7 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
   /** 这个节点上选得动的模型 —— ⛔ 没有这一格模型就会编一个不存在的 id。 */
   availableModels: z
     .array(LabelSchema)
-    .max(LIMITS.maxAvailableModels)
+    .max(ASSISTANT_OPERATOR_CANVAS_LIMITS.maxAvailableModels)
     .optional(),
   /** 接进来的线：哪个槽、从哪个节点来。 */
   inputs: z

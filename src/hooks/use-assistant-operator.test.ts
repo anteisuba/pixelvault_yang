@@ -117,7 +117,10 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       ? { generationControls: generationControls.current }
       : {}),
     apply: {
-      canvas: { applyOp: canvasApply },
+      canvas: {
+        applyOp: canvasApply,
+        getApplyError: () => '模型无法解析，请重新选择模型',
+      },
       triggerGeneration,
       getState: () => ({ prompt: '', advancedParams: {} }),
       dispatch,
@@ -338,7 +341,10 @@ describe('useAssistantOperator 的四条收尾路径', () => {
           store
             .getOperatorState()
             .entries.some(
-              (entry) => entry.kind === 'step' && entry.step.status === 'error',
+              (entry) =>
+                entry.kind === 'step' &&
+                entry.step.status === 'error' &&
+                entry.step.error.detail === '模型无法解析，请重新选择模型',
             ),
         ).toBe(true)
       }

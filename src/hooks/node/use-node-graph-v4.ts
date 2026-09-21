@@ -167,7 +167,7 @@ export interface UseNodeGraphV4Options {
   /** 应用之后的新 state。持久化由调用方（store）负责。 */
   onStateChange(next: NodeWorkflowStateV4): void
   /**
-   * `modelId` → 完整选择。⛔ 不给 = `setModel` 在没有旧选择可继承时**失败可见**，
+   * `modelId` → 完整选择。⛔ 不给 = 助手 `set_model` **失败可见**，
    * 不静默半写（与 op 执行器同一条论据）。
    */
   resolveModel?(modelId: string): NodeWorkflowModelSelection | undefined
@@ -767,16 +767,7 @@ export function useNodeGraphV4({
         onOpFailed?.(result.reason)
         return
       }
-      // op 在有旧选择时只换 `modelId`（保留旧 adapter），而用户换的是**整条路由**
-      // —— 把这份完整选择盖回去，否则换 provider 会留着上一家的 adapter。
-      const next = reconcileStateSlots({
-        ...result.state,
-        nodes: result.state.nodes.map((node) =>
-          node.id === nodeId && node.data.kind !== NODE_MEDIA_KIND_IDS.text
-            ? { ...node, data: { ...node.data, model } }
-            : node,
-        ),
-      })
+      const next = reconcileStateSlots(result.state)
       setUndoStack((stack) => [
         ...stack,
         { undo: { kind: 'inverse', inverse: result.inverse }, redoState: next },

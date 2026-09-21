@@ -1267,10 +1267,7 @@ html:lang(ja) {
      不重复声明 background/padding，只留这一层自己的高度契约与定位。 */
   .studio-layout-v2 {
     --studio-generation-media-max-height: 45vh;
-    /* 移动端底部固定 composer 的预留高度：pt 8 + chip 行 32 + gap 8 + 输入行 44
-       + pb 16 ≈ 108px。提示词长到 3 行时 composer 会超过这个数 —— 那是舞台
-       自己滚动的事，不把预留值做成 JS 量出来的动态值（一个 ResizeObserver
-       换来的抖动比它解决的问题大）。 */
+    /* 初始预留值；挂载后按 composer 的实际高度同步。 */
     --studio-mobile-composer-height: 7rem;
 
     min-height: calc(100svh - 3.5rem);
@@ -1337,10 +1334,7 @@ html:lang(ja) {
 
   /* 舞台给底部 composer 让位（含 iOS 安全区）。 */
   .studio-mobile-stage {
-    padding-bottom: calc(
-      var(--studio-mobile-composer-height, 7rem) +
-        var(--keyboard-safe-area-bottom, 0px)
-    );
+    padding-bottom: var(--studio-mobile-composer-height, 7rem);
   }
 
   /* chip 行：32px 丸 + 44px 触屏命中区（同 .touch-target-y 的手法）。

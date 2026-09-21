@@ -13,7 +13,7 @@ import {
 } from '@/constants/audio-options'
 import { PLATFORM_GENERATION_GUARD, VIDEO_GENERATION } from '@/constants/config'
 import type { AspectRatio } from '@/constants/config'
-import { getModelById } from '@/constants/models'
+import { getModelById, getModelFamily } from '@/constants/models'
 import { resolveAudioTextLimit } from '@/constants/models/audio'
 import { VIDEO_UNIT_PRICE_BASE_RESOLUTION } from '@/constants/models/unit-prices'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
@@ -602,15 +602,27 @@ export function useStudioGenerateAction() {
 
   const handleRemoveRunModel = useCallback(
     (optionId: string) => {
+      for (const id of state.extraModelOptionIds) {
+        if (!runModelIds.has(id)) {
+          dispatch({ type: 'REMOVE_EXTRA_MODEL', payload: id })
+        }
+      }
       if (optionId !== state.selectedOptionId) {
         dispatch({ type: 'REMOVE_EXTRA_MODEL', payload: optionId })
         return
       }
-      const next = state.extraModelOptionIds[0] ?? null
+      const next =
+        runModels.find((model) => model.optionId !== optionId)?.optionId ?? null
       dispatch({ type: 'SET_OPTION_ID', payload: next })
       if (next) dispatch({ type: 'REMOVE_EXTRA_MODEL', payload: next })
     },
-    [dispatch, state.selectedOptionId, state.extraModelOptionIds],
+    [
+      dispatch,
+      state.selectedOptionId,
+      state.extraModelOptionIds,
+      runModels,
+      runModelIds,
+    ],
   )
 
   /**
@@ -627,13 +639,30 @@ export function useStudioGenerateAction() {
         handleRemoveRunModel(option.optionId)
         return
       }
-      if (!state.selectedOptionId) {
+      const primary = runModels[0]
+      const sameFamily =
+        primary &&
+        (getModelFamily(primary.modelId) ?? primary.modelId) ===
+          (getModelFamily(option.modelId) ?? option.modelId)
+      for (const id of state.extraModelOptionIds) {
+        if (!sameFamily || !runModelIds.has(id)) {
+          dispatch({ type: 'REMOVE_EXTRA_MODEL', payload: id })
+        }
+      }
+      if (!sameFamily) {
+        dispatch({ type: 'RESET_ADVANCED_PARAMS' })
         dispatch({ type: 'SET_OPTION_ID', payload: option.optionId })
         return
       }
       dispatch({ type: 'TOGGLE_EXTRA_MODEL', payload: option.optionId })
     },
-    [dispatch, handleRemoveRunModel, runModelIds, state.selectedOptionId],
+    [
+      dispatch,
+      handleRemoveRunModel,
+      runModelIds,
+      runModels,
+      state.extraModelOptionIds,
+    ],
   )
 
   const buildImageInput = useCallback(

@@ -404,7 +404,7 @@ describe('StudioOperatorDock · 手机档', () => {
     render(<StudioOperatorDock />)
     const avatar = screen.getByTestId('operator-avatar-toggle')
     expect(avatar.style.top).toBe(
-      `${STUDIO_OPERATOR_MOBILE_SHELL.fabInsetPx}px`,
+      `${STUDIO_OPERATOR_MOBILE_SHELL.avatarTopPx}px`,
     )
     expect(avatar.style.bottom).toBe('')
     fireEvent.click(avatar)

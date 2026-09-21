@@ -3,7 +3,6 @@
 import {
   memo,
   useCallback,
-  useMemo,
   useRef,
   useEffect,
   useState,
@@ -25,7 +24,6 @@ import {
   STUDIO_PROMPT_TEXTAREA_ID,
   STUDIO_REFERENCE_DRAG_TYPE,
 } from '@/constants/studio'
-import { WORKFLOW_IDS } from '@/constants/workflows'
 import {
   SAMPLE_PROMPT_KEYS,
   SAMPLE_PROMPT_STORAGE_KEY,
@@ -37,6 +35,7 @@ import {
   useStudioData,
 } from '@/contexts/studio-context'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
+import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
@@ -69,12 +68,6 @@ import { StudioAudioKindSwitcher } from '@/components/business/studio/StudioAudi
 import { StudioOperatorChangeRail } from '@/components/business/studio/assistant-operator'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { cn } from '@/lib/utils'
-import { hasPlaceholders } from '@/lib/prompt-placeholders'
-import type {
-  InspirationRecord,
-  OutputType as RecipeOutputType,
-  RecipeRecord,
-} from '@/types'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
 import { Spinner } from '@/components/ui/spinner'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
@@ -179,131 +172,16 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     videoCostBasis,
   } = useStudioGenerateAction()
 
-  const getRecipePrompt = useCallback(
-    (recipe: RecipeRecord) => recipe.compiledPrompt.trim(),
-    [],
-  )
-
-  const currentTemplateOutputType = useMemo<RecipeOutputType>(() => {
-    if (state.outputType === 'video') return 'VIDEO'
-    if (state.outputType === 'audio') return 'AUDIO'
-    return 'IMAGE'
-  }, [state.outputType])
-
-  const currentTemplateParams = useMemo<Record<string, unknown>>(
-    () => ({
-      aspectRatio: state.aspectRatio,
-      advancedParams: state.advancedParams,
-    }),
-    [state.advancedParams, state.aspectRatio],
-  )
-
-  const getRecipeAspectRatio = useCallback((recipe: RecipeRecord) => {
-    if (!recipe.params || typeof recipe.params !== 'object') return null
-    const params = recipe.params as Record<string, unknown>
-    const aspectRatio = params.aspectRatio
-    return aspectRatio === '1:1' ||
-      aspectRatio === '16:9' ||
-      aspectRatio === '9:16' ||
-      aspectRatio === '4:3' ||
-      aspectRatio === '3:4'
-      ? aspectRatio
-      : null
-  }, [])
-
-  const getRecipeAdvancedParams = useCallback((recipe: RecipeRecord) => {
-    if (!recipe.params || typeof recipe.params !== 'object') return null
-    const params = recipe.params as Record<string, unknown>
-    const advancedParams = params.advancedParams
-    return advancedParams &&
-      typeof advancedParams === 'object' &&
-      !Array.isArray(advancedParams)
-      ? (advancedParams as Record<string, unknown>)
-      : null
-  }, [])
-
-  const setRecipeLineage = useCallback(
-    (recipe: RecipeRecord, useMode: 'replace' | 'insert' | 'apply') => {
-      dispatch({
-        type: 'SET_RECIPE_USAGE',
-        payload: {
-          recipeId: recipe.id,
-          recipeVersion: recipe.version,
-          useMode,
-        },
-      })
-    },
-    [dispatch],
-  )
-
-  // ── Inspiration: apply + placeholder dialog ─────────────────────
-  /**
-   * 负面提示词的折叠态。⚠ 只是**显示**折叠，值本身活在 `state.advancedParams`
-   * —— 折叠不影响它是否随请求发出（发出的判据只有「有没有内容」）。
-   */
   const [negativePromptExpanded, setNegativePromptExpanded] = useState(false)
-
-  const [placeholderDialog, setPlaceholderDialog] = useState<{
-    open: boolean
-    prompt: string
-  }>({ open: false, prompt: '' })
-
-  const applyInspirationPrompt = useCallback(
-    (prompt: string) => {
-      dispatch({ type: 'SET_PROMPT', payload: prompt })
-    },
-    [dispatch],
-  )
-
-  const handleApplyInspiration = useCallback(
-    (inspiration: InspirationRecord) => {
-      if (hasPlaceholders(inspiration.prompt)) {
-        setPlaceholderDialog({ open: true, prompt: inspiration.prompt })
-      } else {
-        applyInspirationPrompt(inspiration.prompt)
-      }
-    },
-    [applyInspirationPrompt],
-  )
-
-  const handleApplyRecipe = useCallback(
-    (recipe: RecipeRecord) => {
-      const workflowId =
-        recipe.outputType === 'VIDEO'
-          ? WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO
-          : recipe.outputType === 'AUDIO'
-            ? WORKFLOW_IDS.VOICE_NARRATION_DIALOGUE
-            : WORKFLOW_IDS.QUICK_IMAGE
-      const matchedOption = modelOptions.find(
-        (option) => option.modelId === recipe.modelId,
-      )
-      const aspectRatio = getRecipeAspectRatio(recipe)
-      const advancedParams = getRecipeAdvancedParams(recipe)
-
-      dispatch({ type: 'SET_SELECTED_WORKFLOW_ID', payload: workflowId })
-      dispatch({ type: 'SET_WORKFLOW_MODE', payload: 'quick' })
-      dispatch({
-        type: 'SET_OPTION_ID',
-        payload: matchedOption?.optionId ?? `workspace:${recipe.modelId}`,
-      })
-      dispatch({ type: 'SET_PROMPT', payload: getRecipePrompt(recipe) })
-      if (aspectRatio) {
-        dispatch({ type: 'SET_ASPECT_RATIO', payload: aspectRatio })
-      }
-      if (advancedParams) {
-        dispatch({ type: 'SET_ADVANCED_PARAMS', payload: advancedParams })
-      }
-      setRecipeLineage(recipe, 'apply')
-    },
-    [
-      dispatch,
-      getRecipeAdvancedParams,
-      getRecipeAspectRatio,
-      getRecipePrompt,
-      modelOptions,
-      setRecipeLineage,
-    ],
-  )
+  const {
+    currentTemplateOutputType,
+    currentTemplateParams,
+    handleApplyRecipe,
+    handleApplyInspiration,
+    placeholderDialog,
+    setPlaceholderDialog,
+    applyInspirationPrompt,
+  } = useStudioPromptTemplates(modelOptions)
 
   // ── Quick Setup Dialog state ────────────────────────────────────
   const [quickSetup, setQuickSetup] = useState<{

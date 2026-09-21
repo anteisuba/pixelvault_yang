@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { StudioFormState } from '@/contexts/studio-context'
@@ -96,10 +96,27 @@ vi.mock('@/components/business/studio/ReferenceImageChip', () => ({
   ),
 }))
 
-vi.mock('@/components/business/studio/StudioEnhanceButton', () => ({
-  StudioEnhanceButton: () => (
-    <button type="button" aria-label="enhance">
-      enhance
+vi.mock('@/components/business/studio/PromptTemplatePicker', () => ({
+  PromptTemplatePicker: ({
+    onApply,
+  }: ComponentProps<
+    typeof import('./PromptTemplatePicker').PromptTemplatePicker
+  >) => (
+    <button
+      type="button"
+      aria-label="template"
+      onClick={() =>
+        onApply({
+          id: 'recipe-1',
+          version: 2,
+          outputType: 'IMAGE',
+          modelId: 'gpt-image-1',
+          compiledPrompt: '  template prompt  ',
+          params: { aspectRatio: '3:4', advancedParams: { seed: 42 } },
+        } as import('@/types').RecipeRecord)
+      }
+    >
+      template
     </button>
   ),
 }))
@@ -172,6 +189,7 @@ function setForm(overrides: Partial<StudioFormState> = {}) {
 
 function setAction(overrides: Record<string, unknown> = {}) {
   mockUseGenerateAction.mockReturnValue({
+    modelOptions: [IMAGE_OPTION],
     runModels: [IMAGE_OPTION],
     runModelIds: new Set([IMAGE_OPTION.optionId]),
     handleToggleRunModel: vi.fn(),
@@ -233,6 +251,74 @@ beforeEach(() => {
 })
 
 describe('StudioMobileComposer', () => {
+  it('applies template prompt, model, parameters and lineage without a duplicate assistant entry', () => {
+    render(<StudioMobileComposer />)
+    fireEvent.click(screen.getByRole('button', { name: 'template' }))
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'SET_PROMPT',
+      payload: 'template prompt',
+    })
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'SET_OPTION_ID',
+      payload: IMAGE_OPTION.optionId,
+    })
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'SET_ASPECT_RATIO',
+      payload: '3:4',
+    })
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'SET_ADVANCED_PARAMS',
+      payload: { seed: 42 },
+    })
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'SET_RECIPE_USAGE',
+      payload: { recipeId: 'recipe-1', recipeVersion: 2, useMode: 'apply' },
+    })
+    expect(
+      screen.queryByRole('button', { name: 'enhance' }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('reserves the measured composer height and updates after resizing', () => {
+    let resize = () => {}
+    const disconnect = vi.fn()
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(callback: () => void) {
+          resize = callback
+        }
+        observe() {}
+        disconnect = disconnect
+      },
+    )
+    let height = 180
+    const bounds = vi
+      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
+      .mockImplementation(() => ({ height }) as DOMRect)
+    const { container, unmount } = render(
+      <div className="studio-layout-v2">
+        <StudioMobileComposer />
+      </div>,
+    )
+    const layout = container.firstElementChild as HTMLElement
+    expect(
+      layout.style.getPropertyValue('--studio-mobile-composer-height'),
+    ).toBe('180px')
+    height = 268
+    act(() => resize())
+    expect(
+      layout.style.getPropertyValue('--studio-mobile-composer-height'),
+    ).toBe('268px')
+    unmount()
+    expect(disconnect).toHaveBeenCalled()
+    expect(
+      layout.style.getPropertyValue('--studio-mobile-composer-height'),
+    ).toBe('')
+    bounds.mockRestore()
+    vi.unstubAllGlobals()
+  })
+
   it('reflects the selected model and spec on the chip row', () => {
     setForm({
       aspectRatio: '3:4',

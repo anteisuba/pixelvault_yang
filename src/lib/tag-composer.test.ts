@@ -115,3 +115,22 @@ describe('自然语言台带过来的那一句', () => {
     expect(wholeSentenceAsTag('   ')).toEqual([])
   })
 })
+
+describe('native NovelAI emphasis groups', () => {
+  it.each([
+    '1girl, 1.5::rain, night::, 0.5::coat::',
+    '1girl, -1::flat color, monochrome::, city',
+    '1girl, {rain, night}, city',
+    '1girl, 20::best quality, detailed::, no text',
+  ])(
+    'preserves grouped text through editing and request translation: %s',
+    (prompt) => {
+      const chips = parseTagChips(prompt)
+      expect(chips[1].text).toContain(',')
+      expect(serializeTagChips(chips)).toBe(prompt)
+      expect(translateTagPromptText(prompt, AI_ADAPTER_TYPES.NOVELAI)).toBe(
+        prompt,
+      )
+    },
+  )
+})

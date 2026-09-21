@@ -165,7 +165,7 @@ export function StudioTagChipField({
         ref={boxRef}
         onClick={() => inputRef.current?.focus()}
         className={cn(
-          'flex min-h-18 flex-wrap content-start gap-1.5 rounded-lg border bg-background p-2 transition-colors duration-fast ease-standard',
+          'flex max-h-48 min-h-18 overflow-y-auto lg:max-h-none flex-wrap content-start gap-1.5 rounded-lg border bg-background p-2 transition-colors duration-fast ease-standard',
           focused
             ? 'border-primary/40 ring-2 ring-primary/10'
             : 'border-border',
@@ -204,7 +204,11 @@ export function StudioTagChipField({
             const next = event.target.value
             setActiveIndex(0)
             // 打到逗号就落格，最后一段留在输入框里继续写。
-            if (next.includes(',')) {
+            if (
+              next.includes(',') &&
+              !next.includes('::') &&
+              !/[{}\[\]]/.test(next)
+            ) {
               const pieces = next.split(',')
               commit(pieces.slice(0, -1).join(','))
               setDraft(pieces[pieces.length - 1].trimStart())

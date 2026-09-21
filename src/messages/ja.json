@@ -2837,6 +2837,8 @@
     "saveCurrentPromptEmpty": "先にプロンプトを入力すると、テンプレートとして保存できます。",
     "manageInPrompts": "プロンプトで管理",
     "savingCurrentPrompt": "プロンプトを保存中...",
+    "outputTypeLora": "LoRA",
+    "templatesLoadFailed": "テンプレートを読み込めませんでした。再試行してください。",
     "loadingTemplates": "テンプレートを読み込み中...",
     "createAction": "新規テンプレート",
     "createCollapse": "閉じる",
@@ -6208,6 +6210,7 @@
     }
   },
   "StudioMobile": {
+    "modelParameters": "モデル設定",
     "modelChipEmpty": "モデルを選ぶ",
     "modelChipMulti": "{count}個のモデル",
     "modelSheetDone": "完了 · {count}個のモデル",
@@ -6269,7 +6272,7 @@
     "compareGenerate": "モデル比較",
     "compareSuccess": "比較する画像ができました",
     "compareSelectModels": "比較する2〜3つのモデルを選択",
-    "modelAdd": "モデルを追加",
+    "modelAdd": "モデルを選択・切替",
     "modelRemove": "削除",
     "modelCountSelected": "{count, plural, other {# 件選択}}",
     "specLabel": "仕様",
@@ -6331,6 +6334,7 @@
     "variantRequests": "{count}クレジット使用"
   },
   "StudioTags": {
+    "mobileParameters": "サンプリングと詳細設定",
     "officialTagsLoading": "NAI 公式タグを検索中…",
     "officialTagsKeyRequired": "公式候補には NovelAI API キーの設定が必要です。手入力は引き続き可能です。",
     "officialTagsError": "NAI 公式候補を取得できません。手入力は引き続き可能です。",
@@ -6378,6 +6382,7 @@
     "moreControls": "サンプラー · 解像度 · その他",
     "preciseReferenceCost": "生成画像ごとに 5 Anlas が追加されます。キャラクターの外観のみを参照します。",
     "workbench": {
+      "backToEditor": "編集に戻る",
       "characterNumber": "キャラクター {number}",
       "lookup": "キャラクター資料",
       "enableCharacter": "キャラクター {number} を有効化",

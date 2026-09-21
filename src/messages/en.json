@@ -2837,6 +2837,8 @@
     "saveCurrentPromptEmpty": "Write a prompt first, then save it as a template.",
     "manageInPrompts": "Manage in Prompts",
     "savingCurrentPrompt": "Saving prompt...",
+    "outputTypeLora": "LoRA",
+    "templatesLoadFailed": "Could not load templates. Please try again.",
     "loadingTemplates": "Loading templates...",
     "createAction": "New template",
     "createCollapse": "Collapse",
@@ -6208,6 +6210,7 @@
     }
   },
   "StudioMobile": {
+    "modelParameters": "Model settings",
     "modelChipEmpty": "Pick a model",
     "modelChipMulti": "{count, plural, one {# model} other {# models}}",
     "modelSheetDone": "Done · {count, plural, one {# model} other {# models}}",
@@ -6277,7 +6280,7 @@
     "compareGenerate": "Compare Models",
     "compareSuccess": "Comparison ready",
     "compareSelectModels": "Select 2-3 models to compare",
-    "modelAdd": "Add model",
+    "modelAdd": "Select / switch models",
     "modelRemove": "Remove",
     "modelCountSelected": "{count, plural, one {# selected} other {# selected}}",
     "specLabel": "Spec",
@@ -6331,6 +6334,7 @@
     "variantRequests": "Uses {count} credits"
   },
   "StudioTags": {
+    "mobileParameters": "Sampling and advanced settings",
     "officialTagsLoading": "Loading NAI tag suggestions…",
     "officialTagsKeyRequired": "Configure your NovelAI API key for official suggestions. Manual input remains available.",
     "officialTagsError": "NAI suggestions are unavailable. You can still type tags manually.",
@@ -6378,6 +6382,7 @@
     "moreControls": "Sampler · resolution · more",
     "preciseReferenceCost": "Adds 5 Anlas per generated image; references character appearance only.",
     "workbench": {
+      "backToEditor": "Back to editor",
       "characterNumber": "Character {number}",
       "lookup": "Find character",
       "enableCharacter": "Enable character {number}",

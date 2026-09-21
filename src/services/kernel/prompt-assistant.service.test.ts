@@ -157,7 +157,7 @@ describe('chatPromptAssistant', () => {
     )
   })
 
-  it('requires English danbooru tags when the target model is NovelAI', async () => {
+  it('preserves native NovelAI groups and asks for verified character tags', async () => {
     mockLlmCompletion.mockResolvedValue('ask a couple of clarifying questions')
 
     await runGeneralTurn('clerk_1', {
@@ -172,10 +172,15 @@ describe('chatPromptAssistant', () => {
     expect(call?.systemPrompt).toContain(
       'CURRENT TARGET MODEL: nai-diffusion-5-full',
     )
-    expect(call?.systemPrompt).toMatch(
-      /does not eat natural-language paragraphs/i,
-    )
+    expect(call?.systemPrompt).toMatch(/native tag and emphasis syntax/i)
     expect(call?.systemPrompt).toMatch(/danbooru-style comma-separated tags/i)
+    expect(call?.systemPrompt).toContain('weight::tag, another tag::')
+    expect(call?.systemPrompt).toContain(
+      'include danbooru among sources before set_prompt',
+    )
+    expect(call?.systemPrompt).toContain(
+      'do not claim to have queried Danbooru',
+    )
   })
 
   it('sends full history first, then compacts once on a provider context error', async () => {

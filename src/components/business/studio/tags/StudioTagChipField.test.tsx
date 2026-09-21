@@ -51,6 +51,18 @@ describe('StudioTagChipField', () => {
     expect(input).toHaveValue('rain')
   })
 
+  it('keeps a numeric emphasis group intact until Enter', () => {
+    const { onChange, input } = setup()
+    fireEvent.change(input, { target: { value: '1.5::rain, night' } })
+    expect(onChange).not.toHaveBeenCalled()
+    fireEvent.change(input, { target: { value: '1.5::rain, night::, city' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onChange).toHaveBeenCalledWith([
+      { text: '1.5::rain, night::', weight: 1 },
+      { text: 'city', weight: 1 },
+    ])
+  })
+
   it('回车落格', () => {
     const { onChange, input } = setup()
     fireEvent.change(input, { target: { value: 'neon city' } })

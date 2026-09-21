@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useState } from 'react'
+import { memo, useLayoutEffect, useRef, useState } from 'react'
 import {
   ArrowUp,
   ChevronDown,
@@ -30,7 +30,10 @@ import { Spinner } from '@/components/ui/spinner'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
-import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
+import { PromptTemplatePicker } from './PromptTemplatePicker'
+import { PlaceholderFillDialog } from '@/components/business/prompts/inspiration/PlaceholderFillDialog'
+import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
+import { getProviderLabel } from '@/constants/providers'
 import { StudioMobileModelSheet } from '@/components/business/studio/StudioMobileModelSheet'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
@@ -56,7 +59,7 @@ const chipClass = cn(
  * 2026-09-03 方向 A「画布优先」）+ `studio-video-mobile-request.md`（视频，同日
  * 拍板）。两行：
  *   1. 横向可滚的 chip 行
- *      · 图片：模型 ▾（多选名单）/ 规格（`1:1 · ×1`）▾ / ＋参考图 / ✨ 优化
+ *      · 图片：模型 ▾（多选名单）/ 规格（`1:1 · ×1`）▾ / 模板 / ＋参考图
  *      · 视频：模型 ▾（单选）/ 规格（`5s · 720p · 16:9`）▾ / 🔊 出声 /
  *              ＋参考图 / ♪ 音频参考 / 剧本
  *   2. 单行自增高提示词 + 黑色生成键（图片 44×44 方形 `↑`；视频带时长 `↑ 5s`）
@@ -86,6 +89,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
   const tScript = useTranslations('VideoScript')
   const {
     selectedModel,
+    modelOptions,
     runModels,
     runModelIds,
     filterVideoModelByMode,
@@ -98,9 +102,38 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
     isImagePromptOverLimit,
     videoCostBasis,
   } = useStudioGenerateAction()
+  const {
+    currentTemplateOutputType,
+    currentTemplateParams,
+    handleApplyRecipe,
+    handleApplyInspiration,
+    placeholderDialog,
+    setPlaceholderDialog,
+    applyInspirationPrompt,
+  } = useStudioPromptTemplates(modelOptions)
+
   const { supported: supportsGenerateAudio, value: generateAudioValue } =
     useStudioVideoAudio()
   const [modelSheetOpen, setModelSheetOpen] = useState(false)
+
+  const composerRef = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    const composer = composerRef.current
+    const layout = composer?.closest<HTMLElement>('.studio-layout-v2')
+    if (!composer || !layout) return
+    const update = () =>
+      layout.style.setProperty(
+        '--studio-mobile-composer-height',
+        `${Math.ceil(composer.getBoundingClientRect().height)}px`,
+      )
+    update()
+    const observer = new ResizeObserver(update)
+    observer.observe(composer)
+    return () => {
+      observer.disconnect()
+      layout.style.removeProperty('--studio-mobile-composer-height')
+    }
+  }, [])
 
   const isVideo = state.outputType === 'video'
 
@@ -144,6 +177,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
 
   return (
     <div
+      ref={composerRef}
       id={STUDIO_PROMPT_SCROLL_ANCHOR_ID}
       className={cn(
         STUDIO_MOBILE_COMPOSER_CLASS,
@@ -152,7 +186,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
       )}
     >
       {/* 第 1 行 —— 横向可滚，永不换行（换行会让 composer 高度跳，舞台跟着抖）。
-          ⚠ 必须裹 Toolbar.Root：`ReferenceImageChip` / `StudioEnhanceButton`
+          ⚠ 必须裹 Toolbar.Root：`ReferenceImageChip`
           底下是 Radix `Toolbar.Button`，没有 roving-focus context 会直接抛。 */}
       {/* 两台之间那扇门的**这一侧**（与标签台同一颗组件、同在第一行）。
           ⛔ 只给图片档：视频没有方言这一说。 */}
@@ -162,7 +196,12 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
           ⚠ 标签模型的专属控件**不在这里**：它们只活在标签台（D10 ⑤），
           而这条 composer 只服务自然语言台与视频档。 */}
       {state.outputType === 'image' ? (
-        <StudioModelCapabilityChips disabled={isGenerating} scroll />
+        <details>
+          <summary className="cursor-pointer py-1 text-sm text-muted-foreground">
+            {t('modelParameters')}
+          </summary>
+          <StudioModelCapabilityChips disabled={isGenerating} scroll />
+        </details>
       ) : null}
       <Toolbar.Root className="studio-mobile-chip-row flex min-w-0 items-center gap-1.5 overflow-x-auto">
         <button
@@ -213,6 +252,19 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
           </button>
         ) : null}
         {/* 参考图沿用既有那颗 —— 它自带移动端抽屉宿主，这里不重造。 */}
+        <PromptTemplatePicker
+          currentModelId={selectedModel?.modelId}
+          currentOutputType={currentTemplateOutputType}
+          currentParams={currentTemplateParams}
+          currentPrompt={state.prompt}
+          currentProvider={
+            selectedModel
+              ? getProviderLabel(selectedModel.providerConfig)
+              : undefined
+          }
+          onApply={handleApplyRecipe}
+          onApplyInspiration={handleApplyInspiration}
+        />
         <ReferenceImageChip disabled={isGenerating} />
         {isVideo ? (
           <>
@@ -258,7 +310,6 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
             </button>
           </>
         ) : null}
-        <StudioEnhanceButton disabled={isGenerating} />
       </Toolbar.Root>
 
       {/* 费用行（视频档）—— 一行 mono，说清「多少钱 + 怎么算出来的」。
@@ -358,6 +409,14 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
         </button>
       </PromptInput>
 
+      <PlaceholderFillDialog
+        open={placeholderDialog.open}
+        onOpenChange={(open) =>
+          setPlaceholderDialog((prev) => ({ ...prev, open }))
+        }
+        prompt={placeholderDialog.prompt}
+        onApply={applyInspirationPrompt}
+      />
       <StudioMobileModelSheet
         open={modelSheetOpen}
         onOpenChange={setModelSheetOpen}

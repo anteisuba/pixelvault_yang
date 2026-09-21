@@ -2,7 +2,7 @@
 
 import { useMemo, useState, type ReactNode } from 'react'
 import { ArrowUpRight, FileText, Save, Sparkles } from '@/components/icons'
-import { useLocale, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
 import { Button } from '@/components/ui/button'
@@ -29,7 +29,7 @@ import {
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ROUTES } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
-import { getTranslatedModelLabel } from '@/lib/model-options'
+import { getRecipeTemplateKind } from '@/lib/recipe-template-kind'
 import { cn } from '@/lib/utils'
 import { useStudioGen } from '@/contexts/studio-context'
 import { useInspirations } from '@/hooks/prompts/use-inspirations'
@@ -42,22 +42,9 @@ import type {
   RecipeRecord,
 } from '@/types'
 
-const RECENT_TEMPLATE_COUNT = 5
 const DEFAULT_TEMPLATE_OUTPUT_TYPE: OutputType = 'IMAGE'
 const TEMPLATE_NAME_MAX_LENGTH = 48
 const INSPIRATION_PREVIEW_MAX = 160
-
-const RELATIVE_TIME_UNITS: Array<{
-  unit: Intl.RelativeTimeFormatUnit
-  milliseconds: number
-}> = [
-  { unit: 'year', milliseconds: 365 * 24 * 60 * 60 * 1000 },
-  { unit: 'month', milliseconds: 30 * 24 * 60 * 60 * 1000 },
-  { unit: 'week', milliseconds: 7 * 24 * 60 * 60 * 1000 },
-  { unit: 'day', milliseconds: 24 * 60 * 60 * 1000 },
-  { unit: 'hour', milliseconds: 60 * 60 * 1000 },
-  { unit: 'minute', milliseconds: 60 * 1000 },
-]
 
 type PickerTab = 'mine' | 'inspiration'
 
@@ -89,20 +76,6 @@ function getDefaultTemplateName(prompt: string): string {
     : normalized
 }
 
-function getRelativeTemplateTime(createdAt: string, locale: string): string {
-  const timestamp = new Date(createdAt).getTime()
-  if (!Number.isFinite(timestamp)) return ''
-
-  const deltaMs = timestamp - Date.now()
-  const absoluteDeltaMs = Math.abs(deltaMs)
-  const formatter = new Intl.RelativeTimeFormat(locale, { numeric: 'auto' })
-  const unit =
-    RELATIVE_TIME_UNITS.find((item) => absoluteDeltaMs >= item.milliseconds) ??
-    RELATIVE_TIME_UNITS[RELATIVE_TIME_UNITS.length - 1]
-
-  return formatter.format(Math.round(deltaMs / unit.milliseconds), unit.unit)
-}
-
 export function PromptTemplatePicker({
   currentModelId,
   currentOutputType = DEFAULT_TEMPLATE_OUTPUT_TYPE,
@@ -113,31 +86,22 @@ export function PromptTemplatePicker({
   onApplyInspiration,
 }: PromptTemplatePickerProps) {
   const t = useTranslations('PromptLibrary')
-  const tModels = useTranslations('Models')
-  const locale = useLocale()
   const router = useRouter()
   const { lastGeneration } = useStudioGen()
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<PickerTab>('mine')
   const [isSavingCurrent, setIsSavingCurrent] = useState(false)
-  const { recipes, isLoading, addRecipe } = useRecipes()
+  const { recipes, isLoading, error, refresh, addRecipe } = useRecipes(open)
   const trimmedCurrentPrompt = currentPrompt?.trim() ?? ''
   const canSaveCurrent = Boolean(
     trimmedCurrentPrompt && currentModelId && currentProvider,
   )
   const showInspiration = Boolean(onApplyInspiration)
 
-  const { recentRecipes, restRecipes } = useMemo(() => {
-    if (recipes.length === 0) return { recentRecipes: [], restRecipes: [] }
-
-    const sorted = [...recipes].sort((a, b) =>
-      b.createdAt.localeCompare(a.createdAt),
-    )
-    return {
-      recentRecipes: sorted.slice(0, RECENT_TEMPLATE_COUNT),
-      restRecipes: sorted.slice(RECENT_TEMPLATE_COUNT),
-    }
-  }, [recipes])
+  const sortedRecipes = useMemo(
+    () => [...recipes].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    [recipes],
+  )
 
   const runRecipeAction = (recipe: RecipeRecord) => {
     onApply(recipe)
@@ -203,8 +167,6 @@ export function PromptTemplatePicker({
   }
 
   const renderRecipeItem = (recipe: RecipeRecord) => {
-    const modelLabel = getTranslatedModelLabel(tModels, recipe.modelId)
-    const relativeTime = getRelativeTemplateTime(recipe.createdAt, locale)
     const searchValue = [
       recipe.id,
       recipe.name,
@@ -219,8 +181,9 @@ export function PromptTemplatePicker({
       <CommandItem
         key={recipe.id}
         value={searchValue}
+        title={recipe.name || recipe.modelId}
         onSelect={() => runRecipeAction(recipe)}
-        className="group min-h-14 items-center gap-3 px-3 py-2.5"
+        className="group flex-col items-stretch gap-2 rounded-lg p-2"
       >
         {recipe.coverThumbnailUrl ? (
           // eslint-disable-next-line @next/next/no-img-element -- stored generation thumbnails are already optimized derivatives
@@ -228,25 +191,16 @@ export function PromptTemplatePicker({
             src={recipe.coverThumbnailUrl}
             alt=""
             loading="lazy"
-            className="size-9 shrink-0 rounded-md object-cover ring-1 ring-inset ring-border/40 transition duration-fast ease-standard group-hover:brightness-110 group-hover:ring-border group-data-[selected=true]:brightness-110 group-data-[selected=true]:ring-border"
+            className="aspect-square w-full shrink-0 rounded-md object-cover ring-1 ring-inset ring-border/40 transition duration-fast ease-standard group-hover:brightness-110 group-hover:ring-border group-data-[selected=true]:brightness-110 group-data-[selected=true]:ring-border"
           />
         ) : (
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-muted/65 text-muted-foreground ring-1 ring-inset ring-border/40 transition-colors duration-fast ease-standard group-hover:bg-background/80 group-hover:text-foreground group-hover:ring-border group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground group-data-[selected=true]:ring-border">
+          <span className="flex aspect-square w-full shrink-0 items-center justify-center rounded-md bg-muted/65 text-muted-foreground ring-1 ring-inset ring-border/40 transition-colors duration-fast ease-standard group-hover:bg-background/80 group-hover:text-foreground group-hover:ring-border group-data-[selected=true]:bg-background/80 group-data-[selected=true]:text-foreground group-data-[selected=true]:ring-border">
             <FileText className="size-3.5" />
           </span>
         )}
         <span className="min-w-0 flex-1">
-          <span className="line-clamp-1 min-w-0 text-sm font-semibold">
+          <span className="line-clamp-2 min-h-10 min-w-0 text-sm font-medium">
             {recipe.name || recipe.modelId}
-          </span>
-          <span className="mt-0.5 flex min-w-0 items-center gap-1 text-2xs text-muted-foreground">
-            <span className="truncate">{modelLabel}</span>
-            {relativeTime && (
-              <>
-                <span aria-hidden="true">·</span>
-                <span className="shrink-0">{relativeTime}</span>
-              </>
-            )}
           </span>
         </span>
       </CommandItem>
@@ -275,7 +229,7 @@ export function PromptTemplatePicker({
       <ResponsiveDialogContent
         className={cn(
           studioDialogBaseClass,
-          'flex w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] flex-col sm:w-[min(640px,calc(100vw-4rem))] sm:!max-w-xl',
+          'flex w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] flex-col sm:w-[min(880px,calc(100vw-4rem))] sm:!max-w-4xl',
         )}
         mobileBodyClassName="studio-scrollbar px-0 pt-0"
       >
@@ -319,8 +273,9 @@ export function PromptTemplatePicker({
                   trimmedCurrentPrompt={trimmedCurrentPrompt}
                   onSaveCurrent={() => void handleSaveCurrentPrompt()}
                   isLoading={isLoading}
-                  recentRecipes={recentRecipes}
-                  restRecipes={restRecipes}
+                  recipes={sortedRecipes}
+                  error={error}
+                  onRetry={() => void refresh()}
                   renderRecipeItem={renderRecipeItem}
                 />
               </TabsContent>
@@ -336,8 +291,9 @@ export function PromptTemplatePicker({
               trimmedCurrentPrompt={trimmedCurrentPrompt}
               onSaveCurrent={() => void handleSaveCurrentPrompt()}
               isLoading={isLoading}
-              recentRecipes={recentRecipes}
-              restRecipes={restRecipes}
+              recipes={sortedRecipes}
+              error={error}
+              onRetry={() => void refresh()}
               renderRecipeItem={renderRecipeItem}
             />
           )}
@@ -364,8 +320,9 @@ interface MineTabBodyProps {
   trimmedCurrentPrompt: string
   onSaveCurrent: () => void
   isLoading: boolean
-  recentRecipes: RecipeRecord[]
-  restRecipes: RecipeRecord[]
+  recipes: RecipeRecord[]
+  error: boolean
+  onRetry: () => void
   renderRecipeItem: (recipe: RecipeRecord) => ReactNode
 }
 
@@ -375,12 +332,22 @@ function MineTabBody({
   trimmedCurrentPrompt,
   onSaveCurrent,
   isLoading,
-  recentRecipes,
-  restRecipes,
+  recipes,
+  error,
+  onRetry,
   renderRecipeItem,
 }: MineTabBodyProps) {
   const t = useTranslations('PromptLibrary')
-  const hasRecipes = recentRecipes.length + restRecipes.length > 0
+  const [kind, setKind] = useState('ALL')
+  const filteredRecipes = recipes.filter(
+    (recipe) => kind === 'ALL' || getRecipeTemplateKind(recipe) === kind,
+  )
+  const kinds = [
+    ['ALL', 'typeFilterAll'],
+    ['IMAGE', 'outputTypeImage'],
+    ['VIDEO', 'outputTypeVideo'],
+    ['LORA', 'outputTypeLora'],
+  ] as const
   return (
     <>
       <div className="border-b border-border/60 py-3">
@@ -408,30 +375,54 @@ function MineTabBody({
           </p>
         )}
       </div>
+      <div
+        role="group"
+        aria-label={t('typeFilterLabel')}
+        className="flex flex-wrap gap-1 py-3"
+      >
+        {kinds.map(([value, label]) => (
+          <Button
+            key={value}
+            type="button"
+            variant={kind === value ? 'secondary' : 'ghost'}
+            size="sm"
+            aria-pressed={kind === value}
+            onClick={() => setKind(value)}
+          >
+            {t(label)}
+          </Button>
+        ))}
+      </div>
+      {error && (
+        <div
+          role="alert"
+          className="flex items-center justify-between gap-2 py-3 text-sm"
+        >
+          <span>{t('templatesLoadFailed')}</span>
+          <Button variant="ghost" onClick={onRetry} disabled={isLoading}>
+            {t('retryAction')}
+          </Button>
+        </div>
+      )}
       <Command className="overflow-visible rounded-none bg-transparent">
         <CommandInput
           placeholder={t('searchPlaceholder')}
-          className="h-10 text-sm"
+          className="h-10 text-base md:text-sm"
         />
         <CommandList className="max-h-none overflow-visible overscroll-auto">
-          {isLoading && !hasRecipes ? (
+          {isLoading ? (
             <div className="flex flex-col items-center gap-2 py-12 text-sm text-muted-foreground">
               <Spinner size="lg" />
               <span>{t('loadingTemplates')}</span>
             </div>
           ) : (
             <>
-              <CommandEmpty>{t('emptyTitle')}</CommandEmpty>
-              {recentRecipes.length > 0 && (
-                <CommandGroup heading={t('recentTemplates')}>
-                  {recentRecipes.map(renderRecipeItem)}
-                </CommandGroup>
-              )}
-              {restRecipes.length > 0 && (
-                <CommandGroup heading={t('allTemplates')}>
-                  {restRecipes.map(renderRecipeItem)}
-                </CommandGroup>
-              )}
+              <CommandEmpty>
+                {t(kind === 'ALL' ? 'emptyTitle' : 'typeFilterEmpty')}
+              </CommandEmpty>
+              <CommandGroup className="p-0 pt-3 [&_[cmdk-group-items]]:grid [&_[cmdk-group-items]]:grid-cols-2 [&_[cmdk-group-items]]:gap-2 sm:[&_[cmdk-group-items]]:grid-cols-3 lg:[&_[cmdk-group-items]]:grid-cols-4">
+                {filteredRecipes.map(renderRecipeItem)}
+              </CommandGroup>
             </>
           )}
         </CommandList>
@@ -446,7 +437,16 @@ interface InspirationTabBodyProps {
 
 function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
   const t = useTranslations('PromptLibrary')
-  const { items, isLoading, error, filters, setQuery } = useInspirations()
+  const {
+    items,
+    isLoading,
+    isLoadingMore,
+    hasMore,
+    loadMore,
+    error,
+    filters,
+    setQuery,
+  } = useInspirations()
 
   return (
     <div className="flex flex-col">
@@ -482,14 +482,14 @@ function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
             {t('inspirationEmptyTitle')}
           </div>
         ) : (
-          <ul className="divide-y divide-border/40">
+          <ul className="grid grid-cols-2 gap-2 py-3 sm:grid-cols-3 lg:grid-cols-4">
             {items.map((inspiration) => (
               <li key={inspiration.id}>
                 <button
                   type="button"
                   onClick={() => onPick(inspiration)}
                   className={cn(
-                    'group flex w-full gap-3 px-3 py-2.5 text-left transition-colors duration-fast ease-standard',
+                    'group flex w-full flex-col gap-2 rounded-lg p-2 text-left transition-colors duration-fast ease-standard',
                     'hover:bg-muted/55 focus-visible:bg-muted/55',
                     'focus-visible:outline-none',
                   )}
@@ -500,10 +500,10 @@ function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
                       src={inspiration.imageUrl}
                       alt=""
                       loading="lazy"
-                      className="size-12 shrink-0 rounded-md object-cover ring-1 ring-inset ring-border/40 transition duration-fast ease-standard group-hover:brightness-110 group-hover:ring-border"
+                      className="aspect-square w-full shrink-0 rounded-md object-cover ring-1 ring-inset ring-border/40 transition duration-fast ease-standard group-hover:brightness-110 group-hover:ring-border"
                     />
                   ) : (
-                    <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-muted/65 text-muted-foreground ring-1 ring-inset ring-border/40 transition-colors duration-fast ease-standard group-hover:bg-background/80 group-hover:text-foreground group-hover:ring-border">
+                    <span className="flex aspect-square w-full shrink-0 items-center justify-center rounded-md bg-muted/65 text-muted-foreground ring-1 ring-inset ring-border/40 transition-colors duration-fast ease-standard group-hover:bg-background/80 group-hover:text-foreground group-hover:ring-border">
                       <Sparkles className="size-4" />
                     </span>
                   )}
@@ -511,20 +511,23 @@ function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
                     <span className="line-clamp-2 text-sm leading-snug text-foreground">
                       {truncatePrompt(inspiration.prompt)}
                     </span>
-                    <span className="mt-1 flex items-center gap-1 text-2xs text-muted-foreground">
-                      <span>@{inspiration.authorName}</span>
-                      {inspiration.categories[0] && (
-                        <>
-                          <span>/</span>
-                          <span>{inspiration.categories[0]}</span>
-                        </>
-                      )}
-                    </span>
                   </span>
                 </button>
               </li>
             ))}
           </ul>
+        )}
+        {hasMore && (
+          <Button
+            variant="ghost"
+            className="w-full"
+            disabled={isLoadingMore}
+            onClick={() => void loadMore()}
+          >
+            {t(
+              isLoadingMore ? 'inspirationLoadingMore' : 'inspirationLoadMore',
+            )}
+          </Button>
         )}
       </div>
     </div>

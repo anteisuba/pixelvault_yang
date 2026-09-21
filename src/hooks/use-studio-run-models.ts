@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from 'react'
 
+import { getModelFamily } from '@/constants/models'
 import { getPromptDialect } from '@/constants/prompt-dialects'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
@@ -49,6 +50,13 @@ export function useStudioRunModels(): UseStudioRunModelsReturn {
           (option) =>
             getPromptDialect(option.adapterType) === state.promptDialect,
         )
+        .filter((option, _index, list) => {
+          const primary = list[0]
+          return (
+            (getModelFamily(option.modelId) ?? option.modelId) ===
+            (getModelFamily(primary.modelId) ?? primary.modelId)
+          )
+        })
         /**
          * ⭐ **同一条路只跑一次**。目录那一层已经把 `workspace:` / `key:` 双胞胎
          * 折掉了（`foldRedundantWorkspaceRoutes`），这里是第二道：这份名单是

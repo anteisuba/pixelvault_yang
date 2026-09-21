@@ -17,7 +17,6 @@ import {
   HOME_V4_MODEL_FACETS,
   HOME_V4_MODEL_LOGO_KEYS,
   HOME_V4_PAGES,
-  HOME_V4_PARALLAX,
   HOME_V4_STATION_KEYS,
   HOME_V4_STATIONS,
   HOME_V4_STORY,
@@ -360,190 +359,15 @@ describe('home v4 · copy', () => {
   })
 })
 
-/**
- * 翻页错速（owner 2026-09-20：视差 = 翻页时前后景错速）。
- *
- * The numbers live in `HOME_V4_PARALLAX.PAGE_FLIP` and the stylesheet only
- * reads them, so what is worth guarding is the relationship between them and
- * the shape of the rule that consumes them — not the values, which owner is
- * expected to retune by hand on a real device.
- */
-describe('home v4 · 翻页错速', () => {
+describe('home v4 · uniform page motion', () => {
   const css = readFileSync(join(process.cwd(), 'src/app/home-v4.css'), 'utf8')
-  const flat = css.replace(/\s+/g, ' ')
-  const flip = HOME_V4_PARALLAX.PAGE_FLIP
-
-  /** Everything from the two-layer comment marker to the end of its media block. */
-  const flipBlock = (() => {
-    const start = css.indexOf(
-      '@media',
-      css.indexOf('翻页错速：文案层与演示卡层'),
-    )
-    let depth = 0
-    for (let i = css.indexOf('{', start); i < css.length; i += 1) {
-      if (css[i] === '{') depth += 1
-      else if (css[i] === '}') {
-        depth -= 1
-        if (depth === 0) return css.slice(start, i + 1)
-      }
-    }
-    throw new Error('the flip block is not brace-balanced')
-  })()
-  const flipRules = flipBlock.replace(/\s+/g, ' ')
-
-  it('lets the copy layer ride the page and holds the demo layer back', () => {
-    expect(flip.COPY_TRAVEL).toBe(1)
-    expect(flip.DEMO_TRAVEL).toBeGreaterThan(0)
-    expect(flip.DEMO_TRAVEL).toBeLessThan(flip.COPY_TRAVEL)
-  })
-
-  /* The demo layer's own displacement has to finish before the page does, or
-     there is no tail left for it to catch up in and the two layers land apart. */
-  it('finishes the demo layer ahead of the page so the tail closes the gap', () => {
-    expect(flip.CATCHUP_AT).toBeGreaterThan(0)
-    expect(flip.CATCHUP_AT).toBeLessThan(1)
-    expect(Math.round(HOME_V4_ENGINE.PAGE_MS * flip.CATCHUP_AT)).toBeLessThan(
-      HOME_V4_ENGINE.PAGE_MS,
-    )
-    expect(flip.STATION_SHIFT_VH).toBeGreaterThan(0)
-  })
-
-  /* The stylesheet's standalone fallbacks have to state the same numbers, or
-     the page reads one clock before hydration and another after it. */
-  it('declares the same travel ratios as the stylesheet fallbacks', () => {
-    expect(flat).toContain(`--flip-copy: ${flip.COPY_TRAVEL};`)
-    expect(flat).toContain(`--flip-demo: ${flip.DEMO_TRAVEL};`)
-    expect(flat).toContain(
-      `--flip-demo-dur: ${Math.round(HOME_V4_ENGINE.PAGE_MS * flip.CATCHUP_AT)}ms;`,
-    )
-    expect(flat).toContain(`--flip-shift: ${flip.STATION_SHIFT_VH}vh;`)
-  })
-
-  /* The stylesheet only ever reads the variables; the shell is what writes the
-     constants onto the domain root, so a ratio nobody publishes is a ratio the
-     page never sees. */
-  it('publishes every travel variable from the shell', () => {
-    const shell = readFileSync(
-      join(process.cwd(), 'src/components/business/home-v4/HomeV4Shell.tsx'),
-      'utf8',
-    )
-
-    for (const name of [
-      '--flip-copy',
-      '--flip-demo',
-      '--flip-demo-dur',
-      '--flip-shift',
-    ]) {
-      expect(shell).toContain(`'${name}'`)
-    }
-    for (const key of [
-      'COPY_TRAVEL',
-      'DEMO_TRAVEL',
-      'CATCHUP_AT',
-      'STATION_SHIFT_VH',
-    ]) {
-      expect(shell).toContain(`PAGE_FLIP.${key}`)
-    }
-  })
-
-  /**
-   * ⭐ One rule writes `transform`, and everything else contributes a variable
-   * to it. Two competing `transform` declarations is how the deck's flip and
-   * the station's model switch would zero each other out.
-   */
-  it('writes transform exactly once and sums the two contributions', () => {
-    expect(flat).toContain(
-      "[data-layer='copy'], [data-layer='demo']) { --flip-y: 0vh; --station-y: 0vh; transform: translateY(calc(var(--flip-y) + var(--station-y)));",
-    )
-
-    const writers = flat
-      .split('}')
-      .filter(
-        (chunk) =>
-          chunk.includes('data-layer') &&
-          /\btransform:/.test(chunk.split('{')[1] ?? ''),
-      )
-    expect(writers).toHaveLength(1)
-  })
-
-  it('drives the page flip from the travel-ratio variables, not from literals', () => {
-    expect(flipRules).toContain(
-      "vp[data-pos='after'] [data-layer='copy'] { --flip-y: calc((1 - var(--flip-copy)) * -100vh);",
-    )
-    expect(flipRules).toContain(
-      "vp[data-pos='after'] [data-layer='demo'] { --flip-y: calc((1 - var(--flip-demo)) * -100vh);",
-    )
-    expect(flipRules).toContain(
-      "vp[data-pos='before'] [data-layer='copy'] { --flip-y: calc((1 - var(--flip-copy)) * 100vh);",
-    )
-    expect(flipRules).toContain(
-      "vp[data-pos='before'] [data-layer='demo'] { --flip-y: calc((1 - var(--flip-demo)) * 100vh);",
-    )
-    expect(flat).toContain('transition-duration: var(--flip-demo-dur);')
-  })
-
-  /* Stepping between models inside a station is the same parallax with a
-     smaller base — owner asked for one feel, not two. */
-  it('splits the station step between the same two layers', () => {
-    expect(flipRules).toContain(
-      "hpg[data-pos='after'] [data-layer='copy'] { --station-y: calc(var(--flip-shift) * var(--flip-copy));",
-    )
-    expect(flipRules).toContain(
-      "hpg[data-pos='after'] [data-layer='demo'] { --station-y: calc(var(--flip-shift) * var(--flip-demo));",
-    )
-    expect(flipRules).toContain(
-      "hpg[data-pos='before'] [data-layer='copy'] { --station-y: calc(var(--flip-shift) * var(--flip-copy) * -1);",
-    )
-    expect(flipRules).toContain(
-      "hpg[data-pos='before'] [data-layer='demo'] { --station-y: calc(var(--flip-shift) * var(--flip-demo) * -1);",
-    )
-  })
-
-  /* …and so is the continuous wheel scrub, which only swaps the transition
-     clock for `--model-progress`. */
-  it('splits the station wheel scrub between the same two layers', () => {
-    for (const layer of ['copy', 'demo'] as const) {
-      expect(flat).toContain(
-        `> .hpg[data-scrub='outgoing'] [data-layer='${layer}'] { --station-y: calc( var(--model-progress) * var(--flip-shift) * var(--flip-${layer}) * -1 );`,
-      )
-      expect(flat).toContain(
-        `> .hpg[data-scrub='incoming'] [data-layer='${layer}'] { --station-y: calc( (1 - var(--model-progress)) * var(--flip-shift) * var(--flip-${layer}) );`,
-      )
-    }
-  })
-
-  /* Phones switch the whole page as one, and so does a reduced-motion desktop:
-     every offset lives behind this one guard. */
-  it('keeps the offsets off phones and off reduced motion', () => {
-    expect(flipBlock).toMatch(
-      /^@media \(min-width: 769px\) and \(prefers-reduced-motion: no-preference\)/,
-    )
-
-    const guards = flat.match(
-      /@media \([^)]*\)[^{]*\{[^@]*?--flip-(?:copy|demo|shift)\)/g,
-    )
-    expect(guards).not.toBeNull()
-    for (const guard of guards ?? []) {
-      expect(guard).toContain('prefers-reduced-motion: no-preference')
-      expect(guard).toContain('min-width: 769px')
-    }
-  })
-
-  /* The station page's own in/out marker is `data-scrub`, never `data-layer`:
-     a `.hpg` sits inside a `.vp`, so sharing the name would make the deck's
-     flip rules select the station's pages. */
-  it('keeps the station scrub marker off the data-layer name', () => {
-    expect(flat).not.toContain('.hpg[data-layer')
-    expect(flat).toContain('.hpg[data-scrub')
-
-    const selectors = flat
-      .split('}')
-      .map((chunk) => chunk.split('{')[0])
-      .filter((selector) => selector.includes('data-layer'))
-
-    expect(selectors.length).toBeGreaterThan(0)
-    for (const selector of selectors) {
-      expect(selector).not.toMatch(/\[data-layer\](?!=)/)
-    }
+  it('keeps pages and model layers free of scroll-driven offsets', () => {
+    expect(css).not.toContain('data-scrub')
+    expect(css).not.toContain('--model-progress')
+    expect(css).not.toContain('--station-y')
+    expect(css).not.toContain('--flip-y')
+    expect(css).not.toContain('--l1-v')
+    expect(css).toContain(`--dur: ${HOME_V4_ENGINE.PAGE_MS}ms`)
+    expect(css).toContain(`--hfade: ${HOME_V4_ENGINE.STATION_FADE_MS}ms`)
   })
 })

@@ -27,56 +27,13 @@ import type { AppLocale } from '@/i18n/routing'
 export const HOME_V4_ENGINE = {
   /** One vertical page slide. Published as `--dur`. */
   PAGE_MS: 850,
+  STATION_FADE_MS: 750,
   /** Input is ignored for this long after a step. */
   LOCK_MS: 900,
   /** Accumulated `wheel` deltaY that counts as one step. */
   WHEEL_THRESHOLD: 46,
   /** Swipe distance (px) that counts as one step. */
   TOUCH_THRESHOLD_PX: 52,
-} as const
-
-/**
- * Three-layer parallax. The layers run on their own clocks so that at the moment
- * the page lands they are still sliding inside it — that lag is the depth.
- * Vertical numbers are `vh`, the horizontal (station) ones `vw`.
- */
-export const HOME_V4_PARALLAX = {
-  /** Background layer, slowest. */
-  L1_MS: 1050,
-  /* The text layer has no entry: it runs on `PAGE_MS`, the page's own clock. */
-  /** Visual blocks, fastest. */
-  L3_MS: 680,
-  /** Cross-fade of a horizontal station's pages. */
-  STATION_FADE_MS: 750,
-  VERTICAL_VH: { L1: 7, L2: 13, L3: 22 },
-  HORIZONTAL_VW: { L1: 6, L2: 11, L3: 18 },
-  /**
-   * 翻页错速（owner 2026-09-20 定：视差 = 翻页时前后景错速）。
-   *
-   * 页本身永远走满一屏（`PAGE_MS` 不变）。页里的两层各有自己的行程比：
-   * 文案层跟页走满 `COPY_TRAVEL`，演示卡层在主程只走 `DEMO_TRAVEL`，剩下的
-   * `1 - DEMO_TRAVEL` 由它自身的反向位移在 `CATCHUP_AT` 处收完——收完之后
-   * 演示卡只剩页的速度，于是末段自己追平，两层同一瞬间落位。
-   *
-   * 同一对比例也管模型站：站与站之间的翻页走上面这条，同一站内模型之间的
-   * 切换（整步与滚轮连续）改以 `STATION_SHIFT_VH` 为基准按比例分。
-   *
-   * 行程比只在桌面 + `prefers-reduced-motion: no-preference` 下生效；
-   * 手机与降级下两层同速，整页切、站内整步切。
-   */
-  PAGE_FLIP: {
-    /** 文案层：跟页 1.0×，落位即页落位。 */
-    COPY_TRAVEL: 1,
-    /** 演示卡层：主程只走这么多，慢半拍。 */
-    DEMO_TRAVEL: 0.6,
-    /** 演示卡自身位移收完的时点，占 `PAGE_MS` 的比例——之后是追平段。 */
-    CATCHUP_AT: 0.72,
-    /**
-     * 站内切模型的行程基准（vh）。模型页之间是交叉淡入淡出、页本身不位移，
-     * 所以层的位移就是全部动作，两层按同一对比例直接分这个数。
-     */
-    STATION_SHIFT_VH: 13,
-  },
 } as const
 
 /** Left-rail dots: each title slides in one beat after the one above it. */
@@ -560,6 +517,19 @@ export const HOME_V4_FN_VIDEO = {
 } as const
 
 /* ── 05 画布：助手 → 剧本 → 节点 → 成片 ──────────────────────────── */
+
+export const HOME_V4_FN_CANVAS = {
+  ENTER_DELAY_MS: 500,
+  TYPE_MS: 28,
+  REPLY_GAP_MS: 450,
+  RECIPE_GAP_MS: 400,
+  SCRIPT_GAP_MS: 1000,
+  ROW_STEP_MS: 500,
+  BOARD_GAP_MS: 1400,
+  NODE_STEP_MS: 450,
+  WIRES_AFTER_NODES_MS: 350,
+  CUT_AFTER_WIRES_MS: 1100,
+} as const
 
 /** The three shots, in script order. Ids double as message keys. */
 export const HOME_V4_FN_CANVAS_SHOTS = [

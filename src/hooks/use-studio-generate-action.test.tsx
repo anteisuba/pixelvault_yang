@@ -89,7 +89,7 @@ vi.mock('@/contexts/studio-context', () => ({
 // 缺字段的话错会报在调用点而不是这里。
 const IMAGE_OPTION: StudioModelOption = {
   optionId: 'image-option',
-  modelId: 'gpt-image-1',
+  modelId: 'gpt-image-2.5-flare',
   keyId: 'api-key-1',
   keyLabel: 'OpenAI',
   adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -256,7 +256,7 @@ describe('useStudioGenerateAction', () => {
     const second = {
       ...IMAGE_OPTION,
       optionId: 'image-option-2',
-      modelId: 'flux-1',
+      modelId: 'gpt-image-2',
     }
     mockUseImageModelOptions.mockReturnValue({
       selectedModel: IMAGE_OPTION,
@@ -338,7 +338,7 @@ describe('useStudioGenerateAction', () => {
     const second = {
       ...IMAGE_OPTION,
       optionId: 'image-option-2',
-      modelId: 'flux-1',
+      modelId: 'gpt-image-2',
     }
     mockUseImageModelOptions.mockReturnValue({
       selectedModel: IMAGE_OPTION,
@@ -375,7 +375,7 @@ describe('useStudioGenerateAction', () => {
     const second = {
       ...IMAGE_OPTION,
       optionId: 'image-option-2',
-      modelId: 'flux-1',
+      modelId: 'gpt-image-2',
     }
     mockUseImageModelOptions.mockReturnValue({
       selectedModel: IMAGE_OPTION,
@@ -396,12 +396,71 @@ describe('useStudioGenerateAction', () => {
     })
   })
 
+  it('replaces the entire family and clears its parameters even on the same provider', () => {
+    const sibling = {
+      ...IMAGE_OPTION,
+      optionId: 'gpt-2',
+      modelId: 'gpt-image-2',
+    }
+    const other = {
+      ...IMAGE_OPTION,
+      optionId: 'seedream',
+      modelId: 'seedream-5.0',
+    }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: IMAGE_OPTION,
+      modelOptions: [IMAGE_OPTION, sibling, other],
+    })
+    setState({
+      selectedOptionId: IMAGE_OPTION.optionId,
+      extraModelOptionIds: [sibling.optionId],
+    })
+    const { result } = renderHook(() => useStudioGenerateAction())
+    act(() => result.current.handleToggleRunModel(other))
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'REMOVE_EXTRA_MODEL',
+      payload: sibling.optionId,
+    })
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'SET_OPTION_ID',
+      payload: other.optionId,
+    })
+    expect(mockDispatch).toHaveBeenCalledWith({ type: 'RESET_ADVANCED_PARAMS' })
+    expect(mockDispatch).not.toHaveBeenCalledWith(
+      expect.objectContaining({ type: 'TOGGLE_EXTRA_MODEL' }),
+    )
+  })
+
+  it('excludes stale cross-family selections from the generation request', async () => {
+    const other = { ...IMAGE_OPTION, optionId: 'flux', modelId: 'flux-1' }
+    mockUseImageModelOptions.mockReturnValue({
+      selectedModel: IMAGE_OPTION,
+      modelOptions: [IMAGE_OPTION, other],
+    })
+    setState({
+      prompt: 'a cat',
+      selectedOptionId: IMAGE_OPTION.optionId,
+      extraModelOptionIds: [other.optionId],
+    })
+    const { result } = renderHook(() => useStudioGenerateAction())
+    expect(result.current.runModels).toEqual([IMAGE_OPTION])
+    await act(async () => {
+      await result.current.handleGenerate()
+    })
+    expect(mockGenerate.mock.calls[0][0].compareModels).toBeUndefined()
+    act(() => result.current.handleRemoveRunModel(IMAGE_OPTION.optionId))
+    expect(mockDispatch).toHaveBeenCalledWith({
+      type: 'SET_OPTION_ID',
+      payload: null,
+    })
+  })
+
   // 同一条路的两个 optionId 若仍旧溜进 state，出图名单也只认一条 —— 算钱、
   // 裁剪 payload、画 chip 读的都是它。
   it('never runs the same route twice', () => {
     const twin: StudioModelOption = {
       ...IMAGE_OPTION,
-      optionId: 'workspace:gpt-image-1',
+      optionId: 'workspace:gpt-image-2.5-flare',
       sourceType: 'workspace',
       keyId: undefined,
     }

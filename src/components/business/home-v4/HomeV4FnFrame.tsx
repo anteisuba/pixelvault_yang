@@ -27,13 +27,6 @@ interface HomeV4FnFrameProps {
  * repeated on all six pages. Those are layout, not data, so they moved into
  * `home-v4.css` (`.fn-head` / `.fn-stage`) and the repetition moved here.
  *
- * The layer split is the load-bearing part: `data-layer="copy"` on the text,
- * `data-layer="demo"` on the visual block, so the two travel different
- * distances during the flip and land together (`HOME_V4_PARALLAX.PAGE_FLIP`).
- * The `l2` / `l3` classes stay for the model station's own clocks.
- * ⚠ Anything carrying a layer attribute or class has its `transform` written by
- * the parallax rules — never centre such an element with `translate`.
- *
  * `.fn-text` is `display: contents` until the rail turns it into the left
  * column, which is why it carries no layer class of its own: without a rail
  * the header, stage and aside are three flex items of `.imgfn`, and the aside

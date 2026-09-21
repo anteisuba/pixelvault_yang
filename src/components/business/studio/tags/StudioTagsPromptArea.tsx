@@ -16,6 +16,7 @@ import { useStudioForm } from '@/contexts/studio-context'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
+import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
 import { StudioTagCharacters } from './StudioTagCharacters'
 import { StudioTagsControlColumn } from './StudioTagsControlColumn'
@@ -30,6 +31,7 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
 }: {
   onOpenPanel: (panel: TagWorkbenchPanel) => void
 }) {
+  const isMobile = useIsMobile()
   const t = useTranslations('StudioTags')
   const tStudio = useTranslations('StudioV2')
   const tForm = useTranslations('StudioForm')
@@ -81,7 +83,7 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
   const negativeChips = state.tagNegativeChips
 
   return (
-    <div className="flex shrink-0 flex-col gap-3">
+    <div className="flex shrink-0 flex-col gap-3 pb-28 lg:pb-0">
       {/* 顶栏 —— 一对分段切换是两台之间**唯一**的门（两台挂的是同一颗
           `StudioDialectHeader`，位置也一样）；右边的型号只列本方言。 */}
       <StudioDialectHeader disabled={isGenerating}>
@@ -206,7 +208,16 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
         <StudioSpecChip disabled={isGenerating} />
       </Toolbar.Root>
       <div className="studio-tag-settings flex flex-col gap-3 border-t border-border pt-3">
-        <StudioTagsControlColumn hideCharacters compact />
+        {isMobile ? (
+          <details>
+            <summary className="cursor-pointer py-2 text-sm font-medium">
+              {t('mobileParameters')}
+            </summary>
+            <StudioTagsControlColumn hideCharacters compact />
+          </details>
+        ) : (
+          <StudioTagsControlColumn hideCharacters compact />
+        )}
       </div>{' '}
       {textRendering ? (
         <details>
@@ -220,7 +231,7 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
         </details>
       ) : null}
       {/* 成本 + 生成 —— 与自然语言台同一颗键、同一份三态。 */}
-      <div className="sticky bottom-0 z-10 mt-auto flex shrink-0 flex-col gap-2 border-t border-border bg-card py-3">
+      <div className="fixed inset-x-0 bottom-0 z-30 mt-auto flex shrink-0 flex-col gap-2 border-t border-border bg-card px-4 py-3 pb-safe lg:sticky lg:inset-auto lg:bottom-0 lg:z-10 lg:px-0">
         <StudioCostPreview
           models={runModels}
           basis={{

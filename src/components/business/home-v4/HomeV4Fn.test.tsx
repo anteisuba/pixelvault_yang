@@ -6,7 +6,7 @@ import {
   HOME_V4_ENGINE,
   HOME_V4_FN_AUDIO,
   HOME_V4_FN_AUDIO_LINES,
-  HOME_V4_FN_CANVAS_SHOTS,
+  HOME_V4_FN_CANVAS,
   HOME_V4_FN_LORA_MOUNTS,
   HOME_V4_FN_LORA_OUTS,
   HOME_V4_FN_VAULT,
@@ -109,14 +109,7 @@ describe.each([
   ['video', (active: boolean) => <HomeV4FnVideo {...HEADER} active={active} />],
   [
     'canvas',
-    (active: boolean) => (
-      <HomeV4FnCanvas
-        {...HEADER}
-        active={active}
-        progress={0}
-        onStepChange={() => undefined}
-      />
-    ),
+    (active: boolean) => <HomeV4FnCanvas {...HEADER} active={active} />,
   ],
   ['vault', (active: boolean) => <HomeV4FnVault {...HEADER} active={active} />],
 ] as const)('home v4 · feature page %s', (_name, page) => {
@@ -528,57 +521,65 @@ describe('home v4 · feature page 05 画布', () => {
     vi.restoreAllMocks()
   })
 
-  it('follows explicit steps and only plays the finished cut on the last step', () => {
-    const onStepChange = vi.fn()
-    const view = render(
-      <HomeV4FnCanvas
-        {...HEADER}
-        active
-        progress={0}
-        onStepChange={onStepChange}
-      />,
+  it('builds the conversation, script, nodes and cut in order without controls', () => {
+    const view = render(<HomeV4FnCanvas {...HEADER} active />)
+    const timing = HOME_V4_FN_CANVAS
+    const replyAt =
+      timing.ENTER_DELAY_MS +
+      'v4.fn.canvas.assistant.me'.length * timing.TYPE_MS +
+      timing.REPLY_GAP_MS
+    const recipeAt =
+      replyAt +
+      'v4.fn.canvas.assistant.bot'.length * timing.TYPE_MS +
+      timing.RECIPE_GAP_MS
+    const scriptAt = recipeAt + timing.SCRIPT_GAP_MS
+    const boardAt = scriptAt + 3 * timing.ROW_STEP_MS + timing.BOARD_GAP_MS
+    const wiresAt =
+      boardAt + 3 * timing.NODE_STEP_MS + timing.WIRES_AFTER_NODES_MS
+    expect(view.queryByRole('button')).toBeNull()
+    expect(view.container.querySelectorAll('.m.in')).toHaveLength(0)
+    act(() => vi.advanceTimersByTime(timing.ENTER_DELAY_MS + timing.TYPE_MS))
+    expect(view.container.querySelectorAll('.m.in')).toHaveLength(1)
+    expect(view.container.querySelector('.m.me .b')?.textContent).toBe('v')
+    act(() =>
+      vi.advanceTimersByTime(scriptAt - timing.ENTER_DELAY_MS - timing.TYPE_MS),
     )
+    expect(view.container.querySelector('.fn-canvas')).toHaveAttribute(
+      'data-stage',
+      '2',
+    )
+    expect(view.container.querySelectorAll('.s2 .row.in')).toHaveLength(0)
+    act(() => vi.advanceTimersByTime(timing.ROW_STEP_MS))
+    expect(view.container.querySelectorAll('.s2 .row.in')).toHaveLength(1)
+    act(() => vi.advanceTimersByTime(boardAt - scriptAt - timing.ROW_STEP_MS))
+    expect(view.container.querySelector('.fn-canvas')).toHaveAttribute(
+      'data-stage',
+      '3',
+    )
+    expect(view.container.querySelectorAll('.s3 .cn.in')).toHaveLength(0)
+    act(() => vi.advanceTimersByTime(timing.NODE_STEP_MS))
+    expect(view.container.querySelectorAll('.s3 .cn.in')).toHaveLength(1)
+    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(wiresAt - boardAt - timing.NODE_STEP_MS))
+    expect(view.container.querySelectorAll('.wires path.draw')).toHaveLength(3)
+    expect(view.container.querySelector('.cnv')).not.toHaveClass('in')
+    act(() => vi.advanceTimersByTime(timing.CUT_AFTER_WIRES_MS))
+    expect(view.container.querySelector('.cnv')).toHaveClass('in')
+    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled()
+    act(() => vi.advanceTimersByTime(30000))
+    expect(view.container.querySelector('.fn-canvas')).toHaveAttribute(
+      'data-stage',
+      '3',
+    )
+    view.rerender(<HomeV4FnCanvas {...HEADER} active={false} />)
+    act(() => vi.advanceTimersByTime(HOME_V4_ENGINE.PAGE_MS))
     expect(view.container.querySelector('.fn-canvas')).toHaveAttribute(
       'data-stage',
       '1',
     )
-    expect(HTMLMediaElement.prototype.play).not.toHaveBeenCalled()
-    fireEvent.click(view.getByRole('button', { name: /script.title/ }))
-    expect(onStepChange).toHaveBeenCalledWith(1)
-    view.rerender(
-      <HomeV4FnCanvas
-        {...HEADER}
-        active
-        progress={1}
-        onStepChange={onStepChange}
-      />,
-    )
-    expect(view.container.querySelector('.s2')).not.toHaveAttribute('inert')
-    expect(view.container.querySelector('.s1')).toHaveAttribute('inert')
-    view.rerender(
-      <HomeV4FnCanvas
-        {...HEADER}
-        active
-        progress={2}
-        onStepChange={onStepChange}
-      />,
-    )
-    expect(view.container.querySelectorAll('.s3 .cn.in')).toHaveLength(
-      HOME_V4_FN_CANVAS_SHOTS.length + 1,
-    )
-    expect(view.container.querySelectorAll('.wires path.draw')).toHaveLength(3)
-    expect(HTMLMediaElement.prototype.play).toHaveBeenCalled()
-    vi.mocked(HTMLMediaElement.prototype.pause).mockClear()
-    view.rerender(
-      <HomeV4FnCanvas
-        {...HEADER}
-        active
-        progress={1}
-        onStepChange={onStepChange}
-      />,
-    )
-    expect(HTMLMediaElement.prototype.pause).toHaveBeenCalled()
-    expect(view.container.querySelector('.cnv')).not.toHaveClass('in')
+    expect(view.container.querySelectorAll('.in')).toHaveLength(0)
+    view.unmount()
+    expect(vi.getTimerCount()).toBe(0)
   })
 })
 

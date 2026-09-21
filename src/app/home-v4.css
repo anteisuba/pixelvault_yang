@@ -57,24 +57,10 @@ body.home-v4-locked {
   --gut: clamp(22px, 5vw, 80px);
   --bar: 54px;
 
-  /* Motion. `HomeV4Deck` overwrites these inline from `HOME_V4_ENGINE` /
-     `HOME_V4_PARALLAX` so the numbers have exactly one home; the literals here
-     are the same SPEC values and only apply if the script never runs. */
+  /* Motion values are also published by HomeV4Shell. */
   --dur: 850ms;
-  --l1-dur: 1050ms;
-  --l3-dur: 680ms;
   --hfade: 750ms;
-  --l1-v: 7vh;
-  --l2-v: 13vh;
-  --l3-v: 22vh;
-  --l1-h: 6vw;
-  --l2-h: 11vw;
-  --l3-h: 18vw;
   --dot-stagger: 18ms;
-  --flip-copy: 1;
-  --flip-demo: 0.6;
-  --flip-demo-dur: 612ms;
-  --flip-shift: 13vh;
 
   --easing: cubic-bezier(0.65, 0.05, 0.28, 1);
 
@@ -202,7 +188,6 @@ body.home-v4-locked {
   position: absolute;
   inset: 0;
   background: var(--paper);
-  /* 错速层在待命位会探出页界（横向 11–18vw），必须就地裁剪 */
   overflow: hidden;
   transform: translateY(100vh);
   transition: transform var(--dur) var(--easing);
@@ -215,90 +200,6 @@ body.home-v4-locked {
 
 .home-v4 .vp[data-pos='before'] {
   transform: translateY(-100vh);
-}
-
-/* 背景层：自己一口更慢的钟，翻页瞬间仍在页内滑，给出景深的最后一档。
-   文案层与演示卡层不走这里 —— 它们的行程见下面的 copy / demo 两层。 */
-.home-v4 .l1 {
-  transition: transform var(--l1-dur) var(--easing);
-  will-change: transform;
-}
-
-.home-v4 .vp[data-pos='after'] .l1 {
-  transform: translateY(calc(-1 * var(--l1-v)));
-}
-
-.home-v4 .vp[data-pos='before'] .l1 {
-  transform: translateY(var(--l1-v));
-}
-
-.home-v4 .vp[data-pos='on'] .l1 {
-  transform: none;
-}
-
-/* ─── 翻页错速：文案层与演示卡层行程不同 ──────────────────────────
-   owner 2026-09-20 口径：视差 = 翻页时前后景错速，两层一套比例，三个地方
-   共用 —— 功能页的竖向翻页、模型站与模型站之间的翻页、以及同一站内模型
-   之间的切换（整步与滚轮连续都算）。
-
-   **一个元素的 `transform` 只在这一条规则里写。** 翻页贡献 `--flip-y`，
-   站内切模型贡献 `--station-y`，两者相加；后面所有规则改的都是变量，
-   没有第二条 `transform` 声明去和它抢，于是竖翻和站内切换不会互相清零。
-
-   行程：文案 `--flip-copy` 走满，演示卡 `--flip-demo` 只走一部分。竖翻的
-   基准是一屏（`100vh`），差值由演示卡自身的反向位移承担，那段位移在
-   `--flip-demo-dur`（< `--dur`）处收完，之后它只剩页的速度，末段自己追平；
-   站内切换的基准是 `--flip-shift`，两层直接按比例分。
-   数值的唯一家在 `HOME_V4_PARALLAX.PAGE_FLIP`。 */
-.home-v4 :is([data-layer='copy'], [data-layer='demo']) {
-  --flip-y: 0vh;
-  --station-y: 0vh;
-  transform: translateY(calc(var(--flip-y) + var(--station-y)));
-  transition: transform var(--dur) var(--easing);
-  will-change: transform;
-}
-
-.home-v4 [data-layer='demo'] {
-  transition-duration: var(--flip-demo-dur);
-}
-
-/* 只在桌面 + 未要求减少动态效果下有行程差；手机与降级下两层同速，整页切、
-   站内整步切，`--flip-y` / `--station-y` 停在 0。 */
-@media (min-width: 769px) and (prefers-reduced-motion: no-preference) {
-  /* 竖向翻页：页走满一屏，层各走自己的比例。 */
-  .home-v4 .vp[data-pos='after'] [data-layer='copy'] {
-    --flip-y: calc((1 - var(--flip-copy)) * -100vh);
-  }
-
-  .home-v4 .vp[data-pos='after'] [data-layer='demo'] {
-    --flip-y: calc((1 - var(--flip-demo)) * -100vh);
-  }
-
-  .home-v4 .vp[data-pos='before'] [data-layer='copy'] {
-    --flip-y: calc((1 - var(--flip-copy)) * 100vh);
-  }
-
-  .home-v4 .vp[data-pos='before'] [data-layer='demo'] {
-    --flip-y: calc((1 - var(--flip-demo)) * 100vh);
-  }
-
-  /* 站内切模型（整步：箭头 / 键盘 / 手机滑动）：页是交叉淡入淡出，层的
-     位移就是全部动作，所以两层直接按比例分 `--flip-shift`。 */
-  .home-v4 .hpg[data-pos='after'] [data-layer='copy'] {
-    --station-y: calc(var(--flip-shift) * var(--flip-copy));
-  }
-
-  .home-v4 .hpg[data-pos='after'] [data-layer='demo'] {
-    --station-y: calc(var(--flip-shift) * var(--flip-demo));
-  }
-
-  .home-v4 .hpg[data-pos='before'] [data-layer='copy'] {
-    --station-y: calc(var(--flip-shift) * var(--flip-copy) * -1);
-  }
-
-  .home-v4 .hpg[data-pos='before'] [data-layer='demo'] {
-    --station-y: calc(var(--flip-shift) * var(--flip-demo) * -1);
-  }
 }
 
 .home-v4 .page-inner {
@@ -342,95 +243,8 @@ body.home-v4-locked {
   z-index: 1;
 }
 
-.home-v4 .hpg[data-pos='after'] .l1 {
-  transform: translateY(var(--l1-v));
-}
-
-.home-v4 .hpg[data-pos='before'] .l1 {
-  transform: translateY(calc(-1 * var(--l1-v)));
-}
-
-.home-v4 .hpg[data-pos='on'] .l1 {
+.home-v4 .hpg .l1 {
   transform: none;
-}
-
-/* 站内切模型（滚轮连续）：同一套两层比例，只是进度由 `--model-progress`
-   逐帧给，而不是由过渡跑。属性名是 `data-scrub` 而不是 `data-layer` —— 这里
-   标的是「哪一页在进 / 在出」，和页里那两层不是一回事，同名会互相选中。 */
-@media (min-width: 769px) and (prefers-reduced-motion: no-preference) {
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-scrub] {
-    opacity: 1;
-    transition: none;
-    pointer-events: none;
-    z-index: 1;
-  }
-
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-scrub='incoming'] {
-    z-index: 2;
-    clip-path: inset(calc((1 - var(--model-progress)) * 100%) 0 0 0);
-  }
-
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-scrub] .l1,
-  .home-v4
-    .hwrap[data-parallax='scroll']
-    > .hpg[data-scrub]
-    :is([data-layer='copy'], [data-layer='demo']) {
-    transition: none;
-  }
-
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-scrub='outgoing'] .l1 {
-    transform: translateY(calc(var(--model-progress) * -12vh))
-      scale(calc(1 + var(--model-progress) * 0.24));
-  }
-
-  .home-v4 .hwrap[data-parallax='scroll'] > .hpg[data-scrub='incoming'] .l1 {
-    transform: translateY(calc((1 - var(--model-progress)) * 12vh))
-      scale(calc(1 + (1 - var(--model-progress)) * 0.24));
-  }
-
-  .home-v4
-    .hwrap[data-parallax='scroll']
-    > .hpg[data-scrub='outgoing']
-    [data-layer='copy'] {
-    --station-y: calc(
-      var(--model-progress) * var(--flip-shift) * var(--flip-copy) * -1
-    );
-
-    opacity: calc(1 - var(--model-progress));
-  }
-
-  .home-v4
-    .hwrap[data-parallax='scroll']
-    > .hpg[data-scrub='outgoing']
-    [data-layer='demo'] {
-    --station-y: calc(
-      var(--model-progress) * var(--flip-shift) * var(--flip-demo) * -1
-    );
-
-    opacity: calc(1 - var(--model-progress));
-  }
-
-  .home-v4
-    .hwrap[data-parallax='scroll']
-    > .hpg[data-scrub='incoming']
-    [data-layer='copy'] {
-    --station-y: calc(
-      (1 - var(--model-progress)) * var(--flip-shift) * var(--flip-copy)
-    );
-
-    opacity: var(--model-progress);
-  }
-
-  .home-v4
-    .hwrap[data-parallax='scroll']
-    > .hpg[data-scrub='incoming']
-    [data-layer='demo'] {
-    --station-y: calc(
-      (1 - var(--model-progress)) * var(--flip-shift) * var(--flip-demo)
-    );
-
-    opacity: var(--model-progress);
-  }
 }
 
 /* ─── 通用排版 ──────────────────────────────────────────────────── */
@@ -4185,15 +3999,16 @@ body.home-v4-locked {
   width: min(450px, 82vw);
   margin: 0;
   opacity: calc(1 - var(--step-distance));
-  transform: translateY(calc(var(--step-offset) * 75%))
-    scale(calc(1 - var(--step-distance) * 0.08));
+  transform: translateY(calc(var(--step-offset) * 16px));
   pointer-events: auto;
-  transition: none;
+  transition:
+    opacity 350ms ease,
+    transform 350ms ease;
 }
 
 .home-v4 .fn-canvas[data-scroll-story] .fn-step .body,
 .home-v4 .fn-canvas[data-scroll-story] .fn-step .cv {
-  transform: translateY(calc(var(--step-offset) * 8%));
+  transform: none;
 }
 
 .home-v4 .canvas-steps {
@@ -4204,7 +4019,7 @@ body.home-v4-locked {
   z-index: 3;
 }
 
-.home-v4 .canvas-steps button {
+.home-v4 .canvas-steps > span {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -4215,15 +4030,14 @@ body.home-v4-locked {
   background: transparent;
   color: var(--dim);
   font-size: 12px;
-  cursor: pointer;
 }
 
-.home-v4 .canvas-steps button[aria-current='step'] {
+.home-v4 .canvas-steps > span[aria-current='step'] {
   border-color: var(--ink);
   color: var(--ink);
 }
 
-.home-v4 .canvas-steps button span {
+.home-v4 .canvas-steps > span span {
   font-family: var(--mono);
 }
 

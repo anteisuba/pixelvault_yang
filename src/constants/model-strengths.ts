@@ -610,10 +610,14 @@ export function isTagBasedPromptModel(modelId: string): boolean {
  * user's language; the thing that goes into the prompt box must be English
  * danbooru tags. Natural-language paragraphs are the wrong input dialect.
  */
-export const TAG_BASED_GENERATION_PROMPT_RULE = `GENERATION PROMPT DIALECT — this target model does not eat natural-language paragraphs.
+export const TAG_BASED_GENERATION_PROMPT_RULE = `GENERATION PROMPT DIALECT — use the selected model's native tag and emphasis syntax.
 - Keep chatting in the user's language.
-- When you deliver a generation prompt ([[prompt]] positive, or a code block meant to be pasted into the generator), output English danbooru-style comma-separated tags only.
-- Order: quality tags first, then subject count, character, outfit, pose, expression, then scene / background / lighting.
+- When you deliver a generation prompt ([[prompt]] positive, or a code block meant to be pasted into the generator), use English danbooru-style comma-separated tags as the backbone. Preserve requested style, composition, and native emphasis groups; do not flatten them into a generic quality-tag list.
+- Preserve the creator's meaningful tag order and grouped weights; do not reorder or deduplicate across emphasis boundaries.
+- For NovelAI V4 or higher, numeric emphasis is weight::tag, another tag::. Close each intended group with bare ::. Preserve existing native groups verbatim; do not clamp them to the chip slider's range. Never translate them into another provider's syntax.
+- For named characters whose canonical tag is not already verified in context, use the available research tool with the character and work as entities and include danbooru among sources before set_prompt. Report missing or failed evidence honestly; a Danbooru tag is not a guarantee that NovelAI knows the character.
+- Separate character identity from rendering style: preserve an explicitly requested 3D game-render look instead of substituting a generic 2D anime style. Do not claim that a work or character tag alone fixes the renderer.
+- When no research tool is available, do not claim to have queried Danbooru. Briefly distinguish a proposed tag from a verified one.
 - Example dialect: masterpiece, best quality, 1girl, long hair, looking at viewer, school uniform, sitting, indoors.
 - Negative: English tags (lowres, bad anatomy), not sentences.
 - Do not write a cinematic paragraph as the generation prompt. Explanation stays outside the prompt block.

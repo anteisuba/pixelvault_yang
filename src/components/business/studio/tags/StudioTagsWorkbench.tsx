@@ -16,6 +16,8 @@ export type TagWorkbenchPanel = 'composition' | 'catalog' | 'blocks'
 export function StudioTagsWorkbench() {
   const t = useTranslations('StudioTags.workbench')
   const [panel, setPanel] = useState<TagWorkbenchPanel | null>(null)
+  const stageRef = useRef<HTMLDivElement>(null)
+  const promptRef = useRef<HTMLDivElement>(null)
   const heading = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     if (panel) {
@@ -40,9 +42,33 @@ export function StudioTagsWorkbench() {
   return (
     <StudioWorkbenchLayout
       paramsWidthClass="lg:w-105"
-      params={<StudioTagsPromptArea onOpenPanel={open} />}
+      params={
+        <div ref={promptRef} className="scroll-mt-14 lg:contents">
+          <div className="mb-2 pr-12 lg:hidden">
+            <Button
+              className="w-full"
+              variant="outline"
+              onClick={() =>
+                stageRef.current?.scrollIntoView({ block: 'start' })
+              }
+            >
+              {t('backToResults')}
+            </Button>
+          </div>
+          <StudioTagsPromptArea onOpenPanel={open} />
+        </div>
+      }
       stage={
-        <>
+        <div ref={stageRef} className="scroll-mt-20 pb-28 lg:contents">
+          <Button
+            className="mb-3 w-full lg:hidden"
+            variant="outline"
+            onClick={() =>
+              promptRef.current?.scrollIntoView({ block: 'start' })
+            }
+          >
+            {t('backToEditor')}
+          </Button>
           <div className={panel ? 'hidden' : 'contents'}>
             <StudioCanvas />
           </div>
@@ -101,7 +127,7 @@ export function StudioTagsWorkbench() {
               ) : null}
             </section>
           ) : null}
-        </>
+        </div>
       }
     />
   )

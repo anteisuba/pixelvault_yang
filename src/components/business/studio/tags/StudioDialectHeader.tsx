@@ -25,9 +25,11 @@ export function StudioDialectHeader({
   children,
 }: StudioDialectHeaderProps) {
   return (
-    <div className="flex min-h-8 shrink-0 items-center gap-2">
+    <div className="flex min-h-8 shrink-0 flex-wrap items-center gap-2">
       <StudioDialectSwitch disabled={disabled} />
-      {children ? <div className="ml-auto min-w-0">{children}</div> : null}
+      {children ? (
+        <div className="min-w-0 max-w-full sm:ml-auto">{children}</div>
+      ) : null}
     </div>
   )
 }

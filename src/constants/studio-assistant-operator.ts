@@ -736,6 +736,7 @@ export const STUDIO_OPERATOR_MOBILE_SHELL = {
    * 而头像已经不在下面了。
    */
   fabInsetPx: 16,
+  avatarTopPx: 64,
 } as const
 
 /**

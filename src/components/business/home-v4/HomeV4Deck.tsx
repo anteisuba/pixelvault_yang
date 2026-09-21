@@ -36,12 +36,6 @@ import { HomeV4Topbar } from './HomeV4Topbar'
 
 type StationIndexes = Record<HomeV4StationKey, number>
 
-interface ModelTransition {
-  station: HomeV4StationKey
-  from: number
-  progress: number
-}
-
 interface HomeV4DeckProps {
   /** Locale segment. Passed down so the sheet's portal can re-declare it. */
   locale: string
@@ -80,9 +74,9 @@ function posOf(index: number, current: number): 'before' | 'on' | 'after' {
  * v4 marketing home — the paging engine.
  *
  * Thirteen full-screen pages stacked in place and moved with a single
- * `translateY`; five of them are *stations* that page vertically through their
- * models before releasing the deck downward again. Every number lives in
- * `HOME_V4_ENGINE` / `HOME_V4_PARALLAX`; every visual rule lives in
+ * `translateY`; five of them are model stations with explicit model controls.
+ * Vertical gestures always move between sections. Every number lives in
+ * `HOME_V4_ENGINE`; every visual rule lives in
  * `home-v4.css`. Domain contract and page/station tables:
  * `docs/references/pages/home.md`.
  *
@@ -109,15 +103,6 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
   const [hIdxs, setHIdxs] = useState<StationIndexes>(initialStationIndexes)
   const [tocOpen, setTocOpen] = useState(false)
   const [sheet, setSheet] = useState<OpenSheet | null>(null)
-  const [modelTransition, setModelTransition] =
-    useState<ModelTransition | null>(null)
-  const modelTransitionRef = useRef<ModelTransition | null>(null)
-  const [canvasProgress, setCanvasProgress] = useState(0)
-  const canvasProgressRef = useRef(0)
-  const setCanvasPosition = useCallback((progress: number) => {
-    canvasProgressRef.current = progress
-    setCanvasProgress(progress)
-  }, [])
 
   /* Declared before every callback that writes them. */
   const vIdxRef = useRef(0)
@@ -125,11 +110,6 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
   const tocOpenRef = useRef(false)
   const sheetRef = useRef<OpenSheet | null>(null)
   const wheelAccRef = useRef(0)
-  const resetModelTransition = useCallback(() => {
-    modelTransitionRef.current = null
-    setModelTransition(null)
-    wheelAccRef.current = 0
-  }, [])
   /**
    * When the input lock expires, as a `performance.now()` stamp.
    *
@@ -176,24 +156,21 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
 
   const vGo = useCallback(
     (target: number) => {
-      resetModelTransition()
+      wheelAccRef.current = 0
       const next = Math.max(0, Math.min(LAST_PAGE, target))
       if (next === vIdxRef.current) return
-      if (HOME_V4_PAGES[next].id === 'canvas') {
-        setCanvasPosition(next < vIdxRef.current ? 2 : 0)
-      }
       vIdxRef.current = next
       setVIdx(next)
       setToc(false)
       closeSheet()
       lock()
     },
-    [closeSheet, lock, resetModelTransition, setCanvasPosition, setToc],
+    [closeSheet, lock, setToc],
   )
 
   const hGo = useCallback(
     (station: HomeV4StationKey, target: number) => {
-      resetModelTransition()
+      wheelAccRef.current = 0
       const total = HOME_V4_STATIONS[station].length
       const next = Math.max(0, Math.min(total - 1, target))
       if (next === hIdxsRef.current[station]) return
@@ -203,7 +180,7 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
       closeSheet()
       lock()
     },
-    [closeSheet, lock, resetModelTransition],
+    [closeSheet, lock],
   )
 
   /**
@@ -235,44 +212,21 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
     [closeSheet, lock, vGo],
   )
 
-  /* A station swallows the input until it runs out of models — that is what makes
-     「站内翻完才放行竖走」 true for the wheel, a swipe and the arrow keys alike. */
   const stepNext = useCallback(() => {
-    if (
-      HOME_V4_PAGES[vIdxRef.current].id === 'canvas' &&
-      canvasProgressRef.current < 2
-    ) {
-      setCanvasPosition(Math.min(2, Math.floor(canvasProgressRef.current) + 1))
-      lock()
-      return
-    }
     const station = HOME_V4_PAGES[vIdxRef.current].station
     if (
       station &&
       hIdxsRef.current[station] < HOME_V4_STATIONS[station].length - 1
     ) {
       hGo(station, hIdxsRef.current[station] + 1)
-      return
-    }
-    vGo(vIdxRef.current + 1)
-  }, [hGo, lock, setCanvasPosition, vGo])
-
+    } else vGo(vIdxRef.current + 1)
+  }, [hGo, vGo])
   const stepPrev = useCallback(() => {
-    if (
-      HOME_V4_PAGES[vIdxRef.current].id === 'canvas' &&
-      canvasProgressRef.current > 0
-    ) {
-      setCanvasPosition(Math.max(0, Math.ceil(canvasProgressRef.current) - 1))
-      lock()
-      return
-    }
     const station = HOME_V4_PAGES[vIdxRef.current].station
     if (station && hIdxsRef.current[station] > 0) {
       hGo(station, hIdxsRef.current[station] - 1)
-      return
-    }
-    vGo(vIdxRef.current - 1)
-  }, [hGo, lock, setCanvasPosition, vGo])
+    } else vGo(vIdxRef.current - 1)
+  }, [hGo, vGo])
 
   /* The page owns the viewport while it is mounted. Scoped to a class rather
      than bare `html, body` selectors so leaving the route hands the document
@@ -288,102 +242,34 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
   }, [])
 
   useEffect(() => {
-    const motionQuery = window.matchMedia(
-      '(min-width: 769px) and (prefers-reduced-motion: no-preference)',
-    )
-    const onMotionChange = () => {
-      resetModelTransition()
-      setCanvasPosition(Math.round(canvasProgressRef.current))
-    }
-    motionQuery.addEventListener('change', onMotionChange)
+    let lastWheelAt = 0
     const onWheel = (event: WheelEvent) => {
-      /* The toc is a normal scrolling list; swallowing its wheel would strand
-         anyone whose page list is taller than the screen. The detail sheet is
-         the same case — and a wheel that reached here from *outside* it (the
-         veil) must not turn the page under an open sheet either. */
-      if (tocOpenRef.current || sheetRef.current) return
-      if (event.ctrlKey) return
-      event.preventDefault()
-      if (isLocked()) {
-        wheelAccRef.current = 0
-        return
-      }
-      const station = HOME_V4_PAGES[vIdxRef.current].station
-      const delta = event.deltaY
+      if (tocOpenRef.current || sheetRef.current || event.ctrlKey) return
+      if (Math.abs(event.deltaX) > Math.abs(event.deltaY)) return
+      const now = performance.now()
+      if (now - lastWheelAt > 180) wheelAccRef.current = 0
+      lastWheelAt = now
       const pixels =
-        delta *
+        event.deltaY *
         (event.deltaMode === 1
           ? 16
           : event.deltaMode === 2
             ? window.innerHeight
             : 1)
-      const distance = Math.max(720, window.innerHeight)
-      if (
-        motionQuery.matches &&
-        HOME_V4_PAGES[vIdxRef.current].id === 'canvas'
-      ) {
-        const current = canvasProgressRef.current
-        if ((delta > 0 && current < 2) || (delta < 0 && current > 0)) {
-          const boundary =
-            delta > 0 ? Math.floor(current) + 1 : Math.ceil(current) - 1
-          const progress =
-            delta > 0
-              ? Math.min(boundary, current + pixels / distance)
-              : Math.max(boundary, current + pixels / distance)
-          setCanvasPosition(progress)
-          wheelAccRef.current = 0
-          if (progress === boundary) lock()
-          return
-        }
-      }
-      if (motionQuery.matches && station && delta !== 0) {
-        const index = hIdxsRef.current[station]
-        const from =
-          modelTransitionRef.current?.from ?? (delta > 0 ? index : index - 1)
-        if (from >= 0 && from < HOME_V4_STATIONS[station].length - 1) {
-          const progress = Math.max(
-            0,
-            Math.min(
-              1,
-              (modelTransitionRef.current?.progress ?? (delta > 0 ? 0 : 1)) +
-                pixels / distance,
-            ),
-          )
-          const transition = { station, from, progress }
-          modelTransitionRef.current = transition
-          setModelTransition(transition)
-          wheelAccRef.current = 0
-          if (progress === 0 || progress === 1) {
-            hGo(station, from + progress)
-            lock()
-          }
-          return
-        }
-      }
-      wheelAccRef.current += event.deltaY
-      if (wheelAccRef.current > HOME_V4_ENGINE.WHEEL_THRESHOLD) {
+      event.preventDefault()
+      if (isLocked()) {
         wheelAccRef.current = 0
-        stepNext()
-      } else if (wheelAccRef.current < -HOME_V4_ENGINE.WHEEL_THRESHOLD) {
-        wheelAccRef.current = 0
-        stepPrev()
+        return
       }
+      if (Math.sign(pixels) !== Math.sign(wheelAccRef.current))
+        wheelAccRef.current = 0
+      wheelAccRef.current += pixels
+      if (wheelAccRef.current > HOME_V4_ENGINE.WHEEL_THRESHOLD) stepNext()
+      else if (wheelAccRef.current < -HOME_V4_ENGINE.WHEEL_THRESHOLD) stepPrev()
     }
-
     window.addEventListener('wheel', onWheel, { passive: false })
-    return () => {
-      window.removeEventListener('wheel', onWheel)
-      motionQuery.removeEventListener('change', onMotionChange)
-    }
-  }, [
-    hGo,
-    isLocked,
-    lock,
-    resetModelTransition,
-    setCanvasPosition,
-    stepNext,
-    stepPrev,
-  ])
+    return () => window.removeEventListener('wheel', onWheel)
+  }, [isLocked, stepNext, stepPrev])
 
   useEffect(() => {
     let startY: number | null = null
@@ -476,30 +362,11 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
         <div
           className={sheetOn ? 'hwrap sheet-on' : 'hwrap'}
           data-station={station}
-          data-parallax={
-            modelTransition?.station === station ? 'scroll' : undefined
-          }
-          style={
-            modelTransition?.station === station
-              ? ({
-                  '--model-progress': modelTransition.progress,
-                } as CSSProperties)
-              : undefined
-          }
         >
           {models.map((model, index) => (
             <div
               key={model.key}
               className="hpg"
-              data-scrub={
-                modelTransition?.station === station
-                  ? index === modelTransition.from
-                    ? 'outgoing'
-                    : index === modelTransition.from + 1
-                      ? 'incoming'
-                      : undefined
-                  : undefined
-              }
               data-pos={posOf(index, hIdx)}
               inert={!(isLive && index === hIdx)}
             >
@@ -579,16 +446,7 @@ export function HomeV4Deck({ locale, shots }: HomeV4DeckProps) {
       case 'video':
         return <HomeV4FnVideo {...shared} />
       case 'canvas':
-        return (
-          <HomeV4FnCanvas
-            {...shared}
-            progress={canvasProgress}
-            onStepChange={(step) => {
-              setCanvasPosition(step)
-              lock()
-            }}
-          />
-        )
+        return <HomeV4FnCanvas {...shared} />
       case 'vault':
         return <HomeV4FnVault {...shared} />
       default:

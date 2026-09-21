@@ -5,6 +5,7 @@ import {
   HOME_V4_ENGINE,
   HOME_V4_FN_AUDIO_LINES,
   HOME_V4_PAGES,
+  HOME_V4_STATION_KEYS,
   HOME_V4_STATIONS,
 } from '@/constants/homepage-v4'
 
@@ -157,63 +158,27 @@ describe('HomeV4Deck', () => {
     expect(pageAt(container, 2).getAttribute('data-pos')).toBe('on')
   })
 
-  it('pages sideways through a station before releasing the deck downward', () => {
+  it('continues model browsing from an explicit selection', () => {
     const { container } = renderDeck()
-    const models = HOME_V4_STATIONS.image
-
-    /* Jump straight to the image station via its left-rail dot. */
-    const dots = container.querySelectorAll('.dots button')
-    act(() => {
-      fireEvent.click(dots[IMAGE_STATION_INDEX])
-    })
-    expect(
-      pageAt(container, IMAGE_STATION_INDEX).getAttribute('data-pos'),
-    ).toBe('on')
-
-    const stationPages = () =>
-      pageAt(container, IMAGE_STATION_INDEX).querySelectorAll('.hpg')
-
-    expect(stationPages()).toHaveLength(models.length)
-    expect(stationPages()[0].getAttribute('data-pos')).toBe('on')
-
-    /* Down inside a station moves the station, not the deck. */
-    unlock()
-    fireEvent.keyDown(window, { key: 'ArrowDown' })
-    expect(stationPages()[1].getAttribute('data-pos')).toBe('on')
-    expect(
-      pageAt(container, IMAGE_STATION_INDEX).getAttribute('data-pos'),
-    ).toBe('on')
-
-    /* ArrowRight is the same move. */
+    fireEvent.click(
+      container.querySelectorAll('.dots button')[IMAGE_STATION_INDEX],
+    )
     unlock()
     fireEvent.keyDown(window, { key: 'ArrowRight' })
-    expect(stationPages()[2].getAttribute('data-pos')).toBe('on')
-
-    /* Run the station out, then the next step finally goes down. */
-    for (let i = 2; i < models.length - 1; i++) {
-      unlock()
-      fireEvent.keyDown(window, { key: 'ArrowDown' })
-    }
-    expect(stationPages()[models.length - 1].getAttribute('data-pos')).toBe(
-      'on',
-    )
-
+    expect(
+      container.querySelector('[data-station="image"] .hpg[data-pos="on"]'),
+    ).toBe(container.querySelectorAll('[data-station="image"] .hpg')[1])
     unlock()
     fireEvent.keyDown(window, { key: 'ArrowDown' })
+    expect(pageAt(container, IMAGE_STATION_INDEX)).toHaveAttribute(
+      'data-pos',
+      'on',
+    )
     expect(
-      pageAt(container, IMAGE_STATION_INDEX + 1).getAttribute('data-pos'),
-    ).toBe('on')
+      container.querySelector('[data-station="image"] .hpg[data-pos="on"]'),
+    ).toBe(container.querySelectorAll('[data-station="image"] .hpg')[2])
   })
 
-  /**
-   * ⭐ The performance is wired to `active`, which the deck computes from
-   * `vIdx`. `HomeV4Fn.test.tsx` pins that each page replays when its own prop
-   * is toggled; this pins that the deck actually toggles it — leave a feature
-   * page, come back, and the whole thing has to run again.
-   *
-   * It drives the *real* feature components (only next-intl and next/image are
-   * mocked), because the reported failure was in the seam between them.
-   */
   it('replays a feature page every time the deck returns to it', () => {
     const { container } = renderDeck()
     const dots = container.querySelectorAll('.dots button')
@@ -363,158 +328,56 @@ describe('HomeV4Deck', () => {
     expect(document.body.classList.contains('home-v4-locked')).toBe(false)
   })
 
-  it('scrubs adjacent models, reverses, and releases at the endpoints', () => {
-    vi.mocked(window.matchMedia).mockReturnValue({
-      matches: true,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    } as unknown as MediaQueryList)
-    const { container } = renderDeck()
-    fireEvent.click(
-      container.querySelectorAll('.dots button')[IMAGE_STATION_INDEX],
-    )
-    unlock()
-    const station = container.querySelector<HTMLElement>(
-      '[data-station="image"]',
-    )!
-    const distance = Math.max(720, window.innerHeight)
+  it.each(HOME_V4_STATION_KEYS)(
+    'visits every model in %s before leaving the station',
+    (stationKey) => {
+      const { container } = renderDeck()
+      const index = HOME_V4_PAGES.findIndex(
+        (page) => page.station === stationKey,
+      )
+      fireEvent.click(container.querySelectorAll('.dots button')[index])
+      const models = container.querySelectorAll(
+        `[data-station="${stationKey}"] > .hpg`,
+      )
+      for (
+        let model = 1;
+        model < HOME_V4_STATIONS[stationKey].length;
+        model++
+      ) {
+        unlock()
+        fireEvent.wheel(window, { deltaY: 120 })
+        expect(pageAt(container, index)).toHaveAttribute('data-pos', 'on')
+        expect(models[model]).toHaveAttribute('data-pos', 'on')
+      }
+      unlock()
+      fireEvent.wheel(window, { deltaY: 120 })
+      expect(pageAt(container, index + 1)).toHaveAttribute('data-pos', 'on')
+      unlock()
+      fireEvent.wheel(window, { deltaY: -120 })
+      expect(pageAt(container, index)).toHaveAttribute('data-pos', 'on')
+      expect(models[models.length - 1]).toHaveAttribute('data-pos', 'on')
+      unlock()
+      fireEvent.wheel(window, { deltaY: -120 })
+      expect(models[models.length - 2]).toHaveAttribute('data-pos', 'on')
+      expect(container.querySelector('[data-parallax="scroll"]')).toBeNull()
+    },
+  )
 
-    fireEvent.wheel(window, { deltaY: distance / 2 })
-    expect(station.dataset.parallax).toBe('scroll')
-    expect(station.style.getPropertyValue('--model-progress')).toBe('0.5')
-    expect(station.querySelectorAll('.hpg')[0].getAttribute('data-pos')).toBe(
-      'on',
-    )
-
-    fireEvent.wheel(window, { deltaY: -distance / 4 })
-    expect(station.style.getPropertyValue('--model-progress')).toBe('0.25')
-    fireEvent.wheel(window, { deltaY: distance })
-    expect(station.dataset.parallax).toBeUndefined()
-    expect(station.querySelectorAll('.hpg')[1].getAttribute('data-pos')).toBe(
-      'on',
-    )
-
-    unlock()
-    fireEvent.wheel(window, { deltaY: -distance / 2 })
-    expect(station.style.getPropertyValue('--model-progress')).toBe('0.5')
-    fireEvent.wheel(window, { deltaY: -distance })
-    expect(station.querySelectorAll('.hpg')[0].getAttribute('data-pos')).toBe(
-      'on',
-    )
-
-    unlock()
-    fireEvent.keyDown(window, { key: 'ArrowRight' })
-    unlock()
-    fireEvent.wheel(window, { deltaY: distance })
-    expect(station.dataset.parallax).toBeUndefined()
-    expect(station.querySelectorAll('.hpg')[2].getAttribute('data-pos')).toBe(
-      'on',
-    )
-  })
-
-  it('scrubs canvas steps and snaps to a readable step when motion is disabled', () => {
-    const listeners: Array<() => void> = []
-    vi.mocked(window.matchMedia).mockImplementation(
-      (query) =>
-        ({
-          matches: query.includes('no-preference'),
-          addEventListener: (_event: string, listener: () => void) => {
-            if (query.includes('no-preference')) listeners.push(listener)
-          },
-          removeEventListener: vi.fn(),
-        }) as unknown as MediaQueryList,
-    )
+  it('does not consume page navigation to advance the canvas demo', () => {
     const { container } = renderDeck()
     const index = HOME_V4_PAGES.findIndex((page) => page.id === 'canvas')
     fireEvent.click(container.querySelectorAll('.dots button')[index])
     unlock()
-    fireEvent.wheel(window, {
-      deltaY: Math.max(720, window.innerHeight) * 0.75,
-    })
-    const first = container.querySelector<HTMLElement>('.fn-canvas .s1')!
-    expect(first.style.getPropertyValue('--step-offset')).toBe('-0.75')
-    act(() => listeners.forEach((listener) => listener()))
-    expect(first.style.getPropertyValue('--step-offset')).toBe('-1')
-    expect(pageAt(container, index)).toHaveAttribute('data-pos', 'on')
+    fireEvent.wheel(window, { deltaY: 120 })
+    expect(pageAt(container, index + 1)).toHaveAttribute('data-pos', 'on')
   })
 
-  it('keeps discrete navigation when the parallax media query does not match', () => {
+  it('normalizes wheel line units and ignores horizontal gestures and zoom', () => {
     const { container } = renderDeck()
-    fireEvent.click(
-      container.querySelectorAll('.dots button')[IMAGE_STATION_INDEX],
-    )
-    unlock()
-    fireEvent.wheel(window, { deltaY: 100 })
-    const station = container.querySelector<HTMLElement>(
-      '[data-station="image"]',
-    )!
-    expect(station.dataset.parallax).toBeUndefined()
-    expect(station.querySelectorAll('.hpg')[1].getAttribute('data-pos')).toBe(
-      'on',
-    )
-  })
-  it.each(
-    Object.keys(HOME_V4_STATIONS) as Array<keyof typeof HOME_V4_STATIONS>,
-  )(
-    'scrubs every adjacent pair in %s and releases the station at its end',
-    (key) => {
-      vi.mocked(window.matchMedia).mockImplementation(
-        (query) =>
-          ({
-            matches: query.includes('no-preference'),
-            addEventListener: vi.fn(),
-            removeEventListener: vi.fn(),
-          }) as unknown as MediaQueryList,
-      )
-      const { container } = renderDeck()
-      const pageIndex = HOME_V4_PAGES.findIndex((page) => page.station === key)
-      fireEvent.click(container.querySelectorAll('.dots button')[pageIndex])
-      const station = container.querySelector<HTMLElement>(
-        `[data-station="${key}"]`,
-      )!
-      const pages = station.querySelectorAll('.hpg')
-      for (let index = 0; index < pages.length - 1; index++) {
-        unlock()
-        fireEvent.wheel(window, {
-          deltaY: Math.max(720, window.innerHeight) / 2,
-        })
-        expect(pages[index]).toHaveAttribute('data-scrub', 'outgoing')
-        expect(pages[index + 1]).toHaveAttribute('data-scrub', 'incoming')
-        fireEvent.wheel(window, {
-          deltaY: Math.max(720, window.innerHeight) / 2,
-        })
-        expect(pages[index + 1]).toHaveAttribute('data-pos', 'on')
-      }
-      unlock()
-      fireEvent.wheel(window, { deltaY: 100 })
-      expect(pageAt(container, pageIndex + 1)).toHaveAttribute('data-pos', 'on')
-    },
-  )
-
-  it('holds the canvas for three steps, supports reverse entry, and lets navigation jump away', () => {
-    const { container } = renderDeck()
-    const pageIndex = HOME_V4_PAGES.findIndex((page) => page.id === 'canvas')
-    const dots = container.querySelectorAll('.dots button')
-    fireEvent.click(dots[pageIndex])
-    const story = container.querySelector('.fn-canvas')!
-    expect(story).toHaveAttribute('data-stage', '1')
-    unlock()
-    fireEvent.keyDown(window, { key: 'ArrowDown' })
-    expect(story).toHaveAttribute('data-stage', '2')
-    unlock()
-    fireEvent.keyDown(window, { key: 'ArrowDown' })
-    expect(story).toHaveAttribute('data-stage', '3')
-    expect(pageAt(container, pageIndex)).toHaveAttribute('data-pos', 'on')
-    unlock()
-    fireEvent.keyDown(window, { key: 'ArrowDown' })
-    expect(pageAt(container, pageIndex + 1)).toHaveAttribute('data-pos', 'on')
-    unlock()
-    fireEvent.keyDown(window, { key: 'ArrowUp' })
-    expect(story).toHaveAttribute('data-stage', '3')
-    unlock()
-    fireEvent.keyDown(window, { key: 'ArrowUp' })
-    expect(story).toHaveAttribute('data-stage', '2')
-    fireEvent.click(dots[0])
+    fireEvent.wheel(window, { deltaX: 120, deltaY: 20 })
+    fireEvent.wheel(window, { deltaY: 120, ctrlKey: true })
     expect(pageAt(container, 0)).toHaveAttribute('data-pos', 'on')
+    fireEvent.wheel(window, { deltaY: 10, deltaMode: 1 })
+    expect(pageAt(container, 1)).toHaveAttribute('data-pos', 'on')
   })
 })

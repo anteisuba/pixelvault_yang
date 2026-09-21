@@ -24,7 +24,30 @@ import type { TagChip } from '@/types/tag-composer'
 /** 统一串里权重的后缀形态：`tag:1.2`。小数点后最多两位，`1` 省略不写。 */
 const WEIGHT_SUFFIX = /^(.*\S)\s*:\s*(\d+(?:\.\d+)?)$/
 
-const TAG_SEPARATOR = ','
+function splitTagText(text: string): string[] {
+  const parts: string[] = []
+  let start = 0
+  let numericGroup = false
+  let bracketDepth = 0
+  for (let index = 0; index < text.length; index++) {
+    const char = text[index]
+    if (char === ':' && text[index + 1] === ':') {
+      numericGroup = /[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(
+        text.slice(start, index),
+      )
+      if (!numericGroup) bracketDepth = 0
+      index++
+    } else if (char === '{' || char === '[') bracketDepth++
+    else if (char === '}' || char === ']')
+      bracketDepth = Math.max(0, bracketDepth - 1)
+    else if (char === ',' && !numericGroup && bracketDepth === 0) {
+      parts.push(text.slice(start, index))
+      start = index + 1
+    }
+  }
+  parts.push(text.slice(start))
+  return parts
+}
 
 function clampWeight(weight: number): number {
   if (!Number.isFinite(weight)) return PROMPT_TAG_WEIGHT.DEFAULT
@@ -57,7 +80,7 @@ export function isDefaultTagWeight(weight: number): boolean {
  */
 export function parseTagChips(text: string): TagChip[] {
   const tags: TagChip[] = []
-  for (const raw of text.split(TAG_SEPARATOR)) {
+  for (const raw of splitTagText(text)) {
     const piece = raw.trim()
     if (!piece) continue
     const match = WEIGHT_SUFFIX.exec(piece)

@@ -376,7 +376,7 @@ describe('PromptTemplatePicker', () => {
     const cover = document.querySelector(
       'img[src="https://cdn.example.com/gen.thumbnail.webp"]',
     )
-    expect(cover).toHaveClass('size-9', 'rounded-md', 'object-cover')
+    expect(cover).toHaveClass('aspect-square', 'rounded-md', 'object-cover')
     // Hover-lift + motion-token polish (canon: duration-fast / ease-standard).
     expect(cover).toHaveClass(
       'ring-1',
@@ -385,22 +385,49 @@ describe('PromptTemplatePicker', () => {
       'ease-standard',
       'group-hover:brightness-110',
     )
-    expect(screen.getByText('flux2Pro.label')).toBeInTheDocument()
+    expect(screen.queryByText('flux2Pro.label')).not.toBeInTheDocument()
 
     const textOnlyRow = screen
       .getByText('Text-only template')
       .closest('[cmdk-item]')
     expect(textOnlyRow?.querySelector('img')).toBeNull()
     // Phosphor icons carry no library class — query the fallback plaque's glyph.
-    const fallbackIcon = textOnlyRow?.querySelector('span.size-9 > svg')
+    const fallbackIcon = textOnlyRow?.querySelector('span.aspect-square > svg')
     expect(fallbackIcon).not.toBeNull()
     // Fallback shares the rounded-md image-driven shape (not the old circle).
     expect(fallbackIcon?.parentElement).toHaveClass(
-      'size-9',
+      'aspect-square',
       'rounded-md',
       'ring-1',
     )
-    expect(screen.getByText('custom-model')).toBeInTheDocument()
+    expect(screen.queryByText('custom-model')).not.toBeInTheDocument()
+  })
+
+  it('filters image, video and LoRA templates by saved content and applies the selection', async () => {
+    const image = makeRecipe({ id: 'image', name: 'LORA' })
+    const video = makeRecipe({
+      id: 'video',
+      name: 'Video template',
+      outputType: 'VIDEO',
+    })
+    const lora = makeRecipe({
+      id: 'lora',
+      name: 'Character template',
+      params: { advancedParams: { loras: [{ id: 'asset', weight: 1 }] } },
+    })
+    recipeState.recipes = [image, video, lora]
+    const apply = vi.fn()
+    render(<PromptTemplatePicker onApply={apply} />)
+    fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
+    fireEvent.click(screen.getByRole('button', { name: 'outputTypeVideo' }))
+    expect(screen.getByText('Video template')).toBeInTheDocument()
+    expect(screen.queryByText('Character template')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'outputTypeImage' }))
+    expect(screen.getByText('LORA')).toBeInTheDocument()
+    expect(screen.queryByText('Video template')).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'outputTypeLora' }))
+    fireEvent.click(screen.getByText('Character template'))
+    expect(apply).toHaveBeenCalledWith(lora)
   })
 
   it('keeps inspiration prompts clamped and removes the external link affordance', async () => {

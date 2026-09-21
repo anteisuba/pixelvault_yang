@@ -713,7 +713,7 @@ export function StudioOperatorDock() {
   if (isMobile) {
     return (
       <>
-        {/* ⚠ 手机收起态的头像挂**右上角**（D7b ④，与桌面一致）——⛔ 不再是右下
+        {/* ⚠ 手机收起态的头像挂**顶栏下方的右侧**（D7b ④，与桌面一致）——⛔ 不再是右下
             那颗浮标：那个位置的全部理由是「清过底部 `StudioMobileComposer` 那条
             固定栏」，而头像已经不在下面了。
             ⚠ 手机上**不做 morph**（Sheet 不从右上角长出来），所以相位恒 `closed`
@@ -723,7 +723,7 @@ export function StudioOperatorDock() {
             badgeCount={badgeCount}
             {...(persona ? { persona } : {})}
             anchor={{
-              avatarTopPx: STUDIO_OPERATOR_MOBILE_SHELL.fabInsetPx,
+              avatarTopPx: STUDIO_OPERATOR_MOBILE_SHELL.avatarTopPx,
               avatarRightPx: STUDIO_OPERATOR_MOBILE_SHELL.fabInsetPx,
               panelTopPx: STUDIO_OPERATOR_MOBILE_SHELL.fabInsetPx,
               panelRightPx: STUDIO_OPERATOR_MOBILE_SHELL.fabInsetPx,

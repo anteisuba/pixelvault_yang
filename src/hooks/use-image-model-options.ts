@@ -2,12 +2,17 @@
 
 import { useEffect, useMemo } from 'react'
 
-import { getAvailableImageModels, IMAGE_KIND } from '@/constants/models'
+import {
+  AI_MODELS,
+  getAvailableImageModels,
+  IMAGE_KIND,
+} from '@/constants/models'
 import { getPromptDialect } from '@/constants/prompt-dialects'
 import { pruneIncompatibleCapabilityValues } from '@/lib/model-capability-chips'
 import type { StudioModelOption } from '@/types/model-option'
 import { useApiKeysContext } from '@/contexts/api-keys-context'
 import { useStudioForm } from '@/contexts/studio-context'
+import { useMyProfile } from '@/hooks/use-my-profile'
 import { useDefaultImageModel } from '@/hooks/use-default-image-model'
 import {
   buildSavedModelOptionsForModels,
@@ -31,9 +36,15 @@ export function useImageModelOptions(): UseImageModelOptionsReturn {
   const { state, dispatch } = useStudioForm()
   const { keys, healthMap } = useApiKeysContext()
 
+  const { profile } = useMyProfile()
+  const qwenAllowed = profile?.qwenEvaluationAllowed === true
+
   const imageModels = useMemo(
-    () => getAvailableImageModels(IMAGE_KIND.GENERATE),
-    [],
+    () =>
+      getAvailableImageModels(IMAGE_KIND.GENERATE).filter(
+        (model) => model.id !== AI_MODELS.QWEN_IMAGE_21_RUNNER || qwenAllowed,
+      ),
+    [qwenAllowed],
   )
 
   const modelOptions = useMemo<StudioModelOption[]>(() => {

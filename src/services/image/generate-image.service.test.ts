@@ -76,8 +76,9 @@ import { getResolvedModelOption } from '@/services/model-config.service'
 // ─── Tests ─────────────────────────────────────────────────────
 
 describe('resolveGenerationRoute', () => {
-  it('rejects Qwen research generation outside development even with a supplied key', async () => {
+  it('rejects Qwen generation for an unauthorized production account even with a supplied key', async () => {
     vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('QWEN_EVALUATION_USER_IDS', 'authorized-user')
     try {
       await expect(
         resolveGenerationRoute('user-1', {
@@ -307,6 +308,29 @@ describe('resolveGenerationRoute', () => {
       expect(route.isFreeGeneration).toBe(false)
       expect(assertRunnerMonthlyLimitNotExceeded).toHaveBeenCalledOnce()
       expect(findActiveKeyForAdapter).not.toHaveBeenCalled()
+    })
+
+    it('allows authorized production Qwen requests through the existing Runner budget and key', async () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      vi.stubEnv('QWEN_EVALUATION_USER_IDS', 'user-1')
+      try {
+        vi.mocked(getResolvedModelOption).mockResolvedValue({
+          ...RUNNER_MODEL,
+          id: AI_MODELS.QWEN_IMAGE_21_RUNNER,
+        } as never)
+        vi.mocked(assertRunnerMonthlyLimitNotExceeded).mockResolvedValue(
+          undefined,
+        )
+        vi.mocked(getSystemApiKey).mockReturnValue('runpod-key')
+        const route = await resolveGenerationRoute('user-1', {
+          modelId: AI_MODELS.QWEN_IMAGE_21_RUNNER,
+        })
+        expect(route.adapterType).toBe(AI_ADAPTER_TYPES.RUNNER)
+        expect(route.apiKey).toBe('runpod-key')
+        expect(assertRunnerMonthlyLimitNotExceeded).toHaveBeenCalledOnce()
+      } finally {
+        vi.unstubAllEnvs()
+      }
     })
 
     it('throws RUNNER_MONTHLY_LIMIT_EXCEEDED when the monthly budget cap is hit', async () => {

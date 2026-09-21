@@ -3,9 +3,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
+vi.mock('@/hooks/use-my-profile', () => ({
+  useMyProfile: vi.fn(() => ({ profile: null })),
+}))
+
 vi.mock('@/constants/models', async () => {
   const { IMAGE_KIND } = await import('@/constants/models/image')
   const models = [
+    {
+      id: 'qwen-image-2.1-runner',
+      adapterType: AI_ADAPTER_TYPES.RUNNER,
+      providerConfig: { label: 'PixelVault Runner', baseUrl: '' },
+      cost: 3,
+    },
     {
       id: 'runner-only-model',
       adapterType: AI_ADAPTER_TYPES.RUNNER,
@@ -65,11 +75,15 @@ import {
 } from '@/constants/models'
 import { useStudioForm } from '@/contexts/studio-context'
 import { findSelectedModel } from '@/lib/model-options'
+import { useMyProfile } from '@/hooks/use-my-profile'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 
 describe('useImageModelOptions', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    vi.mocked(useMyProfile).mockReturnValue({ profile: null } as ReturnType<
+      typeof useMyProfile
+    >)
     vi.mocked(findSelectedModel).mockReset()
     vi.mocked(useStudioForm).mockReturnValue({
       state: { selectedOptionId: null, outputType: 'image' },
@@ -110,6 +124,24 @@ describe('useImageModelOptions', () => {
     expect(result.current.modelOptions[0]?.adapterType).toBe(
       AI_ADAPTER_TYPES.OPENAI,
     )
+  })
+
+  it('shows Qwen only after the server grants evaluation access', () => {
+    const { result, rerender } = renderHook(() => useImageModelOptions())
+    expect(
+      result.current.modelOptions.some(
+        (model) => model.modelId === AI_MODELS.QWEN_IMAGE_21_RUNNER,
+      ),
+    ).toBe(false)
+    vi.mocked(useMyProfile).mockReturnValue({
+      profile: { qwenEvaluationAllowed: true },
+    } as ReturnType<typeof useMyProfile>)
+    rerender()
+    expect(
+      result.current.modelOptions.some(
+        (model) => model.modelId === AI_MODELS.QWEN_IMAGE_21_RUNNER,
+      ),
+    ).toBe(true)
   })
 
   it.each([false, true])(

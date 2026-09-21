@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 import { createApiGetRoute, createApiRoute } from '@/lib/api-route-factory'
+import { canUseQwenEvaluation } from '@/lib/qwen-evaluation-access'
 import { ApiRequestError } from '@/lib/errors'
 import { UpdateProfileSchema } from '@/types'
 import type { UpdateProfileResponse } from '@/types'
@@ -70,6 +71,7 @@ export const GET = createApiGetRoute<
       const user = await ensureUser(clerkId)
 
       return {
+        qwenEvaluationAllowed: canUseQwenEvaluation(user.id),
         username: user.username ?? '',
         displayName: user.displayName,
         avatarUrl: user.avatarUrl,
@@ -100,6 +102,7 @@ export const PUT = createApiRoute<
       const updated = await updateProfile(user.id, data)
 
       return {
+        qwenEvaluationAllowed: canUseQwenEvaluation(user.id),
         username: updated.username ?? '',
         displayName: updated.displayName,
         avatarUrl: user.avatarUrl,

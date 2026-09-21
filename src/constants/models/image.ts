@@ -510,8 +510,7 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNNER),
     externalModelId: 'qwen-image-2.1',
     outputType: 'IMAGE',
-    available:
-      FEATURE_FLAGS.comfyRunner && process.env.NODE_ENV === 'development',
+    available: FEATURE_FLAGS.comfyRunner,
     officialUrl: 'https://github.com/QwenLM/Qwen-Image-2.1',
     timeoutMs: RUNNER_TIMEOUT_MS,
     qualityTier: 'standard',

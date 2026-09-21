@@ -65,12 +65,27 @@ describe('GET /api/users/me/profile', () => {
     expect(res.status).toBe(200)
     expect(json.success).toBe(true)
     expect(json.data).toEqual({
+      qwenEvaluationAllowed: false,
       username: 'alice',
       displayName: 'Alice',
       avatarUrl: 'https://r2.example.com/avatar.png',
       bio: 'Hello!',
       isPublic: true,
     })
+  })
+
+  it('reports evaluation access for the authenticated database user', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    vi.stubEnv('QWEN_EVALUATION_USER_IDS', DB_USER.id)
+    try {
+      const res = await GET(createGET('/api/users/me/profile'))
+      const json = await parseJSON<{
+        data: { qwenEvaluationAllowed: boolean }
+      }>(res)
+      expect(json.data.qwenEvaluationAllowed).toBe(true)
+    } finally {
+      vi.unstubAllEnvs()
+    }
   })
 
   it('returns 500 when ensureUser throws', async () => {

@@ -35,7 +35,7 @@
 
 ### Qwen-Image-2.1 内部评估（2026-09-21）
 
-- owner 仅授权非商业研究／评估。`qwen-image-2.1-runner` 仅在本地 development 模式进入图片工作台，服务端拒绝非 development 请求；不作为公开商业模型。原 SDXL 端点保留。
+- owner 仅授权非商业研究／评估。`qwen-image-2.1-runner` 在开启 `NEXT_PUBLIC_FF_COMFY_RUNNER` 后支持本地及线上内部评估；生产账号须列入服务端私有 `QWEN_EVALUATION_USER_IDS`（逗号分隔的数据库 User ID）。个人资料接口返回可用权限，图片模型列表据此展示，生成服务再次校验；非授权账号即使携带 key 也拒绝调用。不作为公开商业模型，原 SDXL 端点保留。
 - Runner 源码将 ComfyUI 固定到 v0.37.0（`73c9bad4d21e7addbe1d13bc92eee0f1431b017d`）；评估 target `qwen-evaluation` 预置 INT8 diffusion、INT8 Qwen3-VL 8B、BF16 专用 VAE，固定 HF revision 并校验 SHA-256 与文件长度。
 - `workers/runner-comfyui-fork/qwen_workflow.py` 生成 API 工作流：文生图用 `TextEncodeQwenImage21` + Euler/simple；编辑通过同节点接入图片与 VAE 参考条件，最多 10 张，latent 随首图缩放尺寸。不是 SDXL 低 denoise 图生图。
 - 基础镜像构建已通过 CPU 启动检查，实际 PyTorch 为 `2.12.0+cu130`；GPU 部署需选择 CUDA 13.0 驱动兼容机器。CPU 启动不能替代显存和真实出图验收。

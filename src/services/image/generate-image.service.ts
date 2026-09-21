@@ -42,6 +42,7 @@ import {
   RunnerMonthlyLimitExceededError,
 } from '@/services/usage.service'
 import { ensureUser } from '@/services/user.service'
+import { canUseQwenEvaluation } from '@/lib/qwen-evaluation-access'
 import { getSystemApiKey } from '@/lib/platform-keys'
 import { logger } from '@/lib/logger'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
@@ -110,11 +111,11 @@ export async function resolveGenerationRoute(
 ): Promise<ResolvedGenerationRoute> {
   if (
     modelId === AI_MODELS.QWEN_IMAGE_21_RUNNER &&
-    process.env.NODE_ENV !== 'development'
+    !canUseQwenEvaluation(userId)
   ) {
     throw new GenerateImageServiceError(
       'UNSUPPORTED_MODEL',
-      'Qwen-Image-2.1 is restricted to local internal evaluation.',
+      'Qwen-Image-2.1 is restricted to authorized internal evaluation accounts.',
       403,
     )
   }

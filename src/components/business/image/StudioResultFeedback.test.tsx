@@ -52,9 +52,7 @@ describe('StudioResultFeedback', () => {
         'satisfied',
         'satisfied',
       ]) {
-        fireEvent.click(
-          screen.getByRole('button', { name: label, exact: true }),
-        )
+        fireEvent.click(screen.getByRole('button', { name: label }))
       }
       expect(onFeedback.mock.calls).toEqual([
         [['subject_mismatch']],

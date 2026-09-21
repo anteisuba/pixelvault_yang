@@ -12,7 +12,7 @@ import {
 } from '@/constants/provider-capabilities'
 
 import { API_USAGE } from '@/constants/config'
-import { getModelById, type ModelOption } from '@/constants/models'
+import { AI_MODELS, getModelById, type ModelOption } from '@/constants/models'
 import {
   getImageReferenceCapability,
   getReferenceCapabilityMax,
@@ -108,6 +108,16 @@ export async function resolveGenerationRoute(
   userId: string,
   { modelId, apiKeyId }: Pick<GenerateRequest, 'modelId' | 'apiKeyId'>,
 ): Promise<ResolvedGenerationRoute> {
+  if (
+    modelId === AI_MODELS.QWEN_IMAGE_21_RUNNER &&
+    process.env.NODE_ENV !== 'development'
+  ) {
+    throw new GenerateImageServiceError(
+      'UNSUPPORTED_MODEL',
+      'Qwen-Image-2.1 is restricted to local internal evaluation.',
+      403,
+    )
+  }
   const builtInModel = await getResolvedModelOption(modelId)
 
   if (

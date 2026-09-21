@@ -2436,6 +2436,84 @@ describe('provider submit reports providerJobId', () => {
     expect(body.data).toEqual({ providerJobId: 'runpod-job-1' })
   })
 
+  it('Qwen submits all references to the evaluation endpoint and preserves its route for polling and cancel', async () => {
+    const requests: Array<{ url: string; body: Record<string, unknown> }> = []
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (url: RequestInfo | URL, init?: RequestInit) => {
+        requests.push({
+          url: String(url),
+          body: init?.body ? JSON.parse(String(init.body)) : {},
+        })
+        if (String(url).endsWith('/run'))
+          return Response.json({ id: 'qwen-job' })
+        if (String(url).includes('/status/'))
+          return Response.json({ status: 'IN_QUEUE' })
+        if (String(url).includes('resolve-key'))
+          return Response.json({ success: true, data: { apiKey: 'test' } })
+        return new Response(null, { status: 200 })
+      }),
+    )
+    const env = {
+      INTERNAL_CALLBACK_SECRET: 'secret',
+      INTERNAL_CALLBACK_URL:
+        'https://app.example.com/api/internal/execution/callback',
+      RUNPOD_ENDPOINT: 'sdxl-endpoint',
+      RUNPOD_QWEN_ENDPOINT: 'qwen-endpoint',
+    } as never
+    const context = {
+      ...makeFalImageContext({
+        externalModelId: 'qwen-image-2.1',
+        referenceImages: [
+          'https://cdn.example.com/a.png',
+          'https://cdn.example.com/b.png',
+        ],
+      }),
+      providerId: 'runner',
+    }
+    const job = await submitRunnerImageJob(context, env, 'test')
+    expect(job.id).toBe('qwen-endpoint/qwen-job')
+    expect(requests.find((r) => r.url.endsWith('/run'))).toMatchObject({
+      url: 'https://api.runpod.ai/v2/qwen-endpoint/run',
+      body: {
+        input: {
+          images_to_fetch: [
+            { name: 'reference-1.png' },
+            { name: 'reference-2.png' },
+          ],
+          workflow: {
+            encode: {
+              class_type: 'TextEncodeQwenImage21',
+              inputs: { 'images.image_2': ['reference-2', 0] },
+            },
+            sampler: {
+              inputs: { cfg: 1, steps: 25, latent_image: ['encode', 2] },
+            },
+          },
+        },
+      },
+    })
+    await pollAndPersistRunnerImageJob(job.id, env, 'test', 'image/test.png')
+    expect(
+      await cancelProviderJob(env, 'job-1', 'runner', job.id),
+    ).toMatchObject({ ok: true })
+    expect(requests.map((r) => r.url)).toContain(
+      'https://api.runpod.ai/v2/qwen-endpoint/status/qwen-job',
+    )
+    expect(requests.map((r) => r.url)).toContain(
+      'https://api.runpod.ai/v2/qwen-endpoint/cancel/qwen-job',
+    )
+    expect(requests.some((r) => r.url.includes('sdxl-endpoint'))).toBe(false)
+    await expect(
+      pollAndPersistRunnerImageJob(
+        'foreign/job',
+        env,
+        'test',
+        'image/test.png',
+      ),
+    ).rejects.toThrow('Unknown Runner job endpoint')
+  })
+
   it('a failed report callback does not affect the returned submit result', async () => {
     const fetchMock = vi
       .fn()

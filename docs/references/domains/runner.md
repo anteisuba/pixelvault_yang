@@ -10,15 +10,15 @@
 
 ## 1. 基础设施标识
 
-| 项              | 当前生产值                                                                     | 核验范围                                                                                       |
-| --------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------- |
-| Network Volume  | `ivchraoqjv` · `pixelvault-models-eu-ro-1` · 80 GB · EU-RO-1                   | 2026-09-21 API 回读；本轮未扫描文件                                                            |
-| Serverless 端点 | `dt0wyuid7lywic` · `pixelvault-runner-eu-ro-1`                                 | Execution Worker 的 `RUNPOD_ENDPOINT` 同值                                                     |
-| Template        | `pmh4gs9eht`                                                                   | 镜像 `ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-92ef778b5d6bab2cf1981b2eecb8311a92460a12` |
-| 端点参数        | Min 0 / Max 2 / Idle 60s / Execution Timeout 600000ms / FlashBoot 开           | 单 Worker 一张 GPU，QUEUE_DELAY 4                                                              |
-| GPU 型号        | 本轮 CLI 响应未包含具体型号                                                    | 不把旧文档的 GPU 档位当成实查结果                                                              |
-| API 凭证        | Execution Worker 的 `RUNPOD_KEY`；本机 RunPod CLI 使用 `~/.runpod/config.toml` | 不记录值；本轮本机凭证可读，创建模板返回 403                                                   |
-| 端点配置真值    | `workers/execution/wrangler.jsonc`                                             | 本机环境变量可能过时，不用它判断生产端点                                                       |
+| 项              | 当前生产值                                                           | 核验范围                                                                                       |
+| --------------- | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| Network Volume  | `ivchraoqjv` · `pixelvault-models-eu-ro-1` · 80 GB · EU-RO-1         | 2026-09-21 API 回读；本轮未扫描文件                                                            |
+| Serverless 端点 | `dt0wyuid7lywic` · `pixelvault-runner-eu-ro-1`                       | Execution Worker 的 `RUNPOD_ENDPOINT` 同值                                                     |
+| Template        | `pmh4gs9eht`                                                         | 镜像 `ghcr.io/anteisuba/pixelvault-runner-fork:5.8.6-92ef778b5d6bab2cf1981b2eecb8311a92460a12` |
+| 端点参数        | Min 0 / Max 2 / Idle 60s / Execution Timeout 600000ms / FlashBoot 开 | 单 Worker 一张 GPU，QUEUE_DELAY 4                                                              |
+| GPU 型号        | 本轮 CLI 响应未包含具体型号                                          | 不把旧文档的 GPU 档位当成实查结果                                                              |
+| API 凭证        | 应用 resolve-key 提供 `RUNPOD_KEY`；CLI 使用 `~/.runpod/config.toml` | 不记录值；本地开发凭证可访问评估端点，旧 CLI 凭证权限不足                                      |
+| 端点配置真值    | `workers/execution/wrangler.jsonc`                                   | 本机环境变量可能过时，不用它判断生产端点                                                       |
 
 2026-09-21 Qwen 评估部署未改动上述生产端点。当前价格与显存／耗时须实测，旧的每图费用估算不再作为现行依据。
 
@@ -35,11 +35,13 @@
 
 ### Qwen-Image-2.1 内部评估（2026-09-21）
 
-- owner 仅授权非商业研究／评估。没有新增公开模型条目，也没有将生产 Execution Worker 切到评估通道。
+- owner 仅授权非商业研究／评估。`qwen-image-2.1-runner` 仅在本地 development 模式进入图片工作台，服务端拒绝非 development 请求；不作为公开商业模型。原 SDXL 端点保留。
 - Runner 源码将 ComfyUI 固定到 v0.37.0（`73c9bad4d21e7addbe1d13bc92eee0f1431b017d`）；评估 target `qwen-evaluation` 预置 INT8 diffusion、INT8 Qwen3-VL 8B、BF16 专用 VAE，固定 HF revision 并校验 SHA-256 与文件长度。
 - `workers/runner-comfyui-fork/qwen_workflow.py` 生成 API 工作流：文生图用 `TextEncodeQwenImage21` + Euler/simple；编辑通过同节点接入图片与 VAE 参考条件，最多 10 张，latent 随首图缩放尺寸。不是 SDXL 低 denoise 图生图。
 - 基础镜像构建已通过 CPU 启动检查，实际 PyTorch 为 `2.12.0+cu130`；GPU 部署需选择 CUDA 13.0 驱动兼容机器。CPU 启动不能替代显存和真实出图验收。
-- GPU 部署状态与未决权限见 `docs/status.md`；镜像构建成功不能当作 RunPod 端点已部署。
+- 已创建独立端点 `ok6riemrmpdiic`（`pixelvault-qwen21-internal-eval`），模板 `sw8qiqhsa9`，RTX 4090，Min 0 / Max 1 / Idle 5s。Worker 的 `RUNPOD_QWEN_ENDPOINT` 指向它；Qwen 任务 ID 携带端点前缀，提交、轮询、取消与队列回收均使用专属端点。
+- 工作台默认 CFG 1、25 步，支持负面提示词、seed 与最多 10 张原生参考图；使用服务端 Runner 凭证，不弹用户 key 配置。编辑结果按 PNG 实际尺寸归档。当前未核实每图金额，界面不显示估算美元价；实际由 RunPod 计费。
+- GPU 实际验收与 Worker 部署状态见 `docs/status.md`；端点创建和代码测试不替代真实成图。
 
 核验来源：[官方模型仓](https://github.com/QwenLM/Qwen-Image-2.1)、[ComfyUI v0.37.0](https://github.com/Comfy-Org/ComfyUI/releases/tag/v0.37.0)、[官方工作流](https://github.com/Comfy-Org/workflow_templates/blob/main/templates/image_qwen_image_2_1_image_edit.json)、[研究许可证](https://github.com/QwenLM/Qwen-Image-2.1/blob/main/LICENSE)。
 

@@ -503,6 +503,20 @@ export const IMAGE_MODEL_OPTIONS: ModelOption[] = [
     imageKind: IMAGE_KIND.LORA_BASE,
     supportsLora: true,
   },
+  {
+    id: AI_MODELS.QWEN_IMAGE_21_RUNNER,
+    cost: 3,
+    adapterType: AI_ADAPTER_TYPES.RUNNER,
+    providerConfig: getDefaultProviderConfig(AI_ADAPTER_TYPES.RUNNER),
+    externalModelId: 'qwen-image-2.1',
+    outputType: 'IMAGE',
+    available:
+      FEATURE_FLAGS.comfyRunner && process.env.NODE_ENV === 'development',
+    officialUrl: 'https://github.com/QwenLM/Qwen-Image-2.1',
+    timeoutMs: RUNNER_TIMEOUT_MS,
+    qualityTier: 'standard',
+    styleTag: 'general',
+  },
   // ─── Comfy Runner (RunPod Serverless ComfyUI) ──────────────────────
   // Faithful Civitai-recipe clones for checkpoints hosted providers can't
   // run (community LoRA layer formats, dead/nonexistent hosted endpoints).

@@ -25,6 +25,7 @@
     // （2026-07-26 核对 RunPod：账号下只剩这一个端点），旧卷 rk3t3mb1ko 也一并
     // 没了。要退回 US-CA-2 得重新建卷 + 重灌 checkpoint，不是改一行就能回。
     "RUNPOD_ENDPOINT": "dt0wyuid7lywic",
+    "RUNPOD_QWEN_ENDPOINT": "ok6riemrmpdiic",
   },
   "r2_buckets": [
     {

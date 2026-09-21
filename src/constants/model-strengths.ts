@@ -504,6 +504,13 @@ export const MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> = {
     negativePrompt: 'supported',
     enhanceHint: `Anima Pencil-XL, an SDXL anime checkpoint driven by danbooru tags. Lead with the quality prefix masterpiece, best quality, then character tags, then style and scene, comma separated. A1111/Comfy emphasis like (feature:1.2) is parsed. ${SDXL_TAG_NEGATIVE_DIALECT}`,
   },
+  [AI_MODELS.QWEN_IMAGE_21_RUNNER]: {
+    bestFor: ['general', 'detailed', 'illustration'],
+    promptStyle: 'natural-language',
+    negativePrompt: 'supported',
+    enhanceHint:
+      'Qwen-Image-2.1 on the Comfy runner. Use clear Chinese or English descriptions of subjects, composition, lighting and exact text to render. For image editing, explicitly describe what to change and what to preserve in the supplied reference images. Do not add SDXL or Pony quality prefixes.',
+  },
   // ─── Comfy Runner 上的自托管 checkpoint ───────────────────────────
   // 它们与上面那些托管模型共享同一条 tag 方言，但每个底模有**自己的必带前缀** ——
   // 漏掉前缀不是「效果差一点」，是画面直接垮（Pony 尤其明显）。

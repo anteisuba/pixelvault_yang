@@ -185,7 +185,10 @@ describe('models', () => {
       expect(model.supportsLora === true, model.id).toBe(
         kind === IMAGE_KIND.LORA_BASE,
       )
-      if (model.adapterType === AI_ADAPTER_TYPES.RUNNER) {
+      if (model.id === AI_MODELS.QWEN_IMAGE_21_RUNNER) {
+        expect(kind).toBe(IMAGE_KIND.GENERATE)
+        expect(model.available).toBe(false)
+      } else if (model.adapterType === AI_ADAPTER_TYPES.RUNNER) {
         expect(kind, model.id).toBe(IMAGE_KIND.LORA_BASE)
       }
       if (kind === IMAGE_KIND.EDIT) {

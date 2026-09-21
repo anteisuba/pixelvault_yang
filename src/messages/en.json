@@ -3723,6 +3723,10 @@
       "label": "SDXL 1.0 (Runner)",
       "description": "Plain SDXL 1.0 via PixelVault Runner — a faithful recipe-clone path alongside the hosted route."
     },
+    "qwenImage21Runner": {
+      "label": "Qwen-Image-2.1 (Internal evaluation)",
+      "description": "Local research only. Dedicated RunPod endpoint; text-to-image and editing with up to 10 references. GPU usage is billed by RunPod."
+    },
     "animaDitRunner": {
       "label": "Anima (Runner)",
       "description": "Anima (Cosmos-Predict2 DiT) via PixelVault Runner — the native path for the large Anima LoRA ecosystem on Civitai."

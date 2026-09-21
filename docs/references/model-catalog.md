@@ -23,6 +23,8 @@
 >
 > 📊 视频那 26 条的结构（2026-08-21 盘点）：**只有 8 个真模型**，其余 14 条是站点克隆（火山 / BytePlus / MiniMax CN）、4 条是端点克隆（reference）。即约 69% 的条目与「档位」无关，是渠道与端点的展开——讨论「模型是不是太多」之前先做这个切分。
 
+2026-09-21：新增本地内部评估条目 `QWEN_IMAGE_21_RUNNER` → `qwen-image-2.1`，仅 development 模式可见且可提交，使用独立 RunPod 端点；不计入公开模型。文生图／最多 10 张参考图编辑、默认 CFG 1 与 25 步，契约及验收状态见 [Runner 域](domains/runner.md#qwen-image-21-内部评估2026-09-21)。
+
 ### 图像（13 + 5 runner）
 
 | enum                         | externalModelId                                   | 通道                |

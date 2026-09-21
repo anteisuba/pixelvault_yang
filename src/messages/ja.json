@@ -3723,6 +3723,10 @@
       "label": "SDXL 1.0（Runner）",
       "description": "PixelVault Runner によるプレーンな SDXL 1.0 — ホスト型ルートと並ぶ忠実なレシピ複製経路。"
     },
+    "qwenImage21Runner": {
+      "label": "Qwen-Image-2.1（内部評価）",
+      "description": "ローカル研究評価専用。専用 RunPod エンドポイントで画像生成と最大10枚の参照画像による編集に対応。GPU 利用は RunPod が課金します。"
+    },
     "animaDitRunner": {
       "label": "Anima（Runner）",
       "description": "PixelVault Runner による Anima（Cosmos-Predict2 DiT）— Civitai の大規模な Anima LoRA エコシステム向けのネイティブ経路。"

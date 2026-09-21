@@ -474,6 +474,14 @@ export const ADAPTER_CAPABILITIES: Record<AI_ADAPTER_TYPES, CapabilityConfig> =
 export const MODEL_CAPABILITY_OVERRIDES: Partial<
   Record<string, Partial<CapabilityConfig>>
 > = {
+  [AI_MODELS.QWEN_IMAGE_21_RUNNER]: {
+    capabilities: ['negativePrompt', 'guidanceScale', 'steps', 'seed'],
+    guidanceScale: { min: 1, max: 10, step: 0.1, default: 1 },
+    steps: { min: 1, max: 100, step: 1, default: 25 },
+    maxLoras: 0,
+    maxReferenceImages: 10,
+    referenceImageMode: 'native',
+  },
   [AI_MODELS.NOVELAI_V45_FULL]: {
     capabilities: [
       ...ADAPTER_CAPABILITIES[AI_ADAPTER_TYPES.NOVELAI].capabilities,

@@ -91,6 +91,7 @@ export enum AI_MODELS {
   SDXL_10_RUNNER = 'sdxl-10-runner',
   /** Comfy Runner (RunPod) — Anima (Cosmos-Predict2 DiT), its own Qwen-Image workflow. */
   ANIMA_DIT_RUNNER = 'anima-dit-runner',
+  QWEN_IMAGE_21_RUNNER = 'qwen-image-2.1-runner',
 
   // Audio models
   /**

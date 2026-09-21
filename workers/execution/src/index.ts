@@ -76,6 +76,11 @@ import {
   type RunnerScheduler,
 } from './models/runner/sampling'
 import {
+  buildQwenImage21Workflow,
+  readQwenPngDimensions,
+  QWEN_IMAGE_21_MODEL,
+} from './models/runner/qwen-workflow-builder'
+import {
   isRunnerUpscaler,
   RUNNER_UPSCALER_MANIFEST,
 } from './models/runner/upscalers'
@@ -178,6 +183,7 @@ interface ExecutionEnv {
    * plain wrangler.jsonc var. See docs/references/domains/runner.md.
    */
   RUNPOD_ENDPOINT?: string
+  RUNPOD_QWEN_ENDPOINT?: string
   CINEMATIC_SHORT_VIDEO_WORKFLOW: Workflow<WorkerRunContext>
   LONG_VIDEO_PIPELINE_WORKFLOW: Workflow<LongVideoPipelineRunContext>
   HYPER3D_RODIN_WORKFLOW: Workflow<WorkerModel3DRunContext>
@@ -6154,6 +6160,8 @@ export async function submitRunnerImageJob(
   env: ExecutionEnv,
   apiKey: string,
 ): Promise<RunnerSubmitResult> {
+  const qwen = context.providerInput.externalModelId === QWEN_IMAGE_21_MODEL
+  if (qwen) env = qwenRunnerEnvironment(env)
   if (!env.RUNPOD_ENDPOINT) {
     throw new Error('RUNPOD_ENDPOINT is not configured.')
   }
@@ -6191,7 +6199,8 @@ export async function submitRunnerImageJob(
   // ~8MB 的参考图正好卡在两堵墙之间（2026-08-24 同一张图连点两次分别撞上了两者）。
   // fork 侧 `ensure_input_images` 负责拉图并就地 base64——那台机器内存以 GB 计。
   // 契约见 workers/runner-comfyui-fork/README.md。
-  const referenceImage = getImageReferenceInputs(context)[0]
+  const allReferences = getImageReferenceInputs(context)
+  const referenceImage = allReferences[0]
   const RUNNER_REFERENCE_IMAGE_NAME = 'reference.png'
   let referenceImagesToFetch:
     | Array<{ name: string; url: string; source: 'r2' }>
@@ -6211,35 +6220,57 @@ export async function submitRunnerImageJob(
       },
     ]
   }
+  if (qwen) {
+    referenceImagesToFetch = allReferences.map((url, index) => ({
+      name: `reference-${index + 1}.png`,
+      url,
+      source: 'r2' as const,
+    }))
+    if (runnerLoras.length || runnerCheckpoint || hires || upscaler)
+      throw new Error('Qwen evaluation does not support SDXL recipe modifiers.')
+  }
 
   let workflow: ReturnType<typeof buildRunnerWorkflowFromRequest>
   try {
-    workflow = buildRunnerWorkflowFromRequest(
-      {
-        externalModelId: context.providerInput.externalModelId,
-        prompt: context.providerInput.prompt,
-        negativePrompt:
-          readStringField(advancedParams, 'negativePrompt') ?? undefined,
-        width: dimensions.width,
-        height: dimensions.height,
-        seed: readRunnerSeed(advancedParams),
-        steps: readPositiveNumberField(advancedParams, 'steps') ?? undefined,
-        cfg: readNumberField(advancedParams, 'guidanceScale') ?? undefined,
-        sampler: sampling.sampler,
-        scheduler: sampling.scheduler,
-        loras: runnerLoras.map((lora) => ({
-          filename: lora.filename,
-          scale: lora.scale,
-        })),
-        checkpointOverrideFilename: runnerCheckpoint?.filename,
-        architecture,
-        referenceImageName,
-        denoise: referenceDenoise,
-        upscalerModelFilename: upscaler?.filename,
-        hires,
-      },
-      randomUint32,
-    )
+    workflow = qwen
+      ? buildQwenImage21Workflow({
+          prompt: context.providerInput.prompt,
+          negativePrompt:
+            readStringField(advancedParams, 'negativePrompt') ?? undefined,
+          ...dimensions,
+          seed: readRunnerSeed(advancedParams) ?? randomUint32(),
+          steps: readPositiveNumberField(advancedParams, 'steps') ?? undefined,
+          cfg: readNumberField(advancedParams, 'guidanceScale') ?? undefined,
+          referenceImageNames:
+            referenceImagesToFetch?.map((image) => image.name) ?? [],
+        })
+      : buildRunnerWorkflowFromRequest(
+          {
+            externalModelId: context.providerInput.externalModelId,
+            prompt: context.providerInput.prompt,
+            negativePrompt:
+              readStringField(advancedParams, 'negativePrompt') ?? undefined,
+            width: dimensions.width,
+            height: dimensions.height,
+            seed: readRunnerSeed(advancedParams),
+            steps:
+              readPositiveNumberField(advancedParams, 'steps') ?? undefined,
+            cfg: readNumberField(advancedParams, 'guidanceScale') ?? undefined,
+            sampler: sampling.sampler,
+            scheduler: sampling.scheduler,
+            loras: runnerLoras.map((lora) => ({
+              filename: lora.filename,
+              scale: lora.scale,
+            })),
+            checkpointOverrideFilename: runnerCheckpoint?.filename,
+            architecture,
+            referenceImageName,
+            denoise: referenceDenoise,
+            upscalerModelFilename: upscaler?.filename,
+            hires,
+          },
+          randomUint32,
+        )
   } catch (error) {
     if (error instanceof RunnerUnknownCheckpointError) {
       throw new WorkerProviderError({
@@ -6324,7 +6355,8 @@ export async function submitRunnerImageJob(
   if (!id) {
     throw new Error('Runner submit response did not include a job id.')
   }
-  await reportProviderJobId(env, context, id)
+  const routedId = qwen ? `${env.RUNPOD_ENDPOINT}/${id}` : id
+  await reportProviderJobId(env, context, routedId)
   await reportExecutionStage(
     env,
     context,
@@ -6332,13 +6364,27 @@ export async function submitRunnerImageJob(
   )
   const outputScale = upscaler?.scale ?? 1
   return {
-    id,
+    id: routedId,
     width: (hires?.width ?? dimensions.width) * outputScale,
     height: (hires?.height ?? dimensions.height) * outputScale,
   }
 }
 
 type RunnerPollStatus = 'IN_QUEUE' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
+
+function qwenRunnerEnvironment(env: ExecutionEnv): ExecutionEnv {
+  if (!env.RUNPOD_QWEN_ENDPOINT)
+    throw new Error('Qwen evaluation endpoint is not configured.')
+  return { ...env, RUNPOD_ENDPOINT: env.RUNPOD_QWEN_ENDPOINT }
+}
+
+function runnerJobRoute(jobId: string, env: ExecutionEnv) {
+  const parts = jobId.split('/')
+  if (parts.length === 1) return { endpoint: env.RUNPOD_ENDPOINT, id: jobId }
+  if (parts.length !== 2 || parts[0] !== env.RUNPOD_QWEN_ENDPOINT || !parts[1])
+    throw new Error('Unknown Runner job endpoint.')
+  return { endpoint: env.RUNPOD_QWEN_ENDPOINT, id: parts[1] }
+}
 
 type RunnerPollResult =
   | { status: 'IN_QUEUE' | 'IN_PROGRESS' }
@@ -6357,6 +6403,8 @@ type PersistedRunnerPollResult =
       artifactUrl: string
       imageR2Key: string
       mimeType: string
+      width?: number
+      height?: number
       runnerExecution?: RunnerModelEvidence
     }
 
@@ -6384,8 +6432,9 @@ async function pollRunnerImageJob(
   env: ExecutionEnv,
   apiKey: string,
 ): Promise<RunnerPollResult> {
+  const route = runnerJobRoute(jobId, env)
   const response = await fetch(
-    `${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/status/${jobId}`,
+    `${RUNPOD_BASE_URL}/${route.endpoint}/status/${route.id}`,
     { headers: { Authorization: `Bearer ${apiKey}` } },
   )
 
@@ -6449,8 +6498,9 @@ async function cancelRunnerImageJob(
   apiKey: string,
 ): Promise<boolean> {
   try {
+    const route = runnerJobRoute(jobId, env)
     const response = await fetch(
-      `${RUNPOD_BASE_URL}/${env.RUNPOD_ENDPOINT}/cancel/${jobId}`,
+      `${RUNPOD_BASE_URL}/${route.endpoint}/cancel/${route.id}`,
       {
         method: 'POST',
         headers: { Authorization: `Bearer ${apiKey}` },
@@ -6708,6 +6758,7 @@ export async function pollAndPersistRunnerImageJob(
   return {
     status: 'COMPLETED',
     ...uploaded,
+    ...(jobId.includes('/') ? readQwenPngDimensions(imageBytes) : {}),
     ...(pollResult.runnerExecution
       ? { runnerExecution: pollResult.runnerExecution }
       : {}),
@@ -7676,6 +7727,10 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           providerMetadata: { predictionId: completedPrediction.id },
         }
       } else if (context.providerId === 'runner') {
+        const runnerEnv =
+          context.providerInput.externalModelId === QWEN_IMAGE_21_MODEL
+            ? qwenRunnerEnvironment(this.env)
+            : this.env
         const submitted = await step.do(
           'submit-runner-image',
           {
@@ -7683,8 +7738,8 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
             timeout: '30 seconds',
           },
           async () => {
-            const apiKey = await decryptStateString(encryptedApiKey, this.env)
-            return submitRunnerImageJob(context, this.env, apiKey)
+            const apiKey = await decryptStateString(encryptedApiKey, runnerEnv)
+            return submitRunnerImageJob(context, runnerEnv, apiKey)
           },
         )
 
@@ -7716,13 +7771,16 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
               timeout: '30 seconds',
             },
             async () => {
-              const apiKey = await decryptStateString(encryptedApiKey, this.env)
+              const apiKey = await decryptStateString(
+                encryptedApiKey,
+                runnerEnv,
+              )
               // A completed RunPod response contains the full image as base64.
               // Persist it before this step returns so Workflow state only stores
               // the compact R2 reference (non-stream step results are capped at 1 MiB).
               return pollAndPersistRunnerImageJob(
                 currentJob.id,
-                this.env,
+                runnerEnv,
                 apiKey,
                 getWorkerImageOutputKey(context),
               )
@@ -7756,7 +7814,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
                 },
                 () =>
                   reportExecutionStage(
-                    this.env,
+                    runnerEnv,
                     context,
                     EXECUTION_PROGRESS_STAGES.RUNNER_RUNNING,
                   ),
@@ -7789,9 +7847,9 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
               async () => {
                 const apiKey = await decryptStateString(
                   encryptedApiKey,
-                  this.env,
+                  runnerEnv,
                 )
-                return readRunnerWorkerCounts(this.env, apiKey)
+                return readRunnerWorkerCounts(runnerEnv, apiKey)
               },
             )
             phantomWedgeStreak = isRunnerQueuePhantomWedge(counts)
@@ -7815,7 +7873,7 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
                   },
                   () =>
                     reportExecutionStage(
-                      this.env,
+                      runnerEnv,
                       context,
                       EXECUTION_PROGRESS_STAGES.RUNNER_RECYCLING,
                     ),
@@ -7826,12 +7884,12 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
                   async () => {
                     const apiKey = await decryptStateString(
                       encryptedApiKey,
-                      this.env,
+                      runnerEnv,
                     )
                     // 先撤 job：回收期间端点会被缩到 0，留着的 job 只会在恢复后
                     // 和重排的那一单抢同一个名额。
-                    await cancelRunnerImageJob(wedgedJobId, this.env, apiKey)
-                    return recycleRunnerEndpointWorkers(this.env, apiKey)
+                    await cancelRunnerImageJob(wedgedJobId, runnerEnv, apiKey)
+                    return recycleRunnerEndpointWorkers(runnerEnv, apiKey)
                   },
                 )
                 if (recycled.ok) {
@@ -7851,9 +7909,9 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
                     async () => {
                       const apiKey = await decryptStateString(
                         encryptedApiKey,
-                        this.env,
+                        runnerEnv,
                       )
-                      return submitRunnerImageJob(context, this.env, apiKey)
+                      return submitRunnerImageJob(context, runnerEnv, apiKey)
                     },
                   )
                   attemptsSinceSubmit = 0
@@ -7870,9 +7928,9 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
                 async () => {
                   const apiKey = await decryptStateString(
                     encryptedApiKey,
-                    this.env,
+                    runnerEnv,
                   )
-                  await cancelRunnerImageJob(currentJob.id, this.env, apiKey)
+                  await cancelRunnerImageJob(currentJob.id, runnerEnv, apiKey)
                 },
               )
               throw new WorkerProviderError({
@@ -7892,8 +7950,11 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
             'cancel-runner-image-timeout',
             { timeout: '30 seconds' },
             async () => {
-              const apiKey = await decryptStateString(encryptedApiKey, this.env)
-              await cancelRunnerImageJob(currentJob.id, this.env, apiKey)
+              const apiKey = await decryptStateString(
+                encryptedApiKey,
+                runnerEnv,
+              )
+              await cancelRunnerImageJob(currentJob.id, runnerEnv, apiKey)
             },
           )
           throw new Error(
@@ -7905,8 +7966,8 @@ export class ImageQueueWorkflow extends WorkflowEntrypoint<
           artifactUrl: completed.artifactUrl,
           imageR2Key: completed.imageR2Key,
           mimeType: completed.mimeType,
-          width: currentJob.width,
-          height: currentJob.height,
+          width: completed.width ?? currentJob.width,
+          height: completed.height ?? currentJob.height,
           providerMetadata: {
             runpodJobId: currentJob.id,
             ...(completed.runnerExecution

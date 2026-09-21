@@ -76,6 +76,20 @@ import { getResolvedModelOption } from '@/services/model-config.service'
 // ─── Tests ─────────────────────────────────────────────────────
 
 describe('resolveGenerationRoute', () => {
+  it('rejects Qwen research generation outside development even with a supplied key', async () => {
+    vi.stubEnv('NODE_ENV', 'production')
+    try {
+      await expect(
+        resolveGenerationRoute('user-1', {
+          modelId: 'qwen-image-2.1-runner',
+          apiKeyId: 'key-1',
+        }),
+      ).rejects.toMatchObject({ code: 'UNSUPPORTED_MODEL', status: 403 })
+      expect(getApiKeyValueById).not.toHaveBeenCalled()
+    } finally {
+      vi.unstubAllEnvs()
+    }
+  })
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(getResolvedModelOption).mockImplementation(async (modelId) =>

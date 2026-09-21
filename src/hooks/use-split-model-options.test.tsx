@@ -10,6 +10,15 @@ interface TestOption {
 }
 
 describe('useSplitModelOptions', () => {
+  it('Runner uses server credentials without unlocking other keyless providers', () => {
+    const opts = [
+      { optionId: 'runner', sourceType: 'workspace', adapterType: 'runner' },
+      { optionId: 'fal', sourceType: 'workspace', adapterType: 'fal' },
+    ]
+    const { result } = renderHook(() => useSplitModelOptions(opts))
+    expect(result.current.saved).toEqual([opts[0]])
+    expect(result.current.locked).toEqual([opts[1]])
+  })
   it('returns two empty groups for empty input', () => {
     const { result } = renderHook(() => useSplitModelOptions<TestOption>([]))
     expect(result.current).toEqual({ saved: [], locked: [] })

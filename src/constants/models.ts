@@ -34,6 +34,7 @@ export type {
 }
 
 export const MODEL_MESSAGE_KEYS: Record<string, string> = {
+  [AI_MODELS.QWEN_IMAGE_21_RUNNER]: 'qwenImage21Runner',
   [AI_MODELS.GEMINI_FLASH_IMAGE]: 'geminiFlashImage',
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: 'openaiGptImage2',
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: 'openaiGptImage25Flare',
@@ -193,6 +194,7 @@ export const MODEL_OPTIONS: ModelOption[] = [
 ]
 
 export const MODEL_FAMILIES: Record<string, string> = {
+  [AI_MODELS.QWEN_IMAGE_21_RUNNER]: 'Qwen Image',
   [AI_MODELS.OPENAI_GPT_IMAGE_2]: 'GPT Image',
   [AI_MODELS.OPENAI_GPT_IMAGE_25_FLARE]: 'GPT Image',
   [AI_MODELS.OPENAI_GPT_IMAGE_25_SUNBURST]: 'GPT Image',

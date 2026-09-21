@@ -9,6 +9,7 @@ import { StudioCostPreview } from '@/components/business/studio/StudioCostPrevie
 import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioDialectJumpHint'
 import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { StudioTagCapabilityControl } from '@/components/business/studio/tags/StudioTagCapabilityControl'
+import { NovelAiTagModelSchema } from '@/types/novelai-tags'
 import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
@@ -170,6 +171,11 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
 
       <div data-assistant-field="prompt">
         <StudioTagChipField
+          modelId={
+            runModels.find(
+              (model) => NovelAiTagModelSchema.safeParse(model.modelId).success,
+            )?.modelId
+          }
           label={
             activeCharacter
               ? t('characterPositiveLabel', { number: (activeIndex ?? 0) + 1 })
@@ -186,6 +192,11 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea() {
           ⛔ 不为此分叉出两个组件。 */}
       <div data-assistant-field="negativePrompt">
         <StudioTagChipField
+          modelId={
+            runModels.find(
+              (model) => NovelAiTagModelSchema.safeParse(model.modelId).success,
+            )?.modelId
+          }
           label={t('negativeLabel')}
           note={t('negativeNote')}
           polarity="negative"

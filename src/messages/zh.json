@@ -6327,6 +6327,11 @@
     "variantRequests": "消耗 {count} 积分"
   },
   "StudioTags": {
+    "officialTagsLoading": "正在查询 NAI 官方标签…",
+    "officialTagsKeyRequired": "配置 NovelAI API key 后可用官方补全，仍可手动输入。",
+    "officialTagsError": "NAI 官方补全暂不可用，仍可手动输入。",
+    "officialTagsSource": "NAI 官方建议 · {model} · 不保证角色还原",
+    "officialTagsEmpty": "{model} 暂无官方建议，可手动输入。",
     "dialectSwitchLabel": "提示词方言",
     "dialect": {
       "natural": "自然语言",

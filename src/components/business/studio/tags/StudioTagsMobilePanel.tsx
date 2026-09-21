@@ -13,6 +13,7 @@ import {
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { StudioTagCapabilityControl } from '@/components/business/studio/tags/StudioTagCapabilityControl'
+import { NovelAiTagModelSchema } from '@/types/novelai-tags'
 import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
 import { StudioTagsControlColumn } from '@/components/business/studio/tags/StudioTagsControlColumn'
 import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioDialectJumpHint'
@@ -157,6 +158,11 @@ export const StudioTagsMobilePanel = memo(function StudioTagsMobilePanel() {
       {/* 编辑器常驻 —— 手机上每次都要动它。⚠ 负向栏折进「其它控件」那一条：
             正向标签与 UC 预设才是每一枪都改的两样。 */}
       <StudioTagChipField
+        modelId={
+          runModels.find(
+            (model) => NovelAiTagModelSchema.safeParse(model.modelId).success,
+          )?.modelId
+        }
         label={
           activeCharacter
             ? t('characterPositiveLabel', { number: (activeIndex ?? 0) + 1 })
@@ -276,6 +282,12 @@ export const StudioTagsMobilePanel = memo(function StudioTagsMobilePanel() {
           </DrawerHeader>
           <div className="flex flex-col gap-2 overflow-y-auto px-4 pb-6">
             <StudioTagChipField
+              modelId={
+                runModels.find(
+                  (model) =>
+                    NovelAiTagModelSchema.safeParse(model.modelId).success,
+                )?.modelId
+              }
               label={t('negativeLabel')}
               note={t('negativeNote')}
               polarity="negative"

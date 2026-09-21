@@ -17,8 +17,7 @@ interface StudioTagSuggestionsProps {
 }
 
 /**
- * 标签补全浮层。词库与打分复用既有的那一套（`searchPromptTags` +
- * `PROMPT_TAG_DEFINITIONS`，本地词表），⛔ 本轮不接远程词库。
+ * 标签补全浮层，接收编辑器提供的官方或本地候选。
  *
  * ⚠ 走 portal 而不是绝对定位：编辑器主区是一条 `overflow-y-auto` 的列，
  * 贴在里面的浮层会被那条滚动容器裁掉半截。定位按锚点的视口矩形算，
@@ -80,18 +79,19 @@ export function StudioTagSuggestions({
                 index === activeIndex ? 'bg-accent' : 'hover:bg-accent/60',
               )}
             >
-              {/* 熟悉度圆点 —— 无彩，靠 opacity 分三档（守颜料纪律）。 */}
-              <span
-                aria-hidden="true"
-                className={cn(
-                  'size-1.5 shrink-0 rounded-full bg-muted-foreground',
-                  tier === 'high'
-                    ? 'opacity-100'
-                    : tier === 'mid'
-                      ? 'opacity-60'
-                      : 'opacity-25',
-                )}
-              />
+              {result.tag.confidence !== 'official' && (
+                <span
+                  aria-hidden="true"
+                  className={cn(
+                    'size-1.5 shrink-0 rounded-full bg-muted-foreground',
+                    tier === 'high'
+                      ? 'opacity-100'
+                      : tier === 'mid'
+                        ? 'opacity-60'
+                        : 'opacity-25',
+                  )}
+                />
+              )}
               <span className="min-w-0 flex-1 truncate">
                 {result.tag.promptText}
               </span>

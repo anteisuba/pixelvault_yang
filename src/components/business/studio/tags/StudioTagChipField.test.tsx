@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
 vi.mock('next-intl', () => ({
@@ -23,6 +23,10 @@ vi.mock('@/lib/prompt-tag-search', () => ({
       : [],
 }))
 
+vi.mock('@/lib/api-client/novelai-tags', () => ({
+  getNovelAiTagSuggestionsAPI: vi.fn(),
+}))
+import { getNovelAiTagSuggestionsAPI } from '@/lib/api-client/novelai-tags'
 import { StudioTagChipField } from './StudioTagChipField'
 import type { TagChip } from '@/types/tag-composer'
 
@@ -90,5 +94,61 @@ describe('StudioTagChipField', () => {
     fireEvent.change(input, { target: { value: '1gi' } })
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(onChange).toHaveBeenCalledWith([{ text: '1girl', weight: 1 }])
+  })
+})
+
+describe('official NAI completion', () => {
+  it('accepts the selected canonical role tag without changing its spelling', async () => {
+    vi.mocked(getNovelAiTagSuggestionsAPI).mockResolvedValue({
+      tags: [
+        { tag: 'denia (breakdown) (wuthering waves)', confidence: 0 },
+        { tag: 'denia (wuthering waves)', confidence: 0 },
+      ],
+    })
+    const onChange = vi.fn()
+    render(
+      <StudioTagChipField
+        modelId="nai-diffusion-5-curated"
+        label="official"
+        polarity="positive"
+        chips={[]}
+        onChange={onChange}
+      />,
+    )
+    const input = screen.getByRole('combobox', { name: 'official' })
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: 'denia' } })
+    await waitFor(() =>
+      expect(screen.getByText('officialTagsSource')).toBeInTheDocument(),
+    )
+    fireEvent.keyDown(input, { key: 'ArrowDown' })
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onChange).toHaveBeenCalledWith([
+      { text: 'denia (wuthering waves)', weight: 1 },
+    ])
+  })
+  it('keeps manual input working on provider failure without showing local results', async () => {
+    vi.mocked(getNovelAiTagSuggestionsAPI).mockRejectedValue(
+      new Error('UPSTREAM_ERROR'),
+    )
+    const onChange = vi.fn()
+    render(
+      <StudioTagChipField
+        modelId="nai-diffusion-5-curated"
+        label="offline"
+        polarity="positive"
+        chips={[]}
+        onChange={onChange}
+      />,
+    )
+    const input = screen.getByRole('combobox', { name: 'offline' })
+    fireEvent.focus(input)
+    fireEvent.change(input, { target: { value: '1gi' } })
+    await waitFor(() =>
+      expect(screen.getByText('officialTagsError')).toBeInTheDocument(),
+    )
+    expect(input).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.keyDown(input, { key: 'Enter' })
+    expect(onChange).toHaveBeenCalledWith([{ text: '1gi', weight: 1 }])
   })
 })

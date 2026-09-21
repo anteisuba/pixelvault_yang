@@ -100,6 +100,7 @@ export const DEFAULT_ASPECT_RATIO: AspectRatio = '1:1'
 
 /** API endpoint paths */
 export const API_ENDPOINTS = {
+  NOVELAI_TAG_SUGGESTIONS: '/api/novelai/tag-suggestions',
   /** Image generation */
   GENERATE: '/api/generate',
 

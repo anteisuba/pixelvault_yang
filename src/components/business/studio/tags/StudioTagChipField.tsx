@@ -9,14 +9,18 @@ import {
   PROMPT_TAG_AUTOCOMPLETE_MIN_QUERY_LENGTH,
   PROMPT_TAG_AUTOCOMPLETE_RESULT_LIMIT,
 } from '@/constants/prompt-tags'
+import { useNovelAiTagSuggestions } from '@/hooks/use-novelai-tag-suggestions'
+import { NovelAiTagModelSchema } from '@/types/novelai-tags'
+import { getTranslatedModelLabel } from '@/lib/model-options'
 import { searchPromptTags } from '@/lib/prompt-tag-search'
 import { parseTagChips } from '@/lib/tag-composer'
 import { cn } from '@/lib/utils'
-import type { PromptPolarity } from '@/types/prompt-tags'
+import type { PromptPolarity, PromptTagSearchResult } from '@/types/prompt-tags'
 import type { TagChip } from '@/types/tag-composer'
 
 interface StudioTagChipFieldProps {
   label: string
+  modelId?: string
   /** 标题右边那行小字（负向栏用它说「NAI 叫 UC」）。 */
   note?: string
   polarity: PromptPolarity
@@ -29,11 +33,12 @@ interface StudioTagChipFieldProps {
  * 一栏标签 —— 正向与负向**同一颗组件**（D10 ④：负向栏在 NAI 语境里叫 UC，
  * 标题旁一行小字说明即可，⛔ 不为此分叉出两个组件）。
  *
- * 逗号 / 回车分隔成格；输入时给 danbooru 补全（本地词表，⛔ 本轮不接远程词库）；
+ * 逗号 / 回车分隔成格；NAI 使用官方补全，其余模型使用本地词表；
  * 空输入框上按退格删掉最后一格。
  */
 export function StudioTagChipField({
   label,
+  modelId,
   note,
   polarity,
   chips,
@@ -41,6 +46,7 @@ export function StudioTagChipField({
   onChange,
 }: StudioTagChipFieldProps) {
   const t = useTranslations('StudioTags')
+  const tModels = useTranslations('Models')
   const boxRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
   const listId = useId()
@@ -48,9 +54,20 @@ export function StudioTagChipField({
   const [activeIndex, setActiveIndex] = useState(0)
   const [focused, setFocused] = useState(false)
 
-  const results = useMemo(() => {
+  const parsedModel = NovelAiTagModelSchema.safeParse(modelId)
+  const novelAiModel = parsedModel.success ? parsedModel.data : undefined
+  const official = useNovelAiTagSuggestions(
+    novelAiModel,
+    draft,
+    focused && !disabled,
+  )
+  const localResults = useMemo(() => {
     const query = draft.trim()
-    if (!focused || query.length < PROMPT_TAG_AUTOCOMPLETE_MIN_QUERY_LENGTH) {
+    if (
+      novelAiModel ||
+      !focused ||
+      query.length < PROMPT_TAG_AUTOCOMPLETE_MIN_QUERY_LENGTH
+    ) {
       return []
     }
     return searchPromptTags({
@@ -58,7 +75,29 @@ export function StudioTagChipField({
       polarity,
       limit: PROMPT_TAG_AUTOCOMPLETE_RESULT_LIMIT,
     })
-  }, [draft, focused, polarity])
+  }, [draft, focused, polarity, novelAiModel])
+  const results: PromptTagSearchResult[] = novelAiModel
+    ? official.tags
+        .slice(0, PROMPT_TAG_AUTOCOMPLETE_RESULT_LIMIT)
+        .map((item) => ({
+          tag: {
+            id: `novelai:${novelAiModel}:${item.tag}`,
+            promptText: item.tag,
+            label: item.tag,
+            source: 'model_keyword',
+            confidence: 'official',
+            type: 'subject',
+            aliases: [],
+            category: 'novelai',
+            polarity,
+            modelFamilies: ['novelai'],
+            modelIds: [novelAiModel],
+            orderGroup: 40,
+          },
+          score: 0,
+          isSelected: false,
+        }))
+    : localResults
 
   /** 把一段文本收成格子：逗号切、去重（同一个词送两遍等于被悄悄加权）。 */
   const commit = (text: string) => {
@@ -178,6 +217,26 @@ export function StudioTagChipField({
           className="min-w-24 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-2xs"
         />
       </div>
+      {novelAiModel && official.active && (
+        <p role="status" className="text-3xs text-muted-foreground">
+          {official.loading
+            ? t('officialTagsLoading')
+            : official.error
+              ? t(
+                  official.error === 'MISSING_API_KEY'
+                    ? 'officialTagsKeyRequired'
+                    : 'officialTagsError',
+                )
+              : t(
+                  official.tags.length
+                    ? 'officialTagsSource'
+                    : 'officialTagsEmpty',
+                  {
+                    model: getTranslatedModelLabel(tModels, novelAiModel),
+                  },
+                )}
+        </p>
+      )}
       <StudioTagSuggestions
         anchorRef={boxRef}
         results={results}

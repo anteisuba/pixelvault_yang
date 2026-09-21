@@ -238,6 +238,14 @@ adapter / Worker 抛错
 - 遮罩传输：客户端画布导出的是 data URL，`submit-image.service` 在建 job 之前把它换成 R2 的 http URL，之后才进 DB 与 worker（worker 解不了 `data:`，而 DB 里也不该躺几十 KB 的 base64）。前置校验：恰好 1 张参考图，且模型在能力表里声明了 `inpaint`。
 - 画板复用编辑域那块 `StudioInpaintEditor`（画笔 / 拉框 / 橡皮 / 撤销 / 清空，导出与源图**逐像素同尺寸**的黑白 PNG），生成工作台把它那条重绘指令关掉 —— 那一枪的提示词就是工作台里那条。⛔ 没做羽化 / 反选 / 图层。
 
+## NovelAI 官方标签建议（verified 2026-09-21）
+
+- Source：[官方 Swagger](https://image.novelai.net/docs/doc.json) 的 `GET /ai/generate-image/suggest-tags`。参数 `model`、`prompt` 必填；`lang` 支持 `en` / `jp`，默认 `en`。文档声明 Bearer API key；本仓服务端使用用户自己的 NovelAI key，不把密钥交给浏览器，不走平台线路。
+- Method：读取公开契约并对官方端点实际查询 `model=nai-diffusion-5-curated&prompt=denia&lang=en`；本地标签台通过已登录用户的服务端代理再次验收。实际响应是 `{tags: [{tag, count, confidence}, ...]}`（Swagger 的 `tags` schema 漏标了数组）；两条 Denia 候选分别为 `denia (breakdown) (wuthering waves)` / `denia (wuthering waves)`，当次均为 `count=10000, confidence=0`。不将这些数值解释为训练样本数、角色准确率或效果保证。
+- 桌面与手机的正负标签栏、角色标签编辑共用官方补全。支持现有 V4.5 / V5 的 Full / Curated；多选时查询首个已选 NAI 型号并明确显示型号。保留官方顺序与标签拼写，不混入本地热度圆点。其余模型继续使用本地词库。
+- 输入至少 2 字符、最多 200 字符，250ms 防抖；换词、换模型或失焦时取消旧请求并隐藏旧结果。无 key、上游失败、空结果均有明确状态，仍可手动输入；不悄悄改用本地推荐，不自动重试限流。查询不发生成请求、不扣本站生成额度。
+- Denia：官网与本站固定 seed 对照均生成错误的棕色短发角色；接入补全只解决标签查询，尚未解决角色外观准确性。未追加付费出图。
+
 ## NovelAI 基础参数与精确角色参考（verified 2026-09-21）
 
 - Sources：[官方 Swagger](https://image.novelai.net/docs/doc.json)、[Precise Reference](https://docs.novelai.net/en/image/precisereference/)、[Quality Tags](https://docs.novelai.net/en/image/qualitytags/)。Method：逐字段核对公开契约；本地请求测试不等于线上联调。

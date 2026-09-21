@@ -6327,6 +6327,11 @@
     "variantRequests": "Uses {count} credits"
   },
   "StudioTags": {
+    "officialTagsLoading": "Loading NAI tag suggestions…",
+    "officialTagsKeyRequired": "Configure your NovelAI API key for official suggestions. Manual input remains available.",
+    "officialTagsError": "NAI suggestions are unavailable. You can still type tags manually.",
+    "officialTagsSource": "NAI suggestions · {model} · Character accuracy is not guaranteed",
+    "officialTagsEmpty": "No official suggestions for {model}. You can type a tag manually.",
     "dialectSwitchLabel": "Prompt dialect",
     "dialect": {
       "natural": "Natural language",

@@ -23,6 +23,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import {
@@ -206,7 +207,15 @@ export function useCanvasOperatorHost({
        */
       prompt: '',
       availableModels: [],
+      references: {
+        items: referenceImages.slice(
+          0,
+          ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences,
+        ),
+        limit: ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences,
+      },
       canvas: buildCanvasOperatorSnapshot({
+        referenceUrls: referenceImages.map((image) => image.url),
         nodes: graph.nodes,
         edges: graph.edges,
         currentShotNo: graph.currentShotNo,
@@ -214,7 +223,7 @@ export function useCanvasOperatorHost({
         ...(availableModelsByNodeId ? { availableModelsByNodeId } : {}),
       }),
     }
-  }, [availableModelsByNodeId])
+  }, [availableModelsByNodeId, referenceImages])
 
   const canvasApply = useCallback(
     (stepId: string, op: NodeAssistantOpV4): boolean => {

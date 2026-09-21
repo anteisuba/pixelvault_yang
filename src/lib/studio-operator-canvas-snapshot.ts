@@ -113,6 +113,7 @@ function toSnapshotNode(
     | Readonly<Record<string, readonly string[]>>
     | undefined,
   scriptProjections: ReadonlyMap<string, ScriptProjectionSummary>,
+  referenceUrls: readonly string[],
 ): AssistantOperatorCanvasNode {
   const data = node.data
   const text = nodeText(node)
@@ -125,9 +126,15 @@ function toSnapshotNode(
 
   const scriptProjection = scriptProjections.get(node.id)
   const fromScript = readScriptShotRef(node)
+  const referenceImageIndex =
+    data.kind === NODE_MEDIA_KIND_IDS.image && data.url
+      ? referenceUrls.indexOf(data.url)
+      : -1
 
   return {
     id: node.id,
+    position: node.position,
+    ...(referenceImageIndex < 0 ? {} : { referenceImageIndex }),
     name: data.name,
     kind: data.kind,
     subtype: data.subtype,
@@ -178,6 +185,7 @@ function expandedShotNumbers(
 }
 
 export interface BuildCanvasSnapshotInput {
+  readonly referenceUrls?: readonly string[]
   readonly nodes: readonly NodeV4[]
   readonly edges: readonly NodeWorkflowEdgeV4[]
   /** 焦点所在的镜。`null` = 还没落焦点（展开最前面三面）。 */
@@ -195,6 +203,7 @@ export interface BuildCanvasSnapshotInput {
 }
 
 export function buildCanvasOperatorSnapshot({
+  referenceUrls = [],
   nodes,
   edges,
   currentShotNo,
@@ -248,6 +257,7 @@ export function buildCanvasOperatorSnapshot({
             incomingByTarget.get(node.id) ?? [],
             availableModelsByNodeId,
             scriptProjections,
+            referenceUrls,
           ),
         ),
     })

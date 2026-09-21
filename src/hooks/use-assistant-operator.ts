@@ -537,6 +537,7 @@ async function persistProposedContextCard(
 
 /** 跑一轮时那几样「带上下文重发」的东西（拍板 3 / §2.6 / §6 共用一条通道）。 */
 interface RunOptions {
+  canvasSteps?: number
   confirmations?: AssistantOperatorConfirmDecision[]
   /** 反问卡那一份答复（`{questionId, optionIds, otherText}`）。 */
   planAnswers?: AssistantOperatorPlanAnswer[]
@@ -858,6 +859,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * ⛔ `stopped` / 报错那两支不置：那正是续跑存在的理由。
        */
       let roundFinished = false
+      let canvasSync = false
+      let canvasApplied = false
+      let canvasSteps = options.canvasSteps ?? 0
       let pendingPlanSteps: readonly string[] | null = null
       const flushPlanEntry = () => {
         if (!pendingPlanSteps) return
@@ -1140,6 +1144,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             })),
           domain,
           snapshot,
+          ...(domain === 'canvas'
+            ? { stepBudget: ASSISTANT_OPERATOR_LIMITS.maxSteps - canvasSteps }
+            : {}),
           referenceProfiles: readOperatorReferenceProfiles(entries, history),
           /**
            * ⭐ **这两格现在的字是助手自己上一轮写的**（2026-09-12 实测第 1 组 ②）：
@@ -1485,6 +1492,33 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 const field = flushSync(() =>
                   applyOperatorStep(step, applyContext),
                 )
+                if (step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply) {
+                  canvasApplied =
+                    field === STUDIO_OPERATOR_FIELD_IDS.canvasNodes
+                  if (!canvasApplied) {
+                    const resume = getOperatorState().resume
+                    const resumeStep = resume?.steps.findLast(
+                      (item) => item.state === 'done',
+                    )
+                    if (resumeStep)
+                      markOperatorResumeStep(resumeStep.id, {
+                        state: 'failed',
+                        reason:
+                          ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+                      })
+                    upsertOperatorStep(
+                      {
+                        ...step,
+                        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+                        error: {
+                          reason:
+                            ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+                        },
+                      },
+                      runKey,
+                    )
+                  }
+                }
                 if (
                   checkpoints &&
                   (field ||
@@ -1556,6 +1590,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                * 都是结论，只认 `done` 的话一串被拒的步之后仍然是一片空白。
                */
               if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running) {
+                canvasSteps += 1
                 schedulePendingAfterStep()
               }
               break
@@ -1594,6 +1629,13 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
              * 完全不同（见 `StudioOperatorStatus` 的头注）。
              */
             case ASSISTANT_OPERATOR_EVENTS.stopped: {
+              if (
+                domain === 'canvas' &&
+                event.reason === ASSISTANT_OPERATOR_STOP_REASONS.canvasSync
+              ) {
+                canvasSync = canvasApplied
+                break
+              }
               /**
                * ⭐ **停在确认卡 / 问题卡上的那一轮也带结论**（2026-09-12 实测
                * 第 2 组）：生成确认之后用户点的是生成键，⛔ 不再开一轮 —— 不收
@@ -1658,6 +1700,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       flushPlanEntry()
       dropOperatorPending(messageEntryId())
       if (controller.signal.aborted) return
+      if (canvasSync && canvasSteps < ASSISTANT_OPERATOR_LIMITS.maxSteps) {
+        runRef.current?.({ ...options, canvasSteps, planApproved: true })
+        return
+      }
       // `done` 之后没有别的收尾 —— 状态没被 `stopped` / `error` 改过就是跑完了。
       if (getOperatorState().status === 'working') setOperatorStatus('idle')
       /**

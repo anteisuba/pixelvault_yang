@@ -1014,6 +1014,136 @@ describe('工具环 · 逐事件顺序', () => {
 })
 
 describe('read_state', () => {
+  it('画布快照续接使用剩余步数，不重置工具预算', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          title: '读取画布',
+          args: {},
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'canvas',
+          stepBudget: 1,
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            canvas: { currentShotNo: null, selectedNodeIds: [], shots: [] },
+          },
+        }),
+      ),
+    )
+    expect(toolRingCalls()).toHaveLength(1)
+    expect(events.at(-1)).toEqual({ type: 'stopped', reason: 'max_steps' })
+  })
+  it('画布状态向模型公开真实节点、连线与节点写入工具', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          title: '读画布',
+          args: {},
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'canvas',
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            canvas: {
+              currentShotNo: null,
+              selectedNodeIds: ['edit-image'],
+              shots: [
+                {
+                  expanded: true,
+                  shotNo: null,
+                  title: 'Unassigned',
+                  nodes: [
+                    {
+                      id: 'source-image',
+                      name: '角色原图',
+                      kind: 'image',
+                      subtype: 'result',
+                      hasOutput: true,
+                    },
+                    {
+                      id: 'edit-image',
+                      name: '换装',
+                      kind: 'image',
+                      subtype: 'shot',
+                      text: '保持五官',
+                      inputs: [{ slot: 'reference', from: 'source-image' }],
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    )
+    const done = stepsOf(events).find((step) => step.status === 'done')
+    const digest = (done?.result as { digest: string }).digest
+    expect(digest).toContain('source-image')
+    expect(digest).toContain('edit-image')
+    expect(digest).toContain('保持五官')
+    expect(digest).toContain('canvas_apply')
+    expect(digest).toContain('sourceNodeId')
+    expect(digest).not.toContain('NO NEGATIVE PROMPT FIELD')
+    expect(toolRingCalls()[0].userPrompt).toContain('source-image')
+  })
+
+  it('创建节点后先同步客户端快照，不让模型猜测新节点 id', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+          title: '创建换装节点',
+          args: {
+            op: 'add_node',
+            kind: 'image',
+            subtype: 'shot',
+            name: '换装',
+          },
+        },
+      },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'canvas',
+          planApproved: true,
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            canvas: { currentShotNo: null, selectedNodeIds: [], shots: [] },
+          },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.status === 'done' &&
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+      ),
+    ).toBe(true)
+    expect(events.at(-1)).toEqual({ type: 'stopped', reason: 'canvas_sync' })
+    expect(toolRingCalls()).toHaveLength(1)
+  })
   it('读的是请求里的快照，不查库；负面框缺席时明说没有这个控件', async () => {
     queueTurns(
       {

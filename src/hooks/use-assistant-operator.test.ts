@@ -102,10 +102,12 @@ const generationControls = vi.hoisted(() => ({
 const hostSnapshot = vi.hoisted(() => ({
   current: { prompt: '', availableModels: [] } as Record<string, unknown>,
 }))
+const canvasApply = vi.hoisted(() => vi.fn(() => true))
+const hostDomain = vi.hoisted(() => ({ current: 'image' }))
 
 vi.mock('@/contexts/studio-operator-host', () => ({
   useStudioOperatorHost: () => ({
-    domain: 'image' as const,
+    domain: hostDomain.current,
     buildSnapshot: () => hostSnapshot.current,
     results: [],
     referenceLimit: 4,
@@ -115,6 +117,7 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       ? { generationControls: generationControls.current }
       : {}),
     apply: {
+      canvas: { applyOp: canvasApply },
       triggerGeneration,
       getState: () => ({ prompt: '', advancedParams: {} }),
       dispatch,
@@ -235,6 +238,8 @@ beforeEach(async () => {
   vi.resetModules()
   vi.clearAllMocks()
   generationControls.current = null
+  hostDomain.current = 'image'
+  canvasApply.mockReset().mockReturnValue(true)
   hostSnapshot.current = { prompt: '', availableModels: [] }
   streams.length = 0
   streamAssistantOperatorAPI.mockImplementation(
@@ -262,6 +267,83 @@ function render() {
 }
 
 describe('useAssistantOperator 的四条收尾路径', () => {
+  it.each([true, false])(
+    '画布落地=%s：仅成功时带新节点快照续接，失败不冒充完成',
+    async (landed) => {
+      hostDomain.current = 'canvas'
+      canvasApply.mockImplementation(() => {
+        if (landed)
+          hostSnapshot.current = {
+            prompt: '',
+            availableModels: [],
+            canvas: {
+              currentShotNo: null,
+              selectedNodeIds: [],
+              shots: [
+                {
+                  expanded: true,
+                  shotNo: null,
+                  title: 'Unassigned',
+                  nodes: [
+                    {
+                      id: 'created-real-id',
+                      name: '换装',
+                      kind: 'image',
+                      subtype: 'shot',
+                    },
+                  ],
+                },
+              ],
+            },
+          }
+        return landed
+      })
+      const { result } = render()
+      act(() => result.current.send('创建换装节点并连接原图'))
+      await settle()
+      streams[0].emit({
+        type: 'step',
+        step: {
+          id: 'step-1',
+          title: '创建换装节点',
+          tool: 'canvas_apply',
+          verb: 'apply',
+          status: 'done',
+          payload: {
+            op: 'add_node',
+            kind: 'image',
+            subtype: 'shot',
+            name: '换装',
+          },
+          inverse: { op: 'delete', nodeRef: 'add_node' },
+        },
+      })
+      streams[0].emit({ type: 'stopped', reason: 'canvas_sync' })
+      streams[0].close()
+      await settle()
+      expect(canvasApply).toHaveBeenCalledTimes(1)
+      expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(landed ? 2 : 1)
+      if (landed) {
+        expect(streamAssistantOperatorAPI.mock.calls[1][0]).toMatchObject({
+          stepBudget: 7,
+        })
+        expect(
+          JSON.stringify(streamAssistantOperatorAPI.mock.calls[1][0]),
+        ).toContain('created-real-id')
+        streams[1].emit({ type: 'done' })
+        streams[1].close()
+        await settle()
+      } else {
+        expect(
+          store
+            .getOperatorState()
+            .entries.some(
+              (entry) => entry.kind === 'step' && entry.step.status === 'error',
+            ),
+        ).toBe(true)
+      }
+    },
+  )
   it('请求被拒绝后清除等待圆点，再次发送可以正常收到回复', async () => {
     streamAssistantOperatorAPI.mockResolvedValueOnce({
       success: false,

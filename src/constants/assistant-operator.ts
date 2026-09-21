@@ -1381,6 +1381,7 @@ export const ASSISTANT_OPERATOR_STOP_REASONS = {
   aborted: 'aborted',
   /** 等就地确认（拍板 3）。客户端带 `confirmations` 重发即可续跑。 */
   awaitingConfirm: 'awaiting_confirm',
+  canvasSync: 'canvas_sync',
   /** 撞到步数上限。**不自动续跑** —— 台账 AH：这条链没有幂等键，不做任何自动重试。 */
   maxSteps: 'max_steps',
 } as const

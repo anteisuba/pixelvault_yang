@@ -119,6 +119,8 @@ import {
   NODE_ASSISTANT_OP_V4_SPECS,
 } from '@/constants/node-assistant-ops'
 import type { NodeAssistantOpV4 } from '@/types/node-assistant-ops'
+import { CANVAS_ADD_CATALOG } from '@/constants/canvas-add-catalog'
+import { NODE_V4_PORTS } from '@/constants/node-slots'
 /**
  * ⭐ 生成器方言（提示词准确性 P0）。与旧助手 `prompt-assistant.service` **同源同一个
  * 常量**，不是抄一份字符串 —— 两处各写一份的下场是改了一处忘另一处，而「哪一处对」
@@ -1263,6 +1265,23 @@ function renderState(
   const { state, request } = run
   const lines: string[] = []
 
+  if (request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas) {
+    return [
+      'NODE CANVAS — edit nodes with apply/action canvas_apply. There is no global form; this does NOT mean node prompts or references are unavailable.',
+      `Current board: ${JSON.stringify(state.canvas ?? null)}`,
+      'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
+      `Node kinds and subtypes: ${JSON.stringify(CANVAS_ADD_CATALOG.flatMap((group) => group.items.map((item) => item.v4)))}`,
+      `Input slots: ${JSON.stringify(Object.fromEntries(Object.entries(NODE_V4_PORTS).map(([key, ports]) => [key, ports.inputs.map((input) => input.slot)])))}`,
+      'Use actual node ids from this snapshot. add_node creates a blank node; after it lands the next snapshot supplies its real id. Never guess a new id or reuse a batch ref across calls.',
+      'Arguments are flat: {action:"canvas_apply",op:"add_node",kind:"image",subtype:"shot",name:"...",position:{x:0,y:0}}; {action:"canvas_apply",op:"set_prompt",target:"node-id",prompt:"...",mode:"replace"}; {action:"canvas_apply",op:"set_text",target:"node-id",body:"...",mode:"replace"}; {action:"canvas_apply",op:"connect",source:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"attach_asset",sourceNodeId:"source-id",target:"target-id",slot:"reference"}; {action:"canvas_apply",op:"set_model",target:"node-id",modelId:"available-model-id"}. Use append or suggest instead of replace when appropriate. Do not call global set_prompt or mount_reference on a canvas.',
+      'Creating nodes, editing prompts and wiring references do not generate media. canvas_generate is a separate confirmation. Complete the requested board setup before offering generation.',
+      ...state.referenceUrls.map(
+        (url, index) =>
+          `@Image${index + 1}: ${url ?? '(pending)'} — assistant reference; analyze_references can inspect it. Wiring requires a real source node id, not this URL.`,
+      ),
+    ].join('\n')
+  }
+
   lines.push(
     `- Positive prompt: ${
       state.prompt
@@ -1655,7 +1674,10 @@ function planReadState(run: OperatorRun): ToolPlan {
     payload: {},
     run: async () => {
       const digest = renderState(run)
-      return { result: { digest }, observation: `Workbench state:\n${digest}` }
+      return {
+        result: { digest: clamp(digest, LIMITS.maxMessageChars) },
+        observation: `Workbench state:\n${digest}`,
+      }
     },
   }
 }
@@ -7629,7 +7651,7 @@ OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outsi
 - "detail" is where reasoning goes. The app folds it away behind a "why" the creator can open, so "message" stays short and "detail" carries the explanation, the trade-offs, what you found and rejected. Omit it when there is nothing worth opening — an empty "why" is worse than none.
 - KEY ORDER: on a question turn, write "message" first and omit "tool". On an action turn, write "tool" before "message" if you are calling one.
 - Omit "tool" (or set "finished":true) when the work is done. Do that as soon as the form is ready — an extra step costs the creator time.
-- One tool per turn. You get at most ${LIMITS.maxSteps} steps for the whole request.
+- One tool per turn. You get at most ${request.stepBudget ?? LIMITS.maxSteps} steps for this request.
 - After each tool you will be told what actually happened. If a call was refused, read the reason and adapt — do not repeat the same call.${lookAppendix}${researchAppendix}`
 }
 
@@ -9008,7 +9030,11 @@ export async function* runAssistantOperator(
         }
       }
     }
-    for (let index = 0; index < LIMITS.maxSteps; index += 1) {
+    for (
+      let index = 0;
+      index < (request.stepBudget ?? LIMITS.maxSteps);
+      index += 1
+    ) {
       if (options.signal?.aborted) {
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
@@ -9790,6 +9816,14 @@ export async function* runAssistantOperator(
       recordLedgerStep(run, base.verb, base.title, plan.observation)
       run.executedStepKeys.add(stepKey)
       repeatedStepStrikes = 0
+      if (name === TOOL.canvasApply) {
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.canvasSync,
+        }
+        completed = true
+        return
+      }
     }
 
     yield {

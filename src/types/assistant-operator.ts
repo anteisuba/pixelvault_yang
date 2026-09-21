@@ -619,6 +619,8 @@ export type AssistantLoraParameters = z.infer<
  */
 export const AssistantOperatorCanvasNodeSchema = z.object({
   id: IdSchema,
+  position: z.object({ x: z.number(), y: z.number() }).optional(),
+  referenceImageIndex: z.number().int().nonnegative().optional(),
   name: LabelSchema,
   kind: LabelSchema,
   subtype: LabelSchema.optional(),
@@ -1450,6 +1452,7 @@ export type AssistantOperatorLoraPickCandidate = z.infer<
 >
 
 export const AssistantOperatorRequestSchema = z.object({
+  stepBudget: z.number().int().min(1).max(LIMITS.maxSteps).optional(),
   referenceProfiles: ReferenceProfilesSchema.optional(),
   messages: z.array(AssistantOperatorMessageSchema).min(1),
   mediaAttachments: z

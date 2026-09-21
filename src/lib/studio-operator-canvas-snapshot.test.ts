@@ -31,6 +31,30 @@ function edge(id: string, source: string, target: string): NodeWorkflowEdgeV4 {
 }
 
 describe('buildCanvasOperatorSnapshot', () => {
+  it('保留节点位置，并按当前参考图顺序提供 @Image 到节点 id 的映射', () => {
+    const node = imageNode('source', undefined)
+    node.position = { x: 120, y: 240 }
+    if (node.data.kind === 'image')
+      node.data.url = 'https://example.com/hero.png'
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [node],
+      edges: [],
+      currentShotNo: null,
+      referenceUrls: [
+        'https://example.com/other.png',
+        'https://example.com/hero.png',
+      ],
+    })
+    const shot = snapshot.shots[0]
+    expect(shot.expanded && shot.nodes[0]).toMatchObject({
+      id: 'source',
+      position: { x: 120, y: 240 },
+      referenceImageIndex: 1,
+    })
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
   /**
    * ⭐ 分层是这份快照**存在的理由**（进度表 22）：焦点那面镜与左右各一完整，
    * 其余每面一行。断不出这一条的话，一张六十镜的画布会把整轮步数烧在读上下文上。

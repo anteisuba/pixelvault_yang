@@ -3724,7 +3724,7 @@
       "description": "通过 PixelVault Runner 跑基础版 SDXL 1.0——与托管路线并行的忠实复刻配方通道。"
     },
     "qwenImage21Runner": {
-      "label": "Qwen-Image-2.1（内部评估）",
+      "label": "qwen2.1",
       "description": "仅本地研究评估。独立 RunPod 端点，支持文生图与最多 10 张参考图编辑；GPU 使用由 RunPod 计费。"
     },
     "animaDitRunner": {

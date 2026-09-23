@@ -44,11 +44,10 @@ import { cn } from '@/lib/utils'
  * ⛔ 条目清单只来自 `src/constants/navigation.ts`。曾经这里手抄过第二份，
  * 结果桌面独有的那一组入口在小屏直接不可达。
  *
- * **账号入口与桌面同形（D11 ④，2026-09-20）**：顶栏胶囊右端那颗头像是**账号
- * 菜单**的触发器（`AccountMenu`，与侧栏底行同一颗菜单），语言 / 设置 / 退出
- * 登录都在里面；「我的主页」已下沉成「去处」段的一条常规导航项。
- * ⛔ 抽屉里因此不再有「我」区、也不再有最底那一行「设置」—— 一件事只留一个家，
- * 两个入口并存就是下一次漂移的起点。
+ * **账号入口在导航面板最底一行（D12 U5，2026-09-24）**：点开是账号菜单
+ * （`AccountMenu`，与侧栏底行同一颗菜单），语言 / 设置 / 退出登录都在里面。
+ * 顶栏右端留给助手头像 —— 此前两颗圆头像上下叠着（账号在上、助手在下），分不清
+ * 谁是谁。「我的主页」是「去处」段的一条常规导航项。⛔ 一件事只留一个家。
  */
 
 const PANEL_CELL_CLASS =
@@ -141,38 +140,10 @@ export function MobileShell() {
             <ChevronDown className="size-3.5 shrink-0 text-sidebar-subtle" />
           </button>
 
-          {hasHydrated && isLoaded ? (
-            <>
-              <SignedIn>
-                {/* 头像 = 开账号菜单（D11 ④）。⛔ 不再是个人主页的快捷方式
-                    —— 主页已经是导航里的一项；⛔ 也不挂红点 / 角标。 */}
-                <AccountMenu side="bottom" align="end">
-                  <button
-                    type="button"
-                    aria-label={tNav('account')}
-                    className="flex size-9 shrink-0 items-center justify-center rounded-full outline-hidden ring-sidebar-ring transition-colors duration-(--duration-fast) ease-standard focus-visible:ring-2 active:bg-sidebar-accent data-[state=open]:bg-sidebar-accent-strong motion-reduce:transition-none"
-                  >
-                    <ProfileAvatar
-                      avatarUrl={profile?.avatarUrl}
-                      size={28}
-                      className="size-7"
-                    />
-                  </button>
-                </AccountMenu>
-              </SignedIn>
-              <SignedOut>
-                <Link
-                  href={ROUTES.SIGN_IN}
-                  aria-label={tNav('signIn')}
-                  className="flex size-9 shrink-0 items-center justify-center rounded-full text-sidebar-foreground"
-                >
-                  <UserCircle className="size-5" />
-                </Link>
-              </SignedOut>
-            </>
-          ) : (
-            <span className="size-9 shrink-0" aria-hidden />
-          )}
+          {/* 右端留给**助手头像**（D12 U5）：它是工作台上那颗持久 fixed 的开关，
+              落在这一格上。⛔ 账号头像不再挂在这里 —— 两颗圆头像上下叠着分不清
+              谁是谁；账号入口在导航面板最底一行。 */}
+          <span className="size-9 shrink-0" aria-hidden />
         </div>
       </header>
 
@@ -201,6 +172,44 @@ export function MobileShell() {
             pathname={pathname}
             onNavigate={close}
           />
+
+          {/* ── 账号（D12 U5）：面板最底一行，点开是账号菜单（语言 · 设置 ·
+              退出登录，与桌面侧栏底行同一颗 `AccountMenu`）。 */}
+          {hasHydrated && isLoaded ? (
+            <div className="mt-3 border-t border-sidebar-border pt-2">
+              <SignedIn>
+                <AccountMenu side="top" align="start">
+                  <button
+                    type="button"
+                    aria-label={tNav('account')}
+                    className="flex min-h-11 w-full items-center gap-2.5 rounded-xl px-2 text-left text-sm text-sidebar-foreground outline-hidden ring-sidebar-ring transition-colors duration-(--duration-fast) ease-standard focus-visible:ring-2 active:bg-sidebar-accent data-[state=open]:bg-sidebar-accent-strong motion-reduce:transition-none"
+                  >
+                    <ProfileAvatar
+                      avatarUrl={profile?.avatarUrl}
+                      size={28}
+                      className="size-7"
+                    />
+                    <span className="min-w-0 flex-1 truncate">
+                      {profile?.displayName?.trim() ||
+                        profile?.username ||
+                        tNav('account')}
+                    </span>
+                    <ChevronDown className="size-3.5 shrink-0 text-sidebar-subtle" />
+                  </button>
+                </AccountMenu>
+              </SignedIn>
+              <SignedOut>
+                <Link
+                  href={ROUTES.SIGN_IN}
+                  onClick={close}
+                  className="flex min-h-11 items-center gap-2.5 rounded-xl px-2 text-sm text-sidebar-foreground"
+                >
+                  <UserCircle className="size-5" />
+                  {tNav('signIn')}
+                </Link>
+              </SignedOut>
+            </div>
+          ) : null}
         </SheetContent>
       </Sheet>
     </>

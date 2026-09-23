@@ -45,20 +45,19 @@ function openDrawer() {
 }
 
 describe('MobileShell 入口收口（D11 ④）', () => {
-  it('顶栏胶囊右端头像是账号菜单触发器，⛔ 不再是个人主页的快捷方式', () => {
+  it('D12 U5：顶栏不再挂账号头像（右端留给助手头像）', () => {
     render(<MobileShell />)
+    expect(screen.queryByLabelText('Navbar:account')).toBeNull()
+  })
+
+  it('账号菜单在导航面板最底一行，触发器带 motion-reduce 降级', () => {
+    render(<MobileShell />)
+    openDrawer()
 
     const trigger = screen.getByLabelText('Navbar:account')
     expect(trigger.tagName).toBe('BUTTON')
     expect(trigger.getAttribute('aria-haspopup')).toBe('menu')
-    expect(trigger.getAttribute('href')).toBeNull()
-  })
-
-  it('顶栏那颗头像也带 motion-reduce 降级', () => {
-    render(<MobileShell />)
-
-    const trigger = screen.getByLabelText('Navbar:account')
-    expect(trigger.className).toContain('transition-colors')
+    expect(screen.getByRole('dialog')).toContainElement(trigger)
     expect(trigger.className).toContain('motion-reduce:transition-none')
   })
 

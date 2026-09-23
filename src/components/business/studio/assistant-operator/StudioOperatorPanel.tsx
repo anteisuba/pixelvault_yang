@@ -1783,8 +1783,10 @@ export function StudioOperatorPanel({
           {history.error}
         </p>
       ) : null}
+      {/* D12 U1：对话区与输入区**实底**（半透明会把工作台的缩略图透上来，时间线
+          背后糊成一片色块）；玻璃只留头部与浮层。 */}
       <div
-        className="flex min-h-0 flex-1 flex-col"
+        className="flex min-h-0 flex-1 flex-col bg-card"
         inert={Boolean(history.loadingSessionId)}
         aria-busy={Boolean(history.loadingSessionId)}
         style={{ opacity: history.loadingSessionId ? 0.45 : 1 }}

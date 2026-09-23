@@ -55,7 +55,6 @@ import {
   MessageSquarePlus,
   ChevronDown,
   EyeOff,
-  History,
   MoreHorizontal,
   Settings2,
 } from '@/components/icons'
@@ -472,7 +471,8 @@ export function StudioOperatorHeader({
         <span className="flex-1" />
 
         {/* ── 右上**一颗 ⋯**（D7b ④ · 画板 `DesignD7bToggle` 的「⋯ 菜单」）────
-            历史会话 · 设置 · 分隔线 · 隐身。⛔ 并排三颗图标已退场。 */}
+            设置 · 分隔线 · 隐身。⛔ 历史会话只走标题下拉（D12 B7：⋯ 里那一项与它
+            是同一份历史，两个入口）。 */}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
             <button
@@ -492,14 +492,6 @@ export function StudioOperatorHeader({
             {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
             className="w-56 rounded-xl assistant-glass-overlay shadow-assistant-overlay"
           >
-            <DropdownMenuItem
-              data-testid="operator-more-history"
-              // ⚠ 同一拍直接开：⋯ 收回焦点那一下由 `onInteractOutside` 挡着（见头注）。
-              onSelect={() => setMenuOpen(true)}
-            >
-              <History className="size-4" aria-hidden />
-              {t('history.heading')}
-            </DropdownMenuItem>
             <DropdownMenuItem
               data-testid="operator-assistant-settings"
               onSelect={onOpenAssistantSettings}

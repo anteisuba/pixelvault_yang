@@ -195,16 +195,12 @@ describe('StudioOperatorHeader', () => {
     )
   })
 
-  it('标题▾ 与 ⋯ 菜单里的「历史会话」开的是同一个下拉', () => {
+  it('历史只走标题▾一个入口（D12 B7：⋯ 里不再有第二个）', () => {
     renderHeader()
     const dropdown = screen.getByTestId('operator-session-dropdown')
     expect(dropdown.dataset.open).toBe('false')
-
-    // 第二条路：⋯ 菜单里那一项（⛔ 不另开一份列表）。
-    fireEvent.click(screen.getByTestId('operator-more-history'))
-    expect(dropdown.dataset.open).toBe('true')
-
-    // 第一条路：标题自己（Radix 真身把触发器的点击变成 onOpenChange(true)）。
+    expect(screen.queryByTestId('operator-more-history')).toBeNull()
+    // Radix 真身把触发器的点击变成 onOpenChange(true)。
     fireEvent.click(screen.getByTestId('operator-session-menu'))
     expect(dropdown.dataset.open).toBe('true')
   })
@@ -320,14 +316,13 @@ describe('StudioOperatorHeader', () => {
    * 右上收成**一颗 ⋯**（D7b ④）：并排三颗图标（历史 · 设置 · 收起）全部退场，
    * 菜单里三项 —— 历史会话 · 设置 · 隐身（56a 未落 → 占位禁用）。
    */
-  it('右上只有一颗 ⋯（32px 档），菜单三项，历史 / 设置行为接通', () => {
+  it('右上只有一颗 ⋯（32px 档），菜单两项：设置 · 隐身', () => {
     const { onOpenAssistantSettings } = renderHeader()
     expect(screen.getByTestId('operator-more').className).toContain('size-8')
     // ⛔ 并排那三颗不存在了。
     expect(screen.queryByTestId('operator-history-button')).toBeNull()
     expect(screen.queryByTestId('operator-collapse')).toBeNull()
 
-    expect(screen.getByTestId('operator-more-history')).toBeTruthy()
     fireEvent.click(screen.getByTestId('operator-assistant-settings'))
     expect(onOpenAssistantSettings).toHaveBeenCalledTimes(1)
 

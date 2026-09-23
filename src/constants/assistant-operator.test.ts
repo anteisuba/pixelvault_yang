@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { isUnfinishedClosingMessage } from '@/constants/assistant-operator'
+import {
+  isSelfPromiseClosingMessage,
+  isUnfinishedClosingMessage,
+} from '@/constants/assistant-operator'
 
 /**
  * **收尾那句话不许停在进行时**（2026-09-07）。
@@ -45,6 +48,38 @@ describe('isUnfinishedClosingMessage', () => {
       isUnfinishedClosingMessage(
         'The official design has not been published; here is what I can build from what is known.',
       ),
+    ).toBe(false)
+  })
+})
+
+/** 2026-09-24 真机：收尾许诺「下一步我会调 16:9、准备确认卡」然后停下。 */
+describe('isSelfPromiseClosingMessage', () => {
+  it('⭐ 许诺挂在最后一句也算（三种语言）', () => {
+    expect(
+      isSelfPromiseClosingMessage(
+        'JIAN，已按你的要求覆盖提示词。下一步我会把画幅调整为适配原图的16:9，再为你准备生成确认卡。',
+      ),
+    ).toBe(true)
+    expect(
+      isSelfPromiseClosingMessage(
+        'The prompt is in. Next, I will switch the ratio to 16:9.',
+      ),
+    ).toBe(true)
+    expect(
+      isSelfPromiseClosingMessage(
+        'プロンプトを更新しました。次は比率を16:9に変更します。',
+      ),
+    ).toBe(true)
+  })
+
+  it('⛔ 把决定交给创作者的问句、以及真结论放行', () => {
+    expect(
+      isSelfPromiseClosingMessage(
+        '提示词写好了。要不要我接下来我再把比例改成 16:9？',
+      ),
+    ).toBe(false)
+    expect(
+      isSelfPromiseClosingMessage('提示词和 16:9 都设好了，确认卡在下面。'),
     ).toBe(false)
   })
 })

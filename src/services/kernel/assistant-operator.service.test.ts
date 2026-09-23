@@ -11192,6 +11192,37 @@ describe('current reference image bindings', () => {
    * ⭐ 2026-09-24 真机：写成功后把同一段原样再交一遍，被重复护栏拒下，模型读成
    * 「没写进去」并照这个告诉创作者。重复的改动要说清「已经生效」。
    */
+  it('sends a closing line that promises its own next step back once while steps remain', async () => {
+    queueTurns(
+      {
+        finished: true,
+        message:
+          '提示词写好了。下一步我会把画幅调整为 16:9，再为你准备生成确认卡。',
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '写提示词',
+          args: { value: 'A quiet harbour at dawn' },
+        },
+      },
+      { finished: true, message: '提示词写好了。' },
+    )
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest({})),
+    )
+    expect(lastUserPrompt()).toContain(
+      'YOUR CLOSING LINE PROMISES A STEP YOU CAN STILL TAKE',
+    )
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      ),
+    ).toBe(true)
+  })
+
   it('tells the model a repeated write already succeeded instead of calling it refused', async () => {
     const write = {
       tool: {

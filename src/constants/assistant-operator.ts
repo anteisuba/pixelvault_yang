@@ -3035,6 +3035,28 @@ export function isUnfinishedClosingMessage(message: string): boolean {
 }
 
 /**
+ * **收尾许诺了自己下一步要做的事**（2026-09-24 真机）。
+ *
+ * 🔬 提示词写完，助手收尾说「下一步我会把画幅调整为 16:9，再为你准备生成确认卡」
+ * 然后停了 —— 那两件它当场就能做，却留给创作者再发一句话去触发。
+ * ⚠ 判的是**任意位置**的「下一步我会 / 接下来我会 / next I will」，不只是句首：
+ * 前面几句往往是真结论，许诺挂在最后一句。
+ * ⚠ 问句不算：「要不要我接着……？」是把决定交给创作者，那是对的收尾。
+ * ⚠ 只在还有步数时退回（最后一步的收尾本来就该说「还剩什么」）。
+ */
+export const OPERATOR_SELF_PROMISE_PATTERNS: readonly RegExp[] = [
+  /(下一步|接下来|随后|然后|之后)[，,]?\s*我(会|将|再|来|就)/,
+  /(次は|このあと|この後|続けて)[、,]?\s*(私が)?[^。？?]*(します|しておきます)/,
+  /\b(next|then|after that),?\s+i['’]?(ll|\s+will)\b/i,
+]
+
+export function isSelfPromiseClosingMessage(message: string): boolean {
+  const text = message.trim()
+  if (/[?？]\s*$/.test(text)) return false
+  return OPERATOR_SELF_PROMISE_PATTERNS.some((pattern) => pattern.test(text))
+}
+
+/**
  * 证据条的形状 —— 与 `EvidenceItem.kind` 逐字同名（文字 / 标签 / 图 / 视频）。
  *
  * ⚠ `video` 是 56b 切片 1 加的第四种：它**不是**「带时长的图片」，点下去的去处

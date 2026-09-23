@@ -76,6 +76,7 @@ import {
   isRevertibleAssistantOperatorTool,
   isInternalAssistantOperatorTool,
   resolveAssistantOperatorEntryAction,
+  isSelfPromiseClosingMessage,
   isUnfinishedClosingMessage,
   type AssistantOperatorConfirmChoice,
   type AssistantOperatorConfirmField,
@@ -7742,7 +7743,7 @@ OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outsi
 - "message" is required on a question turn. On an action turn it is optional — use it to say something worth saying, not to narrate every step.
 - "detail" is where reasoning goes. The app folds it away behind a "why" the creator can open, so "message" stays short and "detail" carries the explanation, the trade-offs, what you found and rejected. Omit it when there is nothing worth opening — an empty "why" is worse than none.
 - KEY ORDER: on a question turn, write "message" first and omit "tool". On an action turn, write "tool" before "message" if you are calling one.
-- Omit "tool" (or set "finished":true) when the work is done. Do that as soon as the form is ready — an extra step costs the creator time.
+- Omit "tool" (or set "finished":true) when the work is done. Do that as soon as the form is ready — an extra step costs the creator time. Never close on a promise of your own next action ("next I will set 16:9…") while steps remain: take that step now.
 - One tool per turn. You get at most ${operatorStepBudget(request)} steps for this request.
 - After each tool you will be told what actually happened. If a call was refused, read the reason and adapt — do not repeat the same call.${lookAppendix}${researchAppendix}`
 }
@@ -9027,6 +9028,7 @@ export async function* runAssistantOperator(
   const writeToolCalls = new Map<string, number>()
   /** 收尾那句话已经被退回去要过一次结论了。⛔ 只退一次，不做开放循环。 */
   let conclusionRetried = false
+  let promiseRetried = false
   let completed = false
 
   try {
@@ -9360,6 +9362,25 @@ export async function* runAssistantOperator(
         conclusionRetried = true
         run.observations.push(
           'YOUR CLOSING LINE WAS NOT AN ANSWER. You ended the turn on a progressive ("I am searching…", "正在检索…") or on nothing at all, which leaves the creator with no conclusion. Write the closing "message" again as a conclusion: what you established, what you could NOT confirm and where you looked for it, and one concrete next step you are offering. "The official design has not been published yet" is a real answer; "I am still looking" is not. Do not invent details to fill the gap.',
+        )
+        continue
+      }
+
+      /**
+       * ⭐ **收尾不许把自己能做的事许诺到下一轮**（2026-09-24 真机：「下一步我会
+       * 把画幅调整为 16:9，再为你准备生成确认卡」然后停下）。还有步数就退回去一次，
+       * 让它当场做；⛔ 不做开放循环。
+       */
+      if (
+        closingTurn &&
+        !turn.plan?.length &&
+        !lastStep &&
+        !promiseRetried &&
+        isSelfPromiseClosingMessage(turn.message ?? '')
+      ) {
+        promiseRetried = true
+        run.observations.push(
+          'YOUR CLOSING LINE PROMISES A STEP YOU CAN STILL TAKE ("next I will …"). You still have steps this turn: take that step now with a tool call instead of leaving it for another message. Close only when it is done, or when it genuinely needs the creator (then ask them).',
         )
         continue
       }

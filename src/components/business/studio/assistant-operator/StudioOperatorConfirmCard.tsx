@@ -433,9 +433,11 @@ export function StudioOperatorConfirmCard({
                         </button>
                       </ResponsivePopoverTrigger>
                       <ResponsivePopoverContent
-                        /* 画板：弹层落在 chip **下方**（卡在时间线中段，
-                           ⛔ 不照输入框那颗 chip 的 `side="top"` 抄）。 */
-                        side="bottom"
+                        /* ⚠ 向**上**弹（D12 C7 根因）：往下弹会正好盖住「确认生成 /
+                           先不要」那一行 —— 菜单开着时去点「先不要」，点中的是被盖在
+                           下面的那一项（真机：模型被换成列表第一项、规格跟着回落，
+                           还记成「你在确认卡上改的」）。 */
+                        side="top"
                         align="start"
                         label={label}
                         className="w-60 p-0"

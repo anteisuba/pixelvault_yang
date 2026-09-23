@@ -3,15 +3,10 @@
 Mock at **system boundaries** only:
 
 - External APIs (payment, email, etc.)
-- Databases (sometimes - prefer test DB)
 - Time/randomness
 - File system (sometimes)
 
-Don't mock:
-
-- Your own classes/modules
-- Internal collaborators
-- Anything you control
+Don't mock collaborators inside the unit under test. Layer seams are the exception: route tests mock the service, hook tests mock `@/lib/api-client`, service tests mock the DB module (see `docs/references/testing.md`).
 
 ## Designing for Mockability
 

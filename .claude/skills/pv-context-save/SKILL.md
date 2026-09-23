@@ -1,6 +1,6 @@
 ---
-name: context-save
-description: Save the current session's working context into the project's resident docs (docs/references/) so a later session can inherit it. Use when the user says 存进度 / 交接 / 我要开新会话继承这个 / context-save, or when a long session is about to end with unfinished work.
+name: pv-context-save
+description: Save the current session's working context into the project's resident docs (docs/references/) so a later session can inherit it. Use when the user says 存进度 / 交接 / 我要开新会话继承这个 / pv-context-save, or when a long session is about to end with unfinished work.
 ---
 
 # 存进度
@@ -18,7 +18,7 @@ description: Save the current session's working context into the project's resid
 2. **关键结论是怎么推出来的**。规格只写结论，不写推理链。下个会话看不到推理就不敢改，或者乱改。
 3. **我推翻过自己的地方**。哪条判断先否后立，为什么。防止下个会话把已推翻的旧判断又捡回来。
 4. **owner 的工作偏好**（这一轮实际生效的，不是泛泛的）。
-5. **悬而未决的问题**，每条标清"我倾向什么、为什么、拍板了没有"。
+5. **悬而未决的问题**不进这一节：需要 owner 拍板的当场问掉、写成结论；仍未决的按 WORKFLOW 记进 `docs/status.md`。
 
 ## 不要写进这一节的
 
@@ -29,12 +29,12 @@ description: Save the current session's working context into the project's resid
 ## 步骤
 
 1. 确认事实已经落进 `docs/references/` 对应那份常驻文档的正文。没有就先写那个——判断不是事实的替代品。
-2. 在**同一份**文档末尾追加/更新「判断与教训」一节，按上面五条写。⛔ 不另起 handoff 文件。
+2. 在**同一份**文档末尾追加/更新「判断与教训」一节，按上面几条写。
 3. 更新 memory 索引指向**那份 references 文档**，一行足够。
 4. 给出下一会话的**开场贴纸**：读哪几份、按什么顺序、第一件事做什么。
 
 ## 硬要求
 
 - 每条判断要能追到证据（哪次实测、哪行代码、owner 哪句话）。追不到的判断不要写进去，那是猜测。
-- ⚠ **并行会话会让进度过期**。这一节必须提醒下个会话「先核对实际状态再信文档」。
+- 并行会话会让进度过期，这一节要提醒下个会话先核对实际状态再信文档。
 - 任务收尾、结论已进正文后，「判断与教训」里过期的条目要一并删掉——常驻文档不留死条目。

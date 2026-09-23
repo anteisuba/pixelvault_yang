@@ -1,7 +1,7 @@
 ---
 name: frontend-design
 description: 页面视觉方向与设计实现；按 PixelVault 的域和页面确认流程工作，不用于非视觉工程任务。
-license: Apache 2.0. Based on Anthropic's frontend-design skill. See NOTICE.md for attribution.
+license: Complete terms in LICENSE.txt
 ---
 
 # 前端设计
@@ -11,5 +11,3 @@ license: Apache 2.0. Based on Anthropic's frontend-design skill. See NOTICE.md f
 从受众、任务和内容确定结构、层级与视觉表达。提供可比较的结构方向，使用真实内容和关键状态验证；不因字体常见、使用卡片或某种配色就判定设计失败。具体风格遵循已确认域/page 文档。
 
 实现复用现有组件行为与依赖，保持三语、响应式、键盘焦点和错误恢复。动效与素材只在服务任务时加入。交付依据真实页面证据与相应 checklist，避免无关装饰或替换全站设计体系。
-
-需要细化某一主题时再读本技能 `reference/` 下对应资料：typography、color-and-contrast、spatial-design、motion-design、interaction-design、responsive-design 或 ux-writing；不一次加载全部。

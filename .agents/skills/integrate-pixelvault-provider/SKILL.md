@@ -46,16 +46,7 @@ Change PixelVault's media generation stack through the project layers instead of
 ## Model Catalog Rules
 
 - `src/constants/models.ts` is authoritative.
-- When removing or replacing a public model identifier, delete it and update every reference (constants, i18n, adapters, tests, docs) in the same change; no alias layer (Engineering Principle 1).
+- When removing or replacing a public model identifier, delete it and update every reference (constants, i18n, adapters, tests, docs) in the same change; no alias layer (AGENTS.md engineering principles: delete outdated implementations).
 - Treat credits/requestCount semantics as server-owned policy, not UI decoration.
 - When pruning models, check live availability, retirement status, adapter support, docs, and user-facing migration impact.
 - For image/video/audio model additions, verify whether the existing adapter can support the provider before creating a new adapter.
-
-## Common Triggers
-
-- "Check whether the current GPT image model is latest."
-- "Generation routes are all broken."
-- "fal.ai returned 422."
-- "Only Fish Audio S2 Pro works."
-- "Bind my personal API key so public visitors do not spend platform credits."
-- "Prune outdated models and keep representative models."

@@ -60,7 +60,7 @@ Each candidate is one `<article>`:
 - **Problem** — one sentence. What hurts.
 - **Solution** — one sentence. What changes.
 - **Wins** — bullets, ≤6 words each. e.g. "Tests hit one interface", "Pricing logic stops leaking", "Delete 4 shallow wrappers".
-- **ADR callout** (if applicable) — one line in an amber-tinted box.
+- **Decision note** (if applicable) — one line naming the `docs/references/` doc the decision belongs in.
 
 No paragraphs of explanation. If the diagram needs a paragraph to be understood, redraw the diagram.
 
@@ -119,7 +119,7 @@ Plain English, concise — but the architectural nouns and verbs come straight f
 
 **Use exactly:** module, interface, implementation, depth, deep, shallow, seam, adapter, leverage, locality.
 
-**Never substitute:** component, service, unit (for module) · API, signature (for interface) · boundary (for seam) · layer, wrapper (for module, when you mean module).
+**Prefer these over loose synonyms** (unit, wrapper, layer), but keep PixelVault's own terms — service, component, API route, domain boundary — when naming real code.
 
 **Phrasings that fit the style:**
 

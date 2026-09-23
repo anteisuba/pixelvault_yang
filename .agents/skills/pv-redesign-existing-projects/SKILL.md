@@ -1,5 +1,5 @@
 ---
-name: redesign-existing-projects
+name: pv-redesign-existing-projects
 description: 用户要求现有页面改版时，评估结构与视觉方向并按已确认方案实现。
 ---
 

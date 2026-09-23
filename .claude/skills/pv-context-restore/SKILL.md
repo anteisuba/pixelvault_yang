@@ -1,6 +1,6 @@
 ---
-name: context-restore
-description: Restore a previous session's context from the domain's resident doc in docs/references/ before continuing work. Use at the start of a session when the user says 继承上个会话 / 接着上次 / context-restore, or references a handoff doc.
+name: pv-context-restore
+description: Restore a previous session's context from the domain's resident doc in docs/references/ before continuing work. Use at the start of a session when the user says 继承上个会话 / 接着上次 / pv-context-restore, or references a handoff doc.
 ---
 
 # 接进度
@@ -25,7 +25,7 @@ description: Restore a previous session's context from the domain's resident doc
 
 ## 继承判断，不是继承结论
 
-「判断与教训」里的「我判错三次」是最该认真读的——它告诉你**上个会话的盲区在哪**，那多半也是你的盲区。
+「判断与教训」里记录的判错模式是最该认真读的——它告诉你**上个会话的盲区在哪**，那多半也是你的盲区。
 
 已推翻的旧判断不要捡回来。那节里写了"先否后立"的，按后者。
 

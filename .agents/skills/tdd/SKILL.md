@@ -14,4 +14,4 @@ description: 用户要求测试先行或 red-green-refactor 时使用测试驱�
 
 测试公共行为，不锁私有函数、内部调用顺序或实现形状；复用已有测试设施。纯格式、低影响机械修改无需为了使用此技能而造测试。
 
-按需读取：[测试示例](tests.md)、[mock 边界](mocking.md)、[重构检查](refactoring.md)。
+按需读取：[mock 边界](mocking.md)。

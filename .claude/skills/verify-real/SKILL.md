@@ -13,9 +13,9 @@ description: Verify a UI change on the real running app via claude-in-chrome —
 - 3000 被占 = owner 自己开的 dev server，**直接复用别另起**（双实例毁 `.next`）。
 - dev 跑着时**别并行 build**。
 
-## 铁律：不用单点观察推全局
+## 不用单点观察推全局
 
-这是项目里最常犯的错。一个域曾在同一件事上连错三次，根因都是「拿一个项目/一次观察推全局结论」。
+单个项目或一次观察得出的「某某不工作」，常常只是样本恰好为空。
 
 落笔任何「某某不工作」之前，两条都要满足：
 

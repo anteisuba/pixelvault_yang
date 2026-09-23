@@ -5,7 +5,7 @@ description: Compute WCAG contrast ratios deterministically for color pairs befo
 
 # 对比度确定性复核
 
-**永远不目测，永远不信 review agent 的算术。** 项目历史上出过 review agent 系统性算反 `color-mix` 方向的事（memory `feedback-verify-css-review-math`）。
+对比度一律用脚本算，不目测，也不采信 review 结论里的手算数字（`color-mix` 的混合方向容易算反）。
 
 ## 用法
 
@@ -38,6 +38,31 @@ function over(fg, alpha, bg) {
     b = hex(bg)
   const m = f.map((v, i) => Math.round(v * alpha + b[i] * (1 - alpha)))
   return '#' + m.map((v) => v.toString(16).padStart(2, '0')).join('')
+}
+// oklch(L C H)，L 取 0–1 → hex（超出 sRGB 裁剪）；globals.css 的 token 多是 oklch
+function oklch(L, C, H) {
+  const a = C * Math.cos((H * Math.PI) / 180),
+    b = C * Math.sin((H * Math.PI) / 180)
+  const l = (L + 0.3963377774 * a + 0.2158037573 * b) ** 3
+  const m = (L - 0.1055613458 * a - 0.0638541728 * b) ** 3
+  const s = (L - 0.0894841775 * a - 1.291485548 * b) ** 3
+  const lin = [
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+    -0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s,
+  ]
+  const enc = (v) =>
+    Math.round(
+      255 *
+        Math.min(
+          1,
+          Math.max(
+            0,
+            v <= 0.0031308 ? 12.92 * v : 1.055 * v ** (1 / 2.4) - 0.055,
+          ),
+        ),
+    )
+  return '#' + lin.map((v) => enc(v).toString(16).padStart(2, '0')).join('')
 }
 ```
 

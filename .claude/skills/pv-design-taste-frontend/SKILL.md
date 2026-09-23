@@ -1,5 +1,5 @@
 ---
-name: design-taste-frontend
+name: pv-design-taste-frontend
 description: 营销页与已立项改版的视觉方向判断，依据内容和业务设计层级，不提供固定风格模板。
 ---
 

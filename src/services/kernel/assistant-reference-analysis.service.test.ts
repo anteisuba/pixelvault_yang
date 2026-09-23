@@ -98,12 +98,15 @@ describe('reference analysis', () => {
     expect(system).toContain('renderingMedium')
     expect(system).toContain('2d_flat, 2d_painterly, 3d_stylized')
     // 判据本身必须在提示里：3D 看法线高光 / 连续曲面阴影，2D 看阶梯平涂 + 线稿。
-    expect(system).toContain('follow surface normals')
+    expect(system).toContain('consistent with one light direction')
     expect(system).toContain('stepped cel bands')
+    // ⭐ 2026-09-24 真机：「只有全部证据都在才判 3D」让 3D 渲染的三视图被判成 2D。
+    // 逐条核对、按多数判，两边都不是默认。
+    expect(system).toContain('neither side is the default')
     // ⭐ 真机 bug 那一句：动漫脸 + 角色设定图版式**不**足以判成 3D。
     expect(system).toContain('anime face')
     // ⭐ 2026-09-24 真机：三渲二被判成 2D。卡通渲染的 3D 要有自己的判据。
-    expect(system).toContain('Toon-shaded')
+    expect(system).toContain('toon-shaded or cel-shaded NPR')
     expect(system).toContain('identical geometry')
   })
 

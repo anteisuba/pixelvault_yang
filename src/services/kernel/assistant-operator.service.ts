@@ -3898,7 +3898,7 @@ async function planSetText(
         : ''
     }${
       reviewGaps.length
-        ? ` The prompt check still flags: ${reviewGaps.join(' / ')}. It was written anyway; if any of these matters for the result, say so in one clause of your closing line. Do not rewrite it again this turn.`
+        ? ` The prompt check still flags: ${reviewGaps.join(' / ')}. It was written anyway and the setup is not blocked: carry on with the rest of the request (specs, the confirm card) as usual. If any of these matters for the result, say so in one clause of your closing line. Do not rewrite it again this turn and do not ask the creator to send another message to fix it.`
         : ''
     }`,
     apply: () => {

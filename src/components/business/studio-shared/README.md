@@ -23,7 +23,7 @@ If a file fails any test, it goes back to its owning module's L2 directory or st
 
 ## Model pickers — there is exactly one
 
-2026-09-17（D2 ④，画板 `docs/design/roadmap-canvas/gen/DesignD2Picker.dc.html`）收口：
+2026-09-17（D2 ④，定案见 `docs/design/roadmap-canvas/digest/page-2.md` 底座一节）收口：
 **`ModelPickerPopover` 是全仓唯一的模型选择器**。三层钻取的 `BaseModelPickerPanel`
 与更早的 `business/ModelSelector` 都已整删，`StudioModelOption` 搬到
 `@/types/model-option`。

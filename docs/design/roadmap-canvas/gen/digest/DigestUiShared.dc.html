@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>交互原则与共享组件</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 3 UI 总纲 · 2 / 3</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">交互原则与共享组件</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">同一件事在全站只长一种样子。</p>
+  </div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">交互原则</div></div>
+<ul style="max-width:1200px"><li><b>缺 key 不禁用</b>：灰显可点 → QuickSetupDialog 就地配置。</li><li><b>切模型直接切</b>：不提示、不撤销，不兼容的值静默回默认。</li><li><b>不挂红点、不挂额度</b>：失效只在 /settings/keys 标红；助手角标只数「等你的事」。</li><li><b>改动落在看得见的对象上</b>：字段闪一次 + 一行回执 + 可撤销；花钱才确认。</li><li><b>反问对标 Claude Code 提问框</b>：一次一题、竖排选项、推荐排第一、「其他，自己写」。</li><li><b>右键 = ⋯ 同一份动作注册表</b>（D4 定细节）；⌘K 只给键盘用户。</li><li><b>少文字</b>：只放用户此刻需要的（选择器一行只三件）。</li><li><b>工程底线</b>：浮层一律 portal 到 body；弹层不用磨砂；手机命中区 44px，同一弹层 inline 进底部 Sheet。</li></ul>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">共享组件</div></div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>组件</th><th>契约</th><th>还没并进来的</th><th>状态</th></tr></thead><tbody><tr><td style="font-weight:500">模型选择器</td><td>ModelPickerPopover：三件一行 · 右侧渠道面板 · 按型号记住</td><td>手机 StudioMobileModelSheet · LoRA 底模弹窗 · 助手 LLM 路由 · 画布旧 CanvasAssistantRouteSelector</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">能力驱动表单 · 规格 chip</td><td>capabilities 派生；一颗合成 chip</td><td>音乐 / 音效两份 Spec 弹层</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">key 门 · /settings · 账号菜单</td><td>QuickSetupDialog · 四分区 · AccountMenu</td><td></td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">助手壳</td><td>StudioOperatorDock + Panel</td><td>旧 StudioAssistantDock / LoraAssistantDock（随 57）</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">空态</td><td>EmptyState 原语</td><td>起手屏 / 搜索无结果有意不收</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">参考素材入口</td><td>一个 ReferencePicker 弹层 + 一条 ReferenceRail</td><td>现有 6 份：AssetSelectorDialog · AssetPickerBrowser · ImagePickerPopoverBody · AssistantReferencePicker · CanvasAssistantReferencePicker · ReferenceLandingTabs</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr><tr><td style="font-weight:500">任务条</td><td>一个 useGenerationTask 状态模型，卡上裱框显影 / 列表任务条两种皮</td><td>现在是五种散落表现</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr><tr><td style="font-weight:500">去向菜单 · 右键 · 命令</td><td>一份动作注册表按媒体 × 表面裁剪</td><td>StudioCommandPalette · ShellCommandPalette 两份</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr><tr><td style="font-weight:500">列表页头</td><td>ListPageHeader + 文件夹条</td><td>画廊仍有两套筛选头</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr><tr><td style="font-weight:500">卡片选择器</td><td>带 role 与 @名字 进参考槽</td><td></td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #737373;color:#737373;background:transparent">等依赖</span></td></tr><tr><td style="font-weight:500">手机 composer</td><td>一条输入条 + 一个参数抽屉</td><td>三套抽屉</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr></tbody></table></div>
+</div>
+</x-dc>
+</body>
+</html>

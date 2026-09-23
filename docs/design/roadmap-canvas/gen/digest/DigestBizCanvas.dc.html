@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>画布导演台</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 2 业务设计 · 5 / 10 · 层 2 · 要助手 + 卡片 + 视频</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">画布导演台：剧本 → 资产 → 分镜 → 镜头 → 成片</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">旗舰。四类节点（文本 · 图片 · 音频 · 视频，视频节点即镜头），连线跑生成；剪辑台是画布的全屏模式。</p>
+  </div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">已定的设计</div></div>
+<ul style="max-width:1200px"><li><b>节点（S0–S12 定稿）</b>：文本节点参照即梦（高文本框 + 全屏文档）；图片节点一个兼上传 / 粘贴 / 生成；视频节点参考轨三组（图 · 视频 · 语音），模式由挂了什么推出；音频节点音色是属性、语气写进台词；连线单口 + 落卡即定 + 线上槽名胶囊；双击卡 = 展开。</li><li><b>外壳</b>：左上项目胶囊；左侧四面板（节点 · 卡片 · 素材 · 历史）；加节点 = 双击空白 / 右键 / ⌘K，没有常驻加号；右上「剪辑台」+ 助手头像；手机 = 镜头带 + 底部抽屉。</li><li><b>剧本节点（24）</b>：一张 kind=script 文本卡（大纲 + 分镜列表）→「确认 · 投影」出一排镜头并连线；重投影只标变化（新增追加 · 已变虚线 · 删掉标灰不删）。</li><li><b>资产流水线（65，09-20）</b>：资产图 = 画布上任何一张图，<b>不新造节点种类或 role 标签</b>；自动连线已有；分镜图 → 视频交给 LLM 判断；<b>卡片（D6）先设计完再接到画布</b>。</li><li><b>剪辑台</b>：V / A / M / T 四轨；一句话排片 = 幽灵段提案（采用 · 逐段看 · 撤销）；ffmpeg on CF Container 渲染；导出落回一张视频卡。</li></ul>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">现状</div></div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>#</th><th>项</th><th>说明</th><th>状态</th></tr></thead><tbody><tr><td style="font-weight:500">—</td><td>四类节点 · 外壳 · 手机镜头带</td><td>S0–S12 已上线</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">24</td><td>剧本节点 · 投影 · 重投影</td><td>@角色 只开空槽</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">37</td><td>剪辑台</td><td>时间线 + 导出链有代码；真实导出与排片回传待补</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #a04f00;color:#fff;background:#a04f00">部分</span></td></tr><tr><td style="font-weight:500">65</td><td>资产流水线</td><td>等 D6 卡片设计</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #737373;color:#737373;background:transparent">等依赖</span></td></tr><tr><td style="font-weight:500">36</td><td>审阅网格（多镜并排 · 打分 · 选优回节点）</td><td></td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr><tr><td style="font-weight:500">39</td><td>Enhance（Topaz / SeedVR2 超分修复）挂视频节点</td><td>施工基准已定，代码零</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #a04f00;color:#a04f00;background:transparent">待 spec</span></td></tr><tr><td style="font-weight:500">40</td><td>反推接画布 · 项目级上下文卡</td><td>要 op 表 + 卡片总线</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #737373;color:#737373;background:transparent">等依赖</span></td></tr><tr><td style="font-weight:500">41</td><td>3D 场景 / 机位作镜头控制</td><td></td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #737373;color:#737373;background:transparent">远期</span></td></tr></tbody></table></div>
+</div>
+</x-dc>
+</body>
+</html>

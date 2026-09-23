@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>图片厂商</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 5 厂商速查 · 1 / 5 · 2026-09-17 一手核对</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">图片：四家自然语言 + NAI + Runner</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">只列影响决策的事实；全文与来源链接在仓库 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">docs/design/roadmap-canvas/research/image-nl.md</code> · <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">novelai-pixai.md</code>。价格为当时官方标价。</p>
+  </div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>家族</th><th>在用型号</th><th>官方要点</th><th>接了</th><th>没接的高价值</th></tr></thead><tbody><tr><td style="font-weight:500">GPT Image</td><td>2.5 Sunburst · 2.5 Flare · 2</td><td>三款同价（文入 $5 / 图入 $8 / 图出 $30 每 M）；edits 多图 + 蒙版；六档画质；透明底；Responses 多轮编辑工具</td><td>六档画质 · 透明底 · 预览 · input_fidelity</td><td>Responses 多轮工具 · moderation:low · output_format · n &gt; 1</td></tr><tr><td style="font-weight:500">Gemini 图像</td><td>3 Pro Image · 3.1 Flash · 3.1 Flash-Lite</td><td>多图 ≤ 14（Pro 6 物体 / 5 角色；Flash 10 / 4 / 3）；对话式多轮编辑；搜索接地；无免费档</td><td>单轮生成</td><td>多轮会话编辑 · 按角色分槽 · 分辨率按型号收敛</td></tr><tr><td style="font-weight:500">FLUX 2</td><td>Pro · Pro Edit · Flash · Kontext Max</td><td>≤ 8 图且输入 + 输出 ≤ 9MP；不支持负面词；JSON prompt + @image 是写法不是字段</td><td>主体</td><td>FLUX.2 [max]（10 参考）· safety tolerance</td></tr><tr><td style="font-weight:500">Seedream 5.0</td><td>Pro · Lite（fal / 火山 / BytePlus）</td><td>Pro ≤ 10 图（Lite 14）；图层拆分（Pro）；组图 / 联网（仅 Lite）；Pro 1K / 1.5K 同价</td><td>图层拆分 · 透明底</td><td>组图 · Pro 1.5K 档</td></tr><tr><td style="font-weight:500">NovelAI</td><td>V5 Full · V5 Curated · V4.5 Full · V4.5 Curated</td><td>BYOK；V5 不在 Opus 无限档；<b>角色图用 Full（Curated 不认识新角色）</b>；多角色 V5 ≤ 22 / V4.5 ≤ 6；质量标签与 UC 预设是标签串不是字段；精确参考仅 V4.5，+5 Anlas；Vibe 官方 API 暂无</td><td>inpaint · 质量标签 · UC · Text: · 采样器 · 官方补全 · 精确参考</td><td>Director Tools · 透明底</td></tr><tr><td style="font-weight:500">PixAI</td><td>Tsubaki.2 · Haruka v2 · Hoshino v2</td><td>有官方 REST API（beta，t2i only）</td><td>09-20 暂时下架</td><td>—</td></tr><tr><td style="font-weight:500">Qwen Image 2.1</td><td>qwen2.1（Runner）</td><td>独立 RunPod 端点；CFG / 步数 / 负面 / seed / ≤ 10 参考</td><td>私有白名单评估</td><td>公开与否待定</td></tr></tbody></table></div>
+</div>
+</x-dc>
+</body>
+</html>

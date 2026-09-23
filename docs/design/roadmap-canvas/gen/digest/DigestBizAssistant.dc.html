@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>助手</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 2 业务设计 · 1 / 10 · 层 1</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">助手：一个引擎，四张脸</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">把用户的意图变成配置好的生成。<b>LLM 只负责理解和配参数，出图永远是图片模型</b>。宿主三处：图片 / 视频工作台 · 画布 · LoRA；配音间不挂助手。</p>
+  </div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">已定的设计</div></div>
+<ul style="max-width:1200px"><li><b>壳（D7 · D7b · D7c）</b>：右侧 dock；收起 = 右上角人设头像 + 数字角标（待确认 + 未读结果）；头像即开关，打开时滑进面板头部（240ms，只动 transform）；头部只有「会话标题 ▾ · ⋯（历史 · 设置 · 隐身）」；规格摘要在输入框上方；空态头像 40 + 一句话 + 一排建议 chip；历史下拉对标 Claude（行高 44，改名 / 删除 hover 才出）。</li><li><b>四张脸只换三样</b>：起手药丸 · 头部域标记 · 空态一句话。图片 = 如何生成图片；视频 = 如何生成视频；LoRA = 用 LoRA 出对图（提示词写对 · 挂对 · 参数调对）；画布 = 全能导演（剧本 / 图 / 视频 / 自动连线）。</li><li><b>「改」</b>：每个宿主一张 op 表；免费可撤销的 op 自动落，被改字段 outline 闪 320ms，面板一行回执、可整组撤销；花钱 / 不可逆出确认卡；多条回执合并成「本轮记录 · N 项」。</li><li><b>反问（D56b）</b>：与输入框同框、一次一题；选项竖排（推荐第一）+「其他，自己写」；键盘 1–4 直选；答案以小标签留在对话里。</li><li><b>调查（D56b）</b>：Claude 式正文 + 句尾角标 + 来源卡；快搜默认，深入调查只是一行加载态；正文逐字流式；图片 / 视频分析直接喂多模态模型，回答就是正文。</li><li><b>记忆（D56a）</b>：AssistantMemory 表，每轮结账写入、同域去重、每域 200 静默淘汰；/settings/assistant 平铺列表（筛选 chip · 就地改 · 删 · 全部清空）；敏感类目静默跳过；隐身在 ⋯ 菜单。</li><li><b>协作原则（09-23）</b>：真冲突才停下问，回答只授权当前问题；建议不能自行变成必选；参考不可读最多重试一次，技术故障不伪装成需求冲突；参考图统一「画布名 + 缩略图」并绑定稳定图片标识。</li><li><b>09-23 新定</b>：生成键做成<b>开关</b>（开 = 助手配好就按，关 = 你先看一眼再按）；出图后<b>不自检</b>，由你指出问题、助手按你说的改。</li></ul>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">现状</div></div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>#</th><th>项</th><th>说明</th><th>状态</th></tr></thead><tbody><tr><td style="font-weight:500">21 · 22 · 64 · 69</td><td>op 表 · 一张脸 · 四张脸 · 壳补 ④</td><td>三宿主同一壳；旧壳组件还在（见 57）</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">56a · 56b · 24 · 73</td><td>记忆 · 调查 · 剧本投影 · 协作一轮</td><td>剧本投影的 @角色 只开了空槽，等卡片总线</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">—</td><td>Claude / DeepSeek 识图 · 查证结构化输出</td><td>dc1e7ec4 · 9a2b6290（09-23）</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">—</td><td>生成键开关</td><td>09-23 定，未设计</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr><tr><td style="font-weight:500">—</td><td>画布 &lt;768 手机宿主</td><td>手机图片工作台过了不等于画布过了</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr><tr><td style="font-weight:500">21 · 37</td><td>排片提案回传</td><td><code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">deliverTimelineProposal</code> 没有生产者：助手没有时间线工具</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #a04f00;color:#a04f00;background:transparent">待 spec</span></td></tr><tr><td style="font-weight:500">57</td><td>清理旧助手 + 隐身合一</td><td>CanvasAssistant* 三件 · StudioAssistantDock · PromptAssistantPanel 仍在；隐身时仍保存本轮记录（只不写长期记忆），口径要定</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #a04f00;color:#a04f00;background:transparent">待 spec</span></td></tr><tr><td style="font-weight:500">—</td><td>16 步用完静默停止</td><td>必须说清剩余事项再停</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#16794c;background:transparent">可开工</span></td></tr><tr><td style="font-weight:500">—</td><td>3D 图被说成 2D</td><td>复测已能描述体积，不代表根治</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #a04f00;color:#a04f00;background:transparent">待验</span></td></tr><tr><td style="font-weight:500">59</td><td>/ skill 调用</td><td>09-11 提出，未拍板</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #737373;color:#737373;background:transparent">远期</span></td></tr></tbody></table></div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">正在讨论</div><div style="font-size:12px;color:#737373">09-23 owner：分析能力，以及怎么做才能做出用户想要的结果</div></div>
+<ul style="max-width:1200px"><li>拆成一条链：<b>听懂</b>（目标 · 必须保留 · 允许改变）→ <b>看懂</b>（参考图分析）→ <b>选对</b>（型号与参数，例：NAI 角色图必须 V5 Full）→ <b>你来判断</b> → <b>按你的反馈改</b>。</li><li>同时要定：什么时候问 / 什么时候做 · 界面 · 各页助手分别管什么 · 画布导演流程。下一步出 ② 思维导图。</li></ul>
+<div style="margin-top:12px;padding:12px 14px;border:1px dashed #c4c4c4;border-radius:10px;font-size:12.5px;line-height:1.65;color:#404040;max-width:1200px"><b>依赖</b>：卡片助手、「以角色口吻回复」、剧本里的角色关系都要卡片 v3（persona.examples · relations）；画布导演流程要卡片总线。公共层本身不依赖卡片。</div>
+</div>
+</x-dc>
+</body>
+</html>

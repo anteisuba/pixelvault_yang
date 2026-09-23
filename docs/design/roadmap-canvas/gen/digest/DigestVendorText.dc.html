@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>文字厂商</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 5 厂商速查 · 4 / 5 · 2026-09-23 型号已更新</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">文字：五家 LLM + 搜索</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">三条路由（增强 · 规划 · 助手）服务四模态。全文在 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">research/llm-agent.md</code>。</p>
+  </div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>家族</th><th>在用型号</th><th>独有能力</th></tr></thead><tbody><tr><td style="font-weight:500">OpenAI</td><td>GPT-6 Sol（助手 / 剧本默认）· GPT-6 Luna（增强 / 自动问答）· GPT-6 Astra · gpt-5-search-api</td><td>file_search · tool_search · Conversations 永久会话 · web_search 域名白黑名单</td></tr><tr><td style="font-weight:500">Gemini</td><td>3.8 Flash · 3.5 Flash Lite（平台 key）</td><td>Google 搜索接地 · URL context ≤ 20 URL / 34MB 含 PDF · 视频 / 音频原生输入 · thinking 摘要</td></tr><tr><td style="font-weight:500">Grok</td><td>4.7</td><td>X Search · Collections；推理关不掉</td></tr><tr><td style="font-weight:500">DeepSeek</td><td>V4 Pro · deepseek-flash（vision）</td><td>峰谷两价 · cache 命中价低两量级 · 384K 输出；无官方联网；未指定型号且带图时自动走 flash</td></tr><tr><td style="font-weight:500">Claude</td><td>Opus 5.5（默认）· Fable 5.1</td><td>识图（09-23 接入）· 原生结构化输出 · 提示词缓存 · web_search + cited_text · memory 工具（未接，记忆走自家表）</td></tr></tbody></table></div>
+<ul style="max-width:1200px"><li><b>公共契约</b>：工具调用 + JSON Schema · 图像输入 · 推理档位 · caching · SSE。独有能力一律「探测 + 降级」。</li><li><b>搜索改进待做</b>：正文预算分档 · 白黑名单下沉到 provider 原生过滤 · 引用改区间锚（cited_text）· 同源家族去重 · 深研档一次澄清 + 有上限多轮。</li><li><b>检索源</b>：Serper 搜索 / 搜图 · Jina Reader · 萌百 · 中文维基 · Danbooru · B 站。</li></ul>
+</div>
+</x-dc>
+</body>
+</html>

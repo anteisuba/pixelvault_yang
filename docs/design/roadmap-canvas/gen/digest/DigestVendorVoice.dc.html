@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>语音厂商</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 5 厂商速查 · 3 / 5 · 2026-09-17 一手核对</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">语音：云端 · 自托管 · 人声提取</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">全文在 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">research/tts.md</code> · <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">tts-doubao.md</code> · <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">tts-selfhost.md</code> · <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">vocal-separation.md</code>。</p>
+  </div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>模型</th><th>情绪控制</th><th>多说话人</th><th>价格 / 许可</th></tr></thead><tbody><tr><td style="font-weight:500">Fish S2.1-Pro（在用）</td><td>自由词表 [tag] + temperature</td><td>原生</td><td>$15 / M 字节；free 档 $0</td></tr><tr><td style="font-weight:500">ElevenLabs v3</td><td>audio tags + stability 三档</td><td>Text-to-Dialogue</td><td>$0.10 / 1K 字符</td></tr><tr><td style="font-weight:500">豆包语音合成 2.0</td><td>指令式，走 context_texts / <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">&lt;cot&gt;</code></td><td>逐句编排</td><td>后付费 ¥3 / 万字符</td></tr><tr><td style="font-weight:500">Seed-Audio 1.0</td><td>一条 prompt 出对白 + BGM + 音效</td><td>原生</td><td>邀测，无定价</td></tr><tr><td style="font-weight:500">Gemini TTS</td><td>Director’s Notes + 行内标记</td><td>原生</td><td>按 token</td></tr><tr><td style="font-weight:500">Qwen3-TTS 1.7B（自托管）</td><td>自然语言指令 + VoiceDesign 造音色</td><td>逐句</td><td>Apache-2.0；3090 实测 3.9GB · RTF 0.97</td></tr><tr><td style="font-weight:500">CosyVoice3 0.5B（自托管）</td><td>instruct：方言 / 情绪 / 语速</td><td>逐句</td><td>Apache-2.0</td></tr><tr><td style="font-weight:500">IndexTTS-2（自托管）</td><td>最强：情绪参考音频 / 8 维向量</td><td>逐句</td><td>bilibili 许可，商用需申请</td></tr></tbody></table></div>
+<ul style="max-width:1200px"><li>避开商用问题：Fish-Speech 权重（研究许可）· Higgs v3（非商用）· F5-TTS（CC-BY-NC）。</li><li>人声提取：ElevenLabs isolation ≈ $0.22 / 分钟（吃视频，只出人声）；fal demucs ≈ $0.02 / 4 分钟（四轨）；自托管 htdemucs_ft（MIT）。</li></ul>
+</div>
+</x-dc>
+</body>
+</html>

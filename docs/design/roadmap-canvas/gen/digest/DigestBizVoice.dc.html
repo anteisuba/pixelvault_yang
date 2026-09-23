@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>语音</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 2 业务设计 · 8 / 10 · 层 3 · 后置</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">语音：方案已写，供应商未定</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">角色声音库（音色卡）是主线，配音间是入口；配音间不挂助手。整体后置到 owner 定供应商。</p>
+  </div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">方案（未拍板）</div></div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>档</th><th>模型</th><th>为什么</th><th>状态</th></tr></thead><tbody><tr><td style="font-weight:500">云端主档</td><td>Fish Audio S2.1-Pro</td><td>自由词表行内标记 · 多说话人 · $15 / M 字节；free 档当 A/B 实验台</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">情绪特档</td><td>ElevenLabs v3 Dialogue</td><td>多人对白出彩；stability 三档</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">中文方言档</td><td>豆包语音合成 2.0 + 复刻 2.0（火山 BYOK）</td><td>¥3 / 万字符 · 8 种方言 · 情绪走 context_texts / <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">&lt;cot&gt;</code></td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #737373;color:#737373;background:transparent">后置</span></td></tr><tr><td style="font-weight:500">自托管</td><td>Qwen3-TTS 1.7B</td><td>独立 RunPod endpoint；3090 实测 3.9GB · RTF 0.97 · Apache-2.0 · VoiceDesign 造音色</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #737373;color:#737373;background:transparent">后置</span></td></tr><tr><td style="font-weight:500">观望</td><td>Seed-Audio 1.0（「字节 sudo」）· IndexTTS-2</td><td>邀测无定价 / 商用需授权</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #737373;color:#737373;background:transparent">远期</span></td></tr></tbody></table></div>
+<ul style="max-width:1200px"><li><b>情绪编译层</b>：L1 表现力三档 · L2 行内标记 · L3 情绪导演（LLM 只加标记不改词）· 参考音频借情绪；每家一份编译表。</li><li><b>人声提取</b>：ElevenLabs isolation（只要人声，≈$0.22 / 分钟）· fal demucs（人声 + 背景四轨，≈$0.02 / 4 分钟）；adapter 都已有。</li><li><b>接入顺序</b>：V1 Fish A/B 四变体 + 情绪导演 → V2 豆包 → V3 音色情绪元数据（依赖卡片）→ V4 Qwen3-TTS → V4b 人声提取 → V5 多人对白编排。</li></ul>
+</div>
+</x-dc>
+</body>
+</html>

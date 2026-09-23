@@ -1,1180 +1,211 @@
 {
   "artboards": [
     {
-      "file": "Flow.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 3200,
-      "h": 3420,
-      "title": "整站画面与跳转",
-      "page": "page-2"
-    },
-    {
-      "file": "Main.dc.html",
+      "file": "DigestOverview.dc.html",
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 1320,
+      "h": 1304,
       "title": "总览",
       "page": "page-1"
     },
     {
-      "file": "Roadmap.dc.html",
+      "file": "DigestBizBase.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 1006,
+      "title": "底座",
+      "page": "page-2"
+    },
+    {
+      "file": "DigestBizAssistant.dc.html",
       "x": 1500,
       "y": 0,
       "w": 1400,
-      "h": 1000,
-      "title": "建议路线 P0 / P1 / P2",
-      "page": "page-1"
+      "h": 1127,
+      "title": "助手",
+      "page": "page-2"
     },
     {
-      "file": "Image.dc.html",
+      "file": "DigestBizCards.dc.html",
       "x": 0,
-      "y": 1360,
+      "y": 1227,
       "w": 1400,
-      "h": 3120,
-      "title": "图片生成",
-      "page": "page-1"
+      "h": 800,
+      "title": "卡片",
+      "page": "page-2"
     },
     {
-      "file": "Video.dc.html",
+      "file": "DigestBizImage.dc.html",
       "x": 1500,
-      "y": 1360,
+      "y": 1227,
       "w": 1400,
-      "h": 2420,
-      "title": "视频生成",
-      "page": "page-1"
+      "h": 776,
+      "title": "图片",
+      "page": "page-2"
     },
     {
-      "file": "Audio.dc.html",
+      "file": "DigestBizVideo.dc.html",
       "x": 0,
-      "y": 4560,
+      "y": 2127,
       "w": 1400,
-      "h": 1780,
-      "title": "语音生成",
-      "page": "page-1"
+      "h": 688,
+      "title": "视频",
+      "page": "page-2"
     },
     {
-      "file": "Text.dc.html",
+      "file": "DigestBizCanvas.dc.html",
       "x": 1500,
-      "y": 4560,
+      "y": 2127,
       "w": 1400,
-      "h": 2380,
-      "title": "文字生成",
-      "page": "page-1"
+      "h": 811,
+      "title": "画布导演台",
+      "page": "page-2"
     },
     {
-      "file": "Artboard.dc.html",
-      "x": 140,
-      "y": 6612,
-      "w": 800,
-      "h": 600
-    },
-    {
-      "file": "Artboard2.dc.html",
-      "x": 1477,
-      "y": 7080,
-      "w": 800,
-      "h": 600
-    },
-    {
-      "file": "Artboard3.dc.html",
-      "x": 185,
-      "y": 7404,
-      "w": 800,
-      "h": 600
-    },
-    {
-      "file": "ResearchMap.dc.html",
+      "file": "DigestBizLora.dc.html",
       "x": 0,
-      "y": 2400,
+      "y": 3038,
       "w": 1400,
-      "h": 2240,
-      "title": "调研总图",
-      "page": "page-4"
+      "h": 611,
+      "title": "LoRA / Runner",
+      "page": "page-2"
     },
     {
-      "file": "ResearchDecide.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 880,
-      "title": "待拍板 12 件",
-      "page": "page-4"
-    },
-    {
-      "file": "ResearchImage.dc.html",
+      "file": "DigestBizAssets.dc.html",
       "x": 1500,
-      "y": 0,
+      "y": 3038,
       "w": 1400,
-      "h": 1960,
-      "title": "图片四家",
-      "page": "page-4"
+      "h": 596,
+      "title": "素材与去处",
+      "page": "page-2"
     },
     {
-      "file": "ResearchNai.dc.html",
-      "x": 3000,
-      "y": 0,
-      "w": 1400,
-      "h": 1360,
-      "title": "NovelAI + PixAI",
-      "page": "page-4"
-    },
-    {
-      "file": "ResearchVideo.dc.html",
-      "x": 4500,
-      "y": 0,
-      "w": 1400,
-      "h": 1530,
-      "title": "视频六族 + 分镜 / 白膜",
-      "page": "page-4"
-    },
-    {
-      "file": "ResearchTts.dc.html",
+      "file": "DigestBizVoice.dc.html",
       "x": 0,
-      "y": 980,
+      "y": 3749,
       "w": 1400,
-      "h": 1260,
-      "title": "语音 TTS",
-      "page": "page-4"
+      "h": 576,
+      "title": "语音",
+      "page": "page-2"
     },
     {
-      "file": "ResearchLlm.dc.html",
+      "file": "DigestBizHome.dc.html",
       "x": 1500,
-      "y": 2060,
+      "y": 3749,
       "w": 1400,
-      "h": 1620,
-      "title": "LLM 与助手",
-      "page": "page-4"
+      "h": 520,
+      "title": "首页",
+      "page": "page-2"
     },
     {
-      "file": "ResearchRunner.dc.html",
-      "x": 3000,
-      "y": 2060,
-      "w": 1400,
-      "h": 1700,
-      "title": "Runner / LoRA",
-      "page": "page-4"
-    },
-    {
-      "file": "ResearchCards.dc.html",
-      "x": 4500,
-      "y": 2060,
-      "w": 1400,
-      "h": 1330,
-      "title": "角色卡",
-      "page": "page-4"
-    },
-    {
-      "file": "Progress.dc.html",
+      "file": "DigestUiVisual.dc.html",
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 8000,
-      "title": "改进进度表",
-      "page": "page-7"
-    },
-    {
-      "file": "Voice.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 1700,
-      "title": "语音方案 · 草案",
-      "page": "page-8"
-    },
-    {
-      "file": "DesignAssistant.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 2550,
-      "title": "助手设计",
-      "page": "page-6"
-    },
-    {
-      "file": "DesignCanvas.dc.html",
-      "x": 1500,
-      "y": 0,
-      "w": 1400,
-      "h": 1860,
-      "title": "画布设计",
-      "page": "page-6"
-    },
-    {
-      "file": "DesignCards.dc.html",
-      "x": 3000,
-      "y": 0,
-      "w": 1400,
-      "h": 1560,
-      "title": "卡片设计",
-      "page": "page-6"
-    },
-    {
-      "file": "SharedPickerNow.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 1500,
-      "title": "模型选择器 · 现状",
-      "page": "page-5"
-    },
-    {
-      "file": "SharedPickerDirections.dc.html",
-      "x": 1500,
-      "y": 0,
-      "w": 1400,
-      "h": 1920,
-      "title": "模型选择器 · 三方向 + 解剖",
-      "page": "page-5"
-    },
-    {
-      "file": "SharedCandidates.dc.html",
-      "x": 0,
-      "y": 1690,
-      "w": 1400,
-      "h": 1090,
-      "title": "其他共享组件候选",
-      "page": "page-5"
-    },
-    {
-      "file": "SharedChannel.dc.html",
-      "x": 3000,
-      "y": 0,
-      "w": 1400,
-      "h": 1830,
-      "title": "渠道选择 · 四方案",
-      "page": "page-5"
-    },
-    {
-      "file": "SharedReference.dc.html",
-      "x": 1500,
-      "y": 2060,
-      "w": 1400,
-      "h": 1230,
-      "title": "参考素材入口",
-      "page": "page-5"
-    },
-    {
-      "file": "SharedSpec.dc.html",
-      "x": 3000,
-      "y": 2060,
-      "w": 1400,
-      "h": 1200,
-      "title": "规格 chip",
-      "page": "page-5"
-    },
-    {
-      "file": "SharedTaskBar.dc.html",
-      "x": 1500,
-      "y": 3350,
-      "w": 1400,
-      "h": 1490,
-      "title": "任务条",
-      "page": "page-5"
-    },
-    {
-      "file": "SharedDestinations.dc.html",
-      "x": 3000,
-      "y": 3350,
-      "w": 1400,
-      "h": 1800,
-      "title": "结果去向菜单",
-      "page": "page-5"
-    },
-    {
-      "file": "SharedKeyGate.dc.html",
-      "x": 0,
-      "y": 3270,
-      "w": 1400,
-      "h": 1370,
-      "title": "API key 门",
-      "page": "page-5"
-    },
-    {
-      "file": "SharedCmdK.dc.html",
-      "x": 0,
-      "y": 4730,
-      "w": 1400,
-      "h": 1790,
-      "title": "⌘K 命令面板",
-      "page": "page-5"
-    },
-    {
-      "file": "SharedListHeader.dc.html",
-      "x": 1500,
-      "y": 4950,
-      "w": 1400,
-      "h": 1290,
-      "title": "列表页页头",
-      "page": "page-5"
-    },
-    {
-      "file": "UxOverview.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 1700,
-      "title": "全体视角",
+      "h": 615,
+      "title": "视觉语言",
       "page": "page-3"
     },
     {
-      "file": "UxUser.dc.html",
+      "file": "DigestUiShared.dc.html",
       "x": 1500,
       "y": 0,
       "w": 1400,
-      "h": 1060,
-      "title": "用户视角",
+      "h": 1064,
+      "title": "交互原则与共享组件",
       "page": "page-3"
     },
     {
-      "file": "UxDesigner.dc.html",
-      "x": 0,
-      "y": 1840,
+      "file": "DigestUiPages.dc.html",
+      "x": 3000,
+      "y": 0,
       "w": 1400,
-      "h": 1730,
-      "title": "设计师视角",
+      "h": 1041,
+      "title": "页面与一致性",
       "page": "page-3"
     },
     {
-      "file": "UxHomeScroll.dc.html",
-      "x": 1500,
-      "y": 1840,
-      "w": 1400,
-      "h": 1560,
-      "title": "首页视觉滚动方案",
-      "page": "page-3"
-    },
-    {
-      "file": "UiInvPages.dc.html",
+      "file": "DigestProgress.dc.html",
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 2210,
-      "title": "A · 页面清单",
-      "page": "page-10"
+      "h": 3429,
+      "title": "进度表",
+      "page": "page-4"
     },
     {
-      "file": "UiInvPrimitives.dc.html",
+      "file": "DigestVendorImage.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 658,
+      "title": "图片厂商",
+      "page": "page-5"
+    },
+    {
+      "file": "DigestVendorVideo.dc.html",
       "x": 1500,
       "y": 0,
       "w": 1400,
-      "h": 1750,
-      "title": "B · 共享原语",
-      "page": "page-10"
+      "h": 582,
+      "title": "视频厂商",
+      "page": "page-5"
     },
     {
-      "file": "UiInvIssues.dc.html",
-      "x": 1500,
-      "y": 1900,
-      "w": 1400,
-      "h": 1280,
-      "title": "F · 一致性问题",
-      "page": "page-10"
-    },
-    {
-      "file": "UiInvVisual.dc.html",
+      "file": "DigestVendorVoice.dc.html",
       "x": 3000,
       "y": 0,
       "w": 1400,
-      "h": 1350,
-      "title": "E · 图标与视觉资产",
-      "page": "page-10"
+      "h": 597,
+      "title": "语音厂商",
+      "page": "page-5"
     },
     {
-      "file": "UiInvPatterns.dc.html",
-      "x": 3000,
-      "y": 1500,
-      "w": 1400,
-      "h": 3130,
-      "title": "D · 交互模式统计",
-      "page": "page-10"
-    },
-    {
-      "file": "UiInvBusiness.dc.html",
-      "x": 4500,
-      "y": 0,
-      "w": 1400,
-      "h": 8000,
-      "title": "C · 业务组件按域",
-      "page": "page-10"
-    },
-    {
-      "file": "MasterList.dc.html",
+      "file": "DigestVendorText.dc.html",
       "x": 0,
-      "y": 0,
+      "y": 758,
       "w": 1400,
-      "h": 3080,
-      "title": "总清单",
-      "page": "page-9"
+      "h": 520,
+      "title": "文字厂商",
+      "page": "page-5"
     },
     {
-      "file": "DesignProcess.dc.html",
+      "file": "DigestVendorRunner.dc.html",
       "x": 1500,
-      "y": 0,
+      "y": 758,
       "w": 1400,
-      "h": 960,
-      "title": "设计流程",
-      "page": "page-9"
-    },
-    {
-      "file": "ArtDirection.dc.html",
-      "x": 1500,
-      "y": 1100,
-      "w": 1400,
-      "h": 1420,
-      "title": "美术设计方法",
-      "page": "page-9"
-    },
-    {
-      "file": "DesignD1Map.dc.html",
-      "x": 3000,
-      "y": 0,
-      "w": 1400,
-      "h": 1970,
-      "title": "D1 美术方向 · 思维导图",
-      "page": "page-9"
-    },
-    {
-      "file": "VisualLanguage.dc.html",
-      "x": 4500,
-      "y": 0,
-      "w": 1400,
-      "h": 2760,
-      "title": "D1 ④ 视觉语言总板",
-      "page": "page-9"
-    },
-    {
-      "file": "VisualScenes.dc.html",
-      "x": 4500,
-      "y": 2900,
-      "w": 1400,
-      "h": 1530,
-      "title": "D1 ④ 场景套用",
-      "page": "page-9"
-    },
-    {
-      "file": "DesignD2Q1.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 1130,
-      "title": "D2 ① Q1 对照 A vs B",
-      "page": "page-11"
-    },
-    {
-      "file": "DesignD2Map.dc.html",
-      "x": 1500,
-      "y": 0,
-      "w": 1400,
-      "h": 1630,
-      "title": "D2 ② 思维导图",
-      "page": "page-11"
-    },
-    {
-      "file": "DesignD2Q1Final.dc.html",
-      "x": 0,
-      "y": 1230,
-      "w": 1400,
-      "h": 640,
-      "title": "D2 Q1 定案",
-      "page": "page-11"
-    },
-    {
-      "file": "DesignD2Picker.dc.html",
-      "x": 0,
-      "y": 1900,
-      "w": 1400,
-      "h": 3250,
-      "title": "D2 ④ 选择器",
-      "page": "page-11"
-    },
-    {
-      "file": "DesignD2Form.dc.html",
-      "x": 1500,
-      "y": 1900,
-      "w": 1400,
-      "h": 1880,
-      "title": "D2 ④ 能力驱动表单",
-      "page": "page-11"
-    },
-    {
-      "file": "DesignD2Spec.dc.html",
-      "x": 1500,
-      "y": 3830,
-      "w": 1400,
-      "h": 1800,
-      "title": "D2 ④ 规格 chip",
-      "page": "page-11"
-    },
-    {
-      "file": "DesignD3Ask.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 4030,
-      "title": "D3 ① 反问",
-      "page": "page-12"
-    },
-    {
-      "file": "DesignD3Map.dc.html",
-      "x": 1500,
-      "y": 0,
-      "w": 1460,
-      "h": 1900,
-      "title": "D3 ② 思维导图",
-      "page": "page-12"
-    },
-    {
-      "file": "DesignD3Settings.dc.html",
-      "x": 0,
-      "y": 4130,
-      "w": 1400,
-      "h": 3730,
-      "title": "D3 ④ /settings",
-      "page": "page-12"
-    },
-    {
-      "file": "DesignD3Keys.dc.html",
-      "x": 1500,
-      "y": 2000,
-      "w": 1400,
-      "h": 1480,
-      "title": "D3 ④ key 行",
-      "page": "page-12"
-    },
-    {
-      "file": "DesignD3Entry.dc.html",
-      "x": 1500,
-      "y": 3490,
-      "w": 1400,
-      "h": 1870,
-      "title": "D3 ④ 入口",
-      "page": "page-12"
-    },
-    {
-      "file": "DesignD4Ask.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 2730,
-      "title": "D4 ① 反问",
-      "page": "page-13"
-    },
-    {
-      "file": "DesignD7Ask.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 2760,
-      "title": "D7 ① 反问",
-      "page": "page-14"
-    },
-    {
-      "file": "DesignD7Map.dc.html",
-      "x": 1500,
-      "y": 0,
-      "w": 1460,
-      "h": 2600,
-      "title": "D7 ② 思维导图",
-      "page": "page-14"
-    },
-    {
-      "file": "DesignD7Dock.dc.html",
-      "x": 0,
-      "y": 2900,
-      "w": 1400,
-      "h": 3230,
-      "title": "D7 ④ dock",
-      "page": "page-14"
-    },
-    {
-      "file": "DesignD7Apply.dc.html",
-      "x": 1500,
-      "y": 2650,
-      "w": 1400,
-      "h": 1290,
-      "title": "D7 ④ 改回执",
-      "page": "page-14"
-    },
-    {
-      "file": "DesignD7Script.dc.html",
-      "x": 1500,
-      "y": 4040,
-      "w": 1400,
-      "h": 1510,
-      "title": "D7 ④ 剧本节点",
-      "page": "page-14"
-    },
-    {
-      "file": "DesignD7Shells.dc.html",
-      "x": 1500,
-      "y": 5650,
-      "w": 1400,
-      "h": 890,
-      "title": "D7 ④ LoRA 壳",
-      "page": "page-14"
-    },
-    {
-      "file": "DesignCardsTavern.dc.html",
-      "x": 3000,
-      "y": 1680,
-      "w": 1400,
-      "h": 2700,
-      "title": "卡片 · 酒馆对照",
-      "page": "page-6"
-    },
-    {
-      "file": "DesignD56Ask.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 2060,
-      "title": "D56a ① 反问",
-      "page": "page-15"
-    },
-    {
-      "file": "DesignD56Map.dc.html",
-      "x": 1500,
-      "y": 0,
-      "w": 1440,
-      "h": 1220,
-      "title": "D56a ② 思维导图",
-      "page": "page-15"
-    },
-    {
-      "file": "DesignD56bMap.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 900,
-      "title": "D56b ② 思维导图",
-      "page": "page-16"
-    },
-    {
-      "file": "DesignD56bUI.dc.html",
-      "x": 0,
-      "y": 1020,
-      "w": 1400,
-      "h": 3730,
-      "title": "D56b ④ UI 画板",
-      "page": "page-16"
-    },
-    {
-      "file": "DesignD7bMap.dc.html",
-      "x": 0,
-      "y": 6250,
-      "w": 1400,
-      "h": 1309,
-      "title": "D7b ② 一个壳四张脸",
-      "page": "page-14"
-    },
-    {
-      "file": "DesignD7bFaces.dc.html",
-      "x": 1500,
-      "y": 6650,
-      "w": 1400,
-      "h": 1320,
-      "title": "D7b ④ 四张脸",
-      "page": "page-14"
-    },
-    {
-      "file": "DesignD7bToggle.dc.html",
-      "x": 0,
-      "y": 7740,
-      "w": 1400,
-      "h": 2440,
-      "title": "D7b ④ 头像开关",
-      "page": "page-14"
-    },
-    {
-      "file": "DesignD56Simple.dc.html",
-      "x": 1500,
-      "y": 1970,
-      "w": 1400,
-      "h": 2500,
-      "title": "D56a ④ 最简版",
-      "page": "page-15"
-    },
-    {
-      "file": "DesignD10Map.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 1370,
-      "title": "D10 ② 思维导图",
-      "page": "page-17"
-    },
-    {
-      "file": "DesignD10Page.dc.html",
-      "x": 1500,
-      "y": 0,
-      "w": 1400,
-      "h": 1060,
-      "title": "D10 ④ 标签台整页",
-      "page": "page-17"
-    },
-    {
-      "file": "DesignD10States.dc.html",
-      "x": 0,
-      "y": 1490,
-      "w": 1400,
-      "h": 2230,
-      "title": "D10 ④ 状态",
-      "page": "page-17"
-    },
-    {
-      "file": "DesignD7cShell.dc.html",
-      "x": 1500,
-      "y": 8100,
-      "w": 1400,
-      "h": 1260,
-      "title": "D7c ④ 头部与历史",
-      "page": "page-14"
-    },
-    {
-      "file": "DesignD7cFlow.dc.html",
-      "x": 1500,
-      "y": 9480,
-      "w": 1400,
-      "h": 1490,
-      "title": "D7c ④ 空态与动效",
-      "page": "page-14"
-    },
-    {
-      "file": "DesignD11Account.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 1400,
-      "h": 1760,
-      "title": "D11 ④ 账号入口",
-      "page": "page-18"
-    },
-    {
-      "file": "DesignD11Rules.dc.html",
-      "x": 1500,
-      "y": 0,
-      "w": 1400,
-      "h": 1090,
-      "title": "D11 ④ 判据与动效",
-      "page": "page-18"
-    },
-    {
-      "file": "Artboard4.dc.html",
-      "x": 0,
-      "y": 0,
-      "w": 800,
-      "h": 600,
-      "title": "本次会话 · 变更、验收与上线记录",
-      "page": "page-19"
+      "h": 520,
+      "title": "Runner / RunPod",
+      "page": "page-5"
     }
   ],
-  "annotations": [
-    {
-      "id": "note-1",
-      "x": 1239,
-      "y": 1540,
-      "w": 240,
-      "text": "这边就分成四个类。GPT，GEMINI，FLUX，Seedream。版本型号做成可以下拉的列表。\n然后调查这四个类的最新文档。把他们所有功能补充到这边来。"
-    },
-    {
-      "id": "note-2",
-      "x": 1284,
-      "y": 1686,
-      "w": 240,
-      "text": "这边只保留NAI这一个大项，Illustrious和FLUX退役。然后去NAI查看最新的文档，把所有功能补充到这边来。然后标记已接入的和未接入的。\n然后调查下PixAI接入的方案。"
-    },
-    {
-      "id": "note-3",
-      "x": 1204,
-      "y": 1914,
-      "w": 240,
-      "text": "这边需要看下runpod是否需要优化，启动速度，各种配置等。\n然后是comfy的配置，是否有可以优化的地方。\n底模的选择是否可以再添加。\n以及Lora这边还缺什么设置"
-    },
-    {
-      "id": "note-4",
-      "x": 905,
-      "y": 2214,
-      "w": 240,
-      "text": "编辑这边太杂了，需要整理设计，先按功能区分，然后具体如何设计。最后还要和画布同步。\n"
-    },
-    {
-      "id": "note-5",
-      "x": 2616,
-      "y": 1527,
-      "w": 240,
-      "text": "这边也是按照六个节点区分，seedance，kling，wan，HappyHorse，Gemini，MiniMax"
-    },
-    {
-      "id": "note-6",
-      "x": 1059,
-      "y": 4699,
-      "w": 240,
-      "text": "这边目前需要调查除了这些还有什么比较常用的语音生成。我如果需要情感到位的语音生成怎么才能做到。有没有本地或者runpod可以部署的语音生成模型。"
-    },
-    {
-      "id": "note-7",
-      "x": 831,
-      "y": 4826,
-      "w": 240,
-      "text": "这边我想考虑加字节跳动的sudo"
-    },
-    {
-      "id": "note-8",
-      "x": 2693,
-      "y": 4806,
-      "w": 240,
-      "text": "增加，规划，助手我想合并到一起。整体分成gpt，gemini，grok，deepseek，claude\nQwen退役，然后每个都要去看文档，各自有什么能力，然后填到这边来。后面要抽取共同的能力，以及各自单独的能力单独设计。"
-    },
-    {
-      "id": "note-9",
-      "x": 2588,
-      "y": 5015,
-      "w": 471,
-      "text": "这边还能更全面的搜索吗。越全面越好，我想设计成claude或者gpt那样的搜索能力。"
-    },
-    {
-      "id": "note-10",
-      "x": 2568,
-      "y": 5086,
-      "w": 240,
-      "text": "助手这边的使用体验还需要优化，可以对其目前市面上agent的使用方式。像claude，gpt，deepseek这种。有记忆功能，上下文传输，搜索功能，分析功能，思考功能。"
-    },
-    {
-      "id": "note-11",
-      "x": 2500,
-      "y": 2058,
-      "w": 240,
-      "text": "目前功能整理一下，视频生成需要把资产做全，如角色参考图，背景图，剧本，分镜，声音，最后才是视频生成。还有参考视频怎么参考。台词怎么做，台词的语气怎么做。这都是视频制作要考虑的。\n目前有个问题是应该如何确定分镜这边镜头怎么放，以及转场怎么切换。\n是不是需要加一个转白膜的功能来确保视频的动作和分镜。"
-    },
-    {
-      "id": "note-12",
-      "x": 2916,
-      "y": 3350,
-      "w": 240,
-      "text": "目前是不是缺少卡片的设计，卡片设计后就能把这几个模块串联起来了。"
-    },
-    {
-      "id": "note-13",
-      "x": 70,
-      "y": 6292,
-      "w": 240,
-      "text": "助手这边的设计有比较大的缺陷，需要单独拿出来设计。画成一个单独的思维导图。\n助手->图片助手，视频助手，画布助手，Lora助手，之后可能要加一个卡片助手。\n问题1，这几个应该如何区分，是不是做成一个功能完整的最好。\n问题2，目前参考图审核遇到冲突直接报错，我想要的是如果无法确定就直接反问用户。"
-    },
-    {
-      "id": "note-14",
-      "x": 335,
-      "y": 6290,
-      "w": 240,
-      "text": "目前体验下来画布的助手体验比image的助手体验要好。\n"
-    },
-    {
-      "id": "note-15",
-      "x": 332,
-      "y": 6370,
-      "w": 240,
-      "text": "联网功能应该单独设计下。"
-    },
-    {
-      "id": "note-16",
-      "x": 329,
-      "y": 6431,
-      "w": 240,
-      "text": "助手的图片分析，页面分析也要重新一起设计下。\n"
-    },
-    {
-      "id": "note-17",
-      "x": 366,
-      "y": 7049,
-      "w": 240,
-      "text": "看下这几个助手应该如何设计，我认为都应该包括左边的功能。然后右边延伸出自己的专属功能"
-    },
-    {
-      "id": "note-18",
-      "x": 2300,
-      "y": 2639,
-      "w": 240,
-      "text": "我想把助手扩展出来的那个剧本功能提取出来。让助手做剧本大纲，然后再连线生成每个小的分镜。就像思维导图那样。"
-    },
-    {
-      "id": "note-19",
-      "x": 1838,
-      "y": 6720,
-      "w": 240,
-      "text": "去网上搜索然后判断角色卡的功能。目前我想到的是：创建一个角色卡，有这个角色的基本信息。参考图，声音参考。\n生成图片，视频的时候可以直接拿来用。"
-    },
-    {
-      "id": "note-20",
-      "x": 2455,
-      "y": 5303,
-      "w": 240,
-      "text": ""
-    },
-    {
-      "id": "note-21",
-      "x": -208,
-      "y": 188,
-      "w": 240,
-      "text": "1 需要你调查 \n2 需要你调查\n3 确认修改\n4 确认删除\n5 确认新增\n6 确认添加\n7 接\n8 都加，顺便白模这边是不是应该做一个相应的功能。如何转换成白模\n9 这个需要再调查下。最好是把语音这边的方案写在新的page。\n10 同上。\n11 确认。\n12 确认。",
-      "page": "page-4"
-    },
-    {
-      "id": "note-22",
-      "x": 1567,
-      "y": -52,
-      "w": 240,
-      "text": "目前的问题是如何进行区分。切换模型就要切换功能。具体应该如何设计。",
-      "page": "page-4"
-    },
-    {
-      "id": "note-30",
-      "x": 156,
-      "y": 220,
-      "w": 240,
-      "text": "这个设计真的好吗，目前体验下来效果还不如画布。",
-      "page": "page-6"
-    },
-    {
-      "id": "note-23",
-      "x": 1939,
-      "y": 2523,
-      "w": 240,
-      "text": "上传和粘贴我认为可以放在一起。",
-      "page": "page-5"
-    },
-    {
-      "id": "note-25",
-      "x": 1602,
-      "y": 4197,
-      "w": 240,
-      "text": "目前有这个设计吗。我没有印象。",
-      "page": "page-5"
-    },
-    {
-      "id": "note-39",
-      "x": 195,
-      "y": 2231,
-      "w": 240,
-      "text": "确认",
-      "page": "page-3"
-    },
-    {
-      "id": "note-52",
-      "x": 960,
-      "y": 1285,
-      "w": 240,
-      "text": "确认",
-      "page": "page-3"
-    },
-    {
-      "id": "note-24",
-      "x": 4636,
-      "y": 328,
-      "w": 240,
-      "text": "没问题",
-      "page": "page-9"
-    },
-    {
-      "id": "note-26",
-      "x": 4732,
-      "y": 743,
-      "w": 240,
-      "text": "这边我认为不需要按照颜色区分",
-      "page": "page-9"
-    },
-    {
-      "id": "note-27",
-      "x": 5348,
-      "y": 748,
-      "w": 240,
-      "text": "这三个没问题",
-      "page": "page-9"
-    },
-    {
-      "id": "note-28",
-      "x": 4654,
-      "y": 944,
-      "w": 240,
-      "text": "确认，没问题",
-      "page": "page-9"
-    },
-    {
-      "id": "note-29",
-      "x": 4805,
-      "y": 1295,
-      "w": 240,
-      "text": "这边设计感觉有点普通,我认为需要单独设计，或者使用开源的组件。以及上面这个P也很丑需要设计。我不希望这部分你直接做出来，而是和我讨论怎么设计。",
-      "page": "page-9"
-    },
-    {
-      "id": "note-31",
-      "x": 4661,
-      "y": 1822,
-      "w": 240,
-      "text": "这边没问题",
-      "page": "page-9"
-    },
-    {
-      "id": "note-32",
-      "x": 4746,
-      "y": 2456,
-      "w": 240,
-      "text": "这边设计不太对。一个是信息太多。跟之前讨论的设计不一样。之需要模型，模型型号。以及价格。",
-      "page": "page-9"
-    },
-    {
-      "id": "note-33",
-      "x": 4669,
-      "y": 2831,
-      "w": 240,
-      "text": "这边目前设计的差不多。看下目前的设计。不用改太多，我认为之需要保留视频和名字。",
-      "page": "page-9"
-    },
-    {
-      "id": "note-34",
-      "x": 4703,
-      "y": 3286,
-      "w": 240,
-      "text": "这边先不设计。等到画布的时候再去设计。",
-      "page": "page-9"
-    },
-    {
-      "id": "note-35",
-      "x": 473,
-      "y": 3928,
-      "w": 240,
-      "text": "这个不对。参考目前已经做的配置UI去优化。",
-      "page": "page-11"
-    },
-    {
-      "id": "note-36",
-      "x": 1763,
-      "y": 3522,
-      "w": 240,
-      "text": "这个不需要，直接切换",
-      "page": "page-11"
-    },
-    {
-      "id": "note-37",
-      "x": 1689,
-      "y": 2922,
-      "w": 240,
-      "text": "NAI感觉需要单独设计。",
-      "page": "page-11"
-    },
-    {
-      "id": "note-38",
-      "x": 2248,
-      "y": 2948,
-      "w": 240,
-      "text": "Runner是在Lora那边。不应该一起设计。UI不一样的。",
-      "page": "page-11"
-    },
-    {
-      "id": "note-40",
-      "x": 1645,
-      "y": 4231,
-      "w": 240,
-      "text": "比例加上图像参考",
-      "page": "page-11"
-    },
-    {
-      "id": "note-41",
-      "x": 2118,
-      "y": 4412,
-      "w": 240,
-      "text": "时长应该做成滚动的。",
-      "page": "page-11"
-    },
-    {
-      "id": "note-42",
-      "x": 525,
-      "y": 5289,
-      "w": 240,
-      "text": "需要加上用户自己的回答，其他",
-      "page": "page-14"
-    }
-  ],
+  "annotations": [],
   "launch": {
     "view": "canvas",
-    "page": "page-19"
+    "page": "page-1"
   },
   "pages": [
     {
       "id": "page-1",
-      "name": "生成方向"
+      "name": "1 · 总览"
     },
     {
       "id": "page-2",
-      "name": "画面地图"
+      "name": "2 · 业务设计"
     },
     {
       "id": "page-3",
-      "name": "UI/UX 总结"
+      "name": "3 · UI 总纲"
     },
     {
       "id": "page-4",
-      "name": "调研 · 一手核对"
+      "name": "4 · 进度表"
     },
     {
       "id": "page-5",
-      "name": "共享组件"
-    },
-    {
-      "id": "page-6",
-      "name": "助手 · 画布 · 卡片"
-    },
-    {
-      "id": "page-7",
-      "name": "改进进度表"
-    },
-    {
-      "id": "page-8",
-      "name": "语音方案 · 草案"
-    },
-    {
-      "id": "page-9",
-      "name": "总清单 · 设计流程"
-    },
-    {
-      "id": "page-10",
-      "name": "UI 全清单"
-    },
-    {
-      "id": "page-11",
-      "name": "D2 · 选择器 / 表单 / 规格"
-    },
-    {
-      "id": "page-12",
-      "name": "D3 · key 门 / settings / 胶囊"
-    },
-    {
-      "id": "page-13",
-      "name": "D4 · 去向菜单 / 右键 / 任务条"
-    },
-    {
-      "id": "page-14",
-      "name": "D7 · 助手"
-    },
-    {
-      "id": "page-15",
-      "name": "D56a · 助手记忆"
-    },
-    {
-      "id": "page-16",
-      "name": "D56b · 调查 · 反问 · 分析"
-    },
-    {
-      "id": "page-17",
-      "name": "D10 · 标签台 image/tags"
-    },
-    {
-      "id": "page-18",
-      "name": "D11 · 账号入口"
-    },
-    {
-      "id": "page-19",
-      "name": "09.21–23 · 本次会话更新"
+      "name": "5 · 厂商速查"
     }
   ]
 }

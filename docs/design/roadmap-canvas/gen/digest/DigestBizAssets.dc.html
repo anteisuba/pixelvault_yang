@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>素材与去处</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 2 业务设计 · 7 / 10 · 层 1</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">素材与去处：素材库 · 画廊 · 提示词 · 故事板 · 主页</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">去处页是浏览面（纯白），工具页是工作面（灰底白卡）。</p>
+  </div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">已定的设计</div></div>
+<ul style="max-width:1200px"><li><b>素材库</b>：<code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">/assets/[id]</code> 详情整页（与抽屉同一组件，非本人 404）；文件夹进 URL <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">?projectId=</code>；历史并入素材库，接文件夹树 / 搜索 / 收藏 / 媒体筛选（09-23 画布侧）。</li><li><b>画廊卡减负</b>：静态只留媒体 + 时长，作者与操作 hover / 键盘聚焦才出，触屏点进详情。</li><li><b>发布后</b>「去画廊看」toast；登录后仍落图片工作台（不做工作台首页）。</li><li><b>列表页头 ListPageHeader</b>（标题 · 计数 · 分面 · 排序 · 密度）+ 素材库文件夹条 / 树 / 拖动移动 —— 随 D5 设计。</li><li><b>Prompts 收敛</b>：公共配方并入画廊（随 57）。故事板是真实页面，在「去处」组。</li></ul>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">现状</div></div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>#</th><th>项</th><th>说明</th><th>状态</th></tr></thead><tbody><tr><td style="font-weight:500">20 · 31 · 53</td><td>详情路由 · 画廊卡减负 · 发布回链</td><td></td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">19</td><td>列表页头 + 文件夹条</td><td>随 D5</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr><tr><td style="font-weight:500">57</td><td>Prompts 收敛</td><td>随旧助手清理</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #a04f00;color:#a04f00;background:transparent">待 spec</span></td></tr></tbody></table></div>
+</div>
+</x-dc>
+</body>
+</html>

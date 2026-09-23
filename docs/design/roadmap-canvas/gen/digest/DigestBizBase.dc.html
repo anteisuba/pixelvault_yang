@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>底座</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 2 业务设计 · 0 / 10 · 层 0 底座</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">底座：账号 · key · 选择器 · 表单 · 规格</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">所有业务都站在这层上。大部分已落；剩下的共享件（D4 / D5 / 手机统一）见末段，它们挡着具体业务的动作入口。</p>
+  </div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">已定的设计</div></div>
+<ul style="max-width:1200px"><li><b>模型选择器（D2）</b>：工作台 · 画布节点 · 配音间用同一颗 ModelPickerPopover；行只三件「模型 · 型号 · 价格」；渠道在弹层右侧独立面板（绿点有 key · 黄点缺 key，选中用底色）；<b>没有「自动」</b>，多渠道型号未选时生成键写「先选渠道」；按型号记住；按厂商分组 + 最近 3 + 搜索。</li><li><b>能力驱动表单（D2）</b>：通用区固定（模型 · 规格 · 张数 · 提示词 · 参考轨）；模型专属 chip 行从 capabilities 派生；切模型直接切，专属整组换、不提示不撤销。</li><li><b>规格 chip（D2）</b>：一颗合成 chip「比例 · 清晰度 · 时长」，弹层三段 + 更多折叠；时长是滚动条（整秒吸附、气泡跟拇指、无刻度）；首帧锁自适应沿用；画布提示词栏 chip ≤ 2。</li><li><b>key 门（D3）</b>：缺 key 一律灰显可点 → QuickSetupDialog（获取 → 粘贴 → 命名 → 验证并激活），底部「管理全部 key →」。</li><li><b>/settings（D3）</b>：整页四分区 key / 用量 / 偏好 / 助手；key 按 provider 一行，失效 → 已配 → 未配置，失效只在这里标红；用量只显数字并标「估算」。</li><li><b>账号入口（D11）</b>：侧栏最底一行 = 头像 + 名字 + ▾，向上弹菜单「语言 · 设置 · 退出」；个人主页进「去处」导航；<b>不做外观</b>；任何地方不挂红点。</li></ul>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">现状</div></div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>#</th><th>项</th><th>说明</th><th>状态</th></tr></thead><tbody><tr><td style="font-weight:500">10 · 11 · 12 · 61</td><td>选择器 · 表单 · 规格 chip · input_fidelity</td><td>手机 Sheet、LoRA 底模弹窗、助手 LLM 路由、画布旧路由选择器四处还没并进同一颗</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">13 · 14 · 70</td><td>/settings · 入口 · 账号菜单</td><td>侧栏与手机抽屉都接了 AccountMenu</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">60</td><td>删生成类免费档</td><td>FreeTierSlot 表无引用待 drop；image-edit 里 fal 平台 key 兜底要不要删</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #b3261e;color:#b3261e;background:transparent">待 owner</span></td></tr><tr><td style="font-weight:500">68</td><td>选择器 vendor / series / variant 三段结构</td><td>现在按字符串前缀拆名，GPT Image / FLUX 组仍重复厂商名</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#16794c;background:transparent">可开工</span></td></tr><tr><td style="font-weight:500">—</td><td>icon 桶 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">use client</code> vs <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">dist/ssr</code></td><td>整桶标 client 会把服务端组件拉下水</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #b3261e;color:#b3261e;background:transparent">待 owner</span></td></tr></tbody></table></div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">还没做的共享件</div><div style="font-size:12px;color:#737373">挡着各业务的动作入口</div></div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>设计步</th><th>已定方向</th><th>挡谁</th><th>状态</th></tr></thead><tbody><tr><td style="font-weight:500">D4 去向菜单 · 右键 · 任务条（16 · 17 · 18）</td><td>一份动作注册表在三处出现（画布卡 ⋯ / 节点右键 · 工作台结果卡主动作 + ⋯ · 素材 / 画廊详情 ⋯）；⌘K 只留给键盘用户，入口改右键 / 双击，删 ShellCommandPalette；任务条 = 一个状态模型（排队 · 冷启动 · 生成 · 归档 · 失败 · 取消）多种皮。① 五题已出未答：主动作固定否 · 右键 = ⋯ 否 · 失败态给什么 · 空白右键还是双击 · 要不要跨页角标</td><td>编辑线 42 · 转白模 / 改这段 28 · 38 · 音频编辑 50</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr><tr><td style="font-weight:500">D5 参考入口 · 列表页头 · 文件夹 · 空态（15 · 19 · 52）</td><td>参考入口一个弹层（上传 · 素材库含最近使用 · 粘贴 / 链接 · 画布内）+ 一条参考轨（@N 编号 · 用途角标 · 按模型上限读数）；「还在库里」chip；列表页头 ListPageHeader + 文件夹条 / 树 / 拖动移动</td><td>卡片参考槽 · StyleCard 43 · 素材库</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr><tr><td style="font-weight:500">55 手机统一</td><td>一条底部输入条 + 一个参数抽屉 + 助手半屏 Sheet，各工具只换抽屉内容</td><td>画布助手手机宿主</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #6d28d9;color:#6d28d9;background:transparent">待设计</span></td></tr></tbody></table></div>
+</div>
+</x-dc>
+</body>
+</html>

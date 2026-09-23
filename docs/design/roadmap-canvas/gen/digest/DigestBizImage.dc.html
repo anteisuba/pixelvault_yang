@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>图片</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 2 业务设计 · 3 / 10 · 层 1</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">图片：两台 + 编辑线</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">按提示词方言分两台：<b>自然语言台</b>（GPT Image · Gemini · FLUX · Seedream · Qwen 2.1 私有评估）与 <b>NAI 标签台</b>；工作台做快轻单次，结果就地编辑。</p>
+  </div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">已定的设计</div></div>
+<ul style="max-width:1200px"><li><b>两台（D10）</b>：顶部分段切换；不跨方言多选；台内多选取交集，只对某家生效的项灰标「只对 X 生效」但仍可改，出图按各模型能力裁剪 payload。</li><li><b>同系列多选、跨系列替换整组</b>（09-22）：GPT Image 三型号可对比；切到 Seedream 等其他系列会替换整组并重置专属参数。</li><li><b>NAI 标签台两栏（09-21）</b>：左栏提示词 / 角色就地编辑 / 画师串 / 参数，右侧按需展开构图 · 资料 · 分块；Danbooru 查角色与画师 + NAI 官方标签补全；权重统一显示 ×1.2，落 payload 翻成 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">{}</code>。</li><li><b>NAI 出角色图用 V5 Full</b>（09-23 同 seed 对照：Curated 不认识 Denia，Full 认识）；标签台默认型号要从 Curated 改掉。</li><li><b>编辑线重整（42）</b>：三区 ① 像素级（重绘 · 扩图 · 去背景 · 超分）② 指令级（整图修改 · 替换 · 风格迁移）③ 结构级（提取 · 图层拆分 · 多视角）；编辑器与画布共用。</li><li><b>新接顺序</b>：FLUX.2 [max] → Seedream 组图（图层拆分、透明底已落）。PixAI 09-20 暂时下架。</li></ul>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">现状</div></div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>#</th><th>项</th><th>说明</th><th>状态</th></tr></thead><tbody><tr><td style="font-weight:500">66 · 26</td><td>标签台 · NAI 控件</td><td>两栏 · 官方补全 · V4.5 精确参考 · 采样器 · 质量标签 / UC / Text:</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">61 · 62 · 63</td><td>input_fidelity · 图层拆分 · 透明底</td><td>图层存 GenerationLayer 表</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">71</td><td>Qwen Image 2.1 私有评估</td><td>独立 RunPod 端点；多参考真实出图未验</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #a04f00;color:#a04f00;background:transparent">待验</span></td></tr><tr><td style="font-weight:500">—</td><td>标签台默认型号改 V5 Full · 助手出角色图选 Full</td><td>09-23 对照结论</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#16794c;background:transparent">可开工</span></td></tr><tr><td style="font-weight:500">—</td><td>NAI 精确参考付费联调</td><td>+5 Anlas / 张，只 V4.5</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #a04f00;color:#a04f00;background:transparent">待验</span></td></tr><tr><td style="font-weight:500">25</td><td>FLUX.2 [max] → Seedream 组图</td><td>纯增量</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#16794c;background:transparent">可开工</span></td></tr><tr><td style="font-weight:500">42 · 46</td><td>编辑线三分区（含风格迁移）</td><td>主动作要等 D4 去向菜单</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #737373;color:#737373;background:transparent">等依赖</span></td></tr></tbody></table></div>
+</div>
+</x-dc>
+</body>
+</html>

@@ -2,7 +2,7 @@
 
 ## 总进度图（2026-09-23 读码核对）
 
-以生产代码 `5e422f97`（= origin/main，Vercel 生产 READY）对照线上生成方向图 19 页 / 86 张画板。画布已用 Artifact 工具重发（Version 115）：第 7 页进度表、第 1 页总览 / 图片 / 文字、第 18 页账号菜单按代码更正，回读逐文件一致。绿色 = 主体代码已上生产，黄色 = 部分落地，灰色 = 待设计 / 待实现；上线不等于真机或付费验收通过。09-20 的逐项证据见 [18 页核对报告](design/roadmap-canvas/research/audit-18-pages-2026-09-20.md)。
+以生产代码 `5e422f97`（= origin/main，Vercel 生产 READY）核对后，线上设计总图已由 19 页浓缩为 5 页（总览 · 业务设计 · UI 总纲 · 进度表 · 厂商速查，Version 119）；**进度以画布第 4 页为准**，仓库镜像见 [digest/page-4.md](design/roadmap-canvas/digest/page-4.md)。绿色 = 主体代码已上生产，黄色 = 部分落地，灰色 = 待设计 / 待实现；上线不等于真机或付费验收通过。
 
 ```mermaid
 flowchart TB
@@ -44,7 +44,7 @@ flowchart TB
 ```
 
 - 下方 09-17 至 09-23 各条写的「未提交 / 未推送 / 未部署」代码均已随 `5e422f97` 上生产。**生产站与本地开发共用同一个库**：09-23 生产构建日志 `Datasource … at ep-flat-violet-aifhen7l`（Neon `development` 分支）、`No pending migrations to apply`；Arena drop、CharacterCard v2、GenerationLayer、AssistantMemory 四条迁移 09-18 至 09-21 已应用。Neon 里名为 `production` 的默认分支已停用（09-07 后无写入），名字易误导；查库时必须指定 `development` 分支。
-- 画布已按代码更正：首页 09-22 去掉前后景错速；PixAI 已下架；选择器「最近」段已删；账号菜单不做「外观」（owner 09-23 定）；第 1 页文本模型改为 GPT-6 / Opus 5.5 / Grok 4.7；09-21–23 表外已落项收进进度表第 10 段（71–75）。
+- 业务按依赖分层（见画布第 1 页）：层 0 底座 → 层 1 助手 ‖ 卡片 ‖ 图片 ‖ 视频 ‖ LoRA ‖ 素材 → 层 2 画布导演台 → 层 3 剪辑台成片 / 语音；卡片挡画布不挡助手，建议卡片 35 与助手讨论并行开。
 - 文档与代码一致、仍未做：`deliverTimelineProposal` 无生产者；57 旧助手组件仍在；68 选择器仍按字符串前缀拆名；卡片 v3 / `referenceSlots`；隐身仍保存本轮记录（只不写长期记忆）。
 - NAI Denia 根因（09-23 同 seed 对照，owner 授权付费）：提示词只写 `denia (wuthering waves), 1girl, solo, upper body, looking at viewer, simple background, white background`，seed 20260923、23 步、CFG 7、Euler Ancestral，V5 Full 出的是 Denia，V5 Curated 出的是另一个人。标签原样到达 NAI，链路没有改写；问题是**标签台默认型号是 V5 Curated**，它不认识这个角色。待改：标签台默认型号、助手出角色图的选型规则。
 - owner 09-23 定下一步：先讨论助手设计收口与 NAI 出图流程。

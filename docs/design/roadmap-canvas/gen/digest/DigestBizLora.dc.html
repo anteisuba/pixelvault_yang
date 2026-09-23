@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>LoRA / Runner</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 2 业务设计 · 6 / 10 · 层 1</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">LoRA / Runner：用 LoRA 出对图</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">北极星双核之二。工作台四段平级：出图 · 社区库 · 我的 · 训练；Runner 底模只出现在这里。</p>
+  </div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">已定的设计</div></div>
+<ul style="max-width:1200px"><li>训练拆成向导页（34，沿用 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">?section=train</code>，不新造路由）；助手这张脸 = 提示词写对 · LoRA 挂对 · 参数调对。</li><li>LoRA 底模弹窗不走通用模型选择器（要显示兼容性与 fal / Runner 通道）。</li><li><b>RunPod</b>：主端点 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">dt0wyuid7lywic</code>（Active 0 · Max 2 · Idle 5s · 24 GB / 24 GB Pro）；Qwen Image 2.1 独立端点 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">ok6riemrmpdiic</code>（Max 1，私有白名单）。</li><li><b>底模顺序</b>：Anima 新档 → Krea 2（版本门已开）→（扩 Volume 后）Z-Image Turbo。</li></ul>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">现状</div></div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>#</th><th>项</th><th>说明</th><th>状态</th></tr></thead><tbody><tr><td style="font-weight:500">34</td><td>画廊卡减负 · Train 向导页</td><td>LoraWorkbench 仍 4625 行：GenerateBranch 约 3300 行没拆，不在当时授权内</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#fff;background:#16794c">已落</span></td></tr><tr><td style="font-weight:500">45</td><td>运行时下载 LoRA + 底模插槽 + 护栏</td><td>白名单只有 1 条；fork 里按 Civitai URL 运行时下载 + SHA + LRU，收益最大</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #a04f00;color:#a04f00;background:transparent">待 spec</span></td></tr><tr><td style="font-weight:500">—</td><td>LoRA 设置补齐</td><td>strength_model / clip 分离 · clip skip 可覆盖 · 采样器选择器 · 负面 embedding · hires fix · ADetailer</td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #16794c;color:#16794c;background:transparent">可开工</span></td></tr><tr><td style="font-weight:500">—</td><td>GenerateBranch 拆分</td><td></td><td style="width:1%;white-space:nowrap"><span style="display:inline-flex;white-space:nowrap;font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;line-height:1.5;padding:2px 8px;border-radius:999px;border:1px solid #b3261e;color:#b3261e;background:transparent">待 owner</span></td></tr></tbody></table></div>
+</div>
+</x-dc>
+</body>
+</html>

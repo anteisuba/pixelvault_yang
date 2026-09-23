@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>首页</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 2 业务设计 · 9 / 10 · 独立</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">首页：v4 翻页 + 自动演示</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">营销域，不挡任何业务。GSAP 只许在这里用（目前零引用）。</p>
+  </div>
+<ul style="max-width:1200px"><li>v4 横向 deck（开场作品墙 → 功能页 → 模型站 → 终页）；B 方案（连续滚动 + 钉住 scrub）画板通过、<b>09-20 真机被推翻</b>，整体回 v4。</li><li>09-22：去掉连续 scrub 与前后景错速；模型区逐个浏览到分类首尾；画布演示自动播放（对话 → 分镜 → 节点 → 连线 → 成片）。</li><li>功能卡整卡可点直达工具，不加按钮（31）；首页顶栏只留一颗入口按钮。</li><li>待：真机目检；hero 固定 6 张 + LQIP；Cookie 横幅改右下小卡。</li></ul>
+</div>
+</x-dc>
+</body>
+</html>

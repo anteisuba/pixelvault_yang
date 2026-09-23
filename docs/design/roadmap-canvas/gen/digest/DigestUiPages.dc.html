@@ -1,0 +1,36 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>页面与一致性</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 3 UI 总纲 · 3 / 3</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">页面清单与仍存在的不一致</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">页面规范的全文在仓库 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">docs/references/pages/</code> 与 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">domains/</code>；这里是索引。不一致项 09-23 按代码复核过，已解决的不再列。</p>
+  </div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">页面</div></div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>路由</th><th>是什么</th><th>规范</th></tr></thead><tbody><tr><td style="font-weight:500">/</td><td>营销首页 v4</td><td>pages/home.md</td></tr><tr><td style="font-weight:500">/studio/image</td><td>自然语言台（图片工作台）</td><td>pages/studio-image-workbench.md</td></tr><tr><td style="font-weight:500">/studio/image/tags</td><td>NAI 标签台</td><td>pages/studio-image-workbench.md</td></tr><tr><td style="font-weight:500">/studio/video</td><td>视频工作台（快轻短片）</td><td>pages/studio-video-mobile-request.md</td></tr><tr><td style="font-weight:500">/studio/node</td><td>画布导演台；<code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">?mode=edit</code> = 剪辑台</td><td>pages/node-canvas-v2.md</td></tr><tr><td style="font-weight:500">/studio/lora</td><td>LoRA 工作台（出图 · 社区库 · 我的 · 训练）</td><td>pages/lora-workbench.md</td></tr><tr><td style="font-weight:500">/studio/audio</td><td>配音间（不挂助手）</td><td>domains/audio.md</td></tr><tr><td style="font-weight:500">/studio/3d</td><td>3D 生成台</td><td>pages/studio-3d.md</td></tr><tr><td style="font-weight:500">/assets · /assets/[id]</td><td>素材库 · 详情</td><td>pages/assets.md</td></tr><tr><td style="font-weight:500">/gallery · /gallery/[id]</td><td>公开画廊</td><td>domains/gallery.md</td></tr><tr><td style="font-weight:500">/prompts · /cards · /storyboard</td><td>提示词 · 卡片 · 故事板</td><td>pages/prompts.md · domains/cards.md</td></tr><tr><td style="font-weight:500">/settings/*</td><td>key · 用量 · 偏好 · 助手</td><td>pages/settings.md</td></tr><tr><td style="font-weight:500">/u/[username]</td><td>个人主页</td><td>—</td></tr><tr><td style="font-weight:500">助手（非页面）</td><td>三宿主同一壳</td><td>pages/assistant-shell-v2.md · assistant-op-table.md</td></tr></tbody></table></div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">仍存在的不一致</div><div style="font-size:12px;color:#737373">09-23 复核</div></div>
+<ul style="max-width:1200px"><li>灯箱 5 套：StudioLightbox · StudioOperatorLightbox · QuickLook · MediaDetailViewer · LoraCoverPreviewDialog。</li><li>视频播放器 3 份（其中两个都叫 VideoPlayer）。</li><li>拖拽 4 套机制：dnd-kit（1 处）· pragmatic-drag-and-drop · 原生 HTML5 · xyflow。</li><li>卡片瓦片 7 套；弹层原语两套并行（ResponsiveDialog vs 裸 Dialog）；移动判据三套（useIsMobile · isTouchPrimary · 断点）。</li><li>素材 / 参考选择器 6 份 → D5；命令面板 2 份 → D4；模型选择器剩 4 处 → 见上页。</li><li><code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">ui/</code> 里 5 个原语零引用（animated-collapse · aspect-ratio-selector · hyper-text · image-compare · particles）。</li><li>超大文件：LoraWorkbench 4625 行 · StudioOperatorPanel 2758 行 · assistant-operator.service 9927 行。</li></ul>
+</div>
+</x-dc>
+</body>
+</html>

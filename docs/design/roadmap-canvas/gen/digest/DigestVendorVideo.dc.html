@@ -1,0 +1,34 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>视频厂商</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 5 厂商速查 · 2 / 5 · 2026-09-17 一手核对</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">视频：六族</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">全文在 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">research/video.md</code>。</p>
+  </div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>家族</th><th>官方能力</th><th>我们的状态</th></tr></thead><tbody><tr><td style="font-weight:500">Seedance 2.5 / 2.0</td><td>480p–1080p · 4–30s 或 -1 智能 · 编辑 / 延长任务 · 21:9 · <b>白模参考 / 渲染三档</b> · 时间戳分镜；2.0 图 1–9 / 视频 3 / 音频 3，只认「镜头 N」</td><td>1080p 已放开；编辑 / 延长 · -1 · 21:9 未接</td></tr><tr><td style="font-weight:500">Kling O3 / V3 Pro</td><td><b>multi_prompt 镜头列表</b> + shot_type · 首尾帧 · elements + create-voice · video-to-video · motion-control；无延长端点</td><td>O3 v2v edit 已接（转白模）；multi_prompt · 首尾帧 · elements 未接</td></tr><tr><td style="font-weight:500">Wan 3.0</td><td>t2v / i2v 首尾帧 / r2v（图 10 · 视频 5 · 音频 5）· Prime 上位档</td><td>主体已接；Prime 未接</td></tr><tr><td style="font-weight:500">HappyHorse 1.1</td><td>reference-to-video · video-edit</td><td>只接 t2v + i2v</td></tr><tr><td style="font-weight:500">Gemini Omni 1.1 Flash</td><td>五种任务含 edit / extend · 首尾帧 · 有状态多轮编辑 · 360p–4K</td><td>只当文生 / 图生</td></tr><tr><td style="font-weight:500">MiniMax H3</td><td>i2v 首尾帧 · 768P / 2K · 768P → 2K Regeneration（约砍 40% 试错成本）· H3-Max</td><td>只发 2K；首尾帧未接</td></tr></tbody></table></div>
+<ul style="max-width:1200px"><li><b>尾帧</b>：keyframeSlots 全是 1，只有火山通道真发 last_frame；Kling / MiniMax / Omni 的尾帧被静默丢。</li><li><b>白模试验（09-17）</b>：Kling O3 standard v2v edit，5s 720p 推镜一次调用 247s · $0.126 / s ≈ $0.63；运动 / 姿态 / 构图逐帧对齐，材质统一哑光陶土；prompt 要保留背景体块、写 no eye color。</li></ul>
+</div>
+</x-dc>
+</body>
+</html>

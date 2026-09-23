@@ -67,6 +67,13 @@ export interface LlmTextInput {
   /** Request strict JSON where the provider supports it. */
   responseFormat?: 'json_object'
   /**
+   * JSON Schema for adapters with native structured outputs (Anthropic
+   * `output_config.format`). It must already fit that API's subset: every
+   * object `additionalProperties: false`, no `minLength` / `maxLength` /
+   * `minimum` / `maximum`, no recursion. Other adapters ignore it.
+   */
+  jsonSchema?: Record<string, unknown>
+  /**
    * Image input(s) for multimodal completion. Each entry may be either a
    * `data:` URL or an `http(s)` URL — the implementation normalizes per
    * provider:
@@ -222,6 +229,11 @@ const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.ANTHROPIC]: 'Claude',
   [AI_ADAPTER_TYPES.XAI]: 'Grok',
 }
+
+/** "Gemini, DeepSeek, …, or Grok" — derived so route errors can't drift from the list. */
+const LLM_TEXT_PROVIDER_NAMES = new Intl.ListFormat('en', {
+  type: 'disjunction',
+}).format(LLM_TEXT_ADAPTERS.map((adapterType) => LLM_TEXT_LABELS[adapterType]))
 
 const LLM_TEXT_IMAGE_MAX_BYTES = 10 * 1024 * 1024
 
@@ -798,7 +810,7 @@ export async function findLlmTextKeyId(
 
 /**
  * Resolves which LLM provider + API key to use for text completion.
- * Priority: specified apiKeyId → user Gemini key → user DeepSeek key → user OpenAI key → user VolcEngine key
+ * Priority: specified apiKeyId → the user's newest active key in `LLM_TEXT_ADAPTERS` order → platform Gemini key
  */
 export async function resolveLlmTextRoute(
   userId: string,
@@ -819,7 +831,7 @@ export async function resolveLlmTextRoute(
     const adapterType = specificKey.adapterType as AI_ADAPTER_TYPES
     if (!isLlmTextAdapter(adapterType)) {
       throw new Error(
-        'The selected API key does not support text completion (requires Gemini, DeepSeek, OpenAI, or VolcEngine). Please bind a compatible key.',
+        `The selected API key does not support text completion (requires ${LLM_TEXT_PROVIDER_NAMES}). Please bind a compatible key.`,
       )
     }
 
@@ -883,7 +895,7 @@ export async function resolveLlmTextRoute(
 
   const tried = triedProviders.join(', ')
   throw new Error(
-    `No API key available. Tried: ${tried}. Please add a Gemini, DeepSeek, OpenAI, or VolcEngine API key in Settings > API Keys.`,
+    `No API key available. Tried: ${tried}. Please add a ${LLM_TEXT_PROVIDER_NAMES} API key in Settings > API Keys.`,
   )
 }
 
@@ -1421,7 +1433,13 @@ function buildDeepseekChatRequest(
     throw new Error('DeepSeek text completion does not support grounding.')
   }
 
-  const modelId = input.modelId ?? LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DEEPSEEK]
+  // No model chosen + image input → the vision tier. An explicit V4 Pro choice
+  // still refuses images below.
+  const modelId =
+    input.modelId ??
+    (input.imageData
+      ? LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH
+      : LLM_TEXT_MODELS[AI_ADAPTER_TYPES.DEEPSEEK])
   const baseUrl = input.providerConfig.baseUrl || AI_PROVIDER_ENDPOINTS.DEEPSEEK
 
   if (input.imageData && modelId !== LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH) {
@@ -1644,7 +1662,8 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
  *  2. The system prompt is a top-level `system` field, not a `role:'system'`
  *     message.
  *  3. There is no `response_format` and assistant-turn prefill is a 400, so
- *     JSON mode is a system-prompt instruction (see the builder).
+ *     JSON mode is `output_config.format` when the caller passes a schema,
+ *     and a system-prompt instruction otherwise (see the builder).
  *  4. No `thinking` configuration is sent: Fable 5.1 rejects
  *     `{type:'disabled'}` and `budget_tokens` with a 400, and runs adaptive
  *     thinking when the field is omitted. The stream parser only forwards
@@ -1710,9 +1729,6 @@ function buildAnthropicMessagesRequest(
   input: LlmTextInput,
   options: { stream?: boolean } = {},
 ): { endpoint: string; modelId: string; body: string } {
-  if (input.imageData) {
-    throw new Error('Claude text completion does not support image input.')
-  }
   if (input.videoData) {
     throw new Error('Claude text completion does not support video input.')
   }
@@ -1729,15 +1745,13 @@ function buildAnthropicMessagesRequest(
   // ⚠ Anthropic has NO `response_format`, and **assistant-turn prefill returns
   // a 400 on Fable 5.1** (removed across the 4.6+ family) — so the usual
   // "prefill a `{`" trick is not available here; don't reintroduce it.
-  // The real structured-output surface is `output_config.format` with a
-  // *json_schema*, but `LlmTextInput.responseFormat` only carries the
-  // schemaless `'json_object'` flag, so there's no schema to hand it at this
-  // layer. Until a schema is threaded through, we instruct in the system
-  // prompt instead, and lean on the existing
-  // fence-tolerant parse + `validateLlmStructuredOutput` downstream.
-  const systemPrompt = wantsJson
-    ? `${input.systemPrompt}\n\nRespond with a single valid JSON object and nothing else — no prose, no markdown code fences.`
-    : input.systemPrompt
+  // With a caller schema the API constrains the output (`output_config.format`).
+  // Schemaless `'json_object'` callers still get the system-prompt
+  // instruction and the fence-tolerant parse downstream.
+  const systemPrompt =
+    wantsJson && !input.jsonSchema
+      ? `${input.systemPrompt}\n\nRespond with a single valid JSON object and nothing else — no prose, no markdown code fences.`
+      : input.systemPrompt
 
   return {
     endpoint: `${baseUrl.replace(/\/$/, '')}${ANTHROPIC_API.MESSAGES_PATH}`,
@@ -1753,10 +1767,50 @@ function buildAnthropicMessagesRequest(
       // Server-side refusal fallback — routes a classifier decline to an
       // Opus-tier model in the same round trip (needs the beta header below).
       fallbacks: 'default',
-      system: systemPrompt,
-      messages: [{ role: 'user', content: input.userPrompt }],
+      ...(input.jsonSchema
+        ? {
+            output_config: {
+              format: { type: 'json_schema', schema: input.jsonSchema },
+            },
+          }
+        : {}),
+      // The operator re-sends the same system prompt on every step of a run;
+      // the breakpoint lets steps 2..N read it from cache instead of paying
+      // full input price each time.
+      system: [
+        {
+          type: 'text',
+          text: systemPrompt,
+          cache_control: { type: 'ephemeral' },
+        },
+      ],
+      messages: [{ role: 'user', content: toAnthropicUserContent(input) }],
     }),
   }
+}
+
+/**
+ * Images go before the text, as the vision guide recommends. Data URLs become
+ * `base64` sources; http(s) URLs become `url` sources that Anthropic fetches.
+ */
+function toAnthropicUserContent(
+  input: LlmTextInput,
+): string | Array<Record<string, unknown>> {
+  if (!input.imageData) return input.userPrompt
+  const images = Array.isArray(input.imageData)
+    ? input.imageData
+    : [input.imageData]
+  const content: Array<Record<string, unknown>> = images.map((image) => {
+    const dataUrlMatch = image.match(/^data:([^;]+);base64,(.+)$/)
+    return {
+      type: 'image',
+      source: dataUrlMatch
+        ? { type: 'base64', media_type: dataUrlMatch[1], data: dataUrlMatch[2] }
+        : { type: 'url', url: image },
+    }
+  })
+  content.push({ type: 'text', text: input.userPrompt })
+  return content
 }
 
 /** Anthropic 的鉴权头与那四家不同（`x-api-key` + 版本号），两个消费者共用。 */

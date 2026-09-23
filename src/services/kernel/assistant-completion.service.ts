@@ -32,6 +32,7 @@ interface CompleteAssistantTextOptions {
   useGrounding?: boolean
   /** Request strict JSON where the provider supports it (F1 结构化输出). */
   responseFormat?: LlmTextInput['responseFormat']
+  jsonSchema?: LlmTextInput['jsonSchema']
 }
 
 export function truncateAssistantContextBlock(
@@ -134,6 +135,7 @@ export async function completeAssistantTextWithContextRetry({
   videoAnalysis,
   useGrounding,
   responseFormat,
+  jsonSchema,
 }: CompleteAssistantTextOptions): Promise<string> {
   const complete = (userPrompt: string) =>
     llmTextCompletion({
@@ -151,6 +153,7 @@ export async function completeAssistantTextWithContextRetry({
       providerManagedOutput: true,
       promptGuardMaxLength: null,
       responseFormat,
+      jsonSchema,
     })
 
   const fullPrompt = buildUserPrompt()
@@ -185,6 +188,7 @@ export async function* streamAssistantTextWithContextRetry({
   videoAnalysis,
   useGrounding,
   responseFormat,
+  jsonSchema,
 }: CompleteAssistantTextOptions): AsyncIterable<string> {
   const stream = (userPrompt: string) =>
     llmTextStream({
@@ -202,6 +206,7 @@ export async function* streamAssistantTextWithContextRetry({
       providerManagedOutput: true,
       promptGuardMaxLength: null,
       responseFormat,
+      jsonSchema,
     })
 
   const fullPrompt = buildUserPrompt()

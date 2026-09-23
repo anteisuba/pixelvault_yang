@@ -139,7 +139,7 @@ export const ASSISTANT_MEDIA_CAPABILITIES: Record<
     video: ASSISTANT_VIDEO_TIERS.native,
   },
   [AI_ADAPTER_TYPES.DEEPSEEK]: { image: false, video: false },
-  [AI_ADAPTER_TYPES.ANTHROPIC]: { image: false, video: false },
+  [AI_ADAPTER_TYPES.ANTHROPIC]: { image: true, video: false },
   // grok-4.7 takes `text, image → text` (20MiB, jpg/png), and
   // `xaiTextCompletion` sends images as OpenAI multimodal content parts — so
   // this `true` is backed by a real code path, not just a spec sheet.

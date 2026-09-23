@@ -84,7 +84,7 @@ describe('resolveLlmTextRoute', () => {
     mockFindFirst.mockResolvedValue(null)
 
     await expect(resolveLlmTextRoute('db_user_1')).rejects.toThrow(
-      'No API key available',
+      'Please add a Gemini, DeepSeek, OpenAI, Claude, or Grok API key',
     )
   })
 })
@@ -1013,12 +1013,13 @@ describe('llmTextCompletion - DeepSeek', () => {
     expect(payload.response_format?.type).toBe('json_object')
   })
 
-  it('keeps DeepSeek V4 Pro text-only', async () => {
+  it('keeps an explicit DeepSeek V4 Pro choice text-only', async () => {
     await expect(
       llmTextCompletion({
         systemPrompt: 'sys',
         userPrompt: 'user',
         imageData: 'data:image/png;base64,abc',
+        modelId: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
         adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
         providerConfig: {
           label: 'DeepSeek',
@@ -1027,6 +1028,34 @@ describe('llmTextCompletion - DeepSeek', () => {
         apiKey: 'sk-deepseek',
       }),
     ).rejects.toThrow('does not support image input')
+  })
+
+  it('uses the vision tier when no DeepSeek model is chosen and images are attached', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ choices: [{ message: { content: 'seen' } }] }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'user',
+      imageData: 'data:image/png;base64,abc',
+      adapterType: AI_ADAPTER_TYPES.DEEPSEEK,
+      providerConfig: {
+        label: 'DeepSeek',
+        baseUrl: 'https://api.deepseek.com',
+      },
+      apiKey: 'sk-deepseek',
+    })
+
+    expect(readFetchJson(fetchMock).model).toBe(
+      LLM_TEXT_MODEL_IDS.DEEPSEEK_FLASH,
+    )
   })
 
   it('forwards image input for DeepSeek V4 Flash Vision Exp', async () => {
@@ -1382,7 +1411,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     const payload = readFetchJson(fetchMock) as {
       model: string
       max_tokens: number
-      system?: string
+      system?: unknown
       messages: Array<{ role: string; content: unknown }>
     }
 
@@ -1391,8 +1420,14 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     // 512 is below the Anthropic floor (thinking + answer share max_tokens).
     expect(payload.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC)
     // System prompt goes on the top-level `system` field — Anthropic has no
-    // role:'system' message.
-    expect(payload.system).toBe('You are helpful.')
+    // role:'system' message — as one cached text block.
+    expect(payload.system).toEqual([
+      {
+        type: 'text',
+        text: 'You are helpful.',
+        cache_control: { type: 'ephemeral' },
+      },
+    ])
     expect(payload.messages).toEqual([{ role: 'user', content: 'Say hello.' }])
   })
 
@@ -1418,8 +1453,9 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     })
 
     const payload = readFetchJson(fetchMock) as {
-      system?: string
+      system: Array<{ text: string }>
       messages: Array<{ role: string; content: unknown }>
+      output_config?: unknown
     }
 
     // ⚠ Regression guard: an assistant-turn prefill **400s on Fable 5.1**, so
@@ -1428,11 +1464,49 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
       { role: 'user', content: 'Write a script outline.' },
     ])
     expect(payload.messages.some((m) => m.role === 'assistant')).toBe(false)
-    expect(payload.system).toContain('Return json.')
-    expect(payload.system).toContain('single valid JSON object')
+    expect(payload.system[0]?.text).toContain('Return json.')
+    expect(payload.system[0]?.text).toContain('single valid JSON object')
+    expect(payload.output_config).toBeUndefined()
     // Passed through untouched — nothing to stitch back on any more.
     expect(result).toBe('{"scenes":[]}')
     expect(() => JSON.parse(result)).not.toThrow()
+  })
+
+  it('sends a caller schema as output_config.format instead of the JSON instruction', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          content: [{ type: 'text', text: '{"conclusion":"ok"}' }],
+        }),
+        { status: 200 },
+      ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+    const schema = {
+      type: 'object',
+      properties: { conclusion: { type: 'string' } },
+      required: ['conclusion'],
+      additionalProperties: false,
+    }
+
+    await llmTextCompletion({
+      systemPrompt: 'Return json.',
+      userPrompt: 'Conclude.',
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+      apiKey: 'sk-ant-test',
+      responseFormat: 'json_object',
+      jsonSchema: schema,
+    })
+
+    const payload = readFetchJson(fetchMock) as {
+      system: Array<{ text: string }>
+      output_config?: unknown
+    }
+    expect(payload.output_config).toEqual({
+      format: { type: 'json_schema', schema },
+    })
+    expect(payload.system[0]?.text).toBe('Return json.')
   })
 
   it.each([
@@ -1513,17 +1587,43 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     })
   })
 
-  it('rejects image input because the Claude route is text-only', async () => {
-    await expect(
-      llmTextCompletion({
-        systemPrompt: 'sys',
-        userPrompt: 'user',
-        imageData: 'data:image/png;base64,abc',
-        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-        providerConfig: ANTHROPIC_PROVIDER_CONFIG,
-        apiKey: 'sk-ant-test',
-      }),
-    ).rejects.toThrow('does not support image input')
+  it('sends images as base64 / url blocks ahead of the text', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(
+          JSON.stringify({ content: [{ type: 'text', text: 'seen' }] }),
+          { status: 200 },
+        ),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const result = await llmTextCompletion({
+      systemPrompt: 'sys',
+      userPrompt: 'Compare them.',
+      imageData: ['data:image/png;base64,abc', 'https://cdn.example.com/b.jpg'],
+      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+      apiKey: 'sk-ant-test',
+    })
+
+    expect(result).toBe('seen')
+    expect(readFetchJson(fetchMock).messages).toEqual([
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: 'image/png', data: 'abc' },
+          },
+          {
+            type: 'image',
+            source: { type: 'url', url: 'https://cdn.example.com/b.jpg' },
+          },
+          { type: 'text', text: 'Compare them.' },
+        ],
+      },
+    ])
   })
 
   it('rejects grounding requests', async () => {

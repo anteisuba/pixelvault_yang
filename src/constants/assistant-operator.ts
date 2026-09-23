@@ -1032,7 +1032,8 @@ export function isAssistantOperatorEntryTool(
  * 而模型要在它们之间挑的那个判断**它做不对**：`search_web` 与 `research` 的分工
  * 是「一句话还是一段描述」，`read_url` 是「摘要不够时再读一页」——这些都是过程，
  * 不是意图。用户那一侧只有两种意图：**我要一个答案**（查证），或**我要参考图**
- * （找图）。所以模型只见这两条，四条旧实现退到 `verify` 背后当内部步骤。
+ * （找图）。所以模型只见这两条，三条旧实现退到 `verify` / `find_images` 背后当内部
+ * 步骤；`read_url`（verify 之后按 focus 读某一页）没有入口名能到达，照旧广告。
  *
  * ⚠ 两者⛔**不合并**（§9.1 那条 ⛔）：产出形态（证据列表 vs 候选网格）与后续动作
  * （引用 vs 挂参考）都不同。
@@ -1070,14 +1071,14 @@ export const ASSISTANT_OPERATOR_RESEARCH_ACTION_TOOLS: Record<
 }
 
 /**
- * **模型不再直接见到的那四条**（§9，commit #16）——它们退成 `verify` / `find_images`
- * 背后的内部步骤。⛔ 别把它们从工具表里删掉：步帧、日志条、时间线分组、撤销
+ * **模型不再直接见到的那三条**（§9，commit #16）——它们退成 `verify` / `find_images`
+ * 背后的内部步骤。`read_url` 不在此列：没有入口名能到达它，提示与观察都让模型
+ * 在 verify 之后读指定页面，所以它照旧出现在 research 的广告表里。⛔ 别把它们从工具表里删掉：步帧、日志条、时间线分组、撤销
  * 链路读的都是这几个名字，删掉等于把已经落盘的历史记录变成读不出来的东西。
  */
 export const ASSISTANT_OPERATOR_INTERNAL_TOOLS = [
   ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
   ASSISTANT_OPERATOR_TOOL_IDS.research,
-  ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
   ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
 ] as const
 
@@ -1127,7 +1128,7 @@ export const ASSISTANT_OPERATOR_ENTRY_ACTIONS: Record<
       ASSISTANT_OPERATOR_TOOL_VERBS[tool] === ASSISTANT_OPERATOR_VERB_IDS.look,
   ),
   /**
-   * ⚠ 「查」组是**唯一**枚举值不等于工具 id 的一组（§9）：网侧四条收成
+   * ⚠ 「查」组是**唯一**枚举值不等于工具 id 的一组（§9）：网侧三条收成
    * `verify` / `find_images` 两个入口名，库侧那几条（素材 / 文件夹 / 卡 / LoRA /
    * 证据本）**原样保留** —— §9 收的是网侧，库侧的四条各自答一个不同的问题，
    * 硬并进「查证」只会让模型拿一条外网查证去翻自己的素材库。
@@ -1157,15 +1158,15 @@ export const ASSISTANT_OPERATOR_ENTRY_ACTIONS: Record<
 }
 
 /**
- * **schema 收的值域** —— 广告出去的那几个（上表）**加上**退到入口背后的那四条
+ * **schema 收的值域** —— 广告出去的那几个（上表）**加上**退到入口背后的那三条
  * 内部名（§9，commit #16）。
  *
  * ⭐ 两张表分开的判据只有一条：**提示词是提示词，闸是闸**。模型的先验里全是
- * `search_web` / `read_url`，它偶尔照旧写一个出来 —— 那时候把它派发到同一条实现上，
+ * `search_web` / `search_web_images`，它偶尔照旧写一个出来 —— 那时候把它派发到同一条实现上，
  * 比回一句「没这个 action」再烧一步往返便宜得多，而它下一轮读到的提示里照旧只有
  * `verify` / `find_images` 两条。
  * ⛔ 这**不是**把枚举放开成自由字符串（§2.2 的那条 ⛔ 仍然成立）：能写的值仍然
- * 是一张闭表，只是这张表比广告出去的那张长四条。
+ * 是一张闭表，只是这张表比广告出去的那张长三条。
  */
 export const ASSISTANT_OPERATOR_ENTRY_ACTION_VALUES: Record<
   AssistantOperatorEntryTool,
@@ -2591,11 +2592,11 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.research]:
     'find out about a SUBJECT properly — a character, a work, a studio, a piece of terminology. Give it a goal in one line plus the entities it turns on ("Ananta", "Shiye"), and it hits several kinds of source at once (encyclopedias, tag libraries, video, general web) and hands back evidence lines: what was said, who published it, how much weight it carries. Use it INSTEAD of search_web whenever the answer is a description rather than a single word, and use it FIRST when the creator names a character or work you are not certain of. You may call it a SECOND time in the same turn with a narrower goal once the first round tells you the official name, the right spelling, or which site is the source of truth — that second round is where the real answer usually is. One round that came back thin is not a dead end: change the entity spelling or the source mix and go again.',
   [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]:
-    'actually READ one web page and get the part you need out of it. Takes a url you saw in a research or search_web result (or one the creator gave you) plus a short \'focus\' saying what you are looking for — "appearance and outfit", "release date", "official name". The server pulls the page, finds the passages that match your focus, and returns just those. This is how you get the details that a search extract never contains: hair, eyes, costume, colours, the exact wording of an official description. ⛔ It reads words only — it does not fetch, save or attach pictures.',
+    'actually READ one web page and get the part you need out of it. Takes a url you saw in a verify result (or one the creator gave you) plus a short \'focus\' saying what you are looking for — "appearance and outfit", "release date", "official name". The server pulls the page, finds the passages that match your focus, and returns just those. This is how you get the details that a search extract never contains: hair, eyes, costume, colours, the exact wording of an official description. It reads words only — it does not fetch, save or attach pictures.',
   [ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence]:
     'open the evidence you already gathered earlier in THIS conversation, by number. Earlier rounds are summarised for you in "WHAT EARLIER ROUNDS SETTLED", and the evidence there appears only as numbers like #e12 — this is how you read the actual text behind one. Pass the numbers you need in "refs". Use it when an earlier finding decides what you are about to write; never re-run a web search to recover something this conversation already looked up. A number that does not exist is refused — it is not a hint to go searching.',
   [ASSISTANT_OPERATOR_TOOL_IDS.mountReference]:
-    "attach one asset from a previous search_assets result to the workbench as a reference image. Takes an assetId, never a URL. ⚠ Web search results have no assetId and can never be mounted this way — only the creator's own library can.",
+    "attach one asset from a previous search_assets result to the workbench as a reference image. Takes an assetId, never a URL. Web search results have no assetId and can never be mounted this way — only the creator's own library can.",
   [ASSISTANT_OPERATOR_TOOL_IDS.unmountReference]:
     'take ONE reference off the bench — the mirror image of mount_reference. Name the one you mean with exactly one of: "slotIndex", the N in the @ImageN list printed in the state (counting from 1), or "assetId" for a picture that came back from a search this turn. Pass slot "first" or "last" to clear a named frame slot instead. Use it when you mounted the wrong picture, or when the creator says to drop one — never tell them to click the × themselves. Undoing this puts the same picture back where it was.',
   [ASSISTANT_OPERATOR_TOOL_IDS.setModel]:
@@ -2639,14 +2640,14 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult]:
     'actually LOOK at a picture and say what worked and what did not. Two ways to get one: pass "targetIds" with the id or the exact address of a picture the creator attached to THIS message (that is them pointing at it), or call it with no target when a run you armed has just come back. You may never invent an address — anything the creator did not reference this turn is refused. If they said "that one" and more than one picture is in play, call it with no target and the app will ask them which. Call it first when a picture is waiting, then fix the form with set_* based on what you saw. On the video bench the target is a CLIP and you are shown three stills from it (first / middle / last) instead of one picture — same tool, same rules.',
   [ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences]:
-    'SEE the reference images mounted on this workbench: it opens their actual pixels and returns verified visual facts, without assigning creative roles or changing the prompt. This is the entry for any question about what a mounted reference looks like — its art style, its content, its composition, its colours — not only a step before writing the prompt, and ⛔ never answer such a question with "I cannot see these images". If the creator @-mentioned images this turn, inspect ONLY those: @Image3 -> imageIndices: [2]. Omitting imageIndices then means those mentioned images, not every mounted reference. Extra unmentioned images are refused. If they mentioned none, omit to inspect all mounted references. Unchanged images reuse visual facts. Call before set_prompt with references; set_prompt separately builds and validates source roles. Answer visual/style questions directly from the facts. Do not use critique_result on sources. On referenceImageUnavailable, identify the exact failed image. On referenceAnalysisFailed, report the supplied failure stage; invalid model output is not evidence that an image is unreadable. Do not ask for re-upload unless image transport actually failed. Do not invent visual facts or retry unchanged within the same turn. A new user request may recheck an earlier failure.',
+    'SEE the reference images mounted on this workbench: it opens their actual pixels and returns verified visual facts, without assigning creative roles or changing the prompt. This is the entry for any question about what a mounted reference looks like — its art style, its content, its composition, its colours — not only a step before writing the prompt, and never answer such a question with "I cannot see these images". If the creator @-mentioned images this turn, inspect ONLY those: @Image3 -> imageIndices: [2]. Omitting imageIndices then means those mentioned images, not every mounted reference. Extra unmentioned images are refused. If they mentioned none, omit to inspect all mounted references. Unchanged images reuse visual facts. Call before set_prompt with references; set_prompt separately builds and validates source roles. Answer visual/style questions directly from the facts. Do not use critique_result on sources. On referenceImageUnavailable, identify the exact failed image. On referenceAnalysisFailed, report the supplied failure stage; invalid model output is not evidence that an image is unreadable. Do not ask for re-upload unless image transport actually failed. Do not invent visual facts or retry unchanged within the same turn. A new user request may recheck an earlier failure.',
   /**
    * ⚠ 2026-09-06 放宽了**准入名单**（⛔ 不是放宽了闸）：除了「用户逐字写过的
    * 地址」，本轮 `search_web_images` 真的展示过的候选也算数 —— 用户说「都挂上」
    * 时那几张他看见了。⛔ 站方禁 AI 的那一档照旧拒，模型编的地址照旧拒。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.importUserUrl]:
-    "take ONE web address, fetch that picture into the creator's library, and mount it as a reference — all in one step. Two addresses are allowed and no others: one the creator typed VERBATIM in this conversation (use it the moment they hand you a link; that is them saying yes), or one of the candidates your own search_web_images actually put on screen this turn — and that second kind ONLY when they have already told you to attach them, one call per picture. A candidate marked REFERENCE ONLY is refused either way. Plain image links work, and so does a normal web page — the picture on it is taken. ⛔ Never tell the creator to download, upload, or click anything for a link they already gave you: that is what this tool is for.",
+    "take ONE web address, fetch that picture into the creator's library, and mount it as a reference — all in one step. Two addresses are allowed and no others: one the creator typed VERBATIM in this conversation (use it the moment they hand you a link; that is them saying yes), or one of the candidates your own find_images actually put on screen this turn — and that second kind ONLY when they have already told you to attach them, one call per picture. A candidate marked REFERENCE ONLY is refused either way. Plain image links work, and so does a normal web page — the picture on it is taken. Never tell the creator to download, upload, or click anything for a link they already gave you: that is what this tool is for.",
   /**
    * ⚠ 「短英文查询」那句与 `search_web_images` 同源，理由也一样：两个上游
    * （Civitai 的 meilisearch / HF 的仓库搜索）吃的都是名字与短标签，一整句描述
@@ -2671,9 +2672,9 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.readContextCard]:
     'read one context card in full: the body the creator wrote (appearance, outfit, personality — or the style rules, or the brand spec), the hard negatives that card carries, and the URLs of its reference images with what each one is for. The card id comes from list_context_cards or from your instructions — never invent one. A sheet image is identity evidence: the look is decided by it. Mount the images you actually need with mount_reference; reading a card mounts nothing on its own.',
   [ASSISTANT_OPERATOR_TOOL_IDS.proposeContextCard]:
-    'OFFER to remember a character, a look or a brand spec the creator just described, as a context card they can reuse later. This SAVES NOTHING on its own: the app shows them the draft card and they decide. It ends your turn. Use it when they have just settled a set of details that will obviously come back — a character\'s appearance and outfit, a style they keep asking for, their brand colours — never for a one-off instruction about this run. Write the summary as the one line that gets quoted back to you every turn, and the body as the full description in THEIR words. One card at a time, and never offer the same card twice in a session.\nTHIS IS THE ONE FOR A STANDING SETTING ABOUT A THING: what a character looks like, wears, or does with their hair; what a look is made of; brand colours and what is forbidden on them. Chinese openings that mean exactly this: 「以后…固定…」「记一下…设定」「这个角色一直是…」. Example — they say 「以后图1这个男角色固定穿藏青水手服，双马尾」, you send {"action":"propose_context_card","kind":"character","name":"图1的男角色","summary":"navy sailor uniform, twin tails","body":"以后图1这个男角色固定穿藏青水手服，双马尾"}. ⛔ Never file one of these as a project rule — a rule is a way of working, this is what something IS.',
+    'OFFER to remember a character, a look or a brand spec the creator just described, as a context card they can reuse later. This SAVES NOTHING on its own: the app shows them the draft card and they decide. It ends your turn. Use it when they have just settled a set of details that will obviously come back — a character\'s appearance and outfit, a style they keep asking for, their brand colours — never for a one-off instruction about this run. Write the summary as the one line that gets quoted back to you every turn, and the body as the full description in THEIR words. One card at a time, and never offer the same card twice in a session.\nTHIS IS THE ONE FOR A STANDING SETTING ABOUT A THING: what a character looks like, wears, or does with their hair; what a look is made of; brand colours and what is forbidden on them. Chinese openings that mean exactly this: 「以后…固定…」「记一下…设定」「这个角色一直是…」. Example — they say 「以后图1这个男角色固定穿藏青水手服，双马尾」, you send {"action":"propose_context_card","kind":"character","name":"图1的男角色","summary":"navy sailor uniform, twin tails","body":"以后图1这个男角色固定穿藏青水手服，双马尾"}. Never file one of these as a project rule — a rule is a way of working, this is what something IS.',
   [ASSISTANT_OPERATOR_TOOL_IDS.addProjectRule]:
-    'write down ONE standing rule about HOW YOU WORK that the creator just stated — which sources to trust, what to always or never do, how they want things written or delivered. It should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice. "kind" picks which sort of rule it is: "note" (the default, their own words), "sourceAllow" ("only trust these sources from now on") or "sourceDeny" ("never use this site again"). Those last two hold ONE search source id (the same ids the verify tool takes) or ONE domain — ask which site they mean rather than writing a sentence, and use them only when they asked for a standing source list, not for this one search. Example — they say 「以后查资料只信官方站，别拿同人图当依据」, you send {"action":"add_project_rule","text":"以后查资料只信官方站，别拿同人图当依据"}.\n⛔ NOT FOR A SETTING ABOUT A THING. A character\'s appearance, outfit or hair; a look they want fixed; brand colours and their forbidden list — those are context cards, not rules: send ask{"action":"propose_context_card", …} instead. 「以后图1这个男角色固定穿藏青水手服，双马尾」 is a card, not a rule. The test is simple: a rule tells you how to behave, a card tells you what something IS. Filing a card as a rule costs the creator the reusable card they should have been offered.',
+    'write down ONE standing rule about HOW YOU WORK that the creator just stated — which sources to trust, what to always or never do, how they want things written or delivered. It should hold for their future work, not a one-off instruction for this run. Quote them; do not paraphrase into your own words. Scope it to this workbench only when it genuinely does not apply elsewhere. Never record a rule they did not state, and never record the same rule twice. "kind" picks which sort of rule it is: "note" (the default, their own words), "sourceAllow" ("only trust these sources from now on") or "sourceDeny" ("never use this site again"). Those last two hold ONE search source id (the same ids the verify tool takes) or ONE domain — ask which site they mean rather than writing a sentence, and use them only when they asked for a standing source list, not for this one search. Example — they say 「以后查资料只信官方站，别拿同人图当依据」, you send {"action":"add_project_rule","text":"以后查资料只信官方站，别拿同人图当依据"}.\nNOT FOR A SETTING ABOUT A THING. A character\'s appearance, outfit or hair; a look they want fixed; brand colours and their forbidden list — those are context cards, not rules: send ask{"action":"propose_context_card", …} instead. 「以后图1这个男角色固定穿藏青水手服，双马尾」 is a card, not a rule. The test is simple: a rule tells you how to behave, a card tells you what something IS. Filing a card as a rule costs the creator the reusable card they should have been offered.',
   [ASSISTANT_OPERATOR_TOOL_IDS.tagAsset]:
     "put one or more short tags on the creator's own assets so they can find them again — up to 20 assets and 5 tags in one call. Tags they already carry are left alone. Use the creator's own words for a tag, keep it to a word or two, and only tag what they actually asked you to; this writes to their library. Undoing this removes exactly the tags this call added, nothing they had before.",
   [ASSISTANT_OPERATOR_TOOL_IDS.favoriteAsset]:
@@ -2708,13 +2709,13 @@ export const ASSISTANT_OPERATOR_ENTRY_TOOL_HINTS: Record<
   string
 > = {
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.look]:
-    'LOOK at something that is already here — the form, a picture, a folder, a clip, a card, the standing rules. It changes nothing and produces facts. The reference images mounted on this workbench are here too: analyze_references opens their actual pixels, so ⛔ never answer a question about one by saying you cannot see it.',
+    'LOOK at something that is already here — the form, a picture, a folder, a clip, a card, the standing rules. It changes nothing and produces facts. The reference images mounted on this workbench are here too: analyze_references opens their actual pixels, so never answer a question about one by saying you cannot see it.',
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research]:
     "GO AND FIND something that is not here yet — on the web, or in the creator's own library. It produces candidates and evidence, and files nothing. For a character's official look: verify first, then find_images, then read_url — do not start with a single web extract.",
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.ask]:
     'STOP AND ASK the creator to settle one thing you genuinely cannot settle yourself. It ends your turn: the app shows one question and waits for their tap. Leave "action" out for a plain question; the one "action" listed below offers them something to keep instead of asking a question — and that is where every standing SETTING goes (what a character looks like or wears, a fixed look, brand colours), while a standing way of WORKING goes to apply/add_project_rule.',
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply]:
-    'TURN A KNOB on the workbench in front of them. Every one of these is undoable and shows up on their screen immediately. ⚠ add_project_rule in here takes a standing rule about HOW YOU WORK only — a standing setting about what a character or a look IS belongs to ask/propose_context_card.',
+    'TURN A KNOB on the workbench in front of them. Every one of these is undoable and shows up on their screen immediately. add_project_rule in here takes a standing rule about HOW YOU WORK only — a standing setting about what a character or a look IS belongs to ask/propose_context_card.',
   [ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.requestGeneration]:
     'ASK FOR THE GENERATION to be set up. You never spend their credits: the most this does is arm the button, and they press it.',
 }
@@ -2732,9 +2733,9 @@ export const ASSISTANT_OPERATOR_ENTRY_ACTION_HINTS: Record<
 > = {
   ...ASSISTANT_OPERATOR_TOOL_HINTS,
   [ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.verify]:
-    'CHECK A FACT you are not certain of, properly. Give it a goal in one line ("what Shiye officially looks like") plus the entities it turns on ("Ananta", "Shiye"), first the work and last the character. The app rewrites it into two or three search phrases in Chinese, English and Japanese, picks the right kinds of source (encyclopedias, tag libraries, video, general web), hits them at once and hands you back a conclusion plus the sources behind it — what was said, who published it, and how many independent sources agree. Use it whenever the creator\'s request turns on a detail you would otherwise guess: an official name, a character\'s design, a platform rule, a studio\'s own terminology. Evidence marked "single source" is exactly that — say so instead of stating it as fact. You may verify a SECOND time with a narrower goal once the first round tells you the official name or the site of record; that second round is where the real answer usually is. ⚠ This is NOT how you find reference pictures — that is find_images. TWO DEPTHS: leave depth out (or "quick") for almost everything — one round of web search plus the first three pages read in full, a few seconds. Pass depth:"deep" only when the creator asks for it ("look into this properly", "be thorough", "I need this to be right") or when the question plainly needs several independent kinds of source to agree — deep runs multiple rounds across encyclopedias, tag libraries and video and takes about a minute. ⛔ Do NOT ask the creator for permission before going deep and ⛔ do NOT mention what it costs; just say in one line that you are looking into it properly.',
+    'CHECK A FACT you are not certain of, properly. Give it a goal in one line ("what Shiye officially looks like") plus the entities it turns on ("Ananta", "Shiye"), first the work and last the character. The app rewrites it into two or three search phrases in Chinese, English and Japanese, picks the right kinds of source (encyclopedias, tag libraries, video, general web), hits them at once and hands you back a conclusion plus the sources behind it — what was said, who published it, and how many independent sources agree. Use it whenever the creator\'s request turns on a detail you would otherwise guess: an official name, a character\'s design, a platform rule, a studio\'s own terminology. Evidence marked "single source" is exactly that — say so instead of stating it as fact. You may verify a SECOND time with a narrower goal once the first round tells you the official name or the site of record; that second round is where the real answer usually is. This is not how you find reference pictures — that is find_images. TWO DEPTHS: leave depth out (or "quick") for almost everything — one round of web search plus the first three pages read in full, a few seconds. Pass depth:"deep" only when the creator asks for it ("look into this properly", "be thorough", "I need this to be right") or when the question plainly needs several independent kinds of source to agree — deep runs multiple rounds across encyclopedias, tag libraries and video and takes about a minute. Do not ask the creator for permission before going deep, and do not mention what it costs; just say in one line that you are looking into it properly.',
   [ASSISTANT_OPERATOR_RESEARCH_ACTION_IDS.findImages]:
-    'FIND REFERENCE PICTURES on the web. Takes three or four words in English plus "subject" (the work and the character) and, for character designs, preferOfficial:true. It puts candidates on screen as previews and files NOTHING: the creator picks the ones they want and the app imports those. ⛔ Never describe these pictures as if you had looked at them, and never write one of their addresses into the form. ⚠ This does not answer questions — that is verify.',
+    'FIND REFERENCE PICTURES on the web. Takes three or four words in English plus "subject" (the work and the character) and, for character designs, preferOfficial:true. It puts candidates on screen as previews and files NOTHING: the creator picks the ones they want and the app imports those. Never describe these pictures as if you had looked at them, and never write one of their addresses into the form. It does not answer questions — that is verify.',
 }
 
 /**

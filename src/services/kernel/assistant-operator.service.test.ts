@@ -4984,14 +4984,14 @@ describe('LoRA 装配台域（P4-C）', () => {
     const prompt = systemPrompt()
     expect(prompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.planLoraPick)
     expect(prompt).toContain(
-      'ALWAYS put the candidates in front of the creator before anything is mounted',
+      'Put the candidates in front of the creator before anything is mounted',
     )
     // 「哪怕只有一把、哪怕创作者指名」那半句。
     expect(prompt).toContain('even when only one candidate came back')
     expect(prompt).toContain('even when they named a LoRA themselves')
     // ⛔ 不许在正文里列候选让创作者用文字选。
     expect(prompt).toContain(
-      'NEVER list the candidates in your reply and ask them to answer in words',
+      "Don't list the candidates in your reply and ask them to answer in words",
     )
     // 卡上那三样是模型的判断。
     expect(prompt).toContain('Three things on that card are your call')
@@ -7336,15 +7336,16 @@ describe('计划协议 · plan / ask / confirm', () => {
     )
   })
 
-  it('系统提示逐项列全 32 个图示 id（⛔ 不是一句「从词表里选」）', async () => {
+  it('系统提示不要求选项图示（客户端还没有渲染方）', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
     const call = mockLlmTextCompletion.mock.calls.at(-1)?.[0] as {
       systemPrompt: string
     }
     for (const visual of ASSISTANT_PLAN_VISUALS) {
-      expect(call.systemPrompt).toContain(visual.id)
+      expect(call.systemPrompt).not.toContain(visual.id)
     }
+    expect(call.systemPrompt).toContain('"assetUrl"')
   })
 })
 
@@ -7889,7 +7890,7 @@ describe('research · 有目标的多轮检索（2026-09-06）', () => {
 
     await collect(runAssistantOperator('clerk-1', buildRequest()))
     const prompt = lastUserPrompt()
-    expect(prompt).toContain('Do NOT give up')
+    expect(prompt).toContain('Do not give up')
     expect(prompt).toContain('moegirl:empty')
   })
 
@@ -8748,8 +8749,8 @@ describe('系统提示 · 找角色设定图的推荐链路（2026-09-06）', ()
     const second = toolRingCalls()[1]?.systemPrompt ?? ''
     expect(second).toContain('FINDING WHAT A CHARACTER ACTUALLY LOOKS LIKE')
     const order = [
-      'research first',
-      'search_web_images with "subject"',
+      'verify first, with the work',
+      'find_images with "subject"',
       'read_url on the best page',
       'set_prompt with what you read',
     ].map((needle) => second.indexOf(needle))
@@ -13236,7 +13237,7 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
     expect(mockRunAssistantResearch).not.toHaveBeenCalled()
     const prompt = lastUserPrompt()
     expect(prompt).toContain('source list rules out every source')
-    expect(prompt).toContain('Do NOT search other sources anyway')
+    expect(prompt).toContain('Do not search other sources anyway')
   })
 
   it('「+」菜单这一轮临时指的名单**顶掉**库里那份白名单', async () => {

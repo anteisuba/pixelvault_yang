@@ -68,6 +68,7 @@ import {
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
 import {
+  STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_HISTORY_OPEN_ROUNDS,
   STUDIO_OPERATOR_KEEP_OPEN_ATTR,
   STUDIO_OPERATOR_LIBRARY_PAGE_SIZE,
@@ -1313,6 +1314,75 @@ export function StudioOperatorPanel({
         renderItem(group.indexes[0]!)
       ),
     )
+  /**
+   * 确认卡那一行。⚠ 生成支确认之后它换来一张结果卡：那时这一行挪到**结果卡上面**
+   * （`confirmLineBeforeResult`），⛔ 不再钉在线程最末尾（D12 S6）。
+   */
+  const lastResultId = entries.findLast((item) => item.kind === 'result')?.id
+  const confirmLineBeforeResult = Boolean(
+    confirm &&
+    confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
+    confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed &&
+    lastResultId,
+  )
+  const renderConfirm = () =>
+    confirm ? (
+      <StudioOperatorTimelineRow
+        card={STUDIO_OPERATOR_CARD_KINDS.confirm}
+        {...(persona ? { persona } : {})}
+      >
+        {confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick ? (
+          /* ── LoRA 推荐卡（lora-assistant §10.3.1）───────────────
+                     ⚠ 与其余三支同一个槽位（帧到即插、不离场、就地换态），
+                       ⛔ 不钉到输入框上方 —— 那是问题卡「一次只问一个」的位置，
+                       而这张卡是多选 + 一颗「挂载所选」。 */
+          <StudioOperatorLoraPickCard
+            prompt={confirm}
+            assistantName={
+              persona?.name?.trim() || t('timeline.assistantFallback')
+            }
+            onSubmit={submitLoraPicks}
+            onDismiss={dismissLoraPick}
+            /* 「换个词再搜」= 预填一句并聚焦，⛔ 不发请求（判据与确认卡
+                       「一步一步来」逐字同源：新词还得用户自己打出来）。 */
+            onSearchAgain={searchLoraAgainPrompt}
+            formatTime={formatDecidedAt}
+            /* 缩略图点开 = 库里那张详情抽屉（§10.3.2）：这里只管
+                       「开在哪一条上」，抽屉里那颗「勾上这把」改的是卡自己的
+                       勾选态 —— ⛔ 别把勾选态也提上来。 */
+            onOpenDetail={setLoraDetailCandidateId}
+            detailCandidateId={loraDetailCandidateId}
+            onCloseDetail={() => setLoraDetailCandidateId(null)}
+          />
+        ) : (
+          <StudioOperatorConfirmCard
+            confirm={confirm}
+            onApprove={approvePlan}
+            /* 「一步一步来」= 预填「修改计划：」并聚焦（§3.1 ⑤）——
+                     ⛔ 不发请求，下一条消息才带 `planApproved: false`。 */
+            onDecline={() => {
+              declinePlan()
+              revisePrompt()
+            }}
+            onConfirm={confirmGeneration}
+            onCancel={cancelGeneration}
+            /* 上下文卡提议那一支（§8.1）：提议到达时已写成一行「待确认」，
+                     「存这张卡」把它翻面，「不用」把它删掉。 */
+            onSaveCard={() => void saveContextCard()}
+            onDismissCard={() => void dismissContextCard()}
+            onRetry={retryGeneration}
+            formatTime={formatDecidedAt}
+            /* 四颗旋钮的真值 —— 宿主现算的那一份（§5.2）。缺席时卡退回
+                     只读读数（LoRA 装配台就是这一档）。 */
+            {...(operatorHost.generationControls
+              ? { controls: operatorHost.generationControls }
+              : {})}
+            onAdjust={adjustGeneration}
+          />
+        )}
+      </StudioOperatorTimelineRow>
+    ) : null
+
   const renderBlock = (block: (typeof blocks)[number]) => {
     if (block.kind === 'tools') {
       /**
@@ -1663,18 +1733,21 @@ export function StudioOperatorPanel({
        */
       case 'result':
         return (
-          <StudioOperatorTimelineRow
-            key={entry.id}
-            card={STUDIO_OPERATOR_CARD_KINDS.result}
-          >
-            <StudioOperatorResultRow
-              entry={entry}
-              onRerun={(target) =>
-                target.request && rerunGeneration(target.request)
-              }
-              onUseAsReference={useResultAsReference}
-            />
-          </StudioOperatorTimelineRow>
+          <Fragment key={entry.id}>
+            {/* D12 S6：「已确认 · 时间」那一行排在它换来的结果卡**上面**。 */}
+            {confirmLineBeforeResult && entry.id === lastResultId
+              ? renderConfirm()
+              : null}
+            <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.result}>
+              <StudioOperatorResultRow
+                entry={entry}
+                onRerun={(target) =>
+                  target.request && rerunGeneration(target.request)
+                }
+                onUseAsReference={useResultAsReference}
+              />
+            </StudioOperatorTimelineRow>
+          </Fragment>
         )
       case 'system':
         return (
@@ -2011,63 +2084,7 @@ export function StudioOperatorPanel({
               ⚠ 此处**只剩一张**：计划卡与花钱卡合成了它（`kind` 两支），而问题卡
                 按 §3.4 钉到了输入框上方 —— ⛔ 别把它挪回这里，钉住的整个意义就是
                 不随时间线滚走。 */}
-            {confirm ? (
-              <StudioOperatorTimelineRow
-                card={STUDIO_OPERATOR_CARD_KINDS.confirm}
-                {...(persona ? { persona } : {})}
-              >
-                {confirm.kind ===
-                ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.loraPick ? (
-                  /* ── LoRA 推荐卡（lora-assistant §10.3.1）───────────────
-                     ⚠ 与其余三支同一个槽位（帧到即插、不离场、就地换态），
-                       ⛔ 不钉到输入框上方 —— 那是问题卡「一次只问一个」的位置，
-                       而这张卡是多选 + 一颗「挂载所选」。 */
-                  <StudioOperatorLoraPickCard
-                    prompt={confirm}
-                    assistantName={
-                      persona?.name?.trim() || t('timeline.assistantFallback')
-                    }
-                    onSubmit={submitLoraPicks}
-                    onDismiss={dismissLoraPick}
-                    /* 「换个词再搜」= 预填一句并聚焦，⛔ 不发请求（判据与确认卡
-                       「一步一步来」逐字同源：新词还得用户自己打出来）。 */
-                    onSearchAgain={searchLoraAgainPrompt}
-                    formatTime={formatDecidedAt}
-                    /* 缩略图点开 = 库里那张详情抽屉（§10.3.2）：这里只管
-                       「开在哪一条上」，抽屉里那颗「勾上这把」改的是卡自己的
-                       勾选态 —— ⛔ 别把勾选态也提上来。 */
-                    onOpenDetail={setLoraDetailCandidateId}
-                    detailCandidateId={loraDetailCandidateId}
-                    onCloseDetail={() => setLoraDetailCandidateId(null)}
-                  />
-                ) : (
-                  <StudioOperatorConfirmCard
-                    confirm={confirm}
-                    onApprove={approvePlan}
-                    /* 「一步一步来」= 预填「修改计划：」并聚焦（§3.1 ⑤）——
-                     ⛔ 不发请求，下一条消息才带 `planApproved: false`。 */
-                    onDecline={() => {
-                      declinePlan()
-                      revisePrompt()
-                    }}
-                    onConfirm={confirmGeneration}
-                    onCancel={cancelGeneration}
-                    /* 上下文卡提议那一支（§8.1）：提议到达时已写成一行「待确认」，
-                     「存这张卡」把它翻面，「不用」把它删掉。 */
-                    onSaveCard={() => void saveContextCard()}
-                    onDismissCard={() => void dismissContextCard()}
-                    onRetry={retryGeneration}
-                    formatTime={formatDecidedAt}
-                    /* 四颗旋钮的真值 —— 宿主现算的那一份（§5.2）。缺席时卡退回
-                     只读读数（LoRA 装配台就是这一档）。 */
-                    {...(operatorHost.generationControls
-                      ? { controls: operatorHost.generationControls }
-                      : {})}
-                    onAdjust={adjustGeneration}
-                  />
-                )}
-              </StudioOperatorTimelineRow>
-            ) : null}
+            {confirm && !confirmLineBeforeResult ? renderConfirm() : null}
 
             {/* ── 步数用完（D12 S12）：那一句由助手说完「做到哪 · 还剩什么」，这里
               只给两颗 chip。⚠ 跑着 / 出错 / 等你定时都不画。 */}

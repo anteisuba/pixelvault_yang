@@ -116,7 +116,11 @@ export function StudioOperatorResultRow({
    * ⚠ 占位格数 = 本次张数（§6.3），⛔ 不画一个固定的三格。
    */
   const count = generating ? Math.max(total, 1) : items.length
-  const grid = count > 1 ? 'grid grid-cols-2 gap-1.5' : 'flex'
+  /**
+   * 单张封顶 `max-w-sm`（D12 真机：1:1 的图按整宽出有 600 多高，一张图顶掉半个
+   * 面板）；多张两列铺满。
+   */
+  const grid = count > 1 ? 'grid grid-cols-2 gap-1.5' : 'flex max-w-sm'
   const ghost =
     'inline-flex h-7 items-center rounded-md border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
 

@@ -73,7 +73,7 @@ function detail(over: Partial<ResearchRunDetail> = {}): ResearchRunDetail {
       },
     ],
     evidence: [textEvidence()],
-    model: 'gpt-5.6-sol',
+    model: 'gpt-6-sol',
     error: null,
     createdAt: '2026-08-20T02:00:00.000Z',
     completedAt: '2026-08-20T02:00:10.000Z',

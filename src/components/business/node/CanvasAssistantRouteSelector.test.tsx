@@ -143,7 +143,7 @@ describe('CanvasAssistantRouteSelector', () => {
   })
 
   // ⚠ 2026-08-19 生产事故的回归位：组件**曾经写死**画布的默认路由标签
-  // （OpenAI GPT-5.6 Sol）。studio 复用它时没有 gateway 分支，服务端按
+  // （OpenAI GPT-6 Sol）。studio 复用它时没有 gateway 分支，服务端按
   // `LLM_TEXT_ADAPTERS` 兜底到 Gemini —— 界面报 GPT、实际打 Gemini，
   // Gemini 空回复时 owner 完全无法归因。**默认路由是调用方的事实，不是组件的。**
   it('未选 BYOK 路由时透传调用方给的标签，不自己写死任何型号', () => {

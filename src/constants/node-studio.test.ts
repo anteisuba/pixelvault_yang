@@ -11,12 +11,26 @@ import {
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 
 describe('resolveAssistantFastModelId', () => {
+  it('defaults to Opus 5.5 while preserving an explicit Fable selection', () => {
+    expect(resolveAssistantModelId(AI_ADAPTER_TYPES.ANTHROPIC)).toBe(
+      LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
+    )
+    expect(
+      resolveAssistantModelId(
+        AI_ADAPTER_TYPES.ANTHROPIC,
+        LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
+      ),
+    ).toBe(LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1)
+    const ids = NODE_STUDIO_ASSISTANT_ROUTE_MODELS.map((model) => model.modelId)
+    expect(new Set(ids).size).toBe(ids.length)
+  })
+
   it('OpenAI 问答走 Luna，默认档仍是 Sol', () => {
     expect(resolveAssistantFastModelId(AI_ADAPTER_TYPES.OPENAI)).toBe(
-      LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_LUNA,
+      LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
     )
     expect(resolveAssistantModelId(AI_ADAPTER_TYPES.OPENAI)).toBe(
-      LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_SOL,
+      LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
     )
   })
 

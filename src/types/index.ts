@@ -2876,7 +2876,7 @@ export const PromptAssistantRequestSchema = z.object({
   /** User-selected API key for LLM calls */
   apiKeyId: z.string().optional(),
   /**
-   * LLM tier the user picked in the route selector (e.g. gpt-5.6-terra) —
+   * LLM tier the user picked in the route selector (e.g. gpt-6-sol) —
    * NOT the generation model (`modelId` above). Validated server-side against
    * NODE_STUDIO_ASSISTANT_ROUTE_MODELS; unknown values fall back to the
    * adapter's default tier.

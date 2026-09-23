@@ -265,7 +265,7 @@ export const NODE_STUDIO_ASSISTANT_LIMITS = {
 } as const
 
 export const NODE_STUDIO_ASSISTANT = {
-  gatewayModelId: 'openai/gpt-5.6-sol',
+  gatewayModelId: 'openai/gpt-6-sol',
   fallbackModelLabel: 'Workspace BYOK route',
 } as const
 
@@ -280,14 +280,12 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_OPTION_IDS = {
   setupPrefix: 'node-studio-assistant:setup',
 } as const
 
-// Multiple tiers per adapter since 2026-08-23 (owner decree: expose GPT-5.6's
-// three price tiers and let the user pick). The FIRST entry for an adapter is
-// its default tier — resolveAssistantModelId below relies on this ordering.
+// The first entry for an adapter is its default tier.
 export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_SOL,
-    label: 'OpenAI GPT-5.6 Sol',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+    label: 'OpenAI GPT-6 Sol',
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -296,13 +294,8 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
-    label: 'OpenAI GPT-5.6 Terra',
-  },
-  {
-    adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_LUNA,
-    label: 'OpenAI GPT-5.6 Luna',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
+    label: 'OpenAI GPT-6 Luna',
   },
   {
     adapterType: AI_ADAPTER_TYPES.GEMINI,
@@ -324,11 +317,11 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
     label: 'DeepSeek Flash',
   },
   {
-    // 2026-07-26: Qwen3 Max exited the assistant route (owner decree) — Claude
-    // takes its slot as the structural-reasoning route (multi-scene
-    // continuity, character arcs, shot planning). 2026-09-02: Sonnet 5 →
-    // Fable 5.1 (owner decision). Text-only, same as the other three — no
-    // image/video input on this route yet.
+    adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+    modelId: LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
+    label: 'Claude Opus 5.5',
+  },
+  {
     adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
     modelId: LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
     label: 'Claude Fable 5.1',
@@ -337,8 +330,8 @@ export const NODE_STUDIO_ASSISTANT_ROUTE_MODELS = [
     // 2026-08-23: xAI joins as the fifth assistant route. 500k context with
     // vision at $2/$6 — the cheapest flagship on this route.
     adapterType: AI_ADAPTER_TYPES.XAI,
-    modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
-    label: 'Grok 4.6',
+    modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
+    label: 'Grok 4.7',
   },
 ] as const
 
@@ -376,7 +369,7 @@ export function resolveAssistantFastModelId(
   if (entries.length === 0) return undefined
   if (adapterType === AI_ADAPTER_TYPES.OPENAI) {
     const luna = entries.find(
-      (model) => model.modelId === LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_LUNA,
+      (model) => model.modelId === LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
     )
     if (luna) return luna.modelId
   }

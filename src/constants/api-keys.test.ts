@@ -34,7 +34,7 @@ describe('api key adapter options', () => {
       // structural-reasoning route (assistant capability) — see
       // docs/references/pages/assistant-shell.md.
       AI_ADAPTER_TYPES.ANTHROPIC,
-      // xAI (Grok) joined 2026-08-23 with grok-4.6 on the enhance + assistant
+      // xAI (Grok) uses grok-4.7 on the enhance + assistant
       // capabilities. Active here purely through those LLM capabilities — it
       // has no AI_MODELS entry (text/vision only, generates no media).
       AI_ADAPTER_TYPES.XAI,

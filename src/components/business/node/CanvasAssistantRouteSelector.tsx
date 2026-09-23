@@ -14,7 +14,7 @@ export interface NodeAssistantRouteSelection {
   apiKeyId?: string
   adapterType: AI_ADAPTER_TYPES
   /**
-   * LLM tier the user picked (e.g. gpt-5.6-terra). Absent on the legacy
+   * LLM tier the user picked (e.g. gpt-6-sol). Absent on the legacy
    * "auto" selection — the server then falls back to the adapter's default
    * (first) entry in NODE_STUDIO_ASSISTANT_ROUTE_MODELS.
    */
@@ -28,7 +28,7 @@ interface CanvasAssistantRouteSelectorProps {
    * 没选具体 key 时触发器显示什么。**必须由调用方给，因为「默认路由」在两个域里
    * 不是同一条**：
    *  - 画布：不选 key 且无附件时走 gateway（`NODE_STUDIO_ASSISTANT.gatewayModelId`
-   *    = openai/gpt-5.6-sol），所以写死 OpenAI 是诚实的。
+   *    = openai/gpt-6-sol），所以写死 OpenAI 是诚实的。
    *  - studio：**没有 gateway 分支**，服务端按 `LLM_TEXT_ADAPTERS` 优先级兜底
    *    （Gemini 打头），所以显示 OpenAI 是在说谎。
    *

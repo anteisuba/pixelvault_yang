@@ -9,18 +9,13 @@ export type LlmCapabilityScope = 'enhance' | 'planner' | 'assistant'
 export const LLM_ENHANCE_ROUTE_MODELS = [
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_LUNA,
-    label: 'OpenAI GPT-5.6 Luna',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
+    label: 'OpenAI GPT-6 Luna',
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
-    label: 'OpenAI GPT-5.6 Terra',
-  },
-  {
-    adapterType: AI_ADAPTER_TYPES.OPENAI,
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_SOL,
-    label: 'OpenAI GPT-5.6 Sol',
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+    label: 'OpenAI GPT-6 Sol',
   },
   {
     adapterType: AI_ADAPTER_TYPES.OPENAI,
@@ -39,8 +34,8 @@ export const LLM_ENHANCE_ROUTE_MODELS = [
   },
   {
     adapterType: AI_ADAPTER_TYPES.XAI,
-    modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
-    label: 'Grok 4.6',
+    modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
+    label: 'Grok 4.7',
   },
 ] as const
 
@@ -60,7 +55,7 @@ const ADAPTER_CAPABILITIES: Record<
   // no planner (SCRIPT_PLANNER_MODELS intentionally stays untouched — see
   // docs/references/pages/assistant-shell.md note).
   [AI_ADAPTER_TYPES.ANTHROPIC]: ['assistant'],
-  // xAI (Grok) 2026-08-23: grok-4.6 has vision, so unlike DeepSeek it is not
+  // xAI (Grok): grok-4.7 has vision, so unlike DeepSeek it is not
   // barred from enhance. No planner slot — that route's provider enum is
   // wired through three Zod schemas, and adding one there is its own change.
   [AI_ADAPTER_TYPES.XAI]: ['enhance', 'assistant'],

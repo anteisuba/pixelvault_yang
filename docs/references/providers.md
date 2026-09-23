@@ -27,9 +27,9 @@
 ### Assistant LLM 媒体契约（2026-08-05）
 
 - 助手 LLM 是同步 text/vision 会话路径，不属于媒体生成 adapter，也不改 worker-only 的媒体生成边界。
-- 默认 OpenAI 助手模型为原生 `gpt-5.6-sol`；无媒体引用时画布可走 AI Gateway 的
-  `openai/gpt-5.6-sol`。当前 PixelVault OpenAI 助手只声明文本与图片输入，不接收原生视频；与
-  [OpenAI GPT-5.6 Sol 模型能力页](https://developers.openai.com/api/docs/models/gpt-5.6-sol) 一致。
+- 默认 OpenAI 助手模型为原生 `gpt-6-sol`；无媒体引用时画布可走 AI Gateway 的
+  `openai/gpt-6-sol`。当前 PixelVault OpenAI 助手只声明文本与图片输入，不接收原生视频；与
+  [OpenAI GPT-6 Sol 模型能力页](https://developers.openai.com/api/docs/models/gpt-6-sol) 一致。
 - Gemini 助手支持真实视频理解：小视频可用 inline data，大视频经 Gemini Files API
   resumable upload → 状态轮询 → `fileData` 输入；稳定附件 URL 仅由服务端受控抓取。实现依据
   [Gemini 视频理解](https://ai.google.dev/gemini-api/docs/video-understanding) 与
@@ -73,6 +73,14 @@
 `research-route.service.ts` / `node-planner-route.service.ts` / `video-script.service.ts`）——
 那条线不经过 BYOK 路由，也不进模型选择器。另一个平台掏钱的特例是 `runner`（见上方
 `RUNNER_MONTHLY_LIMIT`），它本来就没有 BYOK 通道。
+
+## 文本模型升级（verified 2026-09-23）
+
+- OpenAI：助手／默认文本／剧本规划使用 `gpt-6-sol`，增强与自动问答使用 `gpt-6-luna`，选择器保留 `gpt-6-astra`。旧 5.6 三档退出本仓路由；这是版本升级，不代表上游停用。原生调用继续 Chat Completions，Gateway 字符串同步为 `openai/gpt-6-sol`。
+- Claude：助手默认 `claude-opus-5-5`，保留显式 `claude-fable-5-1` 选择。两者均保持自适应思考，不发送禁用 thinking、强制 tool choice 或 assistant prefill；保留 Messages 的 token 预算、JSON 系统指令与官方 `fallbacks: "default"` 契约。默认 effort 分别为 medium / high。Fable 的数据保留限制不推定适用于 Opus。
+- Grok：增强／助手统一 `grok-4.7`，沿用 Chat Completions、`reasoning_effort: "low"`、`max_completion_tokens` 与长首包等待。4.7 Fast 不在公共 API 上，不加入目录。
+- 模型名称沿用共享路由常量，en/ja/zh 使用同一官方名称；未增加翻译键。BYOK、平台权限和站内额度不变。
+- 官方依据：[GPT-6 发布](https://developers.openai.com/api/docs/changelog)、[Sol](https://developers.openai.com/api/docs/models/gpt-6-sol)、[Luna](https://developers.openai.com/api/docs/models/gpt-6-luna)、[Opus 5.5 迁移](https://platform.claude.com/docs/en/models/opus-5-5/migration-guide)、[Claude fallback](https://platform.claude.com/docs/en/build-with-claude/refusals-and-fallback)、[Grok 4.7](https://docs.x.ai/developers/grok-4-7)。GPT-6 的 Chat Completions 原生 function calling 仅支持 reasoning_effort=none；本仓此路径未发送原生 tools，后续增加时须遵守该限制。
 
 ## 错误信息机制（全链路）
 

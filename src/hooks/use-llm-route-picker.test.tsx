@@ -53,7 +53,6 @@ describe('useLLMRoutePicker', () => {
         'k1',
         'k1',
         'k1',
-        'k1',
         'k2',
         'k2',
       ])
@@ -66,7 +65,6 @@ describe('useLLMRoutePicker', () => {
       ])
       const { result } = renderHook(() => useLLMRoutePicker('enhance'))
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
-        'k1',
         'k1',
         'k1',
         'k1',
@@ -99,13 +97,12 @@ describe('useLLMRoutePicker', () => {
       expect(result.current.lockedRoutes.every((r) => r.modelId)).toBe(true)
       expect(result.current.lockedRoutes.map((r) => r.label).sort()).toEqual(
         [
-          'OpenAI GPT-5.6 Luna',
-          'OpenAI GPT-5.6 Terra',
-          'OpenAI GPT-5.6 Sol',
+          'OpenAI GPT-6 Luna',
+          'OpenAI GPT-6 Sol',
           'OpenAI GPT-6 Astra',
           'Gemini 3.5 Flash Lite',
           'Gemini 3.8 Flash',
-          'Grok 4.6',
+          'Grok 4.7',
         ].sort(),
       )
     })
@@ -129,7 +126,7 @@ describe('useLLMRoutePicker', () => {
       mockApiKeys([makeKey({ id: 'k1', adapterType: AI_ADAPTER_TYPES.OPENAI })])
       const { result } = renderHook(() => useLLMRoutePicker('planner'))
       expect(result.current.savedRoutes[0].modelId).toBeDefined()
-      expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-5.6 Terra')
+      expect(result.current.savedRoutes[0].label).toBe('OpenAI GPT-6 Sol')
     })
 
     it('locked routes list all planner-capable adapters with registry data', () => {
@@ -150,15 +147,15 @@ describe('useLLMRoutePicker', () => {
         makeKey({ id: 'k5', adapterType: AI_ADAPTER_TYPES.ANTHROPIC }),
       ])
       const { result } = renderHook(() => useLLMRoutePicker('assistant'))
-      // OpenAI expands to 4 tiers; DeepSeek exposes text + vision tiers.
+      // OpenAI has three tiers; DeepSeek and Claude each expose two.
       expect(result.current.savedRoutes.map((r) => r.apiKeyId)).toEqual([
         'k1',
         'k2',
         'k2',
         'k2',
-        'k2',
         'k4',
         'k4',
+        'k5',
         'k5',
       ])
     })
@@ -179,10 +176,10 @@ describe('useLLMRoutePicker', () => {
         AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.OPENAI,
-        AI_ADAPTER_TYPES.OPENAI,
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.DEEPSEEK,
+        AI_ADAPTER_TYPES.ANTHROPIC,
         AI_ADAPTER_TYPES.ANTHROPIC,
         AI_ADAPTER_TYPES.XAI,
       ])

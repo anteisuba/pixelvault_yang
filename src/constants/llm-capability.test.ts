@@ -14,7 +14,7 @@ describe('getLLMCapabilityScope', () => {
       [
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.OPENAI,
-        // 2026-08-23: Grok 4.6 joins enhance — it has vision, so unlike
+        // Grok joins enhance — it has vision, so unlike
         // DeepSeek nothing bars it from this route.
         AI_ADAPTER_TYPES.XAI,
       ].sort(),
@@ -41,7 +41,7 @@ describe('getLLMCapabilityScope', () => {
         AI_ADAPTER_TYPES.DEEPSEEK,
         AI_ADAPTER_TYPES.GEMINI,
         AI_ADAPTER_TYPES.OPENAI,
-        // 2026-08-23: Grok 4.6 joins as the fifth assistant route.
+        // Grok joins as the fifth assistant route.
         AI_ADAPTER_TYPES.XAI,
       ].sort(),
     )

@@ -667,7 +667,7 @@ describe('llmTextCompletion - OpenAI', () => {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
       apiKey: 'sk-test',
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_SOL,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
     })
 
     const payload = readFetchJson(fetchMock)
@@ -817,7 +817,8 @@ describe('llmTextCompletion - OpenAI', () => {
   })
 
   it.each([
-    LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+    LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA,
     LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_ASTRA,
   ])('floors low maxTokens for %s reasoning models', async (modelId) => {
     const fetchMock = vi.fn().mockResolvedValue(
@@ -918,7 +919,7 @@ describe('llmTextCompletion - OpenAI', () => {
       adapterType: AI_ADAPTER_TYPES.OPENAI,
       providerConfig: { label: 'OpenAI', baseUrl: 'https://api.openai.com/v1' },
       apiKey: 'sk-test',
-      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_SOL,
+      modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
       useGrounding: true,
     })
 
@@ -1137,7 +1138,7 @@ describe('llmTextCompletion — xAI (Grok)', () => {
       adapterType: AI_ADAPTER_TYPES.XAI,
       providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
       apiKey: 'xai-test',
-      modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
+      modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
     })
 
     expect(result).toBe('grok reply')
@@ -1153,8 +1154,8 @@ describe('llmTextCompletion — xAI (Grok)', () => {
       }),
     )
     const payload = readFetchJson(fetchMock)
-    expect(payload.model).toBe('grok-4.6')
-    // grok-4.6 defaults to high reasoning and cannot disable it. Assistant
+    expect(payload.model).toBe('grok-4.7')
+    // grok-4.7 defaults to high reasoning and cannot disable it. Assistant
     // turns are agentic JSON / tool loops — official "low" is that tier.
     expect(payload.reasoning_effort).toBe('low')
     // Official visible-output field. Deprecated `max_tokens` must stay off:
@@ -1181,7 +1182,7 @@ describe('llmTextCompletion — xAI (Grok)', () => {
       adapterType: AI_ADAPTER_TYPES.XAI,
       providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
       apiKey: 'xai-test',
-      modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
+      modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
     })
 
     const payload = readFetchJson(fetchMock)
@@ -1208,7 +1209,7 @@ describe('llmTextCompletion — xAI (Grok)', () => {
       adapterType: AI_ADAPTER_TYPES.XAI,
       providerConfig: { label: 'Grok', baseUrl: 'https://api.x.ai/v1' },
       apiKey: 'xai-test',
-      modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
+      modelId: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
     } as const
     await llmTextCompletion({ ...base, maxTokens: 512 })
     await llmTextCompletion({
@@ -1226,7 +1227,7 @@ describe('llmTextCompletion — xAI (Grok)', () => {
     expect(second.max_tokens).toBeUndefined()
   })
 
-  it('forwards image input as OpenAI-style image_url content (grok-4.6 vision)', async () => {
+  it('forwards image input as OpenAI-style image_url content (grok-4.7 vision)', async () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValue(
@@ -1386,7 +1387,7 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     }
 
     expect(result).toBe('hello from claude')
-    expect(payload.model).toBe(LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1)
+    expect(payload.model).toBe(LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5)
     // 512 is below the Anthropic floor (thinking + answer share max_tokens).
     expect(payload.max_tokens).toBe(LLM_TEXT_DEFAULT_MAX_TOKENS.ANTHROPIC)
     // System prompt goes on the top-level `system` field — Anthropic has no
@@ -1434,45 +1435,52 @@ describe('llmTextCompletion - Claude (Anthropic)', () => {
     expect(() => JSON.parse(result)).not.toThrow()
   })
 
-  it('sends no thinking config and opts into the server-side refusal fallback', async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }),
-        {
-          status: 200,
-        },
-      ),
-    )
-    vi.stubGlobal('fetch', fetchMock)
+  it.each([
+    LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
+    LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
+  ])(
+    'sends supported thinking and fallback parameters for %s',
+    async (modelId) => {
+      const fetchMock = vi.fn().mockResolvedValue(
+        new Response(
+          JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }),
+          {
+            status: 200,
+          },
+        ),
+      )
+      vi.stubGlobal('fetch', fetchMock)
 
-    await llmTextCompletion({
-      systemPrompt: 'sys',
-      userPrompt: 'hi',
-      adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
-      providerConfig: ANTHROPIC_PROVIDER_CONFIG,
-      apiKey: 'sk-ant-test',
-      maxTokens: 2000,
-    })
+      await llmTextCompletion({
+        systemPrompt: 'sys',
+        userPrompt: 'hi',
+        modelId,
+        adapterType: AI_ADAPTER_TYPES.ANTHROPIC,
+        providerConfig: ANTHROPIC_PROVIDER_CONFIG,
+        apiKey: 'sk-ant-test',
+        maxTokens: 2000,
+      })
 
-    // ⚠ Regression guard: Fable 5.1 rejects `thinking: {type:'disabled'}` and
-    // `budget_tokens` with a 400 — the field must be absent. The refusal
-    // fallback is the `'default'` scalar, which needs exactly the
-    // `-2026-07-01` beta header (the array form uses a different one).
-    const payload = readFetchJson(fetchMock) as {
-      thinking?: unknown
-      fallbacks?: unknown
-    }
-    expect(payload.thinking).toBeUndefined()
-    expect(payload.fallbacks).toBe('default')
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://api.anthropic.com/v1/messages',
-      expect.objectContaining({
-        headers: expect.objectContaining({
-          'anthropic-beta': ANTHROPIC_API.SERVER_SIDE_FALLBACK_BETA,
+      // ⚠ Regression guard: Fable 5.1 rejects `thinking: {type:'disabled'}` and
+      // `budget_tokens` with a 400 — the field must be absent. The refusal
+      // fallback is the `'default'` scalar, which needs exactly the
+      // `-2026-07-01` beta header (the array form uses a different one).
+      const payload = readFetchJson(fetchMock) as {
+        thinking?: unknown
+        fallbacks?: unknown
+      }
+      expect(payload.thinking).toBeUndefined()
+      expect(payload.fallbacks).toBe('default')
+      expect(fetchMock).toHaveBeenCalledWith(
+        'https://api.anthropic.com/v1/messages',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            'anthropic-beta': ANTHROPIC_API.SERVER_SIDE_FALLBACK_BETA,
+          }),
         }),
-      }),
-    )
-  })
+      )
+    },
+  )
 
   it('throws PROVIDER_REFUSED when the classifiers decline (HTTP 200, stop_reason refusal)', async () => {
     // A refusal is a *successful* response with empty (pre-output) content —

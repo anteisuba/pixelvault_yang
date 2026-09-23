@@ -210,9 +210,9 @@ function isLlmTextAdapter(t: AI_ADAPTER_TYPES): t is LlmTextAdapterType {
 const LLM_TEXT_MODELS: Record<LlmTextAdapterType, string> = {
   [AI_ADAPTER_TYPES.GEMINI]: LLM_TEXT_MODEL_IDS.GEMINI_3_5_FLASH_LITE,
   [AI_ADAPTER_TYPES.DEEPSEEK]: LLM_TEXT_MODEL_IDS.DEEPSEEK_V4_PRO,
-  [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
-  [AI_ADAPTER_TYPES.ANTHROPIC]: LLM_TEXT_MODEL_IDS.CLAUDE_FABLE_5_1,
-  [AI_ADAPTER_TYPES.XAI]: LLM_TEXT_MODEL_IDS.XAI_GROK_4_6,
+  [AI_ADAPTER_TYPES.OPENAI]: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
+  [AI_ADAPTER_TYPES.ANTHROPIC]: LLM_TEXT_MODEL_IDS.CLAUDE_OPUS_5_5,
+  [AI_ADAPTER_TYPES.XAI]: LLM_TEXT_MODEL_IDS.XAI_GROK_4_7,
 }
 
 const LLM_TEXT_LABELS: Record<LlmTextAdapterType, string> = {
@@ -1517,7 +1517,7 @@ async function deepseekTextCompletion(input: LlmTextInput): Promise<string> {
  * `grok-*` id. Token budget is `max_completion_tokens` (visible only) plus
  * `reasoning_effort: 'low'` — not the deprecated `max_tokens` total cap.
  *
- * Image input IS supported (grok-4.6 takes `text, image → text`; 20MiB max,
+ * Image input IS supported (grok-4.7 takes `text, image → text`; 20MiB max,
  * jpg/png only) using the same OpenAI multimodal content shape DeepSeek uses.
  * Video and grounding are not — xAI's Live Search is a separate API surface,
  * so we fail loudly rather than silently dropping the request.
@@ -1562,7 +1562,7 @@ function buildXaiChatRequest(
       messages,
       ...(options.stream ? { stream: true } : {}),
       ...xaiVisibleOutputBudget(input),
-      // grok-4.6 reasoning cannot be turned off and defaults to high.
+      // grok-4.7 reasoning cannot be turned off and defaults to high.
       // Official "low" is the latency-sensitive agentic / tool-calling tier
       // the assistant operator needs; high burns the first-byte window
       // and the client sees a dropped connection.
@@ -1575,7 +1575,7 @@ function buildXaiChatRequest(
 }
 
 /**
- * Visible-output budget for grok-4.6. Official Chat Completions field is
+ * Visible-output budget for grok-4.7. Official Chat Completions field is
  * `max_completion_tokens` (visible tokens only; default 128k when omitted).
  * `max_tokens` is deprecated and must not be sent — a leftover 1024-sized
  * total cap is spent on reasoning before any JSON lands.
@@ -1633,12 +1633,12 @@ async function xaiTextCompletion(input: LlmTextInput): Promise<string> {
 
 /**
  * Claude (Anthropic) text completion — the Messages API, NOT an
- * OpenAI-compatible drop-in. Model: Claude Fable 5.1 (`claude-fable-5-1`).
+ * OpenAI-compatible drop-in. Models: Claude Opus 5.5 and Fable 5.1.
  * Deliberate differences from the branches above
  * (docs/references/pages/assistant-shell.md):
  *  1. `max_tokens` is required on every request — `providerManagedOutput`
  *     can't mean "omit the field" the way it does for OpenAI/DeepSeek,
- *     so it maps to a wide ceiling. Fable 5.1 always thinks and `max_tokens`
+ *     so it maps to a wide ceiling. Both models always think and `max_tokens`
  *     caps thinking + answer together, so that ceiling is also the floor
  *     for explicit caller budgets (`resolveAnthropicMaxTokens`).
  *  2. The system prompt is a top-level `system` field, not a `role:'system'`
@@ -1694,7 +1694,7 @@ function toLlmTextRefusalError(context: {
 }
 
 /**
- * Fable 5.1 always thinks and `max_tokens` caps thinking + answer together,
+ * Both Claude models always think and `max_tokens` caps thinking + answer together,
  * so every explicit budget is raised to the Anthropic floor — it is a cap,
  * not spend, so the floor costs nothing on short replies.
  */
@@ -1748,7 +1748,7 @@ function buildAnthropicMessagesRequest(
       max_tokens: resolveAnthropicMaxTokens(input),
       // ⛔ No `thinking` field: Fable 5.1 400s on `{type:'disabled'}` and on
       // `budget_tokens`, and thinks adaptively when the field is omitted.
-      // Effort is left at the API default (`high`); tune via
+      // Effort is left at the model default (Opus: medium; Fable: high); tune via
       // `output_config.effort` only after re-measuring the assistant route.
       // Server-side refusal fallback — routes a classifier decline to an
       // Opus-tier model in the same round trip (needs the beta header below).

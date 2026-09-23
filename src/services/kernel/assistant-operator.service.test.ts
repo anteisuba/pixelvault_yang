@@ -11737,7 +11737,7 @@ describe('文本模型路由 · persona 说了算', () => {
       ),
     )
 
-    expect(calledModelId()).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_LUNA)
+    expect(calledModelId()).toBe(LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_LUNA)
   })
 
   /**

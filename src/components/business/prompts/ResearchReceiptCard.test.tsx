@@ -72,7 +72,7 @@ function detail(over: Partial<ResearchRunDetail> = {}): ResearchRunDetail {
     query: '长离是什么发色',
     perSource: [source()],
     evidence: [],
-    model: 'gpt-5.6-sol',
+    model: 'gpt-6-sol',
     error: null,
     createdAt: '2026-08-20T02:00:00.000Z',
     completedAt: '2026-08-20T02:00:12.000Z',

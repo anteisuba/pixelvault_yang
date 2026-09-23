@@ -50,11 +50,9 @@ export const SCRIPT_PLANNER_MODELS = {
     label: 'DeepSeek V4 Pro',
   },
   openai: {
-    // Terra: the balanced GPT-5.6 tier — planner is long-in/long-out, the
-    // cheap luna tier is for enhance, the sol flagship for the assistant.
-    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_5_6_TERRA,
+    modelId: LLM_TEXT_MODEL_IDS.OPENAI_GPT_6_SOL,
     adapterType: AI_ADAPTER_TYPES.OPENAI,
-    label: 'OpenAI GPT-5.6 Terra',
+    label: 'OpenAI GPT-6 Sol',
   },
 } as const
 

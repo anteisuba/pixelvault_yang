@@ -562,14 +562,9 @@ export const LLM_TEXT_MODEL_IDS = {
   // Flash flagship (promo pricing through 2026-12-31, doubles 2027-01-01).
   GEMINI_3_5_FLASH_LITE: 'gemini-3.5-flash-lite',
   GEMINI_3_8_FLASH: 'gemini-3.8-flash',
-  // OpenAI: gpt-5.5 retired 2026-08-23 — at $5/$30 it costs more than the
-  // newer flagship sol ($4/$20), strictly dominated. GPT-5.6 ships as three
-  // price tiers with identical spec cards (sol flagship / terra balanced /
-  // luna high-volume cheap); route tables pick the tier per use case.
   OPENAI_GPT_6_ASTRA: 'gpt-6-astra',
-  OPENAI_GPT_5_6_SOL: 'gpt-5.6-sol',
-  OPENAI_GPT_5_6_TERRA: 'gpt-5.6-terra',
-  OPENAI_GPT_5_6_LUNA: 'gpt-5.6-luna',
+  OPENAI_GPT_6_SOL: 'gpt-6-sol',
+  OPENAI_GPT_6_LUNA: 'gpt-6-luna',
   OPENAI_GPT_5_SEARCH_API: 'gpt-5-search-api',
   DEEPSEEK_V4_PRO: 'deepseek-v4-pro',
   // DeepSeek's vision tier. 2026-09-17: the official model list retired
@@ -578,21 +573,9 @@ export const LLM_TEXT_MODEL_IDS = {
   // current id: 1M context, 384K max output, vision ✓, $0.15/$0.6 per MTok
   // off-peak ($0.3/$1.2 peak), cache hits $0.003–0.006.
   DEEPSEEK_FLASH: 'deepseek-flash',
-  // Anthropic (Claude). Fable 5.1 only — owner 2026-09-02 decision, replacing
-  // the 2026-07-26 "Sonnet 5 only" decree. Canvas-assistant structural
-  // reasoning. $10/$50 per MTok, 1M context, 128k output, thinking always on
-  // (no `thinking` config accepted), no assistant prefill, no forced
-  // `tool_choice`, requires 30-day data retention on the key's org.
+  CLAUDE_OPUS_5_5: 'claude-opus-5-5',
   CLAUDE_FABLE_5_1: 'claude-fable-5-1',
-  /**
-   * xAI (Grok). grok-4.6 only — owner 2026-08-23 decree. 500k context,
-   * text+image input, function calling / structured outputs / reasoning.
-   * $2/$6 per MTok under 200k context, $4/$12 above it.
-   * ⚠ The docs' model **summary table** lists every Grok's modality as "Text";
-   * that column is wrong — each model's own page (and the image-understanding
-   * guide, for 4.6) says `text, image → text`. Trust the per-model page.
-   */
-  XAI_GROK_4_6: 'grok-4.6',
+  XAI_GROK_4_7: 'grok-4.7',
 } as const
 
 export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
@@ -601,12 +584,12 @@ export const LLM_TEXT_DEFAULT_MAX_TOKENS = {
   // Anthropic's Messages API requires `max_tokens` on every request — there
   // is no "omit for provider-managed" option like OpenAI/DeepSeek/Qwen. This
   // is both the provider-managed ceiling and the *floor* for explicit
-  // budgets: Claude Fable 5.1 always thinks (thinking cannot be disabled),
+  // budgets: Claude Opus 5.5 and Fable 5.1 always think (thinking cannot be disabled),
   // and `max_tokens` caps thinking + answer together, so a caller budget
   // sized for a non-thinking adapter (the 1024 default) could be spent
   // entirely on reasoning and truncate the reply. It is a cap, not spend.
   ANTHROPIC: 16_000,
-  // grok-4.6 reasoning cannot be disabled and defaults to high. Official
+  // grok-4.7 reasoning cannot be disabled and defaults to high. Official
   // Chat Completions uses `max_completion_tokens` for *visible* output
   // only (default 128k when omitted). Deprecated `max_tokens` must not be
   // sent — if still honored as a total cap, a 1024-sized budget is spent
@@ -638,7 +621,7 @@ export const LLM_TEXT_TIMEOUTS_MS = {
    */
   STREAM_HEADERS: 30_000,
   /**
-   * grok-4.6 流式在推理结束前不发第一个 SSE 事件。官方文档写明推理模型
+   * grok-4.7 流式在推理结束前不发第一个 SSE 事件。官方文档写明推理模型
    * 必须加长超时，否则会「prematurely closing connection」。30s 首包窗口
    * 对 default-high reasoning 不够；头到手之后仍走普通流、不再计时。
    */

@@ -11188,7 +11188,33 @@ describe('current reference image bindings', () => {
     expect(stepsOf(events).some((step) => step.status === 'done')).toBe(false)
   })
 
-  it('rewrites once for gaps, then writes and reports what the check still flags', async () => {
+  /**
+   * ⭐ 2026-09-24 真机：写成功后把同一段原样再交一遍，被重复护栏拒下，模型读成
+   * 「没写进去」并照这个告诉创作者。重复的改动要说清「已经生效」。
+   */
+  it('tells the model a repeated write already succeeded instead of calling it refused', async () => {
+    const write = {
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        title: '写提示词',
+        args: { value: 'A quiet harbour at dawn' },
+      },
+    }
+    queueTurns(write, write, { finished: true, message: '写好了。' })
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest({})),
+    )
+    const writes = stepsOf(events).filter(
+      (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+    )
+    expect(writes.map((step) => step.status)).toContain('done')
+    expect(lastUserPrompt()).toContain(
+      'that exact change already succeeded earlier this turn',
+    )
+    expect(lastUserPrompt()).not.toContain('set_prompt was REFUSED')
+  })
+
+  it('rewrites once for gaps, then writes without reading the leftovers back to the model', async () => {
     const turns = analysisTurns()
     for (const value of ['A hug in a forest', 'An embrace in the woods']) {
       turns.push(
@@ -11226,7 +11252,8 @@ describe('current reference image bindings', () => {
     ).toHaveLength(2)
     // ⛔ 漏写不问创作者。
     expect(events.some((event) => event.type === 'ask')).toBe(false)
-    expect(lastUserPrompt()).toContain('The prompt check still flags')
+    // ⭐ 残余意见不念给模型：读到它，模型会把同一段原样再交一遍（2026-09-24 真机）。
+    expect(lastUserPrompt()).not.toContain('The prompt check still flags')
   })
 
   it('writes the prompt after the creator picks follow-request on a conflict card', async () => {

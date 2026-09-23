@@ -3811,8 +3811,6 @@ async function planSetText(
     }
   }
 
-  /** 重写一次之后复核仍挑出的那几处 —— 照写，收尾时交代（D12 Q3）。 */
-  let reviewGaps: string[] = []
   if (needsReferenceReview && run.referenceAnalysis) {
     const analysis = run.referenceAnalysis
     const review = () =>
@@ -3877,7 +3875,14 @@ async function planSetText(
         `The prompt check found gaps in what you wrote: ${gaps.join(' / ')}. Rewrite the FULL prompt fixing all of them and call set_prompt again in this same turn. Do not ask the creator about these — they are omissions in your prompt, not their decision.`,
       )
     }
-    reviewGaps = gaps
+    /**
+     * 重写一次之后仍有的：照写，⛔ 不再念给模型听（2026-09-24 真机：它读到「还有
+     * 问题」就把同一段原样再交一遍，撞重复拒绝后对创作者说「没写进去」）。
+     */
+    if (gaps.length > 0)
+      logger.info('assistant prompt review gaps left after rewrite', {
+        count: gaps.length,
+      })
   }
 
   return {
@@ -3895,10 +3900,6 @@ async function planSetText(
     }${loraMaterialObservation(loraMaterial)}${
       needsReferenceReview && run.referenceBriefDegraded
         ? ' The source-role brief failed schema validation, so this was written from the verified visual facts and the sources the creator named. Tell the creator the prompt is in, which source you used for what, and that they can correct the split in one sentence. Do not rebuild the brief or ask them to re-upload anything.'
-        : ''
-    }${
-      reviewGaps.length
-        ? ` The prompt check still flags: ${reviewGaps.join(' / ')}. It was written anyway and the setup is not blocked: carry on with the rest of the request (specs, the confirm card) as usual. If any of these matters for the result, say so in one clause of your closing line. Do not rewrite it again this turn and do not ask the creator to send another message to fix it.`
         : ''
     }`,
     apply: () => {
@@ -9553,6 +9554,9 @@ export async function* runAssistantOperator(
       const rewroteTooOften =
         isRevertibleAssistantOperatorTool(name) &&
         (writeToolCalls.get(name) ?? 0) >= LIMITS.maxSameWriteToolCalls
+      /** 改动型工具只有**成功**才进 `executedStepKeys` —— 撞上即「这一改已生效」。 */
+      const repeatedWrite =
+        !rewroteTooOften && isRevertibleAssistantOperatorTool(name)
       if (run.executedStepKeys.has(stepKey) || rewroteTooOften) {
         repeatedStepStrikes += 1
         yield toStepEvent({
@@ -9563,13 +9567,17 @@ export async function* runAssistantOperator(
             reason: REJECT.repeatedStep,
             detail: rewroteTooOften
               ? `You already ran ${name} ${LIMITS.maxSameWriteToolCalls} times this turn. Stop rewriting it: finish now and tell the creator what you set and what you are unsure about.`
-              : 'You already ran this exact call in this turn and the answer will not change. Take a different route, or ask the creator one short question — do not run it again.',
+              : repeatedWrite
+                ? 'This exact change is already on the form — it succeeded earlier this turn. Nothing to redo; continue with the next step.'
+                : 'You already ran this exact call in this turn and the answer will not change. Take a different route, or ask the creator one short question — do not run it again.',
           },
         })
         run.observations.push(
           rewroteTooOften
             ? `${name} was REFUSED (${REJECT.repeatedStep}): you already ran it ${LIMITS.maxSameWriteToolCalls} times this turn. Finish now: tell the creator what is on the form and what you are unsure about.`
-            : `${name} was REFUSED (${REJECT.repeatedStep}): you already ran that exact call this turn. Repeating it cannot produce a different answer. Do something else or finish.`,
+            : repeatedWrite
+              ? `${name} was skipped: that exact change already succeeded earlier this turn and is on the form now. Do not tell the creator it failed; continue with the next step of the request.`
+              : `${name} was REFUSED (${REJECT.repeatedStep}): you already ran that exact call this turn. Repeating it cannot produce a different answer. Do something else or finish.`,
         )
         // 第二次 = 打转，不是抖动。收尾，⛔ 但不沉默（见 `OPERATOR_STUCK_MESSAGES`）。
         if (repeatedStepStrikes >= LIMITS.maxRepeatedStepStrikes) {

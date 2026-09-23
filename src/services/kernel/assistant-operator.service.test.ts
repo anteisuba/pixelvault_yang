@@ -10,6 +10,22 @@ import {
 
 vi.mock('server-only', () => ({}))
 
+/**
+ * 参考图尺寸探针走的真实取图。⚠ 默认一律失败 —— 单测不去打真地址；要尺寸的那一条
+ * 自己塞一张 sharp 现造的图。
+ */
+const mockSafeFetch = vi.fn(async (..._args: unknown[]): Promise<Response> => {
+  throw new Error('network disabled in tests')
+})
+vi.mock('@/lib/url-guard', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/lib/url-guard')>('@/lib/url-guard')
+  return {
+    ...actual,
+    safeFetch: (...args: unknown[]) => mockSafeFetch(...args),
+  }
+})
+
 const mockEnsureUser = vi.fn()
 vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
@@ -9955,6 +9971,61 @@ describe('current reference image bindings', () => {
       expect(prompt).toContain('analyze_references')
       expect(prompt).toContain(
         'Never tell the creator you cannot see these pictures',
+      )
+    })
+
+    /**
+     * ⭐ 2026-09-24 真机：三视图横幅被默认 1:1 裁成方图 —— 助手只拿到 URL，
+     * 不知道原图多宽。状态块要印出尺寸与最近的比例档，并说「保构图就跟它走」。
+     */
+    it('prints each reference size with the closest aspect option', async () => {
+      const { default: sharp } = await import('sharp')
+      const png = await sharp({
+        create: {
+          width: 2048,
+          height: 1152,
+          channels: 3,
+          background: '#808080',
+        },
+      })
+        .png()
+        .toBuffer()
+      mockSafeFetch.mockImplementation(async (url: unknown) =>
+        url === 'https://cdn.test/turnaround-wide.png'
+          ? new Response(new Uint8Array(png))
+          : Promise.reject(new Error('network disabled in tests')),
+      )
+      queueTurns({ finished: true, message: '好的。' })
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            messages: [{ role: 'user', content: styleQuestion }],
+            snapshot: {
+              ...SNAPSHOT,
+              references: {
+                items: [{ url: 'https://cdn.test/turnaround-wide.png' }],
+                limit: 4,
+              },
+            },
+          }),
+        ),
+      )
+      const prompt = lastUserPrompt()
+      expect(prompt).toContain(
+        '@Image1: https://cdn.test/turnaround-wide.png — 2048×1152 px, closest aspect option 16:9',
+      )
+      expect(prompt).toContain(
+        'set the aspect ratio to the option closest to that reference',
+      )
+    })
+
+    it('says nothing about size when the reference cannot be read', async () => {
+      await runStyleQuestion({ finished: true, message: '两张都是写实风。' })
+      const prompt = lastUserPrompt()
+      expect(prompt).not.toContain(' px, closest aspect option')
+      expect(prompt).not.toContain(
+        'set the aspect ratio to the option closest to that reference',
       )
     })
 

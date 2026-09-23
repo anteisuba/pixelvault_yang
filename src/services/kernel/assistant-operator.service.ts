@@ -8,6 +8,8 @@ import {
   analyzeOperatorReferences,
   buildDefaultReferenceBrief,
   buildOperatorReferenceBrief,
+  probeReferenceDimensions,
+  readReferenceDimensions,
   ReferenceAnalysisValidationError,
   reviewOperatorReferencePrompt,
 } from '@/services/kernel/assistant-reference-analysis.service'
@@ -1474,11 +1476,20 @@ function renderState(
     lines.push(
       `CURRENT REFERENCE ORDER — ${state.referenceUrls.length} reference image(s) are mounted on this workbench and you CAN see them: look with action "analyze_references" opens the actual pixels. Use these exact @ImageN tokens; historical numbering may be stale:`,
     )
+    const aspectOptions = request.snapshot.specs?.aspectRatioOptions ?? []
     state.referenceUrls.forEach((url, index) => {
       lines.push(
-        `  @Image${index + 1}: ${url ?? '(import pending; wait for the actual image in the next snapshot)'}`,
+        `  @Image${index + 1}: ${url ?? '(import pending; wait for the actual image in the next snapshot)'}${describeReferenceSize(url, aspectOptions)}`,
       )
     })
+    /**
+     * ⭐ 改图保构图时比例跟原图走（2026-09-24 真机：三视图横幅被 1:1 裁成方图）。
+     * 只在尺寸真拿到时说 —— 没有尺寸就没有这句，⛔ 不让模型凭 URL 猜。
+     */
+    if (state.referenceUrls.some((url) => readReferenceDimensions(url)))
+      lines.push(
+        '  When the creator wants a mounted reference edited or restyled while keeping its layout (change the outfit, swap the style, fix a detail), set the aspect ratio to the option closest to that reference before generating, unless they asked for another shape. A different ratio crops or re-composes the picture.',
+      )
     /**
      * ⭐ 真机缺口（2026-09-12）：挂着两张参考图，用户问「这两张分别是什么画风」，
      * 模型回「我无法直接查看这两张参考图的画面像素」—— 状态块里参考图只以地址
@@ -2898,6 +2909,33 @@ function workingMemoryAsset(
 }
 
 /**
+ * 参考图尺寸那半句：「 — 2048×1152 px, closest aspect option 16:9」。
+ * 候选只认 `a:b` 形状（`auto` / `adaptive` 不参与比较）；没尺寸就返回空串。
+ */
+function describeReferenceSize(
+  url: string | null,
+  aspectOptions: readonly string[],
+): string {
+  const size = readReferenceDimensions(url)
+  if (!size) return ''
+  const ratio = size.width / size.height
+  let closest: string | undefined
+  let bestGap = Infinity
+  for (const option of aspectOptions) {
+    const match = /^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/.exec(option)
+    if (!match) continue
+    const gap = Math.abs(
+      Math.log(ratio / (Number(match[1]) / Number(match[2]))),
+    )
+    if (gap < bestGap) {
+      bestGap = gap
+      closest = option
+    }
+  }
+  return ` — ${size.width}×${size.height} px${closest ? `, closest aspect option ${closest}` : ''}`
+}
+
+/**
  * 首帧一挂上，宽高比就只剩自适应了吗（第二期，owner 2026-09-06）。
  *
  * ⭐ **两个条件缺一不可**：① 这条线路声明了带图锁（`videoSpecs.aspectRatioLock`，
@@ -3325,6 +3363,8 @@ function describePlanAnswers(request: AssistantOperatorRequest): string[] {
   return collectSettledAnswers(request).map(describeOneAnswer)
 }
 
+const REFERENCE_CREATOR_NOTE_CHARS = 1_200
+
 function referenceCreatorContext(run: OperatorRun): string {
   /**
    * ⭐ **答过的那几道也是「创作者说过的话」**（2026-09-12 真机 bug）：分工简报
@@ -3457,6 +3497,12 @@ async function planAnalyzeReferences(
       urls: urls as string[],
       cached,
       imageIndices: indices,
+      // 取尾巴：最近说的那几句最该算数。
+      creatorNote: run.request.messages
+        .filter((message) => message.role === 'user')
+        .map((message) => message.content)
+        .join('\n')
+        .slice(-REFERENCE_CREATOR_NOTE_CHARS),
       language:
         RESPONSE_LANGUAGE_LABELS[
           resolveResponseLanguage(run.request, run.persona)
@@ -8943,6 +8989,8 @@ export async function* runAssistantOperator(
    * `planMountLora` 取候选与那道准入闸读的都是它。
    */
   hydrateLoraIndexFromPicks(run, request.loraPicks ?? [])
+  if (request.domain === 'image' || request.domain === 'lora')
+    await probeReferenceDimensions(run.state.referenceUrls)
 
   const composeSystemPrompt = () =>
     buildOperatorSystemPrompt(

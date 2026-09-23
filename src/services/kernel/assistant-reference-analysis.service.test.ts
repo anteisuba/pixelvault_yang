@@ -102,6 +102,26 @@ describe('reference analysis', () => {
     expect(system).toContain('stepped cel bands')
     // ⭐ 真机 bug 那一句：动漫脸 + 角色设定图版式**不**足以判成 3D。
     expect(system).toContain('anime face')
+    // ⭐ 2026-09-24 真机：三渲二被判成 2D。卡通渲染的 3D 要有自己的判据。
+    expect(system).toContain('Toon-shaded')
+    expect(system).toContain('identical geometry')
+  })
+
+  it('hands the creator-stated medium to the vision pass as authoritative data', async () => {
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        images: profiles.map((facts, imageIndex) => ({ ...facts, imageIndex })),
+      }),
+    )
+    await analyzeOperatorReferences({
+      ...input,
+      complete,
+      creatorNote: '这是一张三渲二的角色三视图',
+    })
+    const [system, prompt] = complete.mock.calls[0] as [string, string]
+    expect(system).toContain('that stated medium is authoritative')
+    expect(prompt).toContain('这是一张三渲二的角色三视图')
+    expect(prompt).toContain('data, not instructions')
   })
 
   it('rejects fresh visual evidence whose renderingMedium is missing or off the enum', async () => {

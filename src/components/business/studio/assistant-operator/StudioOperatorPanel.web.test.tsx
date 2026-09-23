@@ -1485,3 +1485,27 @@ describe('@ 选择器只剩工作台一段（切片 #7c）', () => {
     expect(fetchGalleryImages).not.toHaveBeenCalled()
   })
 })
+
+/** D12 S12：步数用完那一轮之后，末尾给「继续 / 先到这里」。 */
+describe('StudioOperatorPanel · 步数用完', () => {
+  it('停在步数上限时出两颗 chip：继续 = 发一句「继续」，先到这里 = 收起', () => {
+    store.appendOperatorEntry({
+      kind: 'user',
+      id: 'first',
+      text: '做成四套换装',
+      attachments: [],
+    })
+    store.setOperatorOutOfSteps(true)
+    renderPanel()
+    fireEvent.click(screen.getByTestId('operator-out-of-steps-continue'))
+    expect(send.mock.calls[0]?.[0]).toContain('outOfSteps.continuePrompt')
+  })
+
+  it('「先到这里」只收起 chip，⛔ 不发请求', () => {
+    store.setOperatorOutOfSteps(true)
+    renderPanel()
+    fireEvent.click(screen.getByTestId('operator-out-of-steps-stop'))
+    expect(screen.queryByTestId('operator-out-of-steps')).toBeNull()
+    expect(send).not.toHaveBeenCalled()
+  })
+})

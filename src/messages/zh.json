@@ -8023,6 +8023,11 @@
     },
     "autoGenerate": {
       "label": "自动生成"
+    },
+    "outOfSteps": {
+      "continue": "继续",
+      "stop": "先到这里",
+      "continuePrompt": "继续"
     }
   },
   "GenerationCancel": {

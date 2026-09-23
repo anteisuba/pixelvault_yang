@@ -8023,6 +8023,11 @@
     },
     "autoGenerate": {
       "label": "自動生成"
+    },
+    "outOfSteps": {
+      "continue": "続ける",
+      "stop": "ここまで",
+      "continuePrompt": "続けて"
     }
   },
   "GenerationCancel": {

@@ -8023,6 +8023,11 @@
     },
     "autoGenerate": {
       "label": "Auto-generate"
+    },
+    "outOfSteps": {
+      "continue": "Continue",
+      "stop": "Stop here",
+      "continuePrompt": "Continue"
     }
   },
   "GenerationCancel": {

@@ -148,6 +148,7 @@ import {
   getOperatorState,
   restoreOperatorThreadCheckpoint,
   setOperatorAutoGenerate,
+  setOperatorOutOfSteps,
   setOperatorResumeScope,
   updateOperatorRoundSummary,
   useStudioOperatorState,
@@ -332,6 +333,7 @@ export function StudioOperatorPanel({
     confirm,
     resume,
     autoGenerate,
+    outOfSteps,
   } = useStudioOperatorState()
   const entries = useMemo(
     () => allEntries.filter((entry): boolean => entry.kind !== 'domainMark'),
@@ -2058,6 +2060,32 @@ export function StudioOperatorPanel({
                   />
                 )}
               </StudioOperatorTimelineRow>
+            ) : null}
+
+            {/* ── 步数用完（D12 S12）：那一句由助手说完「做到哪 · 还剩什么」，这里
+              只给两颗 chip。⚠ 跑着 / 出错 / 等你定时都不画。 */}
+            {outOfSteps && status === 'idle' ? (
+              <div
+                data-testid="operator-out-of-steps"
+                className="mt-2.5 flex flex-wrap gap-1.5"
+              >
+                <button
+                  type="button"
+                  data-testid="operator-out-of-steps-continue"
+                  onClick={() => submit(t('outOfSteps.continuePrompt'))}
+                  className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                >
+                  {t('outOfSteps.continue')}
+                </button>
+                <button
+                  type="button"
+                  data-testid="operator-out-of-steps-stop"
+                  onClick={() => setOperatorOutOfSteps(false)}
+                  className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                >
+                  {t('outOfSteps.stop')}
+                </button>
+              </div>
             ) : null}
 
             {status === 'error' ? (

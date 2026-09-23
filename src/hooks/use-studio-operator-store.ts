@@ -196,6 +196,11 @@ export interface StudioOperatorState {
    */
   incognito: boolean
   /**
+   * 上一轮是**步数用完**停下的（D12 S12）—— 面板据此在末尾给「继续 / 先到这里」。
+   * ⚠ 用户一开口（或新对话 / 换会话）就清掉。
+   */
+  outOfSteps: boolean
+  /**
    * 视频域评审的**抽帧那一段**正在跑（第二期最后一环）。
    *
    * ⭐ 它与 `status: 'working'` **不是同一件事**：抽帧发生在请求发出去**之前**
@@ -277,6 +282,7 @@ const INITIAL_STATE: StudioOperatorState = {
   question: null,
   confirm: null,
   incognito: false,
+  outOfSteps: false,
   capturingFrames: false,
   reviewStates: {},
   resume: null,
@@ -933,6 +939,12 @@ export function dropOperatorPendingResult(id: string): void {
  * ⚠ ⛔ 不在这里清任何东西：隐身**不撤销**已经记下的那些（那是设置页上的
  * 「删」与「全部清空」干的事），它只管从现在起这段对话不再记。
  */
+/** 步数用完那一轮的标记（D12 S12）。 */
+export function setOperatorOutOfSteps(outOfSteps: boolean): void {
+  if (state.outOfSteps === outOfSteps) return
+  emit({ ...state, outOfSteps })
+}
+
 export function setOperatorIncognito(incognito: boolean): void {
   if (state.incognito === incognito) return
   emit({ ...state, incognito })
@@ -1097,6 +1109,7 @@ export function loadOperatorThread(args: {
     entries: [],
     // ⚠ 翻开另一段会话 = 自动生成开关回到关（D12 S-C，只管当前会话）。
     autoGenerate: false,
+    outOfSteps: false,
     stepsDone: 0,
     plannedSteps: 0,
     errorText: null,
@@ -1255,6 +1268,7 @@ export function resetOperatorThread(): void {
     confirm: null,
     // ⚠ 自动生成开关只管这一段会话（D12 S-C）：新对话回到关。
     autoGenerate: false,
+    outOfSteps: false,
     stepsDone: 0,
     plannedSteps: 0,
     errorText: null,

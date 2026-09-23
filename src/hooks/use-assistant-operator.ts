@@ -81,6 +81,7 @@ import {
   clearOperatorQueue,
   dropOperatorPending,
   settleOperatorStreaming,
+  setOperatorOutOfSteps,
   enqueueOperatorMessage,
   finalizeOperatorMessage,
   appendOperatorStreamingMessage,
@@ -1625,6 +1626,9 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               if (event.roundSummary) {
                 appendOperatorRoundSummary(event.roundSummary)
               }
+              if (event.reason === ASSISTANT_OPERATOR_STOP_REASONS.maxSteps) {
+                setOperatorOutOfSteps(true)
+              }
               if (getOperatorState().status === 'awaitingPlan') break
               setOperatorStatus(
                 event.reason === ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm
@@ -1783,6 +1787,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       //   ⛔ 别让它们变成永远不会被发出去的孤儿 —— 排队条挂着而没有任何东西会
       //   来处理它，正是本仓最讨厌的那种失败。
       flushQueue()
+      setOperatorOutOfSteps(false)
       /**
        * ⭐ 三张「等你定」的卡一起收（§4.1「钉在流末尾」）：用户改口了，上一轮那张
        * 计划 / 花钱 / 反问就此作废。⛔ 留着的表现是流末尾挂着一张还能点的卡，

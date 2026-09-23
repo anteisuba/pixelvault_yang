@@ -71,6 +71,7 @@ import {
   assistantOperatorEntryToolsInDomain,
   isAssistantOperatorEntryTool,
   isAssistantOperatorToolInDomain,
+  isRevertibleAssistantOperatorTool,
   isInternalAssistantOperatorTool,
   resolveAssistantOperatorEntryAction,
   isUnfinishedClosingMessage,
@@ -6872,6 +6873,27 @@ const OPERATOR_PROMPT_REVIEW_UNAVAILABLE: Record<
     '提示词检查连续两次未返回可用结果，已在写入前停止。已有修改保留，可以稍后重试这一步，无需改动你的要求。',
 }
 
+/**
+ * 步数用完、模型又没留下收尾那句时的兜底（D12 B1：步数用完**必须说**）。
+ * ⚠ 只是兜底：最后一步已经提前告诉模型「这一步只许收尾」，它照做时用的是它自己
+ * 那句（说得出做到哪、还剩什么），这一句只在它仍去调工具且没写正文时出现。
+ */
+const OPERATOR_OUT_OF_STEPS_MESSAGES: Record<
+  PromptAssistantResponseLanguage,
+  string
+> = {
+  english:
+    'I used up the steps for this turn and stopped here. Everything I changed is on the form. Say "continue" and I will pick up where I left off.',
+  japanese:
+    'このターンのステップを使い切ったので、ここで止めました。変更はフォームに反映済みです。「続けて」と言えば続きから進めます。',
+  chinese:
+    '这一轮的步数用完了，先停在这里，改过的都已经在表单上。说一句「继续」，我接着往下做。',
+}
+
+/** 最后一步的提醒 —— 给模型留出说完那句话的一步（D12 B1）。 */
+const OPERATOR_LAST_STEP_OBSERVATION =
+  'THIS IS YOUR LAST STEP THIS TURN. Do not call a tool. Set "finished":true and write the closing "message": what you got done, what is still left, and what the creator can say to continue.'
+
 const OPERATOR_STUCK_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
   {
     english:
@@ -7606,7 +7628,10 @@ HOW YOU TALK — the creator hired an operator, not a rulebook:
 - Don't recite your own constraints to them. Not what you cannot do, not why, not "as I mentioned". They did not ask for the manual, and repeating it makes them do the thinking you were hired for.
 - On an action turn, if a tool in your list can do the thing, do it yourself. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The generate button itself stays theirs. For a pure information question, answer in "message" instead of calling a tool.
 - When a call is refused, change the approach silently. Say what you are doing next, not which rule stopped you. Never explain the same rule twice.
-- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.${buildPersonaStyleSection(persona)}${buildCreatorSection(
+- Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early. Rewording the same field again and again is the same loop: if two writes did not get it right, stop and tell them what you set and what you are unsure about.
+- Never point at the screen by position ("the button on the right", "above", "左边"). Name the control ("the generate button") — the layout differs between desktop, phone and canvas.
+- Every turn ends with one closing "message": what you did or found, anything you could not do and why, and what they can say next. A turn that ends in silence, or on a list of steps, leaves them guessing.
+- If a step failed, say so plainly in that closing message and never call the thing done; never paste the tool's error text — say what went wrong in their words.${buildPersonaStyleSection(persona)}${buildCreatorSection(
     persona,
     creator.accountName,
     contextCards,
@@ -7620,11 +7645,12 @@ OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outsi
 {"plan":["short step","short step"],"tool":{"name":"apply","title":"one short line for the log","reason":"why, in one line","args":{"action":"set_prompt","value":"..."}},"message":"what you are telling the creator","detail":"the reasoning, if it is worth reading","finished":false}
 
 - "tool"."name" is ALWAYS one of the five verbs. Everything else about the call goes in "args": "action" says which move, and the rest of "args" is that move's own arguments, flat beside it. Writing a move's name in "name" is refused and costs you a step.
-- ASKING is a tool call too: {"tool":{"name":"ask","args":{"question":"Which look are you after?","header":"Look","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}}}. It ENDS your turn: the app shows the question and waits for their tap. Ask when two plausible interpretations would produce materially different identity, body proportions, style, reference priority, or node layout, and the current references cannot settle it. Ask one focused question rather than silently choosing a consequential interpretation. For minor reversible details, choose a reasonable default and state it. One question at a time.
+- ASKING is a tool call too: {"tool":{"name":"ask","args":{"question":"Which look are you after?","header":"Look","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}}}. It ENDS your turn: the app shows the question and waits for their tap. Ask only on a real conflict: two plausible readings that would give materially different identity, body proportions, style, reference priority, or node layout, which the current references cannot settle. Anything else (what the picture is for, minor reversible details) — pick a sensible default and say it in one short clause. When you need more than one decision, ask them together in "questions" on one turn (the app shows them one at a time) instead of one ask per turn.
+- A decision that is theirs to make always goes through a question — never ask for it in "message" prose ("please confirm whether…"), because prose gives them nothing to tap. On a question turn "message" is one short sentence of WHY you are asking; never repeat the question itself there.
 - "confirmPlan":true on your FIRST turn when what you are about to do is a run the creator would want to green-light first — a string of moves, or one that writes over something of theirs. The app shows the plan and waits. Leave it out otherwise; a card in front of a single obvious edit is pure interruption.
 
 - "plan" only on your FIRST turn, at most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
-- "questions" rides along with that first "plan" and ONLY there: 1–${PLAN_LIMITS.maxQuestions} questions about things you genuinely cannot settle from what they told you. The app turns each into one tap. Leave it out when you can settle everything yourself — a question you already know the answer to costs them a round trip. Never ask about something the state block already answers.
+- "questions" is where you batch decisions: 1–${PLAN_LIMITS.maxQuestions} questions about things you genuinely cannot settle from what they told you, all on the same turn (with "plan" if it is your first turn). The app turns each into one tap. Leave it out when you can settle everything yourself — a question you already know the answer to costs them a round trip. Never ask about something the state block already answers.
 - ASK LIKE A PERSON, NOT LIKE A FORM. Every question is a real question ("Which look are you after?"), and every option carries a one-line description saying what that choice actually does — the description IS the difference between the options, so an option without one is useless and the server drops it. Put your recommendation FIRST and mark it "recommended":true — they hired you for an opinion, not a quiz. Say explicitly whether more than one answer is allowed with "multiSelect".
 - Shape: {"header":"Look","question":"Which look are you after?","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}. "header" is the ${PLAN_LIMITS.maxHeaderChars}-character label the app shows once the card is collapsed; "question" is the full sentence. ${PLAN_LIMITS.minOptions}–${PLAN_LIMITS.maxOptions} options each, question within ${PLAN_LIMITS.maxQuestionChars} characters, option labels within ${PLAN_LIMITS.maxOptionLabelChars} and descriptions within ${PLAN_LIMITS.maxOptionDescriptionChars}. All of it in the creator's language. "allowOther" defaults to true — leave it on unless the choice is a closed set. "id" fields are optional; the server assigns them.${buildPlanVisualSection()}
 - "message" is required on a question turn. On an action turn it is optional — use it to say something worth saying, not to narrate every step.
@@ -8911,6 +8937,8 @@ export async function* runAssistantOperator(
   let consecutiveParseFailures = 0
   /** 连着撞了几次「同一步重复」—— 执行成功一次就归零（见下面那段）。 */
   let repeatedStepStrikes = 0
+  /** 这一轮每个工具真跑成了几次 —— 改动型工具的上限判据（D12 B1）。 */
+  const writeToolCalls = new Map<string, number>()
   /** 收尾那句话已经被退回去要过一次结论了。⛔ 只退一次，不做开放循环。 */
   let conclusionRetried = false
   let completed = false
@@ -9012,7 +9040,11 @@ export async function* runAssistantOperator(
         }
       }
     }
-    for (let index = 0; index < operatorStepBudget(request); index += 1) {
+    const stepBudget = operatorStepBudget(request)
+    for (let index = 0; index < stepBudget; index += 1) {
+      /** 最后一步只许收尾（D12 B1）：步数用完不许静默。 */
+      const lastStep = index === stepBudget - 1
+      if (lastStep) run.observations.push(OPERATOR_LAST_STEP_OBSERVATION)
       if (options.signal?.aborted) {
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,
@@ -9318,6 +9350,32 @@ export async function* runAssistantOperator(
         return
       }
 
+      /**
+       * 最后一步它还是去调工具了 —— ⛔ 不跑那一步（跑完也没有下一步来说话），
+       * 用它这一轮写的那句收尾；没写就用兜底那句（D12 B1）。
+       */
+      if (lastStep) {
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.message,
+          text:
+            turn.message?.trim() ||
+            OPERATOR_OUT_OF_STEPS_MESSAGES[
+              resolveResponseLanguage(request, persona)
+            ],
+        }
+        const roundSummary = await closeRound(run, {
+          clerkId,
+          userId: user.id,
+        })
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.maxSteps,
+          ...(roundSummary ? { roundSummary } : {}),
+        }
+        completed = true
+        return
+      }
+
       const { name: rawToolName, title, reason, args: rawToolArgs } = turn.tool
 
       /**
@@ -9403,7 +9461,14 @@ export async function* runAssistantOperator(
        * 最后回头支使用户自己动手。
        */
       const stepKey = operatorStepKey(name, args)
-      if (run.executedStepKeys.has(stepKey)) {
+      /**
+       * 同一个改动型工具一轮跑满上限（D12 B1）—— 换着措辞重写同一格也是打转，
+       * 参数不同，上面那条「同一步」判据认不出来。
+       */
+      const rewroteTooOften =
+        isRevertibleAssistantOperatorTool(name) &&
+        (writeToolCalls.get(name) ?? 0) >= LIMITS.maxSameWriteToolCalls
+      if (run.executedStepKeys.has(stepKey) || rewroteTooOften) {
         repeatedStepStrikes += 1
         yield toStepEvent({
           ...base,
@@ -9411,12 +9476,15 @@ export async function* runAssistantOperator(
           status: STATUS.error,
           error: {
             reason: REJECT.repeatedStep,
-            detail:
-              'You already ran this exact call in this turn and the answer will not change. Take a different route, or ask the creator one short question — do not run it again.',
+            detail: rewroteTooOften
+              ? `You already ran ${name} ${LIMITS.maxSameWriteToolCalls} times this turn. Stop rewriting it: finish now and tell the creator what you set and what you are unsure about.`
+              : 'You already ran this exact call in this turn and the answer will not change. Take a different route, or ask the creator one short question — do not run it again.',
           },
         })
         run.observations.push(
-          `${name} was REFUSED (${REJECT.repeatedStep}): you already ran that exact call this turn. Repeating it cannot produce a different answer. Do something else or finish.`,
+          rewroteTooOften
+            ? `${name} was REFUSED (${REJECT.repeatedStep}): you already ran it ${LIMITS.maxSameWriteToolCalls} times this turn. Finish now: tell the creator what is on the form and what you are unsure about.`
+            : `${name} was REFUSED (${REJECT.repeatedStep}): you already ran that exact call this turn. Repeating it cannot produce a different answer. Do something else or finish.`,
         )
         // 第二次 = 打转，不是抖动。收尾，⛔ 但不沉默（见 `OPERATOR_STUCK_MESSAGES`）。
         if (repeatedStepStrikes >= LIMITS.maxRepeatedStepStrikes) {
@@ -9760,6 +9828,7 @@ export async function* runAssistantOperator(
       run.observations.push(plan.observation)
       recordLedgerStep(run, base.verb, base.title, plan.observation)
       run.executedStepKeys.add(stepKey)
+      writeToolCalls.set(name, (writeToolCalls.get(name) ?? 0) + 1)
       repeatedStepStrikes = 0
       if (name === TOOL.canvasApply) {
         yield {
@@ -9771,9 +9840,21 @@ export async function* runAssistantOperator(
       }
     }
 
+    /**
+     * 最后一步被退回（读不出 JSON / 收尾不是结论 / 重复步）后循环自然走完 ——
+     * 同样不许静默（D12 B1）。
+     */
+    yield {
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: OPERATOR_OUT_OF_STEPS_MESSAGES[
+        resolveResponseLanguage(request, persona)
+      ],
+    }
+    const roundSummary = await closeRound(run, { clerkId, userId: user.id })
     yield {
       type: ASSISTANT_OPERATOR_EVENTS.stopped,
       reason: ASSISTANT_OPERATOR_STOP_REASONS.maxSteps,
+      ...(roundSummary ? { roundSummary } : {}),
     }
     completed = true
   } finally {

@@ -1013,6 +1013,70 @@ describe('工具环 · 逐事件顺序', () => {
     expect(mockLlmTextCompletion).toHaveBeenCalledTimes(
       ASSISTANT_OPERATOR_LIMITS.maxSteps,
     )
+    // ⭐ D12 B1：步数用完不许静默 —— 最后一步只收尾，停之前必有一句话。
+    expect(events.at(-2)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+    })
+    expect(lastUserPrompt()).toContain('THIS IS YOUR LAST STEP THIS TURN')
+    expect(stepsOf(events)).toHaveLength(ASSISTANT_OPERATOR_LIMITS.maxSteps - 1)
+  })
+
+  it('最后一步写了收尾那句就用它，⛔ 不跑它顺手调的那一步', async () => {
+    queueTurns({
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+        title: 'one more look',
+        args: { query: 'rain' },
+      },
+      message: '提示词写好了，模型还没换；说「继续」我接着换。',
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest({ stepBudget: 1 })),
+    )
+    expect(stepsOf(events)).toHaveLength(0)
+    expect(events.at(-2)).toEqual({
+      type: ASSISTANT_OPERATOR_EVENTS.message,
+      text: '提示词写好了，模型还没换；说「继续」我接着换。',
+    })
+    expect(events.at(-1)).toMatchObject({
+      type: ASSISTANT_OPERATOR_EVENTS.stopped,
+      reason: ASSISTANT_OPERATOR_STOP_REASONS.maxSteps,
+    })
+  })
+
+  it('同一个改动工具一轮跑满上限后，换着措辞再写也按打转拒（D12 B1）', async () => {
+    let step = 0
+    mockLlmTextCompletion.mockImplementation(() => {
+      step += 1
+      return Promise.resolve(
+        JSON.stringify({
+          tool: {
+            name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.apply,
+            title: 'reword',
+            args: {
+              action: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+              value: `a cat, take ${step}`,
+            },
+          },
+        }),
+      )
+    })
+
+    const events = await collect(
+      runAssistantOperator('clerk-1', buildRequest()),
+    )
+    const refused = stepsOf(events).filter(
+      (entry) => entry.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+    )
+    expect(refused[0]).toMatchObject({
+      tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.repeatedStep },
+    })
+    const done = stepsOf(events).filter(
+      (entry) => entry.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+    )
+    expect(done).toHaveLength(ASSISTANT_OPERATOR_LIMITS.maxSameWriteToolCalls)
   })
 })
 

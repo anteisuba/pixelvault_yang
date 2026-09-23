@@ -2059,6 +2059,13 @@ export const ASSISTANT_OPERATOR_LIMITS = {
    */
   maxRepeatedStepStrikes: 2,
   /**
+   * 同一个改动型工具一轮里最多跑几次（D12 B1）。
+   *
+   * 🔬 真机：`set_prompt` 换着措辞连调 8 次、步数烧光 —— 每次参数都不同，
+   * 「同一步重复」那道闸认不出来。第三次起按打转拒，逼它收尾说话。
+   */
+  maxSameWriteToolCalls: 3,
+  /**
    * `search_loras` 一次最多回几张候选（P4-C）。
    *
    * ⚠ 真上限在 `LORA_CANDIDATE_LIMITS.maxCandidates`（检索层自己的），两边取小 ——

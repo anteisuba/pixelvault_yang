@@ -17,7 +17,8 @@ import type { AssistantOperatorRoundSummary } from '@/types/assistant-operator'
  */
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  useTranslations: () => (key: string, values?: { count?: number }) =>
+    values?.count !== undefined ? `${key} ${values.count}` : key,
   useFormatter: () => ({ dateTime: () => '11:26' }),
 }))
 
@@ -51,51 +52,42 @@ describe('StudioOperatorRoundSummary', () => {
     expect(screen.getByTestId('operator-round-edit')).toBeTruthy()
   })
 
-  /* ── 回执那一行（56a 切片 4）────────────────────────────────── */
+  it('整行只有一个展开入口，标题和箭头共用同一按钮', () => {
+    renderBlock({ defaultCollapsed: true })
+    const toggle = screen.getByTestId('operator-round-toggle')
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+    expect(screen.queryByTestId('operator-round-edit')).toBeNull()
+    expect(screen.getAllByRole('button')).toHaveLength(1)
+    const detailsId = toggle.getAttribute('aria-controls')!
+    expect(document.getElementById(detailsId)?.hidden).toBe(true)
+    fireEvent.click(toggle)
+    expect(toggle.getAttribute('aria-expanded')).toBe('true')
+    expect(document.getElementById(detailsId)?.hidden).toBe(false)
+    expect(screen.getAllByTestId('operator-round-column')).toHaveLength(3)
+    fireEvent.click(toggle.querySelector('svg')!)
+    expect(toggle.getAttribute('aria-expanded')).toBe('false')
+  })
 
-  it('⭐ N 优先数记忆条数（回执点下去是记忆列表）', () => {
-    renderBlock({ summary: { ...SUMMARY, memoriesWritten: 2 } })
-    fireEvent.click(screen.getByTestId('operator-round-collapse'))
-    // 三栏共 4 条，记忆 2 条 —— 印的必须是 2 那一份。
-    expect(screen.getByTestId('operator-round-memory').textContent).toContain(
-      'collapsed',
+  it('条目数与展开的记录一致，不使用跨会话记忆条数', () => {
+    renderBlock({
+      summary: { ...SUMMARY, memoriesWritten: 2 },
+      defaultCollapsed: true,
+    })
+    expect(screen.getByTestId('operator-round-toggle').textContent).toBe(
+      'collapsed 4',
     )
   })
 
-  it('⭐ 点那一行去设置页，⛔ 不展开', () => {
-    const onOpenMemory = vi.fn()
-    renderBlock({ summary: { ...SUMMARY, memoriesWritten: 2 }, onOpenMemory })
-    fireEvent.click(screen.getByTestId('operator-round-collapse'))
-    fireEvent.click(screen.getByTestId('operator-round-memory'))
-    expect(onOpenMemory).toHaveBeenCalledTimes(1)
-    expect(screen.getByTestId('operator-round-summary').dataset.state).toBe(
-      'collapsed',
-    )
-  })
-
-  it('⚠ 没给去处时那一行退回展开（老调用方）', () => {
-    renderBlock()
-    fireEvent.click(screen.getByTestId('operator-round-collapse'))
-    fireEvent.click(screen.getByTestId('operator-round-memory'))
-    expect(screen.getByTestId('operator-round-summary').dataset.state).toBe(
-      'expanded',
-    )
-  })
-
-  it('⭐ 隐身那一轮：改说「这一轮没有记」，整行不可点', () => {
-    const onOpenMemory = vi.fn()
-    renderBlock({ summary: { ...SUMMARY, incognito: true }, onOpenMemory })
-    fireEvent.click(screen.getByTestId('operator-round-collapse'))
-    expect(screen.queryByTestId('operator-round-memory')).toBeNull()
+  it('隐身轮次仍能整行展开，详情说明未写入记忆', () => {
+    renderBlock({
+      summary: { ...SUMMARY, incognito: true },
+      defaultCollapsed: true,
+    })
+    fireEvent.click(screen.getByTestId('operator-round-toggle'))
     expect(
       screen.getByTestId('operator-round-incognito').textContent,
     ).toContain('incognito')
-    expect(onOpenMemory).not.toHaveBeenCalled()
-    // 三栏照旧展得开 —— 隐身关的是记忆，⛔ 不是这一轮。
-    fireEvent.click(screen.getByTestId('operator-round-expand'))
-    expect(screen.getByTestId('operator-round-summary').dataset.state).toBe(
-      'expanded',
-    )
+    expect(screen.getAllByTestId('operator-round-column')).toHaveLength(3)
   })
 
   it('空栏不画一行只有标签的空句子', () => {
@@ -106,13 +98,13 @@ describe('StudioOperatorRoundSummary', () => {
 
   it('折起来是一行，N = 三栏条目总数（⛔ 不含证据编号）', () => {
     renderBlock()
-    fireEvent.click(screen.getByTestId('operator-round-collapse'))
+    fireEvent.click(screen.getByTestId('operator-round-toggle'))
     const block = screen.getByTestId('operator-round-summary')
     expect(block.dataset.state).toBe('collapsed')
     // 1 + 2 + 1 = 4，而证据是两条 —— 数进去就会写成 6。
     expect(block.textContent).toContain('collapsed')
     expect(screen.queryByTestId('operator-round-column')).toBeNull()
-    fireEvent.click(screen.getByTestId('operator-round-expand'))
+    fireEvent.click(screen.getByTestId('operator-round-toggle'))
     expect(screen.getByTestId('operator-round-summary').dataset.state).toBe(
       'expanded',
     )
@@ -125,8 +117,9 @@ describe('StudioOperatorRoundSummary', () => {
     )
   })
 
-  it('折叠态也有「改」：点它直接落到编辑态，⛔ 不用先展开再点一次', () => {
+  it('展开详情后可以就地编辑，无需离开聊天', () => {
     renderBlock({ defaultCollapsed: true })
+    fireEvent.click(screen.getByTestId('operator-round-toggle'))
     fireEvent.click(screen.getByTestId('operator-round-edit'))
     expect(screen.getByTestId('operator-round-summary').dataset.state).toBe(
       'editing',

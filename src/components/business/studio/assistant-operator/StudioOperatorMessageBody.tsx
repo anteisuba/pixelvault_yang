@@ -46,12 +46,14 @@ import {
   shouldCollapseOperatorText,
 } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
+import type { NamedImageReference } from '@/lib/studio-reference-mentions'
 import type {
   StudioOperatorAttachment,
   StudioOperatorMessageEntry,
 } from '@/types/studio-assistant-operator'
 
 interface StudioOperatorMessageBodyProps {
+  references?: readonly NamedImageReference[]
   entry: StudioOperatorMessageEntry
   /**
    * **加载态那一句状态词**（v2 §3.6）—— 「正在查 3 个来源…」。
@@ -73,6 +75,71 @@ interface StudioOperatorMessageBodyProps {
   onDeepResearch?(): void
   /** 「搜了 6 条 · 读了 3 页」那一行灰字。 */
   receiptLabel?: string
+}
+
+function withImageReferences(
+  node: ReactNode,
+  references: readonly NamedImageReference[],
+): ReactNode {
+  if (typeof node === 'string') {
+    const byAlias = new Map(
+      references.flatMap((reference) =>
+        reference.aliases.map((alias) => [alias, reference] as const),
+      ),
+    )
+    const aliases = [...byAlias.keys()]
+      .filter(Boolean)
+      .sort((a, b) => b.length - a.length)
+    if (!aliases.length) return node
+    const pattern = new RegExp(
+      `(${aliases.map((alias) => alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![0-9])`,
+      'g',
+    )
+    return node.split(pattern).map((part, index) => {
+      const reference = byAlias.get(part)
+      return reference ? (
+        <span
+          key={index}
+          title={reference.name}
+          className="mx-0.5 inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/50 px-1 py-0.5 align-middle text-2sm font-normal"
+        >
+          <Image
+            src={reference.url}
+            alt={reference.name}
+            width={24}
+            height={24}
+            unoptimized
+            className="size-6 shrink-0 rounded object-cover"
+          />
+          <span className="min-w-0 break-words">{reference.name}</span>
+        </span>
+      ) : (
+        part
+      )
+    })
+  }
+  if (Array.isArray(node))
+    return Children.map(node, (child) => withImageReferences(child, references))
+  if (isValidElement<{ children?: ReactNode }>(node) && node.props.children) {
+    return {
+      ...node,
+      props: {
+        ...node.props,
+        children: withImageReferences(node.props.children, references),
+      },
+    }
+  }
+  return node
+}
+
+export function StudioOperatorReferenceText({
+  text,
+  references = [],
+}: {
+  text: string
+  references?: readonly NamedImageReference[]
+}) {
+  return <>{withImageReferences(text, references)}</>
 }
 
 /** `[12]` —— 正文里那个角标。⚠ 只认 1–2 位：`[2026]` 是年份不是引用。 */
@@ -167,7 +234,9 @@ export function StudioOperatorCollapsibleText({
   sources = [],
   activeCite = null,
   onPickCitation,
+  references = [],
 }: {
+  references?: readonly NamedImageReference[]
   text: string
   /** 见 `StudioOperatorMessageBodyProps.statusText`。 */
   statusText?: string
@@ -194,11 +263,16 @@ export function StudioOperatorCollapsibleText({
    * 打的那两个方括号，⛔ 不该被吃掉。
    */
   const components = useMemo<Partial<Components> | undefined>(() => {
-    if (known.size === 0 || !onPickCitation) return undefined
-    const wrap = (node: ReactNode): ReactNode =>
-      withCitations(node, known, onPickCitation, activeCite, (cite) =>
-        t('answer.citation', { index: cite }),
-      )
+    if (references.length === 0 && (known.size === 0 || !onPickCitation))
+      return undefined
+    const wrap = (node: ReactNode): ReactNode => {
+      const cited = onPickCitation
+        ? withCitations(node, known, onPickCitation, activeCite, (cite) =>
+            t('answer.citation', { index: cite }),
+          )
+        : node
+      return withImageReferences(cited, references)
+    }
     return {
       ...INITIAL_COMPONENTS,
       p: function CitedParagraph({ children }) {
@@ -209,7 +283,7 @@ export function StudioOperatorCollapsibleText({
       },
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` 每次 render 换引用，钉在真正会变的三样上
-  }, [known, onPickCitation, activeCite])
+  }, [known, onPickCitation, activeCite, references])
 
   const reduceMotion = useReducedMotion()
   const collapsible = !streaming && shouldCollapseOperatorText(text)
@@ -323,6 +397,7 @@ export function StudioOperatorMessageBody({
   onTogglePin,
   onDeepResearch,
   receiptLabel,
+  references = [],
 }: StudioOperatorMessageBodyProps) {
   const t = useTranslations('StudioOperator')
   /**
@@ -336,6 +411,7 @@ export function StudioOperatorMessageBody({
     <div className="flex min-w-0 flex-col gap-2">
       <StudioOperatorCollapsibleText
         text={entry.text}
+        references={references}
         streaming={entry.streaming ?? false}
         sources={sources}
         activeCite={activeCite}
@@ -365,7 +441,7 @@ export function StudioOperatorMessageBody({
             {t('message.why')}
           </summary>
           <p className="mt-1 whitespace-pre-wrap border-l border-border pl-2.5 text-2sm leading-relaxed text-muted-foreground">
-            {entry.detail}
+            {withImageReferences(entry.detail, references)}
           </p>
         </details>
       ) : null}
@@ -376,7 +452,9 @@ export function StudioOperatorMessageBody({
 export function StudioOperatorUserText({
   text,
   attachments,
+  references = [],
 }: {
+  references?: readonly NamedImageReference[]
   text: string
   attachments: readonly StudioOperatorAttachment[]
 }) {
@@ -390,11 +468,15 @@ export function StudioOperatorUserText({
         : value,
     text,
   )
-  const images = new Map(
-    attachments
-      .filter((item) => item.kind === 'image')
-      .map((item) => [item.label.toLowerCase(), item]),
-  )
+  const imageReferences = references.length
+    ? references
+    : attachments
+        .filter((item) => item.kind === 'image')
+        .map((item) => ({
+          url: item.thumbnailUrl || item.url,
+          name: item.label,
+          aliases: [item.label],
+        }))
   return (
     <p
       data-testid="operator-user-text"
@@ -403,31 +485,7 @@ export function StudioOperatorUserText({
          ⛔ 不靠字色分（§12.1 卡片层：白面 + 极细描边）。 */
       className="w-fit max-w-full whitespace-pre-wrap rounded-xl rounded-br-sm border border-border bg-muted px-3 py-2 text-md font-medium leading-relaxed text-foreground"
     >
-      {displayText
-        .split(/(\breference image [1-9]\d*\b)/gi)
-        .map((part, index) => {
-          const attachment = /^reference image [1-9]\d*$/i.test(part)
-            ? images.get(part.toLowerCase())
-            : undefined
-          return attachment ? (
-            <span
-              key={index}
-              className="mx-0.5 inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/50 px-1 py-0.5 align-middle text-2sm font-normal"
-            >
-              <Image
-                src={attachment.thumbnailUrl || attachment.url}
-                alt={attachment.label}
-                width={24}
-                height={24}
-                unoptimized
-                className="size-6 shrink-0 rounded object-cover"
-              />
-              <span>{part}</span>
-            </span>
-          ) : (
-            part
-          )
-        })}
+      {withImageReferences(displayText, imageReferences)}
     </p>
   )
 }

@@ -182,7 +182,7 @@ describe('canvas assistant image references', () => {
       image('duplicate', 'https://example.com/one.png'),
     ])
     expect(result.current.referenceImages).toEqual([
-      { url: 'https://example.com/one.png' },
+      { url: 'https://example.com/one.png', name: 'one' },
     ])
     expect(result.current.referenceLimit).toBeGreaterThan(0)
   })
@@ -214,7 +214,7 @@ describe('canvas assistant image references', () => {
     expect(applyOp).not.toHaveBeenCalled()
     act(() => result.current.apply.addReference('https://example.com/one.png'))
     expect(result.current.referenceImages).toEqual([
-      { url: 'https://example.com/one.png' },
+      { url: 'https://example.com/one.png', name: 'one' },
     ])
   })
 
@@ -228,7 +228,7 @@ describe('canvas assistant image references', () => {
       projectId: 'project-b',
     })
     expect(result.current.referenceImages).toEqual([
-      { url: 'https://example.com/two.png' },
+      { url: 'https://example.com/two.png', name: 'two' },
     ])
   })
 

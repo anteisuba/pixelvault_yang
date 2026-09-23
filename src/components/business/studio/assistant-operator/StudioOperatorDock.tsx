@@ -431,7 +431,7 @@ export function StudioOperatorDock() {
           url: entry.url,
           thumbnailUrl: entry.url,
           kind: 'image',
-          label: `${tReference('image', { index: index + 1 })}${entry.disabledReason ? ` · ${tReference('unavailable')}` : ''}`,
+          label: `${entry.name || tReference('image', { index: index + 1 })}${entry.disabledReason ? ` · ${tReference('unavailable')}` : ''}`,
         }),
       ),
       ...localAttachments.filter((item) => item.kind !== 'image'),

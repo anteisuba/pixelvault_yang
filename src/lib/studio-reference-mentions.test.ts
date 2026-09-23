@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  buildMessageImageReferences,
   compileReferenceMentions,
   getReferenceMentionIndices,
   getReferenceImageAttachmentId,
@@ -57,5 +58,61 @@ describe('Studio reference mentions', () => {
     expect(compileReferenceMentions('角色@Image2，风格@Image1', 3)).toBe(
       '角色reference image 5，风格reference image 4',
     )
+  })
+})
+
+describe('canvas reference identity', () => {
+  it('resolves canvas names before any numeric suffix and prefers the longest name', () => {
+    expect(
+      normalizeReferenceMentions('以「生成图」为布局，以「生成图3」为画风', [
+        { name: '生成图', referenceImageIndex: 1 },
+        { name: '生成图3', referenceImageIndex: 3 },
+      ]),
+    ).toBe('以「@Image2」为布局，以「@Image4」为画风')
+  })
+  it('does not guess an index for duplicate names or nodes without images', () => {
+    expect(
+      normalizeReferenceMentions('生成图3，生成图7', [
+        { name: '生成图3', referenceImageIndex: 0 },
+        { name: '生成图3', referenceImageIndex: 1 },
+        { name: '生成图7' },
+      ]),
+    ).toBe('生成图3，生成图7')
+  })
+  it('binds historical aliases to their original URLs, not current order; renames use the canvas name', () => {
+    const entries = [
+      {
+        id: 'u1',
+        kind: 'user',
+        attachments: [{ kind: 'image', label: 'reference image 4', url: 'a' }],
+      },
+      { id: 'm1', kind: 'message' },
+      {
+        id: 'u2',
+        kind: 'user',
+        attachments: [{ kind: 'image', label: 'reference image 4', url: 'b' }],
+      },
+      { id: 'm2', kind: 'message' },
+    ]
+    const refs = buildMessageImageReferences(entries, [
+      { url: 'b', name: '生成图' },
+      { url: 'a', name: '时夜原图' },
+    ])
+    expect(
+      refs.get('m1')?.find((ref) => ref.aliases.includes('reference image 4')),
+    ).toMatchObject({ url: 'a', name: '时夜原图' })
+    expect(
+      refs.get('m2')?.find((ref) => ref.aliases.includes('reference image 4')),
+    ).toMatchObject({ url: 'b', name: '生成图' })
+  })
+  it('does not create guessed thumbnails for unbound numbers or ambiguous names', () => {
+    const refs = buildMessageImageReferences(
+      [{ id: 'm', kind: 'message' }],
+      [
+        { url: 'a', name: '重复' },
+        { url: 'b', name: '重复' },
+      ],
+    ).get('m')!
+    expect(refs.flatMap((ref) => ref.aliases)).toEqual([])
   })
 })

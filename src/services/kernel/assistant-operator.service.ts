@@ -1,4 +1,5 @@
 import 'server-only'
+import { createHash } from 'node:crypto'
 import {
   AssistantLoraParametersSchema,
   type AssistantLoraParameters,
@@ -1270,7 +1271,7 @@ function renderState(
       'NODE CANVAS — edit nodes with apply/action canvas_apply. There is no global form; this does NOT mean node prompts or references are unavailable.',
       `Current board: ${JSON.stringify(state.canvas ?? null)}`,
       'A node without model has NO model selected. availableModels lists candidates, not selections. Before reporting completion, verify the current snapshot contains each requested node model, prompt (text) and reference input. If a requested field is absent, apply it; never claim it is configured. If already correct, do not repeat that mutation. Configure each new generated node fully before creating the next one; if the step budget runs out, report the remaining work honestly.',
-      'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
+      'referenceImageIndex is zero-based: 0 means @Image1. Use that node id to wire the exact image the creator mentioned. In all creator-facing messages and node prompts, use the exact canvas node name from the current snapshot, never reference image N or an assistant slot number. Names are display labels; bind images by node id and URL, never by guessing a number in a node name. If multiple nodes have the same name and the attachment does not resolve which one, ask before editing. position is the current canvas coordinate; place new cards beside the relevant source without overlapping it.',
       `Node kinds and subtypes: ${JSON.stringify(CANVAS_ADD_CATALOG.flatMap((group) => group.items.map((item) => item.v4)))}`,
       `Input slots: ${JSON.stringify(Object.fromEntries(Object.entries(NODE_V4_PORTS).map(([key, ports]) => [key, ports.inputs.map((input) => input.slot)])))}`,
       'Use actual node ids from this snapshot. add_node creates a blank node; after it lands the next snapshot supplies its real id. Never guess a new id or reuse a batch ref across calls.',
@@ -3302,8 +3303,7 @@ function describeOneAnswer(entry: AssistantOperatorPlanAnswer): string {
  *    所以**两轮前**答的那道题今天还在（这正是第一版修法漏掉的一半：`planAnswers`
  *    只跟着当次请求走，问答轮又以 `stopped` 收尾不结账，于是同一道题被问第三次）；
  *  · `request.planAnswers` —— 本轮那一道，外加老客户端（它不带 `answered`）。
- * ⚠ 去重按**渲染出来的那一行**：两条来源用的是同一个渲染器，同一次选择必然逐字
- *   相同 —— ⛔ 别按 `questionId` 去重，合成 id（`question-1`）每一轮都重头编号。
+ * 去重同时比较题 id 和题面答复：不同冲突范围分别保留，重复编号但内容不同的题也保留。
  */
 function collectSettledAnswers(
   request: AssistantOperatorRequest,
@@ -3316,7 +3316,7 @@ function collectSettledAnswers(
     ),
     ...(request.planAnswers ?? []),
   ]) {
-    const line = describeOneAnswer(entry)
+    const line = `${entry.questionId}:${describeOneAnswer(entry)}`
     if (seen.has(line)) continue
     seen.add(line)
     settled.push(entry)
@@ -3383,7 +3383,12 @@ function creatorNamedReferenceIndices(
     .map((message) => message.content)
     .join('\n')
   return getReferenceMentionIndices(
-    normalizeReferenceMentions(`${value}\n${said}`),
+    normalizeReferenceMentions(
+      `${value}\n${said}`,
+      run.state.canvas?.shots.flatMap((shot) =>
+        shot.expanded ? shot.nodes : [],
+      ),
+    ),
   ).filter((index) => index < run.state.referenceUrls.length)
 }
 
@@ -3641,25 +3646,14 @@ async function planSetText(
         } else throw error
       }
     }
-    /**
-     * ⭐ **用途歧义是问出来的，不是报出来的**（进度表 23）：分工简报说不准某张图
-     * 该当什么用时，原来这里直接 `promptConflict` 拒 —— 用户看到的是一条红步和
-     * 一句它自己都没想好的疑问，而模型拿着同一份证据只会换个说法再撞一次（要撞
-     * 满两次才轮到那张问题卡）。改成**第一次就出卡**：一次只问一个（取第一条
-     * 疑问，⛔ 不把几条并成一句），选项就是既有的两条路，`allowOther` 留着让
-     * 创作者直接把用途写清楚。
-     * ⚠ 题 id / 选项 id 一个字都不变：答完「按我的要求写」由
-     * `creatorChoseFollowRequest` 原样放行，其余答案经 `referenceCreatorContext`
-     * 的「已定」段进下一跳简报。⛔ 不新增卡类型、不加第二条回执通道。
-     */
-    if (
-      analysis.brief.uncertainties.length &&
-      !creatorChoseFollowRequest(run.request)
-    ) {
-      const uncertainty = analysis.brief.uncertainties[0]!
+    const uncertainty = analysis.brief.uncertainties.find(
+      (issue) => !creatorChoseFollowRequest(run, issue),
+    )
+    if (uncertainty) {
       return {
         kind: 'ask',
         question: buildPromptConflictQuestion(
+          run,
           resolveResponseLanguage(run.request, run.persona),
           uncertainty,
         ),
@@ -3774,36 +3768,50 @@ async function planSetText(
     }
   }
 
-  if (
-    needsReferenceReview &&
-    run.referenceAnalysis &&
-    !creatorChoseFollowRequest(run.request)
-  ) {
-    const issues = await reviewOperatorReferencePrompt({
-      analysis: run.referenceAnalysis,
-      language:
-        RESPONSE_LANGUAGE_LABELS[
+  if (needsReferenceReview && run.referenceAnalysis) {
+    const analysis = run.referenceAnalysis
+    const review = () =>
+      reviewOperatorReferencePrompt({
+        analysis,
+        language:
+          RESPONSE_LANGUAGE_LABELS[
+            resolveResponseLanguage(run.request, run.persona)
+          ],
+        prompt: next,
+        context: referenceCreatorContext(run),
+        modelHint:
+          getModelEnhanceHint(
+            run.state.modelId ?? '',
+            resolveAdapterType(run.state.modelId ?? '') ?? undefined,
+          ) ?? '',
+        complete: (system, prompt) =>
+          completeReferenceAnalysisText(run, system, prompt),
+      })
+    let issues = await review()
+    if (issues === null) issues = await review()
+    if (issues === null) {
+      throw new ApiRequestError(
+        'PROMPT_REVIEW_UNAVAILABLE',
+        502,
+        '',
+        OPERATOR_PROMPT_REVIEW_UNAVAILABLE[
           resolveResponseLanguage(run.request, run.persona)
         ],
-      prompt: next,
-      context: referenceCreatorContext(run),
-      modelHint:
-        getModelEnhanceHint(
-          run.state.modelId ?? '',
-          resolveAdapterType(run.state.modelId ?? '') ?? undefined,
-        ) ?? '',
-      complete: (system, prompt) =>
-        completeReferenceAnalysisText(run, system, prompt),
-    })
-    if (!issues || issues.length) {
-      return reject(
-        REJECT.promptConflict,
-        issues
-          ? issues.join('；')
-          : OPERATOR_PROMPT_REVIEW_UNAVAILABLE[
-              resolveResponseLanguage(run.request, run.persona)
-            ],
       )
+    }
+    const conflict = issues.find(
+      (issue) => !creatorChoseFollowRequest(run, issue),
+    )
+    if (conflict) {
+      return {
+        kind: 'ask',
+        question: buildPromptConflictQuestion(
+          run,
+          resolveResponseLanguage(run.request, run.persona),
+          conflict,
+        ),
+        todo: conflict,
+      }
     }
   }
 
@@ -6764,8 +6772,7 @@ function resolveResponseLanguage(
 }
 
 /**
- * 提示词冲突第二次仍过不了参考检查时，不再把这一轮直接掐死。
- * 吐一张问题卡：按创作者的要求写，或按参考图来。点完带 planAnswers 重发。
+ * 首次冲突暂停写入，答复仅对同一问题及同一组参考图有效。
  */
 const PROMPT_CONFLICT_QUESTION_ID = 'prompt-conflict'
 const PROMPT_CONFLICT_FOLLOW_REQUEST_ID = 'follow-request'
@@ -6775,21 +6782,16 @@ const PROMPT_CONFLICT_ASK_TEXTS: Record<
   PromptAssistantResponseLanguage,
   {
     header: string
-    /** 用途歧义那一支的收起态标题 —— 它问的不是取舍，是「这张图当什么用」。 */
-    roleHeader: string
-    question: string
     followRequest: { label: string; description: string }
     followReference: { label: string; description: string }
   }
 > = {
   english: {
     header: 'Your call',
-    roleHeader: 'Source roles',
-    question:
-      'Prompt not written: reference check fights your request. Which should win?',
     followRequest: {
       label: 'Follow my request',
-      description: 'Write what I asked. Do not block on those check issues.',
+      description:
+        'For this specific conflict, prioritize my latest request; preserve the other requirements.',
     },
     followReference: {
       label: 'Follow the reference',
@@ -6798,12 +6800,10 @@ const PROMPT_CONFLICT_ASK_TEXTS: Record<
   },
   japanese: {
     header: 'どちら優先',
-    roleHeader: '参考図の役割',
-    question:
-      'プロンプトは未反映です。参考確認と要望が衝突しています。どちらを優先しますか？',
     followRequest: {
       label: '要望を優先',
-      description: '今の指示どおり書く。その確認項目では止めない。',
+      description:
+        'この衝突に限り最新の要望を優先し、その他の条件は維持します。',
     },
     followReference: {
       label: '参考図を優先',
@@ -6812,11 +6812,9 @@ const PROMPT_CONFLICT_ASK_TEXTS: Record<
   },
   chinese: {
     header: '怎么取舍',
-    roleHeader: '参考图用途',
-    question: '提示词没写上：参考检查和你的要求打架了。以哪边为准？',
     followRequest: {
       label: '按我的要求写',
-      description: '以你刚说的为准，卡住的那几条不再挡写入。',
+      description: '仅对这一处冲突优先采用你的最新要求，其余约束继续保留。',
     },
     followReference: {
       label: '按参考图来',
@@ -6825,25 +6823,26 @@ const PROMPT_CONFLICT_ASK_TEXTS: Record<
   },
 }
 
-/**
- * ⚠ `uncertainty` 在场时问句**换成模型自己写的那一句**：它已经按
- * `responseLanguage` 写好，且只有它说得出「到底哪一张、哪一项没定」。服务端那句
- * 通用的取舍问法留给复核打架那一支 —— ⛔ 两句话不合并，合并之后用户读到的是
- * 一句谁都不认领的废话。
- */
+function promptConflictQuestionId(run: OperatorRun, issue: string): string {
+  const scope = JSON.stringify({
+    domain: run.request.domain,
+    references: run.state.referenceUrls,
+    issue: issue.trim(),
+  })
+  return `${PROMPT_CONFLICT_QUESTION_ID}-${createHash('sha256').update(scope).digest('hex').slice(0, 24)}`
+}
+
 function buildPromptConflictQuestion(
+  run: OperatorRun,
   language: PromptAssistantResponseLanguage,
-  uncertainty?: string,
+  uncertainty: string,
 ): AssistantOperatorPlanQuestion {
   const texts = PROMPT_CONFLICT_ASK_TEXTS[language]
   const asked = uncertainty?.trim()
   return {
-    id: PROMPT_CONFLICT_QUESTION_ID,
-    header: clamp(
-      asked ? texts.roleHeader : texts.header,
-      PLAN_LIMITS.maxHeaderChars,
-    ),
-    question: clamp(asked || texts.question, PLAN_LIMITS.maxQuestionChars),
+    id: promptConflictQuestionId(run, uncertainty),
+    header: clamp(texts.header, PLAN_LIMITS.maxHeaderChars),
+    question: clamp(asked, PLAN_LIMITS.maxQuestionChars),
     multiSelect: false,
     allowOther: true,
     options: [
@@ -6857,7 +6856,6 @@ function buildPromptConflictQuestion(
           texts.followRequest.description,
           PLAN_LIMITS.maxOptionDescriptionChars,
         ),
-        recommended: true,
       },
       {
         id: PROMPT_CONFLICT_FOLLOW_REFERENCE_ID,
@@ -6874,11 +6872,12 @@ function buildPromptConflictQuestion(
   }
 }
 
-function creatorChoseFollowRequest(request: AssistantOperatorRequest): boolean {
-  return collectSettledAnswers(request).some(
-    (entry) =>
-      entry.questionId === PROMPT_CONFLICT_QUESTION_ID &&
-      entry.optionIds.includes(PROMPT_CONFLICT_FOLLOW_REQUEST_ID),
+function creatorChoseFollowRequest(run: OperatorRun, issue: string): boolean {
+  const decision = run.request.planAnswers?.findLast(
+    (entry) => entry.questionId === promptConflictQuestionId(run, issue),
+  )
+  return (
+    decision?.optionIds.includes(PROMPT_CONFLICT_FOLLOW_REQUEST_ID) === true
   )
 }
 
@@ -6887,10 +6886,11 @@ const OPERATOR_PROMPT_REVIEW_UNAVAILABLE: Record<
   string
 > = {
   english:
-    'The prompt check did not return a readable result. This does not establish a conflict in your request. Try again later.',
+    'The prompt check failed twice, so I stopped before writing. Your existing changes are preserved. Retry this check later; your request does not need to change.',
   japanese:
-    'プロンプトの確認結果を読み取れませんでした。要望に矛盾があると判明したわけではありません。時間をおいて再試行してください。',
-  chinese: '未能读取提示词检查结果，尚不能认定你的要求存在冲突。请稍后重试。',
+    'プロンプトの確認結果を2回読み取れなかったため、書き込み前に停止しました。それまでの変更は保存されています。要望は変えず、後でこの確認を再試行してください。',
+  chinese:
+    '提示词检查连续两次未返回可用结果，已在写入前停止。已有修改保留，可以稍后重试这一步，无需改动你的要求。',
 }
 
 const OPERATOR_STUCK_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
@@ -7531,7 +7531,7 @@ function buildOperatorSystemPrompt(
       ? '- LORA VISUAL WORK: use analyze_references to inspect mounted source images before adapting their visual details into a prompt. Reuse complete visual evidence for unchanged image URLs. Separate character identity, composition and rendering style; translate these facts into the selected base family dialect, not @Image tokens in the diffusion prompt. Use critique_result on a result explicitly @-mentioned by the creator, comparing it with source references and the stated goal. Source images are references, never failed generations.'
       : null,
     request.domain === 'image'
-      ? `- REFERENCE ANALYSIS: analyze_references is how you SEE the mounted references. ⛔ "I cannot see the pixels of these reference images" is never a true answer while references are mounted. Images attached this turn: inspect the pixels and answer directly — do not require analyze_references just to answer. Call analyze_references when you need structured evidence to edit the prompt, or when a question is about a mounted reference and you have no verified evidence yet. If they @-mentioned images this turn, inspect ONLY those — @Image3 alone means imageIndices: [2], never the other mounted slots. Answer visual questions without editing the prompt. set_prompt separately builds the role/keep/exclude brief and checks the complete resulting prompt for semantic conflicts; correct named issues once. If it still fails, ask one focused question — do not keep rewriting, and do not end the turn without asking.
+      ? `- REFERENCE ANALYSIS: analyze_references is how you SEE the mounted references. When retrieval or analysis fails, say which step failed; do not invent visual observations. Images attached this turn: inspect the pixels and answer directly — do not require analyze_references just to answer. Call analyze_references when you need structured evidence to edit the prompt, or when a question is about a mounted reference and you have no verified evidence yet. If they @-mentioned images this turn, inspect ONLY those — @Image3 alone means imageIndices: [2], never the other mounted slots. Answer visual questions without editing the prompt. set_prompt separately builds the role/keep/exclude brief and checks the complete resulting prompt for semantic conflicts. On the FIRST unresolved conflict, pause writing and ask one focused question. A prior choice settles only its own conflict, not future conflicts. Do not repeatedly rewrite unchanged requirements.
 - REFERENCE IDENTITY: CURRENT REFERENCE ORDER is authoritative. Old Image numbers may refer to different pictures after a removal, replacement or undo. In set_prompt use @Image1, @Image2, etc.
 - STYLE REFERENCE: images attached this turn — inspect pixels and answer. Mounted references are read with analyze_references.`
       : null,
@@ -7700,12 +7700,22 @@ function latestUserMessage(request: AssistantOperatorRequest): string {
 function currentConversationReferences(
   run: OperatorRun,
 ): { imageIndex: number; url: string }[] {
-  if (run.request.domain !== 'image' && run.request.domain !== 'lora') return []
+  if (
+    run.request.domain !== 'image' &&
+    run.request.domain !== 'lora' &&
+    run.request.domain !== 'canvas'
+  )
+    return []
   const latest =
     run.request.messages.findLast((message) => message.role === 'user')
       ?.content ?? ''
   const explicit = getReferenceMentionIndices(
-    normalizeReferenceMentions(latest),
+    normalizeReferenceMentions(
+      latest,
+      run.state.canvas?.shots.flatMap((shot) =>
+        shot.expanded ? shot.nodes : [],
+      ),
+    ),
   )
   const indices = explicit.length
     ? explicit
@@ -7761,7 +7771,12 @@ function requiredReferenceIndices(
   promptValue: string,
 ): number[] {
   const fromPrompt = getReferenceMentionIndices(
-    normalizeReferenceMentions(promptValue),
+    normalizeReferenceMentions(
+      promptValue,
+      run.state.canvas?.shots.flatMap((shot) =>
+        shot.expanded ? shot.nodes : [],
+      ),
+    ),
   )
   const pointed = currentConversationReferences(run).map(
     (ref) => ref.imageIndex,
@@ -8941,7 +8956,6 @@ export async function* runAssistantOperator(
   let consecutiveParseFailures = 0
   /** 连着撞了几次「同一步重复」—— 执行成功一次就归零（见下面那段）。 */
   let repeatedStepStrikes = 0
-  let promptConflictStrikes = 0
   /** 收尾那句话已经被退回去要过一次结论了。⛔ 只退一次，不做开放循环。 */
   let conclusionRetried = false
   let completed = false
@@ -9136,6 +9150,41 @@ export async function* runAssistantOperator(
       const turn = parsedTurn.turn
       consecutiveParseFailures = 0
 
+      const questions = normalizePlanQuestions(turn, clerkId).filter(
+        (question) =>
+          !request.planAnswers?.some(
+            (answer) =>
+              answer.question?.trim() === question.question.trim() &&
+              (answer.optionIds.length > 0 ||
+                Boolean(answer.otherText?.trim())),
+          ),
+      )
+      if (questions.length > 0) {
+        if (turn.plan?.length && !planEmitted) {
+          planEmitted = true
+          yield {
+            type: ASSISTANT_OPERATOR_EVENTS.plan,
+            steps: turn.plan.map((label, index) => ({
+              id: `plan-${index + 1}`,
+              label,
+            })),
+          }
+        }
+        yield { type: ASSISTANT_OPERATOR_EVENTS.ask, questions }
+        const roundSummary = await closeRoundBeforeStop(run, {
+          clerkId,
+          userId: user.id,
+          todo: questions.map((question) => question.question).join('；'),
+        })
+        yield {
+          type: ASSISTANT_OPERATOR_EVENTS.stopped,
+          reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
+          ...(roundSummary ? { roundSummary } : {}),
+        }
+        completed = true
+        return
+      }
+
       /**
        * 计划条**一轮一条**（P3-D 降噪）。
        *
@@ -9163,49 +9212,7 @@ export async function* runAssistantOperator(
            */
           const planApproved =
             request.planApproved === true || request.resumeFrom !== undefined
-          if (planApproved) {
-            /**
-             * ⛔ 用户已经批过了，⛔ 不要再问一次：模型这一轮又给出的反问题一律丢掉，
-             * 只留一条 warn —— 它意味着提示词那一侧没把「答复是既定事实」说到位。
-             */
-            if (turn.questions?.length) {
-              logger.warn(
-                'assistant operator asked new plan questions after approval',
-                {
-                  userId: clerkId,
-                  questionCount: turn.questions.length,
-                },
-              )
-            }
-          } else {
-            /**
-             * **问题优先于多步确认**（v2 §3.1 / §3.4）：待定项整体搬进了 `ask`，
-             * 而 `ask` 一帧**只问一道题** —— 模型想问两件事就分两轮。
-             * ⚠ 一帧带**整组**（≤4 题，56b 切片 4）：界面上仍旧一次只显示一道
-             * （问题块自己带「1 / 3」进度）。⛔ 别再把多出来的题丢掉 —— 丢掉的
-             * 代价是模型下一轮把同一道题重问一遍。
-             */
-            const questions = normalizePlanQuestions(turn, clerkId)
-            if (questions.length > 0) {
-              yield { type: ASSISTANT_OPERATOR_EVENTS.ask, questions }
-              /**
-               * ⭐ **停在确认卡 / 问题卡上的轮次也结账**（2026-09-12 实测第 2 组）：
-               * 本轮已经发生的看 / 查 / 改都有料，而用户点完那张卡不再新开一轮 ——
-               * 不在这里结，这一轮就永远没有结论块。
-               * ⚠ 一步都没跑成就不结（见 `closeRoundBeforeStop`）。
-               */
-              const roundSummary = await closeRoundBeforeStop(run, {
-                clerkId,
-                userId: user.id,
-              })
-              yield {
-                type: ASSISTANT_OPERATOR_EVENTS.stopped,
-                reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
-                ...(roundSummary ? { roundSummary } : {}),
-              }
-              completed = true
-              return
-            }
+          if (!planApproved) {
             /**
              * **多步确认**（§3.3 第一种来源）—— 判在服务端。
              *
@@ -9739,32 +9746,6 @@ export async function* runAssistantOperator(
             plan.detail ? `: ${plan.detail}` : ''
           }.${plan.reason === REJECT.referenceAnalysisRequired ? '' : ' Do not retry it unchanged.'}`,
         )
-        if (name === TOOL.setPrompt && plan.reason === REJECT.promptConflict) {
-          promptConflictStrikes += 1
-          if (promptConflictStrikes >= 2) {
-            const language = resolveResponseLanguage(request, persona)
-            const question = buildPromptConflictQuestion(language)
-            yield {
-              type: ASSISTANT_OPERATOR_EVENTS.ask,
-              questions: [question],
-            }
-            const roundSummary = await closeRoundBeforeStop(run, {
-              clerkId,
-              userId: user.id,
-              todo: plan.detail ?? question.question,
-            })
-            yield {
-              type: ASSISTANT_OPERATOR_EVENTS.stopped,
-              reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
-              ...(roundSummary ? { roundSummary } : {}),
-            }
-            completed = true
-            return
-          }
-          run.observations.push(
-            'Correct only the named conflict once, then retry set_prompt. If you would have to guess, call ask this turn with one focused choice. Do not rewrite synonyms. Do not end the turn without asking.',
-          )
-        }
         continue
       }
 

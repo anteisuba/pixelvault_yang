@@ -1,43 +1,14 @@
 'use client'
 
-/**
- * **本轮结论记录**（v2 §7.7 / 画板 Main「本轮结论」· BCards「结论记录」三态）。
- *
- * ⭐ 它是**分隔块不是第六类卡**（§3.2 那五类一个都没有变）：一条全宽的浅底带，
- * 上下各一条细线，左边一颗小清单图标 —— 比任何一张卡都安静。理由写在形状里：
- * 它不是这一轮里发生的又一件事，它是**这一轮到此为止**。画成卡的下场是时间线
- * 上多出一种与其它五类争注意力的东西，而它本该是分节符。
- *
- * ── 三态（画板 BCards）────────────────────────────────────────────
- *  · **默认展开**：三栏（事实 / 决定 / 待办）+ 证据编号 chip 行；
- *  · **折叠一行**：`本轮记住 N 件事  改 ▾`（N = 三栏条目总数，⛔ 不含证据编号 ——
- *    编号是出处不是「记住的事」，数进去会让一条只查了资料的轮次写着「记住 5 件事」）；
- *  · **编辑态**：三栏变文本框 + 取消 / 保存。
- *
- * ── 为什么给「改」（§7.7）──────────────────────────────────────────
- * 结论是模型压缩出来的，压错一句会一路错下去八轮（下一轮注入读的就是它）。
- * 给一个 10 秒能改完的入口，比让用户在下一轮用一整段话去纠正便宜得多。
- * ⚠ **折叠态也摆这一颗**：折起来才是这块的常驻形态（旧轮次载回来就是折的），
- * 入口只长在展开态等于把 10 秒的纠错变成「先展开、再找、再点」。
- * ⚠ 保存写回的是**库里那一列**并标 `editedByUser`，⛔ 不是只改屏幕上这一份：
- * 回写链路见 `updateAssistantConversationRound`。
- *
- * ⚠ **证据 chip 默认只展示**：§7.7 要的是「点一下滚回那张证据卡并展开」，而
- * 时间线上此刻没有按编号定位证据卡的锚（证据本住在 `ResearchRun`，编号没有对应
- * 的 DOM id）。所以点击能力由调用方以 `onRecallEvidence` 传进来 —— 传了才画成
- * 按钮，⛔ 不摆一颗点了没反应的 chip。
- *
- * ⚠ **续跑 chip 长在这个块的尾部**（§3.6）：它从头部搬过来，判据与 checkpoint
- * 薄卡上那一颗相同 —— 「这一轮到此为止」和「这一轮还没跑完」是同一件事的两面。
- */
-
-import { useState } from 'react'
+import { useId, useState } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
 import { ChevronDown, ClipboardCheck, EyeOff } from '@/components/icons'
 
 import { ASSISTANT_ROUND_SUMMARY_LIMITS } from '@/constants/assistant-operator'
 import type { AssistantOperatorRoundSummary } from '@/types/assistant-operator'
 import { cn } from '@/lib/utils'
+import type { NamedImageReference } from '@/lib/studio-reference-mentions'
+import { StudioOperatorReferenceText } from './StudioOperatorMessageBody'
 
 /** 三栏的栏名 —— ⚠ 同时是 `data-column` 的取值，测试与真机目检按它取。 */
 export const STUDIO_OPERATOR_ROUND_COLUMNS = [
@@ -64,22 +35,16 @@ export interface StudioOperatorRoundResume {
 }
 
 interface StudioOperatorRoundSummaryProps {
+  references?: readonly NamedImageReference[]
   summary: AssistantOperatorRoundSummary
   /**
    * 保存那一下（§7.7）。缺席 = 这一条改不动（只读历史里更旧的那几条），
    * 此时「改」整颗不渲染 —— ⛔ 不画一颗停用的。
    */
   onSave?(columns: StudioOperatorRoundColumns): void
-  /** 见头注：传了才把证据编号画成可点的。 */
+  /** 传入时把证据编号画成可点击的按钮。 */
   onRecallEvidence?(ref: string): void
-  /**
-   * 「本轮记住 N 件事」那一行点下去的去处（56a）——`/settings/assistant`。
-   *
-   * ⚠ 由调用方传（面板那一侧才有 `usePathname()` 与 `?from=`），⛔ 这块自己不
-   * 认路由。缺席 = 退回展开三栏（老调用方与快照测试走这一档）。
-   */
-  onOpenMemory?(): void
-  /** 见头注；缺席 = 这一轮没有没跑完的计划。 */
+  /** 缺席表示这一轮没有待续跑的计划。 */
   resume?: StudioOperatorRoundResume
   /** 首次渲染就折起来（载回来的历史用它，⛔ 不影响用户之后的开合）。 */
   defaultCollapsed?: boolean
@@ -107,15 +72,16 @@ function fromColumnText(text: string): string[] {
 
 export function StudioOperatorRoundSummary({
   summary,
+  references,
   onSave,
   onRecallEvidence,
-  onOpenMemory,
   resume,
   defaultCollapsed = false,
 }: StudioOperatorRoundSummaryProps) {
   const t = useTranslations('StudioOperator.roundSummary')
   const tResume = useTranslations('StudioOperator.resume')
   const format = useFormatter()
+  const detailsId = useId()
   const [collapsed, setCollapsed] = useState(defaultCollapsed)
   const [draft, setDraft] = useState<Record<
     StudioOperatorRoundColumn,
@@ -131,16 +97,7 @@ export function StudioOperatorRoundSummary({
     })
   }
 
-  /**
-   * 回执上那个 N（56a）。
-   *
-   * ⭐ **记忆条数优先**：用户点那一行是去**记忆列表**，数的就该是「记下了几条
-   * 记忆」。`memoriesWritten` 缺席（56a 之前写的老记录 / 这一轮一条都没写）时
-   * 退回三栏条目数 —— 那是 56a 之前的口径。
-   * ⚠ 敏感类目命中的那几条服务端已经不算进 `memoriesWritten`，⛔ 这里也不提。
-   */
   const count =
-    summary.memoriesWritten ??
     summary.facts.length + summary.decisions.length + summary.todos.length
   const time = format.dateTime(new Date(summary.createdAt), {
     hour: '2-digit',
@@ -155,74 +112,6 @@ export function StudioOperatorRoundSummary({
     />
   )
 
-  /* ── 折叠一行（画板 BCards「折叠 · 一行」）──────────────────────── */
-  if (collapsed && !draft) {
-    return (
-      <div
-        data-testid="operator-round-summary"
-        data-state="collapsed"
-        data-round={summary.roundIndex}
-        className="flex items-center border-y border-border bg-muted/40"
-      >
-        {/* ⚠ 「改」与展开是**并排两颗按钮**不是嵌套：折叠态下要改一句结论，点
-            一下展开再点一下「改」是两步，而这块本来就是给 10 秒纠错用的（§7.7）。
-            ⛔ 别把它塞进展开那颗里 —— 按钮套按钮的 DOM 本身就是坏的。
-            ⚠ 56a 起**那一行字自己去设置页**（画板 `DesignD56Simple`「回执一行」）：
-            「本轮记住 N 件事」说的是记忆，而记忆能改能删的地方只有
-            `/settings/assistant`。展开三栏那条路搬到了尾巴上那颗 ▾ —— 它仍然是
-            `operator-round-expand`，⛔ 两件事不共用一个命中区。
-            ⚠ 隐身那一轮整行不可点：没有记，也就没有可去的地方（`incognito`）。 */}
-        {summary.incognito ? (
-          <div
-            data-testid="operator-round-incognito"
-            className="flex min-w-0 flex-1 items-center gap-2 px-0.5 py-2.5"
-          >
-            <EyeOff
-              className="size-4 shrink-0 text-muted-foreground"
-              aria-hidden
-            />
-            <span className="min-w-0 flex-1 text-2sm text-muted-foreground">
-              {t('incognito')}
-            </span>
-          </div>
-        ) : (
-          <button
-            type="button"
-            data-testid="operator-round-memory"
-            onClick={() =>
-              onOpenMemory ? onOpenMemory() : setCollapsed(false)
-            }
-            className="flex min-w-0 flex-1 items-center gap-2 px-0.5 py-2.5 text-left transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {icon}
-            <span className="min-w-0 flex-1 text-2sm text-muted-foreground">
-              {t('collapsed', { count })}
-            </span>
-          </button>
-        )}
-        {onSave ? (
-          <button
-            type="button"
-            data-testid="operator-round-edit"
-            onClick={openDraft}
-            className="shrink-0 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {t('edit')}
-          </button>
-        ) : null}
-        <button
-          type="button"
-          data-testid="operator-round-expand"
-          aria-label={t('expand')}
-          onClick={() => setCollapsed(false)}
-          className="ml-1 mr-0.5 grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <ChevronDown className="size-4" aria-hidden />
-        </button>
-      </div>
-    )
-  }
-
   /* ── 编辑态（画板 BCards「编辑态」）────────────────────────────── */
   if (draft) {
     return (
@@ -230,18 +119,16 @@ export function StudioOperatorRoundSummary({
         data-testid="operator-round-summary"
         data-state="editing"
         data-round={summary.roundIndex}
-        /* 画板 BCards「结论记录 · 编辑态」：raised 那一档 —— 它此刻是当下要你动手的
-           那张卡（§12.1）。 */
-        className="rounded-xl border border-assistant-line-strong bg-card p-3 shadow-assistant-raised"
+        className="rounded-xl border border-border bg-card p-4"
       >
         <div className="flex items-center gap-1.5">
           {icon}
-          <span className="text-2xs text-muted-foreground">{heading}</span>
+          <span className="text-xs text-muted-foreground">{heading}</span>
         </div>
         <div className="mt-2.5 flex flex-col gap-2">
           {STUDIO_OPERATOR_ROUND_COLUMNS.map((column) => (
             <label key={column} className="flex flex-col gap-1">
-              <span className="text-3xs uppercase tracking-nav text-muted-foreground">
+              <span className="text-xs font-medium text-muted-foreground">
                 {t(`column.${column}`)}
               </span>
               <textarea
@@ -252,7 +139,7 @@ export function StudioOperatorRoundSummary({
                 onChange={(event) =>
                   setDraft({ ...draft, [column]: event.target.value })
                 }
-                className="w-full resize-none rounded-md border border-assistant-line-strong bg-card px-2 py-1.5 text-xs leading-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm leading-normal text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             </label>
           ))}
@@ -262,7 +149,7 @@ export function StudioOperatorRoundSummary({
             type="button"
             data-testid="operator-round-cancel"
             onClick={() => setDraft(null)}
-            className="rounded-md border border-border bg-card px-3 py-1 text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="min-h-11 rounded-lg border border-border bg-card px-4 py-2 text-sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('cancel')}
           </button>
@@ -277,7 +164,7 @@ export function StudioOperatorRoundSummary({
               })
               setDraft(null)
             }}
-            className="rounded-md bg-foreground px-3.5 py-1 text-xs font-medium text-background transition-colors duration-(--duration-fast) ease-standard hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            className="min-h-11 rounded-lg bg-foreground px-4 py-2 text-sm font-medium text-background transition-colors duration-(--duration-fast) ease-standard hover:bg-foreground/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
           >
             {t('save')}
           </button>
@@ -286,132 +173,147 @@ export function StudioOperatorRoundSummary({
     )
   }
 
-  /* ── 默认展开（画板 Main「本轮结论」）──────────────────────────── */
   return (
     <div
       data-testid="operator-round-summary"
-      data-state="expanded"
+      data-state={collapsed ? 'collapsed' : 'expanded'}
       data-round={summary.roundIndex}
       data-edited={summary.editedByUser ? 'true' : 'false'}
-      role="article"
-      aria-label={heading}
-      className="flex flex-col gap-2 border-y border-border bg-muted/40 px-0.5 py-2.5"
+      className={cn('min-w-0 rounded-xl', !collapsed && 'bg-muted/40')}
     >
-      <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          data-testid="operator-round-collapse"
-          onClick={() => setCollapsed(true)}
-          className="flex min-w-0 items-center gap-1.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {icon}
-          <span className="truncate text-2xs text-muted-foreground">
-            {heading}
-          </span>
-          {summary.editedByUser ? (
-            <span
-              data-testid="operator-round-edited"
-              className="shrink-0 text-2xs text-muted-foreground"
-            >
-              {t('edited')}
-            </span>
-          ) : null}
-        </button>
-        {onSave ? (
-          <button
-            type="button"
-            data-testid="operator-round-edit"
-            onClick={openDraft}
-            className="shrink-0 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {t('edit')}
-          </button>
-        ) : null}
-      </div>
-
-      {/* 三栏：灰标签 + 正文。⚠ 空栏不画 —— 画出来是一行只有标签的空句子。 */}
-      <div className="flex flex-col gap-1.5">
-        {STUDIO_OPERATOR_ROUND_COLUMNS.map((column) =>
-          summary[column].length > 0 ? (
-            <div
-              key={column}
-              data-testid="operator-round-column"
-              data-column={column}
-              className="flex gap-2 text-xs leading-relaxed"
-            >
-              <span className="w-8 shrink-0 text-muted-foreground">
-                {t(`column.${column}`)}
-              </span>
-              <span
-                className={cn(
-                  'min-w-0 flex-1',
-                  /* 决定那一栏走正文色：它是这一块里唯一「已经拍了板」的东西
-                     （§7.2），其余两栏是注脚。⛔ 不靠颜色分层级以外的任何事。 */
-                  column === 'decisions'
-                    ? 'text-foreground'
-                    : 'text-muted-foreground',
-                )}
-              >
-                {summary[column].join(' · ')}
-              </span>
-            </div>
-          ) : null,
-        )}
-      </div>
-
-      {summary.evidenceRefs.length > 0 ? (
-        <div className="flex flex-wrap gap-1.5">
-          {summary.evidenceRefs.map((ref) =>
-            onRecallEvidence ? (
-              <button
-                key={ref}
-                type="button"
-                data-testid="operator-round-evidence"
-                onClick={() => onRecallEvidence(ref)}
-                className="rounded-full border border-border bg-card px-2 py-0.5 text-2xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              >
-                {ref}
-              </button>
-            ) : (
-              <span
-                key={ref}
-                data-testid="operator-round-evidence"
-                className="rounded-full border border-border bg-card px-2 py-0.5 text-2xs text-muted-foreground"
-              >
-                {ref}
-              </span>
-            ),
+      <button
+        type="button"
+        data-testid="operator-round-toggle"
+        aria-expanded={!collapsed}
+        aria-controls={detailsId}
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+      >
+        {icon}
+        <span className="min-w-0 flex-1">{t('collapsed', { count })}</span>
+        <ChevronDown
+          className={cn(
+            'size-4 shrink-0 transition-transform duration-(--duration-fast) motion-reduce:transition-none',
+            !collapsed && 'rotate-180',
           )}
-        </div>
-      ) : null}
+          aria-hidden
+        />
+      </button>
+      <div id={detailsId} hidden={collapsed}>
+        {!collapsed ? (
+          <div className="flex flex-col gap-4 px-4 pb-3 pt-1">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+              <span>{heading}</span>
+              {summary.editedByUser ? (
+                <span data-testid="operator-round-edited">{t('edited')}</span>
+              ) : null}
+              {summary.incognito ? (
+                <span
+                  data-testid="operator-round-incognito"
+                  className="inline-flex items-center gap-1"
+                >
+                  <EyeOff className="size-3.5" aria-hidden />
+                  {t('incognito')}
+                </span>
+              ) : null}
+            </div>
+            <div className="flex flex-col gap-4">
+              {STUDIO_OPERATOR_ROUND_COLUMNS.map((column) =>
+                summary[column].length > 0 ? (
+                  <div
+                    key={column}
+                    data-testid="operator-round-column"
+                    data-column={column}
+                    className="flex flex-col gap-1"
+                  >
+                    <span className="text-xs font-medium text-muted-foreground">
+                      {t(`column.${column}`)}
+                    </span>
+                    <ul className="flex list-none flex-col gap-1 text-sm leading-relaxed text-foreground">
+                      {summary[column].map((entry, index) => (
+                        <li
+                          key={index}
+                          className="break-words [overflow-wrap:anywhere]"
+                        >
+                          <StudioOperatorReferenceText
+                            text={entry}
+                            references={references}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null,
+              )}
+            </div>
+            {summary.evidenceRefs.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {summary.evidenceRefs.map((ref) =>
+                  onRecallEvidence ? (
+                    <button
+                      key={ref}
+                      type="button"
+                      data-testid="operator-round-evidence"
+                      onClick={() => onRecallEvidence(ref)}
+                      className="rounded-full border border-border bg-card px-2 py-0.5 text-2xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    >
+                      {ref}
+                    </button>
+                  ) : (
+                    <span
+                      key={ref}
+                      data-testid="operator-round-evidence"
+                      className="rounded-full border border-border bg-card px-2 py-0.5 text-2xs text-muted-foreground"
+                    >
+                      {ref}
+                    </span>
+                  ),
+                )}
+              </div>
+            ) : null}
 
-      {/* ── 续跑（§3.6：从头部搬到这里的尾部一行）───────────────────
+            {/* ── 续跑（§3.6：从头部搬到这里的尾部一行）───────────────────
           ⚠ 失败那句原因写在按钮**前面**：先读为什么，再决定要不要继续
             （与 checkpoint 薄卡上那一颗同一条判据）。 */}
-      {resume ? (
-        <div className="flex items-center gap-2">
-          {resume.failedReason ? (
-            <span
-              data-testid="operator-round-resume-reason"
-              className="min-w-0 flex-1 truncate text-2xs text-muted-foreground"
-              title={resume.failedReason}
-            >
-              {tResume('failed', { reason: resume.failedReason })}
-            </span>
-          ) : (
-            <span className="min-w-0 flex-1" />
-          )}
-          <button
-            type="button"
-            data-testid="operator-round-resume"
-            data-step={resume.stepNumber}
-            onClick={resume.onResume}
-            className="shrink-0 rounded-md border border-border bg-card px-1.5 py-0.5 text-2sm font-medium text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {tResume('continue', { step: resume.stepNumber })}
-          </button>
-        </div>
-      ) : null}
+            {resume ? (
+              <div className="flex flex-wrap items-center gap-2">
+                {resume.failedReason ? (
+                  <span
+                    data-testid="operator-round-resume-reason"
+                    className="min-w-0 flex-1 text-xs text-muted-foreground"
+                    title={resume.failedReason}
+                  >
+                    {tResume('failed', { reason: resume.failedReason })}
+                  </span>
+                ) : (
+                  <span className="min-w-0 flex-1" />
+                )}
+                <button
+                  type="button"
+                  data-testid="operator-round-resume"
+                  data-step={resume.stepNumber}
+                  onClick={resume.onResume}
+                  className="min-h-11 shrink-0 rounded-lg border border-border bg-card px-3 py-2 text-2sm font-medium text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {tResume('continue', { step: resume.stepNumber })}
+                </button>
+              </div>
+            ) : null}
+            {onSave ? (
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  data-testid="operator-round-edit"
+                  onClick={openDraft}
+                  className="min-h-11 rounded-lg px-3 py-2 text-2sm font-medium text-muted-foreground transition-colors duration-(--duration-fast) hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                >
+                  {t('edit')}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }

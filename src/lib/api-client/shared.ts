@@ -4,12 +4,14 @@ interface ApiErrorPayload {
   error?: string
   errorCode?: string
   i18nKey?: string
+  traceId?: string
+  detail?: string
 }
 
 export async function getErrorPayload(
   response: Response,
   fallbackMessage: string,
-): Promise<{ error: string; errorCode?: string; i18nKey?: string }> {
+): Promise<ApiErrorPayload & { error: string }> {
   const errorData = (await response
     .json()
     .catch(() => null)) as ApiErrorPayload | null
@@ -18,6 +20,12 @@ export async function getErrorPayload(
     error: errorData?.error ?? fallbackMessage,
     errorCode: errorData?.errorCode,
     i18nKey: errorData?.i18nKey,
+    ...(typeof errorData?.traceId === 'string'
+      ? { traceId: errorData.traceId }
+      : {}),
+    ...(typeof errorData?.detail === 'string'
+      ? { detail: errorData.detail }
+      : {}),
   }
 }
 

@@ -19,6 +19,7 @@
  *  · 三张「等你定」的卡钉在流末尾：计划 / 花钱硬确认 / 歧义反问单选（§4.1）
  */
 
+import { buildMessageImageReferences } from '@/lib/studio-reference-mentions'
 import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
 import { StudioOperatorLoraPickCard } from './StudioOperatorLoraPickCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
@@ -130,7 +131,6 @@ import { StudioOperatorResearchProgress } from '@/components/business/studio/ass
 import { StudioOperatorQueueBar } from '@/components/business/studio/assistant-operator/StudioOperatorQueueBar'
 import { StudioOperatorEmptyState } from '@/components/business/studio/assistant-operator/StudioOperatorEmptyState'
 import { StudioOperatorErrorBar } from '@/components/business/studio/assistant-operator/StudioOperatorErrorBar'
-import { useOpenAssistantMemory } from '@/hooks/use-open-assistant-memory'
 import { StudioOperatorHeader } from '@/components/business/studio/assistant-operator/StudioOperatorHeader'
 import {
   STUDIO_OPERATOR_CARD_KINDS,
@@ -774,12 +774,22 @@ export function StudioOperatorPanel({
   )
 
   const referenceImages = operatorHost.referenceImages
+  const messageImageReferences = useMemo(
+    () =>
+      buildMessageImageReferences(
+        [...historyEntries, ...entries],
+        referenceImages,
+      ),
+    [historyEntries, entries, referenceImages],
+  )
   const referenceTokens: MentionToken[] = referenceImages.map(
     (entry, index) => ({
-      name: `Image${index + 1}`,
+      name: entry.name
+        ? `Attachment[${getReferenceImageAttachmentId(entry.url)}]`
+        : `Image${index + 1}`,
       kind: 'reference',
       thumbnailUrl: entry.url,
-      slotLabel: `@${tReference('image', { index: index + 1 })}`,
+      slotLabel: `@${entry.name || tReference('image', { index: index + 1 })}`,
     }),
   )
   const referenceCandidates: MentionCandidate[] = referenceTokens.flatMap(
@@ -951,12 +961,43 @@ export function StudioOperatorPanel({
           url,
           thumbnailUrl: url,
           kind: 'image',
-          label: `reference image ${index + 1}`,
+          label:
+            currentReferences[index].name || `reference image ${index + 1}`,
         }
         if (!merged.some((item) => item.url === url)) merged.push(reference)
       }
       let missingAttachment = false
-      const compiled = compileReferenceMentions(value).replace(
+      for (const match of value.matchAll(/@Attachment\[([^\]]+)\]/g)) {
+        const reference = currentReferences.find(
+          (entry) =>
+            encodeURIComponent(getReferenceImageAttachmentId(entry.url)) ===
+            match[1],
+        )
+        if (!reference) continue
+        if (reference.disabledReason) {
+          missingAttachment = true
+          continue
+        }
+        if (!merged.some((item) => item.url === reference.url)) {
+          merged.push({
+            id: getReferenceImageAttachmentId(reference.url),
+            kind: 'image',
+            url: reference.url,
+            thumbnailUrl: reference.url,
+            label:
+              reference.name ||
+              `reference image ${currentReferences.indexOf(reference) + 1}`,
+          })
+        }
+      }
+      const namedValue = value.replace(
+        /@Image([1-9]\d*)(?![\w])/g,
+        (token, number: string) => {
+          const name = currentReferences[Number(number) - 1]?.name
+          return name ? `「${name}」` : token
+        },
+      )
+      const compiled = compileReferenceMentions(namedValue).replace(
         /@Attachment\[([^\]]+)\]/g,
         (token, encodedId: string) => {
           const attachment = merged.find(
@@ -966,7 +1007,9 @@ export function StudioOperatorPanel({
             missingAttachment = true
             return token
           }
-          return `@${attachment.label}`
+          return attachment.kind === 'image'
+            ? `「${attachment.label}」`
+            : `@${attachment.label}`
         },
       )
       if (missingAttachment) {
@@ -1149,9 +1192,6 @@ export function StudioOperatorPanel({
     return null
   }, [entries, historyRounds, resumeStepNumber])
 
-  /** 回执那一行的去处（56a）—— `/settings/assistant`，带 `?from=` 当前路径。 */
-  const openAssistantMemory = useOpenAssistantMemory()
-
   const roundResume =
     resumeStepNumber === null
       ? null
@@ -1178,9 +1218,15 @@ export function StudioOperatorPanel({
       <StudioOperatorRoundSummary
         key={`hr:${summary.roundIndex}`}
         summary={summary}
+        references={messageImageReferences.get(
+          historyEntries[
+            [...historyRoundPlacement.byIndex].find(([, indices]) =>
+              indices.includes(summaryIndex),
+            )?.[0] ?? -1
+          ]?.id,
+        )}
         defaultCollapsed
         onSave={(columns) => saveRoundSummary(summary, columns)}
-        onOpenMemory={openAssistantMemory}
         {...(roundResume &&
         resumeHost?.scope === 'history' &&
         resumeHost.roundIndex === summary.roundIndex
@@ -1526,6 +1572,7 @@ export function StudioOperatorPanel({
             <StudioOperatorUserText
               text={entry.text}
               attachments={entry.attachments}
+              references={messageImageReferences.get(entry.id)}
             />
             {entry.attachments.some(
               (attachment) => attachment.kind !== 'image',
@@ -1589,6 +1636,7 @@ export function StudioOperatorPanel({
                 ⛔ 有字之后不再传：正文一到，那句状态词就该让位。 */}
             <StudioOperatorMessageBody
               entry={entry}
+              references={messageImageReferences.get(entry.id)}
               {...(statusWord ? { statusText: statusWord } : {})}
               {...(answer
                 ? {
@@ -1746,8 +1794,8 @@ export function StudioOperatorPanel({
           <StudioOperatorRoundSummary
             key={entry.id}
             summary={entry.summary}
+            references={messageImageReferences.get(entry.id)}
             onSave={(columns) => saveRoundSummary(entry.summary, columns)}
-            onOpenMemory={openAssistantMemory}
             {...(roundResume &&
             resumeHost?.scope === 'live' &&
             resumeHost.roundIndex === entry.summary.roundIndex
@@ -1873,7 +1921,10 @@ export function StudioOperatorPanel({
                     {...historyCardKind(entry.kind)}
                     {...(persona ? { persona } : {})}
                   >
-                    <StudioOperatorHistoryItem entry={entry} />
+                    <StudioOperatorHistoryItem
+                      entry={entry}
+                      references={messageImageReferences.get(entry.id)}
+                    />
                     {operatorHost.checkpoints &&
                     entry.kind === 'step' &&
                     entry.status === 'done' &&

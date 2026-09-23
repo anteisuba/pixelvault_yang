@@ -17,6 +17,7 @@
  * ⚠ 缩略图仍可点开灯箱：看大图是只读动作，不改任何东西。
  */
 
+import type { NamedImageReference } from '@/lib/studio-reference-mentions'
 import {
   AlertTriangle,
   Check,
@@ -44,11 +45,13 @@ import type {
 } from '@/types/studio-operator-history'
 
 interface StudioOperatorHistoryItemProps {
+  references?: readonly NamedImageReference[]
   entry: StudioOperatorHistoryEntry
 }
 
 export function StudioOperatorHistoryItem({
   entry,
+  references,
 }: StudioOperatorHistoryItemProps) {
   const t = useTranslations('StudioOperator')
 
@@ -61,6 +64,7 @@ export function StudioOperatorHistoryItem({
           <StudioOperatorUserText
             text={entry.text}
             attachments={entry.attachments}
+            references={references}
           />
           {entry.attachments.some(
             (attachment) => attachment.kind !== 'image',
@@ -98,7 +102,10 @@ export function StudioOperatorHistoryItem({
            一条 8 行的正文此前整条铺开，既没有折叠开关也没有那颗测试锚 ——
            而历史恰恰是最需要折的地方（几十轮堆在一起）。 */
         <div className="flex min-w-0 flex-col gap-1">
-          <StudioOperatorCollapsibleText text={entry.text} />
+          <StudioOperatorCollapsibleText
+            text={entry.text}
+            references={references}
+          />
         </div>
       )
     case 'plan':

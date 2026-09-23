@@ -538,6 +538,7 @@ async function persistProposedContextCard(
 /** 跑一轮时那几样「带上下文重发」的东西（拍板 3 / §2.6 / §6 共用一条通道）。 */
 interface RunOptions {
   canvasSteps?: number
+  runKey?: string
   confirmations?: AssistantOperatorConfirmDecision[]
   /** 反问卡那一份答复（`{questionId, optionIds, otherText}`）。 */
   planAnswers?: AssistantOperatorPlanAnswer[]
@@ -829,7 +830,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * 的。没有它，第二轮的第一步会把第一轮的第一步原地顶掉并继承它的划线
        * （2026-08-30 真机实测）。见 `operatorStepEntryId` 的头注。
        */
-      const runKey = nextOperatorEntryId('run')
+      const runKey = options.runKey ?? nextOperatorEntryId('run')
+      const continuationPrefix = options.runKey
+        ? `continuation-${options.canvasSteps ?? 0}:`
+        : ''
 
       /**
        * ⭐ **发送即回显**（§4.1）—— 用户那一行由 `send()` 落，助手的**占位行**
@@ -842,7 +846,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        *   这一段**已经被别的条目压在下面**时才进位，见 `message` 那一支。
        */
       let messageSeq = 0
-      const messageEntryId = () => `${runKey}:msg-${messageSeq}`
+      const messageEntryId = () =>
+        `${runKey}:${continuationPrefix}msg-${messageSeq}`
       appendOperatorPending(messageEntryId())
 
       /**
@@ -865,6 +870,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       let pendingPlanSteps: readonly string[] | null = null
       const flushPlanEntry = () => {
         if (!pendingPlanSteps) return
+        if (options.runKey && getOperatorState().resume) {
+          pendingPlanSteps = null
+          return
+        }
         const planId = nextOperatorEntryId('plan')
         appendOperatorEntry({
           kind: 'plan',
@@ -1231,12 +1240,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           setOperatorStatus('idle')
           return
         }
-        /**
-         * ⚠ 这一支**没有 `traceId`**：它是「流还没开起来」的那一档（HTTP 401 /
-         * 429 / 500 / 空流），错误码本身已经说清是哪一类。短码只给成帧器那条
-         * 说不出分类的内部错误（见 `toErrorTrace` 头注）。
-         */
-        setOperatorStatus('error', describeError(result))
+        setOperatorStatus('error', describeError(result), toErrorTrace(result))
         return
       }
 
@@ -1447,7 +1451,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
               break
             }
             case ASSISTANT_OPERATOR_EVENTS.step: {
-              const { step } = event
+              const step = {
+                ...event.step,
+                id: `${continuationPrefix}${event.step.id}`,
+              }
               upsertOperatorStep(step, runKey)
               /**
                * ⭐ **续跑记录跟着走**（第三期）：这一步有结论了，把计划里第一个
@@ -1710,7 +1717,14 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         canvasSync &&
         canvasSteps < ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps
       ) {
-        runRef.current?.({ ...options, canvasSteps, planApproved: true })
+        const resume = getOperatorState().resume
+        runRef.current?.({
+          ...options,
+          runKey,
+          canvasSteps,
+          planApproved: true,
+          resumeFrom: resume ? (toResumeFrom(resume) ?? undefined) : undefined,
+        })
         return
       }
       // `done` 之后没有别的收尾 —— 状态没被 `stopped` / `error` 改过就是跑完了。

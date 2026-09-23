@@ -52,12 +52,11 @@ export const CANVAS_SHELL_LAYOUT = {
   nodeThumbHeightPx: 26,
 } as const
 
-/** 左侧四个面板。顺序即图标栏从上到下的顺序。 */
+/** 左侧面板。顺序即图标栏从上到下的顺序。 */
 export const CANVAS_SHELL_PANEL_IDS = {
   nodes: 'nodes',
   cards: 'cards',
   library: 'library',
-  history: 'history',
 } as const
 export type CanvasShellPanelId =
   (typeof CANVAS_SHELL_PANEL_IDS)[keyof typeof CANVAS_SHELL_PANEL_IDS]
@@ -66,7 +65,6 @@ export const CANVAS_SHELL_PANELS: readonly CanvasShellPanelId[] = [
   CANVAS_SHELL_PANEL_IDS.nodes,
   CANVAS_SHELL_PANEL_IDS.cards,
   CANVAS_SHELL_PANEL_IDS.library,
-  CANVAS_SHELL_PANEL_IDS.history,
 ]
 
 /**
@@ -113,7 +111,7 @@ export const CANVAS_SHELL_LIBRARY_FILTER_IDS = {
 export type CanvasShellLibraryFilter =
   (typeof CANVAS_SHELL_LIBRARY_FILTER_IDS)[keyof typeof CANVAS_SHELL_LIBRARY_FILTER_IDS]
 
-/** 面板列表一次取多少条（素材库 / 历史共用）。 */
+/** 素材库列表一次取多少条。 */
 export const CANVAS_SHELL_LIST_PAGE_SIZE = 24
 
 /** ⌘K 每组最多列几条 —— 面板不滚过一屏。 */

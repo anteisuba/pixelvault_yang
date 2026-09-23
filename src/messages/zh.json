@@ -5927,23 +5927,24 @@
         "nodes": "节点一览",
         "cards": "角色 / 风格卡",
         "library": "素材库",
-        "history": "历史",
         "searchNodes": "搜节点…",
         "refCount": "{count} 引用",
         "cardsCharacters": "角色",
         "cardsStyles": "风格",
         "cardsHint": "拖进画布成卡，或在提示词里 @",
-        "libraryHint": "上传 · 拖入",
+        "libraryHint": "上传与生成 · 最近优先",
         "libraryAll": "全部",
         "libraryImage": "图",
         "libraryVideo": "视频",
         "libraryAudio": "音频",
-        "historyHint": "最近生成 · 拖回画布",
         "loadMore": "加载更多",
         "placeHint": "点一下落到画布中央 · 或拖进去",
         "empty": "这里还什么都没有",
         "loading": "加载中…",
-        "close": "收起面板"
+        "close": "收起面板",
+        "libraryUpload": "上传",
+        "libraryManageFolders": "管理文件夹与素材 ↗",
+        "libraryLoadFailed": "加载失败，点击重试"
       },
       "add": {
         "text": "文本",
@@ -7995,18 +7996,18 @@
       "band": "有未完成计划 · 从第 {step} 步继续"
     },
     "roundSummary": {
-      "heading": "本轮结论 · {time}",
-      "collapsed": "本轮记住 {count} 件事",
+      "heading": "本轮记录 · {time}",
+      "collapsed": "本轮记录 · {count} 项",
       "column": {
         "facts": "事实",
         "decisions": "决定",
         "todos": "待办"
       },
-      "edit": "改",
+      "edit": "编辑记录",
       "edited": "· 已修改",
       "save": "保存",
       "cancel": "取消",
-      "incognito": "这一轮没有记",
+      "incognito": "未保存为记忆",
       "expand": "展开本轮记录"
     },
     "status": {

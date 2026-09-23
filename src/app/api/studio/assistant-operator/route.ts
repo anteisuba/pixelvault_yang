@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@clerk/nextjs/server'
+import { randomBytes } from 'node:crypto'
 
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { AssistantOperatorRequestSchema } from '@/types/assistant-operator'
@@ -58,15 +59,21 @@ export async function POST(request: NextRequest): Promise<Response> {
       code: issue.code,
       message: issue.message,
     }))
-    logger.warn(`${routeName} validation failed`, { userId: clerkId, issues })
+    const traceId = randomBytes(4).toString('hex')
+    logger.warn(`${routeName} validation failed`, {
+      userId: clerkId,
+      traceId,
+      issues,
+    })
     return NextResponse.json(
       {
         success: false,
         error: 'Invalid request body',
         errorCode: 'VALIDATION_ERROR',
-        details: issues[0]
-          ? `${issues[0].path}: ${issues[0].message}`
-          : undefined,
+        traceId,
+        ...(process.env.NODE_ENV !== 'production' && issues[0]
+          ? { detail: `${issues[0].path}: ${issues[0].message}` }
+          : {}),
       },
       { status: 400 },
     )

@@ -5927,23 +5927,24 @@
         "nodes": "ノード一覧",
         "cards": "キャラ / スタイル",
         "library": "素材ライブラリ",
-        "history": "履歴",
         "searchNodes": "ノードを検索…",
         "refCount": "参照 {count}",
         "cardsCharacters": "キャラクター",
         "cardsStyles": "スタイル",
         "cardsHint": "キャンバスにドラッグするか、プロンプトで @ を入力して選べます",
-        "libraryHint": "アップロード · ドラッグ",
+        "libraryHint": "アップロードと生成 · 新しい順",
         "libraryAll": "すべて",
         "libraryImage": "画像",
         "libraryVideo": "動画",
         "libraryAudio": "音声",
-        "historyHint": "最近の生成 · ドラッグで戻す",
         "loadMore": "もっと読み込む",
         "placeHint": "クリックで中央に配置 · ドラッグでも可",
         "empty": "まだ何もありません",
         "loading": "読み込み中…",
-        "close": "パネルを閉じる"
+        "close": "パネルを閉じる",
+        "libraryUpload": "アップロード",
+        "libraryManageFolders": "フォルダと素材を管理 ↗",
+        "libraryLoadFailed": "読み込み失敗。クリックして再試行"
       },
       "add": {
         "text": "テキスト",
@@ -7995,18 +7996,18 @@
       "band": "未完了の計画 · ステップ {step} から続行"
     },
     "roundSummary": {
-      "heading": "まとめ · {time}",
-      "collapsed": "今回記録したこと {count}件",
+      "heading": "このターンの記録 · {time}",
+      "collapsed": "このターンの記録 · {count} 件",
       "column": {
         "facts": "事実",
         "decisions": "決定",
         "todos": "TODO"
       },
-      "edit": "修正",
+      "edit": "記録を編集",
       "edited": "· 修正済み",
       "save": "保存",
       "cancel": "キャンセル",
-      "incognito": "このターンは記憶していません",
+      "incognito": "メモリには未保存",
       "expand": "このターンの記録を開く"
     },
     "status": {

@@ -7253,35 +7253,87 @@ describe('计划协议 · plan / ask / confirm', () => {
     ).toBe(true)
   })
 
-  it('⭐ 已批准的那一轮模型又给 questions —— 丢掉并 warn，⛔ 不再拦一次用户', async () => {
-    const warn = vi.spyOn(logger, 'warn').mockImplementation(() => {})
+  it.each([true, false])(
+    'new questions pause before editing even with planApproved=%s',
+    async (planApproved) => {
+      queueTurns(
+        {
+          plan: ['照计划走'],
+          questions: [
+            {
+              header: '取景',
+              question: '取多少身？',
+              options: [
+                { label: '半身', description: '腰以上，脸看得清。' },
+                { label: '全身', description: '连鞋一起，服装看得全。' },
+              ],
+            },
+          ],
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            args: { value: 'Unconfirmed full body' },
+          },
+        },
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', buildRequest({ planApproved })),
+      )
+      expect(
+        events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
+      ).toBe(true)
+      expect(stepsOf(events)).toHaveLength(0)
+      expect(events.at(-1)).toMatchObject({
+        type: 'stopped',
+        reason: 'awaiting_confirm',
+      })
+    },
+  )
+
+  it('continues an answered choice without asking it again', async () => {
     queueTurns(
       {
-        plan: ['照计划走'],
+        plan: ['写入已选的全身构图'],
         questions: [
           {
-            header: '取景',
             question: '取多少身？',
             options: [
-              { label: '半身', description: '腰以上，脸看得清。' },
-              { label: '全身', description: '连鞋一起，服装看得全。' },
+              { label: '半身', description: '腰以上' },
+              { label: '全身', description: '连鞋一起' },
             ],
           },
         ],
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Full body character' },
+        },
       },
       { finished: true },
     )
     const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest({ planApproved: true })),
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          planApproved: true,
+          snapshot: { ...SNAPSHOT, prompt: '' },
+          planAnswers: [
+            {
+              questionId: 'question-1',
+              question: '取多少身？',
+              optionIds: ['full'],
+              optionLabels: ['全身'],
+            },
+          ],
+        }),
+      ),
     )
-    expect(
-      events.some((event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask),
-    ).toBe(false)
-    expect(warn).toHaveBeenCalledWith(
-      'assistant operator asked new plan questions after approval',
-      expect.objectContaining({ questionCount: 1 }),
+    expect(events.some((event) => event.type === 'ask')).toBe(false)
+    expect(stepsOf(events)).toContainEqual(
+      expect.objectContaining({
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        status: 'done',
+      }),
     )
-    warn.mockRestore()
   })
 
   it('系统提示逐项列全 32 个图示 id（⛔ 不是一句「从词表里选」）', async () => {
@@ -9848,7 +9900,7 @@ describe('current reference image bindings', () => {
         'analyze_references is how you SEE the mounted references',
       )
       expect(prompt).toContain(
-        '"I cannot see the pixels of these reference images" is never a true answer',
+        'When retrieval or analysis fails, say which step failed',
       )
     })
 
@@ -9931,6 +9983,61 @@ describe('current reference image bindings', () => {
       expect(stepsOf(events)).toHaveLength(0)
     },
   )
+
+  it('sends the canvas-named image pixels rather than interpreting the numeric name suffix', async () => {
+    mockResolveLlmTextRoute.mockResolvedValue({
+      adapterType: AI_ADAPTER_TYPES.OPENAI,
+      providerConfig: { label: 'openai', baseUrl: 'https://example.test' },
+      apiKey: 'test-key',
+    })
+    queueTurns({ finished: true, message: '生成图3是画风参考。' })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'canvas',
+          messages: [
+            { role: 'user', content: '实际查看「生成图3」的画风，不改画布' },
+          ],
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            references: { items: refs, limit: 4 },
+            canvas: {
+              currentShotNo: null,
+              selectedNodeIds: [],
+              shots: [
+                {
+                  expanded: true,
+                  shotNo: null,
+                  title: 'Unassigned',
+                  nodes: [
+                    {
+                      id: 'layout',
+                      name: '生成图',
+                      kind: 'image',
+                      referenceImageIndex: 1,
+                    },
+                    {
+                      id: 'style',
+                      name: '生成图3',
+                      kind: 'image',
+                      referenceImageIndex: 3,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    )
+    expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
+      imageData: [refs[3].url],
+    })
+    expect(lastUserPrompt()).toContain('"imageIndex":3')
+    expect(lastUserPrompt()).toContain('use the exact canvas node name')
+  })
 
   it('does not attach references mentioned only in older conversation', async () => {
     queueTurns({ finished: true, message: '欢迎回来。' })
@@ -10048,7 +10155,7 @@ describe('current reference image bindings', () => {
           args: { value: 'Night scene from @Image3', overwrite: true },
         },
       },
-      brief,
+      { ...brief, assignments: [{ ...brief.assignments[2], imageIndex: 0 }] },
       { issues: [] },
       { finished: true, message: '已按图3写好。' },
     )
@@ -10337,7 +10444,7 @@ describe('current reference image bindings', () => {
     expect(lastUserPrompt()).toContain('The source-role brief failed schema')
   })
 
-  it('does not rebuild the failed brief when set_prompt is retried in the same turn', async () => {
+  it('stops on a conflict even when the reference brief had to be rebuilt', async () => {
     queueTurns(
       ...analysisTurns(),
       {
@@ -10374,18 +10481,17 @@ describe('current reference image bindings', () => {
       ),
     ).toHaveLength(2)
     expect(
-      stepsOf(events).findLast(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-          step.status !== 'running',
+      stepsOf(events).filter(
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
       ),
-    ).toMatchObject({
-      status: 'done',
-      payload: { value: 'A hug on a white background' },
+    ).toHaveLength(0)
+    expect(events.at(-1)).toMatchObject({
+      type: 'stopped',
+      reason: 'awaiting_confirm',
     })
   })
 
-  it('asks after one failed prompt correction instead of hanging the turn', async () => {
+  it('asks at the first conflict before any write or correction attempt', async () => {
     const conflict = '图1被写成人物来源，但用户要求保留图2的脸部。'
     queueTurns(
       ...analysisTurns(),
@@ -10430,13 +10536,16 @@ describe('current reference image bindings', () => {
     const writes = stepsOf(events).filter(
       (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
     )
-    expect(writes).toHaveLength(2)
-    expect(writes.every((step) => step.status === 'error')).toBe(true)
-    expect(writes[1]?.error?.detail).toContain(conflict)
+    expect(writes).toHaveLength(0)
     expect(events).toContainEqual(
       expect.objectContaining({
         type: ASSISTANT_OPERATOR_EVENTS.ask,
-        questions: [expect.objectContaining({ id: 'prompt-conflict' })],
+        questions: [
+          expect.objectContaining({
+            id: expect.stringMatching(/^prompt-conflict-/),
+            question: conflict,
+          }),
+        ],
       }),
     )
     expect(events.at(-1)).toMatchObject({
@@ -10498,7 +10607,7 @@ describe('current reference image bindings', () => {
         type: ASSISTANT_OPERATOR_EVENTS.ask,
         questions: [
           expect.objectContaining({
-            id: 'prompt-conflict',
+            id: expect.stringMatching(/^prompt-conflict-/),
             // 问句就是模型自己写的那一条疑问，⛔ 不换成服务端的通用取舍问法。
             question: uncertainty,
             multiSelect: false,
@@ -10517,7 +10626,39 @@ describe('current reference image bindings', () => {
     })
   })
 
+  async function askAboutReference(issue: string, uncertainty = false) {
+    queueTurns(
+      ...analysisTurns(),
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'A hug on white' },
+        },
+      },
+      { ...brief, uncertainties: uncertainty ? [issue] : [] },
+      ...(!uncertainty ? [{ issues: [issue] }] : []),
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          responseLanguage: 'chinese',
+          snapshot: {
+            ...SNAPSHOT,
+            prompt: '',
+            references: { items: refs, limit: 4 },
+          },
+        }),
+      ),
+    )
+    const ask = events.find((event) => event.type === 'ask')
+    if (!ask || ask.type !== 'ask')
+      throw new Error('Expected a conflict question')
+    return ask.questions[0]
+  }
+
   it('writes the prompt once the creator answered that uncertainty with follow-request', async () => {
+    const question = await askAboutReference('哪张图提供服装？', true)
     queueTurns(
       ...analysisTurns(),
       {
@@ -10537,7 +10678,7 @@ describe('current reference image bindings', () => {
           responseLanguage: 'chinese',
           planAnswers: [
             {
-              questionId: 'prompt-conflict',
+              questionId: question.id,
               optionIds: ['follow-request'],
               question: '哪张图提供服装？',
               optionLabels: ['按我的要求写'],
@@ -10907,7 +11048,7 @@ describe('current reference image bindings', () => {
     expect(stepsOf(events).some((step) => step.status === 'done')).toBe(false)
   })
 
-  it('rejects conflicting prompts twice and asks instead of hanging', async () => {
+  it('checks once and asks instead of repeatedly rewriting conflicting prompts', async () => {
     const turns = analysisTurns()
     for (const value of ['A hug in a forest', 'An embrace in the woods']) {
       turns.push(
@@ -10952,7 +11093,7 @@ describe('current reference image bindings', () => {
       mockLlmTextCompletion.mock.calls.filter(([input]) =>
         input.systemPrompt.includes('Check an image-generation prompt'),
       ),
-    ).toHaveLength(2)
+    ).toHaveLength(1)
     const ask = events.find(
       (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
     )
@@ -10960,7 +11101,7 @@ describe('current reference image bindings', () => {
       type: ASSISTANT_OPERATOR_EVENTS.ask,
       questions: [
         {
-          id: 'prompt-conflict',
+          id: expect.stringMatching(/^prompt-conflict-/),
           options: [
             expect.objectContaining({ id: 'follow-request' }),
             expect.objectContaining({ id: 'follow-reference' }),
@@ -10982,6 +11123,8 @@ describe('current reference image bindings', () => {
   })
 
   it('writes the prompt after the creator picks follow-request on a conflict card', async () => {
+    const issue = '参考背景是白色，但你的要求是夜景。'
+    const question = await askAboutReference(issue)
     queueTurns(
       {
         tool: {
@@ -10991,6 +11134,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
+      { issues: [issue] },
       { finished: true, message: '写好了。' },
     )
     const events = await collect(
@@ -11000,9 +11144,9 @@ describe('current reference image bindings', () => {
           messages: [{ role: 'user', content: '改成夜景' }],
           planAnswers: [
             {
-              questionId: 'prompt-conflict',
+              questionId: question.id,
               optionIds: ['follow-request'],
-              question: '提示词没写上：参考检查和你的要求打架了。以哪边为准？',
+              question: question.question,
               optionLabels: ['按我的要求写'],
             },
           ],
@@ -11022,8 +11166,146 @@ describe('current reference image bindings', () => {
       mockLlmTextCompletion.mock.calls.filter(([input]) =>
         input.systemPrompt.includes('Check an image-generation prompt'),
       ),
+    ).toHaveLength(1)
+  })
+
+  it.each([
+    'new conflict',
+    'new references',
+    'changed answer',
+    'later instruction',
+  ])('does not let an old follow-request answer bypass %s', async (change) => {
+    const issue = '背景冲突：白色还是夜景？'
+    const question = await askAboutReference(issue)
+    const currentRefs =
+      change === 'new references'
+        ? refs.map((ref) => ({
+            ...ref,
+            url: ref.url.replace('.png', '-new.png'),
+          }))
+        : refs
+    const newIssue =
+      change === 'new conflict' ? '比例冲突：保留身材还是拉长双腿？' : issue
+    const previousAnswer = {
+      questionId: question.id,
+      question: question.question,
+      optionIds: ['follow-request'],
+      optionLabels: ['按我的要求写'],
+    }
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Night city' },
+        },
+      },
+      brief,
+      { issues: [newIssue] },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          responseLanguage: 'chinese',
+          messages: [
+            {
+              role: 'user',
+              content: '之前按我的要求写',
+              answered: previousAnswer,
+            },
+            { role: 'user', content: '继续修改' },
+          ],
+          ...(change !== 'later instruction'
+            ? {
+                planAnswers: [
+                  {
+                    ...previousAnswer,
+                    ...(change === 'changed answer'
+                      ? {
+                          optionIds: ['follow-reference'],
+                          optionLabels: ['按参考图来'],
+                        }
+                      : {}),
+                  },
+                ],
+              }
+            : {}),
+          referenceProfiles: currentRefs.map(({ url }) => ({
+            url,
+            ...facts,
+          })),
+          snapshot: {
+            ...SNAPSHOT,
+            prompt: '',
+            references: { items: currentRefs, limit: 4 },
+          },
+        }),
+      ),
+    )
+    expect(events).toContainEqual(
+      expect.objectContaining({
+        type: 'ask',
+        questions: [expect.objectContaining({ question: newIssue })],
+      }),
+    )
+    expect(
+      stepsOf(events).filter(
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      ),
     ).toHaveLength(0)
   })
+
+  it.each([true, false])(
+    'retries an unreadable review once; recovery=%s',
+    async (recovers) => {
+      queueTurns(
+        ...analysisTurns(),
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            args: { value: 'A hug on white' },
+          },
+        },
+        brief,
+        'unreadable review',
+        recovers ? { issues: [] } : 'still unreadable',
+        { finished: true },
+      )
+      const pending = collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            responseLanguage: 'chinese',
+            snapshot: {
+              ...SNAPSHOT,
+              prompt: '',
+              references: { items: refs, limit: 4 },
+            },
+          }),
+        ),
+      )
+      if (recovers) {
+        const events = await pending
+        expect(stepsOf(events)).toContainEqual(
+          expect.objectContaining({
+            tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            status: 'done',
+          }),
+        )
+        expect(events.some((event) => event.type === 'ask')).toBe(false)
+      } else {
+        await expect(pending).rejects.toMatchObject({
+          errorCode: 'PROMPT_REVIEW_UNAVAILABLE',
+          message: expect.stringContaining('已有修改保留'),
+        })
+      }
+      expect(
+        mockLlmTextCompletion.mock.calls.filter(([input]) =>
+          input.systemPrompt.includes('Check an image-generation prompt'),
+        ),
+      ).toHaveLength(2)
+    },
+  )
 
   it('writes a validated reference prompt once instead of paying for successful synonym rewrites', async () => {
     const turns = [

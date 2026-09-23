@@ -350,7 +350,62 @@ describe('buildV4ImagePayload / buildV4AudioPayload / buildV4MergeClipUrls', () 
       'https://cdn/char.png',
       'https://cdn/cu.png',
     ])
-    expect(payload.prompt).toBe('她回头\n\n走廊全景')
+    expect(payload.prompt).toContain('Image 1 = "阿岚"\nImage 2 = "cu"')
+    expect(payload.prompt).toContain('她回头\n\n走廊全景')
+  })
+
+  it('matches names to actual transmitted order after missing, blocked and duplicate references', () => {
+    const target = node('target', { kind: 'image', subtype: 'shot' })
+    const original = node('original', {
+      kind: 'image',
+      subtype: 'reference',
+      name: '生成图',
+      url: 'https://cdn/original.png',
+    })
+    const style = node('style', {
+      kind: 'image',
+      subtype: 'reference',
+      name: '生成图3',
+      url: 'https://cdn/style.png',
+    })
+    const duplicate = node('duplicate', {
+      kind: 'image',
+      subtype: 'reference',
+      name: '画风副本',
+      url: 'https://cdn/style.png',
+    })
+    const blocked = node('blocked', {
+      kind: 'image',
+      subtype: 'reference',
+      name: '禁用图',
+      url: 'https://cdn/blocked.png',
+      blocked: true,
+    })
+    const empty = node('empty', {
+      kind: 'image',
+      subtype: 'reference',
+      name: '空图',
+    })
+    const payload = buildV4ImagePayload({
+      nodeId: target.id,
+      nodes: [target, original, style, duplicate, blocked, empty],
+      edges: [empty, blocked, style, original, duplicate].map((source, index) =>
+        edge(`e${index}`, source.id, target.id, NODE_SLOT_IDS.reference),
+      ),
+      ownPrompt: '保留「生成图」的布局，采用「生成图3」的画风',
+    })
+    expect(payload.referenceUrls).toEqual([
+      'https://cdn/style.png',
+      'https://cdn/original.png',
+    ])
+    expect(payload.prompt).toContain(
+      'Image 1 = "生成图3" / "画风副本"\nImage 2 = "生成图"',
+    )
+    expect(payload.prompt).not.toContain('禁用图')
+    expect(payload.prompt).not.toContain('空图')
+    expect(payload.prompt).toContain(
+      '保留「生成图」的布局，采用「生成图3」的画风',
+    )
   })
 
   it('音：台词走 text 槽，音色供体走 timbre 槽', () => {

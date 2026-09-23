@@ -152,4 +152,23 @@ describe('streamAssistantOperatorAPI', () => {
       i18nKey: 'x.y',
     })
   })
+
+  it('保留校验失败的追踪码与服务端允许展示的详情', async () => {
+    vi.stubGlobal('fetch', async () =>
+      Response.json(
+        {
+          error: 'Invalid request body',
+          errorCode: 'VALIDATION_ERROR',
+          traceId: '1234abcd',
+          detail: 'snapshot.canvas: invalid value',
+        },
+        { status: 400 },
+      ),
+    )
+    expect(await streamAssistantOperatorAPI(REQUEST)).toMatchObject({
+      success: false,
+      traceId: '1234abcd',
+      detail: 'snapshot.canvas: invalid value',
+    })
+  })
 })

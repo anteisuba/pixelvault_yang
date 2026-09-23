@@ -28,7 +28,14 @@ import {
 
 export type AssistantOperatorStreamApiResponse =
   | { success: true; events: AsyncIterable<AssistantOperatorEvent> }
-  | { success: false; error: string; errorCode?: string; i18nKey?: string }
+  | {
+      success: false
+      error: string
+      errorCode?: string
+      i18nKey?: string
+      traceId?: string
+      detail?: string
+    }
 
 /**
  * 逐事件读一条操作员流。
@@ -81,6 +88,8 @@ export async function streamAssistantOperatorAPI(
         error: payload.error,
         errorCode: payload.errorCode,
         i18nKey: payload.i18nKey,
+        ...(payload.traceId ? { traceId: payload.traceId } : {}),
+        ...(payload.detail ? { detail: payload.detail } : {}),
       }
     }
 

@@ -62,6 +62,32 @@ const SOURCES = [
 ]
 
 describe('StudioOperatorMessageBody', () => {
+  it('renders named thumbnails in markdown and resolves a bound historical alias', () => {
+    renderBody(
+      { text: '以**生成图3**的画风修正 reference image 4，保留生成图的布局。' },
+      {
+        references: [
+          { name: '生成图', url: '/original.png', aliases: ['生成图'] },
+          {
+            name: '生成图3',
+            url: '/style.png',
+            aliases: ['生成图3', 'reference image 4'],
+          },
+        ],
+      },
+    )
+    expect(screen.getAllByAltText('生成图3')).toHaveLength(2)
+    expect(screen.getAllByAltText('生成图3')[0].getAttribute('src')).toBe(
+      '/style.png',
+    )
+    expect(screen.getByAltText('生成图').getAttribute('src')).toBe(
+      '/original.png',
+    )
+    expect(
+      screen.getByTestId('operator-message-text').textContent,
+    ).not.toContain('reference image 4')
+  })
+
   it('短回话原样出，⛔ 没有多余的展开钮', () => {
     renderBody()
     expect(screen.queryByTestId('operator-message-expand')).toBeNull()

@@ -26,14 +26,6 @@ import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operat
  *     （LoRA 装配台上那条 context 根本不存在）。
  */
 
-/**
- * ⚠ 回执那一行的去处（56a）走 `@/i18n/navigation`，而那条链在 jsdom 里会去解
- * `next/navigation` —— 这份用例验的是**面板接线**，不是路由。桩掉它。
- */
-vi.mock('@/hooks/use-open-assistant-memory', () => ({
-  useOpenAssistantMemory: () => vi.fn(),
-}))
-
 vi.mock('next-intl', () => ({
   useTranslations: () => {
     const t = (key: string) => key
@@ -112,6 +104,9 @@ vi.mock('@/components/business/AssetSelectorDialog', () => ({
 
 const applyDispatch = vi.hoisted(() => vi.fn())
 
+const HOST_REFERENCE_NAMES = new Map<string, string>()
+let hostReferenceOrder = [0, 1]
+
 const HOST_RESULTS = [
   { id: 'gen-1', url: 'https://cdn.test/a.png', label: '第一张' },
   { id: 'gen-2', url: 'https://cdn.test/b.png', label: '第二张' },
@@ -147,7 +142,10 @@ vi.mock('@/contexts/studio-operator-host', () => ({
     results: HOST_RESULTS,
     referenceLimit: 4,
     referenceImages: [
-      ...HOST_RESULTS.map(({ url }) => ({ url })),
+      ...hostReferenceOrder.map((index) => ({
+        url: HOST_RESULTS[index].url,
+        name: HOST_REFERENCE_NAMES.get(HOST_RESULTS[index].url),
+      })),
       { url: 'https://cdn.test/disabled.png', disabledReason: 'over_limit' },
     ],
     open: true,
@@ -180,6 +178,8 @@ const retryGeneration = vi.fn()
 beforeEach(async () => {
   vi.resetModules()
   vi.clearAllMocks()
+  HOST_REFERENCE_NAMES.clear()
+  hostReferenceOrder = [0, 1]
   initialAttachments = []
   libraryPicks = [
     {
@@ -430,6 +430,48 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     ])
     expect(editor.textContent).toBe('')
   })
+
+  it.each(['unchanged', 'reordered', 'removed'])(
+    'keeps the selected canvas image binding when references are %s',
+    (change) => {
+      HOST_REFERENCE_NAMES.set(HOST_RESULTS[1].url, '生成图3')
+      const view = render(<PanelHarness />)
+      const editor = screen.getByRole('textbox', {
+        name: '描述画面，或把参考图挂进来…',
+      })
+      editor.focus()
+      editor.textContent = '采用@'
+      const range = document.createRange()
+      range.selectNodeContents(editor)
+      if (editor.firstChild) range.setStart(editor.firstChild, 3)
+      range.collapse(true)
+      document.getSelection()?.removeAllRanges()
+      document.getSelection()?.addRange(range)
+      fireEvent.input(editor)
+      fireEvent.click(screen.getByRole('option', { name: '生成图3' }))
+      expect(editor.textContent).toContain('生成图3')
+      expect(editor.querySelector('img')).toHaveAttribute(
+        'src',
+        HOST_RESULTS[1].url,
+      )
+      if (change !== 'unchanged') {
+        hostReferenceOrder = change === 'removed' ? [0] : [1, 0]
+        view.rerender(<PanelHarness />)
+      }
+      fireEvent.keyDown(editor, { key: 'Enter' })
+      if (change === 'removed') {
+        expect(send).not.toHaveBeenCalled()
+        return
+      }
+      expect(send).toHaveBeenCalledWith('采用「生成图3」', [
+        expect.objectContaining({
+          url: HOST_RESULTS[1].url,
+          label: '生成图3',
+          kind: 'image',
+        }),
+      ])
+    },
+  )
 
   it('已有消息中的媒体地址显示为简短引用名称', () => {
     const attachment: StudioOperatorAttachment = {

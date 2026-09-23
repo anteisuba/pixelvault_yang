@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  *
- * S7 外壳的**行为快照**：项目胶囊与切换弹层、左侧四面板开关、三条加节点路、
+ * S7 外壳的**行为快照**：项目胶囊与切换弹层、左侧三面板开关、三条加节点路、
  * ⌘K、底栏、助手 dock 收放与宽度、快捷键。
  *
  * ⚠ 只证「点了会调什么」，不证画板像素：对稿在真机验收里逐项比。
@@ -77,6 +77,25 @@ vi.mock('@/components/ui/command', () => ({
     >
       {props.children as React.ReactNode}
     </button>
+  ),
+}))
+
+vi.mock('@/hooks/use-projects', () => ({
+  useProjects: () => ({
+    projects: [
+      { id: 'folder-parent', name: '角色', parentId: null },
+      { id: 'folder-child', name: '时夜', parentId: 'folder-parent' },
+    ],
+    isLoading: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
+}))
+vi.mock('@/i18n/navigation', () => ({
+  Link: ({ children, href, ...props }: React.ComponentProps<'a'>) => (
+    <a href={href} {...props}>
+      {children}
+    </a>
   ),
 }))
 
@@ -171,7 +190,7 @@ describe('ShellProjectPill · 项目胶囊与切换弹层', () => {
   })
 })
 
-describe('ShellSidePanels · 四面板', () => {
+describe('ShellSidePanels · 三面板', () => {
   function renderPanels() {
     const props = {
       activePanel: null as null | (typeof CANVAS_SHELL_PANEL_IDS)['nodes'],
@@ -185,12 +204,12 @@ describe('ShellSidePanels · 四面板', () => {
     return { props, view }
   }
 
-  it('图标栏四项，默认全收（面板不在场）', () => {
+  it('图标栏三项，默认全收（面板不在场）', () => {
     renderPanels()
     expect(screen.getByTestId('shell-rail-nodes')).toBeTruthy()
     expect(screen.getByTestId('shell-rail-cards')).toBeTruthy()
     expect(screen.getByTestId('shell-rail-library')).toBeTruthy()
-    expect(screen.getByTestId('shell-rail-history')).toBeTruthy()
+    expect(screen.queryByTestId('shell-rail-history')).toBeNull()
     expect(screen.queryByTestId('shell-side-panel')).toBeNull()
   })
 
@@ -451,6 +470,70 @@ describe('素材库面板 · 翻页 / 点一下落卡 / 传完就变', () => {
   beforeEach(() => {
     resetGalleryRevision()
     vi.mocked(fetchGalleryImages).mockClear()
+  })
+
+  it('合并后的素材库请求全部个人产物，不再只筛上传', async () => {
+    vi.mocked(fetchGalleryImages).mockResolvedValue(
+      galleryPage(['generated', 'uploaded'], false),
+    )
+    renderLibrary()
+    await settle()
+    expect(fetchGalleryImages).toHaveBeenCalledWith(1, 24, { mine: true })
+    expect(screen.getAllByTestId('shell-library-tile')).toHaveLength(2)
+  })
+
+  it('支持嵌套文件夹筛选，切换后清空旧页并保留类型筛选', async () => {
+    vi.mocked(fetchGalleryImages).mockResolvedValue(galleryPage(['old'], true))
+    renderLibrary()
+    await settle()
+    fireEvent.click(screen.getByRole('button', { name: 'libraryVideo' }))
+    await settle()
+    fireEvent.click(screen.getByTestId('shell-library-folders'))
+    fireEvent.click(
+      screen.getByRole('button', { name: '角色', expanded: false }),
+    )
+    vi.mocked(fetchGalleryImages).mockResolvedValue(
+      galleryPage(['child'], false),
+    )
+    fireEvent.click(screen.getByRole('button', { name: '时夜' }))
+    await settle()
+    expect(fetchGalleryImages).toHaveBeenLastCalledWith(1, 24, {
+      mine: true,
+      type: ['video'],
+      projectId: 'folder-child',
+    })
+    expect(screen.getByTestId('shell-library-folders').textContent).toBe(
+      '角色 / 时夜',
+    )
+    expect(screen.getAllByTestId('shell-library-tile')).toHaveLength(1)
+    expect(
+      screen.getByTestId('shell-library-tile').getAttribute('title'),
+    ).toBeTruthy()
+  })
+
+  it('未分类范围使用素材库现有 none 契约', async () => {
+    vi.mocked(fetchGalleryImages).mockResolvedValue(galleryPage([], false))
+    renderLibrary()
+    await settle()
+    fireEvent.click(screen.getByTestId('shell-library-folders'))
+    fireEvent.click(screen.getByRole('button', { name: 'sidebarUnassigned' }))
+    await settle()
+    expect(fetchGalleryImages).toHaveBeenLastCalledWith(1, 24, {
+      mine: true,
+      projectId: 'none',
+    })
+  })
+
+  it('失败显示重试，重试仍读取原页', async () => {
+    vi.mocked(fetchGalleryImages)
+      .mockResolvedValueOnce({ success: false, error: 'unavailable' })
+      .mockResolvedValue(galleryPage(['recovered'], false))
+    renderLibrary()
+    await settle()
+    fireEvent.click(screen.getByRole('button', { name: 'libraryLoadFailed' }))
+    await settle()
+    expect(screen.getAllByTestId('shell-library-tile')).toHaveLength(1)
+    expect(fetchGalleryImages).toHaveBeenLastCalledWith(1, 24, { mine: true })
   })
 
   it('点一格素材 = 落到画布（⛔ 不只有拖投那一条路）', async () => {

@@ -272,6 +272,7 @@ function render() {
 describe('useAssistantOperator 的四条收尾路径', () => {
   it('连续布置多个画布节点时逐步续接最新快照', async () => {
     hostDomain.current = 'canvas'
+    store.setOperatorResumeScope('canvas-batch-regression')
     const nodes: { id: string; name: string; kind: string; subtype: string }[] =
       []
     canvasApply.mockImplementation(() => {
@@ -307,9 +308,16 @@ describe('useAssistantOperator 的四条收尾路径', () => {
 
     for (let index = 0; index < 3; index += 1) {
       streams[index].emit({
+        type: 'plan',
+        steps: [1, 2, 3].map((number) => ({
+          id: `plan-${number}`,
+          label: `创建节点${number}`,
+        })),
+      })
+      streams[index].emit({
         type: 'step',
         step: {
-          id: `step-${index + 1}`,
+          id: 'step-1',
           title: `创建节点${index + 1}`,
           tool: 'canvas_apply',
           verb: 'apply',
@@ -334,9 +342,22 @@ describe('useAssistantOperator 的四条收尾路径', () => {
       expect(
         JSON.stringify(streamAssistantOperatorAPI.mock.calls[index + 1]?.[0]),
       ).toContain(`node-${index + 1}`)
+      expect(
+        streamAssistantOperatorAPI.mock.calls[index + 1]?.[0].resumeFrom
+          .completedSteps,
+      ).toHaveLength(index + 1)
     }
 
     expect(canvasApply).toHaveBeenCalledTimes(3)
+    const steps = store
+      .getOperatorState()
+      .entries.filter((entry) => entry.kind === 'step')
+    expect(steps).toHaveLength(3)
+    expect(new Set(steps.map((entry) => entry.runKey)).size).toBe(1)
+    expect(new Set(steps.map((entry) => entry.id)).size).toBe(3)
+    expect(
+      store.getOperatorState().entries.filter((entry) => entry.kind === 'plan'),
+    ).toHaveLength(1)
     streams[3].emit({ type: 'done' })
     streams[3].close()
     await settle()

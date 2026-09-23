@@ -126,7 +126,13 @@ export function useCanvasOperatorHost({
     for (const url of available) {
       if (!ordered.includes(url)) ordered.push(url)
     }
-    return ordered.map((url) => ({ url }))
+    return ordered.map((url) => {
+      const source = nodes.find(
+        (node) =>
+          node.data.kind === NODE_MEDIA_KIND_IDS.image && node.data.url === url,
+      )
+      return { url, ...(source ? { name: source.data.name } : {}) }
+    })
   }, [nodes, referenceState])
   if (
     referenceState.projectId === projectId &&

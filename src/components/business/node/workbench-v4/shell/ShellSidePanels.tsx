@@ -6,12 +6,11 @@
  * ⚠ 面板**浮在画布上**，⛔ 不挤画布：它是 `absolute` 的兄弟，画布几何不因为开合
  * 而变（与助手 dock 同一条「覆盖，不挤压」）。再点同一个图标 = 收起。
  *
- * 四个面板各自只做「列出来 + 交出去」：
+ * 三个面板各自只做「列出来 + 交出去」：
  * · 节点一览 → 复用 `CastDock`（搜索 + 四类分组 + 缩略/名/子型/引用数 + `focusNode`），
  *   ⛔ 不再写第二个定位器。
  * · 角色 / 风格卡 → `useContextCards()`，拖进画布或在提示词里 `@`。
- * · 素材库 → `fetchGalleryImages` 的用户上传那一档，按类型筛、一页一页往下翻。
- * · 历史 → 最近的生成记录，拖回画布。
+ * · 素材库 → 上传与生成记录合并，复用素材页文件夹，按类型筛、一页一页往下翻。
  *
  * ⚠ 三个列表面板落卡都有**两只手**：拖进画布，或**点一下**落到视口中央。后者不是
  * 冗余 —— 触屏上根本没有 `dragstart`，桌面上从缩略图起手的拖拽也常被浏览器接管成
@@ -21,12 +20,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   FolderOpen,
-  History,
+  ChevronDown,
   ListTree,
   PanelLeftClose,
   UserRound,
 } from '@/components/icons'
-import { useFormatter, useTranslations } from 'next-intl'
+import { useTranslations } from 'next-intl'
 
 import {
   CANVAS_SHELL_LAYOUT,
@@ -46,6 +45,19 @@ import {
   NODE_V4_VIDEO_SUBTYPE_IDS,
 } from '@/constants/node-types'
 import { useContextCards } from '@/hooks/use-context-cards'
+import { useProjects } from '@/hooks/use-projects'
+import {
+  AssetPickerFolderNav,
+  type PickerScope,
+} from '@/components/business/assets/AssetPickerFolderNav'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover'
+import { Link } from '@/i18n/navigation'
+import { ROUTES } from '@/constants/routes'
+import { getFolderPath } from '@/lib/folder-tree'
 import { fetchGalleryImages } from '@/lib/api-client'
 import { deferEffectTask } from '@/lib/defer-effect-task'
 import { useGalleryRevision } from '@/lib/gallery-revision'
@@ -61,7 +73,6 @@ const PANEL_ICONS = {
   [CANVAS_SHELL_PANEL_IDS.nodes]: ListTree,
   [CANVAS_SHELL_PANEL_IDS.cards]: UserRound,
   [CANVAS_SHELL_PANEL_IDS.library]: FolderOpen,
-  [CANVAS_SHELL_PANEL_IDS.history]: History,
 } as const
 
 /** 产物类型 → 落成哪种节点。⚠ 与文件落物同一张判据表，⛔ 不按扩展名猜。 */
@@ -157,7 +168,7 @@ function mediaTileProps(
 }
 
 /**
- * 用户最近的产物，**一页一页**拉。素材库与历史两个面板共用一条读法。
+ * 用户最近的产物，**一页一页**拉。上传与生成记录在同一个素材库中读取。
  *
  * ⚠ 翻页是 owner 2026-09-12 的真机结论：只拉第一页时列表到底就没了，用户以为
  * 「素材库只有这些」。追加的判据用服务端的 `hasMore`，⛔ 不拿「这一批够不够一页」
@@ -170,24 +181,34 @@ function mediaTileProps(
  */
 function useRecentGenerations(options: {
   readonly types: readonly OutputTypeValue[]
-  readonly uploadsOnly: boolean
+  readonly scope: PickerScope
 }) {
-  const { types, uploadsOnly } = options
+  const { types, scope } = options
   const revision = useGalleryRevision()
   const typeKey = types.join(',')
-  const resetKey = `${typeKey}|${String(uploadsOnly)}|${String(revision)}`
+  const projectId =
+    scope.kind === 'project'
+      ? scope.id
+      : scope.kind === 'unassigned'
+        ? 'none'
+        : undefined
+  const liked = scope.kind === 'favorites'
+  const resetKey = `${typeKey}|${projectId ?? ''}|${String(liked)}|${String(revision)}`
 
   const [records, setRecords] = useState<readonly GenerationRecord[]>([])
   const [page, setPage] = useState(1)
   const [isLoading, setIsLoading] = useState(false)
   const [exhausted, setExhausted] = useState(false)
   const [lastResetKey, setLastResetKey] = useState(resetKey)
+  const [failed, setFailed] = useState(false)
+  const [attempt, setAttempt] = useState(0)
 
   if (lastResetKey !== resetKey) {
     setLastResetKey(resetKey)
     setPage(1)
     setRecords([])
     setExhausted(false)
+    setFailed(false)
   }
 
   useEffect(() => {
@@ -197,14 +218,19 @@ function useRecentGenerations(options: {
     // 同一套约定，⛔ 别在这里另发明一份。
     const cancel = deferEffectTask(() => {
       setIsLoading(true)
+      setFailed(false)
       void fetchGalleryImages(page, CANVAS_SHELL_LIST_PAGE_SIZE, {
         mine: true,
         ...(typeKey ? { type: typeKey.split(',') as OutputTypeValue[] } : {}),
-        ...(uploadsOnly ? { provider: 'user-upload' } : {}),
+        ...(projectId ? { projectId } : {}),
+        ...(liked ? { liked: true } : {}),
       }).then((response) => {
         if (!alive) return
         setIsLoading(false)
-        if (!response.success || !response.data) return
+        if (!response.success || !response.data) {
+          setFailed(true)
+          return
+        }
         const batch = response.data.generations
         setExhausted(!response.data.hasMore)
         setRecords((current) => (page === 1 ? batch : [...current, ...batch]))
@@ -214,17 +240,19 @@ function useRecentGenerations(options: {
       alive = false
       cancel()
     }
-  }, [page, resetKey, typeKey, uploadsOnly])
+  }, [page, resetKey, typeKey, projectId, liked, attempt])
 
   return {
     records,
     isLoading,
     exhausted,
+    failed,
+    retry: useCallback(() => setAttempt((current) => current + 1), []),
     loadMore: useCallback(() => setPage((current) => current + 1), []),
   }
 }
 
-/** 列表底部那颗「加载更多」—— 素材库与历史同一颗。 */
+/** 列表底部那颗「加载更多」—— 素材列表共用。 */
 function ShellLoadMore({
   visible,
   isLoading,
@@ -253,17 +281,11 @@ function ShellLoadMore({
 
 interface ShellPanelFrameProps {
   readonly title: string
-  readonly hint?: string
   onClose(): void
   readonly children: React.ReactNode
 }
 
-function ShellPanelFrame({
-  title,
-  hint,
-  onClose,
-  children,
-}: ShellPanelFrameProps) {
+function ShellPanelFrame({ title, onClose, children }: ShellPanelFrameProps) {
   const t = useTranslations('StudioNode.shell.panels')
   return (
     <>
@@ -271,9 +293,6 @@ function ShellPanelFrame({
         <span className="min-w-0 flex-1 truncate text-node-foreground canvas-panel-title">
           {title}
         </span>
-        {hint ? (
-          <span className="shrink-0 text-2xs text-node-muted">{hint}</span>
-        ) : null}
         <button
           type="button"
           aria-label={t('close')}
@@ -417,10 +436,32 @@ function ShellLibraryPanel({
   const [filter, setFilter] = useState<CanvasShellLibraryFilter>(
     CANVAS_SHELL_LIBRARY_FILTER_IDS.all,
   )
-  const { records, isLoading, exhausted, loadMore } = useRecentGenerations({
-    types: OUTPUT_TYPE_BY_FILTER[filter],
-    uploadsOnly: true,
-  })
+  const tAssets = useTranslations('AssetsPage')
+  const [scope, setScope] = useState<PickerScope>({ kind: 'all' })
+  const [foldersOpen, setFoldersOpen] = useState(false)
+  const {
+    projects,
+    isLoading: foldersLoading,
+    error: foldersError,
+    refresh,
+  } = useProjects({ loadHistoryOnMount: false })
+  const { records, isLoading, exhausted, loadMore, failed, retry } =
+    useRecentGenerations({
+      types: OUTPUT_TYPE_BY_FILTER[filter],
+      scope,
+    })
+  const scopeLabel =
+    scope.kind === 'project'
+      ? getFolderPath(projects, scope.id)
+          .map((folder) => folder.name)
+          .join(' / ')
+      : tAssets(
+          scope.kind === 'favorites'
+            ? 'sidebarFavorites'
+            : scope.kind === 'unassigned'
+              ? 'sidebarUnassigned'
+              : 'sidebarAll',
+        )
 
   const filters = [
     { id: CANVAS_SHELL_LIBRARY_FILTER_IDS.all, label: t('libraryAll') },
@@ -434,14 +475,62 @@ function ShellLibraryPanel({
       className="flex flex-col gap-2 px-2 pb-2"
       data-testid="shell-library-panel"
     >
-      <button
-        type="button"
-        data-testid="shell-library-upload"
-        onClick={onUpload}
-        className="self-start px-1 text-2xs text-node-muted transition-colors hover:text-node-foreground"
-      >
-        {t('libraryHint')}
-      </button>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-2xs text-node-muted">{t('libraryHint')}</span>
+        <button
+          type="button"
+          data-testid="shell-library-upload"
+          onClick={onUpload}
+          className="rounded-md px-2 py-1 text-xs text-node-foreground hover:bg-node-panel-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {t('libraryUpload')}
+        </button>
+      </div>
+      <Popover open={foldersOpen} onOpenChange={setFoldersOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            data-testid="shell-library-folders"
+            className="flex min-h-9 w-full items-center gap-2 rounded-lg border border-node-panel-inner px-2 text-left text-xs text-node-foreground hover:bg-node-panel-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <FolderOpen className="size-3.5 shrink-0" aria-hidden />
+            <span className="min-w-0 flex-1 truncate">
+              {scopeLabel || tAssets('sidebarFolders')}
+            </span>
+            <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="start" className="flex max-h-96 flex-col p-2">
+          {foldersLoading ? (
+            <p className="p-2 text-xs text-muted-foreground">{t('loading')}</p>
+          ) : foldersError ? (
+            <button
+              type="button"
+              onClick={() => void refresh()}
+              className="rounded-md p-2 text-sm text-status-risk"
+            >
+              {t('libraryLoadFailed')}
+            </button>
+          ) : (
+            <AssetPickerFolderNav
+              projects={projects}
+              scope={scope}
+              recentProjectIds={[]}
+              className="min-h-0 flex-1 shrink overflow-hidden border-r-0"
+              onScopeChange={(next) => {
+                setScope(next)
+                setFoldersOpen(false)
+              }}
+            />
+          )}
+          <Link
+            href={ROUTES.ASSETS}
+            className="mt-2 shrink-0 rounded-md border-t border-border px-2 py-3 text-xs text-muted-foreground hover:text-foreground"
+          >
+            {t('libraryManageFolders')}
+          </Link>
+        </PopoverContent>
+      </Popover>
       <div className="flex gap-0.5 self-start rounded-lg bg-node-panel-inner p-0.5">
         {filters.map((entry) => (
           <button
@@ -460,7 +549,15 @@ function ShellLibraryPanel({
           </button>
         ))}
       </div>
-      {isLoading && records.length === 0 ? (
+      {failed ? (
+        <button
+          type="button"
+          onClick={retry}
+          className="rounded-lg px-2 py-4 text-xs text-status-risk"
+        >
+          {t('libraryLoadFailed')}
+        </button>
+      ) : isLoading && records.length === 0 ? (
         <p className="py-6 text-center text-xs text-node-muted">
           {t('loading')}
         </p>
@@ -474,6 +571,8 @@ function ShellLibraryPanel({
               <div
                 key={record.id}
                 data-testid="shell-library-tile"
+                aria-label={resolveGenerationDisplayName(record)}
+                title={resolveGenerationDisplayName(record)}
                 className="aspect-square cursor-grab overflow-hidden rounded-lg bg-node-panel-soft"
                 {...mediaTileProps(
                   {
@@ -501,7 +600,7 @@ function ShellLibraryPanel({
         </div>
       )}
       <ShellLoadMore
-        visible={records.length > 0 && !exhausted}
+        visible={records.length > 0 && !exhausted && !failed}
         isLoading={isLoading}
         onLoadMore={loadMore}
         testId="shell-library-more"
@@ -513,101 +612,8 @@ function ShellLibraryPanel({
   )
 }
 
-function ShellHistoryPanel({
-  onPlace,
-}: {
-  onPlace(payload: ShellMediaPayload): void
-}) {
-  const t = useTranslations('StudioNode.shell.panels')
-  const format = useFormatter()
-  /**
-   * `relativeTime` 的**参照时刻**。⚠ 不传 `now`，next-intl 退回全局默认值并且每渲染
-   * 一行就往 console 甩一条 `ENVIRONMENT_FALLBACK`（真机实测一屏 30 多条）。取一次
-   * 存住 —— 这是弹开看一眼的列表，⛔ 不为它上一个每秒走的钟。
-   */
-  const [now] = useState(() => new Date())
-  const { records, isLoading, exhausted, loadMore } = useRecentGenerations({
-    types: [],
-    uploadsOnly: false,
-  })
-
-  if (isLoading && records.length === 0) {
-    return (
-      <p className="px-3 py-6 text-center text-xs text-node-muted">
-        {t('loading')}
-      </p>
-    )
-  }
-  if (records.length === 0) {
-    return (
-      <p className="px-3 py-6 text-center text-xs text-node-muted">
-        {t('empty')}
-      </p>
-    )
-  }
-
-  return (
-    <div className="flex flex-col px-1 pb-2" data-testid="shell-history-panel">
-      {records.map((record) => {
-        const plan = planNodeForOutput(record.outputType)
-        return (
-          <div
-            key={record.id}
-            data-testid="shell-history-row"
-            style={{ height: CANVAS_SHELL_LAYOUT.nodeRowHeightPx }}
-            className="flex cursor-grab items-center gap-2.5 rounded-lg px-2 transition-colors hover:bg-node-panel-inner"
-            {...mediaTileProps(
-              {
-                ...plan,
-                url: record.url,
-                name: resolveGenerationDisplayName(record),
-                width: record.width,
-                height: record.height,
-              },
-              onPlace,
-            )}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: CANVAS_SHELL_LAYOUT.nodeThumbWidthPx,
-                height: CANVAS_SHELL_LAYOUT.nodeThumbHeightPx,
-              }}
-              className="shrink-0 overflow-hidden rounded-md bg-node-panel-soft"
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={record.thumbnailUrl ?? record.url}
-                alt=""
-                draggable={false}
-                className="size-full object-cover"
-              />
-            </span>
-            <span className="flex min-w-0 flex-1 flex-col">
-              <span className="truncate text-xs text-node-foreground">
-                {resolveGenerationDisplayName(record)}
-              </span>
-              <span className="truncate text-2xs text-node-muted">
-                {format.relativeTime(new Date(record.createdAt), now)}
-                {' · '}
-                {record.model}
-              </span>
-            </span>
-          </div>
-        )
-      })}
-      <ShellLoadMore
-        visible={records.length > 0 && !exhausted}
-        isLoading={isLoading}
-        onLoadMore={loadMore}
-        testId="shell-history-more"
-      />
-    </div>
-  )
-}
-
 export interface ShellSidePanelsProps {
-  /** `null` = 四个面板都收着（只剩图标栏）。 */
+  /** `null` = 三个面板都收着（只剩图标栏）。 */
   readonly activePanel: CanvasShellPanelId | null
   onActivePanelChange(panel: CanvasShellPanelId | null): void
   /** 节点一览的搜索词（与 ⌘K 同一份词，⛔ 不各存一份）。 */
@@ -637,10 +643,6 @@ export function ShellSidePanels({
     [CANVAS_SHELL_PANEL_IDS.nodes]: t('nodes'),
     [CANVAS_SHELL_PANEL_IDS.cards]: t('cards'),
     [CANVAS_SHELL_PANEL_IDS.library]: t('library'),
-    [CANVAS_SHELL_PANEL_IDS.history]: t('history'),
-  }
-  const hintByPanel: Partial<Record<CanvasShellPanelId, string>> = {
-    [CANVAS_SHELL_PANEL_IDS.history]: t('historyHint'),
   }
 
   return (
@@ -685,21 +687,13 @@ export function ShellSidePanels({
           }}
           className="canvas-glass pointer-events-auto absolute z-canvas-chrome hidden flex-col overflow-hidden p-1.5 md:flex"
         >
-          <ShellPanelFrame
-            title={titleByPanel[activePanel]}
-            {...(hintByPanel[activePanel]
-              ? { hint: hintByPanel[activePanel] }
-              : {})}
-            onClose={close}
-          >
+          <ShellPanelFrame title={titleByPanel[activePanel]} onClose={close}>
             {activePanel === CANVAS_SHELL_PANEL_IDS.nodes ? (
               <CastDock query={nodeQuery} onQueryChange={onNodeQueryChange} />
             ) : activePanel === CANVAS_SHELL_PANEL_IDS.cards ? (
               <ShellCardsPanel onPlace={onPlaceMedia} />
-            ) : activePanel === CANVAS_SHELL_PANEL_IDS.library ? (
-              <ShellLibraryPanel onUpload={onUpload} onPlace={onPlaceMedia} />
             ) : (
-              <ShellHistoryPanel onPlace={onPlaceMedia} />
+              <ShellLibraryPanel onUpload={onUpload} onPlace={onPlaceMedia} />
             )}
           </ShellPanelFrame>
         </div>

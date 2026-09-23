@@ -209,7 +209,8 @@ describe('planV4Generation · 其余分支', () => {
     })!
     expect(plan.kind).toBe('image')
     expect(plan.referenceImages).toEqual(['https://cdn/char.png'])
-    expect(plan.prompt).toBe('她回头\n\n走廊全景')
+    expect(plan.prompt).toContain('Image 1 = "阿岚"')
+    expect(plan.prompt).toContain('她回头\n\n走廊全景')
     expect(plan.aspectRatio).toBe('3:4')
   })
 

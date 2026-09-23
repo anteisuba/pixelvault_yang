@@ -42,7 +42,7 @@
 
 `referenceImages` 现在是扁平 `string[]`，读写方遍布编译器、精修、画布与 UI。把 role 挂进去等于同一轮改掉全部调用方，而 role 的消费方（adapter 分槽）本轮根本不存在。所以 v2 用旁挂的 `referenceRoles: Record<url, role>` 记角色，形状不动。
 
-**v3 的方向已定**：`referenceImages` 与 `referenceRoles` 合并成 `referenceSlots: { role, url, cardId, cardName }[]`，与编译器输出的 `referenceSlots` 同形，在编译器改造那一片一次性完成并删掉旁挂表。⛔ v2 的 `referenceRoles` 是过渡形状，不是长期形状，不要在它上面再叠新语义。
+**v3 已定**：`referenceImages` · `referenceRoles` · `sourceImages` · `sourceImageEntries` 四列并成一列 `referenceSlots`，形状与迁移步骤见下方「卡片总线 v3 契约」。⛔ v2 的 `referenceRoles` 是过渡形状，不是长期形状，不要在它上面再叠新语义。
 
 ## v3 方向（owner 2026-09-19 拍板，随 D6 卡片设计落地）
 
@@ -59,6 +59,59 @@
 
 ⚠ **同名异义提醒**：PixelVault 的 `persona` 与酒馆的 Persona（用户人设）**不是一回事**——我们这个是「角色的行为与说话方式」，服务对白与音色。
 
+## 卡片总线 v3 契约（进度表 35，2026-09-24 定，未施工）
+
+范围只有数据、编译与画布 op；装填按钮、关系编辑、summary / lore 编辑、侧栏换数据源的视觉都归 D6，走设计门。
+
+### 定案
+
+| 分岔                       | 定案                                                                                                                               | 理由                                                                                                                 |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| 总线挂哪张表               | **只认 `CharacterCard`**；画布侧栏、`@` 名单、`image.character` 改认它，`ContextCard(CHARACTER)` 退回「助手读的文字设定」（owner） | handle / relations / persona / 音色都在角色卡上；双源会让每个编译函数分两支；合表会推翻 `ContextCard` 有意分表的理由 |
+| handle 作用域              | **每行一个 handle**，变体写成 `林夏-雨夜`；**角色卡与背景卡共用一个 `@` 命名空间**（owner）                                        | 正文里 `@林夏` 与 `@雨夜街道` 各自无歧义；DB 唯一索引只管单表，跨表查重由服务端同事务做                              |
+| `referenceSlots` 吞几列    | 并掉 `referenceImages` · `referenceRoles` · `sourceImages` · `sourceImageEntries` 四列；`sourceImageUrl` / `sourceStorageKey` 保留 | 三份图列表今天已经会漂（update 只写 entries 不写 sourceImages），留着就是永久多维护几个读方                          |
+| `attach_card` 怎么落图     | **物化**：一张卡在一块画布上只有一个 `image.character` 锚节点，靠边接到目标；镜头空位只记指针                                      | 画布「在槽里就等于会发送」「边是事实」只认边；内联存 url 会长出第二本账                                              |
+| 画布空位的 `role` 同名异义 | 画布 `referenceSlots` 的 `role`（今天存角色名）**改名 `handle`**，`role` 让给 11 类用途                                            | 「role 词表 = 11 类」是已定口径；已投影剧本里的空位没有用户内容，丢了重投影新镜会再开，⛔ 不写兼容层                 |
+| 情绪词表                   | 新的 14 值**表演情绪表为上位**；配音按映射落到现有 `AUDIO_EMOTION`（9 值），`VoiceLine.emotion` 不迁移                             | 未映射的情绪落不了 Fish 标签（逐词查表铁律），由「按卡实际能力裁剪候选」挡在配音面之外，只出现在台词稿里             |
+| 迁移授权                   | **owner 授权 35 例外**：migration + 临时双写 + 回填脚本，按下方三次部署走（owner）                                                 | 生产与本地共用一个库，迁移跑在生产构建里、构建期间旧部署仍在服务——只能先加后删                                       |
+
+### 字段落点
+
+- **新列**：`handle`（expand 期可空，contract 后非空，`(userId, handle)` 唯一）· `summary`（给人看，⛔ 任何面都不进 prompt，含助手）· `referenceSlots`（`{id, role∈11 类, url, isPrimary, customLabel?, viewType?, emotion?, origin?, generationId?}[]`）· `relations`（`{targetCardId, relation, note, strength?}[]`）· `extensions`（按命名空间的键袋）。背景卡加 `handle` 与 `extensions`，变体先进 `extensions['pv.variants']`。
+- **进 `extensions`**：`pv.lore`（最小版 lore）· `pv.negative`（角色硬否定）。未知键原样透传：已知键逐键解析、坏键编译时当缺席但磁盘上保留；PATCH 按键合并、`null` 才删；任何服务端路径都不得重写或丢弃不认识的键；新键必须带命名空间，`pv.` 归本产品。
+- **语义收窄**：`description` 只写视觉并**开始进编译器**（今天不读，属行为变化）；`persona.examples` 改成按场景分块的真实轮次（`{id, scene, turns:[{speaker: other|self, otherHandle?, text}]}`），旧 `{user, reply}` 不再接受。
+- **不进 prompt**：`summary` · `tags`。出现在任何 provider 请求体里 = bug，编译器快照测试兜。
+- **版本**：改 prompt 相关字段（`characterPrompt` · `description` · `referenceSlots` · `relations` · `persona` · `extensions` 已知键）才 `version + 1`；编译缓存键与生成快照都带 `(cardId, version)`——今天缓存键不含版本，改了卡一小时内仍出旧 prompt。
+
+**不变量**（服务端每次写都校验，编译器每次读都假定成立）：至少一个 `identity` 槽，且恰有一个 `isPrimary`、它必须是 `identity`；槽 url 去重，`custom` 必带 `customLabel`；`relations` 只能指向同一用户的角色卡，目标软删后读时过滤、⛔ 不写库清理。
+
+### 编译层
+
+- **一个中间形态，N 个出口**：新增 `card-bus.service.ts` 作为唯一从库里读卡的编译入口，产出「每个角色一组」的中间形态（视觉文字 · 角色负面 · 排好序的槽 · 命中的 lore · 音色），⛔ 不合并文本。图片、视频、画布、台词各有一个出口函数负责压平；`compileRecipe` 保留名字与 LLM 融合，改成消费这份中间形态，不再自己查库。
+- **图片 provider 只收扁平 URL 数组**：所以角色信息写进 prompt 图例（「Image 1 = @林夏 identity（主图）」）；Gemini 改成图与说明交错（全 spec 唯一动 worker 的一片，缺标注 = 旧行为）；单图端点只送焦点角色主图，其余角色退到文字，但**每个角色的身份锚句各自保留**；NovelAI 用原生多角色 `characterPrompts`，精准参考只挂焦点角色主图。超配额从每个角色尾部轮流砍，⛔ 不许一个角色吃光配额。
+- **视频**：支持位置 token 的家族（Seedance / MiniMax / Kling O3 edit）每角色 ≤3 张压平，`@林夏` 翻成 `@Image1（林夏）`，音色走 `audioBindings`；其余家族只送焦点角色主图，其他角色进文字；Vidu `subjects` 与 Kling `elements` 只在契约里预留、本轮不接。工作台视频停止拼 `characterPrompt`，改由服务端出口产出。
+- **`@handle` 一处定义**：已知名字表**最长匹配**（先 NFKC + ASCII 小写），⛔ 不用 `\b\w+\b`；剧本投影照旧抓原串，**装填时**再按已知 handle 最长前缀匹配（`@林夏走进来` → 林夏）。工作台里 `@` 只做位置标注，⛔ 不因正文提到就隐式选卡。
+- **lore 确定性**：候选 = 在场角色的 `pv.lore` + 关系降解条目（对方在场才进，只注入本角色视角那一条）；子串命中、⛔ 无正则无递归；按 `order` 排序、按字符预算累计，**第一条放不下即停**；身份锚、角色负面、台词聚焦钉永不裁。
+- **顺序**：风格**前置**改写（删掉今天模板回退里「风格追加在最后」）；负面按「模型默认 → 风格 → lore → 角色」排，角色硬约束离生成点最近。
+- **文本面**：LLM 文本层今天只有 `systemPrompt + userPrompt`，要先加示例轮次通道；台词直接产出 `{line, emotion, delivery}`，`emotion` 的候选 = 这张卡实际能落地的情绪，非 Anthropic 路靠多级容错解析兜，⛔ 永不作废整条台词。
+
+### 画布 op：`attach_card` / `detach_card`
+
+`content` 档 · `free` · 自动落 · 互为 inverse（画布 op 总数 32 → 34）。模型侧参数收 `cardHandle`，服务端解析成卡 id（画布快照有意不暴露卡 id，与 `mount_lora` 同一套路），不存在或不属于本人即拒。执行器找 / 建该卡的锚节点并连边：镜头上还会物化表情特写与音色节点、把名字匹配的空位写上卡 id；同卡同节点再 attach = 无变更成功；撤销载荷由执行器当场记下「本次新建的节点 / 边 + 被改字段旧值」。`project_script` 照旧只开空位，投影确认后宿主做 handle 匹配，唯一命中由助手同轮 attach，多命中或没命中留空并交给「问」。
+
+### 迁移（四步 · 三次部署）
+
+1. **expand（D1）**：只加列 + 唯一索引（登记 ACK：索引列是同迁移新加的可空列，全表 NULL 时建）；写方**双写**，读方一行不改。
+2. **backfill（D1 上线后 owner 手动）**：回填脚本默认只出报告，`--apply` 每次都要 owner 当次授权；只动新列仍是初始值的行，重跑安全；按用户 → 根卡 → 变体的确定性顺序分配 handle，冲突加 `-2`、`-3`；persona 旧形改写前先把原值导出到本机。
+3. **switch（D2）**：读方切到新列，Prisma 省略旧列，**仍双写**以保 D2 可回滚到 D1。
+4. **contract（D3，D2 稳定后）**：`SET NOT NULL` + 删四列旧图片列表；登记 ACK 时贴 owner 连库执行的只读核查 SQL 结果（handle 为空计数 = 0、精修图全部进槽、主图不变量 = 0）。**D3 前 owner 先建 Neon 快照**——删列是唯一不可逆的一步。
+
+共享库的顺序约束：D1 推上去、生产构建跑完迁移后本地才能跑 D1 代码；Preview 不迁移，带 D1 的分支在 Preview 上碰卡片会报缺列，属预期；D3 后停在旧代码的本地 checkout 会在卡片查询上报错。`preflight:migrations` 目前缺 Neon key 跑不通，约束只能靠 owner 执行只读 SQL 验证。
+
+### 施工顺序（每片一个 commit）
+
+① 常量与全部 v3 Zod 形状 → ② 纯函数（旧数据转槽 · handle 分配 · `@` 解析 · lore 选择 · 关系降解 · 情绪裁剪与容错）→ ③ expand 迁移 + 双写 → ④ 回填脚本 → ⑤ 编译总线 + 图片出口 → ⑥ worker 的 Gemini 交错标注 → ⑦ 视频出口 → ⑧ 读方切换（含核实并修 quick 出图时 `characterCardIds` 被 `StudioGenerateSchema` 剥掉、不落 join 表）→ ⑨ `attach_card` / `detach_card` → ⑩ 剧本空位装填 + 画布 `@` 名单真正接线 → ⑪ 文本面示例轮次与台词产出 → ⑫ contract 迁移 → ⑬ 文档随各片同步。①② 不碰库；③ 起按上面的部署节奏走，push main 仍要 owner 点头并过发布清单。
+
 ## 不能破坏
 
 `Recipe` 与 `CardRecipe` 的模型分离 · 卡与 `AssistantMemory` 的分界（⛔ 不许长出互相转换的路） · 角色卡 owner-scoped 查询与 ownership 服务端校验 · 变体树 `parentId` 的级联语义（变体随父卡删）· `VoiceCard` 的软引用语义（删音色不删角色）· `referenceRoles` 值域与画布词表同源。
@@ -72,3 +125,4 @@
 ## Last Verified
 
 - Date: 2026-09-20 · Method: 只核了**记忆 vs 卡**那条分界（56a 落地时补写），对照 `src/constants/assistant-memory.ts` 与 `src/services/assistant-memory.service.ts` 确认两边确实没有互转的代码路径。本文其余各节未在本轮复核。
+- Date: 2026-09-24 · Method: 写「卡片总线 v3 契约」时对照代码复核了：v2 七个字段只有 mapper 在写、`CharacterCardRecord` 不带任何一个；画布侧栏读 `ContextCard`（`useContextCards`）；画布镜头空位 `role` 存的是角色名；画布视频载荷不读空位；LLM 文本层只有系统提示 + 用户提示；`StudioGenerateSchema` 没有 `characterCardIds`（quick 出图丢 id 未实跑）。

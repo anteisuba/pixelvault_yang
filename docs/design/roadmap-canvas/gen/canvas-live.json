@@ -5,7 +5,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 1304,
+      "h": 1322,
       "title": "总览",
       "page": "page-1"
     },
@@ -131,7 +131,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 3429,
+      "h": 3463,
       "title": "进度表",
       "page": "page-4"
     },
@@ -179,6 +179,69 @@
       "h": 520,
       "title": "Runner / RunPod",
       "page": "page-5"
+    },
+    {
+      "file": "DesignD12Map.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 1682,
+      "title": "D12 助手 · ② 思维导图",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignD12Toggle.dc.html",
+      "x": 0,
+      "y": 1782,
+      "w": 1400,
+      "h": 1457,
+      "title": "D12 助手 · ④ 生成开关",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignD12UiAudit.dc.html",
+      "x": 0,
+      "y": 3339,
+      "w": 1400,
+      "h": 2337,
+      "title": "D12 助手 · UI 盘点",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignD12UiDesign.dc.html",
+      "x": 0,
+      "y": 5776,
+      "w": 1400,
+      "h": 1639,
+      "title": "D12 助手 · ④ UI 改动",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignD12ConvDirections.dc.html",
+      "x": 0,
+      "y": 7515,
+      "w": 1400,
+      "h": 1861,
+      "title": "D12 助手 · ④ 对话与反问 · 三方向",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignD12AStates.dc.html",
+      "x": 0,
+      "y": 9476,
+      "w": 1400,
+      "h": 5500,
+      "title": "D12 助手 · ④ A 对话流 · 全状态",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignD12DetailDirs.dc.html",
+      "x": 0,
+      "y": 15076,
+      "w": 1400,
+      "h": 1665,
+      "title": "D12 助手 · ④ 三处细节 · 方向",
+      "page": "page-6"
     }
   ],
   "annotations": [],
@@ -206,6 +269,10 @@
     {
       "id": "page-5",
       "name": "5 · 厂商速查"
+    },
+    {
+      "id": "page-6",
+      "name": "6 · 在设计"
     }
   ]
 }

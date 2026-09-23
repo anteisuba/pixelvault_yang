@@ -52,6 +52,36 @@ const inline = (s) =>
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>')
     .replace(/`(.+?)`/g, `<code style="${MONO}font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">$1</code>`)
 
+// 思维导图节点状态：已定 / 已落 = 绿实点，建议 = 紫（等 owner 点头），待定 = 黄虚线（反问框里问），依赖 / 缺 = 灰虚线
+export const TREE = {
+  已定: { c: GREEN, dash: false },
+  已落: { c: GREEN, dash: false },
+  建议: { c: PURPLE, dash: false },
+  待定: { c: AMBER, dash: true },
+  依赖: { c: MUTED, dash: true },
+  缺: { c: RED, dash: true },
+}
+const treeTag = (s) => {
+  const key = Object.keys(TREE).find((k) => s === k || s.startsWith(k))
+  const m = TREE[key] ?? { c: MUTED, dash: true }
+  return `<span style="flex:none;${MONO}font-size:10px;line-height:1.6;padding:0 6px;border-radius:6px;border:1px ${m.dash ? 'dashed' : 'solid'} ${m.c};color:${m.c}">${esc(s)}</span>`
+}
+function treeNode(n) {
+  const kids = n.kids?.length
+    ? `<div style="margin:6px 0 0 6px;padding-left:14px;border-left:1px solid ${LINE};display:flex;flex-direction:column;gap:6px">${n.kids.map(treeNode).join('')}</div>`
+    : ''
+  if (!n.tag) return `<div><div style="font-size:13px;font-weight:600">${inline(n.text)}</div>${kids}</div>`
+  return `<div><div style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.6">${treeTag(n.tag)}<span>${inline(n.text)}</span></div>${kids}</div>`
+}
+function treeHtml(b) {
+  return `<div style="margin-top:14px"><div style="display:inline-block;padding:10px 16px;border-radius:12px;background:${FG};color:#fff;font-size:15px;font-weight:600">${esc(b.root)}</div><div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px;align-items:start">${b.branches
+    .map(
+      (br) =>
+        `<div style="border:1px solid ${LINE};border-radius:12px;padding:14px 16px;background:#fff"><div style="display:flex;align-items:baseline;gap:8px"><span style="${MONO}font-size:10.5px;color:${MUTED}">${esc(br.no)}</span><span style="font-size:15px;font-weight:600">${esc(br.title)}</span></div>${br.sub ? `<div style="margin-top:2px;font-size:12px;color:${MUTED}">${inline(br.sub)}</div>` : ''}<div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">${br.kids.map(treeNode).join('')}</div></div>`,
+    )
+    .join('')}</div></div>`
+}
+
 function blockHtml(b) {
   switch (b.t) {
     case 'h':
@@ -88,12 +118,19 @@ function blockHtml(b) {
               .join('')}</div></div>`,
         )
         .join('')}</div>`
+    case 'tree':
+      return treeHtml(b)
+    case 'treeLegend':
+      return `<div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px;font-size:12px;color:${MUTED}">${b.items.map(([k, d]) => `<span style="display:inline-flex;gap:6px;align-items:center">${treeTag(k)} ${esc(d)}</span>`).join('')}</div>`
     case 'legend':
       return `<div style="display:flex;flex-wrap:wrap;gap:8px 16px;margin-top:10px">${Object.entries(STATUS)
         .map(([k, v]) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:${MUTED}">${pill(k)} ${esc(v.d)}</span>`)
         .join('')}</div>`
     case 'note':
       return `<div style="margin-top:12px;padding:12px 14px;border:1px dashed ${b.tone === 'warn' ? AMBER : '#c4c4c4'};border-radius:10px;font-size:12.5px;line-height:1.65;color:#404040;max-width:1200px">${inline(b.text)}</div>`
+    // 界面稿：画板里原样放 HTML，Markdown 镜像只放 md 那段文字。
+    case 'mock':
+      return b.html
     default:
       throw new Error(`unknown block ${b.t}`)
   }
@@ -138,6 +175,8 @@ function blockMd(b) {
       return b.text
     case 'note':
       return `> ${b.text}`
+    case 'mock':
+      return b.md
     case 'ul':
       return b.items.map((i) => `- ${i}`).join('\n')
     case 'table':
@@ -155,6 +194,13 @@ function blockMd(b) {
               .join('\n')}`,
         )
         .join('\n\n')
+    case 'tree': {
+      const walk = (n, depth) =>
+        [`${'  '.repeat(depth)}- ${n.tag ? `\`${n.tag}\` ` : ''}${n.tag ? n.text : `**${n.text}**`}`, ...(n.kids ?? []).flatMap((k) => walk(k, depth + 1))]
+      return [`**${b.root}**`, ...b.branches.flatMap((br) => [`\n**${br.no} ${br.title}**${br.sub ? ` — ${br.sub}` : ''}`, ...br.kids.flatMap((k) => walk(k, 0))])].join('\n')
+    }
+    case 'treeLegend':
+      return b.items.map(([k, d]) => `\`${k}\` ${d}`).join(' · ')
     case 'legend':
       return Object.entries(STATUS)
         .map(([k, v]) => `- \`${k}\`：${v.d}`)

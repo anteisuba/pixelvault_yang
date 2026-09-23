@@ -3046,6 +3046,8 @@ export function isUnfinishedClosingMessage(message: string): boolean {
  */
 export const OPERATOR_SELF_PROMISE_PATTERNS: readonly RegExp[] = [
   /(下一步|接下来|随后|然后|之后)[，,]?\s*我(会|将|再|来|就)/,
+  // 「回复“继续生成”，我就按 16:9 准备确认卡」—— 条件式许诺也是许诺。
+  /我(就|会|再)(按|把|去|继续|为你|帮你|准备|调|设|改)/,
   /(次は|このあと|この後|続けて)[、,]?\s*(私が)?[^。？?]*(します|しておきます)/,
   /\b(next|then|after that),?\s+i['’]?(ll|\s+will)\b/i,
 ]

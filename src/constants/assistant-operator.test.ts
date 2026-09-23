@@ -62,6 +62,11 @@ describe('isSelfPromiseClosingMessage', () => {
     ).toBe(true)
     expect(
       isSelfPromiseClosingMessage(
+        'JIAN，提示词已覆盖。回复“继续生成”，我就按参考图的16:9版式和2K继续准备确认卡。',
+      ),
+    ).toBe(true)
+    expect(
+      isSelfPromiseClosingMessage(
         'The prompt is in. Next, I will switch the ratio to 16:9.',
       ),
     ).toBe(true)

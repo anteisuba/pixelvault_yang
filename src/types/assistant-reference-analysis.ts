@@ -101,9 +101,20 @@ export const ReferenceVisionOutputSchema = z.object({
     .min(1)
     .max(LIMITS.maxSnapshotReferences),
 })
+/**
+ * 写入后复核的结论（D12 Q3）—— 分两类：
+ *  · `issues`：写的人漏掉 / 写错的东西（退回模型重写，⛔ 不问创作者）；
+ *  · `conflicts`：创作者的要求与参考图**不能同时成立**（例：要纯 2D，参考是 3D 渲染），
+ *    只有这一类才值得问一句。
+ */
 export const ReferencePromptReviewSchema = z.object({
   issues: z.array(z.string().trim().min(1).max(LIMITS.maxPromptChars)).max(8),
+  conflicts: z
+    .array(z.string().trim().min(1).max(LIMITS.maxPromptChars))
+    .max(4)
+    .default([]),
 })
+export type ReferencePromptReview = z.infer<typeof ReferencePromptReviewSchema>
 
 export type ReferenceVisualProfile = z.infer<
   typeof ReferenceVisualProfileSchema

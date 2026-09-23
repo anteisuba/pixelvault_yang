@@ -10557,7 +10557,7 @@ describe('current reference image bindings', () => {
     expect(events.at(-1)?.type).toBe('done')
   })
 
-  it('asks only when the same conflict survives one rewrite', async () => {
+  it('asks at a real conflict before any write', async () => {
     const conflict = '图1被写成人物来源，但用户要求保留图2的脸部。'
     queueTurns(
       ...analysisTurns(),
@@ -10569,11 +10569,11 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [conflict] },
+      { issues: [], conflicts: [conflict] },
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          title: '修正提示词',
+          title: '不应执行',
           args: { value: 'Second attempt' },
         },
       },
@@ -10704,19 +10704,8 @@ describe('current reference image bindings', () => {
         },
       },
       { ...brief, uncertainties: uncertainty ? [issue] : [] },
-      // ⚠ 复核挑出的问题先退回模型重写一次（D12 Q3），第二次仍对不上才问。
-      ...(!uncertainty
-        ? [
-            { issues: [issue] },
-            {
-              tool: {
-                name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-                args: { value: 'A hug on white, rewritten' },
-              },
-            },
-            { issues: [issue] },
-          ]
-        : []),
+      // ⚠ 只有「真冲突」才问（D12 Q3）：复核把它放在 `conflicts` 里。
+      ...(!uncertainty ? [{ issues: [], conflicts: [issue] }] : []),
     )
     const events = await collect(
       runAssistantOperator(
@@ -11128,7 +11117,7 @@ describe('current reference image bindings', () => {
     expect(stepsOf(events).some((step) => step.status === 'done')).toBe(false)
   })
 
-  it('rewrites once, then asks instead of rewriting conflicting prompts again', async () => {
+  it('rewrites once for gaps, then writes and reports what the check still flags', async () => {
     const turns = analysisTurns()
     for (const value of ['A hug in a forest', 'An embrace in the woods']) {
       turns.push(
@@ -11143,17 +11132,7 @@ describe('current reference image bindings', () => {
         { issues: ['The background must be white, not a forest.'] },
       )
     }
-    queueTurns(
-      ...turns,
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          title: '写提示词',
-          args: { value: 'Two people embracing in woodland' },
-        },
-      },
-      { finished: true },
-    )
+    queueTurns(...turns, { finished: true, message: '写好了。' })
     const events = await collect(
       runAssistantOperator(
         'clerk-1',
@@ -11168,38 +11147,15 @@ describe('current reference image bindings', () => {
           step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
           step.status === 'done',
       ),
-    ).toBe(false)
+    ).toBe(true)
     expect(
       mockLlmTextCompletion.mock.calls.filter(([input]) =>
         input.systemPrompt.includes('Check an image-generation prompt'),
       ),
     ).toHaveLength(2)
-    const ask = events.find(
-      (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
-    )
-    expect(ask).toMatchObject({
-      type: ASSISTANT_OPERATOR_EVENTS.ask,
-      questions: [
-        {
-          id: expect.stringMatching(/^prompt-conflict-/),
-          options: [
-            expect.objectContaining({ id: 'follow-request' }),
-            expect.objectContaining({ id: 'follow-reference' }),
-          ],
-        },
-      ],
-    })
-    expect(events.at(-1)).toMatchObject({
-      type: ASSISTANT_OPERATOR_EVENTS.stopped,
-      reason: ASSISTANT_OPERATOR_STOP_REASONS.awaitingConfirm,
-    })
-    expect(
-      events.some(
-        (event) =>
-          event.type === ASSISTANT_OPERATOR_EVENTS.message &&
-          event.text.includes('我已停止尝试'),
-      ),
-    ).toBe(false)
+    // ⛔ 漏写不问创作者。
+    expect(events.some((event) => event.type === 'ask')).toBe(false)
+    expect(lastUserPrompt()).toContain('The prompt check still flags')
   })
 
   it('writes the prompt after the creator picks follow-request on a conflict card', async () => {
@@ -11214,7 +11170,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [issue] },
+      { issues: [], conflicts: [issue] },
       { finished: true, message: '写好了。' },
     )
     const events = await collect(
@@ -11280,14 +11236,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [newIssue] },
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-          args: { value: 'Night city, rewritten' },
-        },
-      },
-      { issues: [newIssue] },
+      { issues: [], conflicts: [newIssue] },
     )
     const events = await collect(
       runAssistantOperator(

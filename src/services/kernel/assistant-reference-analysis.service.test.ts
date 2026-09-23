@@ -418,9 +418,32 @@ describe('reference analysis', () => {
     expect(complete.mock.calls[0]?.[1]).toContain(
       'Forest background, white background',
     )
-    expect(issues).toEqual([
-      'Forest contradicts the requested white background.',
-    ])
+    expect(issues).toEqual({
+      issues: ['Forest contradicts the requested white background.'],
+      conflicts: [],
+    })
+  })
+
+  it('D12 Q3：把「漏写」和「真冲突」分成两类交回去', async () => {
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        issues: ['漏写了背面的红色细带。'],
+        conflicts: ['要纯 2D，但风格来源是 3D 渲染。'],
+      }),
+    )
+    const review = await reviewOperatorReferencePrompt({
+      language: 'Chinese',
+      analysis: { profiles, brief },
+      prompt: 'Pure 2D cel',
+      context: input.context,
+      modelHint: '',
+      complete,
+    })
+    expect(review).toEqual({
+      issues: ['漏写了背面的红色细带。'],
+      conflicts: ['要纯 2D，但风格来源是 3D 渲染。'],
+    })
+    expect(complete.mock.calls[0]?.[0]).toContain('"conflicts"')
   })
 
   it('does not accept an unreadable review as a pass', async () => {

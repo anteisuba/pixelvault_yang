@@ -3765,6 +3765,8 @@ async function planSetText(
     }
   }
 
+  /** 重写一次之后复核仍挑出的那几处 —— 照写，收尾时交代（D12 Q3）。 */
+  let reviewGaps: string[] = []
   if (needsReferenceReview && run.referenceAnalysis) {
     const analysis = run.referenceAnalysis
     const review = () =>
@@ -3784,9 +3786,9 @@ async function planSetText(
         complete: (system, prompt) =>
           completeReferenceAnalysisText(run, system, prompt),
       })
-    let issues = await review()
-    if (issues === null) issues = await review()
-    if (issues === null) {
+    let checked = await review()
+    if (checked === null) checked = await review()
+    if (checked === null) {
       throw new ApiRequestError(
         'PROMPT_REVIEW_UNAVAILABLE',
         502,
@@ -3796,25 +3798,13 @@ async function planSetText(
         ],
       )
     }
-    const conflict = issues.find(
+    /**
+     * ⭐ **只有真冲突才问**（D12 Q3）：创作者的要求与参考图不能同时成立时，
+     * 这是他要拍板的事。
+     */
+    const conflict = checked.conflicts.find(
       (issue) => !creatorChoseFollowRequest(run, issue),
     )
-    /**
-     * ⭐ **复核挑出的第一批问题先退回给模型**（D12 Q3，2026-09-24 真机）：
-     * 「漏写了姿势」「没保留三视图排版」是**写的人**的疏漏，不是创作者要拍板的
-     * 事 —— 此前每一条都变成一道反问，一次换装连问四道。重写一次之后仍然对不上，
-     * 才当成真冲突去问。
-     */
-    if (conflict && !run.promptReviewRetried) {
-      run.promptReviewRetried = true
-      const pending = issues.filter(
-        (issue) => !creatorChoseFollowRequest(run, issue),
-      )
-      return reject(
-        REJECT.promptConflict,
-        `The prompt check found gaps in what you wrote: ${pending.join(' / ')}. Rewrite the FULL prompt fixing all of them and call set_prompt again in this same turn. Do not ask the creator about these — they are omissions in your prompt, not their decision.`,
-      )
-    }
     if (conflict) {
       return {
         kind: 'ask',
@@ -3826,6 +3816,22 @@ async function planSetText(
         todo: conflict,
       }
     }
+    /**
+     * ⭐ **漏写 / 写错的先退回给模型重写一次**（2026-09-24 真机：一次换装连问四道
+     * 「漏写了姿势」「没保留三视图排版」）—— 那是写的人的疏漏，⛔ 不问创作者。
+     * 重写一次之后仍有的就照写，并在收尾那句里交代（`reviewGaps`）。
+     */
+    const gaps = checked.issues.filter(
+      (issue) => !creatorChoseFollowRequest(run, issue),
+    )
+    if (gaps.length > 0 && !run.promptReviewRetried) {
+      run.promptReviewRetried = true
+      return reject(
+        REJECT.promptConflict,
+        `The prompt check found gaps in what you wrote: ${gaps.join(' / ')}. Rewrite the FULL prompt fixing all of them and call set_prompt again in this same turn. Do not ask the creator about these — they are omissions in your prompt, not their decision.`,
+      )
+    }
+    reviewGaps = gaps
   }
 
   return {
@@ -3843,6 +3849,10 @@ async function planSetText(
     }${loraMaterialObservation(loraMaterial)}${
       needsReferenceReview && run.referenceBriefDegraded
         ? ' The source-role brief failed schema validation, so this was written from the verified visual facts and the sources the creator named. Tell the creator the prompt is in, which source you used for what, and that they can correct the split in one sentence. Do not rebuild the brief or ask them to re-upload anything.'
+        : ''
+    }${
+      reviewGaps.length
+        ? ` The prompt check still flags: ${reviewGaps.join(' / ')}. It was written anyway; if any of these matters for the result, say so in one clause of your closing line. Do not rewrite it again this turn.`
         : ''
     }`,
     apply: () => {

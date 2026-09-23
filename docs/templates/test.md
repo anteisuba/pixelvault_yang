@@ -1,6 +1,6 @@
 # 模板 · API route 五段测试
 
-> 抽样来源：`src/app/api/admin/models/route.test.ts`（api-helpers + vi.mock 模式）。五段一个不少：**401 → 400 → service mock → success → 500**。
+> 骨架按 `src/app/api/background-cards/route.test.ts` 的 api-helpers + vi.mock 模式整理（该文件缺 500 段，新 route 补上）。route 测五段：**401 → 400 → service mock → success → 500**；admin 路由未登录返回 403（见 `admin/models/route.test.ts`）。
 
 ```ts
 import { describe, it, expect, vi, beforeEach } from 'vitest'

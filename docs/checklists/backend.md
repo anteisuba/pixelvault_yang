@@ -6,7 +6,7 @@
 
 - [ ] service 文件首行 `import 'server-only'`
 - [ ] API route 只做三件事：`auth()` → Zod `.safeParse()` → call service
-- [ ] 全程无 `.parse()`、无 `any`；schema 在 `src/types/`
+- [ ] 请求体与外部输入用 `.safeParse()`、无 `any`；schema 在 `src/types/`
 - [ ] 所有外部调用 `withRetry()` 包裹
 - [ ] 日志走 `src/lib/logger.ts`，无 `console.log`
 - [ ] 新增 API route 测试覆盖其适用鉴权、校验、成功与失败路径；service 测业务边界

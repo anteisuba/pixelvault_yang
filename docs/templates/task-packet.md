@@ -47,11 +47,11 @@ Use this template in chat when handing work to another session or when the user 
 
 ## Allowed File Scope
 
-- <paths Codex may change>
+- <paths the receiving session may change>
 
 ## Forbidden File Scope
 
-- <paths Codex must not change>
+- <paths the receiving session must not change>
 
 ## Assumptions / Open Questions
 

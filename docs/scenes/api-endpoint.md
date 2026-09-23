@@ -15,7 +15,7 @@
 1. 根据请求、已有授权和代码完成场景自查。
 2. 读规矩：`references/backend.md`（工厂契约 + 认证边界）→ `forbidden.md` 后端节 → `references/domains/<域>.md` → `src/app/api/CLAUDE.md`（就地规则）。
 3. 起点：`templates/api-route.md` 骨架（未落地前抄仓库里最近的同类工厂路由）。
-4. **新增 route 全链五件套，一个不少**：`route.ts`（工厂）→ schema 进 `src/types/` → endpoint 常量进 `constants/config.ts` → 客户端包装进 `lib/api-client.ts` → 同目录 `.test.ts` 五段（401 → 400 → service mock → success → 500）。
+4. **新增 route 全链五件套，一个不少**：`route.ts`（工厂）→ schema 进 `src/types/` → endpoint 常量进 `constants/config.ts` → 客户端包装进 `lib/api-client/<domain>.ts`（新文件在 `lib/api-client.ts` 补一行 `export *`）→ 同目录 `.test.ts` 五段（401 → 400 → service mock → success → 500）。
 5. 错误映射：新错误形态补 errorCode + `getGenerationErrorI18nKey` 映射 + 三语文案。
 6. 自检：`checklists/backend.md` 逐项。
 7. 交付报告：改动清单 + 测试结果 + **手动验证步骤**（curl 示例 / DevTools 看哪个请求与响应字段）。

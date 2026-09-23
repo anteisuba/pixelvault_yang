@@ -11,7 +11,7 @@ AVOID / PREFER 成对出现。P0 级违反（★）= checklist 直接打回。UI
 | ★ 共享组件强制所有业务域使用同一种 card、pill、圆角、颜色或 chrome | 共享行为/API/状态/可访问性，外观由 domain/page variant 与 token 覆盖 |
 | ★ 为追求复用把不属于该域的字段藏进高级设置、disabled 或隐形状态    | 页面只呈现该域负责的能力；跨域能力通过明确入口流转                   |
 | ★ 缺焦点、键盘路径、ARIA、label 或只靠颜色表达状态                 | 键盘/读屏/焦点/文本或图形冗余表达完整                                |
-| ★ 桌面弹窗原样搬到手机、触屏自动聚焦弹键盘、关闭后焦点丢失         | ResponsiveOverlay、直接触发输入、focus return                        |
+| ★ 桌面弹窗原样搬到手机、触屏自动聚焦弹键盘、关闭后焦点丢失         | `ResponsiveDialog`、直接触发输入、focus return                       |
 | ★ 死按钮、假数据、假进度、静默失败或不支持仍渲染                   | 不支持不渲染；状态真实；错误可恢复；空态有下一步                     |
 | ★ 装饰循环动效、忽略 reduced-motion、动效阻断主任务                | 动效服务状态/连续性/反馈并提供降级                                   |
 | ★ 重复视觉值散落为无语义硬编码或页面样式泄漏全局                   | primitive → semantic → domain/component/page token，作用域清楚       |
@@ -32,7 +32,7 @@ AVOID / PREFER 成对出现。P0 级违反（★）= checklist 直接打回。UI
 | AVOID                            | PREFER                                       |
 | -------------------------------- | -------------------------------------------- |
 | ★ API route 里堆业务逻辑         | auth → Zod validate → call service           |
-| ★ `.parse()`                     | `.safeParse()`                               |
+| ★ 请求 / 外部输入用 `.parse()`   | `.safeParse()` 后返回标准错误                |
 | ★ 裸调外部 API                   | `withRetry()` + per-provider circuit breaker |
 | ★ service 文件不加 `server-only` | 首行 `import 'server-only'`                  |
 | `console.log`                    | `src/lib/logger.ts`                          |
@@ -51,16 +51,16 @@ AVOID / PREFER 成对出现。P0 级违反（★）= checklist 直接打回。UI
 
 ## CI/CD 与环境
 
-| AVOID                             | PREFER                                   |
-| --------------------------------- | ---------------------------------------- |
-| ★ dev server 跑着并行 build       | 会污染 `.next`/Turbopack；build 前停 dev |
-| ★ kill 端口 3000 的进程           | 3000 被占视为用户开的，直接复用          |
-| ★ owner 已开 dev 时另起实例       | 复用现有实例；需要日志时向 owner 要      |
-| ★ 跳过 pre-push 全量验证          | 完整跑完 tsc、lint、Vitest               |
-| ★ PowerShell 重写源码文件         | 源码编辑使用 apply_patch，保护 UTF-8     |
-| `NEXT_PUBLIC_` 塞机密             | 只放公开配置                             |
-| ★ secret / `.env` / 测试 key 入库 | 环境变量与加密存储；提交前检查 diff      |
-| 未经 owner 确认 commit/push       | 完整切片 + checklist + owner 点头        |
+| AVOID                             | PREFER                                                            |
+| --------------------------------- | ----------------------------------------------------------------- |
+| ★ dev server 跑着并行 build       | 会污染 `.next`/Turbopack；dev 在跑时不 build，也不停 owner 的 dev |
+| ★ kill 端口 3000 的进程           | 3000 被占视为用户开的，直接复用                                   |
+| ★ owner 已开 dev 时另起实例       | 复用现有实例；需要日志时向 owner 要                               |
+| ★ 跳过 pre-push 全量验证          | 完整跑完 tsc、lint、Vitest                                        |
+| ★ PowerShell 重写源码文件         | 源码编辑使用 apply_patch，保护 UTF-8                              |
+| `NEXT_PUBLIC_` 塞机密             | 只放公开配置                                                      |
+| ★ secret / `.env` / 测试 key 入库 | 环境变量与加密存储；提交前检查 diff                               |
+| 未经 owner 确认 commit/push       | 完整切片 + checklist + owner 点头                                 |
 
 ## 测试
 

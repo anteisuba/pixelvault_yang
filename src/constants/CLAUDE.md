@@ -8,13 +8,13 @@ Constants are imported throughout the entire codebase. Changes here affect provi
 
 | File                          | Impact   | What It Controls                                                                                                                                                                   |
 | ----------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `models.ts`                   | CRITICAL | AI_MODELS enum + ModelOption configs — drives model selection, provider routing, credit costs, UI display                                                                          |
+| `models.ts` + `models/`       | CRITICAL | 聚合出口；`AI_MODELS` enum 在 `models/enum.ts`，ModelOption 配置在 `models/<模态>.ts` — drives model selection, provider routing, credit costs, UI display                         |
 | `providers.ts`                | HIGH     | AI_ADAPTER_TYPES enum + ProviderConfig — maps models to provider adapters                                                                                                          |
 | `config.ts`                   | HIGH     | API_USAGE limits, PAGINATION, PROFILE limits, timeouts                                                                                                                             |
 | `routes.ts`                   | MEDIUM   | URL route constants                                                                                                                                                                |
 | `studio.ts`                   | MEDIUM   | Studio-specific constants (prompt textarea ID, variant count)                                                                                                                      |
-| `character-card.ts`           | MEDIUM   | CHARACTER_CARD validation limits                                                                                                                                                   |
-| `card-types.ts`               | MEDIUM   | BACKGROUND_CARD, STYLE_CARD, CARD_RECIPE limits                                                                                                                                    |
+| `cards/character-card.ts`     | MEDIUM   | CHARACTER_CARD validation limits                                                                                                                                                   |
+| `cards/card-types.ts`         | MEDIUM   | BACKGROUND_CARD, STYLE_CARD, CARD_RECIPE limits                                                                                                                                    |
 | `video-options.ts`            | MEDIUM   | Video duration, resolution constraints                                                                                                                                             |
 | `audio-options.ts`            | MEDIUM   | Audio format, duration constraints                                                                                                                                                 |
 | `feature-flags.ts`            | LOW      | Feature toggle flags                                                                                                                                                               |
@@ -33,7 +33,7 @@ Constants are imported throughout the entire codebase. Changes here affect provi
 
 ### Adding a New AI Model (most common change)
 
-Follow `docs/scenes/new-model.md` (workflow, 5 questions, checklist). The four things that must move together: `AI_MODELS` enum + `ModelOption` config here, the i18n entry in all three of `src/messages/{en,ja,zh}.json`, and the provider adapter in `src/services/providers/`. Verify with `npx vitest run src/constants/`.
+Follow `docs/scenes/new-model.md` (workflow, 5 questions, checklist). The four things that must move together: `AI_MODELS` enum (`models/enum.ts`) + `ModelOption` config (`models/<模态>.ts`), the i18n entry in all three of `src/messages/{en,ja,zh}.json`, and the provider adapter in `src/services/providers/`. Run `npx vitest run src/constants/` for quick feedback, then the full vitest suite before finishing (see new-model scene).
 
 Image entries declare their role with `imageKind` (`edit` = must-have-image endpoint, `lora-base` = exists to mount LoRA; omitted = `generate`). Generation surfaces read `getAvailableImageModels(IMAGE_KIND.GENERATE)`; ⛔ don't infer the role from `supportsLora` / `requiresReferenceImage`.
 

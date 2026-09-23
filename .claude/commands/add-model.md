@@ -28,7 +28,7 @@
 
 ## 3 · 单价（`src/constants/models/unit-prices.ts`）
 
-模型选择器**第三层「渠道比价」**的数据源，也是首页价格的唯一来源。**是给用户看的参考价，不是计费依据。**
+模型选择器**第三层「渠道比价」**的数据源，也是 `StudioCostPreview` 与 `ModelPickerPopover` 唯一的参考价来源。**是给用户看的参考价，不是计费依据。**
 
 口径钉死（混档会让比价失去意义，文件头有完整说明）：视频 = 720p / 每秒 / 含音频 / 无视频输入；图片 = 单张 / 1:1 / **按 adapter 实际发出去的尺寸取档**（不是 1024² 一刀切）；一律 USD，汇率统一 7.1。
 
@@ -49,9 +49,7 @@
 
 ## 5 · 执行链 —— ⚠ 生产在 worker，不在 `src/services/providers`
 
-**视频/图片的生产请求构造住在 `workers/execution/src/models/<provider>/` 下。** 而 `src/services/providers/` 下的同名 builder 是**已漂移的死 fork**，不再被生产调用（出处见 `src/test/worker-contracts/` 各文件头）。
-
-⛔ 改错边的表现是：**全量测试绿，线上毫无变化**。死 fork 自带绿测试。
+**视频/图片的生产请求构造住在 `workers/execution/src/models/<provider>/` 下。** `src/services/providers/` 只有 adapter 与 registry，别在那里另写一份 builder——写错边的表现是测试全绿、线上毫无变化。
 
 - 加 builder 分支 + 对应的 id 常量表（如 `FAL_VIDEO_MODEL_IDS`）+ `buildBody` 的 switch 分支。
 - 契约测试写在 `src/test/worker-contracts/`（worker 自己的 vitest 不解析 `@/` 别名，测不了依赖 `MODEL_OPTIONS` 的用例）。
@@ -61,7 +59,7 @@
 ## 6 · 容易漏的三处
 
 - **`src/constants/workflows.ts`** 的 `recommendedModelIds`——`models.test.ts` 会断言被推荐的模型必须 `available`。
-- **`src/constants/home-v3.ts`** 的品牌图标映射。
+- **`src/constants/homepage-v4.ts`** 的 `HOME_V4_STATIONS`——只有要上首页模型页时才加（`logo` 与 `mark` 二选一，`home-v4.test.ts` 会查）。
 - **`timeoutMs`**：抬它之前先看第二道闸——`EXECUTION_WORKER.DEFAULT_MAX_ATTEMPTS × DEFAULT_POLL_INTERVAL_MS`（`constants/execution.ts`）才是轮询的真上限，只抬 `timeoutMs` 可能白改。
 
 ## 7 · 文档收尾
@@ -75,4 +73,4 @@
 
 1. 全量 tsc + 全量 vitest（用 `full-gate` skill 的正确跑法，串行）。改模型会波及 prompt / adapter / route 的跨文件测试，**定向子集必漏**。
 2. `i18n-check`。
-3. **端到端实测**：dev 环境用**一次性 dev key** 真生成一次（⛔ 严禁生产 key）。这一步不能用「测试绿了」替代——死 fork、可选 prop 漏传、能力表声明得比实现宽，三种翻车都是三绿而功能全失效。
+3. **端到端实测**：dev 环境用**一次性 dev key** 真生成一次（⛔ 严禁生产 key）。这一步不能用「测试绿了」替代——builder 写错边、可选 prop 漏传、能力表声明得比实现宽，三种翻车都是三绿而功能全失效。

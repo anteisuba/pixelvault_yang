@@ -21,8 +21,8 @@
    - 如果收到 `{"already_active":true}` 则先注入清理脚本再重新注入
 
 5. **定位源文件**（按优先级尝试）
-   - 如果 `react.debugSource.fileName` 存在，直接使用该路径
-   - 否则用 Grep 搜索 `export function {componentName}` 在 `src/components/`
+   - React 19 的 fiber 不再带 `_debugSource`（`react.debugSource` 恒为 null），直接按组件名定位：
+   - 用 Grep 搜索 `export function {componentName}` 在 `src/components/`
    - 再尝试 Glob 搜索 `**/{componentName}.tsx`
    - 最后在所有 `.tsx` 中搜索组件名
 
@@ -30,10 +30,11 @@
    - 通过 `javascript_tool` 执行：`window.__CLAUDE_INSPECTOR_CLEANUP && window.__CLAUDE_INSPECTOR_CLEANUP()`
 
 7. **展示结果**，格式如下：
+
    ```
    ## 检查结果
    - **React 组件**: {componentName}（若无 fiber 则标注 "Server Component / HTML"）
-   - **源文件**: {filePath}:{lineNumber}
+   - **源文件**: {filePath}（行号取自搜索结果）
    - **DOM 路径**: {domPath}
    - **尺寸**: {width} × {height}
    - **关键样式**:

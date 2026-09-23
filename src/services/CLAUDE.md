@@ -11,8 +11,8 @@
 ## Key Files
 
 - `generation.service.ts` — Create, query, toggle visibility of generations
-- `user.service.ts` — User CRUD, credit operations
-- `usage.service.ts` — Aggregated usage stats for Profile page
+- `user.service.ts` — 用户建档（Clerk 同步）/ 资料 / 头像 / 创作者主页 / 软删除
+- `usage.service.ts` — 生成 Job 创建与三道闸（失控速率 / Runner 月度 / 平台掏钱并发）+ `ApiUsageLedger` 记账 + 用量汇总
 - `storage/r2.ts` — Cloudflare R2 upload (fetchAsBuffer, uploadToR2, generateStorageKey)
 - `node/node-workflow.service.ts` — 画布项目 state 的读写。⚠ **写端只收 v4**（v3 payload 在路由层就是 400，不兜空不降级）；**读端 `version !== 4` 过 v3 schema 只做校验后原样透传**，判版本与升级归客户端
 - `node/node-workflow-v3-backup.service.ts` — v3 原样 JSON 上 R2。⚠ **备份成功才允许写 v4**，失败即只读；惰性升级与批量回填（`scripts/migrate-node-workflow-v4.ts`）共用同一份映射

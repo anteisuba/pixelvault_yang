@@ -11,7 +11,7 @@
 
 ## Schema Reference
 
-Models are defined in `prisma/schema.prisma` (the source of truth). 域模型地图（38 模型 + 12 枚举）、迁移纪律与高风险模型见 [`docs/references/database.md`](../docs/references/database.md)；分层与 service 边界（谁能碰 Prisma）见 [`docs/references/backend.md`](../docs/references/backend.md)。
+Models are defined in `prisma/schema.prisma` (the source of truth). 域模型地图、迁移纪律与高风险模型见 [`docs/references/database.md`](../docs/references/database.md)；分层与 service 边界（谁能碰 Prisma）见 [`docs/references/backend.md`](../docs/references/backend.md)。
 
 ## Naming Conventions
 

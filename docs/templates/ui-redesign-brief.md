@@ -1,6 +1,6 @@
-    # UI 改版设计简报模板
+# UI 改版设计简报模板
 
-> 用于把已完成事实审计和逐项结构确认的任务交给新的设计会话。常规设计不绑定固定模型；只有 owner 明确点名，或普通设计多轮仍无法收口时，才把同一份简报交给 Fable 升级探索。它只授权设计，不授权修改 `src/**`。若业务域、状态矩阵或关键结构仍未确认，先回到 `scenes/ui-page.md` 阶段 1–4，不要用本模板跳关。
+> 用于把已完成事实审计和逐项结构确认的任务交给新的设计会话。常规设计不绑定固定模型；只有 owner 明确点名，或普通设计多轮仍无法收口时，才把同一份简报交给 Fable 升级探索。它只授权设计，不授权修改 `src/**`。若业务域、状态矩阵或关键结构仍未确认，先回到 `scenes/ui-page.md` 阶段 1–4，不要用本模板跳关。探索原型按 CLAUDE.md 的 demo/原型例外处理：下列设计文档只约束合入 `src/` 的代码，不约束原型视觉。
 
 ## 任务与阶段
 
@@ -12,7 +12,7 @@
 
 ## 必读顺序
 
-1. `AGENTS.md` 或 `claude.md`
+1. `AGENTS.md` 或 `CLAUDE.md`
 2. `docs/WORKFLOW.md`
 3. `docs/scenes/ui-page.md`
 4. `docs/brand-dna.md`
@@ -20,7 +20,7 @@
 6. `docs/references/frontend.md`
 7. `docs/references/product.md`
 8. `docs/references/domains/<domain>.md`
-9. 当前 active plan：`<path>`
+9. 对话中 owner 已确认的结构结论（逐条贴进下方「已确认结构契约」）
 10. 已确认 page 文档（若存在）：`<path>`
 11. 当前功能施工文档（只读业务事实，不继承视觉）：`<path>`
 
@@ -39,7 +39,7 @@
 
 ## 已确认结构契约
 
-逐条从 active plan 复制，不要概括成“参考现有页面”。
+逐条从对话中 owner 已确认的结论复制，不要概括成“参考现有页面”。
 
 1. `<always visible / on demand>`
 2. `<primary / secondary hierarchy>`
@@ -53,7 +53,7 @@
 | ------------------ | ---------------------- | -------------------------- |
 | `<image/path/url>` | `<局部结构/交互/气质>` | `<整页布局/配色/组件皮肤>` |
 
-当前页面、历史截图、archive 与 UI inspiration 都是证据，不是新设计模板。
+当前页面、历史截图（含 git 历史）与 UI inspiration 都是证据，不是新设计模板。
 
 ## 审美方法与禁区
 

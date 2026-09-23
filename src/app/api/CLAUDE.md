@@ -4,7 +4,7 @@
 
 API Routes do exactly THREE things, in order:
 
-1. **Auth** — `auth()` from Clerk, reject if unauthorized
+1. **Auth** — 默认由 `src/lib/api-route-factory.ts` 的工厂内置 Clerk `auth()`；内部回调走 `createApiInternalRoute` 签名校验
 2. **Validate** — Parse request body with Zod schema from `@/types/`
 3. **Delegate** — Call the appropriate function from `@/services/`
 
@@ -25,14 +25,13 @@ Always return consistent JSON:
 NextResponse.json({ success: true, data: { ... } })
 
 // Error
-NextResponse.json({ success: false, error: 'message' }, { status: 4xx })
+NextResponse.json({ success: false, error: 'message', errorCode?, i18nKey? }, { status: 4xx })
 ```
 
 ## Adding a New Route
 
-1. Create `src/app/api/<name>/route.ts`
-2. Import `auth` from Clerk
-3. Import Zod schema from `@/types/`
-4. Import service function from `@/services/`
-5. Add the endpoint constant to `@/constants/config.ts`
-6. Add the client-side wrapper to `@/lib/api-client.ts`
+1. Create `src/app/api/<name>/route.ts`, using an `api-route-factory.ts` factory by default; hand-write `auth()` only where no factory fits (streaming / multipart)
+2. Import Zod schema from `@/types/`
+3. Import service function from `@/services/`
+4. Add the endpoint constant to `@/constants/config.ts`
+5. Add the client-side wrapper to `@/lib/api-client/<domain>.ts` (new files get an `export *` line in `@/lib/api-client.ts`)

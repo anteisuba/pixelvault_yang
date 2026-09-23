@@ -1,11 +1,11 @@
 # Templates — 任务起点
 
-从半成品开始，不从零写。代码骨架均从仓库真实文件抽样（来源标注在各文件头部）。
+从半成品开始，不从零写。代码骨架按仓库现行模式整理，各文件头注明参照的真实文件；与代码不一致时以代码为准。
 
 | 模板                       | 用途                                                 | 状态 |
 | -------------------------- | ---------------------------------------------------- | ---- |
 | task-packet.md             | 非 trivial 任务执行包（Goal/Non-goals/验收等）       | ✅   |
-| ui-request.md              | 日常 UI 任务需求卡（375 列 + 交互动作表为硬门）      | ✅   |
+| ui-request.md              | 日常 UI 任务需求卡（含 375 列与交互动作表）          | ✅   |
 | ui-redesign-brief.md       | 改版级 UI 的新任务交接；也可用于可选 Fable 升级      | ✅   |
 | api-route.md               | route 骨架：工厂式 GET/POST + 全链五件套提醒         | ✅   |
 | service.md                 | service 骨架：server-only + ensureUser + retry       | ✅   |

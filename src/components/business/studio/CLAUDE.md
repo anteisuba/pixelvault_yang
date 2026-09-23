@@ -1,18 +1,17 @@
 # src/components/business/studio/ — Studio Workspace Components
 
-## Risk Level: HIGH (53 components across `studio/` + `studio-shared/`, sharing 3 contexts)
+## Risk Level: HIGH (`studio/` + `studio-shared/` 全部组件共享 3 个 context)
 
-2026-09-15 owner 已选 A「连续对话与结果优先」并授权修复；工具记录默认折叠，失败摘要独立显示，五动词常驻条已删除。⚠ 「参考依据」那一折随 56b 切片 5 整张分析卡一起退场。此项覆盖下方旧方向的展开约定，现行增量契约见 `docs/references/pages/assistant-shell-v2.md` 的 A 方向节。
+现行方向 A「连续对话与结果优先」：工具记录默认折叠，失败摘要独立显示，没有五动词常驻条和「参考依据」折叠。现行增量契约见 `docs/references/pages/assistant-shell-v2.md` 的 A 方向节。
 
 ## Component Tree
 
 Studio chrome 已物理拆分：稳定外壳在 `studio-shared/`（`chrome/` + `workflow/` + `setup/`），
 image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注每个节点的真实目录。
 
-⚠ **2026-08-23 切片 A**：三个模态统一走横向工作台。`StudioFlowLayout`
-（`StudioResizableLayout.tsx`）· `StudioBottomDock` · `StudioToolbarPanels` ·
-`StudioToolbar` **已删除**，不留兼容层；`.studio-dock` / `.studio-canvas-slot`
-两组 CSS 同步删掉。栏位差异归 `StudioPromptArea` 按 `outputType` 自己分。
+三个模态统一走横向工作台（`studio-shared/chrome/StudioWorkbenchLayout`），栏位差异归
+`StudioPromptArea` 按 `outputType` 自己分。`StudioFlowLayout` / `StudioBottomDock` /
+`StudioToolbarPanels` / `StudioToolbar` 已删，勿复活。
 
 ```
 (workspace)/layout.tsx
@@ -64,32 +63,27 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         └── StudioCommandPalette (studio-shared/chrome/ — Cmd+K)
 ```
 
-⚠ **operator 系对外只有两颗入口**（`assistant-operator/index.ts`）：`StudioOperatorDock`（`StudioWorkspaceUI` 挂）与 `StudioOperatorChangeRail`（`StudioPromptArea.tsx:711` 挂，改动标记长在被改的那一栏）。其余是面板内部件，不从 index 导出。LoRA 工作台也挂这两颗（`studio/lora/LoraWorkbench.tsx:168-169`）。⚠ 训练 tab 的身体已于 2026-09-20（进度表 34）搬去 `studio/lora/training/TrainWizard.tsx`（配 `hooks/use-lora-train-wizard.ts`），`LoraWorkbench.tsx` 里只剩 tab 分派那一行。
-⚠ **卡片已收敛为五类（v2 §3.2，commit #4）**：消息 / 问题 / 确认 / 结果 / 证据 + 系统行，分派表在 `StudioOperatorTimelineRow.tsx`（`STUDIO_OPERATOR_CARD_KINDS`）。⛔ `StudioOperatorSpendConfirmCard` · `StudioOperatorAssetChoiceCard` · `StudioOperatorProgressBand` **三个文件已删**，旧的覆写三选条也整块删掉 —— 别再按名字找：花钱确认随决策 8 消失，缩略图单选并进问题卡，覆写三选降级成问题卡，进度带的两样挂件搬去了头部。`StudioOperatorConfirmCard`（`confirm` 两支；生成支确认即客户端扣扳机）· `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（**头部右上那颗常驻齿轮** → `onOpenAssistantSettings`，开合 state 在 Dock；2026-09-07 起 ⋯ 菜单里不再有第二个入口）· `StudioOperatorTimelineList`（2026-09-06 起就是面板那颗 `threadRef` 容器）。
-⚠ **皮肤是方向 B「玻璃仪表 · 浅色」（v2 §12，commit #21）**：三层玻璃 = 面板（`assistant-glass-panel` + `shadow-assistant-panel`，18px 圆角）/ 卡片（`bg-card` + `border-border` + `shadow-assistant-card`，⛔ 不带模糊）/ 浮层（`assistant-glass-overlay` + `shadow-assistant-overlay`，历史下拉 · +菜单 · 模型选择器）。「当下要你动手的那张卡」（问题 / 确认待决 / 输入区 / 结论编辑）多一档 `border-assistant-line-strong` + `shadow-assistant-raised`。**信号位只用近黑实底 + 白字**（`bg-foreground text-background`）—— ⛔ 不用 `--primary`，那一支被工作台的生成键占着（§12.2）。token 全在 `globals.css`，⛔ 组件内不写 hex、不写任意值。
+**operator 系对外只有两颗入口**（`assistant-operator/index.ts`）：`StudioOperatorDock`（`StudioWorkspaceUI` 挂）与 `StudioOperatorChangeRail`（`StudioPromptArea.tsx` 挂，改动标记长在被改的那一栏）。其余是面板内部件，不从 index 导出。LoRA 工作台也挂这两颗（`studio/lora/LoraWorkbench.tsx`）。训练 tab 的身体在 `studio/lora/training/TrainWizard.tsx`（配 `hooks/use-lora-train-wizard.ts`），`LoraWorkbench.tsx` 里只剩 tab 分派那一行。
+**卡片已收敛为五类（v2 §3.2）**：消息 / 问题 / 确认 / 结果 / 证据 + 系统行，分派表在 `StudioOperatorTimelineRow.tsx`（`STUDIO_OPERATOR_CARD_KINDS`）。⛔ `StudioOperatorSpendConfirmCard` · `StudioOperatorAssetChoiceCard` · `StudioOperatorProgressBand` **三个文件已删**，旧的覆写三选条也整块删掉 —— 别再按名字找：花钱确认随决策 8 消失，缩略图单选并进问题卡，覆写三选降级成问题卡，进度带的两样挂件搬去了头部。`StudioOperatorConfirmCard`（`confirm` 两支；生成支确认即客户端扣扳机）· `RuleChip`（面板已渲染）· `AssistantSettingsDialog` + `AssistantAvatarGlyph`（**头部右上那颗常驻齿轮** → `onOpenAssistantSettings`，开合 state 在 Dock；⋯ 菜单里没有第二个入口）· `StudioOperatorTimelineList`（面板那颗 `threadRef` 容器）。
+**皮肤是方向 B「玻璃仪表 · 浅色」（v2 §12）**：三层玻璃 = 面板（`assistant-glass-panel` + `shadow-assistant-panel`，18px 圆角）/ 卡片（`bg-card` + `border-border` + `shadow-assistant-card`，⛔ 不带模糊）/ 浮层（`assistant-glass-overlay` + `shadow-assistant-overlay`，历史下拉 · +菜单 · 模型选择器）。「当下要你动手的那张卡」（问题 / 确认待决 / 输入区 / 结论编辑）多一档 `border-assistant-line-strong` + `shadow-assistant-raised`。**信号位只用近黑实底 + 白字**（`bg-foreground text-background`）—— ⛔ 不用 `--primary`，那一支被工作台的生成键占着（§12.2）。token 全在 `globals.css`，⛔ 组件内不写 hex、不写任意值。
 
-⚠ **调查卡已删（56b 切片 1）**：`StudioOperatorResearchCard` 整文件删除 —— 它把证据摆在回答**前面**，读起来是「先看完它的过程，再看它说了什么」。证据现在长在回答底下（`StudioOperatorAnswerSources`），过程折进 `StudioOperatorToolGroup`，候选网格由 `StudioOperatorLogItem` 自己画。
+已删、勿按名字复活：`StudioOperatorResearchCard`（证据在回答底下的 `StudioOperatorAnswerSources`，过程折进 `StudioOperatorToolGroup`，候选网格由 `StudioOperatorLogItem` 画）· `StudioOperatorReferenceAnalysisCard`（`analyze_references` 工具仍在，是 `set_prompt` 的取材来源，历史里的 `referenceAnalysis` 喂 `readOperatorReferenceProfiles`）· `StudioOperatorQuestionCard` + `PlanOptionVisual`（反问 = 输入区 `StudioOperatorQuestionBlock`，一帧一组 ≤4 题、界面一次一题；选项 `visual` 暂无渲染方，助手提示也不要求它）· `StudioOperatorStreamingText`（正文按 `message_delta` 追加到同一条 `streaming` 气泡，末尾一根不闪的光标，定稿帧按 id 整体覆盖；`motion-reduce` 下写完才画）。
 
-⚠ **分析卡已删（56b 切片 5）**：`StudioOperatorReferenceAnalysisCard` 整文件删除。挂进来的图直接进当前多模态模型，回答就是一段普通正文；看参考图那一条跟着其它步折进 `StudioOperatorToolGroup`。⚠ `analyze_references` **工具本身没删** —— 它还是 `set_prompt` 的取材来源，历史里那份 `referenceAnalysis` 还喂着 `readOperatorReferenceProfiles`。
+**视频档具名槽**：视频参考区是 `StudioVideoReferenceSlots`（首帧 / 尾帧 / 参考视频），三条落法（拖入 / 素材库 / 助手 `mount_reference slot`）**汇到同一个 dispatch**（`use-video-reference-slots.ts`），⛔ 组件里没有第二条写入。⛔ 关键帧档下**不再渲染** `ReferenceImageChip`——那一档里图片是帧，留着它写进的参考图列表发送口根本不读（静默失效）。首帧在场且线路带图锁比例时，`StudioSpecChip` 把比例组**禁用而不是移除**并说清怎么解除。
 
-⚠ **问题卡已删（56b 切片 4）**：`StudioOperatorQuestionCard` + `PlanOptionVisual` 两个文件整删。反问现在是输入区里的 `StudioOperatorQuestionBlock`（一帧带一组 ≤4 题，界面一次一题）。⚠ 选项上的 `visual` 一格暂时没有渲染方 —— 契约还在，记为已知缺口。
+**手机形态**：Dock 在 `isMobile` 时图片 / 视频档渲染 `StudioOperatorAvatarToggle`（右上角）+ `StudioOperatorMobileSheet`（单一高度、接近满屏，见上方组件树），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。
 
-⚠ **正文逐段追加（56b 切片 3）**：服务端只发差值（`message_delta`），客户端追加到同一条 `streaming` 气泡后面，末尾一根不闪的光标；定稿帧按 id 整体覆盖。`motion-reduce` 那一档**扣住整段**，写完才画。⛔ `StudioOperatorStreamingText`（当年那套逐字**淡入**）仍旧是删掉的，⛔ 别把它找回来 —— 这一次回来的是「字什么时候出现」，不是那套动效。
-⚠ **视频档具名槽（2026-09-07 `48d6fecb`）**：视频参考区是 `StudioVideoReferenceSlots`（首帧 / 尾帧 / 参考视频），三条落法（拖入 / 素材库 / 助手 `mount_reference slot`）**汇到同一个 dispatch**（`use-video-reference-slots.ts`），⛔ 组件里没有第二条写入。⛔ 关键帧档下**不再渲染** `ReferenceImageChip`——那一档里图片是帧，留着它写进的参考图列表发送口根本不读（静默失效）。首帧在场且线路带图锁比例时，`StudioVideoSpecFields` 把比例组**禁用而不是移除**并说清怎么解除。
+**四张脸**：宿主契约多一格 `face`（`{domainIcon, contextLine(), emptyLine, starterPills[], inputPlaceholder}`，见 `src/contexts/studio-operator-host.tsx`），四份宿主各自实现，Dock / Header / EmptyState 只读它。⛔ 组件里不许按 `domain` 分叉挑文案 / 图标 / 药丸（`StudioOperatorDock.web.test.tsx` 有源码扫描守着）。静态那几样按域查表走 `src/hooks/use-studio-operator-face.ts`，只有 `contextLine` 是宿主自己算的。⛔ `STUDIO_OPERATOR_SUGGESTIONS` · `STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT` 与三语 `StudioOperator.suggestion.*` 已整块删。
 
-⚠ **手机形态（2026-09-06 `adb0a008`）**：Dock 在 `isMobile` 时**不再 `return null`**——图片 / 视频档改渲染 `StudioOperatorAvatarToggle`（右上角，⛔ 不再是右下浮标）+ `StudioOperatorMobileSheet`（v2 §4.6 起是**半屏可拖**，⛔ 不再是 100dvh 全屏），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。
+**收起态**：**右上角 36px 人设头像 + 数字角标，头像即唯一开关**（点开滑进面板头部，点头部那颗或 Esc 收回）。⛔ D7 ④ 的「右下 44px 近黑圆按钮」与画布顶栏那颗「助手」胶囊（`shell-assistant-toggle`）一起退场；⛔ 仍旧没有微状态卡、状态点、`N/M` 读数与那句状态词。机制与十条动画铁律见 `docs/references/pages/assistant-shell-v2.md §4.3`。
 
-⚠ **四张脸（D7b ③，owner 2026-09-20）**：宿主契约多一格 `face`（`{domainIcon, contextLine(), emptyLine, starterPills[], inputPlaceholder}`，见 `src/contexts/studio-operator-host.tsx`），四份宿主各自实现，Dock / Header / EmptyState 只读它。⛔ 组件里不许按 `domain` 分叉挑文案 / 图标 / 药丸（`StudioOperatorDock.web.test.tsx` 有源码扫描守着）。静态那几样按域查表走 `src/hooks/use-studio-operator-face.ts`，只有 `contextLine` 是宿主自己算的。⛔ `STUDIO_OPERATOR_SUGGESTIONS` · `STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT` 与三语 `StudioOperator.suggestion.*` 已整块删。
-
-⚠ **收起态已改口（D7b ④，owner 2026-09-20）**：**右上角 36px 人设头像 + 数字角标，头像即唯一开关**（点开滑进面板头部，点头部那颗或 Esc 收回）。⛔ D7 ④ 的「右下 44px 近黑圆按钮」与画布顶栏那颗「助手」胶囊（`shell-assistant-toggle`）一起退场；⛔ 仍旧没有微状态卡、状态点、`N/M` 读数与那句状态词。机制与十条动画铁律见 `docs/references/pages/assistant-shell-v2.md §4.3`。下面这段方向 C 的「收起态 48px 图标轨」是历史记录。
-
-⚠ **目标态：方向 C「工作日志」面板**——收起态 48px 图标轨、顶部进度带、计划卡 / 三档确认 / 结果行卡 / checkpoint 薄卡、时间线沟用 **32px 头像 + 24px 沟宽且不显示任何时间戳**、助手设置弹层（两栏 + `Tabs`）、手机全屏 Sheet、检索链（`research` / `read_url` / 官方优先搜图）。施工基准 `docs/references/pages/assistant-shell.md`（owner 2026-09-06 定，§7.1 检索链 / §11.3 时间线沟 / §11.6 移动端）；⛔ 动这一系之前先读它，别照现状扩。
+施工基准 `docs/references/pages/assistant-shell-v2.md`（A 方向节 · §3.2 五类卡片 · §4.3 收起态 · §12 皮肤）；`assistant-shell.md` 只作钱闸 / 检索链参考。动这一系之前先读 v2，别照现状扩。
 
 按需挂载、不在主树固定位置的常用单元：StudioModeSelector / StudioGenerateBar / StudioWorkflowPicker
-（studio-shared/workflow/）、StudioAspectRatioPopover / StudioSpecPopover /
+（studio-shared/workflow/）、StudioSpecChip /
 StudioGallery（studio/）、StudioLightbox / StudioErrorBoundary（studio-shared/chrome/）。
 
-⚠ **画布不在这个目录**：`/studio/node` 的全部实现在 `src/components/business/node/`（v4 工作台 `node/workbench-v4/` + 节点卡 `node/nodes/v4/`），分层与禁改见 `src/components/business/node/CLAUDE.md`，基准见 `docs/references/pages/node-canvas-v2.md`。两边**不共用**面板与动作总线——画布走 `useNodeCanvasActions()` 与 v4 op 表，⛔ 别把 studio 的 context 或 operator 组件搬进画布。
+**画布不在这个目录**：`/studio/node` 的全部实现在 `src/components/business/node/`（v4 工作台 `node/workbench-v4/` + 节点卡 `node/nodes/v4/`），分层与禁改见 `src/components/business/node/CLAUDE.md`，基准见 `docs/references/pages/node-canvas-v2.md`。两边**不共用**面板与动作总线——画布走 `useNodeCanvasActions()` 与 v4 op 表，⛔ 别把 studio 的 context 或 operator 组件搬进画布。
 
 ## Data Flow
 
@@ -111,7 +105,7 @@ GenerationPreview renders result
 
 1. **Before modifying any component**: check which context hooks it uses (`useStudioForm`, `useStudioData`, `useStudioGen`)
 2. **Panels**: controlled by `StudioFormState.panels` — toggling is handled by reducer dispatch, not local state
-3. **Panel hosts**: `StudioDockPanelArea` (studio/) renders the centred dialogs (advanced, civitai, voiceSelector, voiceTrainer, audioTranscribe, videoParams, script)，由 **`StudioWorkspaceUI` 直接挂载**（2026-08-23 起；此前挂在已删除的 `StudioBottomDock` 上）。⚠ 它还持有全仓唯一一处 `imageUpload.setMaxImages(...)` —— 不挂载它，参考图上限就是 Infinity。`aspectRatio` 是自己的 popover（`StudioAspectRatioPopover`）。
+3. **Panel hosts**: `StudioDockPanelArea` (studio/) renders the centred dialogs (civitai, voiceSelector, voiceTrainer, audioTranscribe, videoAudio, script)，由 **`StudioWorkspaceUI` 直接挂载**。⚠ 它还持有全仓唯一一处 `imageUpload.setMaxImages(...)` —— 不挂载它，参考图上限就是 Infinity。比例 / 规格走 `StudioSpecChip`（自持开合，不占 `panels`）。
 4. **Entry point**: `index.ts` re-exports the main component
 
 ## Relatively Isolated Components (safer to modify)

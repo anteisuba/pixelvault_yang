@@ -16,7 +16,7 @@
 
 **3 · 首页 / 营销页优化**
 开口："首页 hero 加个惊艳层" / "加一个 XX section"。
-流程：`scenes/ui-marketing.md`（design-taste-frontend 定方向 → 实现 → 反 slop 审计）。
+流程：`scenes/ui-marketing.md`（pv-design-taste-frontend 定方向 → 实现 → 反 slop 审计）。
 
 ## 工程
 

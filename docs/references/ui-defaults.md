@@ -3,7 +3,7 @@
 > 状态：**现行默认（2026-09-03 owner 拍板三条：字体收回脊柱 · semantic 颜色全站锁死 · UI 完成定义压成 8 项）**。
 > 定位：AI 或人动任何 UI 之前必读的**肯定句清单**——不写"不准"，只写"默认这样做"。禁忌见 `forbidden.md`，治理边界见 `brand-dna.md`，实现事实见 `frontend.md`，动效原则见 `interaction.md`。
 > 冲突时：本文 > 当前页面长相 > 任何 skill 的自带审美。需求卡（`templates/ui-request.md`）里没写的，一律按本文默认。
-> 2026-09-03 owner 已拍板：展示槽 = Fraunces + Noto Serif（A）· 壳底保留浮岛层次（`--surface-sunken`）· cards / assets loading 改回浅色 · 画布与 LoRA 移动端走降级、arena 待删（2026-09-17 已整删）。本文无未决项；标 **[待验证]** 的（页面切换 View Transitions）验证通过前不用。
+> 本文无未决项；标 **[待验证]** 的（页面切换 View Transitions）验证通过前不用。
 
 ---
 
@@ -24,14 +24,13 @@
 
 规则：
 
-1. **栈顺序三语一致**：拉丁字体永远排第一，CJK 排第二。zh/ja 下正文栈必须写成 `Geist, Noto Sans SC`，不能把 Geist 丢掉——现状正文丢了 Geist，标题没丢，这就是"标题和正文里的英文长得不一样"的根因。
-2. **`font-serif` 是假槽，废止**。它现在映射到 Geist，86 处引用全部改成 `font-display`（真要衬线）或删掉（本来就是正文）。
-3. **首页营销域并入三槽**：`--font-home-sans`（Noto Sans）→ `font-sans`；`--font-home-mono`（IBM Plex Mono）→ `font-mono`；`--font-home-serif` / `-jp` → `font-display` 的 CJK 侧。首页保留的只是"标题用衬线"这个用法，不是独立字体家族。
-4. **`--font-editorial`（Fraunces，legal 页）并入 `font-display`**，不再单独存在。
-5. 目标：根布局挂载家族从 9 个降到 7 个（Geist · Geist Mono · Fraunces · Noto Sans SC · Noto Sans JP · Noto Serif SC · Noto Serif JP）；`--font-app-display` / `--font-app-serif` 两个重复的 Geist 变量删掉。
-6. **字号只走下面这张表**，⛔ 不写 `text-[13px]` 一类 arbitrary（Hard Rule 5），⛔ 不为同一个值再起第二个名字。更大的只在 `font-display` 槽里出现。
-7. **字重**：正文 400 · 强调/按钮 500 · 小标题 600 · 700 只在 `font-display`。CJK 不用 700 以上。
-8. **行高**：正文 `leading-normal`(1.5)，CJK 段落 `leading-relaxed`(1.625)，标题 `leading-tight`。
+1. **栈顺序三语一致**：拉丁字体永远排第一，CJK 排第二。zh/ja 下正文栈写成 `Geist, Noto Sans SC`（ja 为 Noto Sans JP），不能把 Geist 丢掉——丢了会让标题和正文里的英文长得不一样。
+2. **没有 `font-serif` 槽**：真要衬线用 `font-display`，否则就是正文 `font-sans`。
+3. **首页营销域与 legal 页也只用这三槽**：首页保留的只是"标题用衬线"这个用法（走 `font-display`），不另起字体家族变量。
+4. 根布局挂载 7 个家族（Geist · Geist Mono · Fraunces · Noto Sans SC · Noto Sans JP · Noto Serif SC · Noto Serif JP，见 `src/i18n/fonts.ts`）。
+5. **字号只走下面这张表**，⛔ 不写 `text-[13px]` 一类 arbitrary（Hard Rule 5），⛔ 不为同一个值再起第二个名字。更大的只在 `font-display` 槽里出现。
+6. **字重**：正文 400 · 强调/按钮 500 · 小标题 600 · 700 只在 `font-display`。CJK 不用 700 以上。
+7. **行高**：正文 `leading-normal`(1.5)，CJK 段落 `leading-relaxed`(1.625)，标题 `leading-tight`。
 
 **字号档 → 用途（2026-09-20 收口，进度表 32 ③；真值 SoT = `src/app/globals.css`）**
 
@@ -49,8 +48,6 @@
 | `text-empty-title`              | 1.375rem / 22px         | 空态大标题（`font-display` 三个落点之一）              |
 | `text-2xl` 及以上               | 内置                    | 应用内页面 h1；再大只在首页营销域                      |
 | `text-hero-title` / `-subtitle` | clamp()                 | 首页 hero，营销域专用                                  |
-
-⚠ 已删的重复档：`--text-nav` 与 `--text-tab` 都等于 `--text-2xs` 的 11px，三个名字一个大小，2026-09-20 只留 `text-2xs`（字距 token `tracking-nav` 与本次无关，照旧在）。同日把业务代码里 61 处 arbitrary 换成档名：`text-[10px]`→`text-3xs` · `text-[11px]`→`text-2xs` · `text-[12px]`→`text-xs` · `text-[13px]`→`text-2sm`；另有 4 处低于下限的（`text-[9px]` ×2、`text-[0.65rem]` ×2）一并归到 `text-3xs`，是本次**唯一**的字号视觉变化（+1px / −0.4px），因为 10px 就是表里的下限。
 
 **展示槽已拍板（2026-09-03）：A = Fraunces + Noto Serif SC/JP**，全站唯一衬线，首页 08-28 方向 B 的衬线标题与 legal 页 Fraunces 合成这一个槽。代价是 zh/ja 页面首屏多一个 Noto Serif 请求，`preload: false` 已挡在关键路径外。
 
@@ -73,13 +70,13 @@
 | 已应用/警告/风险 | `--status-applied` / `--status-warning` / `--status-risk`，各带 `-surface` 浅底（risk 除外） | 绿 #16794c · 琥珀 #a04f00 · 红 #b3261e；对比度见 globals.css 注释                 |
 | 模态             | `bg-modality-image` / `-video` / `-audio`（**只给 prompts 域**，见 §2.3）                    | 紫 292 / 蓝 255 / 玫瑰 10，低饱和                                                 |
 
-**应用默认浅色。** html 根没有 `.dark`；`ds-bundle/README.md` 里"dark-only"是过时口径。`.dark` 只允许出现在**媒体观看面**：lightbox、`MediaDetailViewer`、画布图片编辑工作台、node 画布视口。页面本身不做暗色。cards 页与 assets loading 现在整页 `.dark`，**改回浅色（owner 2026-09-03 拍板）**；它们不是媒体观看面。
+**应用默认浅色。** html 根没有 `.dark`。`.dark` 只允许出现在**媒体观看面**：lightbox、`MediaDetailViewer`、画布图片编辑工作台、node 画布视口。页面本身不做暗色（cards 页、assets loading 也是浅色，它们不是媒体观看面）。
 
 ### 2.2 "白"只有一种
 
-现状五种浅底（首页暖白 `#f4f4f1` · 壳冷灰 `#e4e7ec` · LoRA 中性 oklch · 画布米纸 `#ebe5d8` · composer 象牙 oklch(96% .008 95)）收成两层：
+浅底只有脊柱这几层，域不各自给值：
 
-- **页面底 = `--background` 纯白；分组/次级面 = `--muted` 中性灰。** 首页 `--paper/--panel`、LoRA `--lora-page/--lora-well`、壳 `--sidebar` 全部 alias 到这两个，不再各自给值。**壳底例外（owner 2026-09-03 拍板保住浮岛层次）**：脊柱新增第三层 `--surface-sunken: oklch(94% 0 0)`，只给应用壳 `--sidebar` 用，主卡浮在它上面；域不得再造第四种浅底。三层就是全部：`--background` 纯白 · `--muted` 97% · `--surface-sunken` 94%。
+- **页面底 = `--background` 纯白；分组/次级面 = `--muted` 中性灰。** 首页 `--paper/--panel`、LoRA `--lora-page/--lora-well`、壳 `--sidebar` 全部 alias 到这两个，不再各自给值。**壳底例外（owner 2026-09-03 拍板保住浮岛层次）**：脊柱新增第三层 `--surface-sunken: oklch(94% 0 0)`，只给应用壳 `--sidebar` 用，主卡浮在它上面。连同下面的 `--surface-workbench`，全部就是四层：`--background` 纯白 · `--muted` 97% · `--surface-sunken` 94% · `--surface-workbench`；域不得再造第五种浅底。
 - **画布米纸与 composer 象牙是"材质"，不是页面底**：作为 canvas 域和 studio 域各自的材质 token 保留，只贴在卡片/输入条那一件东西上，不铺整页。
 - **第四层 `--surface-workbench`（owner 2026-09-03，配音间灰底+白卡推广到工作台）**：配音间原实现是 `#f4f4f1`，真机实测与壳底 `--sidebar`（计算值 #ebebeb）通道差 (9,9,6)，超过「肉眼几乎一样」的 ≤6 判据，没有直接复用 `--sidebar`，单独开了这一档（暗色沿用 `--surface-sunken`，即壳底暗档，配音间锁浅色没有暗档可对齐）。工作台框 = `.workbench-ground`（灰底地台）+ `.workbench-card`（白卡），四个工作台（配音间 / 图像 / 视频 / LoRA）共用一份值，值以 `src/app/globals.css` 为准，不在域内各自维护。**2026-09-20（进度表 32 ④）画廊页与素材库页也推到这一层**：页面底（含两页的 `loading.tsx` 与素材库未登录壳）走 `bg-surface-workbench`，卡走不透明 `bg-card` —— 画廊卡原本是 `bg-card/84`、素材库图块是 `bg-muted/40`，半透明白摆在纯白页面底上等于没有卡，换到灰底后卡边才立得住。⛔ 只换底与卡面，卡片布局与信息不动（那是 34）。
 
@@ -92,16 +89,16 @@
 ### 2.4 写法
 
 - 颜色一律用 token 类名，Tailwind 调色板类（`text-amber-700` `bg-emerald-500/15` 一类）**不出现在业务代码**。文字用 `text-status-*`，浅底用 `bg-status-*-surface`，实心点 / 进度用 `bg-status-*` 或 `bg-status-*/70` 一类透明度。
-- **风险面收口（2026-09-20，进度表 32 ⑤）**：`bg-destructive/5…/20` 这类「拿透明度凑浅红」的写法已全部换成 `bg-status-risk-surface`，同一个 className 里的 `text-destructive` → `text-status-risk`、`border-destructive/N` → `border-status-risk/N`；`bg-red-*` 与暗色 HUD 里的 `text-red-100` 一并收进同一档。`--destructive` 只剩**实心破坏按钮**那一支（`bg-destructive text-destructive-foreground hover:bg-destructive/90`），⛔ 别再用它调浅底。同批把 `bg-status-warning/10` 两处散写换成 `bg-status-warning-surface`。对比度（2026-09-20 实算）：`#b3261e` 对 risk-surface **5.91** · 对白 **6.54** · 对 `--surface-workbench` **5.93**；`--foreground` 对 risk-surface **16.65**；暗档 `#e06c65` 对 `#3e1d1a` **4.66**；warning **5.28** · applied **4.98**。
+- **风险面**：浅红底用 `bg-status-risk-surface`，同一个 className 里文字 `text-status-risk`、边 `border-status-risk/N`；不拿 `bg-destructive/N` 透明度凑浅红。`--destructive` 只给**实心破坏按钮**（`bg-destructive text-destructive-foreground hover:bg-destructive/90`）。警告浅底同理用 `bg-status-warning-surface`。对比度（实算）：`#b3261e` 对 risk-surface **5.91** · 对白 **6.54** · 对 `--surface-workbench` **5.93**；`--foreground` 对 risk-surface **16.65**；暗档 `#e06c65` 对 `#3e1d1a` **4.66**；warning **5.28** · applied **4.98**。
 - 未清的两处例外：**装饰性渐变**（素材库未登录壳的占位图块、训练完成庆祝）与**贴在媒体上的固定明暗 chrome**（`bg-neutral-950/85` 的 stage HUD、3D 预览黑台、图上白底小按钮）——后者刻意不跟随主题，换 `foreground` / `background` token 会在暗档整个翻过来。
-- 任何新颜色先跑 `contrast-check`，文字 4.5:1、大字与图标 3:1、AA 底线 24px 命中区。
+- 任何新颜色先用脚本算对比度（Claude Code 用 `contrast-check`，其他客户端用同等 WCAG 计算），文字 4.5:1、大字与图标 3:1、AA 底线 24px 命中区。
 - 透明度修饰符是允许的：`bg-primary/90` `border-border/60`。
 
 ---
 
 ## 3. 间距、圆角、阴影
 
-- 间距只走 Tailwind 4 尺度：控件内距 `px-3 py-2`，卡片内距 `p-4`，区块间距 `gap-4` / `gap-6`，页面外距 `px-4 lg:px-6`，最大宽 `max-w-content` / `max-w-gallery`。
+- 间距只走 Tailwind 4 尺度：控件内距 `px-3 py-2`，卡片内距 `p-4`，区块间距 `gap-4` / `gap-6`，页面外距 `px-4 lg:px-6`，最大宽 `max-w-content`（画廊、素材库这类内容浏览页不封顶）。
 - 圆角：控件 `rounded-md`，卡片/弹层 `rounded-lg`，抽屉/大面 `rounded-xl`，胶囊只给 chip/badge。基准 `--radius: 0.625rem` 不改。
 - 阴影：浮层 `shadow-md`，抽屉/对话框 `shadow-lg`，其余不加。浅色界面靠边线分层，不靠阴影。
 - 边线：`border-border` 一档；材质描边（画布卡）用域内 token。
@@ -130,11 +127,11 @@
 
 时长/曲线只用 `globals.css` 的 token：`--duration-fast` 120 · `--duration-base` 200 · `--duration-slow` 320 · `--duration-reveal` 500；曲线 `--ease-standard`。只动 `transform` / `opacity`。**每条都带 `motion-reduce:` 降级**。
 
-> 真值 SoT = `src/app/globals.css:198-202`（`--ease-standard: cubic-bezier(0.22, 1, 0.36, 1)` + 上述四个时长），2026-09-06 逐行核过与本表一致。⛔ 别信任何写着 `150 / 300 / 400ms` 或 `cubic-bezier(.2,0,0,1)` 的设计稿——那是 2026-09-06 助手改版简报里的一处错值，已在 `pages/assistant-shell.md` §11.5 订正。
+> 真值 SoT = `src/app/globals.css` 的 `--ease-standard: cubic-bezier(0.22, 1, 0.36, 1)` 与四个 `--duration-*`。⛔ 别信任何写着 `150 / 300 / 400ms` 或 `cubic-bezier(.2,0,0,1)` 的设计稿——那是 2026-09-06 助手改版简报里的一处错值，已在 `pages/assistant-shell.md` §11.5 订正。
 
 | 交互                         | 配方                                                                                                                                    | 库                 |
 | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| 按钮/卡片按压                | `active:scale-[.98] transition-transform duration-fast`（把 `.98` 收成 `--scale-press` token 后改用 `active:scale-press`）              | CSS                |
+| 按钮/卡片按压                | `active:scale-[.98] transition-transform duration-fast`（`.98` 尚无 token，是本表唯一容许的 arbitrary）                                 | CSS                |
 | hover 提亮                   | `transition-colors duration-fast hover:bg-accent`                                                                                       | CSS                |
 | 焦点环                       | `focus-visible:ring-2 ring-ring ring-offset-2`，不做动画                                                                                | CSS                |
 | Dialog 开/关                 | 已内置：`data-[state=open]:animate-in fade-in-0 zoom-in-95` / closed 反向，`duration-200`。**不要覆盖**                                 | radix + tw-animate |
@@ -189,19 +186,19 @@
 
 ## 6. 移动端配方 — 375px 起，不是桌面缩小
 
-**断点**：`<1024` 移动壳（`MobileShell` + `MobileTabBar`），`≥1024` 桌面侧栏。组件内部**用容器查询** `@container` + `@md:`，不用视口断点。
+**断点**：`<1024` 移动壳（`MobileShell`，顶栏当切换器，没有底部 tab bar），`≥1024` 桌面侧栏（`AppSidebar`）。组件内部**用容器查询** `@container` + `@md:`，不用视口断点。
 
-| 桌面上的东西     | 375px 上变成                                                                                   | 用什么                        |
-| ---------------- | ---------------------------------------------------------------------------------------------- | ----------------------------- |
-| 居中 Dialog      | 底部抽屉                                                                                       | `ResponsiveDialog`            |
-| 锚定 Popover     | 触屏紧凑态抽屉；窄视口 + 鼠标仍是 Popover                                                      | `ResponsivePopover`           |
-| 侧栏参数面板     | 底部 vaul 抽屉；页面底部固定一条主动作栏（生成/保存），`pb-[env(safe-area-inset-bottom)]` 之上 | `drawer.tsx` + `dvh` 全高布局 |
-| 多列表格         | 卡片列表，每行主字段 + 一个次级行                                                              | —                             |
-| 三列模型选择器   | `layout="drill"` 逐级下钻                                                                      | `BaseModelPickerPanel`        |
-| hover 显示的操作 | 常显或长按菜单                                                                                 | `dropdown-menu`               |
-| 图墙             | 2 列，`gap-2`，缩略图 `aspect-square` 或 `aspect-[3/4]`                                        | grid                          |
-| 软键盘           | 已处理，dock 会让位                                                                            | `KeyboardInsetBridge`         |
-| 全高容器         | `min-h-svh` / `h-dvh`，不用 `100vh`                                                            | CSS                           |
+| 桌面上的东西     | 375px 上变成                                                                   | 用什么                        |
+| ---------------- | ------------------------------------------------------------------------------ | ----------------------------- |
+| 居中 Dialog      | 底部抽屉                                                                       | `ResponsiveDialog`            |
+| 锚定 Popover     | 触屏紧凑态抽屉；窄视口 + 鼠标仍是 Popover                                      | `ResponsivePopover`           |
+| 侧栏参数面板     | 底部 vaul 抽屉；页面底部固定一条主动作栏（生成/保存），底边用 `pb-safe-bottom` | `drawer.tsx` + `dvh` 全高布局 |
+| 多列表格         | 卡片列表，每行主字段 + 一个次级行                                              | —                             |
+| 模型选择器       | 同一个选择器，触屏自动切到底部抽屉分支，行内展开渠道                           | `ModelPickerPopover`          |
+| hover 显示的操作 | 常显或长按菜单                                                                 | `dropdown-menu`               |
+| 图墙             | 2 列，`gap-2`，缩略图 `aspect-square` 或 `aspect-[3/4]`                        | grid                          |
+| 软键盘           | 已处理，dock 会让位                                                            | `KeyboardInsetBridge`         |
+| 全高容器         | `min-h-svh` / `h-dvh`，不用 `100vh`                                            | CSS                           |
 
 **每条路由的移动端等级**（写进各 `references/domains/<域>.md`）：
 
@@ -245,16 +242,16 @@
 
 ## 8. 完成定义 — 8 项，缺一不合
 
-| #   | 项                                            | 怎么证明                                                  |
-| --- | --------------------------------------------- | --------------------------------------------------------- |
-| 1   | lint + typecheck 绿                           | `npm run lint && npm run typecheck`                       |
-| 2   | 颜色对比度过                                  | `contrast-check` 输出贴进报告                             |
-| 3   | 移动端 e2e 过                                 | `npx playwright test e2e/mobile.spec.ts --project=mobile` |
-| 4   | 真机三张截图：桌面 1440 · 平板 820 · 手机 375 | `verify-real`                                             |
-| 5   | reduced-motion 目检：开启后无位移动画         | DevTools 渲染面板模拟，截一张                             |
-| 6   | i18n en/ja/zh 三语同步，zh/ja 长文本不破版    | `src/messages/` diff + zh 截图                            |
-| 7   | 需求卡状态矩阵每格实跑                        | 报告逐格勾                                                |
-| 8   | 需求卡交互动作表每行实跑，每行有可见反馈      | 报告逐行勾                                                |
+| #   | 项                                            | 怎么证明                                                    |
+| --- | --------------------------------------------- | ----------------------------------------------------------- |
+| 1   | lint + typecheck 绿                           | `npm run lint && npm run typecheck`                         |
+| 2   | 颜色对比度过                                  | 对比度计算输出贴进报告（Claude Code 可用 `contrast-check`） |
+| 3   | 移动端 e2e 过                                 | `npx playwright test e2e/mobile.spec.ts --project=mobile`   |
+| 4   | 真机三张截图：桌面 1440 · 平板 820 · 手机 375 | 浏览器实跑截图（Claude Code 可用 `verify-real`）            |
+| 5   | reduced-motion 目检：开启后无位移动画         | DevTools 渲染面板模拟，截一张                               |
+| 6   | i18n en/ja/zh 三语同步，zh/ja 长文本不破版    | `src/messages/` diff + zh 截图                              |
+| 7   | 需求卡状态矩阵每格实跑                        | 报告逐格勾                                                  |
+| 8   | 需求卡交互动作表每行实跑，每行有可见反馈      | 报告逐行勾                                                  |
 
 与 `checklists/ui.md` 同一份 8 项（2026-09-03 已替换旧 16 项 P0）；证据格式以 checklist 为准。
 

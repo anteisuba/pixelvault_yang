@@ -1,6 +1,6 @@
 # 模板 · API route（工厂式）
 
-> 抽样来源：`src/app/api/background-cards/route.ts`（2026-07-10，仓库内最规范的工厂用法）。八个工厂的选型见 `references/backend.md`。**记得全链五件套**：本文件 → schema 进 `@/types` → endpoint 常量进 `constants/config.ts` → 包装进 `lib/api-client.ts` → 同目录五段测试（用 `templates/test.md`）。
+> 抽样来源：`src/app/api/background-cards/route.ts`（2026-07-10，仓库内最规范的工厂用法）。八个工厂的选型见 `references/backend.md`。**记得全链五件套**：本文件 → schema 进 `@/types` → endpoint 常量进 `constants/config.ts` → 包装进 `lib/api-client/<domain>.ts`（新文件在 `lib/api-client.ts` 补一行 `export *`）→ 同目录五段测试（用 `templates/test.md`）。
 
 ```ts
 import 'server-only'

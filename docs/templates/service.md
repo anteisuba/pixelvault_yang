@@ -1,13 +1,14 @@
 # 模板 · Service
 
-> 抽样来源：`src/services/prompts/prompt-feedback.service.ts` 的结构（server-only + ensureUser + Zod 校验 LLM 输出 + 类型化返回）。规则见 `references/backend.md` service 纪律节。
+> 参照 `src/services/prompts/seedance-prompt-plan.service.ts`（server-only + ensureUser + withRetry 包外部调用 + `validateLlmStructuredOutput` 校验 LLM 输出 + `@/lib/errors` 类型化错误）。规则见 `references/backend.md` service 纪律节；与代码不一致时以代码为准。
 
 ```ts
 import 'server-only'
 
 import { z } from 'zod'
 
-import { prisma } from '@/lib/db'
+import { db } from '@/lib/db'
+import { ApiRequestError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 import { withRetry } from '@/lib/with-retry'
 import { ensureUser } from '@/services/user.service'
@@ -30,10 +31,11 @@ export async function doThing(
   const parsed = ExternalOutputSchema.safeParse(result)
   if (!parsed.success) {
     logger.error('doThing: invalid external output', { clerkId, issues: parsed.error.issues })
-    throw new Error('External output validation failed') // 失败大声暴露，不静默降级
+    // 类型化错误：工厂据此给状态码与 i18nKey；裸 Error 只会变成通用 500
+    throw new ApiRequestError(<code>, <httpStatus>, <i18nKey>, 'External output validation failed')
   }
 
-  return await prisma.thing.create({
+  return await db.thing.create({
     data: { userId: dbUser.id /* ownership 永远用内部 id */, ... },
   })
 }

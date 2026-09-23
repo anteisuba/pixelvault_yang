@@ -1,6 +1,6 @@
 # src/contexts/ — React Context Providers
 
-## Risk Level: HIGH (Studio context drives 23+ components)
+## Risk Level: HIGH (Studio context 消费方遍布 Studio，数量按 Change Checklist 的 grep 取)
 
 ## Studio Context Split (3 providers by update frequency)
 
@@ -10,9 +10,9 @@ StudioDataContext  (WARM) — cards, projects, civitai, upload — changes on us
 StudioGenContext   (COLD) — generation state — changes only during generation
 ```
 
-**Why split?** Putting fast-changing state (prompt text) in the same context as slow-changing state (cards list) causes unnecessary re-renders across 23+ components. The split prevents cascade renders.
+**Why split?** Putting fast-changing state (prompt text) in the same context as slow-changing state (cards list) causes unnecessary re-renders across every consumer. The split prevents cascade renders.
 
-## Studio 视频档具名槽（2026-09-07 `48d6fecb`）
+## Studio 视频档具名槽
 
 `StudioFormState` 两个视频专属字段，改它们前先读 `studio-context.tsx` 里各自的头注：
 
@@ -43,11 +43,11 @@ StudioDataContext initializes these hooks at mount time:
 
 ## Consumer Hooks
 
-| Hook              | Context     | Consumers      |
-| ----------------- | ----------- | -------------- |
-| `useStudioForm()` | FormContext | ~37 components |
-| `useStudioData()` | DataContext | ~12 components |
-| `useStudioGen()`  | GenContext  | ~8 components  |
+| Hook              | Context     |
+| ----------------- | ----------- |
+| `useStudioForm()` | FormContext |
+| `useStudioData()` | DataContext |
+| `useStudioGen()`  | GenContext  |
 
 ## Change Checklist
 
@@ -61,3 +61,4 @@ StudioDataContext initializes these hooks at mount time:
 - `studio-context.tsx` — The 3-provider context + reducer + hooks
 - `studio-context.test.ts` / `studio-context.test.tsx` — Unit tests
 - `api-keys-context.tsx` — Separate API key management context (isolated, low risk)
+- `studio-operator-host.tsx` — 助手宿主契约（含 `face`），四份宿主各自实现

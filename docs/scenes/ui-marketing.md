@@ -13,7 +13,7 @@
 ## 本场景工作流
 
 1. 对齐 `references/product.md` 与已落地能力，先确定首页当前能承诺什么。
-2. 读取 `brand-dna.md`、`forbidden.md`、`references/frontend.md` 和 对话中的已确认范围；旧首页、archive 与 UI inspiration 只作证据。
+2. 读取 `brand-dna.md`、`forbidden.md`、`references/frontend.md` 和 对话中的已确认范围；旧首页与外部参考只作证据。
 3. 完整改版先提出三个结构方向，并与真实产品页和能力截图并排核对；owner 选择后只做 hero 或一个核心 capability 切片。
 4. 关键切片确认后写页级文档，再实现页面局部 token/组件；不得把 homepage 皮肤扩散为全站默认。
 5. 验证内容真实性、SEO、LCP、CLS、reduced-motion、键盘、移动端和 CTA 路径。

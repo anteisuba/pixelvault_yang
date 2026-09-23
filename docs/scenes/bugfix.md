@@ -23,7 +23,7 @@
 
 ## 必读清单
 
-相关 `references/domains/<域>.md`（正确行为的定义）· `references/backend.md` 或 `frontend.md`（按 bug 层）· 在飞任务包（bug 可能是在飞工作的已知副作用）
+相关 `references/domains/<域>.md`（正确行为的定义）· `references/backend.md` 或 `frontend.md`（按 bug 层）· 对话中的在飞约束（bug 可能是在飞工作的已知副作用）
 
 ## 禁改范围默认值
 

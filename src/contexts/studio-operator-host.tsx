@@ -86,6 +86,14 @@ export interface StudioOperatorHost {
    * 装配台恒 `lora`。⛔ 别在面板里按路由猜域 —— 域是宿主说了算的。
    */
   domain: AssistantOperatorDomain
+  /**
+   * **会话按哪个画布项目分**（D12 U7）—— 只有画布给。
+   *
+   * ⭐ 画布的对话单独、按画布项目分；图片 / 视频 / LoRA 仍共用一个列表。缺席 =
+   * 工作台那一份合并列表。⚠ 线程 store 是模块单例：作用域一变就换线程，⛔ 不让
+   * 画布的对话写进标着「图片工作台」的那一段。
+   */
+  projectId?: string
   /** 这个宿主那张脸（D7b ③）—— 见 `StudioOperatorFace` 的头注。 */
   face: StudioOperatorFace
   /**

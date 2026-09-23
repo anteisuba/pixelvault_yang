@@ -147,6 +147,11 @@ export interface StudioOperatorState {
    */
   autoGenerate: boolean
   /**
+   * 这条线程属于哪个会话作用域（D12 U7）：`studio` = 图片 / 视频 / LoRA 合并那一份，
+   * `canvas:<projectId>` = 某个画布项目。`null` = 还没有宿主认领过。
+   */
+  threadScope: string | null
+  /**
    * 结果行卡上被点中的那一格（§4.2「结果行卡：未选 / 已选 / 被 @」）。
    *
    * ⚠ 存 id 不存整条：那一批的内容来自宿主的在飞回流，每次轮询都是新对象，
@@ -276,6 +281,7 @@ const INITIAL_STATE: StudioOperatorState = {
   queue: [],
   mentions: [],
   autoGenerate: false,
+  threadScope: null,
   selectedResultId: null,
   pendingResultId: null,
   planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
@@ -845,6 +851,20 @@ export function removeOperatorMention(id: string): void {
 export function clearOperatorMentions(): void {
   if (state.mentions.length === 0) return
   emit({ ...state, mentions: [] })
+}
+
+/**
+ * 换会话作用域（D12 U7）—— 画布 ↔ 工作台、画布 A ↔ 画布 B。
+ *
+ * ⭐ 作用域一变就**整条线程换掉**（同 ＋新对话）：留着上一处的线程，下一次保存会把
+ * 这里的对话写进那一段。返回「换了没有」—— 换了的话调用方要载回这一处最近那条。
+ */
+export function claimOperatorThreadScope(scope: string): boolean {
+  if (state.threadScope === scope) return false
+  const first = state.threadScope === null
+  if (!first) resetOperatorThread()
+  emit({ ...state, threadScope: scope })
+  return !first
 }
 
 /** 自动生成开关（D12 S-C）—— 会话级，见 `autoGenerate` 头注。 */

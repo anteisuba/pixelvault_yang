@@ -165,13 +165,19 @@ export async function listAssistantConversations(
   const user = await ensureUser(clerkId)
   const limit = args.limit ?? 20
 
-  const surfaces = args.operatorOnly
-    ? [
-        ASSISTANT_SURFACE_IDS.imageStudio,
-        ASSISTANT_SURFACE_IDS.videoStudio,
-        ASSISTANT_SURFACE_IDS.lora,
-      ]
-    : [args.surface]
+  /**
+   * ⚠ 工作台的操作员线程三个域合并成一个列表；画布**单独、按项目分**（D12 U7），
+   * ⛔ 不并进工作台那一份。
+   */
+  const canvas = args.surface === ASSISTANT_SURFACE_IDS.nodeCanvas
+  const surfaces =
+    args.operatorOnly && !canvas
+      ? [
+          ASSISTANT_SURFACE_IDS.imageStudio,
+          ASSISTANT_SURFACE_IDS.videoStudio,
+          ASSISTANT_SURFACE_IDS.lora,
+        ]
+      : [args.surface]
   const operatorPayload = Prisma.sql`COALESCE("messages"->0->'operator' <> 'null'::jsonb, false)`
   const rows = await db.$queryRaw<
     (Omit<AssistantConversationSummary, 'updatedAt'> & { updatedAt: Date })[]
@@ -182,7 +188,7 @@ export async function listAssistantConversations(
     FROM "AssistantConversation"
     WHERE "userId" = ${user.id}
       AND "surface" IN (${Prisma.join(surfaces.map((surface) => Prisma.sql`${surface}::"AssistantSurface"`))})
-      ${!args.operatorOnly && args.surface === ASSISTANT_SURFACE_IDS.nodeCanvas && args.projectId ? Prisma.sql`AND "projectId" = ${args.projectId}` : Prisma.empty}
+      ${canvas && args.projectId ? Prisma.sql`AND "projectId" = ${args.projectId}` : Prisma.empty}
       ${args.operatorOnly ? Prisma.sql`AND ${operatorPayload}` : Prisma.empty}
     ORDER BY "updatedAt" DESC
     LIMIT ${limit}

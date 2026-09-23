@@ -356,6 +356,7 @@ export function useCanvasOperatorHost({
   return useMemo(
     (): StudioOperatorHost => ({
       domain: ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+      projectId,
       face,
       buildSnapshot,
       apply,
@@ -381,6 +382,6 @@ export function useCanvasOperatorHost({
       collapseOnOutsidePointer: false,
       anchor: CANVAS_ANCHOR,
     }),
-    [apply, buildSnapshot, face, referenceImages, open, setOpen],
+    [apply, buildSnapshot, face, projectId, referenceImages, open, setOpen],
   )
 }

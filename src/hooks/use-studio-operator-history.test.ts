@@ -362,3 +362,48 @@ it('loads the combined list once and reuses it for repeated menu opens', async (
   await act(async () => hook.result.current.refreshSessions())
   expect(listMock).toHaveBeenCalledTimes(2)
 })
+
+/**
+ * D12 U7：画布的会话**单独、按画布项目分**；图片 / 视频 / LoRA 仍共用一个列表。
+ */
+describe('会话按画布项目分（D12 U7）', () => {
+  it('画布只列这个项目的会话，存的时候带上项目 id', async () => {
+    const rendered = renderHook(() =>
+      historyHook.useStudioOperatorHistory('canvas-project-1'),
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(listMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        surface: 'NODE_CANVAS',
+        projectId: 'canvas-project-1',
+        operatorOnly: true,
+      }),
+    )
+
+    say('user-1', '把第三镜换成夜景')
+    await settleDebounce()
+    const payload = upsertMock.mock
+      .calls[0]?.[0] as UpsertAssistantConversationRequest
+    expect(payload.surface).toBe('NODE_CANVAS')
+    expect(payload.projectId).toBe('canvas-project-1')
+    rendered.unmount()
+  })
+
+  it('从工作台走到画布：线程整条换掉，⛔ 画布的话不写进工作台那一段', async () => {
+    const studio = await mount()
+    say('user-1', '出一张橘猫')
+    await settleDebounce()
+    expect(store.getOperatorState().sessionId).toBe('conv-1')
+    studio.unmount()
+
+    renderHook(() => historyHook.useStudioOperatorHistory('canvas-project-1'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(store.getOperatorState().entries).toHaveLength(0)
+    expect(store.getOperatorState().sessionId).toBeNull()
+    expect(store.getOperatorState().threadScope).toBe('canvas:canvas-project-1')
+  })
+})

@@ -40,6 +40,7 @@ import {
   toStoredOperatorMessages,
 } from '@/lib/studio-operator-history'
 import {
+  claimOperatorThreadScope,
   getOperatorState,
   loadOperatorThread,
   resetOperatorThread,
@@ -54,22 +55,32 @@ import {
 } from '@/types/assistant-conversation'
 
 /**
- * 这次页面加载水化过了没有。
+ * 这次页面加载里哪些会话作用域水化过了（D12 U7：工作台一份、每个画布项目各一份）。
  *
  * ⚠ 模块级而不是 ref：`StudioOperatorDock` 会随路由在图片 / 视频之间重挂，而
- * 「载回最近一条」是**每次页面加载一次**的事。用 ref 的下场是每次重挂都去覆盖
- * 一遍当前线程 —— 用户刚说了两句话，切个模态全没了。
+ * 「载回最近一条」是**每个作用域每次页面加载一次**的事。用 ref 的下场是每次重挂
+ * 都去覆盖一遍当前线程 —— 用户刚说了两句话，切个模态全没了。
  */
-let hydratedThisPageLoad = false
+const hydratedScopes = new Set<string>()
 
 /** 测试用：把「这次页面加载」重置掉。⛔ 生产代码不要调它。 */
 export function resetOperatorHistoryHydrationForTests(): void {
-  hydratedThisPageLoad = false
+  hydratedScopes.clear()
 }
 
-async function listOperatorSessions(): Promise<AssistantConversationSummary[]> {
+/** 会话作用域的键 —— 工作台合并那一份 / 某个画布项目。 */
+function operatorThreadScope(projectId: string | undefined): string {
+  return projectId ? `canvas:${projectId}` : 'studio'
+}
+
+async function listOperatorSessions(
+  projectId: string | undefined,
+): Promise<AssistantConversationSummary[]> {
   const result = await listAssistantConversationsAPI({
-    surface: ASSISTANT_SURFACE_IDS.imageStudio,
+    surface: projectId
+      ? ASSISTANT_SURFACE_IDS.nodeCanvas
+      : ASSISTANT_SURFACE_IDS.imageStudio,
+    ...(projectId ? { projectId } : {}),
     operatorOnly: true,
     limit: STUDIO_OPERATOR_HISTORY.listLimit,
   })
@@ -97,7 +108,13 @@ export interface UseStudioOperatorHistoryResult {
   deleteSession(session: AssistantConversationSummary): Promise<boolean>
 }
 
-export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
+/**
+ * @param projectId 画布项目 id（D12 U7）—— 给了就只列 / 只载 / 只存这个画布的
+ *   会话；缺席 = 图片 / 视频 / LoRA 合并那一份。
+ */
+export function useStudioOperatorHistory(
+  projectId?: string,
+): UseStudioOperatorHistoryResult {
   const t = useTranslations('StudioOperator.history')
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null)
   const [renamingSessionId, setRenamingSessionId] = useState<string | null>(
@@ -114,7 +131,8 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
   const [sessions, setSessions] = useState<
     readonly AssistantConversationSummary[]
   >([])
-  const [isHydrating, setIsHydrating] = useState(!hydratedThisPageLoad)
+  const scope = operatorThreadScope(projectId)
+  const [isHydrating, setIsHydrating] = useState(!hydratedScopes.has(scope))
   const [error, setError] = useState<string | null>(null)
   /**
    * 一次只发一个 upsert。
@@ -129,7 +147,7 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
   const lastListedAt = useRef<number | null>(null)
   const fetchSessions = useCallback(() => {
     if (listPending.current) return listPending.current
-    const pending = listOperatorSessions()
+    const pending = listOperatorSessions(projectId)
       .then((items) => {
         lastListedAt.current = Date.now()
         return items
@@ -139,7 +157,7 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
       })
     listPending.current = pending
     return pending
-  }, [])
+  }, [projectId])
   const savingRef = useRef(false)
   const dirtyRef = useRef(false)
 
@@ -247,8 +265,13 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
    * ⚠ 请求飞在半空时用户已经开口了就放弃 —— 覆盖掉他刚说的话比不载回历史坏得多。
    */
   useEffect(() => {
-    const restoreLatest = !hydratedThisPageLoad
-    hydratedThisPageLoad = true
+    /**
+     * ⭐ 先认领作用域（D12 U7）：从工作台走到画布（或换一个画布项目）时线程整条
+     * 换掉，再载回这一处最近那条 —— ⛔ 不让画布的话写进图片工作台那一段。
+     */
+    const switched = claimOperatorThreadScope(scope)
+    const restoreLatest = switched || !hydratedScopes.has(scope)
+    hydratedScopes.add(scope)
 
     void (async () => {
       try {
@@ -271,7 +294,7 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
         setIsHydrating(false)
       }
     })()
-  }, [applyConversation, fetchSessions, t])
+  }, [applyConversation, fetchSessions, scope, t])
 
   const save = useCallback(async () => {
     if (savingRef.current) {
@@ -288,14 +311,16 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
     if (history.length === 0) return
 
     // 起始域只在第一次落库时定下来 —— 见 `sessionSurface` 的头注。
-    const surface =
-      current.sessionSurface ?? ASSISTANT_SURFACE_BY_DOMAIN[current.domain]
+    const surface = projectId
+      ? ASSISTANT_SURFACE_IDS.nodeCanvas
+      : (current.sessionSurface ?? ASSISTANT_SURFACE_BY_DOMAIN[current.domain])
 
     savingRef.current = true
     try {
       const result = await upsertAssistantConversationAPI({
         ...(current.sessionId ? { id: current.sessionId } : {}),
         surface,
+        ...(projectId ? { projectId } : {}),
         messages: toStoredOperatorMessages(history),
       })
       if (
@@ -326,7 +351,7 @@ export function useStudioOperatorHistory(): UseStudioOperatorHistoryResult {
         void save()
       }
     }
-  }, [refreshSessions])
+  }, [projectId, refreshSessions])
 
   /**
    * 写入时机 = **一条防抖**。

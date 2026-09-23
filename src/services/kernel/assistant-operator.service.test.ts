@@ -11223,6 +11223,42 @@ describe('current reference image bindings', () => {
     ).toBe(true)
   })
 
+  it('tells the model a second reference prompt write is skipped because the first is already on the form', async () => {
+    const turns = analysisTurns()
+    turns.push(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '写提示词',
+          args: { value: 'A hug in a forest' },
+        },
+      },
+      brief,
+      { issues: [] },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '再写一遍',
+          args: { value: 'An embrace in the woods' },
+        },
+      },
+      { finished: true, message: '写好了。' },
+    )
+    queueTurns(...turns)
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('set_prompt was skipped (repeatedStep)')
+    expect(prompt).toContain('ALREADY ON THE FORM')
+    expect(prompt).not.toContain('set_prompt was REFUSED (repeatedStep)')
+  })
+
   it('tells the model a repeated write already succeeded instead of calling it refused', async () => {
     const write = {
       tool: {

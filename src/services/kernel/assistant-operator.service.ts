@@ -3618,7 +3618,7 @@ async function planSetText(
   if (needsReferenceReview && run.referencePromptWritten) {
     return reject(
       REJECT.repeatedStep,
-      'A checked reference prompt was already written in this run. Finish now; wait for new creator instructions before changing it again.',
+      'Not a failure: your reference-checked prompt is ALREADY ON THE FORM (it was written earlier this run) and stays as written. Do not rewrite it again this run, and do not tell the creator it failed or that the old prompt is still there. Carry on with whatever else the request needs (specs, the confirm card), then close.',
     )
   }
   if (needsReferenceReview) {
@@ -9886,8 +9886,9 @@ export async function* runAssistantOperator(
             ...(plan.detail ? { detail: plan.detail } : {}),
           },
         })
+        // ⚠ 重复步不是失败：念成 REFUSED，模型会对创作者说「没写进去」（2026-09-24 真机）。
         run.observations.push(
-          `${name} was REFUSED (${plan.reason})${
+          `${name} ${plan.reason === REJECT.repeatedStep ? 'was skipped' : 'was REFUSED'} (${plan.reason})${
             plan.detail ? `: ${plan.detail}` : ''
           }.${plan.reason === REJECT.referenceAnalysisRequired ? '' : ' Do not retry it unchanged.'}`,
         )

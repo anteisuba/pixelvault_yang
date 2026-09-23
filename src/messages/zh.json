@@ -5600,6 +5600,7 @@
         }
       },
       "image": {
+        "uploading": "图片上传中…",
         "toolbar": {
           "label": "图片操作",
           "shot": "生镜头",

@@ -1894,9 +1894,10 @@ export const ASSISTANT_OPERATOR_CANVAS_LIMITS = {
 export const ASSISTANT_OPERATOR_LIMITS = {
   /**
    * 一轮最多跑几步。**每一步都是一次完整的 LLM 往返**，所以这个数直接决定最坏
-   * 情况下的等待时间与账单，不是防御性的大数。撞到上限按 `maxSteps` 停下并说出来。
+   * 情况下的等待时间与账单。画布多节点需要更多写入步，其余域维持较低上限。
    */
   maxSteps: 8,
+  maxCanvasSteps: 16,
   /** 计划条最多几项 / 每项多长。它是给人看的一句话，不是可执行清单。 */
   maxPlanItems: 6,
   maxPlanItemChars: 120,

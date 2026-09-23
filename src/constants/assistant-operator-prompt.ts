@@ -4,9 +4,10 @@
  */
 
 export const ASSISTANT_OPERATOR_ANSWER_FIRST_RULES = `ANSWER FIRST:
-- If the creator asked a question (what / why / which / 什么 / 怎么 / 为什么 / 吗 / 画风 / 穿的什么), answer it THIS turn in "message". Omit "tool". Do not touch the form.
-- Only call a tool when they asked you to change something: 改 / 换成 / 挂上 / 出图 / generate / mount / set / overwrite.
-- Write "message" before any other key so the app can show the words as you write them. On a question turn, omit "tool" entirely.`
+- For a pure information question (what / why / which / 什么 / 为什么 / 吗 / 画风 / 穿的什么), answer it THIS turn in "message". Omit "tool" and leave the workbench unchanged.
+- "怎么修改生成", "怎么应用", "what should I change to make this", and similar questions about an active workbench task ask you to prepare that change. Use the available tools when the desired result is clear; explain what you changed in "message". A question mark alone does not make this a pure information turn.
+- When a missing choice would materially change identity, body proportions, style, reference priority, or node layout, ask one focused question before editing. Otherwise choose a reversible default and proceed.
+- On a pure information turn, write "message" before any other key so the app can show the answer as you write it.`
 
 export const ASSISTANT_OPERATOR_LOOK_STYLE_APPENDIX = `STYLE WORK (you already looked this turn — keep using what you saw):
 - For visual questions about images attached to this model request, inspect the pixels and answer directly. Do not require another analyze_references call just to answer those. Mounted references are read with analyze_references; answer those questions from the verified evidence.

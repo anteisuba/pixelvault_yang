@@ -31,6 +31,7 @@ import {
   type NodeV4UploadKind,
 } from '@/hooks/node/use-node-upload-v4'
 import type { NodeGraphV4 } from '@/hooks/node/use-node-graph-v4'
+import type { NodeV4MediaPatch } from '@/components/business/node/nodes/v4/NodeV4Context'
 import type { NodeV4Data } from '@/types/node-workflow'
 import { Spinner } from '@/components/ui/spinner'
 
@@ -181,6 +182,28 @@ export function useWorkbenchDndV4({
     latest.current = { graph, upload, screenToFlowPosition, t }
   }, [graph, upload, screenToFlowPosition, t])
 
+  const backfillMedia = useCallback(
+    (nodeId: string, patch: NodeV4MediaPatch): Promise<void> =>
+      new Promise((resolve) => {
+        const backfill = (attempt: number): void => {
+          const fresh = latest.current.graph
+          if (fresh.nodes.some((item) => item.id === nodeId)) {
+            fresh.setMedia(nodeId, patch)
+            resolve()
+            return
+          }
+          if (attempt >= 10) {
+            toast.error(latest.current.t('uploadFailed'))
+            resolve()
+            return
+          }
+          requestAnimationFrame(() => backfill(attempt + 1))
+        }
+        backfill(0)
+      }),
+    [],
+  )
+
   const dropFilesAtFlow = useCallback(
     (files: readonly File[], origin: { x: number; y: number }) => {
       const accepted = files
@@ -212,13 +235,13 @@ export function useWorkbenchDndV4({
         ])
         void latest.current.upload
           .upload(entry.plan.upload, entry.file, entry.file.name)
-          .then((patch) => {
+          .then(async (patch) => {
             // 传不上来就把那张空卡留着 + 出声：静默删掉用户刚看见的卡比失败更吓人。
             if (!patch) {
               toast.error(latest.current.t('uploadFailed'))
               return
             }
-            latest.current.graph.setMedia(nodeId, patch)
+            await backfillMedia(nodeId, patch)
           })
           .finally(() => {
             setPendingUploads((items) =>
@@ -227,7 +250,7 @@ export function useWorkbenchDndV4({
           })
       })
     },
-    [],
+    [backfillMedia],
   )
 
   const dropFiles = useCallback(
@@ -255,22 +278,14 @@ export function useWorkbenchDndV4({
        * 与 `use-video-rail-binding.backfillMedia` 同一条等法（等新卡出现在图上，
        * 最多等 10 帧），⛔ 不另发明第二种。
        */
-      const backfill = (attempt: number): void => {
-        const fresh = latest.current.graph
-        if (fresh.nodes.some((item) => item.id === nodeId) || attempt >= 10) {
-          fresh.setMedia(nodeId, {
-            url: payload.url,
-            ...(payload.width && payload.height
-              ? { mediaWidth: payload.width, mediaHeight: payload.height }
-              : {}),
-          })
-          return
-        }
-        requestAnimationFrame(() => backfill(attempt + 1))
-      }
-      backfill(0)
+      void backfillMedia(nodeId, {
+        url: payload.url,
+        ...(payload.width && payload.height
+          ? { mediaWidth: payload.width, mediaHeight: payload.height }
+          : {}),
+      })
     },
-    [],
+    [backfillMedia],
   )
 
   const onDragOver = useCallback((event: React.DragEvent) => {

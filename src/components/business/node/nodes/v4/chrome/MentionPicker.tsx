@@ -171,8 +171,8 @@ const QUERY_TERMINATORS = /[\s,.;:!?，。；：！？、）)】\]」』@]/
 /**
  * 光标处在不在一个 `@` 查询里？**纯函数**（无 DOM），供提示词栏与测试共用。
  *
- * 判据：从光标往回找最近的 `@`，中间不能有终止符；`@` 前面必须是行首或空白 /
- * 标点 —— 否则 `a@b.com` 里那个 `@` 也会弹候选。
+ * 判据：从光标往回找最近的 `@`，中间不能有终止符；`@` 前面可以是中文和图号，
+ * 但不能接在 ASCII 单词后面，避免邮箱里也弹候选。
  */
 export function readMentionQuery(
   value: string,
@@ -182,8 +182,8 @@ export function readMentionQuery(
   for (let index = at - 1; index >= 0; index -= 1) {
     const char = value[index] ?? ''
     if (char === '@') {
-      const before = index > 0 ? (value[index - 1] ?? '') : ''
-      if (before !== '' && !QUERY_TERMINATORS.test(before)) return null
+      const beforeWord = value.slice(0, index).match(/[A-Za-z0-9_]+$/)?.[0]
+      if (beforeWord && /[A-Za-z_]/.test(beforeWord)) return null
       return { start: index, query: value.slice(index + 1, at) }
     }
     if (QUERY_TERMINATORS.test(char)) return null

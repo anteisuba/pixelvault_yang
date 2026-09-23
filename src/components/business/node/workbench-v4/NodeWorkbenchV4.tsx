@@ -1165,6 +1165,7 @@ function NodeWorkbenchV4Inner() {
           <NodeV4Provider
             graph={graph}
             modelOptionsByKind={modelOptionsByKind}
+            pendingUploads={dnd.pendingUploads}
             onFocusNode={focusNode}
             onDeriveFromText={deriveFromText}
           >
@@ -1246,6 +1247,7 @@ function NodeWorkbenchV4Inner() {
             <NodeV4Provider
               graph={graph}
               modelOptionsByKind={modelOptionsByKind}
+              pendingUploads={dnd.pendingUploads}
               onFocusNode={focusNode}
               onDeriveFromText={deriveFromText}
             >

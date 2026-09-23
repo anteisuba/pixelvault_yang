@@ -5600,6 +5600,7 @@
         }
       },
       "image": {
+        "uploading": "画像をアップロード中…",
         "toolbar": {
           "label": "画像操作",
           "shot": "カット生成",

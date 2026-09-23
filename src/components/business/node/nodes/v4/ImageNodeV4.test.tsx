@@ -186,6 +186,19 @@ describe('卡宽卡高随媒体比例', () => {
 })
 
 describe('空卡 / 有图两态', () => {
+  it('拖入本地图片后，新节点在上传完成前显示加载态', () => {
+    renderImage(
+      harness([imageNode('i_1')], {
+        pendingUploads: [{ id: 'i_1', name: 'sample.png' }],
+      }),
+    )
+    expect(
+      document.querySelector('[data-image-surface="uploading"]'),
+    ).not.toBeNull()
+    expect(screen.getByRole('status')).toHaveTextContent('uploading')
+    expect(document.querySelector('[data-node-card-add]')).toBeNull()
+  })
+
   it('空卡是虚线框 + 加号 + 一句提示，⛔ 没有图', () => {
     renderImage(harness([imageNode('i_1')]))
     const card = screen.getByTestId

@@ -1145,7 +1145,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           domain,
           snapshot,
           ...(domain === 'canvas'
-            ? { stepBudget: ASSISTANT_OPERATOR_LIMITS.maxSteps - canvasSteps }
+            ? {
+                stepBudget:
+                  ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps - canvasSteps,
+              }
             : {}),
           referenceProfiles: readOperatorReferenceProfiles(entries, history),
           /**
@@ -1703,7 +1706,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       flushPlanEntry()
       dropOperatorPending(messageEntryId())
       if (controller.signal.aborted) return
-      if (canvasSync && canvasSteps < ASSISTANT_OPERATOR_LIMITS.maxSteps) {
+      if (
+        canvasSync &&
+        canvasSteps < ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps
+      ) {
         runRef.current?.({ ...options, canvasSteps, planApproved: true })
         return
       }

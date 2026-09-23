@@ -1452,7 +1452,7 @@ export type AssistantOperatorLoraPickCandidate = z.infer<
 >
 
 export const AssistantOperatorRequestSchema = z.object({
-  stepBudget: z.number().int().min(1).max(LIMITS.maxSteps).optional(),
+  stepBudget: z.number().int().min(1).max(LIMITS.maxCanvasSteps).optional(),
   referenceProfiles: ReferenceProfilesSchema.optional(),
   messages: z.array(AssistantOperatorMessageSchema).min(1),
   mediaAttachments: z

@@ -55,7 +55,10 @@ describe('readMentionQuery', () => {
 
   it('`@` 前面是普通字符（邮箱）不弹；中间遇到空白就断', () => {
     expect(readMentionQuery('a@b', 3)).toBeNull()
+    expect(readMentionQuery('name123@图', 9)).toBeNull()
     expect(readMentionQuery('@图 的运镜', 5)).toBeNull()
+    expect(readMentionQuery('参考图11@', 6)).toEqual({ start: 5, query: '' })
+    expect(readMentionQuery('角色@图', 4)).toEqual({ start: 2, query: '图' })
   })
 })
 

@@ -1404,72 +1404,86 @@ export function StudioOperatorPanel({
           ) : null}
         </div>
       ))
+      const compactCanvasChanges =
+        roundDone &&
+        changeCountInRound > 0 &&
+        lastToolsBlock === block.steps[0]?.id &&
+        failed === 0 &&
+        !running &&
+        !researchSummary &&
+        block.steps.every(
+          (item) => item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+        )
       return (
         <div
           key={`tools:${block.runKey}:${block.steps[0]?.id}`}
           /* 面板顶部那条钉住常驻条点回来的锚点（`jumpToResearch`）。 */
           data-research-run={block.runKey}
         >
-          <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.evidence}>
-            {
-              /**
-               * ⭐ **调查卡退场**（56b 切片 1）：这一轮查到的结论与证据现在长在
-               * **回答底下**（来源卡 + 媒体条，`StudioOperatorMessageBody`），过程
-               * 留在这一折里。⛔ 别把那张卡找回来 —— 它把证据摆在回答**前面**，
-               * 读起来是「先看完它的过程，再看它说了什么」。
-               * ⭐ **查过东西的那一组换成调查行**（56b 切片 2）：跑着是一行微光，
-               * 跑完收成灰底一行「搜了 N 条 · 读了 M 页」，点它才展开步骤。
-               * ⚠ 有失败步时**退回 ToolGroup**：那一行上没有失败的位置，而失败
-               * 恰恰是那一刻唯一要读的东西。
-               */
-              researchSummary && failed === 0 ? (
-                <StudioOperatorResearchProgress
-                  depth={researchSummary.depth}
-                  running={running}
-                  found={researchSummary.found}
-                  readPages={researchSummary.readPages}
-                >
-                  {logItems}
-                </StudioOperatorResearchProgress>
-              ) : (
-                <StudioOperatorToolGroup
-                  total={block.steps.length}
-                  failed={failed}
-                  skipped={skipped}
-                  running={running}
-                  runningTitle={
-                    block.steps.findLast(
-                      (item) => item.step.status === 'running',
-                    )?.step.title
-                  }
-                  failure={
-                    lastToolsBlock === block.steps[0]?.id &&
-                    blocker?.status === 'error' ? (
-                      <>
-                        <p className="font-medium">
-                          {blocker.tool ===
-                          ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
-                            ? t('toolGroup.promptUnchanged')
-                            : t('toolGroup.blocked')}
-                        </p>
-                        <p className="mt-1 text-muted-foreground">
-                          {blocker.error.reason === 'promptConflict' &&
-                          blocker.error.detail
-                            ? blocker.error.detail
-                            : t(`reject.${blocker.error.reason}`)}
-                        </p>
-                        <p className="mt-1 text-muted-foreground">
-                          {t('toolGroup.inspectFailure')}
-                        </p>
-                      </>
-                    ) : null
-                  }
-                >
-                  {logItems}
-                </StudioOperatorToolGroup>
-              )
-            }
-          </StudioOperatorTimelineRow>
+          {!compactCanvasChanges ? (
+            <StudioOperatorTimelineRow
+              card={STUDIO_OPERATOR_CARD_KINDS.evidence}
+            >
+              {
+                /**
+                 * ⭐ **调查卡退场**（56b 切片 1）：这一轮查到的结论与证据现在长在
+                 * **回答底下**（来源卡 + 媒体条，`StudioOperatorMessageBody`），过程
+                 * 留在这一折里。⛔ 别把那张卡找回来 —— 它把证据摆在回答**前面**，
+                 * 读起来是「先看完它的过程，再看它说了什么」。
+                 * ⭐ **查过东西的那一组换成调查行**（56b 切片 2）：跑着是一行微光，
+                 * 跑完收成灰底一行「搜了 N 条 · 读了 M 页」，点它才展开步骤。
+                 * ⚠ 有失败步时**退回 ToolGroup**：那一行上没有失败的位置，而失败
+                 * 恰恰是那一刻唯一要读的东西。
+                 */
+                researchSummary && failed === 0 ? (
+                  <StudioOperatorResearchProgress
+                    depth={researchSummary.depth}
+                    running={running}
+                    found={researchSummary.found}
+                    readPages={researchSummary.readPages}
+                  >
+                    {logItems}
+                  </StudioOperatorResearchProgress>
+                ) : (
+                  <StudioOperatorToolGroup
+                    total={block.steps.length}
+                    failed={failed}
+                    skipped={skipped}
+                    running={running}
+                    runningTitle={
+                      block.steps.findLast(
+                        (item) => item.step.status === 'running',
+                      )?.step.title
+                    }
+                    failure={
+                      lastToolsBlock === block.steps[0]?.id &&
+                      blocker?.status === 'error' ? (
+                        <>
+                          <p className="font-medium">
+                            {blocker.tool ===
+                            ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
+                              ? t('toolGroup.promptUnchanged')
+                              : t('toolGroup.blocked')}
+                          </p>
+                          <p className="mt-1 text-muted-foreground">
+                            {blocker.error.reason === 'promptConflict' &&
+                            blocker.error.detail
+                              ? blocker.error.detail
+                              : t(`reject.${blocker.error.reason}`)}
+                          </p>
+                          <p className="mt-1 text-muted-foreground">
+                            {t('toolGroup.inspectFailure')}
+                          </p>
+                        </>
+                      ) : null
+                    }
+                  >
+                    {logItems}
+                  </StudioOperatorToolGroup>
+                )
+              }
+            </StudioOperatorTimelineRow>
+          ) : null}
           {roundDone &&
           changeCountInRound > 0 &&
           lastToolsBlock === block.steps[0]?.id ? (
@@ -1479,6 +1493,9 @@ export function StudioOperatorPanel({
                 count={changeCountInRound}
                 fieldSummary={changeLabelKeys.map((key) => t(key)).join(' · ')}
                 onRevert={handleCheckpointRevert}
+                {...(compactCanvasChanges
+                  ? { details: logItems, detailsCount: block.steps.length }
+                  : {})}
                 {...(resumeStepNumber !== null && block.runKey === latestRunKey
                   ? {
                       resume: {

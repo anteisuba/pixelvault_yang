@@ -270,6 +270,78 @@ function render() {
 }
 
 describe('useAssistantOperator 的四条收尾路径', () => {
+  it('连续布置多个画布节点时逐步续接最新快照', async () => {
+    hostDomain.current = 'canvas'
+    const nodes: { id: string; name: string; kind: string; subtype: string }[] =
+      []
+    canvasApply.mockImplementation(() => {
+      const index = nodes.length + 1
+      nodes.push({
+        id: `node-${index}`,
+        name: `节点${index}`,
+        kind: 'image',
+        subtype: 'shot',
+      })
+      hostSnapshot.current = {
+        prompt: '',
+        availableModels: [],
+        canvas: {
+          currentShotNo: null,
+          selectedNodeIds: [],
+          shots: [
+            {
+              expanded: true,
+              shotNo: null,
+              title: 'Unassigned',
+              nodes: [...nodes],
+            },
+          ],
+        },
+      }
+      return true
+    })
+
+    const { result } = render()
+    act(() => result.current.send('布置三个节点'))
+    await settle()
+
+    for (let index = 0; index < 3; index += 1) {
+      streams[index].emit({
+        type: 'step',
+        step: {
+          id: `step-${index + 1}`,
+          title: `创建节点${index + 1}`,
+          tool: 'canvas_apply',
+          verb: 'apply',
+          status: 'done',
+          payload: {
+            op: 'add_node',
+            kind: 'image',
+            subtype: 'shot',
+            name: `节点${index + 1}`,
+          },
+          inverse: { op: 'delete', nodeRef: 'add_node' },
+        },
+      })
+      streams[index].emit({ type: 'stopped', reason: 'canvas_sync' })
+      streams[index].close()
+      await settle()
+      expect(
+        streamAssistantOperatorAPI.mock.calls[index + 1]?.[0],
+      ).toMatchObject({
+        stepBudget: 15 - index,
+      })
+      expect(
+        JSON.stringify(streamAssistantOperatorAPI.mock.calls[index + 1]?.[0]),
+      ).toContain(`node-${index + 1}`)
+    }
+
+    expect(canvasApply).toHaveBeenCalledTimes(3)
+    streams[3].emit({ type: 'done' })
+    streams[3].close()
+    await settle()
+  })
+
   it.each([true, false])(
     '画布落地=%s：仅成功时带新节点快照续接，失败不冒充完成',
     async (landed) => {
@@ -328,7 +400,7 @@ describe('useAssistantOperator 的四条收尾路径', () => {
       expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(landed ? 2 : 1)
       if (landed) {
         expect(streamAssistantOperatorAPI.mock.calls[1][0]).toMatchObject({
-          stepBudget: 7,
+          stepBudget: 15,
         })
         expect(
           JSON.stringify(streamAssistantOperatorAPI.mock.calls[1][0]),

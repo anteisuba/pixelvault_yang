@@ -32,11 +32,19 @@ describe('画布文件上传状态', () => {
       () => new Promise((resolve) => completions.push(resolve)),
     )
     const setMedia = vi.fn()
+    const nodes: Array<{ id: string }> = []
     const graph = {
+      nodes,
       addNode: vi
         .fn()
-        .mockReturnValueOnce('image-1')
-        .mockReturnValueOnce('audio-2'),
+        .mockImplementationOnce(() => {
+          nodes.push({ id: 'image-1' })
+          return 'image-1'
+        })
+        .mockImplementationOnce(() => {
+          nodes.push({ id: 'audio-2' })
+          return 'audio-2'
+        }),
       setMedia,
     } as unknown as NodeGraphV4
     const { result } = renderHook(() =>

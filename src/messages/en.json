@@ -5600,6 +5600,7 @@
         }
       },
       "image": {
+        "uploading": "Uploading image…",
         "toolbar": {
           "label": "Image actions",
           "shot": "New shot",

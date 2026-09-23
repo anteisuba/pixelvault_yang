@@ -2592,7 +2592,10 @@ async function planResearch(
       result: {
         totalFound: evidence.length,
         ...(conclusion ? { conclusion } : {}),
-        evidence,
+        evidence: evidence.map((item) => ({
+          ...item,
+          snippet: clamp(item.snippet, RESEARCH_LIMITS.maxEvidenceSnippetChars),
+        })),
       },
       observation,
     }),
@@ -7450,6 +7453,12 @@ ${buildAssistantPlanVisualCatalog()}
   When the choice is "which reference image", put the asset URL in "assetUrl" instead — the thumbnail IS the option.`
 }
 
+function operatorStepBudget(request: AssistantOperatorRequest): number {
+  const limit =
+    request.domain === 'canvas' ? LIMITS.maxCanvasSteps : LIMITS.maxSteps
+  return Math.min(request.stepBudget ?? limit, limit)
+}
+
 function buildOperatorSystemPrompt(
   request: AssistantOperatorRequest,
   persona: AssistantPersona,
@@ -7515,6 +7524,9 @@ function buildOperatorSystemPrompt(
    * 而这个域也没有那条工具。一条说不通的规矩会让模型去找一条不存在的路。
    */
   const domainRules = [
+    request.domain === 'canvas'
+      ? '- CANVAS WORK: For a request involving several nodes, plan the full set of nodes and links, then apply one operation at a time. After each canvas_sync, read the fresh canvas state and continue until the requested nodes, references and links are present; if you cannot finish, name exactly which parts remain. When a generated result differs from the references, compare the actual result with the source images before changing prompts. State which image supplies identity, body proportions and rendering style. Never promise exact preservation from a prompt alone.'
+      : null,
     request.domain === 'lora'
       ? '- LORA VISUAL WORK: use analyze_references to inspect mounted source images before adapting their visual details into a prompt. Reuse complete visual evidence for unchanged image URLs. Separate character identity, composition and rendering style; translate these facts into the selected base family dialect, not @Image tokens in the diffusion prompt. Use critique_result on a result explicitly @-mentioned by the creator, comparing it with source references and the stated goal. Source images are references, never failed generations.'
       : null,
@@ -7603,7 +7615,7 @@ ${ASSISTANT_OPERATOR_ANSWER_FIRST_RULES}
 WHAT THIS DOMAIN TURNS ON — check these are settled before you arm anything. Do not quiz the creator about them when they only asked a question:
 ${slots}
 
-On an action turn you press the knobs. On a question turn you answer in "message" and stop.
+Treat "how should I change/generate this?" in the current workbench as a request to prepare the change when the desired result is clear. Answer pure information questions in "message" and stop. If a missing creative choice would materially change the result, ask one focused question before changing the workbench.
 
 YOU HAVE FIVE TOOLS, one per verb: look / research / ask / apply / request_generation. Pick the verb that matches what you are about to do, and name the specific move in "action" — every rule below that mentions a move like set_prompt, search_web or mount_reference means that "action" value, never a tool name of its own.
 
@@ -7625,7 +7637,7 @@ ${domainRules}
 
 HOW YOU TALK — the creator hired an operator, not a rulebook:
 - NEVER recite your own constraints to them. Not what you cannot do, not why, not "as I mentioned". They did not ask for the manual, and repeating it makes them do the thinking you were hired for.
-- On an action turn, if a tool in your list can do the thing, DO IT. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The generate button itself stays theirs. On a question turn, answer in "message" instead of calling a tool.
+- On an action turn, if a tool in your list can do the thing, DO IT. Never hand that job back — no "please click", "please paste", "please find", "please go to the log and pick". The generate button itself stays theirs. For a pure information question, answer in "message" instead of calling a tool.
 - When a call is refused, change the approach silently. Say what you are doing next, not which rule stopped you. Never explain the same rule twice.
 - Never repeat a tool call you already made this turn — the same call with the same arguments is refused, and a second refusal ends your turn early.${buildPersonaStyleSection(persona)}${buildCreatorSection(
     persona,
@@ -7641,7 +7653,7 @@ OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outsi
 {"plan":["short step","short step"],"tool":{"name":"apply","title":"one short line for the log","reason":"why, in one line","args":{"action":"set_prompt","value":"..."}},"message":"what you are telling the creator","detail":"the reasoning, if it is worth reading","finished":false}
 
 - "tool"."name" is ALWAYS one of the five verbs. Everything else about the call goes in "args": "action" says which move, and the rest of "args" is that move's own arguments, flat beside it. Writing a move's name in "name" is refused and costs you a step.
-- ASKING is a tool call too: {"tool":{"name":"ask","args":{"question":"Which look are you after?","header":"Look","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}}}. It ENDS your turn: the app shows the question and waits for their tap. Use it only when their words genuinely fit two or more clearly different jobs; when you can guess at eight in ten, just do it and say in your reply which reading you went with. One question at a time.
+- ASKING is a tool call too: {"tool":{"name":"ask","args":{"question":"Which look are you after?","header":"Look","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}}}. It ENDS your turn: the app shows the question and waits for their tap. Ask when two plausible interpretations would produce materially different identity, body proportions, style, reference priority, or node layout, and the current references cannot settle it. Ask one focused question rather than silently choosing a consequential interpretation. For minor reversible details, choose a reasonable default and state it. One question at a time.
 - "confirmPlan":true on your FIRST turn when what you are about to do is a run the creator would want to green-light first — a string of moves, or one that writes over something of theirs. The app shows the plan and waits. Leave it out otherwise; a card in front of a single obvious edit is pure interruption.
 
 - "plan" only on your FIRST turn, at most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
@@ -7652,7 +7664,7 @@ OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outsi
 - "detail" is where reasoning goes. The app folds it away behind a "why" the creator can open, so "message" stays short and "detail" carries the explanation, the trade-offs, what you found and rejected. Omit it when there is nothing worth opening — an empty "why" is worse than none.
 - KEY ORDER: on a question turn, write "message" first and omit "tool". On an action turn, write "tool" before "message" if you are calling one.
 - Omit "tool" (or set "finished":true) when the work is done. Do that as soon as the form is ready — an extra step costs the creator time.
-- One tool per turn. You get at most ${request.stepBudget ?? LIMITS.maxSteps} steps for this request.
+- One tool per turn. You get at most ${operatorStepBudget(request)} steps for this request.
 - After each tool you will be told what actually happened. If a call was refused, read the reason and adapt — do not repeat the same call.${lookAppendix}${researchAppendix}`
 }
 
@@ -9031,11 +9043,7 @@ export async function* runAssistantOperator(
         }
       }
     }
-    for (
-      let index = 0;
-      index < (request.stepBudget ?? LIMITS.maxSteps);
-      index += 1
-    ) {
+    for (let index = 0; index < operatorStepBudget(request); index += 1) {
       if (options.signal?.aborted) {
         yield {
           type: ASSISTANT_OPERATOR_EVENTS.stopped,

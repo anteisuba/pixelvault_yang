@@ -83,6 +83,7 @@ export interface NodeV4CanvasContextValue {
    * 的同一条判据）。
    */
   readonly selectedNodeIds: readonly string[]
+  readonly pendingUploads?: readonly { id: string; name: string }[]
   onToggleExpanded(nodeId: string): void
   onSelectSlotVersion(nodeId: string, slot: NodeSlotId, versionId: string): void
   onDisconnectSlot(nodeId: string, slot: NodeSlotId, versionId: string): void

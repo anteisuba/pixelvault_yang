@@ -64,6 +64,7 @@ export interface NodeV4ProviderProps {
   readonly changedNodeIds?: readonly string[]
   /** ReactFlow 的选中集。多选时各卡收起自己的工具条。 */
   readonly selectedNodeIds?: readonly string[]
+  readonly pendingUploads?: readonly { id: string; name: string }[]
   /** 生成编排区的模型清单，按 kind 分档（`useWorkflowModelOptions` 的产物）。 */
   readonly modelOptionsByKind?: Partial<
     Record<NodeWorkflowMediaKind, NodeWorkflowModelOption[]>
@@ -80,6 +81,7 @@ export function NodeV4Provider({
   draggingFrom = null,
   changedNodeIds,
   selectedNodeIds,
+  pendingUploads,
   modelOptionsByKind,
   onFocusNode,
   onDeriveFromText,
@@ -191,6 +193,7 @@ export function NodeV4Provider({
       draggingFrom,
       changedNodeIds: changedNodeIds ?? [],
       selectedNodeIds: selectedNodeIds ?? engine.selectedNodeIds,
+      pendingUploads,
       expandedNodeId: engine.expandedNodeId,
       modelOptionsByKind: modelOptionsByKind ?? {},
       onToggleExpanded,
@@ -221,6 +224,7 @@ export function NodeV4Provider({
       draggingFrom,
       changedNodeIds,
       selectedNodeIds,
+      pendingUploads,
       modelOptionsByKind,
       onToggleExpanded,
       onSelectSlotVersion,

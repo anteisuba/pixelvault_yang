@@ -28,6 +28,7 @@
 import { NodeToolbar as FlowNodeToolbar, Position } from '@xyflow/react'
 import type { NodeProps } from '@xyflow/react'
 import { useTranslations } from 'next-intl'
+import { Spinner } from '@/components/ui/spinner'
 
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useCallback, useEffect, useRef, useState } from 'react'
@@ -130,6 +131,7 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
   const generation = useNodeMediaGenerationV4()
   const upload = useNodeUploadV4()
   const imageData = data as unknown as NodeV4ImageData
+  const pendingUpload = canvas.pendingUploads?.find((item) => item.id === id)
   /** 别人「连到镜头」连到这张卡时那一下高亮（spec §1.13）。 */
   const flashed = useNodeCardFlash(id)
 
@@ -595,6 +597,16 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
               />
             )}
           </div>
+        ) : pendingUpload || upload.isUploading ? (
+          <div
+            data-image-surface="uploading"
+            role="status"
+            className="flex flex-col items-center justify-center gap-2 rounded-node bg-surface-fill-track text-sm text-muted-foreground"
+            style={{ height: emptyCardHeight(width) }}
+          >
+            <Spinner className="size-5" aria-hidden />
+            <span>{tImage('uploading')}</span>
+          </div>
         ) : generating ? (
           <div
             data-image-surface="pending"
@@ -669,7 +681,9 @@ export function ImageNodeV4({ id, data, selected }: NodeProps) {
                       : () => fileRef.current?.click()
                   }
                   onMention={() => {
-                    setDraft(`${draft}@`)
+                    setDraft(
+                      `${draft}${draft && !/[\s,.;:!?，。；：！？、）)】\]」』]$/.test(draft) ? ' ' : ''}@`,
+                    )
                     window.setTimeout(() => promptInputRef.current?.focus(), 0)
                   }}
                   onLibrary={

@@ -1051,6 +1051,24 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     expect(screen.getAllByTestId('operator-tool-group')).toHaveLength(2)
     expect(screen.getAllByTestId('operator-checkpoint')).toHaveLength(1)
   })
+
+  it('成功的画布修改只显示一条改动记录，步骤收在里面', () => {
+    pushStep('run-canvas', {
+      id: 'canvas-step',
+      title: '创建图片节点',
+      tool: 'canvas_apply',
+      verb: 'apply',
+      status: 'done',
+      payload: { op: 'add_node', kind: 'image', subtype: 'shot' },
+      inverse: { op: 'delete', nodeRef: 'add_node' },
+    })
+    renderPanel()
+
+    const checkpoint = screen.getByTestId('operator-checkpoint')
+    expect(screen.queryByTestId('operator-tool-group')).toBeNull()
+    expect(checkpoint.querySelector('details')).toBeTruthy()
+    expect(checkpoint.querySelector('summary')).toBeTruthy()
+  })
 })
 
 /**

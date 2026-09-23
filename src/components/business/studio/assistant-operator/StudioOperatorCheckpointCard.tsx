@@ -17,7 +17,7 @@
  * 只负责就地把自己变成「已撤销 · ××」—— 两处都写会得到两行通报。
  */
 
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
@@ -60,6 +60,8 @@ interface StudioOperatorCheckpointCardProps {
   onRevert(runKey: string, choice: StudioOperatorRevertChoice): void
   /** 见 `StudioOperatorCheckpointResume`。 */
   resume?: StudioOperatorCheckpointResume
+  details?: ReactNode
+  detailsCount?: number
 }
 
 export function StudioOperatorCheckpointCard({
@@ -68,6 +70,8 @@ export function StudioOperatorCheckpointCard({
   fieldSummary,
   onRevert,
   resume,
+  details,
+  detailsCount,
 }: StudioOperatorCheckpointCardProps) {
   const t = useTranslations('StudioOperator')
   const [choosing, setChoosing] = useState(false)
@@ -173,6 +177,16 @@ export function StudioOperatorCheckpointCard({
             {t('resume.continue', { step: resume.stepNumber })}
           </button>
         </span>
+      ) : null}
+      {details ? (
+        <details className="basis-full border-t border-border/60 pt-1 text-muted-foreground">
+          <summary className="cursor-pointer text-xs hover:text-foreground">
+            {t('toolGroup.details', { count: detailsCount ?? 0 })}
+          </summary>
+          <div className="mt-2 flex flex-col gap-2 border-l border-border pl-3">
+            {details}
+          </div>
+        </details>
       ) : null}
     </div>
   )

@@ -980,7 +980,7 @@ describe('工具环 · 逐事件顺序', () => {
     expect(stepsOf(events)).toHaveLength(0)
   })
 
-  it('撞到步数上限时停下来并说出理由，不自动续跑（台账 AH：没有幂等键）', async () => {
+  it('非画布请求即使提交画布步数预算，也会在通常上限停下', async () => {
     /**
      * ⚠ 每一步的参数都**必须不同**（P3-D 之后）：同参重复现在会被
      * `repeatedStep` 拦下并在第二次强制收尾 —— 那条路径由「重复步护栏」那一组
@@ -1001,7 +1001,10 @@ describe('工具环 · 逐事件顺序', () => {
     })
 
     const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest()),
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({ stepBudget: ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps }),
+      ),
     )
     expect(events.at(-1)).toEqual({
       type: ASSISTANT_OPERATOR_EVENTS.stopped,
@@ -1041,6 +1044,9 @@ describe('read_state', () => {
     )
     expect(toolRingCalls()).toHaveLength(1)
     expect(events.at(-1)).toEqual({ type: 'stopped', reason: 'max_steps' })
+    expect(systemPrompt()).toContain(
+      'After each canvas_sync, read the fresh canvas state',
+    )
   })
   it('画布状态向模型公开真实节点、连线与节点写入工具', async () => {
     queueTurns(
@@ -3223,6 +3229,19 @@ describe('域工具表', () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildVideoRequest()))
     expect(systemPrompt()).toContain('what actually moves')
+  })
+
+  it('将当前工作台的修改问题视为行动，并在关键创作意图不明时反问', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
+
+    expect(systemPrompt()).toContain('how should I change/generate this?')
+    expect(systemPrompt()).toContain(
+      'body proportions, style, reference priority',
+    )
+    expect(systemPrompt()).toContain(
+      'A question mark alone does not make this a pure information turn.',
+    )
   })
 
   it('⛔ 视频域调 set_count 被明确拒掉（noSuchControl，不是 malformedArgs）', async () => {
@@ -8057,6 +8076,7 @@ describe('查证与找图两入口（§9，commit #16）', () => {
     expect(done?.payload).toMatchObject({ depth: 'quick', readPages: 1 })
     const result = done?.result as { evidence: { snippet: string }[] }
     expect(result.evidence[0]?.snippet).toContain('三层光怎么叠')
+    expect(result.evidence[0]?.snippet.length).toBeLessThanOrEqual(300)
   })
 
   it('⛔ 读不出来就留着摘要，⛔ 也不在日志上假装读过', async () => {

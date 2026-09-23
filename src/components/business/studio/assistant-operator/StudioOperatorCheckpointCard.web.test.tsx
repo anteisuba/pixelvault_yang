@@ -43,6 +43,23 @@ describe('StudioOperatorCheckpointCard', () => {
     )
   })
 
+  it('成功改动的执行明细收进同一张卡，默认不占时间线高度', () => {
+    render(
+      <StudioOperatorCheckpointCard
+        runKey="run-compact"
+        count={1}
+        fieldSummary="提示词"
+        onRevert={vi.fn()}
+        details={<span>写入节点提示词</span>}
+        detailsCount={1}
+      />,
+    )
+    const details = screen.getByText('写入节点提示词').closest('details')
+    expect(details?.open).toBe(false)
+    fireEvent.click(details!.querySelector('summary')!)
+    expect(details?.open).toBe(true)
+  })
+
   it('点撤销就地展开二选 + 取消，取消能回到原样', () => {
     renderCard()
     fireEvent.click(screen.getByTestId('operator-checkpoint-undo'))

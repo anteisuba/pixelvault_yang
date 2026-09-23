@@ -10509,7 +10509,7 @@ describe('current reference image bindings', () => {
     expect(lastUserPrompt()).toContain('The source-role brief failed schema')
   })
 
-  it('stops on a conflict even when the reference brief had to be rebuilt', async () => {
+  it('sends review gaps back for one rewrite even when the reference brief had to be rebuilt', async () => {
     queueTurns(
       ...analysisTurns(),
       {
@@ -10545,18 +10545,19 @@ describe('current reference image bindings', () => {
         String(input.systemPrompt).includes('Build a reference-use brief'),
       ),
     ).toHaveLength(2)
+    // ⭐ D12 Q3：第一次复核挑出的是写的人漏掉的东西 —— 退回重写，⛔ 不问用户。
     expect(
-      stepsOf(events).filter(
-        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
       ),
-    ).toHaveLength(0)
-    expect(events.at(-1)).toMatchObject({
-      type: 'stopped',
-      reason: 'awaiting_confirm',
-    })
+    ).toBe(true)
+    expect(events.some((event) => event.type === 'ask')).toBe(false)
+    expect(events.at(-1)?.type).toBe('done')
   })
 
-  it('asks at the first conflict before any write or correction attempt', async () => {
+  it('asks only when the same conflict survives one rewrite', async () => {
     const conflict = '图1被写成人物来源，但用户要求保留图2的脸部。'
     queueTurns(
       ...analysisTurns(),
@@ -10599,7 +10600,9 @@ describe('current reference image bindings', () => {
       ),
     )
     const writes = stepsOf(events).filter(
-      (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+        step.status === 'done',
     )
     expect(writes).toHaveLength(0)
     expect(events).toContainEqual(
@@ -10701,7 +10704,19 @@ describe('current reference image bindings', () => {
         },
       },
       { ...brief, uncertainties: uncertainty ? [issue] : [] },
-      ...(!uncertainty ? [{ issues: [issue] }] : []),
+      // ⚠ 复核挑出的问题先退回模型重写一次（D12 Q3），第二次仍对不上才问。
+      ...(!uncertainty
+        ? [
+            { issues: [issue] },
+            {
+              tool: {
+                name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+                args: { value: 'A hug on white, rewritten' },
+              },
+            },
+            { issues: [issue] },
+          ]
+        : []),
     )
     const events = await collect(
       runAssistantOperator(
@@ -11113,7 +11128,7 @@ describe('current reference image bindings', () => {
     expect(stepsOf(events).some((step) => step.status === 'done')).toBe(false)
   })
 
-  it('checks once and asks instead of repeatedly rewriting conflicting prompts', async () => {
+  it('rewrites once, then asks instead of rewriting conflicting prompts again', async () => {
     const turns = analysisTurns()
     for (const value of ['A hug in a forest', 'An embrace in the woods']) {
       turns.push(
@@ -11158,7 +11173,7 @@ describe('current reference image bindings', () => {
       mockLlmTextCompletion.mock.calls.filter(([input]) =>
         input.systemPrompt.includes('Check an image-generation prompt'),
       ),
-    ).toHaveLength(1)
+    ).toHaveLength(2)
     const ask = events.find(
       (event) => event.type === ASSISTANT_OPERATOR_EVENTS.ask,
     )
@@ -11266,6 +11281,13 @@ describe('current reference image bindings', () => {
       },
       brief,
       { issues: [newIssue] },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Night city, rewritten' },
+        },
+      },
+      { issues: [newIssue] },
     )
     const events = await collect(
       runAssistantOperator(
@@ -11315,7 +11337,9 @@ describe('current reference image bindings', () => {
     )
     expect(
       stepsOf(events).filter(
-        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
       ),
     ).toHaveLength(0)
   })

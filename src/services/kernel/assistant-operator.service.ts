@@ -679,6 +679,8 @@ interface OperatorRun {
   referencePromptWritten: boolean
   /** 分工简报两次都没过 schema，这一轮是按兜底分工写的。 */
   referenceBriefDegraded: boolean
+  /** 写入后复核挑出的问题已经退回给模型重写过一次（D12 Q3）。 */
+  promptReviewRetried: boolean
   request: AssistantOperatorRequest
   state: OperatorWorkingState
   /**
@@ -3797,6 +3799,22 @@ async function planSetText(
     const conflict = issues.find(
       (issue) => !creatorChoseFollowRequest(run, issue),
     )
+    /**
+     * ⭐ **复核挑出的第一批问题先退回给模型**（D12 Q3，2026-09-24 真机）：
+     * 「漏写了姿势」「没保留三视图排版」是**写的人**的疏漏，不是创作者要拍板的
+     * 事 —— 此前每一条都变成一道反问，一次换装连问四道。重写一次之后仍然对不上，
+     * 才当成真冲突去问。
+     */
+    if (conflict && !run.promptReviewRetried) {
+      run.promptReviewRetried = true
+      const pending = issues.filter(
+        (issue) => !creatorChoseFollowRequest(run, issue),
+      )
+      return reject(
+        REJECT.promptConflict,
+        `The prompt check found gaps in what you wrote: ${pending.join(' / ')}. Rewrite the FULL prompt fixing all of them and call set_prompt again in this same turn. Do not ask the creator about these — they are omissions in your prompt, not their decision.`,
+      )
+    }
     if (conflict) {
       return {
         kind: 'ask',
@@ -8848,6 +8866,7 @@ export async function* runAssistantOperator(
     referenceAnalysis: null,
     referencePromptWritten: false,
     referenceBriefDegraded: false,
+    promptReviewRetried: false,
     request,
     persona,
     // 进了系统提示的那几条一开始就在索引里 —— 引用它们不必先调一次工具。

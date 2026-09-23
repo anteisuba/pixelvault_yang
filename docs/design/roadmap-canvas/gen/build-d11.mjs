@@ -97,7 +97,6 @@ const mRow = (icon, label, value = null, { chev = false, danger = false } = {}) 
 const ACCOUNT_MENU = `<div style="width:216px;background:#fff;border:1px solid ${BORDER};border-radius:12px;box-shadow:${SH_MENU};padding:5px;box-sizing:border-box">
   <div style="display:flex;align-items:center;gap:9px;padding:7px 9px 9px">${av(32)}<span style="min-width:0;display:flex;flex-direction:column;gap:1px"><span style="font-size:12.5px;font-weight:500">ANTEI</span><span style="font-size:11px;color:${FAINT}">@antei</span></span></div>
   <div style="height:1px;background:${BORDER};margin:0 -5px 5px"></div>
-  ${mRow('moon', '外观', '浅色', { chev: true })}
   ${mRow('globe', '语言', '简体中文', { chev: true })}
   ${mRow('gear', '设置')}
   <div style="height:1px;background:${BORDER};margin:5px -5px"></div>
@@ -127,7 +126,7 @@ const B2 = header('PixelVault · D11 · ④ UI 画板 · 2026-09-20', '账号入
     <tr><td style="font-weight:500">头像点了去哪</td><td>开账号菜单</td><td>它不再是「我的主页」的快捷方式 —— 主页已经是导航里的一项，一件事只留一个家。</td></tr>
     <tr><td style="font-weight:500">「设置」那一行还在吗</td><td>不在，收进菜单</td><td>底部只能有一个常驻入口。两颗并排会让人每次都要挑一次。</td></tr>
     <tr><td style="font-weight:500">语言改完谁来记</td><td>和设置 → 偏好同一个真值</td><td>⛔ 不在菜单里另存一份。两处写同一条路，否则「界面显示的」和「服务端认得的」会开始漂。</td></tr>
-    <tr><td style="font-weight:500">外观（浅 / 深）也进来吗</td><td>进，和语言同构</td><td>它和语言是同一类东西：改完整个壳都变。放一起，⛔ 不各找各的入口。</td></tr>
+    <tr><td style="font-weight:500">外观（浅 / 深）也进来吗</td><td>不进（owner 09-23 定）</td><td>应用没有主题切换机制，菜单只放能真正生效的项；代码 AccountMenu 本就没做这一行，画板随代码删掉。</td></tr>
     <tr><td style="font-weight:500">退出登录</td><td>菜单最底，红字，上有分隔线</td><td>唯一的破坏性项，和上面隔开。⛔ 不做二次确认 —— 退出不丢数据。</td></tr>
   </table></div>`
   + sec('动效', '沿用既有档位，不新开')

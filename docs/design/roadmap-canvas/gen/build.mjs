@@ -155,11 +155,11 @@ const IMAGE = {
       ] },
       { k: 'sub', t: '关键词 / tag · 只留 NovelAI', c: [
         { k: 'chips', items: ['NovelAI V5 Full', 'NovelAI V5 Curated', 'NovelAI V4.5 Full', 'NovelAI V4.5 Curated', { t: 'Illustrious XL (Replicate) · 拟退役', retired: true }, { t: 'FLUX LoRA (fal) · 拟退役', retired: true }] },
-        { k: 'leaf', s: 'partial', t: '已接：文生图 · 单图 img2img · V5 多角色 22 人；未接：inpaint · 质量标签 / UC 预设 · Text: · 采样器 / SMEA · Vibe · Precise Reference · Director Tools · 透明底' },
-        { k: 'leaf', s: 'partial', t: 'PixAI：有官方 REST API（beta，t2i only，loras ≤5）→ 候选 A 类 adapter，先 BYOK，待拍板' },
+        { k: 'leaf', s: 'partial', t: '已接：文生图 · 单图 img2img · V5 多角色 · inpaint · 质量标签 / UC / Text:（26）· 采样器 · 官方标签补全 · V4.5 单张精确角色参考（+5 Anlas，付费联调待验）· 标签台两栏（66）；未接：Vibe（官方 API 无，占位已删）· Director Tools · 透明底；角色一致性仍未解决' },
+        { k: 'leaf', s: 'partial', t: 'PixAI：09-20 接入后暂时下架（f99d5def）——目录与新 key 入口撤下、服务端拦新生成；已有作品与 key 保留' },
       ] },
       { k: 'sub', t: 'Runner 自托管（RunPod ComfyUI）', c: [
-        { k: 'chips', items: ['Anima DiT', 'Anima Pencil XL', 'Pony Diffusion V6', 'SDXL 1.0', 'Illustrious 配方克隆', 'Anima aesthetic / turbo · 候选', 'Krea 2 Turbo · 候选', 'Z-Image Turbo · 候选'] },
+        { k: 'chips', items: ['Anima DiT', 'Anima Pencil XL', 'Pony Diffusion V6', 'SDXL 1.0', 'Illustrious 配方克隆', 'Qwen Image 2.1 · 内部评估（私有白名单，独立端点）', 'Anima aesthetic / turbo · 候选', 'Krea 2 Turbo · 候选', 'Z-Image Turbo · 候选'] },
         { k: 'leaf', s: 'partial', t: 'Krea 2 版本闸已开（worker-comfyui 5.10 = ComfyUI 0.34）；Volume 剩 32.6G：Anima 新档 → Krea 2 →（扩容后）Z-Image' },
       ] },
       { k: 'sub', t: '其他 / 退役', c: [
@@ -196,9 +196,9 @@ const IMAGE = {
       { k: 'leaf', t: 'LoRA：Generate 并排监视台 60 / 40 · Library 聚焦浏览单列效果流 · 白色工作台脊柱' },
     ] },
     { k: 'cat', t: '不足', c: [
-      { k: 'gap', t: '线上会失败：Seedream Pro 参考上限常量 14（官方 10）；Seedream / FLUX 虚标负面 / guidance / steps；Gemini Flash Image 错标 freeTier' },
-      { k: 'gap', t: '四家未接的高价值能力：FLUX.2 [max] · Seedream 图层拆分 / 组图 · Gemini 多轮编辑 + 分槽 · OpenAI Responses 工具 + moderation:low' },
-      { k: 'gap', t: 'NAI 出图低于官方默认：质量标签 / UC / 采样器 / SMEA 全硬编；inpaint · Vibe · Precise Ref · Director 未接' },
+      { k: 'leaf', t: '已修（进度表 01 / 02）：Seedream Pro 参考上限 14 → 10 · Seedream / FLUX 虚标负面 / guidance / steps 已删 · Gemini Flash Image freeTier 已改' },
+      { k: 'gap', t: '四家未接的高价值能力：FLUX.2 [max] · Seedream 组图 · Gemini 多轮编辑 + 分槽 · OpenAI Responses 工具 + moderation:low（Seedream 图层拆分已落 62）' },
+      { k: 'gap', t: 'NAI：Director 未接 · 精确参考未付费联调 · 角色外观一致性（Denia 例）未解决' },
       { k: 'gap', t: '编辑能力 7 条只有 5 条 ready；编辑入口 / 能力表 / 画布编辑态三处不同步（便签 4）' },
       { k: 'gap', t: '生成后「去向」不全：变体 / 存 Recipe / 存 StyleCard / 入 Project 缺整段；参考图接不到素材库（G1）' },
       { k: 'gap', t: 'Runner：LoRA 白名单只有 1 条（库里几千个挂不上）· 执行超时 120s 偏紧 · 「standby 1」若是 Active worker ≈ $803/月 · 幻影 worker 疑为官方 idle scale-down' },
@@ -208,9 +208,9 @@ const IMAGE = {
       { k: 'dir', p: 'P0', t: '修三处线上错（Seedream 上限 / 虚标声明 / freeTier）+ RunPod 配置核查（Active workers · max workers 降 0 · 超时 180–300s）' },
       { k: 'dir', p: 'P0', t: '编辑能力重整设计：按功能分区 → 单一编辑器契约 → 与画布编辑态同步（先设计门）' },
       { k: 'dir', p: 'P0', t: 'LoRA：白名单改运行时下载 + Anima 新档 → Krea 2 底模 + strength / clip skip / 采样器接线' },
-      { k: 'dir', p: 'P1', t: '图片新接：FLUX.2 [max] → Seedream 图层拆分 → 组图；NAI 补 inpaint + 质量标签 / UC / Text: 控件' },
+      { k: 'dir', p: 'P1', t: '图片新接：FLUX.2 [max] → Seedream 组图（图层拆分 62、NAI 控件 26 已完成）' },
       { k: 'dir', p: 'P1', t: 'StyleCard 资产化 · 参考图直连素材库 · 生成后去向成链' },
-      { k: 'dir', p: 'P2', t: 'PixAI BYOK 接入 · Z-Image Turbo（扩 Volume 后）· 解禁风格迁移 / 文字渲染' },
+      { k: 'dir', p: 'P2', t: 'PixAI 是否恢复（已下架）· Z-Image Turbo（扩 Volume 后）· 解禁风格迁移 / 文字渲染' },
     ] },
   ],
 }
@@ -352,9 +352,9 @@ const AUDIO = {
 const TEXT = {
   k: 'root', t: '文字生成',
   c: [
-    { k: 'cat', t: '模型 · 五家（三路由合一，Qwen 退役）', c: [
+    { k: 'cat', t: '模型 · 五家（三路由合一；09-23 升级）', c: [
       { k: 'sub', t: 'GPT（OpenAI）', c: [
-        { k: 'chips', items: ['GPT-6 Astra', 'GPT-5.6 Sol', 'GPT-5.6 Terra', 'GPT-5.6 Luna', 'gpt-5-search-api'] },
+        { k: 'chips', items: ['GPT-6 Sol · 助手 / 剧本默认', 'GPT-6 Luna · 增强 / 自动问答', 'GPT-6 Astra', 'gpt-5-search-api'] },
         { k: 'leaf', t: '独有：file_search 向量库 · tool_search · Conversations API 永久会话 · web_search 域名白黑各 100 + sources' },
       ] },
       { k: 'sub', t: 'Gemini（Google）', c: [
@@ -362,19 +362,19 @@ const TEXT = {
         { k: 'leaf', t: '独有：Google 搜索接地（按 query 计费）· URL context ≤20 URL / 34MB 含 PDF · 视频 / 音频原生输入 · thinking 摘要' },
       ] },
       { k: 'sub', t: 'Grok（xAI）', c: [
-        { k: 'chips', items: ['Grok 4.6'] },
+        { k: 'chips', items: ['Grok 4.7'] },
         { k: 'leaf', t: '独有：X Search（社媒一手源）· Collections · inline markdown 引用；推理关不掉' },
       ] },
       { k: 'sub', t: 'DeepSeek', c: [
-        { k: 'chips', items: ['DeepSeek V4 Pro', 'deepseek-flash（vision）', { t: 'deepseek-v4-flash-vision-exp · 官方已标旧别名', retired: true }] },
+        { k: 'chips', items: ['DeepSeek V4 Pro', 'deepseek-flash（vision）', { t: 'deepseek-v4-flash-vision-exp · 已删（05）', retired: true }] },
         { k: 'leaf', t: '独有：峰谷两价（谷时半价）· cache 命中价低两量级 · 384K 输出；无官方联网' },
       ] },
       { k: 'sub', t: 'Claude（Anthropic）', c: [
-        { k: 'chips', items: ['Claude Fable 5.1'] },
+        { k: 'chips', items: ['Claude Opus 5.5 · 默认', 'Claude Fable 5.1'] },
         { k: 'leaf', t: '独有：memory 工具（客户端落盘，可映射 Prisma）· context editing + compaction · web_search 结果先代码过滤 · cited_text ≤150 字不计 token · strict tool use' },
       ] },
       { k: 'sub', t: '退役 / 检索线', c: [
-        { k: 'chips', items: [{ t: 'Qwen Flash / Qwen3 Max · 拟退役', retired: true }, 'Serper 搜索 / 搜图', 'Jina Reader', '萌百', '中文维基', 'danbooru', 'bilibili'] },
+        { k: 'chips', items: [{ t: 'Qwen Flash / Qwen3 Max · 已删（05）', retired: true }, 'Serper 搜索 / 搜图', 'Jina Reader', '萌百', '中文维基', 'danbooru', 'bilibili'] },
         { k: 'leaf', t: '公共契约：工具调用 + JSON Schema · 图像输入（v4-pro 除外）· 推理档位 · caching · SSE —— 合并路由的底座' },
       ] },
     ] },
@@ -406,12 +406,12 @@ const TEXT = {
       { k: 'gap', t: '助手要独立设计一张导图（便签 13 / 17）：公共层（反问 · 识图 · 搜索 · 视频分析 · skill 设定 · 自动填入）+ 图片 / 视频 / 画布 / LoRA / 卡片 各自专属层；参考图审核冲突应反问用户而不是报错' },
       { k: 'gap', t: '联网要单独设计（便签 9 / 15）：正文预算分档 · 白黑名单下沉到 provider 原生过滤 · 引用改区间锚 citedText · 同源家族去重 · 深研档一次澄清 + 有上限多轮' },
       { k: 'gap', t: '助手体验对齐主流 agent（便签 10 / 16）：记忆即时写 + 可见可编 · 来源可溯 contextUsed · 敏感类目不记 · 隐身模式 · 思考摘要（只 Gemini）· 看网页用 Gemini URL context' },
-      { k: 'gap', t: '音频域不在 v2；LoRA / 音频手机形态沿用 v1；8,694 行 operator service 未拆；旧 prompt-assistant / node-assistant 未删' },
+      { k: 'gap', t: '音频域不在 v2（配音间不挂助手，owner 09-19）；画布助手 <768 手机宿主缺；operator service 已 9,927 行未拆；旧 prompt-assistant 未删（node-assistant 已随 22 删）' },
       { k: 'gap', t: 'prompt/enhance 的 maxDuration 30s < 120s 缓冲；Prompts 域收敛未实施；包 7 剧本节点形态模糊' },
     ] },
     { k: 'cat', t: '建议方向', c: [
       { k: 'dir', p: 'P0', t: '助手独立设计轮：公共层 + 五个专属层的导图（含卡片助手）→ 三方向 → owner 确认' },
-      { k: 'dir', p: 'P0', t: '三路由合一：五家能力探测 + 降级；Qwen 退役；DeepSeek vision 换 deepseek-flash；Claude 接 memory 工具' },
+      { k: 'dir', p: 'P0', t: '三路由合一：五家能力探测 + 降级（Qwen 退役 · DeepSeek vision 换 deepseek-flash 已完成 05；Claude memory 并入助手记忆 56a）' },
       { k: 'dir', p: 'P0', t: '包 7 剧本节点：助手出大纲 → 连线生成每个分镜（便签 18），前置卡片总线' },
       { k: 'dir', p: 'P1', t: '联网五条改进（先白黑名单下沉与 citedText）· 图片 / 页面分析重设计（Gemini URL context 能力探测）' },
       { k: 'dir', p: 'P1', t: '助手覆盖音频域 + LoRA / 音频手机形态 · 记忆可见可编 + 隐身模式' },
@@ -428,9 +428,9 @@ function overviewBranch(key, title, leaves) {
 function overviewTree() {
   const branches = [
     ['image', '图片生成', [
-      { k: 'leaf', t: '四家自然语言（GPT / Gemini / FLUX / Seedream）+ NAI + Runner；PixAI 候选；LoRA 域是双核之一' },
+      { k: 'leaf', t: '四家自然语言（GPT / Gemini / FLUX / Seedream）+ NAI 标签台 + Runner（含 Qwen Image 2.1 内部评估）；PixAI 已下架；LoRA 域是双核之一' },
       { k: 'leaf', t: '工作台对照矩阵 + 共用编辑器 + 画布图片节点' },
-      { k: 'gap', t: '三处线上错（Seedream 上限 / 虚标 / freeTier）· 编辑太杂待重整 · LoRA 白名单只 1 条' },
+      { k: 'gap', t: '编辑太杂待重整 · LoRA 白名单只 1 条 · NAI 角色一致性（三处线上错已修）' },
       { k: 'dir', p: 'P0', t: '编辑线开工成链 · LoRA 试 Z-Image Turbo 插槽' },
     ]],
     ['video', '视频生成', [

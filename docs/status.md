@@ -1,5 +1,56 @@
 # 项目状态
 
+## 总进度图（2026-09-23 读码核对）
+
+以生产代码 `5e422f97`（= origin/main，Vercel 生产 READY）对照线上生成方向图 19 页 / 86 张画板。画布已用 Artifact 工具重发（Version 115）：第 7 页进度表、第 1 页总览 / 图片 / 文字、第 18 页账号菜单按代码更正，回读逐文件一致。绿色 = 主体代码已上生产，黄色 = 部分落地，灰色 = 待设计 / 待实现；上线不等于真机或付费验收通过。09-20 的逐项证据见 [18 页核对报告](design/roadmap-canvas/research/audit-18-pages-2026-09-20.md)。
+
+```mermaid
+flowchart TB
+  BASE["共享底座
+模型选择器 / 规格 chip / settings
+代码已落"]
+  BASE --> ASSIST["助手公共层
+统一 dock / 记忆 / 调查 / 剧本投影 / 参考图绑定
+已有主体；画布手机宿主与隐身口径待收"]
+  BASE --> TAGS["66 标签台 + 70 账号入口
+部分落地：NAI 角色一致性 / 精确参考联调待验"]
+  ASSIST --> REST["助手收尾
+排片提案回传 / 57 旧链清理
+部分落地"]
+  CARD["27 角色卡字段 v2
+代码已落"] --> BUS["35 卡片总线 + D6 卡片 v3
+待契约 / 设计 / 实现"]
+  BUS --> CLOSED["角色 / 音色 / 参考槽
+贯通剧本与多镜创作
+待补齐"]
+  ASSIST --> CLOSED
+  MENU["D4 / D5 共享动作与素材入口
+待设计收口"] --> EDIT["编辑线 / 审阅网格等能力包
+待设计或补件"]
+  DESK["37 剪辑台
+时间线 + 导出管线已有代码
+排片回程与真实导出验收待补"]
+  REST --> DESK
+  OTHER["首页 v4 / 皮肤 / 34 训练向导 / Qwen 2.1 评估 / 文本模型升级
+已有实现；按具体项验收"]
+  LATER["新语音方案 / 3D 机位控制
+后置或远期"]
+  classDef done fill:#e7f4eb,stroke:#2b7a48,color:#173f28
+  classDef partial fill:#fff2d9,stroke:#b77a16,color:#67430b
+  classDef pending fill:#f1f2f4,stroke:#8b929c,color:#343a43
+  class BASE,CARD,OTHER done
+  class ASSIST,TAGS,REST,DESK partial
+  class BUS,CLOSED,MENU,EDIT,LATER pending
+```
+
+- 下方 09-17 至 09-23 各条写的「未提交 / 未推送 / 未部署」代码均已随 `5e422f97` 上生产。**生产站与本地开发共用同一个库**：09-23 生产构建日志 `Datasource … at ep-flat-violet-aifhen7l`（Neon `development` 分支）、`No pending migrations to apply`；Arena drop、CharacterCard v2、GenerationLayer、AssistantMemory 四条迁移 09-18 至 09-21 已应用。Neon 里名为 `production` 的默认分支已停用（09-07 后无写入），名字易误导；查库时必须指定 `development` 分支。
+- 画布已按代码更正：首页 09-22 去掉前后景错速；PixAI 已下架；选择器「最近」段已删；账号菜单不做「外观」（owner 09-23 定）；第 1 页文本模型改为 GPT-6 / Opus 5.5 / Grok 4.7；09-21–23 表外已落项收进进度表第 10 段（71–75）。
+- 文档与代码一致、仍未做：`deliverTimelineProposal` 无生产者；57 旧助手组件仍在；68 选择器仍按字符串前缀拆名；卡片 v3 / `referenceSlots`；隐身仍保存本轮记录（只不写长期记忆）。
+- NAI Denia 根因（09-23 同 seed 对照，owner 授权付费）：提示词只写 `denia (wuthering waves), 1girl, solo, upper body, looking at viewer, simple background, white background`，seed 20260923、23 步、CFG 7、Euler Ancestral，V5 Full 出的是 Denia，V5 Curated 出的是另一个人。标签原样到达 NAI，链路没有改写；问题是**标签台默认型号是 V5 Curated**，它不认识这个角色。待改：标签台默认型号、助手出角色图的选型规则。
+- owner 09-23 定下一步：先讨论助手设计收口与 NAI 出图流程。
+
+## 最近记录（新 → 旧）
+
 - 画布参考图名称与传图绑定（2026-09-23）：附件条、`@`、用户／助手正文、本轮记录统一为画布名与缩略图；选择绑定稳定图片标识，换序不换图，移除后阻止发送。历史编号按原消息附件 URL 解析；同名歧义不猜图。助手视觉请求优先解析完整节点名，v4 生成请求按实际输入顺序附名称对照表。GPT-6 Luna 真实核验「生成图3」的黑底、遮嘴手势、服装及到精修节点的连线通过；最终 token 已在真实页面核对。全量 Vitest 767 文件、8989 项通过／1 跳过；发布前移动端 28 项通过；类型检查通过，修改文件 lint 0 错误／11 条既有测试警告。未触发媒体生成，未验证生成模型出图效果；未 commit／push／部署。规则见 [画布助手](references/pages/node-canvas-v2.md#131-助手读什么)及[引用界面](references/pages/assistant-shell-v2.md#44-输入区两行)。
 
 - 画布素材入口与助手复测（2026-09-23）：历史并入素材库，统一按最近时间显示上传与生成内容；接入现有素材文件夹树、嵌套路径、搜索、收藏／未分类及媒体类型组合筛选，管理入口回到素材页。切换范围重置分页，失败可重试；中英日同步。相关 3 文件 32 项测试、tsc、修改文件 lint 通过；桌面实测「无限大 / 时夜」显示 4 项，视频筛选显示 1 项，文件夹弹层滚动与键盘关闭正常。GPT-6 Luna 使用时夜图复测：画风按体积阴影／高光／材质描述并保留 3D 约束；已有画布原图成功关联三个目标节点，保留一条、补两条，无重复节点／连线；腿长翻倍与保持比例冲突时先反问，回答后记住取舍并建议补齐制服搭配，不改节点。单次画风复测不代表误判根治；聊天附件自动转为画布参考节点、工具预算耗尽的收尾仍未验收。未生成媒体，未改现有手机宿主边界，未 commit／push／部署。规则见 [画布素材库](references/pages/node-canvas-v2.md#7-画布外壳)。
@@ -30,7 +81,7 @@
   已知缺口：① 剪辑台排片拿不到可套用的时间线提案，`deliverTimelineProposal` 无生产者，等助手有能做时间线的工具；② `CanvasAssistantHistory` / `CanvasAssistantRouteSelector` / `CanvasAssistantReferencePicker` 三个组件仍在，它们同时是旧 studio dock 的件，随 57 一起走；③ `ScriptDocWorkspace`（剧本笺与它那份只读转录，仍用 `CanvasOpProposalCard`）待 24。
 
 - `/settings` 整页与入口收口（2026-09-18，进度表 13 + 14，设计画板 E3 完成、E4 起步）：新增 `/settings` 与 `/settings/[section]` 四分区（key / 用量 / 偏好 / 助手），桌面 200px 导航 + 720px 内容、手机停一级列表；新增 `GET /api/usage/by-model`（只数次数，单价与花费留客户端）。key 管理收成按 provider 一行的四态列表，配置与换 key 都开 `QuickSetupDialog`。侧栏账户区、`ApiKeyDrawerTrigger`、画布 `ShellApiKeys`、`StudioApiRoutesSection` 与 `ApiKeyManager` 一族同轮整删，三语里跟着走的键一并清掉；侧栏收成「顶端头像 + 最底设置行」，手机抽屉补「我」区与设置行，首页浮岛已登录态换成齿轮 + 头像，3D 工作台最后两处缺 key 死控件改为可点开弹层。行为见 `references/pages/settings.md`、`app-shell.md` §8、`node-canvas-v2.md` §7、`home.md`。未提交／发布。
-  待办：① icon 桶为解 RSC 下 `createContext` 崩溃加了 `'use client'`（`aca8b753`），与 `@phosphor-icons/react/dist/ssr` 这个服务端出口之间怎么取舍未定——整桶标 client 会把引用它的服务端组件一起拉下水；② 助手记忆区只有 UI 与空态，行为等进度表 56 定数据形状；③ 真机 1440 / 820 / 375 **已登录态**目检待 owner。
+  待办：① icon 桶为解 RSC 下 `createContext` 崩溃加了 `'use client'`（`aca8b753`），与 `@phosphor-icons/react/dist/ssr` 这个服务端出口之间怎么取舍未定——整桶标 client 会把引用它的服务端组件一起拉下水；② 助手记忆区已由 56a 接上数据模型、服务与列表编辑；迁移应用及运行验收待核；③ 真机 1440 / 820 / 375 **已登录态**目检待 owner。
 
 - 首页与工作台移动端修复（2026-09-22）：首页保留整体设计，功能页上下换段，模型区恢复逐个浏览至分类首尾；移除连续 scrub 和前后景错速。画布按对话、分镜、节点、连线、成片自动演示，去掉手动播放／步骤控件。普通生图按 composer 实际高度预留空间，标签台收起高级参数、限制标签区高度、固定生成按钮并提供编辑／结果跳转；移动助手头像移至顶栏下方。NAI 助手规则保留原生权重组并要求未核实角色先查 Danbooru，标签解析不再拆散组内逗号。浏览器已验 375／716px 移动布局、1280px 桌面布局、图片模型六项滚轮遍历、画布自动成片播放及 Danbooru 真实资料查询。全量 Vitest 766 文件、8950 项通过（1 跳过），tsc 零错；全量 lint 零错、19 条警告，最终首页改动 lint 零错。真实助手新回合输出和角色生图准确性尚未验收；未提交／发布。
 

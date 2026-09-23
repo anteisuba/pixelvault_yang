@@ -1,46 +1,103 @@
-# PixelVault 项目逻辑图（你填 · 我扩充）
+# PixelVault 总逻辑思维导图
 
-> **编排**：下面 §1 是**简洁结构图**（你继续在这里加/改分支）；§2 是我补的**各分支现状**（你想做 ↔ 目前真实情况，你逐条对一下）。
->
-> **改 Mermaid 三招**：加节点 `父 --> ID["名字"]`／改名字改引号里的字／换方向 `TD`(上下)↔`LR`(左右)。
->
-> **进度记号**：✅ 基本成熟　🔧 有主体待升级　⬜ 待做／想法阶段
->
-> ⚠ **贴图请放 `assets/project-map/` 并用 `![](assets/project-map/<名字>.png)`**（2026-08-08 改）。原先 36 张用的是 Obsidian 的 `![[…]]` 内嵌语法、文件散在 `docs/` 根目录 —— 文件本身在 git 里，但**这个语法只有 Obsidian 认，GitHub 和任何标准 markdown 渲染器都显示不出来**。现已按域重命名、归到本文旁边，并换成标准相对路径。
+> 核对日期：2026-09-23（首轮 09-20）。代码基线：`5e422f97`（= origin/main = 生产）；本轮仅改文档，其他会话的 Worker 依赖修改保留。
+> 来源：[Claude 生成方向图](https://claude.ai/artifact/AGugEALDdyBLHMqDeNjaTD)全部 19 页、86 张画板（09-20 首轮为 18 页 / 85 张），以及实际路由 / 组件 / 服务 / Prisma。逐项证据见 [18 页核对报告](../design/roadmap-canvas/research/audit-18-pages-2026-09-20.md)。覆盖全部画板不代表每项外部契约或运行效果通过。
+> 本文维护整体关系；[当前进度图](../status.md#总进度图2026-09-23-读码核对)维护进度。原始需求与参考图保留在 §3。
 
----
+## 1 · 总逻辑思维导图
 
-## 1 · 结构总览
+```mermaid
+flowchart TB
+  PV["PixelVault · 个人 AI 创作工作台"]
+  PV --> CORE["双核创作"]
+  PV --> CAP["生成与编辑能力"]
+  PV --> REUSE["资产与知识复用"]
+  PV --> PUBLIC["选择性公开展示"]
+  PV --> BASE["共享基础设施"]
+  CORE --> CANVAS["画布 /studio/node
+剧本 → 镜头 → 多模态节点 → 剪辑台"]
+  CORE --> LORA["LoRA /studio/lora
+发现 → 配方 / 挂载 → 生成 → 训练 / 我的"]
+  CAP --> IMAGE["图片
+自然语言 /studio/image
+标签 /studio/image/tags"]
+  CAP --> VIDEO["视频 /studio/video
+短片生成 / 参考素材"]
+  CAP --> AUDIO["声音 /studio/audio
+台词 / 音色 / 配音"]
+  CAP --> THREED["3D /studio/3d
+图生模型；远期机位控制另议"]
+  CAP --> EDIT["图片编辑 /studio/edit
+现有工具；编辑线重整待做"]
+  REUSE --> ASSETS["素材库 /assets
+归档 / 上传 / 文件夹 / 详情复用"]
+  REUSE --> CARDS["卡片 /cards
+角色 / 风格 / 背景 / 音色关联"]
+  REUSE --> PROMPTS["配方 /prompts
+当前仍有个人与灵感双页签"]
+  PUBLIC --> HOME["首页 HomeV4
+展示能力 → 创作入口"]
+  PUBLIC --> GALLERY["画廊 /gallery + 主页 /u
+公开作品 / 配方发现"]
+  BASE --> ASSIST["统一助手
+看 / 查 / 问 / 改 / 请求生成
+工作台、画布、LoRA；记忆进设置"]
+  BASE --> CONFIG["设置 /settings
+key / 用量 / 偏好 / 助手
+账号菜单共享语言与设置入口"]
+  BASE --> EXEC["鉴权 / 校验 / 任务派发
+Execution Worker → provider 或 Runner"]
+  BASE --> STORE["Prisma 数据关系 + R2 媒体归档
+计费 / 权限 / en-ja-zh"]
+```
+
+### 核心闭环与尚未打通的连接
+
+实线表示当前存在的主要产品路径；虚线表示仍需补齐的目标连接。存在实现不等于本轮运行验收。
 
 ```mermaid
 flowchart LR
-  PV["PixelVault"]
-
-  PV --> home["🏠 首页/展示"]
-  PV --> canvas["🎬 画布"]
-  PV --> lora["🧬 LoRA"]
-  PV --> image["🖼 图片"]
-  PV --> audio["🎙 声音"]
-  PV --> prompts["💡 提示词"]
-  PV --> cards["🃏 卡片"]
-  PV --> assets["📦 资产/素材库"]
-  PV --> show["🌐 展示/画廊"]
-  PV --> base["⚙ 底座（全域共享）"]
-
-  home --> h1["UI升级·对标 haivis-landing"]
-  canvas --> c1["功能分化+初始态整理·对标 haivis-canvas,不是对标，而是把学习有点，毕竟hivis只有图片编辑的功能，没有视频这部分。以及这个项目特有的部分。"]
-  lora --> l1["按类型检索+自由组合·对标 novelai，顺便civitai和HF两边的UI对齐。以及优化检索，图片加载速度和检索的精确度和缩小检索时间。"]
-  image --> i1["迁移套件UI+图片标注"]
-  audio --> au1["情感表达+专属UI"]
-  prompts --> p1["个人配方工作区·按 Image/Video/LoRA 等类型分化"]
-  cards --> ca1["角色收集容器·与资产融合"]
-  assets --> as1["文件夹×卡片融合·三层聚合"]
-  show --> sh1["公开作品+公开配方·合并共享提示词发现"]
+  INPUT["提示词 / 参考素材 / 配方"] --> WORK["工作台或画布
+选择模型与渠道"]
+  WORK --> CONFIRM["用户确认生成"]
+  CONFIRM --> JOB["服务端任务 → Worker / Runner"]
+  JOB --> RESULT["结果 → R2 / 数据库归档"]
+  RESULT --> ASSET["素材库"]
+  ASSET --> INPUT
+  RESULT --> SHARE["用户选择公开 → 画廊"]
+  SHARE --> INPUT
+  CARD["角色 / 风格 / 音色卡"] -. "完整 referenceSlots 总线待补" .-> WORK
+  SCRIPT["剧本文本节点"] --> SHOTS["确认投影 → 镜头节点"]
+  SHOTS --> WORK
+  RESULT --> DESK["剪辑台 → 渲染导出 → 成片"]
+  ASSIST["统一助手"] --> WORK
+  ASSIST -. "时间线提案回传待接" .-> DESK
 ```
 
----
+## 2 · 与线上文档的关键差异
 
-## 2 · 各分支现状（你想做 ↔ 现状 · 你对一下）
+| 线上位置 / 旧表述                                             | 当前代码事实                                                                      | 应如何标记 / 依据                                                                                                                                                                                                                  |
+| ------------------------------------------------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 进度表“现在停在 E1 ④”                                         | 同一张表 E2 / E3 已完成；代码有共享选择器与设置页                                 | 顶部游标已过时；[MainModelPicker](../../src/components/business/studio-shared/pickers/MainModelPicker.tsx)、[SettingsAssistantSection](../../src/components/business/settings/SettingsAssistantSection.tsx)                        |
+| 66 / D10“等 ⑤”，44 仍等 D2                                    | 标签台路由、两栏编辑、官方标签补全、V4.5 精确角色参考已有实现；PixAI 09-20 下架   | 代码已落，完整验收待核；[标签编辑器](../../src/components/business/studio/tags/StudioTagsPromptArea.tsx)、[标签控件列](../../src/components/business/studio/tags/StudioTagsControlColumn.tsx)，提交 `6cd58d85` 起                  |
+| 70 / D11“等 ⑤”；14 仍描述顶部头像 + 底部设置                  | AccountMenu 已接入侧栏底部与手机，包含语言 / 设置 / 退出                          | D11 代码已落，14 是已被替代的旧设计；[AccountMenu](../../src/components/layout/AccountMenu.tsx)、[AppSidebar](../../src/components/layout/AppSidebar.tsx)，提交 `4a698785`                                                         |
+| 13“记忆只有空态”；56 又记录记忆已实现                         | AssistantMemory 模型、读写服务、每轮写入 / 下轮注入与设置列表均已有               | 文档内部矛盾；代码已落，迁移 09-20 已应用（生产站与本地共用 Neon development 分支），运行验收未核；[记忆服务](../../src/services/assistant-memory.service.ts)、[助手服务](../../src/services/kernel/assistant-operator.service.ts) |
+| 第 6 页以独立 node-assistant 为“现状”，并把配音间列为助手宿主 | 画布使用 StudioOperatorDock；统一宿主已调整；配音间不挂助手                       | 区分早期比较稿与现行方案；[NodeWorkbenchV4](../../src/components/business/node/workbench-v4/NodeWorkbenchV4.tsx)、[助手现行规范](pages/assistant-shell-v2.md)                                                                      |
+| 第 6 页“VoiceCard 与 CharacterCard 零关联”                    | CharacterCard 已有 voiceCardId、voiceProfile、persona、referenceRoles、provenance | 字段 v2 已落；完整编译与 v3 的 summary / relations / lore 仍不能算完成；[schema](../../prisma/schema.prisma)                                                                                                                       |
+| 37 剪辑台“等 spec”                                            | 已有时间线 UI、提交 / 轮询 / 取消接口、render-video Worker 与完成回画布逻辑       | 部分落地；[导出生命周期](../../src/components/business/node/edit-desk/use-edit-desk-render.ts)、[渲染 Worker](../../workers/render-video/src/index.ts)                                                                             |
+| 剪辑台“一句话排片”容易被读作已闭环                            | 当前请求只送助手，没有 TimelineProposal 生产者                                    | 明确列为缺口；[助手排片请求](../../src/hooks/node/use-canvas-operator-requests.ts)                                                                                                                                                 |
+| E7 总结仍写 33 → 34；34 明细已完成                            | 训练分支已抽出 TrainWizard，仍在 LoRA 的 section=train 内                         | 34 的拆分已落，不能误写成新增独立路由；[TrainWizard](../../src/components/business/studio/lora/training/TrainWizard.tsx)                                                                                                           |
+| E9 仍是“首页 B 等设计”                                        | 首页入口使用 HomeV4Shell；B 已撤回，09-22 又去掉 v4 的前后景错速                  | 不应继续推进已撤回的 B；[HomeV4Shell](../../src/components/business/home-v4/HomeV4Shell.tsx)                                                                                                                                       |
+
+仍一致的主要缺口：35 卡片总线未贯通；Prompts 仍有 InspirationGrid；剪辑台助手排片回程未接。剧本投影已有 ScriptCardBody 与 project_script，不能把“卡片总线未做”扩大成“剧本节点完全未做”。[剧本卡](../../src/components/business/node/nodes/v4/text/ScriptCardBody.tsx)
+
+### 文档编辑边界
+
+本地 [画板生成源码](../design/roadmap-canvas/gen/build-progress.mjs)可编辑。09-23 已按[既有流程](../design/roadmap-canvas/README.md)以线上最新版为底合并并重发（Version 115），回读逐文件一致；线上批注、布局、owner 手绘与第 19 页会话记录均保留。
+
+## 3 · 原始需求与历史对照（保留 owner 原话及参考图）
+
+> 下列“现状”主要来自 2026-07 / 08，不是本轮进度结论；过时描述以 §2 的代码证据及 `../status.md` 为准。保留是为避免把尚未实现的产品意图当作过时内容删除。
 
 ### 🏠 首页 / 展示　🔧
 

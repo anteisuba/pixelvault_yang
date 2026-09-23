@@ -150,6 +150,31 @@ describe('useStudioOperatorResults', () => {
     )
   })
 
+  it('整批没出且宿主说得出原因：系统行把原因带上', () => {
+    const state = readEntries()
+    act(() => pendingCard())
+
+    const view = mount(run({ completed: 0 }))
+    act(() => {
+      view.rerender({
+        value: run({
+          settled: true,
+          completed: 0,
+          failed: 1,
+          items: [],
+          failureReason: '服务商的内容审核未通过',
+        }),
+      })
+    })
+
+    const system = state.current.entries.at(-1)
+    expect(system).toMatchObject({
+      kind: 'system',
+      code: 'generationFailedWithReason',
+      subject: '服务商的内容审核未通过',
+    })
+  })
+
   it('那一枪压根没打出去（被生成键的闸挡下）：TTL 到点撤卡 + 系统行', () => {
     const state = readEntries()
     act(() => pendingCard())

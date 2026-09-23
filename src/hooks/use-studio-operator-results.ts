@@ -38,13 +38,19 @@ import {
 } from '@/hooks/use-studio-operator-store'
 import type { StudioOperatorResultRun } from '@/types/studio-assistant-operator'
 
-/** 撤掉那张转不动的卡，并留下一行交代。 */
-function failPendingResult(id: string): void {
+/**
+ * 撤掉那张转不动的卡，并留下一行交代。
+ * ⭐ 有原因就把原因说出来（2026-09-24 真机：服务商审核拦下，线程里只写「这一批
+ * 没有出图」，用户不知道该改提示词还是换模型）。
+ */
+function failPendingResult(id: string, reason?: string): void {
   dropOperatorPendingResult(id)
   appendOperatorEntry({
     kind: 'system',
     id: nextOperatorEntryId('sys'),
-    code: 'generationFailed',
+    ...(reason
+      ? { code: 'generationFailedWithReason', subject: reason }
+      : { code: 'generationFailed' }),
   })
 }
 
@@ -76,7 +82,7 @@ export function useStudioOperatorResults(
     if (boundRef.current !== pendingResultId) return
     if (run.items.length === 0) {
       // 一张都没出来 —— ⛔ 不画一张每一格都是空的结果卡（见系统码头注）。
-      failPendingResult(pendingResultId)
+      failPendingResult(pendingResultId, run.failureReason)
     } else {
       /**
        * ⚠ **部分失败照样入库**：出来几张就写几张（`completed` 与 `total` 都如实

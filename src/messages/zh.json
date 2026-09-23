@@ -7595,6 +7595,7 @@
       "queueDropped": "你撤回了排着的那句：{subject}",
       "urlImportFailed": "你给的那条链接没取回来：{subject}",
       "generationFailed": "这一批没有出图 —— 助手不会接着看了",
+      "generationFailedWithReason": "这一批没有出图：{subject}",
       "loraMountFailed": "{subject} 没挂上——装配台上什么都没多出来",
       "loraWeightOverBudget": "总权重 {subject} — 超过这个底模的预算，画面容易糊或串味。我没有动任何权重，要收的话告诉我收哪一把。",
       "videoFramesFailed": "这段片子没能抽出帧 —— 助手这一轮看不了它（{subject}）",

@@ -494,7 +494,9 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
   const resultRun = useMemo<StudioOperatorResultRun | undefined>(() => {
     const items = activeRun?.items
     if (!items || items.length === 0) return undefined
+    const failureReason = items.find((item) => item.status === 'failed')?.error
     return {
+      ...(failureReason ? { failureReason } : {}),
       total: items.length,
       completed: items.filter((item) => item.status === 'completed').length,
       failed: items.filter(

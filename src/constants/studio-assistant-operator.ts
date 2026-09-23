@@ -239,6 +239,8 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
    * 的每一格都是空的。⚠ 部分失败**不落这一行**：出来几张就是几张，卡照出。
    */
   'generationFailed',
+  /** 同上，但宿主说得出原因（服务商审核 / 额度 / 超时）—— `subject` 是那句人话。 */
+  'generationFailedWithReason',
   /**
    * 挂 LoRA 那一跳没成（P4-C）：作者关掉了下载、导入报错、或挂载栈拒了。
    *

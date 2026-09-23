@@ -207,6 +207,8 @@ export interface StudioOperatorResultRun {
   failed: number
   settled: boolean
   items: readonly StudioOperatorResultItem[]
+  /** 挂掉的那几条里第一条的原因（人话，如服务商审核未通过）—— 整批没出时念给用户。 */
+  failureReason?: string
 }
 
 /**

@@ -7595,6 +7595,7 @@
       "queueDropped": "並んでいたメッセージを取り消しました：{subject}",
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
       "generationFailed": "生成結果がなかったため、アシスタントによる確認は行いません",
+      "generationFailedWithReason": "画像は生成されませんでした：{subject}",
       "loraMountFailed": "{subject} を追加できませんでした。ワークスペースには追加されていません",
       "loraWeightOverBudget": "重みの合計は{subject}で、このベースモデルの範囲を超えています。画像がぼやけたり、画風が混ざったりすることがあります。重みはまだ変えていません。どれを下げましょうか？",
       "videoFramesFailed": "このクリップからフレームを取り出せませんでした —— 今回アシスタントは見られません（{subject}）",

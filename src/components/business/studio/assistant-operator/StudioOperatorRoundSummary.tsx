@@ -82,8 +82,7 @@ export function StudioOperatorRoundSummary({
   const tResume = useTranslations('StudioOperator.resume')
   const format = useFormatter()
   const detailsId = useId()
-  /** ⚠ 挂着续跑时**不收**：「从第 N 步继续」那颗 chip 在展开区里，收起来就找不到了。 */
-  const [collapsed, setCollapsed] = useState(defaultCollapsed && !resume)
+  const [collapsed, setCollapsed] = useState(defaultCollapsed)
   const [draft, setDraft] = useState<Record<
     StudioOperatorRoundColumn,
     string
@@ -192,6 +191,30 @@ export function StudioOperatorRoundSummary({
           aria-hidden
         />
       </button>
+      {/* ── 续跑（§3.6）：挂在**收起那一行下面**，⛔ 不为它把整块记录撑开
+          （D12 C4：记录默认收起）。失败那句原因写在按钮前面：先读为什么。 */}
+      {resume ? (
+        <div className="mt-1 flex flex-wrap items-center gap-2">
+          {resume.failedReason ? (
+            <span
+              data-testid="operator-round-resume-reason"
+              className="min-w-0 text-xs text-muted-foreground"
+              title={resume.failedReason}
+            >
+              {tResume('failed', { reason: resume.failedReason })}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            data-testid="operator-round-resume"
+            data-step={resume.stepNumber}
+            onClick={resume.onResume}
+            className="flex h-7 shrink-0 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+          >
+            {tResume('continue', { step: resume.stepNumber })}
+          </button>
+        </div>
+      ) : null}
       <div id={detailsId} hidden={collapsed}>
         {!collapsed ? (
           <div className="flex flex-col gap-4 px-4 pb-3 pt-1">
@@ -265,33 +288,6 @@ export function StudioOperatorRoundSummary({
               </div>
             ) : null}
 
-            {/* ── 续跑（§3.6：从头部搬到这里的尾部一行）───────────────────
-          ⚠ 失败那句原因写在按钮**前面**：先读为什么，再决定要不要继续
-            （与 checkpoint 薄卡上那一颗同一条判据）。 */}
-            {resume ? (
-              <div className="flex flex-wrap items-center gap-2">
-                {resume.failedReason ? (
-                  <span
-                    data-testid="operator-round-resume-reason"
-                    className="min-w-0 flex-1 text-xs text-muted-foreground"
-                    title={resume.failedReason}
-                  >
-                    {tResume('failed', { reason: resume.failedReason })}
-                  </span>
-                ) : (
-                  <span className="min-w-0 flex-1" />
-                )}
-                <button
-                  type="button"
-                  data-testid="operator-round-resume"
-                  data-step={resume.stepNumber}
-                  onClick={resume.onResume}
-                  className="min-h-11 shrink-0 rounded-lg border border-border bg-card px-3 py-2 text-2sm font-medium text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  {tResume('continue', { step: resume.stepNumber })}
-                </button>
-              </div>
-            ) : null}
             {onSave ? (
               <div className="flex justify-end">
                 <button

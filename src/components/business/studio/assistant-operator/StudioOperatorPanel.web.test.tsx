@@ -1037,9 +1037,13 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     })
     renderPanel()
     expect(screen.getAllByTestId('operator-tool-group-blocker')).toHaveLength(1)
+    // D12 C11：说人话 —— `error.detail` 是写给模型的原文，只在展开的那一步里。
     expect(screen.getByTestId('operator-tool-group-blocker')).toHaveTextContent(
-      '仍缺少保持身材的要求',
+      'reject.promptConflict',
     )
+    expect(
+      screen.getByTestId('operator-tool-group-blocker'),
+    ).not.toHaveTextContent('仍缺少保持身材的要求')
     expect(screen.getAllByTestId('operator-log-item')).toHaveLength(2)
   })
 

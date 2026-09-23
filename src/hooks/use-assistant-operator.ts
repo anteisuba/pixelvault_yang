@@ -1444,13 +1444,13 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                     step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
                   ) {
                     /**
-                     * ⚠ 那句原因取的是**被拒的理由**（`error.detail` 优先，否则
-                     * 那条 reason 码）：⛔ 别写一句「这一步失败了」—— 续跑按钮
-                     * 旁边唯一有用的信息就是它为什么挂。
+                     * ⚠ 存的是**拒绝理由码**，面板按词表说人话（D12 C11）：
+                     * `error.detail` 是写给模型看的原文（常是英文纠错指令），
+                     * ⛔ 不给用户看。
                      */
                     markOperatorResumeStep(resumeStepId, {
                       state: 'failed',
-                      reason: step.error.detail ?? step.error.reason,
+                      reason: step.error.reason,
                     })
                   } else {
                     markOperatorResumeStep(resumeStepId, {

@@ -320,6 +320,12 @@ export function StudioOperatorPanel({
 }: StudioOperatorPanelProps) {
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
+  /**
+   * 拒绝理由码 → 人话（D12 C11）。⚠ 词表里没有的码（旧会话里存的原文）不显示，
+   * ⛔ 不把写给模型的原文递给用户。
+   */
+  const describeRejectReason = (code: string | undefined) =>
+    code && t.has(`reject.${code}`) ? t(`reject.${code}`) : undefined
   const tReference = useTranslations('StudioPromptArea.referenceMention')
   const {
     entries: allEntries,
@@ -404,13 +410,14 @@ export function StudioOperatorPanel({
    * ⚠ **域要对得上**：图片档批的计划⛔ 不在视频档上问「要继续吗」（那六步改的
    *   全是图片表单上的旋钮）。
    */
-  const { resumeStepNumber, resumeFailedReason } = useMemo(() => {
+  const { resumeStepNumber, resumeFailedCode } = useMemo(() => {
     const active = resume && resume.domain === domain ? resume : null
     return {
       resumeStepNumber: active ? nextResumeStepNumber(active) : null,
-      resumeFailedReason: active ? failedResumeStep(active)?.reason : undefined,
+      resumeFailedCode: active ? failedResumeStep(active)?.reason : undefined,
     }
   }, [domain, resume])
+  const resumeFailedReason = describeRejectReason(resumeFailedCode)
   /**
    * `@` 的那条 chip 管线（§3.3 四入口）—— chips 住在 store（收放法则会卸载这颗
    * 组件），触发解析与选择器开合住在 hook 里。
@@ -1489,7 +1496,10 @@ export function StudioOperatorPanel({
                         (item) => item.step.status === 'running',
                       )?.step.title
                     }
+                    /* ⚠ 只在**本轮收尾后**说（D12 C11）：跑着的时候被退回的那一步
+                       多半下一刻就换条路成了，中途亮一条红字是假警报。 */
                     failure={
+                      roundDone &&
                       lastToolsBlock === block.steps[0]?.id &&
                       blocker?.status === 'error' ? (
                         <p>
@@ -1501,10 +1511,7 @@ export function StudioOperatorPanel({
                           </span>
                           <span className="text-muted-foreground">
                             {'：'}
-                            {blocker.error.reason === 'promptConflict' &&
-                            blocker.error.detail
-                              ? blocker.error.detail
-                              : t(`reject.${blocker.error.reason}`)}
+                            {t(`reject.${blocker.error.reason}`)}
                           </span>
                         </p>
                       ) : null

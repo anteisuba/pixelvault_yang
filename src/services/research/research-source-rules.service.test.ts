@@ -5,6 +5,7 @@ vi.mock('server-only', () => ({}))
 import { PROJECT_RULE_KIND_IDS } from '@/constants/assistant-operator'
 import {
   buildSourceRuleFilter,
+  withTurnAllowlist,
   describeSourceRules,
   filterEvidenceIndices,
   filterResearchSources,
@@ -50,11 +51,11 @@ describe('来源名单 · 解析', () => {
 
   /** 用户会原样贴一条带协议头的地址进来，而名单是拿来比域名的。 */
   it('临时名单顶掉持久白名单，但顶不掉黑名单', () => {
-    const filter = buildSourceRuleFilter(
-      [
+    const filter = withTurnAllowlist(
+      buildSourceRuleFilter([
         rule(PROJECT_RULE_KIND_IDS.sourceAllow, 'bilibili'),
         rule(PROJECT_RULE_KIND_IDS.sourceDeny, 'danbooru'),
-      ],
+      ]),
       ['wiki', 'https://Danbooru.donmai.us/posts'],
     )
 
@@ -170,8 +171,10 @@ describe('来源名单 · 找图', () => {
   })
 
   it('名单摊成一行人话，临时那份说得出「这一轮」', () => {
-    const filter = buildSourceRuleFilter(
-      [rule(PROJECT_RULE_KIND_IDS.sourceDeny, 'pinterest.com')],
+    const filter = withTurnAllowlist(
+      buildSourceRuleFilter([
+        rule(PROJECT_RULE_KIND_IDS.sourceDeny, 'pinterest.com'),
+      ]),
       ['wiki'],
     )
 

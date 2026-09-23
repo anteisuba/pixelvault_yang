@@ -437,6 +437,11 @@ export type StudioOperatorConfirmPrompt = {
   status: StudioOperatorConfirmStatus
   /** 已确认 / 已取消那一态的时刻（ISO 串）—— 卡上「已确认 · 11:24」写它。 */
   decidedAt?: string
+  /**
+   * 这一张是**自动生成开关**替你按下的（D12 S-C）—— 收起那一行写「已自动生成」。
+   * ⚠ 扳机仍在客户端：服务端没有任何工具能建 generation。
+   */
+  auto?: boolean
 } & (
   | {
       kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
@@ -586,20 +591,3 @@ export function isVideoCritiquePayload(
  */
 export type StudioOperatorMemoryArtifact =
   AssistantOperatorWorkingMemoryArtifact
-
-/**
- * `@` 上来的**一张上下文卡**（切片 Y）—— 提示词栏里那颗 `ContextCardChip`。
- *
- * ⭐ **它不是附件**：附件是「这条消息带的几张图」（`StudioOperatorAttachment`，
- * 走 `mentionedAssets` 那条闸），而卡是**一份资料**——助手拿到名字之后自己去
- * `read_context_card` 读正文。两者混进同一个数组的下场是「看图 N 张」那个计数
- * 把卡也算进去，而助手根本不会去看一张卡。
- * ⚠ 只留**画那颗 chip 需要的四格**：正文、硬否定、常挂域一概不带 —— 那些是
- * 服务端读卡时自己去库里取的，抄一份到客户端只会有两份会分叉的事实。
- */
-export interface StudioOperatorCardMention {
-  cardId: string
-  name: string
-  kind: ContextCardKindId
-  images?: readonly ContextCardImage[]
-}

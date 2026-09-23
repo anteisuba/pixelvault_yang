@@ -43,7 +43,6 @@ import type {
 } from '@/types/studio-operator-resume'
 import type {
   StudioOperatorAttachment,
-  StudioOperatorCardMention,
   StudioOperatorChange,
   StudioOperatorConfirmPrompt,
   StudioOperatorErrorTrace,
@@ -141,22 +140,12 @@ export interface StudioOperatorState {
    */
   mentions: readonly StudioOperatorAttachment[]
   /**
-   * `@` 上来的**上下文卡**（切片 Y）—— 与 `mentions` 分开的一排。
+   * **自动生成开关**（D12 S-C）—— 开着时生成确认卡一到就由客户端替你按下。
    *
-   * ⭐ 分开的判据写在 `StudioOperatorCardMention` 的头注里：卡不是附件，
-   * 混进同一个数组会让「将看 N 张」把卡也数进去。
-   * ⚠ 与 `mentions` 同命：属于用户正在写的那条消息，发出去之后一起清。
+   * ⭐ 只管**当前这段会话**：新对话 / 换一段会话都回到关（owner 09-23）。
+   * ⚠ 钱闸不变：扳机仍是客户端这一下，服务端没有任何工具能建 generation。
    */
-  cardMentions: readonly StudioOperatorCardMention[]
-  /**
-   * **这一轮只信这几个来源**（v2 §9.3 ·「+」菜单的「指定来源」）。
-   *
-   * ⚠ 与 `mentions` 同命：它属于用户此刻正在写的那条消息 —— 发出去就清，⛔ 不
-   * 写库。用户为一个问题临时指了几个源，不该变成他此后每一轮的规矩；要一直生效
-   * 的那份住在设置弹层的规则页里（`ProjectRule.kind`）。
-   * ⚠ 每一条是**来源 id 或域名**，与服务端收的是同一种东西。
-   */
-  sourceAllowlist: readonly string[]
+  autoGenerate: boolean
   /**
    * 结果行卡上被点中的那一格（§4.2「结果行卡：未选 / 已选 / 被 @」）。
    *
@@ -281,8 +270,7 @@ const INITIAL_STATE: StudioOperatorState = {
   errorTrace: null,
   queue: [],
   mentions: [],
-  cardMentions: [],
-  sourceAllowlist: [],
+  autoGenerate: false,
   selectedResultId: null,
   pendingResultId: null,
   planMode: ASSISTANT_PERSONA_DEFAULTS.planMode,
@@ -827,51 +815,14 @@ export function removeOperatorMention(id: string): void {
 
 /** 发出去之后清空 —— chip 属于**那一条消息**，不是一直挂着的设置。 */
 export function clearOperatorMentions(): void {
-  if (
-    state.mentions.length === 0 &&
-    state.cardMentions.length === 0 &&
-    state.sourceAllowlist.length === 0
-  ) {
-    return
-  }
-  // ⚠ 三排一起清：卡、图与这一轮指的来源都属于刚发出去的那一条消息。
-  emit({ ...state, mentions: [], cardMentions: [], sourceAllowlist: [] })
+  if (state.mentions.length === 0) return
+  emit({ ...state, mentions: [] })
 }
 
-/**
- * **这一轮只信这几个来源**（§9.3）——「+」菜单那一页按一下就整份换掉。
- *
- * ⚠ 收的是**整份名单**而不是逐条加：那一页本身就是一组多选，逐条加/减会让
- * 「全清」变成一串 remove 调用。⛔ 不去重之外做任何清洗：token 的那把刀在
- * schema 层（服务端照样再过一遍）。
- */
-export function setOperatorSourceAllowlist(sources: readonly string[]): void {
-  const next = [...new Set(sources)]
-  if (
-    next.length === state.sourceAllowlist.length &&
-    next.every((item, index) => item === state.sourceAllowlist[index])
-  ) {
-    return
-  }
-  emit({ ...state, sourceAllowlist: next })
-}
-
-/**
- * 挂一张上下文卡（切片 Y）。
- *
- * ⚠ 按 `cardId` 去重：`@` 两次同一张卡，chip 排上不该出现两颗一模一样的。
- */
-export function addOperatorCardMention(card: StudioOperatorCardMention): void {
-  if (state.cardMentions.some((item) => item.cardId === card.cardId)) return
-  emit({ ...state, cardMentions: [...state.cardMentions, card] })
-}
-
-export function removeOperatorCardMention(cardId: string): void {
-  if (!state.cardMentions.some((item) => item.cardId === cardId)) return
-  emit({
-    ...state,
-    cardMentions: state.cardMentions.filter((item) => item.cardId !== cardId),
-  })
+/** 自动生成开关（D12 S-C）—— 会话级，见 `autoGenerate` 头注。 */
+export function setOperatorAutoGenerate(autoGenerate: boolean): void {
+  if (state.autoGenerate === autoGenerate) return
+  emit({ ...state, autoGenerate })
 }
 
 /** 结果行卡的选中格（§4.2）。⚠ 再点一次同一格 = 取消选中，由调用方传 `null`。 */
@@ -999,6 +950,8 @@ export function setOperatorConfirm(
  */
 export function resolveOperatorConfirm(
   status: StudioOperatorConfirmStatus,
+  /** 自动生成开关替你按下的那一次（D12 S-C）。 */
+  options: { auto?: boolean } = {},
 ): void {
   const confirm = state.confirm
   if (!confirm) return
@@ -1016,6 +969,7 @@ export function resolveOperatorConfirm(
       ...(status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting
         ? {}
         : { decidedAt: new Date().toISOString() }),
+      ...(options.auto ? { auto: true } : {}),
     },
   })
 }
@@ -1119,6 +1073,8 @@ export function loadOperatorThread(args: {
     sessionId: args.sessionId,
     sessionSurface: args.sessionSurface,
     entries: [],
+    // ⚠ 翻开另一段会话 = 自动生成开关回到关（D12 S-C，只管当前会话）。
+    autoGenerate: false,
     stepsDone: 0,
     plannedSteps: 0,
     errorText: null,
@@ -1143,7 +1099,17 @@ export function setOperatorSession(
   ) {
     return
   }
-  emit({ ...state, sessionId, sessionSurface })
+  /**
+   * ⚠ 自动生成开关只管当前这段会话（D12 S-C）：换到**另一段**会话就回到关。
+   * 第一次落库回填身份（null → id）还是同一段，⛔ 不清。
+   */
+  const switched = state.sessionId !== null && state.sessionId !== sessionId
+  emit({
+    ...state,
+    sessionId,
+    sessionSurface,
+    ...(switched ? { autoGenerate: false } : {}),
+  })
 }
 
 // ─── 断点续跑（第三期）────────────────────────────────────────────
@@ -1265,6 +1231,8 @@ export function resetOperatorThread(): void {
     entries: [],
     question: null,
     confirm: null,
+    // ⚠ 自动生成开关只管这一段会话（D12 S-C）：新对话回到关。
+    autoGenerate: false,
     stepsDone: 0,
     plannedSteps: 0,
     errorText: null,

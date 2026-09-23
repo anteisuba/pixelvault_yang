@@ -70,7 +70,7 @@ function renderChip(
 }
 
 function openChip() {
-  const chip = document.querySelector('[data-spec-chip]') as HTMLElement
+  const chip = document.querySelector('[data-spec-chip-state]') as HTMLElement
   fireEvent.pointerDown(chip, { button: 0 })
   fireEvent.click(chip)
   return chip
@@ -79,7 +79,7 @@ function openChip() {
 describe('SpecChip · chip 三态', () => {
   it('默认态；打开中换成 open；⛔ chip 上不显价', () => {
     renderChip()
-    const chip = document.querySelector('[data-spec-chip]') as HTMLElement
+    const chip = document.querySelector('[data-spec-chip-state]') as HTMLElement
 
     expect(chip).toHaveAttribute('data-spec-chip-state', 'default')
     expect(chip.textContent).toContain('1:1 · 2K')
@@ -91,7 +91,7 @@ describe('SpecChip · chip 三态', () => {
 
   it('`flashSignal` 从空变成非空时闪一次 warning；回到空不再闪', () => {
     const { rerender } = renderChip()
-    const chip = document.querySelector('[data-spec-chip]') as HTMLElement
+    const chip = document.querySelector('[data-spec-chip-state]') as HTMLElement
     expect(chip).toHaveAttribute('data-spec-chip-state', 'default')
 
     const props = {
@@ -104,14 +104,14 @@ describe('SpecChip · chip 三态', () => {
       onResolutionChange: vi.fn(),
     }
     rerender(<SpecChip {...props} flashSignal="snapped:16:9" />)
-    expect(document.querySelector('[data-spec-chip]')).toHaveAttribute(
+    expect(document.querySelector('[data-spec-chip-state]')).toHaveAttribute(
       'data-spec-chip-state',
       'flash',
     )
 
     // 宿主写回状态后信号回到空 —— 那不是第二次事故，不该再闪。
     rerender(<SpecChip {...props} flashSignal={null} />)
-    expect(document.querySelector('[data-spec-chip]')).toHaveAttribute(
+    expect(document.querySelector('[data-spec-chip-state]')).toHaveAttribute(
       'data-spec-chip-state',
       'default',
     )

@@ -2,17 +2,6 @@ import type { AspectRatio } from '@/constants/config'
 
 export const STUDIO_PROMPT_TEXTAREA_ID = 'studio-prompt-textarea' as const
 
-/**
- * 参数栏那颗**规格 chip 触发器**身上的标记（`studio-shared/spec/SpecChip.tsx`）。
- *
- * ⭐ 助手的规格行（D7c ④）靠它找到「和参数栏那颗同一个真值」的那一颗并点开它 ——
- * ⛔ 不在助手里造第二份规格表单，两份档位表必然漂。
- * ⚠ 用属性不用 `data-testid`（判据同 `STUDIO_OPERATOR_HISTORY` 那一处）：testid 是
- * 给用例的，⛔ 不让运行时逻辑依赖它。
- * ⚠ 同一屏可能挂着两颗（桌面参数栏与手机 composer 各画一份），所以调用方要挑
- * **看得见**的那一颗，⛔ 不是 `querySelector` 的第一个。
- */
-export const STUDIO_SPEC_CHIP_ATTR = 'data-spec-chip' as const
 export const STUDIO_PREFILL_PROMPT_STORAGE_KEY =
   'pixelvault:studio-prefill-prompt' as const
 

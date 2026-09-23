@@ -7625,30 +7625,6 @@
         "waiting": "アップロード中です — 完了すると送信できます"
       }
     },
-    "plusMenu": {
-      "label": "その他：素材をメンション / コンテキストカード / 参照元を指定",
-      "items": {
-        "mention": "素材をメンション",
-        "contextCard": "コンテキストカード",
-        "source": "参照元を指定"
-      },
-      "back": "戻る",
-      "cardsEmpty": "キャラ / スタイル / ブランドカードはまだありません",
-      "cardsCreate": "カードを新規作成",
-      "sourcesHint": "このターンのみ有効で、ルールにはなりません",
-      "sourcesPicked": "{count} 件選択中",
-      "sources": {
-        "web": "ウェブ検索",
-        "wiki": "百科事典（萌娘 / Wikipedia / Fandom）",
-        "bilibili": "bilibili",
-        "danbooru": "danbooru タグ"
-      },
-      "sourcesRemove": "{source} を外す",
-      "sourcesDomainLabel": "ドメインを追加",
-      "sourcesDomainPlaceholder": "ドメイン（例：danbooru.donmai.us）",
-      "sourcesDomainAdd": "追加",
-      "sourcesClear": "このターンの情報源をクリア"
-    },
     "modelChip": {
       "label": "テキストモデル",
       "auto": "自動",
@@ -8058,6 +8034,9 @@
         "placeholder": "続けて話すか、素材を入れて…",
         "context": "{project} · {count} 個のノードを選択中"
       }
+    },
+    "autoGenerate": {
+      "label": "自動生成"
     }
   },
   "GenerationCancel": {

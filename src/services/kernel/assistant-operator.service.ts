@@ -325,6 +325,7 @@ import {
  */
 import {
   buildSourceRuleFilter,
+  withTurnAllowlist,
   describeSourceRules,
   filterEvidenceIndices,
   filterResearchSources,
@@ -2235,11 +2236,19 @@ async function planResearch(
     goal: string
     entities?: string[]
     sources?: AssistantResearchSource[]
+    onlySources?: string[]
     expandSources?: boolean
     depth?: AssistantResearchDepth
   },
   userId: string,
 ): Promise<ToolPlan> {
+  /**
+   * 创作者在话里指了来源（D12 U3）—— 并进这一轮的闸，余下的检索与找图都按它滤。
+   * ⚠ 在轮次上限那道闸之前并：被拒的那一次也说明了他要什么。
+   */
+  if (args.onlySources?.length) {
+    run.sourceRules = withTurnAllowlist(run.sourceRules, args.onlySources)
+  }
   /**
    * ⛔ **这里没有 `isWebSearchConfigured()` 闸**（2026-09-06 拆）。
    *
@@ -6521,6 +6530,7 @@ async function planTool(
           goal: string
           entities?: string[]
           sources?: AssistantResearchSource[]
+          onlySources?: string[]
           expandSources?: boolean
           depth?: AssistantResearchDepth
         },
@@ -8846,10 +8856,7 @@ export async function* runAssistantOperator(
      * ⛔ 临时那份不写库 —— 用户为一个问题临时指了几个源，不该变成他此后每一轮
      * 的规矩。
      */
-    sourceRules: buildSourceRuleFilter(
-      sourceRules,
-      request.sourceAllowlist ?? [],
-    ),
+    sourceRules: buildSourceRuleFilter(sourceRules),
     // 进了系统提示的那几张卡一开始就在索引里 —— 引用它们不必先调一次工具。
     contextCardIndex: new Map(contextCards.map((card) => [card.id, card])),
     state: toWorkingState(request.snapshot),

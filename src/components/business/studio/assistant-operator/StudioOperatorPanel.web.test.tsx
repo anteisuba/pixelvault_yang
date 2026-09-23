@@ -113,13 +113,24 @@ const HOST_RESULTS = [
 ]
 
 /**
- * 这个宿主有没有「点开规格弹层」那只手（D7c ④ · `face.openSpec`）。
+ * 这个宿主有没有生成旋钮（`generationControls`）—— 规格行能不能就地调、自动生成
+ * 开关画不画都看它（D12 B6 / S-C）。
  *
  * ⚠ 可变盒子：工作台有、画布与 LoRA 装配台没有 —— 两档都要能验，而 mock 工厂
  * 只跑一次。
  */
 const HOST_SPEC = vi.hoisted(() => ({
-  openSpec: null as null | (() => void),
+  controls: null as null | {
+    model: { id: string; label: string } | null
+    models: { id: string; label: string }[]
+    aspectRatio: string
+    resolution: string | null
+    count: number
+    choicesByModel: Record<
+      string,
+      { aspectRatios: string[]; resolutions: string[]; counts: number[] }
+    >
+  },
 }))
 
 vi.mock('@/contexts/studio-operator-host', () => ({
@@ -132,8 +143,8 @@ vi.mock('@/contexts/studio-operator-host', () => ({
       emptyLine: '说你想要的画面，我来写提示词、挑模型、配参考。',
       starterPills: ['把这句写成好提示词', '换个模型看差别'],
       inputPlaceholder: '描述画面，或把参考图挂进来…',
-      ...(HOST_SPEC.openSpec ? { openSpec: HOST_SPEC.openSpec } : {}),
     },
+    ...(HOST_SPEC.controls ? { generationControls: HOST_SPEC.controls } : {}),
     buildSnapshot: () => ({
       prompt: '',
       availableModels: [],
@@ -170,6 +181,7 @@ const revisePlan = vi.fn()
 const confirmGeneration = vi.fn()
 const cancelGeneration = vi.fn()
 const retryGeneration = vi.fn()
+const setGenerationKnob = vi.fn()
 
 /**
  * ⚠ store 是**模块级单例**，用例之间必须换新的一份，而面板也要在同一次 reset
@@ -248,8 +260,7 @@ function PanelHarness() {
           confirmGeneration,
           cancelGeneration,
           retryGeneration,
-          cancelSpend: vi.fn(),
-          critique: vi.fn(),
+          setGenerationKnob,
           newThread: vi.fn(),
         } as unknown as Parameters<typeof Panel>[0]['operator']
       }
@@ -1147,11 +1158,7 @@ describe('StudioOperatorPanel · 会话区裁剪', () => {
     expect(column.className).toContain('min-h-0')
     expect(column.className).toContain('flex-col')
 
-    for (const id of [
-      'operator-suggestion-row',
-      'operator-spec-line',
-      'operator-input-area',
-    ]) {
+    for (const id of ['operator-suggestion-row', 'operator-input-area']) {
       const node = screen.getByTestId(id)
       expect(node.className).toContain('shrink-0')
       // DOCUMENT_POSITION_FOLLOWING = 它排在时间线**后面**（所以被顶的是它们
@@ -1184,11 +1191,11 @@ describe('StudioOperatorPanel · D7c 建议 chip', () => {
       `${STUDIO_OPERATOR_SHELL.pillStaggerMs}ms`,
     )
 
-    // 自上而下：chip → 规格行 → 输入框。
+    // 自上而下：chip → 输入框（规格行在空态让位给 chip，P7）。
     expect(
       screen
         .getByTestId('operator-suggestion-row')
-        .compareDocumentPosition(screen.getByTestId('operator-spec-line')) &
+        .compareDocumentPosition(screen.getByTestId('operator-input-area')) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
 
@@ -1211,41 +1218,80 @@ describe('StudioOperatorPanel · D7c 建议 chip', () => {
 })
 
 /**
- * 规格行（D7c ④ · 画板 `DesignD7cFlow`「输入区拆解」）。
+ * 规格行（D12 A 定稿 · P1 / B6）。
  *
  * 钉三件事：
- *  ① 那一句在**输入框上方**，⛔ 不在头部（头部只回答「这是哪个会话」）；
- *  ② 宿主给了 `openSpec` 时它是一颗 button，点它开的是**参数栏那一颗**规格 chip；
- *  ③ 宿主没给时渲染成非交互的一句读数 —— ⛔ 不画 chevron、⛔ 不做「点了没反应」。
+ *  ① 那一句在**输入框上方**，⛔ 不在头部；
+ *  ② 宿主有生成旋钮时它是一颗 button，点它**就地**弹出模型 / 比例 / 张数，
+ *     点一项走 `setGenerationKnob`（⛔ 不是去点参数栏那一颗）；
+ *  ③ 没有旋钮时渲染成非交互的一句读数 —— ⛔ 不做「点了没反应」。
  */
-describe('StudioOperatorPanel · D7c 规格行', () => {
+describe('StudioOperatorPanel · 规格行', () => {
   afterEach(() => {
-    HOST_SPEC.openSpec = null
+    HOST_SPEC.controls = null
   })
 
-  it('⭐ 那一句长在输入框上方，且点开的是宿主那只手', () => {
-    const openSpec = vi.fn()
-    HOST_SPEC.openSpec = openSpec
+  it('⭐ 那一句长在输入框上方，点开就地调，点一项写回工作台', () => {
+    HOST_SPEC.controls = {
+      model: { id: 'seedream', label: 'Seedream 5.0 Pro' },
+      models: [
+        { id: 'seedream', label: 'Seedream 5.0 Pro' },
+        { id: 'nano', label: 'Nano Banana Pro' },
+      ],
+      aspectRatio: '1:1',
+      resolution: null,
+      count: 4,
+      choicesByModel: {
+        seedream: {
+          aspectRatios: ['1:1', '3:4'],
+          resolutions: [],
+          counts: [1, 4],
+        },
+      },
+    }
+    store.appendOperatorEntry({
+      kind: 'user',
+      id: 'first',
+      text: '换个模型',
+      attachments: [],
+    })
     renderPanel()
 
     const line = screen.getByTestId('operator-spec-line')
     expect(line.textContent).toContain('Seedream 5.0 Pro · 1:1 · 4 张')
     expect(line.tagName).toBe('BUTTON')
-    // ⚠ DOCUMENT_POSITION_FOLLOWING = 输入区排在这一行**后面**。
     expect(
       line.compareDocumentPosition(screen.getByTestId('operator-input-area')) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
 
     fireEvent.click(line)
-    expect(openSpec).toHaveBeenCalledTimes(1)
+    const menu = screen.getByTestId('operator-spec-menu')
+    fireEvent.click(
+      within(menu)
+        .getAllByTestId('operator-spec-option')
+        .find((node) => node.dataset.value === '3:4')!,
+    )
+    expect(setGenerationKnob).toHaveBeenCalledWith('aspect', '3:4')
   })
 
-  it('⭐ 宿主没有那只手时它不是按钮（⛔ 不做「点了没反应」）', () => {
+  it('⭐ 宿主没有生成旋钮时它不是按钮（⛔ 不做「点了没反应」）', () => {
+    store.appendOperatorEntry({
+      kind: 'user',
+      id: 'first',
+      text: '换个模型',
+      attachments: [],
+    })
     renderPanel()
     const line = screen.getByTestId('operator-spec-line')
     expect(line.tagName).not.toBe('BUTTON')
     expect(line.textContent).toContain('Seedream 5.0 Pro · 1:1 · 4 张')
+  })
+
+  it('⭐ 空态时起手 chip 占它的位置（P7），⛔ 不叠两排', () => {
+    renderPanel()
+    expect(screen.getByTestId('operator-suggestion-row')).toBeTruthy()
+    expect(screen.queryByTestId('operator-spec-line')).toBeNull()
   })
 })
 
@@ -1276,45 +1322,61 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     ).toBeTruthy()
   })
 
-  it('下行四颗：+ · 上传 · 文本模型 chip ……… 发送', () => {
+  it('工具行：上传 · 素材库 · 文本模型 ……… 发送；⛔ 没有「+」（U2）', () => {
     renderPanel()
     const toolbar = within(screen.getByTestId('operator-toolbar'))
-    expect(toolbar.getByTestId('operator-plus-toggle')).toBeTruthy()
     expect(toolbar.getByTestId('operator-attach-toggle')).toBeTruthy()
+    expect(toolbar.getByTestId('operator-library-toggle')).toBeTruthy()
     expect(toolbar.getByTestId('operator-model-chip')).toBeTruthy()
     expect(toolbar.getByTestId('operator-send')).toBeTruthy()
+    expect(screen.queryByTestId('operator-plus-toggle')).toBeNull()
   })
 
   /**
-   * D7c ④ 画板「输入区拆解」：三颗方控件与发送**同尺寸同圆角**，⛔ 不许发送
-   * 自己圆一档；静止态四颗同一张皮（白底 + 细边），⛔ 不许某一颗独自压深。
+   * D12 T-A：裸图标 + 一个边框。两颗图标不带框（只有 hover 底），发送是**唯一**
+   * 的实底 —— 圆形。⛔ 不许哪一颗又穿回一身白底细边。
    */
-  it('⭐ 控件行统一：三颗方控件与发送同 `size-8 rounded-md`，静止同底', () => {
+  it('⭐ T-A：图标无框，发送是圆形实底', () => {
     renderPanel()
     const toolbar = within(screen.getByTestId('operator-toolbar'))
-    for (const id of [
-      'operator-plus-toggle',
-      'operator-attach-toggle',
-      'operator-library-toggle',
-      'operator-send',
-    ]) {
+    for (const id of ['operator-attach-toggle', 'operator-library-toggle']) {
       const className = toolbar.getByTestId(id).className
       expect(className).toContain('size-8')
-      expect(className).toContain('rounded-md')
-      // ⛔ 发送自己圆一档 / 某一颗自己小一号，都从这条红。
-      expect(className).not.toContain('rounded-full')
+      expect(className).not.toContain('border')
+      expect(className).not.toContain('bg-card')
     }
-
-    for (const id of [
-      'operator-plus-toggle',
-      'operator-attach-toggle',
-      'operator-library-toggle',
-    ]) {
-      expect(toolbar.getByTestId(id).className).toContain('bg-card')
-    }
-    expect(toolbar.getByTestId('operator-model-chip').className).toContain(
-      'bg-card',
+    const send = toolbar.getByTestId('operator-send').className
+    expect(send).toContain('rounded-full')
+    expect(send).toContain('bg-foreground')
+    expect(toolbar.getByTestId('operator-model-chip').className).not.toContain(
+      'border',
     )
+  })
+
+  it('S-C：有生成旋钮时发送键左边有自动生成开关，拨一下只改会话里那一格', () => {
+    HOST_SPEC.controls = {
+      model: null,
+      models: [],
+      aspectRatio: '1:1',
+      resolution: null,
+      count: 1,
+      choicesByModel: {},
+    }
+    renderPanel()
+    const toggle = screen.getByTestId('operator-auto-generate')
+    expect(
+      toggle.compareDocumentPosition(screen.getByTestId('operator-send')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+    expect(store.getOperatorState().autoGenerate).toBe(false)
+    fireEvent.click(toggle)
+    expect(store.getOperatorState().autoGenerate).toBe(true)
+    HOST_SPEC.controls = null
+  })
+
+  it('没有生成旋钮的宿主不画自动生成开关', () => {
+    renderPanel()
+    expect(screen.queryByTestId('operator-auto-generate')).toBeNull()
   })
 
   it('上传按钮 = 开文件选择器，选完交回上传通道（⛔ 不是装饰）', () => {
@@ -1333,27 +1395,9 @@ describe('StudioOperatorPanel · v2 §4.4 输入区两行', () => {
     expect(input.value).toBe('')
   })
 
-  it('「+」展开三项菜单；⛔ 「先问我」开关零命中', () => {
+  it('「先问我」开关零命中', () => {
     renderPanel()
     expect(screen.queryByTestId('operator-ask-first')).toBeNull()
-    expect(screen.queryByTestId('operator-plus-menu')).toBeNull()
-
-    fireEvent.click(screen.getByTestId('operator-plus-toggle'))
-    expect(screen.getByTestId('operator-plus-item-mention')).toBeTruthy()
-    expect(screen.getByTestId('operator-plus-item-contextCard')).toBeTruthy()
-    expect(screen.getByTestId('operator-plus-item-source')).toBeTruthy()
-  })
-
-  it('「提及素材」把 @ 插进输入框（唤出现有那颗选择器）', () => {
-    renderPanel()
-    fireEvent.click(screen.getByTestId('operator-plus-toggle'))
-    fireEvent.click(screen.getByTestId('operator-plus-item-mention'))
-
-    const editor = screen.getByRole('textbox', {
-      name: '描述画面，或把参考图挂进来…',
-    })
-    expect(editor.textContent).toContain('@')
-    expect(screen.queryByTestId('operator-plus-menu')).toBeNull()
   })
 })
 

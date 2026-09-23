@@ -7625,30 +7625,6 @@
         "waiting": "Still uploading — you can send once it lands"
       }
     },
-    "plusMenu": {
-      "label": "More: mention assets / context card / pick sources",
-      "items": {
-        "mention": "Mention assets",
-        "contextCard": "Context card",
-        "source": "Pick sources"
-      },
-      "back": "Back",
-      "cardsEmpty": "No character / style / brand cards yet",
-      "cardsCreate": "New card",
-      "sourcesHint": "This turn only — it does not become a rule",
-      "sourcesPicked": "{count} picked",
-      "sources": {
-        "web": "Web search",
-        "wiki": "Encyclopedias (Moegirl / Wikipedia / Fandom)",
-        "bilibili": "Bilibili",
-        "danbooru": "danbooru tags"
-      },
-      "sourcesRemove": "Remove {source}",
-      "sourcesDomainLabel": "Add a domain",
-      "sourcesDomainPlaceholder": "Domain, e.g. danbooru.donmai.us",
-      "sourcesDomainAdd": "Add",
-      "sourcesClear": "Clear this turn’s sources"
-    },
     "modelChip": {
       "label": "Text model",
       "auto": "Auto",
@@ -8058,6 +8034,9 @@
         "placeholder": "Keep going, or drop material in…",
         "context": "{project} · {count} nodes selected"
       }
+    },
+    "autoGenerate": {
+      "label": "Auto-generate"
     }
   },
   "GenerationCancel": {

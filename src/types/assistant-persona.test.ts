@@ -12,6 +12,7 @@ import {
 } from '@/constants/assistant-persona'
 import { NODE_STUDIO_ASSISTANT_ROUTE_MODELS } from '@/constants/node-studio'
 import {
+  ASSISTANT_OPERATOR_TOOL_IDS,
   ASSISTANT_SOURCE_ALLOWLIST_LIMITS,
   PROJECT_RULE_KIND_IDS,
 } from '@/constants/assistant-operator'
@@ -20,7 +21,7 @@ import {
   ProjectRuleSchema,
   UpdateAssistantPersonaSchema,
 } from '@/types/assistant-persona'
-import { AssistantOperatorRequestSchema } from '@/types/assistant-operator'
+import { ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS } from '@/types/assistant-operator'
 
 /**
  * 文本模型 chip 的持久化字段（v2 §4.5）。
@@ -267,37 +268,31 @@ describe('项目规则 · kind 与来源 token（v2 §9.3）', () => {
   })
 })
 
-/** 单轮临时白名单（§9.3 的「+」菜单那一半）走的是同一把刀。 */
-describe('请求体 · sourceAllowlist（v2 §9.3）', () => {
-  const BASE = {
-    messages: [{ role: 'user' as const, content: '查一下' }],
-    domain: 'image' as const,
-    snapshot: { prompt: '', availableModels: [] },
-  }
+/** 创作者在话里指的来源（`research.onlySources`，D12 U3）走的是同一把刀。 */
+describe('research.onlySources', () => {
+  const schema =
+    ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS[ASSISTANT_OPERATOR_TOOL_IDS.research]
 
   it('每一条收成域名或来源 id；⛔ 一句话进不来', () => {
-    const ok = AssistantOperatorRequestSchema.safeParse({
-      ...BASE,
-      sourceAllowlist: ['wiki', 'https://Danbooru.donmai.us/posts'],
+    const ok = schema.safeParse({
+      goal: '时夜的外貌',
+      onlySources: ['wiki', 'https://Danbooru.donmai.us/posts'],
     })
-    expect(ok.success && ok.data.sourceAllowlist).toEqual([
-      'wiki',
-      'danbooru.donmai.us',
-    ])
+    expect(
+      ok.success && (ok.data as { onlySources?: string[] }).onlySources,
+    ).toEqual(['wiki', 'danbooru.donmai.us'])
 
     expect(
-      AssistantOperatorRequestSchema.safeParse({
-        ...BASE,
-        sourceAllowlist: ['只信官方设定集'],
-      }).success,
+      schema.safeParse({ goal: '时夜', onlySources: ['只信官方设定集'] })
+        .success,
     ).toBe(false)
   })
 
   it('超过上限整条拒，⛔ 不静默截断', () => {
     expect(
-      AssistantOperatorRequestSchema.safeParse({
-        ...BASE,
-        sourceAllowlist: Array.from(
+      schema.safeParse({
+        goal: '时夜',
+        onlySources: Array.from(
           { length: ASSISTANT_SOURCE_ALLOWLIST_LIMITS.maxPerTurn + 1 },
           (_, index) => `site${index}.example`,
         ),

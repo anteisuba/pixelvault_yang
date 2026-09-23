@@ -13223,12 +13223,17 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
     }
   }
 
-  function verifyTurn() {
+  function verifyTurn(extra: Record<string, unknown> = {}) {
     return {
       tool: {
         name: ASSISTANT_OPERATOR_ENTRY_TOOL_IDS.research,
         title: 'check the design',
-        args: { action: 'verify', goal: '外貌与服饰', entities: ['时夜'] },
+        args: {
+          action: 'verify',
+          goal: '外貌与服饰',
+          entities: ['时夜'],
+          ...extra,
+        },
       },
     }
   }
@@ -13303,7 +13308,7 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
     expect(prompt).toContain('Do not search other sources anyway')
   })
 
-  it('「+」菜单这一轮临时指的名单**顶掉**库里那份白名单', async () => {
+  it('创作者在话里指的来源（onlySources）**顶掉**库里那份白名单', async () => {
     mockListProjectSourceRules.mockResolvedValue([
       rule('sourceAllow', 'bilibili'),
     ])
@@ -13314,14 +13319,9 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
       items: [SOURCE_ITEM],
       receipts: [],
     })
-    queueTurns(verifyTurn(), { finished: true })
+    queueTurns(verifyTurn({ onlySources: ['wiki'] }), { finished: true })
 
-    await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildRequest({ sourceAllowlist: ['wiki'] }),
-      ),
-    )
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
 
     expect(mockRunAssistantResearch).toHaveBeenCalledWith(
       expect.objectContaining({ sources: ['wiki'] }),
@@ -13340,14 +13340,11 @@ describe('来源白 / 黑名单（v2 §9.3）', () => {
       items: [],
       receipts: [],
     })
-    queueTurns(verifyTurn(), { finished: true })
+    queueTurns(verifyTurn({ onlySources: ['wiki', 'danbooru'] }), {
+      finished: true,
+    })
 
-    await collect(
-      runAssistantOperator(
-        'clerk-1',
-        buildRequest({ sourceAllowlist: ['wiki', 'danbooru'] }),
-      ),
-    )
+    await collect(runAssistantOperator('clerk-1', buildRequest()))
 
     const call = mockRunAssistantResearch.mock.calls[0][0] as {
       sources: string[]

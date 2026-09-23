@@ -617,8 +617,16 @@ export interface UseAssistantOperatorResult {
     knob: StudioOperatorGenerateKnob,
     value: string,
   ): readonly StudioOperatorGenerateKnob[]
+  /**
+   * 输入框上方规格行就地改一颗（D12 B6）—— 同一条写回通道，⛔ 不进登记簿。
+   * @returns 换模型顺手回落掉的那几颗。
+   */
+  setGenerationKnob(
+    knob: StudioOperatorGenerateKnob,
+    value: string,
+  ): readonly StudioOperatorGenerateKnob[]
   /** 生成确认卡「确认生成」（§5）—— **客户端扣扳机**，⛔ 不重发一轮。 */
-  confirmGeneration(): void
+  confirmGeneration(options?: { auto?: boolean }): void
   /** 生成确认卡「先不要」—— 流已经停了，只把卡转「已取消」。 */
   cancelGeneration(): void
   /**
@@ -738,6 +746,10 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 而那一刻正在 `run` 的 `for await` 里。
    */
   const runRef = useRef<((options?: RunOptions) => void) | null>(null)
+  /** `confirmGeneration` 的自引用口 —— 流收尾时按自动生成开关替你按下（D12 S-C）。 */
+  const confirmGenerationRef = useRef<
+    ((options?: { auto?: boolean }) => void) | null
+  >(null)
 
   /**
    * 把排着的那些话接进线程（§3.1 ㉓）—— 返回「有没有接到」。
@@ -1055,8 +1067,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         }
       }
 
-      const { entries, history, sessionId, sourceAllowlist } =
-        getOperatorState()
+      const { entries, history, sessionId } = getOperatorState()
       const mentionedAssets = buildMentionedAssets(entries, domain)
       const messages = [
         ...historyToOperatorMessages(history),
@@ -1162,21 +1173,12 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           ...(sessionId ? { conversationId: sessionId } : {}),
           /**
            * ⭐ **隐身**（56a · ⋯ 菜单）—— 开着时服务端这一轮一条记忆都不写。
-           * ⚠ 每轮上送、⛔ 不落库：它作用于**当前会话**，不是账号级设置
-           * （判据与 `sourceAllowlist` 那条同源）。
+           * ⚠ 每轮上送、⛔ 不落库：它作用于**当前会话**，不是账号级设置。
            * ⚠ 关着时**整个键不发**：一个恒在的 `incognito: false` 读起来像
            *   「用户特意关掉了隐身」，而绝大多数轮次里他从没碰过这颗开关。
            */
           ...(getOperatorState().incognito ? { incognito: true } : {}),
           ...(videoFrames ? { videoFrames } : {}),
-          /**
-           * ⭐ **这一轮指定的来源**（v2 §9.3）——「+」菜单点的那几个，只作用于
-           * 本轮。⚠ 服务端把它与库里那份白名单并起来时**临时的优先**；⛔ 客户端
-           * 不写库，也不替服务端做合并：名单是闸，闸只有一个地方说了算。
-           */
-          ...(sourceAllowlist.length
-            ? { sourceAllowlist: [...sourceAllowlist] }
-            : {}),
           ...(confirmations?.length ? { confirmations } : {}),
           ...(mountedPicks.length ? { loraPicks: mountedPicks } : {}),
           ...(planAnswers?.length ? { planAnswers } : {}),
@@ -1690,6 +1692,21 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       // `done` 之后没有别的收尾 —— 状态没被 `stopped` / `error` 改过就是跑完了。
       if (getOperatorState().status === 'working') setOperatorStatus('idle')
       /**
+       * ⭐ **自动生成开关开着**（D12 S-C）—— 这一轮停在生成确认卡上，就由客户端
+       * 替你按下。⚠ 放在流收尾**之后**：卡到货那一帧后面还跟着一帧 `stopped`，
+       * 在那之前按下去，状态会被它改回「等你确认」。
+       * ⚠ 钱闸不变：扳机仍是客户端这一下，⛔ 服务端没有任何工具能建 generation。
+       */
+      const waiting = getOperatorState()
+      if (
+        waiting.autoGenerate &&
+        waiting.confirm?.kind ===
+          ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
+        waiting.confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+      ) {
+        confirmGenerationRef.current?.({ auto: true })
+      }
+      /**
        * ⭐ **跑完了就把续跑记录清掉**（第三期）。
        *
        * ⚠ 两条判据取或（2026-09-12 实测第 2 组 ②）：
@@ -2084,10 +2101,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * ⚠ 换模型可能一次落三条（模型 + 规格 + 张数，§5.1 回落）—— 逐条记账，
    *   因为登记簿按**字段**存。
    */
-  const adjustGeneration = useCallback(
+  const applyGenerationKnob = useCallback(
     (
       knob: StudioOperatorGenerateKnob,
       value: string,
+      record: boolean,
     ): readonly StudioOperatorGenerateKnob[] => {
       const controls = host.generationControls
       if (!controls) return []
@@ -2108,7 +2126,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       })
       for (const step of steps) {
         const field = applyOperatorStep(step, applyContext)
-        if (!field) continue
+        if (!field || !record) continue
         recordOperatorChange({
           field,
           stepId: step.id,
@@ -2121,59 +2139,79 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     },
     [applyContext, domain, host.generationControls, tConfirm],
   )
+  const adjustGeneration = useCallback(
+    (knob: StudioOperatorGenerateKnob, value: string) =>
+      applyGenerationKnob(knob, value, true),
+    [applyGenerationKnob],
+  )
+  /**
+   * **输入框上方规格行就地改一颗**（D12 B6）—— 与确认卡同一条写回通道，
+   * ⛔ 但不进登记簿：这是用户自己在改工作台，不是助手做的一步，记进去就会
+   * 在参数栏上亮一颗「助手改过」的 ✦。
+   */
+  const setGenerationKnob = useCallback(
+    (knob: StudioOperatorGenerateKnob, value: string) =>
+      applyGenerationKnob(knob, value, false),
+    [applyGenerationKnob],
+  )
 
-  const confirmGeneration = useCallback(() => {
-    const confirm = getOperatorState().confirm
-    if (
-      !confirm ||
-      confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate ||
-      confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
-    ) {
-      return
-    }
-    resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
-    setOperatorStatus('idle')
-    if (confirm.request.label)
-      applyContext.setGenerationLabel?.(confirm.request.label)
-    /**
-     * ⭐ **用工作台此刻的值**（§5.2 第四行），⛔ 不是卡出现那一刻攒下的那份：
-     * 卡上改过的旋钮已经写回工作台了，而用户也可能在卡摆着的时候直接去工作台上
-     * 改。两者都只在 `generationControls` 里留下痕迹，所以这一枪按它重新拼一份。
-     * ⚠ 真正决定这一枪长什么样的仍然是 `REQUEST_GENERATE` 那条路上的表单快照
-     *   （见 `triggerGeneration` 头注）—— 这里对齐的是**载荷**，让日志与结果卡上
-     *   写的那几行与真的发出去的逐字相同。
-     */
-    const controls = host.generationControls
-    const request = controls
-      ? {
-          ...confirm.request,
-          model: controls.model ?? confirm.request.model,
-          count: controls.count,
-          specs: {
-            ...confirm.request.specs,
-            aspectRatio: controls.aspectRatio,
-            resolution: controls.resolution,
-          },
-        }
-      : confirm.request
-    applyContext.triggerGeneration?.(request)
-    /**
-     * **生成中那张结果卡就地落进时间线**（v2 §6.3，commit #10）。
-     *
-     * ⭐ 落在扣扳机**之后**、而且用的是刚刚拼出来的那份 `request`：卡上写的张数
-     * 与真的发出去的那一枪逐字同源（判据与上面那段头注同一条）。⛔ 别等结果回来
-     * 才落卡 —— 图片档一批四张要跑几十秒，这几十秒里时间线上什么都没有，
-     * 用户不知道自己刚才那一下点没点上。
-     * ⚠ 张数与缩略图由宿主回流往这条上写（`use-studio-operator-results.ts`），
-     *   这里一个数都不猜。
-     */
-    appendOperatorPendingResult({
-      id: nextOperatorEntryId('result'),
-      total: request.count,
-      ...(request.label ? { summary: request.label } : {}),
-      request,
-    })
-  }, [applyContext, host.generationControls])
+  const confirmGeneration = useCallback(
+    (options: { auto?: boolean } = {}) => {
+      const confirm = getOperatorState().confirm
+      if (
+        !confirm ||
+        confirm.kind !== ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate ||
+        confirm.status !== STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+      ) {
+        return
+      }
+      resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed, {
+        auto: options.auto,
+      })
+      setOperatorStatus('idle')
+      if (confirm.request.label)
+        applyContext.setGenerationLabel?.(confirm.request.label)
+      /**
+       * ⭐ **用工作台此刻的值**（§5.2 第四行），⛔ 不是卡出现那一刻攒下的那份：
+       * 卡上改过的旋钮已经写回工作台了，而用户也可能在卡摆着的时候直接去工作台上
+       * 改。两者都只在 `generationControls` 里留下痕迹，所以这一枪按它重新拼一份。
+       * ⚠ 真正决定这一枪长什么样的仍然是 `REQUEST_GENERATE` 那条路上的表单快照
+       *   （见 `triggerGeneration` 头注）—— 这里对齐的是**载荷**，让日志与结果卡上
+       *   写的那几行与真的发出去的逐字相同。
+       */
+      const controls = host.generationControls
+      const request = controls
+        ? {
+            ...confirm.request,
+            model: controls.model ?? confirm.request.model,
+            count: controls.count,
+            specs: {
+              ...confirm.request.specs,
+              aspectRatio: controls.aspectRatio,
+              resolution: controls.resolution,
+            },
+          }
+        : confirm.request
+      applyContext.triggerGeneration?.(request)
+      /**
+       * **生成中那张结果卡就地落进时间线**（v2 §6.3，commit #10）。
+       *
+       * ⭐ 落在扣扳机**之后**、而且用的是刚刚拼出来的那份 `request`：卡上写的张数
+       * 与真的发出去的那一枪逐字同源（判据与上面那段头注同一条）。⛔ 别等结果回来
+       * 才落卡 —— 图片档一批四张要跑几十秒，这几十秒里时间线上什么都没有，
+       * 用户不知道自己刚才那一下点没点上。
+       * ⚠ 张数与缩略图由宿主回流往这条上写（`use-studio-operator-results.ts`），
+       *   这里一个数都不猜。
+       */
+      appendOperatorPendingResult({
+        id: nextOperatorEntryId('result'),
+        total: request.count,
+        ...(request.label ? { summary: request.label } : {}),
+        request,
+      })
+    },
+    [applyContext, host.generationControls],
+  )
 
   /**
    * **上下文卡确认卡「存这张卡」**（v2 §8.1）—— 这一点把那张卡翻成「已确认」。
@@ -2364,6 +2402,13 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   }, [])
 
   /** 生成确认卡「先不要」—— 流已经停了，什么都不用发；卡就地转「已取消」。 */
+  useEffect(() => {
+    confirmGenerationRef.current = confirmGeneration
+    return () => {
+      confirmGenerationRef.current = null
+    }
+  }, [confirmGeneration])
+
   const cancelGeneration = useCallback(() => {
     resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled)
     setOperatorStatus('idle')
@@ -2453,6 +2498,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     revisePlan,
     resumePlan,
     adjustGeneration,
+    setGenerationKnob,
     confirmGeneration,
     cancelGeneration,
     saveContextCard,

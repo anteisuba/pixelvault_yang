@@ -48,6 +48,10 @@ import {
   ResponsivePopoverContent,
   ResponsivePopoverTrigger,
 } from '@/components/ui/responsive-popover'
+import {
+  buildOperatorKnobSpecs,
+  type StudioOperatorKnobSpec,
+} from '@/lib/studio-operator-knobs'
 import { cn } from '@/lib/utils'
 import type {
   StudioOperatorConfirmPrompt,
@@ -94,15 +98,7 @@ interface StudioOperatorConfirmCardProps {
   ): readonly StudioOperatorGenerateKnob[]
 }
 
-/** 一颗旋钮摆什么：读数 + （可换时）候选表。⚠ 候选空 = 这一颗不画。 */
-interface KnobSpec {
-  id: StudioOperatorGenerateKnob
-  /** chip 上写的那串（张数是「3 张」，模型是标签）。 */
-  value: string
-  /** 打勾比的那一份原值（张数是 `"3"`，模型是 id）。 */
-  current: string
-  options: readonly { value: string; label: string }[]
-}
+type KnobSpec = StudioOperatorKnobSpec
 
 /** 生成那一支的一行摘要 —— 三态（确认中 / 已确认 / 已取消）都写它。 */
 function generateSummary(
@@ -169,65 +165,16 @@ export function StudioOperatorConfirmCard({
    * 读 `request` 等于读卡出现那一刻的快照 —— 用户之后在工作台上改的就看不见了。
    * ⚠ 没有 `controls`（LoRA 装配台）才回落到 `request` 那份只读读数。
    */
-  const choices = controls
-    ? (controls.choicesByModel[controls.model?.id ?? ''] ?? {
-        aspectRatios: [],
-        resolutions: [],
-        counts: [],
-      })
-    : null
   const countLabel = (count: number) => t('confirm.generate.count', { count })
+  /**
+   * ⚠ 读数空的也不画（2026-09-12 实测第 5 步）：该模型有清晰度档、而工作台那一格
+   * 还没有值时，一颗什么都没写的旋钮比没有这颗旋钮更难读（判据在
+   * `buildOperatorKnobSpecs`，规格行与这张卡共用）。
+   */
   const knobs: readonly KnobSpec[] = !generate
     ? []
-    : controls && choices
-      ? (
-          [
-            {
-              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.model,
-              value: controls.model?.label ?? generate.request.model.label,
-              current: controls.model?.id ?? '',
-              options: controls.models.map((model) => ({
-                value: model.id,
-                label: model.label,
-              })),
-            },
-            {
-              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.aspect,
-              value: controls.aspectRatio,
-              current: controls.aspectRatio,
-              options: choices.aspectRatios.map((ratio) => ({
-                value: ratio,
-                label: ratio,
-              })),
-            },
-            {
-              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.count,
-              value: countLabel(controls.count),
-              current: String(controls.count),
-              options: choices.counts.map((count) => ({
-                value: String(count),
-                label: countLabel(count),
-              })),
-            },
-            {
-              id: STUDIO_OPERATOR_GENERATE_KNOB_IDS.resolution,
-              value: controls.resolution ?? '',
-              current: controls.resolution ?? '',
-              options: choices.resolutions.map((resolution) => ({
-                value: resolution,
-                label: resolution,
-              })),
-            },
-          ] satisfies KnobSpec[]
-        )
-          /**
-           * 候选空 = 这个模型没有这颗旋钮（视频档的张数、无清晰度档的模型）。
-           * ⚠ **读数空的也不画**（2026-09-12 实测第 5 步）：该模型有清晰度档、
-           * 而工作台那一格还没有值时，此前画出来的是一颗空 chip —— 一颗什么都
-           * 没写的旋钮比没有这颗旋钮更难读。⛔ 不为它编一个默认值：真值在
-           * 工作台（§5.2），卡只是它的一个视图。
-           */
-          .filter((knob) => knob.options.length > 0 && knob.value.length > 0)
+    : controls
+      ? buildOperatorKnobSpecs(controls, countLabel)
       : (
           [
             {

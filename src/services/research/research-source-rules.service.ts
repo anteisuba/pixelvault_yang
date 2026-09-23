@@ -75,24 +75,14 @@ export interface SourceRuleFilter {
   denyDomains: string[]
   /** 白名单非空吗 —— 三条纪律的第 ① 条只在这时生效。 */
   hasAllowlist: boolean
-  /** 这一轮的白名单是「+」菜单临时指的那份吗（说给用户听时口径不同）。 */
+  /** 这一轮的白名单是创作者在话里临时指的那份吗（说给用户听时口径不同）。 */
   allowlistIsTemporary: boolean
 }
 
-/**
- * 名单 → 闸。
- *
- * ⚠ **临时名单优先**（§9.3）：用户刚在「+」菜单里点的那几个，比他三周前写下的
- * 白名单更能说明这一轮要什么，所以临时名单在场时**顶掉**库里那份白名单。
- * ⛔ 但它顶不掉黑名单：屏蔽是「永远别给我这个站」，不是「这一轮先不要」。
- */
+/** 库里的名单 → 闸。 */
 export function buildSourceRuleFilter(
   rules: readonly ProjectRule[],
-  turnAllowlist: readonly string[] = [],
 ): SourceRuleFilter {
-  const temporary = turnAllowlist
-    .map(normalizeProjectRuleSourceToken)
-    .filter(Boolean)
   const persisted = { sources: [] as string[], domains: [] as string[] }
   const denied = { sources: [] as string[], domains: [] as string[] }
 
@@ -110,16 +100,10 @@ export function buildSourceRuleFilter(
     else bucket.domains.push(token)
   }
 
-  const allowTokens =
-    temporary.length > 0
-      ? temporary
-      : [...persisted.sources, ...persisted.domains]
   const allowSources = [
-    ...new Set(allowTokens.filter(isSourceGroupToken)),
+    ...new Set(persisted.sources.filter(isSourceGroupToken)),
   ] as AssistantResearchSource[]
-  const allowDomains = [
-    ...new Set(allowTokens.filter((token) => !isSourceGroupToken(token))),
-  ]
+  const allowDomains = [...new Set(persisted.domains)]
 
   return {
     allowSources,
@@ -129,7 +113,35 @@ export function buildSourceRuleFilter(
     ] as AssistantResearchSource[],
     denyDomains: [...new Set(denied.domains)],
     hasAllowlist: allowSources.length > 0 || allowDomains.length > 0,
-    allowlistIsTemporary: temporary.length > 0,
+    allowlistIsTemporary: false,
+  }
+}
+
+/**
+ * 创作者在话里临时指的那几个来源（D12 U3：「只在 danbooru 查」）并进闸。
+ *
+ * ⚠ **临时名单优先**（§9.3）：他这一句话比三周前写下的白名单更能说明这一轮要
+ * 什么，所以它**顶掉**库里那份白名单。⛔ 但顶不掉黑名单：屏蔽是「永远别给我这个
+ * 站」，不是「这一轮先不要」。
+ */
+export function withTurnAllowlist(
+  filter: SourceRuleFilter,
+  tokens: readonly string[],
+): SourceRuleFilter {
+  const temporary = tokens.map(normalizeProjectRuleSourceToken).filter(Boolean)
+  if (temporary.length === 0) return filter
+  const allowSources = [
+    ...new Set(temporary.filter(isSourceGroupToken)),
+  ] as AssistantResearchSource[]
+  const allowDomains = [
+    ...new Set(temporary.filter((token) => !isSourceGroupToken(token))),
+  ]
+  return {
+    ...filter,
+    allowSources,
+    allowDomains,
+    hasAllowlist: true,
+    allowlistIsTemporary: true,
   }
 }
 

@@ -7625,30 +7625,6 @@
         "waiting": "还有文件在传 —— 传完就能发"
       }
     },
-    "plusMenu": {
-      "label": "更多：提及素材 / 上下文卡 / 指定来源",
-      "items": {
-        "mention": "提及素材",
-        "contextCard": "上下文卡",
-        "source": "指定来源"
-      },
-      "back": "返回",
-      "cardsEmpty": "还没有角色 / 风格 / 品牌卡",
-      "cardsCreate": "新建一张卡",
-      "sourcesHint": "只作用于这一轮，不会变成规则",
-      "sourcesPicked": "已选 {count} 个",
-      "sources": {
-        "web": "网络搜索",
-        "wiki": "百科（萌娘 / 维基 / Fandom）",
-        "bilibili": "B站",
-        "danbooru": "danbooru 标签库"
-      },
-      "sourcesRemove": "移除 {source}",
-      "sourcesDomainLabel": "添加一个域名",
-      "sourcesDomainPlaceholder": "域名，如 danbooru.donmai.us",
-      "sourcesDomainAdd": "添加",
-      "sourcesClear": "清空这一轮的来源"
-    },
     "modelChip": {
       "label": "文本模型",
       "auto": "自动",
@@ -8058,6 +8034,9 @@
         "placeholder": "继续说，或把素材挂进来…",
         "context": "{project} · 选中 {count} 个节点"
       }
+    },
+    "autoGenerate": {
+      "label": "自动生成"
     }
   },
   "GenerationCancel": {

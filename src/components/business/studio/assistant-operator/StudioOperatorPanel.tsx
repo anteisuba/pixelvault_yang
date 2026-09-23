@@ -39,14 +39,11 @@ import {
 import {
   ArrowUp,
   Box,
-  ChevronDown,
   Images,
   Music,
   Paperclip,
   Play,
-  Plus,
   RotateCw,
-  Sparkles,
   Square,
   TriangleAlert,
   X,
@@ -84,10 +81,7 @@ import {
 import { ASSISTANT_ROUTE_MODEL_AUTO } from '@/constants/assistant-persona'
 import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
 import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
-import {
-  STUDIO_OPERATOR_PLUS_MENU_ID,
-  StudioOperatorPlusMenu,
-} from '@/components/business/studio/assistant-operator/StudioOperatorPlusMenu'
+import { StudioOperatorSpecLine } from '@/components/business/studio/assistant-operator/StudioOperatorSpecLine'
 import {
   STUDIO_OPERATOR_REVERT_CHOICES,
   StudioOperatorCheckpointCard,
@@ -95,7 +89,6 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorCheckpointCard'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
-import { ContextCardChip } from '@/components/business/studio/assistant-operator/ContextCardChip'
 import {
   MentionInput,
   type MentionCandidate,
@@ -143,6 +136,7 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorRoundSummary'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { Spinner } from '@/components/ui/spinner'
+import { Switch } from '@/components/ui/switch'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import type { UseAssistantOperatorResult } from '@/hooks/use-assistant-operator'
 import type { UseStudioOperatorHistoryResult } from '@/hooks/use-studio-operator-history'
@@ -156,6 +150,7 @@ import {
   hydrateOperatorResume,
   getOperatorState,
   restoreOperatorThreadCheckpoint,
+  setOperatorAutoGenerate,
   setOperatorResumeScope,
   updateOperatorRoundSummary,
   useStudioOperatorState,
@@ -339,6 +334,7 @@ export function StudioOperatorPanel({
     question,
     confirm,
     resume,
+    autoGenerate,
   } = useStudioOperatorState()
   const entries = useMemo(
     () => allEntries.filter((entry): boolean => entry.kind !== 'domainMark'),
@@ -372,6 +368,7 @@ export function StudioOperatorPanel({
     declinePlan,
     revisePlan,
     adjustGeneration,
+    setGenerationKnob,
     confirmGeneration,
     saveContextCard,
     dismissContextCard,
@@ -432,8 +429,6 @@ export function StudioOperatorPanel({
     roundChangeLabelKeys,
   } = useStudioOperatorRevert()
 
-  // 「+」菜单开着与否**是**局部态：它是一次性的挑选动作，收起再展开时它该是关的。
-  const [attachOpen, setAttachOpen] = useState(false)
   /**
    * 素材库弹层开着与否（切片 #7c）—— 同样是一次性挑选动作，局部态。
    *
@@ -452,7 +447,6 @@ export function StudioOperatorPanel({
   const [loraDetailCandidateId, setLoraDetailCandidateId] = useState<
     string | null
   >(null)
-  const attachTriggerRef = useRef<HTMLButtonElement>(null)
   /** 回形针那颗按钮背后的文件选择器（上传三通道的第一条）。 */
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const threadRef = useRef<HTMLDivElement>(null)
@@ -997,7 +991,6 @@ export function StudioOperatorPanel({
       onAttachmentsChange(attachments.filter((item) => item.kind === 'image'))
       mention.clearChips()
       mention.closePicker()
-      setAttachOpen(false)
     },
     [
       answerQuestion,
@@ -1012,16 +1005,9 @@ export function StudioOperatorPanel({
     ],
   )
 
-  /**
-   * 三个手势一条通道（拍板 16）：选文件 / 拖进来 / 粘贴，全落到这里。
-   * 挑完就把 📎 面板收掉 —— 与素材库「点即挂」同一个手势节奏，接手的是
-   * 输入框上方那排 chip。
-   */
+  /** 三个手势一条通道（拍板 16）：选文件 / 拖进来 / 粘贴，全落到这里。 */
   const handleUploadFiles = useCallback(
-    (files: readonly File[]) => {
-      upload.uploadFiles(files)
-      setAttachOpen(false)
-    },
+    (files: readonly File[]) => upload.uploadFiles(files),
     [upload],
   )
 
@@ -2273,29 +2259,6 @@ export function StudioOperatorPanel({
           ⚠ 与 📎 附件分成两排是有意的：📎 是「我给你一份材料」，@ 是「看这几张」。
             右端那个计数是这一片的承诺（「将看 N 张」），⛔ 不合并进附件排 ——
             合并之后计数会把材料也算进去，而助手并不会去看一段音频。 */}
-        {/* ── 上下文卡 chip（切片 Y）──────────────────────────────
-          ⚠ 与图 chip **分成两排**：「看这几张」和「照这张卡干活」不是同一件事，
-            合成一排之后右端那个「将看 N 张」的计数会把卡也数进去。 */}
-        {mention.cardChips.length > 0 ? (
-          <div
-            data-testid="operator-card-chip-row"
-            className="flex shrink-0 flex-wrap items-center gap-1.5 px-3 pb-1.5"
-          >
-            {mention.cardChips.map((card) => (
-              <ContextCardChip
-                key={card.cardId}
-                cardId={card.cardId}
-                name={card.name}
-                kind={card.kind}
-                images={card.images}
-                active
-                onRemove={mention.removeCardChip}
-                removeLabel={t('mention.remove')}
-              />
-            ))}
-          </div>
-        ) : null}
-
         {mention.chips.length > 0 ? (
           <div
             data-testid="operator-mention-row"
@@ -2354,14 +2317,10 @@ export function StudioOperatorPanel({
           </div>
         ) : null}
 
-        {/* ── 建议 chip：点即发送（拍板 15）—— **四处各写各的**（D7b ③）────
-          ⭐ **只在空态出现**（D7c ④，与旧实现相反）：它们是诱饵，回答的是「这个
-            助手会干什么」。线程一开始，用户已经知道了 —— 那时候还摆着同样几句话
-            等于在每一轮对话上方常驻一排永不变化的按钮。
-          ⚠ 28px 一排、窄了换行（画板「空态 · 改后」）：⛔ 不再是空态里那四条与
-            输入框等宽、带边带影的卡 —— 那个分量比助手说的那句话还重。
-          ⚠ 入场错开（动效表最后第二行）：`fill-mode-backwards` 让它们在各自的
-            延迟走完之前保持起始帧，⛔ 少了它就是「先全部出现再一起动一下」。 */}
+        {/* ── 输入框上方那一行（D12 A 定稿 · P7）─────────────────────────
+          ⭐ 空态放起手 chip（点即发送，拍板 15；诱饵只在空态出现，D7c ④），
+            线程一开始就换成规格行 —— 两样**占同一个位置**，⛔ 不叠两排。
+          ⚠ 入场错开：`fill-mode-backwards` 让它们在各自的延迟走完之前保持起始帧。 */}
         {threadEmpty && operatorHost.face.starterPills.length > 0 ? (
           <div
             data-testid="operator-suggestion-row"
@@ -2376,65 +2335,30 @@ export function StudioOperatorPanel({
                 style={{
                   animationDelay: `${index * STUDIO_OPERATOR_SHELL.pillStaggerMs}ms`,
                 }}
-                className="flex h-7 items-center gap-1.5 rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard animate-in fade-in-0 slide-in-from-bottom-1.5 fill-mode-backwards animation-duration-(--duration-base) hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none motion-reduce:transition-none"
+                className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard animate-in fade-in-0 slide-in-from-bottom-1.5 fill-mode-backwards animation-duration-(--duration-base) hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:animate-none motion-reduce:transition-none"
               >
-                <Sparkles
-                  className="size-3 shrink-0 text-muted-foreground/70"
-                  aria-hidden
-                />
                 <span className="min-w-0 truncate">{text}</span>
               </button>
             ))}
           </div>
-        ) : null}
+        ) : (
+          <StudioOperatorSpecLine
+            domainIcon={operatorHost.face.domainIcon}
+            domainName={t(`domainName.${domain}`)}
+            text={operatorHost.face.contextLine()}
+            {...(operatorHost.generationControls
+              ? {
+                  controls: operatorHost.generationControls,
+                  onPick: setGenerationKnob,
+                }
+              : {})}
+          />
+        )}
 
-        {/* ── 规格行（D7c ④ · 画板 `DesignD7cFlow`「输入区拆解」）────────
-          ⭐ 这一句原来长在**头部**（域标记胶囊）。它说的是「这一句发出去会产出
-            什么」—— 随参数栏变，所以它属于输入区，贴着输入框；头部只回答「这是
-            哪个会话」。
-          ⚠ 真值只有一个：点开的就是参数栏里**那一颗**规格 chip（`face.openSpec`），
-            ⛔ 助手不造第二份规格表单。
-          ⚠ 宿主没有 `openSpec`（画布 / LoRA 装配台）时渲染成**非交互的一句读数**：
-            不画 chevron、不加 hover、不是 button —— ⛔ 不做「点了没反应」。
-          ⚠ 域名留一份 `sr-only`：这一行写的是「Seedream 5.0 Pro · 1:1 · 4 张」，
-            读屏用户需要先知道这是哪个域。 */}
-        {(() => {
-          const { face } = operatorHost
-          const specContent = (
-            <>
-              <face.domainIcon
-                className="size-3.5 shrink-0 text-muted-foreground/70"
-                aria-hidden
-              />
-              <span className="sr-only">{t(`domainName.${domain}`)}</span>
-              <span className="min-w-0 truncate">{face.contextLine()}</span>
-            </>
-          )
-          return face.openSpec ? (
-            <button
-              type="button"
-              data-testid="operator-spec-line"
-              onClick={face.openSpec}
-              className="mx-3 mb-1.5 flex h-5.5 shrink-0 items-center gap-1.5 self-start rounded-sm text-2xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-            >
-              {specContent}
-              <span className="sr-only">{t('specLine.adjust')}</span>
-              <ChevronDown
-                className="size-3 shrink-0 text-muted-foreground/70"
-                aria-hidden
-              />
-            </button>
-          ) : (
-            <span
-              data-testid="operator-spec-line"
-              className="mx-3 mb-1.5 flex h-5.5 shrink-0 items-center gap-1.5 text-2xs text-muted-foreground"
-            >
-              {specContent}
-            </span>
-          )
-        })()}
-
-        {/* ── 输入区：上行工具条 + 下行输入（拍板 12）──────────────── */}
+        {/* ── 输入区（D12 A 定稿 · T-A）：**一个边框** = 文字 + 工具行 ──────────
+          ⭐ 工具行：裸图标（上传 · 素材库）· 助手模型灰字 · 自动生成开关 · 圆形发送键，
+            跟 Claude 的输入区同形。⛔ 不再有「+」（U2：提及 = 直接打 `@`，指定来源
+            在话里说，上下文卡只留助手提议与设置里管理）。 */}
         <div
           data-testid="operator-input-area"
           data-drag-over={dragOver}
@@ -2442,10 +2366,8 @@ export function StudioOperatorPanel({
            * 拖图进输入框（§3.3 第 3 行）—— 四入口之三。
            *
            * ⭐ 库内资产（`ASSET_DND_MIME`）成 @chip，其余原样交回上传三通道那一个
-           * 出口（拍板 16）。判据在 `use-studio-operator-mention.ts` 里，⛔ 这里
-           * 不再判一次。
-           * ⚠ `onDragOver` 必须 `preventDefault`，否则浏览器根本不会触发 `drop`
-           * （「拖上去光标是禁止号，松手什么都没发生」的经典成因）。
+           * 出口（拍板 16）。判据在 `use-studio-operator-mention.ts` 里。
+           * ⚠ `onDragOver` 必须 `preventDefault`，否则浏览器根本不会触发 `drop`。
            */
           onDragOver={(event) => {
             event.preventDefault()
@@ -2458,226 +2380,181 @@ export function StudioOperatorPanel({
             const files = mention.acceptDrop(event.dataTransfer)
             if (files.length > 0) upload.uploadFiles(files)
           }}
-          /* 画板 Main / BEmpty / BCards「输入区 · 静止」：输入区是**浮在面板里
-             的一张卡**，不是贴着底边的一条工具栏 —— 玻璃面板上一条横贯的分隔线
-             会把面板切成两半，而输入区本来就该读成「当下要你动手的那一件」。
-             走 raised 那一档（深一档描边 + 柔扩散影，§12.1）。 */
           className={cn(
-            'relative mx-3 mb-3 flex shrink-0 flex-col gap-1.5 rounded-xl border bg-card px-3 py-2.5 shadow-assistant-raised transition-colors duration-(--duration-fast) ease-standard motion-reduce:transition-none',
+            'relative mx-3 mb-3 flex shrink-0 flex-col gap-1.5 rounded-2xl border bg-card px-3 pt-2 pb-2 shadow-assistant-raised transition-colors duration-(--duration-fast) ease-standard motion-reduce:transition-none',
             dragOver
               ? 'border-primary ring-2 ring-inset ring-primary'
               : 'border-assistant-line-strong',
           )}
         >
-          <div className="flex flex-col gap-2">
-            <MentionInput
-              ref={inputRef}
-              /* 浮层 portal 在 `document.body`（面板带 `backdrop-filter` +
-                 `overflow-hidden`，portal 进来就会被接管坐标再被裁），所以要自己
-                 挂收放法则的豁免标记，否则点候选 = 点面板外面 = 面板收起。 */
-              popoverAttributes={{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
-              value={draft}
-              aria-label={operatorHost.face.inputPlaceholder}
-              onValueChange={onDraftChange}
-              tokens={referenceTokens}
-              mentionCandidates={mentionCandidates}
-              /* 一条都没对上时也要**说话**：两句分得开 —— 一句是「这儿本来就没有
-                 参考图」，另一句是「有，但没一条对得上你打的字」。合成一句的话
-                 前者会把用户支使去改搜索词。 */
-              emptyLabel={
-                referenceCandidates.length
-                  ? tReference('noMatches')
-                  : tReference('empty')
+          <MentionInput
+            ref={inputRef}
+            /* 浮层 portal 在 `document.body`（面板带 `backdrop-filter` +
+                   `overflow-hidden`，portal 进来就会被接管坐标再被裁），所以要自己
+                   挂收放法则的豁免标记，否则点候选 = 点面板外面 = 面板收起。 */
+            popoverAttributes={{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+            value={draft}
+            aria-label={operatorHost.face.inputPlaceholder}
+            onValueChange={onDraftChange}
+            tokens={referenceTokens}
+            mentionCandidates={mentionCandidates}
+            /* 一条都没对上时也要**说话**：两句分得开 —— 一句是「这儿本来就没有
+                   参考图」，另一句是「有，但没一条对得上你打的字」。合成一句的话
+                   前者会把用户支使去改搜索词。 */
+            emptyLabel={
+              referenceCandidates.length
+                ? tReference('noMatches')
+                : tReference('empty')
+            }
+            onMentionSelect={(candidate) => {
+              inputRef.current?.insertToken(
+                candidate.tokenName ?? candidate.name,
+              )
+            }}
+            onKeyDown={(event) => {
+              if (event.nativeEvent.isComposing || event.keyCode === 229) return
+              if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault()
+                submit(draft)
               }
-              onMentionSelect={(candidate) => {
-                inputRef.current?.insertToken(
-                  candidate.tokenName ?? candidate.name,
-                )
-              }}
-              onKeyDown={(event) => {
-                if (event.nativeEvent.isComposing || event.keyCode === 229)
-                  return
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault()
-                  submit(draft)
-                }
-              }}
-              /**
-               * 粘贴成附件（拍板 16 的第三个手势）。
-               *
-               * ⚠ 只在剪贴板**没有文本**时 `preventDefault`：从网页上复制一段
-               * 图文再粘进来，用户要的是那段文字**和**那张图，吞掉文字是错的。
-               * ⚠ 走 `clipboardData.files` 而不是 `items` —— `files` 已经是
-               * `File`，`items` 还要 `getAsFile()` 一层且在部分浏览器里会给出
-               * 一堆 `string` 类型的空条目。
-               */
-              onPaste={(event) => {
-                const files = [...(event.clipboardData?.files ?? [])]
-                if (files.length === 0) return
-                if (!event.clipboardData?.getData('text/plain')) {
-                  event.preventDefault()
-                }
-                upload.uploadFiles(files)
-              }}
-              placeholder={
-                /* ⚠ 有未答问题时换一句（§3.4）：用户可以**不答直接打字**，而
-                   默认那句「写点什么…」会让人以为必须先答上面那张卡。 */
-                question
-                  ? t('placeholderQuestion')
-                  : working
-                    ? t('placeholderWorking')
-                    : /* 空闲那一句**四处各写各的**（D7b ③）——这是输入区唯一的
-                         文案差异，⛔ 别把它也做成四套输入区。 */
-                      operatorHost.face.inputPlaceholder
+            }}
+            /**
+             * 粘贴成附件（拍板 16 的第三个手势）。
+             *
+             * ⚠ 只在剪贴板**没有文本**时 `preventDefault`：从网页上复制一段
+             * 图文再粘进来，用户要的是那段文字**和**那张图，吞掉文字是错的。
+             * ⚠ 走 `clipboardData.files` 而不是 `items` —— `files` 已经是
+             * `File`，`items` 还要 `getAsFile()` 一层且在部分浏览器里会给出
+             * 一堆 `string` 类型的空条目。
+             */
+            onPaste={(event) => {
+              const files = [...(event.clipboardData?.files ?? [])]
+              if (files.length === 0) return
+              if (!event.clipboardData?.getData('text/plain')) {
+                event.preventDefault()
               }
-              className="max-h-40 min-h-9 w-full resize-none overflow-y-auto overscroll-contain rounded-lg border border-border bg-background px-2.5 py-2 text-md outline-none transition-colors duration-(--duration-fast) ease-standard placeholder:text-muted-foreground/70 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
-            />
-            {/* ── 下行：+ · 上传 · 文本模型 chip ……… 发送（v2 §4.4）───── */}
-            <div
-              data-testid="operator-toolbar"
-              className="flex items-center gap-2"
+              upload.uploadFiles(files)
+            }}
+            placeholder={
+              /* ⚠ 有未答问题时换一句（§3.4）：用户可以**不答直接打字**，而
+                     默认那句「写点什么…」会让人以为必须先答上面那张卡。 */
+              question
+                ? t('placeholderQuestion')
+                : working
+                  ? t('placeholderWorking')
+                  : /* 空闲那一句**四处各写各的**（D7b ③）——这是输入区唯一的
+                           文案差异，⛔ 别把它也做成四套输入区。 */
+                    operatorHost.face.inputPlaceholder
+            }
+            className="max-h-40 min-h-9 w-full resize-none overflow-y-auto overscroll-contain bg-transparent px-1 py-1 text-sm outline-none placeholder:text-muted-foreground/70"
+          />
+          <div
+            data-testid="operator-toolbar"
+            className="flex items-center gap-1"
+          >
+            {/*
+              ⭐ 上传：三个手势仍是**一条通道**（拍板 16）：选文件 / 拖进输入框 / 粘贴，
+                全落到 `handleUploadFiles`。
+              ⚠ 选完必须清 `value`：不清的话「同一个文件选第二次」不触发 change。
+            */}
+            <button
+              type="button"
+              data-testid="operator-attach-toggle"
+              aria-label={t('attach.label')}
+              title={t('attach.label')}
+              onClick={() => uploadInputRef.current?.click()}
+              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
             >
-              <button
-                ref={attachTriggerRef}
-                type="button"
-                data-testid="operator-plus-toggle"
-                aria-label={t('plusMenu.label')}
-                aria-expanded={attachOpen}
-                aria-controls={
-                  attachOpen ? STUDIO_OPERATOR_PLUS_MENU_ID : undefined
-                }
-                data-operator-plus-trigger
-                onClick={() => setAttachOpen((open) => !open)}
-                /* ⚠ 与右边两颗**同一张皮**（D7c ④ 画板「输入区拆解」：三颗方控件
-                   白底 + 细边 + 灰图标）—— 它此前独自顶着 `bg-muted`，在一排白
-                   控件里读起来像被选中了。展开那一档照旧翻成信号位。 */
-                className={cn(
-                  'grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
-                  // 展开时翻成信号位（近黑实底 + 白字，§12.2）。
-                  attachOpen &&
-                    'border-foreground bg-foreground text-background hover:bg-foreground hover:text-background',
-                )}
-              >
-                <Plus className="size-4" aria-hidden />
-              </button>
-              {/*
-                ⭐ 上传从「+」菜单搬到了这颗独立按钮上（v2 §4.4「附件不进菜单」）。
-                ⚠ 三个手势仍是**一条通道**（拍板 16）：选文件 / 拖进输入框 / 粘贴，
-                  全落到 `handleUploadFiles`。⛔ 别在这里另起一条 fetch。
-                ⚠ 选完必须清 `value`：不清的话「同一个文件选第二次」不触发 change，
-                  表现是「第一次能传，删掉重选就没反应了」。
-              */}
-              <button
-                type="button"
-                data-testid="operator-attach-toggle"
-                aria-label={t('attach.label')}
-                onClick={() => uploadInputRef.current?.click()}
-                className="grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-              >
-                <Paperclip className="size-4" aria-hidden />
-              </button>
-              <input
-                ref={uploadInputRef}
-                type="file"
-                multiple
-                accept={STUDIO_OPERATOR_UPLOAD_ACCEPT}
-                data-testid="operator-attach-file-input"
-                className="hidden"
-                onChange={(event) => {
-                  const files = [...(event.target.files ?? [])]
-                  event.target.value = ''
-                  if (files.length > 0) handleUploadFiles(files)
-                }}
-              />
-              {/*
-                ⭐ 素材库按钮（切片 #7c，owner 2026-09-11）：点开 `AssetSelectorDialog`
-                  挑库里的图挂给助手。
-                ⚠ 为什么是**显性按钮**而不是 `@` 里的一段：`@` 得先想起来打一个 `@`
-                  才看得见，而「从素材库挑图」是用户**一眼要找的入口**。
-                ⛔ 不另造一个浏览器：弹层内仍是 `AssetPickerBrowser`（文件夹分类 +
-                  无限滚动 + 多选），只把首屏页大小换成 10。
-              */}
+              <Paperclip className="size-4" aria-hidden />
+            </button>
+            <input
+              ref={uploadInputRef}
+              type="file"
+              multiple
+              accept={STUDIO_OPERATOR_UPLOAD_ACCEPT}
+              data-testid="operator-attach-file-input"
+              className="hidden"
+              onChange={(event) => {
+                const files = [...(event.target.files ?? [])]
+                event.target.value = ''
+                if (files.length > 0) handleUploadFiles(files)
+              }}
+            />
+            {/* 素材库（切片 #7c）：点开 `AssetSelectorDialog` 挑库里的图挂给助手。 */}
+            <button
+              type="button"
+              data-testid="operator-library-toggle"
+              aria-label={t('library.label')}
+              title={t('library.label')}
+              onClick={() => setLibraryOpen(true)}
+              className="grid size-8 shrink-0 place-items-center rounded-md text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+            >
+              <Images className="size-4" aria-hidden />
+            </button>
+            {/* 助手用的文本模型（§4.5）：选中即写 `AssistantPersona.routeModel`。 */}
+            <StudioOperatorModelChip
+              value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
+              onChange={onSelectRouteModel}
+            />
+            <span className="flex-1" />
+            {/*
+              ⭐ **自动生成开关**（D12 S-C）：发送键左边，只管当前这段会话。开着时
+                生成确认卡一到就由客户端替你按下，卡直接收成「已自动生成」一行。
+              ⚠ 只在有生成键的宿主上画（图片 / 视频档），⛔ 不摆一颗没用的开关。
+            */}
+            {operatorHost.generationControls ? (
+              <label className="mr-1 flex cursor-pointer items-center gap-1.5 text-xs text-muted-foreground select-none">
+                {t('autoGenerate.label')}
+                <Switch
+                  size="sm"
+                  data-testid="operator-auto-generate"
+                  checked={autoGenerate}
+                  onCheckedChange={setOperatorAutoGenerate}
+                  aria-label={t('autoGenerate.label')}
+                  className="data-[state=checked]:bg-foreground"
+                />
+              </label>
+            ) : null}
+            {/*
+              ⭐ 跑着且输入框是空的 → 这一颗就是**停止**（S2）；跑着但你打了字 →
+                仍是发送，这一句排队（§3.1 ㉒）。⛔ 不并排两颗。
+            */}
+            {working && !draft.trim() ? (
               <button
                 type="button"
-                data-testid="operator-library-toggle"
-                aria-label={t('library.label')}
-                title={t('library.label')}
-                onClick={() => setLibraryOpen(true)}
-                /* ⚠ 与左边那两颗同尺寸同圆角（`size-8 rounded-md`，对稿
-                   2026-09-11）：下行四颗控件是一排并列的入口，⛔ 不许某一颗
-                   自己小一号、圆一档。 */
-                className="grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                data-testid="operator-stop"
+                aria-label={t('stop')}
+                title={t('stop')}
+                onClick={stop}
+                className="grid size-8 shrink-0 place-items-center rounded-full border border-assistant-line-strong bg-card text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
               >
-                <Images className="size-4" aria-hidden />
+                <Square className="size-3" aria-hidden />
               </button>
-              {/* ⭐ 文本模型 chip（§4.5，commit #8）：「自动」是真选项排第一，
-                九条模型按厂商分组，选中即写 `AssistantPersona.routeModel`。
-                ⛔ 面板不再持有任何 route 内存态 —— 真值在 persona，服务端自己读。 */}
-              <StudioOperatorModelChip
-                value={persona?.routeModel ?? ASSISTANT_ROUTE_MODEL_AUTO}
-                onChange={onSelectRouteModel}
-              />
-              <span className="flex-1" />
-              {working ? (
-                <button
-                  type="button"
-                  data-testid="operator-stop"
-                  aria-label={t('stop')}
-                  title={t('stop')}
-                  onClick={stop}
-                  className="grid size-8 shrink-0 place-items-center rounded-md border border-status-risk/40 bg-status-risk-surface text-status-risk transition-colors duration-(--duration-fast) ease-standard hover:border-status-risk motion-reduce:transition-none"
-                >
-                  <Square className="size-3" aria-hidden />
-                </button>
-              ) : null}
+            ) : (
               <button
                 type="button"
                 data-testid="operator-send"
                 /**
-                 * ⚠ 工作态下发送 = **排队**（§3.1 ㉒，拍板 13 改口）：`send()` 把这一句
-                 * 放进队列，到下一个工具步跑完才接住。⛔ 「发送即插话」那条分支已删
-                 * （§14「删掉什么」）—— 它此前的实现是 abort + 重发，代价是用户想补
-                 * 一句「顺便把比例改成 3:4」会把已经付过钱的三步整个掐掉重跑一遍。
-                 * 真要掐掉走 ⏹（`operator-stop`）。
-                 * 等上传是**说出来的**等待：停用 + 一句「还有文件在传」，
-                 * ⛔ 不做「点了没反应」。
+                 * ⚠ 工作态下发送 = **排队**（§3.1 ㉒）：`send()` 把这一句放进队列，
+                 * 到下一个工具步跑完才接住。等上传是**说出来的**等待：停用 +
+                 * 一句「还有文件在传」，⛔ 不做「点了没反应」。
                  */
                 disabled={uploading}
                 title={sendLabel}
                 aria-label={sendLabel}
                 onClick={() => submit(draft)}
-                className="grid size-8 shrink-0 place-items-center rounded-md bg-foreground text-background transition-[background-color,transform] duration-(--duration-fast) ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground disabled:opacity-100 motion-reduce:transition-none"
+                className="grid size-8 shrink-0 place-items-center rounded-full bg-foreground text-background transition-[background-color,transform] duration-(--duration-fast) ease-standard hover:bg-foreground/90 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:bg-surface-fill-track disabled:text-muted-foreground motion-reduce:transition-none"
               >
                 {uploading ? (
                   <Spinner size="sm" className="text-background" />
                 ) : (
-                  /* ⚠ 画板 Main 的发送键是一支**↑**不是纸飞机：这一颗提交的是
-                     「把这句话推上去」，箭头比纸飞机更直说这件事。底仍是
-                     `bg-foreground`（信号位，§12.2）。 */
                   <ArrowUp className="size-4" aria-hidden />
                 )}
               </button>
-            </div>
+            )}
           </div>
         </div>
       </div>
-
-      {attachOpen && !history.loadingSessionId ? (
-        <StudioOperatorPlusMenu
-          triggerRef={attachTriggerRef}
-          onDismiss={() => setAttachOpen(false)}
-          {...(domain ? { scope: domain } : {})}
-          /**
-           * 「提及素材」= 插一个 `@` 再把焦点还给输入框 —— 弹出来的是
-           * `MentionInput` 现有的那一颗选择器，⛔ 菜单里不另造一份。
-           */
-          onPickMention={() => inputRef.current?.insertText('@')}
-          onPickCard={(card) => {
-            onDraftChange(mention.pickCard(draft, card))
-            inputRef.current?.focus()
-          }}
-        />
-      ) : null}
 
       {/*
         素材库弹层（切片 #7c）。⚠ 只在开着时挂：`AssetPickerBrowser` 一挂载就取

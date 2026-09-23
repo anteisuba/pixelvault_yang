@@ -1604,20 +1604,6 @@ export const AssistantOperatorRequestSchema = z.object({
    */
   videoFrames: AssistantOperatorVideoFramesSchema.optional(),
   /**
-   * **这一轮只信这几个来源**（v2 §9.3 · 输入区「+」菜单的「指定来源」）。
-   *
-   * ⭐ 它与库里的来源白名单是**同一个闸的两条命**：这一条只作用于本轮、⛔ 不写库
-   * （用户为一个问题临时指了几个源，不该变成他此后每一轮的规矩）。服务端把两份
-   * 并起来时**临时的优先**：用户刚在菜单里点的那几个，比他三周前写下的名单更能
-   * 说明这一轮要什么。
-   * ⚠ 每一条是**来源 id 或域名**，与 `ProjectRule.text` 逐字同形；⛔ 不收一句话。
-   * ⚠ 缺席 = 这一轮没有临时名单（常态），库里那份照常生效。
-   */
-  sourceAllowlist: z
-    .array(ProjectRuleSourceTokenSchema)
-    .max(SOURCE_ALLOWLIST_LIMITS.maxPerTurn)
-    .optional(),
-  /**
    * **创作者在 LoRA 推荐卡上勾中的那几把**（lora-assistant §10.1/§10.2）。
    *
    * ⭐ 它是 `mount_lora` 的**准入闸本身**：服务端从这张名单现算一个
@@ -1844,6 +1830,17 @@ export const ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS: Record<
     sources: z
       .array(z.enum(ASSISTANT_RESEARCH_SOURCES))
       .max(ASSISTANT_RESEARCH_SOURCES.length)
+      .optional(),
+    /**
+     * **这一轮只信这几个来源**（D12 U3：「只在 danbooru 查」在话里说）。
+     *
+     * ⭐ 与库里的来源白名单是**同一把闸**：服务端把它并进 `run.sourceRules`，
+     * 本轮余下的检索与找图都按它滤；⛔ 不写库。黑名单照旧压在它上面。
+     * ⚠ 每一条是来源组 id 或域名，与 `ProjectRule.text` 逐字同形；⛔ 不收一句话。
+     */
+    onlySources: z
+      .array(ProjectRuleSourceTokenSchema)
+      .max(SOURCE_ALLOWLIST_LIMITS.maxPerTurn)
       .optional(),
     /**
      * **再多找几个源**（§9.1 ③ / 证据卡上那颗按钮，commit #16）。

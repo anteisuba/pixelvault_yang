@@ -171,25 +171,20 @@ export function StudioOperatorModelChip({
             data-testid="operator-model-chip"
             aria-label={t('label')}
             data-open={open || undefined}
-            /* 静止时与左边三颗方控件**同一张皮**（D7c ④ 画板「输入区拆解」：
-               白底 + 细边 + 32 高 + `rounded-md`），**展开才翻成信号位**（近黑
-               实底 + 白字，§12.2）。⛔ 常驻黑会和右边那颗发送键抢同一个重量级。
-               ⚠ 底色从 `bg-muted` 换成 `bg-card`：一排白控件里独自压深一档读起来
-               像「这一颗被选中了」。 */
+            /* D12 T-A：一行**灰字**，不穿框（输入区整块只有一个边框）；hover /
+               展开才垫一层浅底。⛔ 不翻成近黑信号位：那一档只给发送键。 */
             className={cn(
-              'flex h-8 shrink-0 items-center gap-1.5 rounded-md px-2.5 text-xs transition-colors duration-(--duration-fast) ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
-              open
-                ? 'bg-foreground font-medium text-background'
-                : 'border border-border bg-card text-foreground hover:bg-accent',
+              'flex h-8 min-w-0 shrink items-center gap-1 rounded-md px-1.5 text-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none',
+              open ? 'bg-accent text-foreground' : 'text-muted-foreground',
             )}
           >
             <span className="max-w-32 truncate">{selectedLabel}</span>
             {/* 收着朝下、展开朝上（画板 BCards 两态）——箭头方向本身就是那一句
                 「它会往上开」。 */}
             {open ? (
-              <ChevronUp className="size-3.5 shrink-0" aria-hidden />
+              <ChevronUp className="size-3 shrink-0" aria-hidden />
             ) : (
-              <ChevronDown className="size-3.5 shrink-0" aria-hidden />
+              <ChevronDown className="size-3 shrink-0" aria-hidden />
             )}
           </button>
         </ResponsivePopoverTrigger>

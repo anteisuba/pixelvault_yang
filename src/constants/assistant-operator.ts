@@ -2595,7 +2595,7 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
    * 之后放弃 —— owner 打回的就是这个行为。
    */
   [ASSISTANT_OPERATOR_TOOL_IDS.research]:
-    'find out about a SUBJECT properly — a character, a work, a studio, a piece of terminology. Give it a goal in one line plus the entities it turns on ("Ananta", "Shiye"), and it hits several kinds of source at once (encyclopedias, tag libraries, video, general web) and hands back evidence lines: what was said, who published it, how much weight it carries. Use it INSTEAD of search_web whenever the answer is a description rather than a single word, and use it FIRST when the creator names a character or work you are not certain of. You may call it a SECOND time in the same turn with a narrower goal once the first round tells you the official name, the right spelling, or which site is the source of truth — that second round is where the real answer usually is. One round that came back thin is not a dead end: change the entity spelling or the source mix and go again.',
+    'find out about a SUBJECT properly — a character, a work, a studio, a piece of terminology. Give it a goal in one line plus the entities it turns on ("Ananta", "Shiye"), and it hits several kinds of source at once (encyclopedias, tag libraries, video, general web) and hands back evidence lines: what was said, who published it, how much weight it carries. Use it INSTEAD of search_web whenever the answer is a description rather than a single word, and use it FIRST when the creator names a character or work you are not certain of. You may call it a SECOND time in the same turn with a narrower goal once the first round tells you the official name, the right spelling, or which site is the source of truth — that second round is where the real answer usually is. One round that came back thin is not a dead end: change the entity spelling or the source mix and go again. When the creator says where to look ("only on danbooru", "只在萌百查"), pass exactly that in "onlySources" (a source group — web, wiki, bilibili, danbooru — or a domain) and say in your answer that you searched only there.',
   [ASSISTANT_OPERATOR_TOOL_IDS.readUrl]:
     'actually READ one web page and get the part you need out of it. Takes a url you saw in a verify result (or one the creator gave you) plus a short \'focus\' saying what you are looking for — "appearance and outfit", "release date", "official name". The server pulls the page, finds the passages that match your focus, and returns just those. This is how you get the details that a search extract never contains: hair, eyes, costume, colours, the exact wording of an official description. It reads words only — it does not fetch, save or attach pictures.',
   [ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence]:
@@ -3150,7 +3150,7 @@ export const PROJECT_RULE_SOURCE_TOKEN_PATTERN =
   /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)*$/
 
 /**
- * 单轮临时白名单（§9.3 的「+」菜单「指定来源」）最多几条。
+ * 单轮临时白名单（`research.onlySources`，创作者在话里指的来源）最多几条。
  *
  * ⚠ 它与库里的名单**不是同一条命**：临时名单只作用于本轮、⛔ 不写库。
  * 上限存在的理由与规则表那条一样 —— 它会拼进系统提示。

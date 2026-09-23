@@ -7933,15 +7933,12 @@
     },
     "question": {
       "step": "{step} / {total}",
-      "back": "前の質問",
       "recommended": "おすすめ",
-      "other": "その他（自分で書く）",
-      "otherPlaceholder": "自分で書く…",
       "current": "現在のプロンプト",
       "proposed": "提案されたプロンプト",
-      "send": "送信",
       "sourceNotes": "参照できる資料",
-      "negativeDiff": "ネガティブに足す語："
+      "negativeDiff": "ネガティブに足す語：",
+      "edit": "変更"
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "この環境では動画を読めません",
@@ -7990,7 +7987,7 @@
     "verbStrip": {
       "label": "今回のやり取り"
     },
-    "placeholderQuestion": "または直接入力…",
+    "placeholderQuestion": "または、そのまま書いてください…",
     "collapsedTodo": "返答待ち {count}件",
     "incognito": "シークレット · この回は記憶しない",
     "face": {

@@ -114,7 +114,6 @@ import {
   type StudioOperatorPinnedEvidenceItem,
 } from '@/components/business/studio/assistant-operator/StudioOperatorPinnedEvidence'
 import {
-  StudioOperatorQuestionAnswers,
   StudioOperatorQuestionBlock,
   type StudioOperatorQuestionAnswerPayload,
 } from '@/components/business/studio/assistant-operator/StudioOperatorQuestionBlock'
@@ -2088,48 +2087,6 @@ export function StudioOperatorPanel({
             而线程里的一切都是「已经发生的事」。 */}
         <StudioOperatorQueueBar items={queue} onCancel={cancelQueued} />
 
-        {/* ── 问题块：**与输入框同框、一次一题**（56b 切片 4）──────────
-          ⭐ 它不进时间线：未答的问题是当下唯一挡路的东西，滚走了就等于问了个
-            寂寞。整组答完块消失，时间线里落几行「问题 · 你选了 X」（系统行）。
-          ⚠ 已答的那几道先收成小标签留在块上方 —— 它们此刻还没进线程，所以
-            「← 上一题」只要 pop 一格（见 `StudioOperatorQuestionPrompt` 的头注）。
-          ⚠ 下面的输入框**始终可用**：直接打字 = 用一句话回答当前这题
-            （见 `submitComposer`）。 */}
-        {question ? (
-          <div className="shrink-0">
-            <StudioOperatorQuestionAnswers answers={question.answers} />
-            <StudioOperatorQuestionBlock
-              /* ⭐ **key 带题序**：换一题 = 换一次挂载，于是键盘高亮、写了一半
-                 的「其他」、点过一次的锁全都自己清零 —— ⛔ 不在 effect 里
-                 setState 清（`react-hooks/set-state-in-effect`）。 */
-              key={`${question.id}:${question.answers.length}`}
-              prompt={question}
-              onBack={goBackQuestion}
-              onDismiss={dismissQuestion}
-              onAnswer={(
-                answer,
-                payload: StudioOperatorQuestionAnswerPayload,
-              ) =>
-                answerQuestion(answer, {
-                  label: payload.label,
-                  ...(payload.choice ? { choice: payload.choice } : {}),
-                  ...(payload.assetOptionId
-                    ? {
-                        asset: toQuestionAsset(
-                          question.questions[
-                            question.answers.length
-                          ]?.options.find(
-                            (option) => option.id === payload.assetOptionId,
-                          ),
-                        ),
-                      }
-                    : {}),
-                })
-              }
-            />
-          </div>
-        ) : null}
-
         {/* ── 上传中 / 上传失败的 chip（P3-A）──────────────────────
           ⭐ 与下面「已挂上的附件」是同一排、同一种形状：对用户来说这就是
           「我加进来的东西」的那一行，只是有的还在路上。
@@ -2387,6 +2344,41 @@ export function StudioOperatorPanel({
               : 'border-assistant-line-strong',
           )}
         >
+          {/* ── 问题块（D12 S3 / S4）：**占用输入框内部**，⛔ 不套第二层框（P2）。
+            ⭐ 不进时间线：未答的问题是当下唯一挡路的东西。
+            ⚠ 下面的输入框**始终可用**：直接打字 = 用一句话回答当前这题（Q6，
+              见 `submitComposer`）。 */}
+          {question ? (
+            <StudioOperatorQuestionBlock
+              /* ⭐ **key 带题序**：换一题 = 换一次挂载，于是键盘高亮、写了一半
+                 的「其他」、点过一次的锁全都自己清零 —— ⛔ 不在 effect 里
+                 setState 清（`react-hooks/set-state-in-effect`）。 */
+              key={`${question.id}:${question.answers.length}`}
+              prompt={question}
+              onBack={goBackQuestion}
+              onDismiss={dismissQuestion}
+              onAnswer={(
+                answer,
+                payload: StudioOperatorQuestionAnswerPayload,
+              ) =>
+                answerQuestion(answer, {
+                  label: payload.label,
+                  ...(payload.choice ? { choice: payload.choice } : {}),
+                  ...(payload.assetOptionId
+                    ? {
+                        asset: toQuestionAsset(
+                          question.questions[
+                            question.answers.length
+                          ]?.options.find(
+                            (option) => option.id === payload.assetOptionId,
+                          ),
+                        ),
+                      }
+                    : {}),
+                })
+              }
+            />
+          ) : null}
           <MentionInput
             ref={inputRef}
             /* 浮层 portal 在 `document.body`（面板带 `backdrop-filter` +

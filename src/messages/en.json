@@ -7933,15 +7933,12 @@
     },
     "question": {
       "step": "{step} / {total}",
-      "back": "Previous",
       "recommended": "Recommended",
-      "other": "Something else",
-      "otherPlaceholder": "Write your own…",
       "current": "Current prompt",
       "proposed": "Suggested prompt",
-      "send": "Send",
       "sourceNotes": "Available reference material",
-      "negativeDiff": "To add to the negative prompt:"
+      "negativeDiff": "To add to the negative prompt:",
+      "edit": "Change"
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "this environment cannot read video",
@@ -7990,7 +7987,7 @@
     "verbStrip": {
       "label": "This exchange"
     },
-    "placeholderQuestion": "Or just type…",
+    "placeholderQuestion": "Or just write what you want…",
     "collapsedTodo": "{count} awaiting your response",
     "incognito": "Incognito · skip this round",
     "face": {

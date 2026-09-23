@@ -2,21 +2,15 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import {
-  StudioOperatorQuestionAnswers,
-  StudioOperatorQuestionBlock,
-} from './StudioOperatorQuestionBlock'
+import { StudioOperatorQuestionBlock } from './StudioOperatorQuestionBlock'
 import type { StudioOperatorQuestionPrompt } from '@/types/studio-assistant-operator'
 
 /**
- * **问题块**的回归闸（56b 切片 4 · 画板 D56bUI「反问」四态）。
+ * **问题块**的回归闸（D12 A 定稿 · S3 / S4）。
  *
- * 钉的就是画板那四态 + 三条键盘路径：
- *  ① 第 1 题：题头 + 「1 / 3」进度 · 选项竖排 · 推荐项排第一并打标 · 最后一行
- *     「其他，自己写」；第一题上⛔ 没有「上一题」；
- *  ② 点了「其他」：那一行**就地**变输入框，回车提交（⛔ 不跳到下面的输入框）；
- *  ③ 第 2 题：右上角有「← 上一题」；已答的收成小标签；
- *  ④ 点任一行即提交 —— ⛔ 没有「确定」按钮；
+ *  ① 选项编号、推荐只用标签排第一、⛔ 不预选；多题才写「1 / 2」；
+ *  ② 已答的留一行「问题 · 答案」，最近那一行可「改」；
+ *  ③ 点任一行即提交 —— ⛔ 没有「确定」，⛔ 没有就地「其他」输入框（Q6：打字即其他）；
  *  键盘：`1`–`4` 直选 · `↑↓` + `Enter` · `Esc` 收起。
  */
 
@@ -83,13 +77,13 @@ function renderBlock(prompt: StudioOperatorQuestionPrompt = PROMPT) {
 }
 
 describe('StudioOperatorQuestionBlock', () => {
-  it('① 第 1 题：进度「1 / 2」· 推荐项排第一并打标 · ⛔ 第一题没有「上一题」', () => {
+  it('① 编号选项、推荐排第一只打标签、⛔ 不预选；多题写进度', () => {
     renderBlock()
     const block = screen.getByTestId('operator-question-block')
     expect(block.dataset.step).toBe('1')
     expect(block.dataset.total).toBe('2')
-    expect(screen.getByTestId('operator-question-header').textContent).toBe(
-      '镜头数量',
+    expect(screen.getByTestId('operator-question-step').textContent).toBe(
+      'question.step:1/2',
     )
     const options = screen.getAllByTestId('operator-question-option')
     expect(options.map((node) => node.dataset.optionId)).toEqual([
@@ -97,10 +91,24 @@ describe('StudioOperatorQuestionBlock', () => {
       'nine',
       'twelve',
     ])
+    expect(options.map((node) => node.textContent?.slice(0, 1))).toEqual([
+      '1',
+      '2',
+      '3',
+    ])
     expect(screen.getAllByTestId('operator-question-recommended')).toHaveLength(
       1,
     )
+    // ⛔ 不预选：还没动键盘时没有任何一行是高亮的。
+    expect(options.every((node) => node.dataset.cursor === 'false')).toBe(true)
     expect(screen.queryByTestId('operator-question-back')).toBeNull()
+    // ⛔ 就地「其他」输入框已删 —— 下面那一行输入框就是「其他」。
+    expect(screen.queryByTestId('operator-question-other')).toBeNull()
+  })
+
+  it('只有一题时不写「1 / 1」', () => {
+    renderBlock({ ...PROMPT, questions: [PROMPT.questions[0]!] })
+    expect(screen.queryByTestId('operator-question-step')).toBeNull()
   })
 
   it('④ 点任一行即提交 —— ⛔ 没有「确定」按钮', () => {
@@ -123,34 +131,7 @@ describe('StudioOperatorQuestionBlock', () => {
     expect(onAnswer).toHaveBeenCalledTimes(1)
   })
 
-  it('② 点「其他」那一行就地变输入框，回车提交（⛔ 不跳到下面的输入框）', () => {
-    const { onAnswer } = renderBlock()
-    const row = screen.getByTestId('operator-question-other')
-    expect(row.dataset.open).toBe('false')
-    fireEvent.click(row)
-    const input = screen.getByTestId('operator-question-other-input')
-    expect(screen.getByTestId('operator-question-other').dataset.open).toBe(
-      'true',
-    )
-    fireEvent.change(input, { target: { value: '8 镜，前 3 镜慢一点' } })
-    fireEvent.keyDown(input, { key: 'Enter' })
-    expect(onAnswer.mock.calls[0]?.[0]).toEqual({
-      questionId: 'q1',
-      optionIds: [],
-      otherText: '8 镜，前 3 镜慢一点',
-    })
-  })
-
-  it('⛔ 一个字都没写时提交不发（空的「其他」不是答案）', () => {
-    const { onAnswer } = renderBlock()
-    fireEvent.click(screen.getByTestId('operator-question-other'))
-    fireEvent.keyDown(screen.getByTestId('operator-question-other-input'), {
-      key: 'Enter',
-    })
-    expect(onAnswer).not.toHaveBeenCalled()
-  })
-
-  it('③ 第 2 题：右上角「← 上一题」可回改', () => {
+  it('② 第 2 题：已答的留一行「问题 · 答案」，点「改」回去', () => {
     const { onBack } = renderBlock({
       ...PROMPT,
       answers: [
@@ -163,9 +144,9 @@ describe('StudioOperatorQuestionBlock', () => {
     })
     const block = screen.getByTestId('operator-question-block')
     expect(block.dataset.step).toBe('2')
-    expect(screen.getByTestId('operator-question-header').textContent).toBe(
-      '时长风格',
-    )
+    expect(
+      screen.getByTestId('operator-question-answer-tag').textContent,
+    ).toContain('镜头数量·6 镜')
     fireEvent.click(screen.getByTestId('operator-question-back'))
     expect(onBack).toHaveBeenCalledTimes(1)
   })
@@ -175,8 +156,7 @@ describe('StudioOperatorQuestionBlock', () => {
     fireEvent.keyDown(screen.getByTestId('operator-question-block'), {
       key: '2',
     })
-    // ⚠ 数字数的是**排完序之后**那一列（推荐项已经提到第一），⛔ 不是模型给的顺序。
-    expect(onAnswer.mock.calls[0]?.[0].optionIds).toEqual(['nine'])
+    expect(onAnswer.mock.calls[0]?.[0]).toMatchObject({ optionIds: ['nine'] })
   })
 
   it('键盘：`↓` 移动 + `Enter` 选中；⛔ 还没动过键盘时 Enter 什么都不做', () => {
@@ -185,21 +165,8 @@ describe('StudioOperatorQuestionBlock', () => {
     fireEvent.keyDown(block, { key: 'Enter' })
     expect(onAnswer).not.toHaveBeenCalled()
     fireEvent.keyDown(block, { key: 'ArrowDown' })
-    fireEvent.keyDown(block, { key: 'ArrowDown' })
     fireEvent.keyDown(block, { key: 'Enter' })
-    expect(onAnswer.mock.calls[0]?.[0].optionIds).toEqual(['nine'])
-  })
-
-  it('键盘：`↓` 走到最后一行就是「其他」，Enter 把它就地展开', () => {
-    renderBlock()
-    const block = screen.getByTestId('operator-question-block')
-    for (let index = 0; index < 4; index += 1) {
-      fireEvent.keyDown(block, { key: 'ArrowDown' })
-    }
-    fireEvent.keyDown(block, { key: 'Enter' })
-    expect(screen.getByTestId('operator-question-other').dataset.open).toBe(
-      'true',
-    )
+    expect(onAnswer.mock.calls[0]?.[0]).toMatchObject({ optionIds: ['six'] })
   })
 
   it('键盘：`Esc` 收起问题块只打字', () => {
@@ -208,36 +175,5 @@ describe('StudioOperatorQuestionBlock', () => {
       key: 'Escape',
     })
     expect(onDismiss).toHaveBeenCalledTimes(1)
-  })
-
-  it('⛔ 「其他」展开之后打「1」是在写字，不是在选', () => {
-    const { onAnswer } = renderBlock()
-    fireEvent.click(screen.getByTestId('operator-question-other'))
-    fireEvent.keyDown(screen.getByTestId('operator-question-block'), {
-      key: '1',
-    })
-    expect(onAnswer).not.toHaveBeenCalled()
-  })
-})
-
-describe('StudioOperatorQuestionAnswers', () => {
-  it('已答的收成小标签；⛔ 一道都没答就整块不渲染', () => {
-    const { container } = render(<StudioOperatorQuestionAnswers answers={[]} />)
-    expect(container.firstChild).toBeNull()
-
-    render(
-      <StudioOperatorQuestionAnswers
-        answers={[
-          {
-            header: '镜头',
-            label: '6 镜',
-            answer: { questionId: 'q1', optionIds: ['six'] },
-          },
-        ]}
-      />,
-    )
-    const tags = screen.getAllByTestId('operator-question-answer-tag')
-    expect(tags).toHaveLength(1)
-    expect(tags[0]?.textContent).toContain('6 镜')
   })
 })

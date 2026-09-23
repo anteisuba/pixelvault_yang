@@ -7933,15 +7933,12 @@
     },
     "question": {
       "step": "{step} / {total}",
-      "back": "上一题",
       "recommended": "推荐",
-      "other": "其他，自己写",
-      "otherPlaceholder": "自己写一句…",
       "current": "当前提示词",
       "proposed": "助手建议的提示词",
-      "send": "发送",
       "sourceNotes": "可参考的材料",
-      "negativeDiff": "负面提示词要补的词："
+      "negativeDiff": "负面提示词要补的词：",
+      "edit": "改"
     },
     "videoFrameCaptureReason": {
       "unsupported-environment": "这个环境读不了视频",
@@ -7990,7 +7987,7 @@
     "verbStrip": {
       "label": "本轮进度"
     },
-    "placeholderQuestion": "或者直接打字…",
+    "placeholderQuestion": "或者直接写你的想法…",
     "collapsedTodo": "{count} 件等你处理",
     "incognito": "隐身 · 这一轮不记",
     "face": {

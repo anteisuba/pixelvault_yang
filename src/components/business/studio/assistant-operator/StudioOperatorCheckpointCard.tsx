@@ -79,32 +79,35 @@ export function StudioOperatorCheckpointCard({
     null,
   )
 
-  const ghost =
-    'rounded-md px-1.5 py-0.5 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+  const link =
+    'rounded-sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
 
+  /**
+   * ⭐ D12 P5：**不再是一张绿边薄卡**，而是过程那一行的后半句 ——
+   * 「· 改了提示词 · 模型 · 撤销」，紧跟在「做了 N 步 ▸」后面。
+   * ⚠ 不再写「N 项」：那个数是按步数算的，而参数栏上的「还原（N 处）」按字段算，
+   * 两个数对不上（C7）。只说改了哪几样。
+   */
   return (
-    <div
+    <span
       data-testid="operator-checkpoint"
       data-run-key={runKey}
       data-reverted={reverted ?? 'false'}
-      className={cn(
-        'flex flex-wrap items-center gap-x-2 gap-y-1 rounded-r-md border-l-2 border-status-applied bg-status-applied-surface px-2.5 py-1.5 text-2sm text-foreground',
-        reverted && 'opacity-90',
-      )}
+      className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground"
     >
-      <span className="min-w-0 flex-1">
-        {t('checkpoint.summary', { count, fields: fieldSummary })}
-      </span>
+      {fieldSummary ? (
+        <span className="min-w-0">
+          · {t('checkpoint.summary', { count, fields: fieldSummary })}
+        </span>
+      ) : null}
 
       {reverted ? (
-        <span
-          data-testid="operator-checkpoint-done"
-          className="shrink-0 text-xs tracking-nav text-muted-foreground"
-        >
-          {t(`checkpoint.reverted.${reverted}`)}
+        <span data-testid="operator-checkpoint-done" className="shrink-0">
+          · {t(`checkpoint.reverted.${reverted}`)}
         </span>
       ) : choosing ? (
-        <span className="flex shrink-0 items-center gap-1">
+        <span className="flex shrink-0 items-center gap-1.5">
+          <span aria-hidden>·</span>
           <button
             type="button"
             data-testid="operator-checkpoint-choice"
@@ -113,7 +116,7 @@ export function StudioOperatorCheckpointCard({
               onRevert(runKey, STUDIO_OPERATOR_REVERT_CHOICES.params)
               setReverted(STUDIO_OPERATOR_REVERT_CHOICES.params)
             }}
-            className="rounded-md border border-border bg-card px-1.5 py-0.5 text-2sm text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent"
+            className={cn(link, 'text-foreground underline underline-offset-2')}
           >
             {t('checkpoint.choice.params')}
           </button>
@@ -125,8 +128,8 @@ export function StudioOperatorCheckpointCard({
               onRevert(runKey, STUDIO_OPERATOR_REVERT_CHOICES.thread)
               setReverted(STUDIO_OPERATOR_REVERT_CHOICES.thread)
             }}
-            // 破坏性档只给 `--destructive`（§11.2）：它真的会删掉这一轮之后的对话。
-            className="rounded-md border border-status-risk/40 bg-card px-1.5 py-0.5 text-2sm text-status-risk shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-status-risk-surface"
+            // 破坏性那一档用风险色：它真的会删掉这一轮之后的对话。
+            className="rounded-sm text-status-risk underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('checkpoint.choice.thread')}
           </button>
@@ -134,7 +137,7 @@ export function StudioOperatorCheckpointCard({
             type="button"
             data-testid="operator-checkpoint-cancel"
             onClick={() => setChoosing(false)}
-            className={ghost}
+            className={link}
           >
             {t('checkpoint.choice.cancel')}
           </button>
@@ -144,9 +147,9 @@ export function StudioOperatorCheckpointCard({
           type="button"
           data-testid="operator-checkpoint-undo"
           onClick={() => setChoosing(true)}
-          className={cn('shrink-0', ghost)}
+          className={cn('shrink-0 text-foreground/80', link)}
         >
-          {t('checkpoint.undo')}
+          · {t('checkpoint.undo')}
         </button>
       )}
 
@@ -172,22 +175,20 @@ export function StudioOperatorCheckpointCard({
             data-testid="operator-checkpoint-resume"
             data-step={resume.stepNumber}
             onClick={resume.onResume}
-            className="shrink-0 rounded-md border border-border bg-card px-1.5 py-0.5 text-2sm font-medium text-foreground shadow-xs transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="flex h-7 shrink-0 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {t('resume.continue', { step: resume.stepNumber })}
           </button>
         </span>
       ) : null}
       {details ? (
-        <details className="basis-full border-t border-border/60 pt-1 text-muted-foreground">
-          <summary className="cursor-pointer text-xs hover:text-foreground">
+        <details className="basis-full">
+          <summary className="w-fit cursor-pointer list-none hover:text-foreground">
             {t('toolGroup.details', { count: detailsCount ?? 0 })}
           </summary>
-          <div className="mt-2 flex flex-col gap-2 border-l border-border pl-3">
-            {details}
-          </div>
+          <div className="mt-1.5 flex flex-col gap-1.5">{details}</div>
         </details>
       ) : null}
-    </div>
+    </span>
   )
 }

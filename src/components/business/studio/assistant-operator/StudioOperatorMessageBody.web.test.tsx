@@ -20,12 +20,6 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-/** `motion-reduce` 那一档由这颗桩翻面（56b 切片 3）。 */
-const reduceMotion = vi.fn(() => false)
-vi.mock('motion/react', () => ({
-  useReducedMotion: () => reduceMotion(),
-}))
-
 const LONG =
   ['一', '二', '三', '四', '五', '六', '七', '八'].join('。\n') + '。'
 
@@ -77,11 +71,11 @@ describe('StudioOperatorMessageBody', () => {
       },
     )
     expect(screen.getAllByAltText('生成图3')).toHaveLength(2)
-    expect(screen.getAllByAltText('生成图3')[0].getAttribute('src')).toBe(
-      '/style.png',
+    expect(screen.getAllByAltText('生成图3')[0].getAttribute('src')).toMatch(
+      /\/style\.png$/,
     )
-    expect(screen.getByAltText('生成图').getAttribute('src')).toBe(
-      '/original.png',
+    expect(screen.getByAltText('生成图').getAttribute('src')).toMatch(
+      /\/original\.png$/,
     )
     expect(
       screen.getByTestId('operator-message-text').textContent,
@@ -209,19 +203,17 @@ describe('StudioOperatorMessageBody', () => {
     expect(screen.queryByTestId('operator-message-caret')).toBeNull()
   })
 
-  it('⭐ `motion-reduce` 直接整段落 —— 还在写时不画半截正文', () => {
-    reduceMotion.mockReturnValue(true)
-    renderBody({ text: '写到一半', streaming: true }, { statusText: '正在查…' })
-    expect(screen.queryByTestId('operator-message-text')).toBeNull()
-    expect(screen.getByTestId('operator-status-word').textContent).toBe(
-      '正在查…',
+  it('⭐ D12 R-C：还没有字时是三点 +「正在思考」，⛔ 不按动作换词', () => {
+    renderBody({ text: '', streaming: true })
+    expect(screen.getByTestId('operator-message-pending').textContent).toBe(
+      'streaming.thinking',
     )
+  })
 
-    screen.getByTestId('operator-status-word').remove()
-    renderBody({ text: '写完了。' })
-    expect(screen.getByTestId('operator-message-text').textContent).toBe(
-      '写完了。',
+  it('reduced motion 下仍逐字出现（光标静止），⛔ 不扣住整段', () => {
+    renderBody({ text: '写到一半', streaming: true })
+    expect(screen.getByTestId('operator-message-text').textContent).toContain(
+      '写到一半',
     )
-    reduceMotion.mockReturnValue(false)
   })
 })

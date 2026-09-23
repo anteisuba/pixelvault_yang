@@ -233,28 +233,32 @@ export function StudioOperatorConfirmCard({
          **已确认**退回并列的普通卡（细边 + 贴边影）；
          **已取消**再退一档到浅底，它已经不是一件要办的事了。
          ⛔ 不用 opacity 压整卡：半透的字在玻璃面板上直接掉到 AA 线下。 */
+      /* D12 S6 / P6：定下来之后**不再是一张卡**，就地收成一行灰字
+         「已确认 · 11:24」+ 淡一档的「1 张 · 模型」。待决时才是白底细边卡。 */
       className={cn(
-        'overflow-hidden rounded-xl',
         decided
-          ? confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled
-            ? 'border border-border bg-muted'
-            : 'border border-border bg-card shadow-assistant-card'
-          : 'border border-assistant-line-strong bg-card shadow-assistant-raised',
+          ? 'min-w-0'
+          : 'overflow-hidden rounded-xl border border-assistant-line-strong bg-card shadow-assistant-raised',
       )}
     >
       {/* ── 已确认 / 已取消：整卡收成一行「态 · 时间」+ 一句交代 ──────── */}
       {decided ? (
-        <div className="flex items-center gap-2 px-3 py-2">
+        <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 text-xs">
           <span
             data-testid="operator-confirm-state"
-            className="shrink-0 text-2sm font-semibold text-muted-foreground"
+            className="shrink-0 text-muted-foreground"
           >
-            {t(`confirm.state.${confirm.status}`, {
-              time: confirm.decidedAt ? formatTime(confirm.decidedAt) : '',
-            })}
+            {confirm.auto
+              ? t('confirm.state.auto', {
+                  time: confirm.decidedAt ? formatTime(confirm.decidedAt) : '',
+                })
+              : t(`confirm.state.${confirm.status}`, {
+                  time: confirm.decidedAt ? formatTime(confirm.decidedAt) : '',
+                })}
           </span>
-          <span className="min-w-0 flex-1 truncate text-2sm text-muted-foreground">
+          <span className="min-w-0 truncate text-muted-foreground/70">
             {/* ⚠ 卡那一支写的是**卡名 + 存没存下**：状态那一格只说得出时刻。 */}
+            ·{' '}
             {confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard
               ? `${confirm.card.name} · ${
                   confirm.status ===
@@ -263,35 +267,29 @@ export function StudioOperatorConfirmCard({
                     : t('confirm.contextCard.notSaved')
                 }`
               : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
-                ? `${generateSummary(
+                ? generateSummary(
                     confirm,
                     t('confirm.generate.count', {
                       count: confirm.request.count,
                     }),
-                  )} · ${
-                    confirm.status ===
-                    STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed
-                      ? t('confirm.generate.handedOff')
-                      : t('confirm.generate.notRun')
-                  }`
+                  )
                 : t('confirm.multistep.title', {
                     count: confirm.steps.length,
                   })}
           </span>
-          {/* 「再来一次」只长在**生成 · 已取消**那一格上：多步取消之后要写的是
-              下一句话（输入框已经预填好了），⛔ 不是把同一份计划再摆一遍。 */}
+          {/* 「再来一次」只长在**生成 · 已取消**那一格上。 */}
           {confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
           confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.cancelled ? (
             <button
               type="button"
               data-testid="operator-confirm-retry"
               onClick={onRetry}
-              className="shrink-0 rounded-md px-1.5 py-0.5 text-md text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="shrink-0 rounded-sm text-foreground/80 transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {t('confirm.generate.retry')}
+              · {t('confirm.generate.retry')}
             </button>
           ) : null}
-        </div>
+        </p>
       ) : (
         <>
           <div className="border-b border-border px-3 py-2">

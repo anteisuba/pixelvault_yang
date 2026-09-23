@@ -1799,7 +1799,7 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
       .entries.find((entry) => entry.kind === 'system')
     expect(line).toMatchObject({
       code: 'questionAnswered',
-      subject: '半身',
+      subject: '取景 · 半身',
       userText: '已选择「半身」（针对问题「取多少身？」）',
     })
 

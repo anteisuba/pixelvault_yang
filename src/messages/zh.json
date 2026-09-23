@@ -7389,8 +7389,6 @@
       "empty": "还没有别的会话",
       "loading": "读取中…",
       "untitled": "未命名会话",
-      "readonlyNote": "以上是历史记录",
-      "readonlyNoteAt": "{date} 的记录",
       "earlierRounds": "更早的 {count} 条",
       "deleteLabel": "删除对话：{title}",
       "deleteConfirmInline": "再点一次就永久删除“{title}”",
@@ -7429,16 +7427,16 @@
       "title": "{count} 个操作",
       "elapsed": "用时 {seconds}s",
       "succeeded": "{count} 成功",
-      "skipped": "{count} 跳过",
-      "failed": "{count} 失败",
+      "skipped": "{count} 步跳过",
+      "failed": "{count} 步没做成",
       "running": "进行中",
-      "details": "执行记录 · {count} 步",
+      "details": "做了 {count} 步",
       "promptUnchanged": "提示词尚未修改",
       "blocked": "操作未完成",
       "inspectFailure": "展开执行记录查看原因，可在下方补充或调整要求。"
     },
     "checkpoint": {
-      "summary": "已改 {count} 项：{fields}",
+      "summary": "改了{fields}",
       "undo": "撤销",
       "choice": {
         "params": "只回参数",
@@ -7533,8 +7531,6 @@
         "countLabel": "张数",
         "confirm": "确认生成",
         "cancel": "先不要",
-        "handedOff": "已转交生成",
-        "notRun": "没有执行",
         "retry": "再来一次",
         "model": "模型",
         "aspect": "宽高比",
@@ -7552,7 +7548,8 @@
       "state": {
         "submitting": "确认中…",
         "confirmed": "已确认 · {time}",
-        "cancelled": "已取消 · {time}"
+        "cancelled": "已取消 · {time}",
+        "auto": "已自动生成 · {time}"
       },
       "contextCard": {
         "title": "记住这张卡？",
@@ -7602,7 +7599,7 @@
       "loraWeightOverBudget": "总权重 {subject} — 超过这个底模的预算，画面容易糊或串味。我没有动任何权重，要收的话告诉我收哪一把。",
       "videoFramesFailed": "这段片子没能抽出帧 —— 助手这一轮看不了它（{subject}）",
       "checkpointRestored": "已恢复到所选步骤的配置，后续操作以当前表单为准。",
-      "questionAnswered": "你选了：{subject}",
+      "questionAnswered": "{subject}",
       "contextCardSaved": "已存上下文卡：{subject}",
       "contextCardDeclined": "没记这张上下文卡：{subject}",
       "contextCardSaveFailed": "没能存下「{subject}」—— 再试一次？",
@@ -7929,7 +7926,8 @@
       "why": "为什么"
     },
     "streaming": {
-      "pending": "助手正在思考"
+      "pending": "助手正在思考",
+      "thinking": "正在思考…"
     },
     "question": {
       "step": "{step} / {total}",
@@ -7967,15 +7965,6 @@
       "cancel": "取消",
       "incognito": "未保存为记忆",
       "expand": "展开本轮记录"
-    },
-    "status": {
-      "thinking": "正在想…",
-      "capturingFrames": "正在抽帧…",
-      "look": "正在看图…",
-      "research": "正在查 {count} 个来源…",
-      "ask": "正在想问题…",
-      "apply": "正在改参数…",
-      "request_generation": "正在准备生成…"
     },
     "verb": {
       "look": "看",

@@ -1,7 +1,6 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
 import zhMessages from '@/messages/zh.json'
 
 import {
@@ -12,13 +11,12 @@ import {
 } from './StudioOperatorTimelineRow'
 
 /**
- * 时间线沟的回归闸（§11.3）。
+ * 对话流一行的回归闸（D12 A 定稿）。
  *
- * 钉四件事：
- *  ① 沟宽就是 `STUDIO_OPERATOR_TIMELINE.gutterPx`（真机目检读同一个数）；
- *  ② **五类卡 + 系统行的分派**（v2 §3.2）各自落在哪一档形状上；
- *  ③ 五档节点各自的形状类不串（大节点实心 / 证据空心 / 系统行短横 / 两方头像）；
- *  ④ 任何一行都不显示时间戳（§11.3）。
+ *  ① 一轮一次头像名字，挂在用户那一句后面；用户气泡不带名字；
+ *  ② ⛔ 左侧竖线与节点符号；
+ *  ③ 行标签（读屏唯一的发言人信息）与 live region；
+ *  ④ 任何一行都不显示时间戳。
  */
 
 // 词表桩回键名 + 参数，行标签那几条断言按键名读。
@@ -31,157 +29,59 @@ vi.mock('next-intl', () => ({
         : key,
 }))
 
-vi.mock('@/hooks/use-my-profile', () => ({
-  useMyProfile: () => ({
-    profile: { username: 'fulina', displayName: 'Fl', avatarUrl: null },
-    isLoading: false,
-    refresh: vi.fn(),
-  }),
-}))
-
 describe('StudioOperatorTimelineRow', () => {
-  it('uses ANTI as the default assistant ID', () => {
+  /**
+   * ⭐ D12 A · C1：**一轮只出一次头像名字**，挂在用户那一句后面；助手的各行
+   * 自己不再带名字。
+   */
+  it('用户那一句靠右、不带名字；后面紧跟本轮的头像名字（默认 ANTI）', () => {
     render(
-      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.message}>
-        <p>已更新分工。</p>
+      <StudioOperatorTimelineRow
+        card={STUDIO_OPERATOR_CARD_KINDS.message}
+        speaker={STUDIO_OPERATOR_SPEAKERS.user}
+      >
+        <p>保留三图分工，只修改背景。</p>
       </StudioOperatorTimelineRow>,
+    )
+    const row = screen.getByTestId('operator-timeline-row')
+    expect(row.dataset.align).toBe('end')
+    expect(row).not.toContainElement(
+      screen.getByTestId('operator-speaker-name'),
     )
     expect(screen.getByTestId('operator-speaker-name')).toHaveTextContent(
       'ANTI',
     )
-  })
-  it('shows the account ID before the message body on its own row', () => {
-    render(
-      <StudioOperatorTimelineRow
-        card={STUDIO_OPERATOR_CARD_KINDS.message}
-        speaker={STUDIO_OPERATOR_SPEAKERS.user}
-      >
-        <p>保留三图分工，只修改背景。</p>
-      </StudioOperatorTimelineRow>,
-    )
-    expect(screen.getByTestId('operator-speaker-name')).toHaveTextContent('Fl')
     expect(
-      screen.getByTestId('operator-timeline-content'),
-    ).not.toContainElement(screen.getByTestId('operator-speaker-name'))
-  })
-
-  /**
-   * 用户消息靠右（画板 Main / BCards「消息 · 用户」）——⛔ 它不再占左沟：
-   * 行上没有 `gridTemplateColumns`，头像排在气泡**后面**（DOM 序 = 视觉序）。
-   */
-  it('用户消息整行靠右，头像在气泡右侧；其余行仍靠左沟', () => {
-    const { rerender } = render(
-      <StudioOperatorTimelineRow
-        card={STUDIO_OPERATOR_CARD_KINDS.message}
-        speaker={STUDIO_OPERATOR_SPEAKERS.user}
-      >
-        <p>保留三图分工，只修改背景。</p>
-      </StudioOperatorTimelineRow>,
-    )
-    const userRow = screen.getByTestId('operator-timeline-row')
-    expect(userRow.dataset.align).toBe('end')
-    expect(userRow.className).toContain('justify-end')
-    expect(userRow.style.gridTemplateColumns).toBe('')
-    const avatar = screen.getByTestId('operator-timeline-avatar')
-    expect(avatar.dataset.speaker).toBe('user')
-    // 头像在内容之后 = 视觉上在气泡右侧。
-    expect(
-      screen
-        .getByTestId('operator-timeline-content')
-        .compareDocumentPosition(avatar) & Node.DOCUMENT_POSITION_FOLLOWING,
+      row.compareDocumentPosition(screen.getByTestId('operator-round-header')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy()
-    // 气泡列限宽在面板 80%，⛔ 不是任意值。
-    expect(
-      screen.getByTestId('operator-timeline-content').parentElement?.className,
-    ).toContain('w-4/5')
+  })
 
-    rerender(
+  it('助手那一侧的各行不再各带头像名字', () => {
+    render(
       <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.message}>
         <p>已更新分工。</p>
       </StudioOperatorTimelineRow>,
     )
+    expect(screen.queryByTestId('operator-speaker-name')).toBeNull()
     expect(screen.getByTestId('operator-timeline-row').dataset.align).toBe(
       'start',
     )
-    expect(screen.getByTestId('operator-timeline-content')).toHaveClass(
-      'col-start-2',
-    )
   })
 
-  it('沟宽 24px，五档 data-node 都落在行上', () => {
-    render(
-      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.evidence}>
-        <span>tool</span>
-      </StudioOperatorTimelineRow>,
-    )
-    const row = screen.getByTestId('operator-timeline-row')
-    expect(row.dataset.card).toBe(STUDIO_OPERATOR_CARD_KINDS.evidence)
-    expect(row.dataset.node).toBe('tool')
-    expect(row.style.gridTemplateColumns).toBe(
-      `${STUDIO_OPERATOR_TIMELINE.gutterPx}px minmax(0, 1fr)`,
-    )
-  })
+  /** ⛔ 左侧时间线竖线与节点符号（D12 A）—— 形状只剩 data-node 这个读数。 */
+  it.each(Object.values(STUDIO_OPERATOR_CARD_KINDS))(
+    '%s 行不画节点符号',
+    (card) => {
+      render(
+        <StudioOperatorTimelineRow card={card}>
+          <span />
+        </StudioOperatorTimelineRow>,
+      )
+      expect(screen.queryByTestId('operator-timeline-node')).toBeNull()
+    },
+  )
 
-  it('大节点是 8px 实心圆、工具步是 6px 空心圆、系统行是 8×2 短横', () => {
-    const { rerender } = render(
-      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.confirm}>
-        <span />
-      </StudioOperatorTimelineRow>,
-    )
-    expect(screen.getByTestId('operator-timeline-node').className).toContain(
-      'size-2 rounded-full bg-primary',
-    )
-
-    rerender(
-      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.evidence}>
-        <span />
-      </StudioOperatorTimelineRow>,
-    )
-    expect(screen.getByTestId('operator-timeline-node').className).toContain(
-      'size-1.5 rounded-full border border-muted-foreground bg-card',
-    )
-
-    rerender(
-      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.system}>
-        <span />
-      </StudioOperatorTimelineRow>,
-    )
-    expect(screen.getByTestId('operator-timeline-node').className).toContain(
-      'h-0.5 w-2 bg-muted-foreground',
-    )
-  })
-
-  it('会说话的两方挂 32px 头像，且没有形状节点', () => {
-    const { rerender } = render(
-      <StudioOperatorTimelineRow
-        card={STUDIO_OPERATOR_CARD_KINDS.message}
-        speaker={STUDIO_OPERATOR_SPEAKERS.user}
-      >
-        <span />
-      </StudioOperatorTimelineRow>,
-    )
-    expect(screen.getByTestId('operator-timeline-avatar').dataset.speaker).toBe(
-      'user',
-    )
-    expect(screen.getByTestId('operator-timeline-avatar').className).toContain(
-      'size-8',
-    )
-    expect(screen.queryByTestId('operator-timeline-node')).toBeNull()
-
-    rerender(
-      <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.message}>
-        <span />
-      </StudioOperatorTimelineRow>,
-    )
-    expect(screen.getByTestId('operator-timeline-avatar').dataset.speaker).toBe(
-      'assistant',
-    )
-  })
-
-  /**
-   * 读屏那一条（2026-09-06 真机：整条线只听得到内容，听不出谁在说）。
-   * 行标签必须**跟着 `data-node` 走**，助手行念的是用户给助手起的名字。
-   */
   it('每一档都有 aria-label，助手行念 persona 名字', () => {
     const { rerender } = render(
       <StudioOperatorTimelineRow
@@ -231,9 +131,6 @@ describe('StudioOperatorTimelineRow', () => {
     expect(screen.getByTestId('operator-timeline-row')).toHaveAttribute(
       'aria-label',
       'rowAssistant:小满',
-    )
-    expect(screen.getByTestId('operator-speaker-name')).toHaveTextContent(
-      '小满',
     )
   })
 

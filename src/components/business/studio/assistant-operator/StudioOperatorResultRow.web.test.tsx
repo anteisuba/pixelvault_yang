@@ -27,9 +27,15 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('motion/react', () => ({
-  motion: { span: 'span' },
+  motion: { span: 'span', button: 'button' },
   useReducedMotion: () => true,
 }))
+
+const openLightbox = vi.hoisted(() => vi.fn())
+vi.mock(
+  '@/components/business/studio/assistant-operator/StudioOperatorLightbox',
+  () => ({ openOperatorLightbox: openLightbox }),
+)
 
 vi.mock('next/image', () => ({
   // ⚠ `className` 透传：缩略图的裁切基准（`object-top`）就验在它身上。
@@ -109,6 +115,24 @@ describe('StudioOperatorResultRow', () => {
     expect(screen.getAllByTestId('operator-result-tile')).toHaveLength(1)
     expect(screen.getByTestId('operator-result-stored').textContent).toContain(
       'stored',
+    )
+  })
+
+  it('D12 P3 / P4：占位格与结果同比例；单张整宽，多张两列；点一格进灯箱', () => {
+    const pending = renderCard({ items: [], completed: 0, total: 1 })
+    const placeholder = screen.getByTestId('operator-result-placeholder')
+    expect(placeholder.style.aspectRatio).toBe('3 / 2')
+    expect(placeholder.className).toContain('animate-pulse')
+    pending.view.unmount()
+
+    renderCard()
+    const tiles = screen.getAllByTestId('operator-result-tile')
+    expect(tiles[0]!.style.aspectRatio).toBe('3 / 2')
+    expect(tiles[0]!.parentElement!.className).toContain('grid-cols-2')
+    fireEvent.click(tiles[1]!)
+    expect(openLightbox).toHaveBeenCalledWith(
+      'https://cdn.test/2.png',
+      '夜景版',
     )
   })
 

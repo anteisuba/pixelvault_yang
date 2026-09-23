@@ -80,6 +80,7 @@ import {
   clearOperatorPrompts,
   clearOperatorQueue,
   dropOperatorPending,
+  settleOperatorStreaming,
   enqueueOperatorMessage,
   finalizeOperatorMessage,
   appendOperatorStreamingMessage,
@@ -928,6 +929,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         for (const [index, pick] of loraPicks.entries()) {
           if (controller.signal.aborted) {
             dropOperatorPending(messageEntryId())
+            settleOperatorStreaming()
             return
           }
           const candidate = pick.candidate
@@ -1036,6 +1038,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           }
           if (controller.signal.aborted) {
             dropOperatorPending(messageEntryId())
+            settleOperatorStreaming()
             return
           }
         }
@@ -1196,6 +1199,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       if (!result.success) {
         cancelPendingAfterStep()
         dropOperatorPending(messageEntryId())
+        settleOperatorStreaming()
         if (controller.signal.aborted) return
         // abort 是用户按的，不是故障 —— 状态回 idle，线程里不插红字。
         if (result.errorCode === 'ABORTED') {
@@ -1239,6 +1243,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
             event.type !== ASSISTANT_OPERATOR_EVENTS.open
           ) {
             dropOperatorPending(messageEntryId())
+            settleOperatorStreaming()
           }
           /**
            * 攒着的计划**最多只等一帧**（第 2 件）：多步确认帧紧挨着 `plan` 发，
@@ -1659,6 +1664,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
         cancelPendingAfterStep()
         flushPlanEntry()
         dropOperatorPending(messageEntryId())
+        settleOperatorStreaming()
         /**
          * ⚠ abort 会**穿透 `for await`**：插话 / ⏹ 掐掉的是底下那个 `reader.read()`，
          * 它以 `AbortError` 拒绝，于是循环不是 `break` 出来的而是抛出来的。
@@ -1674,6 +1680,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       cancelPendingAfterStep()
       flushPlanEntry()
       dropOperatorPending(messageEntryId())
+      settleOperatorStreaming()
       if (controller.signal.aborted) return
       if (
         canvasSync &&
@@ -1945,7 +1952,8 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           kind: 'system',
           id: nextOperatorEntryId('sys'),
           code: 'questionAnswered',
-          subject: options.label,
+          // Q8：留「问题 · 答案」一行，回看知道当时在选什么。
+          subject: `${question.question.header} · ${options.label}`,
           userText,
           answered,
         })
@@ -1983,7 +1991,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           kind: 'system',
           id: nextOperatorEntryId('sys'),
           code: 'questionAnswered',
-          subject: item.label,
+          subject: `${item.header} · ${item.label}`,
           userText: describeQuestionAnswerText(
             item.answer.question ?? '',
             item.label,

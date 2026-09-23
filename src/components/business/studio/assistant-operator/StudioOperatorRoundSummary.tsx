@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react'
 import { useFormatter, useTranslations } from 'next-intl'
-import { ChevronDown, ClipboardCheck, EyeOff } from '@/components/icons'
+import { ChevronRight, EyeOff } from '@/components/icons'
 
 import { ASSISTANT_ROUND_SUMMARY_LIMITS } from '@/constants/assistant-operator'
 import type { AssistantOperatorRoundSummary } from '@/types/assistant-operator'
@@ -76,13 +76,14 @@ export function StudioOperatorRoundSummary({
   onSave,
   onRecallEvidence,
   resume,
-  defaultCollapsed = false,
+  defaultCollapsed = true,
 }: StudioOperatorRoundSummaryProps) {
   const t = useTranslations('StudioOperator.roundSummary')
   const tResume = useTranslations('StudioOperator.resume')
   const format = useFormatter()
   const detailsId = useId()
-  const [collapsed, setCollapsed] = useState(defaultCollapsed)
+  /** ⚠ 挂着续跑时**不收**：「从第 N 步继续」那颗 chip 在展开区里，收起来就找不到了。 */
+  const [collapsed, setCollapsed] = useState(defaultCollapsed && !resume)
   const [draft, setDraft] = useState<Record<
     StudioOperatorRoundColumn,
     string
@@ -105,13 +106,6 @@ export function StudioOperatorRoundSummary({
   })
   const heading = t('heading', { time })
 
-  const icon = (
-    <ClipboardCheck
-      className="size-4 shrink-0 text-muted-foreground"
-      aria-hidden
-    />
-  )
-
   /* ── 编辑态（画板 BCards「编辑态」）────────────────────────────── */
   if (draft) {
     return (
@@ -122,7 +116,6 @@ export function StudioOperatorRoundSummary({
         className="rounded-xl border border-border bg-card p-4"
       >
         <div className="flex items-center gap-1.5">
-          {icon}
           <span className="text-xs text-muted-foreground">{heading}</span>
         </div>
         <div className="mt-2.5 flex flex-col gap-2">
@@ -179,7 +172,7 @@ export function StudioOperatorRoundSummary({
       data-state={collapsed ? 'collapsed' : 'expanded'}
       data-round={summary.roundIndex}
       data-edited={summary.editedByUser ? 'true' : 'false'}
-      className={cn('min-w-0 rounded-xl', !collapsed && 'bg-muted/40')}
+      className={cn('min-w-0 rounded-xl', !collapsed && 'bg-muted/40 pt-1')}
     >
       <button
         type="button"
@@ -187,14 +180,14 @@ export function StudioOperatorRoundSummary({
         aria-expanded={!collapsed}
         aria-controls={detailsId}
         onClick={() => setCollapsed(!collapsed)}
-        className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+        /* D12 A · C4：四种记录统一成同一种 12 号灰字一行，**默认收起**。 */
+        className="flex w-fit items-center gap-1.5 rounded-sm py-0.5 text-left text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
       >
-        {icon}
-        <span className="min-w-0 flex-1">{t('collapsed', { count })}</span>
-        <ChevronDown
+        <span className="min-w-0">{t('collapsed', { count })}</span>
+        <ChevronRight
           className={cn(
-            'size-4 shrink-0 transition-transform duration-(--duration-fast) motion-reduce:transition-none',
-            !collapsed && 'rotate-180',
+            'size-3 shrink-0 transition-transform duration-(--duration-fast) motion-reduce:transition-none',
+            !collapsed && 'rotate-90',
           )}
           aria-hidden
         />

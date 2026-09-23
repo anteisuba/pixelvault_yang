@@ -31,11 +31,11 @@
 import { Children, isValidElement, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 import Image from 'next/image'
-import { useReducedMotion } from 'motion/react'
 import type { Components } from 'react-markdown'
 import { ChevronDown } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 
+import { STUDIO_OPERATOR_SHELL } from '@/constants/studio-assistant-operator'
 import { INITIAL_COMPONENTS, Markdown } from '@/components/ui/markdown'
 import {
   StudioOperatorAnswerSources,
@@ -56,14 +56,6 @@ interface StudioOperatorMessageBodyProps {
   references?: readonly NamedImageReference[]
   entry: StudioOperatorMessageEntry
   /**
-   * **加载态那一句状态词**（v2 §3.6）—— 「正在查 3 个来源…」。
-   *
-   * ⚠ 只在**还没有字**的那一格上画（占位行）：正文一到它就该让位。
-   * ⚠ 缺席时退回三点脉冲 —— 状态词只有在跑着的时候才算得出来（历史里那一条
-   *   永远没有），⛔ 别为它留一行空白。
-   */
-  statusText?: string
-  /**
    * **这段回答用到的资料**（56b 切片 1）—— 正文里的 `[n]` 按它认号，正文底下那
    * 一排来源卡也是它。⚠ 缺席 = 这一轮没查东西（大多数轮都是），整块不渲染。
    */
@@ -75,6 +67,33 @@ interface StudioOperatorMessageBodyProps {
   onDeepResearch?(): void
   /** 「搜了 6 条 · 读了 3 页」那一行灰字。 */
   receiptLabel?: string
+}
+
+/**
+ * 参考图缩略图（D12 P8 / C10）—— 地址过期或被删时画一格占位，⛔ 不出破图标。
+ */
+function ReferenceThumb({ url, name }: { url: string; name: string }) {
+  const [broken, setBroken] = useState(false)
+  if (broken) {
+    return (
+      <span
+        aria-hidden
+        data-testid="operator-reference-thumb-missing"
+        className="size-7 shrink-0 rounded-md bg-muted"
+      />
+    )
+  }
+  return (
+    <Image
+      src={url}
+      alt={name}
+      width={56}
+      height={56}
+      unoptimized
+      onError={() => setBroken(true)}
+      className="size-7 shrink-0 rounded-md object-cover"
+    />
+  )
 }
 
 function withImageReferences(
@@ -101,16 +120,10 @@ function withImageReferences(
         <span
           key={index}
           title={reference.name}
-          className="mx-0.5 inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted/50 px-1 py-0.5 align-middle text-2sm font-normal"
+          /* D12 P8：28px 圆角缩略图 + 名字，⛔ 不带边框，直接贴在字里。 */
+          className="mx-0.5 inline-flex max-w-full items-center gap-1.5 align-middle text-xs font-normal text-muted-foreground"
         >
-          <Image
-            src={reference.url}
-            alt={reference.name}
-            width={24}
-            height={24}
-            unoptimized
-            className="size-6 shrink-0 rounded object-cover"
-          />
+          <ReferenceThumb url={reference.url} name={reference.name} />
           <span className="min-w-0 break-words">{reference.name}</span>
         </span>
       ) : (
@@ -230,7 +243,6 @@ function withCitations(
 export function StudioOperatorCollapsibleText({
   text,
   streaming = false,
-  statusText,
   sources = [],
   activeCite = null,
   onPickCitation,
@@ -238,8 +250,6 @@ export function StudioOperatorCollapsibleText({
 }: {
   references?: readonly NamedImageReference[]
   text: string
-  /** 见 `StudioOperatorMessageBodyProps.statusText`。 */
-  statusText?: string
   /**
    * 这一条**还没有字**（发送即回显的占位行）—— 空正文时画三点脉冲。
    * 有字且仍 streaming = 收尾轮还在写，不折叠。
@@ -285,53 +295,32 @@ export function StudioOperatorCollapsibleText({
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` 每次 render 换引用，钉在真正会变的三样上
   }, [known, onPickCitation, activeCite, references])
 
-  const reduceMotion = useReducedMotion()
   const collapsible = !streaming && shouldCollapseOperatorText(text)
   const collapsed = collapsible && !expanded
-  /**
-   * ⭐ **`motion-reduce` 直接整段落**（56b 切片 3，owner 2026-09-19）：逐字追加
-   * 本身就是一种动效 —— 关掉动效的人要的是「写完了再给我」。所以这一档**不画
-   * 半截正文**，占位行 / 状态词一直留到定稿帧。
-   * ⚠ 判据是「还在写」：空正文那一档本来就是占位行，两档在这里汇到同一个分支上。
-   */
-  const holdForReducedMotion = Boolean(reduceMotion) && streaming
 
   /**
-   * **发送即回显的占位行**（§4.1）—— 头像已经在了，正文位画三点脉冲。
-   *
-   * ⚠ 高度写死成一行正文高（`text-md`(15px) + `leading-relaxed` ≈ 24px = `h-6`）：
-   * §4.1「骨架尺寸 = 内容尺寸」，第一个字到达时这一行不许跳。
+   * **等回答时那一行**（D12 R-C）：三颗小点错峰起伏 +「正在思考…」。
+   * ⛔ 不按动作换词、⛔ 不转圈、⛔ 不上骨架；第一个字一到就让位给正文。
+   * ⚠ 高度 = 一行正文高（`h-6`），第一个字到达时这一行不跳。
    */
-  if ((!text && streaming) || holdForReducedMotion) {
-    /**
-     * ⭐ **头像旁一行状态词**（§3.6）—— 不转圈、不用骨架屏。
-     * ⚠ 它替掉的是顶部那条进度带（决策 14）：「正在查 3 个来源…」本身就是进度，
-     * 而带子要花 40px 的常驻高度才说得出同一句话。
-     */
-    if (statusText) {
-      return (
-        <p
-          data-testid="operator-status-word"
-          className="flex h-6 items-center text-md leading-relaxed text-muted-foreground animate-pulse motion-reduce:animate-none"
-        >
-          {statusText}
-        </p>
-      )
-    }
+  if (!text && streaming) {
     return (
       <p
         data-testid="operator-message-pending"
-        className="flex h-6 items-center gap-1 text-md leading-relaxed"
-        aria-label={t('streaming.pending')}
+        className="flex h-6 items-center gap-2 text-xs text-muted-foreground"
       >
-        {[0, 1, 2].map((dot) => (
-          <span
-            key={dot}
-            aria-hidden
-            style={{ animationDelay: `${dot * 140}ms` }}
-            className="size-1 rounded-full bg-muted-foreground/70 animate-pulse motion-reduce:animate-none"
-          />
-        ))}
+        <span aria-hidden className="flex items-center gap-0.75">
+          {[0, 1, 2].map((dot) => (
+            <span
+              key={dot}
+              style={{
+                animationDelay: `${dot * STUDIO_OPERATOR_SHELL.thinkingDotStaggerMs}ms`,
+              }}
+              className="size-1.25 rounded-full bg-muted-foreground/70 animate-thinking-dot motion-reduce:animate-none"
+            />
+          ))}
+        </span>
+        {t('streaming.thinking')}
       </p>
     )
   }
@@ -341,7 +330,7 @@ export function StudioOperatorCollapsibleText({
       <div
         data-testid="operator-message-text"
         {...(collapsed ? { 'data-collapsed': 'true' } : {})}
-        className="min-w-0 text-md leading-relaxed text-foreground"
+        className="min-w-0 text-sm leading-relaxed text-foreground"
       >
         <Markdown
           className="message-md"
@@ -391,7 +380,6 @@ export function StudioOperatorCollapsibleText({
 
 export function StudioOperatorMessageBody({
   entry,
-  statusText,
   sources = [],
   pinned,
   onTogglePin,
@@ -418,7 +406,6 @@ export function StudioOperatorMessageBody({
         onPickCitation={(cite) =>
           setActiveCite((current) => (current === cite ? null : cite))
         }
-        {...(statusText ? { statusText } : {})}
       />
 
       {/* ⚠ 还在写的时候**不画**（56b 切片 1）：资料要等这段话说完再摆出来，
@@ -483,7 +470,7 @@ export function StudioOperatorUserText({
       /* 画板 BCards「消息 · 用户」：用户那一侧**带气泡**（浅填充 + 细边 +
          右下角收成小圆角），助手那一侧不带 —— 两侧靠「有没有壳」分，
          ⛔ 不靠字色分（§12.1 卡片层：白面 + 极细描边）。 */
-      className="w-fit max-w-full whitespace-pre-wrap rounded-xl rounded-br-sm border border-border bg-muted px-3 py-2 text-md font-medium leading-relaxed text-foreground"
+      className="w-fit max-w-full whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2 text-sm leading-relaxed text-foreground"
     >
       {withImageReferences(displayText, imageReferences)}
     </p>

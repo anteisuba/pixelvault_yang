@@ -7389,8 +7389,6 @@
       "empty": "ほかの会話はまだありません",
       "loading": "読み込み中…",
       "untitled": "無題の会話",
-      "readonlyNote": "過去の会話",
-      "readonlyNoteAt": "{date} の会話",
       "earlierRounds": "それ以前の {count} 件",
       "deleteLabel": "会話を削除：{title}",
       "deleteConfirmInline": "もう一度押すと「{title}」を完全に削除します",
@@ -7429,16 +7427,16 @@
       "title": "{count} 件の操作",
       "elapsed": "所要 {seconds}s",
       "succeeded": "{count} 成功",
-      "skipped": "{count} スキップ",
-      "failed": "{count} 失敗",
+      "skipped": "{count} 件スキップ",
+      "failed": "{count} 件失敗",
       "running": "進行中",
-      "details": "実行記録 · {count} ステップ",
+      "details": "{count} ステップ実行",
       "promptUnchanged": "プロンプトは未変更です",
       "blocked": "操作が完了していません",
       "inspectFailure": "実行記録で理由を確認するか、下で要望を補足・修正してください。"
     },
     "checkpoint": {
-      "summary": "{count} 項目を変更：{fields}",
+      "summary": "{fields}を変更",
       "undo": "取り消す",
       "choice": {
         "params": "パラメータのみ戻す",
@@ -7533,8 +7531,6 @@
         "countLabel": "枚数",
         "confirm": "生成する",
         "cancel": "今はしない",
-        "handedOff": "生成を依頼しました",
-        "notRun": "未実行",
         "retry": "もう一度",
         "model": "モデル",
         "aspect": "アスペクト比",
@@ -7552,7 +7548,8 @@
       "state": {
         "submitting": "確定中…",
         "confirmed": "確定済み · {time}",
-        "cancelled": "キャンセル済み · {time}"
+        "cancelled": "キャンセル済み · {time}",
+        "auto": "自動生成済み · {time}"
       },
       "contextCard": {
         "title": "このカードを保存しますか？",
@@ -7602,7 +7599,7 @@
       "loraWeightOverBudget": "重みの合計は{subject}で、このベースモデルの範囲を超えています。画像がぼやけたり、画風が混ざったりすることがあります。重みはまだ変えていません。どれを下げましょうか？",
       "videoFramesFailed": "このクリップからフレームを取り出せませんでした —— 今回アシスタントは見られません（{subject}）",
       "checkpointRestored": "選択したステップの設定を復元しました。以後は現在のフォームに従って操作してください。",
-      "questionAnswered": "選んだのは：{subject}",
+      "questionAnswered": "{subject}",
       "contextCardSaved": "コンテキストカードを保存しました：{subject}",
       "contextCardDeclined": "コンテキストカードは保存しませんでした：{subject}",
       "contextCardSaveFailed": "「{subject}」を保存できませんでした。もう一度お試しください。",
@@ -7929,7 +7926,8 @@
       "why": "なぜ"
     },
     "streaming": {
-      "pending": "アシスタントが考えています"
+      "pending": "アシスタントが考えています",
+      "thinking": "考えています…"
     },
     "question": {
       "step": "{step} / {total}",
@@ -7967,15 +7965,6 @@
       "cancel": "キャンセル",
       "incognito": "メモリには未保存",
       "expand": "このターンの記録を開く"
-    },
-    "status": {
-      "thinking": "考え中…",
-      "capturingFrames": "フレーム抽出中…",
-      "look": "画像を見ています…",
-      "research": "{count} 件のソースを確認中…",
-      "ask": "質問を考えています…",
-      "apply": "設定を変更しています…",
-      "request_generation": "生成の準備をしています…"
     },
     "verb": {
       "look": "見る",

@@ -426,6 +426,8 @@ export const STUDIO_OPERATOR_SHELL = {
    * ⚠ 时长本身仍走既有档（`--duration-base`），⛔ 不为画板上的 180ms 开新档。
    */
   pillStaggerMs: 30,
+  /** 「正在思考」三颗点彼此错开多久（D12 R-C：1.2s 一轮里错峰起伏）。 */
+  thinkingDotStaggerMs: 150,
 } as const
 
 /**
@@ -520,19 +522,9 @@ export const STUDIO_OPERATOR_FACE_PILLS: Record<
 export const STUDIO_OPERATOR_FACE_PILL_LIMIT = 5
 
 /**
- * 时间线沟（§11.3）。
- *
- * ⚠ `gutterPx` 与 `linePx` 由面板统一管理（24 / 18），所以走 style ——
- * ⛔ 不写 `grid-cols-[24px_1fr]`（Hard Rule 5：不用 arbitrary value），也不为它
- * 去改 `globals.css` 的 `@theme inline`（那是全站脊柱，一个面板的沟宽不配进去）。
- * ⚠ `linePx` 必须等于「流的左内距 + 节点半宽」：节点与贯穿竖线**同轴**是这条沟
- * 唯一的视觉承诺，两个数分开调就会看到线从节点旁边擦过去。
+ * 对话流的两个读数（D12 A 定稿去掉了左侧时间线竖线与节点，沟宽那两个数随之删掉）。
  */
 export const STUDIO_OPERATOR_TIMELINE = {
-  /** 沟宽（头像与形状节点）。 */
-  gutterPx: 24,
-  /** 贯穿竖线距流左缘多少 —— 同时是节点圆心的 x。 */
-  linePx: 18,
   /**
    * 助手正文超过这么多**行**就自动折起来，留一颗「展开全文」（2026-09-06 面板轮）。
    *

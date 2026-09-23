@@ -7389,8 +7389,6 @@
       "empty": "No earlier chats yet",
       "loading": "Loading…",
       "untitled": "Untitled chat",
-      "readonlyNote": "Previous conversation",
-      "readonlyNoteAt": "Conversation from {date}",
       "earlierRounds": "{count} earlier entries",
       "deleteLabel": "Delete conversation: {title}",
       "deleteConfirmInline": "Click delete again to remove “{title}” for good",
@@ -7432,13 +7430,13 @@
       "skipped": "{count} skipped",
       "failed": "{count} failed",
       "running": "in progress",
-      "details": "Execution details · {count, plural, one {# step} other {# steps}}",
+      "details": "Did {count} {count, plural, one {step} other {steps}}",
       "promptUnchanged": "Prompt unchanged",
       "blocked": "Action incomplete",
       "inspectFailure": "Expand the execution details for the reason, or clarify your request below."
     },
     "checkpoint": {
-      "summary": "Changed {count}: {fields}",
+      "summary": "changed {fields}",
       "undo": "Undo",
       "choice": {
         "params": "Params only",
@@ -7533,8 +7531,6 @@
         "countLabel": "Count",
         "confirm": "Confirm generation",
         "cancel": "Not now",
-        "handedOff": "Sent for generation",
-        "notRun": "Not run",
         "retry": "Try again",
         "model": "Model",
         "aspect": "Aspect ratio",
@@ -7552,7 +7548,8 @@
       "state": {
         "submitting": "Confirming…",
         "confirmed": "Confirmed · {time}",
-        "cancelled": "Cancelled · {time}"
+        "cancelled": "Cancelled · {time}",
+        "auto": "Auto-generated · {time}"
       },
       "contextCard": {
         "title": "Save this card?",
@@ -7602,7 +7599,7 @@
       "loraWeightOverBudget": "Total LoRA weight is {subject}, above this base model's range. This may blur the image or mix styles. The weights are unchanged. Which one would you like to lower?",
       "videoFramesFailed": "No frames could be taken from this clip — the assistant cannot look at it this turn ({subject})",
       "checkpointRestored": "Restored the selected step’s configuration. Use the current form for subsequent actions.",
-      "questionAnswered": "You picked: {subject}",
+      "questionAnswered": "{subject}",
       "contextCardSaved": "Context card kept: {subject}",
       "contextCardDeclined": "Context card not kept: {subject}",
       "contextCardSaveFailed": "Couldn't save “{subject}”. Please try again.",
@@ -7929,7 +7926,8 @@
       "why": "Why"
     },
     "streaming": {
-      "pending": "The assistant is thinking"
+      "pending": "The assistant is thinking",
+      "thinking": "Thinking…"
     },
     "question": {
       "step": "{step} / {total}",
@@ -7967,15 +7965,6 @@
       "cancel": "Cancel",
       "incognito": "Not saved to memory",
       "expand": "Show this turn's record"
-    },
-    "status": {
-      "thinking": "Thinking…",
-      "capturingFrames": "Taking frames…",
-      "look": "Looking at the image…",
-      "research": "Checking {count, plural, one {# source} other {# sources}}…",
-      "ask": "Thinking of a question…",
-      "apply": "Adjusting settings…",
-      "request_generation": "Getting ready to generate…"
     },
     "verb": {
       "look": "Look",

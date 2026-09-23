@@ -243,7 +243,6 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
   const reduceMotion = useReducedMotion()
   const [open, setOpen] = useState(false)
 
-  const Icon = OPERATOR_TOOL_ICONS[step.tool]
   const isRunning = step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running
   const isRejected = step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
   const isMoney =
@@ -276,59 +275,47 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
       data-tool={step.tool}
       data-status={step.status}
       data-undone={undone ? 'true' : 'false'}
+      /* D12 A · C3：**一行一步的小字**——⛔ 无卡、无边框、无图标圆圈；
+         「动作 · 改成了什么」两段，撤销只在悬停那一行出现。 */
       className={cn(
-        'group relative rounded-xl border border-border/70 bg-background px-2.5 py-2 text-md transition-colors duration-fast ease-standard',
-        isRunning && 'border-primary/40 bg-primary/5',
-        isMoney && 'border-status-warning/40 bg-status-warning-surface',
-        isRejected && 'border-status-risk/40 bg-status-risk-surface',
+        'group relative min-w-0 text-xs leading-relaxed',
         undone && 'opacity-55',
       )}
     >
-      <div className="flex items-start gap-2">
-        <span
-          className={cn(
-            'mt-0.5 grid size-5 shrink-0 place-items-center rounded-md border border-primary/30 bg-primary/10 text-primary',
-            isMoney &&
-              'border-status-warning/40 bg-status-warning-surface text-status-warning',
-            isRejected &&
-              'border-status-risk/40 bg-status-risk-surface text-status-risk',
-          )}
-        >
-          <Icon className="size-3" aria-hidden />
-        </span>
+      <div className="flex min-w-0 items-start gap-2">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
           aria-expanded={open}
-          className="min-w-0 flex-1 text-left"
+          className="flex min-w-0 flex-1 gap-2 text-left"
         >
           <span
             data-testid="operator-log-title"
             className={cn(
-              'block font-medium text-foreground',
+              'w-20 shrink-0 truncate text-muted-foreground',
+              isRunning && 'text-foreground',
               isMoney && 'text-status-warning',
               undone && 'line-through',
             )}
           >
             {step.title}
           </span>
-          {step.reason ? (
-            <span className="mt-0.5 block text-2sm text-muted-foreground">
-              {step.reason}
-            </span>
-          ) : null}
-          {isRejected ? (
-            <span className="mt-0.5 block text-2sm text-destructive">
-              {t(`reject.${step.error.reason}`)}
-            </span>
-          ) : null}
+          <span className="min-w-0 flex-1 text-foreground/80">
+            {isRejected ? (
+              <span className="text-status-risk">
+                {t(`reject.${step.error.reason}`)}
+              </span>
+            ) : (
+              (detail ?? step.reason ?? null)
+            )}
+          </span>
         </button>
         {canUndo ? (
           <button
             type="button"
             data-testid="operator-log-undo"
             onClick={() => onUndo(entryId)}
-            className="shrink-0 rounded-md px-1.5 py-0.5 text-2sm text-muted-foreground opacity-0 transition-opacity duration-fast ease-standard hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100"
+            className="shrink-0 rounded-sm text-muted-foreground opacity-0 transition-opacity duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 motion-reduce:transition-none"
           >
             {t('log.undo')}
           </button>
@@ -552,10 +539,11 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
         </div>
       ) : null}
 
-      {open && detail ? (
+      {/* 失败那一步的技术原文只在点开后出现（C11：先说人话，细节留在展开里）。 */}
+      {open && isRejected && detail ? (
         <p
           data-testid="operator-log-detail"
-          className="mt-2 whitespace-pre-wrap border-t border-dashed border-border/70 pt-2 text-2sm text-muted-foreground"
+          className="mt-1 whitespace-pre-wrap pl-22 text-xs text-muted-foreground"
         >
           {detail}
         </p>

@@ -82,9 +82,9 @@ describe('StudioOperatorCheckpointCard', () => {
     expect(screen.getByTestId('operator-checkpoint').dataset.reverted).toBe(
       STUDIO_OPERATOR_REVERT_CHOICES.params,
     )
-    expect(screen.getByTestId('operator-checkpoint-done').textContent).toBe(
-      'checkpoint.reverted.params',
-    )
+    expect(
+      screen.getByTestId('operator-checkpoint-done').textContent,
+    ).toContain('checkpoint.reverted.params')
     expect(screen.queryByTestId('operator-checkpoint-undo')).toBeNull()
   })
 
@@ -97,9 +97,9 @@ describe('StudioOperatorCheckpointCard', () => {
       'run-1',
       STUDIO_OPERATOR_REVERT_CHOICES.thread,
     )
-    expect(screen.getByTestId('operator-checkpoint-done').textContent).toBe(
-      'checkpoint.reverted.thread',
-    )
+    expect(
+      screen.getByTestId('operator-checkpoint-done').textContent,
+    ).toContain('checkpoint.reverted.thread')
   })
 
   /**

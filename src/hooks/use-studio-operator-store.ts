@@ -606,6 +606,28 @@ export function dropOperatorPending(id: string): void {
 }
 
 /**
+ * 一轮流收尾时把还挂着 `streaming` 的正文**全部定稿**（D12 C6）。
+ *
+ * 🔬 真机：一轮停在问题 / 确认卡上时服务端不再发定稿帧，那条正文于是一直
+ * `streaming`，末尾光标挂着不走 —— 读起来像它还在写。写完即收。
+ */
+export function settleOperatorStreaming(): void {
+  if (
+    !state.entries.some((entry) => entry.kind === 'message' && entry.streaming)
+  ) {
+    return
+  }
+  emit({
+    ...state,
+    entries: state.entries.map((entry) =>
+      entry.kind === 'message' && entry.streaming
+        ? { ...entry, streaming: false }
+        : entry,
+    ),
+  })
+}
+
+/**
  * 一条日志在**线程里**的 id。
  *
  * ⭐ **不能直接用 `step.id`** —— 服务端每跑一轮都从 `step-1` 重新编号，

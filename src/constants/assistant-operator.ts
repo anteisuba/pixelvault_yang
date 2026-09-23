@@ -2634,9 +2634,9 @@ export const ASSISTANT_OPERATOR_TOOL_HINTS: Record<
   [ASSISTANT_OPERATOR_TOOL_IDS.setSound]:
     'turn the clip\'s own soundtrack on or off. Only call it when the creator asked for silence or for sound — leaving it alone means "whatever this model normally does", which is usually what they want.',
   [ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate]:
-    "arm the generate button so it is one click away, with the price shown. This does NOT generate anything and never spends the creator's credits — they press it themselves. Use it as the LAST step once the form is ready.",
+    "arm the generate button on the workbench so it is one click away, with the price shown. This does NOT generate anything and never spends the creator's credits. Use it only when the creator says they will press generate themselves or only wants the form set up; otherwise finish with request_generation.",
   [ASSISTANT_OPERATOR_TOOL_IDS.requestGeneration]:
-    'ask the creator to send the current form. This does NOT generate anything and never spends their credits — the app shows them the model, the count and the price, and THEY press send. Use it only when they asked you to run it, and only once the form is ready; the plain prime_generate is the right call when they have not asked. It cannot be undone once they confirm, so never call it to "see what happens".',
+    'put a confirm card in the chat for the current form: model, count and specs, and the creator confirms it (or their auto-generate switch confirms it for them). You never spend their credits yourself. Use it as the LAST step once the form is ready and what they asked for is a picture or a clip (「出一张…」, 「准备生成」 count). Call it once per round; never call it to "see what happens".',
   /**
    * ⚠ 「归属票是唯一凭证」那句已作废（拍板 4 推翻，2026-09-06）：`@` 指定的任意
    * 一张一律可看。⛔ 但**名单仍然是硬闸**：`targetIds` 只能是这一轮 `@` 上来的那

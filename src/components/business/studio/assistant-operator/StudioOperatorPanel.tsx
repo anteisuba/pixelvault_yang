@@ -74,7 +74,6 @@ import {
   STUDIO_OPERATOR_MENTION,
   STUDIO_OPERATOR_SHELL,
   STUDIO_OPERATOR_SKIPPED_REJECT_REASONS,
-  STUDIO_OPERATOR_TIMELINE,
   STUDIO_OPERATOR_UPLOAD_ACCEPT,
   studioOperatorChangeSubject,
 } from '@/constants/studio-assistant-operator'
@@ -143,7 +142,6 @@ import type { UseStudioOperatorUploadResult } from '@/hooks/use-studio-operator-
 import type { UseStudioOperatorWebImportResult } from '@/hooks/use-studio-operator-web-import'
 import { useStudioOperatorMention } from '@/hooks/use-studio-operator-mention'
 import { toOperatorAttachment } from '@/hooks/use-studio-operator-upload'
-import { useStudioOperatorStatusWord } from '@/hooks/use-studio-operator-status-word'
 import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import {
   hydrateOperatorResume,
@@ -1076,14 +1074,6 @@ export function StudioOperatorPanel({
   )
 
   /**
-   * **加载态那一句状态词**（v2 §3.6）—— 头像旁一行小字，不转圈、不用骨架屏。
-   *
-   * ⚠ 算法住在 `use-studio-operator-status-word.ts`：收起态那张微状态卡（§4.3）
-   * 要读的是**同一句话**，两边各算一遍必然会漂（见那份 hook 的头注）。
-   */
-  const statusWord = useStudioOperatorStatusWord()
-
-  /**
    * 把线程劈成「渲染块」—— **连续的工具步合成一组**（§2.7）。
    *
    * ⚠ 看图那一条不进组：它渲染成评价卡（拍板 6），是大节点不是过程行 —— 混进
@@ -1271,7 +1261,12 @@ export function StudioOperatorPanel({
     const session = history.sessions.find(
       (item) => item.id === history.currentSessionId,
     )
-    return session ? format.dateTime(new Date(session.updatedAt)) : null
+    return session
+      ? format.dateTime(new Date(session.updatedAt), {
+          month: 'long',
+          day: 'numeric',
+        })
+      : null
   }, [format, history.currentSessionId, history.sessions])
 
   const historyGroups = groupOperatorHistoryTools(historyEntries)
@@ -1300,7 +1295,7 @@ export function StudioOperatorPanel({
           data-testid="operator-research"
           className="mt-2"
         >
-          <summary className="ml-8 cursor-pointer py-1 text-2sm text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+          <summary className="w-fit cursor-pointer list-none py-0.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
             {t('researchDetails')}
           </summary>
           {group.indexes.map(renderItem)}
@@ -1372,21 +1367,26 @@ export function StudioOperatorPanel({
        */
       const researchSummary = summarizeOperatorResearchBlock(block.steps)
       const logItems = block.steps.map((item) => (
-        <div key={item.id}>
-          <StudioOperatorLogItem
-            entryId={item.id}
-            step={item.step}
-            undone={item.undone}
-            onUndo={undoStep}
-            // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
-            //    传一个每次 render 都换引用的对象等于把 memo 关掉。
-            webImport={webImport.states[item.id]}
-            webImportLimit={webImport.limit}
-            onToggleWebImage={webImport.toggleCandidate}
-            /* ⚠ 候选网格由日志条自己画（56b 切片 1 起没有第二处画它的地方：
+        <div
+          key={item.id}
+          className="group/step flex min-w-0 items-start gap-2"
+        >
+          <div className="min-w-0 flex-1">
+            <StudioOperatorLogItem
+              entryId={item.id}
+              step={item.step}
+              undone={item.undone}
+              onUndo={undoStep}
+              // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
+              //    传一个每次 render 都换引用的对象等于把 memo 关掉。
+              webImport={webImport.states[item.id]}
+              webImportLimit={webImport.limit}
+              onToggleWebImage={webImport.toggleCandidate}
+              /* ⚠ 候选网格由日志条自己画（56b 切片 1 起没有第二处画它的地方：
                调查卡已经退场）。 */
-            renderWebCandidates
-          />
+              renderWebCandidates
+            />
+          </div>
           {/* ⚠ 后果落在**库里**的那几步（记规则 / 标审核态 / 素材库四条）
                 ⛔ 不挂「还原到这一步」：还原读的是工作台快照，而它们一颗旋钮都
                 没动 —— 快照因此从来就没被拍过，用户读到的是一句
@@ -1416,6 +1416,35 @@ export function StudioOperatorPanel({
         block.steps.every(
           (item) => item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
         )
+      /**
+       * 本轮改动的「撤销」—— 紧跟在过程那一行后面（D12 P5）；只挂在这一轮
+       * **最后一个**工具块上、且这一轮真的收尾了之后。
+       */
+      const checkpoint =
+        roundDone &&
+        changeCountInRound > 0 &&
+        lastToolsBlock === block.steps[0]?.id ? (
+          <StudioOperatorCheckpointCard
+            runKey={block.runKey}
+            count={changeCountInRound}
+            fieldSummary={format.list(changeLabelKeys.map((key) => t(key)))}
+            onRevert={handleCheckpointRevert}
+            {...(compactCanvasChanges
+              ? { details: logItems, detailsCount: block.steps.length }
+              : {})}
+            {...(resumeStepNumber !== null && block.runKey === latestRunKey
+              ? {
+                  resume: {
+                    stepNumber: resumeStepNumber,
+                    ...(resumeFailedReason
+                      ? { failedReason: resumeFailedReason }
+                      : {}),
+                    onResume: resumePlan,
+                  },
+                }
+              : {})}
+          />
+        ) : null
       return (
         <div
           key={`tools:${block.runKey}:${block.steps[0]?.id}`}
@@ -1452,6 +1481,7 @@ export function StudioOperatorPanel({
                     failed={failed}
                     skipped={skipped}
                     running={running}
+                    trailing={checkpoint}
                     runningTitle={
                       block.steps.findLast(
                         (item) => item.step.status === 'running',
@@ -1460,23 +1490,21 @@ export function StudioOperatorPanel({
                     failure={
                       lastToolsBlock === block.steps[0]?.id &&
                       blocker?.status === 'error' ? (
-                        <>
-                          <p className="font-medium">
+                        <p>
+                          <span className="text-status-risk">
                             {blocker.tool ===
                             ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
                               ? t('toolGroup.promptUnchanged')
                               : t('toolGroup.blocked')}
-                          </p>
-                          <p className="mt-1 text-muted-foreground">
+                          </span>
+                          <span className="text-muted-foreground">
+                            {'：'}
                             {blocker.error.reason === 'promptConflict' &&
                             blocker.error.detail
                               ? blocker.error.detail
                               : t(`reject.${blocker.error.reason}`)}
-                          </p>
-                          <p className="mt-1 text-muted-foreground">
-                            {t('toolGroup.inspectFailure')}
-                          </p>
-                        </>
+                          </span>
+                        </p>
                       ) : null
                     }
                   >
@@ -1486,30 +1514,9 @@ export function StudioOperatorPanel({
               }
             </StudioOperatorTimelineRow>
           ) : null}
-          {roundDone &&
-          changeCountInRound > 0 &&
-          lastToolsBlock === block.steps[0]?.id ? (
+          {compactCanvasChanges && checkpoint ? (
             <StudioOperatorTimelineRow card={STUDIO_OPERATOR_CARD_KINDS.system}>
-              <StudioOperatorCheckpointCard
-                runKey={block.runKey}
-                count={changeCountInRound}
-                fieldSummary={changeLabelKeys.map((key) => t(key)).join(' · ')}
-                onRevert={handleCheckpointRevert}
-                {...(compactCanvasChanges
-                  ? { details: logItems, detailsCount: block.steps.length }
-                  : {})}
-                {...(resumeStepNumber !== null && block.runKey === latestRunKey
-                  ? {
-                      resume: {
-                        stepNumber: resumeStepNumber,
-                        ...(resumeFailedReason
-                          ? { failedReason: resumeFailedReason }
-                          : {}),
-                        onResume: resumePlan,
-                      },
-                    }
-                  : {})}
-              />
+              {checkpoint}
             </StudioOperatorTimelineRow>
           ) : null}
         </div>
@@ -1524,6 +1531,7 @@ export function StudioOperatorPanel({
             key={entry.id}
             card={STUDIO_OPERATOR_CARD_KINDS.message}
             speaker={STUDIO_OPERATOR_SPEAKERS.user}
+            {...(persona ? { persona } : {})}
           >
             <StudioOperatorUserText
               text={entry.text}
@@ -1587,13 +1595,9 @@ export function StudioOperatorPanel({
             card={STUDIO_OPERATOR_CARD_KINDS.message}
             {...(persona ? { persona } : {})}
           >
-            {/* ⚠ 空正文那一行画的是**状态词**而不是三点脉冲（§3.6）：脉冲说的是
-                「它还在」，状态词说的是「它在干什么」—— 后者才是耐心的来源。
-                ⛔ 有字之后不再传：正文一到，那句状态词就该让位。 */}
             <StudioOperatorMessageBody
               entry={entry}
               references={messageImageReferences.get(entry.id)}
-              {...(statusWord ? { statusText: statusWord } : {})}
               {...(answer
                 ? {
                     sources: answer.sources,
@@ -1671,7 +1675,7 @@ export function StudioOperatorPanel({
           >
             <p
               data-testid="operator-system-line"
-              className="text-2sm leading-relaxed text-muted-foreground"
+              className="text-xs leading-relaxed text-muted-foreground"
             >
               {/* ⚠ 两种 subject：`revertField` 存的是**字段 id**（要过词表
                           才是人话），`undoStep` 存的是模型写的那行标题（本来就是
@@ -1802,28 +1806,28 @@ export function StudioOperatorPanel({
                ⚠ 只在空态换布局：有内容时这里是一串按顺序堆的行，⛔ 不给它们换
                一套 flex 语义。 */
             className={cn(
-              'relative px-3.5 pb-5 pt-3.5',
+              'relative px-4 pb-5 pt-3.5',
               threadEmpty && 'flex h-full min-h-0 flex-col',
             )}
           >
-            {/* 贯穿的 1px border 色线 —— 节点与头像都压在它上面（同轴）。
-                ⚠ 空态**不画这条线**（§4.2 / 画板 BEmpty）：一条从头贯到底、
-                  上面一个节点都没有的竖线看起来像渲染坏了。 */}
-            {threadEmpty ? null : (
-              <span
-                aria-hidden
-                data-testid="operator-timeline-line"
-                style={{ left: `${STUDIO_OPERATOR_TIMELINE.linePx}px` }}
-                className="pointer-events-none absolute bottom-2 top-4 w-px bg-border"
-              />
-            )}
-
             {/* ── 空态（§4.2）—— ⛔ 不再是一行灰字：头像 + 自我介绍 + 三颗起手势。 */}
             {threadEmpty ? (
               <StudioOperatorEmptyState
                 face={operatorHost.face}
                 {...(persona ? { persona } : {})}
               />
+            ) : null}
+
+            {/* ── 日期分隔线（D12 B3 / S14）：排在那一天的**第一条之前**。
+              ⚠ 日期取的是这条会话的 `updatedAt`（库里没有逐条时刻）——⛔ 不拿
+              「现在」去填每一条，那是编数据。 */}
+            {historyEntries.length > 0 && historySessionDate ? (
+              <p
+                data-testid="operator-history-divider"
+                className="mb-1 flex items-center gap-2 text-xs text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
+              >
+                {historySessionDate}
+              </p>
             ) : null}
 
             {/* ── 载回来的只读历史（P4-B）───────────────────────────────
@@ -1920,7 +1924,7 @@ export function StudioOperatorPanel({
                   return (
                     <div
                       key={`history-tools:${group.indexes[0]}`}
-                      className="ml-8"
+                      className="mt-2.5"
                     >
                       <StudioOperatorToolGroup
                         total={steps.length}
@@ -1989,21 +1993,6 @@ export function StudioOperatorPanel({
                 </>
               )
             })()}
-
-            {/* 分隔线只在**两边都有东西**时出现：只有历史时它是一条没有下文的线。 */}
-            {historyEntries.length > 0 ? (
-              <p
-                data-testid="operator-history-divider"
-                className="my-2 flex items-center gap-2 text-xs tracking-nav text-muted-foreground before:h-px before:flex-1 before:bg-border after:h-px after:flex-1 after:bg-border"
-              >
-                {/* ⚠ 日期取的是**这条会话的 `updatedAt`**（库里那一份没有逐条时刻，
-                  见 `types/studio-operator-history.ts`）——⛔ 不拿「现在」去填每一
-                  条，那是编数据。整条历史一个日期，说的正是「这些是那天的事」。 */}
-                {historySessionDate
-                  ? t('history.readonlyNoteAt', { date: historySessionDate })
-                  : t('history.readonlyNote')}
-              </p>
-            ) : null}
 
             {renderGroups(liveGroups, (index) => renderBlock(blocks[index]!))}
 

@@ -422,6 +422,18 @@
         oklch(from var(--pulse-color, var(--bg)) l c h / 0);
     }
   }
+  /* 助手「正在思考」那三颗点（D12 R-C）：1.2s 一轮，三点错峰起伏 3px，只动 transform。 */
+  --animate-thinking-dot: thinking-dot 1.2s var(--ease-standard) infinite;
+  @keyframes thinking-dot {
+    0%,
+    60%,
+    100% {
+      transform: translateY(0);
+    }
+    30% {
+      transform: translateY(-3px);
+    }
+  }
   --animate-fade-in-up: fade-in-up 0.5s ease-out;
   @keyframes fade-in-up {
     from {

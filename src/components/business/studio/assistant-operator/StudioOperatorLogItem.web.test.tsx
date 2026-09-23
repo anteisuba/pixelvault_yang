@@ -304,7 +304,7 @@ describe('日志条 · 文件夹视觉检查', () => {
     expect(screen.queryByTestId('operator-log-undo')).toBeNull()
   })
 
-  it('点证据图打开原图，展开详情能复核 2/30 的覆盖率', () => {
+  it('点证据图打开原图，那一行就写着 2/30 的覆盖率', () => {
     renderItem({ step: FOLDER_VISION_STEP })
     fireEvent.click(screen.getAllByTestId('operator-folder-vision-image')[0])
     expect(openOperatorLightbox).toHaveBeenCalledWith(
@@ -312,8 +312,7 @@ describe('日志条 · 文件夹视觉检查', () => {
       'front-facing portrait',
     )
 
-    fireEvent.click(screen.getByTestId('operator-log-title'))
-    expect(screen.getByTestId('operator-log-detail').textContent).toContain(
+    expect(screen.getByTestId('operator-log-item').textContent).toContain(
       '2/30',
     )
   })

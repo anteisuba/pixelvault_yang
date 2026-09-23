@@ -1,36 +1,24 @@
 'use client'
 
 /**
- * 时间线沟里的一行 + **五类卡的分派点**（v2 §3.2 / 方向 C §11.3）。
+ * 对话流里的一行 + **五类卡的分派点**（v2 §3.2 · D12 A 对话流定稿）。
  *
- * ⭐ 一屏面板上只该有一套分类（§2.4）：时间线的词汇因此就是那五类卡
- * **消息 / 问题 / 确认 / 结果 / 证据** 加上一档**系统行**，⛔ 不再是「大节点 /
- * 工具步 / 系统行」这套只讲形状的词。形状是这一颗组件按类算出来的结果，不是
- * 调用方要挑的东西 —— 挑形状的下场是同一类卡在两处画成两个样子。
+ * ⭐ 一屏面板上只该有一套分类：**消息 / 问题 / 确认 / 结果 / 证据** 加上一档
+ * **系统行**。形状由这一颗按类算，⛔ 不是调用方挑的。
  *
- * ⚠ 「问题」这一类**不会走到这里**（§3.4）：它钉在输入框上方，不进时间线。
- * 留着这一档是因为答复之后那一行系统行、以及只读历史里那一条，都要说得出
- * 「这是一道问过的题」。
- *
- * ⭐ **层级靠形状与缩进，不靠颜色和底色块**：会说话的两方（用户 / 助手）挂 32px
- * 头像，其余按「大节点 8px 实心 / 工具步 6px 空心 / 系统行 8×2 短横」分级。
- * ⚠ **用户消息是唯一靠右的一档**（`data-align="end"`，画板 Main / BCards）：它整行
- * 离开左沟、头像走到气泡右侧，⛔ 不在沟里再压一个节点。其余全部靠左沟。
- * 五种形态共用**同一条沟**（`STUDIO_OPERATOR_TIMELINE.gutterPx`），节点与贯穿
- * 竖线同轴 —— 沟宽一格不动是这条线读得下去的前提。
- *
- * ⚠ 这一颗**不画贯穿竖线** —— 线是流容器的一条 `absolute` span（跨行、跨行间距），
- * 逐行各画一截会在 `mt-4` 的间距里断掉。
+ * ── A 对话流（owner 2026-09-24 定）──────────────────────────────────
+ * ⛔ **没有左侧时间线竖线与节点符号**：线和框层层套是「乱」的原因之一。
+ * ⭐ **一轮只出一次头像名字**（C1）：它挂在用户那一句**后面**，本轮助手说的、
+ *   做的、问的全都在它下面。⛔ 不再每一行各带一个头像。
+ * ⭐ 用户那一句只是一个靠右的浅灰气泡，⛔ 不带名字与头像。
+ * ⚠ 间距只有两档：轮与轮之间 20（用户那一句的 `mt-5`），轮内 10（`mt-2.5`）。
  */
 
 import type { ComponentProps, ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
-import { STUDIO_OPERATOR_TIMELINE } from '@/constants/studio-assistant-operator'
 import { TimelineAvatar } from '@/components/business/studio/assistant-operator/TimelineAvatar'
 import type { AssistantPersona } from '@/types/assistant-persona'
-import { useMyProfile } from '@/hooks/use-my-profile'
-import { cn } from '@/lib/utils'
 
 /**
  * **五类卡 + 系统行**（v2 §3.2）—— 时间线上唯一的一套分类。
@@ -109,13 +97,6 @@ function nodeShapeOf(
 }
 
 /**
- * 沟里挂头像的那一档 —— ⚠ **只剩助手**：用户消息整行靠右、不进沟（见下方分支）。
- */
-function isAvatarNode(node: StudioOperatorNodeShape): boolean {
-  return node === NODE_SHAPES.assistant
-}
-
-/**
  * 沟位 → 行标签的词表键（`StudioOperator.timeline.*`）。
  *
  * ⭐ 由来（2026-09-06 真机）：整条时间线对读屏是哑的 —— 行与行之间只有缩进和
@@ -166,6 +147,11 @@ interface StudioOperatorTimelineRowProps {
    * ⚠ 缺席时画默认预设，⛔ 不出空圈。
    */
   persona?: AssistantPersona
+  /**
+   * 用户那一句后面要不要接本轮的头像名字（默认要）。⚠ 只有**不开启新一轮**的
+   * 用户行才关掉（例如折叠里的旧历史末尾）。
+   */
+  roundHeader?: boolean
   children: ReactNode
 }
 
@@ -179,27 +165,31 @@ const ROW_ALIGNS = {
   end: 'end',
 } as const
 
-function TimelineSpeakerName({
-  node,
-  assistantName,
+/**
+ * **本轮的头像与名字**（D12 A · C1）—— 22 头像 + 13 中粗名字，一轮一次。
+ *
+ * ⚠ 名字读的是用户给助手起的那个（§8.2），没起名就是默认 ID。
+ */
+export function StudioOperatorRoundHeader({
+  persona,
 }: {
-  node: StudioOperatorNodeShape
-  assistantName: string
+  persona?: AssistantPersona
 }) {
-  const { profile } = useMyProfile()
   const t = useTranslations('StudioOperator.timeline')
-  const name =
-    node === NODE_SHAPES.assistant
-      ? assistantName
-      : profile?.displayName?.trim() ||
-        profile?.username?.trim() ||
-        t('rowUser')
-
+  const name = persona?.name?.trim() || t('assistantFallback')
   return (
-    <div className="flex min-h-8 min-w-0 items-center">
+    <div
+      data-testid="operator-round-header"
+      className="mt-5 flex min-w-0 items-center gap-2"
+    >
+      <TimelineAvatar
+        speaker="assistant"
+        {...(persona ? { persona } : {})}
+        className="size-5.5 ring-0"
+      />
       <span
         data-testid="operator-speaker-name"
-        className="min-w-0 break-words text-sm font-semibold text-foreground"
+        className="min-w-0 truncate text-2sm font-medium text-foreground"
       >
         {name}
       </span>
@@ -211,54 +201,47 @@ export function StudioOperatorTimelineRow({
   card,
   speaker = STUDIO_OPERATOR_SPEAKERS.assistant,
   persona,
+  roundHeader = true,
   children,
 }: StudioOperatorTimelineRowProps) {
   const t = useTranslations('StudioOperator.timeline')
   const node = nodeShapeOf(card, speaker)
-  const avatar = isAvatarNode(node)
   const assistantName = persona?.name?.trim() || t('assistantFallback')
   /**
    * ⚠ `role="article"` 是为了让 `aria-label` 真的被念出来：裸 `div` 上的
-   * `aria-label` 大多数读屏直接忽略（无角色元素不参与名称计算）。
-   * ⚠ 助手行念的是**用户给助手起的名字**（§8.2），没起名就念默认 ID。
+   * `aria-label` 大多数读屏直接忽略。行标签是读屏唯一的发言人信息。
    */
   const rowLabel = t(NODE_LABEL_KEYS[node], {
     name: assistantName,
   })
 
   /**
-   * ── 用户消息靠右（画板 Main / BCards「消息 · 用户」）─────────────────
-   *
-   * ⭐ **用户行整行离开时间线沟**：气泡靠右、头像在气泡右侧、右下角收成小圆角
-   * （气泡壳在 `StudioOperatorUserText`）。画板上用户那一行本来就不出节点 ——
-   * 让它继续占着左沟只会得到「一个头像左、一个气泡右」的两套轴。
-   * ⚠ 左缘那条贯穿竖线**照旧贯穿**（它是流容器的一条 `absolute` span，不逐行画）：
-   * 用户行只是不往它上面压节点，线本身不断。
-   * ⚠ 宽度上限走 `w-4/5` 的外列而不是气泡上的百分比上限：Hard Rule 5 禁任意值，
-   * 而 80% 这一档是面板私有的，不配进 `globals.css` 的 `@theme inline`。
+   * ── 用户那一句：靠右的浅灰气泡 + 紧跟着本轮助手的头像名字（C1）──────
+   * ⚠ 宽度上限走 `w-4/5` 的外列（Hard Rule 5 禁任意值）。
    */
   if (node === NODE_SHAPES.user) {
     return (
-      <div
-        data-testid="operator-timeline-row"
-        data-card={card}
-        data-node={node}
-        data-align={ROW_ALIGNS.end}
-        role="article"
-        aria-label={rowLabel}
-        className="group mt-4 flex min-h-8 items-start justify-end gap-2 first:mt-0"
-      >
-        <div className="flex w-4/5 min-w-0 flex-col items-end">
-          <TimelineSpeakerName node={node} assistantName={assistantName} />
+      <>
+        <div
+          data-testid="operator-timeline-row"
+          data-card={card}
+          data-node={node}
+          data-align={ROW_ALIGNS.end}
+          role="article"
+          aria-label={rowLabel}
+          className="mt-5 flex justify-end first:mt-0"
+        >
           <div
             data-testid="operator-timeline-content"
-            className="mt-1.5 flex min-w-0 flex-col items-end gap-1"
+            className="flex w-4/5 min-w-0 flex-col items-end gap-1"
           >
             {children}
           </div>
         </div>
-        <TimelineAvatar speaker="user" />
-      </div>
+        {roundHeader ? (
+          <StudioOperatorRoundHeader {...(persona ? { persona } : {})} />
+        ) : null}
+      </>
     )
   }
 
@@ -270,67 +253,10 @@ export function StudioOperatorTimelineRow({
       data-align={ROW_ALIGNS.start}
       role="article"
       aria-label={rowLabel}
-      style={{
-        // ⚠ 走 style 不是 `grid-cols-[24px_1fr]`：Hard Rule 5 禁 arbitrary value，
-        //   而 24 这个数是面板私有的，不配进 `globals.css` 的 `@theme inline`。
-        gridTemplateColumns: `${STUDIO_OPERATOR_TIMELINE.gutterPx}px minmax(0, 1fr)`,
-      }}
-      className={cn(
-        'group grid gap-x-2 first:mt-0',
-        avatar && 'min-h-8',
-        avatar || node === NODE_SHAPES.big ? 'mt-4' : 'mt-2',
-      )}
+      className="mt-2.5 min-w-0 first:mt-0"
     >
-      <div className="flex items-start gap-1.5 pt-0.5">
-        {/* 节点盒宽 8px：流的左内距 14px + 半宽 4px = 18px，正好压住贯穿竖线。 */}
-        <span className="relative grid h-4 w-2 shrink-0 place-items-center">
-          {avatar ? (
-            <TimelineAvatar
-              speaker="assistant"
-              {...(persona ? { persona } : {})}
-              // 头像比节点盒宽，靠绝对定位回到同一条轴上。
-              className="absolute left-1/2 top-0 -translate-x-1/2"
-            />
-          ) : null}
-          {node === NODE_SHAPES.big ? (
-            <span
-              data-testid="operator-timeline-node"
-              className="size-2 rounded-full bg-primary ring-2 ring-card"
-              aria-hidden
-            />
-          ) : null}
-          {node === NODE_SHAPES.tool ? (
-            <span
-              data-testid="operator-timeline-node"
-              // ⚠ 描边用 `muted-foreground` 而不是 §11.3 写的 `border`：
-              //   `--border`(#e5e5e5) 对卡背只有 1.26:1，作为**信息性图形**过不了 3:1
-              //   （`ui-defaults.md §2.4`）—— 那样的空心圆在白卡上等于没画。
-              //   现值 #696969 对卡背 5.49，层级仍然靠「实心 vs 空心」分，不靠颜色。
-              className="size-1.5 rounded-full border border-muted-foreground bg-card ring-2 ring-card"
-              aria-hidden
-            />
-          ) : null}
-          {node === NODE_SHAPES.system ? (
-            <span
-              data-testid="operator-timeline-node"
-              className="h-0.5 w-2 bg-muted-foreground ring-2 ring-card"
-              aria-hidden
-            />
-          ) : null}
-        </span>
-      </div>
-
-      {avatar ? (
-        <TimelineSpeakerName node={node} assistantName={assistantName} />
-      ) : null}
-      <div
-        data-testid="operator-timeline-content"
-        className={cn(
-          'flex min-w-0 items-start gap-2',
-          avatar && 'col-start-2 mt-1.5',
-        )}
-      >
-        <div className="min-w-0 flex-1">{children}</div>
+      <div data-testid="operator-timeline-content" className="min-w-0">
+        {children}
       </div>
     </div>
   )

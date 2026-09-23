@@ -36,13 +36,25 @@ function renderBlock(
 ) {
   const onSave = vi.fn()
   render(
-    <StudioOperatorRoundSummary summary={SUMMARY} onSave={onSave} {...props} />,
+    <StudioOperatorRoundSummary
+      summary={SUMMARY}
+      onSave={onSave}
+      defaultCollapsed={false}
+      {...props}
+    />,
   )
   return { onSave }
 }
 
 describe('StudioOperatorRoundSummary', () => {
-  it('默认展开：三栏 + 证据 chip 行 + 右上「改」', () => {
+  it('D12 C4：不传就默认收成一行', () => {
+    render(<StudioOperatorRoundSummary summary={SUMMARY} />)
+    expect(screen.getByTestId('operator-round-summary').dataset.state).toBe(
+      'collapsed',
+    )
+  })
+
+  it('展开态：三栏 + 证据 chip 行 + 右上「改」', () => {
     renderBlock()
     expect(screen.getByTestId('operator-round-summary').dataset.state).toBe(
       'expanded',
@@ -164,7 +176,9 @@ describe('StudioOperatorRoundSummary', () => {
   })
 
   it('改不动的那几条（没有 onSave）不画「改」', () => {
-    render(<StudioOperatorRoundSummary summary={SUMMARY} />)
+    render(
+      <StudioOperatorRoundSummary summary={SUMMARY} defaultCollapsed={false} />,
+    )
     expect(screen.queryByTestId('operator-round-edit')).toBeNull()
   })
 
@@ -181,6 +195,7 @@ describe('StudioOperatorRoundSummary', () => {
       <StudioOperatorRoundSummary
         summary={SUMMARY}
         onRecallEvidence={onRecallEvidence}
+        defaultCollapsed={false}
       />,
     )
     fireEvent.click(screen.getAllByTestId('operator-round-evidence')[0]!)

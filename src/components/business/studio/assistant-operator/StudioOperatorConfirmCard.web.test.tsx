@@ -314,9 +314,6 @@ describe('StudioOperatorConfirmCard', () => {
     expect(screen.getByTestId('operator-confirm-state')).toHaveTextContent(
       'confirm.state.cancelled:11:24',
     )
-    expect(screen.getByTestId('operator-confirm-card')).toHaveTextContent(
-      'confirm.generate.notRun',
-    )
     fireEvent.click(screen.getByTestId('operator-confirm-retry'))
     expect(handlers.onRetry).toHaveBeenCalledTimes(1)
   })

@@ -29,13 +29,12 @@
  */
 
 import { motion, useReducedMotion } from 'motion/react'
-import { Images, RotateCw } from '@/components/icons'
 import Image from 'next/image'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import { EASE_STANDARD, DURATION } from '@/constants/motion'
 import { STUDIO_OPERATOR_RESULT_STAGGER } from '@/constants/studio-assistant-operator'
-import { cn } from '@/lib/utils'
+import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
 import type {
   StudioOperatorResultEntry,
   StudioOperatorResultItem,
@@ -49,23 +48,33 @@ interface StudioOperatorResultRowProps {
   onUseAsReference(item: StudioOperatorResultItem): void
 }
 
-/** 缩略图一格 —— 单张那一档给固定宽，多张那一档等分。 */
+/**
+ * 比例串（「3:4」）→ CSS `aspect-ratio`。读不出来就按 3:2（D12 P3：单张按输入区
+ * 宽度出，约 3:2）。⚠ 走 style：比例来自生成参数，是数据不是设计值。
+ */
+function toCssAspect(ratio: string | null | undefined): string {
+  const match = ratio?.match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/)
+  return match ? `${match[1]} / ${match[2]}` : '3 / 2'
+}
+
 function ResultThumb({
   item,
   index,
-  className,
+  aspect,
 }: {
   item: StudioOperatorResultItem
   index: number
-  className: string
+  aspect: string
 }) {
   const reduceMotion = useReducedMotion()
   return (
-    <motion.span
+    <motion.button
+      type="button"
       data-testid="operator-result-tile"
-      // `tileIn`（§11.5）：opacity + y8，stagger 30ms 封顶前 12 项。
-      initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-      animate={{ opacity: 1, y: 0 }}
+      onClick={() => openOperatorLightbox(item.url, item.label ?? '')}
+      // 占位格 → 结果图（D12 动效表）：只淡入，尺寸与占位格一致，⛔ 不跳动。
+      initial={reduceMotion ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
       transition={{
         duration: reduceMotion ? 0 : DURATION.base,
         ease: EASE_STANDARD,
@@ -74,22 +83,22 @@ function ResultThumb({
           : Math.min(index, STUDIO_OPERATOR_RESULT_STAGGER.maxItems) *
             STUDIO_OPERATOR_RESULT_STAGGER.stepSeconds,
       }}
-      className={cn('overflow-hidden rounded-lg bg-muted', className)}
+      style={{ aspectRatio: aspect }}
+      className="relative w-full cursor-zoom-in overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Image
         src={item.thumbnailUrl ?? item.url}
         alt={item.label ?? ''}
-        width={240}
-        height={180}
+        fill
+        sizes="(max-width: 640px) 100vw, 420px"
         unoptimized
         /**
-         * ⚠ `object-top`（2026-09-12 实测第 5 步）：格子是横的、出的图多半是竖的，
-         * 按中心裁一张人物图正好剩两条腿。取顶部之后缩略图里至少有脸。
-         * ⛔ 不写任意值的 `object-position`（Tailwind 4，本仓无 tailwind.config）。
+         * ⚠ `object-top`（2026-09-12 实测第 5 步）：按中心裁一张人物图正好剩两条
+         * 腿。取顶部之后缩略图里至少有脸。
          */
-        className="size-full object-cover object-top"
+        className="object-cover object-top"
       />
-    </motion.span>
+    </motion.button>
   )
 }
 
@@ -102,127 +111,96 @@ export function StudioOperatorResultRow({
   const format = useFormatter()
   const { items, total, completed } = entry
   const generating = items.length === 0
-  const single = items.length === 1
-  const first = items[0]
-
+  const aspect = toCssAspect(entry.request?.specs.aspectRatio)
   /**
-   * ⚠ 占位格数 = 本次张数（§6.3），⛔ 不画一个固定的三格：一次出一张时三格
-   * 里有两格永远是空的，而用户会以为有两张没出来。
+   * ⚠ 占位格数 = 本次张数（§6.3），⛔ 不画一个固定的三格。
    */
-  const placeholders = Array.from(
-    { length: Math.max(total, 1) },
-    (_, index) => index,
-  )
+  const count = generating ? Math.max(total, 1) : items.length
+  const grid = count > 1 ? 'grid grid-cols-2 gap-1.5' : 'flex'
+  const ghost =
+    'inline-flex h-7 items-center rounded-md border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
 
   return (
     <div
       data-testid="operator-result-row"
       data-generating={generating}
-      className="flex flex-col gap-3 rounded-xl border border-border bg-card p-4 shadow-assistant-card"
+      /* D12 S6 / S7：白底细边卡，图按卡宽出（单张整宽、多张两列）。 */
+      className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5"
     >
       {generating ? (
         <>
-          <div className="flex gap-1.5">
-            {placeholders.map((index) => (
+          <p
+            data-testid="operator-result-progress"
+            className="text-xs text-muted-foreground"
+          >
+            {t('generating', { done: completed, total })}
+          </p>
+          <div className={grid}>
+            {Array.from({ length: count }, (_, index) => (
               <span
                 key={index}
                 data-testid="operator-result-placeholder"
-                // ⚠ 脉冲**逐格错开**（画板上那三格是三档灰的静态表达）：三格
-                //   同时呼吸读起来像一整块没加载出来的背景，错开之后它说的才是
-                //   「有 3 张各自在路上」。⛔ 不画转圈。
-                className="h-16 flex-1 animate-pulse rounded-lg bg-muted"
-                style={{ animationDelay: `${index * 120}ms` }}
+                /* P4：图片占位允许骨架（助手文字态才禁骨架），尺寸 = 结果尺寸。 */
+                style={{
+                  aspectRatio: aspect,
+                  animationDelay: `${index * 120}ms`,
+                }}
+                className="w-full animate-pulse rounded-lg bg-muted motion-reduce:animate-none"
+              />
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className={grid}>
+            {items.map((item, index) => (
+              <ResultThumb
+                key={item.id}
+                item={item}
+                index={index}
+                aspect={aspect}
               />
             ))}
           </div>
           <p
-            data-testid="operator-result-progress"
-            className="text-2sm text-muted-foreground"
+            data-testid="operator-result-stored"
+            className="min-w-0 truncate text-xs text-muted-foreground"
           >
-            {t('generating', { done: completed, total })}
+            {items.length === 1
+              ? t('stored')
+              : t('storedCount', { count: items.length })}
+            {entry.storedAt
+              ? ` · ${format.dateTime(new Date(entry.storedAt), {
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}`
+              : ''}
+            {entry.summary ? ` · ${entry.summary}` : ''}
           </p>
-          {/* 细进度条 —— 读数已经写在上一行，这条只是它的形状。 */}
-          <span
-            aria-hidden
-            className="h-1 overflow-hidden rounded-full bg-muted"
-          >
-            <span
-              className="block h-full rounded-full bg-foreground transition-[width] duration-(--duration-fast) ease-standard motion-reduce:transition-none"
-              style={{
-                width: `${total > 0 ? Math.round((completed / total) * 100) : 0}%`,
-              }}
-            />
-          </span>
-        </>
-      ) : (
-        <div className={cn('flex gap-3', single ? 'items-center' : 'flex-col')}>
-          {single && first ? (
-            <ResultThumb
-              item={first}
-              index={0}
-              className="h-20 w-28 shrink-0"
-            />
-          ) : (
-            <div className="flex gap-1.5">
-              {items.map((item, index) => (
-                <ResultThumb
-                  key={item.id}
-                  item={item}
-                  index={index}
-                  className="h-16 min-w-0 flex-1"
-                />
-              ))}
-            </div>
-          )}
-
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            {/* 🔬 contrast-check（2026-09-11，浅 / 深）：`status-applied` 对卡背
-                5.42 / 10.26 —— 正文字号按 1.4.3 走 4.5:1，两档都过。 */}
-            <p
-              data-testid="operator-result-stored"
-              className="min-w-0 truncate text-2sm text-muted-foreground"
-            >
-              <span className="text-status-applied">
-                {single
-                  ? t('stored')
-                  : t('storedCount', { count: items.length })}
-              </span>
-              {entry.summary ? ` · ${entry.summary}` : ''}
-              {entry.storedAt
-                ? ` · ${format.dateTime(new Date(entry.storedAt), {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}`
-                : ''}
-            </p>
-
-            <div className="flex flex-wrap gap-1.5">
-              {/* ⚠ 载荷缺席时**不渲染**，⛔ 不做禁用占位（§4.3 同一条纪律）。 */}
-              {entry.request && onRerun ? (
-                <button
-                  type="button"
-                  data-testid="operator-result-rerun"
-                  onClick={() => onRerun(entry)}
-                  className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-                >
-                  <RotateCw className="size-3" aria-hidden />
-                  {t('rerun')}
-                </button>
-              ) : null}
-              {first ? (
-                <button
-                  type="button"
-                  data-testid="operator-result-reference"
-                  onClick={() => onUseAsReference(first)}
-                  className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2.5 py-1 text-2sm text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-                >
-                  <Images className="size-3" aria-hidden />
-                  {t('useAsReference')}
-                </button>
-              ) : null}
-            </div>
+          <div className="flex flex-wrap gap-1.5">
+            {/* ⚠ 载荷缺席时**不渲染**，⛔ 不做禁用占位。 */}
+            {entry.request && onRerun ? (
+              <button
+                type="button"
+                data-testid="operator-result-rerun"
+                onClick={() => onRerun(entry)}
+                className={ghost}
+              >
+                {t('rerun')}
+              </button>
+            ) : null}
+            {items[0] ? (
+              <button
+                type="button"
+                data-testid="operator-result-reference"
+                onClick={() => onUseAsReference(items[0]!)}
+                className={ghost}
+              >
+                {t('useAsReference')}
+              </button>
+            ) : null}
           </div>
-        </div>
+        </>
       )}
     </div>
   )

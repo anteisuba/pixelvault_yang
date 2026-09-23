@@ -81,11 +81,7 @@ vi.mock('@/hooks/use-assistant-operator', () => ({
     send: vi.fn(),
     stop: vi.fn(),
     newThread: vi.fn(),
-    critique: vi.fn(),
   }),
-}))
-vi.mock('@/hooks/use-studio-operator-critique', () => ({
-  useStudioOperatorCritique: () => undefined,
 }))
 // 助手设置 persona（§8）—— 外壳拉一次往下传，这里给一份不发请求的默认值。
 vi.mock('@/hooks/use-assistant-persona', () => ({

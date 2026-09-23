@@ -237,7 +237,6 @@ export const STUDIO_OPERATOR_SYSTEM_CODES = [
   'revertAll',
   'revertRound',
   'checkpointRestored',
-  'resultArrived',
   'stopped',
   'interrupted',
   /**

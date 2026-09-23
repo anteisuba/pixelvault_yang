@@ -62,7 +62,6 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useAssistantOperator } from '@/hooks/use-assistant-operator'
 import { useCanvasOperatorRequests } from '@/hooks/node/use-canvas-operator-requests'
 import { useAssistantPersona } from '@/hooks/use-assistant-persona'
-import { useStudioOperatorCritique } from '@/hooks/use-studio-operator-critique'
 import { useStudioOperatorResults } from '@/hooks/use-studio-operator-results'
 import { useStudioOperatorHistory } from '@/hooks/use-studio-operator-history'
 import {
@@ -278,7 +277,6 @@ export function StudioOperatorDock() {
     send: operator.send,
     nodeName: canvasNodeName,
   })
-  useStudioOperatorCritique({ onResult: operator.critique })
   /**
    * ⭐ 结果卡的回流（v2 §6，commit #10）同样**住在外壳**，理由与上面那条逐字
    * 相同：图回来的那一刻面板多半是收着的（点生成键 = 点工作台 = 收面板），

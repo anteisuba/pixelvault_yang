@@ -274,34 +274,6 @@ function renderPanel() {
 }
 
 describe('StudioOperatorPanel 接线（切片 3a）', () => {
-  it('点击评价建议会实际更新宿主提示词并显示成功状态', () => {
-    store.upsertOperatorStep(
-      {
-        id: 'advice-step',
-        title: '看图',
-        tool: 'critique_result',
-        verb: 'look',
-        status: 'done',
-        payload: { imageUrl: 'https://cdn.test/result.png', goal: '3D渲染' },
-        result: {
-          findings: [{ severity: 'warn', text: '质感偏插画' }],
-          advice: '强化3D材质',
-          borrowedVisionRoute: false,
-        },
-      },
-      'advice-run',
-    )
-    renderPanel()
-    fireEvent.click(screen.getByTestId('operator-critique-apply-advice'))
-    expect(applyDispatch).toHaveBeenCalledWith({
-      type: 'SET_PROMPT',
-      payload: '原始提示词, 强化3D材质',
-    })
-    expect(
-      screen.getByTestId('operator-critique-apply-advice'),
-    ).toHaveTextContent('critique.adviceApplied')
-  })
-
   it.each(['live', 'history'] as const)(
     '提问附件在 %s 显示图片缩略图，不将音频当成图片',
     (mode) => {

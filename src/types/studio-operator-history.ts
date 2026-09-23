@@ -6,10 +6,7 @@ import {
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
 } from '@/constants/assistant-operator'
-import {
-  AssistantOperatorPlanAnswerSchema,
-  AssistantOperatorVerdictSeveritySchema,
-} from '@/types/assistant-operator'
+import { AssistantOperatorPlanAnswerSchema } from '@/types/assistant-operator'
 import { STUDIO_OPERATOR_SYSTEM_CODES } from '@/constants/studio-assistant-operator'
 
 /**
@@ -47,29 +44,6 @@ export const StudioOperatorHistoryAttachmentSchema = z.object({
 })
 
 /**
- * 评价卡在历史里剩下什么（拍板 6：证据长在结论里）。
- *
- * ⭐ 「文字 + 图 URL」就是全部 —— ⛔ 没有 `runKey`，因此历史里的评价卡**画不出
- * 「还原这轮」那颗钮**：那颗钮撤的是登记簿里那一轮的改动，而登记簿是内存态，
- * 刷新之后压根不存在。没有 runKey = 那颗钮在类型上无从渲染。
- */
-export const StudioOperatorHistoryCritiqueSchema = z.object({
-  imageUrl: HistoryUrlSchema,
-  thumbnailUrl: HistoryUrlSchema.optional(),
-  modelLabel: z.string().trim().min(1).max(LIMITS.maxLabelChars).optional(),
-  findings: z
-    .array(
-      z.object({
-        /** 与在线契约同一张表（`fail` / `warn` / `pass`）—— ⛔ 不在历史里另存一套。 */
-        severity: AssistantOperatorVerdictSeveritySchema,
-        text: z.string().trim().min(1).max(LIMITS.maxCritiqueFindingChars),
-      }),
-    )
-    .max(LIMITS.maxCritiqueFindings),
-  advice: z.string().trim().max(LIMITS.maxCritiqueAdviceChars).optional(),
-})
-
-/**
  * 一条日志在历史里剩下什么：**标题 / 工具名 / 理由 / 结果摘要**。
  *
  * ⚠ `tool` 是**自由字符串不是工具枚举**：一条半年前存下的线程可能引用着今天
@@ -91,7 +65,6 @@ export const StudioOperatorHistoryStepSchema = z.object({
   detail: z.string().trim().max(LIMITS.maxPromptChars).optional(),
   /** 被拒那一支的理由 id（`StudioOperator.reject.*`）。 */
   rejectReason: z.string().trim().max(LIMITS.maxIdChars).optional(),
-  critique: StudioOperatorHistoryCritiqueSchema.optional(),
   checkpoint: StudioOperatorCheckpointSchema.optional().catch(undefined),
   referenceAnalysis: ReferenceAnalysisSchema.optional(),
 })

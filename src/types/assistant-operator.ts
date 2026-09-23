@@ -845,16 +845,13 @@ export const AssistantOperatorConfirmDecisionSchema = z.object({
 })
 
 /**
- * 「助手备的那一次生成」刚刚跑完的结果（P3-C，拍板 4）。
+ * `critique_result` 要看的那一张结果（服务端从用户 `@` 的名单里解析出来）。
  *
- * ⭐ **这个字段的在场与否就是拍板 4 本身**：客户端只在归属追踪认定这一次生成
- * 是助手 primed 的那一枪时才带它上来（`lib/studio-operator-claim.ts`）。用户
- * 自己点的生成永远不填这里，于是「不打扰」在结构上成立 —— 服务端没有别的路
- * 能拿到一张结果图，`critique_result` 也就无从被误用。
+ * ⭐ 出图后**不自检**（D12，owner 2026-09-23）：助手不会自己去看刚出的图，只有
+ * 用户 `@` 了一张并让它看时才有这一份。
  *
  * ⚠ 与 `AssistantOperatorSnapshotReference` 分开：那是**挂在表单上的参考图**
- * （输入），这是**刚出炉的产物**（输出）。合成一个的表现是助手把自己刚评过的
- * 那张图当成参考图去数槽位。
+ * （输入），这是**产物**（输出）。
  */
 export const AssistantOperatorResultSchema = z.object({
   /** 结果图的 https 地址 —— 视觉那一跳吃的就是它。 */
@@ -1517,11 +1514,6 @@ export const AssistantOperatorRequestSchema = z.object({
     .array(AssistantOperatorConfirmFieldSchema)
     .max(Object.keys(ASSISTANT_OPERATOR_CONFIRM_FIELDS).length)
     .optional(),
-  /**
-   * 助手备的那一枪刚打完（P3-C）。缺席 = 这一轮没有东西可看，
-   * `critique_result` 按 `noResultToCritique` 拒。见 schema 头注。
-   */
-  result: AssistantOperatorResultSchema.optional(),
   /*
    * ⛔ **没有 `apiKeyId` / `llmModelId`**（commit #8，v2 §4.5）：这一轮用哪个
    * 脑子的唯一真值是 `AssistantPersona.routeModel`，服务端自己读。客户端上送那

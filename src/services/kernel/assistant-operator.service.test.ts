@@ -2474,12 +2474,17 @@ describe('联网搜图 · 预览优先（P3-B）', () => {
 
 // ─── 看图闭环（P3-C，拍板 4 + 6）─────────────────────────────────
 
-const RESULT: NonNullable<AssistantOperatorRequest['result']> = {
+const RESULT = {
   url: 'https://cdn.example.com/result.png',
-  thumbnailUrl: 'https://cdn.example.com/result-thumb.png',
   generationId: 'gen-42',
-  modelLabel: 'Seedream 4',
   prompt: 'a girl under a red umbrella',
+}
+
+/** 用户 `@` 了那张结果 —— 出图后不自检（D12），看图只走这一条。 */
+const RESULT_MENTION: Partial<AssistantOperatorRequest> = {
+  mentionedAssets: [
+    { id: RESULT.generationId, url: RESULT.url, label: RESULT.prompt },
+  ],
 }
 
 const CRITIQUE_JSON = {
@@ -2491,13 +2496,16 @@ const CRITIQUE_JSON = {
 }
 
 /** 一轮完整的看图：规划器叫它看 → 视觉那一跳 → 规划器收尾。 */
-function queueCritiqueRound(critique: unknown = CRITIQUE_JSON): void {
+function queueCritiqueRound(
+  critique: unknown = CRITIQUE_JSON,
+  args: { targetIds?: string[] } = { targetIds: [RESULT.generationId] },
+): void {
   queueTurns(
     {
       tool: {
         name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
         title: 'look at what came back',
-        args: {},
+        args,
       },
     },
     critique,
@@ -2513,11 +2521,11 @@ function visionCalls(): { imageData?: unknown; adapterType?: unknown }[] {
 }
 
 describe('看图闭环 · critique_result', () => {
-  it('带着 result 时看图成功：图是请求里那份 result 的，模型碰不到它', async () => {
+  it('@ 了一张时看图成功：图是名单里那一张，模型碰不到地址', async () => {
     queueCritiqueRound()
 
     const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest({ result: RESULT })),
+      runAssistantOperator('clerk-1', buildRequest(RESULT_MENTION)),
     )
     const [running, done] = stepsOf(events)
     expect(running.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.running)
@@ -2525,8 +2533,6 @@ describe('看图闭环 · critique_result', () => {
     // ⭐ 拍板 6：证据是契约里的字段，不是渲染层的自觉。
     expect(done.payload).toMatchObject({
       imageUrl: RESULT.url,
-      thumbnailUrl: RESULT.thumbnailUrl,
-      modelLabel: RESULT.modelLabel,
       goal: RESULT.prompt,
     })
     expect(done.result).toMatchObject({
@@ -2649,7 +2655,7 @@ describe('看图闭环 · critique_result', () => {
    * 一份煞有介事、对着另一张图写的评价。
    */
   it('来源都缺、但候选 ≥2 → 吐 ask 并停流（⛔ 不猜一张）', async () => {
-    queueCritiqueRound()
+    queueCritiqueRound(CRITIQUE_JSON, {})
 
     const events = await collect(
       runAssistantOperator(
@@ -2692,7 +2698,7 @@ describe('看图闭环 · critique_result', () => {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
           title: 'look',
-          args: {},
+          args: { targetIds: [RESULT.generationId] },
         },
       },
       CRITIQUE_JSON,
@@ -2707,20 +2713,16 @@ describe('看图闭环 · critique_result', () => {
     )
 
     const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest({ result: RESULT })),
+      runAssistantOperator('clerk-1', buildRequest(RESULT_MENTION)),
     )
     expect(lastUserPrompt()).toContain('雨丝糊成一片')
     const tools = stepsOf(events).map((step) => step.tool)
     expect(tools).toContain(ASSISTANT_OPERATOR_TOOL_IDS.setPrompt)
   })
 
-  /**
-   * ⭐ **拍板 4 的服务端一半**：没有 `result` 就没有图可看。客户端只在归属追踪
-   * 认定「这一枪是助手备的」时才带这个字段上来，所以用户自己发的那些生成在这里
-   * 表现为「压根没有 result」—— 助手够不着，也就打扰不了。
-   */
-  it('没有 result 时被拒，且一次视觉往返都不发', async () => {
-    queueCritiqueRound()
+  /** 出图后不自检（D12）：什么都没 `@` 就没有图可看。 */
+  it('什么都没 @ 时被拒，且一次视觉往返都不发', async () => {
+    queueCritiqueRound(CRITIQUE_JSON, {})
 
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest()),
@@ -2733,16 +2735,13 @@ describe('看图闭环 · critique_result', () => {
     expect(visionCalls()).toHaveLength(0)
   })
 
-  it('没有 result 时状态块明说「看不到」，有 result 时明说「先看它」', async () => {
+  it('出图后不自检：规则写明只在用户 @ 了结果并让它看时才看', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
-    expect(lastUserPrompt()).toContain('No fresh result of yours is waiting')
-
-    queueTurns({ finished: true })
-    await collect(
-      runAssistantOperator('clerk-1', buildRequest({ result: RESULT })),
+    expect(systemPrompt()).toContain(
+      'Never review a finished result on your own',
     )
-    expect(lastUserPrompt()).toContain('A FRESH RESULT')
+    expect(lastUserPrompt()).not.toContain('FRESH RESULT')
   })
 
   it('用户选的路看不了图时借一条，并如实标 borrowed', async () => {
@@ -2759,7 +2758,7 @@ describe('看图闭环 · critique_result', () => {
     queueCritiqueRound()
 
     const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest({ result: RESULT })),
+      runAssistantOperator('clerk-1', buildRequest(RESULT_MENTION)),
     )
     const done = stepsOf(events)[1]
     expect(
@@ -2780,7 +2779,7 @@ describe('看图闭环 · critique_result', () => {
     queueCritiqueRound()
 
     const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest({ result: RESULT })),
+      runAssistantOperator('clerk-1', buildRequest(RESULT_MENTION)),
     )
     const [step] = stepsOf(events)
     expect(step.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.error)
@@ -2798,7 +2797,7 @@ describe('看图闭环 · critique_result', () => {
     queueCritiqueRound('I looked at it and honestly it is fine')
 
     const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest({ result: RESULT })),
+      runAssistantOperator('clerk-1', buildRequest(RESULT_MENTION)),
     )
     const [step] = stepsOf(events)
     expect(step.status).toBe(ASSISTANT_OPERATOR_STEP_STATUS_IDS.error)
@@ -2812,7 +2811,7 @@ describe('看图闭环 · critique_result', () => {
     queueCritiqueRound()
 
     const events = await collect(
-      runAssistantOperator('clerk-1', buildRequest({ result: RESULT })),
+      runAssistantOperator('clerk-1', buildRequest(RESULT_MENTION)),
     )
     for (const step of stepsOf(events)) {
       expect(step.inverse).toBeUndefined()
@@ -3302,7 +3301,7 @@ describe('域工具表', () => {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
           title: 'look at it',
-          args: {},
+          args: { targetIds: ['clip-1'] },
         },
       },
       { finished: true },
@@ -3313,7 +3312,9 @@ describe('域工具表', () => {
         runAssistantOperator(
           'clerk-1',
           buildVideoRequest({
-            result: { url: 'https://cdn.example.test/clip.mp4' },
+            mentionedAssets: [
+              { id: 'clip-1', url: 'https://cdn.example.test/clip.mp4' },
+            ],
           }),
         ),
       ),
@@ -3409,7 +3410,7 @@ describe('看片评审 · 视频域 critique_result', () => {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
           title: 'watch it',
-          args: {},
+          args: { targetIds: ['clip-1'] },
         },
       },
       // 逐帧那三段（纯文本，⛔ 不是 JSON —— 它们是给汇总那一跳读的）
@@ -3429,7 +3430,7 @@ describe('看片评审 · 视频域 critique_result', () => {
         runAssistantOperator(
           'clerk-1',
           buildVideoRequest({
-            result: { url: CLIP_URL, modelLabel: 'Seedance 2.5' },
+            mentionedAssets: [{ id: 'clip-1', url: CLIP_URL }],
             videoFrames: submittedFrames(),
           }),
         ),
@@ -3444,7 +3445,6 @@ describe('看片评审 · 视频域 critique_result', () => {
     // 载荷这一侧给的是**视频**地址（卡片要拿它当封面），⛔ 不是 imageUrl。
     expect(done?.payload).toMatchObject({
       videoUrl: CLIP_URL,
-      modelLabel: 'Seedance 2.5',
     })
     // 结果这一侧恒三帧，各带时间戳与位置名。
     expect(done?.result).toMatchObject({
@@ -3481,7 +3481,7 @@ describe('看片评审 · 视频域 critique_result', () => {
       runAssistantOperator(
         'clerk-1',
         buildVideoRequest({
-          result: { url: CLIP_URL },
+          mentionedAssets: [{ id: 'clip-1', url: CLIP_URL }],
           videoFrames: submittedFrames(),
         }),
       ),
@@ -3512,7 +3512,7 @@ describe('看片评审 · 视频域 critique_result', () => {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
           title: 'watch it',
-          args: {},
+          args: { targetIds: ['clip-1'] },
         },
       },
       { finished: true },
@@ -3522,7 +3522,7 @@ describe('看片评审 · 视频域 critique_result', () => {
         runAssistantOperator(
           'clerk-1',
           buildVideoRequest({
-            result: { url: CLIP_URL },
+            mentionedAssets: [{ id: 'clip-1', url: CLIP_URL }],
             videoFrames: {
               ...submittedFrames(),
               sourceUrl: 'https://cdn.example.test/another.mp4',
@@ -3551,7 +3551,7 @@ describe('看片评审 · 视频域 critique_result', () => {
       runAssistantOperator(
         'clerk-1',
         buildVideoRequest({
-          result: { url: CLIP_URL },
+          mentionedAssets: [{ id: 'clip-1', url: CLIP_URL }],
           videoFrames: submittedFrames(),
         }),
       ),
@@ -3583,7 +3583,7 @@ describe('看片评审 · 视频域 critique_result', () => {
         runAssistantOperator(
           'clerk-1',
           buildVideoRequest({
-            result: { url: CLIP_URL },
+            mentionedAssets: [{ id: 'clip-1', url: CLIP_URL }],
             videoFrames: submittedFrames(),
           }),
         ),
@@ -11577,7 +11577,7 @@ describe('current reference image bindings', () => {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
           title: '对照参考检查结果',
-          args: {},
+          args: { targetIds: ['hug-result'] },
         },
       },
       {
@@ -11595,10 +11595,9 @@ describe('current reference image bindings', () => {
       runAssistantOperator(
         'clerk-1',
         buildRequest({
-          result: {
-            url: 'https://cdn.test/hug-result.png',
-            generationId: 'hug-result',
-          },
+          mentionedAssets: [
+            { id: 'hug-result', url: 'https://cdn.test/hug-result.png' },
+          ],
           snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
         }),
       ),

@@ -2,7 +2,6 @@
 
 import { Spinner } from '@/components/ui/spinner'
 import {
-  claimOperatorGeneration,
   setOperatorPrimed,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
@@ -59,17 +58,6 @@ export function StudioGenerateButton({
       data-operator-primed={isOperatorPrimed ? 'true' : undefined}
       onClick={(event) => {
         event.stopPropagation()
-        /**
-         * ⭐ 归属追踪（P3-C，拍板 4「自动只看它自己备的那次」）：**只有 primed
-         * 态下真的打出去的那一枪**才领票。用户自己配好表单点的那些一律不领 ——
-         * 于是助手根本拿不到它们的结果图，「不打扰」在结构上成立，不靠模型自觉。
-         * ⚠ 三个前提与调用方 `handleGenerate` 自己的守卫**逐条一致**：被
-         *   `blockedReason` 挡下的那一次只弹 toast、什么都没生成，在那里领票会
-         *   让这张票飘到用户接下来自己发的那一枪上。
-         */
-        if (isOperatorPrimed && !isGenerating && !blockedMessage) {
-          claimOperatorGeneration()
-        }
         // 助手预填的那一枪打出去了 —— primed 是「等你来点」，点完就该灭
         // （owner 拍板：钱是唯一硬闸）。
         // ⛔ 助手在服务端一条能创建 generation 的工具都没有：扣扳机的永远是

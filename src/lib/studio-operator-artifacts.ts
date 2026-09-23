@@ -131,20 +131,3 @@ export function attachmentArtifacts(
     url: attachment.url,
   }))
 }
-
-/**
- * 结果行卡上那一批（助手备的那一枪回来了）。
- *
- * ⚠ `kind: 'result'`：它与素材库里的那些**要分得开** —— 用户说「刚出的那张」
- * 指的就是这一档，而助手要能据此排序。
- */
-export function resultArtifacts(
-  items: readonly { id: string; url: string; label?: string }[],
-): readonly StudioOperatorMemoryArtifact[] {
-  return items.map((item) => ({
-    id: item.id,
-    displayName: operatorMemoryName(item.label, item.id),
-    kind: 'result' as const,
-    url: item.url,
-  }))
-}

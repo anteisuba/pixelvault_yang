@@ -66,7 +66,6 @@ import { toast } from 'sonner'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import {
-  ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
@@ -94,7 +93,6 @@ import {
   StudioOperatorCheckpointCard,
   type StudioOperatorRevertChoice,
 } from '@/components/business/studio/assistant-operator/StudioOperatorCheckpointCard'
-import { StudioOperatorCritiqueCard } from '@/components/business/studio/assistant-operator/StudioOperatorCritiqueCard'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import { ContextCardChip } from '@/components/business/studio/assistant-operator/ContextCardChip'
@@ -728,28 +726,6 @@ export function StudioOperatorPanel({
   )
 
   /**
-   * 「按这条建议改提示词」（第二期 · 视频域评审卡）。
-   *
-   * ⭐ 走的是助手 `set_prompt` **追加**那一支的同一条路：同一个分隔符
-   * （`ASSISTANT_OPERATOR_APPEND_SEPARATOR`）、同一个 `SET_PROMPT` dispatch。
-   * ⛔ 不用 `appendPromptFragments`：那颗按顿号去重，与协议里那个分隔符是两套
-   * 口径，混用之后助手算 `inverse` 时会与表单里真的那串对不上
-   * （理由与 `studio-operator-apply.ts` 里那条头注逐字同源）。
-   */
-  const applyCritiqueAdvice = useCallback(
-    (advice: string) => {
-      const current = operatorHost.apply.getState().prompt
-      operatorHost.apply.dispatch({
-        type: 'SET_PROMPT',
-        payload: current
-          ? `${current}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${advice}`
-          : advice,
-      })
-    },
-    [operatorHost],
-  )
-
-  /**
    * 结果卡上的**「用它当参考」**（v2 §6.2 第二行）。
    *
    * ⭐ 走的是 `@` chip 那条**唯一的挂载管线**（`addChip` → Dock 那条 effect →
@@ -1256,13 +1232,8 @@ export function StudioOperatorPanel({
       steps: StudioOperatorStepEntry[]
     } | null = null
 
-    const isCritiqueCard = (entry: StudioOperatorStepEntry) =>
-      entry.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult &&
-      entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
-      Boolean(entry.step.result)
-
     for (const entry of entries) {
-      if (entry.kind === 'step' && !isCritiqueCard(entry)) {
+      if (entry.kind === 'step') {
         if (group && group.runKey === entry.runKey) {
           group.steps.push(entry)
         } else {
@@ -1684,36 +1655,8 @@ export function StudioOperatorPanel({
             </details>
           </StudioOperatorTimelineRow>
         )
-      case 'step': {
-        /**
-         * ⭐ 看图那一条渲染成**评价卡**而不是日志条（拍板 6）：证据要长在
-         * 结论里，而日志条画不下一张图 + 四条结论。这里能走到的只有
-         * 「跑完且有结果」那一支 —— 其余在分组时就并进 ToolGroup 了。
-         */
-        const { step } = entry
-        if (
-          step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult ||
-          step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done ||
-          !step.result
-        ) {
-          return null
-        }
-        return (
-          <StudioOperatorTimelineRow
-            key={entry.id}
-            card={STUDIO_OPERATOR_CARD_KINDS.message}
-            {...(persona ? { persona } : {})}
-          >
-            <StudioOperatorCritiqueCard
-              step={{ ...step, result: step.result }}
-              runKey={entry.runKey}
-              roundChangeCount={countRoundChanges(entry.runKey)}
-              onRevertRound={revertRound}
-              onApplyAdvice={applyCritiqueAdvice}
-            />
-          </StudioOperatorTimelineRow>
-        )
-      }
+      case 'step':
+        return null
       /**
        * **结果卡**（v2 §6，commit #10）—— 生成中 / 单张 / 多张三态一颗组件。
        *

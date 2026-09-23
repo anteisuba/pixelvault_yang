@@ -683,56 +683,6 @@ function toOperatorHistoryStep(
     }
   }
 
-  /**
-   * 评价卡的「文字与图 URL」（拍板 6）—— ⛔ 没有 `runKey`，所以历史里那张卡
-   * 画不出「还原这轮」：那颗钮撤的是内存里的登记簿，刷新之后它不存在。
-   */
-  /**
-   * ⚠ 视频档（第二期）的评审**不进历史卡**：它画的是三格帧带 + 一段视频地址，
-   * 与这张「一张图 + 几行结论」的卡不是同一个形状；而历史卡的字段一旦放宽成
-   * 「图或视频」，`imageUrl` 那一格在渲染时就得再判一次类型。第二期先不落历史
-   * （面板里那张实时卡照常有），⛔ 不塞一条视频地址进 `imageUrl` 装作是图。
-   */
-  const critiquePayload =
-    step.tool === ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult &&
-    'imageUrl' in step.payload
-      ? step.payload
-      : null
-  const critiqueResult =
-    step.tool === ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult &&
-    step.result &&
-    'findings' in step.result
-      ? step.result
-      : null
-  const critique =
-    critiquePayload &&
-    critiqueResult &&
-    isPersistableUrl(critiquePayload.imageUrl)
-      ? {
-          imageUrl: critiquePayload.imageUrl,
-          ...(isPersistableUrl(critiquePayload.thumbnailUrl)
-            ? { thumbnailUrl: critiquePayload.thumbnailUrl }
-            : {}),
-          ...(critiquePayload.modelLabel
-            ? { modelLabel: critiquePayload.modelLabel }
-            : {}),
-          findings: critiqueResult.findings
-            .slice(0, LIMITS.maxCritiqueFindings)
-            .map((finding) => ({
-              severity: finding.severity,
-              text: truncate(finding.text, LIMITS.maxCritiqueFindingChars),
-            })),
-          ...(critiqueResult.advice
-            ? {
-                advice: truncate(
-                  critiqueResult.advice,
-                  LIMITS.maxCritiqueAdviceChars,
-                ),
-              }
-            : {}),
-        }
-      : null
-
   const detail = describeOperatorStepDetail(step)
 
   return {
@@ -740,7 +690,6 @@ function toOperatorHistoryStep(
     status: 'done',
     ...(checkpoint ? { checkpoint } : {}),
     ...(detail ? { detail: truncate(detail, LIMITS.maxPromptChars) } : {}),
-    ...(critique ? { critique } : {}),
     ...(step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
     step.result
       ? { referenceAnalysis: step.result }

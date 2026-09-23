@@ -7476,7 +7476,7 @@
       "emptyPrompt": "The prompt is still empty",
       "malformedArgs": "The request details weren't valid",
       "searchUnavailable": "Web image search isn't available right now",
-      "noResultToCritique": "No generated result is ready to review yet",
+      "noResultToCritique": "No picture was @-mentioned to review",
       "visionUnavailable": "No model available here can look at pictures",
       "critiqueFailed": "The result review couldn't be read",
       "urlNotFromUser": "That link did not come from you, so it cannot be taken directly",
@@ -7594,7 +7594,6 @@
       "stopped": "You stopped the current work",
       "interrupted": "Your message changed the assistant's direction.",
       "revertRound": "You reverted this round's {count, plural, one {# change} other {# changes}} (the assistant knows)",
-      "resultArrived": "The generation is ready. The assistant is reviewing it.",
       "queuePicked": "Reading your {count, plural, one {# queued message} other {# queued messages}} at this pause.",
       "queueDropped": "You pulled back the queued message: {subject}",
       "urlImportFailed": "The link you gave could not be fetched: {subject}",
@@ -7677,20 +7676,6 @@
       "notUsable": "This site asks not to be used as AI input, or republishes work without a traceable source — open it if you like, but it will not be filed into your library.",
       "useAll": "Attach {count}",
       "notUsableHotlink": "This site’s image host only serves its own pages, so we cannot fetch it server-side — you can still open the original page, but it cannot be saved into your library."
-    },
-    "critique": {
-      "title": "Auto-check · the assistant reviews the result",
-      "titleWithModel": "Auto-check · this one from {model}",
-      "borrowed": "Your selected model can't analyze images, so another model reviewed this result.",
-      "revertRound": "Undo this round ({count})",
-      "nextRound": "Ready for your next message:",
-      "applyAdvice": "Apply this to the prompt",
-      "adviceApplied": "Applied to prompt",
-      "frame": {
-        "start": "0s",
-        "mid": "Middle",
-        "end": "Last"
-      }
     },
     "queue": {
       "badge": "Queued",

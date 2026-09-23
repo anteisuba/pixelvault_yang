@@ -31,10 +31,6 @@ import {
   type StudioOperatorField,
 } from '@/constants/studio-assistant-operator'
 import {
-  createOperatorClaim,
-  type StudioOperatorClaim,
-} from '@/lib/studio-operator-claim'
-import {
   clearOperatorResume,
   createResumePlan,
   markResumeStep,
@@ -430,45 +426,6 @@ export function subscribeOperatorAttachment(listener: () => void): () => void {
   return () => {
     attachmentListeners.delete(listener)
   }
-}
-
-// ─── 归属追踪（P3-C，拍板 4）──────────────────────────────────────
-//
-// ⛔ **和 `runner` 一样不进 `state`**：它不是渲染要读的数据，进了 state 只会让
-// 每一次轮询都触发一遍全面板重渲染。逻辑本体是纯函数（`lib/studio-operator-claim.ts`），
-// 这里只是那张票的家。
-
-/**
- * 此刻在跑的那些 run item id。
- *
- * ⭐ 由观察 hook 每次 `activeRun` 变化时写进来，**领票时同步读它** ——
- * 领票发生在按钮的 onClick 里（那里没有 `activeRun`），而票上必须抄下
- * 「领票那一刻已经存在的那些」才分得出后来新冒出来的是不是这一枪。
- */
-let latestRunItemIds: readonly string[] = []
-let claim: StudioOperatorClaim | null = null
-
-export function publishOperatorRunItemIds(ids: readonly string[]): void {
-  latestRunItemIds = ids
-}
-
-/**
- * 领票 —— **只该由「primed 态下真的按下去的那一次生成」调用**。
- *
- * ⚠ 调用方（生成键）必须自己先确认那三个前提（primed / 没在跑 / 没被挡），
- * 判据与 `handleGenerate` 自己的守卫逐条一致。在这里再判一遍做不到：这个模块
- * 看不见表单。
- */
-export function claimOperatorGeneration(): void {
-  claim = createOperatorClaim(Date.now(), latestRunItemIds)
-}
-
-export function getOperatorClaim(): StudioOperatorClaim | null {
-  return claim
-}
-
-export function setOperatorClaim(next: StudioOperatorClaim | null): void {
-  claim = next
 }
 
 /** 线程条目的 id —— 单调递增，不用 uuid：测试里能直接断言顺序。 */

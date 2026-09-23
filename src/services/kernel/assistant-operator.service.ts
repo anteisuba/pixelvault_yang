@@ -383,7 +383,6 @@ import { mergeNegativePrompt } from '@/lib/lora-source-match-prompt'
 import {
   attachmentArtifacts,
   collectStepArtifacts,
-  resultArtifacts,
 } from '@/lib/studio-operator-artifacts'
 import {
   readGenerationMentions,
@@ -1640,26 +1639,6 @@ function renderState(
         `  (there is NO limit on how many LoRAs can be stacked. Weight range: ${state.loraMinWeight}–${state.loraMaxWeight}. Ids above are mounted-item ids — search_loras returns candidateIds, which are different things.)`,
       )
     }
-  }
-
-  /**
-   * ⭐ 拍板 4 的一半写在这一行上：**有 `result` 才说有**。
-   * 客户端只在「这一次生成是助手 primed 的那一枪」时才把它带上来，用户自己点的
-   * 那些永远不在这里 —— 所以模型看不到、也就无从去评价它没资格评价的东西。
-   *
-   * ⚠ 整行**只在有看图工具的域里印**（P4-A）：视频域没有 `critique_result`
-   * （借来的那条视觉线读不了 mp4），印一句「调 critique_result 去看」等于教它
-   * 白烧一步撞 `noSuchControl`。
-   */
-  if (isAssistantOperatorToolInDomain(TOOL.critiqueResult, request.domain)) {
-    const result = request.result
-    lines.push(
-      result
-        ? `- A FRESH RESULT from the run you armed is waiting: ${
-            result.modelLabel ? `made by ${result.modelLabel}, ` : ''
-          }prompt was "${clamp(result.prompt ?? '', LIMITS.maxConfirmHaveChars)}". Call critique_result to actually look at it before you touch anything else.`
-        : '- No fresh result of yours is waiting. critique_result will be refused; you only ever get to review the runs you armed yourself.',
-    )
   }
 
   return lines.join('\n')
@@ -5178,8 +5157,7 @@ function buildOverwriteQuestion(
  *  ① `targetIds`：用户 `@` 引用的那几张（`request.mentionedAssets`）。值可以是那张图
  *     的 id，也可以是它的 URL —— 模型从消息里那句 `[attached: …]` 读到的是地址，
  *     强迫它转成 id 只会多一次它会写错的转换。
- *  ② 归属票：`request.result`（助手自己 primed 的那一枪回来了）。
- *  ③ 都没有，但用户这一轮 `@` 上来 / 参考位上摆着**两张以上**候选 —— 那不是拒绝的
+ *  ② 都没有，但用户这一轮 `@` 上来 / 参考位上摆着**两张以上**候选 —— 那不是拒绝的
  *     时候，是**问一句**的时候（歧义反问单选卡）。
  *
  * ⛔ **名单之外一律拒**（`unknownAsset`）：模型不许自己写一条地址来看。没有这道闸，
@@ -5266,10 +5244,6 @@ function resolveCritiqueTarget(
     }
   }
 
-  if (run.request.result) {
-    return { kind: 'result', result: run.request.result }
-  }
-
   /**
    * 没票也没指名 —— 手上有两张以上候选时**问一句**而不是拒绝（§3.3 第 5 行）。
    * ⚠ 候选先取 `@` 上来的那些，再取参考位上摆着的（那是这台工作台上此刻看得见的
@@ -5316,8 +5290,8 @@ const SEVERITY_MARKS: Record<AssistantOperatorVerdictSeverity, string> = {
  * 看图闭环（P3-C，拍板 4 + 6）。
  *
  * ── 三件事按顺序发生，缺一条就退回一条**可教的**拒绝 ────────────────
- *  ① 有没有它自己备的那张图（`request.result`）—— 没有就 `noResultToCritique`。
- *     ⛔ 这不是防御性检查，这是拍板 4 的落点：用户自己点的生成压根不填这个字段。
+ *  ① 用户 `@` 了哪一张（`resolveCritiqueTarget`）—— 什么都没指就 `noResultToCritique`。
+ *     出图后不自检（D12）：助手不会自己去看刚出的图。
  *  ② 借不借得到一条看得见图的路 —— 借不到就 `visionUnavailable`，
  *     **⛔ 绝不降级成「凭提示词猜」**（论据见 `vision-route.service.ts` 头注：
  *     一份格式完整、内容全编的评价比说不出话坏得多）。
@@ -5507,21 +5481,20 @@ async function planCritiqueResult(
   if (target.kind === 'none') {
     return reject(
       REJECT.noResultToCritique,
-      'Nothing is attached for you to look at: no run you armed came back, and the creator did not @ any picture this turn. Ask them which picture you should look at.',
+      'Nothing is attached for you to look at: the creator did not @ any picture this turn. Ask them which picture you should look at.',
     )
   }
   if (target.kind === 'unknown') {
     return reject(
       REJECT.unknownAsset,
-      'That target was not one of the pictures the creator referenced this turn. You may only look at pictures they @-mentioned, or the run you armed yourself.',
+      'That target was not one of the pictures the creator referenced this turn. You may only look at pictures they @-mentioned.',
     )
   }
   const result = target.result
 
   if (
     (run.request.domain === 'image' || run.request.domain === 'lora') &&
-    run.state.referenceUrls.includes(result.url) &&
-    run.request.result?.url !== result.url
+    run.state.referenceUrls.includes(result.url)
   ) {
     return reject(
       REJECT.referenceAnalysisRequired,
@@ -7542,7 +7515,7 @@ function buildOperatorSystemPrompt(
       ? '- Voice references come from the creator\'s own audio library: search_assets with kind "audio", then mount_audio_reference. Name the character each clip belongs to whenever the conversation tells you.'
       : null,
     isAssistantOperatorToolInDomain(TOOL.critiqueResult, request.domain)
-      ? '- When the state block says a fresh result of yours is waiting, look at it FIRST with critique_result, then act on what you saw. You may review a run you armed or a result explicitly @-mentioned by the creator. Never claim access to an unprovided result.'
+      ? '- Never review a finished result on your own: after a generation the creator judges it and tells you what to change. Use critique_result only when the creator @-mentions a result and asks you to look at it. Never claim access to an unprovided result.'
       : null,
     /**
      * 视频域看片那一段（第二期）。
@@ -8605,29 +8578,17 @@ function seedLedgerDecisions(request: AssistantOperatorRequest): string[] {
 /**
  * 开跑那一刻手上已经有的几件（§7.6）。
  *
- * ⚠ 两条来源，各自答一个不同的问题：
- *  · `result` —— **助手自己备的那一枪回来了**（归属票，拍板 4 的保留那一半）：
- *    用户下一句十有八九就是「刚出的那张」。⛔ 没有 `generationId` 时不记 ——
- *    索引是**按 id 指认**的，一条没有身份的记录指认不了任何东西。
- *  · `mentionedAssets` —— 用户这一轮 `@` / 📎 递上来的那几张（同一条 chip 管线）。
+ * ⚠ 来源只有 `mentionedAssets` —— 用户这一轮 `@` / 📎 递上来的那几张（同一条 chip
+ * 管线）。出图后不自检（D12），所以没有「助手自己备的那一枪」这条来源。
  * ⛔ 这里**不去查库**补更多东西：这一段是「他刚递给你什么」，不是一次检索。
  */
 function initialMemoryArtifacts(
   request: AssistantOperatorRequest,
 ): AssistantOperatorWorkingMemoryArtifact[] {
-  const result = request.result
-  return [
-    ...(result?.generationId
-      ? resultArtifacts([
-          {
-            id: result.generationId,
-            url: result.url,
-            ...(result.prompt ? { label: result.prompt } : {}),
-          },
-        ])
-      : []),
-    ...attachmentArtifacts(request.mentionedAssets ?? []),
-  ].slice(0, MEMORY_LIMITS.maxArtifacts)
+  return attachmentArtifacts(request.mentionedAssets ?? []).slice(
+    0,
+    MEMORY_LIMITS.maxArtifacts,
+  )
 }
 
 /**

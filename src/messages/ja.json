@@ -7476,7 +7476,7 @@
       "emptyPrompt": "プロンプトがまだ空です",
       "malformedArgs": "操作に必要な情報の形式が正しくありません",
       "searchUnavailable": "ウェブ画像検索は現在利用できません",
-      "noResultToCritique": "確認できる生成結果はまだありません",
+      "noResultToCritique": "確認する画像が指定されていません",
       "visionUnavailable": "画像を見られるモデルがありません",
       "critiqueFailed": "結果の評価を読み取れませんでした",
       "urlNotFromUser": "そのリンクはあなたが渡したものではないため、そのまま取り込めません",
@@ -7594,7 +7594,6 @@
       "stopped": "作業を止めました",
       "interrupted": "メッセージに合わせて、進め方を変更しました",
       "revertRound": "このラウンドの変更 {count} 件を元に戻しました（アシスタントは把握済み）",
-      "resultArrived": "生成結果が届きました。アシスタントが確認しています",
       "queuePicked": "区切りになったので、待機中のメッセージ{count}件を確認しています",
       "queueDropped": "並んでいたメッセージを取り消しました：{subject}",
       "urlImportFailed": "渡されたリンクを取得できませんでした：{subject}",
@@ -7677,20 +7676,6 @@
       "notUsable": "このサイトは AI の入力に使わないよう求めているか、出所をたどれない転載が中心です。開いて見るのは自由ですが、ライブラリには取り込みません。",
       "useAll": "{count} 枚を添付",
       "notUsableHotlink": "このサイトの画像ホストは自サイトからのアクセスしか受け付けないため、サーバー側では取得できません。元ページは開けますが、素材ライブラリには保存できません。"
-    },
-    "critique": {
-      "title": "自動チェック · アシスタントが結果を確認",
-      "titleWithModel": "自動チェック · {model} が出したこの一枚",
-      "borrowed": "選択したモデルは画像を分析できないため、別のモデルで結果を確認しました",
-      "revertRound": "このラウンドを元に戻す（{count} 件）",
-      "nextRound": "次のメッセージに入力済み：",
-      "applyAdvice": "この助言をプロンプトに反映",
-      "adviceApplied": "プロンプトに適用済み",
-      "frame": {
-        "start": "0s",
-        "mid": "中間",
-        "end": "最終"
-      }
     },
     "queue": {
       "badge": "順番待ち",

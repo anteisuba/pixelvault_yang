@@ -52,7 +52,6 @@ import {
   ASSISTANT_OPERATOR_WRITE_MODES,
   GENERATION_REVIEW_STATE_IDS,
   contextCardAnswerId,
-  isAssistantOperatorToolInDomain,
   loraPickAnswerId,
   OPERATOR_CONTEXT_CARD_CHOICE_IDS,
   OPERATOR_CONTEXT_CARD_CHOICE_LABELS,
@@ -149,7 +148,6 @@ import type {
   AssistantOperatorResumeFrom,
   AssistantOperatorPriorStep,
   AssistantOperatorRequest,
-  AssistantOperatorResult,
   AssistantOperatorStep,
 } from '@/types/assistant-operator'
 import type {
@@ -431,11 +429,9 @@ function buildMentionedAssets(
  */
 function resolveVideoCritiqueSource(
   domain: AssistantOperatorDomain,
-  primedResult: AssistantOperatorResult | null,
   entries: readonly StudioOperatorThreadEntry[],
 ): string | null {
   if (domain !== ASSISTANT_PROTOCOL_DOMAIN_IDS.video) return null
-  if (primedResult) return primedResult.url
   return (
     lastUserAttachments(entries).find(
       (attachment) => attachment.kind === 'video',
@@ -655,13 +651,6 @@ export interface UseAssistantOperatorResult {
    */
   rerunGeneration(request: AssistantOperatorGenerationRequest): void
   /**
-   * 它备的那一枪回来了 —— 投回线程并自动请一轮评价（P3-C，拍板 4）。
-   *
-   * ⚠ 调用方是 `use-studio-operator-critique.ts`，而**判据在那条链上**：
-   * 这里收到什么就评什么。用户自己发的生成压根走不到这个入口。
-   */
-  critique(result: AssistantOperatorResult): void
-  /**
    * ＋新对话（拍板 10）—— 只清线程，改动与撤销本钱留着。
    * ⚠ 撤销 / 还原**不在这个接口里**：它们有两个宿主（日志条 + 参数栏的 ✦），
    *   住在 `use-studio-operator-revert.ts` 里，两边各自取用同一份。
@@ -708,16 +697,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
 
   const abortRef = useRef<AbortController | null>(null)
   /**
-   * 「它备的那一枪刚回来的那张图」（P3-C）。
-   *
-   * ⭐ 作用域是有意收窄的：`critique()` 放进来、`send()` 清掉。
-   *  · **续跑（就地确认）保留它** —— 那还是同一轮，图还该在。
-   *  · **用户开口就清掉** —— 不然此后每一轮请求都驮着这张图（每一步都是一次
-   *    LLM 往返，图是最贵的那部分），而且助手会一直以为自己还在看那一张。
-   *  ⚠ 走 ref 不走 state：它只在事件处理器里被读，进 state 只会多一次重渲染。
-   */
-  const pendingResultRef = useRef<AssistantOperatorResult | null>(null)
-  /**
    * 「下一条消息是一次改计划」（§3.1 ⑤）。
    *
    * ⚠ 走 ref 不走 state：它只在 `send()` 里被读一次然后清掉，进 state 只会多一次
@@ -732,9 +711,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 三件事，每一件都有具体的失败面：
    *  ① **掐掉在飞的那一轮** —— 它读的是切走之前那份表单，继续跑下去会把上一个域
    *    的结论应用到这个域的表单上（而线程里看起来一切正常）。
-   *  ② **扔掉那张待评的结果图** —— 它属于上一个域；带着它跑，助手会在视频档
-   *    对着一张图说话。
-   *  ③ **状态回 idle** —— 流停在「等你选覆写」时切走，条子留在上一个域的槽里
+   *  ② **状态回 idle** —— 流停在「等你选覆写」时切走，条子留在上一个域的槽里
    *    （`confirm` 是分槽的），而全局状态若还写着 awaitingConfirm，胶囊会一直
    *    显示「等你回答」，却没有任何地方能回答。
    * 域标记与 `domain` 由 `switchOperatorDomain` 在同一次写入里落地。
@@ -743,7 +720,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     if (getOperatorState().domain === domain) return
     abortRef.current?.abort()
     abortRef.current = null
-    pendingResultRef.current = null
     /**
      * ④ **三张「等你定」的卡也一起扔**（切片 3a）：它们属于上一个域那一轮。
      * 留着的表现最贵的是花钱卡 —— 它上面写的模型 / 张数来自切走之前那份表单，
@@ -774,8 +750,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
   const flushQueue = useCallback((): boolean => {
     const queued = takeOperatorQueue()
     if (queued.length === 0) return false
-    // 用户开口了 —— 那张待评的图不再随每一轮上传（同 `send()` 的理由）。
-    pendingResultRef.current = null
     appendOperatorEntry({
       kind: 'system',
       id: nextOperatorEntryId('sys'),
@@ -1103,11 +1077,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * 可教的拒绝，助手会如实说它看不了。但线程里必须留一行说清楚**为什么**
        * ——⛔ 不静默（见 `videoFramesFailed` 那条系统码的头注）。
        */
-      const videoSourceUrl = resolveVideoCritiqueSource(
-        domain,
-        pendingResultRef.current,
-        entries,
-      )
+      const videoSourceUrl = resolveVideoCritiqueSource(domain, entries)
       let videoFrames: AssistantOperatorRequest['videoFrames']
       if (videoSourceUrl) {
         setOperatorCapturingFrames(true)
@@ -1172,16 +1142,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
            * 上限由 `buildPriorSteps` 那一刀统一截（取最后 N 条）。
            */
           priorSteps: buildPriorSteps(entries, historyToPriorSteps(history)),
-          /**
-           * ⭐ 归属票那条来源（拍板 4 的**保留**那一半）：这个键在场 = 助手自己
-           * primed 的那一枪回来了，服务端因此允许它主动开口评一张图。用户自己发的
-           * 生成永远不会填这个键（判据在 `lib/studio-operator-claim.ts`）。
-           * ⚠ 它**不再是看图的唯一凭证**：`@` 指定的任意一张走 `mentionedAssets`
-           *   那条路（拍板 4 推翻，§7）。两条来源并存，缺一条不影响另一条。
-           */
-          ...(pendingResultRef.current
-            ? { result: pendingResultRef.current }
-            : {}),
           /**
            * ⭐ **`@` 引用的那几张图**（§7，拍板 4 推翻的落点）：它同时是
            * `critique_result.targetIds` 的**准入名单** —— 服务端只认这张名单里的
@@ -1799,8 +1759,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       //   ⛔ 别让它们变成永远不会被发出去的孤儿 —— 排队条挂着而没有任何东西会
       //   来处理它，正是本仓最讨厌的那种失败。
       flushQueue()
-      // 用户开口了：那张刚评过的图不再随每一轮上传（见 `pendingResultRef` 头注）。
-      pendingResultRef.current = null
       /**
        * ⭐ 三张「等你定」的卡一起收（§4.1「钉在流末尾」）：用户改口了，上一轮那张
        * 计划 / 花钱 / 反问就此作废。⛔ 留着的表现是流末尾挂着一张还能点的卡，
@@ -1952,7 +1910,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       if (options.asset) {
         setOperatorQuestion(null)
         addOperatorMention(options.asset)
-        pendingResultRef.current = null
         appendOperatorEntry({
           kind: 'user',
           id: nextOperatorEntryId('user'),
@@ -2475,57 +2432,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     void run({ resumeFrom, planApproved: true })
   }, [run])
 
-  /**
-   * 看图闭环的**触发口**（P3-C，拍板 4）。
-   *
-   * 三件事，顺序有意义：
-   *  ① abort 在飞的那一轮 —— 结果回来时助手多半已经停了，但万一它还在跑，
-   *    带着新语境重来比让两条流抢着改表单好（与插话共用同一条机制）。
-   *  ② 往线程里插一行「结果回来了」。⛔ 不能省：助手接下来会自己动起来，
-   *    没有这一行，用户看到的是一个无缘无故开始说话的面板。
-   *  ③ 跑一轮 —— 请求里带上 `result`，服务端据此才允许 `critique_result`。
-   */
-  const critique = useCallback(
-    (result: AssistantOperatorResult) => {
-      /**
-       * ⛔ **只有有看图工具的域才闭环**（P4-A）。⚠ 这里**整条不做**时也不插
-       * 「结果回来了」那一行：那一行的意思是「助手因此要动起来了」，而没有这条
-       * 工具的域里它并不会动（今天是装配台）。
-       *
-       * ⚠ **视频域已经在表里了**（第二期）：这条注释此前写着「视频域没有
-       * `critique_result`」，理由是借来的视觉线吃的是静态图、喂 mp4 地址会得到一份
-       * 内容全编的评价。那条理由没错，错的是它当时被当成了永久结论 —— 现在喂进去的
-       * 是浏览器抽出来的三张静态帧（`run()` 里那段 `captureVideoEndpointFrames`），
-       * mp4 从头到尾没有进过视觉线。
-       */
-      if (
-        !isAssistantOperatorToolInDomain(
-          ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
-          domain,
-        )
-      ) {
-        return
-      }
-      abortRef.current?.abort()
-      pendingResultRef.current = result
-      appendOperatorEntry({
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: 'resultArrived',
-        ...(result.modelLabel ? { subject: result.modelLabel } : {}),
-      })
-      void run()
-    },
-    [domain, run],
-  )
-
   // 面板卸载（切模态 / 离开工作台）时把在飞的流掐掉：留着它会继续往一个不存在
   // 的面板里应用 op —— 表单被改而线程已经没了。
   useEffect(() => () => abortRef.current?.abort(), [])
 
   const newThread = useCallback(() => {
-    // ⚠ 连那张待评的图一起清掉：新话题不该驮着上一个话题的结果图。
-    pendingResultRef.current = null
     resetOperatorThread()
   }, [])
 
@@ -2550,7 +2461,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     dismissLoraPick,
     retryGeneration,
     rerunGeneration,
-    critique,
     newThread,
   }
 }

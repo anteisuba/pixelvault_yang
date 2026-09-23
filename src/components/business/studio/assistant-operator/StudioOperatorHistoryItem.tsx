@@ -18,21 +18,11 @@
  */
 
 import type { NamedImageReference } from '@/lib/studio-reference-mentions'
-import {
-  AlertTriangle,
-  Check,
-  Sparkles,
-  X,
-  type LucideIcon,
-} from '@/components/icons'
+import { Sparkles, type LucideIcon } from '@/components/icons'
 import Image from 'next/image'
 import { useTranslations } from 'next-intl'
 
-import {
-  ASSISTANT_OPERATOR_VERDICT_SEVERITY_IDS as SEVERITY,
-  type AssistantOperatorTool,
-} from '@/constants/assistant-operator'
-import { openOperatorLightbox } from '@/components/business/studio/assistant-operator/StudioOperatorLightbox'
+import type { AssistantOperatorTool } from '@/constants/assistant-operator'
 import { OPERATOR_TOOL_ICONS } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import {
   StudioOperatorCollapsibleText,
@@ -137,11 +127,7 @@ export function StudioOperatorHistoryItem({
        * 模型，回答就是一段普通正文。那张卡把同一件事拆成「一段分工简报 + 一折
        * 参考依据」，而用户问的是「这是什么画风」。
        */
-      return entry.critique ? (
-        <HistoryCritiqueCard entry={entry} />
-      ) : (
-        <HistoryStepRow entry={entry} />
-      )
+      return <HistoryStepRow entry={entry} />
     case 'system':
       return (
         <p
@@ -232,84 +218,6 @@ function HistoryStepRow({ entry }: { entry: StudioOperatorHistoryStep }) {
           ) : null}
         </div>
       </div>
-    </div>
-  )
-}
-
-/**
- * 历史里的评价卡 —— **文字与图，没有「还原这轮」**。
- *
- * ⛔ 那颗钮撤的是内存里的改动登记簿，而登记簿不跨刷新存在；渲染出来点下去要么
- * 什么都不发生、要么撤到一个几天后的表单上。历史条目里根本没有 `runKey`，
- * 所以它在这里写不出来。
- */
-function HistoryCritiqueCard({ entry }: { entry: StudioOperatorHistoryStep }) {
-  const t = useTranslations('StudioOperator')
-  const critique = entry.critique
-  if (!critique) return null
-
-  return (
-    <div
-      data-testid="operator-history-critique"
-      className="overflow-hidden rounded-xl border border-border/70 text-md"
-    >
-      <p className="bg-muted/50 px-2.5 py-1.5 text-2sm font-medium text-muted-foreground">
-        {critique.modelLabel
-          ? t('critique.titleWithModel', { model: critique.modelLabel })
-          : t('critique.title')}
-      </p>
-      <div className="flex gap-2.5 p-2.5">
-        <button
-          type="button"
-          onClick={() =>
-            openOperatorLightbox(critique.imageUrl, t('critique.title'))
-          }
-          className="relative h-24 w-16 shrink-0 cursor-zoom-in overflow-hidden rounded-lg border border-border/70"
-        >
-          <Image
-            src={critique.thumbnailUrl ?? critique.imageUrl}
-            alt={t('critique.title')}
-            fill
-            sizes="64px"
-            className="object-cover"
-          />
-        </button>
-        <ul className="flex min-w-0 flex-1 flex-col gap-1">
-          {/* ⚠ 与实时卡同一张严重度表（否定 / 异常 / 达成），⛔ 不在历史里退回
-              两档：同一条结论在两个地方读出两个意思是最难查的那一类。 */}
-          {critique.findings.map((finding) => (
-            <li key={finding.text} className="flex items-start gap-1.5">
-              {finding.severity === SEVERITY.pass ? (
-                <Check
-                  className="mt-0.5 size-3 shrink-0 text-muted-foreground"
-                  aria-hidden
-                />
-              ) : finding.severity === SEVERITY.warn ? (
-                <AlertTriangle
-                  className="mt-0.5 size-3 shrink-0 text-status-warning"
-                  aria-hidden
-                />
-              ) : (
-                <X
-                  className="mt-0.5 size-3 shrink-0 text-destructive"
-                  aria-hidden
-                />
-              )}
-              <span className="min-w-0 text-2sm text-foreground">
-                {finding.text}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-      {critique.advice ? (
-        <p className="border-t border-dashed border-border px-2.5 py-2 text-2sm text-muted-foreground">
-          <span className="font-medium text-foreground">
-            {t('critique.nextRound')}
-          </span>{' '}
-          {critique.advice}
-        </p>
-      ) : null}
     </div>
   )
 }

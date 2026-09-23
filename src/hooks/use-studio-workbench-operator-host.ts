@@ -386,8 +386,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
        * ⚠ 载荷（模型 / 张数 / 规格）在服务端出帧时就是从**这份表单的快照**里取的，
        *   所以这里不必、也不该再拿它去覆盖一遍表单：卡上写的和发出去的本来就是
        *   同一份。真要改参数，前面那几步 `set_*` 已经改过了。
-       * ⚠ 结果回灌不由这里做：生成结果照旧进 `useStudioGen` 的 `activeRun`，
-       *   归属追踪（`lib/studio-operator-claim.ts`）认得出这一枪是助手备的。
+       * ⚠ 结果回灌不由这里做：生成结果照旧进 `useStudioGen` 的 `activeRun`。
        */
       triggerGeneration: () => dispatch({ type: 'REQUEST_GENERATE' }),
       /**
@@ -448,8 +447,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
 
   /**
    * **这一批结果**（§2.11 结果行卡）—— 数据源是工作台本来就在跑的那条回流
-   * （`activeRun`），⛔ 没有新轮询器：与 `use-studio-operator-critique.ts` 读的是
-   * 同一处。此前这一段长在面板里（`useStudioGenOptional()`），搬到宿主上是因为
+   * （`activeRun`），⛔ 没有新轮询器。此前这一段长在面板里（`useStudioGenOptional()`），搬到宿主上是因为
    * LoRA 装配台也要有结果行卡，而那条路由拿不到 `useStudioGen`。
    * ⚠ 只收**跑完且有地址**的那些：`pending` / `generating` 的格子画出来是一个
    *   永远转着的骨架，而这张卡的意义是「这一批出来了，挑一张说话」。
@@ -492,8 +490,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
    * 一共几条」，而 `results` 只留跑完的那几条。两个数从同一个数组算出来，⛔ 别
    * 让结果卡去外面再问一次「这次要出几张」——那一份（表单的 `imageBatchCount`）
    * 在用户等图的这几十秒里随时会被改掉。
-   * ⚠ `settled` 在这里判：`cancelled` 与 `failed` 同等对待（都是不会再变的终态，
-   * 判据与 `isOperatorClaimSettled` 逐字同源）。
+   * ⚠ `settled` 在这里判：`cancelled` 与 `failed` 同等对待（都是不会再变的终态）。
    */
   const resultRun = useMemo<StudioOperatorResultRun | undefined>(() => {
     const items = activeRun?.items

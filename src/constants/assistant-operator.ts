@@ -353,13 +353,11 @@ export const ASSISTANT_OPERATOR_TOOL_IDS = {
    */
   requestGeneration: 'request_generation',
   /**
-   * 看它自己备的那张图（P3-C，拍板 4）。
+   * 看用户 `@` 指定的那张图。
    *
-   * ⭐ **图不由模型给**：地址来自请求里的 `result`，而那份 `result` 只有在客户端
-   * 观察到「助手 primed 的那一次生成」完成时才会带上来（归属追踪见
-   * `lib/studio-operator-claim.ts`）。用户自己点的那些生成**永远不进这个字段** ——
-   * 拍板 4 的后半句「用户自己发的不打扰」就是在这里成立的，不是靠模型自觉。
-   * 没有 `result` 时这条工具按 `noResultToCritique` 拒。
+   * ⭐ **图不由模型给**：目标只能从请求里的 `mentionedAssets` 名单里挑，名单外一律
+   * `unknownAsset`；什么都没 `@` 时按 `noResultToCritique` 拒。出图后**不自检**
+   * （D12，owner 2026-09-23）：助手不会自己去看刚出的图。
    *
    * ⚠ 它是**读**类：看图不改表单。看完之后要改什么，照旧走 `set_*`（因此照旧
    * 可撤销、照旧进登记簿）。把评价和改动合成一条工具，撤销就没有粒度了。

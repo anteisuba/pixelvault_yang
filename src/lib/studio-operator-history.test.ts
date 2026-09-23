@@ -263,22 +263,11 @@ describe('线程 → 可读历史', () => {
     expect(Object.keys(undoneStep ?? {})).not.toContain('firstInverse')
   })
 
-  it('评价卡只留文字与图 URL —— ⛔ 没有 runKey，也就画不出「还原这轮」', () => {
+  it('看图那一步只留一行日志 —— 出图后不自检（D12），历史里没有评价卡', () => {
     const history = toOperatorHistory(threadEntries())
     const critique = history.find((entry) => entry.id === 'run-1:step-2')
-    expect(critique).toMatchObject({
-      kind: 'step',
-      critique: {
-        imageUrl: 'https://cdn.example.com/result.png',
-        thumbnailUrl: 'https://cdn.example.com/result-thumb.png',
-        modelLabel: 'Seedream 4',
-        findings: [
-          { severity: 'pass', text: '冷调到位' },
-          { severity: 'fail', text: '伞的边缘糊了' },
-        ],
-        advice: '下一轮把伞往前推一点',
-      },
-    })
+    expect(critique).toMatchObject({ kind: 'step' })
+    expect(critique).not.toHaveProperty('critique')
   })
 
   it('域标记进历史 —— 跨域线程在单值 surface 之外唯一的痕迹', () => {

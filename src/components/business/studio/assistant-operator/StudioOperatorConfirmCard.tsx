@@ -107,10 +107,16 @@ function generateSummary(
     { kind: typeof ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate }
   >,
   countLabel: string,
+  controls?: StudioOperatorGenerationControls,
 ): string {
-  return [countLabel, confirm.request.model.label]
-    .filter((value) => Boolean(value))
-    .join(' · ')
+  /**
+   * ⚠ 模型一律写**显示名**（D12 B5）：载荷里的 `label` 有时就是原始 id
+   * （`flux-2-flash`），按工作台的模型表翻一次。
+   */
+  const modelLabel =
+    controls?.models.find((model) => model.id === confirm.request.model.id)
+      ?.label ?? confirm.request.model.label
+  return [countLabel, modelLabel].filter((value) => Boolean(value)).join(' · ')
 }
 
 export function StudioOperatorConfirmCard({
@@ -272,6 +278,7 @@ export function StudioOperatorConfirmCard({
                     t('confirm.generate.count', {
                       count: confirm.request.count,
                     }),
+                    controls,
                   )
                 : t('confirm.multistep.title', {
                     count: confirm.steps.length,

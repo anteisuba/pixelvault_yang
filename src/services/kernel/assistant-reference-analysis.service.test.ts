@@ -447,6 +447,27 @@ describe('reference analysis', () => {
     })
   })
 
+  it('tells the reviewer a change the creator asked for is the request, not a conflict', async () => {
+    const complete = vi
+      .fn()
+      .mockResolvedValue(JSON.stringify({ issues: [], conflicts: [] }))
+    await reviewOperatorReferencePrompt({
+      analysis: { profiles, brief: null },
+      language: 'Chinese',
+      prompt: '2D cel animation',
+      context: '把三渲二改成 2D 赛璐璐',
+      modelHint: '',
+      complete,
+    })
+    const system = complete.mock.calls[0]?.[0] as string
+    expect(system).toContain(
+      'A change the creator asked for in plain words is never a conflict',
+    )
+    expect(system).not.toContain(
+      'pure 2D look while the style source is a 3D render',
+    )
+  })
+
   it('D12 Q3：把「漏写」和「真冲突」分成两类交回去', async () => {
     const complete = vi.fn().mockResolvedValue(
       JSON.stringify({

@@ -1,8 +1,6 @@
 'use client'
 
-import { flushSync } from 'react-dom'
 import { useTranslations } from 'next-intl'
-import { StudioOperatorCheckpointSchema } from '@/types/studio-operator-checkpoint'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
@@ -150,54 +148,6 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       references,
     })
   }, [domain])
-
-  const checkpoints = useMemo<NonNullable<StudioOperatorHost['checkpoints']>>(
-    () => ({
-      capture: async () => {
-        if (!(await userUrl.settle())) return null
-        const current = latest.current.state
-        if (current.workflowMode !== 'quick') return null
-        const snapshot = StudioOperatorCheckpointSchema.safeParse({
-          version: 1,
-          domain: current.outputType,
-          form: current,
-          referenceImages: latest.current.imageUpload.referenceEntries.map(
-            (entry) => entry.url,
-          ),
-        })
-        return snapshot.success ? snapshot.data : null
-      },
-      restore: (checkpoint) => {
-        const parsed = StudioOperatorCheckpointSchema.safeParse(checkpoint)
-        if (
-          !parsed.success ||
-          parsed.data.domain !== latest.current.state.outputType
-        )
-          return false
-        const saved = parsed.data
-        const options =
-          saved.domain === 'image'
-            ? latest.current.imageModels.modelOptions
-            : latest.current.videoModels.modelOptions
-        const ids = [
-          saved.form.selectedOptionId,
-          ...saved.form.extraModelOptionIds,
-        ].filter((id) => id !== null)
-        if (ids.some((id) => !options.some((option) => option.optionId === id)))
-          return false
-        userUrl.cancelPending()
-        flushSync(() => {
-          latest.current.imageUpload.setReferenceImage(undefined)
-          saved.referenceImages.forEach((url) =>
-            latest.current.imageUpload.addReferenceImage(url),
-          )
-          dispatch({ type: 'RESTORE_OPERATOR_CHECKPOINT', payload: saved.form })
-        })
-        return true
-      },
-    }),
-    [dispatch, userUrl],
-  )
 
   const apply = useMemo<StudioOperatorApplyContext>(
     () => ({
@@ -604,7 +554,6 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       domain,
       face,
       buildSnapshot,
-      checkpoints,
       apply,
       results,
       ...(resultRun ? { resultRun } : {}),
@@ -616,7 +565,6 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
     }),
     [
       apply,
-      checkpoints,
       buildSnapshot,
       domain,
       face,

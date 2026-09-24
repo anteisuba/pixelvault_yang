@@ -16,7 +16,6 @@
  * 变量，改动一律「造一个新对象整体替换」，读永远读那一个。
  */
 
-import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import { useSyncExternalStore } from 'react'
 
 import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
@@ -652,28 +651,6 @@ export function operatorStepEntryId(runKey: string, stepId: string): string {
   return `${runKey}:${stepId}`
 }
 
-/**
- * 落一条日志。
- *
- * ⭐ **按条目 id 覆盖，不是追加** —— 同一步会来两次（`running` 然后
- * `done` / `error`，见协议词表）。追加的表现是日志流里每一步重复两行，
- * 而这正是这份契约在注释里点名警告过的那个错。
- * `runKey` 由驱动 hook 每轮现给（见 `operatorStepEntryId`）。
- */
-export function setOperatorStepCheckpoint(
-  entryId: string,
-  checkpoint: StudioOperatorCheckpoint,
-): void {
-  emit({
-    ...state,
-    entries: state.entries.map((entry) =>
-      entry.kind === 'step' && entry.id === entryId
-        ? { ...entry, checkpoint }
-        : entry,
-    ),
-  })
-}
-
 export function upsertOperatorStep(
   step: AssistantOperatorStep,
   runKey: string,
@@ -690,7 +667,6 @@ export function upsertOperatorStep(
     step,
     runKey,
     undone: existing?.undone ?? false,
-    ...(existing?.checkpoint ? { checkpoint: existing.checkpoint } : {}),
   }
   const entries =
     index >= 0
@@ -702,25 +678,6 @@ export function upsertOperatorStep(
       ? state.stepsDone + 1
       : state.stepsDone
   emit({ ...state, entries, stepsDone })
-}
-
-/**
- * 截断**这一轮之后**的线程（checkpoint 薄卡的「连对话一起回」，§3.2）。
- *
- * ⭐ 保留这一轮自己的那些条目：用户撤的是「这一轮**之后**发生的事」，把这一轮
- * 也删掉的话，划线的日志（撤销的证据）会跟着消失 —— 而那正是他要复核的东西。
- * ⚠ 只认 `runKey`，⛔ 不去劈条目 id（它是 `runKey:stepId` 拼的，runKey 里哪天
- * 多一个冒号这种字符串手术就会静默失效）。
- * ⚠ 这一轮**一条步都没有**时整个是 no-op：找不到锚点就截断，等于把整条线程清空。
- * ⚠ `history`（载回来的只读段）一个字节都不动：它在这一轮之前，且本来就撤不了。
- */
-export function truncateOperatorThreadAfterRound(runKey: string): void {
-  let anchor = -1
-  state.entries.forEach((entry, index) => {
-    if (entry.kind === 'step' && entry.runKey === runKey) anchor = index
-  })
-  if (anchor < 0 || anchor === state.entries.length - 1) return
-  emit({ ...state, entries: state.entries.slice(0, anchor + 1) })
 }
 
 export function markOperatorStepUndone(stepId: string): void {
@@ -1063,43 +1020,6 @@ export function clearOperatorChange(field: StudioOperatorField): void {
   const changes = { ...state.changes }
   delete changes[field]
   emitSlice({ changes })
-}
-
-export function clearOperatorChanges(): void {
-  // ⚠ 只清**当前域**：拍板 14 那颗按钮长在参数栏上，它说的是「这个工作台上助手
-  //   改的那些」。顺手把别的域一起清掉，用户会发现自己切回去之后 ✦ 全没了。
-  emitSlice({ changes: {}, primed: false })
-}
-
-export function restoreOperatorThreadCheckpoint(
-  history: readonly StudioOperatorHistoryEntry[],
-  subject: string,
-): void {
-  clearOperatorResumePlan()
-  for (const slice of Object.values(slices)) {
-    slice.changes = {}
-  }
-  emitSlice({ changes: {}, primed: false })
-  emit({
-    ...state,
-    history,
-    entries: [
-      {
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: 'checkpointRestored',
-        subject,
-      },
-    ],
-    status: 'idle',
-    queue: [],
-    question: null,
-    confirm: null,
-    stepsDone: 0,
-    plannedSteps: 0,
-    errorText: null,
-    errorTrace: null,
-  })
 }
 
 /**

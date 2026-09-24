@@ -23,10 +23,6 @@ import { buildMessageImageReferences } from '@/lib/studio-reference-mentions'
 import { StudioOperatorConfirmCard } from './StudioOperatorConfirmCard'
 import { StudioOperatorLoraPickCard } from './StudioOperatorLoraPickCard'
 import { StudioOperatorResultRow } from './StudioOperatorResultRow'
-import { StudioOperatorRestoreButton } from './StudioOperatorRestoreButton'
-import { isRevertibleAssistantOperatorTool } from '@/constants/assistant-operator'
-import { toOperatorHistory } from '@/lib/studio-operator-history'
-import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import {
   Fragment,
   useCallback,
@@ -78,17 +74,12 @@ import {
   STUDIO_OPERATOR_SHELL,
   STUDIO_OPERATOR_SKIPPED_REJECT_REASONS,
   STUDIO_OPERATOR_UPLOAD_ACCEPT,
-  studioOperatorChangeSubject,
 } from '@/constants/studio-assistant-operator'
 import { ASSISTANT_ROUTE_MODEL_AUTO } from '@/constants/assistant-persona'
 import { RuleChip } from '@/components/business/studio/assistant-operator/RuleChip'
 import { StudioOperatorModelChip } from '@/components/business/studio/assistant-operator/StudioOperatorModelChip'
 import { StudioOperatorSpecLine } from '@/components/business/studio/assistant-operator/StudioOperatorSpecLine'
-import {
-  STUDIO_OPERATOR_REVERT_CHOICES,
-  StudioOperatorCheckpointCard,
-  type StudioOperatorRevertChoice,
-} from '@/components/business/studio/assistant-operator/StudioOperatorCheckpointCard'
+import { StudioOperatorCheckpointCard } from '@/components/business/studio/assistant-operator/StudioOperatorCheckpointCard'
 import { StudioOperatorHistoryItem } from '@/components/business/studio/assistant-operator/StudioOperatorHistoryItem'
 import { StudioOperatorLogItem } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
 import {
@@ -131,7 +122,6 @@ import {
   StudioOperatorTimelineRow,
   type StudioOperatorCardKind,
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
-import { StudioOperatorChangeRail } from '@/components/business/studio/assistant-operator/StudioOperatorChangeRail'
 import { StudioOperatorResumeChip } from '@/components/business/studio/assistant-operator/StudioOperatorResumeChip'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { Spinner } from '@/components/ui/spinner'
@@ -147,7 +137,6 @@ import { useStudioOperatorRevert } from '@/hooks/use-studio-operator-revert'
 import {
   hydrateOperatorResume,
   getOperatorState,
-  restoreOperatorThreadCheckpoint,
   setOperatorAutoGenerate,
   setOperatorOutOfSteps,
   setOperatorResumeScope,
@@ -341,7 +330,6 @@ export function StudioOperatorPanel({
     resume,
     autoGenerate,
     outOfSteps,
-    changes,
   } = useStudioOperatorState()
   /**
    * ⚠ 两类条目**留在数据里、不画**（owner 2026-09-24：小字「没什么有用的信息」）：
@@ -459,13 +447,8 @@ export function StudioOperatorPanel({
    * 结果格上那两颗 ✓/✕（切片 Y）—— 乐观更新 + PATCH 在 hook 里，
    * ⛔ 面板不自己打请求（Hard Rule 3）。
    */
-  const {
-    undoStep,
-    revertRound,
-    revertRoundThread,
-    countRoundChanges,
-    roundChangeLabelKeys,
-  } = useStudioOperatorRevert()
+  const { revertRound, countRoundChanges, roundChangeLabelKeys } =
+    useStudioOperatorRevert()
 
   /**
    * 素材库弹层开着与否（切片 #7c）—— 同样是一次性挑选动作，局部态。
@@ -739,23 +722,6 @@ export function StudioOperatorPanel({
    * ⛔ 面板从此不认识 `useStudioGen`：它挂在哪台工作台上不该由它自己去猜。
    */
   const operatorHost = useStudioOperatorHost()
-  const restoreCheckpoint = useCallback(
-    (checkpoint: StudioOperatorCheckpoint) => {
-      if (getOperatorState().status === 'working') return
-      if (!operatorHost.checkpoints?.restore(checkpoint)) {
-        toast.error(t('checkpoint.restoreFailed'))
-        return
-      }
-      const current = getOperatorState()
-      stop()
-      restoreOperatorThreadCheckpoint(
-        [...current.history, ...toOperatorHistory(current.entries)],
-        t('checkpoint.restoreStep'),
-      )
-      toast.success(t('checkpoint.restored'))
-    },
-    [operatorHost.checkpoints, stop, t],
-  )
 
   /**
    * 结果卡上的**「用它当参考」**（v2 §6.2 第二行）。
@@ -1061,23 +1027,6 @@ export function StudioOperatorPanel({
   const handleUploadFiles = useCallback(
     (files: readonly File[]) => upload.uploadFiles(files),
     [upload],
-  )
-
-  /**
-   * checkpoint 二选的落点（§3.2）。
-   *
-   * ⭐ 两条路共用同一份 `inverse`，⛔ 没有第二套撤销：区别只在「连对话一起回」
-   * 多截一刀线程。
-   */
-  const handleCheckpointRevert = useCallback(
-    (runKey: string, choice: StudioOperatorRevertChoice) => {
-      if (choice === STUDIO_OPERATOR_REVERT_CHOICES.thread) {
-        revertRoundThread(runKey)
-        return
-      }
-      revertRound(runKey)
-    },
-    [revertRound, revertRoundThread],
   )
 
   /**
@@ -1400,20 +1349,6 @@ export function StudioOperatorPanel({
       </StudioOperatorTimelineRow>
     ) : null
 
-  /**
-   * 「✦ 字段 · 全部还原」挂在哪一轮（owner 2026-09-24）—— **最后一轮做过可撤改动的**。
-   * ⚠ 登记簿空了（全还原了 / 手改回去了）就哪一轮都不挂。
-   */
-  const latestChangeRunKey = Object.keys(changes).length
-    ? entries.findLast(
-        (entry): entry is StudioOperatorStepEntry =>
-          entry.kind === 'step' &&
-          !entry.undone &&
-          entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
-          isRevertibleAssistantOperatorTool(entry.step.tool),
-      )?.runKey
-    : undefined
-
   const renderBlock = (block: (typeof blocks)[number]) => {
     if (block.kind === 'tools') {
       /**
@@ -1486,7 +1421,6 @@ export function StudioOperatorPanel({
               entryId={item.id}
               step={item.step}
               undone={item.undone}
-              onUndo={undoStep}
               // ⚠ 按条取，不是把整个 hook 传下去：日志条是 `memo` 的，
               //    传一个每次 render 都换引用的对象等于把 memo 关掉。
               webImport={webImport.states[item.id]}
@@ -1497,23 +1431,6 @@ export function StudioOperatorPanel({
               renderWebCandidates
             />
           </div>
-          {/* ⚠ 后果落在**库里**的那几步（记规则 / 标审核态 / 素材库四条）
-                ⛔ 不挂「还原到这一步」：还原读的是工作台快照，而它们一颗旋钮都
-                没动 —— 快照因此从来就没被拍过，用户读到的是一句
-                「此步骤未保存完整配置，无法恢复」挂在一步明明成功了的操作下面
-                （2026-09-12 实测第 9 步）。它们的回头路是那颗撤销钮（走
-                `step.inverse`，记规则那条会真的把库里那行删掉）。 */}
-          {operatorHost.checkpoints &&
-          item.step.status === 'done' &&
-          !studioOperatorChangeSubject(item.step.tool) &&
-          (isRevertibleAssistantOperatorTool(item.step.tool) ||
-            item.checkpoint) ? (
-            <StudioOperatorRestoreButton
-              checkpoint={item.checkpoint}
-              disabled={working}
-              onRestore={restoreCheckpoint}
-            />
-          ) : null}
         </div>
       ))
       const compactCanvasChanges =
@@ -1538,10 +1455,7 @@ export function StudioOperatorPanel({
             runKey={block.runKey}
             count={changeCountInRound}
             fieldSummary={format.list(changeLabelKeys.map((key) => t(key)))}
-            onRevert={handleCheckpointRevert}
-            {...(block.runKey === latestChangeRunKey
-              ? { rail: <StudioOperatorChangeRail /> }
-              : {})}
+            onRevert={revertRound}
             {...(compactCanvasChanges
               ? { details: logItems, detailsCount: block.steps.length }
               : {})}
@@ -1998,20 +1912,6 @@ export function StudioOperatorPanel({
                       entry={entry}
                       references={messageImageReferences.get(entry.id)}
                     />
-                    {operatorHost.checkpoints &&
-                    entry.kind === 'step' &&
-                    entry.status === 'done' &&
-                    (entry.checkpoint ||
-                      entry.tool.startsWith('set_') ||
-                      entry.tool === 'prime_generate' ||
-                      entry.tool === 'mount_reference' ||
-                      entry.tool === 'import_user_url') ? (
-                      <StudioOperatorRestoreButton
-                        checkpoint={entry.checkpoint}
-                        disabled={working}
-                        onRestore={restoreCheckpoint}
-                      />
-                    ) : null}
                   </StudioOperatorTimelineRow>
                 )
                 const placed = historyRoundPlacement.byIndex.get(index)

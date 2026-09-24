@@ -1,14 +1,12 @@
 'use client'
 
 /**
- * 撤销 / 还原 —— **两个宿主共用的那一份**。
+ * **每轮的「撤销」**—— 撤回的唯一入口（owner 2026-09-24：「只留一个入口」）。
  *
- * 调用方有两个：面板里的日志条（hover 撤销，拍板 18）与参数栏里的归属标记
- * （✦ 点一下还原这个字段）。它们分属两棵组件树，但做的是同一件事，所以逻辑住在
- * 这里而不是任何一个宿主里 —— 抄两份的下场是「日志里划了线、✦ 还亮着」。
- *
- * ⚠ 这个 hook **不碰流**：撤销是纯客户端动作（`inverse` 已经在手上），它唯一的
- * 外溢是往线程里插一条系统行通报助手（拍板 18 的后半句）。
+ * 过程行上那一颗「撤销」把这一轮改的几格按 `inverse` 逆序退回去，线程里插一行
+ * 系统行通报助手（拍板 18 的后半句）。⛔ 逐步撤销、字段还原、全部还原、连对话一起回、
+ * 恢复到这一步 —— 都已删除。
+ * ⚠ 这个 hook **不碰流**：撤销是纯客户端动作（`inverse` 已经在手上）。
  */
 
 import { useCallback } from 'react'
@@ -26,11 +24,9 @@ import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
 import {
   appendOperatorEntry,
   clearOperatorChange,
-  clearOperatorChanges,
   getOperatorState,
   markOperatorStepUndone,
   nextOperatorEntryId,
-  truncateOperatorThreadAfterRound,
   useStudioOperatorState,
 } from '@/hooks/use-studio-operator-store'
 import {
@@ -61,26 +57,10 @@ export function useStudioOperatorApplyContext(): StudioOperatorApplyContext {
 
 export interface UseStudioOperatorRevertResult {
   /**
-   * 撤销一条日志（拍板 18：划线 + 线程插系统行）。
-   * ⚠ 收的是**线程条目 id**，不是服务端的 `step.id`（后者每轮从 `step-1` 重编号，
-   *   见 `operatorStepEntryId`）。
-   */
-  undoStep(entryId: string): void
-  /** 还原一个字段（归属标记 ✦ 点一下）。 */
-  revertField(field: StudioOperatorField): void
-  /** 还原全部（二击确认由 UI 承担，这里只做事）。 */
-  revertAll(): void
-  /**
    * 还原**这一轮**（P3-C，评价卡上那颗「还原这轮」）。
    * 收的是那一轮的 token（`StudioOperatorStepEntry.runKey`）。
    */
   revertRound(runKey: string): void
-  /**
-   * checkpoint 薄卡的「连对话一起回」（§3.2）—— 参数回滚 **+ 截断该轮之后的线程**。
-   *
-   * ⭐ 复用的仍是 `revertRound` 那一条机制，⛔ 没有第二套逆操作：区别只在多截一刀。
-   */
-  revertRoundThread(runKey: string): void
   /** 那一轮有几处可还原 —— 按钮上写的那个数；0 时按钮不该出现。 */
   countRoundChanges(runKey: string): number
   /**
@@ -97,8 +77,6 @@ export interface UseStudioOperatorRevertResult {
    * ⚠ 返回的是 key 不是人话：翻译在组件里做，hook 不碰 `useTranslations`。
    */
   roundChangeLabelKeys(runKey: string): readonly string[]
-  /** 现在有几处改动 —— 「还原助手的全部改动（N 处）」里的那个数。 */
-  changeCount: number
 }
 
 /**
@@ -122,98 +100,6 @@ function isRevertableStepEntry(entry: StudioOperatorThreadEntry): boolean {
 export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
   const applyContext = useStudioOperatorApplyContext()
   const operatorState = useStudioOperatorState()
-
-  const undoStep = useCallback(
-    (entryId: string) => {
-      const entry = getOperatorState().entries.find(
-        (item) => item.kind === 'step' && item.id === entryId,
-      )
-      if (!entry || entry.kind !== 'step') return
-      // ⚠ `status === 'done'` 同时收窄类型：被拒的那一支没有 inverse 可用。
-      const applied = entry.step
-      if (applied.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done) return
-
-      revertOperatorStep(applied, applyContext)
-      markOperatorStepUndone(entryId)
-
-      const field = getOperatorStepField(applied)
-      // 同一个字段只要还有别的没撤的步就留着登记 —— 否则 ✦ 会在字段仍被改过的
-      // 情况下消失（「标记没了，值还在」）。
-      if (field) {
-        const stillChanged = getOperatorState().entries.some(
-          (item) =>
-            item.kind === 'step' &&
-            item.id !== entryId &&
-            !item.undone &&
-            item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
-            getOperatorStepField(item.step) === field,
-        )
-        if (!stillChanged) clearOperatorChange(field)
-      }
-
-      appendOperatorEntry({
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: 'undoStep',
-        subject: applied.title,
-      })
-    },
-    [applyContext],
-  )
-
-  const revertField = useCallback(
-    (field: StudioOperatorField) => {
-      const change = getOperatorState().changes[field]
-      if (!change) return
-      revertOperatorStep(change.firstInverse, applyContext)
-      clearOperatorChange(field)
-      // 那个字段上所有没撤的步一起划线 —— 否则日志里会留下几条「已生效」的条目，
-      // 而它们描述的值早就被还原了。
-      for (const entry of getOperatorState().entries) {
-        if (entry.kind !== 'step' || entry.undone) continue
-        if (getOperatorStepField(entry.step) === field) {
-          markOperatorStepUndone(entry.id)
-        }
-      }
-      appendOperatorEntry({
-        kind: 'system',
-        id: nextOperatorEntryId('sys'),
-        code: 'revertField',
-        subject: field,
-      })
-    },
-    [applyContext],
-  )
-
-  const revertAll = useCallback(() => {
-    const changes = getOperatorState().changes
-    const count = STUDIO_OPERATOR_FIELDS.filter(
-      (field) => changes[field] !== undefined,
-    ).length
-    if (count === 0) return
-    /**
-     * ⚠ **倒着还原**：`set_specs` 与 `set_negative` 都读 `advancedParams` 的当前
-     * 值再整体替换，正序走会让后一条把前一条刚还原好的键又覆盖回去。
-     */
-    for (const field of [...STUDIO_OPERATOR_FIELDS].reverse()) {
-      const change = changes[field]
-      if (change) revertOperatorStep(change.firstInverse, applyContext)
-    }
-    for (const entry of getOperatorState().entries) {
-      if (entry.kind === 'step' && !entry.undone) {
-        markOperatorStepUndone(entry.id)
-      }
-    }
-    // ⚠ 顺手把生成键熄灭（拍板 14）：清完还留一个亮着的生成键，等于把用户
-    //    推去点一次它自己已经撤销掉的那版配置。`clearOperatorChanges` 负责这件事。
-    clearOperatorChanges()
-    appendOperatorEntry({
-      kind: 'system',
-      id: nextOperatorEntryId('sys'),
-      code: 'revertAll',
-      count,
-    })
-  }, [applyContext])
 
   /**
    * 还原**这一轮**（P3-C，评价卡上那颗「还原这轮」）。
@@ -280,21 +166,6 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
   )
 
   /**
-   * 「连对话一起回」。
-   *
-   * ⚠ **先截断再回滚**：`revertRound` 的最后一件事是往线程尾部插一条系统行
-   * （「你还原了这一轮的 N 处改动」），反过来做会把刚插进去的那条一起截掉 ——
-   * 表现是「撤了，但线程里什么都没说」，正是拍板 18 明令要避免的那种静默。
-   */
-  const revertRoundThread = useCallback(
-    (runKey: string) => {
-      truncateOperatorThreadAfterRound(runKey)
-      revertRound(runKey)
-    },
-    [revertRound],
-  )
-
-  /**
    * ⚠ 从 `operatorState` 现算而不是从 `getOperatorState()`：这个数印在按钮上，
    * 要跟着渲染走。（`revertRound` 里读的是「此刻」，那是事件处理器，两者不同。）
    */
@@ -340,18 +211,9 @@ export function useStudioOperatorRevert(): UseStudioOperatorRevertResult {
     [operatorState.entries],
   )
 
-  const changeCount = STUDIO_OPERATOR_FIELDS.filter(
-    (field) => operatorState.changes[field] !== undefined,
-  ).length
-
   return {
-    undoStep,
-    revertField,
-    revertAll,
     revertRound,
-    revertRoundThread,
     countRoundChanges,
     roundChangeLabelKeys,
-    changeCount,
   }
 }

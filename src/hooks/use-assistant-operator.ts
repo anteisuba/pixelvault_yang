@@ -105,7 +105,6 @@ import {
   switchOperatorDomain,
   takeOperatorQueue,
   upsertOperatorStep,
-  setOperatorStepCheckpoint,
 } from '@/hooks/use-studio-operator-store'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { collectStepArtifacts } from '@/lib/studio-operator-artifacts'
@@ -689,7 +688,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * 而 `/studio/lora` 故意不挂 `<StudioProvider>` —— 那条路上这个 hook 会直接抛。
    */
   const host = useStudioOperatorHost()
-  const { domain, buildSnapshot, checkpoints, setOpen } = host
+  const { domain, buildSnapshot, setOpen } = host
   const applyContext = host.apply
   const locale = useLocale()
   const tError = useTranslations('StudioOperator.error')
@@ -1540,19 +1539,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                     )
                   }
                 }
-                if (
-                  checkpoints &&
-                  (field ||
-                    step.tool === ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate)
-                ) {
-                  const checkpoint = await checkpoints.capture()
-                  if (controller.signal.aborted) return
-                  if (checkpoint)
-                    setOperatorStepCheckpoint(
-                      operatorStepEntryId(runKey, step.id),
-                      checkpoint,
-                    )
-                }
                 /**
                  * 回执的**第二只眼**（进度表 21 · D7 Q4）：被改的那一格闪一次。
                  *
@@ -1787,7 +1773,6 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
     },
     [
       applyContext,
-      checkpoints,
       setOpen,
       buildSnapshot,
       describeError,

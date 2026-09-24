@@ -7438,23 +7438,7 @@
     "checkpoint": {
       "summary": "{fields}を変更",
       "undo": "取り消す",
-      "choice": {
-        "params": "パラメータのみ戻す",
-        "thread": "会話ごと戻す",
-        "cancel": "キャンセル"
-      },
-      "reverted": {
-        "params": "取り消し済み · パラメータのみ",
-        "thread": "取り消し済み · 会話ごと"
-      },
-      "restoreStep": "このステップに復元",
-      "restoreDescription": "このステップ完了時のプロンプト、参照画像の順序、モデル、設定を復元します。生成は開始しません。",
-      "unavailable": "このステップには完全な設定が保存されていません",
-      "restoreFailed": "復元できません。ワークスペースが異なるか、元のモデルが利用できません。",
-      "restored": "このステップの設定を復元しました"
-    },
-    "log": {
-      "undo": "取り消す"
+      "reverted": "取り消しました"
     },
     "reject": {
       "referenceAnalysisRequired": "現在の参照画像を先に分析してください",
@@ -7516,13 +7500,6 @@
       "assetFavorite": "素材のお気に入り",
       "assetFolder": "新規フォルダ",
       "assetMove": "素材の移動"
-    },
-    "changes": {
-      "originalValue": "元の値：{value}",
-      "originalEmpty": "元は空でした",
-      "revertOne": "クリックでこの項目を戻す",
-      "revertAll": "すべて戻す（{count} 件）",
-      "clearConfirm": "{count}件の変更をすべて元に戻しますか？"
     },
     "confirm": {
       "generate": {

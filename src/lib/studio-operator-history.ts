@@ -14,7 +14,6 @@
  * inverse、`running` 不落库、撤销痕迹留而按钮不留）都要能在单测里逐条钉住。
  */
 
-import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import type { ReferenceVisualProfile } from '@/types/assistant-reference-analysis'
 import {
   ASSISTANT_OPERATOR_DOMAINS,
@@ -569,12 +568,7 @@ export function toOperatorHistoryEntry(
       return { kind: 'plan', id: entry.id, steps }
     }
     case 'step':
-      return toOperatorHistoryStep(
-        entry.id,
-        entry.step,
-        entry.undone,
-        entry.checkpoint,
-      )
+      return toOperatorHistoryStep(entry.id, entry.step, entry.undone)
     /**
      * 规则薄卡**不进历史**（切片 3a）。
      *
@@ -656,7 +650,6 @@ function toOperatorHistoryStep(
   id: string,
   step: AssistantOperatorStep,
   undone: boolean,
-  checkpoint?: StudioOperatorCheckpoint,
 ): StudioOperatorHistoryEntry | null {
   // `running` 不落库 —— 见 `toOperatorHistoryEntry` 头注。
   if (step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.running) return null
@@ -688,7 +681,6 @@ function toOperatorHistoryStep(
   return {
     ...base,
     status: 'done',
-    ...(checkpoint ? { checkpoint } : {}),
     ...(detail ? { detail: truncate(detail, LIMITS.maxPromptChars) } : {}),
     ...(step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences &&
     step.result

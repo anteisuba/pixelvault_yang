@@ -29,7 +29,6 @@ import { createContext, useContext, type ReactNode } from 'react'
 
 import type { LucideIcon } from '@/components/icons'
 
-import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
 import type { AssistantOperatorSnapshot } from '@/types/assistant-operator'
@@ -74,11 +73,6 @@ export interface StudioOperatorFace {
 }
 
 export interface StudioOperatorHost {
-  checkpoints?: {
-    capture(): Promise<StudioOperatorCheckpoint | null>
-    restore(checkpoint: StudioOperatorCheckpoint): boolean
-  }
-
   /**
    * 这个宿主此刻在哪个域。
    *

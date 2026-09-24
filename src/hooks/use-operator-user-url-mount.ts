@@ -51,8 +51,6 @@ export interface OperatorReferenceSurface {
 }
 
 export interface OperatorUserUrlMount {
-  settle(): Promise<boolean>
-  cancelPending(): void
   mountUserUrl(sourceUrl: string, domain?: string): void
   unmountUserUrl(sourceUrl: string): void
 }
@@ -61,8 +59,6 @@ export function useOperatorUserUrlMount(
   imageUpload: OperatorReferenceSurface,
 ): OperatorUserUrlMount {
   const latest = useRef(imageUpload)
-  const epoch = useRef(0)
-  const pending = useRef(new Set<Promise<boolean>>())
   // ⚠ 同步写在 effect 里（本仓 latest-ref 的既有写法）：render 阶段改 ref 会被
   //   `react-hooks/refs` 拦下来。这两只手永远在事件处理器里被调。
   useEffect(() => {
@@ -79,14 +75,12 @@ export function useOperatorUserUrlMount(
     // 已经挂上的 / 正在路上的都**不再来一次**：那只会在库里多出一条一模一样的。
     if (userUrlMounts.has(sourceUrl) || inflightUserUrls.has(sourceUrl)) return
     inflightUserUrls.add(sourceUrl)
-    const currentEpoch = epoch.current
-    const task = importWebImageAPI({
+    void importWebImageAPI({
       imageUrl: sourceUrl,
       ...(domain ? { domain } : {}),
     })
       .then((response) => {
         inflightUserUrls.delete(sourceUrl)
-        if (epoch.current !== currentEpoch) return false
         if (!response.success) {
           appendOperatorEntry({
             kind: 'system',
@@ -94,26 +88,22 @@ export function useOperatorUserUrlMount(
             code: 'urlImportFailed',
             subject: domain || sourceUrl,
           })
-          return false
+          return
         }
         userUrlMounts.set(sourceUrl, response.data.generation.url)
         flushSync(() =>
           latest.current.addReferenceImage(response.data.generation.url),
         )
-        return true
       })
       .catch(() => {
         inflightUserUrls.delete(sourceUrl)
-        if (epoch.current === currentEpoch)
-          appendOperatorEntry({
-            kind: 'system',
-            id: nextOperatorEntryId('sys'),
-            code: 'urlImportFailed',
-            subject: domain || sourceUrl,
-          })
-        return false
+        appendOperatorEntry({
+          kind: 'system',
+          id: nextOperatorEntryId('sys'),
+          code: 'urlImportFailed',
+          subject: domain || sourceUrl,
+        })
       })
-    pending.current.add(task)
   }, [])
 
   const unmountUserUrl = useCallback((sourceUrl: string) => {
@@ -129,18 +119,8 @@ export function useOperatorUserUrlMount(
     userUrlMounts.delete(sourceUrl)
   }, [])
 
-  const settle = useCallback(async () => {
-    const tasks = [...pending.current]
-    const outcomes = await Promise.all(tasks)
-    tasks.forEach((task) => pending.current.delete(task))
-    return outcomes.every(Boolean)
-  }, [])
-  const cancelPending = useCallback(() => {
-    epoch.current += 1
-    userUrlMounts.clear()
-  }, [])
   return useMemo(
-    () => ({ mountUserUrl, unmountUserUrl, settle, cancelPending }),
-    [mountUserUrl, unmountUserUrl, settle, cancelPending],
+    () => ({ mountUserUrl, unmountUserUrl }),
+    [mountUserUrl, unmountUserUrl],
   )
 }

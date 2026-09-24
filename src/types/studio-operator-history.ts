@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { ReferenceAnalysisSchema } from '@/types/assistant-reference-analysis'
-import { StudioOperatorCheckpointSchema } from '@/types/studio-operator-checkpoint'
 
 import {
   ASSISTANT_OPERATOR_DOMAINS,
@@ -65,7 +64,6 @@ export const StudioOperatorHistoryStepSchema = z.object({
   detail: z.string().trim().max(LIMITS.maxPromptChars).optional(),
   /** 被拒那一支的理由 id（`StudioOperator.reject.*`）。 */
   rejectReason: z.string().trim().max(LIMITS.maxIdChars).optional(),
-  checkpoint: StudioOperatorCheckpointSchema.optional().catch(undefined),
   referenceAnalysis: ReferenceAnalysisSchema.optional(),
 })
 

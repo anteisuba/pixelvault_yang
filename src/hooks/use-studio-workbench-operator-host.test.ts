@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react'
+import { renderHook } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**
@@ -29,8 +29,6 @@ const references = vi.hoisted(() => ({ entries: [] as { url: string }[] }))
 const modelOptions = vi.hoisted(() => [
   { optionId: 'openai-test', modelId: 'gpt-image-test' },
 ])
-const settle = vi.hoisted(() => vi.fn(async () => true))
-const cancelPending = vi.hoisted(() => vi.fn())
 const setReferenceImage = vi.hoisted(() => vi.fn())
 
 /**
@@ -96,8 +94,6 @@ vi.mock('@/hooks/use-video-model-options', () => ({
 }))
 vi.mock('@/hooks/use-operator-user-url-mount', () => ({
   useOperatorUserUrlMount: () => ({
-    settle,
-    cancelPending,
     mountUserUrl: vi.fn(),
     unmountUserUrl: vi.fn(),
   }),
@@ -262,121 +258,6 @@ describe('useStudioWorkbenchOperatorHost 的 addReference/removeReference 分槽
   })
 })
 
-describe('配置快照与刷新恢复', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    settle.mockResolvedValue(true)
-    formState.overrides = {
-      selectedOptionId: 'openai-test',
-      prompt: '@Image1 female @Image2 male @Image3 pose @Image4 style',
-      advancedParams: { quality: 'high', resolution: '2K', seed: 42 },
-    }
-    references.entries = [1, 2, 3, 4].map((id) => ({
-      url: `https://cdn.test/${id}.png`,
-    }))
-  })
-
-  it('快照与当前表单脱离，历史序列化后恢复完整配置与四张参考图顺序，不触发生成', async () => {
-    const {
-      toOperatorHistory,
-      toStoredOperatorMessages,
-      fromStoredOperatorMessages,
-    } = await import('@/lib/studio-operator-history')
-    const { result, rerender } = renderHook(() =>
-      useStudioWorkbenchOperatorHost(),
-    )
-    const saved = await result.current.checkpoints!.capture()
-    expect(saved).not.toBeNull()
-    const history = toOperatorHistory([
-      {
-        kind: 'step',
-        id: 'r:1',
-        runKey: 'r',
-        undone: false,
-        checkpoint: saved!,
-        step: {
-          id: '1',
-          tool: 'set_prompt',
-          verb: 'apply',
-          title: 'prompt',
-          status: 'done',
-          payload: { value: saved!.form.prompt, mode: 'replace' },
-          inverse: { value: '' },
-        },
-      },
-    ])
-    const loaded = fromStoredOperatorMessages(
-      JSON.parse(JSON.stringify(toStoredOperatorMessages(history))),
-    )[0]!
-    expect(loaded.kind).toBe('step')
-    if (loaded.kind !== 'step') throw new Error('Missing history step')
-    formState.overrides = { prompt: 'manually edited', selectedOptionId: null }
-    references.entries = [{ url: 'https://cdn.test/changed.png' }]
-    rerender()
-    setReferenceImage.mockImplementationOnce(() =>
-      dispatch({ type: 'REMOVE_PROMPT_REFERENCE' }),
-    )
-    act(() => {
-      expect(result.current.checkpoints!.restore(loaded.checkpoint!)).toBe(true)
-    })
-    expect(dispatch.mock.calls).toEqual([
-      [{ type: 'REMOVE_PROMPT_REFERENCE' }],
-      [{ type: 'RESTORE_OPERATOR_CHECKPOINT', payload: saved!.form }],
-    ])
-    expect(setReferenceImage).toHaveBeenCalledWith(undefined)
-    expect(addReferenceImage.mock.calls.map(([url]) => url)).toEqual(
-      saved!.referenceImages,
-    )
-    expect(saved!.form.prompt).toContain('@Image4 style')
-    expect(saved!.form.advancedParams).toEqual({
-      quality: 'high',
-      resolution: '2K',
-      seed: 42,
-    })
-    expect(cancelPending).toHaveBeenCalledOnce()
-  })
-
-  it('导入未成功、卡片模式或本地临时地址不产生可恢复快照', async () => {
-    const { result, rerender } = renderHook(() =>
-      useStudioWorkbenchOperatorHost(),
-    )
-    settle.mockResolvedValueOnce(false)
-    expect(await result.current.checkpoints!.capture()).toBeNull()
-    references.entries = [{ url: 'blob:temporary' }]
-    rerender()
-    expect(await result.current.checkpoints!.capture()).toBeNull()
-    references.entries = []
-    formState.overrides = { workflowMode: 'card' }
-    rerender()
-    expect(await result.current.checkpoints!.capture()).toBeNull()
-  })
-
-  it('域不匹配或原模型不可用时拒绝恢复且不改表单', async () => {
-    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
-    const saved = await result.current.checkpoints!.capture()
-    expect(
-      result.current.checkpoints!.restore({ ...saved!, domain: 'video' }),
-    ).toBe(false)
-    expect(
-      result.current.checkpoints!.restore({
-        ...saved!,
-        form: { ...saved!.form, selectedOptionId: 'missing' },
-      }),
-    ).toBe(false)
-    expect(dispatch).not.toHaveBeenCalled()
-    expect(addReferenceImage).not.toHaveBeenCalled()
-  })
-})
-
-/**
- * **这台工作台那张脸**（D7b ③ · 画板 `DesignD7bFaces`）。
- *
- * 钉三件事：
- *  ① 域标记那一句**随宿主状态刷**（改张数 → 胶囊跟着变），且图片 / 视频两档说的
- *     是各自那句 —— 工作台一个宿主两张脸，判据是 `outputType`；
- *  ② 药丸来自那张脸、数量 ≤ 封顶；
- *  ③ 空态那句话与输入框占位词两档各不相同（⛔ 不是同一句）。
- */
 describe('useStudioWorkbenchOperatorHost 的 face（D7b ③）', () => {
   beforeEach(() => {
     formState.overrides = {}

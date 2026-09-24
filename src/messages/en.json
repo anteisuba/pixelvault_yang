@@ -7438,23 +7438,7 @@
     "checkpoint": {
       "summary": "changed {fields}",
       "undo": "Undo",
-      "choice": {
-        "params": "Params only",
-        "thread": "Params + chat",
-        "cancel": "Cancel"
-      },
-      "reverted": {
-        "params": "Undone · params only",
-        "thread": "Undone · params + chat"
-      },
-      "restoreStep": "Restore to this step",
-      "restoreDescription": "Restore the prompt, reference order, models and settings saved after this step. No generation is started.",
-      "unavailable": "No complete configuration was saved for this step",
-      "restoreFailed": "Cannot restore: the workspace differs or the original model is unavailable.",
-      "restored": "Step configuration restored"
-    },
-    "log": {
-      "undo": "Undo"
+      "reverted": "Undone"
     },
     "reject": {
       "referenceAnalysisRequired": "Analyze the current references first",
@@ -7516,13 +7500,6 @@
       "assetFavorite": "Asset stars",
       "assetFolder": "New folder",
       "assetMove": "Asset filing"
-    },
-    "changes": {
-      "originalValue": "Was: {value}",
-      "originalEmpty": "Was empty",
-      "revertOne": "Click to revert this field",
-      "revertAll": "Revert all ({count})",
-      "clearConfirm": "Undo all {count, plural, one {# change} other {# changes}}?"
     },
     "confirm": {
       "generate": {

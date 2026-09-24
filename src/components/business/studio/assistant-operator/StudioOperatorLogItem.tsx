@@ -58,7 +58,6 @@ import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import {
-  isRevertibleAssistantOperatorTool,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
   type AssistantOperatorTool,
@@ -203,7 +202,6 @@ interface StudioOperatorLogItemProps {
   entryId: string
   step: AssistantOperatorStep
   undone: boolean
-  onUndo(entryId: string): void
   /**
    * 这一条日志上的联网候选选用态（P3-B / 拍板 21）。`undefined` = 一张都还没选。
    *
@@ -233,7 +231,6 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
   entryId,
   step,
   undone,
-  onUndo,
   webImport,
   webImportLimit,
   onToggleWebImage,
@@ -247,14 +244,6 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
   const isRejected = step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
   const isMoney =
     step.tool === ASSISTANT_OPERATOR_TOOL_IDS.primeGenerate && !isRejected
-  // 撤销只对**落地了的改动**开放：被拒的那一步什么都没应用。
-  // ⚠ 判据是 `isRevertibleAssistantOperatorTool`（切片 3a 换的），⛔ 不再是
-  //    「不是读类」：`request_generation` 两者都不是 —— 它不读，也没有 inverse
-  //    （钱已经花出去了）。用旧判据的表现是那条日志上挂着一颗点了没反应的撤销钮。
-  const canUndo =
-    !undone &&
-    step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
-    isRevertibleAssistantOperatorTool(step.tool)
 
   /**
    * 详情文本。
@@ -276,7 +265,8 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
       data-status={step.status}
       data-undone={undone ? 'true' : 'false'}
       /* D12 A · C3：**一行一步的小字**——⛔ 无卡、无边框、无图标圆圈；
-         「动作 · 改成了什么」两段，撤销只在悬停那一行出现。 */
+         「动作 · 改成了什么」两段。⛔ 没有逐步撤销：撤回只有过程行上那一颗
+         「撤销」（整轮，owner 2026-09-24 定为唯一入口）。 */
       className={cn(
         'group relative min-w-0 text-xs leading-relaxed',
         undone && 'opacity-55',
@@ -310,16 +300,6 @@ export const StudioOperatorLogItem = memo(function StudioOperatorLogItem({
             )}
           </span>
         </button>
-        {canUndo ? (
-          <button
-            type="button"
-            data-testid="operator-log-undo"
-            onClick={() => onUndo(entryId)}
-            className="shrink-0 rounded-sm text-muted-foreground opacity-0 transition-opacity duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100 motion-reduce:transition-none"
-          >
-            {t('log.undo')}
-          </button>
-        ) : null}
       </div>
 
       {/* 挂上去的那张参考图 —— 挂载弹入 + hover 浮起 + 点击灯箱（拍板 17）。 */}

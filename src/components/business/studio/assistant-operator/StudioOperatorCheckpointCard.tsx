@@ -1,37 +1,19 @@
 'use client'
 
 /**
- * **checkpoint 薄卡**（§2.13 / 拍板 18 升级：撤销粒度从「一条日志」升到「一轮」）。
+ * **每轮的「撤销」**—— 撤回的**唯一入口**（owner 2026-09-24：「只留一个入口」）。
  *
- * ⭐ 每轮改动后一张：「已改 N 项：模型 · 提示词 · 参考图」+「撤销」。点撤销
- * **就地**展开二选（§3.2）：
- *  · 只回参数     —— 按 `inverse` 逆序回滚，对话保留，**结果不删**；
- *  · 连对话一起回 —— 参数回滚 + 截断该轮之后的线程消息。
- * ⛔ 不弹窗、不跳焦点：撤销是个小动作，弹窗会让人以为要出大事。
- *
- * ⚠ 「✦ 字段 · 全部还原」（`StudioOperatorChangeRail`，二击确认，拍板 14）从参数栏
- * 搬到了**最新一轮**的这一行上（owner 2026-09-24），替掉那一轮的「改了… · 撤销」；
- * 它管「这个工作台上助手改着的全部」，与更早轮次的「撤销」是两种粒度。
- *
- * ⚠ 撤销后的**系统行由 hook 插**（`use-studio-operator-revert.ts`），这颗组件
- * 只负责就地把自己变成「已撤销 · ××」—— 两处都写会得到两行通报。
+ * ⭐ 过程行的后半句：「做了 N 步 › · 改了提示词 · 规格 · 撤销」。点一下就把这一轮
+ * 改的那几格按 `inverse` 逆序退回去，对话与结果都留着，就地换成「已撤销」。
+ * ⛔ 没有二选（只回参数 / 连对话一起回）、没有逐步撤销、没有「恢复到这一步」、没有
+ * ✦ 字段与「全部还原」—— 那四套都删了。想退更早的，点更早那一轮自己的「撤销」。
+ * ⚠ 撤销后的系统行由 hook 插（`use-studio-operator-revert.ts`），这里只换自己的字。
  */
 
 import { useState, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { cn } from '@/lib/utils'
-
-/** 二选的两个值 —— ⚠ 同时是 `data-choice`，测试与真机目检按它取。 */
-export const STUDIO_OPERATOR_REVERT_CHOICES = {
-  /** 只回参数：对话与结果都留着。 */
-  params: 'params',
-  /** 连对话一起回：参数回滚 + 截断该轮之后的线程。 */
-  thread: 'thread',
-} as const
-
-export type StudioOperatorRevertChoice =
-  (typeof STUDIO_OPERATOR_REVERT_CHOICES)[keyof typeof STUDIO_OPERATOR_REVERT_CHOICES]
 
 /**
  * **续跑那一档**（第三期 · 断点续跑）——「从第 N 步继续」。
@@ -57,16 +39,11 @@ interface StudioOperatorCheckpointCardProps {
   count: number
   /** 改了哪些字段（已经过词表的人话，用 ` · ` 串好）。 */
   fieldSummary: string
-  onRevert(runKey: string, choice: StudioOperatorRevertChoice): void
+  onRevert(runKey: string): void
   /** 见 `StudioOperatorCheckpointResume`。 */
   resume?: StudioOperatorCheckpointResume
   details?: ReactNode
   detailsCount?: number
-  /**
-   * 最新一轮上替掉「改了… · 撤销」的那一排（✦ 字段 · 全部还原，owner 2026-09-24
-   * 从参数栏搬进来的）。缺席 = 更早的轮次，照旧「改了… · 撤销」。
-   */
-  rail?: ReactNode
 }
 
 export function StudioOperatorCheckpointCard({
@@ -77,13 +54,9 @@ export function StudioOperatorCheckpointCard({
   resume,
   details,
   detailsCount,
-  rail,
 }: StudioOperatorCheckpointCardProps) {
   const t = useTranslations('StudioOperator')
-  const [choosing, setChoosing] = useState(false)
-  const [reverted, setReverted] = useState<StudioOperatorRevertChoice | null>(
-    null,
-  )
+  const [reverted, setReverted] = useState(false)
 
   const link =
     'rounded-sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none'
@@ -98,63 +71,27 @@ export function StudioOperatorCheckpointCard({
     <span
       data-testid="operator-checkpoint"
       data-run-key={runKey}
-      data-reverted={reverted ?? 'false'}
+      data-reverted={reverted ? 'true' : 'false'}
       className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground"
     >
-      {rail ? (
-        rail
-      ) : fieldSummary ? (
+      {fieldSummary ? (
         <span className="min-w-0">
           · {t('checkpoint.summary', { count, fields: fieldSummary })}
         </span>
       ) : null}
 
-      {rail ? null : reverted ? (
+      {reverted ? (
         <span data-testid="operator-checkpoint-done" className="shrink-0">
-          · {t(`checkpoint.reverted.${reverted}`)}
-        </span>
-      ) : choosing ? (
-        <span className="flex shrink-0 items-center gap-1.5">
-          <span aria-hidden>·</span>
-          <button
-            type="button"
-            data-testid="operator-checkpoint-choice"
-            data-choice={STUDIO_OPERATOR_REVERT_CHOICES.params}
-            onClick={() => {
-              onRevert(runKey, STUDIO_OPERATOR_REVERT_CHOICES.params)
-              setReverted(STUDIO_OPERATOR_REVERT_CHOICES.params)
-            }}
-            className={cn(link, 'text-foreground underline underline-offset-2')}
-          >
-            {t('checkpoint.choice.params')}
-          </button>
-          <button
-            type="button"
-            data-testid="operator-checkpoint-choice"
-            data-choice={STUDIO_OPERATOR_REVERT_CHOICES.thread}
-            onClick={() => {
-              onRevert(runKey, STUDIO_OPERATOR_REVERT_CHOICES.thread)
-              setReverted(STUDIO_OPERATOR_REVERT_CHOICES.thread)
-            }}
-            // 破坏性那一档用风险色：它真的会删掉这一轮之后的对话。
-            className="rounded-sm text-status-risk underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            {t('checkpoint.choice.thread')}
-          </button>
-          <button
-            type="button"
-            data-testid="operator-checkpoint-cancel"
-            onClick={() => setChoosing(false)}
-            className={link}
-          >
-            {t('checkpoint.choice.cancel')}
-          </button>
+          · {t('checkpoint.reverted')}
         </span>
       ) : (
         <button
           type="button"
           data-testid="operator-checkpoint-undo"
-          onClick={() => setChoosing(true)}
+          onClick={() => {
+            onRevert(runKey)
+            setReverted(true)
+          }}
           className={cn('shrink-0 text-foreground/80', link)}
         >
           · {t('checkpoint.undo')}

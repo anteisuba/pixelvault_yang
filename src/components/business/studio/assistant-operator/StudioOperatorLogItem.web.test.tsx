@@ -131,7 +131,6 @@ function renderItem(
       entryId="run-1:step-1"
       step={WEB_STEP}
       undone={false}
-      onUndo={vi.fn()}
       webImport={undefined}
       webImportLimit={4}
       onToggleWebImage={onToggleWebImage}

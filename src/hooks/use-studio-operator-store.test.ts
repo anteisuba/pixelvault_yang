@@ -138,24 +138,6 @@ describe('改动登记簿', () => {
     })
     expect(result.current.changes.prompt?.firstInverse.id).toBe('step-1')
   })
-
-  it('清掉全部改动时顺手把生成键熄灭（拍板 14）', () => {
-    const result = readState()
-    act(() => store.setOperatorPrimed(true))
-    act(() =>
-      store.recordOperatorChange({
-        field: STUDIO_OPERATOR_FIELD_IDS.prompt,
-        stepId: first.id,
-        firstInverse: first,
-        previousLabel: '',
-      }),
-    )
-    expect(result.current.primed).toBe(true)
-
-    act(() => store.clearOperatorChanges())
-    expect(result.current.changes).toEqual({})
-    expect(result.current.primed).toBe(false)
-  })
 })
 
 describe('新对话', () => {
@@ -265,23 +247,6 @@ describe('切域', () => {
     act(() => store.switchOperatorDomain('image'))
     // 切走时不消失 —— 那份表单还预填着，生成键该继续亮。
     expect(result.current.primed).toBe(true)
-  })
-
-  it('清掉全部改动只清当前域 —— ⛔ 别把用户切回去要用的那份一起清了', () => {
-    const result = readState()
-    act(() =>
-      store.recordOperatorChange({
-        field: STUDIO_OPERATOR_FIELD_IDS.prompt,
-        stepId: 'image-step',
-        firstInverse: DONE,
-        previousLabel: '',
-      }),
-    )
-    act(() => store.switchOperatorDomain('video'))
-    act(() => store.clearOperatorChanges())
-
-    act(() => store.switchOperatorDomain('image'))
-    expect(result.current.changes.prompt?.stepId).toBe('image-step')
   })
 })
 
@@ -602,47 +567,6 @@ describe('resume（断点续跑）', () => {
     act(() => store.hydrateOperatorResume())
     expect(result.current.resume).toBeNull()
   })
-})
-
-it('恢复配置保留历史并清掉旧撤销、确认、待生成及未完成计划', async () => {
-  const { toOperatorHistory, historyToPriorSteps, historyToOperatorMessages } =
-    await import('@/lib/studio-operator-history')
-  store.upsertOperatorStep(DONE, RUN)
-  store.setOperatorConfirm({
-    id: 'confirm-old',
-    kind: 'multistep',
-    steps: [{ id: 's1', label: '改提示词' }],
-    status: 'idle',
-  })
-  store.setOperatorPrimed(true)
-  store.setOperatorResumeScope('checkpoint-test')
-  store.startOperatorResumePlan({ planId: 'p', labels: ['change prompt'] })
-  const history = toOperatorHistory(store.getOperatorState().entries)
-  store.restoreOperatorThreadCheckpoint(history, 'restore')
-  const state = store.getOperatorState()
-  expect(state.history).toEqual(history)
-  expect(state.entries).toHaveLength(1)
-  expect(state.entries[0]).toMatchObject({
-    kind: 'system',
-    code: 'checkpointRestored',
-  })
-  expect(state).toMatchObject({
-    status: 'idle',
-    question: null,
-    confirm: null,
-    primed: false,
-    changes: {},
-    resume: null,
-    queue: [],
-  })
-  const restoredHistory = [
-    ...state.history,
-    ...toOperatorHistory(state.entries),
-  ]
-  expect(historyToPriorSteps(restoredHistory)).toEqual([])
-  expect(historyToOperatorMessages(restoredHistory).at(-1)?.content).toContain(
-    'restored a configuration checkpoint',
-  )
 })
 
 describe('结论记录（v2 §7.7，commit #13）', () => {

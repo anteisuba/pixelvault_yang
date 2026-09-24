@@ -7438,23 +7438,7 @@
     "checkpoint": {
       "summary": "改了{fields}",
       "undo": "撤销",
-      "choice": {
-        "params": "只回参数",
-        "thread": "连对话一起回",
-        "cancel": "取消"
-      },
-      "reverted": {
-        "params": "已撤销 · 只回参数",
-        "thread": "已撤销 · 连对话一起回"
-      },
-      "restoreStep": "恢复到这一步",
-      "restoreDescription": "恢复此步骤完成时的提示词、参考图顺序、模型和规格；不会生成图片。",
-      "unavailable": "此步骤未保存完整配置，无法恢复",
-      "restoreFailed": "无法恢复：当前工作台不匹配或原模型已不可用。",
-      "restored": "已恢复该步骤的配置"
-    },
-    "log": {
-      "undo": "撤销"
+      "reverted": "已撤销"
     },
     "reject": {
       "referenceAnalysisRequired": "需要先分析当前参考图",
@@ -7516,13 +7500,6 @@
       "assetFavorite": "素材收藏",
       "assetFolder": "新建文件夹",
       "assetMove": "素材归档"
-    },
-    "changes": {
-      "originalValue": "原值：{value}",
-      "originalEmpty": "原来是空的",
-      "revertOne": "点一下还原这个字段",
-      "revertAll": "全部还原（{count} 处）",
-      "clearConfirm": "确认清掉 {count} 处？"
     },
     "confirm": {
       "generate": {

@@ -65,6 +65,7 @@ vi.mock('@clerk/nextjs', () => ({
   useAuth: () => ({ isLoaded: true, userId: 'user_test_unified_generate' }),
 }))
 
+import { getGenerationErrorMessage } from '@/lib/api-error-message'
 import { useUnifiedGenerate } from '@/hooks/use-unified-generate'
 import { LoraStackProvider } from '@/hooks/use-active-lora-stack'
 import {
@@ -955,6 +956,27 @@ describe('useUnifiedGenerate', () => {
       expect(items[1].status).toBe('failed')
       // 还有一条在跑，闸不能因为另一条失败就关上
       expect(result.current.canQueueMoreVideo).toBe(true)
+    })
+
+    it('⭐ 提交时抛异常：失败原因过错误词表，⛔ 不把异常原文写给用户', async () => {
+      const { result } = renderHook(() => useUnifiedGenerate(), { wrapper })
+
+      mockSubmitVideo.mockRejectedValueOnce(
+        new TypeError('Failed to fetch at submitVideoAPI (chunk-4.js:12)'),
+      )
+      await queueVideo(result, { prompt: 'doomed take' })
+
+      // 词表本身在 `api-error-message.test.ts` 里验；这里验这条路**过了词表**。
+      expect(vi.mocked(getGenerationErrorMessage)).toHaveBeenCalledWith(
+        expect.anything(),
+        { error: 'Failed to fetch at submitVideoAPI (chunk-4.js:12)' },
+        'errorUnexpected',
+      )
+      expect(
+        result.current.activeRun?.items.some(
+          (item) => item.status === 'failed',
+        ),
+      ).toBe(true)
     })
 
     it('⭐ 重试用**那一条**自己的参数重放，不是最后一次提交的参数', async () => {

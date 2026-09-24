@@ -913,8 +913,12 @@ export function useUnifiedGenerate(): UseUnifiedGenerateReturn {
         void pollVideoJobForRunItem(submitResponse.data.jobId, itemId)
         return null
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : tVideo('errorUnexpected')
+        // ⚠ 异常原文（"Failed to fetch" / 堆栈里的那句）⛔ 不给用户看：过一遍同一张
+        //   错误词表，认不出就是「出了点意外」那一句。
+        const { message } = resolveGenerationError(
+          { error: err instanceof Error ? err.message : '' },
+          tVideo('errorUnexpected'),
+        )
         markActiveRunItemFailed(itemId, message)
         setError(message)
         toast.error(message)

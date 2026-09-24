@@ -2220,6 +2220,36 @@ describe('就地确认往返（拍板 3）', () => {
     expect(done?.inverse).toEqual({ value: '我自己写的一段提示词' })
   })
 
+  it('客户端已经写进去（applied）就不再写这一格，也不报失败', async () => {
+    queueTurns(OVERWRITE_TURN, { finished: true })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: HAND_WRITTEN,
+          confirmations: [
+            {
+              field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
+              choice: ASSISTANT_OPERATOR_CONFIRM_CHOICES.overwrite,
+              applied: true,
+            },
+          ],
+        }),
+      ),
+    )
+    const steps = stepsOf(events)
+    expect(
+      steps.some(
+        (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+      ),
+    ).toBe(false)
+    expect(
+      steps.some(
+        (step) => step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+      ),
+    ).toBe(false)
+  })
+
   it('带着「覆盖」重发就整段换掉', async () => {
     queueTurns(OVERWRITE_TURN, { finished: true })
     const events = await collect(
@@ -11124,6 +11154,7 @@ describe('current reference image bindings', () => {
   )
 
   it('still requires overwrite approval when cached evidence is complete', async () => {
+    // ⚠ 自检先跑完才问（卡上那段是最终文本，点完客户端直接写）。
     queueTurns(
       {
         tool: {
@@ -11132,6 +11163,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
+      { issues: [] },
     )
     const events = await collect(
       runAssistantOperator(

@@ -849,6 +849,8 @@ export const AssistantOperatorPriorStepSchema = z.object({
 export const AssistantOperatorConfirmDecisionSchema = z.object({
   field: AssistantOperatorConfirmFieldSchema,
   choice: AssistantOperatorConfirmChoiceSchema,
+  /** 客户端点下那一刻已经把卡上那段写进表单（覆盖 / 追加）；续跑时这一格不再写。 */
+  applied: z.boolean().optional(),
 })
 
 /**

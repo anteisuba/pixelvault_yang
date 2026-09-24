@@ -2,6 +2,8 @@ import { act, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import {
+  ASSISTANT_OPERATOR_CONFIRM_CHOICES,
+  ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
@@ -1631,6 +1633,64 @@ describe('规则薄卡与歧义反问（§10 / §7）', () => {
     expect(
       streamAssistantOperatorAPI.mock.calls[1]?.[0].mentionedAssets,
     ).toEqual([{ id: 'gen-2', url: 'https://cdn.test/b.png', label: '结果②' }])
+  })
+
+  it('覆盖三选点「覆盖」→ 当场写进表单，续跑带 applied（⛔ 不等模型再写一遍）', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('改成赛璐璐')
+    })
+    await settle()
+
+    streams[0].emit({
+      type: ASSISTANT_OPERATOR_EVENTS.ask,
+      questions: [
+        {
+          id: 'overwrite-prompt',
+          header: '提示词',
+          question: '要换掉你写的提示词吗？',
+          multiSelect: false,
+          allowOther: false,
+          options: [
+            { id: 'overwrite', label: '覆盖', description: '换成助手写的' },
+            { id: 'append', label: '追加', description: '接在后面' },
+            { id: 'keep', label: '保留', description: '不动' },
+          ],
+        },
+      ],
+      overwrite: {
+        field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
+        have: '我写的',
+        proposed: 'cel shading, 1girl',
+      },
+    })
+    await settle()
+    dispatch.mockClear()
+
+    act(() => {
+      result.current.answerQuestion(
+        { questionId: 'overwrite-prompt', optionIds: ['overwrite'] },
+        {
+          label: '覆盖',
+          choice: ASSISTANT_OPERATOR_CONFIRM_CHOICES.overwrite,
+        },
+      )
+    })
+
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'SET_PROMPT',
+      payload: 'cel shading, 1girl',
+    })
+    await settle()
+    expect(streamAssistantOperatorAPI.mock.calls[1]?.[0].confirmations).toEqual(
+      [
+        {
+          field: ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
+          choice: ASSISTANT_OPERATOR_CONFIRM_CHOICES.overwrite,
+          applied: true,
+        },
+      ],
+    )
   })
 
   it('用户改口 → 两张卡一起收（⛔ 别留一张还能点的生成确认卡）', async () => {

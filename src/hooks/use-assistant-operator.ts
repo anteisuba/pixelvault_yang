@@ -39,6 +39,7 @@ import { useLocale, useTranslations } from 'next-intl'
 
 import {
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
+  ASSISTANT_OPERATOR_CONFIRM_CHOICES,
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_ERROR_MESSAGE_KEYS,
@@ -146,6 +147,7 @@ import {
   toResumeFrom,
 } from '@/lib/studio-operator-resume'
 import { isLoraBaseModelMountCompatible } from '@/lib/lora-model-compatibility'
+import { mergeNegativePrompt } from '@/lib/lora-source-match-prompt'
 import type { PromptAssistantResponseLanguage } from '@/types'
 import type {
   AssistantOperatorConfirmDecision,
@@ -162,6 +164,7 @@ import type {
   StudioOperatorAttachment,
   StudioOperatorErrorTrace,
   StudioOperatorQuestionAnswer,
+  StudioOperatorQuestionPrompt,
   StudioOperatorThreadEntry,
 } from '@/types/studio-assistant-operator'
 
@@ -1962,6 +1965,91 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
    * ⚠ `label` 由面板给（i18n 在那一层）：hook 里没有词表，硬编一句中文会在英文
    *   界面上原样印出来。
    */
+  /**
+   * **覆盖三选点下「覆盖 / 追加」—— 立刻写进表单**（owner 09-24：点完还要想很久，
+   * 应该立马完成）。
+   *
+   * ⭐ 卡上那段就是最终文本：服务端把参考图复核等检查全部跑完才出卡。所以这里
+   * 直接走助手写字段的**同一条通道**（`applyOperatorStep` → 闪一下 → 归属 →
+   * 登记簿，撤销照旧回到用户原文），⛔ 不等下一轮模型重写一遍。
+   * @returns 写进去了没有（「保留」什么都不写）。
+   */
+  const applyOverwriteChoice = useCallback(
+    (
+      overwrite: NonNullable<StudioOperatorQuestionPrompt['overwrite']>,
+      choice: AssistantOperatorConfirmChoice,
+      title: string,
+    ): boolean => {
+      if (choice === ASSISTANT_OPERATOR_CONFIRM_CHOICES.keep) return false
+      const isPrompt =
+        overwrite.field === ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt
+      const form = applyContext.getState()
+      const current = isPrompt
+        ? form.prompt
+        : (form.advancedParams.negativePrompt ?? '')
+      const append =
+        choice === ASSISTANT_OPERATOR_CONFIRM_CHOICES.append &&
+        current.trim().length > 0
+      // 负面追加与服务端同一口径去重后整段替换（见 set_negative 的头注）。
+      const payload =
+        !isPrompt && append
+          ? {
+              value: mergeNegativePrompt(current, overwrite.proposed),
+              mode: ASSISTANT_OPERATOR_WRITE_MODES.replace,
+            }
+          : {
+              value: overwrite.proposed,
+              mode: append
+                ? ASSISTANT_OPERATOR_WRITE_MODES.append
+                : ASSISTANT_OPERATOR_WRITE_MODES.replace,
+            }
+      const base = {
+        id: 'overwrite',
+        title,
+        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+        payload,
+        inverse: { value: current },
+      }
+      const step: AssistantOperatorStep = isPrompt
+        ? {
+            ...base,
+            tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            verb: ASSISTANT_OPERATOR_TOOL_VERBS[
+              ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
+            ],
+          }
+        : {
+            ...base,
+            tool: ASSISTANT_OPERATOR_TOOL_IDS.setNegative,
+            verb: ASSISTANT_OPERATOR_TOOL_VERBS[
+              ASSISTANT_OPERATOR_TOOL_IDS.setNegative
+            ],
+          }
+      const field = flushSync(() => applyOperatorStep(step, applyContext))
+      if (!field) return false
+      const runKey = nextOperatorEntryId('run')
+      upsertOperatorStep(step, runKey)
+      if (typeof window !== 'undefined')
+        window.requestAnimationFrame(() => flashAssistantTouchedField(field))
+      const writtenText = writtenTextOf(step)
+      if (writtenText !== undefined)
+        writeOperatorWrittenText(
+          getOperatorState().domain,
+          overwrite.field,
+          writtenText,
+        )
+      recordOperatorChange({
+        field,
+        stepId: operatorStepEntryId(runKey, step.id),
+        firstInverse: step,
+        previousLabel: describeOperatorInverse(step),
+        ...(writtenText !== undefined ? { writtenText } : {}),
+      })
+      return true
+    },
+    [applyContext],
+  )
+
   const answerQuestion = useCallback(
     (
       answer: StudioOperatorQuestionAnswer,
@@ -2059,9 +2147,18 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
           userText,
           answered,
         })
+        const applied = applyOverwriteChoice(
+          question.overwrite,
+          options.choice,
+          `${question.question.header} · ${options.label}`,
+        )
         void run({
           confirmations: [
-            { field: question.overwrite.field, choice: options.choice },
+            {
+              field: question.overwrite.field,
+              choice: options.choice,
+              ...(applied ? { applied: true } : {}),
+            },
           ],
         })
         return

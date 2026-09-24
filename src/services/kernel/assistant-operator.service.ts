@@ -3945,9 +3945,24 @@ async function planSetText(
       ? buildLoraPromptMaterial(run, value)
       : null
 
-  const decision = run.request.confirmations?.find(
+  const confirmation = run.request.confirmations?.find(
     (entry) => entry.field === field,
-  )?.choice
+  )
+  const decision = confirmation?.choice
+  /**
+   * ⭐ 创作者点「覆盖 / 追加」那一刻**客户端已经把卡上那段写进去了**（owner
+   * 09-24：点完还要想很久，应该立马完成）。续跑这一轮 ⛔ 不许再写这一格 ——
+   * 再写一遍就是又一轮模型 + 自检，正是那段等待。
+   */
+  if (confirmation?.applied) {
+    return {
+      kind: 'rejected',
+      reason: REJECT.repeatedStep,
+      detail:
+        'The creator already chose on the overwrite card and the app wrote your proposed text into this field — it is on the form now (see the state). Do not write it again; continue with the remaining steps of the request, or finish.',
+      quiet: true,
+    }
+  }
 
   /**
    * **这道三选什么时候不该问**（2026-09-12 实测：三跑全部多余）。
@@ -3967,21 +3982,16 @@ async function planSetText(
   const creatorSaidOverwrite =
     args.overwrite === true || creatorAskedToOverwrite(run.request)
 
+  /**
+   * ⚠ 要问的话**先别问**：参考图复核等检查全部跑完再出卡（见文末），卡上那段
+   * 就是最终文本，点完客户端直接写、⛔ 不再回模型。
+   */
+  const askCreator =
+    Boolean(current.trim()) &&
+    !alreadyAssistantWritten &&
+    !creatorSaidOverwrite &&
+    !decision
   if (current.trim() && !alreadyAssistantWritten && !creatorSaidOverwrite) {
-    if (!decision) {
-      return {
-        kind: 'confirm',
-        field,
-        have: clamp(current, LIMITS.maxPromptChars),
-        proposed: clamp(value, LIMITS.maxPromptChars),
-        ...(loraMaterial?.sourceNotes.length
-          ? { sourceNotes: loraMaterial.sourceNotes }
-          : {}),
-        ...(loraMaterial?.negativeDiff.length
-          ? { negativeDiff: loraMaterial.negativeDiff }
-          : {}),
-      }
-    }
     if (decision === ASSISTANT_OPERATOR_CONFIRM_CHOICES.keep) {
       return reject(
         REJECT.userDeclined,
@@ -4119,6 +4129,26 @@ async function planSetText(
       logger.info('assistant prompt review gaps left after rewrite', {
         count: gaps.length,
       })
+  }
+
+  if (askCreator) {
+    return {
+      kind: 'confirm',
+      field,
+      have: clamp(current, LIMITS.maxPromptChars),
+      proposed: clamp(
+        negativeDeduped === null
+          ? value
+          : mergeNegativePrompt(undefined, value),
+        LIMITS.maxPromptChars,
+      ),
+      ...(loraMaterial?.sourceNotes.length
+        ? { sourceNotes: loraMaterial.sourceNotes }
+        : {}),
+      ...(loraMaterial?.negativeDiff.length
+        ? { negativeDiff: loraMaterial.negativeDiff }
+        : {}),
+    }
   }
 
   return {
@@ -8294,7 +8324,14 @@ ${run.request.priorSteps
   if (run.request.confirmations?.length) {
     sections.push(`THE CREATOR ANSWERED YOUR OVERWRITE QUESTION:
 ${run.request.confirmations
-  .map((entry) => `- ${entry.field}: ${entry.choice}`)
+  .map(
+    (entry) =>
+      `- ${entry.field}: ${entry.choice}${
+        entry.applied
+          ? ' — already applied: your proposed text is on the form now. Do not write this field again.'
+          : ''
+      }`,
+  )
   .join('\n')}`)
   }
 

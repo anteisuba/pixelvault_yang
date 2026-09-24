@@ -472,7 +472,10 @@ export const GenerationPreview = memo(function GenerationPreview({
       ? getTranslatedModelLabel(tModels, generation.model)
       : null,
     generation.duration ? `${Math.round(generation.duration)}s` : null,
-    generation.height ? `${generation.height}p` : null,
+    // 「p」说的是短边：竖屏片子的高是长边。
+    generation.height
+      ? `${Math.min(generation.width || generation.height, generation.height)}p`
+      : null,
   ].filter((part): part is string => Boolean(part))
 
   const videoContainer = (

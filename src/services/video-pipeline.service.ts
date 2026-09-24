@@ -7,7 +7,7 @@ import {
   EXECUTION_WORKER,
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
-import { IMAGE_SIZES, VIDEO_GENERATION } from '@/constants/config'
+import { VIDEO_GENERATION } from '@/constants/config'
 import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import type {
@@ -37,6 +37,7 @@ import {
 } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { getVideoOutputSize } from '@/lib/video-utils'
 import { validateVideoGenerationInput } from '@/services/video-generation-validation.service'
 import { getResolvedModelOption } from '@/services/model-config.service'
 
@@ -798,9 +799,10 @@ async function dispatchLongVideoPipelineWorkflow(input: {
   initialFrameUrl?: string
 }) {
   try {
-    const { width, height } =
-      IMAGE_SIZES[input.aspectRatio as keyof typeof IMAGE_SIZES] ??
-      IMAGE_SIZES['16:9']
+    const { width, height } = getVideoOutputSize(
+      input.aspectRatio,
+      input.resolution,
+    )
     const result = await dispatchLongVideoPipelineWorkerRun({
       runId: input.runId ?? input.pipelineId,
       workflowId: EXECUTION_WORKFLOW_IDS.LONG_VIDEO_PIPELINE,

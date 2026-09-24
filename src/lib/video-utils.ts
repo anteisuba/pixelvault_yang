@@ -3,6 +3,8 @@
  * Extracted from VideoGenerateForm to reduce component size.
  */
 
+import { IMAGE_SIZES } from '@/constants/config'
+
 export function formatDuration(seconds: number): string {
   const min = Math.floor(seconds / 60)
   const sec = seconds % 60
@@ -18,6 +20,27 @@ export function formatTimecode(totalSeconds: number): string {
   return [hours, minutes, seconds]
     .map((part) => String(part).padStart(2, '0'))
     .join(':')
+}
+
+/**
+ * 存进 `Generation` 的视频宽高。有「480p」这类档位时短边就是它、长边按比例推
+ * （取偶数，编码器出片也是偶数）；没有档位才回落到比例默认尺寸。
+ * ⚠ 09-24 真机：9:16 · 480p 的片子按图片尺寸表记成 1024×1792，预览角标写 1792p。
+ */
+export function getVideoOutputSize(
+  aspectRatio: string,
+  resolution?: string | null,
+): { width: number; height: number } {
+  const fallback =
+    IMAGE_SIZES[aspectRatio as keyof typeof IMAGE_SIZES] ?? IMAGE_SIZES['16:9']
+  const short = Number(resolution?.match(/^(\d+)p$/i)?.[1])
+  const [w, h] = aspectRatio.split(':').map(Number)
+  if (!short || !w || !h)
+    return { width: fallback.width, height: fallback.height }
+  const long = Math.round((short * Math.max(w, h)) / Math.min(w, h) / 2) * 2
+  return w >= h
+    ? { width: long, height: short }
+    : { width: short, height: long }
 }
 
 /** Video size lookup matching OpenAI Sora's expected sizes */

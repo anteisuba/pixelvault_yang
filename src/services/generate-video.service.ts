@@ -5,7 +5,6 @@ import {
   EXECUTION_WORKER,
   EXECUTION_WORKFLOW_IDS,
 } from '@/constants/execution'
-import { IMAGE_SIZES } from '@/constants/config'
 import { getExecutionModelId, getModelById } from '@/constants/models'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import type {
@@ -43,6 +42,7 @@ import {
 } from '@/services/execution-worker.service'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { getVideoOutputSize } from '@/lib/video-utils'
 import { validatePrompt } from '@/services/kernel/prompt-guard'
 import {
   GENERATION_STAGE,
@@ -237,8 +237,10 @@ async function submitFalVideoWorkerRun(params: {
       : []
   const referenceImageUrl: string | undefined = uploadedRefUrls[0]
 
-  const { width, height } =
-    IMAGE_SIZES[input.aspectRatio] ?? IMAGE_SIZES['16:9']
+  const { width, height } = getVideoOutputSize(
+    input.aspectRatio,
+    input.resolution,
+  )
   const outputStorageKey = generateStorageKey('VIDEO', userId)
   const metadata = {
     workerManaged: true,

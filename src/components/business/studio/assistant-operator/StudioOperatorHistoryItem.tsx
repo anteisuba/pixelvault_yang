@@ -20,7 +20,7 @@
 import type { NamedImageReference } from '@/lib/studio-reference-mentions'
 import { Sparkles, type LucideIcon } from '@/components/icons'
 import Image from 'next/image'
-import { useTranslations } from 'next-intl'
+import { useFormatter, useTranslations } from 'next-intl'
 
 import type { AssistantOperatorTool } from '@/constants/assistant-operator'
 import { OPERATOR_TOOL_ICONS } from '@/components/business/studio/assistant-operator/StudioOperatorLogItem'
@@ -28,6 +28,7 @@ import {
   StudioOperatorCollapsibleText,
   StudioOperatorUserText,
 } from '@/components/business/studio/assistant-operator/StudioOperatorMessageBody'
+import { describeSystemSubjects } from '@/lib/studio-operator-timeline'
 import { cn } from '@/lib/utils'
 import type {
   StudioOperatorHistoryEntry,
@@ -36,7 +37,8 @@ import type {
 
 interface StudioOperatorHistoryItemProps {
   references?: readonly NamedImageReference[]
-  entry: StudioOperatorHistoryEntry
+  /** `subjects` 是并过的那一行才有的（`mergeOperatorSystemRuns`）。 */
+  entry: StudioOperatorHistoryEntry & { subjects?: readonly string[] }
 }
 
 export function StudioOperatorHistoryItem({
@@ -44,6 +46,7 @@ export function StudioOperatorHistoryItem({
   references,
 }: StudioOperatorHistoryItemProps) {
   const t = useTranslations('StudioOperator')
+  const format = useFormatter()
 
   switch (entry.kind) {
     case 'user':
@@ -117,12 +120,16 @@ export function StudioOperatorHistoryItem({
           {/* ⚠ 与线程里那条同一套词条与同一条 subject 规矩（`revertField` 存的是
               字段 id，要过词表；`undoStep` 存的是模型写的标题，原样用）。 */}
           {t(`system.${entry.code}`, {
-            subject:
-              entry.code === 'revertField' && entry.subject
-                ? t(`field.${entry.subject}`)
-                : entry.code === 'videoFramesFailed' && entry.subject
-                  ? t(`videoFrameCaptureReason.${entry.subject}`)
-                  : (entry.subject ?? ''),
+            subject: describeSystemSubjects(
+              entry,
+              (subject) =>
+                entry.code === 'revertField'
+                  ? t(`field.${subject}`)
+                  : entry.code === 'videoFramesFailed'
+                    ? t(`videoFrameCaptureReason.${subject}`)
+                    : subject,
+              (items) => format.list(items),
+            ),
             count: entry.count ?? 0,
           })}
         </p>

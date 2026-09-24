@@ -254,3 +254,51 @@ export function firstOperatorSentence(text: string): string {
   const sentence = (match?.[0] ?? trimmed.split('\n')[0] ?? trimmed).trim()
   return sentence
 }
+
+/** 连着出现时并成一行的系统行（owner 2026-09-24：「放在一起，没必要一个一个拿出来」）。 */
+const MERGEABLE_SYSTEM_CODES: ReadonlySet<string> = new Set([
+  'revertField',
+  'undoStep',
+])
+
+/**
+ * 把**紧挨着**的同类系统行并成一行：「你还原了：规格」「你还原了：提示词」→
+ * 「你还原了：规格、提示词」。并出来的那一行多一格 `subjects`（按出现顺序），
+ * 其余照旧。⚠ 只并紧挨着的：中间隔了别的条目就是两件事。
+ * ⚠ 只是**画法**：线程与库里仍是一条一条的，模型读到的也还是逐条。
+ */
+export function mergeOperatorSystemRuns<
+  T extends { kind: string; code?: string; subject?: string },
+>(entries: readonly T[]): (T & { subjects?: readonly string[] })[] {
+  const out: (T & { subjects?: readonly string[] })[] = []
+  for (const entry of entries) {
+    const previous = out.at(-1)
+    if (
+      entry.kind === 'system' &&
+      entry.code &&
+      MERGEABLE_SYSTEM_CODES.has(entry.code) &&
+      entry.subject &&
+      previous?.kind === 'system' &&
+      previous.code === entry.code &&
+      previous.subject
+    ) {
+      out[out.length - 1] = {
+        ...previous,
+        subjects: [...(previous.subjects ?? [previous.subject]), entry.subject],
+      }
+      continue
+    }
+    out.push(entry)
+  }
+  return out
+}
+
+/** 系统行文案里 `{subject}` 那一格：并过的那一行把几项译完再串起来。 */
+export function describeSystemSubjects(
+  entry: { subject?: string; subjects?: readonly string[] },
+  translate: (subject: string) => string,
+  join: (items: string[]) => string,
+): string {
+  if (entry.subjects?.length) return join(entry.subjects.map(translate))
+  return entry.subject ? translate(entry.subject) : ''
+}

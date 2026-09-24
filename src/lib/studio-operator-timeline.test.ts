@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ASSISTANT_OPERATOR_TOOL_IDS as TOOLS } from '@/constants/assistant-operator'
 import {
   countOperatorTextLines,
+  mergeOperatorSystemRuns,
   firstOperatorSentence,
   collectOperatorAnswerSources,
   groupOperatorResearch,
@@ -307,5 +308,35 @@ describe('折叠长回话与首句摘要', () => {
     expect(firstOperatorSentence('权重给 3.5 就够了。再多会糊。')).toBe(
       '权重给 3.5 就够了。',
     )
+  })
+})
+
+describe('mergeOperatorSystemRuns', () => {
+  it('并紧挨着的同类还原行，保留出现顺序', () => {
+    const merged = mergeOperatorSystemRuns([
+      { kind: 'system', id: 'a', code: 'revertField', subject: 'specs' },
+      { kind: 'system', id: 'b', code: 'revertField', subject: 'prompt' },
+    ])
+    expect(merged).toHaveLength(1)
+    expect(merged[0]).toMatchObject({ id: 'a', subjects: ['specs', 'prompt'] })
+  })
+
+  it('中间隔了别的条目、或不是同一类，就不并', () => {
+    const merged = mergeOperatorSystemRuns([
+      { kind: 'system', id: 'a', code: 'revertField', subject: 'specs' },
+      { kind: 'message', id: 'm' },
+      { kind: 'system', id: 'b', code: 'revertField', subject: 'prompt' },
+      { kind: 'system', id: 'c', code: 'undoStep', subject: '写提示词' },
+      { kind: 'system', id: 'd', code: 'revertAll', count: 2 },
+      { kind: 'system', id: 'e', code: 'revertAll', count: 1 },
+    ] as { kind: string; id: string; code?: string; subject?: string }[])
+    expect(merged.map((entry) => entry.id)).toEqual([
+      'a',
+      'm',
+      'b',
+      'c',
+      'd',
+      'e',
+    ])
   })
 })

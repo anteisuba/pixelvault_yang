@@ -13,6 +13,7 @@ import { StudioOperatorHistoryItem } from './StudioOperatorHistoryItem'
  */
 
 vi.mock('next-intl', () => ({
+  useFormatter: () => ({ list: (items: string[]) => items.join('、') }),
   useTranslations: () => {
     const t = (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${Object.values(values).join(',')}` : key

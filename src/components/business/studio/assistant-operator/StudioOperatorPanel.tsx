@@ -57,6 +57,8 @@ import {
   placeOperatorRoundSummaries,
   shouldStickOperatorScroll,
   splitOperatorHistoryRounds,
+  describeSystemSubjects,
+  mergeOperatorSystemRuns,
 } from '@/lib/studio-operator-timeline'
 import Image from 'next/image'
 import { toast } from 'sonner'
@@ -349,30 +351,34 @@ export function StudioOperatorPanel({
    */
   const entries = useMemo(
     () =>
-      allEntries.filter(
-        (entry): boolean =>
-          entry.kind !== 'domainMark' &&
-          !(entry.kind === 'plan' && !entry.progress) &&
-          !(entry.kind === 'system' && entry.code === 'questionAnswered'),
+      mergeOperatorSystemRuns(
+        allEntries.filter(
+          (entry): boolean =>
+            entry.kind !== 'domainMark' &&
+            !(entry.kind === 'plan' && !entry.progress) &&
+            !(entry.kind === 'system' && entry.code === 'questionAnswered'),
+        ),
       ),
     [allEntries],
   )
   const historyEntries = useMemo(
     () =>
-      allHistoryEntries.filter(
-        (entry): boolean =>
-          entry.kind !== 'domainMark' &&
-          // 计划与答题回执不画（与实时线程同一条规矩，见 `entries` 头注）。
-          entry.kind !== 'plan' &&
-          !(entry.kind === 'system' && entry.code === 'questionAnswered') &&
-          // 跳过的重复步不进过程（与实时线程同一条规矩，见 `blocks` 那一处）。
-          !(
-            entry.kind === 'step' &&
-            entry.status === 'error' &&
-            STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
-              (reason) => reason === entry.rejectReason,
-            )
-          ),
+      mergeOperatorSystemRuns(
+        allHistoryEntries.filter(
+          (entry): boolean =>
+            entry.kind !== 'domainMark' &&
+            // 计划与答题回执不画（与实时线程同一条规矩，见 `entries` 头注）。
+            entry.kind !== 'plan' &&
+            !(entry.kind === 'system' && entry.code === 'questionAnswered') &&
+            // 跳过的重复步不进过程（与实时线程同一条规矩，见 `blocks` 那一处）。
+            !(
+              entry.kind === 'step' &&
+              entry.status === 'error' &&
+              STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
+                (reason) => reason === entry.rejectReason,
+              )
+            ),
+        ),
       ),
     [allHistoryEntries],
   )
@@ -1819,12 +1825,16 @@ export function StudioOperatorPanel({
               {/* ⚠ 第三种 subject：`videoFramesFailed` 存的是抽帧失败的**原因码**
                           （六条修法各不相同，见常量头注），人话在这里过词表。 */}
               {t(`system.${entry.code}`, {
-                subject:
-                  entry.code === 'revertField' && entry.subject
-                    ? t(`field.${entry.subject}`)
-                    : entry.code === 'videoFramesFailed' && entry.subject
-                      ? t(`videoFrameCaptureReason.${entry.subject}`)
-                      : (entry.subject ?? ''),
+                subject: describeSystemSubjects(
+                  entry,
+                  (subject) =>
+                    entry.code === 'revertField'
+                      ? t(`field.${subject}`)
+                      : entry.code === 'videoFramesFailed'
+                        ? t(`videoFrameCaptureReason.${subject}`)
+                        : subject,
+                  (items) => format.list(items),
+                ),
                 count: entry.count ?? 0,
               })}
             </p>

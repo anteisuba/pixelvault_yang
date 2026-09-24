@@ -2003,8 +2003,6 @@ export const ASSISTANT_OPERATOR_LIMITS = {
    */
   maxPriorSteps: 24,
   maxPriorStepSummaryChars: 200,
-  /** 就地确认里「你已经写了什么」的摘要长度 —— 小条上放不下一整段。 */
-  maxConfirmHaveChars: 200,
   /**
    * 覆盖三选卡上的**取材标注**（LoRA §7.2）。
    *

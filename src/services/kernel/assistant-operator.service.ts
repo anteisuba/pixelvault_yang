@@ -1331,16 +1331,12 @@ function renderState(
   lines.push(
     `- Positive prompt: ${
       state.prompt
-        ? `"${clamp(state.prompt, LIMITS.maxConfirmHaveChars)}"${
-            /**
-             * ⭐ 截短只是为了省篇幅，**要说出来**（视频实跑 09-24：一段 300 字的分镜
-             * 在这里显示成「…嘴角微微上…」，助手以为提示词写到一半断了，连重写三遍、
-             * 最后不肯出确认卡）。
-             */
-            state.prompt.length > LIMITS.maxConfirmHaveChars
-              ? ` (only the first ${LIMITS.maxConfirmHaveChars} of ${state.prompt.length} characters are shown here — the full prompt is on the form, complete; it is not cut off)`
-              : ''
-          }${
+        ? /**
+           * ⭐ **给全文**（视频实跑 09-24 两次：截成前 200 字、再附一句「没截断」都
+           * 不管用 —— 分镜的台词与负向清单都在后半段，助手看不见就当没写，连着
+           * 「补全」到撞重写上限）。上限就是提示词本身的上限。
+           */
+          `"${clamp(state.prompt, LIMITS.maxPromptChars)}"${
             (request.authoredByAssistant ?? []).includes(
               ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
             )
@@ -1354,7 +1350,7 @@ function renderState(
     state.hasNegativeControl
       ? `- Negative prompt: ${
           state.negativePrompt
-            ? `"${clamp(state.negativePrompt, LIMITS.maxConfirmHaveChars)}"`
+            ? `"${clamp(state.negativePrompt, LIMITS.maxPromptChars)}"`
             : '(empty)'
         }`
       : request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video && state.modelId
@@ -4137,14 +4133,11 @@ async function planSetText(
     },
     // ⚠ 逆操作永远是改前的完整原文，两种 mode 撤法因此完全一样。
     inverse: { value: current },
-    observation: `${isPrompt ? 'Positive' : 'Negative'} prompt (${mode}) is now: "${clamp(
+    // ⚠ 回显全文（同状态块那条）：只回前 200 字，它会把看不见的后半段当成没写。
+    observation: `${isPrompt ? 'Positive' : 'Negative'} prompt (${mode}) is now, in full: "${clamp(
       finalText,
-      LIMITS.maxPriorStepSummaryChars,
+      LIMITS.maxPromptChars,
     )}"${
-      finalText.length > LIMITS.maxPriorStepSummaryChars
-        ? ` (shortened here only — all ${finalText.length} characters are on the form)`
-        : ''
-    }${
       current.trim() && creatorSaidOverwrite
         ? ' The creator had already asked for this to be overwritten, so it was replaced without asking again. Tell them plainly that you overwrote it as they asked; do not ask whether to keep or append.'
         : ''
@@ -9796,6 +9789,9 @@ export async function* runAssistantOperator(
           tool: rawToolName,
           title,
           reason: clamp(reason ?? '', 400),
+          message: clamp(turn.message ?? '', 400),
+          detail: clamp(turn.detail ?? '', 600),
+          argsChars: JSON.stringify(rawToolArgs ?? {}).length,
         })
 
       /**

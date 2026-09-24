@@ -686,6 +686,10 @@ function toOperatorHistoryStep(
     step.result
       ? { referenceAnalysis: step.result }
       : {}),
+    ...(step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+    step.payload.tagCheck
+      ? { tagCheck: step.payload.tagCheck }
+      : {}),
   }
 }
 

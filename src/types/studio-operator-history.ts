@@ -5,7 +5,10 @@ import {
   ASSISTANT_OPERATOR_DOMAINS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
 } from '@/constants/assistant-operator'
-import { AssistantOperatorPlanAnswerSchema } from '@/types/assistant-operator'
+import {
+  AssistantOperatorPlanAnswerSchema,
+  AssistantOperatorTagCheckSchema,
+} from '@/types/assistant-operator'
 import { STUDIO_OPERATOR_SYSTEM_CODES } from '@/constants/studio-assistant-operator'
 
 /**
@@ -65,6 +68,8 @@ export const StudioOperatorHistoryStepSchema = z.object({
   /** 被拒那一支的理由 id（`StudioOperator.reject.*`）。 */
   rejectReason: z.string().trim().max(LIMITS.maxIdChars).optional(),
   referenceAnalysis: ReferenceAnalysisSchema.optional(),
+  /** NAI 标签核对换了什么 —— 刷新后过程行上方那句灰字照样画。 */
+  tagCheck: AssistantOperatorTagCheckSchema.optional(),
 })
 
 export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [

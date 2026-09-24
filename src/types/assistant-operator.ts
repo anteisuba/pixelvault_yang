@@ -2780,6 +2780,21 @@ export type AssistantOperatorWebImage = z.infer<
   typeof AssistantOperatorWebImageSchema
 >
 
+/**
+ * NAI 标签核对换了什么（拆分与反推 B3）—— 写提示词那一步随步下发，也进历史
+ * （`StudioOperatorHistoryStepSchema`），刷新后那句灰字照样在。
+ */
+export const AssistantOperatorTagCheckSchema = z.object({
+  fixes: z
+    .array(z.object({ from: LabelSchema, to: LabelSchema }))
+    .max(ASSISTANT_NAI_TAG_CHECK.maxLookups * 2),
+  unknown: z.array(LabelSchema).max(ASSISTANT_NAI_TAG_CHECK.maxLookups),
+})
+
+export type AssistantOperatorTagCheck = z.infer<
+  typeof AssistantOperatorTagCheckSchema
+>
+
 export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
   readStep(
     ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
@@ -3037,14 +3052,7 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
        * NAI 标签核对的结果（拆分与反推 B3）—— 服务端填，客户端在过程行上方说一句。
        * ⚠ 只在真的换过写法或有查不到的时才有。
        */
-      tagCheck: z
-        .object({
-          fixes: z
-            .array(z.object({ from: LabelSchema, to: LabelSchema }))
-            .max(ASSISTANT_NAI_TAG_CHECK.maxLookups * 2),
-          unknown: z.array(LabelSchema).max(ASSISTANT_NAI_TAG_CHECK.maxLookups),
-        })
-        .optional(),
+      tagCheck: AssistantOperatorTagCheckSchema.optional(),
     }),
     /** ⚠ 逆操作一律是**改前的完整原文**（可能是空串），所以 append / replace 撤法相同。 */
     z.object({ value: TextValueSchema }),

@@ -305,6 +305,38 @@ describe('历史 ↔ 库里的 messages', () => {
     ).toEqual(history)
   })
 
+  it('⭐ NAI 标签核对那句灰字跟着写提示词那一步进历史，存了再读回来还在', () => {
+    const tagCheck = {
+      fixes: [{ from: 'cherry blossom', to: 'cherry blossoms' }],
+      unknown: ['sakura tree'],
+    }
+    const history = toOperatorHistory([
+      {
+        kind: 'step',
+        id: 'tags',
+        runKey: 'run-1',
+        undone: false,
+        step: step({
+          id: 's1',
+          title: '写标签',
+          tool: 'set_prompt',
+          verb: 'apply',
+          status: 'done',
+          payload: {
+            value: '1girl, cherry blossoms',
+            mode: 'replace',
+            tagCheck,
+          },
+          inverse: { value: '' },
+        }),
+      },
+    ])
+    expect(history[0]).toMatchObject({ kind: 'step', tagCheck })
+    expect(
+      fromStoredOperatorMessages(toStoredOperatorMessages(history)),
+    ).toEqual(history)
+  })
+
   it('用户那条存成 user，其余存成 assistant', () => {
     const stored = toStoredOperatorMessages(toOperatorHistory(threadEntries()))
     expect(stored[0]).toMatchObject({ role: 'user' })

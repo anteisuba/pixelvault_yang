@@ -61,7 +61,6 @@ import { toast } from 'sonner'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import {
-  ASSISTANT_NAI_TAG_CHECK,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
@@ -125,6 +124,7 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
 import { StudioOperatorResumeChip } from '@/components/business/studio/assistant-operator/StudioOperatorResumeChip'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
+import { StudioOperatorTagCheckNote } from '@/components/business/studio/assistant-operator/StudioOperatorTagCheckNote'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
@@ -1422,33 +1422,6 @@ export function StudioOperatorPanel({
             : undefined,
         )
         .findLast(Boolean)
-      const tagNote = tagCheck
-        ? [
-            tagCheck.fixes.length > 0
-              ? t('toolGroup.tagFixed', {
-                  count: tagCheck.fixes.length,
-                  list: tagCheck.fixes
-                    .map((fix) => `${fix.from} → ${fix.to}`)
-                    .join(t('toolGroup.tagListSeparator')),
-                })
-              : null,
-            /* 「没查到」只列前几个，其余说个数 —— 一长串会把灰字刷成一整段。 */
-            tagCheck.unknown.length > 0
-              ? t('toolGroup.tagUnknown', {
-                  list: tagCheck.unknown
-                    .slice(0, ASSISTANT_NAI_TAG_CHECK.maxListedUnknown)
-                    .join(t('toolGroup.tagListSeparator')),
-                  more: Math.max(
-                    0,
-                    tagCheck.unknown.length -
-                      ASSISTANT_NAI_TAG_CHECK.maxListedUnknown,
-                  ),
-                })
-              : null,
-          ]
-            .filter(Boolean)
-            .join(t('toolGroup.tagSentenceSeparator'))
-        : null
       const logItems = block.steps.map((item) => (
         <div
           key={item.id}
@@ -1509,13 +1482,8 @@ export function StudioOperatorPanel({
             <StudioOperatorTimelineRow
               card={STUDIO_OPERATOR_CARD_KINDS.evidence}
             >
-              {!running && tagNote ? (
-                <p
-                  data-testid="operator-tag-check-note"
-                  className="mb-1 text-xs leading-relaxed text-muted-foreground animate-in fade-in-0 fill-mode-backwards animation-duration-(--duration-base) motion-reduce:animate-none"
-                >
-                  {tagNote}
-                </p>
+              {!running && tagCheck ? (
+                <StudioOperatorTagCheckNote tagCheck={tagCheck} />
               ) : null}
               {
                 /**
@@ -2001,11 +1969,23 @@ export function StudioOperatorPanel({
                               ),
                         )
                       : undefined
+                  /** 刷新后那句灰字照样在：取这一组最后一次写提示词存下的核对结果。 */
+                  const historyTagCheck = steps.findLast(
+                    (step) =>
+                      step.status === 'done' &&
+                      !step.undone &&
+                      step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+                  )?.tagCheck
                   return (
                     <div
                       key={`history-tools:${group.indexes[0]}`}
                       className="mt-2.5"
                     >
+                      {historyTagCheck ? (
+                        <StudioOperatorTagCheckNote
+                          tagCheck={historyTagCheck}
+                        />
+                      ) : null}
                       <StudioOperatorToolGroup
                         total={steps.length}
                         failed={errors.length - skipped}

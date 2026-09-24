@@ -1100,6 +1100,31 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     expect(note).toHaveTextContent('toolGroup.tagUnknown')
   })
 
+  it('⭐ 刷新后从历史里照样画出那句灰字', () => {
+    store.loadOperatorThread({
+      sessionId: null,
+      sessionSurface: null,
+      history: [
+        {
+          kind: 'step',
+          id: 'tags',
+          tool: 'set_prompt',
+          title: '写标签',
+          status: 'done',
+          undone: false,
+          tagCheck: {
+            fixes: [{ from: 'cherry blossom', to: 'cherry blossoms' }],
+            unknown: [],
+          },
+        },
+      ],
+    })
+    renderPanel()
+    expect(screen.getByTestId('operator-tag-check-note')).toHaveTextContent(
+      'toolGroup.tagFixed',
+    )
+  })
+
   it('没换过写法就没有那句灰字', () => {
     pushStep('run-1', {
       id: 'tags',

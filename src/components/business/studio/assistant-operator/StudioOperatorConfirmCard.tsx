@@ -275,9 +275,14 @@ export function StudioOperatorConfirmCard({
               : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
                 ? generateSummary(
                     confirm,
-                    t('confirm.generate.count', {
-                      count: confirm.request.count,
-                    }),
+                    confirm.request.specs.durationSeconds !== null
+                      ? t('confirm.generate.countVideo', {
+                          count: confirm.request.count,
+                          seconds: confirm.request.specs.durationSeconds,
+                        })
+                      : t('confirm.generate.count', {
+                          count: confirm.request.count,
+                        }),
                     controls,
                   )
                 : t('confirm.multistep.title', {

@@ -386,7 +386,9 @@ function describeVideoOption(
 ): string {
   const name = labelOf?.(option) ?? option.displayLabel ?? option.modelId
   const channel = getProviderLabel(option.providerConfig)
-  return clampLabel(`${name} · ${channel} · ${option.requestCount} credits`)
+  // 型号名里已带渠道（「Seedance 2.5（BytePlus）」）就不再印第二遍。
+  const parts = name.includes(channel) ? [name] : [name, channel]
+  return clampLabel([...parts, `${option.requestCount} credits`].join(' · '))
 }
 
 /**

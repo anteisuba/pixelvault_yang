@@ -4,7 +4,8 @@
  * **结果卡**（v2 §6 / 画板 BCards「结果」三态）。
  *
  * 一张卡三个形态，分岔只看载荷：
- *  · **生成中**（`items` 为空）—— 灰底占位格 × `total` + 「正在出图 · 1 / 3」+ 细进度条；
+ *  · **生成中**（`items` 为空）—— 灰底占位格 × `total` + 「正在出图 · 1 / 3」（视频档
+ *    「正在生成视频」）；
  *  · **单张**（`items.length === 1`）—— 左缩略图 + 右「已入库 · 摘要 · 时间」+ 两颗轻操作；
  *  · **多张** —— 一排等宽缩略图 + 同一行读数 + 同两颗轻操作。
  *
@@ -52,9 +53,28 @@ interface StudioOperatorResultRowProps {
  * 比例串（「3:4」）→ CSS `aspect-ratio`。读不出来就按 3:2（D12 P3：单张按输入区
  * 宽度出，约 3:2）。⚠ 走 style：比例来自生成参数，是数据不是设计值。
  */
-function toCssAspect(ratio: string | null | undefined): string {
+function toAspect(ratio: string | null | undefined): {
+  css: string
+  value: number
+} {
   const match = ratio?.match(/^(\d+(?:\.\d+)?):(\d+(?:\.\d+)?)$/)
-  return match ? `${match[1]} / ${match[2]}` : '3 / 2'
+  return match
+    ? {
+        css: `${match[1]} / ${match[2]}`,
+        value: Number(match[1]) / Number(match[2]),
+      }
+    : { css: '3 / 2', value: 3 / 2 }
+}
+
+/**
+ * 格子高度封顶 = `h-60` 那一档（09-24 真机：9:16 按整宽出有 680 高，空白态占掉
+ * 大半个面板）。按比例反推宽度，占位格与结果格同一个尺寸，落地时不跳。
+ */
+function tileStyle(aspect: { css: string; value: number }) {
+  return {
+    aspectRatio: aspect.css,
+    width: `min(100%, calc(var(--spacing) * 60 * ${aspect.value}))`,
+  }
 }
 
 function ResultThumb({
@@ -64,27 +84,45 @@ function ResultThumb({
 }: {
   item: StudioOperatorResultItem
   index: number
-  aspect: string
+  aspect: { css: string; value: number }
 }) {
   const reduceMotion = useReducedMotion()
+  const fade = {
+    initial: reduceMotion ? false : { opacity: 0 },
+    animate: { opacity: 1 },
+    transition: {
+      duration: reduceMotion ? 0 : DURATION.base,
+      ease: EASE_STANDARD,
+      delay: reduceMotion
+        ? 0
+        : Math.min(index, STUDIO_OPERATOR_RESULT_STAGGER.maxItems) *
+          STUDIO_OPERATOR_RESULT_STAGGER.stepSeconds,
+    },
+  } as const
+  // 视频就地可播 —— 灯箱只认图，next/Image 也画不出一段 mp4。
+  if (item.outputType === 'VIDEO')
+    return (
+      <motion.video
+        data-testid="operator-result-tile"
+        {...fade}
+        src={item.url}
+        poster={item.thumbnailUrl}
+        controls
+        playsInline
+        preload="metadata"
+        style={tileStyle(aspect)}
+        className="rounded-lg bg-muted object-cover"
+      />
+    )
   return (
     <motion.button
       type="button"
       data-testid="operator-result-tile"
       onClick={() => openOperatorLightbox(item.url, item.label ?? '')}
       // 占位格 → 结果图（D12 动效表）：只淡入，尺寸与占位格一致，⛔ 不跳动。
-      initial={reduceMotion ? false : { opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{
-        duration: reduceMotion ? 0 : DURATION.base,
-        ease: EASE_STANDARD,
-        delay: reduceMotion
-          ? 0
-          : Math.min(index, STUDIO_OPERATOR_RESULT_STAGGER.maxItems) *
-            STUDIO_OPERATOR_RESULT_STAGGER.stepSeconds,
-      }}
-      style={{ aspectRatio: aspect }}
-      className="relative w-full cursor-zoom-in overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      {...fade}
+      style={tileStyle(aspect)}
+      className="relative cursor-zoom-in overflow-hidden rounded-lg bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >
       <Image
         src={item.thumbnailUrl ?? item.url}
@@ -111,7 +149,8 @@ export function StudioOperatorResultRow({
   const format = useFormatter()
   const { items, total, completed } = entry
   const generating = items.length === 0
-  const aspect = toCssAspect(entry.request?.specs.aspectRatio)
+  const aspect = toAspect(entry.request?.specs.aspectRatio)
+  const isVideo = entry.request?.specs.durationSeconds != null
   /**
    * ⚠ 占位格数 = 本次张数（§6.3），⛔ 不画一个固定的三格。
    */
@@ -137,7 +176,9 @@ export function StudioOperatorResultRow({
             data-testid="operator-result-progress"
             className="text-xs text-muted-foreground"
           >
-            {t('generating', { done: completed, total })}
+            {isVideo
+              ? t('generatingVideo')
+              : t('generating', { done: completed, total })}
           </p>
           <div className={grid}>
             {Array.from({ length: count }, (_, index) => (
@@ -146,10 +187,10 @@ export function StudioOperatorResultRow({
                 data-testid="operator-result-placeholder"
                 /* P4：图片占位允许骨架（助手文字态才禁骨架），尺寸 = 结果尺寸。 */
                 style={{
-                  aspectRatio: aspect,
+                  ...tileStyle(aspect),
                   animationDelay: `${index * 120}ms`,
                 }}
-                className="w-full animate-pulse rounded-lg bg-muted motion-reduce:animate-none"
+                className="animate-pulse rounded-lg bg-muted motion-reduce:animate-none"
               />
             ))}
           </div>

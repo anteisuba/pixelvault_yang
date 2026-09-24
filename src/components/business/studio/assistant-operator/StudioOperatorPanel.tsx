@@ -129,10 +129,7 @@ import {
   StudioOperatorTimelineRow,
   type StudioOperatorCardKind,
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
-import {
-  StudioOperatorRoundSummary,
-  type StudioOperatorRoundColumns,
-} from '@/components/business/studio/assistant-operator/StudioOperatorRoundSummary'
+import { StudioOperatorResumeChip } from '@/components/business/studio/assistant-operator/StudioOperatorResumeChip'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
@@ -342,8 +339,20 @@ export function StudioOperatorPanel({
     autoGenerate,
     outOfSteps,
   } = useStudioOperatorState()
+  /**
+   * ⚠ 两类条目**留在数据里、不画**（owner 2026-09-24：小字「没什么有用的信息」）：
+   *  · 没开跑的计划（「计划 · N 步」）—— 在跑的那种画成打勾清单，照画；
+   *  · 答题回执（「校服款式 · 西式学院制服」）—— 它的 `userText` 仍进对话，
+   *    模型照样记得用户选过什么；选了什么，助手下一句正文会说。
+   */
   const entries = useMemo(
-    () => allEntries.filter((entry): boolean => entry.kind !== 'domainMark'),
+    () =>
+      allEntries.filter(
+        (entry): boolean =>
+          entry.kind !== 'domainMark' &&
+          !(entry.kind === 'plan' && !entry.progress) &&
+          !(entry.kind === 'system' && entry.code === 'questionAnswered'),
+      ),
     [allEntries],
   )
   const historyEntries = useMemo(
@@ -351,6 +360,9 @@ export function StudioOperatorPanel({
       allHistoryEntries.filter(
         (entry): boolean =>
           entry.kind !== 'domainMark' &&
+          // 计划与答题回执不画（与实时线程同一条规矩，见 `entries` 头注）。
+          entry.kind !== 'plan' &&
+          !(entry.kind === 'system' && entry.code === 'questionAnswered') &&
           // 跳过的重复步不进过程（与实时线程同一条规矩，见 `blocks` 那一处）。
           !(
             entry.kind === 'step' &&
@@ -1116,42 +1128,6 @@ export function StudioOperatorPanel({
    * ⚠ 组的边界是 `runKey` 也是「连不连续」：跨轮的两组步长得一样，但它们是两次
    * 不同的委托，合成一行会让 checkpoint 的「这一轮」失去参照。
    */
-  /**
-   * 结论记录**就地改完之后的回写**（v2 §7.7，commit #13）。
-   *
-   * ⭐ 先写屏幕再写库（乐观）：那一次往返的空窗里用户会以为自己没点上 ——
-   * 与 `reviewStates` 那一格同一条判据。失败时用**原值**再调一次退回去，
-   * ⛔ 不弹错误对话框：改一条结论是个小动作。
-   * ⚠ 还没落过库的线程（`currentSessionId === null`）只改屏幕：库里根本没有那
-   * 一行可写，而下一次 upsert 之后这条记录是**服务端**结账时写进去的那一份 ——
-   * ⛔ 别在这里替它新建一行。
-   */
-  const saveRoundSummary = useCallback(
-    (
-      summary: AssistantOperatorRoundSummary,
-      columns: StudioOperatorRoundColumns,
-    ) => {
-      const sessionId = history.currentSessionId
-      const previous = {
-        facts: summary.facts,
-        decisions: summary.decisions,
-        todos: summary.todos,
-        editedByUser: summary.editedByUser,
-      }
-      updateOperatorRoundSummary(summary.roundIndex, columns)
-      if (!sessionId) return
-      void updateAssistantConversationRoundAPI({
-        id: sessionId,
-        roundIndex: summary.roundIndex,
-        ...columns,
-      }).then((result) => {
-        if (!result.success) {
-          updateOperatorRoundSummary(summary.roundIndex, previous)
-        }
-      })
-    },
-    [history.currentSessionId],
-  )
 
   /**
    * 续跑 chip 挂在**最新那一块结论记录的尾部**（§3.6）。
@@ -1197,27 +1173,23 @@ export function StudioOperatorPanel({
     [historyEntries, historyRounds.length],
   )
 
+  /**
+   * ⚠ 本轮记录**不画**（owner 2026-09-24：对用户没有有用信息，占地方）——
+   * 数据照存照注入，只在这一轮末尾留「从第 N 步继续」那一颗（有待续的计划时）。
+   */
   const renderHistoryRound = (summaryIndex: number) => {
     const summary = historyRounds[summaryIndex]
-    if (!summary) return null
+    if (
+      !summary ||
+      !roundResume ||
+      resumeHost?.scope !== 'history' ||
+      resumeHost.roundIndex !== summary.roundIndex
+    )
+      return null
     return (
-      <StudioOperatorRoundSummary
+      <StudioOperatorResumeChip
         key={`hr:${summary.roundIndex}`}
-        summary={summary}
-        references={messageImageReferences.get(
-          historyEntries[
-            [...historyRoundPlacement.byIndex].find(([, indices]) =>
-              indices.includes(summaryIndex),
-            )?.[0] ?? -1
-          ]?.id,
-        )}
-        defaultCollapsed
-        onSave={(columns) => saveRoundSummary(summary, columns)}
-        {...(roundResume &&
-        resumeHost?.scope === 'history' &&
-        resumeHost.roundIndex === summary.roundIndex
-          ? { resume: roundResume }
-          : {})}
+        resume={roundResume}
       />
     )
   }
@@ -1732,7 +1704,7 @@ export function StudioOperatorPanel({
         /**
          * ⭐ **在跑的计划画成一张清单**（D12 S9）：计划只出现一次，逐项打勾 ——
          * ✓ 做完 · › 正在做 · ○ 还没到 · × 没做成。续跑那几轮不再落新计划，勾
-         * 都打在这一张上。没有进度（没开跑的那种）照旧折成一行。
+         * 都打在这一张上。没有进度的计划在 `entries` 那一层就滤掉了，不画。
          */
         const progress = entry.progress
         if (progress) {
@@ -1784,37 +1756,7 @@ export function StudioOperatorPanel({
             </StudioOperatorTimelineRow>
           )
         }
-        return (
-          <StudioOperatorTimelineRow
-            key={entry.id}
-            card={STUDIO_OPERATOR_CARD_KINDS.message}
-            {...(persona ? { persona } : {})}
-          >
-            {/* ⭐ 不出卡的那一轮，计划**折成一行**（2026-09-06 面板轮，第 2 件）。
-                由来：同一份阶段此前会出现两遍 —— 这一条清单卡 + 钉在末尾那张待
-                确认卡，读起来是「它规划了两遍」。出卡时这一条根本不落（hook 那一
-                侧判的），落下来的都是「没什么可确认、直接开干」的那一轮：那时用户
-                要的只是一行「它打算做 N 步」，⛔ 不是一张摊开的卡。 */}
-            <details data-testid="operator-plan" className="min-w-0">
-              <summary className="cursor-pointer list-none py-0.5 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-                {t('planFold', { count: entry.steps.length })}
-              </summary>
-              <ol className="mt-1 flex flex-col gap-1 border-l border-border pl-2.5">
-                {entry.steps.map((step, index) => (
-                  <li
-                    key={step}
-                    className="flex items-baseline gap-2 text-md text-foreground"
-                  >
-                    <span className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground">
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <span className="min-w-0">{step}</span>
-                  </li>
-                ))}
-              </ol>
-            </details>
-          </StudioOperatorTimelineRow>
-        )
+        return null
       }
       case 'step':
         return null
@@ -1897,19 +1839,12 @@ export function StudioOperatorPanel({
        * ⛔ 这不是给五类卡开的第六档（`STUDIO_OPERATOR_CARD_KINDS` 一个字没改）。
        */
       case 'roundSummary':
-        return (
-          <StudioOperatorRoundSummary
-            key={entry.id}
-            summary={entry.summary}
-            references={messageImageReferences.get(entry.id)}
-            onSave={(columns) => saveRoundSummary(entry.summary, columns)}
-            {...(roundResume &&
-            resumeHost?.scope === 'live' &&
-            resumeHost.roundIndex === entry.summary.roundIndex
-              ? { resume: roundResume }
-              : {})}
-          />
-        )
+        // ⚠ 记录本身不画（见 `renderHistoryRound` 头注），只留续跑那一颗。
+        return roundResume &&
+          resumeHost?.scope === 'live' &&
+          resumeHost.roundIndex === entry.summary.roundIndex ? (
+          <StudioOperatorResumeChip key={entry.id} resume={roundResume} />
+        ) : null
       case 'domainMark':
         return null
     }

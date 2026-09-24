@@ -678,23 +678,31 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
     ).toContainElement(card)
   })
 
-  it('⭐ 答完之后时间线落一行「你选了 X」（§3.4 落账规则 ①）', () => {
+  it('⭐ 答题回执留在数据里、时间线不画（owner 2026-09-24：小字没有用处）', () => {
     store.appendOperatorEntry({
       kind: 'system',
       id: 'sys-question-1',
       code: 'questionAnswered',
-      subject: '全身',
+      subject: '校服款式 · 西式学院制服',
+    })
+    store.appendOperatorEntry({
+      kind: 'plan',
+      id: 'plan-untracked',
+      steps: ['看参考图', '改提示词'],
     })
     renderPanel()
 
-    // 词表桩只回键名 —— 断言的是「落到了这一条系统行」而不是译文本身。
-    const line = screen.getByTestId('operator-system-line')
-    expect(line).toHaveTextContent('system.questionAnswered')
+    expect(screen.queryByTestId('operator-system-line')).toBeNull()
+    expect(screen.queryByTestId('operator-plan')).toBeNull()
+    // 数据照存：答复还在线程条目里，下一轮照样进对话。
     expect(
-      line
-        .closest('[data-testid="operator-timeline-row"]')
-        ?.getAttribute('data-card'),
-    ).toBe('system')
+      store
+        .getOperatorState()
+        .entries.some(
+          (entry) =>
+            entry.kind === 'system' && entry.code === 'questionAnswered',
+        ),
+    ).toBe(true)
   })
 
   it('不显示实时或历史工作台切换提示', () => {

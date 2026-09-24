@@ -7952,21 +7952,6 @@
       "failed": "Failed: {reason}",
       "band": "Unfinished plan · continue from step {step}"
     },
-    "roundSummary": {
-      "heading": "Turn notes · {time}",
-      "collapsed": "Turn notes · {count} items",
-      "column": {
-        "facts": "Facts",
-        "decisions": "Decided",
-        "todos": "To do"
-      },
-      "edit": "Edit notes",
-      "edited": "· edited",
-      "save": "Save",
-      "cancel": "Cancel",
-      "incognito": "Not saved to memory",
-      "expand": "Show this turn's record"
-    },
     "verb": {
       "look": "Look",
       "research": "Check",

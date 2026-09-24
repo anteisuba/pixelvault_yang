@@ -7952,21 +7952,6 @@
       "failed": "失敗：{reason}",
       "band": "未完了の計画 · ステップ {step} から続行"
     },
-    "roundSummary": {
-      "heading": "このターンの記録 · {time}",
-      "collapsed": "このターンの記録 · {count} 件",
-      "column": {
-        "facts": "事実",
-        "decisions": "決定",
-        "todos": "TODO"
-      },
-      "edit": "記録を編集",
-      "edited": "· 修正済み",
-      "save": "保存",
-      "cancel": "キャンセル",
-      "incognito": "メモリには未保存",
-      "expand": "このターンの記録を開く"
-    },
     "verb": {
       "look": "見る",
       "research": "調べる",

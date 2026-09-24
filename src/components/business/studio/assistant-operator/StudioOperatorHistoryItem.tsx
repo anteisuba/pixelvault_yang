@@ -99,28 +99,8 @@ export function StudioOperatorHistoryItem({
         </div>
       )
     case 'plan':
-      return (
-        /* 计划折成一行「计划 · N 步」（第 2 件）——与实时线程同一个形状：
-           历史里换个样子，用户会以为那是另一种东西。 */
-        <details data-testid="operator-history-plan" className="min-w-0">
-          <summary className="cursor-pointer list-none py-0.5 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-            {t('planFold', { count: entry.steps.length })}
-          </summary>
-          <ol className="mt-1 flex flex-col gap-1 border-l border-border pl-2.5">
-            {entry.steps.map((step, index) => (
-              <li
-                key={step}
-                className="flex items-baseline gap-2 text-md text-foreground"
-              >
-                <span className="shrink-0 font-mono text-xs tracking-nav tabular-nums text-muted-foreground">
-                  {String(index + 1).padStart(2, '0')}
-                </span>
-                <span className="min-w-0">{step}</span>
-              </li>
-            ))}
-          </ol>
-        </details>
-      )
+      // ⚠ 历史里的计划不画（owner 2026-09-24，面板那一层已先滤掉，这里是兜底）。
+      return null
     case 'step':
       /**
        * ⚠ 看参考图那一条**不再出卡**（56b 切片 5）：挂进来的图直接进当前多模态

@@ -7952,21 +7952,6 @@
       "failed": "失败：{reason}",
       "band": "有未完成计划 · 从第 {step} 步继续"
     },
-    "roundSummary": {
-      "heading": "本轮记录 · {time}",
-      "collapsed": "本轮记录 · {count} 项",
-      "column": {
-        "facts": "事实",
-        "decisions": "决定",
-        "todos": "待办"
-      },
-      "edit": "编辑记录",
-      "edited": "· 已修改",
-      "save": "保存",
-      "cancel": "取消",
-      "incognito": "未保存为记忆",
-      "expand": "展开本轮记录"
-    },
     "verb": {
       "look": "看",
       "research": "查",

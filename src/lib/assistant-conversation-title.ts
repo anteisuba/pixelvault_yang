@@ -40,8 +40,11 @@ export const TITLE_MAX_WIDTH = 36
  * 标题整条读不出内容。
  */
 const MENTION_PATTERN = /@[^\s@]+/g
-/** 未命名参考图发出去的样子（「图1」「画像1」「Image 1」，2026-09-24 起）。 */
-const BRACKETED_REFERENCE_PATTERN = /「\s*(?:图|画像|Image\s*)\d+\s*」/gi
+/**
+ * 未命名参考图发出去的样子（「图1」「画像1」「Image 1」，2026-09-24 起）。
+ * ⚠ 只摘括号、留下「图1」：它短、读得懂，整个删掉会剩下「把 的画风…」。
+ */
+const BRACKETED_REFERENCE_PATTERN = /「\s*((?:图|画像|Image\s*)\d+)\s*」/gi
 const REFERENCE_PHRASE_PATTERN =
   /(reference\s+images?|参考图片|参考图|参考画像|リファレンス画像)\s*[#＃]?\s*\d*/gi
 
@@ -116,7 +119,7 @@ export function deriveAssistantConversationTitle(
    */
   const stripped = source
     .replace(MENTION_PATTERN, ' ')
-    .replace(BRACKETED_REFERENCE_PATTERN, ' ')
+    .replace(BRACKETED_REFERENCE_PATTERN, '$1')
     .replace(REFERENCE_PHRASE_PATTERN, ' ')
     .replace(/[^\S\n]+/g, ' ')
     .trim()

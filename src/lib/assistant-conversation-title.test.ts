@@ -96,4 +96,10 @@ describe('deriveAssistantConversationTitle — 首句与长度', () => {
     )
     expect(deriveAssistantConversationTitle(once)).toBe(once)
   })
+
+  it('strips the bracketed on-screen reference label too', () => {
+    expect(
+      deriveAssistantConversationTitle('把 「图1」 的画风改成赛璐璐'),
+    ).toBe('把 的画风改成赛璐璐')
+  })
 })

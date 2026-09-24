@@ -136,6 +136,10 @@ import {
   readOperatorReferenceProfiles,
 } from '@/lib/studio-operator-history'
 import {
+  readOperatorWrittenText,
+  writeOperatorWrittenText,
+} from '@/lib/studio-operator-authorship'
+import {
   failedResumeStep,
   firstUnfinishedStepId,
   hasUnfinishedSteps,
@@ -374,7 +378,10 @@ function buildAuthoredByAssistant(
       break
     }
     // ⭐ 线程里找不到（开了新对话）就问登记簿：它跨会话留着助手上一次写下的全文。
-    const written = changes[field]?.writtenText
+    // ⭐ 刷新之后内存登记簿是空的，再问盘上那一份（按域落的全文）。
+    const written =
+      changes[field]?.writtenText ??
+      readOperatorWrittenText(getOperatorState().domain, field)
     if (
       !out.includes(field) &&
       written !== undefined &&
@@ -1587,6 +1594,16 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 }
                 if (field) {
                   const writtenText = writtenTextOf(step)
+                  if (
+                    writtenText !== undefined &&
+                    (field === ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt ||
+                      field === ASSISTANT_OPERATOR_CONFIRM_FIELDS.negative)
+                  )
+                    writeOperatorWrittenText(
+                      getOperatorState().domain,
+                      field,
+                      writtenText,
+                    )
                   recordOperatorChange({
                     field,
                     // 归属标记要指回**线程里的那一条**，不是服务端的步号。

@@ -769,6 +769,16 @@ export const STUDIO_OPERATOR_RESUME = {
 } as const
 
 /**
+ * 「提示词 / 负面框里那段是助手写的」的**落盘版**（按域分键）。
+ * ⭐ 只存助手最后一次写下的全文，⛔ 不存逆操作：撤销仍只在本次会话里有效，刷新后
+ * 要的只是别再问「你已经自己写过了，怎么办」。
+ */
+export const STUDIO_OPERATOR_AUTHORSHIP = {
+  keyPrefix: 'pixelvault.studio.operatorAuthorship.v1',
+  maxTextChars: 8000,
+} as const
+
+/**
  * 续跑记录的**保质期**：超过这个岁数的一份计划不再提示「有未完成计划」。
  *
  * ⭐ 24 小时的判据是「同一个创作时段」。一份三天前失败的计划，其中每一步引用的

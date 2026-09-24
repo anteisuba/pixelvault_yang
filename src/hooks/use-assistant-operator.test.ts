@@ -240,6 +240,7 @@ const streams: FakeStream[] = []
 beforeEach(async () => {
   vi.resetModules()
   vi.clearAllMocks()
+  localStorage.clear()
   generationControls.current = null
   hostDomain.current = 'image'
   canvasApply.mockReset().mockReturnValue(true)
@@ -2365,6 +2366,37 @@ describe('覆盖三选 · authoredByAssistant', () => {
     }
     act(() => {
       result.current.send('换个颜色')
+    })
+    await settle()
+
+    expect(
+      streamAssistantOperatorAPI.mock.calls[1]?.[0].authoredByAssistant,
+    ).toEqual(['prompt'])
+  })
+
+  it('⭐ 刷新之后也认得：助手写下的全文落了盘，内存登记簿空了照样带上', async () => {
+    const first = render()
+    act(() => {
+      first.result.current.send('把提示词写成夜景')
+    })
+    await settle()
+    streams[0].emit(setPromptStepEvent('夜景，霓虹，湿地面'))
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
+    streams[0].close()
+    await settle()
+    first.unmount()
+
+    // 刷新：模块重新载入，内存里的登记簿与线程都没了，草稿把提示词恢复回来。
+    vi.resetModules()
+    store = await import('@/hooks/use-studio-operator-store')
+    operator = await import('@/hooks/use-assistant-operator')
+    hostSnapshot.current = {
+      prompt: '夜景，霓虹，湿地面',
+      availableModels: [],
+    }
+    const { result } = render()
+    act(() => {
+      result.current.send('再加点雨')
     })
     await settle()
 

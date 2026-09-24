@@ -124,7 +124,7 @@ import {
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
 import { StudioOperatorResumeChip } from '@/components/business/studio/assistant-operator/StudioOperatorResumeChip'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
-import { StudioOperatorTagCheckNote } from '@/components/business/studio/assistant-operator/StudioOperatorTagCheckNote'
+import { StudioOperatorPromptNote } from '@/components/business/studio/assistant-operator/StudioOperatorPromptNote'
 import { Spinner } from '@/components/ui/spinner'
 import { Switch } from '@/components/ui/switch'
 import { useStudioOperatorHost } from '@/contexts/studio-operator-host'
@@ -1412,13 +1412,17 @@ export function StudioOperatorPanel({
        * 这一组是不是一次调查 —— `null` 就退回 `ToolGroup`（56b 切片 2）。
        */
       const researchSummary = summarizeOperatorResearchBlock(block.steps)
-      /** NAI 标签核对换了什么（拆分与反推 X1）—— 取这一组最后一次写提示词。 */
-      const tagCheck = block.steps
+      /**
+       * 写提示词时系统要交代的那句（NAI 标签核对 · 视频负面项进正文）——
+       * 取这一组最后一次写提示词。
+       */
+      const promptNote = block.steps
         .map((item) =>
           !item.undone &&
           item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
-          item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
-            ? item.step.payload.tagCheck
+          item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          (item.step.payload.tagCheck || item.step.payload.negativeFolded)
+            ? item.step.payload
             : undefined,
         )
         .findLast(Boolean)
@@ -1482,8 +1486,11 @@ export function StudioOperatorPanel({
             <StudioOperatorTimelineRow
               card={STUDIO_OPERATOR_CARD_KINDS.evidence}
             >
-              {!running && tagCheck ? (
-                <StudioOperatorTagCheckNote tagCheck={tagCheck} />
+              {!running && promptNote ? (
+                <StudioOperatorPromptNote
+                  tagCheck={promptNote.tagCheck}
+                  negativeFolded={promptNote.negativeFolded}
+                />
               ) : null}
               {
                 /**
@@ -1969,21 +1976,23 @@ export function StudioOperatorPanel({
                               ),
                         )
                       : undefined
-                  /** 刷新后那句灰字照样在：取这一组最后一次写提示词存下的核对结果。 */
-                  const historyTagCheck = steps.findLast(
+                  /** 刷新后那句灰字照样在：取这一组最后一次写提示词存下的那份。 */
+                  const historyPromptStep = steps.findLast(
                     (step) =>
                       step.status === 'done' &&
                       !step.undone &&
                       step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-                  )?.tagCheck
+                  )
                   return (
                     <div
                       key={`history-tools:${group.indexes[0]}`}
                       className="mt-2.5"
                     >
-                      {historyTagCheck ? (
-                        <StudioOperatorTagCheckNote
-                          tagCheck={historyTagCheck}
+                      {historyPromptStep?.tagCheck ||
+                      historyPromptStep?.negativeFolded ? (
+                        <StudioOperatorPromptNote
+                          tagCheck={historyPromptStep.tagCheck}
+                          negativeFolded={historyPromptStep.negativeFolded}
                         />
                       ) : null}
                       <StudioOperatorToolGroup

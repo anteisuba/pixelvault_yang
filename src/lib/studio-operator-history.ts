@@ -690,6 +690,10 @@ function toOperatorHistoryStep(
     step.payload.tagCheck
       ? { tagCheck: step.payload.tagCheck }
       : {}),
+    ...(step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+    step.payload.negativeFolded
+      ? { negativeFolded: step.payload.negativeFolded }
+      : {}),
   }
 }
 

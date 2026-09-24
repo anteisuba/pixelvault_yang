@@ -24,6 +24,7 @@ import { PROGRESS_TICK_MS } from '@/constants/generation-progress'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
+import { videoSendMode } from '@/constants/video-node-modes'
 import { useNodeMediaGenerationV4 } from '@/hooks/node/use-node-media-generation-v4'
 import { cancelGenerationsAPI, checkVideoStatusAPI } from '@/lib/api-client'
 import { getGenerationErrorMessage } from '@/lib/api-error-message'
@@ -63,7 +64,6 @@ import {
 } from './use-video-rail-binding'
 import {
   videoEffectiveParams,
-  videoSendMode,
   videoSupportsGeneratedAudio,
   videoVersions,
 } from './video-node-model'

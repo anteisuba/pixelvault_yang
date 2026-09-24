@@ -79,7 +79,6 @@ function makeInitialState(
     audioReferenceFileName: null,
     audioReferenceText: '',
     stylePresetId: '',
-    videoMode: 'keyframe',
     videoDuration: 5,
     videoResolution: null,
     videoAudioRefs: [],

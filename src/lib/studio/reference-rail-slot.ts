@@ -5,7 +5,7 @@
  * - `image-reference` 图片模态：老意义上的参考图。
  *
  * ⛔ **`'first-frame'` 那一档已在第二期删掉**（工程原则 1，不留兼容层）：关键帧
- * 档的图不再走这条轨，它们住在具名槽（`StudioVideoReferenceSlots` /
+ * 档的图不再走这条轨，它们住在素材轨的首尾帧角标（`StudioVideoAssetRail` /
  * `studio-context` 的 `videoFrameSlots`）。旧那套是**位置承载**——整条轨都写着
  * 「首帧」，第二张其实是尾帧；删掉第一张，尾帧就静默升级成首帧。
  */

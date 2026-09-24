@@ -136,7 +136,10 @@ import { NODE_V4_PORTS } from '@/constants/node-slots'
  * ⚠ 钱闸（`assistant-operator.money-gate.test.ts`）只管 `@/services/` 的 import；
  * 这三个来自 `@/constants/`，是纯数据，不碰 provider、不落库、不扣费。
  */
-import { CINEMATIC_SHOT_GRAMMAR } from '@/constants/cinematic-grammar'
+import {
+  CINEMATIC_SHOT_GRAMMAR,
+  VIDEO_PROMPT_WRITING_RULES,
+} from '@/constants/cinematic-grammar'
 import {
   getModelEnhanceHint,
   isTagBasedPromptModel,
@@ -518,6 +521,8 @@ interface OperatorWorkingState {
     label: string
     /** 这个型号底下的几条渠道（进度表 10 + 21）；⚠ 缺席 = 只有一条，没得选。 */
     channels?: { id: string; label: string }[]
+    /** 目录 id（视频档的 `id` 是选项 id）—— 换模型时按它查写法规则。 */
+    catalogId?: string
   }[]
   aspectRatio: string | null
   resolution: string | null
@@ -691,6 +696,12 @@ interface OperatorRun {
   promptReviewRetried: boolean
   /** NAI 标签核对查不到的已经退回给模型改写过一次（拆分与反推 B3）。 */
   tagCheckRetried: boolean
+  /**
+   * 这一轮有一条 set_negative 因为视频模型**没有负面栏**被退回、改写进了正文
+   * （owner 09-24 视频画板 W6）。下一次 set_prompt 随步带上 `negativeFolded`，
+   * 界面由系统追加那句灰字 —— ⛔ 不靠模型自己说。
+   */
+  negativeFolded: boolean
   request: AssistantOperatorRequest
   state: OperatorWorkingState
   /**
@@ -1321,6 +1332,15 @@ function renderState(
     `- Positive prompt: ${
       state.prompt
         ? `"${clamp(state.prompt, LIMITS.maxConfirmHaveChars)}"${
+            /**
+             * ⭐ 截短只是为了省篇幅，**要说出来**（视频实跑 09-24：一段 300 字的分镜
+             * 在这里显示成「…嘴角微微上…」，助手以为提示词写到一半断了，连重写三遍、
+             * 最后不肯出确认卡）。
+             */
+            state.prompt.length > LIMITS.maxConfirmHaveChars
+              ? ` (only the first ${LIMITS.maxConfirmHaveChars} of ${state.prompt.length} characters are shown here — the full prompt is on the form, complete; it is not cut off)`
+              : ''
+          }${
             (request.authoredByAssistant ?? []).includes(
               ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
             )
@@ -1337,7 +1357,9 @@ function renderState(
             ? `"${clamp(state.negativePrompt, LIMITS.maxConfirmHaveChars)}"`
             : '(empty)'
         }`
-      : '- Negative prompt: THIS WORKBENCH HAS NO NEGATIVE PROMPT FIELD — set_negative will be refused here.',
+      : request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video && state.modelId
+        ? "- Negative prompt: THIS MODEL HAS NO NEGATIVE FIELD. When the creator wants something kept out, still pass it to set_negative — it comes back telling you where it goes in this model's prompt, and the app tells the creator why."
+        : '- Negative prompt: THIS WORKBENCH HAS NO NEGATIVE PROMPT FIELD — set_negative will be refused here.',
   )
 
   if (!state.hasModelControl) {
@@ -1592,7 +1614,7 @@ function renderState(
           ? ` — ${items
               .map(
                 (item, index) =>
-                  `@Audio${index + 1}${item.ownerName ? ` = ${item.ownerName}` : ' (nobody named yet)'}`,
+                  `audio ${index + 1}${item.ownerName ? ` = ${item.ownerName}` : ' (nobody named yet)'}`,
               )
               .join(', ')}`
           : ''
@@ -1607,6 +1629,39 @@ function renderState(
       lines.push(
         '  (this route refuses audio-only input: mount at least one reference image alongside the audio, or the send is rejected.)',
       )
+    }
+  }
+
+  /**
+   * ⭐ **素材轨编号**（owner 09-24 视频画板）：左栏按类型、按挂上的顺序编号
+   * （图片1 · 视频1 · 音频1），助手写进提示词的编号必须与它一致，写法按模型
+   * （各模型规则里的 token）。首尾帧排在参考图前面 —— 与发送顺序同序。
+   */
+  if (request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video) {
+    const railImages = videoRailImages(state)
+    const railVideos = request.snapshot.videoReferences?.items ?? []
+    const railAudios = request.snapshot.audioReferences?.items ?? []
+    if (railImages.length + railVideos.length + railAudios.length > 0) {
+      lines.push(
+        "ASSETS ON THE LEFT RAIL — numbered exactly as the creator sees them (图片N / 视频N / 音频N, each type counted on its own, in this order). Write each in THIS model's own token from its rules (image 1 is 图片1, @Image1, 图1, Image 1 or <IMAGE_REF_0> depending on the model):",
+      )
+      railImages.forEach((image, index) =>
+        lines.push(
+          `  image ${index + 1}${image.role === 'reference' ? '' : ` (${image.role} frame)`}: ${image.url ?? '(still uploading)'}`,
+        ),
+      )
+      railVideos.forEach((item, index) =>
+        lines.push(`  video ${index + 1}: ${item.url}`),
+      )
+      railAudios.forEach((item, index) =>
+        lines.push(
+          `  audio ${index + 1}${item.ownerName ? ` = ${item.ownerName}'s voice` : ''}: ${item.url}`,
+        ),
+      )
+      if (railImages.length > 0)
+        lines.push(
+          '  You CAN see these images: look with action "analyze_references" (imageIndices count from 0 in the order above) before you write a prompt that binds or describes them, and answer from what you saw.',
+        )
     }
   }
 
@@ -3325,7 +3380,16 @@ function planSetModel(
       modelId: previousId,
       ...(previousChannelId ? { channelId: previousChannelId } : {}),
     },
-    observation: `Model is now ${match.label} (${match.id}). ${getModelEnhanceHint(match.id, resolveAdapterType(match.id) ?? undefined) ?? ''}${resolveAdapterType(match.id) === AI_ADAPTER_TYPES.OPENAI ? ` Quality options: ${getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, match.id).qualityOptions?.join(', ')}. Background: auto, opaque, transparent. Preview: optional, up to $0.006 extra per image.` : ''}`,
+    observation: `Model is now ${match.label} (${match.id}). ${
+      /**
+       * ⭐ 视频档换模型 = 换写法（视频实跑 09-24：切到 MiniMax H3 后仍照开跑时那份
+       * Seedance 规则写中文散文）。系统提示里那段规则是开跑时的模型的，这里把新模型的
+       * 规则念一遍，并说清旧的作废。⚠ 视频档的 id 是选项 id，规则按目录 id 查。
+       */
+      match.catalogId && match.catalogId !== match.id
+        ? 'The prompt rules in WHAT THE PROMPT MUST LOOK LIKE were for the previous model — from now on write for THIS one, in its own format and asset tokens: '
+        : ''
+    }${getModelEnhanceHint(match.catalogId ?? match.id, resolveAdapterType(match.catalogId ?? match.id) ?? undefined) ?? ''}${resolveAdapterType(match.id) === AI_ADAPTER_TYPES.OPENAI ? ` Quality options: ${getCapabilityConfig(AI_ADAPTER_TYPES.OPENAI, match.id).qualityOptions?.join(', ')}. Background: auto, opaque, transparent. Preview: optional, up to $0.006 extra per image.` : ''}`,
     apply: () => {
       run.state.modelId = match.id
       run.state.modelLabel = match.label
@@ -3535,7 +3599,7 @@ async function planAnalyzeReferences(
   userId: string,
   args: { imageIndices?: number[] },
 ): Promise<ToolPlan> {
-  const urls = run.state.referenceUrls
+  const urls = analysisImageUrls(run)
   if (!urls.length || urls.some((url) => !url || !/^https?:\/\//.test(url))) {
     return reject(
       REJECT.unknownAsset,
@@ -3646,6 +3710,29 @@ async function planSetText(
   userId: string,
 ): Promise<ToolPlan> {
   const isPrompt = field === ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt
+  /**
+   * ⭐ **视频模型没有负面栏**（owner 09-24 视频画板 W6）：退回给模型，让它把这几项
+   * 按这个模型自己的格式写进正文，再由系统在过程行上方说一句为什么。⛔ 不静默丢。
+   * ⚠ 同一步的草稿（`quiet`），⛔ 不在时间线上画成失败。
+   */
+  if (
+    !isPrompt &&
+    !run.state.hasNegativeControl &&
+    run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video &&
+    run.state.modelId &&
+    args.value.trim()
+  ) {
+    run.negativeFolded = true
+    return {
+      kind: 'rejected',
+      reason: REJECT.noSuchControl,
+      detail: clamp(
+        `This model has no negative-prompt field — anything sent there is dropped. Fold these exclusions into the prompt in this model's own format (its rules say where: e.g. the global line for Seedance, a closing 负向清单：不要… for Wan, plain sentences for MiniMax / Gemini), stated as what IS there where you can, then call set_prompt again with the FULL prompt. Do not mention the missing field yourself — the app tells the creator. Exclusions: ${args.value}`,
+        LIMITS.maxReasonChars,
+      ),
+      quiet: true,
+    }
+  }
   if (!isPrompt && !run.state.hasNegativeControl) {
     return reject(REJECT.noSuchControl)
   }
@@ -4044,6 +4131,9 @@ async function planSetText(
       value: payloadValue,
       mode: payloadMode,
       ...(tagCheck ? { tagCheck } : {}),
+      ...(isPrompt && run.negativeFolded
+        ? { negativeFolded: { model: videoModelName(run) } }
+        : {}),
     },
     // ⚠ 逆操作永远是改前的完整原文，两种 mode 撤法因此完全一样。
     inverse: { value: current },
@@ -4051,6 +4141,10 @@ async function planSetText(
       finalText,
       LIMITS.maxPriorStepSummaryChars,
     )}"${
+      finalText.length > LIMITS.maxPriorStepSummaryChars
+        ? ` (shortened here only — all ${finalText.length} characters are on the form)`
+        : ''
+    }${
       current.trim() && creatorSaidOverwrite
         ? ' The creator had already asked for this to be overwritten, so it was replaced without asking again. Tell them plainly that you overwrote it as they asked; do not ask whether to keep or append.'
         : ''
@@ -7162,7 +7256,9 @@ const OPERATOR_STUCK_MESSAGES: Record<PromptAssistantResponseLanguage, string> =
  * `prompt-assistant.service.ts` 的 `buildAssistantSystemPrompt`），操作员漏了。
  */
 function buildModelDialectSection(request: AssistantOperatorRequest): string {
-  const modelId = request.snapshot.model?.id
+  // ⚠ 视频档的 `id` 是选项 id，写法规则按目录 id 查（`catalogId`）。
+  const modelId =
+    request.snapshot.model?.catalogId ?? request.snapshot.model?.id
   if (!modelId) return ''
 
   const adapterType = resolveAdapterType(modelId)
@@ -7176,12 +7272,19 @@ function buildModelDialectSection(request: AssistantOperatorRequest): string {
    * 这里把 2.0 / 2.5 各自那份控制规则连同镜头语法一起拼进来，两条入口同源。
    */
   const seedanceRules = getSeedanceControlRules(modelId)
-  if (!hint && !dialect && !seedanceRules) return ''
+  /**
+   * ⭐ 视频写法（owner 09-24 视频画板 W1–W7）对**每个**视频模型都给，不只 Seedance：
+   * 以前镜头语法只跟着 Seedance 规则进来，Wan / MiniMax 下助手只拿到一行 hint。
+   */
+  const isVideo = request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+  if (!hint && !dialect && !seedanceRules && !isVideo) return ''
 
   return `\n\nWHAT THE PROMPT MUST LOOK LIKE ON THIS MODEL — set_prompt and set_negative write into ${modelId}${adapterType ? ` (${adapterType})` : ''}, and the wrong dialect wastes the run even when every other knob is right:${
     hint ? `\n- ${hint}` : ''
-  }${dialect}${
-    seedanceRules ? `\n\n${seedanceRules}\n\n${CINEMATIC_SHOT_GRAMMAR}` : ''
+  }${dialect}${seedanceRules ? `\n\n${seedanceRules}` : ''}${
+    isVideo || seedanceRules
+      ? `\n\n${VIDEO_PROMPT_WRITING_RULES}\n\n${CINEMATIC_SHOT_GRAMMAR}`
+      : ''
   }`
 }
 
@@ -7977,14 +8080,47 @@ function currentConversationReferences(
 /**
  * 这轮创作者 `@` 了哪些图。有点名时，分析只准碰这些；没点名才是「看全部挂着的」。
  */
+/** 当前视频模型的显示名（快照标签是「型号 · 渠道 · 积分」，只取型号）。 */
+function videoModelName(run: OperatorRun): string {
+  const label = run.request.snapshot.model?.label ?? run.state.modelId ?? ''
+  return label.split(' · ')[0]?.trim() || label
+}
+
+/**
+ * 视频档素材轨上的图，与左栏同序：首帧 · 尾帧 · 参考图（`lib/studio/video-workbench-slots`
+ * 的 `listStudioVideoImages` 同一条顺序）。`null` = 参考图还在上传。
+ */
+function videoRailImages(
+  state: OperatorWorkingState,
+): { url: string | null; role: 'first' | 'last' | 'reference' }[] {
+  return [
+    ...(state.frameFirstUrl
+      ? [{ url: state.frameFirstUrl, role: 'first' as const }]
+      : []),
+    ...(state.frameLastUrl
+      ? [{ url: state.frameLastUrl, role: 'last' as const }]
+      : []),
+    ...state.referenceUrls.map((url) => ({ url, role: 'reference' as const })),
+  ]
+}
+
+/** 「看参考图」看哪几张：视频档是整条素材轨，其余域就是参考图列表。 */
+function analysisImageUrls(run: OperatorRun): (string | null)[] {
+  return run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+    ? videoRailImages(run.state).map((image) => image.url)
+    : run.state.referenceUrls
+}
+
 function resolveAnalyzeImageIndices(
   run: OperatorRun,
   requested?: number[],
 ): { ok: true; indices: number[] } | { ok: false; detail: string } {
-  const urls = run.state.referenceUrls
-  const pointed = currentConversationReferences(run).map(
-    (ref) => ref.imageIndex,
-  )
+  const urls = analysisImageUrls(run)
+  // ⚠ 视频档按素材轨编号走（首尾帧在前），对话里 @ImageN 的下标说的是参考图列表 —— 不混用。
+  const pointed =
+    run.request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video
+      ? []
+      : currentConversationReferences(run).map((ref) => ref.imageIndex)
   const fallback = pointed.length ? pointed : urls.map((_, index) => index)
   const indices = requested?.length ? requested : fallback
   if (
@@ -9090,6 +9226,7 @@ export async function* runAssistantOperator(
     referenceBriefDegraded: false,
     promptReviewRetried: false,
     tagCheckRetried: false,
+    negativeFolded: false,
     request,
     persona,
     // 进了系统提示的那几条一开始就在索引里 —— 引用它们不必先调一次工具。

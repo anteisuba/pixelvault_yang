@@ -309,9 +309,14 @@ export function StudioOperatorConfirmCard({
                 : confirm.kind ===
                     ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.contextCard
                   ? t('confirm.contextCard.title')
-                  : t('confirm.generate.title', {
-                      count: confirm.request.count,
-                    })}
+                  : confirm.request.specs.durationSeconds !== null
+                    ? // 视频恒单条：说「这段 N 秒视频」，⛔ 不说「1 张」。
+                      t('confirm.generate.titleVideo', {
+                        seconds: confirm.request.specs.durationSeconds,
+                      })
+                    : t('confirm.generate.title', {
+                        count: confirm.request.count,
+                      })}
             </p>
           </div>
 

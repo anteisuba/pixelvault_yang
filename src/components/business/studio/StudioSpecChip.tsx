@@ -22,6 +22,7 @@ import { IMAGE_BATCH_COUNTS } from '@/constants/studio'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useStudioVideoAudio } from '@/hooks/use-studio-video-audio'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import {
@@ -127,33 +128,41 @@ function StudioVideoSpecChip({
 }: StudioSpecChipProps) {
   const { state, dispatch } = useStudioForm()
   const { selectedModel } = useVideoModelOptions(state.selectedOptionId ?? '')
+  /**
+   * ⭐ 档位按**这一枪实际跑的端点**给（owner 09-24 去掉模式）：挂了参考项时发的是
+   * 参考端点，它的时长 / 比例表可能与关键帧端点不同。
+   */
+  const { send } = useStudioVideoAssets()
+  const sendModelId = send?.modelId ?? selectedModel?.modelId
   const t = useTranslations('StudioSpecChip')
   const tSlots = useTranslations('StudioVideoSlots')
   const tVideo = useTranslations('VideoGenerate')
   const { supported: supportsGenerateAudio, value: generateAudioValue } =
     useStudioVideoAudio()
 
-  const contract = selectedModel
-    ? getVideoModelSendContract(
-        selectedModel.modelId,
-        selectedModel.adapterType as AI_ADAPTER_TYPES,
-      )
-    : null
+  const contract =
+    selectedModel && sendModelId
+      ? getVideoModelSendContract(
+          sendModelId,
+          selectedModel.adapterType as AI_ADAPTER_TYPES,
+        )
+      : null
 
   /**
    * **首帧锁自适应**（owner 2026-09-06 定，原样从 `StudioVideoSpecFields` 搬来）。
-   * 两条判据必须同时成立：① 这条线路带图时上游把 `ratio` 钉死；② 首帧槽里**真的
-   * 有图** —— 纯文生视频不受限，只看模型会把纯文生的比例也一起锁掉。
+   * 两条判据必须同时成立：① 这条线路带图时上游把 `ratio` 钉死；② 这一枪真的按
+   * **首帧**发（有首帧、没挂参考项）—— 纯文生视频不受限，只看模型会把纯文生的比例也一起锁掉。
    */
   const aspectLockedByFirstFrame = Boolean(
     contract &&
-    state.videoMode === 'keyframe' &&
+    send &&
+    !send.hasReference &&
     state.videoFrameSlots.first !== null &&
     contract.imageAspectRatioLock !== null,
   )
 
   const model = buildVideoSpecChipModel({
-    modelId: selectedModel?.modelId,
+    modelId: sendModelId,
     ...(selectedModel
       ? { adapterType: selectedModel.adapterType as AI_ADAPTER_TYPES }
       : {}),

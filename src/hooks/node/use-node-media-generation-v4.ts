@@ -17,7 +17,6 @@
 import { useCallback } from 'react'
 
 import type { AspectRatio } from '@/constants/config'
-import { getModelVariant } from '@/constants/models'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import {
@@ -25,7 +24,7 @@ import {
   snapVideoDuration,
   snapVideoResolution,
 } from '@/constants/video-model-capabilities'
-import { resolveVideoModelId } from '@/constants/video-node-modes'
+import { resolveVideoSendModelId } from '@/constants/video-node-modes'
 import type { VideoResolution } from '@/constants/video-options'
 import { useNodeMediaGeneration } from '@/hooks/node/use-node-media-generation'
 import {
@@ -85,7 +84,7 @@ export interface V4GenerationPlan {
  * ⚠ 与卡上那颗只读的模式 chip（`videoSendMode`）是同一条推法的两侧：一处给人看，
  * 一处决定发哪个端点。⛔ 不许两处各推各的。
  */
-function resolveVideoSendModelId(
+function resolveNodeVideoSendModelId(
   model: { readonly modelId: string; readonly adapterType: AI_ADAPTER_TYPES },
   payload: {
     readonly imageUrls: readonly string[]
@@ -93,18 +92,12 @@ function resolveVideoSendModelId(
     readonly videoUrls: readonly string[]
     readonly audioBindings: readonly unknown[]
   },
-): string | null {
+): string {
   const hasReference =
     payload.imageUrls.length > payload.keyframeUrls.length ||
     payload.videoUrls.length > 0 ||
     payload.audioBindings.length > 0
-  const variant = getModelVariant(model.modelId)
-  if (!variant) return null
-  return resolveVideoModelId(
-    variant,
-    model.adapterType,
-    hasReference ? 'multimodal' : 'keyframe',
-  )
+  return resolveVideoSendModelId(model.modelId, model.adapterType, hasReference)
 }
 
 function parseDuration(value: string | undefined): number | 'auto' | undefined {
@@ -147,8 +140,7 @@ export function planV4Generation(
         ? { ownPrompt: overrides.prompt ?? data.prompt }
         : {}),
     })
-    const sendModelId =
-      resolveVideoSendModelId(data.model, payload) ?? base.modelId
+    const sendModelId = resolveNodeVideoSendModelId(data.model, payload)
     const capabilities = getVideoModelCapabilities(sendModelId)
     const requestedDuration = parseDuration(data.params?.duration)
     const duration =

@@ -23,7 +23,6 @@ import { getGenerationVideoPosterUrl } from '@/lib/generation-media'
 import { cn } from '@/lib/utils'
 import type { GenerationRecord } from '@/types'
 
-import { StudioVideoModeToggle } from '@/components/business/studio/StudioVideoModeToggle'
 import { XiaoheiGuideCarousel } from '@/components/business/studio-shared/XiaoheiGuideCarousel'
 import { OptimizedImage } from '@/components/ui/optimized-image'
 import {
@@ -153,21 +152,10 @@ export function StudioEmptyState({ mode, onRemix }: StudioEmptyStateProps) {
   return (
     <div className="studio-empty-state flex w-full grow flex-col items-center justify-center gap-5 px-3 py-4 lg:gap-10 lg:px-4 lg:py-6">
       {isMobileStart ? (
-        /* 移动端起手屏：（视频档多一条用途分段）+ 一句问句 + 2×2 示例卡。
+        /* 移动端起手屏：一句问句 + 2×2 示例卡。
            卡片封面优先借「继续创作」里那几张真图 —— 没有历史时退回按序号变化的
            token 渐变底，不摆一个假缩略图、也不留一块灰。 */
         <div className="flex w-full max-w-md flex-col gap-3">
-          {/* 用途是**栏首第一决策**：它决定这一次发哪个端点、模型 chip 列哪些
-              候选。放在示例卡下面就等于让人先选完再回头改前提。
-              ⚠ 组件自己判「目录里真有 ≥2 档」，少于 2 档整颗不渲染。 */}
-          {isVideo ? (
-            <div
-              data-testid="studio-mobile-video-mode"
-              className="flex justify-center"
-            >
-              <StudioVideoModeToggle />
-            </div>
-          ) : null}
           <h2 className="text-center text-xl font-semibold text-foreground">
             {isVideo ? tMobile('emptyTitleVideo') : tMobile('emptyTitle')}
           </h2>

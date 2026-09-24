@@ -31,6 +31,7 @@ import {
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import type { SelectedVoice } from '@/components/business/node/VoiceSelector'
 import { useStudioAudioParamsProps } from '@/hooks/use-studio-audio-params'
+import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 
 /**
  * Shared spinner for panel bodies that ship as separate chunks. Without
@@ -155,8 +156,24 @@ export const StudioDockPanelArea = memo(function StudioDockPanelArea() {
     modelId,
   )
   const capabilityMaxRefImages = getReferenceCapabilityMax(referenceCapability)
+  /**
+   * ⭐ 视频档的参考图上限按素材轨容量算（owner 09-24 去掉模式）：选中的是关键帧
+   * 端点，按它的能力算会把参考图卡成 1 张。首尾帧在参考档下也作为参考图随行，
+   * 所以要从总数里扣掉已占的帧。
+   */
+  const { capacity: videoCapacity, images: videoImages } =
+    useStudioVideoAssets()
+  const occupiedFrames = videoImages.filter(
+    (image) => image.role !== 'reference',
+  ).length
   const maxRefImages = isVideoMode
-    ? Math.min(capabilityMaxRefImages, VIDEO_REFERENCE_LIMITS.IMAGES)
+    ? Math.max(
+        0,
+        Math.min(
+          videoCapacity.references ?? VIDEO_REFERENCE_LIMITS.IMAGES,
+          VIDEO_REFERENCE_LIMITS.IMAGES,
+        ) - occupiedFrames,
+      )
     : capabilityMaxRefImages
 
   useEffect(() => {

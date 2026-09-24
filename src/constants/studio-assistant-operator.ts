@@ -485,12 +485,8 @@ export const STUDIO_OPERATOR_FACE_PILLS: Record<
     'useReference',
     'fourVariants',
   ],
-  [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: [
-    'animateThis',
-    'frameBridge',
-    'pacing',
-    'cameraMove',
-  ],
+  /** 视频脸最多两颗（owner 09-24 视频画板 F1）：写分镜 · 让图动起来。 */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: ['writeShots', 'animateThis'],
   /**
    * LoRA 的脸是 owner 09-20 改口后的那一张：核心是**用 LoRA 出对图**，三件事都要
    * 助手辅助 —— 提示词写对 · LoRA 挂对 · 参数调对。⛔ 不是「找风格 / 查冲突」。
@@ -724,8 +720,8 @@ export const STUDIO_OPERATOR_CRITIQUE_FRAME_STAGGER_SECONDS = 0.03
  * 空首帧 + 有尾帧是一个**可表达**的状态。
  *
  * ⚠ `reference` 是普通图片参考槽（多图），`video` 是参考视频槽 —— 它们与首尾帧
- * 是并列关系，不是「其余的都归它」：模型能力表决定哪些槽出现（见
- * `getVideoWorkbenchSlots`），⛔ 不支持的槽**不渲染**，不摆禁用占位
+ * 是并列关系，不是「其余的都归它」：型号能力决定轨上收哪几种（见
+ * `getStudioVideoCapacity`），⛔ 不支持的**不给入口**，不摆禁用占位
  * （`ui-defaults.md` 状态配方）。
  */
 export const STUDIO_VIDEO_SLOT_IDS = {
@@ -738,15 +734,11 @@ export const STUDIO_VIDEO_SLOT_IDS = {
 export type StudioVideoSlotId =
   (typeof STUDIO_VIDEO_SLOT_IDS)[keyof typeof STUDIO_VIDEO_SLOT_IDS]
 
-/** 槽的渲染顺序 —— 首帧 → 尾帧 → 参考视频，图片参考槽由既有的参考轨承担。 */
-export const STUDIO_VIDEO_FRAME_SLOT_ORDER = [
-  STUDIO_VIDEO_SLOT_IDS.first,
-  STUDIO_VIDEO_SLOT_IDS.last,
-  STUDIO_VIDEO_SLOT_IDS.video,
-] as const
-
-/** 空槽虚线框的边长（px）—— 缩略图与空态同尺寸，切换时不跳版。 */
-export const STUDIO_VIDEO_SLOT_SIZE_PX = 72
+/**
+ * 素材轨一格的边长（px）—— 缩略图与「＋」同尺寸，切换时不跳版。
+ * 44 = 288 宽的参数栏里一行放得下 4 格 + 「＋」（视频画板 09-24）。
+ */
+export const STUDIO_VIDEO_SLOT_SIZE_PX = 44
 
 /**
  * **断点续跑**（第三期，owner 2026-09-07 定「失败断点续跑 / 只重跑下游」）。

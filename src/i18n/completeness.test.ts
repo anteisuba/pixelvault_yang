@@ -22,18 +22,21 @@ import {
   STUDIO_OPERATOR_FIELD_IDS,
   STUDIO_OPERATOR_SYSTEM_CODES,
 } from '@/constants/studio-assistant-operator'
-import { VIDEO_NODE_MODES } from '@/constants/video-node-modes'
+import { VIDEO_SEND_MODES } from '@/constants/video-node-modes'
 
 const LOCALES = ['en', 'ja', 'zh'] as const
 const SRC_DIR = join(process.cwd(), 'src')
 const MESSAGES_DIR = join(process.cwd(), 'src', 'messages')
 
-it('translates every video mode rendered by the Studio toggle in all locales', () => {
+it('translates every video send mode rendered by the Studio asset rail in all locales', () => {
   for (const locale of LOCALES) {
     const keys = collectKeys(loadMessages(locale))
-    for (const mode of VIDEO_NODE_MODES) {
+    for (const mode of VIDEO_SEND_MODES) {
       expect(keys, `${locale}: ${mode}`).toContain(
-        `StudioNode.videoComposer.sidecar.mode.${mode}`,
+        `StudioNode.v4.video.mode.${mode}`,
+      )
+      expect(keys, `${locale}: reason ${mode}`).toContain(
+        `StudioVideoSlots.reason.${mode}`,
       )
     }
   }

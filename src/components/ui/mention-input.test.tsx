@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { MentionInput } from './mention-input'
+import { MentionInput, parseMentions } from './mention-input'
 
 describe('MentionInput · IME', () => {
   it('compositionend 后立刻回车不当发送 —— 那是在确认候选', () => {
@@ -92,5 +92,33 @@ describe('MentionInput · IME', () => {
       />,
     )
     expect(editor.textContent).toBe('助手写好的提示词')
+  })
+})
+
+/**
+ * 不带 `@` 的原文引用（视频档按模型写：`图片1` / `Image 1`，owner 09-24）。
+ */
+describe('parseMentions · 原文引用', () => {
+  it('原文编号成胶囊，后面紧跟数字的不算（图片12 ≠ 图片1）', () => {
+    expect(parseMentions('将图片1中的女孩，图片12', [], ['图片1'])).toEqual([
+      { type: 'text', text: '将' },
+      { type: 'token', name: '图片1' },
+      { type: 'text', text: '中的女孩，图片12' },
+    ])
+  })
+
+  it('英文原文要求前面不是字母数字（MyImage 1 不算）', () => {
+    expect(parseMentions('Image 1 walks; MyImage 1', [], ['Image 1'])).toEqual([
+      { type: 'token', name: 'Image 1' },
+      { type: 'text', text: ' walks; MyImage 1' },
+    ])
+  })
+
+  it('@ 前缀那套照旧', () => {
+    expect(parseMentions('@Image1 和 图片1', ['Image1'], ['图片1'])).toEqual([
+      { type: 'token', name: 'Image1' },
+      { type: 'text', text: ' 和 ' },
+      { type: 'token', name: '图片1' },
+    ])
   })
 })

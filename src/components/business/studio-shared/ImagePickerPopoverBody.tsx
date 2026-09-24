@@ -143,7 +143,7 @@ export function ImagePickerPopoverBody({
               /**
                * ⭐ 用户判过「已否」的那几张**看得出来**（切片 Y）：降灰 + 一个叉。
                * ⛔ 不禁用、也不从格子里摘掉 —— 它照旧能当普通参考图，被拒的只有
-               * 首帧 / 尾帧那两个槽（见 `StudioVideoReferenceSlots`）。
+               * 首帧 / 尾帧两个角色（见 `StudioVideoAssetRail`）。
                */
               const blocked =
                 reviewStates[generation.id] ===

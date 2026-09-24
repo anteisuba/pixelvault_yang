@@ -9,11 +9,11 @@ import {
   REFERENCE_AUDIO_MAX_BYTES,
   REFERENCE_AUDIO_MAX_MB,
 } from '@/constants/audio-options'
-import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import { VIDEO_REFERENCE_LIMITS } from '@/constants/video-reference-limits'
 import { uploadReferenceAudioAPI } from '@/lib/api-client/voices'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import type { VideoAudioReference } from '@/contexts/studio-context'
+import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { AudioOwnerPicker } from '@/components/business/studio-shared/primitives/AudioOwnerPicker'
@@ -34,8 +34,8 @@ import type { GenerationRecord } from '@/types'
  * 多达 10 个的模型）。
  *
  * ── 三个不显然的点 ──────────────────────────────────────────────────
- * ① **槽位上限跟着选中的模型走**，不是一个写死的数：读
- *    `getVideoModelSendContract(...).slots.audio`，与发送路径、服务端校验同一份
+ * ① **槽位上限跟着型号的参考端点走**，不是一个写死的数：读素材轨容量
+ *    （`getStudioVideoCapacity`，底下是发送契约），与发送路径、服务端校验同一份
  *    真相。上限为 0（该模型不吃音频参考）时整个面板给一句话，不摆一个点了会被
  *    服务端 400 拒掉的上传按钮。
  * ② **只存 URL 不存 File**：`generate-video.service.ts` 对音频是原样透传、
@@ -49,23 +49,19 @@ export function StudioVideoAudioPanel() {
   const t = useTranslations('StudioVideoAudio')
   const { state, dispatch } = useStudioForm()
   const { characters } = useStudioData()
-  // 与 `StudioPromptArea` 读同一条：槽位上限必须问**这一次真的会跑的那个端点**。
   const { selectedModel } = useVideoModelOptions(state.selectedOptionId ?? '')
+  /**
+   * ⭐ 槽位上限按素材轨容量（型号的**参考端点**，owner 09-24 去掉模式）：选中的是
+   * 关键帧端点，它的音频槽是 0 —— 照它算就永远挂不上音频，而挂上音频正是切到
+   * 参考端点的那一下。
+   */
+  const { capacity } = useStudioVideoAssets()
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [isUploading, setIsUploading] = useState(false)
   const [assetDialogOpen, setAssetDialogOpen] = useState(false)
 
   const refs = state.videoAudioRefs
-  /**
-   * ⚠ 上限问的是**当前选中的模型**。没选模型时给 0 —— 那时「能挂几条」这个问题
-   * 还没有答案，摆一个上传口只会让用户传完才发现发不出去。
-   */
-  const modelAudioSlots = selectedModel
-    ? getVideoModelSendContract(
-        selectedModel.modelId,
-        selectedModel.adapterType,
-      ).slots.audio
-    : 0
+  const modelAudioSlots = capacity.audios
   const audioSlots = Math.min(modelAudioSlots, VIDEO_REFERENCE_LIMITS.AUDIO)
   const isFull = refs.length >= audioSlots
   const ownerCandidates = characters.activeCards.map((card) => card.name)

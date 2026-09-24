@@ -113,6 +113,11 @@ vi.mock('./text/TextAssistantBar', () => ({
 
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS } from '@/constants/node-slots'
+import {
+  VIDEO_SEND_MODE_IDS,
+  videoRailCapacity,
+  videoSendMode,
+} from '@/constants/video-node-modes'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 
 import {
@@ -123,13 +128,10 @@ import { flashNodeCard, resetNodeCardFlash } from './chrome'
 import { VideoNodeV4 } from './VideoNodeV4'
 import { VIDEO_RAIL_PICKERS } from './video/VideoNodeMenus'
 import {
-  VIDEO_SEND_MODE_IDS,
   videoCardHeight,
   videoEffectiveParams,
   videoFrameChipLabel,
   videoFrameReadout,
-  videoRailCapacity,
-  videoSendMode,
   videoSupportsGeneratedAudio,
 } from './video/video-node-model'
 

@@ -61,21 +61,47 @@ describe('目录里每个视频 / 音频模型都有方言说明', () => {
 
 /**
  * ⭐ 2.0 与 2.5 的**唯一致命差异**：2.0 只认「镜头N」，2.5 才认整数秒时间戳。
- *
- * 写反的代价不是报错，是静默塌成一个镜头 —— 用户看到的是「分镜写了四段，出来
- * 只有一个长镜头」，而提示词看上去完全正常。所以这条差异单独锁。
+ * owner 09-24 定「两个都写」（镜头1（0-3秒））：2.0 靠标签切、秒数给人看；
+ * 只写秒数不写标签在 2.0 上会静默塌成一个镜头 —— 所以标签这条单独锁。
  */
 describe('Seedance 分段方言：2.0 认镜头号，2.5 认时间戳', () => {
-  it.each([...SEEDANCE_20_MODEL_IDS])('%s 说镜头号，不说秒', (modelId) => {
-    const hint = hintOf(modelId)
-    expect(hint).toContain('镜头')
-    expect(hint).not.toContain('秒')
-    expect(hint.toLowerCase()).not.toContain('timestamp')
-  })
+  it.each([...SEEDANCE_20_MODEL_IDS])(
+    '%s 靠镜头号切，秒数只给人看',
+    (modelId) => {
+      const hint = hintOf(modelId)
+      expect(hint).toContain('镜头1（0-3秒）')
+      expect(hint).toContain('ignores the seconds')
+      expect(hint.toLowerCase()).not.toContain('timestamp')
+    },
+  )
 
   it.each([...SEEDANCE_25_MODEL_IDS])('%s 说时间戳', (modelId) => {
     const hint = hintOf(modelId)
     expect(hint.toLowerCase()).toContain('timestamp')
+  })
+
+  it('素材写法按渠道：fal 写 @Image1，火山 / BytePlus 写 图片1；段名不进【】', () => {
+    for (const modelId of [
+      AI_MODELS.SEEDANCE_20,
+      AI_MODELS.SEEDANCE_20_REFERENCE,
+      AI_MODELS.SEEDANCE_25,
+    ]) {
+      expect(hintOf(modelId)).toContain('@Image1')
+    }
+    for (const modelId of [
+      AI_MODELS.SEEDANCE_20_VOLCENGINE,
+      AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS,
+      AI_MODELS.SEEDANCE_25_VOLCENGINE,
+    ]) {
+      expect(hintOf(modelId)).toContain('将图片1中')
+      expect(hintOf(modelId)).not.toContain('@Image1')
+    }
+    for (const modelId of SEEDANCE_20_MODEL_IDS) {
+      expect(hintOf(modelId)).toContain('全局设定：')
+      expect(MEDIA_MODEL_STRENGTHS[modelId as AI_MODELS]?.negativePrompt).toBe(
+        'unsupported',
+      )
+    }
   })
 
   it('两代名册不重叠，且控制规则各归各家', () => {
@@ -89,7 +115,7 @@ describe('Seedance 分段方言：2.0 认镜头号，2.5 认时间戳', () => {
     expect(getSeedanceControlRules(AI_MODELS.KLING_V3_PRO)).toBeNull()
   })
 
-  it('两份控制规则都带素材分工契约与硬否定串', () => {
+  it('两份控制规则都带素材分工契约，且已知失败写成「写出该有的」而不是负面词', () => {
     for (const rules of [
       SEEDANCE_20_CONTROL_RULES,
       SEEDANCE_25_CONTROL_RULES,
@@ -98,6 +124,7 @@ describe('Seedance 分段方言：2.0 认镜头号，2.5 认时间戳', () => {
       expect(rules).toContain('空气波纹')
       expect(rules).toContain('冻结姿势')
       expect(rules).toContain('字幕')
+      expect(rules).not.toContain('belong in the negative prompt')
     }
     // 分段方言的差异也活在控制规则里，不只活在 hint 里。
     expect(SEEDANCE_20_CONTROL_RULES).toContain('镜头1')
@@ -109,12 +136,19 @@ describe('Seedance 分段方言：2.0 认镜头号，2.5 认时间戳', () => {
  * 逐家模型那条「写错就白跑」的规矩。每条都对应调研里的一处官方文档。
  */
 describe('各家模型的关键语法', () => {
-  it('Kling 的多镜头写在一条提示词里，编号是 Shot 1', () => {
+  it('Kling 的多镜头写在一条提示词里，编号是 Shot 1；没有固定顺序；负面栏只有 V3', () => {
     for (const modelId of [AI_MODELS.KLING_V3_PRO, AI_MODELS.KLING_O3_PRO]) {
       const hint = hintOf(modelId)
       expect(hint).toContain('Shot 1')
       expect(hint).toContain('2500')
+      expect(hint).toContain('no fixed order')
     }
+    expect(MEDIA_MODEL_STRENGTHS[AI_MODELS.KLING_V3_PRO]?.negativePrompt).toBe(
+      'supported',
+    )
+    expect(MEDIA_MODEL_STRENGTHS[AI_MODELS.KLING_O3_PRO]?.negativePrompt).toBe(
+      'unsupported',
+    )
   })
 
   it("Veo 的 negative 只写名词（写 no / don't 会把它召唤出来）", () => {
@@ -125,17 +159,19 @@ describe('各家模型的关键语法', () => {
     )
   })
 
-  it('Wan 的镜头标签自带秒区间，且 prompt_extend 默认开', () => {
-    const hint = hintOf(AI_MODELS.WAN_30)
-    expect(hint).toContain('第1个镜头[0-3秒]')
-    expect(hint).toContain('prompt_extend')
+  it('Wan：镜头标签自带秒区间、没有负面栏（写负向清单）、不写就自己加台词配乐', () => {
+    for (const modelId of [AI_MODELS.WAN_30, AI_MODELS.WAN_30_REFERENCE]) {
+      const hint = hintOf(modelId)
+      expect(hint).toContain('第1个镜头[0-3秒]')
+      expect(hint).toContain('负向清单')
+      expect(hint).toContain('无台词')
+      expect(hint).toContain('enable_prompt_expansion')
+      expect(hint).toContain('音色参考音频1')
+      expect(MEDIA_MODEL_STRENGTHS[modelId]?.negativePrompt).toBe('unsupported')
+    }
   })
 
-  it('Wan reference 只写运动与运镜，不复述静态元素', () => {
-    expect(hintOf(AI_MODELS.WAN_30_REFERENCE)).toContain('ONLY what moves')
-  })
-
-  it('MiniMax H3 不依赖括号命令（那是 Hailuo 2.3 那一代的写法）', () => {
+  it('MiniMax H3：官方三段英文 + [Shot 2] At 时间 + (S1)<d>；没有 prompt_optimizer', () => {
     for (const modelId of [
       AI_MODELS.MINIMAX_H3,
       AI_MODELS.MINIMAX_H3_REFERENCE,
@@ -143,15 +179,24 @@ describe('各家模型的关键语法', () => {
       AI_MODELS.MINIMAX_H3_REFERENCE_CN,
     ]) {
       const hint = hintOf(modelId)
-      expect(hint).toContain('[Push in]')
-      expect(hint).toContain('Do not rely on')
+      expect(hint).toContain('overall_soundscape')
+      expect(hint).toContain('[Shot 2] At 00:03.000')
+      expect(hint).toContain('(S1)')
+      expect(hint).toContain('Image 1')
+      expect(hint).not.toContain('prompt_optimizer')
     }
+  })
+
+  it('Gemini Omni：参考图从 0 起编号，单镜头要明写', () => {
+    const hint = hintOf(AI_MODELS.GEMINI_OMNI_FLASH)
+    expect(hint).toContain('<IMAGE_REF_0>')
+    expect(hint).toContain('No scene cuts')
   })
 
   it('LTX 是散文不是 tag，且有 200 词上限', () => {
     const hint = hintOf(AI_MODELS.LTX_23)
     expect(hint).toContain('200 words')
-    expect(hint).toContain('no tag lists')
+    expect(hint).toContain('One flowing English paragraph')
   })
 
   it('Fish 用方括号情绪 cue，且多说话人是 S2 独有', () => {
@@ -181,12 +226,9 @@ describe('各家模型的关键语法', () => {
     )
   })
 
-  it('没有官方指南的模型如实写明，不冒充厂商规则', () => {
-    for (const modelId of [
-      AI_MODELS.HAPPYHORSE_10,
-      AI_MODELS.GEMINI_OMNI_FLASH,
-    ]) {
-      expect(hintOf(modelId)).toContain('No published prompt guide')
-    }
+  it('HappyHorse 短写、脸手易走样，没有负面栏', () => {
+    const hint = hintOf(AI_MODELS.HAPPYHORSE_10)
+    expect(hint).toContain('20–60 words')
+    expect(hint).toContain('no negative field')
   })
 })

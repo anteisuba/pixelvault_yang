@@ -4630,11 +4630,6 @@
       },
       "sidecar": {
         "modeLabel": "動画生成モード",
-        "mode": {
-          "keyframe": "キーフレーム",
-          "multimodal": "フル参照",
-          "image-reference": "複数画像参照"
-        },
         "addReference": "参照素材を追加",
         "promptPlaceholder": "生成したいショット、動き、音を説明…"
       },
@@ -6426,7 +6421,6 @@
   "StudioToolbar": {
     "enhance": "アシスタント",
     "reference": "参照",
-    "videoMode": "画像の用途",
     "video": "動画",
     "voice": "音声",
     "voiceSelected": "✓ 音声",
@@ -7085,7 +7079,7 @@
   },
   "StudioVideoAudio": {
     "pill": "音声",
-    "hint": "音声やセリフを添付すると、モデルは @Audio1、@Audio2 の順で参照します",
+    "hint": "音声やセリフを添付すると、素材レールと同じく 音声1、音声2 の順に番号が付きます",
     "count": "{used}/{max}",
     "upload": "音声をアップロード",
     "fromAssets": "素材から選ぶ",
@@ -7416,7 +7410,8 @@
       "tagFixed": "{count} 件を Danbooru の表記に直しました：{list}。",
       "tagUnknown": "{list}{more, plural, =0 {} other { ほか #件}}は見つからなかったため、そのまま残しました。",
       "tagListSeparator": "、",
-      "tagSentenceSeparator": ""
+      "tagSentenceSeparator": "",
+      "negativeFolded": "{model} にはネガティブプロンプト欄がないため、本文に書き込みました。"
     },
     "checkpoint": {
       "summary": "{fields}を変更",
@@ -7487,6 +7482,7 @@
     "confirm": {
       "generate": {
         "title": "{count} 枚を生成しますか？",
+        "titleVideo": "この {seconds} 秒の動画を生成しますか？",
         "count": "{count} 枚",
         "countLabel": "枚数",
         "confirm": "生成する",
@@ -7932,10 +7928,8 @@
         "compareModels": "モデルを変えて違いを見る",
         "useReference": "この参考画像に寄せて",
         "fourVariants": "4 枚出して比べる",
-        "animateThis": "この画像から動かす",
-        "frameBridge": "最初と最後のフレームのつなぎ方",
-        "pacing": "尺とテンポ",
-        "cameraMove": "カメラワークの書き方",
+        "writeShots": "カット割りを書いて",
+        "animateThis": "この画像を動かして",
         "whichLoras": "この題材に合う LoRA は？",
         "loraPrompt": "この一枚のプロンプトを書いて",
         "weightCheck": "この重みで合ってる？",
@@ -7954,7 +7948,7 @@
       "video": {
         "empty": "画像か一言をもらえれば、動かします。",
         "placeholder": "カットを説明するか、最初のフレームを…",
-        "context": "{model} · {ratio} · {seconds}s"
+        "context": "{model} · {seconds}秒 · {ratio}"
       },
       "lora": {
         "empty": "作りたい画を教えてください。LoRA 選び・トリガー・重みまで一緒に。",
@@ -7984,14 +7978,31 @@
     "cancelFailed": "キャンセルに失敗しました。処理は続行中です"
   },
   "StudioVideoSlots": {
-    "sectionLabel": "名前付き参照スロット",
-    "firstFrame": "最初のフレーム",
-    "lastFrame": "最後のフレーム",
-    "referenceVideo": "参照動画",
-    "clear": "{slot} をクリア",
-    "upload": "{slot} にファイルをアップロード",
+    "sectionLabel": "素材 · ドロップまたは ＋",
+    "firstFrame": "最初",
+    "lastFrame": "最後",
+    "image": "画像{n}",
+    "video": "動画{n}",
+    "audio": "音声{n}",
+    "setFirst": "最初のフレームにする",
+    "setLast": "最後のフレームにする",
+    "setReference": "参照にする",
+    "remove": "外す",
+    "add": "素材を追加",
+    "uploadImage": "画像をアップロード",
+    "pickImage": "素材ライブラリから画像を選ぶ",
+    "pickVideo": "素材ライブラリから参照動画を選ぶ",
+    "addAudio": "音声を追加",
+    "editAudio": "音声の設定",
+    "sendLine": "今回は <strong>{mode}</strong> で送信 · {reason}",
+    "reason": {
+      "omniReference": "参照素材あり",
+      "firstLastFrame": "最初 + 最後のフレーム",
+      "imageToVideo": "最初のフレームのみ",
+      "textToVideo": "素材なし"
+    },
     "libraryTitle": "素材ライブラリから選ぶ",
-    "libraryDescription": "このスロットに入れる素材を選びます。",
+    "libraryDescription": "素材レールに追加する素材を選びます。",
     "aspectLockedByFirstFrame": "最初のフレームがあるため、アスペクト比は画像に合わせて自動（adaptive）になります。"
   },
   "ContextCards": {

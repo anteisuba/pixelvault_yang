@@ -7,6 +7,7 @@ import {
 } from '@/constants/assistant-operator'
 import {
   AssistantOperatorPlanAnswerSchema,
+  AssistantOperatorNegativeFoldedSchema,
   AssistantOperatorTagCheckSchema,
 } from '@/types/assistant-operator'
 import { STUDIO_OPERATOR_SYSTEM_CODES } from '@/constants/studio-assistant-operator'
@@ -70,6 +71,8 @@ export const StudioOperatorHistoryStepSchema = z.object({
   referenceAnalysis: ReferenceAnalysisSchema.optional(),
   /** NAI 标签核对换了什么 —— 刷新后过程行上方那句灰字照样画。 */
   tagCheck: AssistantOperatorTagCheckSchema.optional(),
+  /** 负面项写进了正文 —— 刷新后那句灰字照样画。 */
+  negativeFolded: AssistantOperatorNegativeFoldedSchema.optional(),
 })
 
 export const StudioOperatorHistoryEntrySchema = z.discriminatedUnion('kind', [

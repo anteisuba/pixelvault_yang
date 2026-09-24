@@ -27,7 +27,10 @@ import {
   getVideoModelParameterOptions,
   getVideoModelSendContract,
 } from '@/constants/video-model-send-plan'
-import { getNodeModeForModel } from '@/constants/video-node-modes'
+import {
+  isVideoPickerModel,
+  resolveVideoSendModelId,
+} from '@/constants/video-node-modes'
 import { AUDIO_PACE_SPEED } from '@/constants/voice-cards'
 import { getWorkflowById, WORKFLOW_MEDIA_GROUPS } from '@/constants/workflows'
 import {
@@ -39,13 +42,13 @@ import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
-import { useStudioVideoMode } from '@/hooks/use-studio-video-mode'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { composeCharacterInjection } from '@/lib/character-card-injection'
 import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
+import { resolveStudioVideoSend } from '@/lib/studio/video-workbench-slots'
 import { takeOperatorGenerationLabel } from '@/lib/studio-operator-label'
 import { getReferenceMentionIndices } from '@/lib/studio-reference-mentions'
 import type { StudioModelOption } from '@/types/model-option'
@@ -110,19 +113,18 @@ export function useStudioGenerateAction() {
       : imageModelOptions
 
   /**
-   * 视频选择器只列**当前用途**的端点 —— 与 `StudioVideoModeToggle` 配对。
+   * 视频选择器**一行一个型号 × 渠道**（owner 09-24 视频画板：去掉模式）——
+   * 端点在发送时按挂了什么推（`resolveStudioVideoSend`）。
    * ⚠ 必须 memo：谓词引用每帧变会把选择器的视图重置回第一层。
    * ⚠ 非视频模态传 `undefined` 而不是恒真谓词（恒真谓词一样每帧换引用）。
    */
-  const { mode: videoMode } = useStudioVideoMode()
-  const filterVideoModelByMode = useMemo(
+  const filterVideoModelOption = useMemo(
     () =>
       isVideoMode
         ? (option: StudioModelOption) =>
-            getNodeModeForModel(option.modelId, option.adapterType) ===
-            videoMode
+            isVideoPickerModel(option.modelId, option.adapterType)
         : undefined,
-    [isVideoMode, videoMode],
+    [isVideoMode],
   )
 
   const trimmedPrompt = state.prompt.trim()
@@ -205,15 +207,15 @@ export function useStudioGenerateAction() {
     ? (getModelById(currentModelId)?.requiresReferenceImage ?? false)
     : false
   /**
-   * ⚠ 关键帧档的图不在参考图列表里（第二期：它们住在具名槽），所以这条闸必须
-   * 一起看两处 —— 只看列表的话，`requiresReferenceImage` 的视频模型会在用户
-   * 明明填了首帧的情况下被判「还没放参考图」。
+   * ⚠ 视频的首尾帧不在参考图列表里（它们住在具名槽），所以这条闸必须一起看两处
+   * —— 只看列表的话，`requiresReferenceImage` 的视频模型会在用户明明填了首帧的
+   * 情况下被判「还没放参考图」。
    */
   const hasRefImage =
     imageUpload.referenceImages.length > 0 ||
     (state.outputType === 'video' &&
-      state.videoMode === 'keyframe' &&
-      state.videoFrameSlots.first !== null)
+      (state.videoFrameSlots.first !== null ||
+        state.videoFrameSlots.last !== null))
   const currentAdapterType = usesStyleCardForModel
     ? (selectedStyleCard?.adapterType as AI_ADAPTER_TYPES | undefined)
     : selectedModel?.adapterType
@@ -250,8 +252,13 @@ export function useStudioGenerateAction() {
     !hasRefImage &&
     Boolean(
       selectedModel &&
+      // ⚠ 挂了音频就走参考端点 —— 问的是**那个端点**的规矩，不是选中的关键帧端点。
       getVideoModelSendContract(
-        selectedModel.modelId,
+        resolveVideoSendModelId(
+          selectedModel.modelId,
+          selectedModel.adapterType as AI_ADAPTER_TYPES,
+          true,
+        ),
         selectedModel.adapterType as AI_ADAPTER_TYPES,
       ).slots.audioRequiresVisual,
     )
@@ -363,32 +370,31 @@ export function useStudioGenerateAction() {
   // ── Video input builder ──────────────────────────────────────
   const buildVideoInput = useCallback(() => {
     if (!selectedModel) return null
+    /**
+     * ⭐ **端点与图都按挂了什么推**（owner 09-24 视频画板：去掉三个模式）：有参考项
+     * （参考图 / 参考视频 / 音频）→ 该型号的参考端点，首尾帧作为参考图随行；
+     * 否则走关键帧端点，只发首帧（+ 尾帧）。与画布视频节点同一个判定。
+     * ⚠ 线上契约仍是 `referenceImage` + `referenceImages` 两个位置字段，序列化在这里发生。
+     */
+    const send = resolveStudioVideoSend(
+      selectedModel.modelId,
+      selectedModel.adapterType as AI_ADAPTER_TYPES,
+      {
+        first: state.videoFrameSlots.first,
+        last: state.videoFrameSlots.last,
+        references: imageUpload.referenceImages,
+        videos: state.videoReferenceVideos,
+        audios: state.videoAudioRefs.length,
+      },
+    )
+    const sendModelId = send.modelId
     const videoCap = getReferenceCapability(
       'video',
       selectedModel.adapterType as AI_ADAPTER_TYPES,
-      selectedModel.modelId,
+      sendModelId,
     )
     const videoMax = getReferenceCapabilityMax(videoCap)
-    /**
-     * ⭐ **关键帧档读具名槽**（第二期）：那一档里图片是首帧 / 尾帧，住在
-     * `state.videoFrameSlots`，⛔ 不再从参考图列表按下标推
-     * （`[0] 首帧、[1] 尾帧` 那套已在这一轮删掉 —— 位置承载会让「删掉第一张」
-     * 把尾帧静默升级成首帧）。
-     *
-     * ⚠ 线上契约仍是 `referenceImage` + `referenceImages` 两个位置字段，所以
-     * **序列化在这里发生**：`[首帧, 尾帧]` 按序铺开。⚠ 首帧缺席、只有尾帧时
-     * ⛔ 不把尾帧顶到第一位 —— 那正是要根治的那次漂移；这种情况下这一枪没有
-     * 首帧可发，尾帧也随之无处安放，于是两个都不发（模型看到的是纯文生视频）。
-     */
-    const keyframeRefs =
-      state.videoMode === 'keyframe'
-        ? state.videoFrameSlots.first
-          ? [state.videoFrameSlots.first, state.videoFrameSlots.last].filter(
-              (url): url is string => typeof url === 'string',
-            )
-          : []
-        : imageUpload.referenceImages
-    const refs = keyframeRefs.slice(0, videoMax)
+    const refs = send.images.slice(0, videoMax)
     const firstRef = refs[0]
     /**
      * 参考视频（第二期）。传输口 `videoUrls` **早就在**（`types/index.ts` 那条
@@ -398,7 +404,7 @@ export function useStudioGenerateAction() {
     const videoRefUrls = state.videoReferenceVideos.slice(
       0,
       getVideoModelSendContract(
-        selectedModel.modelId,
+        sendModelId,
         selectedModel.adapterType as AI_ADAPTER_TYPES,
       ).slots.videos,
     )
@@ -439,10 +445,7 @@ export function useStudioGenerateAction() {
      * 而这里是这两个值离开客户端的唯一出口。
      */
     const { durations: allowedDurations, resolutions: allowedResolutions } =
-      getVideoModelParameterOptions(
-        selectedModel.modelId,
-        selectedModel.adapterType,
-      )
+      getVideoModelParameterOptions(sendModelId, selectedModel.adapterType)
     const duration: number | 'auto' =
       allowedDurations.length === 0
         ? 'auto'
@@ -462,7 +465,7 @@ export function useStudioGenerateAction() {
 
     return {
       prompt: finalPrompt,
-      modelId: selectedModel.modelId,
+      modelId: sendModelId,
       apiKeyId: selectedModel.keyId,
       aspectRatio: state.aspectRatio as '1:1' | '16:9' | '9:16' | '4:3' | '3:4',
       duration,
@@ -506,7 +509,6 @@ export function useStudioGenerateAction() {
     characters.activeCards,
     composePrompt,
     imageUpload.referenceImages,
-    state.videoMode,
     state.videoFrameSlots,
     state.videoReferenceVideos,
   ])
@@ -1046,7 +1048,7 @@ export function useStudioGenerateAction() {
     modelOptions,
     runModels,
     runModelIds,
-    filterVideoModelByMode,
+    filterVideoModelOption,
     filterModelByDialect,
     handleSelectSingleModel,
     handleToggleRunModel,

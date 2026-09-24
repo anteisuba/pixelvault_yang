@@ -61,7 +61,7 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 - `use-studio-operator-store.ts` — 模块级 store：进度带 / 结果行卡选中 / @ chips / 队列（面板收放会卸载组件，这些不能住组件 state）
 - `use-studio-operator-mention.ts` — **@ 四入口唯一一条 chip 管线**（`addChip`）；chip 就是 `StudioOperatorAttachment`，发送时与 📎 附件按 `id` 去重合并
 - `use-assistant-persona.ts` — 助手设置 persona 读 / 写 / 传头像（`/api/assistant/persona`）。⚠ 初值是 `ASSISTANT_PERSONA_DEFAULTS` 不是 null，⛔ 不做「加载中什么都不显示」的空窗
-- `use-video-reference-slots.ts` — 视频档**具名参考槽**（首帧 / 尾帧 / 参考视频）。⭐ 拖入 / 素材库 / 助手 `mount_reference slot` **三条落法汇到同一个 dispatch**（`SET_VIDEO_FRAME_SLOT` / `SET_VIDEO_REFERENCE_VIDEOS`），⛔ 组件里别另写写入。槽的可见性来自模型**发送契约**（`getVideoWorkbenchSlots`），⛔ 不由组件自己判模型；本地图片走参考图那条同源上传管线（压缩闸 → multipart → R2），⛔ 不是 base64
+- `use-studio-video-assets.ts` — 视频档**素材轨**（owner 09-24 去掉三个模式）：图、视频、音频按类型编号（图片1 · 视频1 · 音频1），首 / 尾帧是图片角标。⭐ 拖入 / 素材库 / 助手 `mount_reference slot` **三条落法汇到同一份状态**（`SET_VIDEO_FRAME_SLOT` / `imageUpload` / `SET_VIDEO_REFERENCE_VIDEOS`），⛔ 组件里别另写写入。容量、编号、这一枪走哪个端点全部来自 `lib/studio/video-workbench-slots.ts`（与画布同一个 `videoSendMode`），⛔ 不由组件自己判模型；本地图片走参考图那条同源上传管线（压缩闸 → multipart → R2），⛔ 不是 base64
 - `use-project-rules.ts` — 项目规则 CRUD（`/api/assistant/rules`）。调用方是 `AssistantSettingsDialog` 的「项目规则」页签
 
 ### Node Canvas v4（`src/hooks/node/` · 基准 `docs/references/pages/node-canvas-v2.md`）

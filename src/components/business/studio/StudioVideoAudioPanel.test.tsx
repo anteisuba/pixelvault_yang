@@ -35,9 +35,15 @@ vi.mock('@/hooks/use-video-model-options', () => ({
   }),
 }))
 
-vi.mock('@/constants/video-model-send-plan', () => ({
-  getVideoModelSendContract: () => ({
-    slots: { audio: VIDEO_REFERENCE_LIMITS.AUDIO },
+// 上限来自素材轨容量（型号的参考端点）。
+vi.mock('@/hooks/use-studio-video-assets', () => ({
+  useStudioVideoAssets: () => ({
+    capacity: {
+      frames: 2,
+      references: 9,
+      videos: 3,
+      audios: VIDEO_REFERENCE_LIMITS.AUDIO,
+    },
   }),
 }))
 

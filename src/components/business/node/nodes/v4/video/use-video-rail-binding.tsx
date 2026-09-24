@@ -19,6 +19,7 @@ import type { ReactNode } from 'react'
 import { AssetSelectorDialog } from '@/components/business/AssetSelectorDialog'
 import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_SLOT_IDS, type NodeSlotId } from '@/constants/node-slots'
+import { videoRailCapacity } from '@/constants/video-node-modes'
 import {
   NODE_MEDIA_KIND_IDS,
   NODE_V4_IMAGE_SUBTYPE_IDS,
@@ -36,7 +37,6 @@ import type { NodeV4, NodeWorkflowModelSelection } from '@/types/node-workflow'
 
 import { useNodeV4Canvas } from '../NodeV4Context'
 import type { VideoRailPendingItem, VideoRefRailProps } from './VideoRefRail'
-import { videoRailCapacity } from './video-node-model'
 
 /** 「抽帧」与「+ 上传落槽」那一批里指代新建素材卡的别名。 */
 export const ASSET_BATCH_REF = 'asset'

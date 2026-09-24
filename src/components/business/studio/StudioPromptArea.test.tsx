@@ -108,7 +108,9 @@ vi.mock('@/hooks/use-open-assistant-memory', () => ({
 }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string) => key,
+  // ⚠ 带 `rich`：素材轨那行「这次按 … 发」是富文本。
+  useTranslations: () =>
+    Object.assign((key: string) => key, { rich: (key: string) => key }),
   useLocale: () => 'en',
 }))
 
@@ -375,7 +377,6 @@ function setupStudioForm(
     audioReferenceUrl: null,
     audioReferenceFileName: null,
     audioReferenceText: '',
-    videoMode: 'keyframe',
     videoDuration: 5,
     videoResolution: '720p',
     videoAudioRefs: [],

@@ -1707,6 +1707,11 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.critiqueResult,
   ],
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: [
+    /**
+     * ⭐ 看素材轨上的图（owner 09-24 视频画板 V3）：写绑定句之前先看图1 是谁。
+     * 看的是左栏那条轨（首帧 · 尾帧 · 参考图，与编号同序），见服务端 `analysisImageUrls`。
+     */
+    ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
     ...COMMON_DOMAIN_TOOLS,
     ASSISTANT_OPERATOR_TOOL_IDS.setVideoSpecs,
     /**

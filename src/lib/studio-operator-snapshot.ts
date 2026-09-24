@@ -40,9 +40,13 @@ import {
   getVideoModelSendContract,
 } from '@/constants/video-model-send-plan'
 import {
-  getNodeModeForModel,
-  type VideoNodeMode,
+  isVideoPickerModel,
+  resolveVideoSendModelId,
 } from '@/constants/video-node-modes'
+import {
+  getStudioVideoCapacity,
+  resolveStudioVideoSend,
+} from '@/lib/studio/video-workbench-slots'
 import type { StudioModelOption } from '@/types/model-option'
 import type { VideoAudioReference } from '@/contexts/studio-context'
 import type { AdvancedParams } from '@/types'
@@ -368,14 +372,6 @@ export interface VideoOperatorSnapshotInput {
   modelOptions: readonly StudioModelOption[]
   selectedModel: StudioModelOption | undefined
   references: StudioOperatorSnapshotReferences
-  /**
-   * 当前「用途」档（关键帧 / 多图参考 / 全能参考）。
-   *
-   * ⭐ 名单**必须按它筛**：视频选择器只列当前用途的端点
-   * （`StudioPromptArea` 的 `filterVideoModelByMode`），列全集就等于让助手选一个
-   * 用户在界面上根本点不到的模型 —— 拍板 19 的反面。
-   */
-  videoMode: VideoNodeMode
 }
 
 /**
@@ -395,19 +391,19 @@ function describeVideoOption(
 
 /**
  * 视频档的模型名单 —— 同 `imageRunnableOptions` 的理由，快照与卡共用一份。
- * ⚠ **不按 modelId 去重**（渠道就是这一档要给的信息，K-3），⚠ 按当前「用途」档筛。
+ * ⚠ **不按 modelId 去重**（渠道就是这一档要给的信息，K-3）；⚠ 与左栏选择器同一个
+ * 谓词（一行一个型号 × 渠道，`isVideoPickerModel`）—— 列用户点不到的端点就是
+ * 让助手选一个界面上不存在的模型（拍板 19 的反面）。
  */
 function videoRunnableOptions(
   modelOptions: readonly StudioModelOption[],
-  videoMode: VideoNodeMode,
 ): StudioModelOption[] {
   return runnable(modelOptions)
-    .filter(
-      (option) =>
-        getNodeModeForModel(
-          option.modelId,
-          option.adapterType as AI_ADAPTER_TYPES,
-        ) === videoMode,
+    .filter((option) =>
+      isVideoPickerModel(
+        option.modelId,
+        option.adapterType as AI_ADAPTER_TYPES,
+      ),
     )
     .slice(0, ASSISTANT_OPERATOR_LIMITS.maxAvailableModels)
 }
@@ -417,15 +413,17 @@ export function buildVideoOperatorSnapshot({
   modelOptions,
   selectedModel,
   references,
-  videoMode,
 }: VideoOperatorSnapshotInput): AssistantOperatorSnapshot {
   /**
    * ⚠ **不按 modelId 去重**：一个型号在几条渠道上就是几行，那正是这一档要给的
    * 信息。⛔ 去重就等于把渠道选择又交回给「排序里的第一条」。
    */
-  const availableModels = videoRunnableOptions(modelOptions, videoMode).map(
-    (option) => ({ id: option.optionId, label: describeVideoOption(option) }),
-  )
+  const availableModels = videoRunnableOptions(modelOptions).map((option) => ({
+    id: option.optionId,
+    label: describeVideoOption(option),
+    // 目录 id —— 换模型时按它查新模型的写法规则（选项 id 查不到）。
+    catalogId: option.modelId,
+  }))
 
   const params = getVideoModelParameterOptions(
     selectedModel?.modelId,
@@ -440,11 +438,24 @@ export function buildVideoOperatorSnapshot({
     aspectRatioOptions.length > 0 ||
     params.resolutions.length > 0
 
-  const contract = selectedModel
-    ? getVideoModelSendContract(
-        selectedModel.modelId,
-        selectedModel.adapterType as AI_ADAPTER_TYPES,
-      )
+  /**
+   * ⭐ 素材轨的容量与这一枪实际跑的端点（owner 09-24 去掉模式）。参考视频 / 音频
+   * 那几格按型号的**参考端点**算 —— 选中的是关键帧端点时它们都是 0，照它算助手
+   * 连一段音频都挂不上。负面框、出声开关按**实际端点**的契约给。
+   */
+  const adapterType = selectedModel?.adapterType as AI_ADAPTER_TYPES | undefined
+  const capacity = getStudioVideoCapacity(selectedModel?.modelId, adapterType)
+  const send = selectedModel
+    ? resolveStudioVideoSend(selectedModel.modelId, adapterType, {
+        first: form.videoFrameSlots.first,
+        last: form.videoFrameSlots.last,
+        references: references.items.map((item) => item.url),
+        videos: form.videoReferenceVideos,
+        audios: form.videoAudioRefs.length,
+      })
+    : null
+  const contract = send
+    ? getVideoModelSendContract(send.modelId, adapterType)
     : null
 
   /**
@@ -461,43 +472,43 @@ export function buildVideoOperatorSnapshot({
         true)
       : true)
 
-  const audioSlots = contract?.slots.audio ?? 0
+  const audioSlots = capacity.audios
 
   /**
-   * 具名帧槽（第二期）。**整节只在关键帧档给** —— 另外两档界面上根本没有首尾帧
-   * 那两个格子（`studio-context` 里 `videoFrameSlots` 的头注：那两档里图片不是帧）。
-   * 缺席即拒，那正是 `mount_reference slot:'first'` 在多图参考档下该有的行为。
-   * ⚠ `slots` 来自契约的 `keyframeSlots`（**能力声明**，不是数量上限）：
-   * 声明 1 的模型上写尾帧会被静默丢掉，那正是这条闸要拦的东西。
+   * 具名帧槽。**型号吃首尾帧才给**（`capacity.frames`）—— 缺席即拒，那正是
+   * `mount_reference slot:'first'` 在不吃帧的型号上该有的行为。
+   * ⚠ `slots` 是**能力声明**（1 = 只有首帧），不是数量上限：声明 1 的型号上写尾帧会被
+   * 静默丢掉，那正是这条闸要拦的东西。
    */
-  const keyframeSlots = contract?.keyframeSlots ?? 1
   const frameReferences =
-    videoMode === 'keyframe' && selectedModel
+    capacity.frames > 0 && selectedModel
       ? {
           ...(form.videoFrameSlots.first
             ? { first: { url: form.videoFrameSlots.first } }
             : {}),
-          ...(keyframeSlots === 2 && form.videoFrameSlots.last
+          ...(capacity.frames === 2 && form.videoFrameSlots.last
             ? { last: { url: form.videoFrameSlots.last } }
             : {}),
-          slots: keyframeSlots,
+          slots: capacity.frames === 2 ? (2 as const) : (1 as const),
         }
       : null
 
-  /**
-   * 参考视频位（第二期）。⚠ 槽位为 0（绝大多数模型）时整节缺席 —— 与音频那一节
-   * 逐字同构，助手因此连试都不会试。
-   */
-  const videoSlots = contract?.slots.videos ?? 0
+  /** 参考视频位。⚠ 型号没有参考端点（容量 0）时整节缺席 —— 助手因此连试都不会试。 */
+  const videoSlots = capacity.videos
 
   return {
     prompt: form.prompt,
-    // 视频档**有**负面框（参数栏那条折叠行图片/视频共用，值落 `negativePrompt`）。
-    negativePrompt: form.negativePrompt ?? '',
+    // ⭐ 负面框**只在实际端点收这个字段时**给（owner 09-24 视频画板 W6）：大多数视频
+    //    模型没有它，给了助手就会往里写、发送时再被静默丢掉。缺席 = set_negative 被拒，
+    //    助手改写进正文（`planSetText` 那条退回）。
+    negativePrompt: contract?.parameters.negativePrompt
+      ? (form.negativePrompt ?? '')
+      : undefined,
     model: selectedModel
       ? {
           id: selectedModel.optionId,
           label: describeVideoOption(selectedModel),
+          catalogId: selectedModel.modelId,
         }
       : null,
     availableModels,
@@ -537,7 +548,10 @@ export function buildVideoOperatorSnapshot({
           },
         }
       : {}),
-    references: buildReferencesNode(references),
+    // 型号没有参考档时参考图整节缺席（左栏素材轨也不收参考图）。
+    ...(capacity.references !== 0
+      ? { references: buildReferencesNode(references) }
+      : {}),
     ...(frameReferences ? { frameReferences } : {}),
     ...(videoSlots > 0
       ? {
@@ -565,7 +579,18 @@ export function buildVideoOperatorSnapshot({
                   : {}),
               })),
             limit: audioSlots,
-            requiresVisual: Boolean(contract?.slots.audioRequiresVisual),
+            // ⚠ 挂了音频就走参考端点 —— 问那个端点（还没挂时选中的是关键帧端点）。
+            requiresVisual: Boolean(
+              selectedModel &&
+              getVideoModelSendContract(
+                resolveVideoSendModelId(
+                  selectedModel.modelId,
+                  adapterType,
+                  true,
+                ),
+                adapterType,
+              ).slots.audioRequiresVisual,
+            ),
           },
         }
       : {}),
@@ -760,20 +785,18 @@ export function buildImageGenerationControls({
 export function buildVideoGenerationControls({
   modelOptions,
   selectedModel,
-  videoMode,
   aspectRatio,
   resolution,
   labelOf,
 }: {
   modelOptions: readonly StudioModelOption[]
   selectedModel: StudioModelOption | undefined
-  videoMode: VideoNodeMode
   aspectRatio: string
   resolution: string | null
   /** 模型的**显示名**（见 `labelOfOption`）—— 不给就回落到 id。 */
   labelOf?: (option: StudioModelOption) => string | undefined
 }): StudioOperatorGenerationControls {
-  const options = videoRunnableOptions(modelOptions, videoMode)
+  const options = videoRunnableOptions(modelOptions)
   const choicesByModel: Record<string, StudioOperatorGenerationChoices> = {}
   for (const option of options) {
     const params = getVideoModelParameterOptions(

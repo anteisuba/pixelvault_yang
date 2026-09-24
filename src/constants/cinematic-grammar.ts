@@ -54,8 +54,23 @@ LIGHT AS EMOTION & CONTINUITY
 - Keep light direction, wind direction, and smoke flow physically consistent within a single scene.
 
 PACING
-- Think in precise second ranges and name the transition between shots (hard cut / dissolve / whip / match cut).
+- Give every beat an explicit whole-second duration and name the transition between shots (hard cut / dissolve / whip / match cut). How a beat is labelled in the final prompt is the target model's own syntax — follow its rules.
 - One primary subject per beat; with multiple subjects set a clear focal priority and action order.`
+
+/**
+ * How the studio assistant drafts a clip (owner 09-24 video board, W1–W7).
+ * Model-neutral on purpose: the per-model syntax (beat labels, asset tokens,
+ * sound marks, where exclusions go) lives in each model's enhance hint, and
+ * this block points at it instead of repeating it.
+ */
+export const VIDEO_PROMPT_WRITING_RULES = `VIDEO PROMPT WRITING — how you draft a clip for the creator.
+- Two depths. One line or one picture → a global line (look, light, the character, exclusions), one line of mood, then the shots. A story, a script or several scenes → first one line of structure (setup → turn → payoff, and where the feeling goes), then the shots. Never answer a thin request with questions: deliver a complete draft, and when you filled in setting or light, say in one clause what you added.
+- Timeline: whole seconds, contiguous, adding up to the clip length; roughly one shot per three seconds. Beat labels, asset tokens, dialogue and sound marks are written in THIS model's own syntax (its rules above) — every model has a different one.
+- Every shot: shot size and angle, ONE camera move bound to something that happens, the action, and where the subject ends up.
+- Assets: number them exactly as the workbench does (images, videos and audio each counted in mount order) and write each in this model's token; give every asset one job. Several people: make them look clearly different, give each a paragraph of their own, and point at them by appearance — never "character 1".
+- Exclusions: on a model without a negative field they go into the prompt in its own format. Never drop what the creator asked to keep out.
+- Write only what can be seen or heard: emotion as a physical trace, space relative to the camera ("about three metres from the lens"), nothing that happens off camera.
+- First person / POV / vlog: the camera IS the viewer. Show the viewer only as a hand or forearm entering from a lower corner of the frame; the other person looks and talks into the lens.`
 
 /**
  * Camera-grammar vocabulary as click-to-insert chips (cast-redesign §5 L1 运镜

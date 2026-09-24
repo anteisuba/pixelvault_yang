@@ -268,6 +268,12 @@ export const AssistantOperatorSnapshotModelSchema = z.object({
   id: IdSchema,
   label: LabelSchema.optional(),
   /**
+   * 目录里的型号 id（`AI_MODELS`）。⭐ 视频档的 `id` 是**选项 id**（`key:…` /
+   * `workspace:…`，型号 × 渠道），拿它查不到这个模型的写法规则 —— 视频实跑 09-24：
+   * 选的是 BytePlus，助手却照 fal 的 `@Image1` 写，因为规则整段没送到。
+   */
+  catalogId: IdSchema.optional(),
+  /**
    * 这个型号底下的几条渠道（进度表 10 + 21）。
    *
    * ⚠ **缺席 / 只有一条 = 渠道这件事在这个型号上没有意义** —— `set_model` 的
@@ -2795,6 +2801,18 @@ export type AssistantOperatorTagCheck = z.infer<
   typeof AssistantOperatorTagCheckSchema
 >
 
+/**
+ * 这一轮的负面项因为视频模型**没有负面栏**被写进了正文（owner 09-24 视频画板 W6）
+ * —— 与 `tagCheck` 同一条路：随写提示词那一步下发、进历史，界面由系统说一句。
+ */
+export const AssistantOperatorNegativeFoldedSchema = z.object({
+  model: LabelSchema,
+})
+
+export type AssistantOperatorNegativeFolded = z.infer<
+  typeof AssistantOperatorNegativeFoldedSchema
+>
+
 export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
   readStep(
     ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
@@ -3053,6 +3071,8 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
        * ⚠ 只在真的换过写法或有查不到的时才有。
        */
       tagCheck: AssistantOperatorTagCheckSchema.optional(),
+      /** 负面项写进了正文（视频模型没有负面栏）—— 服务端填，客户端说一句为什么。 */
+      negativeFolded: AssistantOperatorNegativeFoldedSchema.optional(),
     }),
     /** ⚠ 逆操作一律是**改前的完整原文**（可能是空串），所以 append / replace 撤法相同。 */
     z.object({ value: TextValueSchema }),

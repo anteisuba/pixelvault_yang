@@ -9,14 +9,7 @@ import {
   type ClipboardEvent,
   type DragEvent,
 } from 'react'
-import {
-  ChevronDown,
-  FileAudio2,
-  FileText,
-  Music2,
-  Plus,
-  X,
-} from '@/components/icons'
+import { ChevronDown, FileAudio2, FileText, Plus, X } from '@/components/icons'
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { useTranslations } from 'next-intl'
 
@@ -29,6 +22,7 @@ import {
   SAMPLE_PROMPT_STORAGE_KEY,
 } from '@/constants/sample-prompts'
 import { AUDIO_KIND } from '@/constants/audio-options'
+import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import {
   STUDIO_TOOL_PANEL_NAMES,
   useStudioForm,
@@ -37,6 +31,7 @@ import {
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
+import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
@@ -49,7 +44,7 @@ import { PlaceholderFillDialog } from '@/components/business/prompts/inspiration
 // （`StudioToolbarPanels` / `StudioToolbar` 已随 dock 一起退役）。
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StudioInpaintMaskChip } from '@/components/business/studio/StudioInpaintMaskChip'
-import { StudioVideoReferenceSlots } from '@/components/business/studio-shared/chrome/StudioVideoReferenceSlots'
+import { StudioVideoAssetRail } from '@/components/business/studio-shared/chrome/StudioVideoAssetRail'
 import { StudioEnhanceButton } from '@/components/business/studio/StudioEnhanceButton'
 import { StudioCardsButton } from '@/components/business/studio/StudioCardsButton'
 import { StudioCardSection } from '@/components/business/studio/StudioCardSection'
@@ -59,7 +54,6 @@ import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
 import { StudioDialectHeader } from '@/components/business/studio/tags/StudioDialectHeader'
 import { StudioDialectJumpHint } from '@/components/business/studio/tags/StudioDialectJumpHint'
-import { StudioVideoModeToggle } from '@/components/business/studio/StudioVideoModeToggle'
 import { StudioSfxSpecPopover } from '@/components/business/studio/StudioSfxSpecPopover'
 import { StudioMusicSpecPopover } from '@/components/business/studio/StudioMusicSpecPopover'
 import { StudioAudioSpeechParams } from '@/components/business/studio/StudioAudioSpeechParams'
@@ -70,6 +64,7 @@ import { cn } from '@/lib/utils'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
 import { Spinner } from '@/components/ui/spinner'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
+import { StudioVideoPromptInput } from './StudioVideoPromptInput'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 
 /**
@@ -115,7 +110,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   // 模态专属那几颗丸的文案 —— 命名空间沿用 dock 时期的，文案一个字没改
   const tBar = useTranslations('StudioToolbar')
   const tScript = useTranslations('VideoScript')
-  const tVideoAudio = useTranslations('StudioVideoAudio')
   const tVideo = useTranslations('VideoGenerate')
   useEffect(() => {
     if (!localStorage.getItem(SAMPLE_PROMPT_STORAGE_KEY) && !state.prompt) {
@@ -131,13 +125,15 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
   const isAudioMode = state.outputType === 'audio'
   const isVideoMode = state.outputType === 'video'
   /**
-   * 关键帧档 —— 这一档里图片是**帧**，归具名槽（第二期）。
-   *
-   * ⚠ 判据是 `state.videoMode` 而不是「选了哪个模型」：档位是用户显式选的、
-   * 且在没选模型时也成立（`video-node-modes.ts` 那条「必须是真 state，不能从
-   * 选中模型反推」）。
+   * 视频档的负面提示词行**按这一枪实际跑的端点**显隐（owner 09-24 视频画板 ③）：
+   * 大多数视频模型没有这个字段，写了会被静默丢掉 —— 那一行就不该出现。
    */
-  const isKeyframeVideo = isVideoMode && state.videoMode === 'keyframe'
+  const videoAssets = useStudioVideoAssets()
+  const videoTakesNegative = Boolean(
+    videoAssets.send &&
+    getVideoModelSendContract(videoAssets.send.modelId).parameters
+      .negativePrompt,
+  )
 
   /**
    * 「这一枪能不能打、打出去发什么」整块住在 `useStudioGenerateAction`
@@ -151,7 +147,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
     modelOptions,
     runModels,
     runModelIds,
-    filterVideoModelByMode,
+    filterVideoModelOption,
     filterModelByDialect,
     handleSelectSingleModel,
     handleToggleRunModel,
@@ -373,28 +369,10 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             'rounded-xl ring-2 ring-primary/35 ring-offset-2 ring-offset-background',
         )}
       >
-        {/* 图片用途 —— **栏首第一决策**（切片 B）。它决定这一次发哪个端点，
-            也决定下面「首帧 / 内容参考」那条输入轨叫什么名字、放得下几张；
-            排在提示词之后就等于让人先写完再回头改前提。
-            ⚠ 只在目录里真有 ≥2 档模型时渲染（组件自己判），少于 2 档没得选。 */}
-        {isVideoMode ? (
-          <div className="flex flex-col gap-1.5">
-            <span className="text-2xs font-medium text-muted-foreground/70">
-              {tBar('videoMode')}
-            </span>
-            <StudioVideoModeToggle disabled={isGenerating} />
-          </div>
-        ) : null}
-
-        {/* 具名参考槽 —— 首帧 / 尾帧 / 参考视频（第二期）。⚠ 紧跟在「用途」档
-            后面：档位决定哪些槽出现，两者隔开就看不出因果。组件自己按当前模型
-            的发送契约决定渲染谁，⛔ 不支持的槽不渲染（不摆禁用占位）。 */}
-        {isVideoMode ? (
-          <StudioVideoReferenceSlots
-            selectedModel={selectedModel}
-            disabled={isGenerating}
-          />
-        ) : null}
+        {/* 素材轨 —— **栏首**（owner 09-24 视频画板 ①）：图、视频、音频一条轨，
+            按类型编号（图片1 · 视频1 · 音频1），首 / 尾帧是图片上的角标。这一枪怎么发
+            由挂了什么推出来，写在轨下面一行灰字 —— ⛔ 没有模式分段。 */}
+        {isVideoMode ? <StudioVideoAssetRail disabled={isGenerating} /> : null}
 
         {/* 提示词 —— 参数栏里它是一块独立的输入区，不再和发送键挤一行 */}
         <div className="flex flex-col gap-1.5">
@@ -402,23 +380,26 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             {tForm('promptLabel')}
           </span>
           <div className="studio-composer rounded-xl border border-border/60 px-2 py-1.5">
-            <ImageAttachmentPreviewStrip
-              entries={imageUpload.referenceEntries}
-              previewAlt={tImageChip('label')}
-              previewLabel={(index) =>
-                tImageChip('previewReferenceImage', { index })
-              }
-              previewDescription={tImageChip('previewReferenceDescription')}
-              previewCloseLabel={tImageChip('closeReferencePreview')}
-              removeLabel={(index) =>
-                tImageChip('removeReferenceImage', { index })
-              }
-              onRemove={imageUpload.removeReferenceImage}
-              overLimitTooltip={tImageChip('disabledOverLimit')}
-              unsupportedTooltip={tImageChip('disabledUnsupported')}
-              variant="composer"
-              dragType={STUDIO_REFERENCE_DRAG_TYPE}
-            />
+            {/* ⚠ 视频档的参考图在素材轨上（带编号与角标），⛔ 不在这里再画一条。 */}
+            {isVideoMode ? null : (
+              <ImageAttachmentPreviewStrip
+                entries={imageUpload.referenceEntries}
+                previewAlt={tImageChip('label')}
+                previewLabel={(index) =>
+                  tImageChip('previewReferenceImage', { index })
+                }
+                previewDescription={tImageChip('previewReferenceDescription')}
+                previewCloseLabel={tImageChip('closeReferencePreview')}
+                removeLabel={(index) =>
+                  tImageChip('removeReferenceImage', { index })
+                }
+                onRemove={imageUpload.removeReferenceImage}
+                overLimitTooltip={tImageChip('disabledOverLimit')}
+                unsupportedTooltip={tImageChip('disabledUnsupported')}
+                variant="composer"
+                dragType={STUDIO_REFERENCE_DRAG_TYPE}
+              />
+            )}
             {imageUpload.isUploading && (
               <div
                 role="status"
@@ -430,6 +411,15 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             )}
             {isImageMode ? (
               <StudioReferencePromptInput
+                placeholder={placeholder}
+                disabled={isGenerating}
+                onPaste={handlePromptPaste}
+                onSubmit={handleGenerate}
+                className="min-h-20 max-h-56 overflow-y-auto px-1 py-1 font-sans text-base leading-6 md:text-sm"
+              />
+            ) : isVideoMode ? (
+              // 视频档：正文里的素材编号按模型写法渲染成缩略图胶囊。
+              <StudioVideoPromptInput
                 placeholder={placeholder}
                 disabled={isGenerating}
                 onPaste={handlePromptPaste}
@@ -488,7 +478,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               （`advancedParams.negativePrompt`），视频那份原本长在「视频设置」
               对话框里，切片 B 把对话框整个退役了，字段的家从此只有这一个。
               音频没有这个字段，所以不渲染。 */}
-        {!isAudioMode ? (
+        {!isAudioMode && (!isVideoMode || videoTakesNegative) ? (
           <div
             className="flex flex-col"
             // ⭐ 必须挡住冒泡：`PromptInput` 的根 div 在**容器内任何点击**冒泡上来时
@@ -597,13 +587,9 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               （`StudioToolbarPanels` 的音频分支只有 助手 / 音色 / 克隆 / 转脚本）。
               参数栏这一行是三模态共用的，不加这个闸就等于给语音凭空多一个
               点了没用的入口。音频要传的是**参考音频**，在音色面板里。 */}
-          {/* ⚠ 关键帧档下这颗**不渲染**（第二期）：那一档里图片就是首帧 / 尾帧，
-              而它们各有自己的具名槽。留着它等于给同一件事开第二个入口，而那个
-              入口写进的是参考图列表 —— 发送口在关键帧档下根本不读那条列表，
-              于是用户挂了图、生成出来一点关系都没有（典型的静默失效）。 */}
-          {!isAudioMode && !isKeyframeVideo ? (
-            <ReferenceImageChip disabled={isGenerating} />
-          ) : null}
+          {/* ⚠ 视频档这颗**不渲染**（owner 09-24 视频画板 ④）：图片进素材轨的「＋」，
+              带编号与首尾帧角标。留着它等于同一件事两个入口。 */}
+          {isImageMode ? <ReferenceImageChip disabled={isGenerating} /> : null}
           {/* 遮罩重绘挨着参考图 —— 它改的就是那张图。能力表没声明 `inpaint`
               的模型下它整颗不渲染（判据在组件里，⛔ 这里不写模型名）。 */}
           {isImageMode ? (
@@ -616,6 +602,25 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               `workflowMode` 从 localStorage 恢复成 `card` 时，模型名单被
               `workflowMode === 'quick'` 挡掉，而卡片选择器又不在，整栏是死的。 */}
           {isImageMode ? <StudioCardsButton disabled={isGenerating} /> : null}
+          {/* 视频档：「模板 · 剧本」一行两颗（owner 09-24 视频画板 ④）。音频参考
+              进了素材轨的「＋」，⛔ 不再单独一颗。 */}
+          {isVideoMode ? (
+            <button
+              type="button"
+              onClick={() =>
+                dispatch({ type: 'TOGGLE_PANEL', payload: 'script' })
+              }
+              disabled={isGenerating}
+              // 与「模板」那颗同一种幽灵样式 —— 两颗并排，⛔ 一颗带框一颗不带。
+              className={cn(
+                'flex h-9 items-center gap-2 rounded-full px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted/35 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 disabled:pointer-events-none disabled:opacity-50',
+                state.panels.script && 'bg-muted/55 text-foreground',
+              )}
+            >
+              <FileText className="size-4" />
+              {tScript('panelTitle')}
+            </button>
+          ) : null}
           {/* 助手在 lg 以上由右上角的 StudioAssistantFab 承担（owner
                 2026-08-14），这里只留小屏那份 —— 不是重复：小屏没有浮标，
                 抽屉宿主就长在这颗丸里面，删了小屏就没有助手入口了。 */}
@@ -628,65 +633,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             退役，改挂这里。条件与旧版逐字一致（音频没有卡片）。 */}
         {state.workflowMode === 'card' && !isAudioMode ? (
           <StudioCardSection />
-        ) : null}
-
-        {/* ── 模态专属的「另一条线」────────────────────────────────────
-            视频只剩「剧本」（分镜编排那条线，切片 C 才给它形态）；音频那排
-            仍是切片 A 原样搬来的丸，按 `ParamIdiom` 重排是切片 D 的事。
-            ⚠ 规格类的参数不在这里：视频的时长 / 分辨率 / 比例已并进下面的
-            「规格」浮层，反向提示词并进折叠行 —— 参数区回答「下一版长什么样」，
-            这一行回答「我现在要做什么」。 */}
-        {isVideoMode ? (
-          <>
-            <Toolbar.Root
-              className={cn(
-                isVideoMode
-                  ? 'grid grid-cols-2 gap-2 [&>button]:w-full [&>button]:justify-start'
-                  : 'flex flex-wrap items-center gap-1.5',
-              )}
-            >
-              <button
-                type="button"
-                onClick={() =>
-                  dispatch({ type: 'TOGGLE_PANEL', payload: 'script' })
-                }
-                disabled={isGenerating}
-                className={cn(
-                  modalityPillClass,
-                  state.panels.script && modalityPillActiveClass,
-                )}
-              >
-                <FileText className="size-4" />
-                {tScript('panelTitle')}
-              </button>
-              {/*
-                台账 A（owner 2026-08-29）：**挂音频参考的入口**。此前这一行只有
-                「剧本」一颗丸，整个工作台找不到任何挂音频的地方 —— 而「全能参考」
-                那一档选得到、Seedance 2.5 的音频槽有 10 个、后端三层全通。
-                ⚠ 挂了几条要显示出来：不显示的话，用户切走再回来根本不知道这次
-                请求还带着音频（图片参考那颗丸同款处理）。
-              */}
-              <button
-                type="button"
-                onClick={() =>
-                  dispatch({ type: 'TOGGLE_PANEL', payload: 'videoAudio' })
-                }
-                disabled={isGenerating}
-                className={cn(
-                  modalityPillClass,
-                  state.panels.videoAudio && modalityPillActiveClass,
-                )}
-              >
-                <Music2 className="size-4" />
-                {tVideoAudio('pill')}
-                {state.videoAudioRefs.length > 0 ? (
-                  <span className="tabular-nums">
-                    {state.videoAudioRefs.length}
-                  </span>
-                ) : null}
-              </button>
-            </Toolbar.Root>
-          </>
         ) : null}
 
         {isAudioMode ? (
@@ -785,7 +731,7 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               triggerEmptyLabel={t('noModelHint')}
               searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
               emptySearchText={tForm('modelSelector.emptySearch')}
-              filterOption={filterVideoModelByMode}
+              filterOption={filterVideoModelOption}
               className="w-full justify-start"
             />
           </div>

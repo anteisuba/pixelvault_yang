@@ -115,10 +115,6 @@ vi.mock('@/hooks/cards/use-voice-cards', () => ({
   useVoiceCards: () => ({ findCard: () => null }),
 }))
 
-vi.mock('@/hooks/use-studio-video-mode', () => ({
-  useStudioVideoMode: () => ({ mode: 'keyframe', setMode: vi.fn() }),
-}))
-
 function makeState(overrides: Partial<StudioFormState> = {}) {
   return {
     prompt: '',

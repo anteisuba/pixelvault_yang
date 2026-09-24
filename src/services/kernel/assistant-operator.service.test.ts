@@ -14800,3 +14800,161 @@ describe('set_model · 渠道（进度表 21）', () => {
     expect(done.at(-1)?.inverse).toEqual({ modelId: 'flux-pro' })
   })
 })
+
+/**
+ * 视频助手（owner 09-24 视频画板）：写法规则对每个视频模型都给、素材轨编号进状态块、
+ * 没有负面栏时负面项退回改写进正文并由系统说一句。
+ */
+describe('视频助手 · 写法 / 素材轨 / 负面项', () => {
+  const snapshotWithoutNegative = {
+    ...VIDEO_SNAPSHOT,
+    negativePrompt: undefined,
+  }
+
+  it('⭐ 选项 id 查不到规则时按目录 id 查：BytePlus 线路拿到的是 图片1 的写法', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildVideoRequest({
+          snapshot: {
+            ...VIDEO_SNAPSHOT,
+            model: {
+              id: 'key:1b16d869-1954-435c-808a-3c1a5c4e9c73',
+              label: 'seedance-2.0-byteplus · BytePlus · 6 credits',
+              catalogId: 'seedance-2.0-byteplus',
+            },
+          },
+        }),
+      ),
+    )
+    const prompt = systemPrompt()
+    expect(prompt).toContain('将图片1中')
+    expect(prompt).not.toContain('将@Image1中')
+  })
+
+  it('⭐ 同一轮里换视频模型：回执念新模型的写法规则，并说清旧规则作废', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+          title: '换模型',
+          args: { modelId: 'key:minimax' },
+        },
+      },
+      { finished: true, message: '换好了。' },
+    )
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildVideoRequest({
+          snapshot: {
+            ...VIDEO_SNAPSHOT,
+            availableModels: [
+              ...VIDEO_SNAPSHOT.availableModels,
+              {
+                id: 'key:minimax',
+                label: 'minimax-h3 · MiniMax · 5 credits',
+                catalogId: 'minimax-h3',
+              },
+            ],
+          },
+        }),
+      ),
+    )
+    const observation = lastUserPrompt()
+    expect(observation).toContain('were for the previous model')
+    expect(observation).toContain('overall_soundscape')
+  })
+
+  it('视频域的系统提示带上视频写法规则与镜头语法（不只 Seedance）', async () => {
+    queueTurns({ finished: true })
+    await collect(runAssistantOperator('clerk-1', buildVideoRequest()))
+    const prompt = systemPrompt()
+    expect(prompt).toContain('VIDEO PROMPT WRITING')
+    expect(prompt).toContain('SHOT GRAMMAR')
+  })
+
+  it('素材轨按左栏编号进状态块：首帧排在参考图前面，音频带上归属', async () => {
+    queueTurns({ finished: true })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildVideoRequest({
+          snapshot: {
+            ...VIDEO_SNAPSHOT,
+            frameReferences: {
+              first: { url: 'https://cdn.example.com/first.png' },
+              slots: 2,
+            },
+            references: {
+              items: [{ url: 'https://cdn.example.com/ref.png' }],
+              limit: 4,
+            },
+            audioReferences: {
+              items: [
+                { url: 'https://cdn.example.com/v.mp3', ownerName: '时夜' },
+              ],
+              limit: 3,
+              requiresVisual: true,
+            },
+          },
+        }),
+      ),
+    )
+    const prompt = lastUserPrompt()
+    expect(prompt).toContain('ASSETS ON THE LEFT RAIL')
+    expect(prompt).toContain(
+      'image 1 (first frame): https://cdn.example.com/first.png',
+    )
+    expect(prompt).toContain('image 2: https://cdn.example.com/ref.png')
+    expect(prompt).toContain("audio 1 = 时夜's voice")
+  })
+
+  it('⭐ 模型没有负面栏：set_negative 静默退回、改写进正文，写提示词那步带上 negativeFolded', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setNegative,
+          title: '写负面',
+          args: { value: '字幕, 背景音乐' },
+        },
+      },
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          title: '写提示词',
+          args: { value: '全局设定：纯净画面，无字幕无文字，只有环境雨声。' },
+        },
+      },
+      { finished: true, message: '改好了。' },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildVideoRequest({ snapshot: snapshotWithoutNegative }),
+      ),
+    )
+    expect(
+      mockLlmTextCompletion.mock.calls.some(([input]) =>
+        JSON.stringify(input).includes('no negative-prompt field'),
+      ),
+    ).toBe(true)
+    // 草稿退回不画成失败。
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setNegative &&
+          step.status === 'error',
+      ),
+    ).toBe(false)
+    const write = stepsOf(events).find(
+      (step) =>
+        step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+        step.status === 'done',
+    )
+    expect(write?.payload).toMatchObject({
+      negativeFolded: { model: 'Seedance 2.5' },
+    })
+  })
+})

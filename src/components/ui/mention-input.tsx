@@ -47,6 +47,12 @@ export interface MentionToken {
    * 下一次渲染自动更新，不会错位。
    */
   slotLabel?: string
+  /**
+   * 正文里**不带 `@`**、按原文出现的引用（视频档按模型写的素材编号：`图片1` /
+   * `图1` / `Image 1` / `<IMAGE_REF_0>`，owner 09-24「按模型写它自己的格式」）。
+   * ⚠ 存储即 `name` 原文 —— 序列化写回的就是它，所见即所发；只有显示换成胶囊。
+   */
+  literal?: boolean
 }
 
 export interface MentionInputHandle {
@@ -88,15 +94,35 @@ type MentionSegment =
 export function parseMentions(
   value: string,
   knownNames: readonly string[],
+  /** 不带 `@` 的原文引用（见 `MentionToken.literal`）。⚠ 后面紧跟数字的不算（`图片12` ≠ `图片1`）。 */
+  literalNames: readonly string[] = [],
 ): MentionSegment[] {
   // Longest first so "@角色A2" matches before "@角色A".
   const names = [...knownNames]
+    .filter(Boolean)
+    .sort((a, b) => b.length - a.length)
+  const literals = [...literalNames]
     .filter(Boolean)
     .sort((a, b) => b.length - a.length)
   const segments: MentionSegment[] = []
   let text = ''
   let i = 0
   while (i < value.length) {
+    const literal = literals.find(
+      (name) =>
+        value.slice(i, i + name.length) === name &&
+        !/\d/.test(value[i + name.length] ?? '') &&
+        !(/^[A-Za-z]/.test(name) && /[A-Za-z0-9_]/.test(value[i - 1] ?? '')),
+    )
+    if (literal) {
+      if (text) {
+        segments.push({ type: 'text', text })
+        text = ''
+      }
+      segments.push({ type: 'token', name: literal })
+      i += literal.length
+      continue
+    }
     if (value[i] === MENTION_PREFIX) {
       const match = names.find(
         (name) =>
@@ -219,7 +245,8 @@ function buildChip(
    * ⚠ 属性里存的是**完整字面量**（含 `@`），不是裸名字 —— 序列化、光标偏移、
    * 原子删除三处都靠这个属性算长度，少一个字符光标就会错位。
    */
-  chip.setAttribute(MENTION_ATTR, `${MENTION_PREFIX}${name}`)
+  const stored = token?.literal ? name : `${MENTION_PREFIX}${name}`
+  chip.setAttribute(MENTION_ATTR, stored)
   chip.setAttribute('contenteditable', 'false')
   chip.className = cn(
     CHIP_BASE,
@@ -230,7 +257,7 @@ function buildChip(
   const label = doc.createElement('span')
   label.className = 'mention-chip-label leading-none'
   // 显示位置（「图 3」），存储仍是字面量 —— 见 `MentionToken.slotLabel`。
-  label.textContent = token?.slotLabel ?? `${MENTION_PREFIX}${name}`
+  label.textContent = token?.slotLabel ?? stored
   chip.appendChild(label)
   return chip
 }
@@ -245,7 +272,9 @@ function renderInto(
 ): void {
   const doc = el.ownerDocument
   el.replaceChildren()
-  for (const segment of parseMentions(value, knownNames)) {
+  const prefixed = knownNames.filter((name) => !tokenByName.get(name)?.literal)
+  const literals = knownNames.filter((name) => tokenByName.get(name)?.literal)
+  for (const segment of parseMentions(value, prefixed, literals)) {
     if (segment.type === 'text') {
       el.appendChild(doc.createTextNode(segment.text))
     } else {

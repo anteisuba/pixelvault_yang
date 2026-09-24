@@ -4630,11 +4630,6 @@
       },
       "sidecar": {
         "modeLabel": "Video generation mode",
-        "mode": {
-          "keyframe": "Keyframe",
-          "multimodal": "Full reference",
-          "image-reference": "Image refs"
-        },
         "addReference": "Add reference asset",
         "promptPlaceholder": "Describe the shot, motion, and sound you want…"
       },
@@ -6426,7 +6421,6 @@
   "StudioToolbar": {
     "enhance": "Assistant",
     "reference": "Reference",
-    "videoMode": "Image role",
     "video": "Video",
     "voice": "Voice",
     "voiceSelected": "✓ Voice",
@@ -7085,7 +7079,7 @@
   },
   "StudioVideoAudio": {
     "pill": "Audio",
-    "hint": "Attach voices or dialogue — the model refers to them as @Audio1, @Audio2 in order",
+    "hint": "Attach voices or dialogue — numbered Audio 1, Audio 2 in order, same as the asset rail",
     "count": "{used}/{max}",
     "upload": "Upload audio",
     "fromAssets": "From assets",
@@ -7416,7 +7410,8 @@
       "tagFixed": "{count, plural, one {# tag} other {# tags}} rewritten to the Danbooru spelling: {list}.",
       "tagUnknown": "Not found, kept as written: {list}{more, plural, =0 {} other { and # more}}.",
       "tagListSeparator": ", ",
-      "tagSentenceSeparator": " "
+      "tagSentenceSeparator": " ",
+      "negativeFolded": "{model} has no negative-prompt field, so this went into the prompt."
     },
     "checkpoint": {
       "summary": "changed {fields}",
@@ -7487,6 +7482,7 @@
     "confirm": {
       "generate": {
         "title": "Generate {count, plural, one {# image} other {# images}}?",
+        "titleVideo": "Generate this {seconds}s clip?",
         "count": "{count, plural, one {# image} other {# images}}",
         "countLabel": "Count",
         "confirm": "Confirm generation",
@@ -7932,10 +7928,8 @@
         "compareModels": "Try another model, show the difference",
         "useReference": "Follow this reference",
         "fourVariants": "Give me 4 to compare",
+        "writeShots": "Write a shot list",
         "animateThis": "Make this image move",
-        "frameBridge": "How do first and last frames connect?",
-        "pacing": "Length and pacing",
-        "cameraMove": "How to write camera movement",
         "whichLoras": "Which LoRAs suit this subject?",
         "loraPrompt": "Write the prompt for this shot",
         "weightCheck": "Are these weights right?",
@@ -7954,7 +7948,7 @@
       "video": {
         "empty": "Give me an image or a sentence and I will make it move.",
         "placeholder": "Describe the shot, or attach a first frame…",
-        "context": "{model} · {ratio} · {seconds}s"
+        "context": "{model} · {seconds}s · {ratio}"
       },
       "lora": {
         "empty": "Tell me what you want to see — I will pick the LoRAs, write the triggers, tune the weights.",
@@ -7984,14 +7978,31 @@
     "cancelFailed": "Cancel failed — the task is still running"
   },
   "StudioVideoSlots": {
-    "sectionLabel": "Named reference slots",
-    "firstFrame": "First frame",
-    "lastFrame": "Last frame",
-    "referenceVideo": "Reference video",
-    "clear": "Clear {slot}",
-    "upload": "Upload a file for {slot}",
+    "sectionLabel": "Assets · drop in or tap +",
+    "firstFrame": "First",
+    "lastFrame": "Last",
+    "image": "Image {n}",
+    "video": "Video {n}",
+    "audio": "Audio {n}",
+    "setFirst": "Use as first frame",
+    "setLast": "Use as last frame",
+    "setReference": "Use as reference",
+    "remove": "Remove",
+    "add": "Add asset",
+    "uploadImage": "Upload image",
+    "pickImage": "Pick image from library",
+    "pickVideo": "Pick reference video from library",
+    "addAudio": "Add audio",
+    "editAudio": "Audio settings",
+    "sendLine": "Sending as <strong>{mode}</strong> · {reason}",
+    "reason": {
+      "omniReference": "reference assets attached",
+      "firstLastFrame": "first + last frame",
+      "imageToVideo": "first frame only",
+      "textToVideo": "no assets attached"
+    },
     "libraryTitle": "Pick from the asset library",
-    "libraryDescription": "Choose an asset to drop into this slot.",
+    "libraryDescription": "Choose an asset to add to the rail.",
     "aspectLockedByFirstFrame": "A first frame is set, so the aspect ratio follows the image (adaptive)."
   },
   "ContextCards": {

@@ -20,8 +20,9 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         ├── StudioWorkbenchLayout (studio-shared/chrome/ — 三模态共用：左参数栏 + 右结果区)
         │   ├── params: StudioPromptArea (studio/ — 提示词 + 加料 chip + 模态参数 + 模型 + 规格 + 生成)
         │   │   ├── StudioCardSection (studio/ — 卡片工作流时才渲染，非音频)
-        │   │   └── StudioVideoReferenceSlots (studio-shared/chrome/ — 视频档具名参考槽：首帧 / 尾帧 / 参考视频；
-        │   │        槽的可见性来自模型发送契约 getVideoWorkbenchSlots，不支持的槽不渲染)
+        │   │   ├── StudioVideoAssetRail (studio-shared/chrome/ — 视频档素材轨：图片N · 视频N · 音频N，首 / 尾帧是角标；
+        │   │   │    轨下一行只读灰字说这一枪怎么发；容量来自发送契约 getStudioVideoCapacity)
+        │   │   └── StudioVideoPromptInput (studio/ — 视频档提示词框：按模型写法把素材编号渲染成缩略图胶囊，存储仍是原文)
         │   └── stage: StudioCanvas (studio-shared/chrome/)
         │       ├── StudioReferenceRail (studio-shared/chrome/ — 参考轨，与结果并存)
         │       ├── GenerationPreview (studio/ — current result)
@@ -68,7 +69,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 
 已删、勿按名字复活：`StudioOperatorChangeRail` · `StudioOperatorRestoreButton` + `types/studio-operator-checkpoint.ts`（撤回收成一个入口，owner 2026-09-24）· `StudioOperatorRoundSummary`（本轮记录不在界面上显示，owner 2026-09-24；续跑按钮拆成 `StudioOperatorResumeChip`）· `StudioOperatorPlusMenu` + `ContextCardChip`（D12 U2–U4）· `StudioOperatorCritiqueCard` + `use-studio-operator-critique.ts` + `lib/studio-operator-claim.ts`（出图后不自检，D12：助手不会自己去看刚出的图，用户 `@` 一张让它看时由正文回答，`critique_result` 那一步折进过程行）· `StudioOperatorResearchCard`（证据在回答底下的 `StudioOperatorAnswerSources`，过程折进 `StudioOperatorToolGroup`，候选网格由 `StudioOperatorLogItem` 画）· `StudioOperatorReferenceAnalysisCard`（`analyze_references` 工具仍在，是 `set_prompt` 的取材来源，历史里的 `referenceAnalysis` 喂 `readOperatorReferenceProfiles`）· `StudioOperatorQuestionCard` + `PlanOptionVisual`（反问 = 输入区 `StudioOperatorQuestionBlock`，一帧一组 ≤4 题、界面一次一题；选项 `visual` 暂无渲染方，助手提示也不要求它）· `StudioOperatorStreamingText`（正文按 `message_delta` 追加到同一条 `streaming` 气泡，末尾一根不闪的光标，定稿帧按 id 整体覆盖；`motion-reduce` 下写完才画）。
 
-**视频档具名槽**：视频参考区是 `StudioVideoReferenceSlots`（首帧 / 尾帧 / 参考视频），三条落法（拖入 / 素材库 / 助手 `mount_reference slot`）**汇到同一个 dispatch**（`use-video-reference-slots.ts`），⛔ 组件里没有第二条写入。⛔ 关键帧档下**不再渲染** `ReferenceImageChip`——那一档里图片是帧，留着它写进的参考图列表发送口根本不读（静默失效）。首帧在场且线路带图锁比例时，`StudioSpecChip` 把比例组**禁用而不是移除**并说清怎么解除。
+**视频档素材轨**（owner 2026-09-24 视频画板）：⛔ 没有「关键帧 / 多图参考 / 全能参考」模式 —— 这一枪走哪个端点由挂了什么推出来（有参考项 → 参考端点，首尾帧随行；否则关键帧端点），与画布同一个 `videoSendMode` / `resolveVideoSendModelId`。选择器一行一个型号 × 渠道（`isVideoPickerModel`）。素材轨 `StudioVideoAssetRail` 按类型编号，编号 = 显示顺序 = 参考档发送顺序（首帧 · 尾帧 · 参考图），三条落法汇到同一份状态（`use-studio-video-assets.ts`）。视频档**不渲染** `ReferenceImageChip` 与提示词框里的参考图条（图在轨上）；负面提示词行只在实际端点收这个字段时出现。首帧在场、没挂参考项且线路带图锁比例时，`StudioSpecChip` 把比例组**禁用而不是移除**并说清怎么解除。
 
 **手机形态**：Dock 在 `isMobile` 时图片 / 视频档渲染 `StudioOperatorAvatarToggle`（右上角）+ `StudioOperatorMobileSheet`（单一高度、接近满屏，见上方组件树），装的是与桌面**同一个 `StudioOperatorPanel` 元素**（同一份 props，⛔ 别为手机再写一套面板内容）。判据是**宿主的域**不是路由：音频档与 LoRA 手机端仍走旧面板，Dock 在那两处照旧不渲染（否则 LoRA 会两张面板同屏）。
 

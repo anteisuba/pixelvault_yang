@@ -92,7 +92,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
     modelOptions,
     runModels,
     runModelIds,
-    filterVideoModelByMode,
+    filterVideoModelOption,
     handleSelectSingleModel,
     handleToggleRunModel,
     handleRemoveRunModel,
@@ -427,7 +427,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
         onRemove={handleRemoveRunModel}
         selectedOptionId={state.selectedOptionId ?? null}
         onSelectSingle={handleSelectSingleModel}
-        filterOption={filterVideoModelByMode}
+        filterOption={filterVideoModelOption}
       />
     </div>
   )

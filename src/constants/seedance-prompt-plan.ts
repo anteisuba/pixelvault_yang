@@ -57,16 +57,17 @@ const SEEDANCE_CONTROL_RULES_BODY = `- Open finalPrompt with ONE global lock-in 
 - Repeat drift-prone facts (character look, light direction, props) in the shots where they are most likely to slip.
 - REFERENCE ASSET CONTRACT — one scoped job per asset, and say the job out loud: the candidate still frame carries character, wardrobe and art style; a reference video carries the action, the spatial relationship between subjects, and render continuity; a clean voice clip carries timbre only. An asset asked to do two jobs drags the second one in with it.
 - Lock identity, wardrobe and space — never the pose. A locked pose is what produces a subject that stands frozen through the whole clip.
-- HARD NEGATIVES — these belong in the negative prompt and must never appear in the positive one: 空气波纹, 透明全息层, 流动光带, 整图缩放冒充运镜, 冻结姿势, 额外肢体, 手指畸变, 字幕.`
+- KEEP-OUTS — Seedance has no negative field, so the known failures (空气波纹, 透明全息层, 流动光带, 整图缩放冒充运镜, 冻结姿势, 额外肢体, 手指畸变) are kept out by writing what IS there: a real camera move, solid surfaces, bodies that keep moving. Never list them as words in the prompt. When the creator names something to keep out, state it once in the global line as a plain constraint (纯净画面，无字幕无文字).
+- Section names are written plainly (全局设定：) — 【】 is the on-screen caption mark and <> the sound-effect mark.`
 
 export const SEEDANCE_25_CONTROL_RULES = `SEEDANCE 2.5 CONTROL RULES — finalPrompt structure and stability.
 ${SEEDANCE_CONTROL_RULES_BODY}
-- Pacing: one event per beat, and 2.5 reads a whole-second timestamp, so segment the beats as second ranges. For a 20-30s clip use a four-beat spine — opener (~0-6s) / development (~6-14s) / escalation (~14-24s) / resolution (~24-30s). If it feels rushed, cut events, never compress time.
+- Pacing: one event per beat, and 2.5 reads a whole-second timestamp, so segment the beats as labelled second ranges (镜头1（0-6秒）). For a 20-30s clip use a four-beat spine — opener (~0-6s) / development (~6-14s) / escalation (~14-24s) / resolution (~24-30s). If it feels rushed, cut events, never compress time.
 - Prefer one native single-shot generation over anything that implies stitching.`
 
 export const SEEDANCE_20_CONTROL_RULES = `SEEDANCE 2.0 CONTROL RULES — finalPrompt structure and stability.
 ${SEEDANCE_CONTROL_RULES_BODY}
-- Pacing: one event per beat, and 2.0 addresses beats by shot label only — 镜头1 / 镜头2 / 镜头3 / 镜头4. It does not read second ranges, so a range written into the prompt is dead text and the whole timeline collapses into one shot. Four beats: opener / development / escalation / resolution. If it feels rushed, cut events, never stretch a beat.
+- Pacing: one event per beat, and 2.0 cuts on the shot label only — 镜头1 / 镜头2 / 镜头3 / 镜头4. Write the range after the label for the reader (镜头1（0-3秒）), but never ranges alone: without the 镜头N labels the whole timeline collapses into one shot. Four beats: opener / development / escalation / resolution. If it feels rushed, cut events, never stretch a beat.
 - Prefer one native single-shot generation over anything that implies stitching.`
 
 // Methodology (shot grammar, Z-axis, physical performance, light, pacing) is

@@ -46,10 +46,6 @@ import type { TagPromptBlock, TagChip } from '@/types/tag-composer'
 import type { AspectRatio } from '@/constants/config'
 import { VIDEO_GENERATION } from '@/constants/config'
 import {
-  DEFAULT_VIDEO_NODE_MODE,
-  type VideoNodeMode,
-} from '@/constants/video-node-modes'
-import {
   DEFAULT_AUDIO_FORMAT,
   DEFAULT_AUDIO_LATENCY,
   AUDIO_DEFAULT_EXPRESSIVENESS,
@@ -258,14 +254,6 @@ export interface StudioFormState {
   audioReferenceText: string
   /** Style preset ID (empty string = no preset) */
   stylePresetId: string
-  /**
-   * Video-specific — 「用途」档，决定发哪个端点（关键帧 / 多图参考 / 全能参考）。
-   *
-   * 与画布同构：画布把它存在节点数据上（`node-workflow.ts` 的 `videoMode`），
-   * Studio 存在表单里。⚠ **必须是真 state，不能从选中模型反推** —— 反推在「还
-   * 没选模型」时无处可存，而那正是初始状态，表现是点了档位没有任何反应。
-   */
-  videoMode: VideoNodeMode
   /** Video-specific — duration in seconds per clip */
   videoDuration: number
   /** Video-specific — output resolution; null means provider default */
@@ -291,9 +279,9 @@ export interface StudioFormState {
    * 静默升级成首帧 —— 一次用户看不见也撤不回的语义漂移。有名字之后，
    * **空首帧 + 有尾帧**才是一个可表达的状态。
    *
-   * ⚠ 只在**关键帧档**（`videoMode === 'keyframe'`）成立：另外两档（图像参考 /
-   * 全能参考）里图片不是帧，走的还是 `imageUpload` 那条参考轨。两档不会同时在场，
-   * 所以⛔ 不需要在发送口做「谁优先」的仲裁 —— 判据就是档位本身。
+   * ⚠ 首尾帧与参考图（`imageUpload`）同在一条素材轨上（owner 2026-09-24 去掉三个
+   * 模式）：挂了参考项时首尾帧作为参考图随行，否则走关键帧端点 —— 判定在
+   * `lib/studio/video-workbench-slots.ts`，⛔ 不在这里另判。
    * ⚠ 存 URL 不存 File：与 `videoAudioRefs` 同一条理由（发送口原样透传）。
    */
   videoFrameSlots: { first: string | null; last: string | null }
@@ -370,7 +358,6 @@ export type StudioAction =
   | { type: 'SET_AUDIO_EXPRESSIVENESS'; payload: string }
   | { type: 'SET_AUDIO_SFX_DURATION'; payload: number }
   | { type: 'SET_AUDIO_MUSIC_DURATION'; payload: number }
-  | { type: 'SET_VIDEO_MODE'; payload: VideoNodeMode }
   | { type: 'SET_AUDIO_SFX_LOOP'; payload: boolean }
   | { type: 'SET_AUDIO_SFX_PROMPT_INFLUENCE'; payload: number }
   | { type: 'SET_AUDIO_SFX_VARIANT_COUNT'; payload: number }
@@ -530,7 +517,6 @@ const initialFormState: StudioFormState = {
   audioReferenceFileName: null,
   audioReferenceText: '',
   stylePresetId: NO_STYLE_PRESET_ID,
-  videoMode: DEFAULT_VIDEO_NODE_MODE,
   videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
   videoResolution: null,
   videoAudioRefs: [],
@@ -785,8 +771,6 @@ export function studioFormReducer(
       }
     case 'SET_TOKEN_INPUT':
       return { ...state, tokenInput: action.payload }
-    case 'SET_VIDEO_MODE':
-      return { ...state, videoMode: action.payload }
     case 'SET_VIDEO_DURATION':
       return { ...state, videoDuration: action.payload }
     case 'SET_VIDEO_RESOLUTION':
@@ -888,7 +872,6 @@ export function studioFormReducer(
         audioReferenceFileName: null,
         audioReferenceText: '',
         stylePresetId: NO_STYLE_PRESET_ID,
-        videoMode: DEFAULT_VIDEO_NODE_MODE,
         videoDuration: VIDEO_GENERATION.DEFAULT_DURATION,
         videoResolution: null,
         videoAudioRefs: [],

@@ -144,7 +144,6 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
         modelOptions: latest.current.videoModels.modelOptions,
         selectedModel: latest.current.videoModels.selectedModel,
         references,
-        videoMode: current.videoMode,
       })
     }
     return buildImageOperatorSnapshot({
@@ -511,7 +510,6 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
         ? buildVideoGenerationControls({
             modelOptions: videoModels.modelOptions,
             selectedModel: videoModels.selectedModel,
-            videoMode: state.videoMode,
             aspectRatio: state.aspectRatio,
             resolution: state.videoResolution,
             labelOf: modelLabelOf,
@@ -532,7 +530,6 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       state.advancedParams.resolution,
       state.aspectRatio,
       state.imageBatchCount,
-      state.videoMode,
       state.videoResolution,
       videoModels.modelOptions,
       videoModels.selectedModel,
@@ -551,8 +548,16 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
   const contextLine = useCallback(() => {
     const model = generationControls.model?.label ?? t('face.noModel')
     if (domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.video) {
+      /**
+       * ⭐ 视频脸只写「型号 · 时长 · 比例」（owner 09-24 视频画板 F2）：渠道与积分收进
+       * 点开后的浮层（那里每行都印），⛔ 不在这一行里把渠道写两遍。
+       */
+      const selected = videoModels.selectedModel
+      const name = selected
+        ? (modelLabelOf(selected) ?? selected.displayLabel ?? selected.modelId)
+        : null
       return t('face.video.context', {
-        model,
+        model: name ? stripChannelSuffix(name) : t('face.noModel'),
         ratio: generationControls.aspectRatio,
         seconds: state.videoDuration,
       })
@@ -562,7 +567,14 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       ratio: generationControls.aspectRatio,
       count: generationControls.count,
     })
-  }, [domain, generationControls, state.videoDuration, t])
+  }, [
+    domain,
+    generationControls,
+    modelLabelOf,
+    state.videoDuration,
+    t,
+    videoModels.selectedModel,
+  ])
   const face = useStudioOperatorFace(domain, contextLine)
 
   return useMemo(
@@ -593,4 +605,12 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
       setOpen,
     ],
   )
+}
+
+/**
+ * 型号显示名去掉末尾的渠道括注：「Seedance 2.0（BytePlus）」→「Seedance 2.0」。
+ * 渠道在规格浮层的每一行里都有，⛔ 不在规格行里再写一遍。
+ */
+function stripChannelSuffix(label: string): string {
+  return label.replace(/\s*[（(][^（）()]*[）)]\s*$/, '').trim() || label
 }

@@ -15,16 +15,18 @@ vi.mock('@/constants/video-model-send-plan', () => ({
 }))
 
 /**
- * ⚠ 与下面 `@/constants/models` 同一条：**部分**桩。2026-09-19（进度表 22）
- * `types/assistant-operator.ts` 开始借画布的 op 词表，于是这个文件的 import 链
- * 里多了 `types/node-workflow.ts`，而它在模块加载期就读 `VIDEO_NODE_MODES`。
- * 整个换掉的表现是「0 test」而不是断言失败 —— 最难查的那一种。
+ * 素材轨容量桩掉（它自己的判据在 `video-workbench-slots.test.ts` 里验）：这一层要验
+ * 的是「容量为 0 的那几节缺不缺席」。⚠ 部分桩 —— `resolveStudioVideoSend` 照用真的。
  */
-const mockGetNodeModeForModel = vi.fn()
-vi.mock(import('@/constants/video-node-modes'), async (importOriginal) => ({
-  ...(await importOriginal()),
-  getNodeModeForModel: (...args: unknown[]) => mockGetNodeModeForModel(...args),
-}))
+const mockGetStudioVideoCapacity = vi.fn()
+vi.mock(
+  import('@/lib/studio/video-workbench-slots'),
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    getStudioVideoCapacity: (...args: unknown[]) =>
+      mockGetStudioVideoCapacity(...args),
+  }),
+)
 
 /**
  * ⚠ `@/constants/models` 必须**部分**桩：`constants/api-keys.ts` 在模块加载期就
@@ -127,8 +129,9 @@ function videoContract(
     audioRequiresVisual: boolean
     sound: boolean
     videos: number
-    keyframeSlots: 1 | 2
+    keyframeSlots: 0 | 1 | 2
     imageAspectRatioLock: string | null
+    negativePrompt: boolean
   }> = {},
 ) {
   const merged = {
@@ -136,26 +139,38 @@ function videoContract(
     audioRequiresVisual: false,
     sound: true,
     videos: 10,
-    keyframeSlots: 2 as 1 | 2,
+    keyframeSlots: 2 as 0 | 1 | 2,
     imageAspectRatioLock: null as string | null,
+    negativePrompt: false,
     ...overrides,
   }
-  mockGetVideoModelSendContract.mockReturnValue({
+  mockGetVideoModelSendContract.mockImplementation((modelId: string) => ({
+    referenceMode: modelId.includes('reference')
+      ? 'multimodal-reference'
+      : 'text-or-first-frame',
     slots: {
       images: 30,
       videos: merged.videos,
       audio: merged.audio,
       audioRequiresVisual: merged.audioRequiresVisual,
     },
-    parameters: { generateAudio: merged.sound },
-    keyframeSlots: merged.keyframeSlots,
+    parameters: {
+      generateAudio: merged.sound,
+      negativePrompt: merged.negativePrompt,
+    },
+    keyframeSlots: merged.keyframeSlots || 1,
     imageAspectRatioLock: merged.imageAspectRatioLock,
+  }))
+  mockGetStudioVideoCapacity.mockReturnValue({
+    frames: merged.keyframeSlots,
+    references: 30,
+    videos: merged.videos,
+    audios: merged.audio,
   })
 }
 
 beforeEach(() => {
   vi.clearAllMocks()
-  mockGetNodeModeForModel.mockReturnValue('keyframe')
   mockGetModelById.mockReturnValue({ videoDefaults: { generateAudio: true } })
   // ⚠ `capabilities` 必须给：`CapabilityConfig` 上它是必填，而专属 chip 行
   //    （进度表 21）就是从它派生的 —— 桩里漏掉它等于桩出一个不存在的形状。
@@ -174,7 +189,6 @@ describe('buildVideoOperatorSnapshot', () => {
       modelOptions: [SEEDANCE_ON_BYTEPLUS, SEEDANCE_ON_FAL],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'keyframe',
     })
 
     // ⛔ 不按 modelId 去重：一个型号在几条渠道上就是几行。
@@ -182,29 +196,34 @@ describe('buildVideoOperatorSnapshot', () => {
       {
         id: 'workspace:seedance-2.5-byteplus',
         label: 'Seedance 2.5 · BytePlus · 22 credits',
+        catalogId: 'seedance-2.5-byteplus',
       },
       {
         id: 'workspace:seedance-2.5',
         label: 'Seedance 2.5 · fal.ai · 48 credits',
+        catalogId: 'seedance-2.5',
       },
     ])
     // 选中项也用 optionId —— `set_model` 落地那一跳按它查。
     expect(snapshot.model).toEqual({
       id: 'workspace:seedance-2.5-byteplus',
       label: 'Seedance 2.5 · BytePlus · 22 credits',
+      // 目录 id —— 写法规则按它查（选项 id 查不到）。
+      catalogId: 'seedance-2.5-byteplus',
     })
   })
 
-  it('名单按当前「用途」档筛 —— 界面上点不到的模型助手也不该选得到（拍板 19）', () => {
-    mockGetNodeModeForModel.mockImplementation((modelId: string) =>
-      modelId === 'seedance-2.5-byteplus' ? 'keyframe' : 'multimodal',
-    )
+  it('名单一行一个型号 × 渠道 —— 参考端点不单列（与左栏选择器同一个谓词，拍板 19）', () => {
+    const referenceOnByteplus = option({
+      optionId: 'workspace:seedance-2.5-reference-byteplus',
+      modelId: 'seedance-2.5-reference-byteplus',
+      adapterType: AI_ADAPTER_TYPES.BYTEPLUS,
+    })
     const snapshot = buildVideoOperatorSnapshot({
       form: FORM,
-      modelOptions: [SEEDANCE_ON_BYTEPLUS, SEEDANCE_ON_FAL],
+      modelOptions: [SEEDANCE_ON_BYTEPLUS, referenceOnByteplus],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'keyframe',
     })
     expect(snapshot.availableModels.map((model) => model.id)).toEqual([
       'workspace:seedance-2.5-byteplus',
@@ -217,7 +236,6 @@ describe('buildVideoOperatorSnapshot', () => {
       modelOptions: [SEEDANCE_ON_BYTEPLUS],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'keyframe',
     })
     expect(snapshot.specs).toBeUndefined()
     expect(snapshot.count).toBeUndefined()
@@ -240,7 +258,6 @@ describe('buildVideoOperatorSnapshot', () => {
       modelOptions: [SEEDANCE_ON_BYTEPLUS],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'keyframe',
     })
     expect(snapshot.videoSpecs).toMatchObject({
       durationSeconds: null,
@@ -256,7 +273,6 @@ describe('buildVideoOperatorSnapshot', () => {
       modelOptions: [SEEDANCE_ON_BYTEPLUS],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'keyframe',
     })
     // ⛔ 把「没设过」端上去成 false，在目录默认为开的模型上结果正好相反。
     expect(snapshot.sound).toEqual({ value: null, effective: true })
@@ -269,7 +285,6 @@ describe('buildVideoOperatorSnapshot', () => {
       modelOptions: [SEEDANCE_ON_BYTEPLUS],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'keyframe',
     })
     expect(snapshot.sound).toBeUndefined()
   })
@@ -291,7 +306,6 @@ describe('buildVideoOperatorSnapshot', () => {
       modelOptions: [SEEDANCE_ON_BYTEPLUS],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'keyframe',
     })
     expect(snapshot.audioReferences).toEqual({
       items: [
@@ -313,7 +327,6 @@ describe('buildVideoOperatorSnapshot', () => {
       modelOptions: [SEEDANCE_ON_BYTEPLUS],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'keyframe',
     })
     expect(snapshot.audioReferences).toBeUndefined()
   })
@@ -331,7 +344,6 @@ describe('buildVideoOperatorSnapshot', () => {
         ],
         limit: 4,
       },
-      videoMode: 'keyframe',
     })
     expect(AssistantOperatorSnapshotSchema.safeParse(snapshot).success).toBe(
       true,
@@ -744,7 +756,6 @@ describe('buildVideoOperatorSnapshot · 具名帧槽与参考视频（第二期�
       modelOptions: [SEEDANCE_ON_BYTEPLUS],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'keyframe',
     })
     expect(snapshot.frameReferences).toEqual({
       first: { url: 'https://cdn.example.com/first.png' },
@@ -766,7 +777,6 @@ describe('buildVideoOperatorSnapshot · 具名帧槽与参考视频（第二期�
       modelOptions: [SEEDANCE_ON_BYTEPLUS],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'keyframe',
     })
     expect(snapshot.frameReferences).toEqual({
       first: { url: 'https://cdn.example.com/first.png' },
@@ -774,8 +784,8 @@ describe('buildVideoOperatorSnapshot · 具名帧槽与参考视频（第二期�
     })
   })
 
-  it('⛔ 另外两档没有帧槽这回事 —— 整节缺席', () => {
-    mockGetNodeModeForModel.mockReturnValue('multimodal')
+  it('⛔ 型号不吃首尾帧时帧槽整节缺席', () => {
+    videoContract({ keyframeSlots: 0 })
     const snapshot = buildVideoOperatorSnapshot({
       form: {
         ...FORM,
@@ -787,7 +797,6 @@ describe('buildVideoOperatorSnapshot · 具名帧槽与参考视频（第二期�
       modelOptions: [SEEDANCE_ON_BYTEPLUS],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'multimodal',
     })
     expect(snapshot.frameReferences).toBeUndefined()
   })
@@ -800,7 +809,6 @@ describe('buildVideoOperatorSnapshot · 具名帧槽与参考视频（第二期�
         modelOptions: [SEEDANCE_ON_BYTEPLUS],
         selectedModel: SEEDANCE_ON_BYTEPLUS,
         references: { items: [], limit: 4 },
-        videoMode: 'keyframe',
       }).videoReferences,
     ).toBeUndefined()
 
@@ -814,13 +822,31 @@ describe('buildVideoOperatorSnapshot · 具名帧槽与参考视频（第二期�
         modelOptions: [SEEDANCE_ON_BYTEPLUS],
         selectedModel: SEEDANCE_ON_BYTEPLUS,
         references: { items: [], limit: 4 },
-        videoMode: 'keyframe',
       }).videoReferences,
     ).toEqual({
       // ⚠ 非 http(s) 的照旧滤掉（与参考图那条同一道闸：schema 要求合法 URL）。
       items: [{ url: 'https://cdn.example.com/a.mp4' }],
       limit: 3,
     })
+  })
+
+  it('⭐ 负面框只在实际端点收这个字段时给（视频画板 W6）—— 否则缺席，助手改写进正文', () => {
+    const without = buildVideoOperatorSnapshot({
+      form: { ...FORM, negativePrompt: '字幕' },
+      modelOptions: [SEEDANCE_ON_BYTEPLUS],
+      selectedModel: SEEDANCE_ON_BYTEPLUS,
+      references: { items: [], limit: 4 },
+    })
+    expect(without.negativePrompt).toBeUndefined()
+
+    videoContract({ negativePrompt: true })
+    const withField = buildVideoOperatorSnapshot({
+      form: { ...FORM, negativePrompt: '字幕' },
+      modelOptions: [SEEDANCE_ON_BYTEPLUS],
+      selectedModel: SEEDANCE_ON_BYTEPLUS,
+      references: { items: [], limit: 4 },
+    })
+    expect(withField.negativePrompt).toBe('字幕')
   })
 
   it('带图锁原样透传契约 —— ⛔ 这一层不判「现在有没有图」', () => {
@@ -830,7 +856,6 @@ describe('buildVideoOperatorSnapshot · 具名帧槽与参考视频（第二期�
       modelOptions: [SEEDANCE_ON_BYTEPLUS],
       selectedModel: SEEDANCE_ON_BYTEPLUS,
       references: { items: [], limit: 4 },
-      videoMode: 'keyframe',
     })
     expect(snapshot.videoSpecs?.aspectRatioLock).toBe('adaptive')
   })

@@ -44,7 +44,7 @@ interface StudioMobileModelSheetProps {
    * `SET_OPTION_ID` 还把规格夹到新型号真支持的档位，否则「只换了个模型」就 400。
    */
   onSelectSingle?: (option: StudioModelOption) => void
-  /** 视频档：按当前「用途」收窄端点（`filterVideoModelByMode`）。 */
+  /** 视频档：按当前「用途」收窄端点（`filterVideoModelOption`）。 */
   filterOption?: (option: StudioModelOption) => boolean
 }
 

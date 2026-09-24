@@ -10,19 +10,16 @@
  * 时弹层不会莫名变矮一截，用户看得见「这个模型没有 4K」。
  */
 
-import { getModelVariant } from '@/constants/models'
 import {
   formatUnitPriceAmount,
   getVideoUnitPricePerSecond,
 } from '@/constants/models/unit-prices'
-import type { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { getVideoModelSendContract } from '@/constants/video-model-send-plan'
 import {
   getVideoModelCapabilities,
   snapVideoDuration,
   snapVideoResolution,
 } from '@/constants/video-model-capabilities'
-import { resolveVideoModelId } from '@/constants/video-node-modes'
 import {
   isVideoResolution,
   type VideoResolution,
@@ -31,7 +28,6 @@ import { readOutputVersions } from '@/lib/node-output-versions'
 import type {
   NodeV4GenerationParams,
   NodeV4VideoData,
-  NodeWorkflowModelSelection,
 } from '@/types/node-workflow'
 
 /**
@@ -65,122 +61,6 @@ export function videoSupportsGeneratedAudio(
 ): boolean {
   if (!modelId) return false
   return getVideoModelSendContract(modelId).parameters.generateAudio
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
- * 推出来的模式（spec §5「不设模式页签」）
- * ═════════════════════════════════════════════════════════════════════════ */
-
-/**
- * 这一次按哪种方式发 —— **由挂了什么推出来**，用户改不了（弹层顶部只读）。
- *
- * 优先级就是画板那句话：有任何参考项（参考图 / 参考视频 / 语音）→ 全能参考；
- * 首 + 尾 → 首尾帧；只有首帧 → 图生视频；什么都没挂 → 文生视频。
- */
-export const VIDEO_SEND_MODE_IDS = {
-  omniReference: 'omniReference',
-  firstLastFrame: 'firstLastFrame',
-  imageToVideo: 'imageToVideo',
-  textToVideo: 'textToVideo',
-} as const
-
-export const VIDEO_SEND_MODES = [
-  VIDEO_SEND_MODE_IDS.omniReference,
-  VIDEO_SEND_MODE_IDS.firstLastFrame,
-  VIDEO_SEND_MODE_IDS.imageToVideo,
-  VIDEO_SEND_MODE_IDS.textToVideo,
-] as const
-
-export type VideoSendMode = (typeof VIDEO_SEND_MODES)[number]
-
-/** 推模式只看这五个数 —— ⛔ 不看模型、不看参数。 */
-export interface VideoSendModeCounts {
-  readonly firstFrame: boolean
-  readonly lastFrame: boolean
-  readonly referenceImages: number
-  readonly videos: number
-  readonly voices: number
-}
-
-export function videoSendMode(counts: VideoSendModeCounts): VideoSendMode {
-  if (counts.referenceImages > 0 || counts.videos > 0 || counts.voices > 0) {
-    return VIDEO_SEND_MODE_IDS.omniReference
-  }
-  if (counts.firstFrame && counts.lastFrame) {
-    return VIDEO_SEND_MODE_IDS.firstLastFrame
-  }
-  if (counts.firstFrame || counts.lastFrame) {
-    return VIDEO_SEND_MODE_IDS.imageToVideo
-  }
-  return VIDEO_SEND_MODE_IDS.textToVideo
-}
-
-/* ═══════════════════════════════════════════════════════════════════════════
- * 每组挂几项封顶（画板：满了加号灰、不藏）
- * ═════════════════════════════════════════════════════════════════════════ */
-
-export interface VideoRailCapacity {
-  /** `null` = 上游没公布硬上限，⛔ 不编一个数（Gemini 那一档）。 */
-  readonly images: number | null
-  readonly videos: number | null
-  readonly voices: number | null
-  /**
-   * 这个型号在这条渠道上**没有参考变体** —— 挂参考视频 / 语音发不出去。
-   * 加号灰 + 弹层说明，⛔ 不静默丢。
-   */
-  readonly referenceUnavailable: boolean
-}
-
-const UNKNOWN_CAPACITY: VideoRailCapacity = {
-  images: null,
-  videos: null,
-  voices: null,
-  referenceUnavailable: false,
-}
-
-/**
- * 轨上三组各自的上限 —— 数字全部来自**发送契约**（`video-model-send-plan.ts` 的
- * `VideoReferenceSlots`），⛔ 这里不另列一份。
- *
- * ⚠ 上限要按「这个型号在**全能参考**档下的那个端点」算，而不是当前选中的那条：
- * 空轨时选中的是关键帧端点（视频 / 语音都是 0），照它算的话第一段参考视频永远
- * 挂不进来。参考端点由 (型号 × 渠道 × 模式) 唯一确定（`resolveVideoModelId`），
- * 同渠道同 key，所以能选中关键帧档就能跑参考档。
- */
-export function videoRailCapacity(
-  model: NodeWorkflowModelSelection | undefined,
-): VideoRailCapacity {
-  if (!model?.modelId) return UNKNOWN_CAPACITY
-  const base = getVideoModelSendContract(model.modelId, model.adapterType)
-  const variant = getModelVariant(model.modelId)
-  const referenceId = variant
-    ? resolveVideoModelId(
-        variant,
-        model.adapterType as AI_ADAPTER_TYPES,
-        'multimodal',
-      )
-    : null
-  const reference = referenceId
-    ? getVideoModelSendContract(referenceId, model.adapterType)
-    : null
-
-  // ⚠ `images: undefined` = 上游没公布硬上限（Gemini 那一档）—— 传成 `null`，
-  // ⛔ 不当 0（那会把加号灰掉），也⛔ 不编一个数。
-  const baseImages = base.slots.images
-  const referenceImages = reference?.slots.images
-  const images = reference
-    ? baseImages === undefined || referenceImages === undefined
-      ? null
-      : Math.max(baseImages, referenceImages)
-    : (baseImages ?? null)
-
-  return {
-    images,
-    videos: reference?.slots.videos ?? base.slots.videos,
-    voices: reference?.slots.audio ?? base.slots.audio,
-    referenceUnavailable:
-      reference === null && base.referenceMode !== 'multimodal-reference',
-  }
 }
 
 /**

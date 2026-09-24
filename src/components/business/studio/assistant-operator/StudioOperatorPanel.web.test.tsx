@@ -1095,7 +1095,7 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       inverse: { value: '' },
     })
     renderPanel()
-    const note = screen.getByTestId('operator-tag-check-note')
+    const note = screen.getByTestId('operator-prompt-note')
     expect(note).toHaveTextContent('toolGroup.tagFixed')
     expect(note).toHaveTextContent('toolGroup.tagUnknown')
   })
@@ -1120,7 +1120,7 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       ],
     })
     renderPanel()
-    expect(screen.getByTestId('operator-tag-check-note')).toHaveTextContent(
+    expect(screen.getByTestId('operator-prompt-note')).toHaveTextContent(
       'toolGroup.tagFixed',
     )
   })
@@ -1136,7 +1136,7 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
       inverse: { value: '' },
     })
     renderPanel()
-    expect(screen.queryByTestId('operator-tag-check-note')).toBeNull()
+    expect(screen.queryByTestId('operator-prompt-note')).toBeNull()
   })
 
   it('shows one unresolved conflict per run while keeping all attempts available', () => {

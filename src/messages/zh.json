@@ -4630,11 +4630,6 @@
       },
       "sidecar": {
         "modeLabel": "视频生成模式",
-        "mode": {
-          "keyframe": "关键帧",
-          "multimodal": "全能参考",
-          "image-reference": "多图参考"
-        },
         "addReference": "添加参考素材",
         "promptPlaceholder": "描述你想生成的镜头、动作与声音…"
       },
@@ -6426,7 +6421,6 @@
   "StudioToolbar": {
     "enhance": "助手",
     "reference": "参考图",
-    "videoMode": "图片用途",
     "video": "视频",
     "voice": "音色",
     "voiceSelected": "✓ 音色",
@@ -7085,7 +7079,7 @@
   },
   "StudioVideoAudio": {
     "pill": "音频",
-    "hint": "挂上音色/对白，模型会按 @Audio1、@Audio2 的顺序引用它们",
+    "hint": "挂上音色/对白，按 音频1、音频2 的顺序编号，和素材轨一致",
     "count": "{used}/{max}",
     "upload": "上传音频",
     "fromAssets": "从素材库选",
@@ -7416,7 +7410,8 @@
       "tagFixed": "有 {count} 个按 Danbooru 换了写法：{list}。",
       "tagUnknown": "{list}{more, plural, =0 { } other { 等 # 个}}没查到，原样保留。",
       "tagListSeparator": "，",
-      "tagSentenceSeparator": ""
+      "tagSentenceSeparator": "",
+      "negativeFolded": "{model} 没有负面提示词这一栏，所以写进了正文。"
     },
     "checkpoint": {
       "summary": "改了{fields}",
@@ -7487,6 +7482,7 @@
     "confirm": {
       "generate": {
         "title": "确认生成 {count} 张？",
+        "titleVideo": "确认生成这段 {seconds} 秒视频？",
         "count": "{count} 张",
         "countLabel": "张数",
         "confirm": "确认生成",
@@ -7932,10 +7928,8 @@
         "compareModels": "换个模型看差别",
         "useReference": "照这张参考图来",
         "fourVariants": "出 4 张对比",
-        "animateThis": "从这张图动起来",
-        "frameBridge": "首尾帧怎么接",
-        "pacing": "时长和节奏",
-        "cameraMove": "镜头运动怎么写",
+        "writeShots": "写一段分镜",
+        "animateThis": "让这张图动起来",
         "whichLoras": "这个题材该挂哪些 LoRA",
         "loraPrompt": "帮我写这张的提示词",
         "weightCheck": "权重这样对不对",
@@ -7954,7 +7948,7 @@
       "video": {
         "empty": "给我一张图或一句话，我来让它动起来。",
         "placeholder": "描述镜头，或挂一张首帧…",
-        "context": "{model} · {ratio} · {seconds}s"
+        "context": "{model} · {seconds} 秒 · {ratio}"
       },
       "lora": {
         "empty": "告诉我想出什么图，我来帮你挑 LoRA、写触发词、调权重。",
@@ -7984,14 +7978,31 @@
     "cancelFailed": "取消失败，任务仍在进行"
   },
   "StudioVideoSlots": {
-    "sectionLabel": "具名参考槽",
+    "sectionLabel": "素材 · 拖进来或点 ＋",
     "firstFrame": "首帧",
     "lastFrame": "尾帧",
-    "referenceVideo": "参考视频",
-    "clear": "清空{slot}",
-    "upload": "为{slot}上传文件",
+    "image": "图片{n}",
+    "video": "视频{n}",
+    "audio": "音频{n}",
+    "setFirst": "设为首帧",
+    "setLast": "设为尾帧",
+    "setReference": "作为参考",
+    "remove": "移除",
+    "add": "添加素材",
+    "uploadImage": "上传图片",
+    "pickImage": "从素材库选图",
+    "pickVideo": "从素材库选参考视频",
+    "addAudio": "添加音频",
+    "editAudio": "音频设置",
+    "sendLine": "这次按 <strong>{mode}</strong> 发 · {reason}",
+    "reason": {
+      "omniReference": "挂了参考素材",
+      "firstLastFrame": "首帧 + 尾帧",
+      "imageToVideo": "只有首帧",
+      "textToVideo": "没挂素材"
+    },
     "libraryTitle": "从素材库挑一个",
-    "libraryDescription": "选一个素材放进这个槽。",
+    "libraryDescription": "选一个素材放进素材轨。",
     "aspectLockedByFirstFrame": "已放首帧，宽高比跟随这张图（自适应）。"
   },
   "ContextCards": {

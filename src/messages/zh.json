@@ -6874,13 +6874,15 @@
       "layer_decomposition_requires_single_reference": "图层拆分需要且只需要一张待拆分的参考图。",
       "invalid_reference_image_dimensions": "参考图尺寸或比例不符合该模型要求",
       "provider_account_limit_reached": "服务商账号为该模型设置的用量上限已触顶，模型服务被暂停。重试无效，需到服务商控制台调整限额。",
+      "provider_model_not_activated": "服务商账号还没有开通这个模型。请到服务商控制台（如火山方舟 / BytePlus 的模型开通页）开通后再试，直接重试无效。",
       "runner_queue_stuck": "这次生成因长时间未能开始而已取消。请换一个可用模型，或稍后再试。",
       "execution_worker_unavailable": "生成服务暂时无法连接。请稍后重试；如果一直失败，请联系管理员。",
       "lora_incompatible_hosted": "当前模型不支持这个 LoRA 的格式。请选择兼容的模型，或更换 LoRA。",
       "runner_monthly_limit_exceeded": "本月 Runner 的出图额度已经用完。可以先改用托管模型，或等下个月额度重置。",
       "runner_lora_unavailable": "当前生成服务还不能使用这个 LoRA。请更换 LoRA，或选择支持它的模型。",
       "lora_download_disabled": "这把 LoRA 的作者在 Civitai 关掉了下载，它只能在 Civitai 站内出图。这跟 API Key 无关，换任何 token 都取不到权重——请换一把 LoRA。",
-      "unknown": "这次生成没有成功，暂时无法确定原因。请稍后重试；如果仍然失败，可将错误详情提供给管理员。"
+      "unknown": "这次生成没有成功，暂时无法确定原因。请稍后重试；如果仍然失败，可将错误详情提供给管理员。",
+      "unknownWithDetail": "这次生成没有成功，服务商返回：{detail}"
     },
     "validation": {
       "invalidInput": "输入无效，请检查参数。",

@@ -6874,13 +6874,15 @@
       "layer_decomposition_requires_single_reference": "Layer split needs exactly one reference image to take apart.",
       "invalid_reference_image_dimensions": "The reference image size or aspect ratio is not supported",
       "provider_account_limit_reached": "The provider account hit its configured usage limit for this model and the service is paused. Retrying will not help — adjust the limit in the provider's console.",
+      "provider_model_not_activated": "Your provider account has not activated this model yet. Activate it in the provider console (e.g. the Ark / BytePlus model activation page) and try again — retrying as is will not help.",
       "runner_queue_stuck": "This generation was canceled because it could not start. Choose another available model or try again later.",
       "execution_worker_unavailable": "The generation service cannot be reached right now. Try again later; contact the administrator if it keeps failing.",
       "lora_incompatible_hosted": "This model does not support this LoRA format. Choose a compatible model or another LoRA.",
       "runner_monthly_limit_exceeded": "This month's Runner generation quota is used up. Switch to a hosted model for now, or wait for next month's reset.",
       "runner_lora_unavailable": "This LoRA is not available on the current generation service. Choose another LoRA or a model that supports it.",
       "lora_download_disabled": "The creator has disabled downloads for this LoRA. It can only be used in Civitai's generator. Choose another LoRA to use here.",
-      "unknown": "Generation failed for an undetermined reason. Try again later. If it keeps failing, share the error details with the administrator."
+      "unknown": "Generation failed for an undetermined reason. Try again later. If it keeps failing, share the error details with the administrator.",
+      "unknownWithDetail": "This generation failed. The provider said: {detail}"
     },
     "validation": {
       "invalidInput": "Invalid input. Please check your parameters.",

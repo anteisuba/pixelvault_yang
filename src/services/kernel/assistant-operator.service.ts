@@ -9786,6 +9786,17 @@ export async function* runAssistantOperator(
       }
 
       const { name: rawToolName, title, reason, args: rawToolArgs } = turn.tool
+      /**
+       * 开发环境下把模型每一步「为什么这么做」留在服务端日志里（视频实跑 09-24：
+       * H3 下连写三遍提示词，步骤记录里看不出原因）。⛔ 生产不打：reason 里可能有创作者原话。
+       */
+      if (process.env.NODE_ENV !== 'production')
+        logger.info('assistant operator step', {
+          step: index,
+          tool: rawToolName,
+          title,
+          reason: clamp(reason ?? '', 400),
+        })
 
       /**
        * ⭐ **拆入口**（v2 §2.1）—— 模型只写了五个动词之一，组内哪一支由 `action` 定。

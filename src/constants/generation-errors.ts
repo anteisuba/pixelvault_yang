@@ -71,6 +71,13 @@ export const GENERATION_ERROR_CODES = {
    */
   PROVIDER_ACCOUNT_LIMIT_REACHED: 'provider_account_limit_reached',
   /**
+   * Provider 账号**还没开通**这个模型（火山方舟：「Your account [...] has not
+   * activated the model doubao-seedance-2-0-...」，code `ModelNotOpen`）。
+   * 与限额同一类：重试无效，得去控制台开通。视频实跑 09-24 撞上时它落进了
+   * UNKNOWN，界面只说「暂时无法确定原因」。
+   */
+  PROVIDER_MODEL_NOT_ACTIVATED: 'provider_model_not_activated',
+  /**
    * 火山 Ark / BytePlus Seedream 5.0 Pro 的 `background: "transparent"` 前置
    * 条件没满足：文档写死「仅支持图生图场景，且只支持输入 1 张带透明通道的
    * 图片」。0 张或 ≥2 张都不成立。
@@ -190,8 +197,16 @@ const ERROR_PATTERNS: Array<{
   // 固定英文），**不是**「含 limit/exceeded 就算」的兜底——那种兜底正是
   // 下面注释里记着的、2026-08-24 被删掉的那条祸根。
   {
-    pattern: /SetLimitExceeded|reached the set inference limit/i,
+    // ⚠ BytePlus 的原话是「set usage limit」而不是火山的「set inference limit」
+    // （视频实跑 09-24），两种都认；「model service has been paused」是两家共有的尾巴。
+    pattern:
+      /SetLimitExceeded|reached the set (?:inference|usage) limit|model service has been paused/i,
     code: GENERATION_ERROR_CODES.PROVIDER_ACCOUNT_LIMIT_REACHED,
+  },
+  {
+    pattern:
+      /ModelNotOpen|has not activated the model|activate the model service/i,
+    code: GENERATION_ERROR_CODES.PROVIDER_MODEL_NOT_ACTIVATED,
   },
   // ⚠ 同样排在参考图规则**之前**：这句话里有 "reference image"，而下面五条
   // 参考图规则谁先咬到就归谁。它是我们自己校验层抛的固定英文，认字面即可。
@@ -328,6 +343,10 @@ const BACKEND_ERROR_CODE_MAP: Record<string, GenerationErrorCode> = {
     GENERATION_ERROR_CODES.RUNNER_MONTHLY_LIMIT_EXCEEDED,
   RUNNER_LORA_UNAVAILABLE: GENERATION_ERROR_CODES.RUNNER_LORA_UNAVAILABLE,
   LORA_DOWNLOAD_DISABLED: GENERATION_ERROR_CODES.LORA_DOWNLOAD_DISABLED,
+  // Provider 原样的错误码（worker 把火山 / BytePlus 的 `error.code` 直接存进
+  // errorCode）—— 原话里不一定带着这个词，只看 message 会漏。
+  SetLimitExceeded: GENERATION_ERROR_CODES.PROVIDER_ACCOUNT_LIMIT_REACHED,
+  ModelNotOpen: GENERATION_ERROR_CODES.PROVIDER_MODEL_NOT_ACTIVATED,
 }
 
 const GENERATION_ERROR_CODE_VALUES = new Set<string>(
@@ -345,7 +364,10 @@ const GENERATION_ERROR_CODE_VALUES = new Set<string>(
 export function normalizeErrorCode(
   code?: string | null,
 ): GenerationErrorCode | null {
-  if (!code) {
+  // ⚠ `unknown` 也算「没归类」：worker 认不出时就存这个字面值，而原话里常常写着
+  //   具体原因（火山「has not activated the model」，视频实跑 09-24）—— 回 null 让
+  //   调用方接着按原话认。
+  if (!code || code === GENERATION_ERROR_CODES.UNKNOWN) {
     return null
   }
   if (GENERATION_ERROR_CODE_VALUES.has(code)) {

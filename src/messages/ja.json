@@ -6874,13 +6874,15 @@
       "layer_decomposition_requires_single_reference": "レイヤー分解には、分解する参照画像がちょうど 1 枚必要です。",
       "invalid_reference_image_dimensions": "参照画像のサイズまたはアスペクト比がこのモデルに対応していません",
       "provider_account_limit_reached": "プロバイダーのアカウントで設定された利用上限に達し、モデルサービスが停止されています。再試行しても解決しません。コンソールで上限を調整してください。",
+      "provider_model_not_activated": "プロバイダーのアカウントでこのモデルがまだ有効化されていません。プロバイダーのコンソール（火山方舟 / BytePlus のモデル有効化ページなど）で有効化してから再試行してください。そのまま再試行しても解決しません。",
       "runner_queue_stuck": "生成を開始できない状態が続いたため、キャンセルされました。別の利用可能なモデルを選ぶか、後ほど再試行してください。",
       "execution_worker_unavailable": "生成サービスに接続できません。しばらくして再試行し、解消しない場合は管理者にお問い合わせください。",
       "lora_incompatible_hosted": "このモデルは LoRA の形式に対応していません。対応モデルまたは別の LoRA を選んでください。",
       "runner_monthly_limit_exceeded": "今月の Runner 生成クォータを使い切りました。当面はホスト型モデルに切り替えるか、来月のリセットをお待ちください。",
       "runner_lora_unavailable": "現在の生成サービスではこの LoRA を利用できません。別の LoRA または対応モデルを選んでください。",
       "lora_download_disabled": "この LoRA は作者がダウンロードを無効にしているため、Civitai 内でのみ使えます。ここで生成するには、別の LoRA を選んでください。",
-      "unknown": "原因を特定できないエラーで生成に失敗しました。しばらくして再試行し、解消しない場合はエラー詳細を管理者にお伝えください。"
+      "unknown": "原因を特定できないエラーで生成に失敗しました。しばらくして再試行し、解消しない場合はエラー詳細を管理者にお伝えください。",
+      "unknownWithDetail": "生成に失敗しました。プロバイダーからの応答：{detail}"
     },
     "validation": {
       "invalidInput": "入力が無効です。パラメータを確認してください。",

@@ -252,3 +252,48 @@ describe('generation errors with real translations', () => {
     })
   }
 })
+
+describe('generation errors · 失败原因要具体（owner 09-24）', () => {
+  const t = Object.assign(
+    (key: string, values?: Record<string, string>) =>
+      values ? `${key}:${values.detail}` : key,
+    { has: () => true },
+  )
+
+  it('认不出的服务商原话附在提示里', () => {
+    expect(
+      getGenerationErrorMessage(
+        t,
+        { error: 'upstream said: quota for project xyz is 0' },
+        'fallback',
+      ),
+    ).toBe(
+      'generation.unknownWithDetail:upstream said: quota for project xyz is 0',
+    )
+  })
+
+  it('BytePlus 的 usage limit、火山的未开通都归到具体原因', () => {
+    expect(
+      getGenerationErrorMessage(
+        t,
+        {
+          error:
+            'Your account [3003891542] has reached the set usage limit for the [dreamina-seedance-2-0] model, and the model service has been paused.',
+          errorCode: 'SetLimitExceeded',
+        },
+        'fallback',
+      ),
+    ).toBe('generation.provider_account_limit_reached')
+    expect(
+      getGenerationErrorMessage(
+        t,
+        {
+          error:
+            'Your account 2124984845 has not activated the model doubao-seedance-2-0-260128. Please activate the model service in the Ark Console.',
+          errorCode: 'unknown',
+        },
+        'fallback',
+      ),
+    ).toBe('generation.provider_model_not_activated')
+  })
+})

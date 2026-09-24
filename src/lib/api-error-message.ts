@@ -4,6 +4,9 @@ import {
   parseGenerationErrorCode,
 } from '@/constants/generation-errors'
 
+/** 原话附在提示里时最多带多少字（整段 JSON 糊一屏读不下去）。 */
+const GENERATION_ERROR_DETAIL_MAX_CHARS = 240
+
 interface ApiErrorLike {
   error?: string
   errorCode?: string
@@ -12,7 +15,10 @@ interface ApiErrorLike {
   hasReferenceImage?: boolean
 }
 
-type ErrorTranslator = ((key: string) => string) & {
+type ErrorTranslator = ((
+  key: string,
+  values?: Record<string, string>,
+) => string) & {
   has: (key: string) => boolean
   raw?: (key: string) => unknown
 }
@@ -109,6 +115,30 @@ export function getGenerationErrorMessage(
     if (tErrors.has(generationKey)) {
       return tErrors(generationKey)
     }
+  }
+
+  /**
+   * ⭐ 认不出的原因**把服务商原话说出来**（owner 09-24「失败原因要具体」）：
+   * 「暂时无法确定原因」让人无从下手，而原话里通常就写着要做什么。
+   */
+  const detail = payload.error?.trim()
+  // ⚠ 我们自己的程序异常（`TypeError: …`）不是「服务商返回」—— 那种照旧走通用那句。
+  const isProgramError = detail
+    ? /^(?:TypeError|ReferenceError|SyntaxError|RangeError|Error)\b/.test(
+        detail,
+      )
+    : false
+  if (
+    detail &&
+    !isProgramError &&
+    tErrors.has('generation.unknownWithDetail')
+  ) {
+    return tErrors('generation.unknownWithDetail', {
+      detail:
+        detail.length > GENERATION_ERROR_DETAIL_MAX_CHARS
+          ? `${detail.slice(0, GENERATION_ERROR_DETAIL_MAX_CHARS)}…`
+          : detail,
+    })
   }
 
   return tErrors.has('generation.unknown')

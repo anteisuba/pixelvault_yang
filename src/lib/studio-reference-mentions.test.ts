@@ -18,6 +18,12 @@ describe('Studio reference mentions', () => {
     ).toBe('@Image1 角色，@Image2衣服，@Image3动作，@Image4画风，@Image4面部')
   })
 
+  it('reads the Japanese on-screen label too (画像2)', () => {
+    expect(normalizeReferenceMentions('「画像2」の服を使う')).toBe(
+      '「@Image2」の服を使う',
+    )
+  })
+
   it('does not rewrite URLs, email addresses or partial identifiers', () => {
     const text = 'https://cdn.test/Image1.png user@Image3.com Image2abc'
     expect(normalizeReferenceMentions(text)).toBe(text)

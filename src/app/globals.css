@@ -62,11 +62,19 @@
   --color-node-edge: var(--node-edge);
   --color-node-edge-active: var(--node-edge-active);
   --color-node-focus-ring: var(--node-focus-ring);
-  --color-node-port-character: var(--node-port-character);
-  --color-node-port-background: var(--node-port-background);
-  --color-node-port-voice: var(--node-port-voice);
-  --color-node-port-video: var(--node-port-video);
-  --color-node-port-image: var(--node-port-image);
+  /* 端口色定值只在 canvas.css（画布路由）里；画布外（工作台提示词里的音频 /
+     视频胶囊）回落到中性灰 —— 模态色只属于画布端口（D1 ④），缺了它胶囊是透明的。 */
+  --color-node-port-character: var(
+    --node-port-character,
+    var(--muted-foreground)
+  );
+  --color-node-port-background: var(
+    --node-port-background,
+    var(--muted-foreground)
+  );
+  --color-node-port-voice: var(--node-port-voice, var(--muted-foreground));
+  --color-node-port-video: var(--node-port-video, var(--muted-foreground));
+  --color-node-port-image: var(--node-port-image, var(--muted-foreground));
   /* S2 端口纸面校准（§2.3）：纸卡缘对纸面 #ebe5d8 的变体，见 :root 定值注释。 */
   --color-node-port-character-on-paper: var(--node-port-character-on-paper);
   --color-node-port-background-on-paper: var(--node-port-background-on-paper);

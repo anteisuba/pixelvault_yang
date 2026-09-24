@@ -122,3 +122,23 @@ describe('parseMentions · 原文引用', () => {
     ])
   })
 })
+
+describe('MentionInput · 没有缩略图的胶囊', () => {
+  it('音频画波形、视频画 ▶ —— 画布外端口色缺席时不能只剩一个空格子', () => {
+    const { container } = render(
+      <MentionInput
+        value="音色参考音频1，参考视频1"
+        onValueChange={vi.fn()}
+        tokens={[
+          { name: '音频1', kind: 'voice', literal: true },
+          { name: '视频1', kind: 'video', literal: true },
+        ]}
+        aria-label="editor"
+      />,
+    )
+    const voice = container.querySelector('[data-mention="音频1"]')
+    const video = container.querySelector('[data-mention="视频1"]')
+    expect(voice?.querySelectorAll('svg rect')).toHaveLength(3)
+    expect(video?.querySelector('svg polygon')).not.toBeNull()
+  })
+})

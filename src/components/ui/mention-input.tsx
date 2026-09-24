@@ -192,19 +192,44 @@ const MENTION_POPOVER_MAX_W = 280
 const MENTION_POPOVER_EDGE_GAP = 8
 const SVG_NS = 'http://www.w3.org/2000/svg'
 
-/** A centered ▶ overlay — the shape language marks a video reference apart from
- *  a still image (both square). White + drop-shadow so it reads on any frame. */
-function buildPlayOverlay(doc: Document): HTMLSpanElement {
+/** A centered glyph over the thumb — ▶ marks a video, three bars mark audio.
+ *  Over a real frame it is white + drop-shadow; without one it takes the text
+ *  color: outside the canvas the port tints are undefined, so a tinted-box-only
+ *  chip reads as an empty gap (09-24 studio video prompt). */
+function buildGlyph(
+  doc: Document,
+  kind: 'video' | 'voice',
+  overFrame: boolean,
+): HTMLSpanElement {
   const overlay = doc.createElement('span')
-  overlay.className =
-    'pointer-events-none absolute inset-0 flex items-center justify-center text-white drop-shadow'
+  overlay.className = cn(
+    'pointer-events-none absolute inset-0 flex items-center justify-center',
+    overFrame ? 'text-white drop-shadow' : 'text-current',
+  )
   const svg = doc.createElementNS(SVG_NS, 'svg')
   svg.setAttribute('viewBox', '0 0 10 10')
   svg.setAttribute('class', 'size-2.5')
-  const poly = doc.createElementNS(SVG_NS, 'polygon')
-  poly.setAttribute('points', '3,2 3,8 8,5')
-  poly.setAttribute('fill', 'currentColor')
-  svg.appendChild(poly)
+  if (kind === 'video') {
+    const poly = doc.createElementNS(SVG_NS, 'polygon')
+    poly.setAttribute('points', '3,2 3,8 8,5')
+    poly.setAttribute('fill', 'currentColor')
+    svg.appendChild(poly)
+  } else {
+    for (const [x, h] of [
+      [2, 4],
+      [5, 8],
+      [8, 5],
+    ] as const) {
+      const bar = doc.createElementNS(SVG_NS, 'rect')
+      bar.setAttribute('x', String(x - 0.75))
+      bar.setAttribute('y', String(5 - h / 2))
+      bar.setAttribute('width', '1.5')
+      bar.setAttribute('height', String(h))
+      bar.setAttribute('rx', '0.75')
+      bar.setAttribute('fill', 'currentColor')
+      svg.appendChild(bar)
+    }
+  }
   overlay.appendChild(svg)
   return overlay
 }
@@ -230,7 +255,9 @@ function buildThumb(
     img.className = 'size-full object-cover'
     thumb.appendChild(img)
   }
-  if (kind === 'video') thumb.appendChild(buildPlayOverlay(doc))
+  if (kind === 'video') thumb.appendChild(buildGlyph(doc, kind, !!thumbnailUrl))
+  else if (kind === 'voice' && !thumbnailUrl)
+    thumb.appendChild(buildGlyph(doc, kind, false))
   return thumb
 }
 

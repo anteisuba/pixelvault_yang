@@ -733,6 +733,9 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
               emptySearchText={tForm('modelSelector.emptySearch')}
               filterOption={filterVideoModelOption}
               className="w-full justify-start"
+              // 与图片那颗同一个宽度与对齐（22f47e25 只修了图片档）。
+              popoverAlign="start"
+              contentClassName="w-80"
             />
           </div>
         )}

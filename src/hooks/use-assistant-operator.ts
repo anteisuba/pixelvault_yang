@@ -296,9 +296,26 @@ function buildPriorSteps(
  * ⚠ 只读本次会话的条目 —— 载回来的历史条目类型上就没有 `payload`
  *   （见 `types/studio-operator-history.ts`），刷新之后退回「照问一次」。
  */
+/** 一步 `set_prompt` / `set_negative` 写完之后整格的原文（追加那一支拼回全文）。 */
+function writtenTextOf(step: AssistantOperatorStep): string | undefined {
+  if (
+    step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.done ||
+    (step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+      step.tool !== ASSISTANT_OPERATOR_TOOL_IDS.setNegative)
+  )
+    return undefined
+  // ⚠ 追加那一支要拼回**它写完之后的完整原文**：`payload.value` 只是接在
+  //   后面的那一截，拿它去比永远比不中。分隔符复用协议里那个。
+  return step.payload.mode === ASSISTANT_OPERATOR_WRITE_MODES.append &&
+    step.inverse.value
+    ? `${step.inverse.value}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${step.payload.value}`
+    : step.payload.value
+}
+
 function buildAuthoredByAssistant(
   entries: readonly StudioOperatorThreadEntry[],
   snapshot: AssistantOperatorRequest['snapshot'],
+  changes: ReturnType<typeof getOperatorState>['changes'],
 ): AssistantOperatorConfirmField[] {
   const fields: {
     field: AssistantOperatorConfirmField
@@ -332,16 +349,12 @@ function buildAuthoredByAssistant(
       ) {
         break
       }
-      // ⚠ 追加那一支要拼回**它写完之后的完整原文**：`payload.value` 只是接在
-      //   后面的那一截，拿它去比永远比不中。分隔符复用协议里那个。
-      const written =
-        step.payload.mode === ASSISTANT_OPERATOR_WRITE_MODES.append &&
-        step.inverse.value
-          ? `${step.inverse.value}${ASSISTANT_OPERATOR_APPEND_SEPARATOR}${step.payload.value}`
-          : step.payload.value
-      if (written === current) out.push(field)
+      if (writtenTextOf(step) === current) out.push(field)
       break
     }
+    // ⭐ 线程里找不到（开了新对话）就问登记簿：它跨会话留着助手上一次写下的全文。
+    if (!out.includes(field) && changes[field]?.writtenText === current)
+      out.push(field)
   }
   return out
 }
@@ -1120,7 +1133,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       }
 
       const snapshot = buildSnapshot()
-      const authoredByAssistant = buildAuthoredByAssistant(entries, snapshot)
+      const authoredByAssistant = buildAuthoredByAssistant(
+        entries,
+        snapshot,
+        getOperatorState().changes,
+      )
 
       const result = await streamAssistantOperatorAPI(
         {
@@ -1534,6 +1551,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   )
                 }
                 if (field) {
+                  const writtenText = writtenTextOf(step)
                   recordOperatorChange({
                     field,
                     // 归属标记要指回**线程里的那一条**，不是服务端的步号。
@@ -1541,6 +1559,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                     ...(step.reason ? { reason: step.reason } : {}),
                     firstInverse: step,
                     previousLabel: describeOperatorInverse(step),
+                    ...(writtenText !== undefined ? { writtenText } : {}),
                   })
                 }
               }

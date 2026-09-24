@@ -263,6 +263,12 @@ export interface StudioOperatorChange {
   firstInverse: AssistantOperatorAppliedStep
   /** 助手改之前那个字段长什么样（hover 里显示「原值」）。 */
   previousLabel: string
+  /**
+   * 提示词 / 负面这两格：助手**最近一次写完之后**整格的原文。
+   * ⭐ 登记簿跨「新对话」留着，这一格让新会话也认得「框里这段是助手写的」——
+   * 否则开新会话第一件事就是问「你已经自己写过了，怎么办」（2026-09-24 真机）。
+   */
+  writtenText?: string
 }
 
 /**

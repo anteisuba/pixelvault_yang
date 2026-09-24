@@ -11259,6 +11259,23 @@ describe('current reference image bindings', () => {
     expect(prompt).not.toContain('set_prompt was REFUSED (repeatedStep)')
   })
 
+  it('marks a prompt the assistant wrote earlier so the model neither asks nor plans around it', async () => {
+    queueTurns({ finished: true, message: '好的。' })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, prompt: '夜景，霓虹' },
+          authoredByAssistant: ['prompt'],
+        }),
+      ),
+    )
+    expect(lastUserPrompt()).toContain(
+      'written by you earlier, not by the creator',
+    )
+    expect(systemPrompt()).toContain('is NOT a conflict')
+  })
+
   it('tells the model a repeated write already succeeded instead of calling it refused', async () => {
     const write = {
       tool: {

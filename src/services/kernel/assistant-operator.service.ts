@@ -1299,7 +1299,13 @@ function renderState(
   lines.push(
     `- Positive prompt: ${
       state.prompt
-        ? `"${clamp(state.prompt, LIMITS.maxConfirmHaveChars)}"`
+        ? `"${clamp(state.prompt, LIMITS.maxConfirmHaveChars)}"${
+            (request.authoredByAssistant ?? []).includes(
+              ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
+            )
+              ? ' — written by you earlier, not by the creator; replace it freely'
+              : ''
+          }`
         : '(empty)'
     }`,
   )
@@ -7746,9 +7752,9 @@ OUTPUT — every turn is ONE strict-JSON object and nothing else. No prose outsi
 {"plan":["short step","short step"],"tool":{"name":"apply","title":"one short line for the log","reason":"why, in one line","args":{"action":"set_prompt","value":"..."}},"message":"what you are telling the creator","detail":"the reasoning, if it is worth reading","finished":false}
 
 - "tool"."name" is ALWAYS one of the five verbs. Everything else about the call goes in "args": "action" says which move, and the rest of "args" is that move's own arguments, flat beside it. Writing a move's name in "name" is refused and costs you a step.
-- ASKING is a tool call too: {"tool":{"name":"ask","args":{"question":"Which look are you after?","header":"Look","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}}}. It ENDS your turn: the app shows the question and waits for their tap. Ask only on a real conflict: two plausible readings that would give materially different identity, body proportions, style, reference priority, or node layout, which the current references cannot settle. Anything else (what the picture is for, minor reversible details) — pick a sensible default and say it in one short clause. When you need more than one decision, ask them together in "questions" on one turn (the app shows them one at a time) instead of one ask per turn.
+- ASKING is a tool call too: {"tool":{"name":"ask","args":{"question":"Which look are you after?","header":"Look","multiSelect":false,"allowOther":true,"options":[{"label":"3D game render","description":"Clean engine-style shading, closest to the official art.","recommended":true},{"label":"Stylized 3D","description":"Softer shapes and flatter colour — reads as illustration."}]}}}. It ENDS your turn: the app shows the question and waits for their tap. Ask only on a real conflict: two plausible readings that would give materially different identity, body proportions, style, reference priority, or node layout, which the current references cannot settle. Anything else (what the picture is for, minor reversible details) — pick a sensible default and say it in one short clause. A detail the creator simply left open in their own request (which kind of school uniform, which colour, which pose variant) is NOT a conflict: choose the option that best fits the references and what they said, write it, and name your choice in the closing line — the confirm card lets them change course before anything is spent. When you need more than one decision, ask them together in "questions" on one turn (the app shows them one at a time) instead of one ask per turn.
 - A decision that is theirs to make always goes through a question — never ask for it in "message" prose ("please confirm whether…"), because prose gives them nothing to tap. On a question turn "message" is one short sentence of WHY you are asking; never repeat the question itself there.
-- "confirmPlan":true on your FIRST turn when what you are about to do is a run the creator would want to green-light first — a string of moves, or one that writes over something of theirs. The app shows the plan and waits. Leave it out otherwise; a card in front of a single obvious edit is pure interruption.
+- "confirmPlan":true on your FIRST turn when what you are about to do is a run the creator would want to green-light first — a string of moves, or one that writes over something THEY wrote. Text you wrote earlier (the state block marks it) is not theirs, and an ordinary edit followed by a confirm card needs no plan card — the confirm card already is their green light. The app shows the plan and waits. Leave it out otherwise; a card in front of a single obvious edit is pure interruption.
 
 - "plan" only on your FIRST turn, at most ${LIMITS.maxPlanItems} short items. Omit it afterwards — a later plan is folded into one plain line, so a changed plan belongs in "message", in one sentence.
 - "questions" is where you batch decisions: 1–${PLAN_LIMITS.maxQuestions} questions about things you genuinely cannot settle from what they told you, all on the same turn (with "plan" if it is your first turn). The app turns each into one tap. Leave it out when you can settle everything yourself — a question you already know the answer to costs them a round trip. Never ask about something the state block already answers.

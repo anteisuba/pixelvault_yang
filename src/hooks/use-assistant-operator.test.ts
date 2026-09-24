@@ -2332,6 +2332,34 @@ describe('覆盖三选 · authoredByAssistant', () => {
     ).toEqual(['prompt'])
   })
 
+  it('⭐ 开了新对话也认得：登记簿里助手写下的全文还原样躺在表单上 → 带上', async () => {
+    const { result } = render()
+    act(() => {
+      result.current.send('把提示词写成夜景')
+    })
+    await settle()
+    streams[0].emit(setPromptStepEvent('夜景，霓虹，湿地面'))
+    streams[0].emit({ type: ASSISTANT_OPERATOR_EVENTS.done })
+    streams[0].close()
+    await settle()
+
+    act(() => {
+      result.current.newThread()
+    })
+    hostSnapshot.current = {
+      prompt: '夜景，霓虹，湿地面',
+      availableModels: [],
+    }
+    act(() => {
+      result.current.send('换个颜色')
+    })
+    await settle()
+
+    expect(
+      streamAssistantOperatorAPI.mock.calls[1]?.[0].authoredByAssistant,
+    ).toEqual(['prompt'])
+  })
+
   it('⛔ 用户之后手改过一个字 → 不带（那一段重新算他手写的）', async () => {
     const { result } = render()
     act(() => {

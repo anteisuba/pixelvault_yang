@@ -41,6 +41,20 @@ const LABELS: Record<string, string> = {
 const labelOf = (o: StudioModelOption) => LABELS[o.modelId] ?? o.modelId
 
 describe('groupModelsForPicker', () => {
+  it('MiniMax 两个站在渠道面板里只写 Global / China（owner 09-24）', () => {
+    const series = groupModelsForPicker(
+      [
+        option(AI_MODELS.MINIMAX_H3, AI_ADAPTER_TYPES.MINIMAX),
+        option(AI_MODELS.MINIMAX_H3_CN, AI_ADAPTER_TYPES.MINIMAX_CN),
+      ],
+      labelOf,
+    )
+    const channels = series.flatMap((s) =>
+      s.models.flatMap((m) => m.channels.map((c) => c.label)),
+    )
+    expect(channels.sort()).toEqual(['China', 'Global'])
+  })
+
   it('collapses the channel-suffixed twins into ONE model row with N channels', () => {
     const series = groupModelsForPicker(
       [

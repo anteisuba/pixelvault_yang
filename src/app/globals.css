@@ -114,9 +114,11 @@
      呼吸——`bottom-safe-bottom` 工具类消费。env() 不能塞进纯 Tailwind 间距刻度，
      故单开一个 token（Hard Rule 5：禁 arbitrary value，非禁自定义 token）。 */
   --spacing-safe-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
-  /* 统一模型选择器（D2 ④ 画板）：弹层 380px，渠道面板 190px 浮在它右侧。 */
+  /* 统一模型选择器（D2 ④ 画板）：弹层 380px，渠道面板浮在它右侧。
+     渠道面板 220px（owner 09-24：190px 时「MiniMax China」被截成「MiniMax (…」，
+     价格一栏占掉一半，两条渠道分不清）。 */
   --width-model-picker: 23.75rem;
-  --width-model-channel-panel: 11.875rem;
+  --width-model-channel-panel: 13.75rem;
   /* /settings 整页（D3 ④ 画板）：卡 1000px = 左 200px 分区导航 + 右内容 720px。 */
   --width-settings-nav: 12.5rem;
   --max-width-settings: 45rem;

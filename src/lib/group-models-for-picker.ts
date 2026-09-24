@@ -2,7 +2,11 @@ import type { StudioModelOption } from '@/types/model-option'
 import { foldRedundantWorkspaceRoutes } from '@/lib/model-options'
 import { getModelFamily, getModelVariant } from '@/constants/models'
 import { getModelUnitPriceByStringId } from '@/constants/models/unit-prices'
-import { getProviderLabel } from '@/constants/providers'
+import {
+  getProviderLabel,
+  PROVIDER_CHANNEL_SHORT_LABELS,
+  type AI_ADAPTER_TYPES,
+} from '@/constants/providers'
 
 /**
  * 方案 A 的列表形状：**系列 → 型号 → 渠道[]**（`node-canvas-v2.md` §1.6）。
@@ -160,7 +164,10 @@ export function foldChannels(
     const keyLabel = keyLabelOf(representative)
     return {
       channelId: representative.optionId,
-      label: getProviderLabel(representative.providerConfig),
+      label:
+        PROVIDER_CHANNEL_SHORT_LABELS[
+          representative.adapterType as AI_ADAPTER_TYPES
+        ] ?? getProviderLabel(representative.providerConfig),
       option: representative,
       ...(keyLabel ? { keyLabel } : {}),
       variants: [

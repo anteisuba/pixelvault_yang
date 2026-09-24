@@ -57,6 +57,18 @@ export interface ProviderConfig {
   anthropicWorkspaceId?: string
 }
 
+/**
+ * 模型选择器**渠道面板**里的短名 —— 面板标题已经写着型号（「MiniMax H3」），行上只需
+ * 说是哪个站（owner 09-24「直接 Global 和 China 就好了」）。⚠ 只用在渠道面板：设置页等
+ * 别处单写「China」看不出是哪家，那里照旧用 `ProviderConfig.label`。
+ */
+export const PROVIDER_CHANNEL_SHORT_LABELS: Partial<
+  Record<AI_ADAPTER_TYPES, string>
+> = {
+  [AI_ADAPTER_TYPES.MINIMAX]: 'Global',
+  [AI_ADAPTER_TYPES.MINIMAX_CN]: 'China',
+}
+
 export const AI_ADAPTER_TYPE_OPTIONS = [
   AI_ADAPTER_TYPES.HUGGINGFACE,
   AI_ADAPTER_TYPES.GEMINI,
@@ -141,12 +153,14 @@ export const DEFAULT_PROVIDER_CONFIGS: Record<
   // Two stations, two entries — see the MINIMAX_CN enum comment for why they
   // can't share one. Labels stay ASCII brand names (same convention as
   // 'VolcEngine' / 'Qwen') so the picker doesn't need i18n plumbing.
+  // ⚠ Both carry the station (owner 09-24: "MiniMax" vs "MiniMax (CN)" side by
+  // side in the route panel read as the same thing once "(CN)" was clipped).
   [AI_ADAPTER_TYPES.MINIMAX]: {
-    label: 'MiniMax',
+    label: 'MiniMax Global',
     baseUrl: AI_PROVIDER_ENDPOINTS.MINIMAX,
   },
   [AI_ADAPTER_TYPES.MINIMAX_CN]: {
-    label: 'MiniMax (CN)',
+    label: 'MiniMax China',
     baseUrl: AI_PROVIDER_ENDPOINTS.MINIMAX_CN,
   },
   // 'Claude' not 'Anthropic': the selector shows the model-family name to

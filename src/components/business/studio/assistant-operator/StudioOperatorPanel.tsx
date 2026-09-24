@@ -348,7 +348,18 @@ export function StudioOperatorPanel({
   )
   const historyEntries = useMemo(
     () =>
-      allHistoryEntries.filter((entry): boolean => entry.kind !== 'domainMark'),
+      allHistoryEntries.filter(
+        (entry): boolean =>
+          entry.kind !== 'domainMark' &&
+          // 跳过的重复步不进过程（与实时线程同一条规矩，见 `blocks` 那一处）。
+          !(
+            entry.kind === 'step' &&
+            entry.status === 'error' &&
+            STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.some(
+              (reason) => reason === entry.rejectReason,
+            )
+          ),
+      ),
     [allHistoryEntries],
   )
 
@@ -1233,6 +1244,18 @@ export function StudioOperatorPanel({
 
     for (const entry of entries) {
       if (entry.kind === 'step') {
+        /**
+         * ⚠ 跳过的那一步（同轮重复提交，什么都没做）**不进过程**（2026-09-24）：
+         * 展开过程读到一行「这一步刚才做过了，跳过」只是噪音 —— 它既不是做了的事，
+         * 也不是没做成的事。
+         */
+        if (
+          entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error &&
+          STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.includes(
+            entry.step.error.reason,
+          )
+        )
+          continue
         if (group && group.runKey === entry.runKey) {
           group.steps.push(entry)
         } else {

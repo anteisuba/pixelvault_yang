@@ -969,6 +969,40 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     )
   }
 
+  it('⭐ 跳过的重复步不进过程：展开也读不到「刚才做过了」（2026-09-24）', () => {
+    pushStep('run-skip', {
+      id: 'step-1',
+      title: '写提示词',
+      tool: 'set_prompt',
+      verb: 'apply',
+      status: 'done',
+      payload: { value: '夜景', mode: 'replace' },
+      inverse: { value: '' },
+    })
+    pushStep('run-skip', {
+      id: 'step-2',
+      title: '再写一遍提示词',
+      tool: 'set_prompt',
+      verb: 'apply',
+      status: 'error',
+      error: { reason: 'repeatedStep' },
+    })
+    renderPanel()
+    for (const toggle of screen.queryAllByTestId('operator-tool-group-toggle'))
+      fireEvent.click(toggle)
+    // 做成的那一步展开后看得见 —— 证明这里确实是展开态。
+    expect(
+      screen
+        .queryAllByTestId('operator-log-title')
+        .some((node) => node.textContent?.includes('写提示词')),
+    ).toBe(true)
+    const titles = screen
+      .queryAllByTestId('operator-log-title')
+      .map((node) => node.textContent)
+    expect(titles.some((text) => text?.includes('再写一遍提示词'))).toBe(false)
+    expect(screen.queryByText(/toolGroup\.skipped/)).toBeNull()
+  })
+
   it('⭐ 调查卡退场：过程收成调查行，⛔ 时间线里不再有那张卡（56b 切片 1 / 2）', () => {
     pushStep('run-1', {
       id: 'step-1',

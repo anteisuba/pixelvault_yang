@@ -6875,6 +6875,7 @@
       "invalid_reference_image_dimensions": "参考图尺寸或比例不符合该模型要求",
       "provider_account_limit_reached": "服务商账号为该模型设置的用量上限已触顶，模型服务被暂停。重试无效，需到服务商控制台调整限额。",
       "provider_model_not_activated": "服务商账号还没有开通这个模型。请到服务商控制台（如火山方舟 / BytePlus 的模型开通页）开通后再试，直接重试无效。",
+      "provider_server_error": "服务商那边的服务器出错了（返回 500），不是你的设置问题。一般是对方临时故障，稍后重试，或先换个模型。",
       "runner_queue_stuck": "这次生成因长时间未能开始而已取消。请换一个可用模型，或稍后再试。",
       "execution_worker_unavailable": "生成服务暂时无法连接。请稍后重试；如果一直失败，请联系管理员。",
       "lora_incompatible_hosted": "当前模型不支持这个 LoRA 的格式。请选择兼容的模型，或更换 LoRA。",

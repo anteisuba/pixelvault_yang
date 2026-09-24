@@ -78,6 +78,12 @@ export const GENERATION_ERROR_CODES = {
    */
   PROVIDER_MODEL_NOT_ACTIVATED: 'provider_model_not_activated',
   /**
+   * 服务商自己的服务器出错（HTTP 500 / Internal Server Error）。不是用户的设置问题，
+   * 通常是对方临时故障。09-24 NovelAI 返回 500 时落进 UNKNOWN，界面只说「暂时
+   * 无法确定原因」，原话压在「查看详情」里。
+   */
+  PROVIDER_SERVER_ERROR: 'provider_server_error',
+  /**
    * 火山 Ark / BytePlus Seedream 5.0 Pro 的 `background: "transparent"` 前置
    * 条件没满足：文档写死「仅支持图生图场景，且只支持输入 1 张带透明通道的
    * 图片」。0 张或 ≥2 张都不成立。
@@ -278,6 +284,11 @@ const ERROR_PATTERNS: Array<{
     pattern:
       /no_media_generated|no media|no output|no image|did not include.*(?:url|image|audio|video)|completed but no result/i,
     code: GENERATION_ERROR_CODES.PROVIDER_NO_OUTPUT,
+  },
+  {
+    pattern:
+      /Internal Server Error|"statusCode"\s*:\s*500\b|failed \(500\)|\bHTTP\s*500\b|status(?:\s*code)?\s*500\b/i,
+    code: GENERATION_ERROR_CODES.PROVIDER_SERVER_ERROR,
   },
   {
     pattern: /model.*unavailable|not\s*found|\b502\b/i,

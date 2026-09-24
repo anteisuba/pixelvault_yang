@@ -199,7 +199,16 @@ export function StudioGenerationErrorDialog({
   const tErrors = useTranslations('Errors')
   const [detailsExpanded, setDetailsExpanded] = useState(false)
 
-  const errorCode = error.code ?? parseGenerationErrorCode(error.message)
+  // ⚠ 后端写来的 `unknown` 不算数，再按原话认一次（服务商原话常常认得出来）。
+  const errorCode =
+    error.code && error.code !== GENERATION_ERROR_CODES.UNKNOWN
+      ? error.code
+      : parseGenerationErrorCode(error.message)
+  /**
+   * 认不出来时**主文案就是服务商原话**（09-24 owner：「暂时无法确定原因」+ 详情里
+   * 一段 log，等于什么都没说）。原话已经在主文案里了，详情就不再重复。
+   */
+  const unknown = errorCode === GENERATION_ERROR_CODES.UNKNOWN
   // ⚠ 必须过 `has`：next-intl 查不到 key 时**把 key 路径当文案渲染**，用户看到的
   // 就是「Errors.generation.execution_worker_unavailable」这么一行（2026-08-22
   // 真机撞到）。缺翻译是我们的疏漏，不该变成用户面前的乱码 —— 兜到 `unknown`，
@@ -240,32 +249,34 @@ export function StudioGenerationErrorDialog({
                 {t('generationError.title')}
               </DialogTitle>
               <DialogDescription className="mt-1">
-                {tErrors(reasonKey)}
+                {unknown && error.message ? error.message : tErrors(reasonKey)}
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <div className="mt-2">
-          <button
-            type="button"
-            onClick={() => setDetailsExpanded((prev) => !prev)}
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
-            aria-expanded={detailsExpanded}
-          >
-            {detailsExpanded ? (
-              <ChevronUp className="size-3.5" />
-            ) : (
-              <ChevronDown className="size-3.5" />
+        {unknown ? null : (
+          <div className="mt-2">
+            <button
+              type="button"
+              onClick={() => setDetailsExpanded((prev) => !prev)}
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+              aria-expanded={detailsExpanded}
+            >
+              {detailsExpanded ? (
+                <ChevronUp className="size-3.5" />
+              ) : (
+                <ChevronDown className="size-3.5" />
+              )}
+              {t('generationError.viewDetails')}
+            </button>
+            {detailsExpanded && (
+              <pre className="mt-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground overflow-x-auto whitespace-pre-wrap break-all font-mono">
+                {error.message}
+              </pre>
             )}
-            {t('generationError.viewDetails')}
-          </button>
-          {detailsExpanded && (
-            <pre className="mt-2 rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground overflow-x-auto whitespace-pre-wrap break-all font-mono">
-              {error.message}
-            </pre>
-          )}
-        </div>
+          </div>
+        )}
 
         <DialogFooter className="mt-4 flex-col gap-2 sm:flex-row">
           {actions.map((action, index) => {

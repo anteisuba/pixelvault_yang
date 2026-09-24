@@ -6875,6 +6875,7 @@
       "invalid_reference_image_dimensions": "The reference image size or aspect ratio is not supported",
       "provider_account_limit_reached": "The provider account hit its configured usage limit for this model and the service is paused. Retrying will not help — adjust the limit in the provider's console.",
       "provider_model_not_activated": "Your provider account has not activated this model yet. Activate it in the provider console (e.g. the Ark / BytePlus model activation page) and try again — retrying as is will not help.",
+      "provider_server_error": "The provider’s server returned an error (500). This isn’t a problem with your settings — it’s usually a temporary fault on their side. Try again shortly, or switch models.",
       "runner_queue_stuck": "This generation was canceled because it could not start. Choose another available model or try again later.",
       "execution_worker_unavailable": "The generation service cannot be reached right now. Try again later; contact the administrator if it keeps failing.",
       "lora_incompatible_hosted": "This model does not support this LoRA format. Choose a compatible model or another LoRA.",

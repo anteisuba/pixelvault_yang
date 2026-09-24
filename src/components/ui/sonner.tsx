@@ -4,8 +4,9 @@ import { Toaster as Sonner } from 'sonner'
 
 export function Toaster() {
   return (
+    // ⚠ 顶部居中：右上角住着助手头像开关与面板头部，toast 放那儿会压住它们（2026-09-24 真机）。
     <Sonner
-      position="top-right"
+      position="top-center"
       toastOptions={{
         classNames: {
           toast:

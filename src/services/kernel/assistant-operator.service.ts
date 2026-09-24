@@ -10190,6 +10190,13 @@ export async function* runAssistantOperator(
       }
 
       if (plan.kind === 'rejected') {
+        if (process.env.NODE_ENV !== 'production')
+          logger.info('assistant operator step rejected', {
+            tool: name,
+            reason: plan.reason,
+            quiet: plan.quiet === true,
+            detail: clamp(plan.detail ?? '', 400),
+          })
         if (!plan.quiet)
           yield toStepEvent({
             ...base,

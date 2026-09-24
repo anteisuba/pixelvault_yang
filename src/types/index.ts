@@ -3081,90 +3081,6 @@ export interface GenerationFeedbackResponse {
   error?: string
 }
 
-// ─── Image Reverse Engineering ───────────────────────────────────
-
-/** Dimensions available for selective image analysis */
-export const AnalysisDimensionEnum = z.enum([
-  'artStyle',
-  'character',
-  'background',
-  'overall',
-  'tags',
-])
-export type AnalysisDimension = z.infer<typeof AnalysisDimensionEnum>
-
-export const AnalyzeImageRequestSchema = z.object({
-  imageData: z
-    .string()
-    .min(1, 'Image data is required')
-    .refine(
-      (data) =>
-        data.startsWith('data:image/png') ||
-        data.startsWith('data:image/jpeg') ||
-        data.startsWith('data:image/webp') ||
-        data.startsWith('data:image/gif') ||
-        data.startsWith('http://') ||
-        data.startsWith('https://'),
-      'Image must be a valid image data URL (PNG, JPEG, WebP, GIF) or HTTP(S) URL',
-    ),
-  /** Which dimensions to extract. If omitted, returns a single combined prompt (legacy). */
-  dimensions: z.array(AnalysisDimensionEnum).min(1).optional(),
-  apiKeyId: z.string().optional(),
-})
-
-export type AnalyzeImageRequest = z.infer<typeof AnalyzeImageRequestSchema>
-
-export interface ImageAnalysisRecord {
-  id: string
-  sourceImageUrl: string
-  generatedPrompt: string
-  modelUsed: string
-  createdAt: Date
-}
-
-export interface AnalyzeImageResponseData {
-  id: string
-  generatedPrompt: string
-  /** Extracted dimensions (null when legacy mode without dimensions param) */
-  dimensions: Partial<Record<AnalysisDimension, string>> | null
-  sourceImageUrl: string
-}
-
-export interface AnalyzeImageResponse {
-  success: boolean
-  data?: AnalyzeImageResponseData
-  error?: string
-}
-
-export const GenerateVariationsModelSchema = z.object({
-  modelId: z.string().trim().min(1),
-  apiKeyId: z.string().trim().min(1).optional(),
-})
-
-export type GenerateVariationsModel = z.infer<
-  typeof GenerateVariationsModelSchema
->
-
-export const GenerateVariationsRequestSchema = z.object({
-  models: z.array(GenerateVariationsModelSchema).min(1).max(9),
-  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
-})
-
-export type GenerateVariationsRequest = z.infer<
-  typeof GenerateVariationsRequestSchema
->
-
-export interface GenerateVariationsResponseData {
-  variations: GenerationRecord[]
-  failed: string[]
-}
-
-export interface GenerateVariationsResponse {
-  success: boolean
-  data?: GenerateVariationsResponseData
-  error?: string
-}
-
 // ─── Storyboard ──────────────────────────────────────────────────
 
 export const CreateStoryRequestSchema = z.object({
@@ -3470,9 +3386,15 @@ export type UpdateCharacterCardRequest = z.infer<
   typeof UpdateCharacterCardSchema
 >
 
+/** 精修用的一格模型（选中的型号 + 可选的自带 key）。 */
+const RefineCharacterCardModelSchema = z.object({
+  modelId: z.string().trim().min(1),
+  apiKeyId: z.string().trim().min(1).optional(),
+})
+
 /** Refine character card request */
 export const RefineCharacterCardSchema = z.object({
-  models: z.array(GenerateVariationsModelSchema).min(1).max(9),
+  models: z.array(RefineCharacterCardModelSchema).min(1).max(9),
   aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
 })
 

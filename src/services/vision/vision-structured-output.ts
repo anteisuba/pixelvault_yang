@@ -16,11 +16,9 @@ import {
 /**
  * 视觉线的结构化输出管道 —— 解析 → `validateLlmStructuredOutput` → 打回重试一次。
  *
- * 抽出来是因为**两个消费面共用同一套 JSON 纪律**：Vision Analyzer 的四个任务，
- * 以及 `image-analysis.service.ts` 的多维反推。后者原来是手写的
- * `JSON.parse` + `catch { 把整段原文塞进 overall }` —— 那个 catch 是一处真 bug：
- * 四维请求解析失败会**静默降级成一维**，调用方拿到的对象字段齐全、内容全错位，
- * 而没有任何一处报错。
+ * Vision Analyzer 的四个任务共用这一套 JSON 纪律。⛔ 别回到手写的
+ * `JSON.parse` + `catch { 把整段原文塞进 overall }`：那种 catch 会让多维请求解析
+ * 失败时**静默降级成一维**，调用方拿到的对象字段齐全、内容全错位，而没有任何一处报错。
  */
 
 /**

@@ -1,8 +1,8 @@
 /**
  * Vision Analyzer 的全部配置（AI 导演内核 · 切片 2 · §4.1）。
  *
- * 这条线统一了项目里**两条互不相识的图片理解链**：
- *  - `image-analysis.service.ts` 的五维 dimensions（只回前端不落库，DB 仅存反推 prompt）
+ * 这条线统一了项目里的图片理解链（原先的 `image-analysis.service.ts` 五维反推已随
+ * 孤立的反推面板删除，反推并进助手 —— 拆分与反推 09-24）：
  *  - `character-card.service.ts` 的 `extractCharacterAttributes`（不写 ImageAnalysis 表）
  *
  * 统一后的语义只有一句：**按任务出结构化观察，落 `ResearchRun`，不写 `CharacterCard`**
@@ -262,11 +262,6 @@ export const VISION_LIMITS = {
   instructionChars: 600,
   /** 单条断言的文本长度上限。 */
   claimChars: 400,
-  /**
-   * 反推分析里单个 dimension 描述的长度上限（`image-analysis.service.ts`）。
-   * 比断言宽得多 —— 它的产物是要直接拼进生成提示词的整段描述，不是一句观察。
-   */
-  dimensionChars: 4000,
   /** 每个列表字段最多几条。 */
   maxListItems: 20,
   /** `uncertainties[]` 最多几条。 */

@@ -1,6 +1,4 @@
 import type {
-  AnalyzeImageRequest,
-  AnalyzeImageResponse,
   AudioStatusResponse,
   CivitaiTokenStatusResponse,
   EnhancePromptRequest,
@@ -12,8 +10,6 @@ import type {
   GenerateResponse,
   GenerateAudioRequest,
   GenerateAudioResponse,
-  GenerateVariationsRequest,
-  GenerateVariationsResponse,
   Cancel3DRequest,
   Continue3DRequest,
   Generate3DRequest,
@@ -1119,70 +1115,6 @@ export async function generationFeedbackAPI(
         error: await getErrorMessage(
           response,
           `Generation feedback failed with status ${response.status}`,
-        ),
-      }
-    }
-
-    return await response.json()
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
-    }
-  }
-}
-
-export async function analyzeImageAPI(
-  params: AnalyzeImageRequest,
-): Promise<AnalyzeImageResponse> {
-  try {
-    const response = await fetch(API_ENDPOINTS.ANALYZE_IMAGE, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(params),
-    })
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: await getErrorMessage(
-          response,
-          `Analysis failed with status ${response.status}`,
-        ),
-      }
-    }
-
-    return await response.json()
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : 'An unexpected error occurred',
-    }
-  }
-}
-
-export async function generateVariationsAPI(
-  analysisId: string,
-  params: GenerateVariationsRequest,
-): Promise<GenerateVariationsResponse> {
-  try {
-    const response = await fetch(
-      `${API_ENDPOINTS.ANALYZE_IMAGE}/${analysisId}/variations`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
-      },
-    )
-
-    if (!response.ok) {
-      return {
-        success: false,
-        error: await getErrorMessage(
-          response,
-          `Variation generation failed with status ${response.status}`,
         ),
       }
     }

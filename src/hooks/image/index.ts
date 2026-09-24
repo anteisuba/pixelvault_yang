@@ -9,4 +9,3 @@
  * other modules. Spec 6 handles them.
  */
 export * from './use-inpaint'
-export * from './use-reverse-image'

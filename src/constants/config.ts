@@ -177,8 +177,6 @@ export const API_ENDPOINTS = {
   /** Generation feedback (iterative refinement) */
   GENERATION_FEEDBACK: '/api/generation/feedback',
 
-  /** Image reverse engineering */
-  ANALYZE_IMAGE: '/api/image/analyze',
   /** Image editing (upscale, remove background) */
   IMAGE_EDIT: '/api/image/edit',
   /** 多框注释一次全改 */
@@ -909,12 +907,8 @@ export const MAX_DURATION_CONFIGS = {
   generateVideo: 240,
   /** Long video pipeline — 4 min */
   generateLongVideo: 240,
-  /** Image analysis/reverse engineering — 30s (single LLM call) */
-  imageAnalyze: 30,
   /** Image edit (upscale/remove-bg) — 2 min */
   imageEdit: 120,
-  /** Image analysis variations — 55s (multi-model parallel) */
-  imageAnalyzeVariations: 55,
   /** Audio generation — 2 min */
   generateAudio: 120,
 } as const

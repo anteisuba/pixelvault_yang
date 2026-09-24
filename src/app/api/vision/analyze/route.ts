@@ -11,8 +11,8 @@ import { ensureUser } from '@/services/user.service'
  *
  * 三件事：auth（工厂做）→ zod（工厂做）→ 调 service。业务逻辑一行都不在这。
  *
- * ⚠ **限流复用 `imageAnalyze` 档（10/60s）**，不新造一档：这条路和
- * `/api/image/analyze` 花的是同一种钱（视觉 token），给它一个更松的档等于开了个后门。
+ * ⚠ **限流用 `imageAnalyze` 档（10/60s）**，不新造一档：看图花的都是视觉 token，
+ * 给它一个更松的档等于开了个后门。
  *
  * ⚠ `maxDuration` 给到 60：结构化输出允许打回重试一次，两次调用 + 退避要装得下
  * （单次上限 `VISION_LIMITS.timeoutMs = 25s`）。

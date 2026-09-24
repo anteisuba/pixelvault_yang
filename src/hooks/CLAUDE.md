@@ -28,7 +28,6 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 - `use-prompt-assistant.ts` — Interactive prompt suggestions
 - `use-prompt-feedback.ts` — Prompt quality feedback
 - `use-generation-feedback.ts` — Post-generation coaching
-- `use-reverse-image.ts` — Reverse engineer prompt from image
 
 ### Gallery & Community
 

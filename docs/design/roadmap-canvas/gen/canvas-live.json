@@ -23,14 +23,14 @@
       "x": 1500,
       "y": 0,
       "w": 1400,
-      "h": 1297,
+      "h": 1314,
       "title": "助手",
       "page": "page-2"
     },
     {
       "file": "DigestBizCards.dc.html",
       "x": 0,
-      "y": 1397,
+      "y": 1414,
       "w": 1400,
       "h": 800,
       "title": "卡片",
@@ -39,7 +39,7 @@
     {
       "file": "DigestBizImage.dc.html",
       "x": 1500,
-      "y": 1397,
+      "y": 1414,
       "w": 1400,
       "h": 776,
       "title": "图片",
@@ -48,7 +48,7 @@
     {
       "file": "DigestBizVideo.dc.html",
       "x": 0,
-      "y": 2297,
+      "y": 2314,
       "w": 1400,
       "h": 688,
       "title": "视频",
@@ -57,7 +57,7 @@
     {
       "file": "DigestBizCanvas.dc.html",
       "x": 1500,
-      "y": 2297,
+      "y": 2314,
       "w": 1400,
       "h": 811,
       "title": "画布导演台",
@@ -66,7 +66,7 @@
     {
       "file": "DigestBizLora.dc.html",
       "x": 0,
-      "y": 3208,
+      "y": 3225,
       "w": 1400,
       "h": 611,
       "title": "LoRA / Runner",
@@ -75,7 +75,7 @@
     {
       "file": "DigestBizAssets.dc.html",
       "x": 1500,
-      "y": 3208,
+      "y": 3225,
       "w": 1400,
       "h": 596,
       "title": "素材与去处",
@@ -84,7 +84,7 @@
     {
       "file": "DigestBizVoice.dc.html",
       "x": 0,
-      "y": 3919,
+      "y": 3936,
       "w": 1400,
       "h": 576,
       "title": "语音",
@@ -93,7 +93,7 @@
     {
       "file": "DigestBizHome.dc.html",
       "x": 1500,
-      "y": 3919,
+      "y": 3936,
       "w": 1400,
       "h": 520,
       "title": "首页",
@@ -248,7 +248,7 @@
       "x": 0,
       "y": 16864,
       "w": 1400,
-      "h": 3826,
+      "h": 3850,
       "title": "拆分与反推 · ④ 全状态",
       "page": "page-6"
     }

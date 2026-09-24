@@ -1425,6 +1425,137 @@ const SPLIT_REVERSE = {
   ],
 }
 
+// ④ 画板：视频助手 + 视频左栏（09-24 ① 八问已定）。助手面板沿用 A 对话流；左栏是新画面。
+const VD = {
+  label: (t) => `<div style="font-size:10.5px;font-weight:500;color:#8a8a8a">${t}</div>`,
+  col: (inner) => `<div style="width:100%;box-sizing:border-box;border:1px solid #d4d4d4;border-radius:14px;background:#fff;padding:12px;display:flex;flex-direction:column;gap:10px">${inner}</div>`,
+  seg: (items, on) => `<div style="display:flex;gap:2px;border:1px solid #e5e5e5;border-radius:8px;padding:2px">${items.map((t, i) => `<span style="flex:1;text-align:center;font-size:11.5px;padding:5px 0;border-radius:6px;${i === on ? 'background:#eef0ff;color:#3b3fb8;font-weight:500' : 'color:#737373'}">${t}</span>`).join('')}</div>`,
+  slot: (t) => `<span style="flex:1;height:52px;border:1px dashed #cfcfcf;border-radius:8px;display:grid;place-items:center;font-size:11px;color:#8a8a8a">＋ ${t}</span>`,
+  box: (inner, h = 70) => `<div style="border:1px solid #e5e5e5;border-radius:10px;padding:8px 10px;min-height:${h}px;font-size:11.5px;line-height:1.6;color:#262626">${inner}</div>`,
+  row: (t, extra) => `<div style="display:flex;align-items:center;gap:6px;border:1px solid #e5e5e5;border-radius:8px;padding:6px 9px;font-size:11.5px;color:#525252">${t}<span style="margin-left:auto;color:#a3a3a3">${extra ?? '▾'}</span></div>`,
+  pills: (a, b) => `<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">${[a, b].map((t) => `<span style="border:1px solid #e5e5e5;border-radius:8px;padding:6px 9px;font-size:11.5px;color:#404040">${t}</span>`).join('')}</div>`,
+  gen: '<div style="height:34px;border-radius:9px;background:#0a0a0a;color:#fff;display:grid;place-items:center;font-size:12.5px;font-weight:500">生成</div>',
+  bad: (n) => `<span style="flex:none;display:inline-grid;place-items:center;width:16px;height:16px;border-radius:999px;background:#dc2626;color:#fff;font-size:10px;font-weight:600">${n}</span>`,
+  mark: (n, inner) => `<div style="display:flex;gap:6px;align-items:flex-start">${VD.bad(n)}<div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:5px">${inner}</div></div>`,
+  // 素材轨：一格 = 缩略图 + 下方编号；首 / 尾帧是左上角标
+  tile: (label, grad, badge) => `<span style="flex:none;display:flex;flex-direction:column;align-items:center;gap:3px"><span style="position:relative;width:46px;height:46px;border-radius:8px;background:${grad}">${badge ? `<span style="position:absolute;left:3px;top:3px;font-size:9.5px;line-height:1;padding:2px 4px;border-radius:4px;background:rgba(10,10,10,.72);color:#fff">${badge}</span>` : ''}</span><span style="font-size:10.5px;color:#525252">${label}</span></span>`,
+  add: '<span style="flex:none;display:flex;flex-direction:column;align-items:center;gap:3px"><span style="width:46px;height:46px;border-radius:8px;border:1px dashed #cfcfcf;display:grid;place-items:center;color:#8a8a8a;font-size:14px">＋</span><span style="font-size:10.5px;color:transparent">·</span></span>',
+  vid: 'linear-gradient(160deg,#20242c,#4a5566)',
+  aud: 'repeating-linear-gradient(90deg,#d9d9d6 0 2px,#f3f3f1 2px 5px)',
+  img1: 'linear-gradient(160deg,#3a3d45,#6b2c33)',
+  img2: 'linear-gradient(160deg,#9fb3c8,#e3d6b8)',
+  rail: (tiles, mode) => `${VD.label('素材 · 拖进来或 ⌘V')}<div style="display:flex;gap:8px;flex-wrap:wrap">${tiles.join('')}${VD.add}</div><div style="font-size:11px;color:#737373">这次按 <span style="color:#262626">${mode[0]}</span> 发 · ${mode[1]}</div>`,
+  spec: (t) => `<div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#737373;padding:0 4px"><span>${t}</span><span style="font-size:9px">▾</span></div>`,
+}
+const vdInput = (spec, o = {}) => A.input({ ...o, noSpec: true, placeholder: o.placeholder ?? '说说这段视频想拍什么…' }).replace(`<div style="${CV.foot}">`, `<div style="${CV.foot}">${o.chips ? `<div style="display:flex;gap:6px">${o.chips.map((c) => A.chip(c)).join('')}</div>` : VD.spec(spec)}`)
+const vdConfirm = (knobs) => SR.confirm(knobs)
+const vdFixed = (t) => `<div style="${CV.meta}">${t}</div>`
+const vdPrompt = (lines) => `<div style="border:1px dashed #cfcfcf;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;background:#fbfbfa"><div style="font-size:11px;font-weight:500">左栏 · 提示词框</div><div style="border:1px solid #d4d4d4;border-radius:8px;background:#fff;padding:8px 10px;font-size:11.5px;line-height:1.65;color:#262626">${lines.join('<br>')}</div></div>`
+
+const VD_BEFORE = VD.col(
+  [
+    VD.mark(1, `${VD.label('图片用途')}${VD.seg(['关键帧', '多图参考', '全能参考'], 2)}`),
+    VD.mark(2, `${VD.label('具名参考槽')}<div style="display:flex;gap:6px">${VD.slot('首帧')}${VD.slot('尾帧')}${VD.slot('参考视频')}</div>`),
+    `${VD.label('镜头提示词')}${VD.box('<span style="color:#a3a3a3">描述这个镜头……</span>')}`,
+    VD.mark(3, VD.row('负面提示词 <span style="color:#a3a3a3">不想出现的内容…</span>')),
+    VD.mark(4, `${VD.pills('▤ 模板', '▣ 参考图')}${VD.pills('▭ 剧本', '♪ 音频参考')}`),
+    VD.mark(5, VD.row('<span style="color:#a3a3a3">请先选择模型</span>')),
+    VD.row('16:9 · 5 秒 · 720p'),
+    VD.gen,
+  ].join(''),
+)
+const VD_AFTER = VD.col(
+  [
+    VD.rail([VD.tile('图片1', VD.img1, '首帧'), VD.tile('图片2', VD.img2), VD.tile('视频1', VD.vid), VD.tile('音频1', VD.aud)], ['全能参考', '挂了参考素材']),
+    `${VD.label('提示词')}${VD.box('全局设定：写实电影感，冷蓝夜色……<br>镜头1（0-2秒）中景，固定机位：……<br>镜头2（2-5秒）近景，缓慢推近：……', 84)}`,
+    VD.pills('▤ 模板', '▭ 剧本'),
+    VD.row('Seedance 2.0 · fal'),
+    VD.row('16:9 · 5 秒 · 720p'),
+    VD.gen,
+  ].join(''),
+)
+const VD_PANEL_COMPARE = `<div style="margin-top:14px;display:grid;grid-template-columns:320px 320px 1fr;gap:22px;align-items:start"><div style="display:flex;flex-direction:column;gap:8px"><div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.06em;color:${MUTED}">现在</div>${VD_BEFORE}</div><div style="display:flex;flex-direction:column;gap:8px"><div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:10.5px;letter-spacing:.06em;color:${MUTED}">改后</div>${VD_AFTER}</div><div style="font-size:12.5px;line-height:1.75;color:#404040;display:flex;flex-direction:column;gap:8px">${[
+  ['1', '三个模式 → 去掉', '发送方式由挂了什么推出来：有参考素材 → 全能参考；首 + 尾 → 首尾帧；只有首帧 → 图生视频；什么都没挂 → 文生视频。结果写成素材下面一行灰字，只读。和画布视频节点用同一个判定函数。选模型不再清空。'],
+  ['2', '三个槽 + 参考图 + 音频参考 → 一条素材轨', '图、视频、音频都拖进同一条轨，按类型各自编号「图片1 · 视频1 · 音频1」，和提示词里写的编号一致。首帧 / 尾帧是图片左上角的角标：点图片 → 设为首帧 / 设为尾帧 / 作为参考 / 移除。'],
+  ['3', '负面提示词 → 按模型决定显不显示', '目前 Seedance、Kling 等大多数视频模型没有这一栏，写了会被悄悄丢掉。改成只在支持它的模型下显示这一行。'],
+  ['4', '四颗按钮 → 两颗', '参考图和音频参考都并进素材轨的「＋」，只剩「模板 · 剧本」。'],
+  ['5', '模型 → 一行一个（型号 · 渠道）', '模式没了，选择器里就不再有同名重复行（这就是当初加模式的原因）。发送时按上面那行灰字选端点，用户不用管。'],
+].map(([n, t, d]) => `<div style="display:flex;gap:8px">${VD.bad(n)}<div><b>${t}</b><br>${d}</div></div>`).join('')}</div></div>`
+
+const VD_FACE = grid3([
+  aState('F1', '空态', aCard('新对话', `<div style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:40px 0">${cvAvatar(40)}<div style="${CV.meta}">说说这段视频想拍什么。</div></div>`, vdInput('', { chips: ['写一段分镜', '让这张图动起来'] })), '头像 + 一句话；起手 chip **最多 2 颗**，写在输入框正上方，只在空态出现（沿用 D7c 的位置）。'),
+  aState('F2', '规格行 · 收起', aCard('雨夜车站', `${SR.user('一个女孩在雨夜的车站等人，5 秒。')}${cvName}<div style="${CV.msg}">写好了，两个镜头……</div>`, vdInput('Seedance 2.0 · 5 秒 · 16:9')), '只写 **型号 · 时长 · 比例**。渠道、价格、清晰度都收进点开后的浮层。现在的「Seedance 2.0 参考（BytePlus）· BytePlus · 6 credits · 1:1 · 5s」里渠道写了两遍，这次去掉。'),
+  aState('F3', '规格行 · 点开', aCard('雨夜车站', `${SR.user('一个女孩在雨夜的车站等人，5 秒。')}<div style="${CV.box};padding:10px 12px;display:flex;flex-direction:column;gap:8px;box-shadow:0 8px 24px rgba(0,0,0,.08)">${[['模型', 'Seedance 2.0 ▾'], ['渠道', 'fal ▾ <span style="color:#a3a3a3">· 6 credits</span>'], ['时长', '5 秒 ▾'], ['比例', '16:9 ▾'], ['清晰度', '720p ▾']].map(([k, v]) => `<div style="display:flex;font-size:12px"><span style="width:52px;color:#737373">${k}</span><span>${v}</span></div>`).join('')}</div>`, vdInput('Seedance 2.0 · 5 秒 · 16:9')), '就地浮层（同图片档 B6），和确认卡、左栏读写**同一份**规格。价格只在这里和确认卡上出现。'),
+])
+
+const VD_STATES = [
+  aState('V1', '一句话 → 第一档', `${aCard('雨夜车站', `${SR.user('一个女孩在雨夜的车站等人，5 秒。')}${cvName}<div style="${CV.msg}">写好了：全局设定 + 情绪 + 两个镜头，写进了左栏提示词。</div>${aFold('做了 2 步 · 写了提示词')}${vdConfirm(['Seedance 2.0', '5 秒', '16:9'])}`, vdInput('Seedance 2.0 · 5 秒 · 16:9'))}${vdPrompt(['全局设定：写实电影感，冷蓝夜色，雨丝逆光；女孩黑色短发、米色风衣、透明雨伞；纯净画面，无字幕无文字。', '情绪：等待里带一点不安。', '镜头1（0-2秒）中景，固定机位：女孩站在站台檐下，伞尖滴水，她抬头望向镜头左后方的来车方向。', '镜头2（2-5秒）近景，缓慢推近：她呼出一口白气，手指收紧伞柄；车灯从画面深处照亮她的脸，停在她眯眼的一瞬。'])}`, '只有一句话或一个画面 → **第一档**：全局设定 + 情绪 + 逐镜。⛔ 不先反问，先交完整稿。原话写得很全就照写，不加设定；只给了主体就补场景和光线，并在回复里说一句补了什么。'),
+  aState('V2', '剧本 → 第二档', `${aCard('末班车', `${SR.user('把这段拍成 15 秒：她等末班车，来的不是她等的人；手机亮了，她笑了。')}${cvName}<div style="${CV.msg}">按剧本分四拍：等 → 失望 → 手机亮起 → 笑。每拍一个镜头，转场都写清了，写进了左栏提示词。</div>${aFold('做了 2 步 · 写了提示词')}${vdConfirm(['Seedance 2.0', '15 秒', '16:9'])}`, vdInput('Seedance 2.0 · 15 秒 · 16:9'))}${vdPrompt(['叙事：起 等待 → 承 失望 → 转 手机亮起 → 合 释然。', '全局设定：……', '镜头1（0-4秒）……', '硬切 · 镜头2（4-8秒）……', '溶解 · 镜头3（8-11秒）……', '镜头4（11-15秒）……'])}`, '故事、剧本、多场 → **第二档**：先写一行叙事（起承转合 + 情绪走向），再逐镜。转场写名字（硬切 / 溶解 / 匹配剪辑）。'),
+  aState('V3', '挂了参考图', aCard('她在天台跳舞', `${SR.ref('图片1 · 图片2', '图片1 是女主，图片2 是场景，让她在这里跳舞。')}${cvName}<div style="${CV.msg}">看了：图片1 是红发女孩（白衬衫、黑短裙），图片2 是黄昏天台。提示词里这样绑定：「将图片1中的红发女孩定义为林夏，图片2作为场景」，后面只用「林夏」称呼她。</div>${aFold('做了 3 步 · 看了参考、写了提示词')}${vdConfirm(['Seedance 2.0', '10 秒', '16:9'])}`, vdInput('Seedance 2.0 · 10 秒 · 16:9')), '视频档也先**看参考图**再写（现在只有图片档会看）。绑定句用左栏素材的编号，**提示词里一律写「图片N」**，发送时由系统换成各渠道自己的写法。多人：外观拉开、各写一段、按外貌指认。'),
+  aState('V4', '说了「不要…」', aCard('雨夜车站', `${SR.user('不要字幕，不要背景音乐，人别变形。')}${cvName}<div style="${CV.msg}">改好了：「纯净画面，无字幕无文字；只有环境雨声」写进全局设定；动作放慢、每个动作写清停在哪里，这样人物更不容易变形。</div>${vdFixed('Seedance 没有负面提示词这一栏，所以写进了正文。')}${aFold('做了 1 步 · 改了提示词')}`, vdInput('Seedance 2.0 · 5 秒 · 16:9')), '模型**没有负面栏**：约束写进全局设定，写要什么（「只有环境雨声」），不在镜头里写「不要××」。模型**有负面栏**：照旧写负面栏。这句灰字由系统追加，⛔ 不靠模型自己说。'),
+  aState('V5', '让这张图动起来', `${aCard('让她动起来', `${SR.ref('图片1', '让她动起来。')}${cvName}<div style="${CV.msg}">图片1 设成了首帧，从这个画面开始：她转头看向镜头，发丝被风带起，镜头缓慢推近。</div>${aFold('做了 3 步 · 挂了首帧、写了提示词')}${vdConfirm(['Seedance 2.0', '5 秒', '跟随首帧'])}`, vdInput('Seedance 2.0 · 5 秒 · 跟随首帧'))}<div style="border:1px dashed #cfcfcf;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;background:#fbfbfa">${VD.rail([VD.tile('图片1', VD.img1, '首帧')], ['图生视频', '只有首帧'])}</div>`, '「动起来 / 从这张开始」→ 挂成首帧，素材轨上出角标，灰字变成「图生视频」。比例跟随首帧。'),
+  aState('V6', '素材超出建议数', aCard('多人对戏', `${SR.ref('图片1–6', '这六个人在会议室吵架。')}${cvName}<div style="${CV.msg}">都挂上了。官方建议一次 4–5 个素材以内，六个人同框时脸容易串。要不要先拍其中两三个人？</div>`, vdInput('Seedance 2.0 · 10 秒 · 16:9', { question: aQuestion('这段怎么拍？', [['先拍 3 个人', '其余三人下一段再拍，脸更稳', false], ['六个人都上', '照原样写，可能有人脸串', false]]) })), '只在超出官方建议数时问**一次**；硬上限（2.0：图 9 · 视频 3 · 音频 3）直接挡住并说明，不问。'),
+]
+
+const VD_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start"><div style="width:300px;flex:none;border-radius:22px;border:1px solid #d4d4d4;background:#e9e9e6;padding:8px;display:flex;flex-direction:column;gap:6px"><div style="height:34px;border-radius:999px;background:#fff;display:flex;align-items:center;padding:0 6px;font-size:12px;font-weight:600"><span style="width:26px"></span><span style="flex:1;text-align:center">▶ 视频 ▾</span>${cvAvatar(24)}</div>${VD.col([VD.rail([VD.tile('图片1', VD.img1, '首帧'), VD.tile('视频1', VD.vid)], ['全能参考', '挂了参考素材']), `${VD.label('提示词')}${VD.box('全局设定：……<br>镜头1（0-2秒）……', 60)}`, VD.pills('▤ 模板', '▭ 剧本'), VD.row('Seedance 2.0 · fal'), VD.gen].join(''))}</div><div style="flex:1;font-size:12.5px;line-height:1.7;color:#404040">手机：左栏按同一顺序竖排。素材轨横向滚动，格子点击区至少 44 × 44；点一格弹出底部菜单（设为首帧 / 设为尾帧 / 作为参考 / 移除），⛔ 不用长按。助手面板和图片档是同一个。</div></div>`
+
+const VIDEO_ASSISTANT = {
+  file: 'DesignVideoAssistant.dc.html',
+  title: '视频助手 + 左栏 · ④ 全状态',
+  eyebrow: 'PixelVault · 6 在设计 · 视频助手 · ④ 画板 · 2026-09-24',
+  heading: '视频助手 + 左栏：全状态',
+  sub: 'owner 09-24 ① 八问：时间轴「镜头N（a-b秒）」两种都写 · 写作分两档（简单需求 / 剧本）· UI 范围 = 左栏参数区 + 助手视频脸 · 去掉三个模式、按挂了什么判断 · 素材按图片1 / 视频1 / 音频1 编号 · 分镜是纯文本逐行 · 规格行只写一行短规格。anima-tagger 的 Anima 格式规则放 LoRA 侧，里面的 Danbooru 校验规则留给 NAI 标签检查。助手面板沿用「A 对话流：全状态」，新画面只有**左栏**和**规格浮层**。',
+  blocks: [
+    h('① 左栏：现在 → 改后'),
+    { t: 'mock', html: VD_PANEL_COMPARE, md: '左栏现在 → 改后：①去掉「关键帧 / 多图参考 / 全能参考」，发送方式由挂了什么推出来，写成素材下一行只读灰字（与画布视频节点同一个判定函数），选模型不再被清空 · ②三个具名槽 + 参考图 + 音频参考并成一条素材轨，按类型编号「图片1 · 视频1 · 音频1」，首 / 尾帧是图片角标 · ③负面提示词只在支持它的模型下出现 · ④四颗按钮剩「模板 · 剧本」 · ⑤模型一行一个（型号 · 渠道）。' },
+    h('② 助手的视频脸'),
+    { t: 'mock', html: VD_FACE, md: '视频脸三态：F1 空态（头像 + 一句话 + 最多 2 颗起手 chip）· F2 规格行收起只写「型号 · 时长 · 比例」· F3 点开就地浮层（模型 / 渠道 + 价格 / 时长 / 比例 / 清晰度），与确认卡、左栏同一份规格。' },
+    h('③ 视频助手全状态'),
+    { t: 'mock', html: `<div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">${VD_STATES.join('')}</div>`, md: '6 态：V1 一句话 → 第一档（全局设定 + 情绪 + 逐镜，写进左栏）· V2 剧本 → 第二档（先一行叙事再逐镜，转场写名字）· V3 挂了参考图（先看图，绑定句「将图片1中的红发女孩定义为林夏」，编号跟素材轨）· V4 说了「不要…」（没有负面栏的模型写进全局设定，系统追加一句灰字）· V5 让这张图动起来（挂成首帧，灰字变图生视频）· V6 素材超出建议数（问一次；硬上限直接挡）。' },
+    h('手机'),
+    { t: 'mock', html: `<div style="margin-top:12px">${VD_PHONE}</div>`, md: '手机：左栏同顺序竖排；素材轨横向滚动、格子点击区 ≥44；点格子弹底部菜单，不用长按。' },
+    h('写法规则（助手）'),
+    table(
+      ['#', '规则', '细节'],
+      [
+        ['W1', '分两档', '一句话 / 一个画面 → 全局设定 + 情绪 + 逐镜；故事 / 剧本 / 多场 → 先一行叙事（起承转合 + 情绪走向）再逐镜。⛔ 不空手反问'],
+        ['W2', '时间轴', '「镜头N（a-b秒）」两种都写；整秒、首尾相接、加起来等于时长；约 3 秒一个镜头'],
+        ['W3', '一镜一动', '每个镜头只一种运镜，并且跟着一个事件走；写清结束时停在哪；转场写名字'],
+        ['W4', '段名不加【】', '【】在 Seedance 里是字幕记号，段名写「全局设定：」。符号：{台词} · <音效> · （音乐） · 【字幕】'],
+        ['W5', '素材绑定', '「将图片1中的[特征]定义为[名字]」，之后只用名字；编号 = 左栏素材编号；多人外观拉开、各写一段、按外貌指认，⛔ 不写「角色1」'],
+        ['W6', '约束写正面', '没有负面栏 → 进全局设定，写要什么；有负面栏 → 写负面栏。⛔ 不静默丢'],
+        ['W7', '写看得见的', '情绪写成表情和身体的变化（owner 资料「肌肉翻译」）；空间用镜头前后 + 距离（「距离镜头约三米」）；画面外的东西不写'],
+        ['W8', '长度', '2.0 控制在 500 字内；超了先压描写，⛔ 不砍镜头'],
+      ],
+      { widths: ['44px', '96px', null], firstStrong: false },
+    ),
+    h('施工范围'),
+    table(
+      ['层', '改什么'],
+      [
+        ['助手提示', 'Seedance 规则按 W1–W8 重写；删掉「硬负面进负面提示词」那条；镜头语法里的秒数节奏和 2.0 规则打架，统一成 W2'],
+        ['服务端', '视频域接上「看参考图」；提示词只写图片N，发送时换成各渠道写法（fal @Image1 · 火山按角色）；没有负面栏的模型写了负面 → 退回改写进正文（同 NAI 守卫）并追加 V4 那句灰字'],
+        ['左栏', '删 `StudioVideoModeToggle` 与模式状态，改用画布的 `videoSendMode`；`StudioVideoReferenceSlots` + 参考图 chip + 音频参考 pill 并成一条素材轨；负面行按模型能力；模型选择器一行一个'],
+        ['助手脸', '视频规格行短写 + 浮层；起手 chip ≤2'],
+        ['实测', '首尾帧和参考同挂时 Seedance 2.0 实际怎么发；不能混用就把首 / 尾帧角标置灰并说明原因'],
+      ],
+      { widths: ['90px', null], firstStrong: true },
+    ),
+    h('动效表'),
+    table(
+      ['动作', '时长 · 曲线', '动什么', '⛔'],
+      [
+        ['素材进轨', '`--duration-base` 200ms · `ease-standard`', '新格 opacity 0→1 + scale .96→1；后面的格子让位', '不弹跳'],
+        ['角标变化（设为首帧）', '`--duration-fast` 120ms', '角标淡入；灰字「这次按…」交叉淡换', '不闪高亮'],
+        ['助手写入提示词', '—', '一次整体替换', '不逐字打进左栏'],
+        ['规格浮层', '沿用图片档 B6', 'opacity + 上移 4px', '不遮输入框'],
+        ['`prefers-reduced-motion`', '—', '以上直接到位', '—'],
+      ],
+      { firstStrong: false },
+    ),
+  ],
+}
+
 // ─────────────────────────── 汇总与输出 ───────────────────────────
 export const PAGES = [
   { id: 'page-1', name: '1 · 总览', boards: [OVERVIEW] },
@@ -1440,7 +1571,7 @@ export const PAGES = [
     name: '5 · 厂商速查',
     boards: [VENDOR_IMAGE, VENDOR_VIDEO, VENDOR_VOICE, VENDOR_TEXT, VENDOR_RUNNER],
   },
-  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE] },
+  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT] },
 ]
 
 if (import.meta.url === `file://${process.argv[1]}`) {

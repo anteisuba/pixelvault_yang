@@ -876,7 +876,7 @@ export function StudioOperatorPanel({
 
   const submit = useCallback(
     (text: string) => {
-      const value = text.trim()
+      let value = text.trim()
       if (!value) return
       // 见上面 `uploading` 的注释：在飞的上传是发送的硬前提。
       if (uploading) return
@@ -920,6 +920,22 @@ export function StudioOperatorPanel({
           merged.push(chip)
       }
       const currentReferences = operatorHost.referenceImages
+      /** 未命名参考图在界面上叫什么（「图1」）—— 气泡与选择器写的是同一个词。 */
+      const referenceLabel = (index: number) =>
+        currentReferences[index]?.name ||
+        tReference('image', { index: index + 1 })
+      /**
+       * ⭐ 手打的「@图1」也算提及（2026-09-24 真机：没经过选择器的那一句原样进了
+       * 气泡，也没带上图）。长的先换，免得「@图1」吃掉「@图10」的前半截。
+       */
+      value = currentReferences
+        .map((_, index) => index)
+        .sort((a, b) => referenceLabel(b).length - referenceLabel(a).length)
+        .reduce(
+          (text, index) =>
+            text.replaceAll(`@${referenceLabel(index)}`, `@Image${index + 1}`),
+          value,
+        )
       const indices = getReferenceMentionIndices(value)
       if (
         indices.some(
@@ -938,8 +954,7 @@ export function StudioOperatorPanel({
           url,
           thumbnailUrl: url,
           kind: 'image',
-          label:
-            currentReferences[index].name || `reference image ${index + 1}`,
+          label: referenceLabel(index),
         }
         if (!merged.some((item) => item.url === url)) merged.push(reference)
       }
@@ -961,18 +976,17 @@ export function StudioOperatorPanel({
             kind: 'image',
             url: reference.url,
             thumbnailUrl: reference.url,
-            label:
-              reference.name ||
-              `reference image ${currentReferences.indexOf(reference) + 1}`,
+            label: referenceLabel(currentReferences.indexOf(reference)),
           })
         }
       }
+      // ⭐ 未命名的也写成「图1」：模型按附件里同名那张认图，气泡按同一个名字画缩略图。
       const namedValue = value.replace(
         /@Image([1-9]\d*)(?![\w])/g,
-        (token, number: string) => {
-          const name = currentReferences[Number(number) - 1]?.name
-          return name ? `「${name}」` : token
-        },
+        (token, number: string) =>
+          currentReferences[Number(number) - 1]
+            ? `「${referenceLabel(Number(number) - 1)}」`
+            : token,
       )
       const compiled = compileReferenceMentions(namedValue).replace(
         /@Attachment\[([^\]]+)\]/g,

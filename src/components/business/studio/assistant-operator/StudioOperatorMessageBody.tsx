@@ -110,8 +110,13 @@ function withImageReferences(
       .filter(Boolean)
       .sort((a, b) => b.length - a.length)
     if (!aliases.length) return node
+    /**
+     * ⚠ 名字两侧的 `@` 与「」一并吞掉（2026-09-24 真机：气泡里是「@图1」原文）——
+     * 那是发给模型的记号，界面上缩略图 + 名字已经说清楚了。只有一个捕获组，
+     * `split` 留下的就只是名字本身。
+     */
     const pattern = new RegExp(
-      `(${aliases.map((alias) => alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![0-9])`,
+      `(?:@|「)?(${aliases.map((alias) => alias.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})(?![0-9])」?`,
       'g',
     )
     return node.split(pattern).map((part, index) => {

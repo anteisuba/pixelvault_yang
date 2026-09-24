@@ -401,11 +401,12 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       HOST_RESULTS[1].url,
     )
     fireEvent.keyDown(editor, { key: 'Enter' })
-    expect(send).toHaveBeenCalledWith('采用reference image 2', [
+    // ⭐ 未命名参考图按界面上的名字发（真 i18n 下是「图2」；这里的 t 桩回的是键名）。
+    expect(send).toHaveBeenCalledWith('采用「image」', [
       expect.objectContaining({
         url: HOST_RESULTS[1].url,
         kind: 'image',
-        label: 'reference image 2',
+        label: 'image',
       }),
     ])
     expect(editor.textContent).toBe('')
@@ -556,14 +557,14 @@ describe('StudioOperatorPanel 接线（切片 3a）', () => {
       fireEvent.input(editor)
       fireEvent.click(screen.getByRole('button', { name: 'send' }))
       expect(send).toHaveBeenCalledWith(
-        hasMention ? '一起参考reference image 2' : '一起参考',
+        hasMention ? '一起参考「image」' : '一起参考',
         [
           expect.objectContaining({ kind: 'audio' }),
           ...(hasMention
             ? [
                 expect.objectContaining({
                   url: HOST_RESULTS[1].url,
-                  label: 'reference image 2',
+                  label: 'image',
                 }),
               ]
             : []),

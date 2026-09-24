@@ -2,7 +2,10 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
-import { StudioOperatorMessageBody } from './StudioOperatorMessageBody'
+import {
+  StudioOperatorMessageBody,
+  StudioOperatorUserText,
+} from './StudioOperatorMessageBody'
 
 /**
  * 助手正文那一格的回归闸（2026-09-06 面板轮，第 4 / 5 件）。
@@ -215,5 +218,29 @@ describe('StudioOperatorMessageBody', () => {
     expect(screen.getByTestId('operator-message-text').textContent).toContain(
       '写到一半',
     )
+  })
+})
+
+/** 2026-09-24 真机：用户气泡里是「@图1」原文，缩略图边上写着 reference image 1。 */
+describe('StudioOperatorUserText 引用', () => {
+  it('「图1」与 @图1 都画成缩略图 + 名字，记号不留在字里', () => {
+    render(
+      <StudioOperatorUserText
+        text="把「图1」换成校服，再参考 @图1 的发型"
+        attachments={[
+          {
+            id: 'ref-1',
+            kind: 'image',
+            label: '图1',
+            url: 'https://cdn.test/1.png',
+            thumbnailUrl: 'https://cdn.test/1.png',
+          },
+        ]}
+      />,
+    )
+    const bubble = screen.getByTestId('operator-user-text')
+    expect(bubble.textContent).not.toMatch(/[「」@]/)
+    expect(bubble.textContent).toContain('图1')
+    expect(bubble.querySelectorAll('img').length).toBe(2)
   })
 })

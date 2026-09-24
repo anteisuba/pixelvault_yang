@@ -5,7 +5,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 1322,
+      "h": 1341,
       "title": "总览",
       "page": "page-1"
     },
@@ -23,14 +23,14 @@
       "x": 1500,
       "y": 0,
       "w": 1400,
-      "h": 1127,
+      "h": 1297,
       "title": "助手",
       "page": "page-2"
     },
     {
       "file": "DigestBizCards.dc.html",
       "x": 0,
-      "y": 1227,
+      "y": 1397,
       "w": 1400,
       "h": 800,
       "title": "卡片",
@@ -39,7 +39,7 @@
     {
       "file": "DigestBizImage.dc.html",
       "x": 1500,
-      "y": 1227,
+      "y": 1397,
       "w": 1400,
       "h": 776,
       "title": "图片",
@@ -48,7 +48,7 @@
     {
       "file": "DigestBizVideo.dc.html",
       "x": 0,
-      "y": 2127,
+      "y": 2297,
       "w": 1400,
       "h": 688,
       "title": "视频",
@@ -57,7 +57,7 @@
     {
       "file": "DigestBizCanvas.dc.html",
       "x": 1500,
-      "y": 2127,
+      "y": 2297,
       "w": 1400,
       "h": 811,
       "title": "画布导演台",
@@ -66,7 +66,7 @@
     {
       "file": "DigestBizLora.dc.html",
       "x": 0,
-      "y": 3038,
+      "y": 3208,
       "w": 1400,
       "h": 611,
       "title": "LoRA / Runner",
@@ -75,7 +75,7 @@
     {
       "file": "DigestBizAssets.dc.html",
       "x": 1500,
-      "y": 3038,
+      "y": 3208,
       "w": 1400,
       "h": 596,
       "title": "素材与去处",
@@ -84,7 +84,7 @@
     {
       "file": "DigestBizVoice.dc.html",
       "x": 0,
-      "y": 3749,
+      "y": 3919,
       "w": 1400,
       "h": 576,
       "title": "语音",
@@ -93,7 +93,7 @@
     {
       "file": "DigestBizHome.dc.html",
       "x": 1500,
-      "y": 3749,
+      "y": 3919,
       "w": 1400,
       "h": 520,
       "title": "首页",
@@ -131,7 +131,7 @@
       "x": 0,
       "y": 0,
       "w": 1400,
-      "h": 3463,
+      "h": 3416,
       "title": "进度表",
       "page": "page-4"
     },
@@ -230,17 +230,26 @@
       "x": 0,
       "y": 9476,
       "w": 1400,
-      "h": 5500,
+      "h": 5523,
       "title": "D12 助手 · ④ A 对话流 · 全状态",
       "page": "page-6"
     },
     {
       "file": "DesignD12DetailDirs.dc.html",
       "x": 0,
-      "y": 15076,
+      "y": 15099,
       "w": 1400,
       "h": 1665,
       "title": "D12 助手 · ④ 三处细节 · 方向",
+      "page": "page-6"
+    },
+    {
+      "file": "DesignSplitReverse.dc.html",
+      "x": 0,
+      "y": 16864,
+      "w": 1400,
+      "h": 3826,
+      "title": "拆分与反推 · ④ 全状态",
       "page": "page-6"
     }
   ],

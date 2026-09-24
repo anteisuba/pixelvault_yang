@@ -55,7 +55,7 @@ const OVERVIEW = {
           name: '可并行',
           why: '都只依赖底座',
           items: [
-            { name: '助手', status: '部分', note: '公共层与四张脸已落；D12 图片助手 09-24 施工完、两条验收（只换衣服 · 三渲二 → 赛璐璐）实跑通过；下一件是「拆分与反推」（待设计）' },
+            { name: '助手', status: '部分', note: '公共层与四张脸已落；D12 图片助手 09-24 施工完、两条验收（只换衣服 · 三渲二 → 赛璐璐）实跑通过；下一件是「拆分与反推」（① 已定，④ 画板待确认）' },
             { name: '卡片', status: '可开工', note: 'v2 字段已落；卡片总线 35 契约 09-24 定（只认角色卡 · 角色与背景共用 @ 名单 · 三次部署已授权），之后 D6 设计 —— **挡着画布**' },
             { name: '图片', status: '部分', note: '两台已落；NAI 角色图用 V5 Full；编辑线等 D4' },
             { name: '视频', status: '部分', note: '模型接入已落；分镜 / 白模动作等 D4' },
@@ -173,7 +173,7 @@ const BIZ_ASSISTANT = biz(
         ['56a · 56b · 24 · 73', '记忆 · 调查 · 剧本投影 · 协作一轮', '剧本投影的 @角色 只开了空槽，等卡片总线', '已落'],
         ['—', 'Claude / DeepSeek 识图 · 查证结构化输出', 'dc1e7ec4 · 9a2b6290（09-23）', '已落'],
         ['D12', '图片助手施工（问 / 做 · 看懂 · 对话流 A · 生成开关 · 单一撤销）', '09-24 施工完；换衣与三渲二 → 赛璐璐两条验收实跑通过；手机账号入口与画布按项目分会话待真机目检', '待上线'],
-        ['—', '拆分与反推', '把用户的话拆成 NAI 标签；参考图反推成自然语言或标签，尽量复刻（09-24 owner 提出）', '待设计'],
+        ['—', '拆分与反推', '把用户的话拆成 NAI 标签；参考图反推成自然语言或标签，尽量复刻（09-24 owner 提出）；① 已定，④ 画板在第 6 页', '进行中'],
         ['—', '画布 <768 手机宿主', '手机图片工作台过了不等于画布过了', '待设计'],
         ['21 · 37', '排片提案回传', '`deliverTimelineProposal` 没有生产者：助手没有时间线工具', '待 spec'],
         ['57', '清理旧助手 + 隐身合一', 'CanvasAssistant* 三件 · StudioAssistantDock · PromptAssistantPanel 仍在；隐身时仍保存本轮记录（只不写长期记忆），口径要定', '待 spec'],
@@ -534,7 +534,7 @@ const PROGRESS = {
   title: '进度表',
   eyebrow: `PixelVault · 4 进度表 · ${DATE}`,
   heading: '进度表：按业务分组，业务按依赖排序',
-  sub: `只列没做完的；已完成的压在最后一段。# 沿用原编号，方便对 commit。${BASE}。当前焦点：D12 图片助手已施工完待上线，下一件是「拆分与反推」设计；建议卡片 35 同时开，因为它挡着画布。`,
+  sub: `只列没做完的；已完成的压在最后一段。# 沿用原编号，方便对 commit。${BASE}。当前焦点：D12 图片助手已施工完待上线，下一件是「拆分与反推」，④ 画板待确认；建议卡片 35 同时开，因为它挡着画布。`,
   blocks: [
     { t: 'legend' },
     h('层 0 · 底座'),
@@ -550,7 +550,7 @@ const PROGRESS = {
     h('层 1 · 助手'),
     ptable([
       P('D12', '图片助手施工完（问 / 做 · 看懂 · 对话流 A · 生成开关 · 单一撤销 · NAI 规则），两条验收实跑通过；本地 main 90bc5214…928b747a，未推生产；手机账号入口与画布按项目分会话待真机目检', '—', '待上线'),
-      P('—', '拆分与反推：把用户的话拆成 NAI 标签；参考图反推成自然语言或标签，尽量复刻（09-24 owner 提出）', '—', '待设计'),
+      P('—', '拆分与反推：把用户的话拆成 NAI 标签；参考图反推成自然语言或标签，尽量复刻（09-24 owner 提出）；① 已定，④ 画板在第 6 页', '—', '进行中 · ④ 画板待 owner 确认'),
       P('—', '画布 <768 手机宿主', '55', '待设计'),
       P('21 · 37', '排片提案回传：给助手一个时间线工具，接 `deliverTimelineProposal`', '—', '待 spec'),
       P('57', '清理旧助手（CanvasAssistant* · StudioAssistantDock · PromptAssistantPanel）+ 隐身口径合一 + 拆 operator service', '—', '待 spec'),
@@ -1349,6 +1349,82 @@ const D12_DETAIL_DIRS = {
   ],
 }
 
+// ④ 画板：拆分与反推（09-24 ① 七问 + NAI 换场景追问已定）。沿用 A 对话流的面板 / 输入区 / 确认卡。
+const SR = {
+  ref: (name, text) => `<div style="${CV.user};display:flex;flex-direction:column;gap:6px"><span style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#525252;align-self:flex-start"><span style="flex:none;display:inline-block;width:28px;height:28px;border-radius:6px;background:linear-gradient(160deg,#3a3d45,#6b2c33)"></span>${name}</span>${text}</div>`,
+  user: (text) => `<div style="${CV.user}">${text}</div>`,
+  confirm: (knobs) => `<div style="${CV.box};padding:10px 12px;display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:600">确认生成 1 张？</div><div style="display:flex;gap:5px;flex-wrap:wrap">${knobs.map((x) => `<span style="font-size:11px;border:1px solid #e5e5e5;background:#f5f5f5;border-radius:7px;padding:3px 7px">${x} ▾</span>`).join('')}</div>${btns}</div>`,
+  copyIcon: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>',
+  code: (text, copied) => `<div style="position:relative;border:1px solid #ececec;border-radius:10px;background:#fafaf8;padding:10px 38px 10px 12px;font-family:'Geist Mono',ui-monospace,monospace;font-size:11.5px;line-height:1.65;color:#262626;word-break:break-word">${text}<span style="position:absolute;top:6px;right:6px;display:inline-flex;align-items:center;gap:4px;height:24px;padding:0 6px;border-radius:6px;font-family:Geist,'Noto Sans SC',sans-serif;font-size:11px;color:${copied ? '#0a0a0a' : '#737373'};${copied ? 'background:#fff;border:1px solid #e5e5e5' : ''}">${copied ? '✓ 已复制' : SR.copyIcon}</span></div>`,
+  chip: (t) => `<span style="height:22px;display:inline-flex;align-items:center;border:1px solid #e5e5e5;border-radius:6px;padding:0 8px;font-size:11px;background:#fff">${t}</span>`,
+  desk: (chips) => `<div style="border:1px dashed #cfcfcf;border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:6px;background:#fbfbfa"><div style="display:flex;justify-content:space-between;font-size:11px"><span style="font-weight:500">左侧标签台 · 正向标签</span><span style="color:#737373">${chips.length} 个</span></div><div style="border:1px solid #d4d4d4;border-radius:8px;background:#fff;padding:8px;display:flex;flex-wrap:wrap;gap:6px">${chips.map((c) => SR.chip(c)).join('')}</div></div>`,
+  fixed: (t) => `<div style="${CV.meta}">${t}</div>`,
+  // 规格行跟着这一态的出图模型走（G.spec 写死的是 Nano Banana Pro）
+  input: (spec, o = {}) => A.input({ ...o, noSpec: true }).replace(`<div style="${CV.foot}">`, `<div style="${CV.foot}">${G.spec().replace('Nano Banana Pro · 1:1 · 1 张', spec)}`),
+}
+const srTags = '1girl, solo, multiple_views, reference_sheet, black_hair, streaked_hair, red_hair, red_eyes, mole_under_eye, black_shirt, see-through_sleeves, pleated_skirt, thigh_boots, white_background'
+const srProse = 'A character reference sheet of one girl shown front, back and close-up: black hair with red streaks, red eyes, a small mole under her left eye, black shirt with sheer sleeves, pleated skirt with red lining, white-trimmed long boots; cel-shaded 3D look, plain white background.'
+const SR_STATES = [
+  aState('X1', '一句话 → 标签（NAI）', `${aCard('樱花树下的女孩', `${SR.user('画一个黑长直、穿水手服的女孩站在樱花树下，傍晚。')}${cvName}<div style="${CV.msg}">写好了，按标签写进了标签台：人物、发型、服装、场景、时间各一组。</div>${SR.fixed('有 2 个按 Danbooru 换了写法：sakura_tree → cherry_blossoms，black_long_hair → black_hair + long_hair。')}${aFold('做了 2 步 · 写了标签')}${SR.confirm(['NovelAI V5 Full', '3:4', '1 张'])}`, SR.input('NovelAI V5 Full · 3:4 · 1 张'))}${SR.desk(['1girl', 'solo', 'black_hair', 'long_hair', 'straight_hair', 'serafuku', 'standing', 'cherry_blossoms', 'outdoors', 'evening', 'sunset'])}`, '拆分结果**不单独列对照**，直接落成标签台里的标签块，在标签台增删。写入前逐个核对，换过写法才出那一句灰字；全部查得到就不出。'),
+  aState('X2', '反推 · 只要标签', aCard('反推这张', `${SR.ref('测试图', '反推一下这张，给我标签。')}${cvName}<div style="${CV.msg}">按 Danbooru 标签反推，已核对：</div>${SR.code(srTags, false)}<div style="${CV.msg}">没写进标签台；要照它画就说一声。</div>`, SR.input('NovelAI V5 Full · 3:4 · 1 张')), '「反推 / 给我标签 / 描述一下」= **只给文字**：代码块 + 右上角复制键，⛔ 不写入、不出确认卡、不挂原图。'),
+  aState('X3', '反推 · 自然语言 · 已复制', aCard('反推这张', `${SR.ref('测试图', '反推成一段自然语言描述。')}${cvName}${SR.code(srProse, true)}`, SR.input('GPT Image 2.5 Flare · 16:9 · 1 张')), '点名要自然语言就给自然语言，没点名跟当前模型走（NAI 出标签，其余出英文描述）。复制后键上换成「✓ 已复制」1.5 秒。'),
+  aState('X4', '照这张画 · 其他模型', aCard('照这张画', `${SR.ref('测试图', '照这张画一张。')}${cvName}<div style="${CV.msg}">看了：三渲二的角色三视图。构图、姿势、配色、画风都照搬，原图挂成参考，比例跟原图 16:9。</div>${aFold('做了 3 步 · 写了提示词、挂了原图')}${SR.confirm(['GPT Image 2.5 Flare', '16:9', '1 张'])}`, SR.input('GPT Image 2.5 Flare · 16:9 · 1 张')), '「照这张画 / 复刻 / 一模一样」= **照搬**：文字 + 原图一起用、比例跟原图。⛔ 不设「复刻模式」开关。'),
+  aState('X5', '照这张画 · NAI V5', aCard('照这张画', `${SR.ref('测试图', '照这张画一张。')}${cvName}<div style="${CV.msg}">看了：三渲二的角色三视图。标签照着原图写，原图按图生图挂上，还原度 0.8（越高越像原图）。</div>${aFold('做了 4 步 · 写了标签、挂了原图、调了还原度')}${SR.confirm(['NovelAI V5 Full', '16:9', '1 张'])}`, SR.input('NovelAI V5 Full · 16:9 · 1 张')), 'NAI 照搬 = 标签 + 图生图，还原度拉到 0.8，回复里说清数字的意思；想更像 / 更自由就在话里说「再像一点」。'),
+  aState('X6', '同角色换场景 · 其他模型', aCard('她在海边', `${SR.ref('测试图', '同一个角色，换到海边日落。')}${cvName}<div style="${CV.msg}">只留她的人设和画风（黑发红挑染、红瞳、痣、三渲二质感），场景换成海边日落；原图只作角色参考，构图不跟。</div>${aFold('做了 3 步 · 写了提示词、挂了原图')}${SR.confirm(['GPT Image 2.5 Flare', '16:9', '1 张'])}`, SR.input('GPT Image 2.5 Flare · 16:9 · 1 张')), '「同一个角色 / 这个人 + 新内容」= **换场景**：提示词只保人设与画风，新内容按话写。'),
+  aState('X7', '同角色换场景 · NAI V5 → 问', aCard('她在海边', `${SR.ref('测试图', '同一个角色，换到海边日落。')}${cvName}<div style="${CV.msg}">V5 没有角色参考，挂原图就是图生图，会连构图一起带过来。</div>`, SR.input('NovelAI V5 Full · 16:9 · 1 张', { question: aQuestion('这张怎么出？', [['留在 V5，只用标签', '画风是新一代；原创角色的还原度低一些', false], ['换 V4.5 Full，挂角色参考', '角色更像；画风是上一代', false]]) })), '只在 **NAI V5 + 换场景** 这一种情况问（owner 09-24 定「当场问一次」）；其他模型、其他说法都不问。'),
+  aState('X8', '选了 V4.5 之后', aCard('她在海边', `${SR.ref('测试图', '同一个角色，换到海边日落。')}${cvName}<div style="${CV.msg}">换到 V4.5 Full，原图挂成角色参考；标签只写人设与海边日落，构图不跟原图。</div>${aFold('做了 4 步 · 换了模型、写了标签、挂了角色参考')}${SR.confirm(['NovelAI V4.5 Full', '16:9', '1 张'])}`, SR.input('NovelAI V4.5 Full · 16:9 · 1 张')), '答完不留问答回执（09-24 已定），换模型这件事在正文里说一句；「撤销」退回整轮，包括换回 V5。'),
+]
+const SR_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start"><div style="width:300px;flex:none;border-radius:22px;border:1px solid #d4d4d4;background:#e9e9e6;padding:8px 8px 0;display:flex;flex-direction:column;gap:6px"><div style="height:34px;border-radius:999px;background:#fff;display:flex;align-items:center;padding:0 6px;font-size:12px;font-weight:600"><span style="width:26px"></span><span style="flex:1;text-align:center">▣ 图像 ▾</span>${cvAvatar(24)}</div><div style="border-radius:16px 16px 0 0;background:#fff;border:1px solid #d4d4d4;border-bottom:0;display:flex;flex-direction:column"><div style="display:grid;place-items:center;padding-top:6px"><span style="width:36px;height:4px;border-radius:999px;background:#d4d4d4"></span></div><div style="${CV.head};border-bottom:1px solid #ececec">${cvAvatar(18)}反推这张</div><div style="${CV.body}">${SR.ref('测试图', '反推一下这张，给我标签。')}${cvName}${SR.code(srTags, false)}</div>${SR.input('NovelAI V5 Full · 3:4 · 1 张')}</div></div><div style="flex:1;font-size:12.5px;line-height:1.7;color:#404040">手机：同一个面板。代码块在窄屏里自动换行（⛔ 横向滚动），复制键的点击区扩到 44 × 44，但画出来的大小不变；复制后同样显示「✓ 已复制」。标签台在手机的参数页里，写入后不自动跳页，正文那句「写进了标签台」就是提示。</div></div>`
+
+const SPLIT_REVERSE = {
+  file: 'DesignSplitReverse.dc.html',
+  title: '拆分与反推 · ④ 全状态',
+  eyebrow: 'PixelVault · 6 在设计 · 拆分与反推 · ④ 画板 · 2026-09-24',
+  heading: '拆分与反推：全状态',
+  sub: 'owner 09-24 ① 七问全选最简：不设模式、不加入口、不列对照、自动核对、只要文字给复制块、孤立反推面板删掉；追问定「NAI V5 + 换场景」当场问一次。新画面只有两样：**代码块的复制键**和 **X7 那一题**，其余全部沿用「A 对话流：全状态」。场景用同一张测试图。',
+  blocks: [
+    { t: 'mock', html: `<div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">${SR_STATES.join('')}</div>`, md: '界面稿（画板上），8 态：X1 一句话拆成 NAI 标签（直接落标签台，换过写法才出一句灰字）· X2 反推只要标签（代码块 + 复制键，不写入）· X3 反推成自然语言、已复制态 · X4 照这张画（其他模型：文字 + 原图、比例跟原图）· X5 照这张画（NAI V5：标签 + 图生图还原度 0.8）· X6 同角色换场景（其他模型：只保人设画风）· X7 NAI V5 换场景当场问（留 V5 只用标签 / 换 V4.5 挂角色参考）· X8 选了 V4.5 后的确认卡。' },
+    h('手机'),
+    { t: 'mock', html: `<div style="margin-top:12px">${SR_PHONE}</div>`, md: '手机：同一个面板；代码块自动换行不横滚，复制键点击区 44 × 44；标签台写入后不跳页。' },
+    h('行为规则'),
+    table(
+      ['#', '规则', '细节'],
+      [
+        ['B1', '听话分三类', '「照这张画 / 复刻 / 一模一样」→ 照搬；「同一个角色 / 这个人 + 新内容」→ 换场景；「反推 / 给我标签 / 描述一下这张」→ 只要文字。只发图说「画」按照搬；⛔ 不为分类单独提问'],
+        ['B2', '输出方言', '点名就按点名（标签 / 自然语言）；没点名跟当前模型：NAI 出 Danbooru 标签，其余出英文描述'],
+        ['B3', '标签核对', '写入前逐个过「本地 Danbooru 词表 + NAI 官方联想」：别名 → 正名，写错 → 最接近的真实标签；都查不到 → 原样保留并在同一句里说「没查到」。角色名照旧先查 Danbooru（NAI 规则）'],
+        ['B4', '挂不挂原图', '照搬 → 挂原图、比例跟原图（NAI V5 = 图生图，还原度 0.8）；换场景 → 其他模型挂作角色参考；NAI V5 → X7 问一次'],
+        ['B5', '只要文字', '代码块 + 复制键；⛔ 不写入、不出确认卡、不挂原图'],
+        ['B6', '撤销', '沿用每轮过程行那一颗「撤销」，照搬 / 换模型 / 挂原图一起退回'],
+      ],
+      { widths: ['44px', '110px', null], firstStrong: false },
+    ),
+    h('施工范围'),
+    table(
+      ['层', '改什么'],
+      [
+        ['服务端', '标签核对器（新）接在 NAI 规则之后、写入之前；「换过写法」那一句由系统追加，⛔ 不靠模型自己说'],
+        ['助手提示', 'B1 / B2 / B4 三条进 operator 规则；X7 那题走现有问题块'],
+        ['界面', '共享 `CodeBlock` 右上角加复制键（全站代码块都受益）；其余零新组件'],
+        ['删除', '`ReverseEngineerPanel` · `VariationGrid` · `use-reverse-image` 与三语 `ReverseEngineer` 文案；`/api/image/analyze` 施工时查调用方，没人用就一起删'],
+      ],
+      { widths: ['90px', null], firstStrong: true },
+    ),
+    h('动效表'),
+    table(
+      ['动作', '时长 · 曲线', '动什么', '⛔'],
+      [
+        ['复制键 → 已复制', '`--duration-fast` 120ms · `ease-standard`；1.5s 后回原样', '图标与「✓ 已复制」交叉淡换', '不弹 toast、不改代码块底色'],
+        ['标签台写入', '—', '一次整体替换', '不逐个飞入、不闪高亮'],
+        ['「换了写法」那句', '`--duration-base` 200ms', '正文写完后 opacity 0→1', '不跟着流式逐字'],
+        ['X7 问题出现 / 答完', '沿用 A 对话流 S3', '输入框内容交叉淡换', '不弹窗'],
+        ['`prefers-reduced-motion`', '—', '以上直接到位', '—'],
+      ],
+      { firstStrong: false },
+    ),
+  ],
+}
+
 // ─────────────────────────── 汇总与输出 ───────────────────────────
 export const PAGES = [
   { id: 'page-1', name: '1 · 总览', boards: [OVERVIEW] },
@@ -1364,7 +1440,7 @@ export const PAGES = [
     name: '5 · 厂商速查',
     boards: [VENDOR_IMAGE, VENDOR_VIDEO, VENDOR_VOICE, VENDOR_TEXT, VENDOR_RUNNER],
   },
-  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS] },
+  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE] },
 ]
 
 if (import.meta.url === `file://${process.argv[1]}`) {

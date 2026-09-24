@@ -11316,6 +11316,110 @@ describe('current reference image bindings', () => {
     expect(systemPrompt()).toContain('is NOT a conflict')
   })
 
+  describe('NAI 规则（D12 已定）', () => {
+    const NAI_SNAPSHOT = {
+      ...SNAPSHOT,
+      model: { id: 'nai-diffusion-5-curated', label: 'NovelAI V5 Curated' },
+    }
+
+    it('拦中文整句：退回重写成英文标签，⛔ 不在时间线上画成失败', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            title: '写提示词',
+            args: { value: '1girl, 她穿着黑色校服站在雨里' },
+          },
+        },
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            title: '写提示词',
+            args: { value: '1girl, black school uniform, standing, rain' },
+          },
+        },
+        { finished: true, message: '写好了。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({ snapshot: NAI_SNAPSHOT }),
+        ),
+      )
+      const writes = stepsOf(events).filter(
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      )
+      expect(writes.some((step) => step.status === 'error')).toBe(false)
+      expect(writes.some((step) => step.status === 'done')).toBe(true)
+      expect(
+        mockLlmTextCompletion.mock.calls.some(([input]) =>
+          JSON.stringify(input).includes(
+            'NovelAI only reads English Danbooru tags',
+          ),
+        ),
+      ).toBe(true)
+    })
+
+    it('拦夸张权重（20::）', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            title: '写提示词',
+            args: { value: '20::denia (wuthering waves) ::, 1girl' },
+          },
+        },
+        { finished: true, message: '好。' },
+      )
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({ snapshot: NAI_SNAPSHOT }),
+        ),
+      )
+      expect(lastUserPrompt()).toContain('far too strong for NovelAI')
+    })
+
+    it('NAI 档的状态块写明核角色、角色图用 V5 Full', async () => {
+      queueTurns({ finished: true, message: '好。' })
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({ snapshot: NAI_SNAPSHOT }),
+        ),
+      )
+      const prompt = lastUserPrompt()
+      expect(prompt).toContain(
+        'look it up first with research limited to danbooru',
+      )
+      expect(prompt).toContain('nai-diffusion-5-full')
+    })
+
+    it('非 NAI 档不念这几条，也不拦中文', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            title: '写提示词',
+            args: { value: '雨中的少女' },
+          },
+        },
+        { finished: true, message: '好。' },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', buildRequest({})),
+      )
+      expect(lastUserPrompt()).not.toContain('NovelAI rules')
+      expect(
+        stepsOf(events).some(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+            step.status === 'done',
+        ),
+      ).toBe(true)
+    })
+  })
+
   it('tells the model a repeated write already succeeded instead of calling it refused', async () => {
     const write = {
       tool: {

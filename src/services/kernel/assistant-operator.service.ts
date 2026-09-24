@@ -1,5 +1,6 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
+import { findNovelAiPromptProblem } from '@/lib/novelai-prompt-guard'
 import {
   AssistantLoraParametersSchema,
   type AssistantLoraParameters,
@@ -28,6 +29,7 @@ import {
 
 import {
   ASSISTANT_FOLDER_VISION_DEFAULT_INSTRUCTION,
+  ASSISTANT_NAI_PROMPT_LIMITS,
   ASSISTANT_OPERATOR_APPEND_SEPARATOR,
   ASSISTANT_OPERATOR_OVERWRITE_INTENT_WORDS,
   ASSISTANT_OPERATOR_CONFIRM_CHOICES,
@@ -140,7 +142,7 @@ import {
   TAG_BASED_GENERATION_PROMPT_RULE,
 } from '@/constants/model-strengths'
 import { getSeedanceControlRules } from '@/constants/model-strengths.media'
-import { resolveAdapterType } from '@/constants/models'
+import { AI_MODELS, resolveAdapterType } from '@/constants/models'
 import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import { ASSISTANT_MEDIA_UNSUPPORTED_ERRORS } from '@/constants/assistant'
@@ -1327,6 +1329,14 @@ function renderState(
     lines.push(
       `- Model: ${state.modelLabel ?? state.modelId} (id: ${state.modelId})`,
     )
+    /**
+     * ⭐ **NAI 的另两条规则**（D12 已定：核角色 · 角色图选 V5 Full）。
+     * 🔬 09-23 同 seed 对照：V5 Curated 不认识 Denia，V5 Full 认识。
+     */
+    if (resolveAdapterType(state.modelId) === AI_ADAPTER_TYPES.NOVELAI)
+      lines.push(
+        `  NovelAI rules: write English Danbooru tags only. A named existing character goes in as their exact Danbooru tag (e.g. denia (wuthering waves)); if you have not verified that tag in this conversation, look it up first with research limited to danbooru, never guess it. A picture of a named existing character uses NovelAI V5 Full (id: ${AI_MODELS.NOVELAI_V5_FULL}) — V5 Curated does not know newer characters; if this bench is on Curated, switch with set_model and say why in one clause.`,
+      )
   }
 
   const models = state.availableModels.slice(0, LIMITS.maxAvailableModels)
@@ -3613,6 +3623,27 @@ async function planSetText(
     isPrompt && run.request.domain === 'image'
       ? normalizeReferenceMentions(args.value)
       : args.value
+  /**
+   * ⭐ **NAI 两道硬闸**（D12 已定）：中文句子与夸张权重在写入前拦下，退回给模型
+   * 重写成英文 Danbooru 标签。⚠ 这是同一步的草稿（`quiet`），⛔ 不在时间线上画成失败。
+   */
+  if (
+    resolveAdapterType(run.state.modelId ?? '') === AI_ADAPTER_TYPES.NOVELAI
+  ) {
+    const problem = findNovelAiPromptProblem(value)
+    if (problem)
+      return {
+        kind: 'rejected',
+        reason: REJECT.unknownValue,
+        detail: clamp(
+          problem.kind === 'cjk'
+            ? `NovelAI only reads English Danbooru tags, and this ${isPrompt ? 'prompt' : 'negative prompt'} contains Chinese/Japanese text ("${problem.sample}"). Translate every such phrase into English tags (a named character becomes its exact Danbooru tag, e.g. denia (wuthering waves)); only letters to be drawn may follow "Text:". Then call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn.`
+            : `This emphasis is far too strong for NovelAI ("${problem.sample}"). Keep numeric weights within ±${ASSISTANT_NAI_PROMPT_LIMITS.maxNumericEmphasis} (1.1–1.5 is already strong) and brace nesting within ${ASSISTANT_NAI_PROMPT_LIMITS.maxBraceDepth} layers, then call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn.`,
+          LIMITS.maxReasonChars,
+        ),
+        quiet: true,
+      }
+  }
   if (isPrompt && run.request.domain === 'image') {
     const missing = getReferenceMentionIndices(value).find(
       (index) => !run.state.referenceUrls[index],

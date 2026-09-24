@@ -946,7 +946,16 @@ function operatorStepKey(tool: AssistantOperatorTool, args: unknown): string {
 // ─── 工具计划（纯函数，不碰 IO）──────────────────────────────────
 
 type ToolPlan =
-  | { kind: 'rejected'; reason: AssistantOperatorRejectReason; detail?: string }
+  | {
+      kind: 'rejected'
+      reason: AssistantOperatorRejectReason
+      detail?: string
+      /**
+       * 只退给模型、不进时间线（2026-09-24 真机）：复核挑出漏写、退回重写那一次是
+       * 同一步的草稿，画成一条「没做成」会让一轮全做成的操作顶着一笔失败。
+       */
+      quiet?: true
+    }
   | {
       kind: 'confirm'
       field: AssistantOperatorConfirmField
@@ -3871,10 +3880,15 @@ async function planSetText(
     )
     if (gaps.length > 0 && !run.promptReviewRetried) {
       run.promptReviewRetried = true
-      return reject(
-        REJECT.promptConflict,
-        `The prompt check found gaps in what you wrote: ${gaps.join(' / ')}. Rewrite the FULL prompt fixing all of them and call set_prompt again in this same turn. Do not ask the creator about these — they are omissions in your prompt, not their decision.`,
-      )
+      return {
+        kind: 'rejected',
+        reason: REJECT.promptConflict,
+        detail: clamp(
+          `The prompt check found gaps in what you wrote: ${gaps.join(' / ')}. Rewrite the FULL prompt fixing all of them and call set_prompt again in this same turn. Do not ask the creator about these — they are omissions in your prompt, not their decision.`,
+          LIMITS.maxReasonChars,
+        ),
+        quiet: true,
+      }
     }
     /**
      * 重写一次之后仍有的：照写，⛔ 不再念给模型听（2026-09-24 真机：它读到「还有
@@ -9877,15 +9891,16 @@ export async function* runAssistantOperator(
       }
 
       if (plan.kind === 'rejected') {
-        yield toStepEvent({
-          ...base,
-          tool: name,
-          status: STATUS.error,
-          error: {
-            reason: plan.reason,
-            ...(plan.detail ? { detail: plan.detail } : {}),
-          },
-        })
+        if (!plan.quiet)
+          yield toStepEvent({
+            ...base,
+            tool: name,
+            status: STATUS.error,
+            error: {
+              reason: plan.reason,
+              ...(plan.detail ? { detail: plan.detail } : {}),
+            },
+          })
         // ⚠ 重复步不是失败：念成 REFUSED，模型会对创作者说「没写进去」（2026-09-24 真机）。
         run.observations.push(
           `${name} ${plan.reason === REJECT.repeatedStep ? 'was skipped' : 'was REFUSED'} (${plan.reason})${

@@ -11321,6 +11321,14 @@ describe('current reference image bindings', () => {
     expect(events.some((event) => event.type === 'ask')).toBe(false)
     // ⭐ 残余意见不念给模型：读到它，模型会把同一段原样再交一遍（2026-09-24 真机）。
     expect(lastUserPrompt()).not.toContain('The prompt check still flags')
+    // ⭐ 退回重写那一次是草稿，⛔ 不在时间线上画成「没做成」。
+    expect(
+      stepsOf(events).filter(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'error',
+      ),
+    ).toHaveLength(0)
   })
 
   it('writes the prompt after the creator picks follow-request on a conflict card', async () => {

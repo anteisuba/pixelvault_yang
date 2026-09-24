@@ -28,6 +28,10 @@ import {
 
 const DEFAULT_OUTPUT_TYPE: GenerationNameOutputType = 'IMAGE'
 
+/** 提示词里点名参考图的记号（`@Image1` · reference image 1 · 「图1」 · 参考图1）。 */
+const REFERENCE_TOKEN =
+  /@Image\d|reference\s+images?\s*\d|「\s*(?:图|画像|Image\s*)\d+\s*」|参考图\s*\d|参考画像\s*\d/i
+
 function prefixOf(outputType: string | null | undefined): string {
   const key = (outputType ?? DEFAULT_OUTPUT_TYPE) as GenerationNameOutputType
   return (
@@ -73,7 +77,19 @@ export function buildGenerationSummary(
   source: string | null | undefined,
 ): string | undefined {
   if (typeof source !== 'string') return undefined
-  const flat = source.replace(/\s+/g, ' ').trim()
+  /**
+   * ⚠ 先跳过**只在点名参考图的那几句**（2026-09-24 真机：名字成了「以referen…」）——
+   * 那是写给模型的分工说明，不是这张图画的是什么。一句都不剩就退回原文。
+   */
+  const sentences = source.split(/[。；;]|\.\s/)
+  const plain = sentences.filter(
+    (sentence) => sentence.trim() && !REFERENCE_TOKEN.test(sentence),
+  )
+  const described =
+    plain.length > 0 && plain.length < sentences.length
+      ? plain.join('。')
+      : source
+  const flat = described.replace(/\s+/g, ' ').trim()
   if (!flat) return undefined
   // ⚠ 截完再 trim 一次：正好切在空格上时会留一个尾空格，落进名字里看不见但
   // 会让「名字相等」判据莫名其妙地不相等。

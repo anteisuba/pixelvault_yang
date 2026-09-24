@@ -227,3 +227,27 @@ describe('resolveGenerationMentions', () => {
     ).toHaveLength(1)
   })
 })
+
+/** 2026-09-24 真机：名字成了「图_713·以referen」。 */
+describe('buildGenerationDisplayName · 跳过点名参考图的句子', () => {
+  it('取第一句真正描述画面的话', () => {
+    expect(
+      buildGenerationDisplayName({
+        seq: 713,
+        outputType: 'IMAGE',
+        prompt:
+          '以reference image 1作为角色身份与三视图排版参照。保持角色设计不变，改为2D赛璐璐动画风格。',
+      }),
+    ).toBe('图_713·保持角色设计不变')
+  })
+
+  it('全是参考图说明时退回原文，不留空', () => {
+    expect(
+      buildGenerationDisplayName({
+        seq: 1,
+        outputType: 'IMAGE',
+        prompt: '参考图1的发型',
+      }),
+    ).toBe('图_001·参考图1的发型')
+  })
+})

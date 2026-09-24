@@ -30,6 +30,33 @@ describe('Studio image draft', () => {
     expect(second.result.current.draft).toEqual(saved)
   })
 
+  it('restores aspect ratio and resolution with the prompt (owner 2026-09-24)', () => {
+    const withSpecs: StudioDraft = {
+      ...saved,
+      aspectRatio: '16:9',
+      resolution: '2K',
+    }
+    const first = renderHook(() => useHarness())
+    act(() => first.result.current.setDraft(withSpecs))
+    first.unmount()
+    const second = renderHook(() => useHarness())
+    expect(second.result.current.draft).toMatchObject({
+      aspectRatio: '16:9',
+      resolution: '2K',
+    })
+  })
+
+  it('drops a stored aspect ratio or resolution that is not a real option', () => {
+    sessionStorage.setItem(
+      'pv:studio-image-draft:user-a',
+      JSON.stringify({ ...saved, aspectRatio: '7:3', resolution: '9K' }),
+    )
+    const view = renderHook(() => useHarness())
+    expect(view.result.current.draft.aspectRatio).toBeUndefined()
+    expect(view.result.current.draft.resolution).toBeUndefined()
+    expect(view.result.current.draft.prompt).toBe(saved.prompt)
+  })
+
   it('does not overwrite a saved draft with empty hydration state in Strict Mode', () => {
     sessionStorage.setItem(
       'pv:studio-image-draft:user-a',

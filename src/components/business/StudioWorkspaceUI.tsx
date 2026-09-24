@@ -130,8 +130,12 @@ export function StudioWorkspaceUI() {
       negativePrompt: state.advancedParams.negativePrompt ?? '',
       novelAiLayout: state.advancedParams.novelAiLayout,
       referenceImages: imageUpload.referenceEntries.map((entry) => entry.url),
+      aspectRatio: state.aspectRatio,
+      resolution: state.advancedParams.resolution,
     }),
     [
+      state.aspectRatio,
+      state.advancedParams.resolution,
       state.prompt,
       state.tagChips,
       state.tagPromptBlocks,
@@ -162,8 +166,11 @@ export function StudioWorkspaceUI() {
           ...state.advancedParams,
           negativePrompt: saved.negativePrompt,
           novelAiLayout: saved.novelAiLayout,
+          ...(saved.resolution ? { resolution: saved.resolution } : {}),
         },
       })
+      if (saved.aspectRatio)
+        dispatch({ type: 'SET_ASPECT_RATIO', payload: saved.aspectRatio })
     },
     [imageUpload, dispatch, state.advancedParams],
   )

@@ -7,6 +7,8 @@ import {
   type NovelAiCharacterLayout,
 } from '@/types/novelai'
 
+import { isAspectRatio, type AspectRatio } from '@/constants/config'
+import { AdvancedParamsSchema, type AdvancedParams } from '@/types'
 import { TagPromptBlockSchema, type TagPromptBlock } from '@/types/tag-composer'
 import { logger } from '@/lib/logger'
 
@@ -16,6 +18,13 @@ export interface StudioDraft {
   negativePrompt: string
   novelAiLayout?: NovelAiCharacterLayout
   referenceImages: string[]
+  /**
+   * 比例与清晰度（owner 2026-09-24：刷新后别回到 1:1）。⚠ 两个一起存一起回：
+   * 比例只有配上清晰度才是真比例（`studio-operator-apply.ts` 头注②）。
+   * 可选 —— 旧草稿没有这两格，照旧只回提示词。
+   */
+  aspectRatio?: AspectRatio
+  resolution?: AdvancedParams['resolution']
 }
 
 const EMPTY_DRAFT: StudioDraft = {
@@ -74,8 +83,19 @@ export function useStudioDraft({
       const layout = NovelAiCharacterDraftSchema.safeParse(
         'novelAiLayout' in value ? value.novelAiLayout : undefined,
       )
+      const aspectRatio =
+        'aspectRatio' in value &&
+        typeof value.aspectRatio === 'string' &&
+        isAspectRatio(value.aspectRatio)
+          ? value.aspectRatio
+          : undefined
+      const resolution = AdvancedParamsSchema.shape.resolution.safeParse(
+        'resolution' in value ? value.resolution : undefined,
+      )
       onRestore({
         ...value,
+        aspectRatio,
+        resolution: resolution.success ? resolution.data : undefined,
         promptBlocks: TagPromptBlockSchema.array().safeParse(
           'promptBlocks' in value ? value.promptBlocks : undefined,
         ).data,

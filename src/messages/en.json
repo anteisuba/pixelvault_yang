@@ -254,7 +254,9 @@
     },
     "skipToMainContent": "Skip to main content",
     "requestCount": "{count, plural, one {# request} other {# requests}}",
-    "loading": "Loading"
+    "loading": "Loading",
+    "copy": "Copy",
+    "copied": "Copied"
   },
   "XiaoheiGuide": {
     "stepCounter": "Step {current} / {total}",
@@ -3345,29 +3347,6 @@
       "precise": "Precise character reference"
     },
     "novelAiReferenceModeHint": "Image to image repaints the source. Precise character reference preserves appearance and adds 5 Anlas per generated image."
-  },
-  "ReverseEngineer": {
-    "title": "Image to prompt",
-    "sourceDescription": "Upload or choose an image to extract its style, character, background, or tags.",
-    "selectAsset": "Select asset",
-    "analyzing": "Analyzing image with AI...",
-    "generatedPromptLabel": "Generated Prompt",
-    "generateVariations": "Generate Variations with All Models",
-    "generatingVariations": "Generating variations...",
-    "variationsTitle": "{count, plural, one {# variation} other {# variations}} generated",
-    "originalImage": "Original",
-    "failedModels": "Failed: {models}",
-    "analysisFailed": "Analysis failed",
-    "generationFailed": "Generation failed",
-    "reset": "Reset",
-    "useAsPrompt": "Use as Prompt",
-    "selectDimensions": "What do you want to extract from this image?",
-    "dimArtStyle": "Art Style",
-    "dimCharacter": "Character",
-    "dimBackground": "Background",
-    "dimOverall": "Overall",
-    "dimTags": "Tags (NovelAI)",
-    "extract": "Extract"
   },
   "PromptAssistant": {
     "turn": {
@@ -7433,7 +7412,11 @@
       "details": "Did {count} {count, plural, one {step} other {steps}}",
       "promptUnchanged": "Prompt unchanged",
       "blocked": "Action incomplete",
-      "inspectFailure": "Expand the execution details for the reason, or clarify your request below."
+      "inspectFailure": "Expand the execution details for the reason, or clarify your request below.",
+      "tagFixed": "{count, plural, one {# tag} other {# tags}} rewritten to the Danbooru spelling: {list}.",
+      "tagUnknown": "Not found, kept as written: {list}{more, plural, =0 {} other { and # more}}.",
+      "tagListSeparator": ", ",
+      "tagSentenceSeparator": " "
     },
     "checkpoint": {
       "summary": "changed {fields}",

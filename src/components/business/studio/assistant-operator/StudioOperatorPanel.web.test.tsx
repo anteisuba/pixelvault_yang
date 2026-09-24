@@ -1077,6 +1077,43 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     expect(screen.getAllByTestId('operator-tool-group')).toHaveLength(2)
   })
 
+  it('NAI 标签核对换了写法 / 没查到时，过程行上方一句灰字（拆分与反推 X1）', () => {
+    pushStep('run-1', {
+      id: 'tags',
+      title: '写标签',
+      tool: 'set_prompt',
+      verb: 'apply',
+      status: 'done',
+      payload: {
+        value: '1girl, cherry blossoms, sakura tree',
+        mode: 'replace',
+        tagCheck: {
+          fixes: [{ from: 'cherry blossom', to: 'cherry blossoms' }],
+          unknown: ['sakura tree'],
+        },
+      },
+      inverse: { value: '' },
+    })
+    renderPanel()
+    const note = screen.getByTestId('operator-tag-check-note')
+    expect(note).toHaveTextContent('toolGroup.tagFixed')
+    expect(note).toHaveTextContent('toolGroup.tagUnknown')
+  })
+
+  it('没换过写法就没有那句灰字', () => {
+    pushStep('run-1', {
+      id: 'tags',
+      title: '写标签',
+      tool: 'set_prompt',
+      verb: 'apply',
+      status: 'done',
+      payload: { value: '1girl', mode: 'replace' },
+      inverse: { value: '' },
+    })
+    renderPanel()
+    expect(screen.queryByTestId('operator-tag-check-note')).toBeNull()
+  })
+
   it('shows one unresolved conflict per run while keeping all attempts available', () => {
     pushStep('run-1', {
       id: 'failed-1',

@@ -26,6 +26,13 @@ vi.mock('@/lib/url-guard', async () => {
   }
 })
 
+/** NAI 标签核对（拆分与反推 B3）—— 默认原样放行，要验的用例自己塞结果。 */
+const mockCheckNovelAiPromptTags = vi.fn()
+vi.mock('@/services/novelai-tags.service', () => ({
+  checkNovelAiPromptTags: (...args: unknown[]) =>
+    mockCheckNovelAiPromptTags(...args),
+}))
+
 const mockEnsureUser = vi.fn()
 vi.mock('@/services/user.service', () => ({
   ensureUser: (...args: unknown[]) => mockEnsureUser(...args),
@@ -619,6 +626,14 @@ beforeEach(() => {
   mockLlmTextStreamChunks.mockReset()
   mockLlmTextStreamChunks.mockReturnValue(null)
   mockEnsureUser.mockResolvedValue({ id: 'user-db-1' })
+  mockCheckNovelAiPromptTags.mockReset()
+  mockCheckNovelAiPromptTags.mockImplementation(
+    async ({ prompt }: { prompt: string }) => ({
+      prompt,
+      fixes: [],
+      unknown: [],
+    }),
+  )
   mockGetCreativePreferenceDigest.mockResolvedValue(null)
   // 默认「一张都没标过」—— 缺席 = pending，存量行就是这个样子。
   mockReadGenerationReviewStates.mockReset()
@@ -11417,6 +11432,250 @@ describe('current reference image bindings', () => {
             step.status === 'done',
         ),
       ).toBe(true)
+    })
+
+    it('标签核对：查不到的先退回改写一次，改写后写入核对后的串，换了什么随步下发给界面（拆分与反推 X1）', async () => {
+      mockCheckNovelAiPromptTags
+        .mockResolvedValueOnce({
+          prompt: '1girl, long dark blue-black hair',
+          fixes: [],
+          unknown: ['long dark blue-black hair'],
+        })
+        .mockResolvedValueOnce({
+          prompt: '1girl, cherry blossoms, sakura tree',
+          fixes: [{ from: 'cherry blossom', to: 'cherry blossoms' }],
+          unknown: ['sakura tree'],
+        })
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            title: '写提示词',
+            args: { value: '1girl, long dark blue-black hair' },
+          },
+        },
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            title: '写提示词',
+            args: { value: '1girl, cherry blossom, sakura tree' },
+          },
+        },
+        { finished: true, message: '写好了。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({ snapshot: NAI_SNAPSHOT }),
+        ),
+      )
+      expect(mockCheckNovelAiPromptTags).toHaveBeenLastCalledWith({
+        userId: 'user-db-1',
+        modelId: 'nai-diffusion-5-curated',
+        prompt: '1girl, cherry blossom, sakura tree',
+      })
+      expect(
+        mockLlmTextCompletion.mock.calls.some(([input]) =>
+          JSON.stringify(input).includes('Not tags: long dark blue-black hair'),
+        ),
+      ).toBe(true)
+      expect(
+        stepsOf(events).some(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+            step.status === 'error',
+        ),
+      ).toBe(false)
+      const write = stepsOf(events).find(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      )
+      expect(write?.payload).toMatchObject({
+        value: '1girl, cherry blossoms, sakura tree',
+        tagCheck: {
+          fixes: [{ from: 'cherry blossom', to: 'cherry blossoms' }],
+          unknown: ['sakura tree'],
+        },
+      })
+      expect(lastUserPrompt()).toContain('do not list it again')
+    })
+
+    it('挂着参考图时按话分三类（照搬 / 换场景 / 只要文字），⛔ 不为分类提问', async () => {
+      queueTurns({ finished: true, message: '好。' })
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            snapshot: {
+              ...SNAPSHOT,
+              references: {
+                items: [{ url: 'https://cdn.example.com/ref.png' }],
+                limit: 4,
+              },
+            },
+          }),
+        ),
+      )
+      const prompt = lastUserPrompt()
+      expect(prompt).toContain('never ask which they meant')
+      expect(prompt).toContain('ONE fenced code block and change nothing')
+      expect(prompt).not.toContain('On NovelAI a mounted reference')
+    })
+
+    it('NAI 档挂参考图：照搬拉 0.8，V5 换场景问一次（留 V5 / 换 V4.5 精确参考）', async () => {
+      queueTurns({ finished: true, message: '好。' })
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            snapshot: {
+              ...NAI_SNAPSHOT,
+              references: {
+                items: [{ url: 'https://cdn.example.com/ref.png' }],
+                limit: 4,
+              },
+            },
+          }),
+        ),
+      )
+      const prompt = lastUserPrompt()
+      expect(prompt).toContain('set referenceStrength to 0.8')
+      expect(prompt).toContain('ask once with two options')
+      expect(prompt).toContain('nai-diffusion-4-5-full')
+    })
+
+    it('同一轮换到 V4.5 就能设「精确参考」（专属参数跟着型号重算，X8）', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setModel,
+            title: '换模型',
+            args: { modelId: 'nai-diffusion-4-5-full' },
+          },
+        },
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+            title: '角色参考',
+            args: { key: 'novelAiReferenceMode', value: 'precise' },
+          },
+        },
+        { finished: true, message: '换好了。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            snapshot: {
+              ...NAI_SNAPSHOT,
+              model: { id: 'nai-diffusion-5-full', label: 'NovelAI V5 Full' },
+              availableModels: [
+                { id: 'nai-diffusion-5-full', label: 'NovelAI V5 Full' },
+                { id: 'nai-diffusion-4-5-full', label: 'NovelAI V4.5 Full' },
+              ],
+              references: {
+                items: [{ url: 'https://cdn.example.com/ref.png' }],
+                limit: 4,
+              },
+              capabilities: [
+                {
+                  key: 'referenceStrength',
+                  kind: 'slider',
+                  value: null,
+                  defaultValue: 0.7,
+                  range: { min: 0, max: 1 },
+                  available: true,
+                },
+              ],
+            },
+          }),
+        ),
+      )
+      expect(stepsOf(events).at(-1)).toMatchObject({
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setCapability,
+        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+        payload: { key: 'novelAiReferenceMode', value: 'precise' },
+      })
+    })
+
+    it('没有清晰度档的型号（NAI）照样能改比例，清晰度写 auto（X5 照搬跟原图比例）', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+            title: '比例跟原图',
+            args: { aspectRatio: '16:9', resolution: '1K' },
+          },
+        },
+        { finished: true, message: '好。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            snapshot: {
+              ...NAI_SNAPSHOT,
+              specs: { ...SNAPSHOT.specs!, resolutionOptions: [] },
+            },
+          }),
+        ),
+      )
+      expect(stepsOf(events).at(-1)).toMatchObject({
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.done,
+        payload: { aspectRatio: '16:9', resolution: 'auto' },
+      })
+      expect(lastUserPrompt()).toContain('this model has no resolution tiers')
+    })
+
+    it('没选型号时清晰度表空，照旧要求先 set_model', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setSpecs,
+            title: '比例',
+            args: { aspectRatio: '16:9', resolution: 'auto' },
+          },
+        },
+        { finished: true, message: '好。' },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            snapshot: {
+              ...SNAPSHOT,
+              model: null,
+              specs: { ...SNAPSHOT.specs!, resolutionOptions: [] },
+            },
+          }),
+        ),
+      )
+      expect(stepsOf(events).at(-1)).toMatchObject({
+        status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
+        error: { reason: ASSISTANT_OPERATOR_REJECT_REASON_IDS.noModelSelected },
+      })
+    })
+
+    it('负面提示词与非 NAI 档不核对', async () => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setNegative,
+            title: '写负面',
+            args: { value: 'lowres, bad anatomy' },
+          },
+        },
+        { finished: true, message: '好。' },
+      )
+      await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({ snapshot: NAI_SNAPSHOT }),
+        ),
+      )
+      expect(mockCheckNovelAiPromptTags).not.toHaveBeenCalled()
     })
   })
 

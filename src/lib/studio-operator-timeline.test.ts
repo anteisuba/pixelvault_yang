@@ -292,6 +292,13 @@ describe('折叠长回话与首句摘要', () => {
     expect(shouldCollapseOperatorText('一\n二\n三\n四\n五\n六\n七')).toBe(true)
     expect(countOperatorTextLines('')).toBe(0)
   })
+  it('带代码块的不折：反推给的那段就是交付物', () => {
+    expect(
+      shouldCollapseOperatorText(
+        '看了：\n```\n1girl,\nsolo,\nblack hair\n```\n没写进标签台。',
+      ),
+    ).toBe(false)
+  })
   it('首句带标点，一句都没有时退回第一行', () => {
     expect(firstOperatorSentence('先这样。再那样。')).toBe('先这样。')
     expect(firstOperatorSentence('Do this. Then that.')).toBe('Do this.')

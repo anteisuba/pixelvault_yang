@@ -46,6 +46,11 @@ const ALLOWED_SERVICE_IMPORTS = new Set([
   '@/services/kernel/assistant-reference-analysis.service',
   // 认人：clerkId → 库里的 user.id，检索要按它收敛。
   '@/services/user.service',
+  /**
+   * NAI 标签核对（拆分与反推 B3）：本地词表 + NAI 官方 `suggest-tags` 只读联想，
+   * 用用户自己的 NAI key 查词；不出图、不扣 credit、不写库。
+   */
+  '@/services/novelai-tags.service',
   // 只读分页查询（`search_assets`）。⚠ 同一个模块里有 `createGeneration`，
   // 所以下面还有一条「不许出现的标识符」名单兜着。
   '@/services/generation.service',

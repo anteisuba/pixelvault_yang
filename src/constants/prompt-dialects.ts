@@ -1,4 +1,5 @@
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import { ROUTES } from '@/constants/routes'
 
 /**
  * 提示词方言 —— D10 ② Q1 的分法：**分的是输入方言，不是厂商**。
@@ -15,6 +16,12 @@ export const PROMPT_DIALECTS = ['natural', 'tags'] as const
 export type PromptDialect = (typeof PROMPT_DIALECTS)[number]
 
 export const DEFAULT_PROMPT_DIALECT: PromptDialect = 'natural'
+
+/** 每种方言那一台的路由 —— 方言由路由说了算（`StudioModeSync`）。 */
+export const PROMPT_DIALECT_ROUTES: Record<PromptDialect, string> = {
+  natural: ROUTES.STUDIO_IMAGE,
+  tags: ROUTES.STUDIO_IMAGE_TAGS,
+}
 
 /**
  * 吃标签的 adapter。⚠ 名册以 `src/services/providers/registry.ts` 的

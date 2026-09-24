@@ -5,19 +5,13 @@ import { useTranslations } from 'next-intl'
 import { ArrowRight } from '@/components/icons'
 import {
   getPromptDialect,
-  type PromptDialect,
+  PROMPT_DIALECT_ROUTES,
 } from '@/constants/prompt-dialects'
-import { ROUTES } from '@/constants/routes'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useRouter } from '@/i18n/navigation'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import type { StudioModelOption } from '@/types/model-option'
-
-const DIALECT_ROUTES: Record<PromptDialect, string> = {
-  natural: ROUTES.STUDIO_IMAGE,
-  tags: ROUTES.STUDIO_IMAGE_TAGS,
-}
 
 interface StudioDialectJumpHintProps {
   /** 选择器里当前搜的那一串。 */
@@ -73,7 +67,7 @@ export function StudioDialectJumpHint({
           dispatch({ type: 'CARRY_PROMPT_TO_TAGS' })
         }
         close()
-        router.push(DIALECT_ROUTES[targetDialect])
+        router.push(PROMPT_DIALECT_ROUTES[targetDialect])
       }}
       className="mt-1 flex w-full items-center gap-2 rounded-md border-t border-border px-2.5 pb-1 pt-2 text-left text-xs text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
     >

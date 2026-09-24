@@ -61,6 +61,7 @@ import { toast } from 'sonner'
 import { useFormatter, useTranslations } from 'next-intl'
 
 import {
+  ASSISTANT_NAI_TAG_CHECK,
   ASSISTANT_OPERATOR_CONFIRM_KIND_IDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
@@ -1411,6 +1412,43 @@ export function StudioOperatorPanel({
        * 这一组是不是一次调查 —— `null` 就退回 `ToolGroup`（56b 切片 2）。
        */
       const researchSummary = summarizeOperatorResearchBlock(block.steps)
+      /** NAI 标签核对换了什么（拆分与反推 X1）—— 取这一组最后一次写提示词。 */
+      const tagCheck = block.steps
+        .map((item) =>
+          !item.undone &&
+          item.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+          item.step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
+            ? item.step.payload.tagCheck
+            : undefined,
+        )
+        .findLast(Boolean)
+      const tagNote = tagCheck
+        ? [
+            tagCheck.fixes.length > 0
+              ? t('toolGroup.tagFixed', {
+                  count: tagCheck.fixes.length,
+                  list: tagCheck.fixes
+                    .map((fix) => `${fix.from} → ${fix.to}`)
+                    .join(t('toolGroup.tagListSeparator')),
+                })
+              : null,
+            /* 「没查到」只列前几个，其余说个数 —— 一长串会把灰字刷成一整段。 */
+            tagCheck.unknown.length > 0
+              ? t('toolGroup.tagUnknown', {
+                  list: tagCheck.unknown
+                    .slice(0, ASSISTANT_NAI_TAG_CHECK.maxListedUnknown)
+                    .join(t('toolGroup.tagListSeparator')),
+                  more: Math.max(
+                    0,
+                    tagCheck.unknown.length -
+                      ASSISTANT_NAI_TAG_CHECK.maxListedUnknown,
+                  ),
+                })
+              : null,
+          ]
+            .filter(Boolean)
+            .join(t('toolGroup.tagSentenceSeparator'))
+        : null
       const logItems = block.steps.map((item) => (
         <div
           key={item.id}
@@ -1459,17 +1497,6 @@ export function StudioOperatorPanel({
             {...(compactCanvasChanges
               ? { details: logItems, detailsCount: block.steps.length }
               : {})}
-            {...(resumeStepNumber !== null && block.runKey === latestRunKey
-              ? {
-                  resume: {
-                    stepNumber: resumeStepNumber,
-                    ...(resumeFailedReason
-                      ? { failedReason: resumeFailedReason }
-                      : {}),
-                    onResume: resumePlan,
-                  },
-                }
-              : {})}
           />
         ) : null
       return (
@@ -1482,6 +1509,14 @@ export function StudioOperatorPanel({
             <StudioOperatorTimelineRow
               card={STUDIO_OPERATOR_CARD_KINDS.evidence}
             >
+              {!running && tagNote ? (
+                <p
+                  data-testid="operator-tag-check-note"
+                  className="mb-1 text-xs leading-relaxed text-muted-foreground animate-in fade-in-0 fill-mode-backwards animation-duration-(--duration-base) motion-reduce:animate-none"
+                >
+                  {tagNote}
+                </p>
+              ) : null}
               {
                 /**
                  * ⭐ **调查卡退场**（56b 切片 1）：这一轮查到的结论与证据现在长在
@@ -1494,14 +1529,18 @@ export function StudioOperatorPanel({
                  * 恰恰是那一刻唯一要读的东西。
                  */
                 researchSummary && failed === 0 ? (
-                  <StudioOperatorResearchProgress
-                    depth={researchSummary.depth}
-                    running={running}
-                    found={researchSummary.found}
-                    readPages={researchSummary.readPages}
-                  >
-                    {logItems}
-                  </StudioOperatorResearchProgress>
+                  <>
+                    <StudioOperatorResearchProgress
+                      depth={researchSummary.depth}
+                      running={running}
+                      found={researchSummary.found}
+                      readPages={researchSummary.readPages}
+                    >
+                      {logItems}
+                    </StudioOperatorResearchProgress>
+                    {/* 查完又改了东西的那一组（NAI 先查 Danbooru 再写标签）撤销照样在。 */}
+                    {checkpoint}
+                  </>
                 ) : (
                   <StudioOperatorToolGroup
                     total={block.steps.length}

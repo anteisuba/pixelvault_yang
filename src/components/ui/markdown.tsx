@@ -4,7 +4,7 @@ import { memo, useId, useMemo } from 'react'
 import ReactMarkdown, { Components } from 'react-markdown'
 import remarkBreaks from 'remark-breaks'
 import remarkGfm from 'remark-gfm'
-import { CodeBlock, CodeBlockCode } from './code-block'
+import { CodeBlock, CodeBlockCode, CodeBlockCopyButton } from './code-block'
 
 export type MarkdownProps = {
   children: string
@@ -53,7 +53,13 @@ export const INITIAL_COMPONENTS: Partial<Components> = {
 
     return (
       <CodeBlock className={className}>
-        <CodeBlockCode code={children as string} language={language} />
+        {/* 长标签串 / 提示词折行（⛔ 横向滚动）；首行让到复制键下面，「已复制」不压字。 */}
+        <CodeBlockCode
+          code={children as string}
+          language={language}
+          className="[&>pre]:whitespace-pre-wrap [&>pre]:break-words [&>pre]:pt-9"
+        />
+        <CodeBlockCopyButton code={String(children).replace(/\n$/, '')} />
       </CodeBlock>
     )
   },

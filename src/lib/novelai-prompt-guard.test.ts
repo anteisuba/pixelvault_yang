@@ -26,4 +26,20 @@ describe('findNovelAiPromptProblem', () => {
       ),
     ).toBeNull()
   })
+
+  it('拦 @ImageN 与夹在标签串里的整句（拆分与反推实跑）', () => {
+    expect(
+      findNovelAiPromptProblem('1girl, beach, Use @Image1 for identity'),
+    ).toMatchObject({ kind: 'mention' })
+    expect(
+      findNovelAiPromptProblem(
+        '1girl, create a single full-body seaside sunset scene, not a sheet',
+      ),
+    ).toMatchObject({ kind: 'sentence' })
+    expect(
+      findNovelAiPromptProblem(
+        '1girl, long hair, black knee-high lace-up boots',
+      ),
+    ).toBeNull()
+  })
 })

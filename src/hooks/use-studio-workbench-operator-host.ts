@@ -7,6 +7,10 @@ import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
 import { getModelMessageKey, isBuiltInModel } from '@/constants/models'
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import {
+  getPromptDialect,
+  PROMPT_DIALECT_ROUTES,
+} from '@/constants/prompt-dialects'
+import {
   useStudioData,
   useStudioForm,
   useStudioGenOptional,
@@ -18,6 +22,7 @@ import { useOperatorUserUrlMount } from '@/hooks/use-operator-user-url-mount'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
 import { useModelPickerMemory } from '@/hooks/use-model-picker-memory'
 import { getModelVariant } from '@/constants/models'
+import { useRouter } from '@/i18n/navigation'
 import { foldChannels } from '@/lib/group-models-for-picker'
 import { toModelChannelCandidate } from '@/lib/pick-default-model-option'
 import { resolveModelChannel } from '@/lib/resolve-model-channel'
@@ -61,6 +66,7 @@ function removeReferenceByUrl(
 
 export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
   const { state, dispatch } = useStudioForm()
+  const router = useRouter()
   const { imageUpload } = useStudioData()
   /**
    * ⚠ 两个池子**都要订阅**（hook 不能有条件地调）。选哪一个由域决定 —— 而这正是
@@ -231,6 +237,16 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
         }
         // ⚠ 只记**助手指名的**那一条：自动成立的单渠道不写进手选记忆。
         if (channelId) modelMemory.rememberChannel(modelKey, channelId)
+        /**
+         * ⭐ **换到另一台的型号就跟着换台**（拆分与反推实跑 09-24：自然语言台上换
+         * NovelAI，被默认型号 hook 当成跨台陈旧选择顶回 FLUX）。先改方言再推
+         * 路由，与选择器里「跳到标签台」同一件事。
+         */
+        const targetDialect = getPromptDialect(channels[0]!.option.adapterType)
+        if (targetDialect !== latest.current.state.promptDialect) {
+          dispatch({ type: 'SET_PROMPT_DIALECT', payload: targetDialect })
+          router.push(PROMPT_DIALECT_ROUTES[targetDialect])
+        }
         dispatch({ type: 'SET_OPTION_ID', payload: resolved.channel.channelId })
         return true
       },
@@ -367,7 +383,7 @@ export function useStudioWorkbenchOperatorHost(): StudioOperatorHost {
        * 三绿」的失败。域工具表本来就不给工作台那三条 LoRA 工具。
        */
     }),
-    [dispatch, modelMemory, userUrl],
+    [dispatch, modelMemory, router, userUrl],
   )
 
   /**

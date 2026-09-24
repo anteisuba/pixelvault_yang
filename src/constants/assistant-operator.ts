@@ -2117,6 +2117,48 @@ export const ASSISTANT_WORKING_MEMORY = {
  * Danbooru 标签，中文整段被当成噪声；`20::` 把一个标签压成满屏重复。
  * ⚠ `Text:` 之后是要画进图里的字，那一段允许任何文字。
  */
+/**
+ * **NAI 标签核对**（拆分与反推 B3，owner 09-24）：写入前逐个比对本地 Danbooru
+ * 词表与 NAI 官方联想，写错的换成最接近的真实标签，查不到的原样保留。
+ */
+export const ASSISTANT_NAI_TAG_CHECK = {
+  /** 超过这么多个词的一段当自然语言，不核对。 */
+  maxWords: 4,
+  /** 一次写入最多查几条联想（其余不核对）。 */
+  maxLookups: 24,
+  /** 联想并发数。 */
+  lookupConcurrency: 6,
+  /** 词长到这么长才允许按「错一个字母」认成同一个词（短词错一个字就是另一个词）。 */
+  minTypoWordLength: 5,
+  /** 灰字里「没查到」最多列几个，其余说「等 N 个」。 */
+  maxListedUnknown: 5,
+  /**
+   * NAI 自己认、Danbooru 上没有的质量 / 美学 / 数据集词 —— 查不到也不算错。
+   * 🔬 官方 V4.5 / V5 文档的质量标签与 UC 预设词。
+   */
+  nonDanbooruTags: [
+    'masterpiece',
+    'best quality',
+    'amazing quality',
+    'great quality',
+    'good quality',
+    'normal quality',
+    'bad quality',
+    'low quality',
+    'worst quality',
+    'very aesthetic',
+    'aesthetic',
+    'displeasing',
+    'very displeasing',
+    'no text',
+    'location',
+    'very awa',
+    'fur dataset',
+    'background dataset',
+    'illustration',
+  ],
+} as const
+
 export const ASSISTANT_NAI_PROMPT_LIMITS = {
   /** 连着出现几个中日韩字就算「写了中文」—— 单字多半是符号或颜文字。 */
   minCjkRun: 2,
@@ -2124,6 +2166,11 @@ export const ASSISTANT_NAI_PROMPT_LIMITS = {
   maxNumericEmphasis: 3,
   /** `{{{…}}}` / `[[[…]]]` 连续层数上限；每层 ×1.05，6 层约 ×1.34。 */
   maxBraceDepth: 6,
+  /**
+   * 逗号之间超过这么多个词就是一句话，不是标签（拆分与反推实跑 09-24：标签串里
+   * 混进「Use @Image1 for the character's identity…」整句）。
+   */
+  maxPhraseWords: 6,
 } as const
 
 /**

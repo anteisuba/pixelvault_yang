@@ -254,7 +254,9 @@
     },
     "skipToMainContent": "跳到主内容",
     "requestCount": "{count} 次请求",
-    "loading": "加载中"
+    "loading": "加载中",
+    "copy": "复制",
+    "copied": "已复制"
   },
   "XiaoheiGuide": {
     "stepCounter": "第 {current} / {total} 步",
@@ -3345,29 +3347,6 @@
       "precise": "精确角色参考"
     },
     "novelAiReferenceModeHint": "图生图重绘底图；精确角色参考保留外观，每张生成额外消耗 5 Anlas。"
-  },
-  "ReverseEngineer": {
-    "title": "图片反向工程",
-    "sourceDescription": "上传或选择一张图片，提取画风、角色、背景或标签。",
-    "selectAsset": "选择素材",
-    "analyzing": "AI 正在分析图片...",
-    "generatedPromptLabel": "生成的提示词",
-    "generateVariations": "用所有模型生成变体",
-    "generatingVariations": "正在生成变体...",
-    "variationsTitle": "已生成 {count} 个变体",
-    "originalImage": "原图",
-    "failedModels": "失败: {models}",
-    "analysisFailed": "分析失败",
-    "generationFailed": "生成失败",
-    "reset": "重置",
-    "useAsPrompt": "填入提示词",
-    "selectDimensions": "你想从这张图片中提取什么？",
-    "dimArtStyle": "画风",
-    "dimCharacter": "角色",
-    "dimBackground": "背景",
-    "dimOverall": "整体",
-    "dimTags": "标签 (NovelAI)",
-    "extract": "提取"
   },
   "PromptAssistant": {
     "turn": {
@@ -7433,7 +7412,11 @@
       "details": "做了 {count} 步",
       "promptUnchanged": "提示词尚未修改",
       "blocked": "操作未完成",
-      "inspectFailure": "展开执行记录查看原因，可在下方补充或调整要求。"
+      "inspectFailure": "展开执行记录查看原因，可在下方补充或调整要求。",
+      "tagFixed": "有 {count} 个按 Danbooru 换了写法：{list}。",
+      "tagUnknown": "{list}{more, plural, =0 { } other { 等 # 个}}没查到，原样保留。",
+      "tagListSeparator": "，",
+      "tagSentenceSeparator": ""
     },
     "checkpoint": {
       "summary": "改了{fields}",

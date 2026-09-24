@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 
 import { useStudioForm } from '@/contexts/studio-context'
 import {
@@ -35,8 +35,16 @@ export function StudioModeSync({
   dialect = DEFAULT_PROMPT_DIALECT,
 }: StudioModeSyncProps) {
   const { state, dispatch } = useStudioForm()
+  /**
+   * ⚠ **只在路由换了时对齐**，⛔ 不盯状态（拆分与反推实跑 09-24）：助手换到另一
+   * 台的型号时先改状态、再推路由，中间这一拍盯状态会把它拨回旧台，默认型号那条
+   * hook 随即把刚换的型号当成「跨台的陈旧选择」顶掉。
+   */
+  const syncedDialect = useRef<PromptDialect | null>(null)
 
   useEffect(() => {
+    if (syncedDialect.current === dialect) return
+    syncedDialect.current = dialect
     if (state.promptDialect === dialect) return
     dispatch({ type: 'SET_PROMPT_DIALECT', payload: dialect })
   }, [dialect, state.promptDialect, dispatch])

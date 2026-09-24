@@ -254,7 +254,9 @@
     },
     "skipToMainContent": "メインコンテンツへ移動",
     "requestCount": "{count} リクエスト",
-    "loading": "読み込み中"
+    "loading": "読み込み中",
+    "copy": "コピー",
+    "copied": "コピーしました"
   },
   "XiaoheiGuide": {
     "stepCounter": "{current} / {total} ステップ",
@@ -3345,29 +3347,6 @@
       "precise": "精密キャラクター参照"
     },
     "novelAiReferenceModeHint": "画像から生成は元画像を描き直します。精密キャラクター参照は外観を保ち、生成画像ごとに 5 Anlas が追加されます。"
-  },
-  "ReverseEngineer": {
-    "title": "画像からプロンプト",
-    "sourceDescription": "画像をアップロードまたは選択して、画風、キャラクター、背景、タグを抽出します。",
-    "selectAsset": "素材を選択",
-    "analyzing": "AIで画像を分析中...",
-    "generatedPromptLabel": "生成されたプロンプト",
-    "generateVariations": "全モデルでバリエーションを生成",
-    "generatingVariations": "バリエーションを生成中...",
-    "variationsTitle": "{count}個のバリエーションを生成",
-    "originalImage": "オリジナル",
-    "failedModels": "失敗: {models}",
-    "analysisFailed": "分析に失敗しました",
-    "generationFailed": "生成に失敗しました",
-    "reset": "リセット",
-    "useAsPrompt": "プロンプトとして使用",
-    "selectDimensions": "この画像から何を抽出しますか？",
-    "dimArtStyle": "画風",
-    "dimCharacter": "キャラクター",
-    "dimBackground": "背景",
-    "dimOverall": "全体",
-    "dimTags": "タグ (NovelAI)",
-    "extract": "抽出"
   },
   "PromptAssistant": {
     "turn": {
@@ -7433,7 +7412,11 @@
       "details": "{count} ステップ実行",
       "promptUnchanged": "プロンプトは未変更です",
       "blocked": "操作が完了していません",
-      "inspectFailure": "実行記録で理由を確認するか、下で要望を補足・修正してください。"
+      "inspectFailure": "実行記録で理由を確認するか、下で要望を補足・修正してください。",
+      "tagFixed": "{count} 件を Danbooru の表記に直しました：{list}。",
+      "tagUnknown": "{list}{more, plural, =0 {} other { ほか #件}}は見つからなかったため、そのまま残しました。",
+      "tagListSeparator": "、",
+      "tagSentenceSeparator": ""
     },
     "checkpoint": {
       "summary": "{fields}を変更",

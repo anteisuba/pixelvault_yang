@@ -46,6 +46,7 @@ import {
   ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_TOOL_VERBS,
   ASSISTANT_OPERATOR_REJECT_REASON_IDS,
+  ASSISTANT_OPERATOR_RESUME_STEP_STATE_IDS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_STOP_REASONS,
   ASSISTANT_OPERATOR_TOOL_IDS,
@@ -135,6 +136,7 @@ import {
   readOperatorReferenceProfiles,
 } from '@/lib/studio-operator-history'
 import {
+  failedResumeStep,
   firstUnfinishedStepId,
   hasUnfinishedSteps,
   toResumeFrom,
@@ -312,6 +314,20 @@ function writtenTextOf(step: AssistantOperatorStep): string | undefined {
     : step.payload.value
 }
 
+/**
+ * 比「这段是不是助手写的」时的口径：按逗号分段、去空白再拼回。
+ * ⚠ 标签台（与刷新后的草稿回灌）会把提示词按标签块重新拼一遍，逗号后的空格
+ * 变了就逐字对不上 —— 实跑 09-24：助手自己上一轮写的标签被当成用户手写，又问
+ * 了一遍「追加 / 覆盖 / 保留」。
+ */
+function authorshipKey(text: string): string {
+  return text
+    .split(',')
+    .map((piece) => piece.trim().replace(/\s+/g, ' '))
+    .filter(Boolean)
+    .join(', ')
+}
+
 function buildAuthoredByAssistant(
   entries: readonly StudioOperatorThreadEntry[],
   snapshot: AssistantOperatorRequest['snapshot'],
@@ -349,11 +365,21 @@ function buildAuthoredByAssistant(
       ) {
         break
       }
-      if (writtenTextOf(step) === current) out.push(field)
+      const written = writtenTextOf(step)
+      if (
+        written !== undefined &&
+        authorshipKey(written) === authorshipKey(current)
+      )
+        out.push(field)
       break
     }
     // ⭐ 线程里找不到（开了新对话）就问登记簿：它跨会话留着助手上一次写下的全文。
-    if (!out.includes(field) && changes[field]?.writtenText === current)
+    const written = changes[field]?.writtenText
+    if (
+      !out.includes(field) &&
+      written !== undefined &&
+      authorshipKey(written) === authorshipKey(current)
+    )
       out.push(field)
   }
   return out
@@ -1756,8 +1782,35 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
        * 助手把同一件事又做一遍。
        * ⛔ `stopped`（等你定 / 撞上限）与报错那两支**不清**：那正是它存在的理由。
        */
+      /**
+       * ⚠ **停在生成确认卡上也算做完**（拆分与反推实跑 09-24）：那张卡就是计划的
+       * 最后一格（「准备生成确认卡」不是工具步，永远勾不上），留着续跑的表现是
+       * 卡片底下还挂一颗「从第 4 步继续」。
+       * ⚠ 正常收尾时没勾上的那几格**补上勾**：它们是在回答里做完的（「根据画面
+       * 整理标签」），留成空圈读起来像没做。有挂掉的步不补（那是续跑要接的）；
+       * 一步都没做完的不补（实跑：点「开始」后只回了一句许诺，三格全被勾上）。
+       */
       const finished = getOperatorState().resume
-      if (finished && (roundFinished || !hasUnfinishedSteps(finished))) {
+      const stoppedAtGenerateCard =
+        waiting.confirm?.kind ===
+          ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
+        waiting.confirm.status === STUDIO_OPERATOR_CONFIRM_STATUS_IDS.idle
+      if (
+        finished &&
+        (roundFinished ||
+          stoppedAtGenerateCard ||
+          !hasUnfinishedSteps(finished))
+      ) {
+        if (
+          !failedResumeStep(finished) &&
+          finished.steps.some(
+            (step) =>
+              step.state === ASSISTANT_OPERATOR_RESUME_STEP_STATE_IDS.done,
+          )
+        )
+          for (const step of finished.steps)
+            if (step.state !== ASSISTANT_OPERATOR_RESUME_STEP_STATE_IDS.done)
+              markOperatorResumeStep(step.id, { state: 'done' })
         clearOperatorResumePlan()
       }
       /**

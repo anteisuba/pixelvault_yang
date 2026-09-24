@@ -30,6 +30,10 @@ const modelOptions = vi.hoisted(() => [
   { optionId: 'openai-test', modelId: 'gpt-image-test' },
 ])
 const setReferenceImage = vi.hoisted(() => vi.fn())
+const routerPush = vi.hoisted(() => vi.fn())
+vi.mock('@/i18n/navigation', () => ({
+  useRouter: () => ({ push: routerPush }),
+}))
 
 /**
  * 模型显示名那张词表（`Models.*.label`）—— 这个 hook 从 2026-09-12 起读它，好让
@@ -306,5 +310,51 @@ describe('useStudioWorkbenchOperatorHost 的 face（D7b ③）', () => {
     rerender()
     expect(result.current.face.emptyLine).toBe('face.video.empty')
     expect(result.current.face.inputPlaceholder).toBe('face.video.placeholder')
+  })
+})
+
+describe('useStudioWorkbenchOperatorHost 换到另一台的型号（拆分与反推实跑 09-24）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    if (!modelOptions.some((option) => option.optionId === 'nai-v5-full'))
+      modelOptions.push({
+        optionId: 'nai-v5-full',
+        modelId: 'nai-diffusion-5-full',
+        adapterType: 'novelai',
+        keyId: 'key-nai',
+        providerConfig: {
+          label: 'NovelAI',
+          baseUrl: 'https://image.novelai.net',
+        },
+      } as (typeof modelOptions)[number])
+    formState.overrides = { promptDialect: 'natural' }
+  })
+
+  it('自然语言台上换 NovelAI：先换到标签台再选型号，⛔ 不留在原台被默认型号顶掉', () => {
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    const applied = result.current.apply.selectModelChannel?.({
+      modelId: 'nai-diffusion-5-full',
+      channelId: null,
+    })
+    expect(applied).toBe(true)
+    expect(dispatch).toHaveBeenCalledWith({
+      type: 'SET_PROMPT_DIALECT',
+      payload: 'tags',
+    })
+    expect(routerPush).toHaveBeenCalledWith('/studio/image/tags')
+    expect(dispatch).toHaveBeenLastCalledWith({
+      type: 'SET_OPTION_ID',
+      payload: expect.any(String),
+    })
+  })
+
+  it('同一台里换型号不动路由', () => {
+    formState.overrides = { promptDialect: 'tags' }
+    const { result } = renderHook(() => useStudioWorkbenchOperatorHost())
+    result.current.apply.selectModelChannel?.({
+      modelId: 'nai-diffusion-5-full',
+      channelId: null,
+    })
+    expect(routerPush).not.toHaveBeenCalled()
   })
 })

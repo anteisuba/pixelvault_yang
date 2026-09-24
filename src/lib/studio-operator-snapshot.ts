@@ -133,15 +133,30 @@ function buildCapabilitiesNode(
   hasReferenceImage: boolean,
 ): AssistantOperatorSnapshot['capabilities'] {
   if (!selectedModel) return undefined
-  const chips = getModelCapabilityChips(
+  return buildOperatorCapabilities(
     selectedModel.adapterType,
     selectedModel.modelId,
+    params,
+    hasReferenceImage,
   )
+}
+
+/**
+ * 同一份派生按「型号 + 现值」直接算 —— 服务端 `set_model` 之后重算这一节也走它
+ * （拆分与反推 X8：同一轮里换到 V4.5 就得马上认得「角色参考」那颗）。
+ */
+export function buildOperatorCapabilities(
+  adapterType: AI_ADAPTER_TYPES,
+  modelId: string,
+  params: Partial<Record<string, unknown>>,
+  hasReferenceImage: boolean,
+): AssistantOperatorSnapshot['capabilities'] {
+  const chips = getModelCapabilityChips(adapterType, modelId)
   if (chips.length === 0) return undefined
   return chips
     .slice(0, ASSISTANT_OPERATOR_LIMITS.maxSpecOptions)
     .map((chip) => {
-      const raw = params[chip.capability as keyof AdvancedParams]
+      const raw = params[chip.capability]
       return {
         key: chip.capability,
         kind: chip.kind,

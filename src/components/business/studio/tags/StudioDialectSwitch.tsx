@@ -6,17 +6,11 @@ import { useTranslations } from 'next-intl'
 import { motionTransition } from '@/constants/motion'
 import {
   PROMPT_DIALECTS,
-  type PromptDialect,
+  PROMPT_DIALECT_ROUTES,
 } from '@/constants/prompt-dialects'
-import { ROUTES } from '@/constants/routes'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useRouter } from '@/i18n/navigation'
 import { cn } from '@/lib/utils'
-
-const DIALECT_ROUTES: Record<PromptDialect, string> = {
-  natural: ROUTES.STUDIO_IMAGE,
-  tags: ROUTES.STUDIO_IMAGE_TAGS,
-}
 
 /**
  * 自然语言 · 标签 —— 两台之间**唯一**的门（D10 ④）。
@@ -48,7 +42,7 @@ export function StudioDialectSwitch({ disabled }: { disabled?: boolean }) {
             disabled={disabled}
             onClick={() => {
               if (active) return
-              router.push(DIALECT_ROUTES[dialect])
+              router.push(PROMPT_DIALECT_ROUTES[dialect])
             }}
             className={cn(
               'relative rounded-full px-3.5 py-1 text-2xs transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50',

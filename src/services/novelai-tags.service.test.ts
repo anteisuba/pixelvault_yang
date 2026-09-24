@@ -7,7 +7,10 @@ vi.mock('@/services/apiKey.service', () => ({
 import { ensureUser } from '@/services/user.service'
 import { findActiveKeyForAdapter } from '@/services/apiKey.service'
 import { NovelAiTagQuerySchema } from '@/types/novelai-tags'
-import { suggestNovelAiTags } from './novelai-tags.service'
+import {
+  checkNovelAiPromptTags,
+  suggestNovelAiTags,
+} from './novelai-tags.service'
 
 const query = NovelAiTagQuerySchema.parse({
   model: 'nai-diffusion-5-curated',
@@ -79,5 +82,55 @@ describe('NovelAI official tag suggestions', () => {
       NovelAiTagQuerySchema.safeParse({ ...query, prompt: 'a'.repeat(201) })
         .success,
     ).toBe(false)
+  })
+})
+
+describe('NovelAI tag check before the assistant writes (拆分与反推 B3)', () => {
+  const suggest = (tags: string[]) =>
+    new Response(JSON.stringify({ tags: tags.map((tag) => ({ tag })) }))
+  const check = (prompt: string) =>
+    checkNovelAiPromptTags({
+      userId: 'user-1',
+      modelId: 'nai-diffusion-5-full',
+      prompt,
+    })
+
+  it('dictionary tags need no lookup; aliases are rewritten to the real tag', async () => {
+    const result = await check('1girl, black hair, cherry blossom, serafuku')
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(result).toEqual({
+      prompt: '1girl, black hair, cherry blossoms, serafuku',
+      fixes: [{ from: 'cherry blossom', to: 'cherry blossoms' }],
+      unknown: [],
+    })
+  })
+
+  it('asks NovelAI for the rest: close spelling is fixed, nothing close is kept and reported', async () => {
+    fetchMock.mockImplementation(async (url: URL) =>
+      url.searchParams.get('prompt') === 'pleated skirts'
+        ? suggest(['pleated skirt', 'pleated dress'])
+        : suggest(['sakura (flower)']),
+    )
+    const result = await check('1girl, {pleated skirts}, sakura tree')
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    expect(result).toEqual({
+      prompt: '1girl, {pleated skirt}, sakura tree',
+      fixes: [{ from: 'pleated skirts', to: 'pleated skirt' }],
+      unknown: ['sakura tree'],
+    })
+  })
+
+  it('draws no conclusion when it cannot look a tag up (no key / upstream error)', async () => {
+    vi.mocked(findActiveKeyForAdapter).mockResolvedValue(null)
+    expect(await check('1girl, sakura tree')).toEqual({
+      prompt: '1girl, sakura tree',
+      fixes: [],
+      unknown: [],
+    })
+    vi.mocked(findActiveKeyForAdapter).mockResolvedValue({
+      keyValue: 'test-secret',
+    } as NonNullable<Awaited<ReturnType<typeof findActiveKeyForAdapter>>>)
+    fetchMock.mockResolvedValue(new Response('down', { status: 502 }))
+    expect((await check('1girl, sakura tree')).unknown).toEqual([])
   })
 })

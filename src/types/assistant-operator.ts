@@ -67,6 +67,7 @@ import {
   ASSISTANT_ROUND_SUMMARY_LIMITS as ROUND_LIMITS,
   ASSISTANT_SOURCE_ALLOWLIST_LIMITS as SOURCE_ALLOWLIST_LIMITS,
   GENERATION_REVIEW_STATES,
+  ASSISTANT_NAI_TAG_CHECK,
   type AssistantOperatorTool,
 } from '@/constants/assistant-operator'
 import { ASSISTANT_PLAN_VISUAL_IDS } from '@/constants/assistant-plan-visuals'
@@ -3032,6 +3033,18 @@ export const AssistantOperatorAppliedStepSchema = z.discriminatedUnion('tool', [
     z.object({
       value: TextValueSchema,
       mode: AssistantOperatorWriteModeSchema,
+      /**
+       * NAI 标签核对的结果（拆分与反推 B3）—— 服务端填，客户端在过程行上方说一句。
+       * ⚠ 只在真的换过写法或有查不到的时才有。
+       */
+      tagCheck: z
+        .object({
+          fixes: z
+            .array(z.object({ from: LabelSchema, to: LabelSchema }))
+            .max(ASSISTANT_NAI_TAG_CHECK.maxLookups * 2),
+          unknown: z.array(LabelSchema).max(ASSISTANT_NAI_TAG_CHECK.maxLookups),
+        })
+        .optional(),
     }),
     /** ⚠ 逆操作一律是**改前的完整原文**（可能是空串），所以 append / replace 撤法相同。 */
     z.object({ value: TextValueSchema }),

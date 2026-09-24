@@ -226,6 +226,8 @@ export function placeOperatorRoundSummaries(
  * 的头注（量 DOM 换来的是拖宽面板时会抖的折叠开关）。
  */
 export function shouldCollapseOperatorText(text: string): boolean {
+  /** ⚠ 带代码块的不折：反推给的那段就是交付物（拆分与反推 X2 / X3）。 */
+  if (text.includes('```')) return false
   return (
     countOperatorTextLines(text) > STUDIO_OPERATOR_TIMELINE.collapseAfterLines
   )

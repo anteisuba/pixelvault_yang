@@ -1,6 +1,7 @@
 import 'server-only'
 import { createHash } from 'node:crypto'
 import { findNovelAiPromptProblem } from '@/lib/novelai-prompt-guard'
+import type { NovelAiTagFix } from '@/lib/novelai-tag-check'
 import {
   AssistantLoraParametersSchema,
   type AssistantLoraParameters,
@@ -278,6 +279,8 @@ import {
  * 那条链会落库。
  */
 import { findVisionCapableRoute } from '@/services/vision/vision-route.service'
+import { checkNovelAiPromptTags } from '@/services/novelai-tags.service'
+import { buildOperatorCapabilities } from '@/lib/studio-operator-snapshot'
 /**
  * ⭐ **抽帧落库**（第二期 · 视频域评审）。加它进钱闸白名单的判据只有一条：
  * 它把客户端交上来的三张**帧图**核对后转存 R2，然后就结束了 —— 不建 generation、
@@ -686,6 +689,8 @@ interface OperatorRun {
   referenceBriefDegraded: boolean
   /** 写入后复核挑出的问题已经退回给模型重写过一次（D12 Q3）。 */
   promptReviewRetried: boolean
+  /** NAI 标签核对查不到的已经退回给模型改写过一次（拆分与反推 B3）。 */
+  tagCheckRetried: boolean
   request: AssistantOperatorRequest
   state: OperatorWorkingState
   /**
@@ -1215,7 +1220,21 @@ function hasUsableSpecOptions(snapshot: AssistantOperatorSnapshot): boolean {
   return (
     specs !== undefined &&
     specs.aspectRatioOptions.length > 0 &&
-    specs.resolutionOptions.length > 0
+    (specs.resolutionOptions.length > 0 || hasNoResolutionTiers(snapshot))
+  )
+}
+
+/**
+ * 选了模型、但这个模型**本来就没有清晰度档**（NovelAI 按比例出固定像素）——
+ * 比例照样能改，清晰度写表单那一格的默认档 `auto`（与确认卡上改比例同一口径）。
+ * ⚠ 没选模型时清晰度表也是空的，那一支照旧走「先 set_model」（拆分与反推实跑
+ * 09-24：NAI 上照搬三视图，比例改不动，横幅被出成 3:4）。
+ */
+function hasNoResolutionTiers(snapshot: AssistantOperatorSnapshot): boolean {
+  return (
+    snapshot.model !== null &&
+    snapshot.model !== undefined &&
+    (snapshot.specs?.resolutionOptions.length ?? 0) === 0
   )
 }
 
@@ -1441,9 +1460,11 @@ function renderState(
       }`,
     )
     lines.push(
-      `- Resolution: ${state.resolution ?? '(not set)'} — options: ${
-        specs?.resolutionOptions.join(', ') || '(none)'
-      }`,
+      hasNoResolutionTiers(request.snapshot)
+        ? '- Resolution: this model has no resolution tiers — set_specs still changes the aspect ratio; pass resolution "auto".'
+        : `- Resolution: ${state.resolution ?? '(not set)'} — options: ${
+            specs?.resolutionOptions.join(', ') || '(none)'
+          }`,
     )
     lines.push(
       '  (set_specs always carries aspectRatio and resolution. Optional quality and background are independent of resolution.)',
@@ -1522,6 +1543,18 @@ function renderState(
      * 出现，没有一句话说「这些你看得到」，而看图那条被写成了 set_prompt 的前置。
      * ⛔ 这一句不是阈值也不是拦截：只把「你有眼睛」说出口。
      */
+    /**
+     * ⭐ **拆分与反推 B1 / B2 / B4**（owner 09-24）：按话分三类，⛔ 不设模式、不为分类提问。
+     */
+    if (request.domain === 'image') {
+      lines.push(
+        '  How much of a mounted reference to keep is decided by their words — never ask which they meant. COPY ("draw this", "recreate", "replicate", "exactly like this", or just the picture plus "draw"): keep composition, pose, palette and art style; keep the reference mounted so the image model sees it; before the confirm card, set_specs to the closest aspect option printed next to that reference (a wide turnaround sheet stays wide). NEW SCENE ("the same character" / "this person" plus new content): the prompt keeps only identity and art style, the new content follows their words, and the reference\'s composition is not copied. TEXT ONLY ("reverse it", "give me the tags", "describe this picture"): analyze it, then answer with the prompt in ONE fenced code block and change nothing on the workbench — no set_prompt, no confirm card, no mounting, and no plan (it is a single answer, not a multi-step job). For a text-only answer, use the dialect they named — "tags" means real Danbooru tags (one concept per tag, e.g. black hair, long hair, pleated skirt, multiple views; never descriptive phrases like "black military-inspired outfit"), "natural language" means one English descriptive paragraph; if they named neither, Danbooru tags when the current model is NovelAI, the English paragraph for any other model.',
+      )
+      if (resolveAdapterType(state.modelId ?? '') === AI_ADAPTER_TYPES.NOVELAI)
+        lines.push(
+          `  On NovelAI a mounted reference is image-to-image: it carries the composition, and the prompt never contains @ImageN tokens or sentences — write what you keep from the reference as Danbooru tags. COPY: keep it mounted and set referenceStrength to 0.8 (higher = closer to the original); say that number and what it means in one clause. NEW SCENE on NovelAI V5: V5 has no character reference, so ask once with two options — stay on V5 with tags only (unmount the reference; newer style, lower likeness for an original character) or switch to NovelAI V4.5 Full (id: ${AI_MODELS.NOVELAI_V45_FULL}) and set novelAiReferenceMode to "precise" (closer likeness, older style). On V4.5 go straight to "precise".`,
+        )
+    }
     lines.push(
       '  Never tell the creator you cannot see these pictures — you can. Whenever they ask what a mounted reference looks like (its style, content, composition, colours), or you need one to write the prompt, call look with action "analyze_references" FIRST and answer from what you actually saw. If they @-mentioned @ImageN this turn, inspect only those images — other mounted slots stay unread. If CURRENT VERIFIED REFERENCE EVIDENCE below already covers the images in question, answer from that evidence instead of analysing them again.',
     )
@@ -3299,6 +3332,25 @@ function planSetModel(
       // ⚠ 没指定就是「还没定」—— ⛔ 不留着上一个型号的渠道（那是另一个型号的路）。
       run.state.modelChannelId = args.channelId ?? null
       /**
+       * 专属参数跟着型号换（拆分与反推 X8）：原来整轮都读开跑时那份快照，换到
+       * V4.5 之后「角色参考」那颗设不进去，要等下一轮。与界面同一份派生。
+       */
+      if (run.state.hasCapabilityControl) {
+        const adapter = resolveAdapterType(match.id)
+        const values = Object.fromEntries(
+          run.state.capabilities.map((item) => [item.key, item.value]),
+        )
+        run.state.capabilities =
+          (adapter &&
+            buildOperatorCapabilities(
+              adapter,
+              match.id,
+              values,
+              run.state.referenceUrls.some(Boolean),
+            )) ||
+          []
+      }
+      /**
        * LoRA 域换底模 = 换家族（2026-09-12 真机 bug）。`loraBaseFamily` 原本只在
        * 开跑时从快照取一次，同一轮里 set_model 之后的兼容判定、权重预算、状态块
        * 方言指纹全读到旧家族 —— 刚切到 pony 的底模会把一把 pony LoRA 拒掉。
@@ -3591,6 +3643,7 @@ async function planSetText(
   run: OperatorRun,
   field: AssistantOperatorConfirmField,
   args: { value: string; mode?: string; overwrite?: boolean },
+  userId: string,
 ): Promise<ToolPlan> {
   const isPrompt = field === ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt
   if (!isPrompt && !run.state.hasNegativeControl) {
@@ -3619,7 +3672,7 @@ async function planSetText(
     }
   }
 
-  const value =
+  let value =
     isPrompt && run.request.domain === 'image'
       ? normalizeReferenceMentions(args.value)
       : args.value
@@ -3638,11 +3691,51 @@ async function planSetText(
         detail: clamp(
           problem.kind === 'cjk'
             ? `NovelAI only reads English Danbooru tags, and this ${isPrompt ? 'prompt' : 'negative prompt'} contains Chinese/Japanese text ("${problem.sample}"). Translate every such phrase into English tags (a named character becomes its exact Danbooru tag, e.g. denia (wuthering waves)); only letters to be drawn may follow "Text:". Then call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn.`
-            : `This emphasis is far too strong for NovelAI ("${problem.sample}"). Keep numeric weights within ±${ASSISTANT_NAI_PROMPT_LIMITS.maxNumericEmphasis} (1.1–1.5 is already strong) and brace nesting within ${ASSISTANT_NAI_PROMPT_LIMITS.maxBraceDepth} layers, then call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn.`,
+            : problem.kind === 'mention'
+              ? `NovelAI cannot read ${problem.sample}: the mounted reference reaches it as image-to-image or a precise reference, never through the prompt. Describe what you keep from it as Danbooru tags instead, then call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn.`
+              : problem.kind === 'sentence'
+                ? `NovelAI reads comma-separated Danbooru tags, not sentences ("${problem.sample}…"). Turn it into tags or drop it (a layout wish like "not a character sheet" is a tag such as solo, full body — or belongs in the negative prompt), then call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn.`
+                : `This emphasis is far too strong for NovelAI ("${problem.sample}"). Keep numeric weights within ±${ASSISTANT_NAI_PROMPT_LIMITS.maxNumericEmphasis} (1.1–1.5 is already strong) and brace nesting within ${ASSISTANT_NAI_PROMPT_LIMITS.maxBraceDepth} layers, then call ${isPrompt ? 'set_prompt' : 'set_negative'} again in this same turn.`,
           LIMITS.maxReasonChars,
         ),
         quiet: true,
       }
+  }
+  /**
+   * ⭐ **标签核对**（拆分与反推 B3，owner 09-24）：NAI 正向提示词写入前逐个比对
+   * Danbooru 词表与官方联想，写错的换成最接近的真实标签、查不到的原样保留。
+   * 换了什么由系统在过程行上方说一句（`tagCheck` 随步下发），⛔ 不靠模型转述。
+   */
+  let tagCheck: { fixes: NovelAiTagFix[]; unknown: string[] } | null = null
+  if (
+    isPrompt &&
+    resolveAdapterType(run.state.modelId ?? '') === AI_ADAPTER_TYPES.NOVELAI
+  ) {
+    const checked = await checkNovelAiPromptTags({
+      userId,
+      modelId: run.state.modelId ?? '',
+      prompt: value,
+    })
+    /**
+     * ⭐ 查不到的先**退回给模型改写一次**（实跑 09-24：一整串描述短语
+     * `long dark blue-black hair` 进了标签台，灰字刷成一大段）。改写后仍查不到的
+     * 才照写并说一句。⚠ 同一步的草稿（`quiet`），⛔ 不在时间线上画成失败。
+     */
+    if (checked.unknown.length > 0 && !run.tagCheckRetried) {
+      run.tagCheckRetried = true
+      return {
+        kind: 'rejected',
+        reason: REJECT.unknownValue,
+        detail: clamp(
+          `Some entries are not Danbooru / NovelAI tags. Rewrite each as the real tag(s) it means (one concept per tag; long dark blue-black hair → long hair, black hair, blue hair), then call set_prompt again this turn with the full prompt. Not tags: ${checked.unknown.join(', ')}`,
+          LIMITS.maxReasonChars,
+        ),
+        quiet: true,
+      }
+    }
+    value = checked.prompt
+    if (checked.fixes.length > 0 || checked.unknown.length > 0)
+      tagCheck = { fixes: checked.fixes, unknown: checked.unknown }
   }
   if (isPrompt && run.request.domain === 'image') {
     const missing = getReferenceMentionIndices(value).find(
@@ -3947,7 +4040,11 @@ async function planSetText(
 
   return {
     kind: 'mutate',
-    payload: { value: payloadValue, mode: payloadMode },
+    payload: {
+      value: payloadValue,
+      mode: payloadMode,
+      ...(tagCheck ? { tagCheck } : {}),
+    },
     // ⚠ 逆操作永远是改前的完整原文，两种 mode 撤法因此完全一样。
     inverse: { value: current },
     observation: `${isPrompt ? 'Positive' : 'Negative'} prompt (${mode}) is now: "${clamp(
@@ -3956,6 +4053,10 @@ async function planSetText(
     )}"${
       current.trim() && creatorSaidOverwrite
         ? ' The creator had already asked for this to be overwritten, so it was replaced without asking again. Tell them plainly that you overwrote it as they asked; do not ask whether to keep or append.'
+        : ''
+    }${
+      tagCheck
+        ? ` Tags were checked against Danbooru / NovelAI before writing${tagCheck.fixes.length ? `; rewritten: ${tagCheck.fixes.map((fix) => `${fix.from} → ${fix.to}`).join(', ')}` : ''}${tagCheck.unknown.length ? `; not found, kept as written: ${tagCheck.unknown.join(', ')}` : ''}. The creator already sees this under your reply — do not list it again, and do not write the old spellings back.`
         : ''
     }${loraMaterialObservation(loraMaterial)}${
       needsReferenceReview && run.referenceBriefDegraded
@@ -4061,9 +4162,11 @@ function planSetSpecs(
   if (!specs?.aspectRatioOptions.includes(args.aspectRatio)) {
     return reject(REJECT.unknownValue, `aspectRatio "${args.aspectRatio}"`)
   }
-  if (!specs.resolutionOptions.includes(args.resolution)) {
+  const tierless = hasNoResolutionTiers(run.request.snapshot)
+  if (!tierless && !specs.resolutionOptions.includes(args.resolution)) {
     return reject(REJECT.unknownValue, `resolution "${args.resolution}"`)
   }
+  const resolution = tierless ? 'auto' : args.resolution
 
   const adapter = run.state.modelId
     ? resolveAdapterType(run.state.modelId)
@@ -4117,14 +4220,14 @@ function planSetSpecs(
     // ⚠ 台账 AE/BG/BS：两个字段必须同时下发，缺一个就不是真比例。
     payload: {
       aspectRatio: args.aspectRatio,
-      resolution: args.resolution,
+      resolution,
       ...patch,
     },
     inverse: previous,
-    observation: `Specs are now ${args.aspectRatio} · ${args.resolution}.`,
+    observation: `Specs are now ${args.aspectRatio} · ${resolution}.`,
     apply: () => {
       run.state.aspectRatio = args.aspectRatio
-      run.state.resolution = args.resolution
+      run.state.resolution = resolution
       if (args.preview !== undefined) run.state.preview = args.preview
       if (args.quality !== undefined)
         run.state.quality = parsedParams.data.quality
@@ -6708,12 +6811,14 @@ async function planTool(
         run,
         ASSISTANT_OPERATOR_CONFIRM_FIELDS.prompt,
         parsed.data as { value: string; mode?: string; overwrite?: boolean },
+        userId,
       )
     case TOOL.setNegative:
       return planSetText(
         run,
         ASSISTANT_OPERATOR_CONFIRM_FIELDS.negative,
         parsed.data as { value: string; mode?: string; overwrite?: boolean },
+        userId,
       )
     case TOOL.setSpecs:
       return planSetSpecs(
@@ -8984,6 +9089,7 @@ export async function* runAssistantOperator(
     referencePromptWritten: false,
     referenceBriefDegraded: false,
     promptReviewRetried: false,
+    tagCheckRetried: false,
     request,
     persona,
     // 进了系统提示的那几条一开始就在索引里 —— 引用它们不必先调一次工具。

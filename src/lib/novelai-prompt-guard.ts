@@ -3,6 +3,8 @@ import { ASSISTANT_NAI_PROMPT_LIMITS } from '@/constants/assistant-operator'
 export type NovelAiPromptProblem =
   | { kind: 'cjk'; sample: string }
   | { kind: 'emphasis'; sample: string }
+  | { kind: 'mention'; sample: string }
+  | { kind: 'sentence'; sample: string }
 
 const CJK_RUN = new RegExp(
   `[\\u3040-\\u30ff\\u3400-\\u9fff\\uac00-\\ud7af]{${ASSISTANT_NAI_PROMPT_LIMITS.minCjkRun},}`,
@@ -31,5 +33,16 @@ export function findNovelAiPromptProblem(
   }
   const braces = BRACE_RUN.exec(body)
   if (braces) return { kind: 'emphasis', sample: braces[0] }
+  /** NAI 看不懂 `@ImageN` —— 参考图走的是图生图 / 精确参考那一路，不在提示词里。 */
+  const mention = /@Image\d+/i.exec(body)
+  if (mention) return { kind: 'mention', sample: mention[0] }
+  const sentence = body
+    .split(',')
+    .map((piece) => piece.trim())
+    .find(
+      (piece) =>
+        piece.split(/\s+/).length > ASSISTANT_NAI_PROMPT_LIMITS.maxPhraseWords,
+    )
+  if (sentence) return { kind: 'sentence', sample: sentence.slice(0, 60) }
   return null
 }

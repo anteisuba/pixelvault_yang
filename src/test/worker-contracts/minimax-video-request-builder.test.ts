@@ -93,6 +93,21 @@ describe('buildMiniMaxVideoRequest', () => {
     expect(rolesOf(body, 'image_url')).toEqual(['first_frame'])
   })
 
+  it('sends images[1] as last_frame on the base model', () => {
+    const body = buildMiniMaxVideoRequest({
+      prompt: PROMPT,
+      modelId: AI_MODELS.MINIMAX_H3,
+      externalModelId: H3_EXTERNAL_ID,
+      aspectRatio: '16:9',
+      referenceImages: [IMG(1), IMG(2), IMG(3)],
+    })
+
+    expect(contentOf(body).slice(1)).toEqual([
+      { type: 'image_url', image_url: { url: IMG(1) }, role: 'first_frame' },
+      { type: 'image_url', image_url: { url: IMG(2) }, role: 'last_frame' },
+    ])
+  })
+
   it('ignores motion and voice references on the base model', () => {
     // The base id has no multimodal face; sending reference_video there is a
     // 400, so extra modalities must be dropped rather than forwarded.
@@ -106,9 +121,33 @@ describe('buildMiniMaxVideoRequest', () => {
       audioUrls: [AUD(1)],
     })
 
-    expect(rolesOf(body, 'image_url')).toEqual(['first_frame'])
+    expect(rolesOf(body, 'image_url')).toEqual(['first_frame', 'last_frame'])
     expect(rolesOf(body, 'video_url')).toEqual([])
     expect(rolesOf(body, 'audio_url')).toEqual([])
+  })
+
+  it('never sends adaptive on text-only content — t2v requires a concrete ratio', () => {
+    for (const modelId of [
+      AI_MODELS.MINIMAX_H3,
+      AI_MODELS.MINIMAX_H3_REFERENCE,
+    ]) {
+      const body = buildMiniMaxVideoRequest({
+        prompt: PROMPT,
+        modelId,
+        externalModelId: H3_EXTERNAL_ID,
+        aspectRatio: 'adaptive',
+      })
+      expect(contentOf(body)).toHaveLength(1)
+      expect(body.ratio, modelId).toBe('16:9')
+    }
+
+    const concrete = buildMiniMaxVideoRequest({
+      prompt: PROMPT,
+      modelId: AI_MODELS.MINIMAX_H3,
+      externalModelId: H3_EXTERNAL_ID,
+      aspectRatio: '9:16',
+    })
+    expect(concrete.ratio).toBe('9:16')
   })
 
   it('emits reference roles on the reference model, prompt entry first', () => {

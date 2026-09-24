@@ -205,7 +205,7 @@ export const VIDEO_MODEL_CAPABILITIES: Partial<
   // Kling V3 / O3 Pro 没有分辨率旋钮：fal 的 4 个端点（v3、o3 各自的
   // text-to-video + image-to-video）输入 schema 里都不存在 resolution 字段，
   // Pro 档固定出 1080p（4K 是 kling-video/v3/4k/* 这个独立端点，本项目未接）。
-  // buildKlingV3Pro 因此从不读 input.resolution，选了也不会发出去。
+  // buildKlingV3Pro / buildKlingO3Pro 因此从不读 input.resolution，选了也不会发出去。
   // 与 GEMINI_OMNI_FLASH 同一处理：给一个名义值，而不是空数组——空数组会在
   // 展开合并里盖掉默认的 VIDEO_RESOLUTIONS，让 UI 出现一个零选项的空选择器。
   [AI_MODELS.KLING_V3_PRO]: {

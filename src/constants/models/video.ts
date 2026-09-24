@@ -199,9 +199,9 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     },
   },
   {
-    // Kling VIDEO 3.0 Omni (O3) Pro — element / video-reference heavy track.
-    // Body shape matches V3 Pro for prompt, duration (3–15s), generate_audio,
-    // start_image_url, aspect_ratio (see fal kling-video/o3/pro/*).
+    // Kling VIDEO 3.0 Omni (O3) Pro. fal kling-video/o3/pro/*: prompt, duration
+    // (3–15s), generate_audio, aspect_ratio (t2v), image_url + end_image_url
+    // (i2v). No negative_prompt / cfg_scale, unlike V3 Pro.
     id: AI_MODELS.KLING_O3_PRO,
     cost: 7,
     adapterType: AI_ADAPTER_TYPES.FAL,
@@ -215,8 +215,6 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     qualityTier: 'premium',
     i2vModelId: 'fal-ai/kling-video/o3/pro/image-to-video',
     videoDefaults: {
-      negativePrompt: 'blur, distort, and low quality',
-      cfgScale: 0.5,
       generateAudio: true,
     },
   },
@@ -519,7 +517,7 @@ export const VIDEO_MODEL_OPTIONS: ModelOption[] = [
     timeoutMs: 300_000,
     qualityTier: 'premium',
     // i2v runs through the same execution id — the adapter promotes the
-    // reference image to a `first_frame` content entry.
+    // reference images to `first_frame` / `last_frame` content entries.
     videoDefaults: {
       generateAudio: true,
       resolution: '2k',

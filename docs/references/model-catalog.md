@@ -241,7 +241,7 @@ Fish：owner 2026-09-06 选择同时保留 `s2.1-pro` 和 `s2.1-pro-free`。付�
 | 项                         | 状态                          | 代码事实（2026-07-31 复核）                                                                                                 |
 | -------------------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
 | **Fish TTS 升 s2.1-pro**   | ✅ 已实现                     | `models/audio.ts` `externalModelId: 's2.1-pro'`；**稳定 key 仍是 `fish-audio-s2-pro`**（只换 external id，不动 enum）       |
-| **Kling O3 Pro**           | ✅ 已实现                     | 新模型条目 + fal builder 与 V3 同形                                                                                         |
+| **Kling O3 Pro**           | ✅ 已实现                     | 新模型条目 + 独立 fal builder（09-24 按一手 schema 与 V3 拆开）                                                             |
 | **ElevenLabs Music v2**    | ✅ 已实现                     | `externalModelId: 'music_v2'` + `audioKind: MUSIC` + `generateMusic` + service 分支 → **speech / sfx / music 三档矩阵补齐** |
 | **FLUX.2 Pro Edit**        | ✅ 已实现                     | catalog + fal 多参考分支 + 编辑能力 `object-replace` / `style-transfer`                                                     |
 | **Gemini Omni 去 preview** | **2026-09-06 已实现、待部署** | 已升级 1.1 并接通 Worker，当前契约见 ⑦                                                                                      |

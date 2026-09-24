@@ -88,13 +88,13 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     defaultRole: 'subject',
     mode: 'native',
   },
-  // O3 Pro i2v: same start_image_url shape as V3 in our builder; cap mirrors V3
-  // until we wire o3-specific element/video reference slots.
+  // O3 Pro i2v 收 `image_url` + 可选 `end_image_url`，没有 elements —— 两张，
+  // 第二张是尾帧（同 Wan 3.0 那条的说明）。
   [AI_MODELS.KLING_O3_PRO]: {
     kind: 'flexible',
     min: 0,
-    max: FAL_KLING_V3_MAX_REFERENCE_IMAGES,
-    defaultRole: 'subject',
+    max: 2,
+    defaultRole: 'general',
     mode: 'native',
   },
   // O3 video-to-video/edit: `image_urls` 是可选的风格/外观参考，与 `elements`
@@ -229,6 +229,22 @@ const VIDEO_MODEL_REFERENCE_OVERRIDES: Partial<
     min: 1,
     max: 30,
     defaultRole: 'subject',
+    mode: 'native',
+  },
+  // MiniMax H3 base: first_frame + optional last_frame — two images, the
+  // second one is the last frame (see the Wan 3.0 entry above).
+  [AI_MODELS.MINIMAX_H3]: {
+    kind: 'flexible',
+    min: 0,
+    max: 2,
+    defaultRole: 'general',
+    mode: 'native',
+  },
+  [AI_MODELS.MINIMAX_H3_CN]: {
+    kind: 'flexible',
+    min: 0,
+    max: 2,
+    defaultRole: 'general',
     mode: 'native',
   },
   // MiniMax H3 reference face — same 9-image ceiling as Seedance. The 12-file

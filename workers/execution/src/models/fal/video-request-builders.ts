@@ -299,6 +299,48 @@ function buildKlingV3Pro(
 }
 
 /**
+ * Kling O3 Pro —— fal `kling-video/o3/pro/{text,image}-to-video`（2026-09-24 核
+ * 一手 OpenAPI）。与 V3 Pro 不同形，不能共用 buildKlingV3Pro：
+ *
+ * - i2v 首帧叫 `image_url`（required），不是 V3 的 `start_image_url`；尾帧是
+ *   可选的 `end_image_url`。
+ * - 两条端点都没有 `negative_prompt` / `cfg_scale`。
+ */
+function buildKlingO3Pro(
+  context: FalWorkerVideoRequestContext,
+  mode: FalWorkerVideoMode,
+): Record<string, unknown> {
+  const { providerInput } = context
+  const body: Record<string, unknown> = {
+    prompt: providerInput.prompt,
+    duration: pickClampedStringDuration(
+      asNumericDuration(providerInput.duration),
+      3,
+      15,
+    ),
+    generate_audio:
+      providerInput.generateAudio ??
+      readDefaultBoolean(providerInput.videoDefaults, 'generateAudio') ??
+      true,
+  }
+
+  if (mode === 'image-to-video') {
+    body.image_url = requireReferenceImage(context)
+    // 尾帧：与 Wan 3.0 / Seedance 2.5 同一约定，referenceImages[1] 是尾帧。
+    const endImage = providerInput.referenceImages?.[1]
+    if (endImage) body.end_image_url = endImage
+  } else {
+    body.aspect_ratio = pickString(
+      providerInput.aspectRatio,
+      FAL_TEXT_ASPECT_RATIOS,
+      '16:9',
+    )
+  }
+
+  return body
+}
+
+/**
  * Kling O3 video-to-video/edit —— fal
  * `kling-video/o3/{standard,pro}/video-to-video/edit`（2026-09-17 核一手
  * OpenAPI，standard 与 pro 的输入 schema 逐字同形）。
@@ -802,8 +844,9 @@ function buildBody(
 ): Record<string, unknown> {
   switch (normalizeWorkerModelId(context.providerInput.modelId)) {
     case FAL_VIDEO_MODEL_IDS.KLING_V3_PRO:
-    case FAL_VIDEO_MODEL_IDS.KLING_O3_PRO:
       return buildKlingV3Pro(context, mode)
+    case FAL_VIDEO_MODEL_IDS.KLING_O3_PRO:
+      return buildKlingO3Pro(context, mode)
     case FAL_VIDEO_MODEL_IDS.KLING_O3_STANDARD_V2V_EDIT:
     case FAL_VIDEO_MODEL_IDS.KLING_O3_PRO_V2V_EDIT:
       return buildKlingO3VideoEdit(context)

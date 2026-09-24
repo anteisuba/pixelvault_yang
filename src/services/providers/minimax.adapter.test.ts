@@ -68,6 +68,7 @@ describe('MiniMax H3 catalog wiring', () => {
       AI_MODELS.MINIMAX_H3,
       AI_ADAPTER_TYPES.MINIMAX,
     )
-    expect(base.slots).toMatchObject({ images: 1, videos: 0, audio: 0 })
+    // Base id: first frame + last frame, no motion or voice references.
+    expect(base.slots).toMatchObject({ images: 2, videos: 0, audio: 0 })
   })
 })

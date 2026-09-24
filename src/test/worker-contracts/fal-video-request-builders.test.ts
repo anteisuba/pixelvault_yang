@@ -113,6 +113,8 @@ const falBodyCases: FalBodyCase[] = [
     },
     absentFields: ['image_url', 'aspect_ratio'],
   },
+  // O3 Pro 的 t2v / i2v schema 里没有 negative_prompt / cfg_scale，i2v 首帧叫
+  // `image_url`（required）—— 与 V3 Pro 不同形。
   {
     label: 'Kling O3 Pro T2V',
     modelId: AI_MODELS.KLING_O3_PRO,
@@ -123,10 +125,13 @@ const falBodyCases: FalBodyCase[] = [
       duration: '5',
       generate_audio: true,
       aspect_ratio: '16:9',
-      negative_prompt: 'blur, distort, and low quality',
-      cfg_scale: 0.5,
     },
-    absentFields: ['image_url', 'start_image_url'],
+    absentFields: [
+      'image_url',
+      'start_image_url',
+      'negative_prompt',
+      'cfg_scale',
+    ],
   },
   {
     label: 'Kling O3 Pro I2V',
@@ -136,13 +141,17 @@ const falBodyCases: FalBodyCase[] = [
     expectedMode: 'image-to-video',
     expectedBody: {
       prompt: PROMPT,
-      start_image_url: REF,
+      image_url: REF,
       duration: '5',
       generate_audio: true,
-      negative_prompt: 'blur, distort, and low quality',
-      cfg_scale: 0.5,
     },
-    absentFields: ['image_url', 'aspect_ratio'],
+    absentFields: [
+      'start_image_url',
+      'end_image_url',
+      'aspect_ratio',
+      'negative_prompt',
+      'cfg_scale',
+    ],
   },
   {
     label: 'Kling O3 Standard V2V Edit',
@@ -574,6 +583,36 @@ describe('buildFalWorkerQueueRequest — per-model bodies', () => {
       start_image_url: REF,
       end_image_url: endFrame,
     })
+  })
+
+  it('sends a Kling O3 Pro end frame from referenceImages[1]', () => {
+    const endFrame = 'https://example.com/end.png'
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.KLING_O3_PRO, REF, {
+        referenceImages: [REF, endFrame],
+      }),
+    )
+
+    expect(result.endpointModelId).toBe(
+      'fal-ai/kling-video/o3/pro/image-to-video',
+    )
+    expect(result.input).toMatchObject({
+      image_url: REF,
+      end_image_url: endFrame,
+    })
+    expect(result.input).not.toHaveProperty('start_image_url')
+  })
+
+  it('drops an explicit negative prompt on Kling O3 Pro — the field does not exist', () => {
+    const result = buildFalWorkerQueueRequest(
+      buildWorkerInput(AI_MODELS.KLING_O3_PRO, REF, {
+        negativePrompt: 'blurry',
+        videoDefaults: { cfgScale: 0.5, negativePrompt: 'low quality' },
+      }),
+    )
+
+    expect(result.input).not.toHaveProperty('negative_prompt')
+    expect(result.input).not.toHaveProperty('cfg_scale')
   })
 
   it('clamps Wan 3.0 duration into the published [2, 30] range', () => {

@@ -52,6 +52,13 @@ const MAX_REFERENCE_VIDEOS = 3
 const MAX_REFERENCE_AUDIO = 3
 const MAX_REFERENCE_FILES = 12
 
+/**
+ * Concrete ratios the v2 endpoint accepts. Text-only content (t2v) must carry
+ * one of these — `adaptive` or an omitted `ratio` is a parameter error there.
+ */
+const CONCRETE_RATIOS = ['21:9', '16:9', '4:3', '1:1', '3:4', '9:16']
+const DEFAULT_RATIO = '16:9'
+
 export interface MiniMaxVideoBuilderInput {
   prompt: string
   modelId: string
@@ -133,7 +140,10 @@ export function buildMiniMaxVideoRequest(
       }
     }
   } else {
-    const firstFrame = images[0]
+    // First & last frame: images[0] is the first frame, images[1] the last —
+    // the same positional convention the fal / volcengine builders read
+    // (`orderKeyframes` puts the first frame ahead of the last).
+    const [firstFrame, lastFrame] = images
     if (firstFrame) {
       content.push({
         type: 'image_url',
@@ -141,14 +151,29 @@ export function buildMiniMaxVideoRequest(
         role: 'first_frame',
       })
     }
+    if (lastFrame) {
+      content.push({
+        type: 'image_url',
+        image_url: { url: lastFrame },
+        role: 'last_frame',
+      })
+    }
   }
+
+  // With frames the provider ignores `ratio` (treated as adaptive); with
+  // references it is optional. Only text-to-video needs a concrete value.
+  const isTextOnly = content.length === 1
+  const ratio =
+    isTextOnly && !CONCRETE_RATIOS.includes(input.aspectRatio)
+      ? DEFAULT_RATIO
+      : input.aspectRatio
 
   return {
     model: input.externalModelId,
     content,
     duration: normalizeDuration(input.duration),
     resolution: RESOLUTION,
-    ratio: input.aspectRatio,
+    ratio,
   }
 }
 

@@ -69,9 +69,9 @@ export interface VideoModelSendContract {
    * images 而不声明槽位，第二张图会被当成一张无语义的参考图发出去（那正是首尾帧
    * 从未生效的原因，见 cleanup §1 第 ④⑤ 层）。
    *
-   * ⚠ 判据是**我们的 worker 发得出来吗**，不是「上游支不支持」。目前只有火山
-   * （volcengine）的 builder 会发 `role:'last_frame'`；fal 的 builder 里根本没有
-   * 帧角色概念，minimax 只发 `first_frame`。声明得比实现宽，用户填了尾帧就会被
+   * ⚠ 判据是**我们的 worker 发得出来吗**，不是「上游支不支持」。火山 / MiniMax
+   * 的 builder 发 `role:'last_frame'`，fal 的 builder 按模型发 `end_image_url`
+   * （Seedance 2.5 / Wan 3.0 / Kling O3 Pro）。声明得比实现宽，用户填了尾帧就会被
    * 静默丢掉 —— 正是这一轮一路在治的那类缺陷。
    */
   keyframeSlots: 1 | 2
@@ -91,9 +91,9 @@ const FIRST_LAST_FRAME_SLOTS: VideoReferenceSlots = {
 }
 
 /**
- * 真正能发送首尾帧的模型。Ark 使用 `first_frame` / `last_frame` role；fal
- * Seedance 2.5 的公开 I2V schema 使用 `image_url` / `end_image_url`。2.0 fal
- * 没有尾帧字段，MiniMax 当前也只发送首帧，所以都不在表内。
+ * Seedance 家族里真正能发送首尾帧的模型。Ark 使用 `first_frame` / `last_frame`
+ * role；fal Seedance 2.5 的公开 I2V schema 使用 `image_url` / `end_image_url`。
+ * 2.0 fal 没有尾帧字段，所以不在表内。
  */
 const FIRST_LAST_FRAME_MODEL_IDS = new Set<string>([
   AI_MODELS.SEEDANCE_20_VOLCENGINE,
@@ -305,7 +305,7 @@ export function getVideoModelSendContract(
             total: 12,
             audioRequiresVisual: true,
           }
-        : FIRST_FRAME_SLOTS,
+        : FIRST_LAST_FRAME_SLOTS,
       parameters: {
         duration: true,
         aspectRatio: true,
@@ -318,8 +318,12 @@ export function getVideoModelSendContract(
       },
       execution: executionStatus(adapterType),
       positionalImageTokens: referenceMode,
+      // 带首/尾帧时上游固定按 adaptive 处理、传具体比例只会被忽略（不报错），
+      // 所以不必像 Seedance 2.5 那样钉死；纯文生时照常发用户选的具体比例。
       imageAspectRatioLock: null,
-      keyframeSlots: 1,
+      // 非参考端点发 first_frame + last_frame（v2 content role）；参考端点与
+      // 首尾帧互斥。
+      keyframeSlots: referenceMode ? 1 : 2,
     }
   }
 
@@ -356,13 +360,30 @@ export function getVideoModelSendContract(
     }
   }
 
-  if (
-    normalized === AI_MODELS.KLING_V3_PRO ||
-    normalized === AI_MODELS.KLING_O3_PRO
-  ) {
-    // O3 Omni currently shares the V3 request shape in our fal builders
-    // (prompt / duration / generate_audio / start_image_url). Element & multi
-    // video-reference UI for O3 is a later surface — catalog + switcher first.
+  if (normalized === AI_MODELS.KLING_O3_PRO) {
+    // fal `kling-video/o3/pro/{text,image}-to-video`（2026-09-24 核一手 OpenAPI）
+    // 与 V3 Pro 不同形：i2v 收 `image_url` + 可选 `end_image_url`，两条端点都
+    // 没有 negative_prompt / cfg_scale。buildKlingO3Pro 两帧都发得出来。
+    return {
+      family: 'kling',
+      referenceMode: 'text-or-first-frame',
+      slots: FIRST_LAST_FRAME_SLOTS,
+      parameters: {
+        duration: true,
+        aspectRatio: true,
+        resolution: false,
+        negativePrompt: false,
+        generateAudio: true,
+        seed: false,
+      },
+      execution: executionStatus(adapterType),
+      positionalImageTokens: false,
+      imageAspectRatioLock: null,
+      keyframeSlots: 2,
+    }
+  }
+
+  if (normalized === AI_MODELS.KLING_V3_PRO) {
     return {
       family: 'kling',
       referenceMode: 'text-or-first-frame',

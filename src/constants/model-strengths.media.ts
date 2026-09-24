@@ -22,23 +22,34 @@ import {
 
 /* ── Seedance ──────────────────────────────────────────────────────────────
  * https://www.volcengine.com/docs/82379/2607689
- * The one difference that decides whether a prompt lands: 2.0 reads shot
- * labels (镜头1 / 镜头2) and ignores second ranges; 2.5 reads whole-second
- * ranges. Writing 2.5's segmentation into a 2.0 prompt loses the whole
- * timeline silently — no error, just one undifferentiated shot.
+ * 2.0 cuts on the 镜头N label and ignores seconds; 2.5 reads whole-second
+ * timestamps. owner 09-24: write both (镜头1（0-3秒）) — the label does the
+ * cutting on 2.0, the range is for the reader.
+ * Asset tokens differ by channel: fal documents @Image1 / @Video1 / @Audio1
+ * (fal schema `image_urls` description); Ark (VolcEngine / BytePlus) writes
+ * 图片1 / 视频1 / 音频1. The keyframe id carries the reference syntax too:
+ * mounting a reference switches the send to the reference endpoint.
+ * 【】 is the on-screen caption mark, so section names are written plainly.
  */
-const SEEDANCE_20_HINT =
-  'Seedance 2.0 (ByteDance). Four blocks in order: reference bindings, a one-line summary of the whole clip, the beats, then a closing line for what runs through all of them. Label beats 镜头1 / 镜头2 / 镜头3 — 2.0 reads shot labels only and ignores second ranges, so a range written here is dead text. Bind assets first (将<图片1>中的[特征]定义为<主体1>) and refer to them afterwards as <主体1>@<图片1>. Reserved characters carry meaning: （）music, <>sound effect, {}spoken line, 【】on-screen caption; name the language of any non-English line. One camera move per 镜头. The trailing switches --rs --dur --cf are weakly validated: a typo is silently ignored rather than refused. Lock identity, wardrobe and space; never lock the pose.'
+const SEEDANCE_COMMON =
+  "Order: one global line (medium, palette, light, the character's look, and any exclusions as plain constraints such as 纯净画面，无字幕无文字), then asset bindings, then the shots, then one sound line. Write section names plainly (全局设定：) — never inside 【】 or <>. Reserved characters: （）music, <>sound effect, {}spoken line, 【】on-screen caption. One camera move per shot. There is no negative field. Keep it under 500 Chinese characters. Lock identity, wardrobe and space; never the pose."
 
-const SEEDANCE_25_HINT =
-  'Seedance 2.5 (ByteDance). Four blocks in order: reference bindings, a one-line summary of the whole clip, the beats, then a closing line for what runs through all of them. 2.5 reads a whole-second timestamp, so segment the beats as ranges (0-3s / 3-7s) over a four-beat spine — opener, development, escalation, resolution — and keep the whole prompt under 500 Chinese characters. Bind assets first (将<图片1>中的[特征]定义为<主体1>) and refer to them afterwards as <主体1>@<图片1>. Reserved characters carry meaning: （）music, <>sound effect, {}spoken line, 【】on-screen caption. One camera move per beat. The trailing switches --rs --dur --cf are weakly validated: a typo is silently ignored. Lock identity, wardrobe and space; never lock the pose.'
+const SEEDANCE_20_TIMELINE =
+  'Label shots 镜头1（0-3秒）/ 镜头2（3-5秒）: 2.0 cuts on the 镜头N label and ignores the seconds, which are there for the reader.'
 
-/** Reference-to-video variants: the mounted assets ARE the bindings. */
-const SEEDANCE_REFERENCE_SUFFIX =
-  ' Reference variant: mounted assets are numbered in mount order as <图片1>, <图片2>; bind each before you use it, and give each one job.'
+const SEEDANCE_25_TIMELINE =
+  'Label shots 镜头1（0-3秒）/ 镜头2（3-7秒）: 2.5 reads the whole-second timestamp, so the ranges really cut; up to 30 seconds over a four-beat spine.'
 
-const SEEDANCE_20_REFERENCE_HINT = `${SEEDANCE_20_HINT}${SEEDANCE_REFERENCE_SUFFIX}`
-const SEEDANCE_25_REFERENCE_HINT = `${SEEDANCE_25_HINT}${SEEDANCE_REFERENCE_SUFFIX}`
+const SEEDANCE_FAL_ASSETS =
+  'Mounted assets are @Image1, @Image2… / @Video1 / @Audio1, each counted in mount order. Bind before use — 将@Image1中的红发女孩定义为林夏，@Audio1是林夏的声音 — then call her by the name, and give every asset one job.'
+
+const SEEDANCE_ARK_ASSETS =
+  'Mounted assets are 图片1, 图片2… / 视频1 / 音频1, each counted in mount order. Bind before use — 将图片1中的红发女孩定义为林夏，音频1是林夏的声音 — then call her by the name, and give every asset one job.'
+
+const SEEDANCE_20_FAL_HINT = `Seedance 2.0 (ByteDance, fal). ${SEEDANCE_20_TIMELINE} ${SEEDANCE_COMMON} ${SEEDANCE_FAL_ASSETS}`
+const SEEDANCE_20_ARK_HINT = `Seedance 2.0 (ByteDance, Ark). ${SEEDANCE_20_TIMELINE} ${SEEDANCE_COMMON} ${SEEDANCE_ARK_ASSETS}`
+const SEEDANCE_25_FAL_HINT = `Seedance 2.5 (ByteDance, fal). ${SEEDANCE_25_TIMELINE} ${SEEDANCE_COMMON} ${SEEDANCE_FAL_ASSETS}`
+const SEEDANCE_25_ARK_HINT = `Seedance 2.5 (ByteDance, Ark). ${SEEDANCE_25_TIMELINE} ${SEEDANCE_COMMON} ${SEEDANCE_ARK_ASSETS}`
 
 const SEEDANCE_BEST_FOR = [
   'multi-shot',
@@ -51,20 +62,34 @@ const seedance = (enhanceHint: string): ModelStrength => ({
   bestFor: SEEDANCE_BEST_FOR,
   promptStyle: 'natural-language',
   enhanceHint,
-  negativePrompt: 'supported',
+  negativePrompt: 'unsupported',
 })
 
 /* ── Kling ─────────────────────────────────────────────────────────────────
- * https://www.kling.ai/blog/kling-ai-prompt-guide
+ * https://kling.ai/quickstart/klingai-video-3-model-user-guide
+ * https://blog.fal.ai/kling-3-0-prompting-guide/ · fal OpenAPI (v3 / o3 pro)
+ * Kling says outright there is no fixed formula. V3 Pro has negative_prompt;
+ * O3 Pro has none (no cfg_scale either).
  */
-const KLING_HINT =
-  'Kling (fal). Natural-language English in a fixed order: Subject + Action + Scene + Camera + Lighting. Multi-shot lives in one prompt, numbered and comma-joined as "Shot 1, ... Shot 2, ...", each shot carrying its own camera and lighting. A spoken line is written 角色名（语气）: 内容 — speaker, tone in brackets, then the words; five languages and regional accents are supported. negative_prompt is a separate field capped at 2500 characters and takes plain nouns, not sentences. When a voice is already bound to an element, do not describe the timbre again in the prompt: the binding wins and a second description fights it.'
+const KLING_BASE_HINT =
+  'Kling (fal). Chinese or English prose with no fixed order — cover subject, action, scene, camera and light. Multi-shot lives in one prompt as "Shot 1 (3s): … Shot 2 (2s): …", shots separated by full stops, at most six, the seconds adding up to the clip length. Dialogue: [Name, voice]: "line" — the action first, then the line; keep English lines lowercase apart from names. The prompt is capped at 2500 characters.'
+
+const KLING_HINT = `${KLING_BASE_HINT} negative_prompt is a separate field (also 2500 characters) for what to keep out.`
+
+/** O3 Pro t2v / i2v（fal 一手 schema）：没有 negative_prompt，也没有 elements。 */
+const KLING_O3_HINT = `${KLING_BASE_HINT} There is no negative_prompt field, so exclusions go into the prompt as what should be there instead.`
 
 const kling = (): ModelStrength => ({
   bestFor: ['multi-shot', 'dialogue', 'camera-control', 'video-extension'],
   promptStyle: 'natural-language',
   enhanceHint: KLING_HINT,
   negativePrompt: 'supported',
+})
+
+const klingO3 = (): ModelStrength => ({
+  ...kling(),
+  enhanceHint: KLING_O3_HINT,
+  negativePrompt: 'unsupported',
 })
 
 /**
@@ -91,40 +116,43 @@ const VEO_31_HINT =
   'Veo 3.1 (fal). Structured English from seven blocks: subject, action, scene, camera (shot size, angle, movement), lighting and mood, style or film stock, and audio. Audio is written as SEPARATE sentences — one for ambience, one per sound effect, one per spoken line — because the model splits on sentence boundaries; dialogue goes inside quotation marks: She says, "we should go." The negative prompt takes nouns only: write "cartoon, blur, watermark", never "no cartoon" or "don\'t blur". A negation word is read as its own subject and can summon exactly what it was meant to forbid.'
 
 /**
- * https://help.aliyun.com/zh/model-studio/text-to-video-prompt
+ * https://help.aliyun.com/zh/model-studio/wan3-video-generation-prompt-guide
+ * fal OpenAPI (alibaba/wan-3.0/*): no negative_prompt on any endpoint;
+ * `enable_prompt_expansion` defaults on and fal warns that turning it off
+ * degrades quality. 500 characters was the 2.7 negative cap — not 3.0.
  */
 const WAN_30_HINT =
-  'Wan 3.0 (Alibaba, fal). Structured Chinese lands best. Number the shots as 第1个镜头[0-3秒] / 第2个镜头[3-8秒] — the bracketed range is part of the label, not a note. Inside a shot the order is 主体 + 动作 + 环境 + 运镜 + 光线. A spoken line goes in quotation marks straight after its speaker. Keep the negative prompt under 500 characters. prompt_extend defaults to true and will silently rewrite a short prompt: turn it off when the wording is already exact, or expect embellishment.'
-
-const WAN_30_REFERENCE_HINT = `${WAN_30_HINT} Image- and reference-driven runs: describe ONLY what moves and how the camera moves. Never restate what the reference already shows (face, wardrobe, set) — a restated static element gets redrawn, and the redraw drifts.`
+  'Wan 3.0 (Alibaba, fal). Chinese or English. Open with one line of theme, style and mood. Shots: 第1个镜头[0-3秒] then shot size and camera, subject, setting, motion, light; ranges contiguous, 2–5 seconds each; for one continuous take write 生成单镜头. Dialogue: 角色说："…"; voiceover 画外音："…". Write 无台词 and 无bgm when there should be none — otherwise the model adds its own. Sound effects as their own sentences. There is no negative field: end with 负向清单：不要… . Avoid high-frequency motion. enable_prompt_expansion is on; leave it on. Mounted assets are 图1 / 视频1 / 音频1, counted per type in mount order — say each one\'s job (图1的女孩是主角), use 音色参考音频1 once for a voice and add 口型同步 for lip sync, and restate a referenced character\'s key traits when she reappears.'
 
 /**
- * https://platform.minimax.io/docs/api-reference/video-generation-t2v
- * ⚠ 括号命令（`[Push in]` 等 15 条）是 Hailuo 2.3 那一代的文档写法，MiniMax
- * **没有**为 H3 记载过它 —— 所以这里的规则是「别依赖它」，不是「它无效」。
+ * https://huggingface.co/MiniMaxAI/MiniMax-H3/blob/main/docs/VIDEO_PROMPT_WRITING_GUIDE_base_en.md
+ * https://platform.minimax.io/docs/api-reference/video-generation-v2-create
+ * The official rewriter emits three English sections; that is the format the
+ * model is fed. H3 has no prompt_optimizer (that was v1 Hailuo) and no
+ * negative field. First/last frames and references never mix in one request.
  */
 const MINIMAX_H3_HINT =
-  'MiniMax H3 (video). Plain natural-language sentences in shot order: what is in frame, what moves, how the camera moves, then the light. No tag syntax and no weight brackets. Do not rely on [Push in] style bracket commands — those are documented for the Hailuo 2.3 generation, not for H3, so a bracket here may simply be read as literal text; write the move as a phrase instead ("the camera pushes in slowly"). prompt_optimizer defaults to true and rewrites a thin prompt; switch it off when the wording is deliberate. One subject and one action per sentence.'
+  'MiniMax H3. Three labelled English sections. integrated_multimodal_description: "[Shot 1]" style and framing, subject, action, camera as an in-sentence phrase ("the camera pushes in slowly"); later shots open "[Shot 2] At 00:03.000, the camera cuts to …". Speakers get a fixed id: The young woman (S1) says: <d>[Chinese]原文</d>. On-screen text verbatim in double quotes. overall_soundscape: 1–4 sentences of ambience and action sounds. non_diegetic_music: instruments and tempo, or N/A. Sound is always generated — describe it or it invents murmur. No negative field: state exclusions as sentences. 4–15 s, ≤7000 characters. Mounted assets are Image 1 / Video 1 / Audio 1, counted per type in mount order; give each a job (Image 1: the woman; Audio 1: her voice). First/last frames and references never mix.'
 
-const MINIMAX_H3_CN_HINT = `${MINIMAX_H3_HINT} CN station, same model: Chinese works as well as English.`
-
-const MINIMAX_H3_REFERENCE_SUFFIX =
-  ' Reference run: the mounted image becomes the first frame, so write motion and camera only.'
+const MINIMAX_H3_CN_HINT = `${MINIMAX_H3_HINT} CN station: same format — section text in English, spoken lines in their original language.`
 
 /**
- * https://ltx.io/blog/prompting-guide-for-ltx-2
+ * https://ltx.io/blog/ltx-2-3-prompt-guide · fal OpenAPI (no negative_prompt)
  */
 const LTX_23_HINT =
-  'LTX-2.3 (fal). English prose in six blocks, under 200 words: shot type, subject and appearance, action, setting, lighting, camera. Longer beats shorter here — a thin prompt gets filled in arbitrarily. It reads sentences: no bracket commands, no weight syntax, no tag lists. Spoken lines go in quotation marks. Three things break it: inner-state labels ("she feels betrayed" — write the physical trace instead), letters you expect rendered as readable text, and over-constraining numbers such as exact degrees, millimetres or frame counts.'
+  'LTX-2.3 (fal). One flowing English paragraph, action first, about 200 words, covering the establishing shot, setting, action, characters, camera and sound. Cuts are written inline ("Cut to a side view"). Dialogue in quotation marks, split into short phrases with delivery cues between them. Image-to-video: describe only the motion. Avoid emotion labels (write the physical trace), readable on-screen text, exact numbers, and conflicting light sources. There is no negative field.'
 
 /**
- * 【无官方来源】 — no vendor prompt guide exists for these. The hint states the
- * catalog default and says so, rather than inventing vendor rules.
+ * https://fal.ai/learn/tools/prompting-happy-horse
  */
-const GENERIC_VIDEO_HINT =
-  'No published prompt guide for this model — the shape below is the catalog default, not vendor guidance, so treat it as a starting point. One plain-language paragraph in a fixed order: subject + action + setting + camera move + lighting. Name the shot size and the angle in standard film terms. One camera move per shot, bound to something that happens rather than to a clock. Write emotion as a physical trace, never as a bare label. Keep on-screen text out of it.'
+const HAPPYHORSE_HINT =
+  'HappyHorse (Alibaba, fal). Short English prose — roughly 20–60 words: subject, action, setting, time, and one camera cue last; longer prompts make faces, hands and gait drift. Several beats become a short shot list with times: Shot 1 (0-2s): … Shot 2 (2-5s): … . Dialogue sits inside the narration: her voice low and steady: "…". It generates sound on its own; there is no audio switch and no negative field. The first frame is the mounted image: describe only what moves.'
 
-const GEMINI_OMNI_FLASH_HINT = `${GENERIC_VIDEO_HINT} Google publishes no video-specific guide for this model; its image guidance is the closest source — narrative sentences over attribute lists, and say what should be in frame rather than what should not.`
+/**
+ * https://ai.google.dev/gemini-api/docs/omni
+ */
+const GEMINI_OMNI_FLASH_HINT =
+  'Gemini Omni Flash (Google). English is the only evaluated language. Prose covering camera, action, movement, light and sound. It cuts scenes on its own: write "In a single continuous shot" / "No scene cuts" for one take; time beats with [0-3s] … [3-6s] … . Reference images are <IMAGE_REF_0>, <IMAGE_REF_1>… counted from 0 in mount order — the workbench\'s 图片1 is <IMAGE_REF_0>; first and last frames are <FIRST_FRAME> / <LAST_FRAME>. Sound in plain sentences (Sound design: …). No negative field: say it in the text ("No dialogue").'
 
 /* ── Audio ─────────────────────────────────────────────────────────────── */
 
@@ -161,44 +189,34 @@ const ELEVENLABS_MUSIC_HINT =
 export const MEDIA_MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> =
   {
     // ── Seedance 2.0 — fal ──────────────────────────────────────────────
-    [AI_MODELS.SEEDANCE_20]: seedance(SEEDANCE_20_HINT),
-    [AI_MODELS.SEEDANCE_20_FAST]: seedance(SEEDANCE_20_HINT),
-    [AI_MODELS.SEEDANCE_20_REFERENCE]: seedance(SEEDANCE_20_REFERENCE_HINT),
-    [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: seedance(
-      SEEDANCE_20_REFERENCE_HINT,
-    ),
+    [AI_MODELS.SEEDANCE_20]: seedance(SEEDANCE_20_FAL_HINT),
+    [AI_MODELS.SEEDANCE_20_FAST]: seedance(SEEDANCE_20_FAL_HINT),
+    [AI_MODELS.SEEDANCE_20_REFERENCE]: seedance(SEEDANCE_20_FAL_HINT),
+    [AI_MODELS.SEEDANCE_20_FAST_REFERENCE]: seedance(SEEDANCE_20_FAL_HINT),
     // ── Seedance 2.0 — VolcEngine ───────────────────────────────────────
-    [AI_MODELS.SEEDANCE_20_VOLCENGINE]: seedance(SEEDANCE_20_HINT),
-    [AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE]: seedance(SEEDANCE_20_HINT),
-    [AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE]: seedance(
-      SEEDANCE_20_REFERENCE_HINT,
-    ),
-    [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]: seedance(
-      SEEDANCE_20_REFERENCE_HINT,
-    ),
+    [AI_MODELS.SEEDANCE_20_VOLCENGINE]: seedance(SEEDANCE_20_ARK_HINT),
+    [AI_MODELS.SEEDANCE_20_FAST_VOLCENGINE]: seedance(SEEDANCE_20_ARK_HINT),
+    [AI_MODELS.SEEDANCE_20_REFERENCE_VOLCENGINE]:
+      seedance(SEEDANCE_20_ARK_HINT),
+    [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_VOLCENGINE]:
+      seedance(SEEDANCE_20_ARK_HINT),
     // ── Seedance 2.0 — BytePlus ─────────────────────────────────────────
-    [AI_MODELS.SEEDANCE_20_BYTEPLUS]: seedance(SEEDANCE_20_HINT),
-    [AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS]: seedance(SEEDANCE_20_HINT),
-    [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: seedance(
-      SEEDANCE_20_REFERENCE_HINT,
-    ),
-    [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]: seedance(
-      SEEDANCE_20_REFERENCE_HINT,
-    ),
+    [AI_MODELS.SEEDANCE_20_BYTEPLUS]: seedance(SEEDANCE_20_ARK_HINT),
+    [AI_MODELS.SEEDANCE_20_FAST_BYTEPLUS]: seedance(SEEDANCE_20_ARK_HINT),
+    [AI_MODELS.SEEDANCE_20_REFERENCE_BYTEPLUS]: seedance(SEEDANCE_20_ARK_HINT),
+    [AI_MODELS.SEEDANCE_20_FAST_REFERENCE_BYTEPLUS]:
+      seedance(SEEDANCE_20_ARK_HINT),
     // ── Seedance 2.5 ────────────────────────────────────────────────────
-    [AI_MODELS.SEEDANCE_25]: seedance(SEEDANCE_25_HINT),
-    [AI_MODELS.SEEDANCE_25_REFERENCE]: seedance(SEEDANCE_25_REFERENCE_HINT),
-    [AI_MODELS.SEEDANCE_25_VOLCENGINE]: seedance(SEEDANCE_25_HINT),
-    [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]: seedance(
-      SEEDANCE_25_REFERENCE_HINT,
-    ),
-    [AI_MODELS.SEEDANCE_25_BYTEPLUS]: seedance(SEEDANCE_25_HINT),
-    [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: seedance(
-      SEEDANCE_25_REFERENCE_HINT,
-    ),
+    [AI_MODELS.SEEDANCE_25]: seedance(SEEDANCE_25_FAL_HINT),
+    [AI_MODELS.SEEDANCE_25_REFERENCE]: seedance(SEEDANCE_25_FAL_HINT),
+    [AI_MODELS.SEEDANCE_25_VOLCENGINE]: seedance(SEEDANCE_25_ARK_HINT),
+    [AI_MODELS.SEEDANCE_25_REFERENCE_VOLCENGINE]:
+      seedance(SEEDANCE_25_ARK_HINT),
+    [AI_MODELS.SEEDANCE_25_BYTEPLUS]: seedance(SEEDANCE_25_ARK_HINT),
+    [AI_MODELS.SEEDANCE_25_REFERENCE_BYTEPLUS]: seedance(SEEDANCE_25_ARK_HINT),
     // ── Kling ───────────────────────────────────────────────────────────
     [AI_MODELS.KLING_V3_PRO]: kling(),
-    [AI_MODELS.KLING_O3_PRO]: kling(),
+    [AI_MODELS.KLING_O3_PRO]: klingO3(),
     // 视频编辑端点：改写的是**已有的那段镜头**，方言与生成端不同 —— 说清楚改
     // 什么、保留什么，而不是从头描述一个画面。
     [AI_MODELS.KLING_O3_STANDARD_V2V_EDIT]: klingVideoEdit(),
@@ -215,13 +233,13 @@ export const MEDIA_MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> =
       bestFor: ['long-clip', 'chinese-prompt', 'multi-shot', 'budget'],
       promptStyle: 'natural-language',
       enhanceHint: WAN_30_HINT,
-      negativePrompt: 'supported',
+      negativePrompt: 'unsupported',
     },
     [AI_MODELS.WAN_30_REFERENCE]: {
       bestFor: ['reference-driven', 'chinese-prompt', 'character-consistency'],
       promptStyle: 'natural-language',
-      enhanceHint: WAN_30_REFERENCE_HINT,
-      negativePrompt: 'supported',
+      enhanceHint: WAN_30_HINT,
+      negativePrompt: 'unsupported',
     },
     // ── MiniMax H3 ──────────────────────────────────────────────────────
     [AI_MODELS.MINIMAX_H3]: {
@@ -233,7 +251,7 @@ export const MEDIA_MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> =
     [AI_MODELS.MINIMAX_H3_REFERENCE]: {
       bestFor: ['reference-driven', 'motion-quality', 'native-audio'],
       promptStyle: 'natural-language',
-      enhanceHint: `${MINIMAX_H3_HINT}${MINIMAX_H3_REFERENCE_SUFFIX}`,
+      enhanceHint: MINIMAX_H3_HINT,
       negativePrompt: 'unsupported',
     },
     [AI_MODELS.MINIMAX_H3_CN]: {
@@ -245,7 +263,7 @@ export const MEDIA_MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> =
     [AI_MODELS.MINIMAX_H3_REFERENCE_CN]: {
       bestFor: ['reference-driven', 'motion-quality', 'chinese-prompt'],
       promptStyle: 'natural-language',
-      enhanceHint: `${MINIMAX_H3_CN_HINT}${MINIMAX_H3_REFERENCE_SUFFIX}`,
+      enhanceHint: MINIMAX_H3_CN_HINT,
       negativePrompt: 'unsupported',
     },
     // ── LTX ─────────────────────────────────────────────────────────────
@@ -253,15 +271,13 @@ export const MEDIA_MODEL_STRENGTHS: Partial<Record<AI_MODELS, ModelStrength>> =
       bestFor: ['budget', 'draft', 'quick-iteration'],
       promptStyle: 'natural-language',
       enhanceHint: LTX_23_HINT,
-      // 【未核实】fal 的 ltx-2.3 端点收 negative_prompt；官方写作指南对它只字未提。
-      negativePrompt: 'supported',
+      negativePrompt: 'unsupported',
     },
-    // ── 【无官方来源】 ──────────────────────────────────────────────────
+    // ── HappyHorse / Gemini Omni ────────────────────────────────────────
     [AI_MODELS.HAPPYHORSE_10]: {
       bestFor: ['general', 'native-audio', 'lip-sync'],
       promptStyle: 'natural-language',
-      enhanceHint: GENERIC_VIDEO_HINT,
-      // 【未核实】厂商既没有写作指南，也没有公开的 negative 字段。
+      enhanceHint: HAPPYHORSE_HINT,
       negativePrompt: 'unsupported',
     },
     [AI_MODELS.GEMINI_OMNI_FLASH]: {

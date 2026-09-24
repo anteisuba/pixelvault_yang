@@ -29,7 +29,6 @@ describe('video model send contracts', () => {
 
   it.each([
     [AI_MODELS.KLING_V3_PRO, 'kling'],
-    [AI_MODELS.KLING_O3_PRO, 'kling'],
     [AI_MODELS.HAPPYHORSE_10, 'happyhorse'],
   ] as const)('%s accepts one first frame only', (modelId, family) => {
     const contract = getVideoModelSendContract(modelId, AI_ADAPTER_TYPES.FAL)
@@ -86,14 +85,38 @@ describe('首尾帧能力声明（切片 6 第 ③④ 层）', () => {
     }
   })
 
+  it('Kling O3 Pro 与 MiniMax H3 关键帧档给首尾两槽', () => {
+    // builder 分别发 `image_url` + `end_image_url`（fal O3）与 first_frame +
+    // last_frame（MiniMax v2 content role）。
+    for (const [id, adapter] of [
+      [AI_MODELS.KLING_O3_PRO, AI_ADAPTER_TYPES.FAL],
+      [AI_MODELS.MINIMAX_H3, AI_ADAPTER_TYPES.MINIMAX],
+      [AI_MODELS.MINIMAX_H3_CN, AI_ADAPTER_TYPES.MINIMAX_CN],
+    ] as const) {
+      const contract = getVideoModelSendContract(id, adapter)
+      expect(contract.keyframeSlots, id).toBe(2)
+      expect(contract.slots.images, id).toBe(2)
+      expect(contract.referenceMode, id).toBe('text-or-first-frame')
+    }
+  })
+
+  it('Kling O3 Pro 不声明 negative prompt（schema 里没有该字段），V3 Pro 保留', () => {
+    expect(
+      getVideoModelSendContract(AI_MODELS.KLING_O3_PRO, AI_ADAPTER_TYPES.FAL)
+        .parameters.negativePrompt,
+    ).toBe(false)
+    expect(
+      getVideoModelSendContract(AI_MODELS.KLING_V3_PRO, AI_ADAPTER_TYPES.FAL)
+        .parameters.negativePrompt,
+    ).toBe(true)
+  })
+
   it('worker 发不出 last_frame 的模型一律只给一个槽', () => {
-    // ⚠ 判据是「我们的 builder 发得出来吗」，不是「上游支不支持」。fal 的 builder
-    // 里根本没有帧角色概念，minimax 只发 first_frame —— 声明得比实现宽，用户填了
-    // 尾帧就会被静默丢掉。
+    // ⚠ 判据是「我们的 builder 发得出来吗」，不是「上游支不支持」—— 声明得比实现
+    // 宽，用户填了尾帧就会被静默丢掉。
     for (const [id, adapter] of [
       [AI_MODELS.SEEDANCE_20, AI_ADAPTER_TYPES.FAL],
       [AI_MODELS.SEEDANCE_20_FAST, AI_ADAPTER_TYPES.FAL],
-      [AI_MODELS.MINIMAX_H3, AI_ADAPTER_TYPES.MINIMAX],
       [AI_MODELS.KLING_V3_PRO, AI_ADAPTER_TYPES.FAL],
       [AI_MODELS.HAPPYHORSE_10, AI_ADAPTER_TYPES.FAL],
     ] as const) {

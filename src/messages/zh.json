@@ -7521,7 +7521,7 @@
       "originalValue": "原值：{value}",
       "originalEmpty": "原来是空的",
       "revertOne": "点一下还原这个字段",
-      "revertAll": "还原助手的全部改动（{count} 处）",
+      "revertAll": "全部还原（{count} 处）",
       "clearConfirm": "确认清掉 {count} 处？"
     },
     "confirm": {

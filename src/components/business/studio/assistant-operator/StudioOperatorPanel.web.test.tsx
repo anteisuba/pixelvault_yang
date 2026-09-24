@@ -1142,6 +1142,54 @@ describe('StudioOperatorPanel · 空调查卡与重复 checkpoint', () => {
     expect(screen.getAllByTestId('operator-checkpoint')).toHaveLength(1)
   })
 
+  it('⭐ 最新一轮的过程行换成「✦ 字段 · 全部还原」（owner 2026-09-24 从参数栏搬进来）', () => {
+    pushStep('run-old', {
+      id: 'step-1',
+      title: '写提示词',
+      tool: 'set_prompt',
+      verb: 'apply',
+      status: 'done',
+      payload: { value: '夜景' },
+      inverse: { tool: 'set_prompt', payload: { value: '' } },
+    })
+    store.appendOperatorEntry({ kind: 'message', id: 'msg-old', text: '好。' })
+    pushStep('run-new', {
+      id: 'step-1',
+      title: '改规格',
+      tool: 'set_specs',
+      verb: 'apply',
+      status: 'done',
+      payload: { aspectRatio: '16:9', resolution: '2K' },
+      inverse: { aspectRatio: '1:1', resolution: '1K' },
+    })
+    store.recordOperatorChange({
+      field: 'specs',
+      stepId: 'run-new:step-1',
+      firstInverse: {
+        id: 'step-1',
+        title: '改规格',
+        tool: 'set_specs',
+        verb: 'apply',
+        status: 'done',
+        payload: { aspectRatio: '16:9', resolution: '2K' },
+        inverse: { aspectRatio: '1:1', resolution: '1K' },
+      } as never,
+      previousLabel: '1:1',
+    })
+    renderPanel()
+
+    const checkpoints = screen.getAllByTestId('operator-checkpoint')
+    const latest = checkpoints.at(-1)!
+    expect(latest).toContainElement(screen.getByTestId('operator-change-rail'))
+    expect(
+      latest.querySelector('[data-testid="operator-checkpoint-undo"]'),
+    ).toBeNull()
+    // 更早那一轮照旧「撤销」。
+    expect(
+      checkpoints[0]!.querySelector('[data-testid="operator-checkpoint-undo"]'),
+    ).toBeTruthy()
+  })
+
   it('成功的画布修改只显示一条改动记录，步骤收在里面', () => {
     pushStep('run-canvas', {
       id: 'canvas-step',

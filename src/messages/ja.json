@@ -7521,7 +7521,7 @@
       "originalValue": "元の値：{value}",
       "originalEmpty": "元は空でした",
       "revertOne": "クリックでこの項目を戻す",
-      "revertAll": "アシスタントの変更をすべて戻す（{count} 件）",
+      "revertAll": "すべて戻す（{count} 件）",
       "clearConfirm": "{count}件の変更をすべて元に戻しますか？"
     },
     "confirm": {

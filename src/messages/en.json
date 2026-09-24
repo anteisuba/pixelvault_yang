@@ -7521,7 +7521,7 @@
       "originalValue": "Was: {value}",
       "originalEmpty": "Was empty",
       "revertOne": "Click to revert this field",
-      "revertAll": "Revert everything the assistant changed ({count})",
+      "revertAll": "Revert all ({count})",
       "clearConfirm": "Undo all {count, plural, one {# change} other {# changes}}?"
     },
     "confirm": {

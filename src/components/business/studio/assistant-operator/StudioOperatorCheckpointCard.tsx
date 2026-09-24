@@ -9,9 +9,9 @@
  *  · 连对话一起回 —— 参数回滚 + 截断该轮之后的线程消息。
  * ⛔ 不弹窗、不跳焦点：撤销是个小动作，弹窗会让人以为要出大事。
  *
- * ⚠ 顶部那颗「清掉助手全部改动」二击确认**照旧留着**（拍板 14 未被推翻）：
- * 它在参数栏上（`StudioOperatorChangeRail`），管的是「这个工作台上助手改的全部」，
- * 与这张薄卡的「这一轮」是两种粒度，不是两套实现。
+ * ⚠ 「✦ 字段 · 全部还原」（`StudioOperatorChangeRail`，二击确认，拍板 14）从参数栏
+ * 搬到了**最新一轮**的这一行上（owner 2026-09-24），替掉那一轮的「改了… · 撤销」；
+ * 它管「这个工作台上助手改着的全部」，与更早轮次的「撤销」是两种粒度。
  *
  * ⚠ 撤销后的**系统行由 hook 插**（`use-studio-operator-revert.ts`），这颗组件
  * 只负责就地把自己变成「已撤销 · ××」—— 两处都写会得到两行通报。
@@ -62,6 +62,11 @@ interface StudioOperatorCheckpointCardProps {
   resume?: StudioOperatorCheckpointResume
   details?: ReactNode
   detailsCount?: number
+  /**
+   * 最新一轮上替掉「改了… · 撤销」的那一排（✦ 字段 · 全部还原，owner 2026-09-24
+   * 从参数栏搬进来的）。缺席 = 更早的轮次，照旧「改了… · 撤销」。
+   */
+  rail?: ReactNode
 }
 
 export function StudioOperatorCheckpointCard({
@@ -72,6 +77,7 @@ export function StudioOperatorCheckpointCard({
   resume,
   details,
   detailsCount,
+  rail,
 }: StudioOperatorCheckpointCardProps) {
   const t = useTranslations('StudioOperator')
   const [choosing, setChoosing] = useState(false)
@@ -95,13 +101,15 @@ export function StudioOperatorCheckpointCard({
       data-reverted={reverted ?? 'false'}
       className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-muted-foreground"
     >
-      {fieldSummary ? (
+      {rail ? (
+        rail
+      ) : fieldSummary ? (
         <span className="min-w-0">
           · {t('checkpoint.summary', { count, fields: fieldSummary })}
         </span>
       ) : null}
 
-      {reverted ? (
+      {rail ? null : reverted ? (
         <span data-testid="operator-checkpoint-done" className="shrink-0">
           · {t(`checkpoint.reverted.${reverted}`)}
         </span>

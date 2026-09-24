@@ -129,6 +129,7 @@ import {
   StudioOperatorTimelineRow,
   type StudioOperatorCardKind,
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
+import { StudioOperatorChangeRail } from '@/components/business/studio/assistant-operator/StudioOperatorChangeRail'
 import { StudioOperatorResumeChip } from '@/components/business/studio/assistant-operator/StudioOperatorResumeChip'
 import { StudioOperatorToolGroup } from '@/components/business/studio/assistant-operator/StudioOperatorToolGroup'
 import { Spinner } from '@/components/ui/spinner'
@@ -338,6 +339,7 @@ export function StudioOperatorPanel({
     resume,
     autoGenerate,
     outOfSteps,
+    changes,
   } = useStudioOperatorState()
   /**
    * ⚠ 两类条目**留在数据里、不画**（owner 2026-09-24：小字「没什么有用的信息」）：
@@ -1392,6 +1394,20 @@ export function StudioOperatorPanel({
       </StudioOperatorTimelineRow>
     ) : null
 
+  /**
+   * 「✦ 字段 · 全部还原」挂在哪一轮（owner 2026-09-24）—— **最后一轮做过可撤改动的**。
+   * ⚠ 登记簿空了（全还原了 / 手改回去了）就哪一轮都不挂。
+   */
+  const latestChangeRunKey = Object.keys(changes).length
+    ? entries.findLast(
+        (entry): entry is StudioOperatorStepEntry =>
+          entry.kind === 'step' &&
+          !entry.undone &&
+          entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.done &&
+          isRevertibleAssistantOperatorTool(entry.step.tool),
+      )?.runKey
+    : undefined
+
   const renderBlock = (block: (typeof blocks)[number]) => {
     if (block.kind === 'tools') {
       /**
@@ -1517,6 +1533,9 @@ export function StudioOperatorPanel({
             count={changeCountInRound}
             fieldSummary={format.list(changeLabelKeys.map((key) => t(key)))}
             onRevert={handleCheckpointRevert}
+            {...(block.runKey === latestChangeRunKey
+              ? { rail: <StudioOperatorChangeRail /> }
+              : {})}
             {...(compactCanvasChanges
               ? { details: logItems, detailsCount: block.steps.length }
               : {})}

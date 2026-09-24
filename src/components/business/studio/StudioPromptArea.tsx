@@ -65,7 +65,6 @@ import { StudioMusicSpecPopover } from '@/components/business/studio/StudioMusic
 import { StudioAudioSpeechParams } from '@/components/business/studio/StudioAudioSpeechParams'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
 import { StudioAudioKindSwitcher } from '@/components/business/studio/StudioAudioKindSwitcher'
-import { StudioOperatorChangeRail } from '@/components/business/studio/assistant-operator'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { cn } from '@/lib/utils'
 import { PromptInput, PromptInputTextarea } from '@/components/ui/prompt-input'
@@ -624,12 +623,6 @@ export const StudioPromptArea = memo(function StudioPromptArea() {
             <StudioEnhanceButton disabled={isGenerating} />
           </span>
         </Toolbar.Root>
-
-        {/* 助手改了哪些字段（✦ 归属标记）+ 覆写用的就地确认条 —— 紧贴提示词框，
-            因为它们说的就是这一栏正在发生的事（owner 拍板：覆写确认是「字段上的
-            小条，不弹窗」，且改动必须看得见来源；详见 `StudioOperatorChangeRail`）。
-            ⚠ 助手没改过东西、也没在问话时它整颗不渲染，不占位。 */}
-        <StudioOperatorChangeRail />
 
         {/* 卡片工作流的下拉组 —— 原来长在 `StudioBottomDock` 里，随 dock 一起
             退役，改挂这里。条件与旧版逐字一致（音频没有卡片）。 */}

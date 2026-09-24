@@ -164,10 +164,7 @@ import {
 import { usePromptTagStack } from '@/hooks/use-prompt-tag-stack'
 import { useStudioAssistantReference } from '@/hooks/use-studio-assistant-reference'
 import { requestOperatorAttachment } from '@/hooks/use-studio-operator-store'
-import {
-  StudioOperatorChangeRail,
-  StudioOperatorDock,
-} from '@/components/business/studio/assistant-operator'
+import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { LoraAspectRatioChip } from '@/components/business/studio/lora/LoraAspectRatioChip'
 import { LoraAssistantDock } from '@/components/business/studio/lora/LoraAssistantDock'
 import { LoraBaseModelModal } from '@/components/business/studio/lora/LoraBaseModelModal'
@@ -3332,12 +3329,6 @@ function GenerateBranch({
                 </div>
               </div>
             </div>
-            {/**
-             * 归属标记（✦）与就地确认条（P4-C）—— 与工作台**同一颗组件**。
-             * 拍板 3 要求覆写确认长在被改的那一栏上，原先挂在提示词卡底部，
-             * 提示词卡拆掉后紧跟在输入两行下面，位置意图不变（仍贴着 Prompt）。
-             */}
-            <StudioOperatorChangeRail />
             {/* §4.1 不兼容挂载警示：不阻断出图，与 runner 额度提示同区同形制
                 （琥珀 text-2xs）。互斥时退化成"卸载其一"，不给假建议。 */}
             {incompatibleCount > 0 ? (

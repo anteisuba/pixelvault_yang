@@ -318,8 +318,14 @@ export async function uploadReferenceImagesIfNeeded(params: {
   userId: string
   input: GenerateRequest
   timer: GenerationStageTimer
+  /**
+   * NovelAI 图生图的出图尺寸。⚠ 它要求原图与出图**同尺寸**，否则直接 500
+   * （09-24 owner：2368×1776 的参考图发给 1216×832 的 V5，连续 500；同参数换一张
+   * 1216×832 的参考就成）。官方网页是先缩放再发，我们在这里补上。
+   */
+  novelAiImg2ImgSize?: { width: number; height: number }
 }): Promise<string[]> {
-  const { userId, input, timer } = params
+  const { userId, input, timer, novelAiImg2ImgSize } = params
   const referenceImages =
     input.referenceImages && input.referenceImages.length > 0
       ? input.referenceImages
@@ -340,6 +346,27 @@ export async function uploadReferenceImagesIfNeeded(params: {
             background: '#000000',
           })
           .flatten({ background: '#000000' })
+          .png()
+          .toBuffer()
+        return uploadToR2({
+          data: buffer,
+          key: generateStorageKey('IMAGE', userId),
+          mimeType: 'image/png',
+        })
+      }),
+    )
+  }
+
+  if (novelAiImg2ImgSize) {
+    return Promise.all(
+      referenceImages.map(async (referenceImage) => {
+        const data = await fetchAsBuffer(referenceImage)
+        // 铺满再居中裁，⛔ 不拉伸：比例不同时拉伸会把人压扁。
+        const buffer = await sharp(data.buffer)
+          .rotate()
+          .resize(novelAiImg2ImgSize.width, novelAiImg2ImgSize.height, {
+            fit: 'cover',
+          })
           .png()
           .toBuffer()
         return uploadToR2({

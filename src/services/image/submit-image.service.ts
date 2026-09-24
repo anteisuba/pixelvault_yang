@@ -7,6 +7,7 @@ import {
   WORKER_MIGRATED_IMAGE_ADAPTERS,
 } from '@/constants/execution'
 import { IMAGE_GENERATION } from '@/constants/config'
+import { getNovelAiImageDimensions } from '@/constants/novelai'
 import { getExecutionModelId } from '@/constants/models'
 import { AI_ADAPTER_TYPES } from '@/constants/providers'
 import type {
@@ -201,6 +202,14 @@ export async function submitImageGeneration(
     userId: dbUser.id,
     input,
     timer,
+    // 图生图才缩（精确参考自有尺寸；重绘的遮罩按原图画，缩了会对不上）。
+    ...(route.adapterType === AI_ADAPTER_TYPES.NOVELAI &&
+    input.advancedParams?.novelAiReferenceMode !== 'precise' &&
+    !input.advancedParams?.inpaintMask
+      ? {
+          novelAiImg2ImgSize: getNovelAiImageDimensions(input.aspectRatio),
+        }
+      : {}),
   })
   const referenceImageUrl = referenceImages[0]
   // 遮罩走同一条上传通路 —— 从这里往下，advancedParams 里的 `inpaintMask`

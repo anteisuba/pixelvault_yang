@@ -901,6 +901,27 @@ describe('StudioOperatorPanel · 正文与加载态', () => {
   })
 })
 
+/** D12 S9：在跑的计划画成一张清单，逐项打勾。 */
+describe('StudioOperatorPanel · 多步计划清单', () => {
+  it('⭐ 有进度的计划逐项显示状态，⛔ 不再折成「计划 · N 步」', () => {
+    store.appendOperatorEntry({
+      kind: 'plan',
+      id: 'plan-s9',
+      steps: ['水手服', '西装校服', '运动校服'],
+      progress: ['done', 'failed', 'pending'],
+    })
+    renderPanel()
+    const items = screen.getAllByTestId('operator-plan-item')
+    expect(items.map((item) => item.getAttribute('data-state'))).toEqual([
+      'done',
+      'failed',
+      'pending',
+    ])
+    expect(items[0]?.textContent).toContain('✓')
+    expect(screen.queryByText('planFold')).toBeNull()
+  })
+})
+
 /**
  * 2026-09-07 真机三条的**接线闸**（调查卡 / checkpoint 去重）。
  *

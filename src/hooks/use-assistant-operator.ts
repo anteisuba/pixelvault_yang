@@ -67,6 +67,7 @@ import { CONTEXT_CARD_STATUS_IDS } from '@/constants/context-cards'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
   STUDIO_OPERATOR_FIELD_IDS,
+  STUDIO_OPERATOR_SKIPPED_REJECT_REASONS,
   STUDIO_OPERATOR_STREAMING,
   type StudioOperatorGenerateKnob,
 } from '@/constants/studio-assistant-operator'
@@ -869,9 +870,21 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       let canvasApplied = false
       let canvasSteps = options.canvasSteps ?? 0
       let pendingPlanSteps: readonly string[] | null = null
+      /**
+       * ⭐ **接着跑同一份计划的那几轮不再落计划**（D12 S9）：点「开始」之后、答完
+       * 中途的问题之后、续跑之后，模型常把剩下的几步再排一遍 —— 落下去就是同一份
+       * 活出现两三张计划，而且新那份会顶掉记着进度的续跑记录。
+       */
+      const continuesPlan = Boolean(
+        options.runKey ||
+        options.planApproved ||
+        resumeFrom ||
+        options.planAnswers?.length ||
+        options.confirmations?.length,
+      )
       const flushPlanEntry = () => {
         if (!pendingPlanSteps) return
-        if (options.runKey && getOperatorState().resume) {
+        if (continuesPlan && getOperatorState().resume) {
           pendingPlanSteps = null
           return
         }
@@ -1451,7 +1464,17 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                * ⚠ `running` 不落：三态里没有那一档，落了它刷新之后会变成一句
                *   「这一步做完了」——而它并没有。
                */
-              if (step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running) {
+              if (
+                step.status !== ASSISTANT_OPERATOR_STEP_STATUS_IDS.running &&
+                // ⚠ 跳过的那一步（同轮重复）不占计划里的一格：它什么都没做，
+                //   也不是失败 —— 占了的话下一格的勾就错位一整格。
+                !(
+                  step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error &&
+                  STUDIO_OPERATOR_SKIPPED_REJECT_REASONS.includes(
+                    step.error.reason,
+                  )
+                )
+              ) {
                 const resume = getOperatorState().resume
                 const resumeStepId = resume
                   ? firstUnfinishedStepId(resume)
@@ -2072,11 +2095,16 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       return
     }
     resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.submitting)
-    startOperatorResumePlan({
-      planId: confirm.id,
-      labels: confirm.steps.map((step) => step.label),
-    })
+    /**
+     * ⭐ 批准之后计划**就地变成一张清单**（D12 S9）：落一条计划、逐项打勾，
+     * 那张卡收掉 —— ⛔ 不再留一行「已确认 · N 步计划」挂在线程末尾，跟着每一轮往下漂。
+     */
+    const planId = nextOperatorEntryId('plan')
+    const labels = confirm.steps.map((step) => step.label)
+    appendOperatorEntry({ kind: 'plan', id: planId, steps: labels })
+    startOperatorResumePlan({ planId, labels })
     resolveOperatorConfirm(STUDIO_OPERATOR_CONFIRM_STATUS_IDS.confirmed)
+    setOperatorConfirm(null)
     void run({ planApproved: true })
   }, [run])
 

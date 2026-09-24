@@ -970,7 +970,9 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     )
   })
 
-  it('「开始」带 planApproved 重发，并把卡换成「已确认」', async () => {
+  it('「开始」带 planApproved 重发，并把卡换成一张逐项打勾的计划（D12 S9）', async () => {
+    // 面板挂上时按域给续跑记录定范围（`StudioOperatorPanel`）—— 计划的勾靠它。
+    store.setOperatorResumeScope('image')
     const { result } = render()
     act(() => {
       result.current.send('分三步做')
@@ -989,7 +991,15 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     // ⚠ `planApproved` 是这一轮不再被服务端拦一次的唯一依据：少了它，用户点完
     //   「开始」看到的是同一张卡又回来（一个自己喂自己的环）。
     expect(sent.planApproved).toBe(true)
-    expect(store.getOperatorState().confirm?.status).toBe('confirmed')
+    // ⭐ 卡收掉，计划就地变成清单：⛔ 不再留一行「已确认 · 3 步计划」跟着往下漂。
+    expect(store.getOperatorState().confirm).toBeNull()
+    const plan = store
+      .getOperatorState()
+      .entries.find((entry) => entry.kind === 'plan')
+    expect(plan).toMatchObject({
+      kind: 'plan',
+      progress: ['pending', 'pending', 'pending'],
+    })
     expect(store.getOperatorState().status).toBe('working')
   })
 
@@ -1013,6 +1023,8 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
   })
 
   it('⭐ 点过「开始」的那一轮⛔ 不再立起新的待确认卡（服务端零会话态会再摆一帧）', async () => {
+    // 面板挂上时按域给续跑记录定范围（`StudioOperatorPanel`）—— 计划的勾靠它。
+    store.setOperatorResumeScope('image')
     const { result } = render()
     act(() => {
       result.current.send('分三步做')
@@ -1035,13 +1047,14 @@ describe('计划卡（v2 §3.3 多步确认）', () => {
     await settle()
 
     const state = store.getOperatorState()
-    // 卡还是那张定过的，⛔ 没有被一张新的待确认卡顶掉。
-    expect(state.confirm?.status).toBe('confirmed')
+    // ⛔ 没有被一张新的待确认卡顶掉。
+    expect(state.confirm).toBeNull()
     expect(state.status).toBe('working')
-    // 那份阶段落成一行折叠条目，⛔ 不再变成一张待确认卡。
-    expect(state.entries.filter((entry) => entry.kind === 'plan')).toHaveLength(
-      1,
-    )
+    // ⭐ 计划只有批准时落的那一张（D12 S9），服务端再摆一遍的那份不再落；
+    //   做完的那一步打在同一张上。
+    const plans = state.entries.filter((entry) => entry.kind === 'plan')
+    expect(plans).toHaveLength(1)
+    expect(plans[0]).toMatchObject({ progress: ['done', 'pending', 'pending'] })
     // 流也没被掐 —— 后面的步照旧落地（此前那一支会 `return`）。
     streams[1].emit(doneStepEvent('step-1'))
     await settle()

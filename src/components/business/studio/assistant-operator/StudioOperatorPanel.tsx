@@ -1705,7 +1705,62 @@ export function StudioOperatorPanel({
           </StudioOperatorTimelineRow>
         )
       }
-      case 'plan':
+      case 'plan': {
+        /**
+         * ⭐ **在跑的计划画成一张清单**（D12 S9）：计划只出现一次，逐项打勾 ——
+         * ✓ 做完 · › 正在做 · ○ 还没到 · × 没做成。续跑那几轮不再落新计划，勾
+         * 都打在这一张上。没有进度（没开跑的那种）照旧折成一行。
+         */
+        const progress = entry.progress
+        if (progress) {
+          const current = working
+            ? progress.findIndex((state) => state === 'pending')
+            : -1
+          return (
+            <StudioOperatorTimelineRow
+              key={entry.id}
+              card={STUDIO_OPERATOR_CARD_KINDS.message}
+              {...(persona ? { persona } : {})}
+            >
+              <ol
+                data-testid="operator-plan"
+                aria-label={t('planFold', { count: entry.steps.length })}
+                className="flex flex-col gap-1 text-sm"
+              >
+                {entry.steps.map((step, index) => {
+                  const state = progress[index] ?? 'pending'
+                  const active = index === current
+                  return (
+                    <li
+                      key={`${index}:${step}`}
+                      data-testid="operator-plan-item"
+                      data-state={active ? 'active' : state}
+                      className={cn(
+                        'flex items-baseline gap-2',
+                        active
+                          ? 'font-medium text-foreground'
+                          : state === 'pending'
+                            ? 'text-muted-foreground/60'
+                            : 'text-muted-foreground',
+                      )}
+                    >
+                      <span aria-hidden className="w-3 shrink-0 text-center">
+                        {active
+                          ? '›'
+                          : state === 'done'
+                            ? '✓'
+                            : state === 'failed'
+                              ? '×'
+                              : '○'}
+                      </span>
+                      <span className="min-w-0">{step}</span>
+                    </li>
+                  )
+                })}
+              </ol>
+            </StudioOperatorTimelineRow>
+          )
+        }
         return (
           <StudioOperatorTimelineRow
             key={entry.id}
@@ -1737,6 +1792,7 @@ export function StudioOperatorPanel({
             </details>
           </StudioOperatorTimelineRow>
         )
+      }
       case 'step':
         return null
       /**

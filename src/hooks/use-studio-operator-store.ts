@@ -1226,7 +1226,28 @@ export function startOperatorResumePlan(input: {
   })
   if (!resume) return
   writeOperatorResume(resumeScope, resume)
-  emit({ ...state, resume })
+  emit({ ...state, resume, entries: withPlanProgress(state.entries, resume) })
+}
+
+/**
+ * 把续跑记录的逐项状态抄到同 id 的那条计划上（D12 S9：计划只出现一次、逐项打勾）。
+ * ⚠ 找不到那条计划就原样返回 —— 不是每份续跑记录都有一条可画的计划。
+ */
+function withPlanProgress(
+  entries: readonly StudioOperatorThreadEntry[],
+  resume: StudioOperatorResumePlan,
+): readonly StudioOperatorThreadEntry[] {
+  const index = entries.findIndex(
+    (entry) => entry.kind === 'plan' && entry.id === resume.planId,
+  )
+  const entry = entries[index]
+  if (!entry || entry.kind !== 'plan') return entries
+  const next = [...entries]
+  next[index] = {
+    ...entry,
+    progress: resume.steps.map((step) => step.state),
+  }
+  return next
 }
 
 /**
@@ -1251,7 +1272,11 @@ export function markOperatorResumeStep(
   // ⚠ 同一个引用 = 那一步压根不在这份计划里（`markResumeStep` 的短路）。
   if (next === state.resume) return
   writeOperatorResume(resumeScope, next)
-  emit({ ...state, resume: next })
+  emit({
+    ...state,
+    resume: next,
+    entries: withPlanProgress(state.entries, next),
+  })
 }
 
 /**

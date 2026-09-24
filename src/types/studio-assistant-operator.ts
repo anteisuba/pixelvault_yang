@@ -12,6 +12,7 @@
  * 按 id 覆盖；漏了 id 就变成追加，表现是每一步在日志流里出现两遍。
  */
 
+import type { StudioOperatorResumeStep } from '@/types/studio-operator-resume'
 import type { StudioOperatorCheckpoint } from '@/types/studio-operator-checkpoint'
 import type { ContextCardKindId } from '@/constants/context-cards'
 import type { ContextCardImage } from '@/types/context-cards'
@@ -75,6 +76,11 @@ export interface StudioOperatorPlanEntry {
   kind: 'plan'
   id: string
   steps: readonly string[]
+  /**
+   * 逐项进度（D12 S9）——这份计划在跑（有续跑记录）时才有，与 `steps` 同序。
+   * ⭐ 住在条目上而不是只看续跑记录：计划跑完那份记录就清掉了，打过的勾得留着。
+   */
+  progress?: readonly StudioOperatorResumeStep['state'][]
 }
 
 /**

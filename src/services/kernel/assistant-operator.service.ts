@@ -3696,7 +3696,15 @@ async function planSetText(
          * 退到创作者点名的那一份，提示词照写，观察里说清楚是按兜底分工写的。
          * ⚠ 钱闸和「先看后写」都没动：vision 照旧必须先过，写完照旧过提示词复核。
          */
-        if (error instanceof ReferenceAnalysisValidationError) {
+        /**
+         * ⭐ **请求挂了（超时 / 上游报错）同样降级**（2026-09-24 dev 日志：gpt-6-luna
+         * 在 `brief_request` 上 30s 没开口，整轮直接结束，提示词一个字没写）。分工是
+         * 服务端自己要的一份辅助 JSON，兜底分工一直都在；⛔ 只有用户叫停才照旧抛。
+         */
+        if (
+          error instanceof ReferenceAnalysisValidationError ||
+          error instanceof ApiRequestError
+        ) {
           analysis.brief = buildDefaultReferenceBrief({
             profiles: analysis.profiles,
             activeIndices: creatorNamedReferenceIndices(run, value),

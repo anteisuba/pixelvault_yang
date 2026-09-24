@@ -2099,7 +2099,7 @@ describe('llmTextStream', () => {
 
       expect(chunks).toEqual(['慢'])
       // 远远越过 Grok 加长后的首字窗口之后 signal 仍未 abort —— 计时器确实撤掉了。
-      vi.advanceTimersByTime(LLM_TEXT_TIMEOUTS_MS.XAI_STREAM_HEADERS * 4)
+      vi.advanceTimersByTime(LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS * 4)
       expect(capturedSignal).not.toBeNull()
       expect((capturedSignal as unknown as AbortSignal).aborted).toBe(false)
     } finally {
@@ -2107,7 +2107,7 @@ describe('llmTextStream', () => {
     }
   })
 
-  it('Grok 流式：首包窗口是 XAI_STREAM_HEADERS，通用 30s 不够就掐等于连接不上', async () => {
+  it('流式首包窗口一律 90s：30s 时还在等，到点才掐（Grok 与 OpenAI 同一档）', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
     try {
       let capturedSignal: AbortSignal | null = null
@@ -2146,13 +2146,13 @@ describe('llmTextStream', () => {
       await Promise.resolve()
       await Promise.resolve()
 
-      await vi.advanceTimersByTimeAsync(LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS)
+      // ⭐ 30s 时还在等（推理模型开口前可能一个字节都不回），90s 才掐。
+      await vi.advanceTimersByTimeAsync(30_000)
       expect(capturedSignal).not.toBeNull()
       expect((capturedSignal as unknown as AbortSignal).aborted).toBe(false)
 
       await vi.advanceTimersByTimeAsync(
-        LLM_TEXT_TIMEOUTS_MS.XAI_STREAM_HEADERS -
-          LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS,
+        LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS - 30_000,
       )
       expect((capturedSignal as unknown as AbortSignal).aborted).toBe(true)
       await expected

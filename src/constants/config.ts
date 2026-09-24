@@ -618,14 +618,11 @@ export const LLM_TEXT_TIMEOUTS_MS = {
    *
    * ⛔ 不能拿它去盖整条流：一条正常但很长的回答会被自己的超时掐断，
    * 而那正是流式要解决的问题。
+   * ⚠ **所有 provider 一律 90s**（owner 2026-09-24）：推理模型在想完之前可能一个
+   * 字节都不回 —— grok-4.7 早就因此单独放宽过，gpt-6-luna 读两张图写分工 JSON 时
+   * 也在 30s 上被掐（dev 日志 `brief_request`）。头到手之后不再计时。
    */
-  STREAM_HEADERS: 30_000,
-  /**
-   * grok-4.7 流式在推理结束前不发第一个 SSE 事件。官方文档写明推理模型
-   * 必须加长超时，否则会「prematurely closing connection」。30s 首包窗口
-   * 对 default-high reasoning 不够；头到手之后仍走普通流、不再计时。
-   */
-  XAI_STREAM_HEADERS: 90_000,
+  STREAM_HEADERS: 90_000,
 } as const
 
 export const RUNWAY_API = {

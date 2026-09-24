@@ -763,10 +763,7 @@ async function fetchLlmTextStreaming(
   context: { adapterType: AI_ADAPTER_TYPES; modelId: string },
 ): Promise<Response> {
   const controller = new AbortController()
-  const headerTimeoutMs =
-    context.adapterType === AI_ADAPTER_TYPES.XAI
-      ? LLM_TEXT_TIMEOUTS_MS.XAI_STREAM_HEADERS
-      : LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS
+  const headerTimeoutMs = LLM_TEXT_TIMEOUTS_MS.STREAM_HEADERS
   const timer = setTimeout(() => controller.abort(), headerTimeoutMs)
   try {
     return await fetch(endpoint, { ...init, signal: controller.signal })

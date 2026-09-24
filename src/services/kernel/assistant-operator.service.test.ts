@@ -10628,6 +10628,46 @@ describe('current reference image bindings', () => {
     expect(events.at(-1)?.type).toBe('done')
   })
 
+  /** 2026-09-24 dev 日志：分工那一跳 30s 没开口，整轮直接结束、提示词一个字没写。 */
+  it('writes the prompt with the fallback brief when the brief request times out', async () => {
+    queueTurns(...analysisTurns(), {
+      tool: {
+        name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        title: '写提示词',
+        args: { value: 'A hug on white' },
+      },
+    })
+    mockLlmTextCompletion.mockRejectedValueOnce(
+      new ApiRequestError(
+        'PROVIDER_TIMEOUT',
+        504,
+        'errors.provider.timeout',
+        'timed out',
+      ),
+    )
+    mockLlmTextCompletion.mockResolvedValueOnce(JSON.stringify({ issues: [] }))
+    mockLlmTextCompletion.mockResolvedValueOnce(
+      JSON.stringify({ finished: true, message: '已写入。' }),
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      ),
+    ).toBe(true)
+    expect(events.some((event) => event.type === 'error')).toBe(false)
+    expect(events.at(-1)?.type).toBe('done')
+  })
+
   it('asks at a real conflict before any write', async () => {
     const conflict = '图1被写成人物来源，但用户要求保留图2的脸部。'
     queueTurns(

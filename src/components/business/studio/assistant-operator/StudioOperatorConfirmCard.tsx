@@ -225,15 +225,23 @@ export function StudioOperatorConfirmCard({
       data-testid="operator-confirm-card"
       data-kind={kind}
       data-status={confirm.status}
-      aria-label={t(`confirm.${kind}.title`, {
-        count:
-          confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
-            ? confirm.steps.length
-            : confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
-              ? confirm.request.count
-              : 1,
-        name: contextCard ? contextCard.card.name : '',
-      })}
+      aria-label={
+        confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate &&
+        confirm.request.specs.durationSeconds !== null
+          ? t('confirm.generate.titleVideo', {
+              seconds: confirm.request.specs.durationSeconds,
+            })
+          : t(`confirm.${kind}.title`, {
+              count:
+                confirm.kind === ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.multistep
+                  ? confirm.steps.length
+                  : confirm.kind ===
+                      ASSISTANT_OPERATOR_CONFIRM_KIND_IDS.generate
+                    ? confirm.request.count
+                    : 1,
+              name: contextCard ? contextCard.card.name : '',
+            })
+      }
       /* 画板 BCards「确认」四态的皮肤（§12.1）：
          **待决**走 raised（深一档描边 + 柔扩散影）——它是当下挡路的那张卡；
          **已确认**退回并列的普通卡（细边 + 贴边影）；

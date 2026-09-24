@@ -16,6 +16,7 @@ export const esc = (s) =>
 // 状态词表：进度表与业务板共用。solid = 实心胶囊。
 export const STATUS = {
   已落: { c: GREEN, solid: true, d: '代码已提交并上线；真机 / 付费验收看备注' },
+  待上线: { c: GREEN, d: '本地 main 已提交、验证绿，还没推生产' },
   部分: { c: AMBER, solid: true, d: '主体已落，仍有写明的缺口' },
   进行中: { c: FG, solid: true, d: '当前正在做 / 正在讨论' },
   可开工: { c: GREEN, d: '设计与拍板都齐，可直接派活' },

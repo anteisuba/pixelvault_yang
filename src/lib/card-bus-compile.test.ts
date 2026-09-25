@@ -134,6 +134,11 @@ describe('compileImageOutlet', () => {
     ])
     expect(outlet.promptPrefix).toContain('Image 2 = @A identity (primary)')
     expect(outlet.promptPrefix).toContain('Image 4 = @B identity (primary)')
+    expect(outlet.referenceLabels).toEqual([
+      'Image 2 = @A identity (primary)',
+      'Image 3 = @A identity',
+      'Image 4 = @B identity (primary)',
+    ])
   })
 
   it('单图模型只送焦点角色的主图，其余角色只进文字', () => {
@@ -217,6 +222,7 @@ describe('compileImageOutlet', () => {
     expect(compileImageOutlet([], MULTI)).toEqual({
       promptPrefix: null,
       referenceImages: [],
+      referenceLabels: [],
       negative: null,
       novelAiLayout: null,
     })

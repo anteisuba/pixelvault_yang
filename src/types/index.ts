@@ -570,6 +570,15 @@ export const GenerateRequestSchema = z.object({
   referenceImage: z.string().optional(),
   /** Optional multiple reference images for character/style consistency */
   referenceImages: z.array(z.string()).optional(),
+  /**
+   * 与 `referenceImages` 逐位对齐的说明（卡片总线图例，进度表 35 ⑥）。
+   * 支持图文交错的 provider（Gemini）把它作为文字紧贴在那张图前面；`null` =
+   * 这张图没有说明（用户自己挂的）。缺席 = 旧行为。
+   */
+  referenceImageLabels: z
+    .array(z.string().trim().max(200).nullable())
+    .max(32)
+    .optional(),
   /** Optional specific API key ID to use for this generation */
   apiKeyId: z.string().trim().min(1).optional(),
   /** Optional provider-specific advanced parameters */
@@ -1999,6 +2008,8 @@ const WorkerImageProviderInputSchema = z.object({
   aspectRatio: z.string().min(1),
   referenceImage: z.string().optional(),
   referenceImages: z.array(z.string()).optional(),
+  /** 与 `referenceImages` 逐位对齐的说明；Gemini 把它贴在那张图前面（35 ⑥）。 */
+  referenceImageLabels: z.array(z.string().nullable()).optional(),
   /** Provider-specific params, transparently forwarded to the adapter. */
   advancedParams: z.unknown().optional(),
   /**

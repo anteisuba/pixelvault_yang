@@ -358,6 +358,12 @@ export async function submitImageGeneration(
         referenceImage: referenceImageUrl,
         referenceImages:
           referenceImages.length > 0 ? referenceImages : undefined,
+        // ⚠ 只在长度对得上时才带：上传那一跳不增删参考图，对不上说明有人改了
+        //   顺序，宁可退回无说明的旧行为也不能把 A 的说明贴到 B 的图上。
+        ...(input.referenceImageLabels &&
+        input.referenceImageLabels.length === referenceImages.length
+          ? { referenceImageLabels: input.referenceImageLabels }
+          : {}),
         advancedParams: runnerAdvancedParams,
         // Lets one worker branch serve both Ark stations (火山 cn-beijing vs
         // BytePlus ap-southeast). Mirrors what generate-video.service.ts and

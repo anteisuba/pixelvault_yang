@@ -300,6 +300,11 @@ interface WorkerImageRunContext {
     aspectRatio: string
     referenceImage?: string
     referenceImages?: string[]
+    /**
+     * 与 `referenceImages` 逐位对齐的说明（卡片总线图例，进度表 35 ⑥）；`null` =
+     * 这张图没有说明。只有 Gemini 读：说明作为文字紧贴在那张图前面。
+     */
+    referenceImageLabels?: (string | null)[]
     advancedParams?: Record<string, unknown>
     /**
      * Station base URL for adapters shared across two regional deployments
@@ -4447,7 +4452,9 @@ export class Hunyuan3DWorkflow extends WorkflowEntrypoint<
 
 // ─── Image generation (OpenAI gpt-image, synchronous HTTP) ────────────────────
 
-function parseImageRunContext(input: unknown): WorkerImageRunContext | null {
+export function parseImageRunContext(
+  input: unknown,
+): WorkerImageRunContext | null {
   if (!isRecord(input)) return null
   const providerInput = input.providerInput
   if (!isRecord(providerInput)) return null
@@ -4492,6 +4499,14 @@ function parseImageRunContext(input: unknown): WorkerImageRunContext | null {
         (value): value is string => typeof value === 'string',
       )
     : undefined
+  // ⚠ 长度对不上整串丢掉：宁可退回无说明的旧行为，也不把 A 的说明贴到 B 的图上。
+  const referenceImageLabels =
+    Array.isArray(providerInput.referenceImageLabels) &&
+    providerInput.referenceImageLabels.length === referenceImages?.length
+      ? providerInput.referenceImageLabels.map((value) =>
+          typeof value === 'string' && value.trim() ? value : null,
+        )
+      : undefined
   const advancedParams = isRecord(providerInput.advancedParams)
     ? (providerInput.advancedParams as Record<string, unknown>)
     : undefined
@@ -4515,6 +4530,7 @@ function parseImageRunContext(input: unknown): WorkerImageRunContext | null {
       aspectRatio,
       referenceImage,
       referenceImages,
+      ...(referenceImageLabels ? { referenceImageLabels } : {}),
       advancedParams,
       providerBaseUrl:
         readStringField(providerInput, 'providerBaseUrl') ?? undefined,
@@ -5414,6 +5430,33 @@ interface WorkerImageGenerationResult {
   layers?: WorkerImageLayerResult[]
 }
 
+/**
+ * Gemini 的 `parts`：正文在前，每张参考图前面紧贴它的说明（卡片总线图例
+ * 「Image 2 = @Denia identity (primary)」，进度表 35 ⑥）。
+ * ⚠ 只有 `referenceImages` 那条路带说明；单张 `referenceImage` 与缺说明 = 旧行为。
+ */
+export async function buildGeminiImageParts(
+  context: WorkerImageRunContext,
+  readImage: (
+    referenceImage: string,
+  ) => Promise<Record<string, unknown>> = readReferenceImageAsInlinePart,
+): Promise<Record<string, unknown>[]> {
+  const parts: Record<string, unknown>[] = [
+    { text: context.providerInput.prompt },
+  ]
+  const references = getImageReferenceInputs(context)
+  const labels =
+    context.providerInput.referenceImageLabels?.length === references.length
+      ? context.providerInput.referenceImageLabels
+      : undefined
+  for (const [index, referenceImage] of references.entries()) {
+    const label = labels?.[index]
+    if (label) parts.push({ text: label })
+    parts.push(await readImage(referenceImage))
+  }
+  return parts
+}
+
 async function generateGeminiImage(
   env: ExecutionEnv,
   context: WorkerImageRunContext,
@@ -5426,12 +5469,7 @@ async function generateGeminiImage(
   const dimensions = resolutionTier
     ? tieredGeminiDimensions(context.providerInput.aspectRatio, resolutionTier)
     : getStandardImageDimensions(context.providerInput.aspectRatio)
-  const parts: Record<string, unknown>[] = [
-    { text: context.providerInput.prompt },
-  ]
-  for (const referenceImage of getImageReferenceInputs(context)) {
-    parts.push(await readReferenceImageAsInlinePart(referenceImage))
-  }
+  const parts = await buildGeminiImageParts(context)
 
   const imageConfig: Record<string, unknown> = {
     aspectRatio: context.providerInput.aspectRatio,

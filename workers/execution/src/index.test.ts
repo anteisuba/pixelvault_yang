@@ -9,6 +9,8 @@ import {
   submitGeminiVideoQueue,
   pollGeminiVideoQueue,
   buildFalImageInput,
+  buildGeminiImageParts,
+  parseImageRunContext,
   bytesToBase64,
   cancelProviderJob,
   computeTieredDimensions,
@@ -1583,6 +1585,84 @@ describe('getImageReferenceInputs', () => {
 
   it('都没有时是空数组 —— 调用方据此走 generations 而不是 edits', () => {
     expect(getImageReferenceInputs(makeFalImageContext() as never)).toEqual([])
+  })
+})
+
+describe('buildGeminiImageParts（卡片总线图例交错，进度表 35 ⑥）', () => {
+  const readImage = async (url: string) => ({ inlineData: { url } })
+
+  it('每张图前面紧贴它的说明；没有说明的图照旧', async () => {
+    const parts = await buildGeminiImageParts(
+      makeFalImageContext({
+        prompt: 'body',
+        referenceImages: ['https://cdn/pose.png', 'https://cdn/denia.png'],
+        referenceImageLabels: [null, 'Image 2 = @Denia identity (primary)'],
+      }) as never,
+      readImage,
+    )
+    expect(parts).toEqual([
+      { text: 'body' },
+      { inlineData: { url: 'https://cdn/pose.png' } },
+      { text: 'Image 2 = @Denia identity (primary)' },
+      { inlineData: { url: 'https://cdn/denia.png' } },
+    ])
+  })
+
+  it('缺说明或长度对不上 = 旧行为（正文 + 一串图）', async () => {
+    const parts = await buildGeminiImageParts(
+      makeFalImageContext({
+        prompt: 'body',
+        referenceImages: ['https://cdn/a.png', 'https://cdn/b.png'],
+        referenceImageLabels: ['only one'],
+      }) as never,
+      readImage,
+    )
+    expect(parts).toEqual([
+      { text: 'body' },
+      { inlineData: { url: 'https://cdn/a.png' } },
+      { inlineData: { url: 'https://cdn/b.png' } },
+    ])
+  })
+})
+
+describe('parseImageRunContext 参考图说明', () => {
+  const base = {
+    runId: 'run-1',
+    workflowId: 'IMAGE_QUEUE',
+    outputType: 'IMAGE',
+    providerId: 'gemini',
+    useSystemKey: true,
+    callbackUrl: 'https://app.test/cb',
+    resolveKeyUrl: 'https://app.test/key',
+    timeoutMs: 1000,
+    maxAttempts: 1,
+    pollIntervalMs: 1000,
+  }
+  const input = (extra: Record<string, unknown>) => ({
+    ...base,
+    providerInput: {
+      prompt: 'p',
+      modelId: 'm',
+      externalModelId: 'x',
+      aspectRatio: '1:1',
+      referenceImages: ['https://cdn/a.png', 'https://cdn/b.png'],
+      ...extra,
+    },
+  })
+
+  it('长度对得上才收，空串归成 null', () => {
+    expect(
+      parseImageRunContext(
+        input({ referenceImageLabels: ['', 'Image 2 = @A'] }),
+      )?.providerInput.referenceImageLabels,
+    ).toEqual([null, 'Image 2 = @A'])
+  })
+
+  it('长度对不上整串丢掉', () => {
+    expect(
+      parseImageRunContext(input({ referenceImageLabels: ['Image 1 = @A'] }))
+        ?.providerInput.referenceImageLabels,
+    ).toBeUndefined()
   })
 })
 

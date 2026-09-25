@@ -109,6 +109,8 @@ export interface ImageOutlet {
   promptPrefix: string | null
   /** 追加在用户参考图**之后**的卡图。 */
   referenceImages: string[]
+  /** 与 `referenceImages` 逐位对齐的图例（「Image N = @handle 用途」）。 */
+  referenceLabels: string[]
   /** 角色负面，排在负面的最后（角色硬约束离生成点最近）。 */
   negative: string | null
   /** NovelAI 原生多角色；只在模型支持且用户没手摆时给。 */
@@ -170,6 +172,7 @@ export function compileImageOutlet(
     return {
       promptPrefix: null,
       referenceImages: [],
+      referenceLabels: [],
       negative: null,
       novelAiLayout: null,
     }
@@ -189,6 +192,7 @@ export function compileImageOutlet(
       return {
         promptPrefix: null,
         referenceImages: [],
+        referenceLabels: [],
         negative: null,
         novelAiLayout: {
           positioning: 'auto',
@@ -203,6 +207,7 @@ export function compileImageOutlet(
     return {
       promptPrefix: characters.map(characterBlock).join('\n\n'),
       referenceImages: [],
+      referenceLabels: [],
       negative,
       novelAiLayout: null,
     }
@@ -239,6 +244,7 @@ export function compileImageOutlet(
       ? `${blocks}\n\nReference images:\n${legend.join('\n')}`
       : blocks,
     referenceImages,
+    referenceLabels: legend,
     negative,
     novelAiLayout: null,
   }

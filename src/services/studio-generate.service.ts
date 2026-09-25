@@ -114,12 +114,17 @@ export async function compileAndGenerate(
     }
 
     const referenceImages = [...userReferences, ...outlet.referenceImages]
+    // 图例逐位对齐整串参考图：用户自己挂的那几张没有说明（null）。
+    const referenceImageLabels = outlet.referenceLabels.length
+      ? [...userReferences.map(() => null), ...outlet.referenceLabels]
+      : undefined
     const requestInput = {
       prompt: freePrompt,
       modelId: input.modelId,
       apiKeyId: input.apiKeyId,
       aspectRatio: input.aspectRatio ?? '1:1',
       referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
+      ...(referenceImageLabels ? { referenceImageLabels } : {}),
       advancedParams:
         Object.keys(mergedQuickAdvanced).length > 0
           ? mergedQuickAdvanced

@@ -111,6 +111,8 @@
 
 ⑤ 已写：读卡入口 `services/cards/card-bus.service.ts`（`loadCardBusCharacters`，按传入顺序、第一个 = 焦点角色；参考槽坏了或空着就用 mapper 从旧四列现算）+ 纯编译 `lib/card-bus-compile.ts`（中间形态 `toCardBusCharacter` · 图片出口 `compileImageOutlet`）。工作台快速出图改为送 `characterCardIds`（`StudioGenerateSchema` 新增，上限 `MAX_ACTIVE_CARDS`），服务端编译：卡图排在用户参考图**之后**、图例编号顺延；负面按「用户 / 预设 → 角色」拼；快照记 `studioSnapshot.characterCards: {id, version}[]`；`characterCardIds` 随请求进 join 表。⚠ 行为变化：① 删掉客户端 `character-card-injection.ts`（原先只送第一张卡的一张图、只在用户没挂图时送）；② NovelAI 不再送卡图（原先会被当成图生图底图），V4.5 / V5 改走原生多角色、用户手摆了就退回文字。卡片配方 `compileRecipe` 未接（风格卡与配方另立项下线）。
 
+⑥ 已写：图片出口多给一份与卡图逐位对齐的图例 `referenceLabels`，快速出图拼成与整串参考图对齐的 `referenceImageLabels`（用户挂的图为 `null`）送进 worker；worker 的 Gemini 在每张图前面插一段文字说明（`buildGeminiImageParts`）。长度对不上的整串丢弃 = 旧行为。⚠ worker 要随发布单独部署才生效。
+
 1. **expand（D1）**：只加列 + 唯一索引（登记 ACK：索引列是同迁移新加的可空列，全表 NULL 时建）；写方**双写**，读方一行不改。
 2. **backfill（D1 上线后 owner 手动）**：回填脚本默认只出报告，`--apply` 每次都要 owner 当次授权；只动新列仍是初始值的行，重跑安全；按用户 → 根卡 → 变体的确定性顺序分配 handle，冲突加 `-2`、`-3`；persona 旧形改写前先把原值导出到本机。
 3. **switch（D2）**：读方切到新列，Prisma 省略旧列，**仍双写**以保 D2 可回滚到 D1。

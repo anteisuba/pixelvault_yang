@@ -109,6 +109,8 @@
 
 ④ 已写：`scripts/backfill-card-bus.ts` 只回填 `handle` 与 `referenceSlots`（persona 等文字侧推后，不改写）；映射全取 `card-bus.ts` 与 mapper，写库用 `IS NULL` 条件兜并发。09-25 只读报告：14 张（6 张软删）、1 个用户、全部缺两列、加后缀 1、参考槽跳过 0。 09-26 owner 授权 `--apply`：写入 28 格，重跑报告两列缺失均为 0。
 
+⑤ 已写：读卡入口 `services/cards/card-bus.service.ts`（`loadCardBusCharacters`，按传入顺序、第一个 = 焦点角色；参考槽坏了或空着就用 mapper 从旧四列现算）+ 纯编译 `lib/card-bus-compile.ts`（中间形态 `toCardBusCharacter` · 图片出口 `compileImageOutlet`）。工作台快速出图改为送 `characterCardIds`（`StudioGenerateSchema` 新增，上限 `MAX_ACTIVE_CARDS`），服务端编译：卡图排在用户参考图**之后**、图例编号顺延；负面按「用户 / 预设 → 角色」拼；快照记 `studioSnapshot.characterCards: {id, version}[]`；`characterCardIds` 随请求进 join 表。⚠ 行为变化：① 删掉客户端 `character-card-injection.ts`（原先只送第一张卡的一张图、只在用户没挂图时送）；② NovelAI 不再送卡图（原先会被当成图生图底图），V4.5 / V5 改走原生多角色、用户手摆了就退回文字。卡片配方 `compileRecipe` 未接（风格卡与配方另立项下线）。
+
 1. **expand（D1）**：只加列 + 唯一索引（登记 ACK：索引列是同迁移新加的可空列，全表 NULL 时建）；写方**双写**，读方一行不改。
 2. **backfill（D1 上线后 owner 手动）**：回填脚本默认只出报告，`--apply` 每次都要 owner 当次授权；只动新列仍是初始值的行，重跑安全；按用户 → 根卡 → 变体的确定性顺序分配 handle，冲突加 `-2`、`-3`；persona 旧形改写前先把原值导出到本机。
 3. **switch（D2）**：读方切到新列，Prisma 省略旧列，**仍双写**以保 D2 可回滚到 D1。

@@ -4327,6 +4327,14 @@ export const StudioGenerateSchema = z
     apiKeyId: z.string().trim().min(1).optional(),
     /** Card mode: card IDs */
     characterCardId: z.string().optional(),
+    /**
+     * Quick mode: 在场的角色卡（第一个 = 焦点角色）。服务端经卡片总线编译成
+     * 正文前缀 + 参考图 + 负面（进度表 35 ⑤），⛔ 客户端不再自己拼。
+     */
+    characterCardIds: z
+      .array(z.string().trim().min(1))
+      .max(CHARACTER_CARD.MAX_ACTIVE_CARDS)
+      .optional(),
     backgroundCardId: z.string().optional(),
     styleCardId: z.string().optional(),
     freePrompt: z

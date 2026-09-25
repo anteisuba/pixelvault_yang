@@ -1,0 +1,234 @@
+/**
+ * 卡片总线的**编译层**（进度表 35 · 第 ⑤ 片）：一个中间形态，N 个出口。
+ *
+ * ⭐ 中间形态是「每个角色一组」：视觉文字 · 角色负面 · 排好序的参考槽。
+ *   ⛔ 这一层不合并文本 —— 压平是各出口的事（图片在这里，视频是第 ⑦ 片）。
+ * ⭐ 从库里读卡只有 `services/cards/card-bus.service.ts` 一处；本文件不碰库。
+ * ⛔ `summary` · `tags` 不进任何出口（给人看的）。
+ * 契约见 `docs/references/domains/cards.md`「编译层」。
+ */
+
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import {
+  getNovelAiMaxCharacters,
+  novelAiGridCellCenter,
+  supportsNovelAiCharacters,
+} from '@/constants/novelai'
+import type { CharacterReferenceSlot } from '@/types'
+import type { NovelAiCharacterLayout } from '@/types/novelai'
+
+// ─── 中间形态 ────────────────────────────────────────────────────
+
+export interface CardBusCharacter {
+  cardId: string
+  /** 卡内容版本：进生成快照，指认出图用的是哪一版卡。 */
+  version: number
+  handle: string
+  name: string
+  /** 视觉文字：`characterPrompt` 在前、`description` 在后（只写视觉）。 */
+  visual: string | null
+  /** 角色硬否定（`extensions['pv.negative']`）。 */
+  negative: string | null
+  /** 主图在最前，其次其余身份槽，再其次别的用途，同档保持卡上的顺序。 */
+  slots: CharacterReferenceSlot[]
+}
+
+export interface CardBusCharacterSource {
+  id: string
+  version: number
+  handle: string
+  name: string
+  characterPrompt: string | null
+  description: string | null
+  extensions: unknown
+  slots: readonly CharacterReferenceSlot[]
+}
+
+export const CARD_BUS_NEGATIVE_KEY = 'pv.negative'
+
+function readNegative(extensions: unknown): string | null {
+  if (!extensions || typeof extensions !== 'object') return null
+  const value = (extensions as Record<string, unknown>)[CARD_BUS_NEGATIVE_KEY]
+  return typeof value === 'string' && value.trim() ? value.trim() : null
+}
+
+function slotRank(slot: CharacterReferenceSlot): number {
+  if (slot.isPrimary) return 0
+  return slot.role === 'identity' ? 1 : 2
+}
+
+export function toCardBusCharacter(
+  source: CardBusCharacterSource,
+): CardBusCharacter {
+  const prompt = source.characterPrompt?.trim() || ''
+  const description = source.description?.trim() || ''
+  const visual =
+    [prompt, description && description !== prompt ? description : '']
+      .filter(Boolean)
+      .join('\n') || null
+  return {
+    cardId: source.id,
+    version: source.version,
+    handle: source.handle,
+    name: source.name,
+    visual,
+    negative: readNegative(source.extensions),
+    slots: source.slots
+      .map((slot, index) => ({ slot, index }))
+      .sort((a, b) => slotRank(a.slot) - slotRank(b.slot) || a.index - b.index)
+      .map(({ slot }) => slot),
+  }
+}
+
+// ─── 图片出口 ────────────────────────────────────────────────────
+
+export interface ImageOutletOptions {
+  adapterType: string
+  modelId: string
+  /** 这个模型最多收几张参考图（含用户自己挂的）。 */
+  maxReferenceImages: number
+  /** 用户自己挂的参考图张数 —— 它们排在前面，`@图N` 的下标不能被卡图挤动。 */
+  userReferenceCount: number
+  /** 用户已经手摆了 NovelAI 多角色，就不替他排。 */
+  hasNovelAiLayout: boolean
+}
+
+export interface ImageOutlet {
+  /** 放在用户正文前面的那一段；没有可写的就是 null。 */
+  promptPrefix: string | null
+  /** 追加在用户参考图**之后**的卡图。 */
+  referenceImages: string[]
+  /** 角色负面，排在负面的最后（角色硬约束离生成点最近）。 */
+  negative: string | null
+  /** NovelAI 原生多角色；只在模型支持且用户没手摆时给。 */
+  novelAiLayout: NovelAiCharacterLayout | null
+}
+
+function slotLabel(slot: CharacterReferenceSlot): string {
+  const role =
+    slot.role === 'custom' && slot.customLabel ? slot.customLabel : slot.role
+  return slot.isPrimary ? `${role} (primary)` : role
+}
+
+/**
+ * 参考图配额**在角色之间轮流分**：先每人一张主图，再每人第二张……配额用完即停。
+ * ⛔ 不许一个角色吃光配额。结果按角色分组排，图例好读。
+ */
+function allocateSlots(
+  characters: readonly CardBusCharacter[],
+  budget: number,
+): CharacterReferenceSlot[][] {
+  const picked = characters.map(() => [] as CharacterReferenceSlot[])
+  const seen = new Set<string>()
+  let left = budget
+  for (let depth = 0; left > 0; depth += 1) {
+    let progressed = false
+    characters.forEach((character, index) => {
+      const slot = character.slots[depth]
+      if (!slot || left <= 0) return
+      progressed = true
+      if (seen.has(slot.url)) return
+      seen.add(slot.url)
+      picked[index]!.push(slot)
+      left -= 1
+    })
+    if (!progressed) break
+  }
+  return picked
+}
+
+function characterBlock(character: CardBusCharacter): string {
+  const head = `[Character: @${character.handle}${character.name !== character.handle ? ` (${character.name})` : ''}]`
+  return character.visual ? `${head}\n${character.visual}` : head
+}
+
+/**
+ * 把中间形态压成**图片 provider 能收的**：一段正文前缀 + 一串扁平 URL + 负面。
+ *
+ * - 每个角色的身份句（视觉文字）**各自保留**，不管有没有分到图。
+ * - 多图模型：配额在角色间轮流分，正文里写图例「Image N = @handle 用途」。
+ * - 单图模型：只送第一个（焦点）角色的主图，其余角色只进文字。
+ * - NovelAI：⛔ 不送卡图（它的参考图是图生图底图，会把出图变成改卡图）；
+ *   支持多角色的型号改用原生 `characterPrompts`，每个角色一条。
+ */
+export function compileImageOutlet(
+  characters: readonly CardBusCharacter[],
+  options: ImageOutletOptions,
+): ImageOutlet {
+  if (characters.length === 0) {
+    return {
+      promptPrefix: null,
+      referenceImages: [],
+      negative: null,
+      novelAiLayout: null,
+    }
+  }
+
+  const negative =
+    characters
+      .flatMap((character) => (character.negative ? [character.negative] : []))
+      .join(', ') || null
+
+  if (options.adapterType === AI_ADAPTER_TYPES.NOVELAI) {
+    const canLayout =
+      !options.hasNovelAiLayout &&
+      supportsNovelAiCharacters(options.modelId) &&
+      characters.length <= getNovelAiMaxCharacters(options.modelId)
+    if (canLayout) {
+      return {
+        promptPrefix: null,
+        referenceImages: [],
+        negative: null,
+        novelAiLayout: {
+          positioning: 'auto',
+          characters: characters.map((character, index) => ({
+            prompt: character.visual ?? character.name,
+            negativePrompt: character.negative ?? '',
+            position: { x: novelAiGridCellCenter(index), y: 0.5 },
+          })),
+        },
+      }
+    }
+    return {
+      promptPrefix: characters.map(characterBlock).join('\n\n'),
+      referenceImages: [],
+      negative,
+      novelAiLayout: null,
+    }
+  }
+
+  const budget = Math.max(
+    0,
+    options.maxReferenceImages - options.userReferenceCount,
+  )
+  const picked =
+    options.maxReferenceImages > 1
+      ? allocateSlots(characters, budget)
+      : characters.map((character, index) =>
+          index === 0 && budget > 0 && character.slots[0]
+            ? [character.slots[0]]
+            : [],
+        )
+
+  const referenceImages: string[] = []
+  const legend: string[] = []
+  picked.forEach((slots, index) => {
+    const character = characters[index]!
+    for (const slot of slots) {
+      referenceImages.push(slot.url)
+      legend.push(
+        `Image ${options.userReferenceCount + referenceImages.length} = @${character.handle} ${slotLabel(slot)}`,
+      )
+    }
+  })
+
+  const blocks = characters.map(characterBlock).join('\n\n')
+  return {
+    promptPrefix: legend.length
+      ? `${blocks}\n\nReference images:\n${legend.join('\n')}`
+      : blocks,
+    referenceImages,
+    negative,
+    novelAiLayout: null,
+  }
+}

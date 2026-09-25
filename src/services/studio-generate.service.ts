@@ -2,6 +2,9 @@ import 'server-only'
 
 import type { ImageSubmitResponseData, StudioGenerateRequest } from '@/types'
 import { getModelById } from '@/constants/models'
+import { getMaxReferenceImages } from '@/constants/provider-capabilities'
+import { compileImageOutlet } from '@/lib/card-bus-compile'
+import { loadCardBusCharacters } from '@/services/cards/card-bus.service'
 import { compileRecipe } from '@/services/kernel/card-recipe-compiler.service'
 import { submitImageGeneration } from '@/services/image/submit-image.service'
 import { ensureUser } from '@/services/user.service'
@@ -51,8 +54,34 @@ export async function compileAndGenerate(
      * provider 报一句英文错更有用）；没声明就不拦 —— 与音频侧
      * `resolveAudioTextLimit` 的两层同构：不给未知模型编一个上限。
      */
-    const promptLimit = getModelById(input.modelId)?.maxPromptChars
-    const freePrompt = compileReferenceMentions(input.freePrompt ?? '')
+    const catalogModel = getModelById(input.modelId)
+    const promptLimit = catalogModel?.maxPromptChars
+    const userReferences = input.referenceImages ?? []
+    const advanced = (input.advancedParams ?? {}) as Record<string, unknown>
+
+    /**
+     * ⭐ 在场角色卡走卡片总线（进度表 35 ⑤）：每个角色的视觉文字进正文前缀，
+     * 卡图排在用户参考图**之后**（`@图N` 的下标不被挤动），角色负面排在负面最后。
+     */
+    const characters = input.characterCardIds?.length
+      ? await loadCardBusCharacters(dbUser.id, input.characterCardIds)
+      : []
+    const outlet = compileImageOutlet(characters, {
+      adapterType: catalogModel?.adapterType ?? '',
+      modelId: input.modelId,
+      maxReferenceImages: catalogModel
+        ? getMaxReferenceImages(catalogModel.adapterType, input.modelId)
+        : 1,
+      userReferenceCount: userReferences.length,
+      hasNovelAiLayout: advanced.novelAiLayout !== undefined,
+    })
+
+    const freePrompt = [
+      outlet.promptPrefix,
+      compileReferenceMentions(input.freePrompt ?? ''),
+    ]
+      .filter(Boolean)
+      .join('\n\n')
     if (promptLimit !== undefined && freePrompt.length > promptLimit) {
       const message = `提示词超过该模型上限 ${promptLimit} 字符`
       throw new GenerationValidationError(
@@ -67,29 +96,39 @@ export async function compileAndGenerate(
       hasApiKeyId: !!input.apiKeyId,
     })
 
+    const negativePrompt = [
+      typeof advanced.negativePrompt === 'string'
+        ? advanced.negativePrompt
+        : '',
+      outlet.negative ?? '',
+    ]
+      .filter((part) => part.trim())
+      .join(', ')
+
     // B5: Inject seed override into advancedParams
     const mergedQuickAdvanced = {
-      ...(input.advancedParams
-        ? (input.advancedParams as Record<string, unknown>)
-        : {}),
+      ...advanced,
+      ...(negativePrompt ? { negativePrompt } : {}),
+      ...(outlet.novelAiLayout ? { novelAiLayout: outlet.novelAiLayout } : {}),
       ...(input.seed != null ? { seed: input.seed } : {}),
     }
 
+    const referenceImages = [...userReferences, ...outlet.referenceImages]
     const requestInput = {
       prompt: freePrompt,
       modelId: input.modelId,
       apiKeyId: input.apiKeyId,
       aspectRatio: input.aspectRatio ?? '1:1',
-      referenceImages:
-        input.referenceImages && input.referenceImages.length > 0
-          ? input.referenceImages
-          : undefined,
+      referenceImages: referenceImages.length > 0 ? referenceImages : undefined,
       advancedParams:
         Object.keys(mergedQuickAdvanced).length > 0
           ? mergedQuickAdvanced
           : undefined,
       projectId: input.projectId,
       recipeUsage: input.recipeUsage,
+      ...(characters.length
+        ? { characterCardIds: characters.map((character) => character.cardId) }
+        : {}),
     }
 
     return submitImageGeneration(
@@ -102,6 +141,17 @@ export async function compileAndGenerate(
         runGroupIndex: input.runGroupIndex,
         sourceSurface: input.sourceSurface,
         displayLabel: input.displayLabel,
+        // 快照带 (cardId, version)：改了卡之后仍能指认这张图用的是哪一版。
+        ...(characters.length
+          ? {
+              studioSnapshot: {
+                characterCards: characters.map((character) => ({
+                  id: character.cardId,
+                  version: character.version,
+                })),
+              },
+            }
+          : {}),
       },
     )
   }

@@ -44,7 +44,6 @@ import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
 import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
-import { composeCharacterInjection } from '@/lib/character-card-injection'
 import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { resolveInlineAudioReference } from '@/lib/studio/audio-reference'
@@ -676,35 +675,26 @@ export function useStudioGenerateAction() {
       const imageModelForGeneration = overrides?.selectedModel ?? selectedModel
 
       if (state.workflowMode === 'quick' && imageModelForGeneration) {
-        const injection = composeCharacterInjection(characters.activeCards)
-        const basePrompt =
-          overrides?.compiledPrompt ?? composePrompt(state.prompt)
-        const freePrompt = injection.promptPrefix
-          ? `${injection.promptPrefix}\n\n${basePrompt ?? ''}`.trim() ||
-            undefined
-          : basePrompt
-        const mergedReferenceImages =
-          imageUpload.referenceImages.length > 0
-            ? imageUpload.referenceImages
-            : injection.referenceImageUrl
-              ? [injection.referenceImageUrl]
-              : undefined
+        // 在场角色卡只送 id：正文前缀、卡图、角色负面都由服务端卡片总线编译
+        // （进度表 35 ⑤），⛔ 这里不再拼。
+        const characterCardIds = characters.activeCards.map((card) => card.id)
         const baseAdvancedParams = composeAdvancedParams(
           overrides?.negativePrompt,
         )
         return {
           modelId: imageModelForGeneration.modelId,
           apiKeyId: imageModelForGeneration.keyId,
-          freePrompt,
+          freePrompt: overrides?.compiledPrompt ?? composePrompt(state.prompt),
           aspectRatio: state.aspectRatio,
           projectId: projects.activeProjectId ?? undefined,
-          referenceImages: mergedReferenceImages,
+          referenceImages:
+            imageUpload.referenceImages.length > 0
+              ? imageUpload.referenceImages
+              : undefined,
           advancedParams: baseAdvancedParams,
           recipeUsage: state.recipeUsage ?? undefined,
           characterCardIds:
-            injection.appliedCardIds.length > 0
-              ? injection.appliedCardIds
-              : undefined,
+            characterCardIds.length > 0 ? characterCardIds : undefined,
         }
       }
       if (state.workflowMode === 'card' && styles.activeCardId) {

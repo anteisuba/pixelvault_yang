@@ -16,10 +16,15 @@ vi.mock('@/services/image/submit-image.service', () => ({
   submitImageGeneration: vi.fn(),
 }))
 
+vi.mock('@/services/cards/card-bus.service', () => ({
+  loadCardBusCharacters: vi.fn(),
+}))
+
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }))
 
+import { loadCardBusCharacters } from '@/services/cards/card-bus.service'
 import { compileRecipe } from '@/services/kernel/card-recipe-compiler.service'
 import { submitImageGeneration } from '@/services/image/submit-image.service'
 import { ensureUser } from '@/services/user.service'
@@ -34,6 +39,7 @@ const QUICK_INPUT: StudioGenerateRequest = {
 beforeEach(() => {
   vi.clearAllMocks()
   vi.mocked(ensureUser).mockResolvedValue({ id: 'user-1' } as never)
+  vi.mocked(loadCardBusCharacters).mockResolvedValue([])
   vi.mocked(submitImageGeneration).mockResolvedValue({
     jobId: 'job-1',
     requestId: 'request-1',
@@ -236,5 +242,62 @@ describe('compileAndGenerate 透传 displayLabel（切片 Y）', () => {
 
     const queueMeta = vi.mocked(submitImageGeneration).mock.calls[0]![3]
     expect(queueMeta?.displayLabel).toBeUndefined()
+  })
+})
+
+describe('compileAndGenerate 卡片总线（进度表 35 ⑤）', () => {
+  const DENIA = {
+    cardId: 'card-1',
+    version: 3,
+    handle: 'Denia',
+    name: 'Denia',
+    visual: 'red eyes, dark blue hair',
+    negative: 'extra fingers',
+    slots: [
+      {
+        id: 'slot-1',
+        role: 'identity' as const,
+        url: 'https://cdn.test/denia.png',
+        isPrimary: true,
+        origin: 'upload' as const,
+      },
+    ],
+  }
+
+  it('卡图排在用户参考图之后，正文前缀带身份句与图例，负面追加在最后', async () => {
+    vi.mocked(loadCardBusCharacters).mockResolvedValue([DENIA])
+    await compileAndGenerate('clerk-1', {
+      ...QUICK_INPUT,
+      modelId: AI_MODELS.GEMINI_FLASH_IMAGE,
+      freePrompt: 'Use @Image1 for the pose',
+      referenceImages: ['https://example.com/pose.png'],
+      advancedParams: { negativePrompt: 'blurry' },
+      characterCardIds: ['card-1'],
+    })
+    expect(loadCardBusCharacters).toHaveBeenCalledWith('user-1', ['card-1'])
+    const [, request, , meta] = vi.mocked(submitImageGeneration).mock.calls[0]!
+    expect(request.referenceImages).toEqual([
+      'https://example.com/pose.png',
+      'https://cdn.test/denia.png',
+    ])
+    expect(request.prompt).toContain('[Character: @Denia]\nred eyes')
+    expect(request.prompt).toContain('Image 2 = @Denia identity (primary)')
+    expect(request.prompt).toContain('reference image 1 for the pose')
+    expect(request.advancedParams).toMatchObject({
+      negativePrompt: 'blurry, extra fingers',
+    })
+    expect(request.characterCardIds).toEqual(['card-1'])
+    expect(meta?.studioSnapshot).toEqual({
+      characterCards: [{ id: 'card-1', version: 3 }],
+    })
+  })
+
+  it('没有在场角色卡时请求与原来一样', async () => {
+    await compileAndGenerate('clerk-1', QUICK_INPUT)
+    expect(loadCardBusCharacters).not.toHaveBeenCalled()
+    const [, request, , meta] = vi.mocked(submitImageGeneration).mock.calls[0]!
+    expect(request.prompt).toBe('A studio portrait')
+    expect(request.characterCardIds).toBeUndefined()
+    expect(meta?.studioSnapshot).toBeUndefined()
   })
 })

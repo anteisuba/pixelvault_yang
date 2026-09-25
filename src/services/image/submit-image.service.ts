@@ -98,6 +98,8 @@ export interface ImageQueueMetadata {
   studioSnapshot?: {
     freePrompt?: string
     characterCardId?: string
+    /** 卡片总线编译用到的角色卡与版本（进度表 35 ⑤）。 */
+    characterCards?: { id: string; version: number }[]
     backgroundCardId?: string
     styleCardId?: string
   }

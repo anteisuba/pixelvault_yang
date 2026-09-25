@@ -1857,6 +1857,155 @@ const BUBBLE_UI = {
   ],
 }
 
+// ── 第 7 页：卡片重设计（owner 09-26：Denia 实跑走样 → 卡片工作流本身要重想；卡片助手查图、给可生成的图）──
+const GR = {
+  已定: { c: '#16794c', bg: '#eef7f1', dash: false },
+  已落: { c: '#16794c', bg: '#eef7f1', dash: false },
+  建议: { c: '#6d28d9', bg: '#f4f0fd', dash: false },
+  待定: { c: '#a04f00', bg: '#fff8ec', dash: true },
+  依赖: { c: '#737373', bg: '#f5f5f5', dash: true },
+}
+// 关系图：节点绝对定位，SVG 连线自动从合适的边出入。
+const graph = (W, H, nodes, edges) => {
+  const byId = Object.fromEntries(nodes.map((node) => [node.id, node]))
+  const anchor = (a, b) => {
+    if (b.x >= a.x + a.w) return [[a.x + a.w, a.y + a.h / 2], [b.x, b.y + b.h / 2], 'h']
+    if (b.x + b.w <= a.x) return [[a.x, a.y + a.h / 2], [b.x + b.w, b.y + b.h / 2], 'h']
+    if (b.y >= a.y + a.h) return [[a.x + a.w / 2, a.y + a.h], [b.x + b.w / 2, b.y], 'v']
+    return [[a.x + a.w / 2, a.y], [b.x + b.w / 2, b.y + b.h], 'v']
+  }
+  const paths = edges
+    .map((e) => {
+      const [[x1, y1], [x2, y2], dir] = anchor(byId[e.from], byId[e.to])
+      const d =
+        dir === 'h'
+          ? `M${x1},${y1} C${(x1 + x2) / 2},${y1} ${(x1 + x2) / 2},${y2} ${x2},${y2}`
+          : `M${x1},${y1} C${x1},${(y1 + y2) / 2} ${x2},${(y1 + y2) / 2} ${x2},${y2}`
+      const color = e.tone ?? '#a3a3a3'
+      const label = e.label
+        ? `<text x="${(x1 + x2) / 2}" y="${(y1 + y2) / 2 - 5}" text-anchor="middle" font-size="11" fill="#525252" paint-order="stroke" stroke="#fff" stroke-width="4">${e.label}</text>`
+        : ''
+      return `<path d="${d}" fill="none" stroke="${color}" stroke-width="1.5" ${e.dash ? 'stroke-dasharray="5 4"' : ''} marker-end="url(#arr)"/>${label}`
+    })
+    .join('')
+  const boxes = nodes
+    .map((node) => {
+      const s = GR[node.tag]
+      return `<div style="position:absolute;left:${node.x}px;top:${node.y}px;width:${node.w}px;min-height:${node.h}px;box-sizing:border-box;border:1.5px ${s.dash ? 'dashed' : 'solid'} ${s.c};border-radius:12px;background:${s.bg};padding:8px 10px;display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:center;gap:6px"><span style="font-size:10.5px;font-weight:600;color:${s.c}">${node.tag}</span><span style="font-size:12.5px;font-weight:600;color:#0a0a0a">${node.title}</span></div>${node.text ? `<div style="font-size:11.5px;line-height:1.5;color:#404040">${node.text}</div>` : ''}</div>`
+    })
+    .join('')
+  return `<div style="position:relative;width:${W}px;height:${H}px;margin-top:12px"><svg width="${W}" height="${H}" style="position:absolute;inset:0;overflow:visible"><defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#a3a3a3"/></marker></defs>${paths}</svg>${boxes}</div>`
+}
+const graphLegend = `<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:6px">${Object.entries({ 已定: 'owner 拍过', 已落: '代码已有', 建议: '我的建议，等你点头', 待定: '等你定', 依赖: '等别的条目' })
+  .map(([tag, d]) => `<span style="display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#404040"><span style="width:14px;height:10px;border-radius:3px;border:1.5px ${GR[tag].dash ? 'dashed' : 'solid'} ${GR[tag].c};background:${GR[tag].bg}"></span>${tag} · ${d}</span>`)
+  .join('')}</div>`
+
+const CF_NODES = [
+  { id: 'you', tag: '已定', title: '你', text: '说一个角色名，或丢几张图', x: 0, y: 220, w: 170, h: 70 },
+  { id: 'agent', tag: '建议', title: '卡片助手', text: '同一个助手壳的第五张脸：查图 → 挑图 → 整理 → 建卡', x: 220, y: 210, w: 200, h: 90 },
+  { id: 'where', tag: '待定', title: '助手放哪', text: '① 助手第五张脸（卡片页右上头像）② 卡片页里的向导', x: 220, y: 370, w: 200, h: 90 },
+  { id: 'search', tag: '建议', title: '查图', text: '来源：Danbooru（已接）· 官方 wiki / 设定集 · 你的图库 · 你上传', x: 480, y: 10, w: 240, h: 90 },
+  { id: 'grid', tag: '已落', title: '候选网格', text: '助手现成的图片候选网格（56b），点选即挂', x: 480, y: 170, w: 240, h: 80 },
+  { id: 'gate', tag: '建议', title: '质检：能不能用于生成', text: '单人 · 主体占画面高 ≥ 1/2 · 脸清楚 · 无文字水印 · 只有一种形态；不合格标出原因', x: 480, y: 300, w: 240, h: 110 },
+  { id: 'tidy', tag: '建议', title: '整理成可用图', text: '自动裁出本人；实在没有好图时，用强模型生成一张定妆三视图（花一次出图，先问你）', x: 480, y: 470, w: 240, h: 110 },
+  { id: 'confirm', tag: '建议', title: '你确认', text: '每张图标用途：脸 · 全身 · 背面 · 其他', x: 750, y: 220, w: 180, h: 80 },
+  { id: 'card', tag: '建议', title: '角色卡', text: '<b>核心 3 张</b>：正面胸像（脸）· 全身正面（服装）· 背面 / 侧面（可选）<br>其余是用途图：换装 · 武器 · 表情<br>文字只写图里看不出的一句，⛔ 不写画风', x: 960, y: 150, w: 330, h: 150 },
+  { id: 'variant', tag: '建议', title: '变体', text: '另一形态 / Q 版 / 另一套衣服 = 变体（Denia 的暗面形态单独一张）', x: 960, y: 340, w: 330, h: 70 },
+  { id: 'bus', tag: '已落', title: '卡片总线编译（⑤⑥）', text: '按模型能收几张分配：脸 → 全身 → 背面；图例写明哪张是谁', x: 960, y: 460, w: 330, h: 80 },
+  { id: 'keep', tag: '建议', title: '加保持指令', text: '「脸 · 发型 · 发色 · 服装照 Image N」', x: 750, y: 480, w: 180, h: 80 },
+  { id: 'img', tag: '已落', title: '图片出图', text: '本地已落，待上线', x: 960, y: 600, w: 105, h: 70 },
+  { id: 'vid', tag: '依赖', title: '视频 ⑦', text: '下一片', x: 1072, y: 600, w: 105, h: 70 },
+  { id: 'cv', tag: '依赖', title: '画布 ⑨', text: '等界面设计', x: 1184, y: 600, w: 106, h: 70 },
+  { id: 'loop', tag: '建议', title: '好图回流', text: '出图满意 → 一键进卡当参考图（标用途）', x: 480, y: 630, w: 240, h: 70 },
+  { id: 'ui', tag: '待定', title: '卡片界面（D6 ④ 画板）', text: '这张图你确认后就出 ④：卡片页 · 建卡流程 · 工作台选卡', x: 0, y: 520, w: 200, h: 110 },
+  { id: 'multi', tag: '已落', title: '一张卡放几张图', text: '已支持 15 个参考槽 · 11 类用途', x: 960, y: 10, w: 330, h: 70 },
+]
+const CF_EDGES = [
+  { from: 'you', to: 'agent' },
+  { from: 'agent', to: 'where', dash: true, label: '放哪' },
+  { from: 'agent', to: 'search' },
+  { from: 'search', to: 'grid' },
+  { from: 'grid', to: 'gate' },
+  { from: 'gate', to: 'tidy', label: '不够好' },
+  { from: 'gate', to: 'confirm', label: '合格' },
+  { from: 'tidy', to: 'confirm' },
+  { from: 'confirm', to: 'card' },
+  { from: 'multi', to: 'card', dash: true },
+  { from: 'card', to: 'variant', dash: true },
+  { from: 'variant', to: 'bus' },
+  { from: 'keep', to: 'bus' },
+  { from: 'bus', to: 'img' },
+  { from: 'bus', to: 'vid', dash: true },
+  { from: 'bus', to: 'cv', dash: true },
+  { from: 'img', to: 'loop' },
+  { from: 'loop', to: 'card', dash: true, label: '回流进卡' },
+  { from: 'where', to: 'ui', dash: true },
+]
+
+const CF_LIMITS = table(
+  ['模型', '一次最多收几张参考图', '卡图怎么送'],
+  [
+    ['GPT Image 2 / 2.5', '16', '脸 → 全身 → 背面 → 用途图'],
+    ['Gemini（Nano Banana）', '14', '同上，且每张图前贴说明（⑥）'],
+    ['Seedream 5.0（火山 / BytePlus 14 · fal 10）', '10–14', '同上'],
+    ['Qwen Image（自有算力）', '10', '同上'],
+    ['FLUX.2 Pro · Kontext Max', '8 · 4', '多角色时每人先分一张脸'],
+    ['FLUX.2 Flash', '4', '同上'],
+    ['FLUX LoRA 等单图模型', '1', '只送焦点角色的脸，其余进文字'],
+    ['NovelAI', '1（图生图底图）', '⛔ 不送卡图，走原生多角色文字'],
+    ['PixAI · Ideogram · Recraft', '0', '只进文字'],
+  ],
+)
+
+const CARD_FLOW_ANSWERS = {
+  file: 'DesignCardFlowAnswers.dc.html',
+  title: '卡片 · ① 三个问题',
+  eyebrow: 'PixelVault · 7 卡片重设计 · ① · 2026-09-26',
+  heading: '什么图能用于生成、给什么图最好、一张卡放几张',
+  sub: '起因：09-26 用 Denia 卡实跑 GPT Image 2，出图看不出是同一个人。编译本身是对的（身份句、图例、卡图都进了请求），问题出在卡上：身份图是整张官方宣传立绘，她本人只占中间一小块，**脸约 30 像素宽**，两侧的大脸还是她的另一形态；自动提取的描述把两种形态和「3D 渲染立绘」画风混在一起；出口也没有明确要求「照这张图保持」。所以卡片要有一个帮你**查图、挑图、整理图**的流程，而不是随手传一张。',
+  blocks: [
+    h('① 什么图能用于生成（硬门槛，助手自动判）'),
+    { t: 'ul', items: [
+      '**画面里只有这一个角色**：合照、宣传海报里有别人或别的形态，模型分不清谁是谁',
+      '**主体至少占画面高度一半**，脸看得清：Denia 那张脸只有 30 像素，任何模型都只能猜',
+      '**没有文字、logo、水印、游戏 UI**：会被当成角色的一部分画进去',
+      '**只有一种形态、一套衣服**：另一形态 / 换装做成变体或用途图',
+      '**分辨率够**：原图长边至少 1024',
+    ] },
+    h('② 给什么图最好（从好到能用）'),
+    table(
+      ['档', '图', '为什么'],
+      [
+        ['最好', '官方设定图 / 三视图（纯色背景，正 · 侧 · 背全身）+ 一张正面胸像', '脸、发型、服装、配色一次说全，背景不干扰'],
+        ['好', '官方立绘里裁出本人（背景简单、脸够大）', '画风与官方一致'],
+        ['能用', '清楚的单人游戏截图 / 同人图', '可能带同人画风，文字里不写画风来中和'],
+        ['不能用', '宣传海报 · 合照 · 缩略图 · 另一形态混在一起', '就是这次 Denia 走样的原因'],
+        ['没有好图时', '用强模型把现有图整理成一张定妆三视图，你确认后当主图', '花一次出图；原图太糊时也可能走样，先问你'],
+      ],
+    ),
+    h('③ 一张卡能不能放多张图'),
+    { t: 'p', text: '**能，已经支持**：15 个参考槽、每张标 11 类用途之一（身份 · 姿势 · 服装 · 武器……）。但每次出图真正送几张由模型决定（下表来自 `provider-capabilities.ts`）。所以建议卡的**核心就是 3 张**：正面胸像（脸）· 全身正面（服装）· 背面或侧面（可选）；其余当用途图按需带上。编译时先保证每个角色都有脸，再轮流补全身、背面。' },
+    CF_LIMITS,
+  ],
+}
+
+const CARD_FLOW_MAP = {
+  file: 'DesignCardFlowMap.dc.html',
+  title: '卡片 · ② 关系图',
+  eyebrow: 'PixelVault · 7 卡片重设计 · ② 思维导图（连线）· 2026-09-26',
+  heading: '卡片：从一个名字到一张能用于生成的卡',
+  sub: 'owner 09-26：卡片也要一个助手——你配置卡片，它去查图、给一张能用于生成的图。箭头是数据流向，虚线是可选或回流。紫色是我的建议，黄色虚线等你定。**界面（D6）什么时候设计**：这张图你确认（③）之后，下一步就出 ④ 画板，把卡片页、建卡流程、工作台选卡一起重画——现在的卡片界面也在那一步一起优化。',
+  blocks: [
+    { t: 'mock', html: `${graphLegend}${graph(1300, 710, CF_NODES, CF_EDGES)}`, md: '关系图（画板上是连线图）：你 → 卡片助手（建议：助手第五张脸；待定：放在助手里还是卡片页向导）→ 查图（Danbooru 已接 · 官方 wiki · 你的图库 · 上传）→ 候选网格（已落）→ 质检（单人 · 主体够大 · 无文字 · 单一形态）→ 不够好则整理（自动裁出本人；没有好图时生成定妆三视图，先问你）→ 你确认用途 → 角色卡（核心 3 张：脸 · 全身 · 背面；文字只写一句图里看不出的，不写画风）→ 变体（另一形态单独一张）→ 卡片总线编译（已落 ⑤⑥，建议加保持指令）→ 图片（已落）· 视频 ⑦ · 画布 ⑨ → 好图回流进卡。待定：卡片界面 D6 在本图确认后出 ④。' },
+    h('等你定'),
+    { t: 'ul', items: [
+      '卡片助手放哪：**助手的第五张脸**（与图片 / 视频 / 画布 / LoRA 同一个壳，卡片页右上头像）还是**卡片页里的向导**',
+      '没有好图时要不要自动生成定妆三视图（每次花一次出图，会先问你）',
+      '出图时要不要加「照 Image N 保持脸 · 发型 · 发色 · 服装」这句（你说先重新设计，所以暂未改）',
+    ] },
+  ],
+}
+
 const VIDEO_ASSISTANT = {
   file: 'DesignVideoAssistant.dc.html',
   title: '视频助手 + 左栏 · ④ 全状态',
@@ -1946,6 +2095,7 @@ export const PAGES = [
     boards: [VENDOR_IMAGE, VENDOR_VIDEO, VENDOR_VOICE, VENDOR_TEXT, VENDOR_RUNNER],
   },
   { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT, CARDS_MAP, MEMORY_MAP, MEMORY_UI, BUBBLE_UI] },
+  { id: 'page-7', name: '7 · 卡片重设计', boards: [CARD_FLOW_ANSWERS, CARD_FLOW_MAP] },
 ]
 
 if (import.meta.url === `file://${process.argv[1]}`) {

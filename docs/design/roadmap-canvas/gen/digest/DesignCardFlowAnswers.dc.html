@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>卡片 · ① 三个问题</title>
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&amp;family=Geist+Mono:wght@400;500&amp;family=Noto+Sans+SC:wght@400;500;600&amp;display=swap">
+  <style>
+    body { margin: 0; background: #fff; color: #0a0a0a; font-family: Geist, 'Noto Sans SC', system-ui, 'PingFang SC', sans-serif; -webkit-font-smoothing: antialiased; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid #ececec; font-size: 12.5px; line-height: 1.55; }
+    th { font-size: 11px; letter-spacing: .06em; color: #737373; font-weight: 500; border-bottom: 1px solid #d4d4d4; }
+    tr:last-child td { border-bottom: 0; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { font-size: 13px; line-height: 1.65; margin: 3px 0; }
+    b { font-weight: 600; }
+</style>
+</helmet>
+<div style="padding:40px 48px 56px;background:#fff;box-sizing:border-box;min-height:100vh">
+<div style="margin-bottom:8px;max-width:1180px">
+    <div style="font-family:'Geist Mono',ui-monospace,monospace;font-size:11px;letter-spacing:.08em;color:#737373">PixelVault · 7 卡片重设计 · ① · 2026-09-26</div>
+    <h1 style="margin:8px 0 0;font-size:26px;font-weight:600;letter-spacing:-.01em;line-height:1.25">什么图能用于生成、给什么图最好、一张卡放几张</h1>
+    <p style="margin:8px 0 0;font-size:14px;line-height:1.65;color:#525252">起因：09-26 用 Denia 卡实跑 GPT Image 2，出图看不出是同一个人。编译本身是对的（身份句、图例、卡图都进了请求），问题出在卡上：身份图是整张官方宣传立绘，她本人只占中间一小块，<b>脸约 30 像素宽</b>，两侧的大脸还是她的另一形态；自动提取的描述把两种形态和「3D 渲染立绘」画风混在一起；出口也没有明确要求「照这张图保持」。所以卡片要有一个帮你<b>查图、挑图、整理图</b>的流程，而不是随手传一张。</p>
+  </div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">① 什么图能用于生成（硬门槛，助手自动判）</div></div>
+<ul style="max-width:1200px"><li><b>画面里只有这一个角色</b>：合照、宣传海报里有别人或别的形态，模型分不清谁是谁</li><li><b>主体至少占画面高度一半</b>，脸看得清：Denia 那张脸只有 30 像素，任何模型都只能猜</li><li><b>没有文字、logo、水印、游戏 UI</b>：会被当成角色的一部分画进去</li><li><b>只有一种形态、一套衣服</b>：另一形态 / 换装做成变体或用途图</li><li><b>分辨率够</b>：原图长边至少 1024</li></ul>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">② 给什么图最好（从好到能用）</div></div>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>档</th><th>图</th><th>为什么</th></tr></thead><tbody><tr><td style="font-weight:500">最好</td><td>官方设定图 / 三视图（纯色背景，正 · 侧 · 背全身）+ 一张正面胸像</td><td>脸、发型、服装、配色一次说全，背景不干扰</td></tr><tr><td style="font-weight:500">好</td><td>官方立绘里裁出本人（背景简单、脸够大）</td><td>画风与官方一致</td></tr><tr><td style="font-weight:500">能用</td><td>清楚的单人游戏截图 / 同人图</td><td>可能带同人画风，文字里不写画风来中和</td></tr><tr><td style="font-weight:500">不能用</td><td>宣传海报 · 合照 · 缩略图 · 另一形态混在一起</td><td>就是这次 Denia 走样的原因</td></tr><tr><td style="font-weight:500">没有好图时</td><td>用强模型把现有图整理成一张定妆三视图，你确认后当主图</td><td>花一次出图；原图太糊时也可能走样，先问你</td></tr></tbody></table></div>
+<div style="margin-top:28px;display:flex;align-items:baseline;gap:12px"><div style="font-size:16px;font-weight:600">③ 一张卡能不能放多张图</div></div>
+<p style="margin:8px 0 0;font-size:13px;line-height:1.7;color:#404040;max-width:1180px"><b>能，已经支持</b>：15 个参考槽、每张标 11 类用途之一（身份 · 姿势 · 服装 · 武器……）。但每次出图真正送几张由模型决定（下表来自 <code style="font-family:'Geist Mono',ui-monospace,monospace;font-size:.92em;background:#f4f4f4;padding:0 4px;border-radius:4px">provider-capabilities.ts</code>）。所以建议卡的<b>核心就是 3 张</b>：正面胸像（脸）· 全身正面（服装）· 背面或侧面（可选）；其余当用途图按需带上。编译时先保证每个角色都有脸，再轮流补全身、背面。</p>
+<div style="overflow:hidden;border:1px solid #e5e5e5;border-radius:10px;margin-top:10px"><table><thead><tr><th>模型</th><th>一次最多收几张参考图</th><th>卡图怎么送</th></tr></thead><tbody><tr><td style="font-weight:500">GPT Image 2 / 2.5</td><td>16</td><td>脸 → 全身 → 背面 → 用途图</td></tr><tr><td style="font-weight:500">Gemini（Nano Banana）</td><td>14</td><td>同上，且每张图前贴说明（⑥）</td></tr><tr><td style="font-weight:500">Seedream 5.0（火山 / BytePlus 14 · fal 10）</td><td>10–14</td><td>同上</td></tr><tr><td style="font-weight:500">Qwen Image（自有算力）</td><td>10</td><td>同上</td></tr><tr><td style="font-weight:500">FLUX.2 Pro · Kontext Max</td><td>8 · 4</td><td>多角色时每人先分一张脸</td></tr><tr><td style="font-weight:500">FLUX.2 Flash</td><td>4</td><td>同上</td></tr><tr><td style="font-weight:500">FLUX LoRA 等单图模型</td><td>1</td><td>只送焦点角色的脸，其余进文字</td></tr><tr><td style="font-weight:500">NovelAI</td><td>1（图生图底图）</td><td>⛔ 不送卡图，走原生多角色文字</td></tr><tr><td style="font-weight:500">PixAI · Ideogram · Recraft</td><td>0</td><td>只进文字</td></tr></tbody></table></div>
+</div>
+</x-dc>
+</body>
+</html>

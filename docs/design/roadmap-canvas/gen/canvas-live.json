@@ -296,6 +296,24 @@
       "h": 2386,
       "title": "助手对话框 · ④ 全状态",
       "page": "page-6"
+    },
+    {
+      "file": "DesignCardFlowAnswers.dc.html",
+      "x": 0,
+      "y": 0,
+      "w": 1400,
+      "h": 1186,
+      "title": "卡片 · ① 三个问题",
+      "page": "page-7"
+    },
+    {
+      "file": "DesignCardFlowMap.dc.html",
+      "x": 0,
+      "y": 1286,
+      "w": 1400,
+      "h": 1109,
+      "title": "卡片 · ② 关系图",
+      "page": "page-7"
     }
   ],
   "annotations": [],
@@ -327,6 +345,10 @@
     {
       "id": "page-6",
       "name": "6 · 在设计"
+    },
+    {
+      "id": "page-7",
+      "name": "7 · 卡片重设计"
     }
   ]
 }

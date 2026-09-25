@@ -20,6 +20,7 @@ const COLS = {
   'page-4': 1,
   'page-5': 3,
   'page-6': 1,
+  'page-7': 1,
 }
 
 const browser = await chromium.launch()

@@ -30,7 +30,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from 'react'
 import {
   ArrowUp,
@@ -119,6 +118,8 @@ import {
   STUDIO_OPERATOR_CARD_KINDS,
   STUDIO_OPERATOR_SPEAKERS,
   StudioOperatorTimelineList,
+  StudioOperatorTurns,
+  type StudioOperatorThreadItem,
   StudioOperatorTimelineRow,
   type StudioOperatorCardKind,
 } from '@/components/business/studio/assistant-operator/StudioOperatorTimelineRow'
@@ -1261,26 +1262,6 @@ export function StudioOperatorPanel({
           : 'result',
     ),
   )
-  const renderGroups = (
-    groups: ReturnType<typeof groupOperatorResearch>,
-    renderItem: (index: number) => ReactNode,
-  ) =>
-    groups.map((group) =>
-      group.research ? (
-        <details
-          key={group.indexes[0]}
-          data-testid="operator-research"
-          className="mt-2"
-        >
-          <summary className="w-fit cursor-pointer list-none py-0.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
-            {t('researchDetails')}
-          </summary>
-          {group.indexes.map(renderItem)}
-        </details>
-      ) : (
-        renderItem(group.indexes[0]!)
-      ),
-    )
   /**
    * 确认卡那一行。⚠ 生成支确认之后它换来一张结果卡：那时这一行挪到**结果卡上面**
    * （`confirmLineBeforeResult`），⛔ 不再钉在线程最末尾（D12 S6）。
@@ -1911,12 +1892,9 @@ export function StudioOperatorPanel({
                 位置在这里是稳定的身份。
               ⚠ 历史行**不画时间戳**：库里那份没有逐条时刻，拿「现在」去填是编数据。 */}
             {(() => {
-              const renderHistoryEntry = (
-                index: number,
-                includeSummary = true,
-              ) => {
+              const renderHistoryEntry = (index: number) => {
                 const entry = historyEntries[index]!
-                const row = (
+                return (
                   <StudioOperatorTimelineRow
                     key={`h:${index}:${entry.id}`}
                     {...historyCardKind(entry.kind)}
@@ -1928,18 +1906,31 @@ export function StudioOperatorPanel({
                     />
                   </StudioOperatorTimelineRow>
                 )
-                const placed = historyRoundPlacement.byIndex.get(index)
-                if (!placed || !includeSummary) return row
-                return (
-                  <Fragment key={`hrw:${index}`}>
-                    {row}
-                    {placed.map(renderHistoryRound)}
-                  </Fragment>
-                )
               }
-              const renderHistoryGroups = (groups: typeof historyGroups) =>
-                groups.map((group) => {
-                  if (!group.tools) return renderHistoryEntry(group.indexes[0]!)
+              const historyEntryItems = (
+                index: number,
+              ): StudioOperatorThreadItem[] => {
+                const entry = historyEntries[index]!
+                return [
+                  {
+                    key: `h:${index}:${entry.id}`,
+                    speaker: historyCardKind(entry.kind).speaker,
+                    node: renderHistoryEntry(index),
+                  },
+                  ...(historyRoundPlacement.byIndex.get(index) ?? []).map(
+                    (summaryIndex) => ({
+                      key: `hr:${index}:${summaryIndex}`,
+                      speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                      node: renderHistoryRound(summaryIndex),
+                    }),
+                  ),
+                ]
+              }
+              const renderHistoryGroups = (
+                groups: typeof historyGroups,
+              ): StudioOperatorThreadItem[] =>
+                groups.flatMap((group) => {
+                  if (!group.tools) return historyEntryItems(group.indexes[0]!)
                   const steps = group.indexes.flatMap((index) => {
                     const entry = historyEntries[index]
                     return entry?.kind === 'step' ? [entry] : []
@@ -1983,56 +1974,60 @@ export function StudioOperatorPanel({
                       !step.undone &&
                       step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
                   )
-                  return (
-                    <div
-                      key={`history-tools:${group.indexes[0]}`}
-                      className="mt-2.5"
-                    >
-                      {historyPromptStep?.tagCheck ||
-                      historyPromptStep?.negativeFolded ? (
-                        <StudioOperatorPromptNote
-                          tagCheck={historyPromptStep.tagCheck}
-                          negativeFolded={historyPromptStep.negativeFolded}
-                        />
-                      ) : null}
-                      <StudioOperatorToolGroup
-                        total={steps.length}
-                        failed={errors.length - skipped}
-                        skipped={skipped}
-                        running={false}
-                        failure={
-                          blocker ? (
-                            <>
-                              <p className="font-medium">
-                                {blocker.tool ===
-                                ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
-                                  ? t('toolGroup.promptUnchanged')
-                                  : t('toolGroup.blocked')}
-                              </p>
-                              <p className="text-muted-foreground">
-                                {blocker.rejectReason &&
-                                t.has(`reject.${blocker.rejectReason}`)
-                                  ? t(`reject.${blocker.rejectReason}`)
-                                  : blocker.title}
-                              </p>
-                              <p className="text-muted-foreground">
-                                {t('toolGroup.inspectFailure')}
-                              </p>
-                            </>
-                          ) : null
-                        }
+                  return {
+                    key: `history-tools:${group.indexes[0]}`,
+                    speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                    node: (
+                      <div
+                        key={`history-tools:${group.indexes[0]}`}
+                        className="mt-2.5"
                       >
-                        {group.indexes.map((index) =>
-                          renderHistoryEntry(index, false),
+                        {historyPromptStep?.tagCheck ||
+                        historyPromptStep?.negativeFolded ? (
+                          <StudioOperatorPromptNote
+                            tagCheck={historyPromptStep.tagCheck}
+                            negativeFolded={historyPromptStep.negativeFolded}
+                          />
+                        ) : null}
+                        <StudioOperatorToolGroup
+                          total={steps.length}
+                          failed={errors.length - skipped}
+                          skipped={skipped}
+                          running={false}
+                          failure={
+                            blocker ? (
+                              <>
+                                <p className="font-medium">
+                                  {blocker.tool ===
+                                  ASSISTANT_OPERATOR_TOOL_IDS.setPrompt
+                                    ? t('toolGroup.promptUnchanged')
+                                    : t('toolGroup.blocked')}
+                                </p>
+                                <p className="text-muted-foreground">
+                                  {blocker.rejectReason &&
+                                  t.has(`reject.${blocker.rejectReason}`)
+                                    ? t(`reject.${blocker.rejectReason}`)
+                                    : blocker.title}
+                                </p>
+                                <p className="text-muted-foreground">
+                                  {t('toolGroup.inspectFailure')}
+                                </p>
+                              </>
+                            ) : null
+                          }
+                        >
+                          {group.indexes.map((index) =>
+                            renderHistoryEntry(index),
+                          )}
+                        </StudioOperatorToolGroup>
+                        {group.indexes.flatMap((index) =>
+                          (historyRoundPlacement.byIndex.get(index) ?? []).map(
+                            renderHistoryRound,
+                          ),
                         )}
-                      </StudioOperatorToolGroup>
-                      {group.indexes.flatMap((index) =>
-                        (historyRoundPlacement.byIndex.get(index) ?? []).map(
-                          renderHistoryRound,
-                        ),
-                      )}
-                    </div>
-                  )
+                      </div>
+                    ),
+                  }
                 })
               /* ⚠ 跨切点的那一组算「最近」——⛔ 不从一组研究步中间切一刀，
                那会把「查了什么」折进去、「查出什么」留在外面。 */
@@ -2042,11 +2037,112 @@ export function StudioOperatorPanel({
               const recent = historyGroups.filter((group) =>
                 group.indexes.some((index) => index >= historyCutoff),
               )
+              /* ── 实时线程：研究组折成一行「查了什么」，其余逐条（谁说的看条目）。 */
+              const liveItems: StudioOperatorThreadItem[] = liveGroups.map(
+                (group) => {
+                  const first = blocks[group.indexes[0]!]!
+                  if (group.research) {
+                    return {
+                      key: `research:${group.indexes[0]}`,
+                      speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                      node: (
+                        <details
+                          data-testid="operator-research"
+                          className="mt-2"
+                        >
+                          <summary className="w-fit cursor-pointer list-none py-0.5 text-xs text-muted-foreground hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
+                            {t('researchDetails')}
+                          </summary>
+                          {group.indexes.map((index) =>
+                            renderBlock(blocks[index]!),
+                          )}
+                        </details>
+                      ),
+                    }
+                  }
+                  return {
+                    key: `live:${group.indexes[0]}`,
+                    speaker:
+                      first.kind === 'entry' && first.entry.kind === 'user'
+                        ? STUDIO_OPERATOR_SPEAKERS.user
+                        : STUDIO_OPERATOR_SPEAKERS.assistant,
+                    node: renderBlock(first),
+                  }
+                },
+              )
+              /* ── 本轮末尾那几件：确认卡、步数用完、出错 —— 都算助手这一框里的。
+                ⚠ 确认卡**只剩一张**：计划卡与花钱卡合成了它（`kind` 两支），而问题卡
+                  按 §3.4 钉到了输入框上方 —— ⛔ 别把它挪回这里，钉住的整个意义就是
+                  不随时间线滚走。
+                ⚠ 步数用完（D12 S12）：那一句由助手说完「做到哪 · 还剩什么」，这里
+                  只给两颗 chip；跑着 / 出错 / 等你定时都不画。 */
+              const tailItems: StudioOperatorThreadItem[] = [
+                {
+                  key: 'confirm',
+                  speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                  node:
+                    confirm && !confirmLineBeforeResult
+                      ? renderConfirm()
+                      : null,
+                },
+                {
+                  key: 'out-of-steps',
+                  speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                  node:
+                    outOfSteps && status === 'idle' ? (
+                      <div
+                        data-testid="operator-out-of-steps"
+                        className="mt-2.5 flex flex-wrap gap-1.5"
+                      >
+                        <button
+                          type="button"
+                          data-testid="operator-out-of-steps-continue"
+                          onClick={() => submit(t('outOfSteps.continuePrompt'))}
+                          className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                        >
+                          {t('outOfSteps.continue')}
+                        </button>
+                        <button
+                          type="button"
+                          data-testid="operator-out-of-steps-stop"
+                          onClick={() => setOperatorOutOfSteps(false)}
+                          className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
+                        >
+                          {t('outOfSteps.stop')}
+                        </button>
+                      </div>
+                    ) : null,
+                },
+                {
+                  key: 'error',
+                  speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                  node:
+                    status === 'error' ? (
+                      <StudioOperatorTimelineRow
+                        card={STUDIO_OPERATOR_CARD_KINDS.system}
+                      >
+                        <StudioOperatorErrorBar
+                          text={errorText ?? t('error.generic')}
+                          trace={errorTrace}
+                        />
+                      </StudioOperatorTimelineRow>
+                    ) : null,
+                },
+              ]
               return (
                 <>
                   {/* 没有宿主轮次的那几条（见 `placeOperatorRoundSummaries`）——
                       ⛔ 不丢掉：用户改过的结论凭空消失比位置不精确坏得多。 */}
-                  {historyRoundPlacement.leading.map(renderHistoryRound)}
+                  <StudioOperatorTurns
+                    items={historyRoundPlacement.leading.map(
+                      (summaryIndex) => ({
+                        key: `hl:${summaryIndex}`,
+                        speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+                        node: renderHistoryRound(summaryIndex),
+                      }),
+                    )}
+                    {...(persona ? { persona } : {})}
+                  />
                   {older.length > 0 ? (
                     <details
                       data-testid="operator-history-older"
@@ -2055,58 +2151,24 @@ export function StudioOperatorPanel({
                       <summary className="cursor-pointer list-none py-1 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:text-foreground focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring">
                         {t('history.earlierRounds', { count: historyCutoff })}
                       </summary>
-                      {renderHistoryGroups(older)}
+                      <StudioOperatorTurns
+                        items={renderHistoryGroups(older)}
+                        {...(persona ? { persona } : {})}
+                      />
                     </details>
                   ) : null}
-                  {renderHistoryGroups(recent)}
+                  {/* ⭐ 最近的历史与实时线程**连着分框**：一轮从昨天续到今天也还是一个框。 */}
+                  <StudioOperatorTurns
+                    items={[
+                      ...renderHistoryGroups(recent),
+                      ...liveItems,
+                      ...tailItems,
+                    ]}
+                    {...(persona ? { persona } : {})}
+                  />
                 </>
               )
             })()}
-
-            {renderGroups(liveGroups, (index) => renderBlock(blocks[index]!))}
-
-            {/* ── 确认卡（§3.2 进离场表：帧到即插，⛔ 不离开）──────────────
-              ⚠ 此处**只剩一张**：计划卡与花钱卡合成了它（`kind` 两支），而问题卡
-                按 §3.4 钉到了输入框上方 —— ⛔ 别把它挪回这里，钉住的整个意义就是
-                不随时间线滚走。 */}
-            {confirm && !confirmLineBeforeResult ? renderConfirm() : null}
-
-            {/* ── 步数用完（D12 S12）：那一句由助手说完「做到哪 · 还剩什么」，这里
-              只给两颗 chip。⚠ 跑着 / 出错 / 等你定时都不画。 */}
-            {outOfSteps && status === 'idle' ? (
-              <div
-                data-testid="operator-out-of-steps"
-                className="mt-2.5 flex flex-wrap gap-1.5"
-              >
-                <button
-                  type="button"
-                  data-testid="operator-out-of-steps-continue"
-                  onClick={() => submit(t('outOfSteps.continuePrompt'))}
-                  className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-                >
-                  {t('outOfSteps.continue')}
-                </button>
-                <button
-                  type="button"
-                  data-testid="operator-out-of-steps-stop"
-                  onClick={() => setOperatorOutOfSteps(false)}
-                  className="flex h-7 items-center rounded-full border border-border bg-card px-2.5 text-xs text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring motion-reduce:transition-none"
-                >
-                  {t('outOfSteps.stop')}
-                </button>
-              </div>
-            ) : null}
-
-            {status === 'error' ? (
-              <StudioOperatorTimelineRow
-                card={STUDIO_OPERATOR_CARD_KINDS.system}
-              >
-                <StudioOperatorErrorBar
-                  text={errorText ?? t('error.generic')}
-                  trace={errorTrace}
-                />
-              </StudioOperatorTimelineRow>
-            ) : null}
           </div>
         </StudioOperatorTimelineList>
 

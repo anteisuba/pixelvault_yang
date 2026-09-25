@@ -472,10 +472,9 @@ export function StudioOperatorUserText({
   return (
     <p
       data-testid="operator-user-text"
-      /* 画板 BCards「消息 · 用户」：用户那一侧**带气泡**（浅填充 + 细边 +
-         右下角收成小圆角），助手那一侧不带 —— 两侧靠「有没有壳」分，
-         ⛔ 不靠字色分（§12.1 卡片层：白面 + 极细描边）。 */
-      className="w-fit max-w-full whitespace-pre-wrap rounded-2xl bg-muted px-3 py-2 text-sm leading-relaxed text-foreground"
+      /* 对话框 B-C（owner 09-25）：你的那一句是象牙气泡 —— 与输入条同一种料，
+         右上角收成小圆角；助手那一轮在灰框里。两侧靠材质与左右分。 */
+      className="w-fit max-w-full whitespace-pre-wrap rounded-2xl rounded-tr-sm bg-surface-composer px-3 py-2 text-sm leading-relaxed text-surface-composer-foreground"
     >
       {withImageReferences(displayText, imageReferences)}
     </p>

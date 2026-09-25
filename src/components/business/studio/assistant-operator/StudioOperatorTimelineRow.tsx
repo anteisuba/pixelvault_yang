@@ -8,13 +8,15 @@
  *
  * ── A 对话流（owner 2026-09-24 定）──────────────────────────────────
  * ⛔ **没有左侧时间线竖线与节点符号**：线和框层层套是「乱」的原因之一。
- * ⭐ **一轮只出一次头像名字**（C1）：它挂在用户那一句**后面**，本轮助手说的、
- *   做的、问的全都在它下面。⛔ 不再每一行各带一个头像。
- * ⭐ 用户那一句只是一个靠右的浅灰气泡，⛔ 不带名字与头像。
- * ⚠ 间距只有两档：轮与轮之间 20（用户那一句的 `mt-5`），轮内 10（`mt-2.5`）。
+ * ⭐ **一轮只出一次头像名字**（C1）。⛔ 不再每一行各带一个头像。
+ * ⭐ **对话框 B-C**（owner 2026-09-25）：你每开口一次，助手就另起一个框，本轮说的、
+ *   做的、问的、出的图全装在这一个框里（`StudioOperatorTurns`）；头像名字在框外
+ *   左上，框的左上角收成小圆角。你的那一句是靠右的象牙气泡（输入条同一种料），
+ *   右上角收成小圆角，⛔ 不带名字与头像。
+ * ⚠ 间距只有两档：轮与轮之间 20（`mt-5`），轮内 10（`mt-2.5`）。
  */
 
-import type { ComponentProps, ReactNode } from 'react'
+import { Fragment, type ComponentProps, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 
 import { TimelineAvatar } from '@/components/business/studio/assistant-operator/TimelineAvatar'
@@ -147,11 +149,6 @@ interface StudioOperatorTimelineRowProps {
    * ⚠ 缺席时画默认预设，⛔ 不出空圈。
    */
   persona?: AssistantPersona
-  /**
-   * 用户那一句后面要不要接本轮的头像名字（默认要）。⚠ 只有**不开启新一轮**的
-   * 用户行才关掉（例如折叠里的旧历史末尾）。
-   */
-  roundHeader?: boolean
   children: ReactNode
 }
 
@@ -180,7 +177,7 @@ export function StudioOperatorRoundHeader({
   return (
     <div
       data-testid="operator-round-header"
-      className="mt-5 flex min-w-0 items-center gap-2"
+      className="flex min-w-0 items-center gap-2"
     >
       <TimelineAvatar
         speaker="assistant"
@@ -201,7 +198,6 @@ export function StudioOperatorTimelineRow({
   card,
   speaker = STUDIO_OPERATOR_SPEAKERS.assistant,
   persona,
-  roundHeader = true,
   children,
 }: StudioOperatorTimelineRowProps) {
   const t = useTranslations('StudioOperator.timeline')
@@ -216,32 +212,27 @@ export function StudioOperatorTimelineRow({
   })
 
   /**
-   * ── 用户那一句：靠右的浅灰气泡 + 紧跟着本轮助手的头像名字（C1）──────
+   * ── 用户那一句：靠右的气泡 ──────────────────────────────────────────
    * ⚠ 宽度上限走 `w-4/5` 的外列（Hard Rule 5 禁任意值）。
    */
   if (node === NODE_SHAPES.user) {
     return (
-      <>
+      <div
+        data-testid="operator-timeline-row"
+        data-card={card}
+        data-node={node}
+        data-align={ROW_ALIGNS.end}
+        role="article"
+        aria-label={rowLabel}
+        className="mt-5 flex justify-end first:mt-0"
+      >
         <div
-          data-testid="operator-timeline-row"
-          data-card={card}
-          data-node={node}
-          data-align={ROW_ALIGNS.end}
-          role="article"
-          aria-label={rowLabel}
-          className="mt-5 flex justify-end first:mt-0"
+          data-testid="operator-timeline-content"
+          className="flex w-4/5 min-w-0 flex-col items-end gap-1"
         >
-          <div
-            data-testid="operator-timeline-content"
-            className="flex w-4/5 min-w-0 flex-col items-end gap-1"
-          >
-            {children}
-          </div>
+          {children}
         </div>
-        {roundHeader ? (
-          <StudioOperatorRoundHeader {...(persona ? { persona } : {})} />
-        ) : null}
-      </>
+      </div>
     )
   }
 
@@ -259,5 +250,64 @@ export function StudioOperatorTimelineRow({
         {children}
       </div>
     </div>
+  )
+}
+
+/** 线程里的一件东西：谁说的 + 画出来的那一行（或一组）。 */
+export interface StudioOperatorThreadItem {
+  key: string
+  speaker: StudioOperatorSpeaker
+  node: ReactNode
+}
+
+/**
+ * **一轮一个框**（对话框 B-C，owner 2026-09-25）：连续的助手条目收进同一个框，
+ * 直到你再开口。
+ *
+ * ⭐ 框里装本轮的一切：正文、查证、确认卡、结果、续跑、错误 —— 调用方只管给每件
+ *   东西标上是谁说的，⛔ 不在各处各自包框。
+ * ⚠ 空条目（`null`）不算数：否则一段全是空的助手条目会画出一个空框。
+ */
+export function StudioOperatorTurns({
+  items,
+  persona,
+}: {
+  items: readonly StudioOperatorThreadItem[]
+  persona?: AssistantPersona
+}) {
+  const runs: { key: string; user: boolean; nodes: ReactNode[] }[] = []
+  for (const item of items) {
+    if (item.node === null || item.node === undefined || item.node === false)
+      continue
+    const user = item.speaker === STUDIO_OPERATOR_SPEAKERS.user
+    const last = runs.at(-1)
+    if (last && !last.user && !user) {
+      last.nodes.push(<Fragment key={item.key}>{item.node}</Fragment>)
+    } else {
+      runs.push({
+        key: item.key,
+        user,
+        nodes: [<Fragment key={item.key}>{item.node}</Fragment>],
+      })
+    }
+  }
+  return runs.map((run) =>
+    run.user ? (
+      <Fragment key={run.key}>{run.nodes}</Fragment>
+    ) : (
+      <div
+        key={run.key}
+        data-testid="operator-turn"
+        className="mt-3 flex min-w-0 flex-col gap-1.5 pr-6 first:mt-0"
+      >
+        <StudioOperatorRoundHeader {...(persona ? { persona } : {})} />
+        <div
+          data-testid="operator-turn-frame"
+          className="min-w-0 rounded-2xl rounded-tl-sm bg-muted px-3 py-2.5"
+        >
+          {run.nodes}
+        </div>
+      </div>
+    ),
   )
 }

@@ -242,18 +242,11 @@ export function StudioOperatorConfirmCard({
               name: contextCard ? contextCard.card.name : '',
             })
       }
-      /* 画板 BCards「确认」四态的皮肤（§12.1）：
-         **待决**走 raised（深一档描边 + 柔扩散影）——它是当下挡路的那张卡；
-         **已确认**退回并列的普通卡（细边 + 贴边影）；
-         **已取消**再退一档到浅底，它已经不是一件要办的事了。
-         ⛔ 不用 opacity 压整卡：半透的字在玻璃面板上直接掉到 AA 线下。 */
       /* D12 S6 / P6：定下来之后**不再是一张卡**，就地收成一行灰字
-         「已确认 · 11:24」+ 淡一档的「1 张 · 模型」。待决时才是白底细边卡。 */
-      className={cn(
-        decided
-          ? 'min-w-0'
-          : 'overflow-hidden rounded-xl border border-assistant-line-strong bg-card shadow-assistant-raised',
-      )}
+         「已确认 · 11:24」+ 淡一档的「1 张 · 模型」。待决时是白底块。
+         ⚠ 对话框 B-C（owner 09-25）：卡在助手的灰框里，⛔ 不再带描边与投影
+         （线和框层层套是「乱」的原因之一）。 */
+      className={cn(decided ? 'min-w-0' : 'overflow-hidden rounded-xl bg-card')}
     >
       {/* ── 已确认 / 已取消：整卡收成一行「态 · 时间」+ 一句交代 ──────── */}
       {decided ? (

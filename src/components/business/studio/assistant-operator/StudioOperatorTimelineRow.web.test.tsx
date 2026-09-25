@@ -8,12 +8,13 @@ import {
   STUDIO_OPERATOR_SPEAKERS,
   StudioOperatorTimelineList,
   StudioOperatorTimelineRow,
+  StudioOperatorTurns,
 } from './StudioOperatorTimelineRow'
 
 /**
  * 对话流一行的回归闸（D12 A 定稿）。
  *
- *  ① 一轮一次头像名字，挂在用户那一句后面；用户气泡不带名字；
+ *  ① 一轮一个框、一框一次头像名字（B-C）；用户气泡不带名字；
  *  ② ⛔ 左侧竖线与节点符号；
  *  ③ 行标签（读屏唯一的发言人信息）与 live region；
  *  ④ 任何一行都不显示时间戳。
@@ -30,11 +31,7 @@ vi.mock('next-intl', () => ({
 }))
 
 describe('StudioOperatorTimelineRow', () => {
-  /**
-   * ⭐ D12 A · C1：**一轮只出一次头像名字**，挂在用户那一句后面；助手的各行
-   * 自己不再带名字。
-   */
-  it('用户那一句靠右、不带名字；后面紧跟本轮的头像名字（默认 ANTI）', () => {
+  it('用户那一句靠右、不带名字与头像', () => {
     render(
       <StudioOperatorTimelineRow
         card={STUDIO_OPERATOR_CARD_KINDS.message}
@@ -43,18 +40,84 @@ describe('StudioOperatorTimelineRow', () => {
         <p>保留三图分工，只修改背景。</p>
       </StudioOperatorTimelineRow>,
     )
-    const row = screen.getByTestId('operator-timeline-row')
-    expect(row.dataset.align).toBe('end')
-    expect(row).not.toContainElement(
-      screen.getByTestId('operator-speaker-name'),
+    expect(screen.getByTestId('operator-timeline-row').dataset.align).toBe(
+      'end',
     )
-    expect(screen.getByTestId('operator-speaker-name')).toHaveTextContent(
-      'ANTI',
+    expect(screen.queryByTestId('operator-speaker-name')).toBeNull()
+  })
+
+  /**
+   * ⭐ 对话框 B-C（owner 2026-09-25）：你每开口一次，助手另起一个框；连续的助手
+   * 条目收进同一个框，头像名字在框外、一框一次。
+   */
+  it('连续的助手条目收进一个框，你开口就另起一框', () => {
+    render(
+      <StudioOperatorTurns
+        items={[
+          {
+            key: 'u1',
+            speaker: STUDIO_OPERATOR_SPEAKERS.user,
+            node: <p>画一张</p>,
+          },
+          {
+            key: 'a1',
+            speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+            node: <p>好</p>,
+          },
+          {
+            key: 'a2',
+            speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+            node: <p>确认卡</p>,
+          },
+          {
+            key: 'a3',
+            speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+            node: null,
+          },
+          {
+            key: 'u2',
+            speaker: STUDIO_OPERATOR_SPEAKERS.user,
+            node: <p>继续</p>,
+          },
+          {
+            key: 'a4',
+            speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+            node: <p>出好了</p>,
+          },
+        ]}
+      />,
     )
-    expect(
-      row.compareDocumentPosition(screen.getByTestId('operator-round-header')) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy()
+    const frames = screen.getAllByTestId('operator-turn-frame')
+    expect(frames).toHaveLength(2)
+    expect(frames[0]).toHaveTextContent('好确认卡')
+    expect(frames[1]).toHaveTextContent('出好了')
+    expect(screen.getAllByTestId('operator-speaker-name')).toHaveLength(2)
+    for (const frame of frames) {
+      expect(frame).not.toContainElement(
+        screen.getAllByTestId('operator-speaker-name')[0]!,
+      )
+    }
+    expect(screen.getByText('继续')).not.toBeNull()
+  })
+
+  it('只有空条目的助手段不画空框', () => {
+    render(
+      <StudioOperatorTurns
+        items={[
+          {
+            key: 'a1',
+            speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+            node: null,
+          },
+          {
+            key: 'a2',
+            speaker: STUDIO_OPERATOR_SPEAKERS.assistant,
+            node: false,
+          },
+        ]}
+      />,
+    )
+    expect(screen.queryByTestId('operator-turn-frame')).toBeNull()
   })
 
   it('助手那一侧的各行不再各带头像名字', () => {

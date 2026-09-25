@@ -168,7 +168,7 @@ export function StudioOperatorResultRow({
       data-testid="operator-result-row"
       data-generating={generating}
       /* D12 S6 / S7：白底细边卡，图按卡宽出（单张整宽、多张两列）。 */
-      className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5"
+      className="flex flex-col gap-2 rounded-xl bg-card p-2.5"
     >
       {generating ? (
         <>

@@ -171,7 +171,7 @@ export function StudioOperatorLoraPickCard({
       <section
         data-testid="operator-lora-pick-card"
         data-status={status}
-        className="overflow-hidden rounded-xl border border-assistant-line-strong bg-card shadow-assistant-raised"
+        className="overflow-hidden rounded-xl bg-card"
       >
         <p
           data-testid="operator-lora-pick-state"
@@ -199,7 +199,7 @@ export function StudioOperatorLoraPickCard({
       data-status={status}
       /* 卡宽 = 面板内宽（画板 A：卡宽 = 容器宽），⛔ 不写死 440px。骨架与问题卡
          同一档：深一档描边 + 柔扩散影（§12.1）。 */
-      className="overflow-hidden rounded-xl border border-assistant-line-strong bg-card shadow-assistant-raised"
+      className="overflow-hidden rounded-xl bg-card"
     >
       <div className="flex items-center gap-2 border-b border-border px-3 py-2">
         <span

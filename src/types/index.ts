@@ -17,7 +17,10 @@ import {
   TTS_TOP_P_RANGE,
   TTS_VOLUME_RANGE,
 } from '@/constants/audio-options'
-import { CHARACTER_CARD } from '@/constants/cards/character-card'
+import {
+  CARD_EXTENSIONS,
+  CHARACTER_CARD,
+} from '@/constants/cards/character-card'
 import {
   BACKGROUND_CARD,
   STYLE_CARD,
@@ -3304,6 +3307,118 @@ export const CharacterProvenanceSchema = z.object({
   derivedFromCardVersion: z.number().int().min(1).optional(),
 })
 export type CharacterProvenance = z.infer<typeof CharacterProvenanceSchema>
+
+/**
+ * ── 卡片总线 v3（进度表 35）────────────────────────────────────
+ *
+ * 契约见 `docs/references/domains/cards.md`「卡片总线 v3 契约」。这一段只有形状，
+ * 读写与编译由后面几片接上。⚠ 本轮范围只有「画面一致」那一半：情绪词表、示例
+ * 对白分块、设定条目（lore）、角色关系都推后（owner 09-25）。
+ */
+
+/**
+ * `@名字` 的稳定锚点。字母 / 数字（含中日文）开头，后面允许 `-` 与 `_`
+ * ——变体写成 `林夏-雨夜`。⛔ 不许空格与 `@`：正文里要能无歧义地切出来。
+ */
+export const CardHandleSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(CHARACTER_CARD.HANDLE_MAX_LENGTH)
+  .regex(
+    /^[\p{L}\p{N}][\p{L}\p{N}_-]*$/u,
+    'Handle must start with a letter or digit and contain only letters, digits, - or _',
+  )
+export type CardHandle = z.infer<typeof CardHandleSchema>
+
+/**
+ * 一张参考图在卡上的位置：**用途**取画布的 11 类（`NODE_STUDIO_REFERENCE_ROLES`），
+ * ⛔ 不另造同义词表。它吞掉旧的四份图列表（`referenceImages` · `referenceRoles`
+ * · `sourceImages` · `sourceImageEntries`）。
+ */
+export const CharacterReferenceSlotSchema = z.object({
+  id: z.string().trim().min(1).max(64),
+  role: z.enum(NODE_STUDIO_REFERENCE_ROLES),
+  url: z.string().trim().min(1).max(4000),
+  isPrimary: z.boolean().default(false),
+  customLabel: z
+    .string()
+    .trim()
+    .min(1)
+    .max(CHARACTER_CARD.CUSTOM_SLOT_LABEL_MAX_LENGTH)
+    .optional(),
+  viewType: z.enum(CHARACTER_CARD.VIEW_TYPES).optional(),
+  origin: z.enum(CHARACTER_CARD.REFERENCE_SLOT_ORIGINS).optional(),
+  generationId: z.string().trim().min(1).max(64).optional(),
+})
+export type CharacterReferenceSlot = z.infer<
+  typeof CharacterReferenceSlotSchema
+>
+
+/**
+ * 参考槽列表 + **不变量**（服务端每次写都校验，编译器每次读都假定成立）：
+ * 至少一个 `identity` 槽；恰有一个主图，且主图必须是 `identity`；url 不重复；
+ * `custom` 必带 `customLabel`。
+ */
+export const CharacterReferenceSlotsSchema = z
+  .array(CharacterReferenceSlotSchema)
+  .min(1)
+  .max(CHARACTER_CARD.MAX_REFERENCE_SLOTS)
+  .superRefine((slots, ctx) => {
+    if (!slots.some((slot) => slot.role === 'identity'))
+      ctx.addIssue({
+        code: 'custom',
+        message: 'At least one identity slot is required',
+      })
+    const primaries = slots.filter((slot) => slot.isPrimary)
+    if (primaries.length !== 1)
+      ctx.addIssue({
+        code: 'custom',
+        message: 'Exactly one slot must be primary',
+      })
+    else if (primaries[0]!.role !== 'identity')
+      ctx.addIssue({
+        code: 'custom',
+        message: 'The primary slot must be an identity slot',
+      })
+    const urls = new Set<string>()
+    slots.forEach((slot, index) => {
+      if (urls.has(slot.url))
+        ctx.addIssue({
+          code: 'custom',
+          path: [index, 'url'],
+          message: 'Duplicate reference image',
+        })
+      urls.add(slot.url)
+      if (slot.role === 'custom' && !slot.customLabel)
+        ctx.addIssue({
+          code: 'custom',
+          path: [index, 'customLabel'],
+          message: 'A custom slot needs a label',
+        })
+    })
+  })
+
+/**
+ * 扩展键袋：键必须带命名空间（`pv.variants`），值是任意 JSON。认不出的键原样
+ * 保留 —— 这一层只校验**键名**，值由认得它的那一方逐键解析。
+ */
+export const CardExtensionsSchema = z
+  .record(
+    z
+      .string()
+      .max(CARD_EXTENSIONS.KEY_MAX_LENGTH)
+      .regex(
+        /^[a-z][a-z0-9]*\.[A-Za-z0-9._-]+$/,
+        'Extension keys must be namespaced, e.g. pv.variants',
+      ),
+    z.unknown(),
+  )
+  .refine(
+    (extensions) => Object.keys(extensions).length <= CARD_EXTENSIONS.MAX_KEYS,
+    `At most ${CARD_EXTENSIONS.MAX_KEYS} extension keys`,
+  )
+export type CardExtensions = z.infer<typeof CardExtensionsSchema>
 
 /** Create character card request */
 export const CreateCharacterCardSchema = z.object({

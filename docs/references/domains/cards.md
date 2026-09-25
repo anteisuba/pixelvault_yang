@@ -59,9 +59,11 @@
 
 ⚠ **同名异义提醒**：PixelVault 的 `persona` 与酒馆的 Persona（用户人设）**不是一回事**——我们这个是「角色的行为与说话方式」，服务对白与音色。
 
-## 卡片总线 v3 契约（进度表 35，2026-09-24 定，未施工）
+## 卡片总线 v3 契约（进度表 35，2026-09-24 定，09-25 缩范围后施工中）
 
 范围只有数据、编译与画布 op；装填按钮、关系编辑、summary / lore 编辑、侧栏换数据源的视觉都归 D6，走设计门。
+
+**09-25 owner 缩范围**：这一轮只做「画面一致」那一半（handle · summary · 参考槽 · extensions · 编译总线 · 画布 attach）。**情绪词表拿掉**（只服务台词 / 配音，语音已后置，到时从配音现有 9 档起步）；**文字侧三件推后**：示例对白分块、设定条目（`pv.lore`）、角色关系（`relations`）。下文凡涉及这四样的条目都属推后部分，施工时跳过。
 
 ### 定案
 
@@ -72,12 +74,12 @@
 | `referenceSlots` 吞几列    | 并掉 `referenceImages` · `referenceRoles` · `sourceImages` · `sourceImageEntries` 四列；`sourceImageUrl` / `sourceStorageKey` 保留 | 三份图列表今天已经会漂（update 只写 entries 不写 sourceImages），留着就是永久多维护几个读方                          |
 | `attach_card` 怎么落图     | **物化**：一张卡在一块画布上只有一个 `image.character` 锚节点，靠边接到目标；镜头空位只记指针                                      | 画布「在槽里就等于会发送」「边是事实」只认边；内联存 url 会长出第二本账                                              |
 | 画布空位的 `role` 同名异义 | 画布 `referenceSlots` 的 `role`（今天存角色名）**改名 `handle`**，`role` 让给 11 类用途                                            | 「role 词表 = 11 类」是已定口径；已投影剧本里的空位没有用户内容，丢了重投影新镜会再开，⛔ 不写兼容层                 |
-| 情绪词表                   | 新的 14 值**表演情绪表为上位**；配音按映射落到现有 `AUDIO_EMOTION`（9 值），`VoiceLine.emotion` 不迁移                             | 未映射的情绪落不了 Fish 标签（逐词查表铁律），由「按卡实际能力裁剪候选」挡在配音面之外，只出现在台词稿里             |
+| 情绪词表（⚠ 09-25 拿掉）   | 新的 14 值**表演情绪表为上位**；配音按映射落到现有 `AUDIO_EMOTION`（9 值），`VoiceLine.emotion` 不迁移                             | 未映射的情绪落不了 Fish 标签（逐词查表铁律），由「按卡实际能力裁剪候选」挡在配音面之外，只出现在台词稿里             |
 | 迁移授权                   | **owner 授权 35 例外**：migration + 临时双写 + 回填脚本，按下方三次部署走（owner）                                                 | 生产与本地共用一个库，迁移跑在生产构建里、构建期间旧部署仍在服务——只能先加后删                                       |
 
 ### 字段落点
 
-- **新列**：`handle`（expand 期可空，contract 后非空，`(userId, handle)` 唯一）· `summary`（给人看，⛔ 任何面都不进 prompt，含助手）· `referenceSlots`（`{id, role∈11 类, url, isPrimary, customLabel?, viewType?, emotion?, origin?, generationId?}[]`）· `relations`（`{targetCardId, relation, note, strength?}[]`）· `extensions`（按命名空间的键袋）。背景卡加 `handle` 与 `extensions`，变体先进 `extensions['pv.variants']`。
+- **新列**：`handle`（expand 期可空，contract 后非空，`(userId, handle)` 唯一）· `summary`（给人看，⛔ 任何面都不进 prompt，含助手）· `referenceSlots`（`{id, role∈11 类, url, isPrimary, customLabel?, viewType?, origin?, generationId?}[]`（09-25 去掉 `emotion?`））· `relations`（`{targetCardId, relation, note, strength?}[]`）· `extensions`（按命名空间的键袋）。背景卡加 `handle` 与 `extensions`，变体先进 `extensions['pv.variants']`。
 - **进 `extensions`**：`pv.lore`（最小版 lore）· `pv.negative`（角色硬否定）。未知键原样透传：已知键逐键解析、坏键编译时当缺席但磁盘上保留；PATCH 按键合并、`null` 才删；任何服务端路径都不得重写或丢弃不认识的键；新键必须带命名空间，`pv.` 归本产品。
 - **语义收窄**：`description` 只写视觉并**开始进编译器**（今天不读，属行为变化）；`persona.examples` 改成按场景分块的真实轮次（`{id, scene, turns:[{speaker: other|self, otherHandle?, text}]}`），旧 `{user, reply}` 不再接受。
 - **不进 prompt**：`summary` · `tags`。出现在任何 provider 请求体里 = bug，编译器快照测试兜。
@@ -108,8 +110,11 @@
 
 共享库的顺序约束：D1 推上去、生产构建跑完迁移后本地才能跑 D1 代码；Preview 不迁移，带 D1 的分支在 Preview 上碰卡片会报缺列，属预期；D3 后停在旧代码的本地 checkout 会在卡片查询上报错。`preflight:migrations` 目前缺 Neon key 跑不通，约束只能靠 owner 执行只读 SQL 验证。
 
-### 施工顺序（每片一个 commit）
+### 施工顺序（每片一个 commit，09-25 按缩后的范围重排为 9 片）
 
+① 常量与 v3 Zod 形状（handle · 参考槽 · extensions）→ ② 纯函数（旧数据转槽 · handle 分配 · `@` 最长匹配）→ ③ expand 迁移 + 双写 → ④ 回填脚本 → ⑤ 编译总线 + 图片出口 → ⑥ worker 的 Gemini 交错标注 → ⑦ 视频出口 → ⑧ 读方切换（含核实并修 quick 出图时 `characterCardIds` 被 `StudioGenerateSchema` 剥掉、不落 join 表）→ ⑨ 画布接线：`attach_card` / `detach_card` + 剧本空位装填 + 画布 `@` 名单。之后 D2 稳定再做 contract 迁移（删旧列）。文档随各片同步。
+
+原 13 片（留档）：
 ① 常量与全部 v3 Zod 形状 → ② 纯函数（旧数据转槽 · handle 分配 · `@` 解析 · lore 选择 · 关系降解 · 情绪裁剪与容错）→ ③ expand 迁移 + 双写 → ④ 回填脚本 → ⑤ 编译总线 + 图片出口 → ⑥ worker 的 Gemini 交错标注 → ⑦ 视频出口 → ⑧ 读方切换（含核实并修 quick 出图时 `characterCardIds` 被 `StudioGenerateSchema` 剥掉、不落 join 表）→ ⑨ `attach_card` / `detach_card` → ⑩ 剧本空位装填 + 画布 `@` 名单真正接线 → ⑪ 文本面示例轮次与台词产出 → ⑫ contract 迁移 → ⑬ 文档随各片同步。①② 不碰库；③ 起按上面的部署节奏走，push main 仍要 owner 点头并过发布清单。
 
 ## 不能破坏

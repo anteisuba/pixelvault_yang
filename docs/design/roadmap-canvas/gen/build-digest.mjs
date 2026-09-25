@@ -551,7 +551,7 @@ const PROGRESS = {
     ]),
     h('层 1 · 助手'),
     ptable([
-      P('—', '记忆收成一份：长期记忆 · 项目规则 · 上下文卡合成一个账户一份的清单，助手自动记、你能看能删（09-25 ① 四问已答，② 思维导图在第 6 页）', '—', '进行中 · ② 待 owner 确认'),
+      P('—', '记忆收成一份：长期记忆 · 项目规则 · 上下文卡合成一个账户一份的清单，助手自动记、你能看能删；来源名单保留结构化（09-25 ①② 已定，④ 画板在第 6 页）', '—', '进行中 · ④ 待 owner 选方向'),
       P('D12', '图片助手施工完（问 / 做 · 看懂 · 对话流 A · 生成开关 · 单一撤销 · NAI 规则），两条验收实跑通过；本地 main 90bc5214…928b747a，未推生产；手机账号入口与画布按项目分会话待真机目检', '—', '已落'),
       P('—', '拆分与反推：把用户的话拆成 NAI 标签；参考图反推成自然语言或标签，尽量复刻（09-24 owner 提出）；9f6f8a22 · b8300847 · 90b84b54 · eff047d0', '—', '已落'),
       P('—', '画布 <768 手机宿主', '55', '待设计'),
@@ -1660,13 +1660,104 @@ const MEMORY_MAP = {
         },
         {
           no: '5',
-          title: '等你定',
+          title: '已定（09-25）',
           kids: [
-            n('待定', '搜图来源白 / 黑名单：并进记忆当一句话（助手读到后自己按它筛），还是保留成结构化的名单（程序强制筛，不靠模型自觉）'),
+            n('已定', '09-25：搜图来源白 / 黑名单保留结构化（程序强制筛），挪到设置 › 助手；其余建议全过，④ 画板在下一张'),
           ],
         },
       ],
     },
+  ],
+}
+
+// ④ 画板：记忆收成一份（09-25 ① 四问 + ② 建议全过；来源名单保留结构化）。
+const MM = {
+  card: `border:1px solid #e5e5e5;border-radius:14px;background:#fff;padding:14px;display:flex;flex-direction:column;gap:10px`,
+  label: `font-size:11px;color:${MUTED}`,
+  h: 'font-size:13px;font-weight:600',
+  row: 'display:flex;align-items:flex-start;gap:8px;padding:7px 0;border-top:1px solid #f0f0f0;font-size:12.5px;line-height:1.55',
+  meta: `margin-left:auto;flex:none;font-size:11px;color:${MUTED};white-space:nowrap`,
+  tag: 'flex:none;font-size:10.5px;line-height:1;padding:3px 6px;border-radius:6px;background:#f2f2f0;color:#525252',
+  chip: (on) => `height:26px;padding:0 10px;border-radius:999px;border:1px solid ${on ? '#0a0a0a' : '#e5e5e5'};background:${on ? '#0a0a0a' : '#fff'};color:${on ? '#fff' : '#404040'};display:inline-flex;align-items:center;font-size:11.5px`,
+  input: (ph) => `<div style="height:32px;border-radius:9px;border:1px solid #e5e5e5;background:#fafafa;display:flex;align-items:center;padding:0 10px;font-size:12px;color:#a3a3a3">${ph}</div>`,
+  sw: (on) => `<span style="flex:none;width:30px;height:18px;border-radius:999px;background:${on ? '#0a0a0a' : '#d4d4d4'};position:relative;display:inline-block"><span style="position:absolute;top:2px;${on ? 'right:2px' : 'left:2px'};width:14px;height:14px;border-radius:999px;background:#fff"></span></span>`,
+  cap: 'font-size:11.5px;line-height:1.6;color:#525252',
+}
+const mmHead = (on = true, compact = false) =>
+  `<div style="display:flex;align-items:center;gap:8px"><span style="${MM.h};white-space:nowrap">记忆</span>${compact ? '' : `<span style="${MM.label}">一个账户一份 · 所有工作台共用</span>`}<span style="margin-left:auto;display:flex;align-items:center;gap:6px;font-size:11.5px;color:#404040;white-space:nowrap">让助手记住 ${MM.sw(on)}</span></div>`
+const mmRow = (text, who, scope, time) =>
+  `<div style="${MM.row}"><span style="flex:1">${text}</span>${scope ? `<span style="${MM.tag}">${scope}</span>` : ''}<span style="${MM.meta}">${who ? `${who} · ` : ''}${time}</span></div>`
+const MM_ROWS = [
+  ['搜图时优先 danbooru 的现行标签', '你写的', '', '09-25'],
+  ['角色图默认用 NAI V5 Full', '你写的', '只在图片', '09-24'],
+  ['喜欢日系赛璐璐、线条干净', '助手记', '', '09-23'],
+  ['视频默认 9:16、5 秒', '助手记', '只在视频', '09-22'],
+]
+const mmSources = `<div style="${MM.card}"><div style="display:flex;align-items:center;gap:8px"><span style="${MM.h}">搜图来源</span><span style="${MM.label}">程序强制执行，不靠助手自觉</span></div><div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="width:84px;${MM.label}">只从这些站找</span><span style="${MM.chip(false)}">danbooru.donmai.us ×</span><span style="${MM.chip(false)};color:${MUTED}">＋ 添加</span></div><div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span style="width:84px;${MM.label}">不从这些站找</span><span style="${MM.chip(false)};color:${MUTED}">＋ 添加</span></div></div></div>`
+const mmPage = (memory) =>
+  `<div style="display:flex;flex-direction:column;gap:10px"><div style="${MM.label}">设置 › 助手</div><div style="display:flex;align-items:center;gap:6px"><span style="${MM.label}">人设</span><span style="${MM.chip(false)}">简洁</span><span style="${MM.chip(true)}">标准</span><span style="${MM.chip(false)}">详尽</span></div>${memory}${mmSources}</div>`
+const MM_DIR_A = mmPage(`<div style="${MM.card}">${mmHead()}${MM.input('写一条，例：以后都用中文回复')}<div style="display:flex;gap:6px"><span style="${MM.chip(true)}">全部</span><span style="${MM.chip(false)}">你写的</span><span style="${MM.chip(false)}">助手记的</span><span style="margin-left:auto;font-size:11.5px;color:${MUTED}">全部清空</span></div><div>${MM_ROWS.map((r) => mmRow(...r)).join('')}</div></div>`)
+const MM_DIR_B = mmPage(`<div style="${MM.card}">${mmHead()}<div style="${MM.label}">你写的 · 2 条（优先）</div>${MM.input('写一条，例：以后都用中文回复')}<div>${MM_ROWS.slice(0, 2).map((r) => mmRow(r[0], '', r[2], r[3])).join('')}</div><div style="display:flex;align-items:center;margin-top:4px"><span style="${MM.label}">助手记的 · 2 条</span><span style="margin-left:auto;font-size:11.5px;color:${MUTED}">全部清空</span></div><div>${MM_ROWS.slice(2).map((r) => mmRow(r[0], '', r[2], r[3])).join('')}</div></div>`)
+const MM_DIR_C = mmPage(`<div style="${MM.card}">${mmHead()}<div style="${MM.label}">你写的（每行一条，优先）</div><div style="border-radius:9px;border:1px solid #e5e5e5;background:#fafafa;padding:8px 10px;font-size:12px;line-height:1.7;color:#0a0a0a">搜图时优先 danbooru 的现行标签<br>[图片] 角色图默认用 NAI V5 Full<br><span style="color:#a3a3a3">…</span></div><div style="display:flex;align-items:center;margin-top:4px"><span style="${MM.label}">助手记的 · 2 条</span><span style="margin-left:auto;font-size:11.5px;color:${MUTED}">全部清空</span></div><div>${MM_ROWS.slice(2).map((r) => mmRow(r[0], '', r[2], r[3])).join('')}</div></div>`)
+const mmDir = (no, name, body, rule) =>
+  `<div style="display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:600">${no} ${name}</div><div style="${MOCK.frame}">${body}</div><div style="${MOCK.cap}">${rule}</div></div>`
+const MM_DIRECTIONS = `<div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">${[
+  mmDir('M-A', '平铺一列', MM_DIR_A, '现在那张列表原样长大：顶部一个输入框写新条目，筛选 chip 换成「全部 · 你写的 · 助手记的」，行尾写来源和时间，范围不是全局时才出一个小标。点文字就地改，悬停出「删」。'),
+  mmDir('M-B', '分两组', MM_DIR_B, '「你写的」在上、带输入框；「助手记的」在下、带数量和全部清空。优先级靠位置表达，行上不再写来源。'),
+  mmDir('M-C', '你写的是一段话', MM_DIR_C, '「你写的」是一个多行文本框，每行一条，范围写成行首 [图片]（同 ChatGPT 自定义指令）；「助手记的」仍是列表。'),
+].join('')}</div>`
+const mmChat = (no, name, body, rule) =>
+  `<div style="display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:600">${no} ${name}</div><div style="${MOCK.frame};background:#fff">${body}</div><div style="${MOCK.cap}">${rule}</div></div>`
+const mmReply = (text) => `<div style="font-size:12px;line-height:1.6">${text}</div>`
+const mmNote = (text) => `<div style="font-size:11px;color:${MUTED}">${text}</div>`
+const MM_CHAT = `<div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">${[
+  mmChat('C1', '助手记了一条', `<div style="${MOCK.bubble}">我一直都喜欢赛璐璐那种干净的线条</div>${mmReply('收到。这张按赛璐璐来：平涂两级阴影、线条干净，已写进提示词。')}${mmNote('已记住：喜欢日系赛璐璐、线条干净 · <u>撤销</u>')}`, '回复末尾一行小字，点「撤销」就删掉这一条。⛔ 不弹「要记住吗」卡。'),
+  mmChat('C2', '撤销之后', `${mmReply('收到。这张按赛璐璐来……')}${mmNote('已撤销，不记这一条')}`, '原位换成一句灰字，⛔ 不弹 toast。'),
+  mmChat('C3', '你说「记住」', `<div style="${MOCK.bubble}">记住：视频默认 9:16、5 秒</div>${mmReply('好，以后视频默认 9:16、5 秒。')}${mmNote('已记住（你写的，只在视频）：视频默认 9:16、5 秒 · <u>撤销</u>')}`, '你亲口说的记成「你写的」，优先级高于助手自己记的；助手判断出范围时标上「只在视频」。'),
+  mmChat('C4', '开关关着', `<div style="${MOCK.bubble}">我一直都喜欢赛璐璐那种干净的线条</div>${mmReply('收到。这张按赛璐璐来……')}`, '不记，也不出那一行；已有的记忆照样用。'),
+  mmChat('C5', '隐身 · 这一轮不记', `<div style="display:flex;align-items:center;gap:6px;font-size:11px;color:${MUTED}">◌ 隐身</div><div style="${MOCK.bubble}">我一直都喜欢赛璐璐那种干净的线条</div>${mmReply('收到。这张按赛璐璐来……')}`, '沿用现在 ⋯ 菜单里的隐身；这一轮什么都不记。'),
+  mmChat('C6', '你问「你记得我什么」', `<div style="${MOCK.bubble}">你记得我什么？</div>${mmReply('我记着 4 条：搜图优先 danbooru 现行标签 · 角色图默认 NAI V5 Full（图片）· 喜欢日系赛璐璐 · 视频默认 9:16、5 秒（视频）。')}${mmNote('<u>去设置里管理</u>')}`, '平时用到哪条不提示（对标 Claude：默默用）；问了就列出来，给一个去设置的链接。'),
+].join('')}</div>`
+const mmState = (no, name, body, rule) =>
+  `<div style="display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:600">${no} ${name}</div>${body}<div style="${MOCK.cap}">${rule}</div></div>`
+const MM_STATES = `<div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">${[
+  mmState('S1', '空态', `<div style="${MM.card}">${mmHead()}<div style="border:1px dashed #d4d4d4;border-radius:12px;background:#f7f7f5;padding:18px;display:flex;flex-direction:column;align-items:center;gap:6px"><div style="font-size:14px;font-weight:600">还没有记忆</div><div style="${MM.cap}">助手会在对话里记下你的偏好；你也可以自己写一条。</div><span style="${MM.chip(true)}">写一条</span></div></div>`, '沿用全站空态原语（一句话 + 黑丸主动作）；主动作从「这一轮不记」改成「写一条」。'),
+  mmState('S2', '就地改', `<div style="${MM.card}">${mmHead()}<div style="${MM.row}"><span style="flex:1;border:1px solid #0a0a0a;border-radius:6px;padding:2px 6px">角色图默认用 NAI V5 Full</span><span style="${MM.tag}">只在图片 ▾</span></div><div style="${MM.cap}">回车保存 · Esc 取消 · 范围在行尾下拉里改</div></div>`, '点文字变输入框；范围标是个下拉（全局 / 图片 / 视频 / 画布 / LoRA）。助手记的条目被你改过，就变成「你写的」。'),
+  mmState('S3', '开关关着', `<div style="${MM.card}">${mmHead(false)}<div style="${MM.cap}">已暂停记录 —— 助手不再新记，已有的 4 条照样用。</div><div style="opacity:.55">${MM_ROWS.slice(0, 2).map((r) => mmRow(...r)).join('')}</div></div>`, '列表还在、仍可改删；只是不再新增。'),
+  mmState('S4', '全部清空', `<div style="${MM.card};box-shadow:0 12px 30px rgba(0,0,0,.12)"><div style="${MM.h}">清空助手记的 2 条？</div><div style="${MM.cap}">你写的 2 条会留下。清空后不能恢复。</div><div style="display:flex;gap:6px;justify-content:flex-end"><span style="${MM.chip(false)}">取消</span><span style="${MM.chip(false)};border-color:#b3261e;color:#b3261e">清空</span></div></div>`, '沿用现在的二次确认；⭐ 只清助手记的，你写的留下。'),
+  mmState('S5', '满了', `<div style="${MM.card}">${mmHead()}<div style="${MM.cap}">已有 200 条。之后助手每记一条新的，会替掉最久没用到的一条助手记忆；你写的不会被替掉。</div></div>`, '一行说明，只在满了时出现；⛔ 不做容量条。'),
+  mmState('S6', '助手设置弹窗', `<div style="${MM.card}"><div style="${MM.h}">助手设置</div><div style="display:flex;gap:6px"><span style="${MM.chip(true)}">人设</span><span style="${MM.chip(false)};text-decoration:line-through;color:${MUTED}">项目规则</span><span style="${MM.chip(false)};text-decoration:line-through;color:${MUTED}">上下文卡</span></div><div style="${MM.cap}">只剩人设；底部一行「记忆与来源在 设置 › 助手」。</div></div>`, '项目规则并进记忆、来源名单挪去设置页、上下文卡去掉，弹窗只剩人设一页、不再有页签。'),
+].join('')}</div>`
+const MM_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start"><div style="width:300px;flex:none;border-radius:22px;border:1px solid #d4d4d4;background:#f4f4f1;padding:10px;display:flex;flex-direction:column;gap:8px"><div style="${MM.card}">${mmHead(true, true)}${MM.input('写一条…')}<div>${MM_ROWS.slice(0, 3).map((r) => `<div style="${MM.row};min-height:44px"><span style="flex:1">${r[0]}</span><span style="flex:none;font-size:13px;color:${MUTED}">⋯</span></div>`).join('')}</div></div>${mmSources}</div><div style="flex:1;font-size:12.5px;line-height:1.7;color:#404040">手机：同一页竖排。每行最小 44 高，行尾一颗 ⋯（改 · 改范围 · 删），⛔ 不靠悬停；来源和时间收进 ⋯ 里。来源名单的 chip 点击区 ≥ 44；「＋ 添加」弹底部抽屉输入域名。对话里那一行「已记住 · 撤销」与桌面相同，「撤销」点击区 ≥ 44。</div></div>`
+const MEMORY_UI = {
+  file: 'DesignMemoryUi.dc.html',
+  title: '记忆 · ④ 全状态',
+  eyebrow: 'PixelVault · 6 在设计 · 记忆 · ④ 画板 · 2026-09-25',
+  heading: '记忆：一份清单，你写的优先',
+  sub: 'owner 09-25：① 四问全选最简 + ② 建议全过；搜图来源白 / 黑名单**保留结构化**（程序强制执行）。新画面只有两处：**设置 › 助手的记忆区块**与**对话里「已记住」那一行**；助手设置弹窗减到只剩人设。三个方向只差在记忆区块怎么排，其余状态、手机、动效三个方向共用。',
+  blocks: [
+    h('① 记忆区块：三个方向'),
+    { t: 'mock', html: MM_DIRECTIONS, md: '三个方向（画板上是界面稿）：\n\n- **M-A 平铺一列**：现有列表长大；顶部输入框写新条目；筛选「全部 · 你写的 · 助手记的」；行尾写来源 + 时间，范围不是全局才出小标；点文字就地改，悬停出删。\n- **M-B 分两组**：「你写的」在上带输入框，「助手记的」在下带数量和全部清空；行上不写来源。\n- **M-C 你写的是一段话**：「你写的」是多行文本框，每行一条，范围写成行首 [图片]；「助手记的」仍是列表。\n\n三个方向共用：顶部「让助手记住」开关；下面一块「搜图来源」（只从这些站找 / 不从这些站找，chip + 添加），程序强制执行。' },
+    h('② 对话里'),
+    { t: 'mock', html: MM_CHAT, md: '6 态：C1 助手记了一条（回复末尾一行「已记住：… · 撤销」）· C2 撤销后原位一句灰字 · C3 你说「记住」→ 记成「你写的」并标范围 · C4 开关关着 → 不记也不出那一行 · C5 隐身这一轮 → 什么都不记 · C6 你问「你记得我什么」→ 列出来 + 去设置管理。平时用到哪条不提示。' },
+    h('③ 设置页状态'),
+    { t: 'mock', html: MM_STATES, md: '6 态：S1 空态（空态原语，主动作「写一条」）· S2 就地改（范围在行尾下拉；助手记的被你改过就算你写的）· S3 开关关着（暂停新增，已有照用）· S4 全部清空（只清助手记的）· S5 满 200 一行说明（只替掉最久没用的助手条目）· S6 助手设置弹窗只剩人设。' },
+    h('手机'),
+    { t: 'mock', html: `<div style="margin-top:12px">${MM_PHONE}</div>`, md: '手机：同一页竖排；行最小 44 高、行尾 ⋯ 菜单（改 · 改范围 · 删），不靠悬停；来源 chip ≥ 44，添加走底部抽屉。' },
+    h('动效表'),
+    table(
+      ['动作', '时长 · 曲线', '动什么', '⛔'],
+      [
+        ['「已记住」那一行出现', '`--duration-base` 200ms · `ease-standard`', '正文写完后 opacity 0→1', '不跟着流式逐字、不闪高亮'],
+        ['撤销 → 已撤销', '`--duration-fast` 120ms', '文字交叉淡换', '不弹 toast'],
+        ['写一条 → 进列表', '列表项进入：opacity 0→1 + y 8→0', '新行出现在所属位置', '不整表重排动画'],
+        ['删一条', '`AnimatePresence` exit：opacity→0 + scale .98，`--duration-fast`', '只动被删那一行', '下面的行不做位移动画'],
+        ['就地改', '—', '文字与输入框直接切换', '不做展开动画'],
+        ['开关', 'switch 自带', '圆点平移', '列表不做淡出，只降到 55% 不透明'],
+        ['`prefers-reduced-motion`', '—', '以上直接到位', '—'],
+      ],
+      { firstStrong: false },
+    ),
   ],
 }
 
@@ -1758,7 +1849,7 @@ export const PAGES = [
     name: '5 · 厂商速查',
     boards: [VENDOR_IMAGE, VENDOR_VIDEO, VENDOR_VOICE, VENDOR_TEXT, VENDOR_RUNNER],
   },
-  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT, CARDS_MAP, MEMORY_MAP] },
+  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT, CARDS_MAP, MEMORY_MAP, MEMORY_UI] },
 ]
 
 if (import.meta.url === `file://${process.argv[1]}`) {

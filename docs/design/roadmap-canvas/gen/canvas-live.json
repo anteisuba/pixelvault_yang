@@ -260,6 +260,15 @@
       "h": 5233,
       "title": "视频助手 + 左栏 · ④ 全状态",
       "page": "page-6"
+    },
+    {
+      "file": "DesignCardsMap.dc.html",
+      "x": 0,
+      "y": 26170,
+      "w": 1400,
+      "h": 1237,
+      "title": "卡片 · ② 思维导图",
+      "page": "page-6"
     }
   ],
   "annotations": [],

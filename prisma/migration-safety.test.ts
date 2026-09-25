@@ -85,6 +85,8 @@ const ACKNOWLEDGED: Record<string, string> = {
     '2026-08-21T12:05:01Z 已在 Vercel 所用的生产库（ep-flat-violet-…）成功应用——作者当时的「本地库」就是生产库（.env.local 指向它），重复在那一刻已经清掉。前一条 20260821210441_dedupe_lora_assets 是给**别的**库重放这段历史时兜底的（例如落后 6 条迁移、至今仍有 2 组重复的 ep-solitary-dew-…）。⚠ 别照抄 d5fa8587 的提交信息：那条写的「部署前查生产仍有 2 组重复」查错了库，见 docs/references/cicd.md。',
   '20260917160000_character_card_v2_fields':
     '不需要连库验：外键列 "CharacterCard"."voiceCardId" 是同一条迁移里新加的**可空**列，ADD COLUMN 之后全表该列一律为 NULL，而 NULL 行不参与外键校验（SQL 标准的 MATCH SIMPLE，Postgres 默认）。所以 ADD CONSTRAINT 在任何存量数据上都成立——闸门认的是 ADD CONSTRAINT 这个语句形状，不是这条约束真有风险。⚠ 若日后有迁移往这一列写值，那条迁移得自己验。',
+  '20260925120000_card_bus_expand':
+    '不需要连库验：唯一索引 ("userId", "handle") 里的 handle 是同一条迁移新加的**可空**列，建索引时全表为 NULL，而 Postgres 唯一索引里多个 NULL 互不冲突（NULLS DISTINCT 默认）。所以在任何存量数据上都建得上。⚠ 回填 handle 的脚本（卡片总线第 ④ 片）自己保证同一用户内不重复（冲突加 -2、-3），那一步另有只读核查。',
 }
 
 interface ConstraintHit {

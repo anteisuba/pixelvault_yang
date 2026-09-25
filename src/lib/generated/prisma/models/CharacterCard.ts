@@ -50,6 +50,8 @@ export type CharacterCardMinAggregateOutputType = {
   isDeleted: boolean | null
   voiceCardId: string | null
   version: number | null
+  handle: string | null
+  summary: string | null
   parentId: string | null
   variantLabel: string | null
   createdAt: Date | null
@@ -70,6 +72,8 @@ export type CharacterCardMaxAggregateOutputType = {
   isDeleted: boolean | null
   voiceCardId: string | null
   version: number | null
+  handle: string | null
+  summary: string | null
   parentId: string | null
   variantLabel: string | null
   createdAt: Date | null
@@ -102,6 +106,10 @@ export type CharacterCardCountAggregateOutputType = {
   allowedStyleRange: number
   provenance: number
   version: number
+  handle: number
+  summary: number
+  referenceSlots: number
+  extensions: number
   parentId: number
   variantLabel: number
   createdAt: number
@@ -134,6 +142,8 @@ export type CharacterCardMinAggregateInputType = {
   isDeleted?: true
   voiceCardId?: true
   version?: true
+  handle?: true
+  summary?: true
   parentId?: true
   variantLabel?: true
   createdAt?: true
@@ -154,6 +164,8 @@ export type CharacterCardMaxAggregateInputType = {
   isDeleted?: true
   voiceCardId?: true
   version?: true
+  handle?: true
+  summary?: true
   parentId?: true
   variantLabel?: true
   createdAt?: true
@@ -186,6 +198,10 @@ export type CharacterCardCountAggregateInputType = {
   allowedStyleRange?: true
   provenance?: true
   version?: true
+  handle?: true
+  summary?: true
+  referenceSlots?: true
+  extensions?: true
   parentId?: true
   variantLabel?: true
   createdAt?: true
@@ -305,6 +321,10 @@ export type CharacterCardGroupByOutputType = {
   allowedStyleRange: runtime.JsonValue | null
   provenance: runtime.JsonValue | null
   version: number
+  handle: string | null
+  summary: string | null
+  referenceSlots: runtime.JsonValue | null
+  extensions: runtime.JsonValue | null
   parentId: string | null
   variantLabel: string | null
   createdAt: Date
@@ -360,6 +380,10 @@ export type CharacterCardWhereInput = {
   allowedStyleRange?: Prisma.JsonNullableFilter<"CharacterCard">
   provenance?: Prisma.JsonNullableFilter<"CharacterCard">
   version?: Prisma.IntFilter<"CharacterCard"> | number
+  handle?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
+  summary?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
+  referenceSlots?: Prisma.JsonNullableFilter<"CharacterCard">
+  extensions?: Prisma.JsonNullableFilter<"CharacterCard">
   parentId?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   variantLabel?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterCard"> | Date | string
@@ -401,6 +425,10 @@ export type CharacterCardOrderByWithRelationInput = {
   allowedStyleRange?: Prisma.SortOrderInput | Prisma.SortOrder
   provenance?: Prisma.SortOrderInput | Prisma.SortOrder
   version?: Prisma.SortOrder
+  handle?: Prisma.SortOrderInput | Prisma.SortOrder
+  summary?: Prisma.SortOrderInput | Prisma.SortOrder
+  referenceSlots?: Prisma.SortOrderInput | Prisma.SortOrder
+  extensions?: Prisma.SortOrderInput | Prisma.SortOrder
   parentId?: Prisma.SortOrderInput | Prisma.SortOrder
   variantLabel?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -418,6 +446,7 @@ export type CharacterCardOrderByWithRelationInput = {
 
 export type CharacterCardWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  userId_handle?: Prisma.CharacterCardUserIdHandleCompoundUniqueInput
   AND?: Prisma.CharacterCardWhereInput | Prisma.CharacterCardWhereInput[]
   OR?: Prisma.CharacterCardWhereInput[]
   NOT?: Prisma.CharacterCardWhereInput | Prisma.CharacterCardWhereInput[]
@@ -445,6 +474,10 @@ export type CharacterCardWhereUniqueInput = Prisma.AtLeast<{
   allowedStyleRange?: Prisma.JsonNullableFilter<"CharacterCard">
   provenance?: Prisma.JsonNullableFilter<"CharacterCard">
   version?: Prisma.IntFilter<"CharacterCard"> | number
+  handle?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
+  summary?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
+  referenceSlots?: Prisma.JsonNullableFilter<"CharacterCard">
+  extensions?: Prisma.JsonNullableFilter<"CharacterCard">
   parentId?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   variantLabel?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterCard"> | Date | string
@@ -458,7 +491,7 @@ export type CharacterCardWhereUniqueInput = Prisma.AtLeast<{
   generationLinks?: Prisma.GenerationCharacterCardListRelationFilter
   recipesAsChar?: Prisma.CardRecipeListRelationFilter
   loraTrainingJobs?: Prisma.LoraTrainingJobListRelationFilter
-}, "id">
+}, "id" | "userId_handle">
 
 export type CharacterCardOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -486,6 +519,10 @@ export type CharacterCardOrderByWithAggregationInput = {
   allowedStyleRange?: Prisma.SortOrderInput | Prisma.SortOrder
   provenance?: Prisma.SortOrderInput | Prisma.SortOrder
   version?: Prisma.SortOrder
+  handle?: Prisma.SortOrderInput | Prisma.SortOrder
+  summary?: Prisma.SortOrderInput | Prisma.SortOrder
+  referenceSlots?: Prisma.SortOrderInput | Prisma.SortOrder
+  extensions?: Prisma.SortOrderInput | Prisma.SortOrder
   parentId?: Prisma.SortOrderInput | Prisma.SortOrder
   variantLabel?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -526,6 +563,10 @@ export type CharacterCardScalarWhereWithAggregatesInput = {
   allowedStyleRange?: Prisma.JsonNullableWithAggregatesFilter<"CharacterCard">
   provenance?: Prisma.JsonNullableWithAggregatesFilter<"CharacterCard">
   version?: Prisma.IntWithAggregatesFilter<"CharacterCard"> | number
+  handle?: Prisma.StringNullableWithAggregatesFilter<"CharacterCard"> | string | null
+  summary?: Prisma.StringNullableWithAggregatesFilter<"CharacterCard"> | string | null
+  referenceSlots?: Prisma.JsonNullableWithAggregatesFilter<"CharacterCard">
+  extensions?: Prisma.JsonNullableWithAggregatesFilter<"CharacterCard">
   parentId?: Prisma.StringNullableWithAggregatesFilter<"CharacterCard"> | string | null
   variantLabel?: Prisma.StringNullableWithAggregatesFilter<"CharacterCard"> | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"CharacterCard"> | Date | string
@@ -555,6 +596,10 @@ export type CharacterCardCreateInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -595,6 +640,10 @@ export type CharacterCardUncheckedCreateInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -629,6 +678,10 @@ export type CharacterCardUpdateInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -669,6 +722,10 @@ export type CharacterCardUncheckedUpdateInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -706,6 +763,10 @@ export type CharacterCardCreateManyInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -735,6 +796,10 @@ export type CharacterCardUpdateManyMutationInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -766,6 +831,10 @@ export type CharacterCardUncheckedUpdateManyInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -785,6 +854,11 @@ export type CharacterCardOrderByRelationAggregateInput = {
 export type CharacterCardNullableScalarRelationFilter = {
   is?: Prisma.CharacterCardWhereInput | null
   isNot?: Prisma.CharacterCardWhereInput | null
+}
+
+export type CharacterCardUserIdHandleCompoundUniqueInput = {
+  userId: string
+  handle: string
 }
 
 export type CharacterCardCountOrderByAggregateInput = {
@@ -813,6 +887,10 @@ export type CharacterCardCountOrderByAggregateInput = {
   allowedStyleRange?: Prisma.SortOrder
   provenance?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  handle?: Prisma.SortOrder
+  summary?: Prisma.SortOrder
+  referenceSlots?: Prisma.SortOrder
+  extensions?: Prisma.SortOrder
   parentId?: Prisma.SortOrder
   variantLabel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -838,6 +916,8 @@ export type CharacterCardMaxOrderByAggregateInput = {
   isDeleted?: Prisma.SortOrder
   voiceCardId?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  handle?: Prisma.SortOrder
+  summary?: Prisma.SortOrder
   parentId?: Prisma.SortOrder
   variantLabel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -858,6 +938,8 @@ export type CharacterCardMinOrderByAggregateInput = {
   isDeleted?: Prisma.SortOrder
   voiceCardId?: Prisma.SortOrder
   version?: Prisma.SortOrder
+  handle?: Prisma.SortOrder
+  summary?: Prisma.SortOrder
   parentId?: Prisma.SortOrder
   variantLabel?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -1156,6 +1238,10 @@ export type CharacterCardCreateWithoutUserInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1194,6 +1280,10 @@ export type CharacterCardUncheckedCreateWithoutUserInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -1260,6 +1350,10 @@ export type CharacterCardScalarWhereInput = {
   allowedStyleRange?: Prisma.JsonNullableFilter<"CharacterCard">
   provenance?: Prisma.JsonNullableFilter<"CharacterCard">
   version?: Prisma.IntFilter<"CharacterCard"> | number
+  handle?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
+  summary?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
+  referenceSlots?: Prisma.JsonNullableFilter<"CharacterCard">
+  extensions?: Prisma.JsonNullableFilter<"CharacterCard">
   parentId?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   variantLabel?: Prisma.StringNullableFilter<"CharacterCard"> | string | null
   createdAt?: Prisma.DateTimeFilter<"CharacterCard"> | Date | string
@@ -1289,6 +1383,10 @@ export type CharacterCardCreateWithoutProjectInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1327,6 +1425,10 @@ export type CharacterCardUncheckedCreateWithoutProjectInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -1387,6 +1489,10 @@ export type CharacterCardCreateWithoutGenerationsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1426,6 +1532,10 @@ export type CharacterCardUncheckedCreateWithoutGenerationsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -1475,6 +1585,10 @@ export type CharacterCardUpdateWithoutGenerationsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1514,6 +1628,10 @@ export type CharacterCardUncheckedUpdateWithoutGenerationsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1547,6 +1665,10 @@ export type CharacterCardCreateWithoutVoiceCardInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1585,6 +1707,10 @@ export type CharacterCardUncheckedCreateWithoutVoiceCardInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -1645,6 +1771,10 @@ export type CharacterCardCreateWithoutVariantsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1684,6 +1814,10 @@ export type CharacterCardUncheckedCreateWithoutVariantsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -1722,6 +1856,10 @@ export type CharacterCardCreateWithoutParentInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1761,6 +1899,10 @@ export type CharacterCardUncheckedCreateWithoutParentInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1815,6 +1957,10 @@ export type CharacterCardUpdateWithoutVariantsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1854,6 +2000,10 @@ export type CharacterCardUncheckedUpdateWithoutVariantsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1903,6 +2053,10 @@ export type CharacterCardCreateWithoutGenerationLinksInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1942,6 +2096,10 @@ export type CharacterCardUncheckedCreateWithoutGenerationLinksInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -1991,6 +2149,10 @@ export type CharacterCardUpdateWithoutGenerationLinksInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2030,6 +2192,10 @@ export type CharacterCardUncheckedUpdateWithoutGenerationLinksInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2063,6 +2229,10 @@ export type CharacterCardCreateWithoutRecipesAsCharInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2102,6 +2272,10 @@ export type CharacterCardUncheckedCreateWithoutRecipesAsCharInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -2151,6 +2325,10 @@ export type CharacterCardUpdateWithoutRecipesAsCharInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2190,6 +2368,10 @@ export type CharacterCardUncheckedUpdateWithoutRecipesAsCharInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2223,6 +2405,10 @@ export type CharacterCardCreateWithoutLoraTrainingJobsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2262,6 +2448,10 @@ export type CharacterCardUncheckedCreateWithoutLoraTrainingJobsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -2311,6 +2501,10 @@ export type CharacterCardUpdateWithoutLoraTrainingJobsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2350,6 +2544,10 @@ export type CharacterCardUncheckedUpdateWithoutLoraTrainingJobsInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2385,6 +2583,10 @@ export type CharacterCardCreateManyUserInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -2414,6 +2616,10 @@ export type CharacterCardUpdateWithoutUserInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2452,6 +2658,10 @@ export type CharacterCardUncheckedUpdateWithoutUserInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2488,6 +2698,10 @@ export type CharacterCardUncheckedUpdateManyWithoutUserInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2519,6 +2733,10 @@ export type CharacterCardCreateManyProjectInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -2548,6 +2766,10 @@ export type CharacterCardUpdateWithoutProjectInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2586,6 +2808,10 @@ export type CharacterCardUncheckedUpdateWithoutProjectInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2622,6 +2848,10 @@ export type CharacterCardUncheckedUpdateManyWithoutProjectInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2653,6 +2883,10 @@ export type CharacterCardCreateManyVoiceCardInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: string | null
   variantLabel?: string | null
   createdAt?: Date | string
@@ -2682,6 +2916,10 @@ export type CharacterCardUpdateWithoutVoiceCardInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2720,6 +2958,10 @@ export type CharacterCardUncheckedUpdateWithoutVoiceCardInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2756,6 +2998,10 @@ export type CharacterCardUncheckedUpdateManyWithoutVoiceCardInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   parentId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2788,6 +3034,10 @@ export type CharacterCardCreateManyParentInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: number
+  handle?: string | null
+  summary?: string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2816,6 +3066,10 @@ export type CharacterCardUpdateWithoutParentInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2855,6 +3109,10 @@ export type CharacterCardUncheckedUpdateWithoutParentInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2891,6 +3149,10 @@ export type CharacterCardUncheckedUpdateManyWithoutParentInput = {
   allowedStyleRange?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   provenance?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   version?: Prisma.IntFieldUpdateOperationsInput | number
+  handle?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  summary?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  referenceSlots?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  extensions?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   variantLabel?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2989,6 +3251,10 @@ export type CharacterCardSelect<ExtArgs extends runtime.Types.Extensions.Interna
   allowedStyleRange?: boolean
   provenance?: boolean
   version?: boolean
+  handle?: boolean
+  summary?: boolean
+  referenceSlots?: boolean
+  extensions?: boolean
   parentId?: boolean
   variantLabel?: boolean
   createdAt?: boolean
@@ -3031,6 +3297,10 @@ export type CharacterCardSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   allowedStyleRange?: boolean
   provenance?: boolean
   version?: boolean
+  handle?: boolean
+  summary?: boolean
+  referenceSlots?: boolean
+  extensions?: boolean
   parentId?: boolean
   variantLabel?: boolean
   createdAt?: boolean
@@ -3067,6 +3337,10 @@ export type CharacterCardSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   allowedStyleRange?: boolean
   provenance?: boolean
   version?: boolean
+  handle?: boolean
+  summary?: boolean
+  referenceSlots?: boolean
+  extensions?: boolean
   parentId?: boolean
   variantLabel?: boolean
   createdAt?: boolean
@@ -3103,13 +3377,17 @@ export type CharacterCardSelectScalar = {
   allowedStyleRange?: boolean
   provenance?: boolean
   version?: boolean
+  handle?: boolean
+  summary?: boolean
+  referenceSlots?: boolean
+  extensions?: boolean
   parentId?: boolean
   variantLabel?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type CharacterCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "projectId" | "name" | "description" | "sourceImageUrl" | "sourceStorageKey" | "sourceImages" | "sourceImageEntries" | "characterPrompt" | "modelPrompts" | "referenceImages" | "attributes" | "loras" | "tags" | "status" | "stabilityScore" | "isDeleted" | "voiceCardId" | "voiceProfile" | "persona" | "referenceRoles" | "allowedStyleRange" | "provenance" | "version" | "parentId" | "variantLabel" | "createdAt" | "updatedAt", ExtArgs["result"]["characterCard"]>
+export type CharacterCardOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "projectId" | "name" | "description" | "sourceImageUrl" | "sourceStorageKey" | "sourceImages" | "sourceImageEntries" | "characterPrompt" | "modelPrompts" | "referenceImages" | "attributes" | "loras" | "tags" | "status" | "stabilityScore" | "isDeleted" | "voiceCardId" | "voiceProfile" | "persona" | "referenceRoles" | "allowedStyleRange" | "provenance" | "version" | "handle" | "summary" | "referenceSlots" | "extensions" | "parentId" | "variantLabel" | "createdAt" | "updatedAt", ExtArgs["result"]["characterCard"]>
 export type CharacterCardInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
   project?: boolean | Prisma.CharacterCard$projectArgs<ExtArgs>
@@ -3197,6 +3475,22 @@ export type $CharacterCardPayload<ExtArgs extends runtime.Types.Extensions.Inter
      * 卡内容的单调版本号，供 `provenance.derivedFromCardVersion` 指认派生自哪一版。
      */
     version: number
+    /**
+     * `@名字` 的稳定锚点，同一用户内唯一。只有角色卡有（owner 09-25：背景卡下线）。
+     */
+    handle: string | null
+    /**
+     * 给人看的简介。⛔ 任何面都不进 prompt（含助手）。
+     */
+    summary: string | null
+    /**
+     * `CharacterReferenceSlot[]`，吞掉 referenceImages / referenceRoles / sourceImages / sourceImageEntries。
+     */
+    referenceSlots: runtime.JsonValue | null
+    /**
+     * 带命名空间的扩展键袋（`pv.*` 归本产品）。认不出的键原样保留。
+     */
+    extensions: runtime.JsonValue | null
     parentId: string | null
     variantLabel: string | null
     createdAt: Date
@@ -3658,6 +3952,10 @@ export interface CharacterCardFieldRefs {
   readonly allowedStyleRange: Prisma.FieldRef<"CharacterCard", 'Json'>
   readonly provenance: Prisma.FieldRef<"CharacterCard", 'Json'>
   readonly version: Prisma.FieldRef<"CharacterCard", 'Int'>
+  readonly handle: Prisma.FieldRef<"CharacterCard", 'String'>
+  readonly summary: Prisma.FieldRef<"CharacterCard", 'String'>
+  readonly referenceSlots: Prisma.FieldRef<"CharacterCard", 'Json'>
+  readonly extensions: Prisma.FieldRef<"CharacterCard", 'Json'>
   readonly parentId: Prisma.FieldRef<"CharacterCard", 'String'>
   readonly variantLabel: Prisma.FieldRef<"CharacterCard", 'String'>
   readonly createdAt: Prisma.FieldRef<"CharacterCard", 'DateTime'>

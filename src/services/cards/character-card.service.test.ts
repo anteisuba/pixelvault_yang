@@ -54,6 +54,7 @@ import {
   listCharacterCards,
   getCharacterCard,
   deleteCharacterCard,
+  updateCharacterCard,
 } from '@/services/cards/character-card.service'
 import { VISION_TASKS } from '@/constants/vision'
 import { ASSISTANT_SURFACE_IDS } from '@/types/assistant-conversation'
@@ -302,5 +303,62 @@ describe('deleteCharacterCard', () => {
     const result = await deleteCharacterCard('clerk_1', 'missing')
 
     expect(result).toBe(false)
+  })
+})
+
+describe('updateCharacterCard · 卡片总线 v3 双写（expand 期）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockEnsureUser.mockResolvedValue(FAKE_USER)
+    mockUpdate.mockImplementation(async ({ data }) => ({
+      ...FAKE_CARD,
+      ...data,
+      variants: [],
+    }))
+  })
+
+  it('旧图列表一改，参考槽跟着重算（主图仍是身份槽）', async () => {
+    mockFindUnique.mockResolvedValue({ ...FAKE_CARD, referenceRoles: null })
+    await updateCharacterCard('clerk_1', 'card_1', {
+      sourceImageEntries: [
+        { url: 'https://example.com/side.png', viewType: 'side' },
+      ],
+      referenceRoles: { 'https://example.com/side.png': 'costume' },
+    })
+    const { data } = mockUpdate.mock.calls[0]![0]
+    expect(data.referenceSlots).toEqual([
+      expect.objectContaining({
+        url: FAKE_CARD.sourceImageUrl,
+        role: 'identity',
+        isPrimary: true,
+      }),
+      expect.objectContaining({
+        url: 'https://example.com/side.png',
+        role: 'costume',
+        viewType: 'side',
+      }),
+    ])
+  })
+
+  it('只改名字时不碰参考槽', async () => {
+    mockFindUnique.mockResolvedValue(FAKE_CARD)
+    await updateCharacterCard('clerk_1', 'card_1', { name: 'Rei 2' })
+    expect(mockUpdate.mock.calls[0]![0].data).not.toHaveProperty(
+      'referenceSlots',
+    )
+  })
+
+  it('扩展键按键合并：null 删键，⛔ 认不出的键原样保留；简介照写', async () => {
+    mockFindUnique.mockResolvedValue({
+      ...FAKE_CARD,
+      extensions: { 'acme.keep': 1, 'pv.variants': ['a'] },
+    })
+    await updateCharacterCard('clerk_1', 'card_1', {
+      summary: '雨夜里的侦探',
+      extensions: { 'pv.variants': null, 'pv.note': 'x' },
+    })
+    const { data } = mockUpdate.mock.calls[0]![0]
+    expect(data.extensions).toEqual({ 'acme.keep': 1, 'pv.note': 'x' })
+    expect(data.summary).toBe('雨夜里的侦探')
   })
 })

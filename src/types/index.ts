@@ -3455,6 +3455,14 @@ export const CreateCharacterCardSchema = z.object({
   referenceRoles: CharacterReferenceRolesSchema.nullable().optional(),
   allowedStyleRange: CharacterAllowedStyleRangeSchema.nullable().optional(),
   provenance: CharacterProvenanceSchema.nullable().optional(),
+  /** ── 卡片总线 v3（双写期，读方未切）── */
+  summary: z
+    .string()
+    .trim()
+    .max(CHARACTER_CARD.SUMMARY_MAX_LENGTH)
+    .nullable()
+    .optional(),
+  extensions: CardExtensionsSchema.optional(),
   apiKeyId: z.string().trim().min(1).optional(),
 })
 
@@ -3495,6 +3503,15 @@ export const UpdateCharacterCardSchema = z.object({
   referenceRoles: CharacterReferenceRolesSchema.nullable().optional(),
   allowedStyleRange: CharacterAllowedStyleRangeSchema.nullable().optional(),
   provenance: CharacterProvenanceSchema.nullable().optional(),
+  /** ── 卡片总线 v3（双写期，读方未切）── */
+  summary: z
+    .string()
+    .trim()
+    .max(CHARACTER_CARD.SUMMARY_MAX_LENGTH)
+    .nullable()
+    .optional(),
+  /** 按键合并：给了哪几个键改哪几个，值为 `null` 的键删掉，其余原样保留。 */
+  extensions: CardExtensionsSchema.optional(),
 })
 
 export type UpdateCharacterCardRequest = z.infer<

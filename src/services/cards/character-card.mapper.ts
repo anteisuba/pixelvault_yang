@@ -1,8 +1,10 @@
 import 'server-only'
 
+import { legacyImagesToReferenceSlots } from '@/lib/card-bus'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import {
   CharacterAttributesSchema,
+  CharacterReferenceRolesSchema,
   CharacterCardStatusSchema,
   LoraSchema,
   SourceImageEntrySchema,
@@ -107,6 +109,76 @@ export function mapCharacterCardRow(
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }
+}
+
+/**
+ * 卡片总线 v3 双写（expand 期）：由一行卡的**旧图列表**算出参考槽，写进
+ * `referenceSlots`。本次请求改了哪份旧列表，就用 `overrides` 里的新值替它。
+ * ⚠ 读方还没切（第 ⑧ 片），这一格现在只写不读 —— 写它是为了切读那天不需要
+ * 再回填一次。
+ */
+export function referenceSlotsFromCardRow(
+  row: {
+    sourceImageUrl: string
+    sourceImages: unknown
+    sourceImageEntries: unknown
+    referenceImages: unknown
+    referenceRoles: unknown
+  },
+  overrides: {
+    sourceImageEntries?: SourceImageEntry[]
+    referenceImages?: string[] | null
+    referenceRoles?: CharacterReferenceRoles | null
+  } = {},
+): Prisma.InputJsonValue {
+  return toPrismaJson(
+    legacyImagesToReferenceSlots({
+      sourceImageUrl: row.sourceImageUrl,
+      sourceImages: parseWithFallback(
+        NullableStringArraySchema,
+        row.sourceImages,
+        null,
+      ),
+      sourceImageEntries:
+        overrides.sourceImageEntries ??
+        parseWithFallback(SourceImageEntriesSchema, row.sourceImageEntries, []),
+      referenceImages:
+        overrides.referenceImages !== undefined
+          ? overrides.referenceImages
+          : parseWithFallback(
+              NullableStringArraySchema,
+              row.referenceImages,
+              null,
+            ),
+      referenceRoles:
+        overrides.referenceRoles !== undefined
+          ? overrides.referenceRoles
+          : parseWithFallback(
+              CharacterReferenceRolesSchema.nullable(),
+              row.referenceRoles,
+              null,
+            ),
+    }),
+  )
+}
+
+/**
+ * 扩展键袋按键合并：本次给了哪几个键就改哪几个，值为 `null` 的键删掉，
+ * ⛔ 其余键（包括认不出的）原样保留 —— 任何服务端路径都不得丢掉它们。
+ */
+export function mergeCardExtensions(
+  existing: unknown,
+  patch: Record<string, unknown>,
+): Prisma.InputJsonValue {
+  const merged: Record<string, unknown> =
+    existing && typeof existing === 'object' && !Array.isArray(existing)
+      ? { ...(existing as Record<string, unknown>) }
+      : {}
+  for (const [key, value] of Object.entries(patch)) {
+    if (value === null) delete merged[key]
+    else merged[key] = value
+  }
+  return JSON.parse(JSON.stringify(merged)) as Prisma.InputJsonValue
 }
 
 export function serializeCharacterAttributes(

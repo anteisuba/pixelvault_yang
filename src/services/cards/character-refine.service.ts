@@ -18,6 +18,21 @@ import {
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
 import { ensureUser } from '@/services/user.service'
+import { referenceSlotsFromCardRow } from '@/services/cards/character-card.mapper'
+
+/**
+ * 精修挑出的参考图 —— 旧列 `referenceImages` 与卡片总线 v3 的参考槽**双写**
+ * （expand 期，读方未切）。
+ */
+function refinedReferenceWrite(
+  card: Parameters<typeof referenceSlotsFromCardRow>[0],
+  referenceImages: string[],
+) {
+  return {
+    referenceImages,
+    referenceSlots: referenceSlotsFromCardRow(card, { referenceImages }),
+  }
+}
 
 // ─── System Prompts ────────────────────────────────────────────
 
@@ -160,12 +175,13 @@ export async function refineCharacterCard(
           ? 'REFINING'
           : card.status,
       ...(improved && results.length > 0
-        ? {
-            referenceImages: results
+        ? refinedReferenceWrite(
+            card,
+            results
               .filter((r) => r.score && r.score.overallScore >= 70)
               .map((r) => r.generation.url)
               .slice(0, CHARACTER_CARD.MAX_REFERENCE_IMAGES),
-          }
+          )
         : {}),
     },
   })

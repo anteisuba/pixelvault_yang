@@ -915,6 +915,18 @@ model CharacterCard {
   /// 卡内容的单调版本号，供 `provenance.derivedFromCardVersion` 指认派生自哪一版。
   version           Int        @default(1)
 
+  // ── 卡片总线 v3（进度表 35，见 docs/references/domains/cards.md）──
+  // expand 期：全部可空、写方双写、读方未切。contract 迁移时 handle 改非空、
+  // 删掉被 referenceSlots 吞掉的四列旧图片列表。
+  /// `@名字` 的稳定锚点，同一用户内唯一。只有角色卡有（owner 09-25：背景卡下线）。
+  handle         String?
+  /// 给人看的简介。⛔ 任何面都不进 prompt（含助手）。
+  summary        String?    @db.Text
+  /// `CharacterReferenceSlot[]`，吞掉 referenceImages / referenceRoles / sourceImages / sourceImageEntries。
+  referenceSlots Json?
+  /// 带命名空间的扩展键袋（`pv.*` 归本产品）。认不出的键原样保留。
+  extensions     Json?
+
   // ── Variant system (folder-like) ────────────────────────────
   parentId     String? // null = root card, set = variant of parent
   parent       CharacterCard?  @relation("CharacterCardVariants", fields: [parentId], references: [id], onDelete: Cascade)
@@ -934,6 +946,7 @@ model CharacterCard {
   @@index([parentId, isDeleted, updatedAt(sort: Desc)])
   @@index([userId, projectId, isDeleted, updatedAt(sort: Desc)])
   @@index([voiceCardId])
+  @@unique([userId, handle])
 }
 
 model GenerationCharacterCard {

@@ -24,8 +24,12 @@ import {
   resolveLlmTextRoute,
 } from '@/services/llm-text.service'
 import { analyzeVisual } from '@/services/vision/vision-analyzer.service'
+import { deriveCardHandleBase, deriveVariantHandleBase } from '@/lib/card-bus'
+import { allocateHandleForNewCard } from '@/services/cards/card-handle.service'
 import {
   mapCharacterCardRow,
+  mergeCardExtensions,
+  referenceSlotsFromCardRow,
   serializeCharacterAttributes,
   serializeCharacterCardV2Fields,
   serializeCharacterLoras,
@@ -328,13 +332,15 @@ export async function createCharacterCard(
   }
 
   // If creating as variant, verify parent ownership + variant limit
+  const parent = input.parentId
+    ? await db.characterCard.findUnique({
+        where: { id: input.parentId },
+        include: {
+          _count: { select: { variants: { where: { isDeleted: false } } } },
+        },
+      })
+    : null
   if (input.parentId) {
-    const parent = await db.characterCard.findUnique({
-      where: { id: input.parentId },
-      include: {
-        _count: { select: { variants: { where: { isDeleted: false } } } },
-      },
-    })
     if (!parent || parent.userId !== dbUser.id || parent.isDeleted) {
       throw new Error('Parent card not found')
     }
@@ -394,25 +400,47 @@ export async function createCharacterCard(
   const characterPrompt = buildPromptFromAttributes(attributes)
 
   // Create DB record
-  const card = await db.characterCard.create({
-    data: {
-      userId: dbUser.id,
-      name: input.name,
-      description: input.description ?? null,
-      sourceImageUrl: primaryUrl,
-      sourceStorageKey: primaryStorageKey,
-      sourceImages: sourceImageUrls,
-      sourceImageEntries: serializeSourceImageEntries(sourceImageEntries),
-      characterPrompt,
-      attributes: serializeCharacterAttributes(attributes),
-      tags: input.tags ?? [],
-      status: 'DRAFT',
-      parentId: input.parentId ?? null,
-      variantLabel: input.variantLabel ?? null,
-      // 角色卡字段 v2 —— 透传落库，⛔ 不在这里加业务逻辑（cards.md「角色卡字段 v2」）。
-      ...serializeCharacterCardV2Fields(input),
-    },
-  })
+  // ⭐ 卡片总线 v3 双写（expand 期）：handle 与参考槽随新卡一起写；handle 跨两张
+  //   表查重，所以读已占用与建卡放在同一个事务里。
+  const handleBase = parent
+    ? deriveVariantHandleBase(
+        parent.handle ?? deriveCardHandleBase(parent.name),
+        input.variantLabel,
+      )
+    : deriveCardHandleBase(input.name)
+  const card = await db.$transaction(async (tx) =>
+    tx.characterCard.create({
+      data: {
+        userId: dbUser.id,
+        handle: await allocateHandleForNewCard(tx, dbUser.id, handleBase),
+        summary: input.summary ?? null,
+        ...(input.extensions
+          ? { extensions: mergeCardExtensions(null, input.extensions) }
+          : {}),
+        referenceSlots: referenceSlotsFromCardRow({
+          sourceImageUrl: primaryUrl,
+          sourceImages: sourceImageUrls,
+          sourceImageEntries,
+          referenceImages: null,
+          referenceRoles: input.referenceRoles ?? null,
+        }),
+        name: input.name,
+        description: input.description ?? null,
+        sourceImageUrl: primaryUrl,
+        sourceStorageKey: primaryStorageKey,
+        sourceImages: sourceImageUrls,
+        sourceImageEntries: serializeSourceImageEntries(sourceImageEntries),
+        characterPrompt,
+        attributes: serializeCharacterAttributes(attributes),
+        tags: input.tags ?? [],
+        status: 'DRAFT',
+        parentId: input.parentId ?? null,
+        variantLabel: input.variantLabel ?? null,
+        // 角色卡字段 v2 —— 透传落库，⛔ 不在这里加业务逻辑（cards.md「角色卡字段 v2」）。
+        ...serializeCharacterCardV2Fields(input),
+      },
+    }),
+  )
 
   return mapCharacterCardRow(card)
 }
@@ -499,6 +527,26 @@ export async function updateCharacterCard(
     updateData.loras = data.loras ? serializeCharacterLoras(data.loras) : null
   // 角色卡字段 v2 —— 透传落库，⛔ 不在这里加业务逻辑（cards.md「角色卡字段 v2」）。
   Object.assign(updateData, serializeCharacterCardV2Fields(data))
+  // ⭐ 卡片总线 v3 双写（expand 期）：旧图列表或用途表一改，参考槽跟着重算；
+  //   简介照写；扩展键按键合并（⛔ 不丢认不出的键）。
+  if (
+    data.sourceImageEntries !== undefined ||
+    data.referenceRoles !== undefined
+  )
+    updateData.referenceSlots = referenceSlotsFromCardRow(existing, {
+      ...(data.sourceImageEntries !== undefined
+        ? { sourceImageEntries: data.sourceImageEntries }
+        : {}),
+      ...(data.referenceRoles !== undefined
+        ? { referenceRoles: data.referenceRoles }
+        : {}),
+    })
+  if (data.summary !== undefined) updateData.summary = data.summary
+  if (data.extensions !== undefined)
+    updateData.extensions = mergeCardExtensions(
+      existing.extensions,
+      data.extensions,
+    )
 
   const card = await db.characterCard.update({
     where: { id: cardId },

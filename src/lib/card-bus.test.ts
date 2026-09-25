@@ -30,6 +30,16 @@ describe('legacyImagesToReferenceSlots', () => {
     expect(CharacterReferenceSlotsSchema.safeParse(slots).success).toBe(true)
   })
 
+  it('同一张图换了域名算一张（自有 CDN 与旧 r2.dev 公链）', () => {
+    const slots = legacyImagesToReferenceSlots({
+      sourceImageUrl: 'https://cdn.example.com/generations/u/a.png',
+      sourceImages: ['https://pub-x.r2.dev/generations/u/a.png'],
+    })
+    expect(slots.map((slot) => slot.url)).toEqual([
+      'https://cdn.example.com/generations/u/a.png',
+    ])
+  })
+
   it('⭐ 用途表给主图记了别的用途，也以主图为准记成身份', () => {
     const slots = legacyImagesToReferenceSlots({
       sourceImageUrl: url('main'),

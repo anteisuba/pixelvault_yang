@@ -14,6 +14,7 @@ import {
   novelAiGridCellCenter,
   supportsNovelAiCharacters,
 } from '@/constants/novelai'
+import { referenceUrlKey } from '@/lib/card-bus'
 import type { CharacterReferenceSlot } from '@/types'
 import type { NovelAiCharacterLayout } from '@/types/novelai'
 
@@ -29,7 +30,10 @@ export interface CardBusCharacter {
   visual: string | null
   /** 角色硬否定（`extensions['pv.negative']`）。 */
   negative: string | null
-  /** 主图在最前，其次其余身份槽，再其次别的用途，同档保持卡上的顺序。 */
+  /**
+   * 主图在最前，其次其余身份槽，再其次别的用途，同档保持卡上的顺序。
+   * ⚠ 同一张图（路径相同、域名不同）只留排在前面的那个。
+   */
   slots: CharacterReferenceSlot[]
 }
 
@@ -76,7 +80,14 @@ export function toCardBusCharacter(
     slots: source.slots
       .map((slot, index) => ({ slot, index }))
       .sort((a, b) => slotRank(a.slot) - slotRank(b.slot) || a.index - b.index)
-      .map(({ slot }) => slot),
+      .map(({ slot }) => slot)
+      .filter((slot, index, sorted) => {
+        const key = referenceUrlKey(slot.url)
+        return (
+          sorted.findIndex((other) => referenceUrlKey(other.url) === key) ===
+          index
+        )
+      }),
   }
 }
 
@@ -127,8 +138,8 @@ function allocateSlots(
       const slot = character.slots[depth]
       if (!slot || left <= 0) return
       progressed = true
-      if (seen.has(slot.url)) return
-      seen.add(slot.url)
+      if (seen.has(referenceUrlKey(slot.url))) return
+      seen.add(referenceUrlKey(slot.url))
       picked[index]!.push(slot)
       left -= 1
     })

@@ -18,6 +18,18 @@ import type { CharacterReferenceSlot } from '@/types'
 
 // ─── 旧数据 → 参考槽 ─────────────────────────────────────────────
 
+/**
+ * 同一张图的比较键：只看路径。旧卡上同一张图常以两个域名出现（自有 CDN 与旧的
+ * `r2.dev` 公链，存储键相同），按整串比会当成两张、白占一个参考名额。
+ */
+export function referenceUrlKey(url: string): string {
+  try {
+    return decodeURIComponent(new URL(url).pathname)
+  } catch {
+    return url.trim()
+  }
+}
+
 export interface LegacyCardImages {
   /** 主图（第一张上传的图）。 */
   sourceImageUrl: string
@@ -82,9 +94,9 @@ export function legacyImagesToReferenceSlots(
   const slots: CharacterReferenceSlot[] = []
   for (const candidate of candidates) {
     const url = candidate.url.trim()
-    if (!url || seen.has(url)) continue
+    if (!url || seen.has(referenceUrlKey(url))) continue
     if (slots.length >= CHARACTER_CARD.MAX_REFERENCE_SLOTS) break
-    seen.add(url)
+    seen.add(referenceUrlKey(url))
     const { label, ...rest } = candidate as typeof candidate & {
       label?: string
     }

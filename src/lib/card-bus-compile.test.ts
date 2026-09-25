@@ -74,6 +74,26 @@ describe('toCardBusCharacter', () => {
     expect(result.negative).toBe('glasses')
   })
 
+  it('同一张图换了域名只留一份（旧卡的自有 CDN 与 r2.dev 公链）', () => {
+    const result = toCardBusCharacter({
+      id: 'c',
+      version: 1,
+      handle: 'a',
+      name: 'a',
+      characterPrompt: null,
+      description: null,
+      extensions: null,
+      slots: [
+        slot('main', {
+          isPrimary: true,
+          url: 'https://cdn.example.com/generations/u/image/a.png',
+        }),
+        slot('dup', { url: 'https://pub-x.r2.dev/generations/u/image/a.png' }),
+      ],
+    })
+    expect(result.slots.map((item) => item.id)).toEqual(['main'])
+  })
+
   it('描述与提示词相同时只写一遍；都空时是 null', () => {
     const base = {
       id: 'c',

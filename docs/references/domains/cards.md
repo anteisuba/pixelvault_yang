@@ -107,6 +107,8 @@
 
 ③ 已写：`20260925120000_card_bus_expand` 给 `CharacterCard` 加 `handle` · `summary` · `referenceSlots` · `extensions`（全可空）+ `(userId, handle)` 唯一索引；写方在新建 / 更新 / 精修三处双写（`referenceSlotsFromCardRow` · `mergeCardExtensions` · `allocateHandleForNewCard`），读方一行未改。
 
+④ 已写：`scripts/backfill-card-bus.ts` 只回填 `handle` 与 `referenceSlots`（persona 等文字侧推后，不改写）；映射全取 `card-bus.ts` 与 mapper，写库用 `IS NULL` 条件兜并发。09-25 只读报告：14 张（6 张软删）、1 个用户、全部缺两列、加后缀 1、参考槽跳过 0。
+
 1. **expand（D1）**：只加列 + 唯一索引（登记 ACK：索引列是同迁移新加的可空列，全表 NULL 时建）；写方**双写**，读方一行不改。
 2. **backfill（D1 上线后 owner 手动）**：回填脚本默认只出报告，`--apply` 每次都要 owner 当次授权；只动新列仍是初始值的行，重跑安全；按用户 → 根卡 → 变体的确定性顺序分配 handle，冲突加 `-2`、`-3`；persona 旧形改写前先把原值导出到本机。
 3. **switch（D2）**：读方切到新列，Prisma 省略旧列，**仍双写**以保 D2 可回滚到 D1。

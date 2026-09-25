@@ -217,7 +217,7 @@ const BIZ_CARDS = biz(
       ['#', '项', '说明', '状态'],
       [
         ['27', '角色卡 v2 字段', 'f8b094a4 · 4cef198b', '已落'],
-        ['35', '卡片总线 + v3 迁移', '09-24 定契约；09-25 缩成「画面一致」一半、情绪拿掉、文字侧推后，按 9 片施工，①② 已提交；契约见 cards.md', '进行中'],
+        ['35', '卡片总线 + v3 迁移', '09-24 定契约；09-25 缩成「画面一致」一半、情绪拿掉、文字侧推后，按 9 片施工，①②③ 已上线、④ 回填脚本已写；契约见 cards.md', '进行中'],
         ['D6', '建卡向导 · 详情页 · 风格卡 · 场景卡（卡 1–4）', '① 要问：向导几步 · 一致性失败怎么呈现 · 详情页 tab 还是长页 · 关系怎么编 · 以角色口吻回复的入口', '待设计'],
         ['54', '卡片选择器统一', 'StudioCardPicker · 画布卡片面板 · card-recipe 编译合成一份', '等依赖'],
         ['43', 'StyleCard 资产化', '风格 + 样张 + 参数快照 + 反馈回流', '等依赖'],
@@ -551,7 +551,7 @@ const PROGRESS = {
     ]),
     h('层 1 · 助手'),
     ptable([
-      P('—', '记忆收成一份：长期记忆 · 项目规则 · 上下文卡合成一个账户一份的清单，助手自动记、你能看能删；来源名单保留结构化（09-25 ①② 已定，④ 画板在第 6 页）', '—', '进行中 · ④ 待 owner 选方向'),
+      P('—', '记忆收成一份：长期记忆 · 项目规则 · 上下文卡合成一个账户一份的清单，助手自动记、你能看能删；来源名单保留结构化（09-25 ①② 已定，④ 画板在第 6 页）', '—', '④ 已定 M-A · 待施工'),
       P('D12', '图片助手施工完（问 / 做 · 看懂 · 对话流 A · 生成开关 · 单一撤销 · NAI 规则），两条验收实跑通过；本地 main 90bc5214…928b747a，未推生产；手机账号入口与画布按项目分会话待真机目检', '—', '已落'),
       P('—', '拆分与反推：把用户的话拆成 NAI 标签；参考图反推成自然语言或标签，尽量复刻（09-24 owner 提出）；9f6f8a22 · b8300847 · 90b84b54 · eff047d0', '—', '已落'),
       P('—', '画布 <768 手机宿主', '55', '待设计'),
@@ -561,7 +561,7 @@ const PROGRESS = {
     ]),
     h('层 1 · 卡片', '挡着画布，建议与助手讨论并行开'),
     ptable([
-      P('35', '卡片总线：09-25 缩成「画面一致」一半（handle · summary · referenceSlots · extensions · 编译总线 · 画布 attach），情绪拿掉、示例对白 / 设定条目 / 关系推后；9 片，①② 已提交（2f4d9310 · b7e5ef1b），③ expand 迁移要推生产', '27 ✓', '进行中'),
+      P('35', '卡片总线：09-25 缩成「画面一致」一半（handle · summary · referenceSlots · extensions · 编译总线 · 画布 attach），情绪拿掉、示例对白 / 设定条目 / 关系推后；9 片，①②③ 已上线（bf0b4330），④ 回填脚本已写（1bff15c4，只读报告 14 张 · --apply 待授权）', '27 ✓', '进行中'),
       P('—', '卡片文字侧：示例对白分块 · 设定条目 lore · 角色关系 relations（09-25 从 35 推后）', '35', '后置'),
       P('—', '卡片收敛到只剩角色卡：背景卡 · 风格卡 · 卡片配方下线（09-25 owner 定；3 月后都没有真实使用）；角色卡上「允许搭配的风格卡」一起删；会碰界面，走设计门', '35', '待设计'),
       P('D6', '① 反问 → 建卡向导 · 详情页 · 风格卡 · 场景卡（卡 1–4）', '35', '待设计'),
@@ -1734,7 +1734,7 @@ const MEMORY_UI = {
   title: '记忆 · ④ 全状态',
   eyebrow: 'PixelVault · 6 在设计 · 记忆 · ④ 画板 · 2026-09-25',
   heading: '记忆：一份清单，你写的优先',
-  sub: 'owner 09-25：① 四问全选最简 + ② 建议全过；搜图来源白 / 黑名单**保留结构化**（程序强制执行）。新画面只有两处：**设置 › 助手的记忆区块**与**对话里「已记住」那一行**；助手设置弹窗减到只剩人设。三个方向只差在记忆区块怎么排，其余状态、手机、动效三个方向共用。',
+  sub: '✅ owner 09-25 选 **M-A 平铺一列**。owner 09-25：① 四问全选最简 + ② 建议全过；搜图来源白 / 黑名单**保留结构化**（程序强制执行）。新画面只有两处：**设置 › 助手的记忆区块**与**对话里「已记住」那一行**；助手设置弹窗减到只剩人设。三个方向只差在记忆区块怎么排，其余状态、手机、动效三个方向共用。',
   blocks: [
     h('① 记忆区块：三个方向'),
     { t: 'mock', html: MM_DIRECTIONS, md: '三个方向（画板上是界面稿）：\n\n- **M-A 平铺一列**：现有列表长大；顶部输入框写新条目；筛选「全部 · 你写的 · 助手记的」；行尾写来源 + 时间，范围不是全局才出小标；点文字就地改，悬停出删。\n- **M-B 分两组**：「你写的」在上带输入框，「助手记的」在下带数量和全部清空；行上不写来源。\n- **M-C 你写的是一段话**：「你写的」是多行文本框，每行一条，范围写成行首 [图片]；「助手记的」仍是列表。\n\n三个方向共用：顶部「让助手记住」开关；下面一块「搜图来源」（只从这些站找 / 不从这些站找，chip + 添加），程序强制执行。' },
@@ -1754,6 +1754,102 @@ const MEMORY_UI = {
         ['删一条', '`AnimatePresence` exit：opacity→0 + scale .98，`--duration-fast`', '只动被删那一行', '下面的行不做位移动画'],
         ['就地改', '—', '文字与输入框直接切换', '不做展开动画'],
         ['开关', 'switch 自带', '圆点平移', '列表不做淡出，只降到 55% 不透明'],
+        ['`prefers-reduced-motion`', '—', '以上直接到位', '—'],
+      ],
+      { firstStrong: false },
+    ),
+  ],
+}
+
+// ④ 画板：助手对话框（owner 09-25：助手回复用对话框框住，直到我发言；我的发言也用对话框）。
+const BB = {
+  panel: 'box-sizing:border-box;width:100%;border:1px solid #d4d4d4;border-radius:14px;background:#fff;padding:12px;display:flex;flex-direction:column;gap:10px',
+  av: 'flex:none;width:20px;height:20px;border-radius:999px;background:linear-gradient(135deg,#e9b7c9,#9aa0a8)',
+  name: 'font-size:12px;font-weight:600',
+  text: 'font-size:12px;line-height:1.6;color:#0a0a0a',
+  sub: `font-size:11px;line-height:1.5;color:${MUTED}`,
+  step: `font-size:11px;color:${MUTED}`,
+  inner: 'border-radius:10px;padding:8px 10px;display:flex;flex-direction:column;gap:6px',
+  btn: 'height:26px;padding:0 12px;border-radius:8px;background:#0a0a0a;color:#fff;display:inline-flex;align-items:center;font-size:11.5px',
+  ghost: 'height:26px;padding:0 12px;border-radius:8px;border:1px solid #e5e5e5;background:#fff;display:inline-flex;align-items:center;font-size:11.5px',
+  thumb: 'width:52px;height:52px;border-radius:8px;background:linear-gradient(160deg,#d8c9b6,#7d8591)',
+}
+// 三个方向只差三样：助手那一框的材质、头像放哪、你的那一句什么色。
+const BB_DIRS = {
+  A: {
+    turn: 'border:1px solid #e5e5e5;border-radius:16px;background:#fff;padding:10px 12px',
+    user: 'align-self:flex-end;max-width:80%;background:#f0f0ee;border-radius:14px;padding:7px 11px;font-size:12px;line-height:1.5',
+    inner: 'background:#f7f7f5',
+    avatarOutside: false,
+  },
+  B: {
+    turn: 'border-radius:16px;background:#f4f4f1;padding:10px 12px',
+    user: 'align-self:flex-end;max-width:80%;background:#0a0a0a;color:#fff;border-radius:14px;padding:7px 11px;font-size:12px;line-height:1.5',
+    inner: 'background:#fff',
+    avatarOutside: false,
+  },
+  C: {
+    turn: 'border-radius:4px 16px 16px 16px;background:#f4f4f1;padding:9px 11px',
+    user: 'align-self:flex-end;max-width:80%;background:#e7eefb;border-radius:16px 4px 16px 16px;padding:7px 11px;font-size:12px;line-height:1.5',
+    inner: 'background:#fff',
+    avatarOutside: true,
+  },
+}
+const bbUser = (d, text) => `<div style="${BB_DIRS[d].user}">${text}</div>`
+const bbTurn = (d, body) => {
+  const dir = BB_DIRS[d]
+  if (dir.avatarOutside) {
+    return `<div style="display:flex;flex-direction:column;gap:4px;max-width:92%"><div style="display:flex;align-items:center;gap:6px"><span style="${BB.av}"></span><span style="${BB.name}">达妮娅</span></div><div style="${dir.turn};display:flex;flex-direction:column;gap:7px">${body}</div></div>`
+  }
+  return `<div style="${dir.turn};display:flex;flex-direction:column;gap:7px"><div style="display:flex;align-items:center;gap:6px"><span style="${BB.av}"></span><span style="${BB.name}">达妮娅</span></div>${body}</div>`
+}
+const bbInner = (d, body) => `<div style="${BB.inner};${BB_DIRS[d].inner}">${body}</div>`
+const bbConfirm = (d) =>
+  bbInner(d, `<div style="font-size:11.5px;font-weight:600">生成 1 张 · FLUX 2 Flash · 4:3</div><div style="display:flex;gap:6px"><span style="${BB.btn}">生成</span><span style="${BB.ghost}">改一下</span></div>`)
+const bbConversation = (d) =>
+  `<div style="${BB.panel}">${bbUser(d, '用图片1这个角色做一张正面半身')}${bbTurn(
+    d,
+    `<div style="${BB.sub}">有 1 个按 Danbooru 换了写法：character sheet → reference sheet</div><div style="${BB.step}">做了 1 步 ›</div><div style="${BB.text}">正面图与近景保持一致的红眼、深蓝黑长发和眼下两颗小痣；参考与三视图版式不变。</div>${bbConfirm(d)}`,
+  )}${bbUser(d, '继续')}${bbTurn(d, `<div style="${BB.text}">好，按这张生成。</div>`)}</div>`
+const bbDir = (no, name, d, rule) =>
+  `<div style="display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:600">${no} ${name}</div><div style="${MOCK.frame}">${bbConversation(d)}</div><div style="${MOCK.cap}">${rule}</div></div>`
+const BB_DIRECTIONS = `<div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">${[
+  bbDir('B-A', '描边整卡', 'A', '助手一轮 = 一张细描边白卡，头像名字是卡里第一行；你的话是现在的浅灰气泡。卡里的确认卡、结果卡去掉自己的边框，改成浅灰底块。'),
+  bbDir('B-B', '填色整卡', 'B', '助手一轮 = 一块浅灰底卡，无边框；你的话换成黑底白字气泡。两方靠底色一深一浅区分，卡里的确认卡、结果卡是白底块。'),
+  bbDir('B-C', '聊天软件式', 'C', '头像名字在框外左上，框的左上角收成小圆角，像聊天软件的「尖」；你的话是右侧浅蓝气泡，右上角收成小圆角。框宽最多占面板 92%。'),
+].join('')}</div>`
+const bbState = (no, name, body, rule) =>
+  `<div style="display:flex;flex-direction:column;gap:8px"><div style="font-size:13px;font-weight:600">${no} ${name}</div><div style="${MOCK.frame}"><div style="${BB.panel}">${body}</div></div><div style="${MOCK.cap}">${rule}</div></div>`
+const BB_STATES = `<div style="margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;align-items:start">${[
+  bbState('T1', '刚发出去', `${bbUser('A', '换成雨夜街头')}${bbTurn('A', `<div style="font-size:14px;letter-spacing:2px;color:${MUTED}">• • •</div>`)}`, '发送即出框：头像 + 三点占位，框高就是一行正文高，第一个字到时不跳。'),
+  bbState('T2', '一轮里做了很多事', `${bbUser('A', '查一下这个角色的标签再出图')}${bbTurn('A', `<div style="${BB.step}">查了 3 个来源 ›</div><div style="${BB.text}">按 danbooru 现行标签写好了。</div>${bbConfirm('A')}<div style="display:flex;gap:6px"><span style="${BB.thumb}"></span><span style="${BB.thumb}"></span></div><div style="${BB.text}">出好了，正面脸对上了吗？</div>`)}`, '查、说、确认、出图、再说——只要你没开口，全在同一个框里往下长；自动续跑的几轮也不另起框。'),
+  bbState('T3', '助手问你', `${bbTurn('A', `<div style="${BB.text}">背景要哪种？</div>`)}<div style="border:1px solid #e5e5e5;border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:6px"><div style="font-size:11.5px;font-weight:600">背景</div><div style="display:flex;gap:6px"><span style="${BB.ghost}">雨夜街头</span><span style="${BB.ghost}">纯色</span></div></div>`, '问题仍钉在输入框上方、不进框。你点了选项 = 你发言：它落成你的一个气泡「雨夜街头」，助手接着开新框。'),
+  bbState('T4', '出错', `${bbUser('A', '出图')}${bbTurn('A', `<div style="${BB.text}">这次没出成：服务商超时。</div><div style="display:flex;gap:6px"><span style="${BB.ghost}">重试</span></div>`)}`, '错误说在框里、用正文色，⛔ 不整框变红；重试按钮跟在后面。'),
+  bbState('T5', '历史', `<div style="${BB.sub};text-align:center">9月24日 · 更早的 37 条</div>${bbUser('A', '好的')}${bbTurn('A', `<div style="${BB.text}">已写入提示词。</div>`)}`, '载回来的历史用同一套框，⛔ 不换形状。'),
+  bbState('T6', '空态', `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 0"><span style="${BB.av};width:28px;height:28px"></span><div style="${BB.text}">描述画面，或把参考图挂进来</div></div>`, '空态没有框，沿用现在的头像 + 一句话。'),
+].join('')}</div>`
+const BB_PHONE = `<div style="display:flex;gap:18px;align-items:flex-start"><div style="width:300px;flex:none;border-radius:22px;border:1px solid #d4d4d4;background:#f4f4f1;padding:10px">${bbConversation('A')}</div><div style="flex:1;font-size:12.5px;line-height:1.7;color:#404040">手机：面板两侧留 16 边距，助手的框占满剩余宽度，你的气泡最多 85%。框里的按钮点击区 ≥ 44。三个方向在手机上只差材质，排布相同。</div></div>`
+const BUBBLE_UI = {
+  file: 'DesignAssistantBubbles.dc.html',
+  title: '助手对话框 · ④ 全状态',
+  eyebrow: 'PixelVault · 6 在设计 · 助手对话框 · ④ 画板 · 2026-09-25',
+  heading: '助手对话框：一轮一个框，直到你开口',
+  sub: 'owner 09-25：助手回复用对话框框住，直到我发言；我的发言也用对话框。现在的样子：助手一轮是头像 + 名字 + 一串裸文字和卡片，你的话是右侧浅灰气泡，两轮之间只靠留白分。⭐ 规则：**你每开口一次，助手就另起一个框**，框里装本轮所有东西（查、说、确认卡、结果、续跑）。⚠ 09-24 定过「线和框层层套是乱的原因之一」，所以框里的卡片都去掉自己的边框。三个方向只差材质、头像位置和你的气泡颜色，状态、手机、动效共用。',
+  blocks: [
+    h('① 三个方向'),
+    { t: 'mock', html: BB_DIRECTIONS, md: '三个方向：\n\n- **B-A 描边整卡**：助手一轮是一张细描边白卡，头像名字在卡内第一行；你的话保持浅灰气泡；卡内的确认卡、结果卡改成浅灰底块、不带边框。\n- **B-B 填色整卡**：助手一轮是浅灰底卡、无边框；你的话换成黑底白字气泡；卡内的卡片是白底块。\n- **B-C 聊天软件式**：头像名字在框外左上，框的左上角是小圆角；你的话是右侧浅蓝气泡、右上角是小圆角；框最宽占 92%。' },
+    h('② 状态'),
+    { t: 'mock', html: BB_STATES, md: '6 态（以 B-A 为例）：T1 刚发出去就出框、三点占位 · T2 一轮做很多事都在同一个框里、续跑不另起框 · T3 问题卡仍钉在输入框上方，点选项算你发言 · T4 出错写在框里、不整框变红 · T5 历史用同一套框 · T6 空态没有框。' },
+    h('手机'),
+    { t: 'mock', html: `<div style="margin-top:12px">${BB_PHONE}</div>`, md: '手机：两侧 16 边距，助手的框占满，你的气泡最多 85%，框里按钮 ≥ 44。' },
+    h('动效表'),
+    table(
+      ['动作', '时长 · 曲线', '动什么', '⛔'],
+      [
+        ['你发出一句', '`--duration-base` 200ms · `ease-standard`', '气泡 opacity 0→1 + y 6→0', '不从输入框飞过去'],
+        ['助手的框出现', '同上，紧跟你的气泡', '框 opacity 0→1 + y 6→0，里面是三点占位', '不做缩放弹出'],
+        ['框里长出新内容', '—', '框高随内容自然变高，新内容 opacity 0→1', '不给框高做动画（流式会一直抖）'],
+        ['续跑的下一轮', '—', '在同一个框里接着长', '不收起再展开'],
         ['`prefers-reduced-motion`', '—', '以上直接到位', '—'],
       ],
       { firstStrong: false },
@@ -1849,7 +1945,7 @@ export const PAGES = [
     name: '5 · 厂商速查',
     boards: [VENDOR_IMAGE, VENDOR_VIDEO, VENDOR_VOICE, VENDOR_TEXT, VENDOR_RUNNER],
   },
-  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT, CARDS_MAP, MEMORY_MAP, MEMORY_UI] },
+  { id: 'page-6', name: '6 · 在设计', boards: [D12_MAP, D12_GEN_TOGGLE, D12_UI_AUDIT, D12_UI_DESIGN, D12_CONV_DESIGN, D12_A_STATES, D12_DETAIL_DIRS, SPLIT_REVERSE, VIDEO_ASSISTANT, CARDS_MAP, MEMORY_MAP, MEMORY_UI, BUBBLE_UI] },
 ]
 
 if (import.meta.url === `file://${process.argv[1]}`) {

@@ -134,6 +134,12 @@ describe('compileImageOutlet', () => {
     ])
     expect(outlet.promptPrefix).toContain('Image 2 = @A identity (primary)')
     expect(outlet.promptPrefix).toContain('Image 4 = @B identity (primary)')
+    expect(outlet.promptPrefix).toContain(
+      "Keep @A's face, hairstyle, hair colors and outfit identical to Image 2, Image 3.",
+    )
+    expect(outlet.promptPrefix).toContain(
+      "Keep @B's face, hairstyle, hair colors and outfit identical to Image 4.",
+    )
     expect(outlet.referenceLabels).toEqual([
       'Image 2 = @A identity (primary)',
       'Image 3 = @A identity',

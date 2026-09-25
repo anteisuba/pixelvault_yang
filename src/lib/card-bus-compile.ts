@@ -228,12 +228,20 @@ export function compileImageOutlet(
 
   const referenceImages: string[] = []
   const legend: string[] = []
+  const keep: string[] = []
   picked.forEach((slots, index) => {
     const character = characters[index]!
+    const numbers: number[] = []
     for (const slot of slots) {
       referenceImages.push(slot.url)
-      legend.push(
-        `Image ${options.userReferenceCount + referenceImages.length} = @${character.handle} ${slotLabel(slot)}`,
+      const number = options.userReferenceCount + referenceImages.length
+      numbers.push(number)
+      legend.push(`Image ${number} = @${character.handle} ${slotLabel(slot)}`)
+    }
+    // ⭐ 保持指令（owner 09-26）：只标图号时 GPT Image 不一定严格照画。
+    if (numbers.length) {
+      keep.push(
+        `Keep @${character.handle}'s face, hairstyle, hair colors and outfit identical to ${numbers.map((n) => `Image ${n}`).join(', ')}.`,
       )
     }
   })
@@ -241,7 +249,7 @@ export function compileImageOutlet(
   const blocks = characters.map(characterBlock).join('\n\n')
   return {
     promptPrefix: legend.length
-      ? `${blocks}\n\nReference images:\n${legend.join('\n')}`
+      ? `${blocks}\n\nReference images:\n${legend.join('\n')}\n${keep.join('\n')}`
       : blocks,
     referenceImages,
     referenceLabels: legend,

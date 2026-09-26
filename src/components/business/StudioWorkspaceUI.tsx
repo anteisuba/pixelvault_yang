@@ -401,8 +401,12 @@ export function StudioWorkspaceUI() {
          * desktop shell is a fixed overlay so opening it never subtracts
          * width from the work surface.
          */}
+        {/* ⚠ `contain-inline-size`：工作台的宽度**只听外面的**（owner 2026-09-26
+            「我认为固定比较好」）。里面一段不带空格的长字、一颗整句变成的标签，
+            它们的最小内容宽度会沿 flex 链一路往上传，把整个工作台撑到助手底下、
+            撑出视口 —— 在地台这一层截断，里面的东西只能在自己格子里折行。 */}
         <motion.div
-          className="studio-layout-v2 workbench-ground min-w-0 flex-1"
+          className="studio-layout-v2 workbench-ground min-w-0 flex-1 contain-inline-size"
           style={{ paddingRight: groundPaddingRight }}
         >
           {/* 三个模态共用一套外壳（切片 A，owner 2026-08-23）。此前只有图片走

@@ -11,6 +11,7 @@ import {
   type MentionToken,
 } from '@/components/ui/mention-input'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
+import { cn } from '@/lib/utils'
 
 export function StudioReferencePromptInput({
   disabled,
@@ -74,7 +75,8 @@ export function StudioReferencePromptInput({
       emptyLabel={candidates.length ? t('noMatches') : t('empty')}
       placeholder={placeholder}
       disabled={disabled}
-      className={className}
+      // 一串不带空格的长字（粘贴的 id、一行 aaaa…）照样在框里折行，⛔ 不横着撑。
+      className={cn('wrap-anywhere', className)}
       onPaste={(event) => {
         onPaste?.(event)
         if (event.defaultPrevented) return

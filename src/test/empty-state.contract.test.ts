@@ -27,6 +27,7 @@ const LANDING_POINTS = [
   'src/components/business/KreaAssetBrowser.tsx',
   'src/components/business/assets/AssetStateBlocks.tsx',
   'src/components/business/cards/CharacterCardManager.tsx',
+  'src/components/business/cards/CharacterRoster.tsx',
   'src/components/business/cards/SimpleCardManager.tsx',
   'src/components/business/cards/StyleCardManager.tsx',
   'src/components/business/node/NodeCanvasEmptyGuide.tsx',

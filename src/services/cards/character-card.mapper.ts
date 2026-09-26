@@ -1,9 +1,15 @@
 import 'server-only'
 
+import { CARD_EXTENSIONS } from '@/constants/cards/character-card'
 import { legacyImagesToReferenceSlots } from '@/lib/card-bus'
 import type { Prisma } from '@/lib/generated/prisma/client'
 import {
+  CardTagsSchema,
   CharacterAttributesSchema,
+  CharacterPersonaSchema,
+  CharacterReferenceSlotsSchema,
+  type CardTags,
+  type CharacterReferenceSlot,
   CharacterReferenceRolesSchema,
   CharacterCardStatusSchema,
   LoraSchema,
@@ -52,6 +58,12 @@ export interface DbCharacterCardRow {
   createdAt: Date
   updatedAt: Date
   variants?: DbCharacterCardRow[]
+  /** 卡片总线 v3 的新列；老的测试夹具与窄 select 里可能没有。 */
+  handle?: string | null
+  referenceSlots?: unknown
+  persona?: unknown
+  extensions?: unknown
+  referenceRoles?: unknown
 }
 
 function parseWithFallback<T>(
@@ -69,6 +81,33 @@ function cloneJsonValue<T extends JsonValue>(value: T): T {
 
 function toPrismaJson<T extends JsonValue>(value: T): Prisma.InputJsonValue {
   return cloneJsonValue(value) as Prisma.InputJsonValue
+}
+
+/**
+ * 读方切换（卡片总线第 ⑧ 片）：以 `referenceSlots` 为准；空着或坏了就从旧四列现算
+ * （与双写、回填同一个函数），两份都不成立时给空数组，⛔ 不让列表失败。
+ */
+function readReferenceSlots(row: DbCharacterCardRow): CharacterReferenceSlot[] {
+  const stored = CharacterReferenceSlotsSchema.safeParse(row.referenceSlots)
+  if (stored.success) return stored.data
+  const derived = CharacterReferenceSlotsSchema.safeParse(
+    referenceSlotsFromCardRow({
+      ...row,
+      referenceRoles: row.referenceRoles ?? null,
+    }),
+  )
+  return derived.success ? derived.data : []
+}
+
+function readCardTags(extensions: unknown): CardTags {
+  const value =
+    extensions && typeof extensions === 'object'
+      ? (extensions as Record<string, unknown>)[CARD_EXTENSIONS.KEYS.tags]
+      : undefined
+  const parsed = CardTagsSchema.safeParse(value)
+  return parsed.success
+    ? parsed.data
+    : { character: [], appearance: [], loraTrigger: '' }
 }
 
 export function mapCharacterCardRow(
@@ -106,6 +145,14 @@ export function mapCharacterCardRow(
     parentId: row.parentId,
     variantLabel: row.variantLabel,
     variants: (row.variants ?? []).map(mapCharacterCardRow),
+    handle: row.handle ?? null,
+    referenceSlots: readReferenceSlots(row),
+    persona: parseWithFallback(
+      CharacterPersonaSchema.nullable(),
+      row.persona ?? null,
+      null,
+    ),
+    cardTags: readCardTags(row.extensions),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   }

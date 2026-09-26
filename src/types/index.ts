@@ -3602,6 +3602,14 @@ export interface CharacterCardRecord {
   variantLabel: string | null
   /** Child variant cards */
   variants: CharacterCardRecord[]
+  /** `@名字`（卡片总线 v3）；回填前的旧卡可能为空。 */
+  handle: string | null
+  /** 参考槽：主图在前；新列空着时由旧图列表现算（卡片总线第 ⑧ 片读方切换）。 */
+  referenceSlots: CharacterReferenceSlot[]
+  /** 设定：身份 · 性格 · 说话方式 · 经历……（卡片重设计 09-26）。 */
+  persona: CharacterPersona | null
+  /** 标签（`extensions['pv.tags']`）。 */
+  cardTags: CardTags
   createdAt: Date
   updatedAt: Date
 }

@@ -8187,5 +8187,30 @@
     "description": "白く塗った部分だけ描き直され、他はそのまま残ります。何を描くかはワークベンチのプロンプトが決めます。",
     "fallbackHint": "V5 Curated には専用のインペイントモデルがないため、V4.5 Full のインペイントモデルで実行されます。",
     "needsOneReference": "描き直す元画像を 1 枚だけ添付してください"
+  },
+  "CharacterRoster": {
+    "title": "キャラクター",
+    "newCharacter": "新しいキャラクター",
+    "emptyTitle": "キャラクターはまだありません",
+    "emptyHint": "キャラクターを作って、その子の画像を何枚か追加しましょう。",
+    "looks": "外見",
+    "setting": "設定",
+    "uses": "使った場所",
+    "imageCount": "{count} 枚",
+    "slotFace": "顔",
+    "slotFull": "全身",
+    "slotBack": "背面",
+    "noLooks": "参考画像はまだありません",
+    "noSetting": "設定はまだありません",
+    "noUses": "まだ使っていません",
+    "loading": "読み込み中…",
+    "tagsLine": "タグ · {first}{count, plural, =1 {} other { ほか # 個}}",
+    "fieldIdentity": "身分",
+    "fieldBehavior": "性格",
+    "fieldSpeech": "話し方",
+    "fieldBackstory": "経歴",
+    "edit": "編集",
+    "close": "閉じる",
+    "variantOf": "{parent} · {label}"
   }
 }

@@ -8187,5 +8187,30 @@
     "description": "White is repainted, everything else stays. The workbench prompt describes what goes there.",
     "fallbackHint": "V5 Curated has no inpainting model of its own — repainting runs on the V4.5 Full inpainting model.",
     "needsOneReference": "Attach exactly one reference image to repaint"
+  },
+  "CharacterRoster": {
+    "title": "Characters",
+    "newCharacter": "New character",
+    "emptyTitle": "No characters yet",
+    "emptyHint": "Create a character and add a few images of them.",
+    "looks": "Look",
+    "setting": "Profile",
+    "uses": "Used in",
+    "imageCount": "{count, plural, =1 {# image} other {# images}}",
+    "slotFace": "Face",
+    "slotFull": "Full body",
+    "slotBack": "Back",
+    "noLooks": "No reference images yet",
+    "noSetting": "No profile yet",
+    "noUses": "Not used yet",
+    "loading": "Loading…",
+    "tagsLine": "Tags · {first}{count, plural, =1 {} other { and # more}}",
+    "fieldIdentity": "Identity",
+    "fieldBehavior": "Personality",
+    "fieldSpeech": "Way of speaking",
+    "fieldBackstory": "Backstory",
+    "edit": "Edit",
+    "close": "Close",
+    "variantOf": "{parent} · {label}"
   }
 }

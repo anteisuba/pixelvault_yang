@@ -8187,5 +8187,30 @@
     "description": "涂白的部分会被重画，其余原样保留。画成什么由工作台的提示词决定。",
     "fallbackHint": "V5 Curated 没有自己的 inpaint 模型，重绘会跑在 V4.5 Full 的 inpaint 模型上。",
     "needsOneReference": "先挂恰好一张要重画的参考图"
+  },
+  "CharacterRoster": {
+    "title": "角色",
+    "newCharacter": "新角色",
+    "emptyTitle": "还没有角色",
+    "emptyHint": "新建一个角色，传几张她的图。",
+    "looks": "外观",
+    "setting": "设定",
+    "uses": "用在哪",
+    "imageCount": "{count} 张图",
+    "slotFace": "脸",
+    "slotFull": "全身",
+    "slotBack": "背面",
+    "noLooks": "还没有参考图",
+    "noSetting": "还没写设定",
+    "noUses": "还没用过",
+    "loading": "加载中…",
+    "tagsLine": "标签 · {first}{count, plural, =1 {} other { 等 # 个}}",
+    "fieldIdentity": "身份",
+    "fieldBehavior": "性格",
+    "fieldSpeech": "说话方式",
+    "fieldBackstory": "经历",
+    "edit": "编辑",
+    "close": "关闭",
+    "variantOf": "{parent} · {label}"
   }
 }

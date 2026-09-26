@@ -20,7 +20,7 @@ export interface ListRecipesResult {
   total: number
 }
 
-export type RecipeWithCover = Recipe & {
+export type RecipeWithCover = Omit<Recipe, 'referenceAssets'> & {
   coverThumbnailUrl: string | null
 }
 
@@ -320,6 +320,7 @@ export async function listRecipes(
   const [recipes, total] = await Promise.all([
     db.recipe.findMany({
       where,
+      omit: { referenceAssets: true },
       orderBy: { createdAt: 'desc' },
       skip,
       take: limit,

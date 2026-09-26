@@ -413,6 +413,13 @@ describe('listRecipes', () => {
     )
   })
 
+  it('leaves reference images out of the list payload', async () => {
+    await listRecipes('clerk_test_user', 1, 20)
+    expect(mockFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ omit: { referenceAssets: true } }),
+    )
+  })
+
   it('queries parent generation covers in one owner-scoped batch', async () => {
     await listRecipes('clerk_test_user', 1, 20)
 

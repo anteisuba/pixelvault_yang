@@ -10,6 +10,8 @@ const mocks = vi.hoisted(() => ({
   modelId: 'gpt-image-2' as string | undefined,
   advancedParams: {} as Record<string, unknown>,
   referenceImages: [] as string[],
+  /** 主模型之后的其余模型（这一轮多选）。 */
+  extraModels: [] as { adapterType: string; modelId: string }[],
 }))
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -23,11 +25,14 @@ vi.mock('@/contexts/studio-context', () => ({
     imageUpload: { referenceImages: mocks.referenceImages },
   }),
 }))
-vi.mock('@/hooks/use-image-model-options', () => ({
-  useImageModelOptions: () => ({
-    selectedModel: mocks.modelId
-      ? { adapterType: mocks.adapterType, modelId: mocks.modelId }
-      : undefined,
+vi.mock('@/hooks/use-studio-run-models', () => ({
+  useStudioRunModels: () => ({
+    runModels: mocks.modelId
+      ? [
+          { adapterType: mocks.adapterType, modelId: mocks.modelId },
+          ...mocks.extraModels,
+        ]
+      : [],
   }),
 }))
 vi.mock('@/lib/model-options', () => ({
@@ -36,13 +41,22 @@ vi.mock('@/lib/model-options', () => ({
 
 import { StudioModelCapabilityChips } from './StudioModelCapabilityChips'
 
+// 专属那颗 chip 的弹层是 Radix Popover，jsdom 没有 ResizeObserver。
+class ResizeObserverMock {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 describe('StudioModelCapabilityChips', () => {
   beforeEach(() => {
+    vi.stubGlobal('ResizeObserver', ResizeObserverMock)
     mocks.dispatch.mockClear()
     mocks.adapterType = AI_ADAPTER_TYPES.OPENAI
     mocks.modelId = AI_MODELS.OPENAI_GPT_IMAGE_2
     mocks.advancedParams = {}
     mocks.referenceImages = []
+    mocks.extraModels = []
   })
 
   it('renders one chip per model-specific capability', () => {
@@ -111,5 +125,44 @@ describe('StudioModelCapabilityChips', () => {
     expect(
       screen.getByRole('button', { name: 'capability.referenceStrength' }),
     ).toBeEnabled()
+  })
+
+  // owner 2026-09-26「不只 GPT 有，其他模型也有」：多选时列的是这一轮所有模型的
+  // 并集，⛔ 不只看主模型；只有部分模型认的那一项注明只对谁生效。
+  it('lists every run model’s capabilities, not only the primary’s', () => {
+    mocks.adapterType = AI_ADAPTER_TYPES.VOLCENGINE
+    mocks.modelId = AI_MODELS.SEEDREAM_50_LITE_VOLCENGINE
+    mocks.extraModels = [
+      {
+        adapterType: AI_ADAPTER_TYPES.VOLCENGINE,
+        modelId: AI_MODELS.SEEDREAM_50_PRO_VOLCENGINE,
+      },
+    ]
+    // Seedream 的背景 / 拆图层只在图生图成立 —— 挂一张图它们才出现。
+    mocks.referenceImages = ['https://example.com/a.png']
+    render(<StudioModelCapabilityChips variant="single" />)
+    fireEvent.click(screen.getByRole('button', { name: 'sectionLabel' }))
+
+    // 两个模型都认的引导系数不注；只有 Pro 认的两项注明只对谁生效。
+    expect(screen.getByText('capability.background')).toBeInTheDocument()
+    expect(
+      screen.getByText('capability.layerDecomposition'),
+    ).toBeInTheDocument()
+    expect(screen.getAllByText('onlyFor')).toHaveLength(2)
+  })
+
+  it('shows the chip when only a secondary model has capabilities', () => {
+    mocks.adapterType = AI_ADAPTER_TYPES.GEMINI
+    mocks.modelId = AI_MODELS.GEMINI_PRO_IMAGE
+    mocks.extraModels = [
+      {
+        adapterType: AI_ADAPTER_TYPES.OPENAI,
+        modelId: AI_MODELS.OPENAI_GPT_IMAGE_2,
+      },
+    ]
+    render(<StudioModelCapabilityChips variant="single" />)
+    expect(
+      screen.getByRole('button', { name: 'sectionLabel' }),
+    ).toBeInTheDocument()
   })
 })

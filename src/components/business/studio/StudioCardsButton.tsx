@@ -78,7 +78,8 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
       <StudioToolPopoverContent
         size="medium"
         side="top"
-        align="center"
+        align={chip.popoverAlign}
+        sideOffset={chip.popoverSideOffset}
         label={t('cards')}
       >
         <StudioCardPicker />

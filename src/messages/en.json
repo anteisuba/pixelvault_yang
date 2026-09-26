@@ -2607,7 +2607,9 @@
     "filterVideo": "Videos",
     "addReferenceLong": "Add reference · upload / paste / assets",
     "referenceOnlyFor": "These reference images are only sent to {models}.",
-    "referenceNoReceiver": "None of the selected models accept reference images this run."
+    "referenceNoReceiver": "None of the selected models accept reference images this run.",
+    "attachedCount": "{count} attached",
+    "attachedOfMax": "{count} attached · up to {max}"
   },
   "AssetsPage": {
     "title": "Assets",
@@ -8067,6 +8069,7 @@
     "sectionLabel": "Only in {model}",
     "needsReference": "Attach a reference image first",
     "singleChipLabel": "Model extras",
+    "onlyFor": "Only applies to {models}",
     "capability": {
       "quality": "Quality",
       "inputFidelity": "Input fidelity",

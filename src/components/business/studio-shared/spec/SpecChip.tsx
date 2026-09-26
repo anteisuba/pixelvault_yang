@@ -66,6 +66,8 @@ export interface SpecChipProps {
    */
   readonly summarySuffix?: string
   readonly triggerClassName?: string
+  /** 弹层对齐，缺省 `start`（chip 在一行左边时往右长）。 */
+  readonly popoverAlign?: 'start' | 'end'
   readonly 'data-testid'?: string
 }
 
@@ -170,6 +172,7 @@ export function SpecChip({
   ariaLabel,
   triggerClassName,
   summarySuffix,
+  popoverAlign = 'start',
   'data-testid': testId,
 }: SpecChipProps) {
   const t = useTranslations('StudioSpecChip')
@@ -253,7 +256,7 @@ export function SpecChip({
       <ResponsivePopoverContent
         label={ariaLabel}
         side="top"
-        align="start"
+        align={popoverAlign}
         sideOffset={8}
         collisionPadding={12}
         data-spec-chip-popover

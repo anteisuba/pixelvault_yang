@@ -40,6 +40,8 @@ interface StudioSpecChipProps {
   readonly triggerClassName?: string
   /** 图片档：把张数写进 chip 摘要（底部输入框，owner 2026-09-26）。 */
   readonly showCount?: boolean
+  /** 弹层对齐；底部输入框里它在右组，传 `end`。 */
+  readonly popoverAlign?: 'start' | 'end'
 }
 
 const moreTierClass =
@@ -50,6 +52,7 @@ function StudioImageSpecChip({
   disabled,
   triggerClassName,
   showCount = false,
+  popoverAlign,
 }: StudioSpecChipProps) {
   const { state, dispatch } = useStudioForm()
   const { selectedModel } = useImageModelOptions()
@@ -90,6 +93,7 @@ function StudioImageSpecChip({
       onResolutionChange={setResolution}
       data-testid="studio-spec-chip"
       {...(triggerClassName ? { triggerClassName } : {})}
+      {...(popoverAlign ? { popoverAlign } : {})}
       {...(showCount
         ? { summarySuffix: t('countSummary', { count: state.imageBatchCount }) }
         : {})}

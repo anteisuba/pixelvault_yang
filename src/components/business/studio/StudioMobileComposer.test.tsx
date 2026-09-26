@@ -87,6 +87,13 @@ vi.mock('@/hooks/use-image-model-options', () => ({
   useImageModelOptions: mockUseImageModelOptions,
 }))
 
+// 专属 chip 读的是这一轮的名单 —— 与生成键同一份夹具。
+vi.mock('@/hooks/use-studio-run-models', () => ({
+  useStudioRunModels: () => ({
+    runModels: mockUseGenerateAction().runModels ?? [],
+  }),
+}))
+
 // 参考图与优化两颗自带整条素材库 / 助手面板链，与本文件要验的 chip 行无关。
 vi.mock('@/components/business/studio/ReferenceImageChip', () => ({
   ReferenceImageChip: () => (

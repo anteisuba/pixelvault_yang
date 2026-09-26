@@ -211,6 +211,46 @@ export function getModelCapabilityChips(
   return chips
 }
 
+export interface RunCapabilityChip extends CapabilityChip {
+  /** 这一轮里认这个能力的模型（`models` 下标，升序）。 */
+  readonly modelIndexes: readonly number[]
+}
+
+/**
+ * 一轮多个模型时的专属 chip = **各模型专属能力的并集**（owner 2026-09-26「不只
+ * GPT 有，其他模型也有，不要忽略」）。
+ *
+ * 为什么是并集而不是每个模型一颗：专属值只有**一份** `advancedParams`，发送时
+ * 才逐模型裁剪（`tailor-image-request`）—— 两颗 chip 改的会是同一个键。所以一颗
+ * chip 列全，某一项不是所有模型都认时由宿主注明「只对谁生效」。
+ * 同一个能力在几个模型上都有时沿用**排在前面**那个模型的值域。
+ */
+export function getRunCapabilityChips(
+  models: readonly {
+    readonly adapterType: AI_ADAPTER_TYPES
+    readonly modelId: string
+  }[],
+): readonly RunCapabilityChip[] {
+  const byCapability = new Map<
+    ProviderCapability,
+    { chip: CapabilityChip; modelIndexes: number[] }
+  >()
+  models.forEach((model, index) => {
+    for (const chip of getModelCapabilityChips(
+      model.adapterType,
+      model.modelId,
+    )) {
+      const entry = byCapability.get(chip.capability)
+      if (entry) entry.modelIndexes.push(index)
+      else byCapability.set(chip.capability, { chip, modelIndexes: [index] })
+    }
+  })
+  return [...byCapability.values()].map(({ chip, modelIndexes }) => ({
+    ...chip,
+    modelIndexes,
+  }))
+}
+
 /** chip 当前落在哪个值上（没设过就是缺省值）。 */
 export function getCapabilityChipValue(
   chip: CapabilityChip,

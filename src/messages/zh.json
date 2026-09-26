@@ -2607,7 +2607,9 @@
     "filterVideo": "视频",
     "addReferenceLong": "添加参考图 · 上传 / 粘贴 / 素材库",
     "referenceOnlyFor": "挂着的参考图只发给 {models}。",
-    "referenceNoReceiver": "这一轮选中的模型都不收参考图。"
+    "referenceNoReceiver": "这一轮选中的模型都不收参考图。",
+    "attachedCount": "已挂 {count} 张",
+    "attachedOfMax": "已挂 {count} 张 · 最多 {max} 张"
   },
   "AssetsPage": {
     "title": "素材",
@@ -8067,6 +8069,7 @@
     "sectionLabel": "专属 · {model}",
     "needsReference": "先挂一张参考图",
     "singleChipLabel": "专属",
+    "onlyFor": "只对 {models} 生效",
     "capability": {
       "quality": "画质",
       "inputFidelity": "输入保真",

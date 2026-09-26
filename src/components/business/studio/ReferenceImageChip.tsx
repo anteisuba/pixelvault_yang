@@ -181,9 +181,14 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
           size="action"
           collisionBoundary={panelBoundary}
           collisionPadding={8}
-          className="w-60 max-h-[min(28rem,var(--radix-popover-content-available-height))] overflow-y-auto overscroll-contain"
+          className={cn(
+            'max-h-[min(28rem,var(--radix-popover-content-available-height))] overflow-y-auto overscroll-contain',
+            // 参数栏只有 288 宽，弹层收成 240；底部输入框按原型 360 宽、14 内边距。
+            chip.look === 'outline' ? 'p-3.5' : 'w-60',
+          )}
           side="top"
-          align="center"
+          align={chip.popoverAlign}
+          sideOffset={chip.popoverSideOffset}
           label={t('label')}
         >
           <input
@@ -211,7 +216,23 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             onOpenLibrary={handleRequestAssetDialog}
             disabledReason={limitReason}
             headerSlot={
-              totalEntries > 0 ? (
+              chip.look === 'outline' ? (
+                // 底部输入框自己就有附件行 —— 弹层里不再摆一遍缩略图，只报数。
+                <div className="flex items-baseline gap-2">
+                  <span className="text-sm font-medium">
+                    {t('referenceLabel')}
+                  </span>
+                  <span className="text-2xs tabular-nums text-muted-foreground">
+                    {Number.isFinite(imageUpload.maxImages) &&
+                    imageUpload.maxImages > 0
+                      ? t('attachedOfMax', {
+                          count: totalEntries,
+                          max: imageUpload.maxImages,
+                        })
+                      : t('attachedCount', { count: totalEntries })}
+                  </span>
+                </div>
+              ) : totalEntries > 0 ? (
                 <ImageAttachmentPreviewStrip
                   entries={imageUpload.referenceEntries}
                   previewAlt={t('label')}

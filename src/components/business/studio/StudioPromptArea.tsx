@@ -556,7 +556,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                     negativeShown && studioOutlineChipSetClass,
                   )}
                 >
-                  <Ban className="size-3.5" aria-hidden />
+                  <Ban className="size-4" aria-hidden />
                   {tPromptArea('negativePromptLabel')}
                 </Toolbar.Button>
                 <StudioInpaintMaskChip disabled={isGenerating} />
@@ -611,7 +611,11 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                   </span>
                 ) : null}
                 <span data-assistant-field="specs">
-                  <StudioSpecChip disabled={isGenerating} showCount />
+                  <StudioSpecChip
+                    disabled={isGenerating}
+                    showCount
+                    popoverAlign="end"
+                  />
                 </span>
                 <StudioModelCapabilityChips
                   disabled={isGenerating}

@@ -64,6 +64,11 @@ export const studioToolTriggerClass = cn(
 export const studioChipActiveClass =
   'bg-primary/10 text-primary ring-1 ring-primary/30'
 
+export const studioToolPopoverAnchorSide = 'top' as const
+export const studioToolPopoverAnchorAlign = 'center' as const
+export const studioToolPopoverAnchorSideOffset = 12
+export const studioToolPopoverAnchorCollisionPadding = 12
+
 /**
  * chip 的两种外观（owner 2026-09-26 图片工作台底部输入框）：
  * - `ghost` = 参数栏 / 手机那颗无边框的幽灵丸（缺省，现有宿主不受影响）；
@@ -93,6 +98,13 @@ export interface StudioChipClasses {
   readonly open: string
   /** 挂了东西 / 改过（chip 上写着值）。 */
   readonly set: string
+  /**
+   * 弹层对齐。描边外观住在底部输入框工具行的左组：弹层从 chip **左沿**往右长
+   * （原型 `popTarget`），⛔ 不居中 —— 居中会把宽弹层顶出输入框、盖到左侧导航上。
+   * 右组的 chip（模型 / 规格 / 专属）由宿主自己传 `end`。
+   */
+  readonly popoverAlign: 'start' | 'center'
+  readonly popoverSideOffset: number
 }
 
 const GHOST_CHIP_CLASSES: StudioChipClasses = {
@@ -100,6 +112,8 @@ const GHOST_CHIP_CLASSES: StudioChipClasses = {
   trigger: studioToolTriggerClass,
   open: studioChipActiveClass,
   set: studioChipActiveClass,
+  popoverAlign: studioToolPopoverAnchorAlign,
+  popoverSideOffset: studioToolPopoverAnchorSideOffset,
 }
 
 /** 描边药丸「挂了东西 / 改过」那一档 —— 宿主自己画的 chip（负面词、模型）也用它。 */
@@ -111,6 +125,8 @@ const OUTLINE_CHIP_CLASSES: StudioChipClasses = {
   trigger: studioOutlineChipClass,
   open: 'border-foreground ring-3 ring-muted',
   set: studioOutlineChipSetClass,
+  popoverAlign: 'start',
+  popoverSideOffset: 8,
 }
 
 export function useStudioChipClasses(): StudioChipClasses {
@@ -160,10 +176,6 @@ export const StudioToolSurfaceTrigger = ResponsivePopoverTrigger
 
 export type StudioToolSurfaceSize = 'small' | 'action' | 'medium'
 
-export const studioToolPopoverAnchorSide = 'top' as const
-export const studioToolPopoverAnchorAlign = 'center' as const
-export const studioToolPopoverAnchorSideOffset = 12
-export const studioToolPopoverAnchorCollisionPadding = 12
 export const studioToolPopoverMaxHeightClass = studioDialogMaxHeightClass
 export const studioToolPopoverBaseClass = cn(
   'rounded-2xl border-border/70 bg-popover/95 shadow-2xl shadow-black/20 backdrop-blur-xl',

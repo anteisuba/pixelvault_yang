@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl'
 
 import {
   getCapabilityChipValue,
-  getModelCapabilityChips,
+  getRunCapabilityChips,
   isCapabilityChipVisible,
   isCapabilityChipSet,
   type CapabilityChip,
@@ -12,12 +12,13 @@ import {
 import { cn } from '@/lib/utils'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { useStudioForm, useStudioData } from '@/contexts/studio-context'
-import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import type { AdvancedParams } from '@/types'
 import { Input } from '@/components/ui/input'
 import { OptionGroup } from '@/components/ui/option-group'
 import { ParamSlider } from '@/components/ui/param-slider'
 import { Switch } from '@/components/ui/switch'
+import { SlidersHorizontal } from '@/components/icons'
 import {
   StudioToolSurface,
   StudioToolSurfaceTrigger,
@@ -42,6 +43,9 @@ import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
  *
  * 切模型时这一整组跟着换，不兼容的值静默回默认（批注 36，落在
  * `pruneIncompatibleCapabilityValues`，宿主是 `useImageModelOptions`）。
+ *
+ * 一轮多个模型时列的是**这一轮所有模型**专属能力的并集（`getRunCapabilityChips`），
+ * ⛔ 不只看主模型；不是每个模型都认的那一项注明只对谁生效。
  */
 interface StudioModelCapabilityChipsProps {
   disabled?: boolean
@@ -49,8 +53,8 @@ interface StudioModelCapabilityChipsProps {
   scroll?: boolean
   /**
    * `section` = 参数栏 / 手机那一段（虚线 + 小标 + 一行 chip，缺省）。
-   * `single` = 底部输入框工具行里的**一颗** chip（owner 2026-09-26 原型：专属
-   * 每个模型一颗）：chip 上写改过的那一项，点开一个弹层逐项调。
+   * `single` = 底部输入框工具行里的**一颗** chip（owner 2026-09-26）：chip 上写
+   * 改过的那一项，点开一个弹层逐项调。
    */
   variant?: 'section' | 'single'
 }
@@ -62,23 +66,37 @@ export function StudioModelCapabilityChips({
 }: StudioModelCapabilityChipsProps) {
   const { state } = useStudioForm()
   const { imageUpload } = useStudioData()
-  const { selectedModel } = useImageModelOptions()
+  const { runModels } = useStudioRunModels()
   const t = useTranslations('StudioCapabilityChips')
   const tModels = useTranslations('Models')
 
-  const chips = getModelCapabilityChips(
-    selectedModel?.adapterType,
-    selectedModel?.modelId,
-  )
-  if (!selectedModel || chips.length === 0) return null
+  const chips = getRunCapabilityChips(runModels)
+  if (chips.length === 0) return null
 
   const hasReferenceImage = imageUpload.referenceImages.length > 0
   const visibleChips = chips.filter((chip) =>
     isCapabilityChipVisible(chip, state.advancedParams, hasReferenceImage),
   )
+  const modelLabels = (indexes: readonly number[]) =>
+    [
+      ...new Set(
+        indexes.map((index) =>
+          getTranslatedModelLabel(tModels, runModels[index].modelId),
+        ),
+      ),
+    ].join(' · ')
   const sectionLabel = t('sectionLabel', {
-    model: getTranslatedModelLabel(tModels, selectedModel.modelId),
+    model: modelLabels(runModels.map((_, index) => index)),
   })
+  /** 不是这一轮每个模型都认的那一项 —— 说清只对谁生效。 */
+  const scopeNotes = new Map(
+    visibleChips
+      .filter((chip) => chip.modelIndexes.length < runModels.length)
+      .map((chip) => [
+        chip.capability,
+        t('onlyFor', { models: modelLabels(chip.modelIndexes) }),
+      ]),
+  )
 
   if (variant === 'single') {
     if (visibleChips.length === 0) return null
@@ -89,6 +107,7 @@ export function StudioModelCapabilityChips({
         disabled={disabled}
         hasReferenceImage={hasReferenceImage}
         sectionLabel={sectionLabel}
+        scopeNotes={scopeNotes}
       />
     )
   }
@@ -117,6 +136,7 @@ export function StudioModelCapabilityChips({
             params={state.advancedParams}
             disabled={disabled}
             hasReferenceImage={hasReferenceImage}
+            scopeNote={scopeNotes.get(chip.capability)}
           />
         ))}
       </div>
@@ -254,12 +274,14 @@ function CapabilitySingleChip({
   disabled,
   hasReferenceImage,
   sectionLabel,
+  scopeNotes,
 }: {
   chips: CapabilityChip[]
   params: AdvancedParams
   disabled: boolean
   hasReferenceImage: boolean
   sectionLabel: string
+  scopeNotes: ReadonlyMap<string, string>
 }) {
   const { dispatch } = useStudioForm()
   const t = useTranslations('StudioCapabilityChips')
@@ -302,9 +324,10 @@ function CapabilitySingleChip({
           className={cn(
             chipClasses.trigger,
             setChips.length > 0 && chipClasses.set,
-            'data-[state=open]:border-foreground',
+            'data-[state=open]:border-foreground data-[state=open]:ring-3 data-[state=open]:ring-muted',
           )}
         >
+          <SlidersHorizontal className="size-4 shrink-0" aria-hidden />
           {chipText}
         </button>
       </StudioToolSurfaceTrigger>
@@ -329,22 +352,32 @@ function CapabilitySingleChip({
             const value = getCapabilityChipValue(chip, params)
             const unavailable =
               chip.requiresReferenceImage && !hasReferenceImage
+            const scopeNote = scopeNotes.get(chip.capability)
+            const note = scopeNote ? (
+              <span className="text-2xs text-muted-foreground">
+                {scopeNote}
+              </span>
+            ) : null
             if (chip.kind === 'toggle') {
               return (
-                <label
-                  key={chip.capability}
-                  className="flex items-center justify-between gap-3 text-sm"
-                  title={tAdvanced(`${chip.capability}Hint`)}
-                >
-                  {label}
-                  <Switch
-                    checked={value === true}
-                    disabled={disabled || unavailable}
-                    onCheckedChange={(checked) =>
-                      update({ [chip.capability]: checked } as AdvancedParams)
-                    }
-                  />
-                </label>
+                <div key={chip.capability} className="flex flex-col gap-1">
+                  <label
+                    className="flex items-center justify-between gap-3 text-sm"
+                    title={tAdvanced(`${chip.capability}Hint`)}
+                  >
+                    {label}
+                    <Switch
+                      checked={value === true}
+                      disabled={disabled || unavailable}
+                      onCheckedChange={(checked) =>
+                        update({
+                          [chip.capability]: checked,
+                        } as AdvancedParams)
+                      }
+                    />
+                  </label>
+                  {note}
+                </div>
               )
             }
             return (
@@ -367,6 +400,7 @@ function CapabilitySingleChip({
                     update={update}
                   />
                 )}
+                {note}
               </div>
             )
           })}
@@ -381,11 +415,14 @@ function CapabilityChipControl({
   params,
   disabled,
   hasReferenceImage,
+  scopeNote,
 }: {
   chip: CapabilityChip
   params: AdvancedParams
   disabled: boolean
   hasReferenceImage: boolean
+  /** 「只对谁生效」—— 一行 chip 里没地方写字，挂在 title 上。 */
+  scopeNote?: string
 }) {
   const { dispatch } = useStudioForm()
   const t = useTranslations('StudioCapabilityChips')
@@ -421,7 +458,9 @@ function CapabilityChipControl({
         disabled={disabled || unavailable}
         onClick={() => update({ [chip.capability]: !value } as AdvancedParams)}
         className={className}
-        title={tAdvanced(`${chip.capability}Hint`)}
+        title={[tAdvanced(`${chip.capability}Hint`), scopeNote]
+          .filter(Boolean)
+          .join(' · ')}
       >
         {label}
       </button>
@@ -435,7 +474,7 @@ function CapabilityChipControl({
           type="button"
           disabled={disabled || unavailable}
           aria-label={label}
-          title={unavailable ? t('needsReference') : undefined}
+          title={unavailable ? t('needsReference') : scopeNote}
           className={className}
         >
           {chipText}

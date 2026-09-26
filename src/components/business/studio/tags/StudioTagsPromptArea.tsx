@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useMemo } from 'react'
+import { memo, useMemo, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
 
@@ -14,15 +14,14 @@ import { NovelAiTagModelSchema } from '@/types/novelai-tags'
 import { StudioTagChipField } from '@/components/business/studio/tags/StudioTagChipField'
 import { useStudioForm } from '@/contexts/studio-context'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
-import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
-import { getProviderLabel } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Button } from '@/components/ui/button'
 import { StudioTagCharacters } from './StudioTagCharacters'
 import { StudioTagsControlColumn } from './StudioTagsControlColumn'
-import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
+import { StudioTemplatesChip } from '@/components/business/studio/templates/StudioTemplatesChip'
+import { cn } from '@/lib/utils'
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
 import type { TagWorkbenchPanel } from './StudioTagsWorkbench'
@@ -31,8 +30,17 @@ import type { TagChip } from '@/types/tag-composer'
 /** 标签台 A：同一份编辑状态服务桌面与手机，生成动作只挂载一次。 */
 export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
   onOpenPanel,
+  templates,
+  overlay,
 }: {
   onOpenPanel: (panel: TagWorkbenchPanel) => void
+  /**
+   * 「模板」开合舞台上那块面板（模板 C）；`restoring` = 刚撤销了一次套用，
+   * 正向标签那一栏从 40% 淡回来。
+   */
+  templates: { open: boolean; onToggle: () => void; restoring?: boolean }
+  /** 浮在底部生成栏上沿的东西（套用模板后的「已套用 · 撤销」）。 */
+  overlay?: ReactNode
 }) {
   const isMobile = useIsMobile()
   const t = useTranslations('StudioTags')
@@ -41,8 +49,6 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
   const tModels = useTranslations('Models')
   const { state, dispatch } = useStudioForm()
   const {
-    selectedModel,
-    modelOptions,
     runModels,
     runModelIds,
     filterModelByDialect,
@@ -54,12 +60,6 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
     elapsedSeconds,
     isImagePromptOverLimit,
   } = useStudioGenerateAction()
-  const {
-    currentTemplateOutputType,
-    currentTemplateParams,
-    currentTemplatePrompt,
-    handleApplyTagTemplate,
-  } = useStudioPromptTemplates(modelOptions)
 
   /**
    * 顶栏右边那颗模型 chip —— 一行就把这一轮要跑的型号说完。⚠ `value` 恒为
@@ -123,7 +123,13 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
           />
         </div>
       </StudioDialectHeader>
-      <div data-assistant-field="prompt">
+      <div
+        data-assistant-field="prompt"
+        className={cn(
+          templates.restoring &&
+            'animate-in fade-in-40 duration-(--duration-base) ease-standard motion-reduce:animate-none',
+        )}
+      >
         <StudioTagChipField
           modelId={
             runModels.find(
@@ -216,18 +222,10 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
       </section>
       <Toolbar.Root className="flex flex-wrap gap-2 border-t border-border pt-3">
         <ReferenceImageChip disabled={isGenerating} />
-        <PromptTemplatePicker
-          dialect="tags"
-          currentModelId={selectedModel?.modelId}
-          currentOutputType={currentTemplateOutputType}
-          currentParams={currentTemplateParams}
-          currentPrompt={currentTemplatePrompt}
-          currentProvider={
-            selectedModel
-              ? getProviderLabel(selectedModel.providerConfig)
-              : undefined
-          }
-          onApply={handleApplyTagTemplate}
+        <StudioTemplatesChip
+          open={templates.open}
+          onToggle={templates.onToggle}
+          disabled={isGenerating}
         />
         <StudioSpecChip disabled={isGenerating} />
       </Toolbar.Root>
@@ -256,6 +254,7 @@ export const StudioTagsPromptArea = memo(function StudioTagsPromptArea({
       ) : null}
       {/* 成本 + 生成 —— 与自然语言台同一颗键、同一份三态。 */}
       <div className="fixed inset-x-0 bottom-0 z-30 mt-auto flex shrink-0 flex-col gap-2 border-t border-border bg-card px-4 py-3 pb-safe lg:sticky lg:inset-auto lg:bottom-0 lg:z-10 lg:px-0">
+        {overlay}
         <StudioCostPreview
           models={runModels}
           basis={{

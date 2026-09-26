@@ -7,6 +7,7 @@ import { AUDIO_PROMPT_PAYLOAD_MAX_CHARS } from '@/constants/audio-options'
 import { CARD_RECIPE } from '@/constants/cards/card-types'
 import { AI_MODELS } from '@/constants/models'
 import { NO_STYLE_PRESET_ID } from '@/constants/style-presets'
+import { STUDIO_TEMPLATES_PANEL_ID } from '@/constants/studio'
 import { WORKFLOW_IDS, type WorkflowId } from '@/constants/workflows'
 import type { StudioFormState } from '@/contexts/studio-context'
 import {
@@ -58,10 +59,13 @@ const STUB_OPERATOR_HOST: StudioOperatorHost = {
   },
 }
 
-function renderPromptArea() {
+const mockTemplatesToggle = vi.hoisted(() => vi.fn())
+const TEMPLATES = { open: false, onToggle: mockTemplatesToggle }
+
+function renderPromptArea(templates = TEMPLATES) {
   return render(
     <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
-      <StudioPromptArea />
+      <StudioPromptArea templates={templates} />
     </StudioOperatorHostProvider>,
   )
 }
@@ -250,14 +254,6 @@ vi.mock('@/contexts/api-keys-context', () => ({
 
 vi.mock('@/components/business/studio-shared/setup/QuickSetupDialog', () => ({
   QuickSetupDialog: () => null,
-}))
-
-vi.mock('@/components/business/studio/PromptTemplatePicker', () => ({
-  PromptTemplatePicker: () => (
-    <button type="button" aria-label="templatePicker">
-      templatePicker
-    </button>
-  ),
 }))
 
 vi.mock('@/components/business/studio/StudioEnhanceButton', () => ({
@@ -601,7 +597,7 @@ describe('StudioPromptArea', () => {
     const renderBottom = () =>
       render(
         <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
-          <StudioPromptArea layout="bottom" />
+          <StudioPromptArea layout="bottom" templates={TEMPLATES} />
         </StudioOperatorHostProvider>,
       )
     const setupImage = (overrides: Partial<StudioFormState> = {}) =>
@@ -764,6 +760,29 @@ describe('StudioPromptArea', () => {
     })
 
     expect(mockImageUploadHandleDrop).toHaveBeenCalledTimes(1)
+  })
+
+  /**
+   * 模板 C 第二片（owner 2026-09-26）：竖排参数栏的「模板」开合的是舞台上那块
+   * 面板（宿主持有开合），⛔ 不再是弹窗；与旁边「剧本」同一种幽灵丸。
+   */
+  it('竖排参数栏的「模板」开合舞台上的模板面板', () => {
+    setupStudioForm(WORKFLOW_IDS.CINEMATIC_SHORT_VIDEO)
+    const { rerender } = renderPromptArea()
+    const chip = screen.getByRole('button', { name: 'templatePicker' })
+    expect(chip).toHaveAttribute('aria-expanded', 'false')
+    expect(chip).not.toHaveAttribute('aria-haspopup')
+    fireEvent.click(chip)
+    expect(mockTemplatesToggle).toHaveBeenCalledTimes(1)
+
+    rerender(
+      <StudioOperatorHostProvider host={STUB_OPERATOR_HOST}>
+        <StudioPromptArea templates={{ ...TEMPLATES, open: true }} />
+      </StudioOperatorHostProvider>,
+    )
+    expect(
+      screen.getByRole('button', { name: 'templatePicker' }),
+    ).toHaveAttribute('aria-controls', STUDIO_TEMPLATES_PANEL_ID)
   })
 
   it('adds CINEMATIC_SHORT_VIDEO workflowId to the video submit payload', async () => {

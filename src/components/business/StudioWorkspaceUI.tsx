@@ -42,8 +42,8 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
-import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useIsMobile } from '@/hooks/use-mobile'
+import { useStudioModeModelOptions } from '@/hooks/use-studio-mode-model-options'
 import { useStudioTemplateApply } from '@/hooks/use-studio-template-apply'
 import { useStudioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useStudioWorkbenchOperatorHost } from '@/hooks/use-studio-workbench-operator-host'
@@ -159,31 +159,41 @@ export function StudioWorkspaceUI() {
     [isBottomComposer, workbenchOperatorHost],
   )
   /**
-   * 桌面图片台舞台上开着哪块面板：模板（两台都有）· 查资料 / 构图 / 提示词块
-   * （只有标签台）。离开标签台时标签台那三块收掉；离开桌面图片台时全收。
+   * 舞台上开着哪块面板：模板（每一台都有 —— 图片两台与视频，桌面与手机，模板 C
+   * 第二片）· 查资料 / 构图 / 提示词块（只有标签台）。换档（图片 ↔ 视频）全收；
+   * 离开标签台时标签台那三块收掉。
    */
   const [stagePanel, setStagePanel] = useState<TagWorkbenchPanel | null>(null)
-  if (stagePanel && !isBottomComposer) setStagePanel(null)
-  else if (stagePanel && stagePanel !== 'templates' && !isTagsWorkbench)
+  const [stagePanelOutputType, setStagePanelOutputType] = useState(
+    state.outputType,
+  )
+  if (stagePanelOutputType !== state.outputType) {
+    setStagePanelOutputType(state.outputType)
+    setStagePanel(null)
+  } else if (stagePanel && stagePanel !== 'templates' && !isTagsWorkbench)
     setStagePanel(null)
   /**
    * 模板 C（owner 2026-09-26）：模板在舞台上打开；点一张直接套用、回到结果，
    * 输入框正上方给 5 秒「撤销」。套用与撤销住在这里 —— 面板和那句撤销是两处，
    * 得是同一份快照。
    */
-  const { modelOptions: imageModelOptions, selectedModel: imageModel } =
-    useImageModelOptions()
-  const templateApply = useStudioTemplateApply(imageModelOptions)
-  const templatesPanel = isBottomComposer ? (
+  const { modelOptions: modeModelOptions, selectedModel: modeModel } =
+    useStudioModeModelOptions()
+  const templateApply = useStudioTemplateApply(modeModelOptions)
+  const templatesPanel = (
     <StudioTemplatesPanel
-      dialect={state.promptDialect}
+      // 手机（<1024）走画板「模板 C · 手机」那一版：‹ 标题 ＋、搜索独占一行。
+      variant={isMobile ? 'phone' : 'stage'}
+      // 提示词在舞台下面的只有底部输入框两种（桌面图片台 · 手机图片 / 视频）。
+      promptBelow={isBottomComposer || useMobileComposer}
+      dialect={state.outputType === 'image' ? state.promptDialect : 'natural'}
       save={{
         outputType: templateApply.templates.currentTemplateOutputType,
         prompt: templateApply.templates.currentTemplatePrompt,
         params: templateApply.templates.currentTemplateParams,
-        modelId: imageModel?.modelId,
-        provider: imageModel
-          ? getProviderLabel(imageModel.providerConfig)
+        modelId: modeModel?.modelId,
+        provider: modeModel
+          ? getProviderLabel(modeModel.providerConfig)
           : undefined,
       }}
       onApply={(recipe) => {
@@ -192,7 +202,7 @@ export function StudioWorkspaceUI() {
       }}
       onClose={() => setStagePanel(null)}
     />
-  ) : null
+  )
   const toggleTemplates = useCallback(
     () =>
       setStagePanel((current) =>
@@ -210,6 +220,28 @@ export function StudioWorkspaceUI() {
     )
     return () => window.clearTimeout(timer)
   }, [composerRestoring])
+  const templatesControl = {
+    open: stagePanel === 'templates',
+    onToggle: toggleTemplates,
+    restoring: composerRestoring,
+  }
+  /**
+   * 「已套用 · 撤销」挂在哪：有底部输入框 / 底栏的挂在它上沿（`above`）；竖排
+   * 参数栏那一台（桌面视频）没有，浮在舞台底部（`inside`）。
+   */
+  const undoToast = (anchor: 'above' | 'inside') =>
+    templateApply.appliedName ? (
+      <StudioTemplateUndoToast
+        key={templateApply.appliedId}
+        anchor={anchor}
+        name={templateApply.appliedName}
+        onUndo={() => {
+          templateApply.undo()
+          setComposerRestoring(true)
+        }}
+        onDismiss={templateApply.dismiss}
+      />
+    ) : null
   /**
    * 助手展开时工作台让位（owner 2026-09-26）：`studioOperatorYield` 由 Dock 按
    * 形状第二拍的弹簧驱动，这里只把它绑到地台的右内边距。
@@ -481,7 +513,13 @@ export function StudioWorkspaceUI() {
               元素，只换 params / stage —— 头部那颗写法切换因此跨台不重挂，液态
               分段才演得完（owner 2026-09-26）。手机标签台仍是自己的两栏。 */}
           {isTagsWorkbench && !isBottomComposer ? (
-            <StudioTagsWorkbench />
+            <StudioTagsWorkbench
+              panel={stagePanel}
+              onPanelChange={setStagePanel}
+              templates={templatesPanel}
+              templatesRestoring={composerRestoring}
+              overlay={undoToast('above')}
+            />
           ) : (
             <StudioWorkbenchLayout
               layout={isBottomComposer ? 'bottom' : 'columns'}
@@ -495,14 +533,7 @@ export function StudioWorkspaceUI() {
                 ) : (
                   <StudioPromptArea
                     layout={isImageBottomComposer ? 'bottom' : 'column'}
-                    {...(isImageBottomComposer
-                      ? {
-                          templates: {
-                            open: stagePanel === 'templates',
-                            onToggle: toggleTemplates,
-                          },
-                        }
-                      : {})}
+                    templates={templatesControl}
                   />
                 )
               }
@@ -527,19 +558,19 @@ export function StudioWorkspaceUI() {
                   />
                 )
               }
-              composer={useMobileComposer ? <StudioMobileComposer /> : null}
-              composerOverlay={
-                isBottomComposer && templateApply.appliedName ? (
-                  <StudioTemplateUndoToast
-                    key={templateApply.appliedId}
-                    name={templateApply.appliedName}
-                    onUndo={() => {
-                      templateApply.undo()
-                      setComposerRestoring(true)
-                    }}
-                    onDismiss={templateApply.dismiss}
+              composer={
+                useMobileComposer ? (
+                  <StudioMobileComposer
+                    templates={templatesControl}
+                    overlay={undoToast('above')}
                   />
                 ) : null
+              }
+              composerOverlay={isBottomComposer ? undoToast('above') : null}
+              stageOverlay={
+                !isBottomComposer && !useMobileComposer
+                  ? undoToast('inside')
+                  : null
               }
               paramsClassName={
                 composerRestoring

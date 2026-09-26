@@ -38,11 +38,9 @@ import {
   useStudioForm,
   useStudioGen,
 } from '@/contexts/studio-context'
-import { useAudioModelOptions } from '@/hooks/use-audio-model-options'
-import { useImageModelOptions } from '@/hooks/use-image-model-options'
+import { useStudioModeModelOptions } from '@/hooks/use-studio-mode-model-options'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
 import { useModelChannelGate } from '@/hooks/use-model-channel-gate'
-import { useVideoModelOptions } from '@/hooks/use-video-model-options'
 import { useVoiceCards } from '@/hooks/cards/use-voice-cards'
 import { clampVideoSpecToModel } from '@/lib/studio/clamp-video-spec'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
@@ -92,24 +90,8 @@ export function useStudioGenerateAction() {
   const isVideoMode = state.outputType === 'video'
   const isImageMode = !isAudioMode && !isVideoMode
   const voiceCards = useVoiceCards({ enabled: isAudioMode })
-  const { selectedModel: imageModel, modelOptions: imageModelOptions } =
-    useImageModelOptions()
-  const { selectedModel: audioModel, modelOptions: audioModelOptions } =
-    useAudioModelOptions()
-  const { selectedModel: videoModel, modelOptions: videoModelOptions } =
-    useVideoModelOptions(state.selectedOptionId ?? '')
-  const selectedModel = isAudioMode
-    ? audioModel
-    : isVideoMode
-      ? videoModel
-      : imageModel
+  const { selectedModel, modelOptions } = useStudioModeModelOptions()
   type SelectedModelOption = NonNullable<typeof selectedModel>
-
-  const modelOptions = isAudioMode
-    ? audioModelOptions
-    : isVideoMode
-      ? videoModelOptions
-      : imageModelOptions
 
   /**
    * 视频选择器**一行一个型号 × 渠道**（owner 09-24 视频画板：去掉模式）——

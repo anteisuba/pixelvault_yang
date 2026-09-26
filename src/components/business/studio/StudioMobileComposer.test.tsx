@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { STUDIO_TEMPLATES_PANEL_ID } from '@/constants/studio'
 import type { StudioFormState } from '@/contexts/studio-context'
 
 import { StudioMobileComposer } from './StudioMobileComposer'
@@ -99,31 +100,6 @@ vi.mock('@/components/business/studio/ReferenceImageChip', () => ({
   ReferenceImageChip: () => (
     <button type="button" aria-label="reference">
       reference
-    </button>
-  ),
-}))
-
-vi.mock('@/components/business/studio/PromptTemplatePicker', () => ({
-  PromptTemplatePicker: ({
-    onApply,
-  }: ComponentProps<
-    typeof import('./PromptTemplatePicker').PromptTemplatePicker
-  >) => (
-    <button
-      type="button"
-      aria-label="template"
-      onClick={() =>
-        onApply({
-          id: 'recipe-1',
-          version: 2,
-          outputType: 'IMAGE',
-          modelId: 'gpt-image-1',
-          compiledPrompt: '  template prompt  ',
-          params: { aspectRatio: '3:4', advancedParams: { seed: 42 } },
-        } as import('@/types').RecipeRecord)
-      }
-    >
-      template
     </button>
   ),
 }))
@@ -257,33 +233,35 @@ beforeEach(() => {
   setAction()
 })
 
+const mockTemplatesToggle = vi.fn()
+const TEMPLATES = { open: false, onToggle: mockTemplatesToggle }
+
 describe('StudioMobileComposer', () => {
-  it('applies template prompt, model, parameters and lineage without a duplicate assistant entry', () => {
-    render(<StudioMobileComposer />)
-    fireEvent.click(screen.getByRole('button', { name: 'template' }))
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_PROMPT',
-      payload: 'template prompt',
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_OPTION_ID',
-      payload: IMAGE_OPTION.optionId,
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_ASPECT_RATIO',
-      payload: '3:4',
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_ADVANCED_PARAMS',
-      payload: { seed: 42 },
-    })
-    expect(mockDispatch).toHaveBeenCalledWith({
-      type: 'SET_RECIPE_USAGE',
-      payload: { recipeId: 'recipe-1', recipeVersion: 2, useMode: 'apply' },
-    })
+  /**
+   * 模板 C 第二片（owner 2026-09-26，画板「模板 C · 手机」）：「模板」开合的是
+   * 舞台上那块面板（宿主持有开合与套用），⛔ 不再是底部抽屉；撤销条挂在输入条上沿。
+   */
+  it('「模板」开合舞台上的模板面板，撤销条挂在输入条里', () => {
+    const { rerender } = render(
+      <StudioMobileComposer
+        templates={TEMPLATES}
+        overlay={<div role="status">undo</div>}
+      />,
+    )
+    const chip = screen.getByTestId('studio-mobile-template-chip')
+    expect(chip).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(chip)
+    expect(mockTemplatesToggle).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('status')).toHaveTextContent('undo')
     expect(
       screen.queryByRole('button', { name: 'enhance' }),
     ).not.toBeInTheDocument()
+
+    rerender(<StudioMobileComposer templates={{ ...TEMPLATES, open: true }} />)
+    expect(screen.getByTestId('studio-mobile-template-chip')).toHaveAttribute(
+      'aria-controls',
+      STUDIO_TEMPLATES_PANEL_ID,
+    )
   })
 
   it('reserves the measured composer height and updates after resizing', () => {
@@ -307,7 +285,7 @@ describe('StudioMobileComposer', () => {
       .mockImplementation(() => ({ height }) as DOMRect)
     const { container, unmount } = render(
       <div className="studio-layout-v2">
-        <StudioMobileComposer />
+        <StudioMobileComposer templates={TEMPLATES} />
       </div>,
     )
     const layout = container.firstElementChild as HTMLElement
@@ -334,7 +312,7 @@ describe('StudioMobileComposer', () => {
       imageBatchCount: 2,
     } as Partial<StudioFormState>)
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     expect(screen.getByTestId('studio-mobile-model-chip')).toHaveTextContent(
       'GPT Image 1',
@@ -354,7 +332,7 @@ describe('StudioMobileComposer', () => {
       runModelIds: new Set([IMAGE_OPTION.optionId, second.optionId]),
     })
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     // 折成一个模型名就等于在手机上把「一次跑几路」这件事藏起来。
     expect(screen.getByTestId('studio-mobile-model-chip')).toHaveTextContent(
@@ -371,7 +349,7 @@ describe('StudioMobileComposer', () => {
   })
 
   it('hides the count badge when the run is a single image', () => {
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     expect(screen.queryByTestId('studio-mobile-generate-count')).toBeNull()
   })
@@ -379,7 +357,7 @@ describe('StudioMobileComposer', () => {
   it('shows its own placeholder — not the blocked-button copy — with no model', () => {
     setAction({ runModels: [], runModelIds: new Set() })
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     const chip = screen.getByTestId('studio-mobile-model-chip')
     expect(chip).toHaveTextContent('modelChipEmpty')
@@ -393,7 +371,7 @@ describe('StudioMobileComposer', () => {
       blockedReason: { message: 'blocked.modelRequired' },
     })
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     const button = screen.getByTestId('studio-mobile-generate')
     expect(button).toHaveAttribute('aria-disabled', 'true')
@@ -403,7 +381,7 @@ describe('StudioMobileComposer', () => {
   })
 
   it('routes the square button to the shared generate handler', () => {
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     fireEvent.click(screen.getByTestId('studio-mobile-generate'))
 
@@ -411,7 +389,7 @@ describe('StudioMobileComposer', () => {
   })
 
   it('opens the model sheet from the 模型 chip; 规格走的是共用那颗 chip 自己的弹层', () => {
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     expect(screen.queryByTestId('model-sheet')).toBeNull()
     fireEvent.click(screen.getByTestId('studio-mobile-model-chip'))
@@ -432,7 +410,7 @@ describe('StudioMobileComposer · 视频档', () => {
   it('模型 chip 写的是当前那一条型号 —— 视频恒单选，没有「N 个模型」这回事', () => {
     setVideo()
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     expect(screen.getByTestId('studio-mobile-model-chip')).toHaveTextContent(
       'Seedance 2.5',
@@ -445,14 +423,14 @@ describe('StudioMobileComposer · 视频档', () => {
   it('规格走与图片档**同一颗** chip —— 档位按模态自己分，composer 不分支', () => {
     setVideo()
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     expect(screen.getByTestId('studio-spec-chip')).toBeInTheDocument()
   })
 
   it('⭐ 出声 chip 只在**契约暴露该字段**时出现 —— 画一颗发不出去的开关比没有更糟', () => {
     setVideo()
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
     expect(screen.queryByTestId('studio-mobile-audio-chip')).toBeNull()
   })
 
@@ -460,7 +438,7 @@ describe('StudioMobileComposer · 视频档', () => {
     mockVideoAudio.value = { supported: true, value: true }
     setVideo()
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
     const chip = screen.getByTestId('studio-mobile-audio-chip')
     expect(chip).toHaveAttribute('aria-checked', 'true')
 
@@ -476,7 +454,7 @@ describe('StudioMobileComposer · 视频档', () => {
       videoAudioRefs: [{ url: 'https://x/a.mp3' }],
     } as Partial<StudioFormState>)
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
     fireEvent.click(screen.getByTestId('studio-mobile-audio-ref-chip'))
     expect(mockDispatch).toHaveBeenCalledWith({
       type: 'TOGGLE_PANEL',
@@ -497,7 +475,7 @@ describe('StudioMobileComposer · 视频档', () => {
   it('费用行走共用的 `StudioCostPreview`（一行版），不在 composer 里另算一个数', () => {
     setVideo()
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     expect(screen.getByTestId('cost-line')).toHaveTextContent('line')
   })
@@ -505,7 +483,7 @@ describe('StudioMobileComposer · 视频档', () => {
   it('⭐ 生成键上带这一枪的时长（`↑ 5s`），图片那枚张数角标不出现', () => {
     setVideo({ videoDuration: 10 } as Partial<StudioFormState>)
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     expect(
       screen.getByTestId('studio-mobile-generate-duration'),
@@ -519,7 +497,7 @@ describe('StudioMobileComposer · 视频档', () => {
       selectedModel: null,
     })
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     expect(screen.queryByTestId('studio-spec-chip')).toBeNull()
     // 模型 chip 照旧在 —— 它正是「怎么选一个」的唯一出口。
@@ -531,7 +509,7 @@ describe('StudioMobileComposer · 视频档', () => {
   it('视频专属的禁用原因照样只从 `useStudioGenerateAction` 出（队列满）', () => {
     setVideo({}, { blockedReason: { message: 'blocked.videoQueueFull' } })
 
-    render(<StudioMobileComposer />)
+    render(<StudioMobileComposer templates={TEMPLATES} />)
 
     const button = screen.getByTestId('studio-mobile-generate')
     expect(button).toHaveAttribute('aria-disabled', 'true')

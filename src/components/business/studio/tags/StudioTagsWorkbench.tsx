@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCallback, useEffect, useRef, type ReactNode } from 'react'
 import { useTranslations } from 'next-intl'
 import { StudioWorkbenchLayout } from '@/components/business/studio-shared/chrome/StudioWorkbenchLayout'
 import { StudioCanvas } from '@/components/business/studio-shared/chrome/StudioCanvas'
@@ -47,7 +47,6 @@ export function StudioTagsStage({
   const { state } = useStudioForm()
   const c = useNovelAiCharacters()
   const { isGenerating } = useStudioGen()
-  const heading = useRef<HTMLHeadingElement>(null)
   /** 打开面板的那颗按钮 —— 关掉时焦点回到它身上。 */
   const trigger = useRef<HTMLElement | null>(null)
   useEffect(() => {
@@ -57,9 +56,16 @@ export function StudioTagsStage({
     if (!trigger.current && document.activeElement instanceof HTMLElement) {
       trigger.current = document.activeElement
     }
-    heading.current?.focus({ preventScroll: true })
-    heading.current?.scrollIntoView({ block: 'nearest' })
   }, [panel])
+  /**
+   * 标题**挂上时**才落焦点、滚到看得见 —— 换场是「结果先淡出一拍，面板再上来」，
+   * ⛔ 在 `panel` 一变就去找标题（那一拍它还没挂上）。
+   */
+  const focusHeading = useCallback((node: HTMLHeadingElement | null) => {
+    if (!node) return
+    node.focus({ preventScroll: true })
+    node.scrollIntoView({ block: 'nearest' })
+  }, [])
   const close = () => {
     onClose()
     trigger.current?.focus()
@@ -80,7 +86,7 @@ export function StudioTagsStage({
         {/* ⚠ `outline-none`：打开面板时焦点被程序挪到这里（给读屏一个落点），
             浏览器自带的焦点框会把标题框起来（owner 2026-09-26 截图）。 */}
         <h2
-          ref={heading}
+          ref={focusHeading}
           tabIndex={-1}
           className="text-base font-medium outline-none"
         >
@@ -152,10 +158,28 @@ export function StudioTagsStage({
   )
 }
 
-/** 标签台手机那一版：参数栏在上、结果在下（桌面见 `StudioTagsStage` 的说明）。 */
-export function StudioTagsWorkbench() {
+/**
+ * 标签台手机那一版：参数栏在上、结果在下（桌面见 `StudioTagsStage` 的说明）。
+ * 舞台上开着哪块面板由宿主（`StudioWorkspaceUI`）持有 —— 模板面板的套用与撤销
+ * 住在那里，两台共用一份。
+ */
+export function StudioTagsWorkbench({
+  panel,
+  onPanelChange,
+  templates,
+  templatesRestoring,
+  overlay,
+}: {
+  panel: TagWorkbenchPanel | null
+  onPanelChange: (panel: TagWorkbenchPanel | null) => void
+  /** 模板面板（宿主给）。 */
+  templates: ReactNode
+  /** 刚撤销了一次套用（正向标签那一栏淡回来）。 */
+  templatesRestoring?: boolean
+  /** 浮在底部生成栏上沿的东西（「已套用 · 撤销」）。 */
+  overlay?: ReactNode
+}) {
   const t = useTranslations('StudioTags.workbench')
-  const [panel, setPanel] = useState<TagWorkbenchPanel | null>(null)
   const stageRef = useRef<HTMLDivElement>(null)
   const promptRef = useRef<HTMLDivElement>(null)
 
@@ -175,7 +199,16 @@ export function StudioTagsWorkbench() {
               {t('backToResults')}
             </Button>
           </div>
-          <StudioTagsPromptArea onOpenPanel={setPanel} />
+          <StudioTagsPromptArea
+            onOpenPanel={onPanelChange}
+            templates={{
+              open: panel === 'templates',
+              onToggle: () =>
+                onPanelChange(panel === 'templates' ? null : 'templates'),
+              restoring: templatesRestoring,
+            }}
+            overlay={overlay}
+          />
         </div>
       }
       stage={
@@ -189,7 +222,11 @@ export function StudioTagsWorkbench() {
           >
             {t('backToEditor')}
           </Button>
-          <StudioTagsStage panel={panel} onClose={() => setPanel(null)} />
+          <StudioTagsStage
+            panel={panel}
+            onClose={() => onPanelChange(null)}
+            templates={templates}
+          />
         </div>
       }
     />

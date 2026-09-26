@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import {
   afterAll,
   beforeAll,
@@ -10,7 +10,7 @@ import {
 } from 'vitest'
 
 import { ROUTES } from '@/constants/routes'
-import type { GenerationRecord, InspirationRecord, RecipeRecord } from '@/types'
+import type { GenerationRecord, RecipeRecord } from '@/types'
 
 import { PromptTemplatePicker } from './PromptTemplatePicker'
 
@@ -18,10 +18,6 @@ const createRecipeMock = vi.hoisted(() => vi.fn())
 const pushMock = vi.hoisted(() => vi.fn())
 const recipeState = vi.hoisted(() => ({
   recipes: [] as RecipeRecord[],
-}))
-const inspirationState = vi.hoisted(() => ({
-  items: [] as InspirationRecord[],
-  setQuery: vi.fn(),
 }))
 const studioGenState = vi.hoisted(() => ({
   lastGeneration: null as GenerationRecord | null,
@@ -73,24 +69,6 @@ vi.mock('@/hooks/prompts/use-recipes', async () => {
     },
   }
 })
-
-vi.mock('@/hooks/prompts/use-inspirations', () => ({
-  useInspirations: () => ({
-    items: inspirationState.items,
-    total: inspirationState.items.length,
-    isLoading: false,
-    isLoadingMore: false,
-    error: null,
-    filters: { category: null, query: '', sortBy: 'rank' },
-    hasMore: false,
-    setCategory: vi.fn(),
-    setQuery: inspirationState.setQuery,
-    setSortBy: vi.fn(),
-    resetFilters: vi.fn(),
-    loadMore: vi.fn(),
-    cloneInspiration: vi.fn(),
-  }),
-}))
 
 vi.mock('@/contexts/studio-context', () => ({
   useStudioGen: () => ({ lastGeneration: studioGenState.lastGeneration }),
@@ -149,32 +127,6 @@ function makeGeneration(
   }
 }
 
-function makeInspiration(
-  overrides: Partial<InspirationRecord> = {},
-): InspirationRecord {
-  return {
-    id: 'inspiration-1',
-    source: 'test',
-    rank: 1,
-    prompt: 'Long shared prompt with cinematic lighting and a careful subject',
-    author: 'author-1',
-    authorName: 'Mina',
-    likes: 10,
-    views: 20,
-    imageUrl: '',
-    modelHint: null,
-    categories: ['portrait'],
-    sourceUrl: 'https://example.com/prompt',
-    rating: null,
-    score: null,
-    publishedAt: null,
-    isPublic: true,
-    createdAt: '2026-01-01T00:00:00.000Z',
-    updatedAt: '2026-01-01T00:00:00.000Z',
-    ...overrides,
-  }
-}
-
 beforeAll(() => {
   vi.stubGlobal('ResizeObserver', ResizeObserverMock)
   Element.prototype.scrollIntoView = vi.fn()
@@ -200,9 +152,7 @@ afterAll(() => {
 beforeEach(() => {
   createRecipeMock.mockReset()
   pushMock.mockReset()
-  inspirationState.setQuery.mockReset()
   recipeState.recipes = []
-  inspirationState.items = []
   studioGenState.lastGeneration = null
   mobileState.isMobile = false
 })
@@ -455,33 +405,5 @@ describe('PromptTemplatePicker', () => {
     expect(screen.getByText('Tag template')).toBeInTheDocument()
     expect(screen.queryByText('Sentence template')).not.toBeInTheDocument()
     expect(screen.getByText('tagTemplateHint')).toBeInTheDocument()
-  })
-
-  it('keeps inspiration prompts clamped and removes the external link affordance', async () => {
-    inspirationState.items = [makeInspiration()]
-
-    const { container } = render(
-      <PromptTemplatePicker onApply={vi.fn()} onApplyInspiration={vi.fn()} />,
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'templatePicker' }))
-    const inspirationTab = await screen.findByRole('tab', {
-      name: /tabInspiration/,
-    })
-    await act(async () => {
-      inspirationTab.focus()
-      fireEvent.keyDown(inspirationTab, { key: 'Enter', code: 'Enter' })
-      fireEvent.click(inspirationTab)
-    })
-    await waitFor(() =>
-      expect(inspirationTab).toHaveAttribute('aria-selected', 'true'),
-    )
-
-    expect(
-      await screen.findByText(
-        'Long shared prompt with cinematic lighting and a careful subject',
-      ),
-    ).toHaveClass('line-clamp-2')
-    expect(container.querySelector('a[target="_blank"]')).toBeNull()
   })
 })

@@ -65,6 +65,14 @@ export const studioToolTriggerClass = cn(
 export const studioChipActiveClass =
   'bg-primary/10 text-primary ring-1 ring-primary/30'
 
+/**
+ * 竖排参数栏里「模板 · 剧本」那一行的幽灵丸：两颗并排，⛔ 一颗带框一颗不带。
+ * 开着（舞台上那块面板 / 剧本弹窗在）时换 `studioColumnChipOpenClass`。
+ */
+export const studioColumnChipClass =
+  'flex h-9 items-center gap-2 rounded-full px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted/35 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 disabled:pointer-events-none disabled:opacity-50'
+export const studioColumnChipOpenClass = 'bg-muted/55 text-foreground'
+
 export const studioToolPopoverAnchorSide = 'top' as const
 export const studioToolPopoverAnchorAlign = 'center' as const
 export const studioToolPopoverAnchorSideOffset = 12

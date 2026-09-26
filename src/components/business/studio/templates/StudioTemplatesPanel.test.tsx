@@ -1,11 +1,21 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { RecipeRecord } from '@/types'
 
 const mocks = vi.hoisted(() => ({
   recipes: [] as RecipeRecord[],
   isLoading: false,
+  lastGeneration: {
+    id: 'gen-1',
+    outputType: 'IMAGE',
+    thumbnailUrl: 'https://cdn.test/1.png',
+  } as {
+    id: string
+    outputType: string
+    thumbnailUrl: string | null
+    url?: string
+  } | null,
   addRecipe: vi.fn(),
   replaceRecipe: vi.fn(),
   removeRecipe: vi.fn(),
@@ -26,9 +36,7 @@ vi.mock('@/i18n/navigation', () => ({
   useRouter: () => ({ push: mocks.push }),
 }))
 vi.mock('@/contexts/studio-context', () => ({
-  useStudioGen: () => ({
-    lastGeneration: { id: 'gen-1', thumbnailUrl: 'https://cdn.test/1.png' },
-  }),
+  useStudioGen: () => ({ lastGeneration: mocks.lastGeneration }),
 }))
 vi.mock('@/hooks/prompts/use-recipes', () => ({
   useRecipes: () => ({
@@ -119,10 +127,20 @@ function renderPanel(
 }
 
 describe('模板面板（模板 C）', () => {
+  beforeAll(() => {
+    // jsdom 没有 `scrollIntoView`（面板打开时把标题滚到看得见）。
+    Element.prototype.scrollIntoView = vi.fn()
+  })
+
   beforeEach(() => {
     vi.clearAllMocks()
     mocks.recipes = [OLDER, VIDEO, LORA, TAGS, IMAGE]
     mocks.isLoading = false
+    mocks.lastGeneration = {
+      id: 'gen-1',
+      outputType: 'IMAGE',
+      thumbnailUrl: 'https://cdn.test/1.png',
+    }
   })
 
   it('首次加载还没数出来时，标题写「…」不写「0」', () => {
@@ -308,6 +326,65 @@ describe('模板面板（模板 C）', () => {
       key: 'Escape',
     })
     expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('视频台只列视频模板；存下时 ⛔ 挂别档的上一件', async () => {
+    mocks.create.mockResolvedValue({
+      success: true,
+      data: recipe({ id: 'v2', outputType: 'VIDEO', name: '海边日落' }),
+    })
+    renderPanel({ save: { ...SAVE, outputType: 'VIDEO', prompt: '海边日落' } })
+    expect(screen.getByText('titleVideo:1')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'apply:Video one' }),
+    ).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'save' }))
+    await waitFor(() => expect(mocks.addRecipe).toHaveBeenCalled())
+    // 最近那一件是图片 —— 不是这一台的，⛔ 当成视频模板的出处和封面。
+    expect(mocks.create).toHaveBeenCalledWith(
+      expect.not.objectContaining({ parentGenerationId: expect.anything() }),
+    )
+    expect(mocks.addRecipe).toHaveBeenCalledWith(
+      expect.objectContaining({ coverThumbnailUrl: null }),
+    )
+  })
+
+  it('视频的封面只认封面帧，⛔ 把视频文件当成图画出来', () => {
+    mocks.lastGeneration = {
+      id: 'gen-v',
+      outputType: 'VIDEO',
+      thumbnailUrl: null,
+      url: 'https://cdn.test/clip.mp4',
+    }
+    const { container } = render(
+      <StudioTemplatesPanel
+        dialect="natural"
+        save={{ ...SAVE, outputType: 'VIDEO' }}
+        onApply={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    )
+    expect(container.querySelector('img[src$=".mp4"]')).toBeNull()
+  })
+
+  it('手机版：‹ 返回 · 标题 · ＋，搜索独占一行，⛔ 没有底下那行说明', () => {
+    const { onClose } = renderPanel({ variant: 'phone' })
+    expect(screen.getByText('titleImage:2')).toBeInTheDocument()
+    expect(
+      screen.getByRole('searchbox', { name: 'search' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('footImage')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'manage' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'create' }))
+    expect(screen.getByRole('textbox', { name: 'nameLabel' })).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'back' }))
+    expect(onClose).toHaveBeenCalledTimes(1)
+  })
+
+  it('提示词不在舞台下面时，空着的那张 ⛔ 说「在下面写」', () => {
+    renderPanel({ save: { ...SAVE, prompt: '' }, promptBelow: false })
+    expect(screen.getByText('nowEmptyPrompt')).toBeInTheDocument()
+    expect(screen.queryByText('nowEmptyImage')).toBeNull()
   })
 
   it('⋯ 菜单里的 Esc 只收菜单，⛔ 不连面板一起收', async () => {

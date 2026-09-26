@@ -51,7 +51,7 @@ All hooks use `'use client'`. Less than half have a `.test` file — check for a
 - `use-api-keys.ts` — User API key management
 - `use-civitai-token.ts` — Civitai integration token
 - `use-usage-summary.ts` — Credit usage display
-- `use-audio-model-options.ts` / `use-image-model-options.ts` — Model option lists
+- `use-audio-model-options.ts` / `use-image-model-options.ts` — Model option lists；`use-studio-mode-model-options.ts` 按当前档（图片 / 视频 / 音频）取其一，⛔ 不带生成副作用（要模型清单别去挂 `useStudioGenerateAction`）
 - `use-lora-training.ts` — LoRA training jobs
 - `use-my-profile.ts` / `use-creator-profile.ts` — Profile data
 

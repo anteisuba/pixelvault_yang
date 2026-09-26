@@ -8289,6 +8289,18 @@
     "renameFailed": "改名没成功，已换回原来的名字",
     "deleteFailed": "没删掉，已放回去",
     "modelMissing": "先选一个模型",
-    "lora": "LoRA"
+    "lora": "LoRA",
+    "titleVideo": "我的视频模板 · {count}",
+    "titleAudio": "我的音频模板 · {count}",
+    "emptyVideo": "还没有视频模板",
+    "emptyAudio": "还没有音频模板",
+    "emptyHintVideo": "出一段满意的视频，在「当前提示词」上点「存下」；或者点「新建模板」自己写一个。",
+    "emptyHintAudio": "声音满意之后，在「当前提示词」上点「存下」；或者点「新建模板」自己写一个。",
+    "footAudio": "点一张即套用 · 模型和参数一起换，回到结果",
+    "namePlaceholderVideo": "比如：海边日落 · 慢推镜头",
+    "namePlaceholderAudio": "比如：旁白 · 温柔女声",
+    "formNoteAudio": "模型和参数用你现在选的",
+    "nowEmptyPrompt": "先写好提示词",
+    "nowEmptyTagsPlain": "先写几个标签"
   }
 }

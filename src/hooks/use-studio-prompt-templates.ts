@@ -1,9 +1,8 @@
 'use client'
 
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo } from 'react'
 import { WORKFLOW_IDS } from '@/constants/workflows'
 import { useStudioForm } from '@/contexts/studio-context'
-import { hasPlaceholders } from '@/lib/prompt-placeholders'
 import {
   isTagTemplateParams,
   parseTagChips,
@@ -12,7 +11,6 @@ import {
 import type { StudioModelOption } from '@/types/model-option'
 import {
   AdvancedParamsSchema,
-  type InspirationRecord,
   type OutputType as RecipeOutputType,
   type RecipeRecord,
 } from '@/types'
@@ -90,29 +88,6 @@ export function useStudioPromptTemplates(modelOptions: StudioModelOption[]) {
       })
     },
     [dispatch],
-  )
-
-  const [placeholderDialog, setPlaceholderDialog] = useState<{
-    open: boolean
-    prompt: string
-  }>({ open: false, prompt: '' })
-
-  const applyInspirationPrompt = useCallback(
-    (prompt: string) => {
-      dispatch({ type: 'SET_PROMPT', payload: prompt })
-    },
-    [dispatch],
-  )
-
-  const handleApplyInspiration = useCallback(
-    (inspiration: InspirationRecord) => {
-      if (hasPlaceholders(inspiration.prompt)) {
-        setPlaceholderDialog({ open: true, prompt: inspiration.prompt })
-      } else {
-        applyInspirationPrompt(inspiration.prompt)
-      }
-    },
-    [applyInspirationPrompt],
   )
 
   const handleApplyRecipe = useCallback(
@@ -237,9 +212,5 @@ export function useStudioPromptTemplates(modelOptions: StudioModelOption[]) {
     currentTemplatePrompt,
     handleApplyRecipe,
     handleApplyTagTemplate,
-    handleApplyInspiration,
-    placeholderDialog,
-    setPlaceholderDialog,
-    applyInspirationPrompt,
   }
 }

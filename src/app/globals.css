@@ -1370,6 +1370,15 @@ html:lang(ja) {
     padding-bottom: var(--studio-mobile-composer-height, 7rem);
   }
 
+  /* 模板面板（手机，画板「模板 C · 手机」）：高度钉在舞台看得见的那一段 ——
+     顶栏 3.5rem、舞台上下各留 0.75rem、底部输入条（没有输入条的那两台按预留值）。
+     头部与搜索不跟着页面滚走，只有卡片网格在里面滚。 */
+  .studio-mobile-stage-panel {
+    height: calc(
+      100svh - 3.5rem - 1.5rem - var(--studio-mobile-composer-height, 7rem)
+    );
+  }
+
   /* chip 行：32px 丸 + 44px 触屏命中区（同 .touch-target-y 的手法）。
      ⚠ 直接写在行上而不是逐颗 chip 上 —— 参考图 / 优化两颗是既有组件
      （`studioToolTriggerClass` 在窄屏是 h-11），它们的桌面外观不能动，

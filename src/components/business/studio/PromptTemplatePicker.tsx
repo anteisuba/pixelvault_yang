@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
-import { ArrowUpRight, FileText, Save, Sparkles } from '@/components/icons'
+import { ArrowUpRight, FileText, Save } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 
@@ -21,7 +21,6 @@ import {
   ResponsiveDialogTrigger,
 } from '@/components/ui/responsive-dialog'
 import { Spinner } from '@/components/ui/spinner'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
   StudioPanelHeader,
   studioDialogBaseClass,
@@ -34,21 +33,12 @@ import { matchesRecipeTemplateScope } from '@/lib/recipe-template-kind'
 import { getDefaultTemplateName } from '@/lib/recipe-template-name'
 import { cn } from '@/lib/utils'
 import { useStudioGen } from '@/contexts/studio-context'
-import { useInspirations } from '@/hooks/prompts/use-inspirations'
 import { prefetchRecipes, useRecipes } from '@/hooks/prompts/use-recipes'
 import { createRecipeAPI } from '@/lib/api-client/recipes'
 import type { PromptDialect } from '@/constants/prompt-dialects'
-import type {
-  CreateRecipeRequest,
-  InspirationRecord,
-  OutputType,
-  RecipeRecord,
-} from '@/types'
+import type { CreateRecipeRequest, OutputType, RecipeRecord } from '@/types'
 
 const DEFAULT_TEMPLATE_OUTPUT_TYPE: OutputType = 'IMAGE'
-const INSPIRATION_PREVIEW_MAX = 160
-
-type PickerTab = 'mine' | 'inspiration'
 
 interface PromptTemplatePickerProps {
   currentModelId?: string
@@ -63,11 +53,6 @@ interface PromptTemplatePickerProps {
    * 模态的（`matchesRecipeTemplateScope`）。
    */
   dialect?: PromptDialect
-  /**
-   * Called when the user picks an inspiration prompt.
-   * If omitted, the inspiration tab is hidden.
-   */
-  onApplyInspiration?: (inspiration: InspirationRecord) => void
 }
 
 export function PromptTemplatePicker({
@@ -77,7 +62,6 @@ export function PromptTemplatePicker({
   currentPrompt,
   currentProvider,
   onApply,
-  onApplyInspiration,
   dialect = 'natural',
 }: PromptTemplatePickerProps) {
   const t = useTranslations('PromptLibrary')
@@ -85,7 +69,6 @@ export function PromptTemplatePicker({
   const router = useRouter()
   const { lastGeneration } = useStudioGen()
   const [open, setOpen] = useState(false)
-  const [tab, setTab] = useState<PickerTab>('mine')
   const [isSavingCurrent, setIsSavingCurrent] = useState(false)
   const { recipes, isLoading, error, refresh, addRecipe } = useRecipes(open)
   // 工作台一挂上这颗 chip 就在空闲时先拉一遍：点开时列表已经在手上。
@@ -94,7 +77,6 @@ export function PromptTemplatePicker({
   const canSaveCurrent = Boolean(
     trimmedCurrentPrompt && currentModelId && currentProvider,
   )
-  const showInspiration = Boolean(onApplyInspiration)
 
   const sortedRecipes = useMemo(
     () =>
@@ -108,11 +90,6 @@ export function PromptTemplatePicker({
 
   const runRecipeAction = (recipe: RecipeRecord) => {
     onApply(recipe)
-    setOpen(false)
-  }
-
-  const runInspirationAction = (inspiration: InspirationRecord) => {
-    onApplyInspiration?.(inspiration)
     setOpen(false)
   }
 
@@ -270,58 +247,17 @@ export function PromptTemplatePicker({
             'studio-scrollbar flex min-h-0 flex-1 flex-col pt-3',
           )}
         >
-          {showInspiration ? (
-            <Tabs
-              value={tab}
-              onValueChange={(v) => setTab(v as PickerTab)}
-              className="gap-0"
-            >
-              <div className="border-b border-border/60 pb-2">
-                <TabsList
-                  variant="line"
-                  className="h-8 w-full justify-start gap-3"
-                >
-                  <TabsTrigger value="mine" className="flex-none px-2">
-                    {t('tabMine')}
-                  </TabsTrigger>
-                  <TabsTrigger value="inspiration" className="flex-none px-2">
-                    <Sparkles className="size-3.5" />
-                    {t('tabInspiration')}
-                  </TabsTrigger>
-                </TabsList>
-              </div>
-
-              <TabsContent value="mine" className="mt-0">
-                <MineTabBody
-                  canSaveCurrent={canSaveCurrent}
-                  isSavingCurrent={isSavingCurrent}
-                  trimmedCurrentPrompt={trimmedCurrentPrompt}
-                  onSaveCurrent={() => void handleSaveCurrentPrompt()}
-                  isLoading={isLoading}
-                  recipes={sortedRecipes}
-                  error={error}
-                  onRetry={() => void refresh()}
-                  renderRecipeItem={renderRecipeItem}
-                />
-              </TabsContent>
-
-              <TabsContent value="inspiration" className="mt-0">
-                <InspirationTabBody onPick={runInspirationAction} />
-              </TabsContent>
-            </Tabs>
-          ) : (
-            <MineTabBody
-              canSaveCurrent={canSaveCurrent}
-              isSavingCurrent={isSavingCurrent}
-              trimmedCurrentPrompt={trimmedCurrentPrompt}
-              onSaveCurrent={() => void handleSaveCurrentPrompt()}
-              isLoading={isLoading}
-              recipes={sortedRecipes}
-              error={error}
-              onRetry={() => void refresh()}
-              renderRecipeItem={renderRecipeItem}
-            />
-          )}
+          <MineTabBody
+            canSaveCurrent={canSaveCurrent}
+            isSavingCurrent={isSavingCurrent}
+            trimmedCurrentPrompt={trimmedCurrentPrompt}
+            onSaveCurrent={() => void handleSaveCurrentPrompt()}
+            isLoading={isLoading}
+            recipes={sortedRecipes}
+            error={error}
+            onRetry={() => void refresh()}
+            renderRecipeItem={renderRecipeItem}
+          />
           <div className="mt-3 border-t border-border/40 pt-3">
             <Button
               type="button"
@@ -424,114 +360,4 @@ function MineTabBody({
       </Command>
     </>
   )
-}
-
-interface InspirationTabBodyProps {
-  onPick: (inspiration: InspirationRecord) => void
-}
-
-function InspirationTabBody({ onPick }: InspirationTabBodyProps) {
-  const t = useTranslations('PromptLibrary')
-  const {
-    items,
-    isLoading,
-    isLoadingMore,
-    hasMore,
-    loadMore,
-    error,
-    filters,
-    setQuery,
-  } = useInspirations()
-
-  return (
-    <div className="flex flex-col">
-      <div className="border-b border-border/60 py-2">
-        <input
-          type="search"
-          inputMode="search"
-          value={filters.query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={t('inspirationSearchPlaceholder')}
-          maxLength={200}
-          className={cn(
-            // ⚠ <768 必须 ≥16px：iOS 对小于 16px 的可聚焦输入框会自动放大整页。
-            'h-10 w-full rounded-md border-0 bg-transparent px-3 text-base outline-none md:text-sm',
-            'placeholder:text-muted-foreground/70',
-            'focus-visible:ring-0',
-          )}
-        />
-      </div>
-
-      <div>
-        {error ? (
-          <div className="px-4 py-8 text-center text-sm text-destructive">
-            {error}
-          </div>
-        ) : isLoading && items.length === 0 ? (
-          <div className="flex flex-col items-center gap-2 py-12 text-sm text-muted-foreground">
-            <Spinner size="lg" />
-            <span>{t('inspirationLoadingMore')}</span>
-          </div>
-        ) : items.length === 0 ? (
-          <div className="px-4 py-10 text-center text-sm text-muted-foreground">
-            {t('inspirationEmptyTitle')}
-          </div>
-        ) : (
-          <ul className="grid grid-cols-2 gap-2 py-3 sm:grid-cols-3 lg:grid-cols-4">
-            {items.map((inspiration) => (
-              <li key={inspiration.id}>
-                <button
-                  type="button"
-                  onClick={() => onPick(inspiration)}
-                  className={cn(
-                    'group flex w-full flex-col gap-2 rounded-lg p-2 text-left transition-colors duration-fast ease-standard',
-                    'hover:bg-muted/55 focus-visible:bg-muted/55',
-                    'focus-visible:outline-none',
-                  )}
-                >
-                  {inspiration.imageUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element -- external host, unoptimized
-                    <img
-                      src={inspiration.imageUrl}
-                      alt=""
-                      loading="lazy"
-                      className="aspect-square w-full shrink-0 rounded-md object-cover ring-1 ring-inset ring-border/40 transition duration-fast ease-standard group-hover:brightness-110 group-hover:ring-border"
-                    />
-                  ) : (
-                    <span className="flex aspect-square w-full shrink-0 items-center justify-center rounded-md bg-muted/65 text-muted-foreground ring-1 ring-inset ring-border/40 transition-colors duration-fast ease-standard group-hover:bg-background/80 group-hover:text-foreground group-hover:ring-border">
-                      <Sparkles className="size-4" />
-                    </span>
-                  )}
-                  <span className="min-w-0 flex-1">
-                    <span className="line-clamp-2 text-sm leading-snug text-foreground">
-                      {truncatePrompt(inspiration.prompt)}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        {hasMore && (
-          <Button
-            variant="ghost"
-            className="w-full"
-            disabled={isLoadingMore}
-            onClick={() => void loadMore()}
-          >
-            {t(
-              isLoadingMore ? 'inspirationLoadingMore' : 'inspirationLoadMore',
-            )}
-          </Button>
-        )}
-      </div>
-    </div>
-  )
-}
-
-function truncatePrompt(prompt: string): string {
-  const single = prompt.replace(/\s+/g, ' ').trim()
-  return single.length > INSPIRATION_PREVIEW_MAX
-    ? `${single.slice(0, INSPIRATION_PREVIEW_MAX).trimEnd()}...`
-    : single
 }

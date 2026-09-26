@@ -8289,6 +8289,18 @@
     "renameFailed": "名前を変更できず、元の名前に戻しました",
     "deleteFailed": "削除できず、一覧に戻しました",
     "modelMissing": "先にモデルを選んでください",
-    "lora": "LoRA"
+    "lora": "LoRA",
+    "titleVideo": "動画テンプレート · {count}",
+    "titleAudio": "音声テンプレート · {count}",
+    "emptyVideo": "動画テンプレートはまだありません",
+    "emptyAudio": "音声テンプレートはまだありません",
+    "emptyHintVideo": "気に入った動画ができたら「今のプロンプト」で「保存」。「新しいテンプレート」から自分で書くこともできます。",
+    "emptyHintAudio": "気に入った音声ができたら「今のプロンプト」で「保存」。「新しいテンプレート」から自分で書くこともできます。",
+    "footAudio": "クリックで適用 · モデルと設定も切り替わり、結果に戻ります",
+    "namePlaceholderVideo": "例：海辺の夕日 · ゆっくりズームイン",
+    "namePlaceholderAudio": "例：ナレーション · やわらかい声",
+    "formNoteAudio": "今選んでいるモデルと設定を使います",
+    "nowEmptyPrompt": "先にプロンプトを書いてください",
+    "nowEmptyTagsPlain": "先にタグをいくつか入れてください"
   }
 }

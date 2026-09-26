@@ -42,6 +42,12 @@ interface StudioWorkbenchLayoutProps {
    * ⚠ 那一层恒在，⛔ 别按有没有类加减包裹 —— 树一变输入框就重挂、手上的字没了。
    */
   paramsClassName?: string
+  /**
+   * `columns` 布局浮在舞台底部的东西（套用模板后的「已套用 · 撤销」—— 竖排参数栏
+   * 没有底部输入框）。⚠ 舞台外面那一层包裹恒在，⛔ 别按有没有浮层加减：树一变结果区
+   * 就重挂，手上正在跑的那一批就没了。
+   */
+  stageOverlay?: React.ReactNode
 }
 
 /**
@@ -69,6 +75,7 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
   header,
   composerOverlay,
   paramsClassName,
+  stageOverlay,
 }: StudioWorkbenchLayoutProps) {
   if (layout === 'bottom') {
     return (
@@ -126,21 +133,28 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
           没有可撑的高度就贴顶。globals.css 里
           `.studio-workbench-stage:has(.studio-empty-state)` 负责把
           `.studio-canvas` 撑成满高的 flex 列。 */}
-      <div
-        className={cn(
-          // ⚠ 2026-09-03 owner 报「查看操作教程」被底部固定 composer 压住：底边距
-          // 在此拆成 px/pt + 条件 pb，不再用一把 `p-3 lg:p-6` 兜到底——`.studio-mobile-stage`
-          // 在 globals.css `@layer components` 里给 padding-bottom 算的
-          // `--studio-mobile-composer-height` 预留值，被 Tailwind `p-3`/`lg:p-6`
-          // 在 `@layer utilities`（永远压过 components，与写法先后/特异度无关）
-          // 整条覆盖成了字面 12px，composer 越高盖得越多。没有 composer 的场景
-          // （桌面、或压根不挂移动端 composer）用 `pb-3 lg:pb-6` 原样保留旧观感；
-          // 有 composer 时把 pb-* 让给 `.studio-mobile-stage`，两者不再抢同一个属性。
-          'studio-workbench-stage workbench-card studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 pt-3 lg:px-6 lg:pt-6',
-          composer ? STUDIO_MOBILE_STAGE_CLASS : 'pb-3 lg:pb-6',
-        )}
-      >
-        {stage}
+      {/* ⚠ 包裹层不带 `relative`：结果区里绝对定位的东西参照物不能变；浮层自己住
+          在舞台后面那个零高度的定位层里，贴着舞台下沿往上浮。 */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div
+          className={cn(
+            // ⚠ 2026-09-03 owner 报「查看操作教程」被底部固定 composer 压住：底边距
+            // 在此拆成 px/pt + 条件 pb，不再用一把 `p-3 lg:p-6` 兜到底——`.studio-mobile-stage`
+            // 在 globals.css `@layer components` 里给 padding-bottom 算的
+            // `--studio-mobile-composer-height` 预留值，被 Tailwind `p-3`/`lg:p-6`
+            // 在 `@layer utilities`（永远压过 components，与写法先后/特异度无关）
+            // 整条覆盖成了字面 12px，composer 越高盖得越多。没有 composer 的场景
+            // （桌面、或压根不挂移动端 composer）用 `pb-3 lg:pb-6` 原样保留旧观感；
+            // 有 composer 时把 pb-* 让给 `.studio-mobile-stage`，两者不再抢同一个属性。
+            'studio-workbench-stage workbench-card studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 pt-3 lg:px-6 lg:pt-6',
+            composer ? STUDIO_MOBILE_STAGE_CLASS : 'pb-3 lg:pb-6',
+          )}
+        >
+          {stage}
+        </div>
+        {stageOverlay ? (
+          <div className="relative h-0 shrink-0">{stageOverlay}</div>
+        ) : null}
       </div>
       {composer}
     </div>

@@ -8289,6 +8289,18 @@
     "renameFailed": "Rename failed, the old name is back",
     "deleteFailed": "Couldn’t delete, it’s back in the list",
     "modelMissing": "Pick a model first",
-    "lora": "LoRA"
+    "lora": "LoRA",
+    "titleVideo": "My video templates · {count}",
+    "titleAudio": "My audio templates · {count}",
+    "emptyVideo": "No video templates yet",
+    "emptyAudio": "No audio templates yet",
+    "emptyHintVideo": "When a clip comes out right, press “Save” on “Current prompt”, or write one yourself with “New template”.",
+    "emptyHintAudio": "When the audio sounds right, press “Save” on “Current prompt”, or write one yourself with “New template”.",
+    "footAudio": "Click a template to apply it · model and settings switch too, then back to results",
+    "namePlaceholderVideo": "e.g. Seaside sunset · slow push-in",
+    "namePlaceholderAudio": "e.g. Narration · warm voice",
+    "formNoteAudio": "Uses the model and settings you have selected now",
+    "nowEmptyPrompt": "Write a prompt first",
+    "nowEmptyTagsPlain": "Add a few tags first"
   }
 }

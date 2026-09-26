@@ -39,7 +39,7 @@
    | 展开负面提示词折叠区       | 箭头旋转 + 区域展开                                        | `animated-collapse`                                          | 显示负面提示词输入框                                                      |
    | 点「＋参考图」chip         | chip 按压态                                                | 沿用既有参考图面板动效                                       | 打开参考图选择，选定后 chip 显示数量角标                                  |
    | 聚焦 prompt 输入           | 输入框获得焦点环                                           | 软键盘弹出，composer 随 `keyboard-aware-bottom-padding` 上移 | 输入区域不被遮挡，生成按钮保持可见                                        |
-   | 点「模板」                 | 打开现有模板选择器                                         | 沿用响应式弹层                                               | 可筛选图片／视频／LoRA，应用提示词、模型和参数；助手仅通过右上头像打开    |
+   | 点「模板」                 | chip 高亮；舞台换成模板面板（模板 C · 手机）               | 结果淡出一拍，面板淡入上浮（`StudioStageSwap`）              | 只列这一台的模板，点一张即套用并回到结果，输入条上沿 5 秒「撤销」         |
    | 点生成（enabled）          | 按钮变 loading（Spinner 替换 ↑，宽度不跳）；舞台占位格出现 | 结果骨架 `animate-pulse`，到达时 `fade-in-0 duration-base`   | 提交生成请求；prompt 保留原文不清空                                       |
    | 点生成（disabled：无模型） | 无 hover/press 视觉，`aria-disabled`                       | 无                                                           | 不提交；点击改为跳转/打开 `QuickSetupDialog`（Hard Rule 8，缺 key 场景）  |
    | 生成结果到达               | 舞台自动滚动到结果卡顶部（每轮一次，`scrollIntoView`）     | `duration-base` 平滑滚动，`motion-reduce:` 降级为跳转        | 结果卡置顶可见，动作行随即出现                                            |

@@ -92,6 +92,7 @@ const RECIPE_GENERATION_SELECT = {
 
 const RECIPE_COVER_GENERATION_SELECT = {
   id: true,
+  outputType: true,
   thumbnailUrl: true,
   previewUrl: true,
   url: true,
@@ -126,11 +127,17 @@ function getGenerationRecipeParams(generation: {
   }
 }
 
+/**
+ * 封面只能是一张图：视频 / 音频只认缩略图（视频的封面帧），⛔ 退回原文件地址 ——
+ * 那是一段视频 / 音频，列表会把它当成 `<img>` 画出一张坏图。
+ */
 function getGenerationCoverThumbnailUrl(generation: {
+  outputType: string
   thumbnailUrl: string | null
   previewUrl: string | null
   url: string | null
 }): string | null {
+  if (generation.outputType !== 'IMAGE') return generation.thumbnailUrl
   return generation.thumbnailUrl ?? generation.previewUrl ?? generation.url
 }
 
@@ -356,6 +363,7 @@ async function resolveRecipeCovers(
 
   type FirstGenerationCoverRow = {
     recipeId: string
+    outputType: string
     thumbnailUrl: string | null
     previewUrl: string | null
     url: string | null
@@ -363,6 +371,7 @@ async function resolveRecipeCovers(
   const firstGenerations = await db.$queryRaw<FirstGenerationCoverRow[]>`
     SELECT DISTINCT ON ("recipeSnapshot"->>'recipeId')
       "recipeSnapshot"->>'recipeId' AS "recipeId",
+      "outputType",
       "thumbnailUrl",
       "previewUrl",
       "url"

@@ -1,6 +1,6 @@
 'use client'
 
-import { memo, useLayoutEffect, useRef, useState } from 'react'
+import { memo, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import {
   ArrowUp,
   ChevronDown,
@@ -13,7 +13,10 @@ import {
 import * as Toolbar from '@radix-ui/react-toolbar'
 import { useTranslations } from 'next-intl'
 
-import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
+import {
+  STUDIO_PROMPT_TEXTAREA_ID,
+  STUDIO_TEMPLATES_PANEL_ID,
+} from '@/constants/studio'
 import {
   STUDIO_MOBILE_COMPOSER_CLASS,
   STUDIO_MOBILE_COMPOSER_VIDEO_CLASS,
@@ -30,10 +33,6 @@ import { Spinner } from '@/components/ui/spinner'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
 import { StudioCostPreview } from '@/components/business/studio/StudioCostPreview'
-import { PromptTemplatePicker } from './PromptTemplatePicker'
-import { PlaceholderFillDialog } from '@/components/business/prompts/inspiration/PlaceholderFillDialog'
-import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
-import { getProviderLabel } from '@/constants/providers'
 import { StudioMobileModelSheet } from '@/components/business/studio/StudioMobileModelSheet'
 import { StudioModelCapabilityChips } from '@/components/business/studio/StudioModelCapabilityChips'
 import { StudioSpecChip } from '@/components/business/studio/StudioSpecChip'
@@ -77,7 +76,18 @@ const chipClass = cn(
  * prefill / node handoff 两处、以及 skip-link 都指着它）。桌面由
  * `StudioPromptArea` 的 `PromptInput` 顶，两者永不同时挂载。
  */
-export const StudioMobileComposer = memo(function StudioMobileComposer() {
+export const StudioMobileComposer = memo(function StudioMobileComposer({
+  templates,
+  overlay,
+}: {
+  /**
+   * 「模板」开合舞台上那块面板（owner 2026-09-26 模板 C，画板「模板 C · 手机」）；
+   * `restoring` = 刚撤销了一次套用，提示词框从 40% 淡回来。
+   */
+  templates: { open: boolean; onToggle: () => void; restoring?: boolean }
+  /** 浮在输入条上沿的东西（套用模板后的「已套用 · 撤销」）。 */
+  overlay?: ReactNode
+}) {
   const { state, dispatch } = useStudioForm()
   const { lastGeneration } = useStudioGen()
   const t = useTranslations('StudioMobile')
@@ -87,9 +97,9 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
   const tVideo = useTranslations('VideoGenerate')
   const tVideoAudio = useTranslations('StudioVideoAudio')
   const tScript = useTranslations('VideoScript')
+  const tTemplates = useTranslations('PromptLibrary')
   const {
     selectedModel,
-    modelOptions,
     runModels,
     runModelIds,
     filterVideoModelOption,
@@ -102,15 +112,6 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
     isImagePromptOverLimit,
     videoCostBasis,
   } = useStudioGenerateAction()
-  const {
-    currentTemplateOutputType,
-    currentTemplateParams,
-    handleApplyRecipe,
-    handleApplyInspiration,
-    placeholderDialog,
-    setPlaceholderDialog,
-    applyInspirationPrompt,
-  } = useStudioPromptTemplates(modelOptions)
 
   const { supported: supportsGenerateAudio, value: generateAudioValue } =
     useStudioVideoAudio()
@@ -185,6 +186,7 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
         'keyboard-aware-bottom-padding fixed inset-x-0 bottom-0 z-40 flex flex-col gap-2 border-t border-border/60 bg-background px-3 pt-2 shadow-lg',
       )}
     >
+      {overlay}
       {/* 第 1 行 —— 横向可滚，永不换行（换行会让 composer 高度跳，舞台跟着抖）。
           ⚠ 必须裹 Toolbar.Root：`ReferenceImageChip`
           底下是 Radix `Toolbar.Button`，没有 roving-focus context 会直接抛。 */}
@@ -251,20 +253,20 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
             {tVideo('generateAudioLabel')}
           </button>
         ) : null}
+        {/* 模板在舞台上打开（模板 C），⛔ 不再是底部抽屉。 */}
+        <button
+          type="button"
+          onClick={templates.onToggle}
+          disabled={isGenerating}
+          aria-expanded={templates.open}
+          aria-controls={templates.open ? STUDIO_TEMPLATES_PANEL_ID : undefined}
+          data-testid="studio-mobile-template-chip"
+          className={cn(chipClass, templates.open && studioChipActiveClass)}
+        >
+          <FileText className="size-3.5 shrink-0" />
+          {tTemplates('templatePicker')}
+        </button>
         {/* 参考图沿用既有那颗 —— 它自带移动端抽屉宿主，这里不重造。 */}
-        <PromptTemplatePicker
-          currentModelId={selectedModel?.modelId}
-          currentOutputType={currentTemplateOutputType}
-          currentParams={currentTemplateParams}
-          currentPrompt={state.prompt}
-          currentProvider={
-            selectedModel
-              ? getProviderLabel(selectedModel.providerConfig)
-              : undefined
-          }
-          onApply={handleApplyRecipe}
-          onApplyInspiration={handleApplyInspiration}
-        />
         <ReferenceImageChip disabled={isGenerating} />
         {isVideo ? (
           <>
@@ -334,7 +336,13 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
       >
         {/* ⚠ 纵向内边距归 `PromptInputTextarea` 自己（它带 `min-h-[44px] py-2`）——
             外框再补一层 py 会让这一行变成 58px，composer 高度直接破 120。 */}
-        <div className="flex min-h-11 min-w-0 flex-1 items-center rounded-xl border border-border/60 px-3">
+        <div
+          className={cn(
+            'flex min-h-11 min-w-0 flex-1 items-center rounded-xl border border-border/60 px-3',
+            templates.restoring &&
+              'animate-in fade-in-40 duration-(--duration-base) ease-standard motion-reduce:animate-none',
+          )}
+        >
           {!isVideo ? (
             <StudioReferencePromptInput
               placeholder={t('promptPlaceholder')}
@@ -409,14 +417,6 @@ export const StudioMobileComposer = memo(function StudioMobileComposer() {
         </button>
       </PromptInput>
 
-      <PlaceholderFillDialog
-        open={placeholderDialog.open}
-        onOpenChange={(open) =>
-          setPlaceholderDialog((prev) => ({ ...prev, open }))
-        }
-        prompt={placeholderDialog.prompt}
-        onApply={applyInspirationPrompt}
-      />
       <StudioMobileModelSheet
         open={modelSheetOpen}
         onOpenChange={setModelSheetOpen}

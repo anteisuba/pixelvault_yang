@@ -37,19 +37,17 @@ import {
   useStudioGen,
 } from '@/contexts/studio-context'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
-import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useComposerSubmit } from '@/hooks/use-composer-submit'
-import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
+import { AI_ADAPTER_TYPES } from '@/constants/providers'
+import type { StudioModelOption } from '@/types/model-option'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
 import { focusStudioPrompt } from '@/lib/focus-studio-prompt'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
-import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
-import { PlaceholderFillDialog } from '@/components/business/prompts/inspiration/PlaceholderFillDialog'
 // 参数栏直接组合这几颗 —— 它们本来就是独立组件，不用经过一层横向工具条
 // （`StudioToolbarPanels` / `StudioToolbar` 已随 dock 一起退役）。
 import { ReferenceImageChip } from '@/components/business/studio/ReferenceImageChip'
@@ -79,6 +77,8 @@ import { StudioVideoPromptInput } from './StudioVideoPromptInput'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import {
   StudioChipLookProvider,
+  studioColumnChipClass,
+  studioColumnChipOpenClass,
   studioOutlineChipClass,
   studioOutlineChipCompactClass,
   studioOutlineChipCompactLabelClass,
@@ -124,10 +124,12 @@ const STUDIO_FLOATING_SURFACE_SELECTOR = [
 interface StudioPromptAreaProps {
   layout?: 'column' | 'bottom'
   /**
-   * 模板在舞台上打开（owner 2026-09-26 模板 C，`bottom` 布局）：给了它，工具行那颗
-   * 「模板」就开合舞台面板；不给（竖排参数栏）照旧开弹窗。
+   * 模板在舞台上打开（owner 2026-09-26 模板 C）：「模板」那颗开合的是舞台上那块
+   * 面板（宿主 `StudioWorkspaceUI` 持有开合与套用 / 撤销），⛔ 不再是弹窗。
+   * `restoring` = 刚撤销了一次套用：竖排栏的提示词框从 40% 淡回来（底部输入框那一版
+   * 由布局整张卡淡回，见 `StudioWorkbenchLayout.paramsClassName`）。
    */
-  templates?: { open: boolean; onToggle: () => void }
+  templates: { open: boolean; onToggle: () => void; restoring?: boolean }
 }
 
 export const StudioPromptArea = memo(function StudioPromptArea({
@@ -179,7 +181,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
    */
   const {
     selectedModel,
-    modelOptions,
     runModels,
     runModelIds,
     filterVideoModelOption,
@@ -215,15 +216,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     runModels,
     imageUpload.referenceEntries.length,
   )
-  const {
-    currentTemplateOutputType,
-    currentTemplateParams,
-    handleApplyRecipe,
-    handleApplyInspiration,
-    placeholderDialog,
-    setPlaceholderDialog,
-    applyInspirationPrompt,
-  } = useStudioPromptTemplates(modelOptions)
 
   // ── Quick Setup Dialog state ────────────────────────────────────
   const [quickSetup, setQuickSetup] = useState<{
@@ -240,7 +232,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     optionId: '',
   })
   const handleOpenQuickSetup = useCallback(
-    (option: (typeof modelOptions)[number]) => {
+    (option: StudioModelOption) => {
       setQuickSetup({
         open: true,
         modelId: option.modelId,
@@ -366,31 +358,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
           optionId={quickSetup.optionId}
         />
       )}
-      <PlaceholderFillDialog
-        open={placeholderDialog.open}
-        onOpenChange={(open) =>
-          setPlaceholderDialog((prev) => ({ ...prev, open }))
-        }
-        prompt={placeholderDialog.prompt}
-        onApply={applyInspirationPrompt}
-      />
     </>
-  )
-
-  const templatePicker = (
-    <PromptTemplatePicker
-      currentModelId={selectedModel?.modelId}
-      currentOutputType={currentTemplateOutputType}
-      currentParams={currentTemplateParams}
-      currentPrompt={state.prompt}
-      currentProvider={
-        selectedModel
-          ? getProviderLabel(selectedModel.providerConfig)
-          : undefined
-      }
-      onApply={handleApplyRecipe}
-      onApplyInspiration={handleApplyInspiration}
-    />
   )
 
   const negativePromptValue = state.advancedParams.negativePrompt ?? ''
@@ -513,15 +481,11 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             >
               <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
                 <ReferenceImageChip disabled={isGenerating} />
-                {templates ? (
-                  <StudioTemplatesChip
-                    open={templates.open}
-                    onToggle={templates.onToggle}
-                    disabled={isGenerating}
-                  />
-                ) : (
-                  templatePicker
-                )}
+                <StudioTemplatesChip
+                  open={templates.open}
+                  onToggle={templates.onToggle}
+                  disabled={isGenerating}
+                />
                 <StudioCardsButton disabled={isGenerating} />
                 <Toolbar.Button
                   type="button"
@@ -674,19 +638,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
         />
       )}
 
-      {/* 占位符填空 —— 灵感提示词里带 `{{...}}` 时弹它。
-          ⚠ 原来只长在已删除的 dock 分支里：`handleApplyInspiration` 一直在
-          `setPlaceholderDialog({open:true})`，但参数栏没有渲染它 —— 又一个
-          「状态活着、门没开」。挂在 fragment 根上（Dialog，无布局足迹）。 */}
-      <PlaceholderFillDialog
-        open={placeholderDialog.open}
-        onOpenChange={(open) =>
-          setPlaceholderDialog((prev) => ({ ...prev, open }))
-        }
-        prompt={placeholderDialog.prompt}
-        onApply={applyInspirationPrompt}
-      />
-
       {/* 两台之间那扇门的**这一侧**。⚠ 与标签台挂的是同一颗组件、同一个位置
           （参数列的第一行）—— 只装一边它就不是门，是单向阀。
           ⛔ 只给图片档：视频与音频没有方言这一说。 */}
@@ -722,7 +673,13 @@ export const StudioPromptArea = memo(function StudioPromptArea({
           <span className="text-2xs font-medium text-muted-foreground/70">
             {tForm('promptLabel')}
           </span>
-          <div className="studio-composer rounded-xl border border-border/60 px-2 py-1.5">
+          <div
+            className={cn(
+              'studio-composer rounded-xl border border-border/60 px-2 py-1.5',
+              templates.restoring &&
+                'animate-in fade-in-40 duration-(--duration-base) ease-standard motion-reduce:animate-none',
+            )}
+          >
             {/* ⚠ 视频档的参考图在素材轨上（带编号与角标），⛔ 不在这里再画一条。 */}
             {isVideoMode ? null : (
               <ImageAttachmentPreviewStrip
@@ -913,18 +870,10 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               : 'flex flex-wrap items-center gap-1.5',
           )}
         >
-          <PromptTemplatePicker
-            currentModelId={selectedModel?.modelId}
-            currentOutputType={currentTemplateOutputType}
-            currentParams={currentTemplateParams}
-            currentPrompt={state.prompt}
-            currentProvider={
-              selectedModel
-                ? getProviderLabel(selectedModel.providerConfig)
-                : undefined
-            }
-            onApply={handleApplyRecipe}
-            onApplyInspiration={handleApplyInspiration}
+          <StudioTemplatesChip
+            open={templates.open}
+            onToggle={templates.onToggle}
+            disabled={isGenerating}
           />
           {/* ⚠ 音频没有参考图这回事 —— dock 时代它的工具条里本来就没有这颗
               （`StudioToolbarPanels` 的音频分支只有 助手 / 音色 / 克隆 / 转脚本）。
@@ -956,8 +905,8 @@ export const StudioPromptArea = memo(function StudioPromptArea({
               disabled={isGenerating}
               // 与「模板」那颗同一种幽灵样式 —— 两颗并排，⛔ 一颗带框一颗不带。
               className={cn(
-                'flex h-9 items-center gap-2 rounded-full px-3 text-sm font-medium text-muted-foreground transition-colors duration-fast ease-standard hover:bg-muted/35 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/20 disabled:pointer-events-none disabled:opacity-50',
-                state.panels.script && 'bg-muted/55 text-foreground',
+                studioColumnChipClass,
+                state.panels.script && studioColumnChipOpenClass,
               )}
             >
               <FileText className="size-4" />

@@ -125,6 +125,7 @@ const FAKE_GENERATION = {
 
 const FAKE_COVER_GENERATION = {
   id: 'gen_source',
+  outputType: 'IMAGE',
   thumbnailUrl: 'https://cdn.example.com/gen.thumbnail.webp',
   previewUrl: 'https://cdn.example.com/gen.preview.webp',
   url: 'https://cdn.example.com/gen.png',
@@ -422,10 +423,53 @@ describe('listRecipes', () => {
       },
       select: {
         id: true,
+        outputType: true,
         thumbnailUrl: true,
         previewUrl: true,
         url: true,
       },
+    })
+  })
+
+  it('never uses a video or audio file itself as the cover image', async () => {
+    mockFindMany.mockResolvedValueOnce([
+      { ...FAKE_RECIPE, id: 'video_recipe', parentGenerationId: 'gen_video' },
+      { ...FAKE_RECIPE, id: 'audio_recipe', parentGenerationId: 'gen_audio' },
+      { ...FAKE_RECIPE, id: 'poster_recipe', parentGenerationId: 'gen_poster' },
+    ])
+    mockGenerationFindMany.mockResolvedValueOnce([
+      {
+        id: 'gen_video',
+        outputType: 'VIDEO',
+        thumbnailUrl: null,
+        previewUrl: null,
+        url: 'https://cdn.example.com/clip.mp4',
+      },
+      {
+        id: 'gen_audio',
+        outputType: 'AUDIO',
+        thumbnailUrl: null,
+        previewUrl: null,
+        url: 'https://cdn.example.com/voice.mp3',
+      },
+      {
+        id: 'gen_poster',
+        outputType: 'VIDEO',
+        thumbnailUrl: 'https://cdn.example.com/clip.poster.webp',
+        previewUrl: null,
+        url: 'https://cdn.example.com/clip2.mp4',
+      },
+    ])
+
+    const result = await listRecipes('clerk_test_user', 1, 20)
+
+    const covers = Object.fromEntries(
+      result.recipes.map((recipe) => [recipe.id, recipe.coverThumbnailUrl]),
+    )
+    expect(covers).toEqual({
+      video_recipe: null,
+      audio_recipe: null,
+      poster_recipe: 'https://cdn.example.com/clip.poster.webp',
     })
   })
 

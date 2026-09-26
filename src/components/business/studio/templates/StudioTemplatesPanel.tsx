@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 
 import {
   ArrowUpRight,
+  ChevronLeft,
   FileText,
   MoreHorizontal,
   Pencil,
@@ -56,6 +57,43 @@ const CARD_STAGGER_CLASS =
 const CARD_ARRIVE_CLASS =
   'animate-in fade-in-0 duration-(--duration-fast) ease-linear motion-reduce:animate-none'
 
+/** 这一台是哪一种模板：图片 / 标签（NAI）/ 视频 / 音频 —— 文案按它挑。 */
+type TemplateKind = 'image' | 'tags' | 'video' | 'audio'
+const TITLE_KEY = {
+  image: 'titleImage',
+  tags: 'titleTags',
+  video: 'titleVideo',
+  audio: 'titleAudio',
+} as const
+const EMPTY_KEY = {
+  image: 'emptyImage',
+  tags: 'emptyTags',
+  video: 'emptyVideo',
+  audio: 'emptyAudio',
+} as const
+const EMPTY_HINT_KEY = {
+  image: 'emptyHintImage',
+  tags: 'emptyHintTags',
+  video: 'emptyHintVideo',
+  audio: 'emptyHintAudio',
+} as const
+const FOOT_KEY = {
+  image: 'footImage',
+  tags: 'footTags',
+  video: 'footImage',
+  audio: 'footAudio',
+} as const
+const NAME_PLACEHOLDER_KEY = {
+  image: 'namePlaceholderImage',
+  tags: 'namePlaceholderTags',
+  video: 'namePlaceholderVideo',
+  audio: 'namePlaceholderAudio',
+} as const
+
+/** 手机上那几颗键 44px（ui-defaults §6）；头部两颗是图标键。 */
+const PHONE_ICON_BUTTON_CLASS =
+  'grid size-11 shrink-0 place-items-center rounded-xl text-foreground/75 transition-colors duration-(--duration-fast) ease-linear active:bg-surface-fill focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring'
+
 /** 「存下当前」要用的那一份：这一台此刻的提示词、模型与参数。 */
 export interface StudioTemplateSaveContext {
   outputType: OutputType
@@ -71,20 +109,32 @@ interface StudioTemplatesPanelProps {
   save: StudioTemplateSaveContext
   onApply: (recipe: RecipeRecord) => void
   onClose: () => void
+  /**
+   * `stage` = 桌面舞台（头部一行：标题 · 搜索 · 新建 · 返回结果，底下一行说明）；
+   * `phone` = 手机（画板「模板 C · 手机」：头部 ‹ 标题 ＋，搜索独占一行，⛔ 没有
+   * 底下那行说明，键 44px）。
+   */
+  variant?: 'stage' | 'phone'
+  /** 提示词框在舞台下面（底部输入框）：空着时说「先在下面写」，否则不指方位。 */
+  promptBelow?: boolean
 }
 
+/**
+ * 「存下」挂的那一张：只认这一台刚出的那一件（换过档的上一件 ⛔ 不挂）；封面只能
+ * 是一张图 —— 视频只认封面帧，音频没有。
+ */
 function coverOf(
   generation: {
+    outputType: OutputType
     thumbnailUrl?: string | null
     previewUrl?: string | null
     url?: string | null
   } | null,
 ): string | null {
+  if (!generation) return null
+  if (generation.outputType !== 'IMAGE') return generation.thumbnailUrl ?? null
   return (
-    generation?.thumbnailUrl ??
-    generation?.previewUrl ??
-    generation?.url ??
-    null
+    generation.thumbnailUrl ?? generation.previewUrl ?? generation.url ?? null
   )
 }
 
@@ -104,6 +154,8 @@ export function StudioTemplatesPanel({
   save,
   onApply,
   onClose,
+  variant = 'stage',
+  promptBelow = true,
 }: StudioTemplatesPanelProps) {
   const t = useTranslations('StudioTemplates')
   const router = useRouter()
@@ -120,6 +172,14 @@ export function StudioTemplatesPanel({
     restoreRecipe,
   } = useRecipes(true)
   const tags = dialect === 'tags'
+  const phone = variant === 'phone'
+  const kind: TemplateKind = tags
+    ? 'tags'
+    : save.outputType === 'VIDEO'
+      ? 'video'
+      : save.outputType === 'AUDIO'
+        ? 'audio'
+        : 'image'
 
   const [query, setQuery] = useState('')
   const [creating, setCreating] = useState(false)
@@ -159,14 +219,20 @@ export function StudioTemplatesPanel({
       ?.focus({ preventScroll: true })
   })
   // 打开时焦点落到标题（给读屏一个落点）；收起时还给打开它的那颗按钮。
+  const [openedOnPhone] = useState(phone)
   useEffect(() => {
     const trigger =
       document.activeElement instanceof HTMLElement
         ? document.activeElement
         : null
     heading.current?.focus({ preventScroll: true })
+    // 手机上整页在滚（标签 · 音频台面板还在参数下面）：把面板顶到顶栏下面；
+    // 桌面舞台只在看不见时才动。
+    section.current?.scrollIntoView({
+      block: openedOnPhone ? 'start' : 'nearest',
+    })
     return () => trigger?.focus({ preventScroll: true })
-  }, [])
+  }, [openedOnPhone])
 
   useEffect(() => {
     if (!formLeaving) return
@@ -207,7 +273,9 @@ export function StudioTemplatesPanel({
     setFirstBatch(new Set(scoped.map((recipe) => recipe.id)))
 
   const currentPrompt = save.prompt.trim()
-  const lastCover = coverOf(lastGeneration)
+  const lastOwn =
+    lastGeneration?.outputType === save.outputType ? lastGeneration : null
+  const lastCover = coverOf(lastOwn)
   const saved = savedFor !== null && savedFor.prompt === currentPrompt
   const canSave = Boolean(currentPrompt && save.modelId && save.provider)
 
@@ -231,7 +299,7 @@ export function StudioTemplatesPanel({
     setSavingNow(true)
     try {
       const result = await createRecipeAPI(
-        buildPayload(name, currentPrompt, lastGeneration?.id),
+        buildPayload(name, currentPrompt, lastOwn?.id),
       )
       if (result.success && result.data) {
         addRecipe({
@@ -342,18 +410,45 @@ export function StudioTemplatesPanel({
 
   const title = creating
     ? t('titleNew')
-    : t(tags ? 'titleTags' : 'titleImage', {
+    : t(TITLE_KEY[kind], {
         // 首次加载还没数出来：写「…」，⛔ 不写「0」。
         count: isLoading ? '…' : scoped.length,
       })
   const formShown = creating || formLeaving
+
+  const searchField = (
+    <label
+      className={cn(
+        'flex min-w-0 items-center gap-2 rounded-lg bg-surface-fill px-3 text-muted-foreground',
+        phone ? 'h-11 w-full shrink-0' : 'h-9 w-64',
+      )}
+    >
+      <Search className="size-3.5 shrink-0" aria-hidden />
+      <input
+        type="search"
+        aria-label={t('search')}
+        placeholder={t('search')}
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大整页。
+        className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/70 md:text-2sm"
+      />
+    </label>
+  )
 
   return (
     <section
       ref={section}
       id={STUDIO_TEMPLATES_PANEL_ID}
       aria-labelledby={`${STUDIO_TEMPLATES_PANEL_ID}-title`}
-      className="@container/templates flex min-h-0 flex-1 flex-col gap-4"
+      className={cn(
+        '@container/templates flex min-h-0 flex-col',
+        // 手机：高度钉在舞台看得见的那一段，只有网格在里面滚（globals.css）。
+        // ⚠ `flex-none`：`flex-1` 的 basis 是 0%，会让那个高度失效。
+        phone
+          ? 'studio-mobile-stage-panel flex-none scroll-mt-16 gap-3'
+          : 'flex-1 gap-4',
+      )}
       onKeyDown={(event) => {
         if (event.key !== 'Escape') return
         // ⚠ ⋯ 菜单住在 portal 里，它的 Esc 照样沿 React 树冒上来 —— 那一下只该收
@@ -364,46 +459,71 @@ export function StudioTemplatesPanel({
         else onClose()
       }}
     >
-      <div className="flex h-9 shrink-0 items-center gap-2.5">
-        {/* ⚠ `outline-none`：打开时焦点被程序挪到这里（给读屏一个落点）。 */}
-        <h2
-          ref={heading}
-          id={`${STUDIO_TEMPLATES_PANEL_ID}-title`}
-          tabIndex={-1}
-          className="mr-auto truncate text-md font-semibold outline-none"
-        >
-          {title}
-        </h2>
-        {creating ? null : (
-          <>
-            <label className="flex h-9 w-64 min-w-0 items-center gap-2 rounded-lg bg-surface-fill px-3 text-muted-foreground">
-              <Search className="size-3.5 shrink-0" aria-hidden />
-              <input
-                type="search"
-                aria-label={t('search')}
-                placeholder={t('search')}
-                value={query}
-                onChange={(event) => setQuery(event.target.value)}
-                // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大整页。
-                className="min-w-0 flex-1 bg-transparent text-base text-foreground outline-none placeholder:text-muted-foreground/70 md:text-2sm"
-              />
-            </label>
-            <Button
+      {phone ? (
+        <>
+          <div className="flex h-11 shrink-0 items-center gap-1.5">
+            <button
               type="button"
-              variant="outline"
-              size="sm"
-              data-template-create=""
-              onClick={openForm}
+              aria-label={t('back')}
+              onClick={onClose}
+              className={PHONE_ICON_BUTTON_CLASS}
             >
-              <Plus className="size-3.5" aria-hidden />
-              {t('create')}
-            </Button>
-          </>
-        )}
-        <Button type="button" variant="outline" size="sm" onClick={onClose}>
-          {t('back')}
-        </Button>
-      </div>
+              <ChevronLeft className="size-4" aria-hidden />
+            </button>
+            {/* ⚠ `outline-none`：打开时焦点被程序挪到这里（给读屏一个落点）。 */}
+            <h2
+              ref={heading}
+              id={`${STUDIO_TEMPLATES_PANEL_ID}-title`}
+              tabIndex={-1}
+              className="min-w-0 flex-1 truncate text-md font-semibold outline-none"
+            >
+              {title}
+            </h2>
+            {creating ? null : (
+              <button
+                type="button"
+                aria-label={t('create')}
+                data-template-create=""
+                onClick={openForm}
+                className={PHONE_ICON_BUTTON_CLASS}
+              >
+                <Plus className="size-4" aria-hidden />
+              </button>
+            )}
+          </div>
+          {creating ? null : searchField}
+        </>
+      ) : (
+        <div className="flex h-9 shrink-0 items-center gap-2.5">
+          {/* ⚠ `outline-none`：打开时焦点被程序挪到这里（给读屏一个落点）。 */}
+          <h2
+            ref={heading}
+            id={`${STUDIO_TEMPLATES_PANEL_ID}-title`}
+            tabIndex={-1}
+            className="mr-auto truncate text-md font-semibold outline-none"
+          >
+            {title}
+          </h2>
+          {creating ? null : (
+            <>
+              {searchField}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                data-template-create=""
+                onClick={openForm}
+              >
+                <Plus className="size-3.5" aria-hidden />
+                {t('create')}
+              </Button>
+            </>
+          )}
+          <Button type="button" variant="outline" size="sm" onClick={onClose}>
+            {t('back')}
+          </Button>
+        </div>
+      )}
 
       {/* 列表与表单叠在同一格：列表只淡出、⛔ 不藏不卸 —— 原路换回时卡片不再演
           一遍入场，焦点也能当场落回列表里。 */}
@@ -411,13 +531,19 @@ export function StudioTemplatesPanel({
         <div
           inert={creating}
           className={cn(
-            'flex min-h-0 flex-1 flex-col gap-4 transition-opacity motion-reduce:transition-none',
+            'flex min-h-0 flex-1 flex-col transition-opacity motion-reduce:transition-none',
+            phone ? 'gap-3' : 'gap-4',
             creating
               ? 'opacity-0 duration-(--duration-fast) ease-linear'
               : 'opacity-100 delay-(--duration-fast) duration-(--duration-base) ease-standard',
           )}
         >
-          <div className="-mx-1.5 grid min-h-0 flex-1 auto-rows-min grid-cols-2 content-start gap-2.5 overflow-y-auto px-px pb-1.5 @2xl/templates:grid-cols-3 @4xl/templates:grid-cols-4 @6xl/templates:grid-cols-5">
+          <div
+            className={cn(
+              'grid min-h-0 flex-1 auto-rows-min grid-cols-2 content-start overflow-y-auto px-px pb-1.5 @2xl/templates:grid-cols-3 @4xl/templates:grid-cols-4 @6xl/templates:grid-cols-5',
+              phone ? '-mx-1 gap-2' : '-mx-1.5 gap-2.5',
+            )}
+          >
             {/* 左上那张「当前提示词」：生成满意了，一键存下。 */}
             <div className="animate-in fade-in-0 slide-in-from-bottom-2 duration-(--duration-slow) ease-standard motion-reduce:animate-none">
               <div
@@ -442,7 +568,15 @@ export function StudioTemplatesPanel({
                     {saved
                       ? t(lastCover ? 'savedWithCover' : 'savedNoCover')
                       : currentPrompt ||
-                        t(tags ? 'nowEmptyTags' : 'nowEmptyImage')}
+                        t(
+                          promptBelow
+                            ? tags
+                              ? 'nowEmptyTags'
+                              : 'nowEmptyImage'
+                            : tags
+                              ? 'nowEmptyTagsPlain'
+                              : 'nowEmptyPrompt',
+                        )}
                   </span>
                 </span>
                 {saved ? null : (
@@ -450,7 +584,11 @@ export function StudioTemplatesPanel({
                     type="button"
                     disabled={!canSave || savingNow}
                     onClick={() => void saveNow()}
-                    className="ml-0.5 h-7.5 self-start rounded-lg bg-foreground px-3 text-2sm font-medium text-background transition-opacity duration-(--duration-fast) ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40"
+                    className={cn(
+                      'rounded-lg bg-foreground px-3 text-2sm font-medium text-background transition-opacity duration-(--duration-fast) ease-linear hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-40',
+                      // 手机：整宽 36px（画板「模板 C · 手机」）。
+                      phone ? 'h-9 w-full' : 'ml-0.5 h-7.5 self-start',
+                    )}
                   >
                     {savingNow ? t('saving') : t('save')}
                   </button>
@@ -491,11 +629,9 @@ export function StudioTemplatesPanel({
 
             {!isLoading && !error && scoped.length === 0 ? (
               <div className="col-span-full flex flex-col items-center gap-2.5 py-12 text-center">
-                <b className="text-sm font-semibold">
-                  {t(tags ? 'emptyTags' : 'emptyImage')}
-                </b>
+                <b className="text-sm font-semibold">{t(EMPTY_KEY[kind])}</b>
                 <span className="text-2sm text-muted-foreground">
-                  {t(tags ? 'emptyHintTags' : 'emptyHintImage')}
+                  {t(EMPTY_HINT_KEY[kind])}
                 </span>
               </div>
             ) : null}
@@ -552,7 +688,8 @@ export function StudioTemplatesPanel({
                     >
                       <div
                         className={cn(
-                          'group/card relative rounded-xl p-1.5 transition-colors duration-(--duration-fast) ease-linear',
+                          'group/card relative rounded-xl transition-colors duration-(--duration-fast) ease-linear',
+                          phone ? 'p-1' : 'p-1.5',
                           menuOpen
                             ? 'bg-surface-fill'
                             : 'hover:bg-surface-fill',
@@ -640,7 +777,8 @@ export function StudioTemplatesPanel({
                                   type="button"
                                   aria-label={t('more', { name })}
                                   className={cn(
-                                    'absolute right-3 top-3 grid size-7 place-items-center rounded-lg bg-card/95 text-foreground/75 shadow-sm transition-opacity duration-(--duration-fast) ease-linear hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:opacity-100',
+                                    // 触屏没有悬停：⋯ 常驻，命中区补到 44（-inset-2）。
+                                    'absolute right-3 top-3 grid size-7 place-items-center rounded-lg bg-card/95 text-foreground/75 shadow-sm transition-opacity duration-(--duration-fast) ease-linear hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring coarse:opacity-100 coarse:before:absolute coarse:before:-inset-2',
                                     menuOpen
                                       ? 'opacity-100'
                                       : 'opacity-0 group-hover/card:opacity-100',
@@ -718,19 +856,20 @@ export function StudioTemplatesPanel({
             </AnimatePresence>
           </div>
 
-          <div className="flex shrink-0 items-center justify-between gap-3 text-xs text-muted-foreground">
-            <span className="truncate">
-              {t(tags ? 'footTags' : 'footImage')}
-            </span>
-            <button
-              type="button"
-              onClick={() => router.push(ROUTES.PROMPTS)}
-              className="inline-flex shrink-0 items-center gap-1 rounded-sm text-foreground/75 transition-colors duration-(--duration-fast) ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {t('manage')}
-              <ArrowUpRight className="size-3" aria-hidden />
-            </button>
-          </div>
+          {/* 手机上 ⛔ 没有这一行（画板「模板 C · 手机」）。 */}
+          {phone ? null : (
+            <div className="flex shrink-0 items-center justify-between gap-3 text-xs text-muted-foreground">
+              <span className="truncate">{t(FOOT_KEY[kind])}</span>
+              <button
+                type="button"
+                onClick={() => router.push(ROUTES.PROMPTS)}
+                className="inline-flex shrink-0 items-center gap-1 rounded-sm text-foreground/75 transition-colors duration-(--duration-fast) ease-linear hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                {t('manage')}
+                <ArrowUpRight className="size-3" aria-hidden />
+              </button>
+            </div>
+          )}
         </div>
 
         {formShown ? (
@@ -744,7 +883,10 @@ export function StudioTemplatesPanel({
           >
             <form
               onSubmit={(event) => void submitForm(event)}
-              className="mx-auto mt-6 flex w-full max-w-140 flex-col gap-3.5"
+              className={cn(
+                'mx-auto flex w-full max-w-140 flex-col',
+                phone ? 'gap-3' : 'mt-6 gap-3.5',
+              )}
             >
               <label className="flex flex-col gap-1.5">
                 <span className="text-xs font-semibold text-foreground/75">
@@ -756,10 +898,11 @@ export function StudioTemplatesPanel({
                   maxLength={200}
                   autoFocus
                   onChange={(event) => setFormName(event.target.value)}
-                  placeholder={t(
-                    tags ? 'namePlaceholderTags' : 'namePlaceholderImage',
+                  placeholder={t(NAME_PLACEHOLDER_KEY[kind])}
+                  className={cn(
+                    'rounded-lg border border-border bg-background px-3 text-base outline-none focus-visible:border-foreground focus-visible:ring-3 focus-visible:ring-muted md:text-2sm',
+                    phone ? 'h-11' : 'h-9',
                   )}
-                  className="h-9 rounded-lg border border-border bg-background px-3 text-base outline-none focus-visible:border-foreground focus-visible:ring-3 focus-visible:ring-muted md:text-2sm"
                 />
               </label>
               <label className="flex flex-col gap-1.5">
@@ -774,22 +917,37 @@ export function StudioTemplatesPanel({
                   placeholder={t(
                     tags ? 'tagsPlaceholder' : 'promptPlaceholder',
                   )}
-                  className="resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-base leading-5 outline-none focus-visible:border-foreground focus-visible:ring-3 focus-visible:ring-muted md:text-2sm"
+                  className={cn(
+                    'resize-none rounded-lg border border-border bg-background px-3 py-2.5 text-base leading-5 outline-none focus-visible:border-foreground focus-visible:ring-3 focus-visible:ring-muted md:text-2sm',
+                    phone && 'h-40',
+                  )}
                 />
               </label>
-              <div className="flex items-center gap-2">
-                <span className="mr-auto text-xs text-muted-foreground">
-                  {save.modelId ? t('formNote') : t('modelMissing')}
+              {/* 手机：取消 / 保存各占一半、44px；那句说明只在缺模型时出现。 */}
+              {phone && !save.modelId ? (
+                <span className="text-xs text-muted-foreground">
+                  {t('modelMissing')}
                 </span>
+              ) : null}
+              <div className="flex items-center gap-2">
+                {phone ? null : (
+                  <span className="mr-auto text-xs text-muted-foreground">
+                    {save.modelId
+                      ? t(kind === 'audio' ? 'formNoteAudio' : 'formNote')
+                      : t('modelMissing')}
+                  </span>
+                )}
                 <Button
                   type="button"
                   variant="outline"
+                  className={cn(phone && 'h-11 flex-1')}
                   onClick={() => leaveForm('[data-template-create]')}
                 >
                   {t('cancel')}
                 </Button>
                 <Button
                   type="submit"
+                  className={cn(phone && 'h-11 flex-1')}
                   disabled={
                     !formPrompt.trim() ||
                     formSaving ||

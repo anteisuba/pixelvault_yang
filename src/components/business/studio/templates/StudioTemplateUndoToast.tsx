@@ -19,10 +19,16 @@ export function StudioTemplateUndoToast({
   name,
   onUndo,
   onDismiss,
+  anchor = 'above',
 }: {
   name: string
   onUndo: () => void
   onDismiss: () => void
+  /**
+   * `above` = 浮在输入框 / 底栏的上沿（挂在它们里面，绝对定位到外面）；
+   * `inside` = 舞台底部居中（竖排参数栏的视频台没有底部输入框）。
+   */
+  anchor?: 'above' | 'inside'
 }) {
   const t = useTranslations('StudioTemplates')
   const [hovered, setHovered] = useState(false)
@@ -49,7 +55,8 @@ export function StudioTemplateUndoToast({
       onPointerEnter={() => setHovered(true)}
       onPointerLeave={() => setHovered(false)}
       className={cn(
-        'absolute bottom-full left-1/2 mb-3 flex h-10 max-w-lg -translate-x-1/2 items-center gap-3 rounded-full bg-foreground pl-4 pr-1.5 text-2sm whitespace-nowrap text-background shadow-overlay duration-(--duration-base) ease-standard motion-reduce:animate-none',
+        'absolute left-1/2 z-10 flex h-10 max-w-9/10 -translate-x-1/2 items-center gap-3 rounded-full bg-foreground pl-4 pr-1.5 text-2sm whitespace-nowrap text-background shadow-overlay duration-(--duration-base) ease-standard motion-reduce:animate-none md:max-w-lg',
+        anchor === 'above' ? 'bottom-full mb-3' : 'bottom-6',
         leaving
           ? 'pointer-events-none animate-out fade-out-0 fill-mode-forwards'
           : 'pointer-events-auto animate-in fade-in-0 slide-in-from-bottom-2',

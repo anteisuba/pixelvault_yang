@@ -407,17 +407,19 @@ export const STUDIO_OPERATOR_SHELL = {
   /** 头部左右内距（`px-3`）—— 头像落位的 x 由它算出来，⛔ 不量 DOM。 */
   headerPadXPx: 12,
   /**
-   * 展开 / 收起那两段过渡的时长（画板 ②「动画怎么做」那一支写死）。
+   * 展开 / 收起两段的**定时器**（形状是 B「先横成一条，再落下」，owner 2026-09-26；
+   * 弹簧与节拍住 `constants/motion.ts` 的 `LIQUID_SPRING` / `LIQUID_TIMING`）。
    *
-   * ⚠ 240 / 200 不是 `--duration-*` 里的任何一档，但它们**是这颗外壳原本就在用
-   *   的两个数**（`StudioOperatorDock.module.css` 的 shell 过渡与外壳卸载定时器），
-   *   ⛔ 别为它们往 `globals.css` 的脊柱里新造 token：那是全站的东西，一颗面板的
-   *   morph 不配进去。曲线仍走脊柱的 `--ease-standard`。
-   * ⚠ 卸载靠**定时器**读这个数，⛔ 不靠 `animationend` / `transitionend`：后台标签页
-   *   里 rAF 冻结，事件永远不来，留下的是一个吃着点击的幽灵面板（Dock 头注那条）。
+   * ⚠ `openMs` 只是**兜底**：正常路径上第二拍那根弹簧落定就进 `open`；它 ≈ 第二拍
+   *   起跳（160）+ 纵向弹簧从整高收敛到半像素（≈ 460）。
+   * ⚠ `closeMs` 是**唯一**的卸载时机：≈ 内容先退（60）+ 第二拍起跳（140）+ 横向
+   *   弹簧收敛（≈ 380）。改短了面板会在缩回头像之前被摘掉，改长了会留下一段
+   *   「已经不动了但还摘不掉」的死时间。⛔ 不靠 `animationend` / `transitionend` /
+   *   弹簧的 `finished`：后台标签页里 rAF 冻结，它们永远不来，留下的是一个吃着点击的
+   *   幽灵面板（Dock 头注那条）。
    */
-  openMs: 240,
-  closeMs: 200,
+  openMs: 620,
+  closeMs: 580,
   /**
    * 空态那排建议 chip **逐颗错开**多久（D7c ④ 画板动效表：入场 180ms 错开 30ms）。
    *

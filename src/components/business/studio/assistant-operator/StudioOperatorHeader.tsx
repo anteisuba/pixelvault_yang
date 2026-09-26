@@ -248,6 +248,9 @@ export function StudioOperatorHeader({
     <div
       data-testid="operator-header"
       data-working={working ? 'true' : 'false'}
+      /* 外壳按它分两批换场：头部随第一拍（头部条）进场，其余随第二拍
+         （`StudioOperatorDock.module.css` 的 `.content > [data-shell-part='head']`）。 */
+      data-shell-part="head"
       /* ⚠ 头部**不铺自己的底**（§12.1）：它坐在面板那层玻璃上，给它一层
          `bg-card` 等于在玻璃上又糊一块不透明白 —— 分层交给那条下边线。 */
       className="shrink-0 border-b border-border"

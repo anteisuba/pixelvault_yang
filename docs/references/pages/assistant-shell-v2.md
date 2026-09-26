@@ -456,7 +456,7 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 ### 4.3 收起态 = 右上角那颗人设头像（D7b ④，owner 2026-09-20）
 
-> Last Verified: 2026-09-20（owner 拍板 D7b ④ · 画板 `DesignD7bToggle` / `DesignD7bMap`）
+> Last Verified: 2026-09-26（owner 拍板 D7b ④ · 画板 `DesignD7bToggle` / `DesignD7bMap`；09-26 展开形状改 B，真机 3000 复验展开两拍与后台卸载）
 
 收起态四处统一成**右上角一颗 36px 人设头像 + 数字角标**。**头像就是唯一开关**：点它展开，点面板头部那颗（同一颗）或 Esc 收起。
 
@@ -482,24 +482,29 @@ Owner 已选择三方向原型中的 A 并授权修复。关键切片为四张�
 
 位移与缩放是**纯算术**（`operatorAvatarShift`）：收起位左缘 `V - avatarRight - 36`，头部槽左缘 `V - panelRight - width + 12`，两式相减视口宽抵消——所以它**与视口宽无关**，⛔ 不量 DOM、⛔ 不挂 resize 监听。缩放比恒为 `22 / 36`。
 
-#### 动画机制与铁律（owner 09-20 逐条定）
+#### 动画机制与铁律（owner 09-20 定相位机 · 09-26 形状改 B）
 
-四档相位：`closed → opening →`（**transitionend**，外加一条兜底定时器）`→ open → closing →`（**定时器** `closeMs`）`→ closed`。
+形状 = **B「先横成一条，再落下」**（owner 2026-09-26 从三方向原型里选定，原型 artifact `GFfqsraLtaRRBBKigkmCuT`）：面板按全尺寸排版，只动 `clip-path: inset()` 的左 / 下两条内缩。收起形是右上角一颗头像大小的圆 → 第一拍横向拉成 44px 头部条、头部进场 → 160ms 后纵向长成面板、正文进场。收回反着走。弹簧与节拍只住 `constants/motion.ts` 的 `LIQUID_SPRING` / `LIQUID_TIMING`。
 
-| 铁律                                                                        | 为什么                                                                               |
-| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| **只过渡 `transform`**（头像）                                              | ⛔ 不动 width / height / top / left——那四样每帧都要重排                              |
-| 面板从右上角 `transform-origin: top right`，`scale(0.92)` + `opacity 0 → 1` | 与头像**同时长同曲线**（240ms · `--ease-standard`）                                  |
-| 关闭 200ms `ease-in`，**定时器**卸载                                        | ⛔ 不靠 `animationend` / `transitionend`：后台页 rAF 冻结，事件永不来，留下幽灵面板  |
-| ⛔ 不用 `AnimatePresence`                                                   | 同上一条，2026-08-30 真机实测                                                        |
-| **过渡中不开 `backdrop-filter`**                                            | `assistant-glass-panel` 在 `transitionend` 之后才挂；`prefers-reduced-motion` 直接挂 |
-| 阴影不做过渡                                                                | 它常驻（`shadow-assistant-panel`），⛔ 不进任何一条 `transition`                     |
-| 外壳先出，内容 **80ms 后 160ms** 淡入                                       | 内容与外壳同时出会看起来像一张纸被拍上来                                             |
-| `will-change: transform` 只在那 240ms 内                                    | 常驻的 `will-change` 会把图层永远留在合成器里                                        |
-| 过渡中面板 `pointer-events: none`                                           | 动着的面板上点中的格子与松手那一格不是同一个                                         |
-| `prefers-reduced-motion` 全部直切                                           | 没有中间相位，毛玻璃当场就挂                                                         |
+四档相位：`closed → opening →`（第二拍弹簧落定，外加一条兜底定时器 `openMs`）`→ open → closing →`（**定时器** `closeMs`）`→ closed`。
 
-入场起始帧靠 CSS 的 `@starting-style`——⛔ 不用「先挂 closed 再 rAF 翻 opening」那种两帧 setState，低端机上照样漏第一帧。
+| 铁律                                                         | 为什么                                                                                                  |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| 面板**只裁剪不变尺寸**：动 clip-path 内缩，⛔ 不动宽高与位置 | width / height / top / left 每帧都要重排整棵面板                                                        |
+| 头像不单独计时，骑在形状左上角                               | 进度 = 左边沿走了多少（`dockProgress`），头像只动 transform                                             |
+| 静止档 `clip-path: none`，⚠ 与动着时是同一个 motion 值       | motion 的 style 从 motion 值换成静态字符串时不解绑，DOM 会留着最后一帧的裁剪                            |
+| 动着时投影挂在外层包裹的 `drop-shadow` 上，静止后撤掉        | 滤镜先于裁剪执行，box-shadow 会被自己的 clip-path 裁掉；静止档撤滤镜，`@` 候选菜单的 fixed 定位不受影响 |
+| **定时器**卸载                                               | ⛔ 不靠弹簧的 `finished` / `transitionend`：后台页 rAF 冻结，它们永不来，留下幽灵面板（09-26 真机复验） |
+| ⛔ 不用 `AnimatePresence`                                    | 同上一条，2026-08-30 真机实测                                                                           |
+| **动着时不开 `backdrop-filter`**                             | `assistant-glass-panel` 在 `open` 相位才挂；`prefers-reduced-motion` 直接挂                             |
+| 内容分两批：头部随第一拍、其余随第二拍，带 6px 短模糊        | 与形状同时出会看起来像一张纸被拍上来；收起时内容先退 90ms，形状才开始收                                 |
+| 动着时面板 `pointer-events: none`                            | 动着的面板上点中的格子与松手那一格不是同一个                                                            |
+| `prefers-reduced-motion` 全部直切                            | 没有中间相位，毛玻璃当场就挂                                                                            |
+| 连点不从头播                                                 | 新一段 `animate` 从当前位置与速度接着走，只作废还没发出的那一拍                                         |
+
+画布宿主的头像在顶栏、面板在顶栏下方：头部条从头像正下方长出来，头像落进它的左端，⛔ 不为这一拍去压顶栏。
+
+内容入场的起始帧靠 CSS 的 `@starting-style`；形状的起始帧由 layout effect 在上屏前量好尺寸、把内缩跳到收起形——⛔ 不用「先挂 closed 再 rAF 翻 opening」那种两帧 setState，低端机上照样漏第一帧。
 
 **⛔ 已删掉的**：此前那张「微状态卡」（头像 + 名字 + 微状态词 + 待办计数 + 参数摘要三行 + 底部状态）与手机那颗独立 fab，**两个组件一起删**，⛔ 不留兼容形态；D7 那颗 44px 近黑圆按钮同样已删。
 

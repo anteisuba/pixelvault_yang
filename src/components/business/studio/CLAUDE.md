@@ -31,7 +31,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       └── StudioResultFeedback / StudioAudioFeedback / StudioGenerationErrorDialog
         ├── StudioAssistantDock + StudioAssistantFab (studio-shared/chrome/ + studio/ — 旧助手，只剩音频档走它；图片/视频已归 operator)
         ├── StudioOperatorDock (studio/assistant-operator/ — 操作员面板外壳：宽度/收放；图片+视频档)
-        │   ├── StudioOperatorAvatarToggle (**头像开关**：36px 人设头像 + 数字角标（待确认 + 未读结果，打开面板清零），**右上角**；一个持久 fixed 元素、两个锚点（顶栏 36 ↔ 面板头部槽 22），只过渡 transform。D7b ④。⛔ StudioOperatorCollapsedButton · StudioOperatorIconRail · StudioOperatorCollapsedCard · StudioOperatorMobileFab 四个文件都已删)
+        │   ├── StudioOperatorAvatarToggle (**头像开关**：36px 人设头像 + 数字角标（待确认 + 未读结果，打开面板清零），**右上角**；一个持久 fixed 元素、两个锚点（顶栏 36 ↔ 面板头部槽 22），位移跟着形状左边沿走。D7b ④；展开形状 = B「先横成一条，再落下」（clip-path，09-26），铁律见 v2 §4.3。⛔ StudioOperatorCollapsedButton · StudioOperatorIconRail · StudioOperatorCollapsedCard · StudioOperatorMobileFab 四个文件都已删)
         │   ├── StudioOperatorMobileSheet (手机 vaul Sheet：**接近满屏 95svh、顶上只留一条窄缝**，往下拖即关；`modal={false}` 不画遮罩也不锁 body —— 装的是下面同一个 Panel 元素。⛔ 半屏 0.55 与 `snapPoints` 整套已删（owner 2026-09-20「半屏高度不够」），软键盘由 `maxHeight` 扣 `--keyboard-inset` 接住)
         │   └── StudioOperatorPanel (同目录 — 面板内容：空态 / 时间线 / 双行输入区)
         │       ├── StudioOperatorHeader (头部一行 44px：左上头像槽（桌面留位给外壳那颗，手机自己画）/ 会话标题▾（= 历史下拉、唯一的历史入口，新会话在底部）/ 续跑 / 右上一颗 ⋯（助手设置 · 隐身）。⛔ 收起钮已删，收起 = 点头像；⛔ 域标记胶囊已搬去输入框上方（D7c ④）)

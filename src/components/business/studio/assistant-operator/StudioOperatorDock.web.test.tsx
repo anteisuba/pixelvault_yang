@@ -418,61 +418,51 @@ describe('StudioOperatorDock · 手机档', () => {
 })
 
 /**
- * ── morph 的四档相位（D7b ④ · 画板 ②「动画怎么做」）─────────────────
+ * ── 开合的四档相位（D7b ④ 相位机 · 2026-09-26 形状改 B）───────────────
  *
  * 逐条钉铁律：
- *  ① 过渡中面板 `pointer-events-none` + `will-change`（CSS module 按 `data-phase`
- *     挂），过渡完两样都撤；
- *  ② **毛玻璃在 transitionend 之后才出现**（过渡中开 `backdrop-filter` 会掉帧）；
- *  ③ 收回靠**定时器**（200ms）卸载 —— ⛔ 不靠 transitionend / animationend：
- *     后台标签页里那个事件永远不来，留下的是幽灵面板；
- *  ④ 展开那条兜底定时器（240 + slack）在事件不来时照样把相位推到 `open`。
+ *  ① 动着时面板不可点、无毛玻璃（CSS module 按 `data-phase` 挂 `pointer-events: none`）；
+ *  ② **毛玻璃在形状落定之后才出现**（动着时开 `backdrop-filter` 会掉帧）；
+ *  ③ 收回靠**定时器**（`closeMs`）卸载 —— ⛔ 不靠弹簧的 `finished`：后台标签页里
+ *     它永远不来，留下的是幽灵面板；
+ *  ④ 展开那条兜底定时器（`openMs` + slack）在弹簧不落定时照样把相位推到 `open`；
+ *  ⑤ 动着时投影挂在外层包裹上（clip-path 会裁掉面板自己的 box-shadow）。
  */
 describe('StudioOperatorDock · 头像开关的过渡', () => {
   beforeEach(() => {
     hostOpen = false
   })
 
-  it('①②④ 过渡中不可点、无毛玻璃；transitionend 之后两样都到位', () => {
-    const view = render(<StudioOperatorDock />)
-    hostOpen = true
-    view.rerender(<StudioOperatorDock />)
-
-    const panel = screen.getByTestId('operator-panel')
-    expect(panel.dataset.phase).toBe('opening')
-    expect(panel.className).not.toContain('assistant-glass-panel')
-    expect(panel.className).not.toContain('pointer-events-auto')
-    expect(screen.getByTestId('operator-avatar-toggle').dataset.phase).toBe(
-      'opening',
-    )
-
-    act(() => {
-      fireEvent.transitionEnd(panel, { propertyName: 'transform' })
-    })
-    expect(screen.getByTestId('operator-panel').dataset.phase).toBe('open')
-    expect(screen.getByTestId('operator-panel').className).toContain(
-      'assistant-glass-panel',
-    )
-    expect(screen.getByTestId('operator-panel').className).toContain(
-      'pointer-events-auto',
-    )
-  })
-
-  it('④ transitionend 不来时，兜底定时器照样把相位推到 open', () => {
+  it('①②④⑤ 动着时不可点、无毛玻璃、影子在外层；兜底定时器到点两样都到位', () => {
     vi.useFakeTimers()
     try {
       const view = render(<StudioOperatorDock />)
       hostOpen = true
       view.rerender(<StudioOperatorDock />)
-      expect(screen.getByTestId('operator-panel').dataset.phase).toBe('opening')
+
+      const panel = screen.getByTestId('operator-panel')
+      expect(panel.dataset.phase).toBe('opening')
+      expect(panel.className).not.toContain('assistant-glass-panel')
+      expect(panel.className).not.toContain('pointer-events-auto')
+      expect(panel.parentElement?.className).toContain('shapeShadow')
+      expect(screen.getByTestId('operator-avatar-toggle').dataset.phase).toBe(
+        'opening',
+      )
+
       act(() => vi.advanceTimersByTime(STUDIO_OPERATOR_SHELL.openMs + 60))
-      expect(screen.getByTestId('operator-panel').dataset.phase).toBe('open')
+      const settled = screen.getByTestId('operator-panel')
+      expect(settled.dataset.phase).toBe('open')
+      expect(settled.className).toContain('assistant-glass-panel')
+      expect(settled.className).toContain('pointer-events-auto')
+      // 静止档不挂滤镜：阴影回到面板自己身上。⚠ clip-path 由 motion 在下一帧写进
+      // DOM，jsdom 里 motion 的帧循环不跑 —— 那一条在真机上验，⛔ 别在这里断言。
+      expect(settled.parentElement?.className).not.toContain('shapeShadow')
     } finally {
       vi.useRealTimers()
     }
   })
 
-  it('③ 收回：内容立刻不可达，200ms 后**定时器**把面板整颗卸载', () => {
+  it('③ 收回：内容立刻不可达，`closeMs` 后**定时器**把面板整颗卸载', () => {
     vi.useFakeTimers()
     try {
       hostOpen = true

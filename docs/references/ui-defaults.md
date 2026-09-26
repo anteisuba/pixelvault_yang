@@ -129,29 +129,32 @@
 
 > 真值 SoT = `src/app/globals.css` 的 `--ease-standard: cubic-bezier(0.22, 1, 0.36, 1)` 与四个 `--duration-*`。⛔ 别信任何写着 `150 / 300 / 400ms` 或 `cubic-bezier(.2,0,0,1)` 的设计稿——那是 2026-09-06 助手改版简报里的一处错值，已在 `pages/assistant-shell.md` §11.5 订正。
 
-| 交互                         | 配方                                                                                                                                    | 库                 |
-| ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| 按钮/卡片按压                | `active:scale-[.98] transition-transform duration-fast`（`.98` 尚无 token，是本表唯一容许的 arbitrary）                                 | CSS                |
-| hover 提亮                   | `transition-colors duration-fast hover:bg-accent`                                                                                       | CSS                |
-| 焦点环                       | `focus-visible:ring-2 ring-ring ring-offset-2`，不做动画                                                                                | CSS                |
-| Dialog 开/关                 | 已内置：`data-[state=open]:animate-in fade-in-0 zoom-in-95` / closed 反向，`duration-200`。**不要覆盖**                                 | radix + tw-animate |
-| Sheet / Drawer 开/关         | Sheet 已内置 slide；手机底部抽屉走 vaul，自带拖拽关闭。**不要自己写 translateY**                                                        | radix / vaul       |
-| Popover / Dropdown / Tooltip | 已内置 `fade-in-0 zoom-in-95`，tooltip delay 0                                                                                          | radix              |
-| 列表/网格项进入              | `motion.div` `initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}` + 父级 `staggerChildren: 0.03`，最多前 12 项做 stagger，其余直接出现 | motion             |
-| 元素移除                     | `AnimatePresence` + `exit={{opacity:0,scale:.98}}`，`duration-fast`                                                                     | motion             |
-| 骨架 → 内容                  | 骨架 `animate-pulse`；内容到达时容器 `animate-in fade-in-0 duration-base`；**骨架尺寸 = 内容尺寸**，不许跳动                            | CSS                |
-| Tab / 分段选中指示条         | `layoutId="tab-indicator"` 共享布局动画                                                                                                 | motion             |
-| 选中态切换（卡片/chip）      | `transition-[background-color,border-color,box-shadow] duration-fast`                                                                   | CSS                |
-| 生成进度                     | 不确定 = spinner；确定 = 进度条 `linear`（`loading.md`）                                                                                | 已有组件           |
-| 页面切换                     | 默认无动画。**[待验证]** Next 16 `viewTransition` 可试，验证通过前不用                                                                  | —                  |
-| 数字变化                     | `number-ticker.tsx` 已有；只给统计数，不给价格/额度                                                                                     | 已有组件           |
-| 拖拽                         | dnd-kit / pragmatic-dnd 已装；拖起 `scale-[1.02] shadow-lg`，落下回弹 `--ease-soft-return`                                              | 已有依赖           |
+| 交互                                      | 配方                                                                                                                                                                                                     | 库                 |
+| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| 按钮/卡片按压                             | `active:scale-[.98] transition-transform duration-fast`（`.98` 尚无 token，是本表唯一容许的 arbitrary）                                                                                                  | CSS                |
+| hover 提亮                                | `transition-colors duration-fast hover:bg-accent`                                                                                                                                                        | CSS                |
+| 焦点环                                    | `focus-visible:ring-2 ring-ring ring-offset-2`，不做动画                                                                                                                                                 | CSS                |
+| Dialog 开/关                              | 已内置：`data-[state=open]:animate-in fade-in-0 zoom-in-95` / closed 反向，`duration-200`。**不要覆盖**                                                                                                  | radix + tw-animate |
+| Sheet / Drawer 开/关                      | Sheet 已内置 slide；手机底部抽屉走 vaul，自带拖拽关闭。**不要自己写 translateY**                                                                                                                         | radix / vaul       |
+| Popover / Dropdown / Tooltip              | 已内置 `fade-in-0 zoom-in-95`，tooltip delay 0                                                                                                                                                           | radix              |
+| 列表/网格项进入                           | `motion.div` `initial={{opacity:0,y:8}} animate={{opacity:1,y:0}}` + 父级 `staggerChildren: 0.03`，最多前 12 项做 stagger，其余直接出现                                                                  | motion             |
+| 元素移除                                  | `AnimatePresence` + `exit={{opacity:0,scale:.98}}`，`duration-fast`                                                                                                                                      | motion             |
+| 骨架 → 内容                               | 骨架 `animate-pulse`；内容到达时容器 `animate-in fade-in-0 duration-base`；**骨架尺寸 = 内容尺寸**，不许跳动                                                                                             | CSS                |
+| Tab / 分段选中指示条                      | `layoutId="tab-indicator"` 共享布局动画                                                                                                                                                                  | motion             |
+| 面板从触发物长出来（助手头像 / 画布侧栏） | 面板按全尺寸排版，只动 `clip-path` 内缩：先横成一条标题条，`LIQUID_TIMING.unfoldDelayS` 后纵向展开；弹簧 `LIQUID_SPRING`；标题随第一拍、正文随第二拍短模糊进场；动着时投影走外层 `drop-shadow`，落定后撤 | motion             |
+| 选中态切换（卡片/chip）                   | `transition-[background-color,border-color,box-shadow] duration-fast`                                                                                                                                    | CSS                |
+| 生成进度                                  | 不确定 = spinner；确定 = 进度条 `linear`（`loading.md`）                                                                                                                                                 | 已有组件           |
+| 页面切换                                  | 默认无动画。**[待验证]** Next 16 `viewTransition` 可试，验证通过前不用                                                                                                                                   | —                  |
+| 数字变化                                  | `number-ticker.tsx` 已有；只给统计数，不给价格/额度                                                                                                                                                      | 已有组件           |
+| 拖拽                                      | dnd-kit / pragmatic-dnd 已装；拖起 `scale-[1.02] shadow-lg`，落下回弹 `--ease-soft-return`                                                                                                               | 已有依赖           |
 
 **app 内动效库只有一个：`motion`，且只从 `motion/react` 进**（服务端安全的那一档走 `motion/react-client`）。`framer-motion` 是 `motion` 的旧包名，`package.json` 里**没有**它 —— 写 `from 'framer-motion'` 不会报模块找不到（`motion` 把它作为传递依赖拖了进来），只会让一个幽灵包悄悄进 bundle。
 
 **首页营销域**例外：GSAP 允许，且只在 `src/components/business/home-v4/**` 内动态导入（`CLAUDE.md` 动画库分工）。截至 2026-09-20 首页一行 GSAP 都没有——规则照样立着，它守的是下一次有人想加的时候。
 
 两条都由 `eslint.config.mjs` 的 **`ANIMATION_LIBRARY_FORBIDDEN_PATHS`** 守（`@typescript-eslint/no-restricted-imports`，与 Phosphor 图标门同一条规则 id，⛔ 不能各起一个块——flat config 会整块替换同名规则的 options）。
+
+**液态展开那一族**（owner 2026-09-26 定 B）走 `constants/motion.ts` 的 `LIQUID_SPRING` / `LIQUID_TIMING`：形状只裁剪不变尺寸，这是「只动 transform / opacity」之外唯一放行的 `clip-path` 用法；内容换场的短模糊（`filter: blur`）只在这一族里用。
 
 **过冲那一族**（助手灯箱 / 参考图挂上去）走 `constants/motion.ts` 的 `EASE_POP` / `EASE_POP_STRONG`：时长照旧四档刻度，曲线单列是因为「蹦出来」和脊柱那条收敛曲线是两种意思。⛔ 组件里不再出现裸的 `ease: [...]` 数组。
 

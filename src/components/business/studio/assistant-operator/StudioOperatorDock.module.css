@@ -1,101 +1,93 @@
 /*
- * 头像开关的 morph（D7b ④ · 画板 ②「动画怎么做」那一支，owner 2026-09-20）。
+ * 头像开关的液态展开（owner 2026-09-26 定 B「先横成一条，再落下」，
+ * 取代 D7b ④ 的「面板从右上角 scale 0.92 淡入」）。
+ *
+ * 分工：
+ *  · 形状（clip-path 的两条内缩）与头像的位移由 motion 值驱动（Dock / AvatarToggle），
+ *    ⛔ 这里不写它们的 transition；
+ *  · 这里只管：动着时不吃点击、阴影改由外层 drop-shadow 承担、内容分两批换场。
  *
  * 铁律逐条：
- *  · 只过渡 transform / opacity —— ⛔ 一条 width / height / top / left 都没有
- *    （旧版那三行连同 `interpolate-size: allow-keywords` 一起删了）；
- *  · 阴影不做过渡（⛔ box-shadow 不在任何一条 transition 里）；
- *  · will-change 只在过渡那一段加（`data-phase` = opening / closing），结束撤掉；
- *  · 过渡中面板 pointer-events: none；
- *  · 毛玻璃由 JS 在 transitionend 之后才挂上（`assistant-glass-panel`），
- *    所以这里也 ⛔ 不写 backdrop-filter；
+ *  · ⛔ 不动 width / height / top / left —— 面板始终按全尺寸排版，只裁剪；
+ *  · clip-path 会把自己的 box-shadow 与描边一起裁掉，所以动着时阴影挂在外层包裹上
+ *    （`.shapeShadow`），静止后撤掉、回到面板自己的 `shadow-assistant-panel`；
+ *  · 毛玻璃由 JS 在形状落定之后才挂（`assistant-glass-panel`），这里 ⛔ 不写 backdrop-filter；
  *  · prefers-reduced-motion 整块直切。
  *
- * ⚠ 240 / 200 与 `STUDIO_OPERATOR_SHELL.openMs / closeMs` 是同两个数（外壳的卸载
- *   定时器读的是常量那一份）。⛔ 别只改一边 —— 改短了面板会在动完之前被摘掉，
- *   改长了会留下一段「已经不动了但还点不动」的死时间。
+ * 内容节拍的几个数由 Dock 以 CSS 变量传进来（`LIQUID_TIMING`），⛔ 别在这里另写一份。
  */
 
-/* ── 头像：一个持久元素、两个锚点 ─────────────────────────────── */
-.avatar {
-  transition: transform 240ms var(--ease-standard);
-}
-.avatar[data-phase='closing'] {
-  transition: transform 200ms ease-in;
-}
+/* ── 头像：位移由 motion 值驱动，这里只管 will-change ───────────── */
 .avatar[data-phase='opening'],
 .avatar[data-phase='closing'] {
   will-change: transform;
 }
 
-/* ── 面板外壳：从右上角长出来 ─────────────────────────────────── */
-.shell {
-  transform-origin: top right;
-  transition:
-    transform 240ms var(--ease-standard),
-    opacity 240ms var(--ease-standard);
-}
-.shell[data-phase='closing'] {
-  transform: scale(0.92);
-  opacity: 0;
-}
-/*
- * 入场的**起始帧**。
- *
- * ⚠ 面板在 `opening` 那一刻才挂载，而刚挂载的元素没有可过渡的旧值 —— 没有这一块
- * 它会直接以终态出现（「面板不长出来，是啪一下贴上去」）。⛔ 别改成「先挂 closed
- * 再 rAF 翻 opening」：那是两帧 setState，在低端机上照样会漏掉第一帧。
- */
-@starting-style {
-  .shell {
-    transform: scale(0.92);
-    opacity: 0;
-  }
-  .content {
-    opacity: 0;
-  }
-}
-.shell[data-phase='closing'] {
-  transition:
-    transform 200ms ease-in,
-    opacity 200ms ease-in;
-}
+/* ── 面板外壳 ─────────────────────────────────────────────────── */
 .shell[data-phase='opening'],
 .shell[data-phase='closing'] {
-  will-change: transform;
   /* ⚠ 过渡中不吃点击：动着的面板上点中的格子与松手时的那一格不是同一个。 */
   pointer-events: none;
+}
+/*
+ * 动着时的投影。⚠ 挂在外层包裹上：滤镜先于裁剪执行，挂在面板自己身上会被它自己的
+ * clip-path 一起裁掉。数值近似 `--shadow-assistant-panel`（drop-shadow 没有 spread）。
+ */
+.shapeShadow {
+  filter: drop-shadow(0 1px 2px rgb(0 0 0 / 0.04))
+    drop-shadow(0 14px 22px rgb(0 0 0 / 0.14));
 }
 /* 拖宽时关掉过渡 —— 否则把手「跟不上手」。 */
 .resizing {
   transition: none;
 }
 
-/* ── 内容：外壳先出，80ms 后 160ms 淡入 ───────────────────────── */
+/* ── 内容：标题随第一拍、正文随第二拍；收起时一起先退 ─────────── */
 .content {
   display: flex;
   min-height: 0;
   width: 100%;
   flex: 1;
   flex-direction: column;
-  opacity: 1;
-  transition: opacity 160ms var(--ease-standard) 80ms;
+}
+.content > * {
+  transition:
+    opacity var(--liquid-body-in) var(--ease-standard) var(--liquid-body-delay),
+    filter var(--liquid-body-in) var(--ease-standard) var(--liquid-body-delay);
+}
+.content > [data-shell-part='head'] {
+  transition-duration: var(--liquid-head-in);
+  transition-delay: var(--liquid-head-delay);
+}
+/*
+ * 入场的**起始帧**。⚠ 面板在 `opening` 那一刻才挂载，刚挂载的元素没有可过渡的旧值 ——
+ * 没有这一块内容会直接以终态出现。⛔ 别改成「先挂 closed 再 rAF 翻 opening」。
+ */
+@starting-style {
+  .content > * {
+    opacity: 0;
+    filter: blur(var(--liquid-blur));
+  }
 }
 .content[data-visible='false'] {
-  opacity: 0;
-  /* ⚠ 退场不延迟：收面板时内容要先没，⛔ 别让它比外壳晚 80ms 消失。 */
-  transition: opacity 120ms var(--ease-standard);
   pointer-events: none;
+}
+.content[data-visible='false'] > * {
+  opacity: 0;
+  filter: blur(var(--liquid-blur));
+  /* ⚠ 退场不延迟：收面板时内容要先没，形状才开始收。 */
+  transition:
+    opacity var(--liquid-out) var(--ease-standard),
+    filter var(--liquid-out) var(--ease-standard);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .avatar,
-  .shell,
-  .content {
+  .content > *,
+  .content[data-visible='false'] > * {
     transition: none;
+    filter: none;
   }
-  .avatar,
-  .shell {
+  .avatar {
     will-change: auto;
   }
 }

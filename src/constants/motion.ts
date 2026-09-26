@@ -59,6 +59,50 @@ export const SPRING = {
 export type MotionSpringPreset = keyof typeof SPRING
 
 /**
+ * 液态展开（owner 2026-09-26 定 B「先横成一条，再落下」）—— 助手头像点开与画布
+ * 左侧栏点图标**同一套**。形状只动 clip-path：先横向长成一条标题条，
+ * `unfoldDelayS` 后纵向展开成面板；收回反着走。指示条的两条边走 `lead` / `trail`
+ * 两根弹簧，前沿硬、后沿软，途中自然拉长。
+ * ⚠ 阻尼比全在 0.88–0.92：只留一丝过冲，⛔ 不做回弹缓动。
+ * 原型：方向稿 artifact `GFfqsraLtaRRBBKigkmCuT`。
+ */
+export const LIQUID_SPRING = {
+  /** 第一拍：横成一条（k460 · ζ0.9） */
+  strip: { type: 'spring', stiffness: 460, damping: 39 },
+  /** 第二拍：纵向展开（k320 · ζ0.9） */
+  unfold: { type: 'spring', stiffness: 320, damping: 32 },
+  /** 收回（k420 · ζ0.92） */
+  retract: { type: 'spring', stiffness: 420, damping: 38 },
+  /** 指示条前沿（k520 · ζ0.88） */
+  lead: { type: 'spring', stiffness: 520, damping: 40 },
+  /** 指示条后沿（k260 · ζ0.9） */
+  trail: { type: 'spring', stiffness: 260, damping: 29 },
+} as const
+
+/** 液态展开的节拍（秒）与内容换场的模糊量。 */
+export const LIQUID_TIMING = {
+  /** 第二拍在第一拍之后多久起。 */
+  unfoldDelayS: 0.16,
+  /** 标题随第一拍进场。 */
+  headInDelayS: 0.07,
+  headInS: 0.18,
+  /** 正文随第二拍进场。 */
+  bodyInDelayS: 0.26,
+  bodyInS: 0.2,
+  /** 收起：内容先退，退完才收形状。 */
+  contentOutS: 0.09,
+  retractDelayS: 0.06,
+  /** 收起第二拍（横向缩回）在第一拍之后多久起。 */
+  retractSecondBeatDelayS: 0.14,
+  /** 开着时切内容：旧的退、新的晚一点进。 */
+  swapOutS: 0.09,
+  swapInDelayS: 0.05,
+  swapInS: 0.16,
+  /** 内容换场的模糊半径（px）。 */
+  blurPx: 6,
+} as const
+
+/**
  * 弹簧 transition 预设。reducedMotion 传 useReducedMotion() 的返回值——为真时
  * 退回脊柱线性档（与 CSS 侧的 `prefers-reduced-motion` 降级同一口径）。
  */

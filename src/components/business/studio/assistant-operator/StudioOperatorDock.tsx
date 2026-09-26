@@ -31,19 +31,22 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useMemo,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
-  type TransitionEvent as ReactTransitionEvent,
 } from 'react'
 import styles from './StudioOperatorDock.module.css'
 import { GripVertical } from '@/components/icons'
+import { animate, motion, useMotionValue, useTransform } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
+import { LIQUID_SPRING, LIQUID_TIMING } from '@/constants/motion'
 import { STUDIO_PROMPT_TEXTAREA_ID } from '@/constants/studio'
 import {
   STUDIO_OPERATOR_CONFIRM_STATUS_IDS,
@@ -132,13 +135,31 @@ function subscribeWidth(listener: () => void): () => void {
 }
 
 /**
- * 展开那一段兜底定时器比过渡本身多等这么久。
+ * 展开那一段兜底定时器比形状本身多等这么久。
  *
- * ⚠ 它**只是兜底**：正常路径上 `transitionend` 先到（见相位机那段头注）。多等
- * 这几十毫秒是为了让事件有机会先落，⛔ 不是为了「等动画跑完」—— 后者是定时器
+ * ⚠ 它**只是兜底**：正常路径上第二拍那根弹簧的 `finished` 先到（见相位机那段头注）。
+ * 多等这几十毫秒是为了让它有机会先落，⛔ 不是为了「等动画跑完」—— 后者是定时器
  * 那条路，而那条路在后台标签页里才是唯一还走得通的。
  */
 const SHELL_FALLBACK_SLACK_MS = 60
+
+/**
+ * 形状内缩的「藏起来」档：比任何面板都宽，裁出来是空的。
+ *
+ * ⚠ 收起落定后把两条内缩停在这里：下一次打开时 `<aside>` 刚挂载的那一帧还没量到
+ * 尺寸，用它画出来的是空形状（头像盖在那个角上），⛔ 不会先闪一整块面板。
+ */
+const SHAPE_HIDDEN_INSET_PX = 100_000
+
+/** 内容两批换场的节拍，以 CSS 变量交给 module（数只住 `LIQUID_TIMING`）。 */
+const LIQUID_CONTENT_VARS = {
+  '--liquid-head-delay': `${LIQUID_TIMING.headInDelayS}s`,
+  '--liquid-head-in': `${LIQUID_TIMING.headInS}s`,
+  '--liquid-body-delay': `${LIQUID_TIMING.bodyInDelayS}s`,
+  '--liquid-body-in': `${LIQUID_TIMING.bodyInS}s`,
+  '--liquid-out': `${LIQUID_TIMING.contentOutS}s`,
+  '--liquid-blur': `${LIQUID_TIMING.blurPx}px`,
+} as CSSProperties
 
 function writeWidth(next: number): void {
   const width = clamp(next)
@@ -330,18 +351,17 @@ export function StudioOperatorDock() {
    *   直接落到规则那一页，§10）。
    */
   /**
-   * ── 头像开关的四档相位（D7b ④ · 画板 ②）──────────────────────────
+   * ── 头像开关的四档相位（D7b ④ 相位机 · 2026-09-26 形状改 B）─────────
    *
-   * `closed` → `opening` →（transitionend 或兜底定时器）→ `open` → `closing`
-   * →（**定时器**）→ `closed`。
+   * `closed` → `opening` →（第二拍弹簧 `finished` 或兜底定时器）→ `open` →
+   * `closing` →（**定时器**）→ `closed`。
    *
-   * ⚠ **收回那一段只认定时器**（`closeMs`）：后台标签页里 rAF 冻结，`transitionend`
-   *   永远不来，靠事件摘节点留下的是一个 opacity:0、却仍占着右半屏并吃掉点击的
-   *   幽灵面板（2026-08-30 真机实测，见下方 `<aside>` 那段头注）。⛔ 同理不用
-   *   `AnimatePresence`。
-   * ⚠ 展开那一段**认 transitionend、并带一条兜底定时器**：毛玻璃必须等过渡跑完
-   *   才挂（过渡中开 `backdrop-filter` 会让整块在低端机上掉帧），而在后台标签页里
-   *   那个事件同样不来 —— 没有兜底的表现是面板永远停在 `pointer-events: none`。
+   * ⚠ **收回那一段只认定时器**（`closeMs`）：后台标签页里 rAF 冻结，动画永远跑不完，
+   *   靠它摘节点留下的是一个仍占着右半屏并吃掉点击的幽灵面板（2026-08-30 真机实测，
+   *   见下方 `<aside>` 那段头注）。⛔ 同理不用 `AnimatePresence`。
+   * ⚠ 展开那一段**认弹簧落定、并带一条兜底定时器**：毛玻璃必须等形状长完才挂
+   *   （动着时开 `backdrop-filter` 会让整块在低端机上掉帧），而在后台标签页里弹簧
+   *   同样不落 —— 没有兜底的表现是面板永远停在 `pointer-events: none`。
    * ⚠ `prefers-reduced-motion` 两段都**直切**：没有中间档，毛玻璃当场就挂。
    */
   const reducedMotion =
@@ -386,17 +406,100 @@ export function StudioOperatorDock() {
     )
     return () => window.clearTimeout(timeout)
   }, [phase])
-  /** 展开那一段真正的落点 —— ⚠ 只认自己那条 transform，⛔ 不收子元素冒上来的。 */
-  const handleShellTransitionEnd = useCallback(
-    (event: ReactTransitionEvent<HTMLElement>) => {
-      if (event.target !== event.currentTarget) return
-      if (event.propertyName !== 'transform') return
-      setShell((current) =>
-        current.phase === 'opening' ? { ...current, phase: 'open' } : current,
+
+  /**
+   * ── 形状：B「先横成一条，再落下」（owner 2026-09-26）────────────────
+   *
+   * 面板始终按全尺寸排版，只动 `clip-path: inset()` 的**左 / 下两条内缩**：
+   * 收起形 = 右上角一颗头像大小的圆 → 第一拍左边沿走满、下边沿停在头部高度（一条
+   * 44px 的头部条）→ `unfoldDelayS` 后下边沿走满。收回反着走。
+   * ⚠ 头像不另起一条动画：它的进度就是左边沿走了多少（`dockProgress`），所以它骑在
+   *   形状左上角被带进头部槽。
+   * ⚠ 尺寸在 layout effect 里量（`<aside>` 此刻已按全尺寸排好、还没上屏），⛔ 不在
+   *   render 里猜。
+   */
+  const asideRef = useRef<HTMLElement>(null)
+  const insetLeft = useMotionValue(SHAPE_HIDDEN_INSET_PX)
+  const insetBottom = useMotionValue(SHAPE_HIDDEN_INSET_PX)
+  /** 左边沿从收起形走到整宽要走的距离；0 = 还没量过。 */
+  const shapeSpan = useMotionValue(0)
+  /**
+   * ⚠ 静止档（`open`）与 reduced-motion 是 `none`，⛔ 别在 style 上把它换成字符串：
+   *   motion 的 style 从 MotionValue 换成静态值时不会解绑，DOM 上会留着最后一帧的
+   *   裁剪（2026-09-26 用例抓到：落定后面板整块被裁没）。所以两档都走这同一个值。
+   */
+  const shapeClipPath = useTransform(() => {
+    const left = insetLeft.get()
+    const bottom = insetBottom.get()
+    if (phase === 'open' || reducedMotion) return 'none'
+    return `inset(0px 0px ${bottom}px ${left}px round ${STUDIO_OPERATOR_SHELL.avatarSizePx / 2}px)`
+  })
+  const dockProgress = useTransform(() => {
+    const span = shapeSpan.get()
+    if (reducedMotion || span <= 0) return phase === 'open' ? 1 : 0
+    return Math.min(1.05, Math.max(0, 1 - insetLeft.get() / span))
+  })
+  const previousPhaseRef = useRef(phase)
+  useLayoutEffect(() => {
+    const previous = previousPhaseRef.current
+    previousPhaseRef.current = phase
+    if (reducedMotion) return
+    if (phase === 'closed') {
+      insetLeft.jump(SHAPE_HIDDEN_INSET_PX)
+      insetBottom.jump(SHAPE_HIDDEN_INSET_PX)
+      return
+    }
+    if (phase === 'open') return
+    const element = asideRef.current
+    if (!element) return
+    const { width, height } = element.getBoundingClientRect()
+    const size = STUDIO_OPERATOR_SHELL.avatarSizePx
+    const collapsedLeft = width - size
+    const collapsedBottom = height - size
+    const stripBottom = height - STUDIO_OPERATOR_SHELL.headerHeightPx
+    shapeSpan.set(collapsedLeft)
+    const timers: number[] = []
+    const later = (seconds: number, run: () => void) => {
+      timers.push(window.setTimeout(run, seconds * 1000))
+    }
+    if (phase === 'opening') {
+      if (previous === 'closed') {
+        insetLeft.jump(collapsedLeft)
+        insetBottom.jump(collapsedBottom)
+      }
+      animate(insetLeft, 0, LIQUID_SPRING.strip)
+      animate(insetBottom, stripBottom, LIQUID_SPRING.strip)
+      later(LIQUID_TIMING.unfoldDelayS, () => {
+        void animate(insetBottom, 0, LIQUID_SPRING.unfold).finished.then(() =>
+          setShell((current) =>
+            current.phase === 'opening'
+              ? { ...current, phase: 'open' }
+              : current,
+          ),
+        )
+      })
+    } else {
+      if (previous === 'open') {
+        // 静止档没有裁剪（`clipPath: none`），两条内缩从整块起步。
+        insetLeft.jump(0)
+        insetBottom.jump(0)
+      }
+      later(LIQUID_TIMING.retractDelayS, () => {
+        animate(insetBottom, stripBottom, LIQUID_SPRING.retract)
+      })
+      later(
+        LIQUID_TIMING.retractDelayS + LIQUID_TIMING.retractSecondBeatDelayS,
+        () => {
+          animate(insetLeft, collapsedLeft, LIQUID_SPRING.retract)
+          animate(insetBottom, collapsedBottom, LIQUID_SPRING.retract)
+        },
       )
-    },
-    [],
-  )
+    }
+    // ⚠ 只清还没发出的那几拍；已经在跑的弹簧不停 —— 下一段 `animate` 会从它此刻的
+    //   位置与速度接着走（连点不从头播）。
+    return () => timers.forEach((timer) => window.clearTimeout(timer))
+  }, [phase, reducedMotion, insetLeft, insetBottom, shapeSpan])
+  const shapeMoving = phase === 'opening' || phase === 'closing'
   const panelPresent = phase !== 'closed'
   const [settingsSection, setSettingsSection] =
     useState<AssistantSettingsSection | null>(null)
@@ -761,104 +864,117 @@ export function StudioOperatorDock() {
           时元素停在退场的终态却不消失。
  */}
       {panelPresent ? (
-        <aside
-          role="complementary"
-          aria-label={t('title')}
-          {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
-          data-testid="operator-panel"
-          data-open={open ? 'true' : 'false'}
-          data-phase={phase}
-          onTransitionEnd={handleShellTransitionEnd}
-          /**
-           * ⚠ **宽高是常数**（D7b 铁律）：收起不再把 width/height 归零，收放靠
-           * `transform: scale()` + `opacity`（CSS module）。⛔ 别把这两行改回过渡
-           * 的量 —— 动 width/height 每一帧都要重排整棵面板，那正是 owner 说的「卡」。
-           * ⚠ 收起档整颗 `<aside>` 根本不渲染（`panelPresent`），所以一个有尺寸的
-           *   空面板不会在右上角吃掉点击。
-           * ⚠ top / right 由宿主的锚点给（画布 = 顶栏底 + 6，⛔ 不再压顶栏）。
-           */
-          style={{
-            width: `${width}px`,
-            height: `calc(100dvh - ${anchor.panelTopPx * 2}px)`,
-            top: `${anchor.panelTopPx}px`,
-            right: `${anchor.panelRightPx}px`,
-          }}
+        /* 动着时的投影挂在这一层 —— 滤镜先于裁剪执行，挂在 aside 自己身上会被它的
+           clip-path 一起裁掉。⚠ 它铺满视口且 `pointer-events-none`：只是个画影子的壳；
+           filter 会让它成为 fixed 子元素的包含块，而它本身就与视口重合，所以 aside
+           的 top / right 照旧按视口算。静止档不挂滤镜（`@` 候选菜单的 fixed 定位靠这一条）。 */
+        <div
           className={cn(
-            'fixed z-40 hidden flex-col lg:flex',
-            styles.shell,
-            // ── 三层玻璃①：**面板**（§12.1）。86% 白 + 轻模糊 + 细边 + 柔投影；
-            //    18px 圆角是区间上限（§12.3 「面板与浮层取上限」）。
-            /**
-             * ⭐ **展开态自己声明可点**（2026-09-19 真机：画布页面板点不动）。
-             *
-             * 🔬 根因：画布宿主把助手渲染在一条**全屏** rail 里
-             * （`CanvasWorkspaceLayout` 的 `canvas-assistant-rail`），那条 rail 必须
-             * `pointer-events-none` —— 否则它会盖住整张画布。旧的画布面板自己写了
-             * `pointer-events-auto`，而换成这颗 Dock 之后展开态只写了皮肤，于是从
-             * rail 继承成 `none`：面板画得出来，点击全落到底下的画布上。
-             * ⚠ 所以这一格由**Dock 自己**声明，⛔ 不指望宿主去开：工作台 / LoRA
-             * 两个宿主没有 `none` 的父级，加了没有副作用；而依赖宿主的话，下一个
-             * 把助手挂进任何一条 overlay 的人会原样再撞一次。
-             */
-            'overflow-hidden rounded-2xl border border-border shadow-assistant-panel',
-            /**
-             * ⚠ **毛玻璃只在静止档挂**（D7b 铁律）：`assistant-glass-panel` 带
-             * `backdrop-filter`，而过渡中开它会让整块在每一帧重新采样背景 ——
-             * owner 09-20 明令「过渡中不开 backdrop-filter，transitionend 后再加」。
-             * `phase === 'open'` 正是那一刻（reduced-motion 下它当场就成立）。
-             * ⚠ 阴影**不在这条分支里**：它常驻，⛔ 也不做过渡。
-             */
-            phase === 'open'
-              ? 'pointer-events-auto assistant-glass-panel'
-              : 'bg-card',
-            isResizing && styles.resizing,
+            'pointer-events-none fixed inset-0 z-40 hidden lg:block',
+            shapeMoving && styles.shapeShadow,
           )}
         >
-          <div
-            className={styles.content}
-            data-visible={phase === 'open' || phase === 'opening'}
-            inert={!open}
-            aria-hidden={!open}
+          <motion.aside
+            ref={asideRef}
+            role="complementary"
+            aria-label={t('title')}
+            {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+            data-testid="operator-panel"
+            data-open={open ? 'true' : 'false'}
+            data-phase={phase}
+            /**
+             * ⚠ **宽高是常数**（D7b 铁律）：收放只动 `clip-path` 的两条内缩（形状那段
+             * 头注），⛔ 别把宽高改回过渡的量 —— 动 width/height 每一帧都要重排整棵面板，
+             * 那正是 owner 说的「卡」。静止档 `clipPath: none`：不裁，描边与阴影回到自己身上。
+             * ⚠ 收起档整颗 `<aside>` 根本不渲染（`panelPresent`），所以一个有尺寸的
+             *   空面板不会在右上角吃掉点击。
+             * ⚠ top / right 由宿主的锚点给（画布 = 顶栏底 + 6，⛔ 不再压顶栏）。
+             */
+            style={{
+              width: `${width}px`,
+              height: `calc(100dvh - ${anchor.panelTopPx * 2}px)`,
+              top: `${anchor.panelTopPx}px`,
+              right: `${anchor.panelRightPx}px`,
+              clipPath: shapeClipPath,
+              ...LIQUID_CONTENT_VARS,
+            }}
+            className={cn(
+              'fixed z-40 hidden flex-col lg:flex',
+              styles.shell,
+              // ── 三层玻璃①：**面板**（§12.1）。86% 白 + 轻模糊 + 细边 + 柔投影；
+              //    18px 圆角是区间上限（§12.3 「面板与浮层取上限」）。
+              /**
+               * ⭐ **展开态自己声明可点**（2026-09-19 真机：画布页面板点不动）。
+               *
+               * 🔬 根因：画布宿主把助手渲染在一条**全屏** rail 里
+               * （`CanvasWorkspaceLayout` 的 `canvas-assistant-rail`），那条 rail 必须
+               * `pointer-events-none` —— 否则它会盖住整张画布。旧的画布面板自己写了
+               * `pointer-events-auto`，而换成这颗 Dock 之后展开态只写了皮肤，于是从
+               * rail 继承成 `none`：面板画得出来，点击全落到底下的画布上。
+               * ⚠ 所以这一格由**Dock 自己**声明，⛔ 不指望宿主去开：工作台 / LoRA
+               * 两个宿主没有 `none` 的父级，加了没有副作用；而依赖宿主的话，下一个
+               * 把助手挂进任何一条 overlay 的人会原样再撞一次。
+               */
+              'overflow-hidden rounded-2xl border border-border shadow-assistant-panel',
+              /**
+               * ⚠ **毛玻璃只在静止档挂**（D7b 铁律）：`assistant-glass-panel` 带
+               * `backdrop-filter`，而过渡中开它会让整块在每一帧重新采样背景 ——
+               * owner 09-20 明令「过渡中不开 backdrop-filter，transitionend 后再加」。
+               * `phase === 'open'` 正是那一刻（reduced-motion 下它当场就成立）。
+               * ⚠ 阴影**不在这条分支里**：它常驻，⛔ 也不做过渡。
+               */
+              phase === 'open'
+                ? 'pointer-events-auto assistant-glass-panel'
+                : 'bg-card',
+              isResizing && styles.resizing,
+            )}
           >
             <div
-              role="separator"
-              aria-orientation="vertical"
-              aria-label={t('resize')}
-              aria-valuemin={RESIZE.minWidthPx}
-              aria-valuemax={RESIZE.maxWidthPx}
-              aria-valuenow={width}
-              tabIndex={0}
-              data-testid="operator-resize-handle"
-              onPointerDown={handlePointerDown}
-              onPointerMove={handlePointerMove}
-              onPointerUp={handlePointerUp}
-              onPointerCancel={handlePointerUp}
-              onKeyDown={handleKeyDown}
-              onDoubleClick={() => writeWidth(RESIZE.defaultWidthPx)}
-              title={t('resize')}
-              className="group absolute inset-y-0 left-0 z-10 flex w-2.5 cursor-col-resize items-center justify-center focus:outline-none"
+              className={styles.content}
+              data-visible={phase === 'open' || phase === 'opening'}
+              inert={!open}
+              aria-hidden={!open}
             >
-              <span
-                className={cn(
-                  'flex h-14 w-1.5 items-center justify-center rounded-full bg-border text-muted-foreground transition-colors duration-(--duration-fast) ease-standard group-hover:bg-primary/40 group-focus-visible:bg-primary/60',
-                  isResizing && 'bg-primary/60',
-                )}
+              <div
+                role="separator"
+                aria-orientation="vertical"
+                aria-label={t('resize')}
+                aria-valuemin={RESIZE.minWidthPx}
+                aria-valuemax={RESIZE.maxWidthPx}
+                aria-valuenow={width}
+                tabIndex={0}
+                data-testid="operator-resize-handle"
+                onPointerDown={handlePointerDown}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+                onKeyDown={handleKeyDown}
+                onDoubleClick={() => writeWidth(RESIZE.defaultWidthPx)}
+                title={t('resize')}
+                className="group absolute inset-y-0 left-0 z-10 flex w-2.5 cursor-col-resize items-center justify-center focus:outline-none"
               >
-                <GripVertical className="size-3" aria-hidden />
-              </span>
-            </div>
-            {isResizing ? (
-              <span
-                data-testid="operator-width-tip"
-                className="absolute left-3 top-3 z-20 rounded-md bg-foreground px-2 py-0.5 font-mono text-2sm tabular-nums text-background"
-              >
-                {`${width}px`}
-              </span>
-            ) : null}
+                <span
+                  className={cn(
+                    'flex h-14 w-1.5 items-center justify-center rounded-full bg-border text-muted-foreground transition-colors duration-(--duration-fast) ease-standard group-hover:bg-primary/40 group-focus-visible:bg-primary/60',
+                    isResizing && 'bg-primary/60',
+                  )}
+                >
+                  <GripVertical className="size-3" aria-hidden />
+                </span>
+              </div>
+              {isResizing ? (
+                <span
+                  data-testid="operator-width-tip"
+                  className="absolute left-3 top-3 z-20 rounded-md bg-foreground px-2 py-0.5 font-mono text-2sm tabular-nums text-background"
+                >
+                  {`${width}px`}
+                </span>
+              ) : null}
 
-            {panel}
-          </div>
-        </aside>
+              {panel}
+            </div>
+          </motion.aside>
+        </div>
       ) : null}
 
       {/* ── 头像开关（D7b ④）──────────────────────────────────────────
@@ -873,6 +989,7 @@ export function StudioOperatorDock() {
           anchor={anchor}
           panelWidthPx={width}
           phase={phase}
+          dockProgress={dockProgress}
           onToggle={() => setOpen(!open)}
         />
       </div>

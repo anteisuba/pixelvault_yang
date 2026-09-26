@@ -16,11 +16,13 @@
  * `STUDIO_OPERATOR_DEFAULT_ANCHOR` 的头注），所以位移与缩放是**纯算术**，
  * ⛔ 不量 DOM：量 DOM 的那一版会在面板还没布局完的第一帧算出一个错位的 transform。
  *
- * ── 铁律（画板 ②「动画怎么做」那一支）────────────────────────────
- *  · **只过渡 `transform`** —— ⛔ 不动 width / height / top / left；
- *  · `will-change: transform` 只在那 240ms 内加，结束撤掉（`data-phase` 驱动）；
+ * ── 铁律（画板 ② · 2026-09-26 形状改 B 后）──────────────────────────
+ *  · **只动 `transform`** —— ⛔ 不动 width / height / top / left；
+ *  · 位移不自己计时：跟着外壳给的 `dockProgress`（形状左边沿走了多少），所以头像
+ *    骑在「先横成一条」那条头部条的左端被带进槽里；
+ *  · `will-change: transform` 只在开合那一段加，结束撤掉（`data-phase` 驱动）；
  *  · 阴影不做过渡；
- *  · `prefers-reduced-motion` 直切（CSS 里整块 `transition: none`）。
+ *  · `prefers-reduced-motion` 直切（外壳给的进度只有 0 / 1 两档）。
  *
  * ── 角标数的是什么（D7 沿用）─────────────────────────────────────
  * **待确认（未答问题 + 未处理确认）+ 未读结果**，由外壳算。0 = 整颗角标不画，
@@ -28,6 +30,12 @@
  * ⚠ 只在收起档画：展开时头像已经坐在头部，旁边就是那件事本身。
  */
 
+import {
+  motion,
+  useMotionValue,
+  useTransform,
+  type MotionValue,
+} from 'motion/react'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 
@@ -51,6 +59,12 @@ interface StudioOperatorAvatarToggleProps {
   /** 面板此刻多宽 —— 落位的 x 要减掉它（面板贴右缘，头部左上槽在它的左边）。 */
   panelWidthPx: number
   phase: StudioOperatorShellPhase
+  /**
+   * 落进头部槽的进度（0 = 收起位，1 = 头部槽）—— 桌面由外壳按形状左边沿走了多少
+   * 算出来（B 形状，owner 2026-09-26），所以头像骑在形状左上角被带进去，⛔ 不另起
+   * 一条动画。缺省（手机档）= 恒在收起位。
+   */
+  dockProgress?: MotionValue<number>
   /**
    * 点一下 = 反转开合（画板：收起态点开、头部那颗点收）。
    * ⚠ 同一颗按钮两件事，所以 `aria-pressed` 必须跟着开合走 —— ⛔ 不是两颗按钮。
@@ -91,6 +105,7 @@ export function StudioOperatorAvatarToggle({
   anchor,
   panelWidthPx,
   phase,
+  dockProgress,
   onToggle,
 }: StudioOperatorAvatarToggleProps) {
   const t = useTranslations('StudioOperator')
@@ -102,9 +117,14 @@ export function StudioOperatorAvatarToggle({
   const scale =
     STUDIO_OPERATOR_SHELL.avatarHeaderSizePx /
     STUDIO_OPERATOR_SHELL.avatarSizePx
+  const restProgress = useMotionValue(0)
+  const progress = dockProgress ?? restProgress
+  const x = useTransform(progress, (p) => shift.x * p)
+  const y = useTransform(progress, (p) => shift.y * p)
+  const avatarScale = useTransform(progress, (p) => 1 - (1 - scale) * p)
 
   return (
-    <button
+    <motion.button
       type="button"
       data-testid="operator-avatar-toggle"
       data-phase={phase}
@@ -127,10 +147,11 @@ export function StudioOperatorAvatarToggle({
         right: `calc(${anchor.avatarRightPx}px + env(safe-area-inset-right, 0px))`,
         /* ⚠ `transform-origin: top left` 是上面那组算术的前提：位移算的是**左上角**
            对左上角。换成 center 会让 22/36 的缩放把头像往左上拽半格。 */
-        transformOrigin: 'top left',
-        transform: docked
-          ? `translate3d(${shift.x}px, ${shift.y}px, 0) scale(${scale})`
-          : 'translate3d(0, 0, 0) scale(1)',
+        originX: 0,
+        originY: 0,
+        x,
+        y,
+        scale: avatarScale,
       }}
       className={cn(
         /* ⚠ `pointer-events-auto`：画布那条全屏 rail 是 `pointer-events-none`
@@ -175,6 +196,6 @@ export function StudioOperatorAvatarToggle({
           {badgeCount}
         </span>
       ) : null}
-    </button>
+    </motion.button>
   )
 }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { motion, useReducedMotion } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import * as Toolbar from '@radix-ui/react-toolbar'
@@ -39,6 +39,7 @@ import { getTagWorkbenchControls } from '@/lib/tag-workbench-controls'
 import { cn } from '@/lib/utils'
 import {
   Grid2x2,
+  Paintbrush,
   PencilLine,
   Plus,
   Search,
@@ -57,6 +58,7 @@ import {
 } from '@/components/business/studio-shared/primitives/liquid-popover'
 import {
   StudioChipLookProvider,
+  StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
   studioOutlineChipClass,
@@ -90,8 +92,9 @@ const WHOLE = 'whole'
  *   编辑的是谁；正在编辑的角色与角色构图面板里点中的那一位是同一份状态
  *   （`activeTagCharacterIndex`）。
  * - 正向 · 负向（UC）两栏，行内排，⛔ 不再各套一个框。
- * - 画风与画师串：一排开关，「提示词块」进舞台面板编辑。
- * - 工具行：左 = 参考图 · 查角色资料 · 角色构图（后两个在舞台上开面板）；
+ * - 工具行：左 = 参考图 · 模板 · 查角色资料 · 画风串 · 角色构图（查资料与构图在
+ *   舞台上开面板；画风串是一颗 chip，弹层里逐块启停，「提示词块」进舞台面板编辑 ——
+ *   布局 A，owner 2026-09-26，⛔ 不再在输入框里常驻一排开关）；
  *   右 = 模型 · 规格 · 专属 · 额度 · 圆键。
  *
  * ⚠ 与参数栏那一版（`StudioTagsPromptArea`）**二选一挂载**：两边都调
@@ -181,8 +184,6 @@ export function StudioTagsComposer({
         : { negativePrompt: serializeTagChips(chips) },
     )
   }
-
-  const blocks = state.tagPromptBlocks ?? []
 
   return (
     <>
@@ -336,59 +337,6 @@ export function StudioTagsComposer({
           </div>
         </motion.div>
 
-        {/* 画风与画师串 —— 一排开关，编辑进舞台面板。 */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="w-18 shrink-0 text-2xs font-medium text-muted-foreground">
-            {t('workbench.blocks')}
-          </span>
-          {blocks.map((block) => (
-            <button
-              key={block.id}
-              type="button"
-              aria-pressed={block.enabled}
-              aria-label={t('workbench.enableBlock', { name: block.name })}
-              disabled={isGenerating}
-              onClick={() =>
-                dispatch({
-                  type: 'SET_TAG_PROMPT_BLOCKS',
-                  payload: blocks.map((item) =>
-                    item.id === block.id
-                      ? { ...item, enabled: !item.enabled }
-                      : item,
-                  ),
-                })
-              }
-              className={cn(
-                studioOutlineChipClass,
-                'h-7 px-2.5 font-normal',
-                !block.enabled && 'border-dashed text-muted-foreground',
-              )}
-            >
-              <span
-                aria-hidden
-                className={cn(
-                  'size-2.5 shrink-0 rounded-full border',
-                  block.enabled
-                    ? 'border-foreground bg-foreground'
-                    : 'border-muted-foreground',
-                )}
-              />
-              {block.name}
-            </button>
-          ))}
-          <button
-            type="button"
-            onClick={() => onOpenPanel('blocks')}
-            className={cn(
-              studioOutlineChipClass,
-              'h-7 border-dashed px-2.5 text-muted-foreground',
-            )}
-          >
-            <PencilLine className="size-3.5" aria-hidden />
-            {t('workbench.editBlocks')}
-          </button>
-        </div>
-
         <StudioChipLookProvider value="outline">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-2">
             <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
@@ -420,6 +368,10 @@ export function StudioTagsComposer({
                   {t('workbench.lookup')}
                 </span>
               </Toolbar.Button>
+              <TagBlocksChip
+                disabled={isGenerating}
+                onEdit={() => onOpenPanel('blocks')}
+              />
               {characters.mode ? (
                 <Toolbar.Button
                   type="button"
@@ -636,6 +588,111 @@ function TagCapabilityChip({
           <StudioTagsControlColumn placement="popover" compact />
         </div>
       </ResponsivePopoverContent>
+    </StudioToolSurface>
+  )
+}
+
+/**
+ * 画风与画师串（布局 A）：chip 上写启用了几块，弹层里逐块启停；编辑块的内容走舞台上
+ * 那块「提示词块」面板。
+ */
+function TagBlocksChip({
+  disabled,
+  onEdit,
+}: {
+  disabled: boolean
+  onEdit: () => void
+}) {
+  const t = useTranslations('StudioTags')
+  const { state, dispatch } = useStudioForm()
+  const chip = useStudioChipClasses()
+  const [open, setOpen] = useState(false)
+  const blocks = state.tagPromptBlocks ?? []
+  const enabledCount = blocks.filter((block) => block.enabled).length
+
+  return (
+    <StudioToolSurface open={open} onOpenChange={setOpen}>
+      <StudioToolSurfaceTrigger asChild>
+        <Toolbar.Button
+          type="button"
+          disabled={disabled}
+          aria-label={t('workbench.blocks')}
+          className={cn(
+            chip.trigger,
+            chip.compact,
+            enabledCount > 0 && chip.set,
+            open && chip.open,
+          )}
+        >
+          <Paintbrush className="size-4" aria-hidden />
+          <span className={chip.compactLabel}>
+            {t('workbench.blocksShort')}
+          </span>
+          {enabledCount > 0 ? (
+            <span className="tabular-nums">{enabledCount}</span>
+          ) : null}
+        </Toolbar.Button>
+      </StudioToolSurfaceTrigger>
+      <StudioToolPopoverContent
+        size="action"
+        side="top"
+        align={chip.popoverAlign}
+        sideOffset={chip.popoverSideOffset}
+        label={t('workbench.blocks')}
+      >
+        <div className="flex flex-col gap-1">
+          <p className="px-2 pb-1 text-xs font-semibold text-foreground">
+            {t('workbench.blocks')}
+          </p>
+          {blocks.map((block) => (
+            <button
+              key={block.id}
+              type="button"
+              aria-pressed={block.enabled}
+              aria-label={t('workbench.enableBlock', { name: block.name })}
+              onClick={() =>
+                dispatch({
+                  type: 'SET_TAG_PROMPT_BLOCKS',
+                  payload: blocks.map((item) =>
+                    item.id === block.id
+                      ? { ...item, enabled: !item.enabled }
+                      : item,
+                  ),
+                })
+              }
+              className={cn(
+                'flex min-h-9 items-center gap-2.5 rounded-lg px-2 text-left text-2sm transition-colors duration-fast ease-standard hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                !block.enabled && 'text-muted-foreground',
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  'size-2.5 shrink-0 rounded-full border',
+                  block.enabled
+                    ? 'border-foreground bg-foreground'
+                    : 'border-muted-foreground',
+                )}
+              />
+              <span className="min-w-0 flex-1 truncate">{block.name}</span>
+              <span className="shrink-0 text-2xs text-muted-foreground">
+                {block.enabled ? t('workbench.on') : t('workbench.off')}
+              </span>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false)
+              onEdit()
+            }}
+            className="mt-1 flex min-h-9 items-center gap-2 rounded-lg border border-dashed border-border px-2 text-2sm text-muted-foreground transition-colors duration-fast ease-standard hover:border-foreground/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <PencilLine className="size-3.5" aria-hidden />
+            {t('workbench.editBlocks')}
+          </button>
+        </div>
+      </StudioToolPopoverContent>
     </StudioToolSurface>
   )
 }

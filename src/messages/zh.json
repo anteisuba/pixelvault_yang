@@ -6378,6 +6378,7 @@
       "auto": "自动定位",
       "manual": "手动定位",
       "blocks": "画风与画师串",
+      "blocksShort": "画风串",
       "blocksHint": "提示词块可编辑、启停，并通过配方库保存复用。仅启用的块参与生成。",
       "newBlock": "我的画师串",
       "addBlock": "添加提示词块",

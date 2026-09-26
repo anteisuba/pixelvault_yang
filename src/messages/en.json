@@ -6378,6 +6378,7 @@
       "auto": "Automatic positioning",
       "manual": "Manual positioning",
       "blocks": "Style and artist blocks",
+      "blocksShort": "Style",
       "blocksHint": "Edit and toggle blocks; save and reuse them through recipes. Only enabled blocks enter generation.",
       "newBlock": "My artist block",
       "addBlock": "Add prompt block",

@@ -104,7 +104,7 @@ export function StudioWorkspaceUI() {
    * 与撤销链从 P4-C 起都读它，因此那颗外壳变成了页面无关的东西 —— 同一个 Dock
    * 也挂在 LoRA 装配台上（那条路由没有 `<StudioProvider>`）。
    */
-  const operatorHost = useStudioWorkbenchOperatorHost()
+  const workbenchOperatorHost = useStudioWorkbenchOperatorHost()
   /**
    * 移动端画布优先形态（owner 2026-09-03 拍板方向 A，需求卡
    * `docs/references/pages/studio-image-mobile-request.md` +
@@ -133,6 +133,17 @@ export function StudioWorkspaceUI() {
    */
   const isBottomComposer = !useMobileComposer && state.outputType === 'image'
   const isImageBottomComposer = isBottomComposer && !isTagsWorkbench
+  /**
+   * 图片台桌面的助手是**让位**不是覆盖（owner 2026-09-26）：面板外面就是工作台，
+   * 点参数、改标签都是正常操作 —— 与画布同一档，⛔ 点外面不收。收起走头像与 Esc。
+   */
+  const operatorHost = useMemo(
+    () =>
+      isBottomComposer
+        ? { ...workbenchOperatorHost, collapseOnOutsidePointer: false }
+        : workbenchOperatorHost,
+    [isBottomComposer, workbenchOperatorHost],
+  )
   /** 桌面标签台舞台上开着哪块面板（查资料 / 构图 / 提示词块）；离开标签台就收。 */
   const [tagPanel, setTagPanel] = useState<TagWorkbenchPanel | null>(null)
   if (!isTagsWorkbench && tagPanel) setTagPanel(null)

@@ -268,7 +268,7 @@ function MemorySection({
                 data-testid={`assistant-memory-filter-${id}`}
                 onClick={() => pickFilter(id)}
                 className={cn(
-                  'inline-flex h-7 items-center rounded-full border px-2.75 text-2sm whitespace-nowrap transition-colors duration-(--duration-fast) ease-linear focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:h-8.5 coarse:px-3.25',
+                  'inline-flex h-7 items-center rounded-full border px-2.75 text-2sm whitespace-nowrap transition-colors duration-fast ease-linear focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:h-8.5 coarse:px-3.25',
                   filter === id
                     ? 'border-foreground bg-foreground text-background'
                     : 'border-border text-muted-foreground hover:bg-surface-fill hover:text-foreground',
@@ -286,7 +286,7 @@ function MemorySection({
                   type="button"
                   data-testid="assistant-memory-clear"
                   onClick={() => setConfirmingId(null)}
-                  className="-mx-2 -my-1 rounded-lg px-2 py-1 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-linear hover:bg-surface-fill hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:-my-3 coarse:py-3 coarse:text-md"
+                  className="-mx-2 -my-1 rounded-lg px-2 py-1 text-2sm text-muted-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:-my-3 coarse:py-3 coarse:text-md"
                 >
                   {clearLabel}
                 </button>
@@ -388,7 +388,7 @@ function MemorySection({
           </p>
         ) : (
           <EmptyState
-            className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-(--duration-base)"
+            className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-base"
             icon={<PencilLine aria-hidden />}
             title={t('memory.emptyTitle')}
             description={t('memory.emptyDescription')}
@@ -506,7 +506,7 @@ function MemoryRow({
                 type="button"
                 aria-label={t('memory.scopeAria', { scope: scopeLabel })}
                 data-testid="assistant-memory-scope"
-                className="flex h-9 w-34 shrink-0 items-center gap-2 rounded-lg border border-input pr-2.5 pl-3 text-left text-sm transition-colors duration-(--duration-fast) ease-linear hover:border-ring/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:border-foreground coarse:h-11"
+                className="flex h-9 w-34 shrink-0 items-center gap-2 rounded-lg border border-input pr-2.5 pl-3 text-left text-sm transition-colors duration-fast ease-linear hover:border-ring/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:border-foreground coarse:h-11"
               >
                 <span className="min-w-0 flex-1 truncate">{scopeLabel}</span>
                 <ChevronDown
@@ -585,7 +585,7 @@ function MemoryRow({
           if (confirming) onCancelDelete()
         }}
         className={cn(
-          'h-7 shrink-0 rounded-lg px-2.5 text-2sm transition-[opacity,background-color,color] duration-(--duration-fast) ease-linear focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:h-9 coarse:opacity-100',
+          'h-7 shrink-0 rounded-lg px-2.5 text-2sm transition-[opacity,background-color,color] duration-fast ease-linear focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:h-9 coarse:opacity-100',
           confirming
             ? 'bg-status-risk font-semibold text-background opacity-100'
             : 'text-status-risk opacity-0 group-hover:opacity-100 hover:bg-status-risk-surface',
@@ -747,7 +747,7 @@ function SourceListRow({
             type="button"
             aria-label={t('sources.remove', { token: token.text })}
             onClick={() => onRemove(token.id)}
-            className="grid size-4.5 place-items-center rounded-full text-muted-foreground transition-colors duration-(--duration-fast) ease-linear hover:bg-surface-fill hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:size-7"
+            className="grid size-4.5 place-items-center rounded-full text-muted-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:size-7"
           >
             <X className="size-2.5" aria-hidden />
           </button>
@@ -782,7 +782,7 @@ function SourceListRow({
           onClick={() => setAdding(true)}
           className={cn(
             chip,
-            'text-muted-foreground transition-colors duration-(--duration-fast) ease-linear hover:bg-surface-fill hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
+            'text-muted-foreground transition-colors duration-fast ease-linear hover:bg-surface-fill hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none',
           )}
         >
           <Plus className="size-3" aria-hidden />

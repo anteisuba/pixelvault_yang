@@ -85,7 +85,7 @@ export function AssistantSettings({
       type="button"
       onClick={onClose}
       aria-label={t('close')}
-      className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-(--duration-fast) ease-linear hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:size-11"
+      className="grid size-9 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors duration-fast ease-linear hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:size-11"
     >
       <X className="size-4" aria-hidden />
     </button>
@@ -107,7 +107,7 @@ export function AssistantSettings({
           ? t('tabs.persona')
           : t('tabs.memory')
       }
-      className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-(--duration-base)"
+      className="motion-safe:animate-in motion-safe:fade-in-0 motion-safe:duration-base"
     >
       {pane}
     </div>

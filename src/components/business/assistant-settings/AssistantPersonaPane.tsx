@@ -338,7 +338,7 @@ export function AssistantPersonaPane({
                   type="button"
                   data-testid="assistant-avatar-button"
                   aria-label={t('identity.changeAvatar')}
-                  className="rounded-full transition-shadow duration-(--duration-fast) ease-linear hover:ring-4 hover:ring-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[.98]"
+                  className="rounded-full transition-shadow duration-fast ease-linear hover:ring-4 hover:ring-border focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[.98]"
                 >
                   <PersonaFace
                     url={currentFace.url}
@@ -395,7 +395,7 @@ export function AssistantPersonaPane({
             <button
               type="button"
               onClick={() => setAvatarMenuOpen(true)}
-              className="rounded-md px-2 py-1 text-2sm text-muted-foreground transition-colors duration-(--duration-fast) ease-linear hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:min-h-11"
+              className="rounded-md px-2 py-1 text-2sm text-muted-foreground transition-colors duration-fast ease-linear hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:min-h-11"
             >
               {t('identity.changeAvatar')}
             </button>
@@ -426,7 +426,7 @@ export function AssistantPersonaPane({
                     type="button"
                     aria-labelledby={roleLabelId}
                     data-testid="assistant-character-select"
-                    className="flex h-10 w-full items-center gap-2 rounded-lg border border-input bg-transparent px-2 text-left text-md transition-colors duration-(--duration-fast) ease-linear hover:border-ring/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:border-foreground coarse:h-11"
+                    className="flex h-10 w-full items-center gap-2 rounded-lg border border-input bg-transparent px-2 text-left text-md transition-colors duration-fast ease-linear hover:border-ring/60 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none data-[state=open]:border-foreground coarse:h-11"
                   >
                     {activeCharacter ? (
                       <>
@@ -600,7 +600,7 @@ export function AssistantPersonaPane({
                   key={row}
                   data-testid={`assistant-archetype-${row}`}
                   className={cn(
-                    'flex cursor-pointer items-start gap-3 rounded-xl px-3.5 py-2.5 transition-colors duration-(--duration-fast) ease-linear has-focus-visible:ring-2 has-focus-visible:ring-ring',
+                    'flex cursor-pointer items-start gap-3 rounded-xl px-3.5 py-2.5 transition-colors duration-fast ease-linear has-focus-visible:ring-2 has-focus-visible:ring-ring',
                     checked ? 'bg-muted' : 'hover:bg-muted/60',
                     row === 'custom' &&
                       'cursor-default motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1',
@@ -619,7 +619,7 @@ export function AssistantPersonaPane({
                   />
                   <span
                     aria-hidden
-                    className="mt-0.5 size-4.5 shrink-0 rounded-full border-2 border-input transition-[border-width,border-color] duration-(--duration-base) ease-standard peer-checked:border-5 peer-checked:border-foreground motion-reduce:transition-none"
+                    className="mt-0.5 size-4.5 shrink-0 rounded-full border-2 border-input transition-[border-width,border-color] duration-base ease-standard peer-checked:border-5 peer-checked:border-foreground motion-reduce:transition-none"
                   />
                   <span className="flex min-w-0 flex-col">
                     <span className="text-md font-semibold">
@@ -666,12 +666,12 @@ export function AssistantPersonaPane({
           aria-expanded={advancedOpen}
           aria-controls={advancedId}
           onClick={() => setAdvancedOpen((open) => !open)}
-          className="mt-1 flex min-h-9 w-full items-center gap-2 rounded-md text-left text-sm text-muted-foreground transition-colors duration-(--duration-fast) ease-linear hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:min-h-11"
+          className="mt-1 flex min-h-9 w-full items-center gap-2 rounded-md text-left text-sm text-muted-foreground transition-colors duration-fast ease-linear hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none coarse:min-h-11"
         >
           <ChevronRight
             aria-hidden
             className={cn(
-              'size-3.5 shrink-0 transition-transform duration-(--duration-base) ease-standard motion-reduce:transition-none',
+              'size-3.5 shrink-0 transition-transform duration-base ease-standard motion-reduce:transition-none',
               advancedOpen && 'rotate-90',
             )}
           />
@@ -688,7 +688,7 @@ export function AssistantPersonaPane({
             id={advancedId}
             data-testid="assistant-advanced"
             ref={revealAdvanced}
-            className="flex flex-col gap-4 pt-1 @md:pl-5.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-(--duration-base)"
+            className="flex flex-col gap-4 pt-1 @md:pl-5.5 motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-base"
           >
             <AdvancedRow label={t('tone.label')}>
               <LiquidSegmented

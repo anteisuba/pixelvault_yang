@@ -232,7 +232,14 @@ export function PromptTemplatePicker({
           size="sm"
           className={
             chip.look === 'outline'
-              ? cn(chip.trigger, 'data-[state=open]:border-foreground')
+              ? cn(
+                  chip.trigger,
+                  chip.compact,
+                  // `Button` 的 `has-[>svg]:px-2.5` 压过 `compact`，收成图标时这颗会比
+                  // 别的宽 4px —— 同一档写一遍把它压回去。
+                  chip.compact && '@max-4xl/composer:has-[>svg]:px-2',
+                  'data-[state=open]:border-foreground',
+                )
               : cn(
                   'h-9 rounded-full px-3 text-sm text-muted-foreground',
                   'transition-[color,background-color,border-color,box-shadow] duration-200',
@@ -243,7 +250,7 @@ export function PromptTemplatePicker({
           }
         >
           <FileText className="size-4" />
-          {t('templatePicker')}
+          <span className={chip.compactLabel}>{t('templatePicker')}</span>
         </Button>
       </ResponsiveDialogTrigger>
       <ResponsiveDialogContent

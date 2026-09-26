@@ -157,7 +157,7 @@ function renderHeader(
       onNewThread={onNewThread}
       onOpenAssistantSettings={onOpenAssistantSettings}
       onCollapse={onCollapse}
-      avatarOwned={false}
+      avatar="slot"
       {...overrides}
     />,
   )
@@ -313,15 +313,17 @@ describe('StudioOperatorHeader', () => {
   })
 
   /**
-   * 右上收成**一颗 ⋯**（D7b ④）：并排三颗图标（历史 · 设置 · 收起）全部退场，
-   * 菜单里三项 —— 历史会话 · 设置 · 隐身（56a 未落 → 占位禁用）。
+   * 右上 ⋯ + 收起（D7b ④ 收掉历史与设置两颗；收起键 owner 2026-09-26 找回），
+   * 菜单两项 —— 设置 · 隐身。
    */
-  it('右上只有一颗 ⋯（32px 档），菜单两项：设置 · 隐身', () => {
+  it('右上 ⋯ 与收起两颗（32px 档），菜单两项：设置 · 隐身', () => {
     const { onOpenAssistantSettings } = renderHeader()
     expect(screen.getByTestId('operator-more').className).toContain('size-8')
-    // ⛔ 并排那三颗不存在了。
+    expect(screen.getByTestId('operator-collapse').className).toContain(
+      'size-8',
+    )
+    // ⛔ 历史图标不回来：历史只走标题下拉。
     expect(screen.queryByTestId('operator-history-button')).toBeNull()
-    expect(screen.queryByTestId('operator-collapse')).toBeNull()
 
     fireEvent.click(screen.getByTestId('operator-assistant-settings'))
     expect(onOpenAssistantSettings).toHaveBeenCalledTimes(1)
@@ -351,13 +353,16 @@ describe('StudioOperatorHeader', () => {
   })
 
   /**
-   * 收起钮已删（D7b ④）—— 收起改点左上那颗头像。
-   * ⚠ 桌面上头部只留**空槽**（那颗头像是外壳里那个持久 fixed 元素滑进来的），
-   *   手机上头部自己画一颗可点的。
+   * 收起（画板 Collapse ①，owner 2026-09-26「收起只能用 Esc」）：头部最右一颗，
+   * 悬停写着「收起 · Esc」。头像位由外壳给：桌面 morph 宿主留空槽、手机自己画一颗
+   * （只是脸，⛔ 不再是按钮）、布局 A 不占位。
    */
-  it('⛔ 不再有收起钮；桌面留空槽、手机画真头像且点了就收', () => {
-    renderHeader()
-    expect(screen.queryByTestId('operator-collapse')).toBeNull()
+  it('⭐ 收起键点了就收；头像位三档：slot / own / none', () => {
+    const { onCollapse } = renderHeader()
+    const collapse = screen.getByTestId('operator-collapse')
+    expect(collapse.getAttribute('title')).toBe('collapseHint')
+    fireEvent.click(collapse)
+    expect(onCollapse).toHaveBeenCalledTimes(1)
     const slot = screen.getByTestId('operator-header-avatar-slot')
     expect(slot.style.width).toBe(
       `${STUDIO_OPERATOR_SHELL.avatarHeaderSizePx}px`,
@@ -365,10 +370,14 @@ describe('StudioOperatorHeader', () => {
     expect(screen.queryByTestId('operator-header-avatar')).toBeNull()
     cleanup()
 
-    const { onCollapse } = renderHeader({ avatarOwned: true })
+    renderHeader({ avatar: 'own' })
     expect(screen.queryByTestId('operator-header-avatar-slot')).toBeNull()
-    fireEvent.click(screen.getByTestId('operator-header-avatar'))
-    expect(onCollapse).toHaveBeenCalledTimes(1)
+    expect(screen.getByTestId('operator-header-avatar').tagName).toBe('SPAN')
+    cleanup()
+
+    renderHeader({ avatar: 'none' })
+    expect(screen.queryByTestId('operator-header-avatar-slot')).toBeNull()
+    expect(screen.queryByTestId('operator-header-avatar')).toBeNull()
   })
 
   /**

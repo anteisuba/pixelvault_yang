@@ -808,15 +808,15 @@ export function StudioOperatorDock() {
       }
       onCollapse={() => setOpen(false)}
       /**
-       * 头部左上那颗头像是不是**面板自己画**的。
+       * 头部左上那个头像位。
        *
-       * ⚠ 桌面上不是：那颗是外壳里那个持久 fixed 元素滑进来的（D7b 的「一个元素
-       *   两个锚点」），面板只留一个同尺寸的空槽给它坐，⛔ 不再画第二颗 ——
-       *   两颗叠在一起的表现是头像边缘在过渡末尾闪一下。
-       * ⚠ 手机上是：Sheet 那条路没有 morph（半屏 Sheet 不从右上角长出来），
-       *   头部那颗头像因此得由面板自己画，否则头部左上是个空洞。
+       * ⚠ 桌面 morph 宿主是 `slot`：那颗是外壳里那个持久 fixed 元素滑进来的（D7b
+       *   的「一个元素两个锚点」），面板只留一个同尺寸的空槽给它坐，⛔ 不再画第二颗
+       *   —— 两颗叠在一起的表现是头像边缘在过渡末尾闪一下。
+       * ⚠ 手机是 `own`：Sheet 那条路没有 morph，头部那颗由面板自己画。
+       * ⚠ 头像留在原位的宿主（布局 A）是 `none`：头像就在面板正上方那一行里。
        */
-      headerAvatarOwned={isMobile}
+      headerAvatar={isMobile ? 'own' : anchor.avatarStays ? 'none' : 'slot'}
     />
   )
 
@@ -926,11 +926,12 @@ export function StudioOperatorDock() {
              * 那正是 owner 说的「卡」。静止档 `clipPath: none`：不裁，描边与阴影回到自己身上。
              * ⚠ 收起档整颗 `<aside>` 根本不渲染（`panelPresent`），所以一个有尺寸的
              *   空面板不会在右上角吃掉点击。
-             * ⚠ top / right 由宿主的锚点给（画布 = 顶栏底 + 6，⛔ 不再压顶栏）。
+             * ⚠ top / right / bottom 由宿主的锚点给（画布 = 顶栏底 + 6，⛔ 不再压
+             *   顶栏；布局 A = 与舞台顶边、输入框底边对齐）。
              */
             style={{
               width: `${width}px`,
-              height: `calc(100dvh - ${anchor.panelTopPx * 2}px)`,
+              height: `calc(100dvh - ${anchor.panelTopPx + (anchor.panelBottomPx ?? anchor.panelTopPx)}px)`,
               top: `${anchor.panelTopPx}px`,
               right: `${anchor.panelRightPx}px`,
               clipPath: shapeClipPath,
@@ -1027,7 +1028,8 @@ export function StudioOperatorDock() {
           anchor={anchor}
           panelWidthPx={width}
           phase={phase}
-          dockProgress={dockProgress}
+          /* 布局 A 的头像留在原位（锚点 `avatarStays`）：不给进度 = 恒在收起位。 */
+          {...(anchor.avatarStays ? {} : { dockProgress })}
           onToggle={() => setOpen(!open)}
         />
       </div>

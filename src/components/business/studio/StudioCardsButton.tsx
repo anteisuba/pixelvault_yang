@@ -54,17 +54,19 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
           aria-label={t('cards')}
           className={cn(
             chip.trigger,
+            chip.compact,
             chip.look === 'outline' && selectedCardCount > 0 && chip.set,
             open && chip.open,
           )}
         >
           <PanelsTopLeft className="size-4" />
           {chip.look === 'outline' ? (
-            <span className="tabular-nums">
-              {selectedCardCount > 0
-                ? `${t('cards')} ${selectedCardCount}`
-                : t('cards')}
-            </span>
+            <>
+              <span className={chip.compactLabel}>{t('cards')}</span>
+              {selectedCardCount > 0 ? (
+                <span className="tabular-nums">{selectedCardCount}</span>
+              ) : null}
+            </>
           ) : (
             <>
               <span className="hidden sm:inline">{t('cards')}</span>

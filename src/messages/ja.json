@@ -6350,6 +6350,10 @@
     "characterPositiveLabel": "キャラクター {number} のタグ",
     "wholeTab": "全体",
     "stepsShort": "{count} ステップ",
+    "samplerShort": {
+      "k_euler_ancestral": "Euler a",
+      "k_dpmpp_2s_ancestral": "DPM++ 2S a"
+    },
     "opusFreeShort": "Opus 無料枠",
     "opusMeteredShort": "Anlas 消費",
     "backToWhole": "全体に戻る",
@@ -7391,6 +7395,7 @@
     "share": "この会話を共有",
     "feedback": "フィードバック",
     "collapse": "アシスタントを畳む",
+    "collapseHint": "畳む · Esc",
     "expand": "アシスタントを開く",
     "resize": "ドラッグで幅を変更",
     "planFold": "計画 · {count} ステップ",

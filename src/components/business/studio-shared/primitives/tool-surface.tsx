@@ -107,6 +107,15 @@ export interface StudioChipClasses {
    */
   readonly popoverAlign: 'start' | 'center'
   readonly popoverSideOffset: number
+  /**
+   * 窄了收成图标（布局 A，owner 2026-09-26「参数被分割成两行」）：工具行左组那几颗
+   * 加料 chip 在输入框卡变窄时（助手让位后）只留图标 + 数，整行保持一行。
+   * `compact` 挂在触发器上、`compactLabel` 挂在字上；判据是输入框卡的宽度
+   * （`@container/composer`，`StudioWorkbenchLayout` 的 `bottom` 分支），⛔ 不是视口。
+   * 字收进 `sr-only`，读屏照旧念得到。幽灵外观不收（两者都是空串）。
+   */
+  readonly compact: string
+  readonly compactLabel: string
 }
 
 const GHOST_CHIP_CLASSES: StudioChipClasses = {
@@ -116,11 +125,17 @@ const GHOST_CHIP_CLASSES: StudioChipClasses = {
   set: studioChipActiveClass,
   popoverAlign: studioToolPopoverAnchorAlign,
   popoverSideOffset: studioToolPopoverAnchorSideOffset,
+  compact: '',
+  compactLabel: '',
 }
 
 /** 描边药丸「挂了东西 / 改过」那一档 —— 宿主自己画的 chip（负面词、模型）也用它。 */
 export const studioOutlineChipSetClass =
   'border-transparent bg-muted hover:border-foreground/40'
+
+/** 描边 chip 窄了收成图标那一档（见 `StudioChipClasses.compact`）—— 宿主自己画的 chip 也用它。 */
+export const studioOutlineChipCompactClass = '@max-4xl/composer:px-2'
+export const studioOutlineChipCompactLabelClass = '@max-4xl/composer:sr-only'
 
 const OUTLINE_CHIP_CLASSES: StudioChipClasses = {
   look: 'outline',
@@ -129,6 +144,8 @@ const OUTLINE_CHIP_CLASSES: StudioChipClasses = {
   set: studioOutlineChipSetClass,
   popoverAlign: 'start',
   popoverSideOffset: 8,
+  compact: studioOutlineChipCompactClass,
+  compactLabel: studioOutlineChipCompactLabelClass,
 }
 
 export function useStudioChipClasses(): StudioChipClasses {

@@ -60,6 +60,8 @@ import {
   StudioToolSurface,
   StudioToolSurfaceTrigger,
   studioOutlineChipClass,
+  studioOutlineChipCompactClass,
+  studioOutlineChipCompactLabelClass,
   studioOutlineChipSetClass,
   studioToolPopoverBaseClass,
   studioToolPopoverMaxHeightClass,
@@ -406,20 +408,32 @@ export function StudioTagsComposer({
               />
               <Toolbar.Button
                 type="button"
+                aria-label={t('workbench.lookup')}
                 onClick={() => onOpenPanel('catalog')}
-                className={studioOutlineChipClass}
+                className={cn(
+                  studioOutlineChipClass,
+                  studioOutlineChipCompactClass,
+                )}
               >
                 <Search className="size-4" aria-hidden />
-                {t('workbench.lookup')}
+                <span className={studioOutlineChipCompactLabelClass}>
+                  {t('workbench.lookup')}
+                </span>
               </Toolbar.Button>
               {characters.mode ? (
                 <Toolbar.Button
                   type="button"
+                  aria-label={t('workbench.composition')}
                   onClick={() => onOpenPanel('composition')}
-                  className={studioOutlineChipClass}
+                  className={cn(
+                    studioOutlineChipClass,
+                    studioOutlineChipCompactClass,
+                  )}
                 >
                   <Grid2x2 className="size-4" aria-hidden />
-                  {t('workbench.composition')}
+                  <span className={studioOutlineChipCompactLabelClass}>
+                    {t('workbench.composition')}
+                  </span>
                 </Toolbar.Button>
               ) : null}
             </Toolbar.Root>
@@ -460,7 +474,7 @@ export function StudioTagsComposer({
                   contentClassName="w-80"
                   disabled={isGenerating}
                   className={cn(
-                    'h-8 max-w-48 font-medium',
+                    'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36',
                     runModels.length > 0 && studioOutlineChipSetClass,
                     'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
                   )}
@@ -547,13 +561,17 @@ function TagCapabilityChip({
     (control) => control.chip.capability === 'sampler',
   )
   const steps = visible.find((control) => control.chip.capability === 'steps')
-  const summary = [
-    tCapability('singleChipLabel'),
-    ...(sampler
+  const samplerValue = sampler
+    ? String(getCapabilityChipValue(sampler.chip, params))
+    : null
+  // 画板 A：chip 上只写「Euler a · 28 步」—— 图标已经说了这是专属参数，⛔ 不再
+  // 前缀「专属 ·」；采样器有简写就用简写（`samplerShort`），一行才放得下。
+  const facts = [
+    ...(samplerValue
       ? [
-          tAdvanced(
-            `samplerOption.${String(getCapabilityChipValue(sampler.chip, params))}`,
-          ),
+          t.has(`samplerShort.${samplerValue}`)
+            ? t(`samplerShort.${samplerValue}`)
+            : tAdvanced(`samplerOption.${samplerValue}`),
         ]
       : []),
     ...(steps
@@ -563,7 +581,9 @@ function TagCapabilityChip({
           }),
         ]
       : []),
-  ].join(' · ')
+  ]
+  const summary =
+    facts.length > 0 ? facts.join(' · ') : tCapability('singleChipLabel')
   const otherSet = visible.filter(
     (control) =>
       control !== sampler &&
@@ -581,6 +601,7 @@ function TagCapabilityChip({
           type="button"
           disabled={disabled}
           data-assistant-field="capabilities"
+          title={tCapability('singleChipLabel')}
           className={cn(
             chipClasses.trigger,
             'max-w-64',

@@ -147,6 +147,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             title={badgeWarning}
             className={cn(
               chip.trigger,
+              chip.compact,
               chip.look === 'outline'
                 ? cn(isActive && chip.set, popoverOpen && chip.open)
                 : (isActive || popoverOpen) && chip.open,
@@ -155,12 +156,13 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             <ImageIcon className="size-4 shrink-0" />
             {chip.look === 'outline' ? (
               // 描边外观把数写进字里（「图像 2」），⛔ 不再挂角标 —— 一行药丸上
-              // 只有这一颗带红点会显得是报错。
-              <span className="tabular-nums">
-                {totalEntries > 0
-                  ? `${t('label')} ${totalEntries}`
-                  : t('label')}
-              </span>
+              // 只有这一颗带红点会显得是报错。窄了字收起、数留着。
+              <>
+                <span className={chip.compactLabel}>{t('label')}</span>
+                {totalEntries > 0 ? (
+                  <span className="tabular-nums">{totalEntries}</span>
+                ) : null}
+              </>
             ) : (
               <>
                 <span className="hidden sm:inline">{t('label')}</span>

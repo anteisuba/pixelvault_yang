@@ -113,7 +113,10 @@ import { StudioOperatorResearchProgress } from '@/components/business/studio/ass
 import { StudioOperatorQueueBar } from '@/components/business/studio/assistant-operator/StudioOperatorQueueBar'
 import { StudioOperatorEmptyState } from '@/components/business/studio/assistant-operator/StudioOperatorEmptyState'
 import { StudioOperatorErrorBar } from '@/components/business/studio/assistant-operator/StudioOperatorErrorBar'
-import { StudioOperatorHeader } from '@/components/business/studio/assistant-operator/StudioOperatorHeader'
+import {
+  StudioOperatorHeader,
+  type StudioOperatorHeaderAvatar,
+} from '@/components/business/studio/assistant-operator/StudioOperatorHeader'
 import {
   STUDIO_OPERATOR_CARD_KINDS,
   STUDIO_OPERATOR_SPEAKERS,
@@ -280,8 +283,8 @@ interface StudioOperatorPanelProps {
   /** 规则薄卡上的「查看规则」（§10）—— 打开助手设置并落到规则那一页。 */
   onOpenProjectRules(): void
   onCollapse(): void
-  /** 头部那颗头像由**面板**画吗（手机档 = 是，见 `StudioOperatorHeader` 头注）。 */
-  headerAvatarOwned: boolean
+  /** 头部左上那个头像位（外壳说了算，见 `StudioOperatorHeader` 头注）。 */
+  headerAvatar: StudioOperatorHeaderAvatar
 }
 
 /**
@@ -308,7 +311,7 @@ export function StudioOperatorPanel({
   onOpenAssistantSettings,
   onOpenProjectRules,
   onCollapse,
-  headerAvatarOwned,
+  headerAvatar,
 }: StudioOperatorPanelProps) {
   const t = useTranslations('StudioOperator')
   const format = useFormatter()
@@ -1797,7 +1800,7 @@ export function StudioOperatorPanel({
         onNewThread={newThread}
         onOpenAssistantSettings={onOpenAssistantSettings}
         onCollapse={onCollapse}
-        avatarOwned={headerAvatarOwned}
+        avatar={headerAvatar}
         {...(persona ? { persona } : {})}
         /* ⚠ 续跑 chip 的正位是**结论记录块的尾部**（§3.6）——头部这一颗只在
            一条结论记录都没有时出现（见 `resumeHost` 的头注）。 */

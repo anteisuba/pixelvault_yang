@@ -80,6 +80,8 @@ import { LiquidPopoverLayer } from '@/components/business/studio-shared/primitiv
 import {
   StudioChipLookProvider,
   studioOutlineChipClass,
+  studioOutlineChipCompactClass,
+  studioOutlineChipCompactLabelClass,
   studioOutlineChipSetClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
@@ -526,13 +528,17 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                         ?.focus(),
                     )
                   }}
+                  aria-label={tPromptArea('negativePromptLabel')}
                   className={cn(
                     studioOutlineChipClass,
+                    studioOutlineChipCompactClass,
                     negativeShown && studioOutlineChipSetClass,
                   )}
                 >
                   <Ban className="size-4" aria-hidden />
-                  {tPromptArea('negativePromptLabel')}
+                  <span className={studioOutlineChipCompactLabelClass}>
+                    {tPromptArea('negativePromptLabel')}
+                  </span>
                 </Toolbar.Button>
                 <StudioInpaintMaskChip disabled={isGenerating} />
               </Toolbar.Root>
@@ -577,7 +583,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
                       popoverAlign="end"
                       contentClassName="w-80"
                       className={cn(
-                        'h-8 max-w-48 font-medium',
+                        'h-8 max-w-48 font-medium @max-4xl/composer:max-w-36',
                         runModels.length > 0 && studioOutlineChipSetClass,
                         // 开着 = 与其余 chip 的 open 同一档（`ModelChip` 把 open 写在 data-active）。
                         'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',

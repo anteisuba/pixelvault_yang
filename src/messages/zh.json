@@ -6350,6 +6350,10 @@
     "characterPositiveLabel": "角色 {number} 的标签",
     "wholeTab": "整体",
     "stepsShort": "{count} 步",
+    "samplerShort": {
+      "k_euler_ancestral": "Euler a",
+      "k_dpmpp_2s_ancestral": "DPM++ 2S a"
+    },
     "opusFreeShort": "Opus 免费档",
     "opusMeteredShort": "按 Anlas 计",
     "backToWhole": "回到整体",
@@ -7391,6 +7395,7 @@
     "share": "分享这段会话",
     "feedback": "问题反馈",
     "collapse": "收起助手",
+    "collapseHint": "收起 · Esc",
     "expand": "展开助手",
     "resize": "拖动调整助手宽度",
     "planFold": "计划 · {count} 步",

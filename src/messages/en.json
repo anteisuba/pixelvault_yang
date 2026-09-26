@@ -6350,6 +6350,10 @@
     "characterPositiveLabel": "Character {number} tags",
     "wholeTab": "Overall",
     "stepsShort": "{count} steps",
+    "samplerShort": {
+      "k_euler_ancestral": "Euler a",
+      "k_dpmpp_2s_ancestral": "DPM++ 2S a"
+    },
     "opusFreeShort": "Opus free",
     "opusMeteredShort": "Billed in Anlas",
     "backToWhole": "Back to the whole image",
@@ -7391,6 +7395,7 @@
     "share": "Share this chat",
     "feedback": "Send feedback",
     "collapse": "Collapse assistant",
+    "collapseHint": "Collapse · Esc",
     "expand": "Expand assistant",
     "resize": "Drag to resize the assistant",
     "planFold": "Plan · {count, plural, one {# step} other {# steps}}",

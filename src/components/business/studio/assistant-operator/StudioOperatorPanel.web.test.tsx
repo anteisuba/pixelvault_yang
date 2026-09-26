@@ -278,7 +278,7 @@ function PanelHarness() {
       onSelectRouteModel={onSelectRouteModel}
       onOpenProjectRules={onOpenProjectRules}
       onCollapse={vi.fn()}
-      headerAvatarOwned={false}
+      headerAvatar="slot"
     />
   )
 }

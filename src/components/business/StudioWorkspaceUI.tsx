@@ -7,6 +7,7 @@ import { motion, useTransform } from 'motion/react'
 import { useTranslations } from 'next-intl'
 
 import { STUDIO_PREFILL_PROMPT_STORAGE_KEY } from '@/constants/studio'
+import { STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR } from '@/constants/studio-assistant-operator'
 import { parseTagChips, serializeTagChips } from '@/lib/tag-composer'
 import { ROUTES } from '@/constants/routes'
 import {
@@ -135,12 +136,18 @@ export function StudioWorkspaceUI() {
   const isImageBottomComposer = isBottomComposer && !isTagsWorkbench
   /**
    * 图片台桌面的助手是**让位**不是覆盖（owner 2026-09-26）：面板外面就是工作台，
-   * 点参数、改标签都是正常操作 —— 与画布同一档，⛔ 点外面不收。收起走头像与 Esc。
+   * 点参数、改标签都是正常操作 —— 与画布同一档，⛔ 点外面不收。收起走头部收起键、
+   * 头像与 Esc。面板排成工作台旁边的一列（布局 A「分栏并排」）：上下与舞台 /
+   * 输入框对齐，头像留在右上那一行里。
    */
   const operatorHost = useMemo(
     () =>
       isBottomComposer
-        ? { ...workbenchOperatorHost, collapseOnOutsidePointer: false }
+        ? {
+            ...workbenchOperatorHost,
+            collapseOnOutsidePointer: false,
+            anchor: STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR,
+          }
         : workbenchOperatorHost,
     [isBottomComposer, workbenchOperatorHost],
   )

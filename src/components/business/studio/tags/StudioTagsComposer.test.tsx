@@ -19,8 +19,12 @@ const mocks = vi.hoisted(() => ({
 }))
 
 vi.mock('next-intl', () => ({
-  useTranslations: () => (key: string, values?: Record<string, unknown>) =>
-    values ? `${key}:${Object.values(values).join(',')}` : key,
+  useTranslations: () =>
+    Object.assign(
+      (key: string, values?: Record<string, unknown>) =>
+        values ? `${key}:${Object.values(values).join(',')}` : key,
+      { has: () => false },
+    ),
 }))
 vi.mock('@/contexts/studio-context', () => ({
   useStudioForm: () => ({

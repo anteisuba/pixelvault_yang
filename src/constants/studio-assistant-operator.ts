@@ -405,10 +405,10 @@ export const STUDIO_OPERATOR_SHELL = {
   /** 头像与它左边那颗胶囊之间的空隙（画布顶栏排布用）。 */
   avatarGapPx: 8,
   /**
-   * 工作台让位时，面板左缘与工作台内容右缘之间的空隙（= 工作台脊柱的
-   * `--workbench-gap` 14，owner 2026-09-26「工作台让位」）。
+   * 工作台让位时，面板左缘与工作台内容右缘之间的空隙。owner 2026-09-26 选布局 A
+   * 「分栏并排」：14（= `--workbench-gap`）读起来是两块挤在一起，放宽到 20。
    */
-  yieldGapPx: 14,
+  yieldGapPx: 20,
   /** 头部左右内距（`px-3`）—— 头像落位的 x 由它算出来，⛔ 不量 DOM。 */
   headerPadXPx: 12,
   /**
@@ -455,7 +455,36 @@ export interface StudioOperatorShellAnchor {
   readonly avatarRightPx: number
   readonly panelTopPx: number
   readonly panelRightPx: number
+  /** 面板底边距视口下缘多少；缺省 = `panelTopPx`（上下对称）。 */
+  readonly panelBottomPx?: number
+  /**
+   * 头像**留在原位**、不飞进面板头部（布局 A「分栏并排」，owner 2026-09-26）：
+   * 面板是工作台旁边的一列、顶边对齐舞台，头像留在右上角那一行里当开关；面板
+   * 头部因此不给它留槽，收起走头部右上那颗收起键。
+   */
+  readonly avatarStays?: boolean
 }
+
+/**
+ * 图片台桌面的布局 A「分栏并排」（owner 2026-09-26）：面板上下与舞台 / 输入框
+ * 对齐 —— 顶边 = 地台内边距 + 头部那一行 + 行距，底边 = 地台内边距。
+ * ⚠ 三个数与 `StudioWorkbenchLayout` 的 `bottom` 分支逐字同源（`--workbench-pad`
+ *   18 · 头部 `h-9` 36 · `gap-3` 12），改一边必须改另一边。
+ */
+const WORKBENCH_COLUMN = { padPx: 18, headerHeightPx: 36, gapPx: 12 } as const
+
+export const STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR: StudioOperatorShellAnchor =
+  {
+    avatarTopPx: WORKBENCH_COLUMN.padPx,
+    avatarRightPx: WORKBENCH_COLUMN.padPx,
+    panelTopPx:
+      WORKBENCH_COLUMN.padPx +
+      WORKBENCH_COLUMN.headerHeightPx +
+      WORKBENCH_COLUMN.gapPx,
+    panelRightPx: WORKBENCH_COLUMN.padPx,
+    panelBottomPx: WORKBENCH_COLUMN.padPx,
+    avatarStays: true,
+  }
 
 /** 没有顶栏的宿主（图片 / 视频工作台 · LoRA 装配台）：头像与面板同贴 24 留白。 */
 export const STUDIO_OPERATOR_DEFAULT_ANCHOR: StudioOperatorShellAnchor = {

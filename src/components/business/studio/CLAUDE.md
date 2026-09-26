@@ -31,10 +31,10 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
         │       └── StudioResultFeedback / StudioAudioFeedback / StudioGenerationErrorDialog
         ├── StudioAssistantDock + StudioAssistantFab (studio-shared/chrome/ + studio/ — 旧助手，只剩音频档走它；图片/视频已归 operator)
         ├── StudioOperatorDock (studio/assistant-operator/ — 操作员面板外壳：宽度/收放；图片+视频档)
-        │   ├── StudioOperatorAvatarToggle (**头像开关**：36px 人设头像 + 数字角标（待确认 + 未读结果，打开面板清零），**右上角**；一个持久 fixed 元素、两个锚点（顶栏 36 ↔ 面板头部槽 22），位移跟着形状左边沿走。D7b ④；展开形状 = B「先横成一条，再落下」（clip-path，09-26），铁律见 v2 §4.3。⛔ StudioOperatorCollapsedButton · StudioOperatorIconRail · StudioOperatorCollapsedCard · StudioOperatorMobileFab 四个文件都已删)
+        │   ├── StudioOperatorAvatarToggle (**头像开关**：36px 人设头像 + 数字角标（待确认 + 未读结果，打开面板清零），**右上角**；一个持久 fixed 元素、两个锚点（顶栏 36 ↔ 面板头部槽 22），位移跟着形状左边沿走；图片台桌面（布局 A，锚点 `avatarStays`）头像留在原位不进头部。D7b ④；展开形状 = B「先横成一条，再落下」（clip-path，09-26），铁律见 v2 §4.3。⛔ StudioOperatorCollapsedButton · StudioOperatorIconRail · StudioOperatorCollapsedCard · StudioOperatorMobileFab 四个文件都已删)
         │   ├── StudioOperatorMobileSheet (手机 vaul Sheet：**接近满屏 95svh、顶上只留一条窄缝**，往下拖即关；`modal={false}` 不画遮罩也不锁 body —— 装的是下面同一个 Panel 元素。⛔ 半屏 0.55 与 `snapPoints` 整套已删（owner 2026-09-20「半屏高度不够」），软键盘由 `maxHeight` 扣 `--keyboard-inset` 接住)
         │   └── StudioOperatorPanel (同目录 — 面板内容：空态 / 时间线 / 双行输入区)
-        │       ├── StudioOperatorHeader (头部一行 44px：左上头像槽（桌面留位给外壳那颗，手机自己画）/ 会话标题▾（= 历史下拉、唯一的历史入口，新会话在底部）/ 续跑 / 右上一颗 ⋯（助手设置 · 隐身）。⛔ 收起钮已删，收起 = 点头像；⛔ 域标记胶囊已搬去输入框上方（D7c ④）)
+        │       ├── StudioOperatorHeader (头部一行 44px：左上头像槽（桌面留位给外壳那颗，手机自己画）/ 会话标题▾（= 历史下拉、唯一的历史入口，新会话在底部）/ 续跑 / 右上一颗 ⋯（助手设置 · 隐身）+ 最右一颗收起（悬停「收起 · Esc」，09-26 找回）；头像位 `slot` / `own` / `none` 由外壳给；⛔ 域标记胶囊已搬去输入框上方（D7c ④）)
         │       ├── StudioOperatorPinnedEvidence (面板顶部「钉住的证据」常驻条：钉住后在顶部留一份、点回原卡、× 取消钉住；⛔ 没钉住就整条不渲染；v2 §3.2 / 画板 BCards「已钉住 · 留在面板顶部」)
         │       ├── StudioOperatorEmptyState (空态：助手头像 40px + **一句话**（`face.emptyLine`），⛔ 就这两样；起手药丸已搬去输入框正上方那一排 28px chip（D7c ④，只在空态出现）。上下留白是两根 `shrink`+`grow` 的 spacer（basis 52 / 44）—— ⛔ 不写成 padding：矮容器里 padding 不让步)
         │       ├── StudioOperatorTimelineRow (时间线沟一行 + **五类卡的分派点**)
@@ -75,7 +75,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 
 **四张脸**：宿主契约多一格 `face`（`{domainIcon, contextLine(), emptyLine, starterPills[], inputPlaceholder}`，见 `src/contexts/studio-operator-host.tsx`），四份宿主各自实现，Dock / Header / EmptyState 只读它。⛔ 组件里不许按 `domain` 分叉挑文案 / 图标 / 药丸（`StudioOperatorDock.web.test.tsx` 有源码扫描守着）。静态那几样按域查表走 `src/hooks/use-studio-operator-face.ts`，只有 `contextLine` 是宿主自己算的。⛔ `STUDIO_OPERATOR_SUGGESTIONS` · `STUDIO_OPERATOR_EMPTY_SUGGESTION_COUNT` 与三语 `StudioOperator.suggestion.*` 已整块删。
 
-**收起态**：**右上角 36px 人设头像 + 数字角标，头像即唯一开关**（点开滑进面板头部，点头部那颗或 Esc 收回）。⛔ D7 ④ 的「右下 44px 近黑圆按钮」与画布顶栏那颗「助手」胶囊（`shell-assistant-toggle`）一起退场；⛔ 仍旧没有微状态卡、状态点、`N/M` 读数与那句状态词。机制与十条动画铁律见 `docs/references/pages/assistant-shell-v2.md §4.3`。
+**收起态**：**右上角 36px 人设头像 + 数字角标，头像是打开的唯一入口**（点开滑进面板头部；收起走头部收起键、头像或 Esc）。⛔ D7 ④ 的「右下 44px 近黑圆按钮」与画布顶栏那颗「助手」胶囊（`shell-assistant-toggle`）一起退场；⛔ 仍旧没有微状态卡、状态点、`N/M` 读数与那句状态词。机制与十条动画铁律见 `docs/references/pages/assistant-shell-v2.md §4.3`。
 
 施工基准 `docs/references/pages/assistant-shell-v2.md`（A 方向节 · §3.2 五类卡片 · §4.3 收起态 · §12 皮肤）；`assistant-shell.md` 只作钱闸 / 检索链参考。动这一系之前先读 v2，别照现状扩。
 

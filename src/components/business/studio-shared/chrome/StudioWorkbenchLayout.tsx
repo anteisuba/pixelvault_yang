@@ -65,14 +65,18 @@ export const StudioWorkbenchLayout = memo(function StudioWorkbenchLayout({
       // ⚠ 输入框卡**不挂** `.studio-param-panel`：参考图弹层拿它当碰撞边界，
       //   而弹层是朝上开出卡外的 —— 边界缩成这张矮卡会把弹层挤回卡里。
       <div className="studio-workbench-shell flex min-h-0 flex-1 flex-col gap-3 lg:flex-none">
+        {/* ⚠ 头部这一行定高 `h-9`、行距 `gap-3`：助手面板按这两个数对齐舞台顶边
+            （`STUDIO_OPERATOR_WORKBENCH_COLUMN_ANCHOR`），改这里必须改那边。 */}
         {header ? (
-          <div className="flex shrink-0 items-center">{header}</div>
+          <div className="flex h-9 shrink-0 items-center">{header}</div>
         ) : null}
         <div className="studio-workbench-stage workbench-card studio-scroll-area flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto px-3 pt-3 pb-3 lg:px-6 lg:pt-6 lg:pb-6">
           {stage}
         </div>
         {params ? (
-          <div className="shrink-0 rounded-2xl bg-card px-4 pt-3.5 pb-3 shadow-float">
+          // `@container/composer`：工具行左组 chip 按这张卡的宽度收成图标
+          // （`StudioChipClasses.compact`）。
+          <div className="@container/composer shrink-0 rounded-2xl bg-card px-4 pt-3.5 pb-3 shadow-float">
             {params}
           </div>
         ) : null}

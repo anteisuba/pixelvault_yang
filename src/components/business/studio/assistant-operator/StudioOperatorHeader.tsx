@@ -24,9 +24,9 @@
  *    这颗按钮本来就是为「刷新之后」存在的，而刷新之后恰恰可能什么都没载回来。
  *    ⚠ 挂不挂由面板判（`resumeHost`），⛔ 这里不再自己决定。
  *
- * ── 右上收成**一颗 ⋯**（D7b ④，owner 2026-09-20）──────────────────
- * 并排那三颗 32px 图标（历史 · 设置 · 收起）**全部退场**：收起改点左上头像（见下），
- * 历史与设置收进 ⋯ 菜单，隐身（56a）也在那里。
+ * ── 右上 **⋯ + 收起**（D7b ④ 起只剩 ⋯；收起键 owner 2026-09-26 找回）────────
+ * 并排那三颗 32px 图标（历史 · 设置 · 收起）D7b 时全部退场，历史与设置收进 ⋯ 菜单，
+ * 隐身（56a）也在那里。
  *
  * ⚠ 菜单里的「历史会话」**不另开一份列表**：它把标题▾ 那个受控 `DropdownMenu` 打开
  *   （`setMenuOpen(true)`），锚点仍是标题那颗药丸。v1 把两处合并过一次
@@ -37,16 +37,18 @@
  *   `onInteractOutside` 认得它就不当外部点击。⛔ 别改成 `setTimeout` 去躲这一拍：
  *   那只是把同一个竞态推迟一帧。
  *
- * ⚠ **收起钮与并排图标全删**（D7b ④，owner 2026-09-20）：收起现在点**左上那颗头像**。
- * 键盘可达没有丢 —— 头像本身是一颗 `<button>`（桌面上是外壳那颗 fixed 的，
- * 手机上是下面这颗），Esc 那一级也还在。⛔ 别把 `PanelRightClose` 找回来：
- * 一个面板不该有两条收起的路。
+ * ⭐ **收起键回到最右**（owner 2026-09-26「收起只能用 Esc」→ 画板 Collapse 选 ①）：
+ * D7b 让「点左上头像」兼任收起，真机上没人找得到 —— 用户只摸到了 Esc。收起是一颗
+ * 看得见的键，位置与 Claude / ChatGPT 侧栏同一处，悬停写着「收起 · Esc」。
+ * 头像从此只是人设；外壳那颗 fixed 头像仍能点（它在收起态是唯一的打开入口）。
  *
- * ── 左上那个头像槽 ──────────────────────────────────────────────
- * 桌面上头部**不画**头像：那颗是外壳里那个持久 fixed 元素滑进来的（D7b「一个
- * 元素两个锚点」），这里只留一个同尺寸的空槽给它坐。手机走 Sheet、没有 morph，
- * 所以那一档由头部自己画（`avatarOwned`）。⛔ 两边都画的表现是过渡末尾头像
- * 边缘闪一下。
+ * ── 左上那个头像位（`avatar`，外壳说了算）──────────────────────────
+ *  · `slot` —— 桌面 morph 宿主：那颗是外壳里的持久 fixed 元素滑进来的（D7b「一个
+ *    元素两个锚点」），这里只留一个同尺寸的空槽给它坐。⛔ 两边都画的表现是过渡
+ *    末尾头像边缘闪一下。
+ *  · `own` —— 手机 Sheet：没有 morph，由头部自己画一颗（只是脸，⛔ 不再是按钮）。
+ *  · `none` —— 布局 A「分栏并排」（图片台桌面）：头像留在面板**上方**那一行里，
+ *    头部不留位，标题从左缘起。
  */
 
 import { useCallback, useState } from 'react'
@@ -56,6 +58,7 @@ import {
   ChevronDown,
   EyeOff,
   MoreHorizontal,
+  PanelRightClose,
   Settings2,
 } from '@/components/icons'
 import { useFormatter, useTranslations } from 'next-intl'
@@ -117,13 +120,16 @@ const MS_PER_DAY = 86_400_000
 const HISTORY_SKELETON_WIDTHS = ['w-3/5', 'w-1/2', 'w-7/10'] as const
 
 /**
- * 右上**那一颗 ⋯** 的皮肤（§4.1：32px）。
+ * 右上 **⋯ 与收起**两颗的皮肤（§4.1：32px）。
  *
  * ⚠ 命中区 32px 是 `ui-defaults.md §5` 的 fine 档底线，⛔ 别为了挤下更多东西
- * 缩到 28 —— 它是头部唯一的常驻入口，先保命中。
+ * 缩到 28 —— 它们是头部仅有的常驻入口，先保命中。
  */
 const HEADER_ICON_BUTTON_CLASS =
   'grid size-8 shrink-0 place-items-center rounded-md border border-border bg-card text-muted-foreground transition-colors duration-(--duration-fast) ease-standard hover:bg-accent hover:text-foreground active:bg-accent/80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
+
+/** 头部左上那个头像位怎么处理 —— 见头注「左上那个头像位」。 */
+export type StudioOperatorHeaderAvatar = 'slot' | 'own' | 'none'
 
 const SESSION_DOMAIN_BY_SURFACE: Record<
   AssistantSurfaceId,
@@ -151,17 +157,13 @@ interface StudioOperatorHeaderProps {
    * 弹层跟着面板走的下场是它自己突然消失。
    */
   onOpenAssistantSettings(): void
-  /**
-   * 收起 —— 现在只有**头像**按得到它（D7b）。⚠ 桌面上按的是外壳那颗 fixed 头像，
-   * 所以这个回调在桌面档其实没有调用方；留着是因为手机那颗头像就在头部里。
-   */
+  /** 收起 —— 头部最右那颗收起键（见头注）。 */
   onCollapse(): void
   /**
-   * 头部**自己画**那颗头像吗（手机档 = 是）。
-   * ⚠ 判据由外壳给（它才知道有没有 morph），⛔ 头部不自己 `useIsMobile()`：
-   *   同一件事判两遍必然会漂。
+   * 左上那个头像位。⚠ 判据由外壳给（它才知道有没有 morph、头像留不留在原位），
+   * ⛔ 头部不自己 `useIsMobile()`：同一件事判两遍必然会漂。
    */
-  avatarOwned: boolean
+  avatar: StudioOperatorHeaderAvatar
   persona?: AssistantPersona
   /**
    * **有未完成计划**（第三期 · 断点续跑）—— 刷新之后唯一还看得见的入口。
@@ -185,7 +187,7 @@ export function StudioOperatorHeader({
   onNewThread,
   onOpenAssistantSettings,
   onCollapse,
-  avatarOwned,
+  avatar,
   persona,
   resume,
 }: StudioOperatorHeaderProps) {
@@ -259,27 +261,24 @@ export function StudioOperatorHeader({
         style={{ height: `${STUDIO_OPERATOR_SHELL.headerHeightPx}px` }}
         className="flex items-center gap-2 px-3"
       >
-        {/* 头像槽（D7b ④）—— 桌面是给外壳那颗 fixed 头像**留位**的空格子，
-            手机是真的那一颗。两档同宽，所以标题的起点在两档上逐像素相同。 */}
-        {avatarOwned ? (
-          <button
-            type="button"
+        {/* 头像位（D7b ④）—— `slot` 给外壳那颗 fixed 头像**留位**，`own` 是真的
+            那一颗；两档同宽，所以标题的起点逐像素相同。`none` 不占位。 */}
+        {avatar === 'own' ? (
+          <span
             data-testid="operator-header-avatar"
-            aria-label={t('collapse')}
-            {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
-            onClick={onCollapse}
+            aria-hidden
             style={{
               width: `${STUDIO_OPERATOR_SHELL.avatarHeaderSizePx}px`,
               height: `${STUDIO_OPERATOR_SHELL.avatarHeaderSizePx}px`,
             }}
-            className="grid shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-card text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="grid shrink-0 place-items-center overflow-hidden rounded-full border border-border bg-card text-foreground"
           >
             <AssistantAvatarGlyph
               presetId={persona?.avatarPreset ?? null}
               name={persona?.name?.trim() || t('timeline.assistantFallback')}
             />
-          </button>
-        ) : (
+          </span>
+        ) : avatar === 'slot' ? (
           <span
             data-testid="operator-header-avatar-slot"
             aria-hidden
@@ -289,7 +288,7 @@ export function StudioOperatorHeader({
               height: `${STUDIO_OPERATOR_SHELL.avatarHeaderSizePx}px`,
             }}
           />
-        )}
+        ) : null}
 
         <DropdownMenu
           modal={false}
@@ -528,6 +527,19 @@ export function StudioOperatorHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+
+        {/* ── 收起（画板 Collapse ①）── 最右，与 ⋯ 同一副皮肤；悬停说出 Esc。 */}
+        <button
+          type="button"
+          data-testid="operator-collapse"
+          aria-label={t('collapse')}
+          title={t('collapseHint')}
+          {...{ [STUDIO_OPERATOR_KEEP_OPEN_ATTR]: '' }}
+          onClick={onCollapse}
+          className={HEADER_ICON_BUTTON_CLASS}
+        >
+          <PanelRightClose className="size-4" aria-hidden />
+        </button>
       </div>
     </div>
   )

@@ -120,65 +120,39 @@ function renderRoster() {
   )
 }
 
-describe('CharacterRoster（卡片页 K3）', () => {
-  it('网格里列出角色，变体跟在父卡后面并写明是谁的变体', () => {
+describe('CharacterRoster（角色页 · 方向 A）', () => {
+  it('总览按张数列出角色，变体跟在父卡后面并写明是谁的变体', () => {
     renderRoster()
     const tiles = screen.getAllByTestId('roster-tile')
     expect(tiles).toHaveLength(3)
-    expect(tiles[1]).toHaveTextContent('Denia · Q版')
+    expect(screen.getByText('Denia · Q版')).toBeTruthy()
   })
 
-  it('点一个角色打开侧栏；再点同一个收起', () => {
-    renderRoster()
-    const [denia] = screen.getAllByTestId('roster-tile')
-    fireEvent.click(denia!)
-    expect(screen.getByRole('complementary', { name: 'Denia' })).toBeTruthy()
-    expect(denia).toHaveAttribute('aria-pressed', 'true')
-    fireEvent.click(denia!)
-    expect(screen.queryByRole('complementary', { name: 'Denia' })).toBeNull()
-  })
-
-  it('开着时点别的角色只换内容', () => {
-    renderRoster()
-    const tiles = screen.getAllByTestId('roster-tile')
-    fireEvent.click(tiles[0]!)
-    fireEvent.click(tiles[2]!)
-    expect(screen.getByRole('complementary', { name: '里希' })).toBeTruthy()
-    expect(screen.queryByRole('complementary', { name: 'Denia' })).toBeNull()
-  })
-
-  it('三行一次只展开一行：点开设定，外观收起', () => {
+  it('点一个角色进整页详情：左图右文；「‹ 角色」回总览', () => {
     renderRoster()
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
-    const looks = screen.getByRole('button', { name: /外观/ })
-    const setting = screen.getByRole('button', { name: /设定/ })
-    expect(looks).toHaveAttribute('aria-expanded', 'true')
-    fireEvent.click(setting)
-    expect(setting).toHaveAttribute('aria-expanded', 'true')
-    expect(looks).toHaveAttribute('aria-expanded', 'false')
-    expect(screen.getByText('先替别人撑好伞')).toBeTruthy()
+    const detail = screen.getByRole('region', { name: 'Denia' })
+    expect(detail).toHaveTextContent('先替别人撑好伞')
+    expect(detail).toHaveTextContent('图片')
+    fireEvent.click(screen.getByRole('button', { name: '角色' }))
+    expect(screen.queryByRole('region', { name: 'Denia' })).toBeNull()
   })
 
-  it('Esc 收起侧栏', () => {
+  it('Esc 收起详情；叠在上面的弹层吃掉的 Esc 不收', () => {
     renderRoster()
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
-    fireEvent.keyDown(window, { key: 'Escape' })
-    expect(screen.queryByRole('complementary', { name: 'Denia' })).toBeNull()
-  })
-
-  it('叠在侧栏上的弹层吃掉的 Esc 不收侧栏', () => {
-    renderRoster()
-    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
-    const event = new KeyboardEvent('keydown', {
+    const handled = new KeyboardEvent('keydown', {
       key: 'Escape',
       cancelable: true,
     })
-    event.preventDefault()
-    window.dispatchEvent(event)
-    expect(screen.getByRole('complementary', { name: 'Denia' })).toBeTruthy()
+    handled.preventDefault()
+    window.dispatchEvent(handled)
+    expect(screen.getByRole('region', { name: 'Denia' })).toBeTruthy()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(screen.queryByRole('region', { name: 'Denia' })).toBeNull()
   })
 
-  it('编辑：在侧栏里改性格，保存时整份设定带回（没改的格不丢）', async () => {
+  it('编辑：整页换成编辑态，改性格保存时整份设定带回（没改的格不丢）', async () => {
     renderRoster()
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
     fireEvent.click(screen.getByRole('button', { name: '编辑' }))

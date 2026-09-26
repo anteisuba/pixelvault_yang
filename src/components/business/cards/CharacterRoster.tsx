@@ -15,43 +15,34 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Drawer, DrawerContent, DrawerTitle } from '@/components/ui/drawer'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
-import {
-  CharacterCardPanel,
-  type CharacterPanelEntry,
-} from '@/components/business/cards/CharacterCardPanel'
 import { CharacterCardCreateForm } from '@/components/business/cards/CharacterCardCreateForm'
-import { CharacterOverview } from '@/components/business/cards/CharacterOverview'
+import { CharacterDetail } from '@/components/business/cards/CharacterDetail'
+import {
+  CharacterOverview,
+  type OverviewItem,
+} from '@/components/business/cards/CharacterOverview'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useLiquidReveal, type LiquidRect } from '@/hooks/use-liquid-reveal'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { cn } from '@/lib/utils'
 
 /**
- * **卡片页 K3：网格 + 侧栏**（画布第 7 页「卡片 · ④ 全状态」，owner 09-26 定）。
+ * **角色页 · 方向 A**（owner 09-26 选 A）：总览（`CharacterOverview`）+ 整页详情
+ * （`CharacterDetail`，左图右文）。
  *
- * ⭐ 一页一个主角：点一张角色，右侧那一栏**从这张卡长出来**（液态展开，
- *   `useLiquidReveal`）；开着时点别的角色只换内容，形状不动；再点同一张 / 关闭钮 /
- *   Esc 收回那张卡。网格让位走 motion `layout`（弹簧，`LIQUID_SPRING.unfold`），
- *   选中框是配角（`layoutId`），跟着卡走。
- * ⚠ 收起时网格**等侧栏收完才回位**：形状缩回的是那张卡此刻的位置。
- * ⚠ 手机走系统底部抽屉（下拉关闭），不走液态。
+ * ⭐ 点一个角色，整页**从这张卡长出来**（液态展开 `useLiquidReveal`：先横成一条标题条
+ *   贴住页顶，再纵向落下）；「‹ 角色」/ Esc 收回那张卡。形状起步带那张卡的图、线性退白。
+ * ⚠ 手机与降级动效不走液态：直接换成详情。
+ * ⚠ 详情开着时总览 `inert`（焦点与读屏不落到底下那层）。
  */
 
-/** 侧栏宽 380（`w-95`）；第一拍标题条高度；卡图圆角（`rounded-xl` = 12）。 */
-const PANEL_WIDTH_PX = 380
-const STRIP_HEIGHT_PX = 132
-const TILE_RADIUS_PX = 12
+/** 第一拍标题条高度（≈ 详情标题行）；卡图圆角（`rounded-2xl` = 16）。 */
+const STRIP_HEIGHT_PX = 72
+const TILE_RADIUS_PX = 16
 
-interface RosterItem {
-  card: CharacterCardRecord
-  /** 变体跟在父卡后面，副标题写「父卡 · 变体名」。 */
-  parentName: string | null
-}
-
-function flattenRoster(cards: CharacterCardRecord[]): RosterItem[] {
+function flattenRoster(cards: CharacterCardRecord[]): OverviewItem[] {
   return cards.flatMap((card) => [
     { card, parentName: null },
     ...card.variants.map((variant) => ({
@@ -66,25 +57,25 @@ export function CharacterRoster() {
   const characters = useCharacterCards()
   const reducedMotion = useReducedMotion() ?? false
   const isMobile = useIsMobile() ?? false
+  const directCut = reducedMotion || isMobile
   const items = useMemo(
     () => flattenRoster(characters.cards),
     [characters.cards],
   )
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [entry, setEntry] = useState<CharacterPanelEntry>('open')
   const [closing, setClosing] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
   const [isCreating, setIsCreating] = useState(false)
 
   const stageRef = useRef<HTMLDivElement>(null)
-  const tileImageRefs = useRef(new Map<string, HTMLElement>())
+  const tileRefs = useRef(new Map<string, HTMLElement>())
   const registerTile = useCallback((id: string, node: HTMLElement | null) => {
-    if (node) tileImageRefs.current.set(id, node)
-    else tileImageRefs.current.delete(id)
+    if (node) tileRefs.current.set(id, node)
+    else tileRefs.current.delete(id)
   }, [])
   const reveal = useLiquidReveal({
-    reducedMotion,
+    reducedMotion: directCut,
     stripHeightPx: STRIP_HEIGHT_PX,
     originRadiusPx: TILE_RADIUS_PX,
     targetRadiusPx: 0,
@@ -92,75 +83,48 @@ export function CharacterRoster() {
   /** 形状起步是那张卡本身（它的图），线性退成白；收回时再退回那张图。 */
   const tintIn = useMotionValue(0)
 
-  // 收完（相位回到 closed）就不再算选中：网格此时才回位。⛔ 不在 effect 里清状态。
-  const activeId =
-    !isMobile && closing && reveal.phase === 'closed' ? null : selectedId
+  // 收完（相位回到 closed）就不再算打开：⛔ 不在 effect 里清状态。
+  const activeId = closing && reveal.phase === 'closed' ? null : selectedId
   const selected = useMemo(
     () => items.find((item) => item.card.id === activeId)?.card ?? null,
     [items, activeId],
   )
-  const panelVisible =
-    !isMobile && reveal.phase !== 'closed' && selected !== null
+  const detailVisible = reveal.phase !== 'closed' && selected !== null
   const moving = reveal.phase === 'opening' || reveal.phase === 'closing'
 
   const rects = useCallback(
     (id: string): { origin: LiquidRect; target: LiquidRect } | null => {
       const stage = stageRef.current?.getBoundingClientRect()
-      const tile = tileImageRefs.current.get(id)?.getBoundingClientRect()
-      if (!stage || !tile) return null
-      return {
-        origin: {
-          left: tile.left - stage.left,
-          top: tile.top - stage.top,
-          right: tile.right - stage.left,
-          bottom: tile.bottom - stage.top,
-        },
-        target: {
-          left: stage.width - PANEL_WIDTH_PX,
-          top: 0,
-          right: stage.width,
-          bottom: stage.height,
-        },
+      if (!stage) return null
+      const tile = tileRefs.current.get(id)?.getBoundingClientRect()
+      const target = {
+        left: 0,
+        top: 0,
+        right: stage.width,
+        bottom: stage.height,
       }
+      // 卡已不在屏上（搜索换了结果）：从页顶那条长出来。
+      const origin = tile
+        ? {
+            left: tile.left - stage.left,
+            top: tile.top - stage.top,
+            right: tile.right - stage.left,
+            bottom: tile.bottom - stage.top,
+          }
+        : { ...target, bottom: STRIP_HEIGHT_PX }
+      return { origin, target }
     },
     [],
   )
 
   const openCharacter = useCallback(
     (id: string) => {
-      if (isMobile) {
-        setSelectedId(id)
-        return
-      }
-      const open = reveal.phase === 'open' || reveal.phase === 'opening'
-      if (open && id === activeId) {
-        const geometry = rects(id)
-        if (!geometry) return
-        setClosing(true)
-        reveal.close(geometry.origin, geometry.target)
-        if (!reducedMotion) {
-          const retintAtS =
-            LIQUID_TIMING.retractDelayS + LIQUID_TIMING.retractSecondBeatDelayS
-          animate(tintIn, 1, {
-            delay: retintAtS,
-            duration: LIQUID_TIMING.swapInS,
-            ease: 'linear',
-          })
-        }
-        return
-      }
-      if (open) {
-        setEntry('swap')
-        setSelectedId(id)
-        return
-      }
       const geometry = rects(id)
       if (!geometry) return
-      setEntry('open')
       setClosing(false)
       setSelectedId(id)
       reveal.open(geometry.origin, geometry.target)
-      if (!reducedMotion) {
+      if (!directCut) {
         tintIn.jump(1)
         animate(tintIn, 0, {
           duration: LIQUID_TIMING.headInDelayS + LIQUID_TIMING.headInS,
@@ -168,22 +132,34 @@ export function CharacterRoster() {
         })
       }
     },
-    [activeId, isMobile, rects, reducedMotion, reveal, tintIn],
+    [directCut, rects, reveal, tintIn],
   )
 
-  const closePanel = useCallback(() => {
-    if (activeId) openCharacter(activeId)
-  }, [activeId, openCharacter])
+  const closeDetail = useCallback(() => {
+    if (!activeId || closing) return
+    const geometry = rects(activeId)
+    if (!geometry) return
+    setClosing(true)
+    reveal.close(geometry.origin, geometry.target)
+    if (!directCut) {
+      animate(tintIn, 1, {
+        delay:
+          LIQUID_TIMING.retractDelayS + LIQUID_TIMING.retractSecondBeatDelayS,
+        duration: LIQUID_TIMING.swapInS,
+        ease: 'linear',
+      })
+    }
+  }, [activeId, closing, directCut, rects, reveal, tintIn])
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      // 侧栏上叠着的弹层（素材库选择器）已经处理掉的 Esc 不再收侧栏。
+      // 叠在详情上的弹层（素材库选择器）已经处理掉的 Esc 不再收详情。
       if (event.defaultPrevented) return
-      if (event.key === 'Escape' && panelVisible && !closing) closePanel()
+      if (event.key === 'Escape' && detailVisible) closeDetail()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [closePanel, closing, panelVisible])
+  }, [closeDetail, detailVisible])
 
   const handleCreate = async (data: CreateCharacterCardRequest) => {
     setIsCreating(true)
@@ -193,7 +169,7 @@ export function CharacterRoster() {
     return card
   }
 
-  /** 删掉之后侧栏直接关（不走收回动画：那张卡已经不在网格里了）。 */
+  /** 删掉之后直接回总览（不走收回动画：那张卡已经不在了）。 */
   const deleteCharacter = async (id: string) => {
     const ok = await characters.remove(id)
     if (ok) {
@@ -203,8 +179,6 @@ export function CharacterRoster() {
     }
     return ok
   }
-  const gridShifted =
-    !isMobile && selected !== null && reveal.phase !== 'closed'
 
   return (
     <div
@@ -212,10 +186,8 @@ export function CharacterRoster() {
       className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background"
     >
       <div
-        className={cn(
-          'h-full overflow-y-auto px-9 pb-12 pt-8',
-          gridShifted && 'lg:pr-104',
-        )}
+        inert={detailVisible}
+        className="h-full overflow-y-auto px-5 pb-12 pt-6 sm:px-9 sm:pt-8"
       >
         {characters.isLoading ? (
           <div className="flex justify-center py-16">
@@ -240,7 +212,6 @@ export function CharacterRoster() {
         ) : (
           <CharacterOverview
             items={items}
-            activeId={activeId}
             reducedMotion={reducedMotion}
             onOpen={openCharacter}
             registerTile={registerTile}
@@ -258,7 +229,7 @@ export function CharacterRoster() {
         )}
       </div>
 
-      {panelVisible ? (
+      {detailVisible ? (
         <div
           className={cn(
             'pointer-events-none absolute inset-0 z-10',
@@ -267,7 +238,7 @@ export function CharacterRoster() {
         >
           <motion.div
             style={{ clipPath: reveal.clipPath }}
-            className={cn('absolute inset-0', moving && 'bg-background')}
+            className="absolute inset-0 bg-background"
           >
             {moving ? (
               <motion.div
@@ -280,59 +251,29 @@ export function CharacterRoster() {
                     src={selected.referenceSlots[0].url}
                     alt=""
                     fill
-                    sizes="380px"
+                    sizes="100vw"
                     className="object-cover"
                   />
                 ) : null}
               </motion.div>
             ) : null}
-            <aside
+            <div
+              role="region"
               aria-label={selected.name}
-              className={cn(
-                'pointer-events-auto absolute inset-y-0 right-0 w-95 bg-background',
-                !moving && 'border-l border-border',
-              )}
+              className="pointer-events-auto absolute inset-0"
             >
-              <CharacterCardPanel
+              <CharacterDetail
                 key={selected.id}
                 card={selected}
-                entry={entry}
+                entry={directCut ? 'static' : 'open'}
                 closing={closing}
-                onClose={closePanel}
+                onClose={closeDetail}
                 onUpdate={(data) => characters.update(selected.id, data)}
                 onDelete={() => deleteCharacter(selected.id)}
-                showClose
               />
-            </aside>
+            </div>
           </motion.div>
         </div>
-      ) : null}
-
-      {isMobile ? (
-        <Drawer
-          open={selected !== null}
-          onOpenChange={(open) => {
-            if (!open) setSelectedId(null)
-          }}
-        >
-          <DrawerContent className="top-14 mt-0 flex flex-col overflow-hidden">
-            <DrawerTitle className="sr-only">
-              {selected?.name ?? ''}
-            </DrawerTitle>
-            {selected ? (
-              <CharacterCardPanel
-                key={selected.id}
-                card={selected}
-                entry="static"
-                closing={false}
-                onClose={() => setSelectedId(null)}
-                onUpdate={(data) => characters.update(selected.id, data)}
-                onDelete={() => deleteCharacter(selected.id)}
-                showClose={false}
-              />
-            ) : null}
-          </DrawerContent>
-        </Drawer>
       ) : null}
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>

@@ -45,7 +45,6 @@ interface WorkGroup {
 
 interface CharacterOverviewProps {
   items: OverviewItem[]
-  activeId: string | null
   reducedMotion: boolean
   onOpen(id: string): void
   /** 液态展开从哪张图长出来：把每个角色的图框登记给外面。 */
@@ -58,7 +57,6 @@ const ORIGINAL_KEY = '\u0000original'
 
 export function CharacterOverview({
   items,
-  activeId,
   reducedMotion,
   onOpen,
   registerTile,
@@ -123,7 +121,6 @@ export function CharacterOverview({
       entry={entry}
       rank={rank}
       hero={hero}
-      selected={entry.card.id === activeId}
       reducedMotion={reducedMotion}
       onOpen={onOpen}
       registerTile={registerTile}
@@ -346,7 +343,6 @@ function CharacterTile({
   entry,
   rank,
   hero,
-  selected,
   reducedMotion,
   onOpen,
   registerTile,
@@ -354,7 +350,6 @@ function CharacterTile({
   entry: Entry
   rank: number | null
   hero: boolean
-  selected: boolean
   reducedMotion: boolean
   onOpen(id: string): void
   registerTile(id: string, node: HTMLElement | null): void
@@ -371,7 +366,6 @@ function CharacterTile({
       layout={!reducedMotion}
       transition={LIQUID_SPRING.unfold}
       onClick={() => onOpen(card.id)}
-      aria-pressed={selected}
       data-testid="roster-tile"
       className={cn(
         'group relative block w-full text-left',
@@ -420,14 +414,6 @@ function CharacterTile({
           </span>
         ) : null}
       </span>
-      {selected ? (
-        <motion.span
-          layoutId="character-roster-selection"
-          transition={LIQUID_SPRING.lead}
-          aria-hidden
-          className="pointer-events-none absolute -inset-1 rounded-2xl border-2 border-foreground"
-        />
-      ) : null}
     </motion.button>
   )
 }

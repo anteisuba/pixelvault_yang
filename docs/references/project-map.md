@@ -175,7 +175,7 @@ flowchart LR
 ### 🃏 卡片　✅（域已完整）
 
 - 🎯 你想做：（你在画布/资产里提到）角色收集容器——一个角色的图片、声音等聚在一起。
-- 📍 现状：Cards 域已很完整——`character-card`(角色一致性) / `style-card`(画风) / `background-card`(背景) / `card-recipe`(配方) 四类 service + scoring；`/cards` 页只剩角色（`CharacterRoster` 网格 + `CharacterCardPanel` 侧栏，09-26 起精修与 AI 渲染卡牌下线）。
+- 📍 现状：Cards 域已很完整——`character-card`(角色一致性) / `style-card`(画风) / `background-card`(背景) / `card-recipe`(配方) 四类 service + scoring；`/cards` 页只剩角色（`CharacterRoster` = `CharacterOverview` 总览 + `CharacterDetail` 整页左图右文，09-26 方向 A；精修与 AI 渲染卡牌下线）。
 - 💡 衔接：你说的"卡片收集角色的图/声音" + "文件夹和卡片融合"是**同一个设想**——把角色卡升级成"一个角色的图/视频/音频/3d 聚合容器"。见资产分支。
 
 ### 📦 资产 / 素材库　✅（大体完成，缺架构升级）

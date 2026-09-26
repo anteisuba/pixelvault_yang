@@ -154,7 +154,7 @@
 
 两条都由 `eslint.config.mjs` 的 **`ANIMATION_LIBRARY_FORBIDDEN_PATHS`** 守（`@typescript-eslint/no-restricted-imports`，与 Phosphor 图标门同一条规则 id，⛔ 不能各起一个块——flat config 会整块替换同名规则的 options）。
 
-**液态展开那一族**（owner 2026-09-26 定 B）走 `constants/motion.ts` 的 `LIQUID_SPRING` / `LIQUID_TIMING`：形状只裁剪不变尺寸，这是「只动 transform / opacity」之外唯一放行的 `clip-path` 用法；内容换场的短模糊（`filter: blur`）只在这一族里用。 chip 弹层也在这一族（`studio-shared/primitives/liquid-popover.tsx`，节拍另见 `LIQUID_POPOVER`）：弹层从 chip 长出来、开着时点另一颗 chip 同一块形状变形过去 —— 形状要跨弹层走，所以画在一层共享的空 fixed 叶子上（改宽高只重排它自己），弹层本体动着时皮肤透明、按形状裁自己，静止后还原成普通弹层；宿主用 chip 外观（`outline`）接入，⛔ 不在弹层里各写一套开合动画。 分段切换也在这一族（`components/ui/liquid-segmented.tsx`，owner 2026-09-26「视频里那个效果」）：选中块的两条边各一根弹簧，往哪边走哪边是硬的 `lead`、身后是软的 `trail`，途中被拉长再收拢；选中块是一层按两条边裁出来的实底，里面反色再排一遍字，字是被扫过时逐像素变色的。写法切换 · 标签台「整体 / 角色」分页 · 查资料「角色 / 画师」都用它，⛔ 不再各画一颗滑块。
+**液态展开那一族**（owner 2026-09-26 定 B）走 `constants/motion.ts` 的 `LIQUID_SPRING` / `LIQUID_TIMING`：形状只裁剪不变尺寸，这是「只动 transform / opacity」之外唯一放行的 `clip-path` 用法；内容换场的短模糊（`filter: blur`）只在这一族里用。 chip 弹层**不在**这一族（owner 2026-09-26 从四种开法里选 ②「从 chip 放大」，替掉液态共享形状）：弹层以 chip 中心为原点从 0.72 放大、由糊变清进场（`spring-slot` 弹簧，轻过冲），关上缩回 chip（`--duration-base` + `ease-in`）；每颗弹层各开各的、⛔ 不跨弹层共享形状。实现只有一处（`studio-shared/primitives/tool-surface.tsx` 的 `useStudioChipPopoverMotion`，起止形态见 `CHIP_POPOVER`），宿主用 chip 外观（`outline`）接入，⛔ 不在弹层里各写一套开合动画。 分段切换也在这一族（`components/ui/liquid-segmented.tsx`，owner 2026-09-26「视频里那个效果」）：选中块的两条边各一根弹簧，往哪边走哪边是硬的 `lead`、身后是软的 `trail`，途中被拉长再收拢；选中块是一层按两条边裁出来的实底，里面反色再排一遍字，字是被扫过时逐像素变色的。写法切换 · 标签台「整体 / 角色」分页 · 查资料「角色 / 画师」都用它，⛔ 不再各画一颗滑块。
 
 **过冲那一族**（助手灯箱 / 参考图挂上去）走 `constants/motion.ts` 的 `EASE_POP` / `EASE_POP_STRONG`：时长照旧四档刻度，曲线单列是因为「蹦出来」和脊柱那条收敛曲线是两种意思。⛔ 组件里不再出现裸的 `ease: [...]` 数组。
 

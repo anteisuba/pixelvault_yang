@@ -1,8 +1,9 @@
 'use client'
 
-import { createContext, useContext } from 'react'
+import { createContext, useContext, type CSSProperties } from 'react'
 import type * as React from 'react'
 
+import { CHIP_POPOVER } from '@/constants/motion'
 import {
   ResponsivePopover,
   ResponsivePopoverContent,
@@ -10,8 +11,6 @@ import {
 } from '@/components/ui/responsive-popover'
 import { ResponsiveDialogTitle } from '@/components/ui/responsive-dialog'
 import { cn } from '@/lib/utils'
-
-import { useLiquidPopover } from './liquid-popover'
 
 /**
  * Dialog 型工具面板的统一 chrome（决议 5 工具面板契约）。
@@ -154,6 +153,69 @@ export function useStudioChipClasses(): StudioChipClasses {
     : GHOST_CHIP_CLASSES
 }
 
+/**
+ * 工具行 chip 弹层的开合 —— ②「从 chip 放大」（owner 2026-09-26 画板 PopZoom，
+ * 替掉液态共享形状那一版）：弹层以 chip 中心为原点从 0.72 放大、带一点过冲进场，
+ * 同时由糊变清；关上缩回 chip、先淡后缩。每颗弹层各开各的，⛔ 不跨弹层共享形状。
+ *
+ * - 节拍走既有 token：进场 = `spring-slot` 弹簧（340ms，轻过冲），退场 =
+ *   `--duration-base` + `ease-in`；⛔ 不为它另开时长。
+ * - 起止形态（缩放 · 模糊）写在 tw-animate 的 enter / exit 变量上（行内，压过弹层
+ *   原语自带的 `zoom-in-95` 与 `slide-in-from-*`）；原点按对齐方式落在 chip 中心，
+ *   用 Radix 给的触发器尺寸（`--radix-popper-anchor-*`）算，⛔ 不量 DOM。
+ * - `transition-none`：弹层原语带 `duration-*` 却没有过渡属性，不关的话开合那一下
+ *   会把别的属性也过渡一遍（09-26「打开后会闪一下」）。
+ * - reduced motion 直接不动画。
+ * 只有描边外观（底部输入框工具行）接入；幽灵外观原样。
+ */
+// ⚠ 时长写变量形（`duration-(--x)`）不写 `duration-spring-slot`：tailwind-merge 认不出
+//   后者，弹层底座的 `data-[state=open]:duration-150` 就会留着把它压掉。
+const CHIP_POPOVER_CLASS =
+  'transition-none data-[state=open]:duration-(--spring-slot-duration) data-[state=open]:ease-spring-slot data-[state=closed]:duration-(--duration-base) data-[state=closed]:ease-in motion-reduce:animate-none'
+
+const CHIP_POPOVER_VARS = {
+  '--tw-enter-scale': String(CHIP_POPOVER.fromScale),
+  '--tw-exit-scale': String(CHIP_POPOVER.fromScale),
+  '--tw-enter-blur': `${CHIP_POPOVER.blurPx}px`,
+  '--tw-exit-blur': `${CHIP_POPOVER.blurPx}px`,
+  '--tw-enter-translate-x': '0px',
+  '--tw-enter-translate-y': '0px',
+  '--tw-exit-translate-x': '0px',
+  '--tw-exit-translate-y': '0px',
+} as CSSProperties
+
+interface StudioChipPopoverPlacement {
+  side?: 'top' | 'right' | 'bottom' | 'left'
+  align?: 'start' | 'center' | 'end'
+  sideOffset?: number
+}
+
+export function useStudioChipPopoverMotion({
+  side = 'top',
+  align = 'center',
+  sideOffset = 0,
+}: StudioChipPopoverPlacement): {
+  className: string
+  style: CSSProperties | undefined
+} {
+  const outline = useContext(StudioChipLookContext) === 'outline'
+  if (!outline) return { className: '', style: undefined }
+  const x =
+    align === 'start'
+      ? 'calc(var(--radix-popper-anchor-width) / 2)'
+      : align === 'end'
+        ? 'calc(100% - var(--radix-popper-anchor-width) / 2)'
+        : '50%'
+  const y =
+    side === 'bottom'
+      ? `calc(-${sideOffset}px - var(--radix-popper-anchor-height) / 2)`
+      : `calc(100% + ${sideOffset}px + var(--radix-popper-anchor-height) / 2)`
+  return {
+    className: CHIP_POPOVER_CLASS,
+    style: { ...CHIP_POPOVER_VARS, transformOrigin: `${x} ${y}` },
+  }
+}
+
 interface StudioChipBadgeProps {
   children: React.ReactNode
   className?: string
@@ -270,12 +332,8 @@ export function StudioToolPopoverContent({
   style,
   ...props
 }: StudioToolPopoverContentProps) {
-  // 描边外观（底部输入框那一行）的弹层从 chip 液态长出来。
-  const {
-    attach: liquidRef,
-    className: liquidClassName,
-    style: liquidStyle,
-  } = useLiquidPopover(useContext(StudioChipLookContext) === 'outline')
+  // 描边外观（底部输入框那一行）的弹层从 chip 放大出来。
+  const motion = useStudioChipPopoverMotion({ side, align, sideOffset })
   return (
     <ResponsivePopoverContent
       data-studio-tool-popover=""
@@ -288,11 +346,10 @@ export function StudioToolPopoverContent({
         studioToolPopoverBaseClass,
         studioToolSurfaceSizeClass[size],
         className,
-        liquidClassName,
+        motion.className,
       )}
       mobileClassName={cn(studioToolSurfaceMobileClass[size], mobileClassName)}
-      style={{ ...style, ...liquidStyle }}
-      ref={liquidRef}
+      style={{ ...style, ...motion.style }}
       {...props}
     />
   )

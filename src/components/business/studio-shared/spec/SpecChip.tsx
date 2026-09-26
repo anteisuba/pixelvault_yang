@@ -32,9 +32,8 @@ import {
   StudioRatioGlyph,
   studioToolPopoverBaseClass,
   studioToolSurfaceSizeClass,
-  useStudioChipClasses,
+  useStudioChipPopoverMotion,
 } from '@/components/business/studio-shared/primitives/tool-surface'
-import { useLiquidPopover } from '@/components/business/studio-shared/primitives/liquid-popover'
 
 import { SpecDurationField } from './SpecDurationField'
 
@@ -179,12 +178,12 @@ export function SpecChip({
 }: SpecChipProps) {
   const t = useTranslations('StudioSpecChip')
   const [open, setOpen] = useState(false)
-  // 底部输入框那一行（描边外观）里弹层液态长出来；画布上不在那层外观里，照旧。
-  const {
-    attach: liquidRef,
-    className: liquidClassName,
-    style: liquidStyle,
-  } = useLiquidPopover(useStudioChipClasses().look === 'outline')
+  // 底部输入框那一行（描边外观）里弹层从 chip 放大出来；画布上不在那层外观里，照旧。
+  const popoverMotion = useStudioChipPopoverMotion({
+    side: 'top',
+    align: popoverAlign,
+    sideOffset: 8,
+  })
   /**
    * ⚠ 上一次看到的信号存在 **state** 里而不是 ref：这是 React 官方的「渲染中调整
    * state」写法，⛔ 不在渲染里读写 ref（读到的可能是上一轮的值）。计时器那半边留在
@@ -262,8 +261,7 @@ export function SpecChip({
         </button>
       </ResponsivePopoverTrigger>
       <ResponsivePopoverContent
-        ref={liquidRef}
-        style={liquidStyle}
+        style={popoverMotion.style}
         label={ariaLabel}
         side="top"
         align={popoverAlign}
@@ -274,7 +272,7 @@ export function SpecChip({
           studioToolPopoverBaseClass,
           studioToolSurfaceSizeClass.action,
           'overflow-y-auto overscroll-contain',
-          liquidClassName,
+          popoverMotion.className,
         )}
       >
         <div className="flex flex-col gap-3">

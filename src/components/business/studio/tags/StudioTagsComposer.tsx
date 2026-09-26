@@ -53,10 +53,6 @@ import { Switch } from '@/components/ui/switch'
 import { ImageAttachmentPreviewStrip } from '@/components/business/ImageAttachmentPreviewStrip'
 import { MainModelPicker } from '@/components/business/studio-shared/pickers'
 import {
-  LiquidPopoverLayer,
-  useLiquidPopover,
-} from '@/components/business/studio-shared/primitives/liquid-popover'
-import {
   StudioChipLookProvider,
   StudioToolPopoverContent,
   StudioToolSurface,
@@ -71,6 +67,7 @@ import {
   studioToolPopoverWidthClass,
   studioToolSurfaceMobileClass,
   useStudioChipClasses,
+  useStudioChipPopoverMotion,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { StudioGenerateButton } from '@/components/business/studio-shared/workflow/StudioGenerateButton'
 import { PromptTemplatePicker } from '@/components/business/studio/PromptTemplatePicker'
@@ -187,8 +184,6 @@ export function StudioTagsComposer({
 
   return (
     <>
-      {/* 工具行 chip 弹层共用的那一块液态形状。 */}
-      <LiquidPopoverLayer />
       <div className="flex flex-col gap-2.5">
         <ImageAttachmentPreviewStrip
           entries={imageUpload.referenceEntries}
@@ -484,11 +479,11 @@ function TagCapabilityChip({
   const { state } = useStudioForm()
   const { imageUpload } = useStudioData()
   const chipClasses = useStudioChipClasses()
-  const {
-    attach: liquidRef,
-    className: liquidClassName,
-    style: liquidStyle,
-  } = useLiquidPopover(chipClasses.look === 'outline')
+  const popoverMotion = useStudioChipPopoverMotion({
+    side: 'top',
+    align: 'end',
+    sideOffset: 8,
+  })
 
   const controls = useMemo(
     () => getTagWorkbenchControls(runModels),
@@ -568,8 +563,7 @@ function TagCapabilityChip({
         </button>
       </StudioToolSurfaceTrigger>
       <ResponsivePopoverContent
-        ref={liquidRef}
-        style={liquidStyle}
+        style={popoverMotion.style}
         label={tCapability('singleChipLabel')}
         align="end"
         side="top"
@@ -580,7 +574,7 @@ function TagCapabilityChip({
           studioToolPopoverPaddingClass.small,
           studioToolPopoverMaxHeightClass,
           'overflow-y-auto overscroll-contain',
-          liquidClassName,
+          popoverMotion.className,
         )}
         mobileClassName={studioToolSurfaceMobileClass.action}
       >

@@ -4,8 +4,10 @@ import { useState } from 'react'
 
 import { useIsMobile } from '@/hooks/use-mobile'
 import { Popover, PopoverTrigger } from '@/components/ui/popover'
+import { CHIP_POPOVER } from '@/constants/motion'
 import {
   StudioChipBadge,
+  StudioChipLookProvider,
   StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
@@ -181,5 +183,55 @@ describe('StudioToolSurface', () => {
 
     expect(await screen.findByText('旧内容')).toBeInTheDocument()
     expect(document.querySelector('[data-studio-tool-popover]')).not.toBeNull()
+  })
+})
+
+describe('chip 弹层 ②「从 chip 放大」', () => {
+  function renderOpen(look: 'ghost' | 'outline') {
+    return render(
+      <StudioChipLookProvider value={look}>
+        <StudioToolSurface open>
+          <StudioToolSurfaceTrigger>比例</StudioToolSurfaceTrigger>
+          <StudioToolPopoverContent
+            label="宽高比"
+            side="top"
+            align="start"
+            sideOffset={8}
+          >
+            <p>面板内容</p>
+          </StudioToolPopoverContent>
+        </StudioToolSurface>
+      </StudioChipLookProvider>,
+    )
+  }
+
+  it('描边外观：原点落在 chip 中心，起止缩放 / 模糊写在进退场变量上', async () => {
+    renderOpen('outline')
+    await screen.findByText('面板内容')
+    const popover = document.querySelector<HTMLElement>(
+      '[data-studio-tool-popover]',
+    )!
+    // ⚠ 弹层原语带 `duration-*` 却没有过渡属性 —— 不关会「打开后闪一下」。
+    expect(popover).toHaveClass('transition-none')
+    expect(popover.style.transformOrigin).toContain(
+      'var(--radix-popper-anchor-width) / 2',
+    )
+    expect(popover.style.transformOrigin).toContain('100% + 8px')
+    expect(popover.style.getPropertyValue('--tw-enter-scale')).toBe(
+      String(CHIP_POPOVER.fromScale),
+    )
+    expect(popover.style.getPropertyValue('--tw-exit-blur')).toBe(
+      `${CHIP_POPOVER.blurPx}px`,
+    )
+  })
+
+  it('幽灵外观原样，⛔ 不接放大', async () => {
+    renderOpen('ghost')
+    await screen.findByText('面板内容')
+    const popover = document.querySelector<HTMLElement>(
+      '[data-studio-tool-popover]',
+    )!
+    expect(popover).not.toHaveClass('transition-none')
+    expect(popover.style.getPropertyValue('--tw-enter-scale')).toBe('')
   })
 })

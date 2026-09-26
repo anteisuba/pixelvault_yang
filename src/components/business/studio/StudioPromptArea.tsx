@@ -76,7 +76,6 @@ import { Spinner } from '@/components/ui/spinner'
 import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { StudioVideoPromptInput } from './StudioVideoPromptInput'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
-import { LiquidPopoverLayer } from '@/components/business/studio-shared/primitives/liquid-popover'
 import {
   StudioChipLookProvider,
   studioOutlineChipClass,
@@ -408,8 +407,6 @@ export const StudioPromptArea = memo(function StudioPromptArea({
     return (
       <>
         {dialogs}
-        {/* 工具行 chip 弹层共用的那一块液态形状（打开 / 在 chip 之间变形）。 */}
-        <LiquidPopoverLayer />
         <PromptInput
           ref={composerContainerRef}
           id="studio-prompt"

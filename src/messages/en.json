@@ -481,13 +481,13 @@
     "projectUpdateFailed": "Couldn't update project",
     "projectDeleted": "Project deleted",
     "projectDeleteFailed": "Couldn't delete project",
-    "characterCardCreated": "Character card created",
-    "characterCardLoadFailed": "Couldn't load character cards",
-    "characterCardCreateFailed": "Couldn't create character card",
-    "characterCardUpdated": "Character card updated",
-    "characterCardUpdateFailed": "Couldn't update character card",
-    "characterCardDeleted": "Character card deleted",
-    "characterCardDeleteFailed": "Couldn't delete character card",
+    "characterCardCreated": "Character created",
+    "characterCardLoadFailed": "Couldn't load characters",
+    "characterCardCreateFailed": "Couldn't create character",
+    "characterCardUpdated": "Character updated",
+    "characterCardUpdateFailed": "Couldn't update character",
+    "characterCardDeleted": "Character deleted",
+    "characterCardDeleteFailed": "Couldn't delete character",
     "featuredAdded": "Pinned to profile",
     "featuredRemoved": "Unpinned from profile",
     "featuredFailed": "Couldn't update pin status",
@@ -580,8 +580,8 @@
       "description": "Browse and manage every generation you've made, organised by project and folder."
     },
     "cards": {
-      "title": "Card Management — PixelVault",
-      "description": "Manage your character, style, and background cards in one place."
+      "title": "Characters — PixelVault",
+      "description": "Your characters: images and profiles for generating, scripting and assistant personas."
     },
     "storyboard": {
       "title": "Storyboard — PixelVault",
@@ -612,7 +612,7 @@
       "storyboard": "Stories",
       "library": "Archive",
       "assets": "Assets",
-      "cards": "Cards",
+      "cards": "Characters",
       "profile": "My Page"
     },
     "groupLabel": "Go to"
@@ -1641,13 +1641,13 @@
     "referenceRemoveLabel": "Remove reference image",
     "characterCard": {
       "hintMulti": "Apply {count, plural, one {# character} other {# characters}}' prompts and reference image",
-      "appliedMulti": "{count} character cards applied. Base prompts added automatically.",
+      "appliedMulti": "{count} characters applied. Base prompts added automatically.",
       "applyButton": "Apply",
       "appliedButton": "Applied",
       "actionPromptLabel": "Action / Scene",
       "actionPromptHint": "Describe the video scene. The characters' appearance is added automatically.",
       "actionPromptPlaceholder": "e.g. walking in a forest, smiling, wind blowing hair...",
-      "imageWarning": "Only 1st card's image used for video"
+      "imageWarning": "Only the first character's image is used for video"
     },
     "railLabelReference": "Content reference"
   },
@@ -3007,7 +3007,7 @@
     "errorUnexpected": "An unexpected error occurred",
     "toastSuccess": "Image generated successfully!",
     "errorCodes": {
-      "NOVELAI_TIER_LIMIT": "Your NovelAI subscription only supports 1 reference image. Please select a single character card, or upgrade to Opus for multi-reference support.",
+      "NOVELAI_TIER_LIMIT": "Your NovelAI subscription only supports 1 reference image. Select a single character, or upgrade to Opus for multi-reference support.",
       "FREE_LIMIT_EXCEEDED": "You've used today's free quota. Add your own API key to keep creating.",
       "MISSING_API_KEY": "Add your own API key for this model in API Routes settings."
     },
@@ -3022,9 +3022,9 @@
     "upgradeHint": "Want higher quality? Try GPT Image or FLUX Pro with your own API key.",
     "characterCard": {
       "hint": "Apply this character's prompt and reference images",
-      "applied": "Character card applied. Base prompt added automatically.",
+      "applied": "Character applied. Base prompt added automatically.",
       "hintMulti": "Apply {count, plural, one {# character} other {# characters}}' prompts and reference images",
-      "appliedMulti": "{count} character cards applied. Base prompts added automatically.",
+      "appliedMulti": "{count} characters applied. Base prompts added automatically.",
       "applyButton": "Apply",
       "appliedButton": "Applied",
       "basePromptLabel": "Character base prompt (added automatically)",
@@ -3922,9 +3922,9 @@
     }
   },
   "CharacterCard": {
-    "title": "Character Cards",
+    "title": "Characters",
     "description": "Save a character's look to keep it consistent across your creations.",
-    "createNew": "New Character Card",
+    "createNew": "New Character",
     "name": "Character Name",
     "namePlaceholder": "e.g. Hatsune Miku, Link, Genshin Impact character...",
     "nameSearchHint": "AI will search the web for this character's visual details",
@@ -3935,7 +3935,7 @@
     "sourceImage": "Source Image",
     "sourceImageHint": "Upload a reference image of your character",
     "upload": "Upload Image",
-    "creating": "Creating card & extracting attributes...",
+    "creating": "Creating character & extracting attributes...",
     "creatingWithSearch": "Analyzing image & searching character info...",
     "extractedPrompt": "Extracted Prompt",
     "attributes": "Character Attributes",
@@ -3957,11 +3957,11 @@
     "improved": "Improved!",
     "needsWork": "Needs more refinement",
     "useInGeneration": "Use in Generation",
-    "selectCard": "Select this character card",
-    "deselectCard": "Deselect this character card",
-    "noCards": "No character cards yet",
-    "noCardsHint": "Create a character card to start generating consistent characters",
-    "deleteConfirm": "Delete this character card?",
+    "selectCard": "Select this character",
+    "deselectCard": "Deselect this character",
+    "noCards": "No characters yet",
+    "noCardsHint": "Create a character to start generating a consistent look",
+    "deleteConfirm": "Delete this character?",
     "referenceImages": "Reference Images",
     "modelPrompts": "Model-Specific Prompts",
     "variantLabel": "Style Label",
@@ -4015,7 +4015,7 @@
   "GenerationFeedback": {
     "useAsReference": "Use as Reference",
     "refinePrompt": "Refine Prompt",
-    "saveToCard": "Save to Card",
+    "saveToCard": "Save to character",
     "savedToCard": "Saved!",
     "thinking": "Thinking...",
     "inputPlaceholder": "Type your answer...",
@@ -4283,7 +4283,7 @@
     "nodeTypes": {
       "shotText": "Shot Text",
       "shot": "Shot Image",
-      "characterImage": "Card",
+      "characterImage": "Character",
       "backgroundImage": "Card",
       "frameImage": "Frame Image",
       "image": "Image",
@@ -4397,14 +4397,14 @@
       "promptLabel": "Character image prompt",
       "promptPlaceholder": "Describe the character appearance, wardrobe, mood, and style...",
       "cardLibrary": {
-        "title": "Character cards",
-        "hint": "Pick a saved card to populate this node.",
+        "title": "Characters",
+        "hint": "Pick a saved character to populate this node.",
         "searchPlaceholder": "Search name or tags…",
-        "loading": "Loading cards…",
-        "empty": "No character cards yet. Create one in Studio first.",
+        "loading": "Loading characters…",
+        "empty": "No characters yet. Create one on the Characters page first.",
         "variantCount": "{count, plural, one {# variant} other {# variants}}",
-        "applied": "Applied character card \"{name}\".",
-        "bound": "📇 From card: {name}"
+        "applied": "Applied character \"{name}\".",
+        "bound": "📇 From character: {name}"
       },
       "generate": "Generate",
       "regenerate": "Regenerate",
@@ -5597,7 +5597,7 @@
           "uploadFailed": "{name} failed to upload"
         },
         "more": {
-          "setCharacter": "Set as character card",
+          "setCharacter": "Set as character",
           "rename": "Rename this image",
           "duplicate": "Duplicate this image card",
           "splitVersion": "Split out current version",
@@ -5628,7 +5628,7 @@
         },
         "add": {
           "upload": "Upload audio",
-          "mention": "@ Text / character card",
+          "mention": "@ Text / character",
           "library": "From asset library…",
           "voiceLibrary": "Voice library…",
           "uploadShortcut": "⌘U"
@@ -6199,13 +6199,13 @@
     "costImageOutputOnly": "Output estimate for the selected size and quality. Text and reference inputs cost extra; auto quality and previews are billed by actual usage.",
     "none": "None",
     "noCards": "No cards yet. Create one to get started.",
-    "noCharacterCards": "No character cards yet. Create one, then choose it here.",
+    "noCharacterCards": "No characters yet. Create one, then choose it here.",
     "noStyleCards": "No style cards yet. Create one, then choose it here.",
     "noBackgroundCards": "No background cards yet. Create one, then choose it here.",
-    "noneCharacterCard": "No character card",
+    "noneCharacterCard": "No character",
     "noneStyleCard": "No style card",
     "noneBackgroundCard": "No background card",
-    "openCardManagement": "Open Cards",
+    "openCardManagement": "Open Characters",
     "searchCardsPlaceholder": "Search cards...",
     "sortCardsLabel": "Sort cards",
     "sortCardsRecent": "Recently used",
@@ -6223,7 +6223,7 @@
     "character": "Character",
     "background": "Background",
     "style": "Style",
-    "noModel": "No model set — open Style card management to add a model",
+    "noModel": "No model set — add a model to the style card first",
     "requiresReferenceImage": "This model requires a reference image — add one in the prompt box",
     "promptHint": "Enter a prompt to generate",
     "selectModel": "Select a model",
@@ -6278,9 +6278,9 @@
     "selectModelFirst": "Select a model to configure advanced settings",
     "tokenPlaceholder": "Enter Civitai API token",
     "removeToken": "Remove",
-    "cardManagement": "Card Management",
-    "cardManagementHint": "Manage your character, style, and background card assets in one place.",
-    "cardManagementSignInDescription": "Sign in to create, edit, and reuse your character, style, and background cards.",
+    "cardManagement": "Characters",
+    "cardManagementHint": "Manage your characters: images and profiles.",
+    "cardManagementSignInDescription": "Sign in to create, edit, and reuse your characters.",
     "projectHistory": "Project & History",
     "proModeNudge": "Unlock style cards and character presets for more control",
     "tryProMode": "Try it",
@@ -6408,7 +6408,7 @@
     "advanced": "Advanced Settings",
     "enhance": "Prompt Assistant",
     "cards": "Cards",
-    "characterCard": "Character Card",
+    "characterCard": "Character",
     "civitai": "Civitai Token",
     "videoSettings": "Video Settings",
     "sfxSettings": "Sound effect settings",
@@ -7112,10 +7112,10 @@
     "duration120s": "120 s",
     "sceneCountPreview": "{count, plural, one {# scene} other {# scenes}}",
     "consistencyModeLabel": "Consistency",
-    "consistencyCharacterCard": "Character card",
+    "consistencyCharacterCard": "Character",
     "consistencyFirstFrameRef": "First-frame reference",
-    "characterCardLabel": "Character card",
-    "characterCardMissing": "Pick a character card to continue",
+    "characterCardLabel": "Character",
+    "characterCardMissing": "Pick a character to continue",
     "styleCardLabel": "Style card (optional)",
     "videoModelLabel": "Video model",
     "videoModelSeedance": "Seedance 2 Fast",
@@ -7620,7 +7620,7 @@
       "remove": "Remove this reference",
       "count": "will look at {count}",
       "countWarn": "Reviewing {count, plural, one {# image} other {# images}} · accuracy may drop above {limit}",
-      "cards": "Character & style cards"
+      "cards": "Characters & style cards"
     },
     "library": {
       "label": "Asset library",

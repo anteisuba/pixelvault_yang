@@ -3532,6 +3532,11 @@ export const UpdateCharacterCardSchema = z.object({
     .optional(),
   /** Replace source images with structured entries */
   sourceImageEntries: z.array(SourceImageEntrySchema).optional(),
+  /**
+   * 直接改参考槽（卡片页编辑，09-26）：删一张、换主图、加一张。服务端按不变量校验，
+   * 并同步写回旧图片列（主图 · 上传列表 · 精修列表 · 用途表），读旧列的地方不漂。
+   */
+  referenceSlots: CharacterReferenceSlotsSchema.optional(),
   /** Character-specific LoRA models */
   loras: z.array(LoraSchema).max(5).nullable().optional(),
   /** ── 角色卡字段 v2（透传落库，无业务逻辑）── */
@@ -3554,22 +3559,6 @@ export const UpdateCharacterCardSchema = z.object({
 
 export type UpdateCharacterCardRequest = z.infer<
   typeof UpdateCharacterCardSchema
->
-
-/** 精修用的一格模型（选中的型号 + 可选的自带 key）。 */
-const RefineCharacterCardModelSchema = z.object({
-  modelId: z.string().trim().min(1),
-  apiKeyId: z.string().trim().min(1).optional(),
-})
-
-/** Refine character card request */
-export const RefineCharacterCardSchema = z.object({
-  models: z.array(RefineCharacterCardModelSchema).min(1).max(9),
-  aspectRatio: z.enum(['1:1', '16:9', '9:16', '4:3', '3:4']).default('1:1'),
-})
-
-export type RefineCharacterCardRequest = z.infer<
-  typeof RefineCharacterCardSchema
 >
 
 /** Score consistency request */
@@ -3630,12 +3619,6 @@ export interface ConsistencyScoreResult {
   suggestions: string[]
 }
 
-/** Refine result for a single generation */
-export interface RefineGenerationResult {
-  generation: GenerationRecord
-  score: ConsistencyScoreResult | null
-}
-
 /** Character card API responses */
 export interface CharacterCardResponse {
   success: boolean
@@ -3646,16 +3629,6 @@ export interface CharacterCardResponse {
 export interface CharacterCardsResponse {
   success: boolean
   data?: CharacterCardRecord[]
-  error?: string
-}
-
-export interface CharacterCardRefineResponse {
-  success: boolean
-  data?: {
-    results: RefineGenerationResult[]
-    improved: boolean
-    newStabilityScore: number | null
-  }
   error?: string
 }
 

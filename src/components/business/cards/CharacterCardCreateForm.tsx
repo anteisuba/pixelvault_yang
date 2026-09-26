@@ -1,25 +1,17 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { Plus, Trash2, Globe, Upload, Sparkles } from '@/components/icons'
+import { Plus, Trash2, Globe, Upload } from '@/components/icons'
 import { useTranslations } from 'next-intl'
 import Image from 'next/image'
 
 import type {
   CharacterCardRecord,
   CreateCharacterCardRequest,
-  GenerationRecord,
   SourceImageUpload,
 } from '@/types'
-import { IMAGE_GENERATION } from '@/constants/config'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
-import { CARDIFY } from '@/constants/cards/cardify'
 import type { SourceImageViewType } from '@/constants/cards/character-card'
-import {
-  checkImageGenerationStatusAPI,
-  generateImageAPI,
-} from '@/lib/api-client'
-import { CardifyPreview } from '@/components/business/cards/CardifyPreview'
 import { Spinner } from '@/components/ui/spinner'
 
 interface CharacterCardCreateFormProps {
@@ -32,37 +24,6 @@ interface CharacterCardCreateFormProps {
   parentId?: string
 }
 
-function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => window.setTimeout(resolve, ms))
-}
-
-async function waitForCardifyGeneration(
-  jobId: string,
-): Promise<GenerationRecord | null> {
-  for (
-    let attempt = 0;
-    attempt < IMAGE_GENERATION.MAX_POLL_ATTEMPTS;
-    attempt += 1
-  ) {
-    const statusResponse = await checkImageGenerationStatusAPI(jobId)
-    if (!statusResponse.success || !statusResponse.data) {
-      return null
-    }
-
-    if (statusResponse.data.status === 'COMPLETED') {
-      return statusResponse.data.generation
-    }
-
-    if (statusResponse.data.status === 'FAILED') {
-      return null
-    }
-
-    await delay(IMAGE_GENERATION.POLL_INTERVAL_MS)
-  }
-
-  return null
-}
-
 export function CharacterCardCreateForm({
   onSubmit,
   onCancel,
@@ -71,18 +32,10 @@ export function CharacterCardCreateForm({
 }: CharacterCardCreateFormProps) {
   const t = useTranslations('CharacterCard')
   const tView = useTranslations('CharacterCard.viewTypes')
-  const tCardify = useTranslations('Cardify')
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [variantLabel, setVariantLabel] = useState('')
   const [images, setImages] = useState<SourceImageUpload[]>([])
-  const [cardifyEnabled, setCardifyEnabled] = useState(false)
-  const [cardifyState, setCardifyState] = useState<{
-    originalImage: string
-    renderedUrl: string | null
-    isRendering: boolean
-    error: string | null
-  } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -117,43 +70,6 @@ export function CharacterCardCreateForm({
     )
   }
 
-  const renderCardify = async (originalImage: string) => {
-    setCardifyState({
-      originalImage,
-      renderedUrl: null,
-      isRendering: true,
-      error: null,
-    })
-
-    try {
-      const result = await generateImageAPI({
-        prompt: CARDIFY.PROMPT,
-        modelId: CARDIFY.DEFAULT_MODEL_ID,
-        aspectRatio: CARDIFY.ASPECT_RATIO,
-        referenceImage: originalImage,
-      })
-      if (!result.success || !result.data) throw new Error('no job')
-      const generation = await waitForCardifyGeneration(result.data.jobId)
-      if (!generation) throw new Error('no generation')
-      setCardifyState({
-        originalImage,
-        renderedUrl: generation.url,
-        isRendering: false,
-        error: null,
-      })
-    } catch {
-      setCardifyState((prev) =>
-        prev
-          ? {
-              ...prev,
-              isRendering: false,
-              error: tCardify('errorRender'),
-            }
-          : null,
-      )
-    }
-  }
-
   const submitWithImages = async (finalImages: SourceImageUpload[]) => {
     await onSubmit({
       name: name.trim(),
@@ -167,42 +83,7 @@ export function CharacterCardCreateForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!name.trim() || images.length === 0) return
-    if (cardifyEnabled) {
-      await renderCardify(images[0].data)
-      return
-    }
     await submitWithImages(images)
-  }
-
-  const handleAcceptCardify = async () => {
-    if (!cardifyState?.renderedUrl) return
-    const replacedImages: SourceImageUpload[] = [
-      { ...images[0], data: cardifyState.renderedUrl },
-      ...images.slice(1),
-    ]
-    await submitWithImages(replacedImages)
-    setCardifyState(null)
-  }
-
-  const handleUseOriginal = async () => {
-    await submitWithImages(images)
-    setCardifyState(null)
-  }
-
-  if (cardifyState) {
-    return (
-      <CardifyPreview
-        originalImage={cardifyState.originalImage}
-        renderedImage={cardifyState.renderedUrl}
-        isRendering={cardifyState.isRendering}
-        isSubmitting={isSubmitting}
-        error={cardifyState.error}
-        onAccept={handleAcceptCardify}
-        onRegenerate={() => renderCardify(cardifyState.originalImage)}
-        onUseOriginal={handleUseOriginal}
-        onCancel={() => setCardifyState(null)}
-      />
-    )
   }
 
   return (
@@ -318,26 +199,6 @@ export function CharacterCardCreateForm({
           )}
         </div>
       </div>
-
-      {images.length > 0 && (
-        <label className="flex cursor-pointer items-start gap-2 rounded-md border border-border/60 bg-muted/20 p-3">
-          <input
-            type="checkbox"
-            checked={cardifyEnabled}
-            onChange={(e) => setCardifyEnabled(e.target.checked)}
-            className="mt-0.5 size-4 accent-primary"
-          />
-          <div className="flex-1">
-            <div className="flex items-center gap-1.5 text-sm font-medium">
-              <Sparkles className="size-3.5 text-primary" />
-              {tCardify('toggleLabel')}
-            </div>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {tCardify('toggleHint')}
-            </p>
-          </div>
-        </label>
-      )}
 
       <div className="flex gap-2">
         <button

@@ -35,6 +35,7 @@ const mockFindUnique = vi.fn()
 const mockUpdate = vi.fn()
 const mockCount = vi.fn()
 const mockCardCreate = vi.fn()
+const mockGenerationFindFirst = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -44,6 +45,9 @@ vi.mock('@/lib/db', () => ({
       update: (...a: unknown[]) => mockUpdate(...a),
       count: (...a: unknown[]) => mockCount(...a),
       create: (...a: unknown[]) => mockCardCreate(...a),
+    },
+    generation: {
+      findFirst: (...a: unknown[]) => mockGenerationFindFirst(...a),
     },
   },
 }))
@@ -345,6 +349,44 @@ describe('updateCharacterCard · 卡片总线 v3 双写（expand 期）', () => 
     await updateCharacterCard('clerk_1', 'card_1', { name: 'Rei 2' })
     expect(mockUpdate.mock.calls[0]![0].data).not.toHaveProperty(
       'referenceSlots',
+    )
+  })
+
+  it('直接改参考槽：槽为准，旧图片列反向跟上，主图换了取那张图的对象键', async () => {
+    mockFindUnique.mockResolvedValue(FAKE_CARD)
+    mockGenerationFindFirst.mockResolvedValue({ storageKey: 'r2/new-main.png' })
+    await updateCharacterCard('clerk_1', 'card_1', {
+      referenceSlots: [
+        {
+          id: 'slot-2',
+          role: 'identity',
+          url: 'https://example.com/new-main.png',
+          isPrimary: true,
+          origin: 'upload',
+          generationId: 'gen_9',
+        },
+        {
+          id: 'slot-3',
+          role: 'costume',
+          url: 'https://example.com/refined.png',
+          isPrimary: false,
+          origin: 'refine',
+        },
+      ],
+    })
+    const { data } = mockUpdate.mock.calls[0]![0]
+    expect(data.sourceImageUrl).toBe('https://example.com/new-main.png')
+    expect(data.sourceStorageKey).toBe('r2/new-main.png')
+    expect(data.sourceImages).toEqual(['https://example.com/new-main.png'])
+    expect(data.referenceImages).toEqual(['https://example.com/refined.png'])
+    expect(data.referenceRoles).toEqual({
+      'https://example.com/refined.png': 'costume',
+    })
+    expect(data.referenceSlots).toHaveLength(2)
+    expect(mockGenerationFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'gen_9', userId: FAKE_USER.id },
+      }),
     )
   })
 

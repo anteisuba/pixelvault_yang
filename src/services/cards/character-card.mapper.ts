@@ -83,6 +83,50 @@ function toPrismaJson<T extends JsonValue>(value: T): Prisma.InputJsonValue {
   return cloneJsonValue(value) as Prisma.InputJsonValue
 }
 
+export function serializeReferenceSlots(
+  slots: CharacterReferenceSlot[],
+): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(slots)) as Prisma.InputJsonValue
+}
+
+/**
+ * 参考槽 → 旧四列（写方反向双写，卡片页直接改槽时用）。⚠ 读旧列的地方（工作台
+ * 卡片区、旧编译器）还在，槽一改旧列必须跟着改，否则两边各说各话。
+ * 主图 = `isPrimary` 那一槽；上传来路（或来路未知）进上传列表，精修来路进精修列表；
+ * 非身份用途写进用途表。
+ */
+export function legacyColumnsFromReferenceSlots(
+  slots: CharacterReferenceSlot[],
+): {
+  sourceImageUrl: string
+  sourceImages: Prisma.InputJsonValue
+  sourceImageEntries: Prisma.InputJsonValue
+  referenceImages: Prisma.InputJsonValue
+  referenceRoles: Prisma.InputJsonValue
+} {
+  const primary = slots.find((slot) => slot.isPrimary) ?? slots[0]
+  const uploads = slots.filter((slot) => slot.origin !== 'refine')
+  const refined = slots.filter((slot) => slot.origin === 'refine')
+  const roles = Object.fromEntries(
+    slots
+      .filter((slot) => slot.role !== 'identity')
+      .map((slot) => [slot.url, slot.role]),
+  )
+  return {
+    sourceImageUrl: primary?.url ?? '',
+    sourceImages: toPrismaJson(uploads.map((slot) => slot.url)),
+    sourceImageEntries: toPrismaJson(
+      uploads.map((slot) => ({
+        url: slot.url,
+        viewType: slot.viewType ?? 'other',
+        ...(slot.customLabel ? { label: slot.customLabel } : {}),
+      })),
+    ),
+    referenceImages: toPrismaJson(refined.map((slot) => slot.url)),
+    referenceRoles: toPrismaJson(roles),
+  }
+}
+
 /**
  * 读方切换（卡片总线第 ⑧ 片）：以 `referenceSlots` 为准；空着或坏了就从旧四列现算
  * （与双写、回填同一个函数），两份都不成立时给空数组，⛔ 不让列表失败。

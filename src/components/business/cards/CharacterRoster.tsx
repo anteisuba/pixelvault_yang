@@ -23,7 +23,6 @@ import {
   type CharacterPanelEntry,
 } from '@/components/business/cards/CharacterCardPanel'
 import { CharacterCardCreateForm } from '@/components/business/cards/CharacterCardCreateForm'
-import { CharacterCardItem } from '@/components/business/cards/CharacterCardItem'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useLiquidReveal, type LiquidRect } from '@/hooks/use-liquid-reveal'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -75,7 +74,6 @@ export function CharacterRoster() {
   const [entry, setEntry] = useState<CharacterPanelEntry>('open')
   const [closing, setClosing] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
-  const [editId, setEditId] = useState<string | null>(null)
   const [isCreating, setIsCreating] = useState(false)
 
   const stageRef = useRef<HTMLDivElement>(null)
@@ -188,7 +186,16 @@ export function CharacterRoster() {
     return card
   }
 
-  const editCard = editId ? characters.findCard(editId) : null
+  /** 删掉之后侧栏直接关（不走收回动画：那张卡已经不在网格里了）。 */
+  const deleteCharacter = async (id: string) => {
+    const ok = await characters.remove(id)
+    if (ok) {
+      setSelectedId(null)
+      setClosing(false)
+      reveal.reset()
+    }
+    return ok
+  }
   const gridShifted =
     !isMobile && selected !== null && reveal.phase !== 'closed'
 
@@ -345,7 +352,8 @@ export function CharacterRoster() {
                 entry={entry}
                 closing={closing}
                 onClose={closePanel}
-                onEdit={() => setEditId(selected.id)}
+                onUpdate={(data) => characters.update(selected.id, data)}
+                onDelete={() => deleteCharacter(selected.id)}
                 showClose
               />
             </aside>
@@ -371,7 +379,8 @@ export function CharacterRoster() {
                 entry="static"
                 closing={false}
                 onClose={() => setSelectedId(null)}
-                onEdit={() => setEditId(selected.id)}
+                onUpdate={(data) => characters.update(selected.id, data)}
+                onDelete={() => deleteCharacter(selected.id)}
                 showClose={false}
               />
             ) : null}
@@ -389,43 +398,6 @@ export function CharacterRoster() {
             onCancel={() => setCreateOpen(false)}
             isSubmitting={isCreating}
           />
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={editCard !== null}
-        onOpenChange={(open) => {
-          if (!open) setEditId(null)
-        }}
-      >
-        <DialogContent className="max-h-svh overflow-y-auto sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{editCard?.name ?? ''}</DialogTitle>
-          </DialogHeader>
-          {editCard ? (
-            <CharacterCardItem
-              card={editCard}
-              isSelected={characters.activeCardIds.includes(editCard.id)}
-              isExpanded
-              onToggleSelect={() => characters.toggleCardSelection(editCard.id)}
-              onToggleExpand={() => setEditId(null)}
-              onDelete={async () => {
-                const ok = await characters.remove(editCard.id)
-                if (ok) {
-                  setEditId(null)
-                  setSelectedId(null)
-                }
-                return ok
-              }}
-              onUpdate={(data) => characters.update(editCard.id, data)}
-              onCreate={characters.create}
-              onDuplicateCard={async () => {}}
-              activeCardIds={characters.activeCardIds}
-              onToggleSelectCard={characters.toggleCardSelection}
-              onDeleteCard={characters.remove}
-              onUpdateCard={characters.update}
-            />
-          ) : null}
         </DialogContent>
       </Dialog>
     </div>

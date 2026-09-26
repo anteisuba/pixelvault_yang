@@ -69,6 +69,8 @@ function card(
   }
 }
 
+const mockUpdate = vi.fn().mockResolvedValue(true)
+
 const CARDS = [
   card('denia', 'Denia', {
     persona: {
@@ -103,7 +105,7 @@ vi.mock('@/hooks/cards/use-character-cards', () => ({
         (item) => item.id === id,
       ) ?? null,
     create: vi.fn(),
-    update: vi.fn(),
+    update: (...a: unknown[]) => mockUpdate(...a),
     remove: vi.fn(),
   }),
 }))
@@ -160,5 +162,22 @@ describe('CharacterRoster（卡片页 K3）', () => {
     fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
     fireEvent.keyDown(window, { key: 'Escape' })
     expect(screen.queryByRole('complementary', { name: 'Denia' })).toBeNull()
+  })
+
+  it('编辑：在侧栏里改性格，保存时整份设定带回（没改的格不丢）', async () => {
+    renderRoster()
+    fireEvent.click(screen.getAllByTestId('roster-tile')[0]!)
+    fireEvent.click(screen.getByRole('button', { name: '编辑' }))
+    const behavior = screen.getByLabelText(/性格/)
+    fireEvent.change(behavior, { target: { value: '会先把伞递给别人' } })
+    fireEvent.click(screen.getByRole('button', { name: '保存' }))
+    await vi.waitFor(() => expect(mockUpdate).toHaveBeenCalled())
+    const [id, data] = mockUpdate.mock.calls[0]!
+    expect(id).toBe('denia')
+    expect(data.persona).toMatchObject({
+      identity: '舞台魔术师',
+      behavior: '会先把伞递给别人',
+      speech: '叫对方「指挥官」',
+    })
   })
 })

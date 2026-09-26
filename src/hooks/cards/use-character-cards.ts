@@ -8,8 +8,6 @@ import type {
   CharacterCardRecord,
   CreateCharacterCardRequest,
   UpdateCharacterCardRequest,
-  RefineCharacterCardRequest,
-  RefineGenerationResult,
 } from '@/types'
 import { CHARACTER_CARD } from '@/constants/cards/character-card'
 import {
@@ -17,7 +15,6 @@ import {
   createCharacterCardAPI,
   updateCharacterCardAPI,
   deleteCharacterCardAPI,
-  refineCharacterCardAPI,
 } from '@/lib/api-client'
 import {
   makeCardCacheKey,
@@ -52,15 +49,6 @@ export interface UseCharacterCardsReturn {
   update: (id: string, data: UpdateCharacterCardRequest) => Promise<boolean>
   remove: (id: string) => Promise<boolean>
   refresh: () => Promise<void>
-  refine: (
-    id: string,
-    params: RefineCharacterCardRequest,
-  ) => Promise<{
-    results: RefineGenerationResult[]
-    improved: boolean
-    newStabilityScore: number | null
-  } | null>
-  isRefining: boolean
 }
 
 export function useCharacterCards(): UseCharacterCardsReturn {
@@ -76,7 +64,6 @@ export function useCharacterCards(): UseCharacterCardsReturn {
       undefined,
   )
   const [error, setError] = useState<string | null>(null)
-  const [isRefining, setIsRefining] = useState(false)
   const t = useTranslations('Toasts')
 
   // ─── Find card in tree ───────────────────────────────────────
@@ -248,39 +235,6 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     [t],
   )
 
-  // ─── Refine ──────────────────────────────────────────────────
-
-  const refine = useCallback(
-    async (
-      id: string,
-      params: RefineCharacterCardRequest,
-    ): Promise<{
-      results: RefineGenerationResult[]
-      improved: boolean
-      newStabilityScore: number | null
-    } | null> => {
-      setIsRefining(true)
-      setError(null)
-      const response = await refineCharacterCardAPI(id, params)
-      setIsRefining(false)
-
-      if (response.success && response.data) {
-        // Refresh the card list to get updated status/score
-        await fetchCards()
-        if (response.data.improved) {
-          toast.success(t('characterCardStable'))
-        }
-        return response.data
-      }
-
-      const msg = response.error ?? t('characterCardRefineFailed')
-      setError(msg)
-      toast.error(msg)
-      return null
-    },
-    [fetchCards, t],
-  )
-
   return {
     cards,
     isLoading,
@@ -296,7 +250,5 @@ export function useCharacterCards(): UseCharacterCardsReturn {
     update,
     remove,
     refresh: fetchCards,
-    refine,
-    isRefining,
   }
 }

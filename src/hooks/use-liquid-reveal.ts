@@ -54,6 +54,8 @@ export interface LiquidReveal {
   clipPath: MotionValue<string>
   open(origin: LiquidRect, target: LiquidRect): void
   close(origin: LiquidRect, target: LiquidRect): void
+  /** 直接回到 `closed`（触发物已经不在了，比如那张卡被删了）。 */
+  reset(): void
 }
 
 type LiquidSpring = (typeof LIQUID_SPRING)[keyof typeof LIQUID_SPRING]
@@ -258,5 +260,10 @@ export function useLiquidReveal(options: LiquidRevealOptions): LiquidReveal {
     ],
   )
 
-  return { phase, clipPath, open, close }
+  const reset = useCallback(() => {
+    clearTimers()
+    go('closed')
+  }, [clearTimers, go])
+
+  return { phase, clipPath, open, close, reset }
 }

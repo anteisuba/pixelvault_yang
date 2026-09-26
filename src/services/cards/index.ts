@@ -12,7 +12,6 @@
  */
 export * from './character-card.service'
 export * from './character-card.mapper'
-export * from './character-refine.service'
 export * from './character-scoring.service'
 export * from './background-card.service'
 export * from './style-card.service'

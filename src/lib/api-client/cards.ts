@@ -4,7 +4,6 @@ import type {
   CardRecipeResponse,
   CardRecipesResponse,
   CharacterCardGalleryResponse,
-  CharacterCardRefineResponse,
   CharacterCardResponse,
   CharacterCardsResponse,
   CollectionDetailResponse,
@@ -18,7 +17,6 @@ import type {
   CreateCharacterCardRequest,
   CreateCollectionRequest,
   CreateStyleCardRequest,
-  RefineCharacterCardRequest,
   StyleCardResponse,
   StyleCardsResponse,
   UpdateBackgroundCardRequest,
@@ -151,23 +149,23 @@ export async function deleteCharacterCardAPI(
   }
 }
 
-export async function refineCharacterCardAPI(
+/** 试读：让助手用这个角色的口吻说两句（卡片页「设定」一行）。 */
+export async function sampleCharacterLinesAPI(
   id: string,
-  params: RefineCharacterCardRequest,
-): Promise<CharacterCardRefineResponse> {
+): Promise<{ success: boolean; data?: { lines: string[] }; error?: string }> {
   try {
     const response = await fetch(
-      `${API_ENDPOINTS.CHARACTER_CARDS}/${id}/refine`,
+      `${API_ENDPOINTS.CHARACTER_CARDS}/${id}/sample-lines`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(params),
+        body: JSON.stringify({}),
       },
     )
     if (!response.ok) {
       return {
         success: false,
-        error: await getErrorMessage(response, 'Refinement failed'),
+        error: await getErrorMessage(response, 'Sample lines failed'),
       }
     }
     return await response.json()

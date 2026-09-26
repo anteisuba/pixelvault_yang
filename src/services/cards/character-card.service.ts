@@ -27,12 +27,14 @@ import { analyzeVisual } from '@/services/vision/vision-analyzer.service'
 import { deriveCardHandleBase, deriveVariantHandleBase } from '@/lib/card-bus'
 import { allocateHandleForNewCard } from '@/services/cards/card-handle.service'
 import {
+  legacyColumnsFromReferenceSlots,
   mapCharacterCardRow,
   mergeCardExtensions,
   referenceSlotsFromCardRow,
   serializeCharacterAttributes,
   serializeCharacterCardV2Fields,
   serializeCharacterLoras,
+  serializeReferenceSlots,
   serializeSourceImageEntries,
 } from '@/services/cards/character-card.mapper'
 import { generateStorageKey, uploadToR2 } from '@/services/storage/r2'
@@ -541,6 +543,26 @@ export async function updateCharacterCard(
         ? { referenceRoles: data.referenceRoles }
         : {}),
     })
+  // ⭐ 卡片页直接改槽：槽为准，旧四列反向跟上（主图换了，对象键从那张图的生成记录取；
+  //   取不到就保留原键——键只用于清理，缺了不影响读）。
+  if (data.referenceSlots !== undefined) {
+    const legacy = legacyColumnsFromReferenceSlots(data.referenceSlots)
+    Object.assign(updateData, legacy, {
+      referenceSlots: serializeReferenceSlots(data.referenceSlots),
+    })
+    const primary = data.referenceSlots.find((slot) => slot.isPrimary)
+    if (
+      primary?.generationId &&
+      legacy.sourceImageUrl !== existing.sourceImageUrl
+    ) {
+      const generation = await db.generation.findFirst({
+        where: { id: primary.generationId, userId: dbUser.id },
+        select: { storageKey: true },
+      })
+      if (generation?.storageKey)
+        updateData.sourceStorageKey = generation.storageKey
+    }
+  }
   if (data.summary !== undefined) updateData.summary = data.summary
   if (data.extensions !== undefined)
     updateData.extensions = mergeCardExtensions(

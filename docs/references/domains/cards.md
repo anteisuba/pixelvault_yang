@@ -10,8 +10,8 @@
 
 ## Service / API
 
-- `src/services/cards/character-card.service.ts`（CRUD + 属性抽取 + 精修 + 一致性打分）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）· `card-recipe-compiler.service.ts`（三卡 LLM 融合成单条 prompt）。
-- API：`/api/character-cards`（GET/POST）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/refine` · `/api/character-cards/[id]/score`。
+- `src/services/cards/character-card.service.ts`（CRUD + 属性抽取 + 一致性打分）· `character-sample-lines.service.ts`（试读：按设定写两句台词）· `character-card.mapper.ts`（行 → `CharacterCardRecord`）· `card-recipe-compiler.service.ts`（三卡 LLM 融合成单条 prompt）。
+- API：`/api/character-cards`（GET/POST）· `/api/character-cards/[id]`（GET/PATCH/DELETE）· `/api/character-cards/[id]/sample-lines` · `/api/character-cards/[id]/score`。
 - Hooks：`src/hooks/cards/`。
 
 ## 角色卡字段 v2（2026-09-17）
@@ -115,7 +115,9 @@
 
 **卡片重设计（09-26，画布第 7 页）· 施工第 1 片已写**：人设加 `identity`（身份）与 `backstory`（经历，无固定格式）；扩展键 `pv.tags` = `{ character[], appearance[], loraTrigger }`（`CardTagsSchema`，键名在 `CARD_EXTENSIONS.KEYS`）。编译：NovelAI（多角色布局与文字退路）优先用角色标签 + 外观标签，没有标签才退回视觉文字；LoRA 触发词只在请求挂了 LoRA 时写进正文；LoRA 只存触发词、⛔ 不记对应的 LoRA。坏的 `pv.tags` 编译时当缺席、磁盘上保留。
 
-**施工第 3 片（卡片页 K3 骨架）**：`/cards` 只剩角色——`CharacterRoster`（网格 + 侧栏）+ `CharacterCardPanel`（头部 · 外观 / 设定 / 用在哪三行，一次开一行，高度走弹簧）；画风卡、背景卡两个页签下线（数据与工作台卡片模式照旧）。侧栏从点中的卡长出来，走共享 hook `hooks/use-liquid-reveal.ts`（与画布左侧栏同一套相位机与 `LIQUID_SPRING` / `LIQUID_TIMING`）；形状起步带那张卡的图、线性退白；网格让位走 motion `layout`，选中框 `layoutId` 跟着卡；收起时网格等侧栏收完才回位；手机走底部抽屉。读方切换（⑧ 的一半）：`CharacterCardRecord` 新增 `handle` · `referenceSlots`（新列坏 / 空就从旧四列现算）· `persona` · `cardTags`。「编辑」「＋ 新角色」暂时打开旧的详情 / 新建界面（第 4、6 片重做，精修与 AI 渲染卡牌届时下线）。
+**施工第 3 片（卡片页 K3 骨架）**：`/cards` 只剩角色——`CharacterRoster`（网格 + 侧栏）+ `CharacterCardPanel`（头部 · 外观 / 设定 / 用在哪三行，一次开一行，高度走弹簧）；画风卡、背景卡两个页签下线（数据与工作台卡片模式照旧）。侧栏从点中的卡长出来，走共享 hook `hooks/use-liquid-reveal.ts`（与画布左侧栏同一套相位机与 `LIQUID_SPRING` / `LIQUID_TIMING`）；形状起步带那张卡的图、线性退白；网格让位走 motion `layout`，选中框 `layoutId` 跟着卡；收起时网格等侧栏收完才回位；手机走底部抽屉。读方切换（⑧ 的一半）：`CharacterCardRecord` 新增 `handle` · `referenceSlots`（新列坏 / 空就从旧四列现算）· `persona` · `cardTags`。「＋ 新角色」暂时打开旧的新建界面（第 6 片重做）。
+
+**施工第 4 片（侧栏里编辑 + 试读）**：「编辑」就在侧栏里换成编辑态（`use-character-card-editor.ts`）：名字、图、一句外观、角色 / 外观标签、LoRA 触发词、身份 / 性格 / 说话方式 / 经历；保存时整份人设合并回去，没改的格不丢。图的基础编辑提前到这一片：设为主图（强制 identity 并排到第一）、移除（主图让给下一张 identity，至少留一张）、上传（先进素材库再挂槽）；`PATCH` 带 `referenceSlots` 时服务端同时写旧四列（`legacyColumnsFromReferenceSlots`）。设定行的「试读」按设定写两句台词，「不像」直接进编辑。精修（`/refine`）与 AI 渲染卡牌（Cardify）下线，代码删除。从素材库挑图归第 6 片。
 
 1. **expand（D1）**：只加列 + 唯一索引（登记 ACK：索引列是同迁移新加的可空列，全表 NULL 时建）；写方**双写**，读方一行不改。
 2. **backfill（D1 上线后 owner 手动）**：回填脚本默认只出报告，`--apply` 每次都要 owner 当次授权；只动新列仍是初始值的行，重跑安全；按用户 → 根卡 → 变体的确定性顺序分配 handle，冲突加 `-2`、`-3`；persona 旧形改写前先把原值导出到本机。

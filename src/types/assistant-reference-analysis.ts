@@ -4,6 +4,7 @@ import { ASSISTANT_OPERATOR_LIMITS as LIMITS } from '@/constants/assistant-opera
 
 const NoteSchema = z.string().trim().max(LIMITS.maxPromptChars)
 const NotesSchema = z.array(NoteSchema).max(16)
+const EvidenceNotesSchema = NotesSchema.refine((notes) => notes.every(Boolean))
 const SourceSchema = z
   .string()
   .url()
@@ -30,6 +31,33 @@ export const ReferenceRenderingMediumSchema = z.enum(
   REFERENCE_RENDERING_MEDIUMS,
 )
 
+export const ReferenceRegionEvidenceSchema = z.discriminatedUnion('support', [
+  z.object({
+    support: z.literal('clear'),
+    observations: EvidenceNotesSchema.min(1),
+    limitations: EvidenceNotesSchema,
+  }),
+  z.object({
+    support: z.literal('partial'),
+    observations: EvidenceNotesSchema.min(1),
+    limitations: EvidenceNotesSchema.min(1),
+  }),
+  z.object({
+    support: z.literal('unknown'),
+    observations: EvidenceNotesSchema.max(0),
+    limitations: EvidenceNotesSchema.min(1),
+  }),
+])
+
+export const ReferenceCharacterEvidenceSchema = z.object({
+  face: ReferenceRegionEvidenceSchema,
+  upperBody: ReferenceRegionEvidenceSchema,
+  fullBodyProportions: ReferenceRegionEvidenceSchema,
+  legs: ReferenceRegionEvidenceSchema,
+  sideView: ReferenceRegionEvidenceSchema,
+  backView: ReferenceRegionEvidenceSchema,
+})
+
 export const ReferenceVisualFactsSchema = z.object({
   identity: NoteSchema,
   pose: NoteSchema,
@@ -45,6 +73,7 @@ export const ReferenceVisualFactsSchema = z.object({
   }),
   scene: NoteSchema,
   uncertainties: NotesSchema,
+  characterEvidence: ReferenceCharacterEvidenceSchema.optional(),
 })
 
 export const ReferenceVisualProfileSchema = ReferenceVisualFactsSchema.extend({
@@ -71,12 +100,14 @@ export const ReferenceBriefSchema = z.object({
   requirements: NotesSchema,
   avoid: NotesSchema,
   uncertainties: NotesSchema,
+  evidenceGaps: NotesSchema.default([]),
 })
 export const ReferenceAnalysisSchema = z.object({
   profiles: ReferenceProfilesSchema,
   brief: ReferenceBriefSchema.nullable(),
 })
 export const ReferenceBriefOutputSchema = ReferenceBriefSchema.extend({
+  evidenceGaps: NotesSchema,
   assignments: z
     .array(
       ReferenceBriefSchema.shape.assignments.element
@@ -91,6 +122,7 @@ export const ReferenceVisionOutputSchema = z.object({
   images: z
     .array(
       ReferenceVisualFactsSchema.extend({
+        characterEvidence: ReferenceCharacterEvidenceSchema,
         style: ReferenceVisualFactsSchema.shape.style.extend({
           renderingMedium: ReferenceRenderingMediumSchema,
           rendering: NoteSchema.min(1),
@@ -102,10 +134,11 @@ export const ReferenceVisionOutputSchema = z.object({
     .max(LIMITS.maxSnapshotReferences),
 })
 /**
- * 写入后复核的结论（D12 Q3）—— 分两类：
+ * 写入后复核的结论（D12 Q3）—— 分三类：
  *  · `issues`：写的人漏掉 / 写错的东西（退回模型重写，⛔ 不问创作者）；
  *  · `conflicts`：创作者的要求与参考图**不能同时成立**（例：要纯 2D，参考是 3D 渲染），
  *    只有这一类才值得问一句。
+ *  · `unsupportedClaims`：把缺证据的身体细节或未认可的结果当成来源事实，必须改写。
  */
 export const ReferencePromptReviewSchema = z.object({
   issues: z.array(z.string().trim().min(1).max(LIMITS.maxPromptChars)).max(8),
@@ -113,6 +146,9 @@ export const ReferencePromptReviewSchema = z.object({
     .array(z.string().trim().min(1).max(LIMITS.maxPromptChars))
     .max(4)
     .default([]),
+  unsupportedClaims: z
+    .array(z.string().trim().min(1).max(LIMITS.maxPromptChars))
+    .max(8),
 })
 export type ReferencePromptReview = z.infer<typeof ReferencePromptReviewSchema>
 

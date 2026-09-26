@@ -7423,6 +7423,7 @@
       "referenceImageUnavailable": "参考图无法读取，请重新上传或替换失效图片",
       "referenceAnalysisFailed": "参考图分析不完整，尚未采用分析结果",
       "referenceBriefFailed": "图片已分析，但参考用途分配未通过校验；提示词未修改",
+      "referenceInputsChanged": "先更新参考连线，再检查这段提示词",
       "promptConflict": "提示词与参考图分工或创作要求存在冲突",
       "noSuchControl": "这个工作台上没有这个控件",
       "unknownModel": "这个模型不在你能选的名单里",

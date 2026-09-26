@@ -4,13 +4,50 @@ vi.mock('server-only', () => ({}))
 
 import {
   analyzeOperatorReferences,
-  buildDefaultReferenceBrief,
   buildOperatorReferenceBrief,
+  hasCompleteReferenceVisualEvidence,
   reviewOperatorReferencePrompt,
 } from './assistant-reference-analysis.service'
-import type { ReferenceVisualProfile } from '@/types/assistant-reference-analysis'
+import {
+  ReferenceBriefSchema,
+  type ReferenceVisualProfile,
+} from '@/types/assistant-reference-analysis'
 
 const urls = ['https://cdn.test/character.png', 'https://cdn.test/style.png']
+const characterEvidence: NonNullable<
+  ReferenceVisualProfile['characterEvidence']
+> = {
+  face: {
+    support: 'clear',
+    observations: ['Pink eyes, a small cheek mole'],
+    limitations: [],
+  },
+  upperBody: {
+    support: 'partial',
+    observations: ['A loose jacket covers the shoulders and torso'],
+    limitations: ['The jacket conceals the waist and torso shape'],
+  },
+  fullBodyProportions: {
+    support: 'unknown',
+    observations: [],
+    limitations: ['The image is cropped at the waist'],
+  },
+  legs: {
+    support: 'unknown',
+    observations: [],
+    limitations: ['Neither leg is visible'],
+  },
+  sideView: {
+    support: 'unknown',
+    observations: [],
+    limitations: ['Only a frontal view is shown'],
+  },
+  backView: {
+    support: 'unknown',
+    observations: [],
+    limitations: ['The back is not shown'],
+  },
+}
 const profiles: ReferenceVisualProfile[] = urls.map((url, index) => ({
   url,
   identity: `Character ${index}`,
@@ -28,6 +65,7 @@ const profiles: ReferenceVisualProfile[] = urls.map((url, index) => ({
     lighting: 'Diffuse',
   },
   uncertainties: ['Hidden hand'],
+  characterEvidence,
 }))
 const brief = {
   summary: 'A recognizable character with the selected rendering style',
@@ -40,6 +78,7 @@ const brief = {
   requirements: ['White background'],
   avoid: ['Forest'],
   uncertainties: [],
+  evidenceGaps: [],
 }
 const input = {
   urls,
@@ -49,6 +88,113 @@ const input = {
 }
 
 describe('reference analysis', () => {
+  it('refreshes cached evidence that has rendering but no character coverage', async () => {
+    const old = { ...profiles[0]!, characterEvidence: undefined }
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        images: [{ ...profiles[0], imageIndex: 0 }],
+      }),
+    )
+    const result = await analyzeOperatorReferences({
+      ...input,
+      cached: [old, profiles[1]!],
+      complete,
+    })
+    expect(complete).toHaveBeenCalledTimes(1)
+    expect(complete.mock.calls[0]?.[2]).toEqual([urls[0]])
+    expect(result.profiles).toEqual(profiles)
+  })
+
+  it('retains unknown legs as analyzed evidence without inventing proportions or reanalyzing', async () => {
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        images: profiles
+          .map((profile, imageIndex) => ({ ...profile, imageIndex }))
+          .reverse(),
+      }),
+    )
+    const result = await analyzeOperatorReferences({ ...input, complete })
+    expect(result.profiles[0]).toMatchObject({
+      url: urls[0],
+      characterEvidence: {
+        face: characterEvidence.face,
+        legs: characterEvidence.legs,
+      },
+    })
+    expect(result.profiles[1]?.url).toBe(urls[1])
+    complete.mockClear()
+    const cached = await analyzeOperatorReferences({
+      ...input,
+      cached: result.profiles,
+      complete,
+    })
+    expect(complete).not.toHaveBeenCalled()
+    expect(cached.profiles).toEqual(result.profiles)
+    expect(hasCompleteReferenceVisualEvidence(result.profiles[0])).toBe(true)
+    expect(
+      hasCompleteReferenceVisualEvidence({
+        ...profiles[0]!,
+        characterEvidence: undefined,
+      }),
+    ).toBe(false)
+  })
+
+  it.each([
+    'face',
+    'upperBody',
+    'fullBodyProportions',
+    'legs',
+    'sideView',
+    'backView',
+  ] as const)(
+    'rejects fresh coverage missing the %s region instead of treating it as sufficient',
+    async (region) => {
+      const complete = vi.fn().mockResolvedValue(
+        JSON.stringify({
+          images: profiles.map((profile, imageIndex) => ({
+            ...profile,
+            imageIndex,
+            characterEvidence: { ...characterEvidence, [region]: undefined },
+          })),
+        }),
+      )
+      await expect(
+        analyzeOperatorReferences({ ...input, complete }),
+      ).rejects.toMatchObject({
+        stage: 'vision',
+        reason: 'schema',
+      })
+    },
+  )
+
+  it.each([
+    { support: 'clear', observations: [], limitations: [] },
+    { support: 'clear', observations: ['   '], limitations: [] },
+    { support: 'partial', observations: ['Boot silhouette'], limitations: [] },
+    {
+      support: 'unknown',
+      observations: ['Long legs'],
+      limitations: ['Legs are out of frame'],
+    },
+    { support: 0.9, observations: ['Long legs'], limitations: [] },
+  ])('rejects unsupported coverage claims %j', async (legs) => {
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        images: profiles.map((profile, imageIndex) => ({
+          ...profile,
+          imageIndex,
+          characterEvidence: { ...characterEvidence, legs },
+        })),
+      }),
+    )
+    await expect(
+      analyzeOperatorReferences({ ...input, complete }),
+    ).rejects.toMatchObject({
+      stage: 'vision',
+      reason: 'schema',
+    })
+  })
+
   it('refreshes old evidence missing rendering while preserving complete cached evidence', async () => {
     const old = {
       ...profiles[0]!,
@@ -144,7 +290,7 @@ describe('reference analysis', () => {
     }
   })
 
-  it('keeps a legacy cached profile that predates renderingMedium', async () => {
+  it('refreshes a legacy cached profile missing its rendering medium', async () => {
     const legacy = {
       ...profiles[1]!,
       style: { ...profiles[1]!.style, renderingMedium: undefined },
@@ -152,15 +298,16 @@ describe('reference analysis', () => {
     const complete = vi
       .fn()
       .mockResolvedValue(
-        JSON.stringify({ images: [{ ...profiles[0], imageIndex: 0 }] }),
+        JSON.stringify({ images: [{ ...profiles[1], imageIndex: 1 }] }),
       )
     const result = await analyzeOperatorReferences({
       ...input,
-      cached: [legacy],
+      cached: [profiles[0]!, legacy],
       complete,
     })
-    expect(complete.mock.calls[0]?.[2]).toEqual([urls[0]])
-    expect(result.profiles[1]).toEqual(legacy)
+    expect(complete.mock.calls[0]?.[2]).toEqual([urls[1]])
+    expect(hasCompleteReferenceVisualEvidence(legacy)).toBe(false)
+    expect(result.profiles).toEqual(profiles)
   })
 
   it('returns verified visual evidence without requiring a creative brief', async () => {
@@ -279,6 +426,69 @@ describe('reference analysis', () => {
     expect(complete.mock.calls[0]?.[0]).toContain('style.renderingMedium')
   })
 
+  it.each([
+    {
+      context: 'Create a portrait cropped at the shoulders.',
+      evidenceGaps: [],
+      requirements: ['Shoulder-up portrait'],
+    },
+    {
+      context: 'Reconstruct exactly the original full-body proportions.',
+      evidenceGaps: [
+        'The legs are not visible; provide a full-body reference or allow new design.',
+      ],
+      requirements: [],
+    },
+    {
+      context: 'Keep the face; design unseen legs freely for this new image.',
+      evidenceGaps: [],
+      requirements: ['Newly designed legs, not observations from the source'],
+    },
+  ])(
+    'passes region limitations and preserves task-specific brief decisions: $context',
+    async (task) => {
+      const complete = vi.fn().mockResolvedValue(
+        JSON.stringify({
+          ...brief,
+          assignments: brief.assignments.map(
+            ({ roles, preserve, exclude }, imageIndex) => ({
+              roles,
+              preserve,
+              exclude,
+              imageIndex,
+            }),
+          ),
+          evidenceGaps: task.evidenceGaps,
+          requirements: task.requirements,
+        }),
+      )
+      const result = await buildOperatorReferenceBrief({
+        ...input,
+        profiles,
+        context: task.context,
+        complete,
+      })
+      const prompt = String(complete.mock.calls[0]?.[1])
+      const transmitted = JSON.parse(prompt.split('\n')[1]!) as {
+        imageIndex: number
+        characterEvidence: typeof characterEvidence
+      }[]
+      expect(
+        transmitted.map(({ imageIndex, ...facts }) => ({
+          url: urls[imageIndex],
+          ...facts,
+        })),
+      ).toEqual(profiles)
+      expect(transmitted[0]?.characterEvidence.legs).toEqual(
+        characterEvidence.legs,
+      )
+      expect(result.evidenceGaps).toEqual(task.evidenceGaps)
+      expect(result.uncertainties).toEqual([])
+      expect(result.requirements).toEqual(task.requirements)
+      expect(complete).toHaveBeenCalledTimes(1)
+    },
+  )
+
   /**
    * ⭐ **真机复现（2026-09-12）**：简报那一跳的 JSON 走形 —— roles 写成
    * 「character / art style」这种自然语言、`uncertainties` 吐成一个字符串 ——
@@ -286,8 +496,10 @@ describe('reference analysis', () => {
    */
   it('repairs a brief whose roles and uncertainties drifted off the schema', async () => {
     const indexed = brief.assignments.map(
-      ({ url: _url, ...rest }, imageIndex) => ({
-        ...rest,
+      ({ roles, preserve, exclude }, imageIndex) => ({
+        roles,
+        preserve,
+        exclude,
         imageIndex,
       }),
     )
@@ -331,31 +543,27 @@ describe('reference analysis', () => {
     expect(complete).toHaveBeenCalledTimes(2)
   })
 
-  it('falls back to the sources the creator named, with no uncertainties to block the write', () => {
-    expect(
-      buildDefaultReferenceBrief({ profiles, activeIndices: [0] }),
-    ).toMatchObject({
-      uncertainties: [],
-      requirements: [],
-      assignments: [
-        { url: urls[0], roles: ['content'], exclude: [] },
-        {
-          url: urls[1],
-          roles: ['content'],
-          exclude: ['Not named by the creator for this edit'],
-        },
-      ],
-    })
-    expect(
-      buildDefaultReferenceBrief({ profiles, activeIndices: [] }).assignments,
-    ).toEqual(
-      profiles.map(({ url }) => ({
-        url,
-        roles: ['content'],
-        preserve: [],
-        exclude: [],
-      })),
+  it('reads a historical brief without evidence gaps but rejects a fresh unchecked brief', async () => {
+    const historical = { ...brief, evidenceGaps: undefined }
+    expect(ReferenceBriefSchema.parse(historical).evidenceGaps).toEqual([])
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        ...historical,
+        assignments: historical.assignments.map(
+          ({ roles, preserve, exclude }, imageIndex) => ({
+            roles,
+            preserve,
+            exclude,
+            imageIndex,
+          }),
+        ),
+      }),
     )
+    await expect(
+      buildOperatorReferenceBrief({ ...input, profiles, complete }),
+    ).rejects.toMatchObject({ stage: 'brief', reason: 'schema' })
+    expect(complete).toHaveBeenCalledTimes(2)
+    expect(String(complete.mock.calls[1]?.[1])).toContain('evidenceGaps')
   })
 
   it.each([[0, 0], [0], [0, 2]])(
@@ -428,6 +636,7 @@ describe('reference analysis', () => {
     const complete = vi.fn().mockResolvedValue(
       JSON.stringify({
         issues: ['Forest contradicts the requested white background.'],
+        unsupportedClaims: [],
       }),
     )
     const issues = await reviewOperatorReferencePrompt({
@@ -444,13 +653,16 @@ describe('reference analysis', () => {
     expect(issues).toEqual({
       issues: ['Forest contradicts the requested white background.'],
       conflicts: [],
+      unsupportedClaims: [],
     })
   })
 
   it('tells the reviewer a change the creator asked for is the request, not a conflict', async () => {
     const complete = vi
       .fn()
-      .mockResolvedValue(JSON.stringify({ issues: [], conflicts: [] }))
+      .mockResolvedValue(
+        JSON.stringify({ issues: [], conflicts: [], unsupportedClaims: [] }),
+      )
     await reviewOperatorReferencePrompt({
       analysis: { profiles, brief: null },
       language: 'Chinese',
@@ -473,6 +685,7 @@ describe('reference analysis', () => {
       JSON.stringify({
         issues: ['漏写了背面的红色细带。'],
         conflicts: ['要纯 2D，但风格来源是 3D 渲染。'],
+        unsupportedClaims: [],
       }),
     )
     const review = await reviewOperatorReferencePrompt({
@@ -486,21 +699,52 @@ describe('reference analysis', () => {
     expect(review).toEqual({
       issues: ['漏写了背面的红色细带。'],
       conflicts: ['要纯 2D，但风格来源是 3D 渲染。'],
+      unsupportedClaims: [],
     })
     expect(complete.mock.calls[0]?.[0]).toContain('"conflicts"')
   })
 
-  it('does not accept an unreadable review as a pass', async () => {
-    const complete = vi.fn().mockResolvedValue('Looks good!')
-    expect(
-      await reviewOperatorReferencePrompt({
-        language: 'Chinese',
-        analysis: { profiles, brief },
-        prompt: 'White background',
-        context: input.context,
-        modelHint: '',
-        complete,
+  it.each(['Looks good!', JSON.stringify({ issues: [], conflicts: [] })])(
+    'does not accept an unreadable or incomplete review as a pass: %s',
+    async (reply) => {
+      const complete = vi.fn().mockResolvedValue(reply)
+      expect(
+        await reviewOperatorReferencePrompt({
+          language: 'Chinese',
+          analysis: { profiles, brief },
+          prompt: 'White background',
+          context: input.context,
+          modelHint: '',
+          complete,
+        }),
+      ).toBeNull()
+    },
+  )
+
+  it('preserves unsupported anatomical claims separately from editable issues and creator conflicts', async () => {
+    const unsupportedClaims = [
+      'The prompt calls long legs a source fact, but the source is cropped at the waist.',
+    ]
+    const complete = vi.fn().mockResolvedValue(
+      JSON.stringify({
+        issues: [],
+        conflicts: [],
+        unsupportedClaims,
       }),
-    ).toBeNull()
+    )
+    const review = await reviewOperatorReferencePrompt({
+      analysis: { profiles, brief },
+      language: 'English',
+      prompt:
+        'Keep the exact long legs and full-body proportions from the source.',
+      context: 'Keep the face; the body of the last result was not accepted.',
+      modelHint: '',
+      complete,
+    })
+    expect(review).toEqual({ issues: [], conflicts: [], unsupportedClaims })
+    const sent = String(complete.mock.calls[0]?.[1])
+      .split('CURRENT REFERENCE ORDER AND BRIEF:\n')[1]!
+      .split('\nCREATOR CONTEXT:')[0]!
+    expect(JSON.parse(sent)).toEqual({ profiles, brief })
   })
 })

@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiRequestError } from '@/lib/errors'
+import { readOperatorReferenceProfiles } from '@/lib/studio-operator-history'
 
 import { CINEMATIC_SHOT_GRAMMAR } from '@/constants/cinematic-grammar'
 import {
@@ -406,6 +407,7 @@ import { runAssistantOperator } from '@/services/kernel/assistant-operator.servi
 import {
   AssistantOperatorEventSchema,
   type AssistantOperatorEvent,
+  type AssistantOperatorCanvasNode,
   type AssistantOperatorRequest,
   type AssistantOperatorStep,
   type AssistantOperatorStepEvent,
@@ -7464,7 +7466,7 @@ describe('计划协议 · plan / ask / confirm', () => {
   it('系统提示不要求选项图示（客户端还没有渲染方）', async () => {
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
-    const call = mockLlmTextCompletion.mock.calls.at(-1)?.[0] as {
+    const call = toolRingCalls().at(-1) as {
       systemPrompt: string
     }
     for (const visual of ASSISTANT_PLAN_VISUALS) {
@@ -7810,7 +7812,7 @@ describe('收尾闸 · 半句话不算收尾', () => {
     expect(messages).toEqual([
       '官方还没有公开时夜的外貌设定，我在萌百、中文维基和 danbooru 都找过了。要不要先按已知气质写一版？',
     ])
-    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+    expect(toolRingCalls()).toHaveLength(2)
     expect(lastUserPrompt()).toContain('YOUR CLOSING LINE WAS NOT AN ANSWER')
   })
 
@@ -7822,7 +7824,7 @@ describe('收尾闸 · 半句话不算收尾', () => {
     const events = await collect(
       runAssistantOperator('clerk-1', buildRequest()),
     )
-    expect(mockLlmTextCompletion).toHaveBeenCalledTimes(2)
+    expect(toolRingCalls()).toHaveLength(2)
     expect(events.at(-1)?.type).toBe(ASSISTANT_OPERATOR_EVENTS.done)
   })
 
@@ -8887,7 +8889,7 @@ describe('系统提示 · 找角色设定图的推荐链路（2026-09-06）', ()
     queueTurns({ finished: true })
     await collect(runAssistantOperator('clerk-1', buildRequest()))
 
-    const call = mockLlmTextCompletion.mock.calls.at(-1)?.[0] as {
+    const call = toolRingCalls().at(-1) as {
       systemPrompt: string
     }
     expect(call.systemPrompt).toContain(ASSISTANT_OPERATOR_TOOL_IDS.research)
@@ -9861,6 +9863,38 @@ describe('current reference image bindings', () => {
   const facts = {
     identity: 'Recognizable face and costume',
     pose: 'Visible limb positions',
+    characterEvidence: {
+      face: {
+        support: 'clear' as const,
+        observations: ['Pink eyes and a small cheek mole'],
+        limitations: [],
+      },
+      upperBody: {
+        support: 'partial' as const,
+        observations: ['A loose jacket covers the shoulders and torso'],
+        limitations: ['The jacket conceals the waist and torso shape'],
+      },
+      fullBodyProportions: {
+        support: 'unknown' as const,
+        observations: [],
+        limitations: ['The image is cropped at the waist'],
+      },
+      legs: {
+        support: 'unknown' as const,
+        observations: [],
+        limitations: ['Neither leg is visible'],
+      },
+      sideView: {
+        support: 'unknown' as const,
+        observations: [],
+        limitations: ['Only a frontal view is shown'],
+      },
+      backView: {
+        support: 'unknown' as const,
+        observations: [],
+        limitations: ['The back is not shown'],
+      },
+    },
     style: {
       renderingMedium: '3d_stylized' as const,
       rendering:
@@ -9886,6 +9920,7 @@ describe('current reference image bindings', () => {
     requirements: ['Two characters embracing', 'White background'],
     avoid: ['Unrequested background'],
     uncertainties: [],
+    evidenceGaps: [],
   }
   /**
    * ⚠ **这里就地包成入口形状**（`wrapEntryToolCall`）：这一组用例里有三条不走
@@ -10152,7 +10187,7 @@ describe('current reference image bindings', () => {
           }),
         ),
       )
-      expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+      expect(toolRingCalls()).toHaveLength(1)
       expect(mockLlmTextCompletion.mock.calls[0]?.[0]).toMatchObject({
         imageData: [refs[2]!.url],
         adapterType,
@@ -10218,6 +10253,458 @@ describe('current reference image bindings', () => {
     })
     expect(lastUserPrompt()).toContain('"imageIndex":3')
     expect(lastUserPrompt()).toContain('use the exact canvas node name')
+  })
+
+  describe('canvas target reference checks', () => {
+    const targetUrls = [refs[2]!.url, refs[0]!.url]
+    const targetNode: AssistantOperatorCanvasNode = {
+      id: 'portrait-target',
+      name: '正面基准',
+      kind: 'image',
+      model: 'seedream-4',
+      text: 'Keep the observed face.',
+      referenceUrls: targetUrls,
+      referencePromptContext:
+        'Image 1 = "姿势参考"; Image 2 = "正脸参考". Use a white background.',
+      reviewContextComplete: true,
+    }
+    const targetBrief = {
+      ...brief,
+      assignments: [
+        {
+          imageIndex: 0,
+          roles: ['pose'],
+          preserve: ['Visible posture'],
+          exclude: ['Unseen body shape'],
+        },
+        {
+          imageIndex: 1,
+          roles: ['identity'],
+          preserve: ['Observed face'],
+          exclude: ['Source background'],
+        },
+      ],
+    }
+    const successfulReview = {
+      issues: [],
+      conflicts: [],
+      unsupportedClaims: [],
+    }
+
+    function canvasRequest(
+      node: AssistantOperatorCanvasNode = targetNode,
+      overrides: Partial<AssistantOperatorRequest> = {},
+    ) {
+      return buildRequest({
+        domain: 'canvas',
+        responseLanguage: 'chinese',
+        messages: [
+          { role: 'user', content: '为正面基准写入单张半身肖像提示词' },
+        ],
+        referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+        ...overrides,
+        snapshot: {
+          prompt: '',
+          availableModels: [],
+          references: { items: [refs[3]!, refs[1]!], limit: 4 },
+          canvas: {
+            currentShotNo: null,
+            selectedNodeIds: [node.id],
+            shots: [
+              {
+                expanded: true,
+                shotNo: null,
+                title: 'Unassigned',
+                nodes: [node],
+              },
+            ],
+          },
+        },
+      })
+    }
+
+    function writeTurn(
+      prompt: string,
+      node = targetNode,
+      mode: 'replace' | 'append' = 'replace',
+    ) {
+      return {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+          args: { op: 'set_prompt', target: node.id, prompt, mode },
+        },
+      }
+    }
+
+    function referenceCalls(prefix: string) {
+      return mockLlmTextCompletion.mock.calls.filter(([input]) =>
+        String(input.systemPrompt).includes(prefix),
+      )
+    }
+
+    it('reviews only the target actual references in their submission order, excluding unrelated attachments and cached nodes', async () => {
+      queueTurns(
+        writeTurn('Single half-body portrait.'),
+        targetBrief,
+        successfulReview,
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', canvasRequest()),
+      )
+      const reviewPrompt = String(
+        referenceCalls('Check an image-generation prompt')[0]?.[0].userPrompt,
+      )
+      const reviewed = JSON.parse(
+        reviewPrompt
+          .split('CURRENT REFERENCE ORDER AND BRIEF:\n')[1]!
+          .split('\nCREATOR CONTEXT:')[0]!,
+      )
+      expect(
+        reviewed.profiles.map((profile: { url: string }) => profile.url),
+      ).toEqual(targetUrls)
+      expect(
+        reviewed.brief.assignments.map(
+          (assignment: { url: string }) => assignment.url,
+        ),
+      ).toEqual(targetUrls)
+      expect(reviewed.profiles).toHaveLength(2)
+      expect(reviewPrompt).toContain(targetNode.referencePromptContext)
+      expect(reviewPrompt).not.toContain(refs[1]!.url)
+      expect(reviewPrompt).not.toContain(refs[3]!.url)
+      expect(stepsOf(events)).toContainEqual(
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+          status: 'done',
+          payload: expect.objectContaining({
+            target: targetNode.id,
+            prompt: 'Single half-body portrait.',
+          }),
+        }),
+      )
+      expect(events.at(-1)).toEqual({ type: 'stopped', reason: 'canvas_sync' })
+    })
+
+    it('persists fresh target-only visual evidence for the next canvas sync without inspecting it again', async () => {
+      queueTurns(
+        writeTurn('Single half-body portrait.'),
+        {
+          images: targetUrls.map((_, imageIndex) => ({ imageIndex, ...facts })),
+        },
+        targetBrief,
+        successfulReview,
+      )
+      const first = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          canvasRequest(
+            { ...targetNode, text: 'UNVERIFIED_OLD_PROMPT_BODY' },
+            {
+              messages: [
+                { role: 'assistant', content: 'UNVERIFIED_ASSISTANT_BODY' },
+                { role: 'user', content: '这是三渲二角色，请保留脸部' },
+              ],
+              referenceProfiles: [refs[1]!, refs[3]!].map(({ url }) => ({
+                url,
+                ...facts,
+              })),
+            },
+          ),
+        ),
+      )
+      const imageCalls = mockLlmTextCompletion.mock.calls.filter(
+        ([input]) => input.imageData?.length,
+      )
+      expect(imageCalls).toHaveLength(1)
+      expect(imageCalls[0]?.[0].imageData).toEqual(targetUrls)
+      expect(String(imageCalls[0]?.[0].userPrompt)).toContain(
+        '这是三渲二角色，请保留脸部',
+      )
+      expect(String(imageCalls[0]?.[0].userPrompt)).not.toContain(
+        'UNVERIFIED_OLD_PROMPT_BODY',
+      )
+      expect(String(imageCalls[0]?.[0].userPrompt)).not.toContain(
+        'UNVERIFIED_ASSISTANT_BODY',
+      )
+      const entries = first.flatMap((event) =>
+        event.type === 'step' && event.step.status === 'done'
+          ? [
+              {
+                kind: 'step' as const,
+                id: event.step.id,
+                runKey: 'first-canvas-run',
+                undone: false,
+                step: event.step,
+              },
+            ]
+          : [],
+      )
+      const cached = readOperatorReferenceProfiles(entries, [])
+      expect(cached.map((profile) => profile.url)).toEqual(targetUrls)
+      expect(cached[0]?.characterEvidence).toEqual(facts.characterEvidence)
+      expect(stepsOf(first)).toContainEqual(
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+          status: 'done',
+        }),
+      )
+      queueTurns(
+        writeTurn('Another half-body composition.'),
+        targetBrief,
+        successfulReview,
+      )
+      const second = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          canvasRequest(targetNode, { referenceProfiles: cached }),
+        ),
+      )
+      expect(
+        mockLlmTextCompletion.mock.calls.some(
+          ([input]) => input.imageData?.length,
+        ),
+      ).toBe(false)
+      expect(referenceCalls('Build a reference-use brief')).toHaveLength(1)
+      expect(stepsOf(second)).toContainEqual(
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.canvasApply,
+          status: 'done',
+        }),
+      )
+      expect(
+        stepsOf(second).filter(
+          (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
+        ),
+      ).toHaveLength(0)
+    })
+
+    it.each(['write', 'generate'] as const)(
+      'refuses to %s with incomplete target input context',
+      async (action) => {
+        const node = { ...targetNode, reviewContextComplete: false }
+        queueTurns(
+          action === 'write'
+            ? writeTurn('Portrait', node)
+            : {
+                tool: {
+                  name: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+                  args: { target: node.id },
+                },
+              },
+          { finished: true },
+        )
+        const events = await collect(
+          runAssistantOperator('clerk-1', canvasRequest(node)),
+        )
+        const tool =
+          action === 'write'
+            ? ASSISTANT_OPERATOR_TOOL_IDS.canvasApply
+            : ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate
+        expect(
+          stepsOf(events).findLast((step) => step.tool === tool),
+        ).toMatchObject({
+          status: 'error',
+          error: {
+            reason: 'noSuchControl',
+            detail: expect.stringContaining(
+              'generation-input snapshot is incomplete',
+            ),
+          },
+        })
+        expect(referenceCalls('Build a reference-use brief')).toHaveLength(0)
+        expect(referenceCalls('Check an image-generation prompt')).toHaveLength(
+          0,
+        )
+      },
+    )
+
+    it.each(['write', 'generate'] as const)(
+      'allows a pure text %s when long input context has no reference images',
+      async (action) => {
+        const node = {
+          ...targetNode,
+          text: 'A long original prompt. '.repeat(300),
+          referenceUrls: [],
+          referencePromptContext: undefined,
+          reviewContextComplete: false,
+        }
+        queueTurns(
+          action === 'write'
+            ? writeTurn('A new text-only composition.', node)
+            : {
+                tool: {
+                  name: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+                  args: { target: node.id },
+                },
+              },
+        )
+        const events = await collect(
+          runAssistantOperator('clerk-1', canvasRequest(node)),
+        )
+        const tool =
+          action === 'write'
+            ? ASSISTANT_OPERATOR_TOOL_IDS.canvasApply
+            : ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate
+        expect(stepsOf(events)).toContainEqual(
+          expect.objectContaining({ tool, status: 'done' }),
+        )
+        expect(referenceCalls('Build a reference-use brief')).toHaveLength(0)
+        expect(referenceCalls('Check an image-generation prompt')).toHaveLength(
+          0,
+        )
+      },
+    )
+
+    it.each([false, true])(
+      'rechecks the current stored prompt before offering generation; supported=%s',
+      async (supported) => {
+        const node = {
+          ...targetNode,
+          text: supported
+            ? 'Observed face in a half-body portrait.'
+            : 'Preserve the exact long legs of the source.',
+        }
+        queueTurns(
+          {
+            tool: {
+              name: ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
+              args: { target: node.id },
+            },
+          },
+          targetBrief,
+          supported
+            ? successfulReview
+            : {
+                ...successfulReview,
+                unsupportedClaims: ['Source legs are not visible.'],
+              },
+          { finished: true },
+        )
+        const events = await collect(
+          runAssistantOperator('clerk-1', canvasRequest(node)),
+        )
+        const reviews = referenceCalls('Check an image-generation prompt')
+        expect(reviews).toHaveLength(1)
+        expect(
+          String(reviews[0]?.[0].userPrompt).split(
+            'PROPOSED COMPLETE PROMPT:\n',
+          )[1],
+        ).toBe(node.text)
+        const proposals = stepsOf(events).filter(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate &&
+            step.status === 'done',
+        )
+        expect(proposals).toHaveLength(supported ? 1 : 0)
+        expect(events.some((event) => event.type === 'ask')).toBe(false)
+        if (supported)
+          expect(proposals[0]?.payload).toMatchObject({ target: node.id })
+      },
+    )
+
+    it('reviews the complete appended prompt and catches an unsupported claim in its old tail', async () => {
+      const oldTail = 'Keep the exact source leg proportions.'
+      const node = {
+        ...targetNode,
+        text: `${'Preserve the accepted face. '.repeat(24)}${oldTail}`,
+      }
+      const addition = 'Use a white background.'
+      queueTurns(
+        writeTurn(addition, node, 'append'),
+        targetBrief,
+        {
+          ...successfulReview,
+          unsupportedClaims: [
+            'The existing prompt claims unsupported source leg proportions.',
+          ],
+        },
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator('clerk-1', canvasRequest(node)),
+      )
+      const reviewed = String(
+        referenceCalls('Check an image-generation prompt')[0]?.[0].userPrompt,
+      ).split('PROPOSED COMPLETE PROMPT:\n')[1]
+      expect(reviewed).toBe(`${node.text}\n\n${addition}`)
+      expect(reviewed).toContain(oldTail)
+      expect(
+        stepsOf(events).filter(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply &&
+            step.status === 'done',
+        ),
+      ).toHaveLength(0)
+    })
+
+    it.each([
+      'same scope',
+      'different target',
+      'different references',
+      'different gap',
+    ] as const)(
+      'binds design-completion permission to the exact canvas scope: %s',
+      async (change) => {
+        const gap = 'The reference does not establish the full body or legs.'
+        queueTurns(writeTurn('Full-body portrait'), {
+          ...targetBrief,
+          evidenceGaps: [gap],
+        })
+        const initial = await collect(
+          runAssistantOperator('clerk-1', canvasRequest()),
+        )
+        const ask = initial.find((event) => event.type === 'ask')
+        if (!ask || ask.type !== 'ask')
+          throw new Error('Expected a target evidence question')
+        const question = ask.questions[0]!
+        const nextNode = {
+          ...targetNode,
+          ...(change === 'different target' ? { id: 'another-target' } : {}),
+          ...(change === 'different references'
+            ? { referenceUrls: [...targetUrls].reverse() }
+            : {}),
+        }
+        const nextGap =
+          change === 'different gap' ? 'The back silhouette is not shown.' : gap
+        queueTurns(
+          writeTurn(
+            'Preserve the observed face; design the unseen parts as a draft.',
+            nextNode,
+          ),
+          { ...targetBrief, evidenceGaps: [nextGap] },
+          ...(change === 'same scope' ? [successfulReview] : []),
+        )
+        const events = await collect(
+          runAssistantOperator(
+            'clerk-1',
+            canvasRequest(nextNode, {
+              planAnswers: [
+                {
+                  questionId: question.id,
+                  question: gap,
+                  optionIds: ['design-missing-parts'],
+                  optionLabels: ['允许设计补全'],
+                },
+              ],
+            }),
+          ),
+        )
+        const writes = stepsOf(events).filter(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.canvasApply &&
+            step.status === 'done',
+        )
+        expect(writes).toHaveLength(change === 'same scope' ? 1 : 0)
+        if (change === 'same scope')
+          expect(events.some((event) => event.type === 'ask')).toBe(false)
+        else {
+          const nextAsk = events.find((event) => event.type === 'ask')
+          if (!nextAsk || nextAsk.type !== 'ask')
+            throw new Error('Expected a fresh evidence choice')
+          expect(nextAsk.questions[0]?.question).toBe(nextGap)
+          expect(nextAsk.questions[0]?.id).not.toBe(question.id)
+        }
+      },
+    )
   })
 
   it('does not attach references mentioned only in older conversation', async () => {
@@ -10337,7 +10824,7 @@ describe('current reference image bindings', () => {
         },
       },
       { ...brief, assignments: [{ ...brief.assignments[2], imageIndex: 0 }] },
-      { issues: [] },
+      { unsupportedClaims: [], issues: [] },
       { finished: true, message: '已按图3写好。' },
     )
     const events = await collect(
@@ -10460,7 +10947,7 @@ describe('current reference image bindings', () => {
         ),
       )
       expect(mockFindVisionCapableRoute).not.toHaveBeenCalled()
-      expect(mockLlmTextCompletion).toHaveBeenCalledTimes(1)
+      expect(toolRingCalls()).toHaveLength(1)
       expect(lastUserPrompt()).toContain('Stylized 3D NPR')
       expect(mockLlmTextCompletion.mock.calls[0]?.[0].imageData).toBeUndefined()
     },
@@ -10531,7 +11018,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [] },
+      { unsupportedClaims: [], issues: [] },
       { finished: true, message: '已写入。' },
     )
     await collect(
@@ -10563,58 +11050,50 @@ describe('current reference image bindings', () => {
     expect(String(briefCall?.[0].userPrompt)).toContain('ALREADY SETTLED')
   })
 
-  /**
-   * ⭐ **真机 bug（2026-09-12）**：两张参考图 + 一句「把图1的男角色转成 2D 插画，
-   * 提示词直接覆盖」，分工简报的 JSON 没过 schema，`set_prompt` 连拒两次，整轮
-   * 零产出。⛔ 修的是**不阻断**：看到的事实全留着，分工退到创作者点名的那份，
-   * 提示词照写，观察里说清楚按的是兜底分工。
-   */
-  it('⭐ 简报两次没过 schema 时降级写入提示词（⛔ 不再整轮零产出）', async () => {
+  it('preserves the prompt when both reference brief attempts fail validation', async () => {
     queueTurns(
-      {
-        tool: {
-          name: ASSISTANT_OPERATOR_TOOL_IDS.analyzeReferences,
-          title: '分析图1',
-          args: { imageIndices: [0] },
-        },
-      },
-      { images: [{ imageIndex: 0, ...facts }] },
+      ...analysisTurns(),
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
           title: '写提示词',
-          args: { value: '把@Image1的男角色画成纯2D日系手绘插画' },
+          args: { value: 'A new full-body portrait', overwrite: true },
         },
       },
       { assignments: [] },
       { assignments: [] },
-      { issues: [] },
-      { finished: true, message: '提示词已写入。' },
+      { finished: true, message: '参考检查未完成，原提示词保留。' },
     )
     const events = await collect(
       runAssistantOperator(
         'clerk-1',
         buildRequest({
-          messages: [
-            {
-              role: 'user',
-              content: '把图1的男角色转成纯2D日系手绘插画，提示词直接覆盖',
-            },
-          ],
-          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          snapshot: {
+            ...SNAPSHOT,
+            prompt: 'Accepted portrait',
+            references: { items: refs, limit: 4 },
+          },
         }),
       ),
     )
     expect(
       stepsOf(events).findLast(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-          step.status !== 'running',
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
       ),
     ).toMatchObject({
-      status: 'done',
-      payload: { value: '把@Image1的男角色画成纯2D日系手绘插画' },
+      status: 'error',
+      error: { reason: 'referenceBriefFailed' },
     })
+    expect(
+      stepsOf(events).some(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      ),
+    ).toBe(false)
+    expect(
+      events.some((event) => event.type === 'ask' || event.type === 'confirm'),
+    ).toBe(false)
     const briefCalls = mockLlmTextCompletion.mock.calls.filter(([input]) =>
       String(input.systemPrompt).includes('Build a reference-use brief'),
     )
@@ -10622,7 +11101,12 @@ describe('current reference image bindings', () => {
     expect(String(briefCalls[1]?.[0].userPrompt)).toContain(
       'PREVIOUS REPLY REJECTED',
     )
-    expect(lastUserPrompt()).toContain('The source-role brief failed schema')
+    expect(
+      mockLlmTextCompletion.mock.calls.some(([input]) =>
+        String(input.systemPrompt).includes('Check an image-generation prompt'),
+      ),
+    ).toBe(false)
+    expect(lastUserPrompt()).toContain('Preserve the existing prompt')
   })
 
   it('sends review gaps back for one rewrite even when the reference brief had to be rebuilt', async () => {
@@ -10636,8 +11120,8 @@ describe('current reference image bindings', () => {
         },
       },
       { assignments: [] },
-      { assignments: [] },
-      { issues: ['White background is missing.'] },
+      brief,
+      { unsupportedClaims: [], issues: ['White background is missing.'] },
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -10645,7 +11129,7 @@ describe('current reference image bindings', () => {
           args: { value: 'A hug on a white background' },
         },
       },
-      { issues: [] },
+      { unsupportedClaims: [], issues: [] },
       { finished: true, message: '已写入。' },
     )
     const events = await collect(
@@ -10673,13 +11157,12 @@ describe('current reference image bindings', () => {
     expect(events.at(-1)?.type).toBe('done')
   })
 
-  /** 2026-09-24 dev 日志：分工那一跳 30s 没开口，整轮直接结束、提示词一个字没写。 */
-  it('writes the prompt with the fallback brief when the brief request times out', async () => {
+  it('preserves the prompt and reports a technical failure when the brief request times out', async () => {
     queueTurns(...analysisTurns(), {
       tool: {
         name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
         title: '写提示词',
-        args: { value: 'A hug on white' },
+        args: { value: 'A new full-body portrait', overwrite: true },
       },
     })
     mockLlmTextCompletion.mockRejectedValueOnce(
@@ -10690,27 +11173,399 @@ describe('current reference image bindings', () => {
         'timed out',
       ),
     )
-    mockLlmTextCompletion.mockResolvedValueOnce(JSON.stringify({ issues: [] }))
     mockLlmTextCompletion.mockResolvedValueOnce(
-      JSON.stringify({ finished: true, message: '已写入。' }),
+      JSON.stringify({ finished: true, message: '检查超时，原提示词保留。' }),
     )
     const events = await collect(
       runAssistantOperator(
         'clerk-1',
         buildRequest({
-          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          snapshot: {
+            ...SNAPSHOT,
+            prompt: 'Accepted portrait',
+            references: { items: refs, limit: 4 },
+          },
         }),
       ),
     )
+    expect(
+      stepsOf(events).findLast(
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      ),
+    ).toMatchObject({
+      status: 'error',
+      error: { reason: 'referenceBriefFailed' },
+    })
     expect(
       stepsOf(events).some(
         (step) =>
           step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
           step.status === 'done',
       ),
-    ).toBe(true)
-    expect(events.some((event) => event.type === 'error')).toBe(false)
-    expect(events.at(-1)?.type).toBe('done')
+    ).toBe(false)
+    expect(
+      events.some((event) => event.type === 'ask' || event.type === 'confirm'),
+    ).toBe(false)
+    expect(
+      mockLlmTextCompletion.mock.calls.some(([input]) =>
+        String(input.systemPrompt).includes('Check an image-generation prompt'),
+      ),
+    ).toBe(false)
+    expect(lastUserPrompt()).toContain('technical failure')
+  })
+
+  const evidenceGap = '现有参考只到腰部，无法忠实还原完整腿部和身材。'
+
+  async function askAboutEvidenceGap() {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Faithful full-body portrait' },
+        },
+      },
+      { ...brief, evidenceGaps: [evidenceGap] },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          responseLanguage: 'chinese',
+          referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    const ask = events.find((event) => event.type === 'ask')
+    if (!ask || ask.type !== 'ask')
+      throw new Error('Expected an evidence-gap question')
+    return ask.questions[0]!
+  }
+
+  it.each([
+    ['chinese', '补充参考', '允许设计补全'],
+    ['english', 'Add a reference', 'Allow design completion'],
+    ['japanese', '参考を追加', '不足部分の創作を許可'],
+  ] as const)(
+    'asks for missing relevant evidence before any write or review in %s',
+    async (responseLanguage, addLabel, designLabel) => {
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            args: { value: 'Faithful full-body portrait' },
+          },
+        },
+        { ...brief, evidenceGaps: [evidenceGap] },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            responseLanguage,
+            referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'ask',
+          questions: [
+            expect.objectContaining({
+              id: expect.stringMatching(/^evidence-prompt-conflict-/),
+              question: evidenceGap,
+              options: [
+                expect.objectContaining({
+                  id: 'add-reference',
+                  label: addLabel,
+                }),
+                expect.objectContaining({
+                  id: 'design-missing-parts',
+                  label: designLabel,
+                }),
+              ],
+            }),
+          ],
+        }),
+      )
+      expect(
+        stepsOf(events).filter(
+          (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        ),
+      ).toHaveLength(0)
+      expect(
+        mockLlmTextCompletion.mock.calls.some(([input]) =>
+          String(input.systemPrompt).includes(
+            'Check an image-generation prompt',
+          ),
+        ),
+      ).toBe(false)
+      expect(events.at(-1)).toMatchObject({
+        type: 'stopped',
+        reason: 'awaiting_confirm',
+      })
+    },
+  )
+
+  it.each(['current answer', 'historical answer'] as const)(
+    'continues the same evidence gap with authorized design completion from %s',
+    async (source) => {
+      const question = await askAboutEvidenceGap()
+      const answer = {
+        questionId: question.id,
+        question: evidenceGap,
+        optionIds: ['design-missing-parts'],
+        optionLabels: ['允许设计补全'],
+      }
+      const value =
+        'Keep the observed face. Design the unseen body and legs as a draft, not as verified source anatomy.'
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            args: { value },
+          },
+        },
+        {
+          ...brief,
+          evidenceGaps: [evidenceGap],
+          requirements: ['Design the unsupported body as a draft'],
+        },
+        { issues: [], conflicts: [], unsupportedClaims: [] },
+        { finished: true },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            ...(source === 'current answer'
+              ? { planAnswers: [answer] }
+              : {
+                  messages: [
+                    { role: 'user', content: '允许设计补全', answered: answer },
+                    { role: 'user', content: '继续' },
+                  ],
+                }),
+            referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      expect(stepsOf(events)).toContainEqual(
+        expect.objectContaining({
+          tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          status: 'done',
+          payload: expect.objectContaining({ value }),
+        }),
+      )
+      expect(events.some((event) => event.type === 'ask')).toBe(false)
+      const check = mockLlmTextCompletion.mock.calls.find(([input]) =>
+        String(input.systemPrompt).includes('Check an image-generation prompt'),
+      )
+      expect(String(check?.[0].userPrompt)).toContain('允许设计补全')
+      expect(String(check?.[0].userPrompt)).toContain(value)
+    },
+  )
+
+  it('waits for the chosen additional reference without asking again or writing a body guess', async () => {
+    const question = await askAboutEvidenceGap()
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Preserve exact long legs' },
+        },
+      },
+      { ...brief, evidenceGaps: [evidenceGap] },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          planAnswers: [
+            {
+              questionId: question.id,
+              question: evidenceGap,
+              optionIds: ['add-reference'],
+              optionLabels: ['补充参考'],
+            },
+          ],
+          referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).findLast(
+        (step) => step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+      ),
+    ).toMatchObject({
+      status: 'error',
+      error: {
+        reason: 'referenceAnalysisRequired',
+        detail: expect.stringContaining('wait for that reference'),
+      },
+    })
+    expect(events.some((event) => event.type === 'ask')).toBe(false)
+    expect(
+      mockLlmTextCompletion.mock.calls.some(([input]) =>
+        String(input.systemPrompt).includes('Check an image-generation prompt'),
+      ),
+    ).toBe(false)
+  })
+
+  it('does not block a portrait with analyzed unknown legs when its brief has no relevant gap', async () => {
+    const value =
+      'A close-up portrait preserving the observed face and hairstyle.'
+    queueTurns(
+      {
+        tool: { name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt, args: { value } },
+      },
+      { ...brief, requirements: ['Close-up portrait'], evidenceGaps: [] },
+      { issues: [], conflicts: [], unsupportedClaims: [] },
+      { finished: true },
+    )
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [{ role: 'user', content: '只画这位角色的半身像' }],
+          referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(stepsOf(events)).toContainEqual(
+      expect.objectContaining({
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        status: 'done',
+        payload: expect.objectContaining({ value }),
+      }),
+    )
+    expect(events.some((event) => event.type === 'ask')).toBe(false)
+    expect(
+      mockLlmTextCompletion.mock.calls.some(
+        ([input]) => input.imageData?.length,
+      ),
+    ).toBe(false)
+  })
+
+  it.each([false, true])(
+    'never soft-passes repeated unsupported claims; corrected=%s',
+    async (corrected) => {
+      const values = [
+        'Keep the exact long legs seen in the reference.',
+        'Faithfully preserve the source eight-head body proportions.',
+      ]
+      const turns: unknown[] = []
+      for (const [index, value] of values.entries()) {
+        turns.push(
+          {
+            tool: {
+              name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+              args: { value },
+            },
+          },
+          ...(index === 0 ? [brief] : []),
+          {
+            issues: [],
+            conflicts: [],
+            unsupportedClaims: [
+              'Legs and full-body proportions are not visible in the source.',
+            ],
+          },
+        )
+      }
+      const correctedValue =
+        'A close-up portrait preserving the observed pink eyes and cheek mole.'
+      if (corrected)
+        turns.push(
+          {
+            tool: {
+              name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+              args: { value: correctedValue },
+            },
+          },
+          { issues: [], conflicts: [], unsupportedClaims: [] },
+        )
+      queueTurns(...turns, { finished: true })
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+          }),
+        ),
+      )
+      const writes = stepsOf(events).filter(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      )
+      expect(writes).toHaveLength(corrected ? 1 : 0)
+      if (corrected)
+        expect(writes[0]?.payload).toMatchObject({ value: correctedValue })
+      expect(
+        events.some(
+          (event) => event.type === 'ask' || event.type === 'confirm',
+        ),
+      ).toBe(false)
+      expect(
+        mockLlmTextCompletion.mock.calls.filter(([input]) =>
+          String(input.systemPrompt).includes(
+            'Check an image-generation prompt',
+          ),
+        ),
+      ).toHaveLength(corrected ? 3 : 2)
+      expect(lastUserPrompt()).toContain(
+        'Unsupported claims must be corrected before writing',
+      )
+    },
+  )
+
+  it('does not write when both prompt reviews omit the unsupported-claims check', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'Faithful full-body portrait' },
+        },
+      },
+      brief,
+      { issues: [], conflicts: [] },
+      { issues: [], conflicts: [] },
+    )
+    const events: AssistantOperatorEvent[] = []
+    const pending = (async () => {
+      for await (const event of runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      )) {
+        expect(AssistantOperatorEventSchema.safeParse(event).success).toBe(true)
+        events.push(event)
+      }
+    })()
+    await expect(pending).rejects.toMatchObject({
+      errorCode: 'PROMPT_REVIEW_UNAVAILABLE',
+    })
+    expect(
+      stepsOf(events).filter(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'done',
+      ),
+    ).toHaveLength(0)
+    expect(
+      mockLlmTextCompletion.mock.calls.filter(([input]) =>
+        String(input.systemPrompt).includes('Check an image-generation prompt'),
+      ),
+    ).toHaveLength(2)
   })
 
   it('asks at a real conflict before any write', async () => {
@@ -10725,7 +11580,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [], conflicts: [conflict] },
+      { unsupportedClaims: [], issues: [], conflicts: [conflict] },
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -10733,7 +11588,7 @@ describe('current reference image bindings', () => {
           args: { value: 'Second attempt' },
         },
       },
-      { issues: [conflict] },
+      { unsupportedClaims: [], issues: [conflict] },
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -10861,7 +11716,9 @@ describe('current reference image bindings', () => {
       },
       { ...brief, uncertainties: uncertainty ? [issue] : [] },
       // ⚠ 只有「真冲突」才问（D12 Q3）：复核把它放在 `conflicts` 里。
-      ...(!uncertainty ? [{ issues: [], conflicts: [issue] }] : []),
+      ...(!uncertainty
+        ? [{ unsupportedClaims: [], issues: [], conflicts: [issue] }]
+        : []),
     )
     const events = await collect(
       runAssistantOperator(
@@ -10893,7 +11750,7 @@ describe('current reference image bindings', () => {
         },
       },
       { ...brief, uncertainties: ['哪张图提供服装？'] },
-      { issues: [] },
+      { unsupportedClaims: [], issues: [] },
       { finished: true, message: '已写入。' },
     )
     const events = await collect(
@@ -10969,7 +11826,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [] },
+      { unsupportedClaims: [], issues: [] },
       { finished: true, message: '已填写参考分工。' },
     )
     const events = await collect(
@@ -11050,7 +11907,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [] },
+      { unsupportedClaims: [], issues: [] },
       { finished: true },
     )
     const events = await collect(
@@ -11095,7 +11952,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [] },
+      { unsupportedClaims: [], issues: [] },
       { finished: true, message: '已写入。' },
     )
     const events = await collect(
@@ -11117,41 +11974,50 @@ describe('current reference image bindings', () => {
     expect(lastUserPrompt()).not.toContain('Do not retry it unchanged')
   })
 
-  it.each(['missing', 'outdated-rendering'])(
-    'does not accept %s cached evidence for prompt writes',
-    async (kind) => {
-      queueTurns(
-        {
-          tool: {
-            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
-            args: { value: 'A stylized 3D embrace' },
-          },
+  it.each([
+    'missing',
+    'outdated-rendering',
+    'missing-rendering-medium',
+    'missing-region-evidence',
+  ])('does not accept %s cached evidence for prompt writes', async (kind) => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+          args: { value: 'A stylized 3D embrace' },
         },
-        { finished: true, message: '需要补齐依据。' },
-      )
-      const cached = refs.map(({ url }) => ({ url, ...facts }))
-      if (kind === 'missing')
-        cached[0] = { ...cached[0]!, url: 'https://cdn.test/removed.png' }
-      else
-        cached[0] = { ...cached[0]!, style: { ...facts.style, rendering: '' } }
-      const events = await collect(
-        runAssistantOperator(
-          'clerk-1',
-          buildRequest({
-            referenceProfiles: cached,
-            snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
-          }),
-        ),
-      )
-      expect(
-        stepsOf(events).find(
-          (step) =>
-            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-            step.status === 'error',
-        )?.error,
-      ).toMatchObject({ reason: 'referenceAnalysisRequired' })
-    },
-  )
+      },
+      { finished: true, message: '需要补齐依据。' },
+    )
+    const cached: NonNullable<AssistantOperatorRequest['referenceProfiles']> =
+      refs.map(({ url }) => ({ url, ...facts }))
+    if (kind === 'missing')
+      cached[0] = { ...cached[0]!, url: 'https://cdn.test/removed.png' }
+    else if (kind === 'outdated-rendering')
+      cached[0] = { ...cached[0]!, style: { ...facts.style, rendering: '' } }
+    else if (kind === 'missing-rendering-medium')
+      cached[0] = {
+        ...cached[0]!,
+        style: { ...facts.style, renderingMedium: undefined },
+      }
+    else cached[0] = { ...cached[0]!, characterEvidence: undefined }
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          referenceProfiles: cached,
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
+        }),
+      ),
+    )
+    expect(
+      stepsOf(events).find(
+        (step) =>
+          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+          step.status === 'error',
+      )?.error,
+    ).toMatchObject({ reason: 'referenceAnalysisRequired' })
+  })
 
   it('still requires overwrite approval when cached evidence is complete', async () => {
     // ⚠ 自检先跑完才问（卡上那段是最终文本，点完客户端直接写）。
@@ -11163,7 +12029,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [] },
+      { unsupportedClaims: [], issues: [] },
     )
     const events = await collect(
       runAssistantOperator(
@@ -11321,7 +12187,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [] },
+      { unsupportedClaims: [], issues: [] },
       {
         tool: {
           name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
@@ -11745,7 +12611,10 @@ describe('current reference image bindings', () => {
           },
         },
         ...(value === 'A hug in a forest' ? [brief] : []),
-        { issues: ['The background must be white, not a forest.'] },
+        {
+          unsupportedClaims: [],
+          issues: ['The background must be white, not a forest.'],
+        },
       )
     }
     queueTurns(...turns, { finished: true, message: '写好了。' })
@@ -11795,7 +12664,7 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [], conflicts: [issue] },
+      { unsupportedClaims: [], issues: [], conflicts: [issue] },
       { finished: true, message: '写好了。' },
     )
     const events = await collect(
@@ -11830,29 +12699,91 @@ describe('current reference image bindings', () => {
     ).toHaveLength(1)
   })
 
-  it.each([
-    'new conflict',
-    'new references',
-    'changed answer',
-    'later instruction',
-  ])('does not let an old follow-request answer bypass %s', async (change) => {
+  it.each(['new conflict', 'new references', 'changed answer'])(
+    'does not let an old follow-request answer bypass %s',
+    async (change) => {
+      const issue = '背景冲突：白色还是夜景？'
+      const question = await askAboutReference(issue)
+      const currentRefs =
+        change === 'new references'
+          ? refs.map((ref) => ({
+              ...ref,
+              url: ref.url.replace('.png', '-new.png'),
+            }))
+          : refs
+      const newIssue =
+        change === 'new conflict' ? '比例冲突：保留身材还是拉长双腿？' : issue
+      const previousAnswer = {
+        questionId: question.id,
+        question: question.question,
+        optionIds: ['follow-request'],
+        optionLabels: ['按我的要求写'],
+      }
+      queueTurns(
+        {
+          tool: {
+            name: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+            args: { value: 'Night city' },
+          },
+        },
+        brief,
+        { unsupportedClaims: [], issues: [], conflicts: [newIssue] },
+      )
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            responseLanguage: 'chinese',
+            messages: [
+              {
+                role: 'user',
+                content: '之前按我的要求写',
+                answered: previousAnswer,
+              },
+              { role: 'user', content: '继续修改' },
+            ],
+            planAnswers: [
+              {
+                ...previousAnswer,
+                ...(change === 'changed answer'
+                  ? {
+                      optionIds: ['follow-reference'],
+                      optionLabels: ['按参考图来'],
+                    }
+                  : {}),
+              },
+            ],
+            referenceProfiles: currentRefs.map(({ url }) => ({
+              url,
+              ...facts,
+            })),
+            snapshot: {
+              ...SNAPSHOT,
+              prompt: '',
+              references: { items: currentRefs, limit: 4 },
+            },
+          }),
+        ),
+      )
+      expect(events).toContainEqual(
+        expect.objectContaining({
+          type: 'ask',
+          questions: [expect.objectContaining({ question: newIssue })],
+        }),
+      )
+      expect(
+        stepsOf(events).filter(
+          (step) =>
+            step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
+            step.status === 'done',
+        ),
+      ).toHaveLength(0)
+    },
+  )
+
+  it('keeps a historical follow-request answer for the same conflict and references when the creator continues', async () => {
     const issue = '背景冲突：白色还是夜景？'
     const question = await askAboutReference(issue)
-    const currentRefs =
-      change === 'new references'
-        ? refs.map((ref) => ({
-            ...ref,
-            url: ref.url.replace('.png', '-new.png'),
-          }))
-        : refs
-    const newIssue =
-      change === 'new conflict' ? '比例冲突：保留身材还是拉长双腿？' : issue
-    const previousAnswer = {
-      questionId: question.id,
-      question: question.question,
-      optionIds: ['follow-request'],
-      optionLabels: ['按我的要求写'],
-    }
     queueTurns(
       {
         tool: {
@@ -11861,61 +12792,39 @@ describe('current reference image bindings', () => {
         },
       },
       brief,
-      { issues: [], conflicts: [newIssue] },
+      { issues: [], conflicts: [issue], unsupportedClaims: [] },
+      { finished: true },
     )
     const events = await collect(
       runAssistantOperator(
         'clerk-1',
         buildRequest({
-          responseLanguage: 'chinese',
           messages: [
             {
               role: 'user',
               content: '之前按我的要求写',
-              answered: previousAnswer,
+              answered: {
+                questionId: question.id,
+                question: issue,
+                optionIds: ['follow-request'],
+                optionLabels: ['按我的要求写'],
+              },
             },
             { role: 'user', content: '继续修改' },
           ],
-          ...(change !== 'later instruction'
-            ? {
-                planAnswers: [
-                  {
-                    ...previousAnswer,
-                    ...(change === 'changed answer'
-                      ? {
-                          optionIds: ['follow-reference'],
-                          optionLabels: ['按参考图来'],
-                        }
-                      : {}),
-                  },
-                ],
-              }
-            : {}),
-          referenceProfiles: currentRefs.map(({ url }) => ({
-            url,
-            ...facts,
-          })),
-          snapshot: {
-            ...SNAPSHOT,
-            prompt: '',
-            references: { items: currentRefs, limit: 4 },
-          },
+          referenceProfiles: refs.map(({ url }) => ({ url, ...facts })),
+          snapshot: { ...SNAPSHOT, references: { items: refs, limit: 4 } },
         }),
       ),
     )
-    expect(events).toContainEqual(
+    expect(stepsOf(events)).toContainEqual(
       expect.objectContaining({
-        type: 'ask',
-        questions: [expect.objectContaining({ question: newIssue })],
+        tool: ASSISTANT_OPERATOR_TOOL_IDS.setPrompt,
+        status: 'done',
+        payload: expect.objectContaining({ value: 'Night city' }),
       }),
     )
-    expect(
-      stepsOf(events).filter(
-        (step) =>
-          step.tool === ASSISTANT_OPERATOR_TOOL_IDS.setPrompt &&
-          step.status === 'done',
-      ),
-    ).toHaveLength(0)
+    expect(events.some((event) => event.type === 'ask')).toBe(false)
   })
 
   it.each([true, false])(
@@ -11931,7 +12840,7 @@ describe('current reference image bindings', () => {
         },
         brief,
         'unreadable review',
-        recovers ? { issues: [] } : 'still unreadable',
+        recovers ? { unsupportedClaims: [], issues: [] } : 'still unreadable',
         { finished: true },
       )
       const pending = collect(
@@ -11994,7 +12903,7 @@ describe('current reference image bindings', () => {
       .mockImplementation(async (input) =>
         JSON.stringify(
           input.systemPrompt.includes('Check an image-generation prompt')
-            ? { issues: [] }
+            ? { unsupportedClaims: [], issues: [] }
             : input.systemPrompt.includes('Build a reference-use brief')
               ? brief
               : (turns.shift() ?? { finished: true }),
@@ -12951,21 +13860,204 @@ describe('每轮结账', () => {
     expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
   })
 
-  it('⛔ 没料可结的轮次不烧那一次往返（也不落库）', async () => {
-    queueTurns({ finished: true, message: '你想要什么风格？' })
+  it.each([false, true])(
+    '纯文字闲聊结账为空，不写空记录（隐身=%s）',
+    async (incognito) => {
+      queueTurns({ finished: true, message: '不客气。' })
+      queueCheckout({ facts: [], decisions: [], todos: [], memories: [] })
+
+      const events = await collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            conversationId: '44444444-4444-4444-8444-444444444444',
+            messages: [{ role: 'user', content: '谢谢' }],
+            incognito,
+          }),
+        ),
+      )
+
+      expect(checkoutPrompt()).toContain('谢谢')
+      expect(doneEvent(events).roundSummary).toBeUndefined()
+      expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
+    },
+  )
+
+  it('纯文字反馈保留局部认可、待改与证据边界，并绑定实际附件版本', async () => {
+    const sourceUrl = 'https://cdn.example.test/character-v1.png'
+    const sourceRefs = [
+      {
+        assetId: 'result-v1',
+        nodeId: 'node-v1',
+        name: '角色三视图',
+        url: sourceUrl,
+      },
+    ]
+    const draft = {
+      facts: ['原图没有可靠全身，身体比例尚未确定'],
+      decisions: ['角色三视图这一版脸没问题，只保留脸部'],
+      todos: ['这一版身材腿部偏差大，仍需修改'],
+      memories: [{ kind: 'fact', text: '角色身材已确认' }],
+      sourceRefs: [
+        { assetId: 'invented', url: 'https://invented.test/new.png' },
+      ],
+    }
+    queueTurns({
+      finished: true,
+      message: '脸保留，身材腿部待改；全身比例还没有可靠依据。',
+    })
+    queueCheckout(draft)
 
     const events = await collect(
       runAssistantOperator(
         'clerk-1',
         buildRequest({
+          domain: 'canvas',
           conversationId: '44444444-4444-4444-8444-444444444444',
+          messages: [
+            {
+              role: 'user',
+              content: '脸没问题，身材腿部偏差大；原图没有可靠全身。',
+            },
+          ],
+          mentionedAssets: [
+            { id: 'result-v1', label: '角色三视图', url: sourceUrl },
+          ],
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            references: { items: [{ url: sourceUrl }], limit: 4 },
+            canvas: {
+              currentShotNo: null,
+              selectedNodeIds: [],
+              shots: [
+                {
+                  expanded: true,
+                  shotNo: null,
+                  title: 'Unassigned',
+                  nodes: [
+                    {
+                      id: 'node-v1',
+                      name: '角色三视图',
+                      kind: 'image',
+                      referenceImageIndex: 0,
+                    },
+                    {
+                      id: 'unbound-new-version',
+                      name: '角色三视图',
+                      kind: 'image',
+                      hasOutput: true,
+                    },
+                  ],
+                },
+              ],
+            },
+          },
         }),
       ),
     )
 
+    expect(checkoutPrompt()).toContain(sourceUrl)
+    expect(checkoutPrompt()).toContain('node-v1')
+    expect(checkoutPrompt()).not.toContain('unbound-new-version')
+    expect(stepsOf(events)).toEqual([])
+    expect(
+      mockAppendAssistantConversationRound.mock.calls[0]?.[2],
+    ).toMatchObject({
+      facts: draft.facts,
+      decisions: draft.decisions,
+      todos: draft.todos,
+      sourceRefs,
+    })
+    expect(doneEvent(events).roundSummary).toMatchObject({
+      sourceRefs,
+      facts: draft.facts,
+      todos: draft.todos,
+    })
+    expect(JSON.stringify(doneEvent(events).roundSummary)).not.toContain(
+      '需复查',
+    )
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+    expect(mockSetGenerationReviewState).not.toHaveBeenCalled()
+
+    mockListAssistantConversationRounds.mockResolvedValueOnce([
+      {
+        ...mockAppendAssistantConversationRound.mock.calls[0]?.[2],
+        roundIndex: 3,
+      },
+    ])
+    queueTurns({ finished: true, message: '继续处理身体比例。' })
+    queueCheckout({ facts: [], decisions: [], todos: [] })
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '44444444-4444-4444-8444-444444444444',
+          messages: [{ role: 'user', content: '继续修改' }],
+        }),
+      ),
+    )
+    const nextSystem = toolRingCalls()[0]?.systemPrompt ?? ''
+    expect(nextSystem).toContain(sourceUrl)
+    expect(nextSystem).toContain('result-v1')
+    expect(nextSystem).toContain('only to the exact image URLs')
+  })
+
+  it('纯文字反馈缺少实际附件，不从节点名称或 hasOutput 编造版本', async () => {
+    queueTurns({ finished: true, message: '先保留你的局部评价。' })
+    queueCheckout({
+      facts: [],
+      decisions: ['脸部认可'],
+      todos: ['待确定所评图片版本'],
+    })
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          conversationId: '44444444-4444-4444-8444-444444444444',
+          messages: [{ role: 'user', content: '那张脸可以，腿不对' }],
+        }),
+      ),
+    )
+    expect(checkoutPrompt()).toContain(
+      'No attached image version is identified',
+    )
+    expect(doneEvent(events).roundSummary).not.toHaveProperty('sourceRefs')
+  })
+
+  it('纯文字反馈遇到技术失败，不结账或写入认可', async () => {
+    const failure = new Error('provider unavailable')
+    mockLlmTextCompletion.mockRejectedValueOnce(failure)
+    await expect(
+      collect(
+        runAssistantOperator(
+          'clerk-1',
+          buildRequest({
+            messages: [{ role: 'user', content: '脸可以，腿不对' }],
+          }),
+        ),
+      ),
+    ).rejects.toBe(failure)
     expect(checkoutPrompt()).toBeNull()
-    expect(doneEvent(events).roundSummary).toBeUndefined()
     expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
+    expect(mockRecordMemories).not.toHaveBeenCalled()
+  })
+
+  it('纯文字反馈被取消，不结账或写入认可', async () => {
+    const controller = new AbortController()
+    controller.abort()
+    await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          messages: [{ role: 'user', content: '脸可以，腿不对' }],
+        }),
+        { signal: controller.signal },
+      ),
+    )
+    expect(checkoutPrompt()).toBeNull()
+    expect(mockAppendAssistantConversationRound).not.toHaveBeenCalled()
+    expect(mockRecordMemories).not.toHaveBeenCalled()
   })
 
   /**

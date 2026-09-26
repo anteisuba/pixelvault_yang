@@ -285,6 +285,19 @@ function buildPriorSteps(
         0,
         ASSISTANT_OPERATOR_LIMITS.maxPriorStepSummaryChars,
       ),
+      ...(entry.step.status === ASSISTANT_OPERATOR_STEP_STATUS_IDS.error
+        ? {
+            rejectReason: entry.step.error.reason,
+            ...(entry.step.error.detail
+              ? {
+                  detail: entry.step.error.detail.slice(
+                    0,
+                    ASSISTANT_OPERATOR_LIMITS.maxReasonChars,
+                  ),
+                }
+              : {}),
+          }
+        : {}),
     })
   }
   return steps.slice(-ASSISTANT_OPERATOR_LIMITS.maxPriorSteps)
@@ -903,6 +916,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
       let roundFinished = false
       let canvasSync = false
       let canvasApplied = false
+      let canvasNeedsInputSync = false
       let canvasSteps = options.canvasSteps ?? 0
       let pendingPlanSteps: readonly string[] | null = null
       /**
@@ -1549,6 +1563,11 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                   canvasApplied =
                     field === STUDIO_OPERATOR_FIELD_IDS.canvasNodes
                   if (!canvasApplied) {
+                    canvasNeedsInputSync =
+                      applyContext.canvas?.needsPromptInputSync?.() === true
+                    const reason = canvasNeedsInputSync
+                      ? ASSISTANT_OPERATOR_REJECT_REASON_IDS.referenceInputsChanged
+                      : ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl
                     const detail = applyContext.canvas?.getApplyError?.()
                     const resume = getOperatorState().resume
                     const resumeStep = resume?.steps.findLast(
@@ -1557,9 +1576,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                     if (resumeStep)
                       markOperatorResumeStep(resumeStep.id, {
                         state: 'failed',
-                        reason:
-                          detail ??
-                          ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+                        reason: detail ?? reason,
                       })
                     upsertOperatorStep(
                       {
@@ -1567,8 +1584,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                         status: ASSISTANT_OPERATOR_STEP_STATUS_IDS.error,
                         error: {
                           ...(detail ? { detail } : {}),
-                          reason:
-                            ASSISTANT_OPERATOR_REJECT_REASON_IDS.noSuchControl,
+                          reason,
                         },
                       },
                       runKey,
@@ -1688,7 +1704,7 @@ export function useAssistantOperator(): UseAssistantOperatorResult {
                 domain === 'canvas' &&
                 event.reason === ASSISTANT_OPERATOR_STOP_REASONS.canvasSync
               ) {
-                canvasSync = canvasApplied
+                canvasSync = canvasApplied || canvasNeedsInputSync
                 break
               }
               /**

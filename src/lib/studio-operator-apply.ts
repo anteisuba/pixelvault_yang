@@ -121,6 +121,7 @@ export interface StudioOperatorCanvasContext {
    */
   applyOp(stepId: string, op: NodeAssistantOpV4): boolean
   getApplyError?(): string | undefined
+  needsPromptInputSync?(): boolean
   /** 撤销：按 step id 取回宿主扣着的那份逆载荷并回放。 */
   revertOp(stepId: string): void
   /**

@@ -19,7 +19,15 @@ import {
   STUDIO_OPERATOR_SHELL,
 } from '@/constants/studio-assistant-operator'
 import { useCanvasOperatorHost } from '@/hooks/node/use-canvas-operator-host'
-import type { NodeV4 } from '@/types/node-workflow'
+import {
+  applyInverseV4,
+  applyNodeAssistantOpV4,
+} from '@/lib/node-assistant-op-apply-v4'
+import type {
+  NodeV4,
+  NodeWorkflowEdgeV4,
+  NodeWorkflowStateV4,
+} from '@/types/node-workflow'
 
 /**
  * ⭐ 守的是「画布整体豁免注意力收放法则」（2026-09-19 owner 拍板）。
@@ -253,5 +261,177 @@ describe('canvas assistant image references', () => {
     ])
     rerender({ nodes: [], projectId: 'project-a' })
     expect(result.current.referenceImages).toEqual([])
+  })
+})
+
+describe('assistant prompt input review boundary', () => {
+  const image = (id: string, prompt?: string): NodeV4 => ({
+    id,
+    position: { x: 0, y: 0 },
+    data: {
+      kind: 'image',
+      subtype: 'shot',
+      name: id,
+      status: 'idle',
+      createdAt: '2026-09-26T00:00:00.000Z',
+      ...(prompt ? { prompt } : {}),
+    },
+  })
+  const referenceEdge: NodeWorkflowEdgeV4 = {
+    id: 'reference-edge',
+    source: 'source',
+    target: 'target',
+    sourceHandle: 'out',
+    slot: 'reference',
+    data: { via: 'mention' },
+  }
+  function setup(prompt = '原有提示词', edges: NodeWorkflowEdgeV4[] = []) {
+    const nodes = [image('source'), image('target', prompt)]
+    const applyOp = vi.fn(() => true)
+    const undo = vi.fn()
+    const hook = renderHook(() =>
+      useCanvasOperatorHost({
+        nodes,
+        edges,
+        selectedNodeIds: [],
+        projectId: 'project-a',
+        projectName: 'test',
+        applyOp,
+        getApplyError: () => 'graph failure',
+        undo,
+        canUndo: true,
+        generateNodes: vi.fn(),
+        open: true,
+        setOpen: vi.fn(),
+      }),
+    )
+    return { ...hook, nodes, edges, applyOp, undo }
+  }
+
+  it.each(['replace', 'append'] as const)(
+    '助手 %s 新增引用时原子拒绝，并给出明确连线诊断',
+    (mode) => {
+      const { result, nodes, edges, applyOp, undo } = setup()
+      const before = JSON.stringify({ nodes, edges })
+      expect(
+        result.current.apply.canvas?.applyOp('write', {
+          op: 'set_prompt',
+          target: 'target',
+          mode,
+          prompt: '按 @source 保持身份',
+        }),
+      ).toBe(false)
+      expect(applyOp).not.toHaveBeenCalled()
+      expect(JSON.stringify({ nodes, edges })).toBe(before)
+      expect(result.current.apply.canvas?.needsPromptInputSync?.()).toBe(true)
+      expect(result.current.apply.canvas?.getApplyError?.()).toContain(
+        '"op":"connect","source":"source","target":"target","slot":"reference"',
+      )
+      result.current.apply.canvas?.revertOp('write')
+      expect(undo).not.toHaveBeenCalled()
+    },
+  )
+
+  it('助手删除 mention 引用时不写提示词也不断边，先要求显式断线', () => {
+    const { result, nodes, edges, applyOp } = setup('按 @source 保持身份', [
+      referenceEdge,
+    ])
+    const before = JSON.stringify({ nodes, edges })
+    expect(
+      result.current.apply.canvas?.applyOp('write', {
+        op: 'set_prompt',
+        target: 'target',
+        mode: 'replace',
+        prompt: '新的独立肖像',
+      }),
+    ).toBe(false)
+    expect(applyOp).not.toHaveBeenCalled()
+    expect(JSON.stringify({ nodes, edges })).toBe(before)
+    expect(result.current.apply.canvas?.getApplyError?.()).toContain(
+      '"op":"disconnect","edgeId":"reference-edge"',
+    )
+  })
+
+  it('输入没有改变时正常写入，append 按合并后的全文判断', () => {
+    const { result, applyOp, undo } = setup('按 @source 保持身份', [
+      referenceEdge,
+    ])
+    const op = {
+      op: 'set_prompt',
+      target: 'target',
+      mode: 'append',
+      prompt: '背景简洁',
+    } as const
+    expect(result.current.apply.canvas?.applyOp('write', op)).toBe(true)
+    expect(applyOp).toHaveBeenCalledWith(op)
+    expect(result.current.apply.canvas?.needsPromptInputSync?.()).toBe(false)
+    result.current.apply.canvas?.revertOp('write')
+    expect(undo).toHaveBeenCalledOnce()
+  })
+
+  it('下一条普通失败不沿用输入变更标记或诊断', () => {
+    const { result, applyOp } = setup()
+    result.current.apply.canvas?.applyOp('write', {
+      op: 'set_prompt',
+      target: 'target',
+      mode: 'replace',
+      prompt: '@source',
+    })
+    applyOp.mockReturnValue(false)
+    expect(
+      result.current.apply.canvas?.applyOp('model', {
+        op: 'set_model',
+        target: 'target',
+        modelId: 'missing',
+      }),
+    ).toBe(false)
+    expect(result.current.apply.canvas?.needsPromptInputSync?.()).toBe(false)
+    expect(result.current.apply.canvas?.getApplyError?.()).toBe('graph failure')
+  })
+
+  it('用户原有写入路径仍自动连断引用，撤销同时恢复词和边', () => {
+    const state: NodeWorkflowStateV4 = {
+      version: 4,
+      nodes: [image('source'), image('target', '原词')],
+      edges: [],
+    }
+    let id = 0
+    const context = {
+      refs: new Map<string, string>(),
+      mintId: (prefix: string) => `${prefix}-${++id}`,
+    }
+    const added = applyNodeAssistantOpV4(
+      state,
+      {
+        op: 'set_prompt',
+        target: 'target',
+        mode: 'replace',
+        prompt: '@source 新词',
+      },
+      context,
+    )
+    expect(added.ok).toBe(true)
+    if (!added.ok) return
+    expect(added.state.edges).toHaveLength(1)
+    const removed = applyNodeAssistantOpV4(
+      added.state,
+      {
+        op: 'set_prompt',
+        target: 'target',
+        mode: 'replace',
+        prompt: '没有引用',
+      },
+      context,
+    )
+    expect(removed.ok).toBe(true)
+    if (!removed.ok) return
+    expect(removed.state.edges).toHaveLength(0)
+    const restored = applyInverseV4(removed.state, removed.inverse, context)
+    expect(restored.edges).toEqual(added.state.edges)
+    expect(
+      restored.nodes.find((node) => node.id === 'target')?.data,
+    ).toMatchObject({
+      prompt: '@source 新词',
+    })
   })
 })

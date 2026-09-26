@@ -2347,6 +2347,7 @@ export const ASSISTANT_OPERATOR_REJECT_REASON_IDS = {
   referenceImageUnavailable: 'referenceImageUnavailable',
   referenceAnalysisFailed: 'referenceAnalysisFailed',
   referenceBriefFailed: 'referenceBriefFailed',
+  referenceInputsChanged: 'referenceInputsChanged',
   promptConflict: 'promptConflict',
   /**
    * `mount_reference` 引的 asset 本轮 `search_assets` 从没返回过。

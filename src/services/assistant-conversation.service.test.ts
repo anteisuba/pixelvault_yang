@@ -164,6 +164,37 @@ it('轮次号接着已有的那几条数，⛔ 不从零开始', async () => {
   expect(stored?.roundIndex).toBe(1)
 })
 
+it('读取并编辑结论时保留该轮实际图片版本', async () => {
+  const sourceRefs = [
+    {
+      assetId: 'image-v1',
+      nodeId: 'node-1',
+      name: '角色三视图',
+      url: 'https://cdn.example.test/character-v1.png',
+    },
+  ]
+  mocks.findFirst.mockResolvedValue({
+    id: 'conv-1',
+    rounds: [{ ...ROUND, roundIndex: 0, sourceRefs }],
+  })
+  mocks.update.mockResolvedValue({})
+
+  const rounds = await listAssistantConversationRounds('owner-id', 'conv-1', {
+    limit: 8,
+  })
+  expect(rounds[0]).toMatchObject({ sourceRefs })
+  const updated = await updateAssistantConversationRound(
+    'clerk-owner',
+    'conv-1',
+    0,
+    { decisions: ['仅认可这版脸部，身体待改'] },
+  )
+  expect(updated).toMatchObject({ sourceRefs, editedByUser: true })
+  expect(mocks.update.mock.calls[0]?.[0].data.rounds[0]).toMatchObject({
+    sourceRefs,
+  })
+})
+
 it('会话不归这个用户时不写，也不抛 —— 结账不许阻塞 done', async () => {
   mocks.findFirst.mockResolvedValue(null)
 

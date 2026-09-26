@@ -7423,6 +7423,7 @@
       "referenceImageUnavailable": "A reference image could not be read. Re-upload or replace the unavailable image.",
       "referenceAnalysisFailed": "Reference analysis was incomplete; no analysis was accepted.",
       "referenceBriefFailed": "Images were analyzed, but reference-role validation failed; the prompt was not changed.",
+      "referenceInputsChanged": "Reference connections must be updated before checking this prompt",
       "promptConflict": "The prompt conflicts with reference roles or requirements",
       "noSuchControl": "This workspace doesn't have that setting",
       "unknownModel": "That model is not in the list you can pick from",

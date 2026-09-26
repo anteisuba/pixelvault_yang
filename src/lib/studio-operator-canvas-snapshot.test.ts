@@ -1,12 +1,27 @@
 import { describe, expect, it } from 'vitest'
 
-import { ASSISTANT_OPERATOR_CANVAS_LIMITS } from '@/constants/assistant-operator'
+import {
+  ASSISTANT_OPERATOR_CANVAS_LIMITS,
+  ASSISTANT_OPERATOR_LIMITS,
+} from '@/constants/assistant-operator'
 import { getAvailableVideoModels, VIDEO_KIND } from '@/constants/models'
 import { buildCanvasOperatorSnapshot } from '@/lib/studio-operator-canvas-snapshot'
-import { AssistantOperatorCanvasSnapshotSchema } from '@/types/assistant-operator'
-import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
+import {
+  AssistantOperatorCanvasNodeSchema,
+  AssistantOperatorCanvasSnapshotSchema,
+  type AssistantOperatorCanvasSnapshot,
+} from '@/types/assistant-operator'
+import type {
+  NodeV4,
+  NodeV4ImageData,
+  NodeWorkflowEdgeV4,
+} from '@/types/node-workflow'
 
-function imageNode(id: string, shotNo: number | undefined): NodeV4 {
+function imageNode(
+  id: string,
+  shotNo: number | undefined,
+  data: Partial<NodeV4ImageData> = {},
+): NodeV4 {
   return {
     id,
     position: { x: 0, y: 0 },
@@ -17,8 +32,15 @@ function imageNode(id: string, shotNo: number | undefined): NodeV4 {
       status: 'idle',
       createdAt: '2026-09-19T00:00:00.000Z',
       ...(shotNo === undefined ? {} : { shotNo }),
+      ...data,
     },
   } as NodeV4
+}
+
+function snapshotNode(snapshot: AssistantOperatorCanvasSnapshot, id: string) {
+  return snapshot.shots
+    .flatMap((shot) => (shot.expanded ? shot.nodes : []))
+    .find((node) => node.id === id)
 }
 
 function edge(id: string, source: string, target: string): NodeWorkflowEdgeV4 {
@@ -174,8 +196,216 @@ describe('buildCanvasOperatorSnapshot', () => {
     const b = shot.nodes.find((node) => node.id === 'b')
     expect(b?.inputs).toEqual([{ slot: 'reference', from: 'a' }])
     expect(b?.availableModels).toEqual(['seedream-4'])
-    // ⛔ 快照里没有 URL —— 画布的 op 一律认节点 id（见文件头注）。
+    // 产出地址不暴露给 op；referenceUrls 只承载实际参考输入。
     expect(Object.keys(b ?? {})).not.toContain('url')
+  })
+
+  it('图片复核参考按实际槽版本顺序，排除停用来源并去重，不混入助手附件', () => {
+    const sources = [
+      imageNode('a', 1, { url: 'https://example.com/a.png' }),
+      imageNode('b', 1, { url: 'https://example.com/b.png' }),
+      imageNode('duplicate', 1, { url: 'https://example.com/a.png' }),
+      imageNode('disabled-version', 1, {
+        url: 'https://example.com/disabled-version.png',
+      }),
+      imageNode('blocked-node', 1, {
+        url: 'https://example.com/blocked-node.png',
+        blocked: true,
+      }),
+    ]
+    const target = imageNode('target', 1, {
+      slots: {
+        reference: {
+          slot: 'reference',
+          cur: 'v1',
+          versions: [
+            'b',
+            'a',
+            'disabled-version',
+            'blocked-node',
+            'duplicate',
+          ].map((sourceNodeId, index) => ({
+            id: `v${index}`,
+            edgeId: `e-${sourceNodeId}`,
+            sourceNodeId,
+            addedAt: '2026-09-19T00:00:00.000Z',
+            blocked: sourceNodeId === 'disabled-version',
+          })),
+        },
+      },
+    })
+    const emptyTarget = imageNode('empty', 1, {
+      slots: { reference: { slot: 'reference', cur: null, versions: [] } },
+    })
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [...sources, target, emptyTarget],
+      edges: [
+        ...sources.map((source) => edge(`e-${source.id}`, source.id, 'target')),
+        edge('stale', 'a', 'empty'),
+      ],
+      currentShotNo: 1,
+      referenceUrls: ['https://example.com/unrelated-attachment.png'],
+    })
+    expect(snapshotNode(snapshot, 'target')).toMatchObject({
+      referenceUrls: ['https://example.com/b.png', 'https://example.com/a.png'],
+      reviewContextComplete: true,
+    })
+    expect(snapshotNode(snapshot, 'empty')).toMatchObject({
+      referenceUrls: [],
+      referencePromptContext: '',
+      reviewContextComplete: true,
+    })
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
+
+  it('跨折叠镜读取角色卡与未停用特写，保持真实输入顺序', () => {
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [
+        imageNode('character', 1, {
+          subtype: 'character',
+          url: 'https://example.com/character.png',
+        }),
+        imageNode('face', 1, { url: 'https://example.com/face.png' }),
+        imageNode('blocked-face', 1, {
+          url: 'https://example.com/blocked-face.png',
+          blocked: true,
+        }),
+        imageNode('shot-2', 2),
+        imageNode('shot-3', 3),
+        imageNode('target', 4),
+        imageNode('shot-5', 5),
+      ],
+      edges: [
+        edge('main', 'character', 'target'),
+        { ...edge('closeup', 'face', 'character'), slot: 'closeup' },
+        { ...edge('blocked', 'blocked-face', 'character'), slot: 'closeup' },
+      ],
+      currentShotNo: 4,
+    })
+    expect(snapshot.shots.find((shot) => shot.shotNo === 1)?.expanded).toBe(
+      false,
+    )
+    expect(snapshotNode(snapshot, 'target')).toMatchObject({
+      referenceUrls: [
+        'https://example.com/character.png',
+        'https://example.com/face.png',
+      ],
+      reviewContextComplete: true,
+    })
+    expect(snapshotNode(snapshot, 'target')?.referencePromptContext).toContain(
+      'Image 1 = "character"\nImage 2 = "face"',
+    )
+  })
+
+  it('图片提示词保留全文，复核上下文读取上游全文，其他节点仍为摘要', () => {
+    const ownPrompt = `  ${'原始提示词'.repeat(3000)}\n不要改动脸  `
+    const upstream = `${'上游内容'.repeat(200)}\n腿部尚未认可`
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [
+        scriptNode('script', upstream),
+        imageNode('target', undefined, { prompt: ownPrompt }),
+      ],
+      edges: [{ ...edge('text-input', 'script', 'target'), slot: 'text' }],
+      currentShotNo: null,
+    })
+    expect(snapshotNode(snapshot, 'target')).toMatchObject({
+      text: ownPrompt,
+      referenceUrls: [],
+      referencePromptContext: upstream,
+      reviewContextComplete: true,
+    })
+    expect(snapshotNode(snapshot, 'script')?.text).toHaveLength(401)
+    expect(snapshotNode(snapshot, 'script')).not.toHaveProperty('referenceUrls')
+    expect(snapshotNode(snapshot, 'script')).not.toHaveProperty(
+      'reviewContextComplete',
+    )
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
+
+  it('上游文字超出复核容量时明确不完整，不截断为已检查全文', () => {
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [
+        scriptNode(
+          'script',
+          '长'.repeat(ASSISTANT_OPERATOR_LIMITS.maxMessageChars + 1),
+        ),
+        imageNode('target', undefined),
+      ],
+      edges: [{ ...edge('text-input', 'script', 'target'), slot: 'text' }],
+      currentShotNo: null,
+    })
+    expect(snapshotNode(snapshot, 'target')).toMatchObject({
+      referenceUrls: [],
+      reviewContextComplete: false,
+    })
+    expect(snapshotNode(snapshot, 'target')).not.toHaveProperty(
+      'referencePromptContext',
+    )
+    expect(
+      AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+    ).toBe(true)
+  })
+
+  it.each(['too-many', 'invalid-url'])(
+    '参考超限或 URL 无效时不以部分列表冒充完整：%s',
+    (issue) => {
+      const sources =
+        issue === 'too-many'
+          ? Array.from(
+              { length: ASSISTANT_OPERATOR_LIMITS.maxSnapshotReferences + 1 },
+              (_, index) =>
+                imageNode(`source-${index}`, 1, {
+                  url: `https://example.com/${index}.png`,
+                }),
+            )
+          : [imageNode('source', 1, { url: 'invalid-url' })]
+      const snapshot = buildCanvasOperatorSnapshot({
+        nodes: [...sources, imageNode('target', 1)],
+        edges: sources.map((source) =>
+          edge(`e-${source.id}`, source.id, 'target'),
+        ),
+        currentShotNo: 1,
+      })
+      expect(snapshotNode(snapshot, 'target')?.reviewContextComplete).toBe(
+        false,
+      )
+      expect(snapshotNode(snapshot, 'target')).not.toHaveProperty(
+        'referenceUrls',
+      )
+      expect(
+        AssistantOperatorCanvasSnapshotSchema.safeParse(snapshot).success,
+      ).toBe(true)
+    },
+  )
+
+  it('只读图片叶子不编译生成输入，旧快照缺字段仍表示未核对', () => {
+    const snapshot = buildCanvasOperatorSnapshot({
+      nodes: [
+        imageNode('leaf', undefined, {
+          subtype: 'reference',
+          url: 'https://example.com/leaf.png',
+        }),
+      ],
+      edges: [],
+      currentShotNo: null,
+    })
+    expect(snapshotNode(snapshot, 'leaf')).toMatchObject({
+      referenceUrls: [],
+      referencePromptContext: '',
+      reviewContextComplete: true,
+    })
+    const legacy = AssistantOperatorCanvasNodeSchema.parse({
+      id: 'legacy',
+      name: 'legacy',
+      kind: 'image',
+      subtype: 'shot',
+    })
+    expect(legacy.referenceUrls).toBeUndefined()
+    expect(legacy.reviewContextComplete).toBeUndefined()
   })
 
   /** ⚠ 上限守的是步数预算，不是内存：越界就截断，⛔ 不整条拒。 */

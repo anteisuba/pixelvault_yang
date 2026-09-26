@@ -24,6 +24,7 @@ import { useTranslations } from 'next-intl'
 
 import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { ASSISTANT_OPERATOR_LIMITS } from '@/constants/assistant-operator'
+import { NODE_ASSISTANT_OP_V4_IDS } from '@/constants/node-assistant-ops'
 import { NODE_MEDIA_KIND_IDS } from '@/constants/node-types'
 import { CANVAS_SHELL_LAYOUT } from '@/constants/canvas-shell'
 import {
@@ -33,6 +34,7 @@ import {
 import type { StudioOperatorHost } from '@/contexts/studio-operator-host'
 import { useStudioOperatorFace } from '@/hooks/use-studio-operator-face'
 import { collectDownstream } from '@/lib/node-downstream'
+import { resolveMentionsToSlots } from '@/lib/node-mentions-to-slots'
 import { flashAssistantTouchedNode } from '@/hooks/node/node-ingest-dom'
 import { buildCanvasOperatorSnapshot } from '@/lib/studio-operator-canvas-snapshot'
 import type { StudioOperatorApplyContext } from '@/lib/studio-operator-apply'
@@ -194,6 +196,7 @@ export function useCanvasOperatorHost({
    * ⛔ 不在这里存逆载荷：那份由图引擎自己的撤销栈扣着，存第二份必然漂。
    */
   const landedStepIdsRef = useRef<string[]>([])
+  const promptInputSyncRef = useRef<string | undefined>(undefined)
 
   /** 焦点镜 = 选中的第一个节点所在的镜；没选中就交给快照去展开最前面三面。 */
   const currentShotNo = useMemo(() => {
@@ -235,6 +238,42 @@ export function useCanvasOperatorHost({
 
   const canvasApply = useCallback(
     (stepId: string, op: NodeAssistantOpV4): boolean => {
+      promptInputSyncRef.current = undefined
+      if (op.op === NODE_ASSISTANT_OP_V4_IDS.setPrompt) {
+        const graph = graphRef.current
+        const target = graph.nodes.find((node) => node.id === op.target)
+        if (target?.data.kind === NODE_MEDIA_KIND_IDS.image) {
+          const previous = target.data.prompt ?? ''
+          const prompt =
+            op.mode === 'append' && previous
+              ? `${previous}\n\n${op.prompt}`
+              : op.prompt
+          const diff = resolveMentionsToSlots(
+            { version: 4, nodes: [...graph.nodes], edges: [...graph.edges] },
+            target.id,
+            prompt,
+          )
+          const disconnect = diff.toDisconnect[0]
+          const connect = diff.toConnect[0]
+          const firstOp = disconnect
+            ? {
+                op: NODE_ASSISTANT_OP_V4_IDS.disconnect,
+                edgeId: disconnect.edgeId,
+              }
+            : connect
+              ? {
+                  op: NODE_ASSISTANT_OP_V4_IDS.connect,
+                  source: connect.sourceNodeId,
+                  target: connect.targetNodeId,
+                  slot: connect.slot,
+                }
+              : undefined
+          if (firstOp) {
+            promptInputSyncRef.current = `First canvas_apply ${JSON.stringify(firstOp)}. Then retry set_prompt after canvas_sync; prompt and inputs are unchanged.`
+            return false
+          }
+        }
+      }
       const landed = applyOp(op)
       if (!landed) return false
       landedStepIdsRef.current.push(stepId)
@@ -265,6 +304,15 @@ export function useCanvasOperatorHost({
       return true
     },
     [applyOp],
+  )
+
+  const canvasApplyError = useCallback(
+    () => promptInputSyncRef.current ?? getApplyError?.(),
+    [getApplyError],
+  )
+  const needsPromptInputSync = useCallback(
+    () => promptInputSyncRef.current !== undefined,
+    [],
   )
 
   const canvasRevert = useCallback(
@@ -318,7 +366,8 @@ export function useCanvasOperatorHost({
       setPrimed: noForm,
       canvas: {
         applyOp: canvasApply,
-        getApplyError,
+        getApplyError: canvasApplyError,
+        needsPromptInputSync,
         revertOp: canvasRevert,
         generate: canvasGenerate,
         planRerunDownstream: canvasPlanRerun,
@@ -328,7 +377,8 @@ export function useCanvasOperatorHost({
     addReference,
     removeReference,
     canvasApply,
-    getApplyError,
+    canvasApplyError,
+    needsPromptInputSync,
     canvasRevert,
     canvasGenerate,
     canvasPlanRerun,

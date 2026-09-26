@@ -6,6 +6,7 @@ import {
   ASSISTANT_OPERATOR_CONFIRM_FIELDS,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_INTERNAL_ERROR_CODE,
+  ASSISTANT_OPERATOR_LIMITS,
   ASSISTANT_OPERATOR_STEP_STATUS_IDS,
   ASSISTANT_OPERATOR_TOOL_IDS,
 } from '@/constants/assistant-operator'
@@ -105,6 +106,7 @@ const hostSnapshot = vi.hoisted(() => ({
   current: { prompt: '', availableModels: [] } as Record<string, unknown>,
 }))
 const canvasApply = vi.hoisted(() => vi.fn(() => true))
+const canvasInputSync = vi.hoisted(() => ({ current: false }))
 const hostDomain = vi.hoisted(() => ({ current: 'image' }))
 
 vi.mock('@/contexts/studio-operator-host', () => ({
@@ -121,7 +123,11 @@ vi.mock('@/contexts/studio-operator-host', () => ({
     apply: {
       canvas: {
         applyOp: canvasApply,
-        getApplyError: () => '模型无法解析，请重新选择模型',
+        getApplyError: () =>
+          canvasInputSync.current
+            ? 'First canvas_apply {"op":"connect","source":"source","target":"target","slot":"reference"}. Then retry set_prompt after canvas_sync; prompt and inputs are unchanged.'
+            : '模型无法解析，请重新选择模型',
+        needsPromptInputSync: () => canvasInputSync.current,
       },
       triggerGeneration,
       getState: () => ({ prompt: '', advancedParams: {} }),
@@ -246,6 +252,7 @@ beforeEach(async () => {
   generationControls.current = null
   hostDomain.current = 'image'
   canvasApply.mockReset().mockReturnValue(true)
+  canvasInputSync.current = false
   hostSnapshot.current = { prompt: '', availableModels: [] }
   streams.length = 0
   streamAssistantOperatorAPI.mockImplementation(
@@ -446,6 +453,175 @@ describe('useAssistantOperator 的四条收尾路径', () => {
       }
     },
   )
+
+  it('图片提示词待同步输入时保留失败诊断并在剩余预算内自动纠正', async () => {
+    hostDomain.current = 'canvas'
+    store.setOperatorResumeScope('canvas-input-sync')
+    canvasApply.mockReturnValue(false)
+    canvasInputSync.current = true
+    const { result } = render()
+    act(() => result.current.send('按参考保持角色身份'))
+    await settle()
+    streams[0].emit({
+      type: 'plan',
+      steps: [{ id: 'prompt-plan', label: '写角色提示词' }],
+    })
+    streams[0].emit({
+      type: 'step',
+      step: {
+        id: 'step-1',
+        title: '写角色提示词',
+        tool: 'canvas_apply',
+        verb: 'apply',
+        status: 'done',
+        payload: {
+          op: 'set_prompt',
+          target: 'target',
+          prompt: '@source',
+          mode: 'replace',
+        },
+        inverse: { op: 'set_prompt', nodeRef: 'target' },
+      },
+    })
+    streams[0].emit({ type: 'stopped', reason: 'canvas_sync' })
+    streams[0].close()
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(2)
+    expect(streamAssistantOperatorAPI.mock.calls[1][0]).toMatchObject({
+      stepBudget: ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps - 1,
+      priorSteps: [
+        expect.objectContaining({
+          status: 'error',
+          rejectReason: 'referenceInputsChanged',
+          detail: expect.stringContaining('"op":"connect"'),
+        }),
+      ],
+    })
+    expect(
+      streamAssistantOperatorAPI.mock.calls[1][0].resumeFrom,
+    ).toBeUndefined()
+    expect(store.getOperatorState().resume?.steps[0]?.state).toBe('failed')
+    expect(store.getOperatorState().changes).toEqual({})
+
+    canvasInputSync.current = false
+    canvasApply.mockReturnValue(true)
+    streams[1].emit({
+      type: 'step',
+      step: {
+        id: 'step-1',
+        title: '连接参考',
+        tool: 'canvas_apply',
+        verb: 'apply',
+        status: 'done',
+        payload: {
+          op: 'connect',
+          source: 'source',
+          target: 'target',
+          slot: 'reference',
+        },
+        inverse: { op: 'disconnect', nodeRef: 'target' },
+      },
+    })
+    streams[1].emit({ type: 'stopped', reason: 'canvas_sync' })
+    streams[1].close()
+    await settle()
+    expect(streamAssistantOperatorAPI.mock.calls[2][0]).toMatchObject({
+      stepBudget: ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps - 2,
+    })
+    streams[2].emit({ type: 'done' })
+    streams[2].close()
+    await settle()
+  })
+
+  it('反复不纠正输入引用也消耗画布步数，预算耗尽后不再自动重发', async () => {
+    hostDomain.current = 'canvas'
+    canvasApply.mockReturnValue(false)
+    canvasInputSync.current = true
+    const { result } = render()
+    act(() => result.current.send('按参考保持角色身份'))
+    await settle()
+    for (
+      let index = 0;
+      index < ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps;
+      index += 1
+    ) {
+      expect(streamAssistantOperatorAPI.mock.calls[index][0].stepBudget).toBe(
+        ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps - index,
+      )
+      streams[index].emit({
+        type: 'step',
+        step: {
+          id: 'step-1',
+          title: '尚未同步的提示词',
+          tool: 'canvas_apply',
+          verb: 'apply',
+          status: 'done',
+          payload: {
+            op: 'set_prompt',
+            target: 'target',
+            prompt: '@source',
+            mode: 'replace',
+          },
+          inverse: { op: 'set_prompt', nodeRef: 'target' },
+        },
+      })
+      streams[index].emit({ type: 'stopped', reason: 'canvas_sync' })
+      streams[index].close()
+      await settle()
+    }
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledTimes(
+      ASSISTANT_OPERATOR_LIMITS.maxCanvasSteps,
+    )
+    expect(store.getOperatorState().status).toBe('idle')
+    expect(
+      store
+        .getOperatorState()
+        .entries.filter(
+          (entry) => entry.kind === 'step' && entry.step.status === 'done',
+        ),
+    ).toHaveLength(0)
+  })
+
+  it('输入同步失败后用户停止时，不触发自动纠正请求', async () => {
+    hostDomain.current = 'canvas'
+    canvasApply.mockReturnValue(false)
+    canvasInputSync.current = true
+    const { result } = render()
+    act(() => result.current.send('按参考保持角色身份'))
+    await settle()
+    streams[0].emit({
+      type: 'step',
+      step: {
+        id: 'step-1',
+        title: '待同步提示词',
+        tool: 'canvas_apply',
+        verb: 'apply',
+        status: 'done',
+        payload: {
+          op: 'set_prompt',
+          target: 'target',
+          prompt: '@source',
+          mode: 'replace',
+        },
+        inverse: { op: 'set_prompt', nodeRef: 'target' },
+      },
+    })
+    await settle()
+    act(() => result.current.stop())
+    await settle()
+    expect(streamAssistantOperatorAPI).toHaveBeenCalledOnce()
+    expect(store.getOperatorState().status).toBe('idle')
+    expect(
+      store
+        .getOperatorState()
+        .entries.some(
+          (entry) =>
+            entry.kind === 'step' &&
+            entry.step.status === 'error' &&
+            entry.step.error.reason === 'referenceInputsChanged',
+        ),
+    ).toBe(true)
+  })
   it('请求被拒绝后清除等待圆点，再次发送可以正常收到回复', async () => {
     streamAssistantOperatorAPI.mockResolvedValueOnce({
       success: false,

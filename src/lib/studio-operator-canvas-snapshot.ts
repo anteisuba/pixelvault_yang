@@ -12,24 +12,25 @@
  * ⚠ 折叠的镜里的节点**不进准入名单**（服务端 `canvasNodeIds` 只数展开的那几面）：
  * 模型没看见的节点它不该去改。这条与 `mount_reference` 只认 `searchIndex` 同源。
  *
- * ── ⛔ 为什么不把 URL 放进快照 ──────────────────────────────────────
- * 画布上的 op 一律认**节点 id**（`attach_asset` 的载荷里没有地址）。快照里摆
- * 一串地址只会诱导模型去写地址，而那正是它编一个不存在的 URL 的形状。
- * 所以产出这一格是 `hasOutput: boolean`。
+ * 画布上的 op 一律认节点 id，产出只带 `hasOutput`；图片节点另带实际编译的
+ * 参考输入，供服务端复核提示词，不携带完整生成载荷或私有配置。
  */
 
 import { ASSISTANT_OPERATOR_CANVAS_LIMITS } from '@/constants/assistant-operator'
 import { NODE_SCRIPT_SHOT_STATE_IDS } from '@/constants/node-script'
 import {
   NODE_MEDIA_KIND_IDS,
+  NODE_V4_IMAGE_SUBTYPE_IDS,
   NODE_V4_TEXT_SUBTYPE_IDS,
 } from '@/constants/node-types'
 import { parseScriptShots } from '@/lib/node-script-shots'
 import { readScriptShotRef } from '@/lib/node-script-projection'
-import type {
-  AssistantOperatorCanvasNode,
-  AssistantOperatorCanvasShot,
-  AssistantOperatorCanvasSnapshot,
+import { buildV4ImagePayload } from '@/lib/node-slot-payload'
+import {
+  AssistantOperatorCanvasNodeSchema,
+  type AssistantOperatorCanvasNode,
+  type AssistantOperatorCanvasShot,
+  type AssistantOperatorCanvasSnapshot,
 } from '@/types/assistant-operator'
 import type { NodeV4, NodeWorkflowEdgeV4 } from '@/types/node-workflow'
 
@@ -39,19 +40,49 @@ const LOOSE_SHOT_TITLE = 'Unassigned'
 /**
  * 一个节点上模型改得动的那几格。
  *
- * ⚠ 正文按 `maxNodeTextChars` 截断：一张剧本笺可以有十万字，而模型要的只是
- * 「这张卡在讲什么」。要全文就把焦点放上去再读一次。
+ * 非图片节点只提供摘要；图片提示词需要全文参与追加与参考复核。
  */
 const MAX_NODE_TEXT_CHARS = 400
 
 function nodeText(node: NodeV4): string | undefined {
   const data = node.data
+  if (data.kind === NODE_MEDIA_KIND_IDS.image) return data.prompt
   const raw = data.kind === NODE_MEDIA_KIND_IDS.text ? data.body : data.prompt
   const trimmed = raw?.trim()
   if (!trimmed) return undefined
   return trimmed.length > MAX_NODE_TEXT_CHARS
     ? `${trimmed.slice(0, MAX_NODE_TEXT_CHARS)}…`
     : trimmed
+}
+
+function imageReviewContext(
+  node: NodeV4,
+  nodes: readonly NodeV4[],
+  edges: readonly NodeWorkflowEdgeV4[],
+): Pick<
+  AssistantOperatorCanvasNode,
+  'referenceUrls' | 'referencePromptContext' | 'reviewContextComplete'
+> {
+  if (node.data.kind !== NODE_MEDIA_KIND_IDS.image) return {}
+  const payload =
+    node.data.subtype === NODE_V4_IMAGE_SUBTYPE_IDS.reference
+      ? { referenceUrls: [], prompt: '' }
+      : buildV4ImagePayload({ nodeId: node.id, nodes, edges })
+  const references =
+    AssistantOperatorCanvasNodeSchema.shape.referenceUrls.safeParse(
+      payload.referenceUrls,
+    )
+  const promptContext =
+    AssistantOperatorCanvasNodeSchema.shape.referencePromptContext.safeParse(
+      payload.prompt,
+    )
+  return {
+    ...(references.success ? { referenceUrls: references.data } : {}),
+    ...(promptContext.success
+      ? { referencePromptContext: promptContext.data }
+      : {}),
+    reviewContextComplete: references.success && promptContext.success,
+  }
 }
 
 function nodeHasOutput(node: NodeV4): boolean {
@@ -114,6 +145,8 @@ function toSnapshotNode(
     | undefined,
   scriptProjections: ReadonlyMap<string, ScriptProjectionSummary>,
   referenceUrls: readonly string[],
+  nodes: readonly NodeV4[],
+  edges: readonly NodeWorkflowEdgeV4[],
 ): AssistantOperatorCanvasNode {
   const data = node.data
   const text = nodeText(node)
@@ -149,6 +182,7 @@ function toSnapshotNode(
           },
         }),
     ...(text === undefined ? {} : { text }),
+    ...imageReviewContext(node, nodes, edges),
     ...(model === undefined ? {} : { model }),
     ...(availableModels === undefined || availableModels.length === 0
       ? {}
@@ -258,6 +292,8 @@ export function buildCanvasOperatorSnapshot({
             availableModelsByNodeId,
             scriptProjections,
             referenceUrls,
+            nodes,
+            edges,
           ),
         ),
     })

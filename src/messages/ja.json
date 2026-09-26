@@ -7423,6 +7423,7 @@
       "referenceImageUnavailable": "参照画像を読み込めません。該当する画像を再アップロードするか差し替えてください。",
       "referenceAnalysisFailed": "参照画像の分析が不完全なため、結果は採用されていません。",
       "referenceBriefFailed": "画像の分析は完了しましたが、参照用途の検証に失敗しました。プロンプトは変更していません。",
+      "referenceInputsChanged": "参照の接続を更新してから、このプロンプトを確認します",
       "promptConflict": "プロンプトが参照画像の役割や要件と矛盾しています",
       "noSuchControl": "このワークスペースにその項目はありません",
       "unknownModel": "そのモデルは選べる一覧にありません",

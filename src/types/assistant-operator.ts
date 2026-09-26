@@ -88,6 +88,7 @@ import {
   NodeAssistantPlanRerunDownstreamOpSchema,
   NodeAssistantGenerateV4OpSchema,
 } from '@/types/node-assistant-ops'
+import { NodeV4ImageDataSchema } from '@/types/node-workflow'
 import { NODE_SCRIPT_SHOT_STATES } from '@/constants/node-script'
 import { EVIDENCE_CREDIBILITY_VALUES } from '@/constants/research'
 import { VIDEO_FRAME_LIMITS } from '@/constants/video-analysis'
@@ -638,8 +639,14 @@ export const AssistantOperatorCanvasNodeSchema = z.object({
   name: LabelSchema,
   kind: LabelSchema,
   subtype: LabelSchema.optional(),
-  /** 文本节点的正文 / 媒体节点的提示词。⚠ 截断，整段正文按需走 `read_state`。 */
-  text: z.string().max(LIMITS.maxMessageChars).optional(),
+  /** 图片节点保留提示词全文；其余节点提供摘要。 */
+  text: NodeV4ImageDataSchema.shape.prompt,
+  referenceUrls: z
+    .array(AssistantOperatorSnapshotReferenceSchema.shape.url)
+    .max(LIMITS.maxSnapshotReferences)
+    .optional(),
+  referencePromptContext: z.string().max(LIMITS.maxMessageChars).optional(),
+  reviewContextComplete: z.boolean().optional(),
   model: LabelSchema.optional(),
   /** 这个节点上选得动的模型 —— ⛔ 没有这一格模型就会编一个不存在的 id。 */
   availableModels: z
@@ -1228,6 +1235,18 @@ export const AssistantOperatorRoundSummarySchema = z.object({
   evidenceRefs: z
     .array(AssistantOperatorEvidenceRefSchema)
     .max(ROUND_LIMITS.maxEvidenceRefs),
+  /** 本轮实际附件版本，由服务端绑定；同名节点换图后不沿用旧图评价。 */
+  sourceRefs: z
+    .array(
+      z.object({
+        assetId: IdSchema,
+        nodeId: IdSchema.optional(),
+        name: LabelSchema.optional(),
+        url: z.string().url(),
+      }),
+    )
+    .max(LIMITS.maxSnapshotReferences)
+    .optional(),
   /** 用户就地改过这条记录（§7.7）。⚠ 缺席 = 没改过，⛔ 别写成必填。 */
   editedByUser: z.boolean().optional(),
   /**

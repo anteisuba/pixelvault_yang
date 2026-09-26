@@ -27,6 +27,12 @@ interface StudioTagChipFieldProps {
   chips: readonly TagChip[]
   disabled?: boolean
   onChange: (chips: TagChip[]) => void
+  /**
+   * `stacked` = 标题在上 + 一个描边框（参数栏 / 手机，缺省）。
+   * `inline` = 标题在左、格子直接排在输入框卡里，⛔ 不再套一个框（桌面底部输入框，
+   * owner 2026-09-26 原型）。
+   */
+  variant?: 'stacked' | 'inline'
 }
 
 /**
@@ -44,6 +50,7 @@ export function StudioTagChipField({
   chips,
   disabled,
   onChange,
+  variant = 'stacked',
 }: StudioTagChipFieldProps) {
   const t = useTranslations('StudioTags')
   const tModels = useTranslations('Models')
@@ -153,94 +160,116 @@ export function StudioTagChipField({
     }
   }
 
+  const inline = variant === 'inline'
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-baseline justify-between gap-2">
-        <span className="text-2xs font-medium">{label}</span>
-        <span className="truncate text-3xs text-muted-foreground">
-          {note ?? t('tagCount', { count: chips.length })}
+    <div
+      className={inline ? 'flex items-start gap-2.5' : 'flex flex-col gap-1.5'}
+    >
+      {inline ? (
+        <span
+          title={note}
+          className="w-18 shrink-0 pt-1.5 text-2xs font-medium text-muted-foreground"
+        >
+          {label}
         </span>
-      </div>
-      <div
-        ref={boxRef}
-        onClick={() => inputRef.current?.focus()}
-        className={cn(
-          'flex max-h-48 min-h-18 overflow-y-auto lg:max-h-none flex-wrap content-start gap-1.5 rounded-lg border bg-background p-2 transition-colors duration-fast ease-standard',
-          focused
-            ? 'border-primary/40 ring-2 ring-primary/10'
-            : 'border-border',
-          disabled && 'pointer-events-none opacity-50',
-        )}
-      >
-        {chips.map((chip, index) => (
-          <StudioTagChip
-            key={`${chip.text}-${index}`}
-            chip={chip}
-            disabled={disabled}
-            onChange={(next) =>
-              onChange(chips.map((item, i) => (i === index ? next : item)))
-            }
-            onRemove={() => onChange(chips.filter((_, i) => i !== index))}
-          />
-        ))}
-        <input
-          ref={inputRef}
-          value={draft}
-          disabled={disabled}
-          role="combobox"
-          aria-expanded={results.length > 0}
-          aria-controls={listId}
-          aria-autocomplete="list"
-          aria-label={label}
-          placeholder={chips.length === 0 ? t('placeholder') : undefined}
-          onFocus={() => setFocused(true)}
-          onBlur={() => {
-            setFocused(false)
-            // 失焦时把半截的词收成一格 —— 否则用户以为已经加上了。
-            commit(draft)
-            setDraft('')
-          }}
-          onChange={(event) => {
-            const next = event.target.value
-            setActiveIndex(0)
-            // 打到逗号就落格，最后一段留在输入框里继续写。
-            if (
-              next.includes(',') &&
-              !next.includes('::') &&
-              !/[{}\[\]]/.test(next)
-            ) {
-              const pieces = next.split(',')
-              commit(pieces.slice(0, -1).join(','))
-              setDraft(pieces[pieces.length - 1].trimStart())
-              return
-            }
-            setDraft(next)
-          }}
-          onKeyDown={handleKeyDown}
-          // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大整页。
-          className="min-w-24 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-2xs"
-        />
-      </div>
-      {novelAiModel && official.active && (
-        <p role="status" className="text-3xs text-muted-foreground">
-          {official.loading
-            ? t('officialTagsLoading')
-            : official.error
-              ? t(
-                  official.error === 'MISSING_API_KEY'
-                    ? 'officialTagsKeyRequired'
-                    : 'officialTagsError',
-                )
-              : t(
-                  official.tags.length
-                    ? 'officialTagsSource'
-                    : 'officialTagsEmpty',
-                  {
-                    model: getTranslatedModelLabel(tModels, novelAiModel),
-                  },
-                )}
-        </p>
+      ) : (
+        <div className="flex items-baseline justify-between gap-2">
+          <span className="text-2xs font-medium">{label}</span>
+          <span className="truncate text-3xs text-muted-foreground">
+            {note ?? t('tagCount', { count: chips.length })}
+          </span>
+        </div>
       )}
+      {/* 行内那一版：格子与官方补全那行小字叠成一列，排在标题右边。 */}
+      <div
+        className={inline ? 'flex min-w-0 flex-1 flex-col gap-1' : 'contents'}
+      >
+        <div
+          ref={boxRef}
+          onClick={() => inputRef.current?.focus()}
+          className={cn(
+            inline
+              ? 'flex max-h-24 min-h-8 min-w-0 flex-1 flex-wrap content-start items-center gap-1.5 overflow-y-auto'
+              : cn(
+                  'flex max-h-48 min-h-18 overflow-y-auto lg:max-h-none flex-wrap content-start gap-1.5 rounded-lg border bg-background p-2 transition-colors duration-fast ease-standard',
+                  focused
+                    ? 'border-primary/40 ring-2 ring-primary/10'
+                    : 'border-border',
+                ),
+            disabled && 'pointer-events-none opacity-50',
+          )}
+        >
+          {chips.map((chip, index) => (
+            <StudioTagChip
+              key={`${chip.text}-${index}`}
+              chip={chip}
+              disabled={disabled}
+              onChange={(next) =>
+                onChange(chips.map((item, i) => (i === index ? next : item)))
+              }
+              onRemove={() => onChange(chips.filter((_, i) => i !== index))}
+            />
+          ))}
+          <input
+            ref={inputRef}
+            value={draft}
+            disabled={disabled}
+            role="combobox"
+            aria-expanded={results.length > 0}
+            aria-controls={listId}
+            aria-autocomplete="list"
+            aria-label={label}
+            placeholder={chips.length === 0 ? t('placeholder') : undefined}
+            onFocus={() => setFocused(true)}
+            onBlur={() => {
+              setFocused(false)
+              // 失焦时把半截的词收成一格 —— 否则用户以为已经加上了。
+              commit(draft)
+              setDraft('')
+            }}
+            onChange={(event) => {
+              const next = event.target.value
+              setActiveIndex(0)
+              // 打到逗号就落格，最后一段留在输入框里继续写。
+              if (
+                next.includes(',') &&
+                !next.includes('::') &&
+                !/[{}\[\]]/.test(next)
+              ) {
+                const pieces = next.split(',')
+                commit(pieces.slice(0, -1).join(','))
+                setDraft(pieces[pieces.length - 1].trimStart())
+                return
+              }
+              setDraft(next)
+            }}
+            onKeyDown={handleKeyDown}
+            // ⚠ <768 必须 ≥16px，否则 iOS 聚焦即放大整页。
+            className="min-w-24 flex-1 bg-transparent text-base outline-none placeholder:text-muted-foreground/60 md:text-2xs"
+          />
+        </div>
+        {novelAiModel && official.active && (
+          <p role="status" className="text-3xs text-muted-foreground">
+            {official.loading
+              ? t('officialTagsLoading')
+              : official.error
+                ? t(
+                    official.error === 'MISSING_API_KEY'
+                      ? 'officialTagsKeyRequired'
+                      : 'officialTagsError',
+                  )
+                : t(
+                    official.tags.length
+                      ? 'officialTagsSource'
+                      : 'officialTagsEmpty',
+                    {
+                      model: getTranslatedModelLabel(tModels, novelAiModel),
+                    },
+                  )}
+          </p>
+        )}
+      </div>
       <StudioTagSuggestions
         anchorRef={boxRef}
         results={results}

@@ -41,6 +41,7 @@ import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
 import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
+import { useComposerSubmit } from '@/hooks/use-composer-submit'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
@@ -122,9 +123,6 @@ interface StudioPromptAreaProps {
   layout?: 'column' | 'bottom'
 }
 
-/** 被挡住时左边那行灰字停留多久（ms）。 */
-const BLOCKED_HINT_MS = 2600
-
 export const StudioPromptArea = memo(function StudioPromptArea({
   layout = 'column',
 }: StudioPromptAreaProps) {
@@ -198,37 +196,11 @@ export const StudioPromptArea = memo(function StudioPromptArea({
 
   const [negativePromptExpanded, setNegativePromptExpanded] = useState(false)
   /**
-   * ① 圆键被挡住时点一下，左边出现一行缺什么（owner 2026-09-26 原型）。
+   * 底部输入框的发送口：被挡住时左边出一行缺什么、⛔ 不弹 toast。
    * ⚠ 只给 `bottom` 布局：参数栏那颗整宽键本来就把缺什么写在键上。
    */
-  const [blockedHintVisible, setBlockedHintVisible] = useState(false)
-  const blockedHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  useEffect(
-    () => () => {
-      if (blockedHintTimerRef.current) clearTimeout(blockedHintTimerRef.current)
-    },
-    [],
-  )
-  const showBlockedHint = useCallback(() => {
-    setBlockedHintVisible(true)
-    if (blockedHintTimerRef.current) clearTimeout(blockedHintTimerRef.current)
-    blockedHintTimerRef.current = setTimeout(
-      () => setBlockedHintVisible(false),
-      BLOCKED_HINT_MS,
-    )
-  }, [])
-  /**
-   * 底部输入框的发送口（Enter / 圆键）。被挡住时**不弹 toast**，左边那行说缺什么
-   * —— 同一件事只说一遍（owner 2026-09-26 原型）。
-   */
-  const submitFromComposer = useCallback(() => {
-    if (!canGenerate) {
-      showBlockedHint()
-      void handleGenerate({ quietBlocked: true })
-      return
-    }
-    void handleGenerate()
-  }, [canGenerate, handleGenerate, showBlockedHint])
+  const { hintVisible: blockedHintVisible, submit: submitFromComposer } =
+    useComposerSubmit(canGenerate, handleGenerate)
   const { cancelAllRunItems } = useStudioGen()
   const tCancel = useTranslations('GenerationCancel')
   const referenceNotice = useReferenceReceiverNotice(

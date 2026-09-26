@@ -7,6 +7,9 @@ import { getPromptTagPopularityTier } from '@/lib/prompt-tag-autocomplete'
 import { cn } from '@/lib/utils'
 import type { PromptTagSearchResult } from '@/types/prompt-tags'
 
+/** 浮层上限 `max-h-60`（240）加一点余量：下面不够这么高就往上开。 */
+const SUGGESTIONS_FLIP_PX = 260
+
 interface StudioTagSuggestionsProps {
   /** 锚点 —— 补全浮层贴着这一块的下沿。 */
   anchorRef: RefObject<HTMLElement | null>
@@ -53,11 +56,20 @@ export function StudioTagSuggestions({
 
   if (!rect || results.length === 0) return null
 
+  /**
+   * 下面放不下就往上开 —— 标签台桌面的输入框贴在视口底部（owner 2026-09-26），
+   * 往下开的浮层整个落在屏幕外。
+   */
+  const opensUp = window.innerHeight - rect.bottom < SUGGESTIONS_FLIP_PX
+  const placement = opensUp
+    ? { bottom: window.innerHeight - rect.top + 4 }
+    : { top: rect.bottom + 4 }
+
   return createPortal(
     <ul
       id={listId}
       role="listbox"
-      style={{ top: rect.bottom + 4, left: rect.left, width: rect.width }}
+      style={{ ...placement, left: rect.left, width: rect.width }}
       className="fixed z-50 max-h-60 overflow-y-auto rounded-lg border border-border bg-popover p-1 shadow-md"
     >
       {results.map((result, index) => {

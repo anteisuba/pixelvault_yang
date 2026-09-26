@@ -123,11 +123,11 @@ export function StudioWorkspaceUI() {
   const isTagsWorkbench =
     state.outputType === 'image' && state.promptDialect === 'tags'
   /**
-   * 图片自然语言台（桌面）= 上面一整块结果舞台 + 底部一条输入框（owner
-   * 2026-09-26 按可点原型拍板）。视频 / 音频 / 标签台 / 手机这一片不动。
+   * 图片台（桌面，自然语言与标签两台）= 上面一整块结果舞台 + 底部一条输入框
+   * （owner 2026-09-26 按可点原型拍板）。视频 / 音频 / 手机这一片不动。
    */
-  const isImageBottomComposer =
-    !useMobileComposer && state.outputType === 'image' && !isTagsWorkbench
+  const isBottomComposer = !useMobileComposer && state.outputType === 'image'
+  const isImageBottomComposer = isBottomComposer && !isTagsWorkbench
   /**
    * 助手展开时工作台让位（owner 2026-09-26）：`studioOperatorYield` 由 Dock 按
    * 形状第二拍的弹簧驱动，这里只把它绑到地台的右内边距。
@@ -136,10 +136,19 @@ export function StudioWorkspaceUI() {
    */
   const operatorYield = useStudioOperatorYield()
   const groundPaddingRight = useTransform(operatorYield, (reserve) =>
-    isImageBottomComposer && reserve > 0
+    isBottomComposer && reserve > 0
       ? `max(var(--workbench-pad), ${reserve}px)`
       : 'var(--workbench-pad)',
   )
+  /** 底部输入框那两台舞台上方同一行：标题 + 自然语言 / 标签切换。 */
+  const workbenchHeader = isBottomComposer ? (
+    <div className="flex items-center gap-3.5">
+      <h1 className="text-sm font-semibold text-muted-foreground">
+        {tEmptyState('modeLabel.image')}
+      </h1>
+      <StudioDialectHeader disabled={isGenerating} />
+    </div>
+  ) : undefined
 
   const { isLoaded, userId } = useAuth()
   const pathname = usePathname()
@@ -383,20 +392,14 @@ export function StudioWorkspaceUI() {
               `StudioToolbarPanels` / `StudioToolbar` 已整条退役，不留兼容层。
               栏位差异归 `StudioPromptArea` 自己按 outputType 分。 */}
           {isTagsWorkbench ? (
-            <StudioTagsWorkbench />
+            <StudioTagsWorkbench
+              layout={isBottomComposer ? 'bottom' : 'columns'}
+              header={workbenchHeader}
+            />
           ) : (
             <StudioWorkbenchLayout
               layout={isImageBottomComposer ? 'bottom' : 'columns'}
-              header={
-                isImageBottomComposer ? (
-                  <div className="flex items-center gap-3.5">
-                    <h1 className="text-sm font-semibold text-muted-foreground">
-                      {tEmptyState('modeLabel.image')}
-                    </h1>
-                    <StudioDialectHeader disabled={isGenerating} />
-                  </div>
-                ) : undefined
-              }
+              header={workbenchHeader}
               params={
                 useMobileComposer ? null : (
                   <StudioPromptArea

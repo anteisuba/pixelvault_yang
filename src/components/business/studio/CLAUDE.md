@@ -17,7 +17,7 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 (workspace)/layout.tsx
 └── StudioProvider
     └── StudioWorkspaceUI (components/business/ — mounted once for image/video/audio)
-        ├── StudioWorkbenchLayout (studio-shared/chrome/ — 三模态共用：`columns` = 左参数栏 + 右结果区；`bottom` = 舞台在上 + 底部输入框卡（图片自然语言台桌面，2026-09-26），助手展开时地台右内边距绑 `studioOperatorYield` 让位)
+        ├── StudioWorkbenchLayout (studio-shared/chrome/ — 三模态共用：`columns` = 左参数栏 + 右结果区；`bottom` = 舞台在上 + 底部输入框卡（图片台桌面，自然语言与标签两台，2026-09-26；标签台的输入框是 `tags/StudioTagsComposer`，手机仍走 `tags/StudioTagsPromptArea` 两栏），助手展开时地台右内边距绑 `studioOperatorYield` 让位)
         │   ├── params: StudioPromptArea (studio/ — 提示词 + 加料 chip + 模态参数 + 模型 + 规格 + 生成；`layout="bottom"` 同一套控件排成输入框 + 工具行，生成键走 `StudioGenerateButton variant="round"`；工具行 chip 外观由 `StudioChipLookProvider` 圈定、各 chip 用 `useStudioChipClasses()` 取类，⛔ chip 里不判断自己住哪个宿主；这一行的弹层液态开合走 `studio-shared/primitives/liquid-popover.tsx`，共享形状 `LiquidPopoverLayer` 由 bottom 分支挂一次)
         │   │   ├── StudioCardSection (studio/ — 卡片工作流时才渲染，非音频)
         │   │   ├── StudioVideoAssetRail (studio-shared/chrome/ — 视频档素材轨：图片N · 视频N · 音频N，首 / 尾帧是角标；

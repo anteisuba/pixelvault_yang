@@ -50,12 +50,20 @@ export interface StudioTagsControlColumnProps {
    */
   hideCharacters?: boolean
   compact?: boolean
+  /**
+   * `popover` = 桌面底部输入框那颗「专属」chip 的弹层（owner 2026-09-26）：编辑器
+   * 主区已经没有 UC 预设与 `Text:` 的位置，它们一起进来；角色构图走舞台面板、
+   * 分辨率 · 额度写在价格那一格，这两张不画；⛔ 弹层里不再套一层卡片边框。
+   */
+  placement?: 'column' | 'popover'
 }
 
 export function StudioTagsControlColumn({
   hideCharacters,
   compact = false,
+  placement = 'column',
 }: StudioTagsControlColumnProps = {}) {
+  const inPopover = placement === 'popover'
   const t = useTranslations('StudioTags')
   const tCapability = useTranslations('StudioCapabilityChips')
   const tModels = useTranslations('Models')
@@ -103,7 +111,7 @@ export function StudioTagsControlColumn({
   // 画板顺序在前，表外的按能力表自己的声明顺序跟在后面。
   const visible = controls.filter(
     (control) =>
-      !EDITOR_OWNED.includes(control.chip.capability) &&
+      (inPopover || !EDITOR_OWNED.includes(control.chip.capability)) &&
       isCapabilityChipVisible(
         control.chip,
         state.advancedParams,
@@ -139,7 +147,7 @@ export function StudioTagsControlColumn({
 
   return (
     <>
-      {characterMode && characterModel && !hideCharacters ? (
+      {characterMode && characterModel && !hideCharacters && !inPopover ? (
         <ControlCard
           title={t('characterTitle')}
           note={onlyForNote(characterSupport.map((model) => model.modelId))}
@@ -163,6 +171,7 @@ export function StudioTagsControlColumn({
         return (
           <ControlCard
             key={control.chip.capability}
+            flat={inPopover}
             hideTitle={
               compact && control.chip.kind === 'slider' && !merged.length
             }
@@ -228,7 +237,9 @@ export function StudioTagsControlColumn({
           />
         </label>
       ) : null}
-      <ResolutionCard runModels={runModels} note={onlyForNote} />
+      {inPopover ? null : (
+        <ResolutionCard runModels={runModels} note={onlyForNote} />
+      )}
       {hasReferenceImage &&
       !controls.some(
         (control) => control.chip.capability === 'novelAiReferenceMode',
@@ -242,18 +253,26 @@ export function StudioTagsControlColumn({
 }
 
 function ControlCard({
+  flat = false,
   hideTitle = false,
   title,
   note,
   children,
 }: {
+  flat?: boolean
   hideTitle?: boolean
   title: string
   note: string | null
   children: ReactNode
 }) {
   return (
-    <section className="flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5">
+    <section
+      className={
+        flat
+          ? 'flex flex-col gap-2'
+          : 'flex flex-col gap-2 rounded-xl border border-border bg-card p-2.5'
+      }
+    >
       <div
         className={
           hideTitle && !note

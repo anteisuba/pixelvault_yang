@@ -84,6 +84,8 @@ export const STUDIO_ASSISTANT_DOCK_RESIZE = {
  *  re-add the same reference) ignores strip drags; only the assistant dock
  *  accepts both. */
 export const STUDIO_REFERENCE_DRAG_TYPE = 'studio-reference-image' as const
+/** 桌面底部输入框：圆键被挡住时左边那行灰字停留多久（ms）。 */
+export const STUDIO_BLOCKED_HINT_MS = 2600
 /** Max recent image assets shown in the assistant composer's image popover. */
 export const STUDIO_ASSISTANT_RECENT_ASSETS = 8
 

@@ -199,6 +199,17 @@ describe('标签台右列', () => {
       }
     }
   })
+
+  // 桌面底部输入框「专属」那颗 chip 的弹层：编辑器主区已经没有 UC 预设与
+  // `Text:` 的位置，它们进来；角色构图走舞台面板、额度写在价格那一格。
+  it('弹层那一排法：带上 UC 预设与画中文字，不画构图与额度卡', () => {
+    render(<StudioTagsControlColumn placement="popover" compact />)
+    const titles = headings()
+    expect(titles).toContain('capability.ucPreset')
+    expect(titles).toContain('capability.textRendering')
+    expect(titles).not.toContain('characterTitle')
+    expect(titles).not.toContain('resolutionTitle')
+  })
 })
 
 it('V4.5 switches between img2img and precise character controls', () => {

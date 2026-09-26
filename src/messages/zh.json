@@ -8066,6 +8066,7 @@
   "StudioCapabilityChips": {
     "sectionLabel": "专属 · {model}",
     "needsReference": "先挂一张参考图",
+    "singleChipLabel": "专属",
     "capability": {
       "quality": "画质",
       "inputFidelity": "输入保真",
@@ -8102,7 +8103,8 @@
     "priceDelta": "{tier} +{amount} / s",
     "moreItem": {
       "batchCount": "张数"
-    }
+    },
+    "countSummary": "{count} 张"
   },
   "Settings": {
     "title": "设置",

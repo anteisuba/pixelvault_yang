@@ -34,11 +34,13 @@ import {
   STUDIO_TOOL_PANEL_NAMES,
   useStudioForm,
   useStudioData,
+  useStudioGen,
 } from '@/contexts/studio-context'
 import { useStudioShortcuts } from '@/hooks/use-studio-shortcuts'
 import { useStudioPromptTemplates } from '@/hooks/use-studio-prompt-templates'
 import { useStudioGenerateAction } from '@/hooks/use-studio-generate-action'
 import { useStudioVideoAssets } from '@/hooks/use-studio-video-assets'
+import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { AI_ADAPTER_TYPES, getProviderLabel } from '@/constants/providers'
 import { getTranslatedModelLabel } from '@/lib/model-options'
 import { getImageFileFromDataTransfer } from '@/lib/image-input'
@@ -74,8 +76,9 @@ import { StudioReferencePromptInput } from './StudioReferencePromptInput'
 import { StudioVideoPromptInput } from './StudioVideoPromptInput'
 import { QuickSetupDialog } from '@/components/business/studio-shared/setup/QuickSetupDialog'
 import {
-  studioChipActiveClass,
-  studioToolTriggerClass,
+  StudioChipLookProvider,
+  studioOutlineChipClass,
+  studioOutlineChipSetClass,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
 /**
@@ -213,6 +216,24 @@ export const StudioPromptArea = memo(function StudioPromptArea({
       BLOCKED_HINT_MS,
     )
   }, [])
+  /**
+   * 底部输入框的发送口（Enter / 圆键）。被挡住时**不弹 toast**，左边那行说缺什么
+   * —— 同一件事只说一遍（owner 2026-09-26 原型）。
+   */
+  const submitFromComposer = useCallback(() => {
+    if (!canGenerate) {
+      showBlockedHint()
+      void handleGenerate({ quietBlocked: true })
+      return
+    }
+    void handleGenerate()
+  }, [canGenerate, handleGenerate, showBlockedHint])
+  const { cancelAllRunItems } = useStudioGen()
+  const tCancel = useTranslations('GenerationCancel')
+  const referenceNotice = useReferenceReceiverNotice(
+    runModels,
+    imageUpload.referenceEntries.length,
+  )
   const {
     currentTemplateOutputType,
     currentTemplateParams,
@@ -339,7 +360,8 @@ export const StudioPromptArea = memo(function StudioPromptArea({
 
   useStudioShortcuts({
     onGenerate: () => {
-      void handleGenerate()
+      if (layout === 'bottom') submitFromComposer()
+      else void handleGenerate()
     },
   })
 
@@ -418,7 +440,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
           value={state.prompt}
           onValueChange={(v) => dispatch({ type: 'SET_PROMPT', payload: v })}
           maxHeight="9rem"
-          onSubmit={handleGenerate}
+          onSubmit={submitFromComposer}
           onDragEnter={handlePromptDragEnter}
           onDragOver={handlePromptDragOver}
           onDragLeave={handlePromptDragLeave}
@@ -448,6 +470,9 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             variant="composer"
             dragType={STUDIO_REFERENCE_DRAG_TYPE}
           />
+          {referenceNotice ? (
+            <p className="text-2xs text-muted-foreground">{referenceNotice}</p>
+          ) : null}
           {imageUpload.isUploading && (
             <div
               role="status"
@@ -461,7 +486,7 @@ export const StudioPromptArea = memo(function StudioPromptArea({
             placeholder={placeholder}
             disabled={isGenerating}
             onPaste={handlePromptPaste}
-            onSubmit={handleGenerate}
+            onSubmit={submitFromComposer}
             className="min-h-12 max-h-36 overflow-y-auto px-0.5 py-0.5 font-sans text-base leading-6 md:text-sm"
           />
           {isImagePromptOverLimit && (
@@ -499,121 +524,129 @@ export const StudioPromptArea = memo(function StudioPromptArea({
           {state.workflowMode === 'card' ? <StudioCardSection /> : null}
 
           {/* 工具行 —— 左：往这一枪里加料；右：谁来画、画成什么样、多少钱、发。
-              ⚠ 整行挡住冒泡，理由同负面词那一行。 */}
-          <div
-            className="flex flex-wrap items-center gap-x-2 gap-y-2"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <Toolbar.Root className="flex flex-wrap items-center gap-1">
-              <ReferenceImageChip disabled={isGenerating} />
-              {templatePicker}
-              <StudioCardsButton disabled={isGenerating} />
-              <Toolbar.Button
-                type="button"
-                aria-pressed={negativeShown}
-                aria-controls="studio-negative-prompt-input"
-                disabled={isGenerating}
-                onClick={() => {
-                  if (negativeShown && negativePromptValue.trim() === '') {
-                    setNegativePromptExpanded(false)
-                    return
-                  }
-                  setNegativePromptExpanded(true)
-                  requestAnimationFrame(() =>
-                    document
-                      .getElementById('studio-negative-prompt-input')
-                      ?.focus(),
-                  )
-                }}
+              整行 chip 一种外观（描边药丸），⚠ 整行挡住冒泡，理由同负面词那一行。 */}
+          <StudioChipLookProvider value="outline">
+            <div
+              className="flex flex-wrap items-center gap-x-2 gap-y-2"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <Toolbar.Root className="flex flex-wrap items-center gap-1.5">
+                <ReferenceImageChip disabled={isGenerating} />
+                {templatePicker}
+                <StudioCardsButton disabled={isGenerating} />
+                <Toolbar.Button
+                  type="button"
+                  aria-pressed={negativeShown}
+                  aria-controls="studio-negative-prompt-input"
+                  disabled={isGenerating}
+                  onClick={() => {
+                    if (negativeShown && negativePromptValue.trim() === '') {
+                      setNegativePromptExpanded(false)
+                      return
+                    }
+                    setNegativePromptExpanded(true)
+                    requestAnimationFrame(() =>
+                      document
+                        .getElementById('studio-negative-prompt-input')
+                        ?.focus(),
+                    )
+                  }}
+                  className={cn(
+                    studioOutlineChipClass,
+                    negativeShown && studioOutlineChipSetClass,
+                  )}
+                >
+                  <Ban className="size-3.5" aria-hidden />
+                  {tPromptArea('negativePromptLabel')}
+                </Toolbar.Button>
+                <StudioInpaintMaskChip disabled={isGenerating} />
+              </Toolbar.Root>
+              <span
+                aria-live="polite"
                 className={cn(
-                  studioToolTriggerClass,
-                  negativeShown && studioChipActiveClass,
+                  'text-2xs text-muted-foreground transition-[opacity,transform] duration-base ease-standard motion-reduce:transition-none',
+                  blockedHintVisible && blockedReason
+                    ? 'translate-x-0 opacity-100'
+                    : 'pointer-events-none translate-x-2 opacity-0',
                 )}
               >
-                <Ban className="size-4" aria-hidden />
-                {tPromptArea('negativePromptLabel')}
-              </Toolbar.Button>
-              <StudioInpaintMaskChip disabled={isGenerating} />
-            </Toolbar.Root>
-            <span
-              aria-live="polite"
-              className={cn(
-                'text-2xs text-muted-foreground transition-[opacity,transform] duration-base ease-standard motion-reduce:transition-none',
-                blockedHintVisible && blockedReason
-                  ? 'translate-x-0 opacity-100'
-                  : 'pointer-events-none translate-x-2 opacity-0',
-              )}
-            >
-              {blockedHintVisible ? (blockedReason?.message ?? '') : ''}
-            </span>
-            <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-              {state.workflowMode === 'quick' ? (
-                <span data-assistant-field="model">
-                  <MainModelPicker
-                    modality="image"
-                    // ⚠ 恒为 null：chip 上写的是这一轮名单的摘要（一个模型写名字，
-                    //   多个写「N 个模型」），勾选状态走 selectedOptionIds。
-                    value={null}
-                    onChange={(option) =>
-                      dispatch({
-                        type: 'SET_OPTION_ID',
-                        payload: option.optionId,
-                      })
-                    }
-                    selectedOptionIds={runModelIds}
-                    onToggleOption={handleToggleRunModel}
-                    filterOption={filterModelByDialect}
-                    renderSearchFallback={(query, close) => (
-                      <StudioDialectJumpHint query={query} close={close} />
-                    )}
-                    onRequestSetup={handleOpenQuickSetup}
-                    triggerEmptyLabel={modelChipLabel}
-                    searchPlaceholder={tForm('modelSelector.searchPlaceholder')}
-                    emptySearchText={tForm('modelSelector.emptySearch')}
-                    popoverSide="top"
-                    popoverAlign="end"
-                    contentClassName="w-80"
-                    className="h-9"
-                  />
-                </span>
-              ) : null}
-              <span data-assistant-field="specs">
-                <StudioSpecChip
-                  disabled={isGenerating}
-                  triggerClassName="h-9"
-                />
+                {blockedHintVisible ? (blockedReason?.message ?? '') : ''}
               </span>
-              <StudioModelCapabilityChips disabled={isGenerating} inline />
-              <StudioCostPreview
-                variant="line"
-                models={runModels}
-                basis={{
-                  kind: 'image',
-                  perModelCount: state.imageBatchCount,
-                  aspectRatio: state.aspectRatio,
-                  resolution: state.advancedParams.resolution,
-                  quality: state.advancedParams.quality,
-                  preview: state.advancedParams.preview,
-                }}
-              />
-              <StudioGenerateButton
-                variant="round"
-                count={imageCount}
-                ariaLabel={t('generate')}
-                isGenerating={isGenerating}
-                elapsedSeconds={elapsedSeconds}
-                canGenerate={canGenerate}
-                disabled={isGenerating || isImagePromptOverLimit}
-                blockedMessage={blockedReason?.message}
-                busyLabel={t('generating')}
-                label={t('generateCount', { count: imageCount })}
-                onGenerate={() => {
-                  if (!canGenerate) showBlockedHint()
-                  void handleGenerate()
-                }}
-              />
+              <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
+                {state.workflowMode === 'quick' ? (
+                  <span data-assistant-field="model">
+                    <MainModelPicker
+                      modality="image"
+                      // ⚠ 恒为 null：chip 上写的是这一轮名单的摘要（一个模型写名字，
+                      //   多个写「N 个模型」），勾选状态走 selectedOptionIds。
+                      value={null}
+                      onChange={(option) =>
+                        dispatch({
+                          type: 'SET_OPTION_ID',
+                          payload: option.optionId,
+                        })
+                      }
+                      selectedOptionIds={runModelIds}
+                      onToggleOption={handleToggleRunModel}
+                      filterOption={filterModelByDialect}
+                      renderSearchFallback={(query, close) => (
+                        <StudioDialectJumpHint query={query} close={close} />
+                      )}
+                      onRequestSetup={handleOpenQuickSetup}
+                      triggerEmptyLabel={modelChipLabel}
+                      searchPlaceholder={tForm(
+                        'modelSelector.searchPlaceholder',
+                      )}
+                      emptySearchText={tForm('modelSelector.emptySearch')}
+                      popoverSide="top"
+                      popoverAlign="end"
+                      contentClassName="w-80"
+                      className={cn(
+                        'h-8 max-w-48 font-medium',
+                        runModels.length > 0 && studioOutlineChipSetClass,
+                        // 开着 = 与其余 chip 的 open 同一档（`ModelChip` 把 open 写在 data-active）。
+                        'data-[active=true]:border-foreground data-[active=true]:ring-3 data-[active=true]:ring-muted',
+                      )}
+                    />
+                  </span>
+                ) : null}
+                <span data-assistant-field="specs">
+                  <StudioSpecChip disabled={isGenerating} showCount />
+                </span>
+                <StudioModelCapabilityChips
+                  disabled={isGenerating}
+                  variant="single"
+                />
+                <StudioCostPreview
+                  variant="line"
+                  models={runModels}
+                  basis={{
+                    kind: 'image',
+                    perModelCount: state.imageBatchCount,
+                    aspectRatio: state.aspectRatio,
+                    resolution: state.advancedParams.resolution,
+                    quality: state.advancedParams.quality,
+                    preview: state.advancedParams.preview,
+                  }}
+                />
+                <StudioGenerateButton
+                  variant="round"
+                  count={imageCount}
+                  ariaLabel={t('generate')}
+                  isGenerating={isGenerating}
+                  elapsedSeconds={elapsedSeconds}
+                  canGenerate={canGenerate}
+                  disabled={isGenerating || isImagePromptOverLimit}
+                  blockedMessage={blockedReason?.message}
+                  busyLabel={t('generating')}
+                  label={t('generateCount', { count: imageCount })}
+                  onGenerate={submitFromComposer}
+                  onStop={cancelAllRunItems}
+                  stopLabel={tCancel('cancelAll')}
+                />
+              </div>
             </div>
-          </div>
+          </StudioChipLookProvider>
         </PromptInput>
       </>
     )

@@ -1,7 +1,10 @@
 'use client'
 
+import { useReducedMotion } from 'motion/react'
+
 import { ArrowUp } from '@/components/icons'
 import { Spinner } from '@/components/ui/spinner'
+import { resolveGenerationProgress } from '@/lib/generation-progress'
 import {
   setOperatorPrimed,
   useStudioOperatorState,
@@ -34,6 +37,13 @@ interface StudioGenerateButtonProps {
   variant?: 'block' | 'round'
   /** `round` 的角标数（这一次出几张）；≤ 1 不画。 */
   count?: number
+  /**
+   * `round` 生成中那一档：给了就是 ■ 停止（外圈走进度），点一下取消这一轮；
+   * 不给就退回转圈且不可点。
+   */
+  onStop?: () => void
+  /** 停止键的无障碍名。 */
+  stopLabel?: string
   className?: string
 }
 
@@ -59,31 +69,53 @@ export function StudioGenerateButton({
   onGenerate,
   variant = 'block',
   count = 1,
+  onStop,
+  stopLabel,
   className,
 }: StudioGenerateButtonProps) {
   const { primed: isOperatorPrimed } = useStudioOperatorState()
+  const reducedMotion = Boolean(useReducedMotion())
 
   if (variant === 'round') {
     const blocked = !isGenerating && Boolean(blockedMessage)
+    const stoppable = isGenerating && Boolean(onStop)
     const spoken = isGenerating
       ? elapsedSeconds > 0
         ? `${busyLabel} ${elapsedSeconds}s`
         : busyLabel
       : (blockedMessage ?? label)
+    /**
+     * 外圈进度 —— 与卡片「裱框显影」同一套阶段估算（`resolveGenerationProgress`），
+     * 永不自己走到 100。持续运动用 linear（loading.md：匀速 = 诚实）。
+     */
+    const percent = isGenerating
+      ? resolveGenerationProgress({
+          elapsedSeconds,
+          isComplete: false,
+          reducedMotion,
+        }).percent
+      : 0
     return (
       <button
         type="button"
         data-operator-primed={isOperatorPrimed ? 'true' : undefined}
+        data-state={stoppable ? 'busy' : blocked ? 'blocked' : 'ready'}
         onClick={(event) => {
           event.stopPropagation()
+          if (stoppable) {
+            onStop?.()
+            return
+          }
           setOperatorPrimed(false)
           onGenerate()
         }}
-        disabled={disabled}
-        aria-label={`${ariaLabel} · ${spoken}`}
+        disabled={stoppable ? false : disabled}
+        aria-label={
+          stoppable ? (stopLabel ?? spoken) : `${ariaLabel} · ${spoken}`
+        }
         title={spoken}
         aria-busy={isGenerating}
-        aria-disabled={!canGenerate}
+        aria-disabled={stoppable ? undefined : !canGenerate}
         className={cn(
           'relative grid size-9 shrink-0 place-items-center rounded-full bg-primary text-primary-foreground',
           'transition-[background-color,color,transform] duration-fast ease-standard',
@@ -101,7 +133,38 @@ export function StudioGenerateButton({
         )}
       >
         {isGenerating ? (
-          <Spinner className="size-4" />
+          stoppable ? (
+            <>
+              <svg
+                aria-hidden
+                viewBox="0 0 36 36"
+                className="pointer-events-none absolute inset-0 size-full -rotate-90"
+              >
+                <circle
+                  cx="18"
+                  cy="18"
+                  r="16.5"
+                  pathLength={100}
+                  className="fill-none stroke-primary-foreground/25"
+                  strokeWidth={2}
+                />
+                <circle
+                  cx="18"
+                  cy="18"
+                  r="16.5"
+                  pathLength={100}
+                  strokeDasharray={100}
+                  strokeDashoffset={100 - percent}
+                  className="fill-none stroke-primary-foreground transition-[stroke-dashoffset] duration-slow ease-linear motion-reduce:transition-none"
+                  strokeWidth={2}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <span aria-hidden className="size-2.5 rounded-xs bg-current" />
+            </>
+          ) : (
+            <Spinner className="size-4" />
+          )
         ) : (
           <ArrowUp className="size-4" aria-hidden />
         )}

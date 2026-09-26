@@ -38,6 +38,8 @@ import type { AdvancedParams } from '@/types'
 interface StudioSpecChipProps {
   readonly disabled?: boolean
   readonly triggerClassName?: string
+  /** 图片档：把张数写进 chip 摘要（底部输入框，owner 2026-09-26）。 */
+  readonly showCount?: boolean
 }
 
 const moreTierClass =
@@ -47,6 +49,7 @@ const moreTierClass =
 function StudioImageSpecChip({
   disabled,
   triggerClassName,
+  showCount = false,
 }: StudioSpecChipProps) {
   const { state, dispatch } = useStudioForm()
   const { selectedModel } = useImageModelOptions()
@@ -87,6 +90,9 @@ function StudioImageSpecChip({
       onResolutionChange={setResolution}
       data-testid="studio-spec-chip"
       {...(triggerClassName ? { triggerClassName } : {})}
+      {...(showCount
+        ? { summarySuffix: t('countSummary', { count: state.imageBatchCount }) }
+        : {})}
       {...(disabled === undefined ? {} : { disabled })}
       more={
         <div className="flex flex-col gap-1.5" data-assistant-field="count">

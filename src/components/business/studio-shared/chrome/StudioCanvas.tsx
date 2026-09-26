@@ -19,10 +19,9 @@ import {
   useStudioData,
   useStudioGen,
 } from '@/contexts/studio-context'
-import { getMaxReferenceImages } from '@/constants/provider-capabilities'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { useStudioRunModels } from '@/hooks/use-studio-run-models'
-import { getTranslatedModelLabel } from '@/lib/model-options'
+import { useReferenceReceiverNotice } from '@/hooks/use-reference-receiver-notice'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { promptCreatePath } from '@/constants/routes'
 import { usePathname, useRouter } from '@/i18n/navigation'
@@ -38,6 +37,8 @@ import {
 } from '@/lib/studio/audio-feedback-mapping'
 import type { GenerationRecord } from '@/types'
 
+import { Wand2 } from '@/components/icons'
+import { Button } from '@/components/ui/button'
 import { CompareGrid } from '@/components/business/image/CompareGrid'
 import { StudioReferenceRail } from '@/components/business/studio-shared/chrome/StudioReferenceRail'
 import { StudioVideoQueueStrip } from '@/components/business/studio-shared/chrome/StudioVideoQueueStrip'
@@ -57,7 +58,18 @@ import {
  * Delegates rendering to GenerationPreview (empty / loading / image / error).
  * Accepts gallery image drops — adds as reference and opens the ref panel.
  */
-export const StudioCanvas = memo(function StudioCanvas() {
+interface StudioCanvasProps {
+  /**
+   * 舞台顶部那条参考轨。底部输入框布局（owner 2026-09-26）传 `false`：参考图
+   * 只住在输入框的附件行里，舞台只放结果；「编辑这张」挪到下方放大图底下，
+   * 「只发给谁」那句挪到附件行下面。
+   */
+  referenceRail?: boolean
+}
+
+export const StudioCanvas = memo(function StudioCanvas({
+  referenceRail = true,
+}: StudioCanvasProps) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
   const {
@@ -79,7 +91,6 @@ export const StudioCanvas = memo(function StudioCanvas() {
   const tEdit = useTranslations('StudioImageEdit')
   const tVideo = useTranslations('VideoGenerate')
   const tImageChip = useTranslations('ImageChip')
-  const tModels = useTranslations('Models')
   const [errorDismissed, setErrorDismissed] = useState<string | null>(null)
   /**
    * 编辑态的目标图。非空 = 结果区整片切成编辑态（施工基准
@@ -307,6 +318,15 @@ export const StudioCanvas = memo(function StudioCanvas() {
           referenceIndex: activeReferenceIndex,
           referenceTotal: referenceEntries.length,
         }
+  /** 没有参考轨时，还没出结果的那张参考图撑满舞台（见下方舞台分支）。 */
+  const referenceFillsStage =
+    !referenceRail &&
+    !editTarget &&
+    activeRun?.mode !== 'compare' &&
+    activeRun?.mode !== 'variant' &&
+    !isGenerating &&
+    !lastGeneration &&
+    stageReference !== null
 
   /**
    * 这条轨叫什么 —— 槽位语义由 `resolveReferenceRailSlot` 判（那里有判据与单测），
@@ -326,21 +346,10 @@ export const StudioCanvas = memo(function StudioCanvas() {
    * 的那个数，⛔ 不是厂商名。
    * ⛔ 有它也不禁用参考轨 —— 图还在，只是收件人少一个。
    */
-  const referenceReceivers = runModels.filter(
-    (model) => getMaxReferenceImages(model.adapterType, model.modelId) > 0,
+  const referenceNotice = useReferenceReceiverNotice(
+    runModels,
+    referenceEntries.length,
   )
-  const referenceNotice =
-    referenceEntries.length === 0 || runModels.length < 2
-      ? undefined
-      : referenceReceivers.length === 0
-        ? tImageChip('referenceNoReceiver')
-        : referenceReceivers.length < runModels.length
-          ? tImageChip('referenceOnlyFor', {
-              models: referenceReceivers
-                .map((model) => getTranslatedModelLabel(tModels, model.modelId))
-                .join(' · '),
-            })
-          : undefined
 
   /**
    * 队列里当前在播放器里看的那一条。null = 看最新结果（`lastGeneration`）。
@@ -421,13 +430,13 @@ export const StudioCanvas = memo(function StudioCanvas() {
       ref={canvasRef}
       className={cn(
         'studio-canvas transition-all',
-        editTarget && 'flex min-h-0 flex-1 flex-col',
+        (editTarget || referenceFillsStage) && 'flex min-h-0 flex-1 flex-col',
         isDragOver && 'ring-2 ring-primary/40 bg-primary/5 rounded-xl',
       )}
     >
       {/* 参考轨 —— 与结果并存，不再被结果挤掉。编辑态下不画：编辑舞台自带
           返回条与「正在编辑 · 参考图 N / M」，两条一起出现就是一屏两遍。 */}
-      {!editTarget && stageReference && (
+      {!editTarget && stageReference && referenceRail && (
         <StudioReferenceRail
           label={referenceRailLabel}
           notice={referenceNotice}
@@ -472,7 +481,9 @@ export const StudioCanvas = memo(function StudioCanvas() {
         data-testid="studio-canvas-content"
         className={cn(
           'w-full',
-          editTarget ? 'flex min-h-0 flex-1 flex-col' : 'mx-auto',
+          editTarget || referenceFillsStage
+            ? 'flex min-h-0 flex-1 flex-col'
+            : 'mx-auto',
         )}
       >
         {/* 图墙：多模型与单模型多张走**同一片**栅格 —— 它们本来就是同一个矩阵
@@ -508,18 +519,42 @@ export const StudioCanvas = memo(function StudioCanvas() {
             />
           )
         ) : !isGenerating && !lastGeneration && stageReference ? (
-          /* 还没有结果时，当前参考图占住舞台。位置与编辑入口都归参考轨管，
-             这里只负责把那一张放大 —— 计数与「编辑这张」不再重复一遍。 */
-          <div className="m-auto flex w-full flex-col items-center gap-3">
-            <div className="w-full overflow-hidden rounded-xl bg-card">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={stageReference.url}
-                alt={tEdit('sourceAlt')}
-                className="studio-reference-stage-image object-contain"
-              />
+          /* 还没有结果时，当前参考图占住舞台。有参考轨时位置与编辑入口归轨管，
+             这里只负责把那一张放大；没有轨（底部输入框布局）时图按舞台剩下的
+             高度等比缩放 —— 舞台高度随输入框伸缩，⛔ 不能按视口算。 */
+          referenceFillsStage ? (
+            <div className="flex min-h-0 flex-1 flex-col items-center gap-3">
+              <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={stageReference.url}
+                  alt={tEdit('sourceAlt')}
+                  className="max-h-full max-w-full rounded-xl object-contain"
+                />
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => setEditTarget(stageReference)}
+              >
+                <Wand2 className="size-3.5" />
+                {tEdit('stageEditThis')}
+              </Button>
             </div>
-          </div>
+          ) : (
+            <div className="m-auto flex w-full flex-col items-center gap-3">
+              <div className="w-full overflow-hidden rounded-xl bg-card">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={stageReference.url}
+                  alt={tEdit('sourceAlt')}
+                  className="studio-reference-stage-image object-contain"
+                />
+              </div>
+            </div>
+          )
         ) : (
           <>
             <GenerationPreview

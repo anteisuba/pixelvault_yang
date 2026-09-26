@@ -26,6 +26,7 @@ import {
   StudioPanelHeader,
   studioDialogBaseClass,
   studioDialogBodyClass,
+  useStudioChipClasses,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ROUTES } from '@/constants/routes'
 import { useRouter } from '@/i18n/navigation'
@@ -86,6 +87,7 @@ export function PromptTemplatePicker({
   onApplyInspiration,
 }: PromptTemplatePickerProps) {
   const t = useTranslations('PromptLibrary')
+  const chip = useStudioChipClasses()
   const router = useRouter()
   const { lastGeneration } = useStudioGen()
   const [open, setOpen] = useState(false)
@@ -214,13 +216,17 @@ export function PromptTemplatePicker({
           type="button"
           variant="ghost"
           size="sm"
-          className={cn(
-            'h-9 rounded-full px-3 text-sm text-muted-foreground',
-            'transition-[color,background-color,border-color,box-shadow] duration-200',
-            'hover:bg-muted/35 hover:text-foreground',
-            'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20',
-            'data-[state=open]:bg-muted/55 data-[state=open]:text-foreground',
-          )}
+          className={
+            chip.look === 'outline'
+              ? cn(chip.trigger, 'data-[state=open]:border-foreground')
+              : cn(
+                  'h-9 rounded-full px-3 text-sm text-muted-foreground',
+                  'transition-[color,background-color,border-color,box-shadow] duration-200',
+                  'hover:bg-muted/35 hover:text-foreground',
+                  'focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-primary/20',
+                  'data-[state=open]:bg-muted/55 data-[state=open]:text-foreground',
+                )
+          }
         >
           <FileText className="size-4" />
           {t('templatePicker')}

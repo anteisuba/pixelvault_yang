@@ -60,6 +60,11 @@ export interface SpecChipProps {
   readonly flashSignal?: string | null
   readonly ariaLabel: string
   /** chip 触发器的额外样式（画布卡上的 chip 比工作台的小一档）。 */
+  /**
+   * 接在摘要后面的一段（「1:1 · 2K」+「· 2 张」）。底部输入框把张数写上 chip
+   * （owner 2026-09-26 原型），参数栏照旧只写比例与清晰度。
+   */
+  readonly summarySuffix?: string
   readonly triggerClassName?: string
   readonly 'data-testid'?: string
 }
@@ -164,6 +169,7 @@ export function SpecChip({
   flashSignal,
   ariaLabel,
   triggerClassName,
+  summarySuffix,
   'data-testid': testId,
 }: SpecChipProps) {
   const t = useTranslations('StudioSpecChip')
@@ -229,7 +235,11 @@ export function SpecChip({
           )}
         >
           <span className="min-w-0 flex-1 truncate text-left tabular-nums">
-            {model.summary || ariaLabel}
+            {model.summary
+              ? summarySuffix
+                ? `${model.summary} · ${summarySuffix}`
+                : model.summary
+              : ariaLabel}
           </span>
           <ChevronDown
             aria-hidden

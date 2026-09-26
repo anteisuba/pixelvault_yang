@@ -8066,6 +8066,7 @@
   "StudioCapabilityChips": {
     "sectionLabel": "{model} 専用",
     "needsReference": "先に参照画像を追加してください",
+    "singleChipLabel": "専用設定",
     "capability": {
       "quality": "画質",
       "inputFidelity": "入力忠実度",
@@ -8102,7 +8103,8 @@
     "priceDelta": "{tier} +{amount} / s",
     "moreItem": {
       "batchCount": "枚数"
-    }
+    },
+    "countSummary": "{count} 枚"
   },
   "Settings": {
     "title": "設定",

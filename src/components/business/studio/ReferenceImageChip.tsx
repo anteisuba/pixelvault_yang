@@ -16,8 +16,7 @@ import {
   StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
-  studioChipActiveClass,
-  studioToolTriggerClass,
+  useStudioChipClasses,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
 interface ReferenceImageChipProps {
@@ -63,6 +62,7 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
     ? t('limitReached', { max: imageUpload.maxImages })
     : undefined
   const isActive = totalEntries > 0
+  const chip = useStudioChipClasses()
   const badgeWarning =
     totalEntries > 0 && enabledReferenceCount === 0
       ? t('disabledUnsupported')
@@ -146,16 +146,33 @@ export function ReferenceImageChip({ disabled }: ReferenceImageChipProps) {
             aria-label={t('label')}
             title={badgeWarning}
             className={cn(
-              studioToolTriggerClass,
-              (isActive || popoverOpen) && studioChipActiveClass,
+              chip.trigger,
+              chip.look === 'outline'
+                ? cn(isActive && chip.set, popoverOpen && chip.open)
+                : (isActive || popoverOpen) && chip.open,
             )}
           >
             <ImageIcon className="size-4 shrink-0" />
-            <span className="hidden sm:inline">{t('label')}</span>
-            {totalEntries > 0 && (
-              <StudioChipBadge title={badgeWarning} ariaLabel={badgeWarning}>
-                {totalEntries}
-              </StudioChipBadge>
+            {chip.look === 'outline' ? (
+              // 描边外观把数写进字里（「图像 2」），⛔ 不再挂角标 —— 一行药丸上
+              // 只有这一颗带红点会显得是报错。
+              <span className="tabular-nums">
+                {totalEntries > 0
+                  ? `${t('label')} ${totalEntries}`
+                  : t('label')}
+              </span>
+            ) : (
+              <>
+                <span className="hidden sm:inline">{t('label')}</span>
+                {totalEntries > 0 && (
+                  <StudioChipBadge
+                    title={badgeWarning}
+                    ariaLabel={badgeWarning}
+                  >
+                    {totalEntries}
+                  </StudioChipBadge>
+                )}
+              </>
             )}
           </Toolbar.Button>
         </StudioToolSurfaceTrigger>

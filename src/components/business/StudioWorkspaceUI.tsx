@@ -404,7 +404,7 @@ export function StudioWorkspaceUI() {
                   />
                 )
               }
-              stage={<StudioCanvas />}
+              stage={<StudioCanvas referenceRail={!isImageBottomComposer} />}
               composer={useMobileComposer ? <StudioMobileComposer /> : null}
             />
           )}

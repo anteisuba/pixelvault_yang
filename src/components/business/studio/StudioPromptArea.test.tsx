@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { toast } from 'sonner'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { AUDIO_PROMPT_PAYLOAD_MAX_CHARS } from '@/constants/audio-options'
@@ -73,6 +74,8 @@ const mockUseAudioModelOptions = vi.hoisted(() => vi.fn())
 const mockUseVoiceCards = vi.hoisted(() => vi.fn())
 const mockImageUploadHandleDrop = vi.hoisted(() => vi.fn())
 const mockImageUploadState = vi.hoisted(() => ({ isUploading: false }))
+const mockGenState = vi.hoisted(() => ({ isGenerating: false }))
+const mockCancelAllRunItems = vi.hoisted(() => vi.fn())
 import { SAMPLE_PROMPT_STORAGE_KEY } from '@/constants/sample-prompts'
 const SAMPLE_PROMPT_FLAG_KEY = SAMPLE_PROMPT_STORAGE_KEY
 
@@ -177,7 +180,7 @@ vi.mock('@/contexts/studio-context', () => ({
     },
   }),
   useStudioGen: () => ({
-    isGenerating: false,
+    isGenerating: mockGenState.isGenerating,
     generate: mockGenerate,
     elapsedSeconds: 0,
     // ⚠ 手写镜像少一个字段就等于把闸关上：`canQueueMoreVideo` 缺席时
@@ -185,6 +188,7 @@ vi.mock('@/contexts/studio-context', () => ({
     //   提交测试同时红。这类漏字段是这个仓库反复踩的一类（见 VideoComposer
     //   的夹具脱节）。
     canQueueMoreVideo: true,
+    cancelAllRunItems: mockCancelAllRunItems,
   }),
 }))
 
@@ -653,12 +657,28 @@ describe('StudioPromptArea', () => {
       expect(hint).not.toBeNull()
       expect(hint).toHaveClass('opacity-100')
       expect(hint?.textContent).not.toBe('')
+      // 同一件事只说一遍：左边那行说了，就不再弹 toast。
+      expect(toast.info).not.toHaveBeenCalled()
+      expect(toast.error).not.toHaveBeenCalled()
+    })
+
+    it('① 圆键生成中是 ■ 停止：点一下取消整轮，不再发一枪', () => {
+      mockGenState.isGenerating = true
+      setupImage({ prompt: 'a cat' })
+      renderBottom()
+
+      const button = screen.getByRole('button', { name: 'cancelAll' })
+      expect(button).not.toBeDisabled()
+      fireEvent.click(button)
+      expect(mockCancelAllRunItems).toHaveBeenCalledTimes(1)
+      expect(mockGenerate).not.toHaveBeenCalled()
     })
   })
 
   beforeEach(() => {
     vi.clearAllMocks()
     mockImageUploadState.isUploading = false
+    mockGenState.isGenerating = false
     mockGenerate.mockResolvedValue(null)
     mockImageUploadHandleDrop.mockResolvedValue(undefined)
     mockUseAudioModelOptions.mockReturnValue({

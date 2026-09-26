@@ -997,26 +997,33 @@ export function useStudioGenerateAction() {
     tPicker,
   ])
 
-  const handleGenerate = useCallback(async () => {
-    if (isGenerating) return
-    if (blockedReason) {
-      // Krea-style: button stays clickable; click surfaces the missing piece
-      // instead of silently doing nothing.
-      toast.info(blockedReason.message)
-      // 缺的是渠道就直接把选择器打开并定位到那一行 —— ⛔ 不让他自己去找
-      // （owner D2 Q1：「点了打开这行的渠道列表」）。
-      if (blockedReason.action === 'pickChannel') channelGate.requestPick()
-      if (blockedReason.focusPrompt === 'now') {
-        focusStudioPrompt()
-      } else if (blockedReason.focusPrompt === 'nextFrame') {
-        requestAnimationFrame(() => {
+  const handleGenerate = useCallback(
+    async (options?: { quietBlocked?: boolean }) => {
+      if (isGenerating) return
+      if (blockedReason) {
+        // Krea-style: button stays clickable; click surfaces the missing piece
+        // instead of silently doing nothing.
+        // ⚠ `quietBlocked`：宿主自己把缺什么写在键旁边（底部输入框那行灰字，
+        //   owner 2026-09-26）时不再弹 toast —— 同一句话不许一屏两遍。
+        //   `options` 可能是冒泡上来的事件对象（onSubmit={handleGenerate}），
+        //   所以只认显式的 `true`。
+        if (options?.quietBlocked !== true) toast.info(blockedReason.message)
+        // 缺的是渠道就直接把选择器打开并定位到那一行 —— ⛔ 不让他自己去找
+        // （owner D2 Q1：「点了打开这行的渠道列表」）。
+        if (blockedReason.action === 'pickChannel') channelGate.requestPick()
+        if (blockedReason.focusPrompt === 'now') {
           focusStudioPrompt()
-        })
+        } else if (blockedReason.focusPrompt === 'nextFrame') {
+          requestAnimationFrame(() => {
+            focusStudioPrompt()
+          })
+        }
+        return
       }
-      return
-    }
-    await executeGenerate()
-  }, [blockedReason, isGenerating, executeGenerate, channelGate])
+      await executeGenerate()
+    },
+    [blockedReason, isGenerating, executeGenerate, channelGate],
+  )
 
   /**
    * `REQUEST_GENERATE` 的执行端（「保留 / 改变」面板、音频反馈重试走这条路）。

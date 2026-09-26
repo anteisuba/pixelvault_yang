@@ -9,6 +9,7 @@ import { getCapabilityConfig } from '@/constants/provider-capabilities'
 import { useStudioData, useStudioForm } from '@/contexts/studio-context'
 import { useImageModelOptions } from '@/hooks/use-image-model-options'
 import { cn } from '@/lib/utils'
+import { useStudioChipClasses } from '@/components/business/studio-shared/primitives/tool-surface'
 import type { AdvancedParams } from '@/types'
 import { StudioInpaintEditor } from '@/components/business/studio/StudioInpaintEditor'
 import {
@@ -36,6 +37,7 @@ export function StudioInpaintMaskChip({ disabled }: { disabled?: boolean }) {
   const { state, dispatch } = useStudioForm()
   const { imageUpload } = useStudioData()
   const { selectedModel } = useImageModelOptions()
+  const chip = useStudioChipClasses()
   const [open, setOpen] = useState(false)
   const [size, setSize] = useState<{ width: number; height: number } | null>(
     null,
@@ -86,22 +88,36 @@ export function StudioInpaintMaskChip({ disabled }: { disabled?: boolean }) {
   const fallsBack = novelAiInpaintFallsBack(externalModelId)
   const unavailable = !sourceImage
   const reason = unavailable ? t('needsOneReference') : undefined
+  const outline = chip.look === 'outline'
 
   return (
     <>
       <button
         type="button"
-        disabled={disabled || unavailable}
+        // ⚠ 描边外观下「缺参考图」不禁用：禁用的按钮连 title 都浮不出来，
+        //   用户只看见一颗灰掉的 chip 却不知道差什么。点了不开编辑器。
+        disabled={disabled || (unavailable && !outline)}
+        aria-disabled={unavailable || undefined}
         title={reason ?? (fallsBack ? t('fallbackHint') : undefined)}
-        onClick={() => setOpen(true)}
-        className={cn(
-          'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none',
-          unavailable
-            ? 'border-border bg-muted text-muted-foreground'
-            : mask
-              ? 'border-foreground bg-foreground text-background'
-              : 'border-border bg-background text-foreground',
-        )}
+        onClick={() => {
+          if (!unavailable) setOpen(true)
+        }}
+        className={
+          outline
+            ? cn(
+                chip.trigger,
+                unavailable && 'text-muted-foreground',
+                mask && chip.set,
+              )
+            : cn(
+                'inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 text-2sm transition-colors duration-fast ease-standard focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none',
+                unavailable
+                  ? 'border-border bg-muted text-muted-foreground'
+                  : mask
+                    ? 'border-foreground bg-foreground text-background'
+                    : 'border-border bg-background text-foreground',
+              )
+        }
       >
         {mask ? t('labelSet') : t('label')}
       </button>

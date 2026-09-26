@@ -18,13 +18,13 @@ image-only 与尚未迁移的组件留在 `studio/` 或 `image/`。下面标注�
 └── StudioProvider
     └── StudioWorkspaceUI (components/business/ — mounted once for image/video/audio)
         ├── StudioWorkbenchLayout (studio-shared/chrome/ — 三模态共用：`columns` = 左参数栏 + 右结果区；`bottom` = 舞台在上 + 底部输入框卡（图片自然语言台桌面，2026-09-26），助手展开时地台右内边距绑 `studioOperatorYield` 让位)
-        │   ├── params: StudioPromptArea (studio/ — 提示词 + 加料 chip + 模态参数 + 模型 + 规格 + 生成；`layout="bottom"` 同一套控件排成输入框 + 工具行，生成键走 `StudioGenerateButton variant="round"`)
+        │   ├── params: StudioPromptArea (studio/ — 提示词 + 加料 chip + 模态参数 + 模型 + 规格 + 生成；`layout="bottom"` 同一套控件排成输入框 + 工具行，生成键走 `StudioGenerateButton variant="round"`；工具行 chip 外观由 `StudioChipLookProvider` 圈定、各 chip 用 `useStudioChipClasses()` 取类，⛔ chip 里不判断自己住哪个宿主)
         │   │   ├── StudioCardSection (studio/ — 卡片工作流时才渲染，非音频)
         │   │   ├── StudioVideoAssetRail (studio-shared/chrome/ — 视频档素材轨：图片N · 视频N · 音频N，首 / 尾帧是角标；
         │   │   │    轨下一行只读灰字说这一枪怎么发；容量来自发送契约 getStudioVideoCapacity)
         │   │   └── StudioVideoPromptInput (studio/ — 视频档提示词框：按模型写法把素材编号渲染成缩略图胶囊，存储仍是原文)
         │   └── stage: StudioCanvas (studio-shared/chrome/)
-        │       ├── StudioReferenceRail (studio-shared/chrome/ — 参考轨，与结果并存)
+        │       ├── StudioReferenceRail (studio-shared/chrome/ — 参考轨，与结果并存；`bottom` 布局不画（`referenceRail={false}`），附件在输入框里)
         │       ├── GenerationPreview (studio/ — current result)
         │       ├── CompareGrid (image/ — 共享图墙：多模型 / 多张 / 矩阵)
         │       ├── AudioVariantGrid (studio/ — 音频变体，内联播放器)

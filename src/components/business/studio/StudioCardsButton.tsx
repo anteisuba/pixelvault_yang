@@ -14,8 +14,7 @@ import {
   StudioToolPopoverContent,
   StudioToolSurface,
   StudioToolSurfaceTrigger,
-  studioChipActiveClass,
-  studioToolTriggerClass,
+  useStudioChipClasses,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 
 interface StudioCardsButtonProps {
@@ -30,6 +29,7 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
   const { state, dispatch } = useStudioForm()
   const { characters, backgrounds, styles } = useStudioData()
   const t = useTranslations('StudioV2')
+  const chip = useStudioChipClasses()
   const open = state.panels.cardSelector
   const selectedCardCount =
     characters.activeCardIds.length +
@@ -52,13 +52,27 @@ export function StudioCardsButton({ disabled }: StudioCardsButtonProps) {
           type="button"
           disabled={disabled}
           aria-label={t('cards')}
-          className={cn(studioToolTriggerClass, open && studioChipActiveClass)}
+          className={cn(
+            chip.trigger,
+            chip.look === 'outline' && selectedCardCount > 0 && chip.set,
+            open && chip.open,
+          )}
         >
           <PanelsTopLeft className="size-4" />
-          <span className="hidden sm:inline">{t('cards')}</span>
-          {selectedCardCount > 0 ? (
-            <StudioChipBadge>{selectedCardCount}</StudioChipBadge>
-          ) : null}
+          {chip.look === 'outline' ? (
+            <span className="tabular-nums">
+              {selectedCardCount > 0
+                ? `${t('cards')} ${selectedCardCount}`
+                : t('cards')}
+            </span>
+          ) : (
+            <>
+              <span className="hidden sm:inline">{t('cards')}</span>
+              {selectedCardCount > 0 ? (
+                <StudioChipBadge>{selectedCardCount}</StudioChipBadge>
+              ) : null}
+            </>
+          )}
         </Toolbar.Button>
       </StudioToolSurfaceTrigger>
       <StudioToolPopoverContent

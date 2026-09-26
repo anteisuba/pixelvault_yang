@@ -17,12 +17,16 @@ import type { AdvancedParams } from '@/types'
 import { Input } from '@/components/ui/input'
 import { OptionGroup } from '@/components/ui/option-group'
 import { ParamSlider } from '@/components/ui/param-slider'
+import { Switch } from '@/components/ui/switch'
 import {
   StudioToolSurface,
   StudioToolSurfaceTrigger,
   studioToolSurfaceMobileClass,
   studioToolSurfaceSizeClass,
   studioToolPopoverBaseClass,
+  studioToolPopoverPaddingClass,
+  studioToolPopoverWidthClass,
+  useStudioChipClasses,
 } from '@/components/business/studio-shared/primitives/tool-surface'
 import { ResponsivePopoverContent } from '@/components/ui/responsive-popover'
 
@@ -44,16 +48,17 @@ interface StudioModelCapabilityChipsProps {
   /** 手机 composer 那一行放不下时横向滚动，不换行（换行会让 composer 高度跳）。 */
   scroll?: boolean
   /**
-   * 底部输入框的工具行（owner 2026-09-26）：只要那一排 chip，⛔ 不画虚线与
-   * 「专属 · 模型名」小标 —— 小标改成 chip 行的无障碍名。
+   * `section` = 参数栏 / 手机那一段（虚线 + 小标 + 一行 chip，缺省）。
+   * `single` = 底部输入框工具行里的**一颗** chip（owner 2026-09-26 原型：专属
+   * 每个模型一颗）：chip 上写改过的那一项，点开一个弹层逐项调。
    */
-  inline?: boolean
+  variant?: 'section' | 'single'
 }
 
 export function StudioModelCapabilityChips({
   disabled = false,
   scroll = false,
-  inline = false,
+  variant = 'section',
 }: StudioModelCapabilityChipsProps) {
   const { state } = useStudioForm()
   const { imageUpload } = useStudioData()
@@ -75,14 +80,35 @@ export function StudioModelCapabilityChips({
     model: getTranslatedModelLabel(tModels, selectedModel.modelId),
   })
 
-  if (inline) {
+  if (variant === 'single') {
     if (visibleChips.length === 0) return null
     return (
+      <CapabilitySingleChip
+        chips={visibleChips}
+        params={state.advancedParams}
+        disabled={disabled}
+        hasReferenceImage={hasReferenceImage}
+        sectionLabel={sectionLabel}
+      />
+    )
+  }
+
+  return (
+    <div
+      className="flex flex-col gap-1.5 border-t border-dashed border-border pt-3"
+      // 助手改到专属那一格时整行闪一次（进度表 21）。
+      data-assistant-field="capabilities"
+    >
+      <span className="text-2xs font-medium text-muted-foreground/70">
+        {sectionLabel}
+      </span>
       <div
-        role="group"
-        aria-label={sectionLabel}
-        className="flex items-center gap-1.5"
-        data-assistant-field="capabilities"
+        className={cn(
+          'flex items-center gap-1.5',
+          scroll
+            ? 'studio-mobile-chip-row min-w-0 overflow-x-auto'
+            : 'flex-wrap',
+        )}
       >
         {visibleChips.map((chip) => (
           <CapabilityChipControl
@@ -94,46 +120,6 @@ export function StudioModelCapabilityChips({
           />
         ))}
       </div>
-    )
-  }
-
-  return (
-    <div
-      className="flex flex-col gap-1.5 border-t border-dashed border-border pt-3"
-      // 助手改到专属那一格时整行闪一次（进度表 21）。
-      data-assistant-field="capabilities"
-    >
-      <span className="text-2xs font-medium text-muted-foreground/70">
-        {t('sectionLabel', {
-          model: getTranslatedModelLabel(tModels, selectedModel.modelId),
-        })}
-      </span>
-      <div
-        className={cn(
-          'flex items-center gap-1.5',
-          scroll
-            ? 'studio-mobile-chip-row min-w-0 overflow-x-auto'
-            : 'flex-wrap',
-        )}
-      >
-        {chips
-          .filter((chip) =>
-            isCapabilityChipVisible(
-              chip,
-              state.advancedParams,
-              hasReferenceImage,
-            ),
-          )
-          .map((chip) => (
-            <CapabilityChipControl
-              key={chip.capability}
-              chip={chip}
-              params={state.advancedParams}
-              disabled={disabled}
-              hasReferenceImage={hasReferenceImage}
-            />
-          ))}
-      </div>
     </div>
   )
 }
@@ -143,6 +129,252 @@ const chipBaseClass =
 const chipIdleClass = 'border-border bg-background text-foreground'
 const chipSetClass = 'border-foreground bg-foreground text-background'
 const chipMutedClass = 'border-border bg-muted text-muted-foreground'
+
+type Translate = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string
+
+/** chip 上「画质 · 高」后半截那个值；开关档没有值可写。 */
+function capabilityValueLabel(
+  chip: CapabilityChip,
+  value: string | number | boolean,
+  t: Translate,
+  tAdvanced: Translate,
+): string | null {
+  if (chip.kind === 'select') {
+    return tAdvanced(`${chip.capability}Option.${String(value)}`)
+  }
+  if (chip.kind === 'slider') {
+    return chip.capability === 'referenceStrength'
+      ? `${Math.round(Number(value) * 100)}%`
+      : String(value)
+  }
+  if (chip.kind === 'text') {
+    // 文本档不把整串塞进 chip —— 只报「填了多少字」，正文在弹层里读。
+    return t('textFilled', { count: String(value).length })
+  }
+  return null
+}
+
+/**
+ * 一项专属能力的控件本体（选择 / 文本 / 滑条）—— 逐颗 chip 的弹层与底部输入框
+ * 那颗 chip 的弹层**共用这一份**，⛔ 别各写一套。开关档不走这里（它没有弹层）。
+ */
+function CapabilityControlBody({
+  chip,
+  value,
+  label,
+  disabled,
+  update,
+}: {
+  chip: CapabilityChip
+  value: string | number | boolean
+  label: string
+  disabled: boolean
+  update: (patch: Partial<AdvancedParams>) => void
+}) {
+  const tAdvanced = useTranslations('AdvancedSettings')
+  if (chip.kind === 'select' && chip.options) {
+    return (
+      <div className="flex flex-col gap-2">
+        <span className="text-2xs text-muted-foreground">
+          {tAdvanced(`${chip.capability}Hint`)}
+        </span>
+        <OptionGroup
+          variant="neutral"
+          options={chip.options.map((option) => ({
+            value: option,
+            label: tAdvanced(`${chip.capability}Option.${option}`),
+          }))}
+          value={String(value)}
+          onChange={(next) =>
+            update({ [chip.capability]: next } as AdvancedParams)
+          }
+          disabled={disabled}
+        />
+      </div>
+    )
+  }
+  if (chip.kind === 'text' && chip.maxLength) {
+    return (
+      <div className="flex flex-col gap-2">
+        <span className="text-2xs text-muted-foreground">
+          {tAdvanced(`${chip.capability}Hint`)}
+        </span>
+        <Input
+          value={String(value)}
+          maxLength={chip.maxLength}
+          disabled={disabled}
+          aria-label={label}
+          placeholder={tAdvanced(`${chip.capability}Placeholder`)}
+          onChange={(event) =>
+            update({
+              [chip.capability]: event.target.value,
+            } as AdvancedParams)
+          }
+        />
+        <span className="text-2xs text-muted-foreground/70">
+          {String(value).length} / {chip.maxLength}
+        </span>
+      </div>
+    )
+  }
+  if (chip.kind === 'slider' && chip.range) {
+    return (
+      <ParamSlider
+        label={label}
+        hint={tAdvanced(`${chip.capability}Hint`)}
+        value={Number(value)}
+        onChange={(next) =>
+          update({ [chip.capability]: next } as AdvancedParams)
+        }
+        min={chip.range.min}
+        max={chip.range.max}
+        step={chip.range.step}
+        disabled={disabled}
+        formatValue={
+          chip.capability === 'referenceStrength'
+            ? (v) => `${Math.round(v * 100)}%`
+            : undefined
+        }
+      />
+    )
+  }
+  return null
+}
+
+/**
+ * 底部输入框里的**一颗**专属 chip（owner 2026-09-26）。chip 上写第一项改过的值
+ * （再多写「+N」），点开一个弹层，每项一行：开关就是开关，其余是控件本体。
+ */
+function CapabilitySingleChip({
+  chips,
+  params,
+  disabled,
+  hasReferenceImage,
+  sectionLabel,
+}: {
+  chips: CapabilityChip[]
+  params: AdvancedParams
+  disabled: boolean
+  hasReferenceImage: boolean
+  sectionLabel: string
+}) {
+  const { dispatch } = useStudioForm()
+  const t = useTranslations('StudioCapabilityChips')
+  const tAdvanced = useTranslations('AdvancedSettings')
+  const chipClasses = useStudioChipClasses()
+
+  const update = (patch: Partial<AdvancedParams>) =>
+    dispatch({
+      // ⚠ 整个对象带过去，只换一个键 —— `SET_ADVANCED_PARAMS` 是整体替换。
+      type: 'SET_ADVANCED_PARAMS',
+      payload: { ...params, ...patch },
+    })
+
+  const setChips = chips.filter((chip) => isCapabilityChipSet(chip, params))
+  const first = setChips[0]
+  const firstText = first
+    ? (() => {
+        const label = t(`capability.${first.capability}`)
+        const valueLabel = capabilityValueLabel(
+          first,
+          getCapabilityChipValue(first, params),
+          t,
+          tAdvanced,
+        )
+        return valueLabel ? `${label} ${valueLabel}` : label
+      })()
+    : null
+  const chipText = firstText
+    ? `${t('singleChipLabel')} · ${firstText}${setChips.length > 1 ? ` +${setChips.length - 1}` : ''}`
+    : t('singleChipLabel')
+
+  return (
+    <StudioToolSurface>
+      <StudioToolSurfaceTrigger asChild>
+        <button
+          type="button"
+          disabled={disabled}
+          aria-label={sectionLabel}
+          data-assistant-field="capabilities"
+          className={cn(
+            chipClasses.trigger,
+            setChips.length > 0 && chipClasses.set,
+            'data-[state=open]:border-foreground',
+          )}
+        >
+          {chipText}
+        </button>
+      </StudioToolSurfaceTrigger>
+      <ResponsivePopoverContent
+        label={sectionLabel}
+        align="end"
+        side="top"
+        sideOffset={8}
+        className={cn(
+          studioToolPopoverBaseClass,
+          studioToolPopoverWidthClass.action,
+          studioToolPopoverPaddingClass.small,
+        )}
+        mobileClassName={studioToolSurfaceMobileClass.action}
+      >
+        <div className="flex flex-col gap-4">
+          <span className="text-xs font-medium text-muted-foreground">
+            {sectionLabel}
+          </span>
+          {chips.map((chip) => {
+            const label = t(`capability.${chip.capability}`)
+            const value = getCapabilityChipValue(chip, params)
+            const unavailable =
+              chip.requiresReferenceImage && !hasReferenceImage
+            if (chip.kind === 'toggle') {
+              return (
+                <label
+                  key={chip.capability}
+                  className="flex items-center justify-between gap-3 text-sm"
+                  title={tAdvanced(`${chip.capability}Hint`)}
+                >
+                  {label}
+                  <Switch
+                    checked={value === true}
+                    disabled={disabled || unavailable}
+                    onCheckedChange={(checked) =>
+                      update({ [chip.capability]: checked } as AdvancedParams)
+                    }
+                  />
+                </label>
+              )
+            }
+            return (
+              <div key={chip.capability} className="flex flex-col gap-1.5">
+                {chip.kind === 'slider' ? null : (
+                  <span className="text-2xs font-medium text-foreground">
+                    {label}
+                  </span>
+                )}
+                {unavailable ? (
+                  <span className="text-2xs text-muted-foreground">
+                    {t('needsReference')}
+                  </span>
+                ) : (
+                  <CapabilityControlBody
+                    chip={chip}
+                    value={value}
+                    label={label}
+                    disabled={disabled}
+                    update={update}
+                  />
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </ResponsivePopoverContent>
+    </StudioToolSurface>
+  )
+}
 
 function CapabilityChipControl({
   chip,
@@ -171,17 +403,7 @@ function CapabilityChipControl({
     })
 
   const label = t(`capability.${chip.capability}`)
-  const valueLabel =
-    chip.kind === 'select'
-      ? tAdvanced(`${chip.capability}Option.${String(value)}`)
-      : chip.kind === 'slider'
-        ? chip.capability === 'referenceStrength'
-          ? `${Math.round(Number(value) * 100)}%`
-          : String(value)
-        : chip.kind === 'text'
-          ? // 文本档不把整串塞进 chip —— 只报「填了多少字」，正文在弹层里读。
-            t('textFilled', { count: String(value).length })
-          : null
+  const valueLabel = capabilityValueLabel(chip, value, t, tAdvanced)
   const chipText = isSet && valueLabel ? `${label} · ${valueLabel}` : label
 
   const className = cn(
@@ -230,66 +452,13 @@ function CapabilityChipControl({
         )}
         mobileClassName={studioToolSurfaceMobileClass.small}
       >
-        {chip.kind === 'select' && chip.options ? (
-          <div className="flex flex-col gap-2">
-            <span className="text-2xs text-muted-foreground">
-              {tAdvanced(`${chip.capability}Hint`)}
-            </span>
-            <OptionGroup
-              variant="neutral"
-              options={chip.options.map((option) => ({
-                value: option,
-                label: tAdvanced(`${chip.capability}Option.${option}`),
-              }))}
-              value={String(value)}
-              onChange={(next) =>
-                update({ [chip.capability]: next } as AdvancedParams)
-              }
-              disabled={disabled}
-            />
-          </div>
-        ) : null}
-        {chip.kind === 'text' && chip.maxLength ? (
-          <div className="flex flex-col gap-2">
-            <span className="text-2xs text-muted-foreground">
-              {tAdvanced(`${chip.capability}Hint`)}
-            </span>
-            <Input
-              value={String(value)}
-              maxLength={chip.maxLength}
-              disabled={disabled}
-              aria-label={label}
-              placeholder={tAdvanced(`${chip.capability}Placeholder`)}
-              onChange={(event) =>
-                update({
-                  [chip.capability]: event.target.value,
-                } as AdvancedParams)
-              }
-            />
-            <span className="text-2xs text-muted-foreground/70">
-              {String(value).length} / {chip.maxLength}
-            </span>
-          </div>
-        ) : null}
-        {chip.kind === 'slider' && chip.range ? (
-          <ParamSlider
-            label={label}
-            hint={tAdvanced(`${chip.capability}Hint`)}
-            value={Number(value)}
-            onChange={(next) =>
-              update({ [chip.capability]: next } as AdvancedParams)
-            }
-            min={chip.range.min}
-            max={chip.range.max}
-            step={chip.range.step}
-            disabled={disabled}
-            formatValue={
-              chip.capability === 'referenceStrength'
-                ? (v) => `${Math.round(v * 100)}%`
-                : undefined
-            }
-          />
-        ) : null}
+        <CapabilityControlBody
+          chip={chip}
+          value={value}
+          label={label}
+          disabled={disabled}
+          update={update}
+        />
       </ResponsivePopoverContent>
     </StudioToolSurface>
   )

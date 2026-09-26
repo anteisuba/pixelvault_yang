@@ -1,5 +1,6 @@
 'use client'
 
+import { createContext, useContext } from 'react'
 import type * as React from 'react'
 
 import {
@@ -62,6 +63,61 @@ export const studioToolTriggerClass = cn(
 
 export const studioChipActiveClass =
   'bg-primary/10 text-primary ring-1 ring-primary/30'
+
+/**
+ * chip 的两种外观（owner 2026-09-26 图片工作台底部输入框）：
+ * - `ghost` = 参数栏 / 手机那颗无边框的幽灵丸（缺省，现有宿主不受影响）；
+ * - `outline` = 底部输入框工具行的 32px 描边药丸，与 `SpecChip` 同一副形状 ——
+ *   一整行 chip 长成同一种东西，规格那颗不再显得是外来的。
+ * 由宿主用 `StudioChipLookProvider` 圈定，各 chip 用 `useStudioChipClasses()` 取类，
+ * ⛔ 不在 chip 里判断自己住在哪个宿主。
+ */
+export type StudioChipLook = 'ghost' | 'outline'
+
+const StudioChipLookContext = createContext<StudioChipLook>('ghost')
+
+export const StudioChipLookProvider = StudioChipLookContext.Provider
+
+export const studioOutlineChipClass = cn(
+  'relative inline-flex h-8 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-border bg-background px-3 text-2sm font-medium text-foreground transition-colors duration-fast ease-standard',
+  'hover:border-foreground/40',
+  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+  'disabled:pointer-events-none disabled:opacity-50',
+)
+
+export interface StudioChipClasses {
+  readonly look: StudioChipLook
+  /** 触发器本身。 */
+  readonly trigger: string
+  /** 弹层开着（= 正在改它）。 */
+  readonly open: string
+  /** 挂了东西 / 改过（chip 上写着值）。 */
+  readonly set: string
+}
+
+const GHOST_CHIP_CLASSES: StudioChipClasses = {
+  look: 'ghost',
+  trigger: studioToolTriggerClass,
+  open: studioChipActiveClass,
+  set: studioChipActiveClass,
+}
+
+/** 描边药丸「挂了东西 / 改过」那一档 —— 宿主自己画的 chip（负面词、模型）也用它。 */
+export const studioOutlineChipSetClass =
+  'border-transparent bg-muted hover:border-foreground/40'
+
+const OUTLINE_CHIP_CLASSES: StudioChipClasses = {
+  look: 'outline',
+  trigger: studioOutlineChipClass,
+  open: 'border-foreground ring-3 ring-muted',
+  set: studioOutlineChipSetClass,
+}
+
+export function useStudioChipClasses(): StudioChipClasses {
+  return useContext(StudioChipLookContext) === 'outline'
+    ? OUTLINE_CHIP_CLASSES
+    : GHOST_CHIP_CLASSES
+}
 
 interface StudioChipBadgeProps {
   children: React.ReactNode

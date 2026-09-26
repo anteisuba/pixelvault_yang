@@ -59,6 +59,12 @@ vi.mock('@/components/business/studio-shared/ImagePickerPopoverBody', () => ({
 }))
 
 vi.mock('@/components/business/studio-shared/primitives/tool-surface', () => ({
+  useStudioChipClasses: () => ({
+    look: 'ghost',
+    trigger: '',
+    open: '',
+    set: '',
+  }),
   StudioChipBadge: ({
     children,
     title,

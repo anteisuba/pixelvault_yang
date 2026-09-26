@@ -1,6 +1,46 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { describe, it, expect } from 'vitest'
 
-import { invertReferenceStrength } from '@/lib/utils'
+import { cn, invertReferenceStrength } from '@/lib/utils'
+
+describe('cn · named durations', () => {
+  // `--transition-duration-*` is the only namespace Tailwind's `duration-*`
+  // resolves names from; before these lines existed `duration-fast` & co.
+  // generated no CSS at all.
+  const globalsCss = readFileSync(
+    join(process.cwd(), 'src/app/globals.css'),
+    'utf8',
+  )
+  const names = [
+    ...globalsCss.matchAll(/--transition-duration-([a-z-]+):/g),
+  ].map((match) => match[1])
+
+  it('globals.css registers the four steps and the three springs', () => {
+    expect(names).toEqual(
+      expect.arrayContaining([
+        'fast',
+        'base',
+        'slow',
+        'reveal',
+        'spring-expand',
+        'spring-slot',
+        'spring-press',
+      ]),
+    )
+  })
+
+  it.each(names)('dedupes duration-%s against numeric steps', (name) => {
+    expect(cn('duration-150', `duration-${name}`)).toBe(`duration-${name}`)
+    expect(cn(`duration-${name}`, 'duration-150')).toBe('duration-150')
+    expect(
+      cn(
+        'data-[state=open]:duration-150',
+        `data-[state=open]:duration-${name}`,
+      ),
+    ).toBe(`data-[state=open]:duration-${name}`)
+  })
+})
 
 describe('invertReferenceStrength', () => {
   it('inverts the reference strength value', () => {

@@ -1,5 +1,31 @@
 import { clsx, type ClassValue } from 'clsx'
-import { twMerge } from 'tailwind-merge'
+import { extendTailwindMerge } from 'tailwind-merge'
+
+/**
+ * tailwind-merge only knows numeric durations (`duration-150`). The named steps
+ * globals.css registers under `--transition-duration-*` must be listed here too,
+ * or `cn('duration-150', 'duration-fast')` keeps both and the named one always
+ * wins on CSS order. Keep in sync with globals.css (guarded by utils.test.ts).
+ */
+const twMerge = extendTailwindMerge({
+  extend: {
+    classGroups: {
+      duration: [
+        {
+          duration: [
+            'fast',
+            'base',
+            'slow',
+            'reveal',
+            'spring-expand',
+            'spring-slot',
+            'spring-press',
+          ],
+        },
+      ],
+    },
+  },
+})
 
 /**
  * Merge Tailwind CSS class names with conflict resolution.

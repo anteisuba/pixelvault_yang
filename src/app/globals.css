@@ -307,6 +307,17 @@
   --duration-base: 200ms;
   --duration-slow: 320ms;
   --duration-reveal: 500ms;
+  /* 类名 `duration-fast` 等的接线：Tailwind 的 `duration-*` 只从
+     `--transition-duration-*` 解析名字，`--duration-*` 不是它的命名空间（在这之前
+     这四个类名一条 CSS 都没生成，元素全落在默认 150ms）。挂在这里走的是内置工具类，
+     `transition-duration` 与 `--tw-duration` 一起写，tw-animate 的 `animate-in/out`
+     也吃得到。业务代码写类名，⛔ 不散写 `duration-(--…)`。
+     ⚠ 这几行没有 `var()` 引用方，⛔ 别当死代码删；加一档要同步
+     `src/lib/utils.ts` 里 tailwind-merge 的名单。 */
+  --transition-duration-fast: var(--duration-fast);
+  --transition-duration-base: var(--duration-base);
+  --transition-duration-slow: var(--duration-slow);
+  --transition-duration-reveal: var(--duration-reveal);
   /* 吞噬三拍专属曲线（node-canvas.md §8，与 src/constants/motion.ts
      EASE_INGEST_CSS / EASE_SOFT_RETURN_CSS 同步）。CSS 侧只有 .node-card-paper
      的拖拽微倾复用 --ease-standard；吸入/软弹回飞行路径走 Web Animations API
@@ -316,13 +327,14 @@
   --ease-soft-return: cubic-bezier(0.3, 0.7, 0.4, 1.05);
   /* ── 弹簧三档（ui-defaults.md §4「画布节点卡例外」，owner 2026-09-08 定）──
      只给画布节点卡的展开 / 槽卡 / 按压三类动作用，四档线性时长仍是全站默认。
-     T-shirt 名：`duration-spring-expand` / `ease-spring-expand` 等；
+     T-shirt 名：`duration-spring-expand` / `ease-spring-expand` 等（时长同样挂在
+     `--transition-duration-*` 上，理由见上）；
      ⛔ 不用数字后缀（`duration-480` 一类会被 tailwind-merge 与内置档冲掉）。
      值经 `var()` 取自 :root，reduced-motion 下整体退化成
      `--duration-base` + `--ease-standard`（见本文件末尾的降级块）。 */
-  --duration-spring-expand: var(--spring-expand-duration);
-  --duration-spring-slot: var(--spring-slot-duration);
-  --duration-spring-press: var(--spring-press-duration);
+  --transition-duration-spring-expand: var(--spring-expand-duration);
+  --transition-duration-spring-slot: var(--spring-slot-duration);
+  --transition-duration-spring-press: var(--spring-press-duration);
   --ease-spring-expand: var(--spring-expand-ease);
   --ease-spring-slot: var(--spring-slot-ease);
   --ease-spring-press: var(--spring-press-ease);
@@ -2595,21 +2607,6 @@ html:lang(ja) {
     -webkit-backdrop-filter: saturate(180%) blur(24px);
     backdrop-filter: saturate(180%) blur(24px);
   }
-}
-
-/* Tailwind 的 `duration-*` 只吃数字与 `(--var)` 两种写法，没有 `--duration-*`
-   命名空间（`ease-*` 有，所以 `ease-spring-expand` 直接可用）。这三个静态工具类
-   把弹簧时长补成同样的 T-shirt 名，⛔ 不在业务代码里散写 `duration-(--…)`。 */
-@utility duration-spring-expand {
-  transition-duration: var(--duration-spring-expand);
-}
-
-@utility duration-spring-slot {
-  transition-duration: var(--duration-spring-slot);
-}
-
-@utility duration-spring-press {
-  transition-duration: var(--duration-spring-press);
 }
 
 /* 节点卡的**选中环**（画板 `.ring`：1.5px 前景色）。

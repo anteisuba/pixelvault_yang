@@ -183,10 +183,8 @@ export function useStudioChipClasses(): StudioChipClasses {
  * - reduced motion 直接不动画。
  * 只有描边外观（底部输入框工具行）接入；幽灵外观原样。
  */
-// ⚠ 时长写变量形（`duration-(--x)`）不写 `duration-spring-slot`：tailwind-merge 认不出
-//   后者，弹层底座的 `data-[state=open]:duration-150` 就会留着把它压掉。
 const CHIP_POPOVER_CLASS =
-  'transition-none data-[state=open]:duration-(--spring-slot-duration) data-[state=open]:ease-spring-slot data-[state=closed]:duration-(--duration-base) data-[state=closed]:ease-in motion-reduce:animate-none'
+  'transition-none data-[state=open]:duration-spring-slot data-[state=open]:ease-spring-slot data-[state=closed]:duration-base data-[state=closed]:ease-in motion-reduce:animate-none'
 
 const CHIP_POPOVER_VARS = {
   '--tw-enter-scale': String(CHIP_POPOVER.fromScale),

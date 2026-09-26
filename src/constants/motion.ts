@@ -43,9 +43,9 @@ export type MotionDurationPreset = keyof typeof DURATION
 /**
  * 弹簧三档（ui-defaults.md §4.1，owner 2026-09-08 定）——**只给画布节点卡**的
  * 展开 / 槽卡 / 按压三类动作。CSS 侧的同名 token 是 globals.css 的
- * `--duration-spring-*` / `--ease-spring-*`（`linear()` 是这三条弹簧的近似），
- * 两处必须同步改。motion 侧用 `type: 'spring'`，⛔ 不把 stiffness/damping
- * 散写进组件。
+ * `--transition-duration-spring-*` / `--ease-spring-*`（`linear()` 是这三条
+ * 弹簧的近似），两处必须同步改。motion 侧用 `type: 'spring'`，⛔ 不把
+ * stiffness/damping 散写进组件。
  */
 export const SPRING = {
   /** 卡展开 / 收起 / 邻居让位 / 分区进入 ≈ CSS `--spring-expand`（480ms） */

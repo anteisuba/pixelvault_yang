@@ -1,9 +1,10 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import type { UseAssistantMemoriesValue } from '@/hooks/use-assistant-memories'
 import type { AssistantMemory } from '@/types/assistant-memory'
 
-import { SettingsAssistantSection } from './SettingsAssistantSection'
+import { AssistantMemoryPane } from './AssistantMemoryPane'
 
 vi.mock('next-intl', () => ({
   useTranslations: (namespace: string) => {
@@ -19,11 +20,14 @@ vi.mock('next-intl', () => ({
   }),
 }))
 
-vi.mock('@/hooks/use-assistant-persona', () => ({
-  useAssistantPersona: () => ({
-    persona: { verbosity: 'standard' },
-    isSaving: false,
-    save: vi.fn(),
+vi.mock('@/hooks/use-project-rules', () => ({
+  useProjectRules: () => ({
+    rules: [],
+    isLoading: false,
+    error: null,
+    add: vi.fn(),
+    remove: vi.fn(),
+    reload: vi.fn(),
   }),
 }))
 
@@ -37,8 +41,8 @@ const mockRemove = vi.hoisted(() => vi.fn(async () => true))
 const mockClearAll = vi.hoisted(() => vi.fn(async () => true))
 const mockMemories = vi.hoisted(() => ({ current: [] as AssistantMemory[] }))
 
-vi.mock('@/hooks/use-assistant-memories', () => ({
-  useAssistantMemories: () => ({
+function renderPane() {
+  const memories: UseAssistantMemoriesValue = {
     memories: mockMemories.current,
     isLoading: false,
     error: null,
@@ -46,8 +50,9 @@ vi.mock('@/hooks/use-assistant-memories', () => ({
     remove: mockRemove,
     clearAll: mockClearAll,
     reload: vi.fn(),
-  }),
-}))
+  }
+  return render(<AssistantMemoryPane memories={memories} />)
+}
 
 const TODAY = new Date()
 TODAY.setHours(14, 20, 0, 0)
@@ -69,9 +74,9 @@ beforeEach(() => {
   mockMemories.current = []
 })
 
-describe('SettingsAssistantSection · 记忆区（56a）', () => {
+describe('AssistantMemoryPane · 记忆区（56a）', () => {
   it('⭐ 空态：一句话 + 隐身入口，⛔ 不摆示例记忆', () => {
-    render(<SettingsAssistantSection />)
+    renderPane()
 
     expect(
       screen.getByText('Settings:assistant.memoryEmpty'),
@@ -97,7 +102,7 @@ describe('SettingsAssistantSection · 记忆区（56a）', () => {
       memory(),
       memory({ id: 'mem-2', text: '训练集偏好 40 张以内', updatedAt: older }),
     ]
-    render(<SettingsAssistantSection />)
+    renderPane()
 
     const rows = screen.getAllByRole('listitem')
     expect(rows).toHaveLength(2)
@@ -114,7 +119,7 @@ describe('SettingsAssistantSection · 记忆区（56a）', () => {
       memory({ id: 'mem-2', scope: 'video', text: '视频默认 24fps' }),
       memory({ id: 'mem-3', scope: 'global', text: '回答用中文' }),
     ]
-    render(<SettingsAssistantSection />)
+    renderPane()
 
     // 默认「全部」：global 那条也在（⛔ 它没有自己的 chip）。
     expect(screen.getAllByRole('listitem')).toHaveLength(3)
@@ -127,7 +132,7 @@ describe('SettingsAssistantSection · 记忆区（56a）', () => {
 
   it('⭐ 点文字就地改：回车保存', () => {
     mockMemories.current = [memory()]
-    render(<SettingsAssistantSection />)
+    renderPane()
 
     fireEvent.click(screen.getByText('偏好横构图 16:9，除非我明说要竖的'))
     const input = screen.getByLabelText('Settings:assistant.memoryEditLabel')
@@ -140,7 +145,7 @@ describe('SettingsAssistantSection · 记忆区（56a）', () => {
 
   it('⛔ Esc 取消：一个字都不写回去', () => {
     mockMemories.current = [memory()]
-    render(<SettingsAssistantSection />)
+    renderPane()
 
     fireEvent.click(screen.getByText('偏好横构图 16:9，除非我明说要竖的'))
     const input = screen.getByLabelText('Settings:assistant.memoryEditLabel')
@@ -153,7 +158,7 @@ describe('SettingsAssistantSection · 记忆区（56a）', () => {
 
   it('⛔ 就地改不弹层', () => {
     mockMemories.current = [memory()]
-    render(<SettingsAssistantSection />)
+    renderPane()
     fireEvent.click(screen.getByText('偏好横构图 16:9，除非我明说要竖的'))
     expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument()
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -161,7 +166,7 @@ describe('SettingsAssistantSection · 记忆区（56a）', () => {
 
   it('⭐ 行尾那颗「删」真删（唯一动作）', () => {
     mockMemories.current = [memory()]
-    render(<SettingsAssistantSection />)
+    renderPane()
 
     const row = screen.getAllByRole('listitem')[0]
     const buttons = within(row).getAllByRole('button')
@@ -173,7 +178,7 @@ describe('SettingsAssistantSection · 记忆区（56a）', () => {
 
   it('⭐ 「全部清空」走二次确认，取消不清', () => {
     mockMemories.current = [memory()]
-    render(<SettingsAssistantSection />)
+    renderPane()
 
     fireEvent.click(screen.getByText('Settings:assistant.memoryClearAll'))
     expect(
@@ -187,7 +192,7 @@ describe('SettingsAssistantSection · 记忆区（56a）', () => {
 
   it('⭐ 确认之后才清', () => {
     mockMemories.current = [memory()]
-    render(<SettingsAssistantSection />)
+    renderPane()
 
     fireEvent.click(screen.getByText('Settings:assistant.memoryClearAll'))
     fireEvent.click(screen.getByText('Settings:assistant.memoryClearConfirm'))
@@ -196,7 +201,7 @@ describe('SettingsAssistantSection · 记忆区（56a）', () => {
 
   it('⛔ 「不记的类目」整块已退场（负规则不做）', () => {
     mockMemories.current = [memory()]
-    render(<SettingsAssistantSection />)
+    renderPane()
     expect(
       screen.queryByText('Settings:assistant.mutedLabel'),
     ).not.toBeInTheDocument()

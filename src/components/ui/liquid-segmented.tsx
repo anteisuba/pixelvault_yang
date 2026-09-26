@@ -17,6 +17,19 @@ interface LiquidSegmentedProps<T extends string> {
   onChange: (value: T) => void
   ariaLabel: string
   disabled?: boolean
+  /** 单独禁用某几项（仍然画出来，灰着）。 */
+  disabledValues?: readonly T[]
+  /**
+   * `sm` = 工具行那一档（11px）；`md` = 设置页里的一行选择（14px，触屏 44px 高）。
+   */
+  size?: 'sm' | 'md'
+  /**
+   * `tabs` = 换一页（`tablist` / `tab`）；`radio` = 选一档（`radiogroup` / `radio`）。
+   * ⚠ 长相一样、读屏念的不一样：选语气不是翻页。
+   */
+  semantics?: 'tabs' | 'radio'
+  /** 撑满父容器，每一格等分（手机抽屉里那一排页签）。 */
+  fill?: boolean
   className?: string
 }
 
@@ -30,8 +43,10 @@ function measure(items: Map<string, HTMLButtonElement>, target: string) {
 /** 还没量过时整块藏起来 —— ⛔ 不能是 `inset(0)`：那是整条轨道都涂黑。 */
 const UNMEASURED_CLIP = 'inset(0 100% 0 0 round 999px)'
 
-const ITEM_CLASS =
-  'shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-2xs font-medium'
+const ITEM_CLASS = {
+  sm: 'shrink-0 whitespace-nowrap rounded-full px-3.5 py-1 text-2xs font-medium',
+  md: 'shrink-0 whitespace-nowrap rounded-full px-4 py-1.5 text-sm font-medium coarse:py-3',
+} as const
 
 /**
  * 液态分段（owner 2026-09-26：「视频里那个效果」）。
@@ -50,8 +65,13 @@ export function LiquidSegmented<T extends string>({
   onChange,
   ariaLabel,
   disabled = false,
+  disabledValues,
+  size = 'sm',
+  semantics = 'tabs',
+  fill = false,
   className,
 }: LiquidSegmentedProps<T>) {
+  const radio = semantics === 'radio'
   const reducedMotion = useReducedMotion()
   const boxRef = useRef<HTMLDivElement>(null)
   const itemRefs = useRef(new Map<string, HTMLButtonElement>())
@@ -139,16 +159,17 @@ export function LiquidSegmented<T extends string>({
 
   return (
     <div
-      role="tablist"
+      role={radio ? 'radiogroup' : 'tablist'}
       aria-label={ariaLabel}
       className={cn(
         'inline-flex shrink-0 rounded-full border border-border bg-muted p-0.5',
         'has-focus-visible:ring-2 has-focus-visible:ring-ring has-focus-visible:ring-offset-2 has-focus-visible:ring-offset-background',
+        fill && 'flex w-full',
         disabled && 'opacity-50',
         className,
       )}
     >
-      <div ref={boxRef} className="relative flex">
+      <div ref={boxRef} className={cn('relative flex', fill && 'flex-1')}>
         {items.map((item) => (
           <button
             key={item.value}
@@ -157,15 +178,18 @@ export function LiquidSegmented<T extends string>({
               else itemRefs.current.delete(item.value)
             }}
             type="button"
-            role="tab"
-            aria-selected={item.value === value}
-            disabled={disabled}
+            role={radio ? 'radio' : 'tab'}
+            {...(radio
+              ? { 'aria-checked': item.value === value }
+              : { 'aria-selected': item.value === value })}
+            disabled={disabled || disabledValues?.includes(item.value)}
             onClick={() => {
               if (item.value !== value) onChange(item.value)
             }}
             className={cn(
-              ITEM_CLASS,
-              'text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none disabled:pointer-events-none',
+              ITEM_CLASS[size],
+              fill && 'flex-1 text-center',
+              'text-muted-foreground transition-colors duration-fast ease-standard hover:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50',
             )}
           >
             {item.label}
@@ -179,7 +203,11 @@ export function LiquidSegmented<T extends string>({
           {items.map((item) => (
             <span
               key={item.value}
-              className={cn(ITEM_CLASS, 'text-background')}
+              className={cn(
+                ITEM_CLASS[size],
+                fill && 'flex-1 text-center',
+                'text-background',
+              )}
             >
               {item.label}
             </span>

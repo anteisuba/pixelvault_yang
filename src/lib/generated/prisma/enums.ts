@@ -182,6 +182,14 @@ export const AssistantMemoryScope = {
 export type AssistantMemoryScope = (typeof AssistantMemoryScope)[keyof typeof AssistantMemoryScope]
 
 
+export const AssistantMemorySource = {
+  ASSISTANT: 'ASSISTANT',
+  CREATOR: 'CREATOR'
+} as const
+
+export type AssistantMemorySource = (typeof AssistantMemorySource)[keyof typeof AssistantMemorySource]
+
+
 export const AssistantMemoryKind = {
   PREFERENCE: 'PREFERENCE',
   FACT: 'FACT',

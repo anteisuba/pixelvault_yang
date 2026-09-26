@@ -29,6 +29,7 @@ export type AssistantMemoryMinAggregateOutputType = {
   userId: string | null
   scope: $Enums.AssistantMemoryScope | null
   kind: $Enums.AssistantMemoryKind | null
+  source: $Enums.AssistantMemorySource | null
   text: string | null
   conversationId: string | null
   messageId: string | null
@@ -42,6 +43,7 @@ export type AssistantMemoryMaxAggregateOutputType = {
   userId: string | null
   scope: $Enums.AssistantMemoryScope | null
   kind: $Enums.AssistantMemoryKind | null
+  source: $Enums.AssistantMemorySource | null
   text: string | null
   conversationId: string | null
   messageId: string | null
@@ -55,6 +57,7 @@ export type AssistantMemoryCountAggregateOutputType = {
   userId: number
   scope: number
   kind: number
+  source: number
   text: number
   conversationId: number
   messageId: number
@@ -70,6 +73,7 @@ export type AssistantMemoryMinAggregateInputType = {
   userId?: true
   scope?: true
   kind?: true
+  source?: true
   text?: true
   conversationId?: true
   messageId?: true
@@ -83,6 +87,7 @@ export type AssistantMemoryMaxAggregateInputType = {
   userId?: true
   scope?: true
   kind?: true
+  source?: true
   text?: true
   conversationId?: true
   messageId?: true
@@ -96,6 +101,7 @@ export type AssistantMemoryCountAggregateInputType = {
   userId?: true
   scope?: true
   kind?: true
+  source?: true
   text?: true
   conversationId?: true
   messageId?: true
@@ -182,6 +188,7 @@ export type AssistantMemoryGroupByOutputType = {
   userId: string
   scope: $Enums.AssistantMemoryScope
   kind: $Enums.AssistantMemoryKind
+  source: $Enums.AssistantMemorySource
   text: string
   conversationId: string | null
   messageId: string | null
@@ -216,6 +223,7 @@ export type AssistantMemoryWhereInput = {
   userId?: Prisma.StringFilter<"AssistantMemory"> | string
   scope?: Prisma.EnumAssistantMemoryScopeFilter<"AssistantMemory"> | $Enums.AssistantMemoryScope
   kind?: Prisma.EnumAssistantMemoryKindFilter<"AssistantMemory"> | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFilter<"AssistantMemory"> | $Enums.AssistantMemorySource
   text?: Prisma.StringFilter<"AssistantMemory"> | string
   conversationId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   messageId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
@@ -230,6 +238,7 @@ export type AssistantMemoryOrderByWithRelationInput = {
   userId?: Prisma.SortOrder
   scope?: Prisma.SortOrder
   kind?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   text?: Prisma.SortOrder
   conversationId?: Prisma.SortOrderInput | Prisma.SortOrder
   messageId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -247,6 +256,7 @@ export type AssistantMemoryWhereUniqueInput = Prisma.AtLeast<{
   userId?: Prisma.StringFilter<"AssistantMemory"> | string
   scope?: Prisma.EnumAssistantMemoryScopeFilter<"AssistantMemory"> | $Enums.AssistantMemoryScope
   kind?: Prisma.EnumAssistantMemoryKindFilter<"AssistantMemory"> | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFilter<"AssistantMemory"> | $Enums.AssistantMemorySource
   text?: Prisma.StringFilter<"AssistantMemory"> | string
   conversationId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   messageId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
@@ -261,6 +271,7 @@ export type AssistantMemoryOrderByWithAggregationInput = {
   userId?: Prisma.SortOrder
   scope?: Prisma.SortOrder
   kind?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   text?: Prisma.SortOrder
   conversationId?: Prisma.SortOrderInput | Prisma.SortOrder
   messageId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -280,6 +291,7 @@ export type AssistantMemoryScalarWhereWithAggregatesInput = {
   userId?: Prisma.StringWithAggregatesFilter<"AssistantMemory"> | string
   scope?: Prisma.EnumAssistantMemoryScopeWithAggregatesFilter<"AssistantMemory"> | $Enums.AssistantMemoryScope
   kind?: Prisma.EnumAssistantMemoryKindWithAggregatesFilter<"AssistantMemory"> | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceWithAggregatesFilter<"AssistantMemory"> | $Enums.AssistantMemorySource
   text?: Prisma.StringWithAggregatesFilter<"AssistantMemory"> | string
   conversationId?: Prisma.StringNullableWithAggregatesFilter<"AssistantMemory"> | string | null
   messageId?: Prisma.StringNullableWithAggregatesFilter<"AssistantMemory"> | string | null
@@ -292,6 +304,7 @@ export type AssistantMemoryCreateInput = {
   id?: string
   scope: $Enums.AssistantMemoryScope
   kind: $Enums.AssistantMemoryKind
+  source?: $Enums.AssistantMemorySource
   text: string
   conversationId?: string | null
   messageId?: string | null
@@ -306,6 +319,7 @@ export type AssistantMemoryUncheckedCreateInput = {
   userId: string
   scope: $Enums.AssistantMemoryScope
   kind: $Enums.AssistantMemoryKind
+  source?: $Enums.AssistantMemorySource
   text: string
   conversationId?: string | null
   messageId?: string | null
@@ -318,6 +332,7 @@ export type AssistantMemoryUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.EnumAssistantMemoryScopeFieldUpdateOperationsInput | $Enums.AssistantMemoryScope
   kind?: Prisma.EnumAssistantMemoryKindFieldUpdateOperationsInput | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFieldUpdateOperationsInput | $Enums.AssistantMemorySource
   text?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -332,6 +347,7 @@ export type AssistantMemoryUncheckedUpdateInput = {
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.EnumAssistantMemoryScopeFieldUpdateOperationsInput | $Enums.AssistantMemoryScope
   kind?: Prisma.EnumAssistantMemoryKindFieldUpdateOperationsInput | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFieldUpdateOperationsInput | $Enums.AssistantMemorySource
   text?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -345,6 +361,7 @@ export type AssistantMemoryCreateManyInput = {
   userId: string
   scope: $Enums.AssistantMemoryScope
   kind: $Enums.AssistantMemoryKind
+  source?: $Enums.AssistantMemorySource
   text: string
   conversationId?: string | null
   messageId?: string | null
@@ -357,6 +374,7 @@ export type AssistantMemoryUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.EnumAssistantMemoryScopeFieldUpdateOperationsInput | $Enums.AssistantMemoryScope
   kind?: Prisma.EnumAssistantMemoryKindFieldUpdateOperationsInput | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFieldUpdateOperationsInput | $Enums.AssistantMemorySource
   text?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -370,6 +388,7 @@ export type AssistantMemoryUncheckedUpdateManyInput = {
   userId?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.EnumAssistantMemoryScopeFieldUpdateOperationsInput | $Enums.AssistantMemoryScope
   kind?: Prisma.EnumAssistantMemoryKindFieldUpdateOperationsInput | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFieldUpdateOperationsInput | $Enums.AssistantMemorySource
   text?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -393,6 +412,7 @@ export type AssistantMemoryCountOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   scope?: Prisma.SortOrder
   kind?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   text?: Prisma.SortOrder
   conversationId?: Prisma.SortOrder
   messageId?: Prisma.SortOrder
@@ -406,6 +426,7 @@ export type AssistantMemoryMaxOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   scope?: Prisma.SortOrder
   kind?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   text?: Prisma.SortOrder
   conversationId?: Prisma.SortOrder
   messageId?: Prisma.SortOrder
@@ -419,6 +440,7 @@ export type AssistantMemoryMinOrderByAggregateInput = {
   userId?: Prisma.SortOrder
   scope?: Prisma.SortOrder
   kind?: Prisma.SortOrder
+  source?: Prisma.SortOrder
   text?: Prisma.SortOrder
   conversationId?: Prisma.SortOrder
   messageId?: Prisma.SortOrder
@@ -477,10 +499,15 @@ export type EnumAssistantMemoryKindFieldUpdateOperationsInput = {
   set?: $Enums.AssistantMemoryKind
 }
 
+export type EnumAssistantMemorySourceFieldUpdateOperationsInput = {
+  set?: $Enums.AssistantMemorySource
+}
+
 export type AssistantMemoryCreateWithoutUserInput = {
   id?: string
   scope: $Enums.AssistantMemoryScope
   kind: $Enums.AssistantMemoryKind
+  source?: $Enums.AssistantMemorySource
   text: string
   conversationId?: string | null
   messageId?: string | null
@@ -493,6 +520,7 @@ export type AssistantMemoryUncheckedCreateWithoutUserInput = {
   id?: string
   scope: $Enums.AssistantMemoryScope
   kind: $Enums.AssistantMemoryKind
+  source?: $Enums.AssistantMemorySource
   text: string
   conversationId?: string | null
   messageId?: string | null
@@ -535,6 +563,7 @@ export type AssistantMemoryScalarWhereInput = {
   userId?: Prisma.StringFilter<"AssistantMemory"> | string
   scope?: Prisma.EnumAssistantMemoryScopeFilter<"AssistantMemory"> | $Enums.AssistantMemoryScope
   kind?: Prisma.EnumAssistantMemoryKindFilter<"AssistantMemory"> | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFilter<"AssistantMemory"> | $Enums.AssistantMemorySource
   text?: Prisma.StringFilter<"AssistantMemory"> | string
   conversationId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
   messageId?: Prisma.StringNullableFilter<"AssistantMemory"> | string | null
@@ -547,6 +576,7 @@ export type AssistantMemoryCreateManyUserInput = {
   id?: string
   scope: $Enums.AssistantMemoryScope
   kind: $Enums.AssistantMemoryKind
+  source?: $Enums.AssistantMemorySource
   text: string
   conversationId?: string | null
   messageId?: string | null
@@ -559,6 +589,7 @@ export type AssistantMemoryUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.EnumAssistantMemoryScopeFieldUpdateOperationsInput | $Enums.AssistantMemoryScope
   kind?: Prisma.EnumAssistantMemoryKindFieldUpdateOperationsInput | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFieldUpdateOperationsInput | $Enums.AssistantMemorySource
   text?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -571,6 +602,7 @@ export type AssistantMemoryUncheckedUpdateWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.EnumAssistantMemoryScopeFieldUpdateOperationsInput | $Enums.AssistantMemoryScope
   kind?: Prisma.EnumAssistantMemoryKindFieldUpdateOperationsInput | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFieldUpdateOperationsInput | $Enums.AssistantMemorySource
   text?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -583,6 +615,7 @@ export type AssistantMemoryUncheckedUpdateManyWithoutUserInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   scope?: Prisma.EnumAssistantMemoryScopeFieldUpdateOperationsInput | $Enums.AssistantMemoryScope
   kind?: Prisma.EnumAssistantMemoryKindFieldUpdateOperationsInput | $Enums.AssistantMemoryKind
+  source?: Prisma.EnumAssistantMemorySourceFieldUpdateOperationsInput | $Enums.AssistantMemorySource
   text?: Prisma.StringFieldUpdateOperationsInput | string
   conversationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -598,6 +631,7 @@ export type AssistantMemorySelect<ExtArgs extends runtime.Types.Extensions.Inter
   userId?: boolean
   scope?: boolean
   kind?: boolean
+  source?: boolean
   text?: boolean
   conversationId?: boolean
   messageId?: boolean
@@ -612,6 +646,7 @@ export type AssistantMemorySelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   userId?: boolean
   scope?: boolean
   kind?: boolean
+  source?: boolean
   text?: boolean
   conversationId?: boolean
   messageId?: boolean
@@ -626,6 +661,7 @@ export type AssistantMemorySelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   userId?: boolean
   scope?: boolean
   kind?: boolean
+  source?: boolean
   text?: boolean
   conversationId?: boolean
   messageId?: boolean
@@ -640,6 +676,7 @@ export type AssistantMemorySelectScalar = {
   userId?: boolean
   scope?: boolean
   kind?: boolean
+  source?: boolean
   text?: boolean
   conversationId?: boolean
   messageId?: boolean
@@ -648,7 +685,7 @@ export type AssistantMemorySelectScalar = {
   updatedAt?: boolean
 }
 
-export type AssistantMemoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "scope" | "kind" | "text" | "conversationId" | "messageId" | "lastUsedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantMemory"]>
+export type AssistantMemoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "userId" | "scope" | "kind" | "source" | "text" | "conversationId" | "messageId" | "lastUsedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["assistantMemory"]>
 export type AssistantMemoryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   user?: boolean | Prisma.UserDefaultArgs<ExtArgs>
 }
@@ -669,6 +706,10 @@ export type $AssistantMemoryPayload<ExtArgs extends runtime.Types.Extensions.Int
     userId: string
     scope: $Enums.AssistantMemoryScope
     kind: $Enums.AssistantMemoryKind
+    /**
+     * ⭐ 你写的优先：注入时排在助手记的前面，每域上限只淘汰助手记的那些。
+     */
+    source: $Enums.AssistantMemorySource
     /**
      * 那一行字本身 —— 系统提示里印的就是它。
      */
@@ -1114,6 +1155,7 @@ export interface AssistantMemoryFieldRefs {
   readonly userId: Prisma.FieldRef<"AssistantMemory", 'String'>
   readonly scope: Prisma.FieldRef<"AssistantMemory", 'AssistantMemoryScope'>
   readonly kind: Prisma.FieldRef<"AssistantMemory", 'AssistantMemoryKind'>
+  readonly source: Prisma.FieldRef<"AssistantMemory", 'AssistantMemorySource'>
   readonly text: Prisma.FieldRef<"AssistantMemory", 'String'>
   readonly conversationId: Prisma.FieldRef<"AssistantMemory", 'String'>
   readonly messageId: Prisma.FieldRef<"AssistantMemory", 'String'>

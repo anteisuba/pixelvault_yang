@@ -6935,6 +6935,9 @@
       "limitReached": "上下文卡已经到上限了，先删掉一张再加。",
       "imageLimitReached": "这张卡的参考图满了，先摘掉一张。",
       "imageTooLarge": "参考图得小于 10 MB。"
+    },
+    "assistantPersona": {
+      "characterNotFound": "这个角色已经不在了，换一个或者选「不用角色」。"
     }
   },
   "Transform": {
@@ -7650,92 +7653,6 @@
     },
     "assistantSettings": "助手设置",
     "persona": {
-      "title": "助手设置",
-      "description": "这个助手是谁、怎么说话。一份设置，四台工作台通用。",
-      "save": "保存",
-      "saved": "已保存",
-      "cancel": "取消",
-      "reset": "恢复默认",
-      "saveFailed": "没保存上，再试一次。",
-      "nameLabel": "名字",
-      "namePlaceholder": "留空时使用 ANTI",
-      "avatarLabel": "头像",
-      "avatarPreset": {
-        "mark": "品牌标",
-        "monogram": "首字母"
-      },
-      "avatarUpload": "上传",
-      "avatarUploading": "上传中…",
-      "avatarRemove": "去掉自定义头像",
-      "avatarTooLarge": "这张图超过 5 MB 了。",
-      "avatarUnsupported": "换一张 JPEG、PNG 或 WebP。",
-      "toneLabel": "语气",
-      "tone": {
-        "professional": "专业",
-        "friendly": "亲和",
-        "terse": "简短",
-        "custom": "自定义"
-      },
-      "toneCustomPlaceholder": "一句话说清你想要的说话方式",
-      "toneCustomRequired": "写上那一句，或者换一档语气。",
-      "verbosityLabel": "回复长度",
-      "verbosity": {
-        "concise": "简短",
-        "standard": "标准",
-        "detailed": "详细"
-      },
-      "languageLabel": "回复语言",
-      "language": {
-        "ui": "跟界面",
-        "chinese": "中文",
-        "english": "英文"
-      },
-      "nextStepHintLabel": "下一步建议",
-      "useMyWordsLabel": "用我的词",
-      "addressUserAsLabel": "怎么称呼你",
-      "addressUserAsPlaceholder": "留空时用你的账号名",
-      "nextStepHintHint": "每条回复末尾给一条建议",
-      "useMyWordsHint": "沿用我在提示词里的说法",
-      "advancedLabel": "高级",
-      "archetypeCustom": "自定义",
-      "archetypeCustomHint": "你在高级里改过，这份设置不再对上任何一档。",
-      "archetype": {
-        "cautious": {
-          "name": "谨慎",
-          "askLine": "动手前多问两句",
-          "confirmLine": "每一步都要你点头",
-          "lengthLine": "回复偏短，只说结论"
-        },
-        "balanced": {
-          "name": "平衡",
-          "askLine": "拿不准才问，一次一个",
-          "confirmLine": "多步和生成才确认",
-          "lengthLine": "正常长度，附一条下一步"
-        },
-        "handsOff": {
-          "name": "放手",
-          "askLine": "基本不问，直接做",
-          "confirmLine": "只在多步之前打个招呼",
-          "lengthLine": "回复很短，只报结果"
-        }
-      },
-      "previewTitle": "这样设定后 {name} 会这么说",
-      "previewHint": "改左边任何一项，这段示例会实时跟着变。",
-      "preview": {
-        "address": "{name}，",
-        "opener": {
-          "professional": "看过了。三张里第二张的逆光散射最接近你要的黄昏光，另外两张暖色压得太满。",
-          "friendly": "看过啦——三张里第二张最接近你要的黄昏光，另外两张暖色压得有点满。",
-          "terse": "第二张最接近。另外两张暖色过满。",
-          "custom": "按你写的那句话来说：三张里第二张最接近你要的黄昏光。"
-        },
-        "body": {
-          "second": "第二张的逆光散射保住了云层细节，可以直接拿它当基底。",
-          "third": "另外两张要救的话，得把暖色降一档、曝光收半格；值不值得看你赶不赶时间。"
-        },
-        "nextStep": "下一步：要我按第二张再来一组吗？"
-      },
-      "tabPersona": "助手",
       "tabRules": "项目规则",
       "rulesHint": "助手动手之前会先读这些规则。你说了值得记下来的事，它就记一条。",
       "rulesLoading": "加载中…",
@@ -8161,6 +8078,133 @@
       "memoryClearDescription": "{count, plural, other {# 条}}记忆会被删掉，且无法恢复。",
       "memoryClearConfirm": "全部清空",
       "memoryCancel": "取消"
+    }
+  },
+  "AssistantSettings": {
+    "title": "助手设置",
+    "description": "这个助手是谁、怎么说话、记得什么。一份设置，四台工作台通用。",
+    "pageDescription": "这个助手是谁、怎么说话、记得什么。工作台右上角头像 ⋯ 里的「助手设置」打开的是同一份。",
+    "close": "关闭",
+    "tabs": {
+      "label": "助手设置分页",
+      "persona": "人设",
+      "memory": "记忆",
+      "memoryCount": "记忆 · {count}"
+    },
+    "status": {
+      "saving": "保存中",
+      "saved": "已保存",
+      "failed": "没保存上",
+      "retry": "重试"
+    },
+    "identity": {
+      "title": "身份",
+      "changeAvatar": "换头像",
+      "avatarLabel": "头像"
+    },
+    "avatar": {
+      "character": "{name} 的头像",
+      "upload": "我上传的",
+      "mark": "品牌标",
+      "monogram": "首字母",
+      "uploadNew": "上传一张新的…",
+      "tooLarge": "这张图超过 5 MB 了。",
+      "unsupported": "换一张 JPEG、PNG 或 WebP。"
+    },
+    "character": {
+      "label": "用角色",
+      "none": "不用角色",
+      "noSpeech": "说话方式还没写",
+      "create": "去角色页新建一个",
+      "caption": "头像、名字、语气先用 {name} 的，下面还能单独改。",
+      "captionNoSpeech": "头像和名字先用 {name} 的，下面还能单独改。"
+    },
+    "name": {
+      "label": "名字",
+      "placeholder": "留空时使用 ANTI"
+    },
+    "address": {
+      "label": "怎么称呼你",
+      "placeholder": "留空时用你的账号名"
+    },
+    "style": {
+      "title": "说话方式"
+    },
+    "archetype": {
+      "cautious": {
+        "name": "谨慎",
+        "line": "动手前多问两句 · 每一步都要你点头 · 回复偏短，只说结论"
+      },
+      "balanced": {
+        "name": "平衡",
+        "line": "拿不准才问，一次一个 · 多步和生成才确认 · 正常长度，附一条下一步"
+      },
+      "handsOff": {
+        "name": "放手",
+        "line": "基本不问，直接做 · 只在多步之前打个招呼 · 回复很短，只报结果"
+      },
+      "custom": {
+        "name": "自定义",
+        "line": "你在高级里改过，这份设置不再对上任何一档。"
+      }
+    },
+    "preview": {
+      "label": "示例回复",
+      "address": "{name}，",
+      "opener": {
+        "professional": "看过了。三张里第二张的逆光散射最接近你要的黄昏光，另外两张暖色压得太满。",
+        "friendly": "看过啦——三张里第二张最接近你要的黄昏光，另外两张暖色压得有点满。",
+        "terse": "第二张最接近。另外两张暖色过满。",
+        "custom": "按你写的那句话来说：三张里第二张最接近你要的黄昏光。",
+        "character": "按 {name} 的说话方式来说：三张里第二张最接近你要的黄昏光。"
+      },
+      "nextStep": "下一步：要我按第二张再来一组吗？"
+    },
+    "advanced": {
+      "label": "高级",
+      "on": "开",
+      "off": "关",
+      "summary": {
+        "tone": "语气 {value}",
+        "length": "长度 {value}",
+        "language": "语言 {value}",
+        "nextStep": "下一步建议 {value}",
+        "myWords": "用我的词 {value}"
+      }
+    },
+    "tone": {
+      "label": "语气",
+      "professional": "专业",
+      "friendly": "亲和",
+      "terse": "干脆",
+      "custom": "自定义",
+      "character": "{name} 的说话方式",
+      "customLabel": "自定义语气",
+      "customPlaceholder": "一句话说清你想要的说话方式",
+      "customRequired": "写上那一句，或者换一档语气。",
+      "characterNote": "取自 {name} 角色设定里的「说话方式」，那边改了这里跟着变。",
+      "characterMissing": "{name} 的角色设定里还没写「说话方式」，写了这一格才能选。",
+      "characterMissingLink": "去写"
+    },
+    "length": {
+      "label": "回复长度",
+      "concise": "简短",
+      "standard": "标准",
+      "detailed": "详细"
+    },
+    "language": {
+      "label": "回复语言",
+      "ui": "跟界面",
+      "chinese": "中文",
+      "english": "英文"
+    },
+    "nextStep": {
+      "label": "下一步建议",
+      "hint": "每条回复末尾给一条建议"
+    },
+    "myWords": {
+      "label": "用我的词",
+      "hint": "沿用我在提示词里的说法"
     }
   },
   "StudioInpaintMask": {

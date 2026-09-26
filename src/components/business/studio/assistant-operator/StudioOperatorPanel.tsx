@@ -280,7 +280,7 @@ interface StudioOperatorPanelProps {
   onSelectRouteModel(next: AssistantRouteModel): Promise<boolean>
   /** ⋯ 菜单 →「助手设置」（§8.1 主入口）。弹层住在外壳里（收放法则会卸载面板）。 */
   onOpenAssistantSettings(): void
-  /** 规则薄卡上的「查看规则」（§10）—— 打开助手设置并落到规则那一页。 */
+  /** 规则薄卡上的「查看规则」（§10）—— 打开助手设置并落到记忆页（规则住在那里）。 */
   onOpenProjectRules(): void
   onCollapse(): void
   /** 头部左上那个头像位（外壳说了算，见 `StudioOperatorHeader` 头注）。 */

@@ -31,18 +31,32 @@
 
 一条 = **一行字**：`text` 就是进系统提示的那一行。由助手在**每轮结账**时写，用户在 `/settings/assistant` 里改 / 删。
 
-| 列                             | 说明                                                              |
-| ------------------------------ | ----------------------------------------------------------------- |
-| `scope`                        | `AssistantMemoryScope`：IMAGE · VIDEO · CANVAS · LORA · GLOBAL    |
-| `kind`                         | `AssistantMemoryKind`：PREFERENCE · FACT · RULE（只影响提示措辞） |
-| `text`                         | `@db.Text`，收窄在 `ASSISTANT_MEMORY_LIMITS.maxTextChars`         |
-| `conversationId` / `messageId` | 溯源，**库里存着但界面不画**；⛔ 无 FK（会话删了记忆还在）        |
-| `lastUsedAt`                   | 被注入过就更新；**注入优先级与淘汰顺序都读它**                    |
+| 列                             | 说明                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `scope`                        | `AssistantMemoryScope`：IMAGE · VIDEO · CANVAS · LORA · GLOBAL                                               |
+| `kind`                         | `AssistantMemoryKind`：PREFERENCE · FACT · RULE（只影响提示措辞）                                            |
+| `text`                         | `@db.Text`，收窄在 `ASSISTANT_MEMORY_LIMITS.maxTextChars`                                                    |
+| `conversationId` / `messageId` | 溯源，**库里存着但界面不画**；⛔ 无 FK（会话删了记忆还在）                                                   |
+| `lastUsedAt`                   | 被注入过就更新；**注入优先级与淘汰顺序都读它**                                                               |
+| `source`                       | `AssistantMemorySource`：ASSISTANT · CREATOR（记忆页「助手记的 / 你写的」，2026-09-26 加列，默认 ASSISTANT） |
 
 - 三条索引：`(userId, scope, updatedAt desc)` 总览列表按域筛 · `(userId, updatedAt desc)` 总览「全部」· `(userId, scope, lastUsedAt desc)` 注入取前 N / 淘汰取最旧。
 - **每域上限 200**，超了按 `lastUsedAt` 最旧的静默删（服务端 `evictOldestAssistantMemories`）。
 - 删除即真删，⛔ 无软删。`onDelete: Cascade` 挂在 `User` 上。
 - ⚠ 迁移 `20260920120000_assistant_memory` 只写了文件，**owner 自己跑**——仓里另有两条未应用的迁移，一并留给 push。
+
+## 助手人设 `AssistantPersona`（助手设置 B · 2026-09-26 增列）
+
+一个用户一行（缺行 = 默认值，⛔ 不自动建行）。本轮新增四列，全部可空或带默认值，迁移 `20260926200000_assistant_settings_b` 经 owner 授权已对共用库执行：
+
+| 列                  | 说明                                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------------------- |
+| `avatarChoice`      | 头像单选表：character / upload / mark / monogram；NULL = 老行，读时按「传过图用图，否则用预设」回推 |
+| `nameFromCharacter` | 名字跟着角色走；开着时服务端不写 `name`（自己的名字一直留在库里）                                   |
+| `toneFromCharacter` | 语气跟着角色设定里的 `persona.speech` 走；角色没写说话方式时不生效                                  |
+| `memoryCapture`     | 「让助手记住」（默认开）；关 = 每轮结账不再自己记新的                                               |
+
+`characterCardId`（→ `CharacterCard`，`onDelete: SetNull`）由 `20260926120000_card_assistant` 加入；卡删了只清绑定，读的那一跳当没用角色。
 
 ## 迁移纪律
 

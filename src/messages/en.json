@@ -6935,6 +6935,9 @@
       "limitReached": "You've reached the context card limit. Delete one to add another.",
       "imageLimitReached": "This card's reference image slots are full. Remove one to add another.",
       "imageTooLarge": "Reference images must be under 10 MB."
+    },
+    "assistantPersona": {
+      "characterNotFound": "That character no longer exists. Pick another one or choose \"No character\"."
     }
   },
   "Transform": {
@@ -7650,92 +7653,6 @@
     },
     "assistantSettings": "Assistant settings",
     "persona": {
-      "title": "Assistant settings",
-      "description": "Set your assistant's name and speaking style. These settings apply across all workspaces.",
-      "save": "Save",
-      "saved": "Saved",
-      "cancel": "Cancel",
-      "reset": "Reset to defaults",
-      "saveFailed": "Could not save. Try again.",
-      "nameLabel": "Name",
-      "namePlaceholder": "Leave empty to use ANTI",
-      "avatarLabel": "Avatar",
-      "avatarPreset": {
-        "mark": "Brand mark",
-        "monogram": "Initials"
-      },
-      "avatarUpload": "Upload",
-      "avatarUploading": "Uploading…",
-      "avatarRemove": "Remove custom avatar",
-      "avatarTooLarge": "That image is over 5 MB.",
-      "avatarUnsupported": "Use a JPEG, PNG or WebP image.",
-      "toneLabel": "Tone",
-      "tone": {
-        "professional": "Professional",
-        "friendly": "Friendly",
-        "terse": "Brief",
-        "custom": "Custom"
-      },
-      "toneCustomPlaceholder": "Describe how it should sound, in one line",
-      "toneCustomRequired": "Describe a tone in one line, or choose a preset.",
-      "verbosityLabel": "Reply length",
-      "verbosity": {
-        "concise": "Concise",
-        "standard": "Standard",
-        "detailed": "Detailed"
-      },
-      "languageLabel": "Reply language",
-      "language": {
-        "ui": "Interface",
-        "chinese": "Chinese",
-        "english": "English"
-      },
-      "nextStepHintLabel": "Suggest a next step",
-      "useMyWordsLabel": "Use my words",
-      "addressUserAsLabel": "What to call you",
-      "addressUserAsPlaceholder": "Leave empty to use your account name",
-      "nextStepHintHint": "End every reply with one suggestion",
-      "useMyWordsHint": "Keep the wording I use in my prompts",
-      "advancedLabel": "Advanced",
-      "archetypeCustom": "Custom",
-      "archetypeCustomHint": "You changed something under Advanced, so this no longer matches any preset.",
-      "archetype": {
-        "cautious": {
-          "name": "Cautious",
-          "askLine": "Asks a couple of questions first",
-          "confirmLine": "Asks for your approval at each step",
-          "lengthLine": "Short replies, conclusions only"
-        },
-        "balanced": {
-          "name": "Balanced",
-          "askLine": "Asks only when unsure, one at a time",
-          "confirmLine": "Confirms multi-step work and generations",
-          "lengthLine": "Normal length, plus one next step"
-        },
-        "handsOff": {
-          "name": "Hands off",
-          "askLine": "Barely asks, just does it",
-          "confirmLine": "Only flags multi-step work up front",
-          "lengthLine": "Very short, results only"
-        }
-      },
-      "previewTitle": "How {name} will sound",
-      "previewHint": "Change anything on the left and this sample updates right away.",
-      "preview": {
-        "address": "{name}, ",
-        "opener": {
-          "professional": "I've reviewed all three. The second image's backlighting is closest to the dusk light you requested. The other two are too warm.",
-          "friendly": "Had a look — the second one is closest to the dusk light you wanted, the other two lean a bit too warm.",
-          "terse": "Second one is closest. The other two are too warm.",
-          "custom": "Putting it the way you asked: the second one is closest to the dusk light you wanted."
-        },
-        "body": {
-          "second": "The second image keeps detail in the backlit clouds, making it a good starting point.",
-          "third": "For the other two, try slightly cooler tones and half a stop less exposure if you'd like to refine them."
-        },
-        "nextStep": "Next: want another set based on the second one?"
-      },
-      "tabPersona": "Assistant",
       "tabRules": "Project rules",
       "rulesHint": "Rules the assistant follows while working on this project. Tell it what you'd like remembered, and it can save it here.",
       "rulesLoading": "Loading…",
@@ -8161,6 +8078,133 @@
       "memoryClearDescription": "{count, plural, one {# remembered line} other {# remembered lines}} will be deleted. This cannot be undone.",
       "memoryClearConfirm": "Clear all",
       "memoryCancel": "Cancel"
+    }
+  },
+  "AssistantSettings": {
+    "title": "Assistant settings",
+    "description": "Who your assistant is, how it talks and what it remembers. One set of settings for every workspace.",
+    "pageDescription": "Who your assistant is, how it talks and what it remembers. \"Assistant settings\" in the workbench ⋯ menu opens this same page.",
+    "close": "Close",
+    "tabs": {
+      "label": "Assistant settings sections",
+      "persona": "Persona",
+      "memory": "Memory",
+      "memoryCount": "Memory · {count}"
+    },
+    "status": {
+      "saving": "Saving",
+      "saved": "Saved",
+      "failed": "Not saved",
+      "retry": "Retry"
+    },
+    "identity": {
+      "title": "Identity",
+      "changeAvatar": "Change avatar",
+      "avatarLabel": "Avatar"
+    },
+    "avatar": {
+      "character": "{name}'s picture",
+      "upload": "My upload",
+      "mark": "Brand mark",
+      "monogram": "Initials",
+      "uploadNew": "Upload a new one…",
+      "tooLarge": "That image is over 5 MB.",
+      "unsupported": "Use a JPEG, PNG or WebP image."
+    },
+    "character": {
+      "label": "Use a character",
+      "none": "No character",
+      "noSpeech": "No speaking style yet",
+      "create": "Create one on the Characters page",
+      "caption": "Avatar, name and tone start from {name}. You can still change each one below.",
+      "captionNoSpeech": "Avatar and name start from {name}. You can still change each one below."
+    },
+    "name": {
+      "label": "Name",
+      "placeholder": "Leave empty to use ANTI"
+    },
+    "address": {
+      "label": "What to call you",
+      "placeholder": "Leave empty to use your account name"
+    },
+    "style": {
+      "title": "Working style"
+    },
+    "archetype": {
+      "cautious": {
+        "name": "Cautious",
+        "line": "Asks a couple of questions first · Asks for your approval at each step · Short replies, conclusions only"
+      },
+      "balanced": {
+        "name": "Balanced",
+        "line": "Asks only when unsure, one at a time · Confirms multi-step work and generations · Normal length, plus one next step"
+      },
+      "handsOff": {
+        "name": "Hands off",
+        "line": "Barely asks, just does it · Only flags multi-step work up front · Very short, results only"
+      },
+      "custom": {
+        "name": "Custom",
+        "line": "You changed something under Advanced, so this no longer matches any preset."
+      }
+    },
+    "preview": {
+      "label": "Sample reply",
+      "address": "{name}, ",
+      "opener": {
+        "professional": "I've reviewed all three. The second image's backlighting is closest to the dusk light you requested. The other two are too warm.",
+        "friendly": "Had a look — the second one is closest to the dusk light you wanted, the other two lean a bit too warm.",
+        "terse": "Second one is closest. The other two are too warm.",
+        "custom": "Putting it the way you asked: the second one is closest to the dusk light you wanted.",
+        "character": "In {name}'s voice: the second one is closest to the dusk light you wanted."
+      },
+      "nextStep": "Next: want another set based on the second one?"
+    },
+    "advanced": {
+      "label": "Advanced",
+      "on": "on",
+      "off": "off",
+      "summary": {
+        "tone": "Tone {value}",
+        "length": "Length {value}",
+        "language": "Language {value}",
+        "nextStep": "Next step {value}",
+        "myWords": "My words {value}"
+      }
+    },
+    "tone": {
+      "label": "Tone",
+      "professional": "Professional",
+      "friendly": "Friendly",
+      "terse": "Direct",
+      "custom": "Custom",
+      "character": "{name}'s voice",
+      "customLabel": "Custom tone",
+      "customPlaceholder": "Describe how it should sound, in one line",
+      "customRequired": "Describe a tone in one line, or choose a preset.",
+      "characterNote": "Taken from the speaking style in {name}'s character profile. It follows any change there.",
+      "characterMissing": "{name}'s character profile has no speaking style yet. Write one to use this.",
+      "characterMissingLink": "Write it"
+    },
+    "length": {
+      "label": "Reply length",
+      "concise": "Concise",
+      "standard": "Standard",
+      "detailed": "Detailed"
+    },
+    "language": {
+      "label": "Reply language",
+      "ui": "Interface",
+      "chinese": "Chinese",
+      "english": "English"
+    },
+    "nextStep": {
+      "label": "Suggest a next step",
+      "hint": "End every reply with one suggestion"
+    },
+    "myWords": {
+      "label": "Use my words",
+      "hint": "Keep the wording I use in my prompts"
     }
   },
   "StudioInpaintMask": {

@@ -97,21 +97,6 @@ export async function uploadAssistantAvatarAPI(
   }
 }
 
-export async function removeAssistantAvatarAPI(): Promise<
-  ApiResult<{ removed: boolean }>
-> {
-  try {
-    const response = await fetch(API_ENDPOINTS.ASSISTANT_PERSONA_AVATAR, {
-      method: 'DELETE',
-      headers: JSON_HEADERS,
-      body: JSON.stringify({}),
-    })
-    return await parseJsonResult(response, 'Failed to remove avatar')
-  } catch (error) {
-    return toFailure(error, 'Failed to remove avatar')
-  }
-}
-
 export async function listProjectRulesAPI(
   scope?: string,
 ): Promise<ApiResult<ProjectRule[]>> {

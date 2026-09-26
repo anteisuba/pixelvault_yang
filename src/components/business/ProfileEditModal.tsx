@@ -42,7 +42,7 @@ export function ProfileEditModal({
 }: ProfileEditModalProps) {
   const t = useTranslations('CreatorProfile')
   const tErrors = useTranslations('Errors')
-  const tOperator = useTranslations('StudioOperator')
+  const tAssistant = useTranslations('AssistantSettings')
   /** 助手设置（§8.1 第二入口）—— ⚠ 与账户表单各存各的，两者互不影响保存。 */
   const [assistantSettingsOpen, setAssistantSettingsOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -308,10 +308,10 @@ export function ProfileEditModal({
           >
             <span className="min-w-0">
               <span className="block text-sm font-medium text-foreground">
-                {tOperator('persona.title')}
+                {tAssistant('title')}
               </span>
               <span className="block text-xs leading-5 text-muted-foreground">
-                {tOperator('persona.description')}
+                {tAssistant('description')}
               </span>
             </span>
             <Sparkles className="size-4 shrink-0 text-muted-foreground" />

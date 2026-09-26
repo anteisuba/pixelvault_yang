@@ -32,7 +32,7 @@ const LANDING_POINTS = [
   'src/components/business/cards/StyleCardManager.tsx',
   'src/components/business/node/NodeCanvasEmptyGuide.tsx',
   'src/components/business/prompts/inspiration/InspirationGrid.tsx',
-  'src/components/business/settings/SettingsAssistantSection.tsx',
+  'src/components/business/assistant-settings/AssistantMemoryPane.tsx',
   'src/components/business/studio/lora/LoraWorkbench.tsx',
   'src/components/business/studio/lora/library/LoraLibraryTypeStates.tsx',
   'src/components/business/studio/lora/training/EmptyState.tsx',

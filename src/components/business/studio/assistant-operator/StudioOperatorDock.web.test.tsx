@@ -106,17 +106,17 @@ vi.mock('@/hooks/use-assistant-persona', () => ({
     error: null,
     save: vi.fn(),
     uploadAvatar: vi.fn(),
-    removeAvatar: vi.fn(),
     reload: vi.fn(),
   }),
 }))
 vi.mock(
   '@/components/business/studio/assistant-operator/AssistantSettingsDialog',
-  () => ({
-    ASSISTANT_SETTINGS_SECTIONS: { persona: 'persona', rules: 'rules' },
-    AssistantSettingsDialog: () => null,
-  }),
+  () => ({ AssistantSettingsDialog: () => null }),
 )
+vi.mock('@/components/business/assistant-settings/AssistantSettings', () => ({
+  ASSISTANT_SETTINGS_SECTIONS: { persona: 'persona', memory: 'memory' },
+  AssistantSettings: () => null,
+}))
 vi.mock('@/hooks/use-studio-operator-history', () => ({
   useStudioOperatorHistory: () => ({
     sessions: [],

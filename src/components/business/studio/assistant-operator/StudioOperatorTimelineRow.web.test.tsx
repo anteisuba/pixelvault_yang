@@ -1,6 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { ASSISTANT_PERSONA_DEFAULTS } from '@/constants/assistant-persona'
+
 import zhMessages from '@/messages/zh.json'
 
 import {
@@ -173,19 +175,11 @@ describe('StudioOperatorTimelineRow', () => {
       <StudioOperatorTimelineRow
         card={STUDIO_OPERATOR_CARD_KINDS.message}
         persona={{
+          ...ASSISTANT_PERSONA_DEFAULTS,
           name: '小满',
-          avatarPreset: 'mark',
-          avatarUrl: null,
           tone: 'professional',
-          toneCustom: null,
-          verbosity: 'standard',
-          routeModel: 'auto',
-          planMode: 'auto',
-          language: 'ui',
           nextStepHint: false,
-          useMyWords: true,
           archetype: null,
-          addressUserAs: null,
         }}
       >
         <span />

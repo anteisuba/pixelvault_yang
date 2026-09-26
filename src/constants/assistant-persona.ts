@@ -45,6 +45,38 @@ export function normalizeAvatarPreset(
 }
 
 /**
+ * 头像单选表的四项（助手设置 B「换头像」，owner 2026-09-26）。
+ *
+ * ⭐ 一张单选表而不是「预设 + 上传 + 去掉」三件事：上传过的那张**一直留在表里**，
+ * 换成预设也不丢，所以没有「去掉自定义头像」这一项。
+ * ⚠ `character` 只在用着角色时出现（取角色主图）；没有角色时这个值读回来按老规矩
+ * 回推，⛔ 不出一张空圈。
+ * ⚠ id 逐字存在 `AssistantPersona.avatarChoice` 列里，⛔ 不能改名。
+ */
+export const ASSISTANT_AVATAR_CHOICE_IDS = {
+  character: 'character',
+  upload: 'upload',
+  mark: ASSISTANT_AVATAR_PRESET_IDS[0],
+  monogram: ASSISTANT_AVATAR_PRESET_IDS[1],
+} as const
+
+export const ASSISTANT_AVATAR_CHOICES = [
+  ASSISTANT_AVATAR_CHOICE_IDS.character,
+  ASSISTANT_AVATAR_CHOICE_IDS.upload,
+  ASSISTANT_AVATAR_CHOICE_IDS.mark,
+  ASSISTANT_AVATAR_CHOICE_IDS.monogram,
+] as const
+
+export type AssistantAvatarChoice = (typeof ASSISTANT_AVATAR_CHOICES)[number]
+
+/** 这一项是不是两款预设之一（它们同时写进 `avatarPreset`，作画字形的回落）。 */
+export function isAvatarPresetChoice(
+  choice: AssistantAvatarChoice,
+): choice is AssistantAvatarPresetId {
+  return (ASSISTANT_AVATAR_PRESET_IDS as readonly string[]).includes(choice)
+}
+
+/**
  * 文本模型 chip 的「自动」档（§4.5）——**它是一个真选项**，排第一、也是默认值，
  * ⛔ 不是「没选时的显示文案」。选中它 = 服务端按 `resolveLlmTextRoute` 的优先级
  * 自己挑，与这一列为空时的行为逐字相同（库里存 null）。
@@ -152,11 +184,14 @@ export type AssistantPersonaPlanMode =
   (typeof ASSISTANT_PERSONA_PLAN_MODES)[number]
 
 /**
- * 三档人设（v2 §11.1）—— 设置弹层第一屏那三张卡。
+ * 三档人设（v2 §11.1）—— 设置里「说话方式」那一列单选。
  *
- * ⭐ 它是**一整份设置的名字**，不是第四个偏好档：选一张卡 = 把下面
- * `ASSISTANT_PERSONA_ARCHETYPE_PRESETS` 那五个值整份填进去。用户随后改动任一
- * 高级项，这一份就不再对上任何一档，`archetype` 变成 `null`（= 自定义）。
+ * ⭐ 它是**一整份设置的名字**，不是又一个偏好档：选一档 = 把下面
+ * `ASSISTANT_PERSONA_ARCHETYPE_PRESETS` 那四个值整份填进去。用户随后改动其中
+ * 任一格，这一份就不再对上任何一档，`archetype` 变成 `null`（= 自定义）。
+ * ⭐ **三档不管语气**（owner 2026-09-26 定）：档只管「问你多少、回多长、带不带
+ * 下一步、用不用你的词」。语气归身份那一层 —— 选了角色、换了语气，档位都不该
+ * 跳成「自定义」。
  *
  * ⚠ id 逐字存在 `AssistantPersona.archetype` 列里，⛔ 不能改名。
  */
@@ -176,9 +211,8 @@ export const ASSISTANT_PERSONA_ARCHETYPES = [
 export type AssistantPersonaArchetype =
   (typeof ASSISTANT_PERSONA_ARCHETYPES)[number]
 
-/** 一档人设整份填的那几格 —— ⛔ 与卡上那三行副文案逐条对得上，别各说各的。 */
+/** 一档人设整份填的那几格 —— ⛔ 与那一档的三行副文案逐条对得上，别各说各的。 */
 export interface AssistantPersonaArchetypePreset {
-  tone: AssistantPersonaTone
   verbosity: AssistantPersonaVerbosity
   planMode: AssistantPersonaPlanMode
   nextStepHint: boolean
@@ -186,7 +220,7 @@ export interface AssistantPersonaArchetypePreset {
 }
 
 /**
- * 三档 → 五个值的**唯一一张映射表**（§11.1）。
+ * 三档 → 四个值的**唯一一张映射表**（§11.1）。⛔ 没有语气（见上面三档的头注）。
  *
  * ⚠ 「谨慎」的「每一步都要你点头」= `planMode: always`（每轮先出计划确认），
  * **不是**恢复花钱确认 —— 决策 8 已把花钱确认整条删掉，⛔ 别从这里绕回来。
@@ -200,21 +234,18 @@ export const ASSISTANT_PERSONA_ARCHETYPE_PRESETS: Record<
   AssistantPersonaArchetypePreset
 > = {
   [ASSISTANT_PERSONA_ARCHETYPE_IDS.cautious]: {
-    tone: ASSISTANT_PERSONA_TONE_IDS.professional,
     verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.concise,
     planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.always,
     nextStepHint: false,
     useMyWords: true,
   },
   [ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced]: {
-    tone: ASSISTANT_PERSONA_TONE_IDS.friendly,
     verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.standard,
     planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.auto,
     nextStepHint: true,
     useMyWords: true,
   },
   [ASSISTANT_PERSONA_ARCHETYPE_IDS.handsOff]: {
-    tone: ASSISTANT_PERSONA_TONE_IDS.terse,
     verbosity: ASSISTANT_PERSONA_VERBOSITY_IDS.concise,
     planMode: ASSISTANT_PERSONA_PLAN_MODE_IDS.direct,
     nextStepHint: false,
@@ -225,10 +256,10 @@ export const ASSISTANT_PERSONA_ARCHETYPE_PRESETS: Record<
 /**
  * 一份设置**正好**对上哪一档（对不上就是 `null` = 自定义）。
  *
- * ⭐ 两处共用这一跳：客户端拿它画「哪张卡亮着」，服务端拿它给**存量行**回推
+ * ⭐ 两处共用这一跳：客户端拿它画「哪一档亮着」，服务端拿它给**存量行**回推
  * （那一列是后加的，老行里是 NULL），⛔ 不写一条迁移去改存量数据。
- * ⚠ 判据是**五格全中**：差一格就已经不是那一档了 —— 卡上写的三行副文案是承诺，
- * 只对上两行的那一份不该顶着「平衡」的名字。
+ * ⚠ 判据是**四格全中**：差一格就已经不是那一档了 —— 那一档写的三行副文案是承诺，
+ * 只对上两行的那一份不该顶着「平衡」的名字。⛔ 语气不在判据里（三档不管语气）。
  */
 export function matchAssistantPersonaArchetype(values: {
   /**
@@ -236,7 +267,6 @@ export function matchAssistantPersonaArchetype(values: {
    * 而库里那几列就是 `String`（词表住这里，⛔ 不做第二份 Prisma 枚举）。
    * 词表外的值自然对不上任何一档 → `null` = 自定义，正是该有的答案。
    */
-  tone: string
   verbosity: string
   planMode: string
   nextStepHint: boolean
@@ -246,7 +276,6 @@ export function matchAssistantPersonaArchetype(values: {
     ASSISTANT_PERSONA_ARCHETYPES.find((archetype) => {
       const preset = ASSISTANT_PERSONA_ARCHETYPE_PRESETS[archetype]
       return (
-        preset.tone === values.tone &&
         preset.verbosity === values.verbosity &&
         preset.planMode === values.planMode &&
         preset.nextStepHint === values.nextStepHint &&
@@ -254,19 +283,6 @@ export function matchAssistantPersonaArchetype(values: {
       )
     }) ?? null
   )
-}
-
-/**
- * 实时示例（§11.5）里**正文有几段**——很短 1 句 / 正常 2 段 / 详细 3 段。
- * 第 1 段就是随语气变的那句开场，⛔ 不在它之外再多算一段。
- */
-export const ASSISTANT_PERSONA_PREVIEW_PARAGRAPHS: Record<
-  AssistantPersonaVerbosity,
-  number
-> = {
-  [ASSISTANT_PERSONA_VERBOSITY_IDS.concise]: 1,
-  [ASSISTANT_PERSONA_VERBOSITY_IDS.standard]: 2,
-  [ASSISTANT_PERSONA_VERBOSITY_IDS.detailed]: 3,
 }
 
 /**
@@ -301,18 +317,26 @@ export const ASSISTANT_PERSONA_DEFAULTS = {
   name: null,
   avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[0],
   avatarUrl: null,
+  /** 没传过图、没选过 —— 就是默认那款预设。 */
+  avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.mark,
+  uploadedAvatarUrl: null,
+  /** 用角色（助手设置 B）：默认不用，两个「跟着角色走」也都关着。 */
+  characterCardId: null,
+  character: null,
+  nameFromCharacter: false,
+  toneFromCharacter: false,
   /**
    * ⭐ **默认整份就是「平衡」这一档**（owner 2026-09-11 定，取代 2026-09-06 的
-   * 「简短直接 · 简洁」）：新用户打开设置就看到一张卡亮着，⛔ 不是三张都灰、
+   * 「简短直接 · 简洁」）：新用户打开设置就看到一档亮着，⛔ 不是三档都灰、
    * 顶上写着「自定义」。
    *
-   * 🔬 下面这五格逐字抄自 `ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced`
-   * （`friendly` + `standard` + `auto` + 下一步开 + 用我的词开）——⛔ 不在这里
-   * 手写第二份：漂了就是卡上亮着「平衡」而助手按别的档说话。
+   * 🔬 长度 / 行为 / 两个开关逐字抄自 `ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced`
+   * ——⛔ 不在这里手写第二份：漂了就是亮着「平衡」而助手按别的档说话。
+   * 语气不在档里（owner 2026-09-26），默认 `friendly`（亲和）单独写。
    * ⚠ 这几个值同时必须与 `prisma/schema.prisma` 上 `AssistantPersona` 的
    * `@default` 逐字一致 —— 漂了，「没存过」和「存了默认值」就是两个不同的助手。
    */
-  tone: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.tone,
+  tone: ASSISTANT_PERSONA_TONE_IDS.friendly,
   toneCustom: null,
   verbosity: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.verbosity,
   planMode: ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced.planMode,
@@ -334,11 +358,11 @@ export const ASSISTANT_PERSONA_DEFAULTS = {
   /**
    * ⭐ **默认是「平衡」**（owner 2026-09-11 定）——⛔ 不再是 `null`（自定义）。
    *
-   * 🔬 它不是一个独立的第六格：上面那五格逐字等于
+   * 🔬 它不是一个独立的格：上面那四格逐字等于
    * `ASSISTANT_PERSONA_ARCHETYPE_PRESETS.balanced`，所以
    * `matchAssistantPersonaArchetype(ASSISTANT_PERSONA_DEFAULTS)` 本来就回
    * `balanced` —— 这里写死同一个答案只是为了让「缺行」那一跳不必先算一遍。
-   * ⚠ 存量行照旧留 NULL，读的那一跳按五格回推，⛔ 不写迁移回填历史数据。
+   * ⚠ 存量行照旧留 NULL，读的那一跳按四格回推，⛔ 不写迁移回填历史数据。
    */
   archetype: ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced,
 } as const
@@ -356,6 +380,12 @@ export const ASSISTANT_PERSONA_LIMITS = {
    * ⚠ 这条上限是**硬的**：它原样拼进系统提示，而风格段整段要压在 ~400 字符内。
    */
   maxToneCustomChars: 80,
+  /**
+   * 语气跟着角色走时，角色设定里那段「说话方式」进系统提示的上限。
+   * ⚠ 比自定义那一句宽，但整段风格仍压在 `maxStyleSectionChars` 内：
+   * 前缀 ~60 + 最长的长度指令 ~120 + 默认行为 ~70 + 这一段 140 < 400。
+   */
+  maxCharacterSpeechChars: 140,
   /** 风格段拼完之后的长度上限（§8.5）。超出即截断，⛔ 不静默放行。 */
   maxStyleSectionChars: 400,
   /**

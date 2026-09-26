@@ -33,6 +33,10 @@ import { ASSISTANT_OPERATOR_TOOL_ARGS_SCHEMAS } from '@/types/assistant-operator
 const BASE = {
   name: null,
   avatarPreset: null,
+  avatarChoice: ASSISTANT_PERSONA_DEFAULTS.avatarChoice,
+  characterCardId: null,
+  nameFromCharacter: false,
+  toneFromCharacter: false,
   tone: ASSISTANT_PERSONA_DEFAULTS.tone,
   toneCustom: null,
   verbosity: ASSISTANT_PERSONA_DEFAULTS.verbosity,
@@ -150,14 +154,15 @@ describe('AssistantPersona 的三项用户偏好', () => {
 
   /**
    * ⭐ 新用户 / 从没动过设置的人**默认就是「平衡」档**（owner 2026-09-11）：
-   * 打开设置该看到一张卡亮着，⛔ 不是三张都灰、顶上写「自定义」。
+   * 打开设置该看到一档亮着，⛔ 不是三档都灰、顶上写「自定义」。
+   * 语气不在档里（owner 2026-09-26），默认亲和。
    */
-  it('默认整份 = 「平衡」档五格，且回推得到 balanced', () => {
+  it('默认整份 = 「平衡」档四格 + 亲和语气，且回推得到 balanced', () => {
     const preset =
       ASSISTANT_PERSONA_ARCHETYPE_PRESETS[
         ASSISTANT_PERSONA_ARCHETYPE_IDS.balanced
       ]
-    expect(ASSISTANT_PERSONA_DEFAULTS.tone).toBe(preset.tone)
+    expect(ASSISTANT_PERSONA_DEFAULTS.tone).toBe('friendly')
     expect(ASSISTANT_PERSONA_DEFAULTS.verbosity).toBe(preset.verbosity)
     expect(ASSISTANT_PERSONA_DEFAULTS.planMode).toBe(preset.planMode)
     expect(ASSISTANT_PERSONA_DEFAULTS.nextStepHint).toBe(preset.nextStepHint)
@@ -298,5 +303,40 @@ describe('research.onlySources', () => {
         ),
       }).success,
     ).toBe(false)
+  })
+})
+
+/**
+ * 用角色 / 头像单选表（助手设置 B）—— 写入口只收自己能写的那几格。
+ */
+describe('AssistantPersona 助手设置 B 的几格', () => {
+  const FULL = { ...BASE, routeModel: ASSISTANT_ROUTE_MODEL_AUTO }
+
+  it('头像单选只收四项', () => {
+    for (const avatarChoice of ['character', 'upload', 'mark', 'monogram']) {
+      expect(
+        UpdateAssistantPersonaSchema.safeParse({ ...FULL, avatarChoice })
+          .success,
+      ).toBe(true)
+    }
+    expect(
+      UpdateAssistantPersonaSchema.safeParse({
+        ...FULL,
+        avatarChoice: 'spark',
+      }).success,
+    ).toBe(false)
+  })
+
+  it('只读那几格递进来会被丢掉，⛔ 不落库', () => {
+    const parsed = UpdateAssistantPersonaSchema.safeParse({
+      ...FULL,
+      avatarUrl: 'https://cdn.test/x.png',
+      uploadedAvatarUrl: 'https://cdn.test/y.png',
+      character: { id: 'c', name: 'X', faceUrl: null, hasSpeech: false },
+    })
+    expect(parsed.success).toBe(true)
+    expect(parsed.data).not.toHaveProperty('avatarUrl')
+    expect(parsed.data).not.toHaveProperty('uploadedAvatarUrl')
+    expect(parsed.data).not.toHaveProperty('character')
   })
 })

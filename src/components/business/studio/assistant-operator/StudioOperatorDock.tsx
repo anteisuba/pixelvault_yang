@@ -79,11 +79,11 @@ import {
 import { useStudioOperatorUpload } from '@/hooks/use-studio-operator-upload'
 import { studioOperatorYield } from '@/hooks/use-studio-operator-yield'
 import { useStudioOperatorWebImport } from '@/hooks/use-studio-operator-web-import'
+import { AssistantSettingsDialog } from '@/components/business/studio/assistant-operator/AssistantSettingsDialog'
 import {
   ASSISTANT_SETTINGS_SECTIONS,
-  AssistantSettingsDialog,
   type AssistantSettingsSection,
-} from '@/components/business/studio/assistant-operator/AssistantSettingsDialog'
+} from '@/components/business/assistant-settings/AssistantSettings'
 import {
   StudioOperatorAvatarToggle,
   type StudioOperatorShellPhase,
@@ -92,7 +92,10 @@ import { StudioOperatorLightbox } from '@/components/business/studio/assistant-o
 import { StudioOperatorMobileSheet } from '@/components/business/studio/assistant-operator/StudioOperatorMobileSheet'
 import { StudioOperatorPanel } from '@/components/business/studio/assistant-operator/StudioOperatorPanel'
 import { cn } from '@/lib/utils'
-import type { AssistantRouteModel } from '@/types/assistant-persona'
+import {
+  toAssistantPersonaUpdate,
+  type AssistantRouteModel,
+} from '@/types/assistant-persona'
 import type { StudioOperatorAttachment } from '@/types/studio-assistant-operator'
 
 // ─── 宽度记忆（localStorage 背书的模块 store）──────────────────────
@@ -347,28 +350,14 @@ export function StudioOperatorDock() {
    */
   const handleSelectRouteModel = useCallback(
     (routeModel: AssistantRouteModel) =>
-      savePersona({
-        name: persona.name,
-        avatarPreset: persona.avatarPreset,
-        tone: persona.tone,
-        toneCustom: persona.toneCustom,
-        verbosity: persona.verbosity,
-        planMode: persona.planMode,
-        language: persona.language,
-        routeModel,
-        nextStepHint: persona.nextStepHint,
-        useMyWords: persona.useMyWords,
-        /** 换模型不动人设档（§11.1）——⚠ 原样带上，⛔ 不让它被默认值打回。 */
-        archetype: persona.archetype,
-        addressUserAs: persona.addressUserAs,
-      }),
+      savePersona({ ...toAssistantPersonaUpdate(persona), routeModel }),
     [persona, savePersona],
   )
   /**
    * 助手设置弹层（§8.1）。**状态住在外壳**：面板会被收放法则卸载，而弹层是它开
    * 出来的 —— 挂在面板里的表现是「点开设置、鼠标滑出面板，弹层自己没了」。
    * ⚠ `null` = 关着；非 null 时同时说明**开在哪一页**（规则薄卡的「查看规则」
-   *   直接落到规则那一页，§10）。
+   *   直接落到记忆页 —— 助手设置 B 起规则住在那里，§10）。
    */
   /**
    * ── 头像开关的四档相位（D7b ④ 相位机 · 2026-09-26 形状改 B）─────────
@@ -855,7 +844,7 @@ export function StudioOperatorDock() {
         setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.persona)
       }
       onOpenProjectRules={() =>
-        setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.rules)
+        setSettingsSection(ASSISTANT_SETTINGS_SECTIONS.memory)
       }
       onCollapse={() => setOpen(false)}
       /**

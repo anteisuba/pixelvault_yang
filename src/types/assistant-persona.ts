@@ -13,6 +13,8 @@
 import { z } from 'zod'
 
 import {
+  ASSISTANT_AVATAR_CHOICE_IDS,
+  ASSISTANT_AVATAR_CHOICES,
   ASSISTANT_AVATAR_PRESET_IDS,
   ASSISTANT_PERSONA_ARCHETYPES,
   ASSISTANT_PERSONA_LANGUAGES,
@@ -22,6 +24,7 @@ import {
   ASSISTANT_PERSONA_TONES,
   ASSISTANT_PERSONA_VERBOSITIES,
   ASSISTANT_ROUTE_MODEL_VALUES,
+  normalizeAvatarPreset,
 } from '@/constants/assistant-persona'
 import {
   ASSISTANT_OPERATOR_DOMAINS,
@@ -36,6 +39,8 @@ import {
 // ─── persona ─────────────────────────────────────────────────────
 
 export const AssistantAvatarPresetSchema = z.enum(ASSISTANT_AVATAR_PRESET_IDS)
+/** 头像单选表选中的那一项（助手设置 B）。 */
+export const AssistantAvatarChoiceSchema = z.enum(ASSISTANT_AVATAR_CHOICES)
 export const AssistantPersonaToneSchema = z.enum(ASSISTANT_PERSONA_TONES)
 export const AssistantPersonaVerbositySchema = z.enum(
   ASSISTANT_PERSONA_VERBOSITIES,
@@ -69,6 +74,26 @@ export const AssistantRouteModelSchema = z.enum(ASSISTANT_ROUTE_MODEL_VALUES)
 export type AssistantRouteModel = z.infer<typeof AssistantRouteModelSchema>
 
 /**
+ * 正在用的那个角色（助手设置 B「用角色」）—— **只读**，服务端从角色卡里取。
+ *
+ * ⚠ 只带界面要的四样：下拉里那一行、头像单选表里「Denia 的头像」、语气那一排
+ * 「Denia 的说话方式」能不能选。⛔ 不把「说话方式」原文带给客户端：它只进系统
+ * 提示（`getAssistantPersonaByUserId`），界面只需要知道「写了没有」。
+ */
+export const AssistantPersonaCharacterSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  /** 角色主图；卡上还没有图时是 `null`（头像退回预设字形）。 */
+  faceUrl: z.string().url().nullable(),
+  /** 角色设定里写了「说话方式」没有。 */
+  hasSpeech: z.boolean(),
+})
+
+export type AssistantPersonaCharacter = z.infer<
+  typeof AssistantPersonaCharacterSchema
+>
+
+/**
  * persona 的**列**本体。两个对外 schema 都从它派生 —— 写两遍字段的表现是
  * 「设置里能存的字段和读回来的字段悄悄不一样」。
  */
@@ -80,7 +105,33 @@ const AssistantPersonaShapeSchema = z.object({
     .max(ASSISTANT_PERSONA_LIMITS.maxNameChars)
     .nullable(),
   avatarPreset: AssistantAvatarPresetSchema.nullable(),
+  /**
+   * **显示用**的那张图（读回来才有）：选的是上传的那张 → 那张；选的是角色 →
+   * 角色主图；选的是预设 → `null`（按 `avatarPreset` 画字形）。显示头像的地方
+   * 只读这两格，⛔ 不自己再判一遍单选表。
+   */
   avatarUrl: z.string().url().nullable(),
+  /** 头像单选表选中的那一项（读回来时已回推好，老行也有值）。 */
+  avatarChoice: AssistantAvatarChoiceSchema,
+  /**
+   * 上传过的那张（读回来才有）—— 单选表里「我上传的」那一项靠它；换成预设它也
+   * 还在（owner 2026-09-26：换成预设不丢）。
+   */
+  uploadedAvatarUrl: z.string().url().nullable(),
+  /** 用哪个角色（助手设置 B）。`null` = 不用角色。 */
+  characterCardId: z.string().min(1).nullable(),
+  /** 正在用的角色（读回来才有；卡删了 / 没用角色就是 `null`）。 */
+  character: AssistantPersonaCharacterSchema.nullable(),
+  /**
+   * 名字跟着角色走。⚠ 读回来的 `name` 已经是**显示的那个名字**（跟着角色时就是
+   * 角色名）；写回去时服务端在它开着时不动库里那一格，自己的名字不会被覆盖。
+   */
+  nameFromCharacter: z.boolean(),
+  /**
+   * 语气跟着角色设定里的「说话方式」走。⚠ `tone` / `toneCustom` 始终是自己那一份；
+   * 角色没写说话方式时这一格开着也不生效。
+   */
+  toneFromCharacter: z.boolean(),
   tone: AssistantPersonaToneSchema,
   toneCustom: z
     .string()
@@ -106,9 +157,10 @@ const AssistantPersonaShapeSchema = z.object({
   /**
    * 选的是哪一张人设卡（§11.1）。`null` = 自定义。
    *
-   * ⚠ 它**不是**第六个独立偏好：服务端只在它与上面那五格（tone / verbosity /
-   * planMode / nextStepHint / useMyWords）逐格对得上时才落库，对不上就落 `null`
-   * —— ⛔ 不信客户端递来的那个名字，否则卡上写的三行副文案随时可能是假话。
+   * ⚠ 它**不是**又一个独立偏好：服务端只在它与四格（verbosity / planMode /
+   * nextStepHint / useMyWords）逐格对得上时才落库，对不上就落 `null` —— ⛔ 不信
+   * 客户端递来的那个名字，否则那一档写的三行副文案随时可能是假话。语气不在判据里
+   * （owner 2026-09-26：三档不管语气）。
    */
   archetype: AssistantPersonaArchetypeSchema.nullable(),
   /** null = 用账号名。⚠ 它原样拼进系统提示，所以上限是硬的。 */
@@ -153,14 +205,72 @@ export const AssistantPersonaSchema = AssistantPersonaShapeSchema.refine(
 
 export type AssistantPersona = z.infer<typeof AssistantPersonaSchema>
 
-/** PUT `/api/assistant/persona` 的载荷 —— persona 减去头像那两列。 */
+/**
+ * PUT `/api/assistant/persona` 的载荷 —— persona 减去**只读**的那几格：两张图的
+ * 地址（由上传那条路写）与正在用的角色（由服务端从卡里取）。
+ */
 export const UpdateAssistantPersonaSchema = AssistantPersonaShapeSchema.omit({
   avatarUrl: true,
+  uploadedAvatarUrl: true,
+  character: true,
 }).refine(toneCustomPresentWhenCustom, TONE_CUSTOM_REFINEMENT)
 
 export type UpdateAssistantPersonaRequest = z.infer<
   typeof UpdateAssistantPersonaSchema
 >
+
+/**
+ * 读回来的一份 → 写回去的一份（去掉只读那几格）。
+ *
+ * ⚠ `PUT` 收的是**完整形状**：只递一格会把其余几格按默认值覆盖回去，所以任何
+ * 「只改一格」的地方（模型 chip、设置里的每一下）都从这里起手再盖上那一格。
+ */
+export function toAssistantPersonaUpdate(
+  persona: AssistantPersona,
+): UpdateAssistantPersonaRequest {
+  const { avatarUrl, uploadedAvatarUrl, character, ...update } = persona
+  void avatarUrl
+  void uploadedAvatarUrl
+  void character
+  return update
+}
+
+/**
+ * 用一个角色 / 不用角色（助手设置 B「用角色」，角色页「设为助手人设」同一条）。
+ *
+ * ⭐ 用角色 = 名字、头像、语气**先**跟着角色走，之后每一格都还能单独改
+ * （owner 2026-09-26：只当默认值）。⚠ 名字那一格不用在这里改：跟着角色时服务端
+ * 不动库里自己的名字，显示的是角色名。
+ * ⭐ 不用角色 = 回到自己那一份：语气与名字本来就没被覆盖；头像若正用着角色的脸，
+ * 换回上传的那张（没传过就是预设）。
+ */
+export function withAssistantCharacter(
+  persona: AssistantPersona,
+  characterCardId: string | null,
+): UpdateAssistantPersonaRequest {
+  const update = toAssistantPersonaUpdate(persona)
+  if (characterCardId) {
+    return {
+      ...update,
+      characterCardId,
+      nameFromCharacter: true,
+      toneFromCharacter: true,
+      avatarChoice: ASSISTANT_AVATAR_CHOICE_IDS.character,
+    }
+  }
+  return {
+    ...update,
+    characterCardId: null,
+    nameFromCharacter: false,
+    toneFromCharacter: false,
+    avatarChoice:
+      update.avatarChoice === ASSISTANT_AVATAR_CHOICE_IDS.character
+        ? persona.uploadedAvatarUrl
+          ? ASSISTANT_AVATAR_CHOICE_IDS.upload
+          : normalizeAvatarPreset(persona.avatarPreset)
+        : update.avatarChoice,
+  }
+}
 
 /** POST `/api/assistant/persona/avatar` —— 与账户头像那条路同形（data URL / http）。 */
 export const UploadAssistantAvatarSchema = z.object({

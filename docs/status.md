@@ -43,6 +43,7 @@ flowchart TB
   class BUS,CLOSED,MENU,EDIT,LATER pending
 ```
 
+- 助手设置 B 第一片（2026-09-26）：工作台 ⋯「助手设置」弹窗与 `/settings/assistant` 收成一份 `AssistantSettings`，顶部「人设 / 记忆」两页，改了就存（右上角保存状态，失败可重试，无页脚按钮）。人设页：头像单选表（上传的那张保留）、用角色（名字 / 头像 / 语气先跟着角色，之后可单独改，选回不用角色恢复自己的）、三档只管四格（换语气不跳自定义）、语气「简短」改叫「干脆」、一句示例、高级就地展开。迁移 `20260926200000_assistant_settings_b`（只加列）经 owner 授权已 `migrate deploy` 到共用库。记忆页本片只原样搬入旧记忆清单与项目规则，并成一列与「让助手记住」在第二片。浏览器实测（共用库上用 owner 账号，测完按快照原样恢复）：换头像单选表（选预设后上传的那张仍在表里）、用角色 Denia（说话方式未写 → 那一格灰着 +「去写」）、不用角色恢复自己的名字与头像、换语气不跳档、改长度出现「自定义」、桌面弹窗钉上沿 64px / 720 宽 / 无页脚、切记忆页只动下沿、375 手机页面与抽屉结构均已核对；浏览器面板隐藏时不跑动画，动效未目检。全量 Vitest、tsc、改动文件 lint 通过。
 - 下方 09-17 至 09-23 各条写的「未提交 / 未推送 / 未部署」代码均已随 `5e422f97` 上生产。**生产站与本地开发共用同一个库**：09-23 生产构建日志 `Datasource … at ep-flat-violet-aifhen7l`（Neon `development` 分支）、`No pending migrations to apply`；Arena drop、CharacterCard v2、GenerationLayer、AssistantMemory 四条迁移 09-18 至 09-21 已应用。Neon 里名为 `production` 的默认分支已停用（09-07 后无写入），名字易误导；查库时必须指定 `development` 分支。
 - 业务按依赖分层（见画布第 1 页）：层 0 底座 → 层 1 助手 ‖ 卡片 ‖ 图片 ‖ 视频 ‖ LoRA ‖ 素材 → 层 2 画布导演台 → 层 3 剪辑台成片 / 语音；卡片挡画布不挡助手，建议卡片 35 与助手讨论并行开。
 - 文档与代码一致、仍未做：`deliverTimelineProposal` 无生产者；57 旧助手组件仍在；68 选择器仍按字符串前缀拆名；卡片 v3 / `referenceSlots`；隐身仍保存本轮记录（只不写长期记忆）。

@@ -753,6 +753,20 @@ model AssistantPersona {
   /// 说话方式。null = 不用卡。卡删了只清绑定（SetNull），不动人设其余格。
   characterCardId String?
   characterCard   CharacterCard? @relation(fields: [characterCardId], references: [id], onDelete: SetNull)
+  /// 名字跟着角色走（用角色时一起打开；在名字框里改一个字就关掉，改的那个名字
+  /// 落回 `name`）。没有角色时不生效 —— `name` 始终是创作者自己那一份。
+  nameFromCharacter Boolean @default(false)
+  /// 语气跟着角色设定里的「说话方式」走（设置里语气那一排的第一格）。角色还没写
+  /// 说话方式时不生效，退回 `tone`；`tone` / `toneCustom` 始终是创作者自己那一份。
+  toneFromCharacter Boolean @default(false)
+  /// 头像单选表选的是哪一张（助手设置 B，owner 09-26）：character / upload / mark /
+  /// monogram（`ASSISTANT_AVATAR_CHOICES`）。⭐ 换成预设不删上传的那张 —— 它留在
+  /// 单选表里，点一下就换回来。NULL = 老行：读的那一跳按老规矩回推（传过图用图，
+  /// 否则用预设），⛔ 不写迁移回填。
+  avatarChoice String?
+  /// 「让助手记住」（记忆页右上那颗开关）。关 = 每轮结账不再自己记新的；清单里
+  /// 已有的照样注入，不想要就删。
+  memoryCapture Boolean @default(true)
   /// always / auto / direct —— 「先问我」开关的初始态 + 出卡判据。
   planMode  String @default("auto")
   /// ui / chinese / english —— 覆盖请求里的 responseLanguage。
@@ -1636,6 +1650,14 @@ enum AssistantMemoryScope {
   GLOBAL
 }
 
+/// 一条记忆是谁写的（助手设置 B · 记忆页「你写的 / 助手记的」）。
+enum AssistantMemorySource {
+  /// 助手自己记的：每轮结账那一条路，以及它在对话里记下的规矩。
+  ASSISTANT
+  /// 创作者自己写的：记忆页那一格，以及旧「项目规则」里他自己写下的那些。
+  CREATOR
+}
+
 /// 这一行是哪一类。⚠ 只影响提示里的措辞，⛔ 不影响注入顺序（那由 lastUsedAt 决定）。
 enum AssistantMemoryKind {
   PREFERENCE
@@ -1650,6 +1672,8 @@ model AssistantMemory {
 
   scope AssistantMemoryScope
   kind  AssistantMemoryKind
+  /// ⭐ 你写的优先：注入时排在助手记的前面，每域上限只淘汰助手记的那些。
+  source AssistantMemorySource @default(ASSISTANT)
 
   /// 那一行字本身 —— 系统提示里印的就是它。
   text String @db.Text

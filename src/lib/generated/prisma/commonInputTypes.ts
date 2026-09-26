@@ -671,6 +671,13 @@ export type EnumAssistantMemoryKindFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumAssistantMemoryKindFilter<$PrismaModel> | $Enums.AssistantMemoryKind
 }
 
+export type EnumAssistantMemorySourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantMemorySource | Prisma.EnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantMemorySource[] | Prisma.ListEnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantMemorySource[] | Prisma.ListEnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantMemorySourceFilter<$PrismaModel> | $Enums.AssistantMemorySource
+}
+
 export type EnumAssistantMemoryScopeWithAggregatesFilter<$PrismaModel = never> = {
   equals?: $Enums.AssistantMemoryScope | Prisma.EnumAssistantMemoryScopeFieldRefInput<$PrismaModel>
   in?: $Enums.AssistantMemoryScope[] | Prisma.ListEnumAssistantMemoryScopeFieldRefInput<$PrismaModel>
@@ -689,6 +696,16 @@ export type EnumAssistantMemoryKindWithAggregatesFilter<$PrismaModel = never> = 
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumAssistantMemoryKindFilter<$PrismaModel>
   _max?: Prisma.NestedEnumAssistantMemoryKindFilter<$PrismaModel>
+}
+
+export type EnumAssistantMemorySourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantMemorySource | Prisma.EnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantMemorySource[] | Prisma.ListEnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantMemorySource[] | Prisma.ListEnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantMemorySourceWithAggregatesFilter<$PrismaModel> | $Enums.AssistantMemorySource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAssistantMemorySourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAssistantMemorySourceFilter<$PrismaModel>
 }
 
 export type NestedStringFilter<$PrismaModel = never> = {
@@ -1285,6 +1302,13 @@ export type NestedEnumAssistantMemoryKindFilter<$PrismaModel = never> = {
   not?: Prisma.NestedEnumAssistantMemoryKindFilter<$PrismaModel> | $Enums.AssistantMemoryKind
 }
 
+export type NestedEnumAssistantMemorySourceFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantMemorySource | Prisma.EnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantMemorySource[] | Prisma.ListEnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantMemorySource[] | Prisma.ListEnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantMemorySourceFilter<$PrismaModel> | $Enums.AssistantMemorySource
+}
+
 export type NestedEnumAssistantMemoryScopeWithAggregatesFilter<$PrismaModel = never> = {
   equals?: $Enums.AssistantMemoryScope | Prisma.EnumAssistantMemoryScopeFieldRefInput<$PrismaModel>
   in?: $Enums.AssistantMemoryScope[] | Prisma.ListEnumAssistantMemoryScopeFieldRefInput<$PrismaModel>
@@ -1303,6 +1327,16 @@ export type NestedEnumAssistantMemoryKindWithAggregatesFilter<$PrismaModel = nev
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumAssistantMemoryKindFilter<$PrismaModel>
   _max?: Prisma.NestedEnumAssistantMemoryKindFilter<$PrismaModel>
+}
+
+export type NestedEnumAssistantMemorySourceWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.AssistantMemorySource | Prisma.EnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  in?: $Enums.AssistantMemorySource[] | Prisma.ListEnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  notIn?: $Enums.AssistantMemorySource[] | Prisma.ListEnumAssistantMemorySourceFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumAssistantMemorySourceWithAggregatesFilter<$PrismaModel> | $Enums.AssistantMemorySource
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumAssistantMemorySourceFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumAssistantMemorySourceFilter<$PrismaModel>
 }
 
 

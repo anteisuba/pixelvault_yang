@@ -16,6 +16,8 @@ import { UpdateAssistantPersonaSchema } from '@/types/assistant-persona'
  * ⚠ GET 从来不会 404：库里没有那一行时服务返回 `ASSISTANT_PERSONA_DEFAULTS`
  * （§8.4 第 4 条：不做首次访问自动建行）。
  * ⚠ 头像那两列**不走这条路** —— 见 `avatar/route.ts`。
+ * ⚠ 读回来的 `character` / `uploadedAvatarUrl` / 显示用的 `avatarUrl` 是服务端算的
+ * 只读格，写回来时不收（`UpdateAssistantPersonaSchema`）。
  */
 
 export const GET = createApiGetRoute({

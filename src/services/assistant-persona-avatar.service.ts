@@ -4,7 +4,10 @@ import { randomBytes } from 'node:crypto'
 
 import { db } from '@/lib/db'
 import { PROFILE } from '@/constants/config'
-import { ASSISTANT_AVATAR_STORAGE_TYPE } from '@/constants/assistant-persona'
+import {
+  ASSISTANT_AVATAR_CHOICE_IDS,
+  ASSISTANT_AVATAR_STORAGE_TYPE,
+} from '@/constants/assistant-persona'
 import { deleteFromR2, fetchAsBuffer, uploadToR2 } from '@/services/storage/r2'
 
 /**
@@ -45,10 +48,13 @@ async function findExistingKey(userId: string): Promise<string | null> {
 }
 
 /**
- * 传一张自定义 AI 头像，写回 `AssistantPersona.avatarUrl` / `avatarStorageKey`。
+ * 传一张自定义 AI 头像，写回 `AssistantPersona.avatarUrl` / `avatarStorageKey`，
+ * 并把头像单选表切到「我上传的」—— 传新图就是要用它（助手设置 B）。
  *
  * ⚠ persona 行可能还不存在（§8.4：不做首次访问自动建行）—— 所以这里是 `upsert`：
  * 用户传头像**就是**他第一次表态，这一刻建行是有理由的。
+ * ⛔ 没有「撤掉自定义头像」：上传的那张留在单选表里，换成预设也不丢
+ * （owner 2026-09-26），再传一张就替掉它。
  */
 export async function uploadAssistantAvatar(
   userId: string,
@@ -70,28 +76,12 @@ export async function uploadAssistantAvatar(
   const key = generateAssistantAvatarKey(userId, mimeType)
   const url = await uploadToR2({ data: buffer, key, mimeType })
 
+  const avatarChoice = ASSISTANT_AVATAR_CHOICE_IDS.upload
   await db.assistantPersona.upsert({
     where: { userId },
-    create: { userId, avatarUrl: url, avatarStorageKey: key },
-    update: { avatarUrl: url, avatarStorageKey: key },
+    create: { userId, avatarUrl: url, avatarStorageKey: key, avatarChoice },
+    update: { avatarUrl: url, avatarStorageKey: key, avatarChoice },
   })
 
   return { url }
-}
-
-/**
- * 撤掉自定义头像，退回预设（§8.6 的 `avatarRemove`）。
- *
- * ⚠ 顺序与上传相反：**先清列再删对象**。反过来的话，删成功而清列失败会留下一条
- * 指向已删对象的 URL —— 用户看到的是一张永远碎着的头像。
- */
-export async function removeAssistantAvatar(userId: string): Promise<void> {
-  const previousKey = await findExistingKey(userId)
-  if (!previousKey) return
-
-  await db.assistantPersona.update({
-    where: { userId },
-    data: { avatarUrl: null, avatarStorageKey: null },
-  })
-  await deleteFromR2(previousKey).catch(() => {})
 }

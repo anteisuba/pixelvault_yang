@@ -1,14 +1,9 @@
 import 'server-only'
 
-import { z } from 'zod'
-
 import { RATE_LIMIT_CONFIGS } from '@/constants/config'
 import { createApiRoute } from '@/lib/api-route-factory'
 import { ApiRequestError } from '@/lib/errors'
-import {
-  removeAssistantAvatar,
-  uploadAssistantAvatar,
-} from '@/services/assistant-persona-avatar.service'
+import { uploadAssistantAvatar } from '@/services/assistant-persona-avatar.service'
 import { ensureUser } from '@/services/user.service'
 import { UploadAssistantAvatarSchema } from '@/types/assistant-persona'
 
@@ -60,22 +55,5 @@ export const POST = createApiRoute({
     } catch (error) {
       throw mapAvatarUploadError(error)
     }
-  },
-})
-
-/**
- * 撤掉自定义头像，退回预设（§8.6 的 `avatarRemove`）。
- *
- * ⚠ 走 `createApiRoute` 而不是按 id 的删除工厂：这里没有 id —— 一个用户只有一张
- * AI 头像，「删哪一张」不是一个问题。载荷空对象，⛔ 别为了凑形状编一个 id 出来。
- */
-export const DELETE = createApiRoute({
-  schema: z.object({}),
-  routeName: 'DELETE /api/assistant/persona/avatar',
-  rateLimit: RATE_LIMIT_CONFIGS.sensitiveWrite,
-  handler: async (clerkId) => {
-    const user = await ensureUser(clerkId)
-    await removeAssistantAvatar(user.id)
-    return { removed: true }
   },
 })

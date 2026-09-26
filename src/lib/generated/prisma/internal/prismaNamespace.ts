@@ -4243,6 +4243,10 @@ export const AssistantPersonaScalarFieldEnum = {
   toneCustom: 'toneCustom',
   verbosity: 'verbosity',
   characterCardId: 'characterCardId',
+  nameFromCharacter: 'nameFromCharacter',
+  toneFromCharacter: 'toneFromCharacter',
+  avatarChoice: 'avatarChoice',
+  memoryCapture: 'memoryCapture',
   planMode: 'planMode',
   language: 'language',
   nextStepHint: 'nextStepHint',
@@ -4770,6 +4774,7 @@ export const AssistantMemoryScalarFieldEnum = {
   userId: 'userId',
   scope: 'scope',
   kind: 'kind',
+  source: 'source',
   text: 'text',
   conversationId: 'conversationId',
   messageId: 'messageId',
@@ -5175,6 +5180,20 @@ export type EnumAssistantMemoryKindFieldRefInput<$PrismaModel> = FieldRefInputTy
  * Reference to a field of type 'AssistantMemoryKind[]'
  */
 export type ListEnumAssistantMemoryKindFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantMemoryKind[]'>
+    
+
+
+/**
+ * Reference to a field of type 'AssistantMemorySource'
+ */
+export type EnumAssistantMemorySourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantMemorySource'>
+    
+
+
+/**
+ * Reference to a field of type 'AssistantMemorySource[]'
+ */
+export type ListEnumAssistantMemorySourceFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'AssistantMemorySource[]'>
     
 
 /**

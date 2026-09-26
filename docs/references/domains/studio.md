@@ -25,7 +25,7 @@
 - dock 六位工具栏：模型 / 模板 / 助手 / 图像 / 卡片 / 1:1；chip 三态（空/已设值/不支持不渲染）。
 - composer = 暗面上唯一「亮纸」（`--surface-composer` 象牙 + 黑丸 CTA，B4 已实装）。
 - 空态起手势：eyebrow + 3 示例 chips + 继续创作 ≤6 缩略图 + 教程入口。
-- 助手宿主 = 右侧 dock，手机上是同一颗 Dock 里的全屏 Sheet（**现行施工基准见 `../pages/assistant-shell.md`**——2026-09-06 owner 定方向 C「工作日志」：覆盖式面板 inset 24 / 默认 560 · 收起态 48px 图标轨 · 顶部进度带（**助手设置入口 = 带上那颗常驻齿轮**，2026-09-07 起 ⋯ 菜单不再有这一项）· 三档确认 · 计划卡 · @ 看图（**视频档扩成三帧评审卡**）· 助手设置 persona · 检索链 `research` / `read_url` / 官方优先搜图；**第二期视频域主体已落地**（`6e91e0d0` + `48d6fecb`）；画布走自己的一套 op 与提案卡，见 `../pages/node-canvas-v2.md` §13）。
+- 助手宿主 = 右侧 dock，手机上是同一颗 Dock 里的全屏 Sheet（**现行施工基准见 `../pages/assistant-shell.md`**——2026-09-06 owner 定方向 C「工作日志」：覆盖式面板 inset 24 / 默认 560 · 收起态 48px 图标轨 · 顶部进度带（助手设置入口 2026-09-26 起 = 头部右上 ⋯ 菜单的「助手设置」，与 `/settings/assistant` 同一份内容，见 `../pages/assistant-shell-v2.md` §11）· 三档确认 · 计划卡 · @ 看图（**视频档扩成三帧评审卡**）· 助手设置 persona · 检索链 `research` / `read_url` / 官方优先搜图；**第二期视频域主体已落地**（`6e91e0d0` + `48d6fecb`）；画布走自己的一套 op 与提案卡，见 `../pages/node-canvas-v2.md` §13）。
 - **视频档参考区 = 三个具名槽**（第二期，`48d6fecb`）：**首帧 / 尾帧 / 参考视频**（`StudioVideoReferenceSlots`，由 `StudioPromptArea` 在视频档挂；状态是 `studio-context` 的 `videoFrameSlots` + `videoReferenceVideos`）。哪些槽出现由**当前模型的发送契约**算（`getVideoWorkbenchSlots` ← `getVideoModelSendContract`），⛔ 不支持的槽**不渲染**、不摆禁用占位。⛔ 首尾帧靠**下标**承载（[0] 首帧、[1] 尾帧）那一套已删——删掉第一张会让尾帧静默升级成首帧；关键帧档下通用的 `ReferenceImageChip` 也不再渲染（那一档发送口不读参考图列表 = 静默失效）。
 - 工具面板当前行为与实现见 `references/frontend.md` 及对应代码。
 

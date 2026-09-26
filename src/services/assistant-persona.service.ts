@@ -2,19 +2,26 @@ import 'server-only'
 
 import { db } from '@/lib/db'
 import {
+  ASSISTANT_AVATAR_CHOICE_IDS,
+  ASSISTANT_AVATAR_CHOICES,
   ASSISTANT_PERSONA_DEFAULTS,
   ASSISTANT_PERSONA_LIMITS,
   ASSISTANT_PERSONA_TONE_IDS,
   ASSISTANT_ROUTE_MODEL_AUTO,
+  isAvatarPresetChoice,
   matchAssistantPersonaArchetype,
   normalizeAvatarPreset,
   normalizeRouteModel,
+  type AssistantAvatarChoice,
 } from '@/constants/assistant-persona'
+import { ApiRequestError } from '@/lib/errors'
 import { sanitizePrompt } from '@/services/kernel/prompt-guard'
 import { ensureUser } from '@/services/user.service'
+import { CharacterPersonaSchema } from '@/types'
 import {
   AssistantPersonaSchema,
   type AssistantPersona,
+  type AssistantPersonaCharacter,
   type UpdateAssistantPersonaRequest,
 } from '@/types/assistant-persona'
 
@@ -34,30 +41,103 @@ import {
  * 写，而换来的只是「行在不在」这个没人关心的事实。
  */
 
-/** 库里那一行（部分列）→ 协议形状。缺行时整份走默认值。 */
-function toPersona(
-  row: {
-    name: string | null
-    avatarPreset: string | null
-    avatarUrl: string | null
-    tone: string
-    toneCustom: string | null
-    verbosity: string
-    planMode: string
-    language: string
-    routeModel: string | null
-    nextStepHint: boolean
-    useMyWords: boolean
-    archetype: string | null
-    addressUserAs: string | null
-  } | null,
-): AssistantPersona {
-  if (!row) {
-    return {
-      ...ASSISTANT_PERSONA_DEFAULTS,
-      avatarUrl: null,
-    }
+interface PersonaCharacterRow {
+  id: string
+  name: string
+  sourceImageUrl: string
+  persona: unknown
+  isDeleted: boolean
+}
+
+interface PersonaRow {
+  name: string | null
+  avatarPreset: string | null
+  avatarUrl: string | null
+  avatarChoice: string | null
+  characterCardId: string | null
+  nameFromCharacter: boolean
+  toneFromCharacter: boolean
+  characterCard: PersonaCharacterRow | null
+  tone: string
+  toneCustom: string | null
+  verbosity: string
+  planMode: string
+  language: string
+  routeModel: string | null
+  nextStepHint: boolean
+  useMyWords: boolean
+  archetype: string | null
+  addressUserAs: string | null
+}
+
+/**
+ * 角色设定里那段「说话方式」（去掉首尾空白）；没写 / 读不出来是空串。
+ * ⚠ 走角色卡自己的 schema，⛔ 不 `as`：`persona` 在库里是一格 Json。
+ */
+function readCharacterSpeech(card: PersonaCharacterRow | null): string {
+  if (!card || card.isDeleted) return ''
+  const parsed = CharacterPersonaSchema.safeParse(card.persona ?? {})
+  return parsed.success ? parsed.data.speech.trim() : ''
+}
+
+/** 正在用的角色（界面要的四样）。卡删了（软删）就当没用。 */
+function toCharacter(
+  card: PersonaCharacterRow | null,
+): AssistantPersonaCharacter | null {
+  if (!card || card.isDeleted) return null
+  return {
+    id: card.id,
+    /** ⚠ 与助手名字同一档上限 —— 角色名更长时截断，⛔ 不让整份 persona 读不出来。 */
+    name: card.name.slice(0, ASSISTANT_PERSONA_LIMITS.maxNameChars),
+    faceUrl: card.sourceImageUrl || null,
+    hasSpeech: readCharacterSpeech(card).length > 0,
   }
+}
+
+/**
+ * 头像单选表**实际**选中的那一项（助手设置 B）。
+ *
+ * ⚠ 库里那一格可能是 NULL（老行）或指向一件已经不在的东西（角色卡删了 / 上传的
+ * 那张没了）—— 一律按老规矩回推：传过图用图，否则用预设。⛔ 不出空圈。
+ */
+function resolveAvatarChoice(
+  row: PersonaRow,
+  character: AssistantPersonaCharacter | null,
+): AssistantAvatarChoice {
+  const stored = (ASSISTANT_AVATAR_CHOICES as readonly string[]).includes(
+    row.avatarChoice ?? '',
+  )
+    ? (row.avatarChoice as AssistantAvatarChoice)
+    : null
+  if (stored === ASSISTANT_AVATAR_CHOICE_IDS.character && character) {
+    return stored
+  }
+  if (stored === ASSISTANT_AVATAR_CHOICE_IDS.upload && row.avatarUrl) {
+    return stored
+  }
+  if (stored && isAvatarPresetChoice(stored)) return stored
+  return row.avatarUrl
+    ? ASSISTANT_AVATAR_CHOICE_IDS.upload
+    : normalizeAvatarPreset(row.avatarPreset)
+}
+
+/** 库里那一行（部分列）→ 协议形状。缺行时整份走默认值。 */
+function toPersona(row: PersonaRow | null): AssistantPersona {
+  if (!row) return { ...ASSISTANT_PERSONA_DEFAULTS }
+
+  const character = toCharacter(row.characterCard)
+  const avatarChoice = resolveAvatarChoice(row, character)
+  /**
+   * ⭐ 显示用的那两格在这里一次算好（`avatarUrl` + `avatarPreset`）：顶栏头像、
+   * 时间线、空态都只读它们，⛔ 不让每个显示头像的地方各自判一遍单选表。
+   */
+  const displayUrl =
+    avatarChoice === ASSISTANT_AVATAR_CHOICE_IDS.upload
+      ? row.avatarUrl
+      : avatarChoice === ASSISTANT_AVATAR_CHOICE_IDS.character
+        ? (character?.faceUrl ?? null)
+        : null
+  const nameFromCharacter = row.nameFromCharacter && character !== null
 
   /**
    * ⚠ 用 schema 而不是 `as`：这几列在库里是 `String`（域词表住 constants，
@@ -70,9 +150,28 @@ function toPersona(
    * 不该跟着一起丢。⛔ 不写迁移去改存量行。`null`（从没选过）照旧是 `null`。
    */
   const parsed = AssistantPersonaSchema.safeParse({
-    ...row,
-    avatarPreset:
-      row.avatarPreset === null
+    name: nameFromCharacter && character ? character.name : row.name,
+    avatarUrl: displayUrl,
+    avatarChoice,
+    uploadedAvatarUrl: row.avatarUrl,
+    characterCardId: character?.id ?? null,
+    character,
+    nameFromCharacter,
+    toneFromCharacter: row.toneFromCharacter && character !== null,
+    tone: row.tone,
+    toneCustom: row.toneCustom,
+    verbosity: row.verbosity,
+    planMode: row.planMode,
+    language: row.language,
+    nextStepHint: row.nextStepHint,
+    useMyWords: row.useMyWords,
+    addressUserAs: row.addressUserAs,
+    /**
+     * 预设字形：选的是预设就是那一款；选的是图时它是图加载不出来时的回落。
+     */
+    avatarPreset: isAvatarPresetChoice(avatarChoice)
+      ? avatarChoice
+      : row.avatarPreset === null
         ? null
         : normalizeAvatarPreset(row.avatarPreset),
     /**
@@ -90,15 +189,26 @@ function toPersona(
      */
     archetype: matchAssistantPersonaArchetype(row),
   })
-  return parsed.success
-    ? parsed.data
-    : { ...ASSISTANT_PERSONA_DEFAULTS, avatarUrl: null }
+  return parsed.success ? parsed.data : { ...ASSISTANT_PERSONA_DEFAULTS }
 }
 
 const PERSONA_SELECT = {
   name: true,
   avatarPreset: true,
   avatarUrl: true,
+  avatarChoice: true,
+  characterCardId: true,
+  nameFromCharacter: true,
+  toneFromCharacter: true,
+  characterCard: {
+    select: {
+      id: true,
+      name: true,
+      sourceImageUrl: true,
+      persona: true,
+      isDeleted: true,
+    },
+  },
   tone: true,
   toneCustom: true,
   verbosity: true,
@@ -111,25 +221,41 @@ const PERSONA_SELECT = {
   addressUserAs: true,
 } as const
 
+async function findPersonaRow(userId: string): Promise<PersonaRow | null> {
+  return db.assistantPersona.findUnique({
+    where: { userId },
+    select: PERSONA_SELECT,
+  })
+}
+
+/** 设置里读的那一份（`GET /api/assistant/persona`）：语气是创作者自己那一份。 */
 export async function getAssistantPersona(
   clerkId: string,
 ): Promise<AssistantPersona> {
   const user = await ensureUser(clerkId)
-  return getAssistantPersonaByUserId(user.id)
+  return toPersona(await findPersonaRow(user.id))
 }
 
 /**
- * 同上，但吃的是**库里的 user.id** —— 工具环那一侧已经 `ensureUser` 过一次了
- * （`runAssistantOperator` 的第一行），⛔ 别为了统一签名再查一次用户。
+ * **助手这一轮按谁说话** —— 吃的是库里的 user.id（工具环那一侧已经 `ensureUser`
+ * 过一次了，`runAssistantOperator` 的第一行），⛔ 别为了统一签名再查一次用户。
+ *
+ * ⭐ 与设置里读的那一份只差一件事：**语气跟着角色走、而角色写了说话方式**时，
+ * 把那段说话方式换进 `tone = custom` / `toneCustom`，风格段照常读它（上限见
+ * `sanitizeToneCustom`）。名字不用换 —— `toPersona` 读出来的已经是显示的那个名字。
  */
 export async function getAssistantPersonaByUserId(
   userId: string,
 ): Promise<AssistantPersona> {
-  const row = await db.assistantPersona.findUnique({
-    where: { userId },
-    select: PERSONA_SELECT,
-  })
-  return toPersona(row)
+  const row = await findPersonaRow(userId)
+  const persona = toPersona(row)
+  const speech = row ? readCharacterSpeech(row.characterCard) : ''
+  if (!persona.toneFromCharacter || !speech) return persona
+  return {
+    ...persona,
+    tone: ASSISTANT_PERSONA_TONE_IDS.custom,
+    toneCustom: speech,
+  }
 }
 
 /**
@@ -144,7 +270,16 @@ export function sanitizeToneCustom(persona: AssistantPersona): string | null {
   if (!persona.toneCustom) return null
   const cleaned = sanitizePrompt(persona.toneCustom).trim()
   if (!cleaned) return null
-  return cleaned.slice(0, ASSISTANT_PERSONA_LIMITS.maxToneCustomChars)
+  /**
+   * 跟着角色走时这一句是角色设定里的「说话方式」（`getAssistantPersonaByUserId`
+   * 换进来的），上限比自己写的那一句宽一档。
+   */
+  return cleaned.slice(
+    0,
+    persona.toneFromCharacter
+      ? ASSISTANT_PERSONA_LIMITS.maxCharacterSpeechChars
+      : ASSISTANT_PERSONA_LIMITS.maxToneCustomChars,
+  )
 }
 
 /**
@@ -162,20 +297,72 @@ export function sanitizeAddressUserAs(
 }
 
 /**
- * 写一份 persona（保存即写，§8.1）。
+ * 用的角色必须是这个用户自己的、还没删的那张。⛔ 不信客户端递来的 id。
+ */
+async function assertOwnCharacterCard(
+  userId: string,
+  characterCardId: string,
+): Promise<void> {
+  const card = await db.characterCard.findFirst({
+    where: { id: characterCardId, userId, isDeleted: false },
+    select: { id: true },
+  })
+  if (!card) {
+    throw new ApiRequestError(
+      'ASSISTANT_CHARACTER_NOT_FOUND',
+      404,
+      'errors.assistantPersona.characterNotFound',
+      'Character card not found',
+    )
+  }
+}
+
+/**
+ * 写一份 persona（改了就存，助手设置 B）。
  *
- * ⚠ 头像那两列**不在这条路上**：它们由上传/移除那条腿写，客户端递一条 URL
- * 进来就等于绕开 R2 的生命周期（旧对象再也没人删）。
+ * ⚠ 两张图的地址**不在这条路上**：上传的那张由上传那条腿写（客户端递一条 URL
+ * 进来就等于绕开 R2 的生命周期），角色主图住角色卡。
+ * ⚠ **名字跟着角色走时不动库里那一格**：客户端递上来的是显示的那个名字（角色名），
+ * 落库就会把创作者自己的名字盖掉 —— 选回「不用角色」时它得还在（那一下同样不写）。
  */
 export async function upsertAssistantPersona(
   clerkId: string,
   input: UpdateAssistantPersonaRequest,
 ): Promise<AssistantPersona> {
   const user = await ensureUser(clerkId)
+  if (input.characterCardId) {
+    await assertOwnCharacterCard(user.id, input.characterCardId)
+  }
+  const usesCharacter = input.characterCardId !== null
+  const nameFromCharacter = usesCharacter && input.nameFromCharacter
+  /**
+   * 「不用角色」那一下，客户端手里只有显示的那个名字（角色名）。库里那一格此刻
+   * 还是创作者自己的名字（跟着角色时从没被写过）—— 留着它，选回来就是自己那一份。
+   */
+  const stored = await db.assistantPersona.findUnique({
+    where: { userId: user.id },
+    select: { nameFromCharacter: true, characterCardId: true },
+  })
+  const leavingCharacterName =
+    !usesCharacter &&
+    Boolean(stored?.nameFromCharacter && stored.characterCardId)
+  const keepStoredName = nameFromCharacter || leavingCharacterName
 
   const data = {
-    name: input.name,
-    avatarPreset: input.avatarPreset,
+    ...(keepStoredName ? {} : { name: input.name }),
+    /** 选的是预设就把它记成字形回落；选的是图时保留原来那一款。 */
+    avatarPreset: isAvatarPresetChoice(input.avatarChoice)
+      ? input.avatarChoice
+      : input.avatarPreset,
+    /** 没用角色却选了「角色的头像」= 没有这一项，落 NULL 让读的那一跳回推。 */
+    avatarChoice:
+      input.avatarChoice === ASSISTANT_AVATAR_CHOICE_IDS.character &&
+      !usesCharacter
+        ? null
+        : input.avatarChoice,
+    characterCardId: input.characterCardId,
+    nameFromCharacter,
+    toneFromCharacter: usesCharacter && input.toneFromCharacter,
     tone: input.tone,
     /** 换回非 custom 档时那句话就该消失 —— 留着它下次选回 custom 会诈尸。 */
     toneCustom:
@@ -196,8 +383,8 @@ export async function upsertAssistantPersona(
     useMyWords: input.useMyWords,
     /**
      * 三档人设（§11.1）——⚠ **服务端自己算，⛔ 不落客户端递来的那个名字**。
-     * 递上来的 `archetype` 只是界面上亮着哪张卡，而库里这一列要为「卡上那三行
-     * 副文案」背书：只有五格逐格对得上时它才是那一档，对不上就落 `null`
+     * 递上来的 `archetype` 只是界面上亮着哪一档，而库里这一列要为「那一档的三行
+     * 副文案」背书：只有四格逐格对得上时它才是那一档，对不上就落 `null`
      * （= 自定义）。这样客户端漏清一次也不会让用户看到一句假承诺。
      */
     archetype: matchAssistantPersonaArchetype(input),

@@ -28,11 +28,16 @@ vi.mock('@/services/assistant-persona.service', () => ({
 
 import { GET, PUT } from '@/app/api/assistant/persona/route'
 
-const PERSONA = { ...ASSISTANT_PERSONA_DEFAULTS, avatarUrl: null }
+const PERSONA = { ...ASSISTANT_PERSONA_DEFAULTS }
 
 const VALID_BODY = {
   name: 'Mika',
   avatarPreset: ASSISTANT_AVATAR_PRESET_IDS[0],
+  /** 助手设置 B：头像单选表 + 用角色那三格，同样是完整形状的一部分。 */
+  avatarChoice: ASSISTANT_AVATAR_PRESET_IDS[0],
+  characterCardId: null,
+  nameFromCharacter: false,
+  toneFromCharacter: false,
   tone: ASSISTANT_PERSONA_TONE_IDS.professional,
   toneCustom: null,
   verbosity: 'standard',

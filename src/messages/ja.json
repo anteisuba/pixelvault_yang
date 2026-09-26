@@ -6935,6 +6935,9 @@
       "limitReached": "コンテキストカードの上限に達しています。1 件削除してから追加してください。",
       "imageLimitReached": "このカードの参考画像は上限です。1 枚削除してください。",
       "imageTooLarge": "参考画像は 10 MB 未満にしてください。"
+    },
+    "assistantPersona": {
+      "characterNotFound": "そのキャラクターはもう存在しません。別のキャラクターを選ぶか「使わない」を選んでください。"
     }
   },
   "Transform": {
@@ -7650,92 +7653,6 @@
     },
     "assistantSettings": "アシスタント設定",
     "persona": {
-      "title": "アシスタント設定",
-      "description": "アシスタントの名前や話し方を設定できます。設定はすべてのワークスペースで共通です。",
-      "save": "保存",
-      "saved": "保存しました",
-      "cancel": "キャンセル",
-      "reset": "初期値に戻す",
-      "saveFailed": "保存できませんでした。もう一度お試しください。",
-      "nameLabel": "名前",
-      "namePlaceholder": "空欄の場合は ANTI を使います",
-      "avatarLabel": "アイコン",
-      "avatarPreset": {
-        "mark": "ブランドマーク",
-        "monogram": "イニシャル"
-      },
-      "avatarUpload": "アップロード",
-      "avatarUploading": "アップロード中…",
-      "avatarRemove": "カスタムアイコンを削除",
-      "avatarTooLarge": "画像が 5 MB を超えています。",
-      "avatarUnsupported": "JPEG・PNG・WebP のいずれかを使ってください。",
-      "toneLabel": "口調",
-      "tone": {
-        "professional": "プロフェッショナル",
-        "friendly": "フレンドリー",
-        "terse": "簡潔",
-        "custom": "カスタム"
-      },
-      "toneCustomPlaceholder": "どんな話し方がいいか、一行で",
-      "toneCustomRequired": "希望の話し方を一行で入力するか、用意された口調を選んでください。",
-      "verbosityLabel": "返答の長さ",
-      "verbosity": {
-        "concise": "短め",
-        "standard": "標準",
-        "detailed": "詳しく"
-      },
-      "languageLabel": "返答の言語",
-      "language": {
-        "ui": "画面に合わせる",
-        "chinese": "中国語",
-        "english": "英語"
-      },
-      "nextStepHintLabel": "次の一手を提案",
-      "useMyWordsLabel": "自分の言葉を使う",
-      "addressUserAsLabel": "呼び方",
-      "addressUserAsPlaceholder": "空欄の場合はアカウント名を使います",
-      "nextStepHintHint": "返信の最後に次の一手を一つ添える",
-      "useMyWordsHint": "プロンプトで使った言い方をそのまま使う",
-      "advancedLabel": "詳細設定",
-      "archetypeCustom": "カスタム",
-      "archetypeCustomHint": "詳細設定を変更したため、カスタム設定になっています。",
-      "archetype": {
-        "cautious": {
-          "name": "慎重",
-          "askLine": "始める前に、いくつか質問する",
-          "confirmLine": "手順ごとに確認する",
-          "lengthLine": "返信は短め、結論だけ"
-        },
-        "balanced": {
-          "name": "バランス",
-          "askLine": "迷ったときだけ、一度に一つ聞く",
-          "confirmLine": "複数手順と生成のときだけ確認",
-          "lengthLine": "普通の長さ＋次の一手を一つ"
-        },
-        "handsOff": {
-          "name": "おまかせ",
-          "askLine": "ほとんど聞かずに進める",
-          "confirmLine": "複数手順の前に一声かけるだけ",
-          "lengthLine": "とても短く、結果だけ"
-        }
-      },
-      "previewTitle": "この設定だと {name} はこう話します",
-      "previewHint": "左のどれかを変えると、この例もその場で変わります。",
-      "preview": {
-        "address": "{name}さん、",
-        "opener": {
-          "professional": "3枚を確認しました。2枚目の逆光が、ご希望の夕暮れの光に最も近いです。残りの2枚は暖色が強めです。",
-          "friendly": "見てみました——3 枚のうち 2 枚目がご希望の夕暮れの光に一番近いですね。あとの 2 枚は少し暖色が強めです。",
-          "terse": "2 枚目が最も近いです。他の 2 枚は暖色が強すぎます。",
-          "custom": "ご指定の言い方でいうと、2 枚目がご希望の夕暮れの光に一番近いです。"
-        },
-        "body": {
-          "second": "2枚目は逆光でも雲の細かな表情が残っているので、次の生成のベースに使えます。",
-          "third": "残りの2枚も調整するなら、暖色を少し抑えて、露出を半段下げるとよさそうです。"
-        },
-        "nextStep": "次は、2 枚目をもとにもう一組つくりましょうか？"
-      },
-      "tabPersona": "アシスタント",
       "tabRules": "プロジェクトのルール",
       "rulesHint": "このプロジェクトでアシスタントが守るルールです。覚えておいてほしいことを伝えると、ここに記録できます。",
       "rulesLoading": "読み込み中…",
@@ -8161,6 +8078,133 @@
       "memoryClearDescription": "{count, plural, other {# 件}}の記憶が削除されます。元に戻せません。",
       "memoryClearConfirm": "すべて消去",
       "memoryCancel": "キャンセル"
+    }
+  },
+  "AssistantSettings": {
+    "title": "アシスタント設定",
+    "description": "アシスタントの名前、話し方、覚えていること。設定はすべてのワークスペースで共通です。",
+    "pageDescription": "アシスタントの名前、話し方、覚えていること。ワークベンチ右上の ⋯ にある「アシスタント設定」も同じ内容です。",
+    "close": "閉じる",
+    "tabs": {
+      "label": "アシスタント設定のページ",
+      "persona": "人物設定",
+      "memory": "記憶",
+      "memoryCount": "記憶 · {count}"
+    },
+    "status": {
+      "saving": "保存中",
+      "saved": "保存しました",
+      "failed": "保存できませんでした",
+      "retry": "再試行"
+    },
+    "identity": {
+      "title": "プロフィール",
+      "changeAvatar": "アイコンを変更",
+      "avatarLabel": "アイコン"
+    },
+    "avatar": {
+      "character": "{name} の画像",
+      "upload": "アップロードした画像",
+      "mark": "ブランドマーク",
+      "monogram": "イニシャル",
+      "uploadNew": "新しい画像をアップロード…",
+      "tooLarge": "画像が 5 MB を超えています。",
+      "unsupported": "JPEG・PNG・WebP のいずれかを使ってください。"
+    },
+    "character": {
+      "label": "キャラクターを使う",
+      "none": "使わない",
+      "noSpeech": "話し方が未記入",
+      "create": "キャラクターページで作成",
+      "caption": "アイコン・名前・口調は {name} のものになります。下で個別に変更できます。",
+      "captionNoSpeech": "アイコンと名前は {name} のものになります。下で個別に変更できます。"
+    },
+    "name": {
+      "label": "名前",
+      "placeholder": "空欄の場合は ANTI を使います"
+    },
+    "address": {
+      "label": "呼び方",
+      "placeholder": "空欄の場合はアカウント名を使います"
+    },
+    "style": {
+      "title": "進め方"
+    },
+    "archetype": {
+      "cautious": {
+        "name": "慎重",
+        "line": "始める前に、いくつか質問する · 手順ごとに確認する · 返信は短め、結論だけ"
+      },
+      "balanced": {
+        "name": "バランス",
+        "line": "迷ったときだけ、一度に一つ聞く · 複数手順と生成のときだけ確認 · 普通の長さ＋次の一手を一つ"
+      },
+      "handsOff": {
+        "name": "おまかせ",
+        "line": "ほとんど聞かずに進める · 複数手順の前に一声かけるだけ · とても短く、結果だけ"
+      },
+      "custom": {
+        "name": "カスタム",
+        "line": "詳細設定を変更したため、どの設定にも当てはまらなくなりました。"
+      }
+    },
+    "preview": {
+      "label": "返答の例",
+      "address": "{name}さん、",
+      "opener": {
+        "professional": "3枚を確認しました。2枚目の逆光が、ご希望の夕暮れの光に最も近いです。残りの2枚は暖色が強めです。",
+        "friendly": "見てみました——3 枚のうち 2 枚目がご希望の夕暮れの光に一番近いですね。あとの 2 枚は少し暖色が強めです。",
+        "terse": "2 枚目が最も近いです。他の 2 枚は暖色が強すぎます。",
+        "custom": "ご指定の言い方でいうと、2 枚目がご希望の夕暮れの光に一番近いです。",
+        "character": "{name} の話し方でいうと、2 枚目がご希望の夕暮れの光に一番近いです。"
+      },
+      "nextStep": "次は、2 枚目をもとにもう一組つくりましょうか？"
+    },
+    "advanced": {
+      "label": "詳細設定",
+      "on": "オン",
+      "off": "オフ",
+      "summary": {
+        "tone": "口調 {value}",
+        "length": "長さ {value}",
+        "language": "言語 {value}",
+        "nextStep": "次の一手 {value}",
+        "myWords": "自分の言葉 {value}"
+      }
+    },
+    "tone": {
+      "label": "口調",
+      "professional": "プロフェッショナル",
+      "friendly": "フレンドリー",
+      "terse": "ストレート",
+      "custom": "カスタム",
+      "character": "{name} の話し方",
+      "customLabel": "カスタムの口調",
+      "customPlaceholder": "どんな話し方がいいか、一行で",
+      "customRequired": "希望の話し方を一行で入力するか、用意された口調を選んでください。",
+      "characterNote": "{name} のキャラクター設定の「話し方」を使います。向こうを変えるとこちらも変わります。",
+      "characterMissing": "{name} のキャラクター設定に「話し方」がまだありません。書くと選べるようになります。",
+      "characterMissingLink": "書く"
+    },
+    "length": {
+      "label": "返答の長さ",
+      "concise": "短め",
+      "standard": "標準",
+      "detailed": "詳しく"
+    },
+    "language": {
+      "label": "返答の言語",
+      "ui": "画面に合わせる",
+      "chinese": "中国語",
+      "english": "英語"
+    },
+    "nextStep": {
+      "label": "次の一手を提案",
+      "hint": "返信の最後に次の一手を一つ添える"
+    },
+    "myWords": {
+      "label": "自分の言葉を使う",
+      "hint": "プロンプトで使った言い方をそのまま使う"
     }
   },
   "StudioInpaintMask": {

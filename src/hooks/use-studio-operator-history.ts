@@ -25,6 +25,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 
+import type { AssistantOperatorDomain } from '@/constants/assistant-operator'
+import { ASSISTANT_PROTOCOL_DOMAIN_IDS } from '@/constants/assistant-protocol'
 import { STUDIO_OPERATOR_HISTORY } from '@/constants/studio-assistant-operator'
 import {
   renameAssistantConversationAPI,
@@ -68,18 +70,36 @@ export function resetOperatorHistoryHydrationForTests(): void {
   hydratedScopes.clear()
 }
 
-/** 会话作用域的键 —— 工作台合并那一份 / 某个画布项目。 */
-function operatorThreadScope(projectId: string | undefined): string {
-  return projectId ? `canvas:${projectId}` : 'studio'
+/**
+ * **单独成一份**的会话落在哪个槽：画布（按项目分，D12 U7）· 卡片助手（只在角色页
+ * 看得到，owner 09-26）。`null` = 图片 / 视频 / LoRA 合并那一份。
+ */
+function isolatedSurface(
+  projectId: string | undefined,
+  domain: AssistantOperatorDomain | undefined,
+): AssistantSurfaceId | null {
+  if (projectId) return ASSISTANT_SURFACE_IDS.nodeCanvas
+  if (domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.cards)
+    return ASSISTANT_SURFACE_IDS.cards
+  return null
+}
+
+/** 会话作用域的键 —— 工作台合并那一份 / 某个画布项目 / 卡片助手。 */
+function operatorThreadScope(
+  projectId: string | undefined,
+  domain: AssistantOperatorDomain | undefined,
+): string {
+  if (projectId) return `canvas:${projectId}`
+  return isolatedSurface(projectId, domain) ?? 'studio'
 }
 
 async function listOperatorSessions(
   projectId: string | undefined,
+  domain: AssistantOperatorDomain | undefined,
 ): Promise<AssistantConversationSummary[]> {
   const result = await listAssistantConversationsAPI({
-    surface: projectId
-      ? ASSISTANT_SURFACE_IDS.nodeCanvas
-      : ASSISTANT_SURFACE_IDS.imageStudio,
+    surface:
+      isolatedSurface(projectId, domain) ?? ASSISTANT_SURFACE_IDS.imageStudio,
     ...(projectId ? { projectId } : {}),
     operatorOnly: true,
     limit: STUDIO_OPERATOR_HISTORY.listLimit,
@@ -111,9 +131,11 @@ export interface UseStudioOperatorHistoryResult {
 /**
  * @param projectId 画布项目 id（D12 U7）—— 给了就只列 / 只载 / 只存这个画布的
  *   会话；缺席 = 图片 / 视频 / LoRA 合并那一份。
+ * @param domain 宿主的域 —— 卡片助手（`cards`）的会话单独一份（owner 09-26）。
  */
 export function useStudioOperatorHistory(
   projectId?: string,
+  domain?: AssistantOperatorDomain,
 ): UseStudioOperatorHistoryResult {
   const t = useTranslations('StudioOperator.history')
   const [loadingSessionId, setLoadingSessionId] = useState<string | null>(null)
@@ -131,7 +153,7 @@ export function useStudioOperatorHistory(
   const [sessions, setSessions] = useState<
     readonly AssistantConversationSummary[]
   >([])
-  const scope = operatorThreadScope(projectId)
+  const scope = operatorThreadScope(projectId, domain)
   const [isHydrating, setIsHydrating] = useState(!hydratedScopes.has(scope))
   const [error, setError] = useState<string | null>(null)
   /**
@@ -147,7 +169,7 @@ export function useStudioOperatorHistory(
   const lastListedAt = useRef<number | null>(null)
   const fetchSessions = useCallback(() => {
     if (listPending.current) return listPending.current
-    const pending = listOperatorSessions(projectId)
+    const pending = listOperatorSessions(projectId, domain)
       .then((items) => {
         lastListedAt.current = Date.now()
         return items
@@ -157,7 +179,7 @@ export function useStudioOperatorHistory(
       })
     listPending.current = pending
     return pending
-  }, [projectId])
+  }, [domain, projectId])
   const savingRef = useRef(false)
   const dirtyRef = useRef(false)
 
@@ -311,9 +333,10 @@ export function useStudioOperatorHistory(
     if (history.length === 0) return
 
     // 起始域只在第一次落库时定下来 —— 见 `sessionSurface` 的头注。
-    const surface = projectId
-      ? ASSISTANT_SURFACE_IDS.nodeCanvas
-      : (current.sessionSurface ?? ASSISTANT_SURFACE_BY_DOMAIN[current.domain])
+    const surface =
+      isolatedSurface(projectId, domain) ??
+      current.sessionSurface ??
+      ASSISTANT_SURFACE_BY_DOMAIN[current.domain]
 
     savingRef.current = true
     try {
@@ -351,7 +374,7 @@ export function useStudioOperatorHistory(
         void save()
       }
     }
-  }, [projectId, refreshSessions])
+  }, [domain, projectId, refreshSessions])
 
   /**
    * 写入时机 = **一条防抖**。

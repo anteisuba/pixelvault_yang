@@ -38,6 +38,7 @@ import {
   type AssistantOperatorEntryTool,
   ASSISTANT_OPERATOR_EVENTS,
   ASSISTANT_OPERATOR_CANVAS_LIMITS,
+  ASSISTANT_OPERATOR_CARDS_LIMITS,
   ASSISTANT_OPERATOR_LIMITS as LIMITS,
   ASSISTANT_OPERATOR_CRITIQUE_FRAME_LABELS,
   ASSISTANT_OPERATOR_REFERENCE_SLOTS,
@@ -730,6 +731,58 @@ export const AssistantOperatorCanvasSnapshotSchema = z.object({
     .default([]),
 })
 
+/**
+ * **角色页快照**（卡片助手 · 第五张脸，owner 09-26）。
+ *
+ * ⚠ 图只给张数、不给 URL：C1 的卡片助手只读；挂图是 C3 的专属工具，摆一串地址只会
+ * 诱导模型去编一张不存在的图（与画布快照不给 URL 同一条论据）。
+ */
+const CardsFieldSchema = z
+  .string()
+  .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxFieldChars)
+const CardsTagsSchema = z
+  .array(LabelSchema)
+  .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxTags)
+
+export const AssistantOperatorCardsCharacterSchema = z.object({
+  id: IdSchema,
+  name: LabelSchema,
+  /** 作品显示名；`null` = 原创（标签里没有作品、也没手填）。 */
+  work: LabelSchema.nullable(),
+  /** 卡上的图 + 用她出过的图。 */
+  imageCount: z.number().int().min(0),
+  /** 身份 / 性格 / 说话方式 / 经历至少写了一格。 */
+  hasProfile: z.boolean(),
+})
+
+export const AssistantOperatorCardsOpenCharacterSchema =
+  AssistantOperatorCardsCharacterSchema.extend({
+    look: CardsFieldSchema,
+    identity: CardsFieldSchema,
+    behavior: CardsFieldSchema,
+    speech: CardsFieldSchema,
+    backstory: CardsFieldSchema,
+    characterTags: CardsTagsSchema,
+    appearanceTags: CardsTagsSchema,
+    loraTrigger: z.string().max(LIMITS.maxLabelChars),
+    /** 卡上挂着几张图（主图算在内）。 */
+    imagesOnCard: z.number().int().min(0),
+  })
+
+export const AssistantOperatorCardsSnapshotSchema = z.object({
+  /** 这页上一共几位（列表可能被截）。 */
+  total: z.number().int().min(0),
+  characters: z
+    .array(AssistantOperatorCardsCharacterSchema)
+    .max(ASSISTANT_OPERATOR_CARDS_LIMITS.maxCharacters),
+  /** 用户此刻打开着的那一位；`null` = 在总览。 */
+  open: AssistantOperatorCardsOpenCharacterSchema.nullable(),
+})
+
+export type AssistantOperatorCardsSnapshot = z.infer<
+  typeof AssistantOperatorCardsSnapshotSchema
+>
+
 export type AssistantOperatorCanvasNode = z.infer<
   typeof AssistantOperatorCanvasNodeSchema
 >
@@ -795,6 +848,8 @@ export const AssistantOperatorSnapshotSchema = z.object({
    * 「用户此刻把焦点放在第几镜」。
    */
   canvas: AssistantOperatorCanvasSnapshotSchema.optional(),
+  /** ⚠ 缺席 = 这个宿主不是角色页。卡片域的 `read_state` 读的就是这一格。 */
+  cards: AssistantOperatorCardsSnapshotSchema.optional(),
 })
 
 export type AssistantOperatorSnapshot = z.infer<

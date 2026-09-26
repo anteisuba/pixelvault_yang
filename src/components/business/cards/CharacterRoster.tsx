@@ -17,12 +17,15 @@ import {
 } from '@/components/ui/dialog'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Spinner } from '@/components/ui/spinner'
+import { StudioOperatorDock } from '@/components/business/studio/assistant-operator'
 import { CharacterCardCreateForm } from '@/components/business/cards/CharacterCardCreateForm'
 import { CharacterDetail } from '@/components/business/cards/CharacterDetail'
 import {
   CharacterOverview,
   type OverviewItem,
 } from '@/components/business/cards/CharacterOverview'
+import { StudioOperatorHostProvider } from '@/contexts/studio-operator-host'
+import { useCardsOperatorHost } from '@/hooks/cards/use-cards-operator-host'
 import { useCharacterCards } from '@/hooks/cards/use-character-cards'
 import { useLiquidReveal, type LiquidRect } from '@/hooks/use-liquid-reveal'
 import { useIsMobile } from '@/hooks/use-mobile'
@@ -62,6 +65,7 @@ export function CharacterRoster() {
     () => flattenRoster(characters.cards),
     [characters.cards],
   )
+  const flatCards = useMemo(() => items.map((item) => item.card), [items])
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [closing, setClosing] = useState(false)
@@ -90,6 +94,11 @@ export function CharacterRoster() {
     [items, activeId],
   )
   const detailVisible = reveal.phase !== 'closed' && selected !== null
+  /** 卡片助手（第五张脸）：读这页上有谁 + 打开着的那一位。 */
+  const operatorHost = useCardsOperatorHost({
+    cards: flatCards,
+    openId: detailVisible ? activeId : null,
+  })
   const moving = reveal.phase === 'opening' || reveal.phase === 'closing'
 
   const rects = useCallback(
@@ -181,113 +190,116 @@ export function CharacterRoster() {
   }
 
   return (
-    <div
-      ref={stageRef}
-      className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background"
-    >
+    <StudioOperatorHostProvider host={operatorHost}>
       <div
-        inert={detailVisible}
-        className="h-full overflow-y-auto px-5 pb-12 pt-6 sm:px-9 sm:pt-8"
+        ref={stageRef}
+        className="relative min-h-0 flex-1 overflow-hidden rounded-2xl border border-border bg-background"
       >
-        {characters.isLoading ? (
-          <div className="flex justify-center py-16">
-            <Spinner size="lg" className="text-muted-foreground" />
-          </div>
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={<Plus aria-hidden />}
-            title={t('emptyTitle')}
-            description={t('emptyHint')}
-            action={
-              <Button
-                type="button"
-                size="sm"
-                className="rounded-full"
-                onClick={() => setCreateOpen(true)}
-              >
-                {t('newCharacter')}
-              </Button>
-            }
-          />
-        ) : (
-          <CharacterOverview
-            items={items}
-            reducedMotion={reducedMotion}
-            onOpen={openCharacter}
-            registerTile={registerTile}
-            actions={
-              <Button
-                type="button"
-                className="shrink-0 rounded-full"
-                onClick={() => setCreateOpen(true)}
-              >
-                <Plus className="size-4" />
-                {t('newCharacter')}
-              </Button>
-            }
-          />
-        )}
-      </div>
-
-      {detailVisible ? (
         <div
-          className={cn(
-            'pointer-events-none absolute inset-0 z-10',
-            moving && 'drop-shadow-xl',
-          )}
+          inert={detailVisible}
+          className="h-full overflow-y-auto px-5 pb-12 pt-6 sm:px-9 sm:pt-8"
         >
-          <motion.div
-            style={{ clipPath: reveal.clipPath }}
-            className="absolute inset-0 bg-background"
-          >
-            {moving ? (
-              <motion.div
-                aria-hidden
-                style={{ opacity: tintIn }}
-                className="absolute inset-0 z-10 bg-muted"
-              >
-                {selected.referenceSlots[0]?.url ? (
-                  <Image
-                    src={selected.referenceSlots[0].url}
-                    alt=""
-                    fill
-                    sizes="100vw"
-                    className="object-cover"
-                  />
-                ) : null}
-              </motion.div>
-            ) : null}
-            <div
-              role="region"
-              aria-label={selected.name}
-              className="pointer-events-auto absolute inset-0"
-            >
-              <CharacterDetail
-                key={selected.id}
-                card={selected}
-                entry={directCut ? 'static' : 'open'}
-                closing={closing}
-                onClose={closeDetail}
-                onUpdate={(data) => characters.update(selected.id, data)}
-                onDelete={() => deleteCharacter(selected.id)}
-              />
+          {characters.isLoading ? (
+            <div className="flex justify-center py-16">
+              <Spinner size="lg" className="text-muted-foreground" />
             </div>
-          </motion.div>
+          ) : items.length === 0 ? (
+            <EmptyState
+              icon={<Plus aria-hidden />}
+              title={t('emptyTitle')}
+              description={t('emptyHint')}
+              action={
+                <Button
+                  type="button"
+                  size="sm"
+                  className="rounded-full"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  {t('newCharacter')}
+                </Button>
+              }
+            />
+          ) : (
+            <CharacterOverview
+              items={items}
+              reducedMotion={reducedMotion}
+              onOpen={openCharacter}
+              registerTile={registerTile}
+              actions={
+                <Button
+                  type="button"
+                  className="shrink-0 rounded-full"
+                  onClick={() => setCreateOpen(true)}
+                >
+                  <Plus className="size-4" />
+                  {t('newCharacter')}
+                </Button>
+              }
+            />
+          )}
         </div>
-      ) : null}
 
-      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-        <DialogContent className="max-h-svh overflow-y-auto sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>{t('newCharacter')}</DialogTitle>
-          </DialogHeader>
-          <CharacterCardCreateForm
-            onSubmit={handleCreate}
-            onCancel={() => setCreateOpen(false)}
-            isSubmitting={isCreating}
-          />
-        </DialogContent>
-      </Dialog>
-    </div>
+        {detailVisible ? (
+          <div
+            className={cn(
+              'pointer-events-none absolute inset-0 z-10',
+              moving && 'drop-shadow-xl',
+            )}
+          >
+            <motion.div
+              style={{ clipPath: reveal.clipPath }}
+              className="absolute inset-0 bg-background"
+            >
+              {moving ? (
+                <motion.div
+                  aria-hidden
+                  style={{ opacity: tintIn }}
+                  className="absolute inset-0 z-10 bg-muted"
+                >
+                  {selected.referenceSlots[0]?.url ? (
+                    <Image
+                      src={selected.referenceSlots[0].url}
+                      alt=""
+                      fill
+                      sizes="100vw"
+                      className="object-cover"
+                    />
+                  ) : null}
+                </motion.div>
+              ) : null}
+              <div
+                role="region"
+                aria-label={selected.name}
+                className="pointer-events-auto absolute inset-0"
+              >
+                <CharacterDetail
+                  key={selected.id}
+                  card={selected}
+                  entry={directCut ? 'static' : 'open'}
+                  closing={closing}
+                  onClose={closeDetail}
+                  onUpdate={(data) => characters.update(selected.id, data)}
+                  onDelete={() => deleteCharacter(selected.id)}
+                />
+              </div>
+            </motion.div>
+          </div>
+        ) : null}
+
+        <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+          <DialogContent className="max-h-svh overflow-y-auto sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>{t('newCharacter')}</DialogTitle>
+            </DialogHeader>
+            <CharacterCardCreateForm
+              onSubmit={handleCreate}
+              onCancel={() => setCreateOpen(false)}
+              isSubmitting={isCreating}
+            />
+          </DialogContent>
+        </Dialog>
+      </div>
+      <StudioOperatorDock />
+    </StudioOperatorHostProvider>
   )
 }

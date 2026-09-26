@@ -437,6 +437,7 @@ import {
   type AssistantOperatorRoundSummaryDraft,
   type AssistantOperatorSearchResultAsset,
   type AssistantOperatorCanvasSnapshot,
+  type AssistantOperatorCardsSnapshot,
   type AssistantOperatorCanvasNode,
   type AssistantOperatorSnapshot,
   type AssistantOperatorSnapshotCapability,
@@ -621,6 +622,8 @@ interface OperatorWorkingState {
   loraMaxWeight: number
   /** ⚠ 缺席 = 这个宿主不是画布（进度表 22）。 */
   canvas: AssistantOperatorCanvasSnapshot | undefined
+  /** ⚠ 缺席 = 这个宿主不是角色页（卡片助手 · 第五张脸）。 */
+  cards: AssistantOperatorCardsSnapshot | undefined
 }
 
 /**
@@ -701,6 +704,8 @@ function toWorkingState(
      * 缺席 = 这个宿主不是画布。
      */
     canvas: snapshot.canvas,
+    /** 角色页快照同样原样带着：列表已按张数排好、设定已截断。 */
+    cards: snapshot.cards,
   }
 }
 
@@ -1334,6 +1339,23 @@ function renderState(
 ): string {
   const { state, request } = run
   const lines: string[] = []
+
+  /**
+   * 角色页（卡片助手）：没有表单，只有「这页上有谁」和「打开着的那一位」。
+   * ⚠ C1 只读 —— 写设定 / 挂图是后面两片的专属工具，这里要把「现在还不能替你写进
+   * 角色」说清楚，免得模型声称改过了。
+   */
+  if (request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.cards) {
+    const cards = state.cards
+    return [
+      'CHARACTERS PAGE — no prompt form here. You see the characters on this page and the full profile of the one that is open.',
+      `Characters (${cards?.total ?? 0} in total, most images first): ${JSON.stringify(cards?.characters ?? [])}`,
+      cards?.open
+        ? `Open character: ${JSON.stringify(cards.open)}`
+        : 'No character is open — the creator is on the overview.',
+      'You cannot edit a character from here yet: never claim you changed a profile, tags or images. Put drafted profile text in your reply for the creator to copy into Edit.',
+    ].join('\n')
+  }
 
   if (request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas) {
     return [
@@ -8296,6 +8318,12 @@ function buildOperatorSystemPrompt(
       : null,
     ['image', 'canvas'].includes(request.domain)
       ? '- CHARACTER EVIDENCE: Judge whether the references support this requested output, region by region: face, upper body, full-body proportions, legs, side and back. A clear face or visible coat does not establish body proportions underneath; perspective or partial legs do not establish full leg length. For faithful reconstruction, if a necessary region lacks evidence, ask once whether to add a reference or allow design completion for that region. If completion is already authorized, proceed and label only those parts as proposed design; do not repeat the question. Unknown legs do not block a portrait. Approval of a face applies only to that face and exact result version; preserve it while correcting rejected body or legs, and never promote a rejected generated region to source evidence.'
+      : null,
+    request.domain === ASSISTANT_PROTOCOL_DOMAIN_IDS.cards
+      ? `- CHARACTER PROFILES: A profile has four parts — identity (who they are, one or two lines), behaviour (what they DO in concrete situations, never adjectives: "holds the umbrella over others first" beats "gentle"), way of speaking (how they address people, habits, sample phrasing) and history. Appearance belongs to the images and tags, not the profile.
+- CANON CHARACTERS: research before writing (use research; the wiki and Danbooru are available). Tie every fact to where it came from and say which source each line rests on; write the history the way the source tells it. Canon and fan adaptations are not distinguished. If sources disagree or the series has several forms of the character, say so and ask which one.
+- ORIGINAL CHARACTERS: do not write a full profile straight away. Offer two or three one-line directions that differ in how the character behaves, let the creator pick, then expand. When the creator wrote a skeleton of the history, keep their words and clearly mark what you added.
+- IMAGES: you never generate images. When the creator needs a new image of this character, say what image is missing and that the image assistant makes it (with a rough price); do not pretend you can. You may search the asset library or the web for existing images and say which ones show the character clearly (single character, large enough, no text, one form).`
       : null,
     request.domain === 'lora'
       ? '- LORA VISUAL WORK: use analyze_references to inspect mounted source images before adapting their visual details into a prompt. Reuse complete visual evidence for unchanged image URLs. Separate character identity, composition and rendering style; translate these facts into the selected base family dialect, not @Image tokens in the diffusion prompt. Use critique_result on a result explicitly @-mentioned by the creator, comparing it with source references and the stated goal. Source images are references, never failed generations.'

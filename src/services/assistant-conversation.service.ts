@@ -167,11 +167,13 @@ export async function listAssistantConversations(
 
   /**
    * ⚠ 工作台的操作员线程三个域合并成一个列表；画布**单独、按项目分**（D12 U7），
-   * ⛔ 不并进工作台那一份。
+   * 卡片助手也单独一份（owner 09-26），⛔ 都不并进工作台那一份。
    */
-  const canvas = args.surface === ASSISTANT_SURFACE_IDS.nodeCanvas
+  const isolated =
+    args.surface === ASSISTANT_SURFACE_IDS.nodeCanvas ||
+    args.surface === ASSISTANT_SURFACE_IDS.cards
   const surfaces =
-    args.operatorOnly && !canvas
+    args.operatorOnly && !isolated
       ? [
           ASSISTANT_SURFACE_IDS.imageStudio,
           ASSISTANT_SURFACE_IDS.videoStudio,
@@ -188,7 +190,7 @@ export async function listAssistantConversations(
     FROM "AssistantConversation"
     WHERE "userId" = ${user.id}
       AND "surface" IN (${Prisma.join(surfaces.map((surface) => Prisma.sql`${surface}::"AssistantSurface"`))})
-      ${canvas && args.projectId ? Prisma.sql`AND "projectId" = ${args.projectId}` : Prisma.empty}
+      ${args.surface === ASSISTANT_SURFACE_IDS.nodeCanvas && args.projectId ? Prisma.sql`AND "projectId" = ${args.projectId}` : Prisma.empty}
       ${args.operatorOnly ? Prisma.sql`AND ${operatorPayload}` : Prisma.empty}
     ORDER BY "updatedAt" DESC
     LIMIT ${limit}

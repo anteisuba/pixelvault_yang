@@ -407,3 +407,35 @@ describe('会话按画布项目分（D12 U7）', () => {
     expect(store.getOperatorState().threadScope).toBe('canvas:canvas-project-1')
   })
 })
+
+/**
+ * 卡片助手（第五张脸，owner 09-26）：会话单独一份，只在角色页里看得到。
+ */
+describe('卡片助手的会话单独一份（owner 09-26）', () => {
+  it('只列 CARDS 的会话，存的时候落 CARDS；从工作台过来整条线程换掉', async () => {
+    const studio = await mount()
+    say('user-1', '出一张橘猫')
+    await settleDebounce()
+    studio.unmount()
+    upsertMock.mockClear()
+
+    const rendered = renderHook(() =>
+      historyHook.useStudioOperatorHistory(undefined, 'cards'),
+    )
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+    expect(listMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ surface: 'CARDS', operatorOnly: true }),
+    )
+    expect(store.getOperatorState().entries).toHaveLength(0)
+    expect(store.getOperatorState().threadScope).toBe('CARDS')
+
+    say('user-2', '查一下达妮娅的设定')
+    await settleDebounce()
+    const payload = upsertMock.mock
+      .calls[0]?.[0] as UpsertAssistantConversationRequest
+    expect(payload.surface).toBe('CARDS')
+    rendered.unmount()
+  })
+})

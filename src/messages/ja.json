@@ -7352,7 +7352,8 @@
       "image": "画像ワークスペース",
       "video": "動画ワークスペース",
       "lora": "LoRA ワークスペース",
-      "canvas": "キャンバス"
+      "canvas": "キャンバス",
+      "cards": "キャラクターページ"
     },
     "session": "セッション",
     "newThread": "新しい会話",
@@ -7836,7 +7837,11 @@
         "refToCharacter": "参考画像からキャラ素材を作る",
         "assetsToBoard": "素材で絵コンテを組む",
         "boardToVideo": "絵コンテから動画に",
-        "autoWire": "つなぎ方はおまかせ"
+        "autoWire": "つなぎ方はおまかせ",
+        "researchProfile": "キャラの設定を調べて",
+        "originalCharacter": "オリジナルキャラを一緒に考えて",
+        "findImages": "このキャラの画像を探して",
+        "checkImages": "どの画像を見た目の基準にできる？"
       },
       "image": {
         "empty": "欲しい画を言ってください。プロンプト・モデル・参考はこちらで用意します。",
@@ -7857,6 +7862,12 @@
         "empty": "脚本でも参考画像でも一言でも。絵コンテに並べて、つないで仕上げます。",
         "placeholder": "続けて話すか、素材を入れて…",
         "context": "{project} · {count} 個のノードを選択中"
+      },
+      "cards": {
+        "empty": "キャラ名を教えてくれれば、設定を調べて画像を探します。オリジナルなら、まず方向性をいくつか出します。",
+        "placeholder": "キャラ名、または作りたいオリジナルキャラを…",
+        "context": "{count} 人のキャラクター",
+        "contextOpen": "{name} を表示中"
       }
     },
     "autoGenerate": {

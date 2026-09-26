@@ -7352,7 +7352,8 @@
       "image": "图片工作台",
       "video": "视频工作台",
       "lora": "LoRA 工作台",
-      "canvas": "画布"
+      "canvas": "画布",
+      "cards": "角色页"
     },
     "session": "会话",
     "newThread": "新对话",
@@ -7836,7 +7837,11 @@
         "refToCharacter": "从参考图做角色资产",
         "assetsToBoard": "用资产排分镜",
         "boardToVideo": "分镜出视频",
-        "autoWire": "帮我连线"
+        "autoWire": "帮我连线",
+        "researchProfile": "帮我查一个角色的设定",
+        "originalCharacter": "帮我想一个原创角色",
+        "findImages": "给这个角色找几张图",
+        "checkImages": "看看哪张图能当身份图"
       },
       "image": {
         "empty": "说你想要的画面，我来写提示词、挑模型、配参考。",
@@ -7857,6 +7862,12 @@
         "empty": "从剧本、参考图或一句话开始，我把它排成分镜、连成片。",
         "placeholder": "继续说，或把素材挂进来…",
         "context": "{project} · 选中 {count} 个节点"
+      },
+      "cards": {
+        "empty": "说一个角色名，我去查设定、找图；原创的话，我先给你几个方向。",
+        "placeholder": "说个角色名，或者说说你想要的原创角色…",
+        "context": "{count} 位角色",
+        "contextOpen": "正在看 {name}"
       }
     },
     "autoGenerate": {

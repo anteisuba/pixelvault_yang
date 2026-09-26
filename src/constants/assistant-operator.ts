@@ -1527,6 +1527,7 @@ export const ASSISTANT_OPERATOR_DOMAINS = [
   ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS.cards,
 ] as const satisfies readonly AssistantProtocolDomain[]
 
 export type AssistantOperatorDomain =
@@ -1806,6 +1807,24 @@ export const ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN: Record<
     ASSISTANT_OPERATOR_TOOL_IDS.canvasPlanRerun,
     ASSISTANT_OPERATOR_TOOL_IDS.canvasGenerate,
   ],
+  /**
+   * 卡片助手（第五张脸，owner 09-26）—— C1 只有**读 / 查**：读角色页快照、翻素材库、
+   * 联网查设定（带来源）、找图、翻证据本。
+   * ⛔ 没有表单旋钮（`set_prompt` 那一族）：角色页上没有提示词框。
+   * ⛔ 没有花钱档：卡片助手自己不出图，要出图就交给图片助手（C3）。
+   * ⚠ 写设定、挂图这两件写操作分别在 C2 / C3 以专属工具进表，⛔ 不借别的域的工具。
+   */
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: [
+    ASSISTANT_OPERATOR_TOOL_IDS.readState,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchAssets,
+    ASSISTANT_OPERATOR_TOOL_IDS.listAssetFolders,
+    ASSISTANT_OPERATOR_TOOL_IDS.inspectAssetFolder,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWebImages,
+    ASSISTANT_OPERATOR_TOOL_IDS.searchWeb,
+    ASSISTANT_OPERATOR_TOOL_IDS.research,
+    ASSISTANT_OPERATOR_TOOL_IDS.readUrl,
+    ASSISTANT_OPERATOR_TOOL_IDS.recallEvidence,
+  ],
 }
 
 /**
@@ -1869,6 +1888,22 @@ export function isAssistantOperatorToolInDomain(
 ): boolean {
   return ASSISTANT_OPERATOR_TOOLS_BY_DOMAIN[domain].includes(tool)
 }
+
+/**
+ * 卡片助手（第五张脸）读的**角色页快照**上限。
+ *
+ * ⚠ 角色列表只给「是谁 · 哪部作品 · 几张图 · 写没写设定」：模型要的是「这页上有谁」，
+ * 整份设定只给**打开着的那一位**（用户多半在问她）。其余角色要细看用 `read_state`
+ * 以外的办法（C2 起有专属工具），⛔ 不把一百份设定全塞进每一步的提示。
+ */
+export const ASSISTANT_OPERATOR_CARDS_LIMITS = {
+  /** 列表最多列几位（超出按张数截，列表头会写总数）。 */
+  maxCharacters: 120,
+  /** 打开那一位每格设定最多带多少字。 */
+  maxFieldChars: 2_000,
+  /** 标签最多带几条。 */
+  maxTags: 40,
+} as const
 
 /**
  * 画布域的几个上限（进度表 22）。

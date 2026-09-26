@@ -1225,6 +1225,82 @@ describe('read_state', () => {
     expect(toolRingCalls()[0].userPrompt).toContain('source-image')
   })
 
+  it('卡片助手：读到角色页上有谁与打开那一位的设定；规则写明查设定带来源、原创先给方向、自己不出图', async () => {
+    queueTurns(
+      {
+        tool: {
+          name: ASSISTANT_OPERATOR_TOOL_IDS.readState,
+          title: '读角色页',
+          args: {},
+        },
+      },
+      { finished: true },
+    )
+    const openDenia = {
+      id: 'denia',
+      name: 'Denia',
+      work: '鸣潮',
+      imageCount: 6,
+      hasProfile: true,
+      look: '粉发红眼',
+      identity: '舞台魔术师',
+      behavior: '先替别人撑好伞',
+      speech: '叫对方「观众先生」',
+      backstory: '',
+      characterTags: ['denia_(wuthering_waves)'],
+      appearanceTags: ['pink_hair'],
+      loraTrigger: '',
+      imagesOnCard: 1,
+    }
+    const events = await collect(
+      runAssistantOperator(
+        'clerk-1',
+        buildRequest({
+          domain: 'cards',
+          snapshot: {
+            prompt: '',
+            availableModels: [],
+            cards: {
+              total: 2,
+              characters: [
+                {
+                  id: 'denia',
+                  name: 'Denia',
+                  work: '鸣潮',
+                  imageCount: 6,
+                  hasProfile: true,
+                },
+                {
+                  id: 'rixi',
+                  name: '里希',
+                  work: null,
+                  imageCount: 1,
+                  hasProfile: false,
+                },
+              ],
+              open: openDenia,
+            },
+          },
+        }),
+      ),
+    )
+    const done = stepsOf(events).find((step) => step.status === 'done')
+    const digest = (done?.result as { digest: string }).digest
+    expect(digest).toContain('CHARACTERS PAGE')
+    expect(digest).toContain('里希')
+    expect(digest).toContain('先替别人撑好伞')
+    expect(digest).toContain('never claim you changed a profile')
+    const prompt = systemPrompt()
+    expect(prompt).toContain('CHARACTER PROFILES')
+    expect(prompt).toContain('Offer two or three one-line directions')
+    expect(prompt).toContain('you never generate images')
+    // 卡片域没有表单旋钮：工具表里不列 set_prompt / prime_generate，只有看、查、问。
+    expect(prompt).toContain('· verify —')
+    expect(prompt).toContain('· find_images —')
+    expect(prompt).not.toContain('· set_prompt —')
+    expect(prompt).not.toContain('· prime_generate —')
+  })
+
   it.each([false, true])(
     '创建节点即使附带 finished=%s 也必须执行，再同步客户端快照',
     async (finished) => {

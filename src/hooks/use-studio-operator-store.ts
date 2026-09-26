@@ -307,6 +307,7 @@ const slices: Record<AssistantOperatorDomain, StudioOperatorDomainSlice> = {
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: EMPTY_SLICE,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: EMPTY_SLICE,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: EMPTY_SLICE,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: EMPTY_SLICE,
 }
 
 let state: StudioOperatorState = INITIAL_STATE

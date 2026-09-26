@@ -334,7 +334,7 @@ export function StudioOperatorDock() {
    * 下场是每展开一次就去库里覆盖一遍当前线程。落库的防抖同理：一轮流跑完那一拍
    * 常常发生在面板已经让位之后（点生成键 = 点工作台 = 收面板）。
    */
-  const history = useStudioOperatorHistory(hostProjectId)
+  const history = useStudioOperatorHistory(hostProjectId, hostDomain)
   /**
    * ⭐ **persona 全树只拉这一次**（§8）：头像（时间线沟）、问候语、以及「先问我」
    * 的初始态读的都是它。⛔ 别在面板 / 头像组件里各调一次 `useAssistantPersona()`

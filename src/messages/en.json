@@ -7352,7 +7352,8 @@
       "image": "the image workspace",
       "video": "the video workspace",
       "lora": "the LoRA workspace",
-      "canvas": "the canvas"
+      "canvas": "the canvas",
+      "cards": "the Characters page"
     },
     "session": "Session",
     "newThread": "New chat",
@@ -7836,7 +7837,11 @@
         "refToCharacter": "Make a character asset from this reference",
         "assetsToBoard": "Build a storyboard from my assets",
         "boardToVideo": "Turn the storyboard into video",
-        "autoWire": "Wire it up for me"
+        "autoWire": "Wire it up for me",
+        "researchProfile": "Look up a character's profile",
+        "originalCharacter": "Help me invent an original character",
+        "findImages": "Find a few images of this character",
+        "checkImages": "Which image works as the identity image?"
       },
       "image": {
         "empty": "Tell me the picture you want — I will write the prompt, pick the model, set the references.",
@@ -7857,6 +7862,12 @@
         "empty": "Start from a script, a reference or a sentence — I will board it and wire it together.",
         "placeholder": "Keep going, or drop material in…",
         "context": "{project} · {count} nodes selected"
+      },
+      "cards": {
+        "empty": "Name a character and I'll look up their profile and find images; for an original, I'll start with a few directions.",
+        "placeholder": "Name a character, or describe an original…",
+        "context": "{count, plural, one {# character} other {# characters}}",
+        "contextOpen": "Looking at {name}"
       }
     },
     "autoGenerate": {

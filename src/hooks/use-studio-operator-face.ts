@@ -21,6 +21,7 @@ import {
   Clapperboard,
   ImageIcon,
   Layers,
+  UserRound,
   Waypoints,
   type LucideIcon,
 } from '@/components/icons'
@@ -43,6 +44,7 @@ const DOMAIN_ICONS: Readonly<Record<AssistantOperatorDomain, LucideIcon>> = {
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.video]: Clapperboard,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.lora]: Layers,
   [ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas]: Waypoints,
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: UserRound,
 }
 
 /**

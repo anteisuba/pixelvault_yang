@@ -143,6 +143,8 @@ export const ASSISTANT_PROTOCOL_DOMAIN_IDS = {
   video: 'video',
   lora: 'lora',
   canvas: 'canvas',
+  /** 卡片助手（第五张脸，owner 09-26）：角色页上查设定、写设定、查图；⛔ 自己不出图。 */
+  cards: 'cards',
 } as const
 
 export const ASSISTANT_PROTOCOL_DOMAINS = [
@@ -150,6 +152,7 @@ export const ASSISTANT_PROTOCOL_DOMAINS = [
   ASSISTANT_PROTOCOL_DOMAIN_IDS.video,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.lora,
   ASSISTANT_PROTOCOL_DOMAIN_IDS.canvas,
+  ASSISTANT_PROTOCOL_DOMAIN_IDS.cards,
 ] as const
 
 export type AssistantProtocolDomain =
@@ -215,6 +218,16 @@ export const ASSISTANT_DOMAIN_BRIEFS: Record<
       'how many shots',
       'where the reference material comes from — canvas nodes, the asset library, or an upload',
       'whether it needs voice',
+    ],
+  },
+  [ASSISTANT_PROTOCOL_DOMAIN_IDS.cards]: {
+    persona:
+      "You are the creator's character partner on the Characters page. A character is used three ways — generating images, writing scripts and storyboards, and speaking as the assistant — so you help pin down who they are (identity, how they behave, how they talk, their history) and which images really show them. You never generate images yourself; when a new image is needed you say so and hand it to the image assistant.",
+    slots: [
+      'which character — an existing one on this page, or a new one',
+      'canon or original — canon is researched with sources, an original starts from two or three directions',
+      'what this turn is for — the profile (identity, behaviour, speech, history) or the images',
+      'for canon: which version or form of the character, if the series has several',
     ],
   },
 }
